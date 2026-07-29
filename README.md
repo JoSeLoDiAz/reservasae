@@ -5,12 +5,16 @@ Sistema de reserva de cupos para acciones de formación ofertadas bajo convenio.
 Estado actual: **despliegue base funcionando**. El modelo de datos, el formulario
 de inscripción y la autenticación llegan en la siguiente etapa.
 
+- **Producción:** <https://reservasae.com> — pendiente de publicar; los pasos
+  están en [docs/cloudflare.md](docs/cloudflare.md).
+- **Ruta en el servidor:** `/opt/sep/reservasae`
+
 ---
 
 ## Arquitectura
 
 ```
-Internet
+https://reservasae.com
    │
    ▼
 Cloudflare Tunnel (cloudflared, servicio del sistema)
