@@ -1,0 +1,16 @@
+{
+  "name": "reservasae",
+  "private": true,
+  "version": "1.0.0",
+  "packageManager": "pnpm@10.33.0",
+  "scripts": {
+    "dev:frontend": "pnpm --filter frontend dev",
+    "dev:backend": "pnpm --filter backend start:dev",
+    "build:frontend": "pnpm --filter frontend build",
+    "build:backend": "pnpm --filter backend build",
+    "build": "pnpm -r build",
+    "db:migrate": "pnpm --filter backend prisma migrate dev",
+    "db:studio": "pnpm --filter backend prisma studio",
+    "db:seed": "pnpm --filter backend prisma db seed"
+  }
+}
