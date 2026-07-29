@@ -16,6 +16,18 @@ que ya corre en este servidor y dejar HTTPS funcionando.
 > Cloudflare por conexión saliente y Cloudflare emite el certificado público.
 > No hay que abrir puertos ni renovar nada a mano.
 
+## Avance (29 jul 2026)
+
+- [x] **Fase 1** — `reservasae.com` añadido a Cloudflare (plan Free).
+- [x] **Fase 2** — Nameservers cambiados en Squarespace a
+      `alberto.ns.cloudflare.com` / `crystal.ns.cloudflare.com` y ya
+      propagados (mismo par que `ggpcsena.com`, o sea la misma cuenta).
+- [x] **Fase 3** — `cert.pem` reautorizado para la zona nueva y CNAME creados
+      para `reservasae.com` y `www.reservasae.com`.
+- [ ] **Fase 4** — Ingress en `/etc/cloudflared/config.yml` (requiere sudo).
+      El archivo ya está listo en [`cloudflared-config.yml`](cloudflared-config.yml).
+- [ ] **Fase 5** — SSL en *Full (strict)* y *Always Use HTTPS*.
+
 ---
 
 ## Fase 1 — Añadir el dominio a Cloudflare
