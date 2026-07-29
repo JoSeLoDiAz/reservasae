@@ -24,9 +24,32 @@ que ya corre en este servidor y dejar HTTPS funcionando.
       propagados (mismo par que `ggpcsena.com`, o sea la misma cuenta).
 - [x] **Fase 3** — `cert.pem` reautorizado para la zona nueva y CNAME creados
       para `reservasae.com` y `www.reservasae.com`.
-- [ ] **Fase 4** — Ingress en `/etc/cloudflared/config.yml` (requiere sudo).
-      El archivo ya está listo en [`cloudflared-config.yml`](cloudflared-config.yml).
-- [ ] **Fase 5** — SSL en *Full (strict)* y *Always Use HTTPS*.
+- [x] **Fase 4** — Ingress aplicado y `cloudflared` reiniciado. El archivo de
+      referencia es [`cloudflared-config.yml`](cloudflared-config.yml).
+- [ ] **Fase 5** — Falta activar *Always Use HTTPS* y confirmar
+      *Full (strict)*: `http://reservasae.com` todavía responde 200 en vez de
+      redirigir a HTTPS.
+
+**Verificado en producción el 29 jul 2026:**
+
+```
+https://reservasae.com/            → 200  Next.js
+https://reservasae.com/api/estado  → 200  {"servicio":"reservasae-backend","estado":"ok",...}
+https://reservasae.com/health      → 200  OK
+https://www.reservasae.com/        → 200  Next.js
+```
+
+> **Al verificar desde el propio servidor, cuidado con la caché DNS.**
+> `systemd-resolved` guarda las IPs viejas de Squarespace y `curl` sigue
+> yendo al parking page aunque el DNS público ya esté correcto. La pista es
+> que la respuesta trae `server: Squarespace` y **no** trae `cf-ray`: si
+> pasara por Cloudflare, siempre traería `cf-ray` y `server: cloudflare`.
+> Para saltarse la caché:
+>
+> ```bash
+> curl -sI --resolve reservasae.com:443:104.21.30.174 https://reservasae.com
+> sudo resolvectl flush-caches   # o esperar a que expire el TTL
+> ```
 
 ---
 
