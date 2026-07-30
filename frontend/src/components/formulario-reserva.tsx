@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { notFound } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 
 import {
@@ -59,6 +60,14 @@ export function FormularioReserva({ slug }: { slug: string }) {
       })
       .catch((e: ErrorApi) => {
         if (!vigente) return;
+        // Una ruta que no corresponde a ningún formulario publicado no debe
+        // enseñar un mensaje amable: eso confirmaría que aquí hay algo. Se
+        // manda al mismo 404 mudo que la raíz.
+        //
+        // Ojo: el documento inicial se sirvió con 200 y eso no cambia, porque
+        // la comprobación ocurre en el navegador. Lo que ve la persona sí es
+        // el 404, y a los buscadores los frena robots.txt.
+        if (e.estado === 404) notFound();
         setError(e.message);
         setEstado("no-disponible");
       });

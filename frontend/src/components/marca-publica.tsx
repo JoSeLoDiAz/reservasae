@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import {
   createContext,
   useCallback,
@@ -210,18 +209,20 @@ export function EncabezadoPublico({
   return (
     <header className="mb-8">
       <div className="flex flex-wrap items-center justify-between gap-4">
-        <Link href="/" className="inline-flex items-center gap-3">
+        {/* El logo NO enlaza a la raíz: la raíz devuelve 404 a propósito, no
+            hay índice público. Enlazarlo sería mandar a la gente a un error. */}
+        <div className="inline-flex items-center gap-3">
           {logo ? (
             // <img> y no <Image>: el logo lo sirve el backend con un tamaño que
             // no conocemos de antemano y ya viaja cacheado para siempre.
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={logo} alt={marca?.nombreApp ?? "Inicio"} className="h-10 w-auto" />
+            <img src={logo} alt={marca?.nombreApp ?? "Convoca"} className="h-10 w-auto" />
           ) : (
             <span className="text-sm font-medium text-marca">
               {marca?.nombreApp ?? "Convoca"}
             </span>
           )}
-        </Link>
+        </div>
         <ConmutadorTema compacto />
       </div>
 

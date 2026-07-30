@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useState } from "react";
 
 import { api, bonito, ErrorApi, type ConsultaPorNit } from "@/lib/api";
@@ -228,10 +227,3 @@ function TarjetaReserva({
   );
 }
 
-export function EnlaceInicio() {
-  return (
-    <Link href="/" className="text-sm text-marca hover:underline">
-      Convoca
-    </Link>
-  );
-}

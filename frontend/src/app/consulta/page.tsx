@@ -1,5 +1,3 @@
-import Link from "next/link";
-
 import { ConsultaReservas } from "@/components/consulta-reservas";
 
 export const metadata = { title: "Consultar mis reservas · Convoca" };
@@ -8,9 +6,8 @@ export default function PaginaConsulta() {
   return (
     <main className="mx-auto w-full max-w-3xl px-6 py-10">
       <header className="mb-8">
-        <Link href="/" className="text-sm text-marca hover:underline">
-          Convoca
-        </Link>
+        {/* Sin enlace a la raíz: devuelve 404 a propósito, no hay índice. */}
+        <span className="text-sm font-medium text-marca">Convoca</span>
         <h1 className="mt-2 text-3xl font-semibold tracking-tight">
           Consultar mis reservas
         </h1>
