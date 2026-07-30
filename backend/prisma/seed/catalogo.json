@@ -1,0 +1,2852 @@
+{
+  "sobrecupo": 0.3,
+  "nota": "Generado por scripts/extraer-catalogo.py desde docs/proyectos/. cuposMaximos ya incluye el 30% de sobrecupo por deserción.",
+  "convenios": [
+    {
+      "slug": "britcham-adee",
+      "entidad": {
+        "nombre": "UNION TEMPORAL BRITCHAM ADEE",
+        "sigla": "BRITCHAM ADEE",
+        "nit": "860505081",
+        "digitoVerificacion": "5",
+        "correo": "comercial2@britcham.com.co",
+        "telefono": "3268305",
+        "departamento": "BOGOTÁ D.C",
+        "ciudad": "BOGOTÁ",
+        "direccion": "CARRERA 9 NO. 76-49",
+        "paginaWeb": "https://britcham.com.co/"
+      },
+      "archivoOrigen": "06 - BRITCHAM - ADEE.xlsx",
+      "acciones": [
+        {
+          "codigo": "AF1",
+          "consecutivo": 1,
+          "orden": 1,
+          "nombre": "DESPLIEGUE DE AGENTES AUTÓNOMOS CON IA PARA LA MAXIMIZACIÓN DEL RENDIMIENTO ORGANIZACIONAL",
+          "modalidad": "VIRTUAL",
+          "evento": "CURSO",
+          "enfoque": "FORMACIÓN EN EL TRABAJO",
+          "metodologia": "TEÓRICO - PRÁCTICA",
+          "horas": 40,
+          "objetivo": "DESARROLLAR COMPETENCIAS TÉCNICAS Y METODOLÓGICAS EN LOS EQUIPOS DE LAS EMPRESAS AFILIADAS A BRITCHAM Y ADEE PARA DISEÑAR, IMPLEMENTAR Y GESTIONAR AGENTES AUTÓNOMOS DE INTELIGENCIA ARTIFICIAL APLICADOS A PROCESOS OPERATIVOS CRÍTICOS (GESTIÓN DE INVENTARIOS, ATENCIÓN AL CLIENTE Y ANÁLISIS DE INFORMACIÓN), LOGRANDO REDUCIR LA CARGA DE TAREAS REPETITIVAS, DISMINUIR LOS MÁRGENES DE ERROR OPERATIVO Y LIBERAR CAPACIDAD DEL TALENTO HUMANO HACIA ACTIVIDADES DE MAYOR VALOR ESTRATÉGICO, INCREMENTANDO ASÍ LA PRODUCTIVIDAD ORGANIZACIONAL Y LA CAPACIDAD DE RESPUESTA FRENTE A LAS EXIGENCIAS DEL MERCADO. ESTA ACCIÓN DE FORMACIÓN DA RESPUESTA PARCIAL A LA NECESIDAD DETECTADA Y A LOS RETOS DE FORMACIÓN DE BRITCHAM Y ADEE, Y SE ALINEA CON SUS OBJETOS SOCIALES DE FORTALECER LA COMPETITIVIDAD, PRODUCTIVIDAD E INNOVACIÓN DE SUS AFILIADOS, ASÍ COMO ACOMPAÑAR A LOS EMPRENDEDORES DESDE EL INICIO HASTA LA CONSOLIDACIÓN DE SUS NEGOCIOS, CONTRIBUYENDO A LA OPTIMIZACIÓN DE LA CADENA DE VALOR DEL SECTOR COMERCIO, RETAIL Y CONSUMO MASIVO.",
+          "ambiente": "AULA VIRTUAL",
+          "grupos": [
+            {
+              "numero": 1,
+              "sedeCiudad": null,
+              "sedeDepartamento": null,
+              "coberturas": [
+                {
+                  "ubicacion": "BOGOTÁ D.C",
+                  "tipo": "DEPARTAMENTO",
+                  "departamento": "BOGOTÁ D.C",
+                  "modalidad": "VIRTUAL",
+                  "cuposBase": 50,
+                  "cuposMaximos": 65
+                }
+              ]
+            },
+            {
+              "numero": 2,
+              "sedeCiudad": null,
+              "sedeDepartamento": null,
+              "coberturas": [
+                {
+                  "ubicacion": "BOGOTÁ D.C",
+                  "tipo": "DEPARTAMENTO",
+                  "departamento": "BOGOTÁ D.C",
+                  "modalidad": "VIRTUAL",
+                  "cuposBase": 50,
+                  "cuposMaximos": 65
+                }
+              ]
+            },
+            {
+              "numero": 3,
+              "sedeCiudad": null,
+              "sedeDepartamento": null,
+              "coberturas": [
+                {
+                  "ubicacion": "VALLE DEL CAUCA",
+                  "tipo": "DEPARTAMENTO",
+                  "departamento": "VALLE DEL CAUCA",
+                  "modalidad": "VIRTUAL",
+                  "cuposBase": 30,
+                  "cuposMaximos": 39
+                },
+                {
+                  "ubicacion": "CALDAS",
+                  "tipo": "DEPARTAMENTO",
+                  "departamento": "CALDAS",
+                  "modalidad": "VIRTUAL",
+                  "cuposBase": 10,
+                  "cuposMaximos": 13
+                },
+                {
+                  "ubicacion": "RISARALDA",
+                  "tipo": "DEPARTAMENTO",
+                  "departamento": "RISARALDA",
+                  "modalidad": "VIRTUAL",
+                  "cuposBase": 10,
+                  "cuposMaximos": 13
+                }
+              ]
+            },
+            {
+              "numero": 4,
+              "sedeCiudad": null,
+              "sedeDepartamento": null,
+              "coberturas": [
+                {
+                  "ubicacion": "ANTIOQUIA",
+                  "tipo": "DEPARTAMENTO",
+                  "departamento": "ANTIOQUIA",
+                  "modalidad": "VIRTUAL",
+                  "cuposBase": 50,
+                  "cuposMaximos": 65
+                }
+              ]
+            },
+            {
+              "numero": 5,
+              "sedeCiudad": null,
+              "sedeDepartamento": null,
+              "coberturas": [
+                {
+                  "ubicacion": "ATLÁNTICO",
+                  "tipo": "DEPARTAMENTO",
+                  "departamento": "ATLÁNTICO",
+                  "modalidad": "VIRTUAL",
+                  "cuposBase": 30,
+                  "cuposMaximos": 39
+                },
+                {
+                  "ubicacion": "MAGDALENA",
+                  "tipo": "DEPARTAMENTO",
+                  "departamento": "MAGDALENA",
+                  "modalidad": "VIRTUAL",
+                  "cuposBase": 10,
+                  "cuposMaximos": 13
+                },
+                {
+                  "ubicacion": "CÓRDOBA",
+                  "tipo": "DEPARTAMENTO",
+                  "departamento": "CÓRDOBA",
+                  "modalidad": "VIRTUAL",
+                  "cuposBase": 10,
+                  "cuposMaximos": 13
+                }
+              ]
+            },
+            {
+              "numero": 6,
+              "sedeCiudad": null,
+              "sedeDepartamento": null,
+              "coberturas": [
+                {
+                  "ubicacion": "CUNDINAMARCA",
+                  "tipo": "DEPARTAMENTO",
+                  "departamento": "CUNDINAMARCA",
+                  "modalidad": "VIRTUAL",
+                  "cuposBase": 40,
+                  "cuposMaximos": 52
+                },
+                {
+                  "ubicacion": "CASANARE",
+                  "tipo": "DEPARTAMENTO",
+                  "departamento": "CASANARE",
+                  "modalidad": "VIRTUAL",
+                  "cuposBase": 10,
+                  "cuposMaximos": 13
+                }
+              ]
+            },
+            {
+              "numero": 7,
+              "sedeCiudad": null,
+              "sedeDepartamento": null,
+              "coberturas": [
+                {
+                  "ubicacion": "SANTANDER",
+                  "tipo": "DEPARTAMENTO",
+                  "departamento": "SANTANDER",
+                  "modalidad": "VIRTUAL",
+                  "cuposBase": 20,
+                  "cuposMaximos": 26
+                },
+                {
+                  "ubicacion": "AMAZONAS",
+                  "tipo": "DEPARTAMENTO",
+                  "departamento": "AMAZONAS",
+                  "modalidad": "VIRTUAL",
+                  "cuposBase": 10,
+                  "cuposMaximos": 13
+                },
+                {
+                  "ubicacion": "NORTE DE SANTANDER",
+                  "tipo": "DEPARTAMENTO",
+                  "departamento": "NORTE DE SANTANDER",
+                  "modalidad": "VIRTUAL",
+                  "cuposBase": 20,
+                  "cuposMaximos": 26
+                }
+              ]
+            },
+            {
+              "numero": 8,
+              "sedeCiudad": null,
+              "sedeDepartamento": null,
+              "coberturas": [
+                {
+                  "ubicacion": "BOLÍVAR",
+                  "tipo": "DEPARTAMENTO",
+                  "departamento": "BOLÍVAR",
+                  "modalidad": "VIRTUAL",
+                  "cuposBase": 50,
+                  "cuposMaximos": 65
+                }
+              ]
+            }
+          ],
+          "ofertas": [
+            {
+              "ubicacion": "AMAZONAS",
+              "tipo": "DEPARTAMENTO",
+              "departamento": "AMAZONAS",
+              "modalidad": "VIRTUAL",
+              "cuposBase": 10,
+              "cuposMaximos": 13,
+              "grupos": [
+                7
+              ]
+            },
+            {
+              "ubicacion": "ANTIOQUIA",
+              "tipo": "DEPARTAMENTO",
+              "departamento": "ANTIOQUIA",
+              "modalidad": "VIRTUAL",
+              "cuposBase": 50,
+              "cuposMaximos": 65,
+              "grupos": [
+                4
+              ]
+            },
+            {
+              "ubicacion": "ATLÁNTICO",
+              "tipo": "DEPARTAMENTO",
+              "departamento": "ATLÁNTICO",
+              "modalidad": "VIRTUAL",
+              "cuposBase": 30,
+              "cuposMaximos": 39,
+              "grupos": [
+                5
+              ]
+            },
+            {
+              "ubicacion": "BOGOTÁ D.C",
+              "tipo": "DEPARTAMENTO",
+              "departamento": "BOGOTÁ D.C",
+              "modalidad": "VIRTUAL",
+              "cuposBase": 100,
+              "cuposMaximos": 130,
+              "grupos": [
+                1,
+                2
+              ]
+            },
+            {
+              "ubicacion": "BOLÍVAR",
+              "tipo": "DEPARTAMENTO",
+              "departamento": "BOLÍVAR",
+              "modalidad": "VIRTUAL",
+              "cuposBase": 50,
+              "cuposMaximos": 65,
+              "grupos": [
+                8
+              ]
+            },
+            {
+              "ubicacion": "CALDAS",
+              "tipo": "DEPARTAMENTO",
+              "departamento": "CALDAS",
+              "modalidad": "VIRTUAL",
+              "cuposBase": 10,
+              "cuposMaximos": 13,
+              "grupos": [
+                3
+              ]
+            },
+            {
+              "ubicacion": "CASANARE",
+              "tipo": "DEPARTAMENTO",
+              "departamento": "CASANARE",
+              "modalidad": "VIRTUAL",
+              "cuposBase": 10,
+              "cuposMaximos": 13,
+              "grupos": [
+                6
+              ]
+            },
+            {
+              "ubicacion": "CUNDINAMARCA",
+              "tipo": "DEPARTAMENTO",
+              "departamento": "CUNDINAMARCA",
+              "modalidad": "VIRTUAL",
+              "cuposBase": 40,
+              "cuposMaximos": 52,
+              "grupos": [
+                6
+              ]
+            },
+            {
+              "ubicacion": "CÓRDOBA",
+              "tipo": "DEPARTAMENTO",
+              "departamento": "CÓRDOBA",
+              "modalidad": "VIRTUAL",
+              "cuposBase": 10,
+              "cuposMaximos": 13,
+              "grupos": [
+                5
+              ]
+            },
+            {
+              "ubicacion": "MAGDALENA",
+              "tipo": "DEPARTAMENTO",
+              "departamento": "MAGDALENA",
+              "modalidad": "VIRTUAL",
+              "cuposBase": 10,
+              "cuposMaximos": 13,
+              "grupos": [
+                5
+              ]
+            },
+            {
+              "ubicacion": "NORTE DE SANTANDER",
+              "tipo": "DEPARTAMENTO",
+              "departamento": "NORTE DE SANTANDER",
+              "modalidad": "VIRTUAL",
+              "cuposBase": 20,
+              "cuposMaximos": 26,
+              "grupos": [
+                7
+              ]
+            },
+            {
+              "ubicacion": "RISARALDA",
+              "tipo": "DEPARTAMENTO",
+              "departamento": "RISARALDA",
+              "modalidad": "VIRTUAL",
+              "cuposBase": 10,
+              "cuposMaximos": 13,
+              "grupos": [
+                3
+              ]
+            },
+            {
+              "ubicacion": "SANTANDER",
+              "tipo": "DEPARTAMENTO",
+              "departamento": "SANTANDER",
+              "modalidad": "VIRTUAL",
+              "cuposBase": 20,
+              "cuposMaximos": 26,
+              "grupos": [
+                7
+              ]
+            },
+            {
+              "ubicacion": "VALLE DEL CAUCA",
+              "tipo": "DEPARTAMENTO",
+              "departamento": "VALLE DEL CAUCA",
+              "modalidad": "VIRTUAL",
+              "cuposBase": 30,
+              "cuposMaximos": 39,
+              "grupos": [
+                3
+              ]
+            }
+          ]
+        },
+        {
+          "codigo": "AF2",
+          "consecutivo": 2,
+          "orden": 2,
+          "nombre": "ARQUITECTURA FINANCIERA: VISUALIZACION PREDICTIVA Y MODELADO CON IA GENERATIVA",
+          "modalidad": "VIRTUAL",
+          "evento": "CURSO",
+          "enfoque": "FORMACIÓN EN EL TRABAJO",
+          "metodologia": "TEÓRICO - PRÁCTICA",
+          "horas": 40,
+          "objetivo": "CAPACITAR A PROFESIONALES DE DISTINTAS ÁREAS DE LA ORGANIZACIÓN EN LA ESTRUCTURACIÓN DE MODELOS DE PROYECCIÓN FINANCIERA Y EN EL USO DE HERRAMIENTAS DE IA GENERATIVA PARA LA VISUALIZACIÓN PREDICTIVA Y EL MODELADO DE ESCENARIOS, CON EL FIN DE FORTALECER LA CAPACIDAD DE LAS EMPRESAS PARA ANTICIPAR RIESGOS DE FLUJO DE CAJA, SUSTENTAR PROCESOS DE INVERSIÓN Y OPTIMIZAR LA PLANEACIÓN ESTRATÉGICA, IMPACTANDO POSITIVAMENTE EN LA PRODUCTIVIDAD Y COMPETITIVIDAD DEL SECTOR. ESTA ACCIÓN DE FORMACIÓN DA RESPUESTA PARCIAL A LA NECESIDAD DETECTADA Y A LOS RETOS DE FORMACIÓN DEL GREMIO (BRITCHAM Y ADEE) Y SE ALINEA CON SU OBJETO SOCIAL DE PROMOVER LA COMPETITIVIDAD Y EL DESARROLLO EMPRESARIAL MEDIANTE LA INNOVACIÓN Y LA TRANSFERENCIA DE CONOCIMIENTO.",
+          "ambiente": "AULA VIRTUAL",
+          "grupos": [
+            {
+              "numero": 1,
+              "sedeCiudad": null,
+              "sedeDepartamento": null,
+              "coberturas": [
+                {
+                  "ubicacion": "BOGOTÁ D.C",
+                  "tipo": "DEPARTAMENTO",
+                  "departamento": "BOGOTÁ D.C",
+                  "modalidad": "VIRTUAL",
+                  "cuposBase": 50,
+                  "cuposMaximos": 65
+                }
+              ]
+            },
+            {
+              "numero": 2,
+              "sedeCiudad": null,
+              "sedeDepartamento": null,
+              "coberturas": [
+                {
+                  "ubicacion": "BOGOTÁ D.C",
+                  "tipo": "DEPARTAMENTO",
+                  "departamento": "BOGOTÁ D.C",
+                  "modalidad": "VIRTUAL",
+                  "cuposBase": 50,
+                  "cuposMaximos": 65
+                }
+              ]
+            },
+            {
+              "numero": 3,
+              "sedeCiudad": null,
+              "sedeDepartamento": null,
+              "coberturas": [
+                {
+                  "ubicacion": "VALLE DEL CAUCA",
+                  "tipo": "DEPARTAMENTO",
+                  "departamento": "VALLE DEL CAUCA",
+                  "modalidad": "VIRTUAL",
+                  "cuposBase": 30,
+                  "cuposMaximos": 39
+                },
+                {
+                  "ubicacion": "CALDAS",
+                  "tipo": "DEPARTAMENTO",
+                  "departamento": "CALDAS",
+                  "modalidad": "VIRTUAL",
+                  "cuposBase": 10,
+                  "cuposMaximos": 13
+                },
+                {
+                  "ubicacion": "RISARALDA",
+                  "tipo": "DEPARTAMENTO",
+                  "departamento": "RISARALDA",
+                  "modalidad": "VIRTUAL",
+                  "cuposBase": 10,
+                  "cuposMaximos": 13
+                }
+              ]
+            },
+            {
+              "numero": 4,
+              "sedeCiudad": null,
+              "sedeDepartamento": null,
+              "coberturas": [
+                {
+                  "ubicacion": "ANTIOQUIA",
+                  "tipo": "DEPARTAMENTO",
+                  "departamento": "ANTIOQUIA",
+                  "modalidad": "VIRTUAL",
+                  "cuposBase": 50,
+                  "cuposMaximos": 65
+                }
+              ]
+            },
+            {
+              "numero": 5,
+              "sedeCiudad": null,
+              "sedeDepartamento": null,
+              "coberturas": [
+                {
+                  "ubicacion": "ATLÁNTICO",
+                  "tipo": "DEPARTAMENTO",
+                  "departamento": "ATLÁNTICO",
+                  "modalidad": "VIRTUAL",
+                  "cuposBase": 30,
+                  "cuposMaximos": 39
+                },
+                {
+                  "ubicacion": "MAGDALENA",
+                  "tipo": "DEPARTAMENTO",
+                  "departamento": "MAGDALENA",
+                  "modalidad": "VIRTUAL",
+                  "cuposBase": 10,
+                  "cuposMaximos": 13
+                },
+                {
+                  "ubicacion": "CÓRDOBA",
+                  "tipo": "DEPARTAMENTO",
+                  "departamento": "CÓRDOBA",
+                  "modalidad": "VIRTUAL",
+                  "cuposBase": 10,
+                  "cuposMaximos": 13
+                }
+              ]
+            },
+            {
+              "numero": 6,
+              "sedeCiudad": null,
+              "sedeDepartamento": null,
+              "coberturas": [
+                {
+                  "ubicacion": "CUNDINAMARCA",
+                  "tipo": "DEPARTAMENTO",
+                  "departamento": "CUNDINAMARCA",
+                  "modalidad": "VIRTUAL",
+                  "cuposBase": 40,
+                  "cuposMaximos": 52
+                },
+                {
+                  "ubicacion": "CASANARE",
+                  "tipo": "DEPARTAMENTO",
+                  "departamento": "CASANARE",
+                  "modalidad": "VIRTUAL",
+                  "cuposBase": 10,
+                  "cuposMaximos": 13
+                }
+              ]
+            },
+            {
+              "numero": 7,
+              "sedeCiudad": null,
+              "sedeDepartamento": null,
+              "coberturas": [
+                {
+                  "ubicacion": "SANTANDER",
+                  "tipo": "DEPARTAMENTO",
+                  "departamento": "SANTANDER",
+                  "modalidad": "VIRTUAL",
+                  "cuposBase": 20,
+                  "cuposMaximos": 26
+                },
+                {
+                  "ubicacion": "AMAZONAS",
+                  "tipo": "DEPARTAMENTO",
+                  "departamento": "AMAZONAS",
+                  "modalidad": "VIRTUAL",
+                  "cuposBase": 10,
+                  "cuposMaximos": 13
+                },
+                {
+                  "ubicacion": "NORTE DE SANTANDER",
+                  "tipo": "DEPARTAMENTO",
+                  "departamento": "NORTE DE SANTANDER",
+                  "modalidad": "VIRTUAL",
+                  "cuposBase": 20,
+                  "cuposMaximos": 26
+                }
+              ]
+            },
+            {
+              "numero": 8,
+              "sedeCiudad": null,
+              "sedeDepartamento": null,
+              "coberturas": [
+                {
+                  "ubicacion": "BOLÍVAR",
+                  "tipo": "DEPARTAMENTO",
+                  "departamento": "BOLÍVAR",
+                  "modalidad": "VIRTUAL",
+                  "cuposBase": 50,
+                  "cuposMaximos": 65
+                }
+              ]
+            }
+          ],
+          "ofertas": [
+            {
+              "ubicacion": "AMAZONAS",
+              "tipo": "DEPARTAMENTO",
+              "departamento": "AMAZONAS",
+              "modalidad": "VIRTUAL",
+              "cuposBase": 10,
+              "cuposMaximos": 13,
+              "grupos": [
+                7
+              ]
+            },
+            {
+              "ubicacion": "ANTIOQUIA",
+              "tipo": "DEPARTAMENTO",
+              "departamento": "ANTIOQUIA",
+              "modalidad": "VIRTUAL",
+              "cuposBase": 50,
+              "cuposMaximos": 65,
+              "grupos": [
+                4
+              ]
+            },
+            {
+              "ubicacion": "ATLÁNTICO",
+              "tipo": "DEPARTAMENTO",
+              "departamento": "ATLÁNTICO",
+              "modalidad": "VIRTUAL",
+              "cuposBase": 30,
+              "cuposMaximos": 39,
+              "grupos": [
+                5
+              ]
+            },
+            {
+              "ubicacion": "BOGOTÁ D.C",
+              "tipo": "DEPARTAMENTO",
+              "departamento": "BOGOTÁ D.C",
+              "modalidad": "VIRTUAL",
+              "cuposBase": 100,
+              "cuposMaximos": 130,
+              "grupos": [
+                1,
+                2
+              ]
+            },
+            {
+              "ubicacion": "BOLÍVAR",
+              "tipo": "DEPARTAMENTO",
+              "departamento": "BOLÍVAR",
+              "modalidad": "VIRTUAL",
+              "cuposBase": 50,
+              "cuposMaximos": 65,
+              "grupos": [
+                8
+              ]
+            },
+            {
+              "ubicacion": "CALDAS",
+              "tipo": "DEPARTAMENTO",
+              "departamento": "CALDAS",
+              "modalidad": "VIRTUAL",
+              "cuposBase": 10,
+              "cuposMaximos": 13,
+              "grupos": [
+                3
+              ]
+            },
+            {
+              "ubicacion": "CASANARE",
+              "tipo": "DEPARTAMENTO",
+              "departamento": "CASANARE",
+              "modalidad": "VIRTUAL",
+              "cuposBase": 10,
+              "cuposMaximos": 13,
+              "grupos": [
+                6
+              ]
+            },
+            {
+              "ubicacion": "CUNDINAMARCA",
+              "tipo": "DEPARTAMENTO",
+              "departamento": "CUNDINAMARCA",
+              "modalidad": "VIRTUAL",
+              "cuposBase": 40,
+              "cuposMaximos": 52,
+              "grupos": [
+                6
+              ]
+            },
+            {
+              "ubicacion": "CÓRDOBA",
+              "tipo": "DEPARTAMENTO",
+              "departamento": "CÓRDOBA",
+              "modalidad": "VIRTUAL",
+              "cuposBase": 10,
+              "cuposMaximos": 13,
+              "grupos": [
+                5
+              ]
+            },
+            {
+              "ubicacion": "MAGDALENA",
+              "tipo": "DEPARTAMENTO",
+              "departamento": "MAGDALENA",
+              "modalidad": "VIRTUAL",
+              "cuposBase": 10,
+              "cuposMaximos": 13,
+              "grupos": [
+                5
+              ]
+            },
+            {
+              "ubicacion": "NORTE DE SANTANDER",
+              "tipo": "DEPARTAMENTO",
+              "departamento": "NORTE DE SANTANDER",
+              "modalidad": "VIRTUAL",
+              "cuposBase": 20,
+              "cuposMaximos": 26,
+              "grupos": [
+                7
+              ]
+            },
+            {
+              "ubicacion": "RISARALDA",
+              "tipo": "DEPARTAMENTO",
+              "departamento": "RISARALDA",
+              "modalidad": "VIRTUAL",
+              "cuposBase": 10,
+              "cuposMaximos": 13,
+              "grupos": [
+                3
+              ]
+            },
+            {
+              "ubicacion": "SANTANDER",
+              "tipo": "DEPARTAMENTO",
+              "departamento": "SANTANDER",
+              "modalidad": "VIRTUAL",
+              "cuposBase": 20,
+              "cuposMaximos": 26,
+              "grupos": [
+                7
+              ]
+            },
+            {
+              "ubicacion": "VALLE DEL CAUCA",
+              "tipo": "DEPARTAMENTO",
+              "departamento": "VALLE DEL CAUCA",
+              "modalidad": "VIRTUAL",
+              "cuposBase": 30,
+              "cuposMaximos": 39,
+              "grupos": [
+                3
+              ]
+            }
+          ]
+        },
+        {
+          "codigo": "AF3",
+          "consecutivo": 3,
+          "orden": 3,
+          "nombre": "ESTRATEGIAS DE ESCALAMIENTO Y AUTOMATIZACIÓN DE LA DEMANDA PARA EMPRESAS EMERGENTES",
+          "modalidad": "VIRTUAL",
+          "evento": "CURSO",
+          "enfoque": "FORMACIÓN EN EL TRABAJO",
+          "metodologia": "TEÓRICO - PRÁCTICA",
+          "horas": 40,
+          "objetivo": "DISEÑAR E IMPLEMENTAR UN PLAN DE AUTOMATIZACIÓN COMERCIAL PARA LOS EQUIPOS DE VENTAS Y LIDERAZGO DE EMPRESAS EMERGENTES AFILIADAS A BRICHAM Y ADEE DEL SECTOR COMERCIO, RETAIL, ALIMENTOS Y MODA, QUE INTEGRE HERRAMIENTAS DE INTELIGENCIA ARTIFICIAL (CHATBOTS, CRM Y MARKETING AUTOMATION) Y METODOLOGÍAS ÁGILES DE ESCALAMIENTO DE DEMANDA, CON EL FIN DE OPTIMIZAR LOS PROCESOS DE CAPTACIÓN, CONVERSIÓN Y FIDELIZACIÓN DE CLIENTES, REDUCIENDO LOS COSTOS OPERATIVOS ASOCIADOS AL CRECIMIENTO Y MEJORANDO LA EFICIENCIA COMERCIAL DE LAS 400 EMPRESAS PARTICIPANTES (8 GRUPOS DE 50 BENEFICIARIOS). ESTE OBJETIVO SE ALCANZARÁ A TRAVÉS DE UN CURSO VIRTUAL TEÓRICO-PRÁCTICO QUE PERMITIRÁ A LOS PARTICIPANTES COMPRENDER LOS FUNDAMENTOS DE LA AUTOMATIZACIÓN COMERCIAL, CONOCER LAS PRINCIPALES HERRAMIENTAS DISPONIBLES EN EL MERCADO, Y DESARROLLAR CAPACIDADES PARA ANALIZAR DATOS DE CLIENTES, DISEÑAR FLUJOS AUTOMATIZADOS DE INTERACCIÓN Y MEDIR EL IMPACTO DE ESTAS ESTRATEGIAS EN LA PRODUCTIVIDAD Y RENTABILIDAD DEL NEGOCIO. ESTA ACCIÓN DE FORMACIÓN DA RESPUESTA PARCIAL A LA NECESIDAD DETECTADA Y A LOS RETOS DE FORMACIÓN DE BRICHAM Y ADEE, Y SE ALINEA CON SU OBJETO SOCIAL AL FORTALECER LAS CAPACIDADES TECNOLÓGICAS Y COMERCIALES DE LAS EMPRESAS AFILIADAS, IMPULSANDO SU COMPETITIVIDAD, SU CAPACIDAD DE CRECIMIENTO SOSTENIDO Y SU ADAPTACIÓN A LAS TRANSFORMACIONES DIGITALES DEL SECTOR COMERCIO, RETAIL, ALIMENTOS Y MODA, EN COHERENCIA CON LA MISIÓN GREMIAL DE PROMOVER EL DESARROLLO EMPRESARIAL, LA INNOVACIÓN Y EL FORTALECIMIENTO DEL TEJIDO PRODUCTIVO EN LA REGIÓN.",
+          "ambiente": "AULA VIRTUAL",
+          "grupos": [
+            {
+              "numero": 1,
+              "sedeCiudad": null,
+              "sedeDepartamento": null,
+              "coberturas": [
+                {
+                  "ubicacion": "BOGOTÁ D.C",
+                  "tipo": "DEPARTAMENTO",
+                  "departamento": "BOGOTÁ D.C",
+                  "modalidad": "VIRTUAL",
+                  "cuposBase": 50,
+                  "cuposMaximos": 65
+                }
+              ]
+            },
+            {
+              "numero": 2,
+              "sedeCiudad": null,
+              "sedeDepartamento": null,
+              "coberturas": [
+                {
+                  "ubicacion": "BOGOTÁ D.C",
+                  "tipo": "DEPARTAMENTO",
+                  "departamento": "BOGOTÁ D.C",
+                  "modalidad": "VIRTUAL",
+                  "cuposBase": 50,
+                  "cuposMaximos": 65
+                }
+              ]
+            },
+            {
+              "numero": 3,
+              "sedeCiudad": null,
+              "sedeDepartamento": null,
+              "coberturas": [
+                {
+                  "ubicacion": "VALLE DEL CAUCA",
+                  "tipo": "DEPARTAMENTO",
+                  "departamento": "VALLE DEL CAUCA",
+                  "modalidad": "VIRTUAL",
+                  "cuposBase": 30,
+                  "cuposMaximos": 39
+                },
+                {
+                  "ubicacion": "CALDAS",
+                  "tipo": "DEPARTAMENTO",
+                  "departamento": "CALDAS",
+                  "modalidad": "VIRTUAL",
+                  "cuposBase": 10,
+                  "cuposMaximos": 13
+                },
+                {
+                  "ubicacion": "RISARALDA",
+                  "tipo": "DEPARTAMENTO",
+                  "departamento": "RISARALDA",
+                  "modalidad": "VIRTUAL",
+                  "cuposBase": 10,
+                  "cuposMaximos": 13
+                }
+              ]
+            },
+            {
+              "numero": 4,
+              "sedeCiudad": null,
+              "sedeDepartamento": null,
+              "coberturas": [
+                {
+                  "ubicacion": "ANTIOQUIA",
+                  "tipo": "DEPARTAMENTO",
+                  "departamento": "ANTIOQUIA",
+                  "modalidad": "VIRTUAL",
+                  "cuposBase": 50,
+                  "cuposMaximos": 65
+                }
+              ]
+            },
+            {
+              "numero": 5,
+              "sedeCiudad": null,
+              "sedeDepartamento": null,
+              "coberturas": [
+                {
+                  "ubicacion": "ATLÁNTICO",
+                  "tipo": "DEPARTAMENTO",
+                  "departamento": "ATLÁNTICO",
+                  "modalidad": "VIRTUAL",
+                  "cuposBase": 30,
+                  "cuposMaximos": 39
+                },
+                {
+                  "ubicacion": "MAGDALENA",
+                  "tipo": "DEPARTAMENTO",
+                  "departamento": "MAGDALENA",
+                  "modalidad": "VIRTUAL",
+                  "cuposBase": 10,
+                  "cuposMaximos": 13
+                },
+                {
+                  "ubicacion": "CÓRDOBA",
+                  "tipo": "DEPARTAMENTO",
+                  "departamento": "CÓRDOBA",
+                  "modalidad": "VIRTUAL",
+                  "cuposBase": 10,
+                  "cuposMaximos": 13
+                }
+              ]
+            },
+            {
+              "numero": 6,
+              "sedeCiudad": null,
+              "sedeDepartamento": null,
+              "coberturas": [
+                {
+                  "ubicacion": "CUNDINAMARCA",
+                  "tipo": "DEPARTAMENTO",
+                  "departamento": "CUNDINAMARCA",
+                  "modalidad": "VIRTUAL",
+                  "cuposBase": 40,
+                  "cuposMaximos": 52
+                },
+                {
+                  "ubicacion": "CASANARE",
+                  "tipo": "DEPARTAMENTO",
+                  "departamento": "CASANARE",
+                  "modalidad": "VIRTUAL",
+                  "cuposBase": 10,
+                  "cuposMaximos": 13
+                }
+              ]
+            },
+            {
+              "numero": 7,
+              "sedeCiudad": null,
+              "sedeDepartamento": null,
+              "coberturas": [
+                {
+                  "ubicacion": "SANTANDER",
+                  "tipo": "DEPARTAMENTO",
+                  "departamento": "SANTANDER",
+                  "modalidad": "VIRTUAL",
+                  "cuposBase": 20,
+                  "cuposMaximos": 26
+                },
+                {
+                  "ubicacion": "AMAZONAS",
+                  "tipo": "DEPARTAMENTO",
+                  "departamento": "AMAZONAS",
+                  "modalidad": "VIRTUAL",
+                  "cuposBase": 10,
+                  "cuposMaximos": 13
+                },
+                {
+                  "ubicacion": "NORTE DE SANTANDER",
+                  "tipo": "DEPARTAMENTO",
+                  "departamento": "NORTE DE SANTANDER",
+                  "modalidad": "VIRTUAL",
+                  "cuposBase": 20,
+                  "cuposMaximos": 26
+                }
+              ]
+            },
+            {
+              "numero": 8,
+              "sedeCiudad": null,
+              "sedeDepartamento": null,
+              "coberturas": [
+                {
+                  "ubicacion": "BOLÍVAR",
+                  "tipo": "DEPARTAMENTO",
+                  "departamento": "BOLÍVAR",
+                  "modalidad": "VIRTUAL",
+                  "cuposBase": 50,
+                  "cuposMaximos": 65
+                }
+              ]
+            }
+          ],
+          "ofertas": [
+            {
+              "ubicacion": "AMAZONAS",
+              "tipo": "DEPARTAMENTO",
+              "departamento": "AMAZONAS",
+              "modalidad": "VIRTUAL",
+              "cuposBase": 10,
+              "cuposMaximos": 13,
+              "grupos": [
+                7
+              ]
+            },
+            {
+              "ubicacion": "ANTIOQUIA",
+              "tipo": "DEPARTAMENTO",
+              "departamento": "ANTIOQUIA",
+              "modalidad": "VIRTUAL",
+              "cuposBase": 50,
+              "cuposMaximos": 65,
+              "grupos": [
+                4
+              ]
+            },
+            {
+              "ubicacion": "ATLÁNTICO",
+              "tipo": "DEPARTAMENTO",
+              "departamento": "ATLÁNTICO",
+              "modalidad": "VIRTUAL",
+              "cuposBase": 30,
+              "cuposMaximos": 39,
+              "grupos": [
+                5
+              ]
+            },
+            {
+              "ubicacion": "BOGOTÁ D.C",
+              "tipo": "DEPARTAMENTO",
+              "departamento": "BOGOTÁ D.C",
+              "modalidad": "VIRTUAL",
+              "cuposBase": 100,
+              "cuposMaximos": 130,
+              "grupos": [
+                1,
+                2
+              ]
+            },
+            {
+              "ubicacion": "BOLÍVAR",
+              "tipo": "DEPARTAMENTO",
+              "departamento": "BOLÍVAR",
+              "modalidad": "VIRTUAL",
+              "cuposBase": 50,
+              "cuposMaximos": 65,
+              "grupos": [
+                8
+              ]
+            },
+            {
+              "ubicacion": "CALDAS",
+              "tipo": "DEPARTAMENTO",
+              "departamento": "CALDAS",
+              "modalidad": "VIRTUAL",
+              "cuposBase": 10,
+              "cuposMaximos": 13,
+              "grupos": [
+                3
+              ]
+            },
+            {
+              "ubicacion": "CASANARE",
+              "tipo": "DEPARTAMENTO",
+              "departamento": "CASANARE",
+              "modalidad": "VIRTUAL",
+              "cuposBase": 10,
+              "cuposMaximos": 13,
+              "grupos": [
+                6
+              ]
+            },
+            {
+              "ubicacion": "CUNDINAMARCA",
+              "tipo": "DEPARTAMENTO",
+              "departamento": "CUNDINAMARCA",
+              "modalidad": "VIRTUAL",
+              "cuposBase": 40,
+              "cuposMaximos": 52,
+              "grupos": [
+                6
+              ]
+            },
+            {
+              "ubicacion": "CÓRDOBA",
+              "tipo": "DEPARTAMENTO",
+              "departamento": "CÓRDOBA",
+              "modalidad": "VIRTUAL",
+              "cuposBase": 10,
+              "cuposMaximos": 13,
+              "grupos": [
+                5
+              ]
+            },
+            {
+              "ubicacion": "MAGDALENA",
+              "tipo": "DEPARTAMENTO",
+              "departamento": "MAGDALENA",
+              "modalidad": "VIRTUAL",
+              "cuposBase": 10,
+              "cuposMaximos": 13,
+              "grupos": [
+                5
+              ]
+            },
+            {
+              "ubicacion": "NORTE DE SANTANDER",
+              "tipo": "DEPARTAMENTO",
+              "departamento": "NORTE DE SANTANDER",
+              "modalidad": "VIRTUAL",
+              "cuposBase": 20,
+              "cuposMaximos": 26,
+              "grupos": [
+                7
+              ]
+            },
+            {
+              "ubicacion": "RISARALDA",
+              "tipo": "DEPARTAMENTO",
+              "departamento": "RISARALDA",
+              "modalidad": "VIRTUAL",
+              "cuposBase": 10,
+              "cuposMaximos": 13,
+              "grupos": [
+                3
+              ]
+            },
+            {
+              "ubicacion": "SANTANDER",
+              "tipo": "DEPARTAMENTO",
+              "departamento": "SANTANDER",
+              "modalidad": "VIRTUAL",
+              "cuposBase": 20,
+              "cuposMaximos": 26,
+              "grupos": [
+                7
+              ]
+            },
+            {
+              "ubicacion": "VALLE DEL CAUCA",
+              "tipo": "DEPARTAMENTO",
+              "departamento": "VALLE DEL CAUCA",
+              "modalidad": "VIRTUAL",
+              "cuposBase": 30,
+              "cuposMaximos": 39,
+              "grupos": [
+                3
+              ]
+            }
+          ]
+        },
+        {
+          "codigo": "AF4",
+          "consecutivo": 4,
+          "orden": 4,
+          "nombre": "MUJERES LÍDERES DIGITALES: ECOSISTEMAS DE INTELIGENCIA ARTIFICIAL GENERATIVA PARA LA ESTRATEGIA ORGANIZACIONAL",
+          "modalidad": "PRESENCIAL",
+          "evento": "TALLER",
+          "enfoque": "FORMACIÓN EN EL TRABAJO",
+          "metodologia": "TEÓRICO - PRÁCTICA",
+          "horas": 8,
+          "objetivo": "OBJETIVO: IMPLEMENTAR UN PROGRAMA DE FORMACIÓN ESPECIALIZADO EN ECOSISTEMAS DE INTELIGENCIA ARTIFICIAL GENERATIVA, DIRIGIDO A MUJERES LÍDERES Y TOMADORAS DE DECISIONES ESTRATÉGICAS DE LAS EMPRESAS DEL GREMIO, QUE LES PERMITA ADQUIRIR COMPETENCIAS TÉCNICAS Y ESTRATÉGICAS PARA INCORPORAR DICHAS HERRAMIENTAS EN EL ANÁLISIS, DISEÑO Y EJECUCIÓN DE LA ESTRATEGIA ORGANIZACIONAL, LOGRANDO REDUCIR LA BRECHA DE LIDERAZGO DIGITAL FEMENINO Y POTENCIAR SU PARTICIPACIÓN EN LA INNOVACIÓN Y COMPETITIVIDAD EMPRESARIAL. ESTA ACCIÓN DE FORMACIÓN DA RESPUESTA PARCIAL A LA NECESIDAD DETECTADA RELACIONADA CON LA BRECHA DE ACCESO A COMPETENCIAS DIGITALES Y DE IA EN MUJERES LÍDERES, Y SE ALINEA CON EL OBJETO SOCIAL DEL GREMIO BRITCHAM Y ADEE AL FORTALECER LAS CAPACIDADES DE SU TEJIDO EMPRESARIAL, PROMOVER LA EQUIDAD DE GÉNERO EN EL LIDERAZGO TECNOLÓGICO Y POTENCIAR LA COMPETITIVIDAD DE LAS EMPRESAS ASOCIADAS MEDIANTE LA APROPIACIÓN DE HERRAMIENTAS DE VANGUARDIA APLICADAS A LA ESTRATEGIA ORGANIZACIONAL. EL OBJETIVO ES ALCANZABLE AL FOCALIZARSE EN UN GRUPO ESPECÍFICO DE LÍDERES, CON CONTENIDOS PRÁCTICOS Y APLICADOS AL SECTOR, GENERANDO UN IMPACTO DIRECTO Y MEDIBLE EN LA INCLUSIÓN FEMENINA EN LA TRANSFORMACIÓN DIGITAL DEL GREMIO.",
+          "ambiente": "SALONES (HOTELES, LABORATORIOS, AULAS GASTRONOMÍA, SALONES EMPRESARIALES)",
+          "grupos": [
+            {
+              "numero": 1,
+              "sedeCiudad": "BOGOTÁ",
+              "sedeDepartamento": "BOGOTÁ D.C",
+              "coberturas": [
+                {
+                  "ubicacion": "BOGOTÁ",
+                  "tipo": "CIUDAD",
+                  "departamento": "BOGOTÁ D.C",
+                  "modalidad": "PRESENCIAL",
+                  "cuposBase": 30,
+                  "cuposMaximos": 39
+                }
+              ]
+            },
+            {
+              "numero": 2,
+              "sedeCiudad": "BOGOTÁ",
+              "sedeDepartamento": "BOGOTÁ D.C",
+              "coberturas": [
+                {
+                  "ubicacion": "BOGOTÁ",
+                  "tipo": "CIUDAD",
+                  "departamento": "BOGOTÁ D.C",
+                  "modalidad": "PRESENCIAL",
+                  "cuposBase": 30,
+                  "cuposMaximos": 39
+                }
+              ]
+            },
+            {
+              "numero": 3,
+              "sedeCiudad": "CHÍA",
+              "sedeDepartamento": "CUNDINAMARCA",
+              "coberturas": [
+                {
+                  "ubicacion": "CHÍA",
+                  "tipo": "CIUDAD",
+                  "departamento": "CUNDINAMARCA",
+                  "modalidad": "PRESENCIAL",
+                  "cuposBase": 30,
+                  "cuposMaximos": 39
+                }
+              ]
+            },
+            {
+              "numero": 4,
+              "sedeCiudad": "CARTAGENA",
+              "sedeDepartamento": "BOLÍVAR",
+              "coberturas": [
+                {
+                  "ubicacion": "CARTAGENA",
+                  "tipo": "CIUDAD",
+                  "departamento": "BOLÍVAR",
+                  "modalidad": "PRESENCIAL",
+                  "cuposBase": 30,
+                  "cuposMaximos": 39
+                }
+              ]
+            },
+            {
+              "numero": 5,
+              "sedeCiudad": "SANTA MARTA",
+              "sedeDepartamento": "MAGDALENA",
+              "coberturas": [
+                {
+                  "ubicacion": "SANTA MARTA",
+                  "tipo": "CIUDAD",
+                  "departamento": "MAGDALENA",
+                  "modalidad": "PRESENCIAL",
+                  "cuposBase": 30,
+                  "cuposMaximos": 39
+                }
+              ]
+            }
+          ],
+          "ofertas": [
+            {
+              "ubicacion": "BOGOTÁ",
+              "tipo": "CIUDAD",
+              "departamento": "BOGOTÁ D.C",
+              "modalidad": "PRESENCIAL",
+              "cuposBase": 60,
+              "cuposMaximos": 78,
+              "grupos": [
+                1,
+                2
+              ]
+            },
+            {
+              "ubicacion": "CARTAGENA",
+              "tipo": "CIUDAD",
+              "departamento": "BOLÍVAR",
+              "modalidad": "PRESENCIAL",
+              "cuposBase": 30,
+              "cuposMaximos": 39,
+              "grupos": [
+                4
+              ]
+            },
+            {
+              "ubicacion": "CHÍA",
+              "tipo": "CIUDAD",
+              "departamento": "CUNDINAMARCA",
+              "modalidad": "PRESENCIAL",
+              "cuposBase": 30,
+              "cuposMaximos": 39,
+              "grupos": [
+                3
+              ]
+            },
+            {
+              "ubicacion": "SANTA MARTA",
+              "tipo": "CIUDAD",
+              "departamento": "MAGDALENA",
+              "modalidad": "PRESENCIAL",
+              "cuposBase": 30,
+              "cuposMaximos": 39,
+              "grupos": [
+                5
+              ]
+            }
+          ]
+        },
+        {
+          "codigo": "AF5",
+          "consecutivo": 5,
+          "orden": 5,
+          "nombre": "SEGURIDAD Y GOBIERNO DE DATOS: PROTECCIÓN DE LA INFORMACIÓN Y MITIGACIÓN DE RIESGOS INFORMÁTICOS",
+          "modalidad": "PRESENCIAL",
+          "evento": "TALLER",
+          "enfoque": "FORMACIÓN EN EL TRABAJO",
+          "metodologia": "TEÓRICO - PRÁCTICA",
+          "horas": 8,
+          "objetivo": "FORTALECER LAS COMPETENCIAS PRÁCTICAS DE LOS EQUIPOS DE LAS EMPRESAS AFILIADAS EN SEGURIDAD DE LA INFORMACIÓN Y GOBIERNO DE DATOS, MEDIANTE UNA METODOLOGÍA INMERSIVA DE REALIDAD VIRTUAL, PARA QUE COMPRENDAN LAS PRINCIPALES AMENAZAS INFORMÁTICAS, CONOZCAN Y APLIQUEN PROTOCOLOS DE PROTECCIÓN DE DATOS Y POLÍTICAS DE CIBERSEGURIDAD EN SUS OPERACIONES DIARIAS, REDUCIENDO ASÍ LOS RIESGOS DE PÉRDIDA, FILTRACIÓN O USO INDEBIDO DE INFORMACIÓN SENSIBLE, Y MEJORANDO SU CAPACIDAD DE RESPUESTA ANTE INCIDENTES, LO QUE CONTRIBUIRÁ A ELEVAR LOS ESTÁNDARES DE CONFIANZA, CUMPLIMIENTO NORMATIVO Y COMPETITIVIDAD DE LAS EMPRESAS DEL SECTOR. ESTA ACCIÓN DE FORMACIÓN DA RESPUESTA PARCIAL A LA NECESIDAD DETECTADA Y A LOS RETOS DE FORMACIÓN DEL GREMIO Y SE ALINEA CON SU OBJETO SOCIAL AL PROMOVER LA MODERNIZACIÓN, SEGURIDAD Y FORTALECIMIENTO DE LAS CAPACIDADES EMPRESARIALES DE SUS AFILIADOS, MEJORANDO SU PRODUCTIVIDAD Y SOSTENIBILIDAD EN UN ENTORNO DIGITAL CADA VEZ MÁS EXIGENTE, EN COHERENCIA CON SU MISIÓN DE APOYAR EL DESARROLLO INTEGRAL DE LAS EMPRESAS DEL SECTOR, GENERANDO UN IMPACTO DIRECTO EN LA REDUCCIÓN DE VULNERABILIDADES INFORMÁTICAS Y EN LA CONSTRUCCIÓN DE UNA CULTURA ORGANIZACIONAL DE PROTECCIÓN DE DATOS QUE PERMITA A LAS PYMES AFILIADAS DIFERENCIARSE EN EL MERCADO POR SU GESTIÓN RESPONSABLE DE LA INFORMACIÓN.",
+          "ambiente": "SALONES (HOTELES, LABORATORIOS, AULAS GASTRONOMÍA, SALONES EMPRESARIALES)",
+          "grupos": [
+            {
+              "numero": 1,
+              "sedeCiudad": "SANTA MARTA",
+              "sedeDepartamento": "MAGDALENA",
+              "coberturas": [
+                {
+                  "ubicacion": "SANTA MARTA",
+                  "tipo": "CIUDAD",
+                  "departamento": "MAGDALENA",
+                  "modalidad": "PRESENCIAL",
+                  "cuposBase": 30,
+                  "cuposMaximos": 39
+                }
+              ]
+            }
+          ],
+          "ofertas": [
+            {
+              "ubicacion": "SANTA MARTA",
+              "tipo": "CIUDAD",
+              "departamento": "MAGDALENA",
+              "modalidad": "PRESENCIAL",
+              "cuposBase": 30,
+              "cuposMaximos": 39,
+              "grupos": [
+                1
+              ]
+            }
+          ]
+        },
+        {
+          "codigo": "AF6",
+          "consecutivo": 6,
+          "orden": 6,
+          "nombre": "SOFISTICACIÓN TURÍSTICA Y GASTRONÓMICA: INNOVACIÓN DE EXPERIENCIAS Y ENCADENAMIENTOS CON LA ECONOMÍA CAMPESINA",
+          "modalidad": "PRESENCIAL",
+          "evento": "TALLER",
+          "enfoque": "FORMACIÓN EN EL TRABAJO",
+          "metodologia": "TEÓRICO - PRÁCTICA",
+          "horas": 8,
+          "objetivo": "DISEÑAR EXPERIENCIAS TURÍSTICAS Y GASTRONÓMICAS INNOVADORAS Y DIFERENCIADAS, APLICANDO METODOLOGÍAS DE CO-CREACIÓN Y MODELOS DE INTEGRACIÓN ESTRATÉGICA DE ACTORES DE ECONOMÍA CAMPESINA EN LA CADENA DE VALOR, PARA QUE LOS PARTICIPANTES DE EMPRESAS AFILIADAS A BRITCHAM Y ADEE FORTALEZCAN SU COMPETITIVIDAD, FIDELIZACIÓN DE CLIENTES E IMPACTO SOCIAL EN EL TERRITORIO. ESTA ACCIÓN RESPONDE A LA NECESIDAD DE SOFISTICACIÓN DE EXPERIENCIAS (8.35/10, PRIORIZADA POR 38%) Y AL RETO DE INTEGRAR ESTRATÉGICAMENTE LA ECONOMÍA CAMPESINA, ALINEÁNDOSE CON EL OBJETO SOCIAL DE BRITCHAM (PROMOVER COMERCIO BILATERAL CON ESTÁNDARES DE CALIDAD) Y ADEE (FORTALECER COMPETITIVIDAD MEDIANTE EDUCACIÓN), FOMENTANDO ENCADENAMIENTOS PRODUCTIVOS QUE GENEREN VALOR COMPARTIDO Y DIFERENCIACIÓN EN EL MERCADO TURÍSTICO Y GASTRONÓMICO REGIONAL.",
+          "ambiente": "AULA CONVENCIONAL (INSTITUCIONES DE EDUCACIÓN SUPERIOR)",
+          "grupos": [
+            {
+              "numero": 1,
+              "sedeCiudad": "BOGOTÁ",
+              "sedeDepartamento": "BOGOTÁ D.C",
+              "coberturas": [
+                {
+                  "ubicacion": "BOGOTÁ",
+                  "tipo": "CIUDAD",
+                  "departamento": "BOGOTÁ D.C",
+                  "modalidad": "PRESENCIAL",
+                  "cuposBase": 30,
+                  "cuposMaximos": 39
+                }
+              ]
+            },
+            {
+              "numero": 2,
+              "sedeCiudad": "CALI",
+              "sedeDepartamento": "VALLE DEL CAUCA",
+              "coberturas": [
+                {
+                  "ubicacion": "CALI",
+                  "tipo": "CIUDAD",
+                  "departamento": "VALLE DEL CAUCA",
+                  "modalidad": "PRESENCIAL",
+                  "cuposBase": 30,
+                  "cuposMaximos": 39
+                }
+              ]
+            },
+            {
+              "numero": 3,
+              "sedeCiudad": "LETICIA",
+              "sedeDepartamento": "AMAZONAS",
+              "coberturas": [
+                {
+                  "ubicacion": "LETICIA",
+                  "tipo": "CIUDAD",
+                  "departamento": "AMAZONAS",
+                  "modalidad": "PRESENCIAL",
+                  "cuposBase": 30,
+                  "cuposMaximos": 39
+                }
+              ]
+            },
+            {
+              "numero": 4,
+              "sedeCiudad": "SANTA MARTA",
+              "sedeDepartamento": "MAGDALENA",
+              "coberturas": [
+                {
+                  "ubicacion": "SANTA MARTA",
+                  "tipo": "CIUDAD",
+                  "departamento": "MAGDALENA",
+                  "modalidad": "PRESENCIAL",
+                  "cuposBase": 30,
+                  "cuposMaximos": 39
+                }
+              ]
+            },
+            {
+              "numero": 5,
+              "sedeCiudad": "PEREIRA",
+              "sedeDepartamento": "RISARALDA",
+              "coberturas": [
+                {
+                  "ubicacion": "PEREIRA",
+                  "tipo": "CIUDAD",
+                  "departamento": "RISARALDA",
+                  "modalidad": "PRESENCIAL",
+                  "cuposBase": 30,
+                  "cuposMaximos": 39
+                }
+              ]
+            }
+          ],
+          "ofertas": [
+            {
+              "ubicacion": "BOGOTÁ",
+              "tipo": "CIUDAD",
+              "departamento": "BOGOTÁ D.C",
+              "modalidad": "PRESENCIAL",
+              "cuposBase": 30,
+              "cuposMaximos": 39,
+              "grupos": [
+                1
+              ]
+            },
+            {
+              "ubicacion": "CALI",
+              "tipo": "CIUDAD",
+              "departamento": "VALLE DEL CAUCA",
+              "modalidad": "PRESENCIAL",
+              "cuposBase": 30,
+              "cuposMaximos": 39,
+              "grupos": [
+                2
+              ]
+            },
+            {
+              "ubicacion": "LETICIA",
+              "tipo": "CIUDAD",
+              "departamento": "AMAZONAS",
+              "modalidad": "PRESENCIAL",
+              "cuposBase": 30,
+              "cuposMaximos": 39,
+              "grupos": [
+                3
+              ]
+            },
+            {
+              "ubicacion": "PEREIRA",
+              "tipo": "CIUDAD",
+              "departamento": "RISARALDA",
+              "modalidad": "PRESENCIAL",
+              "cuposBase": 30,
+              "cuposMaximos": 39,
+              "grupos": [
+                5
+              ]
+            },
+            {
+              "ubicacion": "SANTA MARTA",
+              "tipo": "CIUDAD",
+              "departamento": "MAGDALENA",
+              "modalidad": "PRESENCIAL",
+              "cuposBase": 30,
+              "cuposMaximos": 39,
+              "grupos": [
+                4
+              ]
+            }
+          ]
+        },
+        {
+          "codigo": "AF7",
+          "consecutivo": 7,
+          "orden": 7,
+          "nombre": "EXPANSIÓN GLOBAL: PROSPECCIÓN Y MODELACIÓN DE NEGOCIOS ESCALABLES CON IA",
+          "modalidad": "PRESENCIAL",
+          "evento": "TALLER-BOOTCAMP",
+          "enfoque": "FORMACIÓN EN EL TRABAJO",
+          "metodologia": "TEÓRICO - PRÁCTICA",
+          "horas": 16,
+          "objetivo": "CAPACITAR A LOS EQUIPOS DIRECTIVOS Y COMERCIALES DE LAS EMPRESAS AFILIADAS A BRITCHAM Y ADEE EN METODOLOGÍAS ESTRUCTURADAS DE PROSPECCIÓN DE MERCADOS INTERNACIONALES Y MODELACIÓN DE NEGOCIOS ESCALABLES APOYADAS EN INTELIGENCIA ARTIFICIAL, PARA QUE SEAN CAPACES DE IDENTIFICAR, EVALUAR Y PRIORIZAR OPORTUNIDADES DE EXPANSIÓN GLOBAL DE MANERA SISTEMÁTICA Y BASADA EN DATOS, REDUCIENDO LA INCERTIDUMBRE EN LOS PROCESOS DE INTERNACIONALIZACIÓN Y FORTALECIENDO SU CAPACIDAD DE CRECIMIENTO EN MERCADOS EXTERIORES. ESTE OBJETIVO SE RELACIONA DIRECTAMENTE CON LA NECESIDAD IDENTIFICADA EN EL DIAGNÓSTICO, QUE EVIDENCIA UN ALTO INTERÉS EN EXPANSIÓN INTERNACIONAL (62% DE VOTACIÓN) PERO UNA CARENCIA DE METODOLOGÍAS ESTRUCTURADAS Y HERRAMIENTAS DE IA PARA ABORDARLA. LA ACCIÓN FORMATIVA BUSCA CERRAR ESTA BRECHA DOTANDO A LOS PARTICIPANTES DE COMPETENCIAS PRÁCTICAS EN INVESTIGACIÓN DE MERCADOS, ANÁLISIS DE COMPETENCIA, EVALUACIÓN DE RIESGOS Y DISEÑO DE MODELOS DE NEGOCIO REPLICABLES, PERMITIENDO QUE LAS EMPRESAS TRANSITEN DE LA INTENCIÓN A LA ACCIÓN CONCRETA DE INTERNACIONALIZACIÓN. EL IMPACTO ESPERADO EN LA PRODUCTIVIDAD Y COMPETITIVIDAD DE LAS EMPRESAS DEL GREMIO SE MATERIALIZA EN LA REDUCCIÓN DE TIEMPOS Y COSTOS ASOCIADOS A LA ENTRADA A NUEVOS MERCADOS, LA MINIMIZACIÓN DE RIESGOS DE FRACASO EN PROCESOS DE EXPORTACIÓN, Y LA DIVERSIFICACIÓN DE FUENTES DE INGRESO QUE INCREMENTA LA RESILIENCIA EMPRESARIAL FRENTE A LA VOLATILIDAD DE LA DEMANDA INTERNA. ADICIONALMENTE, LA INCORPORACIÓN DE HERRAMIENTAS DE INTELIGENCIA ARTIFICIAL OPTIMIZA LOS PROCESOS DE ANÁLISIS DE DATOS DE MERCADO, PERMITIENDO A LAS EMPRESAS TOMAR DECISIONES MÁS INFORMADAS Y ÁGILES. ESTA ACCIÓN DE FORMACIÓN DA RESPUESTA PARCIAL A LA NECESIDAD DETECTADA Y A LOS RETOS DE FORMACIÓN DE BRITCHAM Y ADEE, Y SE ALINEA CON SU OBJETO SOCIAL DE FORTALECER LA COMPETITIVIDAD Y EL CRECIMIENTO INTERNACIONAL DE SUS EMPRESAS AFILIADAS MEDIANTE LA CAPACITACIÓN EN TECNOLOGÍAS EMERGENTES Y ESTRATEGIAS DE EXPANSIÓN GLOBAL.",
+          "ambiente": "SALONES (HOTELES, LABORATORIOS, AULAS GASTRONOMÍA, SALONES EMPRESARIALES)",
+          "grupos": [
+            {
+              "numero": 1,
+              "sedeCiudad": "BOGOTÁ",
+              "sedeDepartamento": "BOGOTÁ D.C",
+              "coberturas": [
+                {
+                  "ubicacion": "BOGOTÁ",
+                  "tipo": "CIUDAD",
+                  "departamento": "BOGOTÁ D.C",
+                  "modalidad": "PRESENCIAL",
+                  "cuposBase": 30,
+                  "cuposMaximos": 39
+                }
+              ]
+            },
+            {
+              "numero": 2,
+              "sedeCiudad": "SANTA MARTA",
+              "sedeDepartamento": "MAGDALENA",
+              "coberturas": [
+                {
+                  "ubicacion": "SANTA MARTA",
+                  "tipo": "CIUDAD",
+                  "departamento": "MAGDALENA",
+                  "modalidad": "PRESENCIAL",
+                  "cuposBase": 30,
+                  "cuposMaximos": 39
+                }
+              ]
+            }
+          ],
+          "ofertas": [
+            {
+              "ubicacion": "BOGOTÁ",
+              "tipo": "CIUDAD",
+              "departamento": "BOGOTÁ D.C",
+              "modalidad": "PRESENCIAL",
+              "cuposBase": 30,
+              "cuposMaximos": 39,
+              "grupos": [
+                1
+              ]
+            },
+            {
+              "ubicacion": "SANTA MARTA",
+              "tipo": "CIUDAD",
+              "departamento": "MAGDALENA",
+              "modalidad": "PRESENCIAL",
+              "cuposBase": 30,
+              "cuposMaximos": 39,
+              "grupos": [
+                2
+              ]
+            }
+          ]
+        },
+        {
+          "codigo": "AF8",
+          "consecutivo": 8,
+          "orden": 8,
+          "nombre": "INTELIGENCIA ARTIFICIAL Y ECOEFICIENCIA: CÓMO TRANSFORMAR NEGOCIOS HACIA LA ECONOMÍA CIRCULAR",
+          "modalidad": "PRESENCIAL HÍBRIDA",
+          "evento": "FORO",
+          "enfoque": "FORMACIÓN EN EL TRABAJO",
+          "metodologia": "TEÓRICA",
+          "horas": 2,
+          "objetivo": "CAPACITAR A LOS EQUIPOS DE LAS EMPRESAS AFILIADAS A BRITCHAM COLOMBIA Y ADEE EN LA APLICACIÓN DE HERRAMIENTAS DE INTELIGENCIA ARTIFICIAL PARA LA IDENTIFICACIÓN DE OPORTUNIDADES DE ECOEFICIENCIA Y EL REDISEÑO DE PROCESOS PRODUCTIVOS BAJO PRINCIPIOS DE ECONOMÍA CIRCULAR, CON EL FIN DE REDUCIR COSTOS OPERATIVOS Y AMBIENTALES, MEJORAR EL ACCESO A CADENAS DE VALOR SOSTENIBLES Y FORTALECER SU POSICIONAMIENTO COMPETITIVO EN MERCADOS CADA VEZ MÁS EXIGENTES EN MATERIA DE SOSTENIBILIDAD. ESTA ACCIÓN DE FORMACIÓN DA RESPUESTA PARCIAL A LA NECESIDAD DETECTADA, AL PROPORCIONAR A LOS PARTICIPANTES CONOCIMIENTOS Y HERRAMIENTAS PRÁCTICAS QUE LES PERMITAN TRANSFORMAR SUS MODELOS PRODUCTIVOS LINEALES HACIA ENFOQUES CIRCULARES, CERRANDO LA BRECHA DE CAPITAL HUMANO IDENTIFICADA EN EL DIAGNÓSTICO. SE ALINEA CON EL OBJETO SOCIAL DE BRITCHAM COLOMBIA AL FORTALECER LA COMPETITIVIDAD Y SOSTENIBILIDAD DEL TEJIDO EMPRESARIAL AFILIADO, PROMOVIENDO LA ADOPCIÓN DE TECNOLOGÍAS INNOVADORAS Y BUENAS PRÁCTICAS QUE RESPONDEN A LOS ESTÁNDARES INTERNACIONALES IMPULSADOS POR EL ECOSISTEMA BRITÁNICO; Y CON EL DE ADEE, AL CONTRIBUIR A LA MODERNIZACIÓN Y EFICIENCIA OPERATIVA DE LAS EMPRESAS DEL SECTOR, FOMENTANDO UNA CULTURA DE INNOVACIÓN Y RESPONSABILIDAD AMBIENTAL QUE POTENCIA SU DESARROLLO Y CRECIMIENTO SOSTENIBLE EN EL MERCADO COLOMBIANO Y GLOBAL.",
+          "ambiente": "SALONES (HOTELES, LABORATORIOS, AULAS GASTRONOMÍA, SALONES EMPRESARIALES)",
+          "grupos": [
+            {
+              "numero": 1,
+              "sedeCiudad": "BOGOTÁ",
+              "sedeDepartamento": "BOGOTÁ D.C",
+              "coberturas": [
+                {
+                  "ubicacion": "BOGOTÁ",
+                  "tipo": "CIUDAD",
+                  "departamento": "BOGOTÁ D.C",
+                  "modalidad": "PRESENCIAL",
+                  "cuposBase": 60,
+                  "cuposMaximos": 78
+                },
+                {
+                  "ubicacion": "CUNDINAMARCA",
+                  "tipo": "DEPARTAMENTO",
+                  "departamento": "CUNDINAMARCA",
+                  "modalidad": "VIRTUAL",
+                  "cuposBase": 40,
+                  "cuposMaximos": 52
+                },
+                {
+                  "ubicacion": "BOLÍVAR",
+                  "tipo": "DEPARTAMENTO",
+                  "departamento": "BOLÍVAR",
+                  "modalidad": "VIRTUAL",
+                  "cuposBase": 40,
+                  "cuposMaximos": 52
+                },
+                {
+                  "ubicacion": "MAGDALENA",
+                  "tipo": "DEPARTAMENTO",
+                  "departamento": "MAGDALENA",
+                  "modalidad": "VIRTUAL",
+                  "cuposBase": 30,
+                  "cuposMaximos": 39
+                },
+                {
+                  "ubicacion": "NORTE DE SANTANDER",
+                  "tipo": "DEPARTAMENTO",
+                  "departamento": "NORTE DE SANTANDER",
+                  "modalidad": "VIRTUAL",
+                  "cuposBase": 25,
+                  "cuposMaximos": 32
+                },
+                {
+                  "ubicacion": "RISARALDA",
+                  "tipo": "DEPARTAMENTO",
+                  "departamento": "RISARALDA",
+                  "modalidad": "VIRTUAL",
+                  "cuposBase": 30,
+                  "cuposMaximos": 39
+                },
+                {
+                  "ubicacion": "CASANARE",
+                  "tipo": "DEPARTAMENTO",
+                  "departamento": "CASANARE",
+                  "modalidad": "VIRTUAL",
+                  "cuposBase": 25,
+                  "cuposMaximos": 33
+                }
+              ]
+            },
+            {
+              "numero": 2,
+              "sedeCiudad": "MEDELLÍN",
+              "sedeDepartamento": "ANTIOQUIA",
+              "coberturas": [
+                {
+                  "ubicacion": "MEDELLÍN",
+                  "tipo": "CIUDAD",
+                  "departamento": "ANTIOQUIA",
+                  "modalidad": "PRESENCIAL",
+                  "cuposBase": 60,
+                  "cuposMaximos": 78
+                },
+                {
+                  "ubicacion": "VALLE DEL CAUCA",
+                  "tipo": "DEPARTAMENTO",
+                  "departamento": "VALLE DEL CAUCA",
+                  "modalidad": "VIRTUAL",
+                  "cuposBase": 40,
+                  "cuposMaximos": 52
+                },
+                {
+                  "ubicacion": "ATLÁNTICO",
+                  "tipo": "DEPARTAMENTO",
+                  "departamento": "ATLÁNTICO",
+                  "modalidad": "VIRTUAL",
+                  "cuposBase": 40,
+                  "cuposMaximos": 52
+                },
+                {
+                  "ubicacion": "SANTANDER",
+                  "tipo": "DEPARTAMENTO",
+                  "departamento": "SANTANDER",
+                  "modalidad": "VIRTUAL",
+                  "cuposBase": 35,
+                  "cuposMaximos": 46
+                },
+                {
+                  "ubicacion": "AMAZONAS",
+                  "tipo": "DEPARTAMENTO",
+                  "departamento": "AMAZONAS",
+                  "modalidad": "VIRTUAL",
+                  "cuposBase": 25,
+                  "cuposMaximos": 33
+                },
+                {
+                  "ubicacion": "CALDAS",
+                  "tipo": "DEPARTAMENTO",
+                  "departamento": "CALDAS",
+                  "modalidad": "VIRTUAL",
+                  "cuposBase": 25,
+                  "cuposMaximos": 32
+                },
+                {
+                  "ubicacion": "CÓRDOBA",
+                  "tipo": "DEPARTAMENTO",
+                  "departamento": "CÓRDOBA",
+                  "modalidad": "VIRTUAL",
+                  "cuposBase": 25,
+                  "cuposMaximos": 32
+                }
+              ]
+            }
+          ],
+          "ofertas": [
+            {
+              "ubicacion": "BOGOTÁ",
+              "tipo": "CIUDAD",
+              "departamento": "BOGOTÁ D.C",
+              "modalidad": "PRESENCIAL",
+              "cuposBase": 60,
+              "cuposMaximos": 78,
+              "grupos": [
+                1
+              ]
+            },
+            {
+              "ubicacion": "MEDELLÍN",
+              "tipo": "CIUDAD",
+              "departamento": "ANTIOQUIA",
+              "modalidad": "PRESENCIAL",
+              "cuposBase": 60,
+              "cuposMaximos": 78,
+              "grupos": [
+                2
+              ]
+            },
+            {
+              "ubicacion": "AMAZONAS",
+              "tipo": "DEPARTAMENTO",
+              "departamento": "AMAZONAS",
+              "modalidad": "VIRTUAL",
+              "cuposBase": 25,
+              "cuposMaximos": 33,
+              "grupos": [
+                2
+              ]
+            },
+            {
+              "ubicacion": "ATLÁNTICO",
+              "tipo": "DEPARTAMENTO",
+              "departamento": "ATLÁNTICO",
+              "modalidad": "VIRTUAL",
+              "cuposBase": 40,
+              "cuposMaximos": 52,
+              "grupos": [
+                2
+              ]
+            },
+            {
+              "ubicacion": "BOLÍVAR",
+              "tipo": "DEPARTAMENTO",
+              "departamento": "BOLÍVAR",
+              "modalidad": "VIRTUAL",
+              "cuposBase": 40,
+              "cuposMaximos": 52,
+              "grupos": [
+                1
+              ]
+            },
+            {
+              "ubicacion": "CALDAS",
+              "tipo": "DEPARTAMENTO",
+              "departamento": "CALDAS",
+              "modalidad": "VIRTUAL",
+              "cuposBase": 25,
+              "cuposMaximos": 32,
+              "grupos": [
+                2
+              ]
+            },
+            {
+              "ubicacion": "CASANARE",
+              "tipo": "DEPARTAMENTO",
+              "departamento": "CASANARE",
+              "modalidad": "VIRTUAL",
+              "cuposBase": 25,
+              "cuposMaximos": 33,
+              "grupos": [
+                1
+              ]
+            },
+            {
+              "ubicacion": "CUNDINAMARCA",
+              "tipo": "DEPARTAMENTO",
+              "departamento": "CUNDINAMARCA",
+              "modalidad": "VIRTUAL",
+              "cuposBase": 40,
+              "cuposMaximos": 52,
+              "grupos": [
+                1
+              ]
+            },
+            {
+              "ubicacion": "CÓRDOBA",
+              "tipo": "DEPARTAMENTO",
+              "departamento": "CÓRDOBA",
+              "modalidad": "VIRTUAL",
+              "cuposBase": 25,
+              "cuposMaximos": 32,
+              "grupos": [
+                2
+              ]
+            },
+            {
+              "ubicacion": "MAGDALENA",
+              "tipo": "DEPARTAMENTO",
+              "departamento": "MAGDALENA",
+              "modalidad": "VIRTUAL",
+              "cuposBase": 30,
+              "cuposMaximos": 39,
+              "grupos": [
+                1
+              ]
+            },
+            {
+              "ubicacion": "NORTE DE SANTANDER",
+              "tipo": "DEPARTAMENTO",
+              "departamento": "NORTE DE SANTANDER",
+              "modalidad": "VIRTUAL",
+              "cuposBase": 25,
+              "cuposMaximos": 32,
+              "grupos": [
+                1
+              ]
+            },
+            {
+              "ubicacion": "RISARALDA",
+              "tipo": "DEPARTAMENTO",
+              "departamento": "RISARALDA",
+              "modalidad": "VIRTUAL",
+              "cuposBase": 30,
+              "cuposMaximos": 39,
+              "grupos": [
+                1
+              ]
+            },
+            {
+              "ubicacion": "SANTANDER",
+              "tipo": "DEPARTAMENTO",
+              "departamento": "SANTANDER",
+              "modalidad": "VIRTUAL",
+              "cuposBase": 35,
+              "cuposMaximos": 46,
+              "grupos": [
+                2
+              ]
+            },
+            {
+              "ubicacion": "VALLE DEL CAUCA",
+              "tipo": "DEPARTAMENTO",
+              "departamento": "VALLE DEL CAUCA",
+              "modalidad": "VIRTUAL",
+              "cuposBase": 40,
+              "cuposMaximos": 52,
+              "grupos": [
+                2
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "slug": "adecopria",
+      "entidad": {
+        "nombre": "ASOCIACION DE EDUCACION PRIVADA",
+        "sigla": "ADECOPRIA",
+        "nit": "890982432",
+        "digitoVerificacion": "0",
+        "correo": "direccionejecutiva@adecopria.com",
+        "telefono": null,
+        "departamento": "ANTIOQUIA",
+        "ciudad": "MEDELLÍN",
+        "direccion": "CARRERA 84 F 3 D 150. BQ 6 APTO 726",
+        "paginaWeb": "adecopria.com"
+      },
+      "archivoOrigen": "01 - ADECOPRIA.xlsx",
+      "acciones": [
+        {
+          "codigo": "AF1",
+          "consecutivo": 1,
+          "orden": 1,
+          "nombre": "GESTIÓN DE LA ATENCIÓN Y NEUROEDUCACIÓN EN LA ERA DIGITAL",
+          "modalidad": "VIRTUAL",
+          "evento": "CURSO",
+          "enfoque": "FORMACIÓN EN EL TRABAJO",
+          "metodologia": "TEÓRICO - PRÁCTICA",
+          "horas": 40,
+          "objetivo": "FORTALECER LAS COMPETENCIAS PEDAGÓGICAS, NEUROEDUCATIVAS Y SOCIOEMOCIONALES DE LOS DOCENTES PARA GESTIONAR LA ATENCIÓN, PROMOVER LA AUTORREGULACIÓN Y FOMENTAR LA AUTONOMÍA DE LOS ESTUDIANTES FRENTE A LOS EFECTOS DE LA SOBREESTIMULACIÓN POR PANTALLAS, MEDIANTE LA APLICACIÓN DE ESTRATEGIAS PRÁCTICAS QUE MEJOREN EL CLIMA DE AULA, OPTIMICEN EL TIEMPO EFECTIVO DE ENSEÑANZA Y CONTRIBUYAN A ELEVAR LA PRODUCTIVIDAD EDUCATIVA Y LA CALIDAD DE LOS APRENDIZAJES EN LAS INSTITUCIONES AFILIADAS AL GREMIO. ESTE OBJETIVO SE RELACIONA DIRECTAMENTE CON EL OBJETO SOCIAL DEL GREMIO, EN LA MEDIDA EN QUE CONTRIBUYE AL FORTALECIMIENTO DE LA CALIDAD EDUCATIVA, AL DESARROLLO PROFESIONAL DEL TALENTO HUMANO DOCENTE Y AL AUMENTO DE LA COMPETITIVIDAD DE LAS INSTITUCIONES EDUCATIVAS QUE REPRESENTA, RESPONDIENDO A LA NECESIDAD DE FORMACIÓN IDENTIFICADA Y A SU IMPACTO EN LA PRODUCTIVIDAD Y COMPETITIVIDAD DEL SECTOR.",
+          "ambiente": "AULA VIRTUAL",
+          "grupos": [
+            {
+              "numero": 1,
+              "sedeCiudad": null,
+              "sedeDepartamento": null,
+              "coberturas": [
+                {
+                  "ubicacion": "BOGOTÁ D.C",
+                  "tipo": "DEPARTAMENTO",
+                  "departamento": "BOGOTÁ D.C",
+                  "modalidad": "VIRTUAL",
+                  "cuposBase": 50,
+                  "cuposMaximos": 65
+                }
+              ]
+            },
+            {
+              "numero": 2,
+              "sedeCiudad": null,
+              "sedeDepartamento": null,
+              "coberturas": [
+                {
+                  "ubicacion": "ANTIOQUIA",
+                  "tipo": "DEPARTAMENTO",
+                  "departamento": "ANTIOQUIA",
+                  "modalidad": "VIRTUAL",
+                  "cuposBase": 50,
+                  "cuposMaximos": 65
+                }
+              ]
+            },
+            {
+              "numero": 3,
+              "sedeCiudad": null,
+              "sedeDepartamento": null,
+              "coberturas": [
+                {
+                  "ubicacion": "ANTIOQUIA",
+                  "tipo": "DEPARTAMENTO",
+                  "departamento": "ANTIOQUIA",
+                  "modalidad": "VIRTUAL",
+                  "cuposBase": 50,
+                  "cuposMaximos": 65
+                }
+              ]
+            },
+            {
+              "numero": 4,
+              "sedeCiudad": null,
+              "sedeDepartamento": null,
+              "coberturas": [
+                {
+                  "ubicacion": "HUILA",
+                  "tipo": "DEPARTAMENTO",
+                  "departamento": "HUILA",
+                  "modalidad": "VIRTUAL",
+                  "cuposBase": 25,
+                  "cuposMaximos": 33
+                },
+                {
+                  "ubicacion": "MAGDALENA",
+                  "tipo": "DEPARTAMENTO",
+                  "departamento": "MAGDALENA",
+                  "modalidad": "VIRTUAL",
+                  "cuposBase": 25,
+                  "cuposMaximos": 32
+                }
+              ]
+            },
+            {
+              "numero": 5,
+              "sedeCiudad": null,
+              "sedeDepartamento": null,
+              "coberturas": [
+                {
+                  "ubicacion": "CAUCA",
+                  "tipo": "DEPARTAMENTO",
+                  "departamento": "CAUCA",
+                  "modalidad": "VIRTUAL",
+                  "cuposBase": 25,
+                  "cuposMaximos": 33
+                },
+                {
+                  "ubicacion": "SANTANDER",
+                  "tipo": "DEPARTAMENTO",
+                  "departamento": "SANTANDER",
+                  "modalidad": "VIRTUAL",
+                  "cuposBase": 25,
+                  "cuposMaximos": 32
+                }
+              ]
+            },
+            {
+              "numero": 6,
+              "sedeCiudad": null,
+              "sedeDepartamento": null,
+              "coberturas": [
+                {
+                  "ubicacion": "CÓRDOBA",
+                  "tipo": "DEPARTAMENTO",
+                  "departamento": "CÓRDOBA",
+                  "modalidad": "VIRTUAL",
+                  "cuposBase": 50,
+                  "cuposMaximos": 65
+                }
+              ]
+            },
+            {
+              "numero": 7,
+              "sedeCiudad": null,
+              "sedeDepartamento": null,
+              "coberturas": [
+                {
+                  "ubicacion": "RISARALDA",
+                  "tipo": "DEPARTAMENTO",
+                  "departamento": "RISARALDA",
+                  "modalidad": "VIRTUAL",
+                  "cuposBase": 50,
+                  "cuposMaximos": 65
+                }
+              ]
+            },
+            {
+              "numero": 8,
+              "sedeCiudad": null,
+              "sedeDepartamento": null,
+              "coberturas": [
+                {
+                  "ubicacion": "VALLE DEL CAUCA",
+                  "tipo": "DEPARTAMENTO",
+                  "departamento": "VALLE DEL CAUCA",
+                  "modalidad": "VIRTUAL",
+                  "cuposBase": 50,
+                  "cuposMaximos": 65
+                }
+              ]
+            }
+          ],
+          "ofertas": [
+            {
+              "ubicacion": "ANTIOQUIA",
+              "tipo": "DEPARTAMENTO",
+              "departamento": "ANTIOQUIA",
+              "modalidad": "VIRTUAL",
+              "cuposBase": 100,
+              "cuposMaximos": 130,
+              "grupos": [
+                2,
+                3
+              ]
+            },
+            {
+              "ubicacion": "BOGOTÁ D.C",
+              "tipo": "DEPARTAMENTO",
+              "departamento": "BOGOTÁ D.C",
+              "modalidad": "VIRTUAL",
+              "cuposBase": 50,
+              "cuposMaximos": 65,
+              "grupos": [
+                1
+              ]
+            },
+            {
+              "ubicacion": "CAUCA",
+              "tipo": "DEPARTAMENTO",
+              "departamento": "CAUCA",
+              "modalidad": "VIRTUAL",
+              "cuposBase": 25,
+              "cuposMaximos": 33,
+              "grupos": [
+                5
+              ]
+            },
+            {
+              "ubicacion": "CÓRDOBA",
+              "tipo": "DEPARTAMENTO",
+              "departamento": "CÓRDOBA",
+              "modalidad": "VIRTUAL",
+              "cuposBase": 50,
+              "cuposMaximos": 65,
+              "grupos": [
+                6
+              ]
+            },
+            {
+              "ubicacion": "HUILA",
+              "tipo": "DEPARTAMENTO",
+              "departamento": "HUILA",
+              "modalidad": "VIRTUAL",
+              "cuposBase": 25,
+              "cuposMaximos": 33,
+              "grupos": [
+                4
+              ]
+            },
+            {
+              "ubicacion": "MAGDALENA",
+              "tipo": "DEPARTAMENTO",
+              "departamento": "MAGDALENA",
+              "modalidad": "VIRTUAL",
+              "cuposBase": 25,
+              "cuposMaximos": 32,
+              "grupos": [
+                4
+              ]
+            },
+            {
+              "ubicacion": "RISARALDA",
+              "tipo": "DEPARTAMENTO",
+              "departamento": "RISARALDA",
+              "modalidad": "VIRTUAL",
+              "cuposBase": 50,
+              "cuposMaximos": 65,
+              "grupos": [
+                7
+              ]
+            },
+            {
+              "ubicacion": "SANTANDER",
+              "tipo": "DEPARTAMENTO",
+              "departamento": "SANTANDER",
+              "modalidad": "VIRTUAL",
+              "cuposBase": 25,
+              "cuposMaximos": 32,
+              "grupos": [
+                5
+              ]
+            },
+            {
+              "ubicacion": "VALLE DEL CAUCA",
+              "tipo": "DEPARTAMENTO",
+              "departamento": "VALLE DEL CAUCA",
+              "modalidad": "VIRTUAL",
+              "cuposBase": 50,
+              "cuposMaximos": 65,
+              "grupos": [
+                8
+              ]
+            }
+          ]
+        },
+        {
+          "codigo": "AF2",
+          "consecutivo": 2,
+          "orden": 2,
+          "nombre": "DISEÑO ESTRATÉGICO DE ECOSISTEMAS EDUCATIVOS CON INTELIGENCIA ARTIFICIAL",
+          "modalidad": "VIRTUAL",
+          "evento": "CURSO",
+          "enfoque": "FORMACIÓN EN EL TRABAJO",
+          "metodologia": "TEÓRICO - PRÁCTICA",
+          "horas": 40,
+          "objetivo": "FORTALECER LAS COMPETENCIAS PEDAGÓGICAS Y DIGITALES DE LOS AGENTES EDUCATIVOS PARA LA INTEGRACIÓN DE LA INTELIGENCIA ARTIFICIAL GENERATIVA EN EL DISEÑO, DESARROLLO Y EVALUACIÓN DE AMBIENTES DE APRENDIZAJE, MEDIANTE ESTRATEGIAS DE CO-CREACIÓN QUE OPTIMICEN LOS TIEMPOS DE PLANEACIÓN DOCENTE, PERSONALICEN LOS PROCESOS DE ENSEÑANZA-APRENDIZAJE Y MEJOREN LA CALIDAD EDUCATIVA, GENERANDO UN IMPACTO DIRECTO EN LA PRODUCTIVIDAD INSTITUCIONAL AL REDUCIR CARGAS OPERATIVAS EN LA PLANEACIÓN PEDAGÓGICA, Y FORTALECIENDO LA COMPETITIVIDAD DE LAS INSTITUCIONES EDUCATIVAS AFILIADAS AL GREMIO MEDIANTE LA CONSOLIDACIÓN DE UNA CULTURA DE INNOVACIÓN Y USO PEDAGÓGICO RESPONSABLE DE LA INTELIGENCIA ARTIFICIAL. ESTE OBJETIVO SE RELACIONA DIRECTAMENTE CON EL OBJETO SOCIAL DEL GREMIO, EN LA MEDIDA EN QUE CONTRIBUYE AL FORTALECIMIENTO DE LA CALIDAD EDUCATIVA, AL DESARROLLO PROFESIONAL DEL TALENTO HUMANO DOCENTE, A LA PROMOCIÓN DE LA INNOVACIÓN PEDAGÓGICA Y A LA MEJORA CONTINUA DE LAS INSTITUCIONES EDUCATIVAS QUE REPRESENTA, RESPONDIENDO DE MANERA DIRECTA A LA NECESIDAD DE FORMACIÓN IDENTIFICADA EN MATERIA DE ADOPCIÓN DE HERRAMIENTAS DIGITALES Y USO PEDAGÓGICO DE LA INTELIGENCIA ARTIFICIAL GENERATIVA, Y CONSOLIDANDO MEJORES CONDICIONES DE PRODUCTIVIDAD Y COMPETITIVIDAD PARA EL SECTOR EDUCATIVO PRIVADO.",
+          "ambiente": "AULA VIRTUAL",
+          "grupos": [
+            {
+              "numero": 1,
+              "sedeCiudad": null,
+              "sedeDepartamento": null,
+              "coberturas": [
+                {
+                  "ubicacion": "BOGOTÁ D.C",
+                  "tipo": "DEPARTAMENTO",
+                  "departamento": "BOGOTÁ D.C",
+                  "modalidad": "VIRTUAL",
+                  "cuposBase": 50,
+                  "cuposMaximos": 65
+                }
+              ]
+            },
+            {
+              "numero": 2,
+              "sedeCiudad": null,
+              "sedeDepartamento": null,
+              "coberturas": [
+                {
+                  "ubicacion": "ANTIOQUIA",
+                  "tipo": "DEPARTAMENTO",
+                  "departamento": "ANTIOQUIA",
+                  "modalidad": "VIRTUAL",
+                  "cuposBase": 25,
+                  "cuposMaximos": 33
+                },
+                {
+                  "ubicacion": "MAGDALENA",
+                  "tipo": "DEPARTAMENTO",
+                  "departamento": "MAGDALENA",
+                  "modalidad": "VIRTUAL",
+                  "cuposBase": 25,
+                  "cuposMaximos": 32
+                }
+              ]
+            },
+            {
+              "numero": 3,
+              "sedeCiudad": null,
+              "sedeDepartamento": null,
+              "coberturas": [
+                {
+                  "ubicacion": "ANTIOQUIA",
+                  "tipo": "DEPARTAMENTO",
+                  "departamento": "ANTIOQUIA",
+                  "modalidad": "VIRTUAL",
+                  "cuposBase": 50,
+                  "cuposMaximos": 65
+                }
+              ]
+            },
+            {
+              "numero": 4,
+              "sedeCiudad": null,
+              "sedeDepartamento": null,
+              "coberturas": [
+                {
+                  "ubicacion": "ANTIOQUIA",
+                  "tipo": "DEPARTAMENTO",
+                  "departamento": "ANTIOQUIA",
+                  "modalidad": "VIRTUAL",
+                  "cuposBase": 50,
+                  "cuposMaximos": 65
+                }
+              ]
+            },
+            {
+              "numero": 5,
+              "sedeCiudad": null,
+              "sedeDepartamento": null,
+              "coberturas": [
+                {
+                  "ubicacion": "CAUCA",
+                  "tipo": "DEPARTAMENTO",
+                  "departamento": "CAUCA",
+                  "modalidad": "VIRTUAL",
+                  "cuposBase": 25,
+                  "cuposMaximos": 33
+                },
+                {
+                  "ubicacion": "SANTANDER",
+                  "tipo": "DEPARTAMENTO",
+                  "departamento": "SANTANDER",
+                  "modalidad": "VIRTUAL",
+                  "cuposBase": 25,
+                  "cuposMaximos": 32
+                }
+              ]
+            },
+            {
+              "numero": 6,
+              "sedeCiudad": null,
+              "sedeDepartamento": null,
+              "coberturas": [
+                {
+                  "ubicacion": "CÓRDOBA",
+                  "tipo": "DEPARTAMENTO",
+                  "departamento": "CÓRDOBA",
+                  "modalidad": "VIRTUAL",
+                  "cuposBase": 25,
+                  "cuposMaximos": 33
+                },
+                {
+                  "ubicacion": "HUILA",
+                  "tipo": "DEPARTAMENTO",
+                  "departamento": "HUILA",
+                  "modalidad": "VIRTUAL",
+                  "cuposBase": 25,
+                  "cuposMaximos": 32
+                }
+              ]
+            },
+            {
+              "numero": 7,
+              "sedeCiudad": null,
+              "sedeDepartamento": null,
+              "coberturas": [
+                {
+                  "ubicacion": "RISARALDA",
+                  "tipo": "DEPARTAMENTO",
+                  "departamento": "RISARALDA",
+                  "modalidad": "VIRTUAL",
+                  "cuposBase": 50,
+                  "cuposMaximos": 65
+                }
+              ]
+            },
+            {
+              "numero": 8,
+              "sedeCiudad": null,
+              "sedeDepartamento": null,
+              "coberturas": [
+                {
+                  "ubicacion": "VALLE DEL CAUCA",
+                  "tipo": "DEPARTAMENTO",
+                  "departamento": "VALLE DEL CAUCA",
+                  "modalidad": "VIRTUAL",
+                  "cuposBase": 50,
+                  "cuposMaximos": 65
+                }
+              ]
+            }
+          ],
+          "ofertas": [
+            {
+              "ubicacion": "ANTIOQUIA",
+              "tipo": "DEPARTAMENTO",
+              "departamento": "ANTIOQUIA",
+              "modalidad": "VIRTUAL",
+              "cuposBase": 125,
+              "cuposMaximos": 163,
+              "grupos": [
+                2,
+                3,
+                4
+              ]
+            },
+            {
+              "ubicacion": "BOGOTÁ D.C",
+              "tipo": "DEPARTAMENTO",
+              "departamento": "BOGOTÁ D.C",
+              "modalidad": "VIRTUAL",
+              "cuposBase": 50,
+              "cuposMaximos": 65,
+              "grupos": [
+                1
+              ]
+            },
+            {
+              "ubicacion": "CAUCA",
+              "tipo": "DEPARTAMENTO",
+              "departamento": "CAUCA",
+              "modalidad": "VIRTUAL",
+              "cuposBase": 25,
+              "cuposMaximos": 33,
+              "grupos": [
+                5
+              ]
+            },
+            {
+              "ubicacion": "CÓRDOBA",
+              "tipo": "DEPARTAMENTO",
+              "departamento": "CÓRDOBA",
+              "modalidad": "VIRTUAL",
+              "cuposBase": 25,
+              "cuposMaximos": 33,
+              "grupos": [
+                6
+              ]
+            },
+            {
+              "ubicacion": "HUILA",
+              "tipo": "DEPARTAMENTO",
+              "departamento": "HUILA",
+              "modalidad": "VIRTUAL",
+              "cuposBase": 25,
+              "cuposMaximos": 32,
+              "grupos": [
+                6
+              ]
+            },
+            {
+              "ubicacion": "MAGDALENA",
+              "tipo": "DEPARTAMENTO",
+              "departamento": "MAGDALENA",
+              "modalidad": "VIRTUAL",
+              "cuposBase": 25,
+              "cuposMaximos": 32,
+              "grupos": [
+                2
+              ]
+            },
+            {
+              "ubicacion": "RISARALDA",
+              "tipo": "DEPARTAMENTO",
+              "departamento": "RISARALDA",
+              "modalidad": "VIRTUAL",
+              "cuposBase": 50,
+              "cuposMaximos": 65,
+              "grupos": [
+                7
+              ]
+            },
+            {
+              "ubicacion": "SANTANDER",
+              "tipo": "DEPARTAMENTO",
+              "departamento": "SANTANDER",
+              "modalidad": "VIRTUAL",
+              "cuposBase": 25,
+              "cuposMaximos": 32,
+              "grupos": [
+                5
+              ]
+            },
+            {
+              "ubicacion": "VALLE DEL CAUCA",
+              "tipo": "DEPARTAMENTO",
+              "departamento": "VALLE DEL CAUCA",
+              "modalidad": "VIRTUAL",
+              "cuposBase": 50,
+              "cuposMaximos": 65,
+              "grupos": [
+                8
+              ]
+            }
+          ]
+        },
+        {
+          "codigo": "AF3",
+          "consecutivo": 3,
+          "orden": 3,
+          "nombre": "GOBERNANZA ESTRATÉGICA DE LA DIVERSIDAD, EQUIDAD E INCLUSIÓN (DEI) PARA MUJERES LÍDERES EN EL SECTOR EDUCATIVO",
+          "modalidad": "PRESENCIAL",
+          "evento": "TALLER",
+          "enfoque": "FORMACIÓN EN EL TRABAJO",
+          "metodologia": "TEÓRICO - PRÁCTICA",
+          "horas": 8,
+          "objetivo": "ESTRUCTURAR LINEAMIENTOS DE GOBERNANZA EN DIVERSIDAD, EQUIDAD E INCLUSIÓN (DEI) Y DISEÑO DE ECOSISTEMAS EDUCATIVOS ACCESIBLES, DIRIGIDOS A MUJERES LÍDERES Y PERSONAL DIRECTIVO, CON EL FIN DE ARTICULAR LAS POLÍTICAS INSTITUCIONALES CON LA PLANEACIÓN ESTRATÉGICA CORPORATIVA, MITIGAR LAS BRECHAS ESTRUCTURALES DE POBLACIONES DIVERSAS Y ELEVAR LOS INDICADORES DE COMPETITIVIDAD ORGANIZACIONAL. LOS RESULTADOS ESPERADOS SON: QUE LAS PARTICIPANTES COMPRENDAN LOS MARCOS NORMATIVOS DE LA INCLUSIÓN COMO ESTÁNDAR DE CUMPLIMIENTO; CONOZCAN ESTRATEGIAS GERENCIALES PARA LA GESTIÓN DEL CAMBIO DEI; Y SEAN CAPACES DE DISEÑAR ARQUITECTURAS INSTITUCIONALES CON ENFOQUES DIFERENCIALES DE GÉNERO, ETNIA Y DISCAPACIDAD, ASEGURANDO ECOSISTEMAS QUE POTENCIEN EL TALENTO DIVERSO. ESTE OBJETIVO RESPONDE DIRECTAMENTE A LA NECESIDAD AF3, QUE EVIDENCIA UNA DESARTICULACIÓN ENTRE LA ALTA DIRECCIÓN Y LAS POLÍTICAS DE INCLUSIÓN. LA ACCIÓN FORMATIVA SOLUCIONA PARCIALMENTE ESTA NECESIDAD AL DOTAR AL 46% DE LAS MUJERES LÍDERES ORGANIZACIONALES QUE REQUIEREN FORMACIÓN URGENTE, CON HERRAMIENTAS PARA TRADUCIR LAS ESTRATEGIAS MACRO EN INDICADORES (KPIS) Y DIRECTRICES EFECTIVAS DE EQUIDAD CORPORATIVA. ESTA FORMACIÓN RESPONDE A LOS RETOS DEL GREMIO Y SE ALINEA CON SU OBJETO SOCIAL AL PROMOVER ECOSISTEMAS SOSTENIBLES, CONTRIBUYENDO A CERRAR BRECHAS DE CAPITAL HUMANO ESPECIALIZADO, POTENCIAR EL LIDERAZGO FEMENINO Y AUMENTAR SIGNIFICATIVAMENTE LA PRODUCTIVIDAD Y LA COMPETITIVIDAD TERRITORIAL DE LAS INSTITUCIONES AFILIADAS",
+          "ambiente": "SALONES (HOTELES, LABORATORIOS, AULAS GASTRONOMÍA, SALONES EMPRESARIALES)",
+          "grupos": [
+            {
+              "numero": 1,
+              "sedeCiudad": "APARTADÓ",
+              "sedeDepartamento": "ANTIOQUIA",
+              "coberturas": [
+                {
+                  "ubicacion": "APARTADÓ",
+                  "tipo": "CIUDAD",
+                  "departamento": "ANTIOQUIA",
+                  "modalidad": "PRESENCIAL",
+                  "cuposBase": 30,
+                  "cuposMaximos": 39
+                }
+              ]
+            },
+            {
+              "numero": 2,
+              "sedeCiudad": "MEDELLÍN",
+              "sedeDepartamento": "ANTIOQUIA",
+              "coberturas": [
+                {
+                  "ubicacion": "MEDELLÍN",
+                  "tipo": "CIUDAD",
+                  "departamento": "ANTIOQUIA",
+                  "modalidad": "PRESENCIAL",
+                  "cuposBase": 30,
+                  "cuposMaximos": 39
+                }
+              ]
+            },
+            {
+              "numero": 3,
+              "sedeCiudad": "SANTA MARTA",
+              "sedeDepartamento": "MAGDALENA",
+              "coberturas": [
+                {
+                  "ubicacion": "SANTA MARTA",
+                  "tipo": "CIUDAD",
+                  "departamento": "MAGDALENA",
+                  "modalidad": "PRESENCIAL",
+                  "cuposBase": 30,
+                  "cuposMaximos": 39
+                }
+              ]
+            },
+            {
+              "numero": 4,
+              "sedeCiudad": "PEREIRA",
+              "sedeDepartamento": "RISARALDA",
+              "coberturas": [
+                {
+                  "ubicacion": "PEREIRA",
+                  "tipo": "CIUDAD",
+                  "departamento": "RISARALDA",
+                  "modalidad": "PRESENCIAL",
+                  "cuposBase": 30,
+                  "cuposMaximos": 39
+                }
+              ]
+            },
+            {
+              "numero": 5,
+              "sedeCiudad": "CALI",
+              "sedeDepartamento": "VALLE DEL CAUCA",
+              "coberturas": [
+                {
+                  "ubicacion": "CALI",
+                  "tipo": "CIUDAD",
+                  "departamento": "VALLE DEL CAUCA",
+                  "modalidad": "PRESENCIAL",
+                  "cuposBase": 30,
+                  "cuposMaximos": 39
+                }
+              ]
+            }
+          ],
+          "ofertas": [
+            {
+              "ubicacion": "APARTADÓ",
+              "tipo": "CIUDAD",
+              "departamento": "ANTIOQUIA",
+              "modalidad": "PRESENCIAL",
+              "cuposBase": 30,
+              "cuposMaximos": 39,
+              "grupos": [
+                1
+              ]
+            },
+            {
+              "ubicacion": "CALI",
+              "tipo": "CIUDAD",
+              "departamento": "VALLE DEL CAUCA",
+              "modalidad": "PRESENCIAL",
+              "cuposBase": 30,
+              "cuposMaximos": 39,
+              "grupos": [
+                5
+              ]
+            },
+            {
+              "ubicacion": "MEDELLÍN",
+              "tipo": "CIUDAD",
+              "departamento": "ANTIOQUIA",
+              "modalidad": "PRESENCIAL",
+              "cuposBase": 30,
+              "cuposMaximos": 39,
+              "grupos": [
+                2
+              ]
+            },
+            {
+              "ubicacion": "PEREIRA",
+              "tipo": "CIUDAD",
+              "departamento": "RISARALDA",
+              "modalidad": "PRESENCIAL",
+              "cuposBase": 30,
+              "cuposMaximos": 39,
+              "grupos": [
+                4
+              ]
+            },
+            {
+              "ubicacion": "SANTA MARTA",
+              "tipo": "CIUDAD",
+              "departamento": "MAGDALENA",
+              "modalidad": "PRESENCIAL",
+              "cuposBase": 30,
+              "cuposMaximos": 39,
+              "grupos": [
+                3
+              ]
+            }
+          ]
+        },
+        {
+          "codigo": "AF4",
+          "consecutivo": 4,
+          "orden": 4,
+          "nombre": "REALIDAD VIRTUAL Y CARTOGRAFÍAS DIGITALES PARA LA INNOVACIÓN INSTITUCIONAL",
+          "modalidad": "PRESENCIAL",
+          "evento": "TALLER",
+          "enfoque": "FORMACIÓN EN EL TRABAJO",
+          "metodologia": "TEÓRICO - PRÁCTICA",
+          "horas": 8,
+          "objetivo": "FORTALECER LAS COMPETENCIAS DIGITALES E INNOVADORAS DE LOS LÍDERES DE LAS INSTITUCIONES EDUCATIVAS PRIVADAS AFILIADAS A ADECOPRIA MEDIANTE LA APLICACIÓN DE CARTOGRAFÍAS DIGITALES, ESPACIOS VIRTUALES 3D Y ESTRATEGIAS METACOGNITIVAS, CON EL FIN DE DISEÑAR EXPERIENCIAS DE APRENDIZAJE INMERSIVAS QUE TRANSFORMEN LAS PRÁCTICAS PEDAGÓGICAS, PROMUEVAN EL PENSAMIENTO CREATIVO Y CRÍTICO EN LOS ESTUDIANTES, Y GENEREN UN IMPACTO MEDIBLE EN LA PRODUCTIVIDAD INSTITUCIONAL AL OPTIMIZAR LOS TIEMPOS DE DISEÑO Y ACTUALIZACIÓN DE CONTENIDOS PEDAGÓGICOS, ASÍ COMO EN LA COMPETITIVIDAD DEL SERVICIO EDUCATIVO AL POSICIONAR A LAS INSTITUCIONES AFILIADAS COMO REFERENTES EN INNOVACIÓN DIGITAL Y APRENDIZAJE INMERSIVO. ESTA ACCIÓN DE FORMACIÓN DA RESPUESTA PARCIAL A LA NECESIDAD DETECTADA Y A LOS RETOS DE FORMACIÓN DEL GREMIO ADECOPRIA, Y SE ALINEA CON SU OBJETO SOCIAL, QUE EXISTE PARA \"REPRESENTAR Y FORTALECER A LAS INSTITUCIONES EDUCATIVAS AFILIADAS, CON EL FIN DE GARANTIZAR EL POSICIONAMIENTO DE CADA UNA Y LA CALIDAD DE LA EDUCACIÓN BRINDADA\", ASÍ COMO PARA GENERAR REFLEXIÓN PEDAGÓGICA DESDE LA PLURALIDAD Y LA CONFIANZA, EN ESPACIOS DE RELACIONAMIENTO E INNOVACIÓN, PARA TRANSFORMAR LA EDUCACIÓN PRIVADA EN UN POTENCIADOR DEL SER, Y FORTALECER LA \"FORMACIÓN EN INNOVACIÓN\" COMO EJE ESTRATÉGICO PARA LA TRANSFORMACIÓN EDUCATIVA Y EL FORTALECIMIENTO DE LA PRODUCTIVIDAD Y COMPETITIVIDAD DEL SECTOR.",
+          "ambiente": "SALONES (HOTELES, LABORATORIOS, AULAS GASTRONOMÍA, SALONES EMPRESARIALES)",
+          "grupos": [
+            {
+              "numero": 1,
+              "sedeCiudad": "POPAYÁN",
+              "sedeDepartamento": "CAUCA",
+              "coberturas": [
+                {
+                  "ubicacion": "POPAYÁN",
+                  "tipo": "CIUDAD",
+                  "departamento": "CAUCA",
+                  "modalidad": "PRESENCIAL",
+                  "cuposBase": 30,
+                  "cuposMaximos": 39
+                }
+              ]
+            }
+          ],
+          "ofertas": [
+            {
+              "ubicacion": "POPAYÁN",
+              "tipo": "CIUDAD",
+              "departamento": "CAUCA",
+              "modalidad": "PRESENCIAL",
+              "cuposBase": 30,
+              "cuposMaximos": 39,
+              "grupos": [
+                1
+              ]
+            }
+          ]
+        },
+        {
+          "codigo": "AF5",
+          "consecutivo": 5,
+          "orden": 5,
+          "nombre": "MODELOS DE ASOCIATIVIDAD Y COOPERATIVISMO ESCOLAR: EMPRENDIMIENTO SOCIAL Y REDES DE COMERCIALIZACIÓN RESPONSABLE",
+          "modalidad": "PRESENCIAL",
+          "evento": "TALLER",
+          "enfoque": "FORMACIÓN EN EL TRABAJO",
+          "metodologia": "TEÓRICO - PRÁCTICA",
+          "horas": 8,
+          "objetivo": "FORTALECER LAS COMPETENCIAS DEL PERSONAL DOCENTE Y ESTUDIANTES EN MODELOS DE ASOCIATIVIDAD Y COOPERATIVISMO ESCOLAR, MEDIANTE LA APROPIACIÓN DE PRINCIPIOS DE ECONOMÍA SOLIDARIA, LA INTEGRACIÓN DE LOS OBJETIVOS DE DESARROLLO SOSTENIBLE (ODS) Y ESTRATEGIAS PARA LA CREACIÓN Y GESTIÓN DE REDES DE COMERCIALIZACIÓN RESPONSABLE, QUE PERMITAN TRANSFORMAR LAS VISIONES DE NEGOCIO INDIVIDUALES EN INICIATIVAS COLABORATIVAS CON IMPACTO SOCIAL, AMBIENTAL Y ECONÓMICO SOSTENIBLE. ESPECÍFICAMENTE, SE BUSCA QUE LOS PARTICIPANTES COMPRENDAN LOS FUNDAMENTOS DEL COOPERATIVISMO ESCOLAR, INTEGREN LOS ODS EN SUS PROYECTOS EMPRENDEDORES, DISEÑEN ESTRATEGIAS PARA FERIAS DE COMERCIO JUSTO Y DESARROLLEN HABILIDADES PARA EL TRABAJO COLABORATIVO Y LA TOMA DE DECISIONES COLECTIVAS. ESTA ACCIÓN DE FORMACIÓN DA RESPUESTA PARCIAL A LA NECESIDAD DETECTADA AF5 Y A LOS RETOS DE FORMACIÓN DE ADECOPRIA, ALINEÁNDOSE CON SU OBJETO SOCIAL DE PROMOVER UNA EDUCACIÓN INTEGRAL QUE FOMENTE EL EMPRENDIMIENTO SOCIAL, LA CULTURA SOLIDARIA Y EL DESARROLLO SOSTENIBLE. EL FORTALECIMIENTO DE COMPETENCIAS EN COOPERATIVISMO ESCOLAR CONTRIBUYE DIRECTAMENTE A LA FORMACIÓN DE CIUDADANOS CON CAPACIDAD DE GENERAR INICIATIVAS PRODUCTIVAS COLABORATIVAS QUE RESPONDAN A LAS DEMANDAS DEL ENTORNO, POTENCIANDO LA EMPLEABILIDAD, LA INNOVACIÓN SOCIAL Y EL DESARROLLO ECONÓMICO LOCAL. LA FORMACIÓN PERMITIRÁ A LOS PARTICIPANTES APLICAR MODELOS DE ASOCIATIVIDAD QUE MEJOREN SU CAPACIDAD DE COMERCIALIZACIÓN, GENERACIÓN DE INGRESOS Y SOSTENIBILIDAD, FORTALECIENDO EL TEJIDO SOCIAL Y PRODUCTIVO DE LA REGIÓN.",
+          "ambiente": "AULA CONVENCIONAL (INSTITUCIONES DE EDUCACIÓN SUPERIOR)",
+          "grupos": [
+            {
+              "numero": 1,
+              "sedeCiudad": "MEDELLÍN",
+              "sedeDepartamento": "ANTIOQUIA",
+              "coberturas": [
+                {
+                  "ubicacion": "MEDELLÍN",
+                  "tipo": "CIUDAD",
+                  "departamento": "ANTIOQUIA",
+                  "modalidad": "PRESENCIAL",
+                  "cuposBase": 30,
+                  "cuposMaximos": 39
+                }
+              ]
+            },
+            {
+              "numero": 2,
+              "sedeCiudad": "POPAYÁN",
+              "sedeDepartamento": "CAUCA",
+              "coberturas": [
+                {
+                  "ubicacion": "POPAYÁN",
+                  "tipo": "CIUDAD",
+                  "departamento": "CAUCA",
+                  "modalidad": "PRESENCIAL",
+                  "cuposBase": 30,
+                  "cuposMaximos": 39
+                }
+              ]
+            }
+          ],
+          "ofertas": [
+            {
+              "ubicacion": "MEDELLÍN",
+              "tipo": "CIUDAD",
+              "departamento": "ANTIOQUIA",
+              "modalidad": "PRESENCIAL",
+              "cuposBase": 30,
+              "cuposMaximos": 39,
+              "grupos": [
+                1
+              ]
+            },
+            {
+              "ubicacion": "POPAYÁN",
+              "tipo": "CIUDAD",
+              "departamento": "CAUCA",
+              "modalidad": "PRESENCIAL",
+              "cuposBase": 30,
+              "cuposMaximos": 39,
+              "grupos": [
+                2
+              ]
+            }
+          ]
+        },
+        {
+          "codigo": "AF6",
+          "consecutivo": 6,
+          "orden": 6,
+          "nombre": "FÁBRICA DE SOLUCIONES DIGITALES: METODOLOGÍAS DE INNOVACIÓN ABIERTA Y ESTRUCTURACIÓN DE LABORATORIOS TECNOLÓGICOS INSTITUCIONALES",
+          "modalidad": "PRESENCIAL",
+          "evento": "TALLER-BOOTCAMP",
+          "enfoque": "FORMACIÓN EN EL TRABAJO",
+          "metodologia": "TEÓRICO - PRÁCTICA",
+          "horas": 16,
+          "objetivo": "DESARROLLAR COMPETENCIAS AVANZADAS EN GESTIÓN DE LA INNOVACIÓN, DISEÑO DE PRODUCTOS DIGITALES Y ESTRUCTURACIÓN DE CÉLULAS DE DESARROLLO EDTECH A TRAVÉS DE METODOLOGÍAS INMERSIVAS DE BOOTCAMP, CON EL FIN DE INSTALAR CAPACIDADES DE INNOVACIÓN AUTÓNOMA EN CADA INSTITUCIÓN PARA LA CREACIÓN INTERNA DE APLICACIONES Y SOLUCIONES DE ALTO IMPACTO EDUCATIVO, OPTIMIZANDO LA PRODUCTIVIDAD INSTITUCIONAL AL REDUCIR LA DEPENDENCIA DE PROVEEDORES EXTERNOS Y FORTALECIENDO LA COMPETITIVIDAD DEL SECTOR EDUCATIVO PRIVADO MEDIANTE SOLUCIONES TECNOLÓGICAS PROPIAS, ESCALABLES Y SOSTENIBLES.",
+          "ambiente": "SALONES (HOTELES, LABORATORIOS, AULAS GASTRONOMÍA, SALONES EMPRESARIALES)",
+          "grupos": [
+            {
+              "numero": 1,
+              "sedeCiudad": "MEDELLÍN",
+              "sedeDepartamento": "ANTIOQUIA",
+              "coberturas": [
+                {
+                  "ubicacion": "MEDELLÍN",
+                  "tipo": "CIUDAD",
+                  "departamento": "ANTIOQUIA",
+                  "modalidad": "PRESENCIAL",
+                  "cuposBase": 30,
+                  "cuposMaximos": 39
+                }
+              ]
+            },
+            {
+              "numero": 2,
+              "sedeCiudad": "POPAYÁN",
+              "sedeDepartamento": "CAUCA",
+              "coberturas": [
+                {
+                  "ubicacion": "POPAYÁN",
+                  "tipo": "CIUDAD",
+                  "departamento": "CAUCA",
+                  "modalidad": "PRESENCIAL",
+                  "cuposBase": 30,
+                  "cuposMaximos": 39
+                }
+              ]
+            }
+          ],
+          "ofertas": [
+            {
+              "ubicacion": "MEDELLÍN",
+              "tipo": "CIUDAD",
+              "departamento": "ANTIOQUIA",
+              "modalidad": "PRESENCIAL",
+              "cuposBase": 30,
+              "cuposMaximos": 39,
+              "grupos": [
+                1
+              ]
+            },
+            {
+              "ubicacion": "POPAYÁN",
+              "tipo": "CIUDAD",
+              "departamento": "CAUCA",
+              "modalidad": "PRESENCIAL",
+              "cuposBase": 30,
+              "cuposMaximos": 39,
+              "grupos": [
+                2
+              ]
+            }
+          ]
+        },
+        {
+          "codigo": "AF7",
+          "consecutivo": 7,
+          "orden": 7,
+          "nombre": "SALTO ADELANTE (LEAPFROGGING): COHERENCIA, EQUIDAD Y HUMANISMO EN LA ESCUELA HÍBRIDA",
+          "modalidad": "PRESENCIAL HÍBRIDA",
+          "evento": "FORO",
+          "enfoque": "FORMACIÓN EN EL TRABAJO",
+          "metodologia": "TEÓRICA",
+          "horas": 2,
+          "objetivo": "FORTALECER LAS COMPETENCIAS DE DIRECTIVOS Y DOCENTES DE LAS INSTITUCIONES EDUCATIVAS ASOCIADAS A ADECOPRIA EN LIDERAZGO SISTÉMICO, GESTIÓN DEL CAMBIO CON ENFOQUE HUMANO Y DISEÑO DE ENTORNOS HÍBRIDOS EQUITATIVOS, MEDIANTE LA APROPIACIÓN CRÍTICA DE HERRAMIENTAS PEDAGÓGICAS Y TECNOLÓGICAS, PARA REDUCIR LA DESMOTIVACIÓN DOCENTE (30,9 %), CERRAR BRECHAS DE EQUIDAD Y GENERAR UN IMPACTO DIRECTO EN LA PRODUCTIVIDAD INSTITUCIONAL AL OPTIMIZAR LOS PROCESOS DE TRANSFORMACIÓN HÍBRIDA Y REDUCIR EL DESGASTE ASOCIADO A LA RESISTENCIA AL CAMBIO, MEJORANDO ASÍ LA COMPETITIVIDAD Y CALIDAD EDUCATIVA DEL SECTOR PRIVADO. ESTA ACCIÓN DE FORMACIÓN DA RESPUESTA PARCIAL A LA NECESIDAD DETECTADA Y A LOS RETOS DE FORMACIÓN DEL GREMIO Y SE ALINEA CON SU OBJETO SOCIAL: REPRESENTAR Y FORTALECER A LAS INSTITUCIONES EDUCATIVAS AFILIADAS, CON EL FIN DE GARANTIZAR EL POSICIONAMIENTO DE CADA UNA Y LA CALIDAD DE LA EDUCACIÓN BRINDADA, A TRAVÉS DE LA ASESORÍA Y CAPACITACIÓN PERMANENTE, ASÍ COMO CON SU PROPÓSITO SUPERIOR DE TRASCENDER LA EDUCACIÓN PARA TRANSFORMAR LA SOCIEDAD, CONTRIBUYENDO A LA CUALIFICACIÓN DEL SECTOR EDUCATIVO PRIVADO COLOMBIANO Y AL FORTALECIMIENTO SOSTENIDO DE SU PRODUCTIVIDAD Y COMPETITIVIDAD INSTITUCIONAL.",
+          "ambiente": "SALONES (HOTELES, LABORATORIOS, AULAS GASTRONOMÍA, SALONES EMPRESARIALES)",
+          "grupos": [
+            {
+              "numero": 1,
+              "sedeCiudad": "MEDELLÍN",
+              "sedeDepartamento": "ANTIOQUIA",
+              "coberturas": [
+                {
+                  "ubicacion": "MEDELLÍN",
+                  "tipo": "CIUDAD",
+                  "departamento": "ANTIOQUIA",
+                  "modalidad": "PRESENCIAL",
+                  "cuposBase": 60,
+                  "cuposMaximos": 78
+                },
+                {
+                  "ubicacion": "BOGOTÁ D.C",
+                  "tipo": "DEPARTAMENTO",
+                  "departamento": "BOGOTÁ D.C",
+                  "modalidad": "VIRTUAL",
+                  "cuposBase": 50,
+                  "cuposMaximos": 65
+                },
+                {
+                  "ubicacion": "ANTIOQUIA",
+                  "tipo": "DEPARTAMENTO",
+                  "departamento": "ANTIOQUIA",
+                  "modalidad": "VIRTUAL",
+                  "cuposBase": 40,
+                  "cuposMaximos": 52
+                },
+                {
+                  "ubicacion": "HUILA",
+                  "tipo": "DEPARTAMENTO",
+                  "departamento": "HUILA",
+                  "modalidad": "VIRTUAL",
+                  "cuposBase": 30,
+                  "cuposMaximos": 39
+                },
+                {
+                  "ubicacion": "CAUCA",
+                  "tipo": "DEPARTAMENTO",
+                  "departamento": "CAUCA",
+                  "modalidad": "VIRTUAL",
+                  "cuposBase": 30,
+                  "cuposMaximos": 39
+                },
+                {
+                  "ubicacion": "CÓRDOBA",
+                  "tipo": "DEPARTAMENTO",
+                  "departamento": "CÓRDOBA",
+                  "modalidad": "VIRTUAL",
+                  "cuposBase": 40,
+                  "cuposMaximos": 52
+                }
+              ]
+            },
+            {
+              "numero": 2,
+              "sedeCiudad": "PEREIRA",
+              "sedeDepartamento": "RISARALDA",
+              "coberturas": [
+                {
+                  "ubicacion": "PEREIRA",
+                  "tipo": "CIUDAD",
+                  "departamento": "RISARALDA",
+                  "modalidad": "PRESENCIAL",
+                  "cuposBase": 60,
+                  "cuposMaximos": 78
+                },
+                {
+                  "ubicacion": "ANTIOQUIA",
+                  "tipo": "DEPARTAMENTO",
+                  "departamento": "ANTIOQUIA",
+                  "modalidad": "VIRTUAL",
+                  "cuposBase": 50,
+                  "cuposMaximos": 65
+                },
+                {
+                  "ubicacion": "MAGDALENA",
+                  "tipo": "DEPARTAMENTO",
+                  "departamento": "MAGDALENA",
+                  "modalidad": "VIRTUAL",
+                  "cuposBase": 40,
+                  "cuposMaximos": 52
+                },
+                {
+                  "ubicacion": "SANTANDER",
+                  "tipo": "DEPARTAMENTO",
+                  "departamento": "SANTANDER",
+                  "modalidad": "VIRTUAL",
+                  "cuposBase": 50,
+                  "cuposMaximos": 65
+                },
+                {
+                  "ubicacion": "VALLE DEL CAUCA",
+                  "tipo": "DEPARTAMENTO",
+                  "departamento": "VALLE DEL CAUCA",
+                  "modalidad": "VIRTUAL",
+                  "cuposBase": 50,
+                  "cuposMaximos": 65
+                }
+              ]
+            }
+          ],
+          "ofertas": [
+            {
+              "ubicacion": "MEDELLÍN",
+              "tipo": "CIUDAD",
+              "departamento": "ANTIOQUIA",
+              "modalidad": "PRESENCIAL",
+              "cuposBase": 60,
+              "cuposMaximos": 78,
+              "grupos": [
+                1
+              ]
+            },
+            {
+              "ubicacion": "PEREIRA",
+              "tipo": "CIUDAD",
+              "departamento": "RISARALDA",
+              "modalidad": "PRESENCIAL",
+              "cuposBase": 60,
+              "cuposMaximos": 78,
+              "grupos": [
+                2
+              ]
+            },
+            {
+              "ubicacion": "ANTIOQUIA",
+              "tipo": "DEPARTAMENTO",
+              "departamento": "ANTIOQUIA",
+              "modalidad": "VIRTUAL",
+              "cuposBase": 90,
+              "cuposMaximos": 117,
+              "grupos": [
+                1,
+                2
+              ]
+            },
+            {
+              "ubicacion": "BOGOTÁ D.C",
+              "tipo": "DEPARTAMENTO",
+              "departamento": "BOGOTÁ D.C",
+              "modalidad": "VIRTUAL",
+              "cuposBase": 50,
+              "cuposMaximos": 65,
+              "grupos": [
+                1
+              ]
+            },
+            {
+              "ubicacion": "CAUCA",
+              "tipo": "DEPARTAMENTO",
+              "departamento": "CAUCA",
+              "modalidad": "VIRTUAL",
+              "cuposBase": 30,
+              "cuposMaximos": 39,
+              "grupos": [
+                1
+              ]
+            },
+            {
+              "ubicacion": "CÓRDOBA",
+              "tipo": "DEPARTAMENTO",
+              "departamento": "CÓRDOBA",
+              "modalidad": "VIRTUAL",
+              "cuposBase": 40,
+              "cuposMaximos": 52,
+              "grupos": [
+                1
+              ]
+            },
+            {
+              "ubicacion": "HUILA",
+              "tipo": "DEPARTAMENTO",
+              "departamento": "HUILA",
+              "modalidad": "VIRTUAL",
+              "cuposBase": 30,
+              "cuposMaximos": 39,
+              "grupos": [
+                1
+              ]
+            },
+            {
+              "ubicacion": "MAGDALENA",
+              "tipo": "DEPARTAMENTO",
+              "departamento": "MAGDALENA",
+              "modalidad": "VIRTUAL",
+              "cuposBase": 40,
+              "cuposMaximos": 52,
+              "grupos": [
+                2
+              ]
+            },
+            {
+              "ubicacion": "SANTANDER",
+              "tipo": "DEPARTAMENTO",
+              "departamento": "SANTANDER",
+              "modalidad": "VIRTUAL",
+              "cuposBase": 50,
+              "cuposMaximos": 65,
+              "grupos": [
+                2
+              ]
+            },
+            {
+              "ubicacion": "VALLE DEL CAUCA",
+              "tipo": "DEPARTAMENTO",
+              "departamento": "VALLE DEL CAUCA",
+              "modalidad": "VIRTUAL",
+              "cuposBase": 50,
+              "cuposMaximos": 65,
+              "grupos": [
+                2
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

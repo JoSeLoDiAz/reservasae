@@ -1,0 +1,688 @@
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
+
+import {
+  CampoNucleo,
+  Prisma,
+  TipoPregunta,
+  type Opcion,
+  type Pregunta,
+} from '../../generated/prisma';
+import { PrismaService } from '../prisma/prisma.service';
+import { CAMPOS_NUCLEO, CAMPOS_OBLIGATORIOS, POR_CAMPO } from './campos-nucleo';
+import {
+  ActualizarFormularioDto,
+  ActualizarOpcionDto,
+  ActualizarPreguntaDto,
+  CrearFormularioDto,
+  CrearPreguntaDto,
+  OpcionDto,
+  RespuestaDto,
+  SeccionDto,
+} from './dto';
+
+const TIPOS_CON_OPCIONES: TipoPregunta[] = [
+  TipoPregunta.SELECCION_UNICA,
+  TipoPregunta.SELECCION_MULTIPLE,
+];
+
+const TIPOS_DE_TEXTO: TipoPregunta[] = [
+  TipoPregunta.TEXTO_CORTO,
+  TipoPregunta.TEXTO_LARGO,
+  TipoPregunta.CORREO,
+  TipoPregunta.TELEFONO,
+];
+
+/** Preguntas que el visitante no responde: solo muestran texto. */
+const TIPOS_SIN_RESPUESTA: TipoPregunta[] = [TipoPregunta.PARRAFO];
+
+type PreguntaConOpciones = Pregunta & { opciones: Opcion[] };
+
+@Injectable()
+export class FormulariosService {
+  constructor(private readonly prisma: PrismaService) {}
+
+  // -------------------------------------------------------------------------
+  // Lectura
+  // -------------------------------------------------------------------------
+
+  /** Catálogo de campos del núcleo, para que el panel sepa qué ofrecer. */
+  camposNucleo() {
+    return CAMPOS_NUCLEO;
+  }
+
+  async listar() {
+    const formularios = await this.prisma.formulario.findMany({
+      orderBy: [{ convenio: { orden: 'asc' } }, { titulo: 'asc' }],
+      include: {
+        convenio: { select: { slug: true, sigla: true } },
+        _count: { select: { preguntas: true, secciones: true } },
+      },
+    });
+
+    return formularios.map((f) => ({
+      id: f.id,
+      slug: f.slug,
+      titulo: f.titulo,
+      descripcion: f.descripcion,
+      publicado: f.publicado,
+      convenio: f.convenio.slug,
+      convenioSigla: f.convenio.sigla,
+      preguntas: f._count.preguntas,
+      secciones: f._count.secciones,
+      actualizadoEn: f.actualizadoEn,
+    }));
+  }
+
+  /** Vista completa para el constructor, incluidas las preguntas archivadas. */
+  async obtener(id: string) {
+    const formulario = await this.prisma.formulario.findUnique({
+      where: { id },
+      include: {
+        convenio: { select: { id: true, slug: true, sigla: true } },
+        secciones: { orderBy: { orden: 'asc' } },
+        preguntas: {
+          orderBy: { orden: 'asc' },
+          include: { opciones: { orderBy: { orden: 'asc' } }, _count: { select: { respuestas: true } } },
+        },
+      },
+    });
+    if (!formulario) throw new NotFoundException('No existe ese formulario.');
+
+    return {
+      ...formulario,
+      // Se avisa de lo que impide publicar aunque no se esté publicando: es
+      // mejor verlo mientras se construye que al pulsar el botón.
+      problemas: this.problemasParaPublicar(formulario.preguntas),
+    };
+  }
+
+  /** Lo que ve el público: sin archivadas y sin datos internos. */
+  async obtenerPublico(slug: string) {
+    const formulario = await this.prisma.formulario.findUnique({
+      where: { slug },
+      include: {
+        convenio: { select: { slug: true, sigla: true, nombre: true } },
+        secciones: { orderBy: { orden: 'asc' } },
+        preguntas: {
+          where: { archivada: false },
+          orderBy: { orden: 'asc' },
+          include: { opciones: { where: { archivada: false }, orderBy: { orden: 'asc' } } },
+        },
+      },
+    });
+
+    if (!formulario || !formulario.publicado) {
+      throw new NotFoundException('No hay un formulario publicado con ese identificador.');
+    }
+
+    return {
+      slug: formulario.slug,
+      titulo: formulario.titulo,
+      descripcion: formulario.descripcion,
+      mensajeExito: formulario.mensajeExito,
+      convenio: formulario.convenio,
+      secciones: formulario.secciones.map((s) => ({
+        id: s.id,
+        titulo: s.titulo,
+        descripcion: s.descripcion,
+        preguntas: formulario.preguntas
+          .filter((p) => p.seccionId === s.id)
+          .map((p) => this.vistaPreguntaPublica(p)),
+      })),
+      // Las preguntas sin sección van al final, para que nunca desaparezcan
+      // del formulario aunque alguien borre la sección que las contenía.
+      sueltas: formulario.preguntas
+        .filter((p) => !p.seccionId)
+        .map((p) => this.vistaPreguntaPublica(p)),
+    };
+  }
+
+  private vistaPreguntaPublica(pregunta: PreguntaConOpciones) {
+    const definicion = pregunta.campoNucleo ? POR_CAMPO.get(pregunta.campoNucleo) : undefined;
+    return {
+      id: pregunta.id,
+      etiqueta: pregunta.etiqueta,
+      ayuda: pregunta.ayuda,
+      marcador: pregunta.marcador,
+      tipo: pregunta.tipo,
+      obligatoria: pregunta.obligatoria,
+      campoNucleo: pregunta.campoNucleo,
+      controlEspecial: definicion?.controlEspecial ?? null,
+      minimo: pregunta.minimo,
+      maximo: pregunta.maximo,
+      largoMinimo: pregunta.largoMinimo,
+      largoMaximo: pregunta.largoMaximo,
+      dependeDePreguntaId: pregunta.dependeDePreguntaId,
+      dependeDeValor: pregunta.dependeDeValor,
+      opciones: pregunta.opciones.map((o) => ({
+        id: o.id,
+        etiqueta: o.etiqueta,
+        valor: o.valor,
+      })),
+    };
+  }
+
+  // -------------------------------------------------------------------------
+  // Formulario
+  // -------------------------------------------------------------------------
+
+  async crear(dto: CrearFormularioDto) {
+    try {
+      const formulario = await this.prisma.formulario.create({
+        data: {
+          convenioId: dto.convenioId,
+          slug: dto.slug,
+          titulo: dto.titulo,
+          // Nace en borrador: publicarlo antes de tener los campos del núcleo
+          // dejaría una URL pública que no puede crear reservas.
+          publicado: false,
+          secciones: {
+            create: [{ titulo: 'Datos de la organización', orden: 0 }],
+          },
+        },
+      });
+      return this.obtener(formulario.id);
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError) {
+        if (error.code === 'P2002') {
+          throw new ConflictException('Ya existe un formulario con ese identificador.');
+        }
+        if (error.code === 'P2003') {
+          throw new BadRequestException('El convenio indicado no existe.');
+        }
+      }
+      throw error;
+    }
+  }
+
+  async actualizar(id: string, dto: ActualizarFormularioDto) {
+    const formulario = await this.prisma.formulario.findUnique({
+      where: { id },
+      include: { preguntas: { include: { opciones: true } } },
+    });
+    if (!formulario) throw new NotFoundException('No existe ese formulario.');
+
+    if (dto.publicado === true) {
+      const problemas = this.problemasParaPublicar(formulario.preguntas);
+      if (problemas.length) {
+        throw new BadRequestException({
+          message: 'El formulario todavía no se puede publicar.',
+          problemas,
+        });
+      }
+    }
+
+    await this.prisma.formulario.update({ where: { id }, data: dto });
+    return this.obtener(id);
+  }
+
+  /**
+   * Solo se borra un formulario que nunca se usó. Si tiene respuestas, se
+   * despublica: borrarlo se llevaría por delante el histórico.
+   */
+  async eliminar(id: string) {
+    const respuestas = await this.prisma.respuesta.count({
+      where: { pregunta: { formularioId: id } },
+    });
+    if (respuestas > 0) {
+      throw new ConflictException(
+        `Este formulario tiene ${respuestas} respuestas registradas. ` +
+          'Despublíquelo en vez de borrarlo, o se perderá el histórico.',
+      );
+    }
+    await this.prisma.formulario.delete({ where: { id } });
+    return { eliminado: true };
+  }
+
+  /**
+   * Qué falta para poder publicar. Se devuelve como lista y no como un error
+   * suelto para poder enseñarla entera mientras se construye.
+   */
+  private problemasParaPublicar(
+    preguntas: Array<Pregunta & { opciones?: Opcion[] }>,
+  ): string[] {
+    const problemas: string[] = [];
+    const activas = preguntas.filter((p) => !p.archivada);
+
+    for (const campo of CAMPOS_OBLIGATORIOS) {
+      if (!activas.some((p) => p.campoNucleo === campo)) {
+        const definicion = POR_CAMPO.get(campo);
+        problemas.push(
+          `Falta el campo obligatorio "${definicion?.etiquetaSugerida ?? campo}": ` +
+            `${definicion?.descripcion ?? ''}`.trim(),
+        );
+      }
+    }
+
+    for (const pregunta of activas) {
+      // Un desplegable sin opciones se muestra vacío y bloquea el envío.
+      const necesitaOpciones =
+        TIPOS_CON_OPCIONES.includes(pregunta.tipo) &&
+        POR_CAMPO.get(pregunta.campoNucleo as CampoNucleo)?.controlEspecial === undefined;
+
+      if (necesitaOpciones) {
+        const vivas = (pregunta.opciones ?? []).filter((o) => !o.archivada);
+        if (vivas.length === 0) {
+          problemas.push(`La pregunta "${pregunta.etiqueta}" no tiene ninguna opción.`);
+        }
+      }
+
+      if (pregunta.dependeDePreguntaId) {
+        const madre = activas.find((p) => p.id === pregunta.dependeDePreguntaId);
+        if (!madre) {
+          problemas.push(
+            `"${pregunta.etiqueta}" depende de una pregunta que ya no está activa.`,
+          );
+        }
+      }
+    }
+
+    return problemas;
+  }
+
+  // -------------------------------------------------------------------------
+  // Secciones
+  // -------------------------------------------------------------------------
+
+  async crearSeccion(formularioId: string, dto: SeccionDto) {
+    const ultimo = await this.prisma.seccion.aggregate({
+      where: { formularioId },
+      _max: { orden: true },
+    });
+    await this.prisma.seccion.create({
+      data: { formularioId, ...dto, orden: (ultimo._max.orden ?? -1) + 1 },
+    });
+    return this.obtener(formularioId);
+  }
+
+  async actualizarSeccion(id: string, dto: SeccionDto) {
+    const seccion = await this.prisma.seccion.update({ where: { id }, data: dto });
+    return this.obtener(seccion.formularioId);
+  }
+
+  /**
+   * Borrar una sección NO borra sus preguntas: quedan sueltas al final del
+   * formulario. Perder preguntas por reorganizar bloques sería un desastre.
+   */
+  async eliminarSeccion(id: string) {
+    const seccion = await this.prisma.seccion.findUnique({ where: { id } });
+    if (!seccion) throw new NotFoundException('No existe esa sección.');
+    await this.prisma.seccion.delete({ where: { id } });
+    return this.obtener(seccion.formularioId);
+  }
+
+  async reordenarSecciones(formularioId: string, ids: string[]) {
+    await this.prisma.$transaction(
+      ids.map((id, orden) =>
+        this.prisma.seccion.updateMany({ where: { id, formularioId }, data: { orden } }),
+      ),
+    );
+    return this.obtener(formularioId);
+  }
+
+  // -------------------------------------------------------------------------
+  // Preguntas
+  // -------------------------------------------------------------------------
+
+  async crearPregunta(formularioId: string, dto: CrearPreguntaDto) {
+    const definicion = dto.campoNucleo ? POR_CAMPO.get(dto.campoNucleo) : undefined;
+
+    // El tipo de un campo del núcleo lo manda el catálogo: si alguien pide un
+    // NIT como casilla, la reserva no se podría construir.
+    const tipo = definicion?.tipo ?? dto.tipo;
+
+    const ultimo = await this.prisma.pregunta.aggregate({
+      where: { formularioId },
+      _max: { orden: true },
+    });
+
+    try {
+      await this.prisma.pregunta.create({
+        data: {
+          formularioId,
+          seccionId: dto.seccionId ?? null,
+          etiqueta: dto.etiqueta,
+          tipo,
+          campoNucleo: dto.campoNucleo ?? null,
+          obligatoria: definicion?.obligatorioParaPublicar ?? false,
+          orden: (ultimo._max.orden ?? -1) + 1,
+        },
+      });
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+        throw new ConflictException(
+          'Ese campo del sistema ya está en el formulario. Solo puede pedirse una vez.',
+        );
+      }
+      throw error;
+    }
+
+    return this.obtener(formularioId);
+  }
+
+  async actualizarPregunta(id: string, dto: ActualizarPreguntaDto) {
+    const pregunta = await this.prisma.pregunta.findUnique({
+      where: { id },
+      include: { _count: { select: { respuestas: true } } },
+    });
+    if (!pregunta) throw new NotFoundException('No existe esa pregunta.');
+
+    const esNucleo = pregunta.campoNucleo !== null;
+
+    if (esNucleo) {
+      if (dto.archivada === true) {
+        throw new BadRequestException(
+          'Este campo lo necesita el sistema para crear la reserva; no se puede archivar.',
+        );
+      }
+      if (dto.tipo && dto.tipo !== pregunta.tipo) {
+        throw new BadRequestException(
+          'No se puede cambiar el tipo de un campo del sistema: dejaría de encajar ' +
+            'con el dato al que va.',
+        );
+      }
+      if (dto.obligatoria === false && POR_CAMPO.get(pregunta.campoNucleo!)?.obligatorioParaPublicar) {
+        throw new BadRequestException('Este campo del sistema no puede ser opcional.');
+      }
+    }
+
+    // Cambiar el tipo con respuestas ya recogidas las dejaría en una columna
+    // que no les corresponde y la exportación mezclaría peras con manzanas.
+    if (dto.tipo && dto.tipo !== pregunta.tipo && pregunta._count.respuestas > 0) {
+      throw new ConflictException(
+        `Esta pregunta ya tiene ${pregunta._count.respuestas} respuestas. ` +
+          'Archívela y cree una nueva en vez de cambiarle el tipo.',
+      );
+    }
+
+    if (dto.dependeDePreguntaId === id) {
+      throw new BadRequestException('Una pregunta no puede depender de sí misma.');
+    }
+
+    await this.prisma.pregunta.update({
+      where: { id },
+      data: {
+        etiqueta: dto.etiqueta,
+        ayuda: dto.ayuda,
+        marcador: dto.marcador,
+        tipo: dto.tipo,
+        obligatoria: dto.obligatoria,
+        seccionId: dto.seccionId === undefined ? undefined : dto.seccionId || null,
+        minimo: dto.minimo,
+        maximo: dto.maximo,
+        largoMinimo: dto.largoMinimo,
+        largoMaximo: dto.largoMaximo,
+        dependeDePreguntaId:
+          dto.dependeDePreguntaId === undefined ? undefined : dto.dependeDePreguntaId || null,
+        dependeDeValor:
+          dto.dependeDeValor === undefined ? undefined : dto.dependeDeValor || null,
+        archivada: dto.archivada,
+      },
+    });
+
+    return this.obtener(pregunta.formularioId);
+  }
+
+  async reordenarPreguntas(formularioId: string, ids: string[]) {
+    await this.prisma.$transaction(
+      ids.map((id, orden) =>
+        this.prisma.pregunta.updateMany({ where: { id, formularioId }, data: { orden } }),
+      ),
+    );
+    return this.obtener(formularioId);
+  }
+
+  // -------------------------------------------------------------------------
+  // Opciones
+  // -------------------------------------------------------------------------
+
+  async crearOpcion(preguntaId: string, dto: OpcionDto) {
+    const pregunta = await this.prisma.pregunta.findUnique({ where: { id: preguntaId } });
+    if (!pregunta) throw new NotFoundException('No existe esa pregunta.');
+
+    if (!TIPOS_CON_OPCIONES.includes(pregunta.tipo)) {
+      throw new BadRequestException('Este tipo de pregunta no lleva opciones.');
+    }
+
+    const ultimo = await this.prisma.opcion.aggregate({
+      where: { preguntaId },
+      _max: { orden: true },
+    });
+
+    try {
+      await this.prisma.opcion.create({
+        data: {
+          preguntaId,
+          etiqueta: dto.etiqueta,
+          // El valor guardado se separa de la etiqueta para poder corregir la
+          // redacción sin invalidar lo ya respondido.
+          valor: dto.valor?.trim() || dto.etiqueta,
+          orden: (ultimo._max.orden ?? -1) + 1,
+        },
+      });
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+        throw new ConflictException('Ya hay una opción con ese valor en esta pregunta.');
+      }
+      throw error;
+    }
+
+    return this.obtener(pregunta.formularioId);
+  }
+
+  async actualizarOpcion(id: string, dto: ActualizarOpcionDto) {
+    const opcion = await this.prisma.opcion.findUnique({
+      where: { id },
+      include: { pregunta: true },
+    });
+    if (!opcion) throw new NotFoundException('No existe esa opción.');
+
+    await this.prisma.opcion.update({
+      where: { id },
+      data: { etiqueta: dto.etiqueta, archivada: dto.archivada },
+    });
+    return this.obtener(opcion.pregunta.formularioId);
+  }
+
+  /**
+   * Una opción con respuestas se archiva, no se borra: si desapareciera, las
+   * respuestas que la eligieron quedarían apuntando a la nada.
+   */
+  async eliminarOpcion(id: string) {
+    const opcion = await this.prisma.opcion.findUnique({
+      where: { id },
+      include: { pregunta: true },
+    });
+    if (!opcion) throw new NotFoundException('No existe esa opción.');
+
+    const usada = await this.prisma.respuesta.count({
+      where: { preguntaId: opcion.preguntaId, valoresSeleccion: { has: opcion.valor } },
+    });
+
+    if (usada > 0) {
+      await this.prisma.opcion.update({ where: { id }, data: { archivada: true } });
+    } else {
+      await this.prisma.opcion.delete({ where: { id } });
+    }
+
+    return this.obtener(opcion.pregunta.formularioId);
+  }
+
+  async reordenarOpciones(preguntaId: string, ids: string[]) {
+    const pregunta = await this.prisma.pregunta.findUnique({ where: { id: preguntaId } });
+    if (!pregunta) throw new NotFoundException('No existe esa pregunta.');
+
+    await this.prisma.$transaction(
+      ids.map((id, orden) =>
+        this.prisma.opcion.updateMany({ where: { id, preguntaId }, data: { orden } }),
+      ),
+    );
+    return this.obtener(pregunta.formularioId);
+  }
+
+  // -------------------------------------------------------------------------
+  // Envío: validación de las respuestas que no son del núcleo
+  // -------------------------------------------------------------------------
+
+  /**
+   * Comprueba las respuestas contra la definición del formulario y las deja
+   * listas para guardar.
+   *
+   * Se valida en el servidor aunque el navegador ya lo haya hecho: lo del
+   * navegador es comodidad, esto es lo que de verdad impide que llegue
+   * cualquier cosa a la base.
+   */
+  async prepararRespuestas(
+    formularioSlug: string,
+    enviadas: RespuestaDto[],
+  ): Promise<Prisma.RespuestaCreateWithoutReservaInput[]> {
+    const formulario = await this.prisma.formulario.findUnique({
+      where: { slug: formularioSlug },
+      include: {
+        preguntas: {
+          where: { archivada: false },
+          include: { opciones: { where: { archivada: false } } },
+        },
+      },
+    });
+    if (!formulario || !formulario.publicado) {
+      throw new BadRequestException('El formulario indicado no está publicado.');
+    }
+
+    const porId = new Map(enviadas.map((r) => [r.preguntaId, r]));
+    const preparadas: Prisma.RespuestaCreateWithoutReservaInput[] = [];
+
+    for (const pregunta of formulario.preguntas) {
+      // Los campos del núcleo no pasan por aquí: viajan como campos propios de
+      // la reserva y ya los valida su DTO.
+      if (pregunta.campoNucleo || TIPOS_SIN_RESPUESTA.includes(pregunta.tipo)) continue;
+
+      const visible = this.estaVisible(pregunta, formulario.preguntas, porId);
+      const enviada = porId.get(pregunta.id);
+
+      if (!visible) {
+        // Si la pregunta estaba oculta, lo que venga se descarta: guardarlo
+        // sería registrar algo que la persona nunca vio.
+        continue;
+      }
+
+      const vacia = this.estaVacia(pregunta, enviada);
+      if (vacia) {
+        if (pregunta.obligatoria) {
+          throw new BadRequestException(`Falta responder "${pregunta.etiqueta}".`);
+        }
+        continue;
+      }
+
+      preparadas.push(this.validarRespuesta(pregunta, enviada!));
+    }
+
+    return preparadas;
+  }
+
+  private estaVisible(
+    pregunta: Pregunta,
+    todas: Pregunta[],
+    respuestas: Map<string, RespuestaDto>,
+  ): boolean {
+    if (!pregunta.dependeDePreguntaId) return true;
+
+    const madre = todas.find((p) => p.id === pregunta.dependeDePreguntaId);
+    if (!madre) return true;
+
+    const respuestaMadre = respuestas.get(madre.id);
+    if (!respuestaMadre) return false;
+
+    const valores = respuestaMadre.seleccion ?? [];
+    if (respuestaMadre.texto) valores.push(respuestaMadre.texto);
+    return valores.includes(pregunta.dependeDeValor ?? '');
+  }
+
+  private estaVacia(pregunta: Pregunta, enviada?: RespuestaDto): boolean {
+    if (!enviada) return true;
+    if (pregunta.tipo === TipoPregunta.CASILLA) return enviada.booleano !== true;
+    if (TIPOS_CON_OPCIONES.includes(pregunta.tipo)) return !enviada.seleccion?.length;
+    if (pregunta.tipo === TipoPregunta.NUMERO) {
+      return enviada.numero === undefined || enviada.numero === null;
+    }
+    return !enviada.texto?.trim();
+  }
+
+  private validarRespuesta(
+    pregunta: PreguntaConOpciones,
+    enviada: RespuestaDto,
+  ): Prisma.RespuestaCreateWithoutReservaInput {
+    const base = {
+      // La etiqueta se congela: si mañana alguien reescribe la pregunta, lo
+      // exportado seguirá diciendo lo que la persona realmente leyó.
+      etiquetaPregunta: pregunta.etiqueta,
+      pregunta: { connect: { id: pregunta.id } },
+    };
+
+    if (pregunta.tipo === TipoPregunta.CASILLA) {
+      return { ...base, valorBooleano: enviada.booleano === true };
+    }
+
+    if (TIPOS_CON_OPCIONES.includes(pregunta.tipo)) {
+      const validas = new Map(pregunta.opciones.map((o) => [o.valor, o.etiqueta]));
+      const elegidas = enviada.seleccion ?? [];
+
+      if (pregunta.tipo === TipoPregunta.SELECCION_UNICA && elegidas.length > 1) {
+        throw new BadRequestException(`"${pregunta.etiqueta}" admite una sola respuesta.`);
+      }
+      for (const valor of elegidas) {
+        if (!validas.has(valor)) {
+          throw new BadRequestException(
+            `"${valor}" no es una opción válida de "${pregunta.etiqueta}".`,
+          );
+        }
+      }
+      return {
+        ...base,
+        valoresSeleccion: elegidas,
+        etiquetasSeleccion: elegidas.map((v) => validas.get(v)!),
+      };
+    }
+
+    if (pregunta.tipo === TipoPregunta.NUMERO) {
+      const numero = enviada.numero!;
+      if (pregunta.minimo !== null && numero < pregunta.minimo) {
+        throw new BadRequestException(
+          `"${pregunta.etiqueta}" no puede ser menor que ${pregunta.minimo}.`,
+        );
+      }
+      if (pregunta.maximo !== null && numero > pregunta.maximo) {
+        throw new BadRequestException(
+          `"${pregunta.etiqueta}" no puede ser mayor que ${pregunta.maximo}.`,
+        );
+      }
+      return { ...base, valorNumero: numero };
+    }
+
+    const texto = enviada.texto!.trim();
+
+    if (pregunta.largoMinimo !== null && texto.length < pregunta.largoMinimo) {
+      throw new BadRequestException(
+        `"${pregunta.etiqueta}" debe tener al menos ${pregunta.largoMinimo} caracteres.`,
+      );
+    }
+    if (pregunta.largoMaximo !== null && texto.length > pregunta.largoMaximo) {
+      throw new BadRequestException(
+        `"${pregunta.etiqueta}" no puede pasar de ${pregunta.largoMaximo} caracteres.`,
+      );
+    }
+    if (pregunta.tipo === TipoPregunta.CORREO && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(texto)) {
+      throw new BadRequestException(`"${pregunta.etiqueta}" debe ser un correo válido.`);
+    }
+    if (pregunta.tipo === TipoPregunta.FECHA && Number.isNaN(Date.parse(texto))) {
+      throw new BadRequestException(`"${pregunta.etiqueta}" debe ser una fecha válida.`);
+    }
+
+    return { ...base, valorTexto: texto };
+  }
+}

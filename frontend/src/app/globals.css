@@ -1,26 +1,298 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+/*
+ * Todo el color de la aplicacion sale de estas variables. Ningun componente
+ * escribe un color suelto, asi que cambiarlas cambia la app entera: es lo que
+ * permite que el panel de administracion controle la apariencia.
+ *
+ * Hay dos paletas completas, claro y oscuro. No es el mismo tema con los
+ * valores invertidos: en oscuro hay que bajar la saturacion de la marca y
+ * subir la luminosidad del texto, o el resultado vibra y cansa la vista.
+ *
+ * Estos valores son solo el punto de partida. `ProveedorMarca` inyecta encima
+ * los que el administrador haya guardado.
+ */
+
+:root,
+:root[data-tema="claro"] {
+  color-scheme: light;
+
+  --marca: #1d4ed8;
+  --marca-fuerte: #1e3a8a;
+  --marca-suave: #eff6ff;
+  --marca-texto: #ffffff;
+
+  --fondo: #f8fafc;
+  --superficie: #ffffff;
+  --superficie-alterna: #f1f5f9;
+  --borde: #e2e8f0;
+
+  --titulo: #0f172a;
+  --texto: #0f172a;
+  --texto-suave: #64748b;
+
+  --encabezado-fondo: #ffffff;
+  --encabezado-texto: #0f172a;
+  --encabezado-borde: #e2e8f0;
+
+  --tabla-cabecera-fondo: #f1f5f9;
+  --tabla-cabecera-texto: #334155;
+  --tabla-fila-alterna: #f8fafc;
+  --tabla-fila-resaltada: #eff6ff;
+  --tabla-borde: #e2e8f0;
+
+  --campo-fondo: #ffffff;
+  --campo-borde: #cbd5e1;
+  --campo-foco: #1d4ed8;
+
+  --exito: #047857;
+  --exito-suave: #ecfdf5;
+  --aviso: #a16207;
+  --aviso-suave: #fffbeb;
+  --error: #be123c;
+  --error-suave: #fff1f2;
+
+  /* Series de los gráficos. NO las edita el administrador: el ORDEN de estos
+     escalones es el mecanismo que garantiza que se distingan bajo daltonismo,
+     y cambiarlos rompería esa garantía. Están validados como conjunto. */
+  --serie-1: #2a78d6;
+  --serie-2: #eb6834;
+  --serie-3: #1baf7a;
+}
+
+:root[data-tema="oscuro"] {
+  color-scheme: dark;
+
+  --marca: #60a5fa;
+  --marca-fuerte: #93c5fd;
+  --marca-suave: #172554;
+  --marca-texto: #0b1220;
+
+  --fondo: #0b1220;
+  --superficie: #131c2e;
+  --superficie-alterna: #1a2439;
+  --borde: #26324a;
+
+  --titulo: #f2f6ff;
+  --texto: #e8edf7;
+  --texto-suave: #9aa8c0;
+
+  --encabezado-fondo: #131c2e;
+  --encabezado-texto: #e8edf7;
+  --encabezado-borde: #26324a;
+
+  --tabla-cabecera-fondo: #1a2439;
+  --tabla-cabecera-texto: #c3cee0;
+  --tabla-fila-alterna: #101a2b;
+  --tabla-fila-resaltada: #172554;
+  --tabla-borde: #26324a;
+
+  --campo-fondo: #0f1829;
+  --campo-borde: #33405c;
+  --campo-foco: #60a5fa;
+
+  /* En oscuro los estados se aclaran y sus fondos se oscurecen: el verde y el
+     rojo del tema claro sobre fondo oscuro no llegan al contraste minimo. */
+  --exito: #34d399;
+  --exito-suave: #053225;
+  --aviso: #fbbf24;
+  --aviso-suave: #2e1f03;
+  --error: #fb7185;
+  --error-suave: #3f0d16;
+
+  /* Los mismos ocho tonos, reescalonados para fondo oscuro. No es otra
+     paleta: es la misma validada contra la superficie oscura. */
+  --serie-1: #3987e5;
+  --serie-2: #d95926;
+  --serie-3: #199e70;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
+  --color-marca: var(--marca);
+  --color-marca-fuerte: var(--marca-fuerte);
+  --color-marca-suave: var(--marca-suave);
+  --color-marca-texto: var(--marca-texto);
+
+  --color-fondo: var(--fondo);
+  --color-superficie: var(--superficie);
+  --color-superficie-alterna: var(--superficie-alterna);
+  --color-borde: var(--borde);
+
+  --color-texto: var(--texto);
+  --color-texto-suave: var(--texto-suave);
+  --color-titulo: var(--titulo);
+
+  --color-encabezado-fondo: var(--encabezado-fondo);
+  --color-encabezado-texto: var(--encabezado-texto);
+  --color-encabezado-borde: var(--encabezado-borde);
+
+  --color-tabla-cabecera-fondo: var(--tabla-cabecera-fondo);
+  --color-tabla-cabecera-texto: var(--tabla-cabecera-texto);
+  --color-tabla-fila-alterna: var(--tabla-fila-alterna);
+  --color-tabla-fila-resaltada: var(--tabla-fila-resaltada);
+  --color-tabla-borde: var(--tabla-borde);
+
+  --color-campo-fondo: var(--campo-fondo);
+  --color-campo-borde: var(--campo-borde);
+  --color-campo-foco: var(--campo-foco);
+
+  --color-exito: var(--exito);
+  --color-exito-suave: var(--exito-suave);
+  --color-aviso: var(--aviso);
+  --color-aviso-suave: var(--aviso-suave);
+  --color-error: var(--error);
+  --color-error-suave: var(--error-suave);
+
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+body {
+  background: var(--fondo);
+  color: var(--texto);
+}
+
+h1,
+h2,
+h3 {
+  color: var(--titulo);
+}
+
+/* Accesibilidad: quien pide menos animacion en su sistema no deberia recibir
+   transiciones. Es una preferencia real de personas con vertigo o migrana, no
+   una manía. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+/* El aro de foco es lo que guia a quien navega con el teclado, asi que tiene
+   su propio color configurable en vez de heredar el de marca: si alguien elige
+   una marca casi del color del fondo, el foco desapareceria con ella. */
+:focus-visible {
+  outline: 2px solid var(--campo-foco);
+  outline-offset: 2px;
+}
+
+/* ---------------------------------------------------------------------------
+   Impresion / PDF
+   ---------------------------------------------------------------------------
+   "Exportar a PDF" es window.print() con esta hoja, no una libreria: el
+   navegador ya sabe paginar, incrustar fuentes y guardar en PDF, y hacerlo
+   asi evita meter puppeteer (que necesitaria Chromium dentro de la imagen
+   alpine) o jsPDF (que produce paginas peores que el propio navegador).
+
+   Se fuerza el tema claro: imprimir el modo oscuro gasta un cartucho entero y
+   sale ilegible en papel. --------------------------------------------------- */
+@media print {
+  :root,
+  :root[data-tema="oscuro"],
+  :root[data-tema="claro"] {
+    --fondo: #ffffff;
+    --superficie: #ffffff;
+    --superficie-alterna: #f4f6f9;
+    --borde: #cbd5e1;
+    --titulo: #000000;
+    --texto: #111827;
+    --texto-suave: #4b5563;
+    --tabla-cabecera-fondo: #f1f5f9;
+    --tabla-cabecera-texto: #1f2937;
+    --tabla-fila-alterna: #fafbfc;
+    --tabla-fila-resaltada: transparent;
+    color-scheme: light;
+  }
+
+  @page {
+    margin: 14mm 12mm;
+  }
+
+  /* Sin esto el navegador descarta los fondos y las barras de avance salen
+     en blanco: justo lo que se queria imprimir. */
+  * {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  body {
+    background: #ffffff;
+    font-size: 10.5pt;
+  }
+
+  /* Navegacion, botones y filtros no significan nada en papel. */
+  .no-imprimir,
+  header nav,
+  button {
+    display: none !important;
+  }
+
+  /* Una tarjeta partida entre dos paginas es ilegible. */
+  .imprimible-bloque {
+    break-inside: avoid;
+    box-shadow: none;
+  }
+
+  .imprimible-salto {
+    break-before: page;
+  }
+
+  /* En pantalla las tablas largas van dentro de un contenedor con scroll; en
+     papel eso recortaria todo salvo lo visible. */
+  .caja-scroll {
+    max-height: none !important;
+    overflow: visible !important;
+  }
+
+  thead {
+    display: table-header-group;
+  }
+  tr {
+    break-inside: avoid;
+  }
+
+  a[href]::after {
+    content: "";
+  }
+}
+
+/* Solo aparece al imprimir: encabeza el documento con contexto que en
+   pantalla ya da la propia interfaz. */
+.solo-impresion {
+  display: none;
+}
+@media print {
+  .solo-impresion {
+    display: block;
+  }
+}
+
+/* Tablas y listas largas. Se define aqui y no clase a clase para que el
+   sombreado de filas salga igual en el panel y en cualquier exportacion. */
+.tabla-datos {
+  width: 100%;
+  border-collapse: collapse;
+}
+.tabla-datos thead th {
+  background: var(--tabla-cabecera-fondo);
+  color: var(--tabla-cabecera-texto);
+  text-align: left;
+  font-weight: 600;
+  font-size: 0.8125rem;
+  padding: 0.625rem 0.75rem;
+  border-bottom: 1px solid var(--tabla-borde);
+}
+.tabla-datos tbody td {
+  padding: 0.625rem 0.75rem;
+  border-bottom: 1px solid var(--tabla-borde);
+}
+.tabla-datos tbody tr:nth-child(even) {
+  background: var(--tabla-fila-alterna);
+}
+.tabla-datos tbody tr:hover {
+  background: var(--tabla-fila-resaltada);
 }

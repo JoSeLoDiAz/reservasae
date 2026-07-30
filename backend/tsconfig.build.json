@@ -1,4 +1,8 @@
 {
   "extends": "./tsconfig.json",
-  "exclude": ["node_modules", "test", "dist", "**/*spec.ts"]
+  // `prisma/` queda fuera del build. Sus scripts (seed, verificación) son TS
+  // que se ejecuta con ts-node, no código del servidor. Si se incluyen, tsc
+  // sube el rootDir comun a backend/ y la salida pasa de dist/main.js a
+  // dist/src/main.js, que es justo lo que arranca el CMD del Dockerfile.
+  "exclude": ["node_modules", "test", "dist", "prisma", "**/*spec.ts"]
 }
