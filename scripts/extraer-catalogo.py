@@ -94,8 +94,7 @@ def repartir_sobrecupo(celdas):
     para que el resultado no dependa del orden en que se leyó el Excel.
     """
     total_base = sum(c["cuposBase"] for c in celdas)
-    # floor(x + 0,5) y no round(): round() en Python redondea 0,5 al par, que
-    # aquí daría resultados sorprendentes según el número.
+    # floor(x + 0,5): round() redondea al par
     total_maximo = int(math.floor(total_base * (1 + SOBRECUPO) + 0.5))
 
     exactos = [c["cuposBase"] * (1 + SOBRECUPO) for c in celdas]
@@ -201,8 +200,7 @@ def leer_cobertura(libro, acciones):
         if accion is None:
             continue
 
-        # "GRUPO 3" → 3. El número importa: es el identificador del grupo dentro
-        # de la acción, y admins y SENA se refieren a él por ese número.
+        # "GRUPO 3" -> 3, el identificador del grupo
         etiqueta = limpiar(fila[1]) or ""
         digitos = "".join(c for c in etiqueta if c.isdigit())
         numero = int(digitos) if digitos else len(accion["grupos"]) + 1

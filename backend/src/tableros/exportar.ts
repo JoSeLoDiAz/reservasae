@@ -1,13 +1,6 @@
 import ExcelJS from 'exceljs';
 
-/**
- * Generación de los .xlsx.
- *
- * Se usa `exceljs` y no un CSV disfrazado: quien recibe esto lo abre en Excel
- * y espera columnas con ancho, cabecera fija y números que sumen. Un CSV con
- * extensión .xls es justo lo que hace que se rompan los acentos y que las
- * cifras se lean como texto.
- */
+/** Genera los .xlsx. Con exceljs, no un CSV disfrazado. */
 
 type Columna = {
   titulo: string;
@@ -25,8 +18,7 @@ export async function construirLibro(
   libro.created = new Date();
 
   for (const definicion of hojas) {
-    // Excel rechaza los nombres de hoja de más de 31 caracteres y los que
-    // llevan : \ / ? * [ ]
+    // Excel: 31 caracteres y sin : \ / ? * [ ]
     const hoja = libro.addWorksheet(definicion.nombre.replace(/[:\\/?*[\]]/g, '').slice(0, 31));
 
     hoja.columns = definicion.columnas.map((c) => ({
@@ -47,8 +39,7 @@ export async function construirLibro(
     cabecera.alignment = { vertical: 'middle' };
     cabecera.height = 22;
 
-    // Fija la cabecera y activa los filtros: sin esto, una hoja de 2000 filas
-    // es inmanejable.
+    // cabecera fija y autofiltro
     hoja.views = [{ state: 'frozen', ySplit: 1 }];
     hoja.autoFilter = {
       from: { row: 1, column: 1 },

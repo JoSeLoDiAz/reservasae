@@ -97,8 +97,7 @@ export class FormulariosService {
 
     return {
       ...formulario,
-      // Se avisa de lo que impide publicar aunque no se esté publicando: es
-      // mejor verlo mientras se construye que al pulsar el botón.
+      // se avisa mientras se construye, no al publicar
       problemas: this.problemasParaPublicar(formulario.preguntas),
     };
   }
@@ -136,8 +135,7 @@ export class FormulariosService {
           .filter((p) => p.seccionId === s.id)
           .map((p) => this.vistaPreguntaPublica(p)),
       })),
-      // Las preguntas sin sección van al final, para que nunca desaparezcan
-      // del formulario aunque alguien borre la sección que las contenía.
+      // las preguntas sin seccion van al final
       sueltas: formulario.preguntas
         .filter((p) => !p.seccionId)
         .map((p) => this.vistaPreguntaPublica(p)),
@@ -180,8 +178,7 @@ export class FormulariosService {
           convenioId: dto.convenioId,
           slug: dto.slug,
           titulo: dto.titulo,
-          // Nace en borrador: publicarlo antes de tener los campos del núcleo
-          // dejaría una URL pública que no puede crear reservas.
+          // nace en borrador: aun no puede reservar
           publicado: false,
           secciones: {
             create: [{ titulo: 'Datos de la organización', orden: 0 }],
@@ -223,10 +220,7 @@ export class FormulariosService {
     return this.obtener(id);
   }
 
-  /**
-   * Solo se borra un formulario que nunca se usó. Si tiene respuestas, se
-   * despublica: borrarlo se llevaría por delante el histórico.
-   */
+  /** Solo se borra si nunca se usó; si no, se despublica. */
   async eliminar(id: string) {
     const respuestas = await this.prisma.respuesta.count({
       where: { pregunta: { formularioId: id } },
@@ -241,10 +235,7 @@ export class FormulariosService {
     return { eliminado: true };
   }
 
-  /**
-   * Qué falta para poder publicar. Se devuelve como lista y no como un error
-   * suelto para poder enseñarla entera mientras se construye.
-   */
+  /** Qué falta para poder publicar, como lista. */
   private problemasParaPublicar(
     preguntas: Array<Pregunta & { opciones?: Opcion[] }>,
   ): string[] {
@@ -291,12 +282,7 @@ export class FormulariosService {
   // Apariencia
   // -------------------------------------------------------------------------
 
-  /**
-   * Guarda SOLO los colores que el formulario sobreescribe.
-   *
-   * Guardar los 28 mataria la herencia: cambiar la marca general dejaria de
-   * propagarse y nadie se enteraria hasta intentarlo.
-   */
+  /** Guarda SOLO los colores que sobreescribe. */
   async actualizarApariencia(id: string, dto: ActualizarAparienciaDto) {
     const formulario = await this.prisma.formulario.findUnique({ where: { id } });
     if (!formulario) throw new NotFoundException('No existe ese formulario.');
@@ -368,10 +354,7 @@ export class FormulariosService {
     return this.obtener(seccion.formularioId);
   }
 
-  /**
-   * Borrar una sección NO borra sus preguntas: quedan sueltas al final del
-   * formulario. Perder preguntas por reorganizar bloques sería un desastre.
-   */
+  /** Borrar la sección no borra sus preguntas. */
   async eliminarSeccion(id: string) {
     const seccion = await this.prisma.seccion.findUnique({ where: { id } });
     if (!seccion) throw new NotFoundException('No existe esa sección.');
@@ -395,8 +378,7 @@ export class FormulariosService {
   async crearPregunta(formularioId: string, dto: CrearPreguntaDto) {
     const definicion = dto.campoNucleo ? POR_CAMPO.get(dto.campoNucleo) : undefined;
 
-    // El tipo de un campo del núcleo lo manda el catálogo: si alguien pide un
-    // NIT como casilla, la reserva no se podría construir.
+    // el tipo de un campo del nucleo lo manda el catalogo
     const tipo = definicion?.tipo ?? dto.tipo;
 
     const ultimo = await this.prisma.pregunta.aggregate({
@@ -454,8 +436,7 @@ export class FormulariosService {
       }
     }
 
-    // Cambiar el tipo con respuestas ya recogidas las dejaría en una columna
-    // que no les corresponde y la exportación mezclaría peras con manzanas.
+    // con respuestas ya recogidas no se cambia el tipo
     if (dto.tipo && dto.tipo !== pregunta.tipo && pregunta._count.respuestas > 0) {
       throw new ConflictException(
         `Esta pregunta ya tiene ${pregunta._count.respuestas} respuestas. ` +
@@ -522,8 +503,7 @@ export class FormulariosService {
         data: {
           preguntaId,
           etiqueta: dto.etiqueta,
-          // El valor guardado se separa de la etiqueta para poder corregir la
-          // redacción sin invalidar lo ya respondido.
+          // el valor va aparte de la etiqueta
           valor: dto.valor?.trim() || dto.etiqueta,
           orden: (ultimo._max.orden ?? -1) + 1,
         },
@@ -552,10 +532,7 @@ export class FormulariosService {
     return this.obtener(opcion.pregunta.formularioId);
   }
 
-  /**
-   * Una opción con respuestas se archiva, no se borra: si desapareciera, las
-   * respuestas que la eligieron quedarían apuntando a la nada.
-   */
+  /** Una opción ya elegida se archiva, no se borra. */
   async eliminarOpcion(id: string) {
     const opcion = await this.prisma.opcion.findUnique({
       where: { id },
@@ -592,14 +569,7 @@ export class FormulariosService {
   // Envío: validación de las respuestas que no son del núcleo
   // -------------------------------------------------------------------------
 
-  /**
-   * Comprueba las respuestas contra la definición del formulario y las deja
-   * listas para guardar.
-   *
-   * Se valida en el servidor aunque el navegador ya lo haya hecho: lo del
-   * navegador es comodidad, esto es lo que de verdad impide que llegue
-   * cualquier cosa a la base.
-   */
+  /** Valida las respuestas y las deja listas para guardar. */
   async prepararRespuestas(
     formularioSlug: string,
     enviadas: RespuestaDto[],
@@ -624,16 +594,14 @@ export class FormulariosService {
     const preparadas: Prisma.RespuestaCreateWithoutReservaInput[] = [];
 
     for (const pregunta of formulario.preguntas) {
-      // Los campos del núcleo no pasan por aquí: viajan como campos propios de
-      // la reserva y ya los valida su DTO.
+      // los campos del nucleo los valida su DTO
       if (pregunta.campoNucleo || TIPOS_SIN_RESPUESTA.includes(pregunta.tipo)) continue;
 
       const visible = this.estaVisible(pregunta, formulario.preguntas, porId);
       const enviada = porId.get(pregunta.id);
 
       if (!visible) {
-        // Si la pregunta estaba oculta, lo que venga se descarta: guardarlo
-        // sería registrar algo que la persona nunca vio.
+        // si estaba oculta, se descarta lo que venga
         continue;
       }
 
@@ -684,8 +652,7 @@ export class FormulariosService {
     enviada: RespuestaDto,
   ): Prisma.RespuestaCreateWithoutReservaInput {
     const base = {
-      // La etiqueta se congela: si mañana alguien reescribe la pregunta, lo
-      // exportado seguirá diciendo lo que la persona realmente leyó.
+      // se congela la etiqueta que la persona leyo
       etiquetaPregunta: pregunta.etiqueta,
       pregunta: { connect: { id: pregunta.id } },
     };

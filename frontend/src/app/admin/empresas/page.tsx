@@ -7,10 +7,7 @@ import { Aviso, CLASE_CONTROL, Tarjeta } from "@/components/admin/marco-admin";
 import { bonito, ErrorApi } from "@/lib/api";
 import { descargar, tablerosApi, type FilaEmpresa } from "@/lib/tableros-api";
 
-/**
- * «Cuántos cupos lleva cada empresa» fue una petición explícita del cliente:
- * es la vista que responde de un vistazo quién está copando la oferta.
- */
+/** Cuántos cupos lleva cada organización. */
 export default function PaginaEmpresas() {
   const [filas, setFilas] = useState<FilaEmpresa[] | null>(null);
   const [buscar, setBuscar] = useState("");

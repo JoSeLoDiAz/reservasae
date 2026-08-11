@@ -1,8 +1,4 @@
-/**
- * Cliente del panel. La sesión viaja en una cookie httpOnly que pone el
- * backend, así que aquí no se guarda ni se maneja ningún token: el navegador
- * la adjunta solo por ser el mismo origen.
- */
+/** Cliente del panel. La sesión va en una cookie httpOnly. */
 
 import { ErrorApi } from "./api";
 import type { CatalogoColores, ColoresTema, Esquema } from "./tema";
@@ -40,11 +36,9 @@ export type Marca = {
   logo: { origen: OrigenLogo; tipoMime: string | null; version: number };
   /** Tokens que el formulario sobreescribe. Solo con ambito FORMULARIO. */
   sobreescritos?: Record<Esquema, string[]>;
-  /** Las dos paletas viajan juntas: el conmutador cambia de una a otra sin
-   *  volver a pedir nada al servidor. */
+  /** Las dos paletas juntas: conmutar no pide nada. */
   temas: Record<Esquema, ColoresTema>;
-  /** Qué colores existen, cómo agruparlos y qué pares hay que revisar. Lo
-   *  define el backend para que no haya dos listas que mantener. */
+  /** Qué colores existen. Lo define el backend. */
   catalogoColores: CatalogoColores;
   logoTipoMime: string | null;
   logoNombre: string | null;
@@ -151,8 +145,7 @@ export const adminApi = {
   subirLogo: (archivo: File) => {
     const formulario = new FormData();
     formulario.append("logo", archivo);
-    // Sin content-type a mano: el navegador tiene que ponerlo con el `boundary`
-    // del multipart, y escribirlo aquí lo rompe.
+    // sin content-type: el navegador pone el boundary
     return pedir<Marca>("/admin/marca/logo", { method: "POST", body: formulario });
   },
 
@@ -209,13 +202,7 @@ export const adminApi = {
     }),
 };
 
-/**
- * URL del logo segun de quien sea.
- *
- * La ruta CAMBIA con el origen a proposito: al borrar el logo propio de un
- * formulario, la URL deja de existir en vez de servir el viejo desde una cache
- * de un ano.
- */
+/** URL del logo. La ruta cambia con el origen: sin caché envenenada. */
 export function urlLogo(marca: Pick<Marca, "logo" | "formularioSlug">): string | null {
   const { origen, version } = marca.logo;
   if (origen === "FORMULARIO" && marca.formularioSlug) {

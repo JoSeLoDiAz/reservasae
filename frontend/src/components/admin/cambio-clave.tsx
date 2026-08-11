@@ -7,11 +7,7 @@ import { ErrorApi } from "@/lib/api";
 
 const LARGO_MINIMO = 10;
 
-/**
- * Pantalla que tapa el panel entero mientras la cuenta siga con la contraseña
- * temporal. No es solo un aviso: el backend rechaza cualquier otra ruta en ese
- * estado, así que saltárselo desde el navegador no serviría de nada.
- */
+/** Tapa el panel mientras la clave siga siendo temporal. */
 export function CambioDeClaveObligatorio({ alTerminar }: { alTerminar: () => Promise<void> }) {
   return (
     <div className="mx-auto w-full max-w-md px-6 py-16">
@@ -45,8 +41,7 @@ export function FormularioCambioClave({
     evento.preventDefault();
     setError(null);
 
-    // Se comprueba aquí y no solo en el servidor porque el servidor no puede:
-    // solo recibe una de las dos, y el error típico es la errata al repetirla.
+    // el servidor solo recibe una de las dos
     if (nueva !== repetida) {
       setError("Las dos contraseñas nuevas no coinciden.");
       return;

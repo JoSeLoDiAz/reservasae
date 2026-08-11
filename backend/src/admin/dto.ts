@@ -139,12 +139,7 @@ const HEXADECIMAL = /^#[0-9a-fA-F]{6}$/;
 /**
  * Los colores de un esquema, como mapa `clave -> #rrggbb`.
  *
- * La validación es a mano y no con decoradores porque las claves las define el
- * catálogo de `temas.ts`, que crece sin tocar este archivo. Se comprueban las
- * dos cosas: que la clave exista en el catálogo y que el valor sea
- * hexadecimal. Es imprescindible — estos valores acaban dentro de una etiqueta
- * `<style>` en la página pública, así que aceptar texto libre sería dejar que
- * un administrador inyectara CSS arbitrario.
+ * Clave del catálogo y valor hexadecimal: esto acaba en un `<style>`.
  */
 @ValidatorConstraint({ name: 'coloresDeTema' })
 export class ColoresDeTema implements ValidatorConstraintInterface {

@@ -5,16 +5,9 @@ import { useId, useState } from "react";
 /**
  * Piezas de visualización del tablero.
  *
- * Reglas que se siguen aquí y conviene no romper:
- *
- * - Cada medida es UNA sola serie, así que no hay leyenda: el título ya dice
- *   qué se está mirando. Una leyenda de un elemento es ruido.
- * - Los estados (disponible / últimos cupos / completo) llevan SIEMPRE icono y
- *   texto, no solo color. Rojo y ámbar son tonos adyacentes y bajo
- *   deuteranopía no se distinguen; medido, quedan a ΔE 4,9.
- * - Las barras tienen los extremos redondeados 4 px y arrancan en la línea
- *   base; la rejilla es discreta y nunca compite con los datos.
- * - Los números van con tipografía tabular para que las columnas se alineen.
+ * Una serie por gráfico, así que sin leyenda. Los estados llevan siempre
+ * icono y texto, no solo color: rojo y ámbar no se separan bajo
+ * deuteranopía.
  */
 
 export type EstadoSemaforo = "DISPONIBLE" | "ULTIMOS_CUPOS" | "COMPLETO";
@@ -57,13 +50,7 @@ export function TarjetaCifra({
   );
 }
 
-/**
- * Anillo de avance con la cifra dentro.
- *
- * Es un MEDIDOR de dos segmentos (hecho / falta), no una tarta: comparar
- * porciones parecidas en un círculo no funciona, el ojo no mide ángulos. Como
- * aquí solo hay una magnitud contra su tope, el anillo sí comunica.
- */
+/** Anillo de avance: una magnitud contra su tope. */
 export function Anillo({
   porcentaje,
   color = "var(--marca)",
@@ -142,13 +129,7 @@ export function Medidor({
   );
 }
 
-/**
- * Barras agrupadas: dos series por categoría (ofertado / reservado).
- *
- * Dos series, así que lleva leyenda — con una sola sobraría, el título ya
- * diría qué se mira. Las barras se separan con un hueco de 2 px en vez de con
- * un borde alrededor.
- */
+/** Dos series por categoría; por eso sí lleva leyenda. */
 export function BarrasAgrupadas({
   categorias,
   series,
@@ -251,16 +232,7 @@ export function BarraAvance({
   );
 }
 
-/**
- * Ranking horizontal: etiqueta, barra y cifra.
- *
- * Horizontal y no vertical porque las etiquetas son nombres largos
- * ("Norte de Santander", "Servicios Digitales Ltda") y en vertical habría que
- * girarlas, que es la forma más rápida de hacer ilegible un gráfico.
- *
- * Las barras se escalan contra el mayor de la lista, no contra el total: lo
- * que se compara aquí es el orden entre ellas.
- */
+/** Ranking horizontal. Se escala contra el mayor de la lista. */
 export function ListaBarras({
   datos,
   sufijo,
@@ -331,10 +303,7 @@ const ESTADOS: Record<
   COMPLETO: { texto: "Completo", clase: "bg-error-suave text-error", icono: <IconoCirculoX /> },
 };
 
-/**
- * Icono + texto, nunca solo color: es lo que hace que el semáforo funcione
- * para quien no distingue el rojo del ámbar, y también en blanco y negro.
- */
+/** Icono + texto, nunca solo color. */
 export function EtiquetaEstado({ estado }: { estado: EstadoSemaforo }) {
   const e = ESTADOS[estado];
   return (
@@ -353,10 +322,7 @@ export function EtiquetaEstado({ estado }: { estado: EstadoSemaforo }) {
 
 type Punto = { dia: string; reservas: number; cupos: number };
 
-/**
- * Barras verticales, no una línea: con pocos días de datos una línea sugiere
- * una continuidad que no existe entre dos puntos sueltos.
- */
+/** Barras y no línea: con pocos días, la línea miente. */
 export function BarrasPorDia({ datos }: { datos: Punto[] }) {
   const [encima, setEncima] = useState<number | null>(null);
   const id = useId();

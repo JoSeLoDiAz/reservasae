@@ -1,15 +1,10 @@
 /**
- * Crea o reinicia una cuenta de administrador desde la consola.
+ * Crea o reinicia una cuenta de administrador.
  *
- *   pnpm --filter backend db:crear-admin correo@ejemplo.com "Nombre Apellido"
- *   pnpm --filter backend db:crear-admin correo@ejemplo.com "Nombre" --rol GESTOR
+ *   pnpm --filter backend db:crear-admin correo@ejemplo.com "Nombre" [--rol GESTOR]
  *
- * Imprime una contraseña temporal UNA sola vez; no queda guardada en claro en
- * ningún sitio. Quien entre con ella está obligado a cambiarla antes de poder
- * hacer nada.
- *
- * Existe para el primer usuario, cuando todavía no hay panel desde donde
- * crear otros, y para recuperar el acceso si se pierde la única cuenta.
+ * Imprime la clave temporal una sola vez. Para el primer usuario o para
+ * recuperar el acceso.
  */
 
 import { PrismaClient, RolAdmin } from '../generated/prisma';
@@ -21,8 +16,7 @@ async function main() {
   const argumentos = process.argv.slice(2);
   const posicion = argumentos.indexOf('--rol');
   const rolPedido = posicion >= 0 ? argumentos[posicion + 1] : undefined;
-  // El valor de --rol no es un argumento suelto. La comprobación de posicion
-  // >= 0 no sobra: sin ella, `posicion + 1` vale 0 y descarta el correo.
+  // el valor de --rol no es un argumento suelto
   const indiceValorRol = posicion >= 0 ? posicion + 1 : -1;
   const sueltos = argumentos.filter(
     (a, i) => !a.startsWith('--') && i !== indiceValorRol,
@@ -50,9 +44,7 @@ async function main() {
   const admin = await prisma.admin.upsert({
     where: { correo },
     create: { correo, nombre, rol, hashClave, debeCambiarClave: true },
-    // Si la cuenta ya existía se le pone contraseña nueva y se reactiva: es la
-    // vía de recuperación cuando nadie puede entrar. El nombre y el rol NO se
-    // pisan salvo que se hayan pasado a propósito.
+    // si ya existia: clave nueva y reactivada
     update: { hashClave, debeCambiarClave: true, activo: true },
   });
 

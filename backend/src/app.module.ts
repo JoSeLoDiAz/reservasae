@@ -15,10 +15,7 @@ import { TablerosModule } from './tableros/tableros.module';
 
 @Module({
   imports: [
-    // Sin esto backend/.env no se lee al correr fuera de Docker: PORT,
-    // DATABASE_URL y demas quedaban definidas en el archivo pero muertas.
-    // En Docker las variables llegan por `env_file` y dotenv no pisa lo que
-    // ya existe en process.env, asi que produccion no cambia.
+    // sin esto backend/.env no se lee fuera de Docker
     ConfigModule.forRoot({ isGlobal: true }),
     // Límite general. Cada endpoint sensible aprieta el suyo con @Throttle.
     ThrottlerModule.forRoot([{ name: 'default', ttl: 60_000, limit: 60 }]),

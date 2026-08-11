@@ -57,15 +57,11 @@ export class ReservasService {
       );
     }
 
-    // Fuera de la transacción a propósito: si el upsert de la empresa choca
-    // con otro que llega a la vez, Postgres aborta la transacción entera y ya
-    // no se puede seguir dentro de ella. Aquí el reintento sí es posible.
+    // fuera de la transaccion: aqui se puede reintentar
     const empresa = await this.asegurarEmpresa(nit, dto);
     const politicaId = await this.politicaVigente(oferta.accionFormacion.convenioId);
 
-    // Las respuestas del formulario se validan ANTES de abrir la transacción:
-    // si una es inválida, es mejor devolver el error sin haber bloqueado la
-    // oferta ni haber tocado el contador.
+    // validar antes de bloquear la oferta
     const delFormulario = dto.formularioSlug
       ? await this.formularios.prepararRespuestas(dto.formularioSlug, dto.respuestas ?? [])
       : null;
@@ -80,14 +76,11 @@ export class ReservasService {
         });
 
         if (existente && existente.estado !== EstadoReserva.CANCELADA) {
-          // Doble clic o reintento de Cloudflare: la misma petición otra vez.
-          // Se devuelve lo que ya hay en vez de un error, que es lo correcto
-          // porque el resultado final es exactamente el que pidió.
+          // doble clic: devolver lo que ya hay
           if (existente.cuposSolicitados === dto.cuposSolicitados) {
             return this.vista(tx, existente.id);
           }
-          // Cantidad distinta: es una intención nueva, no un reenvío. No se
-          // decide por la empresa; que el frontend pregunte si quiere cambiarla.
+          // cantidad distinta: que el frontend pregunte
           throw new ConflictException({
             message:
               `Esta empresa ya tiene una reserva de ${existente.cuposSolicitados} ` +
@@ -129,9 +122,7 @@ export class ReservasService {
             });
 
         if (respuestas.length) {
-          // Al revivir una reserva cancelada se descartan las respuestas de
-          // entonces: son de otro envío y el índice único (reserva, pregunta)
-          // rechazaría las nuevas.
+          // al revivir, las respuestas viejas sobran
           if (existente) {
             await tx.respuesta.deleteMany({ where: { reservaId: reserva.id } });
           }
@@ -178,8 +169,7 @@ export class ReservasService {
           );
         }
 
-        // El lock se toma DESPUÉS de leer la reserva pero antes de calcular
-        // nada: entre el cálculo y el UPDATE no puede colarse nadie.
+        // lock antes de calcular nada
         const oferta = await this.bloquearOferta(tx, reserva.ofertaId);
         if (cantidad > oferta.cuposMaximos) {
           throw new BadRequestException(
@@ -187,8 +177,7 @@ export class ReservasService {
           );
         }
 
-        // Techo de esta reserva: lo que hay libre MÁS lo que ella ya ocupaba,
-        // porque sus propios cupos vuelven a estar a su disposición.
+        // su techo: lo libre mas lo que ya ocupaba
         const techo = oferta.cuposMaximos - oferta.cuposOcupados + reserva.cuposConfirmados;
         const confirmados = Math.min(cantidad, Math.max(techo, 0));
         const enEspera = cantidad - confirmados;
@@ -219,8 +208,7 @@ export class ReservasService {
           },
         });
 
-        // Si bajó la cantidad quedaron cupos libres: se reparten ya mismo,
-        // dentro del mismo lock, para que nadie vea disponibilidad fantasma.
+        // si bajo, repartir dentro del mismo lock
         if (delta < 0) {
           await this.promoverListaDeEspera(tx, oferta.id, contexto);
         }
@@ -247,8 +235,7 @@ export class ReservasService {
 
         const oferta = await this.bloquearOferta(tx, reserva.ofertaId);
 
-        // Cancelar DEVUELVE el cupo. En el Excel actual no lo devolvía y la
-        // silla quedaba muerta para siempre.
+        // cancelar devuelve el cupo
         await this.moverContador(tx, oferta.id, -reserva.cuposConfirmados);
 
         await tx.reserva.update({
@@ -359,14 +346,7 @@ export class ReservasService {
     return nit;
   }
 
-  /**
-   * Bloquea la fila de la oferta hasta el final de la transacción. Serializa
-   * las reservas de UNA oferta sin estorbar a las otras 105.
-   *
-   * Sin este lock, el reparto parcial (pide 10, caben 6) es imposible de hacer
-   * bien: hay que leer cuántos quedan para decidir cuántos otorgar, y en
-   * Postgres 17 `RETURNING` no puede devolver el valor anterior de la fila.
-   */
+  /** Bloquea la oferta hasta el fin de la transacción. */
   private async bloquearOferta(
     tx: Prisma.TransactionClient,
     ofertaId: string,
@@ -384,12 +364,7 @@ export class ReservasService {
     return oferta;
   }
 
-  /**
-   * Mueve el contador con la condición dentro del propio UPDATE. Con el lock
-   * ya tomado es redundante, y esa es la idea: si alguien quita el lock algún
-   * día, esto sigue impidiendo la sobreventa. Y si aun así pasara, el CHECK
-   * de la base es la tercera barrera.
-   */
+  /** Mueve el contador con la condición en el UPDATE. */
   private async moverContador(
     tx: Prisma.TransactionClient,
     ofertaId: string,
@@ -411,11 +386,7 @@ export class ReservasService {
     }
   }
 
-  /**
-   * Reparte los cupos que acaban de quedar libres entre quienes esperan, por
-   * orden de llegada. Corre dentro del lock de la oferta de quien liberó, así
-   * que nadie puede colarse en el hueco entre liberar y promover.
-   */
+  /** Reparte los cupos libres por orden de llegada. */
   private async promoverListaDeEspera(
     tx: Prisma.TransactionClient,
     ofertaId: string,
@@ -438,9 +409,7 @@ export class ReservasService {
     for (const reserva of esperando) {
       if (libres <= 0) break;
 
-      // Promoción parcial: si una espera 4 y solo hay 2 libres, se le dan 2 y
-      // sigue esperando por los otros 2. Saltársela por no caber entera
-      // rompería el orden de llegada.
+      // promocion parcial: no saltarse la cola
       const mueve = Math.min(libres, reserva.cuposEnEspera);
 
       await tx.reserva.update({
@@ -485,8 +454,7 @@ export class ReservasService {
       include: { empresa: true },
     });
 
-    // Mismo error para "no existe" y "no es tuya": distinguirlos permitiría
-    // averiguar qué reservas existen probando identificadores.
+    // mismo error que "no existe": no filtrar ids
     if (!reserva || reserva.empresa.nit !== nit) {
       throw new NotFoundException('No se encontró una reserva con ese identificador y NIT.');
     }
@@ -498,8 +466,7 @@ export class ReservasService {
       razonSocial: dto.razonSocial,
       numeroColaboradores: dto.numeroColaboradores ?? null,
       redAsociada: dto.redAsociada ?? null,
-      // Solo tiene sentido si eligió "Otro"; si cambia de opción, se limpia
-      // para que no quede un gremio fantasma de un envío anterior.
+      // se limpia si ya no eligio "Otro"
       redAsociadaOtra: dto.redAsociada === 'Otro' ? (dto.redAsociadaOtra ?? null) : null,
       digitoVerificacion: nit.digitoVerificacion,
     };
@@ -511,9 +478,7 @@ export class ReservasService {
         update: datos,
       });
     } catch (error) {
-      // Dos primeras reservas de la misma empresa en el mismo instante: una de
-      // las dos pierde la carrera del INSERT. La fila ya existe, así que basta
-      // con leerla.
+      // perdio la carrera del INSERT: la fila ya existe
       if (
         error instanceof Prisma.PrismaClientKnownRequestError &&
         error.code === 'P2002'

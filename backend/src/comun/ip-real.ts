@@ -2,13 +2,9 @@ import { createParamDecorator, ExecutionContext } from '@nestjs/common';
 import type { Request } from 'express';
 
 /**
- * La IP real del usuario NO está en el socket. Detrás del túnel de Cloudflare
- * todas las peticiones parecen venir de la red interna de Docker, así que un
- * límite por IP de socket contaría a todo el mundo como una sola persona.
+ * La IP real llega en `CF-Connecting-IP`, no en el socket.
  *
- * `docker/nginx/default.conf` ya usa `real_ip_header CF-Connecting-IP`, pero
- * aquí se lee la cabecera directamente para no depender de que nginx esté
- * delante: en local no lo está.
+ * Detrás del túnel todo parece venir de la red de Docker.
  */
 export function ipReal(req: Request): string {
   const cloudflare = req.headers['cf-connecting-ip'];
@@ -16,8 +12,7 @@ export function ipReal(req: Request): string {
     return cloudflare.trim();
   }
 
-  // El primero de la lista es el cliente; los siguientes son los proxies por
-  // los que pasó. Tomar el último daría siempre la IP de nginx.
+  // el primero es el cliente; el resto, proxies
   const reenviada = req.headers['x-forwarded-for'];
   if (typeof reenviada === 'string' && reenviada.trim()) {
     const primera = reenviada.split(',')[0]?.trim();

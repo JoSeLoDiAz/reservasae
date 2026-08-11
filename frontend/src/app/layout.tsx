@@ -18,25 +18,9 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "Convoca",
-  /*
-   * Sin descripción a propósito. La que había ("acciones de formación continua
-   * especializada") aparecía en el HTML de TODAS las páginas, incluido el 404,
-   * y es justo lo que la decisión de producto dice que no se menciona en
-   * público. El nombre sí puede quedarse: no dice de qué va.
-   */
+  // sin descripcion: saldria hasta en el 404
 
-  /*
-   * `noindex` y no solo robots.txt.
-   *
-   * Cloudflare inyecta su propio robots.txt gestionado ANTES del nuestro, y el
-   * suyo trae `User-agent: * / Allow: /`. Con dos grupos para el mismo agente
-   * las reglas se fusionan y, a igualdad de longitud, el Allow gana: nuestro
-   * Disallow quedaba anulado.
-   *
-   * `noindex` va en la cabecera de cada página, así que Cloudflare no lo toca.
-   * Además es más fuerte: robots.txt solo evita que rastreen, mientras que
-   * noindex evita que indexen aunque lleguen por un enlace de otro sitio.
-   */
+  // noindex y no solo robots.txt: Cloudflare pisa el suyo
   robots: { index: false, follow: false },
 };
 
@@ -49,8 +33,7 @@ export default function RootLayout({
     <html
       lang="es"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
-      // El script de abajo fija data-tema antes de pintar; sin esto React
-      // avisaria de que el HTML del servidor y el del cliente no coinciden.
+      // el script de abajo fija data-tema antes de hidratar
       suppressHydrationWarning
     >
       <head>

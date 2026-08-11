@@ -1,10 +1,4 @@
-/**
- * Tipos y llamadas del constructor de formularios.
- *
- * Igual que con los colores, el catálogo de campos del sistema lo publica el
- * backend (`/admin/formularios/campos-nucleo`): el panel no mantiene su propia
- * copia, que acabaría desincronizada.
- */
+/** Tipos y llamadas del constructor de formularios. */
 
 import { ErrorApi } from "./api";
 

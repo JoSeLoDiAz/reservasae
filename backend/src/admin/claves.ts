@@ -1,11 +1,4 @@
-/**
- * Hasheo de contraseñas con `scrypt`, que viene en Node.
- *
- * Ni bcrypt ni argon2: los dos necesitan compilarse con node-gyp y la imagen
- * de producción es alpine, donde eso es una fuente conocida de builds rotos.
- * scrypt es un algoritmo de derivación pensado para esto y no añade nada al
- * `package.json`.
- */
+/** Contraseñas con `scrypt`: bcrypt y argon2 piden node-gyp. */
 
 import { randomBytes, scrypt, timingSafeEqual } from 'node:crypto';
 import { promisify } from 'node:util';
@@ -24,8 +17,7 @@ export const CLAVE_LARGO_MINIMO = 10;
 /** Formato: `scrypt$<sal en base64>$<hash en base64>`. */
 export async function hashearClave(clave: string): Promise<string> {
   const sal = randomBytes(LARGO_SAL);
-  // NFKC: "café" escrito con tilde compuesta y con tilde combinante son la
-  // misma contraseña para quien la teclea, pero bytes distintos.
+  // NFKC: la misma tilde en dos bytes distintos
   const hash = await derivar(clave.normalize('NFKC'), sal, LARGO_HASH);
   return `scrypt$${sal.toString('base64')}$${hash.toString('base64')}`;
 }
@@ -38,8 +30,7 @@ export async function verificarClave(clave: string, guardado: string): Promise<b
   const esperado = Buffer.from(hashBase64, 'base64');
   const calculado = await derivar(clave.normalize('NFKC'), sal, esperado.length);
 
-  // Comparación en tiempo constante: un `===` filtra por cuánto tarda en
-  // fallar cuántos bytes iniciales acertó quien está probando.
+  // tiempo constante: un === filtra por lo que tarda
   return calculado.length === esperado.length && timingSafeEqual(calculado, esperado);
 }
 

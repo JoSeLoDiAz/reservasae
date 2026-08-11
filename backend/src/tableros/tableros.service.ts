@@ -17,11 +17,7 @@ export type FiltrosReservas = {
 
 const POR_PAGINA = 25;
 
-/**
- * El universo del tablero son TODAS las acciones, publicadas o no: `metaBase`
- * sale de `grupoCobertura` sin filtrar y representa el compromiso completo.
- * Filtrar por `visible` dejaría la cifra grande descuadrada contra su meta.
- */
+/** El universo son TODAS las acciones, publicadas o no. */
 const UNIVERSO: Prisma.OfertaWhereInput = {};
 
 @Injectable()
@@ -66,19 +62,10 @@ export class TablerosService {
       cupos,
       ocupados,
       disponibles: cupos - ocupados,
-      // Redondeado a un decimal: presentar "34,7 %" y no "34,69999" es parte de
-      // que el número se pueda leer de un vistazo.
+      // un decimal: se lee de un vistazo
       avance: pct(ocupados, cupos),
 
-      /*
-       * Dos lecturas distintas del mismo avance, y las dos importan:
-       *
-       * - `avance` va contra el tope de inscripciones (base + 30 %), que es
-       *   hasta dónde se puede aceptar gente.
-       * - `avanceMeta` va contra la META COMPROMETIDA en los proyectos, que es
-       *   lo que hay que cumplir. Llegar al 100 % del tope no es el objetivo;
-       *   llegar al 100 % de la meta sí.
-       */
+      // la que manda: avance contra la meta comprometida
       metaBase,
       avanceMeta: pct(ocupados, metaBase),
 
@@ -96,14 +83,7 @@ export class TablerosService {
     };
   }
 
-  /**
-   * Los cortes que responden preguntas de gestión: dónde no está llegando la
-   * convocatoria, si se está cumpliendo con las mipymes, si unos pocos están
-   * copando la oferta.
-   *
-   * Va todo en una llamada porque el tablero los muestra juntos: seis
-   * peticiones para pintar una pantalla es desperdiciar seis viajes.
-   */
+  /** Los cortes de gestión, todos en una sola llamada. */
   async analisis() {
     const [ofertas, empresas] = await Promise.all([
       this.prisma.oferta.findMany({
@@ -176,8 +156,6 @@ export class TablerosService {
     }
 
     // --- Concentración ----------------------------------------------------
-    // Si tres organizaciones se llevan la mitad de los cupos, la convocatoria
-    // no está repartida y conviene saberlo antes de que sea tarde.
     const porEmpresa = empresas
       .map((e) => ({
         razonSocial: e.razonSocial,
@@ -246,8 +224,7 @@ export class TablerosService {
       },
     });
 
-    // La lista de espera no está en la oferta sino en las reservas, así que se
-    // agrupa aparte y se cruza.
+    // la espera vive en las reservas: se cruza aparte
     const espera = await this.prisma.reserva.groupBy({
       by: ['ofertaId'],
       where: { cuposEnEspera: { gt: 0 }, estado: { not: EstadoReserva.CANCELADA } },
@@ -290,15 +267,7 @@ export class TablerosService {
     });
   }
 
-  /**
-   * Todo lo que se sabe de UNA acción de formación: su oferta por ubicación,
-   * sus grupos tal como están comprometidos en el proyecto, quién ha
-   * reservado y a qué ritmo.
-   *
-   * Existe como pantalla propia porque el tablero general responde «cómo va
-   * todo» y esta responde «qué pasa con este curso», que es la pregunta que se
-   * hace cuando uno va mal.
-   */
+  /** Todo lo de UNA acción: oferta, grupos, reservas y ritmo. */
   async accion(id: string) {
     const accion = await this.prisma.accionFormacion.findUnique({
       where: { id },
@@ -406,8 +375,7 @@ export class TablerosService {
         abierta: o.abierta,
       })),
 
-      // Los grupos son el compromiso con el SENA: cuántas cohortes y con qué
-      // reparto territorial. No llevan contador propio, se muestran como plan.
+      // los grupos son el plan, no llevan contador
       grupos: accion.grupos.map((g) => ({
         numero: g.numero,
         modalidad: g.modalidad,
@@ -542,13 +510,7 @@ export class TablerosService {
   // Ritmo y proyección
   // -------------------------------------------------------------------------
 
-  /**
-   * Cupos netos por día, desde `movimientos_reserva`.
-   *
-   * Es el neto REAL: incluye ediciones a la baja, cancelaciones y promociones
-   * de la lista de espera. La serie por `creadoEn` no puede darlo, porque
-   * atribuye la cantidad final al día en que se creó la reserva.
-   */
+  /** Cupos netos por día, desde `movimientos_reserva`. */
   private async netoPorDia(dias: number, accionId?: string): Promise<PuntoNeto[]> {
     const condicionAccion = accionId
       ? Prisma.sql`AND r."ofertaId" IN (SELECT id FROM "ofertas" WHERE "accionFormacionId" = ${accionId})`
@@ -807,8 +769,7 @@ export class TablerosService {
           { contactoNombre: { contains: texto, mode: 'insensitive' } },
           { contactoCorreo: { contains: texto, mode: 'insensitive' } },
           { empresa: { razonSocial: { contains: texto, mode: 'insensitive' } } },
-          // El NIT se busca por dígitos: quien lo escribe con puntos no
-          // encontraría nada comparando la cadena tal cual.
+          // el NIT se busca por digitos, sin puntos
           ...(digitos ? [{ empresa: { nit: { contains: digitos } } }] : []),
         ],
       });
@@ -913,11 +874,7 @@ function pct(parte: number, total: number): number {
   return total > 0 ? Math.round((parte / total) * 1000) / 10 : 0;
 }
 
-/**
- * Clasificación por número de empleados según la Ley 590 de 2000. Importa
- * porque los proyectos comprometen un número concreto de mipymes
- * beneficiadas, y sin este corte no hay forma de saber si se está cumpliendo.
- */
+/** Tamaño de empresa según la Ley 590 de 2000. */
 const ORDEN_TAMANO = ['Microempresa', 'Pequeña', 'Mediana', 'Grande', 'Sin indicar'];
 
 function clasificarTamano(colaboradores: number | null): string {
@@ -945,14 +902,7 @@ export function resumenNumerico(valores: number[]) {
   };
 }
 
-/**
- * Cuenta por opción.
- *
- * Se agrupa por `valoresSeleccion`, que es el valor estable, y se muestra la
- * etiqueta de hoy. Para un valor que ya no existe en el catálogo se cae a
- * `etiquetasSeleccion`, la congelada al enviar: esa es la razón de ser de las
- * dos columnas.
- */
+/** Cuenta por opción, con la etiqueta de hoy. */
 export function contarOpciones(
   opciones: Array<{ valor: string; etiqueta: string; archivada: boolean }>,
   respuestas: Array<{ valoresSeleccion: string[]; etiquetasSeleccion: string[] }>,

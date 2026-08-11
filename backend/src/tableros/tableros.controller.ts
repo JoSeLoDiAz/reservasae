@@ -46,8 +46,7 @@ export class TablerosController {
     return this.tableros.porAccion();
   }
 
-  // Después de 'acciones' a propósito: si fuera antes, ':id' capturaría la
-  // palabra "acciones" como identificador.
+  // despues de 'acciones': si no, ':id' la capturaria
   @Get('acciones/:id')
   accion(@Param('id') id: string) {
     return this.tableros.accion(id);
@@ -95,9 +94,7 @@ export class TablerosController {
   async exportarReservas(@Query() consulta: Record<string, string>, @Res() res: Response) {
     const reservas = await this.tableros.reservasParaExportar(this.filtros(consulta));
 
-    // Las preguntas propias de cada formulario se vuelven columnas. Se recorre
-    // todo primero para saber cuáles existen: si se fuera añadiendo sobre la
-    // marcha, las filas de arriba quedarían desalineadas.
+    // se recorre todo antes: anadir columnas al vuelo desalinea
     const columnasExtra = [
       ...new Set(reservas.flatMap((r) => r.respuestas.map((x) => x.etiquetaPregunta))),
     ];

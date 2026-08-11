@@ -1,9 +1,7 @@
 /**
- * Conversion sRGB <-> OKLCH, sin dependencias.
+ * Conversión sRGB <-> OKLCH, sin dependencias.
  *
- * En OKLCH y no en HSL porque en HSL «L 50 %» en amarillo y en azul se ven muy
- * distintos de claros, asi que fijar L no garantiza contraste. En OKLCH la L es
- * luminosidad percibida y sirve como perilla fiable.
+ * En OKLCH y no en HSL: aquí la L sí es luminosidad percibida.
  */
 
 import { aRgb } from './contraste';

@@ -75,14 +75,11 @@ export class AdminController {
     const token = this.jwt.sign({ sub: admin.id });
 
     respuesta.cookie(COOKIE_SESION, token, {
-      // httpOnly: el token no es accesible desde JavaScript, así que un XSS no
-      // se lo puede llevar.
+      // httpOnly: un XSS no se lleva el token
       httpOnly: true,
-      // lax basta: las peticiones del panel salen del mismo sitio, y evita que
-      // un formulario de otra web dispare acciones con la sesión abierta.
+      // lax: el panel es del mismo sitio
       sameSite: 'lax',
-      // En producción todo va por HTTPS detrás de Cloudflare; en local no hay
-      // TLS y con `secure` el navegador descartaría la cookie.
+      // en local no hay TLS: `secure` la descartaria
       secure: process.env.NODE_ENV === 'production',
       path: '/',
       maxAge: HORAS_SESION * 60 * 60 * 1000,
@@ -185,8 +182,7 @@ export class AdminController {
     return this.admin.restablecerTema(admin, this.exigirEsquema(esquema));
   }
 
-  // El esquema llega en la ruta, donde no hay DTO que lo valide; sin esta
-  // comprobación un valor cualquiera acabaría en un `where` de Prisma.
+  // en la ruta no hay DTO: se valida a mano
   private exigirEsquema(valor: string): EsquemaColor {
     const arriba = valor.toUpperCase();
     if (arriba !== 'CLARO' && arriba !== 'OSCURO') {
@@ -262,10 +258,7 @@ export class AdminController {
   }
 }
 
-/**
- * Lo que el sitio público necesita de la marca: colores, textos y logo. Sin
- * sesión, porque lo pide cualquiera que abra el formulario.
- */
+/** Colores, textos y logo para el sitio público. Sin sesión. */
 @Controller('marca')
 export class MarcaPublicaController {
   constructor(private readonly admin: AdminService) {}
@@ -281,10 +274,7 @@ export class MarcaPublicaController {
     this.enviarLogo(respuesta, logoDatos, logoTipoMime);
   }
 
-  /**
-   * Segmento literal `formulario/` a proposito: con `:slug` suelto, un
-   * formulario llamado "logo" eclipsaria la ruta de arriba.
-   */
+  // segmento literal: un slug "logo" taparia la ruta de arriba
   @Get('formulario/:slug')
   marcaDeFormulario(@Param('slug') slug: string) {
     return this.admin.obtenerMarcaDeFormulario(slug);

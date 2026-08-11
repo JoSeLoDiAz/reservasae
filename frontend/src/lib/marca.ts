@@ -37,12 +37,7 @@ type MarcaMinima = {
   catalogoColores: { tokens: Array<{ clave: string; variableCss: string }> };
 };
 
-/**
- * Guarda la paleta ya resuelta como pares variable→hex.
- *
- * Se guarda resuelta y no en bruto para que el script del <head> no tenga que
- * conocer el catalogo de tokens.
- */
+/** Guarda la paleta resuelta, como pares variable→hex. */
 export function recordarPaleta(ambito: Ambito, marca: MarcaMinima) {
   if (!marca?.temas || !marca.catalogoColores?.tokens) return;
   try {
@@ -65,12 +60,7 @@ export function recordarPaleta(ambito: Ambito, marca: MarcaMinima) {
   }
 }
 
-/**
- * Pinta la paleta cacheada antes del primer render.
- *
- * La primera visita sigue destellando; las siguientes no. Revalida el
- * hexadecimal porque esto acaba dentro de una etiqueta <style>.
- */
+/** Pinta la paleta cacheada antes del primer render. */
 export const SCRIPT_PALETA = `
 (function () {
   try {

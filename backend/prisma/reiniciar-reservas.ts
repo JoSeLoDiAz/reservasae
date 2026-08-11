@@ -1,12 +1,9 @@
 /**
- * Borra TODAS las reservas, empresas y movimientos, y devuelve los contadores
- * de cupos a cero. El catálogo (convenios, acciones, grupos, ofertas) no se
- * toca.
+ * Borra TODAS las reservas y devuelve los contadores a cero.
  *
  *   pnpm --filter backend db:reiniciar-reservas --si
  *
- * Pide `--si` a propósito: es irreversible y no hay papelera. Sin la bandera
- * solo informa de cuánto se borraría.
+ * Sin `--si` solo informa. Es irreversible.
  */
 
 import { PrismaClient } from '../generated/prisma';
@@ -33,11 +30,9 @@ async function main() {
     return;
   }
 
-  // Todo en una transacción: si algo falla a mitad, no queda una base con las
-  // reservas borradas pero los contadores todavía en alto.
+  // en una transaccion: o todo o nada
   await prisma.$transaction([
-    // Los movimientos caen solos por la cascada de reserva, pero se borran
-    // explícitamente para que el conteo del final sea honesto.
+    // caen por cascada; explicito para poder contarlos
     prisma.movimientoReserva.deleteMany({}),
     prisma.reserva.deleteMany({}),
     prisma.empresa.deleteMany({}),

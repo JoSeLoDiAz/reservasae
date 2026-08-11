@@ -57,9 +57,7 @@ export class AdminGuard implements CanActivate {
       throw new UnauthorizedException('Su sesión expiró. Vuelva a iniciar sesión.');
     }
 
-    // Se relee de la base en cada petición y no se confía en lo que traiga el
-    // token: así, desactivar una cuenta o cambiarle el rol surte efecto al
-    // instante en vez de esperar a que caduque la sesión.
+    // se relee en cada peticion: desactivar corta ya
     const admin = await this.prisma.admin.findUnique({ where: { id: sujeto } });
     if (!admin || !admin.activo) {
       throw new UnauthorizedException('La cuenta ya no está activa.');

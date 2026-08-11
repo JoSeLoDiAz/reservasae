@@ -1,9 +1,8 @@
 /**
- * Paletas listas para elegir de un vistazo.
+ * Paletas listas para elegir.
  *
- * Una plantilla no es una lista de 56 hex: es un color principal que pasa por
- * la misma derivacion que usa el editor, para que la galeria y «elegir un
- * color» no puedan discrepar.
+ * Cada una es un color principal que pasa por la misma derivación que el
+ * editor: galería y «elegir un color» no pueden discrepar.
  */
 
 import { EsquemaColor } from '../../generated/prisma';

@@ -1,16 +1,7 @@
-/**
- * Cliente de la API. Siempre rutas relativas `/api/...`: en produccion las
- * enruta nginx y en local el rewrite de `next.config.ts` hace exactamente el
- * mismo salto, incluido quitar el prefijo. Por eso este archivo no necesita
- * saber en que entorno corre.
- */
+/** Cliente de la API. Siempre rutas relativas `/api/...`. */
 
 export type Semaforo = "DISPONIBLE" | "ULTIMOS_CUPOS" | "COMPLETO";
-/**
- * Las tres del formato SENA. `HIBRIDA` la llevan solo la acción y el grupo:
- * una oferta concreta siempre es presencial o virtual, porque o se va a la
- * sede o no.
- */
+/** `HIBRIDA` solo la llevan la acción y el grupo. */
 export type Modalidad = "PRESENCIAL" | "VIRTUAL" | "HIBRIDA";
 export type TipoUbicacion = "CIUDAD" | "DEPARTAMENTO";
 export type EstadoReserva = "CONFIRMADA" | "LISTA_ESPERA" | "CANCELADA";
@@ -117,8 +108,7 @@ async function pedir<T>(ruta: string, opciones?: RequestInit): Promise<T> {
   const cuerpo = await respuesta.json().catch(() => null);
 
   if (!respuesta.ok) {
-    // Nest devuelve `message` como texto o como lista cuando falla la
-    // validacion de varios campos a la vez.
+    // Nest manda `message` como texto o como lista
     const bruto = (cuerpo as { message?: string | string[] } | null)?.message;
     const mensaje = Array.isArray(bruto) ? bruto.join(". ") : bruto;
     throw new ErrorApi(
@@ -153,11 +143,7 @@ export const api = {
     }),
 };
 
-/**
- * Los nombres vienen EN MAYUSCULAS desde los proyectos oficiales. No se
- * cambian en la base (hay que reportar el texto original al SENA), asi que se
- * arreglan al mostrarlos.
- */
+/** Los nombres vienen en mayúsculas; se arreglan al mostrar. */
 export function bonito(texto: string): string {
   if (texto !== texto.toUpperCase()) return texto;
 

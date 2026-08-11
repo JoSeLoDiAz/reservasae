@@ -1,23 +1,14 @@
 /**
- * Prueba de concurrencia contra la API real y la base real.
+ * Prueba de concurrencia contra la API y la base reales.
  *
- * Comprueba lo único que de verdad puede arruinar el sistema: que varias
- * empresas reservando EN EL MISMO INSTANTE no sobrevendan una oferta, que el
- * sobrante caiga a lista de espera, y que cancelar devuelva el cupo a quien
- * esperaba.
- *
- *   1. arrancar el backend      → node dist/main.js
- *   2. pnpm --filter backend db:prueba-carga
- *
- * Deja la base como estaba: borra sus reservas y empresas, devuelve el
- * contador a cero y restaura el `visible` de la acción que publicó.
+ * 20 empresas reservando a la vez: ni una sobreventa. Deja la base como
+ * estaba. Necesita el backend arriba.
  */
 
 import { PrismaClient } from '../generated/prisma';
 
 const prisma = new PrismaClient();
-// 127.0.0.1 y no localhost: el fetch de Node prueba primero ::1, y el servidor
-// escucha en 0.0.0.0 (solo IPv4), asi que por localhost la conexion se corta.
+// 127.0.0.1: el fetch de Node prueba ::1 primero
 const API = process.env.API_URL ?? `http://127.0.0.1:${process.env.PORT ?? 4100}`;
 
 /** Prefijo reconocible para poder limpiar sin tocar datos reales. */
@@ -46,8 +37,7 @@ async function pedir(
     method: metodo,
     headers: {
       'content-type': 'application/json',
-      // Cada petición con su IP: es como llegan de verdad detrás del túnel, y
-      // de paso evita que el límite por IP tumbe la propia prueba.
+      // cada peticion con su IP, como detras del tunel
       'cf-connecting-ip': ip,
     },
     body: cuerpo ? JSON.stringify(cuerpo) : undefined,
@@ -87,8 +77,7 @@ async function main() {
   console.log(`API: ${API}\n`);
   await limpiar();
 
-  // La oferta más pequeña que haya: cuantos menos cupos, más fácil provocar
-  // la colisión que se quiere probar.
+  // la mas pequena: mas facil provocar la colision
   const oferta = await prisma.oferta.findFirstOrThrow({
     orderBy: { cuposMaximos: 'asc' },
     include: { accionFormacion: true, ubicacion: true },

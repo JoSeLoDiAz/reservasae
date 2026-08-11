@@ -14,12 +14,7 @@ type Propios = Record<Esquema, ColoresTema>;
 
 const VACIO: Propios = { CLARO: {}, OSCURO: {} };
 
-/**
- * Solo lo que se aparta de la marca general.
- *
- * Guardar las 28 claves mataria la herencia en silencio: todo parece ir bien
- * hasta que cambian el color general y este formulario no se entera.
- */
+/** Solo lo que se aparta de la marca: guardar las 28 mata la herencia. */
 function soloDiferencias(general: ColoresTema, propuesta: ColoresTema): ColoresTema {
   const salida: ColoresTema = {};
   for (const [clave, valor] of Object.entries(propuesta)) {

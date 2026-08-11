@@ -34,11 +34,7 @@ export class ReservasController {
     return this.reservas.crear(dto, { ip, userAgent });
   }
 
-  /**
-   * Consultar es lo más expuesto del sistema: solo pide el NIT, que es público.
-   * Un límite más estrecho que el resto hace que recorrer NITs a lo bruto
-   * salga caro, y cada intento queda con su IP real.
-   */
+  // solo pide el NIT, que es publico: limite estrecho
   @Get()
   @Throttle({ default: { limit: 15, ttl: 60_000 } })
   consultar(@Query() dto: ConsultarReservasDto) {
@@ -56,8 +52,7 @@ export class ReservasController {
     return this.reservas.editar(id, dto.nit, dto.cuposSolicitados, { ip, userAgent });
   }
 
-  // POST y no DELETE: lleva cuerpo (el NIT) y no destruye la fila, la marca
-  // como cancelada. Un DELETE que no borra confunde a quien lea los logs.
+  // POST: lleva cuerpo y no borra la fila
   @Post(':id/cancelar')
   @HttpCode(200)
   @Throttle({ default: { limit: 20, ttl: 60_000 } })

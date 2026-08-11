@@ -1,10 +1,7 @@
 /**
  * Borra reservas por NIT y devuelve sus cupos a la oferta.
  *
- *   pnpm --filter backend db:borrar-reservas 900345642 960258741 [--si]
- *
- * Un DELETE suelto en la base dejaria `cuposOcupados` inflado: ese contador
- * vive en la oferta, no en la reserva.
+ *   pnpm --filter backend db:borrar-reservas 900345642 [--si]
  */
 
 import { PrismaClient } from '../generated/prisma';

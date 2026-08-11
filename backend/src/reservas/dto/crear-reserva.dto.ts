@@ -80,16 +80,13 @@ export class CrearReservaDto {
   @Transform(recortar)
   contactoCargo?: string;
 
-  // El tope real lo pone la oferta; este solo evita que alguien escriba 99999
-  // y genere una lista de espera absurda.
+  // el tope real lo pone la oferta
   @IsInt()
   @Min(1)
   @Max(500)
   cuposSolicitados!: number;
 
-  // `Equals(true)` y no `IsBoolean`: si no acepta, no hay reserva. Dejarlo
-  // pasar como `false` guardaría un registro sin consentimiento, que es
-  // justamente lo que la Ley 1581 no permite.
+  // Equals(true): sin consentimiento no hay registro
   @IsBoolean()
   @Equals(true, { message: 'Debe aceptar los términos de participación.' })
   aceptaTerminos!: boolean;
@@ -98,10 +95,7 @@ export class CrearReservaDto {
   @Equals(true, { message: 'Debe aceptar la política de tratamiento de datos.' })
   aceptaPoliticaDatos!: boolean;
 
-  /**
-   * Formulario del que salió el envío. Solo hace falta si el formulario tiene
-   * preguntas propias además de los campos del sistema.
-   */
+  /** Formulario del que salió el envío. */
   @IsOptional()
   @IsString()
   @MaxLength(60)

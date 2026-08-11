@@ -270,10 +270,8 @@ function MuestraPlantilla({ colores }: { colores: ColoresTema }) {
 /**
  * Un color y de ahí salen los 28.
  *
- * La derivación va en el servidor: es el único lado con pruebas, y así la
- * galería y esta caja no pueden discrepar. El coste es un viaje por cambio, de
- * ahí la espera de 200 ms y el guardia de secuencia — sin él, una respuesta
- * lenta pisaría a una posterior y el color parecería ir hacia atrás.
+ * La derivación va en el servidor; de ahí la espera y el guardia de
+ * secuencia, que evita que una respuesta lenta pise a otra posterior.
  */
 function ColorPrincipal({
   actual,

@@ -60,13 +60,7 @@ export function FormularioReserva({ slug }: { slug: string }) {
       })
       .catch((e: ErrorApi) => {
         if (!vigente) return;
-        // Una ruta que no corresponde a ningún formulario publicado no debe
-        // enseñar un mensaje amable: eso confirmaría que aquí hay algo. Se
-        // manda al mismo 404 mudo que la raíz.
-        //
-        // Ojo: el documento inicial se sirvió con 200 y eso no cambia, porque
-        // la comprobación ocurre en el navegador. Lo que ve la persona sí es
-        // el 404, y a los buscadores los frena robots.txt.
+        // slug desconocido: al mismo 404 mudo que la raiz
         if (e.estado === 404) notFound();
         setError(e.message);
         setEstado("no-disponible");
@@ -142,9 +136,7 @@ export function FormularioReserva({ slug }: { slug: string }) {
       return typeof v === "string" && v.trim() ? v.trim() : undefined;
     };
 
-    // Las preguntas del sistema viajan como campos propios de la reserva; el
-    // resto, como respuestas sueltas que el backend valida contra la
-    // definición del formulario.
+    // las del sistema van como campos; el resto, sueltas
     const respuestas = todas
       .filter((p) => !p.campoNucleo && p.tipo !== "PARRAFO" && visible(p))
       .map((p) => {
@@ -190,8 +182,7 @@ export function FormularioReserva({ slug }: { slug: string }) {
     } catch (e) {
       const fallo = e as ErrorApi;
       setError(fallo.message);
-      // 409 = esta empresa ya reservó en esta oferta con otra cantidad. No es
-      // un error del usuario: hay que mandarlo a editar, no a reintentar.
+      // 409: ya reservo con otra cantidad, mandar a editar
       setYaReservado(fallo.estado === 409);
       setEstado("listo");
     }
@@ -236,8 +227,7 @@ export function FormularioReserva({ slug }: { slug: string }) {
                   accion={accion}
                   oferta={oferta}
                   alCambiarAccion={() => {
-                    // La ubicación pertenece al curso: al cambiar de curso la
-                    // anterior deja de existir y enviaría una oferta de otro.
+                    // al cambiar de curso, la ubicacion ya no vale
                     const preguntaOferta = porCampo.get("OFERTA");
                     if (preguntaOferta) poner(preguntaOferta.id, undefined);
                   }}
@@ -302,8 +292,7 @@ function ControlPregunta({
   oferta?: Oferta;
   alCambiarAccion: () => void;
 }) {
-  // Los tres controles especiales no son campos normales: sus opciones salen
-  // del catálogo y cambian entre sí.
+  // sus opciones salen del catalogo y se encadenan
   if (pregunta.controlEspecial === "ACCION") {
     return (
       <fieldset>
@@ -536,11 +525,7 @@ function ayudaUbicacion(accion: Accion): string {
   return "Las sesiones son en vivo; el departamento define su grupo.";
 }
 
-/**
- * "2 ciudades presenciales y 12 departamentos virtuales" en vez de "14
- * ubicaciones": en un foro híbrido las dos cosas conviven y agruparlas esconde
- * justo lo que la persona necesita para decidir si le toca viajar.
- */
+/** "2 ciudades presenciales y 12 departamentos virtuales". */
 function desgloseUbicaciones(accion: Accion): string {
   const ciudades = accion.ofertas.filter((o) => o.tipoUbicacion === "CIUDAD").length;
   const departamentos = accion.ofertas.filter((o) => o.tipoUbicacion === "DEPARTAMENTO").length;

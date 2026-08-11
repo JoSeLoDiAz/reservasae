@@ -1,11 +1,9 @@
 /**
- * Crea los dos formularios iniciales con la estructura que hoy está escrita a
- * mano en el frontend.
+ * Crea los dos formularios iniciales.
  *
  *   pnpm --filter backend db:sembrar-formularios
  *
- * Es idempotente por slug: si el formulario ya existe no se toca, para no
- * pisar lo que un administrador haya cambiado desde el panel.
+ * Idempotente por slug: no pisa los que ya existan.
  */
 
 import {
@@ -224,14 +222,12 @@ async function sembrar(entrada: (typeof FORMULARIOS)[number]) {
       slug: entrada.slug,
       titulo: entrada.titulo,
       descripcion: entrada.descripcion,
-      // Nace en borrador aunque esté completo: publicar es una decisión de
-      // quien administra, no del script.
+      // nace en borrador: publicar lo decide una persona
       publicado: false,
     },
   });
 
-  // Las dependencias se resuelven en una segunda pasada porque una pregunta
-  // puede depender de otra que aún no existe cuando se crea.
+  // segunda pasada: la madre puede no existir aun
   const porEtiqueta = new Map<string, string>();
   const pendientes: Array<{ id: string; etiquetaMadre: string; valor: string }> = [];
   let orden = 0;

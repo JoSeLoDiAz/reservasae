@@ -4,16 +4,11 @@ import { PrismaService } from '../prisma/prisma.service';
 
 export type Semaforo = 'DISPONIBLE' | 'ULTIMOS_CUPOS' | 'COMPLETO';
 
-/**
- * El dashboard del Excel marcaba cada curso con un semáforo. Se calcula aquí y
- * no en el frontend para que el panel de admin y el sitio público digan
- * siempre lo mismo.
- */
+/** El semáforo del cupo. En el servidor: una sola verdad. */
 export function semaforo(cuposMaximos: number, cuposOcupados: number): Semaforo {
   const disponibles = cuposMaximos - cuposOcupados;
   if (disponibles <= 0) return 'COMPLETO';
-  // Un 10 % del cupo, y nunca menos de 3: en una oferta de 13 cupos avisar solo
-  // en el último no le da tiempo de reaccionar a nadie.
+  // 10 % del cupo y nunca menos de 3
   if (disponibles <= Math.max(3, Math.floor(cuposMaximos * 0.1))) return 'ULTIMOS_CUPOS';
   return 'DISPONIBLE';
 }
@@ -73,8 +68,7 @@ export class CatalogoService {
             tipoUbicacion: oferta.ubicacion.tipo,
             departamento: oferta.ubicacion.departamento,
             cuposMaximos: oferta.cuposMaximos,
-            // `cuposOcupados` no se expone tal cual: lo que necesita quien
-            // reserva es cuántos quedan, no cuántos llevan otros.
+            // se expone lo que queda, no lo que llevan otros
             cuposDisponibles: Math.max(oferta.cuposMaximos - oferta.cuposOcupados, 0),
             estado: semaforo(oferta.cuposMaximos, oferta.cuposOcupados),
           }))

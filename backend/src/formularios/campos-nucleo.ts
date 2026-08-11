@@ -1,13 +1,9 @@
 import { CampoNucleo, TipoPregunta } from '../../generated/prisma';
 
 /**
- * Los campos que el núcleo transaccional necesita para poder crear una
- * reserva. No son preguntas cualesquiera: si falta una, la reserva no se puede
- * construir, y si un administrador le cambia el tipo, deja de encajar con la
- * columna a la que va.
+ * Los campos sin los que no se puede crear una reserva.
  *
- * Por eso el catálogo vive aquí y el panel lo respeta: al crear la pregunta se
- * fija su tipo, no se puede archivar y no se puede reasignar a otro campo.
+ * Tres candados: no se archivan, no cambian de tipo y no se repiten.
  */
 
 export type DefinicionCampoNucleo = {

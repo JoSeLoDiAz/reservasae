@@ -42,8 +42,7 @@ export function MarcoAdmin({ children }: { children: React.ReactNode }) {
     try {
       setAdmin(await adminApi.yo());
     } catch (e) {
-      // 403 con `debeCambiarClave` no llega aquí: /admin/yo está permitida en
-      // ese estado justamente para poder mostrar el cambio de contraseña.
+      // /admin/yo si responde con la clave sin cambiar
       if (e instanceof ErrorApi && e.estado === 401) {
         router.replace("/admin/login");
         return;
@@ -63,8 +62,7 @@ export function MarcoAdmin({ children }: { children: React.ReactNode }) {
   }
   if (!admin) return null;
 
-  // Bloquea el panel entero hasta que cambie la contraseña temporal. No es
-  // solo cosmético: el backend rechaza cualquier otra ruta en este estado.
+  // el panel queda bloqueado hasta cambiar la clave
   if (admin.debeCambiarClave) {
     return <CambioDeClaveObligatorio alTerminar={cargar} />;
   }

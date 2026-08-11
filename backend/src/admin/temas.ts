@@ -1,13 +1,10 @@
 import { EsquemaColor } from '../../generated/prisma';
 
 /**
- * Catálogo de colores que puede personalizar el administrador.
+ * Catálogo de colores que personaliza el administrador.
  *
- * Está aquí y no repartido entre el backend y el frontend a propósito: el
- * panel dibuja sus formularios a partir de esta lista, que viaja en la
- * respuesta de `GET /marca`. Añadir un color es tocar SOLO este archivo — no
- * hay migración, porque los valores viven en una columna JSON, ni hay que
- * acordarse de actualizar la interfaz.
+ * Añadir un color es tocar SOLO este archivo: viaja en `GET /marca` y el
+ * panel dibuja sus formularios con él.
  */
 
 export type GrupoToken =
@@ -110,14 +107,7 @@ export const TOKENS: DefinicionToken[] = [
 
 export const CLAVES_TOKEN = new Set(TOKENS.map((t) => t.clave));
 
-/**
- * Pares que tienen que ser legibles. El panel los calcula y avisa antes de
- * guardar: es fácil elegir un gris bonito sobre blanco y dejar el formulario
- * ilegible sin darse cuenta.
- *
- * `grande` marca el texto de 18 pt o más, al que la WCAG le exige 3:1 en vez
- * de 4,5:1.
- */
+/** Pares que tienen que ser legibles. `grande` = 3:1 en vez de 4,5:1. */
 export const COMPROBACIONES_CONTRASTE: Array<{
   frente: string;
   fondo: string;
@@ -143,13 +133,10 @@ export const COMPROBACIONES_CONTRASTE: Array<{
 export type ColoresTema = Record<string, string>;
 
 /**
- * Los valores con los que nace el sistema. Sirven de punto de partida y de
- * destino del botón «restablecer».
+ * Con lo que nace el sistema y a donde vuelve «restablecer».
  *
- * El tema oscuro no es el claro invertido: la marca baja de saturación porque
- * un azul intenso sobre fondo oscuro deslumbra y hace vibrar los bordes del
- * texto, y los estados se aclaran porque el verde y el rojo del tema claro no
- * llegan al contraste mínimo sobre oscuro.
+ * El oscuro no es el claro invertido: la marca baja de saturación y los
+ * estados se aclaran.
  */
 export const TEMAS_POR_DEFECTO: Record<EsquemaColor, ColoresTema> = {
   CLARO: {
@@ -181,10 +168,7 @@ export const TEMAS_POR_DEFECTO: Record<EsquemaColor, ColoresTema> = {
     campoBorde: '#cbd5e1',
     campoFoco: '#1d4ed8',
 
-    // Escalones verificados con el validador de paletas: los anteriores
-    // dejaban "ultimos cupos" y "completo" a DeltaE 4,9 bajo deuteranopia y a
-    // 9,1 con vision normal. Aun asi, cada estado se muestra con icono y
-    // texto: rojo y ambar son hues adyacentes y nunca separan del todo.
+    // escalones medidos contra deuteranopia
     exito: '#047857',
     exitoSuave: '#ecfdf5',
     aviso: '#a16207',
@@ -241,8 +225,7 @@ export function conValoresPorDefecto(
 
   const resultado: ColoresTema = {};
   for (const token of TOKENS) {
-    // Solo se acepta lo que siga siendo un token conocido: si un color se
-    // retira del catálogo, deja de servirse aunque quede en la base.
+    // solo tokens del catalogo, aunque la base traiga mas
     resultado[token.clave] = validos[token.clave] ?? base[token.clave];
   }
   return resultado;

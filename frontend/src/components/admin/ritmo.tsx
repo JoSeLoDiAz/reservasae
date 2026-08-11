@@ -23,10 +23,7 @@ function ritmo(valor: number): string {
   return valor.toLocaleString("es-CO", { maximumFractionDigits: 1 });
 }
 
-/**
- * Qué se dice de la fecha. Nunca se dice si va bien o mal: no hay ninguna
- * fecha objetivo en el sistema contra la que juzgarlo.
- */
+/** Qué se dice de la fecha. Nunca si va bien o mal. */
 export function textoDeEstado(p: Proyeccion): string {
   switch (p.estado) {
     case "CUMPLIDA":

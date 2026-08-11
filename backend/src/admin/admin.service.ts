@@ -62,13 +62,10 @@ export class AdminService {
   async validarCredenciales(correo: string, clave: string): Promise<Admin> {
     const admin = await this.prisma.admin.findUnique({ where: { correo } });
 
-    // Mismo error para correo inexistente y contraseña incorrecta: si se
-    // distinguen, el formulario de acceso se convierte en un detector de qué
-    // correos tienen cuenta.
+    // mismo error: no decir que correos existen
     const generico = new UnauthorizedException('Correo o contraseña incorrectos.');
     if (!admin || !admin.activo) {
-      // Se verifica igualmente contra un hash de descarte para que responder
-      // "no existe" no sea perceptiblemente más rápido que "clave mala".
+      // hash de descarte: que tarde lo mismo
       await verificarClave(clave, 'scrypt$AAAA$AAAA');
       throw generico;
     }
@@ -122,11 +119,7 @@ export class AdminService {
     return admins.map(vistaAdmin);
   }
 
-  /**
-   * Crea la cuenta con una contraseña temporal que se devuelve UNA sola vez.
-   * No se guarda en claro ni se puede volver a consultar: si se pierde, hay
-   * que regenerarla.
-   */
+  /** Crea la cuenta; la clave temporal se ve una vez. */
   async crearAdmin(dto: CrearAdminDto) {
     const claveTemporal = generarClaveTemporal();
     try {
@@ -152,8 +145,7 @@ export class AdminService {
     const objetivo = await this.prisma.admin.findUnique({ where: { id } });
     if (!objetivo) throw new NotFoundException('No existe esa cuenta.');
 
-    // Quitarse a uno mismo el rol o desactivarse deja el panel sin dueño y sin
-    // forma de volver a entrar salvo tocando la base a mano.
+    // no dejarse a uno mismo fuera del panel
     if (objetivo.id === quienEdita.id) {
       if (dto.activo === false) {
         throw new BadRequestException('No puede desactivar su propia cuenta.');
@@ -190,10 +182,7 @@ export class AdminService {
     return { claveTemporal };
   }
 
-  /**
-   * Sin al menos un superadmin activo nadie puede volver a crear usuarios ni
-   * recuperar el control del panel.
-   */
+  /** Tiene que quedar al menos un superadmin activo. */
   private async asegurarQuedaUnSuperadmin(objetivo: Admin, dto: ActualizarAdminDto) {
     const dejaDeSerlo =
       objetivo.rol === RolAdmin.SUPERADMIN &&
@@ -234,12 +223,7 @@ export class AdminService {
       },
     });
 
-    // Las dos paletas viajan siempre juntas con la marca: el navegador las
-    // necesita a la vez para poder cambiar de modo sin volver a pedir nada.
-    //
-    // El catálogo de tokens también se envía, y con él el panel dibuja sus
-    // formularios. Así añadir un color no obliga a tocar el frontend ni deja
-    // las dos listas desincronizadas.
+    // las dos paletas y el catalogo viajan juntos
     const filas = await this.prisma.tema.findMany({ orderBy: { esquema: 'asc' } });
     const temas = Object.fromEntries(
       filas.map((t) => [t.esquema, conValoresPorDefecto(t.esquema, t.colores)]),
@@ -263,12 +247,7 @@ export class AdminService {
     };
   }
 
-  /**
-   * La marca general con lo propio del formulario encima.
-   *
-   * Un slug desconocido devuelve la general con 200, nunca 404: un 404 seria
-   * un oraculo de que formularios existen.
-   */
+  /** La marca general con lo propio del formulario encima. */
   async obtenerMarcaDeFormulario(slug: string, incluirNoPublicado = false) {
     const general = await this.obtenerMarca();
 
@@ -343,8 +322,7 @@ export class AdminService {
     const existe = await this.prisma.tema.findUnique({ where: { esquema } });
     if (!existe) throw new NotFoundException(`No existe el tema ${esquema}.`);
 
-    // Se mezcla sobre lo que ya había en vez de reemplazar: si el panel envía
-    // solo los colores que cambiaron, el resto no debe desaparecer.
+    // se mezcla: el panel puede enviar solo lo que cambio
     const fusionado = {
       ...conValoresPorDefecto(esquema, existe.colores),
       ...dto.colores,
@@ -375,8 +353,7 @@ export class AdminService {
     return this.obtenerMarca();
   }
 
-  // Uint8Array y no Buffer: es lo que espera el campo `Bytes` de Prisma, y un
-  // Buffer de multer no encaja en ese tipo aunque en ejecución sea lo mismo.
+  // Uint8Array: es lo que espera el campo Bytes
   async guardarLogo(admin: Admin, datos: Uint8Array, tipoMime: string, nombre: string) {
     const actual = await this.prisma.marca.upsert({
       where: { id: ID_MARCA },
@@ -388,14 +365,11 @@ export class AdminService {
     await this.prisma.marca.update({
       where: { id: ID_MARCA },
       data: {
-        // Copia a un Uint8Array respaldado por ArrayBuffer: el buffer que
-        // entrega multer puede estar sobre un SharedArrayBuffer, que el campo
-        // `Bytes` de Prisma no acepta.
+        // copia: multer puede dar un SharedArrayBuffer
         logoDatos: new Uint8Array(datos),
         logoTipoMime: tipoMime,
         logoNombre: nombre,
-        // La versión va en la URL del logo: permite cachearlo para siempre y
-        // que aun así el navegador vea el nuevo en cuanto se sube.
+        // la version va en la URL: cachear para siempre
         logoVersion: actual.logoVersion + 1,
         actualizadoPorId: admin.id,
       },
@@ -436,10 +410,7 @@ export class AdminService {
   // Acciones de formación
   // -------------------------------------------------------------------------
 
-  /**
-   * Los convenios con su identificador interno. El `/catalogo` público no lo
-   * expone, y el panel lo necesita para crear formularios.
-   */
+  /** Los convenios con su id interno, para el panel. */
   async listarConvenios() {
     return this.prisma.convenio.findMany({
       orderBy: { orden: 'asc' },
@@ -476,8 +447,7 @@ export class AdminService {
     const accion = await this.prisma.accionFormacion.findUnique({ where: { id } });
     if (!accion) throw new NotFoundException('No existe esa acción de formación.');
 
-    // Ocultar no cancela nada: las reservas ya hechas siguen vivas y contando.
-    // Solo desaparece del sitio público.
+    // ocultar no cancela: solo sale del sitio publico
     await this.prisma.accionFormacion.update({ where: { id }, data: { visible } });
     return { id, visible };
   }

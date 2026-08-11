@@ -1,6 +1,5 @@
 /**
- * Resumen rápido de qué hay en la base. Útil para confirmar de un vistazo que
- * el catálogo está completo y que no quedaron datos de prueba.
+ * Qué hay cargado en la base.
  *
  *   pnpm --filter backend db:estado
  */
@@ -45,8 +44,7 @@ async function main() {
       `${movimientos} movimientos`,
   );
 
-  // Si esto encuentra algo, hay un fallo grave: significa que el contador de
-  // alguna oferta se separó de la realidad.
+  // si encuentra algo, un contador se descuadro
   const descuadres = await prisma.$queryRaw<{ id: string; contador: number; suma: number }[]>`
     SELECT o."id",
            o."cuposOcupados" AS contador,

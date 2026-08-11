@@ -1,7 +1,4 @@
-/**
- * Comprueba contra la base real que los invariantes de cupos se sostienen.
- * No deja nada: todo ocurre dentro de transacciones que se revierten.
- */
+/** Comprueba los invariantes de cupos. Todo se revierte. */
 import { PrismaClient } from '../generated/prisma';
 
 const prisma = new PrismaClient();
@@ -42,8 +39,7 @@ async function main() {
     }),
   );
 
-  // Dos reservas de la misma empresa sobre la misma oferta: es el doble clic
-  // y el reintento de Cloudflare.
+  // el doble clic y el reintento de Cloudflare
   await esperaFallo('dos reservas de la misma empresa en la misma oferta', () =>
     prisma.$transaction(async (tx) => {
       const empresa = await tx.empresa.create({

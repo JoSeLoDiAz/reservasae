@@ -1,9 +1,7 @@
 /**
- * Modo claro / oscuro: preferencia del visitante y calculo de contraste.
+ * Modo claro / oscuro y cálculo de contraste.
  *
- * Aqui NO hay lista de colores. El catalogo lo publica el backend en
- * `GET /marca` y el panel dibuja sus formularios con el: mantener una copia
- * aqui garantizaria que tarde o temprano las dos listas dejarian de coincidir.
+ * Aquí NO hay lista de colores: la publica el backend en `GET /marca`.
  */
 
 export type ModoElegido = "sistema" | "claro" | "oscuro";
@@ -55,17 +53,7 @@ export function aplicarEsquema(esquema: Esquema) {
   document.documentElement.dataset.tema = esquema === "OSCURO" ? "oscuro" : "claro";
 }
 
-/**
- * Script que corre ANTES de pintar, incrustado en el <head>.
- *
- * Sin esto, la pagina se dibuja en claro y salta a oscuro cuando React se
- * hidrata: un fogonazo blanco en la cara de quien eligio modo oscuro. Va como
- * cadena porque tiene que ejecutarse sincrono, antes de cualquier bundle.
- *
- * Solo lee `localStorage` y el `prefers-color-scheme` del sistema. El modo por
- * defecto que configure el administrador lo aplica despues `ProveedorMarca`,
- * y solo si el visitante no ha elegido nada.
- */
+/** Fija el esquema antes de pintar. Va en el <head>. */
 export const SCRIPT_SIN_PARPADEO = `
 (function () {
   try {
@@ -105,10 +93,7 @@ function luminancia(hex: string): number | null {
   return 0.2126 * canal(r) + 0.7152 * canal(g) + 0.0722 * canal(b);
 }
 
-/**
- * Relacion de contraste entre dos colores. Va de 1 (identicos) a 21 (negro
- * sobre blanco). El minimo de la WCAG para texto normal es 4,5.
- */
+/** De 1 (idénticos) a 21. El mínimo normal es 4,5. */
 export function contraste(colorA: string, colorB: string): number | null {
   const a = luminancia(colorA);
   const b = luminancia(colorB);

@@ -1,9 +1,4 @@
-/**
- * A qué ritmo entran los cupos y cuándo se llenaría a ese ritmo.
- *
- * Sin base de datos a propósito: entra la serie ya agregada y sale el cálculo,
- * que así se puede probar entero.
- */
+/** A qué ritmo entran los cupos. Sin base: se puede probar. */
 
 export type PuntoNeto = { dia: string; neto: number };
 
@@ -41,12 +36,7 @@ function aDia(fecha: Date): string {
   return fecha.toISOString().slice(0, 10);
 }
 
-/**
- * Neto por día de calendario, rellenando con cero los días sin movimiento.
- *
- * Dividir entre «días con datos» inflaría el ritmo justo donde peor va: una
- * acción con una sola reserva en tres semanas parecería ir a un cupo por día.
- */
+/** Neto por día de calendario, contando los días de cero. */
 export function ritmoPorDia(serie: PuntoNeto[], dias: number, hasta: Date): number {
   if (dias <= 0) return 0;
 

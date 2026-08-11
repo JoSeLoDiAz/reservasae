@@ -1,9 +1,4 @@
 // Modelo de datos de Convoca.
-//
-// El cliente se genera FUERA de node_modules para que el build de Docker lo
-// copie con una ruta predecible. Como `src/` y `dist/` cuelgan ambos de
-// `backend/`, el import relativo `../generated/prisma` resuelve igual antes y
-// después de compilar.
 generator client {
   provider      = "prisma-client-js"
   output        = "../generated/prisma"
@@ -19,10 +14,7 @@ datasource db {
 // Catálogo
 // ---------------------------------------------------------------------------
 
-/// Las tres que usan los proyectos. `HIBRIDA` es la "PRESENCIAL HÍBRIDA" del
-/// formato SENA: un mismo grupo junta asistentes en sede y conectados en vivo
-/// (los dos foros de 2 horas). Solo la llevan la acción y el grupo; una oferta
-/// concreta siempre es una cosa o la otra, porque o se va a la sede o no.
+/// Modalidad. HIBRIDA solo la llevan acción y grupo.
 enum Modalidad {
   PRESENCIAL
   VIRTUAL
@@ -34,8 +26,7 @@ enum TipoUbicacion {
   DEPARTAMENTO
 }
 
-/// Cada convenio bajo el que se oferta la formación. Hoy son dos, pero el
-/// sistema no asume ese número: la ruta pública sale del `slug`.
+/// Convenio bajo el que se oferta.
 model Convenio {
   id                 String   @id @default(cuid())
   slug               String   @unique /// ruta pública: /britcham-adee, /adecopria
@@ -61,9 +52,7 @@ model Convenio {
   @@map("convenios")
 }
 
-/// Una acción de formación del proyecto (AF1, AF2...). Los admins pueden
-/// editarlas, reordenarlas y ocultarlas, pero NO borrarlas cuando ya tienen
-/// reservas: `visible` las saca del sitio público sin destruir el histórico.
+/// Un curso del proyecto (AF1, AF2...).
 model AccionFormacion {
   id          String    @id @default(cuid())
   convenioId  String
@@ -86,17 +75,13 @@ model AccionFormacion {
   grupos   Grupo[]
   ofertas  Oferta[]
 
-  // El código solo es único dentro de su convenio: BRITCHAM y ADECOPRIA
-  // tienen ambos una AF1, y son cursos completamente distintos.
+  // el codigo solo es unico por convenio
   @@unique([convenioId, codigo])
   @@index([convenioId, visible, orden])
   @@map("acciones_formacion")
 }
 
-/// Ubicación normalizada. La tabla existe porque el Excel escribía el mismo
-/// departamento de tres formas ("ATLÁNTICO ", "Cundinamarca", "CUNDINAMARCA")
-/// y porque una misma palabra significaba dos cosas: en la AF8 "ANTIOQUIA" era
-/// en realidad la sede presencial de MEDELLÍN, no el departamento.
+/// Ciudad o departamento, normalizado.
 model Ubicacion {
   id           String        @id @default(cuid())
   nombre       String
@@ -111,9 +96,7 @@ model Ubicacion {
   @@map("ubicaciones")
 }
 
-/// Un grupo (cohorte) de una acción de formación, tal como está comprometido en
-/// el proyecto. Aquí NO vive el contador de cupos: el público reserva por
-/// acción + ubicación y el reparto en grupos lo hace después el equipo.
+/// Cohorte comprometida con el SENA. Sin contador.
 model Grupo {
   id                String    @id @default(cuid())
   accionFormacionId String
@@ -121,8 +104,7 @@ model Grupo {
   modalidad         Modalidad
   sedeUbicacionId   String? /// solo si el grupo tiene componente presencial
 
-  // Los proyectos no traen fechas. Sin ellas un grupo no se puede publicar,
-  // así que las cargan los admins antes de abrir inscripciones.
+  // los proyectos no traen fechas
   fechaInicio DateTime?
   fechaFin    DateTime?
   horario     String?
@@ -138,10 +120,7 @@ model Grupo {
   @@map("grupos")
 }
 
-/// Cuántos beneficiarios aporta un grupo en una ubicación concreta. Es el
-/// reflejo fiel de la hoja `Datos_Cobertura` del proyecto y sirve para reportar
-/// al SENA. Un grupo híbrido (AF8) tiene aquí una fila presencial en su sede y
-/// varias virtuales repartidas por departamento.
+/// Beneficiarios de un grupo en una ubicación.
 model GrupoCobertura {
   id           String    @id @default(cuid())
   grupoId      String
@@ -161,13 +140,8 @@ model GrupoCobertura {
 // Oferta: la unidad que tiene cupos y contra la que se reserva
 // ---------------------------------------------------------------------------
 
-/// (acción de formación × ubicación). Es lo que ve el público y lo único que
-/// lleva contador de cupos, para que no haya dos números que se puedan
-/// desincronizar.
-///
-/// `cuposMaximos` YA incluye el 30 % de sobrecupo por deserción; es el tope
-/// duro de reservas confirmadas. La base sin inflar queda en `GrupoCobertura`
-/// y en `docs/proyectos/`, por si algún día hay que recalcular el porcentaje.
+/// (acción × ubicación). Lo único con contador.
+/// `cuposMaximos` ya trae el 30 % de sobrecupo.
 model Oferta {
   id                String    @id @default(cuid())
   accionFormacionId String
@@ -195,8 +169,7 @@ model Oferta {
 // Empresas y reservas
 // ---------------------------------------------------------------------------
 
-/// La organización que reserva, identificada por su NIT. Quien diligencia el
-/// formulario lo hace en nombre de ella y puede no ser quien asiste.
+/// La organización que reserva, por su NIT.
 model Empresa {
   id                  String  @id @default(cuid())
   nit                 String /// solo dígitos, sin puntos ni guion
@@ -204,9 +177,7 @@ model Empresa {
   razonSocial         String
   numeroColaboradores Int?
   redAsociada         String? /// BRITCHAM / ADEE / Ambos / Otro / Ninguno
-  /// Cuál, cuando `redAsociada` es "Otro". En columna aparte y no mezclado
-  /// dentro de `redAsociada`: así el informe puede agrupar por gremio sin
-  /// tener que partir cadenas de texto.
+  /// Cuál, cuando `redAsociada` es "Otro".
   redAsociadaOtra     String?
 
   creadoEn      DateTime @default(now())
@@ -214,8 +185,7 @@ model Empresa {
 
   reservas Reserva[]
 
-  // Un NIT = una organización. Es la defensa contra que la misma empresa entre
-  // dos veces escrita distinto y acabe con dos cuentas de cupos.
+  // un NIT, una organizacion
   @@unique([nit])
   @@map("empresas")
 }
@@ -226,20 +196,14 @@ enum EstadoReserva {
   CANCELADA
 }
 
-/// Una reserva de N cupos de una empresa sobre una oferta. No es una
-/// inscripción individual: guarda una cantidad, no personas. La empresa puede
-/// volver con su NIT y subir o bajar esa cantidad.
-///
-/// Si al reservar 10 solo caben 6, se confirman 6 y los otros 4 quedan en
-/// espera: por eso los cupos se reparten en dos contadores dentro de la misma
-/// fila, en vez de crear dos reservas.
+/// N cupos de una empresa en una oferta.
+/// Se parte en confirmados + espera si no caben todos.
 model Reserva {
   id        String @id @default(cuid())
   empresaId String
   ofertaId  String
 
-  /// De qué formulario salió. Por las respuestas solo se sabe si contestó
-  /// alguna pregunta propia, y eso deja la tasa de respuesta sin calcular.
+  /// De qué formulario salió.
   formularioId String?
 
   cuposSolicitados Int
@@ -248,8 +212,7 @@ model Reserva {
 
   estado EstadoReserva @default(CONFIRMADA)
 
-  // Quien diligencia. Se guarda en la reserva y no en la empresa porque puede
-  // ser una persona distinta en cada curso.
+  // quien diligencia, distinto en cada curso
   contactoNombre  String
   contactoCorreo  String
   contactoCelular String?
@@ -272,10 +235,7 @@ model Reserva {
   movimientos   MovimientoReserva[]
   respuestas    Respuesta[]
 
-  // La defensa real contra el doble clic y contra los reintentos de Cloudflare:
-  // una empresa tiene como mucho UNA reserva por oferta. Un segundo envío no
-  // crea otra fila, edita la que ya existe. La base lo rechaza aunque lleguen
-  // dos peticiones en el mismo milisegundo.
+  // contra el doble clic: una reserva por oferta
   @@unique([empresaId, ofertaId])
   @@index([ofertaId, estado])
   @@index([contactoCorreo])
@@ -291,10 +251,7 @@ enum AccionMovimiento {
   AJUSTE_ADMIN
 }
 
-/// Auditoría de cada cambio de cupos. Es obligatoria porque para editar una
-/// reserva basta con saber el NIT, y el NIT es información pública: si alguien
-/// vacía la reserva de otra empresa, esto es lo único que permite reconstruir
-/// qué pasó y desde dónde.
+/// Auditoría de cada cambio de cupos.
 model MovimientoReserva {
   id        String           @id @default(cuid())
   reservaId String
@@ -334,13 +291,11 @@ enum TipoPregunta {
   SELECCION_UNICA
   SELECCION_MULTIPLE
   CASILLA
-  /// No pide nada: solo muestra un texto en medio del formulario. Sirve para
-  /// avisos y para el texto legal antes de la casilla de autorización.
+  /// No pide nada: solo muestra un texto.
   PARRAFO
 }
 
-/// Un formulario público. Los admins crean y editan sus preguntas desde el
-/// panel, sin migraciones.
+/// Un formulario público, editable desde el panel.
 model Formulario {
   id          String  @id @default(cuid())
   convenioId  String
@@ -352,8 +307,7 @@ model Formulario {
   /// Texto de la pantalla de confirmación, tras reservar.
   mensajeExito String?
 
-  /// Apariencia propia. Solo las claves que el admin cambió; el resto hereda
-  /// de la marca general. Guardar las 28 rompería esa herencia.
+  /// Solo las claves propias; el resto hereda.
   coloresClaro  Json?
   coloresOscuro Json?
 
@@ -373,8 +327,7 @@ model Formulario {
   @@map("formularios")
 }
 
-/// Bloque visual del formulario ("Datos de la organización", "Cupos"...).
-/// Existe porque un formulario de veinte campos seguidos no lo llena nadie.
+/// Bloque visual del formulario.
 model Seccion {
   id           String  @id @default(cuid())
   formularioId String
@@ -389,10 +342,7 @@ model Seccion {
   @@map("secciones")
 }
 
-/// Los campos que el núcleo transaccional necesita sí o sí (NIT, cantidad de
-/// cupos, oferta elegida...) no pueden depender de que un admin no borre la
-/// pregunta. Una pregunta mapeada a un campo del núcleo se marca aquí y el
-/// panel impide eliminarla o cambiarle el tipo.
+/// Campos sin los que no se puede crear una reserva.
 enum CampoNucleo {
   EMPRESA_NIT
   EMPRESA_RAZON_SOCIAL
@@ -422,21 +372,17 @@ model Pregunta {
   orden        Int          @default(0)
   campoNucleo  CampoNucleo?
 
-  /// Reglas de validación. Se aplican en el navegador y otra vez en el
-  /// servidor: lo primero es comodidad, lo segundo es lo que de verdad
-  /// protege los datos.
+  /// Reglas de validación, repetidas en el servidor.
   minimo      Int? /// valor mínimo, para NUMERO
   maximo      Int?
   largoMinimo Int? /// caracteres, para los tipos de texto
   largoMaximo Int?
 
-  /// Mostrar esta pregunta solo si otra tiene cierto valor. Es lo que permite
-  /// el clásico "Otro → ¿cuál?" sin escribirlo en el código.
+  /// Mostrarla solo si otra tiene cierto valor.
   dependeDePreguntaId String?
   dependeDeValor      String?
 
-  /// Las preguntas no se borran: se archivan. Borrarlas dejaría respuestas
-  /// huérfanas y rompería la exportación histórica.
+  /// Las preguntas se archivan, no se borran.
   archivada Boolean @default(false)
 
   creadoEn      DateTime @default(now())
@@ -447,8 +393,7 @@ model Pregunta {
   opciones   Opcion[]
   respuestas Respuesta[]
 
-  // Una pregunta no puede depender de sí misma ni arrastrar a la que la
-  // condiciona si esta desaparece.
+  // ni depender de si misma ni arrastrar a la madre
   dependeDe    Pregunta?  @relation("Dependencia", fields: [dependeDePreguntaId], references: [id], onDelete: SetNull)
   dependientes Pregunta[] @relation("Dependencia")
 
@@ -463,8 +408,7 @@ model Opcion {
   id         String  @id @default(cuid())
   preguntaId String
   etiqueta   String
-  /// Lo que se guarda. Se separa de la etiqueta para poder corregir la
-  /// redacción sin invalidar las respuestas ya recogidas.
+  /// Lo que se guarda, aparte de la etiqueta.
   valor      String
   orden      Int     @default(0)
   archivada  Boolean @default(false)
@@ -476,9 +420,7 @@ model Opcion {
   @@map("opciones")
 }
 
-/// La respuesta guarda además el texto de la pregunta y de la opción tal como
-/// estaban al enviarse. Si un admin reescribe la pregunta después, lo
-/// exportado sigue diciendo lo que la persona realmente contestó.
+/// Una respuesta, con su etiqueta congelada al enviar.
 model Respuesta {
   id         String @id @default(cuid())
   reservaId  String
@@ -489,9 +431,7 @@ model Respuesta {
   valorNumero        Int?
   valorBooleano      Boolean?
   valoresSeleccion   String[] @default([])
-  /// Las etiquetas de las opciones elegidas, congeladas al enviar. Si mañana
-  /// alguien reescribe una opción, la exportación sigue diciendo lo que la
-  /// persona leyó al marcarla.
+  /// Etiquetas elegidas, congeladas al enviar.
   etiquetasSeleccion String[] @default([])
 
   creadoEn DateTime @default(now())
@@ -507,9 +447,7 @@ model Respuesta {
 // Política de datos y administración
 // ---------------------------------------------------------------------------
 
-/// El texto legal se versiona. La reserva apunta a la versión concreta que se
-/// aceptó: si mañana cambia el aviso, no se puede afirmar que quien firmó hace
-/// seis meses aceptó el texto nuevo.
+/// El texto legal, versionado.
 model PoliticaDatos {
   id           String    @id @default(cuid())
   convenioId   String
@@ -537,25 +475,12 @@ enum ModoPorDefecto {
   OSCURO
 }
 
-/// Una paleta completa por esquema. Son dos filas fijas, CLARO y OSCURO.
-///
-/// No basta con oscurecer los colores del tema claro: en oscuro hace falta
-/// bajar la saturación del color de marca y subir la luminosidad del texto, o
-/// el resultado vibra y cansa la vista. Por eso cada esquema se edita entero.
-///
-/// Los colores de estado (éxito, aviso, error) NO están aquí a propósito:
-/// viven en `globals.css` con su variante para cada esquema. Si un admin
-/// pudiera cambiarlos, podría dejar los errores ilegibles, y eso no es una
-/// decisión de marca.
+/// Una paleta completa por esquema: CLARO y OSCURO.
 model Tema {
   id      String       @id @default(cuid())
   esquema EsquemaColor @unique
 
-  /// Los colores, indexados por la clave del token. En JSON y no en una
-  /// columna por color: el catálogo de `src/admin/temas.ts` va a seguir
-  /// creciendo, y así añadir uno no obliga a una migración. El backend valida
-  /// que cada clave exista en el catálogo y que el valor sea hexadecimal, así
-  /// que aquí no entra nada arbitrario.
+  /// Colores por clave. En JSON: añadir uno no migra.
   colores Json
 
   actualizadoEn    DateTime @updatedAt
@@ -580,9 +505,7 @@ model Admin {
   rol       RolAdmin @default(GESTOR)
   activo    Boolean  @default(true)
 
-  /// Quien entra con una contraseña que le dieron otros tiene que cambiarla
-  /// antes de poder hacer nada. Arranca en `true` porque toda cuenta nueva
-  /// nace con una contraseña temporal que conoce quien la creó.
+  /// Toda cuenta nueva nace obligada a cambiarla.
   debeCambiarClave Boolean @default(true)
 
   // Los completa la propia persona desde "Mi perfil" tras iniciar sesión.
@@ -601,14 +524,8 @@ model Admin {
   @@map("administradores")
 }
 
-/// Apariencia y textos de la aplicación, editables desde el panel.
-///
-/// Una sola fila: el `id` está fijado a "unica" para que no puedan existir dos
-/// configuraciones compitiendo. La app es una, aunque sirva a varios convenios.
-///
-/// El logo se guarda en la base y no en disco a propósito: así viaja con el
-/// backup, sobrevive a `docker compose down` sin depender de un volumen y no
-/// hay que sincronizar ficheros entre despliegues. Pesa unos pocos KB.
+/// Apariencia general. Una sola fila, id = "unica".
+/// El logo va en la base para que viaje con el backup.
 model Marca {
   id String @id @default("unica")
 
@@ -617,18 +534,15 @@ model Marca {
   subtituloPublico String  @default("La formación es gratuita y los cupos son limitados.")
   piePagina        String?
 
-  /// Qué esquema ve quien entra por primera vez. `SISTEMA` respeta la
-  /// preferencia del sistema operativo, que es lo que espera la mayoría.
+  /// Qué esquema ve quien entra por primera vez.
   modoPorDefecto       ModoPorDefecto @default(SISTEMA)
-  /// Si se apaga, el visitante no ve el conmutador y queda fijo el modo por
-  /// defecto. Útil si una entidad exige que su sitio se vea siempre igual.
+  /// Si se apaga, no se ve el conmutador.
   permitirCambioDeModo Boolean        @default(true)
 
   logoDatos    Bytes?
   logoTipoMime String?
   logoNombre   String?
-  /// Cambia en cada subida y va en la URL del logo: permite cachear el archivo
-  /// para siempre y que aun así el navegador vea el nuevo al instante.
+  /// Va en la URL: permite cachear para siempre.
   logoVersion  Int     @default(0)
 
   actualizadoEn    DateTime @updatedAt

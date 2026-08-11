@@ -1,12 +1,8 @@
 /**
- * Carga el catálogo de los dos proyectos en la base.
+ * Carga el catálogo de los dos proyectos.
  *
- * Es idempotente a propósito: se puede correr en cada despliegue. Lo único que
- * NUNCA toca es `cuposOcupados`; ese contador lo mueven las reservas y
- * reescribirlo desde el seed borraría reservas reales del conteo.
- *
- * El JSON lo genera `scripts/extraer-catalogo.py` desde `docs/proyectos/`.
- * Aquí no se lee Excel: en producción no hay Python.
+ * Idempotente. Nunca toca `cuposOcupados` ni el `visible` que un admin
+ * haya cambiado. El JSON lo genera `scripts/extraer-catalogo.py`.
  */
 
 import { readFileSync } from 'node:fs';
@@ -92,11 +88,7 @@ async function idUbicacion(
   return ubicacion.id;
 }
 
-/**
- * Los proyectos escriben "PRESENCIAL", "VIRTUAL" y "PRESENCIAL HÍBRIDA". La
- * tercera hay que reconocerla explícitamente: si se cuela por el `else`,
- * los dos foros híbridos quedan marcados como virtuales.
- */
+/** "PRESENCIAL HÍBRIDA" hay que reconocerla aparte. */
 function comoModalidad(valor: string | null): Modalidad {
   const texto = (valor ?? '').toUpperCase();
   if (texto.includes('HÍBRID') || texto.includes('HIBRID')) return Modalidad.HIBRIDA;
@@ -104,12 +96,7 @@ function comoModalidad(valor: string | null): Modalidad {
   return Modalidad.VIRTUAL;
 }
 
-/**
- * La modalidad de un grupo sale de sus coberturas, no de la acción: los grupos
- * de la AF8 juntan 60 asistentes en sede y 190 conectados desde seis
- * departamentos, así que son híbridos aunque el proyecto los liste bajo una
- * sola etiqueta.
- */
+/** La modalidad del grupo sale de sus coberturas. */
 function modalidadDelGrupo(coberturas: CoberturaJson[]): Modalidad {
   const presencial = coberturas.some((c) => c.modalidad === 'PRESENCIAL');
   const virtual = coberturas.some((c) => c.modalidad === 'VIRTUAL');
@@ -174,8 +161,7 @@ async function main() {
           ambiente: accionJson.ambiente,
           orden: accionJson.orden,
         },
-        // `visible` no se toca: si un admin ocultó una acción, un despliegue
-        // no debe volver a publicarla a sus espaldas.
+        // `visible` no se toca: lo decide el admin
         update: {
           nombre: accionJson.nombre,
           modalidad: comoModalidad(accionJson.modalidad),
@@ -264,9 +250,7 @@ async function main() {
           },
         });
 
-        // Bajar el tope por debajo de lo ya reservado dejaría la oferta en un
-        // estado imposible (ocupados > máximos). Se avisa y no se toca: es una
-        // decisión que tiene que tomar una persona, no un script.
+        // bajar el tope por debajo de lo reservado: avisar y parar
         if (existente && existente.cuposOcupados > ofertaJson.cuposMaximos) {
           avisos.push(
             `${entrada.slug} ${accionJson.codigo} ${ofertaJson.ubicacion}: ` +

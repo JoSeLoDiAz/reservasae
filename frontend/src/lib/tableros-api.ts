@@ -321,11 +321,7 @@ export const tablerosApi = {
     pedir<PaginaReservas>(`/admin/tableros/reservas${consulta(filtros)}`),
 };
 
-/**
- * La descarga va por navegación normal y no por `fetch`: así el navegador se
- * encarga del archivo (nombre, barra de descargas, reanudación) y la cookie de
- * sesión viaja sola. Con fetch habría que montar un blob a mano para nada.
- */
+/** Descarga por navegación, no por fetch: la cookie viaja sola. */
 export function descargar(
   informe: "reservas" | "ocupacion" | "empresas",
   filtros: Record<string, string | number | undefined> = {},

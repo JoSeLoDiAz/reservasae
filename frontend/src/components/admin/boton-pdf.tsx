@@ -1,17 +1,6 @@
 "use client";
 
-/**
- * "Exportar a PDF" es `window.print()` con la hoja de impresión de
- * `globals.css`, no una librería.
- *
- * El navegador ya sabe paginar, incrustar fuentes y guardar en PDF. Las dos
- * alternativas son peores: puppeteer obligaría a meter Chromium dentro de la
- * imagen alpine (cientos de megas y una fuente constante de builds rotos), y
- * jsPDF produce páginas peores que las del propio navegador.
- *
- * Como efecto secundario útil, también sirve para imprimir en papel, que es
- * justo lo que se hace para una reunión.
- */
+/** "Exportar a PDF" es `window.print()`, no una librería. */
 export function BotonPdf({ etiqueta = "Exportar a PDF" }: { etiqueta?: string }) {
   return (
     <button
@@ -37,11 +26,7 @@ export function BotonPdf({ etiqueta = "Exportar a PDF" }: { etiqueta?: string })
   );
 }
 
-/**
- * Encabezado que solo existe en el papel: en pantalla el contexto lo da la
- * propia interfaz, pero una hoja impresa suelta sobre una mesa necesita decir
- * de qué es y de cuándo.
- */
+/** Encabezado que solo existe en el papel. */
 export function EncabezadoImpresion({
   titulo,
   subtitulo,

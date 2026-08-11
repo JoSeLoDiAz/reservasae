@@ -87,10 +87,7 @@ export class CrearPreguntaDto {
   @IsEnum(TipoPregunta)
   tipo!: TipoPregunta;
 
-  /**
-   * Marcar la pregunta como campo del núcleo la ata a una columna real de la
-   * reserva. El tipo lo impone el catálogo, no quien la crea.
-   */
+  /** Ata la pregunta a una columna real de la reserva. */
   @IsOptional() @IsEnum(CampoNucleo)
   campoNucleo?: CampoNucleo;
 }

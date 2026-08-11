@@ -1,11 +1,8 @@
 /**
- * El NIT es la identidad de la empresa en todo el sistema: es la clave única y
- * es lo que permite volver a editar una reserva. Si entra escrito de tres
- * formas distintas ("860.505.081-5", "860505081", "860505081-5") acabaríamos
- * con tres empresas y tres cuentas de cupos separadas.
+ * Normaliza el NIT: solo el número, sin puntos ni DV.
  *
- * Por eso siempre se guarda solo el número, sin puntos, espacios ni dígito de
- * verificación, y el DV se separa aparte.
+ * Es la clave única de la empresa; escrito de tres formas darían tres
+ * empresas distintas.
  */
 
 export type NitNormalizado = {
@@ -30,11 +27,7 @@ export function normalizarNit(valor: string): NitNormalizado | null {
   return null;
 }
 
-/**
- * Algoritmo del DV que usa la DIAN. Se calcula en vez de exigirlo para que
- * quien escriba solo el número no quede con el campo vacío, y para poder
- * avisar si el DV que escribieron no corresponde.
- */
+/** El dígito de verificación de la DIAN. Se calcula, no se exige. */
 export function calcularDigitoVerificacion(nit: string): string {
   const pesos = [3, 7, 13, 17, 19, 23, 29, 37, 41, 43, 47, 53, 59, 67, 71];
   const digitos = nit.split('').reverse();

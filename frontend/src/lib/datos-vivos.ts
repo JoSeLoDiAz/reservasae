@@ -19,9 +19,7 @@ export type DatosVivos<T> = {
 /**
  * Datos que se vuelven a pedir solos.
  *
- * Un refresco fallido conserva los últimos datos buenos: con un temporizador,
- * convertir cualquier error en pantalla completa vaciaría el tablero cada vez
- * que la red parpadea.
+ * Un fallo conserva los últimos datos buenos.
  */
 export function useDatosVivos<T>(
   cargar: () => Promise<T>,

@@ -1,9 +1,7 @@
 /**
- * Genera las dos paletas completas a partir de un solo color.
+ * Las dos paletas a partir de un solo color.
  *
- * Existe para que un administrador no tecnico no tenga que elegir 28 colores a
- * mano. Los estados NO se derivan: sus escalones estan validados contra
- * deuteranopia y sacarlos de un tono cualquiera tiraria esa garantia.
+ * Los estados NO se derivan: están validados contra deuteranopía.
  */
 
 import { EsquemaColor } from '../../generated/prisma';
