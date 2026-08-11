@@ -25,6 +25,8 @@ export type AdminActual = {
 
 export type ModoPorDefecto = "SISTEMA" | "CLARO" | "OSCURO";
 
+export type OrigenLogo = "GENERAL" | "FORMULARIO" | null;
+
 export type Marca = {
   nombreApp: string;
   tituloPublico: string;
@@ -32,6 +34,12 @@ export type Marca = {
   piePagina: string | null;
   modoPorDefecto: ModoPorDefecto;
   permitirCambioDeModo: boolean;
+  /** De quien es la apariencia que se esta aplicando. */
+  ambito: "GENERAL" | "FORMULARIO";
+  formularioSlug: string | null;
+  logo: { origen: OrigenLogo; tipoMime: string | null; version: number };
+  /** Tokens que el formulario sobreescribe. Solo con ambito FORMULARIO. */
+  sobreescritos?: Record<Esquema, string[]>;
   /** Las dos paletas viajan juntas: el conmutador cambia de una a otra sin
    *  volver a pedir nada al servidor. */
   temas: Record<Esquema, ColoresTema>;
@@ -121,10 +129,11 @@ export const adminApi = {
   actualizarMarca: (datos: Partial<Marca>) =>
     pedir<Marca>("/admin/marca", { method: "PATCH", body: JSON.stringify(datos) }),
 
+  // el DTO espera { colores }, no el mapa plano
   actualizarTema: (esquema: Esquema, colores: Partial<ColoresTema>) =>
     pedir<Marca>(`/admin/marca/tema/${esquema}`, {
       method: "PATCH",
-      body: JSON.stringify(colores),
+      body: JSON.stringify({ colores }),
     }),
 
   restablecerTema: (esquema: Esquema) =>
@@ -154,7 +163,18 @@ export const adminApi = {
     }),
 };
 
-/** URL del logo con su versión, para poder cachearlo sin quedarse con el viejo. */
-export function urlLogo(marca: Pick<Marca, "logoTipoMime" | "logoVersion">): string | null {
-  return marca.logoTipoMime ? `/api/marca/logo?v=${marca.logoVersion}` : null;
+/**
+ * URL del logo segun de quien sea.
+ *
+ * La ruta CAMBIA con el origen a proposito: al borrar el logo propio de un
+ * formulario, la URL deja de existir en vez de servir el viejo desde una cache
+ * de un ano.
+ */
+export function urlLogo(marca: Pick<Marca, "logo" | "formularioSlug">): string | null {
+  const { origen, version } = marca.logo;
+  if (origen === "FORMULARIO" && marca.formularioSlug) {
+    return `/api/marca/formulario/${marca.formularioSlug}/logo?v=${version}`;
+  }
+  if (origen === "GENERAL") return `/api/marca/logo?v=${version}`;
+  return null;
 }

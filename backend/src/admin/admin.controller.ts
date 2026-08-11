@@ -19,6 +19,12 @@ import { Throttle } from '@nestjs/throttler';
 import type { Response } from 'express';
 
 import { RolAdmin, type Admin, type EsquemaColor } from '../../generated/prisma';
+import {
+  ERROR_TAMANO_LOGO,
+  ERROR_TIPO_LOGO,
+  MAXIMO_LOGO,
+  TIPOS_LOGO,
+} from '../comun/logo';
 import { AdminActual } from './admin-actual.decorator';
 import {
   AdminGuard,
@@ -40,10 +46,6 @@ import {
 } from './dto';
 
 const HORAS_SESION = 8;
-
-/** SVG incluido a propósito: es lo que mejor escala en el encabezado. */
-const TIPOS_LOGO = ['image/svg+xml', 'image/png', 'image/webp'];
-const MAXIMO_LOGO = 1024 * 1024;
 
 @Controller('admin')
 @UseGuards(AdminGuard)
@@ -159,6 +161,12 @@ export class AdminController {
     return this.admin.actualizarMarca(admin, dto);
   }
 
+  // el constructor previsualiza formularios aun sin publicar
+  @Get('marca/formulario/:slug')
+  marcaDeFormulario(@Param('slug') slug: string) {
+    return this.admin.obtenerMarcaDeFormulario(slug, true);
+  }
+
   @Patch('marca/tema/:esquema')
   actualizarTema(
     @AdminActual() admin: Admin,
@@ -189,15 +197,8 @@ export class AdminController {
   subirLogo(@AdminActual() admin: Admin, @UploadedFile() archivo?: Express.Multer.File) {
     if (!archivo) throw new BadRequestException('No llegó ningún archivo.');
 
-    if (!TIPOS_LOGO.includes(archivo.mimetype)) {
-      throw new BadRequestException(
-        'El logo debe ser SVG, PNG o WebP. JPG no sirve: no tiene transparencia ' +
-          'y deja un recuadro blanco sobre el color de marca.',
-      );
-    }
-    if (archivo.size > MAXIMO_LOGO) {
-      throw new BadRequestException('El logo no puede pesar más de 1 MB.');
-    }
+    if (!TIPOS_LOGO.includes(archivo.mimetype)) throw new BadRequestException(ERROR_TIPO_LOGO);
+    if (archivo.size > MAXIMO_LOGO) throw new BadRequestException(ERROR_TAMANO_LOGO);
 
     return this.admin.guardarLogo(
       admin,
@@ -248,10 +249,28 @@ export class MarcaPublicaController {
   @Get('logo')
   async logo(@Res() respuesta: Response) {
     const { logoDatos, logoTipoMime } = await this.admin.leerLogo();
-    respuesta.type(logoTipoMime);
-    // Cacheable para siempre porque la URL lleva `?v=<logoVersion>`: al subir
-    // otro logo cambia la URL y el navegador vuelve a pedirlo.
+    this.enviarLogo(respuesta, logoDatos, logoTipoMime);
+  }
+
+  /**
+   * Segmento literal `formulario/` a proposito: con `:slug` suelto, un
+   * formulario llamado "logo" eclipsaria la ruta de arriba.
+   */
+  @Get('formulario/:slug')
+  marcaDeFormulario(@Param('slug') slug: string) {
+    return this.admin.obtenerMarcaDeFormulario(slug);
+  }
+
+  @Get('formulario/:slug/logo')
+  async logoDeFormulario(@Param('slug') slug: string, @Res() respuesta: Response) {
+    const { logoDatos, logoTipoMime } = await this.admin.leerLogoDeFormulario(slug);
+    this.enviarLogo(respuesta, logoDatos, logoTipoMime);
+  }
+
+  // cacheable para siempre: la URL lleva ?v=logoVersion
+  private enviarLogo(respuesta: Response, datos: Buffer, tipoMime: string) {
+    respuesta.type(tipoMime);
     respuesta.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
-    respuesta.send(logoDatos);
+    respuesta.send(datos);
   }
 }

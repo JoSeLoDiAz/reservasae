@@ -146,7 +146,7 @@ const HEXADECIMAL = /^#[0-9a-fA-F]{6}$/;
  * un administrador inyectara CSS arbitrario.
  */
 @ValidatorConstraint({ name: 'coloresDeTema' })
-class ColoresDeTema implements ValidatorConstraintInterface {
+export class ColoresDeTema implements ValidatorConstraintInterface {
   private motivo = '';
 
   validate(valor: unknown): boolean {

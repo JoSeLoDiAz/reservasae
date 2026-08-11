@@ -16,6 +16,13 @@ export type FiltrosReservas = {
 
 const POR_PAGINA = 25;
 
+/**
+ * El universo del tablero son TODAS las acciones, publicadas o no: `metaBase`
+ * sale de `grupoCobertura` sin filtrar y representa el compromiso completo.
+ * Filtrar por `visible` dejaría la cifra grande descuadrada contra su meta.
+ */
+const UNIVERSO: Prisma.OfertaWhereInput = {};
+
 @Injectable()
 export class TablerosService {
   constructor(private readonly prisma: PrismaService) {}
@@ -46,7 +53,7 @@ export class TablerosService {
     const publicadas = await this.prisma.accionFormacion.count({ where: { visible: true } });
     const acciones = await this.prisma.accionFormacion.count();
     const sinNingunaReserva = await this.prisma.oferta.count({
-      where: { cuposOcupados: 0, accionFormacion: { visible: true } },
+      where: { ...UNIVERSO, cuposOcupados: 0 },
     });
 
     const cupos = ofertas._sum.cuposMaximos ?? 0;
@@ -99,10 +106,12 @@ export class TablerosService {
   async analisis() {
     const [ofertas, empresas] = await Promise.all([
       this.prisma.oferta.findMany({
-        where: { accionFormacion: { visible: true } },
+        where: UNIVERSO,
         include: {
           ubicacion: true,
-          accionFormacion: { select: { codigo: true, nombre: true, convenioId: true } },
+          accionFormacion: {
+            select: { codigo: true, nombre: true, convenioId: true, visible: true },
+          },
         },
       }),
       this.prisma.empresa.findMany({
@@ -209,7 +218,7 @@ export class TablerosService {
         ),
       },
 
-      // Dónde no ha llegado nadie: es la lista accionable del tablero.
+      // donde no ha llegado nadie
       sinReservas: ofertas
         .filter((o) => o.cuposOcupados === 0)
         .map((o) => ({
@@ -219,6 +228,8 @@ export class TablerosService {
           ubicacion: o.ubicacion.nombre,
           modalidad: o.modalidad,
           cupos: o.cuposMaximos,
+          // distingue "no ha llegado nadie" de "no esta abierta"
+          publicada: o.accionFormacion.visible,
         }))
         .sort((a, b) => b.cupos - a.cupos),
     };
@@ -327,6 +338,7 @@ export class TablerosService {
                    COALESCE(SUM("cuposConfirmados"), 0) AS cupos
               FROM "reservas"
              WHERE "ofertaId" = ANY(${idsOferta})
+               AND "estado" <> 'CANCELADA'
                AND "creadoEn" >= NOW() - interval '60 days'
              GROUP BY 1 ORDER BY 1`
         : Promise.resolve([]),
@@ -492,11 +504,7 @@ export class TablerosService {
       .sort((a, b) => b.confirmados - a.confirmados || a.razonSocial.localeCompare(b.razonSocial));
   }
 
-  /**
-   * Reservas por día. Se agrupa en SQL y no en Node porque la tabla puede
-   * crecer a decenas de miles de filas y traerlas todas para contarlas sería
-   * absurdo.
-   */
+  /** Reservas por dia. Se agrupa en SQL, no en Node. */
   async serie(dias = 30) {
     const filas = await this.prisma.$queryRaw<
       Array<{ dia: Date; reservas: bigint; cupos: bigint }>
@@ -506,6 +514,7 @@ export class TablerosService {
              COALESCE(SUM("cuposConfirmados"), 0) AS cupos
         FROM "reservas"
        WHERE "creadoEn" >= NOW() - (${dias} || ' days')::interval
+         AND "estado" <> 'CANCELADA'
        GROUP BY 1
        ORDER BY 1`;
 

@@ -12,9 +12,11 @@ import {
   type Opcion,
   type Pregunta,
 } from '../../generated/prisma';
+import { soloTokensValidos } from '../admin/apariencia';
 import { PrismaService } from '../prisma/prisma.service';
 import { CAMPOS_NUCLEO, CAMPOS_OBLIGATORIOS, POR_CAMPO } from './campos-nucleo';
 import {
+  ActualizarAparienciaDto,
   ActualizarFormularioDto,
   ActualizarOpcionDto,
   ActualizarPreguntaDto,
@@ -283,6 +285,67 @@ export class FormulariosService {
     }
 
     return problemas;
+  }
+
+  // -------------------------------------------------------------------------
+  // Apariencia
+  // -------------------------------------------------------------------------
+
+  /**
+   * Guarda SOLO los colores que el formulario sobreescribe.
+   *
+   * Guardar los 28 mataria la herencia: cambiar la marca general dejaria de
+   * propagarse y nadie se enteraria hasta intentarlo.
+   */
+  async actualizarApariencia(id: string, dto: ActualizarAparienciaDto) {
+    const formulario = await this.prisma.formulario.findUnique({ where: { id } });
+    if (!formulario) throw new NotFoundException('No existe ese formulario.');
+
+    await this.prisma.formulario.update({
+      where: { id },
+      data: {
+        coloresClaro:
+          dto.coloresClaro === undefined
+            ? undefined
+            : (soloTokensValidos(dto.coloresClaro) as Prisma.InputJsonValue),
+        coloresOscuro:
+          dto.coloresOscuro === undefined
+            ? undefined
+            : (soloTokensValidos(dto.coloresOscuro) as Prisma.InputJsonValue),
+      },
+    });
+    return this.obtener(id);
+  }
+
+  async guardarLogo(id: string, datos: Uint8Array, tipoMime: string, nombre: string) {
+    const formulario = await this.prisma.formulario.findUnique({
+      where: { id },
+      select: { logoVersion: true },
+    });
+    if (!formulario) throw new NotFoundException('No existe ese formulario.');
+
+    await this.prisma.formulario.update({
+      where: { id },
+      data: {
+        logoDatos: new Uint8Array(datos),
+        logoTipoMime: tipoMime,
+        logoNombre: nombre,
+        logoVersion: formulario.logoVersion + 1,
+      },
+    });
+    return this.obtener(id);
+  }
+
+  /** La version NO se reinicia: si vuelven a subir uno, la URL cambia igual. */
+  async borrarLogo(id: string) {
+    const formulario = await this.prisma.formulario.findUnique({ where: { id } });
+    if (!formulario) throw new NotFoundException('No existe ese formulario.');
+
+    await this.prisma.formulario.update({
+      where: { id },
+      data: { logoDatos: null, logoTipoMime: null, logoNombre: null },
+    });
+    return this.obtener(id);
   }
 
   // -------------------------------------------------------------------------

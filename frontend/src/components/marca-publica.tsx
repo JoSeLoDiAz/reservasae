@@ -1,5 +1,6 @@
 "use client";
 
+import { usePathname } from "next/navigation";
 import {
   createContext,
   useCallback,
@@ -10,6 +11,12 @@ import {
 } from "react";
 
 import { urlLogo, type Marca } from "@/lib/admin-api";
+import {
+  ambitoDeRuta,
+  ID_ESTILO_CACHE,
+  recordarPaleta,
+  rutaDeMarca,
+} from "@/lib/marca";
 import {
   aplicarEsquema,
   esquemaDelSistema,
@@ -42,46 +49,40 @@ function leerModoGuardado(): ModoElegido {
   return guardado === "claro" || guardado === "oscuro" ? guardado : "sistema";
 }
 
-/**
- * Aplica la marca configurada en el panel: sobreescribe las variables CSS de
- * `globals.css` para los dos esquemas y decide cuál se muestra.
- *
- * Se hace en el cliente porque el endpoint se alcanza por la ruta relativa
- * `/api/...`, que en local existe gracias al rewrite de Next y en producción
- * la resuelve nginx. Desde el servidor de Next no aplica ninguno de los dos.
- * El parpadeo inicial lo evita `SCRIPT_SIN_PARPADEO`, que fija el esquema
- * antes de pintar.
- */
+/** Aplica colores y textos de la marca del ambito. */
 export function ProveedorMarca({ children }: { children: React.ReactNode }) {
   const [marca, setMarca] = useState<Marca | null>(null);
   const [modo, setModo] = useState<ModoElegido>("sistema");
   const [esquema, setEsquema] = useState<Esquema>("CLARO");
 
-  // El modo guardado solo existe en el navegador. Leerlo en el primer render
-  // provocaria una discrepancia con lo que pinto el servidor.
+  // el modo guardado solo existe en el navegador
   useEffect(() => {
     const guardado = leerModoGuardado();
     setModo(guardado);
     setEsquema(resolverEsquema(guardado));
   }, []);
 
+  // el primer segmento de la URL es el slug del formulario
+  const ruta = usePathname();
+  const ambito = useMemo(() => ambitoDeRuta(ruta ?? "/"), [ruta]);
+
   const recargar = useCallback(async () => {
     try {
-      const respuesta = await fetch("/api/marca");
+      const respuesta = await fetch(rutaDeMarca(ambito));
       if (!respuesta.ok) return;
-      setMarca((await respuesta.json()) as Marca);
+      const datos = (await respuesta.json()) as Marca;
+      setMarca(datos);
+      recordarPaleta(ambito, datos);
     } catch {
-      // Que falle la marca no puede tumbar el formulario: se queda con los
-      // colores y textos por defecto y la gente sigue pudiendo reservar.
+      // que falle la marca no puede tumbar el formulario
     }
-  }, []);
+  }, [ambito]);
 
   useEffect(() => {
     void recargar();
   }, [recargar]);
 
-  // Modo por defecto del administrador: solo manda si el visitante no ha
-  // elegido nada. Quien ya escogió no debe ver cómo se le cambia solo.
+  // el defecto del admin solo manda si nadie eligio
   useEffect(() => {
     if (!marca || leerModoGuardado() !== "sistema") return;
     if (marca.modoPorDefecto === "SISTEMA") return;
@@ -89,8 +90,7 @@ export function ProveedorMarca({ children }: { children: React.ReactNode }) {
     setEsquema(forzado);
   }, [marca]);
 
-  // Seguir al sistema en vivo: si alguien tiene el modo automático por hora,
-  // la página cambia con él sin recargar.
+  // seguir al sistema en vivo
   useEffect(() => {
     if (modo !== "sistema") return;
     const consulta = window.matchMedia("(prefers-color-scheme: dark)");
@@ -103,16 +103,11 @@ export function ProveedorMarca({ children }: { children: React.ReactNode }) {
     aplicarEsquema(esquema);
   }, [esquema]);
 
-  // Los colores del administrador se inyectan como una hoja de estilo con los
-  // dos esquemas, no escribiendo sobre `documentElement.style`: así el
-  // conmutador sigue funcionando sin volver a pedir nada al servidor.
+  // hoja con los dos esquemas: conmutar no pide nada
   const estilos = useMemo(() => {
     if (!marca?.temas || !marca.catalogoColores) return "";
 
-    // Solo se escriben los tokens del catálogo, y solo si su valor es un
-    // hexadecimal: esto acaba dentro de una etiqueta <style>, así que no puede
-    // pasar por aquí una cadena arbitraria aunque la base viniera manipulada.
-    // El backend ya valida al guardar; esta es la segunda barrera.
+    // segunda barrera: esto acaba en un <style>
     const hexadecimal = /^#[0-9a-fA-F]{3,8}$/;
 
     return (["CLARO", "OSCURO"] as const)
@@ -132,14 +127,18 @@ export function ProveedorMarca({ children }: { children: React.ReactNode }) {
     if (marca?.nombreApp) document.title = marca.nombreApp;
   }, [marca]);
 
+  // ya hay hoja real: sobra la cacheada del <head>
+  useEffect(() => {
+    if (estilos) document.getElementById(ID_ESTILO_CACHE)?.remove();
+  }, [estilos]);
+
   const cambiarModo = useCallback((nuevo: ModoElegido) => {
     setModo(nuevo);
     setEsquema(resolverEsquema(nuevo));
     try {
       window.localStorage.setItem(LLAVE_MODO, nuevo);
     } catch {
-      // Navegar en privado puede bloquear localStorage; el modo sigue
-      // aplicándose, solo que no se recuerda.
+      // en privado localStorage puede fallar
     }
   }, []);
 
@@ -162,8 +161,7 @@ const OPCIONES: Array<{ valor: ModoElegido; etiqueta: string; icono: React.React
 export function ConmutadorTema({ compacto = false }: { compacto?: boolean }) {
   const { marca, modo, cambiarModo } = useMarca();
 
-  // Si el administrador apagó la opción, el visitante no la ve. Se comprueba
-  // `marca` porque mientras carga no se sabe, y es mejor no parpadear.
+  // el admin puede apagar el conmutador
   if (marca && !marca.permitirCambioDeModo) return null;
 
   return (
@@ -209,12 +207,10 @@ export function EncabezadoPublico({
   return (
     <header className="mb-8">
       <div className="flex flex-wrap items-center justify-between gap-4">
-        {/* El logo NO enlaza a la raíz: la raíz devuelve 404 a propósito, no
-            hay índice público. Enlazarlo sería mandar a la gente a un error. */}
+        {/* sin enlace: la raiz devuelve 404 a proposito */}
         <div className="inline-flex items-center gap-3">
           {logo ? (
-            // <img> y no <Image>: el logo lo sirve el backend con un tamaño que
-            // no conocemos de antemano y ya viaja cacheado para siempre.
+            // <img>: tamano desconocido y ya viene cacheado
             // eslint-disable-next-line @next/next/no-img-element
             <img src={logo} alt={marca?.nombreApp ?? "Convoca"} className="h-10 w-auto" />
           ) : (

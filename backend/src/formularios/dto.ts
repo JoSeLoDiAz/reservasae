@@ -12,10 +12,12 @@ import {
   MaxLength,
   Min,
   MinLength,
+  Validate,
   ValidateNested,
 } from 'class-validator';
 
 import { CampoNucleo, TipoPregunta } from '../../generated/prisma';
+import { ColoresDeTema } from '../admin/dto';
 
 const recortar = ({ value }: { value: unknown }) =>
   typeof value === 'string' ? value.trim() : value;
@@ -54,6 +56,17 @@ export class ActualizarFormularioDto {
 
   @IsOptional() @IsBoolean()
   publicado?: boolean;
+}
+
+/** Solo los colores que el formulario sobreescribe. null = volver a heredar. */
+export class ActualizarAparienciaDto {
+  @IsOptional()
+  @Validate(ColoresDeTema)
+  coloresClaro?: Record<string, string> | null;
+
+  @IsOptional()
+  @Validate(ColoresDeTema)
+  coloresOscuro?: Record<string, string> | null;
 }
 
 export class SeccionDto {

@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -6,11 +7,21 @@ import {
   Param,
   Patch,
   Post,
+  UploadedFile,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 
 import { AdminGuard } from '../admin/admin.guard';
 import {
+  ERROR_TAMANO_LOGO,
+  ERROR_TIPO_LOGO,
+  MAXIMO_LOGO,
+  TIPOS_LOGO,
+} from '../comun/logo';
+import {
+  ActualizarAparienciaDto,
   ActualizarFormularioDto,
   ActualizarOpcionDto,
   ActualizarPreguntaDto,
@@ -57,6 +68,33 @@ export class FormulariosAdminController {
   @Delete(':id')
   eliminar(@Param('id') id: string) {
     return this.formularios.eliminar(id);
+  }
+
+  // --- Apariencia ---
+
+  @Patch(':id/apariencia')
+  actualizarApariencia(@Param('id') id: string, @Body() dto: ActualizarAparienciaDto) {
+    return this.formularios.actualizarApariencia(id, dto);
+  }
+
+  @Post(':id/logo')
+  @UseInterceptors(FileInterceptor('logo', { limits: { fileSize: MAXIMO_LOGO } }))
+  subirLogo(@Param('id') id: string, @UploadedFile() archivo?: Express.Multer.File) {
+    if (!archivo) throw new BadRequestException('No llegó ningún archivo.');
+    if (!TIPOS_LOGO.includes(archivo.mimetype)) throw new BadRequestException(ERROR_TIPO_LOGO);
+    if (archivo.size > MAXIMO_LOGO) throw new BadRequestException(ERROR_TAMANO_LOGO);
+
+    return this.formularios.guardarLogo(
+      id,
+      new Uint8Array(archivo.buffer),
+      archivo.mimetype,
+      archivo.originalname,
+    );
+  }
+
+  @Delete(':id/logo')
+  borrarLogo(@Param('id') id: string) {
+    return this.formularios.borrarLogo(id);
   }
 
   // --- Secciones ---

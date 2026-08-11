@@ -5,6 +5,9 @@ services:
       dockerfile: frontend/Dockerfile
     container_name: reservasae_frontend
     restart: unless-stopped
+    environment:
+      # el SSR llama al backend directo, sin pasar por nginx
+      API_INTERNA: http://backend:4000
     networks:
       - reservasae-internal
 

@@ -344,6 +344,16 @@ model Formulario {
   /// Texto de la pantalla de confirmación, tras reservar.
   mensajeExito String?
 
+  /// Apariencia propia. Solo las claves que el admin cambió; el resto hereda
+  /// de la marca general. Guardar las 28 rompería esa herencia.
+  coloresClaro  Json?
+  coloresOscuro Json?
+
+  logoDatos    Bytes?
+  logoTipoMime String?
+  logoNombre   String?
+  logoVersion  Int     @default(0)
+
   creadoEn      DateTime @default(now())
   actualizadoEn DateTime @updatedAt
 

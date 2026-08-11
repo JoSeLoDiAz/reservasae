@@ -26,7 +26,8 @@
     "db:publicar": "ts-node prisma/publicar.ts",
     "db:reiniciar-reservas": "ts-node prisma/reiniciar-reservas.ts",
     "db:crear-admin": "ts-node prisma/crear-admin.ts",
-    "db:sembrar-formularios": "ts-node prisma/seed/formularios.ts"
+    "db:sembrar-formularios": "ts-node prisma/seed/formularios.ts",
+    "db:borrar-reservas": "ts-node prisma/borrar-reservas.ts"
   },
   "prisma": {
     "seed": "ts-node prisma/seed/index.ts"

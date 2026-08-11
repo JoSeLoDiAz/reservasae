@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 
 import { ProveedorMarca } from "@/components/marca-publica";
+import { SCRIPT_PALETA } from "@/lib/marca";
 import { SCRIPT_SIN_PARPADEO } from "@/lib/tema";
 import "./globals.css";
 
@@ -53,9 +54,10 @@ export default function RootLayout({
       suppressHydrationWarning
     >
       <head>
-        {/* Corre antes que cualquier bundle: si esperara a la hidratacion, la
-            pagina se dibujaria en claro y saltaria a oscuro de golpe. */}
-        <script dangerouslySetInnerHTML={{ __html: SCRIPT_SIN_PARPADEO }} />
+        {/* fija tema y colores antes de pintar */}
+        <script
+          dangerouslySetInnerHTML={{ __html: SCRIPT_SIN_PARPADEO + SCRIPT_PALETA }}
+        />
       </head>
       <body className="min-h-full flex flex-col font-sans">
         {/* Envuelve tambien el panel: asi el administrador ve el resultado de

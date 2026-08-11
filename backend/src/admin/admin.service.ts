@@ -22,6 +22,7 @@ import {
   CrearAdminDto,
 } from './dto';
 import { generarClaveTemporal, hashearClave, verificarClave } from './claves';
+import { fusionarColores, tokensSobreescritos } from './apariencia';
 import {
   COMPROBACIONES_CONTRASTE,
   conValoresPorDefecto,
@@ -246,12 +247,95 @@ export class AdminService {
 
     return {
       ...marca,
+      ambito: 'GENERAL' as const,
+      formularioSlug: null as string | null,
+      logo: {
+        origen: (marca.logoTipoMime ? 'GENERAL' : null) as 'GENERAL' | 'FORMULARIO' | null,
+        tipoMime: marca.logoTipoMime,
+        version: marca.logoVersion,
+      },
       temas,
       catalogoColores: {
         grupos: GRUPOS,
         tokens: TOKENS,
         comprobacionesContraste: COMPROBACIONES_CONTRASTE,
       },
+    };
+  }
+
+  /**
+   * La marca general con lo propio del formulario encima.
+   *
+   * Un slug desconocido devuelve la general con 200, nunca 404: un 404 seria
+   * un oraculo de que formularios existen.
+   */
+  async obtenerMarcaDeFormulario(slug: string, incluirNoPublicado = false) {
+    const general = await this.obtenerMarca();
+
+    const formulario = await this.prisma.formulario.findUnique({
+      where: { slug },
+      select: {
+        slug: true,
+        titulo: true,
+        descripcion: true,
+        publicado: true,
+        coloresClaro: true,
+        coloresOscuro: true,
+        logoTipoMime: true,
+        logoVersion: true,
+      },
+    });
+
+    if (!formulario) return general;
+    if (!formulario.publicado && !incluirNoPublicado) return general;
+
+    const propios: Record<EsquemaColor, unknown> = {
+      CLARO: formulario.coloresClaro,
+      OSCURO: formulario.coloresOscuro,
+    };
+
+    const tienelogoPropio = Boolean(formulario.logoTipoMime);
+
+    return {
+      ...general,
+      ambito: 'FORMULARIO' as const,
+      formularioSlug: formulario.slug,
+      // el titulo del formulario manda; el resto hereda
+      tituloPublico: formulario.titulo,
+      subtituloPublico: formulario.descripcion ?? general.subtituloPublico,
+      logo: tienelogoPropio
+        ? {
+            origen: 'FORMULARIO' as const,
+            tipoMime: formulario.logoTipoMime,
+            version: formulario.logoVersion,
+          }
+        : general.logo,
+      temas: Object.fromEntries(
+        (Object.keys(general.temas) as EsquemaColor[]).map((esquema) => [
+          esquema,
+          fusionarColores(esquema, general.temas[esquema], propios[esquema]),
+        ]),
+      ) as Record<EsquemaColor, ColoresTema>,
+      sobreescritos: {
+        CLARO: tokensSobreescritos(formulario.coloresClaro),
+        OSCURO: tokensSobreescritos(formulario.coloresOscuro),
+      },
+    };
+  }
+
+  /** Solo el logo propio del formulario. Sin herencia: ver el porque en el plan. */
+  async leerLogoDeFormulario(slug: string) {
+    const formulario = await this.prisma.formulario.findUnique({
+      where: { slug },
+      select: { logoDatos: true, logoTipoMime: true, logoVersion: true },
+    });
+    if (!formulario?.logoDatos || !formulario.logoTipoMime) {
+      throw new NotFoundException('Este formulario no tiene logo propio.');
+    }
+    return {
+      logoDatos: Buffer.from(formulario.logoDatos),
+      logoTipoMime: formulario.logoTipoMime,
+      logoVersion: formulario.logoVersion,
     };
   }
 
