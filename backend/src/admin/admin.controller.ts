@@ -34,6 +34,7 @@ import {
   Roles,
 } from './admin.guard';
 import { AdminService, vistaAdmin } from './admin.service';
+import { corregirContraste, derivarTemas } from './derivar';
 import {
   ActualizarAdminDto,
   ActualizarMarcaDto,
@@ -41,9 +42,11 @@ import {
   ActualizarTemaDto,
   CambiarClaveDto,
   CrearAdminDto,
+  DerivarTemaDto,
   IniciarSesionDto,
   PublicarAccionDto,
 } from './dto';
+import { plantillasResueltas } from './plantillas-tema';
 
 const HORAS_SESION = 8;
 
@@ -211,6 +214,32 @@ export class AdminController {
   @Delete('marca/logo')
   borrarLogo(@AdminActual() admin: Admin) {
     return this.admin.borrarLogo(admin);
+  }
+
+  // -------------------------------------------------------------------------
+  // Apariencia asistida
+  // -------------------------------------------------------------------------
+
+  // aparte de GET /marca, que se pide en cada carga publica
+  @Get('apariencia/plantillas')
+  plantillas() {
+    return plantillasResueltas();
+  }
+
+  @Post('apariencia/derivar')
+  @HttpCode(200)
+  derivar(@Body() dto: DerivarTemaDto) {
+    return derivarTemas({
+      principal: dto.principal,
+      encabezadoDeColor: dto.encabezadoDeColor,
+    });
+  }
+
+  // arregla solo los pares que no se leen
+  @Post('apariencia/corregir')
+  @HttpCode(200)
+  corregir(@Body() dto: ActualizarTemaDto) {
+    return corregirContraste(dto.colores);
   }
 
   // -------------------------------------------------------------------------

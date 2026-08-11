@@ -75,6 +75,12 @@ export default function PaginaConstructor({
         </div>
 
         <div className="flex items-center gap-3">
+          <Link
+            href={`/admin/formularios/${id}/apariencia`}
+            className="rounded-lg border border-borde px-4 py-2 text-sm hover:bg-fondo"
+          >
+            Apariencia
+          </Link>
           <span
             className={`rounded-full px-3 py-1 text-sm font-medium ${
               formulario.publicado ? "bg-exito-suave text-exito" : "bg-fondo text-texto-suave"
@@ -195,7 +201,22 @@ function DatosGenerales({
   const [mensajeExito, setMensajeExito] = useState(formulario.mensajeExito ?? "");
 
   return (
-    <Tarjeta titulo="Textos del formulario">
+    <Tarjeta
+      titulo="Textos del formulario"
+      descripcion={
+        <>
+          Son los que se leen en{" "}
+          <Link
+            href={`/${formulario.slug}`}
+            target="_blank"
+            className="font-mono text-marca hover:underline"
+          >
+            /{formulario.slug}
+          </Link>
+          , no solo aquí dentro.
+        </>
+      }
+    >
       <form
         onSubmit={(e) => {
           e.preventDefault();
@@ -205,7 +226,7 @@ function DatosGenerales({
         }}
         className="space-y-4"
       >
-        <Campo etiqueta="Título">
+        <Campo etiqueta="Título" ayuda="El titular de la página pública.">
           <input
             required
             value={titulo}

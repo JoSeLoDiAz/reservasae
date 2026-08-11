@@ -52,6 +52,15 @@ export type Marca = {
   actualizadoEn: string;
 };
 
+export type PlantillaTema = {
+  clave: string;
+  nombre: string;
+  descripcion: string;
+  principal: string;
+  encabezadoDeColor: boolean;
+  temas: Record<Esquema, ColoresTema>;
+};
+
 export type AccionAdmin = {
   id: string;
   codigo: string;
@@ -148,6 +157,43 @@ export const adminApi = {
   },
 
   borrarLogo: () => pedir<Marca>("/admin/marca/logo", { method: "DELETE" }),
+
+  plantillas: () => pedir<PlantillaTema[]>("/admin/apariencia/plantillas"),
+
+  derivar: (principal: string, encabezadoDeColor: boolean) =>
+    pedir<Record<Esquema, ColoresTema>>("/admin/apariencia/derivar", {
+      method: "POST",
+      body: JSON.stringify({ principal, encabezadoDeColor }),
+    }),
+
+  corregirContraste: (colores: ColoresTema) =>
+    pedir<ColoresTema>("/admin/apariencia/corregir", {
+      method: "POST",
+      body: JSON.stringify({ colores }),
+    }),
+
+  marcaDeFormulario: (slug: string) => pedir<Marca>(`/admin/marca/formulario/${slug}`),
+
+  aparienciaDeFormulario: (
+    id: string,
+    datos: { coloresClaro?: ColoresTema | null; coloresOscuro?: ColoresTema | null },
+  ) =>
+    pedir<{ id: string }>(`/admin/formularios/${id}/apariencia`, {
+      method: "PATCH",
+      body: JSON.stringify(datos),
+    }),
+
+  subirLogoDeFormulario: (id: string, archivo: File) => {
+    const cuerpo = new FormData();
+    cuerpo.append("logo", archivo);
+    return pedir<{ id: string }>(`/admin/formularios/${id}/logo`, {
+      method: "POST",
+      body: cuerpo,
+    });
+  },
+
+  borrarLogoDeFormulario: (id: string) =>
+    pedir<{ id: string }>(`/admin/formularios/${id}/logo`, { method: "DELETE" }),
 
   convenios: () =>
     pedir<

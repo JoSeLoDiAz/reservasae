@@ -95,6 +95,12 @@ export type FormularioAdmin = {
   preguntas: PreguntaAdmin[];
   /** Lo que impide publicar. Vacío = se puede publicar. */
   problemas: string[];
+  /** Solo los colores que sobreescribe; el resto hereda de la marca. */
+  coloresClaro: Record<string, string> | null;
+  coloresOscuro: Record<string, string> | null;
+  logoTipoMime: string | null;
+  logoNombre: string | null;
+  logoVersion: number;
 };
 
 export type ResumenFormulario = {

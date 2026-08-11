@@ -137,7 +137,7 @@ export function Tarjeta({
   children,
 }: {
   titulo: string;
-  descripcion?: string;
+  descripcion?: React.ReactNode;
   children: React.ReactNode;
 }) {
   return (

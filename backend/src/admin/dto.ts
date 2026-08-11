@@ -5,6 +5,7 @@ import {
   IsEnum,
   IsOptional,
   IsString,
+  Matches,
   MaxLength,
   MinLength,
   Validate,
@@ -181,4 +182,14 @@ export class ActualizarTemaDto {
 export class PublicarAccionDto {
   @IsBoolean()
   visible!: boolean;
+}
+
+/** Genera las dos paletas a partir de un color. */
+export class DerivarTemaDto {
+  @Matches(HEXADECIMAL, { message: 'El color debe ser hexadecimal de 6 dígitos, como #1d4ed8.' })
+  principal!: string;
+
+  @IsOptional()
+  @IsBoolean()
+  encabezadoDeColor?: boolean;
 }
