@@ -1,4 +1,4 @@
-/** Cliente del panel. La sesión va en una cookie httpOnly. */
+/** Cliente del panel. Sesión en cookie. */
 
 import { ErrorApi } from "./api";
 import type { CatalogoColores, ColoresTema, Esquema } from "./tema";
@@ -30,13 +30,13 @@ export type Marca = {
   piePagina: string | null;
   modoPorDefecto: ModoPorDefecto;
   permitirCambioDeModo: boolean;
-  /** De quien es la apariencia que se esta aplicando. */
+  /** De quién es la apariencia. */
   ambito: "GENERAL" | "FORMULARIO";
   formularioSlug: string | null;
   logo: { origen: OrigenLogo; tipoMime: string | null; version: number };
-  /** Tokens que el formulario sobreescribe. Solo con ambito FORMULARIO. */
+  /** Tokens que sobreescribe el formulario. */
   sobreescritos?: Record<Esquema, string[]>;
-  /** Las dos paletas juntas: conmutar no pide nada. */
+  /** Las dos paletas juntas. */
   temas: Record<Esquema, ColoresTema>;
   /** Qué colores existen. Lo define el backend. */
   catalogoColores: CatalogoColores;
@@ -202,7 +202,7 @@ export const adminApi = {
     }),
 };
 
-/** URL del logo. La ruta cambia con el origen: sin caché envenenada. */
+/** URL del logo según su origen. */
 export function urlLogo(marca: Pick<Marca, "logo" | "formularioSlug">): string | null {
   const { origen, version } = marca.logo;
   if (origen === "FORMULARIO" && marca.formularioSlug) {

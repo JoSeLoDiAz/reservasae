@@ -1,4 +1,4 @@
-/** A qué ritmo entran los cupos. Sin base: se puede probar. */
+/** A qué ritmo entran los cupos. */
 
 export type PuntoNeto = { dia: string; neto: number };
 
@@ -15,16 +15,16 @@ export type Confianza = 'BAJA' | 'NORMAL';
 export type Proyeccion = {
   estado: EstadoProyeccion;
   confianza: Confianza;
-  /** De dónde salió la serie: los movimientos o, si no hay, la fecha de alta. */
+  /** De dónde salió la serie. */
   origen: 'MOVIMIENTOS' | 'APROXIMADO';
   ocupados: number;
   meta: number;
   faltan: number;
-  /** Cupos netos por día de calendario, incluidos los días de cero. */
+  /** Cupos netos por día de calendario. */
   ritmoDiario: number;
   ritmo7: number;
   ritmo14: number;
-  /** Días hasta llegar a la meta. null si no se puede estimar. */
+  /** Días hasta llegar a la meta. */
   diasEstimados: number | null;
   fechaEstimada: string | null;
 };
@@ -36,7 +36,7 @@ function aDia(fecha: Date): string {
   return fecha.toISOString().slice(0, 10);
 }
 
-/** Neto por día de calendario, contando los días de cero. */
+/** Neto por día de calendario. */
 export function ritmoPorDia(serie: PuntoNeto[], dias: number, hasta: Date): number {
   if (dias <= 0) return 0;
 
@@ -58,7 +58,7 @@ export function calcularProyeccion(entrada: {
   dias: number;
   hoy: Date;
   origen?: 'MOVIMIENTOS' | 'APROXIMADO';
-  /** Días de historia disponibles; menos de 7 baja la confianza. */
+  /** Días de historia disponibles. */
   diasDeHistoria?: number;
 }): Proyeccion {
   const { serie, ocupados, meta, dias, hoy } = entrada;

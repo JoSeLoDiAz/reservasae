@@ -1,9 +1,4 @@
-/**
- * Prueba de concurrencia contra la API y la base reales.
- *
- * 20 empresas reservando a la vez: ni una sobreventa. Deja la base como
- * estaba. Necesita el backend arriba.
- */
+/** Prueba de concurrencia contra la API real. */
 
 import { PrismaClient } from '../generated/prisma';
 
@@ -11,7 +6,7 @@ const prisma = new PrismaClient();
 // 127.0.0.1: el fetch de Node prueba ::1 primero
 const API = process.env.API_URL ?? `http://127.0.0.1:${process.env.PORT ?? 4100}`;
 
-/** Prefijo reconocible para poder limpiar sin tocar datos reales. */
+/** Prefijo para limpiar solo lo de prueba. */
 const NIT_PRUEBA = '999';
 
 let fallos = 0;
@@ -96,7 +91,7 @@ async function main() {
   });
 
   try {
-    // --- 1. Avalancha simultánea -------------------------------------------
+    // 1. avalancha simultánea
     const intentos = oferta.cuposMaximos + 7;
     const respuestas = await Promise.all(
       Array.from({ length: intentos }, (_, i) =>
@@ -144,7 +139,7 @@ async function main() {
       `suma=${suma._sum.cuposConfirmados} contador=${tras.cuposOcupados}`,
     );
 
-    // --- 2. Reenvío idéntico (doble clic) ----------------------------------
+    // 2. reenvío idéntico (doble clic)
     const reenvio = await pedir('POST', '/reservas', reserva(oferta.id, 0, 1), '10.0.0.1');
     comprobar(
       reenvio.estado === 201 && reenvio.cuerpo?.id === creadas[0]?.cuerpo?.id,
@@ -152,7 +147,7 @@ async function main() {
       `estado=${reenvio.estado}`,
     );
 
-    // --- 3. Reenvío con otra cantidad --------------------------------------
+    // 3. reenvío con otra cantidad
     const distinto = await pedir('POST', '/reservas', reserva(oferta.id, 0, 3), '10.0.0.1');
     comprobar(
       distinto.estado === 409,
@@ -160,7 +155,7 @@ async function main() {
       `estado=${distinto.estado}`,
     );
 
-    // --- 4. Cancelar libera y promueve a quien esperaba ---------------------
+    // 4. cancelar libera y promueve
     const primera = creadas[0].cuerpo;
     const antesDeCancelar = await prisma.reserva.findFirstOrThrow({
       where: { ofertaId: oferta.id, cuposEnEspera: { gt: 0 } },
@@ -191,7 +186,7 @@ async function main() {
       `ocupados=${trasCancelar.cuposOcupados}`,
     );
 
-    // --- 5. Editar con un NIT ajeno ----------------------------------------
+    // 5. editar con un NIT ajeno
     const ajena = await pedir(
       'PATCH',
       `/reservas/${antesDeCancelar.id}`,
@@ -204,7 +199,7 @@ async function main() {
       `estado=${ajena.estado}`,
     );
 
-    // --- 6. Consultar por NIT ----------------------------------------------
+    // 6. consultar por NIT
     const consulta = await pedir('GET', `/reservas?nit=${NIT_PRUEBA}000001`, undefined, '10.0.0.9');
     comprobar(
       consulta.estado === 200 && Array.isArray(consulta.cuerpo?.reservas),
@@ -212,7 +207,7 @@ async function main() {
       `estado=${consulta.estado}`,
     );
 
-    // --- 7. Pedir más cupos de los que tiene la oferta ----------------------
+    // 7. pedir más cupos de los que hay
     const excesiva = await pedir(
       'POST',
       '/reservas',

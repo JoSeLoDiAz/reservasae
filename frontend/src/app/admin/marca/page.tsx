@@ -68,8 +68,7 @@ export default function PaginaMarca() {
     try {
       setMarca(await accion());
       setGuardado(true);
-      // Refresca el proveedor para que el propio panel se repinte con los
-      // colores recién guardados: es la mejor comprobación de que funcionan.
+      // repintar el panel con los colores nuevos
       await recargar();
     } catch (e) {
       setError((e as ErrorApi).message);

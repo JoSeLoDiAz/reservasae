@@ -1,31 +1,5 @@
 # -*- coding: utf-8 -*-
-"""
-Extrae el catálogo de acciones de formación desde los proyectos oficiales
-(docs/proyectos/*.xlsx) y lo deja en backend/prisma/seed/catalogo.json.
-
-Se ejecuta a mano cuando cambien los proyectos:
-
-    python scripts/extraer-catalogo.py
-
-El seed de Prisma lee el JSON, no el Excel: en producción no hay Python ni
-openpyxl, y el Excel es un formato que se rompe con solo abrirlo y guardarlo.
-
-De dónde sale cada cosa:
-  - Hoja `Datos_AF`         → una fila por acción de formación (nombre, modalidad, horas).
-  - Hoja `Datos_Cobertura`  → una fila por GRUPO. Las columnas `DEPARTAMENTO PRE` /
-                              `CIUDAD PRE` / `BENEFICIARIOS` son la sede presencial;
-                              los pares `DEPARTAMENTO n` / `BENEFICIARIOS n` son la
-                              cobertura virtual repartida por departamento.
-  - Hoja `Datos_Basicos`    → identidad de la entidad proponente (NIT, razón social).
-
-El 30 % de sobrecupo se calcula sobre el total de CADA GRUPO y después se
-reparte entre sus ubicaciones (ver `repartir_sobrecupo`). Así los totales
-coinciden con la tabla oficial del proyecto: 2717 en BRITCHAM y 2080 en
-ADECOPRIA.
-
-OJO: el dashboard `docs/dahsboardexcel/Base Cursos.xlsx` da 2714 porque trunca
-cada celda por separado. Ese número es el que está mal, no este.
-"""
+"""Extrae el catálogo de los proyectos a catalogo.json."""
 
 import json
 import math
@@ -52,7 +26,7 @@ PROYECTOS = [
 
 
 def limpiar(valor):
-    """Los proyectos traen espacios sobrantes y saltos de línea de Word."""
+    """Quita espacios y saltos sobrantes."""
     if valor is None:
         return None
     texto = str(valor).replace("_x000D_", " ").replace("\r", " ").replace("\n", " ")
@@ -61,7 +35,7 @@ def limpiar(valor):
 
 
 def normalizar_ubicacion(valor):
-    """Mismo departamento escrito de tres formas distintas = un solo registro."""
+    """Normaliza el nombre de la ubicación."""
     texto = limpiar(valor)
     if texto is None:
         return None
@@ -69,30 +43,13 @@ def normalizar_ubicacion(valor):
 
 
 def clave_sin_tildes(texto):
-    """Para comparar 'BOGOTÁ' con 'BOGOTA' sin que sean dos ubicaciones."""
+    """Quita las tildes para comparar."""
     descompuesto = unicodedata.normalize("NFD", texto)
     return "".join(c for c in descompuesto if unicodedata.category(c) != "Mn")
 
 
 def repartir_sobrecupo(celdas):
-    """
-    Reparte el 30 % de sobrecupo entre las ubicaciones de UN grupo.
-
-    La regla no es redondear cada celda por su cuenta: el 30 % se calcula sobre
-    el total del grupo y luego se reparte, de forma que las partes sumen
-    exactamente ese total. Es lo que hace la tabla oficial del proyecto, donde
-    la columna "BENEF. X GRUPO" es un número redondo: 50 -> 65 y 250 -> 325.
-
-    Ejemplo real, el grupo 2 de la AF08: 250 x 1,3 = 325 exactos. Cuatro de sus
-    celdas caen en ",5" (Santander 45,5 y tres de 32,5). Truncarlas todas daría
-    323 y subirlas todas 327; ninguno de los dos es el número comprometido, así
-    que dos suben y dos bajan.
-
-    Método del mayor resto: se trunca todo, se cuenta cuántas unidades faltan
-    para llegar al total del grupo y se reparten entre las celdas de fracción
-    más alta. Los empates se rompen por base descendente y luego por nombre,
-    para que el resultado no dependa del orden en que se leyó el Excel.
-    """
+    """Reparte el 30 % de sobrecupo de un grupo."""
     total_base = sum(c["cuposBase"] for c in celdas)
     # floor(x + 0,5): round() redondea al par
     total_maximo = int(math.floor(total_base * (1 + SOBRECUPO) + 0.5))
@@ -117,7 +74,7 @@ def repartir_sobrecupo(celdas):
 
 
 def columna(encabezados, *fragmentos):
-    """Los encabezados del formato SENA tienen espacios dobles y tildes; se busca por fragmento."""
+    """Busca una columna por fragmento."""
     for indice, texto in enumerate(encabezados):
         arriba = clave_sin_tildes(texto.upper())
         if all(clave_sin_tildes(f.upper()) in arriba for f in fragmentos):
@@ -207,7 +164,7 @@ def leer_cobertura(libro, acciones):
 
         coberturas = []
 
-        # Sede presencial: departamento + ciudad + cuántos asisten en el sitio.
+        # sede presencial
         ciudad = normalizar_ubicacion(fila[3])
         if ciudad and fila[4]:
             coberturas.append(
@@ -220,7 +177,7 @@ def leer_cobertura(libro, acciones):
                 }
             )
 
-        # Cobertura virtual: hasta 25 pares departamento/beneficiarios.
+        # cobertura virtual, hasta 25 pares
         for i in range(5, 55, 2):
             if i + 1 >= len(fila):
                 break
@@ -252,15 +209,7 @@ def leer_cobertura(libro, acciones):
 
 
 def construir_ofertas(accion):
-    """
-    Lo que el público ve y reserva es (acción × ubicación), no el grupo: la
-    persona elige curso y departamento/ciudad, y el reparto en grupos lo hace
-    después el equipo. Por eso los cupos de los grupos se suman aquí.
-
-    Se suman los máximos que ya repartió `repartir_sobrecupo` por grupo. No se
-    vuelve a redondear aquí: el reparto ya garantiza que cada grupo suma su
-    total exacto, y sumar grupos enteros conserva esa propiedad.
-    """
+    """Suma los cupos de los grupos por ubicación."""
     acumulado = {}
     for grupo in accion["grupos"]:
         for cobertura in grupo["coberturas"]:

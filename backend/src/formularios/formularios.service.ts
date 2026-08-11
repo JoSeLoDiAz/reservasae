@@ -39,7 +39,7 @@ const TIPOS_DE_TEXTO: TipoPregunta[] = [
   TipoPregunta.TELEFONO,
 ];
 
-/** Preguntas que el visitante no responde: solo muestran texto. */
+/** Preguntas que solo muestran texto. */
 const TIPOS_SIN_RESPUESTA: TipoPregunta[] = [TipoPregunta.PARRAFO];
 
 type PreguntaConOpciones = Pregunta & { opciones: Opcion[] };
@@ -48,11 +48,9 @@ type PreguntaConOpciones = Pregunta & { opciones: Opcion[] };
 export class FormulariosService {
   constructor(private readonly prisma: PrismaService) {}
 
-  // -------------------------------------------------------------------------
-  // Lectura
-  // -------------------------------------------------------------------------
+  // lectura
 
-  /** Catálogo de campos del núcleo, para que el panel sepa qué ofrecer. */
+  /** Catálogo de campos del núcleo. */
   camposNucleo() {
     return CAMPOS_NUCLEO;
   }
@@ -80,7 +78,7 @@ export class FormulariosService {
     }));
   }
 
-  /** Vista completa para el constructor, incluidas las preguntas archivadas. */
+  /** Vista completa para el constructor. */
   async obtener(id: string) {
     const formulario = await this.prisma.formulario.findUnique({
       where: { id },
@@ -97,7 +95,7 @@ export class FormulariosService {
 
     return {
       ...formulario,
-      // se avisa mientras se construye, no al publicar
+      // qué falta para publicar
       problemas: this.problemasParaPublicar(formulario.preguntas),
     };
   }
@@ -135,7 +133,7 @@ export class FormulariosService {
           .filter((p) => p.seccionId === s.id)
           .map((p) => this.vistaPreguntaPublica(p)),
       })),
-      // las preguntas sin seccion van al final
+      // preguntas sin sección, al final
       sueltas: formulario.preguntas
         .filter((p) => !p.seccionId)
         .map((p) => this.vistaPreguntaPublica(p)),
@@ -167,9 +165,7 @@ export class FormulariosService {
     };
   }
 
-  // -------------------------------------------------------------------------
-  // Formulario
-  // -------------------------------------------------------------------------
+  // formulario
 
   async crear(dto: CrearFormularioDto) {
     try {
@@ -178,7 +174,7 @@ export class FormulariosService {
           convenioId: dto.convenioId,
           slug: dto.slug,
           titulo: dto.titulo,
-          // nace en borrador: aun no puede reservar
+          // nace en borrador
           publicado: false,
           secciones: {
             create: [{ titulo: 'Datos de la organización', orden: 0 }],
@@ -253,7 +249,7 @@ export class FormulariosService {
     }
 
     for (const pregunta of activas) {
-      // Un desplegable sin opciones se muestra vacío y bloquea el envío.
+      // un desplegable necesita opciones
       const necesitaOpciones =
         TIPOS_CON_OPCIONES.includes(pregunta.tipo) &&
         POR_CAMPO.get(pregunta.campoNucleo as CampoNucleo)?.controlEspecial === undefined;
@@ -278,9 +274,7 @@ export class FormulariosService {
     return problemas;
   }
 
-  // -------------------------------------------------------------------------
-  // Apariencia
-  // -------------------------------------------------------------------------
+  // apariencia
 
   /** Guarda SOLO los colores que sobreescribe. */
   async actualizarApariencia(id: string, dto: ActualizarAparienciaDto) {
@@ -322,7 +316,7 @@ export class FormulariosService {
     return this.obtener(id);
   }
 
-  /** La version NO se reinicia: si vuelven a subir uno, la URL cambia igual. */
+  /** Borra el logo del formulario. */
   async borrarLogo(id: string) {
     const formulario = await this.prisma.formulario.findUnique({ where: { id } });
     if (!formulario) throw new NotFoundException('No existe ese formulario.');
@@ -334,9 +328,7 @@ export class FormulariosService {
     return this.obtener(id);
   }
 
-  // -------------------------------------------------------------------------
-  // Secciones
-  // -------------------------------------------------------------------------
+  // secciones
 
   async crearSeccion(formularioId: string, dto: SeccionDto) {
     const ultimo = await this.prisma.seccion.aggregate({
@@ -371,14 +363,12 @@ export class FormulariosService {
     return this.obtener(formularioId);
   }
 
-  // -------------------------------------------------------------------------
-  // Preguntas
-  // -------------------------------------------------------------------------
+  // preguntas
 
   async crearPregunta(formularioId: string, dto: CrearPreguntaDto) {
     const definicion = dto.campoNucleo ? POR_CAMPO.get(dto.campoNucleo) : undefined;
 
-    // el tipo de un campo del nucleo lo manda el catalogo
+    // el catálogo manda el tipo
     const tipo = definicion?.tipo ?? dto.tipo;
 
     const ultimo = await this.prisma.pregunta.aggregate({
@@ -436,7 +426,7 @@ export class FormulariosService {
       }
     }
 
-    // con respuestas ya recogidas no se cambia el tipo
+    // con respuestas no se cambia el tipo
     if (dto.tipo && dto.tipo !== pregunta.tipo && pregunta._count.respuestas > 0) {
       throw new ConflictException(
         `Esta pregunta ya tiene ${pregunta._count.respuestas} respuestas. ` +
@@ -481,9 +471,7 @@ export class FormulariosService {
     return this.obtener(formularioId);
   }
 
-  // -------------------------------------------------------------------------
-  // Opciones
-  // -------------------------------------------------------------------------
+  // opciones
 
   async crearOpcion(preguntaId: string, dto: OpcionDto) {
     const pregunta = await this.prisma.pregunta.findUnique({ where: { id: preguntaId } });
@@ -503,7 +491,7 @@ export class FormulariosService {
         data: {
           preguntaId,
           etiqueta: dto.etiqueta,
-          // el valor va aparte de la etiqueta
+          // sin valor, se usa la etiqueta
           valor: dto.valor?.trim() || dto.etiqueta,
           orden: (ultimo._max.orden ?? -1) + 1,
         },
@@ -565,9 +553,7 @@ export class FormulariosService {
     return this.obtener(pregunta.formularioId);
   }
 
-  // -------------------------------------------------------------------------
-  // Envío: validación de las respuestas que no son del núcleo
-  // -------------------------------------------------------------------------
+  // envío: validar respuestas
 
   /** Valida las respuestas y las deja listas para guardar. */
   async prepararRespuestas(
@@ -594,14 +580,14 @@ export class FormulariosService {
     const preparadas: Prisma.RespuestaCreateWithoutReservaInput[] = [];
 
     for (const pregunta of formulario.preguntas) {
-      // los campos del nucleo los valida su DTO
+      // el núcleo lo valida el DTO
       if (pregunta.campoNucleo || TIPOS_SIN_RESPUESTA.includes(pregunta.tipo)) continue;
 
       const visible = this.estaVisible(pregunta, formulario.preguntas, porId);
       const enviada = porId.get(pregunta.id);
 
       if (!visible) {
-        // si estaba oculta, se descarta lo que venga
+        // oculta: se descarta
         continue;
       }
 
@@ -652,7 +638,7 @@ export class FormulariosService {
     enviada: RespuestaDto,
   ): Prisma.RespuestaCreateWithoutReservaInput {
     const base = {
-      // se congela la etiqueta que la persona leyo
+      // congelar la etiqueta leída
       etiquetaPregunta: pregunta.etiqueta,
       pregunta: { connect: { id: pregunta.id } },
     };

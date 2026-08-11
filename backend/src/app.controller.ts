@@ -6,8 +6,7 @@ import type { Estado } from './app.service';
 export class AppController {
   constructor(private readonly appService: AppService) {}
 
-  // nginx enruta /api/ -> backend/ quitando el prefijo, asi que esto
-  // se alcanza publicamente como /api/estado
+  // publicamente es /api/estado
   @Get('estado')
   getEstado(): Estado {
     return this.appService.getEstado();

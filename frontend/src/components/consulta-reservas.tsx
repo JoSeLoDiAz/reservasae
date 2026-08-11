@@ -132,8 +132,7 @@ function TarjetaReserva({
   }
 
   async function cancelar() {
-    // Confirmacion explicita: cancelar libera los cupos inmediatamente y se
-    // los lleva quien este en la lista de espera. No hay vuelta atras.
+    // confirmación explícita antes de cancelar
     if (
       !window.confirm(
         "Al cancelar, los cupos se liberan de inmediato y pueden ser tomados por " +

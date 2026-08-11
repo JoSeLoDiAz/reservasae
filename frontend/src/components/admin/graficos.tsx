@@ -2,13 +2,7 @@
 
 import { useId, useState } from "react";
 
-/**
- * Piezas de visualización del tablero.
- *
- * Una serie por gráfico, así que sin leyenda. Los estados llevan siempre
- * icono y texto, no solo color: rojo y ámbar no se separan bajo
- * deuteranopía.
- */
+/** Piezas de visualización del tablero. */
 
 export type EstadoSemaforo = "DISPONIBLE" | "ULTIMOS_CUPOS" | "COMPLETO";
 
@@ -18,9 +12,7 @@ export function n(valor: number): string {
   return numero.format(valor);
 }
 
-// ---------------------------------------------------------------------------
-// Cifras
-// ---------------------------------------------------------------------------
+// cifras
 
 export function TarjetaCifra({
   titulo,
@@ -129,7 +121,7 @@ export function Medidor({
   );
 }
 
-/** Dos series por categoría; por eso sí lleva leyenda. */
+/** Barras de dos series por categoría. */
 export function BarrasAgrupadas({
   categorias,
   series,
@@ -179,16 +171,14 @@ export function BarrasAgrupadas({
   );
 }
 
-/** Escalones de serie ya validados en la guía de gráficos. */
+/** Escalones de color de las series. */
 export const SERIE = {
   uno: "var(--serie-1)",
   dos: "var(--serie-2)",
   tres: "var(--serie-3)",
 };
 
-// ---------------------------------------------------------------------------
-// Barra de avance
-// ---------------------------------------------------------------------------
+// barra de avance
 
 export function BarraAvance({
   valor,
@@ -232,7 +222,7 @@ export function BarraAvance({
   );
 }
 
-/** Ranking horizontal. Se escala contra el mayor de la lista. */
+/** Ranking horizontal de barras. */
 export function ListaBarras({
   datos,
   sufijo,
@@ -282,9 +272,7 @@ export function ListaBarras({
   );
 }
 
-// ---------------------------------------------------------------------------
-// Estado
-// ---------------------------------------------------------------------------
+// estado
 
 const ESTADOS: Record<
   EstadoSemaforo,
@@ -316,13 +304,11 @@ export function EtiquetaEstado({ estado }: { estado: EstadoSemaforo }) {
   );
 }
 
-// ---------------------------------------------------------------------------
-// Serie por día
-// ---------------------------------------------------------------------------
+// serie por día
 
 type Punto = { dia: string; reservas: number; cupos: number };
 
-/** Barras y no línea: con pocos días, la línea miente. */
+/** Barras de cupos por día. */
 export function BarrasPorDia({ datos }: { datos: Punto[] }) {
   const [encima, setEncima] = useState<number | null>(null);
   const id = useId();
@@ -340,7 +326,7 @@ export function BarrasPorDia({ datos }: { datos: Punto[] }) {
 
   return (
     <div className="relative">
-      {/* Rejilla discreta: tres referencias, no una por valor. */}
+      {/* rejilla de tres referencias */}
       <div className="pointer-events-none absolute inset-x-0 top-0 h-40">
         {[0, 0.5, 1].map((f) => (
           <div
@@ -363,8 +349,7 @@ export function BarrasPorDia({ datos }: { datos: Punto[] }) {
             onMouseEnter={() => setEncima(i)}
             onMouseLeave={() => setEncima(null)}
           >
-            {/* Zona sensible de altura completa: acertar una barra de 3 px de
-                alto con el ratón es imposible. */}
+            {/* zona sensible de altura completa */}
             <div
               className="w-full rounded-t bg-marca transition-opacity"
               style={{
@@ -392,8 +377,7 @@ export function BarrasPorDia({ datos }: { datos: Punto[] }) {
         </div>
       )}
 
-      {/* La misma información en texto, para lectores de pantalla y para quien
-          prefiera leerla. */}
+      {/* la misma serie en texto */}
       <p id={id} className="sr-only">
         {datos.map((d) => `${d.dia}: ${d.cupos} cupos`).join(". ")}
       </p>
@@ -410,7 +394,7 @@ function fecha(iso: string, largo = false): string {
   });
 }
 
-// ---------------------------------------------------------------------------
+// iconos
 
 const TRAZO = {
   fill: "none",

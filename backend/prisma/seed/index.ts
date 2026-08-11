@@ -1,9 +1,4 @@
-/**
- * Carga el catálogo de los dos proyectos.
- *
- * Idempotente. Nunca toca `cuposOcupados` ni el `visible` que un admin
- * haya cambiado. El JSON lo genera `scripts/extraer-catalogo.py`.
- */
+/** Carga el catálogo de los dos proyectos. */
 
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -67,7 +62,7 @@ type CatalogoJson = {
   }>;
 };
 
-/** Cachea las ubicaciones ya creadas para no consultar la base 114 veces. */
+/** Cachea las ubicaciones ya creadas. */
 const cacheUbicaciones = new Map<string, string>();
 
 async function idUbicacion(
@@ -197,7 +192,7 @@ async function main() {
             modalidad: modalidadDelGrupo(grupoJson.coberturas),
             sedeUbicacionId: sedeId,
           },
-          // Las fechas y el horario los cargan los admins; el seed no las pisa.
+          // las fechas las cargan los admins
           update: {
             modalidad: modalidadDelGrupo(grupoJson.coberturas),
             sedeUbicacionId: sedeId,

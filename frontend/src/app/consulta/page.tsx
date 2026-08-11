@@ -6,7 +6,7 @@ export default function PaginaConsulta() {
   return (
     <main className="mx-auto w-full max-w-3xl px-6 py-10">
       <header className="mb-8">
-        {/* Sin enlace a la raíz: devuelve 404 a propósito, no hay índice. */}
+        {/* sin enlace a la raíz */}
         <span className="text-sm font-medium text-marca">Convoca</span>
         <h1 className="mt-2 text-3xl font-semibold tracking-tight">
           Consultar mis reservas

@@ -1,17 +1,6 @@
 @import "tailwindcss";
 
-/*
- * Todo el color de la aplicacion sale de estas variables. Ningun componente
- * escribe un color suelto, asi que cambiarlas cambia la app entera: es lo que
- * permite que el panel de administracion controle la apariencia.
- *
- * Hay dos paletas completas, claro y oscuro. No es el mismo tema con los
- * valores invertidos: en oscuro hay que bajar la saturacion de la marca y
- * subir la luminosidad del texto, o el resultado vibra y cansa la vista.
- *
- * Estos valores son solo el punto de partida. `ProveedorMarca` inyecta encima
- * los que el administrador haya guardado.
- */
+/* Paletas base de color de la aplicacion. */
 
 :root,
 :root[data-tema="claro"] {
@@ -52,9 +41,7 @@
   --error: #be123c;
   --error-suave: #fff1f2;
 
-  /* Series de los gráficos. NO las edita el administrador: el ORDEN de estos
-     escalones es el mecanismo que garantiza que se distingan bajo daltonismo,
-     y cambiarlos rompería esa garantía. Están validados como conjunto. */
+  /* series de los graficos */
   --serie-1: #2a78d6;
   --serie-2: #eb6834;
   --serie-3: #1baf7a;
@@ -91,8 +78,7 @@
   --campo-borde: #33405c;
   --campo-foco: #60a5fa;
 
-  /* En oscuro los estados se aclaran y sus fondos se oscurecen: el verde y el
-     rojo del tema claro sobre fondo oscuro no llegan al contraste minimo. */
+  /* estados aclarados para fondo oscuro */
   --exito: #34d399;
   --exito-suave: #053225;
   --aviso: #fbbf24;
@@ -100,8 +86,7 @@
   --error: #fb7185;
   --error-suave: #3f0d16;
 
-  /* Los mismos ocho tonos, reescalonados para fondo oscuro. No es otra
-     paleta: es la misma validada contra la superficie oscura. */
+  /* series reescalonadas para fondo oscuro */
   --serie-1: #3987e5;
   --serie-2: #d95926;
   --serie-3: #199e70;
@@ -158,9 +143,7 @@ h3 {
   color: var(--titulo);
 }
 
-/* Accesibilidad: quien pide menos animacion en su sistema no deberia recibir
-   transiciones. Es una preferencia real de personas con vertigo o migrana, no
-   una manía. */
+/* respetar menos animacion */
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -172,24 +155,13 @@ h3 {
   }
 }
 
-/* El aro de foco es lo que guia a quien navega con el teclado, asi que tiene
-   su propio color configurable en vez de heredar el de marca: si alguien elige
-   una marca casi del color del fondo, el foco desapareceria con ella. */
+/* aro de foco con su propio color */
 :focus-visible {
   outline: 2px solid var(--campo-foco);
   outline-offset: 2px;
 }
 
-/* ---------------------------------------------------------------------------
-   Impresion / PDF
-   ---------------------------------------------------------------------------
-   "Exportar a PDF" es window.print() con esta hoja, no una libreria: el
-   navegador ya sabe paginar, incrustar fuentes y guardar en PDF, y hacerlo
-   asi evita meter puppeteer (que necesitaria Chromium dentro de la imagen
-   alpine) o jsPDF (que produce paginas peores que el propio navegador).
-
-   Se fuerza el tema claro: imprimir el modo oscuro gasta un cartucho entero y
-   sale ilegible en papel. --------------------------------------------------- */
+/* impresion / pdf */
 @media print {
   :root,
   :root[data-tema="oscuro"],
@@ -212,8 +184,7 @@ h3 {
     margin: 14mm 12mm;
   }
 
-  /* Sin esto el navegador descarta los fondos y las barras de avance salen
-     en blanco: justo lo que se queria imprimir. */
+  /* conservar fondos al imprimir */
   * {
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
@@ -224,14 +195,14 @@ h3 {
     font-size: 10.5pt;
   }
 
-  /* Navegacion, botones y filtros no significan nada en papel. */
+  /* ocultar controles en papel */
   .no-imprimir,
   header nav,
   button {
     display: none !important;
   }
 
-  /* Una tarjeta partida entre dos paginas es ilegible. */
+  /* no partir una tarjeta entre paginas */
   .imprimible-bloque {
     break-inside: avoid;
     box-shadow: none;
@@ -241,8 +212,7 @@ h3 {
     break-before: page;
   }
 
-  /* En pantalla las tablas largas van dentro de un contenedor con scroll; en
-     papel eso recortaria todo salvo lo visible. */
+  /* expandir los contenedores con scroll */
   .caja-scroll {
     max-height: none !important;
     overflow: visible !important;
@@ -260,8 +230,7 @@ h3 {
   }
 }
 
-/* Solo aparece al imprimir: encabeza el documento con contexto que en
-   pantalla ya da la propia interfaz. */
+/* bloque visible solo al imprimir */
 .solo-impresion {
   display: none;
 }
@@ -271,8 +240,7 @@ h3 {
   }
 }
 
-/* Tablas y listas largas. Se define aqui y no clase a clase para que el
-   sombreado de filas salga igual en el panel y en cualquier exportacion. */
+/* estilo comun de tablas de datos */
 .tabla-datos {
   width: 100%;
   border-collapse: collapse;

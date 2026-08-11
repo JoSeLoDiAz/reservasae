@@ -5,15 +5,14 @@ const recortar = ({ value }: { value: unknown }) =>
   typeof value === 'string' ? value.trim() : value;
 
 export class EditarReservaDto {
-  /** Único requisito para editar: el NIT de la empresa dueña de la reserva. */
+  /** El NIT de la empresa dueña. */
   @IsString()
   @MinLength(5)
   @MaxLength(20)
   @Transform(recortar)
   nit!: string;
 
-  // 0 no se admite aquí: bajar a cero es cancelar, y eso tiene su propio
-  // endpoint para que quede registrado como cancelación y no como una edición.
+  // 0 no se admite: bajar a cero es cancelar
   @IsInt()
   @Min(1)
   @Max(500)

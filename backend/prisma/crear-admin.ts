@@ -1,11 +1,4 @@
-/**
- * Crea o reinicia una cuenta de administrador.
- *
- *   pnpm --filter backend db:crear-admin correo@ejemplo.com "Nombre" [--rol GESTOR]
- *
- * Imprime la clave temporal una sola vez. Para el primer usuario o para
- * recuperar el acceso.
- */
+/** Crea o reinicia una cuenta de administrador. */
 
 import { PrismaClient, RolAdmin } from '../generated/prisma';
 import { generarClaveTemporal, hashearClave } from '../src/admin/claves';

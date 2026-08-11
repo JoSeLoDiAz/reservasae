@@ -1,11 +1,7 @@
 import { createParamDecorator, ExecutionContext } from '@nestjs/common';
 import type { Request } from 'express';
 
-/**
- * La IP real llega en `CF-Connecting-IP`, no en el socket.
- *
- * Detrás del túnel todo parece venir de la red de Docker.
- */
+/** La IP real llega en `CF-Connecting-IP`. */
 export function ipReal(req: Request): string {
   const cloudflare = req.headers['cf-connecting-ip'];
   if (typeof cloudflare === 'string' && cloudflare.trim()) {

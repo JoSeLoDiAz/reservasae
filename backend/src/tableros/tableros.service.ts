@@ -17,16 +17,14 @@ export type FiltrosReservas = {
 
 const POR_PAGINA = 25;
 
-/** El universo son TODAS las acciones, publicadas o no. */
+/** Todas las acciones, publicadas o no. */
 const UNIVERSO: Prisma.OfertaWhereInput = {};
 
 @Injectable()
 export class TablerosService {
   constructor(private readonly prisma: PrismaService) {}
 
-  // -------------------------------------------------------------------------
-  // Resumen
-  // -------------------------------------------------------------------------
+  // resumen
 
   async resumen() {
     const [ofertas, reservas, empresas, base] = await Promise.all([
@@ -40,7 +38,7 @@ export class TablerosService {
         _count: true,
       }),
       this.prisma.empresa.count(),
-      // La meta comprometida en los proyectos, sin el 30 % de sobrecupo.
+      // meta comprometida, sin sobrecupo
       this.prisma.grupoCobertura.aggregate({ _sum: { cuposBase: true } }),
     ]);
 
@@ -62,10 +60,10 @@ export class TablerosService {
       cupos,
       ocupados,
       disponibles: cupos - ocupados,
-      // un decimal: se lee de un vistazo
+      // avance contra el tope
       avance: pct(ocupados, cupos),
 
-      // la que manda: avance contra la meta comprometida
+      // avance contra la meta
       metaBase,
       avanceMeta: pct(ocupados, metaBase),
 
@@ -83,7 +81,7 @@ export class TablerosService {
     };
   }
 
-  /** Los cortes de gestión, todos en una sola llamada. */
+  /** Los cortes de gestión en una sola llamada. */
   async analisis() {
     const [ofertas, empresas] = await Promise.all([
       this.prisma.oferta.findMany({
@@ -105,7 +103,7 @@ export class TablerosService {
       }),
     ]);
 
-    // --- Territorio -------------------------------------------------------
+    // territorio
     const territorio = new Map<
       string,
       { nombre: string; tipo: string; cupos: number; ocupados: number; acciones: number }
@@ -125,7 +123,7 @@ export class TablerosService {
       territorio.set(clave, fila);
     }
 
-    // --- Modalidad --------------------------------------------------------
+    // modalidad
     const modalidad = new Map<string, { cupos: number; ocupados: number; ofertas: number }>();
     for (const o of ofertas) {
       const fila = modalidad.get(o.modalidad) ?? { cupos: 0, ocupados: 0, ofertas: 0 };
@@ -135,7 +133,7 @@ export class TablerosService {
       modalidad.set(o.modalidad, fila);
     }
 
-    // --- Gremio y tamaño --------------------------------------------------
+    // gremio y tamaño
     const gremio = new Map<string, { empresas: number; cupos: number }>();
     const tamano = new Map<string, { empresas: number; cupos: number }>();
 
@@ -155,7 +153,7 @@ export class TablerosService {
       tamano.set(clasificarTamano(e.numeroColaboradores), t);
     }
 
-    // --- Concentración ----------------------------------------------------
+    // concentración
     const porEmpresa = empresas
       .map((e) => ({
         razonSocial: e.razonSocial,
@@ -207,14 +205,14 @@ export class TablerosService {
           ubicacion: o.ubicacion.nombre,
           modalidad: o.modalidad,
           cupos: o.cuposMaximos,
-          // distingue "no ha llegado nadie" de "no esta abierta"
+          // distingue sin reservas de sin abrir
           publicada: o.accionFormacion.visible,
         }))
         .sort((a, b) => b.cupos - a.cupos),
     };
   }
 
-  /** Ocupación por acción de formación: es la barra de avance del tablero. */
+  /** Ocupación por acción de formación. */
   async porAccion() {
     const acciones = await this.prisma.accionFormacion.findMany({
       orderBy: [{ convenio: { orden: 'asc' } }, { orden: 'asc' }],
@@ -224,7 +222,7 @@ export class TablerosService {
       },
     });
 
-    // la espera vive en las reservas: se cruza aparte
+    // la espera vive en las reservas
     const espera = await this.prisma.reserva.groupBy({
       by: ['ofertaId'],
       where: { cuposEnEspera: { gt: 0 }, estado: { not: EstadoReserva.CANCELADA } },
@@ -412,7 +410,7 @@ export class TablerosService {
     };
   }
 
-  /** El detalle acción × ubicación: la tabla con semáforo del Excel original. */
+  /** Detalle acción × ubicación. */
   async porUbicacion(convenio?: string) {
     const ofertas = await this.prisma.oferta.findMany({
       where: convenio ? { accionFormacion: { convenio: { slug: convenio } } } : undefined,
@@ -445,7 +443,7 @@ export class TablerosService {
     }));
   }
 
-  /** Cuántos cupos lleva cada empresa. Lo pidió el cliente explícitamente. */
+  /** Cuántos cupos lleva cada empresa. */
   async porEmpresa(buscar?: string) {
     const empresas = await this.prisma.empresa.findMany({
       where: buscar
@@ -481,11 +479,11 @@ export class TablerosService {
         cursos: [...new Set(e.reservas.map((r) => r.oferta.accionFormacion.codigo))].sort(),
         creadoEn: e.creadoEn,
       }))
-      // Quien más cupos lleva arriba: es lo primero que se quiere mirar.
+      // quien más cupos lleva, arriba
       .sort((a, b) => b.confirmados - a.confirmados || a.razonSocial.localeCompare(b.razonSocial));
   }
 
-  /** Reservas por dia. Se agrupa en SQL, no en Node. */
+  /** Reservas por día, agrupadas en SQL. */
   async serie(dias = 30) {
     const filas = await this.prisma.$queryRaw<
       Array<{ dia: Date; reservas: bigint; cupos: bigint }>
@@ -506,9 +504,7 @@ export class TablerosService {
     }));
   }
 
-  // -------------------------------------------------------------------------
-  // Ritmo y proyección
-  // -------------------------------------------------------------------------
+  // ritmo y proyección
 
   /** Cupos netos por día, desde `movimientos_reserva`. */
   private async netoPorDia(dias: number, accionId?: string): Promise<PuntoNeto[]> {
@@ -532,7 +528,7 @@ export class TablerosService {
     }));
   }
 
-  /** Lo mismo pero por fecha de alta: solo si no hay movimientos. */
+  /** Neto por fecha de alta, sin movimientos. */
   private async netoAproximado(dias: number, accionId?: string): Promise<PuntoNeto[]> {
     const condicionAccion = accionId
       ? Prisma.sql`AND r."ofertaId" IN (SELECT id FROM "ofertas" WHERE "accionFormacionId" = ${accionId})`
@@ -560,7 +556,7 @@ export class TablerosService {
       return { serie: movimientos, origen: 'MOVIMIENTOS' as const };
     }
 
-    // sin movimientos pero con reservas: se aproxima y se avisa
+    // sin movimientos: se aproxima
     const aproximada = await this.netoAproximado(dias, accionId);
     return aproximada.length
       ? { serie: aproximada, origen: 'APROXIMADO' as const }
@@ -580,7 +576,7 @@ export class TablerosService {
     );
   }
 
-  /** Ritmo global y por acción, con la fecha estimada a ese ritmo. */
+  /** Ritmo global y por acción, con fecha estimada. */
   async proyeccion(dias = 14) {
     const hoy = new Date();
     const [{ serie, origen }, historia, base, ofertas, acciones] = await Promise.all([
@@ -612,7 +608,7 @@ export class TablerosService {
       diasDeHistoria: historia,
     });
 
-    // una consulta por acción sería una tormenta; se reparte la serie global
+    // la serie de cada acción
     const porAccion = await Promise.all(
       acciones.map(async (accion) => {
         const suyo = await this.serieNeta(dias, accion.id);
@@ -643,14 +639,12 @@ export class TablerosService {
     return {
       dias,
       total,
-      // las más lentas primero: son las accionables
+      // las más lentas primero
       acciones: porAccion.sort((a, b) => a.ritmoDiario - b.ritmoDiario),
     };
   }
 
-  // -------------------------------------------------------------------------
-  // Respuestas del formulario
-  // -------------------------------------------------------------------------
+  // respuestas del formulario
 
   /** Qué contestó la gente, agregado por pregunta. */
   async respuestasDeFormulario(formularioId: string) {
@@ -678,7 +672,7 @@ export class TablerosService {
     });
     if (!formulario) throw new NotFoundException('No existe ese formulario.');
 
-    // denominador: reservas vivas de este formulario
+    // denominador: reservas vivas
     const totalReservas = await this.prisma.reserva.count({
       where: { formularioId, estado: { not: EstadoReserva.CANCELADA } },
     });
@@ -730,7 +724,7 @@ export class TablerosService {
           return { ...comun, opciones: contarOpciones(pregunta.opciones, respuestas) };
         }
 
-        // el texto libre no se agrega: contarlo da una lista de frecuencia 1
+        // el texto libre no se agrega
         return {
           ...comun,
           texto: respuestas
@@ -748,9 +742,7 @@ export class TablerosService {
     };
   }
 
-  // -------------------------------------------------------------------------
-  // Tabla de reservas
-  // -------------------------------------------------------------------------
+  // tabla de reservas
 
   private donde(filtros: FiltrosReservas): Prisma.ReservaWhereInput {
     const y: Prisma.ReservaWhereInput[] = [];
@@ -769,7 +761,7 @@ export class TablerosService {
           { contactoNombre: { contains: texto, mode: 'insensitive' } },
           { contactoCorreo: { contains: texto, mode: 'insensitive' } },
           { empresa: { razonSocial: { contains: texto, mode: 'insensitive' } } },
-          // el NIT se busca por digitos, sin puntos
+          // el NIT se busca por dígitos
           ...(digitos ? [{ empresa: { nit: { contains: digitos } } }] : []),
         ],
       });
@@ -846,7 +838,7 @@ export class TablerosService {
     };
   }
 
-  /** Todas las reservas del filtro, sin paginar. Solo para exportar. */
+  /** Reservas del filtro sin paginar, para exportar. */
   async reservasParaExportar(filtros: FiltrosReservas) {
     return this.prisma.reserva.findMany({
       where: this.donde(filtros),
@@ -869,7 +861,7 @@ function soloDigitos(texto: string): string {
   return texto.replace(/\D/g, '');
 }
 
-/** Un decimal: "34,7 %" se lee de un vistazo, "34,69999" no. */
+/** Porcentaje con un decimal. */
 function pct(parte: number, total: number): number {
   return total > 0 ? Math.round((parte / total) * 1000) / 10 : 0;
 }
@@ -885,7 +877,7 @@ function clasificarTamano(colaboradores: number | null): string {
   return 'Grande';
 }
 
-/** Media, mediana y extremos de una lista YA ordenada. */
+/** Media, mediana y extremos de una lista ordenada. */
 export function resumenNumerico(valores: number[]) {
   if (!valores.length) {
     return { media: null, mediana: null, minimo: null, maximo: null, suma: 0 };
@@ -929,7 +921,7 @@ export function contarOpciones(
     porcentaje: pct(cuenta.get(o.valor) ?? 0, total),
   }));
 
-  // valores que ya no están en el catálogo pero sí en las respuestas
+  // valores fuera del catálogo
   const catalogo = new Set(opciones.map((o) => o.valor));
   const huerfanas = [...cuenta.entries()]
     .filter(([valor]) => !catalogo.has(valor))
@@ -944,7 +936,7 @@ export function contarOpciones(
   return [...conocidas, ...huerfanas].sort((a, b) => b.veces - a.veces);
 }
 
-/** Una respuesta guarda su valor en la columna que le toca según el tipo. */
+/** Valor de la respuesta según su tipo. */
 export function valorLegible(respuesta: {
   valorTexto: string | null;
   valorNumero: number | null;

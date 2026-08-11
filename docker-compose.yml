@@ -32,14 +32,14 @@ services:
     env_file:
       - backend/.env
     environment:
-      # Subcarpeta para que el volumen pueda montarse sin chocar con lost+found
+      # subcarpeta: evita chocar con lost+found
       PGDATA: /var/lib/postgresql/data/pgdata
-    # Solo localhost: la BD no se alcanza desde fuera del servidor.
+    # solo localhost
     ports:
       - "127.0.0.1:5433:5432"
     volumes:
       - reservasae-pgdata:/var/lib/postgresql/data
-    # Tuning para este servidor (16 nucleos, ~8 GB de RAM libres).
+    # tuning para este servidor
     command:
       - postgres
       - -c
@@ -74,7 +74,7 @@ services:
         condition: service_started
       frontend:
         condition: service_started
-    # Solo localhost. Aqui llega cloudflared.
+    # solo localhost: aqui llega cloudflared
     ports:
       - "127.0.0.1:4600:80"
     volumes:

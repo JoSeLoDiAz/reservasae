@@ -1,8 +1,4 @@
-/**
- * Las dos paletas a partir de un solo color.
- *
- * Los estados NO se derivan: están validados contra deuteranopía.
- */
+/** Las dos paletas a partir de un solo color. */
 
 import { EsquemaColor } from '../../generated/prisma';
 import { contraste, minimoExigido } from './contraste';
@@ -95,7 +91,7 @@ function derivarEsquema(
     esquema === 'CLARO'
       ? oklchAHex({ l: 0.965, c: Math.min(croma, 0.03), h: base.h })
       : oklchAHex({ l: 0.25, c: Math.min(croma, 0.06), h: base.h });
-  // el oscuro sale del mismo tono: negro azulado sobre un boton verde canta
+  // oscuro del mismo tono
   const casiNegro = oklchAHex({ l: 0.16, c: Math.min(croma, 0.03), h: base.h });
   colores.marcaTexto = textoLegible(colores.marca, '#ffffff', casiNegro);
 
@@ -115,7 +111,7 @@ function derivarEsquema(
     colores.encabezadoBorde = colores.borde;
   }
 
-  // el aro de foco tiene que verse contra el fondo del campo
+  // el foco debe verse en el campo
   const contra = contraste(colores.marca, colores.campoFondo) ?? 0;
   colores.campoFoco = contra >= 3 ? colores.marca : colores.marcaFuerte;
 

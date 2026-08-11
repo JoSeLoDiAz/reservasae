@@ -17,7 +17,7 @@ export function soloTokensValidos(guardados: unknown): ColoresTema {
   return limpio;
 }
 
-/** La paleta general con los colores propios del formulario encima. */
+/** La paleta general con lo propio encima. */
 export function fusionarColores(
   esquema: EsquemaColor,
   generales: unknown,
@@ -29,7 +29,7 @@ export function fusionarColores(
   };
 }
 
-/** Que tokens sobreescribe el formulario, para marcarlos en el panel. */
+/** Qué tokens sobreescribe el formulario. */
 export function tokensSobreescritos(propios: unknown): string[] {
   return Object.keys(soloTokensValidos(propios));
 }

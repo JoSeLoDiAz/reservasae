@@ -9,7 +9,7 @@ export type Resumen = {
   ocupados: number;
   disponibles: number;
   avance: number;
-  /** La meta comprometida en los proyectos, sin el 30 % de sobrecupo. */
+  /** La meta comprometida, sin sobrecupo. */
   metaBase: number;
   avanceMeta: number;
   enEspera: number;
@@ -321,7 +321,7 @@ export const tablerosApi = {
     pedir<PaginaReservas>(`/admin/tableros/reservas${consulta(filtros)}`),
 };
 
-/** Descarga por navegación, no por fetch: la cookie viaja sola. */
+/** Descarga por navegación. */
 export function descargar(
   informe: "reservas" | "ocupacion" | "empresas",
   filtros: Record<string, string | number | undefined> = {},

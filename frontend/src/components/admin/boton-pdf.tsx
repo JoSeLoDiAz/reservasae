@@ -1,6 +1,6 @@
 "use client";
 
-/** "Exportar a PDF" es `window.print()`, no una librería. */
+/** Botón de exportar a PDF. */
 export function BotonPdf({ etiqueta = "Exportar a PDF" }: { etiqueta?: string }) {
   return (
     <button

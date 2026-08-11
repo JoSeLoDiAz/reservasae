@@ -1,10 +1,4 @@
-/**
- * Publica u oculta las acciones de un convenio.
- *
- *   pnpm --filter backend db:publicar britcham-adee [--ocultar] [AF1 AF2]
- *
- * El panel ya lo hace con un botón; esto queda para la consola.
- */
+/** Publica u oculta las acciones de un convenio. */
 
 import { PrismaClient } from '../generated/prisma';
 

@@ -34,7 +34,7 @@ export class ReservasController {
     return this.reservas.crear(dto, { ip, userAgent });
   }
 
-  // solo pide el NIT, que es publico: limite estrecho
+  // solo pide el NIT: límite estrecho
   @Get()
   @Throttle({ default: { limit: 15, ttl: 60_000 } })
   consultar(@Query() dto: ConsultarReservasDto) {

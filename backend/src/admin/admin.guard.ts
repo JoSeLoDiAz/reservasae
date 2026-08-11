@@ -19,7 +19,7 @@ export const COOKIE_SESION = 'convoca_sesion';
 export const PUBLICA = 'ruta_publica';
 export const Publica = () => SetMetadata(PUBLICA, true);
 
-/** Rutas marcadas así se pueden usar aún debiendo cambiar la contraseña. */
+/** Rutas usables sin cambiar la clave. */
 export const PERMITIDA_SIN_CAMBIAR_CLAVE = 'sin_cambiar_clave';
 export const PermitidaSinCambiarClave = () =>
   SetMetadata(PERMITIDA_SIN_CAMBIAR_CLAVE, true);
@@ -57,7 +57,7 @@ export class AdminGuard implements CanActivate {
       throw new UnauthorizedException('Su sesión expiró. Vuelva a iniciar sesión.');
     }
 
-    // se relee en cada peticion: desactivar corta ya
+    // se relee en cada petición
     const admin = await this.prisma.admin.findUnique({ where: { id: sujeto } });
     if (!admin || !admin.activo) {
       throw new UnauthorizedException('La cuenta ya no está activa.');

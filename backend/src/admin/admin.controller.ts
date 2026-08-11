@@ -58,14 +58,12 @@ export class AdminController {
     private readonly jwt: JwtService,
   ) {}
 
-  // -------------------------------------------------------------------------
-  // Sesión
-  // -------------------------------------------------------------------------
+  // sesión
 
   @Post('sesion')
   @Publica()
   @HttpCode(200)
-  // Límite estrecho: es el único sitio donde se pueden probar contraseñas.
+  // límite estrecho de intentos
   @Throttle({ default: { limit: 8, ttl: 60_000 } })
   async iniciarSesion(
     @Body() dto: IniciarSesionDto,
@@ -114,9 +112,7 @@ export class AdminController {
     return this.admin.actualizarPerfil(admin, dto);
   }
 
-  // -------------------------------------------------------------------------
-  // Usuarios
-  // -------------------------------------------------------------------------
+  // usuarios
 
   @Get('usuarios')
   @Roles(RolAdmin.SUPERADMIN)
@@ -147,9 +143,7 @@ export class AdminController {
     return this.admin.reiniciarClave(admin, id);
   }
 
-  // -------------------------------------------------------------------------
-  // Marca
-  // -------------------------------------------------------------------------
+  // marca
 
   @Get('marca')
   verMarca() {
@@ -161,7 +155,7 @@ export class AdminController {
     return this.admin.actualizarMarca(admin, dto);
   }
 
-  // el constructor previsualiza formularios aun sin publicar
+  // previsualiza sin publicar
   @Get('marca/formulario/:slug')
   marcaDeFormulario(@Param('slug') slug: string) {
     return this.admin.obtenerMarcaDeFormulario(slug, true);
@@ -212,11 +206,9 @@ export class AdminController {
     return this.admin.borrarLogo(admin);
   }
 
-  // -------------------------------------------------------------------------
-  // Apariencia asistida
-  // -------------------------------------------------------------------------
+  // apariencia asistida
 
-  // aparte de GET /marca, que se pide en cada carga publica
+  // plantillas de tema
   @Get('apariencia/plantillas')
   plantillas() {
     return plantillasResueltas();
@@ -238,9 +230,7 @@ export class AdminController {
     return corregirContraste(dto.colores);
   }
 
-  // -------------------------------------------------------------------------
-  // Acciones de formación
-  // -------------------------------------------------------------------------
+  // acciones de formación
 
   @Get('convenios')
   listarConvenios() {
@@ -274,7 +264,7 @@ export class MarcaPublicaController {
     this.enviarLogo(respuesta, logoDatos, logoTipoMime);
   }
 
-  // segmento literal: un slug "logo" taparia la ruta de arriba
+  // segmento literal antes del slug
   @Get('formulario/:slug')
   marcaDeFormulario(@Param('slug') slug: string) {
     return this.admin.obtenerMarcaDeFormulario(slug);
@@ -286,7 +276,7 @@ export class MarcaPublicaController {
     this.enviarLogo(respuesta, logoDatos, logoTipoMime);
   }
 
-  // cacheable para siempre: la URL lleva ?v=logoVersion
+  // cacheable para siempre
   private enviarLogo(respuesta: Response, datos: Buffer, tipoMime: string) {
     respuesta.type(tipoMime);
     respuesta.setHeader('Cache-Control', 'public, max-age=31536000, immutable');

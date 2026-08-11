@@ -5,7 +5,7 @@ import { ReservasController } from './reservas.controller';
 import { ReservasService } from './reservas.service';
 
 @Module({
-  // Para validar y guardar las respuestas del formulario al reservar.
+  // para validar las respuestas
   imports: [FormulariosModule],
   controllers: [ReservasController],
   providers: [ReservasService],

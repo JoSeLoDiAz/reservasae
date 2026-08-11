@@ -4,7 +4,7 @@ import { PrismaService } from '../prisma/prisma.service';
 
 export type Semaforo = 'DISPONIBLE' | 'ULTIMOS_CUPOS' | 'COMPLETO';
 
-/** El semáforo del cupo. En el servidor: una sola verdad. */
+/** El semáforo del cupo. */
 export function semaforo(cuposMaximos: number, cuposOcupados: number): Semaforo {
   const disponibles = cuposMaximos - cuposOcupados;
   if (disponibles <= 0) return 'COMPLETO';
@@ -26,7 +26,7 @@ export class CatalogoService {
     return convenios;
   }
 
-  /** Lo que ve el público: solo acciones publicadas y ofertas abiertas. */
+  /** Acciones publicadas con sus ofertas abiertas. */
   async porConvenio(slug: string) {
     const convenio = await this.prisma.convenio.findUnique({
       where: { slug },
@@ -68,7 +68,7 @@ export class CatalogoService {
             tipoUbicacion: oferta.ubicacion.tipo,
             departamento: oferta.ubicacion.departamento,
             cuposMaximos: oferta.cuposMaximos,
-            // se expone lo que queda, no lo que llevan otros
+            // solo se expone lo que queda
             cuposDisponibles: Math.max(oferta.cuposMaximos - oferta.cuposOcupados, 0),
             estado: semaforo(oferta.cuposMaximos, oferta.cuposOcupados),
           }))

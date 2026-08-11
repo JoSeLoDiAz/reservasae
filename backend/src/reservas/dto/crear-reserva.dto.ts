@@ -43,7 +43,7 @@ export class CrearReservaDto {
   @Max(1_000_000)
   numeroColaboradores?: number;
 
-  /** BRITCHAM / ADEE / Ambos / Otro / Ninguno. Lo define el formulario. */
+  /** Gremio; lo define el formulario. */
   @IsOptional()
   @IsString()
   @MaxLength(100)
@@ -86,7 +86,7 @@ export class CrearReservaDto {
   @Max(500)
   cuposSolicitados!: number;
 
-  // Equals(true): sin consentimiento no hay registro
+  // sin consentimiento no hay registro
   @IsBoolean()
   @Equals(true, { message: 'Debe aceptar los términos de participación.' })
   aceptaTerminos!: boolean;
@@ -102,7 +102,7 @@ export class CrearReservaDto {
   @Transform(recortar)
   formularioSlug?: string;
 
-  /** Respuestas a las preguntas que NO son campos del sistema. */
+  /** Respuestas a las preguntas propias. */
   @IsOptional()
   @IsArray()
   @ArrayMaxSize(200)

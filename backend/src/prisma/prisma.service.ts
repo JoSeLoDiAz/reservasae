@@ -5,7 +5,7 @@ import { PrismaClient } from '../../generated/prisma';
 @Injectable()
 export class PrismaService extends PrismaClient implements OnModuleInit {
   constructor() {
-    // el logo pesa; se lee con omit: { logoDatos: false }
+    // el logo no viaja por defecto
     super({ omit: { formulario: { logoDatos: true } } });
   }
 

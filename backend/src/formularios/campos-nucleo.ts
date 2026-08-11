@@ -1,18 +1,14 @@
 import { CampoNucleo, TipoPregunta } from '../../generated/prisma';
 
-/**
- * Los campos sin los que no se puede crear una reserva.
- *
- * Tres candados: no se archivan, no cambian de tipo y no se repiten.
- */
+/** Campos sin los que no hay reserva. */
 
 export type DefinicionCampoNucleo = {
   campo: CampoNucleo;
   etiquetaSugerida: string;
   tipo: TipoPregunta;
-  /** Sin esto no hay reserva posible; el formulario no se puede publicar. */
+  /** Obligatorio para poder publicar. */
   obligatorioParaPublicar: boolean;
-  /** Lo pinta el frontend con un control propio, no con el genérico. */
+  /** El frontend lo pinta con control propio. */
   controlEspecial?: 'ACCION' | 'OFERTA' | 'CUPOS';
   descripcion: string;
 };

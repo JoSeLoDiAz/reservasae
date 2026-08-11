@@ -136,11 +136,7 @@ export class ActualizarMarcaDto {
 
 const HEXADECIMAL = /^#[0-9a-fA-F]{6}$/;
 
-/**
- * Los colores de un esquema, como mapa `clave -> #rrggbb`.
- *
- * Clave del catálogo y valor hexadecimal: esto acaba en un `<style>`.
- */
+/** Los colores de un esquema: `clave -> #rrggbb`. */
 @ValidatorConstraint({ name: 'coloresDeTema' })
 export class ColoresDeTema implements ValidatorConstraintInterface {
   private motivo = '';

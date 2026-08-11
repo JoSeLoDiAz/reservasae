@@ -34,7 +34,7 @@ import {
 
 const ID_MARCA = 'unica';
 
-/** Lo que se puede devolver de un administrador. Nunca el hash. */
+/** Lo que se puede devolver de un administrador. */
 export function vistaAdmin(admin: Admin) {
   return {
     id: admin.id,
@@ -55,9 +55,7 @@ export function vistaAdmin(admin: Admin) {
 export class AdminService {
   constructor(private readonly prisma: PrismaService) {}
 
-  // -------------------------------------------------------------------------
-  // Sesión
-  // -------------------------------------------------------------------------
+  // sesión
 
   async validarCredenciales(correo: string, clave: string): Promise<Admin> {
     const admin = await this.prisma.admin.findUnique({ where: { correo } });
@@ -93,9 +91,7 @@ export class AdminService {
     return { cambiada: true };
   }
 
-  // -------------------------------------------------------------------------
-  // Perfil
-  // -------------------------------------------------------------------------
+  // perfil
 
   async actualizarPerfil(admin: Admin, dto: ActualizarPerfilDto) {
     const actualizado = await this.prisma.admin.update({
@@ -110,9 +106,7 @@ export class AdminService {
     return vistaAdmin(actualizado);
   }
 
-  // -------------------------------------------------------------------------
-  // Usuarios
-  // -------------------------------------------------------------------------
+  // usuarios
 
   async listarAdmins() {
     const admins = await this.prisma.admin.findMany({ orderBy: { creadoEn: 'asc' } });
@@ -164,7 +158,7 @@ export class AdminService {
     return vistaAdmin(actualizado);
   }
 
-  /** Devuelve una contraseña temporal nueva para una cuenta ajena. */
+  /** Contraseña temporal nueva para otra cuenta. */
   async reiniciarClave(quienEdita: Admin, id: string) {
     if (id === quienEdita.id) {
       throw new BadRequestException(
@@ -199,11 +193,9 @@ export class AdminService {
     }
   }
 
-  // -------------------------------------------------------------------------
-  // Marca
-  // -------------------------------------------------------------------------
+  // marca
 
-  /** La fila de marca se crea sola la primera vez que alguien la pide. */
+  /** Lee la marca, creándola si no existe. */
   async obtenerMarca() {
     const marca = await this.prisma.marca.upsert({
       where: { id: ID_MARCA },
@@ -302,7 +294,7 @@ export class AdminService {
     };
   }
 
-  /** Solo el logo propio del formulario. Sin herencia: ver el porque en el plan. */
+  /** Solo el logo propio del formulario. */
   async leerLogoDeFormulario(slug: string) {
     const formulario = await this.prisma.formulario.findUnique({
       where: { slug },
@@ -322,7 +314,7 @@ export class AdminService {
     const existe = await this.prisma.tema.findUnique({ where: { esquema } });
     if (!existe) throw new NotFoundException(`No existe el tema ${esquema}.`);
 
-    // se mezcla: el panel puede enviar solo lo que cambio
+    // mezcla con lo ya guardado
     const fusionado = {
       ...conValoresPorDefecto(esquema, existe.colores),
       ...dto.colores,
@@ -335,7 +327,7 @@ export class AdminService {
     return this.obtenerMarca();
   }
 
-  /** Devuelve un esquema a los colores con los que nació el sistema. */
+  /** Restablece los colores iniciales. */
   async restablecerTema(admin: Admin, esquema: EsquemaColor) {
     await this.prisma.tema.update({
       where: { esquema },
@@ -406,9 +398,7 @@ export class AdminService {
     };
   }
 
-  // -------------------------------------------------------------------------
-  // Acciones de formación
-  // -------------------------------------------------------------------------
+  // acciones de formación
 
   /** Los convenios con su id interno, para el panel. */
   async listarConvenios() {

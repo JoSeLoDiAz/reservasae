@@ -108,11 +108,7 @@ export default function Tablero() {
         </div>
       </header>
 
-      {/*
-        Dos lecturas del avance. La que manda es contra la META comprometida en
-        los proyectos: llegar al 100 % del tope de inscripciones no es el
-        objetivo, cumplir la meta sí.
-      */}
+      {/* dos lecturas del avance */}
       <div className="imprimible-bloque grid gap-4 lg:grid-cols-3">
         <Tarjeta
           titulo="Avance sobre la meta"
@@ -296,7 +292,7 @@ export default function Tablero() {
 
       <TablaUbicaciones filas={ubicaciones} />
 
-      {/* Al final: es contexto, no la cifra que se mira primero. */}
+      {/* ritmo de reservas, al final */}
       <Tarjeta
         titulo="Ritmo de reservas"
         descripcion="Cupos confirmados por día en los últimos 30 días."

@@ -39,7 +39,7 @@ import { FormulariosService } from './formularios.service';
 export class FormulariosAdminController {
   constructor(private readonly formularios: FormulariosService) {}
 
-  /** Qué campos del sistema se pueden añadir y qué significa cada uno. */
+  /** Campos del sistema que se pueden añadir. */
   @Get('campos-nucleo')
   camposNucleo() {
     return this.formularios.camposNucleo();
@@ -70,7 +70,7 @@ export class FormulariosAdminController {
     return this.formularios.eliminar(id);
   }
 
-  // --- Apariencia ---
+  // apariencia
 
   @Patch(':id/apariencia')
   actualizarApariencia(@Param('id') id: string, @Body() dto: ActualizarAparienciaDto) {
@@ -97,7 +97,7 @@ export class FormulariosAdminController {
     return this.formularios.borrarLogo(id);
   }
 
-  // --- Secciones ---
+  // secciones
 
   @Post(':id/secciones')
   crearSeccion(@Param('id') id: string, @Body() dto: SeccionDto) {
@@ -119,7 +119,7 @@ export class FormulariosAdminController {
     return this.formularios.reordenarSecciones(id, dto.ids);
   }
 
-  // --- Preguntas ---
+  // preguntas
 
   @Post(':id/preguntas')
   crearPregunta(@Param('id') id: string, @Body() dto: CrearPreguntaDto) {
@@ -139,7 +139,7 @@ export class FormulariosAdminController {
     return this.formularios.reordenarPreguntas(id, dto.ids);
   }
 
-  // --- Opciones ---
+  // opciones
 
   @Post('preguntas/:preguntaId/opciones')
   crearOpcion(@Param('preguntaId') preguntaId: string, @Body() dto: OpcionDto) {
@@ -162,7 +162,7 @@ export class FormulariosAdminController {
   }
 }
 
-/** Lo que pide el navegador para dibujar el formulario. Sin sesión. */
+/** Lo que pide el navegador para dibujar. */
 @Controller('formularios')
 export class FormulariosPublicoController {
   constructor(private readonly formularios: FormulariosService) {}

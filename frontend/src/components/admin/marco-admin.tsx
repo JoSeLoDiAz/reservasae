@@ -123,7 +123,7 @@ export function MarcoAdmin({ children }: { children: React.ReactNode }) {
   );
 }
 
-// Piezas compartidas por las pantallas del panel.
+// piezas compartidas del panel
 
 export const CLASE_CONTROL =
   "w-full rounded-lg border border-campo-borde bg-campo-fondo px-3 py-2 text-texto " +

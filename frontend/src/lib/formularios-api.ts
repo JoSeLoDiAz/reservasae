@@ -87,9 +87,9 @@ export type FormularioAdmin = {
   convenio: { id: string; slug: string; sigla: string | null };
   secciones: SeccionAdmin[];
   preguntas: PreguntaAdmin[];
-  /** Lo que impide publicar. Vacío = se puede publicar. */
+  /** Lo que impide publicar. */
   problemas: string[];
-  /** Solo los colores que sobreescribe; el resto hereda de la marca. */
+  /** Solo los colores que sobreescribe. */
   coloresClaro: Record<string, string> | null;
   coloresOscuro: Record<string, string> | null;
   logoTipoMime: string | null;
@@ -110,7 +110,7 @@ export type ResumenFormulario = {
   actualizadoEn: string;
 };
 
-// --- Formulario público ---
+// formulario público
 
 export type PreguntaPublica = {
   id: string;

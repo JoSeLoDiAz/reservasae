@@ -1,10 +1,4 @@
-/**
- * Crea los dos formularios iniciales.
- *
- *   pnpm --filter backend db:sembrar-formularios
- *
- * Idempotente por slug: no pisa los que ya existan.
- */
+/** Crea los dos formularios iniciales. */
 
 import {
   CampoNucleo,
@@ -23,7 +17,7 @@ type PreguntaSemilla = {
   marcador?: string;
   obligatoria?: boolean;
   opciones?: string[];
-  /** Etiqueta de la pregunta de la que depende, y valor que la muestra. */
+  /** De qué pregunta depende y con qué valor. */
   dependeDe?: { etiqueta: string; valor: string };
 };
 
@@ -192,7 +186,7 @@ const FORMULARIOS: Array<{
       'La formación es gratuita y los cupos son limitados. Una institución ' +
       'puede reservar varios cupos; quien diligencia este formulario no tiene ' +
       'que ser quien asista.',
-    // ADECOPRIA no tiene gremios: su público son instituciones educativas.
+    // ADECOPRIA no tiene gremios
     secciones: SECCIONES_COMUNES(
       'Institución educativa',
       'Nombre de la institución como aparece en el RUT.',

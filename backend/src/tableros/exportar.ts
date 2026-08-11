@@ -1,12 +1,12 @@
 import ExcelJS from 'exceljs';
 
-/** Genera los .xlsx. Con exceljs, no un CSV disfrazado. */
+/** Genera los .xlsx con exceljs. */
 
 type Columna = {
   titulo: string;
   clave: string;
   ancho?: number;
-  /** Los números van como números, no como texto: así el Excel los suma. */
+  /** Escribe la columna como número. */
   numero?: boolean;
 };
 
@@ -18,7 +18,7 @@ export async function construirLibro(
   libro.created = new Date();
 
   for (const definicion of hojas) {
-    // Excel: 31 caracteres y sin : \ / ? * [ ]
+    // nombre válido para Excel
     const hoja = libro.addWorksheet(definicion.nombre.replace(/[:\\/?*[\]]/g, '').slice(0, 31));
 
     hoja.columns = definicion.columnas.map((c) => ({
@@ -54,7 +54,7 @@ export async function construirLibro(
     }
   }
 
-  // exceljs devuelve un ArrayBuffer aunque el tipo diga Buffer.
+  // exceljs devuelve un ArrayBuffer
   return Buffer.from(await libro.xlsx.writeBuffer());
 }
 

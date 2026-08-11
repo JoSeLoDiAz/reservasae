@@ -5,7 +5,7 @@ import { TablerosController } from './tableros.controller';
 import { TablerosService } from './tableros.service';
 
 @Module({
-  // AdminGuard necesita JwtService para verificar la cookie de sesión.
+  // AdminGuard necesita JwtService
   imports: [
     JwtModule.register({
       secret: process.env.ADMIN_JWT_SECRET,

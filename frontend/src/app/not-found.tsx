@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 
 export const metadata: Metadata = {
   title: "Página no encontrada",
-  // Sin descripción a propósito: esta página no debe decir de qué va el sitio.
+  // sin descripción a propósito
 };
 
 /** 404 mudo: ni logo, ni enlaces, ni de qué va el sitio. */

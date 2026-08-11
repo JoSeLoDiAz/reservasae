@@ -42,8 +42,7 @@ export default function PaginaConstructor({
     void formulariosApi.camposNucleo().then(setCampos);
   }, [cargar]);
 
-  /** Todas las acciones devuelven el formulario entero, así que basta con
-   *  reemplazarlo: no hay estado local que pueda quedar desincronizado. */
+  /** Ejecuta una acción y reemplaza el formulario. */
   const accion = useCallback(async (fn: () => Promise<FormularioAdmin>) => {
     setError(null);
     setOcupado(true);
@@ -140,7 +139,7 @@ export default function PaginaConstructor({
         />
       ))}
 
-      {/* Preguntas que se quedaron sin sección al borrar la suya */}
+      {/* preguntas sin sección */}
       {activas.some((p) => !p.seccionId) && (
         <Tarjeta
           titulo="Sin sección"
@@ -191,7 +190,7 @@ export default function PaginaConstructor({
   );
 }
 
-// ---------------------------------------------------------------------------
+// bloques del constructor
 
 function DatosGenerales({
   formulario,

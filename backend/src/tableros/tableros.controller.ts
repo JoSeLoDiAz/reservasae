@@ -46,7 +46,7 @@ export class TablerosController {
     return this.tableros.porAccion();
   }
 
-  // despues de 'acciones': si no, ':id' la capturaria
+  // después de 'acciones', o ':id' la captura
   @Get('acciones/:id')
   accion(@Param('id') id: string) {
     return this.tableros.accion(id);
@@ -59,7 +59,7 @@ export class TablerosController {
 
   @Get('proyeccion')
   proyeccion(@Query('dias') dias?: string) {
-    // entre 7 y 90: menos no es ritmo y mas ya no dice como va ahora
+    // ventana entre 7 y 90 días
     const n = Number(dias);
     const ventana = Number.isFinite(n) ? Math.min(90, Math.max(7, Math.trunc(n))) : 14;
     return this.tableros.proyeccion(ventana);
@@ -86,15 +86,13 @@ export class TablerosController {
     return this.tableros.reservas(this.filtros(consulta));
   }
 
-  // ---------------------------------------------------------------------------
-  // Descargas
-  // ---------------------------------------------------------------------------
+  // descargas
 
   @Get('exportar/reservas')
   async exportarReservas(@Query() consulta: Record<string, string>, @Res() res: Response) {
     const reservas = await this.tableros.reservasParaExportar(this.filtros(consulta));
 
-    // se recorre todo antes: anadir columnas al vuelo desalinea
+    // columnas de las preguntas propias
     const columnasExtra = [
       ...new Set(reservas.flatMap((r) => r.respuestas.map((x) => x.etiquetaPregunta))),
     ];
@@ -281,7 +279,7 @@ export class TablerosController {
       'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
     );
     res.setHeader('Content-Disposition', `attachment; filename="${nombre}"`);
-    // Sin caché: un informe descargado ayer no debe servirse hoy.
+    // sin caché
     res.setHeader('Cache-Control', 'no-store');
     res.send(libro);
   }

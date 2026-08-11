@@ -16,7 +16,7 @@ import { FormulariosService } from '../formularios/formularios.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { CrearReservaDto } from './dto/crear-reserva.dto';
 
-/** Lo que devuelve el SELECT ... FOR UPDATE sobre la oferta. */
+/** Lo que devuelve el SELECT FOR UPDATE. */
 type OfertaBloqueada = {
   id: string;
   cuposMaximos: number;
@@ -33,9 +33,7 @@ export class ReservasService {
     private readonly formularios: FormulariosService,
   ) {}
 
-  // -------------------------------------------------------------------------
-  // Crear
-  // -------------------------------------------------------------------------
+  // crear
 
   async crear(dto: CrearReservaDto, contexto: Contexto) {
     const nit = this.exigirNit(dto.nit);
@@ -57,7 +55,7 @@ export class ReservasService {
       );
     }
 
-    // fuera de la transaccion: aqui se puede reintentar
+    // fuera de la transacción
     const empresa = await this.asegurarEmpresa(nit, dto);
     const politicaId = await this.politicaVigente(oferta.accionFormacion.convenioId);
 
@@ -114,8 +112,7 @@ export class ReservasService {
         };
 
         const reserva = existente
-          ? // Estaba cancelada: se revive la misma fila. Crear otra chocaría
-            // con el índice único (empresa, oferta).
+          ? // se revive la fila cancelada
             await tx.reserva.update({ where: { id: existente.id }, data: datos })
           : await tx.reserva.create({
               data: { empresaId: empresa.id, ofertaId: oferta.id, ...datos },
@@ -152,9 +149,7 @@ export class ReservasService {
     );
   }
 
-  // -------------------------------------------------------------------------
-  // Editar cantidad
-  // -------------------------------------------------------------------------
+  // editar cantidad
 
   async editar(reservaId: string, nitCrudo: string, cantidad: number, contexto: Contexto) {
     const nit = this.exigirNit(nitCrudo);
@@ -177,7 +172,7 @@ export class ReservasService {
           );
         }
 
-        // su techo: lo libre mas lo que ya ocupaba
+        // su techo: libre + lo que ocupaba
         const techo = oferta.cuposMaximos - oferta.cuposOcupados + reserva.cuposConfirmados;
         const confirmados = Math.min(cantidad, Math.max(techo, 0));
         const enEspera = cantidad - confirmados;
@@ -208,7 +203,7 @@ export class ReservasService {
           },
         });
 
-        // si bajo, repartir dentro del mismo lock
+        // si bajó, repartir lo liberado
         if (delta < 0) {
           await this.promoverListaDeEspera(tx, oferta.id, contexto);
         }
@@ -219,9 +214,7 @@ export class ReservasService {
     );
   }
 
-  // -------------------------------------------------------------------------
-  // Cancelar
-  // -------------------------------------------------------------------------
+  // cancelar
 
   async cancelar(reservaId: string, nitCrudo: string, contexto: Contexto) {
     const nit = this.exigirNit(nitCrudo);
@@ -269,9 +262,7 @@ export class ReservasService {
     );
   }
 
-  // -------------------------------------------------------------------------
-  // Consultar
-  // -------------------------------------------------------------------------
+  // consultar
 
   async consultarPorNit(nitCrudo: string) {
     const nit = this.exigirNit(nitCrudo);
@@ -325,16 +316,14 @@ export class ReservasService {
           convenio: r.oferta.accionFormacion.convenio.slug,
         },
       })),
-      // Lo que el cliente pidió poder ver: cuántos cupos lleva cada empresa.
+      // total de cupos de la empresa
       totalCupos: empresa.reservas
         .filter((r) => r.estado !== EstadoReserva.CANCELADA)
         .reduce((suma, r) => suma + r.cuposConfirmados, 0),
     };
   }
 
-  // -------------------------------------------------------------------------
-  // Piezas internas
-  // -------------------------------------------------------------------------
+  // piezas internas
 
   private exigirNit(valor: string): NitNormalizado {
     const nit = normalizarNit(valor);
@@ -409,7 +398,7 @@ export class ReservasService {
     for (const reserva of esperando) {
       if (libres <= 0) break;
 
-      // promocion parcial: no saltarse la cola
+      // promoción parcial, por orden
       const mueve = Math.min(libres, reserva.cuposEnEspera);
 
       await tx.reserva.update({
@@ -454,7 +443,7 @@ export class ReservasService {
       include: { empresa: true },
     });
 
-    // mismo error que "no existe": no filtrar ids
+    // mismo error que "no existe"
     if (!reserva || reserva.empresa.nit !== nit) {
       throw new NotFoundException('No se encontró una reserva con ese identificador y NIT.');
     }
@@ -466,7 +455,7 @@ export class ReservasService {
       razonSocial: dto.razonSocial,
       numeroColaboradores: dto.numeroColaboradores ?? null,
       redAsociada: dto.redAsociada ?? null,
-      // se limpia si ya no eligio "Otro"
+      // se limpia si ya no es "Otro"
       redAsociadaOtra: dto.redAsociada === 'Otro' ? (dto.redAsociadaOtra ?? null) : null,
       digitoVerificacion: nit.digitoVerificacion,
     };
@@ -478,7 +467,7 @@ export class ReservasService {
         update: datos,
       });
     } catch (error) {
-      // perdio la carrera del INSERT: la fila ya existe
+      // perdió la carrera del INSERT
       if (
         error instanceof Prisma.PrismaClientKnownRequestError &&
         error.code === 'P2002'

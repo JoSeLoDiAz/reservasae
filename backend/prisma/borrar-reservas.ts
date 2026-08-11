@@ -1,8 +1,4 @@
-/**
- * Borra reservas por NIT y devuelve sus cupos a la oferta.
- *
- *   pnpm --filter backend db:borrar-reservas 900345642 [--si]
- */
+/** Borra reservas por NIT y devuelve sus cupos. */
 
 import { PrismaClient } from '../generated/prisma';
 
@@ -86,7 +82,7 @@ async function main() {
         }
         await tx.reserva.delete({ where: { id: r.id } });
       }
-      // Solo se borra la organización si no le queda ninguna otra reserva.
+      // se borra si no le queda ninguna reserva
       const quedan = await tx.reserva.count({ where: { empresaId: empresa.id } });
       if (quedan === 0) await tx.empresa.delete({ where: { id: empresa.id } });
     }

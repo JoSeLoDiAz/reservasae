@@ -38,8 +38,7 @@ export function EditorPregunta({
   const conRespuestas = pregunta._count.respuestas > 0;
 
   function mover(direccion: -1 | 1) {
-    // Se reordena la lista COMPLETA del formulario, no solo la de la sección:
-    // el orden es único por formulario y así no se pisan entre secciones.
+    // reordena la lista completa
     const ids = formulario.preguntas
       .filter((p) => !p.archivada)
       .sort((a, b) => a.orden - b.orden)
@@ -151,7 +150,7 @@ function Detalle({
 
   const numero = (v: string) => (v.trim() === "" ? null : Number(v));
 
-  /** Candidatas a condicionar esta: las que van antes y tienen opciones. */
+  /** Preguntas que pueden condicionar esta. */
   const madres = formulario.preguntas.filter(
     (p) =>
       p.id !== pregunta.id &&

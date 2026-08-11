@@ -1,10 +1,4 @@
-/**
- * Borra TODAS las reservas y devuelve los contadores a cero.
- *
- *   pnpm --filter backend db:reiniciar-reservas --si
- *
- * Sin `--si` solo informa. Es irreversible.
- */
+/** Borra todas las reservas y pone los contadores a cero. */
 
 import { PrismaClient } from '../generated/prisma';
 

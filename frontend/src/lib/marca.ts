@@ -20,9 +20,7 @@ export function rutaDeMarca(ambito: Ambito): string {
     : "/api/marca";
 }
 
-// ---------------------------------------------------------------------------
-// Paleta cacheada: arrancar sin destello
-// ---------------------------------------------------------------------------
+// paleta cacheada
 
 export const PREFIJO_PALETA = "convoca:paleta:";
 export const ID_ESTILO_CACHE = "paleta-cache";

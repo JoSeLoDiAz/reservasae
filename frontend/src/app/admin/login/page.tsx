@@ -19,8 +19,7 @@ export default function PaginaAcceso() {
     setEntrando(true);
     try {
       await adminApi.iniciarSesion(correo, clave);
-      // replace y no push: volver atrás no debe llevar al formulario de acceso
-      // con la sesión ya abierta.
+      // replace: no dejar el acceso en el historial
       router.replace("/admin");
     } catch (e) {
       setError((e as ErrorApi).message);

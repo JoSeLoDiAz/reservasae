@@ -23,7 +23,7 @@ function ritmo(valor: number): string {
   return valor.toLocaleString("es-CO", { maximumFractionDigits: 1 });
 }
 
-/** Qué se dice de la fecha. Nunca si va bien o mal. */
+/** Texto del estado de la proyección. */
 export function textoDeEstado(p: Proyeccion): string {
   switch (p.estado) {
     case "CUMPLIDA":
@@ -93,7 +93,7 @@ export function BloqueRitmo({ informe }: { informe: InformeProyeccion }) {
   );
 }
 
-/** Las más lentas arriba: son las que hay que empujar. */
+/** Tabla de las acciones más lentas. */
 export function TablaRitmo({ acciones }: { acciones: InformeProyeccion["acciones"] }) {
   const pendientes = acciones.filter((a) => a.estado !== "CUMPLIDA" && a.meta > 0);
   if (!pendientes.length) return null;

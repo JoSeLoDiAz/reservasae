@@ -244,11 +244,11 @@ los del otro. `/admin/formularios/:id/apariencia`.
 Tres niveles en `frontend/src/components/admin/editor-colores.tsx`, que lo
 usan tanto `/admin/marca` como la apariencia de cada formulario.
 
-- **Siete plantillas** en `backend/src/admin/plantillas-tema.ts`. Una plantilla
+- **Quince plantillas** en `backend/src/admin/plantillas-tema.ts`. Una plantilla
   es un color principal que pasa por la misma derivación que el editor, no una
   lista de 56 hex: así la galería y «elegir un color» no pueden discrepar. La
   primera se declara con `TEMAS_POR_DEFECTO` para que coincida con
-  «restablecer».
+  «restablecer». Añadir una es una línea; el test la valida sola.
 - **La derivación va en OKLCH**, no en HSL: en HSL «L 50 %» en amarillo y en
   azul se ven muy distintos de claros, así que fijar L no garantiza contraste.
   `backend/src/admin/oklch.ts` convierte sRGB↔OKLCH sin dependencias y recorta
@@ -634,7 +634,25 @@ Verificado contra `docs/proyectos/*.xlsx`, que es la fuente oficial. El
 - **Los comentarios del código son cortos**: una línea, unos 30 caracteres,
   diciendo qué hace y ya (`// conexión a Prisma`, `// validar persona`). El
   *porqué* de las decisiones no obvias va aquí, en `CLAUDE.md`, no repartido
-  por el código.
+  por el código. Aplica también a `.env`, `docker-compose.yml` y `nginx`.
+- **Nada de banners de sección.** Una línea en minúscula y ya:
+
+  ```ts
+  // sesión          ← así
+  ```
+
+  No así:
+
+  ```ts
+  // ---------------------------------------------------------------
+  // Sesión
+  // ---------------------------------------------------------------
+  ```
+
+- **Los docblocks también son de una línea**: `/** Qué es esto. */`. Si hace
+  falta explicar más, se explica aquí.
+- Se dejan intactas las directivas: `"use client"`, `// eslint-disable-...`,
+  `// @ts-expect-error`.
 - Mensajes de commit **en español**, explicando el porqué.
 - Los nombres de modelos, campos y rutas van en español (`Interesado`,
   `AccionFormacion`, `cuposTotales`) — es el vocabulario del negocio.

@@ -32,7 +32,7 @@ const ETIQUETA_SEMAFORO = {
   COMPLETO: { texto: "Completo", clase: "bg-error-suave text-error" },
 } as const;
 
-/** Lo que hay en cada campo. El tipo depende de la pregunta. */
+/** Valor de un campo del formulario. */
 type Valor = string | string[] | boolean | number | undefined;
 
 type Estado = "cargando" | "listo" | "enviando" | "hecho" | "no-disponible";
@@ -70,7 +70,7 @@ export function FormularioReserva({ slug }: { slug: string }) {
     };
   }, [slug]);
 
-  // Todas las preguntas en el orden en que se muestran, con su sección.
+  // secciones, con las sueltas al final
   const bloques = useMemo(() => {
     if (!formulario) return [];
     const conSueltas = formulario.sueltas.length
@@ -90,7 +90,7 @@ export function FormularioReserva({ slug }: { slug: string }) {
     return mapa;
   }, [todas]);
 
-  // El curso y la ubicación elegidos mandan sobre el resto del formulario.
+  // el curso elegido
   const accion: Accion | undefined = useMemo(() => {
     const pregunta = porCampo.get("ACCION_FORMACION");
     const id = pregunta ? (valores[pregunta.id] as string | undefined) : undefined;
@@ -107,7 +107,7 @@ export function FormularioReserva({ slug }: { slug: string }) {
     setValores((previos) => ({ ...previos, [preguntaId]: valor }));
   }
 
-  /** Una pregunta condicionada solo se muestra si su madre tiene el valor. */
+  /** Si la pregunta debe mostrarse. */
   function visible(pregunta: PreguntaPublica): boolean {
     if (!pregunta.dependeDePreguntaId) return true;
     const valorMadre = valores[pregunta.dependeDePreguntaId];
@@ -267,9 +267,7 @@ export function FormularioReserva({ slug }: { slug: string }) {
   );
 }
 
-// ---------------------------------------------------------------------------
-// Un control por pregunta
-// ---------------------------------------------------------------------------
+// un control por pregunta
 
 const CLASE_CONTROL =
   "w-full rounded-lg border border-campo-borde bg-campo-fondo px-3 py-2 text-texto " +
@@ -562,8 +560,7 @@ function TarjetaCurso({
           : "border-borde bg-superficie hover:border-marca/50 hover:shadow-sm"
       }`}
     >
-      {/* El radio real queda oculto pero sigue ahi: la tarjeta entera es el
-          area clicable y el teclado y los lectores de pantalla funcionan. */}
+      {/* radio oculto pero accesible */}
       <input
         type="radio"
         name="curso"
@@ -711,7 +708,7 @@ function Dato({
   );
 }
 
-// Iconos en linea: sin dependencias y sin peticiones externas.
+// iconos en línea
 const TRAZO = {
   fill: "none",
   stroke: "currentColor",

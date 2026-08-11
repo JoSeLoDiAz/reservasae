@@ -7,7 +7,7 @@ import { AdminService } from './admin.service';
 @Module({
   imports: [
     JwtModule.register({
-      // sin defecto: quemarlo abriria cualquier instancia
+      // secreto de firma de sesión
       secret: process.env.ADMIN_JWT_SECRET,
       signOptions: { expiresIn: '8h' },
     }),

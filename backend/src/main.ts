@@ -5,7 +5,7 @@ import cookieParser from 'cookie-parser';
 import { AppModule } from './app.module';
 
 function exigirSecretoDeSesion() {
-  // sin secreto no se arranca: se podrian fabricar sesiones
+  // sin secreto no se arranca
   if (!process.env.ADMIN_JWT_SECRET || process.env.ADMIN_JWT_SECRET.length < 32) {
     throw new Error(
       'Falta ADMIN_JWT_SECRET (minimo 32 caracteres) en el entorno. ' +
@@ -24,7 +24,7 @@ async function bootstrap() {
 
   app.useGlobalPipes(
     new ValidationPipe({
-      // solo lo que declara el DTO; lo demas es 400
+      // solo lo que declara el DTO
       whitelist: true,
       forbidNonWhitelisted: true,
       transform: true,

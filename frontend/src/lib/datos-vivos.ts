@@ -10,17 +10,13 @@ export type DatosVivos<T> = {
   error: string | null;
   cargando: boolean;
   refrescando: boolean;
-  /** Falló el último intento, pero se conservan los datos anteriores. */
+  /** Falló el último intento. */
   desactualizado: boolean;
   actualizadoEn: Date | null;
   refrescar: () => void;
 };
 
-/**
- * Datos que se vuelven a pedir solos.
- *
- * Un fallo conserva los últimos datos buenos.
- */
+/** Datos que se vuelven a pedir solos. */
 export function useDatosVivos<T>(
   cargar: () => Promise<T>,
   opciones: { intervaloMs?: number; activo?: boolean } = {},
@@ -33,7 +29,7 @@ export function useDatosVivos<T>(
   const [desactualizado, setDesactualizado] = useState(false);
   const [actualizadoEn, setActualizadoEn] = useState<Date | null>(null);
 
-  // en una ref: una funcion sin memoizar no reinicia el temporizador
+  // en una ref: no reinicia el temporizador
   const cargarRef = useRef(cargar);
   cargarRef.current = cargar;
 
@@ -77,7 +73,7 @@ export function useDatosVivos<T>(
     if (!activo) return;
     void traer();
 
-    // en pausa con la pestana oculta; al volver, si toca, refresca ya
+    // refresca al volver a la pestaña
     const alVolver = () => {
       if (document.visibilityState !== "visible") return;
       if (Date.now() - ultimo.current >= intervaloMs) void traer();

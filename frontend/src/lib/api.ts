@@ -1,4 +1,4 @@
-/** Cliente de la API. Siempre rutas relativas `/api/...`. */
+/** Cliente de la API. Rutas relativas. */
 
 export type Semaforo = "DISPONIBLE" | "ULTIMOS_CUPOS" | "COMPLETO";
 /** `HIBRIDA` solo la llevan la acción y el grupo. */
@@ -88,7 +88,7 @@ export type ConsultaPorNit = {
   totalCupos: number;
 };
 
-/** Error con el mensaje que devolvio el backend, no uno generico. */
+/** Error con el mensaje del backend. */
 export class ErrorApi extends Error {
   constructor(
     readonly estado: number,
@@ -143,7 +143,7 @@ export const api = {
     }),
 };
 
-/** Los nombres vienen en mayúsculas; se arreglan al mostrar. */
+/** Arregla los nombres en mayúsculas. */
 export function bonito(texto: string): string {
   if (texto !== texto.toUpperCase()) return texto;
 
@@ -153,7 +153,7 @@ export function bonito(texto: string): string {
     .split(" ")
     .map((palabra, indice) => {
       if (indice > 0 && minusculas.has(palabra)) return palabra;
-      // "D.C" y demas siglas cortas se dejan como estaban.
+      // las siglas cortas no se tocan
       if (palabra.length <= 3 && palabra.includes(".")) return palabra.toUpperCase();
       return palabra.charAt(0).toUpperCase() + palabra.slice(1);
     })

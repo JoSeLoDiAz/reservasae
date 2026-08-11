@@ -17,7 +17,7 @@ import { TablerosModule } from './tableros/tableros.module';
   imports: [
     // sin esto backend/.env no se lee fuera de Docker
     ConfigModule.forRoot({ isGlobal: true }),
-    // Límite general. Cada endpoint sensible aprieta el suyo con @Throttle.
+    // límite general de peticiones
     ThrottlerModule.forRoot([{ name: 'default', ttl: 60_000, limit: 60 }]),
     PrismaModule,
     CatalogoModule,
@@ -29,7 +29,7 @@ import { TablerosModule } from './tableros/tableros.module';
   controllers: [AppController],
   providers: [
     AppService,
-    // El guard cuenta por IP real (CF-Connecting-IP), no por la del socket.
+    // cuenta por la IP real
     { provide: APP_GUARD, useClass: ThrottlerIpGuard },
   ],
 })

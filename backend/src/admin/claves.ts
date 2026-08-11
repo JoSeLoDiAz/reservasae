@@ -1,4 +1,4 @@
-/** Contraseñas con `scrypt`: bcrypt y argon2 piden node-gyp. */
+/** Hash y verificación de contraseñas. */
 
 import { randomBytes, scrypt, timingSafeEqual } from 'node:crypto';
 import { promisify } from 'node:util';
@@ -30,13 +30,13 @@ export async function verificarClave(clave: string, guardado: string): Promise<b
   const esperado = Buffer.from(hashBase64, 'base64');
   const calculado = await derivar(clave.normalize('NFKC'), sal, esperado.length);
 
-  // tiempo constante: un === filtra por lo que tarda
+  // comparación en tiempo constante
   return calculado.length === esperado.length && timingSafeEqual(calculado, esperado);
 }
 
-/** Contraseña temporal legible, para dictarla por teléfono sin ambigüedad. */
+/** Contraseña temporal legible. */
 export function generarClaveTemporal(): string {
-  // Sin I, l, 1, O ni 0: son las que se confunden al leerlas en voz alta.
+  // sin caracteres que se confunden
   const alfabeto = 'ABCDEFGHJKMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789';
   const bytes = randomBytes(14);
   return Array.from(bytes, (b) => alfabeto[b % alfabeto.length]).join('');

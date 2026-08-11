@@ -1,15 +1,11 @@
-/**
- * Modo claro / oscuro y cálculo de contraste.
- *
- * Aquí NO hay lista de colores: la publica el backend en `GET /marca`.
- */
+/** Modo claro / oscuro y contraste. */
 
 export type ModoElegido = "sistema" | "claro" | "oscuro";
 export type Esquema = "CLARO" | "OSCURO";
 
 export const LLAVE_MODO = "convoca:modo";
 
-/** Colores de un esquema, indexados por la clave del token. */
+/** Colores de un esquema por token. */
 export type ColoresTema = Record<string, string>;
 
 export type GrupoToken = {
@@ -53,7 +49,7 @@ export function aplicarEsquema(esquema: Esquema) {
   document.documentElement.dataset.tema = esquema === "OSCURO" ? "oscuro" : "claro";
 }
 
-/** Fija el esquema antes de pintar. Va en el <head>. */
+/** Fija el esquema antes de pintar. */
 export const SCRIPT_SIN_PARPADEO = `
 (function () {
   try {
@@ -67,9 +63,7 @@ export const SCRIPT_SIN_PARPADEO = `
 })();
 `;
 
-// ---------------------------------------------------------------------------
-// Contraste (WCAG 2.1)
-// ---------------------------------------------------------------------------
+// contraste (wcag 2.1)
 
 function canal(valor: number): number {
   const v = valor / 255;
@@ -93,7 +87,7 @@ function luminancia(hex: string): number | null {
   return 0.2126 * canal(r) + 0.7152 * canal(g) + 0.0722 * canal(b);
 }
 
-/** De 1 (idénticos) a 21. El mínimo normal es 4,5. */
+/** Razón de contraste, de 1 a 21. */
 export function contraste(colorA: string, colorB: string): number | null {
   const a = luminancia(colorA);
   const b = luminancia(colorB);
@@ -103,7 +97,7 @@ export function contraste(colorA: string, colorB: string): number | null {
 
 export type NivelContraste = "AAA" | "AA" | "AA-GRANDE" | "INSUFICIENTE";
 
-/** `grande` = texto de 18 pt o 14 pt en negrita, que tolera menos contraste. */
+/** Nivel WCAG de una razón de contraste. */
 export function nivelContraste(razon: number, grande = false): NivelContraste {
   if (razon >= 7) return "AAA";
   if (razon >= 4.5) return "AA";

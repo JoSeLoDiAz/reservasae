@@ -31,7 +31,7 @@ type ValorContexto = {
   modo: ModoElegido;
   esquema: Esquema;
   cambiarModo: (modo: ModoElegido) => void;
-  /** Vuelve a leer la marca; lo usa el panel tras guardar cambios. */
+  /** Vuelve a leer la marca. */
   recargar: () => Promise<void>;
 };
 
@@ -150,7 +150,7 @@ export function ProveedorMarca({ children }: { children: React.ReactNode }) {
   );
 }
 
-// ---------------------------------------------------------------------------
+// conmutador de tema
 
 const OPCIONES: Array<{ valor: ModoElegido; etiqueta: string; icono: React.ReactNode }> = [
   { valor: "claro", etiqueta: "Claro", icono: <IconoSol /> },
@@ -244,7 +244,7 @@ export function PiePublico() {
   );
 }
 
-// Iconos en linea: sin dependencias ni peticiones externas.
+// iconos en línea
 const TRAZO = {
   fill: "none",
   stroke: "currentColor",

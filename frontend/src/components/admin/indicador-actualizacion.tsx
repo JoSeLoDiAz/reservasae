@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 
-/** «hace 2 min», con salto de 10 s: al segundo nadie mira. */
+/** Texto relativo tipo «hace 2 min». */
 function hace(desde: Date, ahora: number): string {
   const segundos = Math.max(0, Math.floor((ahora - desde.getTime()) / 1000));
   if (segundos < 10) return "hace un momento";
@@ -33,7 +33,7 @@ export function IndicadorActualizacion({
 
   return (
     <div className="no-imprimir flex flex-wrap items-center gap-3 text-sm text-texto-suave">
-      {/* aria-live off: un cronometro leido en voz alta es inservible */}
+      {/* sin lectura en voz alta */}
       <span aria-live="off">
         {actualizadoEn ? `Actualizado ${hace(actualizadoEn, ahora)}` : "Cargando…"}
       </span>
@@ -56,7 +56,7 @@ export function IndicadorActualizacion({
   );
 }
 
-/** Marca temporal para el PDF: un informe de reunión sin fecha no vale. */
+/** Marca temporal para el PDF. */
 export function SelloDeDatos({ actualizadoEn }: { actualizadoEn: Date | null }) {
   if (!actualizadoEn) return null;
   return (

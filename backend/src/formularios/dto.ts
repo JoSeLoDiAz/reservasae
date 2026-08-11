@@ -27,7 +27,7 @@ export class CrearFormularioDto {
   @MinLength(1)
   convenioId!: string;
 
-  // Va en la URL pública, así que solo minúsculas, números y guiones.
+  // va en la URL pública
   @IsString()
   @MinLength(2)
   @MaxLength(60)
@@ -58,7 +58,7 @@ export class ActualizarFormularioDto {
   publicado?: boolean;
 }
 
-/** Solo los colores que el formulario sobreescribe. null = volver a heredar. */
+/** Solo los colores que sobreescribe. */
 export class ActualizarAparienciaDto {
   @IsOptional()
   @Validate(ColoresDeTema)
@@ -149,7 +149,7 @@ export class ActualizarOpcionDto {
   archivada?: boolean;
 }
 
-/** Reordenar: llega la lista completa de identificadores en el orden nuevo. */
+/** La lista completa de ids, en orden. */
 export class ReordenarDto {
   @IsArray()
   @ArrayMaxSize(200)
@@ -157,7 +157,7 @@ export class ReordenarDto {
   ids!: string[];
 }
 
-/** Una respuesta a una pregunta que NO es campo del núcleo. */
+/** Respuesta a una pregunta propia. */
 export class RespuestaDto {
   @IsString() @MinLength(1)
   preguntaId!: string;

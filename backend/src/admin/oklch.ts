@@ -1,8 +1,4 @@
-/**
- * Conversión sRGB <-> OKLCH, sin dependencias.
- *
- * En OKLCH y no en HSL: aquí la L sí es luminosidad percibida.
- */
+/** Conversión sRGB <-> OKLCH, sin dependencias. */
 
 import { aRgb } from './contraste';
 

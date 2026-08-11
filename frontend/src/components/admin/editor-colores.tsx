@@ -15,7 +15,7 @@ import {
 const ESQUEMAS: Esquema[] = ["CLARO", "OSCURO"];
 
 export type Herencia = {
-  /** Claves que este formulario cambia respecto a la marca general. */
+  /** Claves propias de este formulario. */
   sobreescritos: Record<Esquema, string[]>;
   alHeredarClave: (esquema: Esquema, clave: string) => void;
   alHeredarTodo: () => void;
@@ -28,7 +28,7 @@ type Props = {
   alCambiarEsquema: (esquema: Esquema) => void;
   /** Un color suelto del esquema visible. */
   alCambiarColor: (clave: string, valor: string) => void;
-  /** Las dos paletas de golpe: plantilla o derivación. */
+  /** Las dos paletas de golpe. */
   alReemplazarTemas: (temas: Record<Esquema, ColoresTema>) => void;
   herencia?: Herencia;
   acciones?: React.ReactNode;
@@ -190,7 +190,7 @@ function InsigniaHerencia({
   );
 }
 
-// ---------------------------------------------------------------------------
+// plantillas
 
 function Plantillas({
   alElegir,
@@ -265,14 +265,9 @@ function MuestraPlantilla({ colores }: { colores: ColoresTema }) {
   );
 }
 
-// ---------------------------------------------------------------------------
+// color principal
 
-/**
- * Un color y de ahí salen los 28.
- *
- * La derivación va en el servidor; de ahí la espera y el guardia de
- * secuencia, que evita que una respuesta lenta pise a otra posterior.
- */
+/** Un color y de ahí salen los 28. */
 function ColorPrincipal({
   actual,
   alDerivar,
@@ -287,13 +282,13 @@ function ColorPrincipal({
   const derivado = useRef<string | null>(null);
   const montado = useRef(false);
 
-  // el resultado vuelve como `actual`; sincronizar sin esto seria un bucle
+  // sincroniza con el color de fuera
   useEffect(() => {
     if (actual.toLowerCase() !== derivado.current) setColor(actual);
   }, [actual]);
 
   useEffect(() => {
-    // en el primer render no se deriva: pisaria la paleta guardada
+    // no derivar en el primer render
     if (!montado.current) {
       montado.current = true;
       return;
@@ -370,9 +365,9 @@ function ColorPrincipal({
   );
 }
 
-// ---------------------------------------------------------------------------
+// vista previa
 
-/** Pinta con los colores sin guardar, no con las variables CSS. */
+/** Vista previa con los colores sin guardar. */
 export function VistaPrevia({ colores }: { colores: ColoresTema }) {
   const c = (clave: string) => colores[clave] ?? "transparent";
 
@@ -515,9 +510,9 @@ export function VistaPrevia({ colores }: { colores: ColoresTema }) {
   );
 }
 
-// ---------------------------------------------------------------------------
+// revisión de contraste
 
-/** Mide cada par contra el mínimo de la WCAG. Avisa, no bloquea. */
+/** Mide cada par contra la WCAG. */
 export function RevisionContraste({
   colores,
   catalogo,

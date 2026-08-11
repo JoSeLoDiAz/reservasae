@@ -10,9 +10,7 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// ---------------------------------------------------------------------------
-// Catálogo
-// ---------------------------------------------------------------------------
+// catálogo
 
 /// Modalidad. HIBRIDA solo la llevan acción y grupo.
 enum Modalidad {
@@ -56,7 +54,7 @@ model Convenio {
 model AccionFormacion {
   id          String    @id @default(cuid())
   convenioId  String
-  codigo      String /// "AF1"; es como se refieren a ella el proyecto y el SENA
+  codigo      String /// "AF1", el código del proyecto
   nombre      String
   modalidad   Modalidad
   evento      String? /// CURSO, SEMINARIO...
@@ -136,12 +134,9 @@ model GrupoCobertura {
   @@map("grupos_cobertura")
 }
 
-// ---------------------------------------------------------------------------
-// Oferta: la unidad que tiene cupos y contra la que se reserva
-// ---------------------------------------------------------------------------
+// oferta: lo que tiene cupos
 
 /// (acción × ubicación). Lo único con contador.
-/// `cuposMaximos` ya trae el 30 % de sobrecupo.
 model Oferta {
   id                String    @id @default(cuid())
   accionFormacionId String
@@ -151,7 +146,7 @@ model Oferta {
   cuposMaximos  Int
   cuposOcupados Int @default(0)
 
-  /// Cerrar una oferta impide reservas nuevas sin tocar las existentes.
+  /// Cerrar impide reservas nuevas.
   abierta       Boolean  @default(true)
   creadoEn      DateTime @default(now())
   actualizadoEn DateTime @updatedAt
@@ -165,9 +160,7 @@ model Oferta {
   @@map("ofertas")
 }
 
-// ---------------------------------------------------------------------------
-// Empresas y reservas
-// ---------------------------------------------------------------------------
+// empresas y reservas
 
 /// La organización que reserva, por su NIT.
 model Empresa {
@@ -197,7 +190,6 @@ enum EstadoReserva {
 }
 
 /// N cupos de una empresa en una oferta.
-/// Se parte en confirmados + espera si no caben todos.
 model Reserva {
   id        String @id @default(cuid())
   empresaId String
@@ -272,14 +264,12 @@ model MovimientoReserva {
   admin   Admin?  @relation(fields: [adminId], references: [id])
 
   @@index([reservaId, creadoEn])
-  /// El ritmo diario se calcula sobre esta tabla, barriendo por fecha.
+  /// Índice para el ritmo diario.
   @@index([creadoEn])
   @@map("movimientos_reserva")
 }
 
-// ---------------------------------------------------------------------------
-// Formularios administrables
-// ---------------------------------------------------------------------------
+// formularios administrables
 
 enum TipoPregunta {
   TEXTO_CORTO
@@ -443,9 +433,7 @@ model Respuesta {
   @@map("respuestas")
 }
 
-// ---------------------------------------------------------------------------
-// Política de datos y administración
-// ---------------------------------------------------------------------------
+// política de datos y administración
 
 /// El texto legal, versionado.
 model PoliticaDatos {
@@ -508,7 +496,7 @@ model Admin {
   /// Toda cuenta nueva nace obligada a cambiarla.
   debeCambiarClave Boolean @default(true)
 
-  // Los completa la propia persona desde "Mi perfil" tras iniciar sesión.
+  // los completa la persona en "Mi perfil"
   cargo        String?
   celular      String?
   organizacion String?
@@ -525,7 +513,6 @@ model Admin {
 }
 
 /// Apariencia general. Una sola fila, id = "unica".
-/// El logo va en la base para que viaje con el backup.
 model Marca {
   id String @id @default("unica")
 

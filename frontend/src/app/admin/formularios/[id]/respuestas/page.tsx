@@ -29,7 +29,7 @@ export default function PaginaRespuestas({
 
   const { formulario, totalReservas, preguntas } = vivos.datos;
 
-  // de menor a mayor: lo que menos se contesta es lo accionable
+  // ordenar de menor a mayor tasa
   const porTasa = [...preguntas]
     .sort((a, b) => a.tasaRespuesta - b.tasaRespuesta)
     .map((p) => ({

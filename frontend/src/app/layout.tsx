@@ -43,8 +43,7 @@ export default function RootLayout({
         />
       </head>
       <body className="min-h-full flex flex-col font-sans">
-        {/* Envuelve tambien el panel: asi el administrador ve el resultado de
-            sus propios cambios de color mientras los hace. */}
+        {/* colores tambien en el panel */}
         <ProveedorMarca>{children}</ProveedorMarca>
       </body>
     </html>

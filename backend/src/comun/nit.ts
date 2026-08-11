@@ -1,9 +1,4 @@
-/**
- * Normaliza el NIT: solo el número, sin puntos ni DV.
- *
- * Es la clave única de la empresa; escrito de tres formas darían tres
- * empresas distintas.
- */
+/** Normaliza el NIT: solo el número, sin puntos ni DV. */
 
 export type NitNormalizado = {
   nit: string;
@@ -14,7 +9,7 @@ export function normalizarNit(valor: string): NitNormalizado | null {
   const limpio = valor.replace(/[\s.]/g, '').trim();
   if (!limpio) return null;
 
-  // Acepta "860505081-5" y también "860505081" sin DV.
+  // con DV o sin él
   const conGuion = /^(\d{5,15})-(\d)$/.exec(limpio);
   if (conGuion) {
     return { nit: conGuion[1], digitoVerificacion: conGuion[2] };
@@ -27,7 +22,7 @@ export function normalizarNit(valor: string): NitNormalizado | null {
   return null;
 }
 
-/** El dígito de verificación de la DIAN. Se calcula, no se exige. */
+/** El dígito de verificación de la DIAN. */
 export function calcularDigitoVerificacion(nit: string): string {
   const pesos = [3, 7, 13, 17, 19, 23, 29, 37, 41, 43, 47, 53, 59, 67, 71];
   const digitos = nit.split('').reverse();

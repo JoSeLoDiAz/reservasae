@@ -1,11 +1,6 @@
 import { EsquemaColor } from '../../generated/prisma';
 
-/**
- * Catálogo de colores que personaliza el administrador.
- *
- * Añadir un color es tocar SOLO este archivo: viaja en `GET /marca` y el
- * panel dibuja sus formularios con él.
- */
+/** Catálogo de colores que personaliza el administrador. */
 
 export type GrupoToken =
   | 'MARCA'
@@ -107,7 +102,7 @@ export const TOKENS: DefinicionToken[] = [
 
 export const CLAVES_TOKEN = new Set(TOKENS.map((t) => t.clave));
 
-/** Pares que tienen que ser legibles. `grande` = 3:1 en vez de 4,5:1. */
+/** Pares que tienen que ser legibles. */
 export const COMPROBACIONES_CONTRASTE: Array<{
   frente: string;
   fondo: string;
@@ -132,12 +127,7 @@ export const COMPROBACIONES_CONTRASTE: Array<{
 
 export type ColoresTema = Record<string, string>;
 
-/**
- * Con lo que nace el sistema y a donde vuelve «restablecer».
- *
- * El oscuro no es el claro invertido: la marca baja de saturación y los
- * estados se aclaran.
- */
+/** Con lo que nace el sistema y a donde vuelve «restablecer». */
 export const TEMAS_POR_DEFECTO: Record<EsquemaColor, ColoresTema> = {
   CLARO: {
     marca: '#1d4ed8',
@@ -214,7 +204,7 @@ export const TEMAS_POR_DEFECTO: Record<EsquemaColor, ColoresTema> = {
   },
 };
 
-/** Completa lo que falte con el valor por defecto de ese esquema. */
+/** Completa lo que falte con el valor por defecto. */
 export function conValoresPorDefecto(
   esquema: EsquemaColor,
   guardados: unknown,
@@ -225,7 +215,7 @@ export function conValoresPorDefecto(
 
   const resultado: ColoresTema = {};
   for (const token of TOKENS) {
-    // solo tokens del catalogo, aunque la base traiga mas
+    // solo tokens del catálogo
     resultado[token.clave] = validos[token.clave] ?? base[token.clave];
   }
   return resultado;

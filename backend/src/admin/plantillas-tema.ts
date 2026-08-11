@@ -1,9 +1,4 @@
-/**
- * Paletas listas para elegir.
- *
- * Cada una es un color principal que pasa por la misma derivación que el
- * editor: galería y «elegir un color» no pueden discrepar.
- */
+/** Paletas listas para elegir. */
 
 import { EsquemaColor } from '../../generated/prisma';
 import { derivarTemas } from './derivar';
@@ -71,6 +66,62 @@ export const PLANTILLAS: PlantillaTema[] = [
     principal: '#7c3aed',
     encabezadoDeColor: false,
   },
+  {
+    clave: 'azul-encabezado',
+    nombre: 'Azul con barra de color',
+    descripcion: 'El azul de siempre, con la barra superior en color.',
+    principal: '#1d4ed8',
+    encabezadoDeColor: true,
+  },
+  {
+    clave: 'turquesa',
+    nombre: 'Turquesa',
+    descripcion: 'Claro y limpio, bien en pantallas grandes.',
+    principal: '#0891b2',
+    encabezadoDeColor: false,
+  },
+  {
+    clave: 'verde-bosque',
+    nombre: 'Verde bosque',
+    descripcion: 'Más natural que el empresarial.',
+    principal: '#15803d',
+    encabezadoDeColor: false,
+  },
+  {
+    clave: 'ambar',
+    nombre: 'Ámbar',
+    descripcion: 'Cálido y visible. Sale bastante oscuro: es lo que exige el contraste.',
+    principal: '#b45309',
+    encabezadoDeColor: false,
+  },
+  {
+    clave: 'magenta',
+    nombre: 'Magenta',
+    descripcion: 'Para convocatorias que quieren destacar.',
+    principal: '#a21caf',
+    encabezadoDeColor: false,
+  },
+  {
+    clave: 'verde-encabezado',
+    nombre: 'Verde con barra de color',
+    descripcion: 'Sobrio, con la barra superior en verde oscuro.',
+    principal: '#0f766e',
+    encabezadoDeColor: true,
+  },
+  {
+    clave: 'carbon',
+    nombre: 'Carbón',
+    descripcion: 'Barra gris pizarra y acentos azulados. El más neutro de todos.',
+    principal: '#334155',
+    encabezadoDeColor: true,
+  },
+  {
+    clave: 'vino-encabezado',
+    nombre: 'Vino con barra de color',
+    descripcion: 'La versión formal del vino.',
+    principal: '#9f1239',
+    encabezadoDeColor: true,
+  },
 ];
 
 /** La plantilla ya resuelta en sus dos paletas. */
@@ -86,7 +137,7 @@ export function temasDePlantilla(
   );
 }
 
-/** Lo que se manda al panel: cada plantilla con sus colores. */
+/** Cada plantilla con sus colores. */
 export function plantillasResueltas() {
   return PLANTILLAS.map((plantilla) => ({
     ...plantilla,

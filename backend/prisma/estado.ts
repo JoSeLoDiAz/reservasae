@@ -1,8 +1,4 @@
-/**
- * Qué hay cargado en la base.
- *
- *   pnpm --filter backend db:estado
- */
+/** Qué hay cargado en la base. */
 
 import { PrismaClient } from '../generated/prisma';
 
