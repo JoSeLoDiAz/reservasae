@@ -22,7 +22,7 @@ registro de ambos.
 > genera expectativas que no siempre se podrán cumplir. "Preinscripción" o
 > "registro de interés" es más seguro en los textos de cara al usuario.
 
-## Estado actual (30 jul 2026)
+## Estado actual (11 ago 2026)
 
 **Despliegue base funcionando en producción.** Lo que existe hoy es la
 infraestructura completa más una página que verifica la conexión con el backend.
@@ -40,14 +40,20 @@ infraestructura completa más una página que verifica la conexión con el backe
   público se dibuja a partir de la definición, no del código.
 - ✅ **Tableros**: avance por acción y por ubicación, serie por día, tabla de
   reservas con filtros y vista de cupos por organización. **Descarga en Excel**
-  de los tres informes.
+  de los tres informes. **Se actualizan solos cada 30 s.**
+- ✅ **Apariencia por formulario**: cada uno con sus colores, su logo y sus
+  textos, heredando de la marca general lo que no cambie.
+- ✅ **Editor de color para quien no sabe de color**: siete plantillas
+  comprobadas, derivación de las dos paletas desde un solo color y los 28
+  tokens plegados debajo.
+- ✅ **Ritmo y proyección** desde `movimientos_reserva`, y **respuestas
+  agregadas** por formulario.
 - ❌ La política de tratamiento de datos sigue sin redactar.
 - ❌ Los grupos no tienen fechas (los proyectos no las traen).
 - ❌ **Ninguna acción está publicada** (`visible = false` en las 15). Hasta que
   un admin publique, el catálogo público sale vacío y no se puede reservar.
   Es deliberado: no hay fechas que mostrar todavía.
-- ❌ No hay formulario público, ni autenticación, ni panel de admin.
-- ❌ La política de tratamiento de datos está sin redactar.
+- ⏳ El CRM es trabajo futuro; no está empezado.
 
 ### Endpoints
 
@@ -62,8 +68,13 @@ infraestructura completa más una página que verifica la conexión con el backe
 
 Panel (sesión en cookie httpOnly, `/admin/*`): `POST|DELETE /admin/sesion`,
 `GET /admin/yo`, `POST /admin/clave`, `PATCH /admin/perfil`,
-`/admin/usuarios`, `/admin/marca`, `/admin/marca/logo`, `/admin/acciones`.
-Públicos además: `GET /marca` y `GET /marca/logo`.
+`/admin/usuarios`, `/admin/marca`, `/admin/marca/logo`, `/admin/acciones`,
+`GET /admin/apariencia/plantillas`, `POST /admin/apariencia/derivar`,
+`POST /admin/apariencia/corregir`,
+`PATCH|POST|DELETE /admin/formularios/:id/apariencia|logo`,
+`GET /admin/tableros/proyeccion`, `GET /admin/tableros/respuestas/:id`.
+Públicos además: `GET /marca`, `GET /marca/logo`,
+`GET /marca/formulario/:slug` y `GET /marca/formulario/:slug/logo`.
 
 Recuerda que nginx quita el prefijo: de cara a internet son `/api/catalogo`,
 `/api/reservas`, etc.
@@ -139,6 +150,36 @@ Recuerda que nginx quita el prefijo: de cara a internet son `/api/catalogo`,
 - **Cada gráfico es de una sola serie, así que no llevan leyenda.** El total
   en espera va como número aparte y no como segmento de la barra: la lista de
   espera puede superar el cupo máximo y reventaría la escala.
+- **Se refrescan solos cada 30 s** (`frontend/src/lib/datos-vivos.ts`), en
+  pausa con la pestaña oculta y refrescando al volver si pasó el intervalo.
+  La función de carga vive en una **ref**: sin eso, una función sin memoizar
+  reiniciaría el temporizador en cada render y el disparo periódico usaría los
+  filtros viejos. **Un fallo conserva los últimos datos buenos** — con un
+  temporizador, convertir el error en pantalla completa vaciaría el tablero
+  cada vez que la red parpadea. El cronómetro lleva `aria-live="off"`.
+  **No** se aplica en las pantallas de edición: pisaría lo que se escribe.
+
+### Ritmo, proyección y respuestas
+
+- **El ritmo sale de `movimientos_reserva`, no de `reservas.creadoEn`.**
+  `SUM(confirmadosDespues - confirmadosAntes)` por día da el neto **real**:
+  incluye ediciones a la baja, cancelaciones y promociones de la lista de
+  espera. La serie por `creadoEn` no puede — atribuye la cantidad final al día
+  en que se creó la reserva. Si no hay movimientos en la ventana pero sí
+  reservas, se cae a `creadoEn` y se marca `origen: 'APROXIMADO'`.
+- **Se divide entre días de calendario**, incluidos los de cero. Dividir entre
+  «días con datos» inflaría el ritmo justo donde peor va.
+- **Sin estado de riesgo, a propósito.** No hay ninguna fecha objetivo en el
+  sistema, así que se dice «a este ritmo se llena el 3 de nov» y nada más.
+  Los casos raros son estados propios: `CUMPLIDA`, `SIN_META`, `SIN_RITMO`,
+  `RETROCEDE` y `MUY_LEJOS`; con menos de 7 días de historia, confianza baja.
+- **`Reserva.formularioId`**: antes, saber de qué formulario venía una reserva
+  exigía pasar por sus respuestas, lo que dejaba fuera a quien no contestó
+  ninguna pregunta propia y hacía incalculable la tasa de respuesta.
+- **Las respuestas se agrupan por el valor y se muestra la etiqueta de hoy**;
+  para un valor que ya no está en el catálogo se cae a la congelada al enviar.
+  Esa es la razón de ser de las dos columnas. El texto libre no se agrega:
+  contar frases distintas da una lista de unos.
 
 ### El constructor de formularios
 
@@ -174,6 +215,55 @@ tener varios.
 # Recrear los dos formularios iniciales (no pisa los que ya existan).
 pnpm --filter backend db:sembrar-formularios
 ```
+
+### Apariencia por formulario
+
+Cada formulario puede tener **su paleta, su logo y sus textos**, distintos de
+los del otro. `/admin/formularios/:id/apariencia`.
+
+- **Se hereda por token, no por paleta.** En `Formulario.coloresClaro` y
+  `coloresOscuro` se guardan **solo las claves que el admin cambió**. Guardar
+  las 28 mata la herencia en silencio: todo parece ir bien hasta que alguien
+  cambia el color general y este formulario no se entera. Al aplicar una
+  plantilla se guarda solo lo que difiere de la marca general.
+- **Los textos ya existían**: `Formulario.titulo` y `descripcion` se editan en
+  el constructor y ahora son los que se leen en la página pública.
+- **El logo del formulario NO cae al general cuando no existe**: devuelve 404,
+  y `urlLogo()` construye una ruta distinta según el origen. Con un *fallback*
+  en la misma URL, borrar el logo propio dejaría el viejo servido durante un
+  año, que es lo que dura su cabecera de caché.
+- **Un slug desconocido devuelve la marca general con 200, nunca 404.** Un 404
+  sería un oráculo de qué formularios existen.
+- **Dos capas contra el destello**: `[convenio]/layout.tsx` es un Server
+  Component que emite la paleta ya en el HTML (necesita `API_INTERNA`, que va
+  en `docker-compose.yml`), y `SCRIPT_PALETA` repinta desde `localStorage` en
+  las visitas siguientes.
+
+### Elegir colores sin saber de color
+
+Tres niveles en `frontend/src/components/admin/editor-colores.tsx`, que lo
+usan tanto `/admin/marca` como la apariencia de cada formulario.
+
+- **Siete plantillas** en `backend/src/admin/plantillas-tema.ts`. Una plantilla
+  es un color principal que pasa por la misma derivación que el editor, no una
+  lista de 56 hex: así la galería y «elegir un color» no pueden discrepar. La
+  primera se declara con `TEMAS_POR_DEFECTO` para que coincida con
+  «restablecer».
+- **La derivación va en OKLCH**, no en HSL: en HSL «L 50 %» en amarillo y en
+  azul se ven muy distintos de claros, así que fijar L no garantiza contraste.
+  `backend/src/admin/oklch.ts` convierte sRGB↔OKLCH sin dependencias y recorta
+  al gamut bajando croma.
+- **Los estados no se derivan.** Sus escalones están medidos contra
+  deuteranopía; sacarlos de un tono cualquiera tiraría esa garantía.
+- **Va en el servidor** porque es el único lado con jest. El test recorre 24
+  tonos de la rueda × 2 opciones de encabezado × 2 esquemas × 14 pares: 1.344
+  comprobaciones. Si alguien añade una plantilla ilegible, falla el build.
+- El coste es un viaje de red por cambio de color: se mitiga con 200 ms de
+  espera y un guardia de secuencia. Sin él, una respuesta lenta pisa a una
+  posterior y el color parece ir hacia atrás.
+- **Un amarillo puro sale como un olivo oscuro y es correcto**: `marca` se usa
+  como texto de enlace sobre fondo claro y tiene que llegar a 4,5:1. El editor
+  lo dice en vez de hacerlo callando.
 
 ### Apariencia y modo claro / oscuro
 
@@ -333,6 +423,10 @@ curl -s http://127.0.0.1:4600/api/estado                                  # back
 **Variables nuevas en `backend/.env` del servidor.** No se sube a git, así que
 al añadir una variable hay que ponerla también allí a mano. Si falta
 `ADMIN_JWT_SECRET`, el backend **no arranca** (es deliberado).
+
+`API_INTERNA` sí va en `docker-compose.yml` (que está en git): es la dirección
+del backend para el SSR del frontend, que no pasa por nginx. En local, si no
+está, cae a `http://127.0.0.1:4100`.
 
 **Las migraciones corren solas** al arrancar el contenedor: el `CMD` del
 Dockerfile ejecuta `prisma migrate deploy` antes de `node dist/main.js`.
@@ -537,8 +631,11 @@ Verificado contra `docs/proyectos/*.xlsx`, que es la fuente oficial. El
 
 ## Convenciones
 
-- Comentarios y mensajes de commit **en español**, explicando el *porqué*
-  cuando la decisión no sea obvia.
+- **Los comentarios del código son cortos**: una línea, unos 30 caracteres,
+  diciendo qué hace y ya (`// conexión a Prisma`, `// validar persona`). El
+  *porqué* de las decisiones no obvias va aquí, en `CLAUDE.md`, no repartido
+  por el código.
+- Mensajes de commit **en español**, explicando el porqué.
 - Los nombres de modelos, campos y rutas van en español (`Interesado`,
   `AccionFormacion`, `cuposTotales`) — es el vocabulario del negocio.
 - Los contenedores se llaman `reservasae_<servicio>`, igual que en SEPLocal.
