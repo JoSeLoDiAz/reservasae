@@ -19,6 +19,7 @@ import {
   SelloDeDatos,
 } from "@/components/admin/indicador-actualizacion";
 import { Aviso, Tarjeta, useAdmin } from "@/components/admin/marco-admin";
+import { BloqueRitmo, TablaRitmo } from "@/components/admin/ritmo";
 import { bonito } from "@/lib/api";
 import { useDatosVivos } from "@/lib/datos-vivos";
 import {
@@ -42,14 +43,16 @@ export default function Tablero() {
   const vivos = useDatosVivos(
     useCallback(
       async () => {
-        const [resumen, acciones, analisis, ubicaciones, serie] = await Promise.all([
-          tablerosApi.resumen(),
-          tablerosApi.acciones(),
-          tablerosApi.analisis(),
-          tablerosApi.ubicaciones(),
-          tablerosApi.serie(30),
-        ]);
-        return { resumen, acciones, analisis, ubicaciones, serie };
+        const [resumen, acciones, analisis, ubicaciones, serie, proyeccion] =
+          await Promise.all([
+            tablerosApi.resumen(),
+            tablerosApi.acciones(),
+            tablerosApi.analisis(),
+            tablerosApi.ubicaciones(),
+            tablerosApi.serie(30),
+            tablerosApi.proyeccion(14),
+          ]);
+        return { resumen, acciones, analisis, ubicaciones, serie, proyeccion };
       },
       [],
     ),
@@ -58,7 +61,7 @@ export default function Tablero() {
   if (vivos.error) return <Aviso tipo="error">{vivos.error}</Aviso>;
   if (!vivos.datos) return <p className="text-texto-suave">Cargando…</p>;
 
-  const { resumen, acciones, analisis, ubicaciones, serie } = vivos.datos;
+  const { resumen, acciones, analisis, ubicaciones, serie, proyeccion } = vivos.datos;
 
   const porConvenio = new Map<string, FilaAccion[]>();
   for (const a of acciones) {
@@ -150,12 +153,16 @@ export default function Tablero() {
         </Tarjeta>
       </div>
 
+      <BloqueRitmo informe={proyeccion} />
+
       <Alertas
         resumen={resumen}
         completas={completas}
         ultimos={ultimos}
         sinReservas={analisis.sinReservas}
       />
+
+      <TablaRitmo acciones={proyeccion.acciones} />
 
       <Tarjeta
         titulo="Avance por acción de formación"

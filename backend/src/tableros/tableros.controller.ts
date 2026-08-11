@@ -58,6 +58,19 @@ export class TablerosController {
     return this.tableros.porUbicacion(convenio);
   }
 
+  @Get('proyeccion')
+  proyeccion(@Query('dias') dias?: string) {
+    // entre 7 y 90: menos no es ritmo y mas ya no dice como va ahora
+    const n = Number(dias);
+    const ventana = Number.isFinite(n) ? Math.min(90, Math.max(7, Math.trunc(n))) : 14;
+    return this.tableros.proyeccion(ventana);
+  }
+
+  @Get('respuestas/:formularioId')
+  respuestas(@Param('formularioId') formularioId: string) {
+    return this.tableros.respuestasDeFormulario(formularioId);
+  }
+
   @Get('empresas')
   porEmpresa(@Query('buscar') buscar?: string) {
     return this.tableros.porEmpresa(buscar);

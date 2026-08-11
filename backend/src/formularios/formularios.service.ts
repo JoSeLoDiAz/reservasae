@@ -603,7 +603,10 @@ export class FormulariosService {
   async prepararRespuestas(
     formularioSlug: string,
     enviadas: RespuestaDto[],
-  ): Promise<Prisma.RespuestaCreateWithoutReservaInput[]> {
+  ): Promise<{
+    formularioId: string;
+    respuestas: Prisma.RespuestaCreateWithoutReservaInput[];
+  }> {
     const formulario = await this.prisma.formulario.findUnique({
       where: { slug: formularioSlug },
       include: {
@@ -645,7 +648,7 @@ export class FormulariosService {
       preparadas.push(this.validarRespuesta(pregunta, enviada!));
     }
 
-    return preparadas;
+    return { formularioId: formulario.id, respuestas: preparadas };
   }
 
   private estaVisible(

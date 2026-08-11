@@ -16,6 +16,7 @@ import {
   SelloDeDatos,
 } from "@/components/admin/indicador-actualizacion";
 import { Aviso, Tarjeta } from "@/components/admin/marco-admin";
+import { textoDeEstado } from "@/components/admin/ritmo";
 import { adminApi } from "@/lib/admin-api";
 import { bonito, ErrorApi } from "@/lib/api";
 import { useDatosVivos } from "@/lib/datos-vivos";
@@ -178,6 +179,34 @@ export default function DetalleDeAccion({ params }: { params: Promise<{ id: stri
           )}
         </Tarjeta>
       </div>
+
+      <Tarjeta
+        titulo="Ritmo de esta acción"
+        descripcion="Cupos netos por día de los últimos 14, descontando ediciones y cancelaciones."
+      >
+        <div className="grid gap-4 sm:grid-cols-3">
+          <div>
+            <p className="text-3xl font-semibold tabular-nums">
+              {datos.proyeccion.ritmoDiario.toLocaleString("es-CO", {
+                maximumFractionDigits: 1,
+              })}
+            </p>
+            <p className="mt-1 text-xs text-texto-suave">cupos al día</p>
+          </div>
+          <div>
+            <p className="text-3xl font-semibold tabular-nums">{n(datos.proyeccion.faltan)}</p>
+            <p className="mt-1 text-xs text-texto-suave">faltan para la meta</p>
+          </div>
+          <div>
+            <p className="text-sm">{textoDeEstado(datos.proyeccion)}</p>
+            {datos.proyeccion.confianza === "BAJA" && (
+              <p className="mt-1 text-xs text-texto-suave">
+                Menos de una semana de historia: la estimación es floja.
+              </p>
+            )}
+          </div>
+        </div>
+      </Tarjeta>
 
       <div className="imprimible-bloque">
         <Tarjeta

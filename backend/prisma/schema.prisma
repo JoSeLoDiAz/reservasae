@@ -238,6 +238,10 @@ model Reserva {
   empresaId String
   ofertaId  String
 
+  /// De qué formulario salió. Por las respuestas solo se sabe si contestó
+  /// alguna pregunta propia, y eso deja la tasa de respuesta sin calcular.
+  formularioId String?
+
   cuposSolicitados Int
   cuposConfirmados Int @default(0)
   cuposEnEspera    Int @default(0)
@@ -264,6 +268,7 @@ model Reserva {
   empresa       Empresa             @relation(fields: [empresaId], references: [id], onDelete: Cascade)
   oferta        Oferta              @relation(fields: [ofertaId], references: [id], onDelete: Cascade)
   politicaDatos PoliticaDatos?      @relation(fields: [politicaDatosId], references: [id])
+  formulario    Formulario?         @relation(fields: [formularioId], references: [id], onDelete: SetNull)
   movimientos   MovimientoReserva[]
   respuestas    Respuesta[]
 
@@ -274,6 +279,7 @@ model Reserva {
   @@unique([empresaId, ofertaId])
   @@index([ofertaId, estado])
   @@index([contactoCorreo])
+  @@index([formularioId])
   @@map("reservas")
 }
 
@@ -309,6 +315,8 @@ model MovimientoReserva {
   admin   Admin?  @relation(fields: [adminId], references: [id])
 
   @@index([reservaId, creadoEn])
+  /// El ritmo diario se calcula sobre esta tabla, barriendo por fecha.
+  @@index([creadoEn])
   @@map("movimientos_reserva")
 }
 
@@ -360,6 +368,7 @@ model Formulario {
   convenio  Convenio   @relation(fields: [convenioId], references: [id], onDelete: Cascade)
   secciones Seccion[]
   preguntas Pregunta[]
+  reservas  Reserva[]
 
   @@map("formularios")
 }

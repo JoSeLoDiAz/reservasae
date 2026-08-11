@@ -66,9 +66,10 @@ export class ReservasService {
     // Las respuestas del formulario se validan ANTES de abrir la transacción:
     // si una es inválida, es mejor devolver el error sin haber bloqueado la
     // oferta ni haber tocado el contador.
-    const respuestas = dto.formularioSlug
+    const delFormulario = dto.formularioSlug
       ? await this.formularios.prepararRespuestas(dto.formularioSlug, dto.respuestas ?? [])
-      : [];
+      : null;
+    const respuestas = delFormulario?.respuestas ?? [];
 
     return this.prisma.$transaction(
       async (tx) => {
@@ -103,6 +104,7 @@ export class ReservasService {
         await this.moverContador(tx, oferta.id, confirmados);
 
         const datos = {
+          formularioId: delFormulario?.formularioId ?? null,
           cuposSolicitados: dto.cuposSolicitados,
           cuposConfirmados: confirmados,
           cuposEnEspera: enEspera,

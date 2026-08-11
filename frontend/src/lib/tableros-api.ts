@@ -152,6 +152,73 @@ export type PaginaReservas = {
 
 export type PuntoSerie = { dia: string; reservas: number; cupos: number };
 
+export type EstadoProyeccion =
+  | "CUMPLIDA"
+  | "SIN_META"
+  | "SIN_RITMO"
+  | "RETROCEDE"
+  | "MUY_LEJOS"
+  | "ESTIMADA";
+
+export type Proyeccion = {
+  estado: EstadoProyeccion;
+  confianza: "BAJA" | "NORMAL";
+  origen: "MOVIMIENTOS" | "APROXIMADO";
+  ocupados: number;
+  meta: number;
+  faltan: number;
+  ritmoDiario: number;
+  ritmo7: number;
+  ritmo14: number;
+  diasEstimados: number | null;
+  fechaEstimada: string | null;
+};
+
+export type ProyeccionAccion = Proyeccion & {
+  id: string;
+  codigo: string;
+  nombre: string;
+  publicada: boolean;
+  convenio: string;
+};
+
+export type InformeProyeccion = {
+  dias: number;
+  total: Proyeccion;
+  acciones: ProyeccionAccion[];
+};
+
+export type PreguntaAgregada = {
+  id: string;
+  etiqueta: string;
+  tipo: string;
+  archivada: boolean;
+  respondidas: number;
+  tasaRespuesta: number;
+  opciones?: Array<{
+    valor: string;
+    etiqueta: string;
+    archivada: boolean;
+    veces: number;
+    porcentaje: number;
+  }>;
+  casilla?: { si: number; no: number };
+  numero?: {
+    media: number | null;
+    mediana: number | null;
+    minimo: number | null;
+    maximo: number | null;
+    suma: number;
+  };
+  texto?: string[];
+};
+
+export type InformeRespuestas = {
+  formulario: { id: string; slug: string; titulo: string };
+  totalReservas: number;
+  preguntas: PreguntaAgregada[];
+};
+
 export type DetalleAccion = {
   id: string;
   codigo: string;
@@ -169,6 +236,7 @@ export type DetalleAccion = {
   ocupados: number;
   disponibles: number;
   metaBase: number;
+  proyeccion: Proyeccion;
   avance: number;
   avanceMeta: number;
   enEspera: number;
@@ -245,6 +313,10 @@ export const tablerosApi = {
   empresas: (buscar?: string) =>
     pedir<FilaEmpresa[]>(`/admin/tableros/empresas${consulta({ buscar })}`),
   serie: (dias = 30) => pedir<PuntoSerie[]>(`/admin/tableros/serie${consulta({ dias })}`),
+  proyeccion: (dias = 14) =>
+    pedir<InformeProyeccion>(`/admin/tableros/proyeccion${consulta({ dias })}`),
+  respuestas: (formularioId: string) =>
+    pedir<InformeRespuestas>(`/admin/tableros/respuestas/${formularioId}`),
   reservas: (filtros: Record<string, string | number | undefined>) =>
     pedir<PaginaReservas>(`/admin/tableros/reservas${consulta(filtros)}`),
 };

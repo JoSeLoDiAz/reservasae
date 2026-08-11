@@ -4,6 +4,7 @@ import { EstadoReserva, Prisma } from '../../generated/prisma';
 import { semaforo } from '../catalogo/catalogo.service';
 import { normalizarNit } from '../comun/nit';
 import { PrismaService } from '../prisma/prisma.service';
+import { calcularProyeccion, type PuntoNeto } from './proyeccion';
 
 export type FiltrosReservas = {
   buscar?: string;
@@ -351,6 +352,17 @@ export class TablerosService {
       0,
     );
 
+    const suyo = await this.serieNeta(14, accion.id);
+    const proyeccion = calcularProyeccion({
+      serie: suyo.serie,
+      ocupados,
+      meta: base,
+      dias: 14,
+      hoy: new Date(),
+      origen: suyo.origen,
+      diasDeHistoria: await this.diasDeHistoria(),
+    });
+
     return {
       id: accion.id,
       codigo: accion.codigo,
@@ -369,6 +381,7 @@ export class TablerosService {
       ocupados,
       disponibles: cupos - ocupados,
       metaBase: base,
+      proyeccion,
       avance: pct(ocupados, cupos),
       avanceMeta: pct(ocupados, base),
       enEspera: accion.ofertas.reduce(
@@ -526,6 +539,254 @@ export class TablerosService {
   }
 
   // -------------------------------------------------------------------------
+  // Ritmo y proyección
+  // -------------------------------------------------------------------------
+
+  /**
+   * Cupos netos por día, desde `movimientos_reserva`.
+   *
+   * Es el neto REAL: incluye ediciones a la baja, cancelaciones y promociones
+   * de la lista de espera. La serie por `creadoEn` no puede darlo, porque
+   * atribuye la cantidad final al día en que se creó la reserva.
+   */
+  private async netoPorDia(dias: number, accionId?: string): Promise<PuntoNeto[]> {
+    const condicionAccion = accionId
+      ? Prisma.sql`AND r."ofertaId" IN (SELECT id FROM "ofertas" WHERE "accionFormacionId" = ${accionId})`
+      : Prisma.empty;
+
+    const filas = await this.prisma.$queryRaw<Array<{ dia: Date; neto: bigint }>>`
+      SELECT date_trunc('day', m."creadoEn") AS dia,
+             COALESCE(SUM(m."confirmadosDespues" - m."confirmadosAntes"), 0) AS neto
+        FROM "movimientos_reserva" m
+        JOIN "reservas" r ON r.id = m."reservaId"
+       WHERE m."creadoEn" >= NOW() - (${dias} || ' days')::interval
+         ${condicionAccion}
+       GROUP BY 1
+       ORDER BY 1`;
+
+    return filas.map((f) => ({
+      dia: f.dia.toISOString().slice(0, 10),
+      neto: Number(f.neto),
+    }));
+  }
+
+  /** Lo mismo pero por fecha de alta: solo si no hay movimientos. */
+  private async netoAproximado(dias: number, accionId?: string): Promise<PuntoNeto[]> {
+    const condicionAccion = accionId
+      ? Prisma.sql`AND r."ofertaId" IN (SELECT id FROM "ofertas" WHERE "accionFormacionId" = ${accionId})`
+      : Prisma.empty;
+
+    const filas = await this.prisma.$queryRaw<Array<{ dia: Date; neto: bigint }>>`
+      SELECT date_trunc('day', r."creadoEn") AS dia,
+             COALESCE(SUM(r."cuposConfirmados"), 0) AS neto
+        FROM "reservas" r
+       WHERE r."creadoEn" >= NOW() - (${dias} || ' days')::interval
+         AND r."estado" <> 'CANCELADA'
+         ${condicionAccion}
+       GROUP BY 1
+       ORDER BY 1`;
+
+    return filas.map((f) => ({
+      dia: f.dia.toISOString().slice(0, 10),
+      neto: Number(f.neto),
+    }));
+  }
+
+  private async serieNeta(dias: number, accionId?: string) {
+    const movimientos = await this.netoPorDia(dias, accionId);
+    if (movimientos.length) {
+      return { serie: movimientos, origen: 'MOVIMIENTOS' as const };
+    }
+
+    // sin movimientos pero con reservas: se aproxima y se avisa
+    const aproximada = await this.netoAproximado(dias, accionId);
+    return aproximada.length
+      ? { serie: aproximada, origen: 'APROXIMADO' as const }
+      : { serie: [], origen: 'MOVIMIENTOS' as const };
+  }
+
+  /** Cuántos días lleva el sistema recibiendo movimientos. */
+  private async diasDeHistoria(): Promise<number> {
+    const primero = await this.prisma.movimientoReserva.findFirst({
+      orderBy: { creadoEn: 'asc' },
+      select: { creadoEn: true },
+    });
+    if (!primero) return 0;
+    return Math.max(
+      1,
+      Math.ceil((Date.now() - primero.creadoEn.getTime()) / (24 * 60 * 60 * 1000)),
+    );
+  }
+
+  /** Ritmo global y por acción, con la fecha estimada a ese ritmo. */
+  async proyeccion(dias = 14) {
+    const hoy = new Date();
+    const [{ serie, origen }, historia, base, ofertas, acciones] = await Promise.all([
+      this.serieNeta(dias),
+      this.diasDeHistoria(),
+      this.prisma.grupoCobertura.aggregate({ _sum: { cuposBase: true } }),
+      this.prisma.oferta.aggregate({ _sum: { cuposOcupados: true } }),
+      this.prisma.accionFormacion.findMany({
+        select: {
+          id: true,
+          codigo: true,
+          nombre: true,
+          visible: true,
+          convenio: { select: { sigla: true, slug: true } },
+          ofertas: { select: { cuposOcupados: true } },
+          grupos: { select: { coberturas: { select: { cuposBase: true } } } },
+        },
+        orderBy: { codigo: 'asc' },
+      }),
+    ]);
+
+    const total = calcularProyeccion({
+      serie,
+      ocupados: ofertas._sum.cuposOcupados ?? 0,
+      meta: base._sum.cuposBase ?? 0,
+      dias,
+      hoy,
+      origen,
+      diasDeHistoria: historia,
+    });
+
+    // una consulta por acción sería una tormenta; se reparte la serie global
+    const porAccion = await Promise.all(
+      acciones.map(async (accion) => {
+        const suyo = await this.serieNeta(dias, accion.id);
+        const ocupados = accion.ofertas.reduce((s, o) => s + o.cuposOcupados, 0);
+        const meta = accion.grupos.reduce(
+          (s, g) => s + g.coberturas.reduce((t, c) => t + c.cuposBase, 0),
+          0,
+        );
+        return {
+          id: accion.id,
+          codigo: accion.codigo,
+          nombre: accion.nombre,
+          publicada: accion.visible,
+          convenio: accion.convenio.sigla ?? accion.convenio.slug,
+          ...calcularProyeccion({
+            serie: suyo.serie,
+            ocupados,
+            meta,
+            dias,
+            hoy,
+            origen: suyo.origen,
+            diasDeHistoria: historia,
+          }),
+        };
+      }),
+    );
+
+    return {
+      dias,
+      total,
+      // las más lentas primero: son las accionables
+      acciones: porAccion.sort((a, b) => a.ritmoDiario - b.ritmoDiario),
+    };
+  }
+
+  // -------------------------------------------------------------------------
+  // Respuestas del formulario
+  // -------------------------------------------------------------------------
+
+  /** Qué contestó la gente, agregado por pregunta. */
+  async respuestasDeFormulario(formularioId: string) {
+    const formulario = await this.prisma.formulario.findUnique({
+      where: { id: formularioId },
+      select: {
+        id: true,
+        slug: true,
+        titulo: true,
+        preguntas: {
+          orderBy: { orden: 'asc' },
+          select: {
+            id: true,
+            etiqueta: true,
+            tipo: true,
+            archivada: true,
+            campoNucleo: true,
+            opciones: {
+              orderBy: { orden: 'asc' },
+              select: { valor: true, etiqueta: true, archivada: true },
+            },
+          },
+        },
+      },
+    });
+    if (!formulario) throw new NotFoundException('No existe ese formulario.');
+
+    // denominador: reservas vivas de este formulario
+    const totalReservas = await this.prisma.reserva.count({
+      where: { formularioId, estado: { not: EstadoReserva.CANCELADA } },
+    });
+
+    const preguntas = formulario.preguntas.filter(
+      (p) => !p.campoNucleo && p.tipo !== 'PARRAFO',
+    );
+
+    const informe = await Promise.all(
+      preguntas.map(async (pregunta) => {
+        const respuestas = await this.prisma.respuesta.findMany({
+          where: {
+            preguntaId: pregunta.id,
+            reserva: { estado: { not: EstadoReserva.CANCELADA } },
+          },
+          select: {
+            valorTexto: true,
+            valorNumero: true,
+            valorBooleano: true,
+            valoresSeleccion: true,
+            etiquetasSeleccion: true,
+          },
+          orderBy: { creadoEn: 'desc' },
+        });
+
+        const comun = {
+          id: pregunta.id,
+          etiqueta: pregunta.etiqueta,
+          tipo: pregunta.tipo,
+          archivada: pregunta.archivada,
+          respondidas: respuestas.length,
+          tasaRespuesta: pct(respuestas.length, totalReservas),
+        };
+
+        if (pregunta.tipo === 'CASILLA') {
+          const sies = respuestas.filter((r) => r.valorBooleano).length;
+          return { ...comun, casilla: { si: sies, no: respuestas.length - sies } };
+        }
+
+        if (pregunta.tipo === 'NUMERO') {
+          const valores = respuestas
+            .map((r) => r.valorNumero)
+            .filter((v): v is number => v !== null)
+            .sort((a, b) => a - b);
+          return { ...comun, numero: resumenNumerico(valores) };
+        }
+
+        if (pregunta.opciones.length) {
+          return { ...comun, opciones: contarOpciones(pregunta.opciones, respuestas) };
+        }
+
+        // el texto libre no se agrega: contarlo da una lista de frecuencia 1
+        return {
+          ...comun,
+          texto: respuestas
+            .slice(0, 20)
+            .map((r) => r.valorTexto)
+            .filter((t): t is string => Boolean(t)),
+        };
+      }),
+    );
+
+    return {
+      formulario: { id: formulario.id, slug: formulario.slug, titulo: formulario.titulo },
+      totalReservas,
+      preguntas: informe,
+    };
+  }
+
+  // -------------------------------------------------------------------------
   // Tabla de reservas
   // -------------------------------------------------------------------------
 
@@ -665,6 +926,72 @@ function clasificarTamano(colaboradores: number | null): string {
   if (colaboradores <= 50) return 'Pequeña';
   if (colaboradores <= 200) return 'Mediana';
   return 'Grande';
+}
+
+/** Media, mediana y extremos de una lista YA ordenada. */
+export function resumenNumerico(valores: number[]) {
+  if (!valores.length) {
+    return { media: null, mediana: null, minimo: null, maximo: null, suma: 0 };
+  }
+  const suma = valores.reduce((a, b) => a + b, 0);
+  const medio = Math.floor(valores.length / 2);
+  return {
+    media: Math.round((suma / valores.length) * 10) / 10,
+    mediana:
+      valores.length % 2 ? valores[medio] : (valores[medio - 1] + valores[medio]) / 2,
+    minimo: valores[0],
+    maximo: valores[valores.length - 1],
+    suma,
+  };
+}
+
+/**
+ * Cuenta por opción.
+ *
+ * Se agrupa por `valoresSeleccion`, que es el valor estable, y se muestra la
+ * etiqueta de hoy. Para un valor que ya no existe en el catálogo se cae a
+ * `etiquetasSeleccion`, la congelada al enviar: esa es la razón de ser de las
+ * dos columnas.
+ */
+export function contarOpciones(
+  opciones: Array<{ valor: string; etiqueta: string; archivada: boolean }>,
+  respuestas: Array<{ valoresSeleccion: string[]; etiquetasSeleccion: string[] }>,
+) {
+  const cuenta = new Map<string, number>();
+  const etiquetaCongelada = new Map<string, string>();
+
+  for (const respuesta of respuestas) {
+    respuesta.valoresSeleccion.forEach((valor, i) => {
+      cuenta.set(valor, (cuenta.get(valor) ?? 0) + 1);
+      const congelada = respuesta.etiquetasSeleccion[i];
+      if (congelada && !etiquetaCongelada.has(valor)) {
+        etiquetaCongelada.set(valor, congelada);
+      }
+    });
+  }
+
+  const total = [...cuenta.values()].reduce((a, b) => a + b, 0);
+  const conocidas = opciones.map((o) => ({
+    valor: o.valor,
+    etiqueta: o.etiqueta,
+    archivada: o.archivada,
+    veces: cuenta.get(o.valor) ?? 0,
+    porcentaje: pct(cuenta.get(o.valor) ?? 0, total),
+  }));
+
+  // valores que ya no están en el catálogo pero sí en las respuestas
+  const catalogo = new Set(opciones.map((o) => o.valor));
+  const huerfanas = [...cuenta.entries()]
+    .filter(([valor]) => !catalogo.has(valor))
+    .map(([valor, veces]) => ({
+      valor,
+      etiqueta: etiquetaCongelada.get(valor) ?? valor,
+      archivada: true,
+      veces,
+      porcentaje: pct(veces, total),
+    }));
+
+  return [...conocidas, ...huerfanas].sort((a, b) => b.veces - a.veces);
 }
 
 /** Una respuesta guarda su valor en la columna que le toca según el tipo. */
