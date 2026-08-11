@@ -3,9 +3,11 @@
 import { useCallback, useEffect, useState } from "react";
 
 import { n } from "@/components/admin/graficos";
+import { IndicadorActualizacion } from "@/components/admin/indicador-actualizacion";
 import { Aviso, CLASE_CONTROL, Tarjeta } from "@/components/admin/marco-admin";
 import { adminApi } from "@/lib/admin-api";
-import { bonito, ErrorApi } from "@/lib/api";
+import { bonito } from "@/lib/api";
+import { useDatosVivos } from "@/lib/datos-vivos";
 import {
   descargar,
   tablerosApi,
@@ -28,10 +30,7 @@ const ETIQUETA_ESTADO: Record<EstadoReserva, { texto: string; clase: string }> =
 };
 
 export default function PaginaReservas() {
-  const [datos, setDatos] = useState<PaginaReservas | null>(null);
   const [convenios, setConvenios] = useState<Array<{ slug: string; sigla: string | null }>>([]);
-  const [error, setError] = useState<string | null>(null);
-  const [cargando, setCargando] = useState(false);
 
   const [buscar, setBuscar] = useState("");
   const [textoBuscado, setTextoBuscado] = useState("");
@@ -41,24 +40,15 @@ export default function PaginaReservas() {
 
   const filtros = { buscar: textoBuscado, estado, convenio, pagina };
 
-  const cargar = useCallback(async () => {
-    setCargando(true);
-    try {
-      setDatos(await tablerosApi.reservas(filtros));
-      setError(null);
-    } catch (e) {
-      setError((e as ErrorApi).message);
-    } finally {
-      setCargando(false);
-    }
-    // Los filtros son primitivos, así que compararlos por valor basta y evita
-    // recrear la función en cada render.
+  // el temporizador usa siempre los filtros vigentes
+  const vivos = useDatosVivos<PaginaReservas>(
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [textoBuscado, estado, convenio, pagina]);
+    useCallback(() => tablerosApi.reservas(filtros), [textoBuscado, estado, convenio, pagina]),
+  );
 
-  useEffect(() => {
-    void cargar();
-  }, [cargar]);
+  const datos = vivos.datos;
+  const error = vivos.error;
+  const cargando = vivos.refrescando;
 
   useEffect(() => {
     void adminApi.convenios().then(setConvenios);
@@ -78,6 +68,14 @@ export default function PaginaReservas() {
           <p className="mt-1 text-texto-suave">
             {datos ? `${n(datos.total)} registros` : "Cargando…"}
           </p>
+          <div className="mt-3">
+            <IndicadorActualizacion
+              actualizadoEn={vivos.actualizadoEn}
+              refrescando={vivos.refrescando}
+              desactualizado={vivos.desactualizado}
+              alRefrescar={vivos.refrescar}
+            />
+          </div>
         </div>
         <button
           onClick={() => descargar("reservas", filtros)}

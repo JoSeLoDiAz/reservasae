@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { use, useCallback, useEffect, useState } from "react";
+import { use, useCallback, useState } from "react";
 
 import { BotonPdf, EncabezadoImpresion } from "@/components/admin/boton-pdf";
 import {
@@ -11,9 +11,14 @@ import {
   Medidor,
   n,
 } from "@/components/admin/graficos";
+import {
+  IndicadorActualizacion,
+  SelloDeDatos,
+} from "@/components/admin/indicador-actualizacion";
 import { Aviso, Tarjeta } from "@/components/admin/marco-admin";
 import { adminApi } from "@/lib/admin-api";
 import { bonito, ErrorApi } from "@/lib/api";
+import { useDatosVivos } from "@/lib/datos-vivos";
 import { tablerosApi, type DetalleAccion } from "@/lib/tableros-api";
 
 const MODALIDAD: Record<string, string> = {
@@ -30,22 +35,15 @@ const ESTADO: Record<string, { texto: string; clase: string }> = {
 
 export default function DetalleDeAccion({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
-  const [datos, setDatos] = useState<DetalleAccion | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [errorAccion, setErrorAccion] = useState<string | null>(null);
   const [ocupado, setOcupado] = useState(false);
 
-  const cargar = useCallback(async () => {
-    try {
-      setDatos(await tablerosApi.accion(id));
-      setError(null);
-    } catch (e) {
-      setError((e as ErrorApi).message);
-    }
-  }, [id]);
+  const vivos = useDatosVivos<DetalleAccion>(
+    useCallback(() => tablerosApi.accion(id), [id]),
+  );
 
-  useEffect(() => {
-    void cargar();
-  }, [cargar]);
+  const datos = vivos.datos;
+  const error = errorAccion ?? vivos.error;
 
   if (error) return <Aviso tipo="error">{error}</Aviso>;
   if (!datos) return <p className="text-texto-suave">Cargando…</p>;
@@ -55,9 +53,9 @@ export default function DetalleDeAccion({ params }: { params: Promise<{ id: stri
     setOcupado(true);
     try {
       await adminApi.publicarAccion(datos.id, !datos.visible);
-      await cargar();
+      vivos.refrescar();
     } catch (e) {
-      setError((e as ErrorApi).message);
+      setErrorAccion((e as ErrorApi).message);
     } finally {
       setOcupado(false);
     }
@@ -72,6 +70,7 @@ export default function DetalleDeAccion({ params }: { params: Promise<{ id: stri
         titulo={`${datos.codigo} · ${bonito(datos.nombre)}`}
         subtitulo={datos.convenio.sigla ?? datos.convenio.slug}
       />
+      <SelloDeDatos actualizadoEn={vivos.actualizadoEn} />
 
       <header className="no-imprimir flex flex-wrap items-start justify-between gap-4">
         <div className="min-w-0">
@@ -94,6 +93,14 @@ export default function DetalleDeAccion({ params }: { params: Promise<{ id: stri
               </>
             )}
           </p>
+          <div className="mt-3">
+            <IndicadorActualizacion
+              actualizadoEn={vivos.actualizadoEn}
+              refrescando={vivos.refrescando}
+              desactualizado={vivos.desactualizado}
+              alRefrescar={vivos.refrescar}
+            />
+          </div>
         </div>
 
         <div className="flex flex-wrap items-center gap-2">

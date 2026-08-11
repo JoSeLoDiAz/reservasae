@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 
 import { BotonPdf, EncabezadoImpresion } from "@/components/admin/boton-pdf";
 import {
@@ -14,15 +14,19 @@ import {
   n,
   SERIE,
 } from "@/components/admin/graficos";
+import {
+  IndicadorActualizacion,
+  SelloDeDatos,
+} from "@/components/admin/indicador-actualizacion";
 import { Aviso, Tarjeta, useAdmin } from "@/components/admin/marco-admin";
-import { bonito, ErrorApi } from "@/lib/api";
+import { bonito } from "@/lib/api";
+import { useDatosVivos } from "@/lib/datos-vivos";
 import {
   descargar,
   tablerosApi,
   type Analisis,
   type FilaAccion,
   type FilaUbicacion,
-  type PuntoSerie,
   type Resumen,
 } from "@/lib/tableros-api";
 
@@ -34,35 +38,27 @@ const MODALIDAD: Record<string, string> = {
 
 export default function Tablero() {
   const { admin } = useAdmin();
-  const [resumen, setResumen] = useState<Resumen | null>(null);
-  const [acciones, setAcciones] = useState<FilaAccion[] | null>(null);
-  const [analisis, setAnalisis] = useState<Analisis | null>(null);
-  const [ubicaciones, setUbicaciones] = useState<FilaUbicacion[] | null>(null);
-  const [serie, setSerie] = useState<PuntoSerie[]>([]);
-  const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    Promise.all([
-      tablerosApi.resumen(),
-      tablerosApi.acciones(),
-      tablerosApi.analisis(),
-      tablerosApi.ubicaciones(),
-      tablerosApi.serie(30),
-    ])
-      .then(([r, a, an, u, s]) => {
-        setResumen(r);
-        setAcciones(a);
-        setAnalisis(an);
-        setUbicaciones(u);
-        setSerie(s);
-      })
-      .catch((e: ErrorApi) => setError(e.message));
-  }, []);
+  const vivos = useDatosVivos(
+    useCallback(
+      async () => {
+        const [resumen, acciones, analisis, ubicaciones, serie] = await Promise.all([
+          tablerosApi.resumen(),
+          tablerosApi.acciones(),
+          tablerosApi.analisis(),
+          tablerosApi.ubicaciones(),
+          tablerosApi.serie(30),
+        ]);
+        return { resumen, acciones, analisis, ubicaciones, serie };
+      },
+      [],
+    ),
+  );
 
-  if (error) return <Aviso tipo="error">{error}</Aviso>;
-  if (!resumen || !acciones || !analisis || !ubicaciones) {
-    return <p className="text-texto-suave">Cargando…</p>;
-  }
+  if (vivos.error) return <Aviso tipo="error">{vivos.error}</Aviso>;
+  if (!vivos.datos) return <p className="text-texto-suave">Cargando…</p>;
+
+  const { resumen, acciones, analisis, ubicaciones, serie } = vivos.datos;
 
   const porConvenio = new Map<string, FilaAccion[]>();
   for (const a of acciones) {
@@ -75,11 +71,22 @@ export default function Tablero() {
   return (
     <div className="space-y-6">
       <EncabezadoImpresion titulo="Tablero de ocupación" />
+      <SelloDeDatos actualizadoEn={vivos.actualizadoEn} />
 
       <header className="flex flex-wrap items-start justify-between gap-4">
         <div className="no-imprimir">
           <h1 className="text-2xl font-semibold">Hola, {admin.nombre.split(" ")[0]}</h1>
-          <p className="mt-1 text-texto-suave">Ocupación de cupos en tiempo real.</p>
+          <p className="mt-1 text-texto-suave">
+            Ocupación de cupos. Se actualiza sola cada 30 segundos.
+          </p>
+          <div className="mt-3">
+            <IndicadorActualizacion
+              actualizadoEn={vivos.actualizadoEn}
+              refrescando={vivos.refrescando}
+              desactualizado={vivos.desactualizado}
+              alRefrescar={vivos.refrescar}
+            />
+          </div>
         </div>
         <div className="no-imprimir flex flex-wrap gap-2 text-sm">
           <BotonPdf etiqueta="PDF para reunión" />
