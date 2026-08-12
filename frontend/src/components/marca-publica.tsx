@@ -212,7 +212,12 @@ export function EncabezadoPublico({
           {logo ? (
             // <img>: tamano desconocido y ya viene cacheado
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={logo} alt={marca?.nombreApp ?? "Convoca"} className="h-10 w-auto" />
+            <img
+              src={logo}
+              alt={marca?.nombreApp ?? "Convoca"}
+              // max-w: un logo muy ancho no puede desbordar en movil
+              className="h-20 w-auto max-w-[70vw] object-contain"
+            />
           ) : (
             <span className="text-sm font-medium text-marca">
               {marca?.nombreApp ?? "Convoca"}

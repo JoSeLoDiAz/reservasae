@@ -94,13 +94,18 @@ export default function PaginaMarca() {
 
       <Tarjeta
         titulo="Logo"
-        descripcion="SVG, PNG o WebP con fondo transparente. Máximo 1 MB. Se muestra a unos 40 px de alto, así que conviene entregarlo a 480 × 144 px o mayor. JPG no sirve: no tiene transparencia y deja un recuadro blanco."
+        descripcion="SVG, PNG o WebP con fondo transparente. Máximo 1 MB. Se muestra a unos 80 px de alto, así que conviene entregarlo a 960 × 288 px o mayor, o en SVG y se ve nítido a cualquier tamaño. JPG no sirve: no tiene transparencia y deja un recuadro blanco."
       >
         <div className="flex flex-wrap items-center gap-6">
-          <div className="grid h-24 w-56 place-items-center rounded-lg border border-dashed border-borde bg-fondo p-3">
+          {/* al tamano real: lo que se ve aqui es lo que se publica */}
+          <div className="grid h-32 w-64 place-items-center rounded-lg border border-dashed border-borde bg-fondo p-3">
             {logo ? (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={logo} alt="Logo actual" className="max-h-full max-w-full" />
+              <img
+                src={logo}
+                alt="Logo actual"
+                className="h-20 w-auto max-w-full object-contain"
+              />
             ) : (
               <span className="text-sm text-texto-suave">Sin logo</span>
             )}

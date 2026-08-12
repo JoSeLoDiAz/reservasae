@@ -109,13 +109,18 @@ export default function PaginaAparienciaFormulario({
 
       <Tarjeta
         titulo="Logo del formulario"
-        descripcion="SVG, PNG o WebP con fondo transparente. Máximo 1 MB. Sin uno propio se muestra el logo general."
+        descripcion="SVG, PNG o WebP con fondo transparente. Máximo 1 MB. Se muestra a unos 80 px de alto, así que conviene entregarlo a 960 × 288 px o mayor, o en SVG. Sin uno propio se muestra el logo general."
       >
         <div className="flex flex-wrap items-center gap-6">
-          <div className="grid h-24 w-56 place-items-center rounded-lg border border-dashed border-borde bg-fondo p-3">
+          {/* al tamano real: lo que se ve aqui es lo que se publica */}
+          <div className="grid h-32 w-64 place-items-center rounded-lg border border-dashed border-borde bg-fondo p-3">
             {logo ? (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={logo} alt="Logo del formulario" className="max-h-full max-w-full" />
+              <img
+                src={logo}
+                alt="Logo del formulario"
+                className="h-20 w-auto max-w-full object-contain"
+              />
             ) : (
               <span className="text-sm text-texto-suave">Usa el logo general</span>
             )}
