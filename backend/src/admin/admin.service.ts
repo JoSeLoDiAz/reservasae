@@ -13,9 +13,16 @@ import {
   type Admin,
   type EsquemaColor,
 } from '../../generated/prisma';
+import {
+  MAXIMO_LOGOS,
+  sinExtension,
+  type LogoPublico,
+  type OrigenLogos,
+} from '../comun/logo';
 import { PrismaService } from '../prisma/prisma.service';
 import {
   ActualizarAdminDto,
+  ActualizarLogoDto,
   ActualizarMarcaDto,
   ActualizarPerfilDto,
   ActualizarTemaDto,
@@ -208,9 +215,6 @@ export class AdminService {
         piePagina: true,
         modoPorDefecto: true,
         permitirCambioDeModo: true,
-        logoTipoMime: true,
-        logoNombre: true,
-        logoVersion: true,
         actualizadoEn: true,
       },
     });
@@ -225,11 +229,8 @@ export class AdminService {
       ...marca,
       ambito: 'GENERAL' as const,
       formularioSlug: null as string | null,
-      logo: {
-        origen: (marca.logoTipoMime ? 'GENERAL' : null) as 'GENERAL' | 'FORMULARIO' | null,
-        tipoMime: marca.logoTipoMime,
-        version: marca.logoVersion,
-      },
+      logos: await this.listarLogos(null),
+      origenLogos: 'GENERAL' as OrigenLogos,
       temas,
       catalogoColores: {
         grupos: GRUPOS,
@@ -239,21 +240,20 @@ export class AdminService {
     };
   }
 
-  /** La marca general con lo propio del formulario encima. */
+  /** La general con lo del formulario encima. */
   async obtenerMarcaDeFormulario(slug: string, incluirNoPublicado = false) {
     const general = await this.obtenerMarca();
 
     const formulario = await this.prisma.formulario.findUnique({
       where: { slug },
       select: {
+        id: true,
         slug: true,
         titulo: true,
         descripcion: true,
         publicado: true,
         coloresClaro: true,
         coloresOscuro: true,
-        logoTipoMime: true,
-        logoVersion: true,
       },
     });
 
@@ -265,7 +265,8 @@ export class AdminService {
       OSCURO: formulario.coloresOscuro,
     };
 
-    const tienelogoPropio = Boolean(formulario.logoTipoMime);
+    // o los suyos o los generales, sin mezclar
+    const suyos = await this.listarLogos(formulario.id);
 
     return {
       ...general,
@@ -274,13 +275,8 @@ export class AdminService {
       // el titulo del formulario manda; el resto hereda
       tituloPublico: formulario.titulo,
       subtituloPublico: formulario.descripcion ?? general.subtituloPublico,
-      logo: tienelogoPropio
-        ? {
-            origen: 'FORMULARIO' as const,
-            tipoMime: formulario.logoTipoMime,
-            version: formulario.logoVersion,
-          }
-        : general.logo,
+      logos: suyos.length ? suyos : general.logos,
+      origenLogos: (suyos.length ? 'FORMULARIO' : 'GENERAL') as OrigenLogos,
       temas: Object.fromEntries(
         (Object.keys(general.temas) as EsquemaColor[]).map((esquema) => [
           esquema,
@@ -291,22 +287,6 @@ export class AdminService {
         CLARO: tokensSobreescritos(formulario.coloresClaro),
         OSCURO: tokensSobreescritos(formulario.coloresOscuro),
       },
-    };
-  }
-
-  /** Solo el logo propio del formulario. */
-  async leerLogoDeFormulario(slug: string) {
-    const formulario = await this.prisma.formulario.findUnique({
-      where: { slug },
-      select: { logoDatos: true, logoTipoMime: true, logoVersion: true },
-    });
-    if (!formulario?.logoDatos || !formulario.logoTipoMime) {
-      throw new NotFoundException('Este formulario no tiene logo propio.');
-    }
-    return {
-      logoDatos: Buffer.from(formulario.logoDatos),
-      logoTipoMime: formulario.logoTipoMime,
-      logoVersion: formulario.logoVersion,
     };
   }
 
@@ -345,57 +325,133 @@ export class AdminService {
     return this.obtenerMarca();
   }
 
+  // logos
+
+  /** Los de un ámbito. null = la general. */
+  async listarLogos(formularioId: string | null): Promise<LogoPublico[]> {
+    const filas = await this.prisma.logo.findMany({
+      where: { formularioId },
+      orderBy: [{ orden: 'asc' }, { creadoEn: 'asc' }],
+      select: {
+        id: true,
+        etiqueta: true,
+        tipoMime: true,
+        nombre: true,
+        version: true,
+        orden: true,
+      },
+    });
+    return filas;
+  }
+
   // Uint8Array: es lo que espera el campo Bytes
-  async guardarLogo(admin: Admin, datos: Uint8Array, tipoMime: string, nombre: string) {
-    const actual = await this.prisma.marca.upsert({
-      where: { id: ID_MARCA },
-      create: { id: ID_MARCA },
-      update: {},
-      select: { logoVersion: true },
-    });
+  async agregarLogo(
+    formularioId: string | null,
+    datos: Uint8Array,
+    tipoMime: string,
+    nombre: string,
+    etiqueta?: string,
+  ) {
+    await this.exigirFormulario(formularioId);
 
-    await this.prisma.marca.update({
-      where: { id: ID_MARCA },
-      data: {
-        // copia: multer puede dar un SharedArrayBuffer
-        logoDatos: new Uint8Array(datos),
-        logoTipoMime: tipoMime,
-        logoNombre: nombre,
-        // la version va en la URL: cachear para siempre
-        logoVersion: actual.logoVersion + 1,
-        actualizadoPorId: admin.id,
-      },
-    });
-    return this.obtenerMarca();
-  }
-
-  async borrarLogo(admin: Admin) {
-    await this.obtenerMarca();
-    await this.prisma.marca.update({
-      where: { id: ID_MARCA },
-      data: {
-        logoDatos: null,
-        logoTipoMime: null,
-        logoNombre: null,
-        actualizadoPorId: admin.id,
-      },
-    });
-    return this.obtenerMarca();
-  }
-
-  async leerLogo() {
-    const marca = await this.prisma.marca.findUnique({
-      where: { id: ID_MARCA },
-      select: { logoDatos: true, logoTipoMime: true, logoVersion: true },
-    });
-    if (!marca?.logoDatos || !marca.logoTipoMime) {
-      throw new NotFoundException('No hay logo cargado.');
+    const cuantos = await this.prisma.logo.count({ where: { formularioId } });
+    if (cuantos >= MAXIMO_LOGOS) {
+      throw new ConflictException(
+        `Ya hay ${MAXIMO_LOGOS} logos. Quite uno antes de añadir otro.`,
+      );
     }
-    return {
-      logoDatos: Buffer.from(marca.logoDatos),
-      logoTipoMime: marca.logoTipoMime,
-      logoVersion: marca.logoVersion,
-    };
+
+    await this.prisma.logo.create({
+      data: {
+        formularioId,
+        orden: cuantos,
+        etiqueta: (etiqueta?.trim() || sinExtension(nombre)).slice(0, 60),
+        // copia: multer puede dar un SharedArrayBuffer
+        datos: new Uint8Array(datos),
+        tipoMime,
+        nombre,
+      },
+    });
+    return this.listarLogos(formularioId);
+  }
+
+  /** Cambia la etiqueta o mueve el logo en el banner. */
+  async actualizarLogo(id: string, dto: ActualizarLogoDto) {
+    const logo = await this.prisma.logo.findUnique({
+      where: { id },
+      select: { id: true, formularioId: true, orden: true },
+    });
+    if (!logo) throw new NotFoundException('No existe ese logo.');
+
+    if (dto.etiqueta !== undefined) {
+      await this.prisma.logo.update({
+        where: { id },
+        data: { etiqueta: dto.etiqueta.trim().slice(0, 60) },
+      });
+    }
+
+    if (dto.direccion) {
+      const hermanos = await this.prisma.logo.findMany({
+        where: { formularioId: logo.formularioId },
+        orderBy: [{ orden: 'asc' }, { creadoEn: 'asc' }],
+        select: { id: true },
+      });
+      const desde = hermanos.findIndex((l) => l.id === id);
+      const hasta = desde + (dto.direccion === 'IZQUIERDA' ? -1 : 1);
+      if (hasta >= 0 && hasta < hermanos.length) {
+        const [movido] = hermanos.splice(desde, 1);
+        hermanos.splice(hasta, 0, movido);
+        // orden entero: sin huecos ni empates
+        await this.prisma.$transaction(
+          hermanos.map((l, i) =>
+            this.prisma.logo.update({ where: { id: l.id }, data: { orden: i } }),
+          ),
+        );
+      }
+    }
+
+    return this.listarLogos(logo.formularioId);
+  }
+
+  async borrarLogo(id: string) {
+    const logo = await this.prisma.logo.findUnique({
+      where: { id },
+      select: { formularioId: true },
+    });
+    if (!logo) throw new NotFoundException('No existe ese logo.');
+
+    await this.prisma.logo.delete({ where: { id } });
+
+    // se compacta el orden para que no queden saltos
+    const quedan = await this.prisma.logo.findMany({
+      where: { formularioId: logo.formularioId },
+      orderBy: [{ orden: 'asc' }, { creadoEn: 'asc' }],
+      select: { id: true },
+    });
+    await this.prisma.$transaction(
+      quedan.map((l, i) =>
+        this.prisma.logo.update({ where: { id: l.id }, data: { orden: i } }),
+      ),
+    );
+
+    return this.listarLogos(logo.formularioId);
+  }
+
+  /** Los bytes de un logo, para servirlo. */
+  async leerLogo(id: string) {
+    const logo = await this.prisma.logo.findUnique({
+      where: { id },
+      // `select` explicito: el omit global no aplica aqui
+      select: { datos: true, tipoMime: true },
+    });
+    if (!logo) throw new NotFoundException('No existe ese logo.');
+    return { datos: Buffer.from(logo.datos), tipoMime: logo.tipoMime };
+  }
+
+  private async exigirFormulario(formularioId: string | null) {
+    if (!formularioId) return;
+    const existe = await this.prisma.formulario.count({ where: { id: formularioId } });
+    if (!existe) throw new NotFoundException('No existe ese formulario.');
   }
 
   // acciones de formación

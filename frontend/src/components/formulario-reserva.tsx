@@ -523,7 +523,7 @@ function ayudaUbicacion(accion: Accion): string {
   return "Las sesiones son en vivo; el departamento define su grupo.";
 }
 
-/** "2 ciudades presenciales y 12 departamentos virtuales". */
+/** "2 ciudades y 12 departamentos". */
 function desgloseUbicaciones(accion: Accion): string {
   const ciudades = accion.ofertas.filter((o) => o.tipoUbicacion === "CIUDAD").length;
   const departamentos = accion.ofertas.filter((o) => o.tipoUbicacion === "DEPARTAMENTO").length;

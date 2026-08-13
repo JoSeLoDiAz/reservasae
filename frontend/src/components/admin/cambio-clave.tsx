@@ -7,7 +7,7 @@ import { ErrorApi } from "@/lib/api";
 
 const LARGO_MINIMO = 10;
 
-/** Tapa el panel mientras la clave siga siendo temporal. */
+/** Tapa el panel con la clave temporal. */
 export function CambioDeClaveObligatorio({ alTerminar }: { alTerminar: () => Promise<void> }) {
   return (
     <div className="mx-auto w-full max-w-md px-6 py-16">

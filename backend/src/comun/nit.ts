@@ -1,4 +1,4 @@
-/** Normaliza el NIT: solo el número, sin puntos ni DV. */
+/** El NIT sin puntos ni DV. */
 
 export type NitNormalizado = {
   nit: string;

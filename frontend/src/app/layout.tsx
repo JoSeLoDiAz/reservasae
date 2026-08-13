@@ -20,7 +20,7 @@ export const metadata: Metadata = {
   title: "Convoca",
   // sin descripcion: saldria hasta en el 404
 
-  // noindex y no solo robots.txt: Cloudflare pisa el suyo
+  // noindex: Cloudflare pisa el robots.txt
   robots: { index: false, follow: false },
 };
 
@@ -33,7 +33,7 @@ export default function RootLayout({
     <html
       lang="es"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
-      // el script de abajo fija data-tema antes de hidratar
+      // el script fija data-tema antes
       suppressHydrationWarning
     >
       <head>

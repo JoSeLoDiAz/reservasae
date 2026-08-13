@@ -1,4 +1,4 @@
-/** Comprueba los invariantes de cupos. Todo se revierte. */
+/** Los invariantes de cupos. Todo se revierte. */
 import { PrismaClient } from '../generated/prisma';
 
 const prisma = new PrismaClient();

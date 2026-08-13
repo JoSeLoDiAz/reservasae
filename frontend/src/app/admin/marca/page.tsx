@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 
 import { EditorColores } from "@/components/admin/editor-colores";
+import { GestorLogos } from "@/components/admin/gestor-logos";
 import {
   Aviso,
   Boton,
@@ -11,7 +12,7 @@ import {
   Tarjeta,
 } from "@/components/admin/marco-admin";
 import { useMarca } from "@/components/marca-publica";
-import { adminApi, urlLogo, type Marca, type ModoPorDefecto } from "@/lib/admin-api";
+import { adminApi, type Marca, type ModoPorDefecto } from "@/lib/admin-api";
 import { ErrorApi } from "@/lib/api";
 import type { ColoresTema, Esquema } from "@/lib/tema";
 
@@ -32,7 +33,6 @@ export default function PaginaMarca() {
   const [error, setError] = useState<string | null>(null);
   const [guardado, setGuardado] = useState(false);
   const [guardando, setGuardando] = useState(false);
-  const entradaArchivo = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     void adminApi.marca().then(setMarca);
@@ -56,7 +56,7 @@ export default function PaginaMarca() {
     setGuardado(false);
   }
 
-  // plantilla o derivacion: cambian los dos modos a la vez
+  // plantilla o derivacion: cambia todo
   function reemplazarTemas(temas: Record<Esquema, ColoresTema>) {
     setMarca((p) => (p ? { ...p, temas } : p));
     setGuardado(false);
@@ -77,8 +77,6 @@ export default function PaginaMarca() {
     }
   }
 
-  const logo = urlLogo(marca);
-
   return (
     <div className="space-y-6">
       <header>
@@ -93,53 +91,10 @@ export default function PaginaMarca() {
       {guardado && !error && <Aviso tipo="exito">Cambios guardados.</Aviso>}
 
       <Tarjeta
-        titulo="Logo"
-        descripcion="SVG, PNG o WebP con fondo transparente. Máximo 1 MB. Se muestra a unos 80 px de alto, así que conviene entregarlo a 960 × 288 px o mayor, o en SVG y se ve nítido a cualquier tamaño. JPG no sirve: no tiene transparencia y deja un recuadro blanco."
+        titulo="Logos de la cabecera"
+        descripcion="Hasta tres, uno por entidad. SVG, PNG o WebP con fondo transparente, máximo 1 MB cada uno. Se muestran a 80 px de alto, así que conviene entregarlos a 960 × 288 px o mayor, o en SVG. JPG no sirve: no tiene transparencia y deja un recuadro blanco."
       >
-        <div className="flex flex-wrap items-center gap-6">
-          {/* al tamano real: lo que se ve aqui es lo que se publica */}
-          <div className="grid h-32 w-64 place-items-center rounded-lg border border-dashed border-borde bg-fondo p-3">
-            {logo ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={logo}
-                alt="Logo actual"
-                className="h-20 w-auto max-w-full object-contain"
-              />
-            ) : (
-              <span className="text-sm text-texto-suave">Sin logo</span>
-            )}
-          </div>
-
-          <div className="flex flex-wrap gap-3">
-            <input
-              ref={entradaArchivo}
-              type="file"
-              accept="image/svg+xml,image/png,image/webp"
-              className="hidden"
-              onChange={(e) => {
-                const archivo = e.target.files?.[0];
-                if (archivo) void conError(() => adminApi.subirLogo(archivo));
-                e.target.value = "";
-              }}
-            />
-            <Boton type="button" onClick={() => entradaArchivo.current?.click()}>
-              {logo ? "Reemplazar logo" : "Subir logo"}
-            </Boton>
-            {logo && (
-              <button
-                type="button"
-                onClick={() => conError(() => adminApi.borrarLogo())}
-                className="rounded-lg border border-borde px-5 py-2 text-sm hover:bg-fondo"
-              >
-                Quitar
-              </button>
-            )}
-          </div>
-        </div>
-        {marca.logoNombre && (
-          <p className="mt-3 text-xs text-texto-suave">Archivo: {marca.logoNombre}</p>
-        )}
+        <GestorLogos />
       </Tarjeta>
 
       <form

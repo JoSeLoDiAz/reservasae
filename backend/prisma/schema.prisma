@@ -294,17 +294,12 @@ model Formulario {
   descripcion String?
   publicado   Boolean @default(false)
 
-  /// Texto de la pantalla de confirmación, tras reservar.
+  /// Lo que se lee tras reservar.
   mensajeExito String?
 
   /// Solo las claves propias; el resto hereda.
   coloresClaro  Json?
   coloresOscuro Json?
-
-  logoDatos    Bytes?
-  logoTipoMime String?
-  logoNombre   String?
-  logoVersion  Int     @default(0)
 
   creadoEn      DateTime @default(now())
   actualizadoEn DateTime @updatedAt
@@ -313,6 +308,7 @@ model Formulario {
   secciones Seccion[]
   preguntas Pregunta[]
   reservas  Reserva[]
+  logos     Logo[]
 
   @@map("formularios")
 }
@@ -387,7 +383,7 @@ model Pregunta {
   dependeDe    Pregunta?  @relation("Dependencia", fields: [dependeDePreguntaId], references: [id], onDelete: SetNull)
   dependientes Pregunta[] @relation("Dependencia")
 
-  // Un campo del núcleo se pide una sola vez por formulario.
+  // un campo del nucleo, una sola vez
   @@unique([formularioId, campoNucleo])
   @@index([formularioId, orden])
   @@index([seccionId, orden])
@@ -410,7 +406,7 @@ model Opcion {
   @@map("opciones")
 }
 
-/// Una respuesta, con su etiqueta congelada al enviar.
+/// Una respuesta y su etiqueta congelada.
 model Respuesta {
   id         String @id @default(cuid())
   reservaId  String
@@ -512,6 +508,32 @@ model Admin {
   @@map("administradores")
 }
 
+/// Los logos de la cabecera. Hasta tres por ámbito.
+model Logo {
+  id String @id @default(cuid())
+
+  /// null = marca general; si no, el formulario dueño.
+  formularioId String?
+  orden        Int     @default(0)
+
+  /// Nombre de la entidad. Es su texto alternativo.
+  etiqueta String
+
+  datos    Bytes
+  tipoMime String
+  nombre   String
+  /// Va en la URL: permite cachear para siempre.
+  version  Int    @default(1)
+
+  creadoEn      DateTime @default(now())
+  actualizadoEn DateTime @updatedAt
+
+  formulario Formulario? @relation(fields: [formularioId], references: [id], onDelete: Cascade)
+
+  @@index([formularioId, orden])
+  @@map("logos")
+}
+
 /// Apariencia general. Una sola fila, id = "unica".
 model Marca {
   id String @id @default("unica")
@@ -525,12 +547,6 @@ model Marca {
   modoPorDefecto       ModoPorDefecto @default(SISTEMA)
   /// Si se apaga, no se ve el conmutador.
   permitirCambioDeModo Boolean        @default(true)
-
-  logoDatos    Bytes?
-  logoTipoMime String?
-  logoNombre   String?
-  /// Va en la URL: permite cachear para siempre.
-  logoVersion  Int     @default(0)
 
   actualizadoEn    DateTime @updatedAt
   actualizadoPorId String?

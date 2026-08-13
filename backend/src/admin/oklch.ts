@@ -63,7 +63,7 @@ function intentarHex({ l, c, h }: Oklch): string | null {
   );
 }
 
-/** OKLCH a hex, bajando croma hasta que entre en sRGB. */
+/** OKLCH a hex, recortando al gamut sRGB. */
 export function oklchAHex(color: Oklch): string {
   const l = Math.min(1, Math.max(0, color.l));
   let c = Math.max(0, color.c);

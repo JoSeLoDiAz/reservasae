@@ -5,8 +5,8 @@ import { PrismaClient } from '../../generated/prisma';
 @Injectable()
 export class PrismaService extends PrismaClient implements OnModuleInit {
   constructor() {
-    // el logo no viaja por defecto
-    super({ omit: { formulario: { logoDatos: true } } });
+    // los bytes del logo no viajan por defecto
+    super({ omit: { logo: { datos: true } } });
   }
 
   async onModuleInit() {

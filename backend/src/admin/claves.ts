@@ -14,7 +14,7 @@ const LARGO_HASH = 64;
 
 export const CLAVE_LARGO_MINIMO = 10;
 
-/** Formato: `scrypt$<sal en base64>$<hash en base64>`. */
+/** `scrypt$<sal b64>$<hash b64>`. */
 export async function hashearClave(clave: string): Promise<string> {
   const sal = randomBytes(LARGO_SAL);
   // NFKC: la misma tilde en dos bytes distintos

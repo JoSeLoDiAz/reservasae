@@ -162,7 +162,7 @@ export function corregirContraste(colores: ColoresTema): ColoresTema {
   return salida;
 }
 
-/** Las dos paletas completas a partir del color principal. */
+/** Las dos paletas desde el color principal. */
 export function derivarTemas(
   opciones: OpcionesDerivacion,
 ): Record<EsquemaColor, ColoresTema> {

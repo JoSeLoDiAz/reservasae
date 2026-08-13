@@ -5,7 +5,7 @@ export const metadata: Metadata = {
   // sin descripción a propósito
 };
 
-/** 404 mudo: ni logo, ni enlaces, ni de qué va el sitio. */
+/** 404 mudo: ni logo ni enlaces. */
 export default function NoEncontrado() {
   return (
     <main className="flex min-h-screen flex-col items-center justify-center gap-2 px-6 text-center">

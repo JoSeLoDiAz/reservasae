@@ -8,6 +8,7 @@ import {
   Param,
   Patch,
   Post,
+  Query,
   Res,
   UploadedFile,
   UseGuards,
@@ -37,6 +38,7 @@ import { AdminService, vistaAdmin } from './admin.service';
 import { corregirContraste, derivarTemas } from './derivar';
 import {
   ActualizarAdminDto,
+  ActualizarLogoDto,
   ActualizarMarcaDto,
   ActualizarPerfilDto,
   ActualizarTemaDto,
@@ -185,25 +187,40 @@ export class AdminController {
     return arriba as EsquemaColor;
   }
 
-  @Post('marca/logo')
-  @UseInterceptors(FileInterceptor('logo', { limits: { fileSize: MAXIMO_LOGO } }))
-  subirLogo(@AdminActual() admin: Admin, @UploadedFile() archivo?: Express.Multer.File) {
-    if (!archivo) throw new BadRequestException('No llegó ningún archivo.');
+  // logos: las mismas rutas para los dos ambitos
 
+  @Get('logos')
+  listarLogos(@Query('formularioId') formularioId?: string) {
+    return this.admin.listarLogos(formularioId || null);
+  }
+
+  @Post('logos')
+  @UseInterceptors(FileInterceptor('logo', { limits: { fileSize: MAXIMO_LOGO } }))
+  subirLogo(
+    @Body() cuerpo: { formularioId?: string; etiqueta?: string },
+    @UploadedFile() archivo?: Express.Multer.File,
+  ) {
+    if (!archivo) throw new BadRequestException('No llegó ningún archivo.');
     if (!TIPOS_LOGO.includes(archivo.mimetype)) throw new BadRequestException(ERROR_TIPO_LOGO);
     if (archivo.size > MAXIMO_LOGO) throw new BadRequestException(ERROR_TAMANO_LOGO);
 
-    return this.admin.guardarLogo(
-      admin,
+    return this.admin.agregarLogo(
+      cuerpo.formularioId || null,
       new Uint8Array(archivo.buffer),
       archivo.mimetype,
       archivo.originalname,
+      cuerpo.etiqueta,
     );
   }
 
-  @Delete('marca/logo')
-  borrarLogo(@AdminActual() admin: Admin) {
-    return this.admin.borrarLogo(admin);
+  @Patch('logos/:id')
+  actualizarLogo(@Param('id') id: string, @Body() dto: ActualizarLogoDto) {
+    return this.admin.actualizarLogo(id, dto);
+  }
+
+  @Delete('logos/:id')
+  borrarLogo(@Param('id') id: string) {
+    return this.admin.borrarLogo(id);
   }
 
   // apariencia asistida
@@ -248,7 +265,7 @@ export class AdminController {
   }
 }
 
-/** Colores, textos y logo para el sitio público. Sin sesión. */
+/** La marca del sitio público. Sin sesión. */
 @Controller('marca')
 export class MarcaPublicaController {
   constructor(private readonly admin: AdminService) {}
@@ -258,27 +275,18 @@ export class MarcaPublicaController {
     return this.admin.obtenerMarca();
   }
 
-  @Get('logo')
-  async logo(@Res() respuesta: Response) {
-    const { logoDatos, logoTipoMime } = await this.admin.leerLogo();
-    this.enviarLogo(respuesta, logoDatos, logoTipoMime);
-  }
-
   // segmento literal antes del slug
   @Get('formulario/:slug')
   marcaDeFormulario(@Param('slug') slug: string) {
     return this.admin.obtenerMarcaDeFormulario(slug);
   }
 
-  @Get('formulario/:slug/logo')
-  async logoDeFormulario(@Param('slug') slug: string, @Res() respuesta: Response) {
-    const { logoDatos, logoTipoMime } = await this.admin.leerLogoDeFormulario(slug);
-    this.enviarLogo(respuesta, logoDatos, logoTipoMime);
-  }
-
-  // cacheable para siempre
-  private enviarLogo(respuesta: Response, datos: Buffer, tipoMime: string) {
+  /** Cada logo por su id, cacheable un año. */
+  @Get('logos/:id')
+  async logo(@Param('id') id: string, @Res() respuesta: Response) {
+    const { datos, tipoMime } = await this.admin.leerLogo(id);
     respuesta.type(tipoMime);
+    // cacheable para siempre: la URL lleva ?v=version
     respuesta.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
     respuesta.send(datos);
   }

@@ -303,7 +303,7 @@ export default function Tablero() {
   );
 }
 
-/** Lo accionable: qué está lleno y dónde no ha llegado nadie. */
+/** Qué está lleno y dónde no llegó nadie. */
 function Alertas({
   resumen,
   completas,

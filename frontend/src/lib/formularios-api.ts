@@ -92,9 +92,6 @@ export type FormularioAdmin = {
   /** Solo los colores que sobreescribe. */
   coloresClaro: Record<string, string> | null;
   coloresOscuro: Record<string, string> | null;
-  logoTipoMime: string | null;
-  logoNombre: string | null;
-  logoVersion: number;
 };
 
 export type ResumenFormulario = {

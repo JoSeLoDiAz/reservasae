@@ -2,7 +2,7 @@ import { calcularProyeccion, ritmoPorDia, type PuntoNeto } from './proyeccion';
 
 const HOY = new Date('2026-08-10T00:00:00.000Z');
 
-/** Serie con `neto` cupos cada uno de los últimos `dias` días. */
+/** Serie de `dias` días con `neto` cupos cada uno. */
 function constante(dias: number, neto: number): PuntoNeto[] {
   return Array.from({ length: dias }, (_, i) => ({
     dia: new Date(HOY.getTime() - i * 86_400_000).toISOString().slice(0, 10),

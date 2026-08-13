@@ -62,7 +62,7 @@ export function ProveedorMarca({ children }: { children: React.ReactNode }) {
     setEsquema(resolverEsquema(guardado));
   }, []);
 
-  // el primer segmento de la URL es el slug del formulario
+  // el primer segmento es el slug
   const ruta = usePathname();
   const ambito = useMemo(() => ambitoDeRuta(ruta ?? "/"), [ruta]);
 
@@ -194,6 +194,36 @@ export function ConmutadorTema({ compacto = false }: { compacto?: boolean }) {
   );
 }
 
+/** Los logos de las entidades, en fila. */
+export function BannerLogos() {
+  const { marca } = useMarca();
+  const logos = marca?.logos ?? [];
+
+  if (!logos.length) {
+    return (
+      <span className="text-sm font-medium text-marca">
+        {marca?.nombreApp ?? "Convoca"}
+      </span>
+    );
+  }
+
+  return (
+    <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
+      {logos.map((logo) => (
+        // <img>: tamano desconocido y ya viene cacheado
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          key={logo.id}
+          src={urlLogo(logo)}
+          alt={logo.etiqueta}
+          // max-w: que no desborden en movil
+          className="h-20 w-auto max-w-[45vw] object-contain sm:max-w-[14rem]"
+        />
+      ))}
+    </div>
+  );
+}
+
 export function EncabezadoPublico({
   titulo,
   subtitulo,
@@ -202,28 +232,11 @@ export function EncabezadoPublico({
   subtitulo?: string;
 }) {
   const { marca } = useMarca();
-  const logo = marca ? urlLogo(marca) : null;
 
   return (
     <header className="mb-8">
       <div className="flex flex-wrap items-center justify-between gap-4">
-        {/* sin enlace: la raiz devuelve 404 a proposito */}
-        <div className="inline-flex items-center gap-3">
-          {logo ? (
-            // <img>: tamano desconocido y ya viene cacheado
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={logo}
-              alt={marca?.nombreApp ?? "Convoca"}
-              // max-w: un logo muy ancho no puede desbordar en movil
-              className="h-20 w-auto max-w-[70vw] object-contain"
-            />
-          ) : (
-            <span className="text-sm font-medium text-marca">
-              {marca?.nombreApp ?? "Convoca"}
-            </span>
-          )}
-        </div>
+        <BannerLogos />
         <ConmutadorTema compacto />
       </div>
 

@@ -245,7 +245,7 @@ async function main() {
           },
         });
 
-        // bajar el tope por debajo de lo reservado: avisar y parar
+        // no bajar el tope por debajo de lo dado
         if (existente && existente.cuposOcupados > ofertaJson.cuposMaximos) {
           avisos.push(
             `${entrada.slug} ${accionJson.codigo} ${ofertaJson.ubicacion}: ` +
@@ -268,7 +268,7 @@ async function main() {
             modalidad: ofertaJson.modalidad as Modalidad,
             cuposMaximos: ofertaJson.cuposMaximos,
           },
-          // `cuposOcupados` y `abierta` quedan fuera a propósito.
+          // `cuposOcupados` y `abierta` no se tocan
           update: {
             modalidad: ofertaJson.modalidad as Modalidad,
             cuposMaximos: ofertaJson.cuposMaximos,

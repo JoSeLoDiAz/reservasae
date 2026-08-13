@@ -100,7 +100,7 @@ export class FormulariosService {
     };
   }
 
-  /** Lo que ve el público: sin archivadas y sin datos internos. */
+  /** Lo público: sin archivadas ni datos internos. */
   async obtenerPublico(slug: string) {
     const formulario = await this.prisma.formulario.findUnique({
       where: { slug },
@@ -216,7 +216,7 @@ export class FormulariosService {
     return this.obtener(id);
   }
 
-  /** Solo se borra si nunca se usó; si no, se despublica. */
+  /** Se borra si nunca se usó; si no, se despublica. */
   async eliminar(id: string) {
     const respuestas = await this.prisma.respuesta.count({
       where: { pregunta: { formularioId: id } },
@@ -293,37 +293,6 @@ export class FormulariosService {
             ? undefined
             : (soloTokensValidos(dto.coloresOscuro) as Prisma.InputJsonValue),
       },
-    });
-    return this.obtener(id);
-  }
-
-  async guardarLogo(id: string, datos: Uint8Array, tipoMime: string, nombre: string) {
-    const formulario = await this.prisma.formulario.findUnique({
-      where: { id },
-      select: { logoVersion: true },
-    });
-    if (!formulario) throw new NotFoundException('No existe ese formulario.');
-
-    await this.prisma.formulario.update({
-      where: { id },
-      data: {
-        logoDatos: new Uint8Array(datos),
-        logoTipoMime: tipoMime,
-        logoNombre: nombre,
-        logoVersion: formulario.logoVersion + 1,
-      },
-    });
-    return this.obtener(id);
-  }
-
-  /** Borra el logo del formulario. */
-  async borrarLogo(id: string) {
-    const formulario = await this.prisma.formulario.findUnique({ where: { id } });
-    if (!formulario) throw new NotFoundException('No existe ese formulario.');
-
-    await this.prisma.formulario.update({
-      where: { id },
-      data: { logoDatos: null, logoTipoMime: null, logoNombre: null },
     });
     return this.obtener(id);
   }
@@ -555,7 +524,7 @@ export class FormulariosService {
 
   // envío: validar respuestas
 
-  /** Valida las respuestas y las deja listas para guardar. */
+  /** Valida las respuestas y las deja listas. */
   async prepararRespuestas(
     formularioSlug: string,
     enviadas: RespuestaDto[],

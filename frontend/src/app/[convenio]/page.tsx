@@ -1,7 +1,7 @@
 import { FormularioReserva } from "@/components/formulario-reserva";
 import { EncabezadoPublico, PiePublico } from "@/components/marca-publica";
 
-/** Una sola página para todos los convenios; sale del slug. */
+/** Una página para todos los convenios. */
 export default async function PaginaConvenio({
   params,
 }: {

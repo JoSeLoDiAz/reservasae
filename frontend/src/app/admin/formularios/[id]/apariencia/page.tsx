@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { use, useEffect, useRef, useState } from "react";
+import { use, useEffect, useState } from "react";
 
 import { EditorColores } from "@/components/admin/editor-colores";
+import { GestorLogos } from "@/components/admin/gestor-logos";
 import { Aviso, Boton, Tarjeta } from "@/components/admin/marco-admin";
 import { adminApi, type Marca } from "@/lib/admin-api";
 import { ErrorApi } from "@/lib/api";
@@ -37,7 +38,6 @@ export default function PaginaAparienciaFormulario({
   const [error, setError] = useState<string | null>(null);
   const [guardado, setGuardado] = useState(false);
   const [ocupado, setOcupado] = useState(false);
-  const entradaArchivo = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     void Promise.all([formulariosApi.obtener(id), adminApi.marca()]).then(
@@ -76,10 +76,6 @@ export default function PaginaAparienciaFormulario({
     }
   }
 
-  const logo = formulario.logoTipoMime
-    ? `/api/marca/formulario/${formulario.slug}/logo?v=${formulario.logoVersion}`
-    : null;
-
   return (
     <div className="space-y-6">
       <header>
@@ -108,60 +104,10 @@ export default function PaginaAparienciaFormulario({
       {guardado && !error && <Aviso tipo="exito">Cambios guardados.</Aviso>}
 
       <Tarjeta
-        titulo="Logo del formulario"
-        descripcion="SVG, PNG o WebP con fondo transparente. Máximo 1 MB. Se muestra a unos 80 px de alto, así que conviene entregarlo a 960 × 288 px o mayor, o en SVG. Sin uno propio se muestra el logo general."
+        titulo="Logos del formulario"
+        descripcion="Hasta tres, uno por entidad. Sin ninguno propio se muestran los de la apariencia general. SVG, PNG o WebP con fondo transparente, máximo 1 MB cada uno; se ven a 80 px de alto."
       >
-        <div className="flex flex-wrap items-center gap-6">
-          {/* al tamano real: lo que se ve aqui es lo que se publica */}
-          <div className="grid h-32 w-64 place-items-center rounded-lg border border-dashed border-borde bg-fondo p-3">
-            {logo ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={logo}
-                alt="Logo del formulario"
-                className="h-20 w-auto max-w-full object-contain"
-              />
-            ) : (
-              <span className="text-sm text-texto-suave">Usa el logo general</span>
-            )}
-          </div>
-
-          <div className="flex flex-wrap gap-3">
-            <input
-              ref={entradaArchivo}
-              type="file"
-              accept="image/svg+xml,image/png,image/webp"
-              className="hidden"
-              onChange={(e) => {
-                const archivo = e.target.files?.[0];
-                if (archivo) {
-                  void conError(() => adminApi.subirLogoDeFormulario(id, archivo));
-                }
-                e.target.value = "";
-              }}
-            />
-            <Boton
-              type="button"
-              disabled={ocupado}
-              onClick={() => entradaArchivo.current?.click()}
-            >
-              {logo ? "Reemplazar logo" : "Subir logo propio"}
-            </Boton>
-            {logo && (
-              <button
-                type="button"
-                disabled={ocupado}
-                onClick={() => conError(() => adminApi.borrarLogoDeFormulario(id))}
-                className="rounded-lg border border-borde px-5 py-2 text-sm hover:bg-fondo disabled:opacity-50"
-              >
-                Volver al general
-              </button>
-            )}
-          </div>
-        </div>
-        {formulario.logoNombre && logo && (
-          <p className="mt-3 text-xs text-texto-suave">Archivo: {formulario.logoNombre}</p>
-        )}
+        <GestorLogos formularioId={id} heredados={general.logos} />
       </Tarjeta>
 
       <Tarjeta titulo="Colores">

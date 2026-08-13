@@ -265,7 +265,7 @@ export class TablerosService {
     });
   }
 
-  /** Todo lo de UNA acción: oferta, grupos, reservas y ritmo. */
+  /** Todo lo de una acción, para su pantalla. */
   async accion(id: string) {
     const accion = await this.prisma.accionFormacion.findUnique({
       where: { id },
@@ -563,7 +563,7 @@ export class TablerosService {
       : { serie: [], origen: 'MOVIMIENTOS' as const };
   }
 
-  /** Cuántos días lleva el sistema recibiendo movimientos. */
+  /** Días de historia de movimientos. */
   private async diasDeHistoria(): Promise<number> {
     const primero = await this.prisma.movimientoReserva.findFirst({
       orderBy: { creadoEn: 'asc' },

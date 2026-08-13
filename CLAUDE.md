@@ -34,16 +34,18 @@ infraestructura completa más una página que verifica la conexión con el backe
 - ✅ **API pública de catálogo y reservas**, probada bajo concurrencia real.
 - ✅ **Formulario público** en `/[convenio]` y consulta por NIT en `/consulta`.
 - ✅ **Panel de administración** en `/admin`: sesión, perfil, usuarios,
-  apariencia (colores, textos y logo) y publicar u ocultar acciones.
+  apariencia (colores, textos y logos) y publicar u ocultar acciones.
 - ✅ **Constructor de formularios**: secciones, preguntas, opciones, reglas de
   validación y preguntas condicionales, todo desde el panel. El formulario
   público se dibuja a partir de la definición, no del código.
 - ✅ **Tableros**: avance por acción y por ubicación, serie por día, tabla de
   reservas con filtros y vista de cupos por organización. **Descarga en Excel**
   de los tres informes. **Se actualizan solos cada 30 s.**
-- ✅ **Apariencia por formulario**: cada uno con sus colores, su logo y sus
+- ✅ **Apariencia por formulario**: cada uno con sus colores, sus logos y sus
   textos, heredando de la marca general lo que no cambie.
-- ✅ **Editor de color para quien no sabe de color**: siete plantillas
+- ✅ **Banner de hasta tres logos** por ámbito, a 80 px de alto: las entidades
+  del convenio más la capacitadora.
+- ✅ **Editor de color para quien no sabe de color**: quince plantillas
   comprobadas, derivación de las dos paletas desde un solo color y los 28
   tokens plegados debajo.
 - ✅ **Ritmo y proyección** desde `movimientos_reserva`, y **respuestas
@@ -68,13 +70,13 @@ infraestructura completa más una página que verifica la conexión con el backe
 
 Panel (sesión en cookie httpOnly, `/admin/*`): `POST|DELETE /admin/sesion`,
 `GET /admin/yo`, `POST /admin/clave`, `PATCH /admin/perfil`,
-`/admin/usuarios`, `/admin/marca`, `/admin/marca/logo`, `/admin/acciones`,
+`/admin/usuarios`, `/admin/marca`, `/admin/logos`, `/admin/acciones`,
 `GET /admin/apariencia/plantillas`, `POST /admin/apariencia/derivar`,
 `POST /admin/apariencia/corregir`,
-`PATCH|POST|DELETE /admin/formularios/:id/apariencia|logo`,
+`PATCH /admin/formularios/:id/apariencia`,
 `GET /admin/tableros/proyeccion`, `GET /admin/tableros/respuestas/:id`.
-Públicos además: `GET /marca`, `GET /marca/logo`,
-`GET /marca/formulario/:slug` y `GET /marca/formulario/:slug/logo`.
+Públicos además: `GET /marca`, `GET /marca/formulario/:slug` y
+`GET /marca/logos/:id`.
 
 Recuerda que nginx quita el prefijo: de cara a internet son `/api/catalogo`,
 `/api/reservas`, etc.
@@ -90,9 +92,9 @@ Recuerda que nginx quita el prefijo: de cara a internet son `/api/catalogo`,
   cualquier ruta salvo `/admin/yo` y `/admin/clave` hasta que la cambie.
 - **El guard relee el admin de la base en cada petición**, así desactivar una
   cuenta corta la sesión al instante en lugar de esperar a que caduque.
-- **El logo vive en la base** (`Marca.logoDatos`, bytea), no en disco: viaja
-  con el backup y no necesita un volumen. Máximo 1 MB; SVG, PNG o WebP. La URL
-  lleva `?v=<logoVersion>` para poder cachearlo para siempre.
+- **Los logos viven en la base** (tabla `logos`, columna bytea), no en disco:
+  viajan con el backup y no necesitan un volumen. Máximo 1 MB cada uno; SVG,
+  PNG o WebP.
 
 ### Tableros y descargas
 
@@ -216,9 +218,32 @@ tener varios.
 pnpm --filter backend db:sembrar-formularios
 ```
 
+### Los logos de la cabecera
+
+**Hasta tres, no uno**: en cada convenio concurren varias entidades más la
+capacitadora (en BRITCHAM ADEE van BRITCHAM, ADEE y Grupo AE). Viven en la
+tabla `logos`, con `formularioId = null` para la marca general.
+
+- **Se muestran a 80 px de alto.** A 40 no se lee un logo con texto. Llevan
+  `max-w` y `object-contain` para que tres logos anchos no desborden en móvil.
+- **Cada logo se sirve por su id**: `GET /marca/logos/:id?v=<version>`, con
+  caché inmutable de un año. Como el id es único, borrar uno hace que su URL
+  deje de existir en vez de servir el viejo desde la caché — que es el fallo
+  que había que evitar cuando el logo era uno solo por ámbito.
+- **O los propios o los generales, nunca mezclados.** Un formulario sin logos
+  propios muestra los de la marca general; en cuanto sube uno, deja de
+  heredarlos. Mezclar las dos listas daría banners con entidades repetidas.
+- **La `etiqueta` es el nombre de la entidad y es el texto alternativo.**
+  Arranca con el nombre del archivo y el admin la corrige; tres logos con el
+  mismo `alt` dejarían la cabecera inservible con lector de pantalla.
+- **El orden importa** y se edita con flechas. Al mover o borrar se reescribe
+  el `orden` de todos: no quedan huecos ni empates.
+- **Mismas rutas para los dos ámbitos**: `/admin/logos?formularioId=`. Una
+  sola API en vez de dos juegos de rutas casi iguales.
+
 ### Apariencia por formulario
 
-Cada formulario puede tener **su paleta, su logo y sus textos**, distintos de
+Cada formulario puede tener **su paleta, sus logos y sus textos**, distintos de
 los del otro. `/admin/formularios/:id/apariencia`.
 
 - **Se hereda por token, no por paleta.** En `Formulario.coloresClaro` y
@@ -228,10 +253,6 @@ los del otro. `/admin/formularios/:id/apariencia`.
   plantilla se guarda solo lo que difiere de la marca general.
 - **Los textos ya existían**: `Formulario.titulo` y `descripcion` se editan en
   el constructor y ahora son los que se leen en la página pública.
-- **El logo del formulario NO cae al general cuando no existe**: devuelve 404,
-  y `urlLogo()` construye una ruta distinta según el origen. Con un *fallback*
-  en la misma URL, borrar el logo propio dejaría el viejo servido durante un
-  año, que es lo que dura su cabecera de caché.
 - **Un slug desconocido devuelve la marca general con 200, nunca 404.** Un 404
   sería un oráculo de qué formularios existen.
 - **Dos capas contra el destello**: `[convenio]/layout.tsx` es un Server
@@ -631,10 +652,11 @@ Verificado contra `docs/proyectos/*.xlsx`, que es la fuente oficial. El
 
 ## Convenciones
 
-- **Los comentarios del código son cortos**: una línea, unos 30 caracteres,
-  diciendo qué hace y ya (`// conexión a Prisma`, `// validar persona`). El
-  *porqué* de las decisiones no obvias va aquí, en `CLAUDE.md`, no repartido
-  por el código. Aplica también a `.env`, `docker-compose.yml` y `nginx`.
+- **Los comentarios del código son cortos**: una línea y **nunca más de 50
+  caracteres de texto**, diciendo qué hace y ya (`// conexión a Prisma`,
+  `// validar persona`). El *porqué* de las decisiones no obvias va aquí, en
+  `CLAUDE.md`, no repartido por el código. Aplica también a `.env`,
+  `docker-compose.yml`, `nginx` y el SQL de las migraciones.
 - **Nada de banners de sección.** Una línea en minúscula y ya:
 
   ```ts

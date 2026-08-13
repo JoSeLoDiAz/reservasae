@@ -1,6 +1,6 @@
 import { EsquemaColor } from '../../generated/prisma';
 
-/** Catálogo de colores que personaliza el administrador. */
+/** Los colores que personaliza el admin. */
 
 export type GrupoToken =
   | 'MARCA'
@@ -127,7 +127,7 @@ export const COMPROBACIONES_CONTRASTE: Array<{
 
 export type ColoresTema = Record<string, string>;
 
-/** Con lo que nace el sistema y a donde vuelve «restablecer». */
+/** Los valores de fábrica. */
 export const TEMAS_POR_DEFECTO: Record<EsquemaColor, ColoresTema> = {
   CLARO: {
     marca: '#1d4ed8',

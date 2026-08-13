@@ -283,7 +283,7 @@ async function sembrar(entrada: (typeof FORMULARIOS)[number]) {
   );
 }
 
-/** Los campos que el sistema necesita nacen obligatorios. */
+/** Los campos del sistema nacen obligatorios. */
 function esObligatorio(campo?: CampoNucleo): boolean {
   const requeridos: CampoNucleo[] = [
     CampoNucleo.EMPRESA_NIT,

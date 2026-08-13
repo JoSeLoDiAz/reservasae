@@ -21,7 +21,19 @@ export type AdminActual = {
 
 export type ModoPorDefecto = "SISTEMA" | "CLARO" | "OSCURO";
 
-export type OrigenLogo = "GENERAL" | "FORMULARIO" | null;
+export type OrigenLogos = "GENERAL" | "FORMULARIO";
+
+/** Tres caben en la cabecera; una cuarta no. */
+export const MAXIMO_LOGOS = 3;
+
+export type Logo = {
+  id: string;
+  etiqueta: string;
+  tipoMime: string;
+  nombre: string;
+  version: number;
+  orden: number;
+};
 
 export type Marca = {
   nombreApp: string;
@@ -33,16 +45,15 @@ export type Marca = {
   /** De quién es la apariencia. */
   ambito: "GENERAL" | "FORMULARIO";
   formularioSlug: string | null;
-  logo: { origen: OrigenLogo; tipoMime: string | null; version: number };
+  /** El banner de la cabecera, en orden. */
+  logos: Logo[];
+  origenLogos: OrigenLogos;
   /** Tokens que sobreescribe el formulario. */
   sobreescritos?: Record<Esquema, string[]>;
   /** Las dos paletas juntas. */
   temas: Record<Esquema, ColoresTema>;
   /** Qué colores existen. Lo define el backend. */
   catalogoColores: CatalogoColores;
-  logoTipoMime: string | null;
-  logoNombre: string | null;
-  logoVersion: number;
   actualizadoEn: string;
 };
 
@@ -142,14 +153,25 @@ export const adminApi = {
   restablecerTema: (esquema: Esquema) =>
     pedir<Marca>(`/admin/marca/tema/${esquema}/restablecer`, { method: "POST" }),
 
-  subirLogo: (archivo: File) => {
-    const formulario = new FormData();
-    formulario.append("logo", archivo);
+  // logos: las mismas rutas para los dos ambitos
+  logos: (formularioId?: string) =>
+    pedir<Logo[]>(`/admin/logos${formularioId ? `?formularioId=${formularioId}` : ""}`),
+
+  subirLogo: (archivo: File, etiqueta: string, formularioId?: string) => {
+    const cuerpo = new FormData();
+    cuerpo.append("logo", archivo);
+    cuerpo.append("etiqueta", etiqueta);
+    if (formularioId) cuerpo.append("formularioId", formularioId);
     // sin content-type: el navegador pone el boundary
-    return pedir<Marca>("/admin/marca/logo", { method: "POST", body: formulario });
+    return pedir<Logo[]>("/admin/logos", { method: "POST", body: cuerpo });
   },
 
-  borrarLogo: () => pedir<Marca>("/admin/marca/logo", { method: "DELETE" }),
+  actualizarLogo: (
+    id: string,
+    datos: { etiqueta?: string; direccion?: "IZQUIERDA" | "DERECHA" },
+  ) => pedir<Logo[]>(`/admin/logos/${id}`, { method: "PATCH", body: JSON.stringify(datos) }),
+
+  borrarLogo: (id: string) => pedir<Logo[]>(`/admin/logos/${id}`, { method: "DELETE" }),
 
   plantillas: () => pedir<PlantillaTema[]>("/admin/apariencia/plantillas"),
 
@@ -176,18 +198,6 @@ export const adminApi = {
       body: JSON.stringify(datos),
     }),
 
-  subirLogoDeFormulario: (id: string, archivo: File) => {
-    const cuerpo = new FormData();
-    cuerpo.append("logo", archivo);
-    return pedir<{ id: string }>(`/admin/formularios/${id}/logo`, {
-      method: "POST",
-      body: cuerpo,
-    });
-  },
-
-  borrarLogoDeFormulario: (id: string) =>
-    pedir<{ id: string }>(`/admin/formularios/${id}/logo`, { method: "DELETE" }),
-
   convenios: () =>
     pedir<
       Array<{ id: string; slug: string; nombre: string; sigla: string | null; activo: boolean }>
@@ -202,12 +212,7 @@ export const adminApi = {
     }),
 };
 
-/** URL del logo según su origen. */
-export function urlLogo(marca: Pick<Marca, "logo" | "formularioSlug">): string | null {
-  const { origen, version } = marca.logo;
-  if (origen === "FORMULARIO" && marca.formularioSlug) {
-    return `/api/marca/formulario/${marca.formularioSlug}/logo?v=${version}`;
-  }
-  if (origen === "GENERAL") return `/api/marca/logo?v=${version}`;
-  return null;
+/** URL de un logo. El id la hace única. */
+export function urlLogo(logo: Pick<Logo, "id" | "version">): string {
+  return `/api/marca/logos/${logo.id}?v=${logo.version}`;
 }

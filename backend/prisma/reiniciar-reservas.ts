@@ -1,4 +1,4 @@
-/** Borra todas las reservas y pone los contadores a cero. */
+/** Borra las reservas y pone los contadores a 0. */
 
 import { PrismaClient } from '../generated/prisma';
 

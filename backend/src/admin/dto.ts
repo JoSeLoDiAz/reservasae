@@ -175,6 +175,19 @@ export class PublicarAccionDto {
   visible!: boolean;
 }
 
+/** Renombrar un logo o moverlo dentro del banner. */
+export class ActualizarLogoDto {
+  @IsOptional()
+  @IsString()
+  @MaxLength(60)
+  @Transform(recortar)
+  etiqueta?: string;
+
+  @IsOptional()
+  @IsEnum(['IZQUIERDA', 'DERECHA'])
+  direccion?: 'IZQUIERDA' | 'DERECHA';
+}
+
 /** Genera las dos paletas a partir de un color. */
 export class DerivarTemaDto {
   @Matches(HEXADECIMAL, { message: 'El color debe ser hexadecimal de 6 dígitos, como #1d4ed8.' })

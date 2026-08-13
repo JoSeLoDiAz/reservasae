@@ -35,7 +35,7 @@ type MarcaMinima = {
   catalogoColores: { tokens: Array<{ clave: string; variableCss: string }> };
 };
 
-/** Guarda la paleta resuelta, como pares variable→hex. */
+/** La paleta resuelta, en pares variable→hex. */
 export function recordarPaleta(ambito: Ambito, marca: MarcaMinima) {
   if (!marca?.temas || !marca.catalogoColores?.tokens) return;
   try {

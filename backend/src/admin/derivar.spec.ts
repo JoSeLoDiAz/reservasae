@@ -8,7 +8,7 @@ import { COMPROBACIONES_CONTRASTE, TOKENS } from './temas';
 const HEXADECIMAL = /^#[0-9a-fA-F]{6}$/;
 const ESQUEMAS: EsquemaColor[] = ['CLARO', 'OSCURO'];
 
-// 24 tonos de la rueda, croma alto para forzar el recorte de gamut
+// 24 tonos, croma alto: fuerza el recorte
 const RUEDA = Array.from({ length: 24 }, (_, i) =>
   oklchAHex({ l: 0.55, c: 0.2, h: i * 15 }),
 );
