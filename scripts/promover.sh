@@ -46,7 +46,7 @@ esperar /api/estado || { echo "✗ el backend no respondio"; exit 1; }
 esperar /consulta   || { echo "✗ el frontend no respondio"; exit 1; }
 
 # el tunel solo debe correr en la sede activa
-if systemctl list-unit-files "$TUNEL.service" >/dev/null 2>&1; then
+if systemctl cat "$TUNEL" >/dev/null 2>&1; then
   sudo systemctl enable --now "$TUNEL"
   echo "✓ tunel $TUNEL arriba"
 else
