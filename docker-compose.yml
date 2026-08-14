@@ -34,9 +34,9 @@ services:
     environment:
       # subcarpeta: evita chocar con lost+found
       PGDATA: /var/lib/postgresql/data/pgdata
-    # solo localhost
+    # local, o la ip de tailscale en el primario
     ports:
-      - "127.0.0.1:5433:5432"
+      - "${PG_BIND:-127.0.0.1}:5433:5432"
     volumes:
       - reservasae-pgdata:/var/lib/postgresql/data
     # tuning para este servidor
