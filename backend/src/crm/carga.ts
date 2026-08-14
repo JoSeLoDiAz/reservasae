@@ -49,15 +49,24 @@ function partir(linea: string): string[] {
   return linea.split(separador).map((c) => c.trim().replace(/^"|"$/g, ''));
 }
 
-/// Se salta la fila de titulos si la trae.
+/// Se salta la fila de titulos si la trae. Mira tambien
+/// la segunda celda: un titulo no lleva un documento al
+/// lado, y sin eso una fila con "Cedula" en la primera
+/// columna se perderia en silencio.
 function esEncabezado(celdas: string[]): boolean {
   const primera = (celdas[0] ?? '').toLowerCase();
-  return (
+  const suena =
     primera.includes('tipo') ||
     primera.includes('documento') ||
     primera.includes('cedula') ||
-    primera.includes('cédula')
-  );
+    primera.includes('cédula') ||
+    primera.includes('identificacion') ||
+    primera.includes('identificación');
+
+  if (!suena) return false;
+
+  const segunda = (celdas[1] ?? '').replace(/[\s.\-_]/g, '');
+  return !/^\d{4,}$/.test(segunda);
 }
 
 export function analizar(texto: string): FilaAnalizada[] {
