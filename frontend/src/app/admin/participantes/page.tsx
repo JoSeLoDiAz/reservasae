@@ -155,7 +155,7 @@ export default function PaginaParticipantes() {
                         onDragEnd={() => setArrastrando(null)}
                         className="cursor-grab rounded-lg border border-borde bg-superficie p-3 active:cursor-grabbing"
                       >
-                        <Link href={`/admin/participantes/${f.id}`} className="block">
+                        <div>
                           <p className="font-medium">{f.nombre}</p>
                           <p className="mt-0.5 font-mono text-xs text-texto-suave">
                             {f.documento}
@@ -170,7 +170,7 @@ export default function PaginaParticipantes() {
                             {f.notas > 0 && <span>· {f.notas} notas</span>}
                             {!f.asesor && <span>· sin asesor</span>}
                           </footer>
-                        </Link>
+                        </div>
                       </article>
                     ))}
 
@@ -205,9 +205,7 @@ export default function PaginaParticipantes() {
               {filas.map((f) => (
                 <tr key={f.id}>
                   <td>
-                    <Link href={`/admin/participantes/${f.id}`} className="underline">
-                      {f.nombre}
-                    </Link>
+                    {f.nombre}
                   </td>
                   <td className="font-mono text-sm">{f.documento}</td>
                   <td>{ETIQUETA_ETAPA[f.etapa]}</td>
