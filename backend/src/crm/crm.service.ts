@@ -11,10 +11,12 @@ import {
   type Admin,
 } from '../../generated/prisma';
 import { documentoValido, normalizarDocumento } from '../comun/documento';
+import { analizar, esInsalvable, repetidosEnElPegado } from './carga';
 import { PrismaService } from '../prisma/prisma.service';
 import {
   ActualizarParticipanteDto,
   AsignarFormacionDto,
+  CargaDto,
   CambiarEtapaDto,
   CrearNotaDto,
   CrearParticipanteDto,
@@ -429,6 +431,141 @@ export class CrmService {
   }
 
 
+
+
+  /** Que pasaria si se confirma este pegado. */
+  async previsualizarCarga(dto: CargaDto) {
+    const filas = analizar(dto.texto);
+    if (filas.length === 0) {
+      throw new BadRequestException('No encontré ninguna fila con datos.');
+    }
+    if (filas.length > 1000) {
+      throw new BadRequestException(
+        `Son ${filas.length} filas. Pegue tandas de 1000 como mucho.`,
+      );
+    }
+
+    const repes = repetidosEnElPegado(filas);
+
+    // en que acciones ya esta cada persona
+    const claves = filas
+      .filter((f) => f.numeroDocumento)
+      .map((f) => ({
+        tipoDocumento: f.tipoDocumento,
+        numeroDocumento: f.numeroDocumento,
+      }));
+
+    const personas = await this.prisma.persona.findMany({
+      where: { OR: claves },
+      select: {
+        id: true,
+        tipoDocumento: true,
+        numeroDocumento: true,
+        participaciones: {
+          select: { accionFormacionId: true, convenioId: true },
+        },
+      },
+    });
+
+    const porDocumento = new Map(
+      personas.map((p) => [`${p.tipoDocumento}:${p.numeroDocumento}`, p]),
+    );
+
+    const oferta = dto.ofertaId
+      ? await this.prisma.oferta.findUnique({
+          where: { id: dto.ofertaId },
+          select: { id: true, accionFormacionId: true, cuposMaximos: true },
+        })
+      : null;
+
+    const previa = filas.map((f) => {
+      const clave = `${f.tipoDocumento}:${f.numeroDocumento}`;
+      const problemas = [...f.problemas];
+      let estado: 'NUEVA' | 'PERSONA_CONOCIDA' | 'REPETIDA' | 'DESCARTADA' = 'NUEVA';
+
+      if (esInsalvable(f)) {
+        estado = 'DESCARTADA';
+      } else if (repes.has(clave)) {
+        estado = 'REPETIDA';
+        problemas.push('el mismo documento aparece más de una vez en lo pegado');
+      } else {
+        const persona = porDocumento.get(clave);
+        if (persona) {
+          estado = 'PERSONA_CONOCIDA';
+          if (
+            oferta &&
+            persona.participaciones.some(
+              (x) => x.accionFormacionId === oferta.accionFormacionId,
+            )
+          ) {
+            estado = 'DESCARTADA';
+            problemas.push('ya está en esa acción de formación');
+          }
+        }
+      }
+
+      return { ...f, problemas, estado };
+    });
+
+    const creables = previa.filter((f) => f.estado !== 'DESCARTADA' && f.estado !== 'REPETIDA');
+
+    return {
+      total: previa.length,
+      creables: creables.length,
+      descartadas: previa.filter((f) => f.estado === 'DESCARTADA').length,
+      repetidas: previa.filter((f) => f.estado === 'REPETIDA').length,
+      conocidas: previa.filter((f) => f.estado === 'PERSONA_CONOCIDA').length,
+      cuposDeLaOferta: oferta?.cuposMaximos ?? null,
+      filas: previa,
+    };
+  }
+
+  /** Crea solo las lineas que el asesor confirmo. */
+  async confirmarCarga(dto: CargaDto, admin: Admin, ip?: string) {
+    const previa = await this.previsualizarCarga(dto);
+    const permitidas = dto.lineas ? new Set(dto.lineas) : null;
+
+    const aCrear = previa.filas.filter(
+      (f) =>
+        f.estado !== 'DESCARTADA' &&
+        f.estado !== 'REPETIDA' &&
+        (!permitidas || permitidas.has(f.linea)),
+    );
+
+    let creados = 0;
+    const fallos: Array<{ linea: number; motivo: string }> = [];
+
+    // una a una: un fallo no debe tumbar las 39 buenas
+    for (const f of aCrear) {
+      try {
+        await this.crear(
+          {
+            tipoDocumento: f.tipoDocumento,
+            numeroDocumento: f.numeroDocumento,
+            primerNombre: f.primerNombre,
+            segundoNombre: f.segundoNombre ?? undefined,
+            primerApellido: f.primerApellido,
+            segundoApellido: f.segundoApellido ?? undefined,
+            correo: f.correo ?? undefined,
+            celular: f.celular ?? undefined,
+            convenioId: dto.convenioId,
+            ofertaId: dto.ofertaId,
+            origen: 'EMPRESA',
+          },
+          admin,
+          ip,
+        );
+        creados += 1;
+      } catch (e) {
+        fallos.push({
+          linea: f.linea,
+          motivo: e instanceof Error ? e.message : 'error desconocido',
+        });
+      }
+    }
+
+    return { creados, fallos, intentadas: aCrear.length };
+  }
 
   /** Cupos reservados sin una persona detras. */
   async brecha(convenioId?: string) {

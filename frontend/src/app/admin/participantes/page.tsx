@@ -84,6 +84,9 @@ export default function PaginaParticipantes() {
           <Link href="/admin/participantes/brecha" className="underline">
             Brecha de nombres
           </Link>
+          <Link href="/admin/participantes/carga" className="underline">
+            Cargar una lista
+          </Link>
           <Link href="/admin/participantes/nuevo">
             <Boton>Inscribir a alguien</Boton>
           </Link>

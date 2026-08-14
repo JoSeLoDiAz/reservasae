@@ -17,6 +17,7 @@ import { CrmService } from './crm.service';
 import {
   ActualizarParticipanteDto,
   AsignarFormacionDto,
+  CargaDto,
   CambiarEtapaDto,
   CrearNotaDto,
   CrearParticipanteDto,
@@ -51,6 +52,20 @@ export class CrmController {
   @Get()
   listar(@Query() filtros: FiltrosParticipantesDto) {
     return this.crm.listar(filtros);
+  }
+
+  @Post('carga/previsualizar')
+  previsualizarCarga(@Body() dto: CargaDto) {
+    return this.crm.previsualizarCarga(dto);
+  }
+
+  @Post('carga/confirmar')
+  confirmarCarga(
+    @Body() dto: CargaDto,
+    @AdminActual() admin: Admin,
+    @IpReal() ip: string,
+  ) {
+    return this.crm.confirmarCarga(dto, admin, ip);
   }
 
   @Get(':id')

@@ -245,3 +245,22 @@ export class RegistrarAutorizacionDto {
   @MaxLength(300)
   evidencia?: string;
 }
+
+export class CargaDto {
+  @IsString()
+  @IsNotEmpty()
+  convenioId!: string;
+
+  @IsOptional()
+  @IsString()
+  ofertaId?: string;
+
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(200_000)
+  texto!: string;
+
+  /** Solo al confirmar: las líneas que se van a crear. */
+  @IsOptional()
+  lineas?: number[];
+}
