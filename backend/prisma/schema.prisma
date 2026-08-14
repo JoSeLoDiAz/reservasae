@@ -75,6 +75,7 @@ model AccionFormacion {
   grupos        Grupo[]
   ofertas       Oferta[]
   participantes Participante[]
+  actividades   Actividad[]
 
   // el codigo solo es unico por convenio
   @@unique([convenioId, codigo])
@@ -438,6 +439,82 @@ model Respuesta {
 
 // política de datos y administración
 
+// lms: el contenido y el avance de cada persona
+
+/// Qué es cada paso del curso.
+enum TipoActividad {
+  LECCION
+  RECURSO
+  TAREA
+  QUIZ
+  FORO
+  ENCUESTA
+  EVALUACION
+}
+
+/// Cómo va una persona en una actividad.
+enum EstadoAvance {
+  EN_CURSO
+  ENTREGADA
+  APROBADA
+  NO_APROBADA
+}
+
+/// Un paso del curso. Cuelga de la accion, no del grupo:
+/// el contenido es el mismo para todos sus grupos.
+model Actividad {
+  id                String        @id @default(cuid())
+  accionFormacionId String
+  orden             Int
+  titulo            String
+  descripcion       String?
+  tipo              TipoActividad @default(LECCION)
+
+  /// Cuenta para el porcentaje de avance.
+  obligatoria Boolean  @default(true)
+  /// Peso en la nota final, si la lleva.
+  ponderacion Decimal? @db.Decimal(5, 2)
+  /// Minutos estimados, para el ritmo esperado.
+  duracion    Int?
+
+  publicada     Boolean  @default(false)
+  creadoEn      DateTime @default(now())
+  actualizadoEn DateTime @updatedAt
+
+  accionFormacion AccionFormacion   @relation(fields: [accionFormacionId], references: [id], onDelete: Cascade)
+  avances         AvanceActividad[]
+
+  @@unique([accionFormacionId, orden])
+  @@index([accionFormacionId, publicada, orden])
+  @@map("actividades")
+}
+
+/// Lo que una persona hizo en una actividad. Solo existe
+/// la fila si empezo: la ausencia es "no iniciada".
+model AvanceActividad {
+  id             String       @id @default(cuid())
+  participanteId String
+  actividadId    String
+  estado         EstadoAvance @default(EN_CURSO)
+
+  calificacion Decimal? @db.Decimal(5, 2)
+  intentos     Int      @default(0)
+
+  iniciadaEn   DateTime  @default(now())
+  completadaEn DateTime?
+
+  actualizadoEn DateTime @updatedAt
+
+  participante Participante @relation(fields: [participanteId], references: [id], onDelete: Cascade)
+  actividad    Actividad    @relation(fields: [actividadId], references: [id], onDelete: Cascade)
+
+  // una fila por persona y actividad
+  @@unique([participanteId, actividadId])
+  @@index([participanteId, estado])
+  @@index([actividadId, estado])
+  @@map("avances_actividad")
+}
+
 // crm: la persona y su paso por la formacion
 
 /// El SEP los pide separados, no un nombre completo.
@@ -545,6 +622,9 @@ model Participante {
   fechaCertificacion DateTime?
   cargadoEnSepEn     DateTime?
 
+  /// Ultima vez que entro al aula.
+  ultimoAcceso DateTime?
+
   // sobrecupo: quien lo autorizo y por que
   sobrecupoPorId  String?
   sobrecupoMotivo String?
@@ -562,6 +642,7 @@ model Participante {
   sobrecupoPor    Admin?                  @relation("SobrecuposAutorizados", fields: [sobrecupoPorId], references: [id], onDelete: SetNull)
   movimientos     MovimientoParticipante[]
   notas           NotaParticipante[]
+  avances         AvanceActividad[]
 
   // nadie cuenta dos veces en la misma accion
   @@unique([accionFormacionId, personaId])
