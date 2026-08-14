@@ -90,6 +90,62 @@ export type Resumen = {
   total: number;
 };
 
+export type Ficha = {
+  id: string;
+  etapa: Etapa;
+  origen: Origen;
+  creadoEn: string;
+  faltantes: string[];
+  cargoEnEmpresa: string | null;
+  sobrecupoMotivo: string | null;
+  sobrecupoPor: { nombre: string } | null;
+  persona: {
+    id: string;
+    tipoDocumento: TipoDocumento;
+    numeroDocumento: string;
+    primerNombre: string;
+    segundoNombre: string | null;
+    primerApellido: string;
+    segundoApellido: string | null;
+    correo: string | null;
+    celular: string | null;
+    participaciones: Array<{
+      id: string;
+      etapa: Etapa;
+      convenio: { sigla: string | null };
+      accionFormacion: { codigo: string; nombre: string } | null;
+    }>;
+    autorizaciones: Array<{
+      id: string;
+      canal: Canal;
+      otorgadaEn: string;
+      politica: { version: number; destinatario: string; convenioId: string };
+    }>;
+  };
+  convenio: { id: string; sigla: string | null; nombre: string };
+  accionFormacion: { id: string; codigo: string; nombre: string } | null;
+  oferta: { id: string; cuposMaximos: number; ubicacion: { nombre: string } } | null;
+  cobertura: {
+    id: string;
+    grupo: {
+      numero: number;
+      fechaInicio: string | null;
+      fechaFin: string | null;
+      horario: string | null;
+    };
+  } | null;
+  reserva: { id: string; empresa: { nit: string; razonSocial: string } } | null;
+  asesor: { id: string; nombre: string } | null;
+  movimientos: Array<{
+    id: string;
+    etapaAntes: Etapa | null;
+    etapaDespues: Etapa;
+    motivo: string | null;
+    creadoEn: string;
+  }>;
+  notas: Array<{ id: string; autorNombre: string; texto: string; creadoEn: string }>;
+};
+
 export type Filtros = {
   convenioId?: string;
   etapa?: Etapa;
@@ -127,14 +183,66 @@ async function pedir<T>(ruta: string, opciones?: RequestInit): Promise<T> {
   return cuerpo as T;
 }
 
+export type Canal =
+  | "FORMULARIO_WEB" | "CARGA_EMPRESA" | "VERBAL_ASESOR" | "CORREO" | "PRESENCIAL";
+
+export const ETIQUETA_CANAL: Record<Canal, string> = {
+  FORMULARIO_WEB: "Lo aceptó en el formulario web",
+  CARGA_EMPRESA: "Vino en la lista de la empresa",
+  VERBAL_ASESOR: "Lo autorizó de viva voz al asesor",
+  CORREO: "Lo autorizó por correo",
+  PRESENCIAL: "Firmó en papel",
+};
+
+export type OpcionOferta = {
+  id: string;
+  accionFormacionId: string;
+  etiqueta: string;
+  ubicacion: string;
+  modalidad: string;
+  cupos: number;
+  ocupados: number;
+  disponibles: number;
+  abierta: boolean;
+};
+
+export type OpcionGrupo = {
+  id: string;
+  accionFormacionId: string;
+  etiqueta: string;
+  modalidad: string;
+  cupos: number;
+  ocupados: number;
+  fechaInicio: string | null;
+  fechaFin: string | null;
+  horario: string | null;
+};
+
+export type Opciones = { ofertas: OpcionOferta[]; grupos: OpcionGrupo[] };
+
 export const crmApi = {
+  opciones: (convenioId: string) =>
+    pedir<Opciones>(`/admin/participantes/opciones?convenioId=${convenioId}`),
+
+  asignar: (id: string, ofertaId: string, coberturaId?: string, sobrecupoMotivo?: string) =>
+    pedir<Ficha>(`/admin/participantes/${id}/formacion`, {
+      method: "PATCH",
+      body: JSON.stringify({ ofertaId, coberturaId, sobrecupoMotivo }),
+    }),
+
+  autorizar: (id: string, canal: Canal, evidencia?: string) =>
+    pedir<Ficha>(`/admin/participantes/${id}/autorizacion`, {
+      method: "POST",
+      body: JSON.stringify({ canal, evidencia }),
+    }),
+
   listar: (filtros: Filtros = {}) =>
     pedir<Listado>(`/admin/participantes${consulta(filtros)}`),
 
   resumen: (filtros: Filtros = {}) =>
     pedir<Resumen>(`/admin/participantes/resumen${consulta(filtros)}`),
 
-  obtener: (id: string) => pedir<Record<string, unknown>>(`/admin/participantes/${id}`),
+  obtener: (id: string) => pedir<Ficha>(`/admin/participantes/${id}`),
 
   crear: (datos: Record<string, unknown>) =>
     pedir<{ id: string }>("/admin/participantes", {
@@ -143,7 +251,7 @@ export const crmApi = {
     }),
 
   cambiarEtapa: (id: string, etapa: Etapa, motivo?: string) =>
-    pedir<Record<string, unknown>>(`/admin/participantes/${id}/etapa`, {
+    pedir<Ficha>(`/admin/participantes/${id}/etapa`, {
       method: "PATCH",
       body: JSON.stringify({ etapa, motivo }),
     }),

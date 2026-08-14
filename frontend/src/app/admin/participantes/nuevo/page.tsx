@@ -76,9 +76,7 @@ export default function PaginaNuevoParticipante() {
         convenioId: f.convenioId,
         origen: f.origen,
       });
-      // la ficha es lo siguiente; por ahora al tablero
-      void creado;
-      router.push('/admin/participantes');
+      router.push(`/admin/participantes/${creado.id}`);
     } catch (e) {
       setError((e as ErrorApi).message);
       setGuardando(false);

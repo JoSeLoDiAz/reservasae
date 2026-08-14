@@ -16,10 +16,12 @@ import { IpReal } from '../comun/ip-real';
 import { CrmService } from './crm.service';
 import {
   ActualizarParticipanteDto,
+  AsignarFormacionDto,
   CambiarEtapaDto,
   CrearNotaDto,
   CrearParticipanteDto,
   FiltrosParticipantesDto,
+  RegistrarAutorizacionDto,
 } from './dto';
 
 /** Inscripciones: las personas detrás de los cupos. */
@@ -32,6 +34,12 @@ export class CrmController {
   @Get('resumen')
   resumen(@Query() filtros: FiltrosParticipantesDto) {
     return this.crm.resumen(filtros);
+  }
+
+  /** Ofertas y grupos donde se puede colocar a alguien. */
+  @Get('opciones')
+  opciones(@Query('convenioId') convenioId: string) {
+    return this.crm.opciones(convenioId);
   }
 
   @Get()
@@ -66,6 +74,25 @@ export class CrmController {
     @IpReal() ip: string,
   ) {
     return this.crm.cambiarEtapa(id, dto, admin, ip);
+  }
+
+  @Patch(':id/formacion')
+  asignar(
+    @Param('id') id: string,
+    @Body() dto: AsignarFormacionDto,
+    @AdminActual() admin: Admin,
+  ) {
+    return this.crm.asignar(id, dto, admin);
+  }
+
+  @Post(':id/autorizacion')
+  autorizacion(
+    @Param('id') id: string,
+    @Body() dto: RegistrarAutorizacionDto,
+    @AdminActual() admin: Admin,
+    @IpReal() ip: string,
+  ) {
+    return this.crm.registrarAutorizacion(id, dto, admin, ip);
   }
 
   @Post(':id/notas')

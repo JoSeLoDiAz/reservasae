@@ -14,10 +14,12 @@ import { documentoValido, normalizarDocumento } from '../comun/documento';
 import { PrismaService } from '../prisma/prisma.service';
 import {
   ActualizarParticipanteDto,
+  AsignarFormacionDto,
   CambiarEtapaDto,
   CrearNotaDto,
   CrearParticipanteDto,
   FiltrosParticipantesDto,
+  RegistrarAutorizacionDto,
 } from './dto';
 
 const POR_PAGINA = 30;
@@ -415,6 +417,214 @@ export class CrmService {
     }
 
     return faltan;
+  }
+
+
+  /** Ofertas y grupos donde se puede colocar a alguien. */
+  async opciones(convenioId: string) {
+    const ofertas = await this.prisma.oferta.findMany({
+      where: { accionFormacion: { convenioId } },
+      orderBy: [
+        { accionFormacion: { orden: 'asc' } },
+        { ubicacion: { nombre: 'asc' } },
+      ],
+      select: {
+        id: true,
+        cuposMaximos: true,
+        abierta: true,
+        modalidad: true,
+        ubicacion: { select: { nombre: true } },
+        accionFormacion: { select: { id: true, codigo: true, nombre: true } },
+        _count: { select: { participantes: { where: { etapa: { in: ETAPAS_VIVAS } } } } },
+      },
+    });
+
+    const grupos = await this.prisma.grupoCobertura.findMany({
+      where: { grupo: { accionFormacion: { convenioId } } },
+      orderBy: [{ grupo: { numero: 'asc' } }],
+      select: {
+        id: true,
+        cuposBase: true,
+        modalidad: true,
+        ubicacion: { select: { nombre: true } },
+        grupo: {
+          select: {
+            numero: true,
+            fechaInicio: true,
+            fechaFin: true,
+            horario: true,
+            accionFormacionId: true,
+          },
+        },
+        _count: { select: { participantes: { where: { etapa: { in: ETAPAS_VIVAS } } } } },
+      },
+    });
+
+    return {
+      ofertas: ofertas.map((o) => ({
+        id: o.id,
+        accionFormacionId: o.accionFormacion.id,
+        etiqueta: `${o.accionFormacion.codigo} · ${o.accionFormacion.nombre}`,
+        ubicacion: o.ubicacion.nombre,
+        modalidad: o.modalidad,
+        cupos: o.cuposMaximos,
+        ocupados: o._count.participantes,
+        disponibles: Math.max(0, o.cuposMaximos - o._count.participantes),
+        abierta: o.abierta,
+      })),
+      grupos: grupos.map((g) => ({
+        id: g.id,
+        accionFormacionId: g.grupo.accionFormacionId,
+        etiqueta: `Grupo ${g.grupo.numero} · ${g.ubicacion.nombre}`,
+        modalidad: g.modalidad,
+        cupos: g.cuposBase,
+        ocupados: g._count.participantes,
+        fechaInicio: g.grupo.fechaInicio,
+        fechaFin: g.grupo.fechaFin,
+        horario: g.grupo.horario,
+      })),
+    };
+  }
+
+  /** Colocar a alguien en una oferta y su grupo. */
+  async asignar(id: string, dto: AsignarFormacionDto, admin: Admin) {
+    const p = await this.prisma.participante.findUnique({
+      where: { id },
+      select: { id: true, personaId: true, convenioId: true, accionFormacionId: true },
+    });
+    if (!p) throw new NotFoundException('Ese participante no existe.');
+
+    const oferta = await this.prisma.oferta.findUnique({
+      where: { id: dto.ofertaId },
+      select: {
+        id: true,
+        cuposMaximos: true,
+        accionFormacionId: true,
+        accionFormacion: { select: { convenioId: true, nombre: true } },
+      },
+    });
+    if (!oferta) throw new NotFoundException('Esa oferta no existe.');
+
+    if (oferta.accionFormacion.convenioId !== p.convenioId) {
+      throw new BadRequestException('Esa oferta es de otro convenio.');
+    }
+
+    // la misma persona no cuenta dos veces en una accion
+    if (oferta.accionFormacionId !== p.accionFormacionId) {
+      const repetido = await this.prisma.participante.findFirst({
+        where: {
+          personaId: p.personaId,
+          accionFormacionId: oferta.accionFormacionId,
+          id: { not: id },
+        },
+        select: { id: true },
+      });
+      if (repetido) {
+        throw new ConflictException(
+          'Esta persona ya está en esa acción de formación con otra participación.',
+        );
+      }
+    }
+
+    let sobrecupo: { porId: string; motivo: string } | null = null;
+    const ocupadas = await this.prisma.participante.count({
+      where: { ofertaId: oferta.id, etapa: { in: ETAPAS_VIVAS }, id: { not: id } },
+    });
+
+    if (ocupadas >= oferta.cuposMaximos) {
+      if (!dto.sobrecupoMotivo) {
+        throw new ConflictException(
+          `«${oferta.accionFormacion.nombre}» ya tiene sus ${oferta.cuposMaximos} ` +
+            'cupos ocupados. Para colocar por encima del cupo hay que indicar el motivo.',
+        );
+      }
+      sobrecupo = { porId: admin.id, motivo: dto.sobrecupoMotivo };
+    }
+
+    if (dto.coberturaId) {
+      const cobertura = await this.prisma.grupoCobertura.findUnique({
+        where: { id: dto.coberturaId },
+        select: { grupo: { select: { accionFormacionId: true } } },
+      });
+      if (!cobertura) throw new NotFoundException('Ese grupo no existe.');
+      if (cobertura.grupo.accionFormacionId !== oferta.accionFormacionId) {
+        throw new BadRequestException('Ese grupo es de otra acción de formación.');
+      }
+    }
+
+    await this.prisma.participante.update({
+      where: { id },
+      data: {
+        ofertaId: oferta.id,
+        accionFormacionId: oferta.accionFormacionId,
+        coberturaId: dto.coberturaId ?? null,
+        sobrecupoPorId: sobrecupo?.porId ?? null,
+        sobrecupoMotivo: sobrecupo?.motivo ?? null,
+      },
+    });
+
+    return this.obtener(id);
+  }
+
+  /** La prueba de que el titular autorizo. */
+  async registrarAutorizacion(
+    id: string,
+    dto: RegistrarAutorizacionDto,
+    admin: Admin,
+    ip?: string,
+  ) {
+    const p = await this.prisma.participante.findUnique({
+      where: { id },
+      select: { personaId: true, convenioId: true },
+    });
+    if (!p) throw new NotFoundException('Ese participante no existe.');
+
+    const politica = await this.prisma.politicaDatos.findFirst({
+      where: {
+        convenioId: p.convenioId,
+        destinatario: 'PARTICIPANTE',
+        vigenteHasta: null,
+      },
+      select: { id: true, version: true },
+    });
+
+    if (!politica) {
+      throw new ConflictException(
+        'Este convenio no tiene una política de participantes vigente. ' +
+          'Publíquela antes de registrar autorizaciones.',
+      );
+    }
+
+    const yaEsta = await this.prisma.autorizacionDatos.findFirst({
+      where: { personaId: p.personaId, politicaDatosId: politica.id, revocadaEn: null },
+      select: { id: true },
+    });
+    if (yaEsta) return this.obtener(id);
+
+    await this.prisma.$transaction([
+      this.prisma.autorizacionDatos.create({
+        data: {
+          personaId: p.personaId,
+          politicaDatosId: politica.id,
+          canal: dto.canal,
+          evidencia: dto.evidencia ?? null,
+          ip: ip ?? null,
+        },
+      }),
+      this.prisma.notaParticipante.create({
+        data: {
+          participanteId: id,
+          autorId: admin.id,
+          autorNombre: admin.nombre,
+          texto:
+            `Autorización de tratamiento registrada (v${politica.version}), ` +
+            `por ${dto.canal}.` +
+            (dto.evidencia ? ` Evidencia: ${dto.evidencia}` : ''),
+        },
+      }),
+    ]);
+
+    return this.obtener(id);
   }
 
   private donde(f: FiltrosParticipantesDto): Prisma.ParticipanteWhereInput {

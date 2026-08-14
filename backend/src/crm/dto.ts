@@ -14,6 +14,7 @@ import {
 } from 'class-validator';
 
 import {
+  CanalAutorizacion,
   EtapaParticipante,
   OrigenParticipante,
   TipoDocumento,
@@ -213,4 +214,34 @@ export class FiltrosParticipantesDto {
   @Min(1)
   @Max(400)
   pagina?: number;
+}
+
+export class AsignarFormacionDto {
+  @IsString()
+  @IsNotEmpty()
+  ofertaId!: string;
+
+  @IsOptional()
+  @IsString()
+  coberturaId?: string;
+
+  // pasarse del cupo exige decir por que
+  @IsOptional()
+  @Transform(recortar)
+  @IsString()
+  @MinLength(10)
+  @MaxLength(300)
+  sobrecupoMotivo?: string;
+}
+
+export class RegistrarAutorizacionDto {
+  @IsEnum(CanalAutorizacion)
+  canal!: CanalAutorizacion;
+
+  /** Dónde quedó la prueba: acta, correo, archivo. */
+  @IsOptional()
+  @Transform(recortar)
+  @IsString()
+  @MaxLength(300)
+  evidencia?: string;
 }
