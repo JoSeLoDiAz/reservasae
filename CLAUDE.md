@@ -22,12 +22,14 @@ registro de ambos.
 > genera expectativas que no siempre se podrán cumplir. "Preinscripción" o
 > "registro de interés" es más seguro en los textos de cara al usuario.
 
-## Estado actual (11 ago 2026)
+## Estado actual (14 ago 2026)
 
 **Despliegue base funcionando en producción.** Lo que existe hoy es la
 infraestructura completa más una página que verifica la conexión con el backend.
 
 - ✅ Monorepo, Docker, nginx, Cloudflare, HTTPS, CI manual por `git pull`
+- ✅ **Tres sedes replicando**: Bogotá escribe y El Socorro y el PC Dell siguen
+  su base al instante, migraciones incluidas. Ver «Alta disponibilidad».
 - ✅ `https://reservasae.com` sirviendo la app; `/api/estado` y `/health` OK
 - ✅ **Modelo de datos en Prisma, migrado y sembrado** con el catálogo real de
   los dos proyectos: 15 acciones, 67 grupos, 106 ofertas, **4.797 cupos**.
@@ -55,6 +57,8 @@ infraestructura completa más una página que verifica la conexión con el backe
 - ❌ **Ninguna acción está publicada** (`visible = false` en las 15). Hasta que
   un admin publique, el catálogo público sale vacío y no se puede reservar.
   Es deliberado: no hay fechas que mostrar todavía.
+- ⏳ **El failover todavía es manual.** Falta el guión de promoción, el
+  despliegue automático a las réplicas y el desvío del tráfico del dominio.
 - ⏳ El CRM es trabajo futuro; no está empezado.
 
 ### Endpoints
@@ -455,6 +459,102 @@ Dockerfile ejecuta `prisma migrate deploy` antes de `node dist/main.js`.
 > Ojo con el entorno local: `backend/.env` apunta, vía túnel SSH, **a la base
 > del servidor**. No hay base local. Cualquier migración o seed que se corra
 > desde el portátil va directo a producción.
+
+---
+
+## Alta disponibilidad: tres sedes
+
+Desde el 14 ago 2026 el sistema vive en tres máquinas, cada una con su Hyper-V
+sobre Windows 11 y su Ubuntu 24.04 dentro:
+
+| Sede | Nombre | Papel |
+|---|---|---|
+| Bogotá | `server-bogota` | **principal**: es la única que escribe |
+| El Socorro (Santander) | `server-socorro` | primera réplica |
+| PC Dell (remoto) | `server-pc-dell` | segunda réplica |
+
+**Solo se replica reservasae.** SEP, FormularioInscripcionGGPC y Oracle se
+quedan únicamente en Bogotá; fue decisión explícita. Las dos sedes nuevas se
+instalaron limpias en vez de clonar el disco de Bogotá: el VHDX pesaba 193 GB
+(con un checkpoint automático de 65 GB colgando desde mayo y 121 GB de caché de
+compilación de Docker) contra 9,5 MB de base real. Copiar 193 GB por internet
+para mover 9,5 MB no tenía sentido.
+
+### La red privada
+
+Las tres se hablan por **Tailscale**, y los anfitriones Windows también.
+
+- **Las IP de Hyper-V cambian solas.** El conmutador por defecto reparte
+  direcciones con arriendo corto: un reinicio de la VM de El Socorro la movió de
+  `172.30.249.163` a `172.30.255.107`. Cualquier cosa apuntada a esa IP se
+  rompe. Las de Tailscale (`100.x`) no cambian, y con MagicDNS se llega por
+  nombre: `ssh sepadmin@server-socorro`.
+- **El enlace va por relevo DERP en Miami, a 125–130 ms**, sin conexión directa:
+  las tres VM están detrás del NAT del conmutador por defecto de Hyper-V, que es
+  doble NAT. Para 9,5 MB de base da igual, pero es el dato que descarta la
+  replicación síncrona.
+- Cada réplica tiene su llave y entra a Bogotá sin contraseña. Lo necesita para
+  leer `PG_REPL_PASSWORD` y lo necesitará el despliegue automático.
+
+### La replicación
+
+Física, por streaming, **asíncrona**, con ranura por sede (`socorro`, `dell`).
+
+- **Asíncrona por decisión, no por comodidad.** Síncrona costaría unos 250 ms
+  por reserva y, peor, dejaría a Bogotá **sin poder escribir** si las réplicas
+  quedan incomunicadas. Como las dos pasan por el mismo relevo de Miami, un
+  fallo allí bloquearía el formulario público. Se prefiere perder, en el peor
+  caso imaginable, el último segundo de escrituras.
+- **Las migraciones se propagan solas.** Al ser replicación física, el WAL lleva
+  también el DDL: `prisma migrate deploy` en Bogotá llega a las tres sin que
+  nadie toque las réplicas. Comprobado creando y borrando una tabla.
+- **En las réplicas corre solo el contenedor `db`.** El `CMD` del Dockerfile
+  ejecuta `prisma migrate deploy` antes de arrancar, y contra una base de solo
+  lectura eso falla; con `restart: unless-stopped` el backend entraría en un
+  ciclo de reinicios eterno. El resto de la pila se levanta al promover.
+- **La base de Bogotá escucha solo en su IP de Tailscale**, nunca en `0.0.0.0`.
+  Como el `docker-compose.yml` tiene que ser idéntico en las tres sedes, la
+  dirección sale de `PG_BIND`, que cada máquina define en un `.env` propio en la
+  raíz del proyecto (fuera de git). Sin la variable se comporta como siempre:
+  solo `127.0.0.1`.
+- **No se puede restringir por IP en `pg_hba.conf`.** Docker reescribe la
+  dirección de origen a la puerta de enlace de su red (`172.22.0.1`) antes de
+  entregar la conexión, así que Postgres nunca ve la IP real de Tailscale.
+  Arreglarlo exigiría desactivar el proxy de usuario de Docker y reiniciar el
+  demonio en Bogotá, donde viven los otros proyectos. La barrera real es doble:
+  la base solo es alcanzable desde la red privada, y exige contraseña SCRAM.
+- **Si una réplica se cae mucho tiempo**, Bogotá le retiene WAL hasta
+  `max_slot_wal_keep_size = 8GB` y después invalida la ranura; esa sede
+  necesitaría una copia base nueva. Con este volumen de escritura, 8 GB son
+  meses.
+
+### El PC Dell es inestable, y se asume
+
+Se cayó tres veces durante el montaje. **Es aceptado a propósito**: está en otro
+lugar físico precisamente para que sobreviva a lo que se lleve por delante a
+Bogotá y a El Socorro. Su papel no es responder rápido, es **existir cuando ya
+no quede nada más** y poder levantar el servicio desde allí.
+
+No se le exige disponibilidad, pero sí que no se duerma el Windows anfitrión
+(`powercfg /change standby-timeout-ac 0`) y que la VM arranque sola
+(`Set-VM -AutomaticStartAction Start`). Si esa sede pasa meses caída, hay que
+rehacerle la copia base.
+
+### Comprobarlo
+
+```bash
+# quien esta replicando y con cuanto retraso (en Bogota)
+docker compose exec -T db psql -U reservasae -d reservasae \
+  -c "SELECT application_name, state, sync_state, replay_lag FROM pg_stat_replication;"
+
+# la replica va al dia (en una replica)
+docker compose exec -T db psql -U reservasae -d reservasae \
+  -c "SELECT pg_is_in_recovery(), pg_last_wal_replay_lsn();"
+```
+
+Una réplica sana responde `t` y rechaza cualquier escritura con
+`cannot execute INSERT in a read-only transaction`. Si acepta una escritura,
+algo se promovió por error y hay dos verdades distintas circulando.
 
 ---
 
