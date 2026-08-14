@@ -540,21 +540,131 @@ No se le exige disponibilidad, pero sí que no se duerma el Windows anfitrión
 (`Set-VM -AutomaticStartAction Start`). Si esa sede pasa meses caída, hay que
 rehacerle la copia base.
 
+### Los seis guiones
+
+Todos en `scripts/`, todos idempotentes, todos con el mismo criterio: **antes de
+destruir algo, comprobar que hay a dónde ir**.
+
+| Guión | Dónde | Qué hace |
+|---|---|---|
+| `desplegar.sh` | principal | construye, comprueba y **solo entonces** marca el commit |
+| `seguir-al-principal.sh` | réplicas | temporizador cada 2 min: se pone en el commit marcado y construye |
+| `arrancar-tunel.sh` | todas | temporizador cada 1 min: levanta el túnel **solo si le toca** |
+| `promover.sh` | una réplica | la convierte en principal |
+| `rendirse.sh` | la sede relevada | suelta el tráfico y vuelve a ser réplica de otra |
+| `estado.sh` | cualquiera | las tres sedes de un vistazo |
+
+`comun.sh` tiene lo compartido y `sonda.sh` es el informador de una sola sede.
+
+- **Bogotá marca un commit; las réplicas siguen la marca, no `origin/main`.** Un
+  commit que rompa el arranque nunca llega a propagarse, porque `desplegar.sh`
+  solo escribe `.desplegado` si el sitio responde después de construir.
+- **Las réplicas comparan contra `.construido`, no contra `HEAD`.** Comparar con
+  `HEAD` daba por bueno el estado cuando alguien había hecho `git pull` a mano:
+  coincidía el commit y se saltaba la construcción, que es lo único que hace
+  falta para que la réplica sirva de algo al promoverla.
+- **Las réplicas construyen las imágenes pero no arrancan la aplicación.** Es lo
+  que convierte el failover en segundos en vez de en los cuatro minutos que
+  tarda un build.
+- **`seguir-al-principal.sh` y `rendirse.sh` van envueltos en un bloque `{ }`.**
+  Hacen `git reset --hard`, que sustituye el propio archivo mientras bash lo
+  ejecuta; bash lee el guión por posición en el fichero y continuaría dentro del
+  archivo nuevo con un desplazamiento calculado sobre el viejo. El bloque obliga
+  a parsearlo entero antes de ejecutar la primera línea. Pasó de verdad: El
+  Socorro construyó bien pero imprimió el mensaje de la versión anterior.
+
+### El túnel del dominio
+
+`reservasae.com` tiene **su propio túnel** (`convoca`), separado del compartido
+de Bogotá que lleva SEP, Oracle y `ggpcsena.com`. Levantar el compartido en otra
+sede haría que Cloudflare repartiera peticiones entre las dos y las de SEP
+acabaran en una máquina que no tiene SEP.
+
+- **Va como contenedor bajo el perfil `tunel`**, no como servicio del sistema: en
+  las réplicas `sudo` pide contraseña, y en Bogotá ya existe un servicio
+  `cloudflared` con el que chocaría.
+- **El destino es `nginx:80`, no `localhost:4600`.** El contenedor está en la red
+  interna; `localhost` sería él mismo.
+- **`restart: "no"`, y es deliberado.** Los perfiles solo los entiende el CLI de
+  compose: el demonio de Docker no sabe nada de ellos y revivía el túnel de una
+  sede ya relevada en cuanto volvía la corriente. Cloudflare veía dos conectores
+  del mismo túnel y partía el tráfico entre dos bases divergidas. Ahora lo
+  gobierna `arrancar-tunel.sh`, y nadie más.
+- **La marca es `SEDE_ACTIVA=si`, no `COMPOSE_PROFILES=tunel`.** Con la segunda,
+  cualquier `docker compose up -d` levantaba el túnel saltándose todos los
+  controles — incluido el que hace `desplegar.sh`. El guardia era irrelevante
+  porque había una puerta lateral abierta. `SEDE_ACTIVA` compose no la entiende,
+  y el perfil solo se pasa por línea de órdenes desde el guión.
+- **Para empezar a atender exige certeza; para seguir atendiendo, no.** Es
+  asimétrico a propósito. Al arrancar, no ver a las otras sedes **no es permiso**:
+  es justo lo que le pasa a la sede aislada, y sería como se levanta el segundo
+  conector. Pero si el túnel ya está arriba no se baja por no ver a nadie, porque
+  eso tiraría el sitio en cada parpadeo de red. Solo se baja ante prueba positiva
+  de haber sido relevada: otra sede atendiendo, otra con línea temporal mayor, o
+  esta convertida en réplica.
+- **Basta con que UNA de las otras dos responda** para arrancar. Exigir las dos
+  dejaría el dominio caído cada vez que el PC Dell esté apagado, que es la mitad
+  del tiempo.
+- **El precio**: tras reiniciar el principal, el dominio tarda hasta un minuto de
+  más en volver, porque espera al temporizador. Compensa.
+
+### Failover: el runbook
+
+**Promover no es automático, y es una decisión de diseño.** Con tres nodos —uno
+de ellos el PC Dell— un promotor automático confundiría «Bogotá cayó» con «se me
+fue el internet a mí». Dos bases aceptando reservas dan dos verdades que no se
+pueden fusionar, porque la replicación es física.
+
+1. **Comprobar** que de verdad cayó: `scripts/estado.sh`.
+2. **Promover** en la sede elegida: `scripts/promover.sh`. Se niega si el
+   principal responde; si no lo ve, **pide una segunda opinión a la tercera
+   sede** antes de decidir, porque no verlo no significa que esté muerto. También
+   se niega si otra sede ya va por una línea temporal más alta.
+3. **Rendir las otras dos**, y no es opcional: `scripts/rendirse.sh <nueva sede>`
+   en cada una. La sede caída seguiría escribiendo en su propia base, y la otra
+   réplica se congela en silencio — su ranura ya no existe en el nuevo principal,
+   pero `pg_is_in_recovery()` sigue devolviendo `t` y nada lo delata. Por eso
+   `estado.sh` tiene la columna ENLACE.
+4. **Verificar** con `estado.sh`: un solo PRINCIPAL, un solo TUNEL en SI, todas
+   en la misma LINEA.
+
+`rendirse.sh` guarda un `pg_dump` de lo que había antes de resembrar. Siendo la
+replicación asíncrona, la sede que se rinde es precisamente la que puede tener
+escrituras que nadie más llegó a ver.
+
+> Probado de verdad el 14 ago 2026: se paró Bogotá, El Socorro se promovió (línea
+> temporal 1 → 2, que es la firma de una promoción real), sirvió la aplicación
+> entera, y volvió a réplica sin descuadrar un byte.
+
 ### Comprobarlo
 
 ```bash
-# quien esta replicando y con cuanto retraso (en Bogota)
-docker compose exec -T db psql -U reservasae -d reservasae \
-  -c "SELECT application_name, state, sync_state, replay_lag FROM pg_stat_replication;"
-
-# la replica va al dia (en una replica)
-docker compose exec -T db psql -U reservasae -d reservasae \
-  -c "SELECT pg_is_in_recovery(), pg_last_wal_replay_lsn();"
+# las tres sedes de un vistazo, desde cualquiera
+./scripts/estado.sh
 ```
 
-Una réplica sana responde `t` y rechaza cualquier escritura con
-`cannot execute INSERT in a read-only transaction`. Si acepta una escritura,
-algo se promovió por error y hay dos verdades distintas circulando.
+Sano es: un solo `PRINCIPAL`, un solo `TUNEL` en `SI`, las tres en la misma
+`LINEA`, las réplicas con el `LSN` del principal y `ENLACE` en `streaming`.
+
+Una réplica sana rechaza cualquier escritura con `cannot execute INSERT in a
+read-only transaction`. Si acepta una, algo se promovió por error y hay dos
+verdades circulando.
+
+Cada guión se niega fuera de su sitio: `desplegar.sh` en una réplica (arrancaría
+la aplicación contra una base de solo lectura), `seguir-al-principal.sh` en un
+principal (haría `reset --hard` siguiendo a la sede que acaba de relevar), y
+`arrancar-tunel.sh` donde no le toca.
+
+> Los guiones pasaron dos revisiones adversariales. La primera confirmó 14
+> defectos de 54 candidatos: el guardia anti doble-principal interrogaba a la
+> sede equivocada, y `rendirse.sh` borraba el volumen antes de tener con qué
+> reemplazarlo. La segunda, 8 de 43, y la mejor fue una crítica al arreglo de la
+> primera: el guardia nuevo fallaba en abierto y, sobre todo, `COMPOSE_PROFILES`
+> en el `.env` dejaba una puerta lateral que lo hacía irrelevante.
+>
+> La lección para la próxima vez que se toque esto: **los arreglos traen sus
+> propios defectos, y los más caros son los que dejan el control en pie pero
+> vacío de efecto.** Merece la pena repetir la revisión.
 
 ---
 
