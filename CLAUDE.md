@@ -59,7 +59,9 @@ infraestructura completa más una página que verifica la conexión con el backe
   Es deliberado: no hay fechas que mostrar todavía.
 - ⏳ **El failover todavía es manual.** Falta el guión de promoción, el
   despliegue automático a las réplicas y el desvío del tráfico del dominio.
-- ⏳ El CRM es trabajo futuro; no está empezado.
+- ✅ **CRM, sección de inscripciones**: tablero de etapas, ficha, brecha de
+  nombres y carga masiva. Ver «El CRM».
+- ⏳ Del CRM faltan acciones por lote, tareas y el seguimiento académico.
 
 ### Endpoints
 
@@ -459,6 +461,98 @@ Dockerfile ejecuta `prisma migrate deploy` antes de `node dist/main.js`.
 > Ojo con el entorno local: `backend/.env` apunta, vía túnel SSH, **a la base
 > del servidor**. No hay base local. Cualquier migración o seed que se corra
 > desde el portátil va directo a producción.
+
+---
+
+## El CRM (14 ago 2026)
+
+Tres secciones encadenadas. La primera ya existía; la segunda está construida y
+usable; la tercera espera una decisión del cliente.
+
+```
+1. RESERVA DE CUPOS   la empresa aparta N sillas
+2. INSCRIPCIONES      el asesor convierte cupos en gente      ✅
+3. ACADÉMICO          el LMS dice cómo van                    ⬜ falta elegir LMS
+```
+
+`/admin/participantes` (tablero y lista), `/nuevo`, `/:id` (ficha),
+`/brecha` y `/carga`.
+
+### Las decisiones que lo sostienen
+
+- **`Persona` no tiene convenio.** Única por `(tipoDocumento, numeroDocumento)`
+  normalizado. La misma cédula en los dos convenios es **una persona con dos
+  participaciones**. Así se responde «cuánta gente distinta hemos formado», que
+  no es la suma de los dos convenios, y **el duplicado por documento pasa a ser
+  imposible de crear** — por eso no existe pantalla de fusionar duplicados.
+- **`Participante.reservaId` es nullable, y es deliberado.** El CRM también
+  gestiona a quien llega por su cuenta (redes, referido, feria), no solo a quien
+  una empresa nominó. Por eso `convenioId` va explícito y no heredado.
+- **Nueve etapas en una sola escalera**: `NUEVO → CONTACTADO → DATOS_COMPLETOS →
+  MATRICULADO → EN_FORMACION → CERTIFICADO`, con salidas `PERDIDO`, `RETIRADO` y
+  `NO_APROBO`. Las tres primeras son el trabajo comercial del prototipo del
+  cliente; las tres siguientes son lo que paga el SENA y donde el prototipo ya
+  no llegaba. Se descartaron «En negociación» y «Pago realizado»: no significan
+  nada en formación gratuita.
+- **Salir por una etapa de salida exige motivo.** El prototipo lo pedía
+  opcional, que es lo mismo que no pedirlo.
+- **Nominar nunca toca `Oferta.cuposOcupados`.** El sobrecupo se cuenta contra
+  participantes vivos. Los tres candados contra la sobreventa están diseñados
+  para un único camino de escritura.
+- **El sobrecupo se permite y deja firma.** Motivo obligatorio y quién lo
+  autorizó, con un CHECK que impide guardar uno sin el otro.
+- **Matricular bloquea solo por dos cosas**: autorización del titular y oferta
+  asignada. El grupo y sus fechas **avisan, no bloquean** — las pone el SENA
+  cuando puede, y bloquear la captura por algo que no depende de aquí es hacer
+  el sistema más rígido que el proceso, que es como se abandonan los sistemas.
+- **La autorización no es un booleano.** `AutorizacionDatos` apunta a la versión
+  exacta del texto vigente, con el canal por el que se dio y dónde quedó la
+  prueba. Es lo que hay que poder demostrar.
+- **Las notas congelan el nombre del autor**, como `Respuesta` congela la
+  etiqueta de la pregunta. No se borran: una corrección es otra nota.
+
+### La brecha de nombres
+
+`cuposConfirmados − participantes vivos`. Es la cifra que abre el CRM y mide el
+riesgo número uno: acabar con 4.797 cupos reservados y 800 personas
+identificadas. La lista se ordena por cuántos nombres debe cada empresa y, a
+igualdad, por cuánto lleva esperando: **no es un informe, es a quién llamar hoy**.
+
+### La carga masiva
+
+Va por **pegado**, no por subida de archivo: es lo que el asesor hace de verdad
+y evita parsear `.xlsx` ajenos. Dos pasos siempre, previsualizar y confirmar.
+
+- **Las filas se crean una a una, no en transacción.** En un pegado de 40, que
+  la 17 traiga un documento inválido no puede tumbar las otras 39.
+- **`esEncabezado` mira la primera y la segunda celda.** Mirando solo la primera,
+  una fila cuyo tipo venía escrito como «Cedula» se tomaba por título y **la
+  persona desaparecía en silencio**. Lo encontró `carga.spec.ts`; queda como
+  prueba de regresión.
+
+### Roles: la tabla existe, todavía no filtra
+
+`AdminConvenio(adminId, convenioId, rol)` es una **concesión explícita**: sin
+fila, no hay acceso. Sustituye a la columna `convenioId` con «nulo = ve los dos»
+que proponía el plan, porque la instrucción del cliente fue que trabajar en los
+dos convenios exige permisos en ambos, nunca por omisión. Y como la misma
+persona puede llevar áreas distintas en cada convenio, **el rol va en la fila y
+no en la cuenta**.
+
+Los roles previstos son de dos ejes, área × nivel: gestión y liderazgo de
+inscripciones, de académico y de sistemas. **Falta aplicar el ámbito en cada
+consulta**, que es trabajo pendiente y toca `tableros.service.ts` entero.
+
+### Lo que falta
+
+Acciones por lote · tareas con fecha · seguimiento académico con adaptador de
+LMS (carga de archivo primero, API cuando se decida) · aplicar el ámbito por
+convenio · fechas de los 67 grupos, ahora solo para el seguimiento académico.
+
+> **Solo lectura del LMS**, decidido: alguien matricula allá y aquí se lee el
+> avance. Y «al instante» se resuelve guardando una foto con su fecha y
+> enseñando «actualizado hace N minutos»; consultar el LMS en cada carga de
+> pantalla haría que un LMS lento sea una pantalla lenta.
 
 ---
 
