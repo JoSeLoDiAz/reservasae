@@ -1,0 +1,12 @@
+# Copia de referencia. Va junto a su .service.
+
+[Unit]
+Description=Comprueba el principal cada dos minutos
+
+[Timer]
+OnBootSec=3min
+OnUnitActiveSec=2min
+RandomizedDelaySec=30
+
+[Install]
+WantedBy=timers.target
