@@ -431,20 +431,32 @@ model Respuesta {
 
 // política de datos y administración
 
+/// A quien se le pide la autorizacion.
+enum DestinatarioPolitica {
+  RESERVA
+  PARTICIPANTE
+}
+
 /// El texto legal, versionado.
 model PoliticaDatos {
-  id           String    @id @default(cuid())
+  id           String               @id @default(cuid())
   convenioId   String
+  destinatario DestinatarioPolitica @default(RESERVA)
   version      Int
   titulo       String
   contenido    String /// texto completo en markdown
-  vigenteDesde DateTime  @default(now())
+  vigenteDesde DateTime             @default(now())
   vigenteHasta DateTime?
+
+  creadoEn      DateTime @default(now())
+  actualizadoEn DateTime @updatedAt
 
   convenio Convenio  @relation(fields: [convenioId], references: [id], onDelete: Cascade)
   reservas Reserva[]
 
-  @@unique([convenioId, version])
+  // la version se numera por destinatario
+  @@unique([convenioId, destinatario, version])
+  @@index([convenioId, destinatario, vigenteHasta])
   @@map("politicas_datos")
 }
 

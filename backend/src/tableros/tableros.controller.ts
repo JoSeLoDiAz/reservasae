@@ -1,8 +1,8 @@
 import { Controller, Get, Param, Query, Res, UseGuards } from '@nestjs/common';
 import type { Response } from 'express';
 
-import { EstadoReserva } from '../../generated/prisma';
-import { AdminGuard } from '../admin/admin.guard';
+import { EstadoReserva, RolAdmin } from '../../generated/prisma';
+import { AdminGuard, Roles } from '../admin/admin.guard';
 import { construirLibro, nombreArchivo } from './exportar';
 import { TablerosService, valorLegible, type FiltrosReservas } from './tableros.service';
 
@@ -88,7 +88,9 @@ export class TablerosController {
 
   // descargas
 
+  // lleva nombre, correo y celular de cada contacto
   @Get('exportar/reservas')
+  @Roles(RolAdmin.SUPERADMIN, RolAdmin.GESTOR)
   async exportarReservas(@Query() consulta: Record<string, string>, @Res() res: Response) {
     const reservas = await this.tableros.reservasParaExportar(this.filtros(consulta));
 
@@ -160,6 +162,7 @@ export class TablerosController {
   }
 
   @Get('exportar/ocupacion')
+  @Roles(RolAdmin.SUPERADMIN, RolAdmin.GESTOR)
   async exportarOcupacion(@Res() res: Response) {
     const [ubicaciones, acciones] = await Promise.all([
       this.tableros.porUbicacion(),
@@ -235,6 +238,7 @@ export class TablerosController {
   }
 
   @Get('exportar/empresas')
+  @Roles(RolAdmin.SUPERADMIN, RolAdmin.GESTOR)
   async exportarEmpresas(@Query('buscar') buscar: string | undefined, @Res() res: Response) {
     const empresas = await this.tableros.porEmpresa(buscar);
 

@@ -153,6 +153,7 @@ export class AdminController {
   }
 
   @Patch('marca')
+  @Roles(RolAdmin.SUPERADMIN, RolAdmin.GESTOR)
   actualizarMarca(@AdminActual() admin: Admin, @Body() dto: ActualizarMarcaDto) {
     return this.admin.actualizarMarca(admin, dto);
   }
@@ -164,6 +165,7 @@ export class AdminController {
   }
 
   @Patch('marca/tema/:esquema')
+  @Roles(RolAdmin.SUPERADMIN, RolAdmin.GESTOR)
   actualizarTema(
     @AdminActual() admin: Admin,
     @Param('esquema') esquema: string,
@@ -173,6 +175,7 @@ export class AdminController {
   }
 
   @Post('marca/tema/:esquema/restablecer')
+  @Roles(RolAdmin.SUPERADMIN, RolAdmin.GESTOR)
   @HttpCode(200)
   restablecerTema(@AdminActual() admin: Admin, @Param('esquema') esquema: string) {
     return this.admin.restablecerTema(admin, this.exigirEsquema(esquema));
@@ -195,6 +198,7 @@ export class AdminController {
   }
 
   @Post('logos')
+  @Roles(RolAdmin.SUPERADMIN, RolAdmin.GESTOR)
   @UseInterceptors(FileInterceptor('logo', { limits: { fileSize: MAXIMO_LOGO } }))
   subirLogo(
     @Body() cuerpo: { formularioId?: string; etiqueta?: string },
@@ -214,11 +218,13 @@ export class AdminController {
   }
 
   @Patch('logos/:id')
+  @Roles(RolAdmin.SUPERADMIN, RolAdmin.GESTOR)
   actualizarLogo(@Param('id') id: string, @Body() dto: ActualizarLogoDto) {
     return this.admin.actualizarLogo(id, dto);
   }
 
   @Delete('logos/:id')
+  @Roles(RolAdmin.SUPERADMIN, RolAdmin.GESTOR)
   borrarLogo(@Param('id') id: string) {
     return this.admin.borrarLogo(id);
   }
@@ -260,6 +266,7 @@ export class AdminController {
   }
 
   @Patch('acciones/:id')
+  @Roles(RolAdmin.SUPERADMIN, RolAdmin.GESTOR)
   publicarAccion(@Param('id') id: string, @Body() dto: PublicarAccionDto) {
     return this.admin.publicarAccion(id, dto.visible);
   }

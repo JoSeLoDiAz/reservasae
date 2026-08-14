@@ -478,12 +478,22 @@ export class ReservasService {
     }
   }
 
-  private async politicaVigente(convenioId: string): Promise<string | null> {
+  // sin texto no hay nada que aceptar: antes devolvia
+  // null y la casilla no apuntaba a ninguna parte
+  private async politicaVigente(convenioId: string): Promise<string> {
     const politica = await this.prisma.politicaDatos.findFirst({
-      where: { convenioId, vigenteHasta: null },
+      where: { convenioId, destinatario: 'RESERVA', vigenteHasta: null },
       orderBy: { version: 'desc' },
+      select: { id: true },
     });
-    return politica?.id ?? null;
+
+    if (!politica) {
+      throw new ConflictException(
+        'Este convenio no tiene publicada una política de tratamiento de datos. ' +
+          'No se pueden recibir registros hasta que exista.',
+      );
+    }
+    return politica.id;
   }
 
   private async vista(tx: Prisma.TransactionClient, reservaId: string) {

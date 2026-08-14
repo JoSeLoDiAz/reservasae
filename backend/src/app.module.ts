@@ -9,6 +9,7 @@ import { AppService } from './app.service';
 import { CatalogoModule } from './catalogo/catalogo.module';
 import { ThrottlerIpGuard } from './comun/throttler-ip.guard';
 import { FormulariosModule } from './formularios/formularios.module';
+import { PoliticasModule } from './politicas/politicas.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { ReservasModule } from './reservas/reservas.module';
 import { TablerosModule } from './tableros/tableros.module';
@@ -25,6 +26,7 @@ import { TablerosModule } from './tableros/tableros.module';
     ReservasModule,
     AdminModule,
     TablerosModule,
+    PoliticasModule,
   ],
   controllers: [AppController],
   providers: [

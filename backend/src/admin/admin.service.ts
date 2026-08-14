@@ -493,6 +493,26 @@ export class AdminService {
     const accion = await this.prisma.accionFormacion.findUnique({ where: { id } });
     if (!accion) throw new NotFoundException('No existe esa acción de formación.');
 
+    // publicar sin texto legal seria pedir que acepten
+    // una casilla que no apunta a ninguna parte
+    if (visible) {
+      const politica = await this.prisma.politicaDatos.findFirst({
+        where: {
+          convenioId: accion.convenioId,
+          destinatario: 'RESERVA',
+          vigenteHasta: null,
+        },
+        select: { id: true },
+      });
+
+      if (!politica) {
+        throw new ConflictException(
+          'Este convenio no tiene una política de tratamiento de datos vigente. ' +
+            'Publique la política antes de abrir la acción al público.',
+        );
+      }
+    }
+
     // ocultar no cancela: solo sale del sitio publico
     await this.prisma.accionFormacion.update({ where: { id }, data: { visible } });
     return { id, visible };

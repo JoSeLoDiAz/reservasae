@@ -9,7 +9,8 @@ import {
   UseGuards,
 } from '@nestjs/common';
 
-import { AdminGuard } from '../admin/admin.guard';
+import { RolAdmin } from '../../generated/prisma';
+import { AdminGuard, Roles } from '../admin/admin.guard';
 import {
   ActualizarAparienciaDto,
   ActualizarFormularioDto,
@@ -23,9 +24,10 @@ import {
 } from './dto';
 import { FormulariosService } from './formularios.service';
 
-/** El constructor. Todo bajo sesión de administrador. */
+/** El constructor. Herramienta de gestión, no de consulta. */
 @Controller('admin/formularios')
 @UseGuards(AdminGuard)
+@Roles(RolAdmin.SUPERADMIN, RolAdmin.GESTOR)
 export class FormulariosAdminController {
   constructor(private readonly formularios: FormulariosService) {}
 
