@@ -26,6 +26,7 @@ const SECCIONES = [
   { href: "/admin/empresas", etiqueta: "Organizaciones" },
   { href: "/admin/acciones", etiqueta: "Formación" },
   { href: "/admin/formularios", etiqueta: "Formularios" },
+  { href: "/admin/politicas", etiqueta: "Políticas" },
   { href: "/admin/marca", etiqueta: "Apariencia" },
   { href: "/admin/usuarios", etiqueta: "Usuarios", soloSuperadmin: true },
   { href: "/admin/perfil", etiqueta: "Mi perfil" },
