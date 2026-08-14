@@ -7,6 +7,7 @@ import { AdminModule } from './admin/admin.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { CatalogoModule } from './catalogo/catalogo.module';
+import { CrmModule } from './crm/crm.module';
 import { ThrottlerIpGuard } from './comun/throttler-ip.guard';
 import { FormulariosModule } from './formularios/formularios.module';
 import { PoliticasModule } from './politicas/politicas.module';
@@ -27,6 +28,7 @@ import { TablerosModule } from './tableros/tableros.module';
     AdminModule,
     TablerosModule,
     PoliticasModule,
+    CrmModule,
   ],
   controllers: [AppController],
   providers: [
