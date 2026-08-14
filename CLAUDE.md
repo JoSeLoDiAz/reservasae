@@ -855,6 +855,13 @@ Verificado contra `docs/proyectos/*.xlsx`, que es la fuente oficial. El
   otro sitio. La pista: si la respuesta **no** trae `cf-ray`, no pasó por
   Cloudflare. Para saltarse la caché:
   `curl -sI --resolve reservasae.com:443:104.21.30.174 https://reservasae.com`
+- **`kill -HUP` a cloudflared no recarga: lo mata.** En la versión 2026.3.0 la
+  señal apaga el proceso en vez de releer el `config.yml`. Se probó el 14 ago
+  2026 buscando aplicar un cambio de ingress sin cortar SEP, y dejó
+  `sep.ggpcsena.com` y `ggpcsena.com` en 502 hasta que alguien hizo
+  `systemctl start`. Para cambiar el ingress del túnel compartido: validar con
+  `cloudflared tunnel ingress validate` y luego `systemctl restart`. Corta unos
+  segundos, que es infinitamente menos que hasta que un humano lo note.
 - **`backend/.env` nunca se sube.** Si agregas una variable, documéntala en
   `backend/.env.example`.
 - **El volumen `reservasae-pgdata` sobrevive a `docker compose down`.**

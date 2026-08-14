@@ -9,10 +9,12 @@
 #   sudo cp /etc/cloudflared/config.yml /etc/cloudflared/config.yml.bak
 #   sudo cp /opt/sep/reservasae/docs/cloudflared-config.yml /etc/cloudflared/config.yml
 #   sudo cloudflared tunnel ingress validate
-#   sudo kill -HUP $(systemctl show cloudflared -p MainPID --value)
+#   sudo systemctl restart cloudflared
 #
-# La senal HUP recarga las reglas sin cortar las conexiones. Reiniciar el
-# servicio tumbaria SEP y Oracle unos segundos sin necesidad.
+# NO uses kill -HUP: en esta version (2026.3.0) no recarga la configuracion,
+# MATA el proceso. Se probo el 14 ago 2026 y dejo SEP y ggpcsena en 502 hasta
+# que alguien hizo systemctl start. El reinicio corta unos segundos; la senal
+# corta hasta que un humano se da cuenta.
 #
 # El orden importa: cloudflared usa la PRIMERA regla que coincide, y la
 # ultima (http_status:404) captura todo lo demas.
