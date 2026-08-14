@@ -23,6 +23,7 @@ export function useAdmin(): Contexto {
 const SECCIONES = [
   { href: "/admin", etiqueta: "Tablero", exacto: true },
   { href: "/admin/reservas", etiqueta: "Reservas" },
+  { href: "/admin/participantes", etiqueta: "Inscripciones" },
   { href: "/admin/empresas", etiqueta: "Organizaciones" },
   { href: "/admin/acciones", etiqueta: "Formación" },
   { href: "/admin/formularios", etiqueta: "Formularios" },
