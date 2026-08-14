@@ -1,6 +1,10 @@
 #!/bin/bash
 # deja esta replica lista en el commit que el principal verifico
 set -uo pipefail
+
+# el bloque obliga a leer el guion entero antes de
+# ejecutarlo: el reset de abajo reescribe este archivo
+{
 cd "$(dirname "$0")/.."
 
 PRINCIPAL=${PRINCIPAL:-sepadmin@server-bogota}
@@ -29,3 +33,4 @@ docker compose build || { echo "✗ fallo la construccion"; exit 1; }
 
 echo "$marcado" > .construido
 echo "✓ listo en ${marcado:0:7} con las imagenes construidas"
+}
