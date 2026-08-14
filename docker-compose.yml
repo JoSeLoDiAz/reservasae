@@ -82,6 +82,19 @@ services:
     networks:
       - reservasae-internal
 
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: reservasae_cloudflared
+    restart: unless-stopped
+    # solo arranca en la sede activa
+    profiles: ["tunel"]
+    command: tunnel --no-autoupdate run --token ${TUNEL_TOKEN:-}
+    depends_on:
+      nginx:
+        condition: service_started
+    networks:
+      - reservasae-internal
+
 volumes:
   reservasae-pgdata:
 

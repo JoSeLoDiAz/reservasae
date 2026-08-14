@@ -4,7 +4,6 @@ set -uo pipefail
 cd "$(dirname "$0")/.."
 
 PRINCIPAL=${PRINCIPAL:-sepadmin@server-bogota}
-TUNEL=${TUNEL:-cloudflared-convoca}
 
 # dos bases escribiendo es peor que la caida
 if ssh -n -o BatchMode=yes -o ConnectTimeout=10 "$PRINCIPAL" \
@@ -46,11 +45,12 @@ esperar /api/estado || { echo "✗ el backend no respondio"; exit 1; }
 esperar /consulta   || { echo "✗ el frontend no respondio"; exit 1; }
 
 # el tunel solo debe correr en la sede activa
-if systemctl cat "$TUNEL" >/dev/null 2>&1; then
-  sudo systemctl enable --now "$TUNEL"
-  echo "✓ tunel $TUNEL arriba"
+if grep -q '^TUNEL_TOKEN=.' .env 2>/dev/null; then
+  grep -q '^COMPOSE_PROFILES=' .env || echo 'COMPOSE_PROFILES=tunel' >> .env
+  docker compose --profile tunel up -d cloudflared
+  echo "✓ tunel arriba, el dominio ya apunta aqui"
 else
-  echo "! falta el servicio $TUNEL: el dominio sigue sin apuntar aqui"
+  echo "! sin TUNEL_TOKEN en .env: el dominio sigue sin apuntar aqui"
 fi
 
 echo "✓ esta sede es ahora el principal"
