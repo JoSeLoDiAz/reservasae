@@ -28,6 +28,9 @@ coverage/
 # ── Docker ──
 docker/nginx/logs/
 
+# ── Marca del ultimo despliegue verificado ──
+.desplegado
+
 # ── Editor ──
 .vscode/
 .idea/
