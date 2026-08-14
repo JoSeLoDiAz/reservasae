@@ -429,6 +429,118 @@ export class CrmService {
   }
 
 
+
+  /** Cupos reservados sin una persona detras. */
+  async brecha(convenioId?: string) {
+    const reservas = await this.prisma.reserva.findMany({
+      where: {
+        estado: { not: 'CANCELADA' },
+        ...(convenioId
+          ? { oferta: { accionFormacion: { convenioId } } }
+          : {}),
+      },
+      select: {
+        id: true,
+        cuposConfirmados: true,
+        contactoNombre: true,
+        contactoCorreo: true,
+        contactoCelular: true,
+        creadoEn: true,
+        empresa: { select: { id: true, nit: true, razonSocial: true } },
+        oferta: {
+          select: {
+            id: true,
+            ubicacion: { select: { nombre: true } },
+            accionFormacion: {
+              select: {
+                id: true,
+                codigo: true,
+                nombre: true,
+                convenio: { select: { sigla: true, slug: true } },
+              },
+            },
+          },
+        },
+        _count: {
+          select: { participantes: { where: { etapa: { in: ETAPAS_VIVAS } } } },
+        },
+      },
+    });
+
+    const porAccion = new Map<
+      string,
+      { etiqueta: string; convenio: string; confirmados: number; nombres: number }
+    >();
+
+    const empresas: Array<{
+      reservaId: string;
+      empresa: { id: string; nit: string; razonSocial: string };
+      contacto: string;
+      correo: string;
+      celular: string | null;
+      accion: string;
+      ubicacion: string;
+      confirmados: number;
+      nombres: number;
+      faltan: number;
+      diasDesdeReserva: number;
+    }> = [];
+
+    let confirmados = 0;
+    let nombres = 0;
+    const ahora = Date.now();
+
+    for (const r of reservas) {
+      const af = r.oferta.accionFormacion;
+      const clave = af.id;
+      const actual = porAccion.get(clave) ?? {
+        etiqueta: `${af.codigo} · ${af.nombre}`,
+        convenio: af.convenio.sigla ?? af.convenio.slug,
+        confirmados: 0,
+        nombres: 0,
+      };
+      actual.confirmados += r.cuposConfirmados;
+      actual.nombres += r._count.participantes;
+      porAccion.set(clave, actual);
+
+      confirmados += r.cuposConfirmados;
+      nombres += r._count.participantes;
+
+      const faltan = r.cuposConfirmados - r._count.participantes;
+      if (faltan > 0) {
+        empresas.push({
+          reservaId: r.id,
+          empresa: r.empresa,
+          contacto: r.contactoNombre,
+          correo: r.contactoCorreo,
+          celular: r.contactoCelular,
+          accion: `${af.codigo} · ${af.nombre}`,
+          ubicacion: r.oferta.ubicacion.nombre,
+          confirmados: r.cuposConfirmados,
+          nombres: r._count.participantes,
+          faltan,
+          diasDesdeReserva: Math.floor(
+            (ahora - r.creadoEn.getTime()) / 86_400_000,
+          ),
+        });
+      }
+    }
+
+    // primero quien mas debe, y a igualdad quien lleva mas esperando
+    empresas.sort((a, b) => b.faltan - a.faltan || b.diasDesdeReserva - a.diasDesdeReserva);
+
+    return {
+      confirmados,
+      nombres,
+      brecha: Math.max(0, confirmados - nombres),
+      porAccion: [...porAccion.values()]
+        .map((a) => ({ ...a, brecha: Math.max(0, a.confirmados - a.nombres) }))
+        .sort((a, b) => b.brecha - a.brecha),
+      empresas: empresas.slice(0, 100),
+      empresasTotal: empresas.length,
+    };
+  }
+
   /** Ofertas y grupos donde se puede colocar a alguien. */
   async opciones(convenioId: string) {
     const ofertas = await this.prisma.oferta.findMany({

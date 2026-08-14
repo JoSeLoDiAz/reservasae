@@ -36,6 +36,12 @@ export class CrmController {
     return this.crm.resumen(filtros);
   }
 
+  /** Cupos reservados sin nombre detrás. */
+  @Get('brecha')
+  brecha(@Query('convenioId') convenioId?: string) {
+    return this.crm.brecha(convenioId);
+  }
+
   /** Ofertas y grupos donde se puede colocar a alguien. */
   @Get('opciones')
   opciones(@Query('convenioId') convenioId: string) {

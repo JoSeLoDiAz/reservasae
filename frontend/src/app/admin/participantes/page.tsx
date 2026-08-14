@@ -80,9 +80,14 @@ export default function PaginaParticipantes() {
             Las personas detrás de los cupos. {resumen.total} en total.
           </p>
         </div>
-        <Link href="/admin/participantes/nuevo">
-          <Boton>Inscribir a alguien</Boton>
-        </Link>
+        <div className="flex items-center gap-3">
+          <Link href="/admin/participantes/brecha" className="underline">
+            Brecha de nombres
+          </Link>
+          <Link href="/admin/participantes/nuevo">
+            <Boton>Inscribir a alguien</Boton>
+          </Link>
+        </div>
       </header>
 
       {error && <Aviso tipo="error">{error}</Aviso>}
