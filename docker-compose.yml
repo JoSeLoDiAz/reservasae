@@ -85,8 +85,10 @@ services:
   cloudflared:
     image: cloudflare/cloudflared:latest
     container_name: reservasae_cloudflared
-    restart: unless-stopped
-    # solo arranca en la sede activa
+    # a proposito: el demonio no entiende de perfiles y
+    # revivria el tunel de una sede ya relevada. Lo
+    # levanta scripts/arrancar-tunel.sh, que comprueba
+    restart: "no"
     profiles: ["tunel"]
     command: tunnel --no-autoupdate run --token ${TUNEL_TOKEN:-}
     depends_on:

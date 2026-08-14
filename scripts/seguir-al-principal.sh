@@ -7,6 +7,8 @@ set -uo pipefail
 {
 cd "$(dirname "$0")/.."
 
+# el .env manda: tras un failover apunta a otra sede
+[ -f .env ] && . ./.env
 PRINCIPAL=${PRINCIPAL:-sepadmin@server-bogota}
 
 marcado=$(ssh -n -o BatchMode=yes -o ConnectTimeout=15 "$PRINCIPAL" \

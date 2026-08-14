@@ -1,0 +1,11 @@
+# Copia de referencia. Va junto a su .service.
+
+[Unit]
+Description=Comprueba cada minuto si toca levantar el tunel
+
+[Timer]
+OnBootSec=45s
+OnUnitActiveSec=1min
+
+[Install]
+WantedBy=timers.target
