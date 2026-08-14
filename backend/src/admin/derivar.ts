@@ -4,6 +4,7 @@ import { EsquemaColor } from '../../generated/prisma';
 import { contraste, minimoExigido } from './contraste';
 import { conLuminosidad, hexAOklch, oklchAHex, type Oklch } from './oklch';
 import {
+  CLAVES_ETAPA,
   COMPROBACIONES_CONTRASTE,
   TEMAS_POR_DEFECTO,
   TOKENS,
@@ -115,7 +116,9 @@ function derivarEsquema(
   const contra = contraste(colores.marca, colores.campoFondo) ?? 0;
   colores.campoFoco = contra >= 3 ? colores.marca : colores.marcaFuerte;
 
-  for (const clave of CLAVES_ESTADO) {
+  // estados y etapas no se derivan: sus escalones estan
+  // medidos y sacarlos de un tono cualquiera los tiraria
+  for (const clave of [...CLAVES_ESTADO, ...CLAVES_ETAPA]) {
     colores[clave] = TEMAS_POR_DEFECTO[esquema][clave];
   }
 

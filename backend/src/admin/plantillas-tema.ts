@@ -12,6 +12,8 @@ export type PlantillaTema = {
   encabezadoDeColor: boolean;
   /** Paleta literal; si falta, se deriva del principal. */
   temas?: Record<EsquemaColor, ColoresTema>;
+  /** Retoques sobre lo derivado, antes de corregir. */
+  ajustes?: Partial<Record<EsquemaColor, ColoresTema>>;
 };
 
 export const PLANTILLAS: PlantillaTema[] = [
@@ -122,6 +124,30 @@ export const PLANTILLAS: PlantillaTema[] = [
     principal: '#9f1239',
     encabezadoDeColor: true,
   },
+  {
+    clave: 'papel',
+    nombre: 'Papel',
+    descripcion: 'Fondo hueso y tinta azul oscura. Cansa menos en jornadas largas.',
+    principal: '#1e2a3e',
+    encabezadoDeColor: false,
+    // los neutros derivados salen blancos: aqui el
+    // fondo hueso es justo lo que da el caracter
+    ajustes: {
+      CLARO: {
+        fondo: '#f1f3ee',
+        superficie: '#ffffff',
+        superficieAlterna: '#e9ece5',
+        borde: '#d8dbd2',
+        encabezadoFondo: '#ffffff',
+        encabezadoBorde: '#b9bdb0',
+        tablaCabeceraFondo: '#e9ece5',
+        tablaFilaAlterna: '#f6f7f3',
+        tablaBorde: '#d8dbd2',
+        campoBorde: '#b9bdb0',
+      },
+      OSCURO: {},
+    },
+  },
 ];
 
 /** La plantilla ya resuelta en sus dos paletas. */
@@ -133,6 +159,7 @@ export function temasDePlantilla(
     derivarTemas({
       principal: plantilla.principal,
       encabezadoDeColor: plantilla.encabezadoDeColor,
+      ajustes: plantilla.ajustes,
     })
   );
 }

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 
+import { FranjaEntorno } from "@/components/franja-entorno";
 import { ProveedorMarca } from "@/components/marca-publica";
 import { SCRIPT_PALETA } from "@/lib/marca";
 import { SCRIPT_SIN_PARPADEO } from "@/lib/tema";
@@ -43,6 +44,7 @@ export default function RootLayout({
         />
       </head>
       <body className="min-h-full flex flex-col font-sans">
+        <FranjaEntorno />
         {/* colores tambien en el panel */}
         <ProveedorMarca>{children}</ProveedorMarca>
       </body>

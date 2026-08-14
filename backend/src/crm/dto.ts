@@ -214,6 +214,15 @@ export class FiltrosParticipantesDto {
   @Min(1)
   @Max(400)
   pagina?: number;
+
+  // el tablero reparte una sola pagina entre nueve
+  // columnas: con 30 filas las columnas salen vacias
+  @IsOptional()
+  @Transform(({ value }) => Number(value))
+  @IsInt()
+  @Min(1)
+  @Max(300)
+  limite?: number;
 }
 
 export class AsignarFormacionDto {

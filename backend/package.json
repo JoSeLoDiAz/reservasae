@@ -28,6 +28,7 @@
     "db:crear-admin": "ts-node prisma/crear-admin.ts",
     "db:sembrar-formularios": "ts-node prisma/seed/formularios.ts",
     "db:sembrar-politicas": "ts-node prisma/seed/politicas.ts",
+    "db:sembrar-prueba": "ts-node prisma/seed/prueba.ts",
     "db:borrar-reservas": "ts-node prisma/borrar-reservas.ts"
   },
   "prisma": {

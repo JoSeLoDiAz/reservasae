@@ -88,6 +88,10 @@ export type Listado = {
 export type Resumen = {
   etapas: Array<{ etapa: Etapa; total: number }>;
   total: number;
+  /** Para los filtros: salen de la base, no de la página. */
+  asesores: Array<{ id: string; nombre: string; total: number }>;
+  acciones: Array<{ id: string; codigo: string; nombre: string; total: number }>;
+  sinAsesor: number;
 };
 
 export type Ficha = {
@@ -153,6 +157,8 @@ export type Filtros = {
   asesorId?: string;
   buscar?: string;
   pagina?: number;
+  /** Cuántas filas por carga; el servidor lo topa. */
+  limite?: number;
 };
 
 function consulta(filtros: Filtros): string {

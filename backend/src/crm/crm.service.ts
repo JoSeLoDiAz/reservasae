@@ -25,6 +25,8 @@ import {
 } from './dto';
 
 const POR_PAGINA = 30;
+/// Tope duro aunque el filtro pida mas.
+const TOPE_POR_PAGINA = 300;
 
 /// Los que ocupan una silla. El resto ya no cuenta.
 const ETAPAS_VIVAS: EtapaParticipante[] = [
@@ -46,14 +48,15 @@ export class CrmService {
   async listar(filtros: FiltrosParticipantesDto) {
     const donde = this.donde(filtros);
     const pagina = Math.max(1, filtros.pagina ?? 1);
+    const porPagina = Math.min(filtros.limite ?? POR_PAGINA, TOPE_POR_PAGINA);
 
     const [total, filas] = await Promise.all([
       this.prisma.participante.count({ where: donde }),
       this.prisma.participante.findMany({
         where: donde,
         orderBy: { creadoEn: 'desc' },
-        skip: (pagina - 1) * POR_PAGINA,
-        take: POR_PAGINA,
+        skip: (pagina - 1) * porPagina,
+        take: porPagina,
         include: {
           persona: true,
           convenio: { select: { sigla: true, slug: true } },
@@ -68,7 +71,7 @@ export class CrmService {
     return {
       total,
       pagina,
-      paginas: Math.max(1, Math.ceil(total / POR_PAGINA)),
+      paginas: Math.max(1, Math.ceil(total / porPagina)),
       participantes: filas.map((p) => this.aFila(p)),
     };
   }
@@ -85,12 +88,53 @@ export class CrmService {
 
     const cuenta = new Map(porEtapa.map((f) => [f.etapa, f._count._all]));
 
+    // las opciones de filtro salen de la base, no de la
+    // pagina cargada: si no, faltan los de la pagina 2
+    const [porAsesor, porAccion] = await Promise.all([
+      this.prisma.participante.groupBy({
+        by: ['asesorId'],
+        where: donde,
+        _count: { _all: true },
+      }),
+      this.prisma.participante.groupBy({
+        by: ['accionFormacionId'],
+        where: donde,
+        _count: { _all: true },
+      }),
+    ]);
+
+    const idsAsesor = porAsesor.map((f) => f.asesorId).filter((id): id is string => !!id);
+    const idsAccion = porAccion
+      .map((f) => f.accionFormacionId)
+      .filter((id): id is string => !!id);
+
+    const [asesores, acciones] = await Promise.all([
+      this.prisma.admin.findMany({
+        where: { id: { in: idsAsesor } },
+        select: { id: true, nombre: true },
+        orderBy: { nombre: 'asc' },
+      }),
+      this.prisma.accionFormacion.findMany({
+        where: { id: { in: idsAccion } },
+        select: { id: true, codigo: true, nombre: true },
+        orderBy: { codigo: 'asc' },
+      }),
+    ]);
+
+    const totalAsesor = new Map(porAsesor.map((f) => [f.asesorId, f._count._all]));
+    const totalAccion = new Map(
+      porAccion.map((f) => [f.accionFormacionId, f._count._all]),
+    );
+
     return {
       etapas: Object.values(EtapaParticipante).map((etapa) => ({
         etapa,
         total: cuenta.get(etapa) ?? 0,
       })),
       total: porEtapa.reduce((s, f) => s + f._count._all, 0),
+      asesores: asesores.map((a) => ({ ...a, total: totalAsesor.get(a.id) ?? 0 })),
+      acciones: acciones.map((a) => ({ ...a, total: totalAccion.get(a.id) ?? 0 })),
+      sinAsesor: totalAsesor.get(null) ?? 0,
     };
   }
 

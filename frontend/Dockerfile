@@ -17,6 +17,10 @@ COPY frontend/ ./frontend/
 
 WORKDIR /app/frontend
 ENV NEXT_TELEMETRY_DISABLED=1
+# la franja de pruebas se decide tambien al compilar:
+# las paginas estaticas se hornean aqui
+ARG ENTORNO=""
+ENV ENTORNO=$ENTORNO
 RUN pnpm run build
 
 # ─────────────────────────────────────────
@@ -29,6 +33,9 @@ ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV PORT=3000
 ENV HOSTNAME=0.0.0.0
+# y en ejecucion, para lo que se pinta por peticion
+ARG ENTORNO=""
+ENV ENTORNO=$ENTORNO
 
 # Crear usuario sin privilegios
 RUN addgroup --system --gid 1001 nodejs \

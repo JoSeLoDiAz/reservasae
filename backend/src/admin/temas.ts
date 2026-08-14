@@ -9,7 +9,8 @@ export type GrupoToken =
   | 'ENCABEZADO'
   | 'TABLAS'
   | 'CONTROLES'
-  | 'ESTADOS';
+  | 'ESTADOS'
+  | 'ETAPAS';
 
 export type DefinicionToken = {
   clave: string;
@@ -53,6 +54,13 @@ export const GRUPOS: Array<{ clave: GrupoToken; etiqueta: string; descripcion: s
     descripcion:
       'Confirmado, lista de espera y completo. También los mensajes de error. ' +
       'Cámbielos con cuidado: si pierden contraste, un aviso importante pasa desapercibido.',
+  },
+  {
+    clave: 'ETAPAS',
+    etiqueta: 'Etapas del CRM',
+    descripcion:
+      'Una por columna del tablero de inscripciones. La etiqueta siempre se lee, ' +
+      'así que el color acompaña pero nunca es lo único que distingue una etapa.',
   },
 ];
 
@@ -98,7 +106,21 @@ export const TOKENS: DefinicionToken[] = [
   { clave: 'avisoSuave', variableCss: '--aviso-suave', grupo: 'ESTADOS', etiqueta: 'Fondo de últimos cupos' },
   { clave: 'error', variableCss: '--error', grupo: 'ESTADOS', etiqueta: 'Completo / error' },
   { clave: 'errorSuave', variableCss: '--error-suave', grupo: 'ESTADOS', etiqueta: 'Fondo de error' },
+
+  // Etapas del CRM
+  { clave: 'etapaNuevo', variableCss: '--etapa-nuevo', grupo: 'ETAPAS', etiqueta: 'Nuevo' },
+  { clave: 'etapaContactado', variableCss: '--etapa-contactado', grupo: 'ETAPAS', etiqueta: 'Contactado' },
+  { clave: 'etapaDatosCompletos', variableCss: '--etapa-datos-completos', grupo: 'ETAPAS', etiqueta: 'Datos completos' },
+  { clave: 'etapaMatriculado', variableCss: '--etapa-matriculado', grupo: 'ETAPAS', etiqueta: 'Matriculado' },
+  { clave: 'etapaEnFormacion', variableCss: '--etapa-en-formacion', grupo: 'ETAPAS', etiqueta: 'En formación' },
+  { clave: 'etapaCertificado', variableCss: '--etapa-certificado', grupo: 'ETAPAS', etiqueta: 'Certificado' },
+  { clave: 'etapaPerdido', variableCss: '--etapa-perdido', grupo: 'ETAPAS', etiqueta: 'Perdido' },
+  { clave: 'etapaRetirado', variableCss: '--etapa-retirado', grupo: 'ETAPAS', etiqueta: 'Retirado' },
+  { clave: 'etapaNoAprobo', variableCss: '--etapa-no-aprobo', grupo: 'ETAPAS', etiqueta: 'No aprobó' },
 ];
+
+/** Los tokens de etapa, en el orden del embudo. */
+export const CLAVES_ETAPA = TOKENS.filter((t) => t.grupo === 'ETAPAS').map((t) => t.clave);
 
 export const CLAVES_TOKEN = new Set(TOKENS.map((t) => t.clave));
 
@@ -123,6 +145,18 @@ export const COMPROBACIONES_CONTRASTE: Array<{
   { frente: 'exito', fondo: 'exitoSuave', descripcion: 'Etiqueta de disponible' },
   { frente: 'aviso', fondo: 'avisoSuave', descripcion: 'Etiqueta de últimos cupos' },
   { frente: 'error', fondo: 'errorSuave', descripcion: 'Mensaje de error' },
+
+  // la pildora tiñe la superficie con su propio color,
+  // asi que el par que hay que medir es contra ella
+  { frente: 'etapaNuevo', fondo: 'superficie', descripcion: 'Etiqueta de Nuevo' },
+  { frente: 'etapaContactado', fondo: 'superficie', descripcion: 'Etiqueta de Contactado' },
+  { frente: 'etapaDatosCompletos', fondo: 'superficie', descripcion: 'Etiqueta de Datos completos' },
+  { frente: 'etapaMatriculado', fondo: 'superficie', descripcion: 'Etiqueta de Matriculado' },
+  { frente: 'etapaEnFormacion', fondo: 'superficie', descripcion: 'Etiqueta de En formación' },
+  { frente: 'etapaCertificado', fondo: 'superficie', descripcion: 'Etiqueta de Certificado' },
+  { frente: 'etapaPerdido', fondo: 'superficie', descripcion: 'Etiqueta de Perdido' },
+  { frente: 'etapaRetirado', fondo: 'superficie', descripcion: 'Etiqueta de Retirado' },
+  { frente: 'etapaNoAprobo', fondo: 'superficie', descripcion: 'Etiqueta de No aprobó' },
 ];
 
 export type ColoresTema = Record<string, string>;
@@ -165,6 +199,16 @@ export const TEMAS_POR_DEFECTO: Record<EsquemaColor, ColoresTema> = {
     avisoSuave: '#fffbeb',
     error: '#be123c',
     errorSuave: '#fff1f2',
+
+    etapaNuevo: '#5b6472',
+    etapaContactado: '#1f4e85',
+    etapaDatosCompletos: '#4c3a8c',
+    etapaMatriculado: '#1a6e58',
+    etapaEnFormacion: '#8a5a12',
+    etapaCertificado: '#2c6b1f',
+    etapaPerdido: '#9c3126',
+    etapaRetirado: '#7a2e72',
+    etapaNoAprobo: '#a3431c',
   },
   OSCURO: {
     marca: '#60a5fa',
@@ -201,6 +245,17 @@ export const TEMAS_POR_DEFECTO: Record<EsquemaColor, ColoresTema> = {
     avisoSuave: '#2e1f03',
     error: '#fb7185',
     errorSuave: '#3f0d16',
+
+    // aclaradas: las del claro no llegan al minimo
+    etapaNuevo: '#a3aec0',
+    etapaContactado: '#7cb2f0',
+    etapaDatosCompletos: '#b3a4f0',
+    etapaMatriculado: '#5ec6a8',
+    etapaEnFormacion: '#e0b155',
+    etapaCertificado: '#86cf72',
+    etapaPerdido: '#f2938a',
+    etapaRetirado: '#dfa0d8',
+    etapaNoAprobo: '#f0a077',
   },
 };
 

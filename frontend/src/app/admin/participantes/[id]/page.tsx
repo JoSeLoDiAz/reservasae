@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 
+import { PildoraEtapa } from "@/components/admin/etapa";
 import {
   Aviso,
   Boton,
@@ -91,9 +92,7 @@ export default function PaginaFicha() {
             {f.asesor && ` · asesor: ${f.asesor.nombre}`}
           </p>
         </div>
-        <span className="rounded-full bg-marca-suave px-4 py-1.5 font-medium text-marca">
-          {ETIQUETA_ETAPA[f.etapa]}
-        </span>
+        <PildoraEtapa etapa={f.etapa} />
       </header>
 
       {error && <Aviso tipo="error">{error}</Aviso>}

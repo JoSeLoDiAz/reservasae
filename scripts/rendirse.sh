@@ -72,8 +72,13 @@ ssh -n -o BatchMode=yes "sepadmin@$NUEVO" \
   "cd /opt/sep/reservasae && docker compose exec -T db psql -U reservasae -d reservasae -c \"SELECT pg_drop_replication_slot('$ranura') WHERE EXISTS (SELECT 1 FROM pg_replication_slots WHERE slot_name = '$ranura' AND NOT active)\"" \
   >/dev/null 2>&1
 
-vol=$(docker volume ls -q | grep pgdata | head -1)
-[ -n "$vol" ] || { echo "✗ no encontre el volumen de datos"; exit 1; }
+# por el volumen que monta ESTE db, no por nombre: en la
+# maquina hay mas de un volumen con "pgdata" y el de
+# pruebas ordena antes que el de produccion
+vol=$(docker compose ps -aq db | head -1 | xargs -r docker inspect \
+  -f '{{range .Mounts}}{{if eq .Destination "/var/lib/postgresql/data"}}{{.Name}}{{end}}{{end}}' 2>/dev/null)
+[ -n "$vol" ] || { echo "✗ no encontre el volumen de datos de esta sede"; exit 1; }
+echo "    volumen de datos: $vol"
 
 docker compose down >/dev/null 2>&1
 docker volume rm "$vol" >/dev/null 2>&1

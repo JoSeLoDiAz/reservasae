@@ -41,6 +41,17 @@
   --error: #be123c;
   --error-suave: #fff1f2;
 
+  /* etapas del crm */
+  --etapa-nuevo: #5b6472;
+  --etapa-contactado: #1f4e85;
+  --etapa-datos-completos: #4c3a8c;
+  --etapa-matriculado: #1a6e58;
+  --etapa-en-formacion: #8a5a12;
+  --etapa-certificado: #2c6b1f;
+  --etapa-perdido: #9c3126;
+  --etapa-retirado: #7a2e72;
+  --etapa-no-aprobo: #a3431c;
+
   /* series de los graficos */
   --serie-1: #2a78d6;
   --serie-2: #eb6834;
@@ -85,6 +96,17 @@
   --aviso-suave: #2e1f03;
   --error: #fb7185;
   --error-suave: #3f0d16;
+
+  /* etapas aclaradas para fondo oscuro */
+  --etapa-nuevo: #a3aec0;
+  --etapa-contactado: #7cb2f0;
+  --etapa-datos-completos: #b3a4f0;
+  --etapa-matriculado: #5ec6a8;
+  --etapa-en-formacion: #e0b155;
+  --etapa-certificado: #86cf72;
+  --etapa-perdido: #f2938a;
+  --etapa-retirado: #dfa0d8;
+  --etapa-no-aprobo: #f0a077;
 
   /* series reescalonadas para fondo oscuro */
   --serie-1: #3987e5;
@@ -161,6 +183,30 @@ h3 {
   outline-offset: 2px;
 }
 
+/* etiqueta de etapa: color propio, fondo teñido con el */
+.pildora-etapa {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  border-radius: 999px;
+  border: 1px solid color-mix(in oklab, var(--etapa) 34%, var(--superficie));
+  background: color-mix(in oklab, var(--etapa) 12%, var(--superficie));
+  color: var(--etapa);
+  padding: 0.125rem 0.5rem;
+  font-size: 0.6875rem;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+/* el punto que acompaña a la etiqueta */
+.punto-etapa {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 999px;
+  background: var(--etapa);
+  flex: none;
+}
+
 /* impresion / pdf */
 @media print {
   :root,
@@ -177,6 +223,16 @@ h3 {
     --tabla-cabecera-texto: #1f2937;
     --tabla-fila-alterna: #fafbfc;
     --tabla-fila-resaltada: transparent;
+    /* las del oscuro no se leen sobre papel blanco */
+    --etapa-nuevo: #5b6472;
+    --etapa-contactado: #1f4e85;
+    --etapa-datos-completos: #4c3a8c;
+    --etapa-matriculado: #1a6e58;
+    --etapa-en-formacion: #8a5a12;
+    --etapa-certificado: #2c6b1f;
+    --etapa-perdido: #9c3126;
+    --etapa-retirado: #7a2e72;
+    --etapa-no-aprobo: #a3431c;
     color-scheme: light;
   }
 
