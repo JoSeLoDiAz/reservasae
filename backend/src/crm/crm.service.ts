@@ -332,10 +332,10 @@ export class CrmService {
 
     // matricular es una compuerta, no un paso mas
     if (dto.etapa === 'MATRICULADO') {
-      const faltantes = await this.faltantesParaMatricular(id);
-      if (faltantes.length > 0) {
+      const { bloquean } = await this.faltantesParaMatricular(id);
+      if (bloquean.length > 0) {
         throw new ConflictException(
-          `No se puede matricular todavía: ${faltantes.join('; ')}.`,
+          `No se puede matricular todavía: ${bloquean.join('; ')}.`,
         );
       }
     }
@@ -382,8 +382,10 @@ export class CrmService {
     });
   }
 
-  /** Lo que falta para poder matricular, en castellano. */
-  async faltantesParaMatricular(id: string): Promise<string[]> {
+  /** Lo que impide matricular, y lo que solo conviene. */
+  async faltantesParaMatricular(
+    id: string,
+  ): Promise<{ bloquean: string[]; avisan: string[] }> {
     const p = await this.prisma.participante.findUnique({
       where: { id },
       include: {
@@ -391,16 +393,23 @@ export class CrmService {
         cobertura: { select: { grupo: { select: { fechaInicio: true } } } },
       },
     });
-    if (!p) return ['el participante no existe'];
+    if (!p) return { bloquean: ['el participante no existe'], avisan: [] };
 
-    const faltan: string[] = [];
+    const bloquean: string[] = [];
+    const avisan: string[] = [];
 
-    if (!p.ofertaId) faltan.push('falta asignarle una acción de formación');
-    if (!p.coberturaId) faltan.push('falta asignarle un grupo');
-    else if (!p.cobertura?.grupo.fechaInicio) faltan.push('su grupo no tiene fechas');
+    if (!p.ofertaId) bloquean.push('falta asignarle una acción de formación');
 
     if (!p.persona.correo && !p.persona.celular) {
-      faltan.push('no hay forma de contactarla: falta correo o celular');
+      bloquean.push('no hay forma de contactarla: falta correo o celular');
+    }
+
+    // el grupo y sus fechas los pone el SENA cuando puede:
+    // no se bloquea la captura por algo que no depende de aqui
+    if (!p.coberturaId) {
+      avisan.push('sin grupo asignado no entra en el reporte al SENA');
+    } else if (!p.cobertura?.grupo.fechaInicio) {
+      avisan.push('su grupo no tiene fechas: no se puede saber si va al día');
     }
 
     const autorizacion = await this.prisma.autorizacionDatos.findFirst({
@@ -413,10 +422,10 @@ export class CrmService {
     });
 
     if (!autorizacion) {
-      faltan.push('no ha autorizado el tratamiento de sus datos para este convenio');
+      bloquean.push('no ha autorizado el tratamiento de sus datos para este convenio');
     }
 
-    return faltan;
+    return { bloquean, avisan };
   }
 
 

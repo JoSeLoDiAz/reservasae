@@ -95,7 +95,7 @@ export type Ficha = {
   etapa: Etapa;
   origen: Origen;
   creadoEn: string;
-  faltantes: string[];
+  faltantes: { bloquean: string[]; avisan: string[] };
   cargoEnEmpresa: string | null;
   sobrecupoMotivo: string | null;
   sobrecupoPor: { nombre: string } | null;

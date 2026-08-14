@@ -98,11 +98,22 @@ export default function PaginaFicha() {
 
       {error && <Aviso tipo="error">{error}</Aviso>}
 
-      {f.faltantes.length > 0 && (
+      {f.faltantes.bloquean.length > 0 && (
         <Aviso tipo="error">
           <p className="font-medium">Todavía no se puede matricular</p>
           <ul className="mt-2 list-inside list-disc">
-            {f.faltantes.map((x) => (
+            {f.faltantes.bloquean.map((x) => (
+              <li key={x}>{x}</li>
+            ))}
+          </ul>
+        </Aviso>
+      )}
+
+      {f.faltantes.avisan.length > 0 && (
+        <Aviso tipo="exito">
+          <p className="font-medium">Se puede matricular, pero queda pendiente</p>
+          <ul className="mt-2 list-inside list-disc">
+            {f.faltantes.avisan.map((x) => (
               <li key={x}>{x}</li>
             ))}
           </ul>
