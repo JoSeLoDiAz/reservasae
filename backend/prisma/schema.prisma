@@ -43,9 +43,11 @@ model Convenio {
   creadoEn           DateTime @default(now())
   actualizadoEn      DateTime @updatedAt
 
-  acciones    AccionFormacion[]
-  politicas   PoliticaDatos[]
-  formularios Formulario[]
+  acciones     AccionFormacion[]
+  politicas    PoliticaDatos[]
+  formularios  Formulario[]
+  participantes Participante[]
+  admins       AdminConvenio[]
 
   @@map("convenios")
 }
@@ -70,8 +72,9 @@ model AccionFormacion {
   actualizadoEn DateTime @updatedAt
 
   convenio Convenio @relation(fields: [convenioId], references: [id], onDelete: Cascade)
-  grupos   Grupo[]
-  ofertas  Oferta[]
+  grupos        Grupo[]
+  ofertas       Oferta[]
+  participantes Participante[]
 
   // el codigo solo es unico por convenio
   @@unique([convenioId, codigo])
@@ -130,6 +133,8 @@ model GrupoCobertura {
   grupo     Grupo     @relation(fields: [grupoId], references: [id], onDelete: Cascade)
   ubicacion Ubicacion @relation(fields: [ubicacionId], references: [id])
 
+  participantes Participante[]
+
   @@unique([grupoId, ubicacionId, modalidad])
   @@map("grupos_cobertura")
 }
@@ -154,6 +159,7 @@ model Oferta {
   accionFormacion AccionFormacion @relation(fields: [accionFormacionId], references: [id], onDelete: Cascade)
   ubicacion       Ubicacion       @relation(fields: [ubicacionId], references: [id])
   reservas        Reserva[]
+  participantes   Participante[]
 
   @@unique([accionFormacionId, ubicacionId])
   @@index([accionFormacionId])
@@ -226,6 +232,7 @@ model Reserva {
   formulario    Formulario?         @relation(fields: [formularioId], references: [id], onDelete: SetNull)
   movimientos   MovimientoReserva[]
   respuestas    Respuesta[]
+  participantes Participante[]
 
   // contra el doble clic: una reserva por oferta
   @@unique([empresaId, ofertaId])
@@ -431,6 +438,196 @@ model Respuesta {
 
 // política de datos y administración
 
+// crm: la persona y su paso por la formacion
+
+/// El SEP los pide separados, no un nombre completo.
+enum TipoDocumento {
+  CC
+  CE
+  TI
+  PA
+  PEP
+  PPT
+  RC
+  NIT
+  OTRO
+}
+
+/// De donde salio la persona.
+enum OrigenParticipante {
+  EMPRESA
+  ASESOR
+  AUTOGESTION
+  REFERIDO
+  REDES
+  EVENTO
+  OTRO
+}
+
+/// El embudo, de contacto a certificado.
+enum EtapaParticipante {
+  NUEVO
+  CONTACTADO
+  DATOS_COMPLETOS
+  MATRICULADO
+  EN_FORMACION
+  CERTIFICADO
+  PERDIDO
+  RETIRADO
+  NO_APROBO
+}
+
+/// Por donde autorizo el tratamiento de sus datos.
+enum CanalAutorizacion {
+  FORMULARIO_WEB
+  CARGA_EMPRESA
+  VERBAL_ASESOR
+  CORREO
+  PRESENCIAL
+}
+
+/// La identidad. Unica en todo el sistema, sin convenio.
+model Persona {
+  id             String        @id @default(cuid())
+  tipoDocumento  TipoDocumento
+  numeroDocumento String /// normalizado, solo alfanumerico
+
+  primerNombre    String
+  segundoNombre   String?
+  primerApellido  String
+  segundoApellido String?
+
+  fechaNacimiento DateTime?
+  sexo            String?
+  correo          String?
+  celular         String?
+
+  creadoEn      DateTime @default(now())
+  actualizadoEn DateTime @updatedAt
+
+  participaciones Participante[]
+  autorizaciones  AutorizacionDatos[]
+
+  // el duplicado se vuelve imposible de crear
+  @@unique([tipoDocumento, numeroDocumento])
+  @@index([primerApellido, primerNombre])
+  @@index([correo])
+  @@map("personas")
+}
+
+/// La persona en una formacion concreta.
+model Participante {
+  id         String @id @default(cuid())
+  personaId  String
+  convenioId String
+
+  // sin reserva si la persona llego por su cuenta
+  reservaId         String?
+  ofertaId          String?
+  accionFormacionId String?
+  coberturaId       String?
+
+  etapa  EtapaParticipante  @default(NUEVO)
+  origen OrigenParticipante @default(ASESOR)
+
+  asesorId String?
+
+  cargoEnEmpresa  String?
+  nivelEducativo  String?
+  nivelOcupacional String?
+
+  porcentajeAsistencia Int?
+  notaFinal            Decimal? @db.Decimal(5, 2)
+
+  fechaMatricula     DateTime?
+  fechaRetiro        DateTime?
+  motivoSalida       String?
+  fechaCertificacion DateTime?
+  cargadoEnSepEn     DateTime?
+
+  // sobrecupo: quien lo autorizo y por que
+  sobrecupoPorId  String?
+  sobrecupoMotivo String?
+
+  creadoEn      DateTime @default(now())
+  actualizadoEn DateTime @updatedAt
+
+  persona         Persona                 @relation(fields: [personaId], references: [id], onDelete: Restrict)
+  convenio        Convenio                @relation(fields: [convenioId], references: [id], onDelete: Restrict)
+  reserva         Reserva?                @relation(fields: [reservaId], references: [id], onDelete: Restrict)
+  oferta          Oferta?                 @relation(fields: [ofertaId], references: [id], onDelete: Restrict)
+  accionFormacion AccionFormacion?        @relation(fields: [accionFormacionId], references: [id], onDelete: Restrict)
+  cobertura       GrupoCobertura?         @relation(fields: [coberturaId], references: [id], onDelete: SetNull)
+  asesor          Admin?                  @relation("ParticipantesDelAsesor", fields: [asesorId], references: [id], onDelete: SetNull)
+  sobrecupoPor    Admin?                  @relation("SobrecuposAutorizados", fields: [sobrecupoPorId], references: [id], onDelete: SetNull)
+  movimientos     MovimientoParticipante[]
+  notas           NotaParticipante[]
+
+  // nadie cuenta dos veces en la misma accion
+  @@unique([accionFormacionId, personaId])
+  @@index([convenioId, etapa])
+  @@index([ofertaId, etapa])
+  @@index([coberturaId, etapa])
+  @@index([asesorId, etapa])
+  @@index([reservaId])
+  @@map("participantes")
+}
+
+/// Cada cambio de etapa. El embudo sale de aqui.
+model MovimientoParticipante {
+  id             String            @id @default(cuid())
+  participanteId String
+  etapaAntes     EtapaParticipante?
+  etapaDespues   EtapaParticipante
+  motivo         String?
+  adminId        String?
+  nota           String?
+  ip             String?
+  creadoEn       DateTime          @default(now())
+
+  participante Participante @relation(fields: [participanteId], references: [id], onDelete: Cascade)
+  admin        Admin?       @relation(fields: [adminId], references: [id], onDelete: SetNull)
+
+  @@index([participanteId, creadoEn])
+  @@index([creadoEn])
+  @@map("movimientos_participante")
+}
+
+/// Seguimiento. Solo se crea: corregir es otra nota.
+model NotaParticipante {
+  id             String   @id @default(cuid())
+  participanteId String
+  autorId        String?
+  autorNombre    String /// congelado al escribir
+  texto          String
+  creadoEn       DateTime @default(now())
+
+  participante Participante @relation(fields: [participanteId], references: [id], onDelete: Cascade)
+  autor        Admin?       @relation(fields: [autorId], references: [id], onDelete: SetNull)
+
+  @@index([participanteId, creadoEn])
+  @@map("notas_participante")
+}
+
+/// La prueba de que autorizo. No es un booleano.
+model AutorizacionDatos {
+  id              String            @id @default(cuid())
+  personaId       String
+  politicaDatosId String
+  canal           CanalAutorizacion
+  otorgadaEn      DateTime          @default(now())
+  ip              String?
+  userAgent       String?
+  evidencia       String?
+  revocadaEn      DateTime?
+
+  persona  Persona       @relation(fields: [personaId], references: [id], onDelete: Cascade)
+  politica PoliticaDatos @relation(fields: [politicaDatosId], references: [id], onDelete: Restrict)
+
+  @@index([personaId, revocadaEn])
+  @@map("autorizaciones_datos")
+}
+
 /// A quien se le pide la autorizacion.
 enum DestinatarioPolitica {
   RESERVA
@@ -451,8 +648,9 @@ model PoliticaDatos {
   creadoEn      DateTime @default(now())
   actualizadoEn DateTime @updatedAt
 
-  convenio Convenio  @relation(fields: [convenioId], references: [id], onDelete: Cascade)
-  reservas Reserva[]
+  convenio       Convenio            @relation(fields: [convenioId], references: [id], onDelete: Cascade)
+  reservas       Reserva[]
+  autorizaciones AutorizacionDatos[]
 
   // la version se numera por destinatario
   @@unique([convenioId, destinatario, version])
@@ -513,11 +711,45 @@ model Admin {
   creadoEn      DateTime  @default(now())
   actualizadoEn DateTime  @updatedAt
 
-  movimientos   MovimientoReserva[]
-  marcaEditada  Marca[]
-  temasEditados Tema[]
+  movimientos             MovimientoReserva[]
+  marcaEditada            Marca[]
+  temasEditados           Tema[]
+  convenios               AdminConvenio[]
+  participantesAsignados  Participante[]           @relation("ParticipantesDelAsesor")
+  sobrecuposAutorizados   Participante[]           @relation("SobrecuposAutorizados")
+  movimientosParticipante MovimientoParticipante[]
+  notasParticipante       NotaParticipante[]
 
   @@map("administradores")
+}
+
+/// Rol dentro de un convenio, por area y por nivel.
+enum RolConvenio {
+  LIDER_INSCRIPCION
+  GESTOR_INSCRIPCION
+  LIDER_ACADEMICO
+  GESTOR_ACADEMICO
+  LIDER_SISTEMAS
+  CONSULTA
+}
+
+/// Concesion explicita: sin fila, no hay acceso.
+model AdminConvenio {
+  id         String      @id @default(cuid())
+  adminId    String
+  convenioId String
+  rol        RolConvenio
+
+  otorgadoPorId String?
+  creadoEn      DateTime @default(now())
+
+  admin       Admin    @relation(fields: [adminId], references: [id], onDelete: Cascade)
+  convenio    Convenio @relation(fields: [convenioId], references: [id], onDelete: Cascade)
+
+  // la misma persona puede llevar varias areas
+  @@unique([adminId, convenioId, rol])
+  @@index([convenioId, rol])
+  @@map("admin_convenio")
 }
 
 /// Los logos de la cabecera. Hasta tres por ámbito.
