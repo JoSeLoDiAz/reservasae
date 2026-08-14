@@ -33,12 +33,17 @@ echo "--- levantando la aplicacion ---"
 docker compose up -d --build
 docker compose exec -T nginx nginx -s reload
 
-bueno=0
-for _ in $(seq 1 40); do
-  if curl -fsS -o /dev/null http://127.0.0.1:4600/api/estado; then bueno=1; break; fi
-  sleep 3
-done
-[ "$bueno" = 1 ] || { echo "✗ la aplicacion no respondio"; exit 1; }
+# la raiz da 404 a proposito, probamos /consulta
+esperar() {
+  for _ in $(seq 1 40); do
+    curl -fsS -o /dev/null "http://127.0.0.1:4600$1" && return 0
+    sleep 3
+  done
+  return 1
+}
+
+esperar /api/estado || { echo "✗ el backend no respondio"; exit 1; }
+esperar /consulta   || { echo "✗ el frontend no respondio"; exit 1; }
 
 # el tunel solo debe correr en la sede activa
 if systemctl list-unit-files "$TUNEL.service" >/dev/null 2>&1; then
