@@ -1,11 +1,18 @@
-# Configuracion del tunel de Cloudflare del servidor.
+# Configuracion del tunel COMPARTIDO de Bogota (sep-local).
 # Copia de referencia; el archivo real vive en /etc/cloudflared/config.yml
+#
+# Convoca NO va aqui: reservasae.com tiene su propio tunel (convoca), que
+# corre como contenedor y puede levantarse en cualquiera de las tres sedes.
+# Este lleva servicios que solo existen en Bogota.
 #
 # Aplicar con:
 #   sudo cp /etc/cloudflared/config.yml /etc/cloudflared/config.yml.bak
 #   sudo cp /opt/sep/reservasae/docs/cloudflared-config.yml /etc/cloudflared/config.yml
 #   sudo cloudflared tunnel ingress validate
-#   sudo systemctl restart cloudflared
+#   sudo kill -HUP $(systemctl show cloudflared -p MainPID --value)
+#
+# La senal HUP recarga las reglas sin cortar las conexiones. Reiniciar el
+# servicio tumbaria SEP y Oracle unos segundos sin necesidad.
 #
 # El orden importa: cloudflared usa la PRIMERA regla que coincide, y la
 # ultima (http_status:404) captura todo lo demas.
@@ -20,13 +27,6 @@ ingress:
     service: ssh://localhost:22
   - hostname: sepdb.ggpcsena.com
     service: tcp://localhost:1521
-
-  # ── reservasae (Convoca) ──
-  - hostname: reservasae.com
-    service: http://localhost:4600
-  - hostname: www.reservasae.com
-    service: http://localhost:4600
-
   - hostname: ggpcsena.com
     service: http://localhost:4500
   - hostname: www.ggpcsena.com
