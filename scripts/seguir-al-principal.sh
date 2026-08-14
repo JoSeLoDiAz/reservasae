@@ -6,10 +6,18 @@ set -uo pipefail
 # ejecutarlo: el reset de abajo reescribe este archivo
 {
 cd "$(dirname "$0")/.."
+. scripts/comun.sh
 
 # el .env manda: tras un failover apunta a otra sede
-[ -f .env ] && . ./.env
+cargar_env
 PRINCIPAL=${PRINCIPAL:-sepadmin@server-bogota}
+
+# tras promover, este temporizador sigue armado y haria
+# reset --hard siguiendo a la sede que acaba de relevar
+if ! es_replica_local; then
+  echo "esta sede es principal: no sigo a nadie"
+  exit 0
+fi
 
 marcado=$(ssh -n -o BatchMode=yes -o ConnectTimeout=15 "$PRINCIPAL" \
   'cat /opt/sep/reservasae/.desplegado' 2>/dev/null | tr -d '\r\n')

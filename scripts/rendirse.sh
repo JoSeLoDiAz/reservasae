@@ -45,9 +45,12 @@ echo "    $NUEVO es principal, linea temporal $suya, y acepta replicacion"
 
 # soltar el trafico antes de tocar los datos
 echo "--- soltando el trafico ---"
+quitar_variable SEDE_ACTIVA
 quitar_variable COMPOSE_PROFILES
 docker compose --profile tunel rm -sf cloudflared >/dev/null 2>&1
 docker compose rm -sf backend frontend nginx >/dev/null 2>&1
+# la marca de despliegue es del principal, no de una replica
+rm -f .desplegado
 
 # lo que esta sede escribio de mas se pierde al
 # resembrar: queda en disco por si hubo reservas

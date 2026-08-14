@@ -75,10 +75,13 @@ docker compose exec -T nginx nginx -s reload
 esperar_local /api/estado || { echo "✗ el backend no respondio"; exit 1; }
 esperar_local /consulta   || { echo "✗ el frontend no respondio"; exit 1; }
 
+# esta sede ya no sigue a nadie
+poner_variable PRINCIPAL "sepadmin@$SEDE"
+
 # el tunel lo enciende su guion, que comprueba antes
 # que ninguna otra sede lo tenga levantado
 if [ -n "${TUNEL_TOKEN:-}" ]; then
-  poner_variable COMPOSE_PROFILES tunel
+  poner_variable SEDE_ACTIVA si
   scripts/arrancar-tunel.sh
 else
   echo "! sin TUNEL_TOKEN en .env: el dominio no apunta aqui"

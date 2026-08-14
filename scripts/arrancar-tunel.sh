@@ -1,5 +1,5 @@
 #!/bin/bash
-# levanta el tunel solo si esta sede debe atender
+# el tunel solo corre en la sede que legitimamente atiende
 set -uo pipefail
 cd "$(dirname "$0")/.."
 . scripts/comun.sh
@@ -7,39 +7,52 @@ cargar_env
 
 SEDE=${SEDE:-$(hostname)}
 
-[ -n "${TUNEL_TOKEN:-}" ] || exit 0
-case "${COMPOSE_PROFILES:-}" in *tunel*) ;; *) exit 0 ;; esac
+corriendo=no
+[ "$(docker inspect -f '{{.State.Running}}' reservasae_cloudflared 2>/dev/null)" = true ] && corriendo=si
 
-# ya esta arriba: no hay nada que hacer
-if [ "$(docker inspect -f '{{.State.Running}}' reservasae_cloudflared 2>/dev/null)" = true ]; then
+# ante prueba de que esta sede no manda, se baja
+bajar() {
+  echo "$1"
+  if [ "$corriendo" = si ]; then
+    docker compose --profile tunel rm -sf cloudflared >/dev/null 2>&1
+    echo "  tunel bajado en $SEDE"
+  fi
   exit 0
-fi
+}
 
-# una replica jamas debe atender el dominio
-if es_replica_local; then
-  echo "esta sede es replica: el tunel no se levanta"
-  exit 0
-fi
+[ -n "${TUNEL_TOKEN:-}" ]     || bajar "sin TUNEL_TOKEN"
+[ "${SEDE_ACTIVA:-}" = si ]   || bajar "esta sede no esta marcada como activa"
+es_replica_local              && bajar "esta sede es replica"
 
 mi_linea=$(linea_temporal_local)
+concluyentes=0
 
-# si otra sede ya atiende, o va por delante, esta se
-# quedo atras tras un failover y no debe competir
 for otra in $OTRAS_SEDES; do
   [ "$otra" = "$SEDE" ] && continue
 
-  if [ "$(estado_de_sede "$otra")" = SIRVE ]; then
-    echo "$otra ya esta atendiendo: no levanto el tunel"
-    exit 0
-  fi
+  est=$(estado_de_sede "$otra")
+  [ "$est" = SIRVE ] && bajar "$otra ya esta atendiendo"
 
   suya=$(linea_temporal_de_sede "$otra")
   if [ -n "$suya" ] && [ -n "$mi_linea" ] && [ "$suya" -gt "$mi_linea" ] 2>/dev/null; then
-    echo "$otra va por la linea $suya y esta sede por $mi_linea: no levanto el tunel"
-    echo "esta sede quedo atras; deberia rendirse: scripts/rendirse.sh $otra"
-    exit 0
+    bajar "$otra va por la linea $suya y esta sede por $mi_linea: rindete con scripts/rendirse.sh $otra"
   fi
+
+  [ "$est" = CAIDA ] && [ -n "$suya" ] && concluyentes=$((concluyentes + 1))
 done
+
+# ya atiende y nadie ha probado lo contrario: no se toca.
+# Bajarlo por un parpadeo de red seria tirar el sitio.
+[ "$corriendo" = si ] && exit 0
+
+# para EMPEZAR a atender si se exige certeza: no ver a
+# las otras no es permiso, es justo lo que pasa cuando
+# esta sede es la aislada. Basta con que una responda,
+# o el PC Dell apagado dejaria el dominio caido.
+if [ "$concluyentes" -lt 1 ]; then
+  echo "ninguna otra sede respondio: no levanto el tunel todavia"
+  exit 0
+fi
 
 docker compose --profile tunel up -d cloudflared
 echo "✓ tunel levantado en $SEDE"
