@@ -257,19 +257,23 @@ function Cabecera({ nombre, alSalir }: { nombre: string; alSalir: () => void }) 
           </span>
         </span>
 
-        <div className="relative ml-auto flex items-center gap-3 text-sm">
+        <div className="ml-auto flex items-center gap-3 text-sm">
           <ConmutadorTema compacto />
 
-          <button
-            onClick={() => setAbierto(!abierto)}
-            aria-expanded={abierto}
-            className="rounded-lg border border-borde px-2 py-1.5 text-texto-suave"
-            title="Accesibilidad"
-          >
-            <span aria-hidden>♿</span>
-            <span className="sr-only">Accesibilidad</span>
-          </button>
-          {abierto && <PanelAccesibilidad alCerrar={() => setAbierto(false)} />}
+          {/* el relative va aqui: si abraza todo el grupo,
+              el panel nace arriba y la cabecera lo corta */}
+          <div className="relative">
+            <button
+              onClick={() => setAbierto(!abierto)}
+              aria-expanded={abierto}
+              className="rounded-lg border border-borde px-2 py-1.5 text-texto-suave"
+              title="Accesibilidad"
+            >
+              <span aria-hidden>♿</span>
+              <span className="sr-only">Accesibilidad</span>
+            </button>
+            {abierto && <PanelAccesibilidad alCerrar={() => setAbierto(false)} />}
+          </div>
 
           <span className="opacity-70">{nombre}</span>
           <button onClick={alSalir} className="text-marca underline">

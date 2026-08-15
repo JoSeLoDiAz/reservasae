@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import {
   aplicarAjustes,
@@ -12,10 +12,31 @@ import {
 
 export function PanelAccesibilidad({ alCerrar }: { alCerrar: () => void }) {
   const [ajustes, setAjustes] = useState<Ajustes>(AJUSTES_POR_DEFECTO);
+  const caja = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     setAjustes(leerAjustes());
   }, []);
+
+  // cerrar con Escape o pinchando fuera: un panel del que
+  // solo se sale con la equis se queda abierto
+  useEffect(() => {
+    const conTecla = (e: KeyboardEvent) => {
+      if (e.key === "Escape") alCerrar();
+    };
+    const conClic = (e: MouseEvent) => {
+      if (!caja.current?.contains(e.target as Node)) alCerrar();
+    };
+    document.addEventListener("keydown", conTecla);
+    // en el siguiente ciclo: si no, el clic que lo abrio
+    // lo cierra en el acto
+    const id = window.setTimeout(() => document.addEventListener("mousedown", conClic), 0);
+    return () => {
+      document.removeEventListener("keydown", conTecla);
+      document.removeEventListener("mousedown", conClic);
+      window.clearTimeout(id);
+    };
+  }, [alCerrar]);
 
   function cambiar(parcial: Partial<Ajustes>) {
     const nuevos = { ...ajustes, ...parcial };
@@ -30,13 +51,19 @@ export function PanelAccesibilidad({ alCerrar }: { alCerrar: () => void }) {
 
   return (
     <div
+      ref={caja}
       role="dialog"
       aria-label="Accesibilidad"
-      className="absolute right-0 z-50 mt-2 w-72 rounded-xl border border-borde bg-superficie p-4 shadow-lg"
+      // top-full: colgando del boton, no del grupo
+      className="absolute top-full right-0 z-50 mt-2 w-72 rounded-xl border border-borde bg-superficie p-4 shadow-lg"
     >
-      <div className="flex items-start justify-between">
+      <div className="flex items-start justify-between gap-3">
         <h2 className="text-sm font-semibold">Accesibilidad</h2>
-        <button onClick={alCerrar} className="text-texto-suave" aria-label="Cerrar">
+        <button
+          onClick={alCerrar}
+          aria-label="Cerrar"
+          className="-mt-1 -mr-1 rounded-lg px-2 py-1 text-lg leading-none text-texto-suave hover:bg-superficie-alterna"
+        >
           ✕
         </button>
       </div>
