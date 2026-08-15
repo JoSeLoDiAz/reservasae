@@ -26,8 +26,8 @@ enum TipoUbicacion {
 
 /// Convenio bajo el que se oferta.
 model Convenio {
-  id                 String   @id @default(cuid())
-  slug               String   @unique /// ruta pública: /britcham-adee, /adecopria
+  id                 String  @id @default(cuid())
+  slug               String  @unique /// ruta pública: /britcham-adee, /adecopria
   nombre             String /// razón social de la entidad proponente
   sigla              String?
   nit                String
@@ -38,16 +38,20 @@ model Convenio {
   ciudad             String?
   departamento       String?
   paginaWeb          String?
-  activo             Boolean  @default(true)
-  orden              Int      @default(0)
-  creadoEn           DateTime @default(now())
-  actualizadoEn      DateTime @updatedAt
+  activo             Boolean @default(true)
+  orden              Int     @default(0)
 
-  acciones     AccionFormacion[]
-  politicas    PoliticaDatos[]
-  formularios  Formulario[]
+  // los ids con los que el SEP conoce este convenio
+  sepProyectoId        Int?
+  sepNombreConviniente String?
+  creadoEn             DateTime @default(now())
+  actualizadoEn        DateTime @updatedAt
+
+  acciones      AccionFormacion[]
+  politicas     PoliticaDatos[]
+  formularios   Formulario[]
   participantes Participante[]
-  admins       AdminConvenio[]
+  admins        AdminConvenio[]
 
   @@map("convenios")
 }
@@ -68,10 +72,11 @@ model AccionFormacion {
 
   visible       Boolean  @default(false) /// arranca oculta: se publica cuando tiene fechas
   orden         Int      @default(0)
+  sepAfId       Int? /// como la conoce el SEP
   creadoEn      DateTime @default(now())
   actualizadoEn DateTime @updatedAt
 
-  convenio Convenio @relation(fields: [convenioId], references: [id], onDelete: Cascade)
+  convenio      Convenio       @relation(fields: [convenioId], references: [id], onDelete: Cascade)
   grupos        Grupo[]
   ofertas       Oferta[]
   participantes Participante[]
@@ -105,6 +110,8 @@ model Grupo {
   numero            Int
   modalidad         Modalidad
   sedeUbicacionId   String? /// solo si el grupo tiene componente presencial
+
+  sepGrupoId Int? /// como lo conoce el SEP
 
   // los proyectos no traen fechas
   fechaInicio DateTime?
@@ -179,6 +186,11 @@ model Empresa {
   redAsociada         String? /// BRITCHAM / ADEE / Ambos / Otro / Ninguno
   /// Cuál, cuando `redAsociada` es "Otro".
   redAsociadaOtra     String?
+
+  // el SEP clasifica por ingresos y sector, no por gente
+  tamanoSepId        Int?
+  /// Puede ser una persona con RUT, no solo un NIT.
+  tipoDocumentoSepId Int?
 
   creadoEn      DateTime @default(now())
   actualizadoEn DateTime @updatedAt
@@ -565,8 +577,8 @@ enum CanalAutorizacion {
 
 /// La identidad. Unica en todo el sistema, sin convenio.
 model Persona {
-  id             String        @id @default(cuid())
-  tipoDocumento  TipoDocumento
+  id              String        @id @default(cuid())
+  tipoDocumento   TipoDocumento
   numeroDocumento String /// normalizado, solo alfanumerico
 
   primerNombre    String
@@ -579,11 +591,24 @@ model Persona {
   correo          String?
   celular         String?
 
+  // lo que pide el SEP, por su id de catalogo
+  generoSepId       Int?
+  estrato           Int? /// de 1 a 6
+  departamentoSepId Int? /// domicilio, no sede del curso
+  municipioSepId    Int?
+  barrio            String?
+  direccion         String?
+
+  /// Se preguntó por la caracterización y dijo que no.
+  caracterizacionRechazada  Boolean   @default(false)
+  caracterizacionPreguntada DateTime?
+
   creadoEn      DateTime @default(now())
   actualizadoEn DateTime @updatedAt
 
-  participaciones Participante[]
-  autorizaciones  AutorizacionDatos[]
+  participaciones   Participante[]
+  autorizaciones    AutorizacionDatos[]
+  caracterizaciones CaracterizacionPersona[]
 
   // el duplicado se vuelve imposible de crear
   @@unique([tipoDocumento, numeroDocumento])
@@ -609,9 +634,14 @@ model Participante {
 
   asesorId String?
 
-  cargoEnEmpresa  String?
-  nivelEducativo  String?
+  cargoEnEmpresa   String?
+  nivelEducativo   String?
   nivelOcupacional String?
+
+  // el catalogo del SEP, aparte del texto libre de antes
+  nivelOcupacionalSepId Int?
+  /// Sí o no, declarado por la persona.
+  beneficiarioPrevio    Boolean?
 
   porcentajeAsistencia Int?
   notaFinal            Decimal? @db.Decimal(5, 2)
@@ -632,14 +662,14 @@ model Participante {
   creadoEn      DateTime @default(now())
   actualizadoEn DateTime @updatedAt
 
-  persona         Persona                 @relation(fields: [personaId], references: [id], onDelete: Restrict)
-  convenio        Convenio                @relation(fields: [convenioId], references: [id], onDelete: Restrict)
-  reserva         Reserva?                @relation(fields: [reservaId], references: [id], onDelete: Restrict)
-  oferta          Oferta?                 @relation(fields: [ofertaId], references: [id], onDelete: Restrict)
-  accionFormacion AccionFormacion?        @relation(fields: [accionFormacionId], references: [id], onDelete: Restrict)
-  cobertura       GrupoCobertura?         @relation(fields: [coberturaId], references: [id], onDelete: SetNull)
-  asesor          Admin?                  @relation("ParticipantesDelAsesor", fields: [asesorId], references: [id], onDelete: SetNull)
-  sobrecupoPor    Admin?                  @relation("SobrecuposAutorizados", fields: [sobrecupoPorId], references: [id], onDelete: SetNull)
+  persona         Persona                  @relation(fields: [personaId], references: [id], onDelete: Restrict)
+  convenio        Convenio                 @relation(fields: [convenioId], references: [id], onDelete: Restrict)
+  reserva         Reserva?                 @relation(fields: [reservaId], references: [id], onDelete: Restrict)
+  oferta          Oferta?                  @relation(fields: [ofertaId], references: [id], onDelete: Restrict)
+  accionFormacion AccionFormacion?         @relation(fields: [accionFormacionId], references: [id], onDelete: Restrict)
+  cobertura       GrupoCobertura?          @relation(fields: [coberturaId], references: [id], onDelete: SetNull)
+  asesor          Admin?                   @relation("ParticipantesDelAsesor", fields: [asesorId], references: [id], onDelete: SetNull)
+  sobrecupoPor    Admin?                   @relation("SobrecuposAutorizados", fields: [sobrecupoPorId], references: [id], onDelete: SetNull)
   movimientos     MovimientoParticipante[]
   notas           NotaParticipante[]
   avances         AvanceActividad[]
@@ -656,7 +686,7 @@ model Participante {
 
 /// Cada cambio de etapa. El embudo sale de aqui.
 model MovimientoParticipante {
-  id             String            @id @default(cuid())
+  id             String             @id @default(cuid())
   participanteId String
   etapaAntes     EtapaParticipante?
   etapaDespues   EtapaParticipante
@@ -664,7 +694,7 @@ model MovimientoParticipante {
   adminId        String?
   nota           String?
   ip             String?
-  creadoEn       DateTime          @default(now())
+  creadoEn       DateTime           @default(now())
 
   participante Participante @relation(fields: [participanteId], references: [id], onDelete: Cascade)
   admin        Admin?       @relation(fields: [adminId], references: [id], onDelete: SetNull)
@@ -690,6 +720,25 @@ model NotaParticipante {
   @@map("notas_participante")
 }
 
+/// Dato sensible (Ley 1581 art. 5). Vive aparte para poder
+/// suprimirlo sin tocar la identidad, y cuelga de la
+/// autorizacion exacta que lo ampara.
+model CaracterizacionPersona {
+  id                   String   @id @default(cuid())
+  personaId            String
+  caracterizacionSepId Int
+  autorizacionId       String
+  creadoEn             DateTime @default(now())
+
+  persona      Persona           @relation(fields: [personaId], references: [id], onDelete: Cascade)
+  autorizacion AutorizacionDatos @relation(fields: [autorizacionId], references: [id], onDelete: Cascade)
+
+  // una marca, una vez
+  @@unique([personaId, caracterizacionSepId])
+  @@index([autorizacionId])
+  @@map("caracterizaciones_persona")
+}
+
 /// La prueba de que autorizo. No es un booleano.
 model AutorizacionDatos {
   id              String            @id @default(cuid())
@@ -702,8 +751,9 @@ model AutorizacionDatos {
   evidencia       String?
   revocadaEn      DateTime?
 
-  persona  Persona       @relation(fields: [personaId], references: [id], onDelete: Cascade)
-  politica PoliticaDatos @relation(fields: [politicaDatosId], references: [id], onDelete: Restrict)
+  persona           Persona                  @relation(fields: [personaId], references: [id], onDelete: Cascade)
+  politica          PoliticaDatos            @relation(fields: [politicaDatosId], references: [id], onDelete: Restrict)
+  caracterizaciones CaracterizacionPersona[]
 
   @@index([personaId, revocadaEn])
   @@map("autorizaciones_datos")
@@ -824,8 +874,8 @@ model AdminConvenio {
   otorgadoPorId String?
   creadoEn      DateTime @default(now())
 
-  admin       Admin    @relation(fields: [adminId], references: [id], onDelete: Cascade)
-  convenio    Convenio @relation(fields: [convenioId], references: [id], onDelete: Cascade)
+  admin    Admin    @relation(fields: [adminId], references: [id], onDelete: Cascade)
+  convenio Convenio @relation(fields: [convenioId], references: [id], onDelete: Cascade)
 
   // la misma persona puede llevar varias areas
   @@unique([adminId, convenioId, rol])

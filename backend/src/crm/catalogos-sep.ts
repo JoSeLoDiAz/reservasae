@@ -128,6 +128,84 @@ export const DOCUMENTO_A_SEP: Record<TipoDocumento, number | null> = {
   RC: null,
 };
 
+/**
+ * Caracterización de población. DATO SENSIBLE del art. 5
+ * de la Ley 1581: etnia, discapacidad, condición de víctima
+ * y diversidad sexual. Nunca obligatorio, nunca en una
+ * exportación que no lo pida, y con autorización aparte.
+ *
+ * El reporte manda el `id`, no el `codigoVere`: en el
+ * ejemplo del SEP, NINGUNA sale como 35 y su vere es 34.
+ */
+export type CaracterizacionSep = ValorSep & { codigoVere: number };
+
+export const CARACTERIZACIONES_SEP: CaracterizacionSep[] = [
+  { id: 1, etiqueta: 'INDÍGENAS DESPLAZADOS POR LA VIOLENCIA', codigoVere: 101 },
+  { id: 2, etiqueta: 'INDÍGENAS DESPLAZADOS POR LA VIOLENCIA CABEZA DE FAMILIA', codigoVere: 103 },
+  { id: 3, etiqueta: 'AFROCOLOMBIANOS DESPLAZADOS POR LA VIOLENCIA', codigoVere: 127 },
+  { id: 4, etiqueta: 'AFROCOLOMBIANOS DESPLAZADOS POR LA VIOLENCIA CABEZA DE FAMILIA', codigoVere: 106 },
+  { id: 5, etiqueta: 'DESPLAZADOS POR LA VIOLENCIA', codigoVere: 3 },
+  { id: 6, etiqueta: 'DESPLAZADOS POR LA VIOLENCIA CABEZA DE FAMILIA', codigoVere: 125 },
+  { id: 7, etiqueta: 'DESPLAZADOS DISCAPACITADOS', codigoVere: 129 },
+  { id: 8, etiqueta: 'DESPLAZADOS POR FENOMENOS NATURALES', codigoVere: 4 },
+  { id: 9, etiqueta: 'DESPLAZADOS POR FENÓMENOS NATURALES CABEZA DE FAMILIA', codigoVere: 126 },
+  { id: 10, etiqueta: 'DISCAPACITADOS', codigoVere: 121 },
+  { id: 11, etiqueta: 'DISCAPACIDAD AUDITIVA', codigoVere: 24 },
+  { id: 12, etiqueta: 'DISCAPACIDAD FÍSICA', codigoVere: 26 },
+  { id: 13, etiqueta: 'DISCAPACIDAD INTELECTUAL', codigoVere: 104 },
+  { id: 14, etiqueta: 'DISCAPACIDAD MÚLTIPLE', codigoVere: 161 },
+  { id: 15, etiqueta: 'DISCAPACIDAD PSICOSOCIAL', codigoVere: 105 },
+  { id: 16, etiqueta: 'DISCAPACIDAD VISUAL', codigoVere: 25 },
+  { id: 17, etiqueta: 'SORDOCEGUERA', codigoVere: 162 },
+  { id: 18, etiqueta: 'ADOLESCENTE EN CONFLICTO CON LA LEY PENAL', codigoVere: 9 },
+  { id: 19, etiqueta: 'ADOLESCENTE TRABAJADOR', codigoVere: 14 },
+  { id: 20, etiqueta: 'INDIGENA', codigoVere: 6 },
+  { id: 21, etiqueta: 'INPEC', codigoVere: 122 },
+  { id: 22, etiqueta: 'JOVENES VULNERABLES', codigoVere: 8 },
+  { id: 23, etiqueta: 'MUJER CABEZA DE FAMILIA', codigoVere: 10 },
+  { id: 24, etiqueta: 'NEGRO', codigoVere: 11 },
+  { id: 25, etiqueta: 'PERSONAS EN PROCESO DE REINTEGRACIÓN', codigoVere: 12 },
+  { id: 26, etiqueta: 'ADOLESCENTE DESVINCULADO DE GRUPOS ARMADOS ORGANIZADOS AL MARGEN DE LA LEY', codigoVere: 128 },
+  { id: 27, etiqueta: 'REMITIDOS POR EL PAL', codigoVere: 19 },
+  { id: 28, etiqueta: 'SOBREVIVIENTES MINAS ANTIPERSONALES', codigoVere: 33 },
+  { id: 29, etiqueta: 'SOLDADOS CAMPESINOS', codigoVere: 20 },
+  { id: 30, etiqueta: 'AFROCOLOMBIANO', codigoVere: 130 },
+  { id: 31, etiqueta: 'TERCERA EDAD', codigoVere: 13 },
+  { id: 32, etiqueta: 'PALENQUERO', codigoVere: 131 },
+  { id: 33, etiqueta: 'RAIZAL', codigoVere: 132 },
+  { id: 34, etiqueta: 'GITANOS (ROM)', codigoVere: 133 },
+  { id: 35, etiqueta: 'NINGUNA', codigoVere: 34 },
+  { id: 36, etiqueta: 'ARTESANOS', codigoVere: 123 },
+  { id: 37, etiqueta: 'EMPRENDEDORES', codigoVere: 64 },
+  { id: 38, etiqueta: 'MICROEMPRESAS', codigoVere: 124 },
+  { id: 39, etiqueta: 'REMITIDOS POR EL CIE', codigoVere: 102 },
+  { id: 40, etiqueta: 'ABANDONO O DESPOJO FORZADO DE TIERRAS', codigoVere: 142 },
+  { id: 41, etiqueta: 'ACTOS TERRORISTA/ATENTADOS/COMBATES/ENFRENTAMIENTOS/HOSTIGAMIENTOS', codigoVere: 143 },
+  { id: 42, etiqueta: 'AMENAZA', codigoVere: 135 },
+  { id: 43, etiqueta: 'DELITOS CONTRA LA LIBERTAD Y LA INTEGRIDAD SEXUAL EN DESARROLLO DEL CONFLICTO ARMADO', codigoVere: 136 },
+  { id: 44, etiqueta: 'DESAPARICIÓN FORZADA', codigoVere: 137 },
+  { id: 45, etiqueta: 'HOMICIDIO / MASACRE', codigoVere: 138 },
+  { id: 46, etiqueta: 'SECUESTRO', codigoVere: 139 },
+  { id: 47, etiqueta: 'TORTURA', codigoVere: 140 },
+  { id: 48, etiqueta: 'MINAS ANTIPERSONAL, MUNICIÓN SIN EXPLOTAR, Y ARTEFACTO «EXPLOSIVO IMPROVISADO', codigoVere: 134 },
+  { id: 49, etiqueta: 'VINCULACIÓN DE NIÑOS, NIÑAS Y ADOLESCENTES A ACTIVIDADES RELACIONADAS CON GRUPOS ARMADOS', codigoVere: 141 },
+  { id: 50, etiqueta: 'HERIDO', codigoVere: 144 },
+  { id: 51, etiqueta: 'RECLUTAMIENTO FORZADO', codigoVere: 145 },
+  { id: 61, etiqueta: 'CAMPESINO', codigoVere: 200 },
+  { id: 81, etiqueta: 'DIVERSIDAD SEXUAL: RECONOCE CARACTERÍSTICAS PARTICULARES EN RAZÓN DE LAS IDENTIDADES DE GÉNERO Y LAS ORIENTACIONES SEXUALES DIVERSAS', codigoVere: 62 },
+  { id: 82, etiqueta: 'ENFOQUE DIFERENCIAL Y CONFLICTO ARMADO: DESPLAZAMIENTO FORZADO, VÍCTIMAS DEL CONFLICTO', codigoVere: 63 },
+];
+
+/// La salida para quien no quiere responder.
+export const CARACTERIZACION_NINGUNA = 35;
+
+/// En este proyecto no hay transferencia.
+export const PERFIL_TRANSFERENCIA_NO_APLICA = { id: 4, etiqueta: 'NO APLICA' };
+
+/// El estrato va de 1 a 6, sin tabla.
+export const ESTRATO_MINIMO = 1;
+export const ESTRATO_MAXIMO = 6;
+
 const porId = <T extends ValorSep>(lista: T[]) => new Map(lista.map((v) => [v.id, v]));
 
 export const DEPARTAMENTO_POR_ID = porId(DEPARTAMENTOS_SEP);
@@ -135,6 +213,7 @@ export const GENERO_POR_ID = porId(GENEROS_SEP);
 export const NIVEL_OCUPACIONAL_POR_ID = porId(NIVELES_OCUPACIONALES_SEP);
 export const TAMANO_EMPRESA_POR_ID = porId(TAMANOS_EMPRESA_SEP);
 export const TIPO_DOCUMENTO_POR_ID = porId(TIPOS_DOCUMENTO_SEP);
+export const CARACTERIZACION_POR_ID = porId(CARACTERIZACIONES_SEP);
 
 /** Que el valor exista en el catálogo, o no entra. */
 export function esValorValido(lista: ValorSep[], id: number | null | undefined): boolean {
