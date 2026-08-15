@@ -540,8 +540,9 @@ Solo aparece quien ya pisó el aula.
   para un único camino de escritura.
 - **El sobrecupo se permite y deja firma.** Motivo obligatorio y quién lo
   autorizó, con un CHECK que impide guardar uno sin el otro.
-- **Matricular bloquea solo por dos cosas**: autorización del titular y oferta
-  asignada. El grupo y sus fechas **avisan, no bloquean** — las pone el SENA
+- **Matricular bloquea por tres cosas**: autorización del titular, oferta
+  asignada y **alguna forma de contactarla** (correo o celular; basta con uno).
+  El grupo y sus fechas **avisan, no bloquean** — las pone el SENA
   cuando puede, y bloquear la captura por algo que no depende de aquí es hacer
   el sistema más rígido que el proceso, que es como se abandonan los sistemas.
 - **La autorización no es un booleano.** `AutorizacionDatos` apunta a la versión
