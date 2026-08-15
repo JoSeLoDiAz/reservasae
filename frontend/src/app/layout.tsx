@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 
-import { SCRIPT_ACCESIBILIDAD } from "@/components/admin/accesibilidad";
 import { FranjaEntorno } from "@/components/franja-entorno";
 import { ProveedorMarca } from "@/components/marca-publica";
+import { SCRIPT_ACCESIBILIDAD } from "@/lib/accesibilidad";
 import { SCRIPT_PALETA } from "@/lib/marca";
 import { SCRIPT_SIN_PARPADEO } from "@/lib/tema";
 import "./globals.css";

@@ -2,59 +2,16 @@
 
 import { useEffect, useState } from "react";
 
-/** Ajustes que el sistema operativo no siempre ofrece. */
-export type Ajustes = {
-  /** Escala del texto, en porcentaje. */
-  texto: number;
-  /** Quitar transiciones aunque el sistema no lo pida. */
-  sinMovimiento: boolean;
-  /** Subrayar todos los enlaces, no solo al pasar. */
-  enlacesSubrayados: boolean;
-};
-
-const POR_DEFECTO: Ajustes = {
-  texto: 100,
-  sinMovimiento: false,
-  enlacesSubrayados: false,
-};
-
-const LLAVE = "convoca:accesibilidad";
-
-export function leerAjustes(): Ajustes {
-  try {
-    const crudo = window.localStorage.getItem(LLAVE);
-    if (!crudo) return POR_DEFECTO;
-    return { ...POR_DEFECTO, ...(JSON.parse(crudo) as Partial<Ajustes>) };
-  } catch {
-    return POR_DEFECTO;
-  }
-}
-
-function aplicar(ajustes: Ajustes) {
-  const raiz = document.documentElement;
-  // el rem manda: escala la interfaz entera
-  raiz.style.fontSize = `${ajustes.texto}%`;
-  raiz.dataset.sinMovimiento = ajustes.sinMovimiento ? "si" : "";
-  raiz.dataset.enlacesSubrayados = ajustes.enlacesSubrayados ? "si" : "";
-}
-
-/** Fija los ajustes antes de pintar, como el del tema. */
-export const SCRIPT_ACCESIBILIDAD = `
-(function () {
-  try {
-    var a = JSON.parse(localStorage.getItem(${JSON.stringify(LLAVE)}) || '{}');
-    var r = document.documentElement;
-    if (typeof a.texto === 'number' && a.texto >= 80 && a.texto <= 150) {
-      r.style.fontSize = a.texto + '%';
-    }
-    if (a.sinMovimiento) r.dataset.sinMovimiento = 'si';
-    if (a.enlacesSubrayados) r.dataset.enlacesSubrayados = 'si';
-  } catch (e) {}
-})();
-`;
+import {
+  aplicarAjustes,
+  type Ajustes,
+  AJUSTES_POR_DEFECTO,
+  leerAjustes,
+  LLAVE_ACCESIBILIDAD,
+} from "@/lib/accesibilidad";
 
 export function PanelAccesibilidad({ alCerrar }: { alCerrar: () => void }) {
-  const [ajustes, setAjustes] = useState<Ajustes>(POR_DEFECTO);
+  const [ajustes, setAjustes] = useState<Ajustes>(AJUSTES_POR_DEFECTO);
 
   useEffect(() => {
     setAjustes(leerAjustes());
@@ -63,9 +20,9 @@ export function PanelAccesibilidad({ alCerrar }: { alCerrar: () => void }) {
   function cambiar(parcial: Partial<Ajustes>) {
     const nuevos = { ...ajustes, ...parcial };
     setAjustes(nuevos);
-    aplicar(nuevos);
+    aplicarAjustes(nuevos);
     try {
-      window.localStorage.setItem(LLAVE, JSON.stringify(nuevos));
+      window.localStorage.setItem(LLAVE_ACCESIBILIDAD, JSON.stringify(nuevos));
     } catch {
       // en privado localStorage puede fallar
     }
@@ -131,7 +88,7 @@ export function PanelAccesibilidad({ alCerrar }: { alCerrar: () => void }) {
       </label>
 
       <button
-        onClick={() => cambiar(POR_DEFECTO)}
+        onClick={() => cambiar(AJUSTES_POR_DEFECTO)}
         className="mt-4 text-sm text-marca underline"
       >
         Restablecer
