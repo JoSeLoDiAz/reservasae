@@ -1,222 +1,101 @@
-/** Los catálogos del SEP, tal como los devuelve su base. */
+/** Lo que se decide sobre los catálogos del SEP. */
 
-import { TipoDocumento } from '../../generated/prisma';
+import {
+  CARACTERIZACIONES_SEP,
+  DEPARTAMENTOS_SEP,
+  GENEROS_SEP,
+  MUNICIPIOS_SEP,
+  NIVELES_OCUPACIONALES_SEP,
+  RANGOS_EDAD_SEP,
+  TAMANOS_EMPRESA_SEP,
+  TIPOS_DOCUMENTO_SEP,
+  type MunicipioSep,
+  type ValorSep,
+} from './catalogos-sep.generado';
 
-export type ValorSep = { id: number; etiqueta: string };
+export * from './catalogos-sep.generado';
 
-/// Los ids del SEP para departamento y ciudad SON los
-/// códigos DANE (5 = Antioquia, 5001 = Medellín), así que
-/// no hace falta tabla de equivalencia: basta la columna.
+const porId = <T extends ValorSep>(lista: T[]) => new Map(lista.map((v) => [v.id, v]));
 
-export type DepartamentoSep = ValorSep & {
-  /// NINGUNO y NACIONAL son centinelas del SEP.
-  seleccionable: boolean;
-};
+export const TIPO_DOCUMENTO_POR_ID = porId(TIPOS_DOCUMENTO_SEP);
+export const GENERO_POR_ID = porId(GENEROS_SEP);
+export const NIVEL_OCUPACIONAL_POR_ID = porId(NIVELES_OCUPACIONALES_SEP);
+export const RANGO_EDAD_POR_ID = porId(RANGOS_EDAD_SEP);
+export const TAMANO_EMPRESA_POR_ID = porId(TAMANOS_EMPRESA_SEP);
+export const CARACTERIZACION_POR_ID = porId(CARACTERIZACIONES_SEP);
+export const DEPARTAMENTO_POR_ID = porId(DEPARTAMENTOS_SEP);
+export const MUNICIPIO_POR_ID = new Map<number, MunicipioSep>(
+  MUNICIPIOS_SEP.map((m) => [m[0], m]),
+);
 
-export const DEPARTAMENTOS_SEP: DepartamentoSep[] = [
-  { id: 1, etiqueta: 'NINGUNO', seleccionable: false },
-  { id: 5, etiqueta: 'ANTIOQUIA', seleccionable: true },
-  { id: 8, etiqueta: 'ATLÁNTICO', seleccionable: true },
-  { id: 11, etiqueta: 'BOGOTÁ D.C', seleccionable: true },
-  { id: 13, etiqueta: 'BOLÍVAR', seleccionable: true },
-  { id: 15, etiqueta: 'BOYACÁ', seleccionable: true },
-  { id: 17, etiqueta: 'CALDAS', seleccionable: true },
-  { id: 18, etiqueta: 'CAQUETÁ', seleccionable: true },
-  { id: 19, etiqueta: 'CAUCA', seleccionable: true },
-  { id: 20, etiqueta: 'CESAR', seleccionable: true },
-  { id: 23, etiqueta: 'CÓRDOBA', seleccionable: true },
-  { id: 25, etiqueta: 'CUNDINAMARCA', seleccionable: true },
-  { id: 27, etiqueta: 'CHOCÓ', seleccionable: true },
-  { id: 41, etiqueta: 'HUILA', seleccionable: true },
-  { id: 44, etiqueta: 'LA GUAJIRA', seleccionable: true },
-  { id: 47, etiqueta: 'MAGDALENA', seleccionable: true },
-  { id: 50, etiqueta: 'META', seleccionable: true },
-  { id: 52, etiqueta: 'NARIÑO', seleccionable: true },
-  { id: 54, etiqueta: 'NORTE DE SANTANDER', seleccionable: true },
-  { id: 63, etiqueta: 'QUINDIO', seleccionable: true },
-  { id: 66, etiqueta: 'RISARALDA', seleccionable: true },
-  { id: 68, etiqueta: 'SANTANDER', seleccionable: true },
-  { id: 70, etiqueta: 'SUCRE', seleccionable: true },
-  { id: 73, etiqueta: 'TOLIMA', seleccionable: true },
-  { id: 76, etiqueta: 'VALLE DEL CAUCA', seleccionable: true },
-  { id: 81, etiqueta: 'ARAUCA', seleccionable: true },
-  { id: 85, etiqueta: 'CASANARE', seleccionable: true },
-  { id: 86, etiqueta: 'PUTUMAYO', seleccionable: true },
-  { id: 88, etiqueta: 'ARCHIPIÉLAGO DE SAN', seleccionable: true },
-  { id: 91, etiqueta: 'AMAZONAS', seleccionable: true },
-  { id: 94, etiqueta: 'GUAINÍA', seleccionable: true },
-  { id: 95, etiqueta: 'GUAVIARE', seleccionable: true },
-  { id: 97, etiqueta: 'VAUPÉS', seleccionable: true },
-  { id: 99, etiqueta: 'VICHADA', seleccionable: true },
-  { id: 100, etiqueta: 'NACIONAL', seleccionable: false },
-];
+// que puede elegir cada quien
 
-export const GENEROS_SEP: ValorSep[] = [
-  { id: 1, etiqueta: 'MASCULINO' },
-  { id: 2, etiqueta: 'FEMENINO' },
-  { id: 3, etiqueta: 'NO BINARIO' },
-];
+/// Tarjeta de identidad NO: un menor no entra a la
+/// formación, y es decisión del cliente, no del SEP.
+const TARJETA_DE_IDENTIDAD = 2;
 
-export const NIVELES_OCUPACIONALES_SEP: ValorSep[] = [
-  { id: 1, etiqueta: 'ALTA DIRECCIÓN' },
-  { id: 2, etiqueta: 'MEDIO' },
-  { id: 3, etiqueta: 'OPERATIVO' },
-];
+/** Los que puede llevar un participante. */
+export const DOCUMENTOS_DE_PERSONA = TIPOS_DOCUMENTO_SEP.filter(
+  (t) => t.persona && t.id !== TARJETA_DE_IDENTIDAD,
+);
 
-/// Decreto 957 de 2019: por INGRESOS y por SECTOR, no por
-/// número de empleados. Por eso son doce y no cuatro.
-export type TamanoEmpresaSep = ValorSep & {
-  tamano: 'MICROEMPRESA' | 'PEQUEÑA' | 'MEDIANA' | 'GRANDE';
-  sector: 'MANUFACTURA' | 'SERVICIOS' | 'COMERCIO';
-};
+/** Los que puede llevar la empresa donde labora. */
+export const DOCUMENTOS_DE_EMPRESA = TIPOS_DOCUMENTO_SEP.filter((t) => t.empresa);
 
-export const TAMANOS_EMPRESA_SEP: TamanoEmpresaSep[] = [
-  { id: 1, tamano: 'GRANDE', sector: 'COMERCIO', etiqueta: 'GRANDE - COMERCIO (SUPERIOR A $104.600.300.908)' },
-  { id: 2, tamano: 'GRANDE', sector: 'SERVICIOS', etiqueta: 'GRANDE - SERVICIOS (SUPERIOR A $24.054.610.166)' },
-  { id: 3, tamano: 'GRANDE', sector: 'MANUFACTURA', etiqueta: 'GRANDE - MANUFACTURA (SUPERIOR A $86.479.200.435)' },
-  { id: 4, tamano: 'MEDIANA', sector: 'COMERCIO', etiqueta: 'MEDIANA - COMERCIO (SUPERIOR A $21.473.129.604 Y HASTA $104.600.300.908)' },
-  { id: 41, tamano: 'MEDIANA', sector: 'MANUFACTURA', etiqueta: 'MEDIANA - MANUFACTURA (SUPERIOR A $10.208.546.005 Y HASTA $86.479.200.435)' },
-  { id: 42, tamano: 'MEDIANA', sector: 'SERVICIOS', etiqueta: 'MEDIANA - SERVICIOS (SUPERIOR A $6.571.027.849 Y HASTA $24.054.610.166)' },
-  { id: 43, tamano: 'MICROEMPRESA', sector: 'MANUFACTURA', etiqueta: 'MICROEMPRESA - MANUFACTURA (HASTA $1.173.413.837)' },
-  { id: 44, tamano: 'MICROEMPRESA', sector: 'SERVICIOS', etiqueta: 'MICROEMPRESA - SERVICIOS (HASTA $1.642.769.412)' },
-  { id: 45, tamano: 'MICROEMPRESA', sector: 'COMERCIO', etiqueta: 'MICROEMPRESA - COMERCIO (HASTA $2.229.451.431)' },
-  { id: 46, tamano: 'PEQUEÑA', sector: 'MANUFACTURA', etiqueta: 'PEQUEÑA - MANUFACTURA (SUPERIOR A $1.173.413.837 Y HASTA $10.208.546.005)' },
-  { id: 47, tamano: 'PEQUEÑA', sector: 'SERVICIOS', etiqueta: 'PEQUEÑA - SERVICIOS (SUPERIOR A $1.642.769.412 Y HASTA $6.571.027.489)' },
-  { id: 48, tamano: 'PEQUEÑA', sector: 'COMERCIO', etiqueta: 'PEQUEÑA - COMERCIO (SUPERIOR A $2.229.451.431 Y HASTA $21.473.129.604)' },
-];
+/// Cédula, tarjeta y NIT: solo dígitos. El resto admite
+/// letras, que es lo que traen los documentos extranjeros.
+const DOCUMENTOS_NUMERICOS = new Set([1, 2, 6]);
 
-/// El SEP marca a qué sirve cada documento: los de empresa
-/// no valen para una persona y al revés.
-export type TipoDocumentoSep = ValorSep & {
-  sigla: string;
-  persona: boolean;
-  empresa: boolean;
-};
+export function esDocumentoNumerico(tipoSepId: number): boolean {
+  return DOCUMENTOS_NUMERICOS.has(tipoSepId);
+}
 
-export const TIPOS_DOCUMENTO_SEP: TipoDocumentoSep[] = [
-  { id: 1, etiqueta: 'Cédula de Ciudadanía', sigla: 'C.C.', persona: true, empresa: false },
-  { id: 2, etiqueta: 'Tarjeta de Identidad', sigla: 'T.I.', persona: true, empresa: false },
-  { id: 3, etiqueta: 'Cédula de Extranjería', sigla: 'C.E.', persona: true, empresa: false },
-  { id: 4, etiqueta: 'Permiso Especial de Permanencia', sigla: 'P.E.P.', persona: true, empresa: false },
-  { id: 5, etiqueta: 'Otro', sigla: 'O.T.', persona: true, empresa: true },
-  { id: 6, etiqueta: 'Nit', sigla: 'N.I.T.', persona: false, empresa: true },
-  { id: 7, etiqueta: 'Nis', sigla: 'N.I.S.', persona: false, empresa: true },
-  { id: 21, etiqueta: 'RUT', sigla: 'R.U.T.', persona: false, empresa: true },
-  { id: 41, etiqueta: 'Pasaporte', sigla: 'Pasaporte', persona: true, empresa: false },
-  { id: 61, etiqueta: 'Permiso por Protección Temporal', sigla: 'P.P.T', persona: true, empresa: false },
-  { id: 81, etiqueta: 'Documento Nacional de Identidad', sigla: 'D.N.I', persona: true, empresa: false },
-  { id: 82, etiqueta: 'Cédula de Identidad', sigla: 'C.I', persona: true, empresa: false },
-  { id: 101, etiqueta: 'Documento Personal de Identificación', sigla: 'D.P.I', persona: true, empresa: false },
-  { id: 121, etiqueta: 'Número De Seguridad Social', sigla: 'N.S.S', persona: true, empresa: false },
-  { id: 141, etiqueta: 'EIN', sigla: 'E.I.N.', persona: false, empresa: true },
-];
+const clave = (s: string) =>
+  s
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/g, '');
 
-/**
- * Nuestro enum contra el id del SEP.
- * `RC` (registro civil) NO tiene equivalente: un menor
- * identificado así no se puede reportar.
- */
-export const DOCUMENTO_A_SEP: Record<TipoDocumento, number | null> = {
-  CC: 1,
-  TI: 2,
-  CE: 3,
-  PEP: 4,
-  PPT: 61,
-  PA: 41,
-  NIT: 6,
-  OTRO: 5,
-  RC: null,
-};
+const ALIAS = new Map<string, number>();
+for (const t of TIPOS_DOCUMENTO_SEP) {
+  ALIAS.set(clave(t.sigla), t.id);
+  ALIAS.set(clave(t.etiqueta), t.id);
+}
+/// Lo que la gente escribe de verdad en el Excel.
+for (const [texto, id] of [
+  ['CEDULA', 1],
+  ['CEDULACIUDADANIA', 1],
+  ['TARJETA', 2],
+  ['TARJETAIDENTIDAD', 2],
+  ['EXTRANJERIA', 3],
+  ['CEDULAEXTRANJERIA', 3],
+  ['PERMISOESPECIAL', 4],
+  ['PERMISOPROTECCION', 61],
+  ['PASAPORTE', 41],
+  // el SEP lo llama "Pasaporte"; aqui se escribia PA
+  ['PA', 41],
+  ['NIT', 6],
+  ['DNI', 81],
+  ['RUT', 21],
+] as Array<[string, number]>) {
+  ALIAS.set(texto, id);
+}
 
-/**
- * Caracterización de población. DATO SENSIBLE del art. 5
- * de la Ley 1581: etnia, discapacidad, condición de víctima
- * y diversidad sexual. Nunca obligatorio, nunca en una
- * exportación que no lo pida, y con autorización aparte.
- *
- * El reporte manda el `id`, no el `codigoVere`: en el
- * ejemplo del SEP, NINGUNA sale como 35 y su vere es 34.
- */
-export type CaracterizacionSep = ValorSep & { codigoVere: number };
+/** El id del SEP a partir de lo que alguien escribió. */
+export function reconocerTipoDocumento(texto: string): number | null {
+  return ALIAS.get(clave(texto)) ?? null;
+}
 
-export const CARACTERIZACIONES_SEP: CaracterizacionSep[] = [
-  { id: 1, etiqueta: 'INDÍGENAS DESPLAZADOS POR LA VIOLENCIA', codigoVere: 101 },
-  { id: 2, etiqueta: 'INDÍGENAS DESPLAZADOS POR LA VIOLENCIA CABEZA DE FAMILIA', codigoVere: 103 },
-  { id: 3, etiqueta: 'AFROCOLOMBIANOS DESPLAZADOS POR LA VIOLENCIA', codigoVere: 127 },
-  { id: 4, etiqueta: 'AFROCOLOMBIANOS DESPLAZADOS POR LA VIOLENCIA CABEZA DE FAMILIA', codigoVere: 106 },
-  { id: 5, etiqueta: 'DESPLAZADOS POR LA VIOLENCIA', codigoVere: 3 },
-  { id: 6, etiqueta: 'DESPLAZADOS POR LA VIOLENCIA CABEZA DE FAMILIA', codigoVere: 125 },
-  { id: 7, etiqueta: 'DESPLAZADOS DISCAPACITADOS', codigoVere: 129 },
-  { id: 8, etiqueta: 'DESPLAZADOS POR FENOMENOS NATURALES', codigoVere: 4 },
-  { id: 9, etiqueta: 'DESPLAZADOS POR FENÓMENOS NATURALES CABEZA DE FAMILIA', codigoVere: 126 },
-  { id: 10, etiqueta: 'DISCAPACITADOS', codigoVere: 121 },
-  { id: 11, etiqueta: 'DISCAPACIDAD AUDITIVA', codigoVere: 24 },
-  { id: 12, etiqueta: 'DISCAPACIDAD FÍSICA', codigoVere: 26 },
-  { id: 13, etiqueta: 'DISCAPACIDAD INTELECTUAL', codigoVere: 104 },
-  { id: 14, etiqueta: 'DISCAPACIDAD MÚLTIPLE', codigoVere: 161 },
-  { id: 15, etiqueta: 'DISCAPACIDAD PSICOSOCIAL', codigoVere: 105 },
-  { id: 16, etiqueta: 'DISCAPACIDAD VISUAL', codigoVere: 25 },
-  { id: 17, etiqueta: 'SORDOCEGUERA', codigoVere: 162 },
-  { id: 18, etiqueta: 'ADOLESCENTE EN CONFLICTO CON LA LEY PENAL', codigoVere: 9 },
-  { id: 19, etiqueta: 'ADOLESCENTE TRABAJADOR', codigoVere: 14 },
-  { id: 20, etiqueta: 'INDIGENA', codigoVere: 6 },
-  { id: 21, etiqueta: 'INPEC', codigoVere: 122 },
-  { id: 22, etiqueta: 'JOVENES VULNERABLES', codigoVere: 8 },
-  { id: 23, etiqueta: 'MUJER CABEZA DE FAMILIA', codigoVere: 10 },
-  { id: 24, etiqueta: 'NEGRO', codigoVere: 11 },
-  { id: 25, etiqueta: 'PERSONAS EN PROCESO DE REINTEGRACIÓN', codigoVere: 12 },
-  { id: 26, etiqueta: 'ADOLESCENTE DESVINCULADO DE GRUPOS ARMADOS ORGANIZADOS AL MARGEN DE LA LEY', codigoVere: 128 },
-  { id: 27, etiqueta: 'REMITIDOS POR EL PAL', codigoVere: 19 },
-  { id: 28, etiqueta: 'SOBREVIVIENTES MINAS ANTIPERSONALES', codigoVere: 33 },
-  { id: 29, etiqueta: 'SOLDADOS CAMPESINOS', codigoVere: 20 },
-  { id: 30, etiqueta: 'AFROCOLOMBIANO', codigoVere: 130 },
-  { id: 31, etiqueta: 'TERCERA EDAD', codigoVere: 13 },
-  { id: 32, etiqueta: 'PALENQUERO', codigoVere: 131 },
-  { id: 33, etiqueta: 'RAIZAL', codigoVere: 132 },
-  { id: 34, etiqueta: 'GITANOS (ROM)', codigoVere: 133 },
-  { id: 35, etiqueta: 'NINGUNA', codigoVere: 34 },
-  { id: 36, etiqueta: 'ARTESANOS', codigoVere: 123 },
-  { id: 37, etiqueta: 'EMPRENDEDORES', codigoVere: 64 },
-  { id: 38, etiqueta: 'MICROEMPRESAS', codigoVere: 124 },
-  { id: 39, etiqueta: 'REMITIDOS POR EL CIE', codigoVere: 102 },
-  { id: 40, etiqueta: 'ABANDONO O DESPOJO FORZADO DE TIERRAS', codigoVere: 142 },
-  { id: 41, etiqueta: 'ACTOS TERRORISTA/ATENTADOS/COMBATES/ENFRENTAMIENTOS/HOSTIGAMIENTOS', codigoVere: 143 },
-  { id: 42, etiqueta: 'AMENAZA', codigoVere: 135 },
-  { id: 43, etiqueta: 'DELITOS CONTRA LA LIBERTAD Y LA INTEGRIDAD SEXUAL EN DESARROLLO DEL CONFLICTO ARMADO', codigoVere: 136 },
-  { id: 44, etiqueta: 'DESAPARICIÓN FORZADA', codigoVere: 137 },
-  { id: 45, etiqueta: 'HOMICIDIO / MASACRE', codigoVere: 138 },
-  { id: 46, etiqueta: 'SECUESTRO', codigoVere: 139 },
-  { id: 47, etiqueta: 'TORTURA', codigoVere: 140 },
-  { id: 48, etiqueta: 'MINAS ANTIPERSONAL, MUNICIÓN SIN EXPLOTAR, Y ARTEFACTO «EXPLOSIVO IMPROVISADO', codigoVere: 134 },
-  { id: 49, etiqueta: 'VINCULACIÓN DE NIÑOS, NIÑAS Y ADOLESCENTES A ACTIVIDADES RELACIONADAS CON GRUPOS ARMADOS', codigoVere: 141 },
-  { id: 50, etiqueta: 'HERIDO', codigoVere: 144 },
-  { id: 51, etiqueta: 'RECLUTAMIENTO FORZADO', codigoVere: 145 },
-  { id: 61, etiqueta: 'CAMPESINO', codigoVere: 200 },
-  { id: 81, etiqueta: 'DIVERSIDAD SEXUAL: RECONOCE CARACTERÍSTICAS PARTICULARES EN RAZÓN DE LAS IDENTIDADES DE GÉNERO Y LAS ORIENTACIONES SEXUALES DIVERSAS', codigoVere: 62 },
-  { id: 82, etiqueta: 'ENFOQUE DIFERENCIAL Y CONFLICTO ARMADO: DESPLAZAMIENTO FORZADO, VÍCTIMAS DEL CONFLICTO', codigoVere: 63 },
-];
+/** La sigla, para mostrar junto al número. */
+export function siglaDocumento(tipoSepId: number): string {
+  return TIPO_DOCUMENTO_POR_ID.get(tipoSepId)?.sigla ?? '?';
+}
 
-/// La salida para quien no quiere responder.
-export const CARACTERIZACION_NINGUNA = 35;
+// edad
 
-/// En este proyecto no hay transferencia.
-export const PERFIL_TRANSFERENCIA_NO_APLICA = { id: 4, etiqueta: 'NO APLICA' };
-
-/// El estrato va de 1 a 6, sin tabla.
-export const ESTRATO_MINIMO = 1;
-export const ESTRATO_MAXIMO = 6;
-
-export const RANGOS_EDAD_SEP: ValorSep[] = [
-  { id: 1, etiqueta: 'DE 17 AÑOS Y MENORES' },
-  { id: 2, etiqueta: 'DE 18 A 24 AÑOS' },
-  { id: 3, etiqueta: 'DE 25 A 30 AÑOS' },
-  { id: 4, etiqueta: 'DE 31 A 40 AÑOS' },
-  { id: 5, etiqueta: 'DE 41 A 55 AÑOS' },
-  { id: 6, etiqueta: 'DE 56 AÑOS Y MAYORES' },
-];
-
-/// Decision del cliente: un menor no entra. El rango 1 del
-/// SEP existe pero aqui no se debe usar nunca.
+/// Decisión del cliente: un menor no ingresa. El rango 1
+/// del SEP existe pero aquí no se debe usar nunca.
 export const EDAD_MINIMA = 18;
 
 /** Años cumplidos, no la resta de años. */
@@ -237,23 +116,40 @@ export function rangoEdadSep(edad: number): number {
   return 6;
 }
 
-/// Los que sirven para identificar a una persona.
-export const DOCUMENTOS_DE_PERSONA = TIPOS_DOCUMENTO_SEP.filter((t) => t.persona);
-/// Los que sirven para la empresa donde labora.
-export const DOCUMENTOS_DE_EMPRESA = TIPOS_DOCUMENTO_SEP.filter((t) => t.empresa);
+// otros valores del cargue
 
-const porId = <T extends ValorSep>(lista: T[]) => new Map(lista.map((v) => [v.id, v]));
+/// La salida para quien no quiere responder.
+export const CARACTERIZACION_NINGUNA = 35;
 
-export const DEPARTAMENTO_POR_ID = porId(DEPARTAMENTOS_SEP);
-export const GENERO_POR_ID = porId(GENEROS_SEP);
-export const NIVEL_OCUPACIONAL_POR_ID = porId(NIVELES_OCUPACIONALES_SEP);
-export const TAMANO_EMPRESA_POR_ID = porId(TAMANOS_EMPRESA_SEP);
-export const TIPO_DOCUMENTO_POR_ID = porId(TIPOS_DOCUMENTO_SEP);
-export const CARACTERIZACION_POR_ID = porId(CARACTERIZACIONES_SEP);
-export const RANGO_EDAD_POR_ID = porId(RANGOS_EDAD_SEP);
+/// En este proyecto no hay transferencia.
+export const PERFIL_TRANSFERENCIA_NO_APLICA = { id: 4, etiqueta: 'NO APLICA' };
 
-/** Que el valor exista en el catálogo, o no entra. */
+export const ESTRATO_MINIMO = 1;
+export const ESTRATO_MAXIMO = 6;
+
+// validación
+
+/** Que el id exista en el catálogo. Nulo se admite. */
 export function esValorValido(lista: ValorSep[], id: number | null | undefined): boolean {
   if (id === null || id === undefined) return true;
   return lista.some((v) => v.id === id);
+}
+
+/** El municipio existe y pertenece a ese departamento. */
+export function municipioCuadra(
+  departamentoId: number | null | undefined,
+  municipioId: number | null | undefined,
+): boolean {
+  if (municipioId === null || municipioId === undefined) return true;
+  const municipio = MUNICIPIO_POR_ID.get(municipioId);
+  if (!municipio || !municipio[3]) return false;
+  if (departamentoId === null || departamentoId === undefined) return true;
+  return municipio[1] === departamentoId;
+}
+
+/** Los de un departamento, en orden alfabético. */
+export function municipiosDe(departamentoId: number): MunicipioSep[] {
+  return MUNICIPIOS_SEP.filter((m) => m[1] === departamentoId && m[3]).sort((a, b) =>
+    a[2].localeCompare(b[2], 'es'),
+  );
 }

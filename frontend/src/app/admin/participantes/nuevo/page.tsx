@@ -14,10 +14,9 @@ import { adminApi } from "@/lib/admin-api";
 import { ErrorApi } from "@/lib/api";
 import {
   crmApi,
-  ETIQUETA_DOCUMENTO,
   ETIQUETA_ORIGEN,
   type Origen,
-  type TipoDocumento,
+  type CatalogosSep,
 } from "@/lib/crm-api";
 
 type Convenio = { id: string; nombre: string; sigla: string | null; activo: boolean };
@@ -25,11 +24,13 @@ type Convenio = { id: string; nombre: string; sigla: string | null; activo: bool
 export default function PaginaNuevoParticipante() {
   const router = useRouter();
   const [convenios, setConvenios] = useState<Convenio[] | null>(null);
+  const [catalogos, setCatalogos] = useState<CatalogosSep | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [guardando, setGuardando] = useState(false);
 
   const [f, setF] = useState({
-    tipoDocumento: "CC" as TipoDocumento,
+    // 1 = cedula de ciudadania en el catalogo del SEP
+    tipoDocumentoSepId: 1,
     numeroDocumento: "",
     primerNombre: "",
     segundoNombre: "",
@@ -52,6 +53,12 @@ export default function PaginaNuevoParticipante() {
         }
       })
       .catch((e) => setError((e as ErrorApi).message));
+
+    // las listas del SEP, para los desplegables
+    void crmApi
+      .catalogos()
+      .then(setCatalogos)
+      .catch((e) => setError((e as ErrorApi).message));
   }, []);
 
   const listo =
@@ -65,7 +72,7 @@ export default function PaginaNuevoParticipante() {
     setGuardando(true);
     try {
       const creado = await crmApi.crear({
-        tipoDocumento: f.tipoDocumento,
+        tipoDocumentoSepId: f.tipoDocumentoSepId,
         numeroDocumento: f.numeroDocumento.trim(),
         primerNombre: f.primerNombre.trim(),
         segundoNombre: f.segundoNombre.trim() || undefined,
@@ -104,14 +111,14 @@ export default function PaginaNuevoParticipante() {
             <Campo etiqueta="Tipo de documento">
               <select
                 className={CLASE_CONTROL}
-                value={f.tipoDocumento}
+                value={f.tipoDocumentoSepId}
                 onChange={(e) =>
-                  setF({ ...f, tipoDocumento: e.target.value as TipoDocumento })
+                  setF({ ...f, tipoDocumentoSepId: Number(e.target.value) })
                 }
               >
-                {Object.entries(ETIQUETA_DOCUMENTO).map(([valor, etiqueta]) => (
-                  <option key={valor} value={valor}>
-                    {etiqueta}
+                {(catalogos?.documentosPersona ?? []).map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.etiqueta}
                   </option>
                 ))}
               </select>

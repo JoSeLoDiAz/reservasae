@@ -18,7 +18,6 @@ import {
   ETAPAS_AVANCE,
   ETAPAS_SALIDA,
   ETIQUETA_CANAL,
-  ETIQUETA_DOCUMENTO,
   ETIQUETA_ETAPA,
   ETIQUETA_ORIGEN,
   type Canal,
@@ -85,7 +84,7 @@ export default function PaginaFicha() {
         <div>
           <h1 className="text-2xl font-semibold">{nombre}</h1>
           <p className="mt-1 font-mono text-sm text-texto-suave">
-            {ETIQUETA_DOCUMENTO[f.persona.tipoDocumento]} {f.persona.numeroDocumento}
+            {f.persona.documento}
           </p>
           <p className="mt-1 text-sm text-texto-suave">
             {f.convenio.sigla ?? f.convenio.nombre} · {ETIQUETA_ORIGEN[f.origen]}

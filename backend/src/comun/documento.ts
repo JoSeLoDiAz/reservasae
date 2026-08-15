@@ -1,6 +1,6 @@
 /** El documento de una persona, normalizado. */
 
-import { TipoDocumento } from '../../generated/prisma';
+import { esDocumentoNumerico } from '../crm/catalogos-sep';
 
 /// Sin puntos, sin espacios y en mayusculas: la unicidad
 /// depende de que "1.019.456.782" y "1019456782" sean uno.
@@ -15,11 +15,8 @@ export function normalizarDocumento(valor: string): string | null {
   return limpio;
 }
 
-/** Solo dígitos: los de cédula colombiana. */
-const SOLO_DIGITOS: TipoDocumento[] = ['CC', 'TI', 'RC', 'NIT'];
-
-export function documentoValido(tipo: TipoDocumento, numero: string): boolean {
-  if (SOLO_DIGITOS.includes(tipo)) return /^\d{4,15}$/.test(numero);
+export function documentoValido(tipoSepId: number, numero: string): boolean {
+  if (esDocumentoNumerico(tipoSepId)) return /^\d{4,15}$/.test(numero);
   return /^[A-Z0-9]{4,20}$/.test(numero);
 }
 

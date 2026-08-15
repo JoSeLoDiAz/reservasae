@@ -529,19 +529,6 @@ model AvanceActividad {
 
 // crm: la persona y su paso por la formacion
 
-/// El SEP los pide separados, no un nombre completo.
-enum TipoDocumento {
-  CC
-  CE
-  TI
-  PA
-  PEP
-  PPT
-  RC
-  NIT
-  OTRO
-}
-
 /// De donde salio la persona.
 enum OrigenParticipante {
   EMPRESA
@@ -577,9 +564,12 @@ enum CanalAutorizacion {
 
 /// La identidad. Unica en todo el sistema, sin convenio.
 model Persona {
-  id              String        @id @default(cuid())
-  tipoDocumento   TipoDocumento
-  numeroDocumento String /// normalizado, solo alfanumerico
+  id String @id @default(cuid())
+
+  /// El id del catalogo del SEP, que es lo que viaja al
+  /// cargue. Sin enum propio: dos verdades se separan.
+  tipoDocumentoSepId Int
+  numeroDocumento    String /// normalizado, solo alfanumerico
 
   primerNombre    String
   segundoNombre   String?
@@ -611,7 +601,7 @@ model Persona {
   caracterizaciones CaracterizacionPersona[]
 
   // el duplicado se vuelve imposible de crear
-  @@unique([tipoDocumento, numeroDocumento])
+  @@unique([tipoDocumentoSepId, numeroDocumento])
   @@index([primerApellido, primerNombre])
   @@index([correo])
   @@map("personas")

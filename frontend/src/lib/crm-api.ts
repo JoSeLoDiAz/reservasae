@@ -11,8 +11,12 @@ export type Etapa =
   | "RETIRADO"
   | "NO_APROBO";
 
-export type TipoDocumento =
-  | "CC" | "CE" | "TI" | "PA" | "PEP" | "PPT" | "RC" | "NIT" | "OTRO";
+/** El catálogo del SEP, servido por el backend. */
+export type TipoDocumentoSep = {
+  id: number;
+  etiqueta: string;
+  sigla: string;
+};
 
 export type Origen =
   | "EMPRESA" | "ASESOR" | "AUTOGESTION" | "REFERIDO" | "REDES" | "EVENTO" | "OTRO";
@@ -51,17 +55,7 @@ export const ETIQUETA_ORIGEN: Record<Origen, string> = {
   OTRO: "Otro",
 };
 
-export const ETIQUETA_DOCUMENTO: Record<TipoDocumento, string> = {
-  CC: "Cédula de ciudadanía",
-  CE: "Cédula de extranjería",
-  TI: "Tarjeta de identidad",
-  PA: "Pasaporte",
-  PEP: "Permiso especial de permanencia",
-  PPT: "Permiso por protección temporal",
-  RC: "Registro civil",
-  NIT: "NIT",
-  OTRO: "Otro",
-};
+
 
 export type FilaParticipante = {
   id: string;
@@ -105,7 +99,8 @@ export type Ficha = {
   sobrecupoPor: { nombre: string } | null;
   persona: {
     id: string;
-    tipoDocumento: TipoDocumento;
+    tipoDocumentoSepId: number;
+    documento: string;
     numeroDocumento: string;
     primerNombre: string;
     segundoNombre: string | null;
@@ -206,6 +201,19 @@ export type Academico = {
   criterio: { tolerancia: number; diasParado: number };
 };
 
+export type CatalogosSep = {
+  documentosPersona: TipoDocumentoSep[];
+  documentosEmpresa: TipoDocumentoSep[];
+  generos: Array<{ id: number; etiqueta: string }>;
+  nivelesOcupacionales: Array<{ id: number; etiqueta: string }>;
+  tamanosEmpresa: Array<{ id: number; etiqueta: string }>;
+  departamentos: Array<{ id: number; etiqueta: string }>;
+  /** [id, departamentoId, nombre] */
+  municipios: Array<[number, number, string]>;
+  estrato: { minimo: number; maximo: number };
+  edadMinima: number;
+};
+
 export type Filtros = {
   convenioId?: string;
   etapa?: Etapa;
@@ -301,6 +309,8 @@ export const crmApi = {
 
   listar: (filtros: Filtros = {}) =>
     pedir<Listado>(`/admin/participantes${consulta(filtros)}`),
+
+  catalogos: () => pedir<CatalogosSep>("/admin/participantes/catalogos"),
 
   resumen: (filtros: Filtros = {}) =>
     pedir<Resumen>(`/admin/participantes/resumen${consulta(filtros)}`),

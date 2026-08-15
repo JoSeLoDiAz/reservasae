@@ -8,7 +8,7 @@ describe('analizar', () => {
       fila('CC', '1019456782', 'Laura', 'Camila', 'Gómez', 'Rojas', 'l@e.com', '3001234567'),
     );
 
-    expect(f.tipoDocumento).toBe('CC');
+    expect(f.tipoDocumentoSepId).toBe(1);
     expect(f.numeroDocumento).toBe('1019456782');
     expect(f.primerNombre).toBe('Laura');
     expect(f.segundoApellido).toBe('Rojas');
@@ -54,16 +54,29 @@ describe('analizar', () => {
     expect(f.numeroDocumento).toBe('1019456782');
   });
 
-  it('avisa de un tipo desconocido y asume CC', () => {
-    const [f] = analizar(fila('cedula', '1019456782', 'Laura', '', 'Gómez'));
+  it('avisa de un tipo desconocido y asume cedula', () => {
+    const [f] = analizar(fila('XYZ', '1019456782', 'Laura', '', 'Gómez'));
 
-    expect(f.tipoDocumento).toBe('CC');
+    expect(f.tipoDocumentoSepId).toBe(1);
     expect(f.problemas.join(' ')).toContain('no es un tipo de documento conocido');
+  });
+
+  it('reconoce el tipo escrito con palabras, no solo la sigla', () => {
+    for (const escrito of ['cedula', 'Cédula de Ciudadanía', 'C.C.', 'cc']) {
+      const [f] = analizar(fila(escrito, '1019456782', 'Laura', '', 'Gómez'));
+      expect(f.tipoDocumentoSepId).toBe(1);
+      expect(f.problemas.join(' ')).not.toContain('no es un tipo de documento');
+    }
+  });
+
+  it('no admite tarjeta de identidad: un menor no entra', () => {
+    const [f] = analizar(fila('TI', '1019456782', 'Laura', '', 'Gómez', '', 'l@e.com'));
+    expect(f.problemas.join(' ')).toContain('no se admite');
   });
 
   it('rechaza letras en una cedula', () => {
     const [f] = analizar(fila('CC', 'ABC123', 'Laura', '', 'Gómez'));
-    expect(f.problemas.join(' ')).toContain('no es válido para CC');
+    expect(f.problemas.join(' ')).toContain('no es válido para C.C.');
   });
 
   it('admite letras en un pasaporte', () => {
@@ -140,8 +153,8 @@ describe('repetidosEnElPegado', () => {
     );
 
     const repes = repetidosEnElPegado(filas);
-    expect(repes.has('CC:1019456782')).toBe(true);
-    expect(repes.has('CC:1019456783')).toBe(false);
+    expect(repes.has('1:1019456782')).toBe(true);
+    expect(repes.has('1:1019456783')).toBe(false);
   });
 
   it('no confunde el mismo numero con distinto tipo', () => {

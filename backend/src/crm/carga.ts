@@ -1,7 +1,11 @@
 /** Analiza lo que el asesor pega desde Excel. */
 
-import { TipoDocumento } from '../../generated/prisma';
 import { documentoValido, normalizarDocumento } from '../comun/documento';
+import {
+  DOCUMENTOS_DE_PERSONA,
+  reconocerTipoDocumento,
+  siglaDocumento,
+} from './catalogos-sep';
 
 export type FilaCruda = {
   linea: number;
@@ -17,7 +21,7 @@ export type FilaCruda = {
 
 export type FilaAnalizada = {
   linea: number;
-  tipoDocumento: TipoDocumento;
+  tipoDocumentoSepId: number;
   numeroDocumento: string;
   primerNombre: string;
   segundoNombre: string | null;
@@ -39,7 +43,9 @@ export const COLUMNAS = [
   'celular',
 ] as const;
 
-const TIPOS = new Set<string>(Object.values(TipoDocumento));
+const PERMITIDOS = new Set(DOCUMENTOS_DE_PERSONA.map((t) => t.id));
+/// Cedula de ciudadania: lo que trae casi toda fila.
+const POR_DEFECTO = 1;
 const CORREO = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
 /// Excel copia con tabuladores; los .csv de por aqui
@@ -84,18 +90,19 @@ export function analizar(texto: string): FilaAnalizada[] {
     const c = partir(linea);
     const problemas: string[] = [];
 
-    const tipoBruto = (c[0] ?? '').toUpperCase().replace(/[.\s]/g, '');
-    const tipo: TipoDocumento = TIPOS.has(tipoBruto)
-      ? (tipoBruto as TipoDocumento)
-      : 'CC';
-    if (c[0] && !TIPOS.has(tipoBruto)) {
-      problemas.push(`«${c[0]}» no es un tipo de documento conocido; se asume CC`);
+    const reconocido = reconocerTipoDocumento(c[0] ?? '');
+    const tipo = reconocido ?? POR_DEFECTO;
+    if (c[0] && reconocido === null) {
+      problemas.push(`«${c[0]}» no es un tipo de documento conocido; se asume C.C.`);
+    } else if (reconocido !== null && !PERMITIDOS.has(reconocido)) {
+      // tarjeta de identidad: un menor no entra
+      problemas.push(`no se admite «${c[0]}» en esta formación`);
     }
 
     const numero = normalizarDocumento(c[1] ?? '');
     if (!numero) problemas.push('falta el número de documento');
     else if (!documentoValido(tipo, numero)) {
-      problemas.push(`«${c[1]}» no es válido para ${tipo}`);
+      problemas.push(`«${c[1]}» no es válido para ${siglaDocumento(tipo)}`);
     }
 
     const primerNombre = (c[2] ?? '').trim();
@@ -116,7 +123,7 @@ export function analizar(texto: string): FilaAnalizada[] {
 
     return {
       linea: i + desde + 1,
-      tipoDocumento: tipo,
+      tipoDocumentoSepId: tipo,
       numeroDocumento: numero ?? '',
       primerNombre,
       segundoNombre: (c[3] ?? '').trim() || null,
@@ -139,7 +146,7 @@ export function repetidosEnElPegado(filas: FilaAnalizada[]): Set<string> {
   const vistos = new Set<string>();
   const repes = new Set<string>();
   for (const f of filas) {
-    const clave = `${f.tipoDocumento}:${f.numeroDocumento}`;
+    const clave = `${f.tipoDocumentoSepId}:${f.numeroDocumento}`;
     if (vistos.has(clave)) repes.add(clave);
     vistos.add(clave);
   }

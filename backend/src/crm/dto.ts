@@ -17,15 +17,16 @@ import {
   CanalAutorizacion,
   EtapaParticipante,
   OrigenParticipante,
-  TipoDocumento,
 } from '../../generated/prisma';
 
 const recortar = ({ value }: { value: unknown }) =>
   typeof value === 'string' ? value.trim() : value;
 
 export class CrearParticipanteDto {
-  @IsEnum(TipoDocumento)
-  tipoDocumento!: TipoDocumento;
+  // el id del catalogo del SEP, validado en el servicio
+  @Transform(({ value }) => Number(value))
+  @IsInt()
+  tipoDocumentoSepId!: number;
 
   @IsString()
   @IsNotEmpty()

@@ -12,6 +12,19 @@ import {
 } from '../../generated/prisma';
 import { documentoValido, normalizarDocumento } from '../comun/documento';
 import { analizar, esInsalvable, repetidosEnElPegado } from './carga';
+import {
+  DEPARTAMENTOS_SEP,
+  DOCUMENTOS_DE_EMPRESA,
+  DOCUMENTOS_DE_PERSONA,
+  EDAD_MINIMA,
+  ESTRATO_MAXIMO,
+  ESTRATO_MINIMO,
+  GENEROS_SEP,
+  MUNICIPIOS_SEP,
+  NIVELES_OCUPACIONALES_SEP,
+  siglaDocumento,
+  TAMANOS_EMPRESA_SEP,
+} from './catalogos-sep';
 import { PrismaService } from '../prisma/prisma.service';
 import {
   ActualizarParticipanteDto,
@@ -95,6 +108,23 @@ export class CrmService {
       pagina,
       paginas: Math.max(1, Math.ceil(total / porPagina)),
       participantes: filas.map((p) => this.aFila(p)),
+    };
+  }
+
+  /** Lo que el panel necesita para dibujar los desplegables. */
+  catalogos() {
+    return {
+      documentosPersona: DOCUMENTOS_DE_PERSONA,
+      documentosEmpresa: DOCUMENTOS_DE_EMPRESA,
+      generos: GENEROS_SEP,
+      nivelesOcupacionales: NIVELES_OCUPACIONALES_SEP,
+      tamanosEmpresa: TAMANOS_EMPRESA_SEP,
+      departamentos: DEPARTAMENTOS_SEP.filter((d) => d.seleccionable),
+      // [id, departamentoId, nombre] para que el navegador
+      // filtre sin pedir nada; son 1.126, no 1.126 viajes
+      municipios: MUNICIPIOS_SEP.filter((m) => m[3]).map((m) => [m[0], m[1], m[2]]),
+      estrato: { minimo: ESTRATO_MINIMO, maximo: ESTRATO_MAXIMO },
+      edadMinima: EDAD_MINIMA,
     };
   }
 
@@ -225,12 +255,19 @@ export class CrmService {
 
     if (!p) throw new NotFoundException('Ese participante no existe.');
 
-    return { ...p, faltantes: await this.faltantesParaMatricular(p.id) };
+    return {
+      ...p,
+      persona: {
+        ...p.persona,
+        documento: `${siglaDocumento(p.persona.tipoDocumentoSepId)} ${p.persona.numeroDocumento}`,
+      },
+      faltantes: await this.faltantesParaMatricular(p.id),
+    };
   }
 
   async crear(dto: CrearParticipanteDto, admin: Admin, ip?: string) {
     const numero = normalizarDocumento(dto.numeroDocumento);
-    if (!numero || !documentoValido(dto.tipoDocumento, numero)) {
+    if (!numero || !documentoValido(dto.tipoDocumentoSepId, numero)) {
       throw new BadRequestException(
         'El número de documento no tiene un formato válido para ese tipo.',
       );
@@ -276,13 +313,13 @@ export class CrmService {
     return this.prisma.$transaction(async (tx) => {
       const persona = await tx.persona.upsert({
         where: {
-          tipoDocumento_numeroDocumento: {
-            tipoDocumento: dto.tipoDocumento,
+          tipoDocumentoSepId_numeroDocumento: {
+            tipoDocumentoSepId: dto.tipoDocumentoSepId,
             numeroDocumento: numero,
           },
         },
         create: {
-          tipoDocumento: dto.tipoDocumento,
+          tipoDocumentoSepId: dto.tipoDocumentoSepId,
           numeroDocumento: numero,
           primerNombre: dto.primerNombre,
           segundoNombre: dto.segundoNombre ?? null,
@@ -517,7 +554,7 @@ export class CrmService {
     const claves = filas
       .filter((f) => f.numeroDocumento)
       .map((f) => ({
-        tipoDocumento: f.tipoDocumento,
+        tipoDocumentoSepId: f.tipoDocumentoSepId,
         numeroDocumento: f.numeroDocumento,
       }));
 
@@ -525,7 +562,7 @@ export class CrmService {
       where: { OR: claves },
       select: {
         id: true,
-        tipoDocumento: true,
+        tipoDocumentoSepId: true,
         numeroDocumento: true,
         participaciones: {
           select: { accionFormacionId: true, convenioId: true },
@@ -534,7 +571,7 @@ export class CrmService {
     });
 
     const porDocumento = new Map(
-      personas.map((p) => [`${p.tipoDocumento}:${p.numeroDocumento}`, p]),
+      personas.map((p) => [`${p.tipoDocumentoSepId}:${p.numeroDocumento}`, p]),
     );
 
     const oferta = dto.ofertaId
@@ -545,7 +582,7 @@ export class CrmService {
       : null;
 
     const previa = filas.map((f) => {
-      const clave = `${f.tipoDocumento}:${f.numeroDocumento}`;
+      const clave = `${f.tipoDocumentoSepId}:${f.numeroDocumento}`;
       const problemas = [...f.problemas];
       let estado: 'NUEVA' | 'PERSONA_CONOCIDA' | 'REPETIDA' | 'DESCARTADA' = 'NUEVA';
 
@@ -606,7 +643,7 @@ export class CrmService {
       try {
         await this.crear(
           {
-            tipoDocumento: f.tipoDocumento,
+            tipoDocumentoSepId: f.tipoDocumentoSepId,
             numeroDocumento: f.numeroDocumento,
             primerNombre: f.primerNombre,
             segundoNombre: f.segundoNombre ?? undefined,
@@ -1158,7 +1195,7 @@ export class CrmService {
     etapa: EtapaParticipante;
     creadoEn: Date;
     persona: {
-      tipoDocumento: string;
+      tipoDocumentoSepId: number;
       numeroDocumento: string;
       primerNombre: string;
       segundoNombre: string | null;
@@ -1177,7 +1214,7 @@ export class CrmService {
       id: p.id,
       etapa: p.etapa,
       creadoEn: p.creadoEn,
-      documento: `${p.persona.tipoDocumento} ${p.persona.numeroDocumento}`,
+      documento: `${siglaDocumento(p.persona.tipoDocumentoSepId)} ${p.persona.numeroDocumento}`,
       nombre: [
         p.persona.primerNombre,
         p.persona.segundoNombre,

@@ -19,7 +19,8 @@ type Estado = "NUEVA" | "PERSONA_CONOCIDA" | "REPETIDA" | "DESCARTADA";
 
 type FilaPrevia = {
   linea: number;
-  tipoDocumento: string;
+  tipoDocumentoSepId: number;
+  sigla: string;
   numeroDocumento: string;
   primerNombre: string;
   primerApellido: string;
@@ -221,7 +222,7 @@ export default function PaginaCarga() {
                     <tr key={f.linea}>
                       <td>{f.linea}</td>
                       <td className="font-mono text-sm">
-                        {f.tipoDocumento} {f.numeroDocumento || "—"}
+                        {f.sigla} {f.numeroDocumento || "—"}
                       </td>
                       <td>
                         {f.primerNombre} {f.primerApellido}

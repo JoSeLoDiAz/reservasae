@@ -46,6 +46,12 @@ export class CrmController {
     return this.crm.brecha(convenioId);
   }
 
+  /** Las listas del SEP que dibujan los formularios. */
+  @Get('catalogos')
+  catalogos() {
+    return this.crm.catalogos();
+  }
+
   /** Quién va al día y quién no, contra las fechas del grupo. */
   @Get('academico')
   academico(@Query() filtros: FiltrosParticipantesDto) {

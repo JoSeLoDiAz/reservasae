@@ -12,7 +12,6 @@ import {
   RolAdmin,
   RolConvenio,
   TipoActividad,
-  TipoDocumento,
   TipoPregunta,
 } from '../../generated/prisma';
 import { hashearClave } from '../../src/admin/claves';
@@ -895,7 +894,7 @@ async function main() {
       (
         await prisma.persona.create({
           data: {
-            tipoDocumento: azar() < 0.93 ? TipoDocumento.CC : TipoDocumento.CE,
+            tipoDocumentoSepId: azar() < 0.93 ? 1 : 3,
             numeroDocumento,
             primerNombre,
             segundoNombre,
