@@ -652,6 +652,45 @@ Decisiones del cliente, ya cerradas:
   **`revocadaEn` se lee en tres sitios y no se escribe en ninguno**, así que hoy
   no existe forma de revocar una autorización.
 
+### Los dos reportes
+
+`/admin/sep`. **Reporte de control** (27 columnas, el legible) y **Reporte al
+SEP** (54, el que se sube). Código en `backend/src/crm/sep/`.
+
+- **Las cabeceras son el contrato**: literales, con sus tildes y con el espacio
+  final de `"Estrato socio-económico "`. `formatos.spec.ts` las fija como
+  cadenas: si alguien reordena una columna o «corrige» una tilde, falla el
+  build. Mismo criterio que el test de paletas.
+- **Antes de descargar se ve el alistamiento**: cuántos entran, cuántos no y por
+  qué motivo. Ver el número después de generar el archivo es enterarse tarde.
+- **Las filas incompletas se omiten, nunca salen con huecos**, y van en una
+  segunda hoja del mismo libro con su motivo. El cliente arma sus `INSERT`
+  concatenando el texto de las celdas: un hueco produce un INSERT roto o, peor,
+  uno que carga. La lista aparte que nadie abre es una lista que nadie mira.
+- **La regla de completitud vive en `completitud.ts`** y el panel pinta lo que
+  devuelve el backend. Había tres reglas distintas y la ficha podía decir
+  «completa» mientras la persona desaparecía del archivo.
+- **`construirLibro` distingue cuatro formatos** (`texto`, `entero`, `miles`,
+  `fecha`). Antes ponía separador de miles a todo número: una cédula salía
+  `1.019.456.782`. En la columna de documento **manda el tipo del valor**:
+  número para una cédula, texto para un pasaporte con letras. Y las fechas van
+  a **medianoche UTC**, porque exceljs convierte con `getTime()` sin desplazar
+  por zona y sale el día cambiado.
+- **`PERSONA ID` y `EMPRESA ID` van vacíos**: los pone el cliente a mano después
+  de cargar. Decisión suya.
+- **`TOTAL DE HORAS EVENTO` son las horas de la acción** (2, 8, 16 o 40).
+  El archivo de muestra del cliente trae `1` en sus 814 filas; él confirmó que
+  lo correcto son las horas.
+- **`CERTIFICA` va en `NO` y las horas de cierre en 0**: el cierre es un segundo
+  cargue. Certificar aquí daría una fila con 0 horas y 0 % que se contradice.
+- **La caracterización va vacía, nunca `35 = NINGUNA`.** Mandar 35 es declarar
+  por la persona que no pertenece a ninguna población, y eso no consta.
+
+> **La siembra de pruebas pone los ids del SEP en NEGATIVO.** Los primeros los
+> copié del archivo de muestra —`2959`, `9087`, `17689`, que son reales— y un
+> Excel salido del entorno de pruebas habría apuntado a un proyecto de verdad.
+> Un id negativo el SEP no lo tiene.
+
 ### Roles: la tabla existe, todavía no filtra
 
 `AdminConvenio(adminId, convenioId, rol)` es una **concesión explícita**: sin
