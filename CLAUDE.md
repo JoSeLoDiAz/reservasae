@@ -83,7 +83,8 @@ Panel (sesión en cookie httpOnly, `/admin/*`): `POST|DELETE /admin/sesion`,
 `POST /admin/apariencia/corregir`,
 `PATCH /admin/formularios/:id/apariencia`,
 `GET /admin/tableros/proyeccion`, `GET /admin/tableros/respuestas/:id`,
-`GET /admin/participantes/academico`.
+`GET /admin/participantes/academico`, `GET /admin/participantes/catalogos`
+(las listas del SEP que dibujan los desplegables, como el de colores).
 Públicos además: `GET /marca`, `GET /marca/formulario/:slug` y
 `GET /marca/logos/:id`.
 
@@ -413,10 +414,12 @@ reservasae/
 │   └── Dockerfile
 ├── scripts/
 │   ├── extraer-catalogo.py   proyectos .xlsx → catalogo.json
+│   ├── generar-catalogos-sep.py  docs/sep/*.csv → catálogos en código
 │   └── tunel-bd.ps1          abre el túnel SSH a la base del servidor
 ├── docker/nginx/default.conf
 ├── docs/
 │   ├── proyectos/               los dos proyectos oficiales (fuente de verdad)
+│   ├── sep/                     catálogos del SEP (.csv sí, .xlsx NO: PII)
 │   ├── dahsboardexcel/          dashboard derivado, etiquetas poco fiables
 │   ├── cloudflare.md            guía completa del dominio y HTTPS
 │   └── cloudflared-config.yml   copia de referencia del ingress del túnel
@@ -501,9 +504,29 @@ adaptador. Hasta entonces se llenan a mano o por siembra.
 `/admin/participantes` (tablero, lista y métricas), `/nuevo`, `/:id` (ficha),
 `/brecha`, `/carga` y `/academico`.
 
+### El panel va por el proceso, no por una barra de enlaces
+
+`frontend/src/components/admin/navegacion.ts` define los módulos en el orden en
+que pasan las cosas: **1 Pre-reserva de cupos · 2 Inscripciones · 3 Inscritos ·
+4 Seguimiento académico**, y Configuración aparte.
+
+- La barra es lateral, **pegada** (la página baja y ella no), con scroll propio
+  y plegable a 64 px, recordando la elección. **Plegada muestra una entrada por
+  módulo, no una por enlace**: cuatro números iguales en fila no distinguen
+  nada. En móvil no cabe, así que va una tira horizontal.
+- **La cabecera y la barra cuelgan de `--franja-alto`**, que vale 0 salvo que
+  exista la franja de pruebas. Sin eso las dos se pegan a `top: 0` y la franja
+  tapa la cabecera.
+- El botón de accesibilidad hace cosas comprobables: escala del texto, quitar
+  animaciones aunque el sistema no lo pida y subrayar todos los enlaces. Se fija
+  antes de pintar, y **`SCRIPT_ACCESIBILIDAD` vive en `lib/`, no en el
+  componente**: desde un módulo `"use client"` el layout recibiría una
+  referencia y no el texto, y se emitiría vacío sin avisar.
+
 ### El seguimiento académico
 
-`/admin/participantes/academico`, desde `GET /admin/participantes/academico`.
+`/admin/participantes/academico`, desde `GET /admin/participantes/academico`, `GET /admin/participantes/catalogos`
+(las listas del SEP que dibujan los desplegables, como el de colores).
 Solo aparece quien ya pisó el aula.
 
 - **«Atrasado» se mide contra el calendario del grupo**, no contra un número
@@ -570,6 +593,65 @@ y evita parsear `.xlsx` ajenos. Dos pasos siempre, previsualizar y confirmar.
   persona desaparecía en silencio**. Lo encontró `carga.spec.ts`; queda como
   prueba de regresión.
 
+### Los datos que pide el SENA (15 ago 2026)
+
+El cliente entregó las tablas de su sistema (el **SEP**) y los dos formatos de
+reporte. Están en `docs/sep/`. Eso cerró el riesgo nº 6 del plan: el formato ya
+no hay que adivinarlo.
+
+- **Los catálogos se generan, no se escriben**:
+  `python scripts/generar-catalogos-sep.py` lee `docs/sep/*.csv` y escribe
+  `backend/src/crm/catalogos-sep.generado.ts`. Lo derivado (validación, alias,
+  reglas) vive en `catalogos-sep.ts`, que sí se edita a mano.
+- **Los ids del SEP para departamento y ciudad SON los códigos DANE**
+  (5 = Antioquia, 5001 = Medellín), así que no hay tabla de equivalencia ni hay
+  que casar nombres. Con tres centinelas suyos que no son municipios:
+  `1 NINGUNA`, `68000 TODOS LOS MUNICIPIOS` y `100 NACIONAL`.
+- **`Persona.tipoDocumentoSepId` sustituyó al enum `TipoDocumento`.** Es el
+  número que viaja al cargue; tener un enum propio al lado eran dos verdades que
+  podían discrepar. La clave única de la persona va por ese id. Se hizo cuando
+  producción tenía **cero personas**: más tarde habría sido una migración con
+  cédulas dentro.
+- **Los `.xlsx` de `docs/sep/` NO se versionan** (`.gitignore`). Los que entregó
+  el cliente traían 814 y 155 filas de personas reales — cédula, fecha de
+  nacimiento, celular, correo y dirección. Entraron una vez por un `git add -A`
+  y hubo que sacarlos del historial y del servidor. Los `.csv` de catálogo sí se
+  versionan: no son datos personales.
+
+Decisiones del cliente, ya cerradas:
+
+| | |
+|---|---|
+| Responsable del tratamiento | **el SENA** — por eso vale la política del Acuerdo 009 que ya siembra el sistema |
+| Menores de edad | **no ingresan**. Tarjeta de identidad fuera del desplegable |
+| Registro civil | no existe en el catálogo del SEP: se quitó |
+| Estrato | de 1 a 6, con `CHECK` en la base |
+| Tamaño de empresa | **Decreto 957 de 2019**: por ingresos y sector, no por empleados |
+| Perfil de transferencia | siempre `4 = NO APLICA` |
+| Se ha beneficiado antes | booleano declarado |
+| Departamento y ciudad | el **domicilio** de la persona, no la sede del curso |
+
+> **El corte de «tamaño de organización» de `/analisis` está calculado con el
+> criterio viejo.** `clasificarTamano()` usa número de empleados (Ley 590
+> original); el SEP usa ingresos y sector. Una empresa de 8 empleados y $30.000
+> millones nos sale «Microempresa» y para ellos es «Grande». Hay que pedirle a
+> la empresa su sector y su rango de ingresos.
+
+- **La ficha captura y nada bloquea guardar.** Solo son obligatorios en el
+  backend el tipo y número de documento, el nombre y el primer apellido; el
+  resto lo completa el asesor en la llamada, y la ficha enseña qué falta para
+  entrar en el reporte. Lo que **sí** se rechaza es lo que produciría un cargue
+  falso: un id fuera del catálogo, un municipio que no es de su departamento y
+  un menor de edad.
+- **La caracterización de población está diseñada y apagada.** Sus 68 valores
+  incluyen etnia, discapacidad, condición de víctima y diversidad sexual: es el
+  núcleo del art. 5 de la Ley 1581. Vive en `caracterizaciones_persona`, colgada
+  de la autorización exacta que la ampara. No se enciende hasta que el texto del
+  SENA diga que se recogen datos sensibles y que **no** hay obligación de
+  autorizarlos, como exige el Decreto 1377 art. 6. Y falta lo de fondo:
+  **`revocadaEn` se lee en tres sitios y no se escribe en ninguno**, así que hoy
+  no existe forma de revocar una autorización.
+
 ### Roles: la tabla existe, todavía no filtra
 
 `AdminConvenio(adminId, convenioId, rol)` es una **concesión explícita**: sin
@@ -582,6 +664,29 @@ no en la cuenta**.
 Los roles previstos son de dos ejes, área × nivel: gestión y liderazgo de
 inscripciones, de académico y de sistemas. **Falta aplicar el ámbito en cada
 consulta**, que es trabajo pendiente y toca `tableros.service.ts` entero.
+
+> **Hoy no filtra nada.** La tabla tiene filas y **cero líneas de código la
+> leen** (comprobado por grep en `backend/src`). Cualquier cuenta ve los dos
+> convenios mezclados.
+
+Lo que el cliente pidió, y que es lo que hay que construir:
+
+- Un admin con fila en los dos convenios ve los dos, con un selector para
+  cambiar; cada pantalla filtrada por el que tenga activo.
+- Un asesor de ADECOPRIA **no entra** a BRITCHAM: ni por URL, ni cambiando un id
+  en la barra, ni llamando a la API. El filtro va en la consulta, en el
+  servidor, no en el menú.
+- **`Empresa` se comparte y se ve desde los dos.** Si el mismo NIT reservó en
+  los dos convenios, el asesor de uno ve que la empresa existe; lo que se filtra
+  son sus reservas y sus totales. Decisión explícita del cliente.
+
+> **El subdominio no separa nada, y hay que repetirlo.** `adecopria.reservasae.com`
+> y `britcham.reservasae.com` sirven la misma base con la misma sesión: sin el
+> ámbito aplicado, el asesor de un convenio escribe la otra dirección y lo ve
+> todo. **El subdominio es la puerta con el letrero; el ámbito es la cerradura**,
+> y poner el letrero sin la cerradura es peor que no poner nada, porque todos
+> creerán que está cerrado. Una vez aplicado el ámbito, el subdominio sí sirve:
+> decide con qué convenio llegas puesto, con su logo y sus colores.
 
 ### Lo que falta
 
@@ -656,6 +761,10 @@ pnpm db:sembrar-prueba [--rehacer]
   puesta. Comprobado a mano.
 - **Va desde el clon, no dentro del contenedor**: la imagen de producción se
   instala con `--prod` y no trae `ts-node`. Por eso la base publica 5434.
+- **Tras cambiar el schema hay que correr `pnpm exec prisma generate` en el
+  clon** antes de sembrar. Los contenedores lo hacen en el build; los guiones
+  que corren desde el clon usan el cliente que haya en `backend/generated`, y
+  con uno viejo la siembra falla con errores de tipos que despistan.
 - **Los números son repetibles** (generador con semilla fija): dos revisiones
   ven exactamente lo mismo.
 - **El grupo tiene que casar con la etapa, y se elige la OFERTA que lo tenga.**
