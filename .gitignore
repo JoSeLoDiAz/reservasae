@@ -50,3 +50,7 @@ Thumbs.db
 # El cliente se genera en cada build (backend/Dockerfile lo hace antes de
 # compilar). Versionarlo solo trae conflictos y binarios en el repo.
 backend/generated/
+
+# ── Exportes del SEP: llevan datos de personas reales ──
+docs/sep/*.xlsx
+docs/sep/*.xls

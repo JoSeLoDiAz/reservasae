@@ -206,6 +206,42 @@ export const PERFIL_TRANSFERENCIA_NO_APLICA = { id: 4, etiqueta: 'NO APLICA' };
 export const ESTRATO_MINIMO = 1;
 export const ESTRATO_MAXIMO = 6;
 
+export const RANGOS_EDAD_SEP: ValorSep[] = [
+  { id: 1, etiqueta: 'DE 17 AÑOS Y MENORES' },
+  { id: 2, etiqueta: 'DE 18 A 24 AÑOS' },
+  { id: 3, etiqueta: 'DE 25 A 30 AÑOS' },
+  { id: 4, etiqueta: 'DE 31 A 40 AÑOS' },
+  { id: 5, etiqueta: 'DE 41 A 55 AÑOS' },
+  { id: 6, etiqueta: 'DE 56 AÑOS Y MAYORES' },
+];
+
+/// Decision del cliente: un menor no entra. El rango 1 del
+/// SEP existe pero aqui no se debe usar nunca.
+export const EDAD_MINIMA = 18;
+
+/** Años cumplidos, no la resta de años. */
+export function edadCumplida(nacimiento: Date, ahora = new Date()): number {
+  let edad = ahora.getFullYear() - nacimiento.getFullYear();
+  const mes = ahora.getMonth() - nacimiento.getMonth();
+  if (mes < 0 || (mes === 0 && ahora.getDate() < nacimiento.getDate())) edad -= 1;
+  return edad;
+}
+
+/** El rango que el cargue pide junto a la edad. */
+export function rangoEdadSep(edad: number): number {
+  if (edad <= 17) return 1;
+  if (edad <= 24) return 2;
+  if (edad <= 30) return 3;
+  if (edad <= 40) return 4;
+  if (edad <= 55) return 5;
+  return 6;
+}
+
+/// Los que sirven para identificar a una persona.
+export const DOCUMENTOS_DE_PERSONA = TIPOS_DOCUMENTO_SEP.filter((t) => t.persona);
+/// Los que sirven para la empresa donde labora.
+export const DOCUMENTOS_DE_EMPRESA = TIPOS_DOCUMENTO_SEP.filter((t) => t.empresa);
+
 const porId = <T extends ValorSep>(lista: T[]) => new Map(lista.map((v) => [v.id, v]));
 
 export const DEPARTAMENTO_POR_ID = porId(DEPARTAMENTOS_SEP);
@@ -214,6 +250,7 @@ export const NIVEL_OCUPACIONAL_POR_ID = porId(NIVELES_OCUPACIONALES_SEP);
 export const TAMANO_EMPRESA_POR_ID = porId(TAMANOS_EMPRESA_SEP);
 export const TIPO_DOCUMENTO_POR_ID = porId(TIPOS_DOCUMENTO_SEP);
 export const CARACTERIZACION_POR_ID = porId(CARACTERIZACIONES_SEP);
+export const RANGO_EDAD_POR_ID = porId(RANGOS_EDAD_SEP);
 
 /** Que el valor exista en el catálogo, o no entra. */
 export function esValorValido(lista: ValorSep[], id: number | null | undefined): boolean {
