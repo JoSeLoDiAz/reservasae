@@ -8,7 +8,9 @@ import { ConmutadorTema } from "@/components/marca-publica";
 import { adminApi, type AdminActual } from "@/lib/admin-api";
 import { ErrorApi } from "@/lib/api";
 
+import { PanelAccesibilidad } from "./accesibilidad";
 import { CambioDeClaveObligatorio } from "./cambio-clave";
+import { estaActivo, MODULOS } from "./navegacion";
 
 type Contexto = { admin: AdminActual; refrescar: () => Promise<void> };
 
@@ -20,18 +22,7 @@ export function useAdmin(): Contexto {
   return valor;
 }
 
-const SECCIONES = [
-  { href: "/admin", etiqueta: "Tablero", exacto: true },
-  { href: "/admin/reservas", etiqueta: "Reservas" },
-  { href: "/admin/participantes", etiqueta: "Inscripciones" },
-  { href: "/admin/empresas", etiqueta: "Organizaciones" },
-  { href: "/admin/acciones", etiqueta: "Formación" },
-  { href: "/admin/formularios", etiqueta: "Formularios" },
-  { href: "/admin/politicas", etiqueta: "Políticas" },
-  { href: "/admin/marca", etiqueta: "Apariencia" },
-  { href: "/admin/usuarios", etiqueta: "Usuarios", soloSuperadmin: true },
-  { href: "/admin/perfil", etiqueta: "Mi perfil" },
-];
+const LLAVE_PLEGADO = "convoca:menu-plegado";
 
 export function MarcoAdmin({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -39,6 +30,20 @@ export function MarcoAdmin({ children }: { children: React.ReactNode }) {
 
   const [admin, setAdmin] = useState<AdminActual | null>(null);
   const [cargando, setCargando] = useState(true);
+  const [plegado, setPlegadoEstado] = useState(false);
+
+  useEffect(() => {
+    setPlegadoEstado(window.localStorage.getItem(LLAVE_PLEGADO) === "si");
+  }, []);
+
+  const setPlegado = useCallback((valor: boolean) => {
+    setPlegadoEstado(valor);
+    try {
+      window.localStorage.setItem(LLAVE_PLEGADO, valor ? "si" : "no");
+    } catch {
+      // en privado localStorage puede fallar
+    }
+  }, []);
 
   const cargar = useCallback(async () => {
     try {
@@ -69,10 +74,6 @@ export function MarcoAdmin({ children }: { children: React.ReactNode }) {
     return <CambioDeClaveObligatorio alTerminar={cargar} />;
   }
 
-  const secciones = SECCIONES.filter(
-    (s) => !s.soloSuperadmin || admin.rol === "SUPERADMIN",
-  );
-
   async function salir() {
     await adminApi.cerrarSesion();
     router.replace("/admin/login");
@@ -80,48 +81,195 @@ export function MarcoAdmin({ children }: { children: React.ReactNode }) {
 
   return (
     <ContextoAdmin.Provider value={{ admin, refrescar: cargar }}>
-      <div className="flex min-h-screen flex-col">
-        <header className="border-b border-encabezado-borde bg-encabezado-fondo text-encabezado-texto">
-          <div className="mx-auto flex w-full max-w-6xl flex-wrap items-center gap-x-6 gap-y-3 px-6 py-3">
-            <Link href="/admin" className="font-semibold">
-              Convoca
-              <span className="ml-2 rounded bg-marca/10 px-1.5 py-0.5 text-xs font-medium text-marca">
-                panel
-              </span>
-            </Link>
+      <div className="flex min-h-screen">
+        <BarraLateral
+          ruta={ruta}
+          esSuperadmin={admin.rol === "SUPERADMIN"}
+          plegado={plegado}
+          alPlegar={() => setPlegado(!plegado)}
+        />
 
-            <nav className="flex flex-wrap gap-1 text-sm">
-              {secciones.map((s) => {
-                const activa = s.exacto ? ruta === s.href : ruta.startsWith(s.href);
-                return (
-                  <Link
-                    key={s.href}
-                    href={s.href}
-                    className={`rounded-lg px-3 py-1.5 transition ${
-                      activa
-                        ? "bg-marca-suave font-medium text-marca"
-                        : "text-texto-suave hover:bg-fondo"
-                    }`}
-                  >
-                    {s.etiqueta}
-                  </Link>
-                );
-              })}
-            </nav>
-
-            <div className="ml-auto flex flex-wrap items-center gap-3 text-sm">
-              <ConmutadorTema compacto />
-              <span className="opacity-70">{admin.nombre}</span>
-              <button onClick={salir} className="text-marca underline">
-                Salir
-              </button>
-            </div>
-          </div>
-        </header>
-
-        <main className="mx-auto w-full max-w-6xl grow px-6 py-8">{children}</main>
+        <div className="flex min-w-0 grow flex-col">
+          <Cabecera nombre={admin.nombre} alSalir={salir} />
+          <NavegacionMovil ruta={ruta} esSuperadmin={admin.rol === "SUPERADMIN"} />
+          <main className="w-full grow px-6 py-8">
+            <div className="mx-auto w-full max-w-6xl">{children}</div>
+          </main>
+        </div>
       </div>
     </ContextoAdmin.Provider>
+  );
+}
+
+/** Fija: la página hace scroll y esto no se mueve. */
+function BarraLateral({
+  ruta,
+  esSuperadmin,
+  plegado,
+  alPlegar,
+}: {
+  ruta: string;
+  esSuperadmin: boolean;
+  plegado: boolean;
+  alPlegar: () => void;
+}) {
+  return (
+    <nav
+      aria-label="Secciones del panel"
+      className={`no-imprimir sticky top-0 hidden h-screen shrink-0 flex-col border-r border-borde bg-superficie transition-[width] md:flex ${
+        plegado ? "w-16" : "w-64"
+      }`}
+    >
+      <div className="flex items-center gap-2 border-b border-borde px-3 py-4">
+        {!plegado && (
+          <Link href="/admin" className="min-w-0 grow truncate font-semibold">
+            Convoca
+          </Link>
+        )}
+        <button
+          onClick={alPlegar}
+          className="ml-auto rounded-lg border border-borde px-2 py-1 text-texto-suave"
+          aria-label={plegado ? "Desplegar el menú" : "Plegar el menú"}
+          title={plegado ? "Desplegar" : "Plegar"}
+        >
+          {plegado ? "»" : "«"}
+        </button>
+      </div>
+
+      {/* el scroll es de aqui dentro, no de la pagina */}
+      <div className="barra-visible min-h-0 grow overflow-y-auto px-2 py-3">
+        {MODULOS.map((modulo) => {
+          const enlaces = modulo.enlaces.filter((e) => !e.soloSuperadmin || esSuperadmin);
+          if (enlaces.length === 0) return null;
+
+          // plegado: una entrada por modulo, no una por
+          // enlace. Cuatro numeros iguales no distinguen nada
+          if (plegado) {
+            const activo = enlaces.some((e) => estaActivo(e, ruta));
+            return (
+              <Link
+                key={modulo.clave}
+                href={enlaces[0].href}
+                title={`${modulo.etiqueta} — ${modulo.descripcion}`}
+                aria-current={activo ? "page" : undefined}
+                className={`mb-1 flex h-10 items-center justify-center rounded-lg text-sm font-semibold transition ${
+                  activo
+                    ? "bg-marca-suave text-marca"
+                    : "text-texto-suave hover:bg-superficie-alterna hover:text-texto"
+                }`}
+              >
+                {modulo.paso ?? "⚙"}
+              </Link>
+            );
+          }
+
+          return (
+            <section key={modulo.clave} className="mb-4">
+              <h2
+                className="px-2 pb-1 text-[11px] font-semibold tracking-wide text-texto-suave uppercase"
+                title={modulo.descripcion}
+              >
+                {modulo.paso ? `${modulo.paso}. ` : ""}
+                {modulo.etiqueta}
+              </h2>
+
+              <ul className="space-y-0.5">
+                {enlaces.map((enlace) => {
+                  const activo = estaActivo(enlace, ruta);
+                  return (
+                    <li key={enlace.href}>
+                      <Link
+                        href={enlace.href}
+                        aria-current={activo ? "page" : undefined}
+                        className={`block truncate rounded-lg px-3 py-2 text-sm transition ${
+                          activo
+                            ? "bg-marca-suave font-medium text-marca"
+                            : "text-texto-suave hover:bg-superficie-alterna hover:text-texto"
+                        }`}
+                      >
+                        {enlace.etiqueta}
+                      </Link>
+                    </li>
+                  );
+                })}
+              </ul>
+            </section>
+          );
+        })}
+      </div>
+    </nav>
+  );
+}
+
+/** En móvil no cabe la lateral: una tira que se desliza. */
+function NavegacionMovil({ ruta, esSuperadmin }: { ruta: string; esSuperadmin: boolean }) {
+  return (
+    <nav
+      aria-label="Secciones del panel"
+      className="barra-visible no-imprimir overflow-x-auto border-b border-borde bg-superficie px-4 py-2 md:hidden"
+    >
+      <ul className="flex gap-1" style={{ width: "max-content" }}>
+        {MODULOS.flatMap((modulo) =>
+          modulo.enlaces
+            .filter((e) => !e.soloSuperadmin || esSuperadmin)
+            .map((enlace) => {
+              const activo = estaActivo(enlace, ruta);
+              return (
+                <li key={enlace.href}>
+                  <Link
+                    href={enlace.href}
+                    aria-current={activo ? "page" : undefined}
+                    className={`block rounded-lg px-3 py-1.5 text-sm whitespace-nowrap ${
+                      activo
+                        ? "bg-marca-suave font-medium text-marca"
+                        : "text-texto-suave"
+                    }`}
+                  >
+                    {enlace.etiqueta}
+                  </Link>
+                </li>
+              );
+            }),
+        )}
+      </ul>
+    </nav>
+  );
+}
+
+function Cabecera({ nombre, alSalir }: { nombre: string; alSalir: () => void }) {
+  const [abierto, setAbierto] = useState(false);
+
+  return (
+    <header className="no-imprimir sticky top-0 z-30 border-b border-encabezado-borde bg-encabezado-fondo text-encabezado-texto">
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 px-6 py-3">
+        <span className="font-semibold">
+          Convoca
+          <span className="ml-2 rounded bg-marca/10 px-1.5 py-0.5 text-xs font-medium text-marca">
+            panel
+          </span>
+        </span>
+
+        <div className="relative ml-auto flex items-center gap-3 text-sm">
+          <ConmutadorTema compacto />
+
+          <button
+            onClick={() => setAbierto(!abierto)}
+            aria-expanded={abierto}
+            className="rounded-lg border border-borde px-2 py-1.5 text-texto-suave"
+            title="Accesibilidad"
+          >
+            <span aria-hidden>♿</span>
+            <span className="sr-only">Accesibilidad</span>
+          </button>
+          {abierto && <PanelAccesibilidad alCerrar={() => setAbierto(false)} />}
+
+          <span className="opacity-70">{nombre}</span>
+          <button onClick={alSalir} className="text-marca underline">
+            Salir
+          </button>
+        </div>
+      </div>
+    </header>
   );
 }
 

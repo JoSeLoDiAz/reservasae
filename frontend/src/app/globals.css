@@ -177,6 +177,21 @@ h3 {
   }
 }
 
+/* o porque lo pidio aqui, aunque el sistema no lo pida */
+:root[data-sin-movimiento="si"] *,
+:root[data-sin-movimiento="si"] *::before,
+:root[data-sin-movimiento="si"] *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+  scroll-behavior: auto !important;
+}
+
+/* no depender del color para ver un enlace */
+:root[data-enlaces-subrayados="si"] a {
+  text-decoration: underline;
+}
+
 /* aro de foco con su propio color */
 :focus-visible {
   outline: 2px solid var(--campo-foco);
