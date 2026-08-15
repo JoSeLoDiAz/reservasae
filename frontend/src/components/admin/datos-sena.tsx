@@ -40,22 +40,6 @@ function desdeFicha(f: Ficha): Campos {
   };
 }
 
-/** Lo que le falta para poder entrar en el reporte. */
-function faltantes(c: Campos): string[] {
-  const falta: string[] = [];
-  if (!c.fechaNacimiento) falta.push("fecha de nacimiento");
-  if (c.generoSepId === null) falta.push("género");
-  if (c.estrato === null) falta.push("estrato");
-  if (c.departamentoSepId === null) falta.push("departamento de domicilio");
-  if (c.municipioSepId === null) falta.push("municipio de domicilio");
-  if (!c.direccion.trim()) falta.push("dirección");
-  if (c.nivelOcupacionalSepId === null) falta.push("nivel ocupacional");
-  if (!c.celular.trim()) falta.push("celular");
-  if (!c.correo.trim()) falta.push("correo");
-  if (c.beneficiarioPrevio === null) falta.push("si se benefició antes");
-  return falta;
-}
-
 export function DatosSena({
   ficha,
   alGuardar,
@@ -83,7 +67,9 @@ export function DatosSena({
       .sort((a, b) => a[2].localeCompare(b[2], "es"));
   }, [catalogos, c.departamentoSepId]);
 
-  const pendientes = faltantes(c);
+  // la lista la manda el backend: tenerla aqui tambien
+  // era una tercera regla que podia discrepar
+  const pendientes = ficha.faltantes.reporte;
 
   function poner<K extends keyof Campos>(clave: K, valor: Campos[K]) {
     setC((v) => ({ ...v, [clave]: valor }));

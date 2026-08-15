@@ -279,13 +279,15 @@ async function ponerFechasYPublicar() {
   const { count } = await prisma.accionFormacion.updateMany({ data: { visible: true } });
 
   // los ids con que el SEP conoce esto. En produccion los
-  // teclea un admin; aqui se inventan para poder exportar
+  // teclea un admin; aqui van NEGATIVOS a proposito: el SEP
+  // no los tiene, asi que un archivo salido de pruebas no
+  // puede apuntar a un proyecto de verdad
   const convenios = await prisma.convenio.findMany({ orderBy: { orden: 'asc' } });
   for (const [i, convenio] of convenios.entries()) {
     await prisma.convenio.update({
       where: { id: convenio.id },
       data: {
-        sepProyectoId: 2959 + i,
+        sepProyectoId: -(2959 + i),
         sepNombreConviniente: convenio.sigla ?? convenio.nombre,
       },
     });
@@ -295,14 +297,14 @@ async function ponerFechasYPublicar() {
   for (const [i, accion] of acciones.entries()) {
     await prisma.accionFormacion.update({
       where: { id: accion.id },
-      data: { sepAfId: 9087 + i },
+      data: { sepAfId: -(9087 + i) },
     });
   }
 
   for (const [i, grupo] of grupos.entries()) {
     await prisma.grupo.update({
       where: { id: grupo.id },
-      data: { sepGrupoId: 17689 + i },
+      data: { sepGrupoId: -(17689 + i) },
     });
   }
 

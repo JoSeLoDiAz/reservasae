@@ -1,0 +1,84 @@
+/** Qué le falta a una ficha, y para qué le falta. */
+
+import { EDAD_MINIMA, edadCumplida } from './catalogos-sep';
+
+/// Lo mínimo para existir en el CRM lo impone el modelo.
+/// Aquí va lo que exige cada cosa que se quiere hacer.
+export type Revision = {
+  /// Sin esto no se puede matricular.
+  matricula: string[];
+  /// Sin esto la fila no entra en el reporte al SENA.
+  reporte: string[];
+};
+
+export type ParaRevisar = {
+  ofertaId: string | null;
+  coberturaId: string | null;
+  accionFormacionId: string | null;
+  nivelOcupacionalSepId: number | null;
+  beneficiarioPrevio: boolean | null;
+  tieneAutorizacion: boolean;
+  grupoConFechas: boolean;
+  grupoSepId: number | null;
+  accionSepId: number | null;
+  persona: {
+    correo: string | null;
+    celular: string | null;
+    fechaNacimiento: Date | null;
+    generoSepId: number | null;
+    estrato: number | null;
+    departamentoSepId: number | null;
+    municipioSepId: number | null;
+    barrio: string | null;
+    direccion: string | null;
+  };
+};
+
+/**
+ * La única fuente. El panel pinta lo que devuelve esto, en
+ * vez de llevar su propia lista: tres reglas distintas
+ * hacían que la ficha dijera «completa» y la persona
+ * desapareciera del archivo sin que nadie lo notara.
+ */
+export function revisar(p: ParaRevisar): Revision {
+  const matricula: string[] = [];
+  const reporte: string[] = [];
+  const persona = p.persona;
+
+  // ── matrícula ──
+  if (!p.ofertaId) matricula.push('falta asignarle una acción de formación');
+  if (!persona.correo && !persona.celular) {
+    matricula.push('no hay forma de contactarla: falta correo o celular');
+  }
+  if (!p.tieneAutorizacion) {
+    matricula.push('no ha autorizado el tratamiento de sus datos para este convenio');
+  }
+
+  // ── reporte al SENA ──
+  // lo de matricular también lo exige el reporte
+  reporte.push(...matricula);
+
+  if (!persona.correo) reporte.push('falta el correo');
+  if (!persona.celular) reporte.push('falta el celular');
+  if (!persona.fechaNacimiento) reporte.push('falta la fecha de nacimiento');
+  else if (edadCumplida(persona.fechaNacimiento) < EDAD_MINIMA) {
+    reporte.push(`es menor de ${EDAD_MINIMA} años`);
+  }
+  if (persona.generoSepId === null) reporte.push('falta el género');
+  if (persona.estrato === null) reporte.push('falta el estrato');
+  if (persona.departamentoSepId === null) reporte.push('falta el departamento de domicilio');
+  if (persona.municipioSepId === null) reporte.push('falta el municipio de domicilio');
+  if (!persona.direccion?.trim()) reporte.push('falta la dirección');
+  if (!persona.barrio?.trim()) reporte.push('falta el barrio o vereda');
+  if (p.nivelOcupacionalSepId === null) reporte.push('falta el nivel ocupacional');
+  if (p.beneficiarioPrevio === null) {
+    reporte.push('falta decir si se benefició anteriormente');
+  }
+
+  // sin los ids del SEP la fila no la reconoce nadie
+  if (!p.coberturaId) reporte.push('no tiene grupo asignado');
+  if (p.accionSepId === null) reporte.push('la acción no tiene su id del SEP');
+  if (p.grupoSepId === null) reporte.push('el grupo no tiene su id del SEP');
+
+  return { matricula, reporte };
+}

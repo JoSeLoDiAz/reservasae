@@ -98,11 +98,17 @@ export function siglaDocumento(tipoSepId: number): string {
 /// del SEP existe pero aquí no se debe usar nunca.
 export const EDAD_MINIMA = 18;
 
-/** Años cumplidos, no la resta de años. */
+/**
+ * Años cumplidos, no la resta de años.
+ * En UTC a propósito: con la hora local, el contenedor
+ * (UTC) y un portátil en Bogotá (UTC−5) dan edades
+ * distintas el día del cumpleaños, y con la edad cambia
+ * el rango que va al cargue.
+ */
 export function edadCumplida(nacimiento: Date, ahora = new Date()): number {
-  let edad = ahora.getFullYear() - nacimiento.getFullYear();
-  const mes = ahora.getMonth() - nacimiento.getMonth();
-  if (mes < 0 || (mes === 0 && ahora.getDate() < nacimiento.getDate())) edad -= 1;
+  let edad = ahora.getUTCFullYear() - nacimiento.getUTCFullYear();
+  const mes = ahora.getUTCMonth() - nacimiento.getUTCMonth();
+  if (mes < 0 || (mes === 0 && ahora.getUTCDate() < nacimiento.getUTCDate())) edad -= 1;
   return edad;
 }
 

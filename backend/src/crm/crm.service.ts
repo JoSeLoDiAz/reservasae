@@ -12,6 +12,7 @@ import {
 } from '../../generated/prisma';
 import { documentoValido, normalizarDocumento } from '../comun/documento';
 import { analizar, esInsalvable, repetidosEnElPegado } from './carga';
+import { revisar } from './completitud';
 import {
   DEPARTAMENTOS_SEP,
   DOCUMENTOS_DE_EMPRESA,
@@ -270,11 +271,29 @@ export class CrmService {
   }
 
   async crear(dto: CrearParticipanteDto, admin: Admin, ip?: string) {
+    // el tipo tiene que servir para una persona y estar
+    // permitido aqui: sin esto la API acepta cualquier
+    // entero y el cargue sale con un codigo sin significado
+    if (!DOCUMENTOS_DE_PERSONA.some((t) => t.id === dto.tipoDocumentoSepId)) {
+      throw new BadRequestException(
+        'Ese tipo de documento no se admite para un participante.',
+      );
+    }
+
     const numero = normalizarDocumento(dto.numeroDocumento);
     if (!numero || !documentoValido(dto.tipoDocumentoSepId, numero)) {
       throw new BadRequestException(
         'El número de documento no tiene un formato válido para ese tipo.',
       );
+    }
+
+    if (dto.fechaNacimiento) {
+      const edad = edadCumplida(new Date(dto.fechaNacimiento));
+      if (edad < EDAD_MINIMA) {
+        throw new BadRequestException(
+          `No se admiten menores de ${EDAD_MINIMA} años en esta formación.`,
+        );
+      }
     }
 
     const oferta = dto.ofertaId
@@ -413,6 +432,25 @@ export class CrmService {
       throw new BadRequestException('Ese municipio no pertenece a ese departamento.');
     }
 
+    // asignar() ya lo comprueba; aqui no se comprobaba
+    // nada, y una cobertura de otro curso manda al SEP un
+    // AF y un grupo que se contradicen
+    if (dto.coberturaId) {
+      const cobertura = await this.prisma.grupoCobertura.findUnique({
+        where: { id: dto.coberturaId },
+        select: { grupo: { select: { accionFormacionId: true } } },
+      });
+      const suya = await this.prisma.participante.findUnique({
+        where: { id },
+        select: { accionFormacionId: true },
+      });
+      if (!cobertura || cobertura.grupo.accionFormacionId !== suya?.accionFormacionId) {
+        throw new BadRequestException(
+          'Ese grupo no es de la acción de formación de esta persona.',
+        );
+      }
+    }
+
     if (dto.fechaNacimiento) {
       const edad = edadCumplida(new Date(dto.fechaNacimiento));
       if (edad < EDAD_MINIMA) {
@@ -524,50 +562,56 @@ export class CrmService {
     });
   }
 
-  /** Lo que impide matricular, y lo que solo conviene. */
+  /** Lo que impide matricular y lo que impide reportar. */
   async faltantesParaMatricular(
     id: string,
-  ): Promise<{ bloquean: string[]; avisan: string[] }> {
+  ): Promise<{ bloquean: string[]; avisan: string[]; reporte: string[] }> {
     const p = await this.prisma.participante.findUnique({
       where: { id },
       include: {
-        persona: { select: { id: true, correo: true, celular: true } },
-        cobertura: { select: { grupo: { select: { fechaInicio: true } } } },
+        persona: true,
+        accionFormacion: { select: { sepAfId: true } },
+        cobertura: {
+          select: {
+            grupo: { select: { fechaInicio: true, sepGrupoId: true } },
+          },
+        },
       },
     });
-    if (!p) return { bloquean: ['el participante no existe'], avisan: [] };
-
-    const bloquean: string[] = [];
-    const avisan: string[] = [];
-
-    if (!p.ofertaId) bloquean.push('falta asignarle una acción de formación');
-
-    if (!p.persona.correo && !p.persona.celular) {
-      bloquean.push('no hay forma de contactarla: falta correo o celular');
-    }
-
-    // el grupo y sus fechas los pone el SENA cuando puede:
-    // no se bloquea la captura por algo que no depende de aqui
-    if (!p.coberturaId) {
-      avisan.push('sin grupo asignado no entra en el reporte al SENA');
-    } else if (!p.cobertura?.grupo.fechaInicio) {
-      avisan.push('su grupo no tiene fechas: no se puede saber si va al día');
-    }
+    if (!p) return { bloquean: ['el participante no existe'], avisan: [], reporte: [] };
 
     const autorizacion = await this.prisma.autorizacionDatos.findFirst({
       where: {
-        personaId: p.persona.id,
+        personaId: p.personaId,
         revocadaEn: null,
         politica: { destinatario: 'PARTICIPANTE', convenioId: p.convenioId },
       },
       select: { id: true },
     });
 
-    if (!autorizacion) {
-      bloquean.push('no ha autorizado el tratamiento de sus datos para este convenio');
+    const { matricula, reporte } = revisar({
+      ofertaId: p.ofertaId,
+      coberturaId: p.coberturaId,
+      accionFormacionId: p.accionFormacionId,
+      nivelOcupacionalSepId: p.nivelOcupacionalSepId,
+      beneficiarioPrevio: p.beneficiarioPrevio,
+      tieneAutorizacion: Boolean(autorizacion),
+      grupoConFechas: Boolean(p.cobertura?.grupo.fechaInicio),
+      grupoSepId: p.cobertura?.grupo.sepGrupoId ?? null,
+      accionSepId: p.accionFormacion?.sepAfId ?? null,
+      persona: p.persona,
+    });
+
+    // el grupo y sus fechas avisan, no bloquean: las pone
+    // el SENA cuando puede
+    const avisan: string[] = [];
+    if (!p.coberturaId) {
+      avisan.push('sin grupo asignado no entra en el reporte al SENA');
+    } else if (!p.cobertura?.grupo.fechaInicio) {
+      avisan.push('su grupo no tiene fechas: no se puede saber si va al día');
     }
 
-    return { bloquean, avisan };
+    return { bloquean: matricula, avisan, reporte };
   }
 
 

@@ -93,7 +93,7 @@ export type Ficha = {
   etapa: Etapa;
   origen: Origen;
   creadoEn: string;
-  faltantes: { bloquean: string[]; avisan: string[] };
+  faltantes: { bloquean: string[]; avisan: string[]; reporte: string[] };
   cargoEnEmpresa: string | null;
   nivelOcupacionalSepId: number | null;
   beneficiarioPrevio: boolean | null;

@@ -138,7 +138,14 @@ export function analizar(texto: string): FilaAnalizada[] {
 
 /** Las que no se pueden crear de ninguna manera. */
 export function esInsalvable(f: FilaAnalizada): boolean {
-  return !f.numeroDocumento || !f.primerNombre || !f.primerApellido;
+  // el tipo no admitido tambien: avisarlo y crearla igual
+  // dejaba entrar menores por la puerta de atras
+  return (
+    !f.numeroDocumento ||
+    !f.primerNombre ||
+    !f.primerApellido ||
+    !PERMITIDOS.has(f.tipoDocumentoSepId)
+  );
 }
 
 /** Documentos repetidos dentro del mismo pegado. */
