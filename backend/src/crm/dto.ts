@@ -1,5 +1,6 @@
 import { Transform } from 'class-transformer';
 import {
+  IsBoolean,
   IsDateString,
   IsEmail,
   IsEnum,
@@ -21,6 +22,11 @@ import {
 
 const recortar = ({ value }: { value: unknown }) =>
   typeof value === 'string' ? value.trim() : value;
+
+/// "" y null llegan del formulario cuando se vacia un
+/// desplegable: los dos quieren decir "sin dato"
+const aNumero = ({ value }: { value: unknown }) =>
+  value === '' || value === null || value === undefined ? null : Number(value);
 
 export class CrearParticipanteDto {
   // el id del catalogo del SEP, validado en el servicio
@@ -179,6 +185,31 @@ export class ActualizarParticipanteDto {
   @IsOptional()
   @IsString()
   coberturaId?: string;
+
+  // lo que pide el SEP. Nada obligatorio: el asesor
+  // completa la ficha en la llamada, no de una vez
+  @IsOptional() @Transform(aNumero) @IsInt() generoSepId?: number | null;
+
+  @IsOptional()
+  @Transform(aNumero)
+  @IsInt()
+  @Min(1)
+  @Max(6)
+  estrato?: number | null;
+
+  @IsOptional() @Transform(aNumero) @IsInt() departamentoSepId?: number | null;
+  @IsOptional() @Transform(aNumero) @IsInt() municipioSepId?: number | null;
+
+  @IsOptional() @Transform(recortar) @IsString() @MaxLength(120) barrio?: string;
+  @IsOptional() @Transform(recortar) @IsString() @MaxLength(200) direccion?: string;
+
+  @IsOptional() @Transform(aNumero) @IsInt() nivelOcupacionalSepId?: number | null;
+  @IsOptional() @IsBoolean() beneficiarioPrevio?: boolean;
+}
+
+export class ActualizarEmpresaSepDto {
+  @IsOptional() @Transform(aNumero) @IsInt() tamanoSepId?: number | null;
+  @IsOptional() @Transform(aNumero) @IsInt() tipoDocumentoSepId?: number | null;
 }
 
 export class CambiarEtapaDto {

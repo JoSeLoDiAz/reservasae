@@ -95,6 +95,8 @@ export type Ficha = {
   creadoEn: string;
   faltantes: { bloquean: string[]; avisan: string[] };
   cargoEnEmpresa: string | null;
+  nivelOcupacionalSepId: number | null;
+  beneficiarioPrevio: boolean | null;
   sobrecupoMotivo: string | null;
   sobrecupoPor: { nombre: string } | null;
   persona: {
@@ -108,6 +110,13 @@ export type Ficha = {
     segundoApellido: string | null;
     correo: string | null;
     celular: string | null;
+    fechaNacimiento: string | null;
+    generoSepId: number | null;
+    estrato: number | null;
+    departamentoSepId: number | null;
+    municipioSepId: number | null;
+    barrio: string | null;
+    direccion: string | null;
     participaciones: Array<{
       id: string;
       etapa: Etapa;
@@ -319,6 +328,12 @@ export const crmApi = {
     pedir<Academico>(`/admin/participantes/academico${consulta(filtros)}`),
 
   obtener: (id: string) => pedir<Ficha>(`/admin/participantes/${id}`),
+
+  actualizar: (id: string, datos: Record<string, unknown>) =>
+    pedir<Ficha>(`/admin/participantes/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(datos),
+    }),
 
   crear: (datos: Record<string, unknown>) =>
     pedir<{ id: string }>("/admin/participantes", {

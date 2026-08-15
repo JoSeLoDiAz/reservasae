@@ -15,6 +15,15 @@ import {
   TipoPregunta,
 } from '../../generated/prisma';
 import { hashearClave } from '../../src/admin/claves';
+import {
+  CARACTERIZACIONES_SEP,
+  DEPARTAMENTOS_SEP,
+  DOCUMENTOS_DE_PERSONA,
+  GENEROS_SEP,
+  MUNICIPIOS_SEP,
+  NIVELES_OCUPACIONALES_SEP,
+  TAMANOS_EMPRESA_SEP,
+} from '../../src/crm/catalogos-sep';
 import { PLANTILLAS, temasDePlantilla } from '../../src/admin/plantillas-tema';
 import { conValoresPorDefecto } from '../../src/admin/temas';
 
@@ -124,6 +133,13 @@ const NOTAS = [
   'No contesta el celular en tres intentos.',
   'Queda de confirmar con su jefe antes del viernes.',
 ];
+
+const BARRIOS = [
+  'La Candelaria', 'El Poblado', 'Villa del Río', 'San Antonio', 'Los Alcázares',
+  'Modelia', 'Cedritos', 'Vereda El Salitre', 'Barrio Obrero', 'Las Acacias',
+];
+
+const CALLES = ['Calle', 'Carrera', 'Diagonal', 'Transversal', 'Avenida'];
 
 const MOTIVOS_SALIDA = [
   'No contesta después de cinco intentos en dos semanas.',
@@ -261,7 +277,38 @@ async function ponerFechasYPublicar() {
   }
 
   const { count } = await prisma.accionFormacion.updateMany({ data: { visible: true } });
-  console.log(`  ${grupos.length} grupos con fechas · ${count} acciones publicadas`);
+
+  // los ids con que el SEP conoce esto. En produccion los
+  // teclea un admin; aqui se inventan para poder exportar
+  const convenios = await prisma.convenio.findMany({ orderBy: { orden: 'asc' } });
+  for (const [i, convenio] of convenios.entries()) {
+    await prisma.convenio.update({
+      where: { id: convenio.id },
+      data: {
+        sepProyectoId: 2959 + i,
+        sepNombreConviniente: convenio.sigla ?? convenio.nombre,
+      },
+    });
+  }
+
+  const acciones = await prisma.accionFormacion.findMany({ orderBy: { codigo: 'asc' } });
+  for (const [i, accion] of acciones.entries()) {
+    await prisma.accionFormacion.update({
+      where: { id: accion.id },
+      data: { sepAfId: 9087 + i },
+    });
+  }
+
+  for (const [i, grupo] of grupos.entries()) {
+    await prisma.grupo.update({
+      where: { id: grupo.id },
+      data: { sepGrupoId: 17689 + i },
+    });
+  }
+
+  console.log(
+    `  ${grupos.length} grupos con fechas · ${count} acciones publicadas · ids del SEP puestos`,
+  );
 }
 
 async function sembrarPoliticas(convenios: Array<{ id: string; nombre: string }>) {
@@ -511,6 +558,9 @@ async function sembrarEmpresasYReservas(ofertas: OfertaViva[]) {
           red === 'Otro'
             ? unoDe(['ANDI', 'FENALCO', 'ACOPI', 'Cámara de Comercio local'])
             : null,
+        // 6 = Nit en el catalogo del SEP
+        tipoDocumentoSepId: 6,
+        tamanoSepId: unoDe(TAMANOS_EMPRESA_SEP).id,
       },
     });
 
@@ -889,6 +939,9 @@ async function main() {
     const reutilizar = candidatas.length > 0 && azar() < 0.09 ? unoDe(candidatas) : null;
     if (reutilizar) repetidas += 1;
 
+    // un municipio real, con su departamento
+    const domicilio = unoDe(MUNICIPIOS_SEP.filter((m) => m[3]));
+
     const personaId =
       reutilizar ??
       (
@@ -907,6 +960,14 @@ async function main() {
                 .replace(/[̀-ͯ]/g, '') + '@ejemplo.test',
             celular: `3${entre(0, 2)}${entre(1000000, 9999999)}`,
             fechaNacimiento: hace(entre(6_600, 18_000)),
+            // lo que pide el SEP; el asesor completa lo
+            // que falte desde la ficha
+            generoSepId: esMujer ? 2 : unoDe([1, 3]),
+            estrato: entre(1, 6),
+            departamentoSepId: domicilio[1],
+            municipioSepId: domicilio[0],
+            barrio: unoDe(BARRIOS),
+            direccion: `${unoDe(CALLES)} ${entre(1, 180)} #${entre(1, 90)}-${entre(1, 99)}`,
           },
           select: { id: true },
         })
@@ -930,6 +991,8 @@ async function main() {
             ]),
         asesorId: asesor?.id ?? null,
         cargoEnEmpresa: azar() < 0.8 ? unoDe(CARGOS) : null,
+        nivelOcupacionalSepId: unoDe(NIVELES_OCUPACIONALES_SEP).id,
+        beneficiarioPrevio: azar() < 0.18,
         creadoEn: hace(diasDesdeAlta),
         personaId,
         // el CHECK exige la fecha en el propio INSERT

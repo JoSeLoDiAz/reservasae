@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 
+import { DatosSena } from "@/components/admin/datos-sena";
 import { PildoraEtapa } from "@/components/admin/etapa";
 import {
   Aviso,
@@ -150,6 +151,8 @@ export default function PaginaFicha() {
       </Tarjeta>
 
       <Asignacion ficha={f} opciones={opciones} alGuardar={conError} />
+
+      <DatosSena ficha={f} alGuardar={conError} />
 
       <Tarjeta
         titulo="Autorización de tratamiento de datos"

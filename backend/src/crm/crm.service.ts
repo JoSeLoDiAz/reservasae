@@ -17,13 +17,17 @@ import {
   DOCUMENTOS_DE_EMPRESA,
   DOCUMENTOS_DE_PERSONA,
   EDAD_MINIMA,
+  edadCumplida,
+  esValorValido,
   ESTRATO_MAXIMO,
   ESTRATO_MINIMO,
   GENEROS_SEP,
+  municipioCuadra,
   MUNICIPIOS_SEP,
   NIVELES_OCUPACIONALES_SEP,
   siglaDocumento,
   TAMANOS_EMPRESA_SEP,
+  type ValorSep,
 } from './catalogos-sep';
 import { PrismaService } from '../prisma/prisma.service';
 import {
@@ -393,6 +397,31 @@ export class CrmService {
     });
     if (!p) throw new NotFoundException('Ese participante no existe.');
 
+    // el id tiene que existir en el catalogo del SEP, o
+    // el cargue sale con un numero que no significa nada
+    for (const [lista, valor, que] of [
+      [GENEROS_SEP, dto.generoSepId, 'género'],
+      [NIVELES_OCUPACIONALES_SEP, dto.nivelOcupacionalSepId, 'nivel ocupacional'],
+      [DEPARTAMENTOS_SEP, dto.departamentoSepId, 'departamento'],
+    ] as const) {
+      if (!esValorValido(lista as ValorSep[], valor)) {
+        throw new BadRequestException(`Ese ${que} no está en el catálogo del SEP.`);
+      }
+    }
+
+    if (!municipioCuadra(dto.departamentoSepId, dto.municipioSepId)) {
+      throw new BadRequestException('Ese municipio no pertenece a ese departamento.');
+    }
+
+    if (dto.fechaNacimiento) {
+      const edad = edadCumplida(new Date(dto.fechaNacimiento));
+      if (edad < EDAD_MINIMA) {
+        throw new BadRequestException(
+          `No se admiten menores de ${EDAD_MINIMA} años en esta formación.`,
+        );
+      }
+    }
+
     const dePersona = {
       primerNombre: dto.primerNombre,
       segundoNombre: dto.segundoNombre,
@@ -402,6 +431,12 @@ export class CrmService {
       correo: dto.correo,
       celular: dto.celular,
       fechaNacimiento: dto.fechaNacimiento ? new Date(dto.fechaNacimiento) : undefined,
+      generoSepId: dto.generoSepId,
+      estrato: dto.estrato,
+      departamentoSepId: dto.departamentoSepId,
+      municipioSepId: dto.municipioSepId,
+      barrio: dto.barrio,
+      direccion: dto.direccion,
     };
 
     await this.prisma.$transaction([
@@ -412,6 +447,8 @@ export class CrmService {
           cargoEnEmpresa: dto.cargoEnEmpresa,
           nivelEducativo: dto.nivelEducativo,
           nivelOcupacional: dto.nivelOcupacional,
+          nivelOcupacionalSepId: dto.nivelOcupacionalSepId,
+          beneficiarioPrevio: dto.beneficiarioPrevio,
           asesorId: dto.asesorId,
           coberturaId: dto.coberturaId,
         },
