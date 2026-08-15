@@ -90,20 +90,20 @@ export default function PaginaSep() {
 
           <Tarjeta
             titulo="Descargar"
-            descripcion="Las filas que no están listas no salen con huecos: van en una segunda hoja, con su motivo."
+            descripcion="El de control es para revisar y pasar; el del SEP es el que se sube. Las filas que no están listas no salen con huecos: van en una segunda hoja, con su motivo."
           >
             <div className="flex flex-wrap gap-3">
               <Boton
                 disabled={datos.listos === 0}
                 onClick={() => descargarSep(convenioId, "uso-directo")}
               >
-                Uso directo · 27 columnas
+                Reporte de control
               </Boton>
               <Boton
                 disabled={datos.listos === 0}
                 onClick={() => descargarSep(convenioId, "cargue-sep")}
               >
-                Cargue del SEP · 54 columnas
+                Reporte al SEP
               </Boton>
             </div>
             {datos.listos === 0 && (

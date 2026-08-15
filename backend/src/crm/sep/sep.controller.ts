@@ -32,6 +32,6 @@ export class SepController {
       cual,
       Number(ano) || new Date().getFullYear(),
     );
-    enviarLibro(res, libro, cual === 'cargue-sep' ? 'cargue-sep' : 'uso-directo');
+    enviarLibro(res, libro, cual === 'cargue-sep' ? 'reporte-sep' : 'reporte-control');
   }
 }
