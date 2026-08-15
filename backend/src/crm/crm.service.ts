@@ -41,6 +41,28 @@ const ETAPAS_VIVAS: EtapaParticipante[] = [
 /// De estas no se sale sin explicar por que.
 const ETAPAS_CON_MOTIVO: EtapaParticipante[] = ['PERDIDO', 'RETIRADO', 'NO_APROBO'];
 
+/// Quien ya piso el aula y por tanto tiene avance.
+const ETAPAS_EN_AULA: EtapaParticipante[] = [
+  'EN_FORMACION',
+  'CERTIFICADO',
+  'NO_APROBO',
+  'RETIRADO',
+];
+
+/// Cuantas actividades de retraso se toleran.
+const TOLERANCIA = 2;
+/// Dias sin entrar al aula a partir de los que esta parado.
+const DIAS_PARADO = 14;
+
+type EstadoAcademico =
+  | 'AL_DIA'
+  | 'ATRASADO'
+  | 'PARADO'
+  | 'CERTIFICADO'
+  | 'SALIO'
+  | 'SIN_EMPEZAR'
+  | 'SIN_FECHAS';
+
 @Injectable()
 export class CrmService {
   constructor(private readonly prisma: PrismaService) {}
@@ -612,6 +634,133 @@ export class CrmService {
   }
 
   /** Cupos reservados sin una persona detras. */
+  /**
+   * Seguimiento académico: lo hecho contra lo que tocaría
+   * a estas alturas del calendario del grupo.
+   */
+  async academico(filtros: FiltrosParticipantesDto) {
+    const donde: Prisma.ParticipanteWhereInput = {
+      AND: [
+        this.donde({ ...filtros, etapa: undefined }),
+        { etapa: { in: ETAPAS_EN_AULA } },
+      ],
+    };
+
+    const filas = await this.prisma.participante.findMany({
+      where: donde,
+      orderBy: { creadoEn: 'desc' },
+      take: TOPE_POR_PAGINA,
+      include: {
+        persona: {
+          select: { primerNombre: true, primerApellido: true, numeroDocumento: true },
+        },
+        accionFormacion: { select: { id: true, codigo: true, nombre: true } },
+        asesor: { select: { id: true, nombre: true } },
+        cobertura: {
+          select: {
+            grupo: {
+              select: { numero: true, fechaInicio: true, fechaFin: true, horario: true },
+            },
+          },
+        },
+        avances: {
+          select: { estado: true, actividad: { select: { obligatoria: true } } },
+        },
+      },
+    });
+
+    // las obligatorias son las que cuentan para el avance
+    const obligatorias = await this.prisma.actividad.groupBy({
+      by: ['accionFormacionId'],
+      where: { publicada: true, obligatoria: true },
+      _count: { _all: true },
+    });
+    const totalDe = new Map(obligatorias.map((a) => [a.accionFormacionId, a._count._all]));
+
+    const ahora = Date.now();
+
+    const personas = filas.map((p) => {
+      const total = totalDe.get(p.accionFormacionId ?? '') ?? 0;
+      // solo las obligatorias, que son el denominador
+      const hechas = p.avances.filter(
+        (a) => a.estado === 'APROBADA' && a.actividad.obligatoria,
+      ).length;
+
+      const grupo = p.cobertura?.grupo ?? null;
+      const inicio = grupo?.fechaInicio?.getTime() ?? null;
+      const fin = grupo?.fechaFin?.getTime() ?? null;
+
+      // sin calendario no se puede decir si va tarde
+      let transcurrido: number | null = null;
+      if (inicio !== null && fin !== null && fin > inicio) {
+        transcurrido = Math.min(1, Math.max(0, (ahora - inicio) / (fin - inicio)));
+      }
+
+      const esperadas = transcurrido === null ? null : Math.round(total * transcurrido);
+      const desfase = esperadas === null ? null : hechas - esperadas;
+
+      const diasSinEntrar = p.ultimoAcceso
+        ? Math.floor((ahora - p.ultimoAcceso.getTime()) / 86_400_000)
+        : null;
+
+      let estado: EstadoAcademico;
+      if (p.etapa === 'CERTIFICADO') estado = 'CERTIFICADO';
+      else if (p.etapa === 'NO_APROBO' || p.etapa === 'RETIRADO') estado = 'SALIO';
+      else if (esperadas === null) estado = 'SIN_FECHAS';
+      // sin arrancar no se puede ir tarde
+      else if (inicio !== null && ahora < inicio) estado = 'SIN_EMPEZAR';
+      else if (diasSinEntrar !== null && diasSinEntrar >= DIAS_PARADO) estado = 'PARADO';
+      else if (desfase! <= -TOLERANCIA) estado = 'ATRASADO';
+      else estado = 'AL_DIA';
+
+      return {
+        id: p.id,
+        nombre: `${p.persona.primerNombre} ${p.persona.primerApellido}`,
+        documento: p.persona.numeroDocumento,
+        etapa: p.etapa,
+        accion: p.accionFormacion
+          ? `${p.accionFormacion.codigo} · ${p.accionFormacion.nombre}`
+          : null,
+        accionFormacionId: p.accionFormacionId,
+        grupo: grupo ? grupo.numero : null,
+        fechaInicio: grupo?.fechaInicio ?? null,
+        fechaFin: grupo?.fechaFin ?? null,
+        horario: grupo?.horario ?? null,
+        asesor: p.asesor,
+        total,
+        hechas,
+        esperadas,
+        desfase,
+        porcentaje: total > 0 ? Math.round((hechas / total) * 100) : 0,
+        ultimoAcceso: p.ultimoAcceso,
+        diasSinEntrar,
+        notaFinal: p.notaFinal,
+        estado,
+      };
+    });
+
+    const cuenta = (e: EstadoAcademico) => personas.filter((p) => p.estado === e).length;
+
+    return {
+      personas,
+      resumen: {
+        total: personas.length,
+        alDia: cuenta('AL_DIA'),
+        atrasados: cuenta('ATRASADO'),
+        parados: cuenta('PARADO'),
+        certificados: cuenta('CERTIFICADO'),
+        salieron: cuenta('SALIO'),
+        sinEmpezar: cuenta('SIN_EMPEZAR'),
+        sinFechas: cuenta('SIN_FECHAS'),
+      },
+      // lo que se le exige a "al día", dicho en la pantalla
+      criterio: {
+        tolerancia: TOLERANCIA,
+        diasParado: DIAS_PARADO,
+      },
+    };
+  }
+
   async brecha(convenioId?: string) {
     const reservas = await this.prisma.reserva.findMany({
       where: {

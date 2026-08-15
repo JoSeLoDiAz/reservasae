@@ -102,6 +102,9 @@ export default function PaginaParticipantes() {
           <Link href="/admin/participantes/brecha" className="underline">
             Brecha de nombres
           </Link>
+          <Link href="/admin/participantes/academico" className="underline">
+            Seguimiento académico
+          </Link>
           <Link href="/admin/participantes/carga" className="underline">
             Cargar una lista
           </Link>

@@ -1,0 +1,868 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Registro — CRM de inscripciones</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#F1F3EE;
+    --card:#FFFFFF;
+    --ink:#1E2A3E;
+    --ink-soft:#5B6472;
+    --hairline:#D8DBD2;
+    --hairline-strong:#B9BDB0;
+    --stamp:#B45830;
+
+    --s-nuevo-bg:#EAEAE6; --s-nuevo-fg:#4A4E45; --s-nuevo-line:#C6C9BE;
+    --s-contactado-bg:#E1EBF6; --s-contactado-fg:#1F4E85; --s-contactado-line:#B9D0EC;
+    --s-info-bg:#EAE6F5; --s-info-fg:#4C3A8C; --s-info-line:#CFC5EA;
+    --s-negociacion-bg:#FBEEDD; --s-negociacion-fg:#8A5A12; --s-negociacion-line:#F0D6AC;
+    --s-documentos-bg:#DFF0EA; --s-documentos-fg:#1A6E58; --s-documentos-line:#B7E0D2;
+    --s-pago-bg:#F2E6F1; --s-pago-fg:#7A2E72; --s-pago-line:#E3C4E0;
+    --s-inscrito-bg:#E1F0DC; --s-inscrito-fg:#2C6B1F; --s-inscrito-line:#BEE0B4;
+    --s-perdido-bg:#F7E3E1; --s-perdido-fg:#9C3126; --s-perdido-line:#EEC1BB;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; background:var(--paper); color:var(--ink);
+    font-family:'IBM Plex Sans', sans-serif; font-size:14px; line-height:1.5;
+    -webkit-font-smoothing:antialiased;
+  }
+  h1,h2,h3{font-family:'Fraunces', serif; font-weight:600; margin:0;}
+  .mono{font-family:'IBM Plex Mono', monospace;}
+  .app{max-width:1320px; margin:0 auto; padding:0 28px 60px;}
+
+  /* header */
+  header{padding:28px 0 18px; display:flex; align-items:baseline; justify-content:space-between; flex-wrap:wrap; gap:12px; border-bottom:1px solid var(--hairline-strong);}
+  .brand{display:flex; align-items:baseline; gap:14px;}
+  .brand h1{font-size:26px; letter-spacing:-0.01em;}
+  .brand .sub{color:var(--ink-soft); font-size:13px; font-family:'IBM Plex Mono', monospace;}
+  nav{display:flex; gap:4px; background:var(--card); border:1px solid var(--hairline-strong); border-radius:8px; padding:3px;}
+  nav button{
+    border:none; background:transparent; padding:8px 16px; border-radius:6px; cursor:pointer;
+    font-family:'IBM Plex Sans'; font-size:13px; font-weight:500; color:var(--ink-soft);
+  }
+  nav button.active{background:var(--ink); color:#fff;}
+
+  .toolbar{display:flex; align-items:center; gap:10px; margin:22px 0 18px; flex-wrap:wrap;}
+  .toolbar input[type=text], .toolbar select{
+    border:1px solid var(--hairline-strong); background:var(--card); border-radius:6px; padding:9px 12px;
+    font-family:'IBM Plex Sans'; font-size:13px; color:var(--ink); min-width:160px;
+  }
+  .spacer{flex:1;}
+  .btn{
+    border:1px solid var(--ink); background:var(--ink); color:#fff; border-radius:6px;
+    padding:9px 16px; font-size:13px; font-weight:500; cursor:pointer; font-family:'IBM Plex Sans';
+  }
+  .btn:hover{opacity:0.88;}
+  .btn.ghost{background:transparent; color:var(--ink); border:1px solid var(--hairline-strong);}
+  .btn.danger{background:#9C3126; border-color:#9C3126;}
+
+  /* kanban */
+  .board{display:flex; gap:14px; overflow-x:auto; padding-bottom:10px;}
+  .col{min-width:250px; max-width:250px; background:transparent;}
+  .col-head{
+    display:flex; align-items:center; justify-content:space-between; padding:8px 4px 10px;
+    border-bottom:2px solid var(--line);
+  }
+  .col-head .name{font-size:12.5px; font-weight:600; text-transform:uppercase; letter-spacing:0.04em;}
+  .col-head .count{
+    font-family:'IBM Plex Mono'; font-size:11px; width:22px; height:22px; border-radius:50%;
+    display:flex; align-items:center; justify-content:center; border:1px solid currentColor;
+  }
+  .col-drop{min-height:60px; padding-top:10px; border-radius:8px; transition:background 0.15s;}
+  .col-drop.dragover{background:#00000008;}
+
+  .card{
+    background:var(--card); border:1px solid var(--hairline); border-left:3px solid var(--line);
+    border-radius:6px; padding:11px 12px; margin-bottom:9px; cursor:grab; position:relative;
+  }
+  .card:active{cursor:grabbing;}
+  .card .folio{font-family:'IBM Plex Mono'; font-size:10.5px; color:var(--ink-soft);}
+  .card .nombre{font-weight:600; font-size:13.5px; margin:3px 0 4px;}
+  .card .curso{font-size:12px; color:var(--ink-soft); margin-bottom:6px;}
+  .card .meta{display:flex; justify-content:space-between; align-items:center; font-size:11px; color:var(--ink-soft);}
+  .card .dias{font-family:'IBM Plex Mono';}
+
+  .empty-col{border:1px dashed var(--hairline-strong); border-radius:6px; padding:16px 10px; text-align:center; color:var(--ink-soft); font-size:12px;}
+
+  /* pills */
+  .pill{display:inline-flex; align-items:center; gap:5px; padding:3px 9px; border-radius:20px; font-size:11px; font-weight:500; border:1px solid;}
+
+  /* table */
+  table{width:100%; border-collapse:collapse; background:var(--card); border:1px solid var(--hairline);}
+  thead th{
+    text-align:left; font-size:11px; text-transform:uppercase; letter-spacing:0.04em; color:var(--ink-soft);
+    padding:10px 12px; border-bottom:1px solid var(--hairline-strong); font-weight:600;
+  }
+  tbody td{padding:11px 12px; border-bottom:1px solid var(--hairline); font-size:13px; vertical-align:middle;}
+  tbody tr:hover{background:#00000005; cursor:pointer;}
+  tbody tr:last-child td{border-bottom:none;}
+
+  /* metrics */
+  .grid-metrics{display:grid; grid-template-columns:repeat(auto-fit, minmax(180px,1fr)); gap:12px; margin-bottom:26px;}
+  .metric{background:var(--card); border:1px solid var(--hairline); border-radius:8px; padding:16px 18px;}
+  .metric .label{font-size:11.5px; color:var(--ink-soft); text-transform:uppercase; letter-spacing:0.04em; margin-bottom:8px;}
+  .metric .value{font-family:'Fraunces', serif; font-size:30px; font-weight:600;}
+  .metric .value small{font-size:15px; font-weight:500; color:var(--ink-soft);}
+
+  .panel{background:var(--card); border:1px solid var(--hairline); border-radius:8px; padding:20px 22px; margin-bottom:16px;}
+  .panel h3{font-size:15px; margin-bottom:14px;}
+  .bar-row{display:grid; grid-template-columns:150px 1fr 46px; align-items:center; gap:10px; margin-bottom:9px; font-size:12.5px;}
+  .bar-row .label{color:var(--ink);}
+  .bar-track{background:#0000000A; height:9px; border-radius:5px; overflow:hidden;}
+  .bar-fill{height:100%; border-radius:5px;}
+  .bar-row .num{font-family:'IBM Plex Mono'; text-align:right; color:var(--ink-soft);}
+
+  /* modal */
+  .overlay{position:fixed; inset:0; background:#1E2A3E66; display:flex; align-items:flex-start; justify-content:center; padding:40px 20px; overflow-y:auto; z-index:50;}
+  .modal{background:var(--card); border-radius:10px; width:100%; max-width:520px; padding:26px 28px; margin-top:10px;}
+  .modal h2{font-size:19px; margin-bottom:18px;}
+  .field{margin-bottom:13px;}
+  .field label{display:block; font-size:11.5px; color:var(--ink-soft); text-transform:uppercase; letter-spacing:0.03em; margin-bottom:5px;}
+  .field input, .field select, .field textarea{
+    width:100%; border:1px solid var(--hairline-strong); border-radius:6px; padding:9px 11px;
+    font-family:'IBM Plex Sans'; font-size:13.5px; color:var(--ink); background:#fff;
+  }
+  .field textarea{resize:vertical; min-height:60px;}
+  .row2{display:grid; grid-template-columns:1fr 1fr; gap:12px;}
+  .modal-actions{display:flex; justify-content:flex-end; gap:8px; margin-top:20px;}
+  .err{color:#9C3126; font-size:12px; margin-top:4px; display:none;}
+
+  .detail-head{display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:4px;}
+  .detail-folio{font-family:'IBM Plex Mono'; font-size:11px; color:var(--ink-soft);}
+  .hist{list-style:none; padding:0; margin:0; font-size:12px;}
+  .hist li{padding:6px 0; border-bottom:1px solid var(--hairline); display:flex; justify-content:space-between; color:var(--ink-soft);}
+  .hist li:last-child{border-bottom:none;}
+  .note{background:var(--paper); border-radius:6px; padding:9px 11px; margin-bottom:7px; font-size:12.5px;}
+  .note .when{font-family:'IBM Plex Mono'; font-size:10.5px; color:var(--ink-soft); margin-bottom:3px;}
+  .close-x{background:none; border:none; font-size:20px; color:var(--ink-soft); cursor:pointer; line-height:1;}
+  .empty-state{text-align:center; padding:60px 20px; color:var(--ink-soft);}
+  .empty-state h3{color:var(--ink); margin-bottom:8px;}
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div class="brand">
+      <h1>Registro</h1>
+      <span class="sub">CRM de inscripciones</span>
+    </div>
+    <nav id="tabs">
+      <button data-tab="tablero" class="active">Tablero</button>
+      <button data-tab="contactos">Contactos</button>
+      <button data-tab="cupos">Cupos</button>
+      <button data-tab="metricas">Métricas</button>
+    </nav>
+  </header>
+
+  <div id="view"></div>
+</div>
+
+<div id="modalRoot"></div>
+
+<script>
+const STAGES = [
+  {id:'nuevo', label:'Nuevo', bg:'--s-nuevo-bg', fg:'--s-nuevo-fg', line:'--s-nuevo-line'},
+  {id:'contactado', label:'Contactado', bg:'--s-contactado-bg', fg:'--s-contactado-fg', line:'--s-contactado-line'},
+  {id:'info', label:'Información enviada', bg:'--s-info-bg', fg:'--s-info-fg', line:'--s-info-line'},
+  {id:'negociacion', label:'En negociación', bg:'--s-negociacion-bg', fg:'--s-negociacion-fg', line:'--s-negociacion-line'},
+  {id:'documentos', label:'Documentos', bg:'--s-documentos-bg', fg:'--s-documentos-fg', line:'--s-documentos-line'},
+  {id:'pago', label:'Pago realizado', bg:'--s-pago-bg', fg:'--s-pago-fg', line:'--s-pago-line'},
+  {id:'inscrito', label:'Inscrito', bg:'--s-inscrito-bg', fg:'--s-inscrito-fg', line:'--s-inscrito-line'},
+  {id:'perdido', label:'Perdido', bg:'--s-perdido-bg', fg:'--s-perdido-fg', line:'--s-perdido-line'},
+];
+const stageById = id => STAGES.find(s=>s.id===id);
+const ORIGENES = ['Redes sociales','Referido','Sitio web','Feria o evento','Llamada entrante','Otro'];
+const DEPARTAMENTOS = ['Amazonas','Antioquia','Arauca','Atlántico','Bogotá D.C.','Bolívar','Boyacá','Caldas','Caquetá','Casanare','Cauca','Cesar','Chocó','Córdoba','Cundinamarca','Guainía','Guaviare','Huila','La Guajira','Magdalena','Meta','Nariño','Norte de Santander','Putumayo','Quindío','Risaralda','San Andrés y Providencia','Santander','Sucre','Tolima','Valle del Cauca','Vaupés','Vichada'];
+
+let state = { contacts: [], programas: [], tab: 'tablero', search: '', filterAsesor: '', lastSync: null };
+
+function css(varName){ return getComputedStyle(document.documentElement).getPropertyValue(varName); }
+function fmtDate(iso){ const d=new Date(iso); return d.toLocaleDateString('es-CO',{day:'2-digit',month:'short'}); }
+function daysBetween(a,b){ return Math.round((new Date(b)-new Date(a))/86400000); }
+function uid(){ return 'c'+Math.random().toString(36).slice(2,10); }
+
+async function loadData(){
+  try{
+    const r = await window.storage.get('crm_contacts', false);
+    if(r && r.value){ const parsed = JSON.parse(r.value); state.contacts = parsed.contacts||[]; }
+    else { seedDemo(); await saveData(); }
+  }catch(e){ seedDemo(); await saveData(); }
+  await loadProgramas(true);
+  render();
+  setInterval(()=>loadProgramas(false), 6000);
+}
+async function saveData(){
+  try{ await window.storage.set('crm_contacts', JSON.stringify({contacts:state.contacts}), false); }
+  catch(e){ console.error('No se pudo guardar', e); }
+}
+
+async function loadProgramas(isInitial){
+  try{
+    const r = await window.storage.get('crm_programas', true);
+    if(r && r.value){ state.programas = JSON.parse(r.value); }
+    else if(isInitial){ seedProgramas(); await saveProgramas(); }
+  }catch(e){ if(isInitial){ seedProgramas(); await saveProgramas(); } }
+  state.lastSync = new Date();
+  if(state.tab==='cupos') render();
+}
+async function saveProgramas(){
+  try{ await window.storage.set('crm_programas', JSON.stringify(state.programas), true); }
+  catch(e){ console.error('No se pudo guardar cupos', e); }
+  state.lastSync = new Date();
+}
+
+function seedDemo(){
+  const now = Date.now();
+  const mk = (documento,nombre,curso,departamento,origen,asesor,etapa,diasAtras,perdidoMotivo)=>{
+    const created = new Date(now - diasAtras*86400000).toISOString();
+    const hist = [{etapa:'nuevo', fecha:created}];
+    if(etapa!=='nuevo') hist.push({etapa, fecha:new Date(now - Math.max(diasAtras-2,0)*86400000).toISOString()});
+    return {
+      id:uid(), documento,
+      nombre, telefono:'300 000 0000', email:nombre.toLowerCase().replace(' ','.')+'@correo.com',
+      curso, departamento, origen, asesor, etapa, fecha_creacion:created, historial:hist,
+      notas: perdidoMotivo? [{texto:'Motivo de pérdida: '+perdidoMotivo, fecha:new Date().toISOString()}] : []
+    };
+  };
+  state.contacts = [
+    mk('1019456782','Laura Gómez','Curso de Excel avanzado','Cundinamarca','Redes sociales','Ana',"inscrito",14),
+    mk('1024789531','Andrés Pinzón','Diplomado en Marketing','Antioquia','Sitio web','Carlos',"documentos",6),
+    mk('52984671','Camila Rojas','Curso de Excel avanzado','Cundinamarca','Referido','Ana',"pago",8),
+    mk('80235974','Julián Torres','Diplomado en Marketing','Antioquia','Feria o evento','Carlos',"negociacion",4),
+    mk('1032897654','Sofía Martínez','Inglés intensivo','Valle del Cauca','Redes sociales','Ana',"contactado",2),
+    mk('1140239876','David León','Inglés intensivo','Valle del Cauca','Llamada entrante','Carlos',"nuevo",1),
+    mk('43219876','Paula Herrera','Curso de Excel avanzado','Cundinamarca','Sitio web','Ana',"perdido",10,'No respondió'),
+    mk('79654321','Miguel Suárez','Diplomado en Marketing','Antioquia','Referido','Carlos',"inscrito",20),
+  ];
+}
+
+function seedProgramas(){
+  state.programas = [
+    {id:uid(), departamento:'Cundinamarca', curso:'Curso de Excel avanzado', cupos_totales:20, cupos_ocupados:1},
+    {id:uid(), departamento:'Bogotá D.C.', curso:'Curso de Excel avanzado', cupos_totales:10, cupos_ocupados:9},
+    {id:uid(), departamento:'Nariño', curso:'Curso de Excel avanzado', cupos_totales:5, cupos_ocupados:5},
+    {id:uid(), departamento:'Antioquia', curso:'Diplomado en Marketing', cupos_totales:15, cupos_ocupados:1},
+    {id:uid(), departamento:'Valle del Cauca', curso:'Inglés intensivo', cupos_totales:25, cupos_ocupados:0},
+  ];
+}
+
+function switchTab(tab){ state.tab = tab; document.querySelectorAll('#tabs button').forEach(b=>b.classList.toggle('active', b.dataset.tab===tab)); render(); }
+document.getElementById('tabs').addEventListener('click', e=>{ if(e.target.tagName==='BUTTON') switchTab(e.target.dataset.tab); });
+
+function filteredContacts(){
+  return state.contacts.filter(c=>{
+    const s = state.search.trim().toLowerCase();
+    const matchSearch = !s || c.nombre.toLowerCase().includes(s) || c.curso.toLowerCase().includes(s) || (c.documento||'').toLowerCase().includes(s);
+    const matchAsesor = !state.filterAsesor || c.asesor===state.filterAsesor;
+    return matchSearch && matchAsesor;
+  });
+}
+function asesoresList(){ return [...new Set(state.contacts.map(c=>c.asesor).filter(Boolean))]; }
+
+function render(){
+  const view = document.getElementById('view');
+  if(state.tab==='tablero') view.innerHTML = renderTablero();
+  else if(state.tab==='contactos') view.innerHTML = renderContactos();
+  else if(state.tab==='cupos') view.innerHTML = renderCupos();
+  else view.innerHTML = renderMetricas();
+  attachViewHandlers();
+}
+
+function renderToolbar(){
+  const asesores = asesoresList();
+  return `
+    <div class="toolbar">
+      <input type="text" id="searchInput" placeholder="Buscar por nombre, curso o número de documento" value="${state.search}">
+      <select id="asesorFilter">
+        <option value="">Todos los asesores</option>
+        ${asesores.map(a=>`<option value="${a}" ${a===state.filterAsesor?'selected':''}>${a}</option>`).join('')}
+      </select>
+      <div class="spacer"></div>
+      ${state.contacts.length>1 ? `<button class="btn ghost" id="btnMerge">Fusionar duplicados</button>` : ''}
+      <button class="btn" id="btnAdd">+ Nuevo contacto</button>
+    </div>`;
+}
+
+function renderTablero(){
+  const contacts = filteredContacts();
+  const cols = STAGES.map(st=>{
+    const items = contacts.filter(c=>c.etapa===st.id);
+    const cards = items.length ? items.map(c=>{
+      const days = daysBetween(c.fecha_creacion, new Date().toISOString());
+      return `
+      <div class="card" draggable="true" data-id="${c.id}" style="--line:var(${st.line})" data-open="${c.id}">
+        <div class="folio">CC ${escapeHtml(c.documento)}</div>
+        <div class="nombre">${escapeHtml(c.nombre)}</div>
+        <div class="curso">${escapeHtml(c.curso)}</div>
+        <div class="curso" style="margin-top:-4px; color:var(--ink-soft);">${escapeHtml(c.departamento||'—')}</div>
+        <div class="meta"><span>${escapeHtml(c.asesor||'Sin asignar')}</span><span class="dias">${days}d</span></div>
+      </div>`;
+    }).join('') : `<div class="empty-col">Sin contactos</div>`;
+    return `
+      <div class="col">
+        <div class="col-head" style="--line:var(${st.line}); color:var(${st.fg})">
+          <span class="name">${st.label}</span>
+          <span class="count">${items.length}</span>
+        </div>
+        <div class="col-drop" data-stage="${st.id}">${cards}</div>
+      </div>`;
+  }).join('');
+  return renderToolbar() + `<div class="board">${cols}</div>`;
+}
+
+function renderContactos(){
+  const contacts = filteredContacts().slice().sort((a,b)=> new Date(b.fecha_creacion)-new Date(a.fecha_creacion));
+  const rows = contacts.length ? contacts.map(c=>{
+    const st = stageById(c.etapa);
+    return `<tr data-open="${c.id}">
+      <td class="mono">${escapeHtml(c.documento)}</td>
+      <td>${escapeHtml(c.nombre)}</td>
+      <td>${escapeHtml(c.curso)}</td>
+      <td>${escapeHtml(c.departamento||'—')}</td>
+      <td><span class="pill" style="background:var(${st.bg}); color:var(${st.fg}); border-color:var(${st.line})">${st.label}</span></td>
+      <td>${escapeHtml(c.asesor||'—')}</td>
+      <td>${escapeHtml(c.origen)}</td>
+      <td class="mono">${fmtDate(c.fecha_creacion)}</td>
+    </tr>`;
+  }).join('') : `<tr><td colspan="8" style="text-align:center; color:var(--ink-soft); padding:30px;">No hay contactos con estos filtros.</td></tr>`;
+  return renderToolbar() + `
+    <table>
+      <thead><tr><th>No. documento</th><th>Nombre</th><th>Curso</th><th>Departamento</th><th>Etapa</th><th>Asesor</th><th>Origen</th><th>Ingreso</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+}
+
+function cupoStatus(programa){
+  const disponibles = Math.max(0, programa.cupos_totales - programa.cupos_ocupados);
+  const pct = programa.cupos_totales ? programa.cupos_ocupados / programa.cupos_totales : 0;
+  let estado = 'Disponible', tono = '--s-inscrito';
+  if(disponibles<=0){ estado='Cupo lleno'; tono='--s-perdido'; }
+  else if(pct>=0.8){ estado='Últimos cupos'; tono='--s-negociacion'; }
+  return { disponibles, pct: Math.min(100, Math.round(pct*100)), estado, bg:`var(${tono}-bg)`, fg:`var(${tono}-fg)`, line:`var(${tono}-line)` };
+}
+function findPrograma(departamento, curso){
+  return state.programas.find(p=>p.departamento===departamento && normName(p.curso)===normName(curso));
+}
+function secsAgo(){
+  if(!state.lastSync) return '';
+  const s = Math.max(0, Math.round((Date.now()-state.lastSync.getTime())/1000));
+  return s<5 ? 'justo ahora' : `hace ${s}s`;
+}
+
+function renderCupos(){
+  const byDept = {};
+  state.programas.forEach(p=>{ (byDept[p.departamento]=byDept[p.departamento]||[]).push(p); });
+  const deptos = Object.keys(byDept).sort();
+
+  const header = `
+    <div class="toolbar">
+      <span style="font-size:12px; color:var(--ink-soft);">
+        <span class="mono" style="display:inline-block; width:7px; height:7px; border-radius:50%; background:${css('--s-inscrito-fg')}; margin-right:5px;"></span>
+        Cupos compartidos entre asesores · actualizado ${secsAgo()}
+      </span>
+      <div class="spacer"></div>
+      <button class="btn ghost" id="btnAddPrograma">+ Nueva acción de formación</button>
+    </div>`;
+
+  if(!deptos.length){
+    return header + `<div class="empty-state"><h3>Aún no hay cupos configurados</h3><p>Crea una acción de formación con su departamento y cupos disponibles.</p></div>`;
+  }
+
+  const secciones = deptos.map(dep=>{
+    const filas = byDept[dep].map(p=>{
+      const s = cupoStatus(p);
+      return `
+      <div class="panel" data-open-programa="${p.id}" style="cursor:pointer; margin-bottom:10px; padding:14px 18px;">
+        <div class="bar-row" style="grid-template-columns:1fr auto; margin-bottom:8px;">
+          <span style="font-weight:500; font-size:13.5px;">${escapeHtml(p.curso)}</span>
+          <span class="pill" style="background:${s.bg}; color:${s.fg}; border-color:${s.line}">${s.estado}</span>
+        </div>
+        <div class="bar-row" style="grid-template-columns:1fr 70px;">
+          <div class="bar-track"><div class="bar-fill" style="width:${s.pct}%; background:${s.fg}"></div></div>
+          <span class="num">${s.disponibles}/${p.cupos_totales}</span>
+        </div>
+      </div>`;
+    }).join('');
+    return `<h3 style="font-size:15px; margin:20px 0 10px;">${dep}</h3>${filas}`;
+  }).join('');
+
+  return header + secciones;
+}
+
+function renderMetricas(){
+  const all = state.contacts;
+  const total = all.length;
+  const inscritos = all.filter(c=>c.etapa==='inscrito');
+  const perdidos = all.filter(c=>c.etapa==='perdido');
+  const activos = total - inscritos.length - perdidos.length;
+  const tasaConv = total ? Math.round((inscritos.length/total)*100) : 0;
+  const tasaPerd = total ? Math.round((perdidos.length/total)*100) : 0;
+
+  let tiempoProm = '—';
+  const tiempos = inscritos.map(c=>{
+    const h = c.historial.find(h=>h.etapa==='inscrito');
+    return h ? daysBetween(c.fecha_creacion, h.fecha) : null;
+  }).filter(v=>v!==null);
+  if(tiempos.length) tiempoProm = Math.round(tiempos.reduce((a,b)=>a+b,0)/tiempos.length);
+
+  const metricCards = `
+    <div class="grid-metrics">
+      <div class="metric"><div class="label">Total de leads</div><div class="value mono">${total}</div></div>
+      <div class="metric"><div class="label">Inscritos</div><div class="value mono">${inscritos.length}</div></div>
+      <div class="metric"><div class="label">Tasa de conversión</div><div class="value mono">${tasaConv}<small>%</small></div></div>
+      <div class="metric"><div class="label">Tasa de pérdida</div><div class="value mono">${tasaPerd}<small>%</small></div></div>
+      <div class="metric"><div class="label">En proceso</div><div class="value mono">${activos}</div></div>
+      <div class="metric"><div class="label">Días prom. a inscripción</div><div class="value mono">${tiempoProm}${tiempos.length?'<small> días</small>':''}</div></div>
+    </div>`;
+
+  const funnel = `<div class="panel"><h3>Embudo por etapa</h3>${
+    STAGES.map(st=>{
+      const n = all.filter(c=>c.etapa===st.id).length;
+      const pct = total ? Math.round((n/total)*100) : 0;
+      return `<div class="bar-row">
+        <span class="label">${st.label}</span>
+        <div class="bar-track"><div class="bar-fill" style="width:${pct}%; background:var(${st.fg})"></div></div>
+        <span class="num">${n}</span>
+      </div>`;
+    }).join('')
+  }</div>`;
+
+  const origenGroups = {};
+  all.forEach(c=>{ origenGroups[c.origen]=(origenGroups[c.origen]||0)+1; });
+  const maxOrigen = Math.max(1,...Object.values(origenGroups));
+  const origenPanel = `<div class="panel"><h3>Leads por origen</h3>${
+    Object.keys(origenGroups).length? Object.entries(origenGroups).sort((a,b)=>b[1]-a[1]).map(([k,v])=>`
+      <div class="bar-row">
+        <span class="label">${k}</span>
+        <div class="bar-track"><div class="bar-fill" style="width:${Math.round(v/maxOrigen*100)}%; background:${css('--stamp')}"></div></div>
+        <span class="num">${v}</span>
+      </div>`).join('') : '<p style="color:var(--ink-soft); font-size:13px;">Aún no hay datos.</p>'
+  }</div>`;
+
+  const asesores = asesoresList();
+  const asesorPanel = `<div class="panel"><h3>Conversión por asesor</h3>${
+    asesores.length ? asesores.map(a=>{
+      const suyos = all.filter(c=>c.asesor===a);
+      const suyosInscritos = suyos.filter(c=>c.etapa==='inscrito').length;
+      const pct = suyos.length ? Math.round(suyosInscritos/suyos.length*100) : 0;
+      return `<div class="bar-row">
+        <span class="label">${a} <span class="mono" style="color:var(--ink-soft)">(${suyos.length})</span></span>
+        <div class="bar-track"><div class="bar-fill" style="width:${pct}%; background:${css('--ink')}"></div></div>
+        <span class="num">${pct}%</span>
+      </div>`;
+    }).join('') : '<p style="color:var(--ink-soft); font-size:13px;">Aún no hay asesores asignados.</p>'
+  }</div>`;
+
+  return metricCards + funnel + origenPanel + asesorPanel;
+}
+
+function escapeHtml(s){ return (s||'').replace(/[&<>"']/g, m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
+
+function attachViewHandlers(){
+  const search = document.getElementById('searchInput');
+  if(search){ search.addEventListener('input', e=>{ state.search=e.target.value; render(); document.getElementById('searchInput').focus(); document.getElementById('searchInput').selectionStart = document.getElementById('searchInput').value.length; }); }
+  const asesorFilter = document.getElementById('asesorFilter');
+  if(asesorFilter){ asesorFilter.addEventListener('change', e=>{ state.filterAsesor=e.target.value; render(); }); }
+  const btnAdd = document.getElementById('btnAdd');
+  if(btnAdd){ btnAdd.addEventListener('click', openAddModal); }
+  const btnMerge = document.getElementById('btnMerge');
+  if(btnMerge){ btnMerge.addEventListener('click', openMergeModal); }
+  const btnAddPrograma = document.getElementById('btnAddPrograma');
+  if(btnAddPrograma){ btnAddPrograma.addEventListener('click', ()=>openProgramaModal(null)); }
+  document.querySelectorAll('[data-open-programa]').forEach(el=>{
+    el.addEventListener('click', ()=> openProgramaModal(el.dataset.openPrograma));
+  });
+
+  document.querySelectorAll('[data-open]').forEach(el=>{
+    el.addEventListener('click', ()=> openDetailModal(el.dataset.open));
+  });
+
+  document.querySelectorAll('.card').forEach(card=>{
+    card.addEventListener('dragstart', e=>{ e.dataTransfer.setData('text/plain', card.dataset.id); });
+  });
+  document.querySelectorAll('.col-drop').forEach(col=>{
+    col.addEventListener('dragover', e=>{ e.preventDefault(); col.classList.add('dragover'); });
+    col.addEventListener('dragleave', ()=> col.classList.remove('dragover'));
+    col.addEventListener('drop', e=>{
+      e.preventDefault(); col.classList.remove('dragover');
+      const id = e.dataTransfer.getData('text/plain');
+      moveStage(id, col.dataset.stage);
+    });
+  });
+}
+
+function moveStage(id, newStage){
+  const c = state.contacts.find(c=>c.id===id);
+  if(!c || c.etapa===newStage) return;
+  if(newStage==='perdido'){
+    const motivo = prompt('¿Cuál fue el motivo de la pérdida? (opcional)');
+    if(motivo) c.notas.push({texto:'Motivo de pérdida: '+motivo, fecha:new Date().toISOString()});
+  }
+  if(newStage==='inscrito' && !checkCupoDisponible(c.departamento, c.curso)) return;
+  const eraInscrito = c.etapa==='inscrito';
+  c.etapa = newStage;
+  c.historial.push({etapa:newStage, fecha:new Date().toISOString()});
+  if(newStage==='inscrito' && !eraInscrito) adjustCupoOcupado(c.departamento, c.curso, 1);
+  else if(eraInscrito && newStage!=='inscrito') adjustCupoOcupado(c.departamento, c.curso, -1);
+  saveData(); render();
+}
+
+function adjustCupoOcupado(departamento, curso, delta){
+  const p = findPrograma(departamento, curso);
+  if(!p) return;
+  p.cupos_ocupados = Math.max(0, p.cupos_ocupados + delta);
+  saveProgramas();
+}
+
+function checkCupoDisponible(departamento, curso){
+  const p = findPrograma(departamento, curso);
+  if(!p) return true;
+  const disponibles = p.cupos_totales - p.cupos_ocupados;
+  if(disponibles<=0){
+    return confirm(`No quedan cupos disponibles para "${curso}" en ${departamento} (${p.cupos_ocupados}/${p.cupos_totales} ocupados). ¿Inscribir de todas formas?`);
+  }
+  return true;
+}
+
+function openProgramaModal(id){
+  const existing = id ? state.programas.find(p=>p.id===id) : null;
+  const cursosConocidos = [...new Set(state.contacts.map(c=>c.curso).concat(state.programas.map(p=>p.curso)).filter(Boolean))];
+  const html = `
+    <div class="overlay" id="overlay">
+      <div class="modal">
+        <h2>${existing ? 'Editar acción de formación' : 'Nueva acción de formación'}</h2>
+        <div class="field"><label>Departamento *</label>
+          <select id="p_departamento">${DEPARTAMENTOS.map(d=>`<option ${existing && existing.departamento===d ?'selected':''}>${d}</option>`).join('')}</select>
+        </div>
+        <div class="field"><label>Acción de formación / curso *</label>
+          <input type="text" id="p_curso" list="cursosList" value="${existing?escapeHtml(existing.curso):''}">
+          <datalist id="cursosList">${cursosConocidos.map(c=>`<option value="${escapeHtml(c)}">`).join('')}</datalist>
+          <div class="err" id="err_p_curso">Ya existe un cupo configurado para esta acción de formación en este departamento.</div>
+        </div>
+        <div class="row2">
+          <div class="field"><label>Cupos totales *</label><input type="number" min="1" id="p_cupos_totales" value="${existing?existing.cupos_totales:20}"></div>
+          <div class="field"><label>Cupos ya ocupados</label><input type="number" min="0" id="p_cupos_ocupados" value="${existing?existing.cupos_ocupados:0}"></div>
+        </div>
+        <p style="font-size:12px; color:var(--ink-soft);">Los cupos ocupados se ajustan solos cuando un contacto pasa a "Inscrito", pero puedes corregirlos aquí manualmente.</p>
+        <div class="modal-actions">
+          ${existing ? `<button class="btn danger" id="btnDeletePrograma">Eliminar</button><div class="spacer"></div>` : ''}
+          <button class="btn ghost" id="btnCancelP">Cancelar</button>
+          <button class="btn" id="btnSaveP">${existing?'Guardar cambios':'Crear'}</button>
+        </div>
+      </div>
+    </div>`;
+  document.getElementById('modalRoot').innerHTML = html;
+  document.getElementById('btnCancelP').addEventListener('click', closeModal);
+  document.getElementById('overlay').addEventListener('click', e=>{ if(e.target.id==='overlay') closeModal(); });
+  const btnDel = document.getElementById('btnDeletePrograma');
+  if(btnDel){ btnDel.addEventListener('click', ()=>{
+    if(confirm('¿Eliminar esta acción de formación? Ya no se controlarán sus cupos.')){
+      state.programas = state.programas.filter(p=>p.id!==existing.id);
+      saveProgramas(); closeModal(); render();
+    }
+  }); }
+  document.getElementById('btnSaveP').addEventListener('click', ()=>{
+    const departamento = document.getElementById('p_departamento').value;
+    const curso = document.getElementById('p_curso').value.trim();
+    const totales = parseInt(document.getElementById('p_cupos_totales').value, 10);
+    const ocupados = parseInt(document.getElementById('p_cupos_ocupados').value, 10) || 0;
+    const choca = curso && state.programas.some(p=>p.departamento===departamento && normName(p.curso)===normName(curso) && (!existing || p.id!==existing.id));
+    document.getElementById('err_p_curso').style.display = choca ? 'block':'none';
+    if(!curso || choca || !totales || totales<1) return;
+    if(existing){
+      existing.departamento = departamento; existing.curso = curso;
+      existing.cupos_totales = totales; existing.cupos_ocupados = ocupados;
+    } else {
+      state.programas.push({id:uid(), departamento, curso, cupos_totales:totales, cupos_ocupados:ocupados});
+    }
+    saveProgramas(); closeModal(); render();
+  });
+}
+
+function openAddModal(){
+  const html = `
+    <div class="overlay" id="overlay">
+      <div class="modal">
+        <h2>Nuevo contacto</h2>
+        <div class="field"><label>Número de documento *</label><input type="text" id="f_documento" placeholder="Ej. 1019456782"><div class="err" id="err_documento">Ingresa un número de documento válido y único.</div></div>
+        <div class="field"><label>Nombre completo *</label><input type="text" id="f_nombre"><div class="err" id="err_nombre">Ingresa un nombre.</div></div>
+        <div class="row2">
+          <div class="field"><label>Teléfono</label><input type="text" id="f_telefono"></div>
+          <div class="field"><label>Correo</label><input type="text" id="f_email"></div>
+        </div>
+        <div class="field"><label>Curso o programa *</label><input type="text" id="f_curso" list="cursosListAdd"><datalist id="cursosListAdd">${[...new Set(state.programas.map(p=>p.curso))].map(c=>`<option value="${escapeHtml(c)}">`).join('')}</datalist><div class="err" id="err_curso">Ingresa el curso o programa.</div></div>
+        <div class="row2">
+          <div class="field"><label>Departamento *</label>
+            <select id="f_departamento">${DEPARTAMENTOS.map(d=>`<option>${d}</option>`).join('')}</select>
+          </div>
+          <div class="field"><label>Origen</label>
+            <select id="f_origen">${ORIGENES.map(o=>`<option>${o}</option>`).join('')}</select>
+          </div>
+        </div>
+        <div class="field"><label>Asesor</label><input type="text" id="f_asesor" placeholder="Nombre del asesor"></div>
+        <div class="modal-actions">
+          <button class="btn ghost" id="btnCancel">Cancelar</button>
+          <button class="btn" id="btnSave">Guardar contacto</button>
+        </div>
+      </div>
+    </div>`;
+  document.getElementById('modalRoot').innerHTML = html;
+  document.getElementById('btnCancel').addEventListener('click', closeModal);
+  document.getElementById('overlay').addEventListener('click', e=>{ if(e.target.id==='overlay') closeModal(); });
+  document.getElementById('btnSave').addEventListener('click', ()=>{
+    const documento = document.getElementById('f_documento').value.trim();
+    const nombre = document.getElementById('f_nombre').value.trim();
+    const curso = document.getElementById('f_curso').value.trim();
+    const yaExiste = documento && state.contacts.some(c=>c.documento===documento);
+    document.getElementById('err_documento').style.display = (documento && !yaExiste) ? 'none':'block';
+    document.getElementById('err_documento').textContent = yaExiste ? 'Ya existe un contacto con este número de documento.' : 'Ingresa un número de documento válido y único.';
+    document.getElementById('err_nombre').style.display = nombre ? 'none':'block';
+    document.getElementById('err_curso').style.display = curso ? 'none':'block';
+    if(!documento || yaExiste || !nombre || !curso) return;
+    const departamento = document.getElementById('f_departamento').value;
+    const c = {
+      id:uid(), documento,
+      nombre, curso, departamento,
+      telefono:document.getElementById('f_telefono').value.trim(),
+      email:document.getElementById('f_email').value.trim(),
+      origen:document.getElementById('f_origen').value,
+      asesor:document.getElementById('f_asesor').value.trim(),
+      etapa:'nuevo', fecha_creacion:new Date().toISOString(),
+      historial:[{etapa:'nuevo', fecha:new Date().toISOString()}], notas:[]
+    };
+    state.contacts.push(c);
+    saveData(); closeModal(); render();
+  });
+}
+
+function openDetailModal(id){
+  const c = state.contacts.find(c=>c.id===id);
+  if(!c) return;
+  const st = stageById(c.etapa);
+  const html = `
+    <div class="overlay" id="overlay">
+      <div class="modal">
+        <div class="detail-head">
+          <div>
+            <div class="detail-folio">CC ${escapeHtml(c.documento)}</div>
+            <h2 style="margin-top:4px;">${escapeHtml(c.nombre)}</h2>
+          </div>
+          <button class="close-x" id="btnClose">&times;</button>
+        </div>
+        <div class="field" style="margin-top:14px;"><label>Número de documento</label>
+          <input type="text" id="d_documento" value="${escapeHtml(c.documento)}">
+          <div class="err" id="err_d_documento">Ya existe un contacto con este número de documento.</div>
+        </div>
+        <div class="field"><label>Etapa</label>
+          <select id="d_etapa">${STAGES.map(s=>`<option value="${s.id}" ${s.id===c.etapa?'selected':''}>${s.label}</option>`).join('')}</select>
+        </div>
+        <div class="row2">
+          <div class="field"><label>Teléfono</label><input type="text" id="d_telefono" value="${escapeHtml(c.telefono)}"></div>
+          <div class="field"><label>Correo</label><input type="text" id="d_email" value="${escapeHtml(c.email)}"></div>
+        </div>
+        <div class="row2">
+          <div class="field"><label>Curso o programa</label><input type="text" id="d_curso" value="${escapeHtml(c.curso)}"></div>
+          <div class="field"><label>Departamento</label>
+            <select id="d_departamento">${DEPARTAMENTOS.map(d=>`<option ${d===c.departamento?'selected':''}>${d}</option>`).join('')}</select>
+          </div>
+        </div>
+        <div class="row2">
+          <div class="field"><label>Asesor</label><input type="text" id="d_asesor" value="${escapeHtml(c.asesor)}"></div>
+          <div class="field"><label>Origen</label>
+            <select id="d_origen">${ORIGENES.map(o=>`<option ${o===c.origen?'selected':''}>${o}</option>`).join('')}</select>
+          </div>
+        </div>
+
+        <div class="field"><label>Agregar nota</label><textarea id="d_nota" placeholder="Escribe una nota de seguimiento..."></textarea></div>
+        <button class="btn ghost" id="btnNota" style="margin-bottom:16px;">Agregar nota</button>
+
+        ${c.notas.length ? `<div><label style="display:block; font-size:11.5px; color:var(--ink-soft); text-transform:uppercase; margin-bottom:8px;">Historial de notas</label>${c.notas.slice().reverse().map(n=>`<div class="note"><div class="when">${new Date(n.fecha).toLocaleString('es-CO')}</div>${escapeHtml(n.texto)}</div>`).join('')}</div>` : ''}
+
+        <div style="margin-top:14px;"><label style="display:block; font-size:11.5px; color:var(--ink-soft); text-transform:uppercase; margin-bottom:8px;">Movimientos de etapa</label>
+          <ul class="hist">${c.historial.slice().reverse().map(h=>`<li><span>${stageById(h.etapa).label}</span><span class="mono">${new Date(h.fecha).toLocaleDateString('es-CO')}</span></li>`).join('')}</ul>
+        </div>
+
+        <div class="modal-actions">
+          <button class="btn danger" id="btnDelete">Eliminar</button>
+          <div class="spacer"></div>
+          <button class="btn ghost" id="btnCancel2">Cerrar</button>
+          <button class="btn" id="btnSave2">Guardar cambios</button>
+        </div>
+      </div>
+    </div>`;
+  document.getElementById('modalRoot').innerHTML = html;
+  document.getElementById('btnClose').addEventListener('click', closeModal);
+  document.getElementById('btnCancel2').addEventListener('click', closeModal);
+  document.getElementById('overlay').addEventListener('click', e=>{ if(e.target.id==='overlay') closeModal(); });
+  document.getElementById('btnNota').addEventListener('click', ()=>{
+    const txt = document.getElementById('d_nota').value.trim();
+    if(!txt) return;
+    c.notas.push({texto:txt, fecha:new Date().toISOString()});
+    saveData(); openDetailModal(id);
+  });
+  document.getElementById('btnDelete').addEventListener('click', ()=>{
+    if(confirm('¿Eliminar este contacto? Esta acción no se puede deshacer.')){
+      if(c.etapa==='inscrito') adjustCupoOcupado(c.departamento, c.curso, -1);
+      state.contacts = state.contacts.filter(x=>x.id!==id);
+      saveData(); closeModal(); render();
+    }
+  });
+  document.getElementById('btnSave2').addEventListener('click', ()=>{
+    const nuevoDocumento = document.getElementById('d_documento').value.trim();
+    const chocaConOtro = nuevoDocumento && state.contacts.some(x=>x.documento===nuevoDocumento && x.id!==c.id);
+    document.getElementById('err_d_documento').style.display = (nuevoDocumento && !chocaConOtro) ? 'none':'block';
+    if(!nuevoDocumento || chocaConOtro) return;
+    c.documento = nuevoDocumento;
+    const newEtapa = document.getElementById('d_etapa').value;
+    const eraInscrito = c.etapa==='inscrito';
+    if(newEtapa==='inscrito' && !eraInscrito && !checkCupoDisponible(document.getElementById('d_departamento').value, document.getElementById('d_curso').value.trim())) return;
+    if(newEtapa !== c.etapa){
+      if(newEtapa==='perdido'){
+        const motivo = prompt('¿Cuál fue el motivo de la pérdida? (opcional)');
+        if(motivo) c.notas.push({texto:'Motivo de pérdida: '+motivo, fecha:new Date().toISOString()});
+      }
+      c.etapa = newEtapa;
+      c.historial.push({etapa:newEtapa, fecha:new Date().toISOString()});
+    }
+    c.telefono = document.getElementById('d_telefono').value.trim();
+    c.email = document.getElementById('d_email').value.trim();
+    c.curso = document.getElementById('d_curso').value.trim();
+    c.departamento = document.getElementById('d_departamento').value;
+    c.asesor = document.getElementById('d_asesor').value.trim();
+    c.origen = document.getElementById('d_origen').value;
+    if(newEtapa==='inscrito' && !eraInscrito) adjustCupoOcupado(c.departamento, c.curso, 1);
+    else if(eraInscrito && newEtapa!=='inscrito') adjustCupoOcupado(c.departamento, c.curso, -1);
+    saveData(); closeModal(); render();
+  });
+}
+
+function normName(s){ return (s||'').trim().toLowerCase().replace(/\s+/g,' '); }
+
+function findDuplicateGroups(){
+  const byName = {};
+  state.contacts.forEach(c=>{
+    const key = normName(c.nombre);
+    if(!key) return;
+    (byName[key] = byName[key]||[]).push(c);
+  });
+  return Object.values(byName).filter(g=>g.length>1);
+}
+
+function contactLabel(c){
+  const st = stageById(c.etapa);
+  return `${c.documento||'sin documento'} — ${c.nombre} — ${c.curso} (${st.label})`;
+}
+
+function openMergeModal(){
+  const groups = findDuplicateGroups();
+  const options = state.contacts.slice().sort((a,b)=>a.nombre.localeCompare(b.nombre))
+    .map(c=>`<option value="${c.id}">${escapeHtml(contactLabel(c))}</option>`).join('');
+
+  const suggestions = groups.length ? `
+    <div class="field"><label>Posibles duplicados detectados (mismo nombre)</label>
+      ${groups.map(g=>`
+        <div class="note" style="cursor:pointer;" data-suggest="${g[0].id}|${g[1].id}">
+          <strong>${escapeHtml(g[0].nombre)}</strong> — ${g.length} registros con este nombre. Toca para comparar los dos primeros.
+        </div>`).join('')}
+    </div>` : `<p style="color:var(--ink-soft); font-size:13px; margin-bottom:16px;">No se detectaron nombres repetidos, pero puedes fusionar dos contactos manualmente si sabes que son la misma persona.</p>`;
+
+  const html = `
+    <div class="overlay" id="overlay">
+      <div class="modal">
+        <h2>Fusionar contactos duplicados</h2>
+        ${suggestions}
+        <div class="field"><label>Contacto a conservar (queda con este documento y datos)</label>
+          <select id="m_keep">${options}</select>
+        </div>
+        <div class="field"><label>Contacto a fusionar y eliminar</label>
+          <select id="m_remove">${options}</select>
+        </div>
+        <div id="m_preview" style="font-size:12.5px; color:var(--ink-soft); margin-bottom:6px;"></div>
+        <div class="err" id="err_merge">Selecciona dos contactos diferentes.</div>
+        <div class="modal-actions">
+          <button class="btn ghost" id="btnCancel3">Cancelar</button>
+          <button class="btn danger" id="btnMergeConfirm">Fusionar contactos</button>
+        </div>
+      </div>
+    </div>`;
+  document.getElementById('modalRoot').innerHTML = html;
+  document.getElementById('btnCancel3').addEventListener('click', closeModal);
+  document.getElementById('overlay').addEventListener('click', e=>{ if(e.target.id==='overlay') closeModal(); });
+
+  const selKeep = document.getElementById('m_keep');
+  const selRemove = document.getElementById('m_remove');
+  if(state.contacts.length>1) selRemove.selectedIndex = 1;
+  updateMergePreview();
+  selKeep.addEventListener('change', updateMergePreview);
+  selRemove.addEventListener('change', updateMergePreview);
+
+  document.querySelectorAll('[data-suggest]').forEach(el=>{
+    el.addEventListener('click', ()=>{
+      const [keepId, removeId] = el.dataset.suggest.split('|');
+      selKeep.value = keepId; selRemove.value = removeId;
+      updateMergePreview();
+    });
+  });
+
+  function updateMergePreview(){
+    const a = state.contacts.find(c=>c.id===selKeep.value);
+    const b = state.contacts.find(c=>c.id===selRemove.value);
+    const preview = document.getElementById('m_preview');
+    if(!a || !b || a.id===b.id){ preview.textContent=''; return; }
+    const notas = a.notas.length + b.notas.length;
+    preview.textContent = `Quedará "${a.nombre}" (${a.documento||'sin documento'}) con ${notas} nota(s) combinada(s) y todo el historial de etapas de ambos registros.`;
+  }
+
+  document.getElementById('btnMergeConfirm').addEventListener('click', ()=>{
+    const keepId = selKeep.value, removeId = selRemove.value;
+    const errEl = document.getElementById('err_merge');
+    if(!keepId || !removeId || keepId===removeId){ errEl.style.display='block'; return; }
+    errEl.style.display='none';
+    if(confirm('Esto combinará las notas y el historial de ambos contactos en uno solo, y eliminará el segundo. ¿Continuar?')){
+      mergeContacts(keepId, removeId);
+      closeModal(); render();
+    }
+  });
+}
+
+function mergeContacts(keepId, removeId){
+  const keep = state.contacts.find(c=>c.id===keepId);
+  const remove = state.contacts.find(c=>c.id===removeId);
+  if(!keep || !remove) return;
+
+  keep.telefono = keep.telefono || remove.telefono;
+  keep.email = keep.email || remove.email;
+  keep.asesor = keep.asesor || remove.asesor;
+
+  keep.notas = keep.notas.concat(remove.notas.map(n=>({...n, texto:'(Fusionado) '+n.texto})))
+    .sort((x,y)=> new Date(x.fecha)-new Date(y.fecha));
+
+  keep.historial = keep.historial.concat(remove.historial)
+    .sort((x,y)=> new Date(x.fecha)-new Date(y.fecha));
+
+  if(new Date(remove.fecha_creacion) < new Date(keep.fecha_creacion)){
+    keep.fecha_creacion = remove.fecha_creacion;
+  }
+
+  keep.notas.push({texto:`Fusionado con el registro de ${remove.nombre} (${remove.documento||'sin documento'}).`, fecha:new Date().toISOString()});
+
+  if(remove.etapa==='inscrito' && keep.etapa!=='inscrito'){
+    adjustCupoOcupado(remove.departamento, remove.curso, -1);
+  }
+
+  state.contacts = state.contacts.filter(c=>c.id!==removeId);
+  saveData();
+}
+
+function closeModal(){ document.getElementById('modalRoot').innerHTML=''; }
+
+loadData();
+</script>
+</body>
+</html>

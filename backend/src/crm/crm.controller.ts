@@ -43,6 +43,12 @@ export class CrmController {
     return this.crm.brecha(convenioId);
   }
 
+  /** Quién va al día y quién no, contra las fechas del grupo. */
+  @Get('academico')
+  academico(@Query() filtros: FiltrosParticipantesDto) {
+    return this.crm.academico(filtros);
+  }
+
   /** Ofertas y grupos donde se puede colocar a alguien. */
   @Get('opciones')
   opciones(@Query('convenioId') convenioId: string) {

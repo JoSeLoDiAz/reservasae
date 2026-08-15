@@ -150,6 +150,57 @@ export type Ficha = {
   notas: Array<{ id: string; autorNombre: string; texto: string; creadoEn: string }>;
 };
 
+export type EstadoAcademico =
+  | "AL_DIA" | "ATRASADO" | "PARADO" | "CERTIFICADO" | "SALIO"
+  | "SIN_EMPEZAR" | "SIN_FECHAS";
+
+export const ETIQUETA_ACADEMICA: Record<EstadoAcademico, string> = {
+  AL_DIA: "Al día",
+  ATRASADO: "Atrasado",
+  PARADO: "Parado",
+  CERTIFICADO: "Certificado",
+  SALIO: "Salió",
+  SIN_EMPEZAR: "Sin empezar",
+  SIN_FECHAS: "Sin fechas de grupo",
+};
+
+export type FilaAcademica = {
+  id: string;
+  nombre: string;
+  documento: string;
+  etapa: Etapa;
+  accion: string | null;
+  grupo: number | null;
+  fechaInicio: string | null;
+  fechaFin: string | null;
+  horario: string | null;
+  asesor: { id: string; nombre: string } | null;
+  total: number;
+  hechas: number;
+  esperadas: number | null;
+  desfase: number | null;
+  porcentaje: number;
+  ultimoAcceso: string | null;
+  diasSinEntrar: number | null;
+  notaFinal: string | null;
+  estado: EstadoAcademico;
+};
+
+export type Academico = {
+  personas: FilaAcademica[];
+  resumen: {
+    total: number;
+    alDia: number;
+    atrasados: number;
+    parados: number;
+    certificados: number;
+    salieron: number;
+    sinEmpezar: number;
+    sinFechas: number;
+  };
+  criterio: { tolerancia: number; diasParado: number };
+};
+
 export type Filtros = {
   convenioId?: string;
   etapa?: Etapa;
@@ -247,6 +298,9 @@ export const crmApi = {
 
   resumen: (filtros: Filtros = {}) =>
     pedir<Resumen>(`/admin/participantes/resumen${consulta(filtros)}`),
+
+  academico: (filtros: Filtros = {}) =>
+    pedir<Academico>(`/admin/participantes/academico${consulta(filtros)}`),
 
   obtener: (id: string) => pedir<Ficha>(`/admin/participantes/${id}`),
 

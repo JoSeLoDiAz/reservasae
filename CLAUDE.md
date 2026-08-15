@@ -60,8 +60,10 @@ infraestructura completa más una página que verifica la conexión con el backe
 - ⏳ **El failover todavía es manual.** Falta el guión de promoción, el
   despliegue automático a las réplicas y el desvío del tráfico del dominio.
 - ✅ **CRM, sección de inscripciones**: tablero de etapas, ficha, brecha de
-  nombres y carga masiva. Ver «El CRM».
-- ⏳ Del CRM faltan acciones por lote, tareas y el seguimiento académico.
+  nombres, carga masiva y **seguimiento académico**. Ver «El CRM».
+- ⏳ Del CRM faltan acciones por lote, tareas y el adaptador del LMS.
+- ✅ **Entorno de pruebas** en `https://prueba.reservasae.com`, con datos
+  inventados y franja de aviso. Ver «El entorno de pruebas».
 
 ### Endpoints
 
@@ -80,7 +82,8 @@ Panel (sesión en cookie httpOnly, `/admin/*`): `POST|DELETE /admin/sesion`,
 `GET /admin/apariencia/plantillas`, `POST /admin/apariencia/derivar`,
 `POST /admin/apariencia/corregir`,
 `PATCH /admin/formularios/:id/apariencia`,
-`GET /admin/tableros/proyeccion`, `GET /admin/tableros/respuestas/:id`.
+`GET /admin/tableros/proyeccion`, `GET /admin/tableros/respuestas/:id`,
+`GET /admin/participantes/academico`.
 Públicos además: `GET /marca`, `GET /marca/formulario/:slug` y
 `GET /marca/logos/:id`.
 
@@ -224,6 +227,9 @@ tener varios.
 pnpm --filter backend db:sembrar-formularios
 ```
 
+> Los formularios nacen **en borrador**: hay que publicarlos desde el panel
+> para que su ruta pública responda.
+
 ### Los logos de la cabecera
 
 **Hasta tres, no uno**: en cada convenio concurren varias entidades más la
@@ -271,11 +277,16 @@ los del otro. `/admin/formularios/:id/apariencia`.
 Tres niveles en `frontend/src/components/admin/editor-colores.tsx`, que lo
 usan tanto `/admin/marca` como la apariencia de cada formulario.
 
-- **Quince plantillas** en `backend/src/admin/plantillas-tema.ts`. Una plantilla
+- **Dieciséis plantillas** en `backend/src/admin/plantillas-tema.ts`. Una plantilla
   es un color principal que pasa por la misma derivación que el editor, no una
   lista de 56 hex: así la galería y «elegir un color» no pueden discrepar. La
   primera se declara con `TEMAS_POR_DEFECTO` para que coincida con
   «restablecer». Añadir una es una línea; el test la valida sola.
+- **«Papel» es la excepción y lleva `ajustes`**: la derivación saca superficies
+  casi blancas y el fondo hueso es justo lo que le da el carácter. Los ajustes
+  se aplican **antes** de corregir el contraste, así que no se saltan la
+  comprobación. Es la paleta de la maqueta del cliente
+  (`docs/crm base/crm-inscripciones.html`).
 - **La derivación va en OKLCH**, no en HSL: en HSL «L 50 %» en amarillo y en
   azul se ven muy distintos de claros, así que fijar L no garantiza contraste.
   `backend/src/admin/oklch.ts` convierte sRGB↔OKLCH sin dependencias y recorta
@@ -302,8 +313,16 @@ la app completa, panel incluido.
   navegador dentro de `GET /marca`. El panel dibuja sus formularios a partir de
   esa lista. **Añadir un color es tocar solo ese archivo**: no hay migración
   (los valores están en una columna JSON) ni hay que acordarse del frontend.
-  Hoy son 28 tokens en 7 grupos: marca, superficies, texto, encabezado, tablas,
-  campos y estados.
+  Hoy son 37 tokens en 8 grupos: marca, superficies, texto, encabezado, tablas,
+  campos, estados y **las nueve etapas del CRM**.
+- **Las etapas no se derivan del color de marca**, igual que los estados: nueve
+  colores salidos de un solo tono serían nueve variantes del mismo y dejarían
+  de distinguirse. Se copian de los valores de fábrica y `corregirContraste`
+  los empuja si alguna plantilla los deja ilegibles.
+- **La píldora de etapa tiñe la superficie con su propio color**
+  (`color-mix`, clase `.pildora-etapa`), así que el par que se mide es el color
+  contra `superficie`. **La etiqueta se lee siempre**: el color acompaña, nunca
+  es lo único que distingue una etapa.
 - **Dos paletas completas, `CLARO` y `OSCURO`**, en la tabla `temas`. El oscuro
   no es el claro invertido: la marca baja de saturación (un azul intenso sobre
   fondo oscuro deslumbra y hace vibrar los bordes del texto) y los estados se
@@ -323,7 +342,7 @@ la app completa, panel incluido.
 - **El aro de foco tiene su propio color** (`campoFoco`) en vez de heredar el
   de marca: si alguien elige una marca casi del color del fondo, el foco
   desaparecería con ella, y es lo que guía a quien navega con el teclado.
-- **El panel avisa del contraste** (WCAG, 4,5:1 normal y 3:1 títulos) en 14
+- **El panel avisa del contraste** (WCAG, 4,5:1 normal y 3:1 títulos) en 23
   pares antes de guardar. Avisa, no bloquea.
 - **Se respeta `prefers-reduced-motion`**: quien pide menos animación en su
   sistema no recibe transiciones.
@@ -472,11 +491,31 @@ usable; la tercera espera una decisión del cliente.
 ```
 1. RESERVA DE CUPOS   la empresa aparta N sillas
 2. INSCRIPCIONES      el asesor convierte cupos en gente      ✅
-3. ACADÉMICO          el LMS dice cómo van                    ⬜ falta elegir LMS
+3. ACADÉMICO          quién va al día y quién no              ◐ falta el LMS
 ```
 
-`/admin/participantes` (tablero y lista), `/nuevo`, `/:id` (ficha),
-`/brecha` y `/carga`.
+La tercera **ya tiene pantalla y lee de `actividades` y `avances_actividad`**;
+lo que falta es de dónde salen esos datos, que es elegir el LMS y escribir su
+adaptador. Hasta entonces se llenan a mano o por siembra.
+
+`/admin/participantes` (tablero, lista y métricas), `/nuevo`, `/:id` (ficha),
+`/brecha`, `/carga` y `/academico`.
+
+### El seguimiento académico
+
+`/admin/participantes/academico`, desde `GET /admin/participantes/academico`.
+Solo aparece quien ya pisó el aula.
+
+- **«Atrasado» se mide contra el calendario del grupo**, no contra un número
+  inventado: lo hecho frente a lo que tocaría según cuánto lleva corrido el
+  grupo. Sin fechas no se juzga, se dice que faltan; y un grupo que aún no
+  arranca es `SIN_EMPEZAR`, no «al día».
+- **El denominador son solo las actividades obligatorias.** Contando también
+  las opcionales salían avances de 10/9.
+- **«Parado» es no entrar al aula en 14 días**, y nunca puede ser anterior al
+  arranque del grupo.
+- La barra lleva **una marca de dónde debería ir hoy**: el número sin la
+  referencia no dice si va bien.
 
 ### Las decisiones que lo sostienen
 
@@ -553,6 +592,94 @@ convenio · fechas de los 67 grupos, ahora solo para el seguimiento académico.
 > avance. Y «al instante» se resuelve guardando una foto con su fecha y
 > enseñando «actualizado hace N minutos»; consultar el LMS en cada carga de
 > pantalla haría que un LMS lento sea una pantalla lenta.
+
+---
+
+## El entorno de pruebas (15 ago 2026)
+
+`https://prueba.reservasae.com` — **montaje paralelo en Bogotá**, con datos
+inventados, para enseñar y probar sin tocar nada real.
+
+```
+/opt/sep/reservasae         produccion  ·  rama main
+/opt/sep/reservasae-prueba  pruebas     ·  rama entorno-pruebas
+```
+
+**Son dos clones distintos a propósito.** Así el árbol de trabajo de producción
+no cambia por preparar una demostración, y nadie despliega en real sin quererlo.
+
+```bash
+ssh sep-vm
+cd /opt/sep/reservasae-prueba
+docker compose -f docker-compose.prueba.yml up -d --build
+docker compose -f docker-compose.prueba.yml exec nginx-prueba nginx -s reload
+```
+
+> **Recargar nginx-prueba es igual de obligatorio que en producción**, y por el
+> mismo motivo: `up -d --build` recrea backend y frontend con IP nueva y nginx
+> no se recrea. Pasó en el primer despliegue del 15 ago 2026.
+
+- **`nginx-prueba` vive en DOS redes.** El túnel `convoca` resuelve su destino
+  por el DNS de Docker (`http://nginx-prueba:80`), así que tiene que estar en
+  `reservasae_reservasae-internal`, la red de producción. Lo demás de la pila
+  cuelga solo de su propia red.
+- **Por eso los servicios se llaman `backend-prueba` y `frontend-prueba`.** Si
+  se llamaran `backend` y `frontend`, compartir red haría que `nginx-prueba`
+  pudiera resolver **los de producción**: una pantalla de pruebas escribiendo
+  en la base real. El sufijo no es cosmético, es la barrera.
+- **Efecto secundario que conviene saber**: mientras el entorno de pruebas esté
+  levantado, `docker compose down` en producción no puede borrar la red (tiene
+  un punto activo). No rompe nada y los contenedores sí se retiran.
+- **La base de pruebas no se replica** porque es otro clúster con su propio
+  volumen (`reservasae-prueba-datos`, **sin `pgdata` en el nombre**, ver abajo).
+  Se ata a `127.0.0.1:5434` fijo y **nunca a `PG_BIND`**: no debe asomarse a la
+  red privada de Tailscale ni que una réplica la confunda con la buena.
+- **`ADMIN_JWT_SECRET` es distinto**, así que una sesión de pruebas no vale en
+  producción. Va en `backend/.env.prueba` (fuera de git; plantilla en
+  `.env.prueba.example`).
+- **El compose de pruebas no se carga solo**: compose únicamente lee
+  `docker-compose.yml` y su override, así que `desplegar.sh` y los demás
+  guiones de sede lo ignoran por completo.
+
+### Los datos falsos
+
+```bash
+cd /opt/sep/reservasae-prueba/backend
+export ENTORNO=prueba
+export DATABASE_URL=...@127.0.0.1:5434/reservasae_prueba
+pnpm db:sembrar-prueba [--rehacer]
+```
+
+- **Dos guardias, y hacen falta los dos**: `ENTORNO=prueba` y que el nombre de
+  la base lleve «prueba». Apuntar a producción se niega aunque la variable esté
+  puesta. Comprobado a mano.
+- **Va desde el clon, no dentro del contenedor**: la imagen de producción se
+  instala con `--prod` y no trae `ts-node`. Por eso la base publica 5434.
+- **Los números son repetibles** (generador con semilla fija): dos revisiones
+  ven exactamente lo mismo.
+- Siembra 24 empresas, ~60 reservas, **100 participaciones por las nueve
+  etapas**, 180 actividades, avances a cuatro ritmos, notas, autorizaciones,
+  fechas para los 67 grupos y las 15 acciones publicadas.
+- **Deja brecha de nombres a propósito** (~600 cupos sin nadie detrás): es la
+  cifra que abre el CRM y con la brecha en cero no se vería nada.
+- **Unas cuantas personas repiten en dos cursos**, para que se vea que la misma
+  cédula es *una* persona con dos participaciones.
+- Entrar con `ana.jaramillo@ejemplo.test` / `Prueba2026*`. Las cuentas de
+  prueba nacen con `debeCambiarClave = false`: se entra a mirar, no a estrenar
+  contraseña.
+
+### La franja
+
+`frontend/src/components/franja-entorno.tsx`, en el layout raíz, así que sale
+en todas las pantallas.
+
+- **Lleva color escrito a mano y es la única excepción a la regla de los
+  tokens.** La paleta la edita el administrador; si la franja saliera del tema,
+  bastaría un cambio de color para volverla invisible, que es exactamente lo
+  que no puede pasar.
+- **`ENTORNO` va como `ARG` del Dockerfile además de variable de entorno**: casi
+  todas las páginas del panel son estáticas y Next las hornea al compilar. Solo
+  con la variable en ejecución, la franja no saldría en ellas.
 
 ---
 
@@ -649,6 +776,14 @@ destruir algo, comprobar que hay a dónde ir**.
 | `estado.sh` | cualquiera | las tres sedes de un vistazo |
 
 `comun.sh` tiene lo compartido y `sonda.sh` es el informador de una sola sede.
+
+> **`rendirse.sh` elegía el volumen con `docker volume ls -q | grep pgdata |
+> head -1`.** Con el entorno de pruebas en la misma máquina hay más de un
+> volumen de Postgres, y `reservasae-prueba_` ordena **antes** que
+> `reservasae_` (el guion precede al guion bajo en ASCII): habría borrado el
+> equivocado. Ahora sale del contenedor `db` del propio proyecto de compose.
+> El volumen de pruebas además se llama `-datos` y no `-pgdata`, para que ni
+> siquiera coincida con ese patrón.
 
 - **Bogotá marca un commit; las réplicas siguen la marca, no `origin/main`.** Un
   commit que rompa el arranque nunca llega a propagarse, porque `desplegar.sh`

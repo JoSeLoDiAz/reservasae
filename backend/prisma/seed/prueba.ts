@@ -38,9 +38,12 @@ function comprobarQueEsPruebas() {
   if (problemas.length > 0) {
     console.error('\n✗ Esta siembra inventa datos y NO debe tocar producción.');
     for (const p of problemas) console.error(`  · ${p}`);
-    console.error('\n  Se ejecuta así, dentro del contenedor de pruebas:');
-    console.error('    docker compose -f docker-compose.prueba.yml \\');
-    console.error('      exec backend-prueba pnpm db:sembrar-prueba\n');
+    // la imagen de produccion no trae ts-node: va desde
+    // el clon del servidor, contra el puerto publicado
+    console.error('\n  Se ejecuta desde /opt/sep/reservasae-prueba/backend así:');
+    console.error('    export ENTORNO=prueba');
+    console.error('    export DATABASE_URL=...@127.0.0.1:5434/reservasae_prueba');
+    console.error('    pnpm db:sembrar-prueba\n');
     process.exit(1);
   }
 }
@@ -59,8 +62,10 @@ function generador(semilla: number) {
 const azar = generador(20260814);
 const entre = (min: number, max: number) => min + Math.floor(azar() * (max - min + 1));
 const unoDe = <T>(lista: readonly T[]): T => lista[Math.floor(azar() * lista.length)];
+// nunca al futuro: un "ultimo acceso" por delante de hoy
+// da dias negativos en el seguimiento
 const hace = (dias: number, horas = 12) =>
-  new Date(Date.now() - dias * 86_400_000 + horas * 3_600_000);
+  new Date(Math.min(Date.now(), Date.now() - dias * 86_400_000 + horas * 3_600_000));
 
 // ---------------------------------------------------------------------------
 
@@ -155,6 +160,21 @@ const REPARTO: Array<[EtapaParticipante, number]> = [
   [EtapaParticipante.NO_APROBO, 2],
 ];
 
+/** Quien ya pisó el aula y por tanto tiene avance. */
+const ETAPAS_EN_AULA: EtapaParticipante[] = [
+  EtapaParticipante.EN_FORMACION,
+  EtapaParticipante.CERTIFICADO,
+  EtapaParticipante.NO_APROBO,
+  EtapaParticipante.RETIRADO,
+];
+
+/** De estas no se sale sin explicar por qué. */
+const ETAPAS_SALIDA: EtapaParticipante[] = [
+  EtapaParticipante.PERDIDO,
+  EtapaParticipante.RETIRADO,
+  EtapaParticipante.NO_APROBO,
+];
+
 /** Por dónde ha pasado quien está en cada etapa. */
 const CAMINO: Record<EtapaParticipante, EtapaParticipante[]> = {
   NUEVO: ['NUEVO'],
@@ -213,8 +233,9 @@ async function ponerFechasYPublicar() {
   const grupos = await prisma.grupo.findMany({ orderBy: { id: 'asc' } });
 
   for (const [i, grupo] of grupos.entries()) {
-    // escalonados: unos ya terminaron, otros ni empiezan
-    const arranque = 70 - (i % 14) * 11;
+    // la mayoria ya arranco: si no, nadie puede ir tarde.
+    // Los tres ultimos de cada tanda quedan por empezar
+    const arranque = 84 - (i % 16) * 7;
     const inicio = hace(arranque, 8);
     const fin = new Date(inicio.getTime() + entre(28, 56) * 86_400_000);
 
@@ -335,13 +356,15 @@ async function sembrarActividades(acciones: Array<{ id: string; codigo: string }
 
 // ---------------------------------------------------------------------------
 
+type Cobertura = { id: string; inicio: Date | null };
+
 type OfertaViva = {
   id: string;
   accionFormacionId: string;
   convenioId: string;
   cuposMaximos: number;
   ocupados: number;
-  coberturas: string[];
+  coberturas: Cobertura[];
 };
 
 async function sembrarEmpresasYReservas(ofertas: OfertaViva[]) {
@@ -477,7 +500,11 @@ async function main() {
 
   // la cobertura del grupo, para poder matricular
   const coberturas = await prisma.grupoCobertura.findMany({
-    select: { id: true, ubicacionId: true, grupo: { select: { accionFormacionId: true } } },
+    select: {
+      id: true,
+      ubicacionId: true,
+      grupo: { select: { accionFormacionId: true, fechaInicio: true } },
+    },
   });
 
   const ofertas: OfertaViva[] = ofertasCrudas.map((o) => ({
@@ -492,7 +519,7 @@ async function main() {
           c.ubicacionId === o.ubicacionId &&
           c.grupo.accionFormacionId === o.accionFormacionId,
       )
-      .map((c) => c.id),
+      .map((c) => ({ id: c.id, inicio: c.grupo.fechaInicio })),
   }));
 
   const reservas = await sembrarEmpresasYReservas(ofertas);
@@ -539,7 +566,20 @@ async function main() {
     const oferta = reserva ? porOferta.get(reserva.ofertaId)! : unoDe(ofertas);
 
     const camino = CAMINO[etapa];
+    const esSalida = ETAPAS_SALIDA.includes(etapa);
     const diasDesdeAlta = entre(4, 80);
+    const enAula = ETAPAS_EN_AULA.includes(etapa);
+
+    // quien ya esta en el aula va en un grupo que arranco:
+    // si no, sale "atrasado" en un curso que no ha empezado
+    const arrancadas = oferta.coberturas.filter(
+      (c) => c.inicio !== null && c.inicio.getTime() <= Date.now(),
+    );
+    const cobertura = enAula
+      ? (arrancadas.length > 0 ? unoDe(arrancadas) : null)
+      : oferta.coberturas.length > 0
+        ? unoDe(oferta.coberturas)
+        : null;
     const necesitaFormacion = camino.includes(EtapaParticipante.MATRICULADO);
     const asesor = azar() < 0.85 ? unoDe(asesores) : null;
 
@@ -581,10 +621,7 @@ async function main() {
         reservaId: reserva?.id ?? null,
         ofertaId: necesitaFormacion ? oferta.id : azar() < 0.6 ? oferta.id : null,
         accionFormacionId: oferta.accionFormacionId,
-        coberturaId:
-          necesitaFormacion && oferta.coberturas.length > 0
-            ? unoDe(oferta.coberturas)
-            : null,
+        coberturaId: necesitaFormacion ? (cobertura?.id ?? null) : null,
         etapa,
         origen: porEmpresa
           ? OrigenParticipante.EMPRESA
@@ -598,6 +635,9 @@ async function main() {
         cargoEnEmpresa: azar() < 0.8 ? unoDe(CARGOS) : null,
         creadoEn: hace(diasDesdeAlta),
         personaId,
+        // el CHECK exige la fecha en el propio INSERT
+        motivoSalida: esSalida ? unoDe(MOTIVOS_SALIDA) : null,
+        fechaRetiro: etapa === EtapaParticipante.RETIRADO ? hace(entre(1, 20)) : null,
       },
       select: { id: true },
     });
@@ -610,24 +650,17 @@ async function main() {
       const cuandoDias = Math.round(
         diasDesdeAlta - (diasDesdeAlta / camino.length) * paso,
       );
-      const esSalida = ['PERDIDO', 'RETIRADO', 'NO_APROBO'].includes(etapaDespues);
+      const salida = ETAPAS_SALIDA.includes(etapaDespues);
 
       await prisma.movimientoParticipante.create({
         data: {
           participanteId: participante.id,
           etapaAntes: paso === 0 ? null : camino[paso - 1],
           etapaDespues,
-          motivo: esSalida ? unoDe(MOTIVOS_SALIDA) : null,
+          motivo: salida ? unoDe(MOTIVOS_SALIDA) : null,
           adminId: asesor?.id ?? null,
           creadoEn: hace(Math.max(0, cuandoDias)),
         },
-      });
-    }
-
-    if (['PERDIDO', 'RETIRADO', 'NO_APROBO'].includes(etapa)) {
-      await prisma.participante.update({
-        where: { id: participante.id },
-        data: { motivoSalida: unoDe(MOTIVOS_SALIDA), fechaRetiro: hace(entre(1, 20)) },
       });
     }
 
@@ -671,7 +704,6 @@ async function main() {
     }
 
     // ── el aula: solo quien ya entro a formacion ──
-    const enAula = ['EN_FORMACION', 'CERTIFICADO', 'NO_APROBO', 'RETIRADO'].includes(etapa);
     if (!enAula) continue;
 
     const suyas = actividades.filter((a) => a.accionFormacionId === oferta.accionFormacionId);
@@ -708,9 +740,19 @@ async function main() {
     }
     conAvance += 1;
 
-    // "parado" es justamente el que no entra hace dias
-    const diasSinEntrar =
-      ritmo.clave === 'PARADO' ? entre(21, 60) : ritmo.clave === 'ATRASADO' ? entre(8, 20) : entre(0, 5);
+    // "parado" es justamente el que no entra hace dias.
+    // Nunca antes de que el grupo empezara: seria no haber
+    // entrado a un curso que aun no existia
+    const diasDelGrupo = cobertura?.inicio
+      ? Math.floor((Date.now() - cobertura.inicio.getTime()) / 86_400_000)
+      : 999;
+    const pedido =
+      ritmo.clave === 'PARADO'
+        ? entre(21, 60)
+        : ritmo.clave === 'ATRASADO'
+          ? entre(8, 20)
+          : entre(0, 5);
+    const diasSinEntrar = Math.min(pedido, Math.max(0, diasDelGrupo));
 
     await prisma.participante.update({
       where: { id: participante.id },
