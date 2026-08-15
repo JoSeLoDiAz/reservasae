@@ -819,41 +819,59 @@ async function main() {
     documento += entre(700, 9_000);
     const numeroDocumento = String(documento);
 
-    // la mayoria llega nominada por una empresa
-    const porEmpresa = azar() < 0.78;
-    const reserva = porEmpresa ? unoDe(reservas) : null;
-    const oferta = reserva ? porOferta.get(reserva.ofertaId)! : unoDe(ofertas);
-
     const camino = CAMINO[etapa];
     const esSalida = ETAPAS_SALIDA.includes(etapa);
     const enAula = ETAPAS_EN_AULA.includes(etapa);
-
-    // el grupo tiene que casar con la etapa: quien cursa
-    // va en uno abierto y quien ya acabo en uno cerrado.
-    // Si no, salen "atrasados" en cursos ya vencidos
     const ahora = Date.now();
-    const conFechas = oferta.coberturas.filter((c) => c.inicio && c.fin);
-    const cerradas = conFechas.filter((c) => c.fin!.getTime() <= ahora);
-    const enMarcha = conFechas.filter(
-      (c) => c.inicio!.getTime() <= ahora && c.fin!.getTime() > ahora,
-    );
-    const porEmpezar = conFechas.filter((c) => c.inicio!.getTime() > ahora);
 
-    const primeraCon = (...listas: Cobertura[][]) => {
-      for (const l of listas) if (l.length > 0) return unoDe(l);
-      return null;
-    };
+    // el grupo tiene que casar con la etapa: quien cursa va
+    // en uno abierto y quien acabo en uno cerrado. Se elige
+    // la OFERTA que lo tenga, no solo la cobertura: si no,
+    // el respaldo mete gente "en formacion" en curso vencido
+    const abiertas = (o: OfertaViva) =>
+      o.coberturas.filter(
+        (c) => c.inicio && c.fin && c.inicio.getTime() <= ahora && c.fin.getTime() > ahora,
+      );
+    const cerradas = (o: OfertaViva) =>
+      o.coberturas.filter((c) => c.fin && c.fin.getTime() <= ahora);
+    const porEmpezar = (o: OfertaViva) =>
+      o.coberturas.filter((c) => c.inicio && c.inicio.getTime() > ahora);
 
-    let cobertura: Cobertura | null;
-    if (etapa === EtapaParticipante.CERTIFICADO || etapa === EtapaParticipante.NO_APROBO) {
-      cobertura = primeraCon(cerradas, enMarcha);
-    } else if (enAula) {
-      cobertura = primeraCon(enMarcha, cerradas);
-    } else if (etapa === EtapaParticipante.MATRICULADO) {
-      cobertura = primeraCon(porEmpezar, enMarcha, cerradas);
-    } else {
-      cobertura = primeraCon(conFechas, oferta.coberturas);
-    }
+    const yaAcabo =
+      etapa === EtapaParticipante.CERTIFICADO || etapa === EtapaParticipante.NO_APROBO;
+    const quiere: (o: OfertaViva) => Cobertura[] = yaAcabo
+      ? cerradas
+      : enAula
+        ? abiertas
+        : etapa === EtapaParticipante.MATRICULADO
+          ? (o) => [...porEmpezar(o), ...abiertas(o)]
+          : (o) => o.coberturas;
+
+    // la mayoria llega nominada por una empresa
+    const porEmpresa = azar() < 0.78;
+    const reservasQueSirven = reservas.filter((r) => {
+      const o = porOferta.get(r.ofertaId);
+      return o ? quiere(o).length > 0 : false;
+    });
+
+    const reserva = porEmpresa
+      ? (reservasQueSirven.length > 0 ? unoDe(reservasQueSirven) : unoDe(reservas))
+      : null;
+
+    const sueltas = ofertas.filter((o) => quiere(o).length > 0);
+    const oferta = reserva
+      ? porOferta.get(reserva.ofertaId)!
+      : sueltas.length > 0
+        ? unoDe(sueltas)
+        : unoDe(ofertas);
+
+    const posibles = quiere(oferta);
+    const cobertura =
+      posibles.length > 0
+        ? unoDe(posibles)
+        : oferta.coberturas.length > 0
+          ? unoDe(oferta.coberturas)
+          : null;
 
     // nadie se da de alta despues de arrancar su curso
     const diasDelInicio = cobertura?.inicio
