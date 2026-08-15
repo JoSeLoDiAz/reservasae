@@ -34,7 +34,15 @@ if [ "$marcado" = "$(cat .construido 2>/dev/null)" ]; then
   exit 0
 fi
 
-git fetch -q origin main || { echo "✗ no pude traer el repositorio"; exit 1; }
+# GitHub primero, pero el codigo no puede depender de el:
+# la sede que releva puede tener llave de solo lectura
+git fetch -q origin main 2>/dev/null
+if ! git cat-file -e "$marcado^{commit}" 2>/dev/null; then
+  echo "$marcado no esta en origin, lo traigo de $PRINCIPAL"
+  git fetch -q "$PRINCIPAL:/opt/sep/reservasae" main \
+    || { echo "✗ no pude traer el repositorio"; exit 1; }
+fi
+
 git checkout -q main
 git reset -q --hard "$marcado" || { echo "✗ no encontre $marcado"; exit 1; }
 

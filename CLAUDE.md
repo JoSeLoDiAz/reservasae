@@ -656,6 +656,14 @@ destruir algo, comprobar que hay a dónde ir**.
 - **Bogotá marca un commit; las réplicas siguen la marca, no `origin/main`.** Un
   commit que rompa el arranque nunca llega a propagarse, porque `desplegar.sh`
   solo escribe `.desplegado` si el sitio responde después de construir.
+- **Si el commit no está en GitHub, la réplica lo trae del principal por ssh**
+  (`git fetch sepadmin@sede:/opt/sep/reservasae main`), y `desplegar.sh` ya no
+  aborta cuando no alcanza a `origin`. Descubierto el 15 ago 2026 al promover El
+  Socorro: su llave de despliegue es de **solo lectura**, así que la sede activa
+  no podía publicar y las réplicas se habrían quedado sin poder recibir nada.
+  El código de un sistema que existe para sobrevivir a la caída de una sede no
+  puede depender de un permiso en un servicio de terceros. Las tres sedes ya se
+  hablan por ssh sobre Tailscale, así que git no necesita intermediario.
 - **Las réplicas comparan contra `.construido`, no contra `HEAD`.** Comparar con
   `HEAD` daba por bueno el estado cuando alguien había hecho `git pull` a mano:
   coincidía el commit y se saltaba la construcción, que es lo único que hace

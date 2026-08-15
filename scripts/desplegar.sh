@@ -14,7 +14,10 @@ if es_replica_local; then
   exit 1
 fi
 
-git pull --ff-only
+# sin GitHub tambien se despliega: se construye HEAD y
+# las replicas lo traen de aqui por ssh
+git pull --ff-only || echo "! no pude traer de origin, sigo con lo local"
+
 docker compose up -d --build
 docker compose exec -T nginx nginx -s reload
 
