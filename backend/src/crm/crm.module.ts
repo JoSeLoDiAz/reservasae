@@ -3,6 +3,8 @@ import { JwtModule } from '@nestjs/jwt';
 
 import { CrmController } from './crm.controller';
 import { CrmService } from './crm.service';
+import { SepController } from './sep/sep.controller';
+import { SepService } from './sep/sep.service';
 
 @Module({
   // AdminGuard necesita JwtService
@@ -12,8 +14,8 @@ import { CrmService } from './crm.service';
       signOptions: { expiresIn: '8h' },
     }),
   ],
-  controllers: [CrmController],
-  providers: [CrmService],
+  controllers: [CrmController, SepController],
+  providers: [CrmService, SepService],
   exports: [CrmService],
 })
 export class CrmModule {}
