@@ -760,6 +760,18 @@ en el PC Dell por descuido no lo convierte en candidato.
 `SIMULAR=si scripts/autopromover.sh` recorre todos los guardias y se detiene
 justo antes de promover. Es la única forma de ensayar esto sin tumbar el sitio.
 
+> **Pendiente al 15 ago 2026: probar el corte de verdad.** Está verificado que
+> los guiones **se abstienen** (principal vivo, sede no candidata, nadie por
+> delante), no que **promueven**. Falta parar el principal y comprobar que la
+> otra sede se promueve sola dentro de los 5 minutos y que la parada se rinde
+> sola al volver. Requiere las tres sedes sanas, así que espera a Bogotá.
+>
+> **Y hasta que Bogotá vuelva, el failover automático no puede actuar**: con
+> solo dos sedes vivas no hay tercera opinión, así que ante un `INALCANZABLE`
+> ninguna promueve. No es un defecto — es la misma regla que impide que una sede
+> aislada se crea la última superviviente. Con dos nodos el quórum no existe. Si
+> El Socorro cayera en ese hueco, la salida es `promover.sh` a mano en el Dell.
+
 ### Failover a mano: el runbook
 
 Sigue siendo válido, y es lo que hay que hacer si se promueve el PC Dell o si
