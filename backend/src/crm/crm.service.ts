@@ -658,6 +658,7 @@ export class CrmService {
         asesor: { select: { id: true, nombre: true } },
         cobertura: {
           select: {
+            grupoId: true,
             grupo: {
               select: { numero: true, fechaInicio: true, fechaFin: true, horario: true },
             },
@@ -741,8 +742,51 @@ export class CrmService {
 
     const cuenta = (e: EstadoAcademico) => personas.filter((p) => p.estado === e).length;
 
+    // las opciones salen de quien esta en el aula, no de
+    // todo el catalogo: un filtro con 15 acciones vacias
+    // hace perder el tiempo
+    const acciones = [
+      ...new Map(
+        filas
+          .filter((f) => f.accionFormacion)
+          .map((f) => [
+            f.accionFormacion!.id,
+            {
+              id: f.accionFormacion!.id,
+              codigo: f.accionFormacion!.codigo,
+              nombre: f.accionFormacion!.nombre,
+            },
+          ]),
+      ).values(),
+    ].sort((a, b) => a.codigo.localeCompare(b.codigo));
+
+    const grupos = [
+      ...new Map(
+        filas
+          .filter((f) => f.cobertura)
+          .map((f) => [
+            f.cobertura!.grupoId,
+            {
+              id: f.cobertura!.grupoId,
+              numero: f.cobertura!.grupo.numero,
+              accionFormacionId: f.accionFormacionId,
+            },
+          ]),
+      ).values(),
+    ].sort((a, b) => a.numero - b.numero);
+
+    const asesores = [
+      ...new Map(
+        filas.filter((f) => f.asesor).map((f) => [f.asesor!.id, f.asesor!]),
+      ).values(),
+    ].sort((a, b) => a.nombre.localeCompare(b.nombre));
+
     return {
       personas,
+      acciones,
+      grupos,
+      asesores,
+      sinAsesor: filas.filter((f) => !f.asesor).length,
       resumen: {
         total: personas.length,
         alDia: cuenta('AL_DIA'),
@@ -1085,6 +1129,8 @@ export class CrmService {
     if (f.etapa) y.push({ etapa: f.etapa });
     if (f.accionFormacionId) y.push({ accionFormacionId: f.accionFormacionId });
     if (f.coberturaId) y.push({ coberturaId: f.coberturaId });
+    // el grupo cuelga de la cobertura, no del participante
+    if (f.grupoId) y.push({ cobertura: { grupoId: f.grupoId } });
     if (f.asesorId) y.push({ asesorId: f.asesorId });
 
     const buscar = f.buscar?.trim();

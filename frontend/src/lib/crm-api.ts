@@ -188,6 +188,11 @@ export type FilaAcademica = {
 
 export type Academico = {
   personas: FilaAcademica[];
+  /** Solo lo que hay en el aula: filtrar por vacíos cansa. */
+  acciones: Array<{ id: string; codigo: string; nombre: string }>;
+  grupos: Array<{ id: string; numero: number; accionFormacionId: string | null }>;
+  asesores: Array<{ id: string; nombre: string }>;
+  sinAsesor: number;
   resumen: {
     total: number;
     alDia: number;
@@ -205,6 +210,7 @@ export type Filtros = {
   convenioId?: string;
   etapa?: Etapa;
   accionFormacionId?: string;
+  grupoId?: string;
   asesorId?: string;
   buscar?: string;
   pagina?: number;

@@ -205,6 +205,7 @@ export class FiltrosParticipantesDto {
   @IsOptional() @IsEnum(EtapaParticipante) etapa?: EtapaParticipante;
   @IsOptional() @IsString() accionFormacionId?: string;
   @IsOptional() @IsString() coberturaId?: string;
+  @IsOptional() @IsString() grupoId?: string;
   @IsOptional() @IsString() asesorId?: string;
   @IsOptional() @IsString() buscar?: string;
 

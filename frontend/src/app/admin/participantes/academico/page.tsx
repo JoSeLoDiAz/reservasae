@@ -48,10 +48,19 @@ function fecha(iso: string | null) {
 export default function PaginaAcademico() {
   const [filtro, setFiltro] = useState<EstadoAcademico | "">("");
   const [buscar, setBuscar] = useState("");
+  const [accionFormacionId, setAccion] = useState("");
+  const [grupoId, setGrupo] = useState("");
+  const [asesorId, setAsesor] = useState("");
 
   const cargar = useCallback(
-    () => crmApi.academico({ buscar: buscar || undefined }),
-    [buscar],
+    () =>
+      crmApi.academico({
+        buscar: buscar || undefined,
+        accionFormacionId: accionFormacionId || undefined,
+        grupoId: grupoId || undefined,
+        asesorId: asesorId || undefined,
+      }),
+    [buscar, accionFormacionId, grupoId, asesorId],
   );
 
   // se refresca solo; un fallo conserva lo ultimo bueno
@@ -129,14 +138,72 @@ export default function PaginaAcademico() {
 
       <div className="flex flex-wrap items-center gap-3">
         <input
-          className={`${CLASE_CONTROL} max-w-md`}
+          className={`${CLASE_CONTROL} max-w-xs`}
           placeholder="Buscar por nombre o documento"
           value={buscar}
           onChange={(e) => setBuscar(e.target.value)}
         />
-        {filtro && (
-          <button className="text-sm text-marca underline" onClick={() => setFiltro("")}>
-            Ver todos ({resumen.total})
+
+        <select
+          className={`${CLASE_CONTROL} max-w-[15rem]`}
+          value={accionFormacionId}
+          onChange={(e) => {
+            setAccion(e.target.value);
+            // el grupo cuelga de la accion: si cambia, sobra
+            setGrupo("");
+          }}
+          aria-label="Filtrar por acción de formación"
+        >
+          <option value="">Toda la formación</option>
+          {datos.acciones.map((a) => (
+            <option key={a.id} value={a.id}>
+              {a.codigo} · {a.nombre}
+            </option>
+          ))}
+        </select>
+
+        <select
+          className={`${CLASE_CONTROL} max-w-[11rem]`}
+          value={grupoId}
+          onChange={(e) => setGrupo(e.target.value)}
+          aria-label="Filtrar por grupo"
+        >
+          <option value="">Todos los grupos</option>
+          {datos.grupos
+            .filter((g) => !accionFormacionId || g.accionFormacionId === accionFormacionId)
+            .map((g) => (
+              <option key={g.id} value={g.id}>
+                Grupo {g.numero}
+              </option>
+            ))}
+        </select>
+
+        <select
+          className={`${CLASE_CONTROL} max-w-[13rem]`}
+          value={asesorId}
+          onChange={(e) => setAsesor(e.target.value)}
+          aria-label="Filtrar por asesor"
+        >
+          <option value="">Todos los asesores</option>
+          {datos.asesores.map((a) => (
+            <option key={a.id} value={a.id}>
+              {a.nombre}
+            </option>
+          ))}
+        </select>
+
+        {(filtro || accionFormacionId || grupoId || asesorId || buscar) && (
+          <button
+            className="text-sm text-marca underline"
+            onClick={() => {
+              setFiltro("");
+              setAccion("");
+              setGrupo("");
+              setAsesor("");
+              setBuscar("");
+            }}
+          >
+            Quitar filtros
           </button>
         )}
       </div>
@@ -159,6 +226,7 @@ export default function PaginaAcademico() {
                 <th>Persona</th>
                 <th>Acción y grupo</th>
                 <th>Etapa</th>
+                <th>Asesor</th>
                 <th>Avance</th>
                 <th>Va</th>
                 <th>Último acceso</th>
@@ -185,6 +253,11 @@ export default function PaginaAcademico() {
                   </td>
                   <td>
                     <PildoraEtapa etapa={p.etapa} />
+                  </td>
+                  <td className="text-sm">
+                    {p.asesor?.nombre ?? (
+                      <span className="text-texto-suave">Sin asignar</span>
+                    )}
                   </td>
                   <td>
                     <Barra fila={p} />

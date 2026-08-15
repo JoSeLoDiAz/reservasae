@@ -183,6 +183,23 @@ h3 {
   outline-offset: 2px;
 }
 
+/* la barra tiene que verse sin pasar el raton por encima */
+.barra-visible {
+  scrollbar-width: thin;
+  scrollbar-color: var(--texto-suave) var(--superficie-alterna);
+}
+.barra-visible::-webkit-scrollbar {
+  height: 10px;
+}
+.barra-visible::-webkit-scrollbar-track {
+  background: var(--superficie-alterna);
+  border-radius: 999px;
+}
+.barra-visible::-webkit-scrollbar-thumb {
+  background: var(--texto-suave);
+  border-radius: 999px;
+}
+
 /* etiqueta de etapa: color propio, fondo teñido con el */
 .pildora-etapa {
   display: inline-flex;

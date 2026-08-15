@@ -5,6 +5,7 @@ import { useCallback, useEffect, useState } from "react";
 
 import { estiloEtapa, PildoraEtapa } from "@/components/admin/etapa";
 import { Aviso, Boton, CLASE_CONTROL, Tarjeta } from "@/components/admin/marco-admin";
+import { ScrollDoble } from "@/components/admin/scroll-doble";
 import { ErrorApi } from "@/lib/api";
 import {
   crmApi,
@@ -199,8 +200,8 @@ export default function PaginaParticipantes() {
       )}
 
       {hayAlguien && vista === "tablero" && (
-        <div className="caja-scroll overflow-x-auto pb-2">
-          <div className="flex gap-4" style={{ minWidth: "max-content" }}>
+        <ScrollDoble>
+          <div className="flex gap-4">
             {[...ETAPAS_AVANCE, ...ETAPAS_SALIDA].map((etapa) => {
               const suyas = filas.filter((f) => f.etapa === etapa);
               const enLaEtapa = cuenta.get(etapa) ?? 0;
@@ -279,7 +280,7 @@ export default function PaginaParticipantes() {
               );
             })}
           </div>
-        </div>
+        </ScrollDoble>
       )}
 
       {hayAlguien && vista === "lista" && (
