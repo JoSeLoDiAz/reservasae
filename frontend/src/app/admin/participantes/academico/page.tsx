@@ -63,8 +63,11 @@ export default function PaginaAcademico() {
     [buscar, accionFormacionId, grupoId, asesorId],
   );
 
-  // se refresca solo; un fallo conserva lo ultimo bueno
-  const vivos = useDatosVivos<Academico>(cargar);
+  // se refresca solo; un fallo conserva lo ultimo bueno.
+  // la clave hace que un filtro nuevo se pida al momento
+  const vivos = useDatosVivos<Academico>(cargar, {
+    clave: `${buscar}|${accionFormacionId}|${grupoId}|${asesorId}`,
+  });
   const datos = vivos.datos;
 
   if (vivos.error) return <Aviso tipo="error">{vivos.error}</Aviso>;

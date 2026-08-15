@@ -20,7 +20,7 @@ export class PoliticasService {
       orderBy: [{ convenioId: 'asc' }, { destinatario: 'asc' }, { version: 'desc' }],
       include: {
         convenio: { select: { id: true, nombre: true, sigla: true, slug: true } },
-        _count: { select: { reservas: true } },
+        _count: { select: { reservas: true, autorizaciones: true } },
       },
     });
 
@@ -34,9 +34,12 @@ export class PoliticasService {
       vigente: p.vigenteHasta === null,
       vigenteDesde: p.vigenteDesde,
       vigenteHasta: p.vigenteHasta,
-      aceptaciones: p._count.reservas,
+      // las de participante se firman por autorizacion,
+      // no por reserva: contar solo una deja reeditable
+      // un texto que ya firmaron cientos de personas
+      aceptaciones: p._count.reservas + p._count.autorizaciones,
       // una vez aceptada, el texto se congela
-      editable: p._count.reservas === 0,
+      editable: p._count.reservas + p._count.autorizaciones === 0,
     }));
   }
 
@@ -133,13 +136,14 @@ export class PoliticasService {
   async actualizar(id: string, dto: ActualizarPoliticaDto) {
     const politica = await this.prisma.politicaDatos.findUnique({
       where: { id },
-      include: { _count: { select: { reservas: true } } },
+      include: { _count: { select: { reservas: true, autorizaciones: true } } },
     });
     if (!politica) throw new NotFoundException('Esa política no existe.');
 
-    if (politica._count.reservas > 0) {
+    const aceptaciones = politica._count.reservas + politica._count.autorizaciones;
+    if (aceptaciones > 0) {
       throw new ConflictException(
-        `Esta política ya la aceptaron ${politica._count.reservas} personas. ` +
+        `Esta política ya la aceptaron ${aceptaciones} personas. ` +
           'Publique una versión nueva en vez de cambiar el texto que leyeron.',
       );
     }
@@ -157,11 +161,11 @@ export class PoliticasService {
   async eliminar(id: string) {
     const politica = await this.prisma.politicaDatos.findUnique({
       where: { id },
-      include: { _count: { select: { reservas: true } } },
+      include: { _count: { select: { reservas: true, autorizaciones: true } } },
     });
     if (!politica) throw new NotFoundException('Esa política no existe.');
 
-    if (politica._count.reservas > 0) {
+    if (politica._count.reservas + politica._count.autorizaciones > 0) {
       throw new ConflictException(
         'No se borra una política que alguien aceptó: es la prueba de lo que leyó.',
       );

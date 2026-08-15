@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 
+import { SCRIPT_ACCESIBILIDAD } from "@/components/admin/accesibilidad";
 import { FranjaEntorno } from "@/components/franja-entorno";
 import { ProveedorMarca } from "@/components/marca-publica";
 import { SCRIPT_PALETA } from "@/lib/marca";
@@ -40,7 +41,9 @@ export default function RootLayout({
       <head>
         {/* fija tema y colores antes de pintar */}
         <script
-          dangerouslySetInnerHTML={{ __html: SCRIPT_SIN_PARPADEO + SCRIPT_PALETA }}
+          dangerouslySetInnerHTML={{
+            __html: SCRIPT_SIN_PARPADEO + SCRIPT_PALETA + SCRIPT_ACCESIBILIDAD,
+          }}
         />
       </head>
       <body className="min-h-full flex flex-col font-sans">

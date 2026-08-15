@@ -116,7 +116,12 @@ function BarraLateral({
   return (
     <nav
       aria-label="Secciones del panel"
-      className={`no-imprimir sticky top-0 hidden h-screen shrink-0 flex-col border-r border-borde bg-superficie transition-[width] md:flex ${
+      // debajo de la franja, no tapada por ella
+      style={{
+        top: "var(--franja-alto, 0px)",
+        height: "calc(100vh - var(--franja-alto, 0px))",
+      }}
+      className={`no-imprimir sticky hidden shrink-0 flex-col border-r border-borde bg-superficie transition-[width] md:flex ${
         plegado ? "w-16" : "w-64"
       }`}
     >
@@ -240,7 +245,10 @@ function Cabecera({ nombre, alSalir }: { nombre: string; alSalir: () => void }) 
   const [abierto, setAbierto] = useState(false);
 
   return (
-    <header className="no-imprimir sticky top-0 z-30 border-b border-encabezado-borde bg-encabezado-fondo text-encabezado-texto">
+    <header
+      style={{ top: "var(--franja-alto, 0px)" }}
+      className="no-imprimir sticky z-30 border-b border-encabezado-borde bg-encabezado-fondo text-encabezado-texto"
+    >
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2 px-6 py-3">
         <span className="font-semibold">
           Convoca

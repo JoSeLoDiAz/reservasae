@@ -10,10 +10,12 @@ export function FranjaEntorno() {
       aria-label="Aviso de entorno"
       // color fijo: la paleta la edita el admin y esto
       // no puede volverse invisible. Ver CLAUDE.md.
-      className="no-imprimir sticky top-0 z-50 flex flex-wrap items-center justify-center gap-x-3 gap-y-1 border-b-2 border-[#7c2d12] bg-[#9a3412] px-4 py-1.5 text-center text-sm text-white"
+      // alto fijo: la cabecera se pega justo debajo y con
+      // dos lineas la taparia. Ver --franja-alto
+      className="franja-entorno no-imprimir sticky top-0 z-50 flex h-9 items-center justify-center gap-x-3 overflow-hidden border-b-2 border-[#7c2d12] bg-[#9a3412] px-4 text-center text-sm whitespace-nowrap text-white"
     >
       <span className="font-semibold tracking-wide uppercase">Entorno de pruebas</span>
-      <span className="text-white/85">
+      <span className="hidden text-white/85 sm:inline">
         Los datos son inventados. Nada de lo que haga aquí llega a producción.
       </span>
       <a

@@ -35,7 +35,7 @@ export default function PaginaInscritos() {
     return { listado, resumen };
   }, [etapa, buscar]);
 
-  const vivos = useDatosVivos<Datos>(cargar);
+  const vivos = useDatosVivos<Datos>(cargar, { clave: `${etapa}|${buscar}` });
 
   if (vivos.error) return <Aviso tipo="error">{vivos.error}</Aviso>;
   if (!vivos.datos) return <p className="text-texto-suave">Cargando…</p>;

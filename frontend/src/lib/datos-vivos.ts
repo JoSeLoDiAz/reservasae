@@ -19,9 +19,9 @@ export type DatosVivos<T> = {
 /** Datos que se vuelven a pedir solos. */
 export function useDatosVivos<T>(
   cargar: () => Promise<T>,
-  opciones: { intervaloMs?: number; activo?: boolean } = {},
+  opciones: { intervaloMs?: number; activo?: boolean; clave?: string } = {},
 ): DatosVivos<T> {
-  const { intervaloMs = INTERVALO_POR_DEFECTO, activo = true } = opciones;
+  const { intervaloMs = INTERVALO_POR_DEFECTO, activo = true, clave = "" } = opciones;
 
   const [datos, setDatos] = useState<T | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -89,6 +89,18 @@ export function useDatosVivos<T>(
       document.removeEventListener("visibilitychange", alVolver);
     };
   }, [activo, intervaloMs, traer]);
+
+  // al cambiar un filtro hay que pedir YA: la funcion de
+  // carga vive en una ref y por si sola no dispara nada,
+  // asi que sin esto el filtro tarda hasta un intervalo
+  const primera = useRef(true);
+  useEffect(() => {
+    if (primera.current) {
+      primera.current = false;
+      return;
+    }
+    if (activo) void traer();
+  }, [clave, activo, traer]);
 
   return {
     datos,

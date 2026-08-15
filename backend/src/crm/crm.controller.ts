@@ -9,9 +9,9 @@ import {
   UseGuards,
 } from '@nestjs/common';
 
-import { type Admin } from '../../generated/prisma';
+import { RolAdmin, type Admin } from '../../generated/prisma';
 import { AdminActual } from '../admin/admin-actual.decorator';
-import { AdminGuard } from '../admin/admin.guard';
+import { AdminGuard, Roles } from '../admin/admin.guard';
 import { IpReal } from '../comun/ip-real';
 import { CrmService } from './crm.service';
 import {
@@ -28,6 +28,9 @@ import {
 /** Inscripciones: las personas detrás de los cupos. */
 @Controller('admin/participantes')
 @UseGuards(AdminGuard)
+// aqui viven cedulas, celulares y correos de terceros:
+// una cuenta de solo consulta no tiene nada que hacer
+@Roles(RolAdmin.SUPERADMIN, RolAdmin.GESTOR)
 export class CrmController {
   constructor(private readonly crm: CrmService) {}
 
