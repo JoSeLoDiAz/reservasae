@@ -657,6 +657,20 @@ pnpm db:sembrar-prueba [--rehacer]
   instala con `--prod` y no trae `ts-node`. Por eso la base publica 5434.
 - **Los números son repetibles** (generador con semilla fija): dos revisiones
   ven exactamente lo mismo.
+- **El grupo tiene que casar con la etapa, y se elige la OFERTA que lo tenga.**
+  Quien cursa va en un grupo abierto y quien acabó en uno cerrado. Elegir solo
+  la cobertura no basta: si la oferta no tiene ningún grupo abierto, el respaldo
+  mete gente «en formación» en un curso vencido, y el tablero académico marca
+  «atrasados» que en realidad son cursos caducados.
+- **`hace()` recorta al presente, y por eso las fechas de grupo NO pasan por
+  ella.** El recorte existe para que `ultimoAcceso` no caiga en el futuro; los
+  grupos sí necesitan fechas futuras, y colarlos por ahí aplastó dieciséis
+  contra el mismo instante y dejó certificados con nota en cursos que empezaban
+  ese día. Es la misma lección de los guiones de sede: **el arreglo trajo su
+  propio defecto.**
+- **La autorización se fecha en el paso de «datos completos»**, nunca después de
+  matricular: es la compuerta que el sistema dice imponer, y el código real es
+  incapaz de generar ese historial.
 - Siembra 24 empresas, ~60 reservas, **100 participaciones por las nueve
   etapas**, 180 actividades, avances a cuatro ritmos, notas, autorizaciones,
   fechas para los 67 grupos y las 15 acciones publicadas.
@@ -680,6 +694,26 @@ en todas las pantallas.
 - **`ENTORNO` va como `ARG` del Dockerfile además de variable de entorno**: casi
   todas las páginas del panel son estáticas y Next las hornea al compilar. Solo
   con la variable en ejecución, la franja no saldría en ellas.
+- **El enlace «Ir al sitio real» apunta a `/consulta`, no a la raíz**: allá la
+  raíz devuelve 404 a propósito y parecería que producción está caída.
+- **El correo de la portada va envuelto en `<!--email_off-->`.** Cloudflare
+  tiene Email Obfuscation activo en la zona y reescribe cualquier dirección del
+  HTML como `[email protected]`, dejando media credencial a quien lo lea con
+  `curl` o sin JavaScript. Es un conjuro no evidente: **no lo borre.**
+
+### Lo que sigue pendiente aquí
+
+- **`prueba.reservasae.com` cuelga del mismo túnel que produce el dominio real.**
+  El ingress del túnel `convoca` lleva las dos reglas, y ese túnel lo mueve
+  `arrancar-tunel.sh`: si se promueve otra sede, el entorno de pruebas se queda
+  sin origen aunque su pila siga viva en Bogotá. Se asume por ahora. Separarlo
+  es repuntar el CNAME al túnel compartido de Bogotá (que nunca migra), añadir
+  allí `prueba.reservasae.com → http://localhost:4601` y quitarle a
+  `nginx-prueba` la red externa.
+- La casilla de tratamiento de datos del formulario público **no enlaza al
+  texto**, aunque la política existe y `GET /api/politicas/:slug/RESERVA` la
+  sirve. Es de producción, no del entorno de pruebas, pero aquí se ve más
+  porque el formulario es usable de punta a punta.
 
 ---
 
