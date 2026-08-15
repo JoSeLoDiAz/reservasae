@@ -1,0 +1,12 @@
+# Copia de referencia. Va junto a su .service.
+
+[Unit]
+Description=Comprueba cada dos minutos quien es la legitima
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=2min
+RandomizedDelaySec=20
+
+[Install]
+WantedBy=timers.target
