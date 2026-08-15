@@ -89,9 +89,15 @@ export function IndicePruebas() {
       </div>
 
       <p className="mt-10 rounded-xl border border-borde bg-superficie-alterna p-4 text-sm text-texto-suave">
-        Para entrar al panel: <strong>ana.jaramillo@ejemplo.test</strong> con la
-        contraseña <strong>Prueba2026*</strong>. Hay cuatro asesores sembrados y todos
-        usan la misma.
+        Para entrar al panel:{" "}
+        {/* email_off: Cloudflare ofusca correos. Ver CLAUDE.md */}
+        <strong
+          dangerouslySetInnerHTML={{
+            __html: "<!--email_off-->ana.jaramillo@ejemplo.test<!--/email_off-->",
+          }}
+        />{" "}
+        con la contraseña <strong>Prueba2026*</strong>. Hay cuatro asesores sembrados y
+        todos usan la misma; ese es el único que además es superadministrador.
       </p>
     </main>
   );

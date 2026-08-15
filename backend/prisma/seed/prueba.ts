@@ -13,8 +13,11 @@ import {
   RolConvenio,
   TipoActividad,
   TipoDocumento,
+  TipoPregunta,
 } from '../../generated/prisma';
 import { hashearClave } from '../../src/admin/claves';
+import { PLANTILLAS, temasDePlantilla } from '../../src/admin/plantillas-tema';
+import { conValoresPorDefecto } from '../../src/admin/temas';
 
 const prisma = new PrismaClient();
 
@@ -224,6 +227,8 @@ async function borrarLoSembrado() {
   await prisma.movimientoReserva.deleteMany();
   await prisma.respuesta.deleteMany();
   await prisma.reserva.deleteMany();
+  // las propias las crea esta siembra; el nucleo no se toca
+  await prisma.pregunta.deleteMany({ where: { campoNucleo: null } });
   await prisma.empresa.deleteMany();
   await prisma.oferta.updateMany({ data: { cuposOcupados: 0 } });
   console.log('  se borró lo sembrado antes');
@@ -234,9 +239,11 @@ async function ponerFechasYPublicar() {
 
   for (const [i, grupo] of grupos.entries()) {
     // la mayoria ya arranco: si no, nadie puede ir tarde.
-    // Los tres ultimos de cada tanda quedan por empezar
+    // Las cuatro ultimas tandas quedan por empezar.
+    // OJO: sin hace(), cuyo clamp es para ultimoAcceso y
+    // aplastaria contra hoy justamente las que faltan
     const arranque = 84 - (i % 16) * 7;
-    const inicio = hace(arranque, 8);
+    const inicio = new Date(Date.now() - arranque * 86_400_000 + 8 * 3_600_000);
     const fin = new Date(inicio.getTime() + entre(28, 56) * 86_400_000);
 
     await prisma.grupo.update({
@@ -292,20 +299,25 @@ async function sembrarAsesores(convenios: Array<{ id: string }>) {
   const hash = await hashearClave(CLAVE_DEMO);
   const creados: Array<{ id: string; nombre: string }> = [];
 
-  for (const [correo, nombre] of ASESORES) {
+  for (const [indice, [correo, nombre]] of ASESORES.entries()) {
+    // el primero manda: sin un SUPERADMIN no existe la
+    // seccion Usuarios y no se pueden ver los roles
+    const rol = indice === 0 ? RolAdmin.SUPERADMIN : RolAdmin.GESTOR;
+
     const admin = await prisma.admin.upsert({
       where: { correo },
       create: {
         correo,
         nombre,
-        rol: RolAdmin.GESTOR,
+        rol,
         hashClave: hash,
         // en pruebas se entra a mirar, no a estrenar clave
         debeCambiarClave: false,
         organizacion: 'Grupo AE',
-        cargo: 'Asesor de inscripciones',
+        cargo: indice === 0 ? 'Líder de inscripciones' : 'Asesor de inscripciones',
       },
-      update: { hashClave: hash, debeCambiarClave: false, activo: true },
+      // el rol tambien, o un --rehacer no lo corrige
+      update: { hashClave: hash, rol, debeCambiarClave: false, activo: true },
     });
     creados.push(admin);
 
@@ -332,6 +344,116 @@ async function sembrarAsesores(convenios: Array<{ id: string }>) {
   return creados;
 }
 
+/** Cada formulario con su paleta, heredando lo que no cambie. */
+async function aparienciaPorFormulario() {
+  const temas = await prisma.tema.findMany();
+  const general = {
+    CLARO: conValoresPorDefecto(
+      'CLARO',
+      temas.find((t) => t.esquema === 'CLARO')?.colores,
+    ),
+    OSCURO: conValoresPorDefecto(
+      'OSCURO',
+      temas.find((t) => t.esquema === 'OSCURO')?.colores,
+    ),
+  };
+
+  const elegidas = ['vino', 'turquesa'];
+  const formularios = await prisma.formulario.findMany({ orderBy: { slug: 'asc' } });
+
+  for (const [i, formulario] of formularios.entries()) {
+    const plantilla = PLANTILLAS.find((p) => p.clave === elegidas[i % elegidas.length]);
+    if (!plantilla) continue;
+    const suyos = temasDePlantilla(plantilla);
+
+    // SOLO lo que difiere: guardar los 37 mata la herencia
+    const soloDiferentes = (esquema: 'CLARO' | 'OSCURO') => {
+      const salida: Record<string, string> = {};
+      for (const [clave, valor] of Object.entries(suyos[esquema])) {
+        if (general[esquema][clave] !== valor) salida[clave] = valor;
+      }
+      return salida;
+    };
+
+    await prisma.formulario.update({
+      where: { id: formulario.id },
+      data: {
+        publicado: true,
+        coloresClaro: soloDiferentes('CLARO'),
+        coloresOscuro: soloDiferentes('OSCURO'),
+      },
+    });
+  }
+
+  console.log(`  ${formularios.length} formularios publicados, cada uno con su paleta`);
+}
+
+/** Preguntas que no son del núcleo: lo que se agrega. */
+const PROPIAS = [
+  {
+    etiqueta: '¿Cómo se enteró de esta convocatoria?',
+    tipo: TipoPregunta.SELECCION_UNICA,
+    opciones: [
+      ['Correo del gremio', 'gremio'],
+      ['Redes sociales', 'redes'],
+      ['Un colega me la compartió', 'referido'],
+      ['Feria o evento', 'evento'],
+      ['Otro medio', 'otro'],
+    ] as Array<[string, string]>,
+  },
+  {
+    etiqueta: '¿Qué espera resolver su empresa con esta formación?',
+    tipo: TipoPregunta.TEXTO_LARGO,
+    opciones: [] as Array<[string, string]>,
+  },
+];
+
+const TEXTOS_LIBRES = [
+  'Necesitamos estandarizar los procesos de la planta.',
+  'Queremos que el equipo comercial maneje mejor las herramientas.',
+  'Nos exigen certificación para poder licitar.',
+  'Bajar los reprocesos, que hoy nos cuestan mucho.',
+  'Formar a los que llevan años sin capacitarse.',
+];
+
+async function sembrarPreguntasPropias() {
+  const formularios = await prisma.formulario.findMany({
+    select: { id: true, secciones: { select: { id: true }, orderBy: { orden: 'desc' } } },
+  });
+
+  const creadas: Array<{ id: string; formularioId: string; etiqueta: string; tipo: TipoPregunta }> =
+    [];
+
+  for (const formulario of formularios) {
+    const seccionId = formulario.secciones[0]?.id ?? null;
+
+    for (const [n, propia] of PROPIAS.entries()) {
+      const pregunta = await prisma.pregunta.create({
+        data: {
+          formularioId: formulario.id,
+          seccionId,
+          etiqueta: propia.etiqueta,
+          tipo: propia.tipo,
+          obligatoria: n === 0,
+          orden: 900 + n,
+          opciones: {
+            create: propia.opciones.map(([etiqueta, valor], orden) => ({
+              etiqueta,
+              valor,
+              orden,
+            })),
+          },
+        },
+        select: { id: true, formularioId: true, etiqueta: true, tipo: true },
+      });
+      creadas.push(pregunta);
+    }
+  }
+
+  console.log(`  ${creadas.length} preguntas propias en ${formularios.length} formularios`);
+  return creadas;
+}
+
 async function sembrarActividades(acciones: Array<{ id: string; codigo: string }>) {
   let total = 0;
   for (const accion of acciones) {
@@ -356,7 +478,7 @@ async function sembrarActividades(acciones: Array<{ id: string; codigo: string }
 
 // ---------------------------------------------------------------------------
 
-type Cobertura = { id: string; inicio: Date | null };
+type Cobertura = { id: string; inicio: Date | null; fin: Date | null };
 
 type OfertaViva = {
   id: string;
@@ -370,6 +492,13 @@ type OfertaViva = {
 async function sembrarEmpresasYReservas(ofertas: OfertaViva[]) {
   const reservas: Array<{ id: string; ofertaId: string; confirmados: number }> = [];
 
+  // de que formulario "vino" cada reserva: sin esto la
+  // pantalla de respuestas cuenta 0 y el tablero 60
+  const formularios = await prisma.formulario.findMany({
+    select: { id: true, convenioId: true },
+  });
+  const formularioDe = new Map(formularios.map((f) => [f.convenioId, f.id]));
+
   for (const [i, [razonSocial, red]] of EMPRESAS.entries()) {
     const nit = String(900_100_000 + i * 1_337);
     const empresa = await prisma.empresa.create({
@@ -379,6 +508,10 @@ async function sembrarEmpresasYReservas(ofertas: OfertaViva[]) {
         razonSocial,
         numeroColaboradores: entre(8, 480),
         redAsociada: red,
+        redAsociadaOtra:
+          red === 'Otro'
+            ? unoDe(['ANDI', 'FENALCO', 'ACOPI', 'Cámara de Comercio local'])
+            : null,
       },
     });
 
@@ -403,6 +536,7 @@ async function sembrarEmpresasYReservas(ofertas: OfertaViva[]) {
         data: {
           empresaId: empresa.id,
           ofertaId: oferta.id,
+          formularioId: formularioDe.get(oferta.convenioId) ?? null,
           cuposSolicitados: solicitados,
           cuposConfirmados: confirmados,
           cuposEnEspera: enEspera,
@@ -438,6 +572,65 @@ async function sembrarEmpresasYReservas(ofertas: OfertaViva[]) {
     }
   }
 
+  // sin una sola cancelada, dos de los tres filtros de
+  // /admin/reservas salen vacios y la tasa marca 0 %.
+  // Va antes de escribir cuposOcupados: asi cuadra solo
+  const cancelables = reservas.filter((r) => r.confirmados > 0);
+  const canceladas: string[] = [];
+
+  for (let n = 0; n < 4 && cancelables.length > 0; n++) {
+    const cual = cancelables.splice(Math.floor(azar() * cancelables.length), 1)[0];
+    const cuando = hace(entre(1, 20));
+
+    await prisma.reserva.update({
+      where: { id: cual.id },
+      data: {
+        estado: EstadoReserva.CANCELADA,
+        cuposConfirmados: 0,
+        cuposEnEspera: 0,
+        canceladaEn: cuando,
+      },
+    });
+    await prisma.movimientoReserva.create({
+      data: {
+        reservaId: cual.id,
+        accion: AccionMovimiento.CANCELACION,
+        confirmadosAntes: cual.confirmados,
+        confirmadosDespues: 0,
+        enEsperaAntes: 0,
+        enEsperaDespues: 0,
+        creadoEn: cuando,
+      },
+    });
+
+    const oferta = ofertas.find((o) => o.id === cual.ofertaId);
+    if (oferta) oferta.ocupados -= cual.confirmados;
+    canceladas.push(cual.id);
+  }
+
+  // y dos que no cupieron: espera pura, sin confirmar
+  const enEsperaPura: string[] = [];
+  for (let n = 0; n < 2 && cancelables.length > 0; n++) {
+    const cual = cancelables.splice(Math.floor(azar() * cancelables.length), 1)[0];
+    const solicitados = cual.confirmados;
+
+    await prisma.reserva.update({
+      where: { id: cual.id },
+      data: {
+        estado: EstadoReserva.LISTA_ESPERA,
+        cuposConfirmados: 0,
+        cuposEnEspera: solicitados,
+      },
+    });
+
+    const oferta = ofertas.find((o) => o.id === cual.ofertaId);
+    if (oferta) oferta.ocupados -= cual.confirmados;
+    enEsperaPura.push(cual.id);
+  }
+
+  const tocadas = new Set([...canceladas, ...enEsperaPura]);
+  const vivas = reservas.filter((r) => !tocadas.has(r.id));
+
   for (const oferta of ofertas) {
     if (oferta.ocupados > 0) {
       await prisma.oferta.update({
@@ -447,9 +640,70 @@ async function sembrarEmpresasYReservas(ofertas: OfertaViva[]) {
     }
   }
 
-  const cupos = reservas.reduce((s, r) => s + r.confirmados, 0);
-  console.log(`  ${EMPRESAS.length} empresas · ${reservas.length} reservas · ${cupos} cupos`);
-  return reservas;
+  const cupos = vivas.reduce((s, r) => s + r.confirmados, 0);
+  console.log(
+    `  ${EMPRESAS.length} empresas · ${reservas.length} reservas ` +
+      `(${canceladas.length} canceladas, ${enEsperaPura.length} en espera) · ${cupos} cupos`,
+  );
+  return vivas;
+}
+
+/** Lo que contestó cada reserva a las preguntas propias. */
+async function sembrarRespuestas(
+  preguntas: Array<{ id: string; formularioId: string; etiqueta: string; tipo: TipoPregunta }>,
+) {
+  const reservas = await prisma.reserva.findMany({
+    where: { formularioId: { not: null } },
+    select: { id: true, formularioId: true },
+  });
+
+  const opciones = await prisma.opcion.findMany({
+    select: { id: true, preguntaId: true, etiqueta: true, valor: true },
+  });
+
+  let escritas = 0;
+
+  for (const reserva of reservas) {
+    // ~15 % no contesta: una tasa del 100 % no es creíble
+    if (azar() < 0.15) continue;
+
+    for (const pregunta of preguntas) {
+      if (pregunta.formularioId !== reserva.formularioId) continue;
+
+      if (pregunta.tipo === TipoPregunta.SELECCION_UNICA) {
+        const suyas = opciones.filter((o) => o.preguntaId === pregunta.id);
+        if (suyas.length === 0) continue;
+        const elegida = unoDe(suyas);
+
+        await prisma.respuesta.create({
+          data: {
+            reservaId: reserva.id,
+            preguntaId: pregunta.id,
+            // congeladas: la exportación dice lo que leyó
+            etiquetaPregunta: pregunta.etiqueta,
+            valoresSeleccion: [elegida.valor],
+            etiquetasSeleccion: [elegida.etiqueta],
+          },
+        });
+        escritas += 1;
+        continue;
+      }
+
+      // el texto libre no se agrega, y así se ve
+      if (azar() < 0.5) continue;
+      await prisma.respuesta.create({
+        data: {
+          reservaId: reserva.id,
+          preguntaId: pregunta.id,
+          etiquetaPregunta: pregunta.etiqueta,
+          valorTexto: unoDe(TEXTOS_LIBRES),
+        },
+      });
+      escritas += 1;
+    }
+  }
+
+  console.log(`  ${escritas} respuestas sobre ${reservas.length} reservas`);
 }
 
 // ---------------------------------------------------------------------------
@@ -478,6 +732,8 @@ async function main() {
 
   await ponerFechasYPublicar();
   await sembrarPoliticas(convenios);
+  await aparienciaPorFormulario();
+  const preguntasPropias = await sembrarPreguntasPropias();
   const asesores = await sembrarAsesores(convenios);
 
   const acciones = await prisma.accionFormacion.findMany({
@@ -503,7 +759,9 @@ async function main() {
     select: {
       id: true,
       ubicacionId: true,
-      grupo: { select: { accionFormacionId: true, fechaInicio: true } },
+      grupo: {
+        select: { accionFormacionId: true, fechaInicio: true, fechaFin: true },
+      },
     },
   });
 
@@ -519,10 +777,11 @@ async function main() {
           c.ubicacionId === o.ubicacionId &&
           c.grupo.accionFormacionId === o.accionFormacionId,
       )
-      .map((c) => ({ id: c.id, inicio: c.grupo.fechaInicio })),
+      .map((c) => ({ id: c.id, inicio: c.grupo.fechaInicio, fin: c.grupo.fechaFin })),
   }));
 
   const reservas = await sembrarEmpresasYReservas(ofertas);
+  await sembrarRespuestas(preguntasPropias);
   const porOferta = new Map(ofertas.map((o) => [o.id, o]));
 
   const politicas = await prisma.politicaDatos.findMany({
@@ -567,19 +826,40 @@ async function main() {
 
     const camino = CAMINO[etapa];
     const esSalida = ETAPAS_SALIDA.includes(etapa);
-    const diasDesdeAlta = entre(4, 80);
     const enAula = ETAPAS_EN_AULA.includes(etapa);
 
-    // quien ya esta en el aula va en un grupo que arranco:
-    // si no, sale "atrasado" en un curso que no ha empezado
-    const arrancadas = oferta.coberturas.filter(
-      (c) => c.inicio !== null && c.inicio.getTime() <= Date.now(),
+    // el grupo tiene que casar con la etapa: quien cursa
+    // va en uno abierto y quien ya acabo en uno cerrado.
+    // Si no, salen "atrasados" en cursos ya vencidos
+    const ahora = Date.now();
+    const conFechas = oferta.coberturas.filter((c) => c.inicio && c.fin);
+    const cerradas = conFechas.filter((c) => c.fin!.getTime() <= ahora);
+    const enMarcha = conFechas.filter(
+      (c) => c.inicio!.getTime() <= ahora && c.fin!.getTime() > ahora,
     );
-    const cobertura = enAula
-      ? (arrancadas.length > 0 ? unoDe(arrancadas) : null)
-      : oferta.coberturas.length > 0
-        ? unoDe(oferta.coberturas)
-        : null;
+    const porEmpezar = conFechas.filter((c) => c.inicio!.getTime() > ahora);
+
+    const primeraCon = (...listas: Cobertura[][]) => {
+      for (const l of listas) if (l.length > 0) return unoDe(l);
+      return null;
+    };
+
+    let cobertura: Cobertura | null;
+    if (etapa === EtapaParticipante.CERTIFICADO || etapa === EtapaParticipante.NO_APROBO) {
+      cobertura = primeraCon(cerradas, enMarcha);
+    } else if (enAula) {
+      cobertura = primeraCon(enMarcha, cerradas);
+    } else if (etapa === EtapaParticipante.MATRICULADO) {
+      cobertura = primeraCon(porEmpezar, enMarcha, cerradas);
+    } else {
+      cobertura = primeraCon(conFechas, oferta.coberturas);
+    }
+
+    // nadie se da de alta despues de arrancar su curso
+    const diasDelInicio = cobertura?.inicio
+      ? Math.floor((ahora - cobertura.inicio.getTime()) / 86_400_000)
+      : 0;
+    const diasDesdeAlta = Math.max(diasDelInicio, 0) + entre(4, 26);
     const necesitaFormacion = camino.includes(EtapaParticipante.MATRICULADO);
     const asesor = azar() < 0.85 ? unoDe(asesores) : null;
 
@@ -646,10 +926,12 @@ async function main() {
     usados.add(`${oferta.accionFormacionId}:${personaId}`);
 
     // ── su historia de etapas ──
+    // cuantos dias atras cae cada peldano del camino
+    const diaDelPaso = (paso: number) =>
+      Math.max(0, Math.round(diasDesdeAlta - (diasDesdeAlta / camino.length) * paso));
+
     for (const [paso, etapaDespues] of camino.entries()) {
-      const cuandoDias = Math.round(
-        diasDesdeAlta - (diasDesdeAlta / camino.length) * paso,
-      );
+      const cuandoDias = diaDelPaso(paso);
       const salida = ETAPAS_SALIDA.includes(etapaDespues);
 
       await prisma.movimientoParticipante.create({
@@ -659,7 +941,7 @@ async function main() {
           etapaDespues,
           motivo: salida ? unoDe(MOTIVOS_SALIDA) : null,
           adminId: asesor?.id ?? null,
-          creadoEn: hace(Math.max(0, cuandoDias)),
+          creadoEn: hace(cuandoDias),
         },
       });
     }
@@ -672,14 +954,17 @@ async function main() {
           autorId: asesor?.id ?? null,
           autorNombre: asesor?.nombre ?? 'Sistema',
           texto: unoDe(NOTAS),
-          creadoEn: hace(entre(1, Math.max(2, diasDesdeAlta))),
+          creadoEn: hace(entre(0, diasDesdeAlta)),
         },
       });
     }
 
-    // ── autorizacion: desde DATOS_COMPLETOS ──
+    // ── autorizacion: en el paso de DATOS_COMPLETOS ──
+    // nunca despues de matricular: es la compuerta que el
+    // sistema dice imponer, y el codigo real no la permite
     const politicaId = politicaDe.get(oferta.convenioId);
-    if (politicaId && camino.includes(EtapaParticipante.DATOS_COMPLETOS)) {
+    const pasoDatos = camino.indexOf(EtapaParticipante.DATOS_COMPLETOS);
+    if (politicaId && pasoDatos >= 0) {
       await prisma.autorizacionDatos.create({
         data: {
           personaId,
@@ -690,16 +975,18 @@ async function main() {
             CanalAutorizacion.CORREO,
             CanalAutorizacion.VERBAL_ASESOR,
           ]),
-          otorgadaEn: hace(entre(1, diasDesdeAlta)),
+          // 6 h y no 12: en caminos cortos empataria
+          otorgadaEn: hace(diaDelPaso(pasoDatos), 6),
           evidencia: 'Registro de prueba',
         },
       });
     }
 
-    if (necesitaFormacion) {
+    const pasoMatricula = camino.indexOf(EtapaParticipante.MATRICULADO);
+    if (pasoMatricula >= 0) {
       await prisma.participante.update({
         where: { id: participante.id },
-        data: { fechaMatricula: hace(entre(5, diasDesdeAlta)) },
+        data: { fechaMatricula: hace(diaDelPaso(pasoMatricula)) },
       });
     }
 
@@ -718,7 +1005,11 @@ async function main() {
       if (orden >= hechas) break;
 
       const ultima = orden === hechas - 1;
-      const aprobada = etapa === 'NO_APROBO' && ultima ? false : azar() < 0.9;
+      // certificado quiere decir todo aprobado
+      const aprobada =
+        etapa === 'NO_APROBO' && ultima
+          ? false
+          : etapa === 'CERTIFICADO' || azar() < 0.9;
       const iniciada = hace(entre(2, 45));
 
       await prisma.avanceActividad.create({

@@ -17,7 +17,8 @@ export function FranjaEntorno() {
         Los datos son inventados. Nada de lo que haga aquí llega a producción.
       </span>
       <a
-        href="https://reservasae.com"
+        // a /consulta y no a la raiz: alli el 404 es adrede
+        href="https://reservasae.com/consulta"
         className="underline underline-offset-2 hover:no-underline"
       >
         Ir al sitio real
