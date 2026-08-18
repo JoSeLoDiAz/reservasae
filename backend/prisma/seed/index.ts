@@ -99,6 +99,18 @@ function modalidadDelGrupo(coberturas: CoberturaJson[]): Modalidad {
   return presencial ? Modalidad.PRESENCIAL : Modalidad.VIRTUAL;
 }
 
+/**
+ * Lo que el proyecto trae mal y el cliente corrigió.
+ * Va aquí y no en catalogo.json, que se regenera desde el
+ * .xlsx y borraría la corrección sin avisar.
+ */
+const CORRECCIONES: Record<string, { nit?: string; digitoVerificacion?: string }> = {
+  // el proyecto dice 890.982.432-0 y su aviso de privacidad
+  // 890.901.432-0. El cliente confirmó el segundo, que es
+  // el que va impreso en lo que firma cada participante
+  adecopria: { nit: '890901432', digitoVerificacion: '0' },
+};
+
 async function main() {
   const ruta = join(__dirname, 'catalogo.json');
   const catalogo: CatalogoJson = JSON.parse(readFileSync(ruta, 'utf8'));
@@ -106,7 +118,7 @@ async function main() {
   const avisos: string[] = [];
 
   for (const [ordenConvenio, entrada] of catalogo.convenios.entries()) {
-    const { entidad } = entrada;
+    const entidad = { ...entrada.entidad, ...(CORRECCIONES[entrada.slug] ?? {}) };
 
     const convenio = await prisma.convenio.upsert({
       where: { slug: entrada.slug },

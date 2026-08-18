@@ -253,12 +253,13 @@ async function ponerFechasYPublicar() {
   const grupos = await prisma.grupo.findMany({ orderBy: { id: 'asc' } });
 
   for (const [i, grupo] of grupos.entries()) {
-    // la mayoria ya arranco: si no, nadie puede ir tarde.
-    // Las cuatro ultimas tandas quedan por empezar.
+    // fechas de prueba de septiembre a diciembre, que es
+    // la ventana que pidio el cliente para el cronograma.
     // OJO: sin hace(), cuyo clamp es para ultimoAcceso y
-    // aplastaria contra hoy justamente las que faltan
-    const arranque = 84 - (i % 16) * 7;
-    const inicio = new Date(Date.now() - arranque * 86_400_000 + 8 * 3_600_000);
+    // aplastaria contra hoy las que aun no han empezado
+    const ANO = new Date().getFullYear();
+    // escalonados por semanas desde el 1 de septiembre
+    const inicio = new Date(Date.UTC(ANO, 8, 1 + (i % 14) * 7, 13));
     const fin = new Date(inicio.getTime() + entre(28, 56) * 86_400_000);
 
     await prisma.grupo.update({
