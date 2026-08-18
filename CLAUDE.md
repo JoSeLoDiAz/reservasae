@@ -618,6 +618,17 @@ Física, por streaming, **asíncrona**, con ranura por sede (`socorro`, `dell`).
   Arreglarlo exigiría desactivar el proxy de usuario de Docker y reiniciar el
   demonio en Bogotá, donde viven los otros proyectos. La barrera real es doble:
   la base solo es alcanzable desde la red privada, y exige contraseña SCRAM.
+- **Docker publica el puerto de la base en la IP de Tailscale, que al arrancar
+  la máquina todavía no existe.** El contenedor muere con `cannot assign
+  requested address` y la sede se queda **sin base**, con el backend en ciclo de
+  reinicios. Pasó en Bogotá el 18 ago 2026, al volver de la caída. Por eso
+  `asegurar-base.sh` la levanta en cuanto la dirección aparece: es un fallo de
+  carrera entre dos servicios del sistema, no algo que se pueda arreglar dentro
+  de `docker-compose.yml`.
+- **El `hostname` de Bogotá es `sep-dev`, no `server-bogota`.** `rendirse.sh`
+  nombra la ranura con `hostname`, así que la de Bogotá se llama `sep_dev`.
+  Funciona y es consistente consigo misma, pero no busques `bogota` en
+  `pg_replication_slots` porque no está.
 - **Si una réplica se cae mucho tiempo**, Bogotá le retiene WAL hasta
   `max_slot_wal_keep_size = 8GB` y después invalida la ranura; esa sede
   necesitaría una copia base nueva. Con este volumen de escritura, 8 GB son
@@ -635,13 +646,14 @@ No se le exige disponibilidad, pero sí que no se duerma el Windows anfitrión
 (`Set-VM -AutomaticStartAction Start`). Si esa sede pasa meses caída, hay que
 rehacerle la copia base.
 
-### Los ocho guiones
+### Los nueve guiones
 
 Todos en `scripts/`, todos idempotentes, todos con el mismo criterio: **antes de
 destruir algo, comprobar que hay a dónde ir**.
 
 | Guión | Dónde | Qué hace |
 |---|---|---|
+| `asegurar-base.sh` | todas | temporizador cada 1 min: levanta la base si el arranque la dejó caída |
 | `desplegar.sh` | principal | construye, comprueba y **solo entonces** marca el commit |
 | `seguir-al-principal.sh` | réplicas | temporizador cada 2 min: se pone en el commit marcado y construye |
 | `arrancar-tunel.sh` | todas | temporizador cada 1 min: levanta el túnel **solo si le toca** |
