@@ -110,6 +110,12 @@ const EMPRESAS = [
   ['Editorial Tinta Viva S.A.S.', 'Ambos'], ['Logística Sur Express S.A.S.', 'BRITCHAM'],
 ] as const;
 
+/// Quien ve solo un convenio, para poder probar el ambito.
+const SOLO_UN_CONVENIO: Record<string, string> = {
+  'lucia.parra@ejemplo.test': 'adecopria',
+  'hector.ramos@ejemplo.test': 'britcham-adee',
+};
+
 const ASESORES = [
   ['ana.jaramillo@ejemplo.test', 'Ana Jaramillo'],
   ['carlos.mesa@ejemplo.test', 'Carlos Mesa'],
@@ -344,7 +350,7 @@ async function sembrarPoliticas(convenios: Array<{ id: string; nombre: string }>
   console.log('  políticas de prueba vigentes en los dos convenios');
 }
 
-async function sembrarAsesores(convenios: Array<{ id: string }>) {
+async function sembrarAsesores(convenios: Array<{ id: string; slug: string }>) {
   const hash = await hashearClave(CLAVE_DEMO);
   const creados: Array<{ id: string; nombre: string }> = [];
 
@@ -370,15 +376,18 @@ async function sembrarAsesores(convenios: Array<{ id: string }>) {
     });
     creados.push(admin);
 
-    // Lucia solo ADECOPRIA y Hector solo BRITCHAM: sin
-    // esto el ambito no se puede comprobar, porque todos
-    // verian todo y pareceria que funciona
-    const suyos =
-      indice === 2
-        ? convenios.slice(0, 1)
-        : indice === 3
-          ? convenios.slice(1)
-          : convenios;
+    // dos con un solo convenio: sin eso el ambito no se
+    // puede comprobar, porque todos verian todo y
+    // pareceria que funciona. Por slug y no por posicion,
+    // que depende del orden y se lee al reves
+    const soloDe = SOLO_UN_CONVENIO[correo];
+    const suyos = soloDe
+      ? convenios.filter((c) => c.slug === soloDe)
+      : convenios;
+
+    // upsert solo anade: sin borrar antes, una resiembra
+    // conserva las concesiones viejas y el ambito no cambia
+    await prisma.adminConvenio.deleteMany({ where: { adminId: admin.id } });
 
     for (const convenio of suyos) {
       await prisma.adminConvenio.upsert({
@@ -776,7 +785,7 @@ async function main() {
 
   const convenios = await prisma.convenio.findMany({
     where: { activo: true },
-    select: { id: true, nombre: true },
+    select: { id: true, nombre: true, slug: true },
     orderBy: { orden: 'asc' },
   });
   if (convenios.length === 0) {
