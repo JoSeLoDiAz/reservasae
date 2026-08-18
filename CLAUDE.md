@@ -772,17 +772,26 @@ en el PC Dell por descuido no lo convierte en candidato.
 `SIMULAR=si scripts/autopromover.sh` recorre todos los guardias y se detiene
 justo antes de promover. Es la única forma de ensayar esto sin tumbar el sitio.
 
-> **Pendiente al 15 ago 2026: probar el corte de verdad.** Está verificado que
-> los guiones **se abstienen** (principal vivo, sede no candidata, nadie por
-> delante), no que **promueven**. Falta parar el principal y comprobar que la
-> otra sede se promueve sola dentro de los 5 minutos y que la parada se rinde
-> sola al volver. Requiere las tres sedes sanas, así que espera a Bogotá.
+> **Probado de verdad el 18 ago 2026, y funcionó entero sin tocar nada.** Se
+> paró la app de El Socorro a las 15:30:04. Bogotá lo vio `CAIDA` a los 3 s,
+> contó 70 → 136 → 221 s y se promovió a las **15:36:31** (6 min 27 s: los 300 s
+> más el ciclo del temporizador), levantando el túnel ella sola. El dominio
+> volvió sin intervención. Después El Socorro y el PC Dell detectaron la línea 3
+> y **se rindieron solos**, cada uno con su `pg_dump` previo. Los hashes de
+> `reservas`, `empresas` y `ofertas` quedaron idénticos: no se perdió un byte.
 >
-> **Y hasta que Bogotá vuelva, el failover automático no puede actuar**: con
-> solo dos sedes vivas no hay tercera opinión, así que ante un `INALCANZABLE`
-> ninguna promueve. No es un defecto — es la misma regla que impide que una sede
-> aislada se crea la última superviviente. Con dos nodos el quórum no existe. Si
-> El Socorro cayera en ese hueco, la salida es `promover.sh` a mano en el Dell.
+> **Con dos sedes vivas el failover no puede actuar**, y conviene recordarlo: sin
+> tercera opinión, ante un `INALCANZABLE` ninguna promueve. No es un defecto — es
+> la regla que impide que una sede aislada se crea la última superviviente. Con
+> dos nodos el quórum no existe, y la salida es `promover.sh` a mano.
+>
+> **Lo que encontró la prueba**: `promover.sh` no escribía `.desplegado`, que es
+> justo lo que `rendirse.sh` borra al degradar una sede. La nueva principal se
+> quedaba sin marca y las réplicas respondían «sin respuesta del principal, no
+> cambio nada»: el despliegue quedaba detenido hasta que alguien lo corriera a
+> mano. Falla seguro —nadie retrocede— pero es exactamente la clase de defecto
+> que solo aparece cortando de verdad. Ahora `promover.sh` marca el commit, que
+> ya venía de verificar con `esperar_local` igual que `desplegar.sh`.
 
 ### Failover a mano: el runbook
 
