@@ -43,6 +43,15 @@ import {
   RegistrarAutorizacionDto,
 } from './dto';
 
+/**
+ * El ámbito NO va en el DTO: declararlo ahí lo vuelve una
+ * propiedad propia de la clase y el ValidationPipe la
+ * rechaza con «property ambito should not exist». Y sobre
+ * todo, nunca puede venir de la petición: lo pone el
+ * controlador desde el guard.
+ */
+export type Filtros = FiltrosParticipantesDto & { ambito?: string[] };
+
 const POR_PAGINA = 30;
 /// Tope duro aunque el filtro pida mas.
 const TOPE_POR_PAGINA = 300;
@@ -86,7 +95,7 @@ type EstadoAcademico =
 export class CrmService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async listar(filtros: FiltrosParticipantesDto) {
+  async listar(filtros: Filtros) {
     const donde = this.donde(filtros);
     const pagina = Math.max(1, filtros.pagina ?? 1);
     const porPagina = Math.min(filtros.limite ?? POR_PAGINA, TOPE_POR_PAGINA);
@@ -135,7 +144,7 @@ export class CrmService {
   }
 
   /** Cuántos hay en cada etapa: las columnas del tablero. */
-  async resumen(filtros: FiltrosParticipantesDto) {
+  async resumen(filtros: Filtros) {
     const donde = this.donde({ ...filtros, etapa: undefined });
 
     const porEtapa = await this.prisma.participante.groupBy({
@@ -778,7 +787,7 @@ export class CrmService {
    * Seguimiento académico: lo hecho contra lo que tocaría
    * a estas alturas del calendario del grupo.
    */
-  async academico(filtros: FiltrosParticipantesDto) {
+  async academico(filtros: Filtros) {
     const donde: Prisma.ParticipanteWhereInput = {
       AND: [
         this.donde({ ...filtros, etapa: undefined }),
@@ -1293,7 +1302,7 @@ export class CrmService {
     }
   }
 
-  private donde(f: FiltrosParticipantesDto): Prisma.ParticipanteWhereInput {
+  private donde(f: Filtros): Prisma.ParticipanteWhereInput {
     const y: Prisma.ParticipanteWhereInput[] = [];
 
     // el ambito primero y siempre: pedir un convenioId al
