@@ -233,6 +233,13 @@ export class CrearNotaDto {
 }
 
 export class FiltrosParticipantesDto {
+  /**
+   * Lo pone el controlador desde el guard, NUNCA la
+   * petición: si viniera del cliente, cambiar un id en la
+   * barra abriría el otro convenio.
+   */
+  ambito?: string[];
+
   @IsOptional() @IsString() convenioId?: string;
   @IsOptional() @IsEnum(EtapaParticipante) etapa?: EtapaParticipante;
   @IsOptional() @IsString() accionFormacionId?: string;

@@ -27,7 +27,19 @@ export const PermitidaSinCambiarClave = () =>
 export const ROLES = 'roles_admin';
 export const Roles = (...roles: RolAdmin[]) => SetMetadata(ROLES, roles);
 
-export type PeticionConAdmin = Request & { admin?: Admin };
+/**
+ * A qué convenios tiene acceso, resuelto en el guard.
+ * Sin fila en AdminConvenio no se ve nada de ese convenio:
+ * la concesión es explícita, nunca por omisión.
+ */
+export type Ambito = {
+  /// Los ids que puede ver. Vacío = no ve ninguno.
+  convenios: string[];
+  /// Un superadmin con filas en los dos los ve los dos.
+  todos: boolean;
+};
+
+export type PeticionConAdmin = Request & { admin?: Admin; ambito?: Ambito };
 
 @Injectable()
 export class AdminGuard implements CanActivate {
@@ -63,6 +75,16 @@ export class AdminGuard implements CanActivate {
       throw new UnauthorizedException('La cuenta ya no está activa.');
     }
     peticion.admin = admin;
+
+    // el ambito se resuelve aqui y no en cada consulta:
+    // olvidarlo en una sola deja escapar el otro convenio
+    const concesiones = await this.prisma.adminConvenio.findMany({
+      where: { adminId: admin.id },
+      select: { convenioId: true },
+    });
+    const convenios = [...new Set(concesiones.map((c) => c.convenioId))];
+    const activos = await this.prisma.convenio.count({ where: { activo: true } });
+    peticion.ambito = { convenios, todos: convenios.length >= activos };
 
     const sinCambiar = this.reflector.getAllAndOverride<boolean>(
       PERMITIDA_SIN_CAMBIAR_CLAVE,

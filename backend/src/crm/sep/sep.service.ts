@@ -1,6 +1,11 @@
 /** Los dos reportes al SEP, y quién no entra en ellos. */
 
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 
 import { EtapaParticipante } from '../../../generated/prisma';
 import { PrismaService } from '../../prisma/prisma.service';
@@ -28,8 +33,8 @@ export class SepService {
   constructor(private readonly prisma: PrismaService) {}
 
   /** Cuántos entran, cuántos no y por qué. */
-  async alistamiento(convenioId: string) {
-    const { listos, excluidos, convenio } = await this.preparar(convenioId);
+  async alistamiento(convenioId: string, ambito: string[]) {
+    const { listos, excluidos, convenio } = await this.preparar(convenioId, ambito);
 
     // agrupado por motivo: la lista accionable no es de
     // personas, es de "187 sin fecha de nacimiento"
@@ -49,8 +54,8 @@ export class SepService {
     };
   }
 
-  async exportar(convenioId: string, formato: Formato, ano: number) {
-    const { listos, excluidos } = await this.preparar(convenioId);
+  async exportar(convenioId: string, formato: Formato, ano: number, ambito: string[]) {
+    const { listos, excluidos } = await this.preparar(convenioId, ambito);
 
     const definicion = formato === 'cargue-sep' ? cargue : usoDirecto;
     const filas =
@@ -91,7 +96,13 @@ export class SepService {
   }
 
   /** Arma las filas y separa las que no están listas. */
-  private async preparar(convenioId: string) {
+  private async preparar(convenioId: string, ambito: string[]) {
+    // el archivo lleva cedulas: sin concesion, ni el
+    // alistamiento se puede ver
+    if (!ambito.includes(convenioId)) {
+      throw new ForbiddenException('No tiene acceso a ese convenio.');
+    }
+
     const convenio = await this.prisma.convenio.findUnique({
       where: { id: convenioId },
       select: {

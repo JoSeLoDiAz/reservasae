@@ -2,7 +2,8 @@ import { Controller, Get, Query, Res, UseGuards } from '@nestjs/common';
 import type { Response } from 'express';
 
 import { RolAdmin } from '../../../generated/prisma';
-import { AdminGuard, Roles } from '../../admin/admin.guard';
+import { AmbitoActual } from '../../admin/admin-actual.decorator';
+import { AdminGuard, Roles, type Ambito } from '../../admin/admin.guard';
 import { enviarLibro } from '../../tableros/exportar';
 import { SepService, type Formato } from './sep.service';
 
@@ -15,8 +16,8 @@ export class SepController {
 
   /** Cuántos entran y cuántos no, antes de generar nada. */
   @Get('alistamiento')
-  alistamiento(@Query('convenioId') convenioId: string) {
-    return this.sep.alistamiento(convenioId);
+  alistamiento(@Query('convenioId') convenioId: string, @AmbitoActual() ambito: Ambito) {
+    return this.sep.alistamiento(convenioId, ambito.convenios);
   }
 
   @Get('exportar')
@@ -24,6 +25,7 @@ export class SepController {
     @Query('convenioId') convenioId: string,
     @Query('formato') formato: Formato,
     @Query('ano') ano: string | undefined,
+    @AmbitoActual() ambito: Ambito,
     @Res() res: Response,
   ) {
     const cual: Formato = formato === 'cargue-sep' ? 'cargue-sep' : 'uso-directo';
@@ -31,6 +33,7 @@ export class SepController {
       convenioId,
       cual,
       Number(ano) || new Date().getFullYear(),
+      ambito.convenios,
     );
     enviarLibro(res, libro, cual === 'cargue-sep' ? 'reporte-sep' : 'reporte-control');
   }

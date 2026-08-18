@@ -370,7 +370,17 @@ async function sembrarAsesores(convenios: Array<{ id: string }>) {
     });
     creados.push(admin);
 
-    for (const convenio of convenios) {
+    // Lucia solo ADECOPRIA y Hector solo BRITCHAM: sin
+    // esto el ambito no se puede comprobar, porque todos
+    // verian todo y pareceria que funciona
+    const suyos =
+      indice === 2
+        ? convenios.slice(0, 1)
+        : indice === 3
+          ? convenios.slice(1)
+          : convenios;
+
+    for (const convenio of suyos) {
       await prisma.adminConvenio.upsert({
         where: {
           adminId_convenioId_rol: {

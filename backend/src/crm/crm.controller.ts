@@ -10,8 +10,8 @@ import {
 } from '@nestjs/common';
 
 import { RolAdmin, type Admin } from '../../generated/prisma';
-import { AdminActual } from '../admin/admin-actual.decorator';
-import { AdminGuard, Roles } from '../admin/admin.guard';
+import { AdminActual, AmbitoActual } from '../admin/admin-actual.decorator';
+import { AdminGuard, Roles, type Ambito } from '../admin/admin.guard';
 import { IpReal } from '../comun/ip-real';
 import { CrmService } from './crm.service';
 import {
@@ -36,14 +36,14 @@ export class CrmController {
 
   /** Contadores por etapa: las columnas del tablero. */
   @Get('resumen')
-  resumen(@Query() filtros: FiltrosParticipantesDto) {
-    return this.crm.resumen(filtros);
+  resumen(@Query() filtros: FiltrosParticipantesDto, @AmbitoActual() ambito: Ambito) {
+    return this.crm.resumen({ ...filtros, ambito: ambito.convenios });
   }
 
   /** Cupos reservados sin nombre detrás. */
   @Get('brecha')
-  brecha(@Query('convenioId') convenioId?: string) {
-    return this.crm.brecha(convenioId);
+  brecha(@AmbitoActual() ambito: Ambito, @Query('convenioId') convenioId?: string) {
+    return this.crm.brecha(convenioId, ambito.convenios);
   }
 
   /** Las listas del SEP que dibujan los formularios. */
@@ -54,52 +54,58 @@ export class CrmController {
 
   /** Quién va al día y quién no, contra las fechas del grupo. */
   @Get('academico')
-  academico(@Query() filtros: FiltrosParticipantesDto) {
-    return this.crm.academico(filtros);
+  academico(@Query() filtros: FiltrosParticipantesDto, @AmbitoActual() ambito: Ambito) {
+    return this.crm.academico({ ...filtros, ambito: ambito.convenios });
   }
 
   /** Ofertas y grupos donde se puede colocar a alguien. */
   @Get('opciones')
-  opciones(@Query('convenioId') convenioId: string) {
-    return this.crm.opciones(convenioId);
+  opciones(@Query('convenioId') convenioId: string, @AmbitoActual() ambito: Ambito) {
+    return this.crm.opciones(convenioId, ambito.convenios);
   }
 
   @Get()
-  listar(@Query() filtros: FiltrosParticipantesDto) {
-    return this.crm.listar(filtros);
+  listar(@Query() filtros: FiltrosParticipantesDto, @AmbitoActual() ambito: Ambito) {
+    return this.crm.listar({ ...filtros, ambito: ambito.convenios });
   }
 
   @Post('carga/previsualizar')
-  previsualizarCarga(@Body() dto: CargaDto) {
-    return this.crm.previsualizarCarga(dto);
+  previsualizarCarga(@Body() dto: CargaDto, @AmbitoActual() ambito: Ambito) {
+    return this.crm.previsualizarCarga(dto, ambito.convenios);
   }
 
   @Post('carga/confirmar')
   confirmarCarga(
     @Body() dto: CargaDto,
     @AdminActual() admin: Admin,
+    @AmbitoActual() ambito: Ambito,
     @IpReal() ip: string,
   ) {
-    return this.crm.confirmarCarga(dto, admin, ip);
+    return this.crm.confirmarCarga(dto, admin, ambito.convenios, ip);
   }
 
   @Get(':id')
-  obtener(@Param('id') id: string) {
-    return this.crm.obtener(id);
+  obtener(@Param('id') id: string, @AmbitoActual() ambito: Ambito) {
+    return this.crm.obtener(id, ambito.convenios);
   }
 
   @Post()
   crear(
     @Body() dto: CrearParticipanteDto,
     @AdminActual() admin: Admin,
+    @AmbitoActual() ambito: Ambito,
     @IpReal() ip: string,
   ) {
-    return this.crm.crear(dto, admin, ip);
+    return this.crm.crear(dto, admin, ambito.convenios, ip);
   }
 
   @Patch(':id')
-  actualizar(@Param('id') id: string, @Body() dto: ActualizarParticipanteDto) {
-    return this.crm.actualizar(id, dto);
+  actualizar(
+    @Param('id') id: string,
+    @Body() dto: ActualizarParticipanteDto,
+    @AmbitoActual() ambito: Ambito,
+  ) {
+    return this.crm.actualizar(id, dto, ambito.convenios);
   }
 
   @Patch(':id/etapa')
@@ -107,9 +113,10 @@ export class CrmController {
     @Param('id') id: string,
     @Body() dto: CambiarEtapaDto,
     @AdminActual() admin: Admin,
+    @AmbitoActual() ambito: Ambito,
     @IpReal() ip: string,
   ) {
-    return this.crm.cambiarEtapa(id, dto, admin, ip);
+    return this.crm.cambiarEtapa(id, dto, admin, ambito.convenios, ip);
   }
 
   @Patch(':id/formacion')
@@ -117,8 +124,9 @@ export class CrmController {
     @Param('id') id: string,
     @Body() dto: AsignarFormacionDto,
     @AdminActual() admin: Admin,
+    @AmbitoActual() ambito: Ambito,
   ) {
-    return this.crm.asignar(id, dto, admin);
+    return this.crm.asignar(id, dto, admin, ambito.convenios);
   }
 
   @Post(':id/autorizacion')
@@ -126,9 +134,10 @@ export class CrmController {
     @Param('id') id: string,
     @Body() dto: RegistrarAutorizacionDto,
     @AdminActual() admin: Admin,
+    @AmbitoActual() ambito: Ambito,
     @IpReal() ip: string,
   ) {
-    return this.crm.registrarAutorizacion(id, dto, admin, ip);
+    return this.crm.registrarAutorizacion(id, dto, admin, ambito.convenios, ip);
   }
 
   @Post(':id/notas')
@@ -136,7 +145,8 @@ export class CrmController {
     @Param('id') id: string,
     @Body() dto: CrearNotaDto,
     @AdminActual() admin: Admin,
+    @AmbitoActual() ambito: Ambito,
   ) {
-    return this.crm.agregarNota(id, dto, admin);
+    return this.crm.agregarNota(id, dto, admin, ambito.convenios);
   }
 }

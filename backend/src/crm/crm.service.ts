@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   ConflictException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -195,7 +196,9 @@ export class CrmService {
     };
   }
 
-  async obtener(id: string) {
+  async obtener(id: string, ambito: string[]) {
+    await this.exigirParticipante(id, ambito);
+
     const p = await this.prisma.participante.findUnique({
       where: { id },
       include: {
@@ -270,7 +273,9 @@ export class CrmService {
     };
   }
 
-  async crear(dto: CrearParticipanteDto, admin: Admin, ip?: string) {
+  async crear(dto: CrearParticipanteDto, admin: Admin, ambito: string[], ip?: string) {
+    this.exigirConvenio(dto.convenioId, ambito);
+
     // el tipo tiene que servir para una persona y estar
     // permitido aqui: sin esto la API acepta cualquier
     // entero y el cargue sale con un codigo sin significado
@@ -409,7 +414,9 @@ export class CrmService {
     });
   }
 
-  async actualizar(id: string, dto: ActualizarParticipanteDto) {
+  async actualizar(id: string, dto: ActualizarParticipanteDto, ambito: string[]) {
+    await this.exigirParticipante(id, ambito);
+
     const p = await this.prisma.participante.findUnique({
       where: { id },
       select: { id: true, personaId: true },
@@ -493,16 +500,24 @@ export class CrmService {
       }),
     ]);
 
-    return this.obtener(id);
+    return this.obtener(id, ambito);
   }
 
-  async cambiarEtapa(id: string, dto: CambiarEtapaDto, admin: Admin, ip?: string) {
+  async cambiarEtapa(
+    id: string,
+    dto: CambiarEtapaDto,
+    admin: Admin,
+    ambito: string[],
+    ip?: string,
+  ) {
+    await this.exigirParticipante(id, ambito);
+
     const p = await this.prisma.participante.findUnique({
       where: { id },
       select: { id: true, etapa: true },
     });
     if (!p) throw new NotFoundException('Ese participante no existe.');
-    if (p.etapa === dto.etapa) return this.obtener(id);
+    if (p.etapa === dto.etapa) return this.obtener(id, ambito);
 
     if (ETAPAS_CON_MOTIVO.includes(dto.etapa) && !dto.motivo) {
       throw new BadRequestException(
@@ -543,10 +558,12 @@ export class CrmService {
       }),
     ]);
 
-    return this.obtener(id);
+    return this.obtener(id, ambito);
   }
 
-  async agregarNota(id: string, dto: CrearNotaDto, admin: Admin) {
+  async agregarNota(id: string, dto: CrearNotaDto, admin: Admin, ambito: string[]) {
+    await this.exigirParticipante(id, ambito);
+
     const existe = await this.prisma.participante.count({ where: { id } });
     if (!existe) throw new NotFoundException('Ese participante no existe.');
 
@@ -618,7 +635,9 @@ export class CrmService {
 
 
   /** Que pasaria si se confirma este pegado. */
-  async previsualizarCarga(dto: CargaDto) {
+  async previsualizarCarga(dto: CargaDto, ambito: string[]) {
+    this.exigirConvenio(dto.convenioId, ambito);
+
     const filas = analizar(dto.texto);
     if (filas.length === 0) {
       throw new BadRequestException('No encontré ninguna fila con datos.');
@@ -705,8 +724,10 @@ export class CrmService {
   }
 
   /** Crea solo las lineas que el asesor confirmo. */
-  async confirmarCarga(dto: CargaDto, admin: Admin, ip?: string) {
-    const previa = await this.previsualizarCarga(dto);
+  async confirmarCarga(dto: CargaDto, admin: Admin, ambito: string[], ip?: string) {
+    this.exigirConvenio(dto.convenioId, ambito);
+
+    const previa = await this.previsualizarCarga(dto, ambito);
     const permitidas = dto.lineas ? new Set(dto.lineas) : null;
 
     const aCrear = previa.filas.filter(
@@ -737,6 +758,7 @@ export class CrmService {
             origen: 'EMPRESA',
           },
           admin,
+          ambito,
           ip,
         );
         creados += 1;
@@ -923,10 +945,12 @@ export class CrmService {
     };
   }
 
-  async brecha(convenioId?: string) {
+  async brecha(convenioId: string | undefined, ambito: string[]) {
     const reservas = await this.prisma.reserva.findMany({
       where: {
         estado: { not: 'CANCELADA' },
+        // la reserva no lleva convenio: cuelga de la accion
+        oferta: { accionFormacion: { convenioId: { in: ambito } } },
         ...(convenioId
           ? { oferta: { accionFormacion: { convenioId } } }
           : {}),
@@ -1034,7 +1058,9 @@ export class CrmService {
   }
 
   /** Ofertas y grupos donde se puede colocar a alguien. */
-  async opciones(convenioId: string) {
+  async opciones(convenioId: string, ambito: string[]) {
+    this.exigirConvenio(convenioId, ambito);
+
     const ofertas = await this.prisma.oferta.findMany({
       where: { accionFormacion: { convenioId } },
       orderBy: [
@@ -1100,7 +1126,9 @@ export class CrmService {
   }
 
   /** Colocar a alguien en una oferta y su grupo. */
-  async asignar(id: string, dto: AsignarFormacionDto, admin: Admin) {
+  async asignar(id: string, dto: AsignarFormacionDto, admin: Admin, ambito: string[]) {
+    await this.exigirParticipante(id, ambito);
+
     const p = await this.prisma.participante.findUnique({
       where: { id },
       select: { id: true, personaId: true, convenioId: true, accionFormacionId: true },
@@ -1176,7 +1204,7 @@ export class CrmService {
       },
     });
 
-    return this.obtener(id);
+    return this.obtener(id, ambito);
   }
 
   /** La prueba de que el titular autorizo. */
@@ -1184,8 +1212,11 @@ export class CrmService {
     id: string,
     dto: RegistrarAutorizacionDto,
     admin: Admin,
+    ambito: string[],
     ip?: string,
   ) {
+    await this.exigirParticipante(id, ambito);
+
     const p = await this.prisma.participante.findUnique({
       where: { id },
       select: { personaId: true, convenioId: true },
@@ -1212,7 +1243,7 @@ export class CrmService {
       where: { personaId: p.personaId, politicaDatosId: politica.id, revocadaEn: null },
       select: { id: true },
     });
-    if (yaEsta) return this.obtener(id);
+    if (yaEsta) return this.obtener(id, ambito);
 
     await this.prisma.$transaction([
       this.prisma.autorizacionDatos.create({
@@ -1237,11 +1268,41 @@ export class CrmService {
       }),
     ]);
 
-    return this.obtener(id);
+    return this.obtener(id, ambito);
+  }
+
+  /** Sin concesión en ese convenio, no existe. */
+  private exigirConvenio(convenioId: string, ambito: string[]) {
+    if (!ambito.includes(convenioId)) {
+      throw new ForbiddenException('No tiene acceso a ese convenio.');
+    }
+  }
+
+  /**
+   * Un id de otro convenio responde igual que uno que no
+   * existe: decir «no tiene permiso» confirmaría que esa
+   * persona está en el sistema.
+   */
+  private async exigirParticipante(id: string, ambito: string[]) {
+    const p = await this.prisma.participante.findUnique({
+      where: { id },
+      select: { convenioId: true },
+    });
+    if (!p || !ambito.includes(p.convenioId)) {
+      throw new NotFoundException('Ese participante no existe.');
+    }
   }
 
   private donde(f: FiltrosParticipantesDto): Prisma.ParticipanteWhereInput {
     const y: Prisma.ParticipanteWhereInput[] = [];
+
+    // el ambito primero y siempre: pedir un convenioId al
+    // que no se tiene acceso no puede devolver nada. Una
+    // lista vacia deja fuera todo, que es lo correcto
+    // cuando la cuenta no tiene concesion en ninguno
+    if (f.ambito) {
+      y.push({ convenioId: { in: f.ambito } });
+    }
 
     if (f.convenioId) y.push({ convenioId: f.convenioId });
     if (f.etapa) y.push({ etapa: f.etapa });
