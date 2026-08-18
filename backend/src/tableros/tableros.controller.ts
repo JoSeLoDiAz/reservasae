@@ -2,8 +2,9 @@ import { Controller, Get, Param, Query, Res, UseGuards } from '@nestjs/common';
 import type { Response } from 'express';
 
 import { EstadoReserva, RolAdmin } from '../../generated/prisma';
-import { AdminGuard, Roles } from '../admin/admin.guard';
+import { AdminGuard, Roles, type Ambito } from '../admin/admin.guard';
 import { construirLibro, nombreArchivo } from './exportar';
+import { AmbitoActual } from '../admin/admin-actual.decorator';
 import { TablerosService, valorLegible, type FiltrosReservas } from './tableros.service';
 
 const ESTADOS = Object.values(EstadoReserva) as string[];
@@ -32,58 +33,64 @@ export class TablerosController {
   constructor(private readonly tableros: TablerosService) {}
 
   @Get('resumen')
-  resumen() {
-    return this.tableros.resumen();
+  resumen(@AmbitoActual() ambito: Ambito) {
+    return this.tableros.resumen(ambito.convenios);
   }
 
   @Get('analisis')
-  analisis() {
-    return this.tableros.analisis();
+  analisis(@AmbitoActual() ambito: Ambito) {
+    return this.tableros.analisis(ambito.convenios);
   }
 
   @Get('acciones')
-  porAccion() {
-    return this.tableros.porAccion();
+  porAccion(@AmbitoActual() ambito: Ambito) {
+    return this.tableros.porAccion(ambito.convenios);
   }
 
   // después de 'acciones', o ':id' la captura
   @Get('acciones/:id')
-  accion(@Param('id') id: string) {
-    return this.tableros.accion(id);
+  accion(@Param('id') id: string, @AmbitoActual() ambito: Ambito) {
+    return this.tableros.accion(id, ambito.convenios);
   }
 
   @Get('ubicaciones')
-  porUbicacion(@Query('convenio') convenio?: string) {
-    return this.tableros.porUbicacion(convenio);
+  porUbicacion(@AmbitoActual() ambito: Ambito, @Query('convenio') convenio?: string) {
+    return this.tableros.porUbicacion(ambito.convenios, convenio);
   }
 
   @Get('proyeccion')
-  proyeccion(@Query('dias') dias?: string) {
+  proyeccion(@AmbitoActual() ambito: Ambito, @Query('dias') dias?: string) {
     // ventana entre 7 y 90 días
     const n = Number(dias);
     const ventana = Number.isFinite(n) ? Math.min(90, Math.max(7, Math.trunc(n))) : 14;
-    return this.tableros.proyeccion(ventana);
+    return this.tableros.proyeccion(ambito.convenios, ventana);
   }
 
   @Get('respuestas/:formularioId')
-  respuestas(@Param('formularioId') formularioId: string) {
-    return this.tableros.respuestasDeFormulario(formularioId);
+  respuestas(
+    @Param('formularioId') formularioId: string,
+    @AmbitoActual() ambito: Ambito,
+  ) {
+    return this.tableros.respuestasDeFormulario(formularioId, ambito.convenios);
   }
 
   @Get('empresas')
-  porEmpresa(@Query('buscar') buscar?: string) {
-    return this.tableros.porEmpresa(buscar);
+  porEmpresa(@AmbitoActual() ambito: Ambito, @Query('buscar') buscar?: string) {
+    return this.tableros.porEmpresa(ambito.convenios, buscar);
   }
 
   @Get('serie')
-  serie(@Query('dias') dias?: string) {
+  serie(@AmbitoActual() ambito: Ambito, @Query('dias') dias?: string) {
     const n = Number(dias);
-    return this.tableros.serie(Number.isFinite(n) && n > 0 && n <= 365 ? n : 30);
+    return this.tableros.serie(
+      ambito.convenios,
+      Number.isFinite(n) && n > 0 && n <= 365 ? n : 30,
+    );
   }
 
   @Get('reservas')
-  reservas(@Query() consulta: Record<string, string>) {
-    return this.tableros.reservas(this.filtros(consulta));
+  reservas(@Query() consulta: Record<string, string>, @AmbitoActual() ambito: Ambito) {
+    return this.tableros.reservas(this.filtros(consulta, ambito));
   }
 
   // descargas
@@ -91,8 +98,14 @@ export class TablerosController {
   // lleva nombre, correo y celular de cada contacto
   @Get('exportar/reservas')
   @Roles(RolAdmin.SUPERADMIN, RolAdmin.GESTOR)
-  async exportarReservas(@Query() consulta: Record<string, string>, @Res() res: Response) {
-    const reservas = await this.tableros.reservasParaExportar(this.filtros(consulta));
+  async exportarReservas(
+    @Query() consulta: Record<string, string>,
+    @AmbitoActual() ambito: Ambito,
+    @Res() res: Response,
+  ) {
+    const reservas = await this.tableros.reservasParaExportar(
+      this.filtros(consulta, ambito),
+    );
 
     // columnas de las preguntas propias
     const columnasExtra = [
@@ -163,10 +176,10 @@ export class TablerosController {
 
   @Get('exportar/ocupacion')
   @Roles(RolAdmin.SUPERADMIN, RolAdmin.GESTOR)
-  async exportarOcupacion(@Res() res: Response) {
+  async exportarOcupacion(@AmbitoActual() ambito: Ambito, @Res() res: Response) {
     const [ubicaciones, acciones] = await Promise.all([
-      this.tableros.porUbicacion(),
-      this.tableros.porAccion(),
+      this.tableros.porUbicacion(ambito.convenios),
+      this.tableros.porAccion(ambito.convenios),
     ]);
 
     const libro = await construirLibro([
@@ -239,8 +252,12 @@ export class TablerosController {
 
   @Get('exportar/empresas')
   @Roles(RolAdmin.SUPERADMIN, RolAdmin.GESTOR)
-  async exportarEmpresas(@Query('buscar') buscar: string | undefined, @Res() res: Response) {
-    const empresas = await this.tableros.porEmpresa(buscar);
+  async exportarEmpresas(
+    @Query('buscar') buscar: string | undefined,
+    @AmbitoActual() ambito: Ambito,
+    @Res() res: Response,
+  ) {
+    const empresas = await this.tableros.porEmpresa(ambito.convenios, buscar);
 
     const libro = await construirLibro([
       {
@@ -288,9 +305,10 @@ export class TablerosController {
     res.send(libro);
   }
 
-  private filtros(consulta: Record<string, string>): FiltrosReservas {
+  private filtros(consulta: Record<string, string>, ambito: Ambito): FiltrosReservas {
     const estado = consulta.estado;
     return {
+      ambito: ambito.convenios,
       buscar: consulta.buscar,
       estado: ESTADOS.includes(estado) ? (estado as EstadoReserva) : undefined,
       convenio: consulta.convenio || undefined,

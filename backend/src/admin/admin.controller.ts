@@ -26,13 +26,14 @@ import {
   MAXIMO_LOGO,
   TIPOS_LOGO,
 } from '../comun/logo';
-import { AdminActual } from './admin-actual.decorator';
+import { AdminActual, AmbitoActual } from './admin-actual.decorator';
 import {
   AdminGuard,
   COOKIE_SESION,
   PermitidaSinCambiarClave,
   Publica,
   Roles,
+  type Ambito,
 } from './admin.guard';
 import { AdminService, vistaAdmin } from './admin.service';
 import { corregirContraste, derivarTemas } from './derivar';
@@ -256,13 +257,13 @@ export class AdminController {
   // acciones de formación
 
   @Get('convenios')
-  listarConvenios() {
-    return this.admin.listarConvenios();
+  listarConvenios(@AmbitoActual() ambito: Ambito) {
+    return this.admin.listarConvenios(ambito.convenios);
   }
 
   @Get('acciones')
-  listarAcciones() {
-    return this.admin.listarAcciones();
+  listarAcciones(@AmbitoActual() ambito: Ambito) {
+    return this.admin.listarAcciones(ambito.convenios);
   }
 
   @Patch('acciones/:id')

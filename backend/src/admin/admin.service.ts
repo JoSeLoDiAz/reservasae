@@ -457,15 +457,19 @@ export class AdminService {
   // acciones de formación
 
   /** Los convenios con su id interno, para el panel. */
-  async listarConvenios() {
+  /// Solo los concedidos: el desplegable no debe delatar
+  /// que existe el otro convenio.
+  async listarConvenios(ambito: string[]) {
     return this.prisma.convenio.findMany({
+      where: { id: { in: ambito } },
       orderBy: { orden: 'asc' },
       select: { id: true, slug: true, nombre: true, sigla: true, activo: true },
     });
   }
 
-  async listarAcciones() {
+  async listarAcciones(ambito: string[]) {
     const acciones = await this.prisma.accionFormacion.findMany({
+      where: { convenioId: { in: ambito } },
       orderBy: [{ convenio: { orden: 'asc' } }, { orden: 'asc' }],
       include: {
         convenio: { select: { slug: true, sigla: true } },

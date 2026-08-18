@@ -3,10 +3,21 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { EstadoReserva, Prisma } from '../../generated/prisma';
 import { semaforo } from '../catalogo/catalogo.service';
 import { normalizarNit } from '../comun/nit';
+import {
+  coberturaDeConvenio,
+  deConvenio,
+  empresaDeConvenio,
+  ofertaDeConvenio,
+  reservaDeConvenio,
+  respuestaDeConvenio,
+  sqlDeConvenio,
+} from './ambito';
 import { PrismaService } from '../prisma/prisma.service';
 import { calcularProyeccion, type PuntoNeto } from './proyeccion';
 
 export type FiltrosReservas = {
+  /// Lo pone el controlador desde el guard, no la peticion.
+  ambito?: string[];
   buscar?: string;
   estado?: EstadoReserva;
   convenio?: string;
@@ -26,29 +37,40 @@ export class TablerosService {
 
   // resumen
 
-  async resumen() {
+  async resumen(ambito: string[]) {
     const [ofertas, reservas, empresas, base] = await Promise.all([
       this.prisma.oferta.aggregate({
+        where: ofertaDeConvenio(ambito),
         _sum: { cuposMaximos: true, cuposOcupados: true },
         _count: true,
       }),
       this.prisma.reserva.aggregate({
-        where: { estado: { not: EstadoReserva.CANCELADA } },
+        where: {
+          ...reservaDeConvenio(ambito),
+          estado: { not: EstadoReserva.CANCELADA },
+        },
         _sum: { cuposConfirmados: true, cuposEnEspera: true },
         _count: true,
       }),
-      this.prisma.empresa.count(),
+      this.prisma.empresa.count({ where: empresaDeConvenio(ambito) }),
       // meta comprometida, sin sobrecupo
-      this.prisma.grupoCobertura.aggregate({ _sum: { cuposBase: true } }),
+      this.prisma.grupoCobertura.aggregate({
+        where: coberturaDeConvenio(ambito),
+        _sum: { cuposBase: true },
+      }),
     ]);
 
     const canceladas = await this.prisma.reserva.count({
-      where: { estado: EstadoReserva.CANCELADA },
+      where: { ...reservaDeConvenio(ambito), estado: EstadoReserva.CANCELADA },
     });
-    const publicadas = await this.prisma.accionFormacion.count({ where: { visible: true } });
-    const acciones = await this.prisma.accionFormacion.count();
+    const publicadas = await this.prisma.accionFormacion.count({
+      where: { ...deConvenio(ambito), visible: true },
+    });
+    const acciones = await this.prisma.accionFormacion.count({
+      where: deConvenio(ambito),
+    });
     const sinNingunaReserva = await this.prisma.oferta.count({
-      where: { ...UNIVERSO, cuposOcupados: 0 },
+      where: { ...ofertaDeConvenio(ambito), ...UNIVERSO, cuposOcupados: 0 },
     });
 
     const cupos = ofertas._sum.cuposMaximos ?? 0;
@@ -82,10 +104,10 @@ export class TablerosService {
   }
 
   /** Los cortes de gestión en una sola llamada. */
-  async analisis() {
+  async analisis(ambito: string[]) {
     const [ofertas, empresas] = await Promise.all([
       this.prisma.oferta.findMany({
-        where: UNIVERSO,
+        where: { ...ofertaDeConvenio(ambito), ...UNIVERSO },
         include: {
           ubicacion: true,
           accionFormacion: {
@@ -94,9 +116,13 @@ export class TablerosService {
         },
       }),
       this.prisma.empresa.findMany({
+        where: empresaDeConvenio(ambito),
         include: {
           reservas: {
-            where: { estado: { not: EstadoReserva.CANCELADA } },
+            where: {
+              ...reservaDeConvenio(ambito),
+              estado: { not: EstadoReserva.CANCELADA },
+            },
             select: { cuposConfirmados: true },
           },
         },
@@ -213,8 +239,9 @@ export class TablerosService {
   }
 
   /** Ocupación por acción de formación. */
-  async porAccion() {
+  async porAccion(ambito: string[]) {
     const acciones = await this.prisma.accionFormacion.findMany({
+      where: deConvenio(ambito),
       orderBy: [{ convenio: { orden: 'asc' } }, { orden: 'asc' }],
       include: {
         convenio: { select: { slug: true, sigla: true } },
@@ -225,12 +252,17 @@ export class TablerosService {
     // la espera vive en las reservas
     const espera = await this.prisma.reserva.groupBy({
       by: ['ofertaId'],
-      where: { cuposEnEspera: { gt: 0 }, estado: { not: EstadoReserva.CANCELADA } },
+      where: {
+        ...reservaDeConvenio(ambito),
+        cuposEnEspera: { gt: 0 },
+        estado: { not: EstadoReserva.CANCELADA },
+      },
       _sum: { cuposEnEspera: true },
     });
     const esperaPorOferta = new Map(espera.map((e) => [e.ofertaId, e._sum.cuposEnEspera ?? 0]));
 
     const ofertas = await this.prisma.oferta.findMany({
+      where: ofertaDeConvenio(ambito),
       select: { id: true, accionFormacionId: true },
     });
     const esperaPorAccion = new Map<string, number>();
@@ -266,9 +298,11 @@ export class TablerosService {
   }
 
   /** Todo lo de una acción, para su pantalla. */
-  async accion(id: string) {
-    const accion = await this.prisma.accionFormacion.findUnique({
-      where: { id },
+  async accion(id: string, ambito: string[]) {
+    const accion = await this.prisma.accionFormacion.findFirst({
+      // findFirst con el ambito dentro: con findUnique por
+      // id se veria la accion del otro convenio
+      where: { id, ...deConvenio(ambito) },
       include: {
         convenio: { select: { slug: true, sigla: true, nombre: true } },
         ofertas: {
@@ -319,7 +353,7 @@ export class TablerosService {
       0,
     );
 
-    const suyo = await this.serieNeta(14, accion.id);
+    const suyo = await this.serieNeta(ambito, 14, accion.id);
     const proyeccion = calcularProyeccion({
       serie: suyo.serie,
       ocupados,
@@ -327,7 +361,7 @@ export class TablerosService {
       dias: 14,
       hoy: new Date(),
       origen: suyo.origen,
-      diasDeHistoria: await this.diasDeHistoria(),
+      diasDeHistoria: await this.diasDeHistoria(ambito),
     });
 
     return {
@@ -411,9 +445,12 @@ export class TablerosService {
   }
 
   /** Detalle acción × ubicación. */
-  async porUbicacion(convenio?: string) {
+  async porUbicacion(ambito: string[], convenio?: string) {
     const ofertas = await this.prisma.oferta.findMany({
-      where: convenio ? { accionFormacion: { convenio: { slug: convenio } } } : undefined,
+      where: {
+        ...ofertaDeConvenio(ambito),
+        ...(convenio ? { accionFormacion: { convenio: { slug: convenio } } } : {}),
+      },
       orderBy: [
         { accionFormacion: { convenio: { orden: 'asc' } } },
         { accionFormacion: { orden: 'asc' } },
@@ -444,16 +481,25 @@ export class TablerosService {
   }
 
   /** Cuántos cupos lleva cada empresa. */
-  async porEmpresa(buscar?: string) {
+  async porEmpresa(ambito: string[], buscar?: string) {
     const empresas = await this.prisma.empresa.findMany({
-      where: buscar
-        ? {
-            OR: [
-              { nit: { contains: soloDigitos(buscar) || ' ' } },
-              { razonSocial: { contains: buscar, mode: 'insensitive' } },
-            ],
-          }
-        : undefined,
+      // si el texto no trae digitos, la condicion del NIT
+      // se omite. Antes iba un byte NUL como centinela, que
+      // volvia el fichero binario para grep; con cadena
+      // vacia, `contains` coincidiria con TODAS las filas
+      where: {
+        ...empresaDeConvenio(ambito),
+        ...(buscar
+          ? {
+              OR: [
+                ...(soloDigitos(buscar)
+                  ? [{ nit: { contains: soloDigitos(buscar) } }]
+                  : []),
+                { razonSocial: { contains: buscar, mode: 'insensitive' } },
+              ],
+            }
+          : {}),
+      },
       include: {
         reservas: {
           where: { estado: { not: EstadoReserva.CANCELADA } },
@@ -484,16 +530,17 @@ export class TablerosService {
   }
 
   /** Reservas por día, agrupadas en SQL. */
-  async serie(dias = 30) {
+  async serie(ambito: string[], dias = 30) {
     const filas = await this.prisma.$queryRaw<
       Array<{ dia: Date; reservas: bigint; cupos: bigint }>
     >`
-      SELECT date_trunc('day', "creadoEn") AS dia,
-             COUNT(*)                      AS reservas,
-             COALESCE(SUM("cuposConfirmados"), 0) AS cupos
-        FROM "reservas"
-       WHERE "creadoEn" >= NOW() - (${dias} || ' days')::interval
-         AND "estado" <> 'CANCELADA'
+      SELECT date_trunc('day', r."creadoEn") AS dia,
+             COUNT(*)                        AS reservas,
+             COALESCE(SUM(r."cuposConfirmados"), 0) AS cupos
+        FROM "reservas" r
+       WHERE r."creadoEn" >= NOW() - (${dias} || ' days')::interval
+         AND r."estado" <> 'CANCELADA'
+         AND ${sqlDeConvenio(ambito)}
        GROUP BY 1
        ORDER BY 1`;
 
@@ -507,7 +554,11 @@ export class TablerosService {
   // ritmo y proyección
 
   /** Cupos netos por día, desde `movimientos_reserva`. */
-  private async netoPorDia(dias: number, accionId?: string): Promise<PuntoNeto[]> {
+  private async netoPorDia(
+    ambito: string[],
+    dias: number,
+    accionId?: string,
+  ): Promise<PuntoNeto[]> {
     const condicionAccion = accionId
       ? Prisma.sql`AND r."ofertaId" IN (SELECT id FROM "ofertas" WHERE "accionFormacionId" = ${accionId})`
       : Prisma.empty;
@@ -518,6 +569,7 @@ export class TablerosService {
         FROM "movimientos_reserva" m
         JOIN "reservas" r ON r.id = m."reservaId"
        WHERE m."creadoEn" >= NOW() - (${dias} || ' days')::interval
+         AND ${sqlDeConvenio(ambito)}
          ${condicionAccion}
        GROUP BY 1
        ORDER BY 1`;
@@ -529,7 +581,11 @@ export class TablerosService {
   }
 
   /** Neto por fecha de alta, sin movimientos. */
-  private async netoAproximado(dias: number, accionId?: string): Promise<PuntoNeto[]> {
+  private async netoAproximado(
+    ambito: string[],
+    dias: number,
+    accionId?: string,
+  ): Promise<PuntoNeto[]> {
     const condicionAccion = accionId
       ? Prisma.sql`AND r."ofertaId" IN (SELECT id FROM "ofertas" WHERE "accionFormacionId" = ${accionId})`
       : Prisma.empty;
@@ -540,6 +596,7 @@ export class TablerosService {
         FROM "reservas" r
        WHERE r."creadoEn" >= NOW() - (${dias} || ' days')::interval
          AND r."estado" <> 'CANCELADA'
+         AND ${sqlDeConvenio(ambito)}
          ${condicionAccion}
        GROUP BY 1
        ORDER BY 1`;
@@ -550,22 +607,23 @@ export class TablerosService {
     }));
   }
 
-  private async serieNeta(dias: number, accionId?: string) {
-    const movimientos = await this.netoPorDia(dias, accionId);
+  private async serieNeta(ambito: string[], dias: number, accionId?: string) {
+    const movimientos = await this.netoPorDia(ambito, dias, accionId);
     if (movimientos.length) {
       return { serie: movimientos, origen: 'MOVIMIENTOS' as const };
     }
 
     // sin movimientos: se aproxima
-    const aproximada = await this.netoAproximado(dias, accionId);
+    const aproximada = await this.netoAproximado(ambito, dias, accionId);
     return aproximada.length
       ? { serie: aproximada, origen: 'APROXIMADO' as const }
       : { serie: [], origen: 'MOVIMIENTOS' as const };
   }
 
   /** Días de historia de movimientos. */
-  private async diasDeHistoria(): Promise<number> {
+  private async diasDeHistoria(ambito: string[]): Promise<number> {
     const primero = await this.prisma.movimientoReserva.findFirst({
+      where: { reserva: reservaDeConvenio(ambito) },
       orderBy: { creadoEn: 'asc' },
       select: { creadoEn: true },
     });
@@ -577,14 +635,21 @@ export class TablerosService {
   }
 
   /** Ritmo global y por acción, con fecha estimada. */
-  async proyeccion(dias = 14) {
+  async proyeccion(ambito: string[], dias = 14) {
     const hoy = new Date();
     const [{ serie, origen }, historia, base, ofertas, acciones] = await Promise.all([
-      this.serieNeta(dias),
-      this.diasDeHistoria(),
-      this.prisma.grupoCobertura.aggregate({ _sum: { cuposBase: true } }),
-      this.prisma.oferta.aggregate({ _sum: { cuposOcupados: true } }),
+      this.serieNeta(ambito, dias),
+      this.diasDeHistoria(ambito),
+      this.prisma.grupoCobertura.aggregate({
+        where: coberturaDeConvenio(ambito),
+        _sum: { cuposBase: true },
+      }),
+      this.prisma.oferta.aggregate({
+        where: ofertaDeConvenio(ambito),
+        _sum: { cuposOcupados: true },
+      }),
       this.prisma.accionFormacion.findMany({
+        where: deConvenio(ambito),
         select: {
           id: true,
           codigo: true,
@@ -611,7 +676,7 @@ export class TablerosService {
     // la serie de cada acción
     const porAccion = await Promise.all(
       acciones.map(async (accion) => {
-        const suyo = await this.serieNeta(dias, accion.id);
+        const suyo = await this.serieNeta(ambito, dias, accion.id);
         const ocupados = accion.ofertas.reduce((s, o) => s + o.cuposOcupados, 0);
         const meta = accion.grupos.reduce(
           (s, g) => s + g.coberturas.reduce((t, c) => t + c.cuposBase, 0),
@@ -647,9 +712,11 @@ export class TablerosService {
   // respuestas del formulario
 
   /** Qué contestó la gente, agregado por pregunta. */
-  async respuestasDeFormulario(formularioId: string) {
-    const formulario = await this.prisma.formulario.findUnique({
-      where: { id: formularioId },
+  async respuestasDeFormulario(formularioId: string, ambito: string[]) {
+    const formulario = await this.prisma.formulario.findFirst({
+      // el formulario cuelga del convenio: por id suelto se
+      // veria el del otro
+      where: { id: formularioId, convenioId: { in: ambito } },
       select: {
         id: true,
         slug: true,
@@ -674,7 +741,11 @@ export class TablerosService {
 
     // denominador: reservas vivas
     const totalReservas = await this.prisma.reserva.count({
-      where: { formularioId, estado: { not: EstadoReserva.CANCELADA } },
+      where: {
+        ...reservaDeConvenio(ambito),
+        formularioId,
+        estado: { not: EstadoReserva.CANCELADA },
+      },
     });
 
     const preguntas = formulario.preguntas.filter(
@@ -685,6 +756,7 @@ export class TablerosService {
       preguntas.map(async (pregunta) => {
         const respuestas = await this.prisma.respuesta.findMany({
           where: {
+            ...respuestaDeConvenio(ambito),
             preguntaId: pregunta.id,
             reserva: { estado: { not: EstadoReserva.CANCELADA } },
           },
@@ -745,7 +817,10 @@ export class TablerosService {
   // tabla de reservas
 
   private donde(filtros: FiltrosReservas): Prisma.ReservaWhereInput {
-    const y: Prisma.ReservaWhereInput[] = [];
+    const porAmbito: Prisma.ReservaWhereInput[] = filtros.ambito
+      ? [reservaDeConvenio(filtros.ambito)]
+      : [];
+    const y: Prisma.ReservaWhereInput[] = [...porAmbito];
 
     if (filtros.estado) y.push({ estado: filtros.estado });
     if (filtros.convenio) {
