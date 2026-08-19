@@ -14,29 +14,38 @@ import {
   adminApi,
   ROLES_DE_CONVENIO,
   type AdminActual,
+  type Concesion,
   type RolAdmin,
   type RolConvenio,
 } from "@/lib/admin-api";
 import { Pildora } from "@/components/admin/piezas";
 import { ErrorApi } from "@/lib/api";
 
+/**
+ * RolAdmin ya solo dice una cosa: si administra el
+ * sistema o no. El trabajo del día a día lo decide el rol
+ * DE CONVENIO, y tener dos listas llamadas «Rol» hacía
+ * que una contradijera a la otra.
+ */
 const ROLES: Array<{ valor: RolAdmin; etiqueta: string; descripcion: string }> = [
   {
     valor: "SUPERADMIN",
-    etiqueta: "Superadministrador",
-    descripcion: "Todo, incluido crear y desactivar usuarios.",
+    etiqueta: "Sí, administra el sistema",
+    descripcion:
+      "Crea cuentas, publica formularios, cambia la apariencia y puede borrar datos.",
   },
   {
     valor: "GESTOR",
-    etiqueta: "Gestor",
-    descripcion: "Publica formación y cambia la apariencia. No toca usuarios.",
+    etiqueta: "No, solo su trabajo",
+    descripcion: "Lo que ve y hace lo deciden los convenios y roles de abajo.",
   },
-  { valor: "CONSULTA", etiqueta: "Consulta", descripcion: "Solo mira." },
 ];
 
 export default function PaginaUsuarios() {
   const { admin } = useAdmin();
   const [usuarios, setUsuarios] = useState<AdminActual[] | null>(null);
+  const [convenios, setConvenios] = useState<Convenio[]>([]);
+  const [editando, setEditando] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [claveNueva, setClaveNueva] = useState<{ correo: string; clave: string } | null>(
     null,
@@ -44,6 +53,7 @@ export default function PaginaUsuarios() {
 
   const cargar = useCallback(async () => {
     setUsuarios(await adminApi.usuarios());
+    setConvenios(await adminApi.convenios());
   }, []);
 
   useEffect(() => {
@@ -131,26 +141,34 @@ export default function PaginaUsuarios() {
                 </div>
               </div>
 
-              <select
-                value={u.rol}
-                disabled={u.id === admin.id}
-                onChange={(e) =>
-                  conError(async () => {
-                    await adminApi.actualizarUsuario(u.id, {
-                      rol: e.target.value as RolAdmin,
-                    });
-                  })
-                }
-                className="rounded-lg border border-borde px-2 py-1.5 text-sm disabled:opacity-50"
-              >
-                {ROLES.map((r) => (
-                  <option key={r.valor} value={r.valor}>
-                    {r.etiqueta}
-                  </option>
-                ))}
-              </select>
+              <label className="text-sm">
+                <span className="mb-1 block text-xs text-texto-suave">
+                  Administra el sistema
+                </span>
+                <select
+                  value={u.rol === "SUPERADMIN" ? "SUPERADMIN" : "GESTOR"}
+                  disabled={u.id === admin.id}
+                  onChange={(e) =>
+                    conError(async () => {
+                      await adminApi.actualizarUsuario(u.id, {
+                        rol: e.target.value as RolAdmin,
+                      });
+                    })
+                  }
+                  className="rounded-xl border border-borde px-2 py-1.5 text-sm disabled:opacity-50"
+                >
+                  <option value="SUPERADMIN">Sí</option>
+                  <option value="GESTOR">No</option>
+                </select>
+              </label>
 
               <div className="flex gap-3 text-sm">
+                <button
+                  onClick={() => setEditando(editando === u.id ? null : u.id)}
+                  className="text-marca underline"
+                >
+                  {editando === u.id ? "Cerrar" : "Convenios"}
+                </button>
                 <button
                   onClick={() =>
                     conError(async () => {
@@ -177,6 +195,21 @@ export default function PaginaUsuarios() {
                   {u.activo ? "Desactivar" : "Reactivar"}
                 </button>
               </div>
+
+              {editando === u.id && (
+                <div className="w-full">
+                  <EditorConcesiones
+                    usuario={u}
+                    convenios={convenios}
+                    alGuardar={async (concesiones) => {
+                      await conError(async () => {
+                        await adminApi.actualizarUsuario(u.id, { concesiones });
+                      });
+                      setEditando(null);
+                    }}
+                  />
+                </div>
+              )}
             </li>
           ))}
         </ul>
@@ -261,7 +294,10 @@ function FormularioNuevoUsuario({
           />
         </Campo>
 
-        <Campo etiqueta="Rol" ayuda={ROLES.find((r) => r.valor === rol)?.descripcion}>
+        <Campo
+          etiqueta="¿Administra el sistema?"
+          ayuda={ROLES.find((r) => r.valor === rol)?.descripcion}
+        >
           <select
             value={rol}
             onChange={(e) => setRol(e.target.value as RolAdmin)}
@@ -284,55 +320,14 @@ function FormularioNuevoUsuario({
           </p>
 
           <div className="space-y-2">
-            {convenios.map((c) => {
-              const elegido = porConvenio[c.id] ?? "";
-              return (
-                <div
-                  key={c.id}
-                  className="flex flex-wrap items-center gap-3 rounded-xl border border-borde p-3"
-                >
-                  <label className="flex min-w-40 items-center gap-2 text-sm font-medium">
-                    <input
-                      type="checkbox"
-                      checked={Boolean(elegido)}
-                      onChange={(e) =>
-                        setPorConvenio((p) => ({
-                          ...p,
-                          [c.id]: e.target.checked ? "GESTOR_INSCRIPCION" : "",
-                        }))
-                      }
-                    />
-                    {c.sigla ?? c.slug}
-                  </label>
-
-                  {elegido && (
-                    <select
-                      value={elegido}
-                      onChange={(e) =>
-                        setPorConvenio((p) => ({
-                          ...p,
-                          [c.id]: e.target.value as RolConvenio,
-                        }))
-                      }
-                      className={`${CLASE_CONTROL} sm:max-w-md`}
-                      aria-label={`Rol en ${c.sigla ?? c.slug}`}
-                    >
-                      {ROLES_DE_CONVENIO.map((r) => (
-                        <option key={r.valor} value={r.valor}>
-                          {r.etiqueta}
-                        </option>
-                      ))}
-                    </select>
-                  )}
-
-                  {elegido && (
-                    <p className="w-full text-xs text-texto-suave">
-                      {ROLES_DE_CONVENIO.find((r) => r.valor === elegido)?.descripcion}
-                    </p>
-                  )}
-                </div>
-              );
-            })}
+            {convenios.map((c) => (
+              <FilaConvenio
+                key={c.id}
+                convenio={c}
+                valor={porConvenio[c.id] ?? ""}
+                alCambiar={(rol) => setPorConvenio((p) => ({ ...p, [c.id]: rol }))}
+              />
+            ))}
           </div>
         </div>
 
@@ -343,5 +338,110 @@ function FormularioNuevoUsuario({
         </div>
       </form>
     </Tarjeta>
+  );
+}
+
+/**
+ * Marcar convenio y elegir su rol. Lo comparten crear y
+ * editar: eran la misma decisión escrita dos veces.
+ */
+function EditorConcesiones({
+  usuario,
+  convenios,
+  alGuardar,
+}: {
+  usuario: AdminActual;
+  convenios: Convenio[];
+  alGuardar: (concesiones: Concesion[]) => Promise<void>;
+}) {
+  const inicial: Record<string, RolConvenio | ""> = {};
+  for (const c of usuario.concesiones ?? []) inicial[c.convenioId] = c.rol;
+
+  const [porConvenio, setPorConvenio] = useState(inicial);
+  const [guardando, setGuardando] = useState(false);
+
+  const concesiones = Object.entries(porConvenio)
+    .filter(([, r]) => r)
+    .map(([convenioId, r]) => ({ convenioId, rol: r as RolConvenio }));
+
+  return (
+    <div className="mt-3 rounded-xl border border-borde bg-superficie-alterna p-4">
+      <p className="mb-3 text-sm font-medium">
+        A qué convenios entra {usuario.nombre.split(" ")[0]}
+      </p>
+
+      <div className="space-y-2">
+        {convenios.map((c) => (
+          <FilaConvenio
+            key={c.id}
+            convenio={c}
+            valor={porConvenio[c.id] ?? ""}
+            alCambiar={(rol) => setPorConvenio((p) => ({ ...p, [c.id]: rol }))}
+          />
+        ))}
+      </div>
+
+      <div className="mt-4 flex items-center gap-3">
+        <Boton
+          type="button"
+          disabled={guardando || concesiones.length === 0}
+          onClick={async () => {
+            setGuardando(true);
+            await alGuardar(concesiones);
+            setGuardando(false);
+          }}
+        >
+          {guardando ? "Guardando…" : "Guardar convenios"}
+        </Boton>
+        {concesiones.length === 0 && (
+          <span className="text-xs text-error">
+            Sin ninguno no vería nada: desactive la cuenta en vez de dejarla así.
+          </span>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function FilaConvenio({
+  convenio,
+  valor,
+  alCambiar,
+}: {
+  convenio: Convenio;
+  valor: RolConvenio | "";
+  alCambiar: (rol: RolConvenio | "") => void;
+}) {
+  return (
+    <div className="flex flex-wrap items-center gap-3 rounded-xl border border-borde bg-superficie p-3">
+      <label className="flex min-w-40 items-center gap-2 text-sm font-medium">
+        <input
+          type="checkbox"
+          checked={Boolean(valor)}
+          onChange={(e) => alCambiar(e.target.checked ? "GESTOR_INSCRIPCION" : "")}
+        />
+        {convenio.sigla ?? convenio.slug}
+      </label>
+
+      {valor && (
+        <>
+          <select
+            value={valor}
+            onChange={(e) => alCambiar(e.target.value as RolConvenio)}
+            className={`${CLASE_CONTROL} sm:max-w-md`}
+            aria-label={`Rol en ${convenio.sigla ?? convenio.slug}`}
+          >
+            {ROLES_DE_CONVENIO.map((r) => (
+              <option key={r.valor} value={r.valor}>
+                {r.etiqueta}
+              </option>
+            ))}
+          </select>
+          <p className="w-full text-xs text-texto-suave">
+            {ROLES_DE_CONVENIO.find((r) => r.valor === valor)?.descripcion}
+          </p>
+        </>
+      )}
+    </div>
   );
 }
