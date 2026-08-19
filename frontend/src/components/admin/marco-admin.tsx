@@ -5,12 +5,12 @@ import { usePathname, useRouter } from "next/navigation";
 import { createContext, useCallback, useContext, useEffect, useState } from "react";
 
 import { ConmutadorTema } from "@/components/marca-publica";
-import { adminApi, type AdminActual } from "@/lib/admin-api";
+import { adminApi, type AdminActual, type Area, type Nivel } from "@/lib/admin-api";
 import { ErrorApi } from "@/lib/api";
 
 import { PanelAccesibilidad } from "./accesibilidad";
 import { CambioDeClaveObligatorio } from "./cambio-clave";
-import { estaActivo, MODULOS } from "./navegacion";
+import { enlacesVisibles, estaActivo, MODULOS } from "./navegacion";
 
 type Contexto = { admin: AdminActual; refrescar: () => Promise<void> };
 
@@ -85,13 +85,18 @@ export function MarcoAdmin({ children }: { children: React.ReactNode }) {
         <BarraLateral
           ruta={ruta}
           esSuperadmin={admin.rol === "SUPERADMIN"}
+          permisos={admin.permisos}
           plegado={plegado}
           alPlegar={() => setPlegado(!plegado)}
         />
 
         <div className="flex min-w-0 grow flex-col">
           <Cabecera nombre={admin.nombre} alSalir={salir} />
-          <NavegacionMovil ruta={ruta} esSuperadmin={admin.rol === "SUPERADMIN"} />
+          <NavegacionMovil
+            ruta={ruta}
+            esSuperadmin={admin.rol === "SUPERADMIN"}
+            permisos={admin.permisos}
+          />
           <main className="w-full grow px-6 py-8">
             <div className="mx-auto w-full max-w-6xl">{children}</div>
           </main>
@@ -105,11 +110,13 @@ export function MarcoAdmin({ children }: { children: React.ReactNode }) {
 function BarraLateral({
   ruta,
   esSuperadmin,
+  permisos,
   plegado,
   alPlegar,
 }: {
   ruta: string;
   esSuperadmin: boolean;
+  permisos?: Record<Area, Nivel>;
   plegado: boolean;
   alPlegar: () => void;
 }) {
@@ -144,7 +151,7 @@ function BarraLateral({
       {/* el scroll es de aqui dentro, no de la pagina */}
       <div className="barra-visible min-h-0 grow overflow-y-auto px-2 py-3">
         {MODULOS.map((modulo) => {
-          const enlaces = modulo.enlaces.filter((e) => !e.soloSuperadmin || esSuperadmin);
+          const enlaces = enlacesVisibles(modulo, permisos, esSuperadmin);
           if (enlaces.length === 0) return null;
 
           // plegado: una entrada por modulo, no una por
@@ -207,7 +214,15 @@ function BarraLateral({
 }
 
 /** En móvil no cabe la lateral: una tira que se desliza. */
-function NavegacionMovil({ ruta, esSuperadmin }: { ruta: string; esSuperadmin: boolean }) {
+function NavegacionMovil({
+  ruta,
+  esSuperadmin,
+  permisos,
+}: {
+  ruta: string;
+  esSuperadmin: boolean;
+  permisos?: Record<Area, Nivel>;
+}) {
   return (
     <nav
       aria-label="Secciones del panel"
@@ -215,9 +230,7 @@ function NavegacionMovil({ ruta, esSuperadmin }: { ruta: string; esSuperadmin: b
     >
       <ul className="flex gap-1" style={{ width: "max-content" }}>
         {MODULOS.flatMap((modulo) =>
-          modulo.enlaces
-            .filter((e) => !e.soloSuperadmin || esSuperadmin)
-            .map((enlace) => {
+          enlacesVisibles(modulo, permisos, esSuperadmin).map((enlace) => {
               const activo = estaActivo(enlace, ruta);
               return (
                 <li key={enlace.href}>

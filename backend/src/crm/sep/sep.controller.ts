@@ -3,7 +3,7 @@ import type { Response } from 'express';
 
 import { RolAdmin } from '../../../generated/prisma';
 import { AmbitoActual } from '../../admin/admin-actual.decorator';
-import { AdminGuard, Roles, type Ambito } from '../../admin/admin.guard';
+import { AdminGuard, Requiere, Roles, type Ambito } from '../../admin/admin.guard';
 import { enviarLibro } from '../../tableros/exportar';
 import { SepService, type Formato } from './sep.service';
 
@@ -11,6 +11,7 @@ import { SepService, type Formato } from './sep.service';
 @Controller('admin/sep')
 @UseGuards(AdminGuard)
 @Roles(RolAdmin.SUPERADMIN, RolAdmin.GESTOR)
+@Requiere('reportes')
 export class SepController {
   constructor(private readonly sep: SepService) {}
 
@@ -20,7 +21,10 @@ export class SepController {
     return this.sep.alistamiento(convenioId, ambito.convenios);
   }
 
+  // el gestor ve cuantos entran; el archivo con las
+  // cedulas lo saca su lider
   @Get('exportar')
+  @Requiere('reportes', 'ESCRIBIR')
   async exportar(
     @Query('convenioId') convenioId: string,
     @Query('formato') formato: Formato,

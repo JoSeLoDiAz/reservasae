@@ -10,8 +10,9 @@ import { Reflector } from '@nestjs/core';
 import { JwtService } from '@nestjs/jwt';
 import type { Request } from 'express';
 
-import type { Admin, RolAdmin } from '../../generated/prisma';
+import type { Admin, RolAdmin, RolConvenio } from '../../generated/prisma';
 import { PrismaService } from '../prisma/prisma.service';
+import { alcanza, nivelDe, type Area, type Nivel } from './permisos';
 
 export const COOKIE_SESION = 'convoca_sesion';
 
@@ -27,16 +28,31 @@ export const PermitidaSinCambiarClave = () =>
 export const ROLES = 'roles_admin';
 export const Roles = (...roles: RolAdmin[]) => SetMetadata(ROLES, roles);
 
+export const AREA = 'area_requerida';
+
+/**
+ * Qué área toca esta ruta y con qué nivel. Además de
+ * negar el paso, recorta el ámbito a los convenios donde
+ * de verdad alcanza ese nivel: así quien lleva académico
+ * en un convenio e inscripciones en el otro no puede
+ * escribir inscripciones en el primero ni por la API.
+ */
+export const Requiere = (area: Area | Area[], nivel: Nivel = 'VER') =>
+  SetMetadata(AREA, { areas: Array.isArray(area) ? area : [area], nivel });
+
 /**
  * A qué convenios tiene acceso, resuelto en el guard.
  * Sin fila en AdminConvenio no se ve nada de ese convenio:
  * la concesión es explícita, nunca por omisión.
  */
 export type Ambito = {
-  /// Los ids que puede ver. Vacío = no ve ninguno.
+  /// Los ids que alcanza para lo que pide esta ruta.
   convenios: string[];
   /// Un superadmin con filas en los dos los ve los dos.
   todos: boolean;
+  /// Qué roles tiene en cada convenio. La misma persona
+  /// puede llevar áreas distintas en cada uno.
+  roles: Record<string, RolConvenio[]>;
 };
 
 export type PeticionConAdmin = Request & { admin?: Admin; ambito?: Ambito };
@@ -80,11 +96,31 @@ export class AdminGuard implements CanActivate {
     // olvidarlo en una sola deja escapar el otro convenio
     const concesiones = await this.prisma.adminConvenio.findMany({
       where: { adminId: admin.id },
-      select: { convenioId: true },
+      select: { convenioId: true, rol: true },
     });
-    const convenios = [...new Set(concesiones.map((c) => c.convenioId))];
+    const roles: Record<string, RolConvenio[]> = {};
+    for (const c of concesiones) {
+      (roles[c.convenioId] ??= []).push(c.rol);
+    }
+    const concedidos = Object.keys(roles);
     const activos = await this.prisma.convenio.count({ where: { activo: true } });
-    peticion.ambito = { convenios, todos: convenios.length >= activos };
+
+    const exigido = this.reflector.getAllAndOverride<{ areas: Area[]; nivel: Nivel }>(
+      AREA,
+      [contexto.getHandler(), contexto.getClass()],
+    );
+
+    // sin @Requiere valen todos los concedidos; con el,
+    // solo aquellos donde el rol alcanza el nivel pedido
+    // varias areas = basta con alcanzar en una: cambiar de
+    // etapa es de inscripciones y tambien de academico
+    const convenios = exigido
+      ? concedidos.filter((id) =>
+          exigido.areas.some((a) => alcanza(nivelDe(roles[id], a), exigido.nivel)),
+        )
+      : concedidos;
+
+    peticion.ambito = { convenios, todos: convenios.length >= activos, roles };
 
     const sinCambiar = this.reflector.getAllAndOverride<boolean>(
       PERMITIDA_SIN_CAMBIAR_CLAVE,
@@ -97,12 +133,21 @@ export class AdminGuard implements CanActivate {
       });
     }
 
-    const roles = this.reflector.getAllAndOverride<RolAdmin[]>(ROLES, [
+    const rolesDeCuenta = this.reflector.getAllAndOverride<RolAdmin[]>(ROLES, [
       contexto.getHandler(),
       contexto.getClass(),
     ]);
-    if (roles?.length && !roles.includes(admin.rol)) {
+    if (rolesDeCuenta?.length && !rolesDeCuenta.includes(admin.rol)) {
       throw new ForbiddenException('No tiene permiso para esta operación.');
+    }
+
+    // ni un convenio donde alcance: la ruta no es suya
+    if (exigido && convenios.length === 0) {
+      throw new ForbiddenException(
+        exigido.nivel === 'ESCRIBIR'
+          ? 'Su rol permite consultar esta sección, no modificarla.'
+          : 'Su rol no tiene acceso a esta sección.',
+      );
     }
 
     return true;

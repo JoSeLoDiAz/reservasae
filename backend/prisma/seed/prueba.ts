@@ -110,10 +110,33 @@ const EMPRESAS = [
   ['Editorial Tinta Viva S.A.S.', 'Ambos'], ['Logística Sur Express S.A.S.', 'BRITCHAM'],
 ] as const;
 
-/// Quien ve solo un convenio, para poder probar el ambito.
-const SOLO_UN_CONVENIO: Record<string, string> = {
-  'lucia.parra@ejemplo.test': 'adecopria',
-  'hector.ramos@ejemplo.test': 'britcham-adee',
+/**
+ * Qué rol tiene cada quien y en qué convenio. '*' es el
+ * mismo rol en los dos. Quien no lleva '*' solo ve los
+ * convenios que aparezcan: sin eso el ámbito no se puede
+ * comprobar, porque todos verían todo y parecería que
+ * funciona. Carlos lleva áreas distintas en cada uno, que
+ * es el caso que de verdad prueba el recorte por área.
+ */
+const CONCESIONES: Record<string, Record<string, RolConvenio>> = {
+  'ana.jaramillo@ejemplo.test': { '*': RolConvenio.LIDER_SISTEMAS },
+  'carlos.mesa@ejemplo.test': {
+    adecopria: RolConvenio.LIDER_INSCRIPCION,
+    'britcham-adee': RolConvenio.GESTOR_ACADEMICO,
+  },
+  'lucia.parra@ejemplo.test': { adecopria: RolConvenio.GESTOR_INSCRIPCION },
+  'hector.ramos@ejemplo.test': { 'britcham-adee': RolConvenio.GESTOR_ACADEMICO },
+  'marta.oquendo@ejemplo.test': { '*': RolConvenio.LIDER_ACADEMICO },
+  'sofia.rendon@ejemplo.test': { '*': RolConvenio.CONSULTA },
+};
+
+const CARGO_DEL_ROL: Record<RolConvenio, string> = {
+  LIDER_SISTEMAS: 'Líder de sistemas de información',
+  LIDER_INSCRIPCION: 'Líder de inscripciones',
+  GESTOR_INSCRIPCION: 'Gestora de inscripciones',
+  LIDER_ACADEMICO: 'Líder de seguimiento académico',
+  GESTOR_ACADEMICO: 'Gestor de seguimiento académico',
+  CONSULTA: 'Consulta',
 };
 
 const ASESORES = [
@@ -121,6 +144,8 @@ const ASESORES = [
   ['carlos.mesa@ejemplo.test', 'Carlos Mesa'],
   ['lucia.parra@ejemplo.test', 'Lucía Parra'],
   ['hector.ramos@ejemplo.test', 'Héctor Ramos'],
+  ['marta.oquendo@ejemplo.test', 'Marta Oquendo'],
+  ['sofia.rendon@ejemplo.test', 'Sofía Rendón'],
 ] as const;
 
 const CARGOS = [
@@ -369,41 +394,23 @@ async function sembrarAsesores(convenios: Array<{ id: string; slug: string }>) {
         // en pruebas se entra a mirar, no a estrenar clave
         debeCambiarClave: false,
         organizacion: 'Grupo AE',
-        cargo: indice === 0 ? 'Líder de inscripciones' : 'Asesor de inscripciones',
+        cargo: CARGO_DEL_ROL[Object.values(CONCESIONES[correo] ?? {})[0] ?? 'CONSULTA'],
       },
       // el rol tambien, o un --rehacer no lo corrige
       update: { hashClave: hash, rol, debeCambiarClave: false, activo: true },
     });
     creados.push(admin);
 
-    // dos con un solo convenio: sin eso el ambito no se
-    // puede comprobar, porque todos verian todo y
-    // pareceria que funciona. Por slug y no por posicion,
-    // que depende del orden y se lee al reves
-    const soloDe = SOLO_UN_CONVENIO[correo];
-    const suyos = soloDe
-      ? convenios.filter((c) => c.slug === soloDe)
-      : convenios;
-
     // upsert solo anade: sin borrar antes, una resiembra
     // conserva las concesiones viejas y el ambito no cambia
     await prisma.adminConvenio.deleteMany({ where: { adminId: admin.id } });
 
-    for (const convenio of suyos) {
-      await prisma.adminConvenio.upsert({
-        where: {
-          adminId_convenioId_rol: {
-            adminId: admin.id,
-            convenioId: convenio.id,
-            rol: RolConvenio.GESTOR_INSCRIPCION,
-          },
-        },
-        create: {
-          adminId: admin.id,
-          convenioId: convenio.id,
-          rol: RolConvenio.GESTOR_INSCRIPCION,
-        },
-        update: {},
+    const concesion = CONCESIONES[correo] ?? {};
+    for (const convenio of convenios) {
+      const rolAqui = concesion['*'] ?? concesion[convenio.slug];
+      if (!rolAqui) continue;
+      await prisma.adminConvenio.create({
+        data: { adminId: admin.id, convenioId: convenio.id, rol: rolAqui },
       });
     }
   }

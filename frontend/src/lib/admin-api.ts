@@ -5,6 +5,18 @@ import type { CatalogoColores, ColoresTema, Esquema } from "./tema";
 
 export type RolAdmin = "SUPERADMIN" | "GESTOR" | "CONSULTA";
 
+/// El espejo de backend/src/admin/permisos.ts. Aquí solo
+/// deciden qué se dibuja; la cerradura está en el guard.
+export type Area =
+  | "reserva"
+  | "inscripciones"
+  | "inscritos"
+  | "reportes"
+  | "academico"
+  | "configuracion";
+
+export type Nivel = "NADA" | "VER" | "ESCRIBIR";
+
 export type AdminActual = {
   id: string;
   correo: string;
@@ -17,7 +29,16 @@ export type AdminActual = {
   organizacion: string | null;
   ultimoAcceso: string | null;
   creadoEn: string;
+  convenios?: string[];
+  permisos?: Record<Area, Nivel>;
 };
+
+const ESCALA: Nivel[] = ["NADA", "VER", "ESCRIBIR"];
+
+/** Si lo que tiene cubre lo que se le pide. */
+export function alcanza(tiene: Nivel | undefined, pide: Nivel) {
+  return ESCALA.indexOf(tiene ?? "NADA") >= ESCALA.indexOf(pide);
+}
 
 export type ModoPorDefecto = "SISTEMA" | "CLARO" | "OSCURO";
 

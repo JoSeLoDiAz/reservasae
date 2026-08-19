@@ -1,10 +1,16 @@
 /** Los módulos del panel, en el orden del proceso. */
 
+import { alcanza, type Area, type Nivel } from '@/lib/admin-api';
+
 export type Enlace = {
   href: string;
   etiqueta: string;
   exacto?: boolean;
   soloSuperadmin?: boolean;
+  /// El área que hay que poder ver para que salga.
+  area?: Area;
+  /// Y con qué nivel: escribir para lo que no es consulta.
+  nivel?: Nivel;
 };
 
 export type Modulo = {
@@ -24,9 +30,9 @@ export const MODULOS: Modulo[] = [
     etiqueta: 'Pre-reserva de cupos',
     descripcion: 'Lo que aparta la empresa afiliada, antes de que haya nombres.',
     enlaces: [
-      { href: '/admin', etiqueta: 'Resumen', exacto: true },
-      { href: '/admin/reservas', etiqueta: 'Reservas' },
-      { href: '/admin/empresas', etiqueta: 'Organizaciones' },
+      { href: '/admin', etiqueta: 'Resumen', exacto: true, area: 'reserva' },
+      { href: '/admin/reservas', etiqueta: 'Reservas', area: 'reserva' },
+      { href: '/admin/empresas', etiqueta: 'Organizaciones', area: 'reserva' },
     ],
   },
   {
@@ -35,10 +41,10 @@ export const MODULOS: Modulo[] = [
     etiqueta: 'Inscripciones',
     descripcion: 'Convertir cupos en personas con nombre.',
     enlaces: [
-      { href: '/admin/participantes', etiqueta: 'Tablero', exacto: true },
-      { href: '/admin/participantes/brecha', etiqueta: 'Brecha de nombres' },
-      { href: '/admin/participantes/carga', etiqueta: 'Cargar una lista' },
-      { href: '/admin/participantes/nuevo', etiqueta: 'Inscribir a alguien' },
+      { href: '/admin/participantes', etiqueta: 'Tablero', exacto: true, area: 'inscripciones' },
+      { href: '/admin/participantes/brecha', etiqueta: 'Brecha de nombres', area: 'inscripciones' },
+      { href: '/admin/participantes/carga', etiqueta: 'Cargar una lista', area: 'inscripciones', nivel: 'ESCRIBIR' },
+      { href: '/admin/participantes/nuevo', etiqueta: 'Inscribir a alguien', area: 'inscripciones', nivel: 'ESCRIBIR' },
     ],
   },
   {
@@ -47,8 +53,8 @@ export const MODULOS: Modulo[] = [
     etiqueta: 'Inscritos',
     descripcion: 'Quien ya está matriculado y todavía no termina.',
     enlaces: [
-      { href: '/admin/inscritos', etiqueta: 'Matriculados', exacto: true },
-      { href: '/admin/sep', etiqueta: 'Reportes al SENA' },
+      { href: '/admin/inscritos', etiqueta: 'Matriculados', exacto: true, area: 'inscritos' },
+      { href: '/admin/sep', etiqueta: 'Reportes al SENA', area: 'reportes' },
     ],
   },
   {
@@ -57,7 +63,7 @@ export const MODULOS: Modulo[] = [
     etiqueta: 'Seguimiento académico',
     descripcion: 'Quién va al día y quién no.',
     enlaces: [
-      { href: '/admin/participantes/academico', etiqueta: 'Avance', exacto: true },
+      { href: '/admin/participantes/academico', etiqueta: 'Avance', exacto: true, area: 'academico' },
     ],
   },
   {
@@ -65,10 +71,10 @@ export const MODULOS: Modulo[] = [
     etiqueta: 'Configuración',
     descripcion: 'Lo que no es del día a día.',
     enlaces: [
-      { href: '/admin/acciones', etiqueta: 'Formación' },
-      { href: '/admin/formularios', etiqueta: 'Formularios' },
-      { href: '/admin/politicas', etiqueta: 'Políticas' },
-      { href: '/admin/marca', etiqueta: 'Apariencia' },
+      { href: '/admin/acciones', etiqueta: 'Formación', area: 'configuracion', nivel: 'ESCRIBIR' },
+      { href: '/admin/formularios', etiqueta: 'Formularios', area: 'configuracion', nivel: 'ESCRIBIR' },
+      { href: '/admin/politicas', etiqueta: 'Políticas', area: 'configuracion', nivel: 'ESCRIBIR' },
+      { href: '/admin/marca', etiqueta: 'Apariencia', area: 'configuracion', nivel: 'ESCRIBIR' },
       { href: '/admin/usuarios', etiqueta: 'Usuarios', soloSuperadmin: true },
       { href: '/admin/perfil', etiqueta: 'Mi perfil' },
     ],
@@ -79,4 +85,19 @@ export const MODULOS: Modulo[] = [
 export function estaActivo(enlace: Enlace, ruta: string): boolean {
   if (enlace.exacto) return ruta === enlace.href;
   return ruta === enlace.href || ruta.startsWith(`${enlace.href}/`);
+}
+
+/** Los enlaces que esta persona puede ver. */
+export function enlacesVisibles(
+  modulo: Modulo,
+  permisos: Record<Area, Nivel> | undefined,
+  esSuperadmin: boolean,
+): Enlace[] {
+  return modulo.enlaces.filter((e) => {
+    if (e.soloSuperadmin && !esSuperadmin) return false;
+    if (!e.area) return true;
+    // sin permisos aun (cargando) no se esconde nada
+    if (!permisos) return true;
+    return alcanza(permisos[e.area], e.nivel ?? 'VER');
+  });
 }

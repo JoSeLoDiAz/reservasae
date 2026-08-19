@@ -32,9 +32,11 @@ import {
   COOKIE_SESION,
   PermitidaSinCambiarClave,
   Publica,
+  Requiere,
   Roles,
   type Ambito,
 } from './admin.guard';
+import { resumenDePermisos } from './permisos';
 import { AdminService, vistaAdmin } from './admin.service';
 import { corregirContraste, derivarTemas } from './derivar';
 import {
@@ -99,8 +101,12 @@ export class AdminController {
 
   @Get('yo')
   @PermitidaSinCambiarClave()
-  yo(@AdminActual() admin: Admin) {
-    return vistaAdmin(admin);
+  yo(@AdminActual() admin: Admin, @AmbitoActual() ambito: Ambito) {
+    return {
+      ...vistaAdmin(admin),
+      convenios: ambito.convenios,
+      permisos: resumenDePermisos(ambito.roles),
+    };
   }
 
   @Post('clave')
@@ -154,6 +160,7 @@ export class AdminController {
   }
 
   @Patch('marca')
+  @Requiere('configuracion', 'ESCRIBIR')
   @Roles(RolAdmin.SUPERADMIN, RolAdmin.GESTOR)
   actualizarMarca(@AdminActual() admin: Admin, @Body() dto: ActualizarMarcaDto) {
     return this.admin.actualizarMarca(admin, dto);
@@ -166,6 +173,7 @@ export class AdminController {
   }
 
   @Patch('marca/tema/:esquema')
+  @Requiere('configuracion', 'ESCRIBIR')
   @Roles(RolAdmin.SUPERADMIN, RolAdmin.GESTOR)
   actualizarTema(
     @AdminActual() admin: Admin,
@@ -176,6 +184,7 @@ export class AdminController {
   }
 
   @Post('marca/tema/:esquema/restablecer')
+  @Requiere('configuracion', 'ESCRIBIR')
   @Roles(RolAdmin.SUPERADMIN, RolAdmin.GESTOR)
   @HttpCode(200)
   restablecerTema(@AdminActual() admin: Admin, @Param('esquema') esquema: string) {
@@ -199,6 +208,7 @@ export class AdminController {
   }
 
   @Post('logos')
+  @Requiere('configuracion', 'ESCRIBIR')
   @Roles(RolAdmin.SUPERADMIN, RolAdmin.GESTOR)
   @UseInterceptors(FileInterceptor('logo', { limits: { fileSize: MAXIMO_LOGO } }))
   subirLogo(
@@ -219,12 +229,14 @@ export class AdminController {
   }
 
   @Patch('logos/:id')
+  @Requiere('configuracion', 'ESCRIBIR')
   @Roles(RolAdmin.SUPERADMIN, RolAdmin.GESTOR)
   actualizarLogo(@Param('id') id: string, @Body() dto: ActualizarLogoDto) {
     return this.admin.actualizarLogo(id, dto);
   }
 
   @Delete('logos/:id')
+  @Requiere('configuracion', 'ESCRIBIR')
   @Roles(RolAdmin.SUPERADMIN, RolAdmin.GESTOR)
   borrarLogo(@Param('id') id: string) {
     return this.admin.borrarLogo(id);
@@ -267,6 +279,7 @@ export class AdminController {
   }
 
   @Patch('acciones/:id')
+  @Requiere('configuracion', 'ESCRIBIR')
   @Roles(RolAdmin.SUPERADMIN, RolAdmin.GESTOR)
   publicarAccion(@Param('id') id: string, @Body() dto: PublicarAccionDto) {
     return this.admin.publicarAccion(id, dto.visible);

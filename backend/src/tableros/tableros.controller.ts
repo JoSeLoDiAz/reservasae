@@ -2,7 +2,7 @@ import { Controller, Get, Param, Query, Res, UseGuards } from '@nestjs/common';
 import type { Response } from 'express';
 
 import { EstadoReserva, RolAdmin } from '../../generated/prisma';
-import { AdminGuard, Roles, type Ambito } from '../admin/admin.guard';
+import { AdminGuard, Requiere, Roles, type Ambito } from '../admin/admin.guard';
 import { construirLibro, nombreArchivo } from './exportar';
 import { AmbitoActual } from '../admin/admin-actual.decorator';
 import { TablerosService, valorLegible, type FiltrosReservas } from './tableros.service';
@@ -29,6 +29,9 @@ const SEMAFORO: Record<string, string> = {
 
 @Controller('admin/tableros')
 @UseGuards(AdminGuard)
+// la pre-reserva es el contexto comun: sin saber cuantas
+// sillas hay y de quien, ningun area entiende su trabajo
+@Requiere('reserva')
 export class TablerosController {
   constructor(private readonly tableros: TablerosService) {}
 

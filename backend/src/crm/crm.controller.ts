@@ -11,7 +11,8 @@ import {
 
 import { RolAdmin, type Admin } from '../../generated/prisma';
 import { AdminActual, AmbitoActual } from '../admin/admin-actual.decorator';
-import { AdminGuard, Roles, type Ambito } from '../admin/admin.guard';
+import { AdminGuard, Requiere, Roles, type Ambito } from '../admin/admin.guard';
+import { conveniosQueCierran } from '../admin/permisos';
 import { IpReal } from '../comun/ip-real';
 import { CrmService } from './crm.service';
 import {
@@ -31,6 +32,7 @@ import {
 // aqui viven cedulas, celulares y correos de terceros:
 // una cuenta de solo consulta no tiene nada que hacer
 @Roles(RolAdmin.SUPERADMIN, RolAdmin.GESTOR)
+@Requiere('inscripciones')
 export class CrmController {
   constructor(private readonly crm: CrmService) {}
 
@@ -54,6 +56,7 @@ export class CrmController {
 
   /** Quién va al día y quién no, contra las fechas del grupo. */
   @Get('academico')
+  @Requiere('academico')
   academico(@Query() filtros: FiltrosParticipantesDto, @AmbitoActual() ambito: Ambito) {
     return this.crm.academico({ ...filtros, ambito: ambito.convenios });
   }
@@ -70,11 +73,13 @@ export class CrmController {
   }
 
   @Post('carga/previsualizar')
+  @Requiere('inscripciones', 'ESCRIBIR')
   previsualizarCarga(@Body() dto: CargaDto, @AmbitoActual() ambito: Ambito) {
     return this.crm.previsualizarCarga(dto, ambito.convenios);
   }
 
   @Post('carga/confirmar')
+  @Requiere('inscripciones', 'ESCRIBIR')
   confirmarCarga(
     @Body() dto: CargaDto,
     @AdminActual() admin: Admin,
@@ -90,6 +95,7 @@ export class CrmController {
   }
 
   @Post()
+  @Requiere('inscripciones', 'ESCRIBIR')
   crear(
     @Body() dto: CrearParticipanteDto,
     @AdminActual() admin: Admin,
@@ -100,6 +106,7 @@ export class CrmController {
   }
 
   @Patch(':id')
+  @Requiere('inscripciones', 'ESCRIBIR')
   actualizar(
     @Param('id') id: string,
     @Body() dto: ActualizarParticipanteDto,
@@ -109,6 +116,7 @@ export class CrmController {
   }
 
   @Patch(':id/etapa')
+  @Requiere(['inscripciones', 'academico'], 'ESCRIBIR')
   cambiarEtapa(
     @Param('id') id: string,
     @Body() dto: CambiarEtapaDto,
@@ -116,10 +124,18 @@ export class CrmController {
     @AmbitoActual() ambito: Ambito,
     @IpReal() ip: string,
   ) {
-    return this.crm.cambiarEtapa(id, dto, admin, ambito.convenios, ip);
+    return this.crm.cambiarEtapa(
+      id,
+      dto,
+      admin,
+      ambito.convenios,
+      ip,
+      conveniosQueCierran(ambito.roles),
+    );
   }
 
   @Patch(':id/formacion')
+  @Requiere('inscripciones', 'ESCRIBIR')
   asignar(
     @Param('id') id: string,
     @Body() dto: AsignarFormacionDto,
@@ -130,6 +146,7 @@ export class CrmController {
   }
 
   @Post(':id/autorizacion')
+  @Requiere('inscripciones', 'ESCRIBIR')
   autorizacion(
     @Param('id') id: string,
     @Body() dto: RegistrarAutorizacionDto,
@@ -141,6 +158,7 @@ export class CrmController {
   }
 
   @Post(':id/notas')
+  @Requiere('inscripciones', 'ESCRIBIR')
   agregarNota(
     @Param('id') id: string,
     @Body() dto: CrearNotaDto,

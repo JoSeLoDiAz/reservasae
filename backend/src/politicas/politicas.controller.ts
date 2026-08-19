@@ -12,7 +12,7 @@ import {
 } from '@nestjs/common';
 
 import { DestinatarioPolitica, RolAdmin } from '../../generated/prisma';
-import { AdminGuard, Roles } from '../admin/admin.guard';
+import { AdminGuard, Requiere, Roles } from '../admin/admin.guard';
 import { ActualizarPoliticaDto, CrearPoliticaDto } from './dto';
 import { PoliticasService } from './politicas.service';
 
@@ -20,6 +20,7 @@ import { PoliticasService } from './politicas.service';
 @Controller('admin/politicas')
 @UseGuards(AdminGuard)
 @Roles(RolAdmin.SUPERADMIN, RolAdmin.GESTOR)
+@Requiere('configuracion', 'ESCRIBIR')
 export class PoliticasAdminController {
   constructor(private readonly politicas: PoliticasService) {}
 

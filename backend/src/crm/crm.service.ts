@@ -69,6 +69,9 @@ const ETAPAS_VIVAS: EtapaParticipante[] = [
 /// De estas no se sale sin explicar por que.
 const ETAPAS_CON_MOTIVO: EtapaParticipante[] = ['PERDIDO', 'RETIRADO', 'NO_APROBO'];
 
+/// Las que dan por terminada la formación.
+const CIERRES_DE_FORMACION: EtapaParticipante[] = ['CERTIFICADO', 'NO_APROBO'];
+
 /// Quien ya piso el aula y por tanto tiene avance.
 const ETAPAS_EN_AULA: EtapaParticipante[] = [
   'EN_FORMACION',
@@ -518,14 +521,24 @@ export class CrmService {
     admin: Admin,
     ambito: string[],
     ip?: string,
+    cierran: string[] = [],
   ) {
     await this.exigirParticipante(id, ambito);
 
     const p = await this.prisma.participante.findUnique({
       where: { id },
-      select: { id: true, etapa: true },
+      select: { id: true, etapa: true, convenioId: true },
     });
     if (!p) throw new NotFoundException('Ese participante no existe.');
+
+    // certificar es lo que paga el SENA: no lo firma quien
+    // digita, aunque digite bien
+    if (CIERRES_DE_FORMACION.includes(dto.etapa) && !cierran.includes(p.convenioId)) {
+      throw new ForbiddenException(
+        'Cerrar una formación (certificar o dar por no aprobado) es del líder ' +
+          'del área académica.',
+      );
+    }
     if (p.etapa === dto.etapa) return this.obtener(id, ambito);
 
     if (ETAPAS_CON_MOTIVO.includes(dto.etapa) && !dto.motivo) {
