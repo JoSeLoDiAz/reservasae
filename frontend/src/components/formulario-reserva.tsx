@@ -198,7 +198,7 @@ export function FormularioReserva({ slug }: { slug: string }) {
 
   if (estado === "no-disponible") {
     return (
-      <div className="rounded-lg border border-borde bg-superficie p-6">
+      <div className="rounded-2xl border border-borde bg-superficie p-6 shadow-sm">
         <h2 className="font-medium">No hay formación disponible en este momento</h2>
         <p className="mt-2 text-sm text-texto-suave">
           {error ?? "Vuelva a intentarlo más tarde."}
@@ -245,7 +245,7 @@ export function FormularioReserva({ slug }: { slug: string }) {
       })}
 
       {error && (
-        <div className="rounded-lg border border-error/30 bg-error-suave p-4 text-sm text-error">
+        <div className="rounded-xl border border-error/30 bg-error-suave p-4 text-sm text-error">
           <p>{error}</p>
           {yaReservado && (
             <p className="mt-2">
@@ -261,7 +261,7 @@ export function FormularioReserva({ slug }: { slug: string }) {
         <button
           type="submit"
           disabled={estado === "enviando"}
-          className="rounded-lg bg-marca px-6 py-3 font-medium text-marca-texto transition hover:bg-marca-fuerte disabled:opacity-50"
+          className="rounded-xl bg-marca px-6 py-3 font-medium text-marca-texto transition hover:bg-marca-fuerte disabled:opacity-50"
         >
           {estado === "enviando" ? "Enviando…" : "Reservar cupos"}
         </button>
@@ -276,7 +276,7 @@ export function FormularioReserva({ slug }: { slug: string }) {
 // un control por pregunta
 
 const CLASE_CONTROL =
-  "w-full rounded-lg border border-campo-borde bg-campo-fondo px-3 py-2 text-texto " +
+  "w-full rounded-xl border border-campo-borde bg-campo-fondo px-3 py-2.5 text-texto " +
   "outline-none transition focus:border-campo-foco focus:ring-2 focus:ring-campo-foco/25";
 
 function ControlPregunta({
@@ -374,7 +374,7 @@ function ControlPregunta({
 
   if (pregunta.tipo === "PARRAFO") {
     return (
-      <p className="rounded-lg bg-superficie-alterna p-4 text-sm text-texto-suave">
+      <p className="rounded-xl bg-superficie-alterna p-4 text-sm text-texto-suave">
         {pregunta.etiqueta}
       </p>
     );

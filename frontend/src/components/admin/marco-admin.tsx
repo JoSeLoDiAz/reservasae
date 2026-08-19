@@ -445,7 +445,7 @@ function Cabecera({ ruta, alAbrirMenu }: { ruta: string; alAbrirMenu: () => void
 // piezas compartidas del panel
 
 export const CLASE_CONTROL =
-  "w-full rounded-lg border border-campo-borde bg-campo-fondo px-3 py-2 text-texto " +
+  "w-full rounded-xl border border-campo-borde bg-campo-fondo px-3 py-2.5 text-texto " +
   "outline-none transition focus:border-campo-foco focus:ring-2 focus:ring-campo-foco/25";
 
 export function Tarjeta({

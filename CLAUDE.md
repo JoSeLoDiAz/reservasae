@@ -336,6 +336,32 @@ usan tanto `/admin/marca` como la apariencia de cada formulario.
   como texto de enlace sobre fondo claro y tiene que llegar a 4,5:1. El editor
   lo dice en vez de hacerlo callando.
 
+### La forma del panel
+
+Sale de SICC —el sistema de correspondencia del mismo grupo— pero **solo la
+forma**: barra lateral con iconos, chip del usuario al pie con su avatar, cajón
+en móvil con velo, cabecera que dice en qué pantalla se está, y Plus Jakarta
+Sans.
+
+- **La paleta NO se copió.** El verde y el azul de SICC son la identidad del
+  SENA, que este sitio no nombra, y fijar colores en el código dejaría sin
+  efecto el editor de apariencia. El menú se pinta con los tokens de
+  `ENCABEZADO`, así que **aquí el administrador también elige el color de la
+  barra**, cosa que allá está fija.
+- **Los estados activos usan `bg-current`**, que tiñe con el propio color del
+  texto: contrasta con cualquier fondo que el admin elija, claro u oscuro. Un
+  `bg-marca-suave` se habría vuelto invisible sobre un encabezado oscuro.
+- **Los iconos van dibujados en `components/admin/iconos.tsx`**, no importados:
+  eran quince, y traerse un paquete de mil por eso engorda el bundle y añade
+  algo que mantener. Usan `currentColor`.
+- **`piezas.tsx` tiene lo que repiten todas las pantallas**: la cifra grande con
+  su icono en un cuadro teñido —el fondo sale de `color-mix` sobre el mismo
+  token que el trazo, así que un solo color da los dos—, la píldora de estado,
+  el encabezado de pantalla y el vacío.
+- **Las cifras no van en monoespaciada.** Esa fuente se eligió para alinear
+  columnas y en un número grande solo lo hace parecer un log; `tabular-nums`
+  alinea igual sin cambiar de voz.
+
 ### Apariencia y modo claro / oscuro
 
 El administrador personaliza la interfaz entera. **Ningún componente escribe
@@ -790,6 +816,22 @@ Las seis áreas son `reserva`, `inscripciones`, `inscritos`, `reportes`,
   descargue las cédulas, falla el build. También comprueba que todo rol del enum
   tenga fila — sin ella `nivelDe` devolvería `NADA` en silencio.
 
+- **Lo que se ve desde fuera o no se deshace es del superadmin**, aunque el área
+  lo permita: publicar o retirar un formulario, duplicarlo, la apariencia
+  —general y por formulario—, las cuentas de usuario y **todos los borrados**.
+  El líder de sistemas construye; abrir al público es otra cosa.
+  **Publicar se comprueba dentro de la ruta y no sobre ella**: el mismo `PATCH`
+  edita el título y los textos, que sí son de quien construye, así que bloquear
+  la ruta entera le habría quitado también eso.
+- **Se puede borrar lo que antes exigía consola.** Una reserva devuelve sus
+  cupos a la oferta y arrastra a la organización si se queda sin ninguna otra;
+  una participación se lleva sus notas y su avance pero **no a la persona**,
+  porque la misma cédula puede estar en el otro convenio. Una reserva con gente
+  inscrita detrás **no se borra** —lo impide también el `onDelete: Restrict` de
+  la base—: se cancela.
+- **El diálogo pide escribir el NIT o el documento.** Un «¿está seguro?» se
+  acepta sin leer; teclear un número obliga a mirar cuál se está borrando.
+
 > **`RolAdmin` y `RolConvenio` conviven y son dos verdades que pueden
 > discrepar.** `RolAdmin` debería quedarse solo en «es superadmin o no» y todo
 > lo demás salir de la concesión, pero los controladores aún llevan
@@ -929,8 +971,14 @@ pnpm db:sembrar-prueba [--rehacer]
   | `hector.ramos` | Gestor académico | solo BRITCHAM |
   | `marta.oquendo` | Líder de seguimiento académico | los dos |
   | `sofia.rendon` | Consulta | los dos |
+  | `diego.salas` | Líder de sistemas, **sin** ser superadmin | los dos |
 
-  **Carlos es el que de verdad prueba el sistema**: lleva áreas distintas en
+  **Diego es quien prueba la otra mitad**: construye formularios pero no puede
+  publicarlos, duplicarlos, borrarlos ni tocar la paleta. Sin una cuenta así,
+  esa distinción no se podía comprobar, porque el único líder de sistemas era
+  Ana y además es superadmin.
+
+  **Carlos es el que de verdad prueba el ámbito**: lleva áreas distintas en
   cada convenio, así que descarga el reporte de ADECOPRIA y recibe 403 en el de
   BRITCHAM. Con todos llevando el mismo rol en los dos, un fallo en el recorte
   por área no se vería.
