@@ -538,6 +538,21 @@ menos tres meses después.
 **A `pruebas` y a `main` no se empuja de frente**: `pruebas` la mueve quien va a
 enseñar algo al cliente, y `main` solo después de que lo apruebe.
 
+## La versión
+
+`/api/estado` la saca del `package.json` del backend, no de una constante suelta
+—había tres números distintos: `1.0.0` en la raíz, `0.0.1` en el backend y
+`0.1.0` escrito a mano en el código—. Se sube en los dos `package.json` al
+publicar, y se etiqueta el commit:
+
+```bash
+git tag -a v0.2.0 -m "qué trae"
+git push origin v0.2.0
+```
+
+`APP_VERSION` sigue mandando si está puesta: es lo que hace que el entorno de
+pruebas se anuncie como `0.2.0-prueba` sin tocar el código.
+
 ## Las ramas
 
 ```
