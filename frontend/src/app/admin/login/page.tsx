@@ -132,7 +132,9 @@ function Marca({ claro = false }: { claro?: boolean }) {
 
   if (logos.length) {
     return (
-      <div className="inline-flex flex-wrap items-center gap-x-5 gap-y-3 rounded-2xl bg-white px-5 py-3.5 shadow-sm">
+      // self-start: en una columna flex, si no, la placa
+      // se estira a todo el ancho y queda una caja vacia
+      <div className="flex w-fit max-w-full flex-wrap items-center gap-x-5 gap-y-3 self-start rounded-2xl bg-white px-5 py-3.5 shadow-sm">
         {logos.map((logo) => (
           // <img>: tamano desconocido y ya viene cacheado
           // eslint-disable-next-line @next/next/no-img-element
