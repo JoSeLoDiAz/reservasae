@@ -1,0 +1,12 @@
+[Unit]
+Description=Comprueba cada 2 min si toca recuperar el mando
+
+[Timer]
+# tarde tras arrancar: primero que tailscale y la
+# replicacion se asienten, o el reloj se reinicia solo
+OnBootSec=10min
+OnUnitActiveSec=2min
+AccuracySec=30s
+
+[Install]
+WantedBy=timers.target

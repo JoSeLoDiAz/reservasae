@@ -1,0 +1,10 @@
+[Unit]
+Description=La sede preferida recupera el mando cuando esta sana
+After=docker.service tailscaled.service
+Wants=docker.service
+
+[Service]
+Type=oneshot
+User=sepadmin
+WorkingDirectory=/opt/sep/reservasae
+ExecStart=/opt/sep/reservasae/scripts/recuperar-mando.sh

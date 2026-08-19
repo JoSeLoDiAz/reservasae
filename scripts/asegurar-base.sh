@@ -21,7 +21,9 @@ if [ "$(docker inspect -f '{{.State.Running}}' reservasae_db 2>/dev/null)" = tru
 
   # sin receptor. Si el principal esta caido, recrear no
   # arregla nada: solo se recrea si de verdad responde
-  principal=$(cat .sigue-a 2>/dev/null | sin_retorno)
+  # de PRINCIPAL, no de .sigue-a: ese fichero no siempre
+  # existe y aqui se salia en silencio
+  principal=$(printf '%s' "${PRINCIPAL#*@}" | sin_retorno)
   [ -z "$principal" ] && exit 0
 
   ip_principal=$(getent hosts "$principal" 2>/dev/null | awk '{print $1}' | head -1)
