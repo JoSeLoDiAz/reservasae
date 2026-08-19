@@ -1209,6 +1209,7 @@ destruir algo, comprobar que hay a dónde ir**.
 | `desplegar.sh` | principal | construye, comprueba y **solo entonces** marca el commit |
 | `seguir-al-principal.sh` | réplicas | temporizador cada 2 min: se pone en el commit marcado y construye |
 | `arrancar-tunel.sh` | todas | temporizador cada 1 min: levanta el túnel **solo si le toca** |
+| `asegurar-base.sh` | todas | temporizador: levanta la base, y **la recrea si corre sin replicar** |
 | `autopromover.sh` | Bogotá y Socorro | temporizador cada 1 min: promueve sola si el principal murió |
 | `autorendirse.sh` | todas | temporizador cada 2 min: se rinde sola ante una línea temporal mayor |
 | `promover.sh` | una réplica | la convierte en principal |
@@ -1249,6 +1250,17 @@ destruir algo, comprobar que hay a dónde ir**.
   archivo nuevo con un desplazamiento calculado sobre el viejo. El bloque obliga
   a parsearlo entero antes de ejecutar la primera línea. Pasó de verdad: El
   Socorro construyó bien pero imprimió el mensaje de la versión anterior.
+
+> **Reiniciar una réplica la deja sin replicar, y reiniciar el contenedor no lo
+> arregla.** Al arrancar la máquina, Docker levanta la base antes de que
+> Tailscale termine de establecer el relevo, así que el contenedor nace sin ruta
+> hacia la red privada y Postgres repite «could not connect to the primary
+> server: Network unreachable» para siempre. **Las rutas se fijan al crear el
+> contenedor**: `docker restart` conserva las viejas y solo
+> `up -d --force-recreate db` las renueva. Pasó el 19 ago 2026 al actualizar el
+> núcleo de Bogotá; `asegurar-base.sh` ya lo detecta y lo recrea solo, pero
+> únicamente si el principal responde —si está caído, recrear no arregla nada y
+> solo haría ruido cada minuto.
 
 ### El túnel del dominio
 
