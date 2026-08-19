@@ -1,6 +1,12 @@
 /** Los módulos del panel, en el orden del proceso. */
 
 import { alcanza, type Area, type Nivel } from '@/lib/admin-api';
+import {
+  IconoApariencia, IconoAvance, IconoBrecha, IconoCargar, IconoConfiguracion,
+  IconoFormacion, IconoFormularios, IconoInscribir, IconoMatriculados,
+  IconoOrganizaciones, IconoPerfil, IconoPoliticas, IconoReportes,
+  IconoReservas, IconoResumen, IconoTablero, IconoUsuarios, type Icono,
+} from './iconos';
 
 export type Enlace = {
   href: string;
@@ -11,10 +17,13 @@ export type Enlace = {
   area?: Area;
   /// Y con qué nivel: escribir para lo que no es consulta.
   nivel?: Nivel;
+  icono?: Icono;
 };
 
 export type Modulo = {
   clave: string;
+  /// El del módulo, para la barra plegada.
+  icono?: Icono;
   /** El número que se ve en el menú. */
   paso?: number;
   etiqueta: string;
@@ -26,57 +35,62 @@ export type Modulo = {
 export const MODULOS: Modulo[] = [
   {
     clave: 'reserva',
+    icono: IconoResumen,
     paso: 1,
     etiqueta: 'Pre-reserva de cupos',
     descripcion: 'Lo que aparta la empresa afiliada, antes de que haya nombres.',
     enlaces: [
-      { href: '/admin', etiqueta: 'Resumen', exacto: true, area: 'reserva' },
-      { href: '/admin/reservas', etiqueta: 'Reservas', area: 'reserva' },
-      { href: '/admin/empresas', etiqueta: 'Organizaciones', area: 'reserva' },
+      { href: '/admin', etiqueta: 'Resumen', exacto: true, area: 'reserva' , icono: IconoResumen },
+      { href: '/admin/reservas', etiqueta: 'Reservas', area: 'reserva' , icono: IconoReservas },
+      { href: '/admin/empresas', etiqueta: 'Organizaciones', area: 'reserva' , icono: IconoOrganizaciones },
     ],
   },
   {
     clave: 'inscripciones',
+    icono: IconoTablero,
     paso: 2,
     etiqueta: 'Inscripciones',
     descripcion: 'Convertir cupos en personas con nombre.',
     enlaces: [
-      { href: '/admin/participantes', etiqueta: 'Tablero', exacto: true, area: 'inscripciones' },
-      { href: '/admin/participantes/brecha', etiqueta: 'Brecha de nombres', area: 'inscripciones' },
-      { href: '/admin/participantes/carga', etiqueta: 'Cargar una lista', area: 'inscripciones', nivel: 'ESCRIBIR' },
-      { href: '/admin/participantes/nuevo', etiqueta: 'Inscribir a alguien', area: 'inscripciones', nivel: 'ESCRIBIR' },
+      { href: '/admin/participantes', etiqueta: 'Tablero', exacto: true, area: 'inscripciones' , icono: IconoTablero },
+      { href: '/admin/participantes/brecha', etiqueta: 'Brecha de nombres', area: 'inscripciones' , icono: IconoBrecha },
+      { href: '/admin/participantes/carga', etiqueta: 'Cargar una lista', area: 'inscripciones', nivel: 'ESCRIBIR' , icono: IconoCargar },
+      { href: '/admin/participantes/nuevo', etiqueta: 'Inscribir a alguien', area: 'inscripciones', nivel: 'ESCRIBIR' , icono: IconoInscribir },
     ],
   },
   {
     clave: 'inscritos',
+    icono: IconoMatriculados,
     paso: 3,
     etiqueta: 'Inscritos',
     descripcion: 'Quien ya está matriculado y todavía no termina.',
     enlaces: [
-      { href: '/admin/inscritos', etiqueta: 'Matriculados', exacto: true, area: 'inscritos' },
-      { href: '/admin/sep', etiqueta: 'Reportes al SENA', area: 'reportes' },
+      { href: '/admin/inscritos', etiqueta: 'Matriculados', exacto: true, area: 'inscritos' , icono: IconoMatriculados },
+      { href: '/admin/sep', etiqueta: 'Reportes al SENA', area: 'reportes' , icono: IconoReportes },
     ],
   },
   {
     clave: 'academico',
+    icono: IconoAvance,
     paso: 4,
     etiqueta: 'Seguimiento académico',
     descripcion: 'Quién va al día y quién no.',
     enlaces: [
-      { href: '/admin/participantes/academico', etiqueta: 'Avance', exacto: true, area: 'academico' },
+      { href: '/admin/participantes/academico', etiqueta: 'Avance', exacto: true, area: 'academico' , icono: IconoAvance },
     ],
   },
   {
     clave: 'configuracion',
+    icono: IconoConfiguracion,
     etiqueta: 'Configuración',
     descripcion: 'Lo que no es del día a día.',
     enlaces: [
-      { href: '/admin/acciones', etiqueta: 'Formación', area: 'configuracion', nivel: 'ESCRIBIR' },
-      { href: '/admin/formularios', etiqueta: 'Formularios', area: 'configuracion', nivel: 'ESCRIBIR' },
-      { href: '/admin/politicas', etiqueta: 'Políticas', area: 'configuracion', nivel: 'ESCRIBIR' },
-      { href: '/admin/marca', etiqueta: 'Apariencia', area: 'configuracion', nivel: 'ESCRIBIR' },
-      { href: '/admin/usuarios', etiqueta: 'Usuarios', soloSuperadmin: true },
-      { href: '/admin/perfil', etiqueta: 'Mi perfil' },
+      { href: '/admin/acciones', etiqueta: 'Formación', area: 'configuracion', nivel: 'ESCRIBIR' , icono: IconoFormacion },
+      { href: '/admin/formularios', etiqueta: 'Formularios', area: 'configuracion', nivel: 'ESCRIBIR' , icono: IconoFormularios },
+      { href: '/admin/politicas', etiqueta: 'Políticas', area: 'configuracion', nivel: 'ESCRIBIR' , icono: IconoPoliticas },
+      { href: '/admin/marca', etiqueta: 'Apariencia', area: 'configuracion', nivel: 'ESCRIBIR' , icono: IconoApariencia },
+      { href: '/admin/usuarios', etiqueta: 'Usuarios', soloSuperadmin: true , icono: IconoUsuarios },
+      { href: '/admin/perfil', etiqueta: 'Mi perfil' , icono: IconoPerfil },
     ],
   },
 ];

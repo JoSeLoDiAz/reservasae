@@ -10,6 +10,14 @@ import { ErrorApi } from "@/lib/api";
 
 import { PanelAccesibilidad } from "./accesibilidad";
 import { CambioDeClaveObligatorio } from "./cambio-clave";
+import {
+  IconoAccesibilidad,
+  IconoCerrar,
+  IconoDerecha,
+  IconoIzquierda,
+  IconoMenu,
+  IconoSalir,
+} from "./iconos";
 import { enlacesVisibles, estaActivo, MODULOS } from "./navegacion";
 
 type Contexto = { admin: AdminActual; refrescar: () => Promise<void> };
@@ -24,6 +32,8 @@ export function useAdmin(): Contexto {
 
 const LLAVE_PLEGADO = "convoca:menu-plegado";
 
+type Permisos = Record<Area, Nivel> | undefined;
+
 export function MarcoAdmin({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const ruta = usePathname();
@@ -31,10 +41,14 @@ export function MarcoAdmin({ children }: { children: React.ReactNode }) {
   const [admin, setAdmin] = useState<AdminActual | null>(null);
   const [cargando, setCargando] = useState(true);
   const [plegado, setPlegadoEstado] = useState(false);
+  const [cajon, setCajon] = useState(false);
 
   useEffect(() => {
     setPlegadoEstado(window.localStorage.getItem(LLAVE_PLEGADO) === "si");
   }, []);
+
+  // al navegar, el cajon se cierra solo
+  useEffect(() => setCajon(false), [ruta]);
 
   const setPlegado = useCallback((valor: boolean) => {
     setPlegadoEstado(valor);
@@ -79,30 +93,189 @@ export function MarcoAdmin({ children }: { children: React.ReactNode }) {
     router.replace("/admin/login");
   }
 
+  const esSuperadmin = admin.rol === "SUPERADMIN";
+
   return (
     <ContextoAdmin.Provider value={{ admin, refrescar: cargar }}>
       <div className="flex min-h-screen">
         <BarraLateral
           ruta={ruta}
-          esSuperadmin={admin.rol === "SUPERADMIN"}
+          esSuperadmin={esSuperadmin}
           permisos={admin.permisos}
           plegado={plegado}
           alPlegar={() => setPlegado(!plegado)}
+          admin={admin}
+          alSalir={salir}
+        />
+
+        <CajonMovil
+          abierto={cajon}
+          alCerrar={() => setCajon(false)}
+          ruta={ruta}
+          esSuperadmin={esSuperadmin}
+          permisos={admin.permisos}
+          admin={admin}
+          alSalir={salir}
         />
 
         <div className="flex min-w-0 grow flex-col">
-          <Cabecera nombre={admin.nombre} alSalir={salir} />
-          <NavegacionMovil
-            ruta={ruta}
-            esSuperadmin={admin.rol === "SUPERADMIN"}
-            permisos={admin.permisos}
-          />
-          <main className="w-full grow px-6 py-8">
+          <Cabecera ruta={ruta} alAbrirMenu={() => setCajon(true)} />
+          <main className="w-full grow px-4 py-6 lg:px-8">
             <div className="mx-auto w-full max-w-6xl">{children}</div>
           </main>
         </div>
       </div>
     </ContextoAdmin.Provider>
+  );
+}
+
+/** El título de la pantalla, sacado del propio menú. */
+function tituloDeRuta(ruta: string): string {
+  for (const modulo of MODULOS) {
+    for (const enlace of modulo.enlaces) {
+      if (estaActivo(enlace, ruta)) return enlace.etiqueta;
+    }
+  }
+  return "Panel";
+}
+
+/// La marca. Igual en la barra y en el cajón.
+function Marca({ plegado }: { plegado?: boolean }) {
+  return (
+    <Link
+      href="/admin"
+      className={`flex items-center gap-2.5 no-underline ${plegado ? "justify-center" : ""}`}
+    >
+      <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-marca text-sm font-bold text-marca-texto">
+        C
+      </span>
+      {!plegado && (
+        <span className="flex min-w-0 flex-col leading-tight">
+          <span className="truncate text-sm font-bold">Convoca</span>
+          <span className="truncate text-[10px] opacity-60">panel de gestión</span>
+        </span>
+      )}
+    </Link>
+  );
+}
+
+function ChipUsuario({
+  admin,
+  alSalir,
+  plegado,
+}: {
+  admin: AdminActual;
+  alSalir: () => void;
+  plegado?: boolean;
+}) {
+  return (
+    <div
+      className={`mt-3 flex shrink-0 items-center gap-2.5 rounded-xl border border-current/10 bg-current/5 p-2.5 ${
+        plegado ? "flex-col gap-2" : ""
+      }`}
+    >
+      <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-marca text-xs font-bold text-marca-texto">
+        {(admin.nombre[0] ?? "?").toUpperCase()}
+      </span>
+      {!plegado && (
+        <span className="flex min-w-0 grow flex-col leading-tight">
+          <span className="truncate text-xs font-semibold">{admin.nombre}</span>
+          <span className="truncate text-[10px] opacity-60">
+            {admin.cargo ?? admin.rol}
+          </span>
+        </span>
+      )}
+      <button
+        onClick={alSalir}
+        title="Cerrar sesión"
+        aria-label="Cerrar sesión"
+        className="shrink-0 rounded-lg p-1.5 opacity-60 transition hover:bg-error/15 hover:text-error hover:opacity-100"
+      >
+        <IconoSalir tamano={15} />
+      </button>
+    </div>
+  );
+}
+
+/// Los grupos con sus enlaces, compartidos por los dos menús.
+function Grupos({
+  ruta,
+  esSuperadmin,
+  permisos,
+  plegado,
+}: {
+  ruta: string;
+  esSuperadmin: boolean;
+  permisos: Permisos;
+  plegado?: boolean;
+}) {
+  return (
+    <>
+      {MODULOS.map((modulo) => {
+        const enlaces = enlacesVisibles(modulo, permisos, esSuperadmin);
+        if (enlaces.length === 0) return null;
+
+        // plegada: una entrada por modulo, no una por
+        // enlace. Quince iconos en fila no distinguen nada
+        if (plegado) {
+          const activo = enlaces.some((e) => estaActivo(e, ruta));
+          const Icono = modulo.icono;
+          return (
+            <Link
+              key={modulo.clave}
+              href={enlaces[0].href}
+              title={`${modulo.etiqueta} — ${modulo.descripcion}`}
+              aria-current={activo ? "page" : undefined}
+              className={`mb-1 flex h-10 items-center justify-center rounded-xl transition ${
+                activo
+                  ? "bg-current/12"
+                  : "opacity-60 hover:bg-current/8 hover:opacity-100"
+              }`}
+            >
+              {Icono ? <Icono tamano={18} /> : <span>{modulo.paso ?? "·"}</span>}
+            </Link>
+          );
+        }
+
+        return (
+          <section key={modulo.clave} className="mb-5">
+            <h2
+              className="px-3 pb-1.5 text-[10px] font-bold tracking-[0.08em] uppercase opacity-45"
+              title={modulo.descripcion}
+            >
+              {modulo.paso ? `${modulo.paso}. ` : ""}
+              {modulo.etiqueta}
+            </h2>
+
+            <ul className="space-y-0.5">
+              {enlaces.map((enlace) => {
+                const activo = estaActivo(enlace, ruta);
+                const Icono = enlace.icono;
+                return (
+                  <li key={enlace.href}>
+                    <Link
+                      href={enlace.href}
+                      aria-current={activo ? "page" : undefined}
+                      className={`flex items-center gap-2.5 rounded-xl px-3 py-2 text-sm transition ${
+                        activo
+                          ? "bg-current/12 font-medium"
+                          : "opacity-65 hover:bg-current/8 hover:opacity-100"
+                      }`}
+                    >
+                      {Icono && <Icono tamano={17} className="shrink-0" />}
+                      <span className="truncate">{enlace.etiqueta}</span>
+                      {activo && (
+                        <span className="ml-auto h-1.5 w-1.5 shrink-0 rounded-full bg-marca" />
+                      )}
+                    </Link>
+                  </li>
+                );
+              })}
+            </ul>
+          </section>
+        );
+      })}
+    </>
   );
 }
 
@@ -113,12 +286,16 @@ function BarraLateral({
   permisos,
   plegado,
   alPlegar,
+  admin,
+  alSalir,
 }: {
   ruta: string;
   esSuperadmin: boolean;
-  permisos?: Record<Area, Nivel>;
+  permisos: Permisos;
   plegado: boolean;
   alPlegar: () => void;
+  admin: AdminActual;
+  alSalir: () => void;
 }) {
   return (
     <nav
@@ -128,170 +305,137 @@ function BarraLateral({
         top: "var(--franja-alto, 0px)",
         height: "calc(100vh - var(--franja-alto, 0px))",
       }}
-      className={`no-imprimir sticky hidden shrink-0 flex-col border-r border-borde bg-superficie transition-[width] md:flex ${
-        plegado ? "w-16" : "w-64"
+      className={`no-imprimir sticky z-20 hidden shrink-0 flex-col border-r border-encabezado-borde bg-encabezado-fondo text-encabezado-texto transition-[width] duration-200 md:flex ${
+        plegado ? "w-[72px] px-3 py-4" : "w-[260px] px-4 py-4"
       }`}
     >
-      <div className="flex items-center gap-2 border-b border-borde px-3 py-4">
-        {!plegado && (
-          <Link href="/admin" className="min-w-0 grow truncate font-semibold">
-            Convoca
-          </Link>
-        )}
-        <button
-          onClick={alPlegar}
-          className="ml-auto rounded-lg border border-borde px-2 py-1 text-texto-suave"
-          aria-label={plegado ? "Desplegar el menú" : "Plegar el menú"}
-          title={plegado ? "Desplegar" : "Plegar"}
-        >
-          {plegado ? "»" : "«"}
-        </button>
+      <div className="mb-5 shrink-0">
+        <Marca plegado={plegado} />
       </div>
 
       {/* el scroll es de aqui dentro, no de la pagina */}
-      <div className="barra-visible min-h-0 grow overflow-y-auto px-2 py-3">
-        {MODULOS.map((modulo) => {
-          const enlaces = enlacesVisibles(modulo, permisos, esSuperadmin);
-          if (enlaces.length === 0) return null;
-
-          // plegado: una entrada por modulo, no una por
-          // enlace. Cuatro numeros iguales no distinguen nada
-          if (plegado) {
-            const activo = enlaces.some((e) => estaActivo(e, ruta));
-            return (
-              <Link
-                key={modulo.clave}
-                href={enlaces[0].href}
-                title={`${modulo.etiqueta} — ${modulo.descripcion}`}
-                aria-current={activo ? "page" : undefined}
-                className={`mb-1 flex h-10 items-center justify-center rounded-lg text-sm font-semibold transition ${
-                  activo
-                    ? "bg-marca-suave text-marca"
-                    : "text-texto-suave hover:bg-superficie-alterna hover:text-texto"
-                }`}
-              >
-                {modulo.paso ?? "⚙"}
-              </Link>
-            );
-          }
-
-          return (
-            <section key={modulo.clave} className="mb-4">
-              <h2
-                className="px-2 pb-1 text-[11px] font-semibold tracking-wide text-texto-suave uppercase"
-                title={modulo.descripcion}
-              >
-                {modulo.paso ? `${modulo.paso}. ` : ""}
-                {modulo.etiqueta}
-              </h2>
-
-              <ul className="space-y-0.5">
-                {enlaces.map((enlace) => {
-                  const activo = estaActivo(enlace, ruta);
-                  return (
-                    <li key={enlace.href}>
-                      <Link
-                        href={enlace.href}
-                        aria-current={activo ? "page" : undefined}
-                        className={`block truncate rounded-lg px-3 py-2 text-sm transition ${
-                          activo
-                            ? "bg-marca-suave font-medium text-marca"
-                            : "text-texto-suave hover:bg-superficie-alterna hover:text-texto"
-                        }`}
-                      >
-                        {enlace.etiqueta}
-                      </Link>
-                    </li>
-                  );
-                })}
-              </ul>
-            </section>
-          );
-        })}
+      <div className="barra-visible min-h-0 grow overflow-y-auto">
+        <Grupos
+          ruta={ruta}
+          esSuperadmin={esSuperadmin}
+          permisos={permisos}
+          plegado={plegado}
+        />
       </div>
+
+      <ChipUsuario admin={admin} alSalir={alSalir} plegado={plegado} />
+
+      <button
+        onClick={alPlegar}
+        className="absolute top-[76px] -right-3 z-10 grid h-6 w-6 place-items-center rounded-full border border-encabezado-borde bg-encabezado-fondo text-encabezado-texto shadow-sm transition hover:border-marca hover:text-marca"
+        aria-label={plegado ? "Desplegar el menú" : "Plegar el menú"}
+        title={plegado ? "Desplegar" : "Plegar"}
+      >
+        {plegado ? <IconoDerecha tamano={13} /> : <IconoIzquierda tamano={13} />}
+      </button>
     </nav>
   );
 }
 
-/** En móvil no cabe la lateral: una tira que se desliza. */
-function NavegacionMovil({
+/** En móvil no cabe la lateral: un cajón que se desliza. */
+function CajonMovil({
+  abierto,
+  alCerrar,
   ruta,
   esSuperadmin,
   permisos,
+  admin,
+  alSalir,
 }: {
+  abierto: boolean;
+  alCerrar: () => void;
   ruta: string;
   esSuperadmin: boolean;
-  permisos?: Record<Area, Nivel>;
+  permisos: Permisos;
+  admin: AdminActual;
+  alSalir: () => void;
 }) {
+  // abierto, Escape lo cierra
+  useEffect(() => {
+    if (!abierto) return;
+    const alTeclear = (e: KeyboardEvent) => {
+      if (e.key === "Escape") alCerrar();
+    };
+    window.addEventListener("keydown", alTeclear);
+    return () => window.removeEventListener("keydown", alTeclear);
+  }, [abierto, alCerrar]);
+
   return (
-    <nav
-      aria-label="Secciones del panel"
-      className="barra-visible no-imprimir overflow-x-auto border-b border-borde bg-superficie px-4 py-2 md:hidden"
-    >
-      <ul className="flex gap-1" style={{ width: "max-content" }}>
-        {MODULOS.flatMap((modulo) =>
-          enlacesVisibles(modulo, permisos, esSuperadmin).map((enlace) => {
-              const activo = estaActivo(enlace, ruta);
-              return (
-                <li key={enlace.href}>
-                  <Link
-                    href={enlace.href}
-                    aria-current={activo ? "page" : undefined}
-                    className={`block rounded-lg px-3 py-1.5 text-sm whitespace-nowrap ${
-                      activo
-                        ? "bg-marca-suave font-medium text-marca"
-                        : "text-texto-suave"
-                    }`}
-                  >
-                    {enlace.etiqueta}
-                  </Link>
-                </li>
-              );
-            }),
-        )}
-      </ul>
-    </nav>
+    <>
+      <div
+        onClick={alCerrar}
+        aria-hidden
+        className={`no-imprimir fixed inset-0 z-40 bg-black/50 transition-opacity duration-200 md:hidden ${
+          abierto ? "opacity-100" : "pointer-events-none opacity-0"
+        }`}
+      />
+      <nav
+        aria-label="Secciones del panel"
+        aria-hidden={!abierto}
+        className={`no-imprimir fixed inset-y-0 left-0 z-50 flex w-[270px] flex-col border-r border-encabezado-borde bg-encabezado-fondo px-4 py-4 text-encabezado-texto transition-transform duration-200 md:hidden ${
+          abierto ? "translate-x-0" : "-translate-x-full"
+        }`}
+      >
+        <div className="mb-5 flex shrink-0 items-center">
+          <Marca />
+          <button
+            onClick={alCerrar}
+            aria-label="Cerrar menú"
+            className="ml-auto rounded-lg p-1.5 opacity-60 transition hover:bg-current/10 hover:opacity-100"
+          >
+            <IconoCerrar tamano={18} />
+          </button>
+        </div>
+
+        <div className="barra-visible min-h-0 grow overflow-y-auto">
+          <Grupos ruta={ruta} esSuperadmin={esSuperadmin} permisos={permisos} />
+        </div>
+
+        <ChipUsuario admin={admin} alSalir={alSalir} />
+      </nav>
+    </>
   );
 }
 
-function Cabecera({ nombre, alSalir }: { nombre: string; alSalir: () => void }) {
+function Cabecera({ ruta, alAbrirMenu }: { ruta: string; alAbrirMenu: () => void }) {
   const [abierto, setAbierto] = useState(false);
 
   return (
     <header
       style={{ top: "var(--franja-alto, 0px)" }}
-      className="no-imprimir sticky z-30 border-b border-encabezado-borde bg-encabezado-fondo text-encabezado-texto"
+      className="no-imprimir sticky z-30 flex h-14 shrink-0 items-center gap-3 border-b border-encabezado-borde bg-encabezado-fondo px-4 text-encabezado-texto lg:px-8"
     >
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 px-6 py-3">
-        <span className="font-semibold">
-          Convoca
-          <span className="ml-2 rounded bg-marca/10 px-1.5 py-0.5 text-xs font-medium text-marca">
-            panel
-          </span>
-        </span>
+      <button
+        onClick={alAbrirMenu}
+        aria-label="Abrir menú"
+        className="-ml-1 rounded-lg p-2 opacity-70 transition hover:bg-current/10 hover:opacity-100 md:hidden"
+      >
+        <IconoMenu tamano={20} />
+      </button>
 
-        <div className="ml-auto flex items-center gap-3 text-sm">
-          <ConmutadorTema compacto />
+      <h1 className="truncate text-[15px] font-semibold">{tituloDeRuta(ruta)}</h1>
 
-          {/* el relative va aqui: si abraza todo el grupo,
-              el panel nace arriba y la cabecera lo corta */}
-          <div className="relative">
-            <button
-              onClick={() => setAbierto(!abierto)}
-              aria-expanded={abierto}
-              className="rounded-lg border border-borde px-2 py-1.5 text-texto-suave"
-              title="Accesibilidad"
-            >
-              <span aria-hidden>♿</span>
-              <span className="sr-only">Accesibilidad</span>
-            </button>
-            {abierto && <PanelAccesibilidad alCerrar={() => setAbierto(false)} />}
-          </div>
+      <div className="ml-auto flex items-center gap-1.5">
+        <ConmutadorTema compacto />
 
-          <span className="opacity-70">{nombre}</span>
-          <button onClick={alSalir} className="text-marca underline">
-            Salir
+        {/* el relative va aqui: si abraza todo el grupo,
+            el panel nace arriba y la cabecera lo corta */}
+        <div className="relative">
+          <button
+            onClick={() => setAbierto(!abierto)}
+            aria-expanded={abierto}
+            className="grid h-9 w-9 place-items-center rounded-lg opacity-70 transition hover:bg-current/10 hover:opacity-100"
+            title="Accesibilidad"
+          >
+            <IconoAccesibilidad tamano={18} />
+            <span className="sr-only">Accesibilidad</span>
           </button>
+          {abierto && <PanelAccesibilidad alCerrar={() => setAbierto(false)} />}
         </div>
       </div>
     </header>
@@ -314,8 +458,8 @@ export function Tarjeta({
   children: React.ReactNode;
 }) {
   return (
-    <section className="rounded-xl border border-borde bg-superficie p-6">
-      <h2 className="text-lg font-medium">{titulo}</h2>
+    <section className="rounded-2xl border border-borde bg-superficie p-6 shadow-sm">
+      <h2 className="text-lg font-semibold">{titulo}</h2>
       {descripcion && <p className="mt-1 text-sm text-texto-suave">{descripcion}</p>}
       <div className="mt-5">{children}</div>
     </section>
@@ -347,7 +491,7 @@ export function Boton({
   return (
     <button
       {...resto}
-      className={`rounded-lg bg-marca px-5 py-2 font-medium text-marca-texto transition hover:bg-marca-fuerte disabled:opacity-50 ${resto.className ?? ""}`}
+      className={`inline-flex items-center justify-center gap-2 rounded-xl bg-marca px-5 py-2.5 text-sm font-medium text-marca-texto shadow-sm transition hover:bg-marca-fuerte disabled:opacity-50 ${resto.className ?? ""}`}
     >
       {children}
     </button>
@@ -359,5 +503,5 @@ export function Aviso({ tipo, children }: { tipo: "error" | "exito"; children: R
     tipo === "error"
       ? "border-error/30 bg-error-suave text-error"
       : "border-exito/30 bg-exito-suave text-exito";
-  return <div className={`rounded-lg border p-4 text-sm ${clases}`}>{children}</div>;
+  return <div className={`rounded-xl border p-4 text-sm ${clases}`}>{children}</div>;
 }
