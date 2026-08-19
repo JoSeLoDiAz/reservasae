@@ -47,9 +47,6 @@ export function MarcoAdmin({ children }: { children: React.ReactNode }) {
     setPlegadoEstado(window.localStorage.getItem(LLAVE_PLEGADO) === "si");
   }, []);
 
-  // al navegar, el cajon se cierra solo
-  useEffect(() => setCajon(false), [ruta]);
-
   const setPlegado = useCallback((valor: boolean) => {
     setPlegadoEstado(valor);
     try {
@@ -210,11 +207,14 @@ function Grupos({
   esSuperadmin,
   permisos,
   plegado,
+  alNavegar,
 }: {
   ruta: string;
   esSuperadmin: boolean;
   permisos: Permisos;
   plegado?: boolean;
+  /// El cajón se cierra al pulsar, no tras navegar.
+  alNavegar?: () => void;
 }) {
   return (
     <>
@@ -231,6 +231,7 @@ function Grupos({
             <Link
               key={modulo.clave}
               href={enlaces[0].href}
+              onClick={alNavegar}
               title={`${modulo.etiqueta} — ${modulo.descripcion}`}
               aria-current={activo ? "page" : undefined}
               className={`mb-1 flex h-10 items-center justify-center rounded-xl transition ${
@@ -262,6 +263,7 @@ function Grupos({
                   <li key={enlace.href}>
                     <Link
                       href={enlace.href}
+                      onClick={alNavegar}
                       aria-current={activo ? "page" : undefined}
                       className={`relative flex items-center gap-2.5 rounded-xl px-3 py-2 text-sm transition ${
                         activo
@@ -403,7 +405,12 @@ function CajonMovil({
         </div>
 
         <div className="barra-visible min-h-0 grow overflow-y-auto">
-          <Grupos ruta={ruta} esSuperadmin={esSuperadmin} permisos={permisos} />
+          <Grupos
+            ruta={ruta}
+            esSuperadmin={esSuperadmin}
+            permisos={permisos}
+            alNavegar={alCerrar}
+          />
         </div>
 
         <ChipUsuario admin={admin} alSalir={alSalir} />
