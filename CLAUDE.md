@@ -502,15 +502,41 @@ servidor, `/opt/sep/SEPLocal`) para que ambos se desplieguen igual.
 ## Trabajar en local
 
 ```bash
+git clone git@github.com:JoSeLoDiAz/reservasae.git
+cd reservasae
 pnpm install
+
 cp backend/.env.example backend/.env
+docker compose up -d db          # Postgres en localhost:5433
+pnpm --filter backend exec prisma migrate deploy
+pnpm --filter backend prisma db seed
 
 pnpm dev:backend    # :4000
 pnpm dev:frontend   # :3000
+pnpm --filter backend db:crear-admin tu@correo.com "Tu Nombre"
 ```
 
-No necesitas Docker ni Postgres para el frontend/backend. Si necesitas la BD:
-`docker compose up -d db` y apunta `DATABASE_URL` a `localhost:5433`.
+> **Cada quien con su base, y esto no es opcional.** El `backend/.env` del
+> portátil de Josse apunta, vía túnel SSH, **a la base del servidor**: cualquier
+> migración o seed que se corra desde ahí va directo a producción. Un `.env`
+> copiado de otro equipo hereda ese apunte sin avisar. Empiece siempre desde
+> `.env.example` y compruebe que `DATABASE_URL` dice `localhost:5433`.
+
+**Trabajar en la rama propia**, nunca en `dev` directamente:
+
+```bash
+git checkout dev-mauricio
+git pull origin dev             # traer lo que haya hecho el resto
+# …trabajar, commits en español explicando el porqué…
+git push origin dev-mauricio
+```
+
+Para integrar, un PR de `dev-mauricio` a `dev` en GitHub. Vale también un merge
+directo, pero el PR deja escrito qué entró y cuándo, que es lo que se echa de
+menos tres meses después.
+
+**A `pruebas` y a `main` no se empuja de frente**: `pruebas` la mueve quien va a
+enseñar algo al cliente, y `main` solo después de que lo apruebe.
 
 ## Las ramas
 
