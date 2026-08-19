@@ -6,6 +6,7 @@ import { useCallback, useState } from "react";
 import { PildoraEtapa } from "@/components/admin/etapa";
 import { IndicadorActualizacion } from "@/components/admin/indicador-actualizacion";
 import { Aviso, CLASE_CONTROL, Tarjeta } from "@/components/admin/marco-admin";
+import { Esqueleto } from "@/components/admin/piezas";
 import { useDatosVivos } from "@/lib/datos-vivos";
 import {
   crmApi,
@@ -38,7 +39,7 @@ export default function PaginaInscritos() {
   const vivos = useDatosVivos<Datos>(cargar, { clave: `${etapa}|${buscar}` });
 
   if (vivos.error) return <Aviso tipo="error">{vivos.error}</Aviso>;
-  if (!vivos.datos) return <p className="text-texto-suave">Cargando…</p>;
+  if (!vivos.datos) return <Esqueleto conCifras />;
 
   const { listado, resumen } = vivos.datos;
   const cuenta = new Map(resumen.etapas.map((e) => [e.etapa, e.total]));

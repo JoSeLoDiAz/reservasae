@@ -6,6 +6,7 @@ import { useCallback, useState } from "react";
 import { PildoraEtapa } from "@/components/admin/etapa";
 import { IndicadorActualizacion } from "@/components/admin/indicador-actualizacion";
 import { Aviso, CLASE_CONTROL, Tarjeta } from "@/components/admin/marco-admin";
+import { Esqueleto } from "@/components/admin/piezas";
 import { useDatosVivos } from "@/lib/datos-vivos";
 import {
   type Academico,
@@ -71,7 +72,7 @@ export default function PaginaAcademico() {
   const datos = vivos.datos;
 
   if (vivos.error) return <Aviso tipo="error">{vivos.error}</Aviso>;
-  if (!datos) return <p className="text-texto-suave">Cargando…</p>;
+  if (!datos) return <Esqueleto conCifras />;
 
   const { resumen, criterio } = datos;
   const visibles = filtro

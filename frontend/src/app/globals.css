@@ -209,18 +209,60 @@ h3 {
 /* la barra tiene que verse sin pasar el raton por encima */
 .barra-visible {
   scrollbar-width: thin;
-  scrollbar-color: var(--texto-suave) var(--superficie-alterna);
+  /* tenida con el propio texto: se ve en claro y oscuro */
+  scrollbar-color: color-mix(in oklab, currentColor 25%, transparent) transparent;
 }
 .barra-visible::-webkit-scrollbar {
   height: 10px;
+  width: 8px;
 }
 .barra-visible::-webkit-scrollbar-track {
-  background: var(--superficie-alterna);
-  border-radius: 999px;
+  background: transparent;
 }
 .barra-visible::-webkit-scrollbar-thumb {
-  background: var(--texto-suave);
+  background: color-mix(in oklab, currentColor 22%, transparent);
   border-radius: 999px;
+}
+.barra-visible:hover::-webkit-scrollbar-thumb {
+  background: color-mix(in oklab, currentColor 38%, transparent);
+}
+
+/* el foco se ve igual en todo, sin heredar el del navegador */
+:where(a, button, input, select, textarea, [tabindex]):focus-visible {
+  outline: 2px solid var(--campo-foco);
+  outline-offset: 2px;
+  border-radius: 0.5rem;
+}
+
+/* con el teclado, saltarse el menu */
+.salto-al-contenido {
+  position: absolute;
+  left: -9999px;
+}
+.salto-al-contenido:focus {
+  left: 0.75rem;
+  top: 0.75rem;
+  z-index: 60;
+  background: var(--marca);
+  color: var(--marca-texto);
+  padding: 0.5rem 1rem;
+  border-radius: 0.75rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+::selection {
+  background: color-mix(in oklab, var(--marca) 25%, transparent);
+}
+
+/* la fila entera reacciona, no solo el enlace */
+.tabla-datos tbody tr {
+  transition: background-color 120ms ease;
+}
+
+/* que un ancla no aterrice pegada al borde */
+:target {
+  scroll-margin-top: 5rem;
 }
 
 /* etiqueta de etapa: color propio, fondo teñido con el */

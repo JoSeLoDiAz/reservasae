@@ -97,6 +97,10 @@ export function MarcoAdmin({ children }: { children: React.ReactNode }) {
 
   return (
     <ContextoAdmin.Provider value={{ admin, refrescar: cargar }}>
+      <a href="#contenido" className="salto-al-contenido no-imprimir">
+        Saltar al contenido
+      </a>
+
       <div className="flex min-h-screen">
         <BarraLateral
           ruta={ruta}
@@ -120,7 +124,7 @@ export function MarcoAdmin({ children }: { children: React.ReactNode }) {
 
         <div className="flex min-w-0 grow flex-col">
           <Cabecera ruta={ruta} alAbrirMenu={() => setCajon(true)} />
-          <main className="w-full grow px-4 py-6 lg:px-8">
+          <main id="contenido" tabIndex={-1} className="w-full grow px-4 py-6 lg:px-8">
             <div className="mx-auto w-full max-w-6xl">{children}</div>
           </main>
         </div>
@@ -129,14 +133,17 @@ export function MarcoAdmin({ children }: { children: React.ReactNode }) {
   );
 }
 
-/** El título de la pantalla, sacado del propio menú. */
-function tituloDeRuta(ruta: string): string {
+/** Dónde está uno: módulo y pantalla. */
+function migas(ruta: string): string[] {
   for (const modulo of MODULOS) {
     for (const enlace of modulo.enlaces) {
-      if (estaActivo(enlace, ruta)) return enlace.etiqueta;
+      if (estaActivo(enlace, ruta)) {
+        const paso = modulo.paso ? `${modulo.paso}. ` : "";
+        return [`${paso}${modulo.etiqueta}`, enlace.etiqueta];
+      }
     }
   }
-  return "Panel";
+  return ["Panel"];
 }
 
 /// La marca. Igual en la barra y en el cajón.
@@ -256,17 +263,20 @@ function Grupos({
                     <Link
                       href={enlace.href}
                       aria-current={activo ? "page" : undefined}
-                      className={`flex items-center gap-2.5 rounded-xl px-3 py-2 text-sm transition ${
+                      className={`relative flex items-center gap-2.5 rounded-xl px-3 py-2 text-sm transition ${
                         activo
                           ? "bg-current/12 font-medium"
                           : "opacity-65 hover:bg-current/8 hover:opacity-100"
                       }`}
                     >
+                      {activo && (
+                        <span
+                          aria-hidden
+                          className="absolute top-1.5 bottom-1.5 -left-1 w-[3px] rounded-full bg-marca"
+                        />
+                      )}
                       {Icono && <Icono tamano={17} className="shrink-0" />}
                       <span className="truncate">{enlace.etiqueta}</span>
-                      {activo && (
-                        <span className="ml-auto h-1.5 w-1.5 shrink-0 rounded-full bg-marca" />
-                      )}
                     </Link>
                   </li>
                 );
@@ -418,7 +428,24 @@ function Cabecera({ ruta, alAbrirMenu }: { ruta: string; alAbrirMenu: () => void
         <IconoMenu tamano={20} />
       </button>
 
-      <h1 className="truncate text-[15px] font-semibold">{tituloDeRuta(ruta)}</h1>
+      <nav aria-label="Dónde está" className="flex min-w-0 items-center gap-1.5 text-sm">
+        {migas(ruta).map((paso, i, todas) => (
+          <span key={paso} className="flex min-w-0 items-center gap-1.5">
+            {i > 0 && (
+              <span aria-hidden className="opacity-30">
+                /
+              </span>
+            )}
+            <span
+              className={`truncate ${
+                i === todas.length - 1 ? "font-semibold" : "opacity-55"
+              }`}
+            >
+              {paso}
+            </span>
+          </span>
+        ))}
+      </nav>
 
       <div className="ml-auto flex items-center gap-1.5">
         <ConmutadorTema compacto />

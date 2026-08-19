@@ -10,6 +10,7 @@ import {
   SelloDeDatos,
 } from "@/components/admin/indicador-actualizacion";
 import { Aviso, Tarjeta } from "@/components/admin/marco-admin";
+import { Esqueleto } from "@/components/admin/piezas";
 import { useDatosVivos } from "@/lib/datos-vivos";
 import { tablerosApi, type InformeRespuestas, type PreguntaAgregada } from "@/lib/tableros-api";
 
@@ -25,7 +26,7 @@ export default function PaginaRespuestas({
   );
 
   if (vivos.error) return <Aviso tipo="error">{vivos.error}</Aviso>;
-  if (!vivos.datos) return <p className="text-texto-suave">Cargando…</p>;
+  if (!vivos.datos) return <Esqueleto conCifras />;
 
   const { formulario, totalReservas, preguntas } = vivos.datos;
 

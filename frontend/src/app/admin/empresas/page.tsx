@@ -6,6 +6,8 @@ import { n } from "@/components/admin/graficos";
 import { Aviso, CLASE_CONTROL, Tarjeta } from "@/components/admin/marco-admin";
 import { bonito, ErrorApi } from "@/lib/api";
 import { descargar, tablerosApi, type FilaEmpresa } from "@/lib/tableros-api";
+import { IconoOrganizaciones } from "@/components/admin/iconos";
+import { Vacio } from "@/components/admin/piezas";
 
 /** Cuántos cupos lleva cada organización. */
 export default function PaginaEmpresas() {
@@ -119,11 +121,18 @@ export default function PaginaEmpresas() {
         </div>
 
         {filas && filas.length === 0 && (
-          <p className="py-8 text-center text-sm text-texto-suave">
+          <Vacio
+            titulo={
+              textoBuscado
+                ? "Ninguna organización coincide"
+                : "Todavía no hay organizaciones"
+            }
+            icono={IconoOrganizaciones}
+          >
             {textoBuscado
-              ? "Ninguna organización coincide con la búsqueda."
-              : "Todavía no hay organizaciones registradas."}
-          </p>
+              ? "Busque por NIT o por razón social; basta con una parte."
+              : "Aparecerán en cuanto alguien reserve cupos desde un formulario."}
+          </Vacio>
         )}
       </Tarjeta>
     </div>

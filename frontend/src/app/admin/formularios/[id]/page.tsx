@@ -11,6 +11,7 @@ import {
   CLASE_CONTROL,
   Tarjeta,
 } from "@/components/admin/marco-admin";
+import { Esqueleto } from "@/components/admin/piezas";
 import { ErrorApi } from "@/lib/api";
 import {
   formulariosApi,
@@ -55,7 +56,7 @@ export default function PaginaConstructor({
     }
   }, []);
 
-  if (!formulario) return <p className="text-texto-suave">Cargando…</p>;
+  if (!formulario) return <Esqueleto filas={5} />;
 
   const activas = formulario.preguntas.filter((p) => !p.archivada);
   const archivadas = formulario.preguntas.filter((p) => p.archivada);

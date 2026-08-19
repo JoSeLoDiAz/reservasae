@@ -5,6 +5,8 @@ import { useCallback, useEffect, useState } from "react";
 import { n } from "@/components/admin/graficos";
 import { IndicadorActualizacion } from "@/components/admin/indicador-actualizacion";
 import { ConfirmarBorrado } from "@/components/admin/confirmar-borrado";
+import { IconoReservas } from "@/components/admin/iconos";
+import { Vacio } from "@/components/admin/piezas";
 import { Aviso, CLASE_CONTROL, Tarjeta, useAdmin } from "@/components/admin/marco-admin";
 import { adminApi } from "@/lib/admin-api";
 import { bonito } from "@/lib/api";
@@ -190,9 +192,9 @@ export default function PaginaReservas() {
         </div>
 
         {datos && datos.filas.length === 0 && (
-          <p className="py-8 text-center text-sm text-texto-suave">
-            No hay reservas que coincidan con estos filtros.
-          </p>
+          <Vacio titulo="Ninguna reserva coincide" icono={IconoReservas}>
+            Pruebe a quitar un filtro, o busque por NIT, nombre o correo.
+          </Vacio>
         )}
 
         {datos && datos.paginas > 1 && (

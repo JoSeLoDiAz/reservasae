@@ -17,6 +17,7 @@ import {
 } from "@/components/admin/indicador-actualizacion";
 import { Aviso, Tarjeta } from "@/components/admin/marco-admin";
 import { textoDeEstado } from "@/components/admin/ritmo";
+import { Esqueleto } from "@/components/admin/piezas";
 import { adminApi } from "@/lib/admin-api";
 import { bonito, ErrorApi } from "@/lib/api";
 import { useDatosVivos } from "@/lib/datos-vivos";
@@ -47,7 +48,7 @@ export default function DetalleDeAccion({ params }: { params: Promise<{ id: stri
   const error = errorAccion ?? vivos.error;
 
   if (error) return <Aviso tipo="error">{error}</Aviso>;
-  if (!datos) return <p className="text-texto-suave">Cargando…</p>;
+  if (!datos) return <Esqueleto conCifras />;
 
   async function alternarPublicacion() {
     if (!datos) return;

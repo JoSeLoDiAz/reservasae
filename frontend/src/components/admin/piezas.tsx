@@ -161,3 +161,51 @@ export function BotonSuave({
     </button>
   );
 }
+
+/**
+ * Lo que se ve mientras llega la respuesta. Un bloque
+ * gris con la forma de lo que va a venir orienta más que
+ * la palabra "cargando", y evita el salto cuando entra.
+ */
+export function Esqueleto({
+  filas = 3,
+  conCifras = false,
+}: {
+  filas?: number;
+  conCifras?: boolean;
+}) {
+  return (
+    <div className="space-y-4" aria-hidden>
+      <span className="sr-only" aria-live="polite">
+        Cargando la información
+      </span>
+
+      {conCifras && (
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {Array.from({ length: 4 }, (_, i) => (
+            <div
+              key={i}
+              className="rounded-2xl border border-borde bg-superficie p-5 shadow-sm"
+            >
+              <div className="h-3.5 w-24 animate-pulse rounded-full bg-current/10" />
+              <div className="mt-4 h-8 w-16 animate-pulse rounded-lg bg-current/10" />
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div className="rounded-2xl border border-borde bg-superficie p-5 shadow-sm">
+        <div className="h-4 w-40 animate-pulse rounded-full bg-current/10" />
+        <div className="mt-5 space-y-3">
+          {Array.from({ length: filas }, (_, i) => (
+            <div key={i} className="flex items-center gap-3">
+              <div className="h-9 w-9 shrink-0 animate-pulse rounded-xl bg-current/10" />
+              <div className="h-3.5 grow animate-pulse rounded-full bg-current/10" />
+              <div className="h-3.5 w-16 shrink-0 animate-pulse rounded-full bg-current/10" />
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}

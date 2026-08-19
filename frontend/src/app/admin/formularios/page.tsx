@@ -11,6 +11,7 @@ import {
   Tarjeta,
   useAdmin,
 } from "@/components/admin/marco-admin";
+import { Esqueleto } from "@/components/admin/piezas";
 import { adminApi } from "@/lib/admin-api";
 import { ErrorApi } from "@/lib/api";
 import { formulariosApi, type ResumenFormulario } from "@/lib/formularios-api";
@@ -45,7 +46,7 @@ export default function PaginaFormularios() {
 
       <NuevoFormulario alCrear={cargar} alFallar={setError} />
 
-      {!formularios && <p className="text-texto-suave">Cargando…</p>}
+      {!formularios && <Esqueleto filas={3} />}
 
       <div className="grid gap-4 md:grid-cols-2">
         {formularios?.map((f) => (

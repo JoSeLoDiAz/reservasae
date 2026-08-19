@@ -25,7 +25,7 @@ import {
   IconoReservas,
 } from "@/components/admin/iconos";
 import { Aviso, Tarjeta, useAdmin } from "@/components/admin/marco-admin";
-import { TarjetaCifra } from "@/components/admin/piezas";
+import { TarjetaCifra, Esqueleto } from "@/components/admin/piezas";
 import { BloqueRitmo, TablaRitmo } from "@/components/admin/ritmo";
 import { bonito } from "@/lib/api";
 import { useDatosVivos } from "@/lib/datos-vivos";
@@ -66,7 +66,7 @@ export default function Tablero() {
   );
 
   if (vivos.error) return <Aviso tipo="error">{vivos.error}</Aviso>;
-  if (!vivos.datos) return <p className="text-texto-suave">Cargando…</p>;
+  if (!vivos.datos) return <Esqueleto conCifras />;
 
   const { resumen, acciones, analisis, ubicaciones, serie, proyeccion } = vivos.datos;
 

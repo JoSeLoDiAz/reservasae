@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 
 import { Aviso, Tarjeta } from "@/components/admin/marco-admin";
+import { Esqueleto } from "@/components/admin/piezas";
 import { adminApi, type AccionAdmin } from "@/lib/admin-api";
 import { bonito, ErrorApi } from "@/lib/api";
 
@@ -56,7 +57,7 @@ export default function PaginaAcciones() {
       </header>
 
       {error && <Aviso tipo="error">{error}</Aviso>}
-      {!acciones && <p className="text-texto-suave">Cargando…</p>}
+      {!acciones && <Esqueleto filas={5} />}
 
       {[...porConvenio.entries()].map(([convenio, lista]) => (
         <Tarjeta
