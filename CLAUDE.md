@@ -221,6 +221,24 @@ tener varios.
 - **Un formulario no se publica si le falta algún campo obligatorio** o si una
   pregunta de opciones se quedó sin opciones. El panel enseña la lista de lo
   que falta mientras se construye, no solo al pulsar publicar.
+- **Duplicar copia todo menos las respuestas.** `POST /admin/formularios/:id/
+  duplicar` trae secciones, preguntas, opciones, apariencia y logos, y nace en
+  borrador. **La trampa son las condicionales**: apuntan a su madre *por id*, así
+  que copiadas tal cual la copia seguiría apuntando al formulario original. Se
+  crean sin la condición y se remapea en una segunda pasada, cuando los ids
+  nuevos ya existen. Lo archivado no se arrastra: una copia empieza limpia.
+- **El candado de los campos del núcleo solo cubre a los imprescindibles.**
+  Antes cubría a todos, y había opcionales —«Número de colaboradores», «red
+  asociada»— marcados `obligatorioParaPublicar: false` que aun así no había
+  forma de quitar. Se puede reservar sin ellos, así que un formulario de evento
+  puede prescindir de ellos. La marca es la misma que ya gobernaba si un campo
+  del sistema puede ser opcional.
+- **Dos formularios contra la misma oferta no pueden sobrevender.** El evento de
+  Medellín ofrece las mismas acciones y los mismos cupos que `/adecopria`, y
+  reserva contra la misma fila de `ofertas`: el `UPDATE` condicional atómico es
+  uno solo. Lo que separa a los dos es `Reserva.formularioId`, que dice por qué
+  enlace entró cada reserva. Comprobado: 130 → 127 al reservar desde el enlace
+  del evento, y 130 otra vez al cancelar.
 - **Nada se borra cuando ya se usó.** Una pregunta con respuestas no puede
   cambiar de tipo (archívela y cree otra); una opción ya elegida se archiva en
   vez de borrarse; un formulario con respuestas se despublica, no se borra.
