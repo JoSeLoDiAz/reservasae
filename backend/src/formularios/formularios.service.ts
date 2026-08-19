@@ -23,6 +23,7 @@ import {
   ActualizarPreguntaDto,
   CrearFormularioDto,
   CrearPreguntaDto,
+  DuplicarFormularioDto,
   OpcionDto,
   RespuestaDto,
   SeccionDto,
@@ -197,6 +198,135 @@ export class FormulariosService {
         if (error.code === 'P2003') {
           throw new BadRequestException('El convenio indicado no existe.');
         }
+      }
+      throw error;
+    }
+  }
+
+  /** Copia un formulario en blanco, sin respuestas. */
+  async duplicar(id: string, dto: DuplicarFormularioDto) {
+    if (esRutaReservada(dto.slug)) {
+      throw new BadRequestException(
+        `"${dto.slug}" es una ruta del sitio y no puede ser el identificador ` +
+          'de un formulario: su página pública quedaría inaccesible.',
+      );
+    }
+
+    const origen = await this.prisma.formulario.findUnique({
+      where: { id },
+      include: {
+        secciones: { orderBy: { orden: 'asc' } },
+        // lo archivado no se arrastra a una copia nueva
+        preguntas: {
+          where: { archivada: false },
+          orderBy: { orden: 'asc' },
+          include: { opciones: { where: { archivada: false }, orderBy: { orden: 'asc' } } },
+        },
+        logos: { orderBy: { orden: 'asc' } },
+      },
+    });
+    if (!origen) throw new NotFoundException('No existe ese formulario.');
+
+    try {
+      const copiaId = await this.prisma.$transaction(async (tx) => {
+        const copia = await tx.formulario.create({
+          data: {
+            convenioId: origen.convenioId,
+            slug: dto.slug,
+            titulo: dto.titulo,
+            descripcion: origen.descripcion,
+            mensajeExito: origen.mensajeExito,
+            coloresClaro: origen.coloresClaro ?? Prisma.DbNull,
+            coloresOscuro: origen.coloresOscuro ?? Prisma.DbNull,
+            // se revisa antes de abrirlo al público
+            publicado: false,
+          },
+        });
+
+        const seccionNueva = new Map<string, string>();
+        for (const s of origen.secciones) {
+          const creada = await tx.seccion.create({
+            data: {
+              formularioId: copia.id,
+              titulo: s.titulo,
+              descripcion: s.descripcion,
+              orden: s.orden,
+            },
+          });
+          seccionNueva.set(s.id, creada.id);
+        }
+
+        // sin la condición: aún no existe su madre
+        const preguntaNueva = new Map<string, string>();
+        for (const q of origen.preguntas) {
+          const creada = await tx.pregunta.create({
+            data: {
+              formularioId: copia.id,
+              seccionId: q.seccionId ? (seccionNueva.get(q.seccionId) ?? null) : null,
+              etiqueta: q.etiqueta,
+              ayuda: q.ayuda,
+              marcador: q.marcador,
+              tipo: q.tipo,
+              obligatoria: q.obligatoria,
+              orden: q.orden,
+              campoNucleo: q.campoNucleo,
+              minimo: q.minimo,
+              maximo: q.maximo,
+              largoMinimo: q.largoMinimo,
+              largoMaximo: q.largoMaximo,
+              dependeDeValor: q.dependeDeValor,
+            },
+          });
+          preguntaNueva.set(q.id, creada.id);
+
+          if (q.opciones.length) {
+            await tx.opcion.createMany({
+              data: q.opciones.map((o) => ({
+                preguntaId: creada.id,
+                etiqueta: o.etiqueta,
+                valor: o.valor,
+                orden: o.orden,
+              })),
+            });
+          }
+        }
+
+        // ahora sí: los ids ya existen. Sin remapear,
+        // la copia apuntaría al formulario original
+        for (const q of origen.preguntas) {
+          if (!q.dependeDePreguntaId) continue;
+          const madre = preguntaNueva.get(q.dependeDePreguntaId);
+          if (!madre) continue;
+          await tx.pregunta.update({
+            where: { id: preguntaNueva.get(q.id)! },
+            data: { dependeDePreguntaId: madre },
+          });
+        }
+
+        // o los propios o los generales, nunca mezclados
+        for (const l of origen.logos) {
+          await tx.logo.create({
+            data: {
+              formularioId: copia.id,
+              orden: l.orden,
+              etiqueta: l.etiqueta,
+              datos: l.datos,
+              tipoMime: l.tipoMime,
+              nombre: l.nombre,
+            },
+          });
+        }
+
+        return copia.id;
+      });
+
+      return this.obtener(copiaId);
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2002'
+      ) {
+        throw new ConflictException('Ya existe un formulario con ese identificador.');
       }
       throw error;
     }
@@ -385,8 +515,11 @@ export class FormulariosService {
 
     const esNucleo = pregunta.campoNucleo !== null;
 
+    const definicion = esNucleo ? POR_CAMPO.get(pregunta.campoNucleo!) : undefined;
+
     if (esNucleo) {
-      if (dto.archivada === true) {
+      // solo los imprescindibles
+      if (dto.archivada === true && definicion?.obligatorioParaPublicar) {
         throw new BadRequestException(
           'Este campo lo necesita el sistema para crear la reserva; no se puede archivar.',
         );
@@ -397,7 +530,7 @@ export class FormulariosService {
             'con el dato al que va.',
         );
       }
-      if (dto.obligatoria === false && POR_CAMPO.get(pregunta.campoNucleo!)?.obligatorioParaPublicar) {
+      if (dto.obligatoria === false && definicion?.obligatorioParaPublicar) {
         throw new BadRequestException('Este campo del sistema no puede ser opcional.');
       }
     }

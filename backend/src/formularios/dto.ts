@@ -44,6 +44,24 @@ export class CrearFormularioDto {
   titulo!: string;
 }
 
+export class DuplicarFormularioDto {
+  // va en la URL pública
+  @IsString()
+  @MinLength(2)
+  @MaxLength(60)
+  @Matches(/^[a-z0-9]+(-[a-z0-9]+)*$/, {
+    message: 'El identificador solo admite minúsculas, números y guiones.',
+  })
+  @Transform(recortar)
+  slug!: string;
+
+  @IsString()
+  @MinLength(2)
+  @MaxLength(200)
+  @Transform(recortar)
+  titulo!: string;
+}
+
 export class ActualizarFormularioDto {
   @IsOptional() @IsString() @MinLength(2) @MaxLength(200) @Transform(recortar)
   titulo?: string;

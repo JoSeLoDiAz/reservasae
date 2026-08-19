@@ -17,6 +17,7 @@ import {
   ActualizarOpcionDto,
   ActualizarPreguntaDto,
   CrearFormularioDto,
+  DuplicarFormularioDto,
   CrearPreguntaDto,
   OpcionDto,
   ReordenarDto,
@@ -51,6 +52,12 @@ export class FormulariosAdminController {
   @Post()
   crear(@Body() dto: CrearFormularioDto) {
     return this.formularios.crear(dto);
+  }
+
+  /** Copia uno existente, en borrador. */
+  @Post(':id/duplicar')
+  duplicar(@Param('id') id: string, @Body() dto: DuplicarFormularioDto) {
+    return this.formularios.duplicar(id, dto);
   }
 
   @Patch(':id')

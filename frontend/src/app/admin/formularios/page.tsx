@@ -19,6 +19,7 @@ type Convenio = { id: string; slug: string; nombre: string; sigla: string | null
 export default function PaginaFormularios() {
   const [formularios, setFormularios] = useState<ResumenFormulario[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [duplicando, setDuplicando] = useState<string | null>(null);
 
   const cargar = useCallback(async () => {
     setFormularios(await formulariosApi.listar());
@@ -46,13 +47,17 @@ export default function PaginaFormularios() {
 
       <div className="grid gap-4 md:grid-cols-2">
         {formularios?.map((f) => (
-          <Link
+          <div
             key={f.id}
-            href={`/admin/formularios/${f.id}`}
             className="rounded-xl border border-borde bg-superficie p-5 transition hover:border-marca hover:shadow-sm"
           >
             <div className="flex items-start justify-between gap-3">
-              <p className="font-medium leading-snug">{f.titulo}</p>
+              <Link
+                href={`/admin/formularios/${f.id}`}
+                className="font-medium leading-snug hover:underline"
+              >
+                {f.titulo}
+              </Link>
               <span
                 className={`shrink-0 rounded-full px-2.5 py-0.5 text-xs font-medium ${
                   f.publicado ? "bg-exito-suave text-exito" : "bg-fondo text-texto-suave"
@@ -66,7 +71,27 @@ export default function PaginaFormularios() {
               {f.convenioSigla ?? f.convenio} · {f.preguntas} preguntas en{" "}
               {f.secciones} secciones
             </p>
-          </Link>
+
+            {duplicando === f.id ? (
+              <Duplicar
+                origen={f}
+                alTerminar={() => {
+                  setDuplicando(null);
+                  cargar();
+                }}
+                alCancelar={() => setDuplicando(null)}
+                alFallar={setError}
+              />
+            ) : (
+              <button
+                type="button"
+                onClick={() => setDuplicando(f.id)}
+                className="mt-4 text-sm text-marca underline"
+              >
+                Duplicar
+              </button>
+            )}
+          </div>
         ))}
       </div>
     </div>
@@ -149,7 +174,7 @@ function NuevoFormulario({
 
         <Campo
           etiqueta="Identificador en la URL"
-          ayuda="Minúsculas, números y guiones. Será /formularios/…"
+          ayuda="Minúsculas, números y guiones. Es la ruta pública: /su-identificador"
         >
           <input
             required
@@ -185,3 +210,78 @@ function NuevoFormulario({
   );
 }
 
+
+/** Copiar uno existente: pide slug y título nuevos. */
+function Duplicar({
+  origen,
+  alTerminar,
+  alCancelar,
+  alFallar,
+}: {
+  origen: ResumenFormulario;
+  alTerminar: () => void;
+  alCancelar: () => void;
+  alFallar: (mensaje: string) => void;
+}) {
+  const [slug, setSlug] = useState(`${origen.slug}-copia`);
+  const [titulo, setTitulo] = useState(`${origen.titulo} (copia)`);
+  const [copiando, setCopiando] = useState(false);
+
+  async function enviar(e: React.FormEvent) {
+    e.preventDefault();
+    setCopiando(true);
+    try {
+      await formulariosApi.duplicar(origen.id, { slug, titulo });
+      alTerminar();
+    } catch (err) {
+      alFallar(err instanceof Error ? err.message : "No se pudo duplicar.");
+      setCopiando(false);
+    }
+  }
+
+  return (
+    <form onSubmit={enviar} className="mt-4 space-y-3 border-t border-borde pt-4">
+      <p className="text-sm text-texto-suave">
+        Copia las preguntas, las opciones y la apariencia. Nace en borrador y sin
+        respuestas.
+      </p>
+      <Campo etiqueta="Título de la copia">
+        <input
+          required
+          value={titulo}
+          onChange={(e) => setTitulo(e.target.value)}
+          className={CLASE_CONTROL}
+        />
+      </Campo>
+      <Campo etiqueta="Identificador en la URL" ayuda="Es la ruta pública">
+        <input
+          required
+          value={slug}
+          onChange={(e) =>
+            setSlug(
+              e.target.value
+                .toLowerCase()
+                .normalize("NFD")
+                .replace(/[̀-ͯ]/g, "")
+                .replace(/[^a-z0-9-]/g, "-")
+                .replace(/-+/g, "-"),
+            )
+          }
+          className={`${CLASE_CONTROL} font-mono`}
+        />
+      </Campo>
+      <div className="flex items-end gap-3">
+        <Boton type="submit" disabled={copiando}>
+          {copiando ? "Copiando…" : "Crear la copia"}
+        </Boton>
+        <button
+          type="button"
+          onClick={alCancelar}
+          className="text-sm text-texto-suave underline"
+        >
+          Cancelar
+        </button>
+      </div>
+    </form>
+  );
+}

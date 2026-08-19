@@ -177,6 +177,12 @@ export const formulariosApi = {
     datos: Partial<Pick<FormularioAdmin, "titulo" | "descripcion" | "mensajeExito" | "publicado">>,
   ) => pedir<FormularioAdmin>(`/admin/formularios/${id}`, { method: "PATCH", body: cuerpo(datos) }),
 
+  duplicar: (id: string, datos: { slug: string; titulo: string }) =>
+    pedir<FormularioAdmin>(`/admin/formularios/${id}/duplicar`, {
+      method: "POST",
+      body: cuerpo(datos),
+    }),
+
   eliminar: (id: string) =>
     pedir<{ eliminado: boolean }>(`/admin/formularios/${id}`, { method: "DELETE" }),
 
