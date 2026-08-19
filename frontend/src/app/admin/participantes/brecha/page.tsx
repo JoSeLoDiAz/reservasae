@@ -56,7 +56,7 @@ export default function PaginaBrecha() {
     <div className="space-y-6">
       <header className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold">Brecha de nombres</h1>
+          <h1 className="text-2xl font-bold tracking-tight">Brecha de nombres</h1>
           <p className="mt-1 text-texto-suave">
             Cupos que una empresa ya reservó y para los que todavía no hay una persona.
           </p>

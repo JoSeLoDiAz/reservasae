@@ -45,7 +45,7 @@ export default function PaginaSep() {
   return (
     <div className="space-y-6">
       <header>
-        <h1 className="text-2xl font-semibold">Reportes al SENA</h1>
+        <h1 className="text-2xl font-bold tracking-tight">Reportes al SENA</h1>
         <p className="mt-1 text-texto-suave">
           Quién entra en el archivo y quién no, antes de generarlo.
         </p>
@@ -74,15 +74,15 @@ export default function PaginaSep() {
       {datos && (
         <>
           <div className="grid gap-3 sm:grid-cols-2">
-            <div className="rounded-xl border border-exito/30 bg-exito-suave p-4">
-              <p className="text-xs tracking-wide text-exito uppercase">Listos</p>
-              <p className="mt-2 font-mono text-3xl font-semibold text-exito">
+            <div className="rounded-2xl border border-exito/30 bg-exito-suave p-5">
+              <p className="text-sm font-medium text-exito">Entran en el archivo</p>
+              <p className="mt-2 text-3xl font-bold tabular-nums text-exito">
                 {datos.listos}
               </p>
             </div>
-            <div className="rounded-xl border border-aviso/30 bg-aviso-suave p-4">
-              <p className="text-xs tracking-wide text-aviso uppercase">No listos</p>
-              <p className="mt-2 font-mono text-3xl font-semibold text-aviso">
+            <div className="rounded-2xl border border-aviso/30 bg-aviso-suave p-5">
+              <p className="text-sm font-medium text-aviso">Se quedan fuera</p>
+              <p className="mt-2 text-3xl font-bold tabular-nums text-aviso">
                 {datos.noListos}
               </p>
             </div>

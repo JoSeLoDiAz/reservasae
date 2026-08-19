@@ -128,6 +128,9 @@ const CONCESIONES: Record<string, Record<string, RolConvenio>> = {
   'hector.ramos@ejemplo.test': { 'britcham-adee': RolConvenio.GESTOR_ACADEMICO },
   'marta.oquendo@ejemplo.test': { '*': RolConvenio.LIDER_ACADEMICO },
   'sofia.rendon@ejemplo.test': { '*': RolConvenio.CONSULTA },
+  // lider de sistemas SIN ser superadmin: es quien
+  // distingue construir un formulario de publicarlo
+  'diego.salas@ejemplo.test': { '*': RolConvenio.LIDER_SISTEMAS },
 };
 
 const CARGO_DEL_ROL: Record<RolConvenio, string> = {
@@ -146,6 +149,7 @@ const ASESORES = [
   ['hector.ramos@ejemplo.test', 'Héctor Ramos'],
   ['marta.oquendo@ejemplo.test', 'Marta Oquendo'],
   ['sofia.rendon@ejemplo.test', 'Sofía Rendón'],
+  ['diego.salas@ejemplo.test', 'Diego Salas'],
 ] as const;
 
 const CARGOS = [

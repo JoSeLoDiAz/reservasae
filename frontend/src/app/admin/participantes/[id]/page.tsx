@@ -89,7 +89,7 @@ export default function PaginaFicha() {
 
       <header className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold">{nombre}</h1>
+          <h1 className="text-2xl font-bold tracking-tight">{nombre}</h1>
           <p className="mt-1 font-mono text-sm text-texto-suave">
             {f.persona.documento}
           </p>

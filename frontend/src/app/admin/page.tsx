@@ -85,7 +85,7 @@ export default function Tablero() {
 
       <header className="flex flex-wrap items-start justify-between gap-4">
         <div className="no-imprimir">
-          <h1 className="text-2xl font-semibold">Hola, {admin.nombre.split(" ")[0]}</h1>
+          <h1 className="text-2xl font-bold tracking-tight">Hola, {admin.nombre.split(" ")[0]}</h1>
           <p className="mt-1 text-texto-suave">
             Ocupación de cupos. Se actualiza sola cada 30 segundos.
           </p>

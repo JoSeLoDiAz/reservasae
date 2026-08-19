@@ -34,7 +34,7 @@ export default function PaginaFormularios() {
   return (
     <div className="space-y-6">
       <header>
-        <h1 className="text-2xl font-semibold">Formularios</h1>
+        <h1 className="text-2xl font-bold tracking-tight">Formularios</h1>
         <p className="mt-1 text-texto-suave">
           Lo que ve quien entra a reservar. Puede crear preguntas, agruparlas en
           secciones y publicarlas sin tocar el código.

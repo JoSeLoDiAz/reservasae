@@ -56,7 +56,7 @@ export default function PaginaUsuarios() {
   return (
     <div className="space-y-6">
       <header>
-        <h1 className="text-2xl font-semibold">Usuarios</h1>
+        <h1 className="text-2xl font-bold tracking-tight">Usuarios</h1>
         <p className="mt-1 text-texto-suave">
           Quién puede entrar al panel y qué puede hacer.
         </p>

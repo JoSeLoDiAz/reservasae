@@ -92,7 +92,7 @@ export default function PaginaAcademico() {
     <div className="space-y-6">
       <header className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold">Seguimiento académico</h1>
+          <h1 className="text-2xl font-bold tracking-tight">Seguimiento académico</h1>
           <p className="mt-1 text-texto-suave">
             Quién va al día y quién no, contra el calendario de su grupo.
           </p>
@@ -123,16 +123,16 @@ export default function PaginaAcademico() {
             key={estado}
             onClick={() => setFiltro(filtro === estado ? "" : estado)}
             style={{ ["--etapa"]: COLOR[estado] } as React.CSSProperties}
-            className={`rounded-xl border p-4 text-left transition ${
+            className={`rounded-2xl border bg-superficie p-4 text-left shadow-sm transition hover:shadow-md ${
               filtro === estado ? "border-2" : "border-borde"
-            } bg-superficie`}
+            }`}
             aria-pressed={filtro === estado}
           >
             <span className="flex items-center gap-2 text-xs tracking-wide uppercase">
               <span className="punto-etapa" aria-hidden />
               <span className="text-texto-suave">{ETIQUETA_ACADEMICA[estado]}</span>
             </span>
-            <span className="mt-2 block font-mono text-3xl font-semibold">
+            <span className="mt-2 block text-3xl font-bold tabular-nums">
               {cuenta[estado]}
             </span>
           </button>

@@ -47,7 +47,7 @@ export default function PaginaAcciones() {
   return (
     <div className="space-y-6">
       <header>
-        <h1 className="text-2xl font-semibold">Formación</h1>
+        <h1 className="text-2xl font-bold tracking-tight">Formación</h1>
         <p className="mt-1 text-texto-suave">
           Publique u oculte cada acción. Ocultar no cancela nada: las reservas
           hechas siguen vivas y contando, la acción solo desaparece del sitio

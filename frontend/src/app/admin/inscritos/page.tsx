@@ -48,7 +48,7 @@ export default function PaginaInscritos() {
     <div className="space-y-6">
       <header className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold">Inscritos</h1>
+          <h1 className="text-2xl font-bold tracking-tight">Inscritos</h1>
           <p className="mt-1 text-texto-suave">
             Quien ya tiene silla asignada. {total} en total.
           </p>

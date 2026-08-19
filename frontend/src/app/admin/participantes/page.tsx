@@ -4,7 +4,15 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 
 import { estiloEtapa, PildoraEtapa } from "@/components/admin/etapa";
+import {
+  IconoAvance,
+  IconoBrecha,
+  IconoInscribir,
+  IconoMatriculados,
+  IconoUsuarios,
+} from "@/components/admin/iconos";
 import { Aviso, Boton, CLASE_CONTROL, Tarjeta } from "@/components/admin/marco-admin";
+import { TarjetaCifra } from "@/components/admin/piezas";
 import { ScrollDoble } from "@/components/admin/scroll-doble";
 import { ErrorApi } from "@/lib/api";
 import {
@@ -94,7 +102,7 @@ export default function PaginaParticipantes() {
     <div className="space-y-6">
       <header className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold">Inscripciones</h1>
+          <h1 className="text-2xl font-bold tracking-tight">Inscripciones</h1>
           <p className="mt-1 text-texto-suave">
             Las personas detrás de los cupos. {resumen.total} en total.
           </p>
@@ -332,16 +340,6 @@ export default function PaginaParticipantes() {
 
 // las cifras de arriba
 
-function Cifra({ etiqueta, valor, nota }: { etiqueta: string; valor: number; nota?: string }) {
-  return (
-    <div className="rounded-2xl border border-borde bg-superficie p-4 shadow-sm">
-      <p className="text-xs tracking-wide text-texto-suave uppercase">{etiqueta}</p>
-      <p className="mt-2 font-mono text-3xl font-semibold">{valor}</p>
-      {nota && <p className="mt-1 text-xs text-texto-suave">{nota}</p>}
-    </div>
-  );
-}
-
 function Cifras({ resumen }: { resumen: Resumen }) {
   const de = (etapa: Etapa) => resumen.etapas.find((e) => e.etapa === etapa)?.total ?? 0;
 
@@ -352,12 +350,33 @@ function Cifras({ resumen }: { resumen: Resumen }) {
   const salidas = ETAPAS_SALIDA.reduce((s, e) => s + de(e), 0);
 
   return (
-    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
-      <Cifra etiqueta="Personas" valor={resumen.total} />
-      <Cifra etiqueta="En proceso" valor={enProceso} nota="aún no certificadas" />
-      <Cifra etiqueta="Matriculadas" valor={de("MATRICULADO")} />
-      <Cifra etiqueta="Certificadas" valor={de("CERTIFICADO")} />
-      <Cifra etiqueta="Salidas" valor={salidas} nota="perdidas, retiradas o no aprobadas" />
+    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+      <TarjetaCifra etiqueta="Personas" valor={resumen.total} icono={IconoUsuarios} />
+      <TarjetaCifra
+        etiqueta="En proceso"
+        valor={enProceso}
+        pie="aún no certificadas"
+        icono={IconoAvance}
+        tono="aviso"
+      />
+      <TarjetaCifra
+        etiqueta="Matriculadas"
+        valor={de("MATRICULADO")}
+        icono={IconoInscribir}
+      />
+      <TarjetaCifra
+        etiqueta="Certificadas"
+        valor={de("CERTIFICADO")}
+        icono={IconoMatriculados}
+        tono="exito"
+      />
+      <TarjetaCifra
+        etiqueta="Salidas"
+        valor={salidas}
+        pie="perdidas, retiradas o no aprobadas"
+        icono={IconoBrecha}
+        tono={salidas > 0 ? "error" : "neutro"}
+      />
     </div>
   );
 }

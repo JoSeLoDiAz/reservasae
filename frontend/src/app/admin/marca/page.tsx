@@ -80,7 +80,7 @@ export default function PaginaMarca() {
   return (
     <div className="space-y-6">
       <header>
-        <h1 className="text-2xl font-semibold">Apariencia</h1>
+        <h1 className="text-2xl font-bold tracking-tight">Apariencia</h1>
         <p className="mt-1 text-texto-suave">
           Colores, textos y logo. Al guardar se aplican en todo el sistema,
           también en este panel.

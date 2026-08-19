@@ -343,7 +343,7 @@ function BloqueSeccion({
         ) : (
           <>
             <div>
-              <h2 className="text-lg font-medium">{seccion.titulo}</h2>
+              <h2 className="text-lg font-semibold">{seccion.titulo}</h2>
               {seccion.descripcion && (
                 <p className="mt-1 text-sm text-texto-suave">{seccion.descripcion}</p>
               )}

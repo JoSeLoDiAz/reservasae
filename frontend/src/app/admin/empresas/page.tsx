@@ -33,7 +33,7 @@ export default function PaginaEmpresas() {
     <div className="space-y-6">
       <header className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold">Organizaciones</h1>
+          <h1 className="text-2xl font-bold tracking-tight">Organizaciones</h1>
           <p className="mt-1 text-texto-suave">
             {filas
               ? `${n(filas.length)} organizaciones · ${n(totalCupos)} cupos confirmados`

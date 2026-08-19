@@ -56,7 +56,7 @@ export default function PaginaPerfil() {
   return (
     <div className="space-y-6">
       <header>
-        <h1 className="text-2xl font-semibold">Mi perfil</h1>
+        <h1 className="text-2xl font-bold tracking-tight">Mi perfil</h1>
         <p className="mt-1 text-texto-suave">
           {admin.correo} · {ROLES[admin.rol] ?? admin.rol}
         </p>

@@ -99,7 +99,7 @@ export default function PaginaCarga() {
       </div>
 
       <header>
-        <h1 className="text-2xl font-semibold">Cargar una lista</h1>
+        <h1 className="text-2xl font-bold tracking-tight">Cargar una lista</h1>
         <p className="mt-1 text-texto-suave">
           Copie las celdas desde el Excel que le mandó la empresa y péguelas aquí. Verá
           qué va a pasar antes de confirmar nada.

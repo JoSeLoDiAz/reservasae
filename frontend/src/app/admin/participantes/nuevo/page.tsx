@@ -93,7 +93,7 @@ export default function PaginaNuevoParticipante() {
   return (
     <div className="max-w-2xl space-y-6">
       <header>
-        <h1 className="text-2xl font-semibold">Inscribir a alguien</h1>
+        <h1 className="text-2xl font-bold tracking-tight">Inscribir a alguien</h1>
         <p className="mt-1 text-texto-suave">
           Con el documento y el nombre basta para empezar. La acción de formación y el
           grupo se asignan después, desde su ficha.
