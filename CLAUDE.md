@@ -512,6 +512,31 @@ pnpm dev:frontend   # :3000
 No necesitas Docker ni Postgres para el frontend/backend. Si necesitas la BD:
 `docker compose up -d db` y apunta `DATABASE_URL` a `localhost:5433`.
 
+## Las tres ramas
+
+```
+desarrollo   trabajo en curso. No se despliega en ningún sitio.
+   │  cuando hay algo que mirar
+   ▼
+pruebas      lo que corre en prueba.reservasae.com
+   │  cuando el cliente lo aprueba
+   ▼
+main         lo que corre en reservasae.com
+```
+
+- **`main` es lo que de verdad está en producción**, no «lo último bueno». Así
+  `git log main` responde qué está corriendo sin ir a mirar al servidor. Avanza
+  solo con un `merge --ff-only` desde `pruebas`, después de aprobarlo.
+- **Hasta el 19 ago 2026 no había tal cosa**: se trabajaba en `main` y se
+  copiaba a `entorno-pruebas`, así que las dos eran el mismo commit y la rama
+  de pruebas no filtraba nada. Lo único que protegía a producción era que el
+  despliegue es manual.
+- **El clon de cada sede sigue su rama**: `/opt/sep/reservasae` va por `main` y
+  `/opt/sep/reservasae-prueba` por `pruebas`.
+- **El repositorio no llega a GitHub**: el push está bloqueado, así que el
+  código viaja en `git bundle` por scp. Por eso las ramas se mueven con
+  `fetch <bundle> rama:refs/remotes/bundle/rama` y luego `merge --ff-only`.
+
 ## Desplegar
 
 ```bash
