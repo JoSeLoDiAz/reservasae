@@ -99,6 +99,9 @@ services:
     container_name: reservasae_tunel-prueba
     restart: unless-stopped
     profiles: ["tunel"]
+    # la imagen corre como 65532 y las credenciales
+    # son 400 del dueno del clon: sin esto no las lee
+    user: "${UID_TUNEL:-1000}:${UID_TUNEL:-1000}"
     command: tunnel --no-autoupdate --config /etc/cloudflared/config.yml run ${TUNEL_PRUEBA_ID:-}
     volumes:
       - ${CLOUDFLARED_DIR:-/home/sepadmin/.cloudflared}/${TUNEL_PRUEBA_ID:-}.json:/etc/cloudflared/credenciales.json:ro
