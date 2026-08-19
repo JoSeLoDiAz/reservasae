@@ -3,8 +3,8 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
-import { ConmutadorTema } from "@/components/marca-publica";
-import { adminApi } from "@/lib/admin-api";
+import { ConmutadorTema, useMarca } from "@/components/marca-publica";
+import { adminApi, urlLogo } from "@/lib/admin-api";
 import { ErrorApi } from "@/lib/api";
 
 export default function PaginaAcceso() {
@@ -58,7 +58,7 @@ export default function PaginaAcceso() {
 
         <div className="w-full max-w-sm">
           <div className="mb-8 lg:hidden">
-            <MarcaOscura />
+            <Marca claro />
           </div>
 
           <h1 className="text-2xl font-bold">Bienvenido</h1>
@@ -118,29 +118,50 @@ export default function PaginaAcceso() {
   );
 }
 
-/// Sobre el panel de marca: hereda su color de texto.
-function Marca() {
+/**
+ * Los logos que el administrador subió. Van sobre una
+ * placa blanca fija —la otra excepción a los tokens, como
+ * la franja— porque un logo institucional se diseña para
+ * papel: sobre el color de marca o en modo oscuro
+ * desaparecería la mitad. Sin logos, la inicial.
+ */
+function Marca({ claro = false }: { claro?: boolean }) {
+  const { marca } = useMarca();
+  const logos = marca?.logos ?? [];
+  const nombre = marca?.nombreApp ?? "Convoca";
+
+  if (logos.length) {
+    return (
+      <div className="inline-flex flex-wrap items-center gap-x-5 gap-y-3 rounded-2xl bg-white px-5 py-3.5 shadow-sm">
+        {logos.map((logo) => (
+          // <img>: tamano desconocido y ya viene cacheado
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            key={logo.id}
+            src={urlLogo(logo)}
+            alt={logo.etiqueta}
+            className="h-10 w-auto max-w-[9rem] object-contain"
+          />
+        ))}
+      </div>
+    );
+  }
+
   return (
     <div className="flex items-center gap-3">
-      <span className="grid h-10 w-10 place-items-center rounded-xl bg-marca-texto/15 text-base font-bold">
-        C
+      <span
+        className={`grid h-10 w-10 place-items-center rounded-xl text-base font-bold ${
+          claro ? "bg-marca text-marca-texto" : "bg-marca-texto/15"
+        }`}
+      >
+        {nombre[0]?.toUpperCase() ?? "C"}
       </span>
       <span className="flex flex-col leading-tight">
-        <span className="font-bold">Convoca</span>
-        <span className="text-xs opacity-70">panel de gestión</span>
+        <span className="font-bold">{nombre}</span>
+        <span className={`text-xs ${claro ? "text-texto-suave" : "opacity-70"}`}>
+          panel de gestión
+        </span>
       </span>
-    </div>
-  );
-}
-
-/// La de móvil, sobre el fondo normal.
-function MarcaOscura() {
-  return (
-    <div className="flex items-center gap-3">
-      <span className="grid h-10 w-10 place-items-center rounded-xl bg-marca text-base font-bold text-marca-texto">
-        C
-      </span>
-      <span className="font-bold">Convoca</span>
     </div>
   );
 }
