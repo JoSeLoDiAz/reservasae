@@ -17,6 +17,60 @@ export type Area =
 
 export type Nivel = "NADA" | "VER" | "ESCRIBIR";
 
+export type RolConvenio =
+  | "LIDER_INSCRIPCION"
+  | "GESTOR_INSCRIPCION"
+  | "LIDER_ACADEMICO"
+  | "GESTOR_ACADEMICO"
+  | "LIDER_SISTEMAS"
+  | "CONSULTA";
+
+/** A qué convenio entra una cuenta y con qué rol. */
+export type Concesion = {
+  convenioId: string;
+  rol: RolConvenio;
+  slug?: string;
+  sigla?: string;
+};
+
+/// Lo que se lee en el desplegable, en orden de mando.
+export const ROLES_DE_CONVENIO: Array<{
+  valor: RolConvenio;
+  etiqueta: string;
+  descripcion: string;
+}> = [
+  {
+    valor: "LIDER_SISTEMAS",
+    etiqueta: "Líder de sistemas de información",
+    descripcion: "Configura la formación, el cronograma y los formularios.",
+  },
+  {
+    valor: "LIDER_INSCRIPCION",
+    etiqueta: "Líder de inscripciones",
+    descripcion: "Todo lo del gestor, y descarga los reportes al SENA.",
+  },
+  {
+    valor: "GESTOR_INSCRIPCION",
+    etiqueta: "Gestor(a) de inscripciones",
+    descripcion: "Inscribe personas y completa sus datos. No descarga el archivo.",
+  },
+  {
+    valor: "LIDER_ACADEMICO",
+    etiqueta: "Líder de seguimiento académico",
+    descripcion: "Registra avance y es quien certifica o da por no aprobado.",
+  },
+  {
+    valor: "GESTOR_ACADEMICO",
+    etiqueta: "Gestor(a) de seguimiento académico",
+    descripcion: "Registra el avance en el aula. No certifica.",
+  },
+  {
+    valor: "CONSULTA",
+    etiqueta: "Consulta",
+    descripcion: "Solo mira. No modifica nada.",
+  },
+];
+
 export type AdminActual = {
   id: string;
   correo: string;
@@ -31,6 +85,7 @@ export type AdminActual = {
   creadoEn: string;
   convenios?: string[];
   permisos?: Record<Area, Nivel>;
+  concesiones?: Concesion[];
 };
 
 const ESCALA: Nivel[] = ["NADA", "VER", "ESCRIBIR"];
@@ -144,13 +199,21 @@ export const adminApi = {
 
   usuarios: () => pedir<AdminActual[]>("/admin/usuarios"),
 
-  crearUsuario: (correo: string, nombre: string, rol: RolAdmin) =>
+  crearUsuario: (
+    correo: string,
+    nombre: string,
+    rol: RolAdmin,
+    concesiones: Concesion[],
+  ) =>
     pedir<{ admin: AdminActual; claveTemporal: string }>("/admin/usuarios", {
       method: "POST",
-      body: JSON.stringify({ correo, nombre, rol }),
+      body: JSON.stringify({ correo, nombre, rol, concesiones }),
     }),
 
-  actualizarUsuario: (id: string, datos: { rol?: RolAdmin; activo?: boolean }) =>
+  actualizarUsuario: (
+    id: string,
+    datos: { rol?: RolAdmin; activo?: boolean; concesiones?: Concesion[] },
+  ) =>
     pedir<AdminActual>(`/admin/usuarios/${id}`, {
       method: "PATCH",
       body: JSON.stringify(datos),

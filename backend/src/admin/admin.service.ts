@@ -116,13 +116,44 @@ export class AdminService {
   // usuarios
 
   async listarAdmins() {
-    const admins = await this.prisma.admin.findMany({ orderBy: { creadoEn: 'asc' } });
-    return admins.map(vistaAdmin);
+    const admins = await this.prisma.admin.findMany({
+      orderBy: { creadoEn: 'asc' },
+      include: {
+        convenios: {
+          select: {
+            convenioId: true,
+            rol: true,
+            convenio: { select: { slug: true, sigla: true, nombre: true } },
+          },
+        },
+      },
+    });
+    return admins.map((a) => ({
+      ...vistaAdmin(a),
+      concesiones: a.convenios.map((c) => ({
+        convenioId: c.convenioId,
+        rol: c.rol,
+        slug: c.convenio.slug,
+        sigla: c.convenio.sigla ?? c.convenio.nombre,
+      })),
+    }));
+  }
+
+  /// Sin fila no ve nada, así que se validan de verdad.
+  private async exigirConveniosReales(concesiones: { convenioId: string }[]) {
+    const ids = [...new Set(concesiones.map((c) => c.convenioId))];
+    const existen = await this.prisma.convenio.count({
+      where: { id: { in: ids }, activo: true },
+    });
+    if (existen !== ids.length) {
+      throw new BadRequestException('Alguno de los convenios indicados no existe.');
+    }
   }
 
   /** Crea la cuenta; la clave temporal se ve una vez. */
   async crearAdmin(dto: CrearAdminDto) {
     const claveTemporal = generarClaveTemporal();
+    await this.exigirConveniosReales(dto.concesiones);
     try {
       const creado = await this.prisma.admin.create({
         data: {
@@ -131,6 +162,14 @@ export class AdminService {
           rol: dto.rol,
           hashClave: await hashearClave(claveTemporal),
           debeCambiarClave: true,
+          // en el mismo acto: una cuenta sin concesion
+          // entra al panel y no ve una sola pantalla
+          convenios: {
+            create: dto.concesiones.map((c) => ({
+              convenioId: c.convenioId,
+              rol: c.rol,
+            })),
+          },
         },
       });
       return { admin: vistaAdmin(creado), claveTemporal };
@@ -158,9 +197,33 @@ export class AdminService {
 
     await this.asegurarQuedaUnSuperadmin(objetivo, dto);
 
-    const actualizado = await this.prisma.admin.update({
-      where: { id },
-      data: { rol: dto.rol ?? undefined, activo: dto.activo ?? undefined },
+    if (dto.concesiones) {
+      // quedarse sin ninguna es quedarse sin panel
+      if (dto.concesiones.length === 0) {
+        throw new BadRequestException(
+          'Una cuenta sin ningún convenio no vería nada. Desactívela en vez de dejarla sin acceso.',
+        );
+      }
+      await this.exigirConveniosReales(dto.concesiones);
+    }
+
+    const actualizado = await this.prisma.$transaction(async (tx) => {
+      if (dto.concesiones) {
+        // se reemplazan enteras: upsert solo añade, y
+        // entonces quitar un convenio no quitaría nada
+        await tx.adminConvenio.deleteMany({ where: { adminId: id } });
+        await tx.adminConvenio.createMany({
+          data: dto.concesiones.map((c) => ({
+            adminId: id,
+            convenioId: c.convenioId,
+            rol: c.rol,
+          })),
+        });
+      }
+      return tx.admin.update({
+        where: { id },
+        data: { rol: dto.rol ?? undefined, activo: dto.activo ?? undefined },
+      });
     });
     return vistaAdmin(actualizado);
   }

@@ -1,19 +1,23 @@
-import { Transform } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import {
+  ArrayMinSize,
+  IsArray,
   IsBoolean,
   IsEmail,
   IsEnum,
+  IsNotEmpty,
   IsOptional,
   IsString,
   Matches,
   MaxLength,
   MinLength,
   Validate,
+  ValidateNested,
   ValidatorConstraint,
   type ValidatorConstraintInterface,
 } from 'class-validator';
 
-import { ModoPorDefecto, RolAdmin } from '../../generated/prisma';
+import { ModoPorDefecto, RolAdmin, RolConvenio } from '../../generated/prisma';
 import { CLAVE_LARGO_MINIMO } from './claves';
 import { CLAVES_TOKEN } from './temas';
 
@@ -73,6 +77,16 @@ export class ActualizarPerfilDto {
   organizacion?: string;
 }
 
+/** A qué convenio entra y con qué rol. */
+export class ConcesionDto {
+  @IsString()
+  @IsNotEmpty()
+  convenioId!: string;
+
+  @IsEnum(RolConvenio)
+  rol!: RolConvenio;
+}
+
 export class CrearAdminDto {
   @IsEmail()
   @Transform(correo)
@@ -86,9 +100,23 @@ export class CrearAdminDto {
 
   @IsEnum(RolAdmin)
   rol!: RolAdmin;
+
+  // sin una sola concesion la cuenta no ve nada: se
+  // exige al crearla, no despues
+  @IsArray()
+  @ArrayMinSize(1, { message: 'Indique al menos un convenio y su rol.' })
+  @ValidateNested({ each: true })
+  @Type(() => ConcesionDto)
+  concesiones!: ConcesionDto[];
 }
 
 export class ActualizarAdminDto {
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => ConcesionDto)
+  concesiones?: ConcesionDto[];
+
   @IsOptional()
   @IsEnum(RolAdmin)
   rol?: RolAdmin;

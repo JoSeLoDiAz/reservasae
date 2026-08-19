@@ -10,7 +10,14 @@ import {
   Tarjeta,
   useAdmin,
 } from "@/components/admin/marco-admin";
-import { adminApi, type AdminActual, type RolAdmin } from "@/lib/admin-api";
+import {
+  adminApi,
+  ROLES_DE_CONVENIO,
+  type AdminActual,
+  type RolAdmin,
+  type RolConvenio,
+} from "@/lib/admin-api";
+import { Pildora } from "@/components/admin/piezas";
 import { ErrorApi } from "@/lib/api";
 
 const ROLES: Array<{ valor: RolAdmin; etiqueta: string; descripcion: string }> = [
@@ -105,6 +112,23 @@ export default function PaginaUsuarios() {
                     Aún no ha cambiado su contraseña temporal
                   </p>
                 )}
+
+                {/* sin concesion no ve nada, y eso hay que verlo */}
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  {u.concesiones?.length ? (
+                    u.concesiones.map((c) => (
+                      <Pildora key={c.convenioId} tono="marca">
+                        {c.sigla} ·{" "}
+                        {ROLES_DE_CONVENIO.find((r) => r.valor === c.rol)?.etiqueta ??
+                          c.rol}
+                      </Pildora>
+                    ))
+                  ) : (
+                    <Pildora tono="error">
+                      Sin convenios: no ve ninguna pantalla
+                    </Pildora>
+                  )}
+                </div>
               </div>
 
               <select
@@ -161,6 +185,8 @@ export default function PaginaUsuarios() {
   );
 }
 
+type Convenio = { id: string; slug: string; sigla: string | null };
+
 function FormularioNuevoUsuario({
   alCrear,
   alFallar,
@@ -172,16 +198,37 @@ function FormularioNuevoUsuario({
   const [nombre, setNombre] = useState("");
   const [rol, setRol] = useState<RolAdmin>("GESTOR");
   const [creando, setCreando] = useState(false);
+  const [convenios, setConvenios] = useState<Convenio[]>([]);
+  // por convenio, el rol elegido. Sin entrada, no entra
+  const [porConvenio, setPorConvenio] = useState<Record<string, RolConvenio | "">>({});
+
+  useEffect(() => {
+    void adminApi.convenios().then(setConvenios);
+  }, []);
+
+  const concesiones = Object.entries(porConvenio)
+    .filter(([, r]) => r)
+    .map(([convenioId, r]) => ({ convenioId, rol: r as RolConvenio }));
 
   async function enviar(evento: React.FormEvent) {
     evento.preventDefault();
+    if (!concesiones.length) {
+      alFallar("Marque al menos un convenio: sin ninguno, la cuenta no vería nada.");
+      return;
+    }
     setCreando(true);
     try {
-      const { claveTemporal } = await adminApi.crearUsuario(correo, nombre, rol);
+      const { claveTemporal } = await adminApi.crearUsuario(
+        correo,
+        nombre,
+        rol,
+        concesiones,
+      );
       alCrear(correo, claveTemporal);
       setCorreo("");
       setNombre("");
       setRol("GESTOR");
+      setPorConvenio({});
     } catch (e) {
       alFallar((e as ErrorApi).message);
     } finally {
@@ -227,6 +274,67 @@ function FormularioNuevoUsuario({
             ))}
           </select>
         </Campo>
+
+        <div className="sm:col-span-2">
+          <p className="mb-1.5 text-sm font-medium">A qué convenios entra</p>
+          <p className="mb-3 text-xs text-texto-suave">
+            Sin marcar ninguno, la cuenta entra al panel y no ve una sola
+            pantalla. El rol se elige por convenio: se puede llevar un área en
+            uno y otra en el otro.
+          </p>
+
+          <div className="space-y-2">
+            {convenios.map((c) => {
+              const elegido = porConvenio[c.id] ?? "";
+              return (
+                <div
+                  key={c.id}
+                  className="flex flex-wrap items-center gap-3 rounded-xl border border-borde p-3"
+                >
+                  <label className="flex min-w-40 items-center gap-2 text-sm font-medium">
+                    <input
+                      type="checkbox"
+                      checked={Boolean(elegido)}
+                      onChange={(e) =>
+                        setPorConvenio((p) => ({
+                          ...p,
+                          [c.id]: e.target.checked ? "GESTOR_INSCRIPCION" : "",
+                        }))
+                      }
+                    />
+                    {c.sigla ?? c.slug}
+                  </label>
+
+                  {elegido && (
+                    <select
+                      value={elegido}
+                      onChange={(e) =>
+                        setPorConvenio((p) => ({
+                          ...p,
+                          [c.id]: e.target.value as RolConvenio,
+                        }))
+                      }
+                      className={`${CLASE_CONTROL} sm:max-w-md`}
+                      aria-label={`Rol en ${c.sigla ?? c.slug}`}
+                    >
+                      {ROLES_DE_CONVENIO.map((r) => (
+                        <option key={r.valor} value={r.valor}>
+                          {r.etiqueta}
+                        </option>
+                      ))}
+                    </select>
+                  )}
+
+                  {elegido && (
+                    <p className="w-full text-xs text-texto-suave">
+                      {ROLES_DE_CONVENIO.find((r) => r.valor === elegido)?.descripcion}
+                    </p>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
 
         <div className="flex items-end">
           <Boton type="submit" disabled={creando}>
