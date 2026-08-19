@@ -512,17 +512,22 @@ pnpm dev:frontend   # :3000
 No necesitas Docker ni Postgres para el frontend/backend. Si necesitas la BD:
 `docker compose up -d db` y apunta `DATABASE_URL` a `localhost:5433`.
 
-## Las tres ramas
+## Las ramas
 
 ```
-desarrollo   trabajo en curso. No se despliega en ningún sitio.
-   │  cuando hay algo que mirar
-   ▼
-pruebas      lo que corre en prueba.reservasae.com
-   │  cuando el cliente lo aprueba
-   ▼
-main         lo que corre en reservasae.com
+dev-mauricio ──┐
+               ├──►  dev  ──►  pruebas  ──►  main
+Josse ─────────┘      │           │            │
+                  nadie lo    prueba.        las TRES
+                  despliega   reservasae     sedes
 ```
+
+| Rama | Qué es | Dónde corre |
+|---|---|---|
+| `dev` | el día a día. Josse trabaja aquí | en ningún sitio |
+| `dev-mauricio` | rama propia de Mauricio Andrés Palma | en ningún sitio |
+| `pruebas` | lo que el cliente revisa | `prueba.reservasae.com` |
+| `main` | lo aprobado | **las tres sedes** |
 
 - **`main` es lo que de verdad está en producción**, no «lo último bueno». Así
   `git log main` responde qué está corriendo sin ir a mirar al servidor. Avanza
@@ -531,11 +536,22 @@ main         lo que corre en reservasae.com
   copiaba a `entorno-pruebas`, así que las dos eran el mismo commit y la rama
   de pruebas no filtraba nada. Lo único que protegía a producción era que el
   despliegue es manual.
-- **El clon de cada sede sigue su rama**: `/opt/sep/reservasae` va por `main` y
-  `/opt/sep/reservasae-prueba` por `pruebas`.
+- **Las tres sedes van por `main`**, no solo la principal: Bogotá y el PC Dell
+  tienen su clon en la misma rama aunque solo corran la base, porque al
+  promoverlas tienen que poder levantar la aplicación sin cambiar de sitio.
+  `/opt/sep/reservasae-prueba` va por `pruebas`.
+- **`dev-mauricio` lleva guion y no barra.** Git no admite a la vez una rama
+  `dev` y otra `dev/mauricio`: un ref no puede ser fichero y carpeta a la vez.
 - **El repositorio no llega a GitHub**: el push está bloqueado, así que el
   código viaja en `git bundle` por scp. Por eso las ramas se mueven con
   `fetch <bundle> rama:refs/remotes/bundle/rama` y luego `merge --ff-only`.
+
+> **Con dos personas escribiendo, los bundles dejan de servir.** Funcionan para
+> llevar código de un portátil a un servidor, pero no para que dos máquinas se
+> pasen ramas entre sí: no hay un sitio común donde mirar quién va por dónde.
+> Antes de que Mauricio empiece hace falta un remoto de verdad —desatascar el
+> de GitHub, o poner un repositorio `--bare` en `sep-vm` al que las dos lleguen
+> por SSH, que se monta en cinco minutos y no depende de nadie más.
 
 ## Desplegar
 
