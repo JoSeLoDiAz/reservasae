@@ -1,0 +1,11 @@
+# Copia de referencia. Va junto a su .service.
+
+[Unit]
+Description=Comprueba cada minuto que la base este arriba
+
+[Timer]
+OnBootSec=30s
+OnUnitActiveSec=1min
+
+[Install]
+WantedBy=timers.target

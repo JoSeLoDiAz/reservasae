@@ -57,8 +57,9 @@ infraestructura completa más una página que verifica la conexión con el backe
 - ❌ **Ninguna acción está publicada** (`visible = false` en las 15). Hasta que
   un admin publique, el catálogo público sale vacío y no se puede reservar.
   Es deliberado: no hay fechas que mostrar todavía.
-- ⏳ **El failover todavía es manual.** Falta el guión de promoción, el
-  despliegue automático a las réplicas y el desvío del tráfico del dominio.
+- ✅ **El failover es automático** desde el 15 ago 2026: si el principal deja
+  de atender cinco minutos y una tercera sede lo confirma, El Socorro (o
+  Bogotá) se promueve sola, y la sede que vuelve se rinde sola.
 - ✅ **CRM, sección de inscripciones**: tablero de etapas, ficha, brecha de
   nombres, carga masiva y **seguimiento académico**. Ver «El CRM».
 - ⏳ Del CRM faltan acciones por lote, tareas y el adaptador del LMS.
@@ -1054,6 +1055,17 @@ Física, por streaming, **asíncrona**, con ranura por sede (`socorro`, `dell`).
   Arreglarlo exigiría desactivar el proxy de usuario de Docker y reiniciar el
   demonio en Bogotá, donde viven los otros proyectos. La barrera real es doble:
   la base solo es alcanzable desde la red privada, y exige contraseña SCRAM.
+- **Docker publica el puerto de la base en la IP de Tailscale, que al arrancar
+  la máquina todavía no existe.** El contenedor muere con `cannot assign
+  requested address` y la sede se queda **sin base**, con el backend en ciclo de
+  reinicios. Pasó en Bogotá el 18 ago 2026, al volver de la caída. Por eso
+  `asegurar-base.sh` la levanta en cuanto la dirección aparece: es un fallo de
+  carrera entre dos servicios del sistema, no algo que se pueda arreglar dentro
+  de `docker-compose.yml`.
+- **El `hostname` de Bogotá es `sep-dev`, no `server-bogota`.** `rendirse.sh`
+  nombra la ranura con `hostname`, así que la de Bogotá se llama `sep_dev`.
+  Funciona y es consistente consigo misma, pero no busques `bogota` en
+  `pg_replication_slots` porque no está.
 - **Si una réplica se cae mucho tiempo**, Bogotá le retiene WAL hasta
   `max_slot_wal_keep_size = 8GB` y después invalida la ranura; esa sede
   necesitaría una copia base nueva. Con este volumen de escritura, 8 GB son
@@ -1071,16 +1083,19 @@ No se le exige disponibilidad, pero sí que no se duerma el Windows anfitrión
 (`Set-VM -AutomaticStartAction Start`). Si esa sede pasa meses caída, hay que
 rehacerle la copia base.
 
-### Los seis guiones
+### Los nueve guiones
 
 Todos en `scripts/`, todos idempotentes, todos con el mismo criterio: **antes de
 destruir algo, comprobar que hay a dónde ir**.
 
 | Guión | Dónde | Qué hace |
 |---|---|---|
+| `asegurar-base.sh` | todas | temporizador cada 1 min: levanta la base si el arranque la dejó caída |
 | `desplegar.sh` | principal | construye, comprueba y **solo entonces** marca el commit |
 | `seguir-al-principal.sh` | réplicas | temporizador cada 2 min: se pone en el commit marcado y construye |
 | `arrancar-tunel.sh` | todas | temporizador cada 1 min: levanta el túnel **solo si le toca** |
+| `autopromover.sh` | Bogotá y Socorro | temporizador cada 1 min: promueve sola si el principal murió |
+| `autorendirse.sh` | todas | temporizador cada 2 min: se rinde sola ante una línea temporal mayor |
 | `promover.sh` | una réplica | la convierte en principal |
 | `rendirse.sh` | la sede relevada | suelta el tráfico y vuelve a ser réplica de otra |
 | `estado.sh` | cualquiera | las tres sedes de un vistazo |
@@ -1098,6 +1113,14 @@ destruir algo, comprobar que hay a dónde ir**.
 - **Bogotá marca un commit; las réplicas siguen la marca, no `origin/main`.** Un
   commit que rompa el arranque nunca llega a propagarse, porque `desplegar.sh`
   solo escribe `.desplegado` si el sitio responde después de construir.
+- **Si el commit no está en GitHub, la réplica lo trae del principal por ssh**
+  (`git fetch sepadmin@sede:/opt/sep/reservasae main`), y `desplegar.sh` ya no
+  aborta cuando no alcanza a `origin`. Descubierto el 15 ago 2026 al promover El
+  Socorro: su llave de despliegue es de **solo lectura**, así que la sede activa
+  no podía publicar y las réplicas se habrían quedado sin poder recibir nada.
+  El código de un sistema que existe para sobrevivir a la caída de una sede no
+  puede depender de un permiso en un servicio de terceros. Las tres sedes ya se
+  hablan por ssh sobre Tailscale, así que git no necesita intermediario.
 - **Las réplicas comparan contra `.construido`, no contra `HEAD`.** Comparar con
   `HEAD` daba por bueno el estado cuando alguien había hecho `git pull` a mano:
   coincidía el commit y se saltaba la construcción, que es lo único que hace
@@ -1147,12 +1170,78 @@ acabaran en una máquina que no tiene SEP.
 - **El precio**: tras reiniciar el principal, el dominio tarda hasta un minuto de
   más en volver, porque espera al temporizador. Compensa.
 
-### Failover: el runbook
+### Failover automático
 
-**Promover no es automático, y es una decisión de diseño.** Con tres nodos —uno
-de ellos el PC Dell— un promotor automático confundiría «Bogotá cayó» con «se me
-fue el internet a mí». Dos bases aceptando reservas dan dos verdades que no se
-pueden fusionar, porque la replicación es física.
+El 15 ago 2026 Bogotá se quedó sin internet y el dominio estuvo **dos horas**
+en error 1033 con las dos réplicas al día y listas, esperando a que un humano
+apretara el botón. Por eso ahora se promueve solo.
+
+**Lo que no cambió es el riesgo**: dos bases aceptando reservas dan dos
+verdades que no se pueden fusionar, porque la replicación es física. Toda la
+automatización consiste en **cuatro guardias antes de promover**, y cada uno
+existe para un modo de fallo concreto:
+
+- **El reloj.** No se promueve al primer fallo, sino tras `ESPERA_PROMOCION`
+  segundos seguidos sin atender (300 por defecto), contados en `.sin-principal`.
+  Un reinicio del principal, o el minuto largo que tarda `arrancar-tunel.sh` en
+  devolver el dominio, no son una caída.
+- **La tercera opinión.** Si el principal está `INALCANZABLE`, se pregunta a la
+  otra sede por él. Si ella lo ve vivo, es una partición **mía** y no se
+  promueve. Y si **nadie responde**, tampoco se promueve: no ver a nadie es
+  exactamente lo que le pasa a la sede aislada, así que el silencio es la señal
+  más sospechosa de todas, no un permiso. `CAIDA` sí basta sin testigo — llegar
+  por ssh al principal y ver su app muerta es prueba de que la red es mía.
+- **La preferencia.** `PREFERENCIA_PROMOCION` ordena a las candidatas
+  (`server-bogota server-socorro`) y una sede no promueve si otra que la precede
+  sigue viva. Sin esto, con el PC Dell como principal caído, Bogotá y El Socorro
+  se promoverían a la vez.
+- **La línea temporal.** Si otra sede ya va por una línea mayor, esta llega
+  tarde: se rinde en vez de promover.
+
+**El PC Dell nunca se autopromueve**, y es la decisión más importante de todas:
+es la máquina inestable, y al despertar de una caída larga no vería a nadie —
+justo el estado en el que un promotor ingenuo se cree el último superviviente.
+Se promueve a mano si algún día es la única que queda.
+
+`autorendirse.sh` cierra el ciclo en las tres: la sede que vuelve detecta una
+línea temporal mayor y corre `rendirse.sh` sola. **Es reemplazo, no fusión**: se
+copia entera la base de la nueva principal con `pg_basebackup`. Lo que la sede
+caída hubiera escrito por su cuenta queda en un `pg_dump` en `~` y **no se
+mezcla** — con replicación física el WAL son bloques de disco, no filas. En la
+práctica no hay nada que perder, porque una sede sin túnel no recibe tráfico.
+
+Se enciende con **`AUTOPROMOVER=si`** en el `.env` de la sede, además del
+temporizador: sin la variable el guión se abstiene, así que instalar la unidad
+en el PC Dell por descuido no lo convierte en candidato.
+
+`SIMULAR=si scripts/autopromover.sh` recorre todos los guardias y se detiene
+justo antes de promover. Es la única forma de ensayar esto sin tumbar el sitio.
+
+> **Probado de verdad el 18 ago 2026, y funcionó entero sin tocar nada.** Se
+> paró la app de El Socorro a las 15:30:04. Bogotá lo vio `CAIDA` a los 3 s,
+> contó 70 → 136 → 221 s y se promovió a las **15:36:31** (6 min 27 s: los 300 s
+> más el ciclo del temporizador), levantando el túnel ella sola. El dominio
+> volvió sin intervención. Después El Socorro y el PC Dell detectaron la línea 3
+> y **se rindieron solos**, cada uno con su `pg_dump` previo. Los hashes de
+> `reservas`, `empresas` y `ofertas` quedaron idénticos: no se perdió un byte.
+>
+> **Con dos sedes vivas el failover no puede actuar**, y conviene recordarlo: sin
+> tercera opinión, ante un `INALCANZABLE` ninguna promueve. No es un defecto — es
+> la regla que impide que una sede aislada se crea la última superviviente. Con
+> dos nodos el quórum no existe, y la salida es `promover.sh` a mano.
+>
+> **Lo que encontró la prueba**: `promover.sh` no escribía `.desplegado`, que es
+> justo lo que `rendirse.sh` borra al degradar una sede. La nueva principal se
+> quedaba sin marca y las réplicas respondían «sin respuesta del principal, no
+> cambio nada»: el despliegue quedaba detenido hasta que alguien lo corriera a
+> mano. Falla seguro —nadie retrocede— pero es exactamente la clase de defecto
+> que solo aparece cortando de verdad. Ahora `promover.sh` marca el commit, que
+> ya venía de verificar con `esperar_local` igual que `desplegar.sh`.
+
+### Failover a mano: el runbook
+
+Sigue siendo válido, y es lo que hay que hacer si se promueve el PC Dell o si
+se quiere relevar una sede que aún atiende.
 
 1. **Comprobar** que de verdad cayó: `scripts/estado.sh`.
 2. **Promover** en la sede elegida: `scripts/promover.sh`. Se niega si el
@@ -1174,6 +1263,11 @@ escrituras que nadie más llegó a ver.
 > Probado de verdad el 14 ago 2026: se paró Bogotá, El Socorro se promovió (línea
 > temporal 1 → 2, que es la firma de una promoción real), sirvió la aplicación
 > entera, y volvió a réplica sin descuadrar un byte.
+>
+> Y en serio el 15 ago 2026: Bogotá se quedó sin internet de verdad. El Socorro
+> se promovió (línea 1 → 2) y el PC Dell se rindió contra ella. Las dos réplicas
+> estaban en el LSN idéntico, así que no se perdió una sola reserva. Lo único que
+> falló fue que nadie estaba mirando durante dos horas — de ahí `autopromover.sh`.
 
 ### Comprobarlo
 

@@ -75,6 +75,10 @@ docker compose exec -T nginx nginx -s reload
 esperar_local /api/estado || { echo "✗ el backend no respondio"; exit 1; }
 esperar_local /consulta   || { echo "✗ el frontend no respondio"; exit 1; }
 
+# sin esta marca las replicas se quedan sin nada que
+# seguir: rendirse.sh la borro al degradar esta sede
+git rev-parse HEAD > .desplegado
+
 # esta sede ya no sigue a nadie
 poner_variable PRINCIPAL "sepadmin@$SEDE"
 
