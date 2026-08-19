@@ -68,8 +68,15 @@ else
 fi
 
 echo "--- copia base desde $NUEVO ($ip), ranura $ranura ---"
+# la ranura vieja se borra AUNQUE ESTE ACTIVA: si esta
+# sede ya siguio a esa otra, alli quedo su ranura, y un
+# walsender colgado la deja como activa. Con "AND NOT
+# active" no se borraba y pg_basebackup -C moria con
+# "replication slot already exists". Paso el 19 ago 2026
 ssh -n -o BatchMode=yes "sepadmin@$NUEVO" \
-  "cd /opt/sep/reservasae && docker compose exec -T db psql -U reservasae -d reservasae -c \"SELECT pg_drop_replication_slot('$ranura') WHERE EXISTS (SELECT 1 FROM pg_replication_slots WHERE slot_name = '$ranura' AND NOT active)\"" \
+  "cd /opt/sep/reservasae && docker compose exec -T db psql -U reservasae -d reservasae \
+     -c \"SELECT pg_terminate_backend(active_pid) FROM pg_replication_slots WHERE slot_name = '$ranura' AND active\" \
+     -c \"SELECT pg_drop_replication_slot('$ranura') WHERE EXISTS (SELECT 1 FROM pg_replication_slots WHERE slot_name = '$ranura')\"" \
   >/dev/null 2>&1
 
 # por el volumen que monta ESTE db, no por nombre: en la
