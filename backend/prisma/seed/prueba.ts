@@ -396,8 +396,15 @@ async function sembrarAsesores(convenios: Array<{ id: string; slug: string }>) {
         organizacion: 'Grupo AE',
         cargo: CARGO_DEL_ROL[Object.values(CONCESIONES[correo] ?? {})[0] ?? 'CONSULTA'],
       },
-      // el rol tambien, o un --rehacer no lo corrige
-      update: { hashClave: hash, rol, debeCambiarClave: false, activo: true },
+      // el rol y el cargo tambien: solo en create, una
+      // cuenta que ya existia se queda con el cargo viejo
+      update: {
+        hashClave: hash,
+        rol,
+        debeCambiarClave: false,
+        activo: true,
+        cargo: CARGO_DEL_ROL[Object.values(CONCESIONES[correo] ?? {})[0] ?? 'CONSULTA'],
+      },
     });
     creados.push(admin);
 

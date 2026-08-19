@@ -704,7 +704,7 @@ SEP** (54, el que se sube). Código en `backend/src/crm/sep/`.
 > Excel salido del entorno de pruebas habría apuntado a un proyecto de verdad.
 > Un id negativo el SEP no lo tiene.
 
-### Roles: la tabla existe, todavía no filtra
+### Quién ve qué: el convenio y el área
 
 `AdminConvenio(adminId, convenioId, rol)` es una **concesión explícita**: sin
 fila, no hay acceso. Sustituye a la columna `convenioId` con «nulo = ve los dos»
@@ -713,24 +713,72 @@ dos convenios exige permisos en ambos, nunca por omisión. Y como la misma
 persona puede llevar áreas distintas en cada convenio, **el rol va en la fila y
 no en la cuenta**.
 
-Los roles previstos son de dos ejes, área × nivel: gestión y liderazgo de
-inscripciones, de académico y de sistemas. **Falta aplicar el ámbito en cada
-consulta**, que es trabajo pendiente y toca `tableros.service.ts` entero.
+Son dos cerraduras distintas y las dos hacen falta: el **convenio** dice de
+quién son los datos, el **área** qué se puede hacer con ellos.
 
-> **Hoy no filtra nada.** La tabla tiene filas y **cero líneas de código la
-> leen** (comprobado por grep en `backend/src`). Cualquier cuenta ve los dos
-> convenios mezclados.
+- **El convenio** se aplica con los fragmentos de `tableros/ambito.ts`, escritos
+  una vez porque cada tabla llega al convenio por un camino distinto: la reserva
+  por la oferta, la oferta por la acción, la empresa por tener alguna reserva
+  dentro. Los cuatro bloques de SQL crudo llevan un `EXISTS`; con ámbito vacío
+  el fragmento es `FALSE`, no un `IN ()` inválido.
+- **El área** se aplica con la matriz de `admin/permisos.ts` y el decorador
+  `@Requiere(area, nivel)`.
 
-Lo que el cliente pidió, y que es lo que hay que construir:
+Las seis áreas son `reserva`, `inscripciones`, `inscritos`, `reportes`,
+`academico` y `configuracion`, con tres niveles: `NADA`, `VER`, `ESCRIBIR`.
 
-- Un admin con fila en los dos convenios ve los dos, con un selector para
-  cambiar; cada pantalla filtrada por el que tenga activo.
+|  | Gestor insc. | Líder insc. | Gestor acad. | Líder acad. | Líder sist. | Consulta |
+|---|:--:|:--:|:--:|:--:|:--:|:--:|
+| reserva | ver | ver | ver | ver | ver | ver |
+| inscripciones | **escribe** | **escribe** | ver | ver | **escribe** | ver |
+| inscritos | ver | ver | ver | ver | ver | ver |
+| reportes | ver | **escribe** | — | — | **escribe** | — |
+| academico | ver | ver | **escribe** | **escribe** | **escribe** | ver |
+| configuracion | — | — | — | — | **escribe** | — |
+
+- **`reportes` es un área aparte de `inscritos`** por lo que lleva dentro: el
+  archivo del SEP son 800 cédulas con fecha de nacimiento y celular. Ver el
+  alistamiento (cuántos entran y por qué no los demás) es `VER`; descargar el
+  archivo es `ESCRIBIR`. Por eso el gestor sabe qué le falta a cada persona sin
+  tener el archivo en su carpeta de descargas.
+- **`@Requiere` no solo niega el paso: recorta el ámbito.** El guard deja en
+  `ambito.convenios` solo aquellos donde el rol alcanza el nivel pedido, así que
+  **el servicio recibe la lista ya buena y no tiene que acordarse**. Sin eso,
+  quien lleva académico en un convenio e inscripciones en el otro podría
+  escribir inscripciones en el primero llamando a la API, aunque el menú no se
+  lo enseñe. Es la misma lección de `ambito.ts`: lo que hay que recordar en cada
+  consulta se olvida en alguna.
+- **Certificar es lo único que separa al líder académico del gestor**, y se
+  comprueba **por convenio**: se puede liderar en uno y solo digitar en el otro.
+  `CERTIFICADO` y `NO_APROBO` son lo que paga el SENA y no lo firma quien
+  digita; el resto de etapas las mueve cualquiera de las dos áreas.
+- **El menú corto no es la cerradura.** `/admin/yo` devuelve el mayor nivel por
+  área entre sus convenios y `navegacion.ts` esconde lo que no aplica, pero eso
+  es comodidad: quien manda es el guard. Mientras los permisos no han llegado no
+  se esconde nada, o el menú parpadearía en cada carga.
+- **`permisos.spec.ts` fija la matriz** como el test de paletas fija los
+  contrastes: si alguien da configuración a un gestor o deja que académico
+  descargue las cédulas, falla el build. También comprueba que todo rol del enum
+  tenga fila — sin ella `nivelDe` devolvería `NADA` en silencio.
+
+> **`RolAdmin` y `RolConvenio` conviven y son dos verdades que pueden
+> discrepar.** `RolAdmin` debería quedarse solo en «es superadmin o no» y todo
+> lo demás salir de la concesión, pero los controladores aún llevan
+> `@Roles(SUPERADMIN, GESTOR)`, así que una cuenta con `RolAdmin.CONSULTA` no
+> entra al CRM aunque su concesión diga otra cosa. Hoy no hace daño porque la
+> siembra da `GESTOR` a todos; limpiarlo es trabajo aparte.
+
+Lo que el cliente pidió, y que ya está:
+
+- Un admin con fila en los dos convenios ve los dos; cada pantalla filtrada.
 - Un asesor de ADECOPRIA **no entra** a BRITCHAM: ni por URL, ni cambiando un id
   en la barra, ni llamando a la API. El filtro va en la consulta, en el
   servidor, no en el menú.
 - **`Empresa` se comparte y se ve desde los dos.** Si el mismo NIT reservó en
   los dos convenios, el asesor de uno ve que la empresa existe; lo que se filtra
-  son sus reservas y sus totales. Decisión explícita del cliente.
+  son sus reservas y sus totales. Decisión explícita del cliente. Por eso las
+  empresas de un convenio más las del otro suman **más** que el total: 15 + 23
+  contra 24, y es correcto.
 
 > **El subdominio no separa nada, y hay que repetirlo.** `adecopria.reservasae.com`
 > y `britcham.reservasae.com` sirven la misma base con la misma sesión: sin el
@@ -840,9 +888,23 @@ pnpm db:sembrar-prueba [--rehacer]
   cifra que abre el CRM y con la brecha en cero no se vería nada.
 - **Unas cuantas personas repiten en dos cursos**, para que se vea que la misma
   cédula es *una* persona con dos participaciones.
-- Entrar con `ana.jaramillo@ejemplo.test` / `Prueba2026*`. Las cuentas de
-  prueba nacen con `debeCambiarClave = false`: se entra a mirar, no a estrenar
-  contraseña.
+- **Seis cuentas, una por perfil**, todas con `Prueba2026*` y todas
+  `@ejemplo.test`. Nacen con `debeCambiarClave = false`: se entra a mirar, no a
+  estrenar contraseña.
+
+  | Cuenta | Rol | Dónde |
+  |---|---|---|
+  | `ana.jaramillo` | Líder de sistemas · **superadmin** | los dos |
+  | `carlos.mesa` | Líder de inscripciones / Gestor académico | **uno en cada uno** |
+  | `lucia.parra` | Gestora de inscripciones | solo ADECOPRIA |
+  | `hector.ramos` | Gestor académico | solo BRITCHAM |
+  | `marta.oquendo` | Líder de seguimiento académico | los dos |
+  | `sofia.rendon` | Consulta | los dos |
+
+  **Carlos es el que de verdad prueba el sistema**: lleva áreas distintas en
+  cada convenio, así que descarga el reporte de ADECOPRIA y recibe 403 en el de
+  BRITCHAM. Con todos llevando el mismo rol en los dos, un fallo en el recorte
+  por área no se vería.
 
 ### La franja
 
