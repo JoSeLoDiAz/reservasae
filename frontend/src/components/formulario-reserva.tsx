@@ -217,7 +217,7 @@ export function FormularioReserva({ slug }: { slug: string }) {
         const visibles = bloque.preguntas.filter(visible);
         if (!visibles.length) return null;
         return (
-          <section key={bloque.id} className="rounded-xl border border-borde bg-superficie p-6">
+          <section key={bloque.id} className="rounded-2xl border border-borde bg-superficie p-6 shadow-sm">
             <h2 className="text-lg font-medium">{bloque.titulo}</h2>
             {bloque.descripcion && (
               <p className="mt-1 text-sm text-texto-suave">{bloque.descripcion}</p>
@@ -640,7 +640,7 @@ function ResumenOferta({ oferta }: { oferta: Oferta }) {
 function Confirmacion({ reserva, mensaje }: { reserva: Reserva; mensaje?: string | null }) {
   const enEspera = reserva.cuposEnEspera > 0;
   return (
-    <div className="rounded-xl border border-borde bg-superficie p-6">
+    <div className="rounded-2xl border border-borde bg-superficie p-6 shadow-sm">
       <span
         className={`inline-block rounded-full px-3 py-1 text-sm font-medium ${
           reserva.cuposConfirmados > 0
@@ -681,14 +681,14 @@ function Confirmacion({ reserva, mensaje }: { reserva: Reserva; mensaje?: string
       <div className="mt-6 flex flex-wrap gap-4">
         <Link
           href="/consulta"
-          className="rounded-lg bg-marca px-5 py-2.5 text-sm font-medium text-marca-texto hover:bg-marca-fuerte"
+          className="rounded-xl bg-marca px-5 py-2.5 text-sm font-medium text-marca-texto hover:bg-marca-fuerte"
         >
           Ver mis reservas
         </Link>
         <button
           type="button"
           onClick={() => window.location.reload()}
-          className="rounded-lg border border-borde px-5 py-2.5 text-sm font-medium hover:bg-fondo"
+          className="rounded-xl border border-borde px-5 py-2.5 text-sm font-medium hover:bg-fondo"
         >
           Reservar otro curso
         </button>

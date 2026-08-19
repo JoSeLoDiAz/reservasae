@@ -1,4 +1,4 @@
-import { Controller, Get, Param, Query, Res, UseGuards } from '@nestjs/common';
+import { Controller, Delete, Get, Param, Query, Res, UseGuards } from '@nestjs/common';
 import type { Response } from 'express';
 
 import { EstadoReserva, RolAdmin } from '../../generated/prisma';
@@ -80,6 +80,14 @@ export class TablerosController {
   @Get('empresas')
   porEmpresa(@AmbitoActual() ambito: Ambito, @Query('buscar') buscar?: string) {
     return this.tableros.porEmpresa(ambito.convenios, buscar);
+  }
+
+  /** Borra una reserva y devuelve sus cupos. */
+  @Delete('reservas/:id')
+  @Roles(RolAdmin.SUPERADMIN)
+  @Requiere('reserva', 'VER')
+  borrarReserva(@Param('id') id: string, @AmbitoActual() ambito: Ambito) {
+    return this.tableros.borrarReserva(id, ambito.convenios);
   }
 
   /** Cuántas reservas trajo cada enlace público. */

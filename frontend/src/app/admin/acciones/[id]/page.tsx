@@ -115,7 +115,7 @@ export default function DetalleDeAccion({ params }: { params: Promise<{ id: stri
           <button
             onClick={alternarPublicacion}
             disabled={ocupado}
-            className="rounded-lg border border-borde px-4 py-2 text-sm font-medium hover:bg-superficie-alterna disabled:opacity-50"
+            className="rounded-xl border border-borde px-4 py-2 text-sm font-medium hover:bg-superficie-alterna disabled:opacity-50"
           >
             {datos.visible ? "Ocultar" : "Publicar"}
           </button>

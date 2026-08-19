@@ -18,7 +18,14 @@ import {
   IndicadorActualizacion,
   SelloDeDatos,
 } from "@/components/admin/indicador-actualizacion";
+import {
+  IconoAvance,
+  IconoMatriculados,
+  IconoOrganizaciones,
+  IconoReservas,
+} from "@/components/admin/iconos";
 import { Aviso, Tarjeta, useAdmin } from "@/components/admin/marco-admin";
+import { TarjetaCifra } from "@/components/admin/piezas";
 import { BloqueRitmo, TablaRitmo } from "@/components/admin/ritmo";
 import { bonito } from "@/lib/api";
 import { useDatosVivos } from "@/lib/datos-vivos";
@@ -95,18 +102,51 @@ export default function Tablero() {
           <BotonPdf etiqueta="PDF para reunión" />
           <button
             onClick={() => descargar("ocupacion")}
-            className="rounded-lg border border-borde px-4 py-2 font-medium transition hover:bg-superficie-alterna"
+            className="rounded-xl border border-borde px-4 py-2 font-medium transition hover:bg-superficie-alterna"
           >
             Descargar Excel
           </button>
           <Link
             href="/admin/reservas"
-            className="rounded-lg bg-marca px-4 py-2 font-medium text-marca-texto transition hover:bg-marca-fuerte"
+            className="rounded-xl bg-marca px-4 py-2 font-medium text-marca-texto transition hover:bg-marca-fuerte"
           >
             Ver reservas
           </Link>
         </div>
       </header>
+
+      {/* lo que se mira primero, de un vistazo */}
+      <div className="imprimible-bloque grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <TarjetaCifra
+          etiqueta="Cupos con dueño"
+          valor={n(resumen.ocupados)}
+          pie={`${resumen.avanceMeta}% de los ${n(resumen.metaBase)} comprometidos`}
+          icono={IconoMatriculados}
+          tono="exito"
+        />
+        <TarjetaCifra
+          etiqueta="Cupos libres"
+          valor={n(resumen.disponibles)}
+          pie={`de ${n(resumen.cupos)} en total`}
+          icono={IconoAvance}
+        />
+        <TarjetaCifra
+          etiqueta="Organizaciones"
+          valor={n(resumen.empresas)}
+          pie={`${resumen.cuposPorReserva} cupos por reserva`}
+          icono={IconoOrganizaciones}
+          href="/admin/empresas"
+          tono="neutro"
+        />
+        <TarjetaCifra
+          etiqueta="En lista de espera"
+          valor={n(resumen.enEspera)}
+          pie={resumen.enEspera > 0 ? "esperan a que alguien cancele" : "no hay nadie esperando"}
+          icono={IconoReservas}
+          tono={resumen.enEspera > 0 ? "aviso" : "neutro"}
+          href="/admin/reservas"
+        />
+      </div>
 
       {/* dos lecturas del avance */}
       <div className="imprimible-bloque grid gap-4 lg:grid-cols-3">
@@ -333,7 +373,7 @@ function Alertas({
 
   return (
     <div className="grid gap-4 sm:grid-cols-3">
-      <div className="rounded-xl border border-borde bg-superficie p-5">
+      <div className="rounded-2xl border border-borde bg-superficie p-5 shadow-sm">
         <p className="text-sm text-texto-suave">Ubicaciones completas</p>
         <p className="mt-1 text-2xl font-semibold tabular-nums">
           {completas}
@@ -345,7 +385,7 @@ function Alertas({
         </p>
       </div>
 
-      <div className="rounded-xl border border-borde bg-superficie p-5">
+      <div className="rounded-2xl border border-borde bg-superficie p-5 shadow-sm">
         <p className="text-sm text-texto-suave">Tasa de cancelación</p>
         <p className="mt-1 text-2xl font-semibold tabular-nums">
           {resumen.tasaCancelacion.toFixed(1).replace(".", ",")}
@@ -356,7 +396,7 @@ function Alertas({
         </p>
       </div>
 
-      <div className="rounded-xl border border-borde bg-superficie p-5">
+      <div className="rounded-2xl border border-borde bg-superficie p-5 shadow-sm">
         <p className="text-sm text-texto-suave">Sin ninguna reserva</p>
         <p className="mt-1 text-2xl font-semibold tabular-nums">
           {sinReservas.length}

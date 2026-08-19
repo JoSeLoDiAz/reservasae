@@ -4,7 +4,8 @@ import { useCallback, useEffect, useState } from "react";
 
 import { n } from "@/components/admin/graficos";
 import { IndicadorActualizacion } from "@/components/admin/indicador-actualizacion";
-import { Aviso, CLASE_CONTROL, Tarjeta } from "@/components/admin/marco-admin";
+import { ConfirmarBorrado } from "@/components/admin/confirmar-borrado";
+import { Aviso, CLASE_CONTROL, Tarjeta, useAdmin } from "@/components/admin/marco-admin";
 import { adminApi } from "@/lib/admin-api";
 import { bonito } from "@/lib/api";
 import { useDatosVivos } from "@/lib/datos-vivos";
@@ -55,6 +56,7 @@ export default function PaginaReservas() {
   const datos = vivos.datos;
   const error = vivos.error;
   const cargando = vivos.refrescando;
+  const { admin } = useAdmin();
 
   useEffect(() => {
     void adminApi.convenios().then(setConvenios);
@@ -86,7 +88,7 @@ export default function PaginaReservas() {
         </div>
         <button
           onClick={() => descargar("reservas", filtros)}
-          className="rounded-lg bg-marca px-4 py-2 text-sm font-medium text-marca-texto transition hover:bg-marca-fuerte"
+          className="rounded-xl bg-marca px-4 py-2 text-sm font-medium text-marca-texto transition hover:bg-marca-fuerte"
         >
           Descargar en Excel
         </button>
@@ -150,7 +152,7 @@ export default function PaginaReservas() {
           </select>
           <button
             type="submit"
-            className="rounded-lg border border-borde px-5 py-2 text-sm font-medium hover:bg-superficie-alterna"
+            className="rounded-xl border border-borde px-5 py-2 text-sm font-medium hover:bg-superficie-alterna"
           >
             Buscar
           </button>
@@ -176,7 +178,12 @@ export default function PaginaReservas() {
             </thead>
             <tbody>
               {datos?.filas.map((r) => (
-                <Fila key={r.id} reserva={r} />
+                <Fila
+                  key={r.id}
+                  reserva={r}
+                  esSuperadmin={admin.rol === "SUPERADMIN"}
+                  alBorrar={vivos.refrescar}
+                />
               ))}
             </tbody>
           </table>
@@ -216,8 +223,17 @@ export default function PaginaReservas() {
   );
 }
 
-function Fila({ reserva }: { reserva: FilaReserva }) {
+function Fila({
+  reserva,
+  esSuperadmin,
+  alBorrar,
+}: {
+  reserva: FilaReserva;
+  esSuperadmin: boolean;
+  alBorrar: () => void;
+}) {
   const [abierta, setAbierta] = useState(false);
+  const [borrando, setBorrando] = useState(false);
   const estado = ETIQUETA_ESTADO[reserva.estado];
 
   return (
@@ -287,7 +303,7 @@ function Fila({ reserva }: { reserva: FilaReserva }) {
 
       {abierta && (
         <tr>
-          <td colSpan={7} className="bg-superficie-alterna">
+          <td colSpan={8} className="bg-superficie-alterna">
             <dl className="grid gap-x-8 gap-y-3 p-2 sm:grid-cols-2 lg:grid-cols-3">
               <Dato titulo="Celular" valor={reserva.contacto.celular} />
               <Dato titulo="Cargo" valor={reserva.contacto.cargo} />
@@ -316,6 +332,44 @@ function Fila({ reserva }: { reserva: FilaReserva }) {
                 <Dato key={r.pregunta} titulo={r.pregunta} valor={r.valor} />
               ))}
             </dl>
+
+            {esSuperadmin && (
+              <div className="flex justify-end px-2 pb-3">
+                <button
+                  onClick={() => setBorrando(true)}
+                  className="text-sm text-error underline"
+                >
+                  Borrar esta reserva
+                </button>
+              </div>
+            )}
+          </td>
+        </tr>
+      )}
+
+      {borrando && (
+        <tr>
+          <td>
+            <ConfirmarBorrado
+              titulo="Borrar la reserva"
+              palabra={reserva.empresa.nit}
+              etiquetaPalabra="Para confirmarlo, escriba el NIT"
+              descripcion={
+                <>
+                  Se borran <strong>{bonito(reserva.empresa.razonSocial)}</strong> y sus{" "}
+                  {reserva.cuposConfirmados} cupos en {reserva.oferta.codigo}{" "}
+                  {bonito(reserva.oferta.ubicacion)}. Los cupos vuelven a la oferta.
+                  Si la organización se queda sin ninguna otra reserva, se borra también.
+                  Esto no se deshace.
+                </>
+              }
+              alCerrar={() => setBorrando(false)}
+              alConfirmar={async () => {
+                await tablerosApi.borrarReserva(reserva.id);
+                setBorrando(false);
+                alBorrar();
+              }}
+            />
           </td>
         </tr>
       )}

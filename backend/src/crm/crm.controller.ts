@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   Patch,
@@ -113,6 +114,14 @@ export class CrmController {
     @AmbitoActual() ambito: Ambito,
   ) {
     return this.crm.actualizar(id, dto, ambito.convenios);
+  }
+
+  /** Quita a la persona de este curso. No la borra. */
+  @Delete(':id')
+  @Roles(RolAdmin.SUPERADMIN)
+  @Requiere('inscripciones', 'ESCRIBIR')
+  borrarParticipacion(@Param('id') id: string, @AmbitoActual() ambito: Ambito) {
+    return this.crm.borrarParticipacion(id, ambito.convenios);
   }
 
   @Patch(':id/etapa')

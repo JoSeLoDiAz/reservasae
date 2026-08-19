@@ -42,7 +42,7 @@ export default function PaginaEmpresas() {
         </div>
         <button
           onClick={() => descargar("empresas", { buscar: textoBuscado })}
-          className="rounded-lg bg-marca px-4 py-2 text-sm font-medium text-marca-texto transition hover:bg-marca-fuerte"
+          className="rounded-xl bg-marca px-4 py-2 text-sm font-medium text-marca-texto transition hover:bg-marca-fuerte"
         >
           Descargar en Excel
         </button>
@@ -66,7 +66,7 @@ export default function PaginaEmpresas() {
           />
           <button
             type="submit"
-            className="rounded-lg border border-borde px-5 py-2 text-sm font-medium hover:bg-superficie-alterna"
+            className="rounded-xl border border-borde px-5 py-2 text-sm font-medium hover:bg-superficie-alterna"
           >
             Buscar
           </button>

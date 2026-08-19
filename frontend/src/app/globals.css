@@ -346,13 +346,21 @@ h3 {
   color: var(--tabla-cabecera-texto);
   text-align: left;
   font-weight: 600;
-  font-size: 0.8125rem;
-  padding: 0.625rem 0.75rem;
+  /* mayuscula pequena: la cabecera no compite */
+  font-size: 0.6875rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  padding: 0.75rem 1rem;
   border-bottom: 1px solid var(--tabla-borde);
+  white-space: nowrap;
 }
 .tabla-datos tbody td {
-  padding: 0.625rem 0.75rem;
+  padding: 0.8125rem 1rem;
   border-bottom: 1px solid var(--tabla-borde);
+}
+/* la ultima no lleva raya: ya la pone la tarjeta */
+.tabla-datos tbody tr:last-child td {
+  border-bottom: 0;
 }
 .tabla-datos tbody tr:nth-child(even) {
   background: var(--tabla-fila-alterna);

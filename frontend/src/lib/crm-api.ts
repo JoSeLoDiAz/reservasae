@@ -301,6 +301,15 @@ export type OpcionGrupo = {
 export type Opciones = { ofertas: OpcionOferta[]; grupos: OpcionGrupo[] };
 
 export const crmApi = {
+  borrarParticipacion: (id: string) =>
+    pedir<{
+      borrado: boolean;
+      nombre: string;
+      documento: string;
+      avancesBorrados: number;
+      notasBorradas: number;
+    }>(`/admin/participantes/${id}`, { method: "DELETE" }),
+
   opciones: (convenioId: string) =>
     pedir<Opciones>(`/admin/participantes/opciones?convenioId=${convenioId}`),
 

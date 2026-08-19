@@ -6,7 +6,7 @@ export function BotonPdf({ etiqueta = "Exportar a PDF" }: { etiqueta?: string })
     <button
       type="button"
       onClick={() => window.print()}
-      className="no-imprimir inline-flex items-center gap-2 rounded-lg border border-borde px-4 py-2 text-sm font-medium transition hover:bg-superficie-alterna"
+      className="no-imprimir inline-flex items-center gap-2 rounded-xl border border-borde px-4 py-2 text-sm font-medium transition hover:bg-superficie-alterna"
     >
       <svg
         viewBox="0 0 24 24"

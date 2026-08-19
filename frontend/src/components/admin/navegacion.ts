@@ -88,7 +88,7 @@ export const MODULOS: Modulo[] = [
       { href: '/admin/acciones', etiqueta: 'Formación', area: 'configuracion', nivel: 'ESCRIBIR' , icono: IconoFormacion },
       { href: '/admin/formularios', etiqueta: 'Formularios', area: 'configuracion', nivel: 'ESCRIBIR' , icono: IconoFormularios },
       { href: '/admin/politicas', etiqueta: 'Políticas', area: 'configuracion', nivel: 'ESCRIBIR' , icono: IconoPoliticas },
-      { href: '/admin/marca', etiqueta: 'Apariencia', area: 'configuracion', nivel: 'ESCRIBIR' , icono: IconoApariencia },
+      { href: '/admin/marca', etiqueta: 'Apariencia', soloSuperadmin: true, area: 'configuracion', nivel: 'ESCRIBIR' , icono: IconoApariencia },
       { href: '/admin/usuarios', etiqueta: 'Usuarios', soloSuperadmin: true , icono: IconoUsuarios },
       { href: '/admin/perfil', etiqueta: 'Mi perfil' , icono: IconoPerfil },
     ],

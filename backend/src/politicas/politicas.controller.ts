@@ -49,6 +49,7 @@ export class PoliticasAdminController {
   }
 
   @Delete(':id')
+  @Roles(RolAdmin.SUPERADMIN)
   eliminar(@Param('id') id: string) {
     return this.politicas.eliminar(id);
   }

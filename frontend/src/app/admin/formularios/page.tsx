@@ -9,6 +9,7 @@ import {
   Campo,
   CLASE_CONTROL,
   Tarjeta,
+  useAdmin,
 } from "@/components/admin/marco-admin";
 import { adminApi } from "@/lib/admin-api";
 import { ErrorApi } from "@/lib/api";
@@ -20,6 +21,7 @@ export default function PaginaFormularios() {
   const [formularios, setFormularios] = useState<ResumenFormulario[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [duplicando, setDuplicando] = useState<string | null>(null);
+  const esSuperadmin = useAdmin().admin.rol === "SUPERADMIN";
 
   const cargar = useCallback(async () => {
     setFormularios(await formulariosApi.listar());
@@ -72,7 +74,7 @@ export default function PaginaFormularios() {
               {f.secciones} secciones
             </p>
 
-            {duplicando === f.id ? (
+            {!esSuperadmin ? null : duplicando === f.id ? (
               <Duplicar
                 origen={f}
                 alTerminar={() => {

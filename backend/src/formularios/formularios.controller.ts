@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   Delete,
+  ForbiddenException,
   Get,
   Param,
   Patch,
@@ -9,7 +10,8 @@ import {
   UseGuards,
 } from '@nestjs/common';
 
-import { RolAdmin } from '../../generated/prisma';
+import { RolAdmin, type Admin } from '../../generated/prisma';
+import { AdminActual } from '../admin/admin-actual.decorator';
 import { AdminGuard, Requiere, Roles } from '../admin/admin.guard';
 import {
   ActualizarAparienciaDto,
@@ -56,16 +58,29 @@ export class FormulariosAdminController {
 
   /** Copia uno existente, en borrador. */
   @Post(':id/duplicar')
+  @Roles(RolAdmin.SUPERADMIN)
   duplicar(@Param('id') id: string, @Body() dto: DuplicarFormularioDto) {
     return this.formularios.duplicar(id, dto);
   }
 
+  // el titulo y los textos los edita quien construye;
+  // abrirlo al publico es del administrador
   @Patch(':id')
-  actualizar(@Param('id') id: string, @Body() dto: ActualizarFormularioDto) {
+  actualizar(
+    @Param('id') id: string,
+    @Body() dto: ActualizarFormularioDto,
+    @AdminActual() admin: Admin,
+  ) {
+    if (dto.publicado !== undefined && admin.rol !== RolAdmin.SUPERADMIN) {
+      throw new ForbiddenException(
+        'Publicar o retirar un formulario es del administrador del sistema.',
+      );
+    }
     return this.formularios.actualizar(id, dto);
   }
 
   @Delete(':id')
+  @Roles(RolAdmin.SUPERADMIN)
   eliminar(@Param('id') id: string) {
     return this.formularios.eliminar(id);
   }
@@ -73,6 +88,7 @@ export class FormulariosAdminController {
   // apariencia
 
   @Patch(':id/apariencia')
+  @Roles(RolAdmin.SUPERADMIN)
   actualizarApariencia(@Param('id') id: string, @Body() dto: ActualizarAparienciaDto) {
     return this.formularios.actualizarApariencia(id, dto);
   }
@@ -92,6 +108,7 @@ export class FormulariosAdminController {
   }
 
   @Delete('secciones/:seccionId')
+  @Roles(RolAdmin.SUPERADMIN)
   eliminarSeccion(@Param('seccionId') seccionId: string) {
     return this.formularios.eliminarSeccion(seccionId);
   }
@@ -134,6 +151,7 @@ export class FormulariosAdminController {
   }
 
   @Delete('opciones/:opcionId')
+  @Roles(RolAdmin.SUPERADMIN)
   eliminarOpcion(@Param('opcionId') opcionId: string) {
     return this.formularios.eliminarOpcion(opcionId);
   }

@@ -334,7 +334,7 @@ export default function PaginaParticipantes() {
 
 function Cifra({ etiqueta, valor, nota }: { etiqueta: string; valor: number; nota?: string }) {
   return (
-    <div className="rounded-xl border border-borde bg-superficie p-4">
+    <div className="rounded-2xl border border-borde bg-superficie p-4 shadow-sm">
       <p className="text-xs tracking-wide text-texto-suave uppercase">{etiqueta}</p>
       <p className="mt-2 font-mono text-3xl font-semibold">{valor}</p>
       {nota && <p className="mt-1 text-xs text-texto-suave">{nota}</p>}

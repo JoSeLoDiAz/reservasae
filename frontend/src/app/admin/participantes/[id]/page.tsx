@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 
+import { ConfirmarBorrado } from "@/components/admin/confirmar-borrado";
 import { DatosSena } from "@/components/admin/datos-sena";
 import { PildoraEtapa } from "@/components/admin/etapa";
 import {
@@ -12,6 +13,7 @@ import {
   Campo,
   CLASE_CONTROL,
   Tarjeta,
+  useAdmin,
 } from "@/components/admin/marco-admin";
 import { ErrorApi } from "@/lib/api";
 import {
@@ -36,6 +38,10 @@ export default function PaginaFicha() {
   const [opciones, setOpciones] = useState<Opciones | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [nota, setNota] = useState("");
+  const [borrando, setBorrando] = useState(false);
+  const { admin } = useAdmin();
+  const router = useRouter();
+  const esSuperadmin = admin.rol === "SUPERADMIN";
 
   const cargar = useCallback(async () => {
     const ficha = await crmApi.obtener(id);
@@ -238,6 +244,38 @@ export default function PaginaFicha() {
             ))}
           </ul>
         </Tarjeta>
+      )}
+
+      {esSuperadmin && (
+        <div className="flex justify-end pt-2">
+          <button
+            onClick={() => setBorrando(true)}
+            className="text-sm text-error underline"
+          >
+            Quitar a esta persona del curso
+          </button>
+        </div>
+      )}
+
+      {borrando && (
+        <ConfirmarBorrado
+          titulo="Quitar del curso"
+          palabra={f.persona.documento}
+          etiquetaPalabra="Para confirmarlo, escriba el documento"
+          descripcion={
+            <>
+              Se borra la participación de <strong>{nombre}</strong> en{" "}
+              {f.accionFormacion?.codigo ?? "esta acción"}, con sus notas y su
+              avance. <strong>La persona no se borra</strong>: si está inscrita en
+              otro convenio, ahí sigue. Esto no se deshace.
+            </>
+          }
+          alCerrar={() => setBorrando(false)}
+          alConfirmar={async () => {
+            await crmApi.borrarParticipacion(id);
+            router.replace("/admin/participantes");
+          }}
+        />
       )}
     </div>
   );

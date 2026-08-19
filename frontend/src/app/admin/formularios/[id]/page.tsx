@@ -76,13 +76,13 @@ export default function PaginaConstructor({
         <div className="flex items-center gap-3">
           <Link
             href={`/admin/formularios/${id}/respuestas`}
-            className="rounded-lg border border-borde px-4 py-2 text-sm hover:bg-fondo"
+            className="rounded-xl border border-borde px-4 py-2 text-sm hover:bg-fondo"
           >
             Respuestas
           </Link>
           <Link
             href={`/admin/formularios/${id}/apariencia`}
-            className="rounded-lg border border-borde px-4 py-2 text-sm hover:bg-fondo"
+            className="rounded-xl border border-borde px-4 py-2 text-sm hover:bg-fondo"
           >
             Apariencia
           </Link>
@@ -303,7 +303,7 @@ function BloqueSeccion({
   }
 
   return (
-    <section className="rounded-xl border border-borde bg-superficie p-6">
+    <section className="rounded-2xl border border-borde bg-superficie p-6 shadow-sm">
       <div className="flex flex-wrap items-start justify-between gap-3">
         {editando ? (
           <form

@@ -31,7 +31,7 @@ export function TarjetaCifra({
     tono === "exito" ? "text-exito" : tono === "aviso" ? "text-aviso" : "text-titulo";
 
   return (
-    <div className="rounded-xl border border-borde bg-superficie p-5">
+    <div className="rounded-2xl border border-borde bg-superficie p-5 shadow-sm">
       <p className="text-sm text-texto-suave">{titulo}</p>
       <p className={`mt-1 text-3xl font-semibold tabular-nums ${color}`}>
         {typeof valor === "number" ? n(valor) : valor}

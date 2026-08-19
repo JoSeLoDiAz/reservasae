@@ -515,6 +515,40 @@ export class CrmService {
     return this.obtener(id, ambito);
   }
 
+  /**
+   * Borra la participación, no a la persona: la misma
+   * cédula puede estar en el otro convenio, y ahí sigue.
+   * Se lleva sus notas, sus movimientos y su avance.
+   */
+  async borrarParticipacion(id: string, ambito: string[]) {
+    await this.exigirParticipante(id, ambito);
+
+    const p = await this.prisma.participante.findUnique({
+      where: { id },
+      select: {
+        etapa: true,
+        persona: { select: { primerNombre: true, primerApellido: true, numeroDocumento: true } },
+        _count: { select: { avances: true, notas: true } },
+      },
+    });
+    if (!p) throw new NotFoundException('Ese participante no existe.');
+
+    await this.prisma.$transaction(async (tx) => {
+      await tx.avanceActividad.deleteMany({ where: { participanteId: id } });
+      await tx.notaParticipante.deleteMany({ where: { participanteId: id } });
+      await tx.movimientoParticipante.deleteMany({ where: { participanteId: id } });
+      await tx.participante.delete({ where: { id } });
+    });
+
+    return {
+      borrado: true,
+      nombre: `${p.persona.primerNombre} ${p.persona.primerApellido}`,
+      documento: p.persona.numeroDocumento,
+      avancesBorrados: p._count.avances,
+      notasBorradas: p._count.notas,
+    };
+  }
+
   async cambiarEtapa(
     id: string,
     dto: CambiarEtapaDto,

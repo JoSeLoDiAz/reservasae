@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 
 import { EstadoReserva, Prisma } from '../../generated/prisma';
 import { semaforo } from '../catalogo/catalogo.service';
@@ -969,6 +969,55 @@ export class TablerosService {
     }
 
     return filas;
+  }
+
+  /**
+   * Borra una reserva y devuelve sus cupos. Si la
+   * organización se queda sin ninguna, se va con ella:
+   * una empresa sin reservas no es nada.
+   */
+  async borrarReserva(id: string, ambito: string[]) {
+    const reserva = await this.prisma.reserva.findFirst({
+      where: { id, ...reservaDeConvenio(ambito) },
+      include: {
+        empresa: { select: { id: true, nit: true, razonSocial: true } },
+        _count: { select: { participantes: true } },
+      },
+    });
+    if (!reserva) throw new NotFoundException('Esa reserva no existe.');
+
+    // con gente inscrita detrás, borrarla los dejaría
+    // colgando. Lo impide también la base
+    if (reserva._count.participantes > 0) {
+      throw new ConflictException(
+        `Esta reserva tiene ${reserva._count.participantes} personas inscritas. ` +
+          'Quítelas primero, o cancele la reserva en vez de borrarla.',
+      );
+    }
+
+    const devueltos = await this.prisma.$transaction(async (tx) => {
+      const cupos = reserva.estado === 'CANCELADA' ? 0 : reserva.cuposConfirmados;
+      if (cupos > 0) {
+        await tx.oferta.update({
+          where: { id: reserva.ofertaId },
+          data: { cuposOcupados: { decrement: cupos } },
+        });
+      }
+      await tx.movimientoReserva.deleteMany({ where: { reservaId: id } });
+      await tx.respuesta.deleteMany({ where: { reservaId: id } });
+      await tx.reserva.delete({ where: { id } });
+
+      const quedan = await tx.reserva.count({ where: { empresaId: reserva.empresaId } });
+      if (quedan === 0) await tx.empresa.delete({ where: { id: reserva.empresaId } });
+      return { cupos, empresaBorrada: quedan === 0 };
+    });
+
+    return {
+      borrada: true,
+      cuposDevueltos: devueltos.cupos,
+      empresaBorrada: devueltos.empresaBorrada,
+      organizacion: reserva.empresa.razonSocial,
+    };
   }
 
   /** Reservas del filtro sin paginar, para exportar. */

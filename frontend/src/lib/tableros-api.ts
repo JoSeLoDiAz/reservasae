@@ -296,8 +296,8 @@ export type DetalleAccion = {
   serie: Array<{ dia: string; cupos: number }>;
 };
 
-async function pedir<T>(ruta: string): Promise<T> {
-  const respuesta = await fetch(`/api${ruta}`);
+async function pedir<T>(ruta: string, opciones?: RequestInit): Promise<T> {
+  const respuesta = await fetch(`/api${ruta}`, opciones);
   const cuerpo = await respuesta.json().catch(() => null);
   if (!respuesta.ok) {
     const bruto = (cuerpo as { message?: string | string[] } | null)?.message;
@@ -332,6 +332,14 @@ export const tablerosApi = {
     pedir<PaginaReservas>(`/admin/tableros/reservas${consulta(filtros)}`),
 
   formularios: () => pedir<FilaFormulario[]>("/admin/tableros/formularios"),
+
+  borrarReserva: (id: string) =>
+    pedir<{
+      borrada: boolean;
+      cuposDevueltos: number;
+      empresaBorrada: boolean;
+      organizacion: string;
+    }>(`/admin/tableros/reservas/${id}`, { method: "DELETE" }),
 };
 
 /** Descarga por navegación. */
