@@ -769,7 +769,7 @@ no cambia por preparar una demostración, y nadie despliega en real sin quererlo
 ```bash
 ssh sep-vm
 cd /opt/sep/reservasae-prueba
-docker compose -f docker-compose.prueba.yml up -d --build
+docker compose -f docker-compose.prueba.yml --profile tunel up -d --build
 docker compose -f docker-compose.prueba.yml exec nginx-prueba nginx -s reload
 ```
 
@@ -865,15 +865,25 @@ en todas las pantallas.
 
 ### Lo que sigue pendiente aquí
 
-- **El túnel propio de pruebas: el código está, falta crearlo.** El riesgo que
-  se asumía **ocurrió el 18 ago 2026**: Bogotá se reinició, El Socorro se
-  promovió sola —el failover funcionó, producción nunca cayó— y el túnel
-  `convoca` se fue con ella. En El Socorro no existe `nginx-prueba`, así que
-  `prueba.reservasae.com` quedó en 502 con toda su pila sana en Bogotá.
+- **El riesgo que se asumía ocurrió el 18 ago 2026, y ya está cerrado.** A las
+  18:07 la VM de Bogotá se apagó —limpio, no fue corte de luz—, El Socorro se
+  promovió sola y el túnel `convoca` se fue con ella. El failover funcionó y
+  producción no cayó ni un segundo, pero en El Socorro no existe `nginx-prueba`:
+  `prueba.reservasae.com` quedó en 502 seis horas con toda su pila sana en
+  Bogotá. La última petición que entró fue a las 18:06:27.
 
-  `docker-compose.prueba.yml` ya trae el servicio `tunel-prueba` bajo el perfil
-  `tunel`, con su ingress en `docker/cloudflared/prueba.yml`. Falta crear el
-  túnel en Cloudflare y poner `TUNEL_PRUEBA_ID` en el `.env` de la raíz.
+  Ahora pruebas tiene **su propio túnel**, `convoca-prueba`
+  (`f6bd991c-3d0d-4a0f-b480-cd3df1269139`), con su ingress en
+  `docker/cloudflared/prueba.yml` y su id en el `.env` de la raíz del clon
+  (`TUNEL_PRUEBA_ID`, fuera de git).
+
+  **Corre con `user: 1000:1000`.** La imagen de cloudflared corre como 65532 y
+  el fichero que escribe `tunnel create` es 400 de quien lo creó: sin eso el
+  contenedor reinicia en bucle con «permission denied», que suena a permisos de
+  Docker y son los del fichero.
+
+  **Esto no evita que pruebas caiga si Bogotá se apaga** — pruebas solo vive
+  ahí. Evita que se quede caída después: vuelve sola al encender.
 
   **Este túnel es al revés que el de producción, y a propósito.** Aquel lleva
   `restart: "no"` y lo gobierna `arrancar-tunel.sh` porque puede migrar de sede
