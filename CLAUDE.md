@@ -382,7 +382,17 @@ la app completa, panel incluido.
 ```bash
 # Primer usuario, o recuperar el acceso si nadie puede entrar.
 pnpm --filter backend db:crear-admin correo@ejemplo.com "Nombre" [--rol GESTOR]
+
+# Dar concesiones a una cuenta que ya existe, sin tocarle la clave.
+pnpm --filter backend db:crear-admin correo@ejemplo.com "Nombre" --solo-permisos
 ```
+
+> **El script otorga también la concesión por convenio**, y tiene que hacerlo:
+> con el ámbito aplicado, una cuenta sin fila en `AdminConvenio` no ve nada y
+> recibe 403 en todas las rutas con área. Sin esto, el mecanismo documentado
+> para recuperar el acceso creaba cuentas que no podían trabajar. Un
+> `SUPERADMIN` nace `LIDER_SISTEMAS` en todos los convenios activos; los demás,
+> `GESTOR_INSCRIPCION`.
 
 Falta un paso manual en el panel de Cloudflare: activar **Always Use HTTPS**
 (hoy `http://reservasae.com` responde 200 en vez de redirigir).
