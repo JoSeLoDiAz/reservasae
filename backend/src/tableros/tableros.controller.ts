@@ -82,6 +82,12 @@ export class TablerosController {
     return this.tableros.porEmpresa(ambito.convenios, buscar);
   }
 
+  /** Cuántas reservas trajo cada enlace público. */
+  @Get('formularios')
+  porFormulario(@AmbitoActual() ambito: Ambito) {
+    return this.tableros.porFormulario(ambito.convenios);
+  }
+
   @Get('serie')
   serie(@AmbitoActual() ambito: Ambito, @Query('dias') dias?: string) {
     const n = Number(dias);
@@ -122,6 +128,7 @@ export class TablerosController {
           { titulo: 'Fecha', clave: 'fecha', ancho: 18 },
           { titulo: 'Estado', clave: 'estado', ancho: 18 },
           { titulo: 'Convenio', clave: 'convenio', ancho: 16 },
+          { titulo: 'Formulario', clave: 'formulario', ancho: 26 },
           { titulo: 'Código', clave: 'codigo', ancho: 8 },
           { titulo: 'Acción de formación', clave: 'accion', ancho: 50 },
           { titulo: 'Ubicación', clave: 'ubicacion', ancho: 20 },
@@ -151,6 +158,7 @@ export class TablerosController {
             fecha: r.creadoEn.toISOString().slice(0, 16).replace('T', ' '),
             estado: ESTADO_RESERVA[r.estado] ?? r.estado,
             convenio: r.oferta.accionFormacion.convenio.sigla ?? r.oferta.accionFormacion.convenio.slug,
+            formulario: r.formulario?.titulo ?? '',
             codigo: r.oferta.accionFormacion.codigo,
             accion: r.oferta.accionFormacion.nombre,
             ubicacion: r.oferta.ubicacion.nombre,
@@ -316,6 +324,7 @@ export class TablerosController {
       estado: ESTADOS.includes(estado) ? (estado as EstadoReserva) : undefined,
       convenio: consulta.convenio || undefined,
       accionId: consulta.accionId || undefined,
+      formulario: consulta.formulario || undefined,
       pagina: Number(consulta.pagina) || 1,
       porPagina: Number(consulta.porPagina) || undefined,
     };

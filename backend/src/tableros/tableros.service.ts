@@ -22,6 +22,7 @@ export type FiltrosReservas = {
   estado?: EstadoReserva;
   convenio?: string;
   accionId?: string;
+  formulario?: string;
   pagina?: number;
   porPagina?: number;
 };
@@ -827,6 +828,8 @@ export class TablerosService {
       y.push({ oferta: { accionFormacion: { convenio: { slug: filtros.convenio } } } });
     }
     if (filtros.accionId) y.push({ oferta: { accionFormacionId: filtros.accionId } });
+    // por que enlace entro
+    if (filtros.formulario) y.push({ formulario: { slug: filtros.formulario } });
 
     if (filtros.buscar?.trim()) {
       const texto = filtros.buscar.trim();
@@ -865,6 +868,7 @@ export class TablerosService {
               accionFormacion: { include: { convenio: { select: { slug: true, sigla: true } } } },
             },
           },
+          formulario: { select: { slug: true, titulo: true } },
           respuestas: { orderBy: { pregunta: { orden: 'asc' } } },
         },
       }),
@@ -905,12 +909,66 @@ export class TablerosService {
           convenio: r.oferta.accionFormacion.convenio.slug,
           convenioSigla: r.oferta.accionFormacion.convenio.sigla,
         },
+        // por que enlace entro
+        formulario: r.formulario
+          ? { slug: r.formulario.slug, titulo: r.formulario.titulo }
+          : null,
         respuestas: r.respuestas.map((x) => ({
           pregunta: x.etiquetaPregunta,
           valor: valorLegible(x),
         })),
       })),
     };
+  }
+
+  /** Cuántas reservas trajo cada enlace. */
+  async porFormulario(ambito: string[]) {
+    const formularios = await this.prisma.formulario.findMany({
+      where: { convenioId: { in: ambito } },
+      orderBy: [{ convenio: { orden: 'asc' } }, { titulo: 'asc' }],
+      select: {
+        id: true,
+        slug: true,
+        titulo: true,
+        publicado: true,
+        convenio: { select: { sigla: true, slug: true } },
+      },
+    });
+
+    const conteo = await this.prisma.reserva.groupBy({
+      by: ['formularioId'],
+      where: { ...reservaDeConvenio(ambito), estado: 'CONFIRMADA' },
+      _count: { _all: true },
+      _sum: { cuposConfirmados: true },
+    });
+    const porId = new Map(conteo.map((c) => [c.formularioId, c]));
+
+    const filas = formularios.map((f) => {
+      const c = porId.get(f.id);
+      return {
+        slug: f.slug,
+        titulo: f.titulo,
+        publicado: f.publicado,
+        convenio: f.convenio.sigla ?? f.convenio.slug,
+        reservas: c?._count._all ?? 0,
+        cupos: c?._sum.cuposConfirmados ?? 0,
+      };
+    });
+
+    // las de antes del constructor no tienen formulario
+    const huerfanas = porId.get(null);
+    if (huerfanas) {
+      filas.push({
+        slug: '',
+        titulo: 'Sin formulario (antes del constructor)',
+        publicado: false,
+        convenio: '',
+        reservas: huerfanas._count._all,
+        cupos: huerfanas._sum.cuposConfirmados ?? 0,
+      });
+    }
+
+    return filas;
   }
 
   /** Reservas del filtro sin paginar, para exportar. */
@@ -926,6 +984,7 @@ export class TablerosService {
             accionFormacion: { include: { convenio: { select: { slug: true, sigla: true } } } },
           },
         },
+        formulario: { select: { slug: true, titulo: true } },
         respuestas: { orderBy: { pregunta: { orden: 'asc' } } },
       },
     });

@@ -12,6 +12,7 @@ import {
   descargar,
   tablerosApi,
   type EstadoReserva,
+  type FilaFormulario,
   type FilaReserva,
   type PaginaReservas,
 } from "@/lib/tableros-api";
@@ -36,14 +37,19 @@ export default function PaginaReservas() {
   const [textoBuscado, setTextoBuscado] = useState("");
   const [estado, setEstado] = useState<EstadoReserva | "">("");
   const [convenio, setConvenio] = useState("");
+  const [formularios, setFormularios] = useState<FilaFormulario[]>([]);
+  const [formulario, setFormulario] = useState("");
   const [pagina, setPagina] = useState(1);
 
-  const filtros = { buscar: textoBuscado, estado, convenio, pagina };
+  const filtros = { buscar: textoBuscado, estado, convenio, formulario, pagina };
 
   // el temporizador usa siempre los filtros vigentes
   const vivos = useDatosVivos<PaginaReservas>(
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    useCallback(() => tablerosApi.reservas(filtros), [textoBuscado, estado, convenio, pagina]),
+    useCallback(
+      () => tablerosApi.reservas(filtros),
+      [textoBuscado, estado, convenio, formulario, pagina],
+    ),
   );
 
   const datos = vivos.datos;
@@ -52,6 +58,7 @@ export default function PaginaReservas() {
 
   useEffect(() => {
     void adminApi.convenios().then(setConvenios);
+    void tablerosApi.formularios().then(setFormularios);
   }, []);
 
   function buscarAhora(evento: React.FormEvent) {
@@ -124,6 +131,23 @@ export default function PaginaReservas() {
               </option>
             ))}
           </select>
+          <select
+            value={formulario}
+            onChange={(e) => {
+              setPagina(1);
+              setFormulario(e.target.value);
+            }}
+            className={`${CLASE_CONTROL} sm:w-56`}
+          >
+            <option value="">Todos los formularios</option>
+            {formularios
+              .filter((f) => f.slug)
+              .map((f) => (
+                <option key={f.slug} value={f.slug}>
+                  {f.titulo} ({f.reservas})
+                </option>
+              ))}
+          </select>
           <button
             type="submit"
             className="rounded-lg border border-borde px-5 py-2 text-sm font-medium hover:bg-superficie-alterna"
@@ -144,6 +168,7 @@ export default function PaginaReservas() {
                 <th>Organización</th>
                 <th>Contacto</th>
                 <th>Formación</th>
+                <th>Entró por</th>
                 <th className="text-right">Cupos</th>
                 <th>Estado</th>
                 <th></th>
@@ -224,6 +249,18 @@ function Fila({ reserva }: { reserva: FilaReserva }) {
             {bonito(reserva.oferta.accion)}
           </p>
           <p className="text-xs text-texto-suave">{bonito(reserva.oferta.ubicacion)}</p>
+        </td>
+        <td>
+          {reserva.formulario ? (
+            <>
+              <p className="max-w-44 truncate text-sm" title={reserva.formulario.titulo}>
+                {reserva.formulario.titulo}
+              </p>
+              <p className="font-mono text-xs text-texto-suave">/{reserva.formulario.slug}</p>
+            </>
+          ) : (
+            <span className="text-xs text-texto-suave">—</span>
+          )}
         </td>
         <td className="whitespace-nowrap text-right tabular-nums">
           {reserva.cuposConfirmados}

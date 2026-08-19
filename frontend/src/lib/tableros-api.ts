@@ -139,7 +139,18 @@ export type FilaReserva = {
     convenio: string;
     convenioSigla: string | null;
   };
+  /// Por qué enlace entró. Null si es anterior al constructor.
+  formulario: { slug: string; titulo: string } | null;
   respuestas: Array<{ pregunta: string; valor: string }>;
+};
+
+export type FilaFormulario = {
+  slug: string;
+  titulo: string;
+  publicado: boolean;
+  convenio: string;
+  reservas: number;
+  cupos: number;
 };
 
 export type PaginaReservas = {
@@ -319,6 +330,8 @@ export const tablerosApi = {
     pedir<InformeRespuestas>(`/admin/tableros/respuestas/${formularioId}`),
   reservas: (filtros: Record<string, string | number | undefined>) =>
     pedir<PaginaReservas>(`/admin/tableros/reservas${consulta(filtros)}`),
+
+  formularios: () => pedir<FilaFormulario[]>("/admin/tableros/formularios"),
 };
 
 /** Descarga por navegación. */
