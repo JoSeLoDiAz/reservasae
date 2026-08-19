@@ -363,7 +363,7 @@ function Detalle({
           <Boton type="submit" disabled={ocupado}>
             Guardar pregunta
           </Boton>
-          {!esNucleo && (
+          {!obligatorioFijo && (
             <button
               type="button"
               onClick={() =>
@@ -374,10 +374,9 @@ function Detalle({
               Archivar
             </button>
           )}
-          {esNucleo && (
+          {obligatorioFijo && (
             <span className="text-xs text-texto-suave">
-              Los campos del sistema no se pueden archivar: sin ellos no se puede
-              crear la reserva.
+              Sin este campo no se puede crear la reserva, así que no se archiva.
             </span>
           )}
         </div>
