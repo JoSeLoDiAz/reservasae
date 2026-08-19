@@ -222,10 +222,16 @@ export class FormulariosService {
           orderBy: { orden: 'asc' },
           include: { opciones: { where: { archivada: false }, orderBy: { orden: 'asc' } } },
         },
-        logos: { orderBy: { orden: 'asc' } },
       },
     });
     if (!origen) throw new NotFoundException('No existe ese formulario.');
+
+    // aparte y con select: el omit global quita los bytes
+    const logos = await this.prisma.logo.findMany({
+      where: { formularioId: id },
+      orderBy: { orden: 'asc' },
+      select: { orden: true, etiqueta: true, datos: true, tipoMime: true, nombre: true },
+    });
 
     try {
       const copiaId = await this.prisma.$transaction(async (tx) => {
@@ -304,7 +310,7 @@ export class FormulariosService {
         }
 
         // o los propios o los generales, nunca mezclados
-        for (const l of origen.logos) {
+        for (const l of logos) {
           await tx.logo.create({
             data: {
               formularioId: copia.id,

@@ -42,6 +42,7 @@ export function FormularioReserva({ slug }: { slug: string }) {
   const [catalogo, setCatalogo] = useState<Catalogo | null>(null);
   const [estado, setEstado] = useState<Estado>("cargando");
   const [error, setError] = useState<string | null>(null);
+  const [noExiste, setNoExiste] = useState(false);
   const [yaReservado, setYaReservado] = useState(false);
   const [resultado, setResultado] = useState<Reserva | null>(null);
 
@@ -60,8 +61,9 @@ export function FormularioReserva({ slug }: { slug: string }) {
       })
       .catch((e: ErrorApi) => {
         if (!vigente) return;
-        // slug desconocido: al mismo 404 mudo que la raiz
-        if (e.estado === 404) notFound();
+        // notFound() solo sirve durante el render: aqui
+        // dentro se pierde y la pagina se queda cargando
+        if (e.estado === 404) return setNoExiste(true);
         setError(e.message);
         setEstado("no-disponible");
       });
@@ -187,6 +189,10 @@ export function FormularioReserva({ slug }: { slug: string }) {
       setEstado("listo");
     }
   }
+
+  // el mismo 404 mudo que la raiz, y aqui: dentro del
+  // catch se pierde y la pagina se queda cargando
+  if (noExiste) notFound();
 
   if (estado === "cargando") return <p className="text-texto-suave">Cargando la oferta…</p>;
 
