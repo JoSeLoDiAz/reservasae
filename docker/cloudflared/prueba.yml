@@ -1,0 +1,10 @@
+# ingress del tunel de pruebas
+# solo prueba.reservasae.com, solo en Bogota
+# el UUID va como argumento de run
+credentials-file: /etc/cloudflared/credenciales.json
+protocol: http2
+ingress:
+  - hostname: prueba.reservasae.com
+    service: http://nginx-prueba:80
+  # todo lo demas no es de este tunel
+  - service: http_status:404

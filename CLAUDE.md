@@ -199,6 +199,19 @@ Recuerda que nginx quita el prefijo: de cara a internet son `/api/catalogo`,
 formulario `britcham-adee` se sirve en `/britcham-adee`. Un convenio puede
 tener varios.
 
+- **La ruta pública no puede ser una ruta del sitio.**
+  `backend/src/formularios/rutas-reservadas.ts` aparta `admin`, `api`,
+  `consulta`, `health`, `marca` y `preinscripcion`. Un formulario llamado
+  `admin` nacía inaccesible: el panel gana. El frontend repite la lista porque
+  la necesita dentro de un script en línea, pero la que manda es la del
+  servidor.
+- **La preinscripción pública cuelga del slug: dos puertas, no una.**
+  `/adecopria/preinscripcion` y `/britcham-adee/preinscripcion`. Cada gremio
+  reparte su enlace y el enlace decide el convenio — la persona nunca elige uno.
+  Se descartó una página única que listara los 15 cursos y enrutara: cubriría a
+  quien llega sin enlace, pero ninguna acción de formación se repite entre los
+  dos convenios, así que el catálogo tampoco se solapa y no hay forma de quedar
+  contado en el convenio equivocado. Decisión del cliente, 18 ago 2026.
 - **`backend/src/formularios/campos-nucleo.ts` define los campos que el
   sistema necesita** para poder crear una reserva (NIT, curso, oferta, cupos,
   aceptaciones…). El catálogo viaja al panel, igual que el de colores. Sobre
@@ -852,13 +865,27 @@ en todas las pantallas.
 
 ### Lo que sigue pendiente aquí
 
-- **`prueba.reservasae.com` cuelga del mismo túnel que produce el dominio real.**
-  El ingress del túnel `convoca` lleva las dos reglas, y ese túnel lo mueve
-  `arrancar-tunel.sh`: si se promueve otra sede, el entorno de pruebas se queda
-  sin origen aunque su pila siga viva en Bogotá. Se asume por ahora. Separarlo
-  es repuntar el CNAME al túnel compartido de Bogotá (que nunca migra), añadir
-  allí `prueba.reservasae.com → http://localhost:4601` y quitarle a
-  `nginx-prueba` la red externa.
+- **El túnel propio de pruebas: el código está, falta crearlo.** El riesgo que
+  se asumía **ocurrió el 18 ago 2026**: Bogotá se reinició, El Socorro se
+  promovió sola —el failover funcionó, producción nunca cayó— y el túnel
+  `convoca` se fue con ella. En El Socorro no existe `nginx-prueba`, así que
+  `prueba.reservasae.com` quedó en 502 con toda su pila sana en Bogotá.
+
+  `docker-compose.prueba.yml` ya trae el servicio `tunel-prueba` bajo el perfil
+  `tunel`, con su ingress en `docker/cloudflared/prueba.yml`. Falta crear el
+  túnel en Cloudflare y poner `TUNEL_PRUEBA_ID` en el `.env` de la raíz.
+
+  **Este túnel es al revés que el de producción, y a propósito.** Aquel lleva
+  `restart: "no"` y lo gobierna `arrancar-tunel.sh` porque puede migrar de sede
+  y dos conectores parten el tráfico entre dos bases. Este no migra —solo
+  existe en Bogotá y solo sirve un hostname—, así que revive solo y no necesita
+  guardia. El perfil está para que la pila suba igual mientras el túnel no
+  exista.
+
+  De paso **`nginx-prueba` deja de estar en la red de producción**. Era la
+  única razón por la que la pila de pruebas tocaba la red real, y la barrera
+  contra resolver el `backend` equivocado quedaba en el nombre del servicio.
+  Ahora ni siquiera hay ruta.
 - La casilla de tratamiento de datos del formulario público **no enlaza al
   texto**, aunque la política existe y `GET /api/politicas/:slug/RESERVA` la
   sirve. Es de producción, no del entorno de pruebas, pero aquí se ve más

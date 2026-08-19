@@ -1,5 +1,15 @@
 /** Rutas de primer nivel que NO son un formulario. */
-export const RUTAS_RESERVADAS = new Set(["admin", "consulta"]);
+// la que manda esta en backend/src/formularios/
+// rutas-reservadas.ts; aqui se repite porque hace
+// falta dentro de un script en linea
+export const RUTAS_RESERVADAS = new Set([
+  "admin",
+  "api",
+  "consulta",
+  "health",
+  "marca",
+  "preinscripcion",
+]);
 
 // el mismo patron que exige CrearFormularioDto
 export const PATRON_SLUG = /^[a-z0-9]+(-[a-z0-9]+)*$/;

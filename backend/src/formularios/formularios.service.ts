@@ -14,6 +14,7 @@ import {
 } from '../../generated/prisma';
 import { soloTokensValidos } from '../admin/apariencia';
 import { PrismaService } from '../prisma/prisma.service';
+import { esRutaReservada } from './rutas-reservadas';
 import { CAMPOS_NUCLEO, CAMPOS_OBLIGATORIOS, POR_CAMPO } from './campos-nucleo';
 import {
   ActualizarAparienciaDto,
@@ -168,6 +169,12 @@ export class FormulariosService {
   // formulario
 
   async crear(dto: CrearFormularioDto) {
+    if (esRutaReservada(dto.slug)) {
+      throw new BadRequestException(
+        `"${dto.slug}" es una ruta del sitio y no puede ser el identificador ` +
+          'de un formulario: su página pública quedaría inaccesible.',
+      );
+    }
     try {
       const formulario = await this.prisma.formulario.create({
         data: {

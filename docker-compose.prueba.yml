@@ -1,6 +1,6 @@
 # Entorno de pruebas: prueba.reservasae.com
 #
-#   docker compose -f docker-compose.prueba.yml up -d --build
+#   docker compose -f docker-compose.prueba.yml --profile tunel up -d --build
 #
 # NO se carga solo: compose solo lee docker-compose.yml y su
 # override, asi que los guiones de sede nunca lo tocan.
@@ -88,10 +88,26 @@ services:
     volumes:
       - ./docker/nginx/prueba.conf:/etc/nginx/conf.d/default.conf:ro
     networks:
-      # el tunel lo busca por este nombre en la red de
-      # produccion; sus upstreams solo existen en la suya
       - prueba-internal
-      - tunel
+
+  # su propio tunel, en Bogota y solo aqui. El de
+  # produccion migra de sede y se llevaba a pruebas
+  # con el; este no migra, asi que revive solo y no
+  # necesita perfil ni guardia
+  tunel-prueba:
+    image: cloudflare/cloudflared:latest
+    container_name: reservasae_tunel-prueba
+    restart: unless-stopped
+    profiles: ["tunel"]
+    command: tunnel --no-autoupdate --config /etc/cloudflared/config.yml run ${TUNEL_PRUEBA_ID:-}
+    volumes:
+      - ${CLOUDFLARED_DIR:-/home/sepadmin/.cloudflared}/${TUNEL_PRUEBA_ID:-}.json:/etc/cloudflared/credenciales.json:ro
+      - ./docker/cloudflared/prueba.yml:/etc/cloudflared/config.yml:ro
+    depends_on:
+      nginx-prueba:
+        condition: service_started
+    networks:
+      - prueba-internal
 
 volumes:
   # sin "pgdata" en el nombre a proposito
@@ -100,6 +116,3 @@ volumes:
 networks:
   prueba-internal:
     driver: bridge
-  tunel:
-    external: true
-    name: reservasae_reservasae-internal
