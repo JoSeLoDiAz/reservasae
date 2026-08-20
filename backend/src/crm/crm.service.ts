@@ -1160,7 +1160,24 @@ export class CrmService {
       },
     });
 
+    // quien puede llevar leads en este convenio: los que
+    // tienen concesion aqui, y no los de solo consulta
+    const asesores = await this.prisma.admin.findMany({
+      where: {
+        activo: true,
+        convenios: {
+          some: {
+            convenioId,
+            rol: { in: ['GESTOR_INSCRIPCION', 'LIDER_INSCRIPCION', 'LIDER_SISTEMAS'] },
+          },
+        },
+      },
+      orderBy: { nombre: 'asc' },
+      select: { id: true, nombre: true, correo: true },
+    });
+
     return {
+      asesores,
       ofertas: ofertas.map((o) => ({
         id: o.id,
         accionFormacionId: o.accionFormacion.id,

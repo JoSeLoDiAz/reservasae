@@ -95,7 +95,6 @@ export default function PaginaFicha() {
           </p>
           <p className="mt-1 text-sm text-texto-suave">
             {f.convenio.sigla ?? f.convenio.nombre} · {ETIQUETA_ORIGEN[f.origen]}
-            {f.asesor && ` · asesor: ${f.asesor.nombre}`}
           </p>
         </div>
         <PildoraEtapa etapa={f.etapa} />
@@ -481,5 +480,68 @@ function RegistrarAutorizacion({
         Registrar la autorización
       </Boton>
     </div>
+  );
+}
+
+/** Quién lleva este lead. Sin dueño, nadie llama. */
+function Asesor({
+  ficha,
+  opciones,
+  alGuardar,
+}: {
+  ficha: Ficha;
+  opciones: Opciones | null;
+  alGuardar: (a: () => Promise<void>) => Promise<void>;
+}) {
+  const [asesorId, setAsesorId] = useState(ficha.asesor?.id ?? "");
+  const [guardando, setGuardando] = useState(false);
+  if (!opciones) return null;
+
+  const cambiado = asesorId !== (ficha.asesor?.id ?? "");
+
+  return (
+    <Tarjeta
+      titulo="Quién lo lleva"
+      descripcion="El asesor responsable de contactar a esta persona y completar su ficha."
+    >
+      <div className="flex flex-wrap items-end gap-3">
+        <div className="min-w-64 grow">
+          <Campo etiqueta="Asesor asignado">
+            <select
+              className={CLASE_CONTROL}
+              value={asesorId}
+              onChange={(e) => setAsesorId(e.target.value)}
+            >
+              <option value="">Sin asignar — nadie lo está llamando</option>
+              {opciones.asesores.map((a) => (
+                <option key={a.id} value={a.id}>
+                  {a.nombre}
+                </option>
+              ))}
+            </select>
+          </Campo>
+        </div>
+
+        <Boton
+          type="button"
+          disabled={!cambiado || guardando}
+          onClick={async () => {
+            setGuardando(true);
+            await alGuardar(async () => {
+              await crmApi.actualizar(ficha.id, { asesorId: asesorId || null });
+            });
+            setGuardando(false);
+          }}
+        >
+          {guardando ? "Guardando…" : "Asignar"}
+        </Boton>
+      </div>
+
+      {!ficha.asesor && (
+        <p className="mt-3 text-sm text-aviso">
+          Sin asesor, esta persona no aparece en la carga de trabajo de nadie.
+        </p>
+      )}
+    </Tarjeta>
   );
 }

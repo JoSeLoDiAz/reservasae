@@ -12,6 +12,7 @@ import {
   MaxLength,
   Min,
   MinLength,
+  ValidateIf,
 } from 'class-validator';
 
 import {
@@ -178,9 +179,12 @@ export class ActualizarParticipanteDto {
   @MaxLength(120)
   nivelOcupacional?: string;
 
+  // null para quitarle el dueño, "" llega del desplegable
   @IsOptional()
+  @Transform(({ value }) => (value === '' ? null : value))
   @IsString()
-  asesorId?: string;
+  @ValidateIf((_o: unknown, valor: unknown) => valor !== null)
+  asesorId?: string | null;
 
   @IsOptional()
   @IsString()

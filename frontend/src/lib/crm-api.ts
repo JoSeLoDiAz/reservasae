@@ -32,16 +32,16 @@ export const ETAPAS_AVANCE: Etapa[] = [
 ];
 
 /**
- * Las que se ven en el tablero de inscripciones. Sin
- * CERTIFICADO: el trabajo del asesor acaba al matricular,
- * y quien certifica se sigue en el módulo académico.
+ * Las que se ven en el tablero de inscripciones: hasta
+ * matricular, que es donde acaba el trabajo del asesor.
+ * En formación y Certificado se siguen en el módulo
+ * académico, contra el calendario de su grupo.
  */
 export const ETAPAS_DE_INSCRIPCION: Etapa[] = [
   "NUEVO",
   "CONTACTADO",
   "DATOS_COMPLETOS",
   "MATRICULADO",
-  "EN_FORMACION",
 ];
 
 export const ETAPAS_SALIDA: Etapa[] = ["PERDIDO", "RETIRADO", "NO_APROBO"];
@@ -313,7 +313,14 @@ export type OpcionGrupo = {
   horario: string | null;
 };
 
-export type Opciones = { ofertas: OpcionOferta[]; grupos: OpcionGrupo[] };
+export type Asesor = { id: string; nombre: string; correo: string };
+
+export type Opciones = {
+  ofertas: OpcionOferta[];
+  grupos: OpcionGrupo[];
+  /// Quien puede llevar leads en este convenio.
+  asesores: Asesor[];
+};
 
 export const crmApi = {
   borrarParticipacion: (id: string) =>
