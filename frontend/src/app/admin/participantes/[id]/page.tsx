@@ -211,13 +211,21 @@ export default function PaginaFicha() {
         </div>
       </Tarjeta>
 
-      <Tarjeta titulo="Historial" descripcion="Cada movimiento, con su fecha y su motivo.">
-        <ol className="space-y-2">
+      <Tarjeta
+        titulo="Historial"
+        descripcion="Cada movimiento, con su fecha, quién lo hizo y su motivo."
+      >
+        <ol className="space-y-2.5">
           {f.movimientos.map((m) => (
             <li key={m.id} className="text-sm">
               <span className="text-texto-suave">{fecha(m.creadoEn)}</span> —{" "}
               {m.etapaAntes ? `${ETIQUETA_ETAPA[m.etapaAntes]} → ` : "Alta en "}
               <strong>{ETIQUETA_ETAPA[m.etapaDespues]}</strong>
+              {m.admin ? (
+                <span className="text-texto-suave"> · por {m.admin.nombre}</span>
+              ) : (
+                <span className="text-texto-suave"> · por el sistema</span>
+              )}
               {m.motivo && <span className="text-texto-suave"> · {m.motivo}</span>}
             </li>
           ))}
@@ -292,6 +300,7 @@ function Asignacion({
 }) {
   const [ofertaId, setOfertaId] = useState(ficha.oferta?.id ?? "");
   const [coberturaId, setCoberturaId] = useState(ficha.cobertura?.id ?? "");
+  const [busqueda, setBusqueda] = useState("");
 
   if (!opciones) return null;
 
@@ -300,13 +309,50 @@ function Asignacion({
     ? opciones.grupos.filter((g) => g.accionFormacionId === oferta.accionFormacionId)
     : [];
 
+  // sin tildes ni mayusculas: "bolivar" encuentra BOLIVAR
+  const sinTildes = (t: string) =>
+    t.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+  const aguja = sinTildes(busqueda.trim());
+  const coincide = (...campos: Array<string | null | undefined>) =>
+    !aguja || campos.some((c) => c && sinTildes(c).includes(aguja));
+
+  // la elegida no se esconde nunca, o el desplegable
+  // parecería haberla perdido
+  const ofertasVisibles = opciones.ofertas.filter(
+    (o) => o.id === ofertaId || coincide(o.etiqueta, o.ubicacion),
+  );
+  const gruposVisibles = grupos.filter(
+    (g) => g.id === coberturaId || coincide(g.etiqueta),
+  );
+
   return (
     <Tarjeta
       titulo="Acción de formación y grupo"
       descripcion="El grupo es lo que se reporta al SENA, y de sus fechas depende todo el seguimiento."
     >
       <div className="space-y-4">
-        <Campo etiqueta="Acción de formación y ubicación">
+        <Campo
+          etiqueta="Buscar la formación"
+          ayuda="Por nombre del curso, por código o por ciudad. Filtra las dos listas."
+        >
+          <input
+            className={CLASE_CONTROL}
+            value={busqueda}
+            onChange={(e) => setBusqueda(e.target.value)}
+            placeholder="AF8, inteligencia artificial, Bolívar…"
+          />
+        </Campo>
+
+        <Campo
+          etiqueta="Acción de formación y ubicación"
+          ayuda={
+            busqueda && ofertasVisibles.length === 0
+              ? "Ninguna coincide con esa búsqueda."
+              : busqueda
+                ? `${ofertasVisibles.length} de ${opciones.ofertas.length} coinciden`
+                : undefined
+          }
+        >
           <select
             className={CLASE_CONTROL}
             value={ofertaId}
@@ -316,7 +362,7 @@ function Asignacion({
             }}
           >
             <option value="">Sin asignar</option>
-            {opciones.ofertas.map((o) => (
+            {ofertasVisibles.map((o) => (
               <option key={o.id} value={o.id}>
                 {o.etiqueta} · {o.ubicacion} · {o.disponibles} de {o.cupos} libres
                 {!o.abierta ? " (cerrada)" : ""}
@@ -340,7 +386,7 @@ function Asignacion({
               onChange={(e) => setCoberturaId(e.target.value)}
             >
               <option value="">Sin asignar</option>
-              {grupos.map((g) => (
+              {gruposVisibles.map((g) => (
                 <option key={g.id} value={g.id}>
                   {g.etiqueta} · {g.ocupados} de {g.cupos}
                   {g.fechaInicio

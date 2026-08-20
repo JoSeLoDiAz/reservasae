@@ -19,6 +19,7 @@ import {
   crmApi,
   diasDesde,
   ETAPAS_AVANCE,
+  ETAPAS_DE_INSCRIPCION,
   ETAPAS_SALIDA,
   ETIQUETA_ETAPA,
   type Etapa,
@@ -210,7 +211,7 @@ export default function PaginaParticipantes() {
       {hayAlguien && vista === "tablero" && (
         <ScrollDoble>
           <div className="flex gap-4">
-            {[...ETAPAS_AVANCE, ...ETAPAS_SALIDA].map((etapa) => {
+            {[...ETAPAS_DE_INSCRIPCION, ...ETAPAS_SALIDA].map((etapa) => {
               const suyas = filas.filter((f) => f.etapa === etapa);
               const enLaEtapa = cuenta.get(etapa) ?? 0;
               const ocultas = enLaEtapa - suyas.length;
@@ -371,9 +372,9 @@ function Cifras({ resumen }: { resumen: Resumen }) {
         tono="exito"
       />
       <TarjetaCifra
-        etiqueta="Salidas"
+        etiqueta="No interesados"
         valor={salidas}
-        pie="perdidas, retiradas o no aprobadas"
+        pie="perdieron interés, se retiraron o no aprobaron"
         icono={IconoBrecha}
         tono={salidas > 0 ? "error" : "neutro"}
       />

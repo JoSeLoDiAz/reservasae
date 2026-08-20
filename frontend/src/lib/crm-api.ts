@@ -31,6 +31,19 @@ export const ETAPAS_AVANCE: Etapa[] = [
   "CERTIFICADO",
 ];
 
+/**
+ * Las que se ven en el tablero de inscripciones. Sin
+ * CERTIFICADO: el trabajo del asesor acaba al matricular,
+ * y quien certifica se sigue en el módulo académico.
+ */
+export const ETAPAS_DE_INSCRIPCION: Etapa[] = [
+  "NUEVO",
+  "CONTACTADO",
+  "DATOS_COMPLETOS",
+  "MATRICULADO",
+  "EN_FORMACION",
+];
+
 export const ETAPAS_SALIDA: Etapa[] = ["PERDIDO", "RETIRADO", "NO_APROBO"];
 
 export const ETIQUETA_ETAPA: Record<Etapa, string> = {
@@ -40,7 +53,7 @@ export const ETIQUETA_ETAPA: Record<Etapa, string> = {
   MATRICULADO: "Matriculado",
   EN_FORMACION: "En formación",
   CERTIFICADO: "Certificado",
-  PERDIDO: "Perdido",
+  PERDIDO: "No interesado",
   RETIRADO: "Retirado",
   NO_APROBO: "No aprobó",
 };
@@ -150,6 +163,8 @@ export type Ficha = {
     etapaDespues: Etapa;
     motivo: string | null;
     creadoEn: string;
+    /// Null si lo movió el sistema, no una persona.
+    admin: { nombre: string } | null;
   }>;
   notas: Array<{ id: string; autorNombre: string; texto: string; creadoEn: string }>;
 };

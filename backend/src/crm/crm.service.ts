@@ -268,7 +268,12 @@ export class CrmService {
         },
         asesor: { select: { id: true, nombre: true } },
         sobrecupoPor: { select: { nombre: true } },
-        movimientos: { orderBy: { creadoEn: 'desc' }, take: 50 },
+        movimientos: {
+          orderBy: { creadoEn: 'desc' },
+          take: 50,
+          // quien lo hizo ya se guardaba y no se veia
+          include: { admin: { select: { nombre: true } } },
+        },
         notas: { orderBy: { creadoEn: 'desc' }, take: 50 },
       },
     });
