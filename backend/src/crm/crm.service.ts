@@ -84,11 +84,16 @@ const ETAPAS_EN_AULA: EtapaParticipante[] = [
 const TOLERANCIA = 2;
 /// Dias sin entrar al aula a partir de los que esta parado.
 const DIAS_PARADO = 14;
+/// Lo que hay que aprobar para poder certificar.
+export const MINIMO_PARA_CERTIFICAR = 0.8;
 
 type EstadoAcademico =
   | 'AL_DIA'
   | 'ATRASADO'
   | 'PARADO'
+  | 'SIN_INGRESO'
+  | 'SIN_ARRANCAR'
+  | 'COMPLETADO'
   | 'CERTIFICADO'
   | 'SALIO'
   | 'SIN_EMPEZAR'
@@ -566,9 +571,46 @@ export class CrmService {
 
     const p = await this.prisma.participante.findUnique({
       where: { id },
-      select: { id: true, etapa: true, convenioId: true },
+      select: { id: true, etapa: true, convenioId: true, accionFormacionId: true },
     });
     if (!p) throw new NotFoundException('Ese participante no existe.');
+
+    // certificar exige haber aprobado el 80% de lo
+    // obligatorio: sin eso, la fila que se le manda al
+    // SENA dice que alguien termino algo que no termino
+    if (dto.etapa === 'CERTIFICADO') {
+      const [obligatorias, aprobadas] = await Promise.all([
+        this.prisma.actividad.count({
+          where: {
+            accionFormacionId: p.accionFormacionId ?? '',
+            publicada: true,
+            obligatoria: true,
+          },
+        }),
+        this.prisma.avanceActividad.count({
+          where: {
+            participanteId: id,
+            estado: 'APROBADA',
+            actividad: { obligatoria: true, publicada: true },
+          },
+        }),
+      ]);
+
+      if (obligatorias === 0) {
+        throw new BadRequestException(
+          'Esta acción de formación no tiene actividades obligatorias cargadas: ' +
+            'no hay contra qué medir si terminó.',
+        );
+      }
+      const logrado = aprobadas / obligatorias;
+      if (logrado < MINIMO_PARA_CERTIFICAR) {
+        throw new BadRequestException(
+          `Lleva ${aprobadas} de ${obligatorias} actividades obligatorias ` +
+            `(${Math.round(logrado * 100)} %). Para certificar hacen falta ` +
+            `${Math.round(MINIMO_PARA_CERTIFICAR * 100)} %.`,
+        );
+      }
+    }
 
     // certificar es lo que paga el SENA: no lo firma quien
     // digita, aunque digite bien
@@ -905,12 +947,24 @@ export class CrmService {
         ? Math.floor((ahora - p.ultimoAcceso.getTime()) / 86_400_000)
         : null;
 
+      // el 80% de lo obligatorio: es lo que habilita a
+      // certificar, y se mide contra el total del curso,
+      // no contra lo que tocaria a estas alturas
+      const porcentaje = total > 0 ? hechas / total : 0;
+      const listoParaCertificar = total > 0 && porcentaje >= MINIMO_PARA_CERTIFICAR;
+
       let estado: EstadoAcademico;
       if (p.etapa === 'CERTIFICADO') estado = 'CERTIFICADO';
       else if (p.etapa === 'NO_APROBO' || p.etapa === 'RETIRADO') estado = 'SALIO';
+      else if (listoParaCertificar) estado = 'COMPLETADO';
       else if (esperadas === null) estado = 'SIN_FECHAS';
-      // sin arrancar no se puede ir tarde
+      // el grupo aun no arranca: no se juzga a nadie
       else if (inicio !== null && ahora < inicio) estado = 'SIN_EMPEZAR';
+      // nunca piso el aula, aunque su grupo ya empezo
+      else if (p.ultimoAcceso === null) estado = 'SIN_INGRESO';
+      // entro y no hizo nada: se rescata con una llamada,
+      // que es distinto de no haber entrado nunca
+      else if (hechas === 0) estado = 'SIN_ARRANCAR';
       else if (diasSinEntrar !== null && diasSinEntrar >= DIAS_PARADO) estado = 'PARADO';
       else if (desfase! <= -TOLERANCIA) estado = 'ATRASADO';
       else estado = 'AL_DIA';
@@ -934,6 +988,9 @@ export class CrmService {
         esperadas,
         desfase,
         porcentaje: total > 0 ? Math.round((hechas / total) * 100) : 0,
+        listoParaCertificar,
+        // para agrupar por acción y grupo en la pantalla
+        coberturaId: p.coberturaId,
         ultimoAcceso: p.ultimoAcceso,
         diasSinEntrar,
         notaFinal: p.notaFinal,
@@ -993,6 +1050,9 @@ export class CrmService {
         alDia: cuenta('AL_DIA'),
         atrasados: cuenta('ATRASADO'),
         parados: cuenta('PARADO'),
+        sinIngreso: cuenta('SIN_INGRESO'),
+        sinArrancar: cuenta('SIN_ARRANCAR'),
+        completados: cuenta('COMPLETADO'),
         certificados: cuenta('CERTIFICADO'),
         salieron: cuenta('SALIO'),
         sinEmpezar: cuenta('SIN_EMPEZAR'),
@@ -1002,6 +1062,7 @@ export class CrmService {
       criterio: {
         tolerancia: TOLERANCIA,
         diasParado: DIAS_PARADO,
+        minimoParaCertificar: MINIMO_PARA_CERTIFICAR,
       },
     };
   }

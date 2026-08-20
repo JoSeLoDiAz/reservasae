@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { useCallback, useState } from "react";
 
-import { PildoraEtapa } from "@/components/admin/etapa";
 import { IndicadorActualizacion } from "@/components/admin/indicador-actualizacion";
 import { Aviso, CLASE_CONTROL, Tarjeta } from "@/components/admin/marco-admin";
 import { Esqueleto } from "@/components/admin/piezas";
@@ -12,25 +11,33 @@ import {
   type Academico,
   crmApi,
   type EstadoAcademico,
+  AYUDA_ACADEMICA,
   ETIQUETA_ACADEMICA,
   type FilaAcademica,
 } from "@/lib/crm-api";
 
 // el color sale del token de la etapa que le corresponde
 const COLOR: Record<EstadoAcademico, string> = {
+  COMPLETADO: "var(--etapa-matriculado)",
   AL_DIA: "var(--etapa-certificado)",
   ATRASADO: "var(--etapa-en-formacion)",
   PARADO: "var(--etapa-perdido)",
+  SIN_ARRANCAR: "var(--etapa-datos-completos)",
+  SIN_INGRESO: "var(--etapa-perdido)",
   CERTIFICADO: "var(--etapa-matriculado)",
   SALIO: "var(--etapa-retirado)",
   SIN_EMPEZAR: "var(--etapa-contactado)",
   SIN_FECHAS: "var(--etapa-nuevo)",
 };
 
+/// De lo más urgente a lo que no pide nada.
 const ORDEN: EstadoAcademico[] = [
+  "SIN_INGRESO",
+  "SIN_ARRANCAR",
   "PARADO",
   "ATRASADO",
   "AL_DIA",
+  "COMPLETADO",
   "CERTIFICADO",
   "SIN_EMPEZAR",
   "SIN_FECHAS",
@@ -48,6 +55,7 @@ function fecha(iso: string | null) {
 
 export default function PaginaAcademico() {
   const [filtro, setFiltro] = useState<EstadoAcademico | "">("");
+  const [accionAbierta, setAccionAbierta] = useState<string | null>(null);
   const [buscar, setBuscar] = useState("");
   const [accionFormacionId, setAccion] = useState("");
   const [grupoId, setGrupo] = useState("");
@@ -80,14 +88,36 @@ export default function PaginaAcademico() {
     : datos.personas;
 
   const cuenta: Record<EstadoAcademico, number> = {
+    COMPLETADO: resumen.completados,
     AL_DIA: resumen.alDia,
     ATRASADO: resumen.atrasados,
     PARADO: resumen.parados,
+    SIN_ARRANCAR: resumen.sinArrancar,
+    SIN_INGRESO: resumen.sinIngreso,
     CERTIFICADO: resumen.certificados,
     SALIO: resumen.salieron,
     SIN_EMPEZAR: resumen.sinEmpezar,
     SIN_FECHAS: resumen.sinFechas,
   };
+
+  // por acción y dentro por grupo: el acordeón
+  const porAccion = new Map<
+    string,
+    { titulo: string; grupos: Map<string, FilaAcademica[]> }
+  >();
+  for (const p of visibles) {
+    const clave = p.accionFormacionId ?? "sin-accion";
+    if (!porAccion.has(clave)) {
+      porAccion.set(clave, {
+        titulo: p.accion ?? "Sin acción de formación",
+        grupos: new Map(),
+      });
+    }
+    const grupos = porAccion.get(clave)!.grupos;
+    const cg = p.grupo ? `Grupo ${p.grupo}` : "Sin grupo";
+    if (!grupos.has(cg)) grupos.set(cg, []);
+    grupos.get(cg)!.push(p);
+  }
 
   return (
     <div className="space-y-6">
@@ -112,10 +142,13 @@ export default function PaginaAcademico() {
       </header>
 
       <p className="text-sm text-texto-suave">
-        «Atrasado» es llevar {criterio.tolerancia} actividades obligatorias o más por
-        debajo de lo que tocaría a estas alturas del grupo. «Parado» es no entrar al
-        aula desde hace {criterio.diasParado} días o más. Si el grupo no tiene fechas
-        no se juzga: se dice que faltan.
+        Cada estado dice qué hacer: <strong>Sin ingreso</strong> nunca entró,{" "}
+        <strong>Sin arrancar</strong> entró y no aprobó nada,{" "}
+        <strong>Parado</strong> lleva {criterio.diasParado} días sin volver, y{" "}
+        <strong>Atrasado</strong> va {criterio.tolerancia} actividades o más por
+        debajo de lo que tocaría. Se certifica con el{" "}
+        {Math.round(criterio.minimoParaCertificar * 100)} % de lo obligatorio
+        aprobado. Si el grupo no tiene fechas no se juzga: se dice que faltan.
       </p>
 
       <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-6">
@@ -223,70 +256,16 @@ export default function PaginaAcademico() {
           </p>
         </Tarjeta>
       ) : (
-        <div className="caja-scroll overflow-x-auto">
-          <table className="tabla-datos">
-            <thead>
-              <tr>
-                <th>Persona</th>
-                <th>Acción y grupo</th>
-                <th>Etapa</th>
-                <th>Asesor</th>
-                <th>Avance</th>
-                <th>Va</th>
-                <th>Último acceso</th>
-                <th>Termina</th>
-              </tr>
-            </thead>
-            <tbody>
-              {visibles.map((p) => (
-                <tr key={p.id}>
-                  <td>
-                    <Link href={`/admin/participantes/${p.id}`} className="underline">
-                      {p.nombre}
-                    </Link>
-                    <span className="block font-mono text-xs text-texto-suave">
-                      {p.documento}
-                    </span>
-                  </td>
-                  <td>
-                    {p.accion ?? "—"}
-                    <span className="block text-xs text-texto-suave">
-                      {p.grupo ? `Grupo ${p.grupo}` : "Sin grupo asignado"}
-                      {p.horario ? ` · ${p.horario}` : ""}
-                    </span>
-                  </td>
-                  <td>
-                    <PildoraEtapa etapa={p.etapa} />
-                  </td>
-                  <td className="text-sm">
-                    {p.asesor?.nombre ?? (
-                      <span className="text-texto-suave">Sin asignar</span>
-                    )}
-                  </td>
-                  <td>
-                    <Barra fila={p} />
-                  </td>
-                  <td>
-                    <span
-                      className="pildora-etapa"
-                      style={{ ["--etapa"]: COLOR[p.estado] } as React.CSSProperties}
-                    >
-                      <span className="punto-etapa" aria-hidden />
-                      {ETIQUETA_ACADEMICA[p.estado]}
-                    </span>
-                  </td>
-                  <td className="text-sm">
-                    {p.diasSinEntrar === null
-                      ? "Nunca entró"
-                      : p.diasSinEntrar === 0
-                        ? "Hoy"
-                        : `Hace ${p.diasSinEntrar} d`}
-                  </td>
-                  <td className="text-sm">{fecha(p.fechaFin)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <div className="space-y-3">
+          {[...porAccion.entries()].map(([clave, { titulo, grupos }]) => (
+            <AccionAcordeon
+              key={clave}
+              titulo={titulo}
+              grupos={grupos}
+              abierta={accionAbierta === clave}
+              alAbrir={() => setAccionAbierta(accionAbierta === clave ? null : clave)}
+            />
+          ))}
         </div>
       )}
     </div>
@@ -322,6 +301,127 @@ function Barra({ fila }: { fila: FilaAcademica }) {
         {fila.hechas}/{fila.total}
         {fila.esperadas !== null && ` · tocaría ${fila.esperadas}`}
       </span>
+    </div>
+  );
+}
+
+/** Una acción plegada; dentro, sus grupos con su gente. */
+function AccionAcordeon({
+  titulo,
+  grupos,
+  abierta,
+  alAbrir,
+}: {
+  titulo: string;
+  grupos: Map<string, FilaAcademica[]>;
+  abierta: boolean;
+  alAbrir: () => void;
+}) {
+  const gente = [...grupos.values()].flat();
+  const alerta = gente.filter((p) =>
+    ["SIN_INGRESO", "SIN_ARRANCAR", "PARADO", "ATRASADO"].includes(p.estado),
+  ).length;
+
+  return (
+    <section className="overflow-hidden rounded-2xl border border-borde bg-superficie shadow-sm">
+      <button
+        onClick={alAbrir}
+        aria-expanded={abierta}
+        className="flex w-full items-center gap-4 p-5 text-left transition hover:bg-superficie-alterna"
+      >
+        <span className="min-w-0 grow">
+          <span className="block font-medium">{titulo}</span>
+          <span className="mt-1 block text-sm text-texto-suave">
+            {grupos.size} {grupos.size === 1 ? "grupo" : "grupos"} · {gente.length}{" "}
+            {gente.length === 1 ? "persona" : "personas"}
+            {alerta > 0 && (
+              <span className="text-error"> · {alerta} necesitan atención</span>
+            )}
+          </span>
+        </span>
+        <span aria-hidden className="shrink-0 text-texto-suave">
+          {abierta ? "▴" : "▾"}
+        </span>
+      </button>
+
+      {abierta && (
+        <div className="space-y-5 border-t border-borde p-5">
+          {[...grupos.entries()].map(([nombreGrupo, personas]) => (
+            <GrupoAcordeon key={nombreGrupo} nombre={nombreGrupo} personas={personas} />
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
+function GrupoAcordeon({
+  nombre,
+  personas,
+}: {
+  nombre: string;
+  personas: FilaAcademica[];
+}) {
+  const uno = personas[0];
+  return (
+    <div>
+      <div className="mb-2 flex flex-wrap items-baseline gap-x-3">
+        <h3 className="font-medium">{nombre}</h3>
+        <span className="text-sm text-texto-suave">
+          {personas.length} {personas.length === 1 ? "persona" : "personas"}
+          {uno.fechaInicio && ` · ${fecha(uno.fechaInicio)} → ${fecha(uno.fechaFin)}`}
+          {uno.horario && ` · ${uno.horario}`}
+        </span>
+      </div>
+
+      <div className="caja-scroll overflow-x-auto rounded-xl border border-borde">
+        <table className="tabla-datos">
+          <thead>
+            <tr>
+              <th>Persona</th>
+              <th>Asesor</th>
+              <th>Avance</th>
+              <th>Va</th>
+              <th>Último acceso</th>
+            </tr>
+          </thead>
+          <tbody>
+            {personas.map((p) => (
+              <tr key={p.id}>
+                <td>
+                  <Link href={`/admin/participantes/${p.id}`} className="underline">
+                    {p.nombre}
+                  </Link>
+                  <span className="block font-mono text-xs text-texto-suave">
+                    {p.documento}
+                  </span>
+                </td>
+                <td className="text-sm">{p.asesor?.nombre ?? "—"}</td>
+                <td className="min-w-44">
+                  <Barra fila={p} />
+                </td>
+                <td>
+                  <span
+                    style={{ ["--etapa"]: COLOR[p.estado] } as React.CSSProperties}
+                    className="pildora-etapa"
+                    title={AYUDA_ACADEMICA[p.estado]}
+                  >
+                    {ETIQUETA_ACADEMICA[p.estado]}
+                  </span>
+                </td>
+                <td className="text-sm whitespace-nowrap">
+                  {p.ultimoAcceso ? fecha(p.ultimoAcceso) : "nunca"}
+                  {p.diasSinEntrar !== null && p.diasSinEntrar >= 14 && (
+                    <span className="block text-xs text-error">
+                      hace {p.diasSinEntrar} días
+                    </span>
+                  )}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }

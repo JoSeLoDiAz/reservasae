@@ -170,17 +170,35 @@ export type Ficha = {
 };
 
 export type EstadoAcademico =
-  | "AL_DIA" | "ATRASADO" | "PARADO" | "CERTIFICADO" | "SALIO"
+  | "AL_DIA" | "ATRASADO" | "PARADO" | "SIN_INGRESO" | "SIN_ARRANCAR"
+  | "COMPLETADO" | "CERTIFICADO" | "SALIO"
   | "SIN_EMPEZAR" | "SIN_FECHAS";
 
 export const ETIQUETA_ACADEMICA: Record<EstadoAcademico, string> = {
+  COMPLETADO: "Listo para certificar",
   AL_DIA: "Al día",
   ATRASADO: "Atrasado",
   PARADO: "Parado",
+  SIN_ARRANCAR: "Sin arrancar",
+  SIN_INGRESO: "Sin ingreso",
   CERTIFICADO: "Certificado",
   SALIO: "Salió",
   SIN_EMPEZAR: "Sin empezar",
   SIN_FECHAS: "Sin fechas de grupo",
+};
+
+/// Qué significa cada uno, para no tener que adivinarlo.
+export const AYUDA_ACADEMICA: Record<EstadoAcademico, string> = {
+  COMPLETADO: "Aprobó el 80 % o más de lo obligatorio.",
+  AL_DIA: "Avanza al ritmo que marca el calendario de su grupo.",
+  ATRASADO: "Va dos actividades o más por debajo de lo que tocaría.",
+  PARADO: "No entra al aula desde hace 14 días o más.",
+  SIN_ARRANCAR: "Entró al aula pero no ha aprobado ninguna actividad.",
+  SIN_INGRESO: "Su grupo ya empezó y nunca ha entrado al aula.",
+  CERTIFICADO: "Terminó y se le certificó.",
+  SALIO: "Se retiró o no aprobó.",
+  SIN_EMPEZAR: "Su grupo todavía no arranca: no se juzga.",
+  SIN_FECHAS: "Su grupo no tiene fechas: no hay contra qué medir.",
 };
 
 export type FilaAcademica = {
@@ -189,6 +207,7 @@ export type FilaAcademica = {
   documento: string;
   etapa: Etapa;
   accion: string | null;
+  accionFormacionId: string | null;
   grupo: number | null;
   fechaInicio: string | null;
   fechaFin: string | null;
@@ -199,6 +218,8 @@ export type FilaAcademica = {
   esperadas: number | null;
   desfase: number | null;
   porcentaje: number;
+  listoParaCertificar: boolean;
+  coberturaId: string | null;
   ultimoAcceso: string | null;
   diasSinEntrar: number | null;
   notaFinal: string | null;
@@ -217,12 +238,19 @@ export type Academico = {
     alDia: number;
     atrasados: number;
     parados: number;
+    sinIngreso: number;
+    sinArrancar: number;
+    completados: number;
     certificados: number;
     salieron: number;
     sinEmpezar: number;
     sinFechas: number;
   };
-  criterio: { tolerancia: number; diasParado: number };
+  criterio: {
+    tolerancia: number;
+    diasParado: number;
+    minimoParaCertificar: number;
+  };
 };
 
 export type CatalogosSep = {
