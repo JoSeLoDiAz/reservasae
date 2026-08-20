@@ -162,6 +162,8 @@ export type Ficha = {
     etapaAntes: Etapa | null;
     etapaDespues: Etapa;
     motivo: string | null;
+    /// Lo que no es un cambio de etapa: el asesor, p. ej.
+    nota: string | null;
     creadoEn: string;
     /// Null si lo movió el sistema, no una persona.
     admin: { nombre: string } | null;

@@ -221,14 +221,25 @@ export default function PaginaFicha() {
           {f.movimientos.map((m) => (
             <li key={m.id} className="text-sm">
               <span className="text-texto-suave">{fecha(m.creadoEn)}</span> —{" "}
-              {m.etapaAntes ? `${ETIQUETA_ETAPA[m.etapaAntes]} → ` : "Alta en "}
-              <strong>{ETIQUETA_ETAPA[m.etapaDespues]}</strong>
+              {m.etapaAntes === m.etapaDespues ? (
+                // no cambio de etapa: fue otra cosa, y la nota
+                // es la que dice cual
+                <strong>{m.nota ?? "Se le hizo un cambio"}</strong>
+              ) : (
+                <>
+                  {m.etapaAntes ? `${ETIQUETA_ETAPA[m.etapaAntes]} → ` : "Alta en "}
+                  <strong>{ETIQUETA_ETAPA[m.etapaDespues]}</strong>
+                </>
+              )}
               {m.admin ? (
                 <span className="text-texto-suave"> · por {m.admin.nombre}</span>
               ) : (
                 <span className="text-texto-suave"> · por el sistema</span>
               )}
               {m.motivo && <span className="text-texto-suave"> · {m.motivo}</span>}
+              {m.nota && m.etapaAntes !== m.etapaDespues && (
+                <span className="text-texto-suave"> · {m.nota}</span>
+              )}
             </li>
           ))}
         </ol>
