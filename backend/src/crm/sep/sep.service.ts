@@ -284,14 +284,24 @@ export class SepService {
       },
     });
 
-    // una sola consulta para todas las autorizaciones
+    // una sola consulta para todas las autorizaciones.
+    // El filtro va por la relacion y NO con la lista de
+    // personaId: Postgres admite 32.767 parametros en una
+    // sentencia preparada, asi que un `in` con un id por
+    // participante revienta el reporte entero pasada esa
+    // cifra. Por la relacion no viaja ningun parametro que
+    // crezca con las filas
     const autorizados = new Set(
       (
         await this.prisma.autorizacionDatos.findMany({
           where: {
             revocadaEn: null,
             politica: { destinatario: 'PARTICIPANTE', convenioId },
-            personaId: { in: participantes.map((p) => p.personaId) },
+            persona: {
+              participaciones: {
+                some: { convenioId, etapa: { in: ETAPAS_DEL_REPORTE } },
+              },
+            },
           },
           select: { personaId: true },
         })
