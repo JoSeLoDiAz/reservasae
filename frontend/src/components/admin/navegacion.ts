@@ -3,6 +3,7 @@
 import { alcanza, type Area, type Nivel } from '@/lib/admin-api';
 import {
   IconoApariencia, IconoAvance, IconoBrecha, IconoCargar, IconoConfiguracion,
+  IconoCronograma,
   IconoFormacion, IconoFormularios, IconoInscribir, IconoMatriculados,
   IconoOrganizaciones, IconoPerfil, IconoPoliticas, IconoReportes,
   IconoReservas, IconoResumen, IconoTablero, IconoUsuarios, type Icono,
@@ -43,6 +44,7 @@ export const MODULOS: Modulo[] = [
       { href: '/admin', etiqueta: 'Resumen', exacto: true, area: 'reserva' , icono: IconoResumen },
       { href: '/admin/reservas', etiqueta: 'Reservas', area: 'reserva' , icono: IconoReservas },
       { href: '/admin/empresas', etiqueta: 'Organizaciones', area: 'reserva' , icono: IconoOrganizaciones },
+      { href: '/admin/cronograma', etiqueta: 'Cronograma', area: 'reserva', icono: IconoCronograma },
     ],
   },
   {

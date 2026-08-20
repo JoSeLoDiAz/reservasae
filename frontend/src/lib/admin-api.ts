@@ -300,3 +300,66 @@ export const adminApi = {
 export function urlLogo(logo: Pick<Logo, "id" | "version">): string {
   return `/api/marca/logos/${logo.id}?v=${logo.version}`;
 }
+
+// cronograma
+
+export type EstadoGrupo = "SIN_FECHAS" | "POR_EMPEZAR" | "EN_CURSO" | "TERMINADO";
+
+export type GrupoCronograma = {
+  id: string;
+  numero: number;
+  modalidad: string;
+  fechaInicio: string | null;
+  fechaFin: string | null;
+  horario: string | null;
+  sepGrupoId: number | null;
+  sede: string | null;
+  estado: EstadoGrupo;
+  cupos: number;
+  inscritos: number;
+  ubicaciones: Array<{
+    id: string;
+    nombre: string;
+    tipo: string;
+    cupos: number;
+    inscritos: number;
+  }>;
+};
+
+export type AccionCronograma = {
+  id: string;
+  codigo: string;
+  nombre: string;
+  horas: number;
+  visible: boolean;
+  convenio: string;
+  grupos: GrupoCronograma[];
+  cupos: number;
+  inscritos: number;
+  sinFechas: number;
+};
+
+export const ETIQUETA_ESTADO_GRUPO: Record<EstadoGrupo, string> = {
+  SIN_FECHAS: "Sin fechas",
+  POR_EMPEZAR: "Por empezar",
+  EN_CURSO: "En curso",
+  TERMINADO: "Terminado",
+};
+
+export const cronogramaApi = {
+  listar: () => pedir<AccionCronograma[]>("/admin/cronograma"),
+
+  actualizarGrupo: (
+    id: string,
+    datos: {
+      fechaInicio?: string | null;
+      fechaFin?: string | null;
+      horario?: string;
+      sepGrupoId?: number | null;
+    },
+  ) =>
+    pedir<{ actualizado: boolean }>(`/admin/cronograma/grupos/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(datos),
+    }),
+};

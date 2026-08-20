@@ -215,3 +215,12 @@ export const IconoAccesibilidad: Icono = (p) => (
     <path d="m12 14-2.5 6M12 14l2.5 6" />
   </Svg>
 );
+
+export const IconoCronograma: Icono = (p) => (
+  <Svg {...p}>
+    <rect x="3" y="5" width="18" height="16" rx="2" />
+    <path d="M3 10h18" />
+    <path d="M8 3v4M16 3v4" />
+    <path d="M7 14h4M7 17.5h7" />
+  </Svg>
+);
