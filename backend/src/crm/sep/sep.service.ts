@@ -10,12 +10,19 @@ import {
 import { EtapaParticipante } from '../../../generated/prisma';
 import { PrismaService } from '../../prisma/prisma.service';
 import { construirLibro, type Hoja } from '../../tableros/exportar';
+import { DEPARTAMENTO_POR_ID, MUNICIPIO_POR_ID } from '../catalogos-sep';
 import { revisar } from '../completitud';
 import { GENERO_EN_EL_REPORTE, type FilaSep } from './datos';
 import * as cargue from './formato-cargue-sep';
+import {
+  COLUMNAS as COLUMNAS_F7,
+  faltaEnF7,
+  fila as filaF7,
+  type FilaF7,
+} from './formato-f7';
 import * as usoDirecto from './formato-uso-directo';
 
-export type Formato = 'uso-directo' | 'cargue-sep';
+export type Formato = 'uso-directo' | 'cargue-sep' | 'f7';
 
 /// Solo quien ya tiene silla. Se dice cuáles entran, no
 /// cuáles se excluyen: por descarte entraría NUEVO, que es
@@ -93,6 +100,123 @@ export class SepService {
       listos: listos.length,
       excluidos: excluidos.length,
     };
+  }
+
+  /**
+   * El F7 va por ORGANIZACIÓN, no por persona: una fila
+   * es una empresa dentro de una acción, con cuántos de
+   * los suyos se están formando.
+   */
+  async exportarF7(convenioId: string, ambito: string[]) {
+    if (!ambito.includes(convenioId)) {
+      throw new ForbiddenException('No tiene acceso a ese convenio.');
+    }
+
+    const participantes = await this.prisma.participante.findMany({
+      where: {
+        convenioId,
+        etapa: { in: ETAPAS_DEL_REPORTE },
+        reserva: { isNot: null },
+      },
+      select: {
+        accionFormacion: { select: { nombre: true } },
+        reserva: { select: { empresa: true } },
+      },
+    });
+
+    // agrupadas por empresa Y accion: la misma empresa
+    // puede tener gente en dos cursos distintos
+    const grupos = new Map<string, FilaF7>();
+    for (const p of participantes) {
+      const e = p.reserva?.empresa;
+      if (!e || !p.accionFormacion) continue;
+      const clave = `${e.id}|${p.accionFormacion.nombre}`;
+      const ya = grupos.get(clave);
+      if (ya) {
+        ya.beneficiarios += 1;
+        continue;
+      }
+      grupos.set(clave, {
+        accion: p.accionFormacion.nombre,
+        beneficiarios: 1,
+        empresa: {
+          razonSocial: e.razonSocial,
+          nit: e.nit,
+          digitoVerificacion: e.digitoVerificacion,
+          departamento: e.departamentoSepId
+            ? (DEPARTAMENTO_POR_ID.get(e.departamentoSepId)?.etiqueta ?? null)
+            : null,
+          // el municipio es una tupla [id, depto, nombre, ...]
+          municipio: e.municipioSepId
+            ? (MUNICIPIO_POR_ID.get(e.municipioSepId)?.[2] ?? null)
+            : null,
+          direccion: e.direccion,
+          telefono: e.telefono,
+          contactoNombre: e.contactoNombre,
+          contactoCargo: e.contactoCargo,
+          contactoCorreo: e.contactoCorreo,
+          tamanoSepId: e.tamanoSepId,
+          numeroTrabajadores: e.numeroTrabajadores,
+          papelEnConvenio: e.papelEnConvenio,
+          sectorEconomico: e.sectorEconomico,
+          clasificacion: e.clasificacion,
+        },
+      });
+    }
+
+    const todas = [...grupos.values()].sort((a, b) =>
+      a.empresa.razonSocial.localeCompare(b.empresa.razonSocial, 'es'),
+    );
+
+    const listas: FilaF7[] = [];
+    const incompletas: Array<{ empresa: string; nit: string; accion: string; motivo: string }> = [];
+    for (const f of todas) {
+      const falta = faltaEnF7(f.empresa);
+      if (falta.length) {
+        incompletas.push({
+          empresa: f.empresa.razonSocial,
+          nit: f.empresa.nit,
+          accion: f.accion,
+          motivo: falta[0],
+        });
+      } else {
+        listas.push(f);
+      }
+    }
+
+    const hojas: Hoja[] = [
+      {
+        nombre: 'F7',
+        columnas: COLUMNAS_F7,
+        filas: listas.map((f, i) => filaF7(f, i)),
+        crudo: true,
+      },
+    ];
+
+    if (incompletas.length) {
+      hojas.push({
+        nombre: 'No exportadas',
+        columnas: [
+          { titulo: 'Organización', clave: 'empresa', ancho: 40 },
+          { titulo: 'NIT', clave: 'nit' },
+          { titulo: 'Acción de formación', clave: 'accion', ancho: 50 },
+          { titulo: 'Qué le falta', clave: 'motivo', ancho: 40 },
+        ],
+        filas: incompletas,
+      });
+    }
+
+    return {
+      libro: await construirLibro(hojas),
+      listos: listas.length,
+      excluidos: incompletas.length,
+    };
+  }
+
+  /** Cuántas organizaciones entran en el F7 y cuántas no. */
+  async alistamientoF7(convenioId: string, ambito: string[]) {
+    const { listos, excluidos } = await this.exportarF7(convenioId, ambito);
+    return { listos, noListos: excluidos };
   }
 
   /** Arma las filas y separa las que no están listas. */

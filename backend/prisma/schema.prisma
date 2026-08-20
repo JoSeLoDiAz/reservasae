@@ -203,6 +203,8 @@ model Empresa {
   numeroTrabajadores Int?
   /// Conviniente, beneficiaria o de la cadena productiva.
   papelEnConvenio    String?
+  /// Publica, privada o mixta. Va en el F7.
+  clasificacion      String?
   contactoNombre String?
   contactoCargo  String?
   contactoCorreo String?

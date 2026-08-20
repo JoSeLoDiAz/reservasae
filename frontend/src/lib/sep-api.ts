@@ -13,7 +13,7 @@ export type Alistamiento = {
   }>;
 };
 
-export type FormatoSep = "uso-directo" | "cargue-sep";
+export type FormatoSep = "uso-directo" | "cargue-sep" | "f7";
 
 async function pedir<T>(ruta: string): Promise<T> {
   const respuesta = await fetch(`/api${ruta}`);

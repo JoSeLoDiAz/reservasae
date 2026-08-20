@@ -32,6 +32,13 @@ export class SepController {
     @AmbitoActual() ambito: Ambito,
     @Res() res: Response,
   ) {
+    // el F7 va por organizacion y tiene su propio camino
+    if (formato === 'f7') {
+      const { libro } = await this.sep.exportarF7(convenioId, ambito.convenios);
+      enviarLibro(res, libro, 'f7-empresas');
+      return;
+    }
+
     const cual: Formato = formato === 'cargue-sep' ? 'cargue-sep' : 'uso-directo';
     const { libro } = await this.sep.exportar(
       convenioId,

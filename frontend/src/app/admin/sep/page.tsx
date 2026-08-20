@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 
 import { Aviso, Boton, CLASE_CONTROL, Tarjeta } from "@/components/admin/marco-admin";
+import { BotonSuave } from "@/components/admin/piezas";
 import { adminApi } from "@/lib/admin-api";
 import { ErrorApi } from "@/lib/api";
 import { descargarSep, sepApi, type Alistamiento } from "@/lib/sep-api";
@@ -105,7 +106,17 @@ export default function PaginaSep() {
               >
                 Reporte al SEP
               </Boton>
+              <BotonSuave onClick={() => descargarSep(convenioId, "f7")}>
+                F7 · empresas
+              </BotonSuave>
             </div>
+
+            <p className="mt-3 text-sm text-texto-suave">
+              El <strong>F7</strong> va por organización, no por persona: una fila
+              es una empresa dentro de una acción, con cuántos de los suyos se
+              están formando. Sus datos los llena la propia persona desde el
+              enlace de completado.
+            </p>
             {datos.listos === 0 && (
               <p className="mt-3 text-sm text-texto-suave">
                 Nadie está listo todavía: no tiene sentido bajar un archivo vacío.

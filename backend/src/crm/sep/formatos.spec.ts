@@ -1,4 +1,5 @@
 import { COLUMNAS as CARGUE } from './formato-cargue-sep';
+import { COLUMNAS as F7 } from './formato-f7';
 import { COLUMNAS as USO } from './formato-uso-directo';
 
 /// Copiadas del fichero real que entregó el cliente. El
@@ -120,5 +121,48 @@ describe('formato de cargue al SEP', () => {
     for (const clave of ['documento', 'nitEmpresa', 'celular']) {
       expect(CARGUE.find((c) => c.clave === clave)?.formato).toBe('entero');
     }
+  });
+});
+
+/// Copiadas del "F7 - SENA.XLSX" que entregó el cliente.
+/// La J lleva un espacio DELANTE y la P un salto de línea
+/// dentro: los dos van tal cual, no son erratas nuestras.
+const TITULOS_F7 = [
+  '#',
+  'NOMBRE DE LA ACCIÓN DE FORMACIÓN',
+  'NOMBRE EMPRESA',
+  'NIT',
+  'DV',
+  'DEPARTAMENTO SEDE DE LA EMPRESA',
+  'MUNICIPIO SEDE DE LA EMPRESA',
+  'DIRECCIÓN',
+  'TELÉFONO',
+  ' NOMBRE PERSONA DE CONTACTO',
+  'CARGO PERSONA DE CONTACTO',
+  'CORREO ELECTRÓNICO',
+  'TAMAÑO DE LA EMPRESA',
+  'NÚMERO DE TRABAJADORES TOTALES DE LA EMPRESA',
+  'NÚMERO DE BENEFICIARIOS DEL PFCE DE LA  EMPRESA',
+  'EMPRESA/GREMIO\n(Conviniente/Beneficiaria/Perteneciente a la Cadena Productiva',
+  'SECTOR ECONÓMICO AL QUE PERTENECE',
+  'CLASIFICACIÓN DE LA EMPRESA',
+];
+
+describe('el F7 de empresas', () => {
+  it('tiene las 18 columnas, en su orden', () => {
+    expect(F7.map((c) => c.titulo)).toEqual(TITULOS_F7);
+  });
+
+  it('conserva el espacio delante de la persona de contacto', () => {
+    expect(F7[9].titulo.startsWith(' ')).toBe(true);
+  });
+
+  it('conserva el doble espacio de "DE LA  EMPRESA"', () => {
+    expect(F7[14].titulo).toContain('DE LA  EMPRESA');
+  });
+
+  it('no repite ninguna clave', () => {
+    const claves = F7.map((c) => c.clave);
+    expect(new Set(claves).size).toBe(claves.length);
   });
 });
