@@ -34,6 +34,7 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import {
   ActualizarParticipanteDto,
+  AsignarAsesorEnLoteDto,
   AsignarFormacionDto,
   CargaDto,
   CambiarEtapaDto,
@@ -523,6 +524,71 @@ export class CrmService {
     ]);
 
     return this.obtener(id, ambito);
+  }
+
+  /**
+   * Asigna el mismo asesor a varias fichas de golpe.
+   *
+   * Cada una deja su movimiento: sin eso, veinte fichas
+   * cambiarian de dueno sin que el historial dijera quien
+   * lo hizo, que es justo lo que se pide poder ver.
+   */
+  async asignarAsesorEnLote(
+    dto: AsignarAsesorEnLoteDto,
+    admin: Admin,
+    ambito: string[],
+    ip?: string,
+  ) {
+    const asesorId = dto.asesorId || null;
+
+    if (asesorId) {
+      const asesor = await this.prisma.admin.findFirst({
+        where: { id: asesorId, activo: true },
+        select: { id: true, nombre: true },
+      });
+      if (!asesor) throw new BadRequestException('Ese asesor no existe o está desactivado.');
+    }
+
+    // solo las del ambito: un id pegado a mano no cuela
+    const suyas = await this.prisma.participante.findMany({
+      where: { id: { in: dto.ids }, convenioId: { in: ambito } },
+      select: { id: true, etapa: true, asesorId: true },
+    });
+
+    const cambian = suyas.filter((p) => p.asesorId !== asesorId);
+    if (cambian.length === 0) {
+      return { cambiadas: 0, fuera: dto.ids.length - suyas.length, sinCambio: suyas.length };
+    }
+
+    const nombre = asesorId
+      ? (await this.prisma.admin.findUnique({
+          where: { id: asesorId },
+          select: { nombre: true },
+        }))!.nombre
+      : null;
+
+    await this.prisma.$transaction([
+      this.prisma.participante.updateMany({
+        where: { id: { in: cambian.map((p) => p.id) } },
+        data: { asesorId },
+      }),
+      this.prisma.movimientoParticipante.createMany({
+        data: cambian.map((p) => ({
+          participanteId: p.id,
+          etapaAntes: p.etapa,
+          etapaDespues: p.etapa,
+          adminId: admin.id,
+          nota: nombre ? `Asignada a ${nombre}` : 'Se le quitó el asesor',
+          ip: ip ?? null,
+        })),
+      }),
+    ]);
+
+    return {
+      cambiadas: cambian.length,
+      fuera: dto.ids.length - suyas.length,
+      sinCambio: suyas.length - cambian.length,
+    };
   }
 
   /**

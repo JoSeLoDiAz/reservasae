@@ -19,6 +19,7 @@ import { IpReal } from '../comun/ip-real';
 import { CrmService } from './crm.service';
 import {
   ActualizarParticipanteDto,
+  AsignarAsesorEnLoteDto,
   AsignarFormacionDto,
   CargaDto,
   CambiarEtapaDto,
@@ -92,6 +93,18 @@ export class CrmController {
     @IpReal() ip: string,
   ) {
     return this.crm.confirmarCarga(dto, admin, ambito.convenios, ip);
+  }
+
+  /** Un asesor para varias fichas de una vez. */
+  @Patch('lote/asesor')
+  @Requiere('inscripciones', 'ESCRIBIR')
+  asignarAsesorEnLote(
+    @Body() dto: AsignarAsesorEnLoteDto,
+    @AdminActual() admin: Admin,
+    @AmbitoActual() ambito: Ambito,
+    @IpReal() ip: string,
+  ) {
+    return this.crm.asignarAsesorEnLote(dto, admin, ambito.convenios, ip);
   }
 
   @Get(':id')

@@ -1,5 +1,8 @@
 import { Transform } from 'class-transformer';
 import {
+  ArrayMaxSize,
+  ArrayNotEmpty,
+  IsArray,
   IsBoolean,
   IsDateString,
   IsEmail,
@@ -214,6 +217,19 @@ export class ActualizarParticipanteDto {
 export class ActualizarEmpresaSepDto {
   @IsOptional() @Transform(aNumero) @IsInt() tamanoSepId?: number | null;
   @IsOptional() @Transform(aNumero) @IsInt() tipoDocumentoSepId?: number | null;
+}
+
+export class AsignarAsesorEnLoteDto {
+  @IsArray()
+  @ArrayNotEmpty()
+  @ArrayMaxSize(500)
+  @IsString({ each: true })
+  ids!: string[];
+
+  // vacio o nulo deja las fichas sin asesor
+  @IsOptional()
+  @IsString()
+  asesorId?: string | null;
 }
 
 export class CambiarEtapaDto {

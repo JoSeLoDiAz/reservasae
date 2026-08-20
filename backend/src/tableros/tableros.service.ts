@@ -1,4 +1,6 @@
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { faltaEnF7 } from '../crm/sep/formato-f7';
+import { DEPARTAMENTO_POR_ID, MUNICIPIO_POR_ID } from '../crm/catalogos-sep';
 
 import { EstadoReserva, Prisma } from '../../generated/prisma';
 import { semaforo } from '../catalogo/catalogo.service';
@@ -31,6 +33,13 @@ const POR_PAGINA = 25;
 
 /** Todas las acciones, publicadas o no. */
 const UNIVERSO: Prisma.OfertaWhereInput = {};
+
+const nombreDepartamento = (id: number | null) =>
+  id ? (DEPARTAMENTO_POR_ID.get(id)?.etiqueta ?? null) : null;
+
+// el municipio es una tupla [id, depto, nombre, ...]
+const nombreMunicipio = (id: number | null) =>
+  id ? (MUNICIPIO_POR_ID.get(id)?.[2] ?? null) : null;
 
 @Injectable()
 export class TablerosService {
@@ -520,6 +529,23 @@ export class TablerosService {
         numeroColaboradores: e.numeroColaboradores,
         redAsociada: e.redAsociada,
         redAsociadaOtra: e.redAsociadaOtra,
+        departamento: nombreDepartamento(e.departamentoSepId),
+        municipio: nombreMunicipio(e.municipioSepId),
+        direccion: e.direccion,
+        telefono: e.telefono,
+        contactoNombre: e.contactoNombre,
+        contactoCargo: e.contactoCargo,
+        contactoCorreo: e.contactoCorreo,
+        sectorEconomico: e.sectorEconomico,
+        clasificacion: e.clasificacion,
+        numeroTrabajadores: e.numeroTrabajadores,
+        tamanoSepId: e.tamanoSepId,
+        // que le falta para poder ir en el F7
+        faltaF7: faltaEnF7({
+          ...e,
+          departamento: nombreDepartamento(e.departamentoSepId),
+          municipio: nombreMunicipio(e.municipioSepId),
+        }),
         reservas: e.reservas.length,
         confirmados: e.reservas.reduce((s, r) => s + r.cuposConfirmados, 0),
         enEspera: e.reservas.reduce((s, r) => s + r.cuposEnEspera, 0),

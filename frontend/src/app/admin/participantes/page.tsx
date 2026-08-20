@@ -1,19 +1,20 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
-import { estiloEtapa, PildoraEtapa } from "@/components/admin/etapa";
+import { estiloEtapa } from "@/components/admin/etapa";
 import {
   IconoAvance,
   IconoBrecha,
   IconoInscribir,
-  IconoMatriculados,
   IconoUsuarios,
 } from "@/components/admin/iconos";
 import { Aviso, Boton, CLASE_CONTROL, Tarjeta } from "@/components/admin/marco-admin";
 import { TarjetaCifra } from "@/components/admin/piezas";
 import { ScrollDoble } from "@/components/admin/scroll-doble";
+import { columnasDeParticipante } from "@/components/admin/columnas-participante";
+import { Tabla } from "@/components/admin/tabla";
 import { ErrorApi } from "@/lib/api";
 import {
   crmApi,
@@ -293,45 +294,12 @@ export default function PaginaParticipantes() {
       )}
 
       {hayAlguien && vista === "lista" && (
-        <div className="caja-scroll overflow-x-auto">
-          <table className="tabla-datos">
-            <thead>
-              <tr>
-                <th>Documento</th>
-                <th>Nombre</th>
-                <th>Etapa</th>
-                <th>Acción de formación</th>
-                <th>Ubicación</th>
-                <th>Asesor</th>
-                <th>Días</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filas.map((f) => (
-                <tr key={f.id}>
-                  <td className="font-mono text-sm">{f.documento}</td>
-                  <td>
-                    <Link href={`/admin/participantes/${f.id}`} className="underline">
-                      {f.nombre}
-                    </Link>
-                  </td>
-                  <td>
-                    <PildoraEtapa etapa={f.etapa} />
-                  </td>
-                  <td>{f.accion ?? "—"}</td>
-                  <td>{f.ubicacion ?? "—"}</td>
-                  <td>{f.asesor?.nombre ?? "Sin asignar"}</td>
-                  <td className="font-mono text-sm">{diasDesde(f.creadoEn)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          {total > filas.length && (
-            <p className="mt-3 text-sm text-texto-suave">
-              Mostrando {filas.length} de {total}. Afine la búsqueda para ver el resto.
-            </p>
-          )}
-        </div>
+        <ListaParticipantes
+          filas={filas}
+          total={total}
+          asesores={resumen.asesores}
+          alCambiar={cargar}
+        />
       )}
 
       {hayAlguien && vista === "metricas" && <Metricas resumen={resumen} />}
@@ -470,5 +438,96 @@ function Metricas({ resumen }: { resumen: Resumen }) {
         </div>
       </Tarjeta>
     </div>
+  );
+}
+
+/** La lista, con columnas a elegir y asignación por lote. */
+function ListaParticipantes({
+  filas,
+  total,
+  asesores,
+  alCambiar,
+}: {
+  filas: FilaParticipante[];
+  total: number;
+  asesores: Array<{ id: string; nombre: string }>;
+  alCambiar: () => Promise<void>;
+}) {
+  const [aviso, setAviso] = useState<string | null>(null);
+
+  const columnas = useMemo(() => columnasDeParticipante(), []);
+
+  return (
+    <div className="space-y-3">
+      {aviso && <Aviso tipo="exito">{aviso}</Aviso>}
+
+      <Tabla
+        id="participantes"
+        columnas={columnas}
+        filas={filas}
+        clave={(f) => f.id}
+        total={total}
+        seleccion
+        accionesLote={(ids, limpiar) => (
+          <AsignarLote
+            ids={ids}
+            asesores={asesores}
+            alTerminar={async (n) => {
+              limpiar();
+              setAviso(`${n} ${n === 1 ? "ficha" : "fichas"} con asesor nuevo.`);
+              await alCambiar();
+            }}
+          />
+        )}
+      />
+    </div>
+  );
+}
+
+/** El desplegable de asesor sobre la selección. */
+function AsignarLote({
+  ids,
+  asesores,
+  alTerminar,
+}: {
+  ids: string[];
+  asesores: Array<{ id: string; nombre: string }>;
+  alTerminar: (cambiadas: number) => Promise<void>;
+}) {
+  const [trabajando, setTrabajando] = useState(false);
+
+  async function asignar(asesorId: string | null) {
+    setTrabajando(true);
+    try {
+      const r = await crmApi.asignarAsesorEnLote(ids, asesorId);
+      await alTerminar(r.cambiadas);
+    } finally {
+      setTrabajando(false);
+    }
+  }
+
+  return (
+    <label className="flex items-center gap-2 text-sm">
+      <span>Asignar a</span>
+      <select
+        disabled={trabajando}
+        defaultValue=""
+        onChange={(e) => {
+          const v = e.target.value;
+          e.currentTarget.value = "";
+          if (v === "") return;
+          void asignar(v === "NADIE" ? null : v);
+        }}
+        className={`${CLASE_CONTROL} max-w-[13rem] py-1.5 text-sm`}
+      >
+        <option value="">Elija un asesor…</option>
+        {asesores.map((a) => (
+          <option key={a.id} value={a.id}>
+            {a.nombre}
+          </option>
+        ))}
+        <option value="NADIE">— Quitarles el asesor —</option>
+      </select>
+    </label>
   );
 }

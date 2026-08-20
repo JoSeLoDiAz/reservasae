@@ -1,19 +1,18 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 
-import { PildoraEtapa } from "@/components/admin/etapa";
+import { columnasDeParticipante } from "@/components/admin/columnas-participante";
 import { IndicadorActualizacion } from "@/components/admin/indicador-actualizacion";
 import { Aviso, CLASE_CONTROL, Tarjeta } from "@/components/admin/marco-admin";
 import { Esqueleto } from "@/components/admin/piezas";
+import { Tabla } from "@/components/admin/tabla";
 import { useDatosVivos } from "@/lib/datos-vivos";
 import {
   crmApi,
-  diasDesde,
   type Etapa,
   ETIQUETA_ETAPA,
-  type FilaParticipante,
   type Listado,
   type Resumen,
 } from "@/lib/crm-api";
@@ -37,6 +36,7 @@ export default function PaginaInscritos() {
   }, [etapa, buscar]);
 
   const vivos = useDatosVivos<Datos>(cargar, { clave: `${etapa}|${buscar}` });
+  const columnas = useMemo(() => columnasDeParticipante(), []);
 
   if (vivos.error) return <Aviso tipo="error">{vivos.error}</Aviso>;
   if (!vivos.datos) return <Esqueleto conCifras />;
@@ -110,46 +110,15 @@ export default function PaginaInscritos() {
           </p>
         </Tarjeta>
       ) : (
-        <div className="caja-scroll overflow-x-auto">
-          <table className="tabla-datos">
-            <thead>
-              <tr>
-                <th>Documento</th>
-                <th>Nombre</th>
-                <th>Etapa</th>
-                <th>Acción de formación</th>
-                <th>Ubicación</th>
-                <th>Asesor</th>
-                <th>Días</th>
-              </tr>
-            </thead>
-            <tbody>
-              {listado.participantes.map((f: FilaParticipante) => (
-                <tr key={f.id}>
-                  <td className="font-mono text-sm">{f.documento}</td>
-                  <td>
-                    <Link href={`/admin/participantes/${f.id}`} className="underline">
-                      {f.nombre}
-                    </Link>
-                  </td>
-                  <td>
-                    <PildoraEtapa etapa={f.etapa} />
-                  </td>
-                  <td>{f.accion ?? "—"}</td>
-                  <td>{f.ubicacion ?? "—"}</td>
-                  <td>{f.asesor?.nombre ?? "Sin asignar"}</td>
-                  <td className="font-mono text-sm">{diasDesde(f.creadoEn)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          {listado.total > listado.participantes.length && (
-            <p className="mt-3 text-sm text-texto-suave">
-              Mostrando {listado.participantes.length} de {listado.total}.
-            </p>
-          )}
-        </div>
+        <Tabla
+          id="inscritos"
+          columnas={columnas}
+          filas={listado.participantes}
+          clave={(f) => f.id}
+          total={listado.total}
+        />
       )}
+
     </div>
   );
 }

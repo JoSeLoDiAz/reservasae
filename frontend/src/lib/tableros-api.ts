@@ -102,6 +102,19 @@ export type FilaEmpresa = {
   numeroColaboradores: number | null;
   redAsociada: string | null;
   redAsociadaOtra: string | null;
+  departamento: string | null;
+  municipio: string | null;
+  direccion: string | null;
+  telefono: string | null;
+  contactoNombre: string | null;
+  contactoCargo: string | null;
+  contactoCorreo: string | null;
+  sectorEconomico: string | null;
+  clasificacion: string | null;
+  numeroTrabajadores: number | null;
+  tamanoSepId: number | null;
+  /** qué le falta para poder ir en el F7 */
+  faltaF7: string[];
   reservas: number;
   confirmados: number;
   enEspera: number;

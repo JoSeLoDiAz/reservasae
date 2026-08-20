@@ -224,3 +224,67 @@ export const IconoCronograma: Icono = (p) => (
     <path d="M7 14h4M7 17.5h7" />
   </Svg>
 );
+
+export const IconoBuscar = (p: Props) => (
+  <Svg {...p}>
+    <circle cx="11" cy="11" r="7" />
+    <path d="m20 20-3.5-3.5" />
+  </Svg>
+);
+
+export const IconoFiltro = (p: Props) => (
+  <Svg {...p}>
+    <path d="M3 5h18l-7 8v6l-4 2v-8L3 5Z" />
+  </Svg>
+);
+
+export const IconoColumnas = (p: Props) => (
+  <Svg {...p}>
+    <rect x="3" y="4" width="18" height="16" rx="2" />
+    <path d="M9 4v16M15 4v16" />
+  </Svg>
+);
+
+export const IconoVista = (p: Props) => (
+  <Svg {...p}>
+    <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z" />
+    <circle cx="12" cy="12" r="3" />
+  </Svg>
+);
+
+export const IconoOrden = (p: Props) => (
+  <Svg {...p}>
+    <path d="M8 5v14M8 19l-3-3M8 19l3-3M16 19V5M16 5l-3 3M16 5l3 3" />
+  </Svg>
+);
+
+export const IconoArriba = (p: Props) => (
+  <Svg {...p}>
+    <path d="m6 15 6-6 6 6" />
+  </Svg>
+);
+
+export const IconoAbajo = (p: Props) => (
+  <Svg {...p}>
+    <path d="m6 9 6 6 6-6" />
+  </Svg>
+);
+
+export const IconoCheck = (p: Props) => (
+  <Svg {...p}>
+    <path d="m5 13 4 4L19 7" />
+  </Svg>
+);
+
+export const IconoGuardar = (p: Props) => (
+  <Svg {...p}>
+    <path d="M5 4h11l3 3v13H5z" />
+    <path d="M9 4v5h6V4M8 20v-6h8v6" />
+  </Svg>
+);
+
+export const IconoPapelera = (p: Props) => (
+  <Svg {...p}>
+    <path d="M4 7h16M9 7V5h6v2M6 7l1 13h10l1-13" />
+  </Svg>
+);

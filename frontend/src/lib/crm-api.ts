@@ -363,6 +363,12 @@ export const crmApi = {
   opciones: (convenioId: string) =>
     pedir<Opciones>(`/admin/participantes/opciones?convenioId=${convenioId}`),
 
+  asignarAsesorEnLote: (ids: string[], asesorId: string | null) =>
+    pedir<{ cambiadas: number; fuera: number; sinCambio: number }>(
+      "/admin/participantes/lote/asesor",
+      { method: "PATCH", body: JSON.stringify({ ids, asesorId }) },
+    ),
+
   asignar: (id: string, ofertaId: string, coberturaId?: string, sobrecupoMotivo?: string) =>
     pedir<Ficha>(`/admin/participantes/${id}/formacion`, {
       method: "PATCH",
