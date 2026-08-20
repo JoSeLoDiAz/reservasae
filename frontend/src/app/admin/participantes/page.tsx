@@ -361,15 +361,16 @@ function Cifras({ resumen }: { resumen: Resumen }) {
         tono="aviso"
       />
       <TarjetaCifra
-        etiqueta="Matriculadas"
+        etiqueta="Inscritas"
         valor={de("MATRICULADO")}
         icono={IconoInscribir}
       />
       <TarjetaCifra
-        etiqueta="Certificadas"
-        valor={de("CERTIFICADO")}
-        icono={IconoMatriculados}
-        tono="exito"
+        etiqueta="Sin asesor"
+        valor={resumen.sinAsesor ?? 0}
+        pie="nadie las está llamando"
+        icono={IconoBrecha}
+        tono={(resumen.sinAsesor ?? 0) > 0 ? "aviso" : "neutro"}
       />
       <TarjetaCifra
         etiqueta="No interesados"
