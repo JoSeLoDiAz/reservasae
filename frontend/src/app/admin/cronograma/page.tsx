@@ -12,6 +12,7 @@ import {
 } from "@/components/admin/marco-admin";
 import { Esqueleto, Pildora, TarjetaCifra, Vacio } from "@/components/admin/piezas";
 import {
+  alcanza,
   cronogramaApi,
   ETIQUETA_ESTADO_GRUPO,
   type AccionCronograma,
@@ -40,7 +41,9 @@ export default function PaginaCronograma() {
   const [abierta, setAbierta] = useState<string | null>(null);
   const [buscar, setBuscar] = useState("");
 
-  const puedeEditar = admin.rol === "SUPERADMIN";
+  // por el permiso, no por el rol de cuenta: quien
+  // configura la formacion es el lider de sistemas
+  const puedeEditar = alcanza(admin.permisos?.configuracion, "ESCRIBIR");
 
   const cargar = useCallback(async () => {
     try {

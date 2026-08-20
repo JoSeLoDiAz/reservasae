@@ -19,10 +19,10 @@ export class CronogramaController {
     return this.cronograma.listar(ambito.convenios);
   }
 
-  // las fechas las pone el SENA y las carga el admin: un
-  // cambio aqui mueve el "va al dia" de todo un grupo
+  // configurar la formacion ya es del lider de sistemas y
+  // el calendario es parte de ella. Un cambio aqui mueve
+  // el "va al dia" de todo un grupo
   @Patch('grupos/:id')
-  @Roles(RolAdmin.SUPERADMIN)
   @Requiere('configuracion', 'ESCRIBIR')
   actualizarGrupo(
     @Param('id') id: string,
