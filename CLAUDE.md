@@ -22,7 +22,7 @@ registro de ambos.
 > genera expectativas que no siempre se podrán cumplir. "Preinscripción" o
 > "registro de interés" es más seguro en los textos de cara al usuario.
 
-## Estado actual (14 ago 2026)
+## Estado actual (20 ago 2026 · v0.3.0)
 
 **Despliegue base funcionando en producción.** Lo que existe hoy es la
 infraestructura completa más una página que verifica la conexión con el backend.
@@ -54,15 +54,18 @@ infraestructura completa más una página que verifica la conexión con el backe
   agregadas** por formulario.
 - ❌ La política de tratamiento de datos sigue sin redactar.
 - ❌ Los grupos no tienen fechas (los proyectos no las traen).
-- ❌ **Ninguna acción está publicada** (`visible = false` en las 15). Hasta que
-  un admin publique, el catálogo público sale vacío y no se puede reservar.
-  Es deliberado: no hay fechas que mostrar todavía.
+- ✅ **Las 15 acciones están publicadas** (7 en ADECOPRIA y 8 en BRITCHAM ADEE)
+  desde el 20 ago 2026, y hay **1 reserva real**. El sitio público ya recibe.
+  Hasta esa fecha estaban todas ocultas a propósito, por no tener fechas.
 - ✅ **El failover es automático** desde el 15 ago 2026: si el principal deja
   de atender cinco minutos y una tercera sede lo confirma, El Socorro (o
   Bogotá) se promueve sola, y la sede que vuelve se rinde sola.
 - ✅ **CRM, sección de inscripciones**: tablero de etapas, ficha, brecha de
   nombres, carga masiva y **seguimiento académico**. Ver «El CRM».
-- ⏳ Del CRM faltan acciones por lote, tareas y el adaptador del LMS.
+- ✅ **Cronograma** de grupos, **académico en acordeón** con sus estados y el
+  80 % para certificar, **inscripción pública** con enlace de completado,
+  **el F7 de empresas** y **tablas con columnas a elegir**. Ver más abajo.
+- ⏳ Del CRM faltan las tareas con fecha, el correo y el adaptador del LMS.
 - ✅ **Entorno de pruebas** en `https://prueba.reservasae.com`, con datos
   inventados y franja de aviso. Ver «El entorno de pruebas».
 
@@ -193,6 +196,47 @@ Recuerda que nginx quita el prefijo: de cara a internet son `/api/catalogo`,
   para un valor que ya no está en el catálogo se cae a la congelada al enviar.
   Esa es la razón de ser de las dos columnas. El texto libre no se agrega:
   contar frases distintas da una lista de unos.
+
+### Las tablas del panel (20 ago 2026)
+
+`frontend/src/components/admin/tabla.tsx`, una sola para las cuatro listas:
+reservas, organizaciones, inscripciones e inscritos. Cada pantalla declara sus
+columnas como datos; el componente pone elegirlas, filtrarlas, ordenarlas,
+paginarlas y guardar vistas con nombre.
+
+- **Filtra en el navegador y lo dice.** Sobre las filas cargadas, no sobre la
+  base. Cuando el servidor tiene más, la barra enseña «filtrando sobre 200 de
+  1.204» y ofrece traerlas todas. Callarlo daría un recuento que **parece** el
+  total y no lo es, que es la peor clase de cifra.
+- **Un filtro sobre una columna que se oculta NO desaparece**: queda su ficha
+  arriba marcada «oculta». Un filtro invisible que sigue filtrando explica
+  resultados que nadie se explica.
+- **Las columnas de una persona viven en `columnas-participante.tsx`**, no
+  repetidas en Inscripciones y en Inscritos: son la misma fila en dos momentos
+  del proceso, y definirlas dos veces garantiza que se separen.
+- **El detalle de una reserva pasó a un cajón lateral** (`cajon.tsx`). La fila
+  desplegable llevaba un `colSpan` fijo, y con columnas que se quitan y se
+  ponen ese número se descuadra solo.
+- **La elección se guarda en `localStorage`, no en la base**: es la forma de
+  mirar de cada quien, no la de todos. Se lee en un efecto y no en el estado
+  inicial porque en el servidor no existe y rompería la hidratación.
+- **`porDefecto` sale de las columnas sin `aparte`.** Marcar una `fija` impide
+  quitarla: sin documento ni nombre no se sabe de quién es la fila.
+- **Volver a la página 1 al filtrar se hace durante el render**, comparando una
+  firma de los filtros, no en un efecto: así no hay un pintado intermedio con
+  la página vieja.
+
+**La primera acción por lote**: asignar el mismo asesor a varias fichas.
+`PATCH /admin/participantes/lote/asesor`.
+
+- **Cada ficha deja su movimiento con quién lo hizo.** Sin eso, veinte fichas
+  cambiarían de dueño sin rastro, que es lo contrario de lo que se pidió.
+- **Devuelve `cambiadas`, `sinCambio` y `fuera`**, no un total. Las que ya
+  tenían ese asesor no se tocan y las de otro convenio no entran: contarlas
+  todas como cambiadas sería mentir sobre lo que pasó.
+- **Un movimiento con la misma etapa antes y después no es un cambio de etapa**,
+  así que el historial pinta su nota en lugar de «Nuevo → Nuevo».
+
 
 ### El constructor de formularios
 
@@ -724,6 +768,59 @@ Solo aparece quien ya pisó el aula.
 - **Las notas congelan el nombre del autor**, como `Respuesta` congela la
   etiqueta de la pregunta. No se borran: una corrección es otra nota.
 
+### El cronograma, y el académico contra él
+
+`/admin/cronograma`: cuándo empieza y termina cada grupo. Un acordeón por
+acción de formación —**en orden, AF1, AF2…**— y dentro, uno por grupo.
+
+- **Editarlo es de quien configura la formación** (`@Requiere('configuracion',
+  'ESCRIBIR')`), no del superadmin: el líder de sistemas tiene que poder poner
+  las fechas, y con `@Roles(SUPERADMIN)` quedaba fuera de su propia pantalla.
+- **`fin` nunca antes que `inicio`, y no hay `fin` sin `inicio`.** Un grupo con
+  solo fecha de fin no se puede juzgar y ensuciaría el académico.
+- **`estadoDeGrupo()`**: `SIN_FECHAS`, `POR_EMPEZAR`, `EN_CURSO`, `TERMINADO`.
+  Sin fechas no se inventa nada: se dice que faltan.
+
+El seguimiento académico (`/admin/participantes/academico`) va también en
+acordeón y estrena estados. **Los nuevos separan tres cosas que antes eran la
+misma:**
+
+| | |
+|---|---|
+| `SIN_INGRESO` | su grupo arrancó y nunca entró al aula |
+| `SIN_ARRANCAR` | entró, pero no ha aprobado ni una actividad |
+| `COMPLETADO` | aprobó el 80 % o más: **listo para certificar** |
+
+- **`MINIMO_PARA_CERTIFICAR = 0.8`, y se comprueba en el servidor.** Pasar a
+  `CERTIFICADO` por debajo del 80 % de lo obligatorio se rechaza. El botón se
+  esconde, pero el que manda es el guard.
+- **El orden de la escalera importa**: certificado, salidas y «listo para
+  certificar» ganan a cualquier juicio de ritmo. Alguien que aprobó el 90 %
+  no es «atrasado» porque su grupo vaya rápido.
+
+### La inscripción pública y el enlace de completado
+
+Dos pasos a propósito. En `/[convenio]/preinscripcion` la persona elige acción
+y ciudad y deja **lo mínimo**: documento, nombres, apellidos, género, celular y
+correo. Ahí ya está dentro. Después, «quiero terminar de completar toda mi
+información» abre el resto en `/completar/<token>`.
+
+- **Se parte en dos porque el formulario largo espanta.** Con lo mínimo la
+  persona ya cuenta como lead y el asesor puede llamarla; lo demás puede
+  llegar por su cuenta y ahorrarse la llamada.
+- **El token es de un solo uso y dura 15 días**, 32 bytes en base64url. Emitir
+  uno nuevo invalida el anterior: dos enlaces vivos a la misma ficha son dos
+  formas de entrar y solo una se puede revocar.
+- **No encontrado, caducado y ya usado dan el MISMO mensaje.** Distinguirlos
+  convertiría la ruta en un oráculo de qué tokens existen.
+- **Registrarse dos veces no duplica**: la persona se busca por documento y, si
+  ya estaba en esa formación, se le devuelve su enlace.
+- **Los datos de la empresa se pueden dejar para después** sin perder los de la
+  persona: se guardan por separado y el enlace se cierra al terminar.
+- Cualquiera de dentro puede **volver a emitirlo** desde la ficha
+  (`POST /admin/participantes/:id/enlace`).
+
+
 ### La brecha de nombres
 
 `cuposConfirmados − participantes vivos`. Es la cifra que abre el CRM y mide el
@@ -802,10 +899,11 @@ Decisiones del cliente, ya cerradas:
   **`revocadaEn` se lee en tres sitios y no se escribe en ninguno**, así que hoy
   no existe forma de revocar una autorización.
 
-### Los dos reportes
+### Los tres reportes
 
-`/admin/sep`. **Reporte de control** (27 columnas, el legible) y **Reporte al
-SEP** (54, el que se sube). Código en `backend/src/crm/sep/`.
+`/admin/sep`. **Reporte de control** (27 columnas, el legible), **Reporte al
+SEP** (54, el que se sube) y el **F7 de empresas** (18). Código en
+`backend/src/crm/sep/`.
 
 - **Las cabeceras son el contrato**: literales, con sus tildes y con el espacio
   final de `"Estrato socio-económico "`. `formatos.spec.ts` las fija como
@@ -835,6 +933,19 @@ SEP** (54, el que se sube). Código en `backend/src/crm/sep/`.
   cargue. Certificar aquí daría una fila con 0 horas y 0 % que se contradice.
 - **La caracterización va vacía, nunca `35 = NINGUNA`.** Mandar 35 es declarar
   por la persona que no pertenece a ninguna población, y eso no consta.
+
+- **El F7 NO va por persona**, a diferencia de los otros dos: una fila es una
+  organización **dentro de una acción de formación**, con cuántos de los suyos
+  se están formando. La misma empresa con gente en dos cursos son dos filas.
+- **Sus cabeceras traen dos erratas del cliente y van tal cual**: la de la
+  persona de contacto lleva un espacio **delante** y «DE LA  EMPRESA» un
+  espacio **doble**. `formatos.spec.ts` las fija; si alguien las «corrige»,
+  falla el build.
+- **Lo que le falta a cada organización sale en `/admin/empresas`**, columna
+  «Datos para el F7», y son exactamente los datos que pide el enlace de
+  completado. Así la lista de incompletas es accionable y no una queja.
+- **`Empresa.clasificacion`** (pública, privada o mixta) se añadió para la
+  última columna, que no tenía de dónde salir.
 
 > **La siembra de pruebas pone los ids del SEP en NEGATIVO.** Los primeros los
 > copié del archivo de muestra —`2959`, `9087`, `17689`, que son reales— y un
@@ -943,9 +1054,9 @@ Lo que el cliente pidió, y que ya está:
 
 ### Lo que falta
 
-Acciones por lote · tareas con fecha · seguimiento académico con adaptador de
-LMS (carga de archivo primero, API cuando se decida) · aplicar el ámbito por
-convenio · fechas de los 67 grupos, ahora solo para el seguimiento académico.
+Tareas con fecha · correo institucional (Cloudflare **recibe pero no envía**:
+hace falta un servicio de envío y decidir el buzón) · adaptador del LMS
+(Moodle, solo lectura; hace falta la URL y un token).
 
 > **Solo lectura del LMS**, decidido: alguien matricula allá y aquí se lee el
 > avance. Y «al instante» se resuelve guardando una foto con su fecha y
