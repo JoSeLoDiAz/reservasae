@@ -103,7 +103,7 @@ export default function PaginaAcademico() {
   // por acción y dentro por grupo: el acordeón
   const porAccion = new Map<
     string,
-    { titulo: string; grupos: Map<string, FilaAcademica[]> }
+    { titulo: string; grupos: Map<number, FilaAcademica[]> }
   >();
   for (const p of visibles) {
     const clave = p.accionFormacionId ?? "sin-accion";
@@ -114,10 +114,23 @@ export default function PaginaAcademico() {
       });
     }
     const grupos = porAccion.get(clave)!.grupos;
-    const cg = p.grupo ? `Grupo ${p.grupo}` : "Sin grupo";
-    if (!grupos.has(cg)) grupos.set(cg, []);
-    grupos.get(cg)!.push(p);
+    // -1 para los que no tienen grupo: van al final
+    const ng = p.grupo ?? -1;
+    if (!grupos.has(ng)) grupos.set(ng, []);
+    grupos.get(ng)!.push(p);
   }
+
+  // AF1, AF2… AF10: por el número, no alfabético, que
+  // pondría AF10 antes que AF2
+  const numeroDe = (titulo: string) => {
+    const m = /AF\s*(\d+)/i.exec(titulo);
+    return m ? Number(m[1]) : 999;
+  };
+  const accionesOrdenadas = [...porAccion.entries()].sort(([, a], [, b]) => {
+    const d = numeroDe(a.titulo) - numeroDe(b.titulo);
+    // el codigo se repite entre convenios: desempata el nombre
+    return d !== 0 ? d : a.titulo.localeCompare(b.titulo, "es");
+  });
 
   return (
     <div className="space-y-6">
@@ -257,7 +270,7 @@ export default function PaginaAcademico() {
         </Tarjeta>
       ) : (
         <div className="space-y-3">
-          {[...porAccion.entries()].map(([clave, { titulo, grupos }]) => (
+          {accionesOrdenadas.map(([clave, { titulo, grupos }]) => (
             <AccionAcordeon
               key={clave}
               titulo={titulo}
@@ -313,7 +326,7 @@ function AccionAcordeon({
   alAbrir,
 }: {
   titulo: string;
-  grupos: Map<string, FilaAcademica[]>;
+  grupos: Map<number, FilaAcademica[]>;
   abierta: boolean;
   alAbrir: () => void;
 }) {
@@ -345,10 +358,13 @@ function AccionAcordeon({
       </button>
 
       {abierta && (
-        <div className="space-y-5 border-t border-borde p-5">
-          {[...grupos.entries()].map(([nombreGrupo, personas]) => (
-            <GrupoAcordeon key={nombreGrupo} nombre={nombreGrupo} personas={personas} />
-          ))}
+        <div className="space-y-2 border-t border-borde p-4">
+          {[...grupos.entries()]
+            // por número; el "sin grupo" (-1) al final
+            .sort(([a], [b]) => (a < 0 ? 1 : b < 0 ? -1 : a - b))
+            .map(([numero, personas]) => (
+              <GrupoAcordeon key={numero} numero={numero} personas={personas} />
+            ))}
         </div>
       )}
     </section>
@@ -356,25 +372,45 @@ function AccionAcordeon({
 }
 
 function GrupoAcordeon({
-  nombre,
+  numero,
   personas,
 }: {
-  nombre: string;
+  numero: number;
   personas: FilaAcademica[];
 }) {
+  const [abierto, setAbierto] = useState(false);
   const uno = personas[0];
-  return (
-    <div>
-      <div className="mb-2 flex flex-wrap items-baseline gap-x-3">
-        <h3 className="font-medium">{nombre}</h3>
-        <span className="text-sm text-texto-suave">
-          {personas.length} {personas.length === 1 ? "persona" : "personas"}
-          {uno.fechaInicio && ` · ${fecha(uno.fechaInicio)} → ${fecha(uno.fechaFin)}`}
-          {uno.horario && ` · ${uno.horario}`}
-        </span>
-      </div>
+  const alerta = personas.filter((p) =>
+    ["SIN_INGRESO", "SIN_ARRANCAR", "PARADO", "ATRASADO"].includes(p.estado),
+  ).length;
 
-      <div className="caja-scroll overflow-x-auto rounded-xl border border-borde">
+  return (
+    <div className="overflow-hidden rounded-xl border border-borde">
+      <button
+        onClick={() => setAbierto(!abierto)}
+        aria-expanded={abierto}
+        className="flex w-full items-center gap-3 px-4 py-3 text-left transition hover:bg-superficie-alterna"
+      >
+        <span className="min-w-0 grow">
+          <span className="font-medium">
+            {numero < 0 ? "Sin grupo" : `Grupo ${numero}`}
+          </span>
+          <span className="ml-2 text-sm text-texto-suave">
+            {personas.length} {personas.length === 1 ? "persona" : "personas"}
+            {uno.fechaInicio && ` · ${fecha(uno.fechaInicio)} → ${fecha(uno.fechaFin)}`}
+            {uno.horario && ` · ${uno.horario}`}
+          </span>
+          {alerta > 0 && (
+            <span className="ml-2 text-sm text-error">· {alerta} por atender</span>
+          )}
+        </span>
+        <span aria-hidden className="shrink-0 text-texto-suave">
+          {abierto ? "▴" : "▾"}
+        </span>
+      </button>
+
+      {!abierto ? null : (
+      <div className="caja-scroll overflow-x-auto border-t border-borde">
         <table className="tabla-datos">
           <thead>
             <tr>
@@ -422,6 +458,7 @@ function GrupoAcordeon({
           </tbody>
         </table>
       </div>
+      )}
     </div>
   );
 }
