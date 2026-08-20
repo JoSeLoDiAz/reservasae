@@ -955,6 +955,11 @@ export class CrmService {
       ],
     };
 
+    // el total se cuenta en la base, no sobre lo cargado:
+    // con mas gente en el aula que el tope, decir que hay
+    // 300 seria dar por total el tamano de la pagina
+    const enAula = await this.prisma.participante.count({ where: donde });
+
     const filas = await this.prisma.participante.findMany({
       where: donde,
       orderBy: { creadoEn: 'desc' },
@@ -1112,7 +1117,9 @@ export class CrmService {
       asesores,
       sinAsesor: filas.filter((f) => !f.asesor).length,
       resumen: {
-        total: personas.length,
+        total: enAula,
+        /// Sobre cuantas se calculo el reparto de abajo.
+        analizadas: personas.length,
         alDia: cuenta('AL_DIA'),
         atrasados: cuenta('ATRASADO'),
         parados: cuenta('PARADO'),

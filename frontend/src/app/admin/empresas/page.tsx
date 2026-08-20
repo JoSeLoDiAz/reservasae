@@ -6,16 +6,24 @@ import { n } from "@/components/admin/graficos";
 import { Aviso } from "@/components/admin/marco-admin";
 import { Tabla, type Columna } from "@/components/admin/tabla";
 import { bonito, ErrorApi } from "@/lib/api";
-import { descargar, tablerosApi, type FilaEmpresa } from "@/lib/tableros-api";
+import {
+  descargar,
+  tablerosApi,
+  type FilaEmpresa,
+  type PaginaEmpresas,
+} from "@/lib/tableros-api";
 
 /** Cuántos cupos lleva cada organización. */
 export default function PaginaEmpresas() {
-  const [filas, setFilas] = useState<FilaEmpresa[] | null>(null);
+  const [pagina, setPagina] = useState<PaginaEmpresas | null>(null);
+  const [todas, setTodas] = useState<{ base: FilaEmpresa[]; filas: FilaEmpresa[] } | null>(
+    null,
+  );
   const [error, setError] = useState<string | null>(null);
 
   const cargar = useCallback(async () => {
     try {
-      setFilas(await tablerosApi.empresas(""));
+      setPagina(await tablerosApi.empresas());
       setError(null);
     } catch (e) {
       setError((e as ErrorApi).message);
@@ -25,6 +33,20 @@ export default function PaginaEmpresas() {
   useEffect(() => {
     void cargar();
   }, [cargar]);
+
+  // el superset solo vale mientras su base siga vigente
+  const filas =
+    todas && todas.base === pagina?.filas ? todas.filas : (pagina?.filas ?? null);
+
+  const cargarTodas = useCallback(async () => {
+    if (!pagina) return;
+    const resto = await Promise.all(
+      Array.from({ length: pagina.paginas - 1 }, (_, i) =>
+        tablerosApi.empresas({ pagina: i + 2, porPagina: pagina.porPagina }),
+      ),
+    );
+    setTodas({ base: pagina.filas, filas: [...pagina.filas, ...resto.flatMap((p) => p.filas)] });
+  }, [pagina]);
 
   const totalCupos = filas?.reduce((s, f) => s + f.confirmados, 0) ?? 0;
 
@@ -135,8 +157,12 @@ export default function PaginaEmpresas() {
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Organizaciones</h1>
           <p className="mt-1 text-texto-suave">
-            {filas
-              ? n(filas.length) + " organizaciones · " + n(totalCupos) + " cupos confirmados"
+            {pagina
+              ? n(pagina.total) +
+                " organizaciones · " +
+                n(totalCupos) +
+                " cupos confirmados" +
+                (filas && filas.length < pagina.total ? " en las cargadas" : "")
               : "Cargando…"}
           </p>
         </div>
@@ -149,6 +175,8 @@ export default function PaginaEmpresas() {
         columnas={columnas}
         filas={filas}
         clave={(f) => f.id}
+        total={pagina?.total}
+        alCargarTodo={pagina && pagina.paginas > 1 ? cargarTodas : undefined}
         vacio="Aparecerán en cuanto alguien reserve cupos desde un formulario."
         acciones={
           <button

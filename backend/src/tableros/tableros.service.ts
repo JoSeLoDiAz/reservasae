@@ -30,6 +30,9 @@ export type FiltrosReservas = {
 };
 
 const POR_PAGINA = 25;
+/// Las organizaciones caben de a mas: la fila es corta.
+const POR_PAGINA_EMPRESAS = 200;
+const TOPE_EMPRESAS = 500;
 
 /** Todas las acciones, publicadas o no. */
 const UNIVERSO: Prisma.OfertaWhereInput = {};
@@ -491,25 +494,41 @@ export class TablerosService {
   }
 
   /** Cuántos cupos lleva cada empresa. */
-  async porEmpresa(ambito: string[], buscar?: string) {
+  /**
+   * Si el texto no trae digitos, la condicion del NIT se
+   * omite. Antes iba un byte NUL como centinela, que volvia
+   * el fichero binario para grep; con cadena vacia,
+   * `contains` coincidiria con TODAS las filas.
+   */
+  private dondeEmpresa(ambito: string[], buscar?: string): Prisma.EmpresaWhereInput {
+    return {
+      ...empresaDeConvenio(ambito),
+      ...(buscar
+        ? {
+            OR: [
+              ...(soloDigitos(buscar) ? [{ nit: { contains: soloDigitos(buscar) } }] : []),
+              { razonSocial: { contains: buscar, mode: 'insensitive' as const } },
+            ],
+          }
+        : {}),
+    };
+  }
+
+  /**
+   * Sin `trozo` las devuelve TODAS, que es lo que necesita
+   * la descarga en Excel: un informe recortado en silencio
+   * a la primera pagina seria peor que no tenerlo.
+   */
+  async porEmpresa(ambito: string[], buscar?: string, trozo?: { skip: number; take: number }) {
     const empresas = await this.prisma.empresa.findMany({
-      // si el texto no trae digitos, la condicion del NIT
-      // se omite. Antes iba un byte NUL como centinela, que
-      // volvia el fichero binario para grep; con cadena
-      // vacia, `contains` coincidiria con TODAS las filas
-      where: {
-        ...empresaDeConvenio(ambito),
-        ...(buscar
-          ? {
-              OR: [
-                ...(soloDigitos(buscar)
-                  ? [{ nit: { contains: soloDigitos(buscar) } }]
-                  : []),
-                { razonSocial: { contains: buscar, mode: 'insensitive' } },
-              ],
-            }
-          : {}),
-      },
+      ...(trozo ?? {}),
+      // alfabetico y en la base. Ordenar por cupos exigiria
+      // sumar una relacion, y hacerlo en memoria despues de
+      // paginar reparte mal las filas: alguna se veria dos
+      // veces y otra ninguna. La tabla ya deja ordenar por
+      // la columna que se quiera
+      orderBy: [{ razonSocial: 'asc' }],
+      where: this.dondeEmpresa(ambito, buscar),
       include: {
         reservas: {
           where: { estado: { not: EstadoReserva.CANCELADA } },
@@ -551,9 +570,29 @@ export class TablerosService {
         enEspera: e.reservas.reduce((s, r) => s + r.cuposEnEspera, 0),
         cursos: [...new Set(e.reservas.map((r) => r.oferta.accionFormacion.codigo))].sort(),
         creadoEn: e.creadoEn,
-      }))
-      // quien más cupos lleva, arriba
-      .sort((a, b) => b.confirmados - a.confirmados || a.razonSocial.localeCompare(b.razonSocial));
+      }));
+  }
+
+  /** Las de la página, más cuántas hay en total. */
+  async paginaDeEmpresas(
+    ambito: string[],
+    buscar?: string,
+    pagina?: number,
+    porPagina?: number,
+  ) {
+    const tamano = Math.min(porPagina ?? POR_PAGINA_EMPRESAS, TOPE_EMPRESAS);
+    const pag = Math.max(1, pagina ?? 1);
+    const [filas, total] = await Promise.all([
+      this.porEmpresa(ambito, buscar, { skip: (pag - 1) * tamano, take: tamano }),
+      this.prisma.empresa.count({ where: this.dondeEmpresa(ambito, buscar) }),
+    ]);
+    return {
+      total,
+      pagina: pag,
+      porPagina: tamano,
+      paginas: Math.max(1, Math.ceil(total / tamano)),
+      filas,
+    };
   }
 
   /** Reservas por día, agrupadas en SQL. */

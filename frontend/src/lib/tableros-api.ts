@@ -122,6 +122,14 @@ export type FilaEmpresa = {
   creadoEn: string;
 };
 
+export type PaginaEmpresas = {
+  total: number;
+  pagina: number;
+  porPagina: number;
+  paginas: number;
+  filas: FilaEmpresa[];
+};
+
 export type FilaReserva = {
   id: string;
   estado: EstadoReserva;
@@ -334,8 +342,8 @@ export const tablerosApi = {
   accion: (id: string) => pedir<DetalleAccion>(`/admin/tableros/acciones/${id}`),
   ubicaciones: (convenio?: string) =>
     pedir<FilaUbicacion[]>(`/admin/tableros/ubicaciones${consulta({ convenio })}`),
-  empresas: (buscar?: string) =>
-    pedir<FilaEmpresa[]>(`/admin/tableros/empresas${consulta({ buscar })}`),
+  empresas: (filtros: { buscar?: string; pagina?: number; porPagina?: number } = {}) =>
+    pedir<PaginaEmpresas>(`/admin/tableros/empresas${consulta(filtros)}`),
   serie: (dias = 30) => pedir<PuntoSerie[]>(`/admin/tableros/serie${consulta({ dias })}`),
   proyeccion: (dias = 14) =>
     pedir<InformeProyeccion>(`/admin/tableros/proyeccion${consulta({ dias })}`),

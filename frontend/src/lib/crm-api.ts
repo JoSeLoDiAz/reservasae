@@ -237,6 +237,8 @@ export type Academico = {
   sinAsesor: number;
   resumen: {
     total: number;
+    /** Sobre cuántas se calculó el reparto: puede ser menos. */
+    analizadas: number;
     alDia: number;
     atrasados: number;
     parados: number;

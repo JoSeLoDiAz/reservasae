@@ -78,8 +78,18 @@ export class TablerosController {
   }
 
   @Get('empresas')
-  porEmpresa(@AmbitoActual() ambito: Ambito, @Query('buscar') buscar?: string) {
-    return this.tableros.porEmpresa(ambito.convenios, buscar);
+  porEmpresa(
+    @AmbitoActual() ambito: Ambito,
+    @Query('buscar') buscar?: string,
+    @Query('pagina') pagina?: string,
+    @Query('porPagina') porPagina?: string,
+  ) {
+    return this.tableros.paginaDeEmpresas(
+      ambito.convenios,
+      buscar,
+      pagina ? Number(pagina) : undefined,
+      porPagina ? Number(porPagina) : undefined,
+    );
   }
 
   /** Borra una reserva y devuelve sus cupos. */

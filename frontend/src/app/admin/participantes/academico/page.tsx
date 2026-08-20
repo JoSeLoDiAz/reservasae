@@ -140,6 +140,13 @@ export default function PaginaAcademico() {
           <p className="mt-1 text-texto-suave">
             Quién va al día y quién no, contra el calendario de su grupo.
           </p>
+          {resumen.analizadas < resumen.total && (
+            <p className="mt-2 inline-block rounded-full bg-aviso-suave px-3 py-1 text-sm text-aviso">
+              Hay {resumen.total.toLocaleString("es-CO")} personas en el aula y se están
+              mirando las {resumen.analizadas.toLocaleString("es-CO")} más recientes. Filtre
+              por acción o por grupo para ver el resto.
+            </p>
+          )}
         </div>
         <div className="flex flex-wrap items-center gap-4">
           <IndicadorActualizacion
