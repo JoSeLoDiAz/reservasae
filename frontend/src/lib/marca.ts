@@ -9,6 +9,7 @@ export const RUTAS_RESERVADAS = new Set([
   "health",
   "marca",
   "preinscripcion",
+  "completar",
 ]);
 
 // el mismo patron que exige CrearFormularioDto

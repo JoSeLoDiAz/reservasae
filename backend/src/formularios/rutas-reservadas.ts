@@ -14,6 +14,7 @@ export const RUTAS_RESERVADAS = new Set([
   'health',
   'marca',
   'preinscripcion',
+  'completar',
 ]);
 
 export const esRutaReservada = (slug: string) =>

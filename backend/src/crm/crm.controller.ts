@@ -14,6 +14,7 @@ import { RolAdmin, type Admin } from '../../generated/prisma';
 import { AdminActual, AmbitoActual } from '../admin/admin-actual.decorator';
 import { AdminGuard, Requiere, Roles, type Ambito } from '../admin/admin.guard';
 import { conveniosQueCierran } from '../admin/permisos';
+import { PreinscripcionService } from '../preinscripcion/preinscripcion.service';
 import { IpReal } from '../comun/ip-real';
 import { CrmService } from './crm.service';
 import {
@@ -35,7 +36,10 @@ import {
 @Roles(RolAdmin.SUPERADMIN, RolAdmin.GESTOR)
 @Requiere('inscripciones')
 export class CrmController {
-  constructor(private readonly crm: CrmService) {}
+  constructor(
+    private readonly crm: CrmService,
+    private readonly preinscripcion: PreinscripcionService,
+  ) {}
 
   /** Contadores por etapa: las columnas del tablero. */
   @Get('resumen')
@@ -164,6 +168,18 @@ export class CrmController {
     @IpReal() ip: string,
   ) {
     return this.crm.registrarAutorizacion(id, dto, admin, ambito.convenios, ip);
+  }
+
+  /** Un enlace para que la persona complete su ficha. */
+  @Post(':id/enlace')
+  @Requiere('inscripciones', 'ESCRIBIR')
+  async emitirEnlace(
+    @Param('id') id: string,
+    @AdminActual() admin: Admin,
+    @AmbitoActual() ambito: Ambito,
+  ) {
+    await this.crm.obtener(id, ambito.convenios);
+    return this.preinscripcion.emitirEnlace(id, admin.id);
   }
 
   @Post(':id/notas')

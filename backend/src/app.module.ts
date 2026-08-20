@@ -14,6 +14,7 @@ import { PoliticasModule } from './politicas/politicas.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { ReservasModule } from './reservas/reservas.module';
 import { CronogramaModule } from './cronograma/cronograma.module';
+import { PreinscripcionModule } from './preinscripcion/preinscripcion.module';
 import { TablerosModule } from './tableros/tableros.module';
 
 @Module({
@@ -28,6 +29,7 @@ import { TablerosModule } from './tableros/tableros.module';
     ReservasModule,
     AdminModule,
     CronogramaModule,
+    PreinscripcionModule,
     TablerosModule,
     PoliticasModule,
     CrmModule,

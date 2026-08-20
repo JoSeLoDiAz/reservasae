@@ -192,6 +192,21 @@ model Empresa {
   /// Puede ser una persona con RUT, no solo un NIT.
   tipoDocumentoSepId Int?
 
+  // lo que pide el F7 y nadie capturaba
+  direccion  String?
+  telefono   String?
+  /// Codigos DANE, como todo lo del SEP.
+  departamentoSepId Int?
+  municipioSepId    Int?
+  sectorEconomico   String?
+  /// Todos los que trabajan, no solo los que se forman.
+  numeroTrabajadores Int?
+  /// Conviniente, beneficiaria o de la cadena productiva.
+  papelEnConvenio    String?
+  contactoNombre String?
+  contactoCargo  String?
+  contactoCorreo String?
+
   creadoEn      DateTime @default(now())
   actualizadoEn DateTime @updatedAt
 
@@ -663,6 +678,7 @@ model Participante {
   movimientos     MovimientoParticipante[]
   notas           NotaParticipante[]
   avances         AvanceActividad[]
+  enlaces         EnlaceCompletado[]
 
   // nadie cuenta dos veces en la misma accion
   @@unique([accionFormacionId, personaId])
@@ -840,6 +856,7 @@ model Admin {
   sobrecuposAutorizados   Participante[]           @relation("SobrecuposAutorizados")
   movimientosParticipante MovimientoParticipante[]
   notasParticipante       NotaParticipante[]
+  enlacesEmitidos         EnlaceCompletado[]       @relation("EnlacesEmitidos")
 
   @@map("administradores")
 }
@@ -852,6 +869,31 @@ enum RolConvenio {
   GESTOR_ACADEMICO
   LIDER_SISTEMAS
   CONSULTA
+}
+
+/**
+ * Un enlace para que la persona complete sus propios
+ * datos. De un solo uso: se cierra al guardar, y el
+ * asesor puede emitir otro.
+ */
+model EnlaceCompletado {
+  id             String @id @default(cuid())
+  /// Lo que viaja en la URL. Largo y aleatorio.
+  token          String @unique
+  participanteId String
+
+  creadoEn  DateTime  @default(now())
+  expiraEn  DateTime
+  /// Cuando se cerró: a partir de ahí no vale.
+  usadoEn   DateTime?
+  /// Quién lo emitió. Null si lo generó el propio registro.
+  emitidoPorId String?
+
+  participante Participante @relation(fields: [participanteId], references: [id], onDelete: Cascade)
+  emitidoPor   Admin?       @relation("EnlacesEmitidos", fields: [emitidoPorId], references: [id], onDelete: SetNull)
+
+  @@index([participanteId])
+  @@map("enlaces_completado")
 }
 
 /// Concesion explicita: sin fila, no hay acceso.
