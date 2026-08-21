@@ -384,6 +384,23 @@ export class CrmService {
       throw new BadRequestException('Esa oferta no pertenece al convenio indicado.');
     }
 
+    // la reserva se comprobaba: entraba tal cual y una de
+    // otro convenio sumaba a la cobertura de este sin
+    // sumar su cupo al denominador
+    if (dto.reservaId) {
+      const reserva = await this.prisma.reserva.findUnique({
+        where: { id: dto.reservaId },
+        select: { ofertaId: true, oferta: { select: { accionFormacion: { select: { convenioId: true } } } } },
+      });
+      if (!reserva) throw new NotFoundException('Esa reserva no existe.');
+      if (reserva.oferta.accionFormacion.convenioId !== dto.convenioId) {
+        throw new BadRequestException('Esa reserva no pertenece al convenio indicado.');
+      }
+      if (oferta && reserva.ofertaId !== oferta.id) {
+        throw new BadRequestException('Esa reserva no es de la formación que se le asigna.');
+      }
+    }
+
     // pasarse del cupo se puede, pero deja rastro
     let sobrecupo: { porId: string; motivo: string } | null = null;
     if (oferta) {
@@ -678,7 +695,15 @@ export class CrmService {
 
     const p = await this.prisma.participante.findUnique({
       where: { id },
-      select: { id: true, etapa: true, convenioId: true, accionFormacionId: true },
+      select: {
+        id: true,
+        etapa: true,
+        convenioId: true,
+        accionFormacionId: true,
+        fechaRetiro: true,
+        fechaMatricula: true,
+        fechaCertificacion: true,
+      },
     });
     if (!p) throw new NotFoundException('Ese participante no existe.');
 
@@ -694,11 +719,20 @@ export class CrmService {
             obligatoria: true,
           },
         }),
+        // el numerador tiene que ser de la MISMA accion que
+        // el denominador. Sin esa condicion, quien aprobo
+        // 10 de 10 en la AF1 y se reasigna a la AF5 se
+        // certifica con 10/12 sin haber tocado la AF5, y
+        // esa fila entra al reporte del SENA
         this.prisma.avanceActividad.count({
           where: {
             participanteId: id,
             estado: 'APROBADA',
-            actividad: { obligatoria: true, publicada: true },
+            actividad: {
+              obligatoria: true,
+              publicada: true,
+              accionFormacionId: p.accionFormacionId ?? '',
+            },
           },
         }),
       ]);
@@ -751,9 +785,18 @@ export class CrmService {
         data: {
           etapa: dto.etapa,
           motivoSalida: ETAPAS_CON_MOTIVO.includes(dto.etapa) ? dto.motivo : undefined,
+          // matricularse y certificarse son hechos que ya
+          // ocurrieron: se escriben una vez. Volver a pasar
+          // por la etapa no cambia cuando pasaron, y el
+          // reporte al SENA lleva esa fecha
+          fechaMatricula:
+            dto.etapa === 'INSCRITO' && !p.fechaMatricula ? new Date() : undefined,
+          fechaCertificacion:
+            dto.etapa === 'CERTIFICADO' && !p.fechaCertificacion ? new Date() : undefined,
+          // el retiro NO: es la fecha del retiro vigente, y
+          // va con su motivo, que si se sobrescribe. Fijarla
+          // dejaba la fecha de marzo con el motivo de agosto
           fechaRetiro: dto.etapa === 'RETIRADO' ? new Date() : undefined,
-          fechaMatricula: dto.etapa === 'INSCRITO' ? new Date() : undefined,
-          fechaCertificacion: dto.etapa === 'CERTIFICADO' ? new Date() : undefined,
         },
       }),
       this.prisma.movimientoParticipante.create({
@@ -1020,7 +1063,12 @@ export class CrmService {
           },
         },
         avances: {
-          select: { estado: true, actividad: { select: { obligatoria: true } } },
+          select: {
+            estado: true,
+            actividad: {
+              select: { obligatoria: true, publicada: true, accionFormacionId: true },
+            },
+          },
         },
       },
     });
@@ -1037,9 +1085,15 @@ export class CrmService {
 
     const personas = filas.map((p) => {
       const total = totalDe.get(p.accionFormacionId ?? '') ?? 0;
-      // solo las obligatorias, que son el denominador
+      // el numerador, con las MISMAS tres condiciones que
+      // el denominador: obligatoria, publicada y de su
+      // accion. Sin las dos ultimas salian avances de 111 %
       const hechas = p.avances.filter(
-        (a) => a.estado === 'APROBADA' && a.actividad.obligatoria,
+        (a) =>
+          a.estado === 'APROBADA' &&
+          a.actividad.obligatoria &&
+          a.actividad.publicada &&
+          a.actividad.accionFormacionId === p.accionFormacionId,
       ).length;
 
       const grupo = p.cobertura?.grupo ?? null;

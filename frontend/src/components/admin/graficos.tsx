@@ -306,19 +306,23 @@ export function EtiquetaEstado({ estado }: { estado: EstadoSemaforo }) {
 
 // serie por día
 
-type Punto = { dia: string; reservas: number; cupos: number };
+type Punto = { dia: string; cupos: number; reservas?: number };
 
-/** Barras de cupos por día. */
-export function BarrasPorDia({ datos }: { datos: Punto[] }) {
+/** Barras por día; la unidad se puede renombrar. */
+export function BarrasPorDia({
+  datos,
+  unidad = "cupos",
+  vacio = "Todavía no hay reservas que mostrar.",
+}: {
+  datos: Punto[];
+  unidad?: string;
+  vacio?: string;
+}) {
   const [encima, setEncima] = useState<number | null>(null);
   const id = useId();
 
   if (!datos.length) {
-    return (
-      <p className="py-8 text-center text-sm text-texto-suave">
-        Todavía no hay reservas que mostrar.
-      </p>
-    );
+    return <p className="py-8 text-center text-sm text-texto-suave">{vacio}</p>;
   }
 
   const maximo = Math.max(...datos.map((d) => d.cupos), 1);
@@ -371,15 +375,16 @@ export function BarrasPorDia({ datos }: { datos: Punto[] }) {
           <span className="font-medium">{fecha(punto.dia, true)}</span>
           <span className="text-texto-suave">
             {" "}
-            · {n(punto.cupos)} cupos en {n(punto.reservas)}{" "}
-            {punto.reservas === 1 ? "reserva" : "reservas"}
+            · {n(punto.cupos)} {unidad}
+            {punto.reservas !== undefined &&
+              ` en ${n(punto.reservas)} ${punto.reservas === 1 ? "reserva" : "reservas"}`}
           </span>
         </div>
       )}
 
       {/* la misma serie en texto */}
       <p id={id} className="sr-only">
-        {datos.map((d) => `${d.dia}: ${d.cupos} cupos`).join(". ")}
+        {datos.map((d) => `${d.dia}: ${d.cupos} ${unidad}`).join(". ")}
       </p>
     </div>
   );

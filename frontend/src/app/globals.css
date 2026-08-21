@@ -42,15 +42,17 @@
   --error-suave: #fff1f2;
 
   /* etapas del crm */
-  --etapa-nuevo: #5b6472;
+  --etapa-interesado: #5b6472;
   --etapa-contactado: #1f4e85;
   --etapa-datos-completos: #4c3a8c;
-  --etapa-matriculado: #1a6e58;
+  --etapa-inscrito: #1a6e58;
   --etapa-en-formacion: #8a5a12;
   --etapa-certificado: #2c6b1f;
   --etapa-perdido: #9c3126;
   --etapa-retirado: #7a2e72;
   --etapa-no-aprobo: #a3431c;
+  --etapa-deserto: #8a5a24;
+  --etapa-abandono: #6b4a7a;
 
   /* series de los graficos */
   --serie-1: #2a78d6;
@@ -98,15 +100,17 @@
   --error-suave: #3f0d16;
 
   /* etapas aclaradas para fondo oscuro */
-  --etapa-nuevo: #a3aec0;
+  --etapa-interesado: #a3aec0;
   --etapa-contactado: #7cb2f0;
   --etapa-datos-completos: #b3a4f0;
-  --etapa-matriculado: #5ec6a8;
+  --etapa-inscrito: #5ec6a8;
   --etapa-en-formacion: #e0b155;
   --etapa-certificado: #86cf72;
   --etapa-perdido: #f2938a;
   --etapa-retirado: #dfa0d8;
   --etapa-no-aprobo: #f0a077;
+  --etapa-deserto: #d9b06a;
+  --etapa-abandono: #b9a0d4;
 
   /* series reescalonadas para fondo oscuro */
   --serie-1: #3987e5;
@@ -291,9 +295,10 @@ h3 {
 
 /* impresion / pdf */
 @media print {
-  :root,
-  :root[data-tema="oscuro"],
-  :root[data-tema="claro"] {
+  /* :root:root gana a la paleta inyectada en el head */
+  :root:root,
+  :root:root[data-tema="oscuro"],
+  :root:root[data-tema="claro"] {
     --fondo: #ffffff;
     --superficie: #ffffff;
     --superficie-alterna: #f4f6f9;
@@ -306,16 +311,39 @@ h3 {
     --tabla-fila-alterna: #fafbfc;
     --tabla-fila-resaltada: transparent;
     /* las del oscuro no se leen sobre papel blanco */
-    --etapa-nuevo: #5b6472;
+    --etapa-interesado: #5b6472;
     --etapa-contactado: #1f4e85;
     --etapa-datos-completos: #4c3a8c;
-    --etapa-matriculado: #1a6e58;
+    --etapa-inscrito: #1a6e58;
     --etapa-en-formacion: #8a5a12;
     --etapa-certificado: #2c6b1f;
     --etapa-perdido: #9c3126;
     --etapa-retirado: #7a2e72;
     --etapa-no-aprobo: #a3431c;
+    --etapa-deserto: #8a5a24;
+    --etapa-abandono: #6b4a7a;
     color-scheme: light;
+  }
+
+  /* el resto del oscuro tampoco se lee en papel */
+  :root:root[data-tema="oscuro"] {
+    --marca: #1d4ed8;
+    --marca-fuerte: #1e3a8a;
+    --marca-suave: #eff6ff;
+    --marca-texto: #ffffff;
+    --encabezado-fondo: #ffffff;
+    --encabezado-texto: #0f172a;
+    --encabezado-borde: #e2e8f0;
+    --tabla-borde: #e2e8f0;
+    --campo-fondo: #ffffff;
+    --campo-borde: #cbd5e1;
+    --campo-foco: #1d4ed8;
+    --exito: #047857;
+    --exito-suave: #ecfdf5;
+    --aviso: #a16207;
+    --aviso-suave: #fffbeb;
+    --error: #be123c;
+    --error-suave: #fff1f2;
   }
 
   @page {

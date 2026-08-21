@@ -215,12 +215,21 @@ const REPARTO: Array<[EtapaParticipante, number]> = [
   [EtapaParticipante.ABANDONO, 4],
 ];
 
-/** Quien ya pisó el aula y por tanto tiene avance. */
+/**
+ * Quien ya pisó el aula y por tanto tiene avance.
+ *
+ * Las seis, y tiene que ser las seis: los caminos de
+ * DESERTO y ABANDONO pasan por EN_FORMACION, así que el
+ * ancla los mete en el tablero. Faltando aquí, entraban
+ * sin un solo avance y hundían el avance medio con ceros.
+ */
 const ETAPAS_EN_AULA: EtapaParticipante[] = [
   EtapaParticipante.EN_FORMACION,
   EtapaParticipante.CERTIFICADO,
   EtapaParticipante.NO_APROBO,
   EtapaParticipante.RETIRADO,
+  EtapaParticipante.DESERTO,
+  EtapaParticipante.ABANDONO,
 ];
 
 /** De estas no se sale sin explicar por qué. */
@@ -241,7 +250,11 @@ const CAMINO: Record<EtapaParticipante, EtapaParticipante[]> = {
     'INTERESADO', 'CONTACTADO', 'DATOS_COMPLETOS', 'INSCRITO', 'EN_FORMACION', 'CERTIFICADO',
   ],
   PERDIDO: ['INTERESADO', 'CONTACTADO', 'PERDIDO'],
-  RETIRADO: ['INTERESADO', 'CONTACTADO', 'DATOS_COMPLETOS', 'INSCRITO', 'RETIRADO'],
+  // pasa por EN_FORMACION: se le siembran avances, y sin
+  // ese movimiento el ancla del aula lo deja fuera
+  RETIRADO: [
+    'INTERESADO', 'CONTACTADO', 'DATOS_COMPLETOS', 'INSCRITO', 'EN_FORMACION', 'RETIRADO',
+  ],
   NO_APROBO: [
     'INTERESADO', 'CONTACTADO', 'DATOS_COMPLETOS', 'INSCRITO', 'EN_FORMACION', 'NO_APROBO',
   ],

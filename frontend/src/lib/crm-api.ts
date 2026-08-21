@@ -21,7 +21,9 @@ export type TipoDocumentoSep = {
 };
 
 export type Origen =
-  | "EMPRESA" | "ASESOR" | "AUTOGESTION" | "REFERIDO" | "REDES" | "EVENTO" | "OTRO";
+  | "EMPRESA" | "ASESOR" | "AUTOGESTION" | "REFERIDO" | "REDES"
+  | "INSTAGRAM" | "FACEBOOK" | "LINKEDIN" | "WHATSAPP" | "CORREO"
+  | "EVENTO" | "OTRO";
 
 /** En orden de avance. Las salidas van aparte. */
 export const ETAPAS_AVANCE: Etapa[] = [
@@ -103,21 +105,20 @@ export const ETIQUETA_ORIGEN: Record<Origen, string> = {
   AUTOGESTION: "Se inscribió solo",
   REFERIDO: "Referido",
   REDES: "Redes sociales",
+  INSTAGRAM: "Instagram",
+  FACEBOOK: "Facebook",
+  LINKEDIN: "LinkedIn",
+  WHATSAPP: "WhatsApp",
+  CORREO: "Correo",
   EVENTO: "Feria o evento",
   OTRO: "Otro",
 };
 
 
-
-export type Origen2 =
-  | "EMPRESA" | "ASESOR" | "AUTOGESTION" | "REFERIDO" | "REDES"
-  | "INSTAGRAM" | "FACEBOOK" | "LINKEDIN" | "WHATSAPP" | "CORREO"
-  | "EVENTO" | "OTRO";
-
 export type FilaParticipante = {
   id: string;
   etapa: Etapa;
-  origen: Origen2;
+  origen: Origen;
   /** Si la persona entregó su ficha entera o a medias. */
   datos: "PARCIALES" | "COMPLETOS";
   /** Qué le falta de lo suyo: lo que el asesor le pide. */
@@ -306,22 +307,157 @@ export type Academico = {
 };
 
 
+export type Rango =
+  | "HOY"
+  | "AYER"
+  | "SEMANA"
+  | "MES"
+  | "MES_PASADO"
+  | "TRIMESTRE"
+  | "ANO"
+  | "TODO"
+  | "PERSONALIZADO";
+
+export const ETIQUETA_RANGO: Record<Rango, string> = {
+  HOY: "Hoy",
+  AYER: "Ayer",
+  SEMANA: "Últimos 7 días",
+  MES: "Últimos 30 días",
+  MES_PASADO: "El mes pasado",
+  TRIMESTRE: "Últimos 90 días",
+  ANO: "Últimos 12 meses",
+  TODO: "Desde el principio",
+  PERSONALIZADO: "Entre dos fechas",
+};
+
+/**
+ * La ventana que aplicó el backend. Corta por la fecha en
+ * que la persona quedó inscrita, que es la única fecha de
+ * proceso que hay: hay que decirlo en pantalla.
+ */
+export type Ventana = {
+  rango: string;
+  etiqueta: string;
+  /** Con qué se compara. Null si no hay con qué. */
+  etiquetaAnterior: string | null;
+  /** ISO yyyy-mm-dd, o null cuando no hay corte. */
+  desde: string | null;
+  hasta: string | null;
+};
+
+/** Fracción: 0.25 es un 25 % más. Null si antes no había. */
+export type Variaciones = Record<string, number | null>;
+
 export type Corte = { etiqueta: string; total: number };
 
-/** Lo que pinta el panel de Control de inscritos. */
-export type Control = {
+/** Cuánto convirtió un asesor de lo que lleva. */
+export type CorteAsesor = Corte & {
+  asesorId: string | null;
+  /** Todas sus fichas del ámbito, sin ventana. */
+  asignados: number;
+  /** Los suyos inscritos, sin periodo. */
+  inscritosSiempre: number;
+  /** Sin periodo: inscritos/asignados. */
+  conversion: number;
+};
+
+/** Las cifras de cabecera, que son las que se comparan. */
+export type CabeceraControl = {
+  /** Llegó a inscrito, no etapa de hoy. */
   total: number;
-  cuposConfirmados: number;
+  /** Días medios de lead a inscrito. */
   diasHastaInscribir: number | null;
+};
+
+/** Lo que pinta el panel de Control de inscritos. */
+export type Control = CabeceraControl & {
+  /** Sale de reservas, así que nunca lleva ventana. */
+  cuposConfirmados: number;
+  /** Inscritos con cupo reservado. */
+  inscritosConReserva: number;
+  /** Los que llegaron por su cuenta. */
+  inscritosPorSuCuenta: number;
+  /** Solo las cinco etapas de Inscripciones. */
   embudo: Array<{ etapa: Etapa; total: number }>;
   porAccion: Corte[];
   porUbicacion: Array<Corte & { tipo: string }>;
   porGrupo: Array<Corte & { inicio: string | null }>;
   porConvenio: Corte[];
-  porAsesor: Corte[];
+  porAsesor: CorteAsesor[];
   porOrigen: Corte[];
   porModalidad: Corte[];
+  /** El día ya viene yyyy-mm-dd de Bogotá. */
   serie: Array<{ dia: string; total: number }>;
+  ventana: Ventana;
+  anterior: CabeceraControl | null;
+  variacion: Variaciones;
+};
+
+/** Lo que se cuenta de un corte del aula. */
+export type MetricasAula = {
+  /** Todo el que pisó el aula, salidas incluidas. */
+  enAula: number;
+  /** Los que siguen dentro. */
+  dentro: number;
+  certificados: number;
+  /** En formación que ya llegaron al mínimo. */
+  listos: number;
+  desertaron: number;
+  abandonaron: number;
+  retirados: number;
+  noAprobaron: number;
+  /** De 0 a 1, sobre los medibles. */
+  avanceMedio: number;
+  /** A cuántos se les puede medir. */
+  medibles: number;
+  /** Sin actividades: no se miden. */
+  sinMedir: number;
+  /** Obligatorias de la acción; null si son varias. */
+  actividades: number | null;
+};
+
+export type FilaAccionAula = MetricasAula & { codigo: string; nombre: string };
+
+export type FilaGrupoAula = FilaAccionAula & {
+  /** null en la fila de quien no tiene grupo. */
+  numero: number | null;
+  inicio: string | null;
+  fin: string | null;
+};
+
+export type FilaAsesorAula = MetricasAula & {
+  asesorId: string | null;
+  nombre: string;
+};
+
+/** Las cifras de cabecera del aula. */
+export type CabeceraAcademica = {
+  total: number;
+  dentro: number;
+  certificados: number;
+  listos: number;
+  salidas: number;
+  /** Sobre los medibles, no sobre todo. */
+  avanceMedio: number;
+  /** A cuántos se les puede medir. */
+  medibles: number;
+  /** Sin actividades: no se miden. */
+  sinMedir: number;
+  /** certificados / total del aula */
+  terminacion: number;
+  /** las cuatro salidas / total del aula */
+  desercion: number;
+};
+
+/** El aula por acción, grupo y asesor. No por persona. */
+export type TableroAcademico = CabeceraAcademica & {
+  minimoParaCertificar: number;
+  porAccion: FilaAccionAula[];
+  porGrupo: FilaGrupoAula[];
+  porAsesor: FilaAsesorAula[];
+  ventana: Ventana;
+  anterior: CabeceraAcademica | null;
+  variacion: Variaciones;
 };
 
 export type CatalogosSep = {
@@ -351,7 +487,10 @@ export type Filtros = {
   limite?: number;
 };
 
-function consulta(filtros: Filtros): string {
+/** Lo que se manda para pedir una ventana de tiempo. */
+export type FiltroVentana = { rango?: Rango; desde?: string; hasta?: string };
+
+function consulta(filtros: Filtros | FiltroVentana): string {
   const p = new URLSearchParams();
   for (const [clave, valor] of Object.entries(filtros)) {
     if (valor !== undefined && valor !== null && valor !== "") {
@@ -433,7 +572,13 @@ export const crmApi = {
       notasBorradas: number;
     }>(`/admin/participantes/${id}`, { method: "DELETE" }),
 
-  control: () => pedir<Control>("/admin/participantes/control"),
+  control: (rango?: Rango, desde?: string, hasta?: string) =>
+    pedir<Control>(`/admin/participantes/control${consulta({ rango, desde, hasta })}`),
+
+  tableroAcademico: (rango?: Rango, desde?: string, hasta?: string) =>
+    pedir<TableroAcademico>(
+      `/admin/participantes/academico/tablero${consulta({ rango, desde, hasta })}`,
+    ),
 
   opciones: (convenioId: string) =>
     pedir<Opciones>(`/admin/participantes/opciones?convenioId=${convenioId}`),

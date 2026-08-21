@@ -3,10 +3,14 @@
 import { usePathname } from "next/navigation";
 
 import { MarcoAdmin } from "@/components/admin/marco-admin";
+import { ProveedorToast } from "@/components/admin/toast";
 
 /** El acceso no pasa por el marco: seria un bucle. */
 export default function LayoutAdmin({ children }: { children: React.ReactNode }) {
   const ruta = usePathname();
-  if (ruta === "/admin/login") return <>{children}</>;
-  return <MarcoAdmin>{children}</MarcoAdmin>;
+  return (
+    <ProveedorToast>
+      {ruta === "/admin/login" ? children : <MarcoAdmin>{children}</MarcoAdmin>}
+    </ProveedorToast>
+  );
 }

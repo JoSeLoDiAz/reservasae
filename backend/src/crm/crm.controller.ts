@@ -29,7 +29,36 @@ import {
   RegistrarAutorizacionDto,
 } from './dto';
 import { controlDeInscritos } from './control';
+import { tableroAcademico } from './tablero-academico';
+import { resolverVentana, type Comparacion, type Rango } from './ventana';
 import { PrismaService } from '../prisma/prisma.service';
+
+const RANGOS: Rango[] = [
+  'HOY',
+  'AYER',
+  'SEMANA',
+  'MES',
+  'MES_PASADO',
+  'TRIMESTRE',
+  'ANO',
+  'TODO',
+  'PERSONALIZADO',
+];
+
+const FECHA = /^\d{4}-\d{2}-\d{2}$/;
+
+/** Resuelve la ventana pedida, sin fiarse del texto. */
+function ventanaPedida(
+  rango?: string,
+  desde?: string,
+  hasta?: string,
+): Comparacion {
+  // lo que no es de la lista no es un rango
+  const r = RANGOS.includes(rango as Rango) ? (rango as Rango) : undefined;
+  const d = desde && FECHA.test(desde) ? desde : undefined;
+  const h = hasta && FECHA.test(hasta) ? hasta : undefined;
+  return resolverVentana(r, d, h);
+}
 
 /** Inscripciones: las personas detrás de los cupos. */
 @Controller('admin/participantes')
@@ -51,14 +80,23 @@ export class CrmController {
     return this.crm.resumen({ ...filtros, ambito: ambito.convenios });
   }
 
-  /** Las listas del SEP que dibujan los formularios. */
   /** Cuantos inscritos hay y como se reparten. */
   @Get('control')
   @Requiere('inscritos')
-  control(@AmbitoActual() ambito: Ambito) {
-    return controlDeInscritos(this.prisma, ambito.convenios);
+  control(
+    @AmbitoActual() ambito: Ambito,
+    @Query('rango') rango?: string,
+    @Query('desde') desde?: string,
+    @Query('hasta') hasta?: string,
+  ) {
+    return controlDeInscritos(
+      this.prisma,
+      ambito.convenios,
+      ventanaPedida(rango, desde, hasta),
+    );
   }
 
+  /** Las listas del SEP que dibujan los formularios. */
   @Get('catalogos')
   catalogos() {
     return this.crm.catalogos();
@@ -69,6 +107,22 @@ export class CrmController {
   @Requiere('academico')
   academico(@Query() filtros: FiltrosParticipantesDto, @AmbitoActual() ambito: Ambito) {
     return this.crm.academico({ ...filtros, ambito: ambito.convenios });
+  }
+
+  /** El aula por accion, grupo y asesor. No por persona. */
+  @Get('academico/tablero')
+  @Requiere('academico')
+  tablero(
+    @AmbitoActual() ambito: Ambito,
+    @Query('rango') rango?: string,
+    @Query('desde') desde?: string,
+    @Query('hasta') hasta?: string,
+  ) {
+    return tableroAcademico(
+      this.prisma,
+      ambito.convenios,
+      ventanaPedida(rango, desde, hasta),
+    );
   }
 
   /** Ofertas y grupos donde se puede colocar a alguien. */

@@ -78,6 +78,7 @@ export const MODULOS: Modulo[] = [
     etiqueta: 'Seguimiento académico',
     descripcion: 'Quién va al día y quién no.',
     enlaces: [
+      { href: '/admin/participantes/academico/tablero', etiqueta: 'Tablero académico', area: 'academico', icono: IconoTablero },
       { href: '/admin/participantes/academico', etiqueta: 'Avance', exacto: true, area: 'academico' , icono: IconoAvance },
     ],
   },
