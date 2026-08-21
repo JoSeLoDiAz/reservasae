@@ -988,6 +988,13 @@ async function main() {
       : 0;
     const diasDesdeAlta = Math.max(diasDelInicio, 0) + entre(4, 26);
     const necesitaFormacion = camino.includes(EtapaParticipante.INSCRITO);
+
+    // quien acaba de llegar por el formulario corto trae
+    // solo lo basico. De CONTACTADO en adelante el asesor
+    // ya se lo saco, asi que ahi nadie sigue a medias
+    const aMedias =
+      (etapa === EtapaParticipante.INTERESADO && azar() < 0.65) ||
+      (etapa === EtapaParticipante.CONTACTADO && azar() < 0.3);
     const asesor = azar() < 0.85 ? unoDe(asesores) : null;
 
     // la misma cedula en dos convenios es UNA persona con
@@ -1019,15 +1026,20 @@ async function main() {
                 .normalize('NFD')
                 .replace(/[̀-ͯ]/g, '') + '@ejemplo.test',
             celular: `3${entre(0, 2)}${entre(1000000, 9999999)}`,
-            fechaNacimiento: hace(entre(6_600, 18_000)),
-            // lo que pide el SEP; el asesor completa lo
-            // que falte desde la ficha
+            // el formulario corto solo pide hasta aqui; lo
+            // de abajo llega cuando la persona completa su
+            // ficha o cuando el asesor se lo saca por
+            // telefono. Dos tercios de los interesados
+            // siguen a medias: es el trabajo pendiente
+            fechaNacimiento: aMedias ? null : hace(entre(6_600, 18_000)),
             generoSepId: esMujer ? 2 : unoDe([1, 3]),
-            estrato: entre(1, 6),
-            departamentoSepId: domicilio[1],
-            municipioSepId: domicilio[0],
-            barrio: unoDe(BARRIOS),
-            direccion: `${unoDe(CALLES)} ${entre(1, 180)} #${entre(1, 90)}-${entre(1, 99)}`,
+            estrato: aMedias ? null : entre(1, 6),
+            departamentoSepId: aMedias ? null : domicilio[1],
+            municipioSepId: aMedias ? null : domicilio[0],
+            barrio: aMedias ? null : unoDe(BARRIOS),
+            direccion: aMedias
+              ? null
+              : `${unoDe(CALLES)} ${entre(1, 180)} #${entre(1, 90)}-${entre(1, 99)}`,
           },
           select: { id: true },
         })
@@ -1051,7 +1063,7 @@ async function main() {
             ]),
         asesorId: asesor?.id ?? null,
         cargoEnEmpresa: azar() < 0.8 ? unoDe(CARGOS) : null,
-        nivelOcupacionalSepId: unoDe(NIVELES_OCUPACIONALES_SEP).id,
+        nivelOcupacionalSepId: aMedias ? null : unoDe(NIVELES_OCUPACIONALES_SEP).id,
         beneficiarioPrevio: azar() < 0.18,
         creadoEn: hace(diasDesdeAlta),
         personaId,
