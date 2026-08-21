@@ -1,4 +1,5 @@
 import { Body, Controller, Get, Param, Patch, Post } from '@nestjs/common';
+import { IpReal } from '../comun/ip-real';
 
 import { CrearPreinscripcionDto, DatosEmpresaDto, DatosPersonaDto } from './dto';
 import { PreinscripcionService } from './preinscripcion.service';
@@ -30,8 +31,12 @@ export class CompletarController {
   }
 
   @Patch(':token')
-  guardarPersona(@Param('token') token: string, @Body() dto: DatosPersonaDto) {
-    return this.preinscripcion.guardarPersona(token, dto);
+  guardarPersona(
+    @Param('token') token: string,
+    @Body() dto: DatosPersonaDto,
+    @IpReal() ip: string,
+  ) {
+    return this.preinscripcion.guardarPersona(token, dto, ip);
   }
 
   @Patch(':token/empresa')

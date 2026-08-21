@@ -2,10 +2,12 @@
  * La ventana de tiempo de los tableros, y con qué se
  * compara.
  *
- * El periodo anterior es SIEMPRE el inmediatamente previo y
- * de la misma duración: si se miran los últimos 7 días, se
- * compara con los 7 anteriores. Comparar contra un periodo
- * de otra longitud daría variaciones que no significan nada.
+ * Por defecto el periodo anterior es el inmediatamente
+ * previo y de la misma duración: si se miran los últimos 7
+ * días, se compara con los 7 anteriores, porque nadie eligió
+ * otra cosa y una longitud distinta sin decirlo daría
+ * variaciones que no significan nada. Cuando sí se elige el
+ * segundo periodo, `compararDos` lo respeta y rotula los dos.
  *
  * Todo se calcula en la zona de Bogotá y no en UTC. El
  * servidor corre en UTC, así que «ayer» sin desplazar
@@ -165,6 +167,36 @@ export function resolverVentana(
         etiquetaAnterior: null,
       };
   }
+}
+
+/**
+ * Compara dos rangos elegidos, no uno contra su previo.
+ *
+ * No se exige que duren igual: «¿hoy llevamos ya lo de todo
+ * agosto?» es una pregunta legítima. Por eso hace falta que
+ * la pantalla diga los DOS rótulos, y `etiquetaAnterior`
+ * lleva el del segundo periodo en vez de un genérico «el
+ * periodo anterior», que aquí mentiría.
+ */
+export function compararDos(
+  rango: Rango,
+  contra: Rango,
+  desde?: string,
+  hasta?: string,
+  contraDesde?: string,
+  contraHasta?: string,
+  ahora: Date = new Date(),
+): Comparacion {
+  const a = resolverVentana(rango, desde, hasta, ahora);
+  const b = resolverVentana(contra, contraDesde, contraHasta, ahora);
+  return {
+    rango,
+    actual: a.actual,
+    // el segundo rango, no el previo
+    anterior: b.actual,
+    etiqueta: a.etiqueta,
+    etiquetaAnterior: b.etiqueta.toLowerCase(),
+  };
 }
 
 /** Cuánto cambió, de -1 a +∞. Null si antes no había nada. */

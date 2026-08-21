@@ -51,13 +51,22 @@ export type FichaAbierta = {
     ubicacion: string | null;
   } | null;
   empresa: string | null;
+  nitEmpresa: string | null;
+  /** Si la nominó una empresa, no la cambia ella. */
+  empresaFijada: boolean;
+  cargoEnEmpresa: string | null;
   persona: Record<string, unknown> & {
     primerNombre: string;
     primerApellido: string;
     numeroDocumento: string;
   };
+  yaAutorizo: boolean;
+  politica: { id: string; version: number; titulo: string; contenido: string } | null;
   documentos: ValorSep[];
   generos: ValorSep[];
+  departamentos: ValorSep[];
+  /** [id, departamentoId, nombre]: se filtra sin pedir nada. */
+  municipios: Array<[number, number, string]>;
 };
 
 async function pedir<T>(ruta: string, opciones?: RequestInit): Promise<T> {

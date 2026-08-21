@@ -1,5 +1,6 @@
 import { Transform } from 'class-transformer';
 import {
+  IsBoolean,
   IsEmail,
   IsInt,
   IsISO8601,
@@ -77,10 +78,20 @@ export class DatosPersonaDto {
   @IsOptional() @Transform(aTexto) @IsString() @MaxLength(120) barrio?: string;
   @IsOptional() @Transform(aTexto) @IsString() @MaxLength(200) direccion?: string;
   @IsOptional() @Transform(aTexto) @IsString() @MaxLength(120) nivelEducativo?: string;
+  @IsOptional() @Transform(aTexto) @IsString() @MaxLength(120) cargoEnEmpresa?: string;
+
+  /** Aceptar la politica: es lo que hay que demostrar. */
+  @IsOptional() @IsBoolean() aceptaPolitica?: boolean;
 }
 
 /** Lo que el F7 pide de la organización. */
 export class DatosEmpresaDto {
+  // solo de quien no vino por una reserva: la suya ya la
+  // fijo la empresa que lo nomino y no la cambia el
+  @IsOptional() @Transform(recortar) @IsString() @MaxLength(20) nit?: string;
+  @IsOptional() @Transform(aTexto) @IsString() @MaxLength(1) digitoVerificacion?: string;
+  @IsOptional() @Transform(aTexto) @IsString() @MaxLength(200) razonSocial?: string;
+
   @IsOptional() @Transform(aTexto) @IsString() @MaxLength(200) direccion?: string;
   @IsOptional() @Transform(aTexto) @IsString() @MaxLength(40) telefono?: string;
 

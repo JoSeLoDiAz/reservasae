@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { useEffect, useState } from "react";
 
 import { ErrorApi } from "@/lib/api";
+import { primero, resto } from "@/lib/nombres";
 import {
   preinscripcionApi,
   type AccionPublica,
@@ -28,8 +29,7 @@ export function PreinscripcionPublica({ slug }: { slug: string }) {
   const [datos, setDatos] = useState({
     tipoDocumentoSepId: "",
     numeroDocumento: "",
-    primerNombre: "",
-    segundoNombre: "",
+    nombres: "",
     primerApellido: "",
     segundoApellido: "",
     generoSepId: "",
@@ -68,13 +68,16 @@ export function PreinscripcionPublica({ slug }: { slug: string }) {
         ofertaId,
         tipoDocumentoSepId: Number(datos.tipoDocumentoSepId),
         numeroDocumento: datos.numeroDocumento,
-        primerNombre: datos.primerNombre,
-        segundoNombre: datos.segundoNombre || undefined,
+        primerNombre: primero(datos.nombres),
+        segundoNombre: resto(datos.nombres),
         primerApellido: datos.primerApellido,
         segundoApellido: datos.segundoApellido || undefined,
-        generoSepId: datos.generoSepId ? Number(datos.generoSepId) : undefined,
-        celular: datos.celular || undefined,
-        correo: datos.correo || undefined,
+        generoSepId:
+          datos.generoSepId && datos.generoSepId !== "NO_DECIR"
+            ? Number(datos.generoSepId)
+            : undefined,
+        celular: datos.celular,
+        correo: datos.correo,
       });
       setHecho({ token: r.token, yaEstaba: r.yaEstaba });
     } catch (err) {
@@ -87,8 +90,6 @@ export function PreinscripcionPublica({ slug }: { slug: string }) {
 
   return (
     <main className="mx-auto w-full max-w-2xl px-6 py-10">
-      <BannerLogos />
-
       <EncabezadoPublico
         titulo="Regístrese en la formación"
         subtitulo="Es gratuita. Con estos datos queda registrado; después podrá completar el resto."
@@ -156,15 +157,10 @@ export function PreinscripcionPublica({ slug }: { slug: string }) {
               requerido
             />
             <Texto
-              etiqueta="Primer nombre"
-              valor={datos.primerNombre}
-              alCambiar={(v) => cambiar("primerNombre", v)}
+              etiqueta="Nombres"
+              valor={datos.nombres}
+              alCambiar={(v) => cambiar("nombres", v)}
               requerido
-            />
-            <Texto
-              etiqueta="Segundo nombre"
-              valor={datos.segundoNombre}
-              alCambiar={(v) => cambiar("segundoNombre", v)}
             />
             <Texto
               etiqueta="Primer apellido"
@@ -181,16 +177,19 @@ export function PreinscripcionPublica({ slug }: { slug: string }) {
             <label className="block">
               <span className="mb-1.5 block text-sm font-medium">Género</span>
               <select
+                required
                 value={datos.generoSepId}
                 onChange={(e) => cambiar("generoSepId", e.target.value)}
                 className={CAMPO}
               >
-                <option value="">Prefiero no decirlo</option>
+                <option value="">Elija…</option>
                 {catalogo.generos.map((g) => (
                   <option key={g.id} value={g.id}>
                     {g.etiqueta}
                   </option>
                 ))}
+                {/* una respuesta, no la ausencia de una */}
+                <option value="NO_DECIR">Prefiero no decirlo</option>
               </select>
             </label>
 
@@ -199,6 +198,7 @@ export function PreinscripcionPublica({ slug }: { slug: string }) {
               valor={datos.celular}
               alCambiar={(v) => cambiar("celular", v)}
               tipo="tel"
+              requerido
             />
             <div className="sm:col-span-2">
               <Texto
@@ -206,6 +206,7 @@ export function PreinscripcionPublica({ slug }: { slug: string }) {
                 valor={datos.correo}
                 alCambiar={(v) => cambiar("correo", v)}
                 tipo="email"
+                requerido
               />
             </div>
           </div>

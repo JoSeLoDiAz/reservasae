@@ -1,4 +1,4 @@
-import { resolverVentana, variacion, type Ventana } from './ventana';
+import { compararDos, resolverVentana, variacion, type Ventana } from './ventana';
 
 // el instante, escrito en hora de Bogotá
 const enBogota = (d: Date) =>
@@ -180,6 +180,72 @@ describe('sin corte de tiempo', () => {
   it('sin rango pedido se asume TODO', () => {
     expect(resolverVentana().rango).toBe('TODO');
     expect(resolverVentana().actual).toBeNull();
+  });
+});
+
+describe('comparar contra el periodo que se elija', () => {
+  // en Bogotá son las 21:00 del día 20
+  const ahora = new Date('2026-08-21T02:00:00Z');
+  const sinFechas = [undefined, undefined, undefined, undefined] as const;
+
+  it('«hoy contra ayer» son dos días contiguos y sin solape', () => {
+    const c = compararDos('HOY', 'AYER', ...sinFechas, ahora);
+
+    expect(dias(c.actual!)).toBe(1);
+    expect(dias(c.anterior!)).toBe(1);
+    expect(enBogota(c.actual!.desde)).toBe('2026-08-20 00:00:00');
+    expect(enBogota(c.anterior!.desde)).toBe('2026-08-19 00:00:00');
+    expect(c.anterior!.hasta).toEqual(c.actual!.desde);
+  });
+
+  it('no exige que los dos duren igual: un mes contra otro más corto', () => {
+    // ¿llevamos ya lo del mes pasado?
+    const enMarzo = new Date('2026-03-15T10:00:00Z');
+    const c = compararDos('MES', 'MES_PASADO', ...sinFechas, enMarzo);
+
+    expect(dias(c.actual!)).toBe(30);
+    expect(dias(c.anterior!)).toBe(28);
+    expect(enBogota(c.anterior!.desde)).toBe('2026-02-01 00:00:00');
+    expect(enBogota(c.anterior!.hasta)).toBe('2026-03-01 00:00:00');
+  });
+
+  it('un día contra un mes entero también vale', () => {
+    const c = compararDos('HOY', 'MES', ...sinFechas, ahora);
+
+    expect(dias(c.actual!)).toBe(1);
+    expect(dias(c.anterior!)).toBe(30);
+  });
+
+  it('contra TODO no queda con qué comparar', () => {
+    const c = compararDos('SEMANA', 'TODO', ...sinFechas, ahora);
+
+    expect(dias(c.actual!)).toBe(7);
+    expect(c.anterior).toBeNull();
+  });
+
+  it('el rótulo de atrás es el del segundo periodo, no «el periodo anterior»', () => {
+    const c = compararDos('HOY', 'MES_PASADO', ...sinFechas, ahora);
+
+    expect(c.etiqueta).toBe('Hoy');
+    expect(c.etiquetaAnterior).toBe('el mes pasado');
+    expect(c.etiquetaAnterior).not.toBe('el periodo anterior');
+  });
+
+  it('cada rango lleva sus propias fechas', () => {
+    const c = compararDos(
+      'PERSONALIZADO',
+      'PERSONALIZADO',
+      '2026-03-01',
+      '2026-03-31',
+      '2026-01-01',
+      '2026-01-15',
+      ahora,
+    );
+
+    expect(dias(c.actual!)).toBe(31);
+    expect(dias(c.anterior!)).toBe(15);
+    expect(enBogota(c.actual!.desde)).toBe('2026-03-01 00:00:00');
+    expect(enBogota(c.anterior!.desde)).toBe('2026-01-01 00:00:00');
   });
 });
 

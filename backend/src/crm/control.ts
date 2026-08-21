@@ -6,9 +6,9 @@ import { variacion, type Comparacion, type Ventana } from './ventana';
 /**
  * Control de inscritos: cuántos hay y cómo se reparten.
  *
- * Va aparte de `crm.service.ts` porque son once consultas
- * que no comparten nada con el resto del CRM, y aquel ya
- * pasa de mil quinientas líneas.
+ * Va aparte de `crm.service.ts` porque son cerca de veinte
+ * consultas que no comparten nada con el resto del CRM, y
+ * aquel ya pasa de mil quinientas líneas.
  *
  * Todo se agrupa en la base, no en Node: traer cinco mil
  * fichas para contarlas por departamento sería absurdo, y
@@ -25,6 +25,12 @@ import { variacion, type Comparacion, type Ventana } from './ventana';
  * tienen matrícula y con la primera desaparecían enteros.
  * Los cupos y la cobertura nunca llevan ventana: salen de
  * reservas, y recortarlos daría una cobertura falsa.
+ *
+ * Los cortes accionables —quién no tiene asesor, quién
+ * lleva días sin que lo llamen, qué origen convierte y qué
+ * organización debe nombres— tampoco la llevan: son la cola
+ * de trabajo de hoy, y recortarla por «ayer» la dejaría
+ * casi vacía justo cuando más larga está.
  */
 
 const DIA = 24 * 60 * 60 * 1000;
@@ -51,7 +57,45 @@ const ETAPAS_INSCRIPCION = Prisma.sql`p."etapa" IN (
   'PERDIDO'::"EtapaParticipante"
 )`;
 
+/**
+ * Las tres primeras: lo que todavía está por trabajar.
+ *
+ * No sirve `ETAPAS_INSCRIPCION`, que incluye INSCRITO y
+ * PERDIDO: los dos son un desenlace, y contarlos en la cola
+ * del líder la haría crecer justo al cerrar fichas.
+ */
+const ETAPAS_POR_TRABAJAR = Prisma.sql`p."etapa" IN (
+  'INTERESADO'::"EtapaParticipante",
+  'CONTACTADO'::"EtapaParticipante",
+  'DATOS_COMPLETOS'::"EtapaParticipante"
+)`;
+
 export type Corte = { etiqueta: string; total: number };
+
+/** Un tramo de espera y cuántos llevan ahí. */
+export type Tramo = {
+  /** El piso del tramo en días: 0, 3, 8 o 15. */
+  dias: number;
+  total: number;
+};
+
+/** Cuánto convierte un origen, no cuánto trae. */
+export type CorteOrigen = {
+  etiqueta: string;
+  /** Todos los que entraron por ahí. */
+  leads: number;
+  /** Los que de esos llegaron a inscrito. */
+  inscritos: number;
+  conversion: number;
+};
+
+/** Una organización, sus inscritos y sus cupos. */
+export type CorteEmpresa = {
+  nit: string;
+  razonSocial: string;
+  inscritos: number;
+  cupos: number;
+};
 
 /** Cuánto convirtió un asesor de lo que lleva. */
 export type CorteAsesor = {
@@ -94,14 +138,23 @@ export type Control = Cabecera & {
   /** Los que llegaron por redes, feria o referido. */
   inscritosPorSuCuenta: number;
   embudo: Array<{ etapa: EtapaParticipante; total: number }>;
+  /** La primera cola del líder: leads sin dueño. */
+  sinAsignar: number;
+  /** Cuánto lleva esperando quien sigue en INTERESADO. */
+  sinContactar: Tramo[];
   porAccion: Corte[];
   porUbicacion: Array<Corte & { tipo: string }>;
   porGrupo: Array<Corte & { inicio: string | null }>;
   porConvenio: Corte[];
   porAsesor: CorteAsesor[];
   porOrigen: Corte[];
+  conversionPorOrigen: CorteOrigen[];
   porModalidad: Corte[];
+  /** Las diez con más inscritos, contra sus cupos. */
+  topEmpresas: CorteEmpresa[];
   serie: Array<{ dia: string; total: number }>;
+  /** Cuándo llegaron los leads, no cuándo se inscribieron. */
+  leadsPorDia: Array<{ dia: string; total: number }>;
   ventana: {
     rango: string;
     etiqueta: string;
@@ -120,14 +173,19 @@ const VACIO: Omit<Control, 'ventana' | 'anterior' | 'variacion'> = {
   inscritosPorSuCuenta: 0,
   diasHastaInscribir: null,
   embudo: [],
+  sinAsignar: 0,
+  sinContactar: [],
   porAccion: [],
   porUbicacion: [],
   porGrupo: [],
   porConvenio: [],
   porAsesor: [],
   porOrigen: [],
+  conversionPorOrigen: [],
   porModalidad: [],
+  topEmpresas: [],
   serie: [],
+  leadsPorDia: [],
 };
 
 /** Día ISO: las ventanas cortan a medianoche. */
@@ -231,20 +289,30 @@ export async function controlDeInscritos(
     ? Prisma.empty
     : Prisma.sql`AND an."momento" >= NOW() - INTERVAL '60 days'`;
 
+  // el mismo recorte, contado por creadoEn
+  const dosMesesLeads = comparacion.actual
+    ? Prisma.empty
+    : Prisma.sql`AND p."creadoEn" >= NOW() - INTERVAL '60 days'`;
+
   const [
     ahora,
     anterior,
     cupos,
     cobertura,
     embudo,
+    sinAsignar,
+    sinContactar,
     porAccion,
     porUbicacion,
     porGrupo,
     porConvenio,
     porAsesor,
     porOrigen,
+    conversionPorOrigen,
     porModalidad,
+    topEmpresas,
     serie,
+    leadsPorDia,
   ] = await Promise.all([
     cabecera(prisma, inscritos),
 
@@ -284,6 +352,45 @@ export async function controlDeInscritos(
       SELECT p."etapa"::text AS etapa, COUNT(*) AS total
         FROM "participantes" p
        WHERE ${dentro} AND ${ETAPAS_INSCRIPCION}
+       GROUP BY 1 ORDER BY 1
+    `,
+
+    /**
+     * Lo que nadie está trabajando: sin asesor y sin cerrar.
+     *
+     * No lleva ventana ni ancla: es una cola, no un hecho
+     * fechado. Recortada por el periodo, un lead de la
+     * semana pasada que sigue sin dueño desaparecería de la
+     * única lista que existe para darle uno.
+     */
+    prisma.$queryRaw<Array<{ total: bigint }>>`
+      SELECT COUNT(*) AS total
+        FROM "participantes" p
+       WHERE ${suyos}
+         AND p."asesorId" IS NULL
+         AND ${ETAPAS_POR_TRABAJAR}
+    `,
+
+    /**
+     * Cuánto lleva enfriándose la cola, en cuatro tramos.
+     *
+     * Solo INTERESADO: en cuanto alguien lo llama la ficha
+     * pasa a CONTACTADO, así que la antigüedad de los demás
+     * ya no mide espera sin atender. El corte va contra
+     * `creadoEn` porque es cuándo llegó, que es la promesa
+     * que se está incumpliendo.
+     */
+    prisma.$queryRaw<Array<{ dias: number; total: bigint }>>`
+      SELECT CASE
+               WHEN p."creadoEn" > NOW() - INTERVAL '3 days'  THEN 0
+               WHEN p."creadoEn" > NOW() - INTERVAL '8 days'  THEN 3
+               WHEN p."creadoEn" > NOW() - INTERVAL '15 days' THEN 8
+               ELSE 15
+             END AS dias,
+             COUNT(*) AS total
+        FROM "participantes" p
+       WHERE ${suyos}
+         AND p."etapa" = 'INTERESADO'::"EtapaParticipante"
        GROUP BY 1 ORDER BY 1
     `,
 
@@ -381,6 +488,26 @@ export async function controlDeInscritos(
        GROUP BY 1 ORDER BY COUNT(*) DESC
     `,
 
+    /**
+     * Qué origen convierte, que no es cuál trae más.
+     *
+     * `porOrigen` cuenta volumen y una pauta puede traer
+     * trescientos leads y convertir el 2 %. Ni el numerador
+     * ni el denominador llevan periodo, por lo mismo que la
+     * conversión del asesor: con «hoy» todas caen a cero y
+     * la tabla se ordena por quién tuvo suerte esta mañana.
+     */
+    prisma.$queryRaw<Array<{ etiqueta: string; leads: bigint; inscritos: bigint }>>`
+      ${CON_ANCLA}
+      SELECT p."origen"::text AS etiqueta,
+             COUNT(*) AS leads,
+             COUNT(*) FILTER (WHERE an."momento" IS NOT NULL) AS inscritos
+        FROM "participantes" p
+        ${UNIR_ANCLA}
+       WHERE ${suyos}
+       GROUP BY 1 ORDER BY COUNT(*) DESC
+    `,
+
     prisma.$queryRaw<Array<{ etiqueta: string; total: bigint }>>`
       ${CON_ANCLA}
       SELECT o."modalidad"::text AS etiqueta, COUNT(*) AS total
@@ -389,6 +516,42 @@ export async function controlDeInscritos(
         ${UNIR_ANCLA}
        WHERE ${inscritos}
        GROUP BY 1 ORDER BY COUNT(*) DESC
+    `,
+
+    /**
+     * Quién ya puso nombres y cuántos cupos había apartado.
+     *
+     * Ninguna de las dos cifras lleva ventana: los cupos no
+     * pueden llevarla —salen de reservas— y medir contra
+     * ellos unos inscritos recortados daría deudas de
+     * nombres inventadas. Los cupos van en una subconsulta
+     * por empresa y no en el mismo SUM: unidos a los
+     * participantes se sumarían una vez por cada inscrito.
+     */
+    prisma.$queryRaw<
+      Array<{ nit: string; razonSocial: string; inscritos: bigint; cupos: bigint | null }>
+    >`
+      ${CON_ANCLA}
+      SELECT e."nit" AS nit,
+             e."razonSocial" AS "razonSocial",
+             COUNT(*) AS inscritos,
+             (
+               SELECT COALESCE(SUM(r2."cuposConfirmados"), 0)
+                 FROM "reservas" r2
+                 JOIN "ofertas" o2             ON o2."id" = r2."ofertaId"
+                 JOIN "acciones_formacion" af2 ON af2."id" = o2."accionFormacionId"
+                WHERE r2."empresaId" = e."id"
+                  AND r2."estado" <> 'CANCELADA'
+                  AND af2."convenioId" IN (${Prisma.join(ambito)})
+             ) AS cupos
+        FROM "participantes" p
+        JOIN "reservas" r ON r."id" = p."reservaId"
+        JOIN "empresas" e ON e."id" = r."empresaId"
+        ${UNIR_ANCLA}
+       WHERE ${suyos} ${enPeriodo(null, null)}
+       GROUP BY e."id", e."nit", e."razonSocial"
+       ORDER BY COUNT(*) DESC, e."razonSocial"
+       LIMIT 10
     `,
 
     /**
@@ -414,6 +577,26 @@ export async function controlDeInscritos(
        WHERE ${inscritos} ${dosMeses}
        GROUP BY 1 ORDER BY 1
     `,
+
+    /**
+     * Cuándo LLEGÓ cada lead, por el día de Bogotá.
+     *
+     * Va por `creadoEn` y con el mismo recorte que el embudo
+     * —y los mismos dos meses cuando no hay ventana— para
+     * poder leerla contra `serie` en la misma pantalla: dos
+     * series de distinto rango no se comparan, se
+     * malinterpretan.
+     */
+    prisma.$queryRaw<Array<{ dia: string; total: bigint }>>`
+      SELECT to_char(
+               date_trunc('day', p."creadoEn" AT TIME ZONE 'UTC' AT TIME ZONE 'America/Bogota'),
+               'YYYY-MM-DD'
+             ) AS dia,
+             COUNT(*) AS total
+        FROM "participantes" p
+       WHERE ${dentro} ${dosMesesLeads}
+       GROUP BY 1 ORDER BY 1
+    `,
   ]);
 
   const cifra = (f: { total: bigint }) => Number(f.total);
@@ -424,6 +607,8 @@ export async function controlDeInscritos(
     inscritosConReserva: Number(cobertura[0]?.conReserva ?? 0),
     inscritosPorSuCuenta: Number(cobertura[0]?.porSuCuenta ?? 0),
     embudo: embudo.map((f) => ({ etapa: f.etapa, total: cifra(f) })),
+    sinAsignar: Number(sinAsignar[0]?.total ?? 0),
+    sinContactar: sinContactar.map((f) => ({ dias: Number(f.dias), total: cifra(f) })),
     porAccion: porAccion.map((f) => ({
       etiqueta: `${f.codigo} · ${f.etiqueta}`,
       total: cifra(f),
@@ -452,9 +637,26 @@ export async function controlDeInscritos(
       };
     }),
     porOrigen: porOrigen.map((f) => ({ etiqueta: f.etiqueta, total: cifra(f) })),
+    conversionPorOrigen: conversionPorOrigen.map((f) => {
+      const leads = Number(f.leads);
+      const convertidos = Number(f.inscritos);
+      return {
+        etiqueta: f.etiqueta,
+        leads,
+        inscritos: convertidos,
+        conversion: leads === 0 ? 0 : convertidos / leads,
+      };
+    }),
     porModalidad: porModalidad.map((f) => ({ etiqueta: f.etiqueta, total: cifra(f) })),
+    topEmpresas: topEmpresas.map((f) => ({
+      nit: f.nit,
+      razonSocial: f.razonSocial,
+      inscritos: Number(f.inscritos),
+      cupos: Number(f.cupos ?? 0),
+    })),
     // ya viene como yyyy-mm-dd de Bogotá desde el SQL
     serie: serie.map((f) => ({ dia: f.dia, total: cifra(f) })),
+    leadsPorDia: leadsPorDia.map((f) => ({ dia: f.dia, total: cifra(f) })),
     ventana: marco,
     anterior,
     variacion: comparar(ahora, anterior),

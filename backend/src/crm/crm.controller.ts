@@ -30,7 +30,7 @@ import {
 } from './dto';
 import { controlDeInscritos } from './control';
 import { tableroAcademico } from './tablero-academico';
-import { resolverVentana, type Comparacion, type Rango } from './ventana';
+import { compararDos, resolverVentana, type Comparacion, type Rango } from './ventana';
 import { PrismaService } from '../prisma/prisma.service';
 
 const RANGOS: Rango[] = [
@@ -47,17 +47,32 @@ const RANGOS: Rango[] = [
 
 const FECHA = /^\d{4}-\d{2}-\d{2}$/;
 
+/** Lo que no es de la lista no es un rango. */
+function rangoPedido(rango?: string): Rango | undefined {
+  return RANGOS.includes(rango as Rango) ? (rango as Rango) : undefined;
+}
+
+/** Solo pasa lo que tiene forma de fecha. */
+function fechaPedida(f?: string): string | undefined {
+  return f && FECHA.test(f) ? f : undefined;
+}
+
 /** Resuelve la ventana pedida, sin fiarse del texto. */
 function ventanaPedida(
   rango?: string,
   desde?: string,
   hasta?: string,
+  contra?: string,
+  contraDesde?: string,
+  contraHasta?: string,
 ): Comparacion {
-  // lo que no es de la lista no es un rango
-  const r = RANGOS.includes(rango as Rango) ? (rango as Rango) : undefined;
-  const d = desde && FECHA.test(desde) ? desde : undefined;
-  const h = hasta && FECHA.test(hasta) ? hasta : undefined;
-  return resolverVentana(r, d, h);
+  const r = rangoPedido(rango);
+  const d = fechaPedida(desde);
+  const h = fechaPedida(hasta);
+  const c = rangoPedido(contra);
+  // sin segundo, el previo de siempre
+  if (!c) return resolverVentana(r, d, h);
+  return compararDos(r ?? 'TODO', c, d, h, fechaPedida(contraDesde), fechaPedida(contraHasta));
 }
 
 /** Inscripciones: las personas detrás de los cupos. */
@@ -88,11 +103,14 @@ export class CrmController {
     @Query('rango') rango?: string,
     @Query('desde') desde?: string,
     @Query('hasta') hasta?: string,
+    @Query('contra') contra?: string,
+    @Query('contraDesde') contraDesde?: string,
+    @Query('contraHasta') contraHasta?: string,
   ) {
     return controlDeInscritos(
       this.prisma,
       ambito.convenios,
-      ventanaPedida(rango, desde, hasta),
+      ventanaPedida(rango, desde, hasta, contra, contraDesde, contraHasta),
     );
   }
 
@@ -117,11 +135,14 @@ export class CrmController {
     @Query('rango') rango?: string,
     @Query('desde') desde?: string,
     @Query('hasta') hasta?: string,
+    @Query('contra') contra?: string,
+    @Query('contraDesde') contraDesde?: string,
+    @Query('contraHasta') contraHasta?: string,
   ) {
     return tableroAcademico(
       this.prisma,
       ambito.convenios,
-      ventanaPedida(rango, desde, hasta),
+      ventanaPedida(rango, desde, hasta, contra, contraDesde, contraHasta),
     );
   }
 

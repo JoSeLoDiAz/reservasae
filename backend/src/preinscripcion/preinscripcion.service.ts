@@ -6,9 +6,11 @@ import { randomBytes } from 'node:crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { GENEROS_SEP } from '../crm/catalogos-sep.generado';
 import {
+  DEPARTAMENTOS_SEP,
   DOCUMENTOS_DE_PERSONA,
   edadCumplida,
   municipioCuadra,
+  MUNICIPIOS_SEP,
 } from '../crm/catalogos-sep';
 import { CrearPreinscripcionDto, DatosEmpresaDto, DatosPersonaDto } from './dto';
 
@@ -195,11 +197,33 @@ export class PreinscripcionService {
         convenio: { select: { nombre: true, sigla: true } },
         accionFormacion: { select: { codigo: true, nombre: true, horas: true } },
         oferta: { select: { ubicacion: { select: { nombre: true } } } },
-        reserva: { select: { empresa: { select: { razonSocial: true } } } },
-        persona: true,
+        convenioId: true,
+        cargoEnEmpresa: true,
+        reserva: { select: { empresa: { select: { nit: true, razonSocial: true } } } },
+        empresa: { select: { nit: true, razonSocial: true } },
+        persona: {
+          include: {
+            autorizaciones: { where: { revocadaEn: null }, select: { id: true } },
+          },
+        },
       },
     });
     if (!p) throw new NotFoundException('Ese enlace ya no apunta a nadie.');
+
+    // el texto que tiene que aceptar, si el convenio lo tiene
+    const politica = await this.prisma.politicaDatos.findFirst({
+      where: {
+        convenioId: p.convenioId,
+        destinatario: 'PARTICIPANTE',
+        vigenteDesde: { lte: new Date() },
+      },
+      orderBy: { version: 'desc' },
+      select: { id: true, version: true, titulo: true, contenido: true },
+    });
+
+    // la de la reserva manda: es la que la nominó
+    const suya = p.reserva?.empresa ?? p.empresa ?? null;
+    const { autorizaciones, ...persona } = p.persona;
 
     return {
       expiraEn: enlace.expiraEn,
@@ -212,15 +236,25 @@ export class PreinscripcionService {
             ubicacion: p.oferta?.ubicacion.nombre ?? null,
           }
         : null,
-      empresa: p.reserva?.empresa.razonSocial ?? null,
-      persona: p.persona,
+      empresa: suya?.razonSocial ?? null,
+      nitEmpresa: suya?.nit ?? null,
+      /// Si la nominó una empresa, no la cambia ella.
+      empresaFijada: p.reserva !== null,
+      cargoEnEmpresa: p.cargoEnEmpresa,
+      persona,
+      yaAutorizo: autorizaciones.length > 0,
+      politica,
       documentos: DOCUMENTOS_DE_PERSONA,
       generos: GENEROS_SEP,
+      departamentos: DEPARTAMENTOS_SEP.filter((d) => d.seleccionable),
+      // [id, departamentoId, nombre]: el navegador filtra
+      // sin pedir nada. Son 1.126, no 1.126 viajes
+      municipios: MUNICIPIOS_SEP.filter((m) => m[3]).map((m) => [m[0], m[1], m[2]]),
     };
   }
 
   /** Guarda los datos de la persona. El enlace sigue vivo. */
-  async guardarPersona(token: string, dto: DatosPersonaDto) {
+  async guardarPersona(token: string, dto: DatosPersonaDto, ip?: string) {
     const enlace = await this.exigirEnlaceVivo(token);
 
     if (dto.fechaNacimiento) {
@@ -244,13 +278,53 @@ export class PreinscripcionService {
     });
     if (!p) throw new NotFoundException('Ese enlace ya no apunta a nadie.');
 
-    // el nivel educativo es de la participación, no de la
-    // persona: puede cambiar entre un curso y el siguiente
-    if (dto.nivelEducativo !== undefined) {
+    // el nivel educativo y el cargo son de la participación,
+    // no de la persona: cambian entre un curso y el siguiente
+    if (dto.nivelEducativo !== undefined || dto.cargoEnEmpresa !== undefined) {
       await this.prisma.participante.update({
         where: { id: enlace.participanteId },
-        data: { nivelEducativo: dto.nivelEducativo },
+        data: {
+          nivelEducativo: dto.nivelEducativo,
+          cargoEnEmpresa: dto.cargoEnEmpresa,
+        },
       });
+    }
+
+    // aceptar la politica es lo que hay que poder demostrar:
+    // se guarda contra la version exacta que leyo, no como
+    // un booleano suelto que no prueba nada
+    if (dto.aceptaPolitica) {
+      const politica = await this.prisma.politicaDatos.findFirst({
+        where: {
+          convenio: { participantes: { some: { id: enlace.participanteId } } },
+          destinatario: 'PARTICIPANTE',
+          vigenteDesde: { lte: new Date() },
+        },
+        orderBy: { version: 'desc' },
+        select: { id: true },
+      });
+
+      if (politica) {
+        const ya = await this.prisma.autorizacionDatos.findFirst({
+          where: {
+            personaId: p.personaId,
+            politicaDatosId: politica.id,
+            revocadaEn: null,
+          },
+          select: { id: true },
+        });
+        if (!ya) {
+          await this.prisma.autorizacionDatos.create({
+            data: {
+              personaId: p.personaId,
+              politicaDatosId: politica.id,
+              canal: 'FORMULARIO_WEB',
+              evidencia: `Enlace de completado ${enlace.id}`,
+              ip: ip ?? null,
+            },
+          });
+        }
+      }
     }
 
     await this.prisma.persona.update({
@@ -278,34 +352,69 @@ export class PreinscripcionService {
   /**
    * Los datos de su empresa, que son los que el F7 pide y
    * nadie más puede dar. Al guardarlos se cierra el enlace.
+   *
+   * Quien se inscribió por su cuenta también trabaja en
+   * algún sitio: antes esto se negaba si no venía de una
+   * reserva, así que sus datos de empresa no tenían dónde
+   * ir y su fila del F7 nacía incompleta. Si trae NIT se
+   * busca o se crea la organización y se le engancha.
    */
   async guardarEmpresa(token: string, dto: DatosEmpresaDto) {
     const enlace = await this.exigirEnlaceVivo(token);
 
     const p = await this.prisma.participante.findUnique({
       where: { id: enlace.participanteId },
-      select: { reserva: { select: { empresaId: true } } },
+      select: { id: true, reserva: { select: { empresaId: true } }, empresaId: true },
     });
-    if (!p?.reserva) {
-      throw new BadRequestException(
-        'Esta inscripción no está asociada a ninguna organización.',
-      );
+    if (!p) throw new NotFoundException('Ese enlace ya no apunta a nadie.');
+
+    if (dto.departamentoSepId && dto.municipioSepId) {
+      if (!municipioCuadra(dto.departamentoSepId, dto.municipioSepId)) {
+        throw new BadRequestException('Ese municipio no es del departamento indicado.');
+      }
     }
 
-    await this.prisma.empresa.update({
-      where: { id: p.reserva.empresaId },
-      data: {
-        direccion: dto.direccion,
-        telefono: dto.telefono,
-        departamentoSepId: dto.departamentoSepId,
-        municipioSepId: dto.municipioSepId,
-        sectorEconomico: dto.sectorEconomico,
-        numeroTrabajadores: dto.numeroTrabajadores,
-        contactoNombre: dto.contactoNombre,
-        contactoCargo: dto.contactoCargo,
-        contactoCorreo: dto.contactoCorreo,
-      },
-    });
+    const datos = {
+      direccion: dto.direccion,
+      telefono: dto.telefono,
+      departamentoSepId: dto.departamentoSepId,
+      municipioSepId: dto.municipioSepId,
+      sectorEconomico: dto.sectorEconomico,
+      numeroTrabajadores: dto.numeroTrabajadores,
+      contactoNombre: dto.contactoNombre,
+      contactoCargo: dto.contactoCargo,
+      contactoCorreo: dto.contactoCorreo,
+    };
+
+    // la de la reserva manda y no se cambia: la nominó ella
+    const suya = p.reserva?.empresaId ?? p.empresaId ?? null;
+
+    if (suya) {
+      await this.prisma.empresa.update({ where: { id: suya }, data: datos });
+    } else if (dto.nit) {
+      const nit = dto.nit.replace(/\D/g, '');
+      if (!nit) throw new BadRequestException('Ese NIT no tiene ningún dígito.');
+
+      const empresa = await this.prisma.empresa.upsert({
+        where: { nit },
+        create: {
+          nit,
+          digitoVerificacion: dto.digitoVerificacion ?? null,
+          razonSocial: dto.razonSocial ?? `Organización ${nit}`,
+          ...datos,
+        },
+        // lo que ya se sabía no se pisa con un hueco
+        update: Object.fromEntries(
+          Object.entries(datos).filter(([, v]) => v !== undefined && v !== null),
+        ),
+        select: { id: true },
+      });
+
+      await this.prisma.participante.update({
+        where: { id: p.id },
+        data: { empresaId: empresa.id },
+      });
+    }
 
     // aquí acaba: el enlace era de un solo uso
     await this.prisma.enlaceCompletado.update({

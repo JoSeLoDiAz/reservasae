@@ -77,6 +77,34 @@ export type Cabecera = {
   desercion: number;
 };
 
+/** Un grupo que arranca pronto: la agenda. */
+export type GrupoQueArranca = {
+  codigo: string;
+  numero: number;
+  inicio: string;
+  inscritos: number;
+  /** Cuántos días faltan para que empiece. */
+  dias: number;
+};
+
+/** Un grupo pasado de fecha con gente aún dentro. */
+export type GrupoVencido = {
+  codigo: string;
+  numero: number;
+  fin: string;
+  enAula: number;
+  certificados: number;
+  /** Los que siguen EN_FORMACION con el grupo vencido. */
+  sinCerrar: number;
+};
+
+/** Cuántos parados hay en cada tramo de días. */
+export type TramoParados = {
+  /** El primer día del tramo; -1 es «nunca entró». */
+  dias: number;
+  total: number;
+};
+
 /** La ventana tal como viaja al navegador. */
 export type VentanaTablero = {
   rango: string;
@@ -91,6 +119,12 @@ export type TableroAcademico = Cabecera & {
   porAccion: FilaAccion[];
   porGrupo: FilaGrupo[];
   porAsesor: FilaAsesor[];
+  /** Lo que empieza en 30 días. No es la cohorte. */
+  gruposQueArrancan: GrupoQueArranca[];
+  /** Terminaron en el papel y siguen con gente dentro. */
+  gruposVencidos: GrupoVencido[];
+  /** La cola de rescate del gestor académico. */
+  paradosPorDias: TramoParados[];
   ventana: VentanaTablero;
   /** Las mismas cifras del periodo previo. */
   anterior: Cabecera | null;
@@ -120,6 +154,16 @@ const EN_AULA = Prisma.sql`p."etapa" IN (
   'NO_APROBO'::"EtapaParticipante",
   'DESERTO'::"EtapaParticipante",
   'ABANDONO'::"EtapaParticipante"
+)`;
+
+/** Los que ocupan silla: todavía no se han ido. */
+const VIVOS = Prisma.sql`p."etapa" IN (
+  'INTERESADO'::"EtapaParticipante",
+  'CONTACTADO'::"EtapaParticipante",
+  'DATOS_COMPLETOS'::"EtapaParticipante",
+  'INSCRITO'::"EtapaParticipante",
+  'EN_FORMACION'::"EtapaParticipante",
+  'CERTIFICADO'::"EtapaParticipante"
 )`;
 
 /**
@@ -243,6 +287,112 @@ function consultaPorAccion(prisma: PrismaService, suyos: Prisma.Sql, v: Ventana 
   `;
 }
 
+/**
+ * Lo que arranca en los próximos 30 días.
+ *
+ * Sale de `grupos` y no de `participantes` porque el grupo
+ * que empieza el jueves sin nadie apuntado es justo el que
+ * hay que mirar, y agrupando por participante no existiría.
+ * Por eso el ámbito va dos veces: el del grupo, por su
+ * acción, y el de la gente que se cuenta.
+ *
+ * No lleva el corte de la ventana: esto es futuro, y la
+ * cohorte se ancla en haber pisado ya el aula.
+ */
+function consultaQueArrancan(prisma: PrismaService, suyos: Prisma.Sql, ambito: string[]) {
+  return prisma.$queryRaw<GrupoQueArranca[]>`
+    SELECT af."codigo" AS codigo,
+           g."numero" AS numero,
+           to_char(g."fechaInicio", 'YYYY-MM-DD') AS inicio,
+           (g."fechaInicio"::date - CURRENT_DATE)::int AS dias,
+           COUNT(p."id")::int AS inscritos
+      FROM "grupos" g
+      JOIN "acciones_formacion" af ON af."id" = g."accionFormacionId"
+      LEFT JOIN "grupos_cobertura" gc ON gc."grupoId" = g."id"
+      LEFT JOIN "participantes" p ON p."coberturaId" = gc."id"
+                                 AND ${suyos} AND ${VIVOS}
+     WHERE af."convenioId" IN (${Prisma.join(ambito)})
+       AND g."fechaInicio" IS NOT NULL
+       AND g."fechaInicio"::date >= CURRENT_DATE
+       AND g."fechaInicio"::date <= CURRENT_DATE + 30
+     GROUP BY g."id", af."id"
+     ORDER BY g."fechaInicio", af."codigo", g."numero"
+  `;
+}
+
+/**
+ * Los grupos que ya terminaron y siguen con gente dentro:
+ * lo que hay que cerrar o justificar ante el SENA.
+ *
+ * Aquí sí se parte de `participantes`, porque un grupo
+ * vencido sin nadie dentro no es un pendiente de nadie: lo
+ * que lo pone en la lista es que quede alguien EN_FORMACION.
+ */
+function consultaVencidos(prisma: PrismaService, suyos: Prisma.Sql) {
+  return prisma.$queryRaw<GrupoVencido[]>`
+    SELECT af."codigo" AS codigo,
+           g."numero" AS numero,
+           to_char(g."fechaFin", 'YYYY-MM-DD') AS fin,
+           COUNT(*)::int AS "enAula",
+           COUNT(*) FILTER (
+             WHERE p."etapa" = 'CERTIFICADO'::"EtapaParticipante"
+           )::int AS certificados,
+           COUNT(*) FILTER (
+             WHERE p."etapa" = 'EN_FORMACION'::"EtapaParticipante"
+           )::int AS "sinCerrar"
+      FROM "participantes" p
+      JOIN "grupos_cobertura" gc      ON gc."id" = p."coberturaId"
+      JOIN "grupos" g                 ON g."id" = gc."grupoId"
+      JOIN "acciones_formacion" af    ON af."id" = g."accionFormacionId"
+     WHERE ${suyos} AND ${EN_AULA}
+       AND g."fechaFin" IS NOT NULL
+       AND g."fechaFin"::date < CURRENT_DATE
+     GROUP BY g."id", af."id"
+    HAVING COUNT(*) FILTER (
+             WHERE p."etapa" = 'EN_FORMACION'::"EtapaParticipante"
+           ) > 0
+     ORDER BY g."fechaFin", af."codigo", g."numero"
+  `;
+}
+
+/**
+ * De los que están EN_FORMACION, cuánto llevan sin entrar
+ * al aula. Es la cola de rescate: a quién llamar hoy.
+ *
+ * «Nunca entró» va aparte y no en el tramo más alto —es el
+ * -1—, porque con `ultimoAcceso` en NULL cualquier resta da
+ * NULL y caería en el mismo saco que quien lleva un mes
+ * fuera. Son dos problemas distintos: uno no encontró la
+ * puerta y el otro la dejó de abrir.
+ *
+ * Tampoco lleva la ventana: quien lleva dos meses parado
+ * entró al aula en otra cohorte, y es justo a quien hay que
+ * rescatar.
+ */
+function consultaParados(prisma: PrismaService, suyos: Prisma.Sql) {
+  // los cinco tramos salen siempre
+  return prisma.$queryRaw<TramoParados[]>`
+    WITH tramos("dias") AS (VALUES (-1), (0), (8), (15), (31)),
+    clasificados AS (
+      SELECT CASE
+               WHEN p."ultimoAcceso" IS NULL THEN -1
+               WHEN CURRENT_DATE - p."ultimoAcceso"::date <= 7  THEN 0
+               WHEN CURRENT_DATE - p."ultimoAcceso"::date <= 14 THEN 8
+               WHEN CURRENT_DATE - p."ultimoAcceso"::date <= 30 THEN 15
+               ELSE 31
+             END AS "dias"
+        FROM "participantes" p
+       WHERE ${suyos}
+         AND p."etapa" = 'EN_FORMACION'::"EtapaParticipante"
+    )
+    SELECT t."dias"::int AS dias, COUNT(c."dias")::int AS total
+      FROM tramos t
+      LEFT JOIN clasificados c ON c."dias" = t."dias"
+     GROUP BY t."dias"
+     ORDER BY (t."dias" < 0), t."dias"
+  `;
+}
+
 /** La cabecera, sumando el corte por acción. */
 function resumir(filas: FilaAccion[]): Cabecera {
   // suma de un corte, no de otra consulta
@@ -324,6 +474,9 @@ function vacio(comparacion: Comparacion): TableroAcademico {
     porAccion: [],
     porGrupo: [],
     porAsesor: [],
+    gruposQueArrancan: [],
+    gruposVencidos: [],
+    paradosPorDias: [],
     ventana: describirVentana(comparacion),
     anterior: null,
     variacion: comparar(cero, null, false),
@@ -341,7 +494,15 @@ export async function tableroAcademico(
   const suyos = Prisma.sql`p."convenioId" IN (${Prisma.join(ambito)})`;
   const corte = corteDe(comparacion.actual);
 
-  const [porAccion, porGrupo, porAsesor, antes] = await Promise.all([
+  const [
+    porAccion,
+    porGrupo,
+    porAsesor,
+    gruposQueArrancan,
+    gruposVencidos,
+    paradosPorDias,
+    antes,
+  ] = await Promise.all([
     consultaPorAccion(prisma, suyos, comparacion.actual),
 
     // LEFT JOIN, no INNER: `coberturaId` es nullable y
@@ -379,6 +540,10 @@ export async function tableroAcademico(
        ORDER BY COUNT(*) DESC
     `,
 
+    consultaQueArrancan(prisma, suyos, ambito),
+    consultaVencidos(prisma, suyos),
+    consultaParados(prisma, suyos),
+
     // del previo solo hace falta la cabecera
     comparacion.anterior ? consultaPorAccion(prisma, suyos, comparacion.anterior) : null,
   ]);
@@ -392,6 +557,9 @@ export async function tableroAcademico(
     porAccion,
     porGrupo: porGrupo.map((g) => ({ ...g, inicio: dia(g.inicio), fin: dia(g.fin) })),
     porAsesor,
+    gruposQueArrancan,
+    gruposVencidos,
+    paradosPorDias,
     ventana: describirVentana(comparacion),
     anterior,
     variacion: comparar(cabecera, anterior, comparacion.actual !== null),

@@ -213,6 +213,8 @@ model Empresa {
   actualizadoEn DateTime @updatedAt
 
   reservas Reserva[]
+  /// Quien dice trabajar aqui, con o sin reserva.
+  participantes Participante[]
 
   // un NIT, una organizacion
   @@unique([nit])
@@ -643,6 +645,10 @@ model Participante {
 
   // sin reserva si la persona llego por su cuenta
   reservaId         String?
+  // donde trabaja. Va aparte de la reserva porque quien se
+  // inscribe solo tambien tiene empresa, y sin esto sus
+  // datos no tenian donde guardarse ni salian en el F7
+  empresaId         String?
   ofertaId          String?
   accionFormacionId String?
   coberturaId       String?
@@ -683,6 +689,7 @@ model Participante {
   persona         Persona                  @relation(fields: [personaId], references: [id], onDelete: Restrict)
   convenio        Convenio                 @relation(fields: [convenioId], references: [id], onDelete: Restrict)
   reserva         Reserva?                 @relation(fields: [reservaId], references: [id], onDelete: Restrict)
+  empresa          Empresa?            @relation(fields: [empresaId], references: [id], onDelete: SetNull)
   oferta          Oferta?                  @relation(fields: [ofertaId], references: [id], onDelete: Restrict)
   accionFormacion AccionFormacion?         @relation(fields: [accionFormacionId], references: [id], onDelete: Restrict)
   cobertura       GrupoCobertura?          @relation(fields: [coberturaId], references: [id], onDelete: SetNull)

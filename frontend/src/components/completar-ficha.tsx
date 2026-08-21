@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { ErrorApi } from "@/lib/api";
+import { juntar, primero, resto } from "@/lib/nombres";
 import { preinscripcionApi, type FichaAbierta } from "@/lib/preinscripcion-api";
 
 import { BannerLogos } from "./marca-publica";
@@ -19,6 +20,7 @@ export function CompletarFicha({ token }: { token: string }) {
   const [paso, setPaso] = useState<Paso>("PERSONA");
   const [error, setError] = useState<string | null>(null);
   const [guardando, setGuardando] = useState(false);
+  const [acepta, setAcepta] = useState(false);
 
   const [persona, setPersona] = useState<Record<string, string>>({});
   const [empresa, setEmpresa] = useState<Record<string, string>>({});
@@ -30,8 +32,7 @@ export function CompletarFicha({ token }: { token: string }) {
         setFicha(f);
         const p = f.persona as Record<string, unknown>;
         setPersona({
-          primerNombre: String(p.primerNombre ?? ""),
-          segundoNombre: String(p.segundoNombre ?? ""),
+          nombres: juntar(p.primerNombre as string, p.segundoNombre as string),
           primerApellido: String(p.primerApellido ?? ""),
           segundoApellido: String(p.segundoApellido ?? ""),
           celular: String(p.celular ?? ""),
@@ -41,12 +42,24 @@ export function CompletarFicha({ token }: { token: string }) {
             ? String(p.fechaNacimiento).slice(0, 10)
             : "",
           estrato: p.estrato ? String(p.estrato) : "",
+          departamentoSepId: p.departamentoSepId ? String(p.departamentoSepId) : "",
+          municipioSepId: p.municipioSepId ? String(p.municipioSepId) : "",
           barrio: String(p.barrio ?? ""),
           direccion: String(p.direccion ?? ""),
+          cargoEnEmpresa: String(f.cargoEnEmpresa ?? ""),
         });
+        setEmpresa({ nit: f.nitEmpresa ?? "", razonSocial: f.empresa ?? "" });
+        setAcepta(f.yaAutorizo);
       })
       .catch((e: ErrorApi) => setCaducado(e.message));
   }, [token]);
+
+  // los del departamento elegido, y solo esos
+  const municipios = useMemo(() => {
+    const dep = Number(persona.departamentoSepId);
+    if (!ficha || !dep) return [];
+    return ficha.municipios.filter((m) => m[1] === dep);
+  }, [ficha, persona.departamentoSepId]);
 
   if (caducado) {
     return (
@@ -60,17 +73,22 @@ export function CompletarFicha({ token }: { token: string }) {
 
   if (!ficha) return <p className="p-10 text-texto-suave">Abriendo su ficha…</p>;
 
-  const nombre = `${persona.primerNombre ?? ""} ${persona.primerApellido ?? ""}`.trim();
+  const nombre = `${primero(persona.nombres ?? "")} ${persona.primerApellido ?? ""}`.trim();
+  const hayPolitica = ficha.politica !== null;
 
   async function guardarPersona(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
     setGuardando(true);
     try {
-      await preinscripcionApi.guardarPersona(token, persona);
-      // con empresa detrás hay un paso más; si no, acabó
-      setPaso(ficha!.empresa ? "EMPRESA" : "HECHO");
-      if (!ficha!.empresa) await preinscripcionApi.cerrar(token);
+      await preinscripcionApi.guardarPersona(token, {
+        ...persona,
+        primerNombre: primero(persona.nombres ?? ""),
+        segundoNombre: resto(persona.nombres ?? "") ?? "",
+        nombres: undefined,
+        aceptaPolitica: acepta,
+      });
+      setPaso("EMPRESA");
     } catch (err) {
       setError((err as ErrorApi).message);
     } finally {
@@ -115,7 +133,7 @@ export function CompletarFicha({ token }: { token: string }) {
 
       <header className="mt-8">
         <h1 className="text-2xl font-bold tracking-tight">
-          {paso === "PERSONA" ? "Complete sus datos" : "Los datos de su organización"}
+          {paso === "PERSONA" ? "Complete sus datos" : "Dónde trabaja"}
         </h1>
         {ficha.formacion && (
           <p className="mt-2 text-sm text-texto-suave">
@@ -123,10 +141,16 @@ export function CompletarFicha({ token }: { token: string }) {
             {ficha.formacion.ubicacion && ` · ${ficha.formacion.ubicacion}`}
           </p>
         )}
+        <p className="mt-3 text-xs text-texto-suave">
+          Paso {paso === "PERSONA" ? "1" : "2"} de 2
+        </p>
       </header>
 
       {error && (
-        <p role="alert" className="mt-6 rounded-xl border border-error/30 bg-error-suave p-4 text-sm text-error">
+        <p
+          role="alert"
+          className="mt-6 rounded-xl border border-error/30 bg-error-suave p-4 text-sm text-error"
+        >
           {error}
         </p>
       )}
@@ -135,10 +159,19 @@ export function CompletarFicha({ token }: { token: string }) {
         <form onSubmit={guardarPersona} className="mt-8 space-y-6">
           <section className="rounded-2xl border border-borde bg-superficie p-6 shadow-sm">
             <div className="grid gap-4 sm:grid-cols-2">
-              <Campo etiqueta="Primer nombre" campo="primerNombre" valores={persona} set={setPersona} />
-              <Campo etiqueta="Segundo nombre" campo="segundoNombre" valores={persona} set={setPersona} />
-              <Campo etiqueta="Primer apellido" campo="primerApellido" valores={persona} set={setPersona} />
-              <Campo etiqueta="Segundo apellido" campo="segundoApellido" valores={persona} set={setPersona} />
+              <Campo etiqueta="Nombres" campo="nombres" valores={persona} set={setPersona} />
+              <Campo
+                etiqueta="Primer apellido"
+                campo="primerApellido"
+                valores={persona}
+                set={setPersona}
+              />
+              <Campo
+                etiqueta="Segundo apellido"
+                campo="segundoApellido"
+                valores={persona}
+                set={setPersona}
+              />
               <Campo etiqueta="Celular" campo="celular" valores={persona} set={setPersona} tipo="tel" />
               <Campo etiqueta="Correo" campo="correo" valores={persona} set={setPersona} tipo="email" />
 
@@ -182,34 +215,135 @@ export function CompletarFicha({ token }: { token: string }) {
                 </select>
               </label>
 
-              <Campo etiqueta="Barrio" campo="barrio" valores={persona} set={setPersona} />
+              <label className="block">
+                <span className="mb-1.5 block text-sm font-medium">Departamento</span>
+                <select
+                  value={persona.departamentoSepId ?? ""}
+                  onChange={(e) =>
+                    // al cambiar de departamento su municipio
+                    // deja de valer: se limpia con el
+                    setPersona((p) => ({
+                      ...p,
+                      departamentoSepId: e.target.value,
+                      municipioSepId: "",
+                    }))
+                  }
+                  className={CAMPO}
+                >
+                  <option value="">Elija…</option>
+                  {ficha.departamentos.map((d) => (
+                    <option key={d.id} value={d.id}>
+                      {d.etiqueta}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label className="block">
+                <span className="mb-1.5 block text-sm font-medium">
+                  Municipio
+                  {!persona.departamentoSepId && (
+                    <span className="text-texto-suave"> (elija antes el departamento)</span>
+                  )}
+                </span>
+                <select
+                  value={persona.municipioSepId ?? ""}
+                  disabled={!persona.departamentoSepId}
+                  onChange={(e) => setPersona((p) => ({ ...p, municipioSepId: e.target.value }))}
+                  className={`${CAMPO} disabled:opacity-50`}
+                >
+                  <option value="">Elija…</option>
+                  {municipios.map((m) => (
+                    <option key={m[0]} value={m[0]}>
+                      {m[2]}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <Campo etiqueta="Barrio o vereda" campo="barrio" valores={persona} set={setPersona} />
               <div className="sm:col-span-2">
                 <Campo etiqueta="Dirección" campo="direccion" valores={persona} set={setPersona} />
               </div>
+              <div className="sm:col-span-2">
+                <Campo
+                  etiqueta="Su cargo donde trabaja"
+                  campo="cargoEnEmpresa"
+                  valores={persona}
+                  set={setPersona}
+                />
+              </div>
             </div>
           </section>
+
+          {hayPolitica && (
+            <section className="rounded-2xl border border-borde bg-superficie p-6 shadow-sm">
+              <label className="flex items-start gap-3">
+                <input
+                  type="checkbox"
+                  required
+                  checked={acepta}
+                  onChange={(e) => setAcepta(e.target.checked)}
+                  className="mt-1 shrink-0"
+                />
+                <span className="text-sm">
+                  Autorizo el tratamiento de mis datos personales conforme a la{" "}
+                  <a
+                    href={`/politica/${ficha.convenio.sigla ?? ""}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="underline"
+                  >
+                    {ficha.politica?.titulo ?? "política de tratamiento de datos"}
+                  </a>
+                  .
+                  {ficha.yaAutorizo && (
+                    <span className="block text-xs text-texto-suave">
+                      Ya la había autorizado antes.
+                    </span>
+                  )}
+                </span>
+              </label>
+            </section>
+          )}
 
           <button
             type="submit"
             disabled={guardando}
             className="w-full rounded-xl bg-marca px-6 py-3 font-medium text-marca-texto shadow-sm transition hover:bg-marca-fuerte disabled:opacity-50"
           >
-            {guardando
-              ? "Guardando…"
-              : ficha.empresa
-                ? "Guardar y seguir con mi organización"
-                : "Guardar mis datos"}
+            {guardando ? "Guardando…" : "Guardar y seguir"}
           </button>
         </form>
       ) : (
         <form onSubmit={guardarEmpresa} className="mt-8 space-y-6">
           <section className="rounded-2xl border border-borde bg-superficie p-6 shadow-sm">
             <p className="mb-5 text-sm text-texto-suave">
-              Son los datos de <strong>{ficha.empresa}</strong>, que el SENA pide
-              para el reporte. Si no los tiene a mano, puede dejarlo para después.
+              {ficha.empresaFijada ? (
+                <>
+                  Son los datos de <strong>{ficha.empresa}</strong>, la organización que
+                  lo inscribió. El SENA los pide para el reporte.
+                </>
+              ) : (
+                <>
+                  Los datos de la organización donde trabaja. El SENA los pide para el
+                  reporte. Si no los tiene a mano, puede dejarlo para después.
+                </>
+              )}
             </p>
 
             <div className="grid gap-4 sm:grid-cols-2">
+              {!ficha.empresaFijada && (
+                <>
+                  <Campo etiqueta="NIT" campo="nit" valores={empresa} set={setEmpresa} />
+                  <Campo
+                    etiqueta="Nombre de la organización"
+                    campo="razonSocial"
+                    valores={empresa}
+                    set={setEmpresa}
+                  />
+                </>
+              )}
               <div className="sm:col-span-2">
                 <Campo etiqueta="Dirección" campo="direccion" valores={empresa} set={setEmpresa} />
               </div>
@@ -261,9 +395,14 @@ export function CompletarFicha({ token }: { token: string }) {
               onClick={dejarParaDespues}
               className="text-sm text-texto-suave underline"
             >
-              Dejar esto para después
+              No los tengo ahora
             </button>
           </div>
+
+          <p className="text-xs text-texto-suave">
+            Si los deja para después, sus datos personales ya quedaron guardados y
+            quien le atienda le pedirá los de la organización cuando le llame.
+          </p>
         </form>
       )}
     </main>
