@@ -250,6 +250,8 @@ export type FilaAcademica = {
   desfase: number | null;
   porcentaje: number;
   listoParaCertificar: boolean;
+  /** Si se fue, manda su etapa y no su ritmo. */
+  salio: boolean;
   coberturaId: string | null;
   ultimoAcceso: string | null;
   diasSinEntrar: number | null;
@@ -268,12 +270,18 @@ export type Academico = {
     total: number;
     /** Sobre cuántas se calculó el reparto: puede ser menos. */
     analizadas: number;
+    /** Los seis se cuentan solo sobre quien sigue dentro. */
+    enFormacion: number;
     sinIngreso: number;
     sinEmpezar: number;
     atrasados: number;
     alDia: number;
     completados: number;
     certificados: number;
+    desertaron: number;
+    abandonaron: number;
+    retirados: number;
+    noAprobaron: number;
   };
   criterio: {
     tolerancia: number;

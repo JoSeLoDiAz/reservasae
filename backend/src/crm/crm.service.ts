@@ -85,6 +85,14 @@ export const ETAPAS_DE_INSCRIPCION: EtapaParticipante[] = [
 ];
 
 /// Lo que gobierna el academico y NO sale en Inscripciones.
+/// Las cuatro formas de salirse del aula.
+export const SALIDAS_DEL_AULA: EtapaParticipante[] = [
+  'RETIRADO',
+  'NO_APROBO',
+  'DESERTO',
+  'ABANDONO',
+];
+
 export const ETAPAS_DEL_AULA: EtapaParticipante[] = [
   'EN_FORMACION',
   'CERTIFICADO',
@@ -1052,6 +1060,11 @@ export class CrmService {
       const porcentaje = total > 0 ? hechas / total : 0;
       const listoParaCertificar = total > 0 && porcentaje >= MINIMO_PARA_CERTIFICAR;
 
+      // quien se fue no se juzga por su ritmo: su etapa ya
+      // dice lo que paso. Se le calcula igual para saber
+      // por donde iba cuando lo dejo
+      const salio = SALIDAS_DEL_AULA.includes(p.etapa);
+
       let estado: EstadoAcademico;
       if (p.etapa === 'CERTIFICADO') estado = 'CERTIFICADO';
       else if (listoParaCertificar) estado = 'COMPLETADO';
@@ -1085,6 +1098,8 @@ export class CrmService {
         desfase,
         porcentaje: total > 0 ? Math.round((hechas / total) * 100) : 0,
         listoParaCertificar,
+        /// Si se fue, manda su etapa y no su ritmo.
+        salio,
         // para agrupar por acción y grupo en la pantalla
         coberturaId: p.coberturaId,
         ultimoAcceso: p.ultimoAcceso,
@@ -1094,7 +1109,13 @@ export class CrmService {
       };
     });
 
-    const cuenta = (e: EstadoAcademico) => personas.filter((p) => p.estado === e).length;
+    const porEtapa = (e: EtapaParticipante) =>
+      personas.filter((p) => p.etapa === e).length;
+
+    // los seis miden ritmo, y el ritmo de quien ya se fue
+    // no dice nada: esas van contadas por su etapa
+    const cuenta = (e: EstadoAcademico) =>
+      personas.filter((p) => !p.salio && p.estado === e).length;
 
     // las opciones salen de quien esta en el aula, no de
     // todo el catalogo: un filtro con 15 acciones vacias
@@ -1145,12 +1166,20 @@ export class CrmService {
         total: enAula,
         /// Sobre cuantas se calculo el reparto de abajo.
         analizadas: personas.length,
+        /// Los seis se cuentan solo sobre quien sigue dentro.
+        enFormacion: personas.filter((p) => !p.salio).length,
         sinIngreso: cuenta('SIN_INGRESO'),
         sinEmpezar: cuenta('SIN_EMPEZAR'),
         atrasados: cuenta('ATRASADO'),
         alDia: cuenta('AL_DIA'),
         completados: cuenta('COMPLETADO'),
         certificados: cuenta('CERTIFICADO'),
+        /// Las salidas van por su etapa, que es lo que
+        /// las distingue: aviso, sin aviso, o no aprobo.
+        desertaron: porEtapa('DESERTO'),
+        abandonaron: porEtapa('ABANDONO'),
+        retirados: porEtapa('RETIRADO'),
+        noAprobaron: porEtapa('NO_APROBO'),
       },
       // lo que se le exige a "al día", dicho en la pantalla
       criterio: {

@@ -13,6 +13,9 @@ import {
   type EstadoAcademico,
   AYUDA_ACADEMICA,
   ETIQUETA_ACADEMICA,
+  AYUDA_ETAPA,
+  type Etapa,
+  ETIQUETA_ETAPA,
   type FilaAcademica,
 } from "@/lib/crm-api";
 
@@ -78,6 +81,14 @@ export default function PaginaAcademico() {
   const visibles = filtro
     ? datos.personas.filter((p) => p.estado === filtro)
     : datos.personas;
+
+  // las salidas no son estados de ritmo: van por su etapa
+  const SALIDAS: Array<[Etapa, number]> = [
+    ["DESERTO", resumen.desertaron],
+    ["ABANDONO", resumen.abandonaron],
+    ["RETIRADO", resumen.retirados],
+    ["NO_APROBO", resumen.noAprobaron],
+  ];
 
   const cuenta: Record<EstadoAcademico, number> = {
     SIN_INGRESO: resumen.sinIngreso,
@@ -156,7 +167,7 @@ export default function PaginaAcademico() {
         <strong>Atrasado</strong> va {criterio.tolerancia} actividades o más por
         debajo de lo que tocaría. Se certifica con el{" "}
         {Math.round(criterio.minimoParaCertificar * 100)} % de lo obligatorio
-        aprobado. Si el grupo no tiene fechas no se juzga: se dice que faltan.
+        aprobado. Si el grupo no tiene fechas no se juzga: se dice que no ha empezado.
       </p>
 
       <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-6">
@@ -180,6 +191,35 @@ export default function PaginaAcademico() {
           </button>
         ))}
       </div>
+
+      <section>
+        <h2 className="mb-2 text-sm font-semibold">
+          Quienes salieron del aula{" "}
+          <span className="font-normal text-texto-suave">
+            — no se miden por ritmo: cuenta por qué se fueron
+          </span>
+        </h2>
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          {SALIDAS.map(([etapa, n]) => (
+            <div
+              key={etapa}
+              style={{ ["--etapa"]: `var(--etapa-${etapa.toLowerCase().replace("_", "-")})` } as React.CSSProperties}
+              className="rounded-2xl border border-borde bg-superficie p-4 shadow-sm"
+            >
+              <span className="flex items-center gap-2 text-xs tracking-wide uppercase">
+                <span className="punto-etapa" aria-hidden />
+                <span className="text-texto-suave">{ETIQUETA_ETAPA[etapa]}</span>
+              </span>
+              <span className="mt-2 block text-3xl font-bold tabular-nums">{n}</span>
+              {AYUDA_ETAPA[etapa] && (
+                <span className="mt-1 block text-xs text-texto-suave">
+                  {AYUDA_ETAPA[etapa]}
+                </span>
+              )}
+            </div>
+          ))}
+        </div>
+      </section>
 
       <div className="flex flex-wrap items-center gap-3">
         <input
