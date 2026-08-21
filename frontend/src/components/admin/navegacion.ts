@@ -67,6 +67,7 @@ export const MODULOS: Modulo[] = [
     descripcion: 'Quien ya está matriculado y todavía no termina.',
     enlaces: [
       { href: '/admin/inscritos', etiqueta: 'Inscritos', exacto: true, area: 'inscritos' , icono: IconoMatriculados },
+      { href: '/admin/control', etiqueta: 'Control de inscritos', area: 'inscritos', icono: IconoResumen },
       { href: '/admin/sep', etiqueta: 'Reportes al SENA', area: 'reportes' , icono: IconoReportes },
     ],
   },

@@ -305,6 +305,25 @@ export type Academico = {
   };
 };
 
+
+export type Corte = { etiqueta: string; total: number };
+
+/** Lo que pinta el panel de Control de inscritos. */
+export type Control = {
+  total: number;
+  cuposConfirmados: number;
+  diasHastaInscribir: number | null;
+  embudo: Array<{ etapa: Etapa; total: number }>;
+  porAccion: Corte[];
+  porUbicacion: Array<Corte & { tipo: string }>;
+  porGrupo: Array<Corte & { inicio: string | null }>;
+  porConvenio: Corte[];
+  porAsesor: Corte[];
+  porOrigen: Corte[];
+  porModalidad: Corte[];
+  serie: Array<{ dia: string; total: number }>;
+};
+
 export type CatalogosSep = {
   documentosPersona: TipoDocumentoSep[];
   documentosEmpresa: TipoDocumentoSep[];
@@ -413,6 +432,8 @@ export const crmApi = {
       avancesBorrados: number;
       notasBorradas: number;
     }>(`/admin/participantes/${id}`, { method: "DELETE" }),
+
+  control: () => pedir<Control>("/admin/participantes/control"),
 
   opciones: (convenioId: string) =>
     pedir<Opciones>(`/admin/participantes/opciones?convenioId=${convenioId}`),

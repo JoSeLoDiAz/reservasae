@@ -28,6 +28,8 @@ import {
   FiltrosParticipantesDto,
   RegistrarAutorizacionDto,
 } from './dto';
+import { controlDeInscritos } from './control';
+import { PrismaService } from '../prisma/prisma.service';
 
 /** Inscripciones: las personas detrás de los cupos. */
 @Controller('admin/participantes')
@@ -40,6 +42,7 @@ export class CrmController {
   constructor(
     private readonly crm: CrmService,
     private readonly preinscripcion: PreinscripcionService,
+    private readonly prisma: PrismaService,
   ) {}
 
   /** Contadores por etapa: las columnas del tablero. */
@@ -49,6 +52,13 @@ export class CrmController {
   }
 
   /** Las listas del SEP que dibujan los formularios. */
+  /** Cuantos inscritos hay y como se reparten. */
+  @Get('control')
+  @Requiere('inscritos')
+  control(@AmbitoActual() ambito: Ambito) {
+    return controlDeInscritos(this.prisma, ambito.convenios);
+  }
+
   @Get('catalogos')
   catalogos() {
     return this.crm.catalogos();
