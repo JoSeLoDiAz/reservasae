@@ -6,7 +6,7 @@ import { ErrorApi } from "@/lib/api";
 import { juntar, primero, resto } from "@/lib/nombres";
 import { preinscripcionApi, type FichaAbierta } from "@/lib/preinscripcion-api";
 
-import { BannerLogos } from "./marca-publica";
+import { BannerLogos, PiePublico } from "./marca-publica";
 
 const CAMPO =
   "w-full rounded-xl border border-campo-borde bg-campo-fondo px-3 py-2.5 text-texto " +
@@ -63,11 +63,14 @@ export function CompletarFicha({ token }: { token: string }) {
 
   if (caducado) {
     return (
-      <main className="mx-auto w-full max-w-lg px-6 py-20 text-center">
+      <>
+        <main className="mx-auto w-full max-w-lg px-6 py-20 text-center">
         <BannerLogos />
         <h1 className="mt-8 text-2xl font-bold">Este enlace ya no sirve</h1>
         <p className="mt-3 text-texto-suave">{caducado}</p>
-      </main>
+        </main>
+        <PiePublico />
+      </>
     );
   }
 
@@ -116,19 +119,23 @@ export function CompletarFicha({ token }: { token: string }) {
 
   if (paso === "HECHO") {
     return (
-      <main className="mx-auto w-full max-w-lg px-6 py-20 text-center">
+      <>
+        <main className="mx-auto w-full max-w-lg px-6 py-20 text-center">
         <BannerLogos />
         <h1 className="mt-8 text-2xl font-bold">¡Gracias, {nombre}!</h1>
         <p className="mt-3 text-texto-suave">
           Sus datos quedaron guardados. Este enlace ya se cerró; si hace falta
           corregir algo, pídale uno nuevo a quien le atendió.
         </p>
-      </main>
+        </main>
+        <PiePublico />
+      </>
     );
   }
 
   return (
-    <main className="mx-auto w-full max-w-2xl px-6 py-10">
+    <>
+      <main className="mx-auto w-full max-w-2xl px-6 py-10">
       <BannerLogos />
 
       <header className="mt-8">
@@ -322,12 +329,13 @@ export function CompletarFicha({ token }: { token: string }) {
               {ficha.empresaFijada ? (
                 <>
                   Son los datos de <strong>{ficha.empresa}</strong>, la organización que
-                  lo inscribió. El SENA los pide para el reporte.
+                  lo inscribió. Hacen falta para formalizar su registro.
                 </>
               ) : (
                 <>
-                  Los datos de la organización donde trabaja. El SENA los pide para el
-                  reporte. Si no los tiene a mano, puede dejarlo para después.
+                  Los datos de la organización donde trabaja. Hacen falta para
+                  formalizar su registro. Si no los tiene a mano, puede dejarlo
+                  para después.
                 </>
               )}
             </p>
@@ -335,7 +343,15 @@ export function CompletarFicha({ token }: { token: string }) {
             <div className="grid gap-4 sm:grid-cols-2">
               {!ficha.empresaFijada && (
                 <>
-                  <Campo etiqueta="NIT" campo="nit" valores={empresa} set={setEmpresa} />
+                  <div className="grid grid-cols-[1fr_5rem] gap-3">
+                    <Campo etiqueta="NIT" campo="nit" valores={empresa} set={setEmpresa} />
+                    <Campo
+                      etiqueta="DV"
+                      campo="digitoVerificacion"
+                      valores={empresa}
+                      set={setEmpresa}
+                    />
+                  </div>
                   <Campo
                     etiqueta="Nombre de la organización"
                     campo="razonSocial"
@@ -369,10 +385,15 @@ export function CompletarFicha({ token }: { token: string }) {
                 valores={empresa}
                 set={setEmpresa}
               />
-              <Campo etiqueta="Su cargo" campo="contactoCargo" valores={empresa} set={setEmpresa} />
+              <Campo
+                etiqueta="Cargo de la persona de contacto"
+                campo="contactoCargo"
+                valores={empresa}
+                set={setEmpresa}
+              />
               <div className="sm:col-span-2">
                 <Campo
-                  etiqueta="Correo de contacto"
+                  etiqueta="Correo de la persona de contacto"
                   campo="contactoCorreo"
                   valores={empresa}
                   set={setEmpresa}
@@ -405,7 +426,9 @@ export function CompletarFicha({ token }: { token: string }) {
           </p>
         </form>
       )}
-    </main>
+      </main>
+      <PiePublico />
+    </>
   );
 }
 

@@ -11,7 +11,7 @@ import {
   type CatalogoPreinscripcion,
 } from "@/lib/preinscripcion-api";
 
-import { BannerLogos, EncabezadoPublico } from "./marca-publica";
+import { BannerLogos, EncabezadoPublico, PiePublico } from "./marca-publica";
 
 const CAMPO =
   "w-full rounded-xl border border-campo-borde bg-campo-fondo px-3 py-2.5 text-texto " +
@@ -89,7 +89,8 @@ export function PreinscripcionPublica({ slug }: { slug: string }) {
   if (hecho) return <Registrada token={hecho.token} yaEstaba={hecho.yaEstaba} />;
 
   return (
-    <main className="mx-auto w-full max-w-2xl px-6 py-10">
+    <>
+      <main className="mx-auto w-full max-w-2xl px-6 py-10">
       <EncabezadoPublico
         titulo="Regístrese en la formación"
         subtitulo="Es gratuita. Con estos datos queda registrado; después podrá completar el resto."
@@ -97,7 +98,7 @@ export function PreinscripcionPublica({ slug }: { slug: string }) {
 
       <form onSubmit={enviar} className="mt-8 space-y-8">
         <section className="rounded-2xl border border-borde bg-superficie p-6 shadow-sm">
-          <h2 className="text-lg font-semibold">Qué quiere estudiar</h2>
+          <h2 className="text-lg font-semibold">Qué curso le interesa</h2>
 
           <div className="mt-5 space-y-4">
             <label className="block">
@@ -226,7 +227,9 @@ export function PreinscripcionPublica({ slug }: { slug: string }) {
           {enviando ? "Registrando…" : "Registrarme"}
         </button>
       </form>
-    </main>
+      </main>
+      <PiePublico />
+    </>
   );
 }
 
@@ -311,7 +314,8 @@ function Texto({
 /** Ya está dentro: se le ofrece completar el resto. */
 function Registrada({ token, yaEstaba }: { token: string; yaEstaba: boolean }) {
   return (
-    <main className="mx-auto w-full max-w-xl px-6 py-16 text-center">
+    <>
+      <main className="mx-auto w-full max-w-xl px-6 py-16 text-center">
       <BannerLogos />
 
       <h1 className="mt-8 text-2xl font-bold">
@@ -333,6 +337,8 @@ function Registrada({ token, yaEstaba }: { token: string; yaEstaba: boolean }) {
       <p className="mt-6 text-xs text-texto-suave">
         Guarde este enlace: sirve una sola vez y caduca en 15 días.
       </p>
-    </main>
+      </main>
+      <PiePublico />
+    </>
   );
 }

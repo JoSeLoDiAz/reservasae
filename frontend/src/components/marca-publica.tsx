@@ -248,6 +248,12 @@ export function EncabezadoPublico({
           marca?.subtituloPublico ??
           "La formación es gratuita y los cupos son limitados."}
       </p>
+
+      {marca?.mensajeEncabezado && (
+        <p className="mt-4 rounded-xl border border-marca/25 bg-marca-suave px-4 py-3 text-sm">
+          {marca.mensajeEncabezado}
+        </p>
+      )}
     </header>
   );
 }

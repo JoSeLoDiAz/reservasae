@@ -275,6 +275,7 @@ export class AdminService {
         nombreApp: true,
         tituloPublico: true,
         subtituloPublico: true,
+        mensajeEncabezado: true,
         piePagina: true,
         modoPorDefecto: true,
         permitirCambioDeModo: true,

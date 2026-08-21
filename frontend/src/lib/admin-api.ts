@@ -115,6 +115,7 @@ export type Marca = {
   nombreApp: string;
   tituloPublico: string;
   subtituloPublico: string;
+  mensajeEncabezado: string | null;
   piePagina: string | null;
   modoPorDefecto: ModoPorDefecto;
   permitirCambioDeModo: boolean;

@@ -105,6 +105,7 @@ export default function PaginaMarca() {
               nombreApp: marca.nombreApp,
               tituloPublico: marca.tituloPublico,
               subtituloPublico: marca.subtituloPublico,
+              mensajeEncabezado: marca.mensajeEncabezado ?? "",
               piePagina: marca.piePagina ?? "",
               modoPorDefecto: marca.modoPorDefecto,
               permitirCambioDeModo: marca.permitirCambioDeModo,

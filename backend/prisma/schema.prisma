@@ -968,6 +968,8 @@ model Marca {
   nombreApp        String  @default("Convoca")
   tituloPublico    String  @default("Reserve sus cupos de formación")
   subtituloPublico String  @default("La formación es gratuita y los cupos son limitados.")
+  /// Aviso libre bajo el encabezado de las publicas.
+  mensajeEncabezado String?
   piePagina        String?
 
   /// Qué esquema ve quien entra por primera vez.

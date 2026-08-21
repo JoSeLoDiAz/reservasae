@@ -151,6 +151,9 @@ export class ActualizarMarcaDto {
   @IsString()
   @MaxLength(400)
   @Transform(recortar)
+  mensajeEncabezado?: string;
+
+  @IsOptional() @IsString() @MaxLength(400)
   piePagina?: string;
 
   @IsOptional()
