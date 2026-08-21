@@ -50,6 +50,7 @@ function fecha(iso: string | null) {
 
 export default function PaginaAcademico() {
   const [filtro, setFiltro] = useState<EstadoAcademico | "">("");
+  const [salida, setSalida] = useState<Etapa | "">("");
   const [accionAbierta, setAccionAbierta] = useState<string | null>(null);
   const [buscar, setBuscar] = useState("");
   const [accionFormacionId, setAccion] = useState("");
@@ -78,8 +79,12 @@ export default function PaginaAcademico() {
   if (!datos) return <Esqueleto conCifras />;
 
   const { resumen, criterio } = datos;
-  const visibles = filtro
-    ? datos.personas.filter((p) => p.estado === filtro)
+  // los dos filtros son excluyentes: un estado de ritmo es
+  // de quien sigue dentro, y una salida de quien ya no
+  const visibles = salida
+    ? datos.personas.filter((p) => p.etapa === salida)
+    : filtro
+    ? datos.personas.filter((p) => !p.salio && p.estado === filtro)
     : datos.personas;
 
   // las salidas no son estados de ritmo: van por su etapa
@@ -174,7 +179,10 @@ export default function PaginaAcademico() {
         {ORDEN.map((estado) => (
           <button
             key={estado}
-            onClick={() => setFiltro(filtro === estado ? "" : estado)}
+            onClick={() => {
+              setSalida("");
+              setFiltro(filtro === estado ? "" : estado);
+            }}
             style={{ ["--etapa"]: COLOR[estado] } as React.CSSProperties}
             className={`rounded-2xl border bg-superficie p-4 text-left shadow-sm transition hover:shadow-md ${
               filtro === estado ? "border-2" : "border-borde"
@@ -201,10 +209,17 @@ export default function PaginaAcademico() {
         </h2>
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           {SALIDAS.map(([etapa, n]) => (
-            <div
+            <button
               key={etapa}
+              onClick={() => {
+                setFiltro("");
+                setSalida(salida === etapa ? "" : etapa);
+              }}
+              aria-pressed={salida === etapa}
               style={{ ["--etapa"]: `var(--etapa-${etapa.toLowerCase().replace("_", "-")})` } as React.CSSProperties}
-              className="rounded-2xl border border-borde bg-superficie p-4 shadow-sm"
+              className={`rounded-2xl border bg-superficie p-4 text-left shadow-sm transition hover:shadow-md ${
+                salida === etapa ? "border-2" : "border-borde"
+              }`}
             >
               <span className="flex items-center gap-2 text-xs tracking-wide uppercase">
                 <span className="punto-etapa" aria-hidden />
@@ -216,7 +231,7 @@ export default function PaginaAcademico() {
                   {AYUDA_ETAPA[etapa]}
                 </span>
               )}
-            </div>
+            </button>
           ))}
         </div>
       </section>
@@ -277,11 +292,12 @@ export default function PaginaAcademico() {
           ))}
         </select>
 
-        {(filtro || accionFormacionId || grupoId || asesorId || buscar) && (
+        {(filtro || salida || accionFormacionId || grupoId || asesorId || buscar) && (
           <button
             className="text-sm text-marca underline"
             onClick={() => {
               setFiltro("");
+              setSalida("");
               setAccion("");
               setGrupo("");
               setAsesor("");

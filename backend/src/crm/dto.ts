@@ -259,7 +259,9 @@ export class FiltrosParticipantesDto {
 
   // «solo el embudo» o «solo el aula». Sin esto, la cifra
   // de Inscripciones contaria tambien a los del aula
-  @IsOptional() @IsIn(['INSCRIPCION', 'AULA']) tramo?: 'INSCRIPCION' | 'AULA';
+  @IsOptional()
+  @IsIn(['INSCRIPCION', 'INSCRITOS', 'AULA'])
+  tramo?: 'INSCRIPCION' | 'INSCRITOS' | 'AULA';
   @IsOptional() @IsString() accionFormacionId?: string;
   @IsOptional() @IsString() coberturaId?: string;
   @IsOptional() @IsString() grupoId?: string;

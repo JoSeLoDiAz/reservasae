@@ -8,12 +8,13 @@ import {
 
 import {
   EtapaParticipante,
+  type OrigenParticipante,
   Prisma,
   type Admin,
 } from '../../generated/prisma';
 import { documentoValido, normalizarDocumento } from '../comun/documento';
 import { analizar, esInsalvable, repetidosEnElPegado } from './carga';
-import { revisar } from './completitud';
+import { faltaDeLaPersona, revisar } from './completitud';
 import {
   DEPARTAMENTOS_SEP,
   DOCUMENTOS_DE_EMPRESA,
@@ -76,12 +77,16 @@ const ETAPAS_CON_MOTIVO: EtapaParticipante[] = [
   'ABANDONO',
 ];
 
-/// El embudo del asesor: lo que se ve en Inscripciones.
+/**
+ * El embudo del asesor. INSCRITO no esta: al marcarlo, la
+ * ficha sale de Inscripciones y aparece en Inscritos.
+ * Dejarla en las dos obliga a mirar dos sitios para saber
+ * si queda trabajo pendiente.
+ */
 export const ETAPAS_DE_INSCRIPCION: EtapaParticipante[] = [
   'INTERESADO',
   'CONTACTADO',
   'DATOS_COMPLETOS',
-  'INSCRITO',
 ];
 
 /// Lo que gobierna el academico y NO sale en Inscripciones.
@@ -1190,118 +1195,6 @@ export class CrmService {
     };
   }
 
-  async brecha(convenioId: string | undefined, ambito: string[]) {
-    const reservas = await this.prisma.reserva.findMany({
-      where: {
-        estado: { not: 'CANCELADA' },
-        // la reserva no lleva convenio: cuelga de la accion
-        oferta: { accionFormacion: { convenioId: { in: ambito } } },
-        ...(convenioId
-          ? { oferta: { accionFormacion: { convenioId } } }
-          : {}),
-      },
-      select: {
-        id: true,
-        cuposConfirmados: true,
-        contactoNombre: true,
-        contactoCorreo: true,
-        contactoCelular: true,
-        creadoEn: true,
-        empresa: { select: { id: true, nit: true, razonSocial: true } },
-        oferta: {
-          select: {
-            id: true,
-            ubicacion: { select: { nombre: true } },
-            accionFormacion: {
-              select: {
-                id: true,
-                codigo: true,
-                nombre: true,
-                convenio: { select: { sigla: true, slug: true } },
-              },
-            },
-          },
-        },
-        _count: {
-          select: { participantes: { where: { etapa: { in: ETAPAS_VIVAS } } } },
-        },
-      },
-    });
-
-    const porAccion = new Map<
-      string,
-      { etiqueta: string; convenio: string; confirmados: number; nombres: number }
-    >();
-
-    const empresas: Array<{
-      reservaId: string;
-      empresa: { id: string; nit: string; razonSocial: string };
-      contacto: string;
-      correo: string;
-      celular: string | null;
-      accion: string;
-      ubicacion: string;
-      confirmados: number;
-      nombres: number;
-      faltan: number;
-      diasDesdeReserva: number;
-    }> = [];
-
-    let confirmados = 0;
-    let nombres = 0;
-    const ahora = Date.now();
-
-    for (const r of reservas) {
-      const af = r.oferta.accionFormacion;
-      const clave = af.id;
-      const actual = porAccion.get(clave) ?? {
-        etiqueta: `${af.codigo} · ${af.nombre}`,
-        convenio: af.convenio.sigla ?? af.convenio.slug,
-        confirmados: 0,
-        nombres: 0,
-      };
-      actual.confirmados += r.cuposConfirmados;
-      actual.nombres += r._count.participantes;
-      porAccion.set(clave, actual);
-
-      confirmados += r.cuposConfirmados;
-      nombres += r._count.participantes;
-
-      const faltan = r.cuposConfirmados - r._count.participantes;
-      if (faltan > 0) {
-        empresas.push({
-          reservaId: r.id,
-          empresa: r.empresa,
-          contacto: r.contactoNombre,
-          correo: r.contactoCorreo,
-          celular: r.contactoCelular,
-          accion: `${af.codigo} · ${af.nombre}`,
-          ubicacion: r.oferta.ubicacion.nombre,
-          confirmados: r.cuposConfirmados,
-          nombres: r._count.participantes,
-          faltan,
-          diasDesdeReserva: Math.floor(
-            (ahora - r.creadoEn.getTime()) / 86_400_000,
-          ),
-        });
-      }
-    }
-
-    // primero quien mas debe, y a igualdad quien lleva mas esperando
-    empresas.sort((a, b) => b.faltan - a.faltan || b.diasDesdeReserva - a.diasDesdeReserva);
-
-    return {
-      confirmados,
-      nombres,
-      brecha: Math.max(0, confirmados - nombres),
-      porAccion: [...porAccion.values()]
-        .map((a) => ({ ...a, brecha: Math.max(0, a.confirmados - a.nombres) }))
-        .sort((a, b) => b.brecha - a.brecha),
-      empresas: empresas.slice(0, 100),
-      empresasTotal: empresas.length,
-    };
-  }
-
   /** Ofertas y grupos donde se puede colocar a alguien. */
   async opciones(convenioId: string, ambito: string[]) {
     this.exigirConvenio(convenioId, ambito);
@@ -1572,6 +1465,8 @@ export class CrmService {
     // sabe de quien ya esta en el aula, y al reves
     if (f.tramo === 'INSCRIPCION') {
       y.push({ etapa: { in: [...ETAPAS_DE_INSCRIPCION, 'PERDIDO'] } });
+    } else if (f.tramo === 'INSCRITOS') {
+      y.push({ etapa: 'INSCRITO' });
     } else if (f.tramo === 'AULA') {
       y.push({ etapa: { in: ETAPAS_DEL_AULA } });
     }
@@ -1604,7 +1499,9 @@ export class CrmService {
   private aFila(p: {
     id: string;
     etapa: EtapaParticipante;
+    origen: OrigenParticipante;
     creadoEn: Date;
+    nivelOcupacionalSepId: number | null;
     persona: {
       tipoDocumentoSepId: number;
       numeroDocumento: string;
@@ -1614,6 +1511,13 @@ export class CrmService {
       segundoApellido: string | null;
       correo: string | null;
       celular: string | null;
+      fechaNacimiento: Date | null;
+      generoSepId: number | null;
+      estrato: number | null;
+      departamentoSepId: number | null;
+      municipioSepId: number | null;
+      barrio: string | null;
+      direccion: string | null;
     };
     convenio: { sigla: string | null; slug: string };
     accionFormacion: { codigo: string; nombre: string } | null;
@@ -1621,9 +1525,19 @@ export class CrmService {
     asesor: { id: string; nombre: string } | null;
     _count: { notas: number };
   }) {
+    // lo que la persona dejo a medias: es lo que el asesor
+    // tiene que completar por telefono
+    const falta = faltaDeLaPersona({
+      persona: p.persona,
+      nivelOcupacionalSepId: p.nivelOcupacionalSepId,
+    });
+
     return {
       id: p.id,
       etapa: p.etapa,
+      origen: p.origen,
+      datos: falta.length === 0 ? ('COMPLETOS' as const) : ('PARCIALES' as const),
+      faltaDeLaPersona: falta,
       creadoEn: p.creadoEn,
       documento: `${siglaDocumento(p.persona.tipoDocumentoSepId)} ${p.persona.numeroDocumento}`,
       nombre: [

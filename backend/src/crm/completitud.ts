@@ -35,6 +35,37 @@ export type ParaRevisar = {
 };
 
 /**
+ * Lo que falta de la PERSONA, y solo de ella.
+ *
+ * Es un corte distinto del de `reporte`: aquel incluye el
+ * grupo y los ids del SEP, que no dependen de quien se
+ * inscribe. Un lead no es "parcial" porque el SENA no haya
+ * asignado grupo todavia -- lo es porque la persona dejo
+ * el formulario a medias, que es lo que el asesor tiene
+ * que ir a completar por telefono.
+ */
+export function faltaDeLaPersona(p: {
+  persona: ParaRevisar['persona'];
+  nivelOcupacionalSepId: number | null;
+}): string[] {
+  const falta: string[] = [];
+  const persona = p.persona;
+
+  if (!persona.correo) falta.push('correo');
+  if (!persona.celular) falta.push('celular');
+  if (!persona.fechaNacimiento) falta.push('fecha de nacimiento');
+  if (persona.generoSepId === null) falta.push('género');
+  if (persona.estrato === null) falta.push('estrato');
+  if (persona.departamentoSepId === null) falta.push('departamento');
+  if (persona.municipioSepId === null) falta.push('municipio');
+  if (!persona.direccion?.trim()) falta.push('dirección');
+  if (!persona.barrio?.trim()) falta.push('barrio o vereda');
+  if (p.nivelOcupacionalSepId === null) falta.push('nivel ocupacional');
+
+  return falta;
+}
+
+/**
  * La única fuente. El panel pinta lo que devuelve esto, en
  * vez de llevar su propia lista: tres reglas distintas
  * hacían que la ficha dijera «completa» y la persona

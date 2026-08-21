@@ -39,11 +39,6 @@ const PANEL: Destino[] = [
     descripcion: "Quién va al día y quién no, contra el calendario del grupo.",
   },
   {
-    href: "/admin/participantes/brecha",
-    titulo: "Brecha de nombres",
-    descripcion: "Cupos reservados sin nadie detrás. A quién llamar hoy.",
-  },
-  {
     href: "/admin/marca",
     titulo: "Apariencia",
     descripcion: "Las plantillas, los 37 colores y las etapas del CRM.",

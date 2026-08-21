@@ -39,11 +39,16 @@ export const ETAPAS_AVANCE: Etapa[] = [
  * En formación y Certificado se siguen en el módulo
  * académico, contra el calendario de su grupo.
  */
+/**
+ * El tablero del asesor. «Inscrito» NO está: al marcarlo,
+ * la ficha sale de aquí y aparece en Inscritos. Dejarla en
+ * las dos partes obliga a mirar dos sitios para saber si
+ * queda trabajo pendiente.
+ */
 export const ETAPAS_DE_INSCRIPCION: Etapa[] = [
   "INTERESADO",
   "CONTACTADO",
   "DATOS_COMPLETOS",
-  "INSCRITO",
 ];
 
 /**
@@ -104,9 +109,19 @@ export const ETIQUETA_ORIGEN: Record<Origen, string> = {
 
 
 
+export type Origen2 =
+  | "EMPRESA" | "ASESOR" | "AUTOGESTION" | "REFERIDO" | "REDES"
+  | "INSTAGRAM" | "FACEBOOK" | "LINKEDIN" | "WHATSAPP" | "CORREO"
+  | "EVENTO" | "OTRO";
+
 export type FilaParticipante = {
   id: string;
   etapa: Etapa;
+  origen: Origen2;
+  /** Si la persona entregó su ficha entera o a medias. */
+  datos: "PARCIALES" | "COMPLETOS";
+  /** Qué le falta de lo suyo: lo que el asesor le pide. */
+  faltaDeLaPersona: string[];
   creadoEn: string;
   documento: string;
   nombre: string;
@@ -310,7 +325,7 @@ export type Filtros = {
   grupoId?: string;
   asesorId?: string;
   /** «solo el embudo» o «solo el aula». */
-  tramo?: "INSCRIPCION" | "AULA";
+  tramo?: "INSCRIPCION" | "INSCRITOS" | "AULA";
   buscar?: string;
   pagina?: number;
   /** Cuántas filas por carga; el servidor lo topa. */

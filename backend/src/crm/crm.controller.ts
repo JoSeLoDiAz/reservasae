@@ -48,12 +48,6 @@ export class CrmController {
     return this.crm.resumen({ ...filtros, ambito: ambito.convenios });
   }
 
-  /** Cupos reservados sin nombre detrás. */
-  @Get('brecha')
-  brecha(@AmbitoActual() ambito: Ambito, @Query('convenioId') convenioId?: string) {
-    return this.crm.brecha(convenioId, ambito.convenios);
-  }
-
   /** Las listas del SEP que dibujan los formularios. */
   @Get('catalogos')
   catalogos() {

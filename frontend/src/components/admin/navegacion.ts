@@ -55,7 +55,6 @@ export const MODULOS: Modulo[] = [
     descripcion: 'Convertir cupos en personas con nombre.',
     enlaces: [
       { href: '/admin/participantes', etiqueta: 'Tablero', exacto: true, area: 'inscripciones' , icono: IconoTablero },
-      { href: '/admin/participantes/brecha', etiqueta: 'Brecha de nombres', area: 'inscripciones' , icono: IconoBrecha },
       { href: '/admin/participantes/carga', etiqueta: 'Cargar una lista', area: 'inscripciones', nivel: 'ESCRIBIR' , icono: IconoCargar },
       { href: '/admin/participantes/nuevo', etiqueta: 'Inscribir a alguien', area: 'inscripciones', nivel: 'ESCRIBIR' , icono: IconoInscribir },
     ],

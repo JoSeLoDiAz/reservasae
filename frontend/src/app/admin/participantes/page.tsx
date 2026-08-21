@@ -113,9 +113,6 @@ export default function PaginaParticipantes() {
           </p>
         </div>
         <div className="flex items-center gap-3">
-          <Link href="/admin/participantes/brecha" className="underline">
-            Brecha de nombres
-          </Link>
           <Link href="/admin/participantes/academico" className="underline">
             Seguimiento académico
           </Link>
@@ -217,6 +214,10 @@ export default function PaginaParticipantes() {
           <div className="flex gap-4">
             {[...ETAPAS_DE_INSCRIPCION, ...ETAPAS_SALIDA].map((etapa) => {
               const suyas = filas.filter((f) => f.etapa === etapa);
+              // en Interesado importa si llego entera o a
+              // medias: es lo que decide si hay que llamar
+              const parciales = suyas.filter((f) => f.datos === "PARCIALES");
+              const completas = suyas.filter((f) => f.datos === "COMPLETOS");
               const enLaEtapa = cuenta.get(etapa) ?? 0;
               const ocultas = enLaEtapa - suyas.length;
 
@@ -247,6 +248,16 @@ export default function PaginaParticipantes() {
                   </header>
 
                   <div className="space-y-2">
+                    {etapa === "INTERESADO" && suyas.length > 0 && (
+                      <div className="flex gap-1.5 pb-1 text-[11px]">
+                        <span className="rounded-full bg-aviso-suave px-2 py-0.5 text-aviso">
+                          {parciales.length} con datos parciales
+                        </span>
+                        <span className="rounded-full bg-exito-suave px-2 py-0.5 text-exito">
+                          {completas.length} completos
+                        </span>
+                      </div>
+                    )}
                     {suyas.map((f) => (
                       <article
                         key={f.id}
@@ -261,6 +272,18 @@ export default function PaginaParticipantes() {
                             {f.documento}
                           </p>
                           <p className="mt-0.5 font-medium">{f.nombre}</p>
+                          {f.datos === "PARCIALES" ? (
+                            <p
+                              className="mt-1 inline-block rounded-full bg-aviso-suave px-1.5 py-0.5 text-[10.5px] text-aviso"
+                              title={"Le falta: " + f.faltaDeLaPersona.join(", ")}
+                            >
+                              Datos parciales · le faltan {f.faltaDeLaPersona.length}
+                            </p>
+                          ) : (
+                            <p className="mt-1 inline-block rounded-full bg-exito-suave px-1.5 py-0.5 text-[10.5px] text-exito">
+                              Datos completos
+                            </p>
+                          )}
                           {f.accion && (
                             <p className="mt-1 text-xs text-texto-suave">{f.accion}</p>
                           )}
