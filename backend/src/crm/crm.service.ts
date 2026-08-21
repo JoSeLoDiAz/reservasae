@@ -59,16 +59,40 @@ const TOPE_POR_PAGINA = 300;
 
 /// Los que ocupan una silla. El resto ya no cuenta.
 const ETAPAS_VIVAS: EtapaParticipante[] = [
-  'NUEVO',
+  'INTERESADO',
   'CONTACTADO',
   'DATOS_COMPLETOS',
-  'MATRICULADO',
+  'INSCRITO',
   'EN_FORMACION',
   'CERTIFICADO',
 ];
 
 /// De estas no se sale sin explicar por que.
-const ETAPAS_CON_MOTIVO: EtapaParticipante[] = ['PERDIDO', 'RETIRADO', 'NO_APROBO'];
+const ETAPAS_CON_MOTIVO: EtapaParticipante[] = [
+  'PERDIDO',
+  'RETIRADO',
+  'NO_APROBO',
+  'DESERTO',
+  'ABANDONO',
+];
+
+/// El embudo del asesor: lo que se ve en Inscripciones.
+export const ETAPAS_DE_INSCRIPCION: EtapaParticipante[] = [
+  'INTERESADO',
+  'CONTACTADO',
+  'DATOS_COMPLETOS',
+  'INSCRITO',
+];
+
+/// Lo que gobierna el academico y NO sale en Inscripciones.
+export const ETAPAS_DEL_AULA: EtapaParticipante[] = [
+  'EN_FORMACION',
+  'CERTIFICADO',
+  'RETIRADO',
+  'NO_APROBO',
+  'DESERTO',
+  'ABANDONO',
+];
 
 /// Las que dan por terminada la formación.
 const CIERRES_DE_FORMACION: EtapaParticipante[] = ['CERTIFICADO', 'NO_APROBO'];
@@ -79,6 +103,8 @@ const ETAPAS_EN_AULA: EtapaParticipante[] = [
   'CERTIFICADO',
   'NO_APROBO',
   'RETIRADO',
+  'DESERTO',
+  'ABANDONO',
 ];
 
 /// Cuantas actividades de retraso se toleran.
@@ -88,17 +114,19 @@ const DIAS_PARADO = 14;
 /// Lo que hay que aprobar para poder certificar.
 export const MINIMO_PARA_CERTIFICAR = 0.8;
 
+/**
+ * Los seis que pidio el cliente. Se quitaron PARADO,
+ * SIN_ARRANCAR, SALIO y SIN_FECHAS: quien salio ya lo dice
+ * su etapa, y sin calendario no se juzga -- esos caen en
+ * SIN_EMPEZAR, que es lo que de verdad se sabe de ellos.
+ */
 type EstadoAcademico =
-  | 'AL_DIA'
-  | 'ATRASADO'
-  | 'PARADO'
   | 'SIN_INGRESO'
-  | 'SIN_ARRANCAR'
-  | 'COMPLETADO'
-  | 'CERTIFICADO'
-  | 'SALIO'
   | 'SIN_EMPEZAR'
-  | 'SIN_FECHAS';
+  | 'ATRASADO'
+  | 'AL_DIA'
+  | 'COMPLETADO'
+  | 'CERTIFICADO';
 
 @Injectable()
 export class CrmService {
@@ -695,7 +723,7 @@ export class CrmService {
     }
 
     // matricular es una compuerta, no un paso mas
-    if (dto.etapa === 'MATRICULADO') {
+    if (dto.etapa === 'INSCRITO') {
       const { bloquean } = await this.faltantesParaMatricular(id);
       if (bloquean.length > 0) {
         throw new ConflictException(
@@ -711,7 +739,7 @@ export class CrmService {
           etapa: dto.etapa,
           motivoSalida: ETAPAS_CON_MOTIVO.includes(dto.etapa) ? dto.motivo : undefined,
           fechaRetiro: dto.etapa === 'RETIRADO' ? new Date() : undefined,
-          fechaMatricula: dto.etapa === 'MATRICULADO' ? new Date() : undefined,
+          fechaMatricula: dto.etapa === 'INSCRITO' ? new Date() : undefined,
           fechaCertificacion: dto.etapa === 'CERTIFICADO' ? new Date() : undefined,
         },
       }),
@@ -1026,17 +1054,14 @@ export class CrmService {
 
       let estado: EstadoAcademico;
       if (p.etapa === 'CERTIFICADO') estado = 'CERTIFICADO';
-      else if (p.etapa === 'NO_APROBO' || p.etapa === 'RETIRADO') estado = 'SALIO';
       else if (listoParaCertificar) estado = 'COMPLETADO';
-      else if (esperadas === null) estado = 'SIN_FECHAS';
-      // el grupo aun no arranca: no se juzga a nadie
+      // sin calendario no hay contra que medir, y sin
+      // grupo arrancado no se juzga a nadie: las dos
+      // cosas se dicen igual, que su curso no ha empezado
+      else if (esperadas === null) estado = 'SIN_EMPEZAR';
       else if (inicio !== null && ahora < inicio) estado = 'SIN_EMPEZAR';
       // nunca piso el aula, aunque su grupo ya empezo
       else if (p.ultimoAcceso === null) estado = 'SIN_INGRESO';
-      // entro y no hizo nada: se rescata con una llamada,
-      // que es distinto de no haber entrado nunca
-      else if (hechas === 0) estado = 'SIN_ARRANCAR';
-      else if (diasSinEntrar !== null && diasSinEntrar >= DIAS_PARADO) estado = 'PARADO';
       else if (desfase! <= -TOLERANCIA) estado = 'ATRASADO';
       else estado = 'AL_DIA';
 
@@ -1120,16 +1145,12 @@ export class CrmService {
         total: enAula,
         /// Sobre cuantas se calculo el reparto de abajo.
         analizadas: personas.length,
-        alDia: cuenta('AL_DIA'),
-        atrasados: cuenta('ATRASADO'),
-        parados: cuenta('PARADO'),
         sinIngreso: cuenta('SIN_INGRESO'),
-        sinArrancar: cuenta('SIN_ARRANCAR'),
+        sinEmpezar: cuenta('SIN_EMPEZAR'),
+        atrasados: cuenta('ATRASADO'),
+        alDia: cuenta('AL_DIA'),
         completados: cuenta('COMPLETADO'),
         certificados: cuenta('CERTIFICADO'),
-        salieron: cuenta('SALIO'),
-        sinEmpezar: cuenta('SIN_EMPEZAR'),
-        sinFechas: cuenta('SIN_FECHAS'),
       },
       // lo que se le exige a "al día", dicho en la pantalla
       criterio: {
@@ -1518,6 +1539,13 @@ export class CrmService {
 
     if (f.convenioId) y.push({ convenioId: f.convenioId });
     if (f.etapa) y.push({ etapa: f.etapa });
+    // el tramo acota la pantalla entera: Inscripciones no
+    // sabe de quien ya esta en el aula, y al reves
+    if (f.tramo === 'INSCRIPCION') {
+      y.push({ etapa: { in: [...ETAPAS_DE_INSCRIPCION, 'PERDIDO'] } });
+    } else if (f.tramo === 'AULA') {
+      y.push({ etapa: { in: ETAPAS_DEL_AULA } });
+    }
     if (f.accionFormacionId) y.push({ accionFormacionId: f.accionFormacionId });
     if (f.coberturaId) y.push({ coberturaId: f.coberturaId });
     // el grupo cuelga de la cobertura, no del participante

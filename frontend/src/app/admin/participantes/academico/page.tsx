@@ -18,30 +18,22 @@ import {
 
 // el color sale del token de la etapa que le corresponde
 const COLOR: Record<EstadoAcademico, string> = {
-  COMPLETADO: "var(--etapa-matriculado)",
-  AL_DIA: "var(--etapa-certificado)",
-  ATRASADO: "var(--etapa-en-formacion)",
-  PARADO: "var(--etapa-perdido)",
-  SIN_ARRANCAR: "var(--etapa-datos-completos)",
   SIN_INGRESO: "var(--etapa-perdido)",
-  CERTIFICADO: "var(--etapa-matriculado)",
-  SALIO: "var(--etapa-retirado)",
   SIN_EMPEZAR: "var(--etapa-contactado)",
-  SIN_FECHAS: "var(--etapa-nuevo)",
+  ATRASADO: "var(--etapa-en-formacion)",
+  AL_DIA: "var(--etapa-certificado)",
+  COMPLETADO: "var(--etapa-inscrito)",
+  CERTIFICADO: "var(--etapa-certificado)",
 };
 
 /// De lo más urgente a lo que no pide nada.
 const ORDEN: EstadoAcademico[] = [
   "SIN_INGRESO",
-  "SIN_ARRANCAR",
-  "PARADO",
   "ATRASADO",
   "AL_DIA",
   "COMPLETADO",
   "CERTIFICADO",
   "SIN_EMPEZAR",
-  "SIN_FECHAS",
-  "SALIO",
 ];
 
 function fecha(iso: string | null) {
@@ -88,16 +80,12 @@ export default function PaginaAcademico() {
     : datos.personas;
 
   const cuenta: Record<EstadoAcademico, number> = {
-    COMPLETADO: resumen.completados,
-    AL_DIA: resumen.alDia,
-    ATRASADO: resumen.atrasados,
-    PARADO: resumen.parados,
-    SIN_ARRANCAR: resumen.sinArrancar,
     SIN_INGRESO: resumen.sinIngreso,
-    CERTIFICADO: resumen.certificados,
-    SALIO: resumen.salieron,
     SIN_EMPEZAR: resumen.sinEmpezar,
-    SIN_FECHAS: resumen.sinFechas,
+    ATRASADO: resumen.atrasados,
+    AL_DIA: resumen.alDia,
+    COMPLETADO: resumen.completados,
+    CERTIFICADO: resumen.certificados,
   };
 
   // por acción y dentro por grupo: el acordeón

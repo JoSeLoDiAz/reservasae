@@ -25,10 +25,10 @@ import * as usoDirecto from './formato-uso-directo';
 export type Formato = 'uso-directo' | 'cargue-sep' | 'f7';
 
 /// Solo quien ya tiene silla. Se dice cuáles entran, no
-/// cuáles se excluyen: por descarte entraría NUEVO, que es
+/// cuáles se excluyen: por descarte entraría INTERESADO, que es
 /// un nombre que alguien tecleó y saldría como ACTIVO.
 const ETAPAS_DEL_REPORTE: EtapaParticipante[] = [
-  'MATRICULADO',
+  'INSCRITO',
   'EN_FORMACION',
   'CERTIFICADO',
 ];

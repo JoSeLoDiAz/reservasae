@@ -7,7 +7,7 @@ import { ActualizarGrupoDto } from './dto';
 
 /// Las etapas que ocupan una silla de verdad.
 const ETAPAS_VIVAS = [
-  'MATRICULADO',
+  'INSCRITO',
   'EN_FORMACION',
   'CERTIFICADO',
 ] as const;

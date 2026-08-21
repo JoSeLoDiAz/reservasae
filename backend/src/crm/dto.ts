@@ -7,6 +7,7 @@ import {
   IsDateString,
   IsEmail,
   IsEnum,
+  IsIn,
   IsInt,
   IsNotEmpty,
   IsOptional,
@@ -255,6 +256,10 @@ export class CrearNotaDto {
 export class FiltrosParticipantesDto {
   @IsOptional() @IsString() convenioId?: string;
   @IsOptional() @IsEnum(EtapaParticipante) etapa?: EtapaParticipante;
+
+  // «solo el embudo» o «solo el aula». Sin esto, la cifra
+  // de Inscripciones contaria tambien a los del aula
+  @IsOptional() @IsIn(['INSCRIPCION', 'AULA']) tramo?: 'INSCRIPCION' | 'AULA';
   @IsOptional() @IsString() accionFormacionId?: string;
   @IsOptional() @IsString() coberturaId?: string;
   @IsOptional() @IsString() grupoId?: string;

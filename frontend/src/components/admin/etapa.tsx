@@ -4,15 +4,17 @@ import { ETIQUETA_ETAPA, type Etapa } from "@/lib/crm-api";
 
 /** El token de color que el admin edita en Apariencia. */
 const VARIABLE_ETAPA: Record<Etapa, string> = {
-  NUEVO: "--etapa-nuevo",
+  INTERESADO: "--etapa-interesado",
   CONTACTADO: "--etapa-contactado",
   DATOS_COMPLETOS: "--etapa-datos-completos",
-  MATRICULADO: "--etapa-matriculado",
+  INSCRITO: "--etapa-inscrito",
   EN_FORMACION: "--etapa-en-formacion",
   CERTIFICADO: "--etapa-certificado",
   PERDIDO: "--etapa-perdido",
   RETIRADO: "--etapa-retirado",
   NO_APROBO: "--etapa-no-aprobo",
+  DESERTO: "--etapa-deserto",
+  ABANDONO: "--etapa-abandono",
 };
 
 /** Deja `--etapa` puesto para quien cuelgue debajo. */

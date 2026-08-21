@@ -53,6 +53,9 @@ export default function PaginaParticipantes() {
 
   const cargar = useCallback(async () => {
     const filtros: Filtros = {
+      // Inscripciones acaba al marcar «Inscrito»: de ahi
+      // en adelante manda el seguimiento academico
+      tramo: "INSCRIPCION",
       buscar: buscar || undefined,
       asesorId: asesorId || undefined,
       accionFormacionId: accionFormacionId || undefined,
@@ -106,7 +109,7 @@ export default function PaginaParticipantes() {
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Inscripciones</h1>
           <p className="mt-1 text-texto-suave">
-            Las personas detrás de los cupos. {resumen.total} en total.
+            Los leads del asesor, hasta marcarlos como inscritos. {resumen.total} en total.
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -330,7 +333,7 @@ function Cifras({ resumen }: { resumen: Resumen }) {
       />
       <TarjetaCifra
         etiqueta="Inscritas"
-        valor={de("MATRICULADO")}
+        valor={de("INSCRITO")}
         icono={IconoInscribir}
       />
       <TarjetaCifra

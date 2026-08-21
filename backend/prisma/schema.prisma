@@ -546,28 +546,39 @@ model AvanceActividad {
 
 // crm: la persona y su paso por la formacion
 
-/// De donde salio la persona.
+/// De donde salio la persona. Las redes van por
+/// separado: "REDES" no dice cual pauta funciono.
 enum OrigenParticipante {
   EMPRESA
   ASESOR
   AUTOGESTION
   REFERIDO
   REDES
+  INSTAGRAM
+  FACEBOOK
+  LINKEDIN
+  WHATSAPP
+  CORREO
   EVENTO
   OTRO
 }
 
-/// El embudo, de contacto a certificado.
+/// El embudo. Las cuatro primeras son Inscripciones;
+/// de EN_FORMACION en adelante manda el academico.
 enum EtapaParticipante {
-  NUEVO
+  INTERESADO
   CONTACTADO
   DATOS_COMPLETOS
-  MATRICULADO
+  INSCRITO
   EN_FORMACION
   CERTIFICADO
   PERDIDO
   RETIRADO
   NO_APROBO
+  /// Aviso: la persona dijo que se iba.
+  DESERTO
+  /// Sin aviso: dejo de entrar al aula.
+  ABANDONO
 }
 
 /// Por donde autorizo el tratamiento de sus datos.
@@ -636,7 +647,7 @@ model Participante {
   accionFormacionId String?
   coberturaId       String?
 
-  etapa  EtapaParticipante  @default(NUEVO)
+  etapa  EtapaParticipante  @default(INTERESADO)
   origen OrigenParticipante @default(ASESOR)
 
   asesorId String?

@@ -1,15 +1,17 @@
 import { ErrorApi } from "./api";
 
 export type Etapa =
-  | "NUEVO"
+  | "INTERESADO"
   | "CONTACTADO"
   | "DATOS_COMPLETOS"
-  | "MATRICULADO"
+  | "INSCRITO"
   | "EN_FORMACION"
   | "CERTIFICADO"
   | "PERDIDO"
   | "RETIRADO"
-  | "NO_APROBO";
+  | "NO_APROBO"
+  | "DESERTO"
+  | "ABANDONO";
 
 /** El catálogo del SEP, servido por el backend. */
 export type TipoDocumentoSep = {
@@ -23,10 +25,10 @@ export type Origen =
 
 /** En orden de avance. Las salidas van aparte. */
 export const ETAPAS_AVANCE: Etapa[] = [
-  "NUEVO",
+  "INTERESADO",
   "CONTACTADO",
   "DATOS_COMPLETOS",
-  "MATRICULADO",
+  "INSCRITO",
   "EN_FORMACION",
   "CERTIFICADO",
 ];
@@ -38,24 +40,56 @@ export const ETAPAS_AVANCE: Etapa[] = [
  * académico, contra el calendario de su grupo.
  */
 export const ETAPAS_DE_INSCRIPCION: Etapa[] = [
-  "NUEVO",
+  "INTERESADO",
   "CONTACTADO",
   "DATOS_COMPLETOS",
-  "MATRICULADO",
+  "INSCRITO",
 ];
 
-export const ETAPAS_SALIDA: Etapa[] = ["PERDIDO", "RETIRADO", "NO_APROBO"];
+/**
+ * Lo que gobierna el académico. NO sale en Inscripciones:
+ * ahí el trabajo del asesor acaba al marcar «Inscrito».
+ */
+export const ETAPAS_DEL_AULA: Etapa[] = [
+  "EN_FORMACION",
+  "CERTIFICADO",
+  "RETIRADO",
+  "NO_APROBO",
+  "DESERTO",
+  "ABANDONO",
+];
+
+/// La única salida del embudo del asesor.
+export const ETAPAS_SALIDA: Etapa[] = ["PERDIDO"];
+
+/// Las del aula, que exigen motivo igual que «No interesado».
+export const SALIDAS_DEL_AULA: Etapa[] = [
+  "RETIRADO",
+  "NO_APROBO",
+  "DESERTO",
+  "ABANDONO",
+];
 
 export const ETIQUETA_ETAPA: Record<Etapa, string> = {
-  NUEVO: "Nuevo",
+  INTERESADO: "Interesado",
   CONTACTADO: "Contactado",
   DATOS_COMPLETOS: "Datos completos",
-  MATRICULADO: "Matriculado",
+  INSCRITO: "Inscrito",
   EN_FORMACION: "En formación",
   CERTIFICADO: "Certificado",
   PERDIDO: "No interesado",
   RETIRADO: "Retirado",
   NO_APROBO: "No aprobó",
+  DESERTO: "Desertó",
+  ABANDONO: "Abandonó",
+};
+
+/// Qué separa a los que se parecen.
+export const AYUDA_ETAPA: Partial<Record<Etapa, string>> = {
+  DESERTO: "Avisó que se retiraba.",
+  ABANDONO: "Dejó de entrar al aula sin decir nada.",
+  RETIRADO: "Se retiró antes de empezar la formación.",
+  PERDIDO: "Se le contactó y no quiso seguir.",
 };
 
 export const ETIQUETA_ORIGEN: Record<Origen, string> = {
@@ -172,35 +206,30 @@ export type Ficha = {
 };
 
 export type EstadoAcademico =
-  | "AL_DIA" | "ATRASADO" | "PARADO" | "SIN_INGRESO" | "SIN_ARRANCAR"
-  | "COMPLETADO" | "CERTIFICADO" | "SALIO"
-  | "SIN_EMPEZAR" | "SIN_FECHAS";
+  | "SIN_INGRESO"
+  | "SIN_EMPEZAR"
+  | "ATRASADO"
+  | "AL_DIA"
+  | "COMPLETADO"
+  | "CERTIFICADO";
 
 export const ETIQUETA_ACADEMICA: Record<EstadoAcademico, string> = {
-  COMPLETADO: "Listo para certificar",
-  AL_DIA: "Al día",
-  ATRASADO: "Atrasado",
-  PARADO: "Parado",
-  SIN_ARRANCAR: "Sin arrancar",
   SIN_INGRESO: "Sin ingreso",
-  CERTIFICADO: "Certificado",
-  SALIO: "Salió",
   SIN_EMPEZAR: "Sin empezar",
-  SIN_FECHAS: "Sin fechas de grupo",
+  ATRASADO: "Atrasado",
+  AL_DIA: "Al día",
+  COMPLETADO: "Listo para certificar",
+  CERTIFICADO: "Certificado",
 };
 
 /// Qué significa cada uno, para no tener que adivinarlo.
 export const AYUDA_ACADEMICA: Record<EstadoAcademico, string> = {
-  COMPLETADO: "Aprobó el 80 % o más de lo obligatorio.",
-  AL_DIA: "Avanza al ritmo que marca el calendario de su grupo.",
-  ATRASADO: "Va dos actividades o más por debajo de lo que tocaría.",
-  PARADO: "No entra al aula desde hace 14 días o más.",
-  SIN_ARRANCAR: "Entró al aula pero no ha aprobado ninguna actividad.",
   SIN_INGRESO: "Su grupo ya empezó y nunca ha entrado al aula.",
-  CERTIFICADO: "Terminó y se le certificó.",
-  SALIO: "Se retiró o no aprobó.",
   SIN_EMPEZAR: "Su grupo todavía no arranca: no se juzga.",
-  SIN_FECHAS: "Su grupo no tiene fechas: no hay contra qué medir.",
+  ATRASADO: "Va dos actividades o más por debajo de lo que tocaría.",
+  AL_DIA: "Avanza al ritmo que marca el calendario de su grupo.",
+  COMPLETADO: "Aprobó el 80 % o más de lo obligatorio.",
+  CERTIFICADO: "Terminó y se le certificó.",
 };
 
 export type FilaAcademica = {
@@ -239,16 +268,12 @@ export type Academico = {
     total: number;
     /** Sobre cuántas se calculó el reparto: puede ser menos. */
     analizadas: number;
-    alDia: number;
-    atrasados: number;
-    parados: number;
     sinIngreso: number;
-    sinArrancar: number;
+    sinEmpezar: number;
+    atrasados: number;
+    alDia: number;
     completados: number;
     certificados: number;
-    salieron: number;
-    sinEmpezar: number;
-    sinFechas: number;
   };
   criterio: {
     tolerancia: number;
@@ -276,6 +301,8 @@ export type Filtros = {
   accionFormacionId?: string;
   grupoId?: string;
   asesorId?: string;
+  /** «solo el embudo» o «solo el aula». */
+  tramo?: "INSCRIPCION" | "AULA";
   buscar?: string;
   pagina?: number;
   /** Cuántas filas por carga; el servidor lo topa. */

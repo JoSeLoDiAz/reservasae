@@ -17,13 +17,14 @@ import {
   type Resumen,
 } from "@/lib/crm-api";
 
-/// Ya tienen silla: el tramo entre captura y aula.
-const ETAPAS: Etapa[] = ["MATRICULADO", "EN_FORMACION", "CERTIFICADO"];
+/// Solo Inscrito. En formacion y Certificado se siguen
+/// en el academico, contra el calendario de su grupo.
+const ETAPAS: Etapa[] = ["INSCRITO"];
 
 type Datos = { listado: Listado; resumen: Resumen };
 
 export default function PaginaInscritos() {
-  const [etapa, setEtapa] = useState<Etapa>("MATRICULADO");
+  const [etapa, setEtapa] = useState<Etapa>("INSCRITO");
   const [buscar, setBuscar] = useState("");
 
   const cargar = useCallback(async (): Promise<Datos> => {
@@ -51,7 +52,7 @@ export default function PaginaInscritos() {
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Inscritos</h1>
           <p className="mt-1 text-texto-suave">
-            Quien ya tiene silla asignada. {total} en total.
+            Quien ya quedó inscrito y tiene su silla. {total} en total.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-4">
@@ -69,7 +70,7 @@ export default function PaginaInscritos() {
 
       <p className="text-sm text-texto-suave">
         Es el tramo entre capturar el nombre y el aula: aquí la persona ya tiene oferta y
-        grupo, y de aquí sale la matrícula que se reporta. Quien todavía no llegó está en{" "}
+        grupo, y de aquí sale lo que se reporta al SENA. Quien todavía no llegó está en{" "}
         <Link href="/admin/participantes" className="underline">
           Inscripciones
         </Link>
@@ -102,7 +103,7 @@ export default function PaginaInscritos() {
       {listado.participantes.length === 0 ? (
         <Tarjeta
           titulo={`Nadie en «${ETIQUETA_ETAPA[etapa]}»`}
-          descripcion="Se llega aquí matriculando desde la ficha de la persona."
+          descripcion="Se llega aquí cuando el asesor verifica los datos y lo marca como inscrito."
         >
           <p className="text-sm text-texto-suave">
             Matricular pide dos cosas: autorización del titular y oferta asignada. El grupo y

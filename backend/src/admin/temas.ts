@@ -108,15 +108,17 @@ export const TOKENS: DefinicionToken[] = [
   { clave: 'errorSuave', variableCss: '--error-suave', grupo: 'ESTADOS', etiqueta: 'Fondo de error' },
 
   // Etapas del CRM
-  { clave: 'etapaNuevo', variableCss: '--etapa-nuevo', grupo: 'ETAPAS', etiqueta: 'Nuevo' },
+  { clave: 'etapaInteresado', variableCss: '--etapa-interesado', grupo: 'ETAPAS', etiqueta: 'Interesado' },
   { clave: 'etapaContactado', variableCss: '--etapa-contactado', grupo: 'ETAPAS', etiqueta: 'Contactado' },
   { clave: 'etapaDatosCompletos', variableCss: '--etapa-datos-completos', grupo: 'ETAPAS', etiqueta: 'Datos completos' },
-  { clave: 'etapaMatriculado', variableCss: '--etapa-matriculado', grupo: 'ETAPAS', etiqueta: 'Matriculado' },
+  { clave: 'etapaInscrito', variableCss: '--etapa-inscrito', grupo: 'ETAPAS', etiqueta: 'Inscrito' },
   { clave: 'etapaEnFormacion', variableCss: '--etapa-en-formacion', grupo: 'ETAPAS', etiqueta: 'En formación' },
   { clave: 'etapaCertificado', variableCss: '--etapa-certificado', grupo: 'ETAPAS', etiqueta: 'Certificado' },
-  { clave: 'etapaPerdido', variableCss: '--etapa-perdido', grupo: 'ETAPAS', etiqueta: 'Perdido' },
+  { clave: 'etapaPerdido', variableCss: '--etapa-perdido', grupo: 'ETAPAS', etiqueta: 'No interesado' },
   { clave: 'etapaRetirado', variableCss: '--etapa-retirado', grupo: 'ETAPAS', etiqueta: 'Retirado' },
   { clave: 'etapaNoAprobo', variableCss: '--etapa-no-aprobo', grupo: 'ETAPAS', etiqueta: 'No aprobó' },
+  { clave: 'etapaDeserto', variableCss: '--etapa-deserto', grupo: 'ETAPAS', etiqueta: 'Desertó' },
+  { clave: 'etapaAbandono', variableCss: '--etapa-abandono', grupo: 'ETAPAS', etiqueta: 'Abandonó' },
 ];
 
 /** Los tokens de etapa, en el orden del embudo. */
@@ -148,15 +150,17 @@ export const COMPROBACIONES_CONTRASTE: Array<{
 
   // la pildora tiñe la superficie con su propio color,
   // asi que el par que hay que medir es contra ella
-  { frente: 'etapaNuevo', fondo: 'superficie', descripcion: 'Etiqueta de Nuevo' },
+  { frente: 'etapaInteresado', fondo: 'superficie', descripcion: 'Etiqueta de Interesado' },
   { frente: 'etapaContactado', fondo: 'superficie', descripcion: 'Etiqueta de Contactado' },
   { frente: 'etapaDatosCompletos', fondo: 'superficie', descripcion: 'Etiqueta de Datos completos' },
-  { frente: 'etapaMatriculado', fondo: 'superficie', descripcion: 'Etiqueta de Matriculado' },
+  { frente: 'etapaInscrito', fondo: 'superficie', descripcion: 'Etiqueta de Inscrito' },
   { frente: 'etapaEnFormacion', fondo: 'superficie', descripcion: 'Etiqueta de En formación' },
   { frente: 'etapaCertificado', fondo: 'superficie', descripcion: 'Etiqueta de Certificado' },
   { frente: 'etapaPerdido', fondo: 'superficie', descripcion: 'Etiqueta de Perdido' },
   { frente: 'etapaRetirado', fondo: 'superficie', descripcion: 'Etiqueta de Retirado' },
   { frente: 'etapaNoAprobo', fondo: 'superficie', descripcion: 'Etiqueta de No aprobó' },
+  { frente: 'etapaDeserto', fondo: 'superficie', descripcion: 'Etiqueta de Desertó' },
+  { frente: 'etapaAbandono', fondo: 'superficie', descripcion: 'Etiqueta de Abandonó' },
 ];
 
 export type ColoresTema = Record<string, string>;
@@ -200,15 +204,19 @@ export const TEMAS_POR_DEFECTO: Record<EsquemaColor, ColoresTema> = {
     error: '#be123c',
     errorSuave: '#fff1f2',
 
-    etapaNuevo: '#5b6472',
+    etapaInteresado: '#5b6472',
     etapaContactado: '#1f4e85',
     etapaDatosCompletos: '#4c3a8c',
-    etapaMatriculado: '#1a6e58',
+    etapaInscrito: '#1a6e58',
     etapaEnFormacion: '#8a5a12',
     etapaCertificado: '#2c6b1f',
     etapaPerdido: '#9c3126',
     etapaRetirado: '#7a2e72',
     etapaNoAprobo: '#a3431c',
+    // aviso y sin aviso: dos tonos distintos, no dos
+    // variantes del mismo rojo de salida
+    etapaDeserto: '#8a5a24',
+    etapaAbandono: '#6b4a7a',
   },
   OSCURO: {
     marca: '#60a5fa',
@@ -247,15 +255,17 @@ export const TEMAS_POR_DEFECTO: Record<EsquemaColor, ColoresTema> = {
     errorSuave: '#3f0d16',
 
     // aclaradas: las del claro no llegan al minimo
-    etapaNuevo: '#a3aec0',
+    etapaInteresado: '#a3aec0',
     etapaContactado: '#7cb2f0',
     etapaDatosCompletos: '#b3a4f0',
-    etapaMatriculado: '#5ec6a8',
+    etapaInscrito: '#5ec6a8',
     etapaEnFormacion: '#e0b155',
     etapaCertificado: '#86cf72',
     etapaPerdido: '#f2938a',
     etapaRetirado: '#dfa0d8',
     etapaNoAprobo: '#f0a077',
+    etapaDeserto: '#d9b06a',
+    etapaAbandono: '#b9a0d4',
   },
 };
 

@@ -202,15 +202,17 @@ const ACTIVIDADES: Array<[string, TipoActividad, boolean]> = [
 
 /** Cuántas etapas hay que llenar y con cuánta gente. */
 const REPARTO: Array<[EtapaParticipante, number]> = [
-  [EtapaParticipante.NUEVO, 12],
+  [EtapaParticipante.INTERESADO, 12],
   [EtapaParticipante.CONTACTADO, 15],
   [EtapaParticipante.DATOS_COMPLETOS, 13],
-  [EtapaParticipante.MATRICULADO, 16],
+  [EtapaParticipante.INSCRITO, 16],
   [EtapaParticipante.EN_FORMACION, 22],
   [EtapaParticipante.CERTIFICADO, 12],
   [EtapaParticipante.PERDIDO, 5],
   [EtapaParticipante.RETIRADO, 3],
   [EtapaParticipante.NO_APROBO, 2],
+  [EtapaParticipante.DESERTO, 3],
+  [EtapaParticipante.ABANDONO, 4],
 ];
 
 /** Quien ya pisó el aula y por tanto tiene avance. */
@@ -230,18 +232,25 @@ const ETAPAS_SALIDA: EtapaParticipante[] = [
 
 /** Por dónde ha pasado quien está en cada etapa. */
 const CAMINO: Record<EtapaParticipante, EtapaParticipante[]> = {
-  NUEVO: ['NUEVO'],
-  CONTACTADO: ['NUEVO', 'CONTACTADO'],
-  DATOS_COMPLETOS: ['NUEVO', 'CONTACTADO', 'DATOS_COMPLETOS'],
-  MATRICULADO: ['NUEVO', 'CONTACTADO', 'DATOS_COMPLETOS', 'MATRICULADO'],
-  EN_FORMACION: ['NUEVO', 'CONTACTADO', 'DATOS_COMPLETOS', 'MATRICULADO', 'EN_FORMACION'],
+  INTERESADO: ['INTERESADO'],
+  CONTACTADO: ['INTERESADO', 'CONTACTADO'],
+  DATOS_COMPLETOS: ['INTERESADO', 'CONTACTADO', 'DATOS_COMPLETOS'],
+  INSCRITO: ['INTERESADO', 'CONTACTADO', 'DATOS_COMPLETOS', 'INSCRITO'],
+  EN_FORMACION: ['INTERESADO', 'CONTACTADO', 'DATOS_COMPLETOS', 'INSCRITO', 'EN_FORMACION'],
   CERTIFICADO: [
-    'NUEVO', 'CONTACTADO', 'DATOS_COMPLETOS', 'MATRICULADO', 'EN_FORMACION', 'CERTIFICADO',
+    'INTERESADO', 'CONTACTADO', 'DATOS_COMPLETOS', 'INSCRITO', 'EN_FORMACION', 'CERTIFICADO',
   ],
-  PERDIDO: ['NUEVO', 'CONTACTADO', 'PERDIDO'],
-  RETIRADO: ['NUEVO', 'CONTACTADO', 'DATOS_COMPLETOS', 'MATRICULADO', 'RETIRADO'],
+  PERDIDO: ['INTERESADO', 'CONTACTADO', 'PERDIDO'],
+  RETIRADO: ['INTERESADO', 'CONTACTADO', 'DATOS_COMPLETOS', 'INSCRITO', 'RETIRADO'],
   NO_APROBO: [
-    'NUEVO', 'CONTACTADO', 'DATOS_COMPLETOS', 'MATRICULADO', 'EN_FORMACION', 'NO_APROBO',
+    'INTERESADO', 'CONTACTADO', 'DATOS_COMPLETOS', 'INSCRITO', 'EN_FORMACION', 'NO_APROBO',
+  ],
+  // aviso / sin aviso: los dos salen del aula
+  DESERTO: [
+    'INTERESADO', 'CONTACTADO', 'DATOS_COMPLETOS', 'INSCRITO', 'EN_FORMACION', 'DESERTO',
+  ],
+  ABANDONO: [
+    'INTERESADO', 'CONTACTADO', 'DATOS_COMPLETOS', 'INSCRITO', 'EN_FORMACION', 'ABANDONO',
   ],
 };
 
@@ -943,7 +952,7 @@ async function main() {
       ? cerradas
       : enAula
         ? abiertas
-        : etapa === EtapaParticipante.MATRICULADO
+        : etapa === EtapaParticipante.INSCRITO
           ? (o) => [...porEmpezar(o), ...abiertas(o)]
           : (o) => o.coberturas;
 
@@ -978,7 +987,7 @@ async function main() {
       ? Math.floor((ahora - cobertura.inicio.getTime()) / 86_400_000)
       : 0;
     const diasDesdeAlta = Math.max(diasDelInicio, 0) + entre(4, 26);
-    const necesitaFormacion = camino.includes(EtapaParticipante.MATRICULADO);
+    const necesitaFormacion = camino.includes(EtapaParticipante.INSCRITO);
     const asesor = azar() < 0.85 ? unoDe(asesores) : null;
 
     // la misma cedula en dos convenios es UNA persona con
@@ -1113,7 +1122,7 @@ async function main() {
       });
     }
 
-    const pasoMatricula = camino.indexOf(EtapaParticipante.MATRICULADO);
+    const pasoMatricula = camino.indexOf(EtapaParticipante.INSCRITO);
     if (pasoMatricula >= 0) {
       await prisma.participante.update({
         where: { id: participante.id },

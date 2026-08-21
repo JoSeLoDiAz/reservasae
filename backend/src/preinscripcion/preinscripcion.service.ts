@@ -145,9 +145,9 @@ export class PreinscripcionService {
           ofertaId: oferta.id,
           accionFormacionId: oferta.accionFormacionId,
           origen: 'AUTOGESTION',
-          etapa: 'NUEVO',
+          etapa: 'INTERESADO',
           movimientos: {
-            create: { etapaDespues: 'NUEVO', motivo: 'Se inscribió por su cuenta' },
+            create: { etapaDespues: 'INTERESADO', motivo: 'Se inscribió por su cuenta' },
           },
         },
         select: { id: true },
