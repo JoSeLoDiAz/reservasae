@@ -811,6 +811,17 @@ async function main() {
     process.exit(1);
   }
 
+  // rehacer las cuentas sin tocar el resto. El rol y las
+  // concesiones cambian mas que los datos, y `--rehacer`
+  // obligaria a tirar un entorno entero por corregir uno
+  if (process.argv.includes('--solo-cuentas')) {
+    const cuentas = await sembrarAsesores(convenios);
+    console.log(`
+✓ ${cuentas.length} cuentas al día. Nada más se tocó.
+`);
+    return;
+  }
+
   if ((await prisma.participante.count()) > 0 || (await prisma.empresa.count()) > 0) {
     if (!process.argv.includes('--rehacer')) {
       console.error('✗ Ya hay datos sembrados. Para rehacerlos: --rehacer');
