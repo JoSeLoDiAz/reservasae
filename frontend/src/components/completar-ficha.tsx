@@ -47,6 +47,11 @@ export function CompletarFicha({ token }: { token: string }) {
           barrio: String(p.barrio ?? ""),
           direccion: String(p.direccion ?? ""),
           cargoEnEmpresa: String(f.cargoEnEmpresa ?? ""),
+          nivelOcupacionalSepId: f.nivelOcupacionalSepId
+            ? String(f.nivelOcupacionalSepId)
+            : "",
+          beneficiarioPrevio:
+            f.beneficiarioPrevio === null ? "" : f.beneficiarioPrevio ? "SI" : "NO",
         });
         setEmpresa({ nit: f.nitEmpresa ?? "", razonSocial: f.empresa ?? "" });
         setAcepta(f.yaAutorizo);
@@ -89,6 +94,14 @@ export function CompletarFicha({ token }: { token: string }) {
         primerNombre: primero(persona.nombres ?? ""),
         segundoNombre: resto(persona.nombres ?? "") ?? "",
         nombres: undefined,
+        nivelOcupacionalSepId: persona.nivelOcupacionalSepId
+          ? Number(persona.nivelOcupacionalSepId)
+          : undefined,
+        // el radio manda cadena; la base quiere booleano
+        beneficiarioPrevio:
+          persona.beneficiarioPrevio === ""
+            ? undefined
+            : persona.beneficiarioPrevio === "SI",
         aceptaPolitica: acepta,
       });
       setPaso("EMPRESA");
@@ -204,6 +217,7 @@ export function CompletarFicha({ token }: { token: string }) {
                 valores={persona}
                 set={setPersona}
                 tipo="date"
+                requerido
               />
 
               <label className="block">
@@ -272,13 +286,63 @@ export function CompletarFicha({ token }: { token: string }) {
               <div className="sm:col-span-2">
                 <Campo etiqueta="Dirección" campo="direccion" valores={persona} set={setPersona} />
               </div>
+              <Campo
+                etiqueta="Su cargo donde trabaja"
+                campo="cargoEnEmpresa"
+                valores={persona}
+                set={setPersona}
+              />
+
+              <label className="block">
+                <span className="mb-1.5 block text-sm font-medium">Nivel ocupacional</span>
+                <select
+                  value={persona.nivelOcupacionalSepId ?? ""}
+                  onChange={(e) =>
+                    setPersona((p) => ({ ...p, nivelOcupacionalSepId: e.target.value }))
+                  }
+                  className={CAMPO}
+                >
+                  <option value="">Elija…</option>
+                  {ficha.nivelesOcupacionales.map((n) => (
+                    <option key={n.id} value={n.id}>
+                      {n.etiqueta}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
               <div className="sm:col-span-2">
-                <Campo
-                  etiqueta="Su cargo donde trabaja"
-                  campo="cargoEnEmpresa"
-                  valores={persona}
-                  set={setPersona}
-                />
+                <span className="mb-1.5 block text-sm font-medium">
+                  ¿Se ha beneficiado antes del programa de formación continua
+                  especializada?
+                </span>
+                <div className="flex gap-2">
+                  {[
+                    ["SI", "Sí"],
+                    ["NO", "No"],
+                  ].map(([valor, texto]) => (
+                    <label
+                      key={valor}
+                      className={`flex-1 cursor-pointer rounded-xl border px-4 py-2.5 text-center text-sm transition ${
+                        persona.beneficiarioPrevio === valor
+                          ? "border-marca bg-marca-suave"
+                          : "border-borde hover:bg-superficie-alterna"
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        name="beneficiarioPrevio"
+                        value={valor}
+                        checked={persona.beneficiarioPrevio === valor}
+                        onChange={() =>
+                          setPersona((p) => ({ ...p, beneficiarioPrevio: valor }))
+                        }
+                        className="sr-only"
+                      />
+                      {texto}
+                    </label>
+                  ))}
+                </div>
               </div>
             </div>
           </section>
@@ -438,18 +502,21 @@ function Campo({
   valores,
   set,
   tipo = "text",
+  requerido,
 }: {
   etiqueta: string;
   campo: string;
   valores: Record<string, string>;
   set: (f: (v: Record<string, string>) => Record<string, string>) => void;
   tipo?: string;
+  requerido?: boolean;
 }) {
   return (
     <label className="block">
       <span className="mb-1.5 block text-sm font-medium">{etiqueta}</span>
       <input
         type={tipo}
+        required={requerido}
         value={valores[campo] ?? ""}
         onChange={(e) => set((v) => ({ ...v, [campo]: e.target.value }))}
         className={CAMPO}

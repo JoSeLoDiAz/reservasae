@@ -11,6 +11,7 @@ import {
   edadCumplida,
   municipioCuadra,
   MUNICIPIOS_SEP,
+  NIVELES_OCUPACIONALES_SEP,
 } from '../crm/catalogos-sep';
 import { CrearPreinscripcionDto, DatosEmpresaDto, DatosPersonaDto } from './dto';
 
@@ -199,6 +200,8 @@ export class PreinscripcionService {
         oferta: { select: { ubicacion: { select: { nombre: true } } } },
         convenioId: true,
         cargoEnEmpresa: true,
+        nivelOcupacionalSepId: true,
+        beneficiarioPrevio: true,
         reserva: { select: { empresa: { select: { nit: true, razonSocial: true } } } },
         empresa: { select: { nit: true, razonSocial: true } },
         persona: {
@@ -241,11 +244,14 @@ export class PreinscripcionService {
       /// Si la nominó una empresa, no la cambia ella.
       empresaFijada: p.reserva !== null,
       cargoEnEmpresa: p.cargoEnEmpresa,
+      nivelOcupacionalSepId: p.nivelOcupacionalSepId,
+      beneficiarioPrevio: p.beneficiarioPrevio,
       persona,
       yaAutorizo: autorizaciones.length > 0,
       politica,
       documentos: DOCUMENTOS_DE_PERSONA,
       generos: GENEROS_SEP,
+      nivelesOcupacionales: NIVELES_OCUPACIONALES_SEP,
       departamentos: DEPARTAMENTOS_SEP.filter((d) => d.seleccionable),
       // [id, departamentoId, nombre]: el navegador filtra
       // sin pedir nada. Son 1.126, no 1.126 viajes
@@ -280,15 +286,20 @@ export class PreinscripcionService {
 
     // el nivel educativo y el cargo son de la participación,
     // no de la persona: cambian entre un curso y el siguiente
-    if (dto.nivelEducativo !== undefined || dto.cargoEnEmpresa !== undefined) {
-      await this.prisma.participante.update({
-        where: { id: enlace.participanteId },
-        data: {
-          nivelEducativo: dto.nivelEducativo,
-          cargoEnEmpresa: dto.cargoEnEmpresa,
-        },
-      });
+    if (dto.nivelOcupacionalSepId !== undefined) {
+      const vale = NIVELES_OCUPACIONALES_SEP.some((n) => n.id === dto.nivelOcupacionalSepId);
+      if (!vale) throw new BadRequestException('Ese nivel ocupacional no existe.');
     }
+
+    await this.prisma.participante.update({
+      where: { id: enlace.participanteId },
+      data: {
+        nivelEducativo: dto.nivelEducativo,
+        cargoEnEmpresa: dto.cargoEnEmpresa,
+        nivelOcupacionalSepId: dto.nivelOcupacionalSepId,
+        beneficiarioPrevio: dto.beneficiarioPrevio,
+      },
+    });
 
     // aceptar la politica es lo que hay que poder demostrar:
     // se guarda contra la version exacta que leyo, no como

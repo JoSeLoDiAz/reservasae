@@ -79,6 +79,10 @@ export class DatosPersonaDto {
   @IsOptional() @Transform(aTexto) @IsString() @MaxLength(200) direccion?: string;
   @IsOptional() @Transform(aTexto) @IsString() @MaxLength(120) nivelEducativo?: string;
   @IsOptional() @Transform(aTexto) @IsString() @MaxLength(120) cargoEnEmpresa?: string;
+  @IsOptional() @Transform(aNumero) @IsInt() nivelOcupacionalSepId?: number;
+
+  /** Sin esto la fila no entra en el reporte. */
+  @IsOptional() @IsBoolean() beneficiarioPrevio?: boolean;
 
   /** Aceptar la politica: es lo que hay que demostrar. */
   @IsOptional() @IsBoolean() aceptaPolitica?: boolean;

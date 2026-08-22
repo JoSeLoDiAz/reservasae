@@ -55,6 +55,8 @@ export type FichaAbierta = {
   /** Si la nominó una empresa, no la cambia ella. */
   empresaFijada: boolean;
   cargoEnEmpresa: string | null;
+  nivelOcupacionalSepId: number | null;
+  beneficiarioPrevio: boolean | null;
   persona: Record<string, unknown> & {
     primerNombre: string;
     primerApellido: string;
@@ -64,6 +66,7 @@ export type FichaAbierta = {
   politica: { id: string; version: number; titulo: string; contenido: string } | null;
   documentos: ValorSep[];
   generos: ValorSep[];
+  nivelesOcupacionales: ValorSep[];
   departamentos: ValorSep[];
   /** [id, departamentoId, nombre]: se filtra sin pedir nada. */
   municipios: Array<[number, number, string]>;
