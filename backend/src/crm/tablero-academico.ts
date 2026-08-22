@@ -463,7 +463,20 @@ function comparar(
 }
 
 /** Las que dependen de cuánto lleva la cohorte dentro. */
-const MADURAN = ['avanceMedio', 'terminacion', 'desercion', 'certificados', 'listos'] as const;
+const MADURAN = [
+  'avanceMedio',
+  'terminacion',
+  'desercion',
+  'certificados',
+  'listos',
+  // estas dos tambien: `salidas` es el numerador de la
+  // desercion y `dentro` es el total menos las salidas, asi
+  // que heredan el mismo sesgo. Una cohorte recien entrada
+  // no ha tenido tiempo de desertar, y comparar su cero
+  // contra el doce de una madura pinta un -67 % en verde
+  'dentro',
+  'salidas',
+] as const;
 
 /** Sin ámbito no hay cifras, pero sí la misma forma. */
 function vacio(comparacion: Comparacion): TableroAcademico {

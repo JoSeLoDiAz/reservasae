@@ -341,10 +341,14 @@ export async function controlDeInscritos(
      */
     prisma.$queryRaw<Array<{ conReserva: bigint; porSuCuenta: bigint }>>`
       ${CON_ANCLA}
-      SELECT COUNT(*) FILTER (WHERE p."reservaId" IS NOT NULL) AS "conReserva",
-             COUNT(*) FILTER (WHERE p."reservaId" IS NULL)     AS "porSuCuenta"
+      SELECT COUNT(*) FILTER (WHERE r."id" IS NOT NULL) AS "conReserva",
+             COUNT(*) FILTER (WHERE r."id" IS NULL)     AS "porSuCuenta"
         FROM "participantes" p
         ${UNIR_ANCLA}
+        -- las CANCELADAS fuera, igual que el denominador:
+        -- si no, cancelar una reserva subia la cobertura
+        LEFT JOIN "reservas" r
+               ON r."id" = p."reservaId" AND r."estado" <> 'CANCELADA'
        WHERE ${suyos} ${enPeriodo(null, null)}
     `,
 
@@ -407,13 +411,19 @@ export async function controlDeInscritos(
 
     prisma.$queryRaw<Array<{ etiqueta: string; tipo: string; total: bigint }>>`
       ${CON_ANCLA}
-      SELECT u."nombre" AS etiqueta, u."tipo"::text AS tipo, COUNT(*) AS total
+      -- LEFT JOIN: ofertaId es nullable, y con INNER esa
+      -- gente desaparecia de aqui pero no de «Por accion»,
+      -- que esta justo encima. Una sumaba 100 % y la otra
+      -- 78 % sin que nada lo dijera
+      SELECT COALESCE(u."nombre", 'Sin ubicación asignada') AS etiqueta,
+             COALESCE(u."tipo"::text, '—') AS tipo,
+             COUNT(*) AS total
         FROM "participantes" p
-        JOIN "ofertas" o     ON o."id" = p."ofertaId"
-        JOIN "ubicaciones" u ON u."id" = o."ubicacionId"
+        LEFT JOIN "ofertas" o     ON o."id" = p."ofertaId"
+        LEFT JOIN "ubicaciones" u ON u."id" = o."ubicacionId"
         ${UNIR_ANCLA}
        WHERE ${inscritos}
-       GROUP BY u."nombre", u."tipo"
+       GROUP BY 1, 2
        ORDER BY COUNT(*) DESC
     `,
 
@@ -421,19 +431,22 @@ export async function controlDeInscritos(
       Array<{ numero: number; codigo: string; inicio: Date | null; total: bigint }>
     >`
       ${CON_ANCLA}
-      SELECT g."numero" AS numero, af."codigo" AS codigo,
+      -- LEFT JOIN por lo mismo: coberturaId es nullable y
+      -- no tener grupo solo AVISA al matricular, no bloquea
+      SELECT g."numero" AS numero,
+             COALESCE(af."codigo", '—') AS codigo,
              g."fechaInicio" AS inicio, COUNT(*) AS total
         FROM "participantes" p
-        JOIN "grupos_cobertura" gc   ON gc."id" = p."coberturaId"
-        JOIN "grupos" g              ON g."id" = gc."grupoId"
-        JOIN "acciones_formacion" af ON af."id" = g."accionFormacionId"
+        LEFT JOIN "grupos_cobertura" gc   ON gc."id" = p."coberturaId"
+        LEFT JOIN "grupos" g              ON g."id" = gc."grupoId"
+        LEFT JOIN "acciones_formacion" af ON af."id" = g."accionFormacionId"
         ${UNIR_ANCLA}
        WHERE ${inscritos}
        -- por id, no por codigo: AF1..AF7 existen en los dos
        -- convenios y la numeracion de grupos reinicia, asi
        -- que agrupando por codigo dos grupos distintos se
        -- fundian en una barra bajo «el reparto real»
-       GROUP BY af."id", af."codigo", g."numero", g."fechaInicio"
+       GROUP BY af."id", 2, g."numero", g."fechaInicio"
        ORDER BY af."codigo", g."numero"
     `,
 
@@ -545,7 +558,11 @@ export async function controlDeInscritos(
                   AND af2."convenioId" IN (${Prisma.join(ambito)})
              ) AS cupos
         FROM "participantes" p
-        JOIN "reservas" r ON r."id" = p."reservaId"
+        -- la misma condicion que el subselect de cupos: si
+        -- no, una reserva cancelada deja sus inscritos
+        -- contra unos cupos que ya no estan, y la fila sale
+        -- con mas gente que sillas
+        JOIN "reservas" r ON r."id" = p."reservaId" AND r."estado" <> 'CANCELADA'
         JOIN "empresas" e ON e."id" = r."empresaId"
         ${UNIR_ANCLA}
        WHERE ${suyos} ${enPeriodo(null, null)}
@@ -619,7 +636,8 @@ export async function controlDeInscritos(
       total: cifra(f),
     })),
     porGrupo: porGrupo.map((f) => ({
-      etiqueta: `${f.codigo} · grupo ${f.numero}`,
+      etiqueta:
+        f.numero === null ? 'Sin grupo asignado' : `${f.codigo} · grupo ${f.numero}`,
       inicio: f.inicio ? f.inicio.toISOString().slice(0, 10) : null,
       total: cifra(f),
     })),

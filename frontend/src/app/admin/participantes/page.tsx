@@ -13,6 +13,7 @@ import {
 import { Aviso, Boton, CLASE_CONTROL, Tarjeta } from "@/components/admin/marco-admin";
 import { TarjetaCifra } from "@/components/admin/piezas";
 import { ScrollDoble } from "@/components/admin/scroll-doble";
+import { SelectorBuscable } from "@/components/admin/selector-buscable";
 import { columnasDeParticipante } from "@/components/admin/columnas-participante";
 import { Tabla } from "@/components/admin/tabla";
 import { ErrorApi } from "@/lib/api";
@@ -48,26 +49,48 @@ export default function PaginaParticipantes() {
   const [filas, setFilas] = useState<FilaParticipante[] | null>(null);
   const [resumen, setResumen] = useState<Resumen | null>(null);
   const [total, setTotal] = useState(0);
+  const [paginas, setPaginas] = useState(1);
   const [error, setError] = useState<string | null>(null);
   const [arrastrando, setArrastrando] = useState<string | null>(null);
 
-  const cargar = useCallback(async () => {
-    const filtros: Filtros = {
+  const filtros = useMemo<Filtros>(
+    () => ({
       // Inscripciones acaba al marcar «Inscrito»: de ahi
       // en adelante manda el seguimiento academico
       tramo: "INSCRIPCION",
       buscar: buscar || undefined,
       asesorId: asesorId || undefined,
       accionFormacionId: accionFormacionId || undefined,
-    };
+    }),
+    [buscar, asesorId, accionFormacionId],
+  );
+
+  const cargar = useCallback(async () => {
     const [listado, res] = await Promise.all([
       crmApi.listar({ ...filtros, pagina: 1, limite: POR_CARGA }),
       crmApi.resumen(filtros),
     ]);
     setFilas(listado.participantes);
     setTotal(listado.total);
+    setPaginas(listado.paginas);
     setResumen(res);
-  }, [buscar, asesorId, accionFormacionId]);
+  }, [filtros]);
+
+  // asignar por criterio necesita tenerlas todas
+  const cargarTodas = useCallback(async () => {
+    if (paginas <= 1) return;
+    const resto = await Promise.all(
+      Array.from({ length: paginas - 1 }, (_, i) =>
+        crmApi.listar({ ...filtros, pagina: i + 2, limite: POR_CARGA }),
+      ),
+    );
+    // por id: dos clics no pueden duplicar una fila
+    setFilas((f) => {
+      const unicas = new Map((f ?? []).map((x) => [x.id, x]));
+      for (const x of resto.flatMap((r) => r.participantes)) unicas.set(x.id, x);
+      return [...unicas.values()];
+    });
+  }, [filtros, paginas]);
 
   useEffect(() => {
     void cargar().catch((e) => setError((e as ErrorApi).message));
@@ -151,19 +174,19 @@ export default function PaginaParticipantes() {
           ))}
         </select>
 
-        <select
-          className={`${CLASE_CONTROL} max-w-[15rem]`}
-          value={accionFormacionId}
-          onChange={(e) => setAccionFormacionId(e.target.value)}
-          aria-label="Filtrar por acción de formación"
-        >
-          <option value="">Toda la formación</option>
-          {resumen.acciones.map((a) => (
-            <option key={a.id} value={a.id}>
-              {a.codigo} · {a.nombre} ({a.total})
-            </option>
-          ))}
-        </select>
+        <SelectorBuscable
+          clase="w-full sm:w-[17rem]"
+          etiqueta="Filtrar por acción de formación"
+          valor={accionFormacionId}
+          alElegir={setAccionFormacionId}
+          vacio="Toda la formación"
+          marcador="AF8, inteligencia artificial…"
+          opciones={resumen.acciones.map((a) => ({
+            id: a.id,
+            etiqueta: `${a.codigo} · ${a.nombre}`,
+            detalle: `${a.total} ${a.total === 1 ? "persona" : "personas"}`,
+          }))}
+        />
 
         {hayFiltro && (
           <button
@@ -325,6 +348,7 @@ export default function PaginaParticipantes() {
           total={total}
           asesores={resumen.asesores}
           alCambiar={cargar}
+          alCargarTodo={filas.length < total ? cargarTodas : undefined}
         />
       )}
 
@@ -473,11 +497,13 @@ function ListaParticipantes({
   total,
   asesores,
   alCambiar,
+  alCargarTodo,
 }: {
   filas: FilaParticipante[];
   total: number;
   asesores: Array<{ id: string; nombre: string }>;
   alCambiar: () => Promise<void>;
+  alCargarTodo?: () => void;
 }) {
   const [aviso, setAviso] = useState<string | null>(null);
 
@@ -493,6 +519,7 @@ function ListaParticipantes({
         filas={filas}
         clave={(f) => f.id}
         total={total}
+        alCargarTodo={alCargarTodo}
         seleccion
         accionesLote={(ids, limpiar) => (
           <AsignarLote

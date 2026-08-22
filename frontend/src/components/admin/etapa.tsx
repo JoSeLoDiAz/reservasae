@@ -17,9 +17,14 @@ const VARIABLE_ETAPA: Record<Etapa, string> = {
   ABANDONO: "--etapa-abandono",
 };
 
+/** El color de una etapa, ya envuelto en `var()`. */
+export function colorEtapa(etapa: Etapa): string {
+  return `var(${VARIABLE_ETAPA[etapa]})`;
+}
+
 /** Deja `--etapa` puesto para quien cuelgue debajo. */
 export function estiloEtapa(etapa: Etapa): CSSProperties {
-  return { ["--etapa"]: `var(${VARIABLE_ETAPA[etapa]})` } as CSSProperties;
+  return { ["--etapa"]: colorEtapa(etapa) } as CSSProperties;
 }
 
 /** Etiqueta con color. El texto va siempre: el color acompaña. */

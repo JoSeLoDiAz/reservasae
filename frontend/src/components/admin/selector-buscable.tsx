@@ -30,12 +30,19 @@ export function SelectorBuscable({
   alElegir,
   marcador = "Buscar…",
   vacio = "Sin asignar",
+  etiqueta,
+  clase,
 }: {
   opciones: OpcionBuscable[];
   valor: string;
   alElegir: (id: string) => void;
   marcador?: string;
+  /// Lo que dice sin elegir nada: en un filtro, «todos».
   vacio?: string;
+  /// Para el lector de pantalla, si no va dentro de Campo.
+  etiqueta?: string;
+  /// El ancho: en un filtro no ocupa la fila entera.
+  clase?: string;
 }) {
   const [abierto, setAbierto] = useState(false);
   const [escrito, setEscrito] = useState("");
@@ -75,12 +82,13 @@ export function SelectorBuscable({
   }
 
   return (
-    <div className="relative" ref={caja}>
+    <div className={`relative ${clase ?? ""}`} ref={caja}>
       <button
         type="button"
         onClick={() => setAbierto(!abierto)}
         aria-expanded={abierto}
         aria-haspopup="listbox"
+        aria-label={etiqueta}
         className={`${CLASE_CONTROL} flex items-center gap-2 text-left`}
       >
         <span className="min-w-0 grow truncate">
@@ -101,7 +109,7 @@ export function SelectorBuscable({
       </button>
 
       {abierto && (
-        <div className="absolute z-40 mt-1 w-full overflow-hidden rounded-xl border border-borde bg-superficie shadow-lg">
+        <div className="absolute z-40 mt-1 w-full min-w-64 max-w-[90vw] overflow-hidden rounded-xl border border-borde bg-superficie shadow-lg">
           <div className="border-b border-borde p-2">
             <input
               autoFocus

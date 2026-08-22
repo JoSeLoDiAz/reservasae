@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 
 import { ConfirmarBorrado } from "@/components/admin/confirmar-borrado";
+import { IconoCheck } from "@/components/admin/iconos";
 import { SelectorBuscable } from "@/components/admin/selector-buscable";
 import { DatosSena } from "@/components/admin/datos-sena";
 import { PildoraEtapa } from "@/components/admin/etapa";
@@ -16,6 +17,8 @@ import {
   Tarjeta,
   useAdmin,
 } from "@/components/admin/marco-admin";
+import { useToast } from "@/components/admin/toast";
+import { alcanza } from "@/lib/admin-api";
 import { ErrorApi } from "@/lib/api";
 import {
   crmApi,
@@ -42,7 +45,11 @@ export default function PaginaFicha() {
   const [borrando, setBorrando] = useState(false);
   const { admin } = useAdmin();
   const router = useRouter();
+  const toast = useToast();
   const esSuperadmin = admin.rol === "SUPERADMIN";
+  // sin permisos aun no se esconde nada
+  const puedeEscribir =
+    !admin.permisos || alcanza(admin.permisos.inscripciones, "ESCRIBIR");
 
   const cargar = useCallback(async () => {
     const ficha = await crmApi.obtener(id);
@@ -54,13 +61,18 @@ export default function PaginaFicha() {
     void cargar().catch((e) => setError((e as ErrorApi).message));
   }, [cargar]);
 
-  async function conError(accion: () => Promise<void>) {
+  // el aviso de arriba es el registro;
+  // el toast lo ve quien esta al pie
+  async function conError(accion: () => Promise<void>, exito = "Cambios guardados.") {
     setError(null);
     try {
       await accion();
       await cargar();
+      toast.exito(exito);
     } catch (e) {
-      setError((e as ErrorApi).message);
+      const mensaje = (e as ErrorApi).message;
+      setError(mensaje);
+      toast.error(mensaje);
     }
   }
 
@@ -131,19 +143,22 @@ export default function PaginaFicha() {
             <button
               key={e}
               disabled={e === f.etapa}
-              onClick={() =>
-                conError(async () => {
-                  let motivo: string | undefined;
-                  if (ETAPAS_SALIDA.includes(e)) {
-                    const escrito = window.prompt(
-                      `¿Por qué pasa a «${ETIQUETA_ETAPA[e]}»? Es obligatorio.`,
-                    );
-                    if (!escrito?.trim()) return;
-                    motivo = escrito.trim();
-                  }
-                  await crmApi.cambiarEtapa(f.id, e as Etapa, motivo);
-                })
-              }
+              onClick={() => {
+                let motivo: string | undefined;
+                if (ETAPAS_SALIDA.includes(e)) {
+                  const escrito = window.prompt(
+                    `¿Por qué pasa a «${ETIQUETA_ETAPA[e]}»? Es obligatorio.`,
+                  );
+                  if (!escrito?.trim()) return;
+                  motivo = escrito.trim();
+                }
+                void conError(
+                  async () => {
+                    await crmApi.cambiarEtapa(f.id, e as Etapa, motivo);
+                  },
+                  `Ahora está en «${ETIQUETA_ETAPA[e]}».`,
+                );
+              }}
               className={`rounded-lg border px-3 py-1.5 text-sm ${
                 e === f.etapa
                   ? "border-marca bg-marca-suave font-medium text-marca"
@@ -161,6 +176,8 @@ export default function PaginaFicha() {
       <Asignacion ficha={f} opciones={opciones} alGuardar={conError} />
 
       <DatosSena ficha={f} alGuardar={conError} />
+
+      {puedeEscribir && <EnlaceCompletar ficha={f} />}
 
       <Tarjeta
         titulo="Autorización de tratamiento de datos"
@@ -191,7 +208,7 @@ export default function PaginaFicha() {
                 conError(async () => {
                   await crmApi.agregarNota(f.id, nota.trim());
                   setNota("");
-                })
+                }, "Nota agregada.")
               }
             >
               Agregar
@@ -294,6 +311,7 @@ export default function PaginaFicha() {
           alCerrar={() => setBorrando(false)}
           alConfirmar={async () => {
             await crmApi.borrarParticipacion(id);
+            toast.exito(`${nombre} ya no está en este curso.`);
             router.replace("/admin/participantes");
           }}
         />
@@ -309,7 +327,7 @@ function Asignacion({
 }: {
   ficha: Ficha;
   opciones: Opciones | null;
-  alGuardar: (a: () => Promise<void>) => Promise<void>;
+  alGuardar: (a: () => Promise<void>, exito?: string) => Promise<void>;
 }) {
   const [ofertaId, setOfertaId] = useState(ficha.oferta?.id ?? "");
   const [coberturaId, setCoberturaId] = useState(ficha.cobertura?.id ?? "");
@@ -383,20 +401,23 @@ function Asignacion({
 
         <Boton
           disabled={!ofertaId || (ofertaId === ficha.oferta?.id && coberturaId === (ficha.cobertura?.id ?? ""))}
-          onClick={() =>
-            alGuardar(async () => {
-              let motivo: string | undefined;
-              if (oferta && oferta.disponibles === 0 && ofertaId !== ficha.oferta?.id) {
-                const escrito = window.prompt(
-                  `«${oferta.etiqueta}» no tiene cupos libres. ` +
-                    "¿Por qué se coloca por encima del cupo? Queda registrado a su nombre.",
-                );
-                if (!escrito?.trim()) return;
-                motivo = escrito.trim();
-              }
-              await crmApi.asignar(ficha.id, ofertaId, coberturaId || undefined, motivo);
-            })
-          }
+          onClick={() => {
+            let motivo: string | undefined;
+            if (oferta && oferta.disponibles === 0 && ofertaId !== ficha.oferta?.id) {
+              const escrito = window.prompt(
+                `«${oferta.etiqueta}» no tiene cupos libres. ` +
+                  "¿Por qué se coloca por encima del cupo? Queda registrado a su nombre.",
+              );
+              if (!escrito?.trim()) return;
+              motivo = escrito.trim();
+            }
+            void alGuardar(
+              async () => {
+                await crmApi.asignar(ficha.id, ofertaId, coberturaId || undefined, motivo);
+              },
+              "Asignación guardada.",
+            );
+          }}
         >
           Guardar asignación
         </Boton>
@@ -410,7 +431,7 @@ function RegistrarAutorizacion({
   alGuardar,
 }: {
   id: string;
-  alGuardar: (a: () => Promise<void>) => Promise<void>;
+  alGuardar: (a: () => Promise<void>, exito?: string) => Promise<void>;
 }) {
   const [canal, setCanal] = useState<Canal>("VERBAL_ASESOR");
   const [evidencia, setEvidencia] = useState("");
@@ -451,7 +472,7 @@ function RegistrarAutorizacion({
         onClick={() =>
           alGuardar(async () => {
             await crmApi.autorizar(id, canal, evidencia.trim() || undefined);
-          })
+          }, "Autorización registrada.")
         }
       >
         Registrar la autorización
@@ -468,7 +489,7 @@ function Asesor({
 }: {
   ficha: Ficha;
   opciones: Opciones | null;
-  alGuardar: (a: () => Promise<void>) => Promise<void>;
+  alGuardar: (a: () => Promise<void>, exito?: string) => Promise<void>;
 }) {
   const [asesorId, setAsesorId] = useState(ficha.asesor?.id ?? "");
   const [guardando, setGuardando] = useState(false);
@@ -504,9 +525,12 @@ function Asesor({
           disabled={!cambiado || guardando}
           onClick={async () => {
             setGuardando(true);
-            await alGuardar(async () => {
-              await crmApi.actualizar(ficha.id, { asesorId: asesorId || null });
-            });
+            await alGuardar(
+              async () => {
+                await crmApi.actualizar(ficha.id, { asesorId: asesorId || null });
+              },
+              asesorId ? "Asesor asignado." : "Se quitó el asesor.",
+            );
             setGuardando(false);
           }}
         >
@@ -519,6 +543,127 @@ function Asesor({
           Sin asesor, esta persona no aparece en la carga de trabajo de nadie.
         </p>
       )}
+    </Tarjeta>
+  );
+}
+
+/** Copia al portapapeles, con respaldo donde no exista. */
+async function copiarTexto(texto: string) {
+  if (navigator.clipboard?.writeText) {
+    await navigator.clipboard.writeText(texto);
+    return;
+  }
+
+  // sin https no hay portapapeles
+  const caja = document.createElement("textarea");
+  caja.value = texto;
+  caja.setAttribute("readonly", "");
+  caja.style.position = "fixed";
+  caja.style.opacity = "0";
+  document.body.appendChild(caja);
+  caja.select();
+  const listo = document.execCommand("copy");
+  document.body.removeChild(caja);
+  if (!listo) throw new Error("El navegador no dejó copiar.");
+}
+
+/**
+ * El enlace de un solo uso para que la persona llene su propia
+ * ficha. Sin esto solo lo tiene quien se autoinscribió: a los
+ * leads creados a mano o venidos de una reserva no había forma
+ * de mandárselo.
+ */
+function EnlaceCompletar({ ficha }: { ficha: Ficha }) {
+  const toast = useToast();
+  const [enlace, setEnlace] = useState<
+    { url: string; expiraEn: string; dias: number } | null
+  >(null);
+  const [emitiendo, setEmitiendo] = useState(false);
+  const [copiado, setCopiado] = useState(false);
+
+  // autoinscrito: ya tuvo uno
+  const yaHubo = enlace !== null || ficha.origen === "AUTOGESTION";
+
+  async function generar() {
+    setEmitiendo(true);
+    try {
+      const { token, expiraEn } = await crmApi.emitirEnlace(ficha.id);
+      // los dias se cuentan al emitirlo
+      const dias = Math.max(
+        0,
+        Math.ceil((new Date(expiraEn).getTime() - Date.now()) / 86_400_000),
+      );
+      setEnlace({ url: `${window.location.origin}/completar/${token}`, expiraEn, dias });
+      setCopiado(false);
+      toast.exito(
+        yaHubo ? "Enlace nuevo listo. El anterior ya no sirve." : "Enlace generado.",
+      );
+    } catch (e) {
+      toast.error((e as ErrorApi).message);
+    } finally {
+      setEmitiendo(false);
+    }
+  }
+
+  async function copiar() {
+    if (!enlace) return;
+    try {
+      await copiarTexto(enlace.url);
+      setCopiado(true);
+      toast.exito("Enlace copiado.");
+    } catch {
+      setCopiado(false);
+      toast.error("No se pudo copiar. Selecciónelo y cópielo a mano.");
+    }
+  }
+
+  return (
+    <Tarjeta
+      titulo="Enlace para que complete sus datos"
+      descripcion="Se le manda por WhatsApp o correo y ella misma llena su ficha, sin dictar la cédula por teléfono."
+    >
+      <div className="space-y-4">
+        <div className="rounded-xl border border-aviso/30 bg-aviso-suave p-4 text-sm text-aviso">
+          <p className="font-medium">Cada enlace anula al anterior</p>
+          <p className="mt-1">
+            Es de un solo uso. En cuanto genere uno nuevo, el que ya mandó deja de
+            servir: si ella todavía no lo ha abierto, no lo vuelva a generar.
+          </p>
+        </div>
+
+        {enlace && (
+          <div className="space-y-3">
+            <Campo etiqueta="Enlace">
+              <input
+                readOnly
+                value={enlace.url}
+                onFocus={(e) => e.currentTarget.select()}
+                className={`${CLASE_CONTROL} font-mono text-xs`}
+              />
+            </Campo>
+
+            <div className="flex flex-wrap items-center gap-3">
+              <button
+                type="button"
+                onClick={copiar}
+                className="inline-flex items-center gap-2 rounded-lg border border-borde px-3 py-1.5 text-sm hover:bg-superficie-alterna"
+              >
+                {copiado && <IconoCheck tamano={15} />}
+                {copiado ? "Copiado" : "Copiar enlace"}
+              </button>
+
+              <p className="text-sm text-texto-suave">
+                Caduca en {enlace.dias} {enlace.dias === 1 ? "día" : "días"} — el{" "}
+                {fecha(enlace.expiraEn)}.
+              </p>
+            </div>
+          </div>
+        )}
+
+        <Boton type="button" onClick={generar} disabled={emitiendo}>
+          {emitiendo ? "Generando…" : yaHubo ? "Generar uno nuevo" : "Generar enlace"}
+        </Boton>
+      </div>
     </Tarjeta>
   );
 }

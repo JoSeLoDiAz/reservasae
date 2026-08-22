@@ -631,12 +631,142 @@ Josse ─────────┘      │           │            │
   código viaja en `git bundle` por scp. Por eso las ramas se mueven con
   `fetch <bundle> rama:refs/remotes/bundle/rama` y luego `merge --ff-only`.
 
-> **Con dos personas escribiendo, los bundles dejan de servir.** Funcionan para
-> llevar código de un portátil a un servidor, pero no para que dos máquinas se
-> pasen ramas entre sí: no hay un sitio común donde mirar quién va por dónde.
-> Antes de que Mauricio empiece hace falta un remoto de verdad —desatascar el
-> de GitHub, o poner un repositorio `--bare` en `sep-vm` al que las dos lleguen
-> por SSH, que se monta en cinco minutos y no depende de nadie más.
+> **El remoto de GitHub ya funciona, y es el sitio común.** Se desatascó el 19 ago
+> 2026 empujando desde `sep-vm`. Los `git bundle` siguen existiendo para llevar
+> código al servidor, pero **entre personas se usa GitHub**: es donde se mira quién
+> va por dónde. Ojo: desde el portátil de Josse el push puede seguir bloqueado por
+> el clasificador, así que si falla, se empuja desde `sep-vm`.
+
+## Arrancar en una máquina nueva
+
+Esto es lo que hay que hacer la primera vez, en Windows. Escrito para Mauricio,
+pero sirve para cualquiera.
+
+### Antes de empezar
+
+| | |
+|---|---|
+| Git para Windows | `git --version` |
+| Node.js 22 LTS | `node --version` |
+| VS Code | |
+| WSL 2 | `wsl -l -v` → debe decir **Running** y versión **2** |
+| Docker Desktop | `docker ps` tiene que responder |
+
+**Docker Desktop tiene que estar abierto y arrancado** antes de tocar la base. Si
+`docker ps` da error, no es el proyecto: es Docker que no ha terminado de subir.
+
+### pnpm, y por qué esta versión y no otra
+
+```powershell
+corepack enable
+corepack prepare pnpm@10.33.0 --activate
+pnpm --version    # tiene que decir 10.33.0
+```
+
+**No lo instales con `npm i -g pnpm` ni pongas `pnpm@latest`.** pnpm 11 aplica la
+política `minimumReleaseAge` y el build falla cuando el lockfile trae paquetes
+publicados en las últimas 24 h. La versión está fijada en `package.json` y en los
+dos Dockerfiles, y tiene que coincidir.
+
+### El proyecto
+
+```powershell
+git clone git@github.com:JoSeLoDiAz/reservasae.git
+cd reservasae
+pnpm install
+
+Copy-Item backend\.env.example backend\.env
+```
+
+**Abre `backend/.env` y comprueba que `DATABASE_URL` dice `localhost:5433`.**
+No es un formalismo: el `.env` del portátil de Josse apunta, vía túnel SSH, **a la
+base del servidor**, y un `.env` copiado de otro equipo hereda ese apunte sin
+avisar. Cualquier migración o seed que se corra con ese apunte va directo a
+producción. Empieza siempre desde `.env.example`.
+
+Hace falta además `ADMIN_JWT_SECRET`, mínimo 32 caracteres. Sin ella el backend
+**no arranca**, y es deliberado. Para local vale cualquier cosa larga:
+
+```powershell
+node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+```
+
+### La base y los datos
+
+```powershell
+docker compose up -d db                              # Postgres en localhost:5433
+pnpm --filter backend exec prisma migrate deploy     # las tablas
+pnpm --filter backend prisma db seed                 # el catálogo real
+pnpm --filter backend db:crear-admin tu@correo.com "Tu Nombre"
+```
+
+La siembra es idempotente: se puede repetir sin miedo. Carga las 15 acciones, 67
+grupos, 106 ofertas y 4.797 cupos, y **nunca toca `cuposOcupados`** ni el `visible`
+de una acción que alguien haya ocultado.
+
+Si quieres además datos de CRM inventados —personas, avances, notas— para ver las
+pantallas con algo dentro:
+
+```powershell
+$env:ENTORNO="prueba"
+pnpm --filter backend db:sembrar-prueba --rehacer
+```
+
+### Arrancar
+
+```powershell
+pnpm dev:backend     # :4000
+pnpm dev:frontend    # :3000
+```
+
+Entra en <http://localhost:3000/admin> con la cuenta que creaste.
+
+> **Cuidado con `localhost` al probar la API desde Node.** El fetch de Node resuelve
+> `localhost` a `::1` y Nest escucha en `0.0.0.0`, que es solo IPv4: la conexión se
+> corta sin explicación. Usa `127.0.0.1`. En el navegador no pasa.
+
+### El día a día
+
+```powershell
+git checkout dev-mauricio
+git pull origin dev          # traer lo que haya hecho el resto
+# …trabajar, commits en español explicando el POR QUÉ…
+git push origin dev-mauricio
+```
+
+Para integrar, un PR de `dev-mauricio` a `dev` en GitHub. Vale también un merge
+directo, pero el PR deja escrito qué entró y cuándo, que es lo que se echa de menos
+tres meses después.
+
+**A `pruebas` y a `main` no se empuja de frente.** `pruebas` la mueve quien va a
+enseñar algo al cliente, y `main` solo después de que lo apruebe.
+
+### Antes de cada push
+
+```powershell
+pnpm --filter backend exec tsc --noEmit -p tsconfig.json
+pnpm --filter backend test
+pnpm --filter frontend exec tsc --noEmit
+pnpm --filter frontend build
+```
+
+Los cuatro tienen que pasar. Hay tests que **fallan a propósito** si alguien rompe
+un contrato: las cabeceras de los tres reportes al SEP, la matriz de permisos por
+rol y los contrastes de las paletas. Si uno de esos falla, no lo silencies: está
+avisando de algo que el cliente iba a notar.
+
+> **Del lint hay errores preexistentes** —`react-hooks/set-state-in-effect`,
+> `react-hooks/refs` y tres imports sin usar— que no son tuyos. Antes de arreglar
+> uno, comprueba con `git stash` que venía de antes.
+
+### Lo que conviene leer antes de tocar nada
+
+- **Este archivo entero.** El porqué de las decisiones no obvias está aquí y no
+  repartido por el código: los comentarios son de una línea y no explican nada.
+- `backend/src/admin/permisos.ts` — quién puede hacer qué.
+- `backend/src/crm/anclas.ts` — por qué las fechas de los tableros salen del
+  historial de movimientos y no de las columnas de fecha.
+- `backend/src/crm/completitud.ts` — la única regla de qué le falta a una ficha.
 
 ## Desplegar
 

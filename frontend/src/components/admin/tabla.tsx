@@ -23,6 +23,12 @@ import {
  * tiene. Cuando el servidor tiene más de las cargadas lo
  * dice en la barra: filtrar sobre una página y callarlo
  * daría un recuento que parece el total y no lo es.
+ *
+ * La selección se rige por el filtro, no por la página: la
+ * casilla de cabecera marca la página y ofrece ampliar a
+ * todas las coincidentes, y lo que deja de coincidir se
+ * suelta. Un lote sobre filas que ya no se ven asignaría
+ * a quien no debía.
  */
 
 export type TipoFiltro = "texto" | "opciones" | "numero";
@@ -226,6 +232,23 @@ export function Tabla<T>({
   const paginas = Math.max(1, Math.ceil((filtradas?.length ?? 0) / porPagina));
   const enPagina = filtradas?.slice((pagina - 1) * porPagina, pagina * porPagina) ?? [];
 
+  // lo marcado que sigue coincidiendo
+  const vigentes = useMemo(
+    () =>
+      marcadas.size === 0
+        ? []
+        : (filtradas ?? []).filter((r) => marcadas.has(r.id)).map((r) => r.id),
+    [filtradas, marcadas],
+  );
+
+  // un filtro nuevo suelta lo viejo
+  const firmaFiltro = JSON.stringify([buscar, filtros]);
+  const [firmaMarcas, setFirmaMarcas] = useState(firmaFiltro);
+  if (firmaFiltro !== firmaMarcas) {
+    setFirmaMarcas(firmaFiltro);
+    if (vigentes.length !== marcadas.size) setMarcadas(new Set(vigentes));
+  }
+
   const hayFiltro = buscar !== "" || Object.values(filtros).some((v) => v !== "");
   const chips = Object.entries(filtros).filter(([, v]) => v !== "");
 
@@ -263,6 +286,14 @@ export function Tabla<T>({
   }
 
   const marcadasAqui = enPagina.filter((r) => marcadas.has(r.id)).length;
+  const nFiltradas = filtradas?.length ?? 0;
+  const paginaEntera = enPagina.length > 0 && marcadasAqui === enPagina.length;
+  const todasLasQueCoinciden = nFiltradas > 0 && vigentes.length === nFiltradas;
+  // sin filtro puesto, «coinciden» no dice nada
+  const cuales = hayFiltro ? "que coinciden con el filtro" : "cargadas";
+  // hay mas en el servidor sin cargar
+  const totalServidor =
+    total !== undefined && total > (filas?.length ?? 0) ? total : null;
 
   return (
     <div className="space-y-3">
@@ -337,12 +368,48 @@ export function Tabla<T>({
         />
       )}
 
-      {seleccion && marcadas.size > 0 && accionesLote && (
-        <div className="flex flex-wrap items-center gap-3 rounded-xl border border-marca/30 bg-marca-suave px-4 py-2.5">
+      {seleccion && vigentes.length > 0 && accionesLote && (
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-xl border border-marca/30 bg-marca-suave px-4 py-2.5">
           <span className="text-sm font-medium">
-            {marcadas.size} {marcadas.size === 1 ? "seleccionada" : "seleccionadas"}
+            {vigentes.length.toLocaleString("es-CO")}{" "}
+            {vigentes.length === 1 ? "seleccionada" : "seleccionadas"}
+            <span className="font-normal text-texto-suave">
+              {" · "}
+              {todasLasQueCoinciden
+                ? "todas las " + cuales
+                : "de " + nFiltradas.toLocaleString("es-CO") + " " + cuales}
+            </span>
           </span>
-          {accionesLote([...marcadas], () => setMarcadas(new Set()))}
+
+          {/* todas las filtradas, no la pagina */}
+          {paginaEntera && nFiltradas > vigentes.length && (
+            <button
+              type="button"
+              onClick={() => setMarcadas(new Set((filtradas ?? []).map((r) => r.id)))}
+              className="text-sm font-medium text-marca underline"
+            >
+              Seleccionar las {nFiltradas.toLocaleString("es-CO")} {cuales}
+            </button>
+          )}
+
+          {todasLasQueCoinciden && nFiltradas > enPagina.length && (
+            <button
+              type="button"
+              onClick={() => setMarcadas(new Set(enPagina.map((r) => r.id)))}
+              className="text-sm text-texto-suave underline hover:text-texto"
+            >
+              Solo las {enPagina.length} de esta página
+            </button>
+          )}
+
+          {todasLasQueCoinciden && totalServidor !== null && (
+            <span className="rounded-full bg-aviso-suave px-2.5 py-1 text-xs text-aviso">
+              Sobre las {(filas?.length ?? 0).toLocaleString("es-CO")} cargadas de{" "}
+              {totalServidor.toLocaleString("es-CO")}
+            </span>
+          )}
+
+          {accionesLote(vigentes, () => setMarcadas(new Set()))}
           <button
             type="button"
             onClick={() => setMarcadas(new Set())}

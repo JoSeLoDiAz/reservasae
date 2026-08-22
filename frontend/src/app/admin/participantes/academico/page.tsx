@@ -3,9 +3,11 @@
 import Link from "next/link";
 import { useCallback, useState } from "react";
 
+import { colorEtapa, estiloEtapa } from "@/components/admin/etapa";
 import { IndicadorActualizacion } from "@/components/admin/indicador-actualizacion";
 import { Aviso, CLASE_CONTROL, Tarjeta } from "@/components/admin/marco-admin";
 import { Esqueleto } from "@/components/admin/piezas";
+import { SelectorBuscable } from "@/components/admin/selector-buscable";
 import { useDatosVivos } from "@/lib/datos-vivos";
 import {
   type Academico,
@@ -21,12 +23,12 @@ import {
 
 // el color sale del token de la etapa que le corresponde
 const COLOR: Record<EstadoAcademico, string> = {
-  SIN_INGRESO: "var(--etapa-perdido)",
-  SIN_EMPEZAR: "var(--etapa-contactado)",
-  ATRASADO: "var(--etapa-en-formacion)",
-  AL_DIA: "var(--etapa-certificado)",
-  COMPLETADO: "var(--etapa-inscrito)",
-  CERTIFICADO: "var(--etapa-certificado)",
+  SIN_INGRESO: colorEtapa("PERDIDO"),
+  SIN_EMPEZAR: colorEtapa("CONTACTADO"),
+  ATRASADO: colorEtapa("EN_FORMACION"),
+  AL_DIA: colorEtapa("CERTIFICADO"),
+  COMPLETADO: colorEtapa("INSCRITO"),
+  CERTIFICADO: colorEtapa("CERTIFICADO"),
 };
 
 /// De lo más urgente a lo que no pide nada.
@@ -136,6 +138,18 @@ export default function PaginaAcademico() {
     return d !== 0 ? d : a.titulo.localeCompare(b.titulo, "es");
   });
 
+  // 67 grupos: el numero no distingue
+  const gruposBuscables = datos.grupos
+    .filter((g) => !accionFormacionId || g.accionFormacionId === accionFormacionId)
+    .map((g) => {
+      const suya = datos.acciones.find((a) => a.id === g.accionFormacionId);
+      return {
+        id: g.id,
+        etiqueta: `Grupo ${g.numero}`,
+        detalle: suya ? `${suya.codigo} · ${suya.nombre}` : "Sin acción de formación",
+      };
+    });
+
   return (
     <div className="space-y-6">
       <header className="flex flex-wrap items-start justify-between gap-4">
@@ -216,7 +230,7 @@ export default function PaginaAcademico() {
                 setSalida(salida === etapa ? "" : etapa);
               }}
               aria-pressed={salida === etapa}
-              style={{ ["--etapa"]: `var(--etapa-${etapa.toLowerCase().replace("_", "-")})` } as React.CSSProperties}
+              style={estiloEtapa(etapa)}
               className={`rounded-2xl border bg-superficie p-4 text-left shadow-sm transition hover:shadow-md ${
                 salida === etapa ? "border-2" : "border-borde"
               }`}
@@ -244,39 +258,32 @@ export default function PaginaAcademico() {
           onChange={(e) => setBuscar(e.target.value)}
         />
 
-        <select
-          className={`${CLASE_CONTROL} max-w-[15rem]`}
-          value={accionFormacionId}
-          onChange={(e) => {
-            setAccion(e.target.value);
+        <SelectorBuscable
+          clase="w-full sm:w-[17rem]"
+          etiqueta="Filtrar por acción de formación"
+          valor={accionFormacionId}
+          alElegir={(id) => {
+            setAccion(id);
             // el grupo cuelga de la accion: si cambia, sobra
             setGrupo("");
           }}
-          aria-label="Filtrar por acción de formación"
-        >
-          <option value="">Toda la formación</option>
-          {datos.acciones.map((a) => (
-            <option key={a.id} value={a.id}>
-              {a.codigo} · {a.nombre}
-            </option>
-          ))}
-        </select>
+          vacio="Toda la formación"
+          marcador="AF8, inteligencia artificial…"
+          opciones={datos.acciones.map((a) => ({
+            id: a.id,
+            etiqueta: `${a.codigo} · ${a.nombre}`,
+          }))}
+        />
 
-        <select
-          className={`${CLASE_CONTROL} max-w-[11rem]`}
-          value={grupoId}
-          onChange={(e) => setGrupo(e.target.value)}
-          aria-label="Filtrar por grupo"
-        >
-          <option value="">Todos los grupos</option>
-          {datos.grupos
-            .filter((g) => !accionFormacionId || g.accionFormacionId === accionFormacionId)
-            .map((g) => (
-              <option key={g.id} value={g.id}>
-                Grupo {g.numero}
-              </option>
-            ))}
-        </select>
+        <SelectorBuscable
+          clase="w-full sm:w-[14rem]"
+          etiqueta="Filtrar por grupo"
+          valor={grupoId}
+          alElegir={setGrupo}
+          vacio="Todos los grupos"
+          marcador="Número de grupo, AF8, nombre…"
+          opciones={gruposBuscables}
+        />
 
         <select
           className={`${CLASE_CONTROL} max-w-[13rem]`}

@@ -92,18 +92,41 @@ export function resolverVentana(
   const hoy = inicioDeDiaBogota(ahora);
   const manana = new Date(hoy.getTime() + DIA);
 
-  const construir = (a: Ventana): Comparacion => {
-    const largo = a.hasta.getTime() - a.desde.getTime();
+  /**
+   * El periodo en curso se recorta en «ahora», y el anterior
+   * a la MISMA duración transcurrida.
+   *
+   * Sin esto, «hoy» a las ocho de la mañana son ocho horas
+   * y «ayer» veinticuatro: con la misma captura, la flecha
+   * marcaba −67 % en rojo todas las mañanas, y con «últimos
+   * 7 días» una séptima parte de menos, siempre en la misma
+   * dirección. Recortar los dos por igual es lo único que
+   * hace comparable un periodo que todavía no ha acabado.
+   */
+  const construir = (pedida: Ventana): Comparacion => {
+    // lo que dura el periodo entero, haya pasado o no
+    const completo = pedida.hasta.getTime() - pedida.desde.getTime();
+    // y lo que de verdad lleva transcurrido
+    const actual: Ventana =
+      pedida.hasta.getTime() > ahora.getTime()
+        ? { desde: pedida.desde, hasta: ahora }
+        : pedida;
+    const transcurrido = actual.hasta.getTime() - actual.desde.getTime();
+
+    // el anterior arranca un periodo entero atras y corre
+    // lo mismo que lleva corrido el de ahora
+    const arranque = pedida.desde.getTime() - completo;
     const anterior: Ventana = {
-      desde: new Date(a.desde.getTime() - largo),
-      hasta: a.desde,
+      desde: new Date(arranque),
+      hasta: new Date(arranque + transcurrido),
     };
+
     return {
       rango,
-      actual: a,
+      actual,
       anterior,
       etiqueta: ETIQUETA[rango],
-      etiquetaAnterior: 'el periodo anterior',
+      etiquetaAnterior: 'el mismo tramo del periodo anterior',
     };
   };
 
@@ -123,14 +146,25 @@ export function resolverVentana(
     case 'MES_PASADO': {
       const inicioEste = inicioDeMesBogota(ahora);
       const inicioPasado = sumarMeses(inicioEste, -1);
-      // el mes anterior a ese, que no siempre dura igual
       const inicioAntePasado = sumarMeses(inicioEste, -2);
+
+      // enero tiene 31 dias y febrero 28: comparar meses de
+      // calendario es comparar tramos de distinta duracion,
+      // y eso sesga el volumen de entrada. Se dice en la
+      // etiqueta para que no lo parezca
+      const dias = (a: Date, b: Date) => Math.round((b.getTime() - a.getTime()) / DIA);
+      const dA = dias(inicioPasado, inicioEste);
+      const dB = dias(inicioAntePasado, inicioPasado);
+
       return {
         rango,
         actual: { desde: inicioPasado, hasta: inicioEste },
         anterior: { desde: inicioAntePasado, hasta: inicioPasado },
         etiqueta: ETIQUETA[rango],
-        etiquetaAnterior: 'el mes anterior a ese',
+        etiquetaAnterior:
+          dA === dB
+            ? 'el mes anterior a ese'
+            : `el mes anterior a ese (${dB} días contra ${dA})`,
       };
     }
 

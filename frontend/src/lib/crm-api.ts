@@ -350,6 +350,31 @@ export type Variaciones = Record<string, number | null>;
 
 export type Corte = { etiqueta: string; total: number };
 
+/** Un tramo de espera y cuántos llevan ahí. */
+export type Tramo = {
+  /** El piso del tramo en días: 0, 3, 8 o 15. */
+  dias: number;
+  total: number;
+};
+
+/** Cuánto convierte un origen, no cuánto trae. */
+export type CorteOrigen = {
+  etiqueta: string;
+  /** Todos los que entraron por ahí. */
+  leads: number;
+  /** Los que de esos llegaron a inscrito. */
+  inscritos: number;
+  conversion: number;
+};
+
+/** Una organización, sus inscritos y sus cupos. */
+export type CorteEmpresa = {
+  nit: string;
+  razonSocial: string;
+  inscritos: number;
+  cupos: number;
+};
+
 /** Cuánto convirtió un asesor de lo que lleva. */
 export type CorteAsesor = Corte & {
   asesorId: string | null;
@@ -379,15 +404,26 @@ export type Control = CabeceraControl & {
   inscritosPorSuCuenta: number;
   /** Solo las cinco etapas de Inscripciones. */
   embudo: Array<{ etapa: Etapa; total: number }>;
+  /** La primera cola del líder: leads sin dueño. */
+  sinAsignar: number;
+  /** Cuánto lleva esperando quien sigue en INTERESADO. */
+  sinContactar: Tramo[];
   porAccion: Corte[];
   porUbicacion: Array<Corte & { tipo: string }>;
   porGrupo: Array<Corte & { inicio: string | null }>;
   porConvenio: Corte[];
   porAsesor: CorteAsesor[];
+  /** El volumen que trae cada origen. */
   porOrigen: Corte[];
+  /** Lo que convierte, que no es lo que trae. */
+  conversionPorOrigen: CorteOrigen[];
   porModalidad: Corte[];
+  /** Las diez con más inscritos, contra sus cupos. */
+  topEmpresas: CorteEmpresa[];
   /** El día ya viene yyyy-mm-dd de Bogotá. */
   serie: Array<{ dia: string; total: number }>;
+  /** Cuándo llegaron los leads, no cuándo se inscribieron. */
+  leadsPorDia: Array<{ dia: string; total: number }>;
   ventana: Ventana;
   anterior: CabeceraControl | null;
   variacion: Variaciones;
@@ -449,12 +485,46 @@ export type CabeceraAcademica = {
   desercion: number;
 };
 
+/** Un grupo que arranca pronto: la agenda. */
+export type GrupoQueArranca = {
+  codigo: string;
+  numero: number;
+  inicio: string;
+  inscritos: number;
+  /** Cuántos días faltan para que empiece. */
+  dias: number;
+};
+
+/** Un grupo pasado de fecha con gente aún dentro. */
+export type GrupoVencido = {
+  codigo: string;
+  numero: number;
+  fin: string;
+  enAula: number;
+  certificados: number;
+  /** Los que siguen EN_FORMACION con el grupo vencido. */
+  sinCerrar: number;
+};
+
+/** Cuántos parados hay en cada tramo de días. */
+export type TramoParados = {
+  /** El primer día del tramo; -1 es «nunca entró». */
+  dias: number;
+  total: number;
+};
+
 /** El aula por acción, grupo y asesor. No por persona. */
 export type TableroAcademico = CabeceraAcademica & {
   minimoParaCertificar: number;
   porAccion: FilaAccionAula[];
   porGrupo: FilaGrupoAula[];
   porAsesor: FilaAsesorAula[];
+  /** Lo que empieza en 30 días. No es la cohorte. */
+  gruposQueArrancan: GrupoQueArranca[];
+  /** Terminaron en el papel y siguen con gente dentro. */
+  gruposVencidos: GrupoVencido[];
+  /** La cola de rescate del gestor académico. */
+  paradosPorDias: TramoParados[];
   ventana: Ventana;
   anterior: CabeceraAcademica | null;
   variacion: Variaciones;
@@ -487,8 +557,22 @@ export type Filtros = {
   limite?: number;
 };
 
-/** Lo que se manda para pedir una ventana de tiempo. */
-export type FiltroVentana = { rango?: Rango; desde?: string; hasta?: string };
+/**
+ * Lo que se manda para pedir una ventana de tiempo.
+ *
+ * Con `contra` se comparan DOS periodos elegidos, que pueden
+ * durar distinto; sin él, el backend compara contra el
+ * inmediatamente previo y de la misma duración.
+ */
+export type FiltroVentana = {
+  rango?: Rango;
+  desde?: string;
+  hasta?: string;
+  /** El segundo periodo, el de la comparación. */
+  contra?: Rango;
+  contraDesde?: string;
+  contraHasta?: string;
+};
 
 function consulta(filtros: Filtros | FiltroVentana): string {
   const p = new URLSearchParams();
@@ -572,13 +656,11 @@ export const crmApi = {
       notasBorradas: number;
     }>(`/admin/participantes/${id}`, { method: "DELETE" }),
 
-  control: (rango?: Rango, desde?: string, hasta?: string) =>
-    pedir<Control>(`/admin/participantes/control${consulta({ rango, desde, hasta })}`),
+  control: (ventana: FiltroVentana = {}) =>
+    pedir<Control>(`/admin/participantes/control${consulta(ventana)}`),
 
-  tableroAcademico: (rango?: Rango, desde?: string, hasta?: string) =>
-    pedir<TableroAcademico>(
-      `/admin/participantes/academico/tablero${consulta({ rango, desde, hasta })}`,
-    ),
+  tableroAcademico: (ventana: FiltroVentana = {}) =>
+    pedir<TableroAcademico>(`/admin/participantes/academico/tablero${consulta(ventana)}`),
 
   opciones: (convenioId: string) =>
     pedir<Opciones>(`/admin/participantes/opciones?convenioId=${convenioId}`),
@@ -637,6 +719,13 @@ export const crmApi = {
       method: "POST",
       body: JSON.stringify({ texto }),
     }),
+
+  /** Un enlace nuevo. El anterior deja de valer. */
+  emitirEnlace: (id: string) =>
+    pedir<{ token: string; expiraEn: string }>(
+      `/admin/participantes/${id}/enlace`,
+      { method: "POST" },
+    ),
 };
 
 /** Días desde una fecha. Lo accionable no es cuándo entró. */

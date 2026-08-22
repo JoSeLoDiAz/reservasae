@@ -39,40 +39,71 @@ describe('el corte del día va en hora de Bogotá', () => {
     expect(manana.actual!.hasta).toEqual(noche.actual!.hasta);
   });
 
-  it('«hoy» es el día 20 y llega hasta la medianoche siguiente', () => {
+  it('«hoy» arranca a medianoche y llega hasta AHORA, no hasta mañana', () => {
     const c = resolverVentana('HOY', undefined, undefined, casiMedianocheUtc);
 
     expect(enBogota(c.actual!.desde)).toBe('2026-08-20 00:00:00');
-    expect(enBogota(c.actual!.hasta)).toBe('2026-08-21 00:00:00');
+    expect(c.actual!.hasta).toEqual(casiMedianocheUtc);
   });
 });
 
-describe('el periodo anterior dura lo mismo que el actual', () => {
+/**
+ * La invariante NO es «siete días»: es que los dos tramos
+ * midan lo mismo.
+ *
+ * Un periodo en curso se recorta en el reloj y el anterior
+ * se recorta igual. Sin eso, «hoy» a las ocho de la mañana
+ * eran ocho horas contra las veinticuatro de ayer, y con la
+ * misma captura la flecha marcaba −67 % en rojo todas las
+ * mañanas — siempre en la misma dirección, que es la clase
+ * de error que nadie detecta mirando.
+ */
+describe('un periodo en curso se compara con el mismo tramo del anterior', () => {
+  // en Bogotá, las 21:00 del día 20: quedan 3 h de día
   const ahora = new Date('2026-08-21T02:00:00Z');
 
-  it.each([
-    ['SEMANA', 7],
-    ['MES', 30],
-    ['TRIMESTRE', 90],
-  ] as const)('%s son %i días, y los %i previos', (rango, largo) => {
-    const c = resolverVentana(rango, undefined, undefined, ahora);
-
-    expect(dias(c.actual!)).toBe(largo);
-    expect(dias(c.anterior!)).toBe(largo);
-  });
-
-  it('el anterior acaba justo donde empieza el actual, sin hueco ni solape', () => {
-    for (const rango of ['SEMANA', 'MES'] as const) {
+  it.each(['HOY', 'SEMANA', 'MES', 'TRIMESTRE'] as const)(
+    '%s: los dos tramos miden exactamente igual',
+    (rango) => {
       const c = resolverVentana(rango, undefined, undefined, ahora);
-      expect(c.anterior!.hasta).toEqual(c.actual!.desde);
-    }
+
+      expect(dias(c.anterior!)).toBeCloseTo(dias(c.actual!), 9);
+    },
+  );
+
+  it.each(['HOY', 'SEMANA', 'MES', 'TRIMESTRE'] as const)(
+    '%s: el actual no pasa de ahora',
+    (rango) => {
+      const c = resolverVentana(rango, undefined, undefined, ahora);
+
+      expect(c.actual!.hasta).toEqual(ahora);
+    },
+  );
+
+  it('el anterior arranca un periodo ENTERO atrás, no pegado al actual', () => {
+    const c = resolverVentana('SEMANA', undefined, undefined, ahora);
+    const semana = 7 * 86_400_000;
+
+    expect(c.anterior!.desde.getTime()).toBe(c.actual!.desde.getTime() - semana);
+    // y por tanto NO acaba donde empieza el actual: entre
+    // los dos queda el trozo del periodo previo que aún no
+    // tiene equivalente en este
+    expect(c.anterior!.hasta.getTime()).toBeLessThan(c.actual!.desde.getTime());
   });
 
-  it('los últimos 7 días incluyen hoy', () => {
+  it('los últimos 7 días arrancan el 14 e incluyen lo que va de hoy', () => {
     const c = resolverVentana('SEMANA', undefined, undefined, ahora);
 
     expect(enBogota(c.actual!.desde)).toBe('2026-08-14 00:00:00');
-    expect(enBogota(c.actual!.hasta)).toBe('2026-08-21 00:00:00');
+    expect(c.actual!.hasta).toEqual(ahora);
+  });
+
+  it('un periodo ya cerrado no se recorta y sí va pegado al anterior', () => {
+    const c = resolverVentana('AYER', undefined, undefined, ahora);
+
+    expect(dias(c.actual!)).toBe(1);
+    expect(dias(c.anterior!)).toBe(1);
+    expect(c.anterior!.hasta).toEqual(c.actual!.desde);
   });
 });
 
@@ -109,10 +140,20 @@ describe('el mes pasado', () => {
     expect(enBogota(c.anterior!.desde)).toBe('2025-11-01 00:00:00');
   });
 
-  it('dice contra qué se compara', () => {
+  it('CANTA que los dos meses no duran igual, en vez de callarlo', () => {
+    // febrero contra enero: 28 contra 31 sesga el volumen un
+    // 10 % de entrada, y hay que decirlo donde se lee
     const c = resolverVentana('MES_PASADO', undefined, undefined, enMarzo);
 
     expect(c.etiqueta).toBe('El mes pasado');
+    expect(c.etiquetaAnterior).toBe('el mes anterior a ese (31 días contra 28)');
+  });
+
+  it('y se calla cuando sí duran igual', () => {
+    // enero contra diciembre: los dos de 31
+    const enFebrero = new Date('2026-02-10T10:00:00Z');
+    const c = resolverVentana('MES_PASADO', undefined, undefined, enFebrero);
+
     expect(c.etiquetaAnterior).toBe('el mes anterior a ese');
   });
 });
@@ -188,13 +229,14 @@ describe('comparar contra el periodo que se elija', () => {
   const ahora = new Date('2026-08-21T02:00:00Z');
   const sinFechas = [undefined, undefined, undefined, undefined] as const;
 
-  it('«hoy contra ayer» son dos días contiguos y sin solape', () => {
+  it('«hoy contra ayer»: hoy va hasta ahora y ayer entero', () => {
     const c = compararDos('HOY', 'AYER', ...sinFechas, ahora);
 
-    expect(dias(c.actual!)).toBe(1);
-    expect(dias(c.anterior!)).toBe(1);
     expect(enBogota(c.actual!.desde)).toBe('2026-08-20 00:00:00');
+    expect(c.actual!.hasta).toEqual(ahora);
+    expect(dias(c.anterior!)).toBe(1);
     expect(enBogota(c.anterior!.desde)).toBe('2026-08-19 00:00:00');
+    // contiguos: ayer acaba donde empieza hoy
     expect(c.anterior!.hasta).toEqual(c.actual!.desde);
   });
 
@@ -203,8 +245,8 @@ describe('comparar contra el periodo que se elija', () => {
     const enMarzo = new Date('2026-03-15T10:00:00Z');
     const c = compararDos('MES', 'MES_PASADO', ...sinFechas, enMarzo);
 
-    expect(dias(c.actual!)).toBe(30);
     expect(dias(c.anterior!)).toBe(28);
+    expect(dias(c.actual!)).not.toBe(dias(c.anterior!));
     expect(enBogota(c.anterior!.desde)).toBe('2026-02-01 00:00:00');
     expect(enBogota(c.anterior!.hasta)).toBe('2026-03-01 00:00:00');
   });
@@ -212,14 +254,15 @@ describe('comparar contra el periodo que se elija', () => {
   it('un día contra un mes entero también vale', () => {
     const c = compararDos('HOY', 'MES', ...sinFechas, ahora);
 
-    expect(dias(c.actual!)).toBe(1);
-    expect(dias(c.anterior!)).toBe(30);
+    // el elegido a mano puede durar treinta veces más: es
+    // una pregunta legítima, y la pantalla avisa
+    expect(dias(c.anterior!)).toBeGreaterThan(dias(c.actual!) * 20);
   });
 
   it('contra TODO no queda con qué comparar', () => {
     const c = compararDos('SEMANA', 'TODO', ...sinFechas, ahora);
 
-    expect(dias(c.actual!)).toBe(7);
+    expect(c.actual).not.toBeNull();
     expect(c.anterior).toBeNull();
   });
 
@@ -228,7 +271,6 @@ describe('comparar contra el periodo que se elija', () => {
 
     expect(c.etiqueta).toBe('Hoy');
     expect(c.etiquetaAnterior).toBe('el mes pasado');
-    expect(c.etiquetaAnterior).not.toBe('el periodo anterior');
   });
 
   it('cada rango lleva sus propias fechas', () => {

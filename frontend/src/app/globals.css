@@ -50,9 +50,9 @@
   --etapa-certificado: #2c6b1f;
   --etapa-perdido: #9c3126;
   --etapa-retirado: #7a2e72;
-  --etapa-no-aprobo: #a3431c;
-  --etapa-deserto: #8a5a24;
-  --etapa-abandono: #6b4a7a;
+  --etapa-no-aprobo: #c22a1e;
+  --etapa-deserto: #0f7f94;
+  --etapa-abandono: #2f3a8e;
 
   /* series de los graficos */
   --serie-1: #2a78d6;
@@ -108,9 +108,9 @@
   --etapa-certificado: #86cf72;
   --etapa-perdido: #f2938a;
   --etapa-retirado: #dfa0d8;
-  --etapa-no-aprobo: #f0a077;
-  --etapa-deserto: #d9b06a;
-  --etapa-abandono: #b9a0d4;
+  --etapa-no-aprobo: #f77a5c;
+  --etapa-deserto: #4fd6ea;
+  --etapa-abandono: #8d9bf2;
 
   /* series reescalonadas para fondo oscuro */
   --serie-1: #3987e5;
@@ -319,9 +319,9 @@ h3 {
     --etapa-certificado: #2c6b1f;
     --etapa-perdido: #9c3126;
     --etapa-retirado: #7a2e72;
-    --etapa-no-aprobo: #a3431c;
-    --etapa-deserto: #8a5a24;
-    --etapa-abandono: #6b4a7a;
+    --etapa-no-aprobo: #c22a1e;
+    --etapa-deserto: #0f7f94;
+    --etapa-abandono: #2f3a8e;
     color-scheme: light;
   }
 

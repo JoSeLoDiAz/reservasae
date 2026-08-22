@@ -207,9 +207,11 @@ export class CrmController {
   actualizar(
     @Param('id') id: string,
     @Body() dto: ActualizarParticipanteDto,
+    @AdminActual() admin: Admin,
     @AmbitoActual() ambito: Ambito,
+    @IpReal() ip: string,
   ) {
-    return this.crm.actualizar(id, dto, ambito.convenios);
+    return this.crm.actualizar(id, dto, admin, ambito.convenios, ip);
   }
 
   /** Quita a la persona de este curso. No la borra. */
@@ -246,8 +248,9 @@ export class CrmController {
     @Body() dto: AsignarFormacionDto,
     @AdminActual() admin: Admin,
     @AmbitoActual() ambito: Ambito,
+    @IpReal() ip: string,
   ) {
-    return this.crm.asignar(id, dto, admin, ambito.convenios);
+    return this.crm.asignar(id, dto, admin, ambito.convenios, ip);
   }
 
   @Post(':id/autorizacion')

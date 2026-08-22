@@ -141,6 +141,49 @@ type EstadoAcademico =
   | 'COMPLETADO'
   | 'CERTIFICADO';
 
+/**
+ * Cómo se llama cada dato en el historial.
+ *
+ * Lo que no está aquí no deja rastro por sí solo: el
+ * asesor va aparte porque su nota es la del lote, y hay
+ * campos que comparten etiqueta a propósito («nombres»)
+ * porque tocarlos es un solo cambio a ojos de quien lee.
+ */
+const ETIQUETA_DATO: Record<string, string> = {
+  primerNombre: 'nombres',
+  segundoNombre: 'nombres',
+  primerApellido: 'apellidos',
+  segundoApellido: 'apellidos',
+  sexo: 'sexo',
+  correo: 'correo',
+  celular: 'celular',
+  fechaNacimiento: 'fecha de nacimiento',
+  generoSepId: 'género',
+  estrato: 'estrato',
+  departamentoSepId: 'departamento',
+  municipioSepId: 'municipio',
+  barrio: 'barrio',
+  direccion: 'dirección',
+  cargoEnEmpresa: 'cargo',
+  nivelEducativo: 'nivel educativo',
+  nivelOcupacional: 'nivel ocupacional',
+  nivelOcupacionalSepId: 'nivel ocupacional',
+  beneficiarioPrevio: 'beneficiario previo',
+  coberturaId: 'grupo',
+};
+
+/// '' y null quieren decir lo mismo.
+function mismoValor(llega: unknown, hay: unknown): boolean {
+  const limpio = (v: unknown) => (v === '' || v === undefined ? null : v);
+  const a = limpio(llega);
+  const b = limpio(hay);
+  if (a instanceof Date || b instanceof Date) {
+    const ms = (v: unknown) => (v instanceof Date ? v.getTime() : null);
+    return ms(a) === ms(b);
+  }
+  return a === b;
+}
+
 @Injectable()
 export class CrmService {
   constructor(private readonly prisma: PrismaService) {}
@@ -495,12 +538,56 @@ export class CrmService {
     });
   }
 
-  async actualizar(id: string, dto: ActualizarParticipanteDto, ambito: string[]) {
+  /**
+   * Edita la ficha y deja UN movimiento con lo que cambió.
+   *
+   * Se compara contra lo que hay porque la ficha manda el
+   * bloque entero en cada guardado: sin comparar, pulsar
+   * «Guardar» sin tocar nada dejaría un movimiento igual
+   * que haberlo cambiado todo, y el historial dejaría de
+   * decir nada.
+   */
+  async actualizar(
+    id: string,
+    dto: ActualizarParticipanteDto,
+    admin: Admin,
+    ambito: string[],
+    ip?: string,
+  ) {
     await this.exigirParticipante(id, ambito);
 
     const p = await this.prisma.participante.findUnique({
       where: { id },
-      select: { id: true, personaId: true },
+      select: {
+        id: true,
+        personaId: true,
+        etapa: true,
+        asesorId: true,
+        cargoEnEmpresa: true,
+        nivelEducativo: true,
+        nivelOcupacional: true,
+        nivelOcupacionalSepId: true,
+        beneficiarioPrevio: true,
+        coberturaId: true,
+        persona: {
+          select: {
+            primerNombre: true,
+            segundoNombre: true,
+            primerApellido: true,
+            segundoApellido: true,
+            sexo: true,
+            correo: true,
+            celular: true,
+            fechaNacimiento: true,
+            generoSepId: true,
+            estrato: true,
+            departamentoSepId: true,
+            municipioSepId: true,
+            barrio: true,
+            direccion: true,
+          },
+        },
+      },
     });
     if (!p) throw new NotFoundException('Ese participante no existe.');
 
@@ -565,23 +652,85 @@ export class CrmService {
       direccion: dto.direccion,
     };
 
-    await this.prisma.$transaction([
+    const deParticipante = {
+      cargoEnEmpresa: dto.cargoEnEmpresa,
+      nivelEducativo: dto.nivelEducativo,
+      nivelOcupacional: dto.nivelOcupacional,
+      nivelOcupacionalSepId: dto.nivelOcupacionalSepId,
+      beneficiarioPrevio: dto.beneficiarioPrevio,
+      asesorId: dto.asesorId,
+      coberturaId: dto.coberturaId,
+    };
+
+    // el asesor lleva su propia nota
+    const cambiaAsesor =
+      dto.asesorId !== undefined && (dto.asesorId || null) !== p.asesorId;
+    let notaAsesor: string | null = null;
+
+    if (cambiaAsesor && dto.asesorId) {
+      const asesor = await this.prisma.admin.findFirst({
+        where: { id: dto.asesorId, activo: true },
+        select: { nombre: true },
+      });
+      if (!asesor) {
+        throw new BadRequestException(
+          'Ese asesor no existe o está desactivado.',
+        );
+      }
+      // el mismo texto que el lote
+      notaAsesor = `Asignada a ${asesor.nombre}`;
+    } else if (cambiaAsesor) {
+      notaAsesor = 'Se le quitó el asesor';
+    }
+
+    const datos = [
+      ...this.queCambio(dePersona, p.persona),
+      ...this.queCambio(deParticipante, p),
+    ];
+
+    const partes: string[] = [];
+    if (notaAsesor) partes.push(notaAsesor);
+    if (datos.length > 0) partes.push(`Datos actualizados: ${datos.join(', ')}`);
+
+    const escrituras: Prisma.PrismaPromise<unknown>[] = [
       this.prisma.persona.update({ where: { id: p.personaId }, data: dePersona }),
-      this.prisma.participante.update({
-        where: { id },
-        data: {
-          cargoEnEmpresa: dto.cargoEnEmpresa,
-          nivelEducativo: dto.nivelEducativo,
-          nivelOcupacional: dto.nivelOcupacional,
-          nivelOcupacionalSepId: dto.nivelOcupacionalSepId,
-          beneficiarioPrevio: dto.beneficiarioPrevio,
-          asesorId: dto.asesorId,
-          coberturaId: dto.coberturaId,
-        },
-      }),
-    ]);
+      this.prisma.participante.update({ where: { id }, data: deParticipante }),
+    ];
+
+    if (partes.length > 0) {
+      escrituras.push(
+        this.prisma.movimientoParticipante.create({
+          data: {
+            participanteId: id,
+            // misma etapa: no es una transicion
+            etapaAntes: p.etapa,
+            etapaDespues: p.etapa,
+            adminId: admin.id,
+            nota: partes.join('. '),
+            ip: ip ?? null,
+          },
+        }),
+      );
+    }
+
+    await this.prisma.$transaction(escrituras);
 
     return this.obtener(id, ambito);
+  }
+
+  /** Qué datos llegan distintos de los que ya hay. */
+  private queCambio(llega: object, hay: object): string[] {
+    const viejo = hay as Record<string, unknown>;
+    const nombres: string[] = [];
+
+    for (const [clave, valor] of Object.entries(llega)) {
+      if (valor === undefined) continue;
+      if (mismoValor(valor, viejo[clave])) continue;
+      const etiqueta = ETIQUETA_DATO[clave];
+      if (etiqueta && !nombres.includes(etiqueta)) nombres.push(etiqueta);
+    }
+
+    return nombres;
   }
 
   /**
@@ -1335,12 +1484,26 @@ export class CrmService {
   }
 
   /** Colocar a alguien en una oferta y su grupo. */
-  async asignar(id: string, dto: AsignarFormacionDto, admin: Admin, ambito: string[]) {
+  async asignar(
+    id: string,
+    dto: AsignarFormacionDto,
+    admin: Admin,
+    ambito: string[],
+    ip?: string,
+  ) {
     await this.exigirParticipante(id, ambito);
 
     const p = await this.prisma.participante.findUnique({
       where: { id },
-      select: { id: true, personaId: true, convenioId: true, accionFormacionId: true },
+      select: {
+        id: true,
+        personaId: true,
+        convenioId: true,
+        accionFormacionId: true,
+        etapa: true,
+        ofertaId: true,
+        coberturaId: true,
+      },
     });
     if (!p) throw new NotFoundException('Ese participante no existe.');
 
@@ -1350,7 +1513,10 @@ export class CrmService {
         id: true,
         cuposMaximos: true,
         accionFormacionId: true,
-        accionFormacion: { select: { convenioId: true, nombre: true } },
+        ubicacion: { select: { nombre: true } },
+        accionFormacion: {
+          select: { convenioId: true, codigo: true, nombre: true },
+        },
       },
     });
     if (!oferta) throw new NotFoundException('Esa oferta no existe.');
@@ -1391,27 +1557,68 @@ export class CrmService {
       sobrecupo = { porId: admin.id, motivo: dto.sobrecupoMotivo };
     }
 
+    let numeroDeGrupo: number | null = null;
     if (dto.coberturaId) {
       const cobertura = await this.prisma.grupoCobertura.findUnique({
         where: { id: dto.coberturaId },
-        select: { grupo: { select: { accionFormacionId: true } } },
+        select: {
+          grupo: { select: { accionFormacionId: true, numero: true } },
+        },
       });
       if (!cobertura) throw new NotFoundException('Ese grupo no existe.');
       if (cobertura.grupo.accionFormacionId !== oferta.accionFormacionId) {
         throw new BadRequestException('Ese grupo es de otra acción de formación.');
       }
+      numeroDeGrupo = cobertura.grupo.numero;
     }
 
-    await this.prisma.participante.update({
-      where: { id },
-      data: {
-        ofertaId: oferta.id,
-        accionFormacionId: oferta.accionFormacionId,
-        coberturaId: dto.coberturaId ?? null,
-        sobrecupoPorId: sobrecupo?.porId ?? null,
-        sobrecupoMotivo: sobrecupo?.motivo ?? null,
-      },
-    });
+    const cobertura = dto.coberturaId ?? null;
+    const partes: string[] = [];
+
+    if (oferta.id !== p.ofertaId) {
+      partes.push(
+        `Formación: ${oferta.accionFormacion.codigo} · ` +
+          `${oferta.accionFormacion.nombre} — ${oferta.ubicacion.nombre}`,
+      );
+    }
+    if (cobertura !== p.coberturaId) {
+      partes.push(
+        numeroDeGrupo === null ? 'Sin grupo' : `Grupo ${numeroDeGrupo}`,
+      );
+    }
+    // como al crear con sobrecupo
+    if (sobrecupo) partes.push(`Sobrecupo autorizado: ${sobrecupo.motivo}`);
+
+    const escrituras: Prisma.PrismaPromise<unknown>[] = [
+      this.prisma.participante.update({
+        where: { id },
+        data: {
+          ofertaId: oferta.id,
+          accionFormacionId: oferta.accionFormacionId,
+          coberturaId: cobertura,
+          sobrecupoPorId: sobrecupo?.porId ?? null,
+          sobrecupoMotivo: sobrecupo?.motivo ?? null,
+        },
+      }),
+    ];
+
+    if (partes.length > 0) {
+      escrituras.push(
+        this.prisma.movimientoParticipante.create({
+          data: {
+            participanteId: id,
+            // misma etapa: no es una transicion
+            etapaAntes: p.etapa,
+            etapaDespues: p.etapa,
+            adminId: admin.id,
+            nota: partes.join('. '),
+            ip: ip ?? null,
+          },
+        }),
+      );
+    }
+
+    await this.prisma.$transaction(escrituras);
 
     return this.obtener(id, ambito);
   }
@@ -1428,7 +1635,7 @@ export class CrmService {
 
     const p = await this.prisma.participante.findUnique({
       where: { id },
-      select: { personaId: true, convenioId: true },
+      select: { personaId: true, convenioId: true, etapa: true },
     });
     if (!p) throw new NotFoundException('Ese participante no existe.');
 
@@ -1454,6 +1661,12 @@ export class CrmService {
     });
     if (yaEsta) return this.obtener(id, ambito);
 
+    // un texto para nota e historial
+    const texto =
+      `Autorización de tratamiento registrada (v${politica.version}), ` +
+      `por ${dto.canal}.` +
+      (dto.evidencia ? ` Evidencia: ${dto.evidencia}` : '');
+
     await this.prisma.$transaction([
       this.prisma.autorizacionDatos.create({
         data: {
@@ -1469,10 +1682,18 @@ export class CrmService {
           participanteId: id,
           autorId: admin.id,
           autorNombre: admin.nombre,
-          texto:
-            `Autorización de tratamiento registrada (v${politica.version}), ` +
-            `por ${dto.canal}.` +
-            (dto.evidencia ? ` Evidencia: ${dto.evidencia}` : ''),
+          texto,
+        },
+      }),
+      this.prisma.movimientoParticipante.create({
+        data: {
+          participanteId: id,
+          // misma etapa: no es una transicion
+          etapaAntes: p.etapa,
+          etapaDespues: p.etapa,
+          adminId: admin.id,
+          nota: texto,
+          ip: ip ?? null,
         },
       }),
     ]);

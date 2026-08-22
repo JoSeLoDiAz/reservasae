@@ -212,11 +212,11 @@ export const TEMAS_POR_DEFECTO: Record<EsquemaColor, ColoresTema> = {
     etapaCertificado: '#2c6b1f',
     etapaPerdido: '#9c3126',
     etapaRetirado: '#7a2e72',
-    etapaNoAprobo: '#a3431c',
+    etapaNoAprobo: '#c22a1e',
     // aviso y sin aviso: dos tonos distintos, no dos
     // variantes del mismo rojo de salida
-    etapaDeserto: '#8a5a24',
-    etapaAbandono: '#6b4a7a',
+    etapaDeserto: '#0f7f94',
+    etapaAbandono: '#2f3a8e',
   },
   OSCURO: {
     marca: '#60a5fa',
@@ -263,9 +263,9 @@ export const TEMAS_POR_DEFECTO: Record<EsquemaColor, ColoresTema> = {
     etapaCertificado: '#86cf72',
     etapaPerdido: '#f2938a',
     etapaRetirado: '#dfa0d8',
-    etapaNoAprobo: '#f0a077',
-    etapaDeserto: '#d9b06a',
-    etapaAbandono: '#b9a0d4',
+    etapaNoAprobo: '#f77a5c',
+    etapaDeserto: '#4fd6ea',
+    etapaAbandono: '#8d9bf2',
   },
 };
 
