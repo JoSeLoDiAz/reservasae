@@ -37,11 +37,14 @@ export function SelectorBuscable({
   valor: string;
   alElegir: (id: string) => void;
   marcador?: string;
-  /// Lo que dice sin elegir nada: en un filtro, «todos».
+  /// Lo que dice sin elegir nada: en un
+  /// filtro, «todos».
   vacio?: string;
-  /// Para el lector de pantalla, si no va dentro de Campo.
+  /// Para el lector de pantalla, si no
+  /// va dentro de Campo.
   etiqueta?: string;
-  /// El ancho: en un filtro no ocupa la fila entera.
+  /// El ancho: en un filtro no ocupa la
+  /// fila entera.
   clase?: string;
 }) {
   const [abierto, setAbierto] = useState(false);

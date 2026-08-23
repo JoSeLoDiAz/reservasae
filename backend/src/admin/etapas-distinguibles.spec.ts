@@ -18,7 +18,8 @@ import { TEMAS_POR_DEFECTO } from './temas';
  * ninguno comparaba una etapa con otra.
  */
 
-/// Las seis que conviven en el gráfico del aula.
+/// Las seis que conviven en el gráfico
+/// del aula.
 const DEL_AULA = [
   'etapaEnFormacion',
   'etapaCertificado',

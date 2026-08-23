@@ -76,7 +76,7 @@ export default function PaginaParticipantes() {
     setResumen(res);
   }, [filtros]);
 
-  // asignar por criterio necesita tenerlas todas
+  // por criterio: hacen falta todas
   const cargarTodas = useCallback(async () => {
     if (paginas <= 1) return;
     const resto = await Promise.all(
@@ -84,7 +84,7 @@ export default function PaginaParticipantes() {
         crmApi.listar({ ...filtros, pagina: i + 2, limite: POR_CARGA }),
       ),
     );
-    // por id: dos clics no pueden duplicar una fila
+    // por id: dos clics no duplican
     setFilas((f) => {
       const unicas = new Map((f ?? []).map((x) => [x.id, x]));
       for (const x of resto.flatMap((r) => r.participantes)) unicas.set(x.id, x);

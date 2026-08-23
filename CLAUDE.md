@@ -1938,7 +1938,7 @@ Verificado contra `docs/proyectos/*.xlsx`, que es la fuente oficial. El
 
 ## Convenciones
 
-- **Los comentarios del código son cortos**: una línea y **nunca más de 50
+- **Los comentarios del código son cortos**: una línea y **nunca más de 35
   caracteres de texto**, diciendo qué hace y ya (`// conexión a Prisma`,
   `// validar persona`). El *porqué* de las decisiones no obvias va aquí, en
   `CLAUDE.md`, no repartido por el código. Aplica también a `.env`,

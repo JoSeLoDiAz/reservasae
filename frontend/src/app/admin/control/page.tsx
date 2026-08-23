@@ -150,9 +150,7 @@ export default function PaginaControl() {
 
   const diasA = diasDeRango(rango, desde, hasta);
   const diasB = eligio ? diasDeRango(contra, contraDesde, contraHasta) : diasA;
-  // tambien en modo automatico: «el mes pasado» compara
-  // febrero contra enero, y son 28 dias contra 31. El
-  // backend lo canta en la etiqueta; aqui se pinta el aviso
+  // tambien en automatico: mes pasado
   const duracionDistinta =
     (eligio && diasA !== diasB) ||
     (!eligio &&

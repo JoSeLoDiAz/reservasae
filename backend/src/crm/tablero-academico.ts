@@ -469,11 +469,7 @@ const MADURAN = [
   'desercion',
   'certificados',
   'listos',
-  // estas dos tambien: `salidas` es el numerador de la
-  // desercion y `dentro` es el total menos las salidas, asi
-  // que heredan el mismo sesgo. Una cohorte recien entrada
-  // no ha tenido tiempo de desertar, y comparar su cero
-  // contra el doce de una madura pinta un -67 % en verde
+  // salidas y dentro heredan el sesgo
   'dentro',
   'salidas',
 ] as const;
