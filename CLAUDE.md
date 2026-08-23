@@ -691,10 +691,55 @@ Hace falta además `ADMIN_JWT_SECRET`, mínimo 32 caracteres. Sin ella el backen
 node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 ```
 
+### Sin Docker: Postgres nativo
+
+Docker solo hace falta para **levantar la base**. Ningún script del proyecto lo
+usa: `pnpm dev:backend`, `dev:frontend`, las migraciones, las siembras y los tests
+corren en Node a secas. Quien no tenga Docker instala PostgreSQL y ya.
+
+**Instala PostgreSQL 17** desde <https://www.postgresql.org/download/windows/>.
+En el instalador, **pon el puerto 5433 en vez del 5432**: es el que ya dice
+`.env.example`, y así no hay que tocar la cadena de conexión ni acordarse de por
+qué no conecta. Apunta la contraseña que le des a `postgres`.
+
+Luego, en «SQL Shell (psql)» —entrando como `postgres` al puerto 5433—:
+
+```sql
+CREATE ROLE reservasae WITH LOGIN PASSWORD 'la-que-quieras';
+CREATE DATABASE reservasae OWNER reservasae;
+```
+
+Y en `backend/.env`:
+
+```
+DATABASE_URL="postgresql://reservasae:la-que-quieras@localhost:5433/reservasae?schema=public"
+```
+
+A partir de ahí, **todo lo demás es idéntico**: `prisma migrate deploy`, `db seed`,
+`db:crear-admin` y los dos `pnpm dev:`. Sáltate solo el `docker compose up -d db`.
+
+> Si algún día instalas Docker, el `db` del compose también publica el 5433 y
+> chocará con el Postgres nativo. Se arregla parando el servicio de Windows
+> («Servicios» → `postgresql-x64-17` → Detener) antes de levantar el compose.
+
+**La otra opción es Postgres dentro de WSL 2**, que ya está instalado. Es más
+parecido a producción —el mismo Postgres de Linux— pero tiene una trampa: el
+servicio no arranca solo al encender, hay que hacer `sudo service postgresql start`
+en cada sesión, y hay que abrirle el acceso por contraseña en `pg_hba.conf`. El
+instalador de Windows no tiene ninguna de las dos cosas, así que para trabajar
+sale más a cuenta.
+
+**Lo que NO se puede hacer sin Docker**, y no hace falta:
+
+- Construir las imágenes. El despliegue se hace en el servidor, no en el portátil.
+- Levantar la pila entera con nginx. En local no hay nginx: `frontend/next.config.ts`
+  tiene un rewrite que replica exactamente el salto que hace nginx en producción,
+  y por eso el código del frontend es idéntico en los dos sitios.
+
 ### La base y los datos
 
 ```powershell
-docker compose up -d db                              # Postgres en localhost:5433
+docker compose up -d db                              # con Docker; si no, ver arriba
 pnpm --filter backend exec prisma migrate deploy     # las tablas
 pnpm --filter backend prisma db seed                 # el catálogo real
 pnpm --filter backend db:crear-admin tu@correo.com "Tu Nombre"
