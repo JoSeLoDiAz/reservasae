@@ -820,7 +820,7 @@ ssh sep-vm
 cd /opt/sep/reservasae
 git pull
 docker compose up -d --build
-./reload-nginx.sh          # ← NO se puede saltar, ver abajo
+./reload-nginx.sh          # ← ya no es obligatorio, ver abajo
 ```
 
 Verificar:
@@ -830,13 +830,21 @@ curl -s -o /dev/null -w "%{http_code}\n" http://127.0.0.1:4600/          # front
 curl -s http://127.0.0.1:4600/api/estado                                  # backend
 ```
 
-> **Recargar nginx es obligatorio y es lo que más se olvida.** `docker compose
-> up` recrea los contenedores de backend y frontend, que salen con una IP nueva
-> en la red de Docker. nginx **resuelve el upstream una sola vez al arrancar** y
-> él no se recrea, así que se queda apuntando a las IPs viejas: el resultado es
-> un **502 solo en el frontend** mientras `/api/` sigue respondiendo 200 — lo
-> que despista, porque parece que la app está bien. Pasó en el despliegue del
-> 30 jul 2026.
+> **Ya no hace falta recargar nginx, y esa es la novedad.** Hasta el 23 ago 2026
+> nginx resolvía el destino **una sola vez al arrancar**: `docker compose up`
+> recreaba backend y frontend con IP nueva, nginx no se recreaba, y quedaba
+> apuntando a las viejas. Salía un 502 que además despistaba, porque una mitad
+> del sitio seguía respondiendo 200. Pasó en el despliegue del 30 jul y otra vez
+> en el failover del 23 ago, que dejó la API caída sin que nadie lo notara.
+>
+> Ahora `docker/nginx/default.conf` lleva `resolver 127.0.0.11` y el destino en
+> una **variable**, que es lo que obliga a nginx a volver a preguntarle al DNS de
+> Docker cada 10 s. Comprobado ocupándole la IP al backend para forzar el cambio:
+> se recuperó solo, sin recargar. El precio es perder `keepalive` contra el
+> upstream, que con este volumen no se nota.
+>
+> `reload-nginx.sh` sigue ahí por si acaso, pero ya no es obligatorio. Y el
+> mismo arreglo va en `docker/nginx/prueba.conf`.
 
 **Variables nuevas en `backend/.env` del servidor.** No se sube a git, así que
 al añadir una variable hay que ponerla también allí a mano. Si falta
@@ -1930,7 +1938,7 @@ Verificado contra `docs/proyectos/*.xlsx`, que es la fuente oficial. El
 
 ## Convenciones
 
-- **Los comentarios del código son cortos**: una línea y **nunca más de 35
+- **Los comentarios del código son cortos**: una línea y **nunca más de 50
   caracteres de texto**, diciendo qué hace y ya (`// conexión a Prisma`,
   `// validar persona`). El *porqué* de las decisiones no obvias va aquí, en
   `CLAUDE.md`, no repartido por el código. Aplica también a `.env`,
