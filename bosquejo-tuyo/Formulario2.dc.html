@@ -1,0 +1,135 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap">
+  <style>
+    body { margin:0; font-family:"Plus Jakarta Sans",ui-sans-serif,system-ui,sans-serif;
+           background:#f8fafc; color:#0f172a; }
+    a { color:#1d4ed8; } a:hover { color:#1e3a8a; }
+    .lbl { display:block; margin-bottom:6px; font-size:14px; font-weight:500; }
+    .inp { width:100%; border:1px solid #cbd5e1; background:#fff; border-radius:12px;
+           padding:11px 12px; font:inherit; font-size:15px; color:#0f172a; box-sizing:border-box; }
+    .ayuda { display:block; margin-top:5px; font-size:12.5px; color:#64748b; }
+  </style>
+</helmet>
+
+<div style="min-height:100%; padding:40px 24px 56px; display:flex; flex-direction:column; align-items:center">
+  <div style="width:100%; max-width:896px; display:flex; flex-direction:column; gap:22px">
+
+    <div>
+      <h1 style="margin:0 0 6px; font-size:30px; font-weight:700; letter-spacing:-.02em">Formalización de la inscripción</h1>
+      <p style="margin:0; font-size:15px; color:#64748b; max-width:64ch">
+        Su cupo se encuentra reservado. Complete la información pendiente para formalizar la inscripción.
+      </p>
+    </div>
+
+    <section style="border:1px solid #e2e8f0; background:#f1f5f9; border-radius:16px; padding:20px 22px">
+      <div style="display:flex; align-items:center; gap:8px; margin-bottom:14px">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#047857" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M20 6 9 17l-5-5"></path>
+        </svg>
+        <h2 style="margin:0; font-size:15px; font-weight:600; color:#64748b">Información ya registrada</h2>
+      </div>
+      <dl style="margin:0; display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:12px 20px">
+        <div><dt style="font-size:11.5px; text-transform:uppercase; letter-spacing:.05em; color:#64748b">Nombres</dt><dd style="margin:2px 0 0; font-size:14.5px; color:#64748b">Mauricio Andrés</dd></div>
+        <div><dt style="font-size:11.5px; text-transform:uppercase; letter-spacing:.05em; color:#64748b">Primer apellido</dt><dd style="margin:2px 0 0; font-size:14.5px; color:#64748b">Palma</dd></div>
+        <div><dt style="font-size:11.5px; text-transform:uppercase; letter-spacing:.05em; color:#64748b">Segundo apellido</dt><dd style="margin:2px 0 0; font-size:14.5px; color:#64748b">Mesa</dd></div>
+        <div><dt style="font-size:11.5px; text-transform:uppercase; letter-spacing:.05em; color:#64748b">Celular</dt><dd style="margin:2px 0 0; font-size:14.5px; color:#64748b">300 905 5602</dd></div>
+        <div style="grid-column:span 2"><dt style="font-size:11.5px; text-transform:uppercase; letter-spacing:.05em; color:#64748b">Correo</dt><dd style="margin:2px 0 0; font-size:14.5px; color:#64748b">andrespalma1097@gmail.com</dd></div>
+      </dl>
+    </section>
+
+    <section style="border:1px solid #e2e8f0; background:#fff; border-radius:16px; padding:24px">
+      <h2 style="margin:0 0 4px; font-size:19px; font-weight:600">Datos personales y de residencia</h2>
+      <p style="margin:0 0 18px; font-size:14px; color:#64748b">Requeridos para el reporte al SENA.</p>
+
+      <div style="display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:16px">
+        <div>
+          <label class="lbl">Fecha de nacimiento</label>
+          <input class="inp" type="date" value="1997-10-08">
+          <span class="ayuda">La formación admite personas mayores de 18 años.</span>
+        </div>
+        <div>
+          <label class="lbl">Estrato</label>
+          <select class="inp"><option>Seleccione…</option></select>
+          <span class="ayuda">Del 1 al 6, según su recibo de servicios.</span>
+        </div>
+        <div></div>
+
+        <div><label class="lbl">Barrio o vereda</label><input class="inp" placeholder="El Carmen"></div>
+        <div style="grid-column:span 2"><label class="lbl">Dirección</label><input class="inp" placeholder="Carrera 28 #52F Sur - 19"></div>
+      </div>
+    </section>
+
+    <section style="border:1px solid #e2e8f0; background:#fff; border-radius:16px; padding:24px">
+      <h2 style="margin:0 0 4px; font-size:19px; font-weight:600">Dónde trabaja</h2>
+      <p style="margin:0 0 18px; font-size:14px; color:#64748b">Determina la información que se solicita a continuación.</p>
+
+      <div style="display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:14px; margin-bottom:22px">
+        <button style="border:1px solid #cbd5e1; background:#fff; border-radius:12px; padding:16px 18px; text-align:left; cursor:pointer; font:inherit; min-height:48px">
+          <span style="display:block; font-size:15px; font-weight:600; margin-bottom:3px">Trabajador independiente</span>
+          <span style="display:block; font-size:13px; color:#64748b">Se solicitará su cédula, que corresponde a su RUT.</span>
+        </button>
+        <button style="border:2px solid #1d4ed8; background:#eff6ff; border-radius:12px; padding:16px 18px; text-align:left; cursor:pointer; font:inherit; min-height:48px">
+          <span style="display:block; font-size:15px; font-weight:600; margin-bottom:3px; color:#1e3a8a">Trabajador con vínculo laboral</span>
+          <span style="display:block; font-size:13px; color:#1e3a8a">Se solicitará el NIT de la organización.</span>
+        </button>
+      </div>
+
+      <div style="display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:16px">
+
+        <div>
+          <label class="lbl">NIT de la empresa <span style="color:#be123c">·</span></label>
+          <input class="inp" value="890905211">
+          <span class="ayuda">Dígito de verificación: <strong>1</strong> — lo calculamos nosotros.</span>
+        </div>
+        <div style="grid-column:span 2">
+          <label class="lbl">Nombre de la organización</label>
+          <select class="inp"><option>Elija cuál…</option></select>
+          <span class="ayuda">Este NIT corresponde a 4 organizaciones. <a href="#">Registrar otra organización</a></span>
+        </div>
+
+        <div style="grid-column:span 3; border-top:1px solid #e2e8f0; padding-top:4px; margin-top:2px"></div>
+
+        <div><label class="lbl">¿Cuál es su cargo actual?</label><input class="inp" placeholder="Analista"></div>
+        <div><label class="lbl">Nivel ocupacional</label><select class="inp"><option>Elija…</option></select></div>
+        <div><label class="lbl">Teléfono</label><input class="inp" placeholder="604 000 0000"></div>
+
+        <div><label class="lbl">Sector económico</label><select class="inp"><option>Elija…</option></select></div>
+        <div><label class="lbl">Persona de contacto</label><input class="inp"></div>
+        <div><label class="lbl">Cargo del contacto</label><input class="inp"></div>
+
+        <div style="grid-column:span 3"><label class="lbl">Correo de la persona de contacto</label><input class="inp"></div>
+
+      </div>
+
+      <p style="margin:18px 0 0; font-size:13px; color:#64748b; background:#f1f5f9; border-radius:10px; padding:11px 13px; line-height:1.5">
+        <span style="color:#be123c">·</span> El NIT es el único campo obligatorio de esta sección. La información restante puede ser
+        completada por el asesor asignado.
+      </p>
+    </section>
+
+    <div style="display:flex; gap:12px; flex-wrap:wrap; align-items:center">
+      <button style="border:0; border-radius:12px; background:#1d4ed8; color:#fff; font:inherit; font-size:15px; font-weight:600; padding:14px 30px; min-height:48px; cursor:pointer">
+        Revisar y confirmar
+      </button>
+      <button style="border:0; background:none; font:inherit; font-size:14.5px; color:#64748b; text-decoration:underline; cursor:pointer; min-height:48px">
+        Completar posteriormente
+      </button>
+    </div>
+
+    <p style="margin:0; font-size:12.5px; color:#64748b; line-height:1.55">
+      La información registrada se conserva. El asesor asignado solicitará los datos faltantes.
+    </p>
+
+  </div>
+</div>
+</x-dc>
+</body>
+</html>

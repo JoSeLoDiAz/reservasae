@@ -1,0 +1,69 @@
+{
+  "artboards": [
+    {
+      "file": "Main.dc.html",
+      "x": 0,
+      "y": 0,
+      "w": 960,
+      "h": 760,
+      "title": "Paso 1 · Cobertura"
+    },
+    {
+      "file": "Paso2Cursos.dc.html",
+      "x": 1080,
+      "y": 0,
+      "w": 960,
+      "h": 1000,
+      "title": "Paso 2 · Cursos disponibles"
+    },
+    {
+      "file": "Paso3Datos.dc.html",
+      "x": 0,
+      "y": 1160,
+      "w": 960,
+      "h": 1180,
+      "title": "Paso 3 · Datos y confirmación"
+    },
+    {
+      "file": "Formulario2.dc.html",
+      "x": 1080,
+      "y": 1160,
+      "w": 960,
+      "h": 1560,
+      "title": "Formulario 2 · Confirmar cupo"
+    }
+  ],
+  "annotations": [
+    {
+      "id": "nota-cobertura",
+      "x": 0,
+      "y": -150,
+      "w": 420,
+      "text": "PASO 1 — NUEVO\nPrimero la ubicación, antes de mostrar cursos.\nAsí solo se ven las acciones con cobertura real\ny se reduce el sesgo de mostrar lo que no aplica."
+    },
+    {
+      "id": "nota-tarjetas",
+      "x": 1080,
+      "y": -150,
+      "w": 420,
+      "text": "PASO 2 — FUERA EL DESPLEGABLE\nTarjetas con: nombre, modalidad, intensidad\ny qué logrará al terminar (eso engancha).\nPAT lleva su explicación al lado."
+    },
+    {
+      "id": "nota-freno",
+      "x": 0,
+      "y": 2400,
+      "w": 420,
+      "text": "PASO 3 — EL FRENO\nEnter no envia. Solo el boton de confirmacion.\nAntes del envio, resumen de todo lo registrado\ncon opcion de modificar."
+    },
+    {
+      "id": "nota-segundo",
+      "x": 1080,
+      "y": 2780,
+      "w": 420,
+      "text": "FORMULARIO 2\nLo ya registrado va en gris, sin volver a pedirlo.\nFecha de nacimiento y estrato entran aqui: los pide el SENA.\nEl filtro independiente / vinculo laboral va ANTES del cargo.\nSolo el NIT es obligatorio; el resto se captura igual por debajo."
+    }
+  ],
+  "launch": {
+    "view": "canvas"
+  }
+}

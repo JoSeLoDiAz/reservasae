@@ -1,0 +1,136 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap">
+  <style>
+    body { margin:0; font-family:"Plus Jakarta Sans",ui-sans-serif,system-ui,sans-serif;
+           background:#f8fafc; color:#0f172a; }
+    a { color:#1d4ed8; } a:hover { color:#1e3a8a; }
+    .lbl { display:block; margin-bottom:6px; font-size:14px; font-weight:500; }
+    .inp { width:100%; border:1px solid #cbd5e1; background:#fff; border-radius:12px;
+           padding:11px 12px; font:inherit; font-size:15px; color:#0f172a; box-sizing:border-box; }
+    .ayuda { display:block; margin-top:5px; font-size:12.5px; color:#64748b; }
+  </style>
+</helmet>
+
+<div style="min-height:100%; padding:40px 24px 56px; display:flex; flex-direction:column; align-items:center">
+  <div style="width:100%; max-width:896px; display:flex; flex-direction:column; gap:22px">
+
+    <div style="display:flex; gap:8px; align-items:center">
+      <div style="height:4px; flex:1; border-radius:999px; background:#1d4ed8"></div>
+      <div style="height:4px; flex:1; border-radius:999px; background:#1d4ed8"></div>
+      <div style="height:4px; flex:1; border-radius:999px; background:#1d4ed8"></div>
+      <span style="font-size:12px; color:#64748b; margin-left:8px; white-space:nowrap">Paso 3 de 3</span>
+    </div>
+
+    <div>
+      <h1 style="margin:0 0 6px; font-size:30px; font-weight:700; letter-spacing:-.02em">Reserva de cupo</h1>
+      <p style="margin:0; font-size:15px; color:#64748b; max-width:64ch">
+        Con esta información se reserva el cupo. Posteriormente recibirá un enlace para formalizar la inscripción.
+      </p>
+    </div>
+
+    <div style="border:1px solid #e2e8f0; background:#fff; border-radius:16px; padding:16px 18px; display:flex; gap:12px; align-items:center; flex-wrap:wrap">
+      <span style="font-family:ui-monospace,monospace; font-size:11.5px; font-weight:600; color:#1d4ed8; background:#eff6ff; border-radius:6px; padding:3px 7px">AF1</span>
+      <span style="font-size:14.5px; font-weight:600">Gestión de la atención y neuroeducación</span>
+      <span style="font-size:13px; color:#64748b">· Virtual · 40 h · Antioquia</span>
+      <button style="margin-left:auto; border:0; background:none; font:inherit; font-size:13.5px; color:#1d4ed8; text-decoration:underline; cursor:pointer; min-height:44px">Modificar</button>
+    </div>
+
+    <section style="border:1px solid #e2e8f0; background:#fff; border-radius:16px; padding:24px">
+      <h2 style="margin:0 0 18px; font-size:19px; font-weight:600">Sus datos</h2>
+
+      <div style="display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:16px">
+
+        <div style="grid-column:span 3">
+          <label class="lbl">Nombres</label>
+          <input class="inp" value="Mauricio Andrés">
+        </div>
+
+        <div>
+          <label class="lbl">Primer apellido</label>
+          <input class="inp" value="Palma">
+        </div>
+        <div>
+          <label class="lbl">Segundo apellido <span style="color:#64748b; font-weight:400">(opcional)</span></label>
+          <input class="inp" value="Mesa">
+        </div>
+        <div>
+          <label class="lbl">Género</label>
+          <select class="inp"><option>Masculino</option></select>
+        </div>
+
+        <div>
+          <label class="lbl">Celular</label>
+          <input class="inp" value="300 905 5602">
+        </div>
+        <div style="grid-column:span 2">
+          <label class="lbl">Correo electrónico</label>
+          <input class="inp" value="andrespalma1097@gmail.com">
+        </div>
+
+        <div>
+          <label class="lbl">Tipo de documento</label>
+          <select class="inp"><option>Cédula de Ciudadanía</option></select>
+        </div>
+        <div>
+          <label class="lbl">Número de documento</label>
+          <input class="inp" value="1026300012">
+          <span class="ayuda">Solo números, máximo 10 dígitos.</span>
+        </div>
+        <div></div>
+
+      </div>
+    </section>
+
+    <label style="display:flex; gap:12px; align-items:flex-start; border:1px solid #e2e8f0; background:#fff; border-radius:16px; padding:18px">
+      <input type="checkbox" checked style="margin-top:3px; width:17px; height:17px; flex-shrink:0; accent-color:#1d4ed8">
+      <span style="font-size:14px; line-height:1.55">
+        Autorizo el tratamiento de mis datos personales conforme a los
+        <a href="#">Términos y Condiciones — Habeas Data</a>.
+        <span style="display:block; margin-top:4px; color:#64748b; font-size:13px">
+          El número de documento y esta autorización son requisitos para reservar el cupo.
+        </span>
+      </span>
+    </label>
+
+    <div style="border:2px solid #1d4ed8; background:#eff6ff; border-radius:16px; padding:22px">
+      <div style="display:flex; gap:10px; align-items:center; margin-bottom:14px">
+        <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#1d4ed8" stroke-width="2" stroke-linecap="round">
+          <circle cx="12" cy="12" r="9"></circle><path d="M12 16v-5M12 8h.01"></path>
+        </svg>
+        <h2 style="margin:0; font-size:17px; font-weight:600; color:#1e3a8a">Verifique la información antes de enviar</h2>
+      </div>
+
+      <dl style="margin:0; display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:12px 24px">
+        <div><dt style="font-size:12px; text-transform:uppercase; letter-spacing:.05em; color:#64748b">Nombre completo</dt><dd style="margin:2px 0 0; font-size:15px; font-weight:500">Mauricio Andrés Palma Mesa</dd></div>
+        <div><dt style="font-size:12px; text-transform:uppercase; letter-spacing:.05em; color:#64748b">Documento</dt><dd style="margin:2px 0 0; font-size:15px; font-weight:500; font-family:ui-monospace,monospace">C.C. 1026300012</dd></div>
+        <div><dt style="font-size:12px; text-transform:uppercase; letter-spacing:.05em; color:#64748b">Celular</dt><dd style="margin:2px 0 0; font-size:15px; font-weight:500">300 905 5602</dd></div>
+        <div><dt style="font-size:12px; text-transform:uppercase; letter-spacing:.05em; color:#64748b">Correo</dt><dd style="margin:2px 0 0; font-size:15px; font-weight:500">andrespalma1097@gmail.com</dd></div>
+      </dl>
+
+      <div style="margin-top:20px; display:flex; gap:12px; flex-wrap:wrap; align-items:center">
+        <button style="border:0; border-radius:12px; background:#1d4ed8; color:#fff; font:inherit; font-size:15px; font-weight:600; padding:14px 30px; min-height:48px; cursor:pointer">
+          Confirmar y reservar cupo
+        </button>
+        <button style="border:1px solid #cbd5e1; background:#fff; border-radius:12px; font:inherit; font-size:15px; padding:13px 22px; min-height:48px; cursor:pointer; color:#0f172a">
+          Modificar datos
+        </button>
+      </div>
+
+      <p style="margin:14px 0 0; font-size:12.5px; color:#1e3a8a">
+        El formulario no se envía con la tecla Enter. Únicamente con el botón de confirmación.
+      </p>
+    </div>
+
+  </div>
+</div>
+</x-dc>
+</body>
+</html>

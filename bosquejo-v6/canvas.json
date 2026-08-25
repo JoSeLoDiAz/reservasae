@@ -1,0 +1,54 @@
+{
+  "artboards": [
+    {
+      "file": "Main.dc.html",
+      "x": 0,
+      "y": 0,
+      "w": 960,
+      "h": 1560,
+      "title": "Paso 1 · Ubicación y acciones"
+    },
+    {
+      "file": "Paso3Datos.dc.html",
+      "x": 1080,
+      "y": 0,
+      "w": 960,
+      "h": 1240,
+      "title": "Paso 2 · Datos y confirmación"
+    },
+    {
+      "file": "Formulario2.dc.html",
+      "x": 2160,
+      "y": 0,
+      "w": 960,
+      "h": 1660,
+      "title": "Formulario 2 · Formalizar inscripción"
+    }
+  ],
+  "annotations": [
+    {
+      "id": "nota-fusion",
+      "x": 0,
+      "y": -190,
+      "w": 440,
+      "text": "PASO 1 — FUSIONADO\nLa ubicacion y las acciones van en la misma pantalla.\nAl elegir Bello solo salen las virtuales; la presencial\naparece atenuada diciendo por que no aplica."
+    },
+    {
+      "id": "nota-estado",
+      "x": 1080,
+      "y": -190,
+      "w": 440,
+      "text": "LA BANDA DE ESTADO\nEn las tres pantallas. Deja claro que reservar\nno es estar inscrito, y que la confirmacion llega\npor correo, llamada, mensaje o WhatsApp."
+    },
+    {
+      "id": "nota-laboral",
+      "x": 2160,
+      "y": -190,
+      "w": 440,
+      "text": "FORMULARIO 2\nLa pregunta «¿Cual es su situacion laboral actual?»\nva encima de las dos opciones.\nSolo el NIT es obligatorio."
+    }
+  ],
+  "launch": {
+    "view": "canvas"
+  }
+}

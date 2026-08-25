@@ -54,3 +54,7 @@ backend/generated/
 # ── Exportes del SEP: llevan datos de personas reales ──
 docs/sep/*.xlsx
 docs/sep/*.xls
+
+# el lienzo de diseno exportado: 2,2 MB de editor empaquetado
+# por archivo, y se regenera desde los .dc.html de al lado
+bosquejo*/preinscripcion-convoca.html
