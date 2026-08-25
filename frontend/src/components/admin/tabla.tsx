@@ -376,7 +376,7 @@ export function Tabla<T>({
   const nFiltradas = filtradas?.length ?? 0;
   const paginaEntera = enPagina.length > 0 && marcadasAqui === enPagina.length;
   const todasLasQueCoinciden = nFiltradas > 0 && vigentes.length === nFiltradas;
-  // sin filtro puesto, «coinciden» no dice nada
+  // sin filtro no dice nada
   const cuales = hayFiltro ? "que coinciden con el filtro" : "los leads";
   // hay mas en el servidor sin cargar
   const totalServidor =

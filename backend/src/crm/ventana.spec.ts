@@ -1,13 +1,13 @@
 import { compararDos, resolverVentana, variacion, type Ventana } from './ventana';
 
-// el instante, escrito en hora de Bogotá
+// el instante, en hora de Bogota
 const enBogota = (d: Date) =>
   new Date(d.getTime() - 5 * 60 * 60 * 1000).toISOString().slice(0, 19).replace('T', ' ');
 
 const dias = (v: Ventana) => (v.hasta.getTime() - v.desde.getTime()) / 86_400_000;
 
 describe('el corte del día va en hora de Bogotá', () => {
-  // en Bogotá son todavía las 21:00 del día 20
+  // en Bogota son las 21:00 del 20
   const casiMedianocheUtc = new Date('2026-08-21T02:00:00Z');
 
   it('«ayer» a las 21:00 de Bogotá es el día 19, no el 20', () => {
@@ -59,7 +59,7 @@ describe('el corte del día va en hora de Bogotá', () => {
  * de error que nadie detecta mirando.
  */
 describe('un periodo en curso se compara con el mismo tramo del anterior', () => {
-  // en Bogotá, las 21:00 del día 20: quedan 3 h de día
+  // 21:00 del dia 20 en Bogota
   const ahora = new Date('2026-08-21T02:00:00Z');
 
   it.each(['HOY', 'SEMANA', 'MES', 'TRIMESTRE'] as const)(
@@ -85,9 +85,7 @@ describe('un periodo en curso se compara con el mismo tramo del anterior', () =>
     const semana = 7 * 86_400_000;
 
     expect(c.anterior!.desde.getTime()).toBe(c.actual!.desde.getTime() - semana);
-    // y por tanto NO acaba donde empieza el actual: entre
-    // los dos queda el trozo del periodo previo que aún no
-    // tiene equivalente en este
+    // no acaba donde empieza el actual
     expect(c.anterior!.hasta.getTime()).toBeLessThan(c.actual!.desde.getTime());
   });
 
@@ -141,8 +139,7 @@ describe('el mes pasado', () => {
   });
 
   it('CANTA que los dos meses no duran igual, en vez de callarlo', () => {
-    // febrero contra enero: 28 contra 31 sesga el volumen un
-    // 10 % de entrada, y hay que decirlo donde se lee
+    // febrero 28 contra enero 31
     const c = resolverVentana('MES_PASADO', undefined, undefined, enMarzo);
 
     expect(c.etiqueta).toBe('El mes pasado');
@@ -150,7 +147,7 @@ describe('el mes pasado', () => {
   });
 
   it('y se calla cuando sí duran igual', () => {
-    // enero contra diciembre: los dos de 31
+    // enero y diciembre, los dos de 31
     const enFebrero = new Date('2026-02-10T10:00:00Z');
     const c = resolverVentana('MES_PASADO', undefined, undefined, enFebrero);
 
@@ -225,7 +222,7 @@ describe('sin corte de tiempo', () => {
 });
 
 describe('comparar contra el periodo que se elija', () => {
-  // en Bogotá son las 21:00 del día 20
+  // en Bogota son las 21:00 del 20
   const ahora = new Date('2026-08-21T02:00:00Z');
   const sinFechas = [undefined, undefined, undefined, undefined] as const;
 
@@ -236,7 +233,7 @@ describe('comparar contra el periodo que se elija', () => {
     expect(c.actual!.hasta).toEqual(ahora);
     expect(dias(c.anterior!)).toBe(1);
     expect(enBogota(c.anterior!.desde)).toBe('2026-08-19 00:00:00');
-    // contiguos: ayer acaba donde empieza hoy
+    // contiguos: ayer acaba en hoy
     expect(c.anterior!.hasta).toEqual(c.actual!.desde);
   });
 
@@ -254,8 +251,7 @@ describe('comparar contra el periodo que se elija', () => {
   it('un día contra un mes entero también vale', () => {
     const c = compararDos('HOY', 'MES', ...sinFechas, ahora);
 
-    // el elegido a mano puede durar treinta veces más: es
-    // una pregunta legítima, y la pantalla avisa
+    // treinta veces mas es legitimo
     expect(dias(c.anterior!)).toBeGreaterThan(dias(c.actual!) * 20);
   });
 

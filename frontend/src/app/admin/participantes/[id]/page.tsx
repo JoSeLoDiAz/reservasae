@@ -69,8 +69,7 @@ export default function PaginaFicha() {
     void cargar().catch((e) => setError((e as ErrorApi).message));
   }, [cargar]);
 
-  // el aviso de arriba es el registro;
-  // el toast lo ve quien esta al pie
+  // el aviso queda; el toast se ve
   async function conError(accion: () => Promise<void>, exito = "Cambios guardados.") {
     setError(null);
     try {

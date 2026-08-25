@@ -104,17 +104,16 @@ export function resolverVentana(
    * hace comparable un periodo que todavía no ha acabado.
    */
   const construir = (pedida: Ventana): Comparacion => {
-    // lo que dura el periodo entero, haya pasado o no
+    // el periodo entero
     const completo = pedida.hasta.getTime() - pedida.desde.getTime();
-    // y lo que de verdad lleva transcurrido
+    // lo que lleva transcurrido
     const actual: Ventana =
       pedida.hasta.getTime() > ahora.getTime()
         ? { desde: pedida.desde, hasta: ahora }
         : pedida;
     const transcurrido = actual.hasta.getTime() - actual.desde.getTime();
 
-    // el anterior arranca un periodo entero atras y corre
-    // lo mismo que lleva corrido el de ahora
+    // un periodo atras, mismo tramo
     const arranque = pedida.desde.getTime() - completo;
     const anterior: Ventana = {
       desde: new Date(arranque),
@@ -148,10 +147,7 @@ export function resolverVentana(
       const inicioPasado = sumarMeses(inicioEste, -1);
       const inicioAntePasado = sumarMeses(inicioEste, -2);
 
-      // enero tiene 31 dias y febrero 28: comparar meses de
-      // calendario es comparar tramos de distinta duracion,
-      // y eso sesga el volumen de entrada. Se dice en la
-      // etiqueta para que no lo parezca
+      // meses de distinta duracion
       const dias = (a: Date, b: Date) => Math.round((b.getTime() - a.getTime()) / DIA);
       const dA = dias(inicioPasado, inicioEste);
       const dB = dias(inicioAntePasado, inicioPasado);
@@ -183,10 +179,10 @@ export function resolverVentana(
     }
 
     case 'PERSONALIZADO': {
-      // sin las dos fechas no hay corte que valga
+      // sin las dos fechas no hay corte
       if (!desde || !hasta) return resolverVentana('TODO', undefined, undefined, ahora);
       const a = inicioDeDiaBogota(new Date(`${desde}T12:00:00Z`));
-      // el «hasta» que escribe una persona incluye ese día
+      // el «hasta» incluye ese dia entero
       const b = new Date(inicioDeDiaBogota(new Date(`${hasta}T12:00:00Z`)).getTime() + DIA);
       if (!(a < b)) return resolverVentana('TODO', undefined, undefined, ahora);
       return construir({ desde: a, hasta: b });

@@ -691,10 +691,55 @@ Hace falta además `ADMIN_JWT_SECRET`, mínimo 32 caracteres. Sin ella el backen
 node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 ```
 
+### Sin Docker: Postgres nativo
+
+Docker solo hace falta para **levantar la base**. Ningún script del proyecto lo
+usa: `pnpm dev:backend`, `dev:frontend`, las migraciones, las siembras y los tests
+corren en Node a secas. Quien no tenga Docker instala PostgreSQL y ya.
+
+**Instala PostgreSQL 17** desde <https://www.postgresql.org/download/windows/>.
+En el instalador, **pon el puerto 5433 en vez del 5432**: es el que ya dice
+`.env.example`, y así no hay que tocar la cadena de conexión ni acordarse de por
+qué no conecta. Apunta la contraseña que le des a `postgres`.
+
+Luego, en «SQL Shell (psql)» —entrando como `postgres` al puerto 5433—:
+
+```sql
+CREATE ROLE reservasae WITH LOGIN PASSWORD 'la-que-quieras';
+CREATE DATABASE reservasae OWNER reservasae;
+```
+
+Y en `backend/.env`:
+
+```
+DATABASE_URL="postgresql://reservasae:la-que-quieras@localhost:5433/reservasae?schema=public"
+```
+
+A partir de ahí, **todo lo demás es idéntico**: `prisma migrate deploy`, `db seed`,
+`db:crear-admin` y los dos `pnpm dev:`. Sáltate solo el `docker compose up -d db`.
+
+> Si algún día instalas Docker, el `db` del compose también publica el 5433 y
+> chocará con el Postgres nativo. Se arregla parando el servicio de Windows
+> («Servicios» → `postgresql-x64-17` → Detener) antes de levantar el compose.
+
+**La otra opción es Postgres dentro de WSL 2**, que ya está instalado. Es más
+parecido a producción —el mismo Postgres de Linux— pero tiene una trampa: el
+servicio no arranca solo al encender, hay que hacer `sudo service postgresql start`
+en cada sesión, y hay que abrirle el acceso por contraseña en `pg_hba.conf`. El
+instalador de Windows no tiene ninguna de las dos cosas, así que para trabajar
+sale más a cuenta.
+
+**Lo que NO se puede hacer sin Docker**, y no hace falta:
+
+- Construir las imágenes. El despliegue se hace en el servidor, no en el portátil.
+- Levantar la pila entera con nginx. En local no hay nginx: `frontend/next.config.ts`
+  tiene un rewrite que replica exactamente el salto que hace nginx en producción,
+  y por eso el código del frontend es idéntico en los dos sitios.
+
 ### La base y los datos
 
 ```powershell
-docker compose up -d db                              # Postgres en localhost:5433
+docker compose up -d db                              # con Docker; si no, ver arriba
 pnpm --filter backend exec prisma migrate deploy     # las tablas
 pnpm --filter backend prisma db seed                 # el catálogo real
 pnpm --filter backend db:crear-admin tu@correo.com "Tu Nombre"
@@ -775,7 +820,7 @@ ssh sep-vm
 cd /opt/sep/reservasae
 git pull
 docker compose up -d --build
-./reload-nginx.sh          # ← NO se puede saltar, ver abajo
+./reload-nginx.sh          # ← ya no es obligatorio, ver abajo
 ```
 
 Verificar:
@@ -785,13 +830,21 @@ curl -s -o /dev/null -w "%{http_code}\n" http://127.0.0.1:4600/          # front
 curl -s http://127.0.0.1:4600/api/estado                                  # backend
 ```
 
-> **Recargar nginx es obligatorio y es lo que más se olvida.** `docker compose
-> up` recrea los contenedores de backend y frontend, que salen con una IP nueva
-> en la red de Docker. nginx **resuelve el upstream una sola vez al arrancar** y
-> él no se recrea, así que se queda apuntando a las IPs viejas: el resultado es
-> un **502 solo en el frontend** mientras `/api/` sigue respondiendo 200 — lo
-> que despista, porque parece que la app está bien. Pasó en el despliegue del
-> 30 jul 2026.
+> **Ya no hace falta recargar nginx, y esa es la novedad.** Hasta el 23 ago 2026
+> nginx resolvía el destino **una sola vez al arrancar**: `docker compose up`
+> recreaba backend y frontend con IP nueva, nginx no se recreaba, y quedaba
+> apuntando a las viejas. Salía un 502 que además despistaba, porque una mitad
+> del sitio seguía respondiendo 200. Pasó en el despliegue del 30 jul y otra vez
+> en el failover del 23 ago, que dejó la API caída sin que nadie lo notara.
+>
+> Ahora `docker/nginx/default.conf` lleva `resolver 127.0.0.11` y el destino en
+> una **variable**, que es lo que obliga a nginx a volver a preguntarle al DNS de
+> Docker cada 10 s. Comprobado ocupándole la IP al backend para forzar el cambio:
+> se recuperó solo, sin recargar. El precio es perder `keepalive` contra el
+> upstream, que con este volumen no se nota.
+>
+> `reload-nginx.sh` sigue ahí por si acaso, pero ya no es obligatorio. Y el
+> mismo arreglo va en `docker/nginx/prueba.conf`.
 
 **Variables nuevas en `backend/.env` del servidor.** No se sube a git, así que
 al añadir una variable hay que ponerla también allí a mano. Si falta
