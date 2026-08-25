@@ -54,6 +54,81 @@ export const ETAPAS_DE_INSCRIPCION: Etapa[] = [
 ];
 
 /**
+ * Las únicas que se pueden elegir a mano.
+ *
+ * «Datos completos» no está: dejó de ser etapa para ser
+ * estado calculado. Un estado que alguien puede poner a
+ * dedo no prueba nada, y es justo lo que hace que la cifra
+ * sirva. El backend lo rechaza aunque se mande.
+ */
+export const ETAPAS_A_MANO: Etapa[] = [
+  "INTERESADO",
+  "CONTACTADO",
+  "INSCRITO",
+  "PERDIDO",
+];
+
+/** Por dónde se contactó. Varios a la vez. */
+export type CanalContacto = "CORREO" | "WHATSAPP" | "TEXTO" | "LLAMADA";
+
+export const CANALES: CanalContacto[] = [
+  "CORREO",
+  "WHATSAPP",
+  "TEXTO",
+  "LLAMADA",
+];
+
+/// Nombre distinto a ETIQUETA_CANAL a propósito: ese es el
+/// de la autorización de datos, y son dos cosas distintas.
+export const ETIQUETA_CANAL_CONTACTO: Record<CanalContacto, string> = {
+  CORREO: "Correo",
+  WHATSAPP: "WhatsApp",
+  TEXTO: "Texto",
+  LLAMADA: "Llamada",
+};
+
+/** Lo que mandó el interesado y espera decisión. */
+export type PropuestaDelInteresado = {
+  id: string;
+  creadoEn: string;
+  campos: Array<{
+    campo: string;
+    etiqueta: string;
+    actual: string | null;
+    propuesto: string | null;
+  }>;
+};
+
+/** En qué va la consulta al RUI de una ficha. */
+export type EstadoRui =
+  | "SIN_CONSULTA"
+  | "PENDIENTE"
+  | "EN_CURSO"
+  | "LISTA"
+  | "SIN_RESULTADO"
+  | "FALLIDA";
+
+export type ConsultaRui = {
+  estado: EstadoRui;
+  nombreEncontrado: string | null;
+  nombreTecleado: string | null;
+  nombreCoincide: boolean | null;
+  resueltaEn: string | null;
+  porDelante: number | null;
+  /// El detector es el de mentira: no consultó el RUI.
+  simulado: boolean;
+};
+
+export const ETIQUETA_RUI: Record<EstadoRui, string> = {
+  SIN_CONSULTA: "Sin consultar",
+  PENDIENTE: "En cola",
+  EN_CURSO: "Consultando…",
+  LISTA: "Validado por RUI",
+  SIN_RESULTADO: "No aparece en el RUI",
+  FALLIDA: "No se pudo consultar",
+};
+
+/**
  * Lo que gobierna el académico. NO sale en Inscripciones:
  * ahí el trabajo del asesor acaba al marcar «Inscrito».
  */
@@ -114,7 +189,6 @@ export const ETIQUETA_ORIGEN: Record<Origen, string> = {
   OTRO: "Otro",
 };
 
-
 export type FilaParticipante = {
   id: string;
   etapa: Etapa;
@@ -133,6 +207,43 @@ export type FilaParticipante = {
   ubicacion: string | null;
   asesor: { id: string; nombre: string } | null;
   notas: number;
+
+  /// Lo que la tabla de leads pide por separado.
+  tipoDocumento: string;
+  numeroDocumento: string;
+  /** Donde vive, no donde se dicta. */
+  departamento: string | null;
+  municipio: string | null;
+  /** Solo el código: en una columna no cabe el nombre. */
+  accionCodigo: string | null;
+  gremio: string;
+  /** De dónde llegó, en los tres que le sirven al asesor. */
+  origenLead: "ORGANICO" | "PAUTA" | "IMPORTACION";
+  ultimaActividad: string;
+  /** De qué etapa viene. */
+  etapaAnterior: Etapa | null;
+  /** Cuántas veces se le movió la etapa. */
+  cambios: number;
+  datosEmpresa: "SIN" | "PARCIAL" | "COMPLETA";
+  antiguedadDias: number;
+};
+
+export const ETIQUETA_ORIGEN_LEAD: Record<
+  FilaParticipante["origenLead"],
+  string
+> = {
+  ORGANICO: "Orgánico",
+  PAUTA: "Pauta",
+  IMPORTACION: "Importación",
+};
+
+export const ETIQUETA_DATOS_EMPRESA: Record<
+  FilaParticipante["datosEmpresa"],
+  string
+> = {
+  SIN: "Sin información",
+  PARCIAL: "Información parcial",
+  COMPLETA: "Información completa",
 };
 
 export type Listado = {
@@ -149,6 +260,8 @@ export type Resumen = {
   asesores: Array<{ id: string; nombre: string; total: number }>;
   acciones: Array<{ id: string; codigo: string; nombre: string; total: number }>;
   sinAsesor: number;
+  /// Por donde vive la persona, no por donde se dicta.
+  departamentos: Array<{ id: number | null; nombre: string; total: number }>;
 };
 
 export type Ficha = {
@@ -157,6 +270,10 @@ export type Ficha = {
   origen: Origen;
   creadoEn: string;
   faltantes: { bloquean: string[]; avisan: string[]; reporte: string[] };
+  /// Lo que el enlace le va a pedir, en ese orden: primero lo
+  /// de su organización y después lo suyo.
+  faltaDeLaEmpresa: string[];
+  faltaDeLaPersona: string[];
   cargoEnEmpresa: string | null;
   nivelOcupacionalSepId: number | null;
   beneficiarioPrevio: boolean | null;
@@ -218,7 +335,13 @@ export type Ficha = {
     /// Null si lo movió el sistema, no una persona.
     admin: { nombre: string } | null;
   }>;
-  notas: Array<{ id: string; autorNombre: string; texto: string; creadoEn: string }>;
+  notas: Array<{
+    id: string;
+    autorNombre: string;
+    texto: string;
+    canales?: CanalContacto[];
+    creadoEn: string;
+  }>;
 };
 
 export type EstadoAcademico =
@@ -305,7 +428,6 @@ export type Academico = {
     minimoParaCertificar: number;
   };
 };
-
 
 export type Rango =
   | "HOY"
@@ -551,6 +673,13 @@ export type Filtros = {
   asesorId?: string;
   /** «solo el embudo» o «solo el aula». */
   tramo?: "INSCRIPCION" | "INSCRITOS" | "AULA";
+  /**
+   * Si la ficha esta entera o a medias. No es una columna:
+   * el backend lo traduce a los diez datos que pide el reporte.
+   */
+  estado?: "COMPLETO" | "PARCIAL";
+  /** Por donde vive la persona, no por donde se dicta. */
+  departamentoSepId?: number;
   buscar?: string;
   pagina?: number;
   /** Cuántas filas por carga; el servidor lo topa. */
@@ -646,6 +775,35 @@ export type Opciones = {
   asesores: Asesor[];
 };
 
+/** Un reparto: una etiqueta y su cifra. */
+export type Reparto = { etiqueta: string; valor: number };
+
+/** Los repartos del tablero de Inscripciones. */
+export type MetricasInscripciones = {
+  total: number;
+  /// Las cuatro del embudo, en el orden del proceso.
+  porEtapa: Reparto[];
+  porEstado: Reparto[];
+  /// Cuántos leads trae cada gremio. Para la gráfica.
+  porGremioTotal: Reparto[];
+  /// Un bloque por gremio: son dos convenios con acciones
+  /// propias, y mezclarlas no compara nada. Lleva el id
+  /// porque es lo que entiende el filtro.
+  porGremio: Array<{
+    convenioId: string;
+    gremio: string;
+    acciones: Reparto[];
+    conversion: { inscritos: number; base: number; porcentaje: number };
+  }>;
+  /// Cuántos leads entran por día desde que entró el primero.
+  promedioPorDia: { valor: number; dias: number };
+  porDepartamento: Reparto[];
+  /// Los que no tienen domicilio. Fuera del reparto a propósito.
+  sinDepartamento: number;
+  porAsesor: Reparto[];
+  conversion: { inscritos: number; base: number; porcentaje: number };
+};
+
 export const crmApi = {
   borrarParticipacion: (id: string) =>
     pedir<{
@@ -688,6 +846,9 @@ export const crmApi = {
 
   catalogos: () => pedir<CatalogosSep>("/admin/participantes/catalogos"),
 
+  metricas: (filtros: Filtros = {}) =>
+    pedir<MetricasInscripciones>(`/admin/participantes/metricas${consulta(filtros)}`),
+
   resumen: (filtros: Filtros = {}) =>
     pedir<Resumen>(`/admin/participantes/resumen${consulta(filtros)}`),
 
@@ -714,11 +875,30 @@ export const crmApi = {
       body: JSON.stringify({ etapa, motivo }),
     }),
 
-  agregarNota: (id: string, texto: string) =>
+  agregarNota: (id: string, texto: string, canales: CanalContacto[]) =>
     pedir<Record<string, unknown>>(`/admin/participantes/${id}/notas`, {
       method: "POST",
-      body: JSON.stringify({ texto }),
+      body: JSON.stringify({ texto, canales }),
     }),
+
+  /** Lo que mandó el interesado, si hay algo pendiente. */
+  propuesta: (id: string) =>
+    pedir<PropuestaDelInteresado | null>(`/admin/participantes/${id}/propuesta`),
+
+  /** Qué campos del interesado se aceptan. */
+  resolverPropuesta: (id: string, aceptados: string[]) =>
+    pedir<Record<string, unknown>>(`/admin/participantes/${id}/propuesta`, {
+      method: "POST",
+      body: JSON.stringify({ aceptados }),
+    }),
+
+  /** En qué va la consulta al RUI de esta ficha. */
+  estadoRui: (id: string) =>
+    pedir<ConsultaRui>(`/admin/participantes/${id}/rui`),
+
+  /** Vuelve a preguntarle al RUI. */
+  reconsultarRui: (id: string) =>
+    pedir<ConsultaRui>(`/admin/participantes/${id}/rui`, { method: "POST" }),
 
   /** Un enlace nuevo. El anterior deja de valer. */
   emitirEnlace: (id: string) =>

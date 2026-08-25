@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Geist_Mono, Plus_Jakarta_Sans } from "next/font/google";
+import { Geist_Mono, Raleway } from "next/font/google";
 
 import { FranjaEntorno } from "@/components/franja-entorno";
 import { ProveedorMarca } from "@/components/marca-publica";
@@ -8,8 +8,8 @@ import { SCRIPT_PALETA } from "@/lib/marca";
 import { SCRIPT_SIN_PARPADEO } from "@/lib/tema";
 import "./globals.css";
 
-// la misma familia del resto de las apps del grupo
-const jakarta = Plus_Jakarta_Sans({
+// Raleway: la institucional del Grupo AE
+const raleway = Raleway({
   variable: "--font-geist-sans",
   subsets: ["latin"],
 });
@@ -35,7 +35,7 @@ export default function RootLayout({
   return (
     <html
       lang="es"
-      className={`${jakarta.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${raleway.variable} ${geistMono.variable} h-full antialiased`}
       // el script fija data-tema antes
       suppressHydrationWarning
     >

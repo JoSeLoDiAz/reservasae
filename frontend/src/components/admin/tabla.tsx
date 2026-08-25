@@ -53,6 +53,84 @@ export type Columna<T> = {
 
 type Orden = { clave: string; asc: boolean } | null;
 
+/// Ancho minimo de una columna estirada a mano. Por debajo de
+/// esto la cabecera deja de leerse y no sirve de nada.
+const ANCHO_MINIMO = 80;
+
+/**
+ * El tirador del borde derecho de una columna.
+ *
+ * Escucha en `window` y no en el propio elemento: si el raton
+ * se adelanta al arrastre -- y con una tabla ancha siempre se
+ * adelanta -- el evento cae fuera del tirador y el arrastre se
+ * corta a mitad de camino.
+ */
+function TiradorDeAncho({
+  titulo,
+  alEmpezar,
+  alArrastrar,
+  alSoltarDobleClic,
+}: {
+  titulo: string;
+  /// Los anchos de todas las columnas, medidos justo antes de
+  /// arrastrar. Sin esto la tabla reparte a su gusto.
+  alEmpezar: (anchos: Record<string, number>) => void;
+  alArrastrar: (px: number) => void;
+  alSoltarDobleClic: () => void;
+}) {
+  function empezar(e: React.PointerEvent<HTMLDivElement>) {
+    e.preventDefault();
+    e.stopPropagation();
+
+    const celda = e.currentTarget.parentElement;
+    if (!celda) return;
+
+    const fila = celda.parentElement;
+    if (fila) {
+      const medidas: Record<string, number> = {};
+      for (const th of Array.from(fila.children)) {
+        const clave = (th as HTMLElement).dataset.columna;
+        if (clave) medidas[clave] = Math.round(th.getBoundingClientRect().width);
+      }
+      alEmpezar(medidas);
+    }
+
+    const desdeX = e.clientX;
+    const desdeAncho = celda.getBoundingClientRect().width;
+
+    const mover = (ev: PointerEvent) => {
+      alArrastrar(Math.max(ANCHO_MINIMO, Math.round(desdeAncho + ev.clientX - desdeX)));
+    };
+    const soltar = () => {
+      window.removeEventListener("pointermove", mover);
+      window.removeEventListener("pointerup", soltar);
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+    };
+
+    // sin esto el arrastre va seleccionando el texto de la tabla
+    document.body.style.cursor = "col-resize";
+    document.body.style.userSelect = "none";
+    window.addEventListener("pointermove", mover);
+    window.addEventListener("pointerup", soltar);
+  }
+
+  return (
+    <div
+      onPointerDown={empezar}
+      onDoubleClick={(e) => {
+        e.stopPropagation();
+        alSoltarDobleClic();
+      }}
+      role="separator"
+      aria-orientation="vertical"
+      aria-label={`Ajustar el ancho de ${titulo}. Doble clic para dejarlo automático.`}
+      title="Arrastre para ajustar. Doble clic para dejarlo automático."
+      className="absolute top-0 right-0 h-full w-2 cursor-col-resize touch-none select-none hover:bg-marca/30"
+    />
+  );
+}
+
 type Vista = {
   nombre: string;
   visibles: string[];
@@ -60,7 +138,12 @@ type Vista = {
   orden: Orden;
 };
 
-type Guardado = { visibles?: string[]; vistas?: Vista[] };
+type Guardado = {
+  visibles?: string[];
+  vistas?: Vista[];
+  /// Clave de columna -> ancho en px, el que dejo el usuario.
+  anchos?: Record<string, number>;
+};
 
 const sinTildes = (t: string) =>
   t.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
@@ -118,6 +201,9 @@ export function Tabla<T>({
   );
 
   const [visibles, setVisibles] = useState<string[]>(porDefecto);
+  /// Lo que el usuario estiro a mano. Vacio = el ancho que
+  /// decida la tabla sola.
+  const [anchos, setAnchos] = useState<Record<string, number>>({});
   const [vistas, setVistas] = useState<Vista[]>([]);
   const [listo, setListo] = useState(false);
 
@@ -133,6 +219,7 @@ export function Tabla<T>({
   /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     const g = leer(id);
+    if (g.anchos) setAnchos(g.anchos);
     const validas = (g.visibles ?? []).filter((c) =>
       columnas.some((x) => x.clave === c),
     );
@@ -143,7 +230,7 @@ export function Tabla<T>({
   /* eslint-enable react-hooks/set-state-in-effect */
 
   useEffect(() => {
-    if (listo) escribir(id, { visibles, vistas });
+    if (listo) escribir(id, { visibles, vistas, anchos });
   }, [id, visibles, vistas, listo]);
 
   // al cambiar el filtro se vuelve a la primera pagina.
@@ -290,13 +377,13 @@ export function Tabla<T>({
   const paginaEntera = enPagina.length > 0 && marcadasAqui === enPagina.length;
   const todasLasQueCoinciden = nFiltradas > 0 && vigentes.length === nFiltradas;
   // sin filtro puesto, «coinciden» no dice nada
-  const cuales = hayFiltro ? "que coinciden con el filtro" : "cargadas";
+  const cuales = hayFiltro ? "que coinciden con el filtro" : "los leads";
   // hay mas en el servidor sin cargar
   const totalServidor =
     total !== undefined && total > (filas?.length ?? 0) ? total : null;
 
   return (
-    <div className="space-y-3">
+    <div className="flex min-h-0 grow flex-col gap-3">
       <Barra
         buscar={buscar}
         setBuscar={setBuscar}
@@ -376,7 +463,9 @@ export function Tabla<T>({
             <span className="font-normal text-texto-suave">
               {" · "}
               {todasLasQueCoinciden
-                ? "todas las " + cuales
+                ? hayFiltro
+                  ? "todas las " + cuales
+                  : "todos " + cuales
                 : "de " + nFiltradas.toLocaleString("es-CO") + " " + cuales}
             </span>
           </span>
@@ -388,7 +477,8 @@ export function Tabla<T>({
               onClick={() => setMarcadas(new Set((filtradas ?? []).map((r) => r.id)))}
               className="text-sm font-medium text-marca underline"
             >
-              Seleccionar las {nFiltradas.toLocaleString("es-CO")} {cuales}
+              Seleccionar {hayFiltro ? "las" : ""} {nFiltradas.toLocaleString("es-CO")}{" "}
+              {hayFiltro ? cuales : "leads"}
             </button>
           )}
 
@@ -420,9 +510,19 @@ export function Tabla<T>({
         </div>
       )}
 
-      <div className="overflow-hidden rounded-2xl border border-borde bg-superficie shadow-sm">
-        <div className="caja-scroll max-h-[70vh] overflow-auto">
-          <table className="tabla-datos text-sm">
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-borde bg-superficie shadow-sm">
+        {/* Se estira con su contenedor en vez de llevar un tope
+            fijo: con `max-h` quedaba media pantalla en blanco
+            debajo cuando la ventana era alta. */}
+        <div className="caja-scroll min-h-0 flex-1 overflow-auto">
+            <table
+              className="tabla-datos w-full text-sm"
+              style={
+                Object.keys(anchos).length > 0
+                  ? { tableLayout: "fixed" }
+                  : undefined
+              }
+            >
             <thead className="sticky top-0 z-10">
               <tr>
                 {seleccion && (
@@ -454,8 +554,17 @@ export function Tabla<T>({
                 {enPantalla.map((c) => (
                   <th
                     key={c.clave}
-                    style={c.ancho ? { width: c.ancho } : undefined}
-                    className={c.numerica ? "text-right" : undefined}
+                    data-columna={c.clave}
+                    style={
+                      anchos[c.clave]
+                        ? { width: anchos[c.clave] }
+                        : c.ancho
+                          ? { width: c.ancho }
+                          : undefined
+                    }
+                    className={
+                      "relative" + (c.numerica ? " text-right" : "")
+                    }
                     aria-sort={
                       orden?.clave === c.clave
                         ? orden.asc
@@ -476,6 +585,25 @@ export function Tabla<T>({
                       {orden?.clave === c.clave &&
                         (orden.asc ? <IconoArriba tamano={13} /> : <IconoAbajo tamano={13} />)}
                     </button>
+
+                    <TiradorDeAncho
+                      titulo={c.titulo}
+                      alEmpezar={(medidas) =>
+                        setAnchos((a) =>
+                          Object.keys(a).length > 0 ? a : medidas,
+                        )
+                      }
+                      alArrastrar={(px) =>
+                        setAnchos((a) => ({ ...a, [c.clave]: px }))
+                      }
+                      alSoltarDobleClic={() =>
+                        setAnchos((a) => {
+                          const resto = { ...a };
+                          delete resto[c.clave];
+                          return resto;
+                        })
+                      }
+                    />
                   </th>
                 ))}
               </tr>

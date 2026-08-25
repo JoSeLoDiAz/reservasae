@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { createContext, useCallback, useContext, useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 
 import { ConmutadorTema } from "@/components/marca-publica";
 import { adminApi, type AdminActual, type Area, type Nivel } from "@/lib/admin-api";
@@ -121,8 +122,16 @@ export function MarcoAdmin({ children }: { children: React.ReactNode }) {
 
         <div className="flex min-w-0 grow flex-col">
           <Cabecera ruta={ruta} alAbrirMenu={() => setCajon(true)} />
-          <main id="contenido" tabIndex={-1} className="w-full grow px-4 py-6 lg:px-8">
-            <div className="mx-auto w-full max-w-6xl">{children}</div>
+          <main
+            id="contenido"
+            tabIndex={-1}
+            className="flex w-full min-h-0 grow flex-col px-4 py-6 lg:px-8"
+          >
+            {/* Sin tope de ancho: son tablas de trabajo y en un
+                monitor ancho `max-w-6xl` las dejaba espichadas.
+                Cada pantalla decide que bloques suyos se quedan
+                cortos, que es donde de verdad importa. */}
+            <div className="flex min-h-0 w-full grow flex-col">{children}</div>
           </main>
         </div>
       </div>
@@ -135,27 +144,45 @@ function migas(ruta: string): string[] {
   for (const modulo of MODULOS) {
     for (const enlace of modulo.enlaces) {
       if (estaActivo(enlace, ruta)) {
-        const paso = modulo.paso ? `${modulo.paso}. ` : "";
-        return [`${paso}${modulo.etiqueta}`, enlace.etiqueta];
+        return [modulo.etiqueta, enlace.etiqueta];
       }
     }
   }
   return ["Panel"];
 }
 
+/// El archivo del logo. Si no esta, se pinta la letra: un
+/// icono roto en la esquina superior izquierda se ve peor
+/// que una C, y el panel no puede depender de un PNG.
+const LOGO = "/logo-convoca.png";
+
 /// La marca. Igual en la barra y en el cajón.
 function Marca({ plegado }: { plegado?: boolean }) {
+  const [sinLogo, setSinLogo] = useState(false);
+
   return (
     <Link
       href="/admin"
       className={`flex items-center gap-2.5 no-underline ${plegado ? "justify-center" : ""}`}
     >
-      <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-marca text-sm font-bold text-marca-texto">
-        C
-      </span>
+      {sinLogo ? (
+        <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-marca text-sm font-bold text-marca-texto">
+          C
+        </span>
+      ) : (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={LOGO}
+          alt=""
+          width={36}
+          height={36}
+          onError={() => setSinLogo(true)}
+          className="h-9 w-9 shrink-0 object-contain"
+        />
+      )}
       {!plegado && (
         <span className="flex min-w-0 flex-col leading-tight">
-          <span className="truncate text-sm font-bold">Convoca</span>
+          <span className="truncate text-sm font-bold">Convoca CRM</span>
           <span className="truncate text-[10px] opacity-60">panel de gestión</span>
         </span>
       )}
@@ -216,6 +243,31 @@ function Grupos({
   /// El cajón se cierra al pulsar, no tras navegar.
   alNavegar?: () => void;
 }) {
+  /// Arranca abierto el grupo donde esta la pantalla actual:
+  /// entrar y no ver donde estas parado es peor que verlo todo.
+  const delaRuta =
+    MODULOS.find((m) =>
+      enlacesVisibles(m, permisos, esSuperadmin).some((e) => estaActivo(e, ruta)),
+    )?.clave ?? null;
+
+  const [abierto, setAbierto] = useState<string | null>(delaRuta);
+
+  /// Navegar a otra seccion abre la suya. Sin esto, pulsar un
+  /// enlace desde otro grupo deja el menu mostrando un grupo
+  /// que ya no es donde estas.
+  const [ultimaRuta, setUltimaRuta] = useState(ruta);
+  if (ultimaRuta !== ruta) {
+    setUltimaRuta(ruta);
+    if (delaRuta) setAbierto(delaRuta);
+  }
+
+  /// Uno solo abierto: dos columnas de enlaces desplegadas a
+  /// la vez son la lista completa otra vez, que es de lo que
+  /// se trataba salir.
+  function alternar(clave: string) {
+    setAbierto((actual) => (actual === clave ? null : clave));
+  }
+
   return (
     <>
       {MODULOS.map((modulo) => {
@@ -226,7 +278,6 @@ function Grupos({
         // enlace. Quince iconos en fila no distinguen nada
         if (plegado) {
           const activo = enlaces.some((e) => estaActivo(e, ruta));
-          const Icono = modulo.icono;
           return (
             <Link
               key={modulo.clave}
@@ -240,25 +291,58 @@ function Grupos({
                   : "opacity-60 hover:bg-current/8 hover:opacity-100"
               }`}
             >
-              {Icono ? <Icono tamano={18} /> : <span>{modulo.paso ?? "·"}</span>}
+              <span aria-hidden className="text-lg leading-none">
+                {modulo.emoji}
+              </span>
             </Link>
           );
         }
 
+        const desplegado = abierto === modulo.clave;
+
         return (
-          <section key={modulo.clave} className="mb-5">
-            <h2
-              className="px-3 pb-1.5 text-[10px] font-bold tracking-[0.08em] uppercase opacity-45"
-              title={modulo.descripcion}
-            >
-              {modulo.paso ? `${modulo.paso}. ` : ""}
-              {modulo.etiqueta}
+          <section key={modulo.clave} className="mb-1.5">
+            <h2>
+              <button
+                type="button"
+                onClick={() => alternar(modulo.clave)}
+                aria-expanded={desplegado}
+                title={modulo.descripcion}
+                className={`flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm transition ${
+                  desplegado
+                    ? "font-medium opacity-100"
+                    : "opacity-65 hover:bg-current/8 hover:opacity-100"
+                }`}
+              >
+                <span aria-hidden className="shrink-0 text-base leading-none">
+                  {modulo.emoji}
+                </span>
+                <span className="truncate">
+                  {modulo.etiqueta}
+                </span>
+                <svg
+                  aria-hidden
+                  viewBox="0 0 24 24"
+                  width={14}
+                  height={14}
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth={2.5}
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className={`ml-auto shrink-0 opacity-70 transition-transform ${
+                    desplegado ? "rotate-90" : ""
+                  }`}
+                >
+                  <path d="m9 18 6-6-6-6" />
+                </svg>
+              </button>
             </h2>
 
-            <ul className="space-y-0.5">
+            {desplegado && (
+            <ul className="mt-0.5 mb-2 ml-4 space-y-0.5 border-l border-current/15 pl-2">
               {enlaces.map((enlace) => {
                 const activo = estaActivo(enlace, ruta);
-                const Icono = enlace.icono;
                 return (
                   <li key={enlace.href}>
                     <Link
@@ -277,13 +361,13 @@ function Grupos({
                           className="absolute top-1.5 bottom-1.5 -left-1 w-[3px] rounded-full bg-marca"
                         />
                       )}
-                      {Icono && <Icono tamano={17} className="shrink-0" />}
                       <span className="truncate">{enlace.etiqueta}</span>
                     </Link>
                   </li>
                 );
               })}
             </ul>
+            )}
           </section>
         );
       })}
@@ -419,6 +503,28 @@ function CajonMovil({
   );
 }
 
+/// El hueco de la barra superior donde cada pantalla pone sus
+/// acciones, con `AccionesDePagina`.
+export const RANURA_ACCIONES = "acciones-de-pagina";
+
+/**
+ * Manda unos botones a la barra superior.
+ *
+ * Por portal y no por props: el marco no tiene por que saber
+ * que botones lleva cada pantalla, y pasarlos de padre en
+ * padre obligaria a tocar el layout por cada pantalla nueva.
+ */
+export function AccionesDePagina({ children }: { children: React.ReactNode }) {
+  const [ranura, setRanura] = useState<HTMLElement | null>(null);
+
+  useEffect(() => {
+    setRanura(document.getElementById(RANURA_ACCIONES));
+  }, []);
+
+  if (!ranura) return null;
+  return createPortal(children, ranura);
+}
+
 function Cabecera({ ruta, alAbrirMenu }: { ruta: string; alAbrirMenu: () => void }) {
   const [abierto, setAbierto] = useState(false);
 
@@ -454,7 +560,15 @@ function Cabecera({ ruta, alAbrirMenu }: { ruta: string; alAbrirMenu: () => void
         ))}
       </nav>
 
-      <div className="ml-auto flex items-center gap-1.5">
+      {/* Donde cada pantalla cuelga sus acciones. Vive aqui y
+          no en el cuerpo para que no se muevan al hacer scroll
+          ni empujen el titulo hacia abajo. */}
+      <div
+        id={RANURA_ACCIONES}
+        className="ml-auto flex flex-wrap items-center justify-end gap-3"
+      />
+
+      <div className="flex items-center gap-1.5">
         <ConmutadorTema compacto />
 
         {/* el relative va aqui: si abraza todo el grupo,
@@ -485,17 +599,29 @@ export const CLASE_CONTROL =
 export function Tarjeta({
   titulo,
   descripcion,
+  centrado,
   children,
 }: {
   titulo: string;
   descripcion?: React.ReactNode;
+  /// Solo para las graficas: dos tarjetas de la misma fila
+  /// miden lo mismo y el contenido se centra en vez de
+  /// quedarse pegado arriba. En un formulario o una lista
+  /// centrar vertical se ve mal, asi que no es lo de siempre.
+  centrado?: boolean;
   children: React.ReactNode;
 }) {
   return (
-    <section className="rounded-2xl border border-borde bg-superficie p-6 shadow-sm">
+    <section
+      className={`rounded-2xl border border-borde bg-superficie p-6 shadow-sm ${
+        centrado ? "flex h-full flex-col" : ""
+      }`}
+    >
       <h2 className="text-lg font-semibold">{titulo}</h2>
       {descripcion && <p className="mt-1 text-sm text-texto-suave">{descripcion}</p>}
-      <div className="mt-5">{children}</div>
+      <div className={`mt-5 ${centrado ? "flex grow flex-col justify-center" : ""}`}>
+        {children}
+      </div>
     </section>
   );
 }

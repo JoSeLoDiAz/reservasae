@@ -473,7 +473,7 @@ const TONO_COLOR: Record<Tono, string> = {
 const CICLO_SERIE = [SERIE.uno, SERIE.dos, SERIE.tres];
 
 /** Una parte sobre su total, ya con coma decimal. */
-function formatoPorcentaje(valor: number, total: number): string {
+export function formatoPorcentaje(valor: number, total: number): string {
   if (total <= 0) return "0,0 %";
   return `${((valor / total) * 100).toFixed(1).replace(".", ",")} %`;
 }
@@ -545,7 +545,7 @@ export function Donut({
   }
 
   return (
-    <div className="flex flex-col items-center gap-5 sm:flex-row">
+    <div className="flex w-full flex-col items-center gap-5 sm:flex-row">
       <svg
         width={tamano}
         height={tamano}
