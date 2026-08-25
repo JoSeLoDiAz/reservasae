@@ -9,9 +9,33 @@ import {
   preinscripcionApi,
   type AccionPublica,
   type CatalogoPreinscripcion,
+  type OfertaPublica,
 } from "@/lib/preinscripcion-api";
 
 import { BannerLogos, EncabezadoPublico, PiePublico } from "./marca-publica";
+
+/// Los dos ids del catalogo del SEP que cambian el
+/// comportamiento del formulario. Aqui y no en el backend
+/// porque es la pantalla la que reacciona.
+const DOCUMENTO_CEDULA = 1;
+const DOCUMENTO_OTRO = 5;
+/// El unico "otro" que el SEP admite en genero.
+const GENERO_NO_BINARIO = 3;
+
+/// El formulario va de a una pantalla. El orden es el del
+/// tramite: primero si hay algo para usted, despues quien
+/// es, despues que autoriza, y al final lo revisa.
+type Pantalla = "eleccion" | "datos" | "habeas" | "revision";
+
+/// Solo por si el convenio todavia no tiene texto cargado.
+/// El bueno se redacta en el panel, en Politicas.
+const TEXTO_DE_RESPALDO =
+  "Autorizo de manera libre, previa, expresa e informada el tratamiento de mis datos " +
+  "personales para gestionar mi preinscripción, confirmar mi cupo y adelantar el " +
+  "proceso de matrícula en la formación seleccionada, así como para contactarme por " +
+  "los medios que registré. Podré conocer, actualizar, rectificar y suprimir mis " +
+  "datos, y revocar esta autorización, en los términos de la Ley 1581 de 2012 y el " +
+  "Decreto 1377 de 2013.";
 
 const CAMPO =
   "w-full rounded-xl border border-campo-borde bg-campo-fondo px-3 py-2.5 text-texto " +
@@ -22,12 +46,22 @@ export function PreinscripcionPublica({ slug }: { slug: string }) {
   const [noExiste, setNoExiste] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
-  const [hecho, setHecho] = useState<{ token: string; yaEstaba: boolean } | null>(null);
+  const [hecho, setHecho] = useState<{ token: string; nombre: string } | null>(null);
 
   const [accionId, setAccionId] = useState("");
   const [ofertaId, setOfertaId] = useState("");
+  /// El domicilio manda: decide que acciones tienen cobertura.
+  const [departamento, setDepartamento] = useState("");
+  const [ciudad, setCiudad] = useState("");
+  /// Una pantalla a la vez. Todo junto se ve cargado y
+  /// ademas pide 8 datos personales antes de saber si hay
+  /// algo con cobertura donde vive.
+  const [pantalla, setPantalla] = useState<Pantalla>("eleccion");
   const [datos, setDatos] = useState({
     tipoDocumentoSepId: "",
+    documentoOtroCual: "",
+    generoOtroCual: "",
+    aceptaPolitica: "",
     numeroDocumento: "",
     nombres: "",
     primerApellido: "",
@@ -36,6 +70,12 @@ export function PreinscripcionPublica({ slug }: { slug: string }) {
     celular: "",
     correo: "",
   });
+
+  /// Cambiar de pantalla sin subir deja a la persona
+  /// mirando el pie de pagina.
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }, [pantalla]);
 
   useEffect(() => {
     preinscripcionApi
@@ -52,8 +92,6 @@ export function PreinscripcionPublica({ slug }: { slug: string }) {
   if (!catalogo) {
     return <p className="p-10 text-texto-suave">Cargando la convocatoria…</p>;
   }
-
-  const accion = catalogo.acciones.find((a) => a.id === accionId);
 
   function cambiar(campo: keyof typeof datos, valor: string) {
     setDatos((d) => ({ ...d, [campo]: valor }));
@@ -72,74 +110,336 @@ export function PreinscripcionPublica({ slug }: { slug: string }) {
         segundoNombre: resto(datos.nombres),
         primerApellido: datos.primerApellido,
         segundoApellido: datos.segundoApellido || undefined,
-        generoSepId:
-          datos.generoSepId && datos.generoSepId !== "NO_DECIR"
-            ? Number(datos.generoSepId)
-            : undefined,
+        // "Otro" viaja como NO BINARIO: el catalogo del SEP
+        // solo admite tres valores y no tiene donde poner
+        // texto. Lo que la persona escriba se guarda aparte
+        generoSepId: datos.generoSepId
+          ? datos.generoSepId === "OTRO"
+            ? GENERO_NO_BINARIO
+            : Number(datos.generoSepId)
+          : undefined,
+        generoOtroTexto: esOtroGenero ? datos.generoOtroCual || undefined : undefined,
         celular: datos.celular,
         correo: datos.correo,
+        departamentoNombre: departamento || undefined,
+        ciudadNombre: ciudad || undefined,
+        // sin esto la autorizacion se quedaba en la pantalla:
+        // se marcaba la casilla y no quedaba constancia de
+        // nada, que es justo lo que hay que poder demostrar
+        aceptaPolitica: datos.aceptaPolitica === "si",
       });
-      setHecho({ token: r.token, yaEstaba: r.yaEstaba });
+      setHecho({ token: r.token, nombre: nombreCompleto });
     } catch (err) {
       setError((err as ErrorApi).message);
       setEnviando(false);
     }
   }
 
-  if (hecho) return <Registrada token={hecho.token} yaEstaba={hecho.yaEstaba} />;
+  if (hecho) return <Registrada token={hecho.token} nombre={hecho.nombre} />;
+
+  const ciudadesDelDepto =
+    catalogo.ubicaciones.find((u) => u.departamento === departamento)?.ciudades ?? [];
+
+  /// Una oferta de DEPARTAMENTO cubre a todo el que viva ahi.
+  /// Una de CIUDAD cubre solo esa ciudad: por eso quien vive
+  /// en Bello no ve la presencial que se dicta en Medellin.
+  const cubre = (o: (typeof catalogo.acciones)[number]["ofertas"][number]) =>
+    o.tipo === "DEPARTAMENTO"
+      ? o.ubicacion === departamento
+      : o.ubicacion === ciudad;
+
+  const conCobertura = departamento
+    ? catalogo.acciones
+        .map((a) => ({ accion: a, oferta: a.ofertas.find(cubre) ?? null }))
+        .filter((x) => x.oferta !== null)
+    : [];
+
+  const accionElegida = catalogo.acciones.find((a) => a.id === accionId) ?? null;
+  const nombreAccion = accionElegida?.nombre ?? "";
+  const ubicacionLegible = ciudad ? `${departamento} · ${ciudad}` : departamento;
+
+  const nombreCompleto = [datos.nombres, datos.primerApellido, datos.segundoApellido]
+    .filter(Boolean)
+    .join(" ");
+
+  const sigla =
+    catalogo.documentos.find((d) => String(d.id) === datos.tipoDocumentoSepId)?.etiqueta ??
+    "";
+  const documentoLegible = `${sigla} ${datos.numeroDocumento}`.trim();
+
+  /// El tipo manda sobre lo que se admite en el numero.
+  const esCedula = Number(datos.tipoDocumentoSepId) === DOCUMENTO_CEDULA;
+  const esOtroDocumento = Number(datos.tipoDocumentoSepId) === DOCUMENTO_OTRO;
+  const esOtroGenero = datos.generoSepId === "OTRO";
+
+  const correoValido = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(datos.correo.trim());
+
+  /// Lo que falta, con nombre. Un boton apagado sin decir
+  /// por que es lo que hace que la gente abandone.
+  const faltaEnDatos = [
+    !datos.nombres.trim() && "nombres",
+    !datos.primerApellido.trim() && "primer apellido",
+    !datos.generoSepId && "género",
+    esOtroGenero && !datos.generoOtroCual.trim() && "cuál es su género",
+    datos.celular.length !== 10 &&
+      (datos.celular ? "el celular completo (10 dígitos)" : "celular"),
+    !correoValido && (datos.correo.trim() ? "un correo válido" : "correo electrónico"),
+    !datos.tipoDocumentoSepId && "tipo de documento",
+    !datos.numeroDocumento.trim() && "número de documento",
+    esOtroDocumento && !datos.documentoOtroCual.trim() && "cuál es el documento",
+  ].filter(Boolean) as string[];
 
   return (
     <>
-      <main className="mx-auto w-full max-w-2xl px-6 py-10">
+      <main className="mx-auto w-full max-w-2xl px-6 py-10 lg:max-w-4xl">
       <EncabezadoPublico
-        titulo="Regístrese en la formación"
-        subtitulo="Es gratuita. Con estos datos queda registrado; después podrá completar el resto."
+        titulo="Preinscripción a la formación"
+        subtitulo="Formación gratuita y certificada con cupos limitados."
       />
 
-      <form onSubmit={enviar} className="mt-8 space-y-8">
-        <section className="rounded-2xl border border-borde bg-superficie p-6 shadow-sm">
-          <h2 className="text-lg font-semibold">Qué curso le interesa</h2>
+      <form
+        onSubmit={enviar}
+        /* Enter dentro de un campo no envia: el formulario se
+           manda solo desde el resumen, y a medio llenar seria
+           una ficha incompleta que nadie pidio */
+        onKeyDown={(e) => {
+          if (e.key === "Enter" && (e.target as HTMLElement).tagName !== "TEXTAREA") {
+            e.preventDefault();
+          }
+        }}
+        className="mt-8 space-y-8"
+      >
+        {/* el estado del proceso: reservar no es estar inscrito */}
+        <BandaDeEstado paso={1} />
 
-          <div className="mt-5 space-y-4">
+        {/* Pantalla 1. Donde vive y que le interesa, nada
+            mas. Pedirle ocho datos personales antes de
+            saber si hay algo con cobertura donde vive es
+            pedirle trabajo a cambio de nada */}
+        {pantalla === "eleccion" && (
+          <>
+        <section className="rounded-2xl border border-borde bg-superficie p-6 shadow-sm">
+          <h2 className="text-lg font-semibold">Ubicación de domicilio</h2>
+          <p className="mt-1 text-sm text-texto-suave">
+            Seleccione su departamento y ciudad para consultar las acciones de formación
+            disponibles.
+          </p>
+
+          <div className="mt-5 grid gap-4 sm:grid-cols-2">
             <label className="block">
-              <span className="mb-1.5 block text-sm font-medium">
-                Acción de formación
-              </span>
+              <span className="mb-1.5 block text-sm font-medium">Departamento</span>
               <select
                 required
-                value={accionId}
+                value={departamento}
                 onChange={(e) => {
-                  setAccionId(e.target.value);
+                  setDepartamento(e.target.value);
+                  setCiudad("");
+                  setAccionId("");
                   setOfertaId("");
                 }}
                 className={CAMPO}
               >
-                <option value="">Elija una…</option>
-                {catalogo.acciones.map((a) => (
-                  <option key={a.id} value={a.id}>
-                    {a.codigo} · {a.nombre} ({a.horas} horas)
+                <option value="">Elija…</option>
+                {catalogo.ubicaciones.map((u) => (
+                  <option key={u.departamento} value={u.departamento}>
+                    {u.departamento}
                   </option>
                 ))}
               </select>
             </label>
 
-            {accion && <Ubicaciones accion={accion} valor={ofertaId} alElegir={setOfertaId} />}
+            <label className="block">
+              <span className="mb-1.5 block text-sm font-medium">
+                Ciudad
+                {ciudadesDelDepto.length === 0 && departamento && (
+                  <span className="font-normal text-texto-suave"> (no aplica)</span>
+                )}
+              </span>
+              <select
+                value={ciudad}
+                disabled={!departamento || ciudadesDelDepto.length === 0}
+                onChange={(e) => {
+                  setCiudad(e.target.value);
+                  setAccionId("");
+                  setOfertaId("");
+                }}
+                className={CAMPO + (departamento ? "" : " opacity-50")}
+              >
+                <option value="">
+                  {ciudadesDelDepto.length === 0 ? "Sin sedes presenciales" : "Elija…"}
+                </option>
+                {ciudadesDelDepto.map((c) => (
+                  <option key={c} value={c}>
+                    {c}
+                  </option>
+                ))}
+              </select>
+            </label>
           </div>
         </section>
 
+        {/* las acciones salen aqui mismo, no en otra pantalla */}
+        {departamento && (
+          <section>
+            <div className="flex flex-wrap items-baseline justify-between gap-3">
+              <h2 className="text-xl font-bold tracking-tight">
+                Acciones de formación disponibles
+              </h2>
+              <span className="text-sm text-texto-suave">
+                {conCobertura.length} con cobertura en {departamento}
+                {ciudad ? ` · ${ciudad}` : ""}
+              </span>
+            </div>
+
+            <p className="mt-1 text-sm text-texto-suave">
+              A continuación, las acciones de formación disponibles para su inscripción:
+            </p>
+
+            {conCobertura.length > 0 && (
+              <p className="mt-3 rounded-xl bg-marca-suave px-4 py-3 text-sm text-marca">
+                Seleccione la que sea de su mayor interés, considerando que solo puede
+                inscribirse en una.
+              </p>
+            )}
+
+            {conCobertura.length === 0 && (
+              <p className="mt-3 rounded-xl border border-borde bg-superficie px-4 py-3 text-sm text-texto-suave">
+                No hay acciones con cobertura en esa ubicación. Pruebe con otra ciudad del
+                mismo departamento.
+              </p>
+            )}
+
+            <div className="mt-4 grid gap-4 sm:grid-cols-2">
+              {conCobertura.map(({ accion, oferta }) => (
+                <TarjetaAccion
+                  key={accion.id}
+                  accion={accion}
+                  oferta={oferta!}
+                  elegida={accionId === accion.id}
+                  /* elegir es avanzar: la lista se guarda y
+                     salen los datos personales */
+                  alElegir={() => {
+                    setAccionId(accion.id);
+                    setOfertaId(oferta!.id);
+                    setPantalla("datos");
+                  }}
+                />
+              ))}
+            </div>
+          </section>
+        )}
+          </>
+        )}
+
+        {/* Pantalla 2. Con la eleccion arriba, en una linea,
+            y un boton para deshacerla */}
+        {pantalla === "datos" && (
+          <>
+        <LoElegido
+          codigo={accionElegida?.codigo ?? ""}
+          nombre={nombreAccion}
+          ubicacion={ubicacionLegible}
+          alCambiar={() => setPantalla("eleccion")}
+        />
+
         <section className="rounded-2xl border border-borde bg-superficie p-6 shadow-sm">
-          <h2 className="text-lg font-semibold">Sus datos</h2>
+          <h2 className="text-lg font-semibold">Datos Personales</h2>
           <p className="mt-1 text-sm text-texto-suave">
-            Solo lo indispensable. El resto puede completarlo después.
+            Para formalizar su inscripción, complete la siguiente información:
           </p>
 
-          <div className="mt-5 grid gap-4 sm:grid-cols-2">
+          {/* dos columnas desde tablet, tres en escritorio: en
+              pantalla grande la rejilla de dos dejaba el
+              formulario apretado en una columna estrecha */}
+          <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {/* el nombre completo ocupa la fila entera: es lo
+                mas largo del formulario y partido en dos se
+                corta a la mitad */}
+            <div className="sm:col-span-2 lg:col-span-3">
+              <Texto
+                etiqueta="Nombres"
+                valor={datos.nombres}
+                alCambiar={(v) => cambiar("nombres", v)}
+                requerido
+              />
+            </div>
+
+            <Texto
+              etiqueta="Primer apellido"
+              valor={datos.primerApellido}
+              alCambiar={(v) => cambiar("primerApellido", v)}
+              requerido
+            />
+            <Texto
+              etiqueta="Segundo apellido"
+              valor={datos.segundoApellido}
+              alCambiar={(v) => cambiar("segundoApellido", v)}
+              sinOpcional
+            />
+
+            <label className="block">
+              <span className="mb-1.5 block text-sm font-medium">Género</span>
+              <select
+                required
+                value={datos.generoSepId}
+                onChange={(e) => {
+                  cambiar("generoSepId", e.target.value);
+                  if (e.target.value !== "OTRO") cambiar("generoOtroCual", "");
+                }}
+                className={CAMPO}
+              >
+                <option value="">Elija…</option>
+                <option value="1">Masculino</option>
+                <option value="2">Femenino</option>
+                <option value="OTRO">Otro</option>
+              </select>
+            </label>
+
+            {esOtroGenero && (
+              <div className="sm:col-span-2 lg:col-span-3">
+                <Texto
+                  etiqueta="¿Cuál? Se guarda tal como lo escriba"
+                  valor={datos.generoOtroCual}
+                  alCambiar={(v) => cambiar("generoOtroCual", v)}
+                  maximo={40}
+                  sinOpcional
+                />
+              </div>
+            )}
+
+            <Texto
+              etiqueta="Celular"
+              valor={datos.celular}
+              alCambiar={(v) => cambiar("celular", v)}
+              tipo="tel"
+              requerido
+              soloDigitos
+              maximo={10}
+            />
+            <div className="sm:col-span-2">
+              <Texto
+                etiqueta="Correo electrónico"
+                valor={datos.correo}
+                alCambiar={(v) => cambiar("correo", v)}
+                tipo="email"
+                requerido
+              />
+            </div>
+
             <label className="block">
               <span className="mb-1.5 block text-sm font-medium">Tipo de documento</span>
               <select
                 required
                 value={datos.tipoDocumentoSepId}
-                onChange={(e) => cambiar("tipoDocumentoSepId", e.target.value)}
+                onChange={(e) => {
+                  cambiar("tipoDocumentoSepId", e.target.value);
+                  // cambiar de tipo cambia lo que se admite:
+                  // dejar lo tecleado deja un numero invalido
+                  cambiar("numeroDocumento", "");
+                  if (Number(e.target.value) !== DOCUMENTO_OTRO) {
+                    cambiar("documentoOtroCual", "");
+                  }
+                }}
                 className={CAMPO}
               >
                 <option value="">Elija…</option>
@@ -156,62 +456,46 @@ export function PreinscripcionPublica({ slug }: { slug: string }) {
               valor={datos.numeroDocumento}
               alCambiar={(v) => cambiar("numeroDocumento", v)}
               requerido
-            />
-            <Texto
-              etiqueta="Nombres"
-              valor={datos.nombres}
-              alCambiar={(v) => cambiar("nombres", v)}
-              requerido
-            />
-            <Texto
-              etiqueta="Primer apellido"
-              valor={datos.primerApellido}
-              alCambiar={(v) => cambiar("primerApellido", v)}
-              requerido
-            />
-            <Texto
-              etiqueta="Segundo apellido"
-              valor={datos.segundoApellido}
-              alCambiar={(v) => cambiar("segundoApellido", v)}
+              deshabilitado={!datos.tipoDocumentoSepId}
+              soloDigitos={esCedula}
+              maximo={esCedula ? 10 : 20}
+              ayuda={
+                !datos.tipoDocumentoSepId
+                  ? "Elija primero el tipo de documento."
+                  : esCedula
+                    ? "Solo números, máximo 10 dígitos."
+                    : "Puede llevar letras y números."
+              }
             />
 
-            <label className="block">
-              <span className="mb-1.5 block text-sm font-medium">Género</span>
-              <select
-                required
-                value={datos.generoSepId}
-                onChange={(e) => cambiar("generoSepId", e.target.value)}
-                className={CAMPO}
-              >
-                <option value="">Elija…</option>
-                {catalogo.generos.map((g) => (
-                  <option key={g.id} value={g.id}>
-                    {g.etiqueta}
-                  </option>
-                ))}
-                {/* una respuesta, no la ausencia de una */}
-                <option value="NO_DECIR">Prefiero no decirlo</option>
-              </select>
-            </label>
-
-            <Texto
-              etiqueta="Celular"
-              valor={datos.celular}
-              alCambiar={(v) => cambiar("celular", v)}
-              tipo="tel"
-              requerido
-            />
-            <div className="sm:col-span-2">
+            {esOtroDocumento && (
               <Texto
-                etiqueta="Correo electrónico"
-                valor={datos.correo}
-                alCambiar={(v) => cambiar("correo", v)}
-                tipo="email"
+                etiqueta="¿Cuál?"
+                valor={datos.documentoOtroCual}
+                alCambiar={(v) => cambiar("documentoOtroCual", v)}
                 requerido
+                maximo={60}
               />
-            </div>
+            )}
           </div>
+
         </section>
+
+        {faltaEnDatos.length > 0 && (
+          <p className="rounded-xl border border-borde bg-superficie-alterna px-4 py-3 text-sm text-texto-suave">
+            Para continuar falta: <strong>{faltaEnDatos.join(", ")}</strong>.
+          </p>
+        )}
+
+        <BotonesDePaso
+          atras="Volver a las acciones"
+          alVolver={() => setPantalla("eleccion")}
+          adelante="Continuar"
+          bloqueado={faltaEnDatos.length > 0}
+          alSeguir={() => setPantalla("habeas")}
+        />
+          </>
+        )}
 
         {error && (
           <p role="alert" className="rounded-xl border border-error/30 bg-error-suave p-4 text-sm text-error">
@@ -219,13 +503,97 @@ export function PreinscripcionPublica({ slug }: { slug: string }) {
           </p>
         )}
 
-        <button
-          type="submit"
-          disabled={enviando || !ofertaId}
-          className="w-full rounded-xl bg-marca px-6 py-3 font-medium text-marca-texto shadow-sm transition hover:bg-marca-fuerte disabled:opacity-50"
-        >
-          {enviando ? "Registrando…" : "Registrarme"}
-        </button>
+        {/* Pantalla 3. El habeas data, solo. Iba de casilla
+            al pie de una pantalla larga, con un enlace que
+            casi nadie abria: eso no alcanza para sostener
+            que la persona leyo lo que autorizo */}
+        {pantalla === "habeas" && (
+          <>
+        <section className="rounded-2xl border border-borde bg-superficie p-6 shadow-sm">
+          <h2 className="text-lg font-semibold">
+            {catalogo.politica?.titulo ?? "Política y Tratamiento de Datos Personales"}
+          </h2>
+          <p className="mt-1 text-sm text-texto-suave">
+            Por favor, confirme haber leído y aceptado lo siguiente antes de continuar.
+          </p>
+
+          <div className="mt-5 max-h-80 overflow-y-auto whitespace-pre-line rounded-xl border border-campo-borde bg-campo-fondo p-5 text-sm leading-relaxed text-texto">
+            {catalogo.politica?.contenido ?? TEXTO_DE_RESPALDO}
+          </div>
+
+          <p className="mt-5 rounded-xl border border-borde bg-superficie-alterna px-4 py-3 text-sm leading-relaxed text-texto-suave">
+            Su autorización es necesaria para procesar su cupo y continuar con su
+            inscripción, sin ella, no podemos usar sus datos para confirmar su
+            participación.
+          </p>
+
+          <label className="mt-4 flex cursor-pointer items-start gap-3 rounded-xl border border-campo-borde bg-campo-fondo p-4 text-sm">
+            <input
+              type="checkbox"
+              checked={datos.aceptaPolitica === "si"}
+              onChange={(e) => cambiar("aceptaPolitica", e.target.checked ? "si" : "")}
+              className="mt-0.5 h-4 w-4 shrink-0"
+            />
+            <span>
+              He leído y <strong>autorizo</strong> el tratamiento de mis datos personales
+              en los términos anteriores.
+            </span>
+          </label>
+
+        </section>
+
+        <BotonesDePaso
+          atras="Volver a mis datos"
+          alVolver={() => setPantalla("datos")}
+          adelante="Continuar"
+          bloqueado={datos.aceptaPolitica !== "si"}
+          alSeguir={() => setPantalla("revision")}
+        />
+          </>
+        )}
+
+        {/* Pantalla 4. Nada se manda sin pasar por aqui */}
+        {pantalla === "revision" && (
+          <section className="rounded-2xl border-2 border-marca bg-marca-suave p-6">
+            <h2 className="text-lg font-semibold text-marca">
+              Verifique la información antes de enviar
+            </h2>
+
+            <dl className="mt-4 grid gap-4 sm:grid-cols-2">
+              <Resumen etiqueta="Acción de formación" valor={nombreAccion} />
+              <Resumen
+                etiqueta="Ubicación"
+                valor={ciudad ? `${departamento} · ${ciudad}` : departamento}
+              />
+              <Resumen etiqueta="Nombre completo" valor={nombreCompleto} />
+              <Resumen etiqueta="Documento" valor={documentoLegible} mono />
+              <Resumen etiqueta="Celular" valor={datos.celular} />
+              <Resumen etiqueta="Correo" valor={datos.correo} />
+              <Resumen etiqueta="Tratamiento de datos" valor="Autorizado" />
+            </dl>
+
+            <div className="mt-6 flex flex-wrap items-center gap-3">
+              <button
+                type="submit"
+                disabled={enviando}
+                className="rounded-xl bg-marca px-7 py-3.5 font-medium text-marca-texto shadow-sm transition hover:bg-marca-fuerte disabled:opacity-50"
+              >
+                {enviando ? "Registrando…" : "Está correcto, reservar mi cupo"}
+              </button>
+              <button
+                type="button"
+                onClick={() => setPantalla("datos")}
+                className="rounded-xl border border-campo-borde bg-superficie px-5 py-3 text-texto transition hover:bg-superficie-alterna"
+              >
+                Modificar datos
+              </button>
+            </div>
+
+            <p className="mt-4 text-xs text-marca">
+              Complete el registro presionando el botón de confirmación.
+            </p>
+          </section>
+        )}
       </form>
       </main>
       <PiePublico />
@@ -233,51 +601,218 @@ export function PreinscripcionPublica({ slug }: { slug: string }) {
   );
 }
 
+/// Lo que eligio, en una linea, mientras llena el resto.
+/// Sin esto la pantalla siguiente aparece sola y no queda
+/// rastro de que estaba haciendo.
+function LoElegido({
+  codigo,
+  nombre,
+  ubicacion,
+  alCambiar,
+}: {
+  codigo: string;
+  nombre: string;
+  ubicacion: string;
+  alCambiar: () => void;
+}) {
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-marca/30 bg-marca-suave px-5 py-4">
+      <div className="min-w-0">
+        <p className="text-xs font-semibold uppercase tracking-wide text-marca">
+          Formación seleccionada
+        </p>
+        <p className="mt-1 font-semibold leading-snug text-balance">
+          {codigo && (
+            <span className="mr-1.5 font-mono text-sm text-marca">{codigo}</span>
+          )}
+          {nombre}
+        </p>
+        <p className="mt-0.5 text-sm text-texto-suave">{ubicacion}</p>
+      </div>
+      <button
+        type="button"
+        onClick={alCambiar}
+        className="shrink-0 rounded-xl border border-marca/40 bg-superficie px-4 py-2 text-sm font-medium text-marca transition hover:bg-superficie-alterna"
+      >
+        Cambiar
+      </button>
+    </div>
+  );
+}
+
+/// Volver y seguir, iguales en todas las pantallas: cambiar
+/// de sitio los botones entre paso y paso hace dudar.
+function BotonesDePaso({
+  atras,
+  alVolver,
+  adelante,
+  bloqueado,
+  alSeguir,
+}: {
+  atras: string;
+  alVolver: () => void;
+  adelante: string;
+  bloqueado: boolean;
+  alSeguir: () => void;
+}) {
+  return (
+    <div className="flex flex-wrap gap-3">
+      <button
+        type="button"
+        onClick={alVolver}
+        className="rounded-xl border border-campo-borde bg-superficie px-5 py-3 text-texto transition hover:bg-superficie-alterna"
+      >
+        {atras}
+      </button>
+      <button
+        type="button"
+        disabled={bloqueado}
+        onClick={alSeguir}
+        className="flex-1 rounded-xl bg-marca px-6 py-3 font-medium text-marca-texto shadow-sm transition hover:bg-marca-fuerte disabled:opacity-50"
+      >
+        {adelante}
+      </button>
+    </div>
+  );
+}
+
 /** Dónde se dicta, con lo que queda libre. */
-function Ubicaciones({
+/// El estado del proceso, en las tres pantallas del flujo.
+/// Reservar no es estar inscrito, y ese es el malentendido
+/// que hay que evitar desde el primer clic.
+function BandaDeEstado({ paso }: { paso: 1 | 2 | 3 }) {
+  const pasos = [
+    { n: 1, texto: "Reserva de cupo" },
+    { n: 2, texto: "Datos de inscripción" },
+    { n: 3, texto: "Inscripción confirmada" },
+  ];
+
+  return (
+    <div className="rounded-2xl border border-borde bg-superficie px-5 py-4">
+      <div className="flex flex-wrap items-center gap-y-2">
+        {pasos.map((x, i) => (
+          <div key={x.n} className="flex flex-1 items-center gap-2">
+            <span
+              className={`grid h-6 w-6 shrink-0 place-items-center rounded-full text-xs font-semibold ${
+                x.n < paso
+                  ? "bg-exito text-white"
+                  : x.n === paso
+                    ? "bg-marca text-marca-texto"
+                    : "bg-superficie-alterna text-texto-suave"
+              }`}
+            >
+              {x.n < paso ? "✓" : x.n}
+            </span>
+            <span
+              className={`whitespace-nowrap text-sm ${
+                x.n === paso ? "font-semibold text-marca" : "text-texto-suave"
+              }`}
+            >
+              {x.texto}
+            </span>
+            {i < pasos.length - 1 && (
+              <span className="mx-2 hidden h-px flex-1 bg-borde sm:block" />
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+const ESTILO_MODALIDAD: Record<string, string> = {
+  VIRTUAL: "bg-exito-suave text-exito",
+  PRESENCIAL: "bg-marca-suave text-marca",
+  HIBRIDA: "bg-aviso-suave text-aviso",
+};
+
+const ETIQUETA_MODALIDAD: Record<string, string> = {
+  VIRTUAL: "Virtual",
+  PRESENCIAL: "Presencial",
+  HIBRIDA: "Híbrida",
+};
+
+/// Una accion con cobertura. Boton y no tarjeta con radio:
+/// el area de toque es toda la tarjeta, que en movil importa.
+function TarjetaAccion({
   accion,
-  valor,
+  oferta,
+  elegida,
   alElegir,
 }: {
   accion: AccionPublica;
-  valor: string;
-  alElegir: (id: string) => void;
+  oferta: OfertaPublica;
+  elegida: boolean;
+  alElegir: () => void;
 }) {
   return (
-    <fieldset>
-      <legend className="mb-1.5 text-sm font-medium">Ciudad o departamento</legend>
-      <div className="grid gap-2 sm:grid-cols-2">
-        {accion.ofertas.map((o) => {
-          const lleno = o.libres === 0;
-          return (
-            <label
-              key={o.id}
-              className={`flex cursor-pointer items-center gap-3 rounded-xl border p-3 transition ${
-                valor === o.id
-                  ? "border-marca bg-marca-suave"
-                  : "border-borde hover:bg-superficie-alterna"
-              } ${lleno ? "opacity-50" : ""}`}
-            >
-              <input
-                type="radio"
-                name="oferta"
-                value={o.id}
-                checked={valor === o.id}
-                disabled={lleno}
-                onChange={() => alElegir(o.id)}
-                className="shrink-0"
-              />
-              <span className="min-w-0">
-                <span className="block text-sm font-medium">{o.ubicacion}</span>
-                <span className="block text-xs text-texto-suave">
-                  {lleno ? "Sin cupos" : `${o.libres} cupos`} · {o.modalidad.toLowerCase()}
-                </span>
-              </span>
-            </label>
-          );
-        })}
+    <button
+      type="button"
+      onClick={alElegir}
+      aria-pressed={elegida}
+      className={`flex flex-col gap-3 rounded-2xl border p-5 text-left shadow-sm transition ${
+        elegida
+          ? "border-2 border-marca bg-superficie"
+          : "border-borde bg-superficie hover:border-campo-borde"
+      }`}
+    >
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="rounded-md bg-marca-suave px-2 py-0.5 font-mono text-xs font-semibold tracking-wide text-marca">
+          {accion.codigo}
+        </span>
+        <span
+          className={`rounded-md px-2 py-0.5 text-xs font-semibold uppercase tracking-wide ${
+            ESTILO_MODALIDAD[accion.modalidad] ?? "bg-superficie-alterna text-texto-suave"
+          }`}
+        >
+          {ETIQUETA_MODALIDAD[accion.modalidad] ?? accion.modalidad}
+        </span>
+        {accion.horas != null && (
+          <span className="rounded-md bg-superficie-alterna px-2 py-0.5 text-xs text-texto-suave">
+            {accion.horas} horas
+          </span>
+        )}
       </div>
-    </fieldset>
+
+      <h3 className="text-base font-semibold leading-snug text-balance">{accion.nombre}</h3>
+
+      {accion.resumen && (
+        <p className="text-sm leading-relaxed text-texto-suave">{accion.resumen}</p>
+      )}
+
+      <div className="mt-auto flex flex-wrap items-center gap-x-4 gap-y-1 pt-1 text-sm">
+        {oferta.tipo === "CIUDAD" && (
+          <span className="text-texto-suave">Sede {oferta.ubicacion}</span>
+        )}
+        {oferta.libres <= 10 && (
+          <span className="font-medium text-error">
+            Disponibilidad: {oferta.libres} cupos
+          </span>
+        )}
+        {elegida && <span className="ml-auto font-semibold text-marca">Seleccionada</span>}
+      </div>
+    </button>
+  );
+}
+
+
+/// Una fila del resumen. Sin valor no se pinta: una etiqueta
+/// con un guion al lado no le dice nada a nadie.
+function Resumen({
+  etiqueta,
+  valor,
+  mono,
+}: {
+  etiqueta: string;
+  valor: string;
+  mono?: boolean;
+}) {
+  if (!valor.trim()) return null;
+  return (
+    <div>
+      <dt className="text-xs uppercase tracking-wide text-texto-suave">{etiqueta}</dt>
+      <dd className={`mt-0.5 font-medium ${mono ? "font-mono text-sm" : ""}`}>{valor}</dd>
+    </div>
   );
 }
 
@@ -287,56 +822,75 @@ function Texto({
   alCambiar,
   requerido,
   tipo = "text",
+  ayuda,
+  sinOpcional,
+  maximo,
+  soloDigitos,
+  deshabilitado,
 }: {
   etiqueta: string;
   valor: string;
   alCambiar: (v: string) => void;
   requerido?: boolean;
   tipo?: string;
+  ayuda?: string;
+  /// Para los campos que no lo llevan aunque sean opcionales.
+  sinOpcional?: boolean;
+  maximo?: number;
+  soloDigitos?: boolean;
+  deshabilitado?: boolean;
 }) {
   return (
     <label className="block">
       <span className="mb-1.5 block text-sm font-medium">
         {etiqueta}
-        {!requerido && <span className="text-texto-suave"> (opcional)</span>}
+        {!requerido && !sinOpcional && (
+          <span className="text-texto-suave"> (opcional)</span>
+        )}
       </span>
       <input
         type={tipo}
         required={requerido}
+        disabled={deshabilitado}
         value={valor}
-        onChange={(e) => alCambiar(e.target.value)}
-        className={CAMPO}
+        maxLength={maximo}
+        // el teclado numerico en el movil, sin usar
+        // type=number: ese come los ceros de la izquierda
+        inputMode={soloDigitos ? "numeric" : undefined}
+        onChange={(e) => {
+          const v = soloDigitos ? e.target.value.replace(/\D/g, "") : e.target.value;
+          alCambiar(maximo ? v.slice(0, maximo) : v);
+        }}
+        className={CAMPO + (deshabilitado ? " opacity-50" : "")}
       />
+      {ayuda && <span className="mt-1 block text-xs text-texto-suave">{ayuda}</span>}
     </label>
   );
 }
 
-/** Ya está dentro: se le ofrece completar el resto. */
-function Registrada({ token, yaEstaba }: { token: string; yaEstaba: boolean }) {
+/** El cupo quedó apartado. Falta la inscripción. */
+/// Reservar no es estar inscrito, y es aqui donde se
+/// decide si la persona sigue o se va: por eso la pantalla
+/// la llama por su nombre y deja un solo camino abierto.
+function Registrada({ token, nombre }: { token: string; nombre: string }) {
   return (
     <>
       <main className="mx-auto w-full max-w-xl px-6 py-16 text-center">
       <BannerLogos />
 
-      <h1 className="mt-8 text-2xl font-bold">
-        {yaEstaba ? "Ya estaba inscrito" : "¡Listo, quedó registrado!"}
+      <h1 className="mt-8 text-2xl font-bold text-balance">
+        ¡Gracias{nombre ? ` ${nombre}` : ""}, su cupo fue reservado exitosamente!
       </h1>
       <p className="mt-3 text-texto-suave">
-        {yaEstaba
-          ? "Ya teníamos su inscripción en esta formación. Puede completar sus datos desde aquí."
-          : "Nos pondremos en contacto. Si quiere, puede dejar todo diligenciado ahora y ahorrarse la llamada."}
+        Termine su inscripción para asegurar su participación.
       </p>
 
       <a
         href={`/completar/${token}`}
         className="mt-8 inline-block rounded-xl bg-marca px-6 py-3 font-medium text-marca-texto shadow-sm transition hover:bg-marca-fuerte"
       >
-        Quiero terminar de completar toda mi información
+        Continuar con mi inscripción a la acción de formación
       </a>
-
-      <p className="mt-6 text-xs text-texto-suave">
-        Guarde este enlace: sirve una sola vez y caduca en 15 días.
-      </p>
       </main>
       <PiePublico />
     </>

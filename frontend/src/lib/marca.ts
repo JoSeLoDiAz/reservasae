@@ -18,10 +18,19 @@ export const PATRON_SLUG = /^[a-z0-9]+(-[a-z0-9]+)*$/;
 export type Ambito = { tipo: "GENERAL" } | { tipo: "FORMULARIO"; slug: string };
 
 /** En que ambito estamos segun la URL. */
+/// El tramite de inscripcion va siempre con la paleta
+/// general. Antes tomaba la del convenio, y como
+/// `/completar/<token>` no pasa por el slug, las dos
+/// pantallas del mismo tramite salian de colores distintos.
+/// La portada del convenio si conserva su marca.
+export const SIN_MARCA_PROPIA = new Set(["preinscripcion"]);
+
 export function ambitoDeRuta(pathname: string): Ambito {
-  const primero = pathname.split("/").filter(Boolean)[0];
+  const partes = pathname.split("/").filter(Boolean);
+  const primero = partes[0];
   if (!primero || RUTAS_RESERVADAS.has(primero)) return { tipo: "GENERAL" };
   if (!PATRON_SLUG.test(primero)) return { tipo: "GENERAL" };
+  if (partes.some((p) => SIN_MARCA_PROPIA.has(p))) return { tipo: "GENERAL" };
   return { tipo: "FORMULARIO", slug: primero };
 }
 
@@ -73,9 +82,19 @@ export function recordarPaleta(ambito: Ambito, marca: MarcaMinima) {
 export const SCRIPT_PALETA = `
 (function () {
   try {
-    var seg = location.pathname.split('/').filter(Boolean)[0];
+    var partes = location.pathname.split('/').filter(Boolean);
+    var seg = partes[0];
     var reservadas = ${JSON.stringify([...RUTAS_RESERVADAS])};
-    var esForm = seg && reservadas.indexOf(seg) < 0 && new RegExp(${JSON.stringify(PATRON_SLUG.source)}).test(seg);
+    var sinMarca = ${JSON.stringify([...SIN_MARCA_PROPIA])};
+    // la misma regla que ambitoDeRuta(). Si aqui se aplica a
+    // medias, el navegador pinta una paleta y React pinta
+    // otra encima: eso es el destello al refrescar
+    var propia = partes.every(function (x) { return sinMarca.indexOf(x) < 0; });
+    var esForm =
+      seg &&
+      propia &&
+      reservadas.indexOf(seg) < 0 &&
+      new RegExp(${JSON.stringify(PATRON_SLUG.source)}).test(seg);
     var crudo = localStorage.getItem(${JSON.stringify(PREFIJO_PALETA)} + (esForm ? seg : 'general'));
     if (!crudo) return;
     var paleta = JSON.parse(crudo);

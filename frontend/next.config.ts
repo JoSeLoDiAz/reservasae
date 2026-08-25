@@ -8,8 +8,16 @@ const nextConfig: NextConfig = {
   outputFileTracingRoot: path.join(__dirname, ".."),
 
   // en local replica el salto de nginx
+  //
+  // `PROXY_API=1` lo enciende tambien en un build de
+  // produccion. Hace falta para servir la app compilada sin
+  // nginx delante -- por ejemplo, detras de un tunel para
+  // compartir el formulario. El despliegue real no lo pone y
+  // se sigue comportando igual que siempre.
   async rewrites() {
-    if (process.env.NODE_ENV === "production") return [];
+    if (process.env.NODE_ENV === "production" && process.env.PROXY_API !== "1") {
+      return [];
+    }
     return [
       {
         source: "/api/:path*",

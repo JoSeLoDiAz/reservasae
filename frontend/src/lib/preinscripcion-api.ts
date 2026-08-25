@@ -5,7 +5,11 @@ import { ErrorApi } from "./api";
 export type OfertaPublica = {
   id: string;
   ubicacion: string;
-  tipo: string;
+  /// CIUDAD cubre solo esa ciudad; DEPARTAMENTO cubre a todos
+  /// los que viven en el, que es lo que hace virtual una oferta.
+  tipo: "CIUDAD" | "DEPARTAMENTO";
+  /// El departamento de la ciudad, o el suyo propio.
+  departamento: string | null;
   modalidad: string;
   libres: number;
 };
@@ -16,6 +20,9 @@ export type AccionPublica = {
   nombre: string;
   horas: number;
   modalidad: string;
+  /// Lo que se lleva quien haga el curso. Se edita en
+  /// el panel, en Formularios. Null mientras nadie lo escriba.
+  resumen: string | null;
   ofertas: OfertaPublica[];
 };
 
@@ -24,8 +31,20 @@ export type ValorSep = { id: number; etiqueta: string };
 export type CatalogoPreinscripcion = {
   convenio: { id: string; slug: string; nombre: string; sigla: string | null };
   acciones: AccionPublica[];
+  /// Solo lo que tiene alguna oferta abierta.
+  ubicaciones: Array<{ departamento: string; ciudades: string[] }>;
   documentos: ValorSep[];
   generos: ValorSep[];
+  /// El habeas data que hay que aceptar, entero. Null si el
+  /// convenio todavia no tiene texto vigente.
+  politica: { id: string; version: number; titulo: string; contenido: string } | null;
+};
+
+export type BusquedaNit = {
+  nit: string;
+  digitoVerificacion: string;
+  instituciones: Array<{ id: string; nit: string; razonSocial: string }>;
+  agrupaVarias: boolean;
 };
 
 export type DatosBasicos = {
@@ -37,8 +56,18 @@ export type DatosBasicos = {
   primerApellido: string;
   segundoApellido?: string;
   generoSepId?: number;
+  /// Lo que escribio cuando eligio "Otro". Al SEP viaja
+  /// NO BINARIO; esto es solo para mostrarselo al asesor.
+  generoOtroTexto?: string;
   celular?: string;
   correo?: string;
+  /// El domicilio que eligio para ver la cobertura. Es el
+  /// mismo que pide el SEP, asi que viaja desde aqui.
+  departamentoNombre?: string;
+  ciudadNombre?: string;
+  /// Lo que autorizo en la pantalla de habeas data. Se
+  /// guarda contra la version que leyo, no como un si suelto.
+  aceptaPolitica?: boolean;
 };
 
 export type FichaAbierta = {
@@ -48,6 +77,8 @@ export type FichaAbierta = {
     codigo: string;
     nombre: string;
     horas: number;
+    /// Decide qué se le dice al terminar: acceso o sede.
+    modalidad: string;
     ubicacion: string | null;
   } | null;
   empresa: string | null;
@@ -87,6 +118,9 @@ async function pedir<T>(ruta: string, opciones?: RequestInit): Promise<T> {
 }
 
 export const preinscripcionApi = {
+  /** El banco de NIT: trae la razón social. */
+  buscarNit: (nit: string) => pedir<BusquedaNit>(`/directorio/nit/${nit}`),
+
   catalogo: (slug: string) => pedir<CatalogoPreinscripcion>(`/preinscripcion/${slug}`),
 
   registrar: (slug: string, datos: DatosBasicos) =>
