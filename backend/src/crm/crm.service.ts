@@ -12,10 +12,17 @@ import {
   Prisma,
   type Admin,
 } from '../../generated/prisma';
+import { AuditoriaService } from '../comun/auditoria.service';
 import { documentoValido, normalizarDocumento } from '../comun/documento';
 import { analizar, esInsalvable, repetidosEnElPegado } from './carga';
 import { faltaDeLaPersona, revisar } from './completitud';
 import {
+  ETAPAS_DEL_EMBUDO,
+  metricasDeInscripciones,
+} from './metricas-inscripciones';
+import {
+  DEPARTAMENTO_POR_ID,
+  MUNICIPIO_POR_ID,
   DEPARTAMENTOS_SEP,
   DOCUMENTOS_DE_EMPRESA,
   DOCUMENTOS_DE_PERSONA,
@@ -28,6 +35,7 @@ import {
   municipioCuadra,
   MUNICIPIOS_SEP,
   NIVELES_OCUPACIONALES_SEP,
+  SECTORES_ECONOMICOS,
   siglaDocumento,
   TAMANOS_EMPRESA_SEP,
   type ValorSep,
@@ -87,6 +95,23 @@ export const ETAPAS_DE_INSCRIPCION: EtapaParticipante[] = [
   'INTERESADO',
   'CONTACTADO',
   'DATOS_COMPLETOS',
+];
+
+/**
+ * Las unicas que un asesor puede elegir a mano.
+ *
+ * DATOS_COMPLETOS no esta y no volvera: dejo de ser etapa
+ * para ser estado calculado, y un estado que alguien puede
+ * poner a dedo no prueba nada. El valor sigue en el enum
+ * porque el historico de movimientos dice por donde paso
+ * cada quien de verdad, y reescribir eso seria borrar la
+ * traza que sostiene la auditoria.
+ */
+export const ETAPAS_A_MANO: EtapaParticipante[] = [
+  'INTERESADO',
+  'CONTACTADO',
+  'INSCRITO',
+  'PERDIDO',
 ];
 
 /// Lo que gobierna el academico y NO sale en Inscripciones.
@@ -184,9 +209,42 @@ function mismoValor(llega: unknown, hay: unknown): boolean {
   return a === b;
 }
 
+
+/// Como se llama cada campo para quien lo lee. Sin esto la
+/// pantalla del asesor diria "departamentoSepId".
+const ETIQUETA_CAMPO: Record<string, string> = {
+  primerNombre: 'Primer nombre',
+  segundoNombre: 'Segundo nombre',
+  primerApellido: 'Primer apellido',
+  segundoApellido: 'Segundo apellido',
+  correo: 'Correo',
+  celular: 'Celular',
+  generoSepId: 'Género',
+  fechaNacimiento: 'Fecha de nacimiento',
+  estrato: 'Estrato',
+  departamentoSepId: 'Departamento',
+  municipioSepId: 'Municipio',
+  barrio: 'Barrio o vereda',
+  direccion: 'Dirección',
+};
+
+/// Para enseñarlo al lado del actual, sin formatear nada
+/// raro: lo que importa es que se vea si son distintos.
+function aTexto(valor: unknown): string | null {
+  if (valor === null || valor === undefined) return null;
+  if (valor instanceof Date) return valor.toISOString().slice(0, 10);
+  if (typeof valor === 'string' && /^\d{4}-\d{2}-\d{2}T/.test(valor)) {
+    return valor.slice(0, 10);
+  }
+  return String(valor);
+}
+
 @Injectable()
 export class CrmService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly auditoria: AuditoriaService,
+  ) {}
 
   async listar(filtros: Filtros) {
     const donde = this.donde(filtros);
@@ -206,16 +264,46 @@ export class CrmService {
           accionFormacion: { select: { codigo: true, nombre: true } },
           oferta: { select: { ubicacion: { select: { nombre: true } } } },
           asesor: { select: { id: true, nombre: true } },
-          _count: { select: { notas: true } },
+          empresa: {
+            select: {
+              razonSocial: true,
+              direccion: true,
+              telefono: true,
+              sectorEconomico: true,
+              clasificacion: true,
+            },
+          },
+          // los dos ultimos: el de ahora y el de antes
+          movimientos: {
+            orderBy: { creadoEn: 'desc' },
+            take: 2,
+            select: { etapaAntes: true, etapaDespues: true, creadoEn: true },
+          },
+          _count: { select: { notas: true, movimientos: true } },
         },
       }),
     ]);
+
+    /// Cuantas veces se edito cada uno. En una consulta para
+    /// toda la pagina: una por fila serian treinta viajes.
+    const porFila = await this.prisma.registroAuditoria.groupBy({
+      by: ['entidadId'],
+      where: {
+        entidad: 'Participante',
+        accion: 'PARTICIPANTE_EDITADO',
+        entidadId: { in: filas.map((f) => f.id) },
+      },
+      _count: { _all: true },
+    });
+    const ediciones = new Map(porFila.map((f) => [f.entidadId, f._count._all]));
 
     return {
       total,
       pagina,
       paginas: Math.max(1, Math.ceil(total / porPagina)),
-      participantes: filas.map((p) => this.aFila(p)),
+      participantes: filas.map((p) =>
+        this.aFila({ ...p, ediciones: ediciones.get(p.id) ?? 0 }),
+      ),
     };
   }
 
@@ -233,10 +321,42 @@ export class CrmService {
       municipios: MUNICIPIOS_SEP.filter((m) => m[3]).map((m) => [m[0], m[1], m[2]]),
       estrato: { minimo: ESTRATO_MINIMO, maximo: ESTRATO_MAXIMO },
       edadMinima: EDAD_MINIMA,
+      // los tres del decreto 957, no las 21 del CIIU
+      sectoresEconomicos: SECTORES_ECONOMICOS,
+      // las unicas que un asesor elige a mano
+      etapasAMano: ETAPAS_A_MANO,
+      canalesDeContacto: ['CORREO', 'WHATSAPP', 'TEXTO', 'LLAMADA'],
     };
   }
 
   /** Cuántos hay en cada etapa: las columnas del tablero. */
+  /**
+   * El tablero de Inscripciones.
+   *
+   * Respeta los mismos filtros que la tabla: si el asesor
+   * filtra por un gremio, las graficas hablan de ese gremio.
+   * Una cifra que no obedece al filtro de al lado miente.
+   */
+  async metricasInscripciones(filtros: Filtros) {
+    /// El tramo de la tabla no sirve aqui: `INSCRIPCION` deja
+    /// fuera a los inscritos, y sin ellos la conversion sale
+    /// siempre en cero. El tablero habla de las cuatro etapas
+    /// del embudo, que son las que el asesor mueve.
+    const donde: Prisma.ParticipanteWhereInput = {
+      AND: [
+        this.donde({ ...filtros, tramo: undefined }),
+        { etapa: { in: ETAPAS_DEL_EMBUDO } },
+      ],
+    };
+
+    return metricasDeInscripciones({
+      prisma: this.prisma as unknown as Parameters<
+        typeof metricasDeInscripciones
+      >[0]['prisma'],
+      donde,
+    });
+  }
+
   async resumen(filtros: Filtros) {
     const donde = this.donde({ ...filtros, etapa: undefined });
 
@@ -286,6 +406,37 @@ export class CrmService {
       porAccion.map((f) => [f.accionFormacionId, f._count._all]),
     );
 
+    // por donde vive la persona, no por donde se dicta el
+    // curso: son cosas distintas y la que interesa a quien
+    // inscribe es de donde le esta llegando la gente
+    const porDepartamento = await this.prisma.participante.groupBy({
+      by: ['personaId'],
+      where: donde,
+      _count: { _all: true },
+    });
+
+    const personas = await this.prisma.persona.findMany({
+      where: { id: { in: porDepartamento.map((f) => f.personaId) } },
+      select: { departamentoSepId: true },
+    });
+
+    const cuentaDepto = new Map<number | null, number>();
+    for (const p of personas) {
+      const k = p.departamentoSepId ?? null;
+      cuentaDepto.set(k, (cuentaDepto.get(k) ?? 0) + 1);
+    }
+
+    const departamentos = [...cuentaDepto.entries()]
+      .map(([id, total]) => ({
+        id,
+        nombre:
+          id === null
+            ? 'Sin departamento'
+            : (DEPARTAMENTO_POR_ID.get(id)?.etiqueta ?? `Código ${id}`),
+        total,
+      }))
+      .sort((a, b) => b.total - a.total);
+
     return {
       etapas: Object.values(EtapaParticipante).map((etapa) => ({
         etapa,
@@ -295,6 +446,7 @@ export class CrmService {
       asesores: asesores.map((a) => ({ ...a, total: totalAsesor.get(a.id) ?? 0 })),
       acciones: acciones.map((a) => ({ ...a, total: totalAccion.get(a.id) ?? 0 })),
       sinAsesor: totalAsesor.get(null) ?? 0,
+      departamentos,
     };
   }
 
@@ -356,6 +508,18 @@ export class CrmService {
             empresa: { select: { nit: true, razonSocial: true } },
           },
         },
+        // la suya, no la que lo nomino: es la que el formulario
+        // largo le pide llenar
+        empresa: {
+          select: {
+            nit: true,
+            razonSocial: true,
+            sectorEconomico: true,
+            contactoNombre: true,
+            contactoCargo: true,
+            contactoCorreo: true,
+          },
+        },
         asesor: { select: { id: true, nombre: true } },
         sobrecupoPor: { select: { nombre: true } },
         movimientos: {
@@ -377,7 +541,38 @@ export class CrmService {
         documento: `${siglaDocumento(p.persona.tipoDocumentoSepId)} ${p.persona.numeroDocumento}`,
       },
       faltantes: await this.faltantesParaMatricular(p.id),
+      /// Lo que el enlace le va a pedir, en el orden en que se
+      /// lo va a pedir: primero su empresa y despues lo suyo.
+      /// Sin esto el asesor manda un enlace sin saber que trae.
+      faltaDeLaEmpresa: this.faltaDeLaEmpresa(p.empresa),
+      faltaDeLaPersona: faltaDeLaPersona({
+        persona: p.persona,
+        nivelOcupacionalSepId: p.nivelOcupacionalSepId,
+      }),
     };
+  }
+
+  /// Lo que el formulario largo le pide de su organizacion.
+  /// Solo eso: el maestro de empresas guarda mucho mas, pero
+  /// a la persona no se le pregunta el CIIU ni el tamano.
+  private faltaDeLaEmpresa(
+    e: {
+      nit: string;
+      razonSocial: string;
+      sectorEconomico: string | null;
+      contactoNombre: string | null;
+      contactoCargo: string | null;
+      contactoCorreo: string | null;
+    } | null,
+  ): string[] {
+    if (!e) return ['los datos de su organización'];
+
+    const falta: string[] = [];
+    if (!e.sectorEconomico) falta.push('sector económico');
+    if (!e.contactoNombre) falta.push('nombre del jefe directo');
+    if (!e.contactoCargo) falta.push('cargo del jefe directo');
+    if (!e.contactoCorreo) falta.push('correo del jefe directo');
+    return falta;
   }
 
   async crear(dto: CrearParticipanteDto, admin: Admin, ambito: string[], ip?: string) {
@@ -692,9 +887,21 @@ export class CrmService {
     if (notaAsesor) partes.push(notaAsesor);
     if (datos.length > 0) partes.push(`Datos actualizados: ${datos.join(', ')}`);
 
+    // marcar la ficha solo si el asesor toco datos de la
+    // persona: desde ese momento, lo que mande el interesado
+    // por su enlace ya no pisa, espera como propuesta.
+    // Asignarle un asesor no cuenta, que no toca sus datos
+    const tocoDatosDePersona = this.queCambio(dePersona, p.persona).length > 0;
+
     const escrituras: Prisma.PrismaPromise<unknown>[] = [
       this.prisma.persona.update({ where: { id: p.personaId }, data: dePersona }),
-      this.prisma.participante.update({ where: { id }, data: deParticipante }),
+      this.prisma.participante.update({
+        where: { id },
+        data: {
+          ...deParticipante,
+          datosTocadosPorAsesorEn: tocoDatosDePersona ? new Date() : undefined,
+        },
+      }),
     ];
 
     if (partes.length > 0) {
@@ -714,6 +921,27 @@ export class CrmService {
     }
 
     await this.prisma.$transaction(escrituras);
+
+    /// Sin esto, editar un campo no dejaba rastro: la columna
+    /// «Cambios realizados» solo veia los movimientos de etapa
+    /// y una correccion de correo pasaba invisible.
+    const tocados = [
+      ...Object.entries(dePersona),
+      ...Object.entries(deParticipante),
+    ]
+      .filter(([, v]) => v !== undefined)
+      .map(([campo]) => campo);
+
+    if (tocados.length > 0) {
+      await this.auditoria.registrar({
+        actor: { id: admin.id, nombre: admin.nombre },
+        accion: 'PARTICIPANTE_EDITADO',
+        entidad: 'Participante',
+        entidadId: id,
+        camposTocados: tocados,
+        ip: ip ?? null,
+      });
+    }
 
     return this.obtener(id, ambito);
   }
@@ -912,6 +1140,15 @@ export class CrmService {
     }
     if (p.etapa === dto.etapa) return this.obtener(id, ambito);
 
+    // datos_completos es estado calculado, no etapa: ponerlo
+    // a dedo seria poder declararse completo sin estarlo
+    if (dto.etapa === 'DATOS_COMPLETOS') {
+      throw new BadRequestException(
+        '«Datos completos» no se marca a mano: lo calcula el sistema con lo ' +
+          'que hay en la ficha.',
+      );
+    }
+
     if (ETAPAS_CON_MOTIVO.includes(dto.etapa) && !dto.motivo) {
       throw new BadRequestException(
         'Hay que decir por qué. Dentro de seis meses nadie se acuerda.',
@@ -920,6 +1157,16 @@ export class CrmService {
 
     // matricular es una compuerta, no un paso mas
     if (dto.etapa === 'INSCRITO') {
+      // primero lo de la persona, que es lo que el asesor
+      // puede resolver por telefono; el mensaje dice que
+      // falta, porque negarse sin decir que no sirve
+      const estado = await this.estadoDeDatos(id);
+      if (!estado.completo) {
+        throw new ConflictException(
+          `Faltan datos de la persona: ${estado.falta.join('; ')}.`,
+        );
+      }
+
       const { bloquean } = await this.faltantesParaMatricular(id);
       if (bloquean.length > 0) {
         throw new ConflictException(
@@ -960,6 +1207,16 @@ export class CrmService {
       }),
     ]);
 
+    await this.auditoria.registrar({
+      actor: { id: admin.id, nombre: admin.nombre },
+      accion: 'ETAPA_CAMBIADA',
+      entidad: 'participante',
+      entidadId: id,
+      convenioId: p.convenioId,
+      resumen: `${p.etapa} → ${dto.etapa}${dto.motivo ? `: ${dto.motivo}` : ''}`,
+      ip,
+    });
+
     return this.obtener(id, ambito);
   }
 
@@ -971,14 +1228,218 @@ export class CrmService {
 
     // el nombre se congela: si el autor cambia el suyo,
     // la nota sigue diciendo quien la escribio
-    return this.prisma.notaParticipante.create({
+    const nota = await this.prisma.notaParticipante.create({
       data: {
         participanteId: id,
         autorId: admin.id,
         autorNombre: admin.nombre,
         texto: dto.texto,
+        canales: dto.canales,
       },
     });
+
+    await this.auditoria.registrar({
+      actor: { id: admin.id, nombre: admin.nombre },
+      accion: 'NOTA_CREADA',
+      entidad: 'participante',
+      entidadId: id,
+      resumen: `Gestión por ${[...dto.canales].sort().join(' + ')}`,
+    });
+
+    return nota;
+  }
+
+  /**
+   * Completo o parcial, calculado. Nadie lo edita.
+   *
+   * Ni el asesor ni el admin: es lo unico que garantiza que
+   * «completo» quiera decir completo. Si alguien pudiera
+   * ponerlo a mano, la cifra dejaria de probar nada y el
+   * bloqueo para inscribir se saltaria con un clic.
+   */
+  async estadoDeDatos(
+    id: string,
+  ): Promise<{ completo: boolean; falta: string[] }> {
+    const p = await this.prisma.participante.findUnique({
+      where: { id },
+      select: {
+        nivelOcupacionalSepId: true,
+        persona: {
+          select: {
+            correo: true,
+            celular: true,
+            fechaNacimiento: true,
+            generoSepId: true,
+            estrato: true,
+            departamentoSepId: true,
+            municipioSepId: true,
+            barrio: true,
+            direccion: true,
+          },
+        },
+      },
+    });
+    if (!p) throw new NotFoundException('Ese participante no existe.');
+
+    const falta = faltaDeLaPersona({
+      persona: p.persona,
+      nivelOcupacionalSepId: p.nivelOcupacionalSepId,
+    });
+
+    return { completo: falta.length === 0, falta };
+  }
+
+  /// Lo que el interesado mando despues de que el asesor
+  /// ya habia tocado la ficha, campo por campo y con lo que
+  /// hay hoy al lado, para poder comparar antes de decidir.
+  async propuestaDe(id: string, ambito: string[]) {
+    await this.exigirParticipante(id, ambito);
+
+    const propuesta = await this.prisma.propuestaDeDatos.findFirst({
+      where: { participanteId: id, estado: 'PENDIENTE' },
+      orderBy: { creadoEn: 'desc' },
+    });
+    if (!propuesta) return null;
+
+    const p = await this.prisma.participante.findUnique({
+      where: { id },
+      select: { persona: true },
+    });
+    if (!p) throw new NotFoundException('Ese participante no existe.');
+
+    const actual = p.persona as unknown as Record<string, unknown>;
+    const campos = propuesta.campos as Record<string, unknown>;
+
+    return {
+      id: propuesta.id,
+      creadoEn: propuesta.creadoEn,
+      campos: Object.entries(campos).map(([campo, propuesto]) => ({
+        campo,
+        etiqueta: ETIQUETA_CAMPO[campo] ?? campo,
+        actual: aTexto(actual[campo]),
+        propuesto: aTexto(propuesto),
+      })),
+    };
+  }
+
+  /**
+   * El asesor decide cuales entran.
+   *
+   * Los que acepta se escriben; los que no, se quedan como
+   * estaban. En los dos casos la propuesta se archiva con
+   * quien decidio y que dejo entrar, para que dentro de seis
+   * meses se pueda responder por que un dato dice lo que dice.
+   */
+  async resolverPropuesta(
+    id: string,
+    aceptados: string[],
+    admin: Admin,
+    ambito: string[],
+  ) {
+    await this.exigirParticipante(id, ambito);
+
+    const propuesta = await this.prisma.propuestaDeDatos.findFirst({
+      where: { participanteId: id, estado: 'PENDIENTE' },
+      orderBy: { creadoEn: 'desc' },
+    });
+    if (!propuesta) throw new NotFoundException('No hay nada pendiente de decidir.');
+
+    const campos = propuesta.campos as Record<string, unknown>;
+    const desconocido = aceptados.find((c) => !(c in campos));
+    if (desconocido) {
+      throw new BadRequestException(`«${desconocido}» no está en esa propuesta.`);
+    }
+
+    const p = await this.prisma.participante.findUnique({
+      where: { id },
+      select: { personaId: true, convenioId: true },
+    });
+    if (!p) throw new NotFoundException('Ese participante no existe.');
+
+    if (aceptados.length > 0) {
+      const data: Record<string, unknown> = {};
+      for (const campo of aceptados) {
+        const v = campos[campo];
+        // las fechas viajan como texto dentro del JSON
+        data[campo] = campo === 'fechaNacimiento' && typeof v === 'string' ? new Date(v) : v;
+      }
+      await this.prisma.persona.update({
+        where: { id: p.personaId },
+        data: data as Prisma.PersonaUpdateInput,
+      });
+    }
+
+    await this.prisma.propuestaDeDatos.update({
+      where: { id: propuesta.id },
+      data: {
+        estado: aceptados.length > 0 ? 'ACEPTADA' : 'DESCARTADA',
+        camposAceptados: aceptados,
+        resueltoPorId: admin.id,
+        resueltoEn: new Date(),
+      },
+    });
+
+    await this.auditoria.registrar({
+      actor: { id: admin.id, nombre: admin.nombre },
+      accion: 'DATOS_DEL_INTERESADO_ACEPTADOS',
+      entidad: 'participante',
+      entidadId: id,
+      convenioId: p.convenioId,
+      resumen:
+        aceptados.length > 0
+          ? `Aceptó ${aceptados.length} de ${Object.keys(campos).length} campos`
+          : 'Descartó todo lo que mandó el interesado',
+      camposTocados: aceptados,
+    });
+
+    return this.obtener(id, ambito);
+  }
+
+  /** La persona detrás de un participante, con ámbito. */
+  async personaDe(id: string, ambito: string[]): Promise<string> {
+    await this.exigirParticipante(id, ambito);
+
+    const p = await this.prisma.participante.findUnique({
+      where: { id },
+      select: { personaId: true },
+    });
+    if (!p) throw new NotFoundException('Ese participante no existe.');
+
+    return p.personaId;
+  }
+
+  /// Cuántas gestiones hubo por combinación de canales, no
+  /// por canal suelto: "correo y llamada" es una gestión
+  /// distinta de "solo correo", y sumarlas por separado
+  /// contaría dos veces la misma conversación.
+  async metricaDeCanales(ambito: string[]) {
+    const notas = await this.prisma.notaParticipante.findMany({
+      where: {
+        canales: { isEmpty: false },
+        participante: ambito.length ? { convenioId: { in: ambito } } : undefined,
+      },
+      select: { canales: true },
+    });
+
+    const porCombinacion = new Map<string, number>();
+    const porCanal = new Map<string, number>();
+
+    for (const n of notas) {
+      // ordenados, para que A+B y B+A sean la misma llave
+      const llave = [...n.canales].sort().join(' + ');
+      porCombinacion.set(llave, (porCombinacion.get(llave) ?? 0) + 1);
+      for (const c of n.canales) porCanal.set(c, (porCanal.get(c) ?? 0) + 1);
+    }
+
+    const combinaciones = [...porCombinacion.entries()]
+      .map(([combinacion, gestiones]) => ({ combinacion, gestiones }))
+      .sort((a, b) => b.gestiones - a.gestiones);
+
+    const canales = [...porCanal.entries()]
+      .map(([canal, apariciones]) => ({ canal, apariciones }))
+      .sort((a, b) => b.apariciones - a.apariciones);
+
+    return { gestiones: notas.length, combinaciones, canales };
   }
 
   /** Lo que impide matricular y lo que impide reportar. */
@@ -1750,6 +2211,35 @@ export class CrmService {
     // el grupo cuelga de la cobertura, no del participante
     if (f.grupoId) y.push({ cobertura: { grupoId: f.grupoId } });
     if (f.asesorId) y.push({ asesorId: f.asesorId });
+    if (f.departamentoSepId) {
+      y.push({ persona: { departamentoSepId: f.departamentoSepId } });
+    }
+
+    // «completa» no es una columna: es que no falte ninguno de
+    // los diez que exige el reporte. La condicion se escribe
+    // aqui igual que en `faltaDeLaPersona`, y si una cambia
+    // hay que cambiar la otra
+    if (f.estado) {
+      const completa: Prisma.ParticipanteWhereInput = {
+        AND: [
+          { nivelOcupacionalSepId: { not: null } },
+          {
+            persona: {
+              correo: { not: null },
+              celular: { not: null },
+              fechaNacimiento: { not: null },
+              generoSepId: { not: null },
+              estrato: { not: null },
+              departamentoSepId: { not: null },
+              municipioSepId: { not: null },
+              direccion: { not: null },
+              barrio: { not: null },
+            },
+          },
+        ],
+      };
+      y.push(f.estado === 'COMPLETO' ? completa : { NOT: completa });
+    }
 
     const buscar = f.buscar?.trim();
     if (buscar) {
@@ -1769,6 +2259,35 @@ export class CrmService {
     }
 
     return y.length ? { AND: y } : {};
+  }
+
+  /// Los doce origenes de la base, en los tres que le sirven
+  /// al asesor. «Pauta» son las redes de Meta: lo que se paga.
+  /// «Organico» es quien llego solo por el formulario.
+  private static readonly PAUTA = new Set<OrigenParticipante>([
+    'REDES',
+    'INSTAGRAM',
+    'FACEBOOK',
+    'LINKEDIN',
+  ]);
+
+  /// Cuanto se sabe de la empresa donde trabaja. Es lo que
+  /// decide si su ficha puede salir en el F7.
+  private estadoDeEmpresa(
+    e: {
+      razonSocial: string;
+      direccion: string | null;
+      telefono: string | null;
+      sectorEconomico: string | null;
+      clasificacion: string | null;
+    } | null,
+  ): 'SIN' | 'PARCIAL' | 'COMPLETA' {
+    if (!e) return 'SIN';
+    const puestos = [e.direccion, e.telefono, e.sectorEconomico, e.clasificacion].filter(
+      (v) => v !== null && v !== '',
+    ).length;
+    if (puestos === 4) return 'COMPLETA';
+    return 'PARCIAL';
   }
 
   private aFila(p: {
@@ -1794,11 +2313,27 @@ export class CrmService {
       barrio: string | null;
       direccion: string | null;
     };
+    actualizadoEn: Date;
     convenio: { sigla: string | null; slug: string };
     accionFormacion: { codigo: string; nombre: string } | null;
     oferta: { ubicacion: { nombre: string } } | null;
     asesor: { id: string; nombre: string } | null;
-    _count: { notas: number };
+    empresa: {
+      razonSocial: string;
+      direccion: string | null;
+      telefono: string | null;
+      sectorEconomico: string | null;
+      clasificacion: string | null;
+    } | null;
+    movimientos: Array<{
+      etapaAntes: EtapaParticipante | null;
+      etapaDespues: EtapaParticipante;
+      creadoEn: Date;
+    }>;
+    _count: { notas: number; movimientos: number };
+    /// Cuantas veces se le edito un campo. Sale del registro
+    /// de auditoria, que es donde queda esa traza.
+    ediciones: number;
   }) {
     // lo que la persona dejo a medias: es lo que el asesor
     // tiene que completar por telefono
@@ -1832,6 +2367,39 @@ export class CrmService {
       ubicacion: p.oferta?.ubicacion.nombre ?? null,
       asesor: p.asesor,
       notas: p._count.notas,
+
+      // --- lo que la tabla de leads pide aparte ---
+      tipoDocumento: siglaDocumento(p.persona.tipoDocumentoSepId),
+      numeroDocumento: p.persona.numeroDocumento,
+      /// Donde vive, no donde se dicta: `ubicacion` es la sede.
+      departamento: p.persona.departamentoSepId
+        ? (DEPARTAMENTO_POR_ID.get(p.persona.departamentoSepId)?.etiqueta ?? null)
+        : null,
+      municipio: p.persona.municipioSepId
+        ? (MUNICIPIO_POR_ID.get(p.persona.municipioSepId)?.[2] ?? null)
+        : null,
+      /// Solo el codigo: en una columna no cabe el nombre.
+      accionCodigo: p.accionFormacion?.codigo ?? null,
+      gremio: p.convenio.sigla ?? p.convenio.slug,
+      origenLead: CrmService.PAUTA.has(p.origen)
+        ? ('PAUTA' as const)
+        : p.origen === 'AUTOGESTION'
+          ? ('ORGANICO' as const)
+          : ('IMPORTACION' as const),
+      /// Lo ultimo que se le hizo, sea un cambio de etapa o
+      /// una edicion de la ficha.
+      ultimaActividad: p.movimientos[0]?.creadoEn ?? p.actualizadoEn,
+      /// De donde viene: el movimiento anterior al de ahora.
+      etapaAnterior: p.movimientos[0]?.etapaAntes ?? null,
+      /// Solo ediciones de campos. Los cambios de etapa no
+      /// entran: los cuenta «Ultima etapa lead», y sumarlos
+      /// aqui contaba dos veces la misma edicion, porque
+      /// guardar la ficha tambien deja movimiento.
+      cambios: p.ediciones,
+      datosEmpresa: this.estadoDeEmpresa(p.empresa),
+      antiguedadDias: Math.floor(
+        (Date.now() - p.creadoEn.getTime()) / 86_400_000,
+      ),
     };
   }
 }

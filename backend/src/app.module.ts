@@ -11,6 +11,7 @@ import { CrmModule } from './crm/crm.module';
 import { ThrottlerIpGuard } from './comun/throttler-ip.guard';
 import { FormulariosModule } from './formularios/formularios.module';
 import { PoliticasModule } from './politicas/politicas.module';
+import { InstitucionesModule } from './instituciones/instituciones.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { ReservasModule } from './reservas/reservas.module';
 import { CronogramaModule } from './cronograma/cronograma.module';
@@ -32,6 +33,7 @@ import { TablerosModule } from './tableros/tableros.module';
     PreinscripcionModule,
     TablerosModule,
     PoliticasModule,
+    InstitucionesModule,
     CrmModule,
   ],
   controllers: [AppController],

@@ -3,16 +3,19 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { randomBytes } from 'node:crypto';
 
+import { Prisma } from '../../generated/prisma';
 import { PrismaService } from '../prisma/prisma.service';
 import { GENEROS_SEP } from '../crm/catalogos-sep.generado';
 import {
   DEPARTAMENTOS_SEP,
   DOCUMENTOS_DE_PERSONA,
+  DOCUMENTOS_DEL_FORMULARIO,
   edadCumplida,
   municipioCuadra,
   MUNICIPIOS_SEP,
   NIVELES_OCUPACIONALES_SEP,
 } from '../crm/catalogos-sep';
+import { faltaDeLaPersona } from '../crm/completitud';
 import { CrearPreinscripcionDto, DatosEmpresaDto, DatosPersonaDto } from './dto';
 
 /// Cuánto vale un enlace antes de caducar solo.
@@ -41,6 +44,8 @@ export class PreinscripcionService {
         nombre: true,
         horas: true,
         modalidad: true,
+        objetivo: true,
+        resumenPublico: true,
         ofertas: {
           where: { abierta: true },
           orderBy: { ubicacion: { nombre: 'asc' } },
@@ -49,14 +54,30 @@ export class PreinscripcionService {
             modalidad: true,
             cuposMaximos: true,
             cuposOcupados: true,
-            ubicacion: { select: { nombre: true, tipo: true } },
+            // el departamento de la ciudad decide la cobertura
+            ubicacion: { select: { nombre: true, tipo: true, departamento: true } },
           },
         },
       },
     });
 
+    /// El texto completo del habeas data. Va en el catalogo
+    /// porque la pantalla lo muestra entero antes de que
+    /// nadie marque nada: un enlace que casi nadie abre no
+    /// alcanza para decir que lo leyo.
+    const politica = await this.prisma.politicaDatos.findFirst({
+      where: {
+        convenioId: convenio.id,
+        destinatario: 'PARTICIPANTE',
+        vigenteDesde: { lte: new Date() },
+      },
+      orderBy: { version: 'desc' },
+      select: { id: true, version: true, titulo: true, contenido: true },
+    });
+
     return {
       convenio,
+      politica,
       // sin ofertas abiertas no hay dónde inscribirse
       acciones: acciones
         .filter((a) => a.ofertas.length > 0)
@@ -66,17 +87,62 @@ export class PreinscripcionService {
           nombre: a.nombre,
           horas: a.horas,
           modalidad: a.modalidad,
+          /// Lo que la tarjeta ensena. El `objetivo` del
+          /// catalogo esta escrito para el convenio y no
+          /// sirve aqui: solo se usa si nadie ha escrito el
+          /// resumen todavia.
+          resumen: a.resumenPublico,
           ofertas: a.ofertas.map((o) => ({
             id: o.id,
             ubicacion: o.ubicacion.nombre,
             tipo: o.ubicacion.tipo,
+            departamento: o.ubicacion.departamento,
             modalidad: o.modalidad,
             libres: Math.max(0, o.cuposMaximos - o.cuposOcupados),
           })),
         })),
-      documentos: DOCUMENTOS_DE_PERSONA,
+      /// Donde se puede elegir domicilio: solo lo que tiene
+      /// alguna oferta abierta. Ofrecer un departamento sin
+      /// cobertura solo sirve para decepcionar despues.
+      ubicaciones: this.ubicacionesConOferta(acciones),
+      documentos: DOCUMENTOS_DEL_FORMULARIO,
       generos: GENEROS_SEP,
     };
+  }
+
+  /**
+   * Los departamentos con cobertura, y sus ciudades.
+   *
+   * Una oferta de tipo DEPARTAMENTO cubre a todo el que viva
+   * ahi. Una de tipo CIUDAD cubre solo a esa ciudad: por eso
+   * la ciudad se pregunta, y por eso quien vive en Bello no
+   * ve la presencial que se dicta en Medellin.
+   */
+  private ubicacionesConOferta(
+    acciones: Array<{
+      ofertas: Array<{
+        ubicacion: { nombre: string; tipo: string; departamento: string | null };
+      }>;
+    }>,
+  ) {
+    const ciudades = new Map<string, Set<string>>();
+
+    for (const a of acciones) {
+      for (const o of a.ofertas) {
+        const u = o.ubicacion;
+        const depto = u.tipo === 'CIUDAD' ? u.departamento : u.nombre;
+        if (!depto) continue;
+        if (!ciudades.has(depto)) ciudades.set(depto, new Set());
+        if (u.tipo === 'CIUDAD') ciudades.get(depto)!.add(u.nombre);
+      }
+    }
+
+    return [...ciudades.entries()]
+      .map(([departamento, cs]) => ({
+        departamento,
+        ciudades: [...cs].sort((x, y) => x.localeCompare(y, 'es')),
+      }))
+      .sort((x, y) => x.departamento.localeCompare(y.departamento, 'es'));
   }
 
   /**
@@ -84,7 +150,7 @@ export class PreinscripcionService {
    * persona puede seguir completando su ficha, para que
    * pueda parar aquí y continuar después.
    */
-  async registrar(slug: string, dto: CrearPreinscripcionDto) {
+  async registrar(slug: string, dto: CrearPreinscripcionDto, ip?: string) {
     const convenio = await this.prisma.convenio.findFirst({
       where: { slug, activo: true },
       select: { id: true },
@@ -101,6 +167,8 @@ export class PreinscripcionService {
 
     this.exigirDocumentoValido(dto.tipoDocumentoSepId);
     const documento = dto.numeroDocumento.trim();
+
+    const domicilio = this.domicilioSep(dto.departamentoNombre, dto.ciudadNombre);
 
     // la misma cedula es la misma persona en todo el
     // sistema, venga por donde venga
@@ -119,14 +187,20 @@ export class PreinscripcionService {
         primerApellido: dto.primerApellido,
         segundoApellido: dto.segundoApellido,
         generoSepId: dto.generoSepId,
+        generoOtroTexto: dto.generoOtroTexto,
         celular: dto.celular,
         correo: dto.correo,
+        ...domicilio,
       },
+      // no se pisa lo que ya hay: solo se rellenan huecos
       // no se pisa lo que ya hay: solo se rellenan huecos
       update: {
         celular: dto.celular ?? undefined,
         correo: dto.correo ?? undefined,
         generoSepId: dto.generoSepId ?? undefined,
+        generoOtroTexto: dto.generoOtroTexto ?? undefined,
+        departamentoSepId: domicilio.departamentoSepId ?? undefined,
+        municipioSepId: domicilio.municipioSepId ?? undefined,
       },
       select: { id: true },
     });
@@ -156,6 +230,10 @@ export class PreinscripcionService {
         select: { id: true },
       }));
 
+    if (dto.aceptaPolitica) {
+      await this.dejarConstancia(persona.id, convenio.id, participante.id, ip);
+    }
+
     const enlace = await this.emitirEnlace(participante.id, null);
 
     return {
@@ -164,6 +242,47 @@ export class PreinscripcionService {
       token: enlace.token,
       expiraEn: enlace.expiraEn,
     };
+  }
+
+  /**
+   * La autorizacion queda contra la version que leyo.
+   *
+   * Un booleano suelto no prueba nada: si manana cambia el
+   * texto, hay que poder decir cual acepto esta persona y
+   * cuando. Por eso se guarda contra el id de la politica.
+   */
+  private async dejarConstancia(
+    personaId: string,
+    convenioId: string,
+    participanteId: string,
+    ip?: string,
+  ) {
+    const politica = await this.prisma.politicaDatos.findFirst({
+      where: {
+        convenioId,
+        destinatario: 'PARTICIPANTE',
+        vigenteDesde: { lte: new Date() },
+      },
+      orderBy: { version: 'desc' },
+      select: { id: true },
+    });
+    if (!politica) return;
+
+    const ya = await this.prisma.autorizacionDatos.findFirst({
+      where: { personaId, politicaDatosId: politica.id, revocadaEn: null },
+      select: { id: true },
+    });
+    if (ya) return;
+
+    await this.prisma.autorizacionDatos.create({
+      data: {
+        personaId,
+        politicaDatosId: politica.id,
+        canal: 'FORMULARIO_WEB',
+        evidencia: `Formulario de preinscripción, participante ${participanteId}`,
+        ip: ip ?? null,
+      },
+    });
   }
 
   /** Un enlace nuevo. Los anteriores dejan de valer. */
@@ -196,7 +315,9 @@ export class PreinscripcionService {
       select: {
         id: true,
         convenio: { select: { nombre: true, sigla: true } },
-        accionFormacion: { select: { codigo: true, nombre: true, horas: true } },
+        accionFormacion: {
+          select: { codigo: true, nombre: true, horas: true, modalidad: true },
+        },
         oferta: { select: { ubicacion: { select: { nombre: true } } } },
         convenioId: true,
         cargoEnEmpresa: true,
@@ -236,6 +357,10 @@ export class PreinscripcionService {
             codigo: p.accionFormacion.codigo,
             nombre: p.accionFormacion.nombre,
             horas: p.accionFormacion.horas,
+            // se seleccionaba y no se devolvia: el mensaje
+            // final salia siempre el de virtual, tambien a
+            // quien tiene que presentarse en una sede
+            modalidad: p.accionFormacion.modalidad,
             ubicacion: p.oferta?.ubicacion.nombre ?? null,
           }
         : null,
@@ -249,7 +374,7 @@ export class PreinscripcionService {
       persona,
       yaAutorizo: autorizaciones.length > 0,
       politica,
-      documentos: DOCUMENTOS_DE_PERSONA,
+      documentos: DOCUMENTOS_DEL_FORMULARIO,
       generos: GENEROS_SEP,
       nivelesOcupacionales: NIVELES_OCUPACIONALES_SEP,
       departamentos: DEPARTAMENTOS_SEP.filter((d) => d.seleccionable),
@@ -280,9 +405,10 @@ export class PreinscripcionService {
 
     const p = await this.prisma.participante.findUnique({
       where: { id: enlace.participanteId },
-      select: { personaId: true },
+      select: { personaId: true, datosTocadosPorAsesorEn: true },
     });
     if (!p) throw new NotFoundException('Ese enlace ya no apunta a nadie.');
+    const tocada = p;
 
     // el nivel educativo y el cargo son de la participación,
     // no de la persona: cambian entre un curso y el siguiente
@@ -338,26 +464,85 @@ export class PreinscripcionService {
       }
     }
 
-    await this.prisma.persona.update({
-      where: { id: p.personaId },
-      data: {
-        primerNombre: dto.primerNombre ?? undefined,
-        segundoNombre: dto.segundoNombre,
-        primerApellido: dto.primerApellido ?? undefined,
-        segundoApellido: dto.segundoApellido,
-        celular: dto.celular,
-        correo: dto.correo,
-        generoSepId: dto.generoSepId,
-        fechaNacimiento: dto.fechaNacimiento ? new Date(dto.fechaNacimiento) : undefined,
-        estrato: dto.estrato,
-        departamentoSepId: dto.departamentoSepId,
-        municipioSepId: dto.municipioSepId,
-        barrio: dto.barrio,
-        direccion: dto.direccion,
+    const suyos = {
+      primerNombre: dto.primerNombre ?? undefined,
+      segundoNombre: dto.segundoNombre,
+      primerApellido: dto.primerApellido ?? undefined,
+      segundoApellido: dto.segundoApellido,
+      celular: dto.celular,
+      correo: dto.correo,
+      generoSepId: dto.generoSepId,
+      fechaNacimiento: dto.fechaNacimiento ? new Date(dto.fechaNacimiento) : undefined,
+      estrato: dto.estrato,
+      departamentoSepId: dto.departamentoSepId,
+      municipioSepId: dto.municipioSepId,
+      barrio: dto.barrio,
+      direccion: dto.direccion,
+    };
+
+    // si un asesor ya toco la ficha, lo del interesado no
+    // pisa: espera como propuesta y alguien decide campo a
+    // campo. Pisar borraria el trabajo del asesor; tirarlo
+    // perderia lo que la persona se molesto en escribir
+    if (tocada.datosTocadosPorAsesorEn) {
+      await this.dejarPropuesta(enlace.participanteId, p.personaId, suyos);
+      return { guardado: true, enEspera: true };
+    }
+
+    await this.prisma.persona.update({ where: { id: p.personaId }, data: suyos });
+
+    return { guardado: true, enEspera: false };
+  }
+
+  /// Guarda lo que difiere de lo que ya hay. Lo que llega
+  /// igual no es una propuesta de nada y solo haria ruido
+  /// en la pantalla del asesor.
+  private async dejarPropuesta(
+    participanteId: string,
+    personaId: string,
+    suyos: Record<string, unknown>,
+  ): Promise<void> {
+    const actual = await this.prisma.persona.findUnique({
+      where: { id: personaId },
+      select: {
+        primerNombre: true,
+        segundoNombre: true,
+        primerApellido: true,
+        segundoApellido: true,
+        celular: true,
+        correo: true,
+        generoSepId: true,
+        fechaNacimiento: true,
+        estrato: true,
+        departamentoSepId: true,
+        municipioSepId: true,
+        barrio: true,
+        direccion: true,
       },
     });
+    if (!actual) return;
 
-    return { guardado: true };
+    const distintos: Record<string, unknown> = {};
+    for (const [campo, valor] of Object.entries(suyos)) {
+      if (valor === undefined) continue;
+      const antes = (actual as Record<string, unknown>)[campo];
+      const iguales =
+        antes instanceof Date && valor instanceof Date
+          ? antes.getTime() === valor.getTime()
+          : antes === valor;
+      if (!iguales) distintos[campo] = valor;
+    }
+
+    if (Object.keys(distintos).length === 0) return;
+
+    // una pendiente por ficha: la ultima es la que vale
+    await this.prisma.propuestaDeDatos.deleteMany({
+      where: { participanteId, estado: 'PENDIENTE' },
+    });
+
+    await this.prisma.propuestaDeDatos.create({
+      data: { participanteId, campos: distintos as Prisma.InputJsonValue },
+    });
   }
 
   /**
@@ -375,7 +560,21 @@ export class PreinscripcionService {
 
     const p = await this.prisma.participante.findUnique({
       where: { id: enlace.participanteId },
-      select: { id: true, reserva: { select: { empresaId: true } }, empresaId: true },
+      select: {
+        id: true,
+        reserva: { select: { empresaId: true } },
+        empresaId: true,
+        persona: {
+          select: {
+            tipoDocumentoSepId: true,
+            numeroDocumento: true,
+            primerNombre: true,
+            segundoNombre: true,
+            primerApellido: true,
+            segundoApellido: true,
+          },
+        },
+      },
     });
     if (!p) throw new NotFoundException('Ese enlace ya no apunta a nadie.');
 
@@ -425,6 +624,39 @@ export class PreinscripcionService {
         where: { id: p.id },
         data: { empresaId: empresa.id },
       });
+    } else if (dto.rutPropio) {
+      // su cedula es su RUT: la persona es su propia unidad
+      // economica y asi la reporta el F7
+      const nit = p.persona.numeroDocumento.replace(/\D/g, '');
+      const nombre = [
+        p.persona.primerNombre,
+        p.persona.segundoNombre,
+        p.persona.primerApellido,
+        p.persona.segundoApellido,
+      ]
+        .filter(Boolean)
+        .join(' ');
+
+      if (nit) {
+        const empresa = await this.prisma.empresa.upsert({
+          where: { nit },
+          create: {
+            nit,
+            razonSocial: nombre || `Independiente ${nit}`,
+            tipoDocumentoSepId: p.persona.tipoDocumentoSepId,
+            ...datos,
+          },
+          update: Object.fromEntries(
+            Object.entries(datos).filter(([, v]) => v !== undefined && v !== null),
+          ),
+          select: { id: true },
+        });
+
+        await this.prisma.participante.update({
+          where: { id: p.id },
+          data: { empresaId: empresa.id },
+        });
+      }
     }
 
     // aquí acaba: el enlace era de un solo uso
@@ -433,7 +665,71 @@ export class PreinscripcionService {
       data: { usadoEn: new Date() },
     });
 
-    return { guardado: true, enlaceCerrado: true };
+    const etapa = await this.inscribirSiEstaCompleto(enlace.participanteId);
+
+    return { guardado: true, enlaceCerrado: true, etapa };
+  }
+
+  /**
+   * Quien completa su ficha solo queda INSCRITO, sin esperar
+   * a que lo llamen.
+   *
+   * La regla ya existia para el asesor: no se pasa a INSCRITO
+   * con datos parciales. Quien llena todo la cumple por su
+   * cuenta, asi que dejarlo en INTERESADO solo aparenta un
+   * embudo mas lleno de lo que esta. Si falta algo, se queda
+   * donde estaba y el asesor lo ve en su cartera.
+   */
+  private async inscribirSiEstaCompleto(participanteId: string) {
+    const p = await this.prisma.participante.findUnique({
+      where: { id: participanteId },
+      select: {
+        etapa: true,
+        nivelOcupacionalSepId: true,
+        persona: {
+          select: {
+            correo: true,
+            celular: true,
+            fechaNacimiento: true,
+            generoSepId: true,
+            estrato: true,
+            departamentoSepId: true,
+            municipioSepId: true,
+            barrio: true,
+            direccion: true,
+          },
+        },
+      },
+    });
+    if (!p) return null;
+
+    // solo desde el embudo del asesor: si ya esta en el aula
+    // no se le toca la etapa por completar unos datos
+    const enElEmbudo = p.etapa === 'INTERESADO' || p.etapa === 'CONTACTADO';
+    if (!enElEmbudo) return p.etapa;
+
+    const falta = faltaDeLaPersona({
+      persona: p.persona,
+      nivelOcupacionalSepId: p.nivelOcupacionalSepId,
+    });
+    if (falta.length > 0) return p.etapa;
+
+    await this.prisma.$transaction([
+      this.prisma.participante.update({
+        where: { id: participanteId },
+        data: { etapa: 'INSCRITO', fechaMatricula: new Date() },
+      }),
+      this.prisma.movimientoParticipante.create({
+        data: {
+          participanteId,
+          etapaAntes: p.etapa,
+          etapaDespues: 'INSCRITO',
+          motivo: 'Completó su ficha por su cuenta desde el enlace',
+        },
+      }),
+    ]);
+
+    return 'INSCRITO' as const;
   }
 
   /** Termina sin llenar lo de la empresa. */
@@ -459,6 +755,32 @@ export class PreinscripcionService {
       );
     }
     return enlace;
+  }
+
+  /// Del nombre que eligio a los ids del SEP. El formulario
+  /// trabaja con nombres porque es lo que tiene la ubicacion
+  /// de la oferta; el cargue al SENA exige ids del DANE.
+  private domicilioSep(departamento?: string, ciudad?: string) {
+    const clave = (t: string) =>
+      t
+        .normalize('NFD')
+        .replace(/[̀-ͯ]/g, '')
+        .toUpperCase()
+        .trim();
+
+    const depto = departamento
+      ? DEPARTAMENTOS_SEP.find((d) => clave(d.etiqueta) === clave(departamento))
+      : undefined;
+
+    const muni =
+      ciudad && depto
+        ? MUNICIPIOS_SEP.find((m) => m[1] === depto.id && clave(m[2]) === clave(ciudad))
+        : undefined;
+
+    return {
+      departamentoSepId: depto?.id ?? null,
+      municipioSepId: muni?.[0] ?? null,
+    };
   }
 
   private exigirDocumentoValido(id: number) {

@@ -53,6 +53,31 @@ export class CrearPreinscripcionDto {
 
   @IsOptional() @Transform(aTexto) @IsEmail({}, { message: 'El correo no tiene un formato válido.' })
   correo?: string;
+
+  /// Lo que escribio si eligio "Otro". No viaja al SEP:
+  /// su catalogo de genero solo admite tres valores.
+  @IsOptional()
+  @IsString()
+  @MaxLength(40)
+  generoOtroTexto?: string;
+
+  /// El domicilio que eligio para ver la cobertura. Es el
+  /// mismo dato que el SEP pide, asi que se guarda aqui y
+  /// deja de pedirse en el formulario largo.
+  @IsOptional()
+  @IsString()
+  @MaxLength(80)
+  departamentoNombre?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(80)
+  ciudadNombre?: string;
+
+  /// Aceptar la politica de datos. Sin esto no hay con que
+  /// responder si manana preguntan de donde salieron sus
+  /// datos, asi que la pantalla no deja pasar sin marcarlo.
+  @IsOptional() @IsBoolean() aceptaPolitica?: boolean;
 }
 
 /** El resto de sus datos, todos opcionales. */
@@ -90,6 +115,15 @@ export class DatosPersonaDto {
 
 /** Lo que el F7 pide de la organización. */
 export class DatosEmpresaDto {
+  /// El independiente que usa su cedula como RUT.
+  ///
+  /// Sin esto, lo que mande -- su sector, por ejemplo -- no
+  /// tiene donde caer: no hay NIT que buscar y la rama se
+  /// quedaba sin `else`, asi que el dato se descartaba en
+  /// silencio. Con esto, la persona es su propia unidad
+  /// economica, que es como el F7 la reporta.
+  @IsOptional() @IsBoolean() rutPropio?: boolean;
+
   // solo de quien no vino por una reserva: la suya ya la
   // fijo la empresa que lo nomino y no la cambia el
   @IsOptional() @Transform(recortar) @IsString() @MaxLength(20) nit?: string;

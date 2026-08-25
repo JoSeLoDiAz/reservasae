@@ -36,7 +36,9 @@ export const PERMISOS: Record<RolConvenio, Record<Area, Nivel>> = {
     configuracion: N,
   },
   LIDER_INSCRIPCION: {
-    reserva: V,
+    // corrige y aprueba la ficha de una empresa: aprobarla es
+    // responder por ella, y eso lo firma un lider
+    reserva: E,
     inscripciones: E,
     inscritos: V,
     reportes: E,
@@ -60,7 +62,7 @@ export const PERMISOS: Record<RolConvenio, Record<Area, Nivel>> = {
     configuracion: N,
   },
   LIDER_SISTEMAS: {
-    reserva: V,
+    reserva: E,
     inscripciones: E,
     inscritos: V,
     reportes: E,

@@ -17,8 +17,12 @@ import { conveniosQueCierran } from '../admin/permisos';
 import { PreinscripcionService } from '../preinscripcion/preinscripcion.service';
 import { IpReal } from '../comun/ip-real';
 import { CrmService } from './crm.service';
+import { DirectorioService } from './directorio.service';
+import { RuiService } from './rui/rui.service';
 import {
   ActualizarParticipanteDto,
+  AgregarNitDto,
+  ResolverPropuestaDto,
   AsignarAsesorEnLoteDto,
   AsignarFormacionDto,
   CargaDto,
@@ -87,9 +91,41 @@ export class CrmController {
     private readonly crm: CrmService,
     private readonly preinscripcion: PreinscripcionService,
     private readonly prisma: PrismaService,
+    private readonly directorio: DirectorioService,
+    private readonly rui: RuiService,
   ) {}
 
+  /** Qué instituciones hay bajo ese NIT. */
+  @Get('nit/:nit')
+  buscarNit(@Param('nit') nit: string) {
+    return this.directorio.buscar(nit);
+  }
+
+  /** Alta manual cuando el NIT no está o trae otro nombre. */
+  @Post('nit')
+  agregarNit(@Body() dto: AgregarNitDto) {
+    return this.directorio.agregarManual(dto.nit, dto.razonSocial);
+  }
+
+  /** Cómo va la cola del RUI. */
+  @Get('rui/resumen')
+  resumenRui() {
+    return this.rui.resumen();
+  }
+
+  /** Los que el RUI devolvió con otro nombre. */
+  @Get('rui/discrepancias')
+  discrepanciasRui() {
+    return this.rui.discrepancias();
+  }
+
   /** Contadores por etapa: las columnas del tablero. */
+  /** Los repartos del tablero de Inscripciones. */
+  @Get('metricas')
+  metricas(@Query() filtros: FiltrosParticipantesDto, @AmbitoActual() ambito: Ambito) {
+    return this.crm.metricasInscripciones({ ...filtros, ambito: ambito.convenios });
+  }
+
   @Get('resumen')
   resumen(@Query() filtros: FiltrosParticipantesDto, @AmbitoActual() ambito: Ambito) {
     return this.crm.resumen({ ...filtros, ambito: ambito.convenios });
@@ -286,5 +322,48 @@ export class CrmController {
     @AmbitoActual() ambito: Ambito,
   ) {
     return this.crm.agregarNota(id, dto, admin, ambito.convenios);
+  }
+
+  /// Lo que la ficha enseña mientras el RUI responde.
+  /// Mirar la ficha sube esa consulta al frente de la cola:
+  /// quien espera no debe quedar detrás del trabajo de fondo.
+  @Get(':id/rui')
+  async estadoRui(@Param('id') id: string, @AmbitoActual() ambito: Ambito) {
+    const personaId = await this.crm.personaDe(id, ambito.convenios);
+    await this.rui.priorizar(personaId);
+    return this.rui.estadoDe(personaId);
+  }
+
+  /** Vuelve a preguntarle al RUI por esta persona. */
+  @Post(':id/rui')
+  @Requiere('inscripciones', 'ESCRIBIR')
+  async reconsultarRui(@Param('id') id: string, @AmbitoActual() ambito: Ambito) {
+    const personaId = await this.crm.personaDe(id, ambito.convenios);
+    await this.rui.encolar(personaId, 100);
+    return this.rui.estadoDe(personaId);
+  }
+
+  /// Lo que mando el interesado y espera decision.
+  @Get(':id/propuesta')
+  propuesta(@Param('id') id: string, @AmbitoActual() ambito: Ambito) {
+    return this.crm.propuestaDe(id, ambito.convenios);
+  }
+
+  /** El asesor decide qué campos entran. */
+  @Post(':id/propuesta')
+  @Requiere('inscripciones', 'ESCRIBIR')
+  resolverPropuesta(
+    @Param('id') id: string,
+    @Body() dto: ResolverPropuestaDto,
+    @AdminActual() admin: Admin,
+    @AmbitoActual() ambito: Ambito,
+  ) {
+    return this.crm.resolverPropuesta(id, dto.aceptados, admin, ambito.convenios);
+  }
+
+  /** Cuántas gestiones por combinación de canales. */
+  @Get('metricas/canales')
+  canales(@AmbitoActual() ambito: Ambito) {
+    return this.crm.metricaDeCanales(ambito.convenios);
   }
 }

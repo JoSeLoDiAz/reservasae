@@ -204,3 +204,11 @@ export class RespuestasDto {
   @Type(() => RespuestaDto)
   respuestas?: RespuestaDto[];
 }
+
+/// Dos lineas para la tarjeta publica. Vacio lo borra.
+export class ResumenPublicoDto {
+  @IsOptional()
+  @IsString()
+  @MaxLength(400)
+  resumen?: string;
+}

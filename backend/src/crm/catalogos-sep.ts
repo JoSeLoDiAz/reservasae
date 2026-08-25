@@ -42,6 +42,57 @@ export const DOCUMENTOS_DE_PERSONA = TIPOS_DOCUMENTO_SEP.filter(
 /** Los que puede llevar la empresa donde labora. */
 export const DOCUMENTOS_DE_EMPRESA = TIPOS_DOCUMENTO_SEP.filter((t) => t.empresa);
 
+/**
+ * Los seis que se le ensenan a quien se inscribe.
+ *
+ * El catalogo del SEP trae diez para personas, y ocho de
+ * ellos no los va a elegir nadie en esta convocatoria:
+ * DNI, cedula de identidad, DPI y numero de seguridad
+ * social son de otros paises. Un desplegable con diez
+ * opciones donde solo valen seis se contesta mal.
+ *
+ * En orden de uso real, no por id.
+ */
+const ORDEN_DEL_FORMULARIO = [
+  1, // C.C.
+  3, // C.E.
+  61, // P.P.T.
+  4, // P.E.P.
+  41, // Pasaporte
+  5, // Otro
+];
+
+export const DOCUMENTOS_DEL_FORMULARIO = ORDEN_DEL_FORMULARIO.map(
+  (id) => TIPOS_DOCUMENTO_SEP.find((t) => t.id === id)!,
+).filter(Boolean);
+
+/// La cedula es numerica y de diez digitos como maximo.
+/// Los demas admiten letras: los documentos extranjeros
+/// las traen, y rechazarlas deja a esa persona fuera.
+export const DOCUMENTO_CEDULA = 1;
+export const DOCUMENTO_OTRO = 5;
+
+/**
+ * Los tres sectores del Decreto 957 de 2019.
+ *
+ * No son las 21 secciones CIIU: son los tres con los que el
+ * SEP ya clasifica el tamaño de la empresa. Si el sector se
+ * capturara con la lista CIIU, no cuadraria con el tamaño
+ * que se reporta al lado, y el SENA veria dos verdades.
+ */
+export const SECTORES_ECONOMICOS: ValorSep[] = [
+  { id: 1, etiqueta: 'COMERCIO' },
+  { id: 2, etiqueta: 'SERVICIOS' },
+  { id: 3, etiqueta: 'MANUFACTURA' },
+];
+
+export const SECTOR_POR_ID = porId(SECTORES_ECONOMICOS);
+
+/// El unico "otro" que admite el catalogo del SEP. Lo que
+/// la persona escriba se guarda aparte y se le muestra,
+/// pero al cargue viaja este id: no hay donde poner texto.
+export const GENERO_NO_BINARIO = 3;
+
 /// Cédula, tarjeta y NIT: solo dígitos. El resto admite
 /// letras, que es lo que traen los documentos extranjeros.
 const DOCUMENTOS_NUMERICOS = new Set([1, 2, 6]);

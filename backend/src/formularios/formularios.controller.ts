@@ -23,6 +23,7 @@ import {
   CrearPreguntaDto,
   OpcionDto,
   ReordenarDto,
+  ResumenPublicoDto,
   SeccionDto,
 } from './dto';
 import { FormulariosService } from './formularios.service';
@@ -39,6 +40,22 @@ export class FormulariosAdminController {
   @Get('campos-nucleo')
   camposNucleo() {
     return this.formularios.camposNucleo();
+  }
+
+  /// Antes de `:id` a proposito: si no, «resumenes» se
+  /// leeria como el id de un formulario.
+  @Get('resumenes')
+  resumenes() {
+    return this.formularios.resumenesPublicos();
+  }
+
+  /** El texto de la tarjeta de una acción. */
+  @Patch('resumenes/:accionId')
+  guardarResumen(
+    @Param('accionId') accionId: string,
+    @Body() dto: ResumenPublicoDto,
+  ) {
+    return this.formularios.guardarResumenPublico(accionId, dto.resumen ?? null);
   }
 
   @Get()

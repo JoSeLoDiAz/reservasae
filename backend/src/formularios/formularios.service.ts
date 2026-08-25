@@ -819,4 +819,46 @@ export class FormulariosService {
 
     return { ...base, valorTexto: texto };
   }
+
+  /**
+   * Los textos que ve quien elige un curso en el formulario.
+   *
+   * Viven en la accion de formacion, no en el formulario:
+   * el mismo curso se ofrece en varios formularios y el
+   * texto es el mismo. Se editan desde aqui porque es donde
+   * quien arma el formulario los va a buscar.
+   */
+  async resumenesPublicos() {
+    const acciones = await this.prisma.accionFormacion.findMany({
+      orderBy: [{ convenio: { slug: 'asc' } }, { codigo: 'asc' }],
+      select: {
+        id: true,
+        codigo: true,
+        nombre: true,
+        horas: true,
+        modalidad: true,
+        visible: true,
+        resumenPublico: true,
+        convenio: { select: { id: true, sigla: true, nombre: true } },
+      },
+    });
+
+    return {
+      acciones,
+      sinResumen: acciones.filter((a) => !a.resumenPublico?.trim()).length,
+    };
+  }
+
+  /** Cambia el texto de una acción. Vacío lo borra. */
+  async guardarResumenPublico(accionId: string, texto: string | null) {
+    const existe = await this.prisma.accionFormacion.count({ where: { id: accionId } });
+    if (!existe) throw new NotFoundException('Esa acción de formación no existe.');
+
+    const limpio = texto?.trim() ?? '';
+    return this.prisma.accionFormacion.update({
+      where: { id: accionId },
+      data: { resumenPublico: limpio === '' ? null : limpio },
+      select: { id: true, codigo: true, resumenPublico: true },
+    });
+  }
 }

@@ -21,6 +21,7 @@ import {
 
 import {
   CanalAutorizacion,
+  CanalContacto,
   EtapaParticipante,
   OrigenParticipante,
 } from '../../generated/prisma';
@@ -246,11 +247,36 @@ export class CambiarEtapaDto {
 }
 
 export class CrearNotaDto {
+  /// Obligatoria aunque marque varios canales: una sola
+  /// observación da contexto a toda la gestión.
   @Transform(recortar)
   @IsString()
   @IsNotEmpty()
   @MaxLength(2000)
   texto!: string;
+
+  /// Al menos uno. Sin canal la nota no se puede medir, y
+  /// medir por dónde se contacta es de lo que se trata.
+  @IsArray()
+  @ArrayNotEmpty()
+  @ArrayMaxSize(4)
+  @IsEnum(CanalContacto, { each: true })
+  canales!: CanalContacto[];
+}
+
+export class AgregarNitDto {
+  @Transform(recortar)
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(20)
+  nit!: string;
+
+  @Transform(recortar)
+  @IsString()
+  @IsNotEmpty()
+  @MinLength(3)
+  @MaxLength(200)
+  razonSocial!: string;
 }
 
 export class FiltrosParticipantesDto {
@@ -267,6 +293,16 @@ export class FiltrosParticipantesDto {
   @IsOptional() @IsString() grupoId?: string;
   @IsOptional() @IsString() asesorId?: string;
   @IsOptional() @IsString() buscar?: string;
+
+  /// Si la ficha esta completa o a medias. No es una columna:
+  /// se traduce a las diez condiciones que exige el reporte.
+  @IsOptional() @IsIn(['COMPLETO', 'PARCIAL']) estado?: 'COMPLETO' | 'PARCIAL';
+
+  /// Por donde vive la persona, no por donde se dicta.
+  @IsOptional()
+  @Transform(({ value }) => (value === '' ? undefined : Number(value)))
+  @IsInt()
+  departamentoSepId?: number;
 
   @IsOptional()
   @Transform(({ value }) => Number(value))
@@ -332,4 +368,13 @@ export class CargaDto {
   /** Solo al confirmar: las líneas que se van a crear. */
   @IsOptional()
   lineas?: number[];
+}
+
+export class ResolverPropuestaDto {
+  /// Vacio quiere decir "no acepto nada": es una decision
+  /// valida y se archiva igual, con su autor.
+  @IsArray()
+  @ArrayMaxSize(20)
+  @IsString({ each: true })
+  aceptados!: string[];
 }
