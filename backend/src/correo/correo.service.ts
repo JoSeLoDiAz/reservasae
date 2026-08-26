@@ -21,6 +21,8 @@ import {
 import { createTransport, type Transporter } from 'nodemailer';
 import type SMTPPool from 'nodemailer/lib/smtp-pool';
 
+import { desvioConfigurado, etiquetaDeReales, resolverDestino } from './desvio';
+
 /// Sin decir de qué tipo es lo que devuelve, `sendMail` da
 /// `any` y el id del mensaje se pierde en una comprobación
 /// que no comprueba nada.
@@ -85,6 +87,19 @@ export class CorreoService implements OnModuleInit, OnModuleDestroy {
       `Configurado: ${process.env.SMTP_USUARIO} por ${process.env.SMTP_SERVIDOR}. ` +
         'En Configuración > Correo se comprueba que la clave sirva.',
     );
+
+    const desvio = desvioConfigurado();
+    if (desvio.length > 0) {
+      this.log.warn(
+        `DESVIADO: todo el correo va a ${desvio.join(', ')} y no a su ` +
+          'destinatario. Se quita borrando CORREO_REDIRIGIR_A.',
+      );
+    } else if (process.env.ENTORNO === 'prueba') {
+      this.log.warn(
+        'Entorno de pruebas sin CORREO_REDIRIGIR_A: no va a salir ningún ' +
+          'correo, para no escribirle a una persona real desde aquí.',
+      );
+    }
   }
 
   private abrir(): TransporteSmtp {
@@ -163,23 +178,55 @@ export class CorreoService implements OnModuleInit, OnModuleDestroy {
       return { estado: 'FALLO', error: 'Ninguna dirección de correo válida.' };
     }
 
+    const destino = resolverDestino(buenos);
+    if ('rechazo' in destino) {
+      this.log.warn(`No salió «${c.asunto}»: ${destino.rechazo}`);
+      return { estado: 'FALLO', error: destino.rechazo };
+    }
+
+    const m = destino.reales ? this.marcar(c, destino.reales) : c;
+
     try {
       const r = await this.abrir().sendMail({
         from: this.remitente,
-        to: buenos.join(', '),
+        to: destino.para.join(', '),
         replyTo: c.responderA,
-        subject: c.asunto,
-        text: c.texto,
-        html: c.html,
+        subject: m.asunto,
+        text: m.texto,
+        html: m.html,
       });
 
-      this.log.log(`Enviado «${c.asunto}» a ${buenos.length}: ${r.messageId}`);
+      const a = destino.reales
+        ? `${destino.para.join(', ')} (iba a ${etiquetaDeReales(destino.reales)})`
+        : String(destino.para.length);
+      this.log.log(`Enviado «${c.asunto}» a ${a}: ${r.messageId}`);
       return { estado: 'ENVIADO', id: r.messageId };
     } catch (e) {
       const error = this.explicar(e);
       this.log.error(`No salió «${c.asunto}»: ${error}`);
       return { estado: 'FALLO', error };
     }
+  }
+
+  /// Se ve a quién iba de verdad.
+  private marcar(c: Comunicacion, reales: string[]): Comunicacion {
+    const iba = reales.join(', ');
+    const aviso =
+      'background:#fde68a;border:1px solid #b45309;color:#3f2d00;' +
+      'padding:10px 12px;margin-bottom:16px;font:13px system-ui';
+
+    return {
+      ...c,
+      asunto: `[PRUEBAS → ${etiquetaDeReales(reales)}] ${c.asunto}`,
+      texto:
+        '--- ENTORNO DE PRUEBAS ---\n' +
+        `Este correo NO llegó a su destinatario. Iba para: ${iba}\n` +
+        `---\n\n${c.texto}`,
+      html: c.html
+        ? `<div style="${aviso}"><strong>Entorno de pruebas.</strong> Este ` +
+          `correo no llegó a su destinatario. Iba para: ${iba}</div>${c.html}`
+        : undefined,
+    };
   }
 
   /**

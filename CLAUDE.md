@@ -1237,14 +1237,69 @@ Lo que el cliente pidió, y que ya está:
 
 ### Lo que falta
 
-Tareas con fecha · correo institucional (Cloudflare **recibe pero no envía**:
-hace falta un servicio de envío y decidir el buzón) · adaptador del LMS
-(Moodle, solo lectura; hace falta la URL y un token).
+Tareas con fecha · adaptador del LMS (Moodle, solo lectura; hace falta la URL
+y un token). El correo ya sale: ver «El correo».
 
 > **Solo lectura del LMS**, decidido: alguien matricula allá y aquí se lee el
 > avance. Y «al instante» se resuelve guardando una foto con su fecha y
 > enseñando «actualizado hace N minutos»; consultar el LMS en cada carga de
 > pantalla haría que un LMS lento sea una pantalla lenta.
+
+---
+
+## El correo (26 ago 2026)
+
+Sale por **SMTP de Google Workspace** con el buzón
+`proyectosena@grupo-ae.com.co`. `backend/src/correo/`.
+
+- **La clave NO es la de la cuenta.** Google dejó de aceptarla para SMTP: lo
+  que va en `SMTP_CLAVE` es una **contraseña de aplicación** de 16 letras
+  (myaccount.google.com → Seguridad → Contraseñas de aplicaciones). Con la
+  normal el servidor contesta «Username and Password not accepted», que no
+  suena a lo que es. `explicar()` traduce ese 535 a la instrucción concreta.
+- **Sin las tres variables no se manda nada y se dice al arrancar**, en el log
+  y en `/admin/correo`. Fingir que salió es lo único que no puede hacer.
+
+### El desvío, y por qué existe
+
+`CORREO_REDIRIGIR_A` se queda con **todo** el correo. Es lo que permite tener
+las credenciales de verdad en un entorno que no lo es.
+
+- **Un entorno de pruebas con SMTP real y sin desvío le escribe a gente de
+  verdad**, y eso no se puede deshacer. Por eso `ENTORNO=prueba` **sin
+  `CORREO_REDIRIGIR_A` se niega a mandar**: falla cerrado. Olvidar la variable
+  deja el correo mudo, que es el fallo barato; el caro es el otro.
+- **El correo desviado dice a quién iba**, en el asunto y en una franja arriba.
+  Sin eso, un aviso de pruebas en la bandeja es indistinguible de uno real.
+- **En producción va vacía**, y el arranque avisa a gritos si no lo está: una
+  variable copiada por descuido dejaría a todos los inscritos sin sus correos
+  sin que nadie se entere.
+- La decisión vive en `desvio.ts` como función pura y `desvio.spec.ts` la fija.
+  Es la barrera entera, así que se prueba sin levantar nada.
+
+### Que no caiga en spam
+
+**El dominio que firma es `grupo-ae.com.co`, no `reservasae.com`**, y ese **no
+está en Cloudflare**: sus NS son `dns17/dns18.servidoresdns.net`. Los registros
+hay que ponerlos allí. Cloudflare no pinta nada en esto.
+
+A 26 ago 2026 ese dominio **no tiene SPF, ni DKIM, ni DMARC** — comprobado
+contra 8.8.8.8. Sus MX apuntan a `smtp.google.com`, así que:
+
+| Registro | Nombre | Valor |
+|---|---|---|
+| TXT | `@` | `v=spf1 include:_spf.google.com ~all` |
+| TXT | `google._domainkey` | el que genere la consola de Workspace |
+| TXT | `_dmarc` | `v=DMARC1; p=none; rua=mailto:proyectosena@grupo-ae.com.co` |
+
+- **DKIM no se inventa**: se genera en admin.google.com → Aplicaciones →
+  Google Workspace → Gmail → Autenticar correo electrónico, y hay que darle a
+  «Iniciar autenticación» **después** de publicar el TXT.
+- **DMARC arranca en `p=none`**, que solo observa. Poner `p=reject` de entrada,
+  con SPF o DKIM mal puestos, tira el correo bueno al vacío en silencio.
+- **Un solo TXT de SPF.** Dos registros SPF en el mismo nombre invalidan los
+  dos; si algún día se manda desde otro sitio, se añade otro `include:` al que
+  ya hay.
 
 ---
 

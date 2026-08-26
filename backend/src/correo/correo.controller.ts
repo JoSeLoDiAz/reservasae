@@ -18,6 +18,7 @@ import type { Admin } from '../../generated/prisma';
 import { AdminActual } from '../admin/admin-actual.decorator';
 import { AdminGuard, Requiere } from '../admin/admin.guard';
 import { CorreoService, correoConectado } from './correo.service';
+import { desvioConfigurado } from './desvio';
 import { ProbarCorreoDto } from './dto';
 
 @Controller('admin/correo')
@@ -46,6 +47,11 @@ export class CorreoController {
       remitente: process.env.SMTP_DESDE ?? process.env.SMTP_USUARIO ?? null,
       nombre: process.env.SMTP_NOMBRE ?? 'Convoca',
       tieneClave: Boolean(process.env.SMTP_CLAVE),
+      /// Si todo se desvía, hay que verlo aquí: si no, la
+      /// pantalla diría que el correo sale y nadie sabría
+      /// que no llega a su destinatario.
+      desviadoA: desvioConfigurado(),
+      esPrueba: process.env.ENTORNO === 'prueba',
       /// Si el servidor lo dejó entrar ahora mismo, no cuando
       /// se configuró: una clave revocada se ve aquí.
       acepta: prueba?.estado === 'ENVIADO',
