@@ -456,7 +456,28 @@ pnpm --filter backend db:crear-admin correo@ejemplo.com "Nombre" [--rol GESTOR]
 
 # Dar concesiones a una cuenta que ya existe, sin tocarle la clave.
 pnpm --filter backend db:crear-admin correo@ejemplo.com "Nombre" --solo-permisos
+
+# Cambiar el rol de una cuenta que ya existe, sin tocarle la clave.
+pnpm --filter backend db:crear-admin correo@ejemplo.com "Nombre"   --rol SUPERADMIN --solo-permisos
 ```
+
+> **El rol solo se cambia si `--rol` se escribió de verdad**, y ese detalle es lo
+> que lo hace seguro: `--rol` vale `SUPERADMIN` por omisión, así que aplicarlo
+> siempre convertiría en superadmin a cualquiera al que se le reinicie la
+> contraseña. Comprobado en pruebas en los dos sentidos.
+>
+> **Hasta el 26 ago 2026 el script no cambiaba el rol**: a una cuenta existente
+> solo le tocaba la clave. La herramienta documentada para arreglar accesos no
+> podía ascender a nadie, y tocaba ir a la base a mano contra producción.
+>
+> **Para el día a día, mejor el panel** (`/admin/usuarios`): crea, asciende y
+> **exige al menos una concesión al crear**, que el script no hace — él reparte
+> todos los convenios activos. El script es para el primer usuario y para cuando
+> nadie puede entrar.
+>
+> **En el clon del servidor el script no corre tal cual**: se instala sin las
+> dependencias de desarrollo, así que no hay `prisma` ni `ts-node` útiles. El
+> cliente se genera dentro de la imagen, no en el clon.
 
 > **El script otorga también la concesión por convenio**, y tiene que hacerlo:
 > con el ámbito aplicado, una cuenta sin fila en `AdminConvenio` no ve nada y
