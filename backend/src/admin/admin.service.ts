@@ -38,6 +38,7 @@ import {
   TOKENS,
   type ColoresTema,
 } from './temas';
+import { gremioDelHost } from './gremio-del-host';
 
 const ID_MARCA = 'unica';
 
@@ -63,6 +64,50 @@ export class AdminService {
   constructor(private readonly prisma: PrismaService) {}
 
   // sesión
+
+  /**
+   * Si esa cuenta puede entrar por esa dirección.
+   *
+   * Se comprueba AQUÍ y no solo en el guard porque el login
+   * es público: sin esto se entraría bien y luego toda
+   * pantalla contestaría que no, que parece un sistema roto
+   * en vez de una puerta equivocada.
+   */
+  async motivoParaNoEntrarPor(
+    admin: Admin,
+    host?: string | null,
+  ): Promise<string | null> {
+    const activos = await this.prisma.convenio.findMany({
+      where: { activo: true },
+      select: { id: true, slug: true },
+    });
+    const delHost = gremioDelHost(host, activos);
+
+    if (delHost) {
+      const tiene = await this.prisma.adminConvenio.count({
+        where: { adminId: admin.id, convenioId: delHost.id },
+      });
+      if (tiene === 0) {
+        return (
+          `Su cuenta no trabaja en ${delHost.slug}. Entre por la dirección ` +
+          'del gremio que le corresponde.'
+        );
+      }
+      return null;
+    }
+
+    if (
+      process.env.PANEL_GENERAL_SOLO_SUPERADMIN === 'si' &&
+      admin.rol !== 'SUPERADMIN'
+    ) {
+      return (
+        'Esta dirección es solo para administración general. Entre por la ' +
+        'dirección de su gremio.'
+      );
+    }
+
+    return null;
+  }
 
   async validarCredenciales(correo: string, clave: string): Promise<Admin> {
     const admin = await this.prisma.admin.findUnique({ where: { correo } });

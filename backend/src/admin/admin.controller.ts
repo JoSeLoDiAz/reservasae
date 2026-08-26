@@ -3,12 +3,14 @@ import {
   Body,
   Controller,
   Delete,
+  ForbiddenException,
   Get,
   HttpCode,
   Param,
   Patch,
   Post,
   Query,
+  Req,
   Res,
   UploadedFile,
   UseGuards,
@@ -17,7 +19,7 @@ import {
 import { FileInterceptor } from '@nestjs/platform-express';
 import { JwtService } from '@nestjs/jwt';
 import { Throttle } from '@nestjs/throttler';
-import type { Response } from 'express';
+import type { Request, Response } from 'express';
 
 import { RolAdmin, type Admin, type EsquemaColor } from '../../generated/prisma';
 import {
@@ -72,9 +74,16 @@ export class AdminController {
   @Throttle({ default: { limit: 8, ttl: 60_000 } })
   async iniciarSesion(
     @Body() dto: IniciarSesionDto,
+    @Req() peticion: Request,
     @Res({ passthrough: true }) respuesta: Response,
   ) {
     const admin = await this.admin.validarCredenciales(dto.correo, dto.clave);
+
+    // la dirección decide en qué gremio se trabaja, así que
+    // una cuenta que no lo tiene no llega a tener sesión
+    const motivo = await this.admin.motivoParaNoEntrarPor(admin, peticion.headers.host);
+    if (motivo) throw new ForbiddenException(motivo);
+
     const token = this.jwt.sign({ sub: admin.id });
 
     respuesta.cookie(COOKIE_SESION, token, {
@@ -112,8 +121,18 @@ export class AdminController {
       /// recortado por el que se eligió y entonces el
       /// desplegable se quedaría con una sola opción: la que
       /// ya está puesta.
-      gremios: await this.admin.gremiosDe(ambito.concedidos),
+      /// Con el gremio fijado por la dirección va SOLO ese, y
+      /// entonces el desplegable se pinta como etiqueta. No
+      /// es recortar información: en esa dirección de verdad
+      /// no hay otra opción, y ofrecerla dejaría elegir un
+      /// gremio que el servidor va a ignorar.
+      gremios: await this.admin.gremiosDe(
+        ambito.gremioFijo && ambito.gremioElegido
+          ? [ambito.gremioElegido]
+          : ambito.concedidos,
+      ),
       gremioElegido: ambito.gremioElegido,
+      gremioFijo: ambito.gremioFijo,
     };
   }
 

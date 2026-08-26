@@ -11,6 +11,7 @@ import { JwtService } from '@nestjs/jwt';
 import type { Request } from 'express';
 
 import type { Admin, RolAdmin, RolConvenio } from '../../generated/prisma';
+import { gremioDelHost } from './gremio-del-host';
 import { PrismaService } from '../prisma/prisma.service';
 import { alcanza, nivelDe, type Area, type Nivel } from './permisos';
 
@@ -59,6 +60,12 @@ export type Ambito = {
   /// Todos los que le concede su cuenta, sin recortar por el
   /// gremio elegido: es lo que llena el desplegable.
   concedidos: string[];
+  /// Si el gremio lo fija la DIRECCIÓN y no el desplegable.
+  ///
+  /// Con esto puesto no se puede cambiar: en el subdominio de
+  /// un gremio no hay elección que ofrecer, y ofrecerla haría
+  /// que la pantalla dijera un gremio y mostrara el otro.
+  gremioFijo: boolean;
 };
 
 /// La cabecera con la que el panel dice de qué gremio está
@@ -119,7 +126,11 @@ export class AdminGuard implements CanActivate {
       (roles[c.convenioId] ??= []).push(c.rol);
     }
     const concedidos = Object.keys(roles);
-    const activos = await this.prisma.convenio.count({ where: { activo: true } });
+    const conveniosActivos = await this.prisma.convenio.findMany({
+      where: { activo: true },
+      select: { id: true, slug: true },
+    });
+    const activos = conveniosActivos.length;
 
     const exigido = this.reflector.getAllAndOverride<{ areas: Area[]; nivel: Nivel }>(
       AREA,
@@ -140,10 +151,39 @@ export class AdminGuard implements CanActivate {
     // que su cuenta no le concede, se ignora y se queda con
     // todo lo suyo. Un encabezado no puede dar acceso.
     const pedido = peticion.headers[CABECERA_GREMIO];
-    const gremioElegido =
+    const porCabecera =
       typeof pedido === 'string' && convenios.includes(pedido) ? pedido : null;
 
-    const alcance = gremioElegido ? [gremioElegido] : convenios;
+    // la DIRECCIÓN manda sobre la cabecera, y a diferencia de
+    // ella no se ignora en silencio: la cabecera es una
+    // comodidad del panel, pero el subdominio afirma en qué
+    // gremio está. Caer al otro mostraría las cifras de
+    // BRITCHAM en una pantalla con el logo de ADECOPRIA, que
+    // es peor que un error.
+    const delHost = gremioDelHost(peticion.headers.host, conveniosActivos);
+    if (delHost && !concedidos.includes(delHost.id)) {
+      throw new ForbiddenException(
+        `Su cuenta no trabaja en ${delHost.slug}. Entre por la dirección ` +
+          'del gremio que le corresponde.',
+      );
+    }
+
+    // la puerta general se cierra solo donde se pide: en
+    // local y en pruebas tiene que seguir abierta, o nadie
+    // podría desarrollar ni revisar con las demás cuentas.
+    if (
+      !delHost &&
+      process.env.PANEL_GENERAL_SOLO_SUPERADMIN === 'si' &&
+      admin.rol !== 'SUPERADMIN'
+    ) {
+      throw new ForbiddenException(
+        'Esta dirección es solo para administración general. Entre por la ' +
+          'dirección de su gremio.',
+      );
+    }
+
+    const gremioElegido = delHost ? delHost.id : porCabecera;
+    const alcance = gremioElegido ? convenios.filter((id) => id === gremioElegido) : convenios;
 
     peticion.ambito = {
       convenios: alcance,
@@ -151,6 +191,7 @@ export class AdminGuard implements CanActivate {
       roles,
       gremioElegido,
       concedidos,
+      gremioFijo: delHost !== null,
     };
 
     const sinCambiar = this.reflector.getAllAndOverride<boolean>(

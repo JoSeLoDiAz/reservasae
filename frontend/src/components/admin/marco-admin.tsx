@@ -78,6 +78,16 @@ export function MarcoAdmin({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  /// Con el gremio fijado por la dirección manda el servidor.
+  ///
+  /// Un `localStorage` de la visita anterior pintaría arriba
+  /// el gremio equivocado mientras las tablas muestran el de
+  /// la dirección, que es justo la mentira que el selector
+  /// existe para evitar.
+  const gremioActivo = admin?.gremioFijo
+    ? (admin.gremioElegido ?? null)
+    : gremio;
+
   const elegirGremio = useCallback(
     (convenioId: string | null) => {
       setGremioEstado(convenioId);
@@ -157,7 +167,7 @@ export function MarcoAdmin({ children }: { children: React.ReactNode }) {
 
   return (
     <ContextoAdmin.Provider
-      value={{ admin, refrescar: cargar, gremio, elegirGremio, gremios }}
+      value={{ admin, refrescar: cargar, gremio: gremioActivo, elegirGremio, gremios }}
     >
       <a href="#contenido" className="salto-al-contenido no-imprimir">
         Saltar al contenido
@@ -186,7 +196,7 @@ export function MarcoAdmin({ children }: { children: React.ReactNode }) {
             setModuloAAbrir(clave);
           }}
           gremios={gremios}
-          gremio={gremio}
+          gremio={gremioActivo}
           alElegir={elegirGremio}
         />
 
@@ -197,7 +207,7 @@ export function MarcoAdmin({ children }: { children: React.ReactNode }) {
           esSuperadmin={esSuperadmin}
           permisos={admin.permisos}
           gremios={gremios}
-          gremio={gremio}
+          gremio={gremioActivo}
           alElegir={elegirGremio}
         />
 

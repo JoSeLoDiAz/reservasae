@@ -93,6 +93,9 @@ export type AdminActual = {
   gremios?: Array<{ convenioId: string; slug: string; sigla: string }>;
   /// Cuál está puesto ahora mismo, según lo dijo el backend.
   gremioElegido?: string | null;
+  /// Si lo fija la DIRECCIÓN y no el desplegable. En el
+  /// subdominio de un gremio no hay nada que elegir.
+  gremioFijo?: boolean;
 };
 
 const ESCALA: Nivel[] = ["NADA", "VER", "ESCRIBIR"];
