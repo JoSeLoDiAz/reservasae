@@ -178,9 +178,16 @@ export function leerFecha(v: string | null): string | null {
   const iso = t.match(/(\d{4})-(\d{1,2})-(\d{1,2})/);
   if (iso) return armar(iso[1], Number(iso[2]), iso[3]);
 
-  // 17/01/1972 -- día primero, como se escribe en Colombia
-  const barras = t.match(/(\d{1,2})[/](\d{1,2})[/](\d{4})/);
-  if (barras) return armar(barras[3], Number(barras[2]), barras[1]);
+  /// 17/01/1972 y 17-01-1972 -- día primero, como se escribe
+  /// en Colombia. Los dos separadores, porque el buscador usa
+  /// uno u otro según le da: en una consulta contestó
+  /// «17 de enero de 1972» y en la siguiente «17-01-1972»,
+  /// y con solo la barra la segunda se perdía.
+  ///
+  /// Va DESPUÉS del formato con año primero, que ya se probó
+  /// arriba: así «1972-01-17» no se lee como día 1972.
+  const separado = t.match(/(\d{1,2})[/-](\d{1,2})[/-](\d{4})/);
+  if (separado) return armar(separado[3], Number(separado[2]), separado[1]);
 
   // «enero de 1972», o solo «1972»: no alcanza para una fecha
   return null;

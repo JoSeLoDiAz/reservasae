@@ -3,6 +3,8 @@
 import { Injectable, Logger, type OnModuleDestroy } from '@nestjs/common';
 import { chromium, type Browser, type Page } from 'playwright';
 
+import { rutaDelNavegador } from '../../comun/navegador';
+
 import {
   documentoNoEncontrado,
   leerRespuesta,
@@ -57,7 +59,25 @@ export class ProveedorRuiVentanilla implements ProveedorRui, OnModuleDestroy {
 
   private async abrir(): Promise<Browser> {
     if (this.navegador?.isConnected()) return this.navegador;
-    this.navegador = await chromium.launch({ headless: true });
+
+    /// En el servidor hay que decirle cuál usar.
+    ///
+    /// La imagen es Alpine, y Playwright no publica binarios
+    /// para Alpine: el navegador que se baja solo en un
+    /// portátil ahí no existe. El Dockerfile instala el
+    /// `chromium` del sistema y lo anuncia en CHROMIUM_RUTA.
+    /// Sin esto la cola del RUI falla en producción con un
+    /// «Executable doesn't exist» que no dice nada.
+    ///
+    /// Oculto sí sirve aquí: el portal del DNP no persigue
+    /// robots, a diferencia del buscador.
+    const ruta = rutaDelNavegador(process.env.RUI_NAVEGADOR_RUTA);
+    if (ruta) this.log.log(`Navegador: ${ruta}`);
+
+    this.navegador = await chromium.launch({
+      headless: true,
+      ...(ruta ? { executablePath: ruta } : {}),
+    });
     return this.navegador;
   }
 

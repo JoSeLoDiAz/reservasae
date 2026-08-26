@@ -5,7 +5,6 @@ import {
   Inject,
   Injectable,
   Logger,
-  NotFoundException,
 } from '@nestjs/common';
 
 import { EstadoConsultaRui } from '../../../generated/prisma';
@@ -91,7 +90,9 @@ export class RuiService {
     });
 
     if (!c?.nombreEncontrado) {
-      throw new BadRequestException('Todavía no hay un nombre del RUI para esta persona.');
+      throw new BadRequestException(
+        'Todavía no hay un nombre del RUI para esta persona.',
+      );
     }
     if (c.simulado) {
       throw new BadRequestException(

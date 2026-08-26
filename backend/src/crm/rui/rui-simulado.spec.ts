@@ -11,10 +11,7 @@ import { RuiService } from './rui.service';
 
 /// Una base de mentira que solo sabe devolver una consulta
 /// y decir si la persona es inventada.
-function conLaFila(
-  fila: Record<string, unknown> | null,
-  esDePrueba = false,
-) {
+function conLaFila(fila: Record<string, unknown> | null, esDePrueba = false) {
   const prisma = {
     consultaRui: {
       findFirst: jest.fn().mockResolvedValue(fila),

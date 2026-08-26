@@ -12,11 +12,12 @@
 ///   2. Modo IA, y ahí: DAME LA SIGUIENTE INFORMACIÓN: ...
 
 import { spawn, type ChildProcess } from 'node:child_process';
-import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { Injectable, Logger, type OnModuleDestroy } from '@nestjs/common';
 import { chromium, type BrowserContext, type Page } from 'playwright';
+
+import { hayPantalla, rutaDelNavegador } from '../../comun/navegador';
 
 import { leerFichaWeb } from './leer-ficha-web';
 import {
@@ -85,20 +86,8 @@ const PERFIL =
 /// Cuánto se le da a Chrome para abrir el puerto.
 const ARRANQUE = 20_000;
 
-/// Donde suele estar Chrome. Se puede saltar todo esto con
-/// WEB_NAVEGADOR_RUTA.
-const CHROME = [
-  'C:/Program Files/Google/Chrome/Application/chrome.exe',
-  'C:/Program Files (x86)/Google/Chrome/Application/chrome.exe',
-  '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
-  '/usr/bin/google-chrome',
-  '/usr/bin/chromium',
-];
-
 function rutaDeChrome(): string | null {
-  const puesta = process.env.WEB_NAVEGADOR_RUTA;
-  if (puesta) return existsSync(puesta) ? puesta : null;
-  return CHROME.find((r) => existsSync(r)) ?? null;
+  return rutaDelNavegador(process.env.WEB_NAVEGADOR_RUTA);
 }
 
 @Injectable()
@@ -182,6 +171,36 @@ export class ProveedorWebNavegador implements ProveedorWeb, OnModuleDestroy {
       '--window-size=1400,1000',
     ];
 
+    /**
+     * En un servidor no hay pantalla donde dibujar.
+     *
+     * Un Chrome con ventana necesita una pantalla; sin ella
+     * ni siquiera arranca. La imagen puede levantar una
+     * virtual con Xvfb —se enciende con WEB_CON_CABEZA=1— y
+     * entonces sí. Si no la hay, se cae a oculto para no
+     * reventar... pero se avisa, porque oculto es justo lo
+     * que el buscador bloquea, y quedarse callado aquí sería
+     * dejar que alguien crea que esto funciona en el
+     * servidor cuando lo más probable es que no.
+     */
+    const conPantalla = hayPantalla();
+    if (!conPantalla) {
+      this.log.warn(
+        'No hay pantalla: el navegador va a arrancar oculto, y el buscador ' +
+          'suele rechazar eso con «tráfico inusual». En un servidor use ' +
+          'WEB_PROVEEDOR=API, o levante una pantalla virtual con ' +
+          'WEB_CON_CABEZA=1 en la imagen.',
+      );
+    }
+
+    /// Sin `--no-sandbox` un Chromium dentro de un contenedor
+    /// no arranca: no tiene los permisos del núcleo que el
+    /// aislamiento necesita. Solo se pone donde hace falta.
+    const enContenedor =
+      process.platform === 'linux'
+        ? ['--no-sandbox', '--disable-dev-shm-usage']
+        : [];
+
     this.proceso = spawn(
       chrome,
       [
@@ -189,7 +208,9 @@ export class ProveedorWebNavegador implements ProveedorWeb, OnModuleDestroy {
         `--user-data-dir=${PERFIL}`,
         '--no-first-run',
         '--no-default-browser-check',
-        ...(process.env.WEB_CON_CABEZA === '1' ? [] : escondido),
+        ...enContenedor,
+        ...(conPantalla ? [] : ['--headless=new']),
+        ...(conPantalla && process.env.WEB_CON_CABEZA !== '1' ? escondido : []),
         'about:blank',
       ],
       { detached: false, stdio: 'ignore' },

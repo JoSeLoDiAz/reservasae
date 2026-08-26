@@ -153,6 +153,9 @@ describe('la fecha de fundación', () => {
     ['1 de diciembre de 2003', '2003-12-01'],
     ['1972-01-17', '1972-01-17'],
     ['17/01/1972', '1972-01-17'],
+    // el buscador contestó así en una consulta de verdad
+    ['17-01-1972', '1972-01-17'],
+    ['30-08-1957', '1957-08-30'],
     ['enero de 1972', null],
     ['1972', null],
     ['32 de enero de 1972', null],
