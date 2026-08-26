@@ -1227,13 +1227,40 @@ Lo que el cliente pidió, y que ya está:
   empresas de un convenio más las del otro suman **más** que el total: 15 + 23
   contra 24, y es correcto.
 
-> **El subdominio no separa nada, y hay que repetirlo.** `adecopria.reservasae.com`
-> y `britcham.reservasae.com` sirven la misma base con la misma sesión: sin el
-> ámbito aplicado, el asesor de un convenio escribe la otra dirección y lo ve
-> todo. **El subdominio es la puerta con el letrero; el ámbito es la cerradura**,
-> y poner el letrero sin la cerradura es peor que no poner nada, porque todos
-> creerán que está cerrado. Una vez aplicado el ámbito, el subdominio sí sirve:
-> decide con qué convenio llegas puesto, con su logo y sus colores.
+### Un subdominio por gremio (26 ago 2026)
+
+`adecopria.reservasae.com` y `britcham-adee.reservasae.com`, más
+`reservasae.com` como puerta general. Los tres van al mismo nginx y a la misma
+base: **lo que separa es el ámbito, no el subdominio.** El letrero sin la
+cerradura sería peor que nada, porque todos creerían que está cerrado.
+
+- **El subdominio ES el slug del convenio**, así que no hay campo ni tabla de
+  equivalencias. Se pensó en `britcham.` a secas y se descartó: una traducción
+  más que mantener sincronizada, para nada.
+- **No hizo falta cerradura nueva.** Ya existía el recorte por gremio con la
+  cabecera `x-gremio`; el host se traduce a gremio y entra por el mismo sitio.
+- **Pero la dirección NO se ignora en silencio, y la cabecera sí.** Aquella es
+  una comodidad del panel y caer al otro gremio es inofensivo. El subdominio
+  **afirma** en qué gremio está: caer al otro pintaría las cifras de BRITCHAM
+  bajo el logo de ADECOPRIA, que es peor que un error. Si la cuenta no tiene ese
+  convenio, se le dice y no entra.
+- **Se comprueba también en el login**, que es `@Publica()` y se salta el guard.
+  Sin eso se entraba bien y después toda pantalla contestaba que no, que parece
+  un sistema roto en vez de una puerta equivocada.
+- **Con el gremio fijado por la dirección, el desplegable se queda en uno.**
+  Ofrecer el otro dejaría elegir un gremio que el servidor va a ignorar. Por lo
+  mismo la dirección manda sobre el `localStorage`: uno de la visita anterior
+  pintaría arriba un gremio distinto al de las tablas.
+- **La puerta general se cierra con `PANEL_GENERAL_SOLO_SUPERADMIN=si`**, no en
+  el código: en local y en pruebas tiene que seguir abierta o nadie podría
+  desarrollar ni revisar con las demás cuentas.
+- **nginx no se toca** (`server_name _` y ya pasa `Host $host`), y el ingress
+  del túnel `convoca` se edita **en el panel de Cloudflare**, no en un archivo:
+  corre con `--token`, así que se añaden hostnames sin desplegar ni reiniciar.
+
+Comprobado con la misma cuenta por las tres direcciones: 19 organizaciones por
+ADECOPRIA, 18 por BRITCHAM y 24 por la general. **19 + 18 ≠ 24 y es correcto**
+— una empresa que reservó en los dos cuenta en los dos.
 
 ### Lo que falta
 
