@@ -1,7 +1,13 @@
 /** El que va vaciando la cola del RUI. */
 
-import { Injectable, Logger, type OnModuleDestroy, type OnModuleInit } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  type OnModuleDestroy,
+  type OnModuleInit,
+} from '@nestjs/common';
 
+import { ruiEsSimulado } from './proveedor';
 import { RuiService } from './rui.service';
 
 /// Apagado salvo que se encienda a propósito, igual que el
@@ -14,8 +20,22 @@ const ENCENDIDO = process.env.RUI_WORKER === '1';
 /// Social es un portal del Estado: diez navegadores en
 /// paralelo se ganan un bloqueo de IP, y entonces el
 /// proceso se cae para todos, no solo para el que corría.
-const PAUSA_CON_TRABAJO = 800;
+/// Con el simulador la pausa es corta porque no sale a
+/// ninguna parte. Contra el portal real se espera entre seis
+/// y diez segundos, con algo de azar para no entrar siempre en
+/// el mismo instante del reloj: es el ritmo con el que el
+/// script original llevaba meses sin que lo bloquearan.
+const PAUSA_SIMULADO = 800;
+const PAUSA_MINIMA = 6000;
+const PAUSA_MAXIMA = 10_000;
 const PAUSA_SIN_TRABAJO = 5000;
+
+function pausaEntreConsultas(): number {
+  if (ruiEsSimulado()) return PAUSA_SIMULADO;
+  return (
+    PAUSA_MINIMA + Math.floor(Math.random() * (PAUSA_MAXIMA - PAUSA_MINIMA))
+  );
+}
 
 @Injectable()
 export class RuiWorker implements OnModuleInit, OnModuleDestroy {
@@ -30,6 +50,13 @@ export class RuiWorker implements OnModuleInit, OnModuleDestroy {
       this.log.log('Apagado. Se enciende con RUI_WORKER=1.');
       return;
     }
+
+    // que quede claro en el registro contra que corre
+    this.log.log(
+      ruiEsSimulado()
+        ? 'Con el simulador: NO consulta el RUI. Se conecta con RUI_PROVEEDOR=VENTANILLA.'
+        : 'Contra la Ventanilla Social del DNP, en serio.',
+    );
     void this.bucle();
   }
 
@@ -52,7 +79,7 @@ export class RuiWorker implements OnModuleInit, OnModuleDestroy {
       }
 
       await new Promise((r) =>
-        setTimeout(r, hubo ? PAUSA_CON_TRABAJO : PAUSA_SIN_TRABAJO),
+        setTimeout(r, hubo ? pausaEntreConsultas() : PAUSA_SIN_TRABAJO),
       );
     }
 

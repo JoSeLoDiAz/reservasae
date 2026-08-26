@@ -17,6 +17,121 @@ import { Cajon, Dato } from "./cajon";
 import { PildoraEtapa } from "./etapa";
 import { Aviso, Boton, CLASE_CONTROL } from "./marco-admin";
 
+/**
+ * Mover de etapa y asignar asesor, sin salir de la tabla.
+ *
+ * Son las dos decisiones que se toman mirando una lista. Todo
+ * lo demás -- la validación del RUI, la organización, el
+ * enlace, el historial -- necesita más sitio del que hay aquí
+ * y vive en el lead completo, a un clic.
+ */
+function Acciones({
+  fila,
+  alHecho,
+}: {
+  fila: FilaParticipante;
+  alHecho: () => void;
+}) {
+  const [etapa, setEtapa] = useState(fila.etapa);
+  const [asesorId, setAsesorId] = useState(fila.asesor?.id ?? "");
+  const [asesores, setAsesores] = useState<Array<{ id: string; nombre: string }>>([]);
+  const [ocupado, setOcupado] = useState(false);
+  const [problema, setProblema] = useState<string | null>(null);
+
+  useEffect(() => {
+    void crmApi
+      .resumen({})
+      .then((r) => setAsesores(r.asesores.map((a) => ({ id: a.id, nombre: a.nombre }))))
+      .catch(() => undefined);
+  }, []);
+
+  async function conError(accion: () => Promise<void>) {
+    setOcupado(true);
+    setProblema(null);
+    try {
+      await accion();
+      alHecho();
+    } catch (e) {
+      // el backend explica por qué: cupos, grupo, empresa...
+      setProblema((e as ErrorApi).message);
+    } finally {
+      setOcupado(false);
+    }
+  }
+
+  return (
+    <div className="space-y-3 rounded-xl border border-borde bg-superficie-alterna p-4">
+      {problema && <Aviso tipo="error">{problema}</Aviso>}
+
+      <div>
+        <span className="mb-2 block text-xs font-semibold tracking-[0.06em] text-texto-suave uppercase">
+          Mover de etapa
+        </span>
+        <div className="flex flex-wrap gap-2">
+          {(["INTERESADO", "CONTACTADO", "INSCRITO", "PERDIDO"] as const).map((e) => (
+            <button
+              key={e}
+              type="button"
+              disabled={e === etapa || ocupado}
+              onClick={() => {
+                let motivo: string | undefined;
+                if (e === "PERDIDO") {
+                  const escrito = window.prompt(
+                    "¿Por qué pasa a «No interesado»? Es obligatorio.",
+                  );
+                  if (!escrito?.trim()) return;
+                  motivo = escrito.trim();
+                }
+                void conError(async () => {
+                  await crmApi.cambiarEtapa(fila.id, e, motivo);
+                  setEtapa(e);
+                });
+              }}
+              className={`rounded-lg border px-3 py-1.5 text-sm disabled:opacity-60 ${
+                e === etapa
+                  ? "border-marca bg-marca-suave font-medium text-marca"
+                  : "border-borde bg-superficie hover:bg-superficie-alterna"
+              }`}
+            >
+              {ETIQUETA_ETAPA[e]}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div>
+        <span className="mb-2 block text-xs font-semibold tracking-[0.06em] text-texto-suave uppercase">
+          Asesor
+        </span>
+        <div className="flex flex-wrap items-center gap-2">
+          <select
+            value={asesorId}
+            onChange={(e) => setAsesorId(e.target.value)}
+            className={`${CLASE_CONTROL} min-w-52 flex-1`}
+          >
+            <option value="">Sin asignar</option>
+            {asesores.map((a) => (
+              <option key={a.id} value={a.id}>
+                {a.nombre}
+              </option>
+            ))}
+          </select>
+          <Boton
+            onClick={() =>
+              void conError(async () => {
+                await crmApi.actualizar(fila.id, { asesorId: asesorId || null });
+              })
+            }
+            disabled={ocupado || asesorId === (fila.asesor?.id ?? "")}
+          >
+            Asignar
+          </Boton>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 type Tipo = "texto" | "correo" | "tel" | "fecha" | "numero" | "lista" | "si-no";
 
 type Campo = {
@@ -283,6 +398,14 @@ export function CajonLead({
             {fila.datos === "COMPLETOS" ? "Datos completos" : "Datos parciales"}
           </span>
         </div>
+
+        {/* Las mismas acciones que en el lead completo.
+            
+            Antes esto solo enseñaba datos: para mover de etapa
+            o asignar asesor había que abrir la ficha entera,
+            perder la tabla y volver. Son las dos decisiones que
+            se toman mirando una lista, y ahora se toman aquí. */}
+        {!editando && <Acciones fila={fila} alHecho={alGuardar} />}
 
         {editando ? (
           <>

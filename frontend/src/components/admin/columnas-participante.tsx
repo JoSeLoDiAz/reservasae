@@ -68,7 +68,13 @@ export function columnasDeParticipante(): Columna<FilaParticipante>[] {
       fija: true,
       valor: (f) => f.nombre,
       pinta: (f) => (
-        <Link href={"/admin/participantes/" + f.id} className="underline">
+        <Link
+          href={"/admin/participantes/" + f.id}
+          // sin esto el clic sigue subiendo a la fila y abre
+          // ADEMAS el cajon lateral: dos cosas de un clic
+          onClick={(e) => e.stopPropagation()}
+          className="underline"
+        >
           {f.nombre}
         </Link>
       ),

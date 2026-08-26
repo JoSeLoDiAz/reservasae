@@ -1,4 +1,5 @@
 import { ErrorApi } from "./api";
+import { pedir } from "./pedir";
 
 export type Etapa =
   | "INTERESADO"
@@ -117,6 +118,8 @@ export type ConsultaRui = {
   porDelante: number | null;
   /// El detector es el de mentira: no consultó el RUI.
   simulado: boolean;
+  /// La cédula es inventada: no se consulta a propósito.
+  esDePrueba: boolean;
 };
 
 export const ETIQUETA_RUI: Record<EstadoRui, string> = {
@@ -274,6 +277,15 @@ export type Ficha = {
   /// de su organización y después lo suyo.
   faltaDeLaEmpresa: string[];
   faltaDeLaPersona: string[];
+  /// En qué anda el último enlace que se le mandó.
+  enlace: {
+    estado: "SIN_ABRIR" | "ABIERTO" | "COMPLETADO" | "ANULADO" | "CADUCADO";
+    creadoEn: string;
+    expiraEn: string;
+    abiertoEn: string | null;
+    usadoEn: string | null;
+    emitidoPor: string | null;
+  } | null;
   cargoEnEmpresa: string | null;
   nivelOcupacionalSepId: number | null;
   beneficiarioPrevio: boolean | null;
@@ -297,6 +309,9 @@ export type Ficha = {
     municipioSepId: number | null;
     barrio: string | null;
     direccion: string | null;
+    /// Lo pregunta el formulario largo y no se veía en la
+    /// ficha: el asesor no podía corroborarlo.
+    nivelEducativo: string | null;
     participaciones: Array<{
       id: string;
       etapa: Etapa;
@@ -323,6 +338,26 @@ export type Ficha = {
     };
   } | null;
   reserva: { id: string; empresa: { nit: string; razonSocial: string } } | null;
+  /// Su organización: los trece campos que pide el formulario
+  /// largo. El backend los mandaba a medias y el tipo ni la
+  /// declaraba, así que la ficha no podía enseñarlos.
+  empresa: {
+    id: string;
+    nit: string;
+    digitoVerificacion: string | null;
+    razonSocial: string;
+    direccion: string | null;
+    telefono: string | null;
+    departamentoSepId: number | null;
+    municipioSepId: number | null;
+    sectorEconomico: string | null;
+    numeroTrabajadores: number | null;
+    contactoNombre: string | null;
+    contactoCargo: string | null;
+    contactoCorreo: string | null;
+  } | null;
+  /// Su cédula es su RUT: no tiene empresa, es él mismo.
+  trabajaPorSuCuenta: boolean;
   asesor: { id: string; nombre: string } | null;
   movimientos: Array<{
     id: string;
@@ -714,22 +749,6 @@ function consulta(filtros: Filtros | FiltroVentana): string {
   return s ? `?${s}` : "";
 }
 
-async function pedir<T>(ruta: string, opciones?: RequestInit): Promise<T> {
-  const respuesta = await fetch(`/api${ruta}`, {
-    ...opciones,
-    headers: { "content-type": "application/json", ...opciones?.headers },
-  });
-
-  const cuerpo = await respuesta.json().catch(() => null);
-
-  if (!respuesta.ok) {
-    const bruto = (cuerpo as { message?: string | string[] } | null)?.message;
-    const mensaje = Array.isArray(bruto) ? bruto.join(". ") : bruto;
-    throw new ErrorApi(respuesta.status, mensaje ?? "No se pudo completar la operación.", cuerpo);
-  }
-
-  return cuerpo as T;
-}
 
 export type Canal =
   | "FORMULARIO_WEB" | "CARGA_EMPRESA" | "VERBAL_ASESOR" | "CORREO" | "PRESENCIAL";
@@ -899,6 +918,10 @@ export const crmApi = {
   /** Vuelve a preguntarle al RUI. */
   reconsultarRui: (id: string) =>
     pedir<ConsultaRui>(`/admin/participantes/${id}/rui`, { method: "POST" }),
+
+  /** Se queda con el nombre que devolvió el RUI. */
+  tomarNombreDelRui: (id: string) =>
+    pedir<Ficha>(`/admin/participantes/${id}/rui/tomar-nombre`, { method: "POST" }),
 
   /** Un enlace nuevo. El anterior deja de valer. */
   emitirEnlace: (id: string) =>

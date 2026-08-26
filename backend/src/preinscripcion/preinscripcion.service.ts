@@ -1,6 +1,6 @@
 /** Quien se inscribe por su cuenta, y completa sus datos. */
 
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { randomBytes } from 'node:crypto';
 
 import { Prisma } from '../../generated/prisma';
@@ -16,6 +16,7 @@ import {
   NIVELES_OCUPACIONALES_SEP,
 } from '../crm/catalogos-sep';
 import { faltaDeLaPersona } from '../crm/completitud';
+import { ColaRui } from '../crm/rui/cola-rui';
 import { CrearPreinscripcionDto, DatosEmpresaDto, DatosPersonaDto } from './dto';
 
 /// Cuánto vale un enlace antes de caducar solo.
@@ -25,7 +26,12 @@ const EDAD_MINIMA = 18;
 
 @Injectable()
 export class PreinscripcionService {
-  constructor(private readonly prisma: PrismaService) {}
+  private readonly log = new Logger('Preinscripcion');
+
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly colaRui: ColaRui,
+  ) {}
 
   /** Lo que el formulario necesita para dibujarse. */
   async catalogo(slug: string) {
@@ -234,6 +240,8 @@ export class PreinscripcionService {
       await this.dejarConstancia(persona.id, convenio.id, participante.id, ip);
     }
 
+    await this.pedirElRui(persona.id);
+
     const enlace = await this.emitirEnlace(participante.id, null);
 
     return {
@@ -242,6 +250,31 @@ export class PreinscripcionService {
       token: enlace.token,
       expiraEn: enlace.expiraEn,
     };
+  }
+
+  /**
+   * Manda a verificar el nombre contra el RUI, en segundo
+   * plano.
+   *
+   * Se pide al inscribirse y no cuando el asesor abre la
+   * ficha: asi, cuando la abra, la respuesta ya esta. El
+   * portal del DNP tarda entre cinco y quince segundos y la
+   * cola espera su turno; nada de eso puede hacer esperar a
+   * quien esta llenando el formulario.
+   *
+   * Y si la cola falla, la inscripcion NO se cae con ella:
+   * perder un lead por un tropiezo del RUI seria cambiar
+   * algo que importa por algo que no.
+   */
+  private async pedirElRui(personaId: string) {
+    try {
+      await this.colaRui.encolarSiHaceFalta(personaId);
+    } catch (e) {
+      this.log.warn(
+        `No se pudo encolar la consulta al RUI de ${personaId}: ` +
+          (e instanceof Error ? e.message : String(e)),
+      );
+    }
   }
 
   /**
@@ -288,9 +321,12 @@ export class PreinscripcionService {
   /** Un enlace nuevo. Los anteriores dejan de valer. */
   async emitirEnlace(participanteId: string, emitidoPorId: string | null) {
     const ahora = new Date();
+    // «anulado», no «usado»: los dos lo dejan sin valor, pero
+    // dicen cosas distintas. Marcar como usado un enlace que
+    // nadie abrio hacia creer que la persona lo completo.
     await this.prisma.enlaceCompletado.updateMany({
-      where: { participanteId, usadoEn: null },
-      data: { usadoEn: ahora },
+      where: { participanteId, usadoEn: null, anuladoEn: null },
+      data: { anuladoEn: ahora },
     });
 
     const expiraEn = new Date(ahora.getTime() + DIAS_DE_VIDA * 86_400_000);
@@ -309,6 +345,21 @@ export class PreinscripcionService {
   /** Lo que ve quien abre el enlace. */
   async abrir(token: string) {
     const enlace = await this.exigirEnlaceVivo(token);
+
+    /// Queda anotado que lo abrieron, y solo la primera vez.
+    ///
+    /// Es lo que hace verdad el aviso del asesor: «si el que
+    /// mando aun no ha sido abierto, no genere otro». Sin
+    /// esto, esa frase le pedia una respuesta que nadie tenia.
+    ///
+    /// Va sin await y con el error tragado: esta es una ruta
+    /// publica y sin guard; si la anotacion falla, la persona
+    /// tiene que poder llenar su formulario igual.
+    if (!enlace.abiertoEn) {
+      void this.prisma.enlaceCompletado
+        .update({ where: { id: enlace.id }, data: { abiertoEn: new Date() } })
+        .catch(() => undefined);
+    }
 
     const p = await this.prisma.participante.findUnique({
       where: { id: enlace.participanteId },
@@ -572,6 +623,10 @@ export class PreinscripcionService {
             segundoNombre: true,
             primerApellido: true,
             segundoApellido: true,
+            // para el independiente: su casa y su celular son
+            // el domicilio y el telefono de su unidad economica
+            direccion: true,
+            celular: true,
           },
         },
       },
@@ -601,6 +656,14 @@ export class PreinscripcionService {
 
     if (suya) {
       await this.prisma.empresa.update({ where: { id: suya }, data: datos });
+      // y se ata al lead, que es lo que faltaba. Esta rama
+      // actualizaba la empresa y se iba sin dejar constancia
+      // de a quien pertenece: el lead quedaba con empresaId
+      // en null y el F7, que la busca ahi, no lo veia nunca
+      await this.prisma.participante.update({
+        where: { id: p.id },
+        data: { empresaId: suya },
+      });
     } else if (dto.nit) {
       const nit = dto.nit.replace(/\D/g, '');
       if (!nit) throw new BadRequestException('Ese NIT no tiene ningún dígito.');
@@ -637,6 +700,22 @@ export class PreinscripcionService {
         .filter(Boolean)
         .join(' ');
 
+      /// La direccion y el telefono son los SUYOS.
+      ///
+      /// Un independiente no tiene una sede aparte ni un
+      /// conmutador: su casa es su domicilio fiscal y su
+      /// celular es su telefono. Preguntarselos otra vez es
+      /// pedirle que copie lo que ya escribio dos pantallas
+      /// atras, y mientras no lo copie el F7 lo da por
+      /// incompleto.
+      ///
+      /// Si el formulario trajo algo distinto, manda eso: se
+      /// rellena el hueco, no se pisa lo que dijo.
+      const suyos = {
+        direccion: datos.direccion ?? p.persona.direccion ?? undefined,
+        telefono: datos.telefono ?? p.persona.celular ?? undefined,
+      };
+
       if (nit) {
         const empresa = await this.prisma.empresa.upsert({
           where: { nit },
@@ -645,9 +724,12 @@ export class PreinscripcionService {
             razonSocial: nombre || `Independiente ${nit}`,
             tipoDocumentoSepId: p.persona.tipoDocumentoSepId,
             ...datos,
+            ...suyos,
           },
           update: Object.fromEntries(
-            Object.entries(datos).filter(([, v]) => v !== undefined && v !== null),
+            Object.entries({ ...datos, ...suyos }).filter(
+              ([, v]) => v !== undefined && v !== null,
+            ),
           ),
           select: { id: true },
         });
@@ -671,14 +753,19 @@ export class PreinscripcionService {
   }
 
   /**
-   * Quien completa su ficha solo queda INSCRITO, sin esperar
-   * a que lo llamen.
+   * Quien completa su ficha queda con los DATOS COMPLETOS.
+   * No inscrito.
    *
-   * La regla ya existia para el asesor: no se pasa a INSCRITO
-   * con datos parciales. Quien llena todo la cumple por su
-   * cuenta, asi que dejarlo en INTERESADO solo aparenta un
-   * embudo mas lleno de lo que esta. Si falta algo, se queda
-   * donde estaba y el asesor lo ve en su cartera.
+   * Antes esto lo pasaba a INSCRITO solo, y estaba mal:
+   * llenar un formulario no aparta una silla. Una
+   * pre-inscripcion da prevalencia, no cupo. Inscribir es
+   * responder por alguien ante el SENA, consume un cupo de
+   * verdad y exige grupo con fechas -- eso lo decide una
+   * persona, nunca un formulario.
+   *
+   * DATOS_COMPLETOS dice justo lo que paso: ya no le falta
+   * nada para poder reportarse, y esta listo para que un
+   * lider lo inscriba.
    */
   private async inscribirSiEstaCompleto(participanteId: string) {
     const p = await this.prisma.participante.findUnique({
@@ -717,19 +804,20 @@ export class PreinscripcionService {
     await this.prisma.$transaction([
       this.prisma.participante.update({
         where: { id: participanteId },
-        data: { etapa: 'INSCRITO', fechaMatricula: new Date() },
+        // sin fechaMatricula: no se ha matriculado en nada
+        data: { etapa: 'DATOS_COMPLETOS' },
       }),
       this.prisma.movimientoParticipante.create({
         data: {
           participanteId,
           etapaAntes: p.etapa,
-          etapaDespues: 'INSCRITO',
+          etapaDespues: 'DATOS_COMPLETOS',
           motivo: 'Completó su ficha por su cuenta desde el enlace',
         },
       }),
     ]);
 
-    return 'INSCRITO' as const;
+    return 'DATOS_COMPLETOS' as const;
   }
 
   /** Termina sin llenar lo de la empresa. */
@@ -745,11 +833,23 @@ export class PreinscripcionService {
   private async exigirEnlaceVivo(token: string) {
     const enlace = await this.prisma.enlaceCompletado.findUnique({
       where: { token },
-      select: { id: true, participanteId: true, expiraEn: true, usadoEn: true },
+      select: {
+        id: true,
+        participanteId: true,
+        expiraEn: true,
+        usadoEn: true,
+        anuladoEn: true,
+        abiertoEn: true,
+      },
     });
-    // el mismo mensaje para los tres casos: decir "ya se
+    // el mismo mensaje para todos los casos: decir "ya se
     // usó" confirma que existió, y eso es un oráculo
-    if (!enlace || enlace.usadoEn || enlace.expiraEn < new Date()) {
+    if (
+      !enlace ||
+      enlace.usadoEn ||
+      enlace.anuladoEn ||
+      enlace.expiraEn < new Date()
+    ) {
       throw new NotFoundException(
         'Este enlace ya no está disponible. Pida uno nuevo a quien lo atendió.',
       );

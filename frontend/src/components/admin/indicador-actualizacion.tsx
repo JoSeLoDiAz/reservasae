@@ -31,26 +31,52 @@ export function IndicadorActualizacion({
     return () => clearInterval(id);
   }, []);
 
+  /// Mientras todo va bien, no se pinta NADA.
+  ///
+  /// La pantalla se refresca sola cada treinta segundos y al
+  /// volver a la pestaña. Un botón «Actualizar» al lado de
+  /// algo que ya se actualiza solo no hace nada que no vaya
+  /// a pasar igual, y ocupa el sitio donde debería estar lo
+  /// que sí importa.
+  ///
+  /// Lo único que no se puede adivinar mirando es que el
+  /// servidor dejó de contestar y lo que hay en pantalla ya
+  /// no es de fiar. Para eso se enciende esto.
+  if (!desactualizado) return null;
+
   return (
     <div className="no-imprimir flex flex-wrap items-center gap-3 text-sm text-texto-suave">
-      {/* sin lectura en voz alta */}
-      <span aria-live="off">
-        {actualizadoEn ? `Actualizado ${hace(actualizadoEn, ahora)}` : "Cargando…"}
+      {/* Callado mientras todo va bien.
+          
+          La pantalla se refresca sola cada treinta segundos:
+          decir «Actualizado hace un momento» treinta veces por
+          minuto no informa de nada, porque nunca dice otra
+          cosa. Un aviso que siempre dice lo mismo deja de
+          leerse, y el día que diga algo distinto tampoco se
+          va a leer.
+          
+          Solo habla cuando hay algo que contar: que el
+          servidor no contestó y lo que está viendo ya no es
+          de fiar. Eso sí no se puede adivinar mirando. */}
+      <span
+        aria-live="polite"
+        className="rounded-full bg-aviso-suave px-2.5 py-0.5 text-xs font-medium text-aviso"
+      >
+        Sin conexión · lo que ve es de{" "}
+        {actualizadoEn ? hace(actualizadoEn, ahora) : "antes"}
       </span>
 
-      {desactualizado && (
-        <span className="rounded-full bg-aviso-suave px-2 py-0.5 text-xs font-medium text-aviso">
-          Sin conexión con el servidor
-        </span>
-      )}
-
+      {/* Reintentar aquí SÍ vale: la pantalla vuelve a
+          probar sola, pero cada treinta segundos, y quien
+          está mirando una pantalla caída no quiere esperar
+          medio minuto para saber si ya volvió. */}
       <button
         type="button"
         onClick={alRefrescar}
         disabled={refrescando}
         className="rounded-lg border border-borde px-3 py-1 hover:bg-fondo disabled:opacity-50"
       >
-        {refrescando ? "Actualizando…" : "Actualizar"}
+        {refrescando ? "Reintentando…" : "Reintentar"}
       </button>
     </div>
   );

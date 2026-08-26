@@ -1,6 +1,7 @@
 /** Tipos y llamadas del constructor de formularios. */
 
 import { ErrorApi } from "./api";
+import { pedir } from "./pedir";
 
 export type TipoPregunta =
   | "TEXTO_CORTO"
@@ -144,20 +145,6 @@ export type FormularioPublico = {
   sueltas: PreguntaPublica[];
 };
 
-async function pedir<T>(ruta: string, opciones?: RequestInit): Promise<T> {
-  const respuesta = await fetch(`/api${ruta}`, {
-    ...opciones,
-    headers: { "content-type": "application/json", ...opciones?.headers },
-  });
-  const cuerpo = await respuesta.json().catch(() => null);
-
-  if (!respuesta.ok) {
-    const bruto = (cuerpo as { message?: string | string[] } | null)?.message;
-    const mensaje = Array.isArray(bruto) ? bruto.join(". ") : bruto;
-    throw new ErrorApi(respuesta.status, mensaje ?? "No se pudo completar la operación.", cuerpo);
-  }
-  return cuerpo as T;
-}
 
 const cuerpo = (datos: unknown) => JSON.stringify(datos);
 

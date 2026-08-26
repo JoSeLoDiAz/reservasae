@@ -1,4 +1,8 @@
-import { compararNombres, nombreCoincide, normalizar } from './comparar-nombres';
+import {
+  compararNombres,
+  nombreCoincide,
+  normalizar,
+} from './comparar-nombres';
 
 describe('normalizar', () => {
   it('quita tildes y deja mayúsculas', () => {
@@ -31,11 +35,16 @@ describe('las diferencias que sí importan', () => {
     const c = compararNombres('ANA MARIA GOMEZ RUIZ', 'PEDRO PEREZ LOPEZ');
 
     expect(c.veredicto).toBe('DISTINTO');
-    expect(nombreCoincide('ANA MARIA GOMEZ RUIZ', 'PEDRO PEREZ LOPEZ')).toBe(false);
+    expect(nombreCoincide('ANA MARIA GOMEZ RUIZ', 'PEDRO PEREZ LOPEZ')).toBe(
+      false,
+    );
   });
 
   it('cambiar un apellido lo hace DISTINTO', () => {
-    const c = compararNombres('JUAN CARLOS GOMEZ RUIZ', 'JUAN CARLOS GOMEZ SOTO');
+    const c = compararNombres(
+      'JUAN CARLOS GOMEZ RUIZ',
+      'JUAN CARLOS GOMEZ SOTO',
+    );
 
     expect(c.veredicto).toBe('DISTINTO');
     expect(c.sobran).toEqual(['RUIZ']);
@@ -49,7 +58,9 @@ describe('omitir el segundo nombre no es un error', () => {
 
     expect(c.veredicto).toBe('PARECIDO');
     expect(c.faltan).toEqual(['CARLOS']);
-    expect(nombreCoincide('JUAN GOMEZ RUIZ', 'JUAN CARLOS GOMEZ RUIZ')).toBe(true);
+    expect(nombreCoincide('JUAN GOMEZ RUIZ', 'JUAN CARLOS GOMEZ RUIZ')).toBe(
+      true,
+    );
   });
 });
 

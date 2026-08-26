@@ -5,7 +5,8 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { n } from "@/components/admin/graficos";
 import { Aviso } from "@/components/admin/marco-admin";
 import { Tabla, type Columna } from "@/components/admin/tabla";
-import { bonito, ErrorApi } from "@/lib/api";
+import { CarguePlantilla } from "@/components/admin/cargue-plantilla";
+import { bonito, ErrorApi, enMayusculas } from "@/lib/api";
 import {
   descargar,
   tablerosApi,
@@ -48,7 +49,6 @@ export default function PaginaEmpresas() {
     setTodas({ base: pagina.filas, filas: [...pagina.filas, ...resto.flatMap((p) => p.filas)] });
   }, [pagina]);
 
-  const totalCupos = filas?.reduce((s, f) => s + f.confirmados, 0) ?? 0;
 
   const columnas = useMemo<Columna<FilaEmpresa>[]>(
     () => [
@@ -69,13 +69,17 @@ export default function PaginaEmpresas() {
         clave: "razonSocial",
         titulo: "Organización",
         fija: true,
-        valor: (f) => bonito(f.razonSocial),
-        pinta: (f) => <span className="font-medium">{bonito(f.razonSocial)}</span>,
+        valor: (f) => enMayusculas(f.razonSocial),
+        pinta: (f) => <span className="font-medium">{enMayusculas(f.razonSocial)}</span>,
         filtro: "texto",
       },
+      // De aqui abajo, todo `aparte`: la vista pedida es NIT
+      // y Organizacion. No se borran -- siguen a un clic en
+      // «Columnas», y el que las necesite las saca.
       {
         clave: "gremio",
         titulo: "Gremio",
+        aparte: true,
         valor: (f) =>
           f.redAsociada === "Otro" ? (f.redAsociadaOtra ?? "Otro") : (f.redAsociada ?? ""),
         filtro: "opciones",
@@ -83,16 +87,18 @@ export default function PaginaEmpresas() {
       {
         clave: "colaboradores",
         titulo: "Colaboradores",
+        aparte: true,
         numerica: true,
         valor: (f) => f.numeroColaboradores,
         pinta: (f) =>
           f.numeroColaboradores ? n(f.numeroColaboradores) : <Guion />,
         filtro: "numero",
       },
-      { clave: "reservas", titulo: "Reservas", numerica: true, valor: (f) => f.reservas, filtro: "numero" },
+      { clave: "reservas", titulo: "Reservas", aparte: true, numerica: true, valor: (f) => f.reservas, filtro: "numero" },
       {
         clave: "confirmados",
         titulo: "Confirmados",
+        aparte: true,
         numerica: true,
         valor: (f) => f.confirmados,
         pinta: (f) => <span className="font-medium">{n(f.confirmados)}</span>,
@@ -101,6 +107,7 @@ export default function PaginaEmpresas() {
       {
         clave: "enEspera",
         titulo: "En espera",
+        aparte: true,
         numerica: true,
         valor: (f) => f.enEspera,
         pinta: (f) =>
@@ -110,6 +117,7 @@ export default function PaginaEmpresas() {
       {
         clave: "cursos",
         titulo: "Cursos",
+        aparte: true,
         valor: (f) => f.cursos.join(", "),
         pinta: (f) => (
           <span className="font-mono text-xs text-texto-suave">{f.cursos.join(", ")}</span>
@@ -119,6 +127,7 @@ export default function PaginaEmpresas() {
       {
         clave: "f7",
         titulo: "Datos para el F7",
+        aparte: true,
         valor: (f) => (f.faltaF7.length === 0 ? "Completa" : "Le faltan " + f.faltaF7.length),
         pinta: (f) =>
           f.faltaF7.length === 0 ? (
@@ -153,20 +162,8 @@ export default function PaginaEmpresas() {
 
   return (
     <div className="space-y-6">
-      <header className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Organizaciones</h1>
-          <p className="mt-1 text-texto-suave">
-            {pagina
-              ? n(pagina.total) +
-                " organizaciones · " +
-                n(totalCupos) +
-                " cupos confirmados" +
-                (filas && filas.length < pagina.total ? " en las cargadas" : "")
-              : "Cargando…"}
-          </p>
-        </div>
-      </header>
+      {/* sin encabezado: lo dice la miga de arriba, y el
+          total va en el pie de la tabla */}
 
       {error && <Aviso tipo="error">{error}</Aviso>}
 
@@ -177,14 +174,25 @@ export default function PaginaEmpresas() {
         clave={(f) => f.id}
         total={pagina?.total}
         alCargarTodo={pagina && pagina.paginas > 1 ? cargarTodas : undefined}
+        // ya trae la suya, del servidor y con todas las
+        // columnas: la genérica bajaría solo las dos que
+        // están a la vista
+        sinDescarga
         vacio="Aparecerán en cuanto alguien reserve cupos desde un formulario."
         acciones={
-          <button
-            onClick={() => descargar("empresas", {})}
-            className="rounded-xl bg-marca px-4 py-2 text-sm font-medium text-marca-texto transition hover:bg-marca-fuerte"
-          >
-            Descargar en Excel
-          </button>
+          <>
+            <button
+              onClick={() => descargar("empresas", {})}
+              className="rounded-xl bg-marca px-4 py-2 text-sm font-medium text-marca-texto transition hover:bg-marca-fuerte"
+            >
+              Descargar en Excel
+            </button>
+            <CarguePlantilla
+              entidad="empresas"
+              admiteNuevas
+              alTerminar={() => window.location.reload()}
+            />
+          </>
         }
       />
     </div>

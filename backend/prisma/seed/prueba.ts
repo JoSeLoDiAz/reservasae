@@ -1029,6 +1029,10 @@ async function main() {
           data: {
             tipoDocumentoSepId: azar() < 0.93 ? 1 : 3,
             numeroDocumento,
+            // los numeros de aqui arriba caen en rango real de
+            // cedulas colombianas: cada uno le pertenece a
+            // alguien. Marcadas, el RUI no las consulta nunca
+            esDePrueba: true,
             primerNombre,
             segundoNombre,
             primerApellido,

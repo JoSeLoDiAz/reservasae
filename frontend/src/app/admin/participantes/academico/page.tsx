@@ -154,8 +154,9 @@ export default function PaginaAcademico() {
     <div className="space-y-6">
       <header className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Seguimiento académico</h1>
-          <p className="mt-1 text-texto-suave">
+          {/* sin título: la miga de arriba ya lo dice. La
+              bajada se queda: explica contra qué se mide */}
+          <p className="text-texto-suave">
             Quién va al día y quién no, contra el calendario de su grupo.
           </p>
           {resumen.analizadas < resumen.total && (

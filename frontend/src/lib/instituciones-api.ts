@@ -1,6 +1,7 @@
 /** El maestro de organizaciones. */
 
 import { ErrorApi } from "./api";
+import { pedir } from "./pedir";
 
 export type FuenteDato = "CARGA" | "RUES" | "WEB" | "HUMANO";
 
@@ -156,30 +157,23 @@ export type ResumenInstituciones = {
   propuestas: number;
 };
 
+/// En que va la validacion por buscador web.
+export type EstadoWeb = {
+  /// Si el servidor tiene con que consultar.
+  conectado: boolean;
+  ultima: {
+    estado: ConsultaRues["estado"];
+    camposNuevos: number | null;
+    ultimoError: string | null;
+    creadoEn: string;
+    resueltaEn: string | null;
+  } | null;
+};
+
 export type PropuestaPendiente = Propuesta & {
   institucion: { id: string; nit: string; razonSocial: string };
 };
 
-async function pedir<T>(ruta: string, opciones?: RequestInit): Promise<T> {
-  const respuesta = await fetch(`/api${ruta}`, {
-    ...opciones,
-    headers: { "content-type": "application/json", ...opciones?.headers },
-  });
-
-  const cuerpo = await respuesta.json().catch(() => null);
-
-  if (!respuesta.ok) {
-    const bruto = (cuerpo as { message?: string | string[] } | null)?.message;
-    const mensaje = Array.isArray(bruto) ? bruto.join(". ") : bruto;
-    throw new ErrorApi(
-      respuesta.status,
-      mensaje ?? "No se pudo completar la operación.",
-      cuerpo,
-    );
-  }
-
-  return cuerpo as T;
-}
 
 export const institucionesApi = {
   listar: (filtros: {
@@ -216,6 +210,15 @@ export const institucionesApi = {
 
   desverificar: (id: string) =>
     pedir<Institucion>(`/admin/instituciones/${id}/desverificar`, { method: "POST" }),
+
+  /// Que el buscador web vaya a mirar este NIT. No devuelve
+  /// los datos: devuelve en que va la consulta. La respuesta
+  /// llega despues, como propuesta, para que alguien la
+  /// acepte campo por campo.
+  validarWeb: (id: string) =>
+    pedir<EstadoWeb>(`/admin/instituciones/${id}/validar-web`, { method: "POST" }),
+
+  estadoWeb: (id: string) => pedir<EstadoWeb>(`/admin/instituciones/${id}/estado-web`),
 
   aplicarPropuesta: (id: string, campos: string[]) =>
     pedir<{ aplicados: number; descartados: number }>(

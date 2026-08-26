@@ -7,6 +7,14 @@ import { crmApi, type CatalogosSep, type Ficha } from "@/lib/crm-api";
 
 /** Lo que el cargue al SEP necesita de cada persona. */
 type Campos = {
+  /// La identidad. Sale del formulario corto y aqui no se
+  /// veia: el asesor tenia que subir a la cabecera de la
+  /// ficha para leer un apellido, y no habia forma de
+  /// corregirlo desde donde se corrige todo lo demas.
+  primerNombre: string;
+  segundoNombre: string;
+  primerApellido: string;
+  segundoApellido: string;
   generoSepId: number | null;
   estrato: number | null;
   departamentoSepId: number | null;
@@ -25,6 +33,10 @@ const soloFecha = (iso: string | null) => (iso ? iso.slice(0, 10) : "");
 
 function desdeFicha(f: Ficha): Campos {
   return {
+    primerNombre: f.persona.primerNombre,
+    segundoNombre: f.persona.segundoNombre ?? "",
+    primerApellido: f.persona.primerApellido,
+    segundoApellido: f.persona.segundoApellido ?? "",
     generoSepId: f.persona.generoSepId,
     estrato: f.persona.estrato,
     departamentoSepId: f.persona.departamentoSepId,
@@ -67,9 +79,11 @@ export function DatosSena({
       .sort((a, b) => a[2].localeCompare(b[2], "es"));
   }, [catalogos, c.departamentoSepId]);
 
-  // la lista la manda el backend: tenerla aqui tambien
-  // era una tercera regla que podia discrepar
-  const pendientes = ficha.faltantes.reporte;
+  /// Lo que hay contra lo que había. Se compara el objeto
+  /// entero: enumerar campo por campo garantiza que el día
+  /// que se agregue uno, alguien olvide añadirlo aquí.
+  const hayCambios =
+    JSON.stringify(c) !== JSON.stringify(desdeFicha(ficha));
 
   function poner<K extends keyof Campos>(clave: K, valor: Campos[K]) {
     setC((v) => ({ ...v, [clave]: valor }));
@@ -82,6 +96,10 @@ export function DatosSena({
     try {
       await alGuardar(async () => {
         await crmApi.actualizar(ficha.id, {
+          primerNombre: c.primerNombre.trim() || undefined,
+          segundoNombre: c.segundoNombre.trim() || undefined,
+          primerApellido: c.primerApellido.trim() || undefined,
+          segundoApellido: c.segundoApellido.trim() || undefined,
           generoSepId: c.generoSepId,
           estrato: c.estrato,
           departamentoSepId: c.departamentoSepId,
@@ -103,22 +121,74 @@ export function DatosSena({
 
   return (
     <Tarjeta
-      titulo="Datos para el reporte"
-      descripcion="Lo que pide el SENA. Nada es obligatorio para guardar: complételo cuando lo tenga."
+      /// El título dice en qué punto va, y por eso cambia.
+      ///
+      /// «Datos para el reporte» hablaba del SENA, que es lo
+      /// último que le importa a quien está mirando la ficha.
+      /// Ahora nombra a la persona, y al pasar a inscrito el
+      /// título cambia con ella: la transición se ve.
+      titulo={
+        ficha.etapa === "INSCRITO" ? "Datos del inscrito" : "Datos del interesado"
+      }
     >
       <div className="space-y-4">
-        {pendientes.length > 0 ? (
-          <p className="rounded-lg border border-aviso/30 bg-aviso-suave p-3 text-sm text-aviso">
-            Para entrar en el reporte falta: {pendientes.join(", ")}.
-          </p>
-        ) : (
-          <p className="rounded-lg border border-exito/30 bg-exito-suave p-3 text-sm text-exito">
-            La ficha está completa para el reporte.
-          </p>
-        )}
-
         <div className="grid gap-4 sm:grid-cols-2">
-          <Campo etiqueta="Fecha de nacimiento" ayuda="No se admiten menores de 18 años.">
+          {/* El documento no se edita: es la llave de la
+              persona en todo el sistema y cambiarlo aqui
+              partiria su historia en dos. Se ve, no se toca. */}
+          <Campo etiqueta="Tipo de documento">
+            <input
+              readOnly
+              className={`${CLASE_CONTROL} opacity-70`}
+              value={
+                catalogos?.documentosPersona.find(
+                  (d) => d.id === ficha.persona.tipoDocumentoSepId,
+                )?.etiqueta ?? String(ficha.persona.tipoDocumentoSepId)
+              }
+            />
+          </Campo>
+
+          <Campo etiqueta="Número de documento">
+            <input
+              readOnly
+              className={`${CLASE_CONTROL} font-mono opacity-70`}
+              value={ficha.persona.numeroDocumento}
+            />
+          </Campo>
+
+          <Campo etiqueta="Primer nombre">
+            <input
+              className={CLASE_CONTROL}
+              value={c.primerNombre}
+              onChange={(e) => poner("primerNombre", e.target.value)}
+            />
+          </Campo>
+
+          <Campo etiqueta="Segundo nombre">
+            <input
+              className={CLASE_CONTROL}
+              value={c.segundoNombre}
+              onChange={(e) => poner("segundoNombre", e.target.value)}
+            />
+          </Campo>
+
+          <Campo etiqueta="Primer apellido">
+            <input
+              className={CLASE_CONTROL}
+              value={c.primerApellido}
+              onChange={(e) => poner("primerApellido", e.target.value)}
+            />
+          </Campo>
+
+          <Campo etiqueta="Segundo apellido">
+            <input
+              className={CLASE_CONTROL}
+              value={c.segundoApellido}
+              onChange={(e) => poner("segundoApellido", e.target.value)}
+            />
+          </Campo>
+
+          <Campo etiqueta="Fecha de nacimiento">
             <input
               type="date"
               className={CLASE_CONTROL}
@@ -270,7 +340,12 @@ export function DatosSena({
         </div>
 
         <div className="flex items-center gap-3">
-          <Boton onClick={guardar} disabled={guardando}>
+          {/* Gris hasta que haya algo que guardar.
+              
+              Un botón siempre activo no dice si uno tocó algo
+              o no, y en una tarjeta de veinte campos esa duda
+              es constante. Igual que «Guardar asignación». */}
+          <Boton onClick={guardar} disabled={guardando || !hayCambios}>
             {guardando ? "Guardando…" : "Guardar"}
           </Boton>
           <span className="text-xs text-texto-suave">

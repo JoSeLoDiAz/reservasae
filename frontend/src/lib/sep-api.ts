@@ -1,4 +1,5 @@
 import { ErrorApi } from "./api";
+import { pedir } from "./pedir";
 
 export type Alistamiento = {
   convenio: { nombre: string; sigla: string | null };
@@ -15,17 +16,6 @@ export type Alistamiento = {
 
 export type FormatoSep = "uso-directo" | "cargue-sep" | "f7";
 
-async function pedir<T>(ruta: string): Promise<T> {
-  const respuesta = await fetch(`/api${ruta}`);
-  const cuerpo = await respuesta.json().catch(() => null);
-
-  if (!respuesta.ok) {
-    const bruto = (cuerpo as { message?: string | string[] } | null)?.message;
-    const mensaje = Array.isArray(bruto) ? bruto.join(". ") : bruto;
-    throw new ErrorApi(respuesta.status, mensaje ?? "No se pudo consultar.", cuerpo);
-  }
-  return cuerpo as T;
-}
 
 export const sepApi = {
   alistamiento: (convenioId: string) =>

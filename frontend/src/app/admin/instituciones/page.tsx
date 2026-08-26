@@ -1,13 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
-import { n } from "@/components/admin/graficos";
 import { IconoOrganizaciones } from "@/components/admin/iconos";
-import { Aviso, CLASE_CONTROL } from "@/components/admin/marco-admin";
+import { Aviso } from "@/components/admin/marco-admin";
 import { Pildora, Vacio } from "@/components/admin/piezas";
-import { bonito, ErrorApi } from "@/lib/api";
+import { Tabla, type Columna } from "@/components/admin/tabla";
+import { CarguePlantilla } from "@/components/admin/cargue-plantilla";
+import { bonito, ErrorApi, enMayusculas } from "@/lib/api";
 import {
   ETIQUETA_CAMPO,
   ETIQUETA_CLASIFICACION,
@@ -16,12 +17,8 @@ import {
   institucionesApi,
   type Institucion,
   type Listado,
-  type ResumenInstituciones,
 } from "@/lib/instituciones-api";
 
-/// Lo que se espera antes de pedir. Un NIT son diez teclas:
-/// sin esta pausa serian diez consultas para una busqueda.
-const ESPERA_BUSQUEDA = 400;
 
 /// La marca de lo sugerido: solo el color de la letra.
 ///
@@ -36,52 +33,17 @@ const CLASE_SUGERIDO = "font-medium text-aviso";
  * se sabe de cada una y si eso alcanza para reportarla.
  */
 export default function PaginaInstituciones() {
-  const [resumen, setResumen] = useState<ResumenInstituciones | null>(null);
   const [listado, setListado] = useState<Listado | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [cargando, setCargando] = useState(true);
 
-  const [consulta, setConsulta] = useState("");
-  const [buscada, setBuscada] = useState("");
-  const [incompletas, setIncompletas] = useState(false);
-  const [sinVerificar, setSinVerificar] = useState(false);
-  /// Las que tienen algun campo traido por el buscador web
-  /// y sin confirmar. Es la cola de trabajo de verdad.
-  const [sugeridos, setSugeridos] = useState(false);
-  const [pagina, setPagina] = useState(1);
-
-  useEffect(() => {
-    let vigente = true;
-
-    async function contar() {
-      try {
-        const datos = await institucionesApi.resumen();
-        if (vigente) setResumen(datos);
-      } catch {
-        /// El conteo no merece la franja roja de arriba ni borrar
-        /// el error del listado, que es el que estorba de verdad.
-        /// Sin el, las casillas quedan sin cifra -- que es la
-        /// verdad -- y el resto de la pantalla sigue funcionando.
-      }
-    }
-
-    void contar();
-    return () => {
-      vigente = false;
-    };
-  }, []);
-
-  /// La busqueda espera a que la persona deje de escribir, y
-  /// vuelve a la primera pagina: la tercera de la busqueda
-  /// anterior no quiere decir nada en la nueva.
-  useEffect(() => {
-    if (consulta.trim() === buscada) return;
-    const reloj = setTimeout(() => {
-      setBuscada(consulta.trim());
-      setPagina(1);
-    }, ESPERA_BUSQUEDA);
-    return () => clearTimeout(reloj);
-  }, [consulta, buscada]);
+  /// Se traen TODAS de una, no de cincuenta en cincuenta.
+  ///
+  /// Son ciento setenta y cinco: caben de sobra. Y así el
+  /// buscador de la tabla y sus filtros ven el listado
+  /// completo, que es lo que permitió quitar la fila de
+  /// filtros que había aquí arriba: buscar sobre media página
+  /// cargada no encuentra lo que no se ha traído.
 
   useEffect(() => {
     let vigente = true;
@@ -89,16 +51,33 @@ export default function PaginaInstituciones() {
     async function traer() {
       setCargando(true);
       try {
-        const datos = await institucionesApi.listar({
-          buscar: buscada || undefined,
-          incompletas,
-          sinVerificar,
-          sugeridos,
-          pagina,
-        });
-        // una respuesta lenta de un filtro ya abandonado no manda
+        const primera = await institucionesApi.listar({ pagina: 1 });
         if (!vigente) return;
-        setListado(datos);
+
+        const paginas = Math.max(
+          1,
+          Math.ceil(primera.total / Math.max(1, primera.porPagina)),
+        );
+
+        // el resto en paralelo: cuatro peticiones cortas
+        // tardan menos que una larga y no bloquean la primera
+        const resto =
+          paginas > 1
+            ? await Promise.all(
+                Array.from({ length: paginas - 1 }, (_, i) =>
+                  institucionesApi.listar({ pagina: i + 2 }),
+                ),
+              )
+            : [];
+        if (!vigente) return;
+
+        setListado({
+          ...primera,
+          instituciones: [
+            ...primera.instituciones,
+            ...resto.flatMap((p) => p.instituciones),
+          ],
+        });
         setError(null);
       } catch (e) {
         if (vigente) setError((e as ErrorApi).message);
@@ -111,255 +90,203 @@ export default function PaginaInstituciones() {
     return () => {
       vigente = false;
     };
-  }, [buscada, incompletas, sinVerificar, sugeridos, pagina]);
-
-  /// Cualquier cambio de filtro devuelve a la pagina 1: seguir
-  /// en la 4 sobre un listado que ahora tiene dos paginas deja
-  /// la pantalla en blanco sin explicar por que.
-  function filtrar(cambio: () => void) {
-    cambio();
-    setPagina(1);
-  }
+  }, []);
 
   const filas = listado?.instituciones ?? [];
-  const paginas = listado
-    ? Math.max(1, Math.ceil(listado.total / listado.porPagina))
-    : 1;
-  const paginaActual = listado?.pagina ?? pagina;
-  const hayFiltro = buscada !== "" || incompletas || sinVerificar || sugeridos;
+
+  const columnas = useMemo<Columna<Institucion>[]>(
+    () => [
+      {
+        clave: "nit",
+        titulo: "NIT",
+        fija: true,
+        valor: (f) => f.nit,
+        pinta: (f) => (
+          <span className="font-mono text-xs whitespace-nowrap">
+            {f.nit}
+            {f.digitoDeclarado ? `-${f.digitoDeclarado}` : ""}
+          </span>
+        ),
+        filtro: "texto",
+      },
+      {
+        clave: "razonSocial",
+        titulo: "Razón social",
+        fija: true,
+        valor: (f) => enMayusculas(f.razonSocial),
+        pinta: (f) => (
+          <>
+            <Link
+              href={`/admin/instituciones/${f.id}`}
+              className="font-medium underline-offset-2 hover:underline"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {enMayusculas(f.razonSocial)}
+            </Link>
+            {f.nombreComercial && (
+              <span className="block truncate text-xs text-texto-suave">
+                {bonito(f.nombreComercial)}
+              </span>
+            )}
+          </>
+        ),
+        filtro: "texto",
+      },
+      {
+        clave: "ciudad",
+        titulo: "Ciudad",
+        valor: (f) => (f.ciudadNombre ? bonito(f.ciudadNombre) : null),
+        pinta: (f) => (
+          <Dato
+            institucion={f}
+            campo="ciudadNombre"
+            valor={f.ciudadNombre ? bonito(f.ciudadNombre) : null}
+          />
+        ),
+        filtro: "opciones",
+      },
+      {
+        clave: "tamano",
+        titulo: "Tamaño",
+        valor: (f) => (f.tamano ? ETIQUETA_TAMANO[f.tamano] : null),
+        pinta: (f) => (
+          <Dato
+            institucion={f}
+            campo="tamano"
+            valor={f.tamano ? ETIQUETA_TAMANO[f.tamano] : null}
+          />
+        ),
+        filtro: "opciones",
+      },
+      {
+        clave: "clasificacion",
+        titulo: "Clasificación",
+        valor: (f) => (f.clasificacion ? ETIQUETA_CLASIFICACION[f.clasificacion] : null),
+        pinta: (f) => (
+          <Dato
+            institucion={f}
+            campo="clasificacion"
+            valor={f.clasificacion ? ETIQUETA_CLASIFICACION[f.clasificacion] : null}
+          />
+        ),
+        filtro: "opciones",
+      },
+      {
+        clave: "estado",
+        titulo: "Estado",
+        /// El valor plano es lo que ordena y filtra; la
+        /// insignia de color va aparte, en `pinta`.
+        valor: (f) =>
+          f.verificadaEn
+            ? "Verificada"
+            : f.falta.length > 0
+              ? "Incompleta"
+              : "Sin verificar",
+        pinta: (f) => <Estado institucion={f} />,
+        filtro: "opciones",
+      },
+      {
+        /// Sustituye a la casilla «Solo incompletas». Como
+        /// columna se puede filtrar, ordenar y ver de un
+        /// vistazo cuántas faltan, que la casilla no dejaba.
+        clave: "completitud",
+        titulo: "Le falta",
+        valor: (f) => (f.falta.length === 0 ? "Nada" : `${f.falta.length} datos`),
+        pinta: (f) =>
+          f.falta.length === 0 ? (
+            <span className="text-exito">Nada</span>
+          ) : (
+            <span className="text-aviso" title={f.falta.join(" · ")}>
+              {f.falta.length} datos
+            </span>
+          ),
+        filtro: "opciones",
+      },
+      {
+        /// Y esta a «Sugerido, sin verificar»: campos que
+        /// trajo el buscador web y nadie ha confirmado.
+        clave: "sugerido",
+        titulo: "Sugerido sin confirmar",
+        valor: (f) => (f.sinConfirmar.length > 0 ? "Sí" : "No"),
+        pinta: (f) =>
+          f.sinConfirmar.length > 0 ? (
+            <span className={CLASE_SUGERIDO} title={f.sinConfirmar.join(" · ")}>
+              {f.sinConfirmar.length} campos
+            </span>
+          ) : (
+            <span className="text-texto-suave">—</span>
+          ),
+        filtro: "opciones",
+      },
+      {
+        clave: "departamento",
+        titulo: "Departamento",
+        aparte: true,
+        valor: (f) => (f.departamentoNombre ? bonito(f.departamentoNombre) : null),
+        filtro: "opciones",
+      },
+      { clave: "direccion", titulo: "Dirección", aparte: true, valor: (f) => f.direccion, filtro: "texto" },
+      { clave: "telefono", titulo: "Teléfono", aparte: true, valor: (f) => f.telefono, filtro: "texto" },
+      { clave: "correo", titulo: "Correo", aparte: true, valor: (f) => f.correo, filtro: "texto" },
+      { clave: "sector", titulo: "Sector económico", aparte: true, valor: (f) => f.sectorEconomico, filtro: "opciones" },
+      { clave: "ciiu", titulo: "CIIU", aparte: true, valor: (f) => f.codigoCiiu, filtro: "texto" },
+      { clave: "empleados", titulo: "Empleados", aparte: true, numerica: true, valor: (f) => f.numeroEmpleados, filtro: "numero" },
+      { clave: "fuente", titulo: "Fuente", aparte: true, valor: (f) => f.fuente, filtro: "opciones" },
+    ],
+    [],
+  );
 
   return (
     <div className="space-y-6">
       <header>
-        <h1 className="text-2xl font-bold tracking-tight">
-          Empresas registradas
-          {resumen && (
-            <span className="ml-2 font-semibold tabular-nums text-texto-suave">
-              ({n(resumen.total)})
-            </span>
-          )}
-        </h1>
-
-        <p className="mt-2 text-sm text-texto-suave">
+        {/* sin título: lo dice la miga. La cifra se fue al
+            lado del buscador, que es donde se mira cuando uno
+            está filtrando */}
+        <p className="text-sm text-texto-suave">
           El sistema proporciona estos datos como{" "}
           <span className={CLASE_SUGERIDO}>sugerencia automática</span> de empresas
           registradas, revise cuidadosamente cada campo del proceso de verificación
           y apruebe si son correctos o realice las correcciones que considere
-          necesarias según corresponda.
+          necesarias.
         </p>
       </header>
 
       {error && <Aviso tipo="error">{error}</Aviso>}
 
-      {/* Dentro de la caja, solo lo que se toca. El total del
-          listado va fuera, debajo: un recuadro con borde se lee
-          como «esto es un control». La unica cifra que entra es
-          la de cada casilla, pegada a su etiqueta, porque dice
-          cuanto trabajo destapa ese filtro antes de marcarlo. */}
-      <div className="rounded-2xl border border-borde bg-superficie shadow-sm">
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            filtrar(() => setBuscada(consulta.trim()));
-          }}
-          className="flex flex-wrap items-center gap-4 p-4"
-        >
-        <input
-          type="search"
-          value={consulta}
-          onChange={(e) => setConsulta(e.target.value)}
-          placeholder="Buscar por razón social o por NIT"
-          aria-label="Buscar por razón social o por NIT"
-          className={`${CLASE_CONTROL} min-w-56 flex-1 sm:max-w-md`}
-        />
-
-        {/* a la derecha del todo: con la barra a pantalla
-            completa, pegarlas al buscador deja un vacio enorme */}
-        <div className="ml-auto flex flex-wrap items-center gap-5">
-        <label className="flex items-center gap-2 text-sm">
-          <input
-            type="checkbox"
-            checked={incompletas}
-            onChange={(e) => filtrar(() => setIncompletas(e.target.checked))}
-            className="size-4 accent-marca"
-          />
-          Solo incompletas
-        </label>
-
-        <label className="flex items-center gap-2 text-sm">
-          <input
-            type="checkbox"
-            checked={sinVerificar}
-            onChange={(e) => filtrar(() => setSinVerificar(e.target.checked))}
-            className="size-4 accent-marca"
-          />
-          Solo sin verificar
-        </label>
-
-        <label className="flex items-center gap-2 text-sm">
-          <input
-            type="checkbox"
-            checked={sugeridos}
-            onChange={(e) => filtrar(() => setSugeridos(e.target.checked))}
-            className="size-4 accent-marca"
-          />
-          <span className={CLASE_SUGERIDO}>Sugerido, sin verificar</span>
-        </label>
-
-        <span aria-live="polite" className="text-sm text-texto-suave">
-          {cargando && listado ? "Buscando…" : ""}
-        </span>
-        </div>
-        </form>
-      </div>
-
       {!listado && cargando && <p className="text-texto-suave">Cargando…</p>}
 
       {listado && filas.length === 0 && (
-        <Vacio
-          titulo={
-            hayFiltro
-              ? "Ninguna organización coincide"
-              : "Todavía no hay organizaciones"
-          }
-          icono={IconoOrganizaciones}
-        >
-          {hayFiltro
-            ? "Pruebe con una parte del nombre, o con el NIT sin el dígito de verificación. También puede quitar los filtros."
-            : "Estas filas salen del archivo con el que se sembró el sistema y de lo que averigua la consulta al RUES. Aparecen en cuanto entre el archivo o termine la primera consulta."}
+        <Vacio titulo="Todavía no hay organizaciones" icono={IconoOrganizaciones}>
+          Estas filas salen del archivo con el que se sembró el sistema y de lo
+          que averigua la consulta al RUES. Aparecen en cuanto entre el archivo o
+          termine la primera consulta.
         </Vacio>
-      )}
-
-      {/* Solo cuando hay filtro: sin el, la cifra ya esta
-          arriba, al lado del titulo, y repetirla es ruido. */}
-      {listado && filas.length > 0 && hayFiltro && (
-        <p className="text-sm text-texto-suave">
-          <strong className="font-semibold text-texto">{n(listado.total)}</strong>{" "}
-          de {resumen ? n(resumen.total) : "…"} con los filtros puestos
-        </p>
       )}
 
       {listado && filas.length > 0 && (
         <>
-          <div className="caja-scroll overflow-x-auto rounded-2xl border border-borde bg-superficie shadow-sm">
-            <table className="tabla-datos w-full text-sm">
-              <thead>
-                <tr>
-                  <th>NIT</th>
-                  <th>Razón social</th>
-                  <th className="whitespace-nowrap">Ciudad</th>
-                  <th className="whitespace-nowrap">Tamaño</th>
-                  <th className="whitespace-nowrap">Clasificación</th>
-                  <th className="whitespace-nowrap">Estado</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filas.map((institucion) => (
-                  <tr key={institucion.id}>
-                    <td className="font-mono text-xs whitespace-nowrap">
-                      {institucion.nit}
-                      {institucion.digitoDeclarado
-                        ? `-${institucion.digitoDeclarado}`
-                        : ""}
-                    </td>
+          {/* La misma tabla que Empresas aliadas: su barra
+              trae Filtros, Columnas, Vistas y la descarga a
+              Excel. Aquí había un `<table>` a mano que no
+              tenía nada de eso, y cada pantalla con su propia
+              tabla es una pantalla que se comporta distinto
+              sin razón. */}
+          <Tabla
+            id="instituciones"
+            columnas={columnas}
+            filas={filas}
+            clave={(f) => f.id}
+            total={listado.total}
+            vacio="No hay ninguna organización con esos filtros."
+            acciones={
+              <CarguePlantilla
+                entidad="instituciones"
+                admiteNuevas={false}
+                alTerminar={() => window.location.reload()}
+              />
+            }
+          />
 
-                    {/* se lleva el espacio que sobre: es lo
-                        unico de largo variable de la fila */}
-                    <td className="w-full">
-                      <Link
-                        href={`/admin/instituciones/${institucion.id}`}
-                        className="font-medium underline-offset-2 hover:underline"
-                      >
-                        {bonito(institucion.razonSocial)}
-                      </Link>
-                      {institucion.nombreComercial && (
-                        <span className="block truncate text-xs text-texto-suave">
-                          {bonito(institucion.nombreComercial)}
-                        </span>
-                      )}
-                    </td>
-
-                    <td>
-                      <Dato
-                        institucion={institucion}
-                        campo="ciudadNombre"
-                        valor={
-                          institucion.ciudadNombre
-                            ? bonito(institucion.ciudadNombre)
-                            : null
-                        }
-                      />
-                    </td>
-
-                    <td>
-                      <Dato
-                        institucion={institucion}
-                        campo="tamano"
-                        valor={
-                          institucion.tamano
-                            ? ETIQUETA_TAMANO[institucion.tamano]
-                            : null
-                        }
-                      />
-                    </td>
-
-                    <td>
-                      <Dato
-                        institucion={institucion}
-                        campo="clasificacion"
-                        valor={
-                          institucion.clasificacion
-                            ? ETIQUETA_CLASIFICACION[institucion.clasificacion]
-                            : null
-                        }
-                      />
-                    </td>
-
-                    <td>
-                      <Estado institucion={institucion} />
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-texto-suave">
-            <span className={CLASE_SUGERIDO}>Así se ve un dato sugerido</span>
-            Lo trajo el buscador web de una página pública y nadie responde por él
-            todavía: mientras no se confirme en la ficha, no llega al SENA. Los
-            demás datos vienen del RUES, del archivo inicial o de alguien del
-            equipo.
-          </p>
-
-          {listado.total > listado.porPagina && (
-            <div className="flex flex-wrap items-center justify-between gap-3 text-sm">
-              <span className="text-texto-suave">
-                {n(listado.total)} organizaciones · página{" "}
-                <span className="tabular-nums">{paginaActual}</span> de{" "}
-                <span className="tabular-nums">{paginas}</span>
-              </span>
-
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => setPagina(paginaActual - 1)}
-                  disabled={paginaActual <= 1 || cargando}
-                  className="rounded-xl border border-borde px-3 py-1.5 transition hover:bg-superficie-alterna disabled:opacity-40"
-                >
-                  Anterior
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setPagina(paginaActual + 1)}
-                  disabled={paginaActual >= paginas || cargando}
-                  className="rounded-xl border border-borde px-3 py-1.5 transition hover:bg-superficie-alterna disabled:opacity-40"
-                >
-                  Siguiente
-                </button>
-              </div>
-            </div>
-          )}
         </>
       )}
     </div>

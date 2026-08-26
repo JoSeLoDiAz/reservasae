@@ -2,15 +2,14 @@
 
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 
+import { ETAPAS_VIVAS } from '../crm/crm.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { ActualizarGrupoDto } from './dto';
 
-/// Las etapas que ocupan una silla de verdad.
-const ETAPAS_VIVAS = [
-  'INSCRITO',
-  'EN_FORMACION',
-  'CERTIFICADO',
-] as const;
+/// `ETAPAS_VIVAS` se importa del CRM. Aqui habia una copia
+/// tecleada aparte que decia lo mismo con otras etapas, y
+/// el mismo grupo reportaba una ocupacion en el cronograma
+/// y otra en las ofertas.
 
 /** En qué punto está un grupo respecto de hoy. */
 export type EstadoGrupo =

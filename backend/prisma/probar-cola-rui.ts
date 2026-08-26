@@ -7,6 +7,7 @@
 import { PrismaClient } from '../generated/prisma';
 import { PrismaService } from '../src/prisma/prisma.service';
 import { ProveedorRuiLocal } from '../src/crm/rui/proveedor';
+import { ColaRui } from '../src/crm/rui/cola-rui';
 import { RuiService } from '../src/crm/rui/rui.service';
 
 const prisma = new PrismaClient();
@@ -25,6 +26,8 @@ async function main() {
   // el proveedor local sin demora, para no esperar
   const servicio = new RuiService(
     prisma as unknown as PrismaService,
+    new ColaRui(prisma as unknown as PrismaService),
+    { registrar: async () => undefined } as never,
     new ProveedorRuiLocal(0),
   );
 
@@ -86,6 +89,8 @@ async function main() {
   const otro = new PrismaClient();
   const servicioB = new RuiService(
     otro as unknown as PrismaService,
+    new ColaRui(otro as unknown as PrismaService),
+    { registrar: async () => undefined } as never,
     new ProveedorRuiLocal(0),
   );
 

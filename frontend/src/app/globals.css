@@ -423,7 +423,18 @@ h3 {
   text-transform: uppercase;
   padding: 0.75rem 1rem;
   border-bottom: 1px solid var(--tabla-borde);
-  white-space: nowrap;
+  /* El título se acomoda al ancho de su columna.
+
+     Con `nowrap` se salía de la celda y la de al lado le
+     pintaba encima: «Número de teléfono» se leía «Número de
+     te». Ahora parte la línea y la cabecera crece lo que
+     haga falta, como al angostar una columna en Word.
+
+     `vertical-align: bottom` para que, con títulos de una y
+     de dos líneas en la misma fila, todos se apoyen abajo y
+     no queden flotando a distintas alturas. */
+  vertical-align: bottom;
+  overflow-wrap: anywhere;
 }
 .tabla-datos tbody td {
   font-size: 0.875rem;
@@ -440,3 +451,42 @@ h3 {
 .tabla-datos tbody tr:hover {
   background: var(--tabla-fila-resaltada);
 }
+
+/* rayas entre columnas: que se lea como una tabla de datos y
+   no como una lista con renglones. Con veinte columnas y el
+   ojo saltando de una a otra, la raya horizontal sola no
+   basta para saber en cuál va uno.
+
+   La raya va a la DERECHA de cada celda y se le quita a la
+   última: así no se dibuja una línea pegada al borde de la
+   tarjeta, que se ve como un error de alineación. */
+.tabla-datos thead th:not(:last-child),
+.tabla-datos tbody td:not(:last-child) {
+  border-right: 1px solid var(--tabla-borde);
+}
+
+/* Lo que no cabe se queda dentro.
+
+   Con el ancho ajustado a mano la tabla pasa a `fixed`, y una
+   celda estrecha derramaba su texto sobre la columna de al
+   lado: se leian dos datos superpuestos, sin saber cual era
+   cual. Ahora parte la linea dentro de su columna y, si es
+   una cadena sin espacios -- un correo, un NIT largo --, la
+   parte igual antes que salirse. */
+.tabla-datos tbody td {
+  overflow: hidden;
+  overflow-wrap: anywhere;
+}
+
+/* La CABECERA no se toca, y es a proposito.
+
+   De ella cuelga la linea de ajustar el ancho, que baja por
+   toda la tabla: con `overflow: hidden` aqui, esa linea se
+   corta a la altura del titulo y solo se puede agarrar
+   arriba.
+
+   Y recortar el titulo tampoco vale: un boton con
+   `text-overflow` pierde su ancho minimo, el navegador se
+   queda sin de que medir y reparte todas las columnas al
+   minimo. Se probo, y la tabla entera quedo en ochenta
+   pixeles por columna. */

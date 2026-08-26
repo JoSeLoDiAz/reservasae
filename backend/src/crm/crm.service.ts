@@ -3,6 +3,7 @@ import {
   ConflictException,
   ForbiddenException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 
@@ -16,6 +17,8 @@ import { AuditoriaService } from '../comun/auditoria.service';
 import { documentoValido, normalizarDocumento } from '../comun/documento';
 import { analizar, esInsalvable, repetidosEnElPegado } from './carga';
 import { faltaDeLaPersona, revisar } from './completitud';
+import { PanelDeCupos } from './panel-de-cupos';
+import { ColaRui } from './rui/cola-rui';
 import {
   ETAPAS_DEL_EMBUDO,
   metricasDeInscripciones,
@@ -66,11 +69,21 @@ const POR_PAGINA = 30;
 /// Tope duro aunque el filtro pida mas.
 const TOPE_POR_PAGINA = 300;
 
-/// Los que ocupan una silla. El resto ya no cuenta.
-const ETAPAS_VIVAS: EtapaParticipante[] = [
-  'INTERESADO',
-  'CONTACTADO',
-  'DATOS_COMPLETOS',
+/**
+ * Los que ocupan una silla de verdad.
+ *
+ * Empieza en INSCRITO. Antes empezaba en INTERESADO, y eso
+ * daba por ocupada la silla de alguien que solo es un nombre
+ * tecleado: sobre los mismos datos, esta lista contaba 103
+ * sillas y la del cronograma 63, cuarenta de diferencia. Una
+ * silla se aparta cuando alguien queda inscrito, no cuando
+ * alguien pregunta.
+ *
+ * Cuidado al cambiarla: baja la ocupacion que muestran las
+ * ofertas, y puede destapar sobrecupos que antes quedaban
+ * escondidos detras de leads que nunca se inscribieron.
+ */
+export const ETAPAS_VIVAS: EtapaParticipante[] = [
   'INSCRITO',
   'EN_FORMACION',
   'CERTIFICADO',
@@ -86,16 +99,26 @@ const ETAPAS_CON_MOTIVO: EtapaParticipante[] = [
 ];
 
 /**
- * El embudo del asesor. INSCRITO no esta: al marcarlo, la
- * ficha sale de Inscripciones y aparece en Inscritos.
- * Dejarla en las dos obliga a mirar dos sitios para saber
- * si queda trabajo pendiente.
+ * El embudo del asesor: TODO lo que se trabaja desde
+ * Inscripciones. Es la unica lista, y de aqui la importan
+ * las metricas y el control.
+ *
+ * INSCRITO esta dentro. Antes no, y la razon que se dio fue
+ * que dejarlo en las dos pantallas obliga a mirar dos sitios.
+ * Lo que pasaba de verdad era peor: el lead desaparecia al
+ * marcarlo y parecia perdido, y la misma persona contaba
+ * distinto en cada pantalla. Cuatro listas decian ser este
+ * embudo y ninguna coincidia con otra: 45, 74, 74 y 29 sobre
+ * los mismos ciento veinte leads. Quien quiera ver solo el
+ * trabajo pendiente, que filtre por etapa; para eso esta el
+ * filtro.
  */
-export const ETAPAS_DE_INSCRIPCION: EtapaParticipante[] = [
-  'INTERESADO',
-  'CONTACTADO',
-  'DATOS_COMPLETOS',
-];
+/// Se define en `metricas-inscripciones.ts` y se reexporta
+/// aqui para quien la buscaba con el nombre viejo.
+export { ETAPAS_DEL_EMBUDO };
+
+/// @deprecated usa ETAPAS_DEL_EMBUDO
+export const ETAPAS_DE_INSCRIPCION = ETAPAS_DEL_EMBUDO;
 
 /**
  * Las unicas que un asesor puede elegir a mano.
@@ -111,6 +134,10 @@ export const ETAPAS_A_MANO: EtapaParticipante[] = [
   'INTERESADO',
   'CONTACTADO',
   'INSCRITO',
+  // se pasa solo cuando arranca el grupo (`matricula.ts`).
+  // Aqui esta para el ingreso tardio y la matricula
+  // adelantada, que el calendario no cubre
+  'EN_FORMACION',
   'PERDIDO',
 ];
 
@@ -241,9 +268,13 @@ function aTexto(valor: unknown): string | null {
 
 @Injectable()
 export class CrmService {
+  private readonly log = new Logger('CRM');
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly auditoria: AuditoriaService,
+    private readonly colaRui: ColaRui,
+    private readonly cupos: PanelDeCupos,
   ) {}
 
   async listar(filtros: Filtros) {
@@ -255,7 +286,20 @@ export class CrmService {
       this.prisma.participante.count({ where: donde }),
       this.prisma.participante.findMany({
         where: donde,
-        orderBy: { creadoEn: 'desc' },
+        /// Los de pre-reserva primero, y de esos los que aun
+        /// no estan inscritos.
+        ///
+        /// Una empresa que aparto cuarenta cupos tiene
+        /// cuarenta turnos preferentes con fecha de
+        /// vencimiento: si no se completan antes del cierre
+        /// se liberan al monton comun. Ponerlos arriba no es
+        /// cosmetica -- es que quien inscribe atienda primero
+        /// lo que caduca. Ordenar por fecha de creacion los
+        /// hundia entre los leads sueltos.
+        orderBy: [
+          { reservaId: { sort: 'desc', nulls: 'last' } },
+          { creadoEn: 'desc' },
+        ],
         skip: (pagina - 1) * porPagina,
         take: porPagina,
         include: {
@@ -271,6 +315,15 @@ export class CrmService {
               telefono: true,
               sectorEconomico: true,
               clasificacion: true,
+            },
+          },
+          // de que reserva viene, si viene de una: es lo que
+          // le da prevalencia y hay que poder verlo
+          reserva: {
+            select: {
+              id: true,
+              cuposSolicitados: true,
+              empresa: { select: { razonSocial: true, nit: true } },
             },
           },
           // los dos ultimos: el de ahora y el de antes
@@ -338,10 +391,9 @@ export class CrmService {
    * Una cifra que no obedece al filtro de al lado miente.
    */
   async metricasInscripciones(filtros: Filtros) {
-    /// El tramo de la tabla no sirve aqui: `INSCRIPCION` deja
-    /// fuera a los inscritos, y sin ellos la conversion sale
-    /// siempre en cero. El tablero habla de las cuatro etapas
-    /// del embudo, que son las que el asesor mueve.
+    /// El tramo se descarta y se pone el embudo explicito:
+    /// asi esta pantalla mide exactamente la misma poblacion
+    /// que la tabla de leads, que ahora usa la misma lista.
     const donde: Prisma.ParticipanteWhereInput = {
       AND: [
         this.donde({ ...filtros, tramo: undefined }),
@@ -358,7 +410,10 @@ export class CrmService {
   }
 
   async resumen(filtros: Filtros) {
-    const donde = this.donde({ ...filtros, etapa: undefined });
+    // sin el tramo tampoco: si se hereda, la pantalla de
+    // leads jura que hay cero inscritos porque su propio
+    // recorte los deja fuera antes de contarlos
+    const donde = this.donde({ ...filtros, etapa: undefined, tramo: undefined });
 
     const porEtapa = await this.prisma.participante.groupBy({
       by: ['etapa'],
@@ -508,13 +563,25 @@ export class CrmService {
             empresa: { select: { nit: true, razonSocial: true } },
           },
         },
-        // la suya, no la que lo nomino: es la que el formulario
-        // largo le pide llenar
+        // la suya, no la que lo nomino: es la que el
+        // formulario largo le pide llenar.
+        //
+        // Van los TRECE campos que ese formulario pregunta, no
+        // seis: la ficha tiene que poder ensenar todo lo que
+        // la persona lleno, o el asesor no puede corroborar
+        // nada por telefono.
         empresa: {
           select: {
+            id: true,
             nit: true,
+            digitoVerificacion: true,
             razonSocial: true,
+            direccion: true,
+            telefono: true,
+            departamentoSepId: true,
+            municipioSepId: true,
             sectorEconomico: true,
+            numeroTrabajadores: true,
             contactoNombre: true,
             contactoCargo: true,
             contactoCorreo: true,
@@ -544,11 +611,65 @@ export class CrmService {
       /// Lo que el enlace le va a pedir, en el orden en que se
       /// lo va a pedir: primero su empresa y despues lo suyo.
       /// Sin esto el asesor manda un enlace sin saber que trae.
-      faltaDeLaEmpresa: this.faltaDeLaEmpresa(p.empresa),
+      faltaDeLaEmpresa: this.faltaDeLaEmpresa(
+        p.empresa,
+        p.persona.numeroDocumento,
+      ),
+      /// Su cédula es su RUT: no tiene empresa, es él mismo.
+      trabajaPorSuCuenta: p.empresa?.nit === p.persona.numeroDocumento,
       faltaDeLaPersona: faltaDeLaPersona({
         persona: p.persona,
         nivelOcupacionalSepId: p.nivelOcupacionalSepId,
       }),
+      /// En que anda el ultimo enlace que se le mando.
+      enlace: await this.estadoDelEnlace(id),
+    };
+  }
+
+  /**
+   * En qué anda el último enlace de esta persona.
+   *
+   * El aviso dice «antes de generar otro, revise si el que
+   * mandó ya fue abierto». Esto es lo que hace esa frase
+   * verdad: sin la fecha de apertura era pedirle al asesor
+   * una respuesta que nadie guardaba.
+   *
+   * NO viaja el token: quien mira la ficha no necesita poder
+   * entrar por el enlace de otro.
+   */
+  private async estadoDelEnlace(participanteId: string) {
+    const e = await this.prisma.enlaceCompletado.findFirst({
+      where: { participanteId },
+      orderBy: { creadoEn: 'desc' },
+      select: {
+        creadoEn: true,
+        expiraEn: true,
+        abiertoEn: true,
+        usadoEn: true,
+        anuladoEn: true,
+        emitidoPor: { select: { nombre: true } },
+      },
+    });
+    if (!e) return null;
+
+    const ahora = new Date();
+    const estado = e.usadoEn
+      ? ('COMPLETADO' as const)
+      : e.anuladoEn
+        ? ('ANULADO' as const)
+        : e.expiraEn < ahora
+          ? ('CADUCADO' as const)
+          : e.abiertoEn
+            ? ('ABIERTO' as const)
+            : ('SIN_ABRIR' as const);
+
+    return {
+      estado,
+      creadoEn: e.creadoEn,
+      expiraEn: e.expiraEn,
+      abiertoEn: e.abiertoEn,
+      usadoEn: e.usadoEn,
+      emitidoPor: e.emitidoPor?.nombre ?? null,
     };
   }
 
@@ -564,11 +685,26 @@ export class CrmService {
       contactoCargo: string | null;
       contactoCorreo: string | null;
     } | null,
+    /// Para saber si la «empresa» es la persona misma.
+    documentoDeLaPersona?: string,
   ): string[] {
     if (!e) return ['los datos de su organización'];
 
+    /// Quien trabaja por su cuenta no tiene jefe directo.
+    ///
+    /// Su cédula es su RUT, asi que su NIT y su documento son
+    /// el mismo numero. Pedirle «el nombre de su jefe» y «el
+    /// correo de su jefe» es pedirle que se invente a
+    /// alguien, y mientras no lo haga la ficha lo da por
+    /// incompleto para siempre: el enlace no deja de
+    /// ofrecerse y el F7 nunca lo ve listo.
+    const esElMismo =
+      documentoDeLaPersona !== undefined && e.nit === documentoDeLaPersona;
+
     const falta: string[] = [];
     if (!e.sectorEconomico) falta.push('sector económico');
+    if (esElMismo) return falta;
+
     if (!e.contactoNombre) falta.push('nombre del jefe directo');
     if (!e.contactoCargo) falta.push('cargo del jefe directo');
     if (!e.contactoCorreo) falta.push('correo del jefe directo');
@@ -657,7 +793,7 @@ export class CrmService {
       }
     }
 
-    return this.prisma.$transaction(async (tx) => {
+    const creado = await this.prisma.$transaction(async (tx) => {
       const persona = await tx.persona.upsert({
         where: {
           tipoDocumentoSepId_numeroDocumento: {
@@ -731,6 +867,19 @@ export class CrmService {
 
       return participante;
     });
+
+    // fuera de la transaccion a proposito: si encolar falla,
+    // el lead ya quedo guardado y no se arrastra con el
+    try {
+      await this.colaRui.encolarSiHaceFalta(creado.personaId);
+    } catch (e) {
+      this.log.warn(
+        `No se pudo encolar la consulta al RUI: ` +
+          (e instanceof Error ? e.message : String(e)),
+      );
+    }
+
+    return creado;
   }
 
   /**
@@ -1060,6 +1209,134 @@ export class CrmService {
     };
   }
 
+  /**
+   * Nadie se inscribe si no cabe, si no hay grupo, o si ya
+   * cerró la ventana del calendario.
+   *
+   * Una pre-reserva da prevalencia, no cupo: la empresa que
+   * apartó cuarenta tiene cuarenta turnos preferentes, y solo
+   * se vuelven silla al inscribir a cada persona. Por eso el
+   * tope se mira aquí y no al reservar.
+   *
+   * Y el grupo es obligatorio: si una acción tiene cinco
+   * grupos que arrancan en fechas distintas, «inscrito» sin
+   * decir a cuál no significa nada, y al llegar la fecha no
+   * hay contra qué matricularlo.
+   */
+  private async exigirQueQuepa(p: {
+    id: string;
+    ofertaId: string | null;
+    coberturaId: string | null;
+  }) {
+    /// Sin los datos de su organización no se inscribe.
+    ///
+    /// Es una cadena: inscribir es comprometerse a reportar a
+    /// esa persona al SENA, y el F7 se arma POR EMPRESA. Un
+    /// inscrito sin organización no se puede reportar, así que
+    /// el compromiso no se puede cumplir. Dejarlo pasar aquí
+    /// solo mueve el problema al día del cargue, cuando ya no
+    /// hay a quién llamar.
+    ///
+    /// Al independiente se le pide menos -- no tiene jefe
+    /// directo --, y de eso ya se encarga `faltaDeLaEmpresa`.
+    const conEmpresa = await this.prisma.participante.findUnique({
+      where: { id: p.id },
+      select: {
+        persona: { select: { numeroDocumento: true } },
+        empresa: {
+          select: {
+            nit: true,
+            razonSocial: true,
+            sectorEconomico: true,
+            contactoNombre: true,
+            contactoCargo: true,
+            contactoCorreo: true,
+          },
+        },
+      },
+    });
+
+    const faltaEmpresa = this.faltaDeLaEmpresa(
+      conEmpresa?.empresa ?? null,
+      conEmpresa?.persona.numeroDocumento,
+    );
+
+    if (faltaEmpresa.length > 0) {
+      throw new BadRequestException(
+        conEmpresa?.empresa
+          ? `Antes de inscribir hay que completar su organización: ${faltaEmpresa.join(', ')}. ` +
+            'Sin eso no entra en el F7.'
+          : 'Esta persona no tiene organización. Sin ella no se puede reportar al ' +
+            'SENA, así que no se puede inscribir. Mándele el enlace para que la complete.',
+      );
+    }
+
+    if (!p.ofertaId) {
+      throw new BadRequestException(
+        'Este lead no tiene una oferta (acción y ciudad). Asígnesela antes de inscribirlo.',
+      );
+    }
+
+    const panel = await this.cupos.deLaOferta(p.ofertaId);
+    if (!panel) {
+      throw new BadRequestException('Esa oferta ya no existe.');
+    }
+
+    if (!panel.admiteInscripciones) {
+      throw new BadRequestException(panel.porQueNo ?? 'No se puede inscribir en esta oferta.');
+    }
+
+    if (!p.coberturaId) {
+      /// Por número de grupo, sin repetir.
+      ///
+      /// `panel.grupos` son COBERTURAS: un grupo tiene una por
+      /// ciudad y modalidad, así que el Grupo 1 con seis
+      /// ciudades salía seis veces y el mensaje decía «Grupo
+      /// 1, Grupo 1, Grupo 1...». Lo que se elige es la
+      /// cobertura, pero lo que se lee es el grupo.
+      const numeros = [
+        ...new Set(
+          panel.grupos
+            .filter(
+              (g) =>
+                g.ventana.estado === 'ABIERTA' || g.ventana.estado === 'AVISANDO',
+            )
+            .map((g) => g.numero),
+        ),
+      ].sort((a, b) => a - b);
+
+      throw new BadRequestException(
+        'Falta decir a qué grupo entra. ' +
+          (numeros.length
+            ? `Hoy admiten: ${numeros.map((n) => `Grupo ${n}`).join(', ')}.`
+            : 'Ningún grupo tiene la ventana abierta.'),
+      );
+    }
+
+    const suyo = panel.grupos.find((g) => g.coberturaId === p.coberturaId);
+    if (!suyo) {
+      throw new BadRequestException('Ese grupo no es de esta acción de formación.');
+    }
+    if (suyo.ventana.estado === 'SIN_FECHAS') {
+      throw new BadRequestException(
+        `El grupo ${suyo.numero} no tiene fecha de inicio. Sin fecha no se puede inscribir: ` +
+          'el cronograma es lo que después lo lleva al aula.',
+      );
+    }
+    if (suyo.ventana.estado === 'CERRADA') {
+      const cierre = suyo.ventana.cierre?.toISOString().slice(0, 10);
+      throw new BadRequestException(
+        `La inscripción del grupo ${suyo.numero} cerró el ${cierre}, ` +
+          'una semana hábil antes de que arranque. Elija otro grupo.',
+      );
+    }
+    if (suyo.inscritos >= suyo.cuposMaximos) {
+      throw new BadRequestException(
+        `El grupo ${suyo.numero} ya está lleno (${suyo.inscritos} de ${suyo.cuposMaximos}).`,
+      );
+    }
+  }
+
   async cambiarEtapa(
     id: string,
     dto: CambiarEtapaDto,
@@ -1077,12 +1354,19 @@ export class CrmService {
         etapa: true,
         convenioId: true,
         accionFormacionId: true,
+        ofertaId: true,
+        coberturaId: true,
         fechaRetiro: true,
         fechaMatricula: true,
         fechaCertificacion: true,
       },
     });
     if (!p) throw new NotFoundException('Ese participante no existe.');
+
+    // inscribir es lo unico que consume un cupo de verdad
+    if (dto.etapa === 'INSCRITO') {
+      await this.exigirQueQuepa(p);
+    }
 
     // certificar exige haber aprobado el 80% de lo
     // obligatorio: sin eso, la fila que se le manda al
@@ -2200,7 +2484,7 @@ export class CrmService {
     // el tramo acota la pantalla entera: Inscripciones no
     // sabe de quien ya esta en el aula, y al reves
     if (f.tramo === 'INSCRIPCION') {
-      y.push({ etapa: { in: [...ETAPAS_DE_INSCRIPCION, 'PERDIDO'] } });
+      y.push({ etapa: { in: ETAPAS_DEL_EMBUDO } });
     } else if (f.tramo === 'INSCRITOS') {
       y.push({ etapa: 'INSCRITO' });
     } else if (f.tramo === 'AULA') {
@@ -2318,6 +2602,12 @@ export class CrmService {
     accionFormacion: { codigo: string; nombre: string } | null;
     oferta: { ubicacion: { nombre: string } } | null;
     asesor: { id: string; nombre: string } | null;
+    reservaId: string | null;
+    reserva: {
+      id: string;
+      cuposSolicitados: number;
+      empresa: { razonSocial: string; nit: string };
+    } | null;
     empresa: {
       razonSocial: string;
       direccion: string | null;
@@ -2386,6 +2676,10 @@ export class CrmService {
         : p.origen === 'AUTOGESTION'
           ? ('ORGANICO' as const)
           : ('IMPORTACION' as const),
+      /// Viene de una empresa que aparto cupos. Ese turno
+      /// caduca en el cierre, y por eso va primero.
+      dePreReserva: p.reservaId !== null,
+      reservaDe: p.reserva?.empresa.razonSocial ?? null,
       /// Lo ultimo que se le hizo, sea un cambio de etapa o
       /// una edicion de la ficha.
       ultimaActividad: p.movimientos[0]?.creadoEn ?? p.actualizadoEn,

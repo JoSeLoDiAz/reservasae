@@ -33,7 +33,28 @@ export function Cajon({
       if (e.key === "Escape") alCerrar();
     };
     document.addEventListener("keydown", alPulsar);
-    return () => document.removeEventListener("keydown", alPulsar);
+
+    /// La tabla de atrás se queda quieta.
+    ///
+    /// Con el panel abierto, la rueda del ratón seguía
+    /// moviendo la tabla de detrás: uno lee un dato del panel,
+    /// baja un poco y la fila que estaba mirando ya no está
+    /// donde estaba. El panel se queda fijo hasta que uno
+    /// decida qué hacer con él.
+    ///
+    /// Se compensa el ancho de la barra de desplazamiento: sin
+    /// eso, al bloquearla la página da un salto lateral.
+    const anchoBarra = window.innerWidth - document.documentElement.clientWidth;
+    const overflowAntes = document.body.style.overflow;
+    const paddingAntes = document.body.style.paddingRight;
+    document.body.style.overflow = "hidden";
+    if (anchoBarra > 0) document.body.style.paddingRight = `${anchoBarra}px`;
+
+    return () => {
+      document.removeEventListener("keydown", alPulsar);
+      document.body.style.overflow = overflowAntes;
+      document.body.style.paddingRight = paddingAntes;
+    };
   }, [alCerrar]);
 
   return (
@@ -49,7 +70,15 @@ export function Cajon({
         tabIndex={-1}
         role="dialog"
         aria-modal="true"
-        className="relative flex h-full w-full max-w-lg flex-col border-l border-borde bg-superficie shadow-2xl outline-none"
+        /// Ancho de verdad: 672 px, no 512.
+        ///
+        /// Ya se desplazaba por dentro sin empujar la pagina
+        /// -- va `fixed` y el cuerpo lleva su propio scroll --
+        /// pero en 512 px las dos columnas quedaban tan
+        /// estrechas que «Accion formacion interes» ocupaba
+        /// cinco renglones. Con mas ancho el mismo contenido
+        /// cabe casi entero sin bajar.
+        className="relative flex h-full w-full max-w-2xl flex-col border-l border-borde bg-superficie shadow-2xl outline-none"
       >
         <header className="flex items-start gap-3 border-b border-borde px-6 py-4">
           <div className="min-w-0 flex-1">

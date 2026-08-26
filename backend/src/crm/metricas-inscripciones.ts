@@ -4,15 +4,25 @@ import type { EtapaParticipante, Prisma } from '../../generated/prisma';
 import { DEPARTAMENTO_POR_ID } from './catalogos-sep';
 import { faltaDeLaPersona } from './completitud';
 
-/// Las cuatro del embudo del asesor, en el orden del proceso.
-///
-/// «No interesado» es PERDIDO en la base: el nombre de la
-/// pantalla y el de la columna no coinciden, y aqui manda el
-/// de la pantalla. DATOS_COMPLETOS queda fuera porque dejo de
-/// ser etapa, y las del aula porque no son de este tramo.
+/**
+ * El embudo del asesor, en el orden del proceso. ESTA es la
+ * unica lista: la tabla de leads, sus graficas y el control
+ * la importan de aqui.
+ *
+ * Antes habia cuatro listas que decian ser esto mismo, con
+ * contenidos distintos: 45, 74, 74 y 29 sobre los mismos
+ * ciento veinte leads. Ninguna estaba mal calculada; cada
+ * pantalla preguntaba por otra poblacion, y por eso los
+ * numeros nunca cuadraban.
+ *
+ * «No interesado» es PERDIDO en la base: el nombre de la
+ * pantalla y el de la columna no coinciden, y aqui manda el
+ * de la pantalla.
+ */
 export const ETAPAS_DEL_EMBUDO: EtapaParticipante[] = [
   'INTERESADO',
   'CONTACTADO',
+  'DATOS_COMPLETOS',
   'INSCRITO',
   'PERDIDO',
 ];
@@ -20,6 +30,7 @@ export const ETAPAS_DEL_EMBUDO: EtapaParticipante[] = [
 export const ETIQUETA_ETAPA: Record<string, string> = {
   INTERESADO: 'Interesado',
   CONTACTADO: 'Contactado',
+  DATOS_COMPLETOS: 'Datos completos',
   INSCRITO: 'Inscrito',
   PERDIDO: 'No interesado',
 };

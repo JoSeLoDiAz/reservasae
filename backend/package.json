@@ -31,6 +31,8 @@
     "db:sembrar-prueba": "ts-node prisma/seed/prueba.ts",
     "db:sembrar-directorio": "ts-node prisma/seed/directorio-nit.ts",
     "db:sembrar-resumenes": "ts-node prisma/seed/resumenes-publicos.ts",
+    "db:probar-buscador-web": "ts-node prisma/probar-buscador-web.ts",
+    "db:probar-navegador-web": "ts-node prisma/probar-navegador-web.ts",
     "db:borrar-reservas": "ts-node prisma/borrar-reservas.ts"
   },
   "prisma": {
@@ -48,6 +50,7 @@
     "class-validator": "^0.15.1",
     "cookie-parser": "^1.4.7",
     "exceljs": "^4.4.0",
+    "playwright": "^1.62.1",
     "prisma": "^6.19.3",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1"

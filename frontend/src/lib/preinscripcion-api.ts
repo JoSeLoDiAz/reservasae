@@ -1,6 +1,7 @@
 /** Lo público: inscribirse y completar la propia ficha. */
 
 import { ErrorApi } from "./api";
+import { pedir } from "./pedir";
 
 export type OfertaPublica = {
   id: string;
@@ -103,19 +104,6 @@ export type FichaAbierta = {
   municipios: Array<[number, number, string]>;
 };
 
-async function pedir<T>(ruta: string, opciones?: RequestInit): Promise<T> {
-  const respuesta = await fetch(`/api${ruta}`, {
-    ...opciones,
-    headers: { "content-type": "application/json", ...opciones?.headers },
-  });
-  const cuerpo = await respuesta.json().catch(() => null);
-  if (!respuesta.ok) {
-    const bruto = (cuerpo as { message?: string | string[] } | null)?.message;
-    const mensaje = Array.isArray(bruto) ? bruto.join(". ") : bruto;
-    throw new ErrorApi(respuesta.status, mensaje ?? "No se pudo completar la operación.");
-  }
-  return cuerpo as T;
-}
 
 export const preinscripcionApi = {
   /** El banco de NIT: trae la razón social. */

@@ -4,11 +4,11 @@ import { useCallback, useMemo, useState } from "react";
 
 import { Cajon, Dato } from "@/components/admin/cajon";
 import { ConfirmarBorrado } from "@/components/admin/confirmar-borrado";
-import { n } from "@/components/admin/graficos";
 import { IndicadorActualizacion } from "@/components/admin/indicador-actualizacion";
 import { Aviso, useAdmin } from "@/components/admin/marco-admin";
 import { Tabla, type Columna } from "@/components/admin/tabla";
-import { bonito } from "@/lib/api";
+import { CarguePlantilla } from "@/components/admin/cargue-plantilla";
+import { bonito, enMayusculas } from "@/lib/api";
 import { useDatosVivos } from "@/lib/datos-vivos";
 import {
   descargar,
@@ -74,10 +74,10 @@ export default function PaginaReservas() {
         clave: "empresa",
         titulo: "Organización",
         fija: true,
-        valor: (r) => bonito(r.empresa.razonSocial),
+        valor: (r) => enMayusculas(r.empresa.razonSocial),
         pinta: (r) => (
           <>
-            <p className="font-medium">{bonito(r.empresa.razonSocial)}</p>
+            <p className="font-medium">{enMayusculas(r.empresa.razonSocial)}</p>
             <p className="font-mono text-xs text-texto-suave">
               {r.empresa.nit}
               {r.empresa.digitoVerificacion ? "-" + r.empresa.digitoVerificacion : ""}
@@ -218,22 +218,19 @@ export default function PaginaReservas() {
 
   return (
     <div className="space-y-6">
-      <header className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Reservas</h1>
-          <p className="mt-1 text-texto-suave">
-            {datos ? n(datos.total) + " registros" : "Cargando…"}
-          </p>
-          <div className="mt-3">
-            <IndicadorActualizacion
-              actualizadoEn={vivos.actualizadoEn}
-              refrescando={vivos.refrescando}
-              desactualizado={vivos.desactualizado}
-              alRefrescar={vivos.refrescar}
-            />
-          </div>
-        </div>
-      </header>
+      {/* Sin título ni conteo: lo dice la miga, y la cifra
+          va en el pie de la tabla. El aviso solo aparece si
+          el servidor deja de contestar; el resto del tiempo
+          aquí no hay nada, y por eso no lleva envoltorio: uno
+          vacío dejaría un hueco por nada. */}
+      {vivos.desactualizado && (
+        <IndicadorActualizacion
+          actualizadoEn={vivos.actualizadoEn}
+          refrescando={vivos.refrescando}
+          desactualizado={vivos.desactualizado}
+          alRefrescar={vivos.refrescar}
+        />
+      )}
 
       {vivos.error && <Aviso tipo="error">{vivos.error}</Aviso>}
 
@@ -245,14 +242,23 @@ export default function PaginaReservas() {
         total={datos?.total}
         alCargarTodo={datos && datos.paginas > 1 ? cargarTodas : undefined}
         alClic={setAbierta}
+        // ya trae la suya, del servidor y con todas las filas
+        sinDescarga
         vacio="Aparecerán en cuanto alguien reserve desde un formulario."
         acciones={
-          <button
-            onClick={() => descargar("reservas", {})}
-            className="rounded-xl bg-marca px-4 py-2 text-sm font-medium text-marca-texto transition hover:bg-marca-fuerte"
-          >
-            Descargar en Excel
-          </button>
+          <>
+            <button
+              onClick={() => descargar("reservas", {})}
+              className="rounded-xl bg-marca px-4 py-2 text-sm font-medium text-marca-texto transition hover:bg-marca-fuerte"
+            >
+              Descargar en Excel
+            </button>
+            <CarguePlantilla
+              entidad="reservas"
+              admiteNuevas={false}
+              alTerminar={() => vivos.refrescar()}
+            />
+          </>
         }
       />
 

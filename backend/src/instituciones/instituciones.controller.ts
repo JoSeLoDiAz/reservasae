@@ -1,6 +1,7 @@
 /** El maestro de organizaciones, desde el panel. */
 
 import {
+  BadRequestException,
   Body,
   Controller,
   Get,
@@ -16,6 +17,8 @@ import { AdminActual } from '../admin/admin-actual.decorator';
 import { AdminGuard, Requiere } from '../admin/admin.guard';
 import { AplicarPropuestaDto, EditarInstitucionDto } from './dto';
 import { InstitucionesService } from './instituciones.service';
+import { webConectado } from './web/proveedor-web';
+import { WebService } from './web/web.service';
 
 /// Va bajo el área de reserva: quien atiende organizaciones
 /// es quien las va a corregir. Verificar exige ESCRIBIR --
@@ -24,7 +27,10 @@ import { InstitucionesService } from './instituciones.service';
 @UseGuards(AdminGuard)
 @Requiere('reserva', 'VER')
 export class InstitucionesController {
-  constructor(private readonly instituciones: InstitucionesService) {}
+  constructor(
+    private readonly instituciones: InstitucionesService,
+    private readonly web: WebService,
+  ) {}
 
   @Get()
   listar(
@@ -66,7 +72,10 @@ export class InstitucionesController {
     @Body() dto: EditarInstitucionDto,
     @AdminActual() admin: Admin,
   ) {
-    return this.instituciones.editar(id, dto, { id: admin.id, nombre: admin.nombre });
+    return this.instituciones.editar(id, dto, {
+      id: admin.id,
+      nombre: admin.nombre,
+    });
   }
 
   @Post(':id/verificar')
@@ -79,6 +88,38 @@ export class InstitucionesController {
   @Requiere('reserva', 'ESCRIBIR')
   desverificar(@Param('id') id: string) {
     return this.instituciones.desverificar(id);
+  }
+
+  /**
+   * Que el buscador web vaya a mirar este NIT.
+   *
+   * Pide ESCRIBIR aunque no escriba nada en la ficha: la
+   * consulta cuesta plata y termina en una propuesta que
+   * alguien va a tener que resolver.
+   */
+  @Post(':id/validar-web')
+  @Requiere('reserva', 'ESCRIBIR')
+  async validarWeb(@Param('id') id: string) {
+    /// Apagado no se encola: una fila esperando en una cola
+    /// que nadie va a vaciar se ve igual que una consulta en
+    /// curso, y el asesor se queda esperando una respuesta
+    /// que no va a llegar nunca.
+    if (!webConectado()) {
+      throw new BadRequestException(
+        'El buscador web está apagado en el servidor.',
+      );
+    }
+
+    // quien está mirando la ficha va delante de lo que se
+    // encoló en segundo plano
+    await this.web.encolar(id, 100);
+    return this.web.estado(id);
+  }
+
+  /** En qué va la consulta, para poder mostrarlo en la ficha. */
+  @Get(':id/estado-web')
+  estadoWeb(@Param('id') id: string) {
+    return this.web.estado(id);
   }
 
   @Post('propuestas/:id/aplicar')

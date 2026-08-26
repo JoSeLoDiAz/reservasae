@@ -285,6 +285,12 @@ export default function PaginaInstitucion({
   const verificada = ficha.verificadaEn !== null;
   const sinRazonSocial = borrador.razonSocial.trim() === "";
 
+  /// Ya hay una pedida y sin responder: pedir otra no la
+  /// apura, solo suma trabajo -- y cobro -- por lo mismo.
+  const consultando = ficha.consultas.some(
+    (c) => c.estado === "PENDIENTE" || c.estado === "EN_CURSO",
+  );
+
   const escribir = (clave: ClaveEditable) => (valor: string) =>
     setBorrador({ ...borrador, [clave]: valor });
 
@@ -644,7 +650,35 @@ export default function PaginaInstitucion({
               </button>
             )}
 
+            {/* type="button": dentro de un formulario, un boton sin
+                tipo guarda la ficha ademas de lo suyo */}
+            <button
+              type="button"
+              disabled={ocupado || consultando}
+              onClick={() =>
+                void conError(async () => {
+                  const r = await institucionesApi.validarWeb(ficha.id);
+                  return r.ultima?.estado === "EN_CURSO"
+                    ? "Ya había una consulta en curso para este NIT."
+                    : "Se pidió la consulta. Cuando responda, lo que traiga sale " +
+                        "aquí abajo como propuesta, para que usted decida qué entra.";
+                })
+              }
+              className="ml-auto rounded-xl border border-marca px-4 py-2 text-sm font-medium text-marca transition hover:bg-marca-suave disabled:opacity-50"
+            >
+              {consultando ? "Consultando…" : "Buscar los datos en la web"}
+            </button>
           </div>
+
+          {/* lo que trae el buscador NO entra en la ficha: entra
+              como propuesta, y una persona la acepta campo por
+              campo. Decirlo aqui evita que alguien espere ver los
+              datos cambiados solos */}
+          <p className="text-sm text-texto-suave">
+            La búsqueda en la web no cambia nada de esta ficha: deja una
+            propuesta con lo que encontró, y usted decide campo por campo qué
+            entra y qué no.
+          </p>
         </form>
       </Tarjeta>
 
@@ -735,8 +769,8 @@ export default function PaginaInstitucion({
 
       {ficha.consultas.length > 0 && (
         <Tarjeta
-          titulo="Consultas al RUES"
-          descripcion="Lo último que se le preguntó al registro mercantil por este NIT."
+          titulo="Consultas al buscador web"
+          descripcion="Lo último que se buscó en la web por este NIT."
         >
           <ul className="space-y-3">
             {ficha.consultas.slice(0, 5).map((consulta) => (

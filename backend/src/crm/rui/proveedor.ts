@@ -13,7 +13,10 @@ export type ResultadoRui =
 
 export interface ProveedorRui {
   /** Un documento, un nombre. Puede tardar segundos. */
-  consultar(tipoDocumentoSepId: number, numeroDocumento: string): Promise<ResultadoRui>;
+  consultar(
+    tipoDocumentoSepId: number,
+    numeroDocumento: string,
+  ): Promise<ResultadoRui>;
 }
 
 export const PROVEEDOR_RUI = Symbol('PROVEEDOR_RUI');
@@ -39,7 +42,8 @@ export class ProveedorRuiLocal implements ProveedorRui {
     // un digito de cada diez no aparece en el RUI
     if (ultimo === 0) return { estado: 'SIN_RESULTADO' };
     // y otro falla, para ver el reintento
-    if (ultimo === 9) return { estado: 'FALLO', error: 'La consulta no respondió.' };
+    if (ultimo === 9)
+      return { estado: 'FALLO', error: 'La consulta no respondió.' };
 
     return {
       estado: 'ENCONTRADO',
@@ -48,7 +52,13 @@ export class ProveedorRuiLocal implements ProveedorRui {
   }
 }
 
+/// Cual se usa. `VENTANILLA` abre un navegador contra el
+/// portal del DNP; cualquier otra cosa deja el simulador.
+export function ruiConectado(): boolean {
+  return process.env.RUI_PROVEEDOR === 'VENTANILLA';
+}
+
 /** Verdadero mientras el detector sea el de mentira. */
 export function ruiEsSimulado(): boolean {
-  return !process.env.RUI_PROVEEDOR || process.env.RUI_PROVEEDOR === 'LOCAL';
+  return !ruiConectado();
 }

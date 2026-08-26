@@ -1,4 +1,5 @@
 import { ErrorApi } from "./api";
+import { pedir } from "./pedir";
 import type { EstadoSemaforo } from "@/components/admin/graficos";
 
 export type Modalidad = "PRESENCIAL" | "VIRTUAL" | "HIBRIDA";
@@ -317,16 +318,6 @@ export type DetalleAccion = {
   serie: Array<{ dia: string; cupos: number }>;
 };
 
-async function pedir<T>(ruta: string, opciones?: RequestInit): Promise<T> {
-  const respuesta = await fetch(`/api${ruta}`, opciones);
-  const cuerpo = await respuesta.json().catch(() => null);
-  if (!respuesta.ok) {
-    const bruto = (cuerpo as { message?: string | string[] } | null)?.message;
-    const mensaje = Array.isArray(bruto) ? bruto.join(". ") : bruto;
-    throw new ErrorApi(respuesta.status, mensaje ?? "No se pudo cargar la información.");
-  }
-  return cuerpo as T;
-}
 
 export function consulta(filtros: Record<string, string | number | undefined>): string {
   const partes = Object.entries(filtros)

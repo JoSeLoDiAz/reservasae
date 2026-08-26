@@ -21,7 +21,16 @@ import {
 } from "./iconos";
 import { enlacesVisibles, estaActivo, MODULOS } from "./navegacion";
 
-type Contexto = { admin: AdminActual; refrescar: () => Promise<void> };
+type Contexto = {
+  admin: AdminActual;
+  refrescar: () => Promise<void>;
+  /// El gremio que se eligió arriba. Acota TODO el panel.
+  /// Null quiere decir «todos los que pueda ver esta cuenta».
+  gremio: string | null;
+  elegirGremio: (convenioId: string | null) => void;
+  /// Los gremios a los que esta cuenta tiene acceso.
+  gremios: Array<{ convenioId: string; sigla: string }>;
+};
 
 const ContextoAdmin = createContext<Contexto | null>(null);
 
@@ -31,7 +40,17 @@ export function useAdmin(): Contexto {
   return valor;
 }
 
+/// Los rotulitos de la barra: «Seleccione Gremio», «Panel de
+/// gestion», «Ajustes». Todos son lo mismo -- el nombre de lo
+/// que viene debajo -- y se ven igual. Uno de ellos llevaba
+/// otro peso y otro espaciado, y por eso no se leian como
+/// hermanos.
+const ROTULO = "text-[10px] tracking-wide uppercase opacity-55";
+
 const LLAVE_PLEGADO = "convoca:menu-plegado";
+/// El gremio elegido sobrevive al refresco: cambiarlo en cada
+/// carga obligaria a re-elegirlo diez veces al dia.
+const LLAVE_GREMIO = "convoca:gremio";
 
 type Permisos = Record<Area, Nivel> | undefined;
 
@@ -43,10 +62,48 @@ export function MarcoAdmin({ children }: { children: React.ReactNode }) {
   const [cargando, setCargando] = useState(true);
   const [plegado, setPlegadoEstado] = useState(false);
   const [cajon, setCajon] = useState(false);
+  const [gremio, setGremioEstado] = useState<string | null>(null);
+  /// Qué grupo abrir al desplegar la barra. Lo pide el icono
+  /// de un módulo cuando la barra está plegada: uno lo pulsa
+  /// porque no se acuerda de qué hay dentro, así que hay que
+  /// enseñárselo abierto.
+  const [moduloAAbrir, setModuloAAbrir] = useState<string | null>(null);
 
   useEffect(() => {
     setPlegadoEstado(window.localStorage.getItem(LLAVE_PLEGADO) === "si");
+    try {
+      setGremioEstado(window.localStorage.getItem(LLAVE_GREMIO));
+    } catch {
+      // en privado localStorage puede fallar
+    }
   }, []);
+
+  const elegirGremio = useCallback(
+    (convenioId: string | null) => {
+      setGremioEstado(convenioId);
+      try {
+        if (convenioId) window.localStorage.setItem(LLAVE_GREMIO, convenioId);
+        else window.localStorage.removeItem(LLAVE_GREMIO);
+      } catch {
+        // igual que arriba
+      }
+
+      /// Y se recarga la pantalla entera.
+      ///
+      /// Sin esto, cambiar de gremio deja a la vista los datos
+      /// del anterior hasta que uno navegue a otro sitio: la
+      /// cabecera nueva solo viaja en las peticiones que
+      /// vengan DESPUÉS. Una tabla que dice ADECOPRIA arriba y
+      /// enseña filas de BRITCHAM es peor que no tener el
+      /// selector.
+      ///
+      /// `router.refresh()` no basta: lo que hay que rehacer
+      /// son los `fetch` del cliente, no el render del
+      /// servidor.
+      window.location.reload();
+    },
+    [],
+  );
 
   const setPlegado = useCallback((valor: boolean) => {
     setPlegadoEstado(valor);
@@ -93,8 +150,15 @@ export function MarcoAdmin({ children }: { children: React.ReactNode }) {
 
   const esSuperadmin = admin.rol === "SUPERADMIN";
 
+  /// Los gremios los manda `/admin/yo` ya resueltos: nunca
+  /// se ofrece uno al que esta cuenta no tenga acceso, porque
+  /// el backend solo pone los suyos.
+  const gremios = admin.gremios ?? [];
+
   return (
-    <ContextoAdmin.Provider value={{ admin, refrescar: cargar }}>
+    <ContextoAdmin.Provider
+      value={{ admin, refrescar: cargar, gremio, elegirGremio, gremios }}
+    >
       <a href="#contenido" className="salto-al-contenido no-imprimir">
         Saltar al contenido
       </a>
@@ -106,8 +170,14 @@ export function MarcoAdmin({ children }: { children: React.ReactNode }) {
           permisos={admin.permisos}
           plegado={plegado}
           alPlegar={() => setPlegado(!plegado)}
-          admin={admin}
-          alSalir={salir}
+          abrirEste={moduloAAbrir}
+          alDesplegarModulo={(clave) => {
+            setPlegado(false);
+            setModuloAAbrir(clave);
+          }}
+          gremios={gremios}
+          gremio={gremio}
+          alElegir={elegirGremio}
         />
 
         <CajonMovil
@@ -116,12 +186,18 @@ export function MarcoAdmin({ children }: { children: React.ReactNode }) {
           ruta={ruta}
           esSuperadmin={esSuperadmin}
           permisos={admin.permisos}
-          admin={admin}
-          alSalir={salir}
+          gremios={gremios}
+          gremio={gremio}
+          alElegir={elegirGremio}
         />
 
         <div className="flex min-w-0 grow flex-col">
-          <Cabecera ruta={ruta} alAbrirMenu={() => setCajon(true)} />
+          <Cabecera
+            ruta={ruta}
+            alAbrirMenu={() => setCajon(true)}
+            admin={admin}
+            alSalir={salir}
+          />
           <main
             id="contenido"
             tabIndex={-1}
@@ -163,7 +239,10 @@ function Marca({ plegado }: { plegado?: boolean }) {
   return (
     <Link
       href="/admin"
-      className={`flex items-center gap-2.5 no-underline ${plegado ? "justify-center" : ""}`}
+      /// Centrada. El logo y el nombre pegados a la izquierda
+      /// se leian como una esquina; centrados sobre el menu
+      /// hacen de cabecera de lo que viene debajo.
+      className="flex items-center justify-center gap-2.5 no-underline"
     >
       {sinLogo ? (
         <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-marca text-sm font-bold text-marca-texto">
@@ -181,41 +260,113 @@ function Marca({ plegado }: { plegado?: boolean }) {
         />
       )}
       {!plegado && (
-        <span className="flex min-w-0 flex-col leading-tight">
-          <span className="truncate text-sm font-bold">Convoca CRM</span>
-          <span className="truncate text-[10px] opacity-60">panel de gestión</span>
+        // al alto del logo, no debajo de el: dos renglones
+        // chicos al lado de un cuadro de 36 px se leian como
+        // un pie de foto
+        <span className="truncate text-[1.05rem] leading-none font-bold tracking-tight">
+          CONVOCA CRM
         </span>
       )}
     </Link>
   );
 }
 
+/**
+ * De qué gremio se está hablando.
+ *
+ * Va arriba del todo y no dentro de cada pantalla porque
+ * acota el panel entero: mirar leads de un gremio y cupos de
+ * otro es exactamente lo que hacía que los números no
+ * cuadraran.
+ *
+ * Con un solo gremio no se ofrece desplegable: elegir entre
+ * una cosa no es elegir, y un control muerto solo estorba.
+ */
+function SelectorGremio({
+  gremios,
+  gremio,
+  alElegir,
+}: {
+  gremios: Array<{ convenioId: string; sigla: string }>;
+  gremio: string | null;
+  alElegir: (id: string | null) => void;
+}) {
+  if (gremios.length === 0) return null;
+
+  if (gremios.length === 1) {
+    return (
+      <div className="rounded-lg border border-encabezado-borde/60 px-2.5 py-1.5">
+        <span className={ROTULO + " block"}>
+          Gremio
+        </span>
+        <span className="block truncate text-sm font-medium">{gremios[0].sigla}</span>
+      </div>
+    );
+  }
+
+  return (
+    <label className="block">
+      <span className={ROTULO + " mb-1.5 block"}>Seleccione Gremio</span>
+      <select
+        value={gremio ?? ""}
+        onChange={(e) => alElegir(e.target.value || null)}
+        className="w-full rounded-lg border border-encabezado-borde/60 bg-transparent px-2.5 py-1.5 text-sm font-medium outline-none focus:border-marca"
+      >
+        <option value="">Todos los gremios</option>
+        {gremios.map((g) => (
+          <option key={g.convenioId} value={g.convenioId}>
+            {g.sigla}
+          </option>
+        ))}
+      </select>
+    </label>
+  );
+}
+
+/**
+ * El rótulo de lo que viene abajo.
+ *
+ * Arriba de él está la identidad -- qué panel es y de qué
+ * gremio se está hablando --; debajo, por dónde se anda. Son
+ * dos cosas distintas y conviene que se vea.
+ *
+ * Por eso la raya y el aire: pegado al desplegable, el
+ * rótulo parecía su etiqueta y el menú arrancaba encaramado
+ * en el borde de arriba.
+ */
+function RotuloDelPanel() {
+  return <p className={ROTULO + " mt-7 mb-3"}>Panel de gestión</p>;
+}
+
+/**
+ * Quien esta dentro.
+ *
+ * Vive arriba a la derecha, que es donde se busca: es lo
+ * primero que uno mira al llegar a un panel prestado, y en el
+ * pie de la barra quedaba fuera del recorrido de la vista.
+ */
 function ChipUsuario({
   admin,
   alSalir,
-  plegado,
 }: {
   admin: AdminActual;
   alSalir: () => void;
-  plegado?: boolean;
 }) {
   return (
-    <div
-      className={`mt-3 flex shrink-0 items-center gap-2.5 rounded-xl border border-current/10 bg-current/5 p-2.5 ${
-        plegado ? "flex-col gap-2" : ""
-      }`}
-    >
+    // sin recuadro: en la barra de arriba, un marco alrededor
+    // del nombre lo hacia parecer un boton que no es
+    <div className="flex shrink-0 items-center gap-2.5">
       <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-marca text-xs font-bold text-marca-texto">
         {(admin.nombre[0] ?? "?").toUpperCase()}
       </span>
-      {!plegado && (
-        <span className="flex min-w-0 grow flex-col leading-tight">
-          <span className="truncate text-xs font-semibold">{admin.nombre}</span>
-          <span className="truncate text-[10px] opacity-60">
-            {admin.cargo ?? admin.rol}
-          </span>
+      {/* el cargo se esconde en pantallas chicas: en la barra
+          de arriba compite con las migas */}
+      <span className="hidden min-w-0 flex-col leading-tight sm:flex">
+        <span className="truncate text-xs font-semibold">{admin.nombre}</span>
+        <span className="truncate text-[10px] opacity-60">
+          {admin.cargo ?? admin.rol}
         </span>
-      )}
+      </span>
       <button
         onClick={alSalir}
         title="Cerrar sesión"
@@ -228,6 +379,76 @@ function ChipUsuario({
   );
 }
 
+/**
+ * Apariencia y accesibilidad, juntas al pie de la barra.
+ *
+ * Son ajustes: se tocan una vez y se dejan. Arriba competian
+ * con las migas y con las acciones de cada pantalla, que son
+ * lo que uno usa todo el dia.
+ */
+function Ajustes({
+  plegado,
+  alDesplegar,
+}: {
+  plegado?: boolean;
+  alDesplegar?: () => void;
+}) {
+  const [abierto, setAbierto] = useState(false);
+
+  /// Plegada: un solo botón que despliega.
+  ///
+  /// El conmutador de tema son TRES botones de 36 px en fila:
+  /// 108 px que no caben en una barra de 72, así que se salían
+  /// por la izquierda -- uno empezaba en x = -18 -- y se veían
+  /// montados unos sobre otros. Aquí no se meten a la fuerza:
+  /// se pide la barra abierta, que es donde caben.
+  if (plegado) {
+    return (
+      <button
+        type="button"
+        onClick={alDesplegar}
+        title="Ajustes: apariencia y accesibilidad"
+        className="mt-3 flex h-10 w-full shrink-0 items-center justify-center rounded-xl border border-current/10 bg-current/5 opacity-70 transition hover:opacity-100"
+      >
+        <span aria-hidden className="text-base leading-none">
+          🎛️
+        </span>
+        <span className="sr-only">Ajustes</span>
+      </button>
+    );
+  }
+
+  return (
+    <div className="mt-3 flex shrink-0 items-center justify-between gap-1 rounded-xl border border-current/10 bg-current/5 p-1.5 pl-2.5">
+      <span className={ROTULO}>Ajustes</span>
+
+      <div className="flex items-center gap-1">
+        <ConmutadorTema compacto />
+
+        {/* el relative abraza solo al boton: si abraza el
+            grupo, el panel nace pegado al borde y se corta */}
+        <div className="relative">
+          <button
+            onClick={() => setAbierto(!abierto)}
+            aria-expanded={abierto}
+            // lo lee el panel para no tomar este clic por un
+            // «pinchó fuera»
+            data-abre-panel
+            className={`grid h-8 w-8 place-items-center rounded-lg transition hover:bg-current/10 hover:opacity-100 ${
+              abierto ? "bg-current/10 opacity-100" : "opacity-70"
+            }`}
+            title="Accesibilidad"
+          >
+            <IconoAccesibilidad tamano={17} />
+            <span className="sr-only">Accesibilidad</span>
+          </button>
+          {abierto && <PanelAccesibilidad alCerrar={() => setAbierto(false)} />}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /// Los grupos con sus enlaces, compartidos por los dos menús.
 function Grupos({
   ruta,
@@ -235,6 +456,8 @@ function Grupos({
   permisos,
   plegado,
   alNavegar,
+  alDesplegar,
+  abrirEste,
 }: {
   ruta: string;
   esSuperadmin: boolean;
@@ -242,6 +465,11 @@ function Grupos({
   plegado?: boolean;
   /// El cajón se cierra al pulsar, no tras navegar.
   alNavegar?: () => void;
+  /// Con la barra plegada, pulsar un módulo la despliega y
+  /// abre ese grupo.
+  alDesplegar?: (clave: string) => void;
+  /// El que se pidió abrir al desplegar.
+  abrirEste?: string | null;
 }) {
   /// Arranca abierto el grupo donde esta la pantalla actual:
   /// entrar y no ver donde estas parado es peor que verlo todo.
@@ -251,6 +479,15 @@ function Grupos({
     )?.clave ?? null;
 
   const [abierto, setAbierto] = useState<string | null>(delaRuta);
+
+  /// Al desplegar por el icono, se abre ESE grupo.
+  /// Ajustar el estado durante el render y no en un efecto:
+  /// así no hay un pintado intermedio con el grupo viejo.
+  const [ultimoPedido, setUltimoPedido] = useState<string | null>(null);
+  if (abrirEste && abrirEste !== ultimoPedido) {
+    setUltimoPedido(abrirEste);
+    setAbierto(abrirEste);
+  }
 
   /// Navegar a otra seccion abre la suya. Sin esto, pulsar un
   /// enlace desde otro grupo deja el menu mostrando un grupo
@@ -279,13 +516,20 @@ function Grupos({
         if (plegado) {
           const activo = enlaces.some((e) => estaActivo(e, ruta));
           return (
-            <Link
+            /// Pulsar el icono ABRE el menú, no navega.
+            ///
+            /// Antes llevaba derecho a la primera vista del
+            /// módulo, y eso es adivinar: uno pulsa el icono
+            /// justamente porque no se acuerda de qué hay
+            /// dentro ni en cuál está parado. Se despliega, se
+            /// ve, y entonces se elige.
+            <button
               key={modulo.clave}
-              href={enlaces[0].href}
-              onClick={alNavegar}
+              type="button"
+              onClick={() => alDesplegar?.(modulo.clave)}
               title={`${modulo.etiqueta} — ${modulo.descripcion}`}
-              aria-current={activo ? "page" : undefined}
-              className={`mb-1 flex h-10 items-center justify-center rounded-xl transition ${
+              aria-expanded={false}
+              className={`mb-1 flex h-10 w-full items-center justify-center rounded-xl transition ${
                 activo
                   ? "bg-current/12"
                   : "opacity-60 hover:bg-current/8 hover:opacity-100"
@@ -294,7 +538,7 @@ function Grupos({
               <span aria-hidden className="text-lg leading-none">
                 {modulo.emoji}
               </span>
-            </Link>
+            </button>
           );
         }
 
@@ -382,16 +626,22 @@ function BarraLateral({
   permisos,
   plegado,
   alPlegar,
-  admin,
-  alSalir,
+  alDesplegarModulo,
+  abrirEste,
+  gremios,
+  gremio,
+  alElegir,
 }: {
   ruta: string;
   esSuperadmin: boolean;
   permisos: Permisos;
   plegado: boolean;
   alPlegar: () => void;
-  admin: AdminActual;
-  alSalir: () => void;
+  alDesplegarModulo: (clave: string) => void;
+  abrirEste: string | null;
+  gremios: Array<{ convenioId: string; sigla: string }>;
+  gremio: string | null;
+  alElegir: (id: string | null) => void;
 }) {
   return (
     <nav
@@ -402,11 +652,25 @@ function BarraLateral({
         height: "calc(100vh - var(--franja-alto, 0px))",
       }}
       className={`no-imprimir sticky z-20 hidden shrink-0 flex-col border-r border-encabezado-borde bg-encabezado-fondo text-encabezado-texto transition-[width] duration-200 md:flex ${
-        plegado ? "w-[72px] px-3 py-4" : "w-[260px] px-4 py-4"
+        plegado ? "w-[72px] px-3 py-4" : "w-[292px] px-4 py-4"
       }`}
     >
-      <div className="mb-5 shrink-0">
+      {/* `mb-4` también plegada: sin él, el logo y el primer
+          icono se tocan y se leen como uno solo */}
+      <div className="mb-4 shrink-0">
         <Marca plegado={plegado} />
+        {!plegado && (
+          /// Bien separado del logo.
+          ///
+          /// Arriba está la marca -- qué panel es esto -- y
+          /// aquí abajo empieza el trabajo. Pegados, el
+          /// desplegable de gremio parecía parte del logo y
+          /// todo el menú nacía encaramado en el borde.
+          <div className="mt-8">
+            <SelectorGremio gremios={gremios} gremio={gremio} alElegir={alElegir} />
+            <RotuloDelPanel />
+          </div>
+        )}
       </div>
 
       {/* el scroll es de aqui dentro, no de la pagina */}
@@ -416,10 +680,12 @@ function BarraLateral({
           esSuperadmin={esSuperadmin}
           permisos={permisos}
           plegado={plegado}
+          alDesplegar={alDesplegarModulo}
+          abrirEste={abrirEste}
         />
       </div>
 
-      <ChipUsuario admin={admin} alSalir={alSalir} plegado={plegado} />
+      <Ajustes plegado={plegado} alDesplegar={() => alDesplegarModulo("")} />
 
       <button
         onClick={alPlegar}
@@ -440,16 +706,18 @@ function CajonMovil({
   ruta,
   esSuperadmin,
   permisos,
-  admin,
-  alSalir,
+  gremios,
+  gremio,
+  alElegir,
 }: {
   abierto: boolean;
   alCerrar: () => void;
   ruta: string;
   esSuperadmin: boolean;
   permisos: Permisos;
-  admin: AdminActual;
-  alSalir: () => void;
+  gremios: Array<{ convenioId: string; sigla: string }>;
+  gremio: string | null;
+  alElegir: (id: string | null) => void;
 }) {
   // abierto, Escape lo cierra
   useEffect(() => {
@@ -477,15 +745,21 @@ function CajonMovil({
           abierto ? "translate-x-0" : "-translate-x-full"
         }`}
       >
-        <div className="mb-5 flex shrink-0 items-center">
-          <Marca />
-          <button
-            onClick={alCerrar}
-            aria-label="Cerrar menú"
-            className="ml-auto rounded-lg p-1.5 opacity-60 transition hover:bg-current/10 hover:opacity-100"
-          >
-            <IconoCerrar tamano={18} />
-          </button>
+        <div className="shrink-0">
+          <div className="flex items-center">
+            <Marca />
+            <button
+              onClick={alCerrar}
+              aria-label="Cerrar menú"
+              className="ml-auto rounded-lg p-1.5 opacity-60 transition hover:bg-current/10 hover:opacity-100"
+            >
+              <IconoCerrar tamano={18} />
+            </button>
+          </div>
+          <div className="mt-8">
+            <SelectorGremio gremios={gremios} gremio={gremio} alElegir={alElegir} />
+            <RotuloDelPanel />
+          </div>
         </div>
 
         <div className="barra-visible min-h-0 grow overflow-y-auto">
@@ -497,7 +771,7 @@ function CajonMovil({
           />
         </div>
 
-        <ChipUsuario admin={admin} alSalir={alSalir} />
+        <Ajustes />
       </nav>
     </>
   );
@@ -525,9 +799,17 @@ export function AccionesDePagina({ children }: { children: React.ReactNode }) {
   return createPortal(children, ranura);
 }
 
-function Cabecera({ ruta, alAbrirMenu }: { ruta: string; alAbrirMenu: () => void }) {
-  const [abierto, setAbierto] = useState(false);
-
+function Cabecera({
+  ruta,
+  alAbrirMenu,
+  admin,
+  alSalir,
+}: {
+  ruta: string;
+  alAbrirMenu: () => void;
+  admin: AdminActual;
+  alSalir: () => void;
+}) {
   return (
     <header
       style={{ top: "var(--franja-alto, 0px)" }}
@@ -568,24 +850,10 @@ function Cabecera({ ruta, alAbrirMenu }: { ruta: string; alAbrirMenu: () => void
         className="ml-auto flex flex-wrap items-center justify-end gap-3"
       />
 
-      <div className="flex items-center gap-1.5">
-        <ConmutadorTema compacto />
-
-        {/* el relative va aqui: si abraza todo el grupo,
-            el panel nace arriba y la cabecera lo corta */}
-        <div className="relative">
-          <button
-            onClick={() => setAbierto(!abierto)}
-            aria-expanded={abierto}
-            className="grid h-9 w-9 place-items-center rounded-lg opacity-70 transition hover:bg-current/10 hover:opacity-100"
-            title="Accesibilidad"
-          >
-            <IconoAccesibilidad tamano={18} />
-            <span className="sr-only">Accesibilidad</span>
-          </button>
-          {abierto && <PanelAccesibilidad alCerrar={() => setAbierto(false)} />}
-        </div>
-      </div>
+      {/* Arriba se queda quien esta dentro, y nada mas. Los
+          ajustes -- apariencia y accesibilidad -- bajaron al
+          pie de la barra: se tocan una vez y se dejan. */}
+      <ChipUsuario admin={admin} alSalir={alSalir} />
     </header>
   );
 }

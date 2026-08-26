@@ -12,6 +12,9 @@ export type Enlace = {
   area?: Area;
   /// Y con qué nivel: escribir para lo que no es consulta.
   nivel?: Nivel;
+  /// Se conserva mientras se fusiona con otra vista. Sale
+  /// con una marca para que nadie lo dé por definitivo.
+  temporal?: boolean;
 };
 
 export type Modulo = {
@@ -26,47 +29,36 @@ export type Modulo = {
   enlaces: Enlace[];
 };
 
-/// El proceso, de la silla a la certificación.
+/// El panel, agrupado por quién trabaja en cada cosa.
+///
+/// Antes estaba agrupado por etapa del proceso -- Pre-reserva,
+/// Inscripciones, Inscritos --, y eso repartía una misma
+/// pantalla entre dos grupos según en qué punto la mirara
+/// uno. Ahora manda el área: inscripciones, sistemas de
+/// información, académica. Cada quien encuentra lo suyo en un
+/// solo sitio.
 export const MODULOS: Modulo[] = [
   {
-    /// Va antes del paso 1 y sin número a propósito: no es
-    /// una etapa del proceso, es lo que el proceso consulta.
-    /// Aquí aterriza lo que averiguan el RUES y el buscador,
-    /// y aquí se decide qué de eso puede llegar al SENA.
-    clave: 'maestros',
-    emoji: '🏢',
-    etiqueta: 'Datos de empresas',
-    descripcion: 'El banco de NIT y lo que se sabe de cada organización.',
+    /// Va primero porque manda sobre todo lo demás: sin
+    /// fechas no se matricula, no se cierra inscripción y no
+    /// sale ningún aviso.
+    clave: 'cronograma',
+    emoji: '📅',
+    etiqueta: 'Cronograma',
+    descripcion: 'Las fechas de la formación. De aquí cuelga el resto.',
     enlaces: [
       {
-        href: '/admin/instituciones',
-        etiqueta: 'Empresas Registradas',
+        href: '/admin/cronograma',
+        etiqueta: 'Ver cronograma',
         exacto: true,
         area: 'reserva',
       },
-      {
-        href: '/admin/instituciones/pendientes',
-        etiqueta: 'Por revisar',
-        area: 'reserva',
-      },
-    ],
-  },
-  {
-    clave: 'reserva',
-    emoji: '🎫',
-    etiqueta: 'Pre-reserva',
-    descripcion: 'Lo que aparta la empresa afiliada, antes de que haya nombres.',
-    enlaces: [
-      { href: '/admin', etiqueta: 'Resumen', exacto: true, area: 'reserva'  },
-      { href: '/admin/reservas', etiqueta: 'Reservas', area: 'reserva'  },
-      { href: '/admin/empresas', etiqueta: 'Organizaciones', area: 'reserva'  },
-      { href: '/admin/cronograma', etiqueta: 'Cronograma', area: 'reserva' },
     ],
   },
   {
     clave: 'inscripciones',
     emoji: '📝',
-    etiqueta: 'Inscripciones',
+    etiqueta: 'Gestión de Inscripciones',
     descripcion: 'Convertir cupos en personas con nombre.',
     enlaces: [
       {
@@ -77,30 +69,94 @@ export const MODULOS: Modulo[] = [
       },
       {
         href: '/admin/participantes/seguimiento',
-        etiqueta: 'Panel de seguimiento',
+        etiqueta: 'Panel Control de Inscritos',
         area: 'inscripciones',
+      },
+      {
+        /// Se queda mientras se fusiona con el panel de
+        /// arriba. Los dos cuentan lo mismo por caminos
+        /// distintos, y hay que poder compararlos antes de
+        /// quedarse con uno.
+        href: '/admin/control',
+        etiqueta: 'Control de inscritos',
+        area: 'inscritos',
+        temporal: true,
       },
     ],
   },
   {
-    clave: 'inscritos',
-    emoji: '🎓',
-    etiqueta: 'Inscritos',
-    descripcion: 'Quien ya está matriculado y todavía no termina.',
+    clave: 'sistemas',
+    emoji: '🗂️',
+    etiqueta: 'Sistemas de Información',
+    descripcion: 'Los datos que sostienen el reporte al SENA.',
     enlaces: [
-      { href: '/admin/inscritos', etiqueta: 'Inscritos', exacto: true, area: 'inscritos'  },
-      { href: '/admin/control', etiqueta: 'Control de inscritos', area: 'inscritos' },
-      { href: '/admin/sep', etiqueta: 'Reportes al SENA', area: 'reportes'  },
+      {
+        href: '/admin/reservas',
+        etiqueta: 'Reservas',
+        area: 'reserva',
+      },
+      {
+        href: '/admin/instituciones',
+        etiqueta: 'Empresas registradas',
+        exacto: true,
+        area: 'reserva',
+      },
+      {
+        href: '/admin/empresas',
+        etiqueta: 'Empresas aliadas - afiliadas',
+        area: 'reserva',
+      },
+      {
+        href: '/admin/inscritos',
+        etiqueta: 'Inscritos Acción Formación',
+        exacto: true,
+        area: 'inscritos',
+      },
+      { href: '/admin/sep', etiqueta: 'Reportes SENA', area: 'reportes' },
     ],
   },
   {
     clave: 'academico',
     emoji: '📈',
-    etiqueta: 'Seguimiento académico',
+    etiqueta: 'Gestión Académica',
     descripcion: 'Quién va al día y quién no.',
     enlaces: [
-      { href: '/admin/participantes/academico/tablero', etiqueta: 'Tablero académico', area: 'academico' },
-      { href: '/admin/participantes/academico', etiqueta: 'Avance', exacto: true, area: 'academico'  },
+      {
+        /// Los dos se quedan mientras se define cómo se parte
+        /// en seguimiento virtual y presencial.
+        href: '/admin/participantes/academico/tablero',
+        etiqueta: 'Tablero académico',
+        area: 'academico',
+        temporal: true,
+      },
+      {
+        href: '/admin/participantes/academico',
+        etiqueta: 'Avance',
+        exacto: true,
+        area: 'academico',
+        temporal: true,
+      },
+    ],
+  },
+  {
+    /// Los dos momentos del formulario público, no los
+    /// formularios de reserva de las empresas: esos siguen en
+    /// Configuración, que es donde se arman.
+    clave: 'formularios',
+    emoji: '📋',
+    etiqueta: 'Formularios',
+    descripcion: 'Lo que llena la persona, y su QR.',
+    enlaces: [
+      {
+        href: '/admin/formularios-publicos/corto',
+        etiqueta: 'Formulario 1 Corto',
+        area: 'inscripciones',
+      },
+      {
+        href: '/admin/formularios-publicos/largo',
+        etiqueta: 'Formulario 2 Largo',
+        area: 'inscripciones',
+      },
     ],
   },
   {
@@ -109,12 +165,12 @@ export const MODULOS: Modulo[] = [
     etiqueta: 'Configuración',
     descripcion: 'Lo que no es del día a día.',
     enlaces: [
-      { href: '/admin/acciones', etiqueta: 'Formación', area: 'configuracion', nivel: 'ESCRIBIR'  },
-      { href: '/admin/formularios', etiqueta: 'Formularios', area: 'configuracion', nivel: 'ESCRIBIR'  },
-      { href: '/admin/politicas', etiqueta: 'Políticas', area: 'configuracion', nivel: 'ESCRIBIR'  },
-      { href: '/admin/marca', etiqueta: 'Apariencia', soloSuperadmin: true, area: 'configuracion', nivel: 'ESCRIBIR'  },
-      { href: '/admin/usuarios', etiqueta: 'Usuarios', soloSuperadmin: true  },
-      { href: '/admin/perfil', etiqueta: 'Mi perfil'  },
+      { href: '/admin/acciones', etiqueta: 'Formación', area: 'configuracion', nivel: 'ESCRIBIR' },
+      { href: '/admin/formularios', etiqueta: 'Formularios', area: 'configuracion', nivel: 'ESCRIBIR' },
+      { href: '/admin/politicas', etiqueta: 'Políticas', area: 'configuracion', nivel: 'ESCRIBIR' },
+      { href: '/admin/marca', etiqueta: 'Apariencia', soloSuperadmin: true, area: 'configuracion', nivel: 'ESCRIBIR' },
+      { href: '/admin/usuarios', etiqueta: 'Usuarios', soloSuperadmin: true },
+      { href: '/admin/perfil', etiqueta: 'Mi perfil' },
     ],
   },
 ];

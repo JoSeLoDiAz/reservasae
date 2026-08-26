@@ -5,8 +5,17 @@ import { AuditoriaService } from '../comun/auditoria.service';
 import { PreinscripcionModule } from '../preinscripcion/preinscripcion.module';
 import { CrmController } from './crm.controller';
 import { CrmService } from './crm.service';
+import { Matricula } from './matricula';
+import { PanelDeCupos } from './panel-de-cupos';
+import { VigiaDeCupos } from './vigia-de-cupos';
 import { DirectorioService } from './directorio.service';
-import { PROVEEDOR_RUI, ProveedorRuiLocal } from './rui/proveedor';
+import { ColaRuiModule } from './rui/cola-rui';
+import {
+  PROVEEDOR_RUI,
+  ProveedorRuiLocal,
+  ruiConectado,
+} from './rui/proveedor';
+import { ProveedorRuiVentanilla } from './rui/proveedor-ventanilla';
 import { RuiService } from './rui/rui.service';
 import { RuiWorker } from './rui/rui.worker';
 import { SepController } from './sep/sep.controller';
@@ -21,18 +30,27 @@ import { SepService } from './sep/sep.service';
     }),
     // el asesor emite el enlace desde la ficha
     PreinscripcionModule,
+    ColaRuiModule,
   ],
   controllers: [CrmController, SepController],
   providers: [
     CrmService,
+    Matricula,
+    PanelDeCupos,
+    VigiaDeCupos,
     SepService,
     DirectorioService,
     RuiService,
     RuiWorker,
     AuditoriaService,
     // se cambia por el real sin tocar la cola
-    { provide: PROVEEDOR_RUI, useClass: ProveedorRuiLocal },
+    {
+      // con RUI_PROVEEDOR=VENTANILLA sale al portal del DNP;
+      // sin eso queda el simulador, que se identifica como tal
+      provide: PROVEEDOR_RUI,
+      useClass: ruiConectado() ? ProveedorRuiVentanilla : ProveedorRuiLocal,
+    },
   ],
-  exports: [CrmService, RuiService, DirectorioService],
+  exports: [CrmService, RuiService, DirectorioService, Matricula, PanelDeCupos, VigiaDeCupos],
 })
 export class CrmModule {}

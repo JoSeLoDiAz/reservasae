@@ -139,6 +139,23 @@ export class AdminService {
     }));
   }
 
+  /** Los gremios de una cuenta, con lo que se lee de ellos. */
+  async gremiosDe(convenioIds: string[]) {
+    if (convenioIds.length === 0) return [];
+    const cs = await this.prisma.convenio.findMany({
+      where: { id: { in: convenioIds }, activo: true },
+      select: { id: true, slug: true, sigla: true, nombre: true },
+      orderBy: { nombre: 'asc' },
+    });
+    return cs.map((c) => ({
+      convenioId: c.id,
+      slug: c.slug,
+      // la sigla es lo que cabe en el desplegable; sin ella,
+      // el nombre entero antes que un hueco
+      sigla: c.sigla ?? c.nombre,
+    }));
+  }
+
   /// Sin fila no ve nada, así que se validan de verdad.
   private async exigirConveniosReales(concesiones: { convenioId: string }[]) {
     const ids = [...new Set(concesiones.map((c) => c.convenioId))];

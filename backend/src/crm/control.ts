@@ -1,6 +1,7 @@
 import { EtapaParticipante, Prisma } from '../../generated/prisma';
 import type { PrismaService } from '../prisma/prisma.service';
 import { enPeriodo, PRIMERA_MATRICULA } from './anclas';
+import { ETAPAS_DEL_EMBUDO } from './metricas-inscripciones';
 import { variacion, type Comparacion, type Ventana } from './ventana';
 
 /**
@@ -49,13 +50,13 @@ const UNIR_ANCLA = Prisma.sql`LEFT JOIN primera_matricula an ON an."pid" = p."id
  * Se recorta aquí para que el backend mande exactamente lo
  * que se pinta y no haya forma de sumar de más.
  */
-const ETAPAS_INSCRIPCION = Prisma.sql`p."etapa" IN (
-  'INTERESADO'::"EtapaParticipante",
-  'CONTACTADO'::"EtapaParticipante",
-  'DATOS_COMPLETOS'::"EtapaParticipante",
-  'INSCRITO'::"EtapaParticipante",
-  'PERDIDO'::"EtapaParticipante"
-)`;
+/// Se arma desde `ETAPAS_DEL_EMBUDO` en vez de teclearla:
+/// una lista tecleada aparte se queda atras el dia que la
+/// otra cambie, y nadie se entera hasta que los numeros no
+/// cuadran. Ya pasó.
+const ETAPAS_INSCRIPCION = Prisma.sql`p."etapa" IN (${Prisma.join(
+  ETAPAS_DEL_EMBUDO.map((e) => Prisma.sql`${e}::"EtapaParticipante"`),
+)})`;
 
 /**
  * Las tres primeras: lo que todavía está por trabajar.

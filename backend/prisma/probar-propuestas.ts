@@ -7,6 +7,7 @@
 
 import { PrismaClient } from '../generated/prisma';
 import { PrismaService } from '../src/prisma/prisma.service';
+import { ColaRui } from '../src/crm/rui/cola-rui';
 import { PreinscripcionService } from '../src/preinscripcion/preinscripcion.service';
 
 const prisma = new PrismaClient();
@@ -41,7 +42,10 @@ async function siguiente() {
 async function main() {
   console.log('\n=== CONFLICTO ASESOR / INTERESADO ===\n');
 
-  const servicio = new PreinscripcionService(prisma as unknown as PrismaService);
+  const servicio = new PreinscripcionService(
+    prisma as unknown as PrismaService,
+    new ColaRui(prisma as unknown as PrismaService),
+  );
 
   const p = await prisma.participante.findFirst({
     orderBy: { creadoEn: 'asc' },

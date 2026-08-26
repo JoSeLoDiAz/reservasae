@@ -344,6 +344,22 @@ export class CrmController {
   }
 
   /// Lo que mando el interesado y espera decision.
+  /** Se queda con el nombre que devolvió el RUI. */
+  @Post(':id/rui/tomar-nombre')
+  @Requiere('inscripciones', 'ESCRIBIR')
+  async tomarNombreDelRui(
+    @Param('id') id: string,
+    @AdminActual() admin: Admin,
+    @AmbitoActual() ambito: Ambito,
+  ) {
+    const personaId = await this.crm.personaDe(id, ambito.convenios);
+    await this.rui.tomarElNombreDelRui(personaId, id, {
+      id: admin.id,
+      nombre: admin.nombre,
+    });
+    return this.crm.obtener(id, ambito.convenios);
+  }
+
   @Get(':id/propuesta')
   propuesta(@Param('id') id: string, @AmbitoActual() ambito: Ambito) {
     return this.crm.propuestaDe(id, ambito.convenios);

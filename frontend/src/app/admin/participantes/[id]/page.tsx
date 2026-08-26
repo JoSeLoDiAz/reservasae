@@ -134,6 +134,20 @@ export default function PaginaFicha() {
       )}
 
 
+      {/* Cada una en su tarjeta, y en este orden.
+          
+          La rejilla llena por filas, asi que el orden de aqui
+          es: arriba «Mover de etapa» y «Asesor»; abajo
+          «Accion de formacion» y «Validacion del nombre».
+          A la izquierda lo que decide el asesor, a la derecha
+          lo que tiene que mirar antes de decidir. */}
+      {/* Sin `items-start`: las dos de cada fila se estiran
+          a la mas alta.
+          
+          Con `items-start` cada una medía lo que midiera su
+          contenido, así que quedaban desparejas y la fila se
+          veía rota. La rejilla las empareja sola -- eso es lo
+          que hace por defecto -- y yo se lo había quitado. */}
       <div className="grid gap-6 xl:grid-cols-2">
       <Tarjeta titulo="Mover de etapa">
         <div className="flex flex-wrap gap-2">
@@ -168,26 +182,22 @@ export default function PaginaFicha() {
           ))}
         </div>
       </Tarjeta>
-      <ValidacionRui ficha={f} />
+
+      <Asesor ficha={f} opciones={opciones} alGuardar={conError} />
+      <Asignacion ficha={f} opciones={opciones} alGuardar={conError} />
+      <ValidacionRui ficha={f} alGuardar={conError} />
       </div>
 
       <PropuestaDelInteresadoCard ficha={f} alGuardar={conError} />
 
-      {/* de a dos: cada una ocupaba una franja entera del ancho
-          para tres botones, y obligaba a bajar por cosas que
-          caben una al lado de la otra */}
-      <div className="grid gap-6 xl:grid-cols-2">
-        <Asesor ficha={f} opciones={opciones} alGuardar={conError} />
-        <Asignacion ficha={f} opciones={opciones} alGuardar={conError} />
-      </div>
-
       <DatosSena ficha={f} alGuardar={conError} />
+
+      <DatosDeLaEmpresa ficha={f} />
 
       {puedeEscribir && <EnlaceCompletar ficha={f} />}
 
       <Tarjeta
         titulo="Autorización de tratamiento de datos"
-        descripcion="La empresa no puede autorizarla por ella: el titular del dato es la persona."
       >
         {autorizacion ? (
           <p className="text-sm">
@@ -207,7 +217,7 @@ export default function PaginaFicha() {
           <div className="space-y-3">
             {/* el canal antes que el texto: primero por dónde */}
             <div className="flex flex-wrap items-center gap-2">
-              <span className="text-sm text-texto-suave">Por dónde:</span>
+              <span className="text-sm text-texto-suave">Vía:</span>
               {CANALES.map((c) => {
                 const puesto = canales.includes(c);
                 return (
@@ -283,7 +293,6 @@ export default function PaginaFicha() {
 
       <Tarjeta
         titulo="Historial"
-        descripcion="Cada movimiento, con su fecha, quién lo hizo y su motivo."
       >
         <ol className="space-y-2.5">
           {f.movimientos.map((m) => (
@@ -393,12 +402,9 @@ function Asignacion({
   const gruposVisibles = grupos;
 
   return (
-    <Tarjeta
-      titulo="Acción de formación y grupo"
-      descripcion="El grupo es lo que se reporta al SENA, y de sus fechas depende todo el seguimiento."
-    >
+    <Tarjeta titulo="Acción de formación y grupo">
       <div className="space-y-4">
-        <Campo etiqueta="Acción de formación y ubicación">
+        <Campo etiqueta="">
           <SelectorBuscable
             valor={ofertaId}
             alElegir={(id) => {
@@ -537,8 +543,20 @@ function RegistrarAutorizacion({
 /// Se refresca solo mientras espera y para cuando resuelve:
 /// el asesor no recarga ni cuenta segundos, y una ficha ya
 /// resuelta no sigue preguntando cada tres segundos.
-function ValidacionRui({ ficha }: { ficha: Ficha }) {
+function ValidacionRui({
+  ficha,
+  alGuardar,
+}: {
+  ficha: Ficha;
+  alGuardar: (accion: () => Promise<void>, exito?: string) => Promise<void>;
+}) {
   const [pidiendo, setPidiendo] = useState(false);
+  const [tomando, setTomando] = useState(false);
+  /// Dijo «No»: se queda con el que digitó y la pregunta
+  /// deja de estorbar. No se guarda nada -- no hay nada que
+  /// cambiar -- pero tampoco se le vuelve a preguntar cada
+  /// vez que abre la ficha.
+  const [decidido, setDecidido] = useState(false);
 
   const traer = useCallback(() => crmApi.estadoRui(ficha.id), [ficha.id]);
   const { datos: rui, refrescar } = useDatosVivos<ConsultaRui>(traer, {
@@ -551,22 +569,38 @@ function ValidacionRui({ ficha }: { ficha: Ficha }) {
   const esperando = rui.estado === "PENDIENTE" || rui.estado === "EN_CURSO";
   const delRui = rui.nombreEncontrado;
 
+  /// Una cédula inventada le pertenece a alguien de verdad.
+  /// Consultarla le pide al Estado la identidad de una persona
+  /// que no pidió nada. Aquí no se ofrece el botón siquiera:
+  /// no se puede hacer clic en algo que no debería pasar.
+  if (rui.esDePrueba) {
+    return (
+      <Tarjeta titulo="Validación del nombre">
+        <div className="rounded-xl border border-borde bg-superficie-alterna p-4 text-sm">
+          <p className="font-medium">No se consulta: es un dato de prueba</p>
+          <p className="mt-1 text-texto-suave">
+            Esta cédula la inventó la siembra de prueba, pero el número le
+            pertenece a una persona real. Consultarla le pediría al Estado la
+            identidad de alguien que no pidió nada.
+          </p>
+        </div>
+      </Tarjeta>
+    );
+  }
+
   return (
-    <Tarjeta
-      titulo="Validacion del nombre"
-      descripcion="Lo que digito la persona contra lo que devuelve el RUI."
-    >
+    <Tarjeta titulo="Validación del nombre">
       <div className="space-y-3">
         {/* mientras el detector sea el de mentira hay que
             decirlo aqui: un nombre inventado al lado de una
             cedula real se lee como si fuera verdadero */}
         {rui.simulado && (
           <Aviso tipo="error">
-            <p className="font-medium">El RUI no está conectado</p>
+            <p className="font-medium">Esta respuesta no vino del RUI</p>
             <p className="mt-1">
-              Lo que aparece abajo lo genera un simulador, no la Ventanilla Social.
-              No sirve para decidir nada. Se conecta el de verdad poniendo la URL y
-              el token del RUI.
+              Lo que aparece abajo lo genero un simulador, no la Ventanilla
+              Social. No sirve para decidir nada. El RUI de verdad se enciende
+              arrancando el servidor con RUI_PROVEEDOR=VENTANILLA.
             </p>
           </Aviso>
         )}
@@ -628,11 +662,59 @@ function ValidacionRui({ ficha }: { ficha: Ficha }) {
           </dl>
         )}
 
-        {!rui.simulado && rui.estado === "LISTA" && rui.nombreCoincide === false && (
-          <Aviso tipo="error">
-            Los dos nombres no coinciden. Revise cual se deja antes de
-            inscribir.
-          </Aviso>
+        {!rui.simulado &&
+          !decidido &&
+          rui.estado === "LISTA" &&
+          rui.nombreCoincide === false && (
+          <div className="rounded-xl border border-error/30 bg-error-suave p-4 text-sm">
+            <p className="text-error">
+              Los dos nombres no coinciden. Hay que decidir cuál se deja antes de
+              inscribir.
+            </p>
+
+            {/* La decisión, con un botón. Antes la ficha
+                enseñaba la diferencia y ahí lo dejaba: el
+                asesor tenía que ir a teclear el nombre bueno
+                a mano, campo por campo, mirándolo aquí.
+
+                Solo se ofrece en una dirección. Del RUI viene
+                el nombre legal, que es el que el SENA espera
+                en el F7; pisar el RUI con lo que tecleó una
+                persona no tendría sentido, porque el RUI no es
+                nuestro para corregirlo. */}
+            {/* Pregunta y dos respuestas, en vez de un botón
+                suelto: «Dejar el del RUI» no decía qué pasaba
+                si uno no lo pulsaba. Así las dos salidas están
+                a la vista y ninguna es la de no hacer nada. */}
+            <p className="mt-3 text-sm text-texto">¿Deja el nombre del RUI?</p>
+            <div className="mt-2 flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                disabled={tomando}
+                onClick={() => {
+                  setTomando(true);
+                  void crmApi
+                    .tomarNombreDelRui(ficha.id)
+                    .then(() =>
+                      alGuardar(async () => undefined, "Se dejó el nombre del RUI."),
+                    )
+                    .catch(() => undefined)
+                    .finally(() => setTomando(false));
+                }}
+                className="rounded-lg border border-marca bg-marca px-4 py-1.5 text-sm font-medium text-marca-texto transition hover:bg-marca-fuerte disabled:opacity-50"
+              >
+                {tomando ? "Guardando…" : "Sí"}
+              </button>
+              <button
+                type="button"
+                disabled={tomando}
+                onClick={() => setDecidido(true)}
+                className="rounded-lg border border-borde px-4 py-1.5 text-sm transition hover:bg-superficie-alterna disabled:opacity-50"
+              >
+                No
+              </button>
+            </div>
+          </div>
         )}
 
         {rui.estado === "SIN_RESULTADO" && (
@@ -774,19 +856,16 @@ function Asesor({
   const cambiado = asesorId !== (ficha.asesor?.id ?? "");
 
   return (
-    <Tarjeta
-      titulo="Quién lo lleva"
-      descripcion="El asesor responsable de contactar a esta persona y completar su ficha."
-    >
+    <Tarjeta titulo="Asesor">
       <div className="flex flex-wrap items-end gap-3">
         <div className="min-w-64 grow">
-          <Campo etiqueta="Asesor asignado">
+          <Campo etiqueta="">
             <select
               className={CLASE_CONTROL}
               value={asesorId}
               onChange={(e) => setAsesorId(e.target.value)}
             >
-              <option value="">Sin asignar — nadie lo está llamando</option>
+              <option value="">Sin asignar</option>
               {opciones.asesores.map((a) => (
                 <option key={a.id} value={a.id}>
                   {a.nombre}
@@ -814,11 +893,103 @@ function Asesor({
         </Boton>
       </div>
 
-      {!ficha.asesor && (
-        <p className="mt-3 text-sm text-aviso">
-          Sin asesor, esta persona no aparece en la carga de trabajo de nadie.
-        </p>
-      )}
+    </Tarjeta>
+  );
+}
+
+/**
+ * Los datos de su organización, los trece.
+ *
+ * El formulario largo se los pregunta a la persona y la ficha
+ * no enseñaba ninguno: el asesor veía «le falta la empresa»
+ * sin poder mirar qué había contestado ya. Aquí están todos,
+ * incluidos los que llegan vacíos -- ver el hueco es la mitad
+ * del trabajo.
+ *
+ * Solo de lectura. Se corrigen desde Empresas registradas,
+ * que es donde vive el dato: editarlos en dos sitios es
+ * garantizar que un día no coincidan.
+ */
+function DatosDeLaEmpresa({ ficha }: { ficha: Ficha }) {
+  const e = ficha.empresa;
+
+  if (!e) {
+    return (
+      <Tarjeta titulo="Su organización">
+        <p className="text-sm text-texto-suave">Todavía no tiene organización.</p>
+      </Tarjeta>
+    );
+  }
+
+  /// Trabaja por su cuenta: su cédula es su RUT.
+  ///
+  /// No tiene jefe directo ni número de trabajadores, y
+  /// pedírselos es pedirle que se invente a alguien. Tampoco
+  /// se crea en Empresas registradas: ahí van organizaciones,
+  /// y esto es una persona.
+  const porSuCuenta = ficha.trabajaPorSuCuenta;
+
+  /// Del independiente, su casa y su celular.
+  ///
+  /// No tiene sede ni conmutador: su domicilio es el de su
+  /// unidad económica. Si la empresa ya los trae escritos
+  /// mandan esos; si no, se leen los de la persona en vez de
+  /// pintar «Falta» sobre un dato que sí existe dos tarjetas
+  /// más arriba.
+  const CAMPOS: Array<[string, string | number | null]> = porSuCuenta
+    ? [
+        ["RUT (su cédula)", e.nit],
+        ["A nombre de", e.razonSocial],
+        ["Dirección", e.direccion ?? ficha.persona.direccion],
+        ["Teléfono", e.telefono ?? ficha.persona.celular],
+        ["Sector económico", e.sectorEconomico],
+      ]
+    : [
+        ["NIT", e.digitoVerificacion ? `${e.nit}-${e.digitoVerificacion}` : e.nit],
+        ["Razón social", e.razonSocial],
+        ["Dirección", e.direccion],
+        ["Teléfono", e.telefono],
+        ["Departamento", e.departamentoSepId],
+        ["Municipio", e.municipioSepId],
+        ["Sector económico", e.sectorEconomico],
+        ["Número de trabajadores", e.numeroTrabajadores],
+        ["Persona de contacto", e.contactoNombre],
+        ["Su cargo", e.contactoCargo],
+        ["Su correo", e.contactoCorreo],
+      ];
+
+  return (
+    /// El título nombra a la organización, no la etiqueta.
+    ///
+    /// «Su organización» no dice nada que la persona no sepa;
+    /// la razón social sí, y de un vistazo. Para el
+    /// independiente el título dice lo que es -- un RUT, no
+    /// una empresa -- porque ahí lo que importa es la figura.
+    <Tarjeta
+      titulo={porSuCuenta ? "Independiente con RUT" : e.razonSocial}
+    >
+      <dl className="grid gap-x-6 gap-y-3 sm:grid-cols-3">
+        {CAMPOS.map(([nombre, valor]) => (
+          <div key={nombre}>
+            <dt className="text-xs tracking-wide text-texto-suave uppercase">
+              {nombre}
+            </dt>
+            <dd className="text-sm">
+              {valor === null || valor === "" ? (
+                <span className="text-aviso">Falta</span>
+              ) : (
+                String(valor)
+              )}
+            </dd>
+          </div>
+        ))}
+      </dl>
+
+      <p className="mt-4 text-xs text-texto-suave">
+        {porSuCuenta
+          ? "Su cédula hace de RUT. No entra en Empresas registradas: ahí van organizaciones."
+          : "Se corrigen en Empresas registradas, que es donde vive el dato."}
+      </p>
     </Tarjeta>
   );
 }
@@ -902,6 +1073,53 @@ function LoQuePedira({ ficha }: { ficha: Ficha }) {
   );
 }
 
+/**
+ * En qué anda el último enlace que se mandó.
+ *
+ * Es lo que hace verdad la frase «antes de generar otro,
+ * revise su estado». Antes esa instrucción le pedía al asesor
+ * una respuesta que el sistema no guardaba en ninguna parte:
+ * no había forma de saber si lo habían abierto.
+ */
+function EstadoDelEnlace({ estado }: { estado: Ficha["enlace"] }) {
+  if (!estado) return null;
+
+  const CUENTO = {
+    SIN_ABRIR: {
+      texto: "El enlace que se mandó todavía no lo han abierto. No genere otro.",
+      clase: "border-aviso/30 bg-aviso-suave text-aviso",
+    },
+    ABIERTO: {
+      texto: "Ya lo abrieron, pero no lo terminaron.",
+      clase: "border-borde bg-superficie-alterna text-texto",
+    },
+    COMPLETADO: {
+      texto: "Lo completaron.",
+      clase: "border-exito/30 bg-exito-suave text-exito",
+    },
+    ANULADO: {
+      texto: "Se anuló al generar uno nuevo.",
+      clase: "border-borde bg-superficie-alterna text-texto-suave",
+    },
+    CADUCADO: {
+      texto: "Caducó sin que lo usaran.",
+      clase: "border-borde bg-superficie-alterna text-texto-suave",
+    },
+  }[estado.estado];
+
+  return (
+    <div className={`rounded-xl border p-3 text-sm ${CUENTO.clase}`}>
+      <p>{CUENTO.texto}</p>
+      <p className="mt-1 text-xs opacity-75">
+        Se generó el {fecha(estado.creadoEn)}
+        {estado.emitidoPor ? `, por ${estado.emitidoPor}` : ""}
+        {estado.abiertoEn ? ` · abierto el ${fecha(estado.abiertoEn)}` : ""}
+        {estado.usadoEn ? ` · completado el ${fecha(estado.usadoEn)}` : ""}.
+      </p>
+    </div>
+  );
+}
+
 function EnlaceCompletar({ ficha }: { ficha: Ficha }) {
   const toast = useToast();
   const [enlace, setEnlace] = useState<
@@ -946,20 +1164,46 @@ function EnlaceCompletar({ ficha }: { ficha: Ficha }) {
     }
   }
 
+  /// Si no le falta nada, no hay enlace que mandar.
+  ///
+  /// Generarlo igual manda a la persona a un formulario que
+  /// no le va a preguntar nada, y de paso anula el que tuviera
+  /// abierto. Aqui se corta antes.
+  const noLeFalta =
+    ficha.faltaDeLaEmpresa.length === 0 && ficha.faltaDeLaPersona.length === 0;
+
+  if (noLeFalta) {
+    return (
+      <Tarjeta titulo="Enlace para que complete sus datos">
+        <div className="rounded-xl border border-exito/30 bg-exito-suave p-4 text-sm text-exito">
+          <p className="font-medium">Datos completos — no aplica</p>
+          <p className="mt-1">
+            De ajustar los existentes, por favor comuníquese con el interesado
+            para corroborar la información.
+          </p>
+        </div>
+      </Tarjeta>
+    );
+  }
+
   return (
-    <Tarjeta
-      titulo="Enlace para que complete sus datos"
-      descripcion="Se le manda por WhatsApp o correo y ella misma llena su ficha, sin dictar la cédula por teléfono."
-    >
+    <Tarjeta titulo="Enlace para que complete sus datos">
       <div className="space-y-4">
         <LoQuePedira ficha={ficha} />
 
+        <EstadoDelEnlace estado={ficha.enlace} />
+
+        <p className="text-sm text-texto-suave">
+          <strong className="font-medium text-texto">Recomendación:</strong> enviar
+          formulario vía WhatsApp o correo, recuerde no dictar la cédula por
+          teléfono.
+        </p>
+
         <div className="rounded-xl border border-aviso/30 bg-aviso-suave p-4 text-sm text-aviso">
-          <p className="font-medium">Cada enlace anula al anterior</p>
-          <p className="mt-1">
-            Es de un solo uso. En cuanto genere uno nuevo, el que ya mandó deja de
-            servir: si ella todavía no lo ha abierto, no lo vuelva a generar.
-          </p>
+          Cada enlace es de un solo uso y anula al anterior, al generar uno nuevo,
+          el que ya recibió el interesado dejará de funcionar, antes de generarlo,
+          revise su estado. Si el enlace enviado aún no ha sido abierto, no genere
+          otro.
         </div>
 
         {enlace && (

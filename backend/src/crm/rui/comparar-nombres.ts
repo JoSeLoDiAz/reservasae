@@ -68,7 +68,8 @@ export function compararNombres(tecleado: string, delRui: string): Comparacion {
 /// de quien omite el segundo nombre. Lo demás, distinto.
 function decidir(coincidencias: number, enA: number, enB: number): Veredicto {
   if (coincidencias === enA && coincidencias === enB) return 'IGUAL';
-  if (coincidencias >= 3 && coincidencias >= Math.min(enA, enB)) return 'PARECIDO';
+  if (coincidencias >= 3 && coincidencias >= Math.min(enA, enB))
+    return 'PARECIDO';
   return 'DISTINTO';
 }
 

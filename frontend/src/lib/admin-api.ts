@@ -1,6 +1,7 @@
 /** Cliente del panel. Sesión en cookie. */
 
 import { ErrorApi } from "./api";
+import { pedir } from "./pedir";
 import type { CatalogoColores, ColoresTema, Esquema } from "./tema";
 
 export type RolAdmin = "SUPERADMIN" | "GESTOR" | "CONSULTA";
@@ -86,6 +87,12 @@ export type AdminActual = {
   convenios?: string[];
   permisos?: Record<Area, Nivel>;
   concesiones?: Concesion[];
+  /// Los gremios de esta cuenta, con lo que se lee de ellos.
+  /// Vienen de `/admin/yo`, no de las concesiones: esas solo
+  /// llegan en el listado de usuarios.
+  gremios?: Array<{ convenioId: string; slug: string; sigla: string }>;
+  /// Cuál está puesto ahora mismo, según lo dijo el backend.
+  gremioElegido?: string | null;
 };
 
 const ESCALA: Nivel[] = ["NADA", "VER", "ESCRIBIR"];
@@ -158,25 +165,6 @@ export type AccionAdmin = {
   cuposOcupados: number;
 };
 
-async function pedir<T>(ruta: string, opciones?: RequestInit): Promise<T> {
-  const respuesta = await fetch(`/api${ruta}`, {
-    ...opciones,
-    headers:
-      opciones?.body instanceof FormData
-        ? opciones.headers
-        : { "content-type": "application/json", ...opciones?.headers },
-  });
-
-  const cuerpo = await respuesta.json().catch(() => null);
-
-  if (!respuesta.ok) {
-    const bruto = (cuerpo as { message?: string | string[] } | null)?.message;
-    const mensaje = Array.isArray(bruto) ? bruto.join(". ") : bruto;
-    throw new ErrorApi(respuesta.status, mensaje ?? "No se pudo completar la operación.", cuerpo);
-  }
-
-  return cuerpo as T;
-}
 
 export const adminApi = {
   iniciarSesion: (correo: string, clave: string) =>

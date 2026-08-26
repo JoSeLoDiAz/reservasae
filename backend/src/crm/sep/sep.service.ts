@@ -112,14 +112,24 @@ export class SepService {
       throw new ForbiddenException('No tiene acceso a ese convenio.');
     }
 
+    /// Sin exigir reserva.
+    ///
+    /// Antes el filtro era `reserva: { isNot: null }`, y
+    /// `Participante.reservaId` no lo escribe NADIE en
+    /// produccion: solo lo pone la siembra de prueba. O sea
+    /// que el F7 exportaba cero filas y nadie lo veia, porque
+    /// en local la siembra tapaba el hueco.
+    ///
+    /// La empresa se resuelve de las dos: la propia del lead
+    /// primero, y si no, la de la reserva que lo trajo.
     const participantes = await this.prisma.participante.findMany({
       where: {
         convenioId,
         etapa: { in: ETAPAS_DEL_REPORTE },
-        reserva: { isNot: null },
       },
       select: {
         accionFormacion: { select: { nombre: true } },
+        empresa: true,
         reserva: { select: { empresa: true } },
       },
     });
@@ -128,7 +138,10 @@ export class SepService {
     // puede tener gente en dos cursos distintos
     const grupos = new Map<string, FilaF7>();
     for (const p of participantes) {
-      const e = p.reserva?.empresa;
+      // la suya manda sobre la de la reserva: si alguien
+      // llego por una reserva pero despues dijo donde trabaja
+      // de verdad, vale lo que dijo
+      const e = p.empresa ?? p.reserva?.empresa;
       if (!e || !p.accionFormacion) continue;
       const clave = `${e.id}|${p.accionFormacion.nombre}`;
       const ya = grupos.get(clave);
@@ -253,6 +266,10 @@ export class SepService {
       orderBy: [{ accionFormacionId: 'asc' }, { creadoEn: 'asc' }],
       include: {
         persona: true,
+        // la empresa propia del lead: `include` no la trae
+        // sola por ser una relacion, y sin nombrarla aqui la
+        // linea de abajo mira siempre null
+        empresa: true,
         accionFormacion: {
           select: { codigo: true, nombre: true, sepAfId: true, horas: true },
         },
@@ -328,7 +345,11 @@ export class SepService {
         persona: p.persona,
       });
 
-      const empresa = p.reserva?.empresa ?? null;
+      // igual que en el F7: la suya primero, la de la
+      // reserva despues. Mirando solo la de la reserva, TODO
+      // el mundo salia «sin empresa», incluidos los que si
+      // tenian una propia
+      const empresa = p.empresa ?? p.reserva?.empresa ?? null;
       if (!empresa) reporte.push('no tiene empresa donde labora');
 
       // el grupo tiene que ser de su misma acción, o el

@@ -1,6 +1,13 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 
 import {
   IconoAbajo,
@@ -57,6 +64,14 @@ type Orden = { clave: string; asc: boolean } | null;
 /// esto la cabecera deja de leerse y no sirve de nada.
 const ANCHO_MINIMO = 80;
 
+/// Por debajo de esto no fue un arrastre, fue un clic.
+const HOLGURA_DEL_CLIC = 3;
+
+/// Lo que se espera antes de dar un clic por sencillo. Es el
+/// mismo respiro que usa el sistema para distinguirlo del
+/// doble.
+const ESPERA_DOBLE_CLIC = 250;
+
 /**
  * El tirador del borde derecho de una columna.
  *
@@ -67,50 +82,104 @@ const ANCHO_MINIMO = 80;
  */
 function TiradorDeAncho({
   titulo,
+  alto,
   alEmpezar,
   alArrastrar,
   alSoltarDobleClic,
 }: {
   titulo: string;
+  /// El alto de la tabla entera, medido. La linea baja hasta
+  /// la ultima fila y no mas: pasarse deja una raya flotando
+  /// sobre el blanco de la tarjeta.
+  alto: number | null;
   /// Los anchos de todas las columnas, medidos justo antes de
   /// arrastrar. Sin esto la tabla reparte a su gusto.
   alEmpezar: (anchos: Record<string, number>) => void;
   alArrastrar: (px: number) => void;
   alSoltarDobleClic: () => void;
 }) {
+  /// Un clic pendiente de saber si era doble.
+  const clicPendiente = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   function empezar(e: React.PointerEvent<HTMLDivElement>) {
     e.preventDefault();
     e.stopPropagation();
 
-    const celda = e.currentTarget.parentElement;
+    const tirador = e.currentTarget;
+    const celda = tirador.parentElement;
     if (!celda) return;
 
+    // se miden ANTES de tocar nada, pero no se aplican
+    // todavia: si esto acaba siendo un clic y no un arrastre,
+    // la tabla no tiene por que quedarse con los anchos
+    // congelados
     const fila = celda.parentElement;
+    const medidas: Record<string, number> = {};
     if (fila) {
-      const medidas: Record<string, number> = {};
       for (const th of Array.from(fila.children)) {
         const clave = (th as HTMLElement).dataset.columna;
         if (clave) medidas[clave] = Math.round(th.getBoundingClientRect().width);
       }
-      alEmpezar(medidas);
     }
 
     const desdeX = e.clientX;
     const desdeAncho = celda.getBoundingClientRect().width;
+    let arrastro = false;
 
     const mover = (ev: PointerEvent) => {
+      // tres pixeles de holgura: la mano tiembla al pulsar, y
+      // sin margen cualquier clic contaria como arrastre
+      if (!arrastro) {
+        if (Math.abs(ev.clientX - desdeX) < HOLGURA_DEL_CLIC) return;
+        arrastro = true;
+        if (fila) alEmpezar(medidas);
+        document.body.style.cursor = "col-resize";
+        document.body.style.userSelect = "none";
+      }
       alArrastrar(Math.max(ANCHO_MINIMO, Math.round(desdeAncho + ev.clientX - desdeX)));
     };
-    const soltar = () => {
+
+    const soltar = (ev: PointerEvent) => {
       window.removeEventListener("pointermove", mover);
       window.removeEventListener("pointerup", soltar);
       document.body.style.cursor = "";
       document.body.style.userSelect = "";
+      if (arrastro) return;
+
+      /// No arrastro: entonces era un clic, y ese clic no es
+      /// suyo.
+      ///
+      /// La linea baja por toda la tabla, asi que se pone
+      /// delante de veinte columnas de filas que SI se pueden
+      /// pulsar para abrir el lead. Sin esto, el cinco por
+      /// ciento del ancho de la tabla queda muerto: uno pulsa
+      /// sobre una fila, justo en el borde entre dos columnas,
+      /// y no pasa nada.
+      ///
+      /// Se aparta un momento para ver que hay debajo y se le
+      /// pasa el clic. Con un respiro antes, por si venia un
+      /// segundo clic: el doble clic es suyo y lo cancela.
+      // solo puede haber UNO en cola. Un doble clic suelta
+      // dos veces, y sin esto el primero se colaba: el
+      // cancelar de mas abajo solo alcanzaba al segundo
+      if (clicPendiente.current) clearTimeout(clicPendiente.current);
+
+      clicPendiente.current = setTimeout(() => {
+        clicPendiente.current = null;
+        tirador.style.pointerEvents = "none";
+        const debajo = document.elementFromPoint(ev.clientX, ev.clientY);
+        tirador.style.pointerEvents = "";
+        debajo?.dispatchEvent(
+          new MouseEvent("click", {
+            bubbles: true,
+            cancelable: true,
+            clientX: ev.clientX,
+            clientY: ev.clientY,
+          }),
+        );
+      }, ESPERA_DOBLE_CLIC);
     };
 
-    // sin esto el arrastre va seleccionando el texto de la tabla
-    document.body.style.cursor = "col-resize";
-    document.body.style.userSelect = "none";
     window.addEventListener("pointermove", mover);
     window.addEventListener("pointerup", soltar);
   }
@@ -120,13 +189,34 @@ function TiradorDeAncho({
       onPointerDown={empezar}
       onDoubleClick={(e) => {
         e.stopPropagation();
+        // el clic que estaba en cola era la primera mitad de
+        // este doble clic: no debe llegar a la fila
+        if (clicPendiente.current) {
+          clearTimeout(clicPendiente.current);
+          clicPendiente.current = null;
+        }
         alSoltarDobleClic();
       }}
       role="separator"
       aria-orientation="vertical"
-      aria-label={`Ajustar el ancho de ${titulo}. Doble clic para dejarlo automático.`}
-      title="Arrastre para ajustar. Doble clic para dejarlo automático."
-      className="absolute top-0 right-0 h-full w-2 cursor-col-resize touch-none select-none hover:bg-marca/30"
+      aria-label={`Ajustar el ancho de ${titulo}. Doble clic para que todas las columnas vuelvan a ajustarse solas.`}
+      title="Arrastre para ajustar. Doble clic: todas vuelven a automático."
+      style={{ height: alto ?? "100%" }}
+      /// Baja por toda la tabla, no solo por la cabecera.
+      ///
+      /// El borde entre dos columnas se agarra donde uno lo
+      /// tenga delante: en la fila catorce, sin subir hasta el
+      /// titulo. Es como se ajusta una hoja de calculo, y es
+      /// lo que la mano espera.
+      ///
+      /// `top-0` cuelga de la cabecera, que va pegada arriba;
+      /// asi la linea acompana el desplazamiento sin calcular
+      /// nada. El contenedor la recorta, y por eso puede
+      /// medir mas de lo que se ve.
+      ///
+      /// Ocho pixeles: la banda justa del borde, donde no hay
+      /// texto que pulsar. Se ve solo al acercarse.
+      className="absolute top-0 right-0 z-20 w-2 cursor-col-resize touch-none select-none before:absolute before:inset-y-0 before:left-1/2 before:w-px before:-translate-x-1/2 before:bg-transparent hover:before:bg-marca"
     />
   );
 }
@@ -180,6 +270,7 @@ export function Tabla<T>({
   seleccion,
   accionesLote,
   alCargarTodo,
+  sinDescarga,
 }: {
   id: string;
   columnas: Columna<T>[];
@@ -194,6 +285,8 @@ export function Tabla<T>({
   seleccion?: boolean;
   accionesLote?: (ids: string[], limpiar: () => void) => ReactNode;
   alCargarTodo?: () => void;
+  /** La pantalla ya trae su propia descarga, del servidor. */
+  sinDescarga?: boolean;
 }) {
   const porDefecto = useMemo(
     () => columnas.filter((c) => !c.aparte).map((c) => c.clave),
@@ -214,6 +307,26 @@ export function Tabla<T>({
   const [panel, setPanel] = useState<"columnas" | "filtros" | "vistas" | null>(null);
   const [marcadas, setMarcadas] = useState<Set<string>>(new Set());
 
+  /// El alto de la tabla, para que la linea de ajustar el
+  /// ancho baje hasta la ultima fila y pare ahi.
+  ///
+  /// Se engancha con un ref de funcion y no con un efecto:
+  /// la tabla no existe hasta que hay filas, y un efecto con
+  /// lista de dependencias vacia correria antes de tiempo y
+  /// no volveria a mirar. Asi el observador se pone justo
+  /// cuando el elemento aparece y se quita cuando se va.
+  const observador = useRef<ResizeObserver | null>(null);
+  const [altoTabla, setAltoTabla] = useState<number | null>(null);
+
+  const tablaRef = useCallback((el: HTMLTableElement | null) => {
+    observador.current?.disconnect();
+    observador.current = null;
+    if (!el || typeof ResizeObserver === "undefined") return;
+    setAltoTabla(el.offsetHeight);
+    observador.current = new ResizeObserver(() => setAltoTabla(el.offsetHeight));
+    observador.current.observe(el);
+  }, []);
+
   // localStorage no existe en el servidor: leerlo en el
   // estado inicial rompe la hidratacion
   /* eslint-disable react-hooks/set-state-in-effect */
@@ -229,9 +342,17 @@ export function Tabla<T>({
   }, [id, columnas]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
+  /// `anchos` va en las dependencias, y esa es la corrección.
+  ///
+  /// Se guardaba en el objeto pero no estaba en la lista, así
+  /// que estirar una columna no disparaba el efecto: el ancho
+  /// se veía en pantalla y se perdía al recargar. Solo
+  /// quedaba grabado si uno tocaba después Columnas o Vistas,
+  /// que sí disparan. Por eso parecía que a veces se acordaba
+  /// y a veces no.
   useEffect(() => {
     if (listo) escribir(id, { visibles, vistas, anchos });
-  }, [id, visibles, vistas, listo]);
+  }, [id, visibles, vistas, anchos, listo]);
 
   // al cambiar el filtro se vuelve a la primera pagina.
   // Ajustar el estado durante el render, no en un efecto:
@@ -392,6 +513,11 @@ export function Tabla<T>({
         nFiltros={chips.length}
         nColumnas={enPantalla.length}
         acciones={acciones}
+        alDescargar={
+          sinDescarga || !filtradas || filtradas.length === 0
+            ? undefined
+            : () => bajarCsv(id, enPantalla, filtradas)
+        }
       />
 
       {chips.length > 0 && (
@@ -516,6 +642,7 @@ export function Tabla<T>({
             debajo cuando la ventana era alta. */}
         <div className="caja-scroll min-h-0 flex-1 overflow-auto">
             <table
+              ref={tablaRef}
               className="tabla-datos w-full text-sm"
               style={
                 Object.keys(anchos).length > 0
@@ -588,6 +715,7 @@ export function Tabla<T>({
 
                     <TiradorDeAncho
                       titulo={c.titulo}
+                      alto={altoTabla}
                       alEmpezar={(medidas) =>
                         setAnchos((a) =>
                           Object.keys(a).length > 0 ? a : medidas,
@@ -596,12 +724,21 @@ export function Tabla<T>({
                       alArrastrar={(px) =>
                         setAnchos((a) => ({ ...a, [c.clave]: px }))
                       }
-                      alSoltarDobleClic={() =>
-                        setAnchos((a) => {
-                          const resto = { ...a };
-                          delete resto[c.clave];
-                          return resto;
-                        })
+                      /// Doble clic: TODAS vuelven a
+                      /// automatico, no solo esta.
+                      ///
+                      /// Soltar una sola dejaba a la tabla en
+                      /// `fixed` con el resto clavado, y la
+                      /// recien soltada se quedaba con las
+                      /// migajas de ancho que sobraran. En vez
+                      /// de ajustarse, se aplastaba.
+                      ///
+                      /// Vaciando el mapa entero la tabla
+                      /// vuelve a repartir sola, que es lo
+                      /// unico que de verdad «ajusta todas».
+                      /// Y es la salida de emergencia cuando
+                      /// uno dejo los anchos hechos un lio.
+                      alSoltarDobleClic={() => setAnchos({})
                       }
                     />
                   </th>
@@ -729,6 +866,7 @@ function Barra({
   nFiltros,
   nColumnas,
   acciones,
+  alDescargar,
 }: {
   buscar: string;
   setBuscar: (v: string) => void;
@@ -737,6 +875,7 @@ function Barra({
   nFiltros: number;
   nColumnas: number;
   acciones?: ReactNode;
+  alDescargar?: () => void;
 }) {
   const boton = (activo: boolean) =>
     "inline-flex items-center gap-1.5 rounded-xl border px-3 py-2 text-sm transition " +
@@ -793,9 +932,70 @@ function Barra({
         Vistas
       </button>
 
+      {alDescargar && (
+        <button
+          type="button"
+          onClick={alDescargar}
+          className="rounded-xl bg-marca px-4 py-2 text-sm font-medium text-marca-texto transition hover:bg-marca-fuerte"
+        >
+          Descargar en Excel
+        </button>
+      )}
+
       {acciones}
     </div>
   );
+}
+
+/**
+ * Baja a Excel lo que se está viendo.
+ *
+ * Lo que se está viendo, literalmente: las filas que pasaron
+ * el filtro y las columnas que están puestas, en el orden en
+ * que se ven. Bajar «todo» cuando la pantalla enseña un
+ * recorte obliga a filtrar otra vez en Excel, que es de donde
+ * uno venía huyendo.
+ *
+ * Va con punto y coma y con BOM porque el Excel en español
+ * abre la coma como separador decimal: con comas, «1,5» se
+ * parte en dos celdas y las tildes salen rotas.
+ */
+function bajarCsv<T>(
+  nombre: string,
+  columnas: Columna<T>[],
+  /// Los valores ya calculados: la tabla los tiene desde que
+  /// filtra y ordena, y volver a llamar a `valor()` por cada
+  /// celda repetiría ese trabajo para nada.
+  filas: Array<{ v: Record<string, string | number | null> }>,
+) {
+  const escapar = (v: string | number | null) => {
+    const t = v === null || v === undefined ? "" : String(v);
+    // comilla doble dentro se duplica, que es como lo lee Excel
+    return `"${t.replace(/"/g, '""')}"`;
+  };
+
+  const lineas = [
+    columnas.map((c) => escapar(c.titulo)).join(";"),
+    ...filas.map((f) => columnas.map((c) => escapar(f.v[c.clave])).join(";")),
+  ];
+
+  // El BOM (U+FEFF) va delante: sin el, Excel abre el
+  // archivo en la codificacion del sistema y se come las
+  // tildes. Se escribe por codigo y no como caracter para
+  // que no se pierda al copiar el archivo de un lado a otro.
+  const BOM = String.fromCharCode(0xfeff);
+  const SALTO = String.fromCharCode(13, 10);
+
+  const blob = new Blob([BOM + lineas.join(SALTO)], {
+    type: "text/csv;charset=utf-8;",
+  });
+
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `${nombre}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
 }
 
 function CampoFiltro<T>({

@@ -16,8 +16,24 @@ type Paso = "PERSONA" | "EMPRESA" | "HECHO";
 
 export function CompletarFicha({ token }: { token: string }) {
   const [ficha, setFicha] = useState<FichaAbierta | null>(null);
+  /**
+   * Lo que ya traía cuando abrió el enlace.
+   *
+   * Se congela al abrir y no se recalcula: si mirara el
+   * estado actual, cada campo desaparecería en cuanto la
+   * persona terminara de escribirlo, y estaría llenando un
+   * formulario que se le deshace debajo de las manos.
+   *
+   * Estado y no `ref`: esto decide QUÉ SE PINTA, y lo que
+   * se pinta se lee durante el render. Un ref leído en el
+   * render no avisa a React de que hay que volver a pintar.
+   */
+  const [yaEstaba, setYaEstaba] = useState<Record<string, boolean> | null>(null);
   const [caducado, setCaducado] = useState<string | null>(null);
   const [paso, setPaso] = useState<Paso>("PERSONA");
+  /// El paso 1 no se abrió porque no le faltaba nada suyo.
+  /// Entonces no hay «paso anterior» al que volver.
+  const [saltoElPaso1, setSaltoElPaso1] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [guardando, setGuardando] = useState(false);
   /// Decide si se pide el NIT de la empresa o la cedula que
@@ -38,6 +54,44 @@ export function CompletarFicha({ token }: { token: string }) {
       .then((f) => {
         setFicha(f);
         const p = f.persona as Record<string, unknown>;
+
+        // se anota AQUI lo que ya venia lleno, al abrir, y no
+        // se vuelve a mirar: si se recalculara con lo que hay
+        // escrito, cada campo desapareceria en cuanto la
+        // persona terminara de teclearlo
+        const tiene = (k: string) => {
+          const x = p[k];
+          return x !== null && x !== undefined && String(x).trim() !== "";
+        };
+        setYaEstaba({
+          fechaNacimiento: tiene("fechaNacimiento"),
+          estrato: tiene("estrato"),
+          barrio: tiene("barrio"),
+          direccion: tiene("direccion"),
+          cargoEnEmpresa: f.cargoEnEmpresa !== null,
+          nivelOcupacionalSepId: f.nivelOcupacionalSepId !== null,
+          beneficiarioPrevio: f.beneficiarioPrevio !== null,
+        });
+
+        /// Si no le falta NADA suyo, este paso ni se abre.
+        ///
+        /// Enseñarle una pantalla que dice «no falta nada» y
+        /// pedirle que pulse «Guardar y seguir» es hacerle dar
+        /// un clic para no hacer nada. Se salta al paso que sí
+        /// le falta.
+        const nadaSuyo =
+          tiene("fechaNacimiento") &&
+          tiene("estrato") &&
+          tiene("barrio") &&
+          tiene("direccion") &&
+          f.cargoEnEmpresa !== null &&
+          f.nivelOcupacionalSepId !== null &&
+          f.beneficiarioPrevio !== null;
+        if (nadaSuyo) {
+          setPaso("EMPRESA");
+          setSaltoElPaso1(true);
+        }
+
         setPersona({
           nombres: juntar(p.primerNombre as string, p.segundoNombre as string),
           primerApellido: String(p.primerApellido ?? ""),
@@ -150,6 +204,9 @@ export function CompletarFicha({ token }: { token: string }) {
       persona.beneficiarioPrevio,
   );
 
+  /// Solo se pregunta lo que falta. Si ya lo tiene, no sale.
+  const pide = (campo: string) => !yaEstaba?.[campo];
+
   const faltaEnPersona = [
     !persona.fechaNacimiento && "fecha de nacimiento",
     !persona.estrato && "estrato",
@@ -228,25 +285,34 @@ export function CompletarFicha({ token }: { token: string }) {
         )}
       </header>
 
-      {/* reservar no es estar inscrito, y hay que decirlo */}
+      {/* Reservar no es estar inscrito, y hay que decirlo.
+          
+          El paso 2 llevaba palomita de «hecho» siendo justo el
+          que la persona está haciendo en esa pantalla: la
+          dejaba creyendo que ya había terminado. Solo lleva
+          palomita lo que de verdad quedó atrás. */}
       <div className="mt-6 rounded-2xl border border-borde bg-superficie px-5 py-4">
         <div className="flex flex-wrap items-center gap-y-2">
           {[
-            { n: 1, texto: "Reserva de cupo" },
-            { n: 2, texto: "Datos de inscripción" },
-            { n: 3, texto: "Inscripción confirmada" },
+            { n: 1, texto: "Reserva de cupo", estado: "hecho" },
+            { n: 2, texto: "Datos de inscripción", estado: "ahora" },
+            { n: 3, texto: "Inscripción confirmada", estado: "falta" },
           ].map((x, i, todos) => (
             <div key={x.n} className="flex flex-1 items-center gap-2">
               <span
                 className={`grid h-6 w-6 shrink-0 place-items-center rounded-full text-xs font-semibold ${
-                  x.n < 3 ? "bg-exito text-white" : "bg-marca text-marca-texto"
+                  x.estado === "hecho"
+                    ? "bg-exito text-white"
+                    : x.estado === "ahora"
+                      ? "bg-marca text-marca-texto"
+                      : "border border-borde text-texto-suave"
                 }`}
               >
-                {x.n < 3 ? "✓" : x.n}
+                {x.estado === "hecho" ? "✓" : x.n}
               </span>
               <span
                 className={`whitespace-nowrap text-sm ${
-                  x.n === 3 ? "font-semibold text-marca" : "text-texto-suave"
+                  x.estado === "ahora" ? "font-semibold text-marca" : "text-texto-suave"
                 }`}
               >
                 {x.texto}
@@ -281,15 +347,22 @@ export function CompletarFicha({ token }: { token: string }) {
         className="mt-8 space-y-6"
       >
           <section className="rounded-2xl border border-borde bg-superficie p-6 shadow-sm">
-            <h2 className="text-lg font-semibold">Información complementaria</h2>
+            <h2 className="text-lg font-semibold">
+              {faltaEnPersona.length === 0
+                ? "Sus datos están completos"
+                : "Datos pendientes"}
+            </h2>
             <p className="mt-1 text-sm text-texto-suave">
-              Complete la siguiente información:
+              {faltaEnPersona.length === 0
+                ? "No falta nada suyo. Continúe con los datos laborales."
+                : `Falta: ${faltaEnPersona.join(", ")}.`}
             </p>
 
             {/* nombres, apellidos, celular, correo, genero,
                 departamento y municipio ya se dieron al reservar
                 el cupo: volver a pedirlos invita a contradecirlos */}
             <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {pide("fechaNacimiento") && (
               <label className="block">
                 <span className="mb-1.5 block text-sm font-medium">
                   Fecha de nacimiento
@@ -306,7 +379,9 @@ export function CompletarFicha({ token }: { token: string }) {
                   La formación admite personas mayores de 18 años.
                 </span>
               </label>
+              )}
 
+              {pide("estrato") && (
               <label className="block">
                 <span className="mb-1.5 block text-sm font-medium">Estrato</span>
                 <select
@@ -325,21 +400,27 @@ export function CompletarFicha({ token }: { token: string }) {
                   Del 1 al 6, según su recibo de servicios.
                 </span>
               </label>
+              )}
 
-              <div className="hidden lg:block" aria-hidden />
+              {pide("barrio") && (
+                <Campo etiqueta="Barrio o vereda" campo="barrio" valores={persona} set={setPersona} />
+              )}
+              {pide("direccion") && (
+                <div className="sm:col-span-2">
+                  <Campo etiqueta="Dirección" campo="direccion" valores={persona} set={setPersona} />
+                </div>
+              )}
 
-              <Campo etiqueta="Barrio o vereda" campo="barrio" valores={persona} set={setPersona} />
-              <div className="sm:col-span-2">
-                <Campo etiqueta="Dirección" campo="direccion" valores={persona} set={setPersona} />
-              </div>
+              {pide("cargoEnEmpresa") && (
+                <Campo
+                  etiqueta="¿Cuál es su cargo actual?"
+                  campo="cargoEnEmpresa"
+                  valores={persona}
+                  set={setPersona}
+                />
+              )}
 
-              <Campo
-                etiqueta="¿Cuál es su cargo actual?"
-                campo="cargoEnEmpresa"
-                valores={persona}
-                set={setPersona}
-              />
-
+              {pide("nivelOcupacionalSepId") && (
               <label className="block">
                 <span className="mb-1.5 block text-sm font-medium">Nivel ocupacional</span>
                 <select
@@ -357,7 +438,9 @@ export function CompletarFicha({ token }: { token: string }) {
                   ))}
                 </select>
               </label>
+              )}
 
+              {pide("beneficiarioPrevio") && (
               <div className="sm:col-span-2">
                 <span className="mb-1.5 block text-sm font-medium">
                   ¿Se ha beneficiado antes del programa de formación continua
@@ -391,14 +474,10 @@ export function CompletarFicha({ token }: { token: string }) {
                   ))}
                 </div>
               </div>
+              )}
             </div>
           </section>
 
-          {faltaEnPersona.length > 0 && (
-            <p className="rounded-xl border border-borde bg-superficie-alterna px-4 py-3 text-sm text-texto-suave">
-              Para continuar falta: <strong>{faltaEnPersona.join(", ")}</strong>.
-            </p>
-          )}
 
           <button
             type="submit"
@@ -569,7 +648,14 @@ export function CompletarFicha({ token }: { token: string }) {
                   Revisar y confirmar
                 </button>
 
-                {/* se puede devolver: nada de lo ya escrito se pierde */}
+                {/* Solo si hay a dónde volver.
+                    
+                    Si el paso 1 no se abrió -- porque no le
+                    faltaba nada suyo -- «Volver al paso
+                    anterior» lo mandaba a una pantalla vacía
+                    que decía «no falta nada». Un botón que
+                    lleva a ninguna parte. */}
+                {!saltoElPaso1 && (
                 <button
                   type="button"
                   onClick={() => setPaso("PERSONA")}
@@ -577,6 +663,7 @@ export function CompletarFicha({ token }: { token: string }) {
                 >
                   Volver al paso anterior
                 </button>
+                )}
               </>
             )}
           </div>

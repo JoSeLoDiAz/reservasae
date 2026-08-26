@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import {
-  AccionesDePagina, Aviso, CLASE_CONTROL, Tarjeta } from "@/components/admin/marco-admin";
+  Aviso, CLASE_CONTROL, Tarjeta } from "@/components/admin/marco-admin";
 import { CajonLead } from "@/components/admin/cajon-lead";
 import { columnasDeParticipante } from "@/components/admin/columnas-participante";
 import { Tabla } from "@/components/admin/tabla";
@@ -15,6 +15,12 @@ import {
   type Filtros,
   type Resumen,
 } from "@/lib/crm-api";
+
+/// La pinta del boton de «Descargar en Excel», para que los
+/// tres de la barra se lean como hermanos.
+const CLASE_BOTON =
+  "rounded-xl bg-marca px-4 py-2 text-sm font-medium whitespace-nowrap " +
+  "text-marca-texto no-underline transition hover:bg-marca-fuerte";
 
 // el tablero reparte una carga entre nueve columnas
 const POR_CARGA = 300;
@@ -77,18 +83,6 @@ export default function PaginaParticipantes() {
 
   return (
     <div className="flex min-h-0 grow flex-col gap-6">
-      <AccionesDePagina>
-        <Link href="/admin/participantes/academico" className="text-sm underline">
-          Seguimiento académico
-        </Link>
-        <Link href="/admin/participantes/carga" className="text-sm underline">
-          Cargar una lista
-        </Link>
-        <Link href="/admin/participantes/nuevo" className="text-sm underline">
-          Inscribir a alguien
-        </Link>
-      </AccionesDePagina>
-
       {error && <Aviso tipo="error">{error}</Aviso>}
 
       {/* El orden es el del tablero de abajo: se filtra por lo
@@ -171,6 +165,20 @@ function ListaParticipantes({
         total={total}
         alClic={(f) => setAbierto(f)}
         alCargarTodo={alCargarTodo}
+        /// Junto a «Descargar en Excel», y con su misma
+        /// pinta. Como enlaces subrayados arriba se perdian
+        /// entre las migas; son las dos acciones con las que
+        /// se empieza el dia y merecen verse.
+        acciones={
+          <>
+            <Link href="/admin/participantes/carga" className={CLASE_BOTON}>
+              Cargar una lista
+            </Link>
+            <Link href="/admin/participantes/nuevo" className={CLASE_BOTON}>
+              Inscribir a alguien
+            </Link>
+          </>
+        }
         seleccion
         accionesLote={(ids, limpiar) => (
           <AsignarLote

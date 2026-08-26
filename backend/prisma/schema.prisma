@@ -148,6 +148,7 @@ model GrupoCobertura {
   ubicacion Ubicacion @relation(fields: [ubicacionId], references: [id])
 
   participantes Participante[]
+  avisos        AvisoDeCupos[]
 
   @@unique([grupoId, ubicacionId, modalidad])
   @@map("grupos_cobertura")
@@ -649,6 +650,17 @@ model Persona {
   caracterizacionRechazada  Boolean   @default(false)
   caracterizacionPreguntada DateTime?
 
+  /// Inventada por la siembra de prueba: no es una persona.
+  ///
+  /// Existe por un daño concreto. La siembra reparte cédulas
+  /// desde 1.010.200.000, que es rango real de colombianos
+  /// nacidos hacia 1990: cada una de esas cédulas inventadas
+  /// le pertenece a alguien. Consultar el RUI con ellas le
+  /// pide al Estado la identidad de un ciudadano que no pidió
+  /// nada, y la guarda aquí. Con esta marca, el RUI no las
+  /// consulta nunca.
+  esDePrueba Boolean @default(false)
+
   creadoEn      DateTime @default(now())
   actualizadoEn DateTime @updatedAt
 
@@ -745,6 +757,8 @@ model Participante {
   @@index([coberturaId, etapa])
   @@index([asesorId, etapa])
   @@index([reservaId])
+  /// El F7 y el borrado de empresas buscan por aqui.
+  @@index([empresaId])
   @@map("participantes")
 }
 
@@ -957,8 +971,16 @@ model EnlaceCompletado {
 
   creadoEn     DateTime  @default(now())
   expiraEn     DateTime
+  /// La primera vez que alguien lo abrió.
+  ///
+  /// Sin esto, el aviso «si aún no lo ha abierto, no genere
+  /// otro» le pedía al asesor una respuesta que el sistema no
+  /// tenía. Ahora la tiene.
+  abiertoEn    DateTime?
   /// Cuando se cerró: a partir de ahí no vale.
   usadoEn      DateTime?
+  /// Lo anuló un enlace nuevo, no la persona.
+  anuladoEn    DateTime?
   /// Quién lo emitió. Null si lo generó el propio registro.
   emitidoPorId String?
 
@@ -1268,6 +1290,15 @@ model ConsultaRui {
   /// Falso si los dos nombres no se parecen.
   nombreCoincide   Boolean?
 
+  /// Si esta respuesta la dio el simulador y no el RUI.
+  ///
+  /// Va en la fila y no en una variable de entorno: la
+  /// variable dice con que esta corriendo el servidor HOY, y
+  /// eso no cambia lo que ya se respondio. Sin esto, apagar
+  /// el simulador haria pasar sus nombres inventados por
+  /// respuestas del Estado.
+  simulado Boolean @default(false)
+
   intentos    Int       @default(0)
   ultimoError String?
   tomadaEn    DateTime?
@@ -1356,4 +1387,48 @@ model PropuestaDeDatos {
   @@index([participanteId, estado])
   @@index([estado, creadoEn])
   @@map("propuestas_de_datos")
+}
+
+/// Un aviso de que a un grupo le faltan cupos por completar.
+///
+/// No se espera al cierre para descubrirlo: para entonces ya
+/// no hay a quien llamar. El aviso sale tres dias habiles
+/// antes del cierre, que a su vez es una semana habil antes
+/// de que arranque el grupo.
+///
+/// Se guarda como fila y no se manda en el acto porque el
+/// canal puede fallar y porque todavia no hay canal. La fila
+/// queda; quien la mande la marca.
+model AvisoDeCupos {
+  id          String @id @default(cuid())
+  coberturaId String
+
+  /// La fecha de arranque contra la que se calculo. Si el
+  /// cronograma se mueve, el aviso viejo deja de valer y
+  /// nace otro: por eso entra en la clave unica.
+  fechaInicioGrupo DateTime
+  /// Cuando toca avisar, ya calculado.
+  avisarEn         DateTime
+  /// Y hasta cuando se puede inscribir.
+  cierreEn         DateTime
+
+  cuposMaximos Int
+  inscritos    Int
+  faltan       Int
+
+  creadoEn  DateTime  @default(now())
+  /// Cuando salio de verdad. Null mientras no ha salido.
+  enviadoEn DateTime?
+  /// Por donde salio: CORREO, WHATSAPP, PANEL.
+  canal     String?
+  /// Quien lo vio y dijo que ya lo atendio.
+  atendidoEn DateTime?
+
+  cobertura GrupoCobertura @relation(fields: [coberturaId], references: [id], onDelete: Cascade)
+
+  // uno por grupo y por cronograma: si se corre la fecha,
+  // es un aviso nuevo y no un duplicado
+  @@unique([coberturaId, fechaInicioGrupo])
+  @@index([enviadoEn, avisarEn])
+  @@map("avisos_de_cupos")
 }

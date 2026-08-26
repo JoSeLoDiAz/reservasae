@@ -1,6 +1,10 @@
 /** El maestro de organizaciones: consultar, corregir, verificar. */
 
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 
 import { Prisma } from '../../generated/prisma';
 import { AuditoriaService } from '../comun/auditoria.service';
@@ -72,7 +76,9 @@ export class InstitucionesService {
     /// pueda filtrar. Cuando se piden, se traen todas las que
     /// cumplen el `where` y se pagina despues -- si no, el
     /// total mentiria y habria paginas vacias en medio.
-    const enMemoria = Boolean(opciones.soloIncompletas || opciones.soloSugeridos);
+    const enMemoria = Boolean(
+      opciones.soloIncompletas || opciones.soloSugeridos,
+    );
 
     const consulta = {
       where,
@@ -112,7 +118,10 @@ export class InstitucionesService {
     );
 
     return {
-      instituciones: filtradas.slice((pagina - 1) * POR_PAGINA, pagina * POR_PAGINA),
+      instituciones: filtradas.slice(
+        (pagina - 1) * POR_PAGINA,
+        pagina * POR_PAGINA,
+      ),
       total: filtradas.length,
       pagina,
       porPagina: POR_PAGINA,
@@ -146,7 +155,9 @@ export class InstitucionesService {
           tamano: true,
         },
       }),
-      this.prisma.propuestaInstitucion.count({ where: { estado: 'PENDIENTE' } }),
+      this.prisma.propuestaInstitucion.count({
+        where: { estado: 'PENDIENTE' },
+      }),
     ]);
 
     const revisadas = filas.map((f) => this.conFaltantes(f));
@@ -168,7 +179,11 @@ export class InstitucionesService {
       include: {
         verificadaPor: { select: { nombre: true } },
         empresas: {
-          select: { id: true, razonSocial: true, _count: { select: { participantes: true } } },
+          select: {
+            id: true,
+            razonSocial: true,
+            _count: { select: { participantes: true } },
+          },
         },
         propuestas: {
           where: { estado: 'PENDIENTE' },
@@ -178,11 +193,18 @@ export class InstitucionesService {
         consultas: {
           orderBy: { creadoEn: 'desc' },
           take: 5,
-          select: { id: true, estado: true, ultimoError: true, resueltaEn: true, creadoEn: true },
+          select: {
+            id: true,
+            estado: true,
+            ultimoError: true,
+            resueltaEn: true,
+            creadoEn: true,
+          },
         },
       },
     });
-    if (!f) throw new NotFoundException('No hay ninguna institución con ese id.');
+    if (!f)
+      throw new NotFoundException('No hay ninguna institución con ese id.');
 
     const historial = await this.auditoria.historial('Institucion', id, 50);
 
@@ -209,14 +231,17 @@ export class InstitucionesService {
     admin: { id: string; nombre: string },
   ) {
     const antes = await this.prisma.institucion.findUnique({ where: { id } });
-    if (!antes) throw new NotFoundException('No hay ninguna institución con ese id.');
+    if (!antes)
+      throw new NotFoundException('No hay ninguna institución con ese id.');
 
     const puestos = Object.entries(dto).filter(([, v]) => v !== undefined);
     if (puestos.length === 0) {
       throw new BadRequestException('No mandó ningún campo para cambiar.');
     }
 
-    const fuentes: Record<string, string> = { ...this.aObjeto(antes.fuentePorCampo) };
+    const fuentes: Record<string, string> = {
+      ...this.aObjeto(antes.fuentePorCampo),
+    };
     for (const [campo] of puestos) fuentes[campo] = 'HUMANO';
 
     const datos: Prisma.InstitucionUpdateInput = {
@@ -240,8 +265,13 @@ export class InstitucionesService {
     /// que es lo que hace util un control de cambios.
     const previo = antes as unknown as Record<string, unknown>;
     const cambios = puestos
-      .filter(([campo, valor]) => String(previo[campo] ?? '') !== String(valor ?? ''))
-      .map(([campo, valor]) => `${campo}: ${this.legible(previo[campo])} → ${this.legible(valor)}`);
+      .filter(
+        ([campo, valor]) => String(previo[campo] ?? '') !== String(valor ?? ''),
+      )
+      .map(
+        ([campo, valor]) =>
+          `${campo}: ${this.legible(previo[campo])} → ${this.legible(valor)}`,
+      );
 
     if (cambios.length > 0) {
       await this.auditoria.registrar({
@@ -272,7 +302,8 @@ export class InstitucionesService {
       where: { id },
       select: { id: true },
     });
-    if (!f) throw new NotFoundException('No hay ninguna institución con ese id.');
+    if (!f)
+      throw new NotFoundException('No hay ninguna institución con ese id.');
 
     const puesta = await this.prisma.institucion.update({
       where: { id },
@@ -315,7 +346,11 @@ export class InstitucionesService {
    * -- RUES o WEB -- no con HUMANO: la persona autorizó que
    * entrara, no verificó el dato uno por uno.
    */
-  async aplicarPropuesta(id: string, dto: AplicarPropuestaDto, adminId: string) {
+  async aplicarPropuesta(
+    id: string,
+    dto: AplicarPropuestaDto,
+    adminId: string,
+  ) {
     const propuesta = await this.prisma.propuestaInstitucion.findUnique({
       where: { id },
       select: {
@@ -343,15 +378,38 @@ export class InstitucionesService {
       for (const campo of aceptados) {
         datos[campo] =
           campo === 'fechaFundacion' && typeof traidos[campo] === 'string'
-            ? new Date(traidos[campo] as string)
+            ? this.aFecha(traidos[campo])
             : traidos[campo];
         fuentes[campo] = propuesta.fuente;
       }
 
-      await this.prisma.institucion.update({
-        where: { id: propuesta.institucion.id },
-        data: { ...datos, fuentePorCampo: fuentes } as Prisma.InstitucionUpdateInput,
-      });
+      try {
+        await this.prisma.institucion.update({
+          where: { id: propuesta.institucion.id },
+          data: {
+            ...datos,
+            fuentePorCampo: fuentes,
+          },
+        });
+      } catch (e) {
+        /// Ya existe otra ficha con ese NIT y ese nombre.
+        ///
+        /// Pasa cuando el buscador devuelve la razón social
+        /// bien escrita y alguien ya la había creado a mano:
+        /// son la misma organización, dos veces. Fundirlas no
+        /// lo puede decidir este código -- se dice qué pasó y
+        /// la propuesta se queda pendiente.
+        if (
+          e instanceof Prisma.PrismaClientKnownRequestError &&
+          e.code === 'P2002'
+        ) {
+          throw new BadRequestException(
+            'Ya hay otra ficha con ese NIT y esa razón social. ' +
+              'Revise si están repetidas antes de aceptar el nombre.',
+          );
+        }
+        throw e;
+      }
     }
 
     await this.prisma.propuestaInstitucion.update({
@@ -380,15 +438,34 @@ export class InstitucionesService {
       }
     }
 
-    return { aplicados: aceptados.length, descartados: Object.keys(traidos).length - aceptados.length };
+    return {
+      aplicados: aceptados.length,
+      descartados: Object.keys(traidos).length - aceptados.length,
+    };
   }
 
   // ---------------------------------------------------------
 
   /// Qué le falta a la ficha para poder reportarse, y de
   /// dónde salió cada dato que sí tiene.
+  /**
+   * «1972-01-17» es un día, no un instante.
+   *
+   * `new Date('1972-01-17')` da la medianoche en UTC, que en
+   * Colombia son las siete de la tarde del día ANTERIOR: la
+   * ficha quedaría fundada el 16. Se arma a la medianoche de
+   * acá, que es lo que quiso decir quien escribió la fecha.
+   */
+  private aFecha(v: string): Date {
+    return /^\d{4}-\d{2}-\d{2}$/.test(v)
+      ? new Date(`${v}T00:00:00-05:00`)
+      : new Date(v);
+  }
+
   private conFaltantes<
-    T extends Record<string, unknown> & { fuentePorCampo: Prisma.JsonValue | null },
+    T extends Record<string, unknown> & {
+      fuentePorCampo: Prisma.JsonValue | null;
+    },
   >(f: T) {
     const falta = CAMPOS_OBLIGATORIOS.filter((c) => {
       const v = f[c];
@@ -403,7 +480,12 @@ export class InstitucionesService {
       .filter(([, fuente]) => fuente === 'WEB')
       .map(([campo]) => campo);
 
-    return { ...f, falta, sinConfirmar, reportable: falta.length === 0 && Boolean(f.verificadaEn) };
+    return {
+      ...f,
+      falta,
+      sinConfirmar,
+      reportable: falta.length === 0 && Boolean(f.verificadaEn),
+    };
   }
 
   /// El JSON de la base, como objeto plano. Prisma lo

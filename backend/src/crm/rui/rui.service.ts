@@ -1,10 +1,19 @@
 /** La cola de consultas al RUI. */
 
-import { Inject, Injectable, Logger } from '@nestjs/common';
+import {
+  BadRequestException,
+  Inject,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
 
 import { EstadoConsultaRui } from '../../../generated/prisma';
 import { PrismaService } from '../../prisma/prisma.service';
 import { nombreCompleto } from '../../comun/documento';
+import { AuditoriaService, type Actor } from '../../comun/auditoria.service';
+import { ColaRui } from './cola-rui';
+import { partirNombre } from './partir-nombre';
 import { nombreCoincide } from './comparar-nombres';
 import { PROVEEDOR_RUI, ruiEsSimulado, type ProveedorRui } from './proveedor';
 
@@ -24,6 +33,8 @@ export type EstadoRuiDeLaFicha = {
   porDelante: number | null;
   /// El detector es el de mentira: lo que sale no es el RUI.
   simulado: boolean;
+  /// La persona es inventada: no se consulta y se dice.
+  esDePrueba: boolean;
 };
 
 @Injectable()
@@ -32,64 +43,137 @@ export class RuiService {
 
   constructor(
     private readonly prisma: PrismaService,
+    private readonly cola: ColaRui,
+    private readonly auditoria: AuditoriaService,
     @Inject(PROVEEDOR_RUI) private readonly proveedor: ProveedorRui,
   ) {}
 
-  /// Encolar no espera a nada: guardar nunca se bloquea
-  /// por el RUI. Si ya hay una pendiente para esa persona
-  /// se reusa, y solo se le sube la prioridad.
-  async encolar(personaId: string, prioridad = 0): Promise<void> {
-    const persona = await this.prisma.persona.findUnique({
+  /// Encolar y priorizar viven en `ColaRui`, que solo
+  /// escribe filas. Aqui quedan como puerta de entrada para
+  /// que quien ya llamaba a este servicio no tenga que
+  /// cambiar de sitio.
+  encolar(personaId: string, prioridad = 0): Promise<void> {
+    return this.cola.encolar(personaId, prioridad);
+  }
+
+  priorizar(personaId: string): Promise<void> {
+    return this.cola.priorizar(personaId);
+  }
+
+  /**
+   * Se queda con el nombre del RUI.
+   *
+   * Cuando los dos no coinciden hay que decidir cuál vale, y
+   * hasta ahora la ficha enseñaba la diferencia sin ofrecer
+   * salida: el asesor veía «no coinciden» y tenía que ir a
+   * teclear el nombre bueno a mano, campo por campo,
+   * mirándolo en otra tarjeta.
+   *
+   * Del lado del Estado viene el nombre legal, que es el que
+   * el SENA espera en el F7. Por eso esta es la única
+   * dirección que se ofrece con un botón: al revés -- pisar
+   * el RUI con lo que tecleó una persona -- no tendría
+   * sentido, porque el RUI no es nuestro para corregirlo.
+   *
+   * Se parte con `partirNombre`, que sabe de nombres
+   * compuestos colombianos. Y queda movimiento: mañana hay
+   * que poder decir por qué cambió un nombre.
+   */
+  async tomarElNombreDelRui(
+    personaId: string,
+    participanteId: string,
+    actor: Actor,
+  ) {
+    const c = await this.prisma.consultaRui.findFirst({
+      where: { personaId, estado: EstadoConsultaRui.LISTA },
+      orderBy: { creadoEn: 'desc' },
+      select: { nombreEncontrado: true, simulado: true },
+    });
+
+    if (!c?.nombreEncontrado) {
+      throw new BadRequestException('Todavía no hay un nombre del RUI para esta persona.');
+    }
+    if (c.simulado) {
+      throw new BadRequestException(
+        'Esa respuesta la dio el simulador, no el RUI. No se puede tomar como buena.',
+      );
+    }
+
+    const partes = partirNombre(c.nombreEncontrado);
+
+    const antes = await this.prisma.persona.findUnique({
       where: { id: personaId },
       select: {
-        id: true,
-        tipoDocumentoSepId: true,
-        numeroDocumento: true,
         primerNombre: true,
         segundoNombre: true,
         primerApellido: true,
         segundoApellido: true,
       },
     });
-    if (!persona) return;
 
-    const pendiente = await this.prisma.consultaRui.findFirst({
-      where: {
-        personaId,
-        estado: { in: [EstadoConsultaRui.PENDIENTE, EstadoConsultaRui.EN_CURSO] },
+    await this.prisma.persona.update({
+      where: { id: personaId },
+      data: {
+        primerNombre: partes.primerNombre,
+        segundoNombre: partes.segundoNombre || null,
+        primerApellido: partes.primerApellido,
+        segundoApellido: partes.segundoApellido || null,
       },
-      select: { id: true, prioridad: true },
     });
 
-    if (pendiente) {
-      if (prioridad > pendiente.prioridad) {
-        await this.prisma.consultaRui.update({
-          where: { id: pendiente.id },
-          data: { prioridad },
-        });
-      }
-      return;
+    /// Se anotan los CAMPOS, no los nombres.
+    ///
+    /// Es la regla de este servicio de auditoria y es buena:
+    /// guardar el valor viejo y el nuevo convertiria la
+    /// auditoria en una segunda copia de los datos
+    /// personales, y es la copia que nadie se acuerda de
+    /// proteger. Que cambio se sabe; que decia antes, se
+    /// mira en el historial de movimientos.
+    /// Y queda en el HISTORIAL, no solo en la auditoría.
+    ///
+    /// La auditoría la miran los de sistemas; el historial lo
+    /// mira el asesor, en la ficha, y es donde tiene que
+    /// poder ver qué se le hizo a este lead y por qué. Un
+    /// cambio de nombre que solo aparece en un registro
+    /// interno es un cambio que nadie va a encontrar.
+    ///
+    /// Etapa antes y después iguales: no se movió de etapa,
+    /// y así el historial lo pinta como «otra cosa que se le
+    /// hizo», con su nota.
+    const etapa = await this.prisma.participante.findUnique({
+      where: { id: participanteId },
+      select: { etapa: true },
+    });
+
+    if (etapa) {
+      await this.prisma.movimientoParticipante.create({
+        data: {
+          participanteId,
+          etapaAntes: etapa.etapa,
+          etapaDespues: etapa.etapa,
+          adminId: actor.id ?? null,
+          nota:
+            `Se dejó el nombre del RUI: «${antes ? nombreCompleto(antes) : '—'}» ` +
+            `pasó a «${c.nombreEncontrado}»`,
+        },
+      });
     }
 
-    await this.prisma.consultaRui.create({
-      data: {
-        personaId,
-        tipoDocumentoSepId: persona.tipoDocumentoSepId,
-        numeroDocumento: persona.numeroDocumento,
-        nombreTecleado: nombreCompleto(persona),
-        prioridad,
-      },
+    await this.auditoria.registrar({
+      actor,
+      accion: 'PARTICIPANTE_EDITADO',
+      entidad: 'Persona',
+      entidadId: personaId,
+      resumen: 'Se tomó el nombre que devolvió el RUI',
+      camposTocados: [
+        'primerNombre',
+        'segundoNombre',
+        'primerApellido',
+        'segundoApellido',
+      ],
     });
-  }
 
-  /// Sube al frente lo de la ficha que alguien está
-  /// mirando. Sin esto, el asesor que espera queda detrás
-  /// de todo lo que se encoló en segundo plano.
-  async priorizar(personaId: string): Promise<void> {
-    await this.prisma.consultaRui.updateMany({
-      where: { personaId, estado: EstadoConsultaRui.PENDIENTE },
-      data: { prioridad: 100 },
-    });
+    return { nombre: c.nombreEncontrado, partes };
   }
 
   /** Lo que la ficha enseña mientras tanto. */
@@ -99,6 +183,12 @@ export class RuiService {
       orderBy: { creadoEn: 'desc' },
     });
 
+    const persona = await this.prisma.persona.findUnique({
+      where: { id: personaId },
+      select: { esDePrueba: true },
+    });
+    const esDePrueba = persona?.esDePrueba ?? false;
+
     if (!c) {
       return {
         estado: 'SIN_CONSULTA',
@@ -107,12 +197,16 @@ export class RuiService {
         nombreCoincide: null,
         resueltaEn: null,
         porDelante: null,
+        // aqui si vale la variable: no hay respuesta que
+        // describir, sino con que se va a consultar
         simulado: ruiEsSimulado(),
+        esDePrueba,
       };
     }
 
     const esperando =
-      c.estado === EstadoConsultaRui.PENDIENTE || c.estado === EstadoConsultaRui.EN_CURSO;
+      c.estado === EstadoConsultaRui.PENDIENTE ||
+      c.estado === EstadoConsultaRui.EN_CURSO;
 
     return {
       estado: c.estado,
@@ -120,16 +214,27 @@ export class RuiService {
       nombreTecleado: c.nombreTecleado,
       nombreCoincide: c.nombreCoincide,
       resueltaEn: c.resueltaEn,
-      porDelante: esperando ? await this.porDelanteDe(c.prioridad, c.creadoEn) : null,
-      simulado: ruiEsSimulado(),
+      porDelante: esperando
+        ? await this.porDelanteDe(c.prioridad, c.creadoEn)
+        : null,
+      // de la fila, no de la variable: describe ESTA
+      // respuesta, no con que corre el servidor ahora
+      simulado: esperando ? ruiEsSimulado() : c.simulado,
+      esDePrueba,
     };
   }
 
-  private async porDelanteDe(prioridad: number, creadoEn: Date): Promise<number> {
+  private async porDelanteDe(
+    prioridad: number,
+    creadoEn: Date,
+  ): Promise<number> {
     return this.prisma.consultaRui.count({
       where: {
         estado: EstadoConsultaRui.PENDIENTE,
-        OR: [{ prioridad: { gt: prioridad } }, { prioridad, creadoEn: { lt: creadoEn } }],
+        OR: [
+          { prioridad: { gt: prioridad } },
+          { prioridad, creadoEn: { lt: creadoEn } },
+        ],
       },
     });
   }
@@ -198,6 +303,7 @@ export class RuiService {
           nombreCoincide: coincide,
           resueltaEn: new Date(),
           ultimoError: null,
+          simulado: ruiEsSimulado(),
         },
       });
       return;
@@ -206,7 +312,11 @@ export class RuiService {
     if (resultado.estado === 'SIN_RESULTADO') {
       await this.prisma.consultaRui.update({
         where: { id },
-        data: { estado: EstadoConsultaRui.SIN_RESULTADO, resueltaEn: new Date() },
+        data: {
+          estado: EstadoConsultaRui.SIN_RESULTADO,
+          resueltaEn: new Date(),
+          simulado: ruiEsSimulado(),
+        },
       });
       return;
     }
@@ -216,13 +326,16 @@ export class RuiService {
     await this.prisma.consultaRui.update({
       where: { id },
       data: {
-        estado: seRinde ? EstadoConsultaRui.FALLIDA : EstadoConsultaRui.PENDIENTE,
+        estado: seRinde
+          ? EstadoConsultaRui.FALLIDA
+          : EstadoConsultaRui.PENDIENTE,
         ultimoError: resultado.error.slice(0, 500),
         resueltaEn: seRinde ? new Date() : null,
       },
     });
 
-    if (seRinde) this.log.warn(`Consulta ${id} fallida tras ${c.intentos} intentos.`);
+    if (seRinde)
+      this.log.warn(`Consulta ${id} fallida tras ${c.intentos} intentos.`);
   }
 
   /** Para el tablero: cómo va la cola. */

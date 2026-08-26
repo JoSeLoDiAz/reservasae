@@ -53,7 +53,23 @@ export type Ambito = {
   /// Qué roles tiene en cada convenio. La misma persona
   /// puede llevar áreas distintas en cada uno.
   roles: Record<string, RolConvenio[]>;
+  /// El gremio que se eligió arriba en el panel, si eligió
+  /// uno. Null es «todos los que pueda ver».
+  gremioElegido: string | null;
+  /// Todos los que le concede su cuenta, sin recortar por el
+  /// gremio elegido: es lo que llena el desplegable.
+  concedidos: string[];
 };
+
+/// La cabecera con la que el panel dice de qué gremio está
+/// hablando.
+///
+/// Va por cabecera y no por parámetro de cada consulta a
+/// propósito: así el recorte se aplica UNA vez, aquí, y
+/// ninguna pantalla puede olvidarlo. Es la misma razón por la
+/// que el ámbito se resuelve en el guard y no en cada
+/// servicio.
+export const CABECERA_GREMIO = 'x-gremio';
 
 export type PeticionConAdmin = Request & { admin?: Admin; ambito?: Ambito };
 
@@ -120,7 +136,22 @@ export class AdminGuard implements CanActivate {
         )
       : concedidos;
 
-    peticion.ambito = { convenios, todos: convenios.length >= activos, roles };
+    // el gremio elegido RECORTA, nunca amplía: si pide uno
+    // que su cuenta no le concede, se ignora y se queda con
+    // todo lo suyo. Un encabezado no puede dar acceso.
+    const pedido = peticion.headers[CABECERA_GREMIO];
+    const gremioElegido =
+      typeof pedido === 'string' && convenios.includes(pedido) ? pedido : null;
+
+    const alcance = gremioElegido ? [gremioElegido] : convenios;
+
+    peticion.ambito = {
+      convenios: alcance,
+      todos: !gremioElegido && alcance.length >= activos,
+      roles,
+      gremioElegido,
+      concedidos,
+    };
 
     const sinCambiar = this.reflector.getAllAndOverride<boolean>(
       PERMITIDA_SIN_CAMBIAR_CLAVE,

@@ -1,0 +1,181 @@
+/** El panel de cupos de una oferta, contra la base. */
+
+/// Junta las tres cosas que hacen falta para saber si se
+/// puede inscribir a alguien: cuantos cupos quedan, en que
+/// bloque caen, y si la ventana del calendario sigue abierta.
+///
+/// Va aparte de `crm.service.ts` porque es la regla de
+/// negocio que gobierna la inscripcion entera, y conviene
+/// poder leerla de un tiron.
+
+import { Injectable } from '@nestjs/common';
+
+import { PrismaService } from '../prisma/prisma.service';
+import { ventanaDe, type VentanaInscripcion } from './calendario-inscripcion';
+import { repartirCupos, type CuposDeLaOferta } from './cupos';
+
+/// Ocupa silla quien esta inscrito o mas alla. La misma lista
+/// que `ETAPAS_VIVAS`; se repite aqui para no arrastrar todo
+/// `crm.service.ts` a un modulo que solo cuenta.
+const OCUPAN_SILLA = ['INSCRITO', 'EN_FORMACION', 'CERTIFICADO'] as const;
+
+export type PanelDeOferta = {
+  ofertaId: string;
+  accion: string;
+  ubicacion: string;
+  cupos: CuposDeLaOferta;
+  /// La ventana de cada grupo que sirve a esta oferta. Puede
+  /// haber varios y empezar en fechas distintas: por eso hay
+  /// que decir a cual entra cada quien.
+  grupos: Array<{
+    grupoId: string;
+    numero: number;
+    coberturaId: string;
+    cuposMaximos: number;
+    inscritos: number;
+    ventana: VentanaInscripcion;
+  }>;
+  /// Se puede inscribir a alguien mas, aqui y ahora.
+  admiteInscripciones: boolean;
+  /// Por que no, cuando no.
+  porQueNo: string | null;
+};
+
+@Injectable()
+export class PanelDeCupos {
+  constructor(private readonly prisma: PrismaService) {}
+
+  async deLaOferta(ofertaId: string, hoy = new Date()): Promise<PanelDeOferta | null> {
+    const oferta = await this.prisma.oferta.findUnique({
+      where: { id: ofertaId },
+      select: {
+        id: true,
+        cuposMaximos: true,
+        abierta: true,
+        accionFormacion: { select: { id: true, nombre: true } },
+        ubicacion: { select: { nombre: true } },
+        reservas: {
+          where: { canceladaEn: null, estado: { not: 'CANCELADA' } },
+          select: { id: true, cuposSolicitados: true },
+        },
+      },
+    });
+    if (!oferta) return null;
+
+    // lo apartado y vivo
+    const apartados = oferta.reservas.reduce((s, r) => s + r.cuposSolicitados, 0);
+
+    // los inscritos, separando quien vino por una reserva
+    const [deReserva, libres] = await Promise.all([
+      this.prisma.participante.count({
+        where: { ofertaId, etapa: { in: [...OCUPAN_SILLA] }, reservaId: { not: null } },
+      }),
+      this.prisma.participante.count({
+        where: { ofertaId, etapa: { in: [...OCUPAN_SILLA] }, reservaId: null },
+      }),
+    ]);
+
+    const cupos = repartirCupos({
+      total: oferta.cuposMaximos,
+      apartados,
+      inscritosDeReserva: deReserva,
+      inscritosLibres: libres,
+    });
+
+    // los grupos que sirven a esta accion, con su calendario
+    const coberturas = await this.prisma.grupoCobertura.findMany({
+      where: { grupo: { accionFormacionId: oferta.accionFormacion.id } },
+      select: {
+        id: true,
+        cuposMaximos: true,
+        grupo: { select: { id: true, numero: true, fechaInicio: true } },
+        _count: { select: { participantes: true } },
+      },
+      orderBy: { grupo: { numero: 'asc' } },
+    });
+
+    const grupos = coberturas.map((c) => ({
+      grupoId: c.grupo.id,
+      numero: c.grupo.numero,
+      coberturaId: c.id,
+      cuposMaximos: c.cuposMaximos,
+      inscritos: c._count.participantes,
+      ventana: ventanaDe(c.grupo.fechaInicio, hoy),
+    }));
+
+    const hayVentanaAbierta = grupos.some(
+      (g) => g.ventana.estado === 'ABIERTA' || g.ventana.estado === 'AVISANDO',
+    );
+
+    let porQueNo: string | null = null;
+    if (!oferta.abierta) porQueNo = 'La oferta está cerrada.';
+    else if (cupos.lleno) {
+      porQueNo =
+        `No quedan cupos: los ${cupos.total} están tomados. ` +
+        'Para inscribir a alguien más hay que ampliar la oferta o abrir otro grupo.';
+    } else if (grupos.length === 0) {
+      porQueNo = 'Esta acción no tiene ningún grupo. Sin grupo no se puede inscribir.';
+    } else if (!hayVentanaAbierta) {
+      const sinFechas = grupos.filter((g) => g.ventana.estado === 'SIN_FECHAS').length;
+      porQueNo =
+        sinFechas === grupos.length
+          ? 'Ningún grupo tiene fecha de inicio. El cronograma manda: sin fechas no se inscribe.'
+          : 'Se cerró la ventana de inscripción de todos los grupos.';
+    }
+
+    return {
+      ofertaId: oferta.id,
+      accion: oferta.accionFormacion.nombre,
+      ubicacion: oferta.ubicacion.nombre,
+      cupos,
+      grupos,
+      admiteInscripciones: porQueNo === null,
+      porQueNo,
+    };
+  }
+
+  /**
+   * Lo que hay que avisar hoy: grupos dentro de su ventana de
+   * aviso con cupos sin completar.
+   *
+   * Es la lista que se le manda a los coordinadores. No se
+   * espera al cierre para descubrir que faltan cupos: para
+   * entonces ya no hay a quien llamar.
+   */
+  async porAvisar(hoy = new Date()) {
+    const coberturas = await this.prisma.grupoCobertura.findMany({
+      where: { grupo: { fechaInicio: { not: null } } },
+      select: {
+        id: true,
+        cuposMaximos: true,
+        grupo: {
+          select: {
+            id: true,
+            numero: true,
+            fechaInicio: true,
+            accionFormacion: {
+              select: { id: true, codigo: true, nombre: true, convenioId: true },
+            },
+          },
+        },
+        ubicacion: { select: { nombre: true } },
+        _count: { select: { participantes: true } },
+      },
+    });
+
+    return coberturas
+      .map((c) => ({
+        coberturaId: c.id,
+        grupoId: c.grupo.id,
+        numero: c.grupo.numero,
+        convenioId: c.grupo.accionFormacion.convenioId,
+        accion: `${c.grupo.accionFormacion.codigo} · ${c.grupo.accionFormacion.nombre}`,
+        ubicacion: c.ubicacion.nombre,
+        cuposMaximos: c.cuposMaximos,
+        inscritos: c._count.participantes,
+        faltan: Math.max(0, c.cuposMaximos - c._count.participantes),
+        ventana: ventanaDe(c.grupo.fechaInicio, hoy),
+      }))
+      .filter((g) => g.ventana.estado === 'AVISANDO' && g.faltan > 0);
+  }
+}

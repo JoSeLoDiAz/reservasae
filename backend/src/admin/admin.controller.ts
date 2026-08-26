@@ -101,11 +101,19 @@ export class AdminController {
 
   @Get('yo')
   @PermitidaSinCambiarClave()
-  yo(@AdminActual() admin: Admin, @AmbitoActual() ambito: Ambito) {
+  async yo(@AdminActual() admin: Admin, @AmbitoActual() ambito: Ambito) {
     return {
       ...vistaAdmin(admin),
       convenios: ambito.convenios,
       permisos: resumenDePermisos(ambito.roles),
+      /// Los gremios de esta cuenta CON su sigla: es lo que
+      /// llena el desplegable de arriba. Van los concedidos,
+      /// no los del ámbito, porque el ámbito ya viene
+      /// recortado por el que se eligió y entonces el
+      /// desplegable se quedaría con una sola opción: la que
+      /// ya está puesta.
+      gremios: await this.admin.gremiosDe(ambito.concedidos),
+      gremioElegido: ambito.gremioElegido,
     };
   }
 

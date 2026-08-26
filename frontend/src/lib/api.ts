@@ -1,3 +1,6 @@
+import { pedir } from "./pedir";
+
+export { ErrorApi } from "./pedir";
 /** Cliente de la API. Rutas relativas. */
 
 export type Semaforo = "DISPONIBLE" | "ULTIMOS_CUPOS" | "COMPLETO";
@@ -89,37 +92,23 @@ export type ConsultaPorNit = {
 };
 
 /** Error con el mensaje del backend. */
-export class ErrorApi extends Error {
-  constructor(
-    readonly estado: number,
-    mensaje: string,
-    readonly cuerpo?: unknown,
-  ) {
-    super(mensaje);
+
+/// La llave donde el panel guarda el gremio elegido. Se lee
+/// aqui y no se recibe por parametro a proposito: si cada
+/// llamada tuviera que acordarse de pasarlo, bastaria con
+/// olvidarlo en una para mezclar los datos de los dos
+/// gremios, que es justo lo que hay que impedir.
+const LLAVE_GREMIO = "convoca:gremio";
+
+function gremioElegido(): string | null {
+  if (typeof window === "undefined") return null;
+  try {
+    return window.localStorage.getItem(LLAVE_GREMIO);
+  } catch {
+    return null;
   }
 }
 
-async function pedir<T>(ruta: string, opciones?: RequestInit): Promise<T> {
-  const respuesta = await fetch(`/api${ruta}`, {
-    ...opciones,
-    headers: { "content-type": "application/json", ...opciones?.headers },
-  });
-
-  const cuerpo = await respuesta.json().catch(() => null);
-
-  if (!respuesta.ok) {
-    // Nest manda `message` como texto o como lista
-    const bruto = (cuerpo as { message?: string | string[] } | null)?.message;
-    const mensaje = Array.isArray(bruto) ? bruto.join(". ") : bruto;
-    throw new ErrorApi(
-      respuesta.status,
-      mensaje ?? "No se pudo completar la operación.",
-      cuerpo,
-    );
-  }
-
-  return cuerpo as T;
-}
 
 export const api = {
   catalogo: (slug: string) => pedir<Catalogo>(`/catalogo/${slug}`),
@@ -144,6 +133,22 @@ export const api = {
 };
 
 /** Arregla los nombres en mayúsculas. */
+/**
+ * El nombre de una organización va SIEMPRE en mayúscula.
+ *
+ * En el NIT, en el RUES y en el F7 las razones sociales viven
+ * en mayúscula, y son documentos legales: «Fundación Aspaen»
+ * y «FUNDACIÓN ASPAEN» se leen como dos escrituras distintas
+ * de lo mismo, y una de las dos no es la que dice la Cámara
+ * de Comercio.
+ *
+ * Va aparte de `bonito`, que es lo contrario -- pasa a Título
+ * lo que viene gritado -- y sirve para nombres de personas.
+ */
+export function enMayusculas(texto: string): string {
+  return texto.trim().toUpperCase();
+}
+
 export function bonito(texto: string): string {
   if (texto !== texto.toUpperCase()) return texto;
 

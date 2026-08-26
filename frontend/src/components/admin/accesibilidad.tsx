@@ -25,7 +25,19 @@ export function PanelAccesibilidad({ alCerrar }: { alCerrar: () => void }) {
       if (e.key === "Escape") alCerrar();
     };
     const conClic = (e: MouseEvent) => {
-      if (!caja.current?.contains(e.target as Node)) alCerrar();
+      const donde = e.target as HTMLElement;
+      if (caja.current?.contains(donde)) return;
+
+      /// El boton que lo abre no cuenta como «fuera».
+      ///
+      /// Sin esto, el segundo clic no cerraba: el `mousedown`
+      /// lo cerraba y el `click` que venia detras lo volvia a
+      /// abrir, porque para entonces el estado ya decia que
+      /// estaba cerrado. Se veia como si el panel se quedara
+      /// pegado.
+      if (donde.closest?.("[data-abre-panel]")) return;
+
+      alCerrar();
     };
     document.addEventListener("keydown", conTecla);
     // en el siguiente ciclo: si no, el clic que lo abrio
@@ -54,8 +66,17 @@ export function PanelAccesibilidad({ alCerrar }: { alCerrar: () => void }) {
       ref={caja}
       role="dialog"
       aria-label="Accesibilidad"
-      // top-full: colgando del boton, no del grupo
-      className="absolute top-full right-0 z-50 mt-2 w-72 rounded-xl border border-borde bg-superficie p-4 shadow-lg"
+      /// Hacia ARRIBA, no hacia abajo.
+      ///
+      /// El boton vive al pie de la barra lateral: colgando
+      /// hacia abajo, el panel salia de la pantalla y no se
+      /// leia ni la mitad. `bottom-full` lo apoya sobre el
+      /// boton y crece hacia el espacio que si hay.
+      ///
+      /// `left-0` y no `right-0`: la barra es angosta, y
+      /// alineado a la derecha el panel de 18rem se salia por
+      /// el otro lado.
+      className="absolute bottom-full left-0 z-50 mb-2 w-72 rounded-xl border border-borde bg-superficie p-4 shadow-lg"
     >
       <div className="flex items-start justify-between gap-3">
         <h2 className="text-sm font-semibold">Accesibilidad</h2>
