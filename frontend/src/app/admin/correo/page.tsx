@@ -43,8 +43,11 @@ export default function PaginaCorreo() {
     try {
       const r = await correoApi.probar(para.trim());
       setExito(
-        `Salió para ${r.para}. Si no aparece en unos segundos, mire en la ` +
-          `carpeta de spam.`,
+        r.desviado
+          ? `Salió para ${r.para.join(", ")}, NO para ${r.pedido}: este ` +
+              `entorno desvía todo el correo.`
+          : `Salió para ${r.para.join(", ")}. Si no aparece en unos ` +
+              `segundos, mire en la carpeta de spam.`,
       );
       await cargar();
     } catch (e) {
@@ -104,6 +107,32 @@ export default function PaginaCorreo() {
               )}
             </div>
           </div>
+
+          {estado.desviadoA.length > 0 && (
+            <div className="rounded-xl border border-aviso/30 bg-aviso-suave p-4 text-sm text-aviso">
+              <p className="font-medium">
+                Todo el correo se desvía y no llega a su destinatario.
+              </p>
+              <p className="mt-1">
+                Salga para quien salga, lo reciben{" "}
+                <strong>{estado.desviadoA.join(", ")}</strong>. Se quita
+                borrando <code>CORREO_REDIRIGIR_A</code> del servidor.
+              </p>
+            </div>
+          )}
+
+          {estado.esPrueba && estado.desviadoA.length === 0 && (
+            <div className="rounded-xl border border-error/30 bg-error-suave p-4 text-sm text-error">
+              <p className="font-medium">
+                Entorno de pruebas sin desvío: no va a salir ningún correo.
+              </p>
+              <p className="mt-1">
+                Es a propósito. Con las credenciales de verdad puestas, un
+                correo de prueba le llegaría a una persona real. Se arregla
+                poniendo <code>CORREO_REDIRIGIR_A</code>.
+              </p>
+            </div>
+          )}
 
           <dl className="grid gap-x-8 gap-y-3 text-sm sm:grid-cols-2">
             <Dato titulo="Servidor" valor={estado.servidor} mono />

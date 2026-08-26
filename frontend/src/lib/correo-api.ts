@@ -15,13 +15,24 @@ export type EstadoCorreo = {
   /// configuró: una clave revocada se ve aquí.
   acepta: boolean;
   error: string | null;
+  /// A quién se le desvía TODO. Vacío = va a su
+  /// destinatario, que es lo normal en producción.
+  desviadoA: string[];
+  esPrueba: boolean;
 };
 
 export const correoApi = {
   estado: () => pedir<EstadoCorreo>("/admin/correo/estado"),
 
   probar: (para: string) =>
-    pedir<{ enviado: boolean; para: string; id: string }>("/admin/correo/probar", {
+    pedir<{
+      enviado: boolean;
+      /// A donde FUE, que con el desvío no es lo pedido.
+      para: string[];
+      pedido: string;
+      desviado: boolean;
+      id: string;
+    }>("/admin/correo/probar", {
       method: "POST",
       body: JSON.stringify({ para }),
     }),

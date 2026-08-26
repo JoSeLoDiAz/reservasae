@@ -43,7 +43,9 @@ export type Comunicacion = {
 };
 
 export type Envio =
-  | { estado: 'ENVIADO'; id: string }
+  /// Con `para` de verdad: si va desviado, el que pidió
+  /// quien llama no es el que lo recibió.
+  | { estado: 'ENVIADO'; id: string; para: string[]; desviado: boolean }
   | { estado: 'APAGADO' }
   | { estado: 'FALLO'; error: string };
 
@@ -153,7 +155,7 @@ export class CorreoService implements OnModuleInit, OnModuleDestroy {
     if (!correoConectado()) return { estado: 'APAGADO' };
     try {
       await this.abrir().verify();
-      return { estado: 'ENVIADO', id: 'verificado' };
+      return { estado: 'ENVIADO', id: 'verificado', para: [], desviado: false };
     } catch (e) {
       return { estado: 'FALLO', error: this.explicar(e) };
     }
@@ -200,7 +202,12 @@ export class CorreoService implements OnModuleInit, OnModuleDestroy {
         ? `${destino.para.join(', ')} (iba a ${etiquetaDeReales(destino.reales)})`
         : String(destino.para.length);
       this.log.log(`Enviado «${c.asunto}» a ${a}: ${r.messageId}`);
-      return { estado: 'ENVIADO', id: r.messageId };
+      return {
+        estado: 'ENVIADO',
+        id: r.messageId,
+        para: destino.para,
+        desviado: destino.reales !== null,
+      };
     } catch (e) {
       const error = this.explicar(e);
       this.log.error(`No salió «${c.asunto}»: ${error}`);

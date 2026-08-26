@@ -86,6 +86,15 @@ export class CorreoController {
       throw new BadRequestException('El correo está apagado en el servidor.');
     }
 
-    return { enviado: true, para: dto.para, id: r.id };
+    /// `para` es a donde FUE, no a donde se pidió: con el
+    /// desvío puesto no son lo mismo, y decir el pedido
+    /// haría creer que le llegó a esa persona.
+    return {
+      enviado: true,
+      para: r.para,
+      pedido: dto.para,
+      desviado: r.desviado,
+      id: r.id,
+    };
   }
 }
