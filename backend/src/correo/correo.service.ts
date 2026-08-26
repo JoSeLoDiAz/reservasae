@@ -12,7 +12,12 @@
 /// normal el servidor contesta «Username and Password not
 /// accepted» -- y eso no es que esté mal escrita.
 
-import { Injectable, Logger, type OnModuleDestroy } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  type OnModuleDestroy,
+  type OnModuleInit,
+} from '@nestjs/common';
 import { createTransport, type Transporter } from 'nodemailer';
 import type SMTPPool from 'nodemailer/lib/smtp-pool';
 
@@ -51,9 +56,36 @@ export function correoConectado(): boolean {
 }
 
 @Injectable()
-export class CorreoService implements OnModuleDestroy {
+export class CorreoService implements OnModuleInit, OnModuleDestroy {
   private readonly log = new Logger('Correo');
   private transporte: TransporteSmtp | null = null;
+
+  /**
+   * Decir al arrancar si hay correo o no.
+   *
+   * Igual que los workers del RUI y del buscador. Sin esto,
+   * la única forma de saber si un servidor recién desplegado
+   * puede mandar correo era entrar al panel — y un aviso que
+   * no sale no se nota hasta que alguien pregunta por qué
+   * nunca le llegó.
+   *
+   * Solo dice si está configurado, no si la clave sirve: eso
+   * exige hablar con el servidor, y no vale la pena demorar
+   * el arranque por ello. Para eso está la pantalla.
+   */
+  onModuleInit(): void {
+    if (!correoConectado()) {
+      this.log.warn(
+        'Apagado: faltan SMTP_SERVIDOR, SMTP_USUARIO o SMTP_CLAVE. ' +
+          'No va a salir ningún aviso.',
+      );
+      return;
+    }
+    this.log.log(
+      `Configurado: ${process.env.SMTP_USUARIO} por ${process.env.SMTP_SERVIDOR}. ` +
+        'En Configuración > Correo se comprueba que la clave sirva.',
+    );
+  }
 
   private abrir(): TransporteSmtp {
     if (this.transporte) return this.transporte;
