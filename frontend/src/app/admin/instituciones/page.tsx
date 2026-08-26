@@ -237,7 +237,7 @@ export default function PaginaInstituciones() {
   );
 
   return (
-    <div className="space-y-6">
+    <div className="flex min-h-0 grow flex-col gap-6">
       <header>
         {/* sin título: lo dice la miga. La cifra se fue al
             lado del buscador, que es donde se mira cuando uno

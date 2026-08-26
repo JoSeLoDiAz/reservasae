@@ -161,7 +161,7 @@ export default function PaginaEmpresas() {
   );
 
   return (
-    <div className="space-y-6">
+    <div className="flex min-h-0 grow flex-col gap-6">
       {/* sin encabezado: lo dice la miga de arriba, y el
           total va en el pie de la tabla */}
 

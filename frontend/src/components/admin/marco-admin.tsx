@@ -163,7 +163,17 @@ export function MarcoAdmin({ children }: { children: React.ReactNode }) {
         Saltar al contenido
       </a>
 
-      <div className="flex min-h-screen">
+      {/* `h-screen`, no `min-h-screen`.
+
+          Con el mínimo, la página crecía con el contenido: la lista de
+          leads medía 22.000 píxeles y TODO se iba hacia arriba al bajar
+          — los filtros, el buscador y los títulos de las columnas. Para
+          filtrar había que devolverse hasta arriba.
+
+          Con la altura fija, la ventana manda: lo que scrollea es la
+          tabla por dentro, y su barra de filtros y su cabecera se
+          quedan donde uno las puede alcanzar. */}
+      <div className="flex h-screen overflow-hidden">
         <BarraLateral
           ruta={ruta}
           esSuperadmin={esSuperadmin}
@@ -201,7 +211,11 @@ export function MarcoAdmin({ children }: { children: React.ReactNode }) {
           <main
             id="contenido"
             tabIndex={-1}
-            className="flex w-full min-h-0 grow flex-col px-4 py-6 lg:px-8"
+            /// `overflow-y-auto` para que las fichas largas —que sí se
+            /// leen de arriba abajo— sigan pudiéndose recorrer. Las
+            /// pantallas de tabla no lo usan: su contenido cabe porque
+            /// la tabla scrollea por dentro.
+            className="flex w-full min-h-0 grow flex-col overflow-y-auto overscroll-contain px-4 py-6 lg:px-8"
           >
             {/* Sin tope de ancho: son tablas de trabajo y en un
                 monitor ancho `max-w-6xl` las dejaba espichadas.

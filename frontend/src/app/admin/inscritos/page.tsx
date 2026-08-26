@@ -52,7 +52,7 @@ export default function PaginaInscritos() {
   const { listado } = vivos.datos;
 
   return (
-    <div className="space-y-6">
+    <div className="flex min-h-0 grow flex-col gap-6">
       {/* Entre la miga y la tabla no queda nada: el buscador
           de la propia tabla ya filtra, y tener dos cajas de
           búsqueda en la misma pantalla solo hace dudar de
