@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 import { estiloEtapa } from "@/components/admin/etapa";
 import {
@@ -19,6 +19,7 @@ import {
 } from "@/components/admin/graficos";
 import { IndicadorActualizacion } from "@/components/admin/indicador-actualizacion";
 import { Aviso, CLASE_CONTROL, Tarjeta, useAdmin } from "@/components/admin/marco-admin";
+import { PanelMetas } from "@/components/admin/panel-metas";
 import { Esqueleto } from "@/components/admin/piezas";
 import {
   crmApi,
@@ -120,8 +121,39 @@ function textoDuracion(dias: number | null): string {
   return `${n(dias)} ${dias === 1 ? "día" : "días"}`;
 }
 
+/// Las dos pestañas. Antes eran dos entradas del menú que
+/// contaban lo mismo por caminos distintos.
+const PESTANAS = [
+  { clave: "metas", etiqueta: "Metas y avance" },
+  { clave: "analisis", etiqueta: "Análisis a fondo" },
+] as const;
+
+type Pestana = (typeof PESTANAS)[number]["clave"];
+
 export default function PaginaControl() {
   const { admin } = useAdmin();
+  /// Se recuerda cuál miraba: quien vive en una de las dos no
+  /// tiene por qué volver a elegirla en cada visita.
+  const [pestana, setPestana] = useState<Pestana>("metas");
+
+  useEffect(() => {
+    try {
+      const guardada = window.localStorage.getItem("control:pestana");
+      if (guardada === "metas" || guardada === "analisis") setPestana(guardada);
+    } catch {
+      // navegador sin almacenamiento: se queda con la de por defecto
+    }
+  }, []);
+
+  function cambiar(a: Pestana) {
+    setPestana(a);
+    try {
+      window.localStorage.setItem("control:pestana", a);
+    } catch {
+      // no poder recordarlo no es motivo para no cambiar
+    }
+  }
+
   const [rango, setRango] = useState<Rango>("TODO");
   const [desde, setDesde] = useState("");
   const [hasta, setHasta] = useState("");
@@ -160,19 +192,49 @@ export default function PaginaControl() {
     <div className="space-y-6">
       <header className="flex flex-wrap items-start justify-between gap-4">
         <div className="min-w-0">
-          <h1 className="text-2xl font-bold tracking-tight">Control de inscritos</h1>
+          <h1 className="text-2xl font-bold tracking-tight">Control de Inscritos</h1>
           <p className="mt-1 max-w-3xl text-texto-suave">
             A quién hay que llamar hoy, cuántos entraron, a qué ritmo y por qué puerta.
           </p>
         </div>
-        <IndicadorActualizacion
-          actualizadoEn={vivos.actualizadoEn}
-          refrescando={vivos.refrescando}
-          desactualizado={vivos.desactualizado}
-          alRefrescar={vivos.refrescar}
-        />
+        {/* solo en Análisis: es de esos datos, y en la otra
+            pestaña diría una hora que no le corresponde */}
+        {pestana === "analisis" && (
+          <IndicadorActualizacion
+            actualizadoEn={vivos.actualizadoEn}
+            refrescando={vivos.refrescando}
+            desactualizado={vivos.desactualizado}
+            alRefrescar={vivos.refrescar}
+          />
+        )}
       </header>
 
+      <div
+        role="tablist"
+        aria-label="Qué mirar"
+        className="flex gap-1 border-b border-borde"
+      >
+        {PESTANAS.map((p) => (
+          <button
+            key={p.clave}
+            role="tab"
+            aria-selected={pestana === p.clave}
+            onClick={() => cambiar(p.clave)}
+            className={`-mb-px border-b-2 px-4 py-2 text-sm font-medium transition ${
+              pestana === p.clave
+                ? "border-marca text-marca"
+                : "border-transparent text-texto-suave hover:text-texto"
+            }`}
+          >
+            {p.etiqueta}
+          </button>
+        ))}
+      </div>
+
+      {pestana === "metas" && <PanelMetas />}
+
+      {pestana === "analisis" && (
+        <>
       <div className="rounded-2xl border border-borde bg-superficie p-5 shadow-sm">
         <div className="grid gap-4 lg:grid-cols-2">
           <div>
@@ -294,6 +356,8 @@ export default function PaginaControl() {
         <Esqueleto conCifras />
       ) : (
         <Cuerpo d={vivos.datos} adminId={admin.id} eligio={eligio} />
+      )}
+        </>
       )}
     </div>
   );
@@ -730,6 +794,7 @@ function Cuerpo({ d, adminId, eligio }: { d: Control; adminId: string; eligio: b
         <Tarjeta titulo="Por grupo" descripcion="El reparto real: es lo que se le reporta al SENA.">
           <ListaBarras
             datos={d.porGrupo.map((g) => ({
+              clave: g.clave,
               etiqueta: g.etiqueta,
               valor: g.total,
               detalle: g.inicio

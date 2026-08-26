@@ -13,6 +13,7 @@ import { FormulariosModule } from './formularios/formularios.module';
 import { PoliticasModule } from './politicas/politicas.module';
 import { InstitucionesModule } from './instituciones/instituciones.module';
 import { PlantillasModule } from './plantillas/plantillas.module';
+import { CorreoModule } from './correo/correo.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { ReservasModule } from './reservas/reservas.module';
 import { CronogramaModule } from './cronograma/cronograma.module';
@@ -26,6 +27,7 @@ import { TablerosModule } from './tableros/tableros.module';
     // límite general de peticiones
     ThrottlerModule.forRoot([{ name: 'default', ttl: 60_000, limit: 60 }]),
     PrismaModule,
+    CorreoModule,
     PlantillasModule,
     CatalogoModule,
     FormulariosModule,

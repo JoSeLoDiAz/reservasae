@@ -68,19 +68,15 @@ export const MODULOS: Modulo[] = [
         area: 'inscripciones',
       },
       {
-        href: '/admin/participantes/seguimiento',
-        etiqueta: 'Panel Control de Inscritos',
-        area: 'inscripciones',
-      },
-      {
-        /// Se queda mientras se fusiona con el panel de
-        /// arriba. Los dos cuentan lo mismo por caminos
-        /// distintos, y hay que poder compararlos antes de
-        /// quedarse con uno.
+        /// Una sola entrada, con dos pestañas dentro.
+        ///
+        /// Eran dos: «Panel Control de Inscritos» y «Control de
+        /// inscritos». Contaban lo mismo por caminos distintos
+        /// y nadie sabía a cuál entrar. La primera es hoy la
+        /// pestaña «Metas y avance», y su ruta vieja redirige.
         href: '/admin/control',
-        etiqueta: 'Control de inscritos',
+        etiqueta: 'Control de Inscritos',
         area: 'inscritos',
-        temporal: true,
       },
     ],
   },
@@ -168,6 +164,7 @@ export const MODULOS: Modulo[] = [
       { href: '/admin/acciones', etiqueta: 'Formación', area: 'configuracion', nivel: 'ESCRIBIR' },
       { href: '/admin/formularios', etiqueta: 'Formularios', area: 'configuracion', nivel: 'ESCRIBIR' },
       { href: '/admin/politicas', etiqueta: 'Políticas', area: 'configuracion', nivel: 'ESCRIBIR' },
+      { href: '/admin/correo', etiqueta: 'Correo', area: 'configuracion', nivel: 'ESCRIBIR' },
       { href: '/admin/marca', etiqueta: 'Apariencia', soloSuperadmin: true, area: 'configuracion', nivel: 'ESCRIBIR' },
       { href: '/admin/usuarios', etiqueta: 'Usuarios', soloSuperadmin: true },
       { href: '/admin/perfil', etiqueta: 'Mi perfil' },

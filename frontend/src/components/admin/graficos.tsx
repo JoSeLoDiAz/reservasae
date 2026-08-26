@@ -243,7 +243,11 @@ export function ListaBarras({
   vacio = "Sin datos todavía.",
   maximoFilas,
 }: {
-  datos: Array<{ etiqueta: string; valor: number; detalle?: string }>;
+  /// `clave` cuando dos filas puedan llamarse igual: «AF1 ·
+  /// grupo 1» existe en los dos gremios. Sin ella React
+  /// entiende que son la misma fila y una de las dos
+  /// desaparece o se duplica.
+  datos: Array<{ clave?: string; etiqueta: string; valor: number; detalle?: string }>;
   sufijo?: string;
   vacio?: string;
   maximoFilas?: number;
@@ -257,8 +261,11 @@ export function ListaBarras({
 
   return (
     <ul className="space-y-2.5">
-      {visibles.map((d) => (
-        <li key={d.etiqueta}>
+      {visibles.map((d, i) => (
+        // la posición cierra el paso a cualquier repetido que
+        // quede: esta lista es un ranking fijo, no se reordena
+        // ni se filtra en el navegador
+        <li key={d.clave ?? `${d.etiqueta}#${i}`}>
           <div className="flex items-baseline justify-between gap-3 text-sm">
             <span className="truncate" title={d.etiqueta}>
               {d.etiqueta}

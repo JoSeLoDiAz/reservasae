@@ -567,7 +567,9 @@ export type Control = CabeceraControl & {
   sinContactar: Tramo[];
   porAccion: Corte[];
   porUbicacion: Array<Corte & { tipo: string }>;
-  porGrupo: Array<Corte & { inicio: string | null }>;
+  /// `clave` es el id del grupo: dos gremios tienen AF1, y
+  /// la numeración de grupos vuelve a empezar en cada uno.
+  porGrupo: Array<Corte & { clave: string; inicio: string | null }>;
   porConvenio: Corte[];
   porAsesor: CorteAsesor[];
   /** El volumen que trae cada origen. */

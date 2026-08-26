@@ -145,7 +145,7 @@ export type Control = Cabecera & {
   sinContactar: Tramo[];
   porAccion: Corte[];
   porUbicacion: Array<Corte & { tipo: string }>;
-  porGrupo: Array<Corte & { inicio: string | null }>;
+  porGrupo: Array<Corte & { clave: string; inicio: string | null }>;
   porConvenio: Corte[];
   porAsesor: CorteAsesor[];
   porOrigen: Corte[];
@@ -195,7 +195,10 @@ function dia(d: Date): string {
 }
 
 /** Las dos cifras de cabecera bajo un filtro dado. */
-async function cabecera(prisma: PrismaService, donde: Prisma.Sql): Promise<Cabecera> {
+async function cabecera(
+  prisma: PrismaService,
+  donde: Prisma.Sql,
+): Promise<Cabecera> {
   const [conteo, dias] = await Promise.all([
     prisma.$queryRaw<Array<{ total: bigint }>>`
       ${CON_ANCLA}
@@ -218,12 +221,16 @@ async function cabecera(prisma: PrismaService, donde: Prisma.Sql): Promise<Cabec
   const media = dias[0]?.dias;
   return {
     total: Number(conteo[0]?.total ?? 0),
-    diasHastaInscribir: media === null || media === undefined ? null : Number(media),
+    diasHastaInscribir:
+      media === null || media === undefined ? null : Number(media),
   };
 }
 
 /** Cuánto cambió cada cifra de cabecera. */
-function comparar(a: Cabecera, b: Cabecera | null): Record<string, number | null> {
+function comparar(
+  a: Cabecera,
+  b: Cabecera | null,
+): Record<string, number | null> {
   return {
     total: b ? variacion(a.total, b.total) : null,
     diasHastaInscribir:
@@ -244,12 +251,19 @@ export async function controlDeInscritos(
     etiquetaAnterior: comparacion.etiquetaAnterior,
     desde: comparacion.actual ? dia(comparacion.actual.desde) : null,
     // el «hasta» de la ventana es abierto
-    hasta: comparacion.actual ? dia(new Date(comparacion.actual.hasta.getTime() - DIA)) : null,
+    hasta: comparacion.actual
+      ? dia(new Date(comparacion.actual.hasta.getTime() - DIA))
+      : null,
   };
 
   // con ámbito vacío no se consulta: un IN () es inválido
   if (ambito.length === 0) {
-    return { ...VACIO, ventana: marco, anterior: null, variacion: comparar(VACIO, null) };
+    return {
+      ...VACIO,
+      ventana: marco,
+      anterior: null,
+      variacion: comparar(VACIO, null),
+    };
   }
 
   const suyos = Prisma.sql`p."convenioId" IN (${Prisma.join(ambito)})`;
@@ -265,7 +279,8 @@ export async function controlDeInscritos(
    * que vamos mejor. El hecho se lee del ancla y no de la
    * columna de fecha: ver `anclas.ts` para el porqué.
    */
-  const corte = (v: Ventana | null) => enPeriodo(v?.desde ?? null, v?.hasta ?? null);
+  const corte = (v: Ventana | null) =>
+    enPeriodo(v?.desde ?? null, v?.hasta ?? null);
   const filtro = (v: Ventana | null) => Prisma.sql`${suyos} ${corte(v)}`;
 
   const inscritos = filtro(comparacion.actual);
@@ -317,7 +332,9 @@ export async function controlDeInscritos(
   ] = await Promise.all([
     cabecera(prisma, inscritos),
 
-    comparacion.anterior ? cabecera(prisma, filtro(comparacion.anterior)) : Promise.resolve(null),
+    comparacion.anterior
+      ? cabecera(prisma, filtro(comparacion.anterior))
+      : Promise.resolve(null),
 
     prisma.$queryRaw<Array<{ cupos: bigint | null }>>`
       SELECT COALESCE(SUM(r."cuposConfirmados"), 0) AS cupos
@@ -399,7 +416,9 @@ export async function controlDeInscritos(
        GROUP BY 1 ORDER BY 1
     `,
 
-    prisma.$queryRaw<Array<{ etiqueta: string; codigo: string; total: bigint }>>`
+    prisma.$queryRaw<
+      Array<{ etiqueta: string; codigo: string; total: bigint }>
+    >`
       ${CON_ANCLA}
       SELECT af."nombre" AS etiqueta, af."codigo" AS codigo, COUNT(*) AS total
         FROM "participantes" p
@@ -429,25 +448,36 @@ export async function controlDeInscritos(
     `,
 
     prisma.$queryRaw<
-      Array<{ numero: number; codigo: string; inicio: Date | null; total: bigint }>
+      Array<{
+        grupoId: string | null;
+        numero: number;
+        codigo: string;
+        gremio: string | null;
+        inicio: Date | null;
+        total: bigint;
+      }>
     >`
       ${CON_ANCLA}
       -- LEFT JOIN por lo mismo: coberturaId es nullable y
       -- no tener grupo solo AVISA al matricular, no bloquea
-      SELECT g."numero" AS numero,
+      SELECT g."id" AS "grupoId",
+             g."numero" AS numero,
              COALESCE(af."codigo", '—') AS codigo,
+             -- de qué gremio es esta AF1, porque hay más de una
+             COALESCE(cv."sigla", cv."nombre") AS gremio,
              g."fechaInicio" AS inicio, COUNT(*) AS total
         FROM "participantes" p
         LEFT JOIN "grupos_cobertura" gc   ON gc."id" = p."coberturaId"
         LEFT JOIN "grupos" g              ON g."id" = gc."grupoId"
         LEFT JOIN "acciones_formacion" af ON af."id" = g."accionFormacionId"
+        LEFT JOIN "convenios" cv          ON cv."id" = af."convenioId"
         ${UNIR_ANCLA}
        WHERE ${inscritos}
        -- por id, no por codigo: AF1..AF7 existen en los dos
        -- convenios y la numeracion de grupos reinicia, asi
        -- que agrupando por codigo dos grupos distintos se
        -- fundian en una barra bajo «el reparto real»
-       GROUP BY af."id", 2, g."numero", g."fechaInicio"
+       GROUP BY g."id", af."id", 3, 4, g."numero", g."fechaInicio"
        ORDER BY af."codigo", g."numero"
     `,
 
@@ -511,7 +541,9 @@ export async function controlDeInscritos(
      * conversión del asesor: con «hoy» todas caen a cero y
      * la tabla se ordena por quién tuvo suerte esta mañana.
      */
-    prisma.$queryRaw<Array<{ etiqueta: string; leads: bigint; inscritos: bigint }>>`
+    prisma.$queryRaw<
+      Array<{ etiqueta: string; leads: bigint; inscritos: bigint }>
+    >`
       ${CON_ANCLA}
       SELECT p."origen"::text AS etiqueta,
              COUNT(*) AS leads,
@@ -543,7 +575,12 @@ export async function controlDeInscritos(
      * participantes se sumarían una vez por cada inscrito.
      */
     prisma.$queryRaw<
-      Array<{ nit: string; razonSocial: string; inscritos: bigint; cupos: bigint | null }>
+      Array<{
+        nit: string;
+        razonSocial: string;
+        inscritos: bigint;
+        cupos: bigint | null;
+      }>
     >`
       ${CON_ANCLA}
       SELECT e."nit" AS nit,
@@ -626,7 +663,10 @@ export async function controlDeInscritos(
     inscritosPorSuCuenta: Number(cobertura[0]?.porSuCuenta ?? 0),
     embudo: embudo.map((f) => ({ etapa: f.etapa, total: cifra(f) })),
     sinAsignar: Number(sinAsignar[0]?.total ?? 0),
-    sinContactar: sinContactar.map((f) => ({ dias: Number(f.dias), total: cifra(f) })),
+    sinContactar: sinContactar.map((f) => ({
+      dias: Number(f.dias),
+      total: cifra(f),
+    })),
     porAccion: porAccion.map((f) => ({
       etiqueta: `${f.codigo} · ${f.etiqueta}`,
       total: cifra(f),
@@ -636,13 +676,27 @@ export async function controlDeInscritos(
       tipo: f.tipo,
       total: cifra(f),
     })),
+    /// La etiqueta lleva el gremio, y no es adorno.
+    ///
+    /// AF1 existe en BRITCHAM y existe en ADECOPRIA, y la
+    /// numeración de grupos vuelve a empezar en cada una. Sin
+    /// el gremio salían dos barras que decían exactamente lo
+    /// mismo -- «AF1 · grupo 1» -- con cifras distintas, y no
+    /// había forma de saber cuál era cuál. Se ve solo cuando
+    /// se están mirando los dos gremios a la vez.
     porGrupo: porGrupo.map((f) => ({
+      clave: f.grupoId ?? 'sin-grupo',
       etiqueta:
-        f.numero === null ? 'Sin grupo asignado' : `${f.codigo} · grupo ${f.numero}`,
+        f.numero === null
+          ? 'Sin grupo asignado'
+          : `${f.codigo} · grupo ${f.numero}${f.gremio ? ` · ${f.gremio}` : ''}`,
       inicio: f.inicio ? f.inicio.toISOString().slice(0, 10) : null,
       total: cifra(f),
     })),
-    porConvenio: porConvenio.map((f) => ({ etiqueta: f.etiqueta, total: cifra(f) })),
+    porConvenio: porConvenio.map((f) => ({
+      etiqueta: f.etiqueta,
+      total: cifra(f),
+    })),
     porAsesor: porAsesor.map((f) => {
       const asignados = Number(f.asignados);
       const total = cifra(f);
@@ -652,10 +706,14 @@ export async function controlDeInscritos(
         total,
         asignados,
         inscritosSiempre: Number(f.inscritosSiempre),
-        conversion: asignados === 0 ? 0 : Number(f.inscritosSiempre) / asignados,
+        conversion:
+          asignados === 0 ? 0 : Number(f.inscritosSiempre) / asignados,
       };
     }),
-    porOrigen: porOrigen.map((f) => ({ etiqueta: f.etiqueta, total: cifra(f) })),
+    porOrigen: porOrigen.map((f) => ({
+      etiqueta: f.etiqueta,
+      total: cifra(f),
+    })),
     conversionPorOrigen: conversionPorOrigen.map((f) => {
       const leads = Number(f.leads);
       const convertidos = Number(f.inscritos);
@@ -666,7 +724,10 @@ export async function controlDeInscritos(
         conversion: leads === 0 ? 0 : convertidos / leads,
       };
     }),
-    porModalidad: porModalidad.map((f) => ({ etiqueta: f.etiqueta, total: cifra(f) })),
+    porModalidad: porModalidad.map((f) => ({
+      etiqueta: f.etiqueta,
+      total: cifra(f),
+    })),
     topEmpresas: topEmpresas.map((f) => ({
       nit: f.nit,
       razonSocial: f.razonSocial,
