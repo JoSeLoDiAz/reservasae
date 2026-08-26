@@ -8,6 +8,9 @@ const prisma = new PrismaClient();
 const USO = [
   'Uso: db:crear-admin <correo> "<nombre>" [--rol SUPERADMIN|GESTOR|CONSULTA]',
   '     db:crear-admin <correo> "<nombre>" --solo-permisos',
+  '',
+  'Con --rol y --solo-permisos juntos se cambia el rol de una',
+  'cuenta que ya existe SIN tocarle la contraseña.',
 ].join('\n');
 
 async function main() {
@@ -28,6 +31,13 @@ async function main() {
   }
 
   const correo = correoCrudo.trim().toLowerCase();
+
+  /// Si `--rol` se escribió de verdad, o es el valor por
+  /// defecto. La diferencia importa: a una cuenta que ya
+  /// existe solo se le cambia el rol cuando se pidió. Sin
+  /// esto, reiniciarle la contraseña a alguien lo ascendería
+  /// a superadmin en silencio, porque ese es el defecto.
+  const rolExplicito = posicion >= 0;
   const rol = (rolPedido as RolAdmin | undefined) ?? RolAdmin.SUPERADMIN;
   if (!Object.values(RolAdmin).includes(rol)) {
     console.error(`Rol inválido: ${rol}. Use ${Object.values(RolAdmin).join(', ')}.`);
@@ -62,9 +72,12 @@ async function main() {
           hashClave: await hashearClave(claveTemporal),
           debeCambiarClave: true,
           activo: true,
+          ...(rolExplicito ? { rol } : {}),
         },
       })
-    : existente!;
+    : rolExplicito && existente!.rol !== rol
+      ? await prisma.admin.update({ where: { correo }, data: { rol } })
+      : existente!;
 
   // sin concesion no ve nada, y este script es el que
   // recupera el acceso si nadie puede entrar
