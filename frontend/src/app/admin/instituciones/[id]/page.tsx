@@ -9,6 +9,7 @@ import {
   CLASE_CONTROL,
   Tarjeta,
 } from "@/components/admin/marco-admin";
+import { useToast } from "@/components/admin/toast";
 import { bonito, ErrorApi } from "@/lib/api";
 import {
   ETIQUETA_CAMPO,
@@ -65,11 +66,16 @@ const CLAVES_EDITABLES: ClaveEditable[] = [
 /// sin null que se confunda con "" ni numeros que cambien de tipo al teclear.
 type Borrador = Record<ClaveEditable, string>;
 
+/// La tabla se llama `consultas_rues` de cuando se pensaba
+/// consultar el RUES. Lo que consulta hoy es el buscador web,
+/// así que eso es lo que tiene que decir en pantalla: quien
+/// lea «El RUES respondió» va a creer que el dato viene del
+/// registro mercantil, y no viene de ahí.
 const ETIQUETA_ESTADO_CONSULTA: Record<ConsultaRues["estado"], string> = {
   PENDIENTE: "En cola",
   EN_CURSO: "Consultando",
-  LISTA: "El RUES respondió",
-  SIN_RESULTADO: "El RUES no encontró el NIT",
+  LISTA: "El buscador respondió",
+  SIN_RESULTADO: "No encontró nada para este NIT",
   FALLIDA: "La consulta falló",
 };
 
@@ -238,9 +244,23 @@ export default function PaginaInstitucion({
   const [cargado, setCargado] = useState<Borrador | null>(null);
   const [borrador, setBorrador] = useState<Borrador | null>(null);
   const [marcas, setMarcas] = useState<Record<string, Record<string, boolean>>>({});
+  /// `error` es solo para cuando la ficha NI SIQUIERA carga:
+  /// ahí no hay pantalla donde poner un aviso flotante. Todo
+  /// lo demás va por `toast`.
   const [error, setError] = useState<string | null>(null);
-  const [exito, setExito] = useState<string | null>(null);
   const [ocupado, setOcupado] = useState(false);
+
+  /**
+   * Los avisos van flotando, no arriba de la página.
+   *
+   * Antes el mensaje se pintaba en la cabecera. Esta ficha es
+   * larga: al aceptar una propuesta —que es un botón que está
+   * casi al final— el «Se aplicaron 12 datos» salía a dos
+   * pantallas de distancia, arriba, donde nadie lo veía. Uno
+   * le daba, no pasaba nada visible, y parecía que no había
+   * servido. Sí servía.
+   */
+  const toast = useToast();
 
   const cargar = useCallback(async () => {
     const datos = await institucionesApi.ver(id);
@@ -256,15 +276,13 @@ export default function PaginaInstitucion({
   }, [cargar]);
 
   async function conError(accion: () => Promise<string>) {
-    setError(null);
-    setExito(null);
     setOcupado(true);
     try {
       const mensaje = await accion();
       await cargar();
-      setExito(mensaje);
+      toast.exito(mensaje);
     } catch (e) {
-      setError((e as ErrorApi).message);
+      toast.error((e as ErrorApi).message);
     } finally {
       setOcupado(false);
     }
@@ -305,28 +323,29 @@ export default function PaginaInstitucion({
   /// exacto — le faltan datos, y cuales —, porque el unico motivo posible
   /// es ese y no un permiso de quien guarda.
   const guardar = async () => {
-    setError(null);
-    setExito(null);
     setOcupado(true);
     try {
       const guardada = await institucionesApi.editar(ficha.id, cambios);
       await cargar();
 
       if (guardada.verificadaEn !== null) {
-        setExito("La empresa quedó guardada y aprobada.");
+        toast.exito("La empresa quedó guardada y aprobada.");
       } else if (guardada.falta.length > 0) {
         const pendientes = guardada.falta
           .map((clave) => ETIQUETA_CAMPO[clave] ?? clave)
           .join(", ");
-        setError(
+        /// Aviso, no error: los cambios SÍ se guardaron. Lo
+        /// que no pasó es la aprobación, y por eso se dice
+        /// exactamente qué falta.
+        toast.aviso(
           `Se guardaron los cambios, pero la empresa no queda aprobada porque le ` +
             `faltan datos: ${pendientes}.`,
         );
       } else {
-        setExito("Se guardaron los cambios.");
+        toast.exito("Se guardaron los cambios.");
       }
     } catch (e) {
-      setError((e as ErrorApi).message);
+      toast.error((e as ErrorApi).message);
     } finally {
       setOcupado(false);
     }
@@ -368,8 +387,8 @@ export default function PaginaInstitucion({
         </span>
       </header>
 
-      {error && <Aviso tipo="error">{error}</Aviso>}
-      {exito && <Aviso tipo="exito">{exito}</Aviso>}
+      {/* los avisos de las acciones salen flotando: esta ficha
+          es demasiado larga para ponerlos aquí arriba */}
 
       {/* el digito lo calcula el backend; si el declarado no coincide,
           alguien copio mal el NIT y eso viaja a todos los reportes */}
