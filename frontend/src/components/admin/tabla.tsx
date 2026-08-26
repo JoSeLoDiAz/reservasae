@@ -40,6 +40,11 @@ import {
 
 export type TipoFiltro = "texto" | "opciones" | "numero";
 
+/// Los tamaños de página que se ofrecen. Sin 200 ni 500: a
+/// partir de ahí la tabla pesa más de lo que ayuda, y para
+/// llevarse todo está «Descargar en Excel».
+const TAMANOS = [10, 25, 50, 100];
+
 export type Columna<T> = {
   clave: string;
   titulo: string;
@@ -304,6 +309,39 @@ export function Tabla<T>({
   const [filtros, setFiltros] = useState<Record<string, string>>({});
   const [orden, setOrden] = useState<Orden>(null);
   const [pagina, setPagina] = useState(1);
+
+  /**
+   * Cuántas filas por página, elegible y recordado.
+   *
+   * Antes era fijo. Quien revisa de a poquitos quiere 10 y
+   * quien barre una lista entera quiere 100; obligarlos a los
+   * dos al mismo número hace que uno de ellos pagine veinte
+   * veces. Se recuerda por tabla: la de leads y la de
+   * empresas no se usan igual.
+   */
+  const [tamano, setTamano] = useState(porPagina);
+
+  useEffect(() => {
+    try {
+      const guardado = Number(
+        window.localStorage.getItem(`tabla:${id}:porPagina`),
+      );
+      if (TAMANOS.includes(guardado)) setTamano(guardado);
+    } catch {
+      // navegador sin almacenamiento: se queda con el de por defecto
+    }
+  }, [id]);
+
+  function cambiarTamano(n: number) {
+    setTamano(n);
+    // a la primera: la página 7 de 10 no existe si ahora hay 3
+    setPagina(1);
+    try {
+      window.localStorage.setItem(`tabla:${id}:porPagina`, String(n));
+    } catch {
+      // no poder recordarlo no es motivo para no cambiarlo
+    }
+  }
   const [panel, setPanel] = useState<"columnas" | "filtros" | "vistas" | null>(null);
   const [marcadas, setMarcadas] = useState<Set<string>>(new Set());
 
@@ -437,8 +475,16 @@ export function Tabla<T>({
     return r;
   }, [conValores, filtros, buscar, orden, columnas, enPantalla]);
 
-  const paginas = Math.max(1, Math.ceil((filtradas?.length ?? 0) / porPagina));
-  const enPagina = filtradas?.slice((pagina - 1) * porPagina, pagina * porPagina) ?? [];
+  const paginas = Math.max(1, Math.ceil((filtradas?.length ?? 0) / tamano));
+  const enPagina = filtradas?.slice((pagina - 1) * tamano, pagina * tamano) ?? [];
+
+  /// Si al filtrar quedan menos páginas de las que había, la
+  /// que se estaba viendo puede no existir: se vuelve a la
+  /// última que sí. Sin esto la tabla queda en blanco y
+  /// parece que el filtro no encontró nada.
+  useEffect(() => {
+    if (pagina > paginas) setPagina(paginas);
+  }, [pagina, paginas]);
 
   // lo marcado que sigue coincidiendo
   const vigentes = useMemo(
@@ -636,11 +682,22 @@ export function Tabla<T>({
         </div>
       )}
 
+      {/* La tabla se queda con el alto que sobre y scrollea por
+          dentro. Para que esto funcione, la pantalla que la use
+          tiene que ser `flex min-h-0 grow flex-col`: si es un
+          bloque normal, la tabla crece sin límite, la página
+          entera se va hacia arriba al bajar, y hay que
+          devolverse hasta arriba para poder filtrar. */}
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-borde bg-superficie shadow-sm">
         {/* Se estira con su contenedor en vez de llevar un tope
             fijo: con `max-h` quedaba media pantalla en blanco
             debajo cuando la ventana era alta. */}
-        <div className="caja-scroll min-h-0 flex-1 overflow-auto">
+        {/* `overscroll-contain`: al llegar al final de la tabla, la
+            rueda del ratón NO sigue empujando la página. Sin esto
+            uno terminaba de bajar las filas y de un tirón se iba
+            toda la pantalla, dejando media ventana en blanco y los
+            filtros arriba fuera de alcance. */}
+        <div className="caja-scroll min-h-0 flex-1 overflow-auto overscroll-contain">
             <table
               ref={tablaRef}
               className="tabla-datos w-full text-sm"
@@ -828,6 +885,8 @@ export function Tabla<T>({
         pagina={pagina}
         paginas={paginas}
         setPagina={setPagina}
+        tamano={tamano}
+        setTamano={cambiarTamano}
         alCargarTodo={alCargarTodo}
       />
     </div>
@@ -1243,6 +1302,33 @@ function PanelVistas({
   );
 }
 
+/// Un botón de paginar. Los cinco iguales, para que la fila no
+/// parezca cinco cosas distintas.
+function BotonPagina({
+  alPulsar,
+  apagado,
+  titulo,
+  children,
+}: {
+  alPulsar: () => void;
+  apagado: boolean;
+  titulo: string;
+  children: ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={alPulsar}
+      disabled={apagado}
+      title={titulo}
+      aria-label={titulo}
+      className="rounded-lg border border-borde px-2 py-1 transition hover:bg-superficie-alterna disabled:opacity-40 disabled:hover:bg-transparent"
+    >
+      {children}
+    </button>
+  );
+}
+
 function Pie({
   mostradas,
   filtradas,
@@ -1251,6 +1337,8 @@ function Pie({
   pagina,
   paginas,
   setPagina,
+  tamano,
+  setTamano,
   alCargarTodo,
 }: {
   mostradas: number;
@@ -1260,20 +1348,35 @@ function Pie({
   pagina: number;
   paginas: number;
   setPagina: (n: number) => void;
+  tamano: number;
+  setTamano: (n: number) => void;
   alCargarTodo?: () => void;
 }) {
   const faltan = total !== undefined && total > cargadas;
+  /// Cuántas quedaron atrás: es lo que convierte «25 filas» en
+  /// «Mostrando 26–50».
+  const desde = (pagina - 1) * tamano;
 
   return (
     <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-texto-suave">
+      {/* «Mostrando 26–50 de 175» dice DÓNDE está uno parado.
+          Antes solo decía cuántas filas había en total, que no
+          es lo mismo: con eso no se sabe si lo que se está
+          mirando es el principio o el final. */}
       <span>
         {mostradas > 0 && (
           <>
-            <strong className="font-medium text-texto">
-              {filtradas.toLocaleString("es-CO")}
+            Mostrando{" "}
+            <strong className="font-medium text-texto tabular-nums">
+              {(desde + 1).toLocaleString("es-CO")}–
+              {(desde + mostradas).toLocaleString("es-CO")}
             </strong>{" "}
-            {filtradas === 1 ? "fila" : "filas"}
-            {filtradas !== cargadas && " de " + cargadas.toLocaleString("es-CO")}
+            de{" "}
+            <strong className="font-medium text-texto tabular-nums">
+              {filtradas.toLocaleString("es-CO")}
+            </strong>
+            {filtradas !== cargadas &&
+              ` (filtradas de ${cargadas.toLocaleString("es-CO")})`}
           </>
         )}
       </span>
@@ -1290,27 +1393,64 @@ function Pie({
         </span>
       )}
 
+      {/* El selector se ve siempre, aunque hoy quepa todo en una
+          página: es lo que deja BAJAR a 10 cuando hay 40 filas y
+          uno quiere revisarlas de a poquitos. Escondiéndolo
+          cuando `paginas === 1` no habría forma de llegar a él. */}
+      {filtradas > 0 && (
+        <label className="flex items-center gap-2">
+          <span>Por página:</span>
+          <select
+            value={tamano}
+            onChange={(e) => setTamano(Number(e.target.value))}
+            aria-label="Cuántas filas por página"
+            className="rounded-lg border border-borde bg-superficie px-2 py-1 text-xs"
+          >
+            {TAMANOS.map((n) => (
+              <option key={n} value={n}>
+                {n}
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
+
       {paginas > 1 && (
-        <div className="ml-auto flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => setPagina(pagina - 1)}
-            disabled={pagina === 1}
-            className="rounded-lg border border-borde px-2 py-1 disabled:opacity-40"
+        <div className="ml-auto flex items-center gap-1.5">
+          <BotonPagina
+            alPulsar={() => setPagina(1)}
+            apagado={pagina === 1}
+            titulo="Primera página"
+          >
+            «
+          </BotonPagina>
+          <BotonPagina
+            alPulsar={() => setPagina(pagina - 1)}
+            apagado={pagina === 1}
+            titulo="Página anterior"
           >
             Anterior
-          </button>
-          <span>
-            {pagina} de {paginas}
+          </BotonPagina>
+
+          <span className="px-1 tabular-nums">
+            <strong className="font-medium text-texto">{pagina}</strong> de{" "}
+            {paginas.toLocaleString("es-CO")}
           </span>
-          <button
-            type="button"
-            onClick={() => setPagina(pagina + 1)}
-            disabled={pagina === paginas}
-            className="rounded-lg border border-borde px-2 py-1 disabled:opacity-40"
+
+          <BotonPagina
+            alPulsar={() => setPagina(pagina + 1)}
+            apagado={pagina === paginas}
+            titulo="Página siguiente"
           >
             Siguiente
-          </button>
+          </BotonPagina>
+          <BotonPagina
+            alPulsar={() => setPagina(paginas)}
+            apagado={pagina === paginas}
+            titulo="Última página"
+          >
+            »
+          </BotonPagina>
         </div>
       )}
     </div>

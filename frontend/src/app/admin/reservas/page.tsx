@@ -217,7 +217,7 @@ export default function PaginaReservas() {
   );
 
   return (
-    <div className="space-y-6">
+    <div className="flex min-h-0 grow flex-col gap-6">
       {/* Sin título ni conteo: lo dice la miga, y la cifra
           va en el pie de la tabla. El aviso solo aparece si
           el servidor deja de contestar; el resto del tiempo
