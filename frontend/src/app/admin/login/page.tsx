@@ -34,10 +34,28 @@ export default function PaginaAcceso() {
     "outline-none transition focus:border-campo-foco focus:ring-2 focus:ring-campo-foco/25";
 
   return (
-    <div className="grid min-h-dvh lg:grid-cols-2">
+    /// La altura RESTA la franja de pruebas.
+    ///
+    /// Con `min-h-dvh` a secas la pantalla medía toda la
+    /// ventana empezando 2,25rem más abajo, así que al body le
+    /// sobraba justo la altura de la franja: un scroll de 36 px
+    /// que no lleva a ninguna parte. En producción no se veía
+    /// porque allí no hay franja.
+    <div
+      style={{ minHeight: "calc(100dvh - var(--franja-alto, 0px))" }}
+      className="grid lg:grid-cols-2"
+    >
       {/* el panel de marca: solo desde lg, o roba la pantalla */}
       <section className="relative hidden flex-col justify-between bg-marca p-10 text-marca-texto lg:flex">
-        <Marca />
+        {/* Convoca ARRIBA y grande, y el cliente debajo.
+            Al contrario que en el panel, y a proposito: esta
+            es la puerta del PRODUCTO, no la cara publica del
+            gremio. Quien entra por aqui trabaja el sistema;
+            quien llega al formulario viene por su gremio. */}
+        <div className="space-y-7">
+          <FirmaConvoca tamano={56} />
+          <Marca />
+        </div>
 
         <div className="max-w-md">
           <h2 className="text-3xl leading-tight font-bold">
@@ -49,8 +67,6 @@ export default function PaginaAcceso() {
           </p>
         </div>
 
-        {/* la firma de la casa, debajo de la del cliente */}
-        <FirmaConvoca />
       </section>
 
       <section className="relative flex items-center justify-center p-6 lg:p-10">
@@ -59,7 +75,11 @@ export default function PaginaAcceso() {
         </div>
 
         <div className="w-full max-w-sm">
-          <div className="mb-8 lg:hidden">
+          {/* En movil el panel de marca no existe, asi que
+              esta es la unica cabecera: Convoca arriba y el
+              cliente debajo, igual que en el panel grande. */}
+          <div className="mb-8 space-y-5 lg:hidden">
+            <FirmaConvoca tamano={44} />
             <Marca claro />
           </div>
 

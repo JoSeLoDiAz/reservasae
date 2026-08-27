@@ -54,13 +54,32 @@ export function FirmaConvoca({
   conFrase?: boolean;
   className?: string;
 }) {
+  /// El texto crece con el signo, no aparte.
+  ///
+  /// Un nombre de 1,05rem al lado de un signo de 56 px se lee
+  /// como un pie de foto. El umbral son 44: por debajo es
+  /// firma, por encima es cabecera.
+  const grande = tamano >= 44;
+
   return (
-    <span className={`flex items-center gap-2.5 ${className ?? ""}`}>
+    <span
+      className={`flex items-center ${grande ? "gap-3.5" : "gap-2.5"} ${className ?? ""}`}
+    >
       <SignoConvoca tamano={tamano} className="shrink-0" />
       <span className="flex min-w-0 flex-col gap-0.5 leading-none">
-        <span className="text-[1.05rem] font-bold tracking-tight">Convoca</span>
+        <span
+          className={`font-bold tracking-tight ${
+            grande ? "text-[1.75rem]" : "text-[1.05rem]"
+          }`}
+        >
+          Convoca
+        </span>
         {conFrase && (
-          <span className="text-[10.5px] leading-snug font-medium opacity-65">
+          <span
+            className={`leading-snug font-medium opacity-65 ${
+              grande ? "text-[13px]" : "text-[10.5px]"
+            }`}
+          >
             {FRASE}
           </span>
         )}
