@@ -325,7 +325,7 @@ export default function PaginaFicha() {
       {f.persona.participaciones.length > 0 && (
         <Tarjeta
           titulo="Otros cursos de esta persona"
-          descripcion="Es la misma persona: el documento la identifica en todo el sistema."
+          descripcion="La misma persona, identificada por su documento. Solo se listan los de este gremio."
         >
           <ul className="space-y-1 text-sm">
             {f.persona.participaciones.map((p) => (

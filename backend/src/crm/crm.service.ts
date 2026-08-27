@@ -513,8 +513,19 @@ export class CrmService {
       include: {
         persona: {
           include: {
+            /// Los otros cursos de la misma persona, SOLO los
+            /// del ambito.
+            ///
+            /// `Persona` no tiene convenio a proposito -- la
+            /// misma cedula es una persona con varias
+            /// participaciones -- pero eso no es permiso para
+            /// ensenarlas todas: sin este filtro, la ficha
+            /// decia desde la puerta de un gremio que la
+            /// persona esta en el OTRO, en que curso y en que
+            /// etapa. Que la base sea una no significa que se
+            /// vea todo.
             participaciones: {
-              where: { id: { not: id } },
+              where: { id: { not: id }, convenioId: { in: ambito } },
               select: {
                 id: true,
                 etapa: true,
@@ -523,7 +534,9 @@ export class CrmService {
               },
             },
             autorizaciones: {
-              where: { revocadaEn: null },
+              // la pantalla ya se queda con la de su convenio,
+              // pero mandarlas todas las ensena en la red
+              where: { revocadaEn: null, politica: { convenioId: { in: ambito } } },
               select: {
                 id: true,
                 canal: true,
