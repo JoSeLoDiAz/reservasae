@@ -1,5 +1,7 @@
 /** A qué ritmo entran los cupos. */
 
+import { aDiaBogota, diaBogotaHace } from '../comun/dia-bogota';
+
 export type PuntoNeto = { dia: string; neto: number };
 
 export type EstadoProyeccion =
@@ -22,8 +24,10 @@ export type Proyeccion = {
   faltan: number;
   /** Cupos netos por día de calendario. */
   ritmoDiario: number;
-  ritmo7: number;
-  ritmo14: number;
+  /// NULL cuando la ventana pedida es mas corta que la del
+  /// ritmo: decir un numero seria decir uno falso.
+  ritmo7: number | null;
+  ritmo14: number | null;
   /** Días hasta llegar a la meta. */
   diasEstimados: number | null;
   fechaEstimada: string | null;
@@ -32,17 +36,31 @@ export type Proyeccion = {
 const DIA_MS = 24 * 60 * 60 * 1000;
 const MAXIMO_DIAS = 365;
 
-function aDia(fecha: Date): string {
-  return fecha.toISOString().slice(0, 10);
-}
-
-/** Neto por día de calendario. */
-export function ritmoPorDia(serie: PuntoNeto[], dias: number, hasta: Date): number {
+/**
+ * Neto por día de calendario, en días de Bogotá.
+ *
+ * La serie viene agrupada por el día de Bogotá, así que la
+ * ventana tiene que cortar por el mismo calendario. Con
+ * `toISOString()` cortaba por UTC: a partir de las 19:00 el
+ * tope era el día de mañana y la ventana entera se corría un
+ * día, dejando fuera el más antiguo.
+ *
+ * `serieDias` es cuántos días de serie hay de verdad. Sin él,
+ * `ritmo14` sobre una serie de siete sumaba siete días y
+ * dividía entre catorce: la mitad del ritmo real, y sin decirlo.
+ * Ahora esa ventana devuelve `null`, que es lo que significa.
+ */
+export function ritmoPorDia(
+  serie: PuntoNeto[],
+  dias: number,
+  hasta: Date,
+  serieDias?: number,
+): number | null {
   if (dias <= 0) return 0;
+  if (serieDias !== undefined && dias > serieDias) return null;
 
-  const desde = new Date(hasta.getTime() - (dias - 1) * DIA_MS);
-  const limite = aDia(desde);
-  const tope = aDia(hasta);
+  const limite = diaBogotaHace(dias - 1, hasta);
+  const tope = aDiaBogota(hasta);
 
   let total = 0;
   for (const punto of serie) {
@@ -63,9 +81,11 @@ export function calcularProyeccion(entrada: {
 }): Proyeccion {
   const { serie, ocupados, meta, dias, hoy } = entrada;
 
-  const ritmoDiario = ritmoPorDia(serie, dias, hoy);
-  const ritmo7 = ritmoPorDia(serie, 7, hoy);
-  const ritmo14 = ritmoPorDia(serie, 14, hoy);
+  /// `dias` ES la cobertura de la serie: la consulta la acota
+  /// justo a esa ventana.
+  const ritmoDiario = ritmoPorDia(serie, dias, hoy) ?? 0;
+  const ritmo7 = ritmoPorDia(serie, 7, hoy, dias);
+  const ritmo14 = ritmoPorDia(serie, 14, hoy, dias);
   const faltan = Math.max(0, meta - ocupados);
 
   const base: Omit<Proyeccion, 'estado' | 'diasEstimados' | 'fechaEstimada'> = {
@@ -96,6 +116,6 @@ export function calcularProyeccion(entrada: {
     ...base,
     estado: 'ESTIMADA',
     diasEstimados,
-    fechaEstimada: aDia(new Date(hoy.getTime() + diasEstimados * DIA_MS)),
+    fechaEstimada: aDiaBogota(new Date(hoy.getTime() + diasEstimados * DIA_MS)),
   };
 }

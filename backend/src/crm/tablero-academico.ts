@@ -2,6 +2,7 @@ import { Prisma } from '../../generated/prisma';
 import { enPeriodo, PRIMERA_ENTRADA_AL_AULA } from './anclas';
 import type { PrismaService } from '../prisma/prisma.service';
 import { MINIMO_PARA_CERTIFICAR } from './crm.service';
+import { aDiaBogota } from '../comun/dia-bogota';
 import { variacion, type Comparacion, type Ventana } from './ventana';
 
 /**
@@ -144,7 +145,9 @@ const CLAVES = [
 ] as const;
 
 /** La fecha en ISO corto, o null si no hay. */
-const dia = (d: Date | null): string | null => (d ? d.toISOString().slice(0, 10) : null);
+/// El dia de Bogota, no el de UTC: `toISOString()` daba el dia
+/// siguiente a partir de las 19:00.
+const dia = (d: Date | null): string | null => (d ? aDiaBogota(d) : null);
 
 /** Las etapas que significan haber pisado el aula. */
 const EN_AULA = Prisma.sql`p."etapa" IN (
@@ -430,7 +433,16 @@ function resumir(filas: FilaAccion[]): Cabecera {
 
 /** La ventana en fechas, con el último día dentro. */
 function describirVentana(c: Comparacion): VentanaTablero {
-  const fin = c.actual ? new Date(c.actual.hasta.getTime() - DIA) : null;
+  /// El ultimo dia DENTRO de la ventana: un milisegundo antes
+  /// del corte, no un dia antes.
+  ///
+  /// Restaba un dia entero, y eso solo vale cuando `hasta` es
+  /// la medianoche siguiente. El periodo en curso se recorta en
+  /// «ahora», que ya esta dentro del ultimo dia, asi que
+  /// «Hoy» se etiquetaba «27 ago -> 26 ago»: un rango que
+  /// termina antes de empezar. Con un milisegundo sale bien en
+  /// los dos casos.
+  const fin = c.actual ? new Date(c.actual.hasta.getTime() - 1) : null;
   return {
     rango: c.rango,
     etiqueta: c.etiqueta,

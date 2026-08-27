@@ -15,6 +15,7 @@ import {
   sqlDeConvenio,
 } from './ambito';
 import { PrismaService } from '../prisma/prisma.service';
+import { diaBogota } from '../comun/dia-bogota';
 import { calcularProyeccion, type PuntoNeto } from './proyeccion';
 
 export type FiltrosReservas = {
@@ -348,8 +349,8 @@ export class TablerosService {
         include: { empresa: true, oferta: { include: { ubicacion: true } } },
       }),
       idsOferta.length
-        ? this.prisma.$queryRaw<Array<{ dia: Date; cupos: bigint }>>`
-            SELECT date_trunc('day', "creadoEn") AS dia,
+        ? this.prisma.$queryRaw<Array<{ dia: string; cupos: bigint }>>`
+            SELECT ${diaBogota(Prisma.sql`"creadoEn"`)} AS dia,
                    COALESCE(SUM("cuposConfirmados"), 0) AS cupos
               FROM "reservas"
              WHERE "ofertaId" = ANY(${idsOferta})
@@ -451,7 +452,7 @@ export class TablerosService {
       })),
 
       serie: serie.map((s) => ({
-        dia: s.dia.toISOString().slice(0, 10),
+        dia: s.dia,
         cupos: Number(s.cupos),
       })),
     };
@@ -623,9 +624,9 @@ export class TablerosService {
   /** Reservas por día, agrupadas en SQL. */
   async serie(ambito: string[], dias = 30) {
     const filas = await this.prisma.$queryRaw<
-      Array<{ dia: Date; reservas: bigint; cupos: bigint }>
+      Array<{ dia: string; reservas: bigint; cupos: bigint }>
     >`
-      SELECT date_trunc('day', r."creadoEn") AS dia,
+      SELECT ${diaBogota(Prisma.sql`r."creadoEn"`)} AS dia,
              COUNT(*)                        AS reservas,
              COALESCE(SUM(r."cuposConfirmados"), 0) AS cupos
         FROM "reservas" r
@@ -636,7 +637,7 @@ export class TablerosService {
        ORDER BY 1`;
 
     return filas.map((f) => ({
-      dia: f.dia.toISOString().slice(0, 10),
+      dia: f.dia,
       reservas: Number(f.reservas),
       cupos: Number(f.cupos),
     }));
@@ -654,8 +655,8 @@ export class TablerosService {
       ? Prisma.sql`AND r."ofertaId" IN (SELECT id FROM "ofertas" WHERE "accionFormacionId" = ${accionId})`
       : Prisma.empty;
 
-    const filas = await this.prisma.$queryRaw<Array<{ dia: Date; neto: bigint }>>`
-      SELECT date_trunc('day', m."creadoEn") AS dia,
+    const filas = await this.prisma.$queryRaw<Array<{ dia: string; neto: bigint }>>`
+      SELECT ${diaBogota(Prisma.sql`m."creadoEn"`)} AS dia,
              COALESCE(SUM(m."confirmadosDespues" - m."confirmadosAntes"), 0) AS neto
         FROM "movimientos_reserva" m
         JOIN "reservas" r ON r.id = m."reservaId"
@@ -666,7 +667,7 @@ export class TablerosService {
        ORDER BY 1`;
 
     return filas.map((f) => ({
-      dia: f.dia.toISOString().slice(0, 10),
+      dia: f.dia,
       neto: Number(f.neto),
     }));
   }
@@ -681,8 +682,8 @@ export class TablerosService {
       ? Prisma.sql`AND r."ofertaId" IN (SELECT id FROM "ofertas" WHERE "accionFormacionId" = ${accionId})`
       : Prisma.empty;
 
-    const filas = await this.prisma.$queryRaw<Array<{ dia: Date; neto: bigint }>>`
-      SELECT date_trunc('day', r."creadoEn") AS dia,
+    const filas = await this.prisma.$queryRaw<Array<{ dia: string; neto: bigint }>>`
+      SELECT ${diaBogota(Prisma.sql`r."creadoEn"`)} AS dia,
              COALESCE(SUM(r."cuposConfirmados"), 0) AS neto
         FROM "reservas" r
        WHERE r."creadoEn" >= NOW() - (${dias} || ' days')::interval
@@ -693,7 +694,7 @@ export class TablerosService {
        ORDER BY 1`;
 
     return filas.map((f) => ({
-      dia: f.dia.toISOString().slice(0, 10),
+      dia: f.dia,
       neto: Number(f.neto),
     }));
   }

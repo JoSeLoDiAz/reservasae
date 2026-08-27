@@ -201,8 +201,10 @@ export type Proyeccion = {
   meta: number;
   faltan: number;
   ritmoDiario: number;
-  ritmo7: number;
-  ritmo14: number;
+  /// NULL cuando la ventana pedida es mas corta que el ritmo:
+  /// un numero seria uno falso.
+  ritmo7: number | null;
+  ritmo14: number | null;
   diasEstimados: number | null;
   fechaEstimada: string | null;
 };

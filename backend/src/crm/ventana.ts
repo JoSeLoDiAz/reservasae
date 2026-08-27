@@ -15,8 +15,10 @@
  * comería cinco horas de movimiento en el corte.
  */
 
-/** Colombia no tiene horario de verano: el offset es fijo. */
-const BOGOTA = -5;
+import { HORAS_BOGOTA } from '../comun/dia-bogota';
+
+/// Una sola vez, en `comun/dia-bogota.ts`.
+const BOGOTA = HORAS_BOGOTA;
 const DIA = 24 * 60 * 60 * 1000;
 
 export type Rango =

@@ -42,6 +42,11 @@ export function textoDeEstado(p: Proyeccion): string {
 }
 
 function Tendencia({ p }: { p: Proyeccion }) {
+  /// Sin las dos no hay tendencia que comparar, y decir
+  /// «estable» seria afirmar algo que no se sabe.
+  if (p.ritmo7 === null || p.ritmo14 === null) {
+    return <span className="text-texto-suave">—</span>;
+  }
   const diferencia = p.ritmo7 - p.ritmo14;
   if (Math.abs(diferencia) < 0.05) return <span className="text-texto-suave">estable</span>;
   return diferencia > 0 ? (
@@ -61,7 +66,12 @@ export function BloqueRitmo({ informe }: { informe: InformeProyeccion }) {
           titulo={`Ritmo (${informe.dias} días)`}
           valor={ritmo(t.ritmoDiario)}
           sufijo="cupos/día"
-          detalle={`7 días: ${ritmo(t.ritmo7)} · 14 días: ${ritmo(t.ritmo14)}`}
+          detalle={[
+            t.ritmo7 !== null && `7 días: ${ritmo(t.ritmo7)}`,
+            t.ritmo14 !== null && `14 días: ${ritmo(t.ritmo14)}`,
+          ]
+            .filter(Boolean)
+            .join(" · ")}
           tono={t.ritmoDiario < 0 ? "aviso" : "normal"}
         />
         <TarjetaCifra
@@ -77,8 +87,20 @@ export function BloqueRitmo({ informe }: { informe: InformeProyeccion }) {
         />
         <TarjetaCifra
           titulo="Tendencia"
-          valor={t.ritmo7 > t.ritmo14 ? "Acelerando" : t.ritmo7 < t.ritmo14 ? "Frenando" : "Estable"}
-          detalle={`Comparando la última semana con las dos últimas.`}
+          valor={
+            t.ritmo7 === null || t.ritmo14 === null
+              ? "—"
+              : t.ritmo7 > t.ritmo14
+                ? "Acelerando"
+                : t.ritmo7 < t.ritmo14
+                  ? "Frenando"
+                  : "Estable"
+          }
+          detalle={
+            t.ritmo14 === null
+              ? "Hacen falta dos semanas de ventana para comparar."
+              : "Comparando la última semana con las dos últimas."
+          }
         />
       </div>
 
