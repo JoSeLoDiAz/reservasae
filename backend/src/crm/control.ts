@@ -1,4 +1,5 @@
 import { EtapaParticipante, Prisma } from '../../generated/prisma';
+import { aDiaBogota } from '../comun/dia-bogota';
 import type { PrismaService } from '../prisma/prisma.service';
 import { enPeriodo, PRIMERA_MATRICULA } from './anclas';
 import { ETAPAS_DEL_EMBUDO } from './metricas-inscripciones';
@@ -189,9 +190,18 @@ const VACIO: Omit<Control, 'ventana' | 'anterior' | 'variacion'> = {
   leadsPorDia: [],
 };
 
-/** Día ISO: las ventanas cortan a medianoche. */
+/**
+ * El día de Bogotá de un borde de ventana.
+ *
+ * Era `toISOString()`, o sea el día de UTC, así que a partir de
+ * las 19:00 el rótulo del periodo saltaba al día siguiente —
+ * mientras las series de este mismo fichero ya cortaban por el
+ * día de Bogotá. Dos formas de leer un día en el mismo archivo,
+ * y el gráfico pintando barras que su propio rótulo declaraba
+ * fuera del periodo.
+ */
 function dia(d: Date): string {
-  return d.toISOString().slice(0, 10);
+  return aDiaBogota(d);
 }
 
 /** Las dos cifras de cabecera bajo un filtro dado. */
@@ -250,9 +260,16 @@ export async function controlDeInscritos(
     etiqueta: comparacion.etiqueta,
     etiquetaAnterior: comparacion.etiquetaAnterior,
     desde: comparacion.actual ? dia(comparacion.actual.desde) : null,
-    // el «hasta» de la ventana es abierto
+    /// El último día DENTRO: un milisegundo antes del corte.
+    ///
+    /// Restaba un día entero, y eso solo vale cuando `hasta` es
+    /// la medianoche siguiente. El periodo en curso se recorta
+    /// en «ahora», que ya está dentro del último día, así que
+    /// «Hoy» se rotulaba «27 ago → 26 ago». El mismo defecto que
+    /// el tablero académico, y aquí se quedó sin arreglar la
+    /// primera vez: la lección de siempre.
     hasta: comparacion.actual
-      ? dia(new Date(comparacion.actual.hasta.getTime() - DIA))
+      ? dia(new Date(comparacion.actual.hasta.getTime() - 1))
       : null,
   };
 

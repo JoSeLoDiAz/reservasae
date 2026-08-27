@@ -480,7 +480,7 @@ export class PreinscripcionService {
       select: {
         personaId: true,
         datosTocadosPorAsesorEn: true,
-        persona: { select: { departamentoSepId: true } },
+        persona: { select: { departamentoSepId: true, municipioSepId: true } },
       },
     });
     if (!p) throw new NotFoundException('Ese enlace ya no apunta a nadie.');
@@ -495,6 +495,7 @@ export class PreinscripcionService {
     /// municipio que no existe.
     const malo = motivoDeIdInvalido(dto, {
       departamentoSepId: p.persona?.departamentoSepId,
+      municipioSepId: p.persona?.municipioSepId,
     });
     if (malo) throw new BadRequestException(malo);
 

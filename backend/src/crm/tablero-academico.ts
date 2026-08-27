@@ -2,7 +2,7 @@ import { Prisma } from '../../generated/prisma';
 import { enPeriodo, PRIMERA_ENTRADA_AL_AULA } from './anclas';
 import type { PrismaService } from '../prisma/prisma.service';
 import { MINIMO_PARA_CERTIFICAR } from './crm.service';
-import { aDiaBogota, aDiaDeCalendario } from '../comun/dia-bogota';
+import { aDiaBogota, aDiaDeCalendario, HOY_BOGOTA } from '../comun/dia-bogota';
 import { variacion, type Comparacion, type Ventana } from './ventana';
 
 /**
@@ -318,7 +318,7 @@ function consultaQueArrancan(prisma: PrismaService, suyos: Prisma.Sql, ambito: s
     SELECT af."codigo" AS codigo,
            g."numero" AS numero,
            to_char(g."fechaInicio", 'YYYY-MM-DD') AS inicio,
-           (g."fechaInicio"::date - CURRENT_DATE)::int AS dias,
+           (g."fechaInicio"::date - ${HOY_BOGOTA})::int AS dias,
            COUNT(p."id")::int AS inscritos
       FROM "grupos" g
       JOIN "acciones_formacion" af ON af."id" = g."accionFormacionId"
@@ -327,8 +327,8 @@ function consultaQueArrancan(prisma: PrismaService, suyos: Prisma.Sql, ambito: s
                                  AND ${suyos} AND ${VIVOS}
      WHERE af."convenioId" IN (${Prisma.join(ambito)})
        AND g."fechaInicio" IS NOT NULL
-       AND g."fechaInicio"::date >= CURRENT_DATE
-       AND g."fechaInicio"::date <= CURRENT_DATE + 30
+       AND g."fechaInicio"::date >= ${HOY_BOGOTA}
+       AND g."fechaInicio"::date <= ${HOY_BOGOTA} + 30
      GROUP BY g."id", af."id"
      ORDER BY g."fechaInicio", af."codigo", g."numero"
   `;
@@ -360,7 +360,7 @@ function consultaVencidos(prisma: PrismaService, suyos: Prisma.Sql) {
       JOIN "acciones_formacion" af    ON af."id" = g."accionFormacionId"
      WHERE ${suyos} AND ${EN_AULA}
        AND g."fechaFin" IS NOT NULL
-       AND g."fechaFin"::date < CURRENT_DATE
+       AND g."fechaFin"::date < ${HOY_BOGOTA}
      GROUP BY g."id", af."id"
     HAVING COUNT(*) FILTER (
              WHERE p."etapa" = 'EN_FORMACION'::"EtapaParticipante"
@@ -390,9 +390,9 @@ function consultaParados(prisma: PrismaService, suyos: Prisma.Sql) {
     clasificados AS (
       SELECT CASE
                WHEN p."ultimoAcceso" IS NULL THEN -1
-               WHEN CURRENT_DATE - p."ultimoAcceso"::date <= 7  THEN 0
-               WHEN CURRENT_DATE - p."ultimoAcceso"::date <= 14 THEN 8
-               WHEN CURRENT_DATE - p."ultimoAcceso"::date <= 30 THEN 15
+               WHEN ${HOY_BOGOTA} - p."ultimoAcceso"::date <= 7  THEN 0
+               WHEN ${HOY_BOGOTA} - p."ultimoAcceso"::date <= 14 THEN 8
+               WHEN ${HOY_BOGOTA} - p."ultimoAcceso"::date <= 30 THEN 15
                ELSE 31
              END AS "dias"
         FROM "participantes" p

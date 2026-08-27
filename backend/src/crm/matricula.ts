@@ -53,10 +53,27 @@ export class Matricula implements OnModuleInit {
   async pasarLosQueEmpiezan(): Promise<number> {
     const hoy = new Date();
 
+    /// Quien revocó NO entra al aula, tampoco por aquí.
+    ///
+    /// `cambiarEtapa` exige autorización viva para entrar al
+    /// aula, y este proceso hace la MISMA transición sin pasar
+    /// por ahí: eran dos reglas para el mismo paso, y la de
+    /// aquí, que corre sola cada rato y no la mira nadie, era la
+    /// débil. Alguien que revocaba estando INSCRITO amanecía
+    /// EN_FORMACION sin que nadie lo hubiera decidido.
+    ///
+    /// Se queda en INSCRITO y ahí se ve: no se le cambia la
+    /// etapa a nada, porque revocar no es retirarse y decidirlo
+    /// por la persona sería poner en su boca algo que no dijo.
     const listos = await this.prisma.participante.findMany({
       where: {
         etapa: 'INSCRITO',
         cobertura: { grupo: { fechaInicio: { not: null, lte: hoy } } },
+        persona: {
+          autorizaciones: {
+            some: { revocadaEn: null },
+          },
+        },
       },
       select: {
         id: true,

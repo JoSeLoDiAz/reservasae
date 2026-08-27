@@ -36,6 +36,17 @@ export const HORAS_BOGOTA = -5;
  * se lee otra vez en UTC — el mismo error dos veces, y la
  * segunda invisible. Con texto no hay viaje de vuelta.
  */
+/**
+ * HOY, en día de Bogotá, para intercalar en SQL.
+ *
+ * `CURRENT_DATE` es el día del servidor, y el contenedor de
+ * Postgres corre en UTC: a partir de las 19:00 de Bogotá ya
+ * devuelve mañana. Cuenta en «faltan N días para que arranque el
+ * grupo» y en «lleva N días sin entrar al aula», que son cifras
+ * que alguien mira de noche.
+ */
+export const HOY_BOGOTA = Prisma.sql`(NOW() AT TIME ZONE ${ZONA})::date`;
+
 export function diaBogota(columna: Prisma.Sql): Prisma.Sql {
   return Prisma.sql`to_char(date_trunc('day', ${columna} AT TIME ZONE 'UTC' AT TIME ZONE ${ZONA}), 'YYYY-MM-DD')`;
 }

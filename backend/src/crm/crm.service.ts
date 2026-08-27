@@ -934,6 +934,8 @@ export class CrmService {
       select: {
         id: true,
         personaId: true,
+        // hace falta para saber si el asesor la veria
+        convenioId: true,
         etapa: true,
         asesorId: true,
         cargoEnEmpresa: true,
@@ -971,6 +973,7 @@ export class CrmService {
     /// aceptaba: la pública era la más permisiva de las dos.
     const malo = motivoDeIdInvalido(dto, {
       departamentoSepId: p.persona?.departamentoSepId,
+      municipioSepId: p.persona?.municipioSepId,
     });
     if (malo) throw new BadRequestException(malo);
 
@@ -1035,15 +1038,7 @@ export class CrmService {
     let notaAsesor: string | null = null;
 
     if (cambiaAsesor && dto.asesorId) {
-      const asesor = await this.prisma.admin.findFirst({
-        where: { id: dto.asesorId, activo: true },
-        select: { nombre: true },
-      });
-      if (!asesor) {
-        throw new BadRequestException(
-          'Ese asesor no existe o está desactivado.',
-        );
-      }
+      const asesor = await this.exigirAsesorDelConvenio(dto.asesorId, p.convenioId);
       // el mismo texto que el lote
       notaAsesor = `Asignada a ${asesor.nombre}`;
     } else if (cambiaAsesor) {
@@ -1140,6 +1135,44 @@ export class CrmService {
    * cambiarian de dueno sin que el historial dijera quien
    * lo hizo, que es justo lo que se pide poder ver.
    */
+  /**
+   * El asesor tiene que poder VER la ficha que se le asigna.
+   *
+   * Se comprobaba que existiera y estuviera activo, y nada más.
+   * Asignarle una ficha de ADECOPRIA a quien solo tiene
+   * concesión en BRITCHAM no da error: la deja asignada a
+   * alguien que no la ve, así que desaparece de la lista de
+   * todos, y la brecha de nombres --«a quién llamar hoy»--
+   * cuenta como atendida una ficha que no atiende nadie.
+   *
+   * Va aquí una vez porque la usan la ficha y el lote, que
+   * tenían cada una su media comprobación.
+   */
+  private async exigirAsesorDelConvenio(asesorId: string, convenioId: string) {
+    const asesor = await this.prisma.admin.findFirst({
+      where: { id: asesorId, activo: true },
+      select: { id: true, nombre: true, rol: true },
+    });
+    if (!asesor) {
+      throw new BadRequestException('Ese asesor no existe o está desactivado.');
+    }
+
+    /// El superadmin entra a todo, igual que en el guard.
+    if (asesor.rol === 'SUPERADMIN') return asesor;
+
+    const concesion = await this.prisma.adminConvenio.findFirst({
+      where: { adminId: asesorId, convenioId },
+      select: { id: true },
+    });
+    if (!concesion) {
+      throw new BadRequestException(
+        `${asesor.nombre} no trabaja en este convenio, así que no vería esta ficha. ` +
+          'Déle acceso primero, o elija a otra persona.',
+      );
+    }
+    return asesor;
+  }
+
   async asignarAsesorEnLote(
     dto: AsignarAsesorEnLoteDto,
     admin: Admin,
@@ -1148,19 +1181,23 @@ export class CrmService {
   ) {
     const asesorId = dto.asesorId || null;
 
-    if (asesorId) {
-      const asesor = await this.prisma.admin.findFirst({
-        where: { id: asesorId, activo: true },
-        select: { id: true, nombre: true },
-      });
-      if (!asesor) throw new BadRequestException('Ese asesor no existe o está desactivado.');
-    }
-
     // solo las del ambito: un id pegado a mano no cuela
     const suyas = await this.prisma.participante.findMany({
       where: { id: { in: dto.ids }, convenioId: { in: ambito } },
-      select: { id: true, etapa: true, asesorId: true },
+      select: { id: true, etapa: true, asesorId: true, convenioId: true },
     });
+
+    /// El asesor tiene que ver TODAS las que se le asignan.
+    ///
+    /// Un lote puede traer fichas de los dos convenios, asi que
+    /// se comprueba contra cada convenio distinto que haya
+    /// dentro: bastaria con que uno no fuera suyo para dejarle
+    /// fichas que no ve.
+    if (asesorId) {
+      for (const convenioId of new Set(suyas.map((p) => p.convenioId))) {
+        await this.exigirAsesorDelConvenio(asesorId, convenioId);
+      }
+    }
 
     const cambian = suyas.filter((p) => p.asesorId !== asesorId);
     if (cambian.length === 0) {
