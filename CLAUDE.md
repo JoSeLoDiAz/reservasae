@@ -344,10 +344,17 @@ los del otro. `/admin/formularios/:id/apariencia`.
   el constructor y ahora son los que se leen en la página pública.
 - **Un slug desconocido devuelve la marca general con 200, nunca 404.** Un 404
   sería un oráculo de qué formularios existen.
-- **Dos capas contra el destello**: `[convenio]/layout.tsx` es un Server
-  Component que emite la paleta ya en el HTML (necesita `API_INTERNA`, que va
-  en `docker-compose.yml`), y `SCRIPT_PALETA` repinta desde `localStorage` en
-  las visitas siguientes.
+- **Dos capas contra el destello, y la primera va por HOST, no por ruta.**
+  `components/estilos-gremio.tsx` es un Server Component que emite la paleta ya
+  en el HTML desde el layout **raíz** (necesita `API_INTERNA`, que va en
+  `docker-compose.yml`), y `SCRIPT_PALETA` repinta desde `localStorage` en las
+  visitas siguientes.
+
+  **Antes lo hacía `[convenio]/layout.tsx` y por eso se quitó**: por ruta, el
+  formulario corto salía de un color y el largo de otro, siendo el mismo
+  trámite. Por host los dos comparten dominio y salen iguales, y de paso
+  `/consulta` y `/completar/<token>` del subdominio también. **No vuelva a
+  inyectarla por ruta.**
 
 ### Elegir colores sin saber de color
 
@@ -1282,6 +1289,106 @@ cerradura sería peor que nada, porque todos creerían que está cerrado.
 Comprobado con la misma cuenta por las tres direcciones: 19 organizaciones por
 ADECOPRIA, 18 por BRITCHAM y 24 por la general. **19 + 18 ≠ 24 y es correcto**
 — una empresa que reservó en los dos cuenta en los dos.
+
+#### La raíz del gremio y su marca (27 ago 2026)
+
+- **La raíz de un subdominio sirve el formulario corto de ese gremio.** Antes
+  daba 404. Es un **rewrite y nunca un redirect**: la barra tiene que seguir
+  diciendo `adecopria.reservasae.com/`, y un redirect además delataría la ruta
+  interna. Va en `frontend/src/middleware.ts`.
+- **El rewrite va ANTES del corte del túnel, y DESPUÉS de comprobar `esTunel`.**
+  Antes del corte porque el middleware sale por ahí en cuanto el host no es de
+  túnel, y entonces no se ejecutaría jamás en producción. Después de `esTunel`
+  porque un host `.trycloudflare.com` tiene tres etiquetas y la suya no está en
+  `RESERVADOS`: al revés, un túnel de pruebas se reescribiría y **se saltaría la
+  puerta que cierra el panel**, que es justo para lo que existe ese archivo.
+- **`etiquetaDelHost` está duplicada en el frontend** (`lib/gremio-del-host.ts`)
+  porque el middleware corre en el runtime edge y no puede consultar la base. Es
+  la misma duplicación consciente que ya hay entre `rutas-reservadas.ts` y
+  `lib/marca.ts`, y por el mismo motivo. **La que manda es la del servidor.**
+- **`GET /marca` varía por Host.** Con eso el login y el panel entero salen con
+  el logo y los colores del gremio **sin tocar una línea del frontend**:
+  `ProveedorMarca` ya lo pedía y el panel se pinta entero con tokens. Efecto
+  secundario a recordar: ese endpoint deja de ser cacheable a ciegas, así que
+  cualquier caché que se ponga delante tiene que variar por Host.
+- **`GET /marca/gremio/:slug` lleva el slug en la RUTA a propósito.** La caché
+  de Next se indexa por URL: con un `/marca` a secas y el host en una cabecera,
+  los dos gremios compartirían entrada 30 s y uno vería los colores del otro sin
+  que nada fallara. Comprobado poniendo BRITCHAM en verde: los dos HTML
+  divergieron y no se contaminaron.
+- **`Convenio.formularioMarcaId`, y tiene que ser explícito.** La apariencia
+  solo existe a nivel de formulario, así que hacía falta decir cuál da la marca.
+  Se dedujo por convención —el formulario cuyo slug coincide con el del
+  convenio— y esa regla **falla en silencio** el día que alguien renombre uno o
+  cree el segundo: ADECOPRIA ya tiene dos publicados. La migración escribe la
+  convención una vez y después nadie depende de ella. La siembra la pone en una
+  base nueva y **no pisa** lo que un admin haya elegido.
+- **La marca del gremio incluye el formulario en BORRADOR.** En producción nacen
+  así, y con la regla normal el subdominio saldría con los colores generales,
+  con 200 y sin error visible — indistinguible de «no pasa nada» y caro de ver.
+  Publicar al público y elegir la paleta del panel son dos decisiones distintas.
+- **El precio: la aplicación entera deja de prerenderizarse.** `EstilosGremio`
+  lee `headers()` y eso vuelve dinámicas las 37 rutas. Se asume a cambio de que
+  no haya destello. Está aislado en su propio archivo justo para poder moverlo a
+  `[convenio]/layout.tsx` y al del panel si algún día pesa.
+- **Nada de esto se ve en local**: `etiquetaDelHost` exige tres etiquetas y
+  `localhost:3000` da null siempre. El día a día seguirá viendo la marca
+  general, así que una regresión aquí puede pasar semanas sin que nadie la note.
+  Se comprueba con `curl -H 'Host: adecopria.reservasae.com'`.
+
+#### Lo que encontró la revisión adversarial (27 ago 2026)
+
+Cinco lentes sobre el cambio, con dos escépticos por hallazgo. De 41 candidatos
+sobrevivieron 14, y de esos **cinco eran reales**. Lo que enseñó:
+
+- **`X-Forwarded-Host` la pone quien quiera, y nginx no la limpiaba.** El
+  middleware leía `x-forwarded-host ?? host`, así que mandándola con un dominio
+  normal **el corte del túnel se saltaba y el panel salía por el túnel** —
+  reproducido en vivo. Y en producción permitía reescribir a un gremio mientras
+  la paleta salía del otro. Ahora `esTunel` mira **las dos** cabeceras y basta
+  con que una lo parezca (no se puede esquivar añadiendo, solo quitando), el
+  gremio sale de **`host` a secas** —la misma fuente que lee el backend— y nginx
+  pone `X-Forwarded-Host $host` en los dos ficheros.
+- **El Host no tiene por qué ser un dominio.** `//malo.reservasae.com` daba la
+  etiqueta `//malo`, y metida en un `new URL()` saca la petición del origen. Se
+  valida dentro de `etiquetaDelHost`, no en el sitio que la llama, para que
+  cubra a todos.
+- **El guard comprobaba `convenios` y no `alcance`.** Quien lleva el área en un
+  gremio y no en el otro entraba por el subdominio equivocado **con ámbito
+  vacío**: no se filtraba nada, pero se llevaba pantallas en blanco en vez de un
+  no. Ahora falla con el gremio dicho en el mensaje.
+- **El índice de la migración no estaba en el schema**, así que la siguiente
+  migración lo habría borrado sin que nadie lo notara.
+- **La lección que más se repite**: dos fuentes para la misma decisión acaban
+  discrepando. El frontend elegía el gremio por una cabecera y el backend por
+  otra, y el resultado era el formulario de un gremio bajo la marca del otro —
+  exactamente lo que este cambio existe para evitar.
+
+### Políticas y formularios sí llevan ámbito (27 ago 2026)
+
+**Y hasta hoy no lo llevaban.** Lo encontró la misma revisión: desde el
+subdominio de un gremio se podía **publicar la política de tratamiento de datos
+del otro** —el texto legal que su gente acepta— y listar sus formularios.
+Ninguno de los dos controladores leía el ámbito, mientras este archivo afirmaba
+que «un asesor de ADECOPRIA no entra a BRITCHAM ni llamando a la API».
+
+- **Fuera del ámbito la fila NO EXISTE**: se devuelve 404 y no 403. Un 403
+  confirma que la política del otro convenio existe, y eso es un oráculo.
+- **Una lista se ACOTA, no se prohíbe.** `GET /admin/politicas?convenioId=` con
+  uno de fuera devuelve 200 y vacío: el filtro pedido se **interseca** con el
+  ámbito, nunca lo sustituye. Pedir uno de fuera no puede devolverlo todo.
+- **`ambito-de-politicas-y-formularios.spec.ts` lo fija**, con el mismo criterio
+  que las cabeceras del SEP: si alguien quita el ámbito de ahí, falla el build.
+- **`obtener` se partió en dos**: la pública comprueba el ámbito y `vista()` es
+  la interna, sin comprobar, que usan los métodos que ya comprobaron.
+
+> **Falta la mitad de formularios, y hay que decirlo.** Están acotados `listar`,
+> `obtener` y `crear` —los que la revisión demostró y la puerta por la que se
+> llega al resto—, pero **las rutas de secciones, preguntas y opciones siguen
+> sin ámbito**: reciben `seccionId`, `preguntaId` u `opcionId` y no comprueban
+> de qué convenio son. Hacen falta unas doce, y merecen su propia pasada con su
+> propia revisión: cerrarlas a medias es peor que dejarlas, porque todos
+> creerían que están cerradas.
 
 ### Lo que falta
 

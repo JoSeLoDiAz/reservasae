@@ -11,8 +11,8 @@ import {
 } from '@nestjs/common';
 
 import { RolAdmin, type Admin } from '../../generated/prisma';
-import { AdminActual } from '../admin/admin-actual.decorator';
-import { AdminGuard, Requiere, Roles } from '../admin/admin.guard';
+import { AdminActual, AmbitoActual } from '../admin/admin-actual.decorator';
+import { AdminGuard, Requiere, Roles, type Ambito } from '../admin/admin.guard';
 import {
   ActualizarAparienciaDto,
   ActualizarFormularioDto,
@@ -59,18 +59,18 @@ export class FormulariosAdminController {
   }
 
   @Get()
-  listar() {
-    return this.formularios.listar();
+  listar(@AmbitoActual() ambito: Ambito) {
+    return this.formularios.listar(ambito.convenios);
   }
 
   @Get(':id')
-  obtener(@Param('id') id: string) {
-    return this.formularios.obtener(id);
+  obtener(@AmbitoActual() ambito: Ambito, @Param('id') id: string) {
+    return this.formularios.obtener(ambito.convenios, id);
   }
 
   @Post()
-  crear(@Body() dto: CrearFormularioDto) {
-    return this.formularios.crear(dto);
+  crear(@AmbitoActual() ambito: Ambito, @Body() dto: CrearFormularioDto) {
+    return this.formularios.crear(ambito.convenios, dto);
   }
 
   /** Copia uno existente, en borrador. */

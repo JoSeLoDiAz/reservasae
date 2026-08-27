@@ -214,11 +214,19 @@ export class AdminGuard implements CanActivate {
     }
 
     // ni un convenio donde alcance: la ruta no es suya
-    if (exigido && convenios.length === 0) {
+    //
+    // Sobre `alcance` y no sobre `convenios`: quien lleva el
+    // area en un gremio y no en el otro entraba por el
+    // subdominio equivocado con ambito vacio, y se llevaba
+    // pantallas en blanco en vez de un no.
+    if (exigido && alcance.length === 0) {
+      // con el gremio puesto por la direccion hay que
+      // decirlo: el mismo rol si alcanza en el otro
+      const enEsteGremio = delHost ? ` en ${delHost.slug}` : '';
       throw new ForbiddenException(
         exigido.nivel === 'ESCRIBIR'
-          ? 'Su rol permite consultar esta sección, no modificarla.'
-          : 'Su rol no tiene acceso a esta sección.',
+          ? `Su rol permite consultar esta sección${enEsteGremio}, no modificarla.`
+          : `Su rol no tiene acceso a esta sección${enEsteGremio}.`,
       );
     }
 

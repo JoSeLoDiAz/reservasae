@@ -6,6 +6,13 @@
 /// convenio, ni aunque alguien bautice así uno.
 const RESERVADOS = new Set(['www', 'prueba', 'api', 'localhost', '127']);
 
+/// Lo que puede ser un slug, y nada mas.
+///
+/// El Host lo escribe el cliente y no tiene por que ser un
+/// dominio: `//malo.reservasae.com` daria la etiqueta
+/// `//malo`, y metida en una URL saca la peticion del origen.
+const PATRON = /^[a-z0-9]+(-[a-z0-9]+)*$/;
+
 export type ConvenioConSlug = { id: string; slug: string };
 
 /** La primera etiqueta del dominio, limpia. */
@@ -23,6 +30,7 @@ export function etiquetaDelHost(host?: string | null): string | null {
 
   const primera = partes[0];
   if (!primera || RESERVADOS.has(primera)) return null;
+  if (!PATRON.test(primera)) return null;
   return primera;
 }
 

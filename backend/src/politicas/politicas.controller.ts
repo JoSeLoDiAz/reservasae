@@ -13,6 +13,8 @@ import {
 
 import { DestinatarioPolitica, RolAdmin } from '../../generated/prisma';
 import { AdminGuard, Requiere, Roles } from '../admin/admin.guard';
+import { AmbitoActual } from '../admin/admin-actual.decorator';
+import type { Ambito } from '../admin/admin.guard';
 import { ActualizarPoliticaDto, CrearPoliticaDto } from './dto';
 import { PoliticasService } from './politicas.service';
 
@@ -26,32 +28,37 @@ export class PoliticasAdminController {
 
   /** Qué convenio puede publicar acciones y cuál no. */
   @Get('cobertura')
-  cobertura() {
-    return this.politicas.cobertura();
+  cobertura(@AmbitoActual() ambito: Ambito) {
+    return this.politicas.cobertura(ambito.convenios);
   }
 
   @Get()
   listar(
+    @AmbitoActual() ambito: Ambito,
     @Query('convenioId') convenioId?: string,
     @Query('destinatario') destinatario?: DestinatarioPolitica,
   ) {
-    return this.politicas.listar(convenioId, destinatario);
+    return this.politicas.listar(ambito.convenios, convenioId, destinatario);
   }
 
   @Post()
-  crear(@Body() dto: CrearPoliticaDto) {
-    return this.politicas.crear(dto);
+  crear(@AmbitoActual() ambito: Ambito, @Body() dto: CrearPoliticaDto) {
+    return this.politicas.crear(ambito.convenios, dto);
   }
 
   @Patch(':id')
-  actualizar(@Param('id') id: string, @Body() dto: ActualizarPoliticaDto) {
-    return this.politicas.actualizar(id, dto);
+  actualizar(
+    @AmbitoActual() ambito: Ambito,
+    @Param('id') id: string,
+    @Body() dto: ActualizarPoliticaDto,
+  ) {
+    return this.politicas.actualizar(ambito.convenios, id, dto);
   }
 
   @Delete(':id')
   @Roles(RolAdmin.SUPERADMIN)
-  eliminar(@Param('id') id: string) {
-    return this.politicas.eliminar(id);
+  eliminar(@AmbitoActual() ambito: Ambito, @Param('id') id: string) {
+    return this.politicas.eliminar(ambito.convenios, id);
   }
 }
 

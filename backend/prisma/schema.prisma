@@ -61,6 +61,7 @@ model Convenio {
   /// sabria cual de las dos es cual.
   formularioMarca Formulario? @relation("MarcaDelGremio", fields: [formularioMarcaId], references: [id], onDelete: SetNull)
 
+  @@index([formularioMarcaId])
   @@map("convenios")
 }
 

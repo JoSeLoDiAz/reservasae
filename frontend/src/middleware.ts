@@ -17,17 +17,31 @@ import { etiquetaDelHost } from "@/lib/gremio-del-host";
  * Solo reconoce dominios de túnel de pruebas. Un despliegue
  * de verdad lleva su propio dominio y esto no lo toca.
  */
-function hostDe(peticion: NextRequest): string {
-  return (
-    peticion.headers.get("x-forwarded-host") ??
-    peticion.headers.get("host") ??
-    ""
-  ).toLowerCase();
+/// Basta con que UNA de las dos lo parezca.
+///
+/// Antes era `x-forwarded-host ?? host`, y esa cabecera la
+/// pone quien quiera: mandandola con un dominio normal, el
+/// corte se saltaba y el panel salia por el tunel. Con `some`
+/// no se puede esquivar anadiendo una cabecera, solo
+/// quitandola, y quitarla deja el `host` de verdad.
+function esTunel(peticion: NextRequest): boolean {
+  return [
+    peticion.headers.get("x-forwarded-host"),
+    peticion.headers.get("host"),
+  ].some((valor) => {
+    const h = (valor ?? "").toLowerCase();
+    return h.endsWith(".trycloudflare.com") || h.endsWith(".ngrok-free.app");
+  });
 }
 
-function esTunel(peticion: NextRequest): boolean {
-  const host = hostDe(peticion);
-  return host.endsWith(".trycloudflare.com") || host.endsWith(".ngrok-free.app");
+/// Para el gremio manda `host` y nada mas.
+///
+/// Es la misma fuente que lee el backend, y tienen que
+/// coincidir: con `x-forwarded-host` se podia reescribir a un
+/// gremio mientras la paleta salia del otro -- el formulario
+/// de uno bajo la marca del otro.
+function hostDelGremio(peticion: NextRequest): string {
+  return (peticion.headers.get("host") ?? "").toLowerCase();
 }
 
 /// Lo que el trámite necesita para funcionar. Todo lo que no
@@ -57,7 +71,7 @@ export function middleware(peticion: NextRequest) {
   /// RESERVADOS: sin eso, un túnel de pruebas se reescribiría
   /// y se saltaría la puerta que cierra el panel.
   if (!esTunel(peticion) && peticion.nextUrl.pathname === "/") {
-    const gremio = etiquetaDelHost(hostDe(peticion));
+    const gremio = etiquetaDelHost(hostDelGremio(peticion));
     if (gremio) {
       return NextResponse.rewrite(
         new URL(`/${gremio}/preinscripcion`, peticion.url),

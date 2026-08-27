@@ -43,6 +43,19 @@ describe('el gremio que nombra la dirección', () => {
     expect(gremioDelHost('100.101.40.99', CONVENIOS)).toBeNull();
   });
 
+  it('un Host que no es un dominio no da etiqueta', () => {
+    // metido en una URL, saldria del origen
+    for (const h of [
+      '//malo.reservasae.com',
+      'a_b.reservasae.com',
+      'MAL O.reservasae.com',
+      '..reservasae.com',
+      'a:b.reservasae.com',
+    ]) {
+      expect([h, etiquetaDelHost(h)]).toEqual([h, null]);
+    }
+  });
+
   it('la etiqueta se lee aunque no exista el convenio', () => {
     expect(etiquetaDelHost('otro.reservasae.com')).toBe('otro');
   });

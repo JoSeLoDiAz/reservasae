@@ -57,8 +57,9 @@ export class FormulariosService {
     return CAMPOS_NUCLEO;
   }
 
-  async listar() {
+  async listar(ambito: string[]) {
     const formularios = await this.prisma.formulario.findMany({
+      where: { convenioId: { in: ambito } },
       orderBy: [{ convenio: { orden: 'asc' } }, { titulo: 'asc' }],
       include: {
         convenio: { select: { slug: true, sigla: true } },
@@ -81,7 +82,19 @@ export class FormulariosService {
   }
 
   /** Vista completa para el constructor. */
-  async obtener(id: string) {
+  /** Vista completa, comprobando el ambito. */
+  async obtener(ambito: string[], id: string) {
+    const suyo = await this.prisma.formulario.findFirst({
+      where: { id, convenioId: { in: ambito } },
+      select: { id: true },
+    });
+    // fuera del ambito no existe: decirlo seria un oraculo
+    if (!suyo) throw new NotFoundException('No existe ese formulario.');
+    return this.vista(id);
+  }
+
+  /// Sin comprobar nada: la usan los que ya comprobaron.
+  private async vista(id: string) {
     const formulario = await this.prisma.formulario.findUnique({
       where: { id },
       include: {
@@ -169,7 +182,11 @@ export class FormulariosService {
 
   // formulario
 
-  async crear(dto: CrearFormularioDto) {
+  async crear(ambito: string[], dto: CrearFormularioDto) {
+    // crear en el convenio ajeno es publicar en su nombre
+    if (!ambito.includes(dto.convenioId)) {
+      throw new NotFoundException('Ese convenio no existe.');
+    }
     if (esRutaReservada(dto.slug)) {
       throw new BadRequestException(
         `"${dto.slug}" es una ruta del sitio y no puede ser el identificador ` +
@@ -189,7 +206,7 @@ export class FormulariosService {
           },
         },
       });
-      return this.obtener(formulario.id);
+      return this.vista(formulario.id);
     } catch (error) {
       if (error instanceof Prisma.PrismaClientKnownRequestError) {
         if (error.code === 'P2002') {
@@ -326,7 +343,7 @@ export class FormulariosService {
         return copia.id;
       });
 
-      return this.obtener(copiaId);
+      return this.vista(copiaId);
     } catch (error) {
       if (
         error instanceof Prisma.PrismaClientKnownRequestError &&
@@ -356,7 +373,7 @@ export class FormulariosService {
     }
 
     await this.prisma.formulario.update({ where: { id }, data: dto });
-    return this.obtener(id);
+    return this.vista(id);
   }
 
   /** Se borra si nunca se usó; si no, se despublica. */
@@ -437,7 +454,7 @@ export class FormulariosService {
             : (soloTokensValidos(dto.coloresOscuro) as Prisma.InputJsonValue),
       },
     });
-    return this.obtener(id);
+    return this.vista(id);
   }
 
   // secciones
@@ -450,12 +467,12 @@ export class FormulariosService {
     await this.prisma.seccion.create({
       data: { formularioId, ...dto, orden: (ultimo._max.orden ?? -1) + 1 },
     });
-    return this.obtener(formularioId);
+    return this.vista(formularioId);
   }
 
   async actualizarSeccion(id: string, dto: SeccionDto) {
     const seccion = await this.prisma.seccion.update({ where: { id }, data: dto });
-    return this.obtener(seccion.formularioId);
+    return this.vista(seccion.formularioId);
   }
 
   /** Borrar la sección no borra sus preguntas. */
@@ -463,7 +480,7 @@ export class FormulariosService {
     const seccion = await this.prisma.seccion.findUnique({ where: { id } });
     if (!seccion) throw new NotFoundException('No existe esa sección.');
     await this.prisma.seccion.delete({ where: { id } });
-    return this.obtener(seccion.formularioId);
+    return this.vista(seccion.formularioId);
   }
 
   async reordenarSecciones(formularioId: string, ids: string[]) {
@@ -472,7 +489,7 @@ export class FormulariosService {
         this.prisma.seccion.updateMany({ where: { id, formularioId }, data: { orden } }),
       ),
     );
-    return this.obtener(formularioId);
+    return this.vista(formularioId);
   }
 
   // preguntas
@@ -509,7 +526,7 @@ export class FormulariosService {
       throw error;
     }
 
-    return this.obtener(formularioId);
+    return this.vista(formularioId);
   }
 
   async actualizarPregunta(id: string, dto: ActualizarPreguntaDto) {
@@ -574,7 +591,7 @@ export class FormulariosService {
       },
     });
 
-    return this.obtener(pregunta.formularioId);
+    return this.vista(pregunta.formularioId);
   }
 
   async reordenarPreguntas(formularioId: string, ids: string[]) {
@@ -583,7 +600,7 @@ export class FormulariosService {
         this.prisma.pregunta.updateMany({ where: { id, formularioId }, data: { orden } }),
       ),
     );
-    return this.obtener(formularioId);
+    return this.vista(formularioId);
   }
 
   // opciones
@@ -618,7 +635,7 @@ export class FormulariosService {
       throw error;
     }
 
-    return this.obtener(pregunta.formularioId);
+    return this.vista(pregunta.formularioId);
   }
 
   async actualizarOpcion(id: string, dto: ActualizarOpcionDto) {
@@ -632,7 +649,7 @@ export class FormulariosService {
       where: { id },
       data: { etiqueta: dto.etiqueta, archivada: dto.archivada },
     });
-    return this.obtener(opcion.pregunta.formularioId);
+    return this.vista(opcion.pregunta.formularioId);
   }
 
   /** Una opción ya elegida se archiva, no se borra. */
@@ -653,7 +670,7 @@ export class FormulariosService {
       await this.prisma.opcion.delete({ where: { id } });
     }
 
-    return this.obtener(opcion.pregunta.formularioId);
+    return this.vista(opcion.pregunta.formularioId);
   }
 
   async reordenarOpciones(preguntaId: string, ids: string[]) {
@@ -665,7 +682,7 @@ export class FormulariosService {
         this.prisma.opcion.updateMany({ where: { id, preguntaId }, data: { orden } }),
       ),
     );
-    return this.obtener(pregunta.formularioId);
+    return this.vista(pregunta.formularioId);
   }
 
   // envío: validar respuestas

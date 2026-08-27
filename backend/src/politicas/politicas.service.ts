@@ -14,9 +14,18 @@ import { ActualizarPoliticaDto, CrearPoliticaDto } from './dto';
 export class PoliticasService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async listar(convenioId?: string, destinatario?: DestinatarioPolitica) {
+  async listar(
+    ambito: string[],
+    convenioId?: string,
+    destinatario?: DestinatarioPolitica,
+  ) {
     const politicas = await this.prisma.politicaDatos.findMany({
-      where: { convenioId, destinatario },
+      // el filtro pedido se INTERSECA con el ambito: pedir
+      // uno de fuera no devuelve nada, no lo devuelve todo
+      where: {
+        convenioId: { in: convenioId ? ambito.filter((id) => id === convenioId) : ambito },
+        destinatario,
+      },
       orderBy: [{ convenioId: 'asc' }, { destinatario: 'asc' }, { version: 'desc' }],
       include: {
         convenio: { select: { id: true, nombre: true, sigla: true, slug: true } },
@@ -44,9 +53,9 @@ export class PoliticasService {
   }
 
   /** Qué falta para poder publicar acciones de cada convenio. */
-  async cobertura() {
+  async cobertura(ambito: string[]) {
     const convenios = await this.prisma.convenio.findMany({
-      where: { activo: true },
+      where: { activo: true, id: { in: ambito } },
       orderBy: { orden: 'asc' },
       select: { id: true, nombre: true, sigla: true, slug: true },
     });
@@ -86,7 +95,13 @@ export class PoliticasService {
   }
 
   /** Crear una versión la deja vigente y cierra la anterior. */
-  async crear(dto: CrearPoliticaDto) {
+  async crear(ambito: string[], dto: CrearPoliticaDto) {
+    // publicar la politica del otro convenio es cambiarle a
+    // su gente el texto que aceptan
+    if (!ambito.includes(dto.convenioId)) {
+      throw new NotFoundException('Ese convenio no existe.');
+    }
+
     const convenio = await this.prisma.convenio.findUnique({
       where: { id: dto.convenioId },
       select: { id: true },
@@ -133,12 +148,15 @@ export class PoliticasService {
   }
 
   /** Solo mientras nadie la haya aceptado. */
-  async actualizar(id: string, dto: ActualizarPoliticaDto) {
+  async actualizar(ambito: string[], id: string, dto: ActualizarPoliticaDto) {
     const politica = await this.prisma.politicaDatos.findUnique({
       where: { id },
       include: { _count: { select: { reservas: true, autorizaciones: true } } },
     });
-    if (!politica) throw new NotFoundException('Esa política no existe.');
+    // fuera del ambito no existe: decir que si es un oraculo
+    if (!politica || !ambito.includes(politica.convenioId)) {
+      throw new NotFoundException('Esa política no existe.');
+    }
 
     const aceptaciones = politica._count.reservas + politica._count.autorizaciones;
     if (aceptaciones > 0) {
@@ -158,12 +176,14 @@ export class PoliticasService {
   }
 
   /** Solo si nadie la aceptó y no es la vigente. */
-  async eliminar(id: string) {
+  async eliminar(ambito: string[], id: string) {
     const politica = await this.prisma.politicaDatos.findUnique({
       where: { id },
       include: { _count: { select: { reservas: true, autorizaciones: true } } },
     });
-    if (!politica) throw new NotFoundException('Esa política no existe.');
+    if (!politica || !ambito.includes(politica.convenioId)) {
+      throw new NotFoundException('Esa política no existe.');
+    }
 
     if (politica._count.reservas + politica._count.autorizaciones > 0) {
       throw new ConflictException(
