@@ -1522,6 +1522,24 @@ la reserva invisible para los dos gremios y la tasa de respuesta
 de ambos falseada. El mensaje es el mismo que «no está
 publicado», a propósito.
 
+> **`aDiaBogota` depende de que Node traiga full-icu, y hoy lo trae.**
+> Comprobado dentro del contenedor de producción el 27 ago 2026:
+> `node:22-alpine` da `icu: full` y
+> `toLocaleDateString('en-CA', { timeZone: 'America/Bogota' })` devuelve el día
+> correcto. **Con un Node de small-icu esa llamada ignora la zona en silencio**
+> y devuelve UTC: los tests seguirían pasando en Windows y todo lo de abajo
+> quedaría inerte solo en el servidor. Si algún día se cambia la imagen base,
+> compruébelo con:
+>
+> ```bash
+> docker compose exec -T backend node -e "console.log(new Date('2026-08-28T01:00:00Z').toLocaleDateString('en-CA',{timeZone:'America/Bogota'}))"
+> # tiene que decir 2026-08-27, no 2026-08-28
+> ```
+>
+> Y **Postgres corre en UTC** (`SHOW TimeZone` → UTC), que es justo por lo que
+> `CURRENT_DATE` no valía: entre las 19:00 y la medianoche de Bogotá devuelve el
+> día siguiente. `HOY_BOGOTA` de `comun/dia-bogota.ts` lo corrige.
+
 **Los días son los de Bogotá.** `date_trunc('day', x)` a secas
 parte los días a las 19:00, así que las cinco horas de
 tarde-noche —cuando la gente diligencia— se cargaban al día
