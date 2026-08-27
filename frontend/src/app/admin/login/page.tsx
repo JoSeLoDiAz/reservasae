@@ -160,7 +160,12 @@ function Marca({ claro = false }: { claro?: boolean }) {
     return (
       // self-start: en una columna flex, si no, la placa
       // se estira a todo el ancho y queda una caja vacia
-      <div className="flex w-fit max-w-full flex-wrap items-center gap-x-5 gap-y-3 self-start rounded-2xl bg-white px-5 py-3.5 shadow-sm">
+      /// Mas grandes que antes, pero por DEBAJO de Convoca.
+      ///
+      /// 48 px contra los 56 del signo: se ven de verdad y
+      /// siguen leyendose como la segunda linea. Igualarlos
+      /// dejaria dos cosas peleando por el mismo sitio.
+      <div className="flex w-fit max-w-full flex-wrap items-center gap-x-6 gap-y-3 self-start rounded-2xl bg-white px-6 py-4 shadow-sm">
         {logos.map((logo) => (
           // <img>: tamano desconocido y ya viene cacheado
           // eslint-disable-next-line @next/next/no-img-element
@@ -168,7 +173,7 @@ function Marca({ claro = false }: { claro?: boolean }) {
             key={logo.id}
             src={urlLogo(logo)}
             alt={logo.etiqueta}
-            className="h-10 w-auto max-w-[9rem] object-contain"
+            className="h-12 w-auto max-w-[10.5rem] object-contain"
           />
         ))}
       </div>
