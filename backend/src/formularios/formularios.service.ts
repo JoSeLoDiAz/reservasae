@@ -93,6 +93,57 @@ export class FormulariosService {
     return this.vista(id);
   }
 
+  /// Fuera del ambito, la fila NO existe.
+  ///
+  /// Cinco puertas porque cada tabla llega al convenio por un
+  /// camino distinto, igual que en `tableros/ambito.ts`. Se
+  /// llaman ANTES de tocar nada: la leccion de la ronda
+  /// anterior fue que cerrar la lectura y dejar la escritura
+  /// abierta es peor que no cerrar nada.
+  private noExiste(): never {
+    throw new NotFoundException('No existe ese formulario.');
+  }
+
+  private async exigirFormulario(ambito: string[], id: string) {
+    const suyo = await this.prisma.formulario.findFirst({
+      where: { id, convenioId: { in: ambito } },
+      select: { id: true },
+    });
+    if (!suyo) this.noExiste();
+  }
+
+  private async exigirSeccion(ambito: string[], id: string) {
+    const suya = await this.prisma.seccion.findFirst({
+      where: { id, formulario: { convenioId: { in: ambito } } },
+      select: { id: true },
+    });
+    if (!suya) this.noExiste();
+  }
+
+  private async exigirPregunta(ambito: string[], id: string) {
+    const suya = await this.prisma.pregunta.findFirst({
+      where: { id, formulario: { convenioId: { in: ambito } } },
+      select: { id: true },
+    });
+    if (!suya) this.noExiste();
+  }
+
+  private async exigirOpcion(ambito: string[], id: string) {
+    const suya = await this.prisma.opcion.findFirst({
+      where: { id, pregunta: { formulario: { convenioId: { in: ambito } } } },
+      select: { id: true },
+    });
+    if (!suya) this.noExiste();
+  }
+
+  private async exigirAccion(ambito: string[], id: string) {
+    const suya = await this.prisma.accionFormacion.findFirst({
+      where: { id, convenioId: { in: ambito } },
+      select: { id: true },
+    });
+    if (!suya) throw new NotFoundException('No existe esa acción de formación.');
+  }
+
   /// Sin comprobar nada: la usan los que ya comprobaron.
   private async vista(id: string) {
     const formulario = await this.prisma.formulario.findUnique({
@@ -221,7 +272,8 @@ export class FormulariosService {
   }
 
   /** Copia un formulario en blanco, sin respuestas. */
-  async duplicar(id: string, dto: DuplicarFormularioDto) {
+  async duplicar(ambito: string[], id: string, dto: DuplicarFormularioDto) {
+    await this.exigirFormulario(ambito, id);
     if (esRutaReservada(dto.slug)) {
       throw new BadRequestException(
         `"${dto.slug}" es una ruta del sitio y no puede ser el identificador ` +
@@ -355,7 +407,8 @@ export class FormulariosService {
     }
   }
 
-  async actualizar(id: string, dto: ActualizarFormularioDto) {
+  async actualizar(ambito: string[], id: string, dto: ActualizarFormularioDto) {
+    await this.exigirFormulario(ambito, id);
     const formulario = await this.prisma.formulario.findUnique({
       where: { id },
       include: { preguntas: { include: { opciones: true } } },
@@ -377,7 +430,8 @@ export class FormulariosService {
   }
 
   /** Se borra si nunca se usó; si no, se despublica. */
-  async eliminar(id: string) {
+  async eliminar(ambito: string[], id: string) {
+    await this.exigirFormulario(ambito, id);
     const respuestas = await this.prisma.respuesta.count({
       where: { pregunta: { formularioId: id } },
     });
@@ -437,7 +491,8 @@ export class FormulariosService {
   // apariencia
 
   /** Guarda SOLO los colores que sobreescribe. */
-  async actualizarApariencia(id: string, dto: ActualizarAparienciaDto) {
+  async actualizarApariencia(ambito: string[], id: string, dto: ActualizarAparienciaDto) {
+    await this.exigirFormulario(ambito, id);
     const formulario = await this.prisma.formulario.findUnique({ where: { id } });
     if (!formulario) throw new NotFoundException('No existe ese formulario.');
 
@@ -459,7 +514,8 @@ export class FormulariosService {
 
   // secciones
 
-  async crearSeccion(formularioId: string, dto: SeccionDto) {
+  async crearSeccion(ambito: string[], formularioId: string, dto: SeccionDto) {
+    await this.exigirFormulario(ambito, formularioId);
     const ultimo = await this.prisma.seccion.aggregate({
       where: { formularioId },
       _max: { orden: true },
@@ -470,20 +526,23 @@ export class FormulariosService {
     return this.vista(formularioId);
   }
 
-  async actualizarSeccion(id: string, dto: SeccionDto) {
+  async actualizarSeccion(ambito: string[], id: string, dto: SeccionDto) {
+    await this.exigirSeccion(ambito, id);
     const seccion = await this.prisma.seccion.update({ where: { id }, data: dto });
     return this.vista(seccion.formularioId);
   }
 
   /** Borrar la sección no borra sus preguntas. */
-  async eliminarSeccion(id: string) {
+  async eliminarSeccion(ambito: string[], id: string) {
+    await this.exigirSeccion(ambito, id);
     const seccion = await this.prisma.seccion.findUnique({ where: { id } });
     if (!seccion) throw new NotFoundException('No existe esa sección.');
     await this.prisma.seccion.delete({ where: { id } });
     return this.vista(seccion.formularioId);
   }
 
-  async reordenarSecciones(formularioId: string, ids: string[]) {
+  async reordenarSecciones(ambito: string[], formularioId: string, ids: string[]) {
+    await this.exigirFormulario(ambito, formularioId);
     await this.prisma.$transaction(
       ids.map((id, orden) =>
         this.prisma.seccion.updateMany({ where: { id, formularioId }, data: { orden } }),
@@ -494,7 +553,8 @@ export class FormulariosService {
 
   // preguntas
 
-  async crearPregunta(formularioId: string, dto: CrearPreguntaDto) {
+  async crearPregunta(ambito: string[], formularioId: string, dto: CrearPreguntaDto) {
+    await this.exigirFormulario(ambito, formularioId);
     const definicion = dto.campoNucleo ? POR_CAMPO.get(dto.campoNucleo) : undefined;
 
     // el catálogo manda el tipo
@@ -529,7 +589,8 @@ export class FormulariosService {
     return this.vista(formularioId);
   }
 
-  async actualizarPregunta(id: string, dto: ActualizarPreguntaDto) {
+  async actualizarPregunta(ambito: string[], id: string, dto: ActualizarPreguntaDto) {
+    await this.exigirPregunta(ambito, id);
     const pregunta = await this.prisma.pregunta.findUnique({
       where: { id },
       include: { _count: { select: { respuestas: true } } },
@@ -594,7 +655,8 @@ export class FormulariosService {
     return this.vista(pregunta.formularioId);
   }
 
-  async reordenarPreguntas(formularioId: string, ids: string[]) {
+  async reordenarPreguntas(ambito: string[], formularioId: string, ids: string[]) {
+    await this.exigirFormulario(ambito, formularioId);
     await this.prisma.$transaction(
       ids.map((id, orden) =>
         this.prisma.pregunta.updateMany({ where: { id, formularioId }, data: { orden } }),
@@ -605,7 +667,8 @@ export class FormulariosService {
 
   // opciones
 
-  async crearOpcion(preguntaId: string, dto: OpcionDto) {
+  async crearOpcion(ambito: string[], preguntaId: string, dto: OpcionDto) {
+    await this.exigirPregunta(ambito, preguntaId);
     const pregunta = await this.prisma.pregunta.findUnique({ where: { id: preguntaId } });
     if (!pregunta) throw new NotFoundException('No existe esa pregunta.');
 
@@ -638,7 +701,8 @@ export class FormulariosService {
     return this.vista(pregunta.formularioId);
   }
 
-  async actualizarOpcion(id: string, dto: ActualizarOpcionDto) {
+  async actualizarOpcion(ambito: string[], id: string, dto: ActualizarOpcionDto) {
+    await this.exigirOpcion(ambito, id);
     const opcion = await this.prisma.opcion.findUnique({
       where: { id },
       include: { pregunta: true },
@@ -653,7 +717,8 @@ export class FormulariosService {
   }
 
   /** Una opción ya elegida se archiva, no se borra. */
-  async eliminarOpcion(id: string) {
+  async eliminarOpcion(ambito: string[], id: string) {
+    await this.exigirOpcion(ambito, id);
     const opcion = await this.prisma.opcion.findUnique({
       where: { id },
       include: { pregunta: true },
@@ -673,7 +738,8 @@ export class FormulariosService {
     return this.vista(opcion.pregunta.formularioId);
   }
 
-  async reordenarOpciones(preguntaId: string, ids: string[]) {
+  async reordenarOpciones(ambito: string[], preguntaId: string, ids: string[]) {
+    await this.exigirPregunta(ambito, preguntaId);
     const pregunta = await this.prisma.pregunta.findUnique({ where: { id: preguntaId } });
     if (!pregunta) throw new NotFoundException('No existe esa pregunta.');
 
@@ -845,8 +911,9 @@ export class FormulariosService {
    * texto es el mismo. Se editan desde aqui porque es donde
    * quien arma el formulario los va a buscar.
    */
-  async resumenesPublicos() {
+  async resumenesPublicos(ambito: string[]) {
     const acciones = await this.prisma.accionFormacion.findMany({
+      where: { convenioId: { in: ambito } },
       orderBy: [{ convenio: { slug: 'asc' } }, { codigo: 'asc' }],
       select: {
         id: true,
@@ -867,7 +934,8 @@ export class FormulariosService {
   }
 
   /** Cambia el texto de una acción. Vacío lo borra. */
-  async guardarResumenPublico(accionId: string, texto: string | null) {
+  async guardarResumenPublico(ambito: string[], accionId: string, texto: string | null) {
+    await this.exigirAccion(ambito, accionId);
     const existe = await this.prisma.accionFormacion.count({ where: { id: accionId } });
     if (!existe) throw new NotFoundException('Esa acción de formación no existe.');
 

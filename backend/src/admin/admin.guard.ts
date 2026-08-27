@@ -150,9 +150,15 @@ export class AdminGuard implements CanActivate {
     // el gremio elegido RECORTA, nunca amplía: si pide uno
     // que su cuenta no le concede, se ignora y se queda con
     // todo lo suyo. Un encabezado no puede dar acceso.
+    // contra `concedidos` y no contra `convenios`, que ya
+    // viene recortado por area: si se valida contra el
+    // recortado, elegir un gremio donde tiene el gremio pero
+    // no el area dejaba la cabecera en null y el ambito con
+    // el OTRO -- el selector diciendo uno y las tablas
+    // ensenando otro. Asi cae en el 403 con el area dicha.
     const pedido = peticion.headers[CABECERA_GREMIO];
     const porCabecera =
-      typeof pedido === 'string' && convenios.includes(pedido) ? pedido : null;
+      typeof pedido === 'string' && concedidos.includes(pedido) ? pedido : null;
 
     // la DIRECCIÓN manda sobre la cabecera, y a diferencia de
     // ella no se ignora en silencio: la cabecera es una

@@ -1382,13 +1382,43 @@ que «un asesor de ADECOPRIA no entra a BRITCHAM ni llamando a la API».
 - **`obtener` se partió en dos**: la pública comprueba el ámbito y `vista()` es
   la interna, sin comprobar, que usan los métodos que ya comprobaron.
 
-> **Falta la mitad de formularios, y hay que decirlo.** Están acotados `listar`,
-> `obtener` y `crear` —los que la revisión demostró y la puerta por la que se
-> llega al resto—, pero **las rutas de secciones, preguntas y opciones siguen
-> sin ámbito**: reciben `seccionId`, `preguntaId` u `opcionId` y no comprueban
-> de qué convenio son. Hacen falta unas doce, y merecen su propia pasada con su
-> propia revisión: cerrarlas a medias es peor que dejarlas, porque todos
-> creerían que están cerradas.
+#### Las 21 rutas, y por qué se cerraron todas de golpe (27 ago 2026)
+
+**El primer intento cerró tres y documentó el resto como deuda. Fue un error, y
+una segunda revisión lo demostró en veinte minutos:** `GET /admin/formularios/:id`
+devolvía 404 con un id ajeno mientras **`PATCH` del mismo id respondía 200 y
+escribía**. La lectura cerrada y la escritura abierta es la peor combinación
+posible, y encima aquel párrafo enumeraba mal la deuda — `actualizar`,
+`eliminar`, `duplicar` y `apariencia` no estaban en la lista y también estaban
+abiertas.
+
+Es exactamente el patrón que este archivo ya advertía: **el control en pie y
+vacío de efecto.** El helper `vista()`, creado para que los métodos internos no
+repitieran la comprobación, se volvió la puerta de servicio por la que entraban
+las rutas que nunca comprobaron.
+
+- **Cinco comprobaciones, no una.** `exigirFormulario`, `exigirSeccion`,
+  `exigirPregunta`, `exigirOpcion` y `exigirAccion`: cada tabla llega al
+  convenio por un camino distinto, igual que en `tableros/ambito.ts`. Van al
+  principio del método, antes de tocar nada.
+- **`fuera-del-ambito.spec.ts` recorre las 21 rutas** con ids del otro convenio
+  y exige dos cosas: que no responda 200 y, sobre todo, **que no se haya
+  escrito nada**. Lo segundo es lo que importa — es la aserción que no depende
+  de qué código devuelva cada ruta.
+- **Se comprobó que la prueba puede fallar.** Quitándole el candado a
+  `actualizar`, falla 1 de 22; devolviéndolo, pasan las 22. Un test que no puede
+  fallar es peor que ninguno, porque da confianza sin darla.
+- **La lección para la próxima:** un arreglo ruta por ruta se olvida de alguna.
+  Lo que no se olvida es una prueba que recorra la superficie entera.
+
+> **`instituciones` no lleva ámbito, y es correcto.** Es el directorio maestro
+> de NIT, compartido: la tabla no tiene `convenioId`, así que no hay nada que
+> filtrar. Una revisión lo reportó como fuga y no lo es.
+>
+> **`empresas` se comparte por decisión del cliente**, pero la descarga de
+> plantillas las volcaba **todas**, mientras el panel solo lista las que tienen
+> alguna reserva dentro del ámbito. Ahora la descarga usa el mismo filtro que la
+> pantalla desde la que se descarga.
 
 ### Lo que falta
 

@@ -143,6 +143,19 @@ export class PlantillasService {
 
     if (entidad === 'empresas') {
       const filas = await this.prisma.empresa.findMany({
+        /// Las mismas que ensena el panel, ni una mas.
+        ///
+        /// La organizacion se comparte entre convenios por
+        /// decision del cliente, pero el panel solo lista las
+        /// que tienen alguna reserva dentro del ambito. Sin
+        /// este filtro la descarga traia TODAS, que es una
+        /// lista de contactos mas larga que la pantalla de la
+        /// que se descarga.
+        where: {
+          reservas: {
+            some: { oferta: { accionFormacion: { convenioId: { in: convenios } } } },
+          },
+        },
         orderBy: { razonSocial: 'asc' },
       });
       return filas.map((f) => ({

@@ -66,6 +66,7 @@ export function MarcoAdmin({ children }: { children: React.ReactNode }) {
 
   const [admin, setAdmin] = useState<AdminActual | null>(null);
   const [cargando, setCargando] = useState(true);
+  const [bloqueo, setBloqueo] = useState<string | null>(null);
   const [plegado, setPlegadoEstado] = useState(false);
   const [cajon, setCajon] = useState(false);
   const [gremio, setGremioEstado] = useState<string | null>(null);
@@ -133,10 +134,22 @@ export function MarcoAdmin({ children }: { children: React.ReactNode }) {
   const cargar = useCallback(async () => {
     try {
       setAdmin(await adminApi.yo());
+      setBloqueo(null);
     } catch (e) {
       // /admin/yo si responde con la clave sin cambiar
       if (e instanceof ErrorApi && e.estado === 401) {
         router.replace("/admin/login");
+        return;
+      }
+      /// Un 403 aquí es la puerta equivocada, no una avería.
+      ///
+      /// El servidor manda el motivo -- que su cuenta no
+      /// trabaja en ese gremio, o que esa dirección es solo
+      /// de administración general -- y hasta ahora nadie lo
+      /// leía: la pantalla se quedaba en blanco y parecía
+      /// que el sistema estaba roto.
+      if (e instanceof ErrorApi && e.estado === 403) {
+        setBloqueo(e.message);
         return;
       }
       throw e;
@@ -152,6 +165,25 @@ export function MarcoAdmin({ children }: { children: React.ReactNode }) {
   if (cargando) {
     return <p className="p-10 text-texto-suave">Cargando…</p>;
   }
+
+  if (bloqueo) {
+    return (
+      <div className="mx-auto max-w-lg p-10">
+        <div className="rounded-xl border border-aviso/30 bg-aviso-suave p-5 text-aviso">
+          <p className="font-medium">Por aquí no puede entrar</p>
+          <p className="mt-1 text-sm">{bloqueo}</p>
+        </div>
+        <button
+          type="button"
+          onClick={() => void salir()}
+          className="mt-4 text-sm font-medium text-marca underline"
+        >
+          Cerrar sesión y entrar por otra dirección
+        </button>
+      </div>
+    );
+  }
+
   if (!admin) return null;
 
   // el panel queda bloqueado hasta cambiar la clave
@@ -264,23 +296,31 @@ const LOGO = "/logo-convoca.png";
 
 /// La marca. Igual en la barra y en el cajón.
 function Marca({ plegado }: { plegado?: boolean }) {
-  const [sinLogo, setSinLogo] = useState(false);
+  /// Se guarda QUE fuente fallo, no un booleano.
+  ///
+  /// Con un booleano, un parpadeo de red dejaba la letra "C"
+  /// el resto de la sesion, incluso despues de cambiar de
+  /// gremio: el logo bueno ya no se volvia a intentar.
+  const [fallo, setFallo] = useState<string | null>(null);
   const { marca } = useMarca();
 
   /// El primero de la marca, que en el subdominio de un
   /// gremio ya es el suyo. El PNG queda de respaldo.
   const propio = marca?.logos?.[0];
   const fuente = propio ? urlLogo(propio) : LOGO;
+  const roto = fallo === fuente;
 
   return (
     <Link
       href="/admin"
+      // plegado no hay texto que lo nombre
+      aria-label={plegado ? "CONVOCA CRM" : undefined}
       /// Centrada. El logo y el nombre pegados a la izquierda
       /// se leian como una esquina; centrados sobre el menu
       /// hacen de cabecera de lo que viene debajo.
       className="flex items-center justify-center gap-2.5 no-underline"
     >
-      {sinLogo ? (
+      {roto ? (
         <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-marca text-sm font-bold text-marca-texto">
           C
         </span>
@@ -291,7 +331,7 @@ function Marca({ plegado }: { plegado?: boolean }) {
           alt=""
           width={36}
           height={36}
-          onError={() => setSinLogo(true)}
+          onError={() => setFallo(fuente)}
           /// Plegado va el cuadro de 36; abierto se le deja
           /// ancho, que un logo con letras en un cuadrado no
           /// se lee.

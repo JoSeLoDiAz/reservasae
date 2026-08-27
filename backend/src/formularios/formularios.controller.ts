@@ -45,17 +45,18 @@ export class FormulariosAdminController {
   /// Antes de `:id` a proposito: si no, «resumenes» se
   /// leeria como el id de un formulario.
   @Get('resumenes')
-  resumenes() {
-    return this.formularios.resumenesPublicos();
+  resumenes(@AmbitoActual() ambito: Ambito) {
+    return this.formularios.resumenesPublicos(ambito.convenios);
   }
 
   /** El texto de la tarjeta de una acción. */
   @Patch('resumenes/:accionId')
   guardarResumen(
+    @AmbitoActual() ambito: Ambito,
     @Param('accionId') accionId: string,
     @Body() dto: ResumenPublicoDto,
   ) {
-    return this.formularios.guardarResumenPublico(accionId, dto.resumen ?? null);
+    return this.formularios.guardarResumenPublico(ambito.convenios, accionId, dto.resumen ?? null);
   }
 
   @Get()
@@ -76,14 +77,15 @@ export class FormulariosAdminController {
   /** Copia uno existente, en borrador. */
   @Post(':id/duplicar')
   @Roles(RolAdmin.SUPERADMIN)
-  duplicar(@Param('id') id: string, @Body() dto: DuplicarFormularioDto) {
-    return this.formularios.duplicar(id, dto);
+  duplicar(@AmbitoActual() ambito: Ambito, @Param('id') id: string, @Body() dto: DuplicarFormularioDto) {
+    return this.formularios.duplicar(ambito.convenios, id, dto);
   }
 
   // el titulo y los textos los edita quien construye;
   // abrirlo al publico es del administrador
   @Patch(':id')
   actualizar(
+    @AmbitoActual() ambito: Ambito,
     @Param('id') id: string,
     @Body() dto: ActualizarFormularioDto,
     @AdminActual() admin: Admin,
@@ -93,21 +95,21 @@ export class FormulariosAdminController {
         'Publicar o retirar un formulario es del administrador del sistema.',
       );
     }
-    return this.formularios.actualizar(id, dto);
+    return this.formularios.actualizar(ambito.convenios, id, dto);
   }
 
   @Delete(':id')
   @Roles(RolAdmin.SUPERADMIN)
-  eliminar(@Param('id') id: string) {
-    return this.formularios.eliminar(id);
+  eliminar(@AmbitoActual() ambito: Ambito, @Param('id') id: string) {
+    return this.formularios.eliminar(ambito.convenios, id);
   }
 
   // apariencia
 
   @Patch(':id/apariencia')
   @Roles(RolAdmin.SUPERADMIN)
-  actualizarApariencia(@Param('id') id: string, @Body() dto: ActualizarAparienciaDto) {
-    return this.formularios.actualizarApariencia(id, dto);
+  actualizarApariencia(@AmbitoActual() ambito: Ambito, @Param('id') id: string, @Body() dto: ActualizarAparienciaDto) {
+    return this.formularios.actualizarApariencia(ambito.convenios, id, dto);
   }
 
   // los logos van por /admin/logos?formularioId=
@@ -115,67 +117,68 @@ export class FormulariosAdminController {
   // secciones
 
   @Post(':id/secciones')
-  crearSeccion(@Param('id') id: string, @Body() dto: SeccionDto) {
-    return this.formularios.crearSeccion(id, dto);
+  crearSeccion(@AmbitoActual() ambito: Ambito, @Param('id') id: string, @Body() dto: SeccionDto) {
+    return this.formularios.crearSeccion(ambito.convenios, id, dto);
   }
 
   @Patch('secciones/:seccionId')
-  actualizarSeccion(@Param('seccionId') seccionId: string, @Body() dto: SeccionDto) {
-    return this.formularios.actualizarSeccion(seccionId, dto);
+  actualizarSeccion(@AmbitoActual() ambito: Ambito, @Param('seccionId') seccionId: string, @Body() dto: SeccionDto) {
+    return this.formularios.actualizarSeccion(ambito.convenios, seccionId, dto);
   }
 
   @Delete('secciones/:seccionId')
   @Roles(RolAdmin.SUPERADMIN)
-  eliminarSeccion(@Param('seccionId') seccionId: string) {
-    return this.formularios.eliminarSeccion(seccionId);
+  eliminarSeccion(@AmbitoActual() ambito: Ambito, @Param('seccionId') seccionId: string) {
+    return this.formularios.eliminarSeccion(ambito.convenios, seccionId);
   }
 
   @Patch(':id/secciones/orden')
-  reordenarSecciones(@Param('id') id: string, @Body() dto: ReordenarDto) {
-    return this.formularios.reordenarSecciones(id, dto.ids);
+  reordenarSecciones(@AmbitoActual() ambito: Ambito, @Param('id') id: string, @Body() dto: ReordenarDto) {
+    return this.formularios.reordenarSecciones(ambito.convenios, id, dto.ids);
   }
 
   // preguntas
 
   @Post(':id/preguntas')
-  crearPregunta(@Param('id') id: string, @Body() dto: CrearPreguntaDto) {
-    return this.formularios.crearPregunta(id, dto);
+  crearPregunta(@AmbitoActual() ambito: Ambito, @Param('id') id: string, @Body() dto: CrearPreguntaDto) {
+    return this.formularios.crearPregunta(ambito.convenios, id, dto);
   }
 
   @Patch('preguntas/:preguntaId')
   actualizarPregunta(
+    @AmbitoActual() ambito: Ambito,
     @Param('preguntaId') preguntaId: string,
     @Body() dto: ActualizarPreguntaDto,
   ) {
-    return this.formularios.actualizarPregunta(preguntaId, dto);
+    return this.formularios.actualizarPregunta(ambito.convenios, preguntaId, dto);
   }
 
   @Patch(':id/preguntas/orden')
-  reordenarPreguntas(@Param('id') id: string, @Body() dto: ReordenarDto) {
-    return this.formularios.reordenarPreguntas(id, dto.ids);
+  reordenarPreguntas(@AmbitoActual() ambito: Ambito, @Param('id') id: string, @Body() dto: ReordenarDto) {
+    return this.formularios.reordenarPreguntas(ambito.convenios, id, dto.ids);
   }
 
   // opciones
 
   @Post('preguntas/:preguntaId/opciones')
-  crearOpcion(@Param('preguntaId') preguntaId: string, @Body() dto: OpcionDto) {
-    return this.formularios.crearOpcion(preguntaId, dto);
+  crearOpcion(@AmbitoActual() ambito: Ambito, @Param('preguntaId') preguntaId: string, @Body() dto: OpcionDto) {
+    return this.formularios.crearOpcion(ambito.convenios, preguntaId, dto);
   }
 
   @Patch('opciones/:opcionId')
-  actualizarOpcion(@Param('opcionId') opcionId: string, @Body() dto: ActualizarOpcionDto) {
-    return this.formularios.actualizarOpcion(opcionId, dto);
+  actualizarOpcion(@AmbitoActual() ambito: Ambito, @Param('opcionId') opcionId: string, @Body() dto: ActualizarOpcionDto) {
+    return this.formularios.actualizarOpcion(ambito.convenios, opcionId, dto);
   }
 
   @Delete('opciones/:opcionId')
   @Roles(RolAdmin.SUPERADMIN)
-  eliminarOpcion(@Param('opcionId') opcionId: string) {
-    return this.formularios.eliminarOpcion(opcionId);
+  eliminarOpcion(@AmbitoActual() ambito: Ambito, @Param('opcionId') opcionId: string) {
+    return this.formularios.eliminarOpcion(ambito.convenios, opcionId);
   }
 
   @Patch('preguntas/:preguntaId/opciones/orden')
-  reordenarOpciones(@Param('preguntaId') preguntaId: string, @Body() dto: ReordenarDto) {
-    return this.formularios.reordenarOpciones(preguntaId, dto.ids);
+  reordenarOpciones(@AmbitoActual() ambito: Ambito, @Param('preguntaId') preguntaId: string, @Body() dto: ReordenarDto) {
+    return this.formularios.reordenarOpciones(ambito.convenios, preguntaId, dto.ids);
   }
 }
 
