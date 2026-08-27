@@ -4,6 +4,10 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 
 import { EditorColores } from "@/components/admin/editor-colores";
+import {
+  AparienciaHeredada,
+  type Propios,
+} from "@/components/admin/apariencia-heredada";
 import { GestorLogos } from "@/components/admin/gestor-logos";
 import {
   Aviso,
@@ -20,6 +24,7 @@ import {
   type ModoPorDefecto,
 } from "@/lib/admin-api";
 import { ErrorApi } from "@/lib/api";
+import { formulariosApi } from "@/lib/formularios-api";
 import type { ColoresTema, Esquema } from "@/lib/tema";
 
 const MODOS: Array<{ valor: ModoPorDefecto; etiqueta: string; ayuda: string }> = [
@@ -44,6 +49,10 @@ export default function PaginaMarca() {
     fijo: boolean;
     sigla: string | null;
     formularioId: string | null;
+    /// La paleta propia del formulario que le da la cara.
+    /// Solo las claves que difieren: es lo que la herencia
+    /// necesita y lo unico que hay guardado.
+    propios: Propios;
   } | null>(null);
   const [pestana, setPestana] = useState<Esquema>("CLARO");
   const [error, setError] = useState<string | null>(null);
@@ -56,15 +65,32 @@ export default function PaginaMarca() {
       .yo()
       .then(async (yo) => {
         if (!yo.gremioFijo) {
-          setGremio({ fijo: false, sigla: null, formularioId: null });
+          setGremio({
+            fijo: false,
+            sigla: null,
+            formularioId: null,
+            propios: { CLARO: {}, OSCURO: {} },
+          });
           return;
         }
+
         const suyos = await adminApi.marcaDeGremios().catch(() => []);
         const mio = suyos[0];
+        const suId = mio?.formularioMarcaId ?? null;
+
+        // su paleta no viene en marcaDeGremios
+        const suyo = suId
+          ? await formulariosApi.obtener(suId).catch(() => null)
+          : null;
+
         setGremio({
           fijo: true,
           sigla: mio?.sigla ?? null,
-          formularioId: mio?.formularioMarcaId ?? null,
+          formularioId: suId,
+          propios: {
+            CLARO: suyo?.coloresClaro ?? {},
+            OSCURO: suyo?.coloresOscuro ?? {},
+          },
         });
       })
       .catch(() => setGremio(null));
@@ -125,16 +151,37 @@ export default function PaginaMarca() {
 
       <MarcaDeCadaGremio />
 
-      <Tarjeta
-        titulo="Logos de la cabecera"
-        descripcion="Hasta tres, uno por entidad. SVG, PNG o WebP con fondo transparente, máximo 1 MB cada uno. Se muestran a 80 px de alto, así que conviene entregarlos a 960 × 288 px o mayor, o en SVG. JPG no sirve: no tiene transparencia y deja un recuadro blanco."
-      >
-        {gremio?.fijo ? (
-          <AvisoDeGremio gremio={gremio} que="los logos" />
+      {gremio?.fijo ? (
+        gremio.formularioId ? (
+          /// El editor del gremio, aqui mismo.
+          ///
+          /// Es el MISMO componente que usa la apariencia del
+          /// formulario, no una copia: el calculo de que se
+          /// aparta de la general vive ahi dentro, y dos
+          /// implementaciones del mismo diff acabarian
+          /// guardando las 37 claves en una de las dos.
+          <AparienciaHeredada
+            key={gremio.formularioId}
+            formularioId={gremio.formularioId}
+            general={marca}
+            iniciales={gremio.propios}
+            tituloLogos={`Logos de ${gremio.sigla ?? "este gremio"}`}
+            tituloColores={`Colores de ${gremio.sigla ?? "este gremio"}`}
+            descripcionLogos="Hasta tres, uno por entidad: las del convenio más la capacitadora. Sin ninguno propio se muestran los generales. SVG, PNG o WebP con fondo transparente, máximo 1 MB cada uno; se ven a 80 px de alto."
+          />
         ) : (
+          <Tarjeta titulo="La apariencia de este gremio">
+            <AvisoDeGremio gremio={gremio} que="los logos y los colores" />
+          </Tarjeta>
+        )
+      ) : (
+        <Tarjeta
+          titulo="Logos de la cabecera"
+          descripcion="Hasta tres, uno por entidad. SVG, PNG o WebP con fondo transparente, máximo 1 MB cada uno. Se muestran a 80 px de alto, así que conviene entregarlos a 960 × 288 px o mayor, o en SVG. JPG no sirve: no tiene transparencia y deja un recuadro blanco."
+        >
           <GestorLogos />
-        )}
-      </Tarjeta>
+        </Tarjeta>
+      )}
 
       {gremio?.fijo ? (
         <Tarjeta titulo="Textos y colores del sitio">
@@ -395,16 +442,17 @@ function MarcaDeCadaGremio() {
 /**
  * Por la puerta de un gremio, esto no se edita aquí.
  *
- * Lo que esta pantalla escribe es la marca general -- una sola
- * fila de `marca`, una sola de `temas` y los logos con
+ * Lo que estos bloques escriben es la marca general -- una
+ * sola fila de `marca`, una sola de `temas` y los logos con
  * `formularioId = null` -- así que editarla desde la dirección
  * de un gremio se la cambiaría a los dos. Eso es exactamente
  * el fallo que reportó el cliente: un logo subido entrando por
  * ADECOPRIA salía también en BRITCHAM.
  *
- * La apariencia del gremio vive en el formulario que le da la
- * cara, y esa pantalla ya la edita bien, con herencia por
- * token. Así que se manda allí en vez de duplicar el editor.
+ * No lleva enlace a ninguna parte: la apariencia del gremio ya
+ * está en esta misma pantalla, arriba. Un enlace que se va a
+ * otro sitio para hacer lo que se puede hacer aquí es peor que
+ * ninguno.
  */
 function AvisoDeGremio({
   gremio,
@@ -421,7 +469,7 @@ function AvisoDeGremio({
         <p className="font-medium">{nombre} todavía no tiene una cara propia.</p>
         <p className="mt-1">
           Elija arriba de qué formulario sale su marca. Hasta entonces usa la
-          general, y {que} de aquí son los de todos.
+          general, y lo que se cambie aquí lo verían los dos gremios.
         </p>
       </div>
     );
@@ -430,16 +478,9 @@ function AvisoDeGremio({
   return (
     <div className="rounded-xl border border-linea bg-superficie-alt p-4 text-sm">
       <p>
-        Aquí se editan {que} <strong>generales</strong>, los que comparten los
-        dos gremios. {que.charAt(0).toUpperCase() + que.slice(1)} de {nombre}{" "}
-        están en su formulario.
+        Esto es lo <strong>general</strong>, lo que comparten los dos gremios, y
+        por eso no se edita desde aquí. Lo de {nombre} está arriba.
       </p>
-      <Link
-        href={`/admin/formularios/${gremio.formularioId}/apariencia`}
-        className="mt-2 inline-block font-medium text-marca underline"
-      >
-        Editar la apariencia de {nombre}
-      </Link>
     </div>
   );
 }
