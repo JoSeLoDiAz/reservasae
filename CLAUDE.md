@@ -1336,6 +1336,39 @@ ADECOPRIA, 18 por BRITCHAM y 24 por la general. **19 + 18 ≠ 24 y es correcto**
   general, así que una regresión aquí puede pasar semanas sin que nadie la note.
   Se comprueba con `curl -H 'Host: adecopria.reservasae.com'`.
 
+> ### ⚠️ Los dos subdominios apuntan HOY a PRUEBAS (27 ago 2026)
+>
+> `adecopria.reservasae.com` y `britcham-adee.reservasae.com` **sirven la pila de
+> pruebas con datos inventados**, no producción. Su ingress está en
+> `docker/cloudflared/prueba.yml` y su DNS apunta al túnel `convoca-prueba`
+> (`f6bd991c-…`), no a `convoca`.
+>
+> **Por qué:** es la única forma de verlos en un navegador. El comodín de
+> Cloudflare cubre **un solo nivel**, así que `adecopria.prueba.reservasae.com`
+> da error de TLS, y pagar el certificado avanzado por esto no tiene sentido.
+> Nadie conoce estas direcciones todavía y la franja lo grita en cada pantalla.
+>
+> **Al estrenar de verdad hay que devolverlas**, y son tres pasos:
+>
+> 1. Quitar los dos `hostname` de `docker/cloudflared/prueba.yml`.
+> 2. `cloudflared tunnel route dns --overwrite-dns 467fde36-227b-481b-8870-ba8763f939fe adecopria.reservasae.com`
+>    (y lo mismo con `britcham-adee.reservasae.com`).
+> 3. Reiniciar el túnel de pruebas para que suelte el ingress viejo.
+>
+> En el panel de Cloudflare las dos rutas siguen listadas bajo el túnel
+> `convoca`; están **inertes**, porque el DNS es lo que decide. Conviene no
+> borrarlas: son lo que hay que reactivar al estrenar.
+>
+> **Y no se puede probar el subdominio en local:** `etiquetaDelHost` exige tres
+> etiquetas y `localhost:3000` da null. Para verlo en el navegador de un
+> portátil hace falta una entrada en `hosts`, que sí funciona porque la regla
+> mira la primera etiqueta y nada más:
+>
+> ```
+> 127.0.0.1 adecopria.local.test
+> 127.0.0.1 britcham-adee.local.test
+> ```
+
 #### Lo que encontró la revisión adversarial (27 ago 2026)
 
 Cinco lentes sobre el cambio, con dos escépticos por hallazgo. De 41 candidatos
