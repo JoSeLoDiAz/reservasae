@@ -1585,6 +1585,134 @@ de quitarlo y cada Guardar lo dejaba vacío.
 > devuelve. Un test que no puede fallar es peor que ninguno,
 > porque da confianza sin darla.
 
+### La revisión de los arreglos, y lo que encontró (27 ago 2026)
+
+Seis lentes sobre los cinco bloques. **Los escépticos que debían
+juzgar los hallazgos murieron por límite de sesión**, así que los
+33 candidatos se verificaron a mano contra el código, uno por
+uno. Sobrevivieron doce, y **dos eran regresiones nuevas mías**.
+
+> **Merece la pena repetir la revisión después de arreglar.** Esta
+> es la cuarta vez que se escribe en este archivo, y la primera en
+> que lo demuestra el propio arreglo anterior.
+
+**`exigeCupo` miraba el aula y no la silla, y dejó
+`INSCRITO → EN_FORMACION` imposible.** Es el ingreso tardío, el
+paso documentado para quien entra al aula con el grupo ya
+andando. Como `INSCRITO` no está «en el aula» se le volvía a
+pedir cupo, y `exigirQueQuepa` exige además que la ventana de
+inscripción siga abierta — y esa ventana cierra una semana hábil
+**antes** de que el grupo arranque. O sea que el paso fallaba
+siempre, no a veces. Y habría bloqueado también el regreso al
+aula que el arreglo del `CERTIFICADO` obliga a dar, con lo que
+esa regla se habría bloqueado a sí misma.
+
+Son **tres** predicados y no dos, porque son tres preguntas:
+
+| | |
+|---|---|
+| `exigeDatosParaElAula` | datos y autorización: **siempre** que se entre |
+| `exigeCupo` | solo si la transición ocupa una silla nueva |
+| `esRegresoAlAula` | exime de la **ventana**, no del cupo |
+
+`exigeCupo` es `OCUPA_SILLA.includes(despues) && !OCUPA_SILLA.includes(antes)`,
+con la **misma lista** que `panel-de-cupos.ts` usa para contar. Si
+las dos discrepan, se pide cupo a quien ya lo tiene.
+
+**`aDiaBogota` sobre las fechas de los GRUPOS las retrasaba un
+día.** Un instante y una fecha de calendario no se leen igual:
+`Grupo.fechaInicio` la teclea alguien como `2026-09-01` y se
+guarda a medianoche UTC, así que leerla «en Bogotá» da el 31 de
+agosto. `aDiaBogota` para instantes, `aDiaDeCalendario` para
+fechas tecleadas — **dos funciones y no una con bandera**, porque
+la bandera se olvida en la llamada.
+
+#### Cuatro tests que daban confianza sin darla
+
+Es el hallazgo que más vale de la ronda, porque cuatro de los
+ocho candados nuevos no estaban sujetos por su propio test.
+
+- **`etiqueta-de-ventana.spec` reimplementaba la línea
+  arreglada** en vez de llamarla, así que devolver el código a
+  `- DIA` no lo habría hecho fallar — y la prueba de mutación que
+  se le hizo **mutaba la copia del spec**. Ahora llama a
+  `describirVentana`, que se exportó para eso.
+- **El doble de Prisma de `referencias-del-mismo-formulario`
+  decidía por el prefijo del id** (`startsWith('ajena')`), no por
+  el `formularioId`: quitándole el filtro al servicio, el test
+  seguía pasando. Probaba el doble, no el candado.
+- **`interseca-no-sustituye` buscaba el ámbito con
+  `JSON.stringify(...).includes(...)`**, que aprueba un ámbito
+  metido en un `OR` —donde no filtra— o en un `NOT` —donde filtra
+  al revés—. Ahora recorre el árbol y solo cuenta la raíz y los
+  `AND`.
+- **`escalera.spec` probaba pares elegidos a mano**, y por eso no
+  vio que `INSCRITO → EN_FORMACION` había quedado imposible: ese
+  par no estaba en la lista. Ahora recorre los 121.
+
+> **La lección: un spec que copia la línea que dice proteger no
+> protege nada, y un doble que decide por otra cosa que el filtro
+> real prueba el doble.** Al mutar, hay que mutar el CÓDIGO.
+
+#### La revocación, mirada entera
+
+Abrir la puerta para escribir `revocadaEn` destapó la mitad de
+atrás: había salidas que no la leían.
+
+- **El F7 contaba a quien revocó** como beneficiario de su
+  empresa, mientras los dos reportes de personas ya lo dejaban
+  fuera: los dos archivos que se le entregan al mismo cliente se
+  contradecían.
+- **La cola del RUI mandaba su cédula al portal del DNP** después
+  de la revocación, porque la consulta se había encolado antes.
+  Que ya estuviera apuntada no la vuelve legítima: importa si hay
+  autorización cuando **sale**. El candado va en el trabajador,
+  no solo al revocar, y mira si hay autorización viva en **algún**
+  convenio — la consulta es de la persona, y `Persona` no tiene
+  convenio.
+- **El paso automático al aula** (`matricula.ts`) no la miraba
+  mientras `cambiarEtapa` sí: dos reglas para la misma
+  transición, y la débil era la que corre sola y no mira nadie.
+- **Y la ficha decía «todavía no ha autorizado»**, que es la peor
+  de todas: no es que se le olvidara honrarla, es que la pantalla
+  **borraba de la vista un derecho recién ejercido** y ofrecía
+  deshacerlo con un clic. Ahora dice que revocó y cuándo, y
+  volver a registrarla está plegado detrás de «la persona pidió
+  autorizar de nuevo».
+
+#### Y el resto
+
+- **El par departamento/municipio solo se cerró en un sentido.**
+  `municipioCuadra` devuelve `true` en cuanto el municipio llega
+  vacío, así que guardando primero Medellín y mandando después el
+  departamento de Bogotá el par no se volvía a comprobar. Ahora
+  se juzgan **los dos** como quedarán al terminar.
+- **`celularUtil` entró en una de las tres reglas** que leen
+  `persona.celular`. La peor era la del REPORTE: una fila con «no
+  tiene» pasaba el filtro y salía hacia el SENA como número de
+  contacto. El mensaje distingue «falta» de «no es un número»,
+  que se arreglan de formas distintas.
+- **`respuestasDeFormulario` tenía la misma colisión de spread
+  que `porUbicacion`**: la clave `reserva` explícita borraba el
+  ámbito, así que el informe contaba las respuestas de los dos
+  gremios. Era alcanzable mientras se pudo reservar con el
+  `formularioSlug` del otro convenio.
+- **El asesor no tenía que poder ver la ficha que se le asigna.**
+  Asignar una de ADECOPRIA a quien solo tiene BRITCHAM no daba
+  error: la dejaba con dueño y sin nadie que la viera, y la
+  brecha de nombres la contaba como atendida.
+- **El `- DIA` seguía intacto en `control.ts`** —la misma línea,
+  sin arreglar en el otro sitio— y su `dia()` leía en UTC
+  mientras las series del **mismo fichero** ya cortaban por
+  Bogotá. Y los siete `CURRENT_DATE` del académico son el día del
+  servidor, que corre en UTC.
+- **El 400 de la descarga vacía llegaba como JSON crudo.** Esa
+  descarga va por navegación, así que sustituía el panel por
+  `{"statusCode":400}`: se había cambiado un archivo vacío por
+  algo que parece que el sistema se rompió. El candado se queda
+  —basta pegar la URL—; ahora se cuenta en una hoja HTML mínima.
+
+
 ### Políticas y formularios sí llevan ámbito (27 ago 2026)
 
 **Y hasta hoy no lo llevaban.** Lo encontró la misma revisión: desde el
