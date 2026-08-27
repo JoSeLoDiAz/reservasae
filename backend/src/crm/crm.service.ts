@@ -17,6 +17,7 @@ import { AuditoriaService } from '../comun/auditoria.service';
 import { documentoValido, normalizarDocumento } from '../comun/documento';
 import { analizar, esInsalvable, repetidosEnElPegado } from './carga';
 import {
+  esRegresoAlAula,
   exigeCupo,
   exigeDatosParaElAula,
   motivoDeTransicionImposible,
@@ -1234,11 +1235,23 @@ export class CrmService {
    * decir a cuál no significa nada, y al llegar la fecha no
    * hay contra qué matricularlo.
    */
-  private async exigirQueQuepa(p: {
-    id: string;
-    ofertaId: string | null;
-    coberturaId: string | null;
-  }) {
+  private async exigirQueQuepa(
+    p: {
+      id: string;
+      ofertaId: string | null;
+      coberturaId: string | null;
+    },
+    /// `exigirVentana` distingue entrar de VOLVER.
+    ///
+    /// La ventana de inscripcion cierra una semana habil ANTES
+    /// de que el grupo arranque, asi que un grupo en curso
+    /// siempre la tiene cerrada. A quien vuelve al aula hay que
+    /// pedirle cupo -- al retirarse libero su silla -- pero no
+    /// una ventana que no puede estar abierta: seria negarle el
+    /// regreso siempre, y con el, el paso por «En formacion»
+    /// que hay que dar antes de certificarlo.
+    { exigirVentana = true }: { exigirVentana?: boolean } = {},
+  ) {
     /// Sin los datos de su organización no se inscribe.
     ///
     /// Es una cadena: inscribir es comprometerse a reportar a
@@ -1334,7 +1347,7 @@ export class CrmService {
           'el cronograma es lo que después lo lleva al aula.',
       );
     }
-    if (suyo.ventana.estado === 'CERRADA') {
+    if (exigirVentana && suyo.ventana.estado === 'CERRADA') {
       const cierre = suyo.ventana.cierre?.toISOString().slice(0, 10);
       throw new BadRequestException(
         `La inscripción del grupo ${suyo.numero} cerró el ${cierre}, ` +
@@ -1472,14 +1485,27 @@ export class CrmService {
     });
     if (!p) throw new NotFoundException('Ese participante no existe.');
 
-    /// Dos comprobaciones, no una, y por eso son dos funciones.
+    /// Poner la etapa que ya tiene no es una transicion.
     ///
-    /// El cupo solo para quien viene de fuera; los datos y la
-    /// autorizacion SIEMPRE que se entre al aula, porque la
-    /// autorizacion se puede revocar. Ver `escalera.ts`.
+    /// Va ANTES de juzgar el paso: `CERTIFICADO -> CERTIFICADO`
+    /// no es «certificar a alguien que salio del aula», es no
+    /// hacer nada, y contestarle con ese mensaje seria mentir
+    /// sobre lo que pasa.
+    if (p.etapa === dto.etapa) return this.obtener(id, ambito);
+
+    /// Tres comprobaciones distintas, y por eso son tres.
+    ///
+    /// - los datos y la autorizacion, SIEMPRE que se entre al
+    ///   aula: la autorizacion se puede revocar.
+    /// - el cupo, solo si esta transicion ocupa una silla nueva.
+    /// - la ventana de inscripcion, solo a quien entra por
+    ///   primera vez: a quien vuelve, su grupo ya arranco y por
+    ///   eso mismo esta cerrada.
+    ///
+    /// Ver `escalera.ts`.
     const compuerta = exigeDatosParaElAula(p.etapa, dto.etapa);
     if (exigeCupo(p.etapa, dto.etapa)) {
-      await this.exigirQueQuepa(p);
+      await this.exigirQueQuepa(p, { exigirVentana: !esRegresoAlAula(p.etapa) });
     }
 
     /// Y hay pasos que no son un paso. Ver `escalera.ts`.
@@ -1540,8 +1566,6 @@ export class CrmService {
           'del área académica.',
       );
     }
-    if (p.etapa === dto.etapa) return this.obtener(id, ambito);
-
     // datos_completos es estado calculado, no etapa: ponerlo
     // a dedo seria poder declararse completo sin estarlo
     if (dto.etapa === 'DATOS_COMPLETOS') {

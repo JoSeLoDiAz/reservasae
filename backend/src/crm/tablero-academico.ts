@@ -2,7 +2,7 @@ import { Prisma } from '../../generated/prisma';
 import { enPeriodo, PRIMERA_ENTRADA_AL_AULA } from './anclas';
 import type { PrismaService } from '../prisma/prisma.service';
 import { MINIMO_PARA_CERTIFICAR } from './crm.service';
-import { aDiaBogota } from '../comun/dia-bogota';
+import { aDiaBogota, aDiaDeCalendario } from '../comun/dia-bogota';
 import { variacion, type Comparacion, type Ventana } from './ventana';
 
 /**
@@ -145,9 +145,20 @@ const CLAVES = [
 ] as const;
 
 /** La fecha en ISO corto, o null si no hay. */
-/// El dia de Bogota, no el de UTC: `toISOString()` daba el dia
-/// siguiente a partir de las 19:00.
+/// El dia de Bogota, para INSTANTES: los bordes de la ventana.
+///
+/// `toISOString()` daba el dia siguiente a partir de las 19:00.
 const dia = (d: Date | null): string | null => (d ? aDiaBogota(d) : null);
+
+/// Y este para las FECHAS DE CALENDARIO de los grupos.
+///
+/// Son dos cosas distintas y por poco se leen igual: el inicio
+/// de un grupo lo teclea alguien y se guarda a medianoche UTC,
+/// asi que leerlo «en Bogota» lo retrasa un dia -- el grupo que
+/// empieza el 1 de septiembre salia empezando el 31 de agosto.
+/// Ver `comun/dia-bogota.ts`.
+export const fechaDeGrupo = (d: Date | null): string | null =>
+  d ? aDiaDeCalendario(d) : null;
 
 /** Las etapas que significan haber pisado el aula. */
 const EN_AULA = Prisma.sql`p."etapa" IN (
@@ -432,7 +443,13 @@ function resumir(filas: FilaAccion[]): Cabecera {
 }
 
 /** La ventana en fechas, con el último día dentro. */
-function describirVentana(c: Comparacion): VentanaTablero {
+/// Exportada para poder PROBARLA.
+///
+/// Su spec reimplementaba esta funcion en vez de llamarla, asi
+/// que no podia detectar una regresion aqui: la prueba de
+/// mutacion que se le hizo mutaba la copia del spec. Un test que
+/// copia la linea que dice proteger no protege nada.
+export function describirVentana(c: Comparacion): VentanaTablero {
   /// El ultimo dia DENTRO de la ventana: un milisegundo antes
   /// del corte, no un dia antes.
   ///
@@ -576,7 +593,11 @@ export async function tableroAcademico(
     ...cabecera,
     minimoParaCertificar: MINIMO_PARA_CERTIFICAR,
     porAccion,
-    porGrupo: porGrupo.map((g) => ({ ...g, inicio: dia(g.inicio), fin: dia(g.fin) })),
+    porGrupo: porGrupo.map((g) => ({
+      ...g,
+      inicio: fechaDeGrupo(g.inicio),
+      fin: fechaDeGrupo(g.fin),
+    })),
     porAsesor,
     gruposQueArrancan,
     gruposVencidos,

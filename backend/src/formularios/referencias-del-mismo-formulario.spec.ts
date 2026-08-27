@@ -31,14 +31,42 @@ function prismaFalso() {
       return Promise.resolve(valor);
     };
 
-  /// Del formulario mío o de ninguno: es como se distingue una
-  /// referencia propia de una ajena.
-  const soloSiEsMia =
-    (tabla: string) =>
+  /**
+   * Un Prisma que de verdad FILTRA, como filtraría el de verdad.
+   *
+   * La primera versión decidía por el prefijo del id
+   * (`id.startsWith('ajena')`), y eso hacía pasar el test aunque
+   * el servicio no comprobara nada: quitándole el
+   * `formularioId` al `where`, el doble seguía devolviendo null
+   * por el nombre del id. O sea que probaba el doble, no el
+   * candado.
+   *
+   * Ahora hay dos filas de verdad —una de cada formulario— y el
+   * doble aplica el `where` que reciba. Si el servicio deja de
+   * mandar `formularioId`, la fila ajena se encuentra y el test
+   * falla, que es lo que tiene que pasar.
+   */
+  const FILAS = [
+    { id: 's-mia', formularioId: MIO },
+    { id: 'p-mia', formularioId: MIO },
+    /// La que se edita en las pruebas de `actualizarPregunta`.
+    /// Sin ella, `exigirPregunta` no la encuentra y el test
+    /// fallaba por el guardia de la RUTA en vez de por el del
+    /// cuerpo, que es el que se está probando.
+    { id: 'p1', formularioId: MIO },
+    { id: 'ajena-s1', formularioId: AJENO },
+    { id: 'ajena-p9', formularioId: AJENO },
+  ];
+
+  const buscarCon =
+    () =>
     ({ where }: { where: { id?: string; formularioId?: string } }) => {
-      if (where.formularioId && where.formularioId !== MIO) return Promise.resolve(null);
-      if (where.id?.startsWith('ajena')) return Promise.resolve(null);
-      return Promise.resolve({ id: where.id ?? tabla });
+      const fila = FILAS.find(
+        (f) =>
+          (where.id === undefined || f.id === where.id) &&
+          (where.formularioId === undefined || f.formularioId === where.formularioId),
+      );
+      return Promise.resolve(fila ?? null);
     };
 
   return {
@@ -48,9 +76,9 @@ function prismaFalso() {
         Promise.resolve(where.id === MIO ? { id: MIO } : null),
       findUnique: () => Promise.resolve(null),
     },
-    seccion: { findFirst: soloSiEsMia('seccion') },
+    seccion: { findFirst: buscarCon() },
     pregunta: {
-      findFirst: soloSiEsMia('pregunta'),
+      findFirst: buscarCon(),
       findUnique: () =>
         Promise.resolve({
           id: 'p1',

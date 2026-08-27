@@ -52,3 +52,26 @@ export function aDiaBogota(cuando: Date): string {
 export function diaBogotaHace(dias: number, desde: Date): string {
   return aDiaBogota(new Date(desde.getTime() - dias * 24 * 60 * 60 * 1000));
 }
+
+/**
+ * El día de una FECHA DE CALENDARIO, que no es lo mismo.
+ *
+ * Hay dos clases de fecha en la base y se leen distinto:
+ *
+ *  - Un **instante**: cuándo pasó algo. `creadoEn`, `otorgadaEn`,
+ *    `ultimoAcceso`. Se guarda en UTC y hay que leerlo en el día
+ *    de Bogotá, que es `aDiaBogota`.
+ *  - Una **fecha de calendario**: un día que alguien tecleó.
+ *    `Grupo.fechaInicio`, `fechaNacimiento`. Llega como
+ *    `2026-09-01` y `new Date(...)` la guarda a MEDIANOCHE UTC,
+ *    así que el día correcto es el de UTC. Leerla en Bogotá la
+ *    retrasa un día entero: el grupo que empieza el 1 de
+ *    septiembre sale empezando el 31 de agosto.
+ *
+ * Son dos funciones y no una con bandera a propósito: la bandera
+ * se olvida en la llamada, y este error ya se cometió una vez
+ * aplicando `aDiaBogota` a las fechas de los grupos.
+ */
+export function aDiaDeCalendario(cuando: Date): string {
+  return cuando.toISOString().slice(0, 10);
+}

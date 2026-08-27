@@ -53,7 +53,15 @@ export function faltaDeLaPersona(p: {
   const persona = p.persona;
 
   if (!persona.correo) falta.push('correo');
-  if (!persona.celular) falta.push('celular');
+  /// `celularUtil` y no `!celular`, igual que abajo.
+  ///
+  /// Con `!celular`, un «no tiene» escrito en la casilla hacía
+  /// que la ficha dijera que no falta nada mientras la
+  /// compuerta de matrícula lo rechazaba: la pantalla decía una
+  /// cosa y el servidor otra sobre el mismo dato.
+  if (!celularUtil(persona.celular)) {
+    falta.push(persona.celular ? 'un celular que sea un número' : 'celular');
+  }
   if (!persona.fechaNacimiento) falta.push('fecha de nacimiento');
   if (persona.generoSepId === null) falta.push('género');
   if (persona.estrato === null) falta.push('estrato');
@@ -95,7 +103,21 @@ export function revisar(p: ParaRevisar): Revision {
   reporte.push(...matricula);
 
   if (!persona.correo) reporte.push('falta el correo');
-  if (!persona.celular) reporte.push('falta el celular');
+  /// Y aquí es donde de verdad importaba.
+  ///
+  /// Esta lista decide quién ENTRA en el archivo del SEP, y el
+  /// celular viaja en la columna de contacto. Con `!celular`,
+  /// una fila con «no tiene» pasaba el filtro y se le mandaba al
+  /// SENA como número de teléfono. El arreglo se había aplicado
+  /// solo a la compuerta de matrícula -- una de las tres reglas
+  /// que miran este campo--, que es la lección que este
+  /// repositorio repite: un arreglo aplicado en un sitio y no a
+  /// la clase.
+  if (!celularUtil(persona.celular)) {
+    reporte.push(
+      persona.celular ? 'el celular no es un número' : 'falta el celular',
+    );
+  }
   if (!persona.fechaNacimiento) reporte.push('falta la fecha de nacimiento');
   else if (edadCumplida(persona.fechaNacimiento) < EDAD_MINIMA) {
     reporte.push(`es menor de ${EDAD_MINIMA} años`);
