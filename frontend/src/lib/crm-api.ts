@@ -120,6 +120,9 @@ export type ConsultaRui = {
   simulado: boolean;
   /// La cédula es inventada: no se consulta a propósito.
   esDePrueba: boolean;
+  /// Por qué salió del simulador. Lo dice el servidor, que es
+  /// quien conoce la regla.
+  motivoSimulado: string | null;
 };
 
 export const ETIQUETA_RUI: Record<EstadoRui, string> = {

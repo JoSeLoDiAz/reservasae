@@ -689,10 +689,20 @@ function ValidacionRui({
           <Aviso tipo="error">
             <p className="font-medium">Esta respuesta no vino del RUI</p>
             <p className="mt-1">
-              Lo que aparece abajo lo genero un simulador, no la Ventanilla
-              Social. No sirve para decidir nada. El RUI de verdad se enciende
-              arrancando el servidor con RUI_PROVEEDOR=VENTANILLA.
+              Lo que aparece abajo lo generó un simulador, no la Ventanilla
+              Social. No sirve para decidir nada, y por eso no se ofrece dejar
+              este nombre en la ficha.
             </p>
+            {/* El motivo lo manda el servidor. Aquí estaba escrito
+                a mano —«se enciende con RUI_PROVEEDOR=VENTANILLA»—
+                y desde que hay más de una razón para simular, ese
+                texto mandaba a arreglar algo que ya estaba bien:
+                uno leía que faltaba una variable que sí tenía
+                puesta, y la pregunta de qué nombre dejar
+                desaparecía sin explicación. */}
+            {rui.motivoSimulado && (
+              <p className="mt-2 text-sm">{rui.motivoSimulado}</p>
+            )}
           </Aviso>
         )}
 
