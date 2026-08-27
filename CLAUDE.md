@@ -1437,6 +1437,19 @@ en vez de del hecho.
   **entrar al aula**, no de una etiqueta, y solo se pide a quien
   viene de fuera: a quien vuelve, volver a exigirle cupo le
   cerraría el regreso a un grupo lleno.
+- **El primer arreglo trajo su propio defecto, y se vio en
+  vivo.** Aquella versión eximía de la compuerta a quien volvía
+  al aula, y eso dejó `INSCRITO` **más débil que antes**:
+  revocando la autorización y pasando de `RETIRADO` a `INSCRITO`
+  se volvía a matricular a quien había pedido que no se usaran
+  sus datos. Ahora son **dos** comprobaciones y no una: el
+  **cupo** solo se pide a quien viene de fuera —se consume una
+  vez, y volver a exigirlo cerraría el regreso a un grupo
+  lleno—, y los **datos y la autorización** se piden siempre,
+  porque la autorización se puede revocar y «ya la pasó una vez»
+  no dice nada sobre hoy. Separarlas es lo que hace correctas
+  las dos; juntas había que elegir entre bloquear regresos
+  legítimos y dejar entrar a quien revocó.
 - `RETIRADO → CERTIFICADO` certificaba a quien se había ido. Con
   avance cargado el 80 % se cumple y la fila entra al reporte.
   Ahora hay que pasar primero por «En formación», y ese paso

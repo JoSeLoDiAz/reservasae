@@ -1,37 +1,63 @@
 /** Las dos reglas de la escalera de etapas. */
 
 import {
-  exigeCompuertaDeMatricula,
+  exigeCupo,
+  exigeDatosParaElAula,
   motivoDeTransicionImposible,
 } from './escalera';
 
-describe('entrar al aula pasa por la compuerta, se llame como se llame', () => {
-  it('INTERESADO → EN_FORMACION la exige', () => {
-    /// El agujero: la compuerta estaba colgada de la palabra
-    /// INSCRITO, así que saltándose esa etapa se entraba al
-    /// aula sin datos y sin autorización.
-    expect(exigeCompuertaDeMatricula('INTERESADO', 'EN_FORMACION')).toBe(true);
+describe('los datos y la autorización se piden SIEMPRE al entrar al aula', () => {
+  it('INTERESADO → EN_FORMACION los exige', () => {
+    /// El agujero original: la compuerta estaba colgada de la
+    /// palabra INSCRITO, así que saltándose esa etapa se
+    /// entraba al aula sin datos y sin autorización.
+    expect(exigeDatosParaElAula('INTERESADO', 'EN_FORMACION')).toBe(true);
   });
 
-  it('INTERESADO → INSCRITO la exige, como siempre', () => {
-    expect(exigeCompuertaDeMatricula('INTERESADO', 'INSCRITO')).toBe(true);
+  it('INTERESADO → INSCRITO, como siempre', () => {
+    expect(exigeDatosParaElAula('INTERESADO', 'INSCRITO')).toBe(true);
   });
 
-  it('CONTACTADO → EN_FORMACION la exige', () => {
-    expect(exigeCompuertaDeMatricula('CONTACTADO', 'EN_FORMACION')).toBe(true);
+  it('CONTACTADO → EN_FORMACION', () => {
+    expect(exigeDatosParaElAula('CONTACTADO', 'EN_FORMACION')).toBe(true);
   });
 
-  it('quien vuelve al aula NO la vuelve a pasar', () => {
-    /// Volver a pedir cupo bloquearía el regreso a un grupo
-    /// lleno, que es justo cuando se hace un regreso.
-    expect(exigeCompuertaDeMatricula('RETIRADO', 'EN_FORMACION')).toBe(false);
-    expect(exigeCompuertaDeMatricula('ABANDONO', 'EN_FORMACION')).toBe(false);
+  it('quien VUELVE también los pasa: la autorización se revoca', () => {
+    /// Este es el defecto que trajo el primer arreglo. Eximir a
+    /// quien volvía dejó `INSCRITO` más débil que antes:
+    /// revocando la autorización y pasando de RETIRADO a
+    /// INSCRITO se volvía a matricular a quien había pedido que
+    /// no se usaran sus datos.
+    expect(exigeDatosParaElAula('RETIRADO', 'INSCRITO')).toBe(true);
+    expect(exigeDatosParaElAula('RETIRADO', 'EN_FORMACION')).toBe(true);
+    expect(exigeDatosParaElAula('ABANDONO', 'EN_FORMACION')).toBe(true);
+    expect(exigeDatosParaElAula('CERTIFICADO', 'INSCRITO')).toBe(true);
   });
 
-  it('las etapas que no son el aula no la piden', () => {
-    expect(exigeCompuertaDeMatricula('INTERESADO', 'CONTACTADO')).toBe(false);
-    expect(exigeCompuertaDeMatricula('EN_FORMACION', 'RETIRADO')).toBe(false);
-    expect(exigeCompuertaDeMatricula('CONTACTADO', 'PERDIDO')).toBe(false);
+  it('las etapas que no son el aula no los piden', () => {
+    expect(exigeDatosParaElAula('INTERESADO', 'CONTACTADO')).toBe(false);
+    expect(exigeDatosParaElAula('EN_FORMACION', 'RETIRADO')).toBe(false);
+    expect(exigeDatosParaElAula('CONTACTADO', 'PERDIDO')).toBe(false);
+  });
+});
+
+describe('el cupo solo se pide a quien viene de fuera', () => {
+  it('de fuera del aula, sí', () => {
+    expect(exigeCupo('INTERESADO', 'INSCRITO')).toBe(true);
+    expect(exigeCupo('CONTACTADO', 'EN_FORMACION')).toBe(true);
+  });
+
+  it('quien vuelve NO lo vuelve a consumir', () => {
+    /// El cupo se consume una vez, y volver a exigirlo cerraría
+    /// el regreso a un grupo lleno — que es justo cuando se
+    /// hace un regreso.
+    expect(exigeCupo('RETIRADO', 'EN_FORMACION')).toBe(false);
+    expect(exigeCupo('ABANDONO', 'INSCRITO')).toBe(false);
+  });
+
+  it('salirse no consume cupo', () => {
+    expect(exigeCupo('EN_FORMACION', 'RETIRADO')).toBe(false);
+    expect(exigeCupo('INTERESADO', 'PERDIDO')).toBe(false);
   });
 });
 

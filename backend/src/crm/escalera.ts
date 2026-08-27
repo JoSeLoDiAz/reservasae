@@ -50,20 +50,48 @@ const PUEDE_CERRAR_DESDE: EtapaParticipante[] = ['EN_FORMACION', 'INSCRITO'];
 /// Las que dan por terminada la formación.
 const CIERRES: EtapaParticipante[] = ['CERTIFICADO', 'NO_APROBO'];
 
+/// Las dos etapas que significan estar dentro del aula.
+const ENTRAR_AL_AULA: EtapaParticipante[] = ['INSCRITO', 'EN_FORMACION'];
+
 /**
- * Si al pasar a `despues` hay que pasar la compuerta de
- * matrícula (datos, autorización, oferta, contacto y cupo).
+ * Si hay que comprobar datos, autorización, oferta y contacto.
  *
- * La compuerta es de ENTRAR AL AULA, no de una etiqueta: la
- * pide tanto `INSCRITO` como `EN_FORMACION`, y solo cuando la
- * persona viene de fuera. Quien vuelve ya la pasó, y volver a
- * exigir cupo bloquearía el regreso a un grupo lleno.
+ * SIEMPRE que el destino sea estar dentro del aula, venga de
+ * donde venga. Y ese «siempre» es el punto: la autorización de
+ * tratamiento de datos **se puede revocar**, así que «ya la
+ * pasó una vez» no dice nada sobre hoy.
+ *
+ * La primera versión de este módulo la eximía a quien volvía, y
+ * eso dejó `INSCRITO` MÁS DÉBIL que antes de existir la
+ * escalera: revocando la autorización y pasando de `RETIRADO` a
+ * `INSCRITO` se volvía a matricular a alguien que había pedido
+ * que no se usaran sus datos. Se vio probándolo en vivo, no
+ * leyéndolo. Es la lección de siempre: el arreglo trae su
+ * propio defecto.
  */
-export function exigeCompuertaDeMatricula(
+export function exigeDatosParaElAula(
+  _antes: EtapaParticipante,
+  despues: EtapaParticipante,
+): boolean {
+  return ENTRAR_AL_AULA.includes(despues);
+}
+
+/**
+ * Si hay que comprobar que quepa en el grupo.
+ *
+ * Esto SÍ es solo para quien viene de fuera: el cupo se consume
+ * una vez, y volver a exigirlo cerraría el regreso a un grupo
+ * lleno — que es justo cuando se hace un regreso.
+ *
+ * Separar las dos comprobaciones es lo que hace correcto lo
+ * anterior. Juntas, había que elegir entre bloquear regresos
+ * legítimos y dejar entrar a quien revocó.
+ */
+export function exigeCupo(
   antes: EtapaParticipante,
   despues: EtapaParticipante,
 ): boolean {
-  if (despues !== 'INSCRITO' && despues !== 'EN_FORMACION') return false;
+  if (!ENTRAR_AL_AULA.includes(despues)) return false;
   return !EN_EL_AULA.includes(antes);
 }
 

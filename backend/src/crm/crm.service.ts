@@ -17,7 +17,8 @@ import { AuditoriaService } from '../comun/auditoria.service';
 import { documentoValido, normalizarDocumento } from '../comun/documento';
 import { analizar, esInsalvable, repetidosEnElPegado } from './carga';
 import {
-  exigeCompuertaDeMatricula,
+  exigeCupo,
+  exigeDatosParaElAula,
   motivoDeTransicionImposible,
 } from './escalera';
 import { faltaDeLaPersona, revisar } from './completitud';
@@ -1471,10 +1472,13 @@ export class CrmService {
     });
     if (!p) throw new NotFoundException('Ese participante no existe.');
 
-    /// Entrar al aula es lo que consume un cupo, se llame
-    /// INSCRITO o EN_FORMACION. Ver `escalera.ts`.
-    const compuerta = exigeCompuertaDeMatricula(p.etapa, dto.etapa);
-    if (compuerta) {
+    /// Dos comprobaciones, no una, y por eso son dos funciones.
+    ///
+    /// El cupo solo para quien viene de fuera; los datos y la
+    /// autorizacion SIEMPRE que se entre al aula, porque la
+    /// autorizacion se puede revocar. Ver `escalera.ts`.
+    const compuerta = exigeDatosParaElAula(p.etapa, dto.etapa);
+    if (exigeCupo(p.etapa, dto.etapa)) {
       await this.exigirQueQuepa(p);
     }
 

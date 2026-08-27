@@ -61,6 +61,7 @@ function servicio(vivas: string[]) {
     prisma as never,
     auditoria as never,
     { encolarSiHaceFalta: () => Promise.resolve() } as never,
+    {} as never,
   );
   /// `obtener` lee media base; no es lo que se prueba.
   jest.spyOn(s, 'obtener').mockResolvedValue({ id: 'p1' } as never);
