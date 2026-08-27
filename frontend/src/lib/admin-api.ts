@@ -169,6 +169,24 @@ export type AccionAdmin = {
 };
 
 
+
+/** Qué formulario le da la marca a un gremio. */
+export type MarcaDeGremio = {
+  id: string;
+  slug: string;
+  sigla: string | null;
+  nombre: string;
+  /// La dirección por la que entra ese gremio.
+  direccion: string;
+  formularioMarcaId: string | null;
+  formularios: Array<{
+    id: string;
+    slug: string;
+    titulo: string;
+    publicado: boolean;
+  }>;
+};
+
 export const adminApi = {
   iniciarSesion: (correo: string, clave: string) =>
     pedir<AdminActual>("/admin/sesion", {
@@ -215,6 +233,14 @@ export const adminApi = {
     pedir<{ claveTemporal: string }>(`/admin/usuarios/${id}/clave`, { method: "POST" }),
 
   marca: () => pedir<Marca>("/admin/marca"),
+
+  marcaDeGremios: () => pedir<MarcaDeGremio[]>("/admin/marca/gremios"),
+
+  fijarMarcaDeGremio: (convenioId: string, formularioId: string | null) =>
+    pedir<MarcaDeGremio[]>(`/admin/marca/gremios/${convenioId}`, {
+      method: "PATCH",
+      body: JSON.stringify({ formularioId }),
+    }),
 
   actualizarMarca: (datos: Partial<Marca>) =>
     pedir<Marca>("/admin/marca", { method: "PATCH", body: JSON.stringify(datos) }),

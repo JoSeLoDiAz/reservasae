@@ -416,6 +416,69 @@ export class AdminService {
     };
   }
 
+  /** Qué formulario da la marca de cada gremio. */
+  async listarMarcaDeGremios(ambito: string[]) {
+    const convenios = await this.prisma.convenio.findMany({
+      where: { activo: true, id: { in: ambito } },
+      orderBy: { orden: 'asc' },
+      select: {
+        id: true,
+        slug: true,
+        sigla: true,
+        nombre: true,
+        formularioMarcaId: true,
+        formularios: {
+          orderBy: { titulo: 'asc' },
+          select: { id: true, slug: true, titulo: true, publicado: true },
+        },
+      },
+    });
+
+    return convenios.map((c) => ({
+      ...c,
+      /// La direccion por la que entra ese gremio. Se manda
+      /// hecha porque es el dato que explica para que sirve
+      /// esto, y calcularla en la pantalla la duplicaria.
+      direccion: `${c.slug}.reservasae.com`,
+    }));
+  }
+
+  /** Elegir de qué formulario sale la marca del gremio. */
+  async fijarMarcaDeGremio(
+    ambito: string[],
+    convenioId: string,
+    formularioId: string | null,
+  ) {
+    if (!ambito.includes(convenioId)) {
+      throw new NotFoundException('Ese convenio no existe.');
+    }
+    const convenio = await this.prisma.convenio.findFirst({
+      where: { id: convenioId, activo: true },
+      select: { id: true },
+    });
+    if (!convenio) throw new NotFoundException('Ese convenio no existe.');
+
+    // el formulario tiene que ser SUYO
+    if (formularioId) {
+      const suyo = await this.prisma.formulario.findFirst({
+        where: { id: formularioId, convenioId },
+        select: { id: true },
+      });
+      if (!suyo) {
+        throw new BadRequestException(
+          'Ese formulario no es de este convenio, así que no puede darle su marca.',
+        );
+      }
+    }
+
+    await this.prisma.convenio.update({
+      where: { id: convenioId },
+      data: { formularioMarcaId: formularioId },
+    });
+
+    return this.listarMarcaDeGremios(ambito);
+  }
+
   /** La marca de un gremio: la de su formulario. */
   async obtenerMarcaDeGremio(slugConvenio: string) {
     const convenio = await this.prisma.convenio.findFirst({

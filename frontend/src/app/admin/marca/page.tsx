@@ -12,7 +12,12 @@ import {
   Tarjeta,
 } from "@/components/admin/marco-admin";
 import { useMarca } from "@/components/marca-publica";
-import { adminApi, type Marca, type ModoPorDefecto } from "@/lib/admin-api";
+import {
+  adminApi,
+  type Marca,
+  type MarcaDeGremio,
+  type ModoPorDefecto,
+} from "@/lib/admin-api";
 import { ErrorApi } from "@/lib/api";
 import type { ColoresTema, Esquema } from "@/lib/tema";
 
@@ -89,6 +94,8 @@ export default function PaginaMarca() {
 
       {error && <Aviso tipo="error">{error}</Aviso>}
       {guardado && !error && <Aviso tipo="exito">Cambios guardados.</Aviso>}
+
+      <MarcaDeCadaGremio />
 
       <Tarjeta
         titulo="Logos de la cabecera"
@@ -249,5 +256,98 @@ export default function PaginaMarca() {
         />
       </Tarjeta>
     </div>
+  );
+}
+
+/**
+ * De qué formulario sale la marca de cada gremio.
+ *
+ * La apariencia solo existe a nivel de formulario, así que hay
+ * que decir cuál de ellos le da su cara al subdominio. Va aquí
+ * y no en la apariencia de cada formulario porque es una
+ * decisión del gremio: hace falta ver los dos a la vez para
+ * saber cuál está puesto.
+ */
+function MarcaDeCadaGremio() {
+  const { recargar } = useMarca();
+  const [gremios, setGremios] = useState<MarcaDeGremio[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [ocupado, setOcupado] = useState<string | null>(null);
+
+  useEffect(() => {
+    void adminApi
+      .marcaDeGremios()
+      .then(setGremios)
+      /// Un no aquí solo quiere decir que esta cuenta no es
+      /// superadmin: la tarjeta desaparece y no estorba.
+      .catch(() => setGremios([]));
+  }, []);
+
+  if (!gremios || gremios.length === 0) return null;
+
+  async function elegir(convenioId: string, formularioId: string) {
+    setError(null);
+    setOcupado(convenioId);
+    try {
+      setGremios(
+        await adminApi.fijarMarcaDeGremio(convenioId, formularioId || null),
+      );
+      // el panel se repinta con la marca nueva
+      await recargar();
+    } catch (e) {
+      setError((e as ErrorApi).message);
+    } finally {
+      setOcupado(null);
+    }
+  }
+
+  return (
+    <Tarjeta
+      titulo="La cara de cada gremio"
+      descripcion="Cada gremio entra por su propia dirección, y allí el sitio sale con los colores y los logos de uno de sus formularios. Aquí se elige cuál. Sin elegir ninguno, ese gremio usa la marca general de abajo."
+    >
+      <div className="space-y-4">
+        {error && <Aviso tipo="error">{error}</Aviso>}
+
+        {gremios.map((g) => (
+          <div
+            key={g.id}
+            className="rounded-xl border border-linea bg-superficie-alt p-4"
+          >
+            <div className="mb-3 flex flex-wrap items-baseline gap-x-3 gap-y-1">
+              <span className="font-semibold">{g.sigla ?? g.nombre}</span>
+              <code className="text-xs text-texto-suave">{g.direccion}</code>
+            </div>
+
+            {g.formularios.length === 0 ? (
+              <p className="text-sm text-texto-suave">
+                Este gremio todavía no tiene formularios, así que usa la marca
+                general.
+              </p>
+            ) : (
+              <Campo
+                etiqueta="Formulario que le da la marca"
+                ayuda="Vale también uno en borrador: publicar al público y elegir la paleta del panel son dos decisiones distintas."
+              >
+                <select
+                  value={g.formularioMarcaId ?? ""}
+                  disabled={ocupado === g.id}
+                  onChange={(e) => void elegir(g.id, e.target.value)}
+                  className={CLASE_CONTROL}
+                >
+                  <option value="">La marca general</option>
+                  {g.formularios.map((f) => (
+                    <option key={f.id} value={f.id}>
+                      {f.titulo}
+                      {f.publicado ? "" : " (borrador)"}
+                    </option>
+                  ))}
+                </select>
+              </Campo>
+            )}
+          </div>
+        ))}
+      </div>
+    </Tarjeta>
   );
 }

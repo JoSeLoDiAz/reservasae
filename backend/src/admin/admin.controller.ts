@@ -52,6 +52,7 @@ import {
   DerivarTemaDto,
   IniciarSesionDto,
   PublicarAccionDto,
+  MarcaDeGremioDto,
 } from './dto';
 import { plantillasResueltas } from './plantillas-tema';
 
@@ -200,6 +201,31 @@ export class AdminController {
   @Roles(RolAdmin.SUPERADMIN)
   actualizarMarca(@AdminActual() admin: Admin, @Body() dto: ActualizarMarcaDto) {
     return this.admin.actualizarMarca(admin, dto);
+  }
+
+  /// De que formulario sale la marca de cada gremio.
+  ///
+  /// Vive aqui y no en la apariencia de cada formulario porque
+  /// es una decision del gremio, no del formulario: hay que
+  /// poder ver los dos a la vez para saber cual esta puesto.
+  @Get('marca/gremios')
+  @Roles(RolAdmin.SUPERADMIN)
+  marcaDeGremios(@AmbitoActual() ambito: Ambito) {
+    return this.admin.listarMarcaDeGremios(ambito.convenios);
+  }
+
+  @Patch('marca/gremios/:convenioId')
+  @Roles(RolAdmin.SUPERADMIN)
+  fijarMarcaDeGremio(
+    @AmbitoActual() ambito: Ambito,
+    @Param('convenioId') convenioId: string,
+    @Body() dto: MarcaDeGremioDto,
+  ) {
+    return this.admin.fijarMarcaDeGremio(
+      ambito.convenios,
+      convenioId,
+      dto.formularioId ?? null,
+    );
   }
 
   // previsualiza sin publicar

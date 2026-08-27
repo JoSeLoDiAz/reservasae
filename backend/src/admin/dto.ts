@@ -228,3 +228,11 @@ export class DerivarTemaDto {
   @IsBoolean()
   encabezadoDeColor?: boolean;
 }
+
+/** De qué formulario sale la marca de un gremio. */
+export class MarcaDeGremioDto {
+  // null lo devuelve a la marca general
+  @IsOptional()
+  @IsString()
+  formularioId?: string | null;
+}
