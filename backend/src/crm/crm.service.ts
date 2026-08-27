@@ -31,17 +31,15 @@ import {
   DOCUMENTOS_DE_PERSONA,
   EDAD_MINIMA,
   edadCumplida,
-  esValorValido,
   ESTRATO_MAXIMO,
   ESTRATO_MINIMO,
   GENEROS_SEP,
-  municipioCuadra,
+  motivoDeIdInvalido,
   MUNICIPIOS_SEP,
   NIVELES_OCUPACIONALES_SEP,
   SECTORES_ECONOMICOS,
   siglaDocumento,
   TAMANOS_EMPRESA_SEP,
-  type ValorSep,
 } from './catalogos-sep';
 import { PrismaService } from '../prisma/prisma.service';
 import {
@@ -948,21 +946,15 @@ export class CrmService {
     });
     if (!p) throw new NotFoundException('Ese participante no existe.');
 
-    // el id tiene que existir en el catalogo del SEP, o
-    // el cargue sale con un numero que no significa nada
-    for (const [lista, valor, que] of [
-      [GENEROS_SEP, dto.generoSepId, 'género'],
-      [NIVELES_OCUPACIONALES_SEP, dto.nivelOcupacionalSepId, 'nivel ocupacional'],
-      [DEPARTAMENTOS_SEP, dto.departamentoSepId, 'departamento'],
-    ] as const) {
-      if (!esValorValido(lista as ValorSep[], valor)) {
-        throw new BadRequestException(`Ese ${que} no está en el catálogo del SEP.`);
-      }
-    }
-
-    if (!municipioCuadra(dto.departamentoSepId, dto.municipioSepId)) {
-      throw new BadRequestException('Ese municipio no pertenece a ese departamento.');
-    }
+    /// La MISMA regla que las rutas públicas, no una copia.
+    ///
+    /// Estaba aquí y no allí, así que la ruta del asesor
+    /// rechazaba un género inventado y la del ciudadano lo
+    /// aceptaba: la pública era la más permisiva de las dos.
+    const malo = motivoDeIdInvalido(dto, {
+      departamentoSepId: p.persona?.departamentoSepId,
+    });
+    if (malo) throw new BadRequestException(malo);
 
     // asignar() ya lo comprueba; aqui no se comprobaba
     // nada, y una cobertura de otro curso manda al SEP un

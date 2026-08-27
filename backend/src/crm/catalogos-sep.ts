@@ -204,6 +204,53 @@ export function municipioCuadra(
   return municipio[1] === departamentoId;
 }
 
+/** Los ids del SEP que puede traer una persona. */
+export type IdsDePersona = {
+  generoSepId?: number | null;
+  departamentoSepId?: number | null;
+  municipioSepId?: number | null;
+  nivelOcupacionalSepId?: number | null;
+};
+
+/**
+ * El motivo por el que un id no vale, o null si todos valen.
+ *
+ * Escrito una vez y usado por el panel y por las dos rutas
+ * públicas. Estaba en el panel y no en las públicas, así que
+ * la ruta del asesor rechazaba un género inventado y la del
+ * ciudadano lo aceptaba: la pública era la MÁS permisiva de
+ * las dos, al revés de como tiene que ser.
+ *
+ * `guardado` es lo que ya hay en la base, y es la mitad del
+ * arreglo. La comprobación de que el municipio sea de su
+ * departamento corría solo cuando llegaban los DOS campos, así
+ * que partiendo la petición en dos entraba un par imposible —
+ * y después la ficha contaba como completa, lista para el
+ * cargue, con un municipio que no existe.
+ */
+export function motivoDeIdInvalido(
+  dto: IdsDePersona,
+  guardado?: { departamentoSepId?: number | null },
+): string | null {
+  for (const [lista, valor, que] of [
+    [GENEROS_SEP, dto.generoSepId, 'género'],
+    [NIVELES_OCUPACIONALES_SEP, dto.nivelOcupacionalSepId, 'nivel ocupacional'],
+    [DEPARTAMENTOS_SEP, dto.departamentoSepId, 'departamento'],
+  ] as const) {
+    if (!esValorValido(lista as ValorSep[], valor)) {
+      return `Ese ${que} no está en el catálogo del SEP.`;
+    }
+  }
+
+  // el departamento que valdrá al terminar, no el que llegó
+  const departamento = dto.departamentoSepId ?? guardado?.departamentoSepId;
+  if (!municipioCuadra(departamento, dto.municipioSepId)) {
+    return 'Ese municipio no pertenece a ese departamento.';
+  }
+
+  return null;
+}
+
 /** Los de un departamento, en orden alfabético. */
 export function municipiosDe(departamentoId: number): MunicipioSep[] {
   return MUNICIPIOS_SEP.filter((m) => m[1] === departamentoId && m[3]).sort((a, b) =>

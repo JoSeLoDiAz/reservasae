@@ -11,7 +11,7 @@ import {
   DOCUMENTOS_DE_PERSONA,
   DOCUMENTOS_DEL_FORMULARIO,
   edadCumplida,
-  municipioCuadra,
+  motivoDeIdInvalido,
   MUNICIPIOS_SEP,
   NIVELES_OCUPACIONALES_SEP,
 } from '../crm/catalogos-sep';
@@ -172,6 +172,30 @@ export class PreinscripcionService {
     }
 
     this.exigirDocumentoValido(dto.tipoDocumentoSepId);
+
+    /// Sin aceptar la política no se guarda NADA, y se
+    /// comprueba ANTES de crear a la persona.
+    ///
+    /// El único candado estaba en el navegador: el DTO la
+    /// declara opcional y la constancia se dejaba dentro de un
+    /// `if`, así que un POST directo metía cédula, nombre,
+    /// correo y celular sin la constancia que hay que poder
+    /// demostrar. Y mandando `false` -- el rechazo explícito --
+    /// entraba igual. `!== true` cierra las dos puertas.
+    ///
+    /// Va antes de crear porque rechazar después dejaría los
+    /// datos dentro de todos modos, que es el daño entero.
+    const politica = await this.politicaVigente(convenio.id);
+    if (politica && dto.aceptaPolitica !== true) {
+      throw new BadRequestException(
+        'Para registrarse hay que aceptar la política de tratamiento de datos.',
+      );
+    }
+
+    /// Y los ids del SEP, con la MISMA regla que el panel.
+    const malo = motivoDeIdInvalido(dto);
+    if (malo) throw new BadRequestException(malo);
+
     const documento = dto.numeroDocumento.trim();
 
     const domicilio = this.domicilioSep(dto.departamentoNombre, dto.ciudadNombre);
@@ -198,7 +222,6 @@ export class PreinscripcionService {
         correo: dto.correo,
         ...domicilio,
       },
-      // no se pisa lo que ya hay: solo se rellenan huecos
       // no se pisa lo que ya hay: solo se rellenan huecos
       update: {
         celular: dto.celular ?? undefined,
@@ -236,9 +259,8 @@ export class PreinscripcionService {
         select: { id: true },
       }));
 
-    if (dto.aceptaPolitica) {
-      await this.dejarConstancia(persona.id, convenio.id, participante.id, ip);
-    }
+    // ya se exigio arriba: aqui solo se deja constancia
+    await this.dejarConstancia(persona.id, convenio.id, participante.id, ip);
 
     await this.pedirElRui(persona.id);
 
@@ -284,13 +306,9 @@ export class PreinscripcionService {
    * texto, hay que poder decir cual acepto esta persona y
    * cuando. Por eso se guarda contra el id de la politica.
    */
-  private async dejarConstancia(
-    personaId: string,
-    convenioId: string,
-    participanteId: string,
-    ip?: string,
-  ) {
-    const politica = await this.prisma.politicaDatos.findFirst({
+  /** La política que la persona tiene que aceptar. */
+  private async politicaVigente(convenioId: string) {
+    return this.prisma.politicaDatos.findFirst({
       where: {
         convenioId,
         destinatario: 'PARTICIPANTE',
@@ -299,6 +317,15 @@ export class PreinscripcionService {
       orderBy: { version: 'desc' },
       select: { id: true },
     });
+  }
+
+  private async dejarConstancia(
+    personaId: string,
+    convenioId: string,
+    participanteId: string,
+    ip?: string,
+  ) {
+    const politica = await this.politicaVigente(convenioId);
     if (!politica) return;
 
     const ya = await this.prisma.autorizacionDatos.findFirst({
@@ -448,26 +475,31 @@ export class PreinscripcionService {
       }
     }
 
-    if (dto.departamentoSepId && dto.municipioSepId) {
-      if (!municipioCuadra(dto.departamentoSepId, dto.municipioSepId)) {
-        throw new BadRequestException('Ese municipio no es del departamento indicado.');
-      }
-    }
-
     const p = await this.prisma.participante.findUnique({
       where: { id: enlace.participanteId },
-      select: { personaId: true, datosTocadosPorAsesorEn: true },
+      select: {
+        personaId: true,
+        datosTocadosPorAsesorEn: true,
+        persona: { select: { departamentoSepId: true } },
+      },
     });
     if (!p) throw new NotFoundException('Ese enlace ya no apunta a nadie.');
     const tocada = p;
 
+    /// Contra el catálogo Y contra lo que ya está guardado.
+    ///
+    /// Antes solo se miraba si llegaban departamento Y
+    /// municipio a la vez, así que partiendo la petición en dos
+    /// entraba un par imposible -- y después la ficha contaba
+    /// como completa, lista para el cargue al SEP, con un
+    /// municipio que no existe.
+    const malo = motivoDeIdInvalido(dto, {
+      departamentoSepId: p.persona?.departamentoSepId,
+    });
+    if (malo) throw new BadRequestException(malo);
+
     // el nivel educativo y el cargo son de la participación,
     // no de la persona: cambian entre un curso y el siguiente
-    if (dto.nivelOcupacionalSepId !== undefined) {
-      const vale = NIVELES_OCUPACIONALES_SEP.some((n) => n.id === dto.nivelOcupacionalSepId);
-      if (!vale) throw new BadRequestException('Ese nivel ocupacional no existe.');
-    }
-
     await this.prisma.participante.update({
       where: { id: enlace.participanteId },
       data: {
@@ -633,11 +665,12 @@ export class PreinscripcionService {
     });
     if (!p) throw new NotFoundException('Ese enlace ya no apunta a nadie.');
 
-    if (dto.departamentoSepId && dto.municipioSepId) {
-      if (!municipioCuadra(dto.departamentoSepId, dto.municipioSepId)) {
-        throw new BadRequestException('Ese municipio no es del departamento indicado.');
-      }
-    }
+    /// El municipio de la ORGANIZACION, con la misma regla.
+    ///
+    /// Tenia el mismo `if` de los dos campos, asi que aqui
+    /// tambien entraba un municipio inexistente llegando solo.
+    const malo = motivoDeIdInvalido(dto);
+    if (malo) throw new BadRequestException(malo);
 
     const datos = {
       direccion: dto.direccion,
