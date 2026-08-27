@@ -539,13 +539,24 @@ export class CrmService {
               },
             },
             autorizaciones: {
-              // la pantalla ya se queda con la de su convenio,
-              // pero mandarlas todas las ensena en la red
-              where: { revocadaEn: null, politica: { convenioId: { in: ambito } } },
+              /// Las REVOCADAS también viajan, y hace falta.
+              ///
+              /// Solo iban las vivas, así que tras revocar la
+              /// ficha decía «todavía no ha autorizado» y
+              /// ofrecía registrarla con un clic: la pantalla
+              /// borraba de la vista un derecho que la persona
+              /// acababa de ejercer, e invitaba a deshacerlo sin
+              /// que nadie supiera que estaba deshaciendo algo.
+              ///
+              /// El ámbito sigue: mandarlas todas las enseñaría
+              /// en la red.
+              where: { politica: { convenioId: { in: ambito } } },
+              orderBy: { otorgadaEn: 'desc' },
               select: {
                 id: true,
                 canal: true,
                 otorgadaEn: true,
+                revocadaEn: true,
                 politica: {
                   select: { version: true, destinatario: true, convenioId: true },
                 },

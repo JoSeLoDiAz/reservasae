@@ -251,7 +251,12 @@ export class RuiService {
   /// worker sin que los dos agarren la misma fila.
   async tomarSiguiente() {
     const filas = await this.prisma.$queryRaw<
-      Array<{ id: string; tipoDocumentoSepId: number; numeroDocumento: string }>
+      Array<{
+        id: string;
+        personaId: string;
+        tipoDocumentoSepId: number;
+        numeroDocumento: string;
+      }>
     >`
       UPDATE "consultas_rui"
       SET "estado" = 'EN_CURSO', "tomadaEn" = NOW(), "intentos" = "intentos" + 1
@@ -262,10 +267,23 @@ export class RuiService {
         FOR UPDATE SKIP LOCKED
         LIMIT 1
       )
-      RETURNING "id", "tipoDocumentoSepId", "numeroDocumento"
+      RETURNING "id", "personaId", "tipoDocumentoSepId", "numeroDocumento"
     `;
 
     return filas[0] ?? null;
+  }
+
+  /** ¿Esta persona tiene una autorización viva, en algún convenio? */
+  private async tieneAutorizacionViva(personaId: string): Promise<boolean> {
+    /// «En algún convenio» y no en uno concreto: la consulta al
+    /// RUI es de la PERSONA y `Persona` no tiene convenio. Si
+    /// sigue autorizada en uno, el trato de sus datos sigue
+    /// amparado; revocar en los dos es lo que la saca.
+    const viva = await this.prisma.autorizacionDatos.findFirst({
+      where: { personaId, revocadaEn: null },
+      select: { id: true },
+    });
+    return viva !== null;
   }
 
   /** Consulta una y guarda lo que salga. */
@@ -288,9 +306,29 @@ export class RuiService {
       );
     }
 
+    /// Y quien revocó no sale al portal del DNP.
+    ///
+    /// La cola no miraba la autorización en ningún sitio, así
+    /// que una consulta encolada ANTES de la revocación seguía
+    /// su curso y mandaba la cédula a un tercero después de que
+    /// la persona pidiera que no se usaran sus datos. Que la
+    /// consulta ya estuviera en la cola no la vuelve legítima:
+    /// lo que importa es si hay autorización cuando SALE.
+    ///
+    /// Va en el trabajador y no solo al revocar, porque una
+    /// consulta se puede encolar después: el guard es lo que
+    /// manda, no el momento en que se apunta.
+    const autorizada = permiso.real ? await this.tieneAutorizacionViva(tarea.personaId) : true;
+    if (permiso.real && !autorizada) {
+      this.log.warn(
+        `No se consulta el RUI de ${tarea.numeroDocumento}: revocó la autorización.`,
+      );
+    }
+    const salirDeVerdad = permiso.real && autorizada;
+
     let resultado;
     try {
-      resultado = permiso.real
+      resultado = salirDeVerdad
         ? await this.proveedor.consultar(
             tarea.tipoDocumentoSepId,
             tarea.numeroDocumento,
@@ -303,7 +341,7 @@ export class RuiService {
       resultado = { estado: 'FALLO' as const, error: (e as Error).message };
     }
 
-    await this.guardar(tarea.id, resultado, !permiso.real);
+    await this.guardar(tarea.id, resultado, !salirDeVerdad);
     return true;
   }
 

@@ -92,10 +92,23 @@ describe('la ficha no ensena el otro gremio', () => {
     await servicio.obtener('p-1', [ADE]).catch(() => undefined);
 
     const donde = dondeDeAutorizaciones(consultas[1]);
-    expect(donde).toMatchObject({
-      revocadaEn: null,
-      politica: { convenioId: { in: [ADE] } },
-    });
+    expect(donde).toMatchObject({ politica: { convenioId: { in: [ADE] } } });
+  });
+
+  it('las REVOCADAS de su convenio sí viajan, y hace falta', async () => {
+    /// Este `where` llevaba `revocadaEn: null` y se le quitó a
+    /// propósito. Con él, tras revocar la ficha decía «todavía
+    /// no ha autorizado» y ofrecía registrarla con un clic: la
+    /// pantalla borraba de la vista un derecho que la persona
+    /// acababa de ejercer.
+    ///
+    /// Lo que NO se puede quitar es el ámbito, y eso lo fija el
+    /// test de arriba.
+    const { servicio, consultas } = conAmbito([ADE]);
+    await servicio.obtener('p-1', [ADE]).catch(() => undefined);
+
+    const donde = dondeDeAutorizaciones(consultas[1]) as Record<string, unknown>;
+    expect(donde.revocadaEn).toBeUndefined();
   });
 
   it('con los dos convenios sí se piden los dos', async () => {

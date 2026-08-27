@@ -148,10 +148,24 @@ export class SepService {
     ///
     /// La empresa se resuelve de las dos: la propia del lead
     /// primero, y si no, la de la reserva que lo trajo.
+    /// Quien revocó NO cuenta como beneficiario suyo.
+    ///
+    /// El F7 no miraba la autorización y los dos reportes de
+    /// personas sí, así que los DOS archivos que se le entregan
+    /// al mismo cliente se contradecían: el del SEP con 40
+    /// personas de una empresa y el F7 diciendo 41. Y da igual
+    /// que aquí la persona solo salga como un número: seguir
+    /// reportándola al SENA como beneficiaria es seguir tratando
+    /// su participación después de que pidió que no.
     const participantes = await this.prisma.participante.findMany({
       where: {
         convenioId,
         etapa: { in: ETAPAS_DEL_REPORTE },
+        persona: {
+          autorizaciones: {
+            some: { revocadaEn: null, politica: { convenioId } },
+          },
+        },
       },
       select: {
         accionFormacion: { select: { nombre: true } },
