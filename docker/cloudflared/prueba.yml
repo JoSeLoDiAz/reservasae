@@ -6,5 +6,20 @@ protocol: http2
 ingress:
   - hostname: prueba.reservasae.com
     service: http://nginx-prueba:80
+
+  # los subdominios de gremio, apuntados a PRUEBAS a proposito
+  #
+  # Es la unica forma de verlos en un navegador: el comodin
+  # de Cloudflare cubre un solo nivel, asi que
+  # adecopria.prueba.reservasae.com daria error de TLS.
+  #
+  # Sirven datos INVENTADOS en una direccion de
+  # reservasae.com. La franja lo grita en cada pantalla, y
+  # nadie conoce estas direcciones todavia. Al estrenar de
+  # verdad hay que devolverlas al tunel convoca.
+  - hostname: adecopria.reservasae.com
+    service: http://nginx-prueba:80
+  - hostname: britcham-adee.reservasae.com
+    service: http://nginx-prueba:80
   # todo lo demas no es de este tunel
   - service: http_status:404
