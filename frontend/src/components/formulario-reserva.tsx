@@ -14,11 +14,13 @@ import {
   type Oferta,
   type Reserva,
 } from "@/lib/api";
+import { CajaDePolitica, usePolitica } from "@/components/caja-de-politica";
 import {
   formularioPublico,
   type FormularioPublico,
   type PreguntaPublica,
 } from "@/lib/formularios-api";
+import type { PoliticaPublica } from "@/lib/politicas-api";
 
 const MODALIDAD: Record<Modalidad, string> = {
   PRESENCIAL: "Presencial",
@@ -47,6 +49,14 @@ export function FormularioReserva({ slug }: { slug: string }) {
   const [resultado, setResultado] = useState<Reserva | null>(null);
 
   const [valores, setValores] = useState<Record<string, Valor>>({});
+
+  /// El texto se pide APARTE del formulario, y a proposito.
+  ///
+  /// Si fuera en la misma cadena de carga, un convenio sin
+  /// politica publicada dejaria el formulario entero sin
+  /// dibujarse por una tarea pendiente nuestra. Asi lo peor que
+  /// pasa es que salga el texto de respaldo.
+  const politica = usePolitica(formulario?.convenio.slug, "RESERVA");
 
   useEffect(() => {
     let vigente = true;
@@ -232,6 +242,7 @@ export function FormularioReserva({ slug }: { slug: string }) {
                   catalogo={catalogo}
                   accion={accion}
                   oferta={oferta}
+                  politica={politica}
                   alCambiarAccion={() => {
                     // al cambiar de curso, la ubicacion ya no vale
                     const preguntaOferta = porCampo.get("OFERTA");
@@ -286,6 +297,7 @@ function ControlPregunta({
   catalogo,
   accion,
   oferta,
+  politica,
   alCambiarAccion,
 }: {
   pregunta: PreguntaPublica;
@@ -294,6 +306,7 @@ function ControlPregunta({
   catalogo: Catalogo | null;
   accion?: Accion;
   oferta?: Oferta;
+  politica: PoliticaPublica | null;
   alCambiarAccion: () => void;
 }) {
   // sus opciones salen del catalogo y se encadenan
@@ -377,6 +390,41 @@ function ControlPregunta({
       <p className="rounded-xl bg-superficie-alterna p-4 text-sm text-texto-suave">
         {pregunta.etiqueta}
       </p>
+    );
+  }
+
+  /// La casilla de la politica va DEBAJO de su texto.
+  ///
+  /// Antes era una casilla suelta que decia «autorizo el
+  /// tratamiento de mis datos» y no habia forma de leer que se
+  /// estaba autorizando: la politica existia y
+  /// `GET /api/politicas/:slug/RESERVA` la servia, pero el
+  /// formulario no la pedia. Una casilla junto a algo ilegible
+  /// no es consentimiento informado, y es lo que hay que poder
+  /// demostrar.
+  ///
+  /// Va el texto y no un enlace, por la misma razon que en la
+  /// preinscripcion: casi nadie abre el enlace.
+  if (pregunta.tipo === "CASILLA" && pregunta.campoNucleo === "ACEPTA_POLITICA_DATOS") {
+    return (
+      <div className="space-y-3 rounded-xl border border-borde bg-superficie-alterna p-4">
+        <CajaDePolitica politica={politica} />
+        <label className="flex cursor-pointer gap-3 rounded-xl border border-campo-borde bg-campo-fondo p-3 text-sm">
+          <input
+            type="checkbox"
+            required={pregunta.obligatoria}
+            checked={valor === true}
+            onChange={(e) => poner(e.target.checked)}
+            className="mt-0.5 size-4 shrink-0 accent-[var(--marca)]"
+          />
+          <span>
+            He leído y acepto lo anterior.
+            <span className="mt-0.5 block text-xs text-texto-suave">
+              {pregunta.ayuda ?? pregunta.etiqueta}
+            </span>
+          </span>
+        </label>
+      </div>
     );
   }
 

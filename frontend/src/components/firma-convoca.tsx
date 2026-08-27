@@ -24,7 +24,7 @@ const FRASE = "Relaciones que generan resultados";
 type Estado = { version: string; hora: string };
 
 /** La versión y el año, del servidor. */
-export function usarEstado(): Estado | null {
+export function useEstado(): Estado | null {
   const [estado, setEstado] = useState<Estado | null>(null);
 
   useEffect(() => {
@@ -98,7 +98,7 @@ export function FirmaConvoca({
  * dice sola en qué entorno está.
  */
 export function PieDeConvoca({ className }: { className?: string }) {
-  const estado = usarEstado();
+  const estado = useEstado();
   const ano = estado ? new Date(estado.hora).getFullYear() : null;
 
   return (

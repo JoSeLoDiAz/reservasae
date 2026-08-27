@@ -31,6 +31,35 @@ export type Cobertura = {
 };
 
 
+/**
+ * La politica vigente que se ensena en el formulario publico.
+ *
+ * Es un subconjunto de `Politica`: la ruta publica no devuelve
+ * el id, ni cuantas aceptaciones lleva, ni si es editable. Un
+ * tipo aparte y no `Partial<Politica>` porque eso ultimo dejaria
+ * pasar un `contenido` opcional, y el contenido es lo unico que
+ * esta caja existe para ensenar.
+ */
+export type PoliticaPublica = {
+  titulo: string;
+  contenido: string;
+  version: number;
+  vigenteDesde: string;
+  convenio: { nombre: string; sigla: string | null; slug: string };
+};
+
+/**
+ * La politica vigente de un convenio, sin sesion.
+ *
+ * Lanza 404 cuando el convenio todavia no tiene texto
+ * publicado; quien la llame decide que hacer con eso.
+ */
+export function politicaVigente(slug: string, destinatario: Destinatario) {
+  return pedir<PoliticaPublica>(
+    `/politicas/${encodeURIComponent(slug)}/${destinatario}`,
+  );
+}
+
 export const politicasApi = {
   listar: () => pedir<Politica[]>("/admin/politicas"),
 

@@ -11,7 +11,7 @@ import {
   Tarjeta,
   useAdmin,
 } from "@/components/admin/marco-admin";
-import { FirmaConvoca, usarEstado } from "@/components/firma-convoca";
+import { FirmaConvoca, useEstado } from "@/components/firma-convoca";
 import { adminApi } from "@/lib/admin-api";
 import { ErrorApi } from "@/lib/api";
 
@@ -130,7 +130,7 @@ export default function PaginaPerfil() {
  * única forma de saberla era abrir /api/estado a mano.
  */
 function SobreConvoca() {
-  const estado = usarEstado();
+  const estado = useEstado();
   const ano = estado ? new Date(estado.hora).getFullYear() : null;
   const enPruebas = (estado?.version ?? "").includes("prueba");
 

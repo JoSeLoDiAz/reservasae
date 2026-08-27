@@ -3,6 +3,7 @@
 import { notFound } from "next/navigation";
 import { useEffect, useState } from "react";
 
+import { TEXTO_DE_RESPALDO } from "@/components/caja-de-politica";
 import { ErrorApi } from "@/lib/api";
 import { primero, resto } from "@/lib/nombres";
 import {
@@ -26,16 +27,6 @@ const GENERO_NO_BINARIO = 3;
 /// tramite: primero si hay algo para usted, despues quien
 /// es, despues que autoriza, y al final lo revisa.
 type Pantalla = "eleccion" | "datos" | "habeas" | "revision";
-
-/// Solo por si el convenio todavia no tiene texto cargado.
-/// El bueno se redacta en el panel, en Politicas.
-const TEXTO_DE_RESPALDO =
-  "Autorizo de manera libre, previa, expresa e informada el tratamiento de mis datos " +
-  "personales para gestionar mi preinscripción, confirmar mi cupo y adelantar el " +
-  "proceso de matrícula en la formación seleccionada, así como para contactarme por " +
-  "los medios que registré. Podré conocer, actualizar, rectificar y suprimir mis " +
-  "datos, y revocar esta autorización, en los términos de la Ley 1581 de 2012 y el " +
-  "Decreto 1377 de 2013.";
 
 const CAMPO =
   "w-full rounded-xl border border-campo-borde bg-campo-fondo px-3 py-2.5 text-texto " +
