@@ -220,8 +220,18 @@ export function MarcoAdmin({ children }: { children: React.ReactNode }) {
 
           Con la altura fija, la ventana manda: lo que scrollea es la
           tabla por dentro, y su barra de filtros y su cabecera se
-          quedan donde uno las puede alcanzar. */}
-      <div className="flex h-screen overflow-hidden">
+          quedan donde uno las puede alcanzar.
+
+          Pero la altura se RESTA la franja de pruebas, igual que la
+          barra lateral. Con `h-screen` a secas el contenedor medía
+          100vh empezando 2,25rem más abajo, así que el body sobraba
+          por la altura de la franja: quedaba una banda que se movía
+          sola al bajar y la cabecera pegada tapaba el saludo. En
+          producción no se veía porque allí no hay franja. */}
+      <div
+        style={{ height: "calc(100vh - var(--franja-alto, 0px))" }}
+        className="flex overflow-hidden"
+      >
         <BarraLateral
           ruta={ruta}
           esSuperadmin={esSuperadmin}
