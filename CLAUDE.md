@@ -498,8 +498,9 @@ pnpm --filter backend db:crear-admin correo@ejemplo.com "Nombre"   --rol SUPERAD
 > `SUPERADMIN` nace `LIDER_SISTEMAS` en todos los convenios activos; los demás,
 > `GESTOR_INSCRIPCION`.
 
-Falta un paso manual en el panel de Cloudflare: activar **Always Use HTTPS**
-(hoy `http://reservasae.com` responde 200 en vez de redirigir).
+**Always Use HTTPS ya está activo** (comprobado el 27 ago 2026:
+`http://reservasae.com` responde 301). Estuvo pendiente un tiempo y el aviso
+se quedó escrito de más.
 
 ## Stack
 
