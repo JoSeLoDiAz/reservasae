@@ -144,6 +144,54 @@ export class FormulariosService {
     if (!suya) throw new NotFoundException('No existe esa acción de formación.');
   }
 
+  /**
+   * Una seccion y una pregunta madre TIENEN que ser del mismo
+   * formulario que la pregunta que las apunta.
+   *
+   * Los cinco guardias de arriba comprueban el id que viene en
+   * la RUTA. Estos dos vienen en el CUERPO y no los comprobaba
+   * nadie: se podia colgar una pregunta de una seccion del otro
+   * gremio, o hacerla depender de una pregunta suya.
+   *
+   * Lo segundo es lo peor. La condicional se evalua contra la
+   * respuesta de su madre, y una madre de otro formulario nunca
+   * tiene respuesta aqui: la pregunta queda oculta para
+   * siempre, su respuesta se descarta en el servidor -- que es
+   * lo correcto para una pregunta oculta -- y el formulario
+   * publicado pierde un campo sin que nada falle a la vista.
+   * Un formulario con el campo del NIT oculto no puede crear
+   * una reserva.
+   *
+   * Y de paso son un oraculo: un 200 contra un 404 dice si ese
+   * id existe en el otro gremio.
+   */
+  private async exigirReferenciasDelFormulario(
+    formularioId: string,
+    dto: { seccionId?: string | null; dependeDePreguntaId?: string | null },
+  ) {
+    if (dto.seccionId) {
+      const suya = await this.prisma.seccion.findFirst({
+        where: { id: dto.seccionId, formularioId },
+        select: { id: true },
+      });
+      if (!suya) {
+        throw new BadRequestException('Esa sección no es de este formulario.');
+      }
+    }
+
+    if (dto.dependeDePreguntaId) {
+      const madre = await this.prisma.pregunta.findFirst({
+        where: { id: dto.dependeDePreguntaId, formularioId },
+        select: { id: true },
+      });
+      if (!madre) {
+        throw new BadRequestException(
+          'Esa pregunta no es de este formulario: no puede depender de ella.',
+        );
+      }
+    }
+  }
+
   /// Sin comprobar nada: la usan los que ya comprobaron.
   private async vista(id: string) {
     const formulario = await this.prisma.formulario.findUnique({
@@ -555,6 +603,7 @@ export class FormulariosService {
 
   async crearPregunta(ambito: string[], formularioId: string, dto: CrearPreguntaDto) {
     await this.exigirFormulario(ambito, formularioId);
+    await this.exigirReferenciasDelFormulario(formularioId, dto);
     const definicion = dto.campoNucleo ? POR_CAMPO.get(dto.campoNucleo) : undefined;
 
     // el catálogo manda el tipo
@@ -630,6 +679,8 @@ export class FormulariosService {
     if (dto.dependeDePreguntaId === id) {
       throw new BadRequestException('Una pregunta no puede depender de sí misma.');
     }
+
+    await this.exigirReferenciasDelFormulario(pregunta.formularioId, dto);
 
     await this.prisma.pregunta.update({
       where: { id },
@@ -753,10 +804,31 @@ export class FormulariosService {
 
   // envío: validar respuestas
 
-  /** Valida las respuestas y las deja listas. */
+  /**
+   * Valida las respuestas y las deja listas.
+   *
+   * `convenioId` es el de la OFERTA, y no es opcional: el
+   * formulario por el que se reserva tiene que ser del mismo
+   * convenio. Antes solo se comprobaba que estuviera publicado,
+   * asi que un POST publico con la oferta de un gremio y el
+   * `formularioSlug` del otro dejaba una reserva cuyos cupos
+   * salian de uno y cuyo `formularioId` apuntaba al otro.
+   *
+   * Lo que rompia no era la contabilidad de cupos -- esa va por
+   * la oferta y es atomica -- sino tres cosas peores: las
+   * respuestas se validaban contra las preguntas de un
+   * formulario que la persona nunca vio, la reserva quedaba
+   * invisible para los dos gremios (para uno la oferta es
+   * ajena, para el otro el formulario) y la tasa de respuesta
+   * de ambos formularios salia falseada.
+   *
+   * Varios formularios del MISMO convenio contra la misma
+   * oferta siguen valiendo: es el caso del evento de Medellin.
+   */
   async prepararRespuestas(
     formularioSlug: string,
     enviadas: RespuestaDto[],
+    convenioId: string,
   ): Promise<{
     formularioId: string;
     respuestas: Prisma.RespuestaCreateWithoutReservaInput[];
@@ -771,6 +843,12 @@ export class FormulariosService {
       },
     });
     if (!formulario || !formulario.publicado) {
+      throw new BadRequestException('El formulario indicado no está publicado.');
+    }
+    /// Mismo mensaje que «no publicado», y a proposito: decir
+    /// «ese formulario es del otro convenio» seria confirmar
+    /// que existe, y esta ruta es publica.
+    if (formulario.convenioId !== convenioId) {
       throw new BadRequestException('El formulario indicado no está publicado.');
     }
 

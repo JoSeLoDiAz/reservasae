@@ -61,7 +61,12 @@ export class ReservasService {
 
     // validar antes de bloquear la oferta
     const delFormulario = dto.formularioSlug
-      ? await this.formularios.prepararRespuestas(dto.formularioSlug, dto.respuestas ?? [])
+      ? await this.formularios.prepararRespuestas(
+          dto.formularioSlug,
+          dto.respuestas ?? [],
+          // el del formulario tiene que ser el de la oferta
+          oferta.accionFormacion.convenioId,
+        )
       : null;
     const respuestas = delFormulario?.respuestas ?? [];
 

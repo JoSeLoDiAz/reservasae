@@ -460,9 +460,24 @@ export class TablerosService {
   /** Detalle acción × ubicación. */
   async porUbicacion(ambito: string[], convenio?: string) {
     const ofertas = await this.prisma.oferta.findMany({
+      /// `AND` y no dos spreads, y no es estilo.
+      ///
+      /// `ofertaDeConvenio` devuelve `{ accionFormacion: ... }`
+      /// y el filtro pedido tambien: el segundo spread PISABA
+      /// la clave del ambito y se quedaba solo el slug. O sea
+      /// que `?convenio=britcham-adee` desde una cuenta que
+      /// solo tiene ADECOPRIA devolvia las ofertas de BRITCHAM.
+      ///
+      /// Es la regla que ya vale en las politicas: el filtro
+      /// pedido se INTERSECA con el ambito, nunca lo sustituye.
+      /// Pedir uno de fuera devuelve vacio, no todo.
       where: {
-        ...ofertaDeConvenio(ambito),
-        ...(convenio ? { accionFormacion: { convenio: { slug: convenio } } } : {}),
+        AND: [
+          ofertaDeConvenio(ambito),
+          ...(convenio
+            ? [{ accionFormacion: { convenio: { slug: convenio } } }]
+            : []),
+        ],
       },
       orderBy: [
         { accionFormacion: { convenio: { orden: 'asc' } } },
