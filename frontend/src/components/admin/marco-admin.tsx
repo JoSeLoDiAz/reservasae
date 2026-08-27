@@ -6,6 +6,8 @@ import { createContext, useCallback, useContext, useEffect, useState } from "rea
 import { createPortal } from "react-dom";
 
 import { ConmutadorTema, useMarca } from "@/components/marca-publica";
+
+import { SignoConvoca } from "./signo-convoca";
 import {
   adminApi,
   MAXIMO_LOGOS,
@@ -300,18 +302,18 @@ function migas(ruta: string): string[] {
   return ["Panel"];
 }
 
-/// El respaldo. Si no esta, se pinta la letra: un icono roto
-/// en la esquina superior izquierda se ve peor que una C, y
-/// el panel no puede depender de un PNG.
-const LOGO = "/logo-convoca.png";
-
 /// La marca. Igual en la barra y en el cajón.
+///
+/// Dos cosas y en este orden: arriba los logos del cliente,
+/// sobre su placa; debajo el signo de Convoca con su nombre y
+/// su frase. En el panel de un gremio manda el gremio, y
+/// Convoca firma abajo.
 function Marca({ plegado }: { plegado?: boolean }) {
   /// Se guarda CUALES fuentes fallaron, no un booleano.
   ///
-  /// Con un booleano, un parpadeo de red dejaba la letra "C"
-  /// el resto de la sesion; y con tres logos, uno roto se
-  /// llevaria a los otros dos por delante.
+  /// Con tres logos, uno roto se llevaria a los otros dos por
+  /// delante. Solo aplica a los del cliente: el signo de
+  /// Convoca va en linea y no puede fallar al cargar.
   const [fallidas, setFallidas] = useState<string[]>([]);
   const { marca } = useMarca();
 
@@ -321,30 +323,20 @@ function Marca({ plegado }: { plegado?: boolean }) {
     .map((l) => ({ ...l, url: urlLogo(l) }))
     .filter((l) => !fallidas.includes(l.url));
 
-  const marcarRoto = (url: string) =>
-    setFallidas((antes) => (antes.includes(url) ? antes : [...antes, url]));
-
   /// El ancho que le toca a cada uno.
   ///
   /// La barra abierta da 260 px y el cajon 238, menos los
-  /// huecos. Se reparte para que TRES quepan en una fila y
-  /// uno solo pueda lucirse; y con `flex-wrap`, si aun asi no
+  /// huecos. Se reparte para que TRES quepan en una fila y uno
+  /// solo pueda lucirse; y con `flex-wrap`, si aun asi no
   /// caben, bajan a otra fila en vez de espicharse.
   const anchoMaximo =
     logos.length >= 3 ? "4.5rem" : logos.length === 2 ? "6.5rem" : "9.5rem";
 
-  const respaldo = logos.length === 0;
-
   return (
-    <div className="flex flex-col items-center gap-2">
-      {/* Banner FUERA del enlace, y a proposito: dentro, sus
-          tres nombres de entidad se leerian como el nombre del
-          enlace al panel. Aqui cada uno lleva su `alt` -- que
-          es la etiqueta de la entidad -- y el enlace se queda
-          con CONVOCA CRM y nada mas. */}
-      {!plegado && !respaldo && (
-        /// Placa BLANCA fija, y es la misma excepción a los
-        /// tokens que ya hace el login y que hace la franja.
+    <div className="flex flex-col items-center gap-3">
+      {!plegado && logos.length > 0 && (
+        /// Placa BLANCA fija, la misma excepción a los tokens
+        /// que ya hace el login y que hace la franja.
         ///
         /// Un logo institucional se diseña para papel: tinta
         /// oscura sobre transparente. El fondo de esta barra lo
@@ -358,7 +350,11 @@ function Marca({ plegado }: { plegado?: boolean }) {
               key={l.id}
               src={l.url}
               alt={l.etiqueta}
-              onError={() => marcarRoto(l.url)}
+              onError={() =>
+                setFallidas((antes) =>
+                  antes.includes(l.url) ? antes : [...antes, l.url],
+                )
+              }
               style={{ maxWidth: anchoMaximo }}
               className="h-8 w-auto shrink object-contain"
             />
@@ -369,48 +365,22 @@ function Marca({ plegado }: { plegado?: boolean }) {
       <Link
         href="/admin"
         // plegado no hay texto que lo nombre
-        aria-label={plegado ? "CONVOCA CRM" : undefined}
-        /// Centrada. El logo y el nombre pegados a la izquierda
-        /// se leian como una esquina; centrados sobre el menu
-        /// hacen de cabecera de lo que viene debajo.
+        aria-label={plegado ? "Convoca" : undefined}
         className="flex max-w-full items-center justify-center gap-2.5 no-underline"
       >
-        {plegado || respaldo ? (
-          respaldo && fallidas.includes(LOGO) ? (
-            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-marca text-sm font-bold text-marca-texto">
-              C
-            </span>
-          ) : respaldo ? (
-            /// El PNG propio va SIN placa: es la marca del
-            /// producto y esta hecha para este panel.
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={LOGO}
-              alt=""
-              width={36}
-              height={36}
-              onError={() => marcarRoto(LOGO)}
-              className="h-9 w-9 shrink-0 object-contain"
-            />
-          ) : (
-            /// Plegada solo cabe uno, y tambien sobre placa:
-            /// tres logos en 48 px no son tres logos, son tres
-            /// manchas, pero el que quede tiene que verse.
-            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-white p-0.5 shadow-sm">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={logos[0].url}
-                alt=""
-                onError={() => marcarRoto(logos[0].url)}
-                className="h-full w-full object-contain"
-              />
-            </span>
-          )
-        ) : null}
+        <SignoConvoca tamano={plegado ? 30 : 32} className="shrink-0" />
 
         {!plegado && (
-          <span className="truncate text-[1.05rem] leading-none font-bold tracking-tight">
-            CONVOCA CRM
+          <span className="flex min-w-0 flex-col gap-0.5 leading-none">
+            <span className="text-[1.05rem] font-bold tracking-tight">
+              Convoca
+            </span>
+            {/* el eslogan va como TEXTO y no dentro del SVG:
+                asi se lee con lector de pantalla y no se
+                convierte en una mancha a 32 px */}
+            <span className="text-[10.5px] leading-snug font-medium opacity-65">
+              Relaciones que generan resultados
+            </span>
           </span>
         )}
       </Link>
