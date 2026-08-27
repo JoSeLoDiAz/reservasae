@@ -739,12 +739,8 @@ function BarraLateral({
   return (
     <nav
       aria-label="Secciones del panel"
-      // debajo de la franja, no tapada por ella
-      style={{
-        top: "var(--franja-alto, 0px)",
-        height: "calc(100vh - var(--franja-alto, 0px))",
-      }}
-      className={`no-imprimir sticky z-20 hidden shrink-0 flex-col border-r border-encabezado-borde bg-encabezado-fondo text-encabezado-texto transition-[width] duration-200 md:flex ${
+      // el alto lo pone el contenedor, que ya resta la franja
+      className={`no-imprimir z-20 hidden h-full shrink-0 flex-col border-r border-encabezado-borde bg-encabezado-fondo text-encabezado-texto transition-[width] duration-200 md:flex ${
         plegado ? "w-[72px] px-3 py-4" : "w-[292px] px-4 py-4"
       }`}
     >
@@ -905,8 +901,18 @@ function Cabecera({
 }) {
   return (
     <header
-      style={{ top: "var(--franja-alto, 0px)" }}
-      className="no-imprimir sticky z-30 flex h-14 shrink-0 items-center gap-3 border-b border-encabezado-borde bg-encabezado-fondo px-4 text-encabezado-texto lg:px-8"
+      /// Ni pegada ni con `top`, y es lo correcto ahora.
+      ///
+      /// El contenedor del panel tiene altura fija y
+      /// `overflow-hidden`, asi que ES el scroll container de
+      /// lo pegado. Con `top: var(--franja-alto)` -- pensado
+      /// para pegarse a la VENTANA -- sticky la empujaba 36 px
+      /// hacia abajo dentro de ese contenedor y tapaba el
+      /// arranque del contenido. Aqui es un hermano flex que
+      /// no puede irse: no hace falta pegarla.
+      ///
+      /// La franja se descuenta UNA vez, en el contenedor.
+      className="no-imprimir z-30 flex h-14 shrink-0 items-center gap-3 border-b border-encabezado-borde bg-encabezado-fondo px-4 text-encabezado-texto lg:px-8"
     >
       <button
         onClick={alAbrirMenu}
