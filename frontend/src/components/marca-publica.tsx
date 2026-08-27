@@ -10,6 +10,7 @@ import {
   useState,
 } from "react";
 
+import { FirmaConvoca, PieDeConvoca } from "@/components/firma-convoca";
 import { urlLogo, type Marca } from "@/lib/admin-api";
 import {
   ambitoDeRuta,
@@ -260,10 +261,17 @@ export function EncabezadoPublico({
 
 export function PiePublico() {
   const { marca } = useMarca();
-  if (!marca?.piePagina) return null;
+
+  /// El pie sale SIEMPRE, aunque el admin no haya escrito
+  /// texto: la firma y la version son de la casa, no del
+  /// cliente, y antes toda la pieza desaparecia con el texto.
   return (
-    <footer className="mx-auto w-full max-w-3xl px-6 pb-10 text-sm text-texto-suave">
-      {marca.piePagina}
+    <footer className="mx-auto w-full max-w-3xl space-y-3 px-6 pb-10 text-sm text-texto-suave">
+      {marca?.piePagina && <p>{marca.piePagina}</p>}
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-borde pt-4">
+        <FirmaConvoca tamano={26} />
+        <PieDeConvoca />
+      </div>
     </footer>
   );
 }

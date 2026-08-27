@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
+import { FirmaConvoca, PieDeConvoca } from "@/components/firma-convoca";
 import { ConmutadorTema, useMarca } from "@/components/marca-publica";
 import { adminApi, urlLogo } from "@/lib/admin-api";
 import { ErrorApi } from "@/lib/api";
@@ -48,7 +49,8 @@ export default function PaginaAcceso() {
           </p>
         </div>
 
-        <p className="text-xs opacity-60">Convoca · panel de gestión</p>
+        {/* la firma de la casa, debajo de la del cliente */}
+        <FirmaConvoca />
       </section>
 
       <section className="relative flex items-center justify-center p-6 lg:p-10">
@@ -112,6 +114,10 @@ export default function PaginaAcceso() {
           <p className="mt-8 text-xs text-texto-suave">
             ¿No tiene cuenta? Las crea un administrador del sistema.
           </p>
+
+          {/* el pie legal: en el lado del formulario, que es el
+              unico que se ve en movil */}
+          <PieDeConvoca className="mt-6 border-t border-borde pt-4" />
         </div>
       </section>
     </div>

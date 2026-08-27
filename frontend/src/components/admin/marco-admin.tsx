@@ -7,6 +7,8 @@ import { createPortal } from "react-dom";
 
 import { ConmutadorTema, useMarca } from "@/components/marca-publica";
 
+import { FirmaConvoca } from "@/components/firma-convoca";
+
 import { SignoConvoca } from "./signo-convoca";
 import {
   adminApi,
@@ -368,20 +370,14 @@ function Marca({ plegado }: { plegado?: boolean }) {
         aria-label={plegado ? "Convoca" : undefined}
         className="flex max-w-full items-center justify-center gap-2.5 no-underline"
       >
-        <SignoConvoca tamano={plegado ? 30 : 32} className="shrink-0" />
-
-        {!plegado && (
-          <span className="flex min-w-0 flex-col gap-0.5 leading-none">
-            <span className="text-[1.05rem] font-bold tracking-tight">
-              Convoca
-            </span>
-            {/* el eslogan va como TEXTO y no dentro del SVG:
-                asi se lee con lector de pantalla y no se
-                convierte en una mancha a 32 px */}
-            <span className="text-[10.5px] leading-snug font-medium opacity-65">
-              Relaciones que generan resultados
-            </span>
-          </span>
+        {/* La MISMA firma que el login, el pie publico y la
+            ficha del perfil, no una copia con los mismos
+            estilos: cuatro copias acaban diciendo cuatro
+            cosas. Plegada solo cabe el signo. */}
+        {plegado ? (
+          <SignoConvoca tamano={30} className="shrink-0" />
+        ) : (
+          <FirmaConvoca tamano={32} />
         )}
       </Link>
     </div>

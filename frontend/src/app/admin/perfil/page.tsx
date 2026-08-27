@@ -11,6 +11,7 @@ import {
   Tarjeta,
   useAdmin,
 } from "@/components/admin/marco-admin";
+import { FirmaConvoca, usarEstado } from "@/components/firma-convoca";
 import { adminApi } from "@/lib/admin-api";
 import { ErrorApi } from "@/lib/api";
 
@@ -114,6 +115,77 @@ export default function PaginaPerfil() {
       >
         <FormularioCambioClave alTerminar={refrescar} />
       </Tarjeta>
+
+      <SobreConvoca />
+    </div>
+  );
+}
+
+/**
+ * Qué es esto y qué versión está corriendo.
+ *
+ * Va en el perfil porque es donde uno mira cuando quiere
+ * saber «¿dónde estoy y con qué?»: al reportar un problema,
+ * el dato que siempre falta es la versión, y hasta ahora la
+ * única forma de saberla era abrir /api/estado a mano.
+ */
+function SobreConvoca() {
+  const estado = usarEstado();
+  const ano = estado ? new Date(estado.hora).getFullYear() : null;
+  const enPruebas = (estado?.version ?? "").includes("prueba");
+
+  return (
+    <Tarjeta titulo="Sobre Convoca">
+      <div className="space-y-5">
+        <FirmaConvoca tamano={40} />
+
+        <dl className="grid gap-x-8 gap-y-3 text-sm sm:grid-cols-2">
+          <Dato titulo="Versión" valor={estado?.version ?? "…"} mono />
+          <Dato
+            titulo="Entorno"
+            valor={
+              !estado
+                ? "…"
+                : enPruebas
+                  ? "Pruebas · los datos son inventados"
+                  : "Producción · datos reales"
+            }
+          />
+          <Dato titulo="Gestionado por" valor="Grupo AE" />
+          <Dato
+            titulo="Derechos"
+            valor={ano ? `© ${ano}, todos los derechos reservados` : "…"}
+          />
+        </dl>
+
+        <p className="text-sm text-texto-suave">
+          La versión sale del propio servidor, no de una constante escrita a
+          mano: es la que de verdad está corriendo. Si va a reportar algo, es el
+          dato que conviene copiar.
+        </p>
+      </div>
+    </Tarjeta>
+  );
+}
+
+/** Una etiqueta con su valor. */
+function Dato({
+  titulo,
+  valor,
+  mono,
+}: {
+  titulo: string;
+  valor: string;
+  mono?: boolean;
+}) {
+  return (
+    <div>
+      <dt className="text-xs font-semibold tracking-wide text-texto-suave uppercase">
+        {titulo}
+      </dt>
+      <dd className={`mt-0.5 ${mono ? "font-mono text-[0.95rem]" : ""}`}>
+        {valor}
+      </dd>
     </div>
   );
 }
