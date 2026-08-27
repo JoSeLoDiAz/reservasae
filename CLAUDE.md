@@ -1094,11 +1094,25 @@ Decisiones del cliente, ya cerradas:
 | Se ha beneficiado antes | booleano declarado |
 | Departamento y ciudad | el **domicilio** de la persona, no la sede del curso |
 
-> **El corte de «tamaño de organización» de `/analisis` está calculado con el
-> criterio viejo.** `clasificarTamano()` usa número de empleados (Ley 590
-> original); el SEP usa ingresos y sector. Una empresa de 8 empleados y $30.000
-> millones nos sale «Microempresa» y para ellos es «Grande». Hay que pedirle a
-> la empresa su sector y su rango de ingresos.
+> **El corte de «tamaño de organización» ya va por el Decreto 957** (27 ago
+> 2026). Contaba por número de empleados (Ley 590 original) mientras el SEP
+> clasifica por ingresos y sector, así que una empresa de 8 empleados y $30.000
+> millones salía «Microempresa» en la pantalla y «Grande» en el archivo. El dato
+> bueno ya estaba en la base —`Empresa.tamanoSepId`, el que viaja al F7—;
+> simplemente nadie lo miraba aquí.
+>
+> - **La talla se DERIVA de la etiqueta del catálogo**, no de un mapa de doce
+>   entradas al lado: un mapa a mano y el catálogo generado acaban discrepando el
+>   día que el SEP añada un valor. `tallaDeOrganizacion()` en `catalogos-sep.ts`.
+> - **El número de empleados se conserva solo como respaldo, y la pantalla dice
+>   cuántas van por cada criterio.** Mientras no todas hayan declarado su rango de
+>   ingresos, la cifra mezcla dos criterios que no dan lo mismo; callarlo daría
+>   un recuento que *parece* exacto y no lo es.
+> - **Las mipymes van sumadas y aparte.** Es la cifra que los proyectos
+>   comprometen, e iba repartida en tres barras: para saber si se cumple había que
+>   sumarlas a ojo.
+> - Sigue haciendo falta **pedirle a cada organización su sector y su rango de
+>   ingresos** — eso no es código. El enlace de completado ya lo pide.
 
 - **La ficha captura y nada bloquea guardar.** Solo son obligatorios en el
   backend el tipo y número de documento, el nombre y el primer apellido; el
@@ -1914,10 +1928,18 @@ en todas las pantallas.
   única razón por la que la pila de pruebas tocaba la red real, y la barrera
   contra resolver el `backend` equivocado quedaba en el nombre del servicio.
   Ahora ni siquiera hay ruta.
-- La casilla de tratamiento de datos del formulario público **no enlaza al
-  texto**, aunque la política existe y `GET /api/politicas/:slug/RESERVA` la
-  sirve. Es de producción, no del entorno de pruebas, pero aquí se ve más
-  porque el formulario es usable de punta a punta.
+- ✅ **La casilla de tratamiento de datos ya enseña el texto** (27 ago 2026).
+  Decía «autorizo el tratamiento de mis datos» sin forma de leer qué se
+  autorizaba, aunque la política existía y `GET /api/politicas/:slug/RESERVA`
+  la servía. Va el texto y **no un enlace**: la preinscripción hizo ese mismo
+  camino y su comentario sigue valiendo, «casi nadie abría el enlace, y eso no
+  alcanza para sostener que la persona leyó lo que autorizó».
+  `components/caja-de-politica.tsx` es una sola implementación para los dos
+  formularios, y el texto de respaldo vive ahí una vez: estaba dentro de
+  `preinscripcion.tsx`, y dos versiones de lo que la persona autoriza es
+  exactamente lo que no puede pasar. Se pide **aparte** de la carga del
+  formulario, para que un convenio sin política publicada no deje el formulario
+  entero sin dibujarse.
 
 ---
 

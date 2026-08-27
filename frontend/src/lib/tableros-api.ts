@@ -42,7 +42,16 @@ export type Analisis = {
     avance: number;
   }>;
   gremio: Array<{ nombre: string; empresas: number; cupos: number }>;
-  tamano: Array<{ nombre: string; empresas: number; cupos: number }>;
+  tamano: {
+    filas: Array<{ nombre: string; empresas: number; cupos: number }>;
+    /// La cifra que los proyectos comprometen: micro + pequena
+    /// + mediana, ya sumada.
+    mipymes: { empresas: number; cupos: number };
+    /// Con que criterio se clasifico cada organizacion. Se
+    /// ensena: los proyectos comprometen un numero de mipymes y
+    /// una cifra mezclada sin decirlo no sirve para decidir.
+    criterio: { DECRETO_957: number; EMPLEADOS: number; SIN_DATO: number };
+  };
   concentracion: {
     totalCupos: number;
     organizaciones: number;

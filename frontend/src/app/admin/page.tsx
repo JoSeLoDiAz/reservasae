@@ -317,16 +317,56 @@ export default function Tablero() {
 
         <Tarjeta
           titulo="Tamaño de la organización"
-          descripcion="Clasificación de la Ley 590 por número de colaboradores."
+          descripcion="Decreto 957 de 2019: por ingresos y sector, que es el criterio del reporte."
         >
+          {/* La cifra que los proyectos comprometen va aparte y
+              ya sumada: para saber si se cumple, sumar tres
+              barras a ojo no vale. */}
+          <p className="mb-4 rounded-xl border border-borde bg-superficie-alterna px-4 py-3 text-sm">
+            <strong className="tabular-nums">
+              {n(analisis.tamano.mipymes.empresas)}
+            </strong>{" "}
+            {analisis.tamano.mipymes.empresas === 1
+              ? "organización es mipyme"
+              : "organizaciones son mipymes"}
+            , con{" "}
+            <strong className="tabular-nums">{n(analisis.tamano.mipymes.cupos)}</strong>{" "}
+            cupos.
+          </p>
+
           <ListaBarras
-            datos={analisis.tamano.map((t) => ({
+            datos={analisis.tamano.filas.map((t) => ({
               etiqueta: t.nombre,
               valor: t.cupos,
               detalle: `${t.empresas} org.`,
             }))}
             vacio="Sin datos de tamaño todavía."
           />
+
+          {/* Decirlo no es un detalle: hasta que todas declaren
+              su rango de ingresos, esta cifra mezcla dos
+              criterios que NO dan lo mismo. Callarlo daría un
+              recuento que parece exacto y no lo es. */}
+          {(analisis.tamano.criterio.EMPLEADOS > 0 ||
+            analisis.tamano.criterio.SIN_DATO > 0) && (
+            <p className="mt-4 text-sm text-texto-suave">
+              {analisis.tamano.criterio.DECRETO_957 > 0 && (
+                <>
+                  {n(analisis.tamano.criterio.DECRETO_957)} clasificadas por su rango de
+                  ingresos.{" "}
+                </>
+              )}
+              {analisis.tamano.criterio.EMPLEADOS > 0 && (
+                <>
+                  {n(analisis.tamano.criterio.EMPLEADOS)} por número de colaboradores, que
+                  es el criterio viejo y puede dar otra talla.{" "}
+                </>
+              )}
+              {analisis.tamano.criterio.SIN_DATO > 0 && (
+                <>{n(analisis.tamano.criterio.SIN_DATO)} sin ningún dato de tamaño.</>
+              )}
+            </p>
+          )}
         </Tarjeta>
       </div>
 

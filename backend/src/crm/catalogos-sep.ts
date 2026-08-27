@@ -257,3 +257,81 @@ export function municipiosDe(departamentoId: number): MunicipioSep[] {
     a[2].localeCompare(b[2], 'es'),
   );
 }
+
+// tamano de organizacion
+
+/**
+ * Las cuatro tallas del Decreto 957 de 2019, y de donde salen.
+ *
+ * El SEP clasifica por INGRESOS Y SECTOR, no por numero de
+ * empleados: sus doce valores son la talla cruzada con el sector
+ * («GRANDE - COMERCIO», «MICROEMPRESA - SERVICIOS»…). La talla
+ * es el primer segmento de la etiqueta, asi que se DERIVA del
+ * catalogo y no se escribe un mapa de doce entradas al lado: un
+ * mapa a mano y el catalogo generado acaban discrepando el dia
+ * que el SEP anada un valor.
+ *
+ * Importa porque los dos proyectos comprometen un numero de
+ * MIPYMES, y hasta hoy el corte de `/analisis` lo contaba con el
+ * criterio de la Ley 590 original -- numero de empleados -- que
+ * no es el mismo: una empresa de 8 personas y $30.000 millones
+ * salia «Microempresa» y para el SEP es «Grande». El dato bueno
+ * ya estaba en la base (`Empresa.tamanoSepId`, que es lo que
+ * viaja al F7); simplemente nadie lo miraba aqui.
+ */
+export type Talla = 'Microempresa' | 'Pequeña' | 'Mediana' | 'Grande';
+
+export const TALLAS: Talla[] = ['Microempresa', 'Pequeña', 'Mediana', 'Grande'];
+
+/// Las tres primeras son mipyme; la cuarta no.
+export const TALLAS_MIPYME: Talla[] = ['Microempresa', 'Pequeña', 'Mediana'];
+
+/// La etiqueta del SEP dice PEQUEÑA y MICROEMPRESA.
+const DEL_SEP: Record<string, Talla> = {
+  MICROEMPRESA: 'Microempresa',
+  PEQUEÑA: 'Pequeña',
+  MEDIANA: 'Mediana',
+  GRANDE: 'Grande',
+};
+
+const TALLA_POR_ID = new Map<number, Talla>(
+  TAMANOS_EMPRESA_SEP.map((v) => {
+    const cabeza = v.etiqueta.split('-')[0].trim().toUpperCase();
+    return [v.id, DEL_SEP[cabeza]] as [number, Talla];
+  }).filter(([, talla]) => talla !== undefined),
+);
+
+/**
+ * Por empleados, que es el criterio VIEJO (Ley 590 de 2000).
+ *
+ * Se conserva solo como respaldo para las organizaciones que
+ * todavia no han declarado su rango de ingresos, y el resultado
+ * dice que viene de aqui: una cifra de mipymes mezclada con dos
+ * criterios sin decirlo es la peor clase de cifra.
+ */
+function porEmpleados(colaboradores: number): Talla {
+  if (colaboradores <= 10) return 'Microempresa';
+  if (colaboradores <= 50) return 'Pequeña';
+  if (colaboradores <= 200) return 'Mediana';
+  return 'Grande';
+}
+
+export type Origen = 'DECRETO_957' | 'EMPLEADOS' | 'SIN_DATO';
+
+/** La talla de una organizacion, diciendo con que criterio. */
+export function tallaDeOrganizacion(empresa: {
+  tamanoSepId?: number | null;
+  numeroColaboradores?: number | null;
+}): { talla: Talla | null; origen: Origen } {
+  /// El id del SEP manda cuando esta: es el que el cliente
+  /// declaro y el que viaja en el reporte, asi que la pantalla
+  /// tiene que contar lo mismo que el archivo.
+  const delSep = empresa.tamanoSepId ? TALLA_POR_ID.get(empresa.tamanoSepId) : undefined;
+  if (delSep) return { talla: delSep, origen: 'DECRETO_957' };
+
+  if (empresa.numeroColaboradores !== null && empresa.numeroColaboradores !== undefined) {
+    return { talla: porEmpleados(empresa.numeroColaboradores), origen: 'EMPLEADOS' };
+  }
+
+  return { talla: null, origen: 'SIN_DATO' };
+}

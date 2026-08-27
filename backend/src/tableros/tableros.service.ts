@@ -16,6 +16,11 @@ import {
 } from './ambito';
 import { PrismaService } from '../prisma/prisma.service';
 import { diaBogota } from '../comun/dia-bogota';
+import {
+  TALLAS,
+  TALLAS_MIPYME,
+  tallaDeOrganizacion,
+} from '../crm/catalogos-sep';
 import { calcularProyeccion, type PuntoNeto } from './proyeccion';
 
 export type FiltrosReservas = {
@@ -176,6 +181,11 @@ export class TablerosService {
     // gremio y tamaño
     const gremio = new Map<string, { empresas: number; cupos: number }>();
     const tamano = new Map<string, { empresas: number; cupos: number }>();
+    /// Con que criterio se clasifico cada una. Se DEVUELVE, no
+    /// se guarda para nosotros: una cifra de mipymes mezclada
+    /// con dos criterios sin decirlo es la peor clase de cifra,
+    /// y los proyectos comprometen un numero de mipymes.
+    const criterio = { DECRETO_957: 0, EMPLEADOS: 0, SIN_DATO: 0 };
 
     for (const e of empresas) {
       const cupos = e.reservas.reduce((s, r) => s + r.cuposConfirmados, 0);
@@ -187,10 +197,18 @@ export class TablerosService {
       g.cupos += cupos;
       gremio.set(nombreGremio, g);
 
-      const t = tamano.get(clasificarTamano(e.numeroColaboradores)) ?? { empresas: 0, cupos: 0 };
+      /// La talla sale del id del SEP cuando esta, y del numero
+      /// de empleados solo como respaldo. Ver
+      /// `crm/catalogos-sep.ts`: son dos criterios distintos y
+      /// el que manda es el del Decreto 957, que es el que
+      /// viaja en el reporte.
+      const { talla, origen } = tallaDeOrganizacion(e);
+      criterio[origen] += 1;
+      const nombreTalla = talla ?? 'Sin indicar';
+      const t = tamano.get(nombreTalla) ?? { empresas: 0, cupos: 0 };
       t.empresas += 1;
       t.cupos += cupos;
-      tamano.set(clasificarTamano(e.numeroColaboradores), t);
+      tamano.set(nombreTalla, t);
     }
 
     // concentración
@@ -219,11 +237,28 @@ export class TablerosService {
         .map(([nombre, v]) => ({ nombre, ...v }))
         .sort((a, b) => b.cupos - a.cupos),
 
-      tamano: ORDEN_TAMANO.map((nombre) => ({
-        nombre,
-        empresas: tamano.get(nombre)?.empresas ?? 0,
-        cupos: tamano.get(nombre)?.cupos ?? 0,
-      })).filter((t) => t.empresas > 0),
+      tamano: {
+        filas: ORDEN_TAMANO.map((nombre) => ({
+          nombre,
+          empresas: tamano.get(nombre)?.empresas ?? 0,
+          cupos: tamano.get(nombre)?.cupos ?? 0,
+        })).filter((t) => t.empresas > 0),
+
+        /// La cifra que los proyectos comprometen, aparte.
+        ///
+        /// Micro + pequena + mediana. Iba sin sumar, asi que
+        /// para saber si se cumple el compromiso habia que
+        /// sumar tres barras a ojo.
+        mipymes: TALLAS_MIPYME.reduce(
+          (acc, t) => ({
+            empresas: acc.empresas + (tamano.get(t)?.empresas ?? 0),
+            cupos: acc.cupos + (tamano.get(t)?.cupos ?? 0),
+          }),
+          { empresas: 0, cupos: 0 },
+        ),
+
+        criterio,
+      },
 
       concentracion: {
         totalCupos,
@@ -1140,16 +1175,11 @@ function pct(parte: number, total: number): number {
   return total > 0 ? Math.round((parte / total) * 1000) / 10 : 0;
 }
 
-/** Tamaño de empresa según la Ley 590 de 2000. */
-const ORDEN_TAMANO = ['Microempresa', 'Pequeña', 'Mediana', 'Grande', 'Sin indicar'];
-
-function clasificarTamano(colaboradores: number | null): string {
-  if (colaboradores === null) return 'Sin indicar';
-  if (colaboradores <= 10) return 'Microempresa';
-  if (colaboradores <= 50) return 'Pequeña';
-  if (colaboradores <= 200) return 'Mediana';
-  return 'Grande';
-}
+/// El orden de menor a mayor, con el hueco al final.
+///
+/// La clasificacion vive en `crm/catalogos-sep.ts` porque sale
+/// del catalogo del SEP; aqui solo se ordena para pintar.
+const ORDEN_TAMANO = [...TALLAS, 'Sin indicar'];
 
 /** Media, mediana y extremos de una lista ordenada. */
 export function resumenNumerico(valores: number[]) {
