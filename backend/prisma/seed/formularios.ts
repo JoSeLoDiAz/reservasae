@@ -195,10 +195,22 @@ const FORMULARIOS: Array<{
   },
 ];
 
+/** Deja el gremio apuntando a su formulario. */
+async function marcarGremio(convenioId: string, formularioId: string) {
+  // no pisa lo que un admin eligio
+  const { count } = await prisma.convenio.updateMany({
+    where: { id: convenioId, formularioMarcaId: null },
+    data: { formularioMarcaId: formularioId },
+  });
+  if (count) console.log('  y queda como marca del gremio.');
+}
+
 async function sembrar(entrada: (typeof FORMULARIOS)[number]) {
   const existente = await prisma.formulario.findUnique({ where: { slug: entrada.slug } });
   if (existente) {
     console.log(`${entrada.slug}: ya existe, no se toca.`);
+    // pero el gremio puede seguir sin marca
+    await marcarGremio(existente.convenioId, existente.id);
     return;
   }
 
@@ -220,6 +232,8 @@ async function sembrar(entrada: (typeof FORMULARIOS)[number]) {
       publicado: false,
     },
   });
+
+  await marcarGremio(convenio.id, formulario.id);
 
   // segunda pasada: la madre puede no existir aun
   const porEtiqueta = new Map<string, string>();

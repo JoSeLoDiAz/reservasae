@@ -416,6 +416,28 @@ export class AdminService {
     };
   }
 
+  /** La marca de un gremio: la de su formulario. */
+  async obtenerMarcaDeGremio(slugConvenio: string) {
+    const convenio = await this.prisma.convenio.findFirst({
+      where: { slug: slugConvenio, activo: true },
+      select: { formularioMarca: { select: { slug: true } } },
+    });
+    if (!convenio?.formularioMarca) return this.obtenerMarca();
+
+    // sin publicar tambien: son dos decisiones
+    return this.obtenerMarcaDeFormulario(convenio.formularioMarca.slug, true);
+  }
+
+  /** La marca que le toca a esa direccion. */
+  async obtenerMarcaDelHost(host?: string | null) {
+    const activos = await this.prisma.convenio.findMany({
+      where: { activo: true },
+      select: { id: true, slug: true },
+    });
+    const gremio = gremioDelHost(host, activos);
+    return gremio ? this.obtenerMarcaDeGremio(gremio.slug) : this.obtenerMarca();
+  }
+
   async actualizarTema(admin: Admin, esquema: EsquemaColor, dto: ActualizarTemaDto) {
     const existe = await this.prisma.tema.findUnique({ where: { esquema } });
     if (!existe) throw new NotFoundException(`No existe el tema ${esquema}.`);

@@ -1,5 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 
+import { etiquetaDelHost } from "@/lib/gremio-del-host";
+
 /**
  * El panel no sale por el túnel.
  *
@@ -15,13 +17,16 @@ import { NextResponse, type NextRequest } from "next/server";
  * Solo reconoce dominios de túnel de pruebas. Un despliegue
  * de verdad lleva su propio dominio y esto no lo toca.
  */
-function esTunel(peticion: NextRequest): boolean {
-  const host = (
+function hostDe(peticion: NextRequest): string {
+  return (
     peticion.headers.get("x-forwarded-host") ??
     peticion.headers.get("host") ??
     ""
   ).toLowerCase();
+}
 
+function esTunel(peticion: NextRequest): boolean {
+  const host = hostDe(peticion);
   return host.endsWith(".trycloudflare.com") || host.endsWith(".ngrok-free.app");
 }
 
@@ -40,6 +45,26 @@ const RUTAS_PUBLICAS = [
 const INFRAESTRUCTURA = ["/_next", "/favicon.ico", "/logo-convoca.png"];
 
 export function middleware(peticion: NextRequest) {
+  /// La raíz de un gremio sirve SU formulario corto.
+  ///
+  /// Va ANTES del corte del túnel o no se ejecutaría nunca en
+  /// producción. Y es rewrite, no redirect: la barra tiene que
+  /// seguir diciendo la dirección del gremio, y un redirect
+  /// además delataría la ruta interna.
+  ///
+  /// Se comprueba `esTunel` primero porque un host de
+  /// trycloudflare tiene tres etiquetas y la suya no está en
+  /// RESERVADOS: sin eso, un túnel de pruebas se reescribiría
+  /// y se saltaría la puerta que cierra el panel.
+  if (!esTunel(peticion) && peticion.nextUrl.pathname === "/") {
+    const gremio = etiquetaDelHost(hostDe(peticion));
+    if (gremio) {
+      return NextResponse.rewrite(
+        new URL(`/${gremio}/preinscripcion`, peticion.url),
+      );
+    }
+  }
+
   if (!esTunel(peticion)) return NextResponse.next();
 
   const ruta = peticion.nextUrl.pathname;

@@ -318,15 +318,26 @@ export class AdminController {
 export class MarcaPublicaController {
   constructor(private readonly admin: AdminService) {}
 
+  /// Varia por Host: en el subdominio de un gremio devuelve
+  /// SU marca. Con esto el login y el panel entero salen con
+  /// su logo y sus colores sin tocar el frontend.
   @Get()
-  marca() {
-    return this.admin.obtenerMarca();
+  marca(@Req() peticion: Request) {
+    return this.admin.obtenerMarcaDelHost(peticion.headers.host);
   }
 
   // segmento literal antes del slug
   @Get('formulario/:slug')
   marcaDeFormulario(@Param('slug') slug: string) {
     return this.admin.obtenerMarcaDeFormulario(slug);
+  }
+
+  /// Por slug de CONVENIO, no de formulario. La pide el
+  /// servidor de Next, que no tiene el Host a mano en el
+  /// sitio donde arma el CSS.
+  @Get('gremio/:slug')
+  marcaDeGremio(@Param('slug') slug: string) {
+    return this.admin.obtenerMarcaDeGremio(slug);
   }
 
   /** Cada logo por su id, cacheable un año. */

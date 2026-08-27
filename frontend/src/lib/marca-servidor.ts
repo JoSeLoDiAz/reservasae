@@ -1,3 +1,4 @@
+import { etiquetaDelHost } from "./gremio-del-host";
 import { PATRON_SLUG } from "./marca";
 
 // en el servidor no hay rewrite
@@ -28,6 +29,33 @@ export async function estilosDeMarca(slug: string): Promise<string> {
     return "";
   }
 
+  return construirCss(marca);
+}
+
+/** CSS con las dos paletas del gremio del host. */
+export async function estilosDeGremio(host?: string | null): Promise<string> {
+  const gremio = etiquetaDelHost(host);
+  if (!gremio || !PATRON_SLUG.test(gremio)) return "";
+
+  let marca: MarcaMinima;
+  try {
+    // el slug va en la URL: la cache de Next se indexa por
+    // ella, y asi cada gremio tiene su entrada
+    const respuesta = await fetch(`${API_INTERNA}/marca/gremio/${gremio}`, {
+      next: { revalidate: 30 },
+      signal: AbortSignal.timeout(1500),
+    });
+    if (!respuesta.ok) return "";
+    marca = (await respuesta.json()) as MarcaMinima;
+  } catch {
+    // el sitio funciona igual sin esto
+    return "";
+  }
+
+  return construirCss(marca);
+}
+
+function construirCss(marca: MarcaMinima): string {
   const tokens = marca?.catalogoColores?.tokens;
   if (!marca?.temas || !Array.isArray(tokens)) return "";
 

@@ -47,11 +47,19 @@ model Convenio {
   creadoEn             DateTime @default(now())
   actualizadoEn        DateTime @updatedAt
 
+  /// el formulario que da la marca
+  formularioMarcaId String?
+
   acciones      AccionFormacion[]
   politicas     PoliticaDatos[]
   formularios   Formulario[]
   participantes Participante[]
   admins        AdminConvenio[]
+
+  /// Nombrada porque Convenio y Formulario ya se relacionan
+  /// por `Formulario.convenioId`, y sin nombre Prisma no
+  /// sabria cual de las dos es cual.
+  formularioMarca Formulario? @relation("MarcaDelGremio", fields: [formularioMarcaId], references: [id], onDelete: SetNull)
 
   @@map("convenios")
 }
@@ -361,6 +369,7 @@ model Formulario {
   actualizadoEn DateTime @updatedAt
 
   convenio  Convenio   @relation(fields: [convenioId], references: [id], onDelete: Cascade)
+  esMarcaDe Convenio[] @relation("MarcaDelGremio")
   secciones Seccion[]
   preguntas Pregunta[]
   reservas  Reserva[]
@@ -1416,11 +1425,11 @@ model AvisoDeCupos {
   inscritos    Int
   faltan       Int
 
-  creadoEn  DateTime  @default(now())
+  creadoEn   DateTime  @default(now())
   /// Cuando salio de verdad. Null mientras no ha salido.
-  enviadoEn DateTime?
+  enviadoEn  DateTime?
   /// Por donde salio: CORREO, WHATSAPP, PANEL.
-  canal     String?
+  canal      String?
   /// Quien lo vio y dijo que ya lo atendio.
   atendidoEn DateTime?
 

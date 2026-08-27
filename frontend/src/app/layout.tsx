@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist_Mono, Raleway } from "next/font/google";
 
+import { EstilosGremio } from "@/components/estilos-gremio";
 import { FranjaEntorno } from "@/components/franja-entorno";
 import { ProveedorMarca } from "@/components/marca-publica";
 import { SCRIPT_ACCESIBILIDAD } from "@/lib/accesibilidad";
@@ -46,6 +47,8 @@ export default function RootLayout({
             __html: SCRIPT_SIN_PARPADEO + SCRIPT_PALETA + SCRIPT_ACCESIBILIDAD,
           }}
         />
+        {/* despues del script, para ganarle */}
+        <EstilosGremio />
       </head>
       <body className="min-h-full flex flex-col font-sans">
         <FranjaEntorno />

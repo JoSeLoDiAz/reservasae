@@ -5,8 +5,14 @@ import { usePathname, useRouter } from "next/navigation";
 import { createContext, useCallback, useContext, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 
-import { ConmutadorTema } from "@/components/marca-publica";
-import { adminApi, type AdminActual, type Area, type Nivel } from "@/lib/admin-api";
+import { ConmutadorTema, useMarca } from "@/components/marca-publica";
+import {
+  adminApi,
+  urlLogo,
+  type AdminActual,
+  type Area,
+  type Nivel,
+} from "@/lib/admin-api";
 import { ErrorApi } from "@/lib/api";
 
 import { PanelAccesibilidad } from "./accesibilidad";
@@ -251,14 +257,20 @@ function migas(ruta: string): string[] {
   return ["Panel"];
 }
 
-/// El archivo del logo. Si no esta, se pinta la letra: un
-/// icono roto en la esquina superior izquierda se ve peor
-/// que una C, y el panel no puede depender de un PNG.
+/// El respaldo. Si no esta, se pinta la letra: un icono roto
+/// en la esquina superior izquierda se ve peor que una C, y
+/// el panel no puede depender de un PNG.
 const LOGO = "/logo-convoca.png";
 
 /// La marca. Igual en la barra y en el cajón.
 function Marca({ plegado }: { plegado?: boolean }) {
   const [sinLogo, setSinLogo] = useState(false);
+  const { marca } = useMarca();
+
+  /// El primero de la marca, que en el subdominio de un
+  /// gremio ya es el suyo. El PNG queda de respaldo.
+  const propio = marca?.logos?.[0];
+  const fuente = propio ? urlLogo(propio) : LOGO;
 
   return (
     <Link
@@ -275,12 +287,19 @@ function Marca({ plegado }: { plegado?: boolean }) {
       ) : (
         // eslint-disable-next-line @next/next/no-img-element
         <img
-          src={LOGO}
+          src={fuente}
           alt=""
           width={36}
           height={36}
           onError={() => setSinLogo(true)}
-          className="h-9 w-9 shrink-0 object-contain"
+          /// Plegado va el cuadro de 36; abierto se le deja
+          /// ancho, que un logo con letras en un cuadrado no
+          /// se lee.
+          className={
+            plegado
+              ? "h-9 w-9 shrink-0 object-contain"
+              : "h-9 w-auto max-w-[8rem] shrink-0 object-contain"
+          }
         />
       )}
       {!plegado && (
