@@ -1042,7 +1042,10 @@ async function main() {
                 .toLowerCase()
                 .normalize('NFD')
                 .replace(/[̀-ͯ]/g, '') + '@ejemplo.test',
-            celular: `3${entre(0, 2)}${entre(1000000, 9999999)}`,
+            // 10 digitos: `3` + operador + siete. Salian de
+            // NUEVE y no era un celular colombiano; lo destapo
+            // el validador nuevo, que rechazo la siembra entera
+            celular: `3${entre(0, 2)}${entre(0, 9)}${entre(1000000, 9999999)}`,
             // el formulario corto solo pide hasta aqui; lo
             // de abajo llega cuando la persona completa su
             // ficha o cuando el asesor se lo saca por
