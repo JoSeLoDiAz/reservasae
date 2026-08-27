@@ -7,6 +7,7 @@ import {
   type OnModuleInit,
 } from '@nestjs/common';
 
+import { documentosPermitidos } from './permiso-rui';
 import { ruiEsSimulado } from './proveedor';
 import { RuiService } from './rui.service';
 
@@ -52,11 +53,28 @@ export class RuiWorker implements OnModuleInit, OnModuleDestroy {
     }
 
     // que quede claro en el registro contra que corre
-    this.log.log(
-      ruiEsSimulado()
-        ? 'Con el simulador: NO consulta el RUI. Se conecta con RUI_PROVEEDOR=VENTANILLA.'
-        : 'Contra la Ventanilla Social del DNP, en serio.',
-    );
+    if (ruiEsSimulado()) {
+      this.log.log(
+        'Con el simulador: NO consulta el RUI. Se conecta con RUI_PROVEEDOR=VENTANILLA.',
+      );
+    } else if (process.env.ENTORNO === 'prueba') {
+      /// En pruebas se dice A QUIEN se le puede preguntar.
+      ///
+      /// Decir solo "en serio" en un entorno de pruebas invita
+      /// a probar con una cedula inventada, y esa le pertenece
+      /// a alguien.
+      const permitidos = documentosPermitidos();
+      this.log.warn(
+        permitidos.length
+          ? `Contra el DNP en serio, pero SOLO para ${permitidos.length} ` +
+              `documento(s) autorizado(s): ${permitidos.join(', ')}. ` +
+              'El resto va al simulador.'
+          : 'Entorno de pruebas sin RUI_SOLO_ESTOS_DOCUMENTOS: no se ' +
+              'consulta el RUI de nadie, todo va al simulador.',
+      );
+    } else {
+      this.log.log('Contra la Ventanilla Social del DNP, en serio.');
+    }
     void this.bucle();
   }
 

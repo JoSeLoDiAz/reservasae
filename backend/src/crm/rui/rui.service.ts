@@ -14,7 +14,13 @@ import { AuditoriaService, type Actor } from '../../comun/auditoria.service';
 import { ColaRui } from './cola-rui';
 import { partirNombre } from './partir-nombre';
 import { nombreCoincide } from './comparar-nombres';
-import { PROVEEDOR_RUI, ruiEsSimulado, type ProveedorRui } from './proveedor';
+import { permisoDeRui } from './permiso-rui';
+import {
+  PROVEEDOR_RUI,
+  ProveedorRuiLocal,
+  ruiEsSimulado,
+  type ProveedorRui,
+} from './proveedor';
 
 /// Cuántas veces se reintenta antes de rendirse. Tres es
 /// suficiente para un corte de red y poco para no dejar
@@ -267,23 +273,50 @@ export class RuiService {
     const tarea = await this.tomarSiguiente();
     if (!tarea) return false;
 
+    /// El permiso se mira POR DOCUMENTO, no una vez al
+    /// arrancar.
+    ///
+    /// En pruebas solo salen al portal del DNP los documentos
+    /// cuyo dueño lo autorizó; el resto va al simulador. El
+    /// candado de `esDePrueba` no bastaba: solo cubría las
+    /// filas de la siembra, y quien se registrara despues
+    /// nacia sin la marca y salia a internet.
+    const permiso = permisoDeRui(tarea.numeroDocumento);
+    if (!permiso.real) {
+      this.log.warn(
+        `No se consulta el RUI de ${tarea.numeroDocumento}: ${permiso.motivo}`,
+      );
+    }
+
     let resultado;
     try {
-      resultado = await this.proveedor.consultar(
-        tarea.tipoDocumentoSepId,
-        tarea.numeroDocumento,
-      );
+      resultado = permiso.real
+        ? await this.proveedor.consultar(
+            tarea.tipoDocumentoSepId,
+            tarea.numeroDocumento,
+          )
+        : await this.simulador.consultar(
+            tarea.tipoDocumentoSepId,
+            tarea.numeroDocumento,
+          );
     } catch (e) {
       resultado = { estado: 'FALLO' as const, error: (e as Error).message };
     }
 
-    await this.guardar(tarea.id, resultado);
+    await this.guardar(tarea.id, resultado, !permiso.real);
     return true;
   }
+
+  /// El simulador, para cuando el permiso lo manda ahi.
+  private readonly simulador = new ProveedorRuiLocal(0);
 
   private async guardar(
     id: string,
     resultado: Awaited<ReturnType<ProveedorRui['consultar']>>,
+    /// Si ESTA consulta la dio el simulador. No vale
+    /// `ruiEsSimulado()`: eso dice con que arranco el
+    /// servidor, no quien contesto a esta.
+    fueSimulada = ruiEsSimulado(),
   ): Promise<void> {
     const c = await this.prisma.consultaRui.findUnique({
       where: { id },
@@ -304,7 +337,7 @@ export class RuiService {
           nombreCoincide: coincide,
           resueltaEn: new Date(),
           ultimoError: null,
-          simulado: ruiEsSimulado(),
+          simulado: fueSimulada,
         },
       });
       return;
@@ -316,7 +349,7 @@ export class RuiService {
         data: {
           estado: EstadoConsultaRui.SIN_RESULTADO,
           resueltaEn: new Date(),
-          simulado: ruiEsSimulado(),
+          simulado: fueSimulada,
         },
       });
       return;
