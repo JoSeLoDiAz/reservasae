@@ -1,4 +1,16 @@
-/// TEMPORAL: reproduccion. Se borra al terminar.
+/// El host recorta sobre el ALCANCE, no sobre lo concedido.
+///
+/// Sale de una revision adversarial. El guard comprobaba
+/// `convenios` -- las areas alcanzadas en cualquiera de sus
+/// gremios -- en vez de `alcance`, que ya viene recortado por
+/// la direccion. Quien lleva un area en un gremio y no en el
+/// otro entraba por el subdominio equivocado con ambito
+/// vacio: no se filtraba dato alguno, pero se llevaba
+/// pantallas en blanco en vez de un no que se entienda.
+///
+/// Los casos van con Carlos, que lleva areas distintas en
+/// cada convenio: es la unica forma de que un fallo en el
+/// recorte se vea.
 
 import { AdminGuard, type Ambito } from './admin.guard';
 
