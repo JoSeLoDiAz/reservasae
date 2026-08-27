@@ -361,9 +361,15 @@ export class RuiService {
 
   /// Las que hay que mirar: el RUI trajo un nombre que no
   /// se parece al que tecleó la persona.
-  async discrepancias(limite = 50) {
+  async discrepancias(ambito: string[], limite = 50) {
     return this.prisma.consultaRui.findMany({
-      where: { estado: EstadoConsultaRui.LISTA, nombreCoincide: false },
+      // solo de gente con participacion en el ambito: el
+      // resto del bloque RUI ya pasa por personaDe()
+      where: {
+        estado: EstadoConsultaRui.LISTA,
+        nombreCoincide: false,
+        persona: { participaciones: { some: { convenioId: { in: ambito } } } },
+      },
       orderBy: { resueltaEn: 'desc' },
       take: limite,
       select: {

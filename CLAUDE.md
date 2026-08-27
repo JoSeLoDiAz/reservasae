@@ -1453,6 +1453,62 @@ las rutas que nunca comprobaron.
 > alguna reserva dentro del ámbito. Ahora la descarga usa el mismo filtro que la
 > pantalla desde la que se descarga.
 
+### Los logos y la apariencia también llevan ámbito (27 ago 2026)
+
+**Lo encontró el cliente antes que nosotros**: subió un logo entrando por
+`adecopria.reservasae.com` y le salió también en BRITCHAM. La causa no era un
+fallo suelto — era que **`/admin/marca` edita la marca GLOBAL desde cualquier
+dirección**: los logos con `formularioId = null`, la única fila de `marca` y la
+única de `temas`.
+
+Y detrás había cuatro fugas de escritura que nadie había visto:
+
+- **Las cuatro rutas de `/admin/logos` no miraban el ámbito.** El único candado
+  contaba si el formulario **existe**, no de quién es.
+- **El `GET` no tenía ni `@Requiere` ni `@Roles`**: lo veía cualquier sesión de
+  admin, incluida la de solo consulta — y es la que entrega los ids que
+  necesitan el `PATCH` y el `DELETE`.
+- **El `DELETE` era el peor**: borra un logo del banner **público** del otro
+  gremio, y su URL `/marca/logos/:id` deja de existir.
+- **`PATCH` y `DELETE` solo reciben el id del logo**, así que validar el
+  `formularioId` de entrada los dejaba abiertos: hay que resolver
+  logo → formulario → convenio dentro del servicio.
+
+Cómo quedó:
+
+- **Los logos GENERALES se editan por la puerta general y por ninguna otra.**
+  No pertenecen a ningún convenio, así que `{ in: ambito }` **no los cubre**: el
+  candado mira `gremioFijo`. Sin eso se salta pasando el campo vacío, que es
+  justo lo que hacía la pantalla.
+- **`listarLogos` pasó a PRIVADA** y se añadió `listarLogosDelPanel`, que
+  comprueba. Es la lección de `vista()` en formularios: un helper sin candado al
+  que llega un controlador es la puerta de servicio por la que entra todo lo que
+  nunca comprobó.
+- **`logos-fuera-del-ambito.spec.ts`** recorre las cuatro rutas más
+  `marca/formulario/:slug` y exige que no escriban nada. Comprobado que puede
+  fallar: quitando el candado del borrado, falla 1 de 7.
+- **La pantalla dice la verdad según la puerta.** En la dirección de un gremio
+  los bloques globales dejan de ser editables y mandan al formulario que le da
+  la cara, que es donde la apariencia por gremio ya funciona bien. Un campo
+  editable que escribe en los dos gremios, dentro de una pantalla que dice ser
+  de un gremio, es el mismo fallo con otra cara.
+
+Y cuatro más del mismo patrón, fuera de la apariencia:
+
+| | |
+|---|---|
+| `PATCH /admin/acciones/:id` | **publicaba u ocultaba del sitio público la acción del otro gremio.** `listarAcciones`, dos líneas arriba, sí acotaba |
+| la carga masiva de empresas | `aplicarEmpresas` **ni declaraba** el ámbito en su firma |
+| `/admin/empresas` | acotaba la empresa pero no el `include` de sus reservas, así que las columnas sumaban las del otro gremio |
+| `rui/discrepancias` | devolvía documento y nombres de los últimos 50 sin acotar |
+
+> **La lección, ya por cuarta vez:** el subdominio no creó ninguna de estas
+> fugas, solo las hizo visibles. Antes todos entraban por la misma puerta y
+> nadie notaba que el ámbito faltaba. **Lo que las encuentra no es leer ruta por
+> ruta, es una prueba que recorra la superficie entera** — y las tres que
+> existen (`fuera-del-ambito`, `logos-fuera-del-ambito`,
+> `ambito-de-politicas-y-formularios`) están escritas así a propósito.
+
 ### Lo que falta
 
 Tareas con fecha · adaptador del LMS (Moodle, solo lectura; hace falta la URL

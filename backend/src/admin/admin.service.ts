@@ -59,6 +59,9 @@ export function vistaAdmin(admin: Admin) {
   };
 }
 
+/** Lo mínimo para saber de quién es un logo. */
+export type AmbitoDeLogos = { convenios: string[]; gremioFijo: boolean };
+
 @Injectable()
 export class AdminService {
   constructor(private readonly prisma: PrismaService) {}
@@ -479,6 +482,15 @@ export class AdminService {
     return this.listarMarcaDeGremios(ambito);
   }
 
+  /** Ese formulario es de un convenio del ámbito. */
+  async exigirFormularioPorSlug(ambito: string[], slug: string) {
+    const suyo = await this.prisma.formulario.findFirst({
+      where: { slug, convenioId: { in: ambito } },
+      select: { id: true },
+    });
+    if (!suyo) throw new NotFoundException('No existe ese formulario.');
+  }
+
   /** La marca de un gremio: la de su formulario. */
   async obtenerMarcaDeGremio(slugConvenio: string) {
     const convenio = await this.prisma.convenio.findFirst({
@@ -538,8 +550,61 @@ export class AdminService {
 
   // logos
 
-  /** Los de un ámbito. null = la general. */
-  async listarLogos(formularioId: string | null): Promise<LogoPublico[]> {
+  /// Lo que hace falta para saber de quien es un logo.
+  ///
+  /// `gremioFijo` importa tanto como el ambito: los logos
+  /// generales tienen `formularioId = null` y no pertenecen a
+  /// ningun convenio, asi que `{ in: ambito }` no los cubre.
+  /// Sin mirar la puerta, el candado se salta mandando el
+  /// campo vacio -- que es lo que hace la pantalla hoy.
+  private async exigirLogoDelAmbito(
+    a: AmbitoDeLogos,
+    formularioId: string | null,
+  ) {
+    // lo general, solo por la puerta general
+    if (!formularioId) {
+      if (a.gremioFijo) throw new NotFoundException('No existe ese formulario.');
+      return;
+    }
+
+    const suyo = await this.prisma.formulario.findFirst({
+      where: { id: formularioId, convenioId: { in: a.convenios } },
+      select: { id: true },
+    });
+    if (!suyo) throw new NotFoundException('No existe ese formulario.');
+  }
+
+  /// De que formulario es ese logo, comprobando el ambito.
+  ///
+  /// PATCH y DELETE solo reciben el id del logo, asi que
+  /// validar el formularioId de entrada los dejaria abiertos:
+  /// hay que resolver logo -> formulario -> convenio aqui.
+  private async formularioDeLogo(a: AmbitoDeLogos, id: string) {
+    const logo = await this.prisma.logo.findUnique({
+      where: { id },
+      select: { formularioId: true },
+    });
+    if (!logo) throw new NotFoundException('No existe ese logo.');
+    await this.exigirLogoDelAmbito(a, logo.formularioId);
+    return logo.formularioId;
+  }
+
+  /** Los del panel, comprobando de quién son. */
+  async listarLogosDelPanel(
+    a: AmbitoDeLogos,
+    formularioId: string | null,
+  ): Promise<LogoPublico[]> {
+    await this.exigirLogoDelAmbito(a, formularioId);
+    return this.listarLogos(formularioId);
+  }
+
+  /// Sin comprobar nada: la usa el camino PUBLICO de la marca.
+  ///
+  /// Privada a proposito. La leccion de `vista()` en
+  /// formularios: un helper sin candado al que llega un
+  /// controlador es la puerta de servicio por la que entra
+  /// todo lo que nunca comprobo.
+  private async listarLogos(formularioId: string | null): Promise<LogoPublico[]> {
     const filas = await this.prisma.logo.findMany({
       where: { formularioId },
       orderBy: [{ orden: 'asc' }, { creadoEn: 'asc' }],
@@ -557,13 +622,14 @@ export class AdminService {
 
   // Uint8Array: es lo que espera el campo Bytes
   async agregarLogo(
+    a: AmbitoDeLogos,
     formularioId: string | null,
     datos: Uint8Array,
     tipoMime: string,
     nombre: string,
     etiqueta?: string,
   ) {
-    await this.exigirFormulario(formularioId);
+    await this.exigirLogoDelAmbito(a, formularioId);
 
     const cuantos = await this.prisma.logo.count({ where: { formularioId } });
     if (cuantos >= MAXIMO_LOGOS) {
@@ -587,7 +653,9 @@ export class AdminService {
   }
 
   /** Cambia la etiqueta o mueve el logo en el banner. */
-  async actualizarLogo(id: string, dto: ActualizarLogoDto) {
+  async actualizarLogo(a: AmbitoDeLogos, id: string, dto: ActualizarLogoDto) {
+    await this.formularioDeLogo(a, id);
+
     const logo = await this.prisma.logo.findUnique({
       where: { id },
       select: { id: true, formularioId: true, orden: true },
@@ -624,7 +692,9 @@ export class AdminService {
     return this.listarLogos(logo.formularioId);
   }
 
-  async borrarLogo(id: string) {
+  async borrarLogo(a: AmbitoDeLogos, id: string) {
+    await this.formularioDeLogo(a, id);
+
     const logo = await this.prisma.logo.findUnique({
       where: { id },
       select: { formularioId: true },
@@ -704,9 +774,13 @@ export class AdminService {
     }));
   }
 
-  async publicarAccion(id: string, visible: boolean) {
+  async publicarAccion(ambito: string[], id: string, visible: boolean) {
     const accion = await this.prisma.accionFormacion.findUnique({ where: { id } });
-    if (!accion) throw new NotFoundException('No existe esa acción de formación.');
+    // fuera del ambito no existe: publicar u ocultar la
+    // accion del otro gremio la saca del sitio publico
+    if (!accion || !ambito.includes(accion.convenioId)) {
+      throw new NotFoundException('No existe esa acción de formación.');
+    }
 
     // publicar sin texto legal seria pedir que acepten
     // una casilla que no apunta a ninguna parte

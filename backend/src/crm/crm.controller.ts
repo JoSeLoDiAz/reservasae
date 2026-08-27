@@ -115,8 +115,8 @@ export class CrmController {
 
   /** Los que el RUI devolvió con otro nombre. */
   @Get('rui/discrepancias')
-  discrepanciasRui() {
-    return this.rui.discrepancias();
+  discrepanciasRui(@AmbitoActual() ambito: Ambito) {
+    return this.rui.discrepancias(ambito.convenios);
   }
 
   /** Contadores por etapa: las columnas del tablero. */

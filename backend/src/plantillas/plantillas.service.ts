@@ -116,7 +116,7 @@ export class PlantillasService {
 
     return entidad === 'reservas'
       ? this.aplicarReservas(lectura, campos, actor, convenios, ensayo)
-      : this.aplicarEmpresas(entidad, lectura, campos, actor, ensayo);
+      : this.aplicarEmpresas(entidad, lectura, campos, actor, convenios, ensayo);
   }
 
   // ── lo que ya hay, para bajarlo en el formato ───────────
@@ -217,6 +217,7 @@ export class PlantillasService {
     lectura: Awaited<ReturnType<typeof leerPlantilla>>,
     campos: string[],
     actor: Actor,
+    convenios: string[],
     ensayo: boolean,
   ): Promise<Resultado> {
     const def = CATALOGO[entidad];
@@ -229,7 +230,20 @@ export class PlantillasService {
             select: { id: true, nit: true },
           })
         : await this.prisma.empresa.findMany({
-            where: { nit: { in: nits } },
+            /// Las mismas que baja la plantilla, ni una mas.
+            ///
+            /// La organizacion se comparte entre convenios por
+            /// decision del cliente, pero un cargue que pise
+            /// una que no tiene ni una reserva dentro del
+            /// ambito escribe en datos que esa cuenta no
+            /// deberia estar tocando. Las que no cuadren caen
+            /// en `sinPareja` y se reportan.
+            where: {
+              nit: { in: nits },
+              reservas: {
+                some: { oferta: { accionFormacion: { convenioId: { in: convenios } } } },
+              },
+            },
             select: { id: true, nit: true },
           });
 

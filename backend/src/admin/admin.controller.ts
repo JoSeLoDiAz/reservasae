@@ -228,9 +228,16 @@ export class AdminController {
     );
   }
 
-  // previsualiza sin publicar
+  /// Previsualiza sin publicar, y por eso lleva ambito: sin
+  /// el entregaba titulo, descripcion, paletas y logos de
+  /// CUALQUIER formulario con solo saber su slug.
   @Get('marca/formulario/:slug')
-  marcaDeFormulario(@Param('slug') slug: string) {
+  @Roles(RolAdmin.SUPERADMIN)
+  async marcaDeFormulario(
+    @AmbitoActual() ambito: Ambito,
+    @Param('slug') slug: string,
+  ) {
+    await this.admin.exigirFormularioPorSlug(ambito.convenios, slug);
     return this.admin.obtenerMarcaDeFormulario(slug, true);
   }
 
@@ -264,9 +271,17 @@ export class AdminController {
 
   // logos: las mismas rutas para los dos ambitos
 
+  /// No tenia ambito, ni @Requiere, ni @Roles: la veia
+  /// cualquier sesion de admin, y es la que entrega los ids
+  /// que necesitan el PATCH y el DELETE de abajo.
   @Get('logos')
-  listarLogos(@Query('formularioId') formularioId?: string) {
-    return this.admin.listarLogos(formularioId || null);
+  @Requiere('configuracion', 'VER')
+  @Roles(RolAdmin.SUPERADMIN)
+  listarLogos(
+    @AmbitoActual() ambito: Ambito,
+    @Query('formularioId') formularioId?: string,
+  ) {
+    return this.admin.listarLogosDelPanel(ambito, formularioId || null);
   }
 
   @Post('logos')
@@ -274,6 +289,7 @@ export class AdminController {
   @Roles(RolAdmin.SUPERADMIN)
   @UseInterceptors(FileInterceptor('logo', { limits: { fileSize: MAXIMO_LOGO } }))
   subirLogo(
+    @AmbitoActual() ambito: Ambito,
     @Body() cuerpo: { formularioId?: string; etiqueta?: string },
     @UploadedFile() archivo?: Express.Multer.File,
   ) {
@@ -282,6 +298,7 @@ export class AdminController {
     if (archivo.size > MAXIMO_LOGO) throw new BadRequestException(ERROR_TAMANO_LOGO);
 
     return this.admin.agregarLogo(
+      ambito,
       cuerpo.formularioId || null,
       new Uint8Array(archivo.buffer),
       archivo.mimetype,
@@ -293,15 +310,19 @@ export class AdminController {
   @Patch('logos/:id')
   @Requiere('configuracion', 'ESCRIBIR')
   @Roles(RolAdmin.SUPERADMIN)
-  actualizarLogo(@Param('id') id: string, @Body() dto: ActualizarLogoDto) {
-    return this.admin.actualizarLogo(id, dto);
+  actualizarLogo(
+    @AmbitoActual() ambito: Ambito,
+    @Param('id') id: string,
+    @Body() dto: ActualizarLogoDto,
+  ) {
+    return this.admin.actualizarLogo(ambito, id, dto);
   }
 
   @Delete('logos/:id')
   @Requiere('configuracion', 'ESCRIBIR')
   @Roles(RolAdmin.SUPERADMIN)
-  borrarLogo(@Param('id') id: string) {
-    return this.admin.borrarLogo(id);
+  borrarLogo(@AmbitoActual() ambito: Ambito, @Param('id') id: string) {
+    return this.admin.borrarLogo(ambito, id);
   }
 
   // apariencia asistida
@@ -343,8 +364,12 @@ export class AdminController {
   @Patch('acciones/:id')
   @Requiere('configuracion', 'ESCRIBIR')
   @Roles(RolAdmin.SUPERADMIN, RolAdmin.GESTOR)
-  publicarAccion(@Param('id') id: string, @Body() dto: PublicarAccionDto) {
-    return this.admin.publicarAccion(id, dto.visible);
+  publicarAccion(
+    @AmbitoActual() ambito: Ambito,
+    @Param('id') id: string,
+    @Body() dto: PublicarAccionDto,
+  ) {
+    return this.admin.publicarAccion(ambito.convenios, id, dto.visible);
   }
 }
 

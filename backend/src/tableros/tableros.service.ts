@@ -531,7 +531,17 @@ export class TablerosService {
       where: this.dondeEmpresa(ambito, buscar),
       include: {
         reservas: {
-          where: { estado: { not: EstadoReserva.CANCELADA } },
+          /// El ambito tambien AQUI, no solo en la empresa.
+          ///
+          /// La empresa se comparte entre convenios, asi que
+          /// acotar solo la fila de arriba dejaba las columnas
+          /// -- reservas, confirmados, en espera y cursos --
+          /// sumando las del otro gremio, y la de Cursos
+          /// pintando sus codigos de accion.
+          where: {
+            estado: { not: EstadoReserva.CANCELADA },
+            oferta: { accionFormacion: { convenioId: { in: ambito } } },
+          },
           include: {
             oferta: { include: { accionFormacion: { select: { codigo: true } } } },
           },

@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 
 import { EditorColores } from "@/components/admin/editor-colores";
@@ -34,6 +35,16 @@ const MODOS: Array<{ valor: ModoPorDefecto; etiqueta: string; ayuda: string }> =
 export default function PaginaMarca() {
   const { recargar } = useMarca();
   const [marca, setMarca] = useState<Marca | null>(null);
+  /// Si se entro por la direccion de un gremio.
+  ///
+  /// Aqui manda porque lo que esta pantalla edita es la marca
+  /// GENERAL, y eso desde la puerta de un gremio significaria
+  /// cambiarsela a los dos.
+  const [gremio, setGremio] = useState<{
+    fijo: boolean;
+    sigla: string | null;
+    formularioId: string | null;
+  } | null>(null);
   const [pestana, setPestana] = useState<Esquema>("CLARO");
   const [error, setError] = useState<string | null>(null);
   const [guardado, setGuardado] = useState(false);
@@ -41,6 +52,22 @@ export default function PaginaMarca() {
 
   useEffect(() => {
     void adminApi.marca().then(setMarca);
+    void adminApi
+      .yo()
+      .then(async (yo) => {
+        if (!yo.gremioFijo) {
+          setGremio({ fijo: false, sigla: null, formularioId: null });
+          return;
+        }
+        const suyos = await adminApi.marcaDeGremios().catch(() => []);
+        const mio = suyos[0];
+        setGremio({
+          fijo: true,
+          sigla: mio?.sigla ?? null,
+          formularioId: mio?.formularioMarcaId ?? null,
+        });
+      })
+      .catch(() => setGremio(null));
   }, []);
 
   if (!marca) return <p className="text-texto-suave">Cargando…</p>;
@@ -87,8 +114,9 @@ export default function PaginaMarca() {
       <header>
         <h1 className="text-2xl font-bold tracking-tight">Apariencia</h1>
         <p className="mt-1 text-texto-suave">
-          Colores, textos y logo. Al guardar se aplican en todo el sistema,
-          también en este panel.
+          {gremio?.fijo
+            ? "Esta es la marca GENERAL, la que comparten los dos gremios. La de este gremio se edita en su formulario."
+            : "Colores, textos y logo. Al guardar se aplican en todo el sistema, también en este panel."}
         </p>
       </header>
 
@@ -101,160 +129,172 @@ export default function PaginaMarca() {
         titulo="Logos de la cabecera"
         descripcion="Hasta tres, uno por entidad. SVG, PNG o WebP con fondo transparente, máximo 1 MB cada uno. Se muestran a 80 px de alto, así que conviene entregarlos a 960 × 288 px o mayor, o en SVG. JPG no sirve: no tiene transparencia y deja un recuadro blanco."
       >
-        <GestorLogos />
+        {gremio?.fijo ? (
+          <AvisoDeGremio gremio={gremio} que="los logos" />
+        ) : (
+          <GestorLogos />
+        )}
       </Tarjeta>
 
-      <form
-        onSubmit={(e) => {
-          e.preventDefault();
-          void conError(() =>
-            adminApi.actualizarMarca({
-              nombreApp: marca.nombreApp,
-              tituloPublico: marca.tituloPublico,
-              subtituloPublico: marca.subtituloPublico,
-              mensajeEncabezado: marca.mensajeEncabezado ?? "",
-              piePagina: marca.piePagina ?? "",
-              modoPorDefecto: marca.modoPorDefecto,
-              permitirCambioDeModo: marca.permitirCambioDeModo,
-            }),
-          );
-        }}
-        className="space-y-6"
-      >
-        <Tarjeta titulo="Textos del sitio público">
-          <div className="space-y-4">
-            <Campo etiqueta="Nombre de la aplicación" ayuda="Pestaña del navegador y encabezado.">
-              <input
-                required
-                value={marca.nombreApp}
-                onChange={(e) => cambiarCampo("nombreApp", e.target.value)}
-                className={CLASE_CONTROL}
-              />
-            </Campo>
-
-            <Campo etiqueta="Título principal">
-              <input
-                required
-                value={marca.tituloPublico}
-                onChange={(e) => cambiarCampo("tituloPublico", e.target.value)}
-                className={CLASE_CONTROL}
-              />
-            </Campo>
-
-            <Campo etiqueta="Texto de introducción">
-              <textarea
-                rows={3}
-                value={marca.subtituloPublico}
-                onChange={(e) => cambiarCampo("subtituloPublico", e.target.value)}
-                className={CLASE_CONTROL}
-              />
-            </Campo>
-
-            <Campo etiqueta="Pie de página" ayuda="Opcional.">
-              <input
-                value={marca.piePagina ?? ""}
-                onChange={(e) => cambiarCampo("piePagina", e.target.value)}
-                className={CLASE_CONTROL}
-              />
-            </Campo>
-          </div>
+      {gremio?.fijo ? (
+        <Tarjeta titulo="Textos y colores del sitio">
+          <AvisoDeGremio gremio={gremio} que="los textos y los colores" />
         </Tarjeta>
+      ) : (
+        <>
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            void conError(() =>
+              adminApi.actualizarMarca({
+                nombreApp: marca.nombreApp,
+                tituloPublico: marca.tituloPublico,
+                subtituloPublico: marca.subtituloPublico,
+                mensajeEncabezado: marca.mensajeEncabezado ?? "",
+                piePagina: marca.piePagina ?? "",
+                modoPorDefecto: marca.modoPorDefecto,
+                permitirCambioDeModo: marca.permitirCambioDeModo,
+              }),
+            );
+          }}
+          className="space-y-6"
+        >
+          <Tarjeta titulo="Textos del sitio público">
+            <div className="space-y-4">
+              <Campo etiqueta="Nombre de la aplicación" ayuda="Pestaña del navegador y encabezado.">
+                <input
+                  required
+                  value={marca.nombreApp}
+                  onChange={(e) => cambiarCampo("nombreApp", e.target.value)}
+                  className={CLASE_CONTROL}
+                />
+              </Campo>
+
+              <Campo etiqueta="Título principal">
+                <input
+                  required
+                  value={marca.tituloPublico}
+                  onChange={(e) => cambiarCampo("tituloPublico", e.target.value)}
+                  className={CLASE_CONTROL}
+                />
+              </Campo>
+
+              <Campo etiqueta="Texto de introducción">
+                <textarea
+                  rows={3}
+                  value={marca.subtituloPublico}
+                  onChange={(e) => cambiarCampo("subtituloPublico", e.target.value)}
+                  className={CLASE_CONTROL}
+                />
+              </Campo>
+
+              <Campo etiqueta="Pie de página" ayuda="Opcional.">
+                <input
+                  value={marca.piePagina ?? ""}
+                  onChange={(e) => cambiarCampo("piePagina", e.target.value)}
+                  className={CLASE_CONTROL}
+                />
+              </Campo>
+            </div>
+          </Tarjeta>
+
+          <Tarjeta
+            titulo="Modo claro y oscuro"
+            descripcion="Qué ve quien entra por primera vez, y si puede cambiarlo."
+          >
+            <div className="space-y-4">
+              <div className="grid gap-3 sm:grid-cols-3">
+                {MODOS.map((m) => (
+                  <label
+                    key={m.valor}
+                    className={`cursor-pointer rounded-lg border p-4 transition ${
+                      marca.modoPorDefecto === m.valor
+                        ? "border-marca bg-marca-suave"
+                        : "border-borde hover:border-marca/50"
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="modo"
+                      className="sr-only"
+                      checked={marca.modoPorDefecto === m.valor}
+                      onChange={() => cambiarCampo("modoPorDefecto", m.valor)}
+                    />
+                    <p className="font-medium">{m.etiqueta}</p>
+                    <p className="mt-1 text-sm text-texto-suave">{m.ayuda}</p>
+                  </label>
+                ))}
+              </div>
+
+              <label className="flex gap-3 text-sm">
+                <input
+                  type="checkbox"
+                  checked={marca.permitirCambioDeModo}
+                  onChange={(e) => cambiarCampo("permitirCambioDeModo", e.target.checked)}
+                  className="mt-0.5 size-4 shrink-0 accent-[var(--marca)]"
+                />
+                <span>
+                  Permitir que el visitante cambie entre claro y oscuro.
+                  <span className="mt-0.5 block text-texto-suave">
+                    Si lo desactiva desaparece el conmutador. Quítelo solo si hace
+                    falta: para bastante gente el modo oscuro no es un gusto sino
+                    una necesidad.
+                  </span>
+                </span>
+              </label>
+            </div>
+          </Tarjeta>
+
+          <Boton type="submit" disabled={guardando}>
+            {guardando ? "Guardando…" : "Guardar textos y modo"}
+          </Boton>
+        </form>
 
         <Tarjeta
-          titulo="Modo claro y oscuro"
-          descripcion="Qué ve quien entra por primera vez, y si puede cambiarlo."
+          titulo="Colores"
+          descripcion="Cada modo tiene su paleta completa. No basta con aclarar u oscurecer la otra: en modo oscuro un color de marca muy saturado deslumbra y hace vibrar los bordes del texto."
         >
-          <div className="space-y-4">
-            <div className="grid gap-3 sm:grid-cols-3">
-              {MODOS.map((m) => (
-                <label
-                  key={m.valor}
-                  className={`cursor-pointer rounded-lg border p-4 transition ${
-                    marca.modoPorDefecto === m.valor
-                      ? "border-marca bg-marca-suave"
-                      : "border-borde hover:border-marca/50"
-                  }`}
+          <EditorColores
+            temas={marca.temas}
+            catalogo={catalogo}
+            esquema={pestana}
+            alCambiarEsquema={setPestana}
+            alCambiarColor={cambiarColor}
+            alReemplazarTemas={reemplazarTemas}
+            acciones={
+              <div className="flex flex-wrap gap-3">
+                {/* los dos modos juntos: una plantilla cambia ambos */}
+                <Boton
+                  type="button"
+                  disabled={guardando}
+                  onClick={() =>
+                    conError(async () => {
+                      await adminApi.actualizarTema("CLARO", marca.temas.CLARO);
+                      return adminApi.actualizarTema("OSCURO", marca.temas.OSCURO);
+                    })
+                  }
                 >
-                  <input
-                    type="radio"
-                    name="modo"
-                    className="sr-only"
-                    checked={marca.modoPorDefecto === m.valor}
-                    onChange={() => cambiarCampo("modoPorDefecto", m.valor)}
-                  />
-                  <p className="font-medium">{m.etiqueta}</p>
-                  <p className="mt-1 text-sm text-texto-suave">{m.ayuda}</p>
-                </label>
-              ))}
-            </div>
-
-            <label className="flex gap-3 text-sm">
-              <input
-                type="checkbox"
-                checked={marca.permitirCambioDeModo}
-                onChange={(e) => cambiarCampo("permitirCambioDeModo", e.target.checked)}
-                className="mt-0.5 size-4 shrink-0 accent-[var(--marca)]"
-              />
-              <span>
-                Permitir que el visitante cambie entre claro y oscuro.
-                <span className="mt-0.5 block text-texto-suave">
-                  Si lo desactiva desaparece el conmutador. Quítelo solo si hace
-                  falta: para bastante gente el modo oscuro no es un gusto sino
-                  una necesidad.
-                </span>
-              </span>
-            </label>
-          </div>
+                  {guardando ? "Guardando…" : "Guardar colores"}
+                </Boton>
+                <button
+                  type="button"
+                  disabled={guardando}
+                  onClick={() =>
+                    conError(async () => {
+                      await adminApi.restablecerTema("CLARO");
+                      return adminApi.restablecerTema("OSCURO");
+                    })
+                  }
+                  className="rounded-xl border border-borde px-5 py-2 text-sm hover:bg-fondo disabled:opacity-50"
+                >
+                  Restablecer los colores
+                </button>
+              </div>
+            }
+          />
         </Tarjeta>
-
-        <Boton type="submit" disabled={guardando}>
-          {guardando ? "Guardando…" : "Guardar textos y modo"}
-        </Boton>
-      </form>
-
-      <Tarjeta
-        titulo="Colores"
-        descripcion="Cada modo tiene su paleta completa. No basta con aclarar u oscurecer la otra: en modo oscuro un color de marca muy saturado deslumbra y hace vibrar los bordes del texto."
-      >
-        <EditorColores
-          temas={marca.temas}
-          catalogo={catalogo}
-          esquema={pestana}
-          alCambiarEsquema={setPestana}
-          alCambiarColor={cambiarColor}
-          alReemplazarTemas={reemplazarTemas}
-          acciones={
-            <div className="flex flex-wrap gap-3">
-              {/* los dos modos juntos: una plantilla cambia ambos */}
-              <Boton
-                type="button"
-                disabled={guardando}
-                onClick={() =>
-                  conError(async () => {
-                    await adminApi.actualizarTema("CLARO", marca.temas.CLARO);
-                    return adminApi.actualizarTema("OSCURO", marca.temas.OSCURO);
-                  })
-                }
-              >
-                {guardando ? "Guardando…" : "Guardar colores"}
-              </Boton>
-              <button
-                type="button"
-                disabled={guardando}
-                onClick={() =>
-                  conError(async () => {
-                    await adminApi.restablecerTema("CLARO");
-                    return adminApi.restablecerTema("OSCURO");
-                  })
-                }
-                className="rounded-xl border border-borde px-5 py-2 text-sm hover:bg-fondo disabled:opacity-50"
-              >
-                Restablecer los colores
-              </button>
-            </div>
-          }
-        />
-      </Tarjeta>
+        </>
+      )}
     </div>
   );
 }
@@ -349,5 +389,57 @@ function MarcaDeCadaGremio() {
         ))}
       </div>
     </Tarjeta>
+  );
+}
+
+/**
+ * Por la puerta de un gremio, esto no se edita aquí.
+ *
+ * Lo que esta pantalla escribe es la marca general -- una sola
+ * fila de `marca`, una sola de `temas` y los logos con
+ * `formularioId = null` -- así que editarla desde la dirección
+ * de un gremio se la cambiaría a los dos. Eso es exactamente
+ * el fallo que reportó el cliente: un logo subido entrando por
+ * ADECOPRIA salía también en BRITCHAM.
+ *
+ * La apariencia del gremio vive en el formulario que le da la
+ * cara, y esa pantalla ya la edita bien, con herencia por
+ * token. Así que se manda allí en vez de duplicar el editor.
+ */
+function AvisoDeGremio({
+  gremio,
+  que,
+}: {
+  gremio: { sigla: string | null; formularioId: string | null };
+  que: string;
+}) {
+  const nombre = gremio.sigla ?? "este gremio";
+
+  if (!gremio.formularioId) {
+    return (
+      <div className="rounded-xl border border-aviso/30 bg-aviso-suave p-4 text-sm text-aviso">
+        <p className="font-medium">{nombre} todavía no tiene una cara propia.</p>
+        <p className="mt-1">
+          Elija arriba de qué formulario sale su marca. Hasta entonces usa la
+          general, y {que} de aquí son los de todos.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="rounded-xl border border-linea bg-superficie-alt p-4 text-sm">
+      <p>
+        Aquí se editan {que} <strong>generales</strong>, los que comparten los
+        dos gremios. {que.charAt(0).toUpperCase() + que.slice(1)} de {nombre}{" "}
+        están en su formulario.
+      </p>
+      <Link
+        href={`/admin/formularios/${gremio.formularioId}/apariencia`}
+        className="mt-2 inline-block font-medium text-marca underline"
+      >
+        Editar la apariencia de {nombre}
+      </Link>
+    </div>
   );
 }
