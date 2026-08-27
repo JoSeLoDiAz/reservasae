@@ -86,7 +86,13 @@ export default function PaginaMarca() {
         setGremio({
           fijo: true,
           sigla: mio?.sigla ?? null,
-          formularioId: suId,
+          /// Sin su paleta leida, NO hay formulario que editar.
+          ///
+          /// Si la lectura falla y se pinta el editor con un
+          /// objeto vacio, el primer Guardar borra los colores
+          /// del gremio: "no se pudo leer" se habria disfrazado
+          /// de "no tiene ninguno propio".
+          formularioId: suyo ? suId : null,
           propios: {
             CLARO: suyo?.coloresClaro ?? {},
             OSCURO: suyo?.coloresOscuro ?? {},

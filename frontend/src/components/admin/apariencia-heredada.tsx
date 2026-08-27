@@ -51,6 +51,12 @@ export function AparienciaHeredada({
   formularioId: string;
   /// La general: es el denominador de la herencia.
   general: Marca;
+  /// Lo que hay guardado. NULL = todavia no se sabe.
+  ///
+  /// No es lo mismo "no tiene colores propios" que "no se
+  /// pudo leer": con un objeto vacio en el segundo caso, el
+  /// primer Guardar borra la paleta del gremio. Paso de
+  /// verdad, y por eso esto no es opcional.
   iniciales: Propios;
   tituloLogos: string;
   tituloColores: string;
@@ -163,7 +169,19 @@ export function AparienciaHeredada({
                 <button
                   type="button"
                   disabled={ocupado}
-                  onClick={() => void guardar(VACIO)}
+                  /// Se pregunta, y no por formalismo: borra de
+                  /// golpe todo lo que el gremio haya elegido, y
+                  /// no hay deshacer.
+                  onClick={() => {
+                    if (
+                      window.confirm(
+                        `Se van a soltar los ${cuantos} colores propios y este ` +
+                          "ámbito volverá a seguir la apariencia general. No hay deshacer.",
+                      )
+                    ) {
+                      void guardar(VACIO);
+                    }
+                  }}
                   className="text-sm font-medium text-marca underline disabled:opacity-50"
                 >
                   Volver a la apariencia general
