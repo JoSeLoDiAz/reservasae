@@ -114,7 +114,16 @@ export class AdminController {
     return {
       ...vistaAdmin(admin),
       convenios: ambito.convenios,
-      permisos: resumenDePermisos(ambito.roles),
+      /// Solo los roles del gremio que fija la direccion.
+      ///
+      /// Con todos, el menu ofrecia secciones que el guard
+      /// rechaza en ese gremio: se entra y se recibe un no,
+      /// que es peor que no verlas.
+      permisos: resumenDePermisos(
+        ambito.gremioFijo && ambito.gremioElegido
+          ? { [ambito.gremioElegido]: ambito.roles[ambito.gremioElegido] ?? [] }
+          : ambito.roles,
+      ),
       /// Los gremios de esta cuenta CON su sigla: es lo que
       /// llena el desplegable de arriba. Van los concedidos,
       /// no los del ámbito, porque el ámbito ya viene
