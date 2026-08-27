@@ -28,6 +28,7 @@ import {
   CargaDto,
   CambiarEtapaDto,
   CrearNotaDto,
+  RevocarAutorizacionDto,
   CrearParticipanteDto,
   FiltrosParticipantesDto,
   RegistrarAutorizacionDto,
@@ -311,6 +312,27 @@ export class CrmController {
   ) {
     await this.crm.obtener(id, ambito.convenios);
     return this.preinscripcion.emitirEnlace(id, admin.id);
+  }
+
+  /**
+   * Revocar la autorización de tratamiento de datos.
+   *
+   * Va con `inscripciones · ESCRIBIR` y no con superadmin: lo
+   * pide la persona por teléfono y lo registra quien atiende la
+   * llamada. Pedir un superadmin haría que la petición se
+   * quedara sin registrar hasta que alguien con más permisos
+   * tuviera un rato, y el derecho no espera.
+   */
+  @Post(':id/revocar-autorizacion')
+  @Requiere('inscripciones', 'ESCRIBIR')
+  revocarAutorizacion(
+    @Param('id') id: string,
+    @Body() dto: RevocarAutorizacionDto,
+    @AdminActual() admin: Admin,
+    @AmbitoActual() ambito: Ambito,
+    @IpReal() ip: string,
+  ) {
+    return this.crm.revocarAutorizacion(id, dto, admin, ambito.convenios, ip);
   }
 
   @Post(':id/notas')

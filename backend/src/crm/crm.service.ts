@@ -52,6 +52,7 @@ import {
   AsignarFormacionDto,
   CargaDto,
   CambiarEtapaDto,
+  RevocarAutorizacionDto,
   CrearNotaDto,
   CrearParticipanteDto,
   FiltrosParticipantesDto,
@@ -1344,6 +1345,104 @@ export class CrmService {
         `El grupo ${suyo.numero} ya está lleno (${suyo.inscritos} de ${suyo.cuposMaximos}).`,
       );
     }
+  }
+
+  /**
+   * Revoca la autorización de tratamiento de datos.
+   *
+   * `revocadaEn` se leía en SIETE consultas —la ficha, la
+   * compuerta de matrícula, el alistamiento del SEP, el propio
+   * reporte— y no se escribía en NINGUNA: la columna existía,
+   * el índice existía, todo lo de abajo la honraba, y no había
+   * puerta. O sea que el sistema decía poder demostrar la
+   * autorización y era incapaz de honrar su revocación, que es
+   * el otro lado del mismo artículo (Ley 1581, art. 8).
+   *
+   * NO se borra la fila. Una revocación es un hecho nuevo, no
+   * una enmienda: hay que poder decir que hubo autorización
+   * desde tal día hasta tal otro. Es el mismo criterio de las
+   * notas, que tampoco se borran.
+   *
+   * Y se marcan TODAS las vivas de ese convenio, no una: si por
+   * lo que sea hay dos, dejar una viva deja a la persona dentro
+   * del reporte, que es exactamente lo que pidió que no pasara.
+   */
+  async revocarAutorizacion(
+    id: string,
+    dto: RevocarAutorizacionDto,
+    admin: Admin,
+    ambito: string[],
+    ip?: string,
+  ) {
+    await this.exigirParticipante(id, ambito);
+
+    const p = await this.prisma.participante.findUnique({
+      where: { id },
+      select: { id: true, personaId: true, convenioId: true, etapa: true },
+    });
+    if (!p) throw new NotFoundException('Ese participante no existe.');
+
+    const vivas = await this.prisma.autorizacionDatos.findMany({
+      where: {
+        personaId: p.personaId,
+        revocadaEn: null,
+        politica: { convenioId: p.convenioId },
+      },
+      select: { id: true },
+    });
+
+    if (vivas.length === 0) {
+      throw new BadRequestException(
+        'Esta persona no tiene una autorización vigente en este convenio.',
+      );
+    }
+
+    const cuando = new Date();
+
+    await this.prisma.$transaction([
+      this.prisma.autorizacionDatos.updateMany({
+        where: { id: { in: vivas.map((a) => a.id) } },
+        data: { revocadaEn: cuando },
+      }),
+      /// Queda en el historial de la ficha, con quién lo hizo.
+      ///
+      /// La etapa no cambia: revocar no es salirse del proceso,
+      /// y decidir por la persona que se retira seria poner en
+      /// su boca algo que no dijo. Lo que si pasa es que deja
+      /// de poder matricularse y sale del reporte, y eso lo
+      /// hacen solas las consultas que ya leian la columna.
+      this.prisma.movimientoParticipante.create({
+        data: {
+          participanteId: id,
+          etapaAntes: p.etapa,
+          etapaDespues: p.etapa,
+          motivo: null,
+          nota:
+            `Revocó la autorización de tratamiento de datos ` +
+            `(${dto.canal}): ${dto.motivo}`,
+          adminId: admin.id,
+          ip: ip ?? null,
+        },
+      }),
+    ]);
+
+    await this.auditoria.registrar({
+      actor: { id: admin.id, nombre: admin.nombre },
+      accion: 'REVOCAR_AUTORIZACION',
+      entidad: 'Persona',
+      entidadId: p.personaId,
+      convenioId: p.convenioId,
+      /// El canal y cuantas, NO el motivo.
+      ///
+      /// El motivo es texto libre y puede traer datos de la
+      /// persona; la auditoria no debe ser una segunda copia de
+      /// la PII. Queda entero en el movimiento de la ficha, que
+      /// es donde vive lo que hay que poder demostrar.
+      resumen: `Revocó ${vivas.length} autorización(es) · ${dto.canal}`,
+      ip,
+    });
+
+    return this.obtener(id, ambito);
   }
 
   async cambiarEtapa(

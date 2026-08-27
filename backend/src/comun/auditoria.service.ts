@@ -19,6 +19,7 @@ export const ACCIONES = [
   'RUI_RECONSULTADO',
   'DATOS_DEL_INTERESADO_ACEPTADOS',
   'ESTADO_FORZADO',
+  'REVOCAR_AUTORIZACION',
 ] as const;
 
 export type Accion = (typeof ACCIONES)[number];

@@ -200,10 +200,13 @@ export default function PaginaFicha() {
         titulo="Autorización de tratamiento de datos"
       >
         {autorizacion ? (
-          <p className="text-sm">
-            Autorizada el <strong>{fecha(autorizacion.otorgadaEn)}</strong> — versión{" "}
-            {autorizacion.politica.version}. {ETIQUETA_CANAL[autorizacion.canal]}.
-          </p>
+          <div className="space-y-3">
+            <p className="text-sm">
+              Autorizada el <strong>{fecha(autorizacion.otorgadaEn)}</strong> — versión{" "}
+              {autorizacion.politica.version}. {ETIQUETA_CANAL[autorizacion.canal]}.
+            </p>
+            {puedeEscribir && <Revocar id={f.id} alGuardar={conError} />}
+          </div>
         ) : (
           <RegistrarAutorizacion id={f.id} alGuardar={conError} />
         )}
@@ -480,6 +483,94 @@ function Asignacion({
         </Boton>
       </div>
     </Tarjeta>
+  );
+}
+
+/**
+ * Revocar la autorización, cuando la persona lo pide.
+ *
+ * Va plegado detrás de un enlace y no como un botón a la vista:
+ * es lo contrario de lo que se hace todo el día y no debe estar
+ * a un clic de distancia. Y cuando se abre, el aviso dice qué
+ * pasa después, porque el asesor va a tener que explicárselo a
+ * quien está al teléfono.
+ */
+function Revocar({
+  id,
+  alGuardar,
+}: {
+  id: string;
+  alGuardar: (a: () => Promise<void>, exito?: string) => Promise<void>;
+}) {
+  const [abierto, setAbierto] = useState(false);
+  const [canal, setCanal] = useState<Canal>("VERBAL_ASESOR");
+  const [motivo, setMotivo] = useState("");
+
+  if (!abierto) {
+    return (
+      <button
+        type="button"
+        onClick={() => setAbierto(true)}
+        className="text-sm text-texto-suave underline hover:text-error"
+      >
+        La persona pidió revocar su autorización
+      </button>
+    );
+  }
+
+  return (
+    <div className="space-y-4 rounded-xl border border-error/30 bg-error-suave p-4">
+      <Aviso tipo="error">
+        Al revocar, esta persona <strong>sale del reporte al SENA</strong> y no se podrá
+        matricular. La autorización no se borra: queda con su fecha de inicio y su fecha
+        de revocación, que es lo que hay que poder demostrar.
+      </Aviso>
+
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Campo etiqueta="Por dónde lo pidió">
+          <select
+            className={CLASE_CONTROL}
+            value={canal}
+            onChange={(e) => setCanal(e.target.value as Canal)}
+          >
+            {Object.entries(ETIQUETA_CANAL).map(([valor, etiqueta]) => (
+              <option key={valor} value={valor}>
+                {etiqueta}
+              </option>
+            ))}
+          </select>
+        </Campo>
+
+        <Campo etiqueta="Qué dijo" ayuda="Queda en el historial de la ficha.">
+          <input
+            className={CLASE_CONTROL}
+            value={motivo}
+            onChange={(e) => setMotivo(e.target.value)}
+            placeholder="Ya no quiere recibir información"
+          />
+        </Campo>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-3">
+        <Boton
+          disabled={motivo.trim().length === 0}
+          onClick={() =>
+            alGuardar(async () => {
+              await crmApi.revocarAutorizacion(id, canal, motivo.trim());
+            }, "Autorización revocada.")
+          }
+        >
+          Revocar la autorización
+        </Boton>
+        <button
+          type="button"
+          onClick={() => setAbierto(false)}
+          className="text-sm text-texto-suave underline"
+        >
+          Cancelar
+        </button>
+      </div>
+    </div>
   );
 }
 

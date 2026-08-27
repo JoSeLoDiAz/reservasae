@@ -246,6 +246,27 @@ export class CambiarEtapaDto {
   motivo?: string;
 }
 
+/**
+ * Revocar la autorización de tratamiento de datos.
+ *
+ * El motivo y el canal son obligatorios, y por lo mismo que la
+ * autorización los lleva: lo que hay que poder demostrar no es
+ * que se revocó, es CUÁNDO, POR DÓNDE lo pidió la persona y
+ * quién lo registró. Una revocación sin eso no prueba nada,
+ * igual que un booleano de autorización no prueba nada.
+ */
+export class RevocarAutorizacionDto {
+  @Transform(recortar)
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(1000)
+  motivo!: string;
+
+  /// Por donde lo pidio la persona.
+  @IsEnum(CanalAutorizacion)
+  canal!: CanalAutorizacion;
+}
+
 export class CrearNotaDto {
   /// Obligatoria aunque marque varios canales: una sola
   /// observación da contexto a toda la gestión.

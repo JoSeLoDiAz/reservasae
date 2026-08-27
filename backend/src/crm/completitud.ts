@@ -1,5 +1,6 @@
 /** Qué le falta a una ficha, y para qué le falta. */
 
+import { celularUtil } from '../comun/celular';
 import { EDAD_MINIMA, edadCumplida } from './catalogos-sep';
 
 /// Lo mínimo para existir en el CRM lo impone el modelo.
@@ -78,7 +79,11 @@ export function revisar(p: ParaRevisar): Revision {
 
   // ── matrícula ──
   if (!p.ofertaId) matricula.push('falta asignarle una acción de formación');
-  if (!persona.correo && !persona.celular) {
+  /// `celularUtil` y no `!!celular`: un «no tiene» escrito en
+  /// la casilla pasaba la compuerta y dejaba matriculado a
+  /// alguien a quien nadie puede llamar, que es justo lo que
+  /// esta compuerta existe para evitar.
+  if (!persona.correo && !celularUtil(persona.celular)) {
     matricula.push('no hay forma de contactarla: falta correo o celular');
   }
   if (!p.tieneAutorizacion) {

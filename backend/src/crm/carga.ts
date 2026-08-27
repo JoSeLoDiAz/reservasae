@@ -1,5 +1,6 @@
 /** Analiza lo que el asesor pega desde Excel. */
 
+import { celularUtil, celularValido } from '../comun/celular';
 import { documentoValido, normalizarDocumento } from '../comun/documento';
 import {
   DOCUMENTOS_DE_PERSONA,
@@ -116,8 +117,14 @@ export function analizar(texto: string): FilaAnalizada[] {
     }
 
     const celular = (c[7] ?? '').replace(/[\s()-]/g, '').trim();
+    /// Aviso y no insalvable, igual que el correo: la fila se
+    /// crea y el asesor lo corrige. Lo que no puede es contar
+    /// como forma de contactar a nadie.
+    if (celular && !celularValido(celular)) {
+      problemas.push(`«${celular}» no parece un celular`);
+    }
 
-    if (!correo && !celular) {
+    if (!correo && !celularUtil(celular)) {
       problemas.push('sin correo ni celular no se podrá matricular');
     }
 

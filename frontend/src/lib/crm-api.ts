@@ -925,6 +925,19 @@ export const crmApi = {
   tomarNombreDelRui: (id: string) =>
     pedir<Ficha>(`/admin/participantes/${id}/rui/tomar-nombre`, { method: "POST" }),
 
+  /**
+   * Revoca la autorización de tratamiento de datos.
+   *
+   * El motivo y el canal son obligatorios: lo que hay que poder
+   * demostrar no es que se revocó, es cuándo y por dónde lo
+   * pidió la persona.
+   */
+  revocarAutorizacion: (id: string, canal: Canal, motivo: string) =>
+    pedir<Ficha>(`/admin/participantes/${id}/revocar-autorizacion`, {
+      method: "POST",
+      body: JSON.stringify({ canal, motivo }),
+    }),
+
   /** Un enlace nuevo. El anterior deja de valer. */
   emitirEnlace: (id: string) =>
     pedir<{ token: string; expiraEn: string }>(

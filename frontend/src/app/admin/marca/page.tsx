@@ -241,6 +241,21 @@ export default function PaginaMarca() {
                 />
               </Campo>
 
+              {/* Se enviaba en el submit y no tenía campo, así
+                  que no había forma de ponerlo ni de quitarlo:
+                  cada Guardar lo dejaba en cadena vacía. */}
+              <Campo
+                etiqueta="Aviso destacado"
+                ayuda="Opcional. Sale en un recuadro sobre el formulario. Vacío, no sale nada."
+              >
+                <textarea
+                  rows={2}
+                  value={marca.mensajeEncabezado ?? ""}
+                  onChange={(e) => cambiarCampo("mensajeEncabezado", e.target.value)}
+                  className={CLASE_CONTROL}
+                />
+              </Campo>
+
               <Campo etiqueta="Pie de página" ayuda="Opcional.">
                 <input
                   value={marca.piePagina ?? ""}
