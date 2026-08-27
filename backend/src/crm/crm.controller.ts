@@ -18,6 +18,7 @@ import { PreinscripcionService } from '../preinscripcion/preinscripcion.service'
 import { IpReal } from '../comun/ip-real';
 import { CrmService } from './crm.service';
 import { DirectorioService } from './directorio.service';
+import { PlantillasCorreoService } from '../correo/plantillas/plantillas-correo.service';
 import { RuiService } from './rui/rui.service';
 import {
   ActualizarParticipanteDto,
@@ -35,7 +36,12 @@ import {
 } from './dto';
 import { controlDeInscritos } from './control';
 import { tableroAcademico } from './tablero-academico';
-import { compararDos, resolverVentana, type Comparacion, type Rango } from './ventana';
+import {
+  compararDos,
+  resolverVentana,
+  type Comparacion,
+  type Rango,
+} from './ventana';
 import { PrismaService } from '../prisma/prisma.service';
 
 const RANGOS: Rango[] = [
@@ -77,7 +83,14 @@ function ventanaPedida(
   const c = rangoPedido(contra);
   // sin segundo, el previo de siempre
   if (!c) return resolverVentana(r, d, h);
-  return compararDos(r ?? 'TODO', c, d, h, fechaPedida(contraDesde), fechaPedida(contraHasta));
+  return compararDos(
+    r ?? 'TODO',
+    c,
+    d,
+    h,
+    fechaPedida(contraDesde),
+    fechaPedida(contraHasta),
+  );
 }
 
 /** Inscripciones: las personas detrás de los cupos. */
@@ -94,6 +107,7 @@ export class CrmController {
     private readonly prisma: PrismaService,
     private readonly directorio: DirectorioService,
     private readonly rui: RuiService,
+    private readonly plantillasCorreo: PlantillasCorreoService,
   ) {}
 
   /** Qué instituciones hay bajo ese NIT. */
@@ -123,12 +137,21 @@ export class CrmController {
   /** Contadores por etapa: las columnas del tablero. */
   /** Los repartos del tablero de Inscripciones. */
   @Get('metricas')
-  metricas(@Query() filtros: FiltrosParticipantesDto, @AmbitoActual() ambito: Ambito) {
-    return this.crm.metricasInscripciones({ ...filtros, ambito: ambito.convenios });
+  metricas(
+    @Query() filtros: FiltrosParticipantesDto,
+    @AmbitoActual() ambito: Ambito,
+  ) {
+    return this.crm.metricasInscripciones({
+      ...filtros,
+      ambito: ambito.convenios,
+    });
   }
 
   @Get('resumen')
-  resumen(@Query() filtros: FiltrosParticipantesDto, @AmbitoActual() ambito: Ambito) {
+  resumen(
+    @Query() filtros: FiltrosParticipantesDto,
+    @AmbitoActual() ambito: Ambito,
+  ) {
     return this.crm.resumen({ ...filtros, ambito: ambito.convenios });
   }
 
@@ -160,7 +183,10 @@ export class CrmController {
   /** Quién va al día y quién no, contra las fechas del grupo. */
   @Get('academico')
   @Requiere('academico')
-  academico(@Query() filtros: FiltrosParticipantesDto, @AmbitoActual() ambito: Ambito) {
+  academico(
+    @Query() filtros: FiltrosParticipantesDto,
+    @AmbitoActual() ambito: Ambito,
+  ) {
     return this.crm.academico({ ...filtros, ambito: ambito.convenios });
   }
 
@@ -185,12 +211,18 @@ export class CrmController {
 
   /** Ofertas y grupos donde se puede colocar a alguien. */
   @Get('opciones')
-  opciones(@Query('convenioId') convenioId: string, @AmbitoActual() ambito: Ambito) {
+  opciones(
+    @Query('convenioId') convenioId: string,
+    @AmbitoActual() ambito: Ambito,
+  ) {
     return this.crm.opciones(convenioId, ambito.convenios);
   }
 
   @Get()
-  listar(@Query() filtros: FiltrosParticipantesDto, @AmbitoActual() ambito: Ambito) {
+  listar(
+    @Query() filtros: FiltrosParticipantesDto,
+    @AmbitoActual() ambito: Ambito,
+  ) {
     return this.crm.listar({ ...filtros, ambito: ambito.convenios });
   }
 
@@ -302,6 +334,38 @@ export class CrmController {
     return this.crm.registrarAutorizacion(id, dto, admin, ambito.convenios, ip);
   }
 
+  /**
+   * Las plantillas que se le pueden mandar, ya resueltas.
+   *
+   * La vista previa se pide con la plantilla elegida: se ve
+   * el texto CON el nombre puesto y con los huecos que no se
+   * pudieron llenar, antes de mandar nada. Nadie manda a
+   * ciegas.
+   */
+  @Get(':id/correo/plantillas')
+  plantillasParaEste(@AmbitoActual() ambito: Ambito) {
+    return this.plantillasCorreo.listar(ambito.concedidos, true);
+  }
+
+  @Get(':id/correo/:plantillaId/vista-previa')
+  vistaPreviaCorreo(
+    @Param('id') id: string,
+    @Param('plantillaId') plantillaId: string,
+  ) {
+    return this.plantillasCorreo.vistaPrevia(id, plantillaId);
+  }
+
+  /// Mandar exige ESCRIBIR: es algo que le llega a una
+  /// persona de verdad y no se puede recoger.
+  @Post(':id/correo/:plantillaId')
+  @Requiere('inscripciones', 'ESCRIBIR')
+  enviarCorreo(
+    @Param('id') id: string,
+    @Param('plantillaId') plantillaId: string,
+  ) {
+    return this.plantillasCorreo.enviar(id, plantillaId);
+  }
+
   /** Un enlace para que la persona complete su ficha. */
   @Post(':id/enlace')
   @Requiere('inscripciones', 'ESCRIBIR')
@@ -359,7 +423,10 @@ export class CrmController {
   /** Vuelve a preguntarle al RUI por esta persona. */
   @Post(':id/rui')
   @Requiere('inscripciones', 'ESCRIBIR')
-  async reconsultarRui(@Param('id') id: string, @AmbitoActual() ambito: Ambito) {
+  async reconsultarRui(
+    @Param('id') id: string,
+    @AmbitoActual() ambito: Ambito,
+  ) {
     const personaId = await this.crm.personaDe(id, ambito.convenios);
     await this.rui.encolar(personaId, 100);
     return this.rui.estadoDe(personaId);
@@ -396,7 +463,12 @@ export class CrmController {
     @AdminActual() admin: Admin,
     @AmbitoActual() ambito: Ambito,
   ) {
-    return this.crm.resolverPropuesta(id, dto.aceptados, admin, ambito.convenios);
+    return this.crm.resolverPropuesta(
+      id,
+      dto.aceptados,
+      admin,
+      ambito.convenios,
+    );
   }
 
   /** Cuántas gestiones por combinación de canales. */

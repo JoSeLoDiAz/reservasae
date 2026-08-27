@@ -165,6 +165,7 @@ export const MODULOS: Modulo[] = [
       { href: '/admin/formularios', etiqueta: 'Formularios', area: 'configuracion', nivel: 'ESCRIBIR' },
       { href: '/admin/politicas', etiqueta: 'Políticas', area: 'configuracion', nivel: 'ESCRIBIR' },
       { href: '/admin/correo', etiqueta: 'Correo', area: 'configuracion', nivel: 'ESCRIBIR' },
+      { href: '/admin/plantillas-correo', etiqueta: 'Plantillas de correo', area: 'configuracion', nivel: 'ESCRIBIR' },
       { href: '/admin/marca', etiqueta: 'Apariencia', soloSuperadmin: true, area: 'configuracion', nivel: 'ESCRIBIR' },
       { href: '/admin/usuarios', etiqueta: 'Usuarios', soloSuperadmin: true },
       { href: '/admin/perfil', etiqueta: 'Mi perfil' },

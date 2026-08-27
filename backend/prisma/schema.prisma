@@ -53,6 +53,7 @@ model Convenio {
   acciones      AccionFormacion[]
   politicas     PoliticaDatos[]
   formularios   Formulario[]
+  plantillasCorreo PlantillaCorreo[]
   participantes Participante[]
   admins        AdminConvenio[]
 
@@ -949,6 +950,7 @@ model Admin {
   sobrecuposAutorizados    Participante[]           @relation("SobrecuposAutorizados")
   movimientosParticipante  MovimientoParticipante[]
   notasParticipante        NotaParticipante[]
+  plantillasCorreo         PlantillaCorreo[]
   enlacesEmitidos          EnlaceCompletado[]       @relation("EnlacesEmitidos")
   registrosAuditoria       RegistroAuditoria[]
   propuestasResueltas      PropuestaDeDatos[]
@@ -1441,4 +1443,36 @@ model AvisoDeCupos {
   @@unique([coberturaId, fechaInicioGrupo])
   @@index([enviadoEn, avisarEn])
   @@map("avisos_de_cupos")
+}
+
+/// Un texto que se escribe una vez y se manda muchas.
+///
+/// Lo que cambia de una persona a otra va entre llaves --
+/// {{saludo}}, {{fechaInicio}} -- y lo resuelve
+/// correo/plantillas/variables.ts. Aqui solo se guarda el
+/// texto: quien decide que se manda y a quien es una persona,
+/// desde la ficha, mirando antes como quedo.
+model PlantillaCorreo {
+  id String @id @default(cuid())
+
+  /// De que gremio es. Null: sirve para todos.
+  convenioId String?
+
+  nombre String /// como la reconoce quien la va a usar
+  asunto String
+  cuerpo String
+
+  /// Se apaga sin borrarla: una plantilla que ya se uso es
+  /// parte de lo que se le dijo a alguien.
+  activa Boolean @default(true)
+
+  creadoPorId String?
+  creadoEn      DateTime @default(now())
+  actualizadoEn DateTime @updatedAt
+
+  convenio  Convenio? @relation(fields: [convenioId], references: [id], onDelete: Cascade)
+  creadoPor Admin?    @relation(fields: [creadoPorId], references: [id], onDelete: SetNull)
+
+  @@index([convenioId, activa])
+  @@map("plantillas_correo")
 }

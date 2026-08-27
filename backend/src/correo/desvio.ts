@@ -1,8 +1,7 @@
 /** A dónde va de verdad un correo. */
 
 export type Destino =
-  | { para: string[]; reales: string[] | null }
-  | { rechazo: string };
+  { para: string[]; reales: string[] | null } | { rechazo: string };
 
 type Entorno = { ENTORNO?: string; CORREO_REDIRIGIR_A?: string };
 

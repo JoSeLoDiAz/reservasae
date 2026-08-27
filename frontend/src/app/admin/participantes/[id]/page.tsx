@@ -17,6 +17,7 @@ import {
   Tarjeta,
   useAdmin,
 } from "@/components/admin/marco-admin";
+import { EnviarCorreo } from "@/components/admin/enviar-correo";
 import { useToast } from "@/components/admin/toast";
 import { alcanza } from "@/lib/admin-api";
 import { useDatosVivos } from "@/lib/datos-vivos";
@@ -195,6 +196,19 @@ export default function PaginaFicha() {
       <DatosDeLaEmpresa ficha={f} />
 
       {puedeEscribir && <EnlaceCompletar ficha={f} />}
+
+      {/* Escribirle va DEBAJO del enlace a proposito: primero
+          se le pide que complete lo que falta, y despues se le
+          escribe con los datos ya puestos. Al reves, la
+          plantilla sale llena de huecos. */}
+      {puedeEscribir && (
+        <Tarjeta
+          titulo="Escribirle un correo"
+          descripcion="Con una plantilla, que se llena sola con los datos de esta ficha."
+        >
+          <EnviarCorreo participanteId={f.id} />
+        </Tarjeta>
+      )}
 
       <Tarjeta
         titulo="Autorización de tratamiento de datos"
