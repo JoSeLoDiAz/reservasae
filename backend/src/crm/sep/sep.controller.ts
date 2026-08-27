@@ -21,6 +21,17 @@ export class SepController {
     return this.sep.alistamiento(convenioId, ambito.convenios);
   }
 
+  /// El F7 tiene su propio alistamiento y su propia cifra.
+  ///
+  /// El metodo existia y no tenia ruta, asi que la pantalla
+  /// pintaba el numero de PERSONAS al lado del boton del F7,
+  /// que va por organizacion: dos cosas distintas bajo la
+  /// misma cifra.
+  @Get('alistamiento-f7')
+  alistamientoF7(@Query('convenioId') convenioId: string, @AmbitoActual() ambito: Ambito) {
+    return this.sep.alistamientoF7(convenioId, ambito.convenios);
+  }
+
   // el gestor ve cuantos entran; el archivo con las
   // cedulas lo saca su lider
   @Get('exportar')

@@ -35,6 +35,26 @@ const ETAPAS_DEL_REPORTE: EtapaParticipante[] = [
 
 type Excluido = { nombre: string; documento: string; etapa: string; motivo: string };
 
+/**
+ * Un libro cuya hoja principal esta vacia no se entrega.
+ *
+ * El precio de entregarlo es un archivo indistinguible del
+ * reporte de verdad; el de negarse, un mensaje. Y dice cuantas
+ * hay pendientes, porque "no hay nada listo" y "hay 40 y les
+ * falta un dato" se arreglan de formas distintas.
+ */
+function exigirQueHayaFilas(listos: number, fuera: number, que: string) {
+  if (listos > 0) return;
+  const cola =
+    fuera > 0
+      ? `Hay ${fuera} que no ${fuera === 1 ? 'entra' : 'entran'} todavia: mire ` +
+        'el alistamiento para saber que les falta.'
+      : 'Todavia no hay a quien reportar.';
+  throw new BadRequestException(
+    `Ninguna ${que} esta lista, asi que el archivo saldria vacio. ${cola}`,
+  );
+}
+
 @Injectable()
 export class SepService {
   constructor(private readonly prisma: PrismaService) {}
@@ -63,6 +83,12 @@ export class SepService {
 
   async exportar(convenioId: string, formato: Formato, ano: number, ambito: string[]) {
     const { listos, excluidos } = await this.preparar(convenioId, ambito);
+
+    /// Lo mismo que el F7: un archivo con cero personas no se
+    /// baja. La pantalla ya lo impedia, pero el que manda es
+    /// el servidor -- la descarga va por navegacion y basta
+    /// pegar la URL.
+    exigirQueHayaFilas(listos.length, excluidos.length, 'persona');
 
     const definicion = formato === 'cargue-sep' ? cargue : usoDirecto;
     const filas =
@@ -107,7 +133,7 @@ export class SepService {
    * es una empresa dentro de una acción, con cuántos de
    * los suyos se están formando.
    */
-  async exportarF7(convenioId: string, ambito: string[]) {
+  private async prepararF7(convenioId: string, ambito: string[]) {
     if (!ambito.includes(convenioId)) {
       throw new ForbiddenException('No tiene acceso a ese convenio.');
     }
@@ -197,6 +223,23 @@ export class SepService {
       }
     }
 
+    return { listas, incompletas };
+  }
+
+  async exportarF7(convenioId: string, ambito: string[]) {
+    const { listas, incompletas } = await this.prepararF7(convenioId, ambito);
+
+    /// Un F7 sin una sola organizacion NO se baja.
+    ///
+    /// Se bajaba: un .xlsx con la cabecera, cero filas y la
+    /// hoja de las incompletas al lado. Eso es un archivo que
+    /// PARECE el reporte, y el cliente arma sus INSERT
+    /// concatenando celdas -- de ahi no sale un error, sale un
+    /// cargue de cero registros que nadie nota. La pantalla
+    /// tenia el candado en los dos reportes de personas y no
+    /// en este, asi que el boton estaba siempre activo.
+    exigirQueHayaFilas(listas.length, incompletas.length, 'organización');
+
     const hojas: Hoja[] = [
       {
         nombre: 'F7',
@@ -226,10 +269,32 @@ export class SepService {
     };
   }
 
-  /** Cuántas organizaciones entran en el F7 y cuántas no. */
+  /**
+   * Cuántas organizaciones entran en el F7 y cuántas no.
+   *
+   * Contaba construyendo el libro entero y quedandose con dos
+   * numeros, y ademas no tenia ruta: la pantalla no podia
+   * pedirlo, asi que el F7 era el unico de los tres sin su
+   * cifra a la vista.
+   */
   async alistamientoF7(convenioId: string, ambito: string[]) {
-    const { listos, excluidos } = await this.exportarF7(convenioId, ambito);
-    return { listos, noListos: excluidos };
+    const { listas, incompletas } = await this.prepararF7(convenioId, ambito);
+
+    // agrupado por motivo, igual que el de personas: la lista
+    // accionable no es de empresas, es de "12 sin telefono"
+    const porMotivo = new Map<string, number>();
+    for (const i of incompletas) {
+      porMotivo.set(i.motivo, (porMotivo.get(i.motivo) ?? 0) + 1);
+    }
+
+    return {
+      listos: listas.length,
+      noListos: incompletas.length,
+      motivos: [...porMotivo.entries()]
+        .map(([motivo, total]) => ({ motivo, total }))
+        .sort((a, b) => b.total - a.total),
+      empresas: incompletas.slice(0, 300),
+    };
   }
 
   /** Arma las filas y separa las que no están listas. */

@@ -73,7 +73,37 @@ export type FilaF7 = {
   beneficiarios: number;
 };
 
-export function fila(f: FilaF7, indice: number) {
+/**
+ * Una fila del F7, con el tipo escrito.
+ *
+ * El tipo no es adorno: sin el, `TAMANO_EMPRESA_POR_ID.get()`
+ * devolvia el objeto entero del catalogo y la columna «TAMAÑO
+ * DE LA EMPRESA» salia con `[object Object]` en las 18 filas.
+ * Compilaba porque el retorno era inferido, asi que la unica
+ * forma de que no vuelva es declararlo.
+ */
+export type CeldasF7 = {
+  numero: number;
+  accion: string;
+  empresa: string;
+  nit: number;
+  dv: string;
+  departamento: string;
+  municipio: string;
+  direccion: string;
+  telefono: string;
+  contactoNombre: string;
+  contactoCargo: string;
+  contactoCorreo: string;
+  tamano: string;
+  trabajadores: number | '';
+  beneficiarios: number;
+  papel: string;
+  sector: string;
+  clasificacion: string;
+};
+
+export function fila(f: FilaF7, indice: number): CeldasF7 {
   const e = f.empresa;
   return {
     numero: indice + 1,
@@ -90,7 +120,7 @@ export function fila(f: FilaF7, indice: number) {
     contactoNombre: e.contactoNombre ?? '',
     contactoCargo: e.contactoCargo ?? '',
     contactoCorreo: e.contactoCorreo ?? '',
-    tamano: e.tamanoSepId ? (TAMANO_EMPRESA_POR_ID.get(e.tamanoSepId) ?? '') : '',
+    tamano: TAMANO_EMPRESA_POR_ID.get(e.tamanoSepId ?? -1)?.etiqueta ?? '',
     trabajadores: e.numeroTrabajadores ?? '',
     beneficiarios: f.beneficiarios,
     papel: e.papelEnConvenio ?? '',

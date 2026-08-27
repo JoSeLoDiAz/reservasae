@@ -1,5 +1,5 @@
 import { COLUMNAS as CARGUE } from './formato-cargue-sep';
-import { COLUMNAS as F7 } from './formato-f7';
+import { COLUMNAS as F7, fila as filaF7, type FilaF7 } from './formato-f7';
 import { COLUMNAS as USO } from './formato-uso-directo';
 
 /// Copiadas del fichero real que entregó el cliente. El
@@ -164,5 +164,71 @@ describe('el F7 de empresas', () => {
   it('no repite ninguna clave', () => {
     const claves = F7.map((c) => c.clave);
     expect(new Set(claves).size).toBe(claves.length);
+  });
+
+  /// Ninguna celda puede llevar un objeto dentro.
+  ///
+  /// «TAMAÑO DE LA EMPRESA» llevaba el objeto entero del
+  /// catalogo en vez de su etiqueta, asi que las 18 filas
+  /// salian con `[object Object]`. Compilaba porque el retorno
+  /// de `fila()` era inferido; ahora esta tipado Y probado,
+  /// porque el cliente arma sus INSERT concatenando celdas.
+  it('ninguna celda es un objeto, y el tamaño sale como texto', () => {
+    const f: FilaF7 = {
+      accion: 'AF01 · Analítica de datos',
+      beneficiarios: 4,
+      empresa: {
+        razonSocial: 'Textiles del Norte SAS',
+        nit: '900123456',
+        digitoVerificacion: '7',
+        departamento: 'ANTIOQUIA',
+        municipio: 'MEDELLÍN',
+        direccion: 'Calle 10 # 4-20',
+        telefono: '6041234567',
+        contactoNombre: 'Marta Oquendo',
+        contactoCargo: 'Jefa de talento',
+        contactoCorreo: 'marta@ejemplo.test',
+        // 1 = GRANDE - COMERCIO
+        tamanoSepId: 1,
+        numeroTrabajadores: 320,
+        papelEnConvenio: 'Beneficiaria',
+        sectorEconomico: 'Manufactura',
+        clasificacion: 'Privada',
+      },
+    };
+
+    const celdas = filaF7(f, 0);
+
+    for (const [clave, valor] of Object.entries(celdas)) {
+      expect(typeof valor).not.toBe('object');
+      expect(String(valor)).not.toContain('[object');
+      expect(clave).toBeTruthy();
+    }
+    expect(celdas.tamano).toBe('GRANDE - COMERCIO (SUPERIOR A $104.600.300.908)');
+  });
+
+  it('sin tamaño la celda va vacía, nunca con un id suelto', () => {
+    const base: FilaF7 = {
+      accion: 'AF01',
+      beneficiarios: 1,
+      empresa: {
+        razonSocial: 'X',
+        nit: '900000000',
+        digitoVerificacion: null,
+        departamento: null,
+        municipio: null,
+        direccion: null,
+        telefono: null,
+        contactoNombre: null,
+        contactoCargo: null,
+        contactoCorreo: null,
+        tamanoSepId: null,
+        numeroTrabajadores: null,
+        papelEnConvenio: null,
+        sectorEconomico: null,
+        clasificacion: null,
+      },
+    };
+    expect(filaF7(base, 0).tamano).toBe('');
   });
 });

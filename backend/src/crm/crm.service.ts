@@ -16,6 +16,10 @@ import {
 import { AuditoriaService } from '../comun/auditoria.service';
 import { documentoValido, normalizarDocumento } from '../comun/documento';
 import { analizar, esInsalvable, repetidosEnElPegado } from './carga';
+import {
+  exigeCompuertaDeMatricula,
+  motivoDeTransicionImposible,
+} from './escalera';
 import { faltaDeLaPersona, revisar } from './completitud';
 import { PanelDeCupos } from './panel-de-cupos';
 import { ColaRui } from './rui/cola-rui';
@@ -1368,10 +1372,16 @@ export class CrmService {
     });
     if (!p) throw new NotFoundException('Ese participante no existe.');
 
-    // inscribir es lo unico que consume un cupo de verdad
-    if (dto.etapa === 'INSCRITO') {
+    /// Entrar al aula es lo que consume un cupo, se llame
+    /// INSCRITO o EN_FORMACION. Ver `escalera.ts`.
+    const compuerta = exigeCompuertaDeMatricula(p.etapa, dto.etapa);
+    if (compuerta) {
       await this.exigirQueQuepa(p);
     }
+
+    /// Y hay pasos que no son un paso. Ver `escalera.ts`.
+    const imposible = motivoDeTransicionImposible(p.etapa, dto.etapa);
+    if (imposible) throw new BadRequestException(imposible);
 
     // certificar exige haber aprobado el 80% de lo
     // obligatorio: sin eso, la fila que se le manda al
@@ -1445,7 +1455,7 @@ export class CrmService {
     }
 
     // matricular es una compuerta, no un paso mas
-    if (dto.etapa === 'INSCRITO') {
+    if (compuerta) {
       // primero lo de la persona, que es lo que el asesor
       // puede resolver por telefono; el mensaje dice que
       // falta, porque negarse sin decir que no sirve
@@ -1474,8 +1484,16 @@ export class CrmService {
           // ocurrieron: se escriben una vez. Volver a pasar
           // por la etapa no cambia cuando pasaron, y el
           // reporte al SENA lleva esa fecha
-          fechaMatricula:
-            dto.etapa === 'INSCRITO' && !p.fechaMatricula ? new Date() : undefined,
+          /// La fecha de matricula es de ENTRAR AL AULA.
+          ///
+          /// Iba colgada de la palabra INSCRITO, asi que quien
+          /// entraba directo a EN_FORMACION se quedaba sin
+          /// ella. Y el cargue al SEP congela el rango de edad
+          /// contra esta fecha: sin fecha lo calcula al
+          /// exportar, y la misma persona cambia de rango
+          /// entre dos cargues por haber cumplido anos, que es
+          /// justo lo que congelarla evita.
+          fechaMatricula: compuerta && !p.fechaMatricula ? new Date() : undefined,
           fechaCertificacion:
             dto.etapa === 'CERTIFICADO' && !p.fechaCertificacion ? new Date() : undefined,
           // el retiro NO: es la fecha del retiro vigente, y

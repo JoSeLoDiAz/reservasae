@@ -7,7 +7,12 @@ import { Aviso, Boton, CLASE_CONTROL, Tarjeta } from "@/components/admin/marco-a
 import { BotonSuave } from "@/components/admin/piezas";
 import { adminApi } from "@/lib/admin-api";
 import { ErrorApi } from "@/lib/api";
-import { descargarSep, sepApi, type Alistamiento } from "@/lib/sep-api";
+import {
+  descargarSep,
+  sepApi,
+  type Alistamiento,
+  type AlistamientoF7,
+} from "@/lib/sep-api";
 
 type Convenio = { id: string; nombre: string; sigla: string | null; activo: boolean };
 
@@ -15,6 +20,7 @@ export default function PaginaSep() {
   const [convenios, setConvenios] = useState<Convenio[] | null>(null);
   const [convenioId, setConvenioId] = useState("");
   const [datos, setDatos] = useState<Alistamiento | null>(null);
+  const [f7, setF7] = useState<AlistamientoF7 | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -32,9 +38,17 @@ export default function PaginaSep() {
     if (!convenioId) return;
     setError(null);
     try {
-      setDatos(await sepApi.alistamiento(convenioId));
+      /// Los dos a la vez: el F7 va por organizacion y su
+      /// cifra no se puede deducir de la de personas.
+      const [personas, empresas] = await Promise.all([
+        sepApi.alistamiento(convenioId),
+        sepApi.alistamientoF7(convenioId),
+      ]);
+      setDatos(personas);
+      setF7(empresas);
     } catch (e) {
       setDatos(null);
+      setF7(null);
       setError((e as ErrorApi).message);
     }
   }, [convenioId]);
@@ -106,8 +120,12 @@ export default function PaginaSep() {
               >
                 Reporte al SEP
               </Boton>
-              <BotonSuave onClick={() => descargarSep(convenioId, "f7")}>
+              <BotonSuave
+                disabled={f7 !== null && f7.listos === 0}
+                onClick={() => descargarSep(convenioId, "f7")}
+              >
                 F7 · empresas
+                {f7 && ` (${f7.listos})`}
               </BotonSuave>
             </div>
 
@@ -120,6 +138,21 @@ export default function PaginaSep() {
             {datos.listos === 0 && (
               <p className="mt-3 text-sm text-texto-suave">
                 Nadie está listo todavía: no tiene sentido bajar un archivo vacío.
+              </p>
+            )}
+            {f7 && (
+              <p className="mt-3 text-sm text-texto-suave">
+                {f7.listos === 0
+                  ? `Ninguna organización está lista para el F7${
+                      f7.noListos > 0
+                        ? `: hay ${f7.noListos} a las que les falta algún dato.`
+                        : " todavía."
+                    }`
+                  : `${f7.listos} ${
+                      f7.listos === 1 ? "organización entra" : "organizaciones entran"
+                    } en el F7${
+                      f7.noListos > 0 ? ` y ${f7.noListos} se quedan fuera.` : "."
+                    }`}
               </p>
             )}
           </Tarjeta>
