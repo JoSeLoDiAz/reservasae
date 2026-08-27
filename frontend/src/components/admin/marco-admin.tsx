@@ -8,6 +8,7 @@ import { createPortal } from "react-dom";
 import { ConmutadorTema, useMarca } from "@/components/marca-publica";
 import {
   adminApi,
+  MAXIMO_LOGOS,
   urlLogo,
   type AdminActual,
   type Area,
@@ -306,61 +307,114 @@ const LOGO = "/logo-convoca.png";
 
 /// La marca. Igual en la barra y en el cajón.
 function Marca({ plegado }: { plegado?: boolean }) {
-  /// Se guarda QUE fuente fallo, no un booleano.
+  /// Se guarda CUALES fuentes fallaron, no un booleano.
   ///
   /// Con un booleano, un parpadeo de red dejaba la letra "C"
-  /// el resto de la sesion, incluso despues de cambiar de
-  /// gremio: el logo bueno ya no se volvia a intentar.
-  const [fallo, setFallo] = useState<string | null>(null);
+  /// el resto de la sesion; y con tres logos, uno roto se
+  /// llevaria a los otros dos por delante.
+  const [fallidas, setFallidas] = useState<string[]>([]);
   const { marca } = useMarca();
 
-  /// El primero de la marca, que en el subdominio de un
-  /// gremio ya es el suyo. El PNG queda de respaldo.
-  const propio = marca?.logos?.[0];
-  const fuente = propio ? urlLogo(propio) : LOGO;
-  const roto = fallo === fuente;
+  /// Hasta tres, los del gremio de la direccion.
+  const logos = (marca?.logos ?? [])
+    .slice(0, MAXIMO_LOGOS)
+    .map((l) => ({ ...l, url: urlLogo(l) }))
+    .filter((l) => !fallidas.includes(l.url));
+
+  const marcarRoto = (url: string) =>
+    setFallidas((antes) => (antes.includes(url) ? antes : [...antes, url]));
+
+  /// El ancho que le toca a cada uno.
+  ///
+  /// La barra abierta da 260 px y el cajon 238, menos los
+  /// huecos. Se reparte para que TRES quepan en una fila y
+  /// uno solo pueda lucirse; y con `flex-wrap`, si aun asi no
+  /// caben, bajan a otra fila en vez de espicharse.
+  const anchoMaximo =
+    logos.length >= 3 ? "4.5rem" : logos.length === 2 ? "6.5rem" : "9.5rem";
+
+  const respaldo = logos.length === 0;
 
   return (
-    <Link
-      href="/admin"
-      // plegado no hay texto que lo nombre
-      aria-label={plegado ? "CONVOCA CRM" : undefined}
-      /// Centrada. El logo y el nombre pegados a la izquierda
-      /// se leian como una esquina; centrados sobre el menu
-      /// hacen de cabecera de lo que viene debajo.
-      className="flex items-center justify-center gap-2.5 no-underline"
-    >
-      {roto ? (
-        <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-marca text-sm font-bold text-marca-texto">
-          C
-        </span>
-      ) : (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={fuente}
-          alt=""
-          width={36}
-          height={36}
-          onError={() => setFallo(fuente)}
-          /// Plegado va el cuadro de 36; abierto se le deja
-          /// ancho, que un logo con letras en un cuadrado no
-          /// se lee.
-          className={
-            plegado
-              ? "h-9 w-9 shrink-0 object-contain"
-              : "h-9 w-auto max-w-[8rem] shrink-0 object-contain"
-          }
-        />
+    <div className="flex flex-col items-center gap-2">
+      {/* Banner FUERA del enlace, y a proposito: dentro, sus
+          tres nombres de entidad se leerian como el nombre del
+          enlace al panel. Aqui cada uno lleva su `alt` -- que
+          es la etiqueta de la entidad -- y el enlace se queda
+          con CONVOCA CRM y nada mas. */}
+      {!plegado && !respaldo && (
+        /// Placa BLANCA fija, y es la misma excepción a los
+        /// tokens que ya hace el login y que hace la franja.
+        ///
+        /// Un logo institucional se diseña para papel: tinta
+        /// oscura sobre transparente. El fondo de esta barra lo
+        /// elige el administrador, así que sin la placa el logo
+        /// desaparece en modo oscuro — y también en claro si
+        /// alguien pone el encabezado en un color fuerte.
+        <div className="mx-auto flex w-fit max-w-full flex-wrap items-center justify-center gap-x-2.5 gap-y-1.5 rounded-xl bg-white px-2.5 py-2 shadow-sm">
+          {logos.map((l) => (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              key={l.id}
+              src={l.url}
+              alt={l.etiqueta}
+              onError={() => marcarRoto(l.url)}
+              style={{ maxWidth: anchoMaximo }}
+              className="h-8 w-auto shrink object-contain"
+            />
+          ))}
+        </div>
       )}
-      {!plegado && (
-        // al alto del logo, no debajo de el: dos renglones
-        // chicos al lado de un cuadro de 36 px se leian como
-        // un pie de foto
-        <span className="truncate text-[1.05rem] leading-none font-bold tracking-tight">
-          CONVOCA CRM
-        </span>
-      )}
-    </Link>
+
+      <Link
+        href="/admin"
+        // plegado no hay texto que lo nombre
+        aria-label={plegado ? "CONVOCA CRM" : undefined}
+        /// Centrada. El logo y el nombre pegados a la izquierda
+        /// se leian como una esquina; centrados sobre el menu
+        /// hacen de cabecera de lo que viene debajo.
+        className="flex max-w-full items-center justify-center gap-2.5 no-underline"
+      >
+        {plegado || respaldo ? (
+          respaldo && fallidas.includes(LOGO) ? (
+            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-marca text-sm font-bold text-marca-texto">
+              C
+            </span>
+          ) : respaldo ? (
+            /// El PNG propio va SIN placa: es la marca del
+            /// producto y esta hecha para este panel.
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={LOGO}
+              alt=""
+              width={36}
+              height={36}
+              onError={() => marcarRoto(LOGO)}
+              className="h-9 w-9 shrink-0 object-contain"
+            />
+          ) : (
+            /// Plegada solo cabe uno, y tambien sobre placa:
+            /// tres logos en 48 px no son tres logos, son tres
+            /// manchas, pero el que quede tiene que verse.
+            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-white p-0.5 shadow-sm">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={logos[0].url}
+                alt=""
+                onError={() => marcarRoto(logos[0].url)}
+                className="h-full w-full object-contain"
+              />
+            </span>
+          )
+        ) : null}
+
+        {!plegado && (
+          <span className="truncate text-[1.05rem] leading-none font-bold tracking-tight">
+            CONVOCA CRM
+          </span>
+        )}
+      </Link>
+    </div>
   );
 }
 
