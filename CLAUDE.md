@@ -53,6 +53,9 @@ infraestructura completa más una página que verifica la conexión con el backe
 - ✅ **Ritmo y proyección** desde `movimientos_reserva`, y **respuestas
   agregadas** por formulario.
 - ❌ La política de tratamiento de datos sigue sin redactar.
+- ✅ **La autorización de datos ya se puede revocar** (27 ago 2026), que
+  hasta hoy era imposible: `revocadaEn` se leía en siete consultas y no se
+  escribía en ninguna. Ver «Los cinco bloques».
 - ❌ Los grupos no tienen fechas (los proyectos no las traen).
 - ✅ **Las 15 acciones están publicadas** (7 en ADECOPRIA y 8 en BRITCHAM ADEE)
   desde el 20 ago 2026, y hay **1 reserva real**. El sitio público ya recibe.
@@ -87,7 +90,9 @@ Panel (sesión en cookie httpOnly, `/admin/*`): `POST|DELETE /admin/sesion`,
 `POST /admin/apariencia/corregir`,
 `PATCH /admin/formularios/:id/apariencia`,
 `GET /admin/tableros/proyeccion`, `GET /admin/tableros/respuestas/:id`,
-`GET /admin/participantes/academico`, `GET /admin/participantes/catalogos`
+`GET /admin/participantes/academico`, `GET /admin/participantes/catalogos`,
+`POST /admin/participantes/:id/revocar-autorizacion`,
+`GET /admin/sep/alistamiento-f7`
 (las listas del SEP que dibujan los desplegables, como el de colores).
 Públicos además: `GET /marca`, `GET /marca/formulario/:slug` y
 `GET /marca/logos/:id`.
@@ -1396,6 +1401,162 @@ sobrevivieron 14, y de esos **cinco eran reales**. Lo que enseñó:
   discrepando. El frontend elegía el gremio por una cabecera y el backend por
   otra, y el resultado era el formulario de un gremio bajo la marca del otro —
   exactamente lo que este cambio existe para evitar.
+
+### Los cinco bloques de arreglos del recorrido (27 ago 2026)
+
+El recorrido de pruebas del flujo entero encontró una lista, y se
+cerró por bloques. Lo que queda escrito de cada uno:
+
+**La preinscripción pública valida en el SERVIDOR.** La
+autorización de datos solo se comprobaba en el navegador: el DTO
+la declara opcional y la constancia se dejaba dentro de un `if`,
+así que un POST directo metía cédula, nombre, celular y correo
+sin la constancia que hay que poder demostrar, y mandando
+`aceptaPolitica: false` entraba igual. Se comprueba con `!== true`
+y **antes de crear a la persona** — rechazar después dejaría los
+datos dentro de todos modos.
+
+Los ids del SEP se comprobaban con `if (departamento && municipio)`,
+o sea solo si llegaban los dos: partiendo la petición en dos,
+`municipioCuadra` no se llamaba nunca. `motivoDeIdInvalido` de
+`crm/catalogos-sep.ts` es ahora la única regla y recibe **lo ya
+guardado**, para juzgar el departamento que valdrá al terminar y
+no el que llegó. Estaba solo en el panel, así que la ruta del
+asesor rechazaba un género inventado y **la del ciudadano lo
+aceptaba**: la pública era la más permisiva de las dos.
+
+**`escalera.ts`: la escalera de etapas es una escalera.**
+`cambiarEtapa` es un solo PATCH y el asesor elige la etapa de
+llegada, así que sin reglas de transición la de salida no contaba
+para nada — y las dos compuertas estaban colgadas de una PALABRA
+en vez de del hecho.
+
+- `INTERESADO → EN_FORMACION` se saltaba la compuerta de
+  matrícula entera —datos, autorización, oferta, contacto y
+  cupo— porque miraba `etapa === 'INSCRITO'`. La compuerta es de
+  **entrar al aula**, no de una etiqueta, y solo se pide a quien
+  viene de fuera: a quien vuelve, volver a exigirle cupo le
+  cerraría el regreso a un grupo lleno.
+- `RETIRADO → CERTIFICADO` certificaba a quien se había ido. Con
+  avance cargado el 80 % se cumple y la fila entra al reporte.
+  Ahora hay que pasar primero por «En formación», y ese paso
+  queda en el historial: **es la diferencia entre no poder y
+  tener que decirlo.** `INSCRITO` sí puede cerrar, porque hay
+  grupos sin fechas y nadie pasa solo a `EN_FORMACION`.
+- `fechaMatricula` iba colgada de `INSCRITO`, así que quien
+  entraba directo a `EN_FORMACION` se quedaba sin ella — y el
+  cargue congela el rango de edad contra esa fecha: sin ella lo
+  calcula al exportar y la misma persona cambia de rango entre
+  dos cargues por haber cumplido años.
+
+**El F7 escribía objetos en las celdas.** «TAMAÑO DE LA EMPRESA»
+llevaba el objeto entero del catálogo en vez de su etiqueta, así
+que las 18 filas salían con `[object Object]`. Era el único de
+los tres formatos sin `?.etiqueta`, y **compilaba porque el
+retorno de `fila()` era inferido**: ahora está tipado, que es lo
+que impide que vuelva.
+
+Y **se bajaba con cero organizaciones**: un .xlsx con la
+cabecera, ninguna fila y la hoja de incompletas al lado. Eso es
+un archivo que *parece* el reporte, y el cliente arma sus INSERT
+concatenando celdas. El candado estaba en la pantalla para los
+dos reportes de personas y no en este; ahora lo tiene el
+servidor, que es quien manda porque **la descarga va por
+navegación** y basta pegar la URL. De paso `alistamientoF7`
+existía sin ruta, así que la pantalla pintaba la cifra de
+personas al lado del botón del F7, que va por organización.
+
+**Un spread pisaba la cerradura.** En `porUbicacion` el `where`
+tenía dos spreads y los dos traen la clave `accionFormacion`, así
+que `?convenio=britcham-adee` desde una cuenta que solo tiene
+ADECOPRIA **borraba el ámbito** y devolvía las ofertas de
+BRITCHAM. Va en `AND`: el filtro pedido se **interseca**, nunca
+sustituye. Su spec mira el `where` que sale y no el resultado —
+es lo único que distingue «interseca» de «sustituye».
+
+**Lo que viene en el CUERPO también se comprueba.** Los cinco
+guardias de formularios cubren el id de la RUTA; `seccionId` y
+`dependeDePreguntaId` vienen en el cuerpo y no los miraba nadie.
+Lo segundo es lo peor: la condicional se evalúa contra la
+respuesta de su madre, y una madre de otro formulario nunca la
+tiene aquí — la pregunta queda oculta para siempre y su respuesta
+se descarta en el servidor, que es lo correcto para una pregunta
+oculta. **Un formulario publicado pierde un campo sin que nada
+falle**, y con el del NIT oculto no se puede reservar.
+
+Y por la puerta **pública**: `prepararRespuestas` solo
+comprobaba que el formulario estuviera publicado, no que fuera
+del convenio de la oferta. Un POST con la oferta de un gremio y
+el `formularioSlug` del otro dejaba una reserva cuyos cupos
+salían de uno y cuyo `formularioId` apuntaba al otro: las
+respuestas validadas contra preguntas que la persona nunca vio,
+la reserva invisible para los dos gremios y la tasa de respuesta
+de ambos falseada. El mensaje es el mismo que «no está
+publicado», a propósito.
+
+**Los días son los de Bogotá.** `date_trunc('day', x)` a secas
+parte los días a las 19:00, así que las cinco horas de
+tarde-noche —cuando la gente diligencia— se cargaban al día
+siguiente. **El arreglo ya existía en `crm/control.ts`** y los
+cuatro `date_trunc` de los tableros se quedaron fuera. Ahora está
+una sola vez en `comun/dia-bogota.ts`, y `ventana.ts` importa de
+ahí el desplazamiento en vez de declararlo otra vez. El fragmento
+devuelve **texto** y no un timestamp: un `date_trunc` en hora de
+Bogotá vuelve a Node como Date y ahí se lee otra vez en UTC — el
+mismo error dos veces, y la segunda invisible.
+
+- `ritmo14` sobre una ventana de 7 sumaba siete días y dividía
+  entre catorce: **la mitad del ritmo real**. Ahora devuelve
+  `null`, y la tarjeta dice que hacen falta dos semanas en vez de
+  inventarse un «Estable».
+- «Hoy» se etiquetaba «27 ago → 26 ago». El último día dentro se
+  calculaba restando un día entero a `hasta`, y eso solo vale
+  cuando `hasta` es la medianoche siguiente: el periodo en curso
+  se recorta en «ahora», que ya está dentro del último día. Un
+  milisegundo sale bien en los dos casos.
+- **El propio spec de la proyección tenía el defecto dentro**:
+  construía sus días con `toISOString()` y su HOY era medianoche
+  UTC, o sea las 19:00 del día anterior en Bogotá.
+
+**Ya se puede revocar la autorización de datos.** `revocadaEn` se
+leía en siete consultas y no se escribía en ninguna: la columna,
+el índice y todo lo de abajo la honraban, y no había puerta. El
+sistema decía poder demostrar la autorización y era incapaz de
+honrar su revocación, que es el otro lado del artículo 8 de la
+Ley 1581.
+
+`POST /admin/participantes/:id/revocar-autorizacion`, con motivo
+y canal obligatorios — lo que hay que poder demostrar no es que
+se revocó, es **cuándo y por dónde lo pidió la persona**. Marca
+todas las vivas de ese convenio, porque dejar una viva la deja
+dentro del reporte. **No borra la fila**: hay que poder decir que
+hubo autorización desde tal día hasta tal otro, y borrarla borra
+la mitad de la frase. **La etapa no cambia** — revocar no es
+retirarse, y decidirlo por la persona sería poner en su boca algo
+que no dijo; lo que pasa solo es que deja de poder matricularse y
+sale del reporte, porque eso ya lo hacían las consultas. Va con
+`inscripciones · ESCRIBIR` y no con superadmin: lo pide la
+persona por teléfono y el derecho no espera. En la auditoría va
+el canal y cuántas, **no el motivo**: es texto libre y puede
+traer datos de la persona.
+
+**Un «no tiene» no es un celular.** No se validaba en ningún
+sitio, y va al reporte del SEP como número de contacto y a la
+compuerta de matrícula como «alguna forma de contactarla»: con
+`celular: "no tiene"` alguien quedaba matriculado y nadie podía
+llamarlo. `comun/celular.ts` distingue `celularValido` (vacío
+vale: es opcional) de `celularUtil` (vacío no sirve para
+contactar). En la carga masiva es un **aviso y no un rechazo**,
+igual que el correo.
+
+Y `mensajeEncabezado` se enviaba en el submit de `/admin/marca`
+sin tener campo en pantalla, así que no había forma de ponerlo ni
+de quitarlo y cada Guardar lo dejaba vacío.
+
+> **Todos los specs nuevos se probaron por mutación**: se le quita
+> el candado al código, se comprueba que el test falla, y se
+> devuelve. Un test que no puede fallar es peor que ninguno,
+> porque da confianza sin darla.
 
 ### Políticas y formularios sí llevan ámbito (27 ago 2026)
 
