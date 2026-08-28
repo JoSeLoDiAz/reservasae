@@ -18,6 +18,10 @@ import {
   variablesUsadas,
 } from '../plantillas/variables';
 import { escaparHtml } from '../escapar';
+import {
+  PORQUE_NO_SE_LE_MANDO,
+  puedeRecibir,
+} from '../autorizacion-vigente';
 import { revisarBase } from './base-cargada';
 import { datosParaPlantilla, deLaListaSubida } from './datos-plantilla';
 import { destinoPermitido, reescribirEnlaces } from './enlaces-medidos';
@@ -414,6 +418,21 @@ export class CampanasService {
     if (yaHoy >= TOPE_POR_PERSONA_AL_DIA) {
       // no se descarta: se deja para mañana
       return false;
+    }
+
+    /// ANTES DE NADA: ¿sigue autorizando?
+    ///
+    /// La lista se congeló al lanzar. Quien revocó DESPUÉS
+    /// sigue en esa lista, así que si no se comprueba aquí, se
+    /// le manda igual. Revocar es un derecho (Ley 1581, art.
+    /// 8); si le seguimos escribiendo, el derecho no existió.
+    const autoriza = await puedeRecibir(
+      this.prisma,
+      siguiente.participanteId,
+    );
+    if (autoriza === false) {
+      await this.omitir(siguiente.id, PORQUE_NO_SE_LE_MANDO);
+      return true;
     }
 
     /// De donde salen los datos con los que se llena la

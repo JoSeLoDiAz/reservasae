@@ -87,7 +87,14 @@ export function comoConsulta(
 ): Prisma.ParticipanteWhereInput {
   const donde: Prisma.ParticipanteWhereInput = {
     convenioId,
-    persona: { correo: { not: null } },
+    persona: {
+      correo: { not: null },
+      /// Y que siga autorizando EN ESTE convenio. Sin esto,
+      /// quien revocó entraba en la lista al armarla.
+      autorizaciones: {
+        some: { revocadaEn: null, politica: { convenioId } },
+      },
+    },
   };
 
   if (s.etapas?.length) donde.etapa = { in: s.etapas };

@@ -9,6 +9,7 @@ import {
 import { PrismaService } from '../../prisma/prisma.service';
 import { CorreoService } from '../correo.service';
 import type { EtapaParticipante } from '../../../generated/prisma';
+import { puedeRecibir } from '../autorizacion-vigente';
 import { escaparHtml } from '../escapar';
 import { porQueNo } from './etapas-de-plantilla';
 import {
@@ -99,7 +100,14 @@ export class PlantillasCorreoService {
       etapasPermitidas?: EtapaParticipante[];
     },
     adminId: string,
+    ambito: string[],
   ) {
+    /// El convenio viene del cuerpo. Sin esto se creaba una
+    /// plantilla colgada del otro gremio, que despues aparece
+    /// en SU desplegable.
+    if (datos.convenioId && !ambito.includes(datos.convenioId)) {
+      throw new NotFoundException('Ese convenio no existe.');
+    }
     this.revisar(datos.asunto, datos.cuerpo);
     return this.prisma.plantillaCorreo.create({
       data: {
@@ -115,6 +123,7 @@ export class PlantillasCorreoService {
 
   async editar(
     id: string,
+    ambito: string[],
     datos: Partial<{
       nombre: string;
       asunto: string;
@@ -124,10 +133,7 @@ export class PlantillasCorreoService {
       etapasPermitidas: EtapaParticipante[];
     }>,
   ) {
-    const antes = await this.prisma.plantillaCorreo.findUnique({
-      where: { id },
-    });
-    if (!antes) throw new NotFoundException('Esa plantilla ya no existe.');
+    const antes = await this.exigir(id, ambito);
 
     this.revisar(datos.asunto ?? antes.asunto, datos.cuerpo ?? antes.cuerpo);
 
@@ -140,11 +146,32 @@ export class PlantillasCorreoService {
    * Ya se usó para escribirle a gente. Borrarla dejaría
    * correos enviados sin forma de saber qué decían.
    */
-  async apagar(id: string) {
+  async apagar(id: string, ambito: string[]) {
+    await this.exigir(id, ambito);
     return this.prisma.plantillaCorreo.update({
       where: { id },
       data: { activa: false },
     });
+  }
+
+  /**
+   * La plantilla, SI es de un gremio que esta cuenta alcanza.
+   *
+   * `listar` ya respetaba el ambito; `editar` y `apagar` no lo
+   * miraban siquiera. Un gremio podia reescribirle el texto a
+   * las plantillas del otro —y ese texto sale firmado por el
+   * otro gremio a sus ciudadanos— o apagarselas.
+   *
+   * Las de convenioId null sirven para todos, asi que las
+   * puede tocar cualquiera que tenga permiso de escribir. Es
+   * a proposito: son las genericas del sistema.
+   */
+  private async exigir(id: string, ambito: string[]) {
+    const p = await this.prisma.plantillaCorreo.findUnique({ where: { id } });
+    if (!p || (p.convenioId !== null && !ambito.includes(p.convenioId))) {
+      throw new NotFoundException('Esa plantilla ya no existe.');
+    }
+    return p;
   }
 
   /// Que no se guarde una plantilla con una variable que no
@@ -240,6 +267,20 @@ export class PlantillasCorreoService {
     if (plantilla) {
       const no = porQueNo(plantilla.etapasPermitidas, ficha?.etapa ?? null);
       if (no) throw new BadRequestException(no);
+    }
+
+    /// Y que siga autorizando.
+    ///
+    /// El panel deja escribirle a una ficha desde su pantalla,
+    /// y esa pantalla no miraba la revocación. Alguien que
+    /// llamó a pedir que lo sacaran seguía recibiendo correos
+    /// del asesor, que es la peor forma de enterarse de que su
+    /// petición no se cumplió.
+    if ((await puedeRecibir(this.prisma, participanteId)) === false) {
+      throw new BadRequestException(
+        'Esta persona revocó su autorización de tratamiento de datos en ' +
+          'este convenio. No se le puede escribir.',
+      );
     }
 
     const vista = await this.vistaPrevia(participanteId, plantillaId, ambito);

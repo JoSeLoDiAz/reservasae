@@ -12,6 +12,7 @@ import { Injectable, Logger, Module } from '@nestjs/common';
 import { EstadoConsultaRui } from '../../../generated/prisma';
 import { nombreCompleto } from '../../comun/documento';
 import { PrismaService } from '../../prisma/prisma.service';
+import { taparDocumento } from '../../comun/tapar';
 
 /// Lo que todavia no tiene respuesta.
 const SIN_RESOLVER = [EstadoConsultaRui.PENDIENTE, EstadoConsultaRui.EN_CURSO];
@@ -48,7 +49,7 @@ export class ColaRui {
     // una vez. No se consulta y no se calla.
     if (persona.esDePrueba) {
       this.log.warn(
-        `No se consulta el RUI de ${persona.numeroDocumento}: ` +
+        `No se consulta el RUI de ${taparDocumento(persona.numeroDocumento)}: ` +
           'esta marcada como dato de prueba. Ese numero puede ser ' +
           'la cedula de una persona real que no pidio nada.',
       );

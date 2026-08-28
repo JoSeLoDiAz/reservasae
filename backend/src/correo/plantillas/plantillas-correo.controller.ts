@@ -39,19 +39,27 @@ export class PlantillasCorreoController {
   }
 
   @Post()
-  crear(@Body() dto: CrearPlantillaDto, @AdminActual() admin: Admin) {
-    return this.plantillas.crear(dto, admin.id);
+  crear(
+    @Body() dto: CrearPlantillaDto,
+    @AdminActual() admin: Admin,
+    @AmbitoActual() ambito: Ambito,
+  ) {
+    return this.plantillas.crear(dto, admin.id, ambito.convenios);
   }
 
   @Patch(':id')
-  editar(@Param('id') id: string, @Body() dto: EditarPlantillaDto) {
-    return this.plantillas.editar(id, dto);
+  editar(
+    @Param('id') id: string,
+    @Body() dto: EditarPlantillaDto,
+    @AmbitoActual() ambito: Ambito,
+  ) {
+    return this.plantillas.editar(id, ambito.convenios, dto);
   }
 
   /// No borra: apaga. Una plantilla que ya se usó es parte de
   /// lo que se le dijo a alguien.
   @Delete(':id')
-  apagar(@Param('id') id: string) {
-    return this.plantillas.apagar(id);
+  apagar(@Param('id') id: string, @AmbitoActual() ambito: Ambito) {
+    return this.plantillas.apagar(id, ambito.convenios);
   }
 }
