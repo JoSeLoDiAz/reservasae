@@ -19,6 +19,7 @@ import { AdminActual } from '../admin/admin-actual.decorator';
 import { AdminGuard, Requiere } from '../admin/admin.guard';
 import { CorreoService, correoConectado } from './correo.service';
 import { desvioConfigurado } from './desvio';
+import { escaparHtml } from './escapar';
 import { ProbarCorreoDto } from './dto';
 
 @Controller('admin/correo')
@@ -77,7 +78,7 @@ export class CorreoController {
       html:
         '<p>Si está leyendo esto, el correo de <strong>Convoca</strong> quedó ' +
         'funcionando.</p>' +
-        `<p style="color:#666;font-size:13px">Lo mandó ${admin.nombre} desde el ` +
+        `<p style="color:#666;font-size:13px">Lo mandó ${escaparHtml(admin.nombre)} desde el ` +
         'panel. No hay que contestarlo.</p>',
     });
 

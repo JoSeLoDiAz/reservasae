@@ -16,8 +16,10 @@ import {
   VARIABLES,
   variablesUsadas,
 } from '../plantillas/variables';
+import { escaparHtml } from '../escapar';
 import { revisarBase } from './base-cargada';
 import { datosParaPlantilla, deLaListaSubida } from './datos-plantilla';
+import { reescribirEnlaces } from './enlaces-medidos';
 import {
   inicioDelDiaColombiano,
   sePuedeAhora,
@@ -519,17 +521,13 @@ export class CampanasService {
     conBanner: boolean,
     baseUrl: string,
   ): string {
-    const escapado = texto
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;');
+    const escapado = escaparHtml(texto);
 
-    /// Los enlaces del texto pasan a ir por el servidor. Es la
-    /// única medición que no miente.
-    const conEnlaces = escapado.replace(
-      /(https?:\/\/[^\s<]+)/g,
-      (url) =>
-        `<a href="${baseUrl}/campanas/${campanaId}/clic/${destinatarioId}?a=${encodeURIComponent(url)}">${url}</a>`,
+    const conEnlaces = reescribirEnlaces(
+      escapado,
+      baseUrl,
+      campanaId,
+      destinatarioId,
     );
 
     const parrafos = conEnlaces

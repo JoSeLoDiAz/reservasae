@@ -9,6 +9,7 @@ import {
 import { PrismaService } from '../../prisma/prisma.service';
 import { CorreoService } from '../correo.service';
 import type { EtapaParticipante } from '../../../generated/prisma';
+import { escaparHtml } from '../escapar';
 import { porQueNo } from './etapas-de-plantilla';
 import {
   resolver,
@@ -387,11 +388,9 @@ function enBonito(m: string | null | undefined): string | null {
  * párrafos, que es lo que quien escribió esperaba ver.
  */
 export function aHtml(texto: string): string {
-  const escapado = texto
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
+  /// El escapado vive en un solo sitio: habia tres copias en
+  /// el modulo y no coincidian entre si.
+  const escapado = escaparHtml(texto);
 
   const parrafos = escapado
     .split(/\n{2,}/)
