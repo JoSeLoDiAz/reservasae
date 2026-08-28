@@ -223,6 +223,16 @@ export const MODULOS: Modulo[] = [
     descripcion: 'Lo que no es del día a día.',
     enlaces: [
       { href: '/admin/marca', etiqueta: 'Apariencia', soloSuperadmin: true, area: 'configuracion', nivel: 'ESCRIBIR' },
+      {
+        /// Aquí y no en Gestión de leads: esto no es mirar
+        /// leads, es conectar una tubería. Quien inscribe no
+        /// tiene por qué verla, y quien la conecta la busca
+        /// donde está lo que se configura una vez.
+        href: '/admin/integraciones/meta',
+        etiqueta: 'Webhook de Meta',
+        area: 'configuracion',
+        nivel: 'ESCRIBIR',
+      },
       { href: '/admin/usuarios', etiqueta: 'Usuarios', soloSuperadmin: true },
       { href: '/admin/perfil', etiqueta: 'Mi perfil' },
     ],

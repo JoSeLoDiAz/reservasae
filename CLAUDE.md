@@ -850,6 +850,32 @@ avisando de algo que el cliente iba a notar.
 
 ## Desplegar
 
+> **Antes de `docker compose up`: repase el `.env` del servidor.**
+>
+> Hay variables **sin las cuales el backend NO ARRANCA**, y el
+> despliegue se descubre roto cuando ya está parado:
+>
+> | Variable | Si falta |
+> |---|---|
+> | `ADMIN_JWT_SECRET` | no arranca (mínimo 32 caracteres) |
+> | `LEADS_WEBHOOK_SECRET` | **no arranca** (mínimo 32 caracteres) |
+> | `DATABASE_URL` | no arranca |
+>
+> `LEADS_WEBHOOK_SECRET` es la más fácil de olvidar porque es la
+> más nueva: **existe desde el 27 ago 2026 y no estaba en los
+> despliegues anteriores**. Que tumbe el arranque es deliberado
+> —es la única puerta que escribe en el CRM sin sesión, y
+> dejarla abierta por una variable ausente sería un control en
+> pie y vacío de efecto—, pero eso significa que un `.env`
+> heredado de antes **no levanta**.
+>
+> Y otras que **NO** tumban el arranque, y por eso fallan en
+> silencio: `META_APP_SECRET`, `META_VERIFY_TOKEN` y
+> `META_CONVENIO_SLUG`. Sin ellas el backend sube igual y los
+> leads de Meta sencillamente no entran. Se comprueban desde el
+> panel, en **Configuración → Webhook de Meta**, que dice cuál
+> falta y de dónde sale. Ver [docs/webhook-meta.md](docs/webhook-meta.md).
+
 ```bash
 ssh sep-vm
 cd /opt/sep/reservasae
@@ -1965,6 +1991,14 @@ y un token). El correo ya sale: ver «El correo».
 de Mauricio**, que recibe de Meta y nos reenvía. Nuestro contrato,
 no el de Meta: si algún día Meta pega directo, se le pone un
 adaptador delante sin tocar nada de dentro.
+
+> **Ese día llegó (28 ago 2026): Meta ya pega directo.** El adaptador
+> es `POST /api/webhooks/leads/meta`, una segunda puerta con la firma
+> HMAC de Meta en vez de nuestra llave, y `GET` en la misma ruta para
+> el apretón de manos que enciende el webhook. La puerta del
+> orquestador sigue igual y no se tocó. Todo —incluida **una migración
+> sin aplicar que hay que aplicar**— está en
+> [docs/webhook-meta.md](docs/webhook-meta.md).
 
 **El problema que resuelve, y por qué no era obvio.** Un lead de
 un anuncio trae nombre, teléfono y correo, y **no trae cédula**. Y

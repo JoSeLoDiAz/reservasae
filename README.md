@@ -21,6 +21,10 @@ costaron un fallo en producción y que conviene no deshacer sin saber:
 - [docs/decisiones-formularios.md](docs/decisiones-formularios.md) —
   el orden de las pantallas, el habeas data, y el enlace que se
   cerraba sin haber recogido nada.
+- [docs/webhook-meta.md](docs/webhook-meta.md) — los leads pagados de
+  Facebook e Instagram. **Empieza con una migración sin aplicar**, y
+  sigue con las tres cosas que si se tocan sin saber dejan de llegar
+  los leads que se están pagando.
 
 ---
 
