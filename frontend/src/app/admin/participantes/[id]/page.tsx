@@ -18,6 +18,7 @@ import {
   useAdmin,
 } from "@/components/admin/marco-admin";
 import { EnviarCorreo } from "@/components/admin/enviar-correo";
+import { RevisarPropuesta } from "@/components/admin/revisar-propuesta";
 import { useToast } from "@/components/admin/toast";
 import { alcanza } from "@/lib/admin-api";
 import { useDatosVivos } from "@/lib/datos-vivos";
@@ -862,98 +863,56 @@ function PropuestaDelInteresadoCard({
   /// la que pertenece. Asi se deriva en el render en vez de
   /// copiarla con un efecto, y si llega una propuesta nueva
   /// la seleccion vieja no se le queda pegada.
-  const [seleccion, setSeleccion] = useState<{ id: string; campos: string[] } | null>(
-    null,
-  );
+  const [abierto, setAbierto] = useState(false);
 
   const propuesta = datos ?? null;
   if (!propuesta || propuesta.campos.length === 0) return null;
 
-  // por defecto entran todos: lo normal es aceptar
-  const elegidos =
-    seleccion?.id === propuesta.id
-      ? seleccion.campos
-      : propuesta.campos.map((c) => c.campo);
-
-  const alternar = (campo: string) =>
-    setSeleccion({
-      id: propuesta.id,
-      campos: elegidos.includes(campo)
-        ? elegidos.filter((c) => c !== campo)
-        : [...elegidos, campo],
-    });
-
   return (
-    <Tarjeta
-      titulo="El interesado completó sus datos"
-      descripcion="Usted ya había tocado esta ficha, así que nada se sobrescribió. Elija qué entra."
-    >
-      <div className="space-y-4">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-borde text-left text-xs uppercase tracking-wide text-texto-suave">
-                <th className="w-10 py-2" />
-                <th className="py-2 pr-4">Campo</th>
-                <th className="py-2 pr-4">Como está hoy</th>
-                <th className="py-2">Lo que mandó</th>
-              </tr>
-            </thead>
-            <tbody>
-              {propuesta.campos.map((c) => (
-                <tr key={c.campo} className="border-b border-borde last:border-0">
-                  <td className="py-2">
-                    <input
-                      type="checkbox"
-                      checked={elegidos.includes(c.campo)}
-                      onChange={() => alternar(c.campo)}
-                      aria-label={`Aceptar ${c.etiqueta}`}
-                    />
-                  </td>
-                  <td className="py-2 pr-4 font-medium">{c.etiqueta}</td>
-                  <td className="py-2 pr-4 text-texto-suave">{c.actual ?? "vacío"}</td>
-                  <td className="py-2">{c.propuesto ?? "vacío"}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+    <>
+      {/* Un aviso corto que ABRE la decision, no la decision
+          entera metida entre otras diez tarjetas.
 
-        <div className="flex flex-wrap gap-2">
-          <Boton
-            disabled={elegidos.length === 0}
-            onClick={() =>
-              alGuardar(async () => {
-                await crmApi.resolverPropuesta(ficha.id, elegidos);
-                refrescar();
-              }, `Se aceptaron ${elegidos.length} campo(s).`)
-            }
-          >
-            Aceptar los marcados
+          Antes esto era una tabla mas de la ficha, con scroll,
+          y se resolvia sin mirar. Es una decision sobre los
+          datos de una persona: merece que uno se detenga. */}
+      <div className="rounded-2xl border border-aviso/40 bg-aviso-suave p-5">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <p className="font-medium text-aviso">
+              El interesado completó sus datos
+            </p>
+            <p className="mt-1 text-sm text-aviso">
+              Usted ya había tocado esta ficha, así que nada se sobrescribió.{" "}
+              {propuesta.campos.length}{" "}
+              {propuesta.campos.length === 1 ? "dato espera" : "datos esperan"} su
+              decisión.
+            </p>
+          </div>
+          <Boton onClick={() => setAbierto(true)}>
+            Revisar {propuesta.campos.length}{" "}
+            {propuesta.campos.length === 1 ? "dato" : "datos"}
           </Boton>
-
-          <button
-            type="button"
-            onClick={() =>
-              void alGuardar(async () => {
-                await crmApi.resolverPropuesta(ficha.id, []);
-                refrescar();
-              }, "Se descartó lo que mandó el interesado.")
-            }
-            className="rounded-lg border border-borde px-3 py-1.5 text-sm hover:bg-superficie-alterna"
-          >
-            Descartar todo
-          </button>
         </div>
-
-        <p className="text-xs text-texto-suave">
-          Decida lo que decida, queda registrado quién lo hizo y qué dejó entrar.
-        </p>
       </div>
-    </Tarjeta>
+
+      {abierto && (
+        <RevisarPropuesta
+          propuesta={propuesta}
+          alCerrar={() => setAbierto(false)}
+          alResolver={async (campos) => {
+            await alGuardar(async () => {
+              await crmApi.resolverPropuesta(ficha.id, campos);
+              refrescar();
+            }, campos.length === 0
+              ? "No se cambió ningún dato."
+              : `Se cambiaron ${campos.length} ${campos.length === 1 ? "dato" : "datos"}.`);
+          }}
+        />
+      )}
+    </>
   );
 }
-
 
 function Asesor({
   ficha,
