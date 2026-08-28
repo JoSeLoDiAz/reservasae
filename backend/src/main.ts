@@ -1,3 +1,4 @@
+import { exigirSecretoDeLeads } from './leads/secreto-de-leads';
 import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import cookieParser from 'cookie-parser';
@@ -16,6 +17,8 @@ function exigirSecretoDeSesion() {
 
 async function bootstrap() {
   exigirSecretoDeSesion();
+  // el webhook escribe sin sesion: sin llave no se arranca
+  exigirSecretoDeLeads();
 
   const app = await NestFactory.create(AppModule);
 

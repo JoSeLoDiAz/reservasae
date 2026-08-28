@@ -79,6 +79,7 @@ infraestructura completa más una página que verifica la conexión con el backe
 | `GET` | `/catalogo` | los convenios activos |
 | `GET` | `/catalogo/:slug` | acciones publicadas con sus ofertas y semáforo |
 | `POST` | `/reservas` | reserva N cupos; parte en confirmados + espera |
+| `POST` | `/webhooks/leads` | entra un lead del orquestador (llave en cabecera) |
 | `GET` | `/reservas?nit=` | reservas de una empresa y su total de cupos |
 | `PATCH` | `/reservas/:id` | cambia la cantidad (pide el NIT en el cuerpo) |
 | `POST` | `/reservas/:id/cancelar` | libera cupos y promueve la lista de espera |
@@ -1955,6 +1956,82 @@ y un token). El correo ya sale: ver «El correo».
 > avance. Y «al instante» se resuelve guardando una foto con su fecha y
 > enseñando «actualizado hace N minutos»; consultar el LMS en cada carga de
 > pantalla haría que un LMS lento sea una pantalla lenta.
+
+---
+
+### La mesa de entrada: el webhook de leads (27 ago 2026)
+
+`POST /api/webhooks/leads`. Lo llama el **orquestador de correos
+de Mauricio**, que recibe de Meta y nos reenvía. Nuestro contrato,
+no el de Meta: si algún día Meta pega directo, se le pone un
+adaptador delante sin tocar nada de dentro.
+
+**El problema que resuelve, y por qué no era obvio.** Un lead de
+un anuncio trae nombre, teléfono y correo, y **no trae cédula**. Y
+`Persona` exige `(tipoDocumentoSepId, numeroDocumento)` como clave
+única, que es justo lo que hace **imposible el duplicado por
+documento** y la razón de que no exista pantalla de fusionar
+duplicados. O sea que un lead de Meta, literalmente, no cabía en
+el CRM.
+
+Volver el documento opcional habría arreglado el caso de hoy y
+roto esa garantía para siempre. Así que el lead aterriza en su
+propia tabla y de ahí sale: **con documento válido se convierte, y
+sin él espera** a que un asesor lo complete. No se pierde, y la
+identidad del CRM no se toca.
+
+- **`carga` guarda el cuerpo entero.** En un webhook no es
+  opcional: es lo que deja depurar, reprocesar y demostrar qué
+  llegó de verdad cuando alguien diga «yo mandé ese lead».
+- **`(origenSistema, externoId)` es único, y esa es la
+  idempotencia.** Los webhooks reintentan y quien los manda ni lo
+  ve; sin esto, un parpadeo de red duplica a una persona. La
+  segunda llegada devuelve la primera con `repetido: true`.
+- **El gremio va explícito y se rechaza si no es uno de los dos.**
+  Adivinarlo mal mete a alguien de ADECOPRIA en BRITCHAM, que es
+  peor que perder el lead.
+- **No lanza por datos flojos.** Un webhook que contesta 400
+  porque falta el apellido invita a que el emisor reintente en
+  bucle o lo descarte. Lo que llega se guarda siempre; lo que
+  falte se dice en `motivo`. Solo se rechaza lo que impide
+  guardarlo: sin gremio y sin id propio.
+- **Se normaliza AL ENTRAR**, no al convertir: si se guarda el
+  celular como vino y se limpia después, la misma persona escrita
+  de dos formas son dos leads que nadie relaciona. Comprobado en
+  vivo: `+57 300 123 4567` queda `3001234567`, que es el formato
+  con el que cruzará contra las personas que ya existen.
+- **«Falta documento» y «el documento no sirve» son mensajes
+  distintos.** El primero es pedirlo; el segundo es que el dato
+  está mal en el origen, y volver a pedirlo no arregla nada.
+
+**La llave.** `LEADS_WEBHOOK_SECRET`, en la cabecera
+`x-clave-leads`, y **el backend no arranca sin ella** — igual que
+`ADMIN_JWT_SECRET`. Dejar la ruta abierta si falta la variable
+sería el «control en pie y vacío de efecto» de siempre: existiría,
+parecería protegida y no lo estaría. Es la **única puerta que
+escribe en el CRM sin sesión**, y lo que se contamina no son datos
+cualesquiera: es con lo que se le reporta al SENA.
+
+Se compara en **tiempo constante**. Un `===` se rinde en la
+primera letra distinta y eso deja medir cuántas se acertaron;
+cuesta una línea evitarlo.
+
+Y la llave se mira **antes** que el cuerpo: validar el DTO primero
+le diría, con sus mensajes de error, qué campos espera esta ruta a
+quien no tiene llave.
+
+> **Probado en vivo contra la base de pruebas**: sin llave 401,
+> con llave mala 401, gremio inventado 400, lead sin cédula 200
+> con «Falta: documento», y el mismo `externoId` otra vez devuelve
+> el mismo id con `repetido: true`. Los tres candados se probaron
+> además por mutación.
+
+**Lo que todavía no hace, y hay que decirlo:** la conversión
+automática a `Participante` cuando el lead SÍ trae documento no
+está escrita — hoy todo entra como `PENDIENTE`. Y no hay pantalla:
+la mesa de entrada se ve por la base. Las dos cosas son el
+siguiente paso, y ninguna cambia lo de arriba.
+
 
 ---
 

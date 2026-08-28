@@ -10,6 +10,15 @@
  * que alguien importa sin querer y le corta el proceso.
  */
 
+/// Carga el .env a mano, y hace falta.
+///
+/// Los diez guiones que llaman al guardia importan antes el
+/// cliente de Prisma, y ESE import carga el .env de lado. Aqui
+/// no hay Prisma, asi que sin esta linea `DATABASE_URL` llega
+/// vacia y el guardia se planta SIEMPRE -- falla cerrado, que
+/// es el lado bueno, pero deja `prisma:deploy` inservible.
+import 'dotenv/config';
+
 import { exigirBaseSegura } from './guardia-de-base';
 
 exigirBaseSegura('El comando que sigue');
