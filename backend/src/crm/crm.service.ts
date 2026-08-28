@@ -271,6 +271,20 @@ function aTexto(valor: unknown): string | null {
   return String(valor);
 }
 
+/// Lo que el F7 necesita de una organizacion.
+///
+/// Una sola lista: la piden la compuerta de matricula y el
+/// reporte, y si se separan, la compuerta deja pasar a quien el
+/// reporte despues rechaza.
+const CAMPOS_DE_EMPRESA = {
+  nit: true,
+  razonSocial: true,
+  sectorEconomico: true,
+  contactoNombre: true,
+  contactoCargo: true,
+  contactoCorreo: true,
+} as const;
+
 @Injectable()
 export class CrmService {
   private readonly log = new Logger('CRM');
@@ -1311,31 +1325,37 @@ export class CrmService {
     ///
     /// Al independiente se le pide menos -- no tiene jefe
     /// directo --, y de eso ya se encarga `faltaDeLaEmpresa`.
+    /// La suya, y si no, la de la RESERVA que la trajo.
+    ///
+    /// Es la misma regla que ya usan el F7 y el reporte al SEP
+    /// -- `p.empresa ?? p.reserva?.empresa` --, y aqui faltaba.
+    /// Habia TRES reglas para «cual es la empresa de esta
+    /// persona» y la compuerta usaba la mas estrecha: quien
+    /// llego por la reserva de una empresa --que es el camino
+    /// principal, una empresa aparta N cupos y despues nomina a
+    /// su gente-- no se podia matricular, con el mensaje «no se
+    /// puede reportar al SENA», que ademas es FALSO: el reporte
+    /// si la resuelve por la reserva.
     const conEmpresa = await this.prisma.participante.findUnique({
       where: { id: p.id },
       select: {
         persona: { select: { numeroDocumento: true } },
-        empresa: {
-          select: {
-            nit: true,
-            razonSocial: true,
-            sectorEconomico: true,
-            contactoNombre: true,
-            contactoCargo: true,
-            contactoCorreo: true,
-          },
-        },
+        empresa: { select: CAMPOS_DE_EMPRESA },
+        reserva: { select: { empresa: { select: CAMPOS_DE_EMPRESA } } },
       },
     });
 
+    // la suya manda: si dijo donde trabaja de verdad, vale eso
+    const empresa = conEmpresa?.empresa ?? conEmpresa?.reserva?.empresa ?? null;
+
     const faltaEmpresa = this.faltaDeLaEmpresa(
-      conEmpresa?.empresa ?? null,
+      empresa,
       conEmpresa?.persona.numeroDocumento,
     );
 
     if (faltaEmpresa.length > 0) {
       throw new BadRequestException(
-        conEmpresa?.empresa
+        empresa
           ? `Antes de inscribir hay que completar su organización: ${faltaEmpresa.join(', ')}. ` +
             'Sin eso no entra en el F7.'
           : 'Esta persona no tiene organización. Sin ella no se puede reportar al ' +

@@ -46,6 +46,8 @@ type Opciones = {
   inscritos?: number;
   cuposMaximos?: number;
   ventana?: string;
+  /// false = la empresa le viene de su reserva, no propia.
+  empresaPropia?: boolean;
 };
 
 function armar(o: Opciones) {
@@ -67,7 +69,11 @@ function armar(o: Opciones) {
           fechaMatricula: null,
           fechaCertificacion: null,
           persona: { numeroDocumento: '1019456782' },
-          empresa: EMPRESA,
+          /// `propia: false` = solo la tiene por su reserva, que
+          /// es el camino principal: una empresa aparta cupos y
+          /// despues nomina a su gente.
+          empresa: o.empresaPropia === false ? null : EMPRESA,
+          reserva: o.empresaPropia === false ? { empresa: EMPRESA } : null,
         }),
       update: () => {
         escrituras.push('participante.update');
@@ -272,5 +278,36 @@ describe('poner la etapa que ya tiene no es un paso', () => {
 
     expect(r.ok).toBe(true);
     expect(r.escrituras).toEqual([]);
+  });
+});
+
+describe('la organización sale de la suya O de la de su reserva', () => {
+  it('quien llegó por la reserva de una empresa SÍ se puede matricular', async () => {
+    /// Es el camino principal del sistema: una empresa aparta N
+    /// cupos y después nomina a su gente, así que el
+    /// participante no tiene empresa propia — la tiene su
+    /// reserva. La compuerta miraba solo la propia y contestaba
+    /// «no se puede reportar al SENA», que además es falso: el
+    /// F7 y el reporte la resuelven por la reserva desde
+    /// siempre. Eran tres reglas para la misma pregunta y esta
+    /// era la más estrecha.
+    const r = await pasarA(
+      { etapa: 'INTERESADO', motivo: null, ventana: 'ABIERTA', empresaPropia: false },
+      'INSCRITO',
+    );
+
+    expect(r.mensaje).not.toMatch(/no tiene organización/i);
+    expect(r.ok).toBe(true);
+  });
+
+  it('sin ninguna de las dos, sigue bloqueado', async () => {
+    const { s } = armar({ etapa: 'INTERESADO', motivo: null, ventana: 'ABIERTA' });
+    jest.spyOn(s as never, 'faltaDeLaEmpresa' as never).mockReturnValue([
+      'sector económico',
+    ] as never);
+
+    await expect(
+      s.cambiarEtapa('p1', { etapa: 'INSCRITO' } as never, ADMIN as never, ['c1'], undefined, ['c1']),
+    ).rejects.toThrow(/organización/i);
   });
 });
