@@ -83,3 +83,40 @@ export async function datosParaPlantilla(
     gremio: p.convenio?.sigla ?? p.convenio?.nombre ?? null,
   };
 }
+
+/**
+ * Los datos de alguien que vino en un archivo subido.
+ *
+ * Lo que hay es lo que traía la hoja: un correo y, si la
+ * pusieron, la columna del primer nombre. Todo lo demás va en
+ * null A PROPÓSITO.
+ *
+ * Es lo que hace que una plantilla con {{grupo}} omita a esta
+ * persona en vez de mandarle un correo con un hueco o, peor,
+ * con el dato de otro. Un cargue no sabe en qué grupo está
+ * nadie: si lo rellenáramos con cualquier cosa, el correo
+ * saldría igual de bonito y diría una mentira.
+ */
+export function deLaListaSubida(
+  nombre: string | null,
+  correo: string,
+): DatosDelParticipante {
+  return {
+    primerNombre: nombre,
+    segundoNombre: null,
+    primerApellido: null,
+    segundoApellido: null,
+    generoSepId: null,
+    numeroDocumento: null,
+    correo,
+    celular: null,
+    empresa: null,
+    accionFormacion: null,
+    grupo: null,
+    fechaInicio: null,
+    ubicacion: null,
+    modalidad: null,
+    asesor: null,
+    gremio: null,
+  };
+}

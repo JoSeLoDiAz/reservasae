@@ -1469,6 +1469,16 @@ model PlantillaCorreo {
   /// parte de lo que se le dijo a alguien.
   activa Boolean @default(true)
 
+  /// En que etapas tiene sentido mandarla. Vacio: en
+  /// cualquiera.
+  ///
+  /// Una «confirmacion de inscripcion» a quien todavia no
+  /// esta inscrito es una mentira firmada por el gremio, y de
+  /// las que no se recogen: la persona se queda esperando un
+  /// cupo que nadie le dio. El desplegable no puede ofrecer
+  /// una plantilla que contradice la ficha que tiene al lado.
+  etapasPermitidas EtapaParticipante[]
+
   creadoPorId String?
   creadoEn      DateTime @default(now())
   actualizadoEn DateTime @updatedAt
@@ -1481,6 +1491,11 @@ model PlantillaCorreo {
 }
 
 /// En que va una campana.
+enum OrigenCampana {
+  SEGMENTO
+  CARGUE
+}
+
 enum EstadoCampana {
   BORRADOR
   ENVIANDO
@@ -1526,6 +1541,18 @@ model Campana {
   /// al lanzar, en DestinatarioCampana.
   segmento Json
 
+  /// De donde salen los destinatarios.
+  ///
+  /// SEGMENTO: de la base propia, con las reglas de `segmento`.
+  /// CARGUE:   de un archivo que alguien subio, y entonces la
+  ///           lista existe desde antes de lanzar.
+  ///
+  /// Cambia lo que se puede escribir en el correo: de un
+  /// cargue solo se conocen el correo y el primer nombre, asi
+  /// que una plantilla que use {{grupo}} no tiene con que
+  /// llenarlo.
+  origen OrigenCampana @default(SEGMENTO)
+
   estado EstadoCampana @default(BORRADOR)
 
   creadoPorId String?
@@ -1545,9 +1572,19 @@ model Campana {
 
 /// Una persona dentro de una campana, y que le paso.
 model DestinatarioCampana {
-  id             String @id @default(cuid())
-  campanaId      String
-  participanteId String
+  id        String @id @default(cuid())
+  campanaId String
+
+  /// Null cuando vino de un archivo subido: es un correo, no
+  /// una ficha del CRM. Sin esto habria que inventarle un
+  /// participante a cada linea del Excel, y eso llena la base
+  /// de leads falsos que nadie pidio.
+  participanteId String?
+
+  /// El primer nombre que traia el archivo. Los del segmento
+  /// no lo llevan: lo sacan de su ficha, que esta mas al dia
+  /// que una columna de Excel.
+  nombre String?
 
   /// Congelado al armar la lista: si manana cambia su correo,
   /// hay que poder saber a donde se mando.
@@ -1573,11 +1610,16 @@ model DestinatarioCampana {
 
   creadoEn DateTime @default(now())
 
-  campana      Campana      @relation(fields: [campanaId], references: [id], onDelete: Cascade)
-  participante Participante @relation(fields: [participanteId], references: [id], onDelete: Cascade)
+  campana      Campana       @relation(fields: [campanaId], references: [id], onDelete: Cascade)
+  participante Participante? @relation(fields: [participanteId], references: [id], onDelete: Cascade)
 
-  // una persona, una vez por campana
-  @@unique([campanaId, participanteId])
+  /// Un BUZON, una vez por campana. Antes era por
+  /// participante, y eso dejaba pasar el caso comun: una
+  /// misma persona con dos fichas -- inscrita en dos cosas --
+  /// recibia el correo dos veces. El tope de dos al dia
+  /// tampoco lo frenaba, porque contaba por participante.
+  /// Quien lo recibe es el buzon, no la ficha.
+  @@unique([campanaId, correo])
   @@index([campanaId, estado])
   @@index([participanteId, enviadoEn])
   @@map("destinatarios_campana")

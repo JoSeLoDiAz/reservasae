@@ -14,10 +14,18 @@ export type PlantillaCorreo = {
   asunto: string;
   cuerpo: string;
   activa: boolean;
+  /// En qué etapas tiene sentido. Vacío: en cualquiera.
+  etapasPermitidas: string[];
   convenioId: string | null;
   actualizadoEn: string;
   convenio: { sigla: string | null; nombre: string } | null;
   creadoPor: { nombre: string } | null;
+};
+
+/// La misma plantilla, pero mirada contra UNA ficha: trae el
+/// motivo por el que no se le puede mandar a esa persona.
+export type PlantillaParaFicha = PlantillaCorreo & {
+  bloqueo: string | null;
 };
 
 export type VistaPrevia = {
@@ -63,7 +71,9 @@ export const plantillasCorreoApi = {
   // --- desde la ficha del lead ---
 
   paraEsteLead: (participanteId: string) =>
-    pedir<PlantillaCorreo[]>(`/admin/participantes/${participanteId}/correo/plantillas`),
+    pedir<PlantillaParaFicha[]>(
+      `/admin/participantes/${participanteId}/correo/plantillas`,
+    ),
 
   vistaPrevia: (participanteId: string, plantillaId: string) =>
     pedir<VistaPrevia>(

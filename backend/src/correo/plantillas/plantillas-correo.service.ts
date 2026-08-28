@@ -8,6 +8,8 @@ import {
 
 import { PrismaService } from '../../prisma/prisma.service';
 import { CorreoService } from '../correo.service';
+import type { EtapaParticipante } from '../../../generated/prisma';
+import { porQueNo } from './etapas-de-plantilla';
 import {
   resolver,
   valoresDe,
@@ -53,6 +55,7 @@ export class PlantillasCorreoService {
         asunto: true,
         cuerpo: true,
         activa: true,
+        etapasPermitidas: true,
         convenioId: true,
         actualizadoEn: true,
         convenio: { select: { sigla: true, nombre: true } },
@@ -61,12 +64,38 @@ export class PlantillasCorreoService {
     });
   }
 
+  /**
+   * Las plantillas para UNA ficha, con el motivo del bloqueo.
+   *
+   * No se esconden las que no aplican: se enseñan apagadas y
+   * con el porqué. Una plantilla que desaparece del
+   * desplegable manda a la gente a buscarla y a preguntar
+   * quién se la borró; una apagada que dice «esta persona
+   * está interesada y esto es para inscritos» se entiende
+   * sola y enseña cómo funciona.
+   */
+  async paraLaFicha(participanteId: string, convenios: string[]) {
+    const [lista, ficha] = await Promise.all([
+      this.listar(convenios, true),
+      this.prisma.participante.findUnique({
+        where: { id: participanteId },
+        select: { etapa: true },
+      }),
+    ]);
+
+    return lista.map((p) => ({
+      ...p,
+      bloqueo: porQueNo(p.etapasPermitidas, ficha?.etapa ?? null),
+    }));
+  }
+
   async crear(
     datos: {
       nombre: string;
       asunto: string;
       cuerpo: string;
       convenioId?: string | null;
+      etapasPermitidas?: EtapaParticipante[];
     },
     adminId: string,
   ) {
@@ -77,6 +106,7 @@ export class PlantillasCorreoService {
         asunto: datos.asunto.trim(),
         cuerpo: datos.cuerpo,
         convenioId: datos.convenioId ?? null,
+        etapasPermitidas: datos.etapasPermitidas ?? [],
         creadoPorId: adminId,
       },
     });
@@ -90,6 +120,7 @@ export class PlantillasCorreoService {
       cuerpo: string;
       convenioId: string | null;
       activa: boolean;
+      etapasPermitidas: EtapaParticipante[];
     }>,
   ) {
     const antes = await this.prisma.plantillaCorreo.findUnique({
@@ -183,6 +214,29 @@ export class PlantillasCorreoService {
   }
 
   async enviar(participanteId: string, plantillaId: string) {
+    /// La compuerta va en el SERVIDOR, no en el desplegable.
+    ///
+    /// El desplegable ya las apaga, pero apagar un <option> es
+    /// comodidad: quien llame a la API a mano, o tenga la
+    /// pantalla abierta desde antes de que a la persona le
+    /// cambiaran la etapa, se salta la comodidad. Lo que no se
+    /// salta es esto.
+    const [plantilla, ficha] = await Promise.all([
+      this.prisma.plantillaCorreo.findUnique({
+        where: { id: plantillaId },
+        select: { etapasPermitidas: true },
+      }),
+      this.prisma.participante.findUnique({
+        where: { id: participanteId },
+        select: { etapa: true },
+      }),
+    ]);
+
+    if (plantilla) {
+      const no = porQueNo(plantilla.etapasPermitidas, ficha?.etapa ?? null);
+      if (no) throw new BadRequestException(no);
+    }
+
     const vista = await this.vistaPrevia(participanteId, plantillaId);
 
     if (!vista.para) {

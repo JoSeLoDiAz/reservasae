@@ -7,6 +7,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 
+import { construirFormato, leerPlantilla } from '../../plantillas/plantillas';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CorreoService } from '../correo.service';
 import {
@@ -15,10 +16,12 @@ import {
   VARIABLES,
   variablesUsadas,
 } from '../plantillas/variables';
-import { datosParaPlantilla } from './datos-plantilla';
+import { revisarBase } from './base-cargada';
+import { datosParaPlantilla, deLaListaSubida } from './datos-plantilla';
 import {
   inicioDelDiaColombiano,
   sePuedeAhora,
+  TOPE_DIARIO,
   TOPE_POR_PERSONA_AL_DIA,
 } from './ritmo';
 import {
@@ -94,6 +97,7 @@ export class CampanasService {
       asunto: string;
       cuerpo: string;
       segmento: Segmento;
+      origen?: 'SEGMENTO' | 'CARGUE';
     },
     adminId: string,
   ) {
@@ -106,9 +110,10 @@ export class CampanasService {
         asunto: datos.asunto.trim(),
         cuerpo: datos.cuerpo,
         segmento: datos.segmento,
+        origen: datos.origen ?? 'SEGMENTO',
         creadoPorId: adminId,
       },
-      select: { id: true, nombre: true, estado: true },
+      select: { id: true, nombre: true, estado: true, origen: true },
     });
   }
 
@@ -163,6 +168,25 @@ export class CampanasService {
       throw new BadRequestException('Esta campaña ya se había lanzado.');
     }
 
+    /// La de cargue ya tiene su lista: se congeló al subir el
+    /// archivo, no al lanzar. Aquí solo se abre la llave.
+    if (c.origen === 'CARGUE') {
+      const cuantos = await this.prisma.destinatarioCampana.count({
+        where: { campanaId: id },
+      });
+      if (cuantos === 0) {
+        throw new BadRequestException(
+          'Todavía no ha subido la base. Descargue el formato, llénelo y súbalo antes de lanzar.',
+        );
+      }
+      await this.prisma.campana.update({
+        where: { id },
+        data: { estado: 'ENVIANDO', lanzadaEn: new Date() },
+      });
+      this.log.log(`Campaña «${c.nombre}» lanzada a ${cuantos} correos subidos.`);
+      return { lanzada: true, destinatarios: cuantos, repetidos: 0 };
+    }
+
     const segmento = c.segmento as Segmento;
     const candidatos = await this.prisma.participante.findMany({
       where: comoConsulta(c.convenioId, segmento),
@@ -179,12 +203,27 @@ export class CampanasService {
       );
     }
 
+    /// Un BUZON, no una ficha.
+    ///
+    /// Hay gente con dos participaciones -- inscrita en dos
+    /// cosas -- y el mismo correo en las dos. Sin esto le
+    /// llegaba el mismo mensaje dos veces, y el tope de dos
+    /// al dia tampoco la salvaba porque contaba por
+    /// participante. Recibir dos veces lo mismo es de las
+    /// cosas que hacen que a uno lo marquen como spam.
+    const porBuzon = new Map<string, (typeof elegidos)[number]>();
+    for (const p of elegidos) {
+      const correo = (p.persona.correo as string).trim().toLowerCase();
+      if (!porBuzon.has(correo)) porBuzon.set(correo, p);
+    }
+    const repetidos = elegidos.length - porBuzon.size;
+
     await this.prisma.$transaction([
       this.prisma.destinatarioCampana.createMany({
-        data: elegidos.map((p) => ({
+        data: [...porBuzon.entries()].map(([correo, p]) => ({
           campanaId: id,
           participanteId: p.id,
-          correo: p.persona.correo as string,
+          correo,
         })),
         skipDuplicates: true,
       }),
@@ -195,9 +234,18 @@ export class CampanasService {
     ]);
 
     this.log.log(
-      `Campaña «${c.nombre}» lanzada a ${elegidos.length} personas.`,
+      `Campaña «${c.nombre}» lanzada a ${porBuzon.size} buzones` +
+        (repetidos > 0 ? ` (${repetidos} repetidos, una sola vez)` : '') +
+        '.',
     );
-    return { lanzada: true, destinatarios: elegidos.length };
+    return {
+      lanzada: true,
+      destinatarios: porBuzon.size,
+      /// Se devuelve para poder decirlo en pantalla: «iban 40,
+      /// salen 38, dos tenian el correo repetido» explica un
+      /// numero que si no, parece un error.
+      repetidos,
+    };
   }
 
   /// Parar y seguir. Una campaña que va mal se para en el
@@ -319,6 +367,7 @@ export class CampanasService {
         id: true,
         correo: true,
         participanteId: true,
+        nombre: true,
         campana: {
           select: { id: true, asunto: true, cuerpo: true, bannerDatos: true },
         },
@@ -334,7 +383,11 @@ export class CampanasService {
     /// dos de otra campaña, esta espera a mañana.
     const yaHoy = await this.prisma.destinatarioCampana.count({
       where: {
-        participanteId: siguiente.participanteId,
+        /// Por CORREO y no por participante: quien recibe es
+        /// el buzon. Contando por ficha, alguien con dos
+        /// participaciones se llevaba cuatro correos al dia
+        /// en vez de dos.
+        correo: siguiente.correo,
         estado: 'ENVIADO',
         enviadoEn: { gte: desdeHoy },
       },
@@ -345,10 +398,19 @@ export class CampanasService {
       return false;
     }
 
-    const datos = await datosParaPlantilla(
-      this.prisma,
-      siguiente.participanteId,
-    );
+    /// De donde salen los datos con los que se llena la
+    /// plantilla. Dos caminos, y no se pueden mezclar:
+    ///
+    /// - De la BASE: se lee su ficha entera, que esta al dia.
+    /// - De un CARGUE: solo hay lo que traia el archivo, un
+    ///   correo y un primer nombre. Lo demas NO se inventa:
+    ///   si la plantilla pide {{grupo}}, este se omite con su
+    ///   motivo, igual que se omite a quien le falta el dato
+    ///   en su ficha.
+    const datos = siguiente.participanteId
+      ? await datosParaPlantilla(this.prisma, siguiente.participanteId)
+      : deLaListaSubida(siguiente.nombre, siguiente.correo);
+
     if (!datos) {
       await this.omitir(siguiente.id, 'Ese lead ya no existe.');
       return true;
@@ -491,6 +553,112 @@ export class CampanasService {
       pixel +
       '</div>'
     );
+  }
+
+  /// El formato que se descarga para llenar. Dos columnas y
+  /// ya: pedir mas de una lista subida es pedir que la
+  /// rellenen a mano, y a mano se rellena mal.
+  formatoDeBase(): Promise<Buffer> {
+    return construirFormato({
+      nombre: 'Base',
+      columnas: [
+        {
+          titulo: 'Correo',
+          clave: 'correo',
+          ancho: 34,
+          ayuda: 'Obligatorio. Uno por fila. Sin espacios ni tildes.',
+        },
+        {
+          titulo: 'Primer nombre',
+          clave: 'nombre',
+          ancho: 22,
+          ayuda:
+            'Opcional, pero sin el no se puede personalizar. Solo el primer nombre.',
+        },
+      ],
+    });
+  }
+
+  /**
+   * Sube la base, la revisa y guarda lo que sirve.
+   *
+   * Revisa ANTES y devuelve TODO lo que encontro, incluida la
+   * fila de cada descarte: decir «hay errores» sin decir
+   * cuales obliga a repasar trescientas filas a ojo.
+   *
+   * Reemplaza lo que hubiera. Subir el archivo otra vez es lo
+   * que uno hace despues de corregirlo, y si se acumulara,
+   * los correos malos de la primera version seguirian ahi.
+   */
+  async cargarBase(id: string, archivo: Buffer) {
+    const c = await this.exigir(id);
+
+    if (c.estado !== 'BORRADOR') {
+      throw new BadRequestException(
+        'Esta campaña ya se lanzó: la lista se congeló y no se puede cambiar.',
+      );
+    }
+    if (c.origen !== 'CARGUE') {
+      throw new BadRequestException(
+        'Esta campaña sale de un segmento de su base, no de un archivo.',
+      );
+    }
+
+    const lectura = await leerPlantilla(archivo, {
+      nombre: 'Base',
+      columnas: [
+        { titulo: 'Correo', clave: 'correo' },
+        { titulo: 'Primer nombre', clave: 'nombre' },
+      ],
+    });
+
+    if (!lectura.columnasTraidas.includes('correo')) {
+      throw new BadRequestException(
+        'El archivo no trae la columna «Correo». Descargue el formato y no le cambie los títulos de la primera fila.',
+      );
+    }
+
+    const revision = revisarBase(
+      lectura.filas.map((f) => ({
+        fila: f.fila,
+        correo: f.valores.correo ?? '',
+        nombre: f.valores.nombre ?? '',
+      })),
+    );
+
+    await this.prisma.$transaction([
+      this.prisma.destinatarioCampana.deleteMany({ where: { campanaId: id } }),
+      this.prisma.destinatarioCampana.createMany({
+        data: revision.listos.map((l) => ({
+          campanaId: id,
+          correo: l.correo,
+          nombre: l.nombre,
+        })),
+        skipDuplicates: true,
+      }),
+    ]);
+
+    this.log.log(
+      `Base cargada en «${c.nombre}»: ${revision.listos.length} listos, ` +
+        `${revision.descartados.length} descartados.`,
+    );
+
+    return {
+      listos: revision.listos.length,
+      /// Con su fila y su motivo, para poder ir a corregirlas.
+      descartados: revision.descartados,
+      repetidos: revision.repetidos,
+      vacias: revision.vacias,
+      /// Los que entraron pero huelen a dedazo. Entran igual:
+      /// decide quien conoce la lista.
+      sospechosos: revision.listos
+        .filter((l) => l.sospecha)
+        .map((l) => ({ fila: l.fila, correo: l.correo, sospecha: l.sospecha })),
+      /// Cuantos dias va a tardar con los topes puestos. Se
+      /// dice ANTES de lanzar: una lista de 900 no sale hoy,
+      /// y enterarse mañana es enterarse tarde.
+      diasQueTarda: Math.ceil(revision.listos.length / TOPE_DIARIO),
+    };
   }
 
   async guardarBanner(id: string, datos: Buffer, mime: string, nombre: string) {

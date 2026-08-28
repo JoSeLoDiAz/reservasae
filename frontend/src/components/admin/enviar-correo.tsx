@@ -12,7 +12,7 @@ import { useCallback, useEffect, useState } from "react";
 import { ErrorApi } from "@/lib/api";
 import {
   plantillasCorreoApi,
-  type PlantillaCorreo,
+  type PlantillaParaFicha,
   type VistaPrevia,
 } from "@/lib/plantillas-correo-api";
 
@@ -22,7 +22,7 @@ import { useToast } from "./toast";
 export function EnviarCorreo({ participanteId }: { participanteId: string }) {
   const toast = useToast();
   const [abierto, setAbierto] = useState(false);
-  const [plantillas, setPlantillas] = useState<PlantillaCorreo[] | null>(null);
+  const [plantillas, setPlantillas] = useState<PlantillaParaFicha[] | null>(null);
   const [elegida, setElegida] = useState("");
   const [vista, setVista] = useState<VistaPrevia | null>(null);
   const [cargandoVista, setCargandoVista] = useState(false);
@@ -108,9 +108,16 @@ export function EnviarCorreo({ participanteId }: { participanteId: string }) {
             onChange={(e) => setElegida(e.target.value)}
           >
             <option value="">Escoja una…</option>
+            {/* Las que no aplican salen APAGADAS y con el
+                motivo al lado, no escondidas. Una plantilla
+                que desaparece del desplegable manda a la
+                gente a preguntar quién se la borró; una
+                apagada que dice «esta persona está interesada
+                y esto es para inscritos» se entiende sola. */}
             {(plantillas ?? []).map((p) => (
-              <option key={p.id} value={p.id}>
+              <option key={p.id} value={p.id} disabled={Boolean(p.bloqueo)}>
                 {p.nombre}
+                {p.bloqueo ? "  —  no aplica en esta etapa" : ""}
               </option>
             ))}
           </select>
@@ -126,6 +133,25 @@ export function EnviarCorreo({ participanteId }: { participanteId: string }) {
           Cerrar
         </button>
       </div>
+
+      {/* El porqué, entero. En el <option> no cabe y
+          además no se puede leer con calma. */}
+      {(plantillas ?? []).some((p) => p.bloqueo) && (
+        <details className="text-xs text-texto-suave">
+          <summary className="cursor-pointer underline">
+            Hay plantillas que no aplican en esta etapa. Por qué
+          </summary>
+          <ul className="mt-2 space-y-1">
+            {(plantillas ?? [])
+              .filter((p) => p.bloqueo)
+              .map((p) => (
+                <li key={p.id}>
+                  <strong>{p.nombre}:</strong> {p.bloqueo}
+                </li>
+              ))}
+          </ul>
+        </details>
+      )}
 
       {plantillas?.length === 0 && (
         <p className="text-sm text-texto-suave">

@@ -20,9 +20,31 @@ import {
   type VariableCorreo,
 } from "@/lib/plantillas-correo-api";
 
-type Borrador = { nombre: string; asunto: string; cuerpo: string };
+type Borrador = {
+  nombre: string;
+  asunto: string;
+  cuerpo: string;
+  etapasPermitidas: string[];
+};
 
-const VACIO: Borrador = { nombre: "", asunto: "", cuerpo: "" };
+const VACIO: Borrador = {
+  nombre: "",
+  asunto: "",
+  cuerpo: "",
+  etapasPermitidas: [],
+};
+
+/// Las etapas en las que se le puede escribir a alguien. Las
+/// de salida —perdido, retirado, desertó— no están: a quien
+/// se fue no se le manda una plantilla, se le llama.
+const ETAPAS: Array<[string, string]> = [
+  ["INTERESADO", "Interesado"],
+  ["CONTACTADO", "Contactado"],
+  ["DATOS_COMPLETOS", "Con datos completos"],
+  ["INSCRITO", "Inscrito"],
+  ["EN_FORMACION", "En formación"],
+  ["CERTIFICADO", "Certificado"],
+];
 
 export default function PaginaPlantillasCorreo() {
   const toast = useToast();
@@ -55,7 +77,12 @@ export default function PaginaPlantillasCorreo() {
 
   function abrir(p: PlantillaCorreo) {
     setEditando(p.id);
-    setBorrador({ nombre: p.nombre, asunto: p.asunto, cuerpo: p.cuerpo });
+    setBorrador({
+      nombre: p.nombre,
+      asunto: p.asunto,
+      cuerpo: p.cuerpo,
+      etapasPermitidas: p.etapasPermitidas ?? [],
+    });
   }
 
   async function guardar() {
@@ -165,6 +192,42 @@ export default function PaginaPlantillasCorreo() {
                 />
               </div>
 
+              {/* Sin esto se podia mandar «quedo inscrito» a
+                  quien todavia no lo esta. Ese correo no se
+                  recoge: la persona se queda esperando un
+                  cupo que nadie le dio. */}
+              <fieldset className="rounded-xl border border-borde p-4">
+                <legend className="px-1 text-sm font-medium">
+                  ¿A quién se le puede mandar?
+                </legend>
+                <p className="mb-3 text-xs text-texto-suave">
+                  Si no marca ninguna, sirve para cualquiera. Marque solo si
+                  esta plantilla dice algo que no es cierto en otra etapa.
+                </p>
+                <div className="grid gap-1.5 sm:grid-cols-2">
+                  {ETAPAS.map(([valor, texto]) => (
+                    <label
+                      key={valor}
+                      className="flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1 text-sm hover:bg-superficie-alterna"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={borrador.etapasPermitidas.includes(valor)}
+                        onChange={(e) =>
+                          setBorrador((b) => ({
+                            ...b,
+                            etapasPermitidas: e.target.checked
+                              ? [...b.etapasPermitidas, valor]
+                              : b.etapasPermitidas.filter((x) => x !== valor),
+                          }))
+                        }
+                      />
+                      <span>{texto}</span>
+                    </label>
+                  ))}
+                </div>
+              </fieldset>
+
               <div className="flex flex-wrap items-center gap-3 border-t border-borde pt-4">
                 <Boton onClick={() => void guardar()} disabled={ocupado}>
                   {ocupado ? "Guardando…" : "Guardar"}
@@ -246,6 +309,21 @@ export default function PaginaPlantillasCorreo() {
               <span className="inline-block rounded-full bg-superficie-alterna px-2.5 py-1 text-xs text-texto-suave">
                 Apagada · no aparece al escribir un correo
               </span>
+            )}
+            {p.etapasPermitidas?.length > 0 && (
+              <p className="text-xs text-texto-suave">
+                Solo para quien esté:{" "}
+                <strong>
+                  {p.etapasPermitidas
+                    .map(
+                      (e) =>
+                        ETAPAS.find(([v]) => v === e)?.[1].toLocaleLowerCase(
+                          "es-CO",
+                        ) ?? e,
+                    )
+                    .join(", ")}
+                </strong>
+              </p>
             )}
             <p className="text-sm">
               <span className="text-texto-suave">Asunto: </span>

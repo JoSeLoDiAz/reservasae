@@ -18,6 +18,7 @@ import {
   useAdmin,
 } from "@/components/admin/marco-admin";
 import { useToast } from "@/components/admin/toast";
+import { CargarBase } from "@/components/admin/cargar-base";
 import { VistaPreviaCorreo } from "@/components/admin/vista-previa-correo";
 import { ErrorApi } from "@/lib/api";
 import {
@@ -336,6 +337,12 @@ function NuevaCampana({
   const [cuantos, setCuantos] = useState<number | null>(null);
   const [banner, setBanner] = useState<File | null>(null);
   const [ocupado, setOcupado] = useState(false);
+  /// De dónde salen los destinatarios. Por defecto de la
+  /// base, que es lo que se hace casi siempre.
+  const [origen, setOrigen] = useState<"SEGMENTO" | "CARGUE">("SEGMENTO");
+  /// La de cargue se crea primero y se le sube la lista
+  /// después: hace falta su id para colgarle el archivo.
+  const [reciencreada, setReciencreada] = useState<string | null>(null);
 
   const elegido = segmentos.find((s) => s.clave === clave);
   const segmento: Segmento = elegido?.segmento ?? {};
@@ -361,8 +368,20 @@ function NuevaCampana({
         asunto,
         cuerpo,
         segmento,
+        origen,
       });
       if (banner) await campanasApi.subirBanner(c.id, banner);
+
+      /// La de cargue NO cierra el formulario todavía: aquí
+      /// mismo se le sube la lista. Cerrar y mandar a buscarla
+      /// a la tabla para subir el archivo sería partir en dos
+      /// una sola tarea.
+      if (origen === "CARGUE") {
+        setReciencreada(c.id);
+        toast.exito("Campaña creada. Ahora súbale la lista de correos.");
+        return;
+      }
+
       toast.exito("Campaña creada. Revísela y láncela cuando quiera.");
       await alCrear();
     } catch (e) {
@@ -389,7 +408,56 @@ function NuevaCampana({
             />
           </div>
 
+          {/* De dónde sale la lista. Va ANTES del segmento
+              porque decide si el segmento pinta algo. */}
           <div>
+            <p className="mb-1.5 text-sm font-medium">De dónde sale la lista</p>
+            <div className="grid gap-2 sm:grid-cols-2">
+              {(
+                [
+                  ["SEGMENTO", "De su base", "Con reglas sobre los inscritos"],
+                  ["CARGUE", "De un archivo", "Correo y primer nombre, en .xlsx"],
+                ] as Array<["SEGMENTO" | "CARGUE", string, string]>
+              ).map(([valor, titulo, pie]) => (
+                <button
+                  key={valor}
+                  type="button"
+                  disabled={Boolean(reciencreada)}
+                  onClick={() => setOrigen(valor)}
+                  className={`rounded-xl border p-3 text-left transition disabled:opacity-50 ${
+                    origen === valor
+                      ? "border-2 border-marca bg-marca-suave"
+                      : "border-campo-borde hover:bg-superficie-alterna"
+                  }`}
+                >
+                  <span className="block text-sm font-medium">{titulo}</span>
+                  <span className="block text-xs text-texto-suave">{pie}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {origen === "CARGUE" && (
+            <div className="rounded-xl border border-borde bg-superficie-alterna p-4 text-xs text-texto-suave">
+              {reciencreada ? (
+                <CargarBase
+                  campanaId={reciencreada}
+                  alCargar={() => void alCrear()}
+                />
+              ) : (
+                <>
+                  De un archivo solo se conocen el correo y el primer nombre.
+                  Una plantilla que use <code>{"{{grupo}}"}</code> o{" "}
+                  <code>{"{{asesor}}"}</code> no tendrá con qué llenarlos, y a
+                  esas personas se las omite con su motivo.
+                  <br />
+                  Primero se crea la campaña y enseguida se le sube la lista.
+                </>
+              )}
+            </div>
+          )}
+
+          <div className={origen === "CARGUE" ? "hidden" : undefined}>
             <label htmlFor="c-seg" className="mb-1.5 block text-sm font-medium">
               A quiénes
             </label>

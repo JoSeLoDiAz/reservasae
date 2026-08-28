@@ -30,6 +30,12 @@ import { CrearCampanaDto, EditarCampanaDto, SegmentoDto } from './dto';
 const TIPOS_BANNER = ['image/png', 'image/jpeg', 'image/webp'];
 const MAXIMO_BANNER = 2 * 1024 * 1024;
 
+const XLSX =
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+/// Una base es texto: si pesa mas de esto, o no es una base o
+/// viene con medio Excel pegado dentro.
+const MAXIMO_BASE = 5 * 1024 * 1024;
+
 @Controller('admin/campanas')
 @UseGuards(AdminGuard)
 @Requiere('inscripciones', 'ESCRIBIR')
@@ -67,6 +73,7 @@ export class CampanasController {
         nombre: dto.nombre,
         asunto: dto.asunto,
         cuerpo: dto.cuerpo,
+        origen: dto.origen,
         segmento: dto.segmento,
       },
       admin.id,
@@ -104,6 +111,47 @@ export class CampanasController {
       archivo.mimetype,
       archivo.originalname,
     );
+  }
+
+  /// El formato para llenar. Va antes que la subida en el
+  /// archivo porque es antes en el orden de las cosas: nadie
+  /// sube una base sin haber descargado primero el formato.
+  ///
+  /// `@Res()` SIN `passthrough`: la respuesta se escribe a
+  /// mano. Con passthrough, Nest intenta serializar lo que se
+  /// devuelva, y aqui lo que se devuelve es un binario.
+  @Get('formato-base')
+  async formatoBase(@Res() respuesta: Response) {
+    const libro = await this.campanas.formatoDeBase();
+    respuesta.setHeader('Content-Type', XLSX);
+    respuesta.setHeader(
+      'Content-Disposition',
+      'attachment; filename="base-para-campana.xlsx"',
+    );
+    respuesta.setHeader('Cache-Control', 'no-store');
+    respuesta.end(libro);
+  }
+
+  @Post(':id/base')
+  @UseInterceptors(FileInterceptor('archivo'))
+  async cargarBase(
+    @Param('id') id: string,
+    @UploadedFile() archivo: Express.Multer.File | undefined,
+  ) {
+    if (!archivo) throw new BadRequestException('No llegó ningún archivo.');
+    if (archivo.mimetype !== XLSX) {
+      throw new BadRequestException(
+        'Tiene que ser un .xlsx. Un .csv se abre con el separador del sistema ' +
+          'y en Colombia eso parte las celdas por la coma.',
+      );
+    }
+    if (archivo.size > MAXIMO_BASE) {
+      throw new BadRequestException(
+        'Ese archivo pesa demasiado para ser una lista de correos. ' +
+          'Revise que no traiga hojas ni imágenes de más.',
+      );
+    }
+    return this.campanas.cargarBase(id, archivo.buffer);
   }
 
   @Post(':id/lanzar')

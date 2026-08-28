@@ -346,8 +346,16 @@ export class CrmController {
    * ciegas.
    */
   @Get(':id/correo/plantillas')
-  plantillasParaEste(@AmbitoActual() ambito: Ambito) {
-    return this.plantillasCorreo.listar(ambito.concedidos, true);
+  plantillasParaEste(
+    @Param('id') id: string,
+    @AmbitoActual() ambito: Ambito,
+  ) {
+    /// Con el id de la ficha: la lista viene con el motivo
+    /// por el que cada una no se le puede mandar a ESTA
+    /// persona. Antes se devolvia el catalogo entero, igual
+    /// para todos, y por eso ofrecia «confirmacion de
+    /// inscripcion» a un interesado.
+    return this.plantillasCorreo.paraLaFicha(id, ambito.concedidos);
   }
 
   @Get(':id/correo/:plantillaId/vista-previa')

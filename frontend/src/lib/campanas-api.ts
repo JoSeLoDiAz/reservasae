@@ -28,11 +28,24 @@ export type SegmentoListo = {
   segmento: Segmento;
 };
 
+/// Lo que devuelve revisar una base subida. Con la FILA de
+/// cada descarte: decir «hay errores» sin decir cuáles obliga
+/// a repasar trescientas filas a ojo.
+export type RevisionDeBase = {
+  listos: number;
+  descartados: Array<{ fila: number; correo: string; motivo: string }>;
+  repetidos: number;
+  vacias: number;
+  sospechosos: Array<{ fila: number; correo: string; sospecha?: string }>;
+  diasQueTarda: number;
+};
+
 export type Campana = {
   id: string;
   nombre: string;
   asunto: string;
   estado: EstadoCampana;
+  origen: "SEGMENTO" | "CARGUE";
   lanzadaEn: string | null;
   terminadaEn: string | null;
   creadoEn: string;
@@ -89,14 +102,19 @@ export const campanasApi = {
     asunto: string;
     cuerpo: string;
     segmento: Segmento;
+    origen?: "SEGMENTO" | "CARGUE";
   }) =>
     pedir<{ id: string; nombre: string; estado: EstadoCampana }>("/admin/campanas", {
       method: "POST",
       body: JSON.stringify(datos),
     }),
 
+  /// El formato para llenar. Se abre en otra pestaña: es una
+  /// descarga, no una peticion cuyo resultado haya que pintar.
+  urlFormatoBase: () => "/api/admin/campanas/formato-base",
+
   lanzar: (id: string) =>
-    pedir<{ lanzada: boolean; destinatarios: number }>(
+    pedir<{ lanzada: boolean; destinatarios: number; repetidos?: number }>(
       `/admin/campanas/${id}/lanzar`,
       { method: "POST" },
     ),
@@ -152,5 +170,37 @@ export const campanasApi = {
       );
     }
     return datos as unknown as { nombre: string; bytes: number };
+  },
+
+  /// La base, por el mismo camino que el banner y por la
+  /// misma razon: va como FormData y el navegador tiene que
+  /// poner el `content-type` con la frontera del multipart.
+  subirBase: async (id: string, archivo: File) => {
+    const cuerpo = new FormData();
+    cuerpo.append("archivo", archivo);
+
+    const gremio =
+      typeof window === "undefined"
+        ? null
+        : window.localStorage.getItem("convoca:gremio");
+
+    const r = await fetch(`/api/admin/campanas/${id}/base`, {
+      method: "POST",
+      body: cuerpo,
+      headers: gremio ? { "x-gremio": gremio } : undefined,
+    });
+
+    const datos = (await r.json().catch(() => null)) as
+      | { message?: string | string[] }
+      | null;
+
+    if (!r.ok) {
+      const bruto = datos?.message;
+      throw new Error(
+        (Array.isArray(bruto) ? bruto.join(". ") : bruto) ??
+          "No se pudo subir la base.",
+      );
+    }
+    return datos as unknown as RevisionDeBase;
   },
 };
