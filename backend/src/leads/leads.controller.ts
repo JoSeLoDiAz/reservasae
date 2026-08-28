@@ -7,11 +7,12 @@ import {
   HttpCode,
   Post,
   UnauthorizedException,
+  UseGuards,
 } from '@nestjs/common';
 
 import { EntraLeadDto } from './dto';
 import { LeadsService } from './leads.service';
-import { CABECERA, claveCorrecta } from './secreto-de-leads';
+import { LlaveDeLeadsGuard } from './llave-de-leads.guard';
 
 /**
  * Cuelga de `/webhooks` y NO del panel: no lleva sesión, la
@@ -20,6 +21,7 @@ import { CABECERA, claveCorrecta } from './secreto-de-leads';
  * ruta escribe sin `AdminGuard`.
  */
 @Controller('webhooks/leads')
+@UseGuards(LlaveDeLeadsGuard)
 export class LeadsController {
   constructor(private readonly leads: LeadsService) {}
 
@@ -34,17 +36,11 @@ export class LeadsController {
   @HttpCode(200)
   async entra(
     @Body() dto: EntraLeadDto,
-    @Headers(CABECERA) clave: string | undefined,
     @Headers('x-origen-sistema') origen: string | undefined,
   ) {
-    /// La llave primero, antes de mirar el cuerpo.
-    ///
-    /// Validar el DTO antes diría, con sus mensajes de error, qué
-    /// campos espera esta ruta a quien no tiene la llave.
-    if (!claveCorrecta(clave)) {
-      throw new UnauthorizedException('Llave de webhook inválida.');
-    }
-
+    /// La llave la comprueba `LlaveDeLeadsGuard`, no esta
+    /// línea. Aquí ya está comprobada: un guard corre ANTES
+    /// del ValidationPipe; una comprobación aquí dentro, no.
     /// Quien lo manda, para la idempotencia. Por defecto el
     /// orquestador, que hoy es el unico.
     const sistema =

@@ -203,7 +203,7 @@ export default function PaginaFicha() {
 
       <DatosSena ficha={f} alGuardar={conError} />
 
-      <DatosDeLaEmpresa ficha={f} />
+      <DatosDeLaEmpresa ficha={f} puedeEscribir={puedeEscribir} />
 
       {/* Los dos de contactarla, EN PAREJA. Son la misma
           tarea vista de dos formas —pedirle que complete, o
@@ -1008,9 +1008,31 @@ function Asesor({
   opciones: Opciones | null;
   alGuardar: (a: () => Promise<void>, exito?: string) => Promise<void>;
 }) {
+  const { admin } = useAdmin();
   const [asesorId, setAsesorId] = useState(ficha.asesor?.id ?? "");
   const [guardando, setGuardando] = useState(false);
   if (!opciones) return null;
+
+  /// A quien NO reparte fichas no se le enseña esta tarjeta.
+  ///
+  /// Un gestor de inscripciones ES un asesor: las suyas las
+  /// trabaja, no las reparte. Enseñarle un desplegable que el
+  /// servidor va a rechazar es ofrecerle un error.
+  ///
+  /// Pero se le dice de quién es la ficha, porque eso sí le
+  /// sirve: es la diferencia entre esconder y ocultar.
+  if (!admin.puede?.repartirFichas) {
+    return ficha.asesor ? (
+      <Tarjeta titulo="Asesor">
+        <p className="text-sm">
+          La lleva <strong>{ficha.asesor.nombre}</strong>.
+        </p>
+        <p className="mt-1 text-xs text-texto-suave">
+          Repartir fichas lo hace un líder.
+        </p>
+      </Tarjeta>
+    ) : null;
+  }
 
   const cambiado = asesorId !== (ficha.asesor?.id ?? "");
 
@@ -1069,8 +1091,15 @@ function Asesor({
  * que es donde vive el dato: editarlos en dos sitios es
  * garantizar que un día no coincidan.
  */
-function DatosDeLaEmpresa({ ficha }: { ficha: Ficha }) {
+function DatosDeLaEmpresa({
+  ficha,
+  puedeEscribir,
+}: {
+  ficha: Ficha;
+  puedeEscribir: boolean;
+}) {
   const e = ficha.empresa;
+  const fichaId = ficha.id;
 
   if (!e) {
     return (
@@ -1167,7 +1196,21 @@ function DatosDeLaEmpresa({ ficha }: { ficha: Ficha }) {
               ? "Ya están los tres. No hay nada que preguntar."
               : "Se los sabe el empleado. Son los mismos que pide el enlace de completar datos."}
           </p>
-          <Campos campos={DEL_ASESOR} />
+          {/* EDITABLES desde aquí.
+
+              Antes había que ir a «Empresas registradas» —que
+              un gestor de inscripciones no tiene—, así que el
+              asesor llamaba, conseguía el dato, y no tenía
+              dónde ponerlo. Se quedaba en un papel. */}
+          <ContactoDeLaEmpresa
+            participanteId={fichaId}
+            valores={{
+              contactoNombre: (e.contactoNombre ?? "") as string,
+              contactoCargo: (e.contactoCargo ?? "") as string,
+              contactoCorreo: (e.contactoCorreo ?? "") as string,
+            }}
+            puedeEscribir={puedeEscribir}
+          />
         </div>
       )}
 
@@ -1470,5 +1513,90 @@ function Campos({ campos }: { campos: Array<[string, unknown]> }) {
         </div>
       ))}
     </dl>
+  );
+}
+
+/**
+ * Los tres del jefe directo, escribibles desde la ficha.
+ *
+ * Antes esta tarjeta era de solo lectura y decía «se corrigen
+ * en Empresas registradas». Pero un gestor de inscripciones no
+ * tiene esa pantalla: llamaba, conseguía el dato, y no tenía
+ * dónde ponerlo.
+ *
+ * Solo estos tres. La razón social no está aquí a propósito:
+ * la valida el código contra el registro, y escribirla a mano
+ * es volver a abrir lo que se cerró en la ruta pública, donde
+ * cualquiera con un NIT le cambiaba el nombre a una empresa.
+ */
+function ContactoDeLaEmpresa({
+  participanteId,
+  valores,
+  puedeEscribir,
+}: {
+  participanteId: string;
+  valores: {
+    contactoNombre: string;
+    contactoCargo: string;
+    contactoCorreo: string;
+  };
+  puedeEscribir: boolean;
+}) {
+  const toast = useToast();
+  const [v, setV] = useState(valores);
+  const [guardando, setGuardando] = useState(false);
+
+  const cambiado =
+    v.contactoNombre !== valores.contactoNombre ||
+    v.contactoCargo !== valores.contactoCargo ||
+    v.contactoCorreo !== valores.contactoCorreo;
+
+  if (!puedeEscribir) return <Campos campos={Object.entries(valores)} />;
+
+  const CAMPOS: Array<[keyof typeof v, string]> = [
+    ["contactoNombre", "Persona de contacto"],
+    ["contactoCargo", "Su cargo"],
+    ["contactoCorreo", "Su correo"],
+  ];
+
+  return (
+    <div className="space-y-3">
+      <div className="grid gap-3 sm:grid-cols-3">
+        {CAMPOS.map(([clave, etiqueta]) => (
+          <label key={clave} className="block">
+            <span className="mb-1 block text-xs tracking-wide text-texto-suave uppercase">
+              {etiqueta}
+            </span>
+            <input
+              className={CLASE_CONTROL}
+              value={v[clave]}
+              onChange={(ev) => setV({ ...v, [clave]: ev.target.value })}
+              type={clave === "contactoCorreo" ? "email" : "text"}
+            />
+          </label>
+        ))}
+      </div>
+
+      {cambiado && (
+        <Boton
+          disabled={guardando}
+          onClick={() => {
+            setGuardando(true);
+            void crmApi
+              .guardarContactoEmpresa(participanteId, v)
+              .then(() => {
+                toast.exito("Guardado. Queda registrado quién lo puso.");
+                window.location.reload();
+              })
+              .catch((e) => {
+                toast.error((e as ErrorApi).message);
+                setGuardando(false);
+              });
+          }}
+        >
+          {guardando ? "Guardando…" : "Guardar los tres"}
+        </Boton>
+      )}
+    </div>
   );
 }

@@ -21,6 +21,13 @@ function armar(existente: unknown = null) {
       findFirst: ({ where }: { where: { slug?: string; activo?: boolean } }) =>
         Promise.resolve(where.slug === 'adecopria' ? ADECOPRIA : null),
     },
+    /// Nadie con esas llaves en el CRM: es el camino que
+    /// estas pruebas ejercitan —un lead NUEVO—. El cruce
+    /// contra Gestión de leads tiene sus propias pruebas en
+    /// cruzar-con-el-crm.spec.ts.
+    participante: {
+      findFirst: () => Promise.resolve(null),
+    },
     leadEntrante: {
       findUnique: () => Promise.resolve(existente),
       create: ({

@@ -860,6 +860,21 @@ export type ValorAnterior = {
 };
 
 export const crmApi = {
+  /// Los tres del jefe directo, desde la ficha del lead.
+  /// La razón social NO va aquí: la valida el código.
+  guardarContactoEmpresa: (
+    id: string,
+    datos: {
+      contactoNombre?: string;
+      contactoCargo?: string;
+      contactoCorreo?: string;
+    },
+  ) =>
+    pedir<unknown>(`/admin/participantes/${id}/empresa-contacto`, {
+      method: "PATCH",
+      body: JSON.stringify(datos),
+    }),
+
   historico: (id: string) =>
     pedir<ValorAnterior[]>(`/admin/participantes/${id}/historico`),
 

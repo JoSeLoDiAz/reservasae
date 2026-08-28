@@ -1353,6 +1353,93 @@ export class CrmService {
     return { restablecido: true, campo: fila.campo };
   }
 
+  /**
+   * Los tres datos del jefe directo, desde la ficha del lead.
+   *
+   * Una puerta ESTRECHA a propósito. El asesor llama a la
+   * persona y consigue el nombre, el cargo y el correo de su
+   * jefe: son los mismos tres que pide el enlace de completar
+   * datos, y son los únicos que se le sabe un empleado.
+   *
+   * Lo demás de la empresa —dirección, teléfono, número de
+   * trabajadores, tamaño— lo trae la consulta al RUES por el
+   * NIT o lo llena el analista de información. Y la RAZÓN
+   * SOCIAL no se toca por aquí de ninguna manera: la valida el
+   * código contra el registro, y dejar que se escriba a mano
+   * es volver a abrir lo que ya se cerró en la ruta pública.
+   *
+   * Antes esto obligaba a ir a «Empresas registradas», que un
+   * gestor de inscripciones no tiene, así que el dato se
+   * quedaba sin poner.
+   */
+  async guardarContactoDeLaEmpresa(
+    id: string,
+    datos: {
+      contactoNombre?: string;
+      contactoCargo?: string;
+      contactoCorreo?: string;
+    },
+    ambito: string[],
+    actor: Actor,
+    ip?: string,
+  ) {
+    const suyo = await this.exigirParticipante(id, ambito);
+
+    const p = await this.prisma.participante.findUnique({
+      where: { id },
+      select: {
+        empresaId: true,
+        reserva: { select: { empresaId: true } },
+      },
+    });
+
+    /// La de la reserva manda, igual que en todo el resto: la
+    /// nominó ella.
+    const empresaId = p?.reserva?.empresaId ?? p?.empresaId ?? null;
+    if (!empresaId) {
+      throw new BadRequestException(
+        'Esta persona todavía no tiene organización. Primero hay que ' +
+          'decirle en cuál trabaja.',
+      );
+    }
+
+    /// Solo lo que venga, y solo estos tres. Un campo ausente
+    /// no borra: `undefined` en Prisma es «no lo toque».
+    const limpio = {
+      contactoNombre: datos.contactoNombre?.trim() || undefined,
+      contactoCargo: datos.contactoCargo?.trim() || undefined,
+      contactoCorreo: datos.contactoCorreo?.trim() || undefined,
+    };
+
+    const tocados = Object.entries(limpio)
+      .filter(([, v]) => v !== undefined)
+      .map(([k]) => k);
+
+    if (tocados.length === 0) {
+      throw new BadRequestException('No llegó ningún dato que guardar.');
+    }
+
+    await this.prisma.empresa.update({
+      where: { id: empresaId },
+      data: limpio,
+    });
+
+    /// Queda la huella. Son datos de una empresa que van al
+    /// F7, y quien los puso responde por ellos.
+    await this.auditoria.registrar({
+      actor,
+      accion: 'EMPRESA_EDITADA',
+      entidad: ENTIDADES.EMPRESA,
+      entidadId: empresaId,
+      convenioId: suyo?.convenioId ?? null,
+      resumen: `Desde la ficha de un lead, por su asesor.`,
+      camposTocados: tocados,
+      ip,
+    });
+
+    return this.obtener(id, ambito);
+  }
+
   private valoresQueSeVan(
     llega: object,
     hay: object,
@@ -1464,6 +1551,7 @@ export class CrmService {
     admin: Admin,
     ambito: string[],
     ip?: string,
+    reparten: string[] = [],
   ) {
     const asesorId = dto.asesorId || null;
 
@@ -1472,6 +1560,24 @@ export class CrmService {
       where: { id: { in: dto.ids }, convenioId: { in: ambito } },
       select: { id: true, etapa: true, asesorId: true, convenioId: true },
     });
+
+    /// Repartir fichas es de quien responde por el equipo.
+    ///
+    /// Un gestor de inscripciones ES un asesor: las suyas las
+    /// trabaja, no las reparte. Sin esto, cualquiera podia
+    /// pasarle sus fichas a otro -- o quitarselas.
+    ///
+    /// Se comprueba por convenio y sobre las fichas de VERDAD,
+    /// no sobre lo que venga en el cuerpo.
+    const ajenos = [...new Set(suyas.map((p) => p.convenioId))].filter(
+      (c) => !reparten.includes(c),
+    );
+    if (ajenos.length > 0) {
+      throw new ForbiddenException(
+        'Repartir fichas entre asesores lo hace un lider: es organizar el ' +
+          'trabajo del equipo, no atender un lead.',
+      );
+    }
 
     /// El asesor tiene que ver TODAS las que se le asignan.
     ///

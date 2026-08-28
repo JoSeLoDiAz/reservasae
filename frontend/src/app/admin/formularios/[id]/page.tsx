@@ -1,5 +1,7 @@
 "use client";
 
+import { useRouter } from "next/navigation";
+
 import Link from "next/link";
 import { use, useCallback, useEffect, useState } from "react";
 
@@ -44,6 +46,8 @@ export default function PaginaConstructor({
   }, [cargar]);
 
   /** Ejecuta una acción y reemplaza el formulario. */
+  const router = useRouter();
+
   const accion = useCallback(async (fn: () => Promise<FormularioAdmin>) => {
     setError(null);
     setOcupado(true);
@@ -105,23 +109,95 @@ export default function PaginaConstructor({
           >
             {formulario.publicado ? "Despublicar" : "Publicar"}
           </Boton>
+
+          {/* BORRAR. El backend lo permitía desde siempre y la
+              pantalla no lo ofrecía: quien creaba un
+              formulario por equivocación se quedaba con él
+              para siempre, ocupando sitio en la lista.
+
+              Solo si NO está publicado: despublicar primero es
+              un paso a propósito, para que borrar nunca sea el
+              primer clic sobre algo que está en la calle. Y si
+              tiene respuestas, el servidor se niega y lo dice
+              —el histórico no se tira por limpiar la lista. */}
+          {!formulario.publicado && (
+            <button
+              type="button"
+              disabled={ocupado}
+              onClick={() => {
+                if (
+                  !window.confirm(
+                    `¿Borrar «${formulario.titulo}»?
+
+` +
+                      'Se va con sus secciones y sus preguntas, y no se ' +
+                      'puede deshacer. Si ya tiene respuestas, el sistema ' +
+                      'no lo va a dejar.',
+                  )
+                ) {
+                  return;
+                }
+                void (async () => {
+                  setOcupado(true);
+                  try {
+                    await formulariosApi.eliminar(id);
+                    router.push("/admin/formularios");
+                  } catch (e) {
+                    setError((e as ErrorApi).message);
+                    setOcupado(false);
+                  }
+                })();
+              }}
+              className="rounded-xl px-3 py-2 text-sm text-error underline disabled:opacity-50"
+            >
+              Borrar
+            </button>
+          )}
         </div>
       </header>
 
       {error && <Aviso tipo="error">{error}</Aviso>}
 
-      {formulario.problemas.length > 0 && (
-        <div className="rounded-lg border border-aviso/30 bg-aviso-suave p-4 text-sm text-aviso">
-          <p className="font-medium">
-            Falta esto para poder publicar ({formulario.problemas.length}):
-          </p>
-          <ul className="mt-2 list-disc space-y-1 pl-5">
-            {formulario.problemas.map((p) => (
-              <li key={p}>{p}</li>
-            ))}
-          </ul>
-        </div>
-      )}
+      {/* Recién creado, esto NO es una advertencia: es la lista
+          de lo que hay que armar.
+
+          Un formulario nuevo nace vacío, así que le faltan las
+          nueve preguntas obligatorias siempre. Pintarlo en
+          ámbar y decir «FALTA ESTO» le dice a quien acaba de
+          crearlo que hizo algo mal, cuando lo único que pasa
+          es que todavía no ha empezado.
+
+          Con preguntas dentro sí es un aviso: ahí sí se
+          intentó y quedó algo por fuera. */}
+      {formulario.problemas.length > 0 &&
+        (formulario.preguntas.length === 0 ? (
+          <div className="rounded-xl border border-borde bg-superficie-alterna p-4 text-sm">
+            <p className="font-medium">
+              Este formulario todavía está vacío. Esto es lo que hay que
+              ponerle:
+            </p>
+            <ul className="mt-2 list-disc space-y-1 pl-5 text-texto-suave">
+              {formulario.problemas.map((p) => (
+                <li key={p}>{p}</li>
+              ))}
+            </ul>
+            <p className="mt-3 text-texto-suave">
+              Se añaden abajo, con «Añadir pregunta» dentro de una sección. Lo
+              que escriba se guarda solo; publicar es aparte.
+            </p>
+          </div>
+        ) : (
+          <div className="rounded-lg border border-aviso/30 bg-aviso-suave p-4 text-sm text-aviso">
+            <p className="font-medium">
+              Falta esto para poder publicar ({formulario.problemas.length}):
+            </p>
+            <ul className="mt-2 list-disc space-y-1 pl-5">
+              {formulario.problemas.map((p) => (
+                <li key={p}>{p}</li>
+              ))}
+            </ul>
+          </div>
+        ))}
 
       <DatosGenerales formulario={formulario} accion={accion} ocupado={ocupado} />
 

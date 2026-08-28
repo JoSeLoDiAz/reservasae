@@ -38,7 +38,11 @@ import {
   Roles,
   type Ambito,
 } from './admin.guard';
-import { resumenDePermisos } from './permisos';
+import {
+  resumenDePermisos,
+  conveniosQueReparten,
+  conveniosQueMuevenInscrito,
+} from './permisos';
 import { AdminService, vistaAdmin } from './admin.service';
 import { corregirContraste, derivarTemas } from './derivar';
 import {
@@ -125,6 +129,22 @@ export class AdminController {
           ? { [ambito.gremioElegido]: ambito.roles[ambito.gremioElegido] ?? [] }
           : ambito.roles,
       ),
+
+      /// Lo que esta cuenta puede hacer, además de las áreas.
+      ///
+      /// Hay cosas que un gestor y un líder NO comparten y que
+      /// el par área/nivel no distingue: los dos tienen
+      /// `inscripciones: ESCRIBIR`. Repartir fichas entre
+      /// asesores y sacar a alguien de INSCRITO son de líder.
+      ///
+      /// Esto es para que la PANTALLA no ofrezca lo que el
+      /// servidor va a rechazar. La cerradura sigue estando en
+      /// el servidor: aquí solo se evita el botón que da un
+      /// error y no se entiende.
+      puede: {
+        repartirFichas: conveniosQueReparten(ambito.roles).length > 0,
+        sacarDeInscrito: conveniosQueMuevenInscrito(ambito.roles).length > 0,
+      },
       /// Los gremios de esta cuenta CON su sigla: es lo que
       /// llena el desplegable de arriba. Van los concedidos,
       /// no los del ámbito, porque el ámbito ya viene
