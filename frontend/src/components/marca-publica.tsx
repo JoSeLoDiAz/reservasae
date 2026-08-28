@@ -178,6 +178,32 @@ export function ConmutadorTema({ compacto = false }: { compacto?: boolean }) {
             key={opcion.valor}
             type="button"
             onClick={() => cambiarModo(opcion.valor)}
+            /// Pulsar con el ratón NO da el foco. Y esa es la
+            /// única línea que de verdad importa aquí.
+            ///
+            /// Cuando un botón recibe el foco, el navegador lo
+            /// desplaza a la vista — y recorre TODOS sus
+            /// contenedores desplazables, no solo el primero.
+            /// En el panel este botón es el último control de
+            /// la barra lateral, o sea el que más abajo cae, y
+            /// desde ahí ese desplazamiento descuadraba la
+            /// pantalla entera: cabecera recortada, barra a
+            /// media altura, franja en blanco al final. Sin
+            /// forma de devolverla salvo recargando.
+            ///
+            /// Se intentó atajar dos veces por el lado del
+            /// contenedor —`overflow-clip` en el marco, y meter
+            /// Ajustes dentro de la columna que sí scrollea— y
+            /// las dos son correctas, pero las dos suponen
+            /// saber CUÁL contenedor se mueve. Esto no lo
+            /// supone: sin foco no hay desplazamiento, venga de
+            /// donde venga.
+            ///
+            /// Con el teclado sigue funcionando igual, y allí
+            /// el desplazamiento sí se quiere: quien llega con
+            /// Tab necesita ver a dónde llegó. `preventDefault`
+            /// en `mousedown` no toca esa ruta.
+            onMouseDown={(e) => e.preventDefault()}
             aria-pressed={activa}
             title={opcion.etiqueta}
             className={`inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm transition ${
