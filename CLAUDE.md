@@ -1732,6 +1732,108 @@ atrás: había salidas que no la leían.
   —basta pegar la URL—; ahora se cuenta en una hoja HTML mínima.
 
 
+### La tercera vuelta, y por qué hubo una tercera (27 ago 2026)
+
+Se revisaron los arreglos de la segunda vuelta. Los dos
+escépticos confirmaron **seis regresiones más**, todas
+introducidas al arreglar la ronda anterior. Van **tres veces
+seguidas** en que un arreglo trae su propio defecto.
+
+> **La causa de las tres es la misma y conviene nombrarla:** los
+> specs probaban las funciones PURAS —`exigeCupo`,
+> `exigeDatosParaElAula`, `motivoDeTransicionImposible`— y las
+> tres salían bien. El defecto nunca estuvo en los predicados:
+> estuvo en **cómo `cambiarEtapa` los usa**. Ningún spec llamaba
+> a `cambiarEtapa`. Ahora hay `cambiar-etapa.spec.ts`, y las dos
+> regresiones fallan al mutarlas.
+
+**La ventana se comprueba en DOS sitios.** `exigirVentana: false`
+apagaba el `if` de abajo, pero la ventana llega antes dentro de
+`admiteInscripciones`, que junta cuatro razones en un booleano.
+Así que el regreso al aula seguía muriendo con «Se cerró la
+ventana de inscripción de todos los grupos» — y con él,
+certificar a quien volvió. **La regla se bloqueaba a sí misma
+otra vez.** Ahora `PanelDeOferta` devuelve el motivo como
+**código** además de como frase, y la exención cubre solo
+`VENTANA_CERRADA` y `SIN_FECHAS`: que la oferta esté llena o
+cerrada sigue bloqueando a quien vuelve, porque su silla se
+liberó. Con una sola frase habría que leer el texto para
+distinguirlas.
+
+**El candado del RUI apagó el RUI para todos.** Preguntaba «¿hay
+alguna autorización viva?», que es falso para quien todavía no la
+ha dado. El asesor crea la ficha y encola el RUI en el acto; la
+autorización llega después. Un candado contra la revocación se
+llevó por delante el caso normal. Ahora pregunta si **revocó**:
+sin ninguna autorización registrada no hay nada que honrar.
+
+**«Parados» restaba el día de Bogotá menos el día de UTC.**
+`ultimoAcceso` es un instante y su `::date` da el día de UTC;
+`HOY_BOGOTA` da el de Bogotá. El arreglo aplicado a **un lado de
+la resta y no al otro** — el mismo error que la distinción
+instante/calendario existe para evitar, cometido en la línea
+siguiente a escribirla. `fechaBogota()` es para eso.
+`Grupo.fechaInicio::date` sí es correcto contra `HOY_BOGOTA`,
+porque es una fecha de calendario.
+
+**El `??` confundía «lo borré» con «no lo mandé».** Un PATCH que
+cambia el departamento y borra el municipio recuperaba el
+municipio viejo y **se rechazaba a sí mismo**: la ficha quedaba
+imposible de corregir justo por el camino que la arregla.
+`undefined` es «no lo mandé»; `null` es «quítalo».
+
+**Y `RETIRADO → CERTIFICADO` contestaba con un error de cupos.**
+`CERTIFICADO` ocupa silla, así que `exigirQueQuepa` corría antes
+y tapaba el mensaje que dice cómo hacerlo bien — que es para lo
+único que esa regla existe. **El paso imposible se juzga
+primero.**
+
+#### Lo que salió al intentar comprobarlo en vivo
+
+Ninguno de los treinta participantes de pruebas se podía
+matricular, todos con «Esta persona no tiene organización». El
+mensaje era **falso**, y el defecto no era de esta ronda: había
+**tres reglas** para «cuál es la empresa de esta persona» y la
+compuerta usaba la más estrecha.
+
+| | |
+|---|---|
+| el F7 | `p.empresa ?? p.reserva?.empresa` |
+| el reporte al SEP | `p.empresa ?? p.reserva?.empresa ?? null` |
+| **la compuerta** | **solo `p.empresa`** |
+
+O sea que quien llegó por la reserva de una empresa —**el camino
+principal del sistema**— no se podía matricular, mientras el
+reporte que supuestamente lo impedía sí sabía resolverla. Ahora
+la compuerta usa la misma regla, y los campos que el F7 necesita
+se declaran una sola vez en `CAMPOS_DE_EMPRESA`: si la compuerta
+y el reporte piden listas distintas, la compuerta deja pasar a
+quien el reporte después rechaza.
+
+> **Comprobado en vivo de punta a punta**, que es lo que ninguna
+> de las dos rondas anteriores llegó a hacer: se retira a alguien
+> con la ventana de su grupo ya cerrada, se le completa la
+> organización por el enlace público, vuelve al aula (**200**) y
+> al certificar topa con el 80 % — la compuerta correcta, no la
+> ventana.
+
+#### La prueba de mutación se le hizo también a los tests nuevos
+
+Y encontró dos cosas en ellos: un test cuyo escenario **no
+llegaba a lanzar**, así que pasaba con el orden invertido y no
+probaba lo que decía; y un comentario que afirmaba que
+`NO_APROBO` ocupa silla, que es falso. Los dos corregidos.
+
+**Mutar el código y no el spec** es la diferencia entre las dos
+cosas, y ya se falló en eso una vez.
+
+De paso, el rótulo del periodo de `control.ts` —gemelo del del
+tablero académico, con los dos mismos defectos y arreglado una
+ronda más tarde— se quedaba sin ningún test. Se extrajo a
+`rotuloDelPeriodo` y ahora hay uno que además comprueba que **los
+dos dicen lo mismo**: que discrepen es como empezó esto.
+
+
 ### Políticas y formularios sí llevan ámbito (27 ago 2026)
 
 **Y hasta hoy no lo llevaban.** Lo encontró la misma revisión: desde el
