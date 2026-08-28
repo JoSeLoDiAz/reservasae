@@ -9,6 +9,11 @@ import {
 import { PrismaService } from '../../prisma/prisma.service';
 import { CorreoService } from '../correo.service';
 import type { EtapaParticipante } from '../../../generated/prisma';
+import {
+  estadoDeAutorizacion,
+  noSeLePuedeEscribir,
+  porQueNoSeLeMando,
+} from '../autorizacion-vigente';
 import { escaparHtml } from '../escapar';
 import { porQueNo } from './etapas-de-plantilla';
 import {
@@ -79,7 +84,7 @@ export class PlantillasCorreoService {
     const [lista, ficha] = await Promise.all([
       this.listar(convenios, true),
       this.prisma.participante.findUnique({
-        where: { id: participanteId },
+        where: { id: participanteId, convenioId: { in: convenios } },
         select: { etapa: true },
       }),
     ]);
@@ -99,7 +104,14 @@ export class PlantillasCorreoService {
       etapasPermitidas?: EtapaParticipante[];
     },
     adminId: string,
+    ambito: string[],
   ) {
+    /// El convenio viene del cuerpo. Sin esto se creaba una
+    /// plantilla colgada del otro gremio, que despues aparece
+    /// en SU desplegable.
+    if (datos.convenioId && !ambito.includes(datos.convenioId)) {
+      throw new NotFoundException('Ese convenio no existe.');
+    }
     this.revisar(datos.asunto, datos.cuerpo);
     return this.prisma.plantillaCorreo.create({
       data: {
@@ -115,6 +127,7 @@ export class PlantillasCorreoService {
 
   async editar(
     id: string,
+    ambito: string[],
     datos: Partial<{
       nombre: string;
       asunto: string;
@@ -124,10 +137,7 @@ export class PlantillasCorreoService {
       etapasPermitidas: EtapaParticipante[];
     }>,
   ) {
-    const antes = await this.prisma.plantillaCorreo.findUnique({
-      where: { id },
-    });
-    if (!antes) throw new NotFoundException('Esa plantilla ya no existe.');
+    const antes = await this.exigir(id, ambito);
 
     this.revisar(datos.asunto ?? antes.asunto, datos.cuerpo ?? antes.cuerpo);
 
@@ -140,11 +150,32 @@ export class PlantillasCorreoService {
    * Ya se usó para escribirle a gente. Borrarla dejaría
    * correos enviados sin forma de saber qué decían.
    */
-  async apagar(id: string) {
+  async apagar(id: string, ambito: string[]) {
+    await this.exigir(id, ambito);
     return this.prisma.plantillaCorreo.update({
       where: { id },
       data: { activa: false },
     });
+  }
+
+  /**
+   * La plantilla, SI es de un gremio que esta cuenta alcanza.
+   *
+   * `listar` ya respetaba el ambito; `editar` y `apagar` no lo
+   * miraban siquiera. Un gremio podia reescribirle el texto a
+   * las plantillas del otro —y ese texto sale firmado por el
+   * otro gremio a sus ciudadanos— o apagarselas.
+   *
+   * Las de convenioId null sirven para todos, asi que las
+   * puede tocar cualquiera que tenga permiso de escribir. Es
+   * a proposito: son las genericas del sistema.
+   */
+  private async exigir(id: string, ambito: string[]) {
+    const p = await this.prisma.plantillaCorreo.findUnique({ where: { id } });
+    if (!p || (p.convenioId !== null && !ambito.includes(p.convenioId))) {
+      throw new NotFoundException('Esa plantilla ya no existe.');
+    }
+    return p;
   }
 
   /// Que no se guarde una plantilla con una variable que no
@@ -182,10 +213,14 @@ export class PlantillasCorreoService {
    * el texto ya con el nombre puesto, y ve qué huecos no se
    * pudieron llenar. Nadie manda a ciegas.
    */
-  async vistaPrevia(participanteId: string, plantillaId: string) {
+  async vistaPrevia(
+    participanteId: string,
+    plantillaId: string,
+    ambito: string[],
+  ) {
     const [plantilla, datos] = await Promise.all([
       this.prisma.plantillaCorreo.findUnique({ where: { id: plantillaId } }),
-      this.datosDe(participanteId),
+      this.datosDe(participanteId, ambito),
     ]);
 
     if (!plantilla) throw new NotFoundException('Esa plantilla ya no existe.');
@@ -214,7 +249,7 @@ export class PlantillasCorreoService {
     };
   }
 
-  async enviar(participanteId: string, plantillaId: string) {
+  async enviar(participanteId: string, plantillaId: string, ambito: string[]) {
     /// La compuerta va en el SERVIDOR, no en el desplegable.
     ///
     /// El desplegable ya las apaga, pero apagar un <option> es
@@ -228,7 +263,7 @@ export class PlantillasCorreoService {
         select: { etapasPermitidas: true },
       }),
       this.prisma.participante.findUnique({
-        where: { id: participanteId },
+        where: { id: participanteId, convenioId: { in: ambito } },
         select: { etapa: true },
       }),
     ]);
@@ -238,7 +273,21 @@ export class PlantillasCorreoService {
       if (no) throw new BadRequestException(no);
     }
 
-    const vista = await this.vistaPrevia(participanteId, plantillaId);
+    /// Y que siga autorizando.
+    ///
+    /// El panel deja escribirle a una ficha desde su pantalla,
+    /// y esa pantalla no miraba la revocación. Alguien que
+    /// llamó a pedir que lo sacaran seguía recibiendo correos
+    /// del asesor, que es la peor forma de enterarse de que su
+    /// petición no se cumplió.
+    const estado = await estadoDeAutorizacion(this.prisma, participanteId);
+    if (noSeLePuedeEscribir(estado)) {
+      throw new BadRequestException(
+        `${porQueNoSeLeMando(estado)} No se le puede escribir.`,
+      );
+    }
+
+    const vista = await this.vistaPrevia(participanteId, plantillaId, ambito);
 
     if (!vista.para) {
       throw new BadRequestException(
@@ -298,9 +347,20 @@ export class PlantillasCorreoService {
    * alguien cambia de plantilla en el desplegable, y no vale
    * la pena ir cinco veces a la base por cada clic.
    */
-  private async datosDe(participanteId: string) {
+  /**
+   * Los datos de la ficha, SI es de un gremio que esta cuenta
+   * alcanza.
+   *
+   * El ambito es obligatorio y va en la firma a proposito.
+   * Antes esto buscaba por id y ya, y las dos rutas de correo
+   * de la ficha eran las UNICAS de su controlador que no lo
+   * recibian: con el id de un participante ajeno se leia su
+   * nombre, su cedula y su correo, y `enviar` le mandaba un
+   * correo DE VERDAD a un ciudadano del otro gremio.
+   */
+  private async datosDe(participanteId: string, ambito: string[]) {
     const p = await this.prisma.participante.findUnique({
-      where: { id: participanteId },
+      where: { id: participanteId, convenioId: { in: ambito } },
       select: {
         persona: {
           select: {

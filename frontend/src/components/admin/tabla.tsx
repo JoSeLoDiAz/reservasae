@@ -370,7 +370,22 @@ export function Tabla<T>({
   /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     const g = leer(id);
-    if (g.anchos) setAnchos(g.anchos);
+    /// Lo guardado se limpia al leerlo.
+    ///
+    /// La clave no distingue el tamaño de pantalla: unos
+    /// anchos ajustados en un monitor grande se restauraban
+    /// tal cual en un portátil. Y si una columna dejó de
+    /// existir, su ancho seguía sumando. Ahora se descartan
+    /// las que ya no están y ninguna baja del mínimo legible.
+    if (g.anchos) {
+      setAnchos(
+        Object.fromEntries(
+          Object.entries(g.anchos)
+            .filter(([c]) => columnas.some((x) => x.clave === c))
+            .map(([c, px]) => [c, Math.max(ANCHO_MINIMO, Math.round(px))]),
+        ),
+      );
+    }
     const validas = (g.visibles ?? []).filter((c) =>
       columnas.some((x) => x.clave === c),
     );
@@ -402,12 +417,30 @@ export function Tabla<T>({
     setPagina(1);
   }
 
+  /// Lo que pide una columna para que su título se lea en
+  /// dos renglones. Menos que esto y vuelve el problema.
+  const ANCHO_COMODO = 150;
+
   const enPantalla = useMemo(
     () =>
       visibles
         .map((c) => columnas.find((x) => x.clave === c))
         .filter((c): c is Columna<T> => !!c),
     [visibles, columnas],
+  );
+
+  /// La suma de lo que piden las columnas visibles.
+  ///
+  /// Si el usuario ajustó una a mano, manda su ancho: lo
+  /// arrastró él y respetarlo es lo mínimo. Las demás piden
+  /// lo cómodo.
+  const anchoMinimoTabla = useMemo(
+    () =>
+      enPantalla.reduce(
+        (suma, c) => suma + (anchos[c.clave] ?? c.ancho ?? ANCHO_COMODO),
+        seleccion ? 40 : 0,
+      ),
+    [enPantalla, anchos, seleccion],
   );
 
   // los valores de cada fila, calculados una vez
@@ -701,11 +734,26 @@ export function Tabla<T>({
             <table
               ref={tablaRef}
               className="tabla-datos w-full text-sm"
-              style={
-                Object.keys(anchos).length > 0
-                  ? { tableLayout: "fixed" }
-                  : undefined
-              }
+              style={{
+                /// El suelo de la tabla entera.
+                ///
+                /// `w-full` sola dice «ocupa lo que haya», y
+                /// con veinte columnas eso es repartir el
+                /// ancho de la ventana entre veinte: a 45 px
+                /// cada una. Con este mínimo, cuando no caben
+                /// la tabla se DESBORDA y el contenedor de
+                /// arriba —que ya tiene `overflow-auto`— la
+                /// deja recorrer en horizontal, que es lo que
+                /// uno espera de una tabla ancha.
+                ///
+                /// Con pocas columnas el mínimo es menor que
+                /// la tarjeta, gana `w-full` y sigue
+                /// llenándola como hasta ahora.
+                minWidth: anchoMinimoTabla,
+                ...(Object.keys(anchos).length > 0
+                  ? { tableLayout: "fixed" as const }
+                  : null),
+              }}
             >
             <thead className="sticky top-0 z-10">
               <tr>

@@ -154,7 +154,6 @@ export default function PaginaAcceso() {
 function Marca({ claro = false }: { claro?: boolean }) {
   const { marca } = useMarca();
   const logos = marca?.logos ?? [];
-  const nombre = marca?.nombreApp ?? "Convoca";
 
   if (logos.length) {
     return (
@@ -180,21 +179,16 @@ function Marca({ claro = false }: { claro?: boolean }) {
     );
   }
 
-  return (
-    <div className="flex items-center gap-3">
-      <span
-        className={`grid h-10 w-10 place-items-center rounded-xl text-base font-bold ${
-          claro ? "bg-marca text-marca-texto" : "bg-marca-texto/15"
-        }`}
-      >
-        {nombre[0]?.toUpperCase() ?? "C"}
-      </span>
-      <span className="flex flex-col leading-tight">
-        <span className="font-bold">{nombre}</span>
-        <span className={`text-xs ${claro ? "text-texto-suave" : "opacity-70"}`}>
-          panel de gestión
-        </span>
-      </span>
-    </div>
-  );
+  /// Sin logos NO se pinta nada.
+  ///
+  /// Antes salía una placa de respaldo con la inicial y el
+  /// nombre. El problema es que justo encima ya está la firma
+  /// de Convoca, así que en un gremio sin logos cargados la
+  /// pantalla decía «Convoca» dos veces seguidas, una debajo
+  /// de la otra, con dos tipografías distintas.
+  ///
+  /// Un hueco es mejor que una repetición: la firma de arriba
+  /// ya identifica el producto. En cuanto el gremio cargue sus
+  /// logos, la rama de arriba los pinta.
+  return null;
 }

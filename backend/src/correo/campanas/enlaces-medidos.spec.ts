@@ -1,5 +1,9 @@
 import { escaparHtml } from '../escapar';
-import { reescribirEnlaces } from './enlaces-medidos';
+import {
+  destinoPermitido,
+  enlacesDe,
+  reescribirEnlaces,
+} from './enlaces-medidos';
 
 /// Lo que cuida esto: que el enlace del correo LLEVE a donde
 /// dice que lleva. Un clic mal contado es un número feo en un
@@ -81,5 +85,54 @@ describe('dos enlaces en el mismo correo', () => {
       decodeURIComponent(m[1]),
     );
     expect(todos).toEqual(['https://a.co/?x=1&y=2', 'https://b.co']);
+  });
+});
+
+describe('a dónde se deja redirigir el clic', () => {
+  const CUERPO =
+    'Buen día:\n\nInscríbase en https://sena.edu.co/curso?a=1&b=2\n\nGracias.';
+
+  it('un enlace de la campaña, pasa', () => {
+    expect(destinoPermitido(CUERPO, 'https://sena.edu.co/curso?a=1&b=2')).toBe(
+      'https://sena.edu.co/curso?a=1&b=2',
+    );
+  });
+
+  it('un dominio que NO está en la campaña, no', () => {
+    // el ataque: alguien reescribe el parámetro y usa el
+    // dominio del gremio para mandar a su página de estafa
+    expect(
+      destinoPermitido(CUERPO, 'https://portal-sena-premios.com/robar'),
+    ).toBeNull();
+  });
+
+  it('ni siquiera un dominio parecido', () => {
+    expect(destinoPermitido(CUERPO, 'https://sena.edu.co.evil.com')).toBeNull();
+  });
+
+  it('ni el mismo dominio con otra ruta', () => {
+    // si no lo escribió la campaña, no sale de aquí
+    expect(destinoPermitido(CUERPO, 'https://sena.edu.co/otra')).toBeNull();
+  });
+
+  it('javascript: sigue sin pasar', () => {
+    expect(destinoPermitido(CUERPO, 'javascript:alert(1)')).toBeNull();
+  });
+
+  it('data: tampoco', () => {
+    expect(destinoPermitido(CUERPO, 'data:text/html,<script>')).toBeNull();
+  });
+
+  it('sin destino, null', () => {
+    expect(destinoPermitido(CUERPO, undefined)).toBeNull();
+    expect(destinoPermitido(CUERPO, '')).toBeNull();
+  });
+
+  it('una campaña sin enlaces no deja pasar ninguno', () => {
+    expect(destinoPermitido('Solo texto.', 'https://sena.edu.co')).toBeNull();
+  });
+
+  it('los enlaces se leen del cuerpo tal cual, con sus parámetros', () => {
+    expect(enlacesDe(CUERPO)).toEqual(['https://sena.edu.co/curso?a=1&b=2']);
   });
 });

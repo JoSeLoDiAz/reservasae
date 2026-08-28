@@ -18,7 +18,8 @@
 /// sino lo que de verdad se ve en una base: un buzón, un
 /// arroba, un dominio con punto y un remate de dos letras o
 /// más.
-const CORREO = /^[a-z0-9](?:[a-z0-9._%+-]*[a-z0-9])?@[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)*\.[a-z]{2,}$/;
+const CORREO =
+  /^[a-z0-9](?:[a-z0-9._%+-]*[a-z0-9])?@[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)*\.[a-z]{2,}$/;
 
 /// Errores de dedo que se repiten en toda base colombiana.
 /// NO se corrigen solos: cambiarle el correo a alguien por

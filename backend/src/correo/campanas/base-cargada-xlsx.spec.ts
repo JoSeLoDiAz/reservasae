@@ -53,9 +53,15 @@ describe('el archivo va y vuelve', () => {
     );
 
     expect(r.listos).toHaveLength(2);
-    expect(r.listos[0]).toMatchObject({ correo: 'ana@ejemplo.com', nombre: 'Ana' });
+    expect(r.listos[0]).toMatchObject({
+      correo: 'ana@ejemplo.com',
+      nombre: 'Ana',
+    });
     // en minúscula, y solo el primer nombre
-    expect(r.listos[1]).toMatchObject({ correo: 'luis@ejemplo.com', nombre: 'Luis' });
+    expect(r.listos[1]).toMatchObject({
+      correo: 'luis@ejemplo.com',
+      nombre: 'Luis',
+    });
   });
 
   it('el formato vacío no trae ni una fila, pero sí sus columnas', async () => {

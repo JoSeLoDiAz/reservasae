@@ -434,7 +434,19 @@ h3 {
      de dos líneas en la misma fila, todos se apoyen abajo y
      no queden flotando a distintas alturas. */
   vertical-align: bottom;
-  overflow-wrap: anywhere;
+  /* `break-word` y NO `anywhere`, que es lo que las aplastaba.
+
+     Los dos parten la línea, pero `anywhere` permite partir
+     DENTRO de una palabra, y al permitirlo le dice al
+     navegador que el ancho mínimo de la celda es una letra.
+     Con veinte columnas repartiéndose el ancho de la ventana,
+     cada una caía a unos 45 px y el título salía en vertical:
+     «Fecha de creación» ocupaba diecisiete renglones.
+
+     `break-word` parte igual cuando hace falta, pero conserva
+     el suelo: la palabra más larga. «Número de teléfono» se
+     parte entre palabras, nunca entre letras. */
+  overflow-wrap: break-word;
 }
 .tabla-datos tbody td {
   font-size: 0.875rem;

@@ -10,6 +10,7 @@ import { randomBytes } from 'node:crypto';
 
 import { Prisma } from '../../generated/prisma';
 import { AuditoriaService } from '../comun/auditoria.service';
+import { CorreoService } from '../correo/correo.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { GENEROS_SEP } from '../crm/catalogos-sep.generado';
 import {
@@ -22,6 +23,7 @@ import {
   NIVELES_OCUPACIONALES_SEP,
 } from '../crm/catalogos-sep';
 import { faltaDeLaPersona } from '../crm/completitud';
+import { faltaDeLaEmpresa } from './empresa-incompleta';
 import { ColaRui } from '../crm/rui/cola-rui';
 import { CARACTERIZACION_POR_ID } from '../crm/catalogos-sep';
 import { CARACTERIZACIONES_SEP } from '../crm/catalogos-sep.generado';
@@ -44,6 +46,7 @@ export class PreinscripcionService {
     private readonly prisma: PrismaService,
     private readonly colaRui: ColaRui,
     private readonly auditoria: AuditoriaService,
+    private readonly correo: CorreoService,
   ) {}
 
   /** Lo que el formulario necesita para dibujarse. */
@@ -179,7 +182,8 @@ export class PreinscripcionService {
   async registrar(slug: string, dto: CrearPreinscripcionDto, ip?: string) {
     const convenio = await this.prisma.convenio.findFirst({
       where: { slug, activo: true },
-      select: { id: true },
+      // el nombre, para poder decir de quien es el correo
+      select: { id: true, nombre: true },
     });
     if (!convenio)
       throw new NotFoundException('No hay una convocatoria con ese nombre.');
@@ -228,6 +232,30 @@ export class PreinscripcionService {
       dto.ciudadNombre,
     );
 
+    /// ¿Esta cédula ya estaba en el sistema?
+    ///
+    /// Hay que saberlo ANTES del upsert, porque el upsert no
+    /// lo dice: devuelve la persona igual si la creó que si la
+    /// encontró. Y de esa diferencia depende todo lo que pasa
+    /// al final de esta función.
+    ///
+    /// Quien llena este formulario es un DESCONOCIDO. Si la
+    /// cédula es nueva, lo que hay en la ficha es lo que él
+    /// mismo acaba de escribir y devolverle su enlace no
+    /// revela nada. Si la cédula YA ESTABA, la ficha es de
+    /// otra persona, con su dirección, su celular y su
+    /// caracterización de población vulnerable, y él solo ha
+    /// demostrado saberse un número de cédula.
+    const yaHabiaPersona = await this.prisma.persona.findUnique({
+      where: {
+        tipoDocumentoSepId_numeroDocumento: {
+          tipoDocumentoSepId: dto.tipoDocumentoSepId,
+          numeroDocumento: documento,
+        },
+      },
+      select: { id: true, correo: true, celular: true },
+    });
+
     // la misma cedula es la misma persona en todo el
     // sistema, venga por donde venga
     const persona = await this.prisma.persona.upsert({
@@ -250,10 +278,24 @@ export class PreinscripcionService {
         correo: dto.correo,
         ...domicilio,
       },
-      // no se pisa lo que ya hay: solo se rellenan huecos
+      /// Solo se rellenan HUECOS, y lo decide la base, no el
+      /// formulario.
+      ///
+      /// `dto.celular ?? undefined` solo protege del caso en
+      /// que el campo no venga. Si el desconocido SÍ lo manda,
+      /// Prisma lo escribe y machaca el que había: un POST con
+      /// la cédula de otra persona y un correo propio desviaba
+      /// hacia el atacante todo lo que el sistema le mandara
+      /// después —el enlace de completado, la citación— sin
+      /// que la dueña notara nada.
+      ///
+      /// Con esto, si ya hay valor guardado, se queda el
+      /// guardado. Lo que traiga el formulario para un campo
+      /// ya lleno se ignora aquí; corregirlo es trabajo del
+      /// asesor, que sí sabe con quién está hablando.
       update: {
-        celular: dto.celular ?? undefined,
-        correo: dto.correo ?? undefined,
+        celular: yaHabiaPersona?.celular ?? dto.celular ?? undefined,
+        correo: yaHabiaPersona?.correo ?? dto.correo ?? undefined,
         generoSepId: dto.generoSepId ?? undefined,
         generoOtroTexto: dto.generoOtroTexto ?? undefined,
         departamentoSepId: domicilio.departamentoSepId ?? undefined,
@@ -300,12 +342,89 @@ export class PreinscripcionService {
 
     const enlace = await this.emitirEnlace(participante.id, null);
 
+    /// EL TOKEN NO SALE SI LA CÉDULA YA ESTABA.
+    ///
+    /// Este enlace abre la ficha ENTERA de la persona: su
+    /// dirección, su celular, su estrato y su caracterización
+    /// de población vulnerable —si es víctima del conflicto,
+    /// si tiene una discapacidad, si está en reintegración—.
+    /// Eso es dato sensible del artículo 5 de la Ley 1581, y
+    /// en Colombia divulgarlo puede poner a alguien en riesgo
+    /// físico.
+    ///
+    /// Antes se devolvía siempre, con buena intención: «ya
+    /// inscrita, se le devuelve su enlace en vez de decirle
+    /// que no». Pero quien llena este formulario es un
+    /// DESCONOCIDO, y lo único que ha demostrado es saberse un
+    /// número de cédula —que está en cualquier fotocopia, en
+    /// cualquier planilla—. Dos peticiones sin sesión y salía
+    /// la ficha completa de otra persona.
+    ///
+    /// Cuando la cédula es nueva sí se devuelve: la ficha solo
+    /// contiene lo que él mismo acaba de escribir.
+    if (!yaHabiaPersona) {
+      return {
+        registrado: true,
+        yaEstaba: false,
+        token: enlace.token,
+        expiraEn: enlace.expiraEn,
+      };
+    }
+
+    /// Ya existía: el enlace va al correo QUE YA ESTÁ EN LA
+    /// BASE, nunca al que vino en el formulario. Quien
+    /// controla ese buzón es la dueña de la ficha.
+    const suCorreo = yaHabiaPersona.correo;
+    let enviado = false;
+
+    if (suCorreo) {
+      const r = await this.correo.enviar({
+        para: suCorreo,
+        asunto: 'Su enlace para completar la inscripción',
+        texto:
+          `Buen día:
+
+` +
+          `Recibimos un registro con su documento en ${convenio.nombre}.
+
+` +
+          `Si fue usted, complete sus datos aquí:
+${this.urlPublica()}/completar/${enlace.token}
+
+` +
+          `El enlace vence el ${enlace.expiraEn.toLocaleDateString('es-CO')}.
+
+` +
+          `Si NO fue usted, no haga nada y avísenos respondiendo este correo.
+`,
+      });
+      enviado = r.estado === 'ENVIADO';
+    }
+
     return {
       registrado: true,
-      yaEstaba: Boolean(yaEsta),
-      token: enlace.token,
-      expiraEn: enlace.expiraEn,
+      yaEstaba: true,
+      /// Nunca. Es el punto entero de este cambio.
+      token: null,
+      expiraEn: null,
+      enlaceEnviado: enviado,
+      /// Se dice a dónde fue SIN enseñar la dirección: «se lo
+      /// mandamos a su correo registrado» le sirve a la dueña
+      /// y no le dice nada a un desconocido.
+      mensaje: enviado
+        ? 'Ya tenía un registro con ese documento. Le mandamos el enlace al correo que tiene registrado.'
+        : 'Ya tenía un registro con ese documento. Comuníquese con el gremio para continuar.',
     };
+  }
+
+  /// La URL con la que se arman los enlaces que ve una
+  /// persona. Tiene que ser la PÚBLICA: `localhost` en el
+  /// computador de otro no lleva a ninguna parte.
+  private urlPublica(): string {
+    return (process.env.URL_PUBLICA ?? 'http://localhost:3100').replace(
+      /\/+$/,
+      '',
+    );
   }
 
   /**
@@ -435,10 +554,36 @@ export class PreinscripcionService {
         cargoEnEmpresa: true,
         nivelOcupacionalSepId: true,
         beneficiarioPrevio: true,
+        /// Los campos de la empresa, no solo su nombre.
+        ///
+        /// Hacen falta para saber QUÉ le falta y no preguntar
+        /// de más: a quien lo nominó una empresa no se le
+        /// puede pedir el sector económico de esa empresa si
+        /// ya lo tenemos.
         reserva: {
-          select: { empresa: { select: { nit: true, razonSocial: true } } },
+          select: {
+            empresa: {
+              select: {
+                nit: true,
+                razonSocial: true,
+                sectorEconomico: true,
+                contactoNombre: true,
+                contactoCargo: true,
+                contactoCorreo: true,
+              },
+            },
+          },
         },
-        empresa: { select: { nit: true, razonSocial: true } },
+        empresa: {
+          select: {
+            nit: true,
+            razonSocial: true,
+            sectorEconomico: true,
+            contactoNombre: true,
+            contactoCargo: true,
+            contactoCorreo: true,
+          },
+        },
         persona: {
           include: {
             autorizaciones: {
@@ -492,6 +637,12 @@ export class PreinscripcionService {
       nitEmpresa: suya?.nit ?? null,
       /// Si la nominó una empresa, no la cambia ella.
       empresaFijada: p.reserva !== null,
+      /// Lo que le falta A LA EMPRESA, en palabras.
+      ///
+      /// Vacío quiere decir que no hay nada que preguntarle de
+      /// su organización, y entonces ese paso del formulario
+      /// no tiene por qué existir para esta persona.
+      faltaDeLaEmpresa: suya ? faltaDeLaEmpresa(suya) : [],
       cargoEnEmpresa: p.cargoEnEmpresa,
       nivelOcupacionalSepId: p.nivelOcupacionalSepId,
       beneficiarioPrevio: p.beneficiarioPrevio,

@@ -18,6 +18,40 @@ Tres pantallas, bajo **Campaña Mailing**:
 | **Plantillas** | Lo que se escribe una vez y se manda muchas |
 | **Cuenta de correo** | El SMTP desde el que sale |
 
+## Lo que cambió tras la auditoría (agosto 2026)
+
+Cinco cosas de este módulo salieron mal en la auditoría. Están
+arregladas, pero conviene saber qué eran para no reintroducirlas.
+
+**El ámbito es obligatorio para llegar a una campaña.** De once rutas,
+solo `listar` comprobaba el gremio. Con una sesión de ADECOPRIA se
+podía crear una campaña con el `convenioId` de BRITCHAM y lanzarla
+—correos de verdad a sus ciudadanos—, y `destinatarios` devolvía su
+lista entera de correos consultando por `campanaId` a secas.
+
+`exigir(id, ambito)` ahora **pide el ámbito en su firma**: una ruta
+nueva que se olvide de pasarlo no compila. Es a propósito, y por favor
+no lo quite para «simplificar». Y una campaña ajena responde igual que
+una que no existe: decir «no tiene permiso» confirmaría que ese id es
+real.
+
+**Revocar la autorización detiene el envío.** `revocadaEn` no se
+miraba en ninguna parte. Se comprueba al armar la lista y también AL
+MANDAR cada correo — el segundo es el que importa, porque la lista se
+congela al lanzar y quien revoca después sigue dentro de ella.
+
+**El enlace del correo llevaba a una dirección corrupta.** El texto se
+escapa antes de buscar enlaces, así que una URL con `&` viajaba como
+`&amp;`. Si toca `reescribirEnlaces`, el `url.replace(/&amp;/g, '&')`
+no es cosmético.
+
+**El destino del clic tiene que estar en el cuerpo de la campaña.**
+Antes solo se comprobaba que empezara por `http`, y con eso el dominio
+del gremio redirigía a donde le pidieran.
+
+**Un solo escapado.** Había tres copias de la misma regla y no
+coincidían. Vive en `src/correo/escapar.ts`; no haga una cuarta.
+
 ## Lo que NO se puede tocar sin entender
 
 ### 1. El worker manda correos de verdad
@@ -94,9 +128,14 @@ Cinco segmentos hechos. Todos añaden siempre `convenioId` y
 
 Las rutas del pixel y del clic son **públicas sin sesión**
 (`CampanasPublicoController`) — tienen que serlo, las abre el cliente
-de correo de otra persona. El destino del clic se valida contra
-`^https?://`: sin eso cualquiera podría usar el dominio para redirigir
-a donde quisiera.
+de correo de otra persona.
+
+El destino del clic se valida **contra los enlaces que la campaña
+escribió**, leídos de su propio cuerpo (`destinoPermitido`). Antes solo
+se comprobaba que empezara por `http`, y con eso el dominio del gremio
+llevaba a donde le pidieran: quien recibe el correo ya confía en ese
+remitente, así que un enlace que sale de aquí y termina en una página
+de estafa no le resulta raro a nadie.
 
 ## Antes de encenderlo
 
@@ -123,6 +162,14 @@ por `[demo]` en el nombre y se pueden volver a sembrar sin duplicar.
 resueltos.
 
 ## Bases subidas
+
+> **Ojo con el consentimiento.** Una lista subida no trae autorización
+> de tratamiento de datos: esas personas no llenaron ningún formulario
+> nuestro. `puedeRecibir()` devuelve `null` para ellas —no es que la
+> hayan revocado, es que nunca hubo una— y hoy se les manda igual.
+> Está señalado en la auditoría como riesgo abierto; decidirlo es del
+> dueño del producto, no del código.
+
 
 `base-cargada.ts` revisa un archivo con correo y primer nombre antes
 de que salga nada: qué se cae y por qué, los repetidos, y los errores

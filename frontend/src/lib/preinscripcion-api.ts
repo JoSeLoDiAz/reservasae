@@ -86,6 +86,9 @@ export type FichaAbierta = {
   nitEmpresa: string | null;
   /** Si la nominó una empresa, no la cambia ella. */
   empresaFijada: boolean;
+  /// Lo que le falta A LA EMPRESA. Vacío: no hay nada que
+  /// preguntarle de su organización.
+  faltaDeLaEmpresa: string[];
   cargoEnEmpresa: string | null;
   nivelOcupacionalSepId: number | null;
   beneficiarioPrevio: boolean | null;

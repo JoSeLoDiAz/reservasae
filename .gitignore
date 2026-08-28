@@ -61,3 +61,15 @@ bosquejo*/preinscripcion-convoca.html
 
 # el perfil del navegador que consulta NITs: 32 MB de galletas
 .perfil-buscador/
+
+# Frascos de galletas de curl y volcados de sesión.
+#
+# Aquí acabó `ana.txt`: una cookie de sesión de administrador
+# de prueba.reservasae.com, firmada con el ADMIN_JWT_SECRET de
+# ese entorno, en un repositorio PÚBLICO. Que estuviera vencida
+# no la hace inofensiva: una firma HS256 publicada se puede
+# atacar sin tocar el servidor y sin que nadie lo note.
+*.cookies
+*.cookie
+cookies.txt
+galletas.txt

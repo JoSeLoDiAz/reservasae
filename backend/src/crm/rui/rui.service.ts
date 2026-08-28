@@ -15,6 +15,7 @@ import { ColaRui } from './cola-rui';
 import { partirNombre } from './partir-nombre';
 import { nombreCoincide } from './comparar-nombres';
 import { permisoDeRui } from './permiso-rui';
+import { taparDocumento } from '../../comun/tapar';
 import {
   PROVEEDOR_RUI,
   ProveedorRuiLocal,
@@ -333,7 +334,7 @@ export class RuiService {
     const permiso = permisoDeRui(tarea.numeroDocumento);
     if (!permiso.real) {
       this.log.warn(
-        `No se consulta el RUI de ${tarea.numeroDocumento}: ${permiso.motivo}`,
+        `No se consulta el RUI de ${taparDocumento(tarea.numeroDocumento)}: ${permiso.motivo}`,
       );
     }
 
