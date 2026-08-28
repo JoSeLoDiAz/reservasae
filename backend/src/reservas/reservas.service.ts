@@ -465,11 +465,54 @@ export class ReservasService {
       digitoVerificacion: nit.digitoVerificacion,
     };
 
+    /// Si la empresa YA EXISTE, lo guardado manda.
+    ///
+    /// Esta ruta es PÚBLICA y sin sesión. Antes el `update`
+    /// del upsert escribía estos campos tal cual venían, así
+    /// que cualquiera podía mandar una reserva con el NIT de
+    /// una empresa real y:
+    ///
+    ///   - renombrarla («Ferretería El Tornillo» pasa a
+    ///     llamarse lo que el desconocido escriba), y
+    ///   - BORRARLE numeroColaboradores y redAsociada, porque
+    ///     `?? null` convierte un campo ausente en un null que
+    ///     se escribe encima.
+    ///
+    /// Y el nombre guardado suele ser el bueno: lo trajo la
+    /// consulta al RUES por el NIT, no una casilla de texto.
+    ///
+    /// Ahora solo se rellenan HUECOS. Que una empresa corrija
+    /// su propia razón social es trabajo del analista de
+    /// información, que sabe con quién está hablando; este
+    /// formulario no lo sabe.
+    const yaExiste = await this.prisma.empresa.findUnique({
+      where: { nit: nit.nit },
+      select: {
+        razonSocial: true,
+        numeroColaboradores: true,
+        redAsociada: true,
+        redAsociadaOtra: true,
+        digitoVerificacion: true,
+      },
+    });
+
+    const soloHuecos = yaExiste
+      ? {
+          razonSocial: yaExiste.razonSocial || datos.razonSocial,
+          numeroColaboradores:
+            yaExiste.numeroColaboradores ?? datos.numeroColaboradores,
+          redAsociada: yaExiste.redAsociada ?? datos.redAsociada,
+          redAsociadaOtra: yaExiste.redAsociadaOtra ?? datos.redAsociadaOtra,
+          digitoVerificacion:
+            yaExiste.digitoVerificacion ?? datos.digitoVerificacion,
+        }
+      : datos;
+
     try {
       return await this.prisma.empresa.upsert({
         where: { nit: nit.nit },
         create: { nit: nit.nit, ...datos },
-        update: datos,
+        update: soloHuecos,
       });
     } catch (error) {
       // perdió la carrera del INSERT

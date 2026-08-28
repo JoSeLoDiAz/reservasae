@@ -335,6 +335,35 @@ export class PreinscripcionService {
         select: { id: true },
       }));
 
+    /// Si trajo datos DISTINTOS de los que ya teníamos, se
+    /// deja como PROPUESTA para que un asesor decida.
+    ///
+    /// La cédula es la llave: la misma cédula es la misma
+    /// persona, venga por donde venga. Así que cuando alguien
+    /// se registra otra vez con otro correo hay dos
+    /// posibilidades y desde aquí no se distinguen:
+    ///
+    ///   - Es ella y cambió de correo. Descartarlo la deja sin
+    ///     recibir nada.
+    ///   - Es otra persona que escribió mal la cédula, o
+    ///     alguien apuntando a una ficha ajena. Escribirlo le
+    ///     desvía el correo a la dueña.
+    ///
+    /// Ninguna de las dos se puede resolver sin hablar con
+    /// alguien, y este formulario no habla con nadie. Así que
+    /// no se pisa lo guardado NI se tira lo nuevo: queda en la
+    /// bandeja del asesor, que sí puede llamar y preguntar.
+    if (yaHabiaPersona) {
+      await this.dejarPropuesta(participante.id, persona.id, {
+        correo: dto.correo ?? undefined,
+        celular: dto.celular ?? undefined,
+        primerNombre: dto.primerNombre,
+        segundoNombre: dto.segundoNombre ?? undefined,
+        primerApellido: dto.primerApellido,
+        segundoApellido: dto.segundoApellido ?? undefined,
+      });
+    }
+
     // ya se exigio arriba: aqui solo se deja constancia
     await this.dejarConstancia(persona.id, convenio.id, participante.id, ip);
 

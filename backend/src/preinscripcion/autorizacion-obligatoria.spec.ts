@@ -63,6 +63,10 @@ function prismaFalso(conPolitica: boolean) {
       }),
     },
     consultaRui: { findFirst: () => Promise.resolve(null) },
+    propuestaDeDatos: {
+      deleteMany: anota('propuestaDeDatos', 'deleteMany', { count: 0 }),
+      create: anota('propuestaDeDatos', 'create', { id: 'pr1' }),
+    },
   };
 }
 
@@ -228,5 +232,86 @@ describe('el enlace no se le entrega a quien solo sabe una cédula', () => {
 
     expect(loQueSeEscribio.correo).toBe('dueña@x.co');
     expect(loQueSeEscribio.celular).toBe('3001');
+  });
+});
+
+describe('la misma cédula que vuelve con otro correo', () => {
+  /// La cédula es la llave. Cuando alguien se registra otra
+  /// vez con otro correo hay dos posibilidades y desde el
+  /// formulario no se distinguen: o es ella y cambió de
+  /// correo, o alguien escribió mal la cédula. Ninguna se
+  /// resuelve sin hablar con alguien.
+
+  function conCedulaConocida() {
+    const prisma = prismaFalso(true) as unknown as Falso & {
+      propuestaDeDatos: { create: (a: unknown) => Promise<unknown> };
+    };
+    prisma.persona.findUnique = () =>
+      Promise.resolve({
+        id: 'per1',
+        correo: 'suyo@x.co',
+        celular: '3001',
+        primerNombre: 'María',
+        segundoNombre: null,
+        primerApellido: 'Bustos',
+        segundoApellido: null,
+        generoSepId: null,
+        fechaNacimiento: null,
+        estrato: null,
+        departamentoSepId: null,
+        municipioSepId: null,
+        barrio: null,
+        direccion: null,
+      });
+
+    const s = new PreinscripcionService(
+      prisma as never,
+      { encolarSiHaceFalta: () => Promise.resolve() } as never,
+      { registrar: () => Promise.resolve() } as never,
+      { enviar: () => Promise.resolve({ estado: 'ENVIADO' }) } as never,
+    );
+    return { s, prisma };
+  }
+
+  it('lo guardado NO se pisa', async () => {
+    const { s, prisma } = conCedulaConocida();
+    let escrito: Record<string, unknown> = {};
+    prisma.persona.upsert = (a) => {
+      escrito = a.update;
+      return Promise.resolve({ id: 'per1' });
+    };
+
+    await s.registrar('adecopria', {
+      ...BASE,
+      correo: 'otro@mail.com',
+      aceptaPolitica: true,
+    } as never);
+
+    expect(escrito.correo).toBe('suyo@x.co');
+  });
+
+  it('pero lo nuevo TAMPOCO se tira: queda como propuesta', async () => {
+    // descartarlo en silencio deja sin recibir nada a quien de
+    // verdad cambió de correo, y nadie se entera
+    const { s, prisma } = conCedulaConocida();
+    await s.registrar('adecopria', {
+      ...BASE,
+      correo: 'otro@mail.com',
+      aceptaPolitica: true,
+    } as never);
+
+    const propuestas = prisma.escrituras.filter(
+      (e) => e.tabla === 'propuestaDeDatos',
+    );
+    expect(propuestas.length).toBeGreaterThan(0);
+  });
+
+  it('una cédula NUEVA no genera propuesta: no hay nada que comparar', async () => {
+    const { s, prisma } = servicio();
+    await s.registrar('adecopria', { ...BASE, aceptaPolitica: true } as never);
+
+    expect(
+      prisma.escrituras.filter((e) => e.tabla === 'propuestaDeDatos'),
+    ).toHaveLength(0);
   });
 });
