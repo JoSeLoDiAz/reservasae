@@ -86,7 +86,17 @@ export class CampanasController {
   }
 
   @Post(':id/banner')
-  @UseInterceptors(FileInterceptor('archivo'))
+  /// El límite va AQUÍ, en multer, no solo en la comprobación
+  /// de abajo.
+  ///
+  /// Sin él, multer se traga el archivo entero en memoria y
+  /// solo después miramos `archivo.size` para rechazarlo: un
+  /// .png de dos gigas tumba el servidor antes de que le
+  /// digamos que no. Con el límite, la conexión se corta
+  /// mientras sube.
+  @UseInterceptors(
+    FileInterceptor('archivo', { limits: { fileSize: MAXIMO_BANNER } }),
+  )
   async banner(
     @Param('id') id: string,
     @UploadedFile() archivo: Express.Multer.File | undefined,
@@ -133,7 +143,9 @@ export class CampanasController {
   }
 
   @Post(':id/base')
-  @UseInterceptors(FileInterceptor('archivo'))
+  @UseInterceptors(
+    FileInterceptor('archivo', { limits: { fileSize: MAXIMO_BASE } }),
+  )
   async cargarBase(
     @Param('id') id: string,
     @UploadedFile() archivo: Express.Multer.File | undefined,
