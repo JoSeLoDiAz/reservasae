@@ -233,9 +233,31 @@ export function MarcoAdmin({ children }: { children: React.ReactNode }) {
           por la altura de la franja: quedaba una banda que se movía
           sola al bajar y la cabecera pegada tapaba el saludo. En
           producción no se veía porque allí no hay franja. */}
+      {/* `overflow-clip`, NO `hidden`. Recortan igual, pero
+          `hidden` crea un CONTENEDOR DE SCROLL — uno sin barra
+          visible, que es lo peor de los dos mundos.
+
+          El fallo que arregla: al pulsar el conmutador de tema
+          —el último control de la barra lateral— el navegador
+          le da el foco, y con el foco viene el desplazamiento
+          automático para revelarlo. Si esa caja quedaba por
+          debajo del borde (ventana baja, zoom, o el texto por
+          encima del 100 %), el navegador subía TODO el marco
+          dentro de su caja: la cabecera se recortaba por
+          arriba, la barra enseñaba solo su parte de abajo
+          flotando a media altura, y quedaba una franja en
+          blanco al final. Sin barra de scroll no había forma
+          de devolverlo: se quedaba así hasta recargar.
+
+          Parecía un fallo del tema y no lo era: `data-tema`
+          solo define colores —cero reglas de layout en todo el
+          CSS—. Era el botón que estaba en el peor sitio.
+
+          Con `clip` no hay nada que desplazar, así que da igual
+          dónde caiga el control. */}
       <div
         style={{ height: "calc(100vh - var(--franja-alto, 0px))" }}
-        className="flex overflow-hidden"
+        className="flex overflow-clip"
       >
         <BarraLateral
           ruta={ruta}
@@ -527,7 +549,11 @@ function Ajustes({
         type="button"
         onClick={alDesplegar}
         title="Ajustes: apariencia y accesibilidad"
-        className="mt-3 flex h-10 w-full shrink-0 items-center justify-center rounded-xl border border-current/10 bg-current/5 opacity-70 transition hover:opacity-100"
+        /// `mt-auto`: pegada abajo cuando hay sitio. Y dentro
+        /// de la columna que se desplaza, así que cuando NO lo
+        /// hay se llega a ella bajando, en vez de salirse por
+        /// el borde y arrastrar el marco entero.
+        className="mt-auto flex h-10 w-full shrink-0 items-center justify-center rounded-xl border border-current/10 bg-current/5 opacity-70 transition hover:opacity-100"
       >
         <span aria-hidden className="text-base leading-none">
           🎛️
@@ -538,7 +564,7 @@ function Ajustes({
   }
 
   return (
-    <div className="mt-3 flex shrink-0 items-center justify-between gap-1 rounded-xl border border-current/10 bg-current/5 p-1.5 pl-2.5">
+    <div className="mt-auto flex shrink-0 items-center justify-between gap-1 rounded-xl border border-current/10 bg-current/5 p-1.5 pl-2.5">
       <span className={ROTULO}>Ajustes</span>
 
       <div className="flex items-center gap-1">
@@ -810,8 +836,23 @@ function BarraLateral({
         )}
       </div>
 
-      {/* el scroll es de aqui dentro, no de la pagina */}
-      <div className="barra-visible min-h-0 grow overflow-y-auto">
+      {/* Ajustes va DENTRO del bloque que se desplaza.
+
+          Estaba fuera, con `shrink-0`, igual que el bloque de
+          la marca de arriba. Dos bloques rígidos y uno
+          elástico en medio: cuando los rígidos no caben —una
+          ventana baja, zoom, o el texto por encima del 100 %—
+          el de en medio ya está a cero y no queda holgura, así
+          que la caja de Ajustes se salía por debajo del borde.
+
+          Desde ahí, pulsar el conmutador de tema arrastraba el
+          marco entero. Se arregló también con `overflow-clip`
+          arriba, pero eso solo quita el síntoma: esto quita la
+          causa. Ahora, si no cabe, se llega a ella bajando por
+          la misma barra que ya se usa para los módulos.
+
+          El scroll es de aquí dentro, no de la página. */}
+      <div className="barra-visible flex min-h-0 grow flex-col overflow-y-auto">
         <Grupos
           ruta={ruta}
           esSuperadmin={esSuperadmin}
@@ -820,9 +861,9 @@ function BarraLateral({
           alDesplegar={alDesplegarModulo}
           abrirEste={abrirEste}
         />
-      </div>
 
-      <Ajustes plegado={plegado} alDesplegar={() => alDesplegarModulo("")} />
+        <Ajustes plegado={plegado} alDesplegar={() => alDesplegarModulo("")} />
+      </div>
 
     </nav>
   );
