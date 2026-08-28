@@ -23,6 +23,7 @@ import {
   NIVELES_OCUPACIONALES_SEP,
 } from '../crm/catalogos-sep';
 import { faltaDeLaPersona } from '../crm/completitud';
+import { faltaDeLaEmpresa } from './empresa-incompleta';
 import { ColaRui } from '../crm/rui/cola-rui';
 import { CARACTERIZACION_POR_ID } from '../crm/catalogos-sep';
 import { CARACTERIZACIONES_SEP } from '../crm/catalogos-sep.generado';
@@ -553,10 +554,36 @@ ${this.urlPublica()}/completar/${enlace.token}
         cargoEnEmpresa: true,
         nivelOcupacionalSepId: true,
         beneficiarioPrevio: true,
+        /// Los campos de la empresa, no solo su nombre.
+        ///
+        /// Hacen falta para saber QUÉ le falta y no preguntar
+        /// de más: a quien lo nominó una empresa no se le
+        /// puede pedir el sector económico de esa empresa si
+        /// ya lo tenemos.
         reserva: {
-          select: { empresa: { select: { nit: true, razonSocial: true } } },
+          select: {
+            empresa: {
+              select: {
+                nit: true,
+                razonSocial: true,
+                sectorEconomico: true,
+                contactoNombre: true,
+                contactoCargo: true,
+                contactoCorreo: true,
+              },
+            },
+          },
         },
-        empresa: { select: { nit: true, razonSocial: true } },
+        empresa: {
+          select: {
+            nit: true,
+            razonSocial: true,
+            sectorEconomico: true,
+            contactoNombre: true,
+            contactoCargo: true,
+            contactoCorreo: true,
+          },
+        },
         persona: {
           include: {
             autorizaciones: {
@@ -610,6 +637,12 @@ ${this.urlPublica()}/completar/${enlace.token}
       nitEmpresa: suya?.nit ?? null,
       /// Si la nominó una empresa, no la cambia ella.
       empresaFijada: p.reserva !== null,
+      /// Lo que le falta A LA EMPRESA, en palabras.
+      ///
+      /// Vacío quiere decir que no hay nada que preguntarle de
+      /// su organización, y entonces ese paso del formulario
+      /// no tiene por qué existir para esta persona.
+      faltaDeLaEmpresa: suya ? faltaDeLaEmpresa(suya) : [],
       cargoEnEmpresa: p.cargoEnEmpresa,
       nivelOcupacionalSepId: p.nivelOcupacionalSepId,
       beneficiarioPrevio: p.beneficiarioPrevio,

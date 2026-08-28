@@ -307,9 +307,27 @@ export function CompletarFicha({ token }: { token: string }) {
 
   const esPresencial = ficha?.formacion?.modalidad === "PRESENCIAL";
 
+  /// A quien lo nominó una empresa NO se le pregunta su
+  /// situación laboral.
+  ///
+  /// La respuesta ya se sabe: trabaja en la empresa que lo
+  /// inscribió, con su NIT y su razón social ya guardados.
+  /// Preguntárselo es hacerle escoger entre tres opciones de
+  /// las que dos son falsas, y darle la ocasión de escoger la
+  /// equivocada y contradecir a su propia empresa.
+  ///
+  /// De su organización solo se le pide lo que de verdad falta
+  /// —y si no falta nada, este paso no existe para él—. Los
+  /// datos de una empresa se le piden a la empresa, o los trae
+  /// la consulta al RUES por el NIT.
+  const loNominoUnaEmpresa = ficha?.empresaFijada === true;
+  const faltaDeSuEmpresa = ficha?.faltaDeLaEmpresa ?? [];
+
   const soloSector = vinculo === "INDEPENDIENTE" && rutPropio === "IGUAL";
   const pideOrganizacion =
-    vinculo === "EMPRESA" || (vinculo === "INDEPENDIENTE" && rutPropio === "DIFERENTE");
+    loNominoUnaEmpresa ||
+    vinculo === "EMPRESA" ||
+    (vinculo === "INDEPENDIENTE" && rutPropio === "DIFERENTE");
 
   /// El sector se lo preguntamos solo al independiente.
   ///
@@ -333,7 +351,11 @@ export function CompletarFicha({ token }: { token: string }) {
   /// Al independiente no se le exigen aunque se le pregunten:
   /// su unidad economica es el mismo, y obligarlo a nombrar a
   /// su jefe es obligarlo a inventarse a alguien.
-  const exigeJefe = vinculo === "EMPRESA";
+  /// Al nominado se le exige lo del jefe solo si de verdad
+  /// falta: si la empresa ya lo dio, no se le vuelve a pedir.
+  const exigeJefe =
+    vinculo === "EMPRESA" ||
+    (loNominoUnaEmpresa && faltaDeSuEmpresa.some((f) => f.includes("jefe")));
 
   /// Lo minimo para poder revisar. El NIT (o el RUT) siempre;
   /// los del jefe, a quien los tiene.
@@ -341,6 +363,9 @@ export function CompletarFicha({ token }: { token: string }) {
     /// Al que no esta trabajando no se le pide nada mas: ni
     /// NIT, ni sector, ni jefe.
     vinculo === "DESEMPLEADO" ||
+    /// Y al nominado cuya empresa ya está completa, tampoco:
+    /// no hay nada que llenar en este paso.
+    (loNominoUnaEmpresa && faltaDeSuEmpresa.length === 0) ||
     ((!pideSector || Boolean(empresa.sectorEconomico)) &&
     (soloSector || (pideOrganizacion && Boolean(empresa.nit?.trim()))) &&
     (!exigeJefe ||
@@ -715,6 +740,24 @@ export function CompletarFicha({ token }: { token: string }) {
         className="mt-8 space-y-6"
       >
           <section className="rounded-2xl border border-borde bg-superficie p-6 shadow-sm">
+            {/* AL NOMINADO no se le pregunta: ya se sabe.
+                Lo inscribió su empresa, con NIT y razón social
+                guardados. Ofrecerle tres opciones de las que
+                dos son falsas solo le da la ocasión de escoger
+                la equivocada y contradecir a su empresa. */}
+            {loNominoUnaEmpresa ? (
+              <div className="rounded-xl border border-borde bg-superficie-alterna p-4">
+                <p className="text-sm">
+                  Lo inscribió <strong>{ficha.empresa}</strong>.
+                </p>
+                <p className="mt-1 text-sm text-texto-suave">
+                  {faltaDeSuEmpresa.length === 0
+                    ? "Ya tenemos los datos de su organización. No hay nada que preguntarle aquí."
+                    : `Solo nos falta ${faltaDeSuEmpresa.join(", ")}. Lo demás ya lo tenemos.`}
+                </p>
+              </div>
+            ) : (
+              <>
             {/* la pregunta va primero: decide todo lo que sigue */}
             <p className="text-base font-semibold">
               ¿Cuál es su situación laboral actual?
@@ -822,8 +865,10 @@ export function CompletarFicha({ token }: { token: string }) {
                 </div>
               </div>
             )}
+              </>
+            )}
 
-            {pideOrganizacion && (
+            {pideOrganizacion && !loNominoUnaEmpresa && (
               <p className="mb-5 text-sm text-texto-suave">
                 {ficha.empresaFijada ? (
                   <>
