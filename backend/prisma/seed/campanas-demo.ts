@@ -20,6 +20,7 @@
 import {
   EstadoCampana,
   EstadoDestinatario,
+  type EtapaParticipante,
   PrismaClient,
 } from '../../generated/prisma';
 
@@ -69,9 +70,17 @@ const diasAtras = (d: number) => new Date(Date.now() - d * 86_400_000);
 // ---------------------------------------------------------------------------
 // Las plantillas: sirven de ejemplo de cómo se escriben.
 
-const PLANTILLAS = [
+/// Las etapas en que tiene sentido cada una. Es lo que impide
+/// mandar «quedó inscrito» a quien todavía no lo está.
+const PLANTILLAS: Array<{
+  nombre: string;
+  asunto: string;
+  cuerpo: string;
+  etapas?: string[];
+}> = [
   {
     nombre: 'Bienvenida a la formación',
+    etapas: ['INSCRITO', 'EN_FORMACION'],
     asunto: '{{tratamiento}} {{primerApellido}}, quedó inscrito en {{accionFormacion}}',
     cuerpo: `{{saludo}}:
 
@@ -85,6 +94,7 @@ Si algo no le cuadra, respóndanos este correo.
   },
   {
     nombre: 'Le faltan datos por completar',
+    etapas: ['INTERESADO', 'CONTACTADO'],
     asunto: '{{primerNombre}}, nos falta un dato suyo',
     cuerpo: `{{saludo}}:
 
@@ -96,6 +106,7 @@ Es cosa de tres minutos. Si prefiere, llámenos y lo hacemos por teléfono.
   },
   {
     nombre: 'Recordatorio: arranca su curso',
+    etapas: ['INSCRITO'],
     asunto: 'Su formación arranca el {{fechaInicio}}',
     cuerpo: `{{saludo}}:
 
@@ -111,6 +122,7 @@ Lo esperamos.
   },
   {
     nombre: 'Su asesor se presenta',
+    etapas: ['CONTACTADO', 'DATOS_COMPLETOS', 'INSCRITO'],
     asunto: '{{primerNombre}}, soy {{asesor}} y lo acompaño en su proceso',
     cuerpo: `{{saludo}}:
 
@@ -254,7 +266,15 @@ async function sembrar() {
     });
     if (ya) continue;
     await prisma.plantillaCorreo.create({
-      data: { nombre: p.nombre, asunto: p.asunto, cuerpo: p.cuerpo },
+      data: {
+        nombre: p.nombre,
+        asunto: p.asunto,
+        cuerpo: p.cuerpo,
+        /// Sin etapas: sirve en cualquiera. Es el caso del
+        /// aviso general, que no afirma nada sobre el estado
+        /// de nadie.
+        etapasPermitidas: (p.etapas ?? []) as EtapaParticipante[],
+      },
     });
     plantillasPuestas += 1;
   }
