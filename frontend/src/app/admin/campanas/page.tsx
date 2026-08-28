@@ -19,6 +19,7 @@ import {
 } from "@/components/admin/marco-admin";
 import { useToast } from "@/components/admin/toast";
 import { CargarBase } from "@/components/admin/cargar-base";
+import { CuandoVaASalir } from "@/components/admin/cuando-sale";
 import { VistaPreviaCorreo } from "@/components/admin/vista-previa-correo";
 import { ErrorApi } from "@/lib/api";
 import {
@@ -393,7 +394,17 @@ function NuevaCampana({
 
   return (
     <Tarjeta titulo="Nueva campaña">
-      <div className="grid gap-6 lg:grid-cols-[1fr_24rem]">
+      {/* MITAD Y MITAD, y la vista QUIETA.
+
+          Era una barra lateral de 24rem: la vista salía
+          tan angosta que no se parecía a un correo, y al
+          bajar a escribir el mensaje se iba de pantalla
+          justo cuando más falta hace.
+
+          Ahora la vista ocupa la mitad y se queda pegada
+          arriba mientras se escribe en la otra: se teclea
+          en un lado y se ve en el otro, sin buscarla. */}
+      <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
         <div className="space-y-4">
           <div>
             <label htmlFor="c-nombre" className="mb-1.5 block text-sm font-medium">
@@ -485,6 +496,15 @@ function NuevaCampana({
                 )}
               </p>
             )}
+
+            {/* Y CUÁNDO va a salir. Lanzar sin saberlo es
+                lanzar a las siete de la noche, no ver nada, y
+                creer que está roto. */}
+            {cuantos !== null && cuantos > 0 && (
+              <div className="mt-3">
+                <CuandoVaASalir cuantos={cuantos} />
+              </div>
+            )}
           </div>
 
           <div>
@@ -552,7 +572,7 @@ function NuevaCampana({
           </div>
         </div>
 
-        <div className="space-y-5">
+        <div className="space-y-5 lg:sticky lg:top-4">
           <VistaPreviaCorreo
             asunto={asunto}
             cuerpo={cuerpo}

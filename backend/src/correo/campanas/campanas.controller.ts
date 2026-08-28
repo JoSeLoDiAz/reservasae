@@ -22,6 +22,7 @@ import { AdminActual, AmbitoActual } from '../../admin/admin-actual.decorator';
 import { AdminGuard, Requiere, type Ambito } from '../../admin/admin.guard';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CampanasService } from './campanas.service';
+import { cuandoSale as cuandoSaleAhora, enPalabras } from './cuando-sale';
 import { CrearCampanaDto, EditarCampanaDto, SegmentoDto } from './dto';
 
 /// Los tipos que un cliente de correo dibuja sin pelear. SVG
@@ -45,6 +46,23 @@ export class CampanasController {
   @Get('segmentos')
   segmentos() {
     return this.campanas.segmentosListos();
+  }
+
+  /// Cuándo va a salir, y cuánto tarda.
+  ///
+  /// Lo calcula el SERVIDOR y no la pantalla: las reglas de
+  /// horario viven en `ritmo.ts`, y si la pantalla las copiara,
+  /// el día que alguien cambie el horario habría dos verdades.
+  @Get('cuando-sale')
+  cuandoSale(@Query('cuantos') cuantos?: string) {
+    const c = cuandoSaleAhora();
+    const n = Number(cuantos ?? 0);
+    return {
+      ahora: c.ahora,
+      cuando: c.cuando,
+      horario: c.horario,
+      tarda: Number.isFinite(n) && n > 0 ? enPalabras(n) : null,
+    };
   }
 
   @Get('variables')

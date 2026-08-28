@@ -84,8 +84,23 @@ export type DestinatarioCampana = {
   };
 };
 
+/// Cuándo va a salir de verdad. Lo calcula el servidor: las
+/// reglas de horario viven allá y copiarlas aquí crearía dos
+/// verdades.
+export type CuandoSale = {
+  ahora: boolean;
+  cuando: string;
+  horario: { desde: number; hasta: number; topeDiario: number };
+  tarda: string | null;
+};
+
 export const campanasApi = {
   segmentos: () => pedir<SegmentoListo[]>("/admin/campanas/segmentos"),
+
+  cuandoSale: (cuantos?: number) =>
+    pedir<CuandoSale>(
+      `/admin/campanas/cuando-sale${cuantos ? `?cuantos=${cuantos}` : ""}`,
+    ),
   variables: () => pedir<VariableCorreo[]>("/admin/campanas/variables"),
   listar: () => pedir<Campana[]>("/admin/campanas"),
 
