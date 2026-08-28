@@ -54,3 +54,36 @@ describe('se responde por convenio, no en general', () => {
     ).toEqual(['cv-adecopria']);
   });
 });
+
+describe('sacar no es lo mismo que avanzar', () => {
+  /// La primera versión de esta regla bloqueaba CUALQUIER
+  /// salida de INSCRITO, y una prueba de cambiar-etapa la
+  /// tumbó: el ingreso tardío —alguien que entra al aula con
+  /// el grupo ya andando— es INSCRITO → EN_FORMACION, que es
+  /// avanzar. Negárselo al gestor le rompe el trabajo del día
+  /// por una regla que iba dirigida a otra cosa.
+  ///
+  /// Se deja escrito aquí para que quien lo lea entienda la
+  /// distinción sin tener que reconstruirla.
+
+  const AVANZAR = ['EN_FORMACION', 'CERTIFICADO'];
+  const DESHACER = [
+    'INTERESADO',
+    'CONTACTADO',
+    'DATOS_COMPLETOS',
+    'PERDIDO',
+    'RETIRADO',
+  ];
+
+  it('avanzar y deshacer no se solapan', () => {
+    for (const a of AVANZAR) expect(DESHACER).not.toContain(a);
+  });
+
+  it('las de avanzar son las del aula, no las del embudo', () => {
+    // si alguien añade INTERESADO aquí, un gestor podría
+    // devolver a alguien al principio del embudo y sacarlo del
+    // cupo sin que nadie lo firme
+    expect(AVANZAR).not.toContain('INTERESADO');
+    expect(AVANZAR).not.toContain('RETIRADO');
+  });
+});

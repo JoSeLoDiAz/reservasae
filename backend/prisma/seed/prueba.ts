@@ -466,11 +466,31 @@ async function aparienciaPorFormulario() {
     ),
   };
 
+  /// La paleta es del GREMIO, no del formulario.
+  ///
+  /// Alternaba por indice de formulario, y ordenados por slug
+  /// eso daba: adecopria vino, adecopria-medellin turquesa y
+  /// britcham-adee vino OTRA VEZ. O sea que el turquesa se lo
+  /// llevaba el segundo formulario del MISMO gremio y los dos
+  /// gremios salian identicos -- justo lo contrario de lo que la
+  /// demostracion existe para ensenar, y sin que nada fallara.
+  ///
+  /// Repartiendo por convenio, los dos formularios de ADECOPRIA
+  /// comparten su color y BRITCHAM tiene el suyo, que es como se
+  /// ve en produccion.
   const elegidas = ['vino', 'turquesa'];
-  const formularios = await prisma.formulario.findMany({ orderBy: { slug: 'asc' } });
+  const formularios = await prisma.formulario.findMany({
+    orderBy: { slug: 'asc' },
+    include: { convenio: { select: { slug: true } } },
+  });
 
-  for (const [i, formulario] of formularios.entries()) {
-    const plantilla = PLANTILLAS.find((p) => p.clave === elegidas[i % elegidas.length]);
+  const gremios = [...new Set(formularios.map((f) => f.convenio.slug))].sort();
+
+  for (const formulario of formularios) {
+    const suGremio = gremios.indexOf(formulario.convenio.slug);
+    const plantilla = PLANTILLAS.find(
+      (p) => p.clave === elegidas[suGremio % elegidas.length],
+    );
     if (!plantilla) continue;
     const suyos = temasDePlantilla(plantilla);
 
@@ -1042,7 +1062,10 @@ async function main() {
                 .toLowerCase()
                 .normalize('NFD')
                 .replace(/[̀-ͯ]/g, '') + '@ejemplo.test',
-            celular: `3${entre(0, 2)}${entre(1000000, 9999999)}`,
+            // 10 digitos: `3` + operador + siete. Salian de
+            // NUEVE y no era un celular colombiano; lo destapo
+            // el validador nuevo, que rechazo la siembra entera
+            celular: `3${entre(0, 2)}${entre(0, 9)}${entre(1000000, 9999999)}`,
             // el formulario corto solo pide hasta aqui; lo
             // de abajo llega cuando la persona completa su
             // ficha o cuando el asesor se lo saca por

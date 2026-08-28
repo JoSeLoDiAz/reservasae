@@ -1,6 +1,10 @@
 /** Borra reservas por NIT y devuelve sus cupos. */
 
 import { PrismaClient } from '../generated/prisma';
+import { exigirBaseSegura } from './guardia-de-base';
+
+// el 5433 es produccion, aunque diga localhost
+exigirBaseSegura('Borrar reservas');
 
 const prisma = new PrismaClient();
 

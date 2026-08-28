@@ -9,7 +9,11 @@ import {
 import { PrismaService } from '../../prisma/prisma.service';
 import { CorreoService } from '../correo.service';
 import type { EtapaParticipante } from '../../../generated/prisma';
-import { puedeRecibir } from '../autorizacion-vigente';
+import {
+  estadoDeAutorizacion,
+  noSeLePuedeEscribir,
+  porQueNoSeLeMando,
+} from '../autorizacion-vigente';
 import { escaparHtml } from '../escapar';
 import { porQueNo } from './etapas-de-plantilla';
 import {
@@ -276,10 +280,10 @@ export class PlantillasCorreoService {
     /// llamó a pedir que lo sacaran seguía recibiendo correos
     /// del asesor, que es la peor forma de enterarse de que su
     /// petición no se cumplió.
-    if ((await puedeRecibir(this.prisma, participanteId)) === false) {
+    const estado = await estadoDeAutorizacion(this.prisma, participanteId);
+    if (noSeLePuedeEscribir(estado)) {
       throw new BadRequestException(
-        'Esta persona revocó su autorización de tratamiento de datos en ' +
-          'este convenio. No se le puede escribir.',
+        `${porQueNoSeLeMando(estado)} No se le puede escribir.`,
       );
     }
 

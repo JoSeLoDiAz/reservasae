@@ -4,6 +4,10 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { PrismaClient, Modalidad, TipoUbicacion } from '../../generated/prisma';
+import { exigirBaseSegura } from '../guardia-de-base';
+
+// el 5433 es produccion, aunque diga localhost
+exigirBaseSegura('La siembra del catalogo');
 
 const prisma = new PrismaClient();
 

@@ -53,6 +53,7 @@ model Convenio {
   acciones      AccionFormacion[]
   politicas     PoliticaDatos[]
   formularios   Formulario[]
+  leads            LeadEntrante[]
   plantillasCorreo PlantillaCorreo[]
   campanas         Campana[]
   participantes Participante[]
@@ -622,6 +623,65 @@ enum CanalAutorizacion {
 }
 
 /// La identidad. Unica en todo el sistema, sin convenio.
+/// Como llego un lead y en que estado esta.
+enum EstadoLeadEntrante {
+  /// Le falta algo para poder ser una ficha.
+  PENDIENTE
+  /// Ya es un Participante.
+  CONVERTIDO
+  /// No servia, y se dijo por que.
+  DESCARTADO
+}
+
+/**
+ * La mesa de entrada: un lead tal como llego, antes de ser ficha.
+ */
+model LeadEntrante {
+  id String @id @default(cuid())
+
+  /// De quien es. Explicito y obligatorio: son dos gremios.
+  convenioId String
+
+  /// Quien lo mando y con que id suyo. La pareja es unica y es
+  /// lo que hace que un reintento no cree dos fichas.
+  origenSistema String
+  externoId     String
+
+  /// De donde salio, en el vocabulario del CRM.
+  origen OrigenParticipante @default(OTRO)
+
+  /// Lo que llego. Todo opcional: un anuncio pregunta lo que
+  /// quiere, y lo que no venga no se inventa.
+  nombreCompleto     String?
+  correo             String?
+  celular            String?
+  tipoDocumentoSepId Int?
+  numeroDocumento    String?
+  /// Que dijo que le interesa, en sus palabras.
+  interes String?
+
+  /// El cuerpo entero, tal cual. Es lo que deja depurar,
+  /// reprocesar y demostrar que llego de verdad.
+  carga Json
+
+  estado EstadoLeadEntrante @default(PENDIENTE)
+  /// Por que no se pudo convertir sola, o por que se descarto.
+  motivo String?
+
+  /// La ficha que salio de aqui, si salio.
+  participanteId String? @unique
+
+  recibidoEn  DateTime  @default(now())
+  procesadoEn DateTime?
+
+  convenio     Convenio      @relation(fields: [convenioId], references: [id], onDelete: Restrict)
+  participante Participante? @relation(fields: [participanteId], references: [id], onDelete: SetNull)
+
+  @@unique([origenSistema, externoId])
+  @@index([convenioId, estado, recibidoEn])
+  @@map("leads_entrantes")
+}
+
 model Persona {
   id String @id @default(cuid())
 
@@ -764,6 +824,8 @@ model Participante {
   propuestas      PropuestaDeDatos[]
 
   // nadie cuenta dos veces en la misma accion
+  /// De que lead salio, si salio de uno.
+  lead          LeadEntrante?
   enCampanas    DestinatarioCampana[]
   @@unique([accionFormacionId, personaId])
   @@index([convenioId, etapa])

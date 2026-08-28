@@ -718,7 +718,7 @@ ${this.urlPublica()}/completar/${enlace.token}
       select: {
         personaId: true,
         datosTocadosPorAsesorEn: true,
-        persona: { select: { departamentoSepId: true } },
+        persona: { select: { departamentoSepId: true, municipioSepId: true } },
       },
     });
     if (!p) throw new NotFoundException('Ese enlace ya no apunta a nadie.');
@@ -733,6 +733,7 @@ ${this.urlPublica()}/completar/${enlace.token}
     /// municipio que no existe.
     const malo = motivoDeIdInvalido(dto, {
       departamentoSepId: p.persona?.departamentoSepId,
+      municipioSepId: p.persona?.municipioSepId,
     });
     if (malo) throw new BadRequestException(malo);
 

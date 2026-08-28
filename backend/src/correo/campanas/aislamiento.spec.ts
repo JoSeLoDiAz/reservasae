@@ -76,12 +76,12 @@ describe('una campaña de otro gremio no se toca', () => {
   it('el mensaje NO delata que la campaña existe', async () => {
     // si dijera «no tiene permiso», probando ids se sabría
     // cuáles son reales
-    await expect(
-      servicio().resultados('camp1', DE_ELLOS),
-    ).rejects.toThrow(/ya no existe/i);
-    await expect(
-      servicio().resultados('camp1', DE_ELLOS),
-    ).rejects.not.toThrow(/permiso|acceso|prohibid/i);
+    await expect(servicio().resultados('camp1', DE_ELLOS)).rejects.toThrow(
+      /ya no existe/i,
+    );
+    await expect(servicio().resultados('camp1', DE_ELLOS)).rejects.not.toThrow(
+      /permiso|acceso|prohibid/i,
+    );
   });
 });
 

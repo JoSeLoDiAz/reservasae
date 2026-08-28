@@ -24,6 +24,7 @@ import {
 import { documentoValido, normalizarDocumento } from '../comun/documento';
 import { analizar, esInsalvable, repetidosEnElPegado } from './carga';
 import {
+  esRegresoAlAula,
   exigeCupo,
   exigeDatosParaElAula,
   motivoDeTransicionImposible,
@@ -276,6 +277,20 @@ function aTexto(valor: unknown): string | null {
   }
   return String(valor);
 }
+
+/// Lo que el F7 necesita de una organizacion.
+///
+/// Una sola lista: la piden la compuerta de matricula y el
+/// reporte, y si se separan, la compuerta deja pasar a quien el
+/// reporte despues rechaza.
+const CAMPOS_DE_EMPRESA = {
+  nit: true,
+  razonSocial: true,
+  sectorEconomico: true,
+  contactoNombre: true,
+  contactoCargo: true,
+  contactoCorreo: true,
+} as const;
 
 @Injectable()
 export class CrmService {
@@ -561,16 +576,24 @@ export class CrmService {
               },
             },
             autorizaciones: {
-              // la pantalla ya se queda con la de su convenio,
-              // pero mandarlas todas las ensena en la red
-              where: {
-                revocadaEn: null,
-                politica: { convenioId: { in: ambito } },
-              },
+              /// Las REVOCADAS también viajan, y hace falta.
+              ///
+              /// Solo iban las vivas, así que tras revocar la
+              /// ficha decía «todavía no ha autorizado» y
+              /// ofrecía registrarla con un clic: la pantalla
+              /// borraba de la vista un derecho que la persona
+              /// acababa de ejercer, e invitaba a deshacerlo sin
+              /// que nadie supiera que estaba deshaciendo algo.
+              ///
+              /// El ámbito sigue: mandarlas todas las enseñaría
+              /// en la red.
+              where: { politica: { convenioId: { in: ambito } } },
+              orderBy: { otorgadaEn: 'desc' },
               select: {
                 id: true,
                 canal: true,
                 otorgadaEn: true,
+                revocadaEn: true,
                 politica: {
                   select: {
                     version: true,
@@ -971,6 +994,8 @@ export class CrmService {
       select: {
         id: true,
         personaId: true,
+        // hace falta para saber si el asesor la veria
+        convenioId: true,
         etapa: true,
         asesorId: true,
         cargoEnEmpresa: true,
@@ -1008,6 +1033,7 @@ export class CrmService {
     /// aceptaba: la pública era la más permisiva de las dos.
     const malo = motivoDeIdInvalido(dto, {
       departamentoSepId: p.persona?.departamentoSepId,
+      municipioSepId: p.persona?.municipioSepId,
     });
     if (malo) throw new BadRequestException(malo);
 
@@ -1077,15 +1103,7 @@ export class CrmService {
     let notaAsesor: string | null = null;
 
     if (cambiaAsesor && dto.asesorId) {
-      const asesor = await this.prisma.admin.findFirst({
-        where: { id: dto.asesorId, activo: true },
-        select: { nombre: true },
-      });
-      if (!asesor) {
-        throw new BadRequestException(
-          'Ese asesor no existe o está desactivado.',
-        );
-      }
+      const asesor = await this.exigirAsesorDelConvenio(dto.asesorId, p.convenioId);
       // el mismo texto que el lote
       notaAsesor = `Asignada a ${asesor.nombre}`;
     } else if (cambiaAsesor) {
@@ -1369,6 +1387,44 @@ export class CrmService {
    * cambiarian de dueno sin que el historial dijera quien
    * lo hizo, que es justo lo que se pide poder ver.
    */
+  /**
+   * El asesor tiene que poder VER la ficha que se le asigna.
+   *
+   * Se comprobaba que existiera y estuviera activo, y nada más.
+   * Asignarle una ficha de ADECOPRIA a quien solo tiene
+   * concesión en BRITCHAM no da error: la deja asignada a
+   * alguien que no la ve, así que desaparece de la lista de
+   * todos, y la brecha de nombres --«a quién llamar hoy»--
+   * cuenta como atendida una ficha que no atiende nadie.
+   *
+   * Va aquí una vez porque la usan la ficha y el lote, que
+   * tenían cada una su media comprobación.
+   */
+  private async exigirAsesorDelConvenio(asesorId: string, convenioId: string) {
+    const asesor = await this.prisma.admin.findFirst({
+      where: { id: asesorId, activo: true },
+      select: { id: true, nombre: true, rol: true },
+    });
+    if (!asesor) {
+      throw new BadRequestException('Ese asesor no existe o está desactivado.');
+    }
+
+    /// El superadmin entra a todo, igual que en el guard.
+    if (asesor.rol === 'SUPERADMIN') return asesor;
+
+    const concesion = await this.prisma.adminConvenio.findFirst({
+      where: { adminId: asesorId, convenioId },
+      select: { id: true },
+    });
+    if (!concesion) {
+      throw new BadRequestException(
+        `${asesor.nombre} no trabaja en este convenio, así que no vería esta ficha. ` +
+          'Déle acceso primero, o elija a otra persona.',
+      );
+    }
+    return asesor;
+  }
+
   async asignarAsesorEnLote(
     dto: AsignarAsesorEnLoteDto,
     admin: Admin,
@@ -1377,22 +1433,23 @@ export class CrmService {
   ) {
     const asesorId = dto.asesorId || null;
 
-    if (asesorId) {
-      const asesor = await this.prisma.admin.findFirst({
-        where: { id: asesorId, activo: true },
-        select: { id: true, nombre: true },
-      });
-      if (!asesor)
-        throw new BadRequestException(
-          'Ese asesor no existe o está desactivado.',
-        );
-    }
-
     // solo las del ambito: un id pegado a mano no cuela
     const suyas = await this.prisma.participante.findMany({
       where: { id: { in: dto.ids }, convenioId: { in: ambito } },
-      select: { id: true, etapa: true, asesorId: true },
+      select: { id: true, etapa: true, asesorId: true, convenioId: true },
     });
+
+    /// El asesor tiene que ver TODAS las que se le asignan.
+    ///
+    /// Un lote puede traer fichas de los dos convenios, asi que
+    /// se comprueba contra cada convenio distinto que haya
+    /// dentro: bastaria con que uno no fuera suyo para dejarle
+    /// fichas que no ve.
+    if (asesorId) {
+      for (const convenioId of new Set(suyas.map((p) => p.convenioId))) {
+        await this.exigirAsesorDelConvenio(asesorId, convenioId);
+      }
+    }
 
     const cambian = suyas.filter((p) => p.asesorId !== asesorId);
     if (cambian.length === 0) {
@@ -1526,11 +1583,23 @@ export class CrmService {
    * decir a cuál no significa nada, y al llegar la fecha no
    * hay contra qué matricularlo.
    */
-  private async exigirQueQuepa(p: {
-    id: string;
-    ofertaId: string | null;
-    coberturaId: string | null;
-  }) {
+  private async exigirQueQuepa(
+    p: {
+      id: string;
+      ofertaId: string | null;
+      coberturaId: string | null;
+    },
+    /// `exigirVentana` distingue entrar de VOLVER.
+    ///
+    /// La ventana de inscripcion cierra una semana habil ANTES
+    /// de que el grupo arranque, asi que un grupo en curso
+    /// siempre la tiene cerrada. A quien vuelve al aula hay que
+    /// pedirle cupo -- al retirarse libero su silla -- pero no
+    /// una ventana que no puede estar abierta: seria negarle el
+    /// regreso siempre, y con el, el paso por «En formacion»
+    /// que hay que dar antes de certificarlo.
+    { exigirVentana = true }: { exigirVentana?: boolean } = {},
+  ) {
     /// Sin los datos de su organización no se inscribe.
     ///
     /// Es una cadena: inscribir es comprometerse a reportar a
@@ -1542,31 +1611,37 @@ export class CrmService {
     ///
     /// Al independiente se le pide menos -- no tiene jefe
     /// directo --, y de eso ya se encarga `faltaDeLaEmpresa`.
+    /// La suya, y si no, la de la RESERVA que la trajo.
+    ///
+    /// Es la misma regla que ya usan el F7 y el reporte al SEP
+    /// -- `p.empresa ?? p.reserva?.empresa` --, y aqui faltaba.
+    /// Habia TRES reglas para «cual es la empresa de esta
+    /// persona» y la compuerta usaba la mas estrecha: quien
+    /// llego por la reserva de una empresa --que es el camino
+    /// principal, una empresa aparta N cupos y despues nomina a
+    /// su gente-- no se podia matricular, con el mensaje «no se
+    /// puede reportar al SENA», que ademas es FALSO: el reporte
+    /// si la resuelve por la reserva.
     const conEmpresa = await this.prisma.participante.findUnique({
       where: { id: p.id },
       select: {
         persona: { select: { numeroDocumento: true } },
-        empresa: {
-          select: {
-            nit: true,
-            razonSocial: true,
-            sectorEconomico: true,
-            contactoNombre: true,
-            contactoCargo: true,
-            contactoCorreo: true,
-          },
-        },
+        empresa: { select: CAMPOS_DE_EMPRESA },
+        reserva: { select: { empresa: { select: CAMPOS_DE_EMPRESA } } },
       },
     });
 
+    // la suya manda: si dijo donde trabaja de verdad, vale eso
+    const empresa = conEmpresa?.empresa ?? conEmpresa?.reserva?.empresa ?? null;
+
     const faltaEmpresa = this.faltaDeLaEmpresa(
-      conEmpresa?.empresa ?? null,
+      empresa,
       conEmpresa?.persona.numeroDocumento,
     );
 
     if (faltaEmpresa.length > 0) {
       throw new BadRequestException(
-        conEmpresa?.empresa
+        empresa
           ? `Antes de inscribir hay que completar su organización: ${faltaEmpresa.join(', ')}. ` +
               'Sin eso no entra en el F7.'
           : 'Esta persona no tiene organización. Sin ella no se puede reportar al ' +
@@ -1585,10 +1660,24 @@ export class CrmService {
       throw new BadRequestException('Esa oferta ya no existe.');
     }
 
-    if (!panel.admiteInscripciones) {
-      throw new BadRequestException(
-        panel.porQueNo ?? 'No se puede inscribir en esta oferta.',
-      );
+    /// La ventana se comprueba en DOS sitios, y la exencion
+    /// tiene que cubrir los dos.
+    ///
+    /// Aqui llega antes, dentro de `admiteInscripciones`, que
+    /// junta cuatro razones distintas en un booleano. La
+    /// primera version solo apago la de mas abajo, asi que el
+    /// regreso al aula seguia muriendo aqui con «Se cerró la
+    /// ventana de inscripción de todos los grupos» -- y con el,
+    /// certificar a quien volvio, porque hay que pasar por «En
+    /// formacion». La regla se bloqueaba a si misma otra vez.
+    ///
+    /// Se exime SOLO de la ventana: que la oferta este llena o
+    /// cerrada sigue bloqueando a quien vuelve, porque su silla
+    /// se libero al retirarse y esta pidiendo una nueva.
+    const soloLaVentana =
+      panel.motivo === 'VENTANA_CERRADA' || panel.motivo === 'SIN_FECHAS';
+    if (!panel.admiteInscripciones && !(soloLaVentana && !exigirVentana)) {
+      throw new BadRequestException(panel.porQueNo ?? 'No se puede inscribir en esta oferta.');
     }
 
     if (!p.coberturaId) {
@@ -1631,7 +1720,7 @@ export class CrmService {
           'el cronograma es lo que después lo lleva al aula.',
       );
     }
-    if (suyo.ventana.estado === 'CERRADA') {
+    if (exigirVentana && suyo.ventana.estado === 'CERRADA') {
       const cierre = suyo.ventana.cierre?.toISOString().slice(0, 10);
       throw new BadRequestException(
         `La inscripción del grupo ${suyo.numero} cerró el ${cierre}, ` +
@@ -1770,20 +1859,43 @@ export class CrmService {
     });
     if (!p) throw new NotFoundException('Ese participante no existe.');
 
-    /// Ya inscrito: de aqui no lo mueve un gestor.
+    /// Poner la etapa que ya tiene no es una transicion.
     ///
-    /// Inscribir es el punto de no retorno: a partir de ahi
-    /// la persona cuenta en el cupo, entra en el reporte al
-    /// SENA y le llegan las citaciones. Sacarla no es
-    /// corregir un tecleo, es deshacer algo que ya salio del
-    /// sistema.
+    /// Va ANTES de juzgar el paso: `CERTIFICADO -> CERTIFICADO`
+    /// no es «certificar a alguien que salio del aula», es no
+    /// hacer nada, y contestarle con ese mensaje seria mentir
+    /// sobre lo que pasa.
+    if (p.etapa === dto.etapa) return this.obtener(id, ambito);
+
+    /// Ya inscrito: de aqui no lo SACA un gestor.
     ///
-    /// Va en el SERVIDOR y no en el boton: esconder el boton
+    /// Sacar, no mover. La primera version bloqueaba cualquier
+    /// salida de INSCRITO y una prueba la tumbo: el ingreso
+    /// tardio -- INSCRITO -> EN_FORMACION -- es AVANZAR, es lo
+    /// que pasa cuando alguien entra al aula con el grupo ya
+    /// andando, y negarselo al gestor le rompe el trabajo del
+    /// dia por una regla que iba dirigida a otra cosa.
+    ///
+    /// Lo que se protege es DESHACER: devolverla a las etapas
+    /// de antes, o marcarla como perdida o retirada. Eso la
+    /// quita del cupo y del reporte al SENA, y no es corregir
+    /// un tecleo -- es deshacer algo que ya salio del sistema.
+    /// Lo firma un lider.
+    ///
+    /// Va DESPUES del no-op de arriba: volver a poner INSCRITO
+    /// sobre INSCRITO no saca a nadie.
+    ///
+    /// Y va en el SERVIDOR y no en el boton: esconder el boton
     /// es comodidad, y quien tenga la pantalla abierta desde
-    /// antes —o llame a la API— se la salta.
+    /// antes -- o llame a la API -- se la salta.
+    const AVANZAR_DESDE_INSCRITO: EtapaParticipante[] = [
+      'EN_FORMACION',
+      'CERTIFICADO',
+    ];
+
     if (
       p.etapa === 'INSCRITO' &&
-      dto.etapa !== 'INSCRITO' &&
+      !AVANZAR_DESDE_INSCRITO.includes(dto.etapa) &&
       !muevenInscrito.includes(p.convenioId)
     ) {
       throw new ForbiddenException(
@@ -1793,19 +1905,31 @@ export class CrmService {
       );
     }
 
-    /// Dos comprobaciones, no una, y por eso son dos funciones.
+    /// Tres comprobaciones distintas, y por eso son tres.
     ///
-    /// El cupo solo para quien viene de fuera; los datos y la
-    /// autorizacion SIEMPRE que se entre al aula, porque la
-    /// autorizacion se puede revocar. Ver `escalera.ts`.
-    const compuerta = exigeDatosParaElAula(p.etapa, dto.etapa);
-    if (exigeCupo(p.etapa, dto.etapa)) {
-      await this.exigirQueQuepa(p);
-    }
-
-    /// Y hay pasos que no son un paso. Ver `escalera.ts`.
+    /// - los datos y la autorizacion, SIEMPRE que se entre al
+    ///   aula: la autorizacion se puede revocar.
+    /// - el cupo, solo si esta transicion ocupa una silla nueva.
+    /// - la ventana de inscripcion, solo a quien entra por
+    ///   primera vez: a quien vuelve, su grupo ya arranco y por
+    ///   eso mismo esta cerrada.
+    ///
+    /// Ver `escalera.ts`.
+    /// Primero: ¿es este paso un paso? Ver `escalera.ts`.
+    ///
+    /// Va ANTES del cupo, y el orden importa. `CERTIFICADO`
+    /// ocupa silla, asi que `exigeCupo` es cierto viniendo de
+    /// una salida del aula y `exigirQueQuepa` contestaba con un
+    /// error de cupos a quien intentaba `RETIRADO → CERTIFICADO`
+    /// -- tapando justo el mensaje que dice como hacerlo bien,
+    /// que es para lo que existe esta regla.
     const imposible = motivoDeTransicionImposible(p.etapa, dto.etapa);
     if (imposible) throw new BadRequestException(imposible);
+
+    const compuerta = exigeDatosParaElAula(p.etapa, dto.etapa);
+    if (exigeCupo(p.etapa, dto.etapa)) {
+      await this.exigirQueQuepa(p, { exigirVentana: !esRegresoAlAula(p.etapa) });
+    }
 
     // certificar exige haber aprobado el 80% de lo
     // obligatorio: sin eso, la fila que se le manda al
@@ -1864,8 +1988,6 @@ export class CrmService {
           'del área académica.',
       );
     }
-    if (p.etapa === dto.etapa) return this.obtener(id, ambito);
-
     // datos_completos es estado calculado, no etapa: ponerlo
     // a dedo seria poder declararse completo sin estarlo
     if (dto.etapa === 'DATOS_COMPLETOS') {

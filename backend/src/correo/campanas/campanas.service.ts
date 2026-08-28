@@ -19,8 +19,9 @@ import {
 } from '../plantillas/variables';
 import { escaparHtml } from '../escapar';
 import {
-  PORQUE_NO_SE_LE_MANDO,
-  puedeRecibir,
+  estadoDeAutorizacion,
+  noSeLePuedeEscribir,
+  porQueNoSeLeMando,
 } from '../autorizacion-vigente';
 import { revisarBase } from './base-cargada';
 import { datosParaPlantilla, deLaListaSubida } from './datos-plantilla';
@@ -199,7 +200,9 @@ export class CampanasService {
         where: { id },
         data: { estado: 'ENVIANDO', lanzadaEn: new Date() },
       });
-      this.log.log(`Campaña «${c.nombre}» lanzada a ${cuantos} correos subidos.`);
+      this.log.log(
+        `Campaña «${c.nombre}» lanzada a ${cuantos} correos subidos.`,
+      );
       return { lanzada: true, destinatarios: cuantos, repetidos: 0 };
     }
 
@@ -426,12 +429,18 @@ export class CampanasService {
     /// sigue en esa lista, así que si no se comprueba aquí, se
     /// le manda igual. Revocar es un derecho (Ley 1581, art.
     /// 8); si le seguimos escribiendo, el derecho no existió.
-    const autoriza = await puedeRecibir(
+    /// El motivo dice CUAL de los dos casos es.
+    ///
+    /// Se omite igual si revoco y si nunca autorizo, pero
+    /// lo que queda escrito en la fila no puede ser lo
+    /// mismo: decirle «revoco» a quien nunca lo hizo es un
+    /// motivo falso donde alguien lo va a leer.
+    const estado = await estadoDeAutorizacion(
       this.prisma,
       siguiente.participanteId,
     );
-    if (autoriza === false) {
-      await this.omitir(siguiente.id, PORQUE_NO_SE_LE_MANDO);
+    if (noSeLePuedeEscribir(estado)) {
+      await this.omitir(siguiente.id, porQueNoSeLeMando(estado));
       return true;
     }
 

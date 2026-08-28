@@ -115,11 +115,15 @@ describe('los errores de dedo se señalan, no se corrigen', () => {
   });
 
   it('hotmial.com también', () => {
-    expect(revisarBase([fila(2, 'ana@hotmial.com')]).listos[0].sospecha).toBeTruthy();
+    expect(
+      revisarBase([fila(2, 'ana@hotmial.com')]).listos[0].sospecha,
+    ).toBeTruthy();
   });
 
   it('un correo bueno no lleva sospecha encima', () => {
-    expect(revisarBase([fila(2, 'ana@gmail.com')]).listos[0].sospecha).toBeUndefined();
+    expect(
+      revisarBase([fila(2, 'ana@gmail.com')]).listos[0].sospecha,
+    ).toBeUndefined();
   });
 });
 

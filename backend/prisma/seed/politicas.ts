@@ -1,6 +1,10 @@
 /** Siembra el texto legal. No pisa el que ya exista. */
 
 import { DestinatarioPolitica, PrismaClient } from '../../generated/prisma';
+import { exigirBaseSegura } from '../guardia-de-base';
+
+// el 5433 es produccion, aunque diga localhost
+exigirBaseSegura('La siembra de politicas');
 
 const prisma = new PrismaClient();
 

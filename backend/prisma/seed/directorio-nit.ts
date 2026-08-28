@@ -2,6 +2,10 @@
 
 import { PrismaClient } from '../../generated/prisma';
 import { calcularDigitoVerificacion } from '../../src/comun/nit';
+import { exigirBaseSegura } from '../guardia-de-base';
+
+// el 5433 es produccion, aunque diga localhost
+exigirBaseSegura('La siembra del directorio');
 
 const prisma = new PrismaClient();
 

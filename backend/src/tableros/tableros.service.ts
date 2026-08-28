@@ -882,10 +882,22 @@ export class TablerosService {
     const informe = await Promise.all(
       preguntas.map(async (pregunta) => {
         const respuestas = await this.prisma.respuesta.findMany({
+          /// `AND`, por lo mismo que en `porUbicacion`.
+          ///
+          /// `respuestaDeConvenio` devuelve `{ reserva: ... }` y
+          /// la linea de abajo trae la MISMA clave, asi que el
+          /// spread se pisaba y el ambito desaparecia entero:
+          /// este informe contaba las respuestas de los dos
+          /// gremios. Era alcanzable mientras se pudo reservar
+          /// con el `formularioSlug` del otro convenio.
+          ///
+          /// El filtro pedido se INTERSECA, nunca sustituye.
           where: {
-            ...respuestaDeConvenio(ambito),
-            preguntaId: pregunta.id,
-            reserva: { estado: { not: EstadoReserva.CANCELADA } },
+            AND: [
+              respuestaDeConvenio(ambito),
+              { preguntaId: pregunta.id },
+              { reserva: { estado: { not: EstadoReserva.CANCELADA } } },
+            ],
           },
           select: {
             valorTexto: true,

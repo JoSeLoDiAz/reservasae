@@ -17,38 +17,66 @@
 import type { PrismaService } from '../prisma/prisma.service';
 
 /**
- * True si tiene una autorización viva en ESE convenio.
+ * En qué estado está la autorización de esta persona.
  *
- * Sin participante —los correos de una base subida— devuelve
- * `null`: no es que la haya revocado, es que nunca hubo una
- * que revocar. Quien llama decide qué hace con eso, porque no
- * es la misma conversación.
+ * Son CUATRO y no dos, y la diferencia importa porque el motivo
+ * se escribe en la fila y alguien lo va a leer.
  */
-export async function puedeRecibir(
+export type EstadoAutorizacion =
+  /// La dio y sigue viva: se le puede escribir.
+  | 'VIVA'
+  /// La dio y la revocó. Es un derecho ejercido.
+  | 'REVOCADA'
+  /// Nunca hubo una. No es lo mismo que revocarla.
+  | 'NUNCA'
+  /// Sin ficha: los correos de una base subida.
+  | 'SIN_FICHA';
+
+/**
+ * El estado de la autorización en ESE convenio.
+ *
+ * Antes devolvía `boolean | null` y `false` juntaba dos cosas
+ * distintas: quien REVOCÓ y quien NUNCA autorizó. Los dos casos
+ * se omiten igual —y hacen bien—, pero el motivo que se escribía
+ * era «Revocó la autorización» para los dos. Un asesor crea una
+ * ficha y la autorización se registra después, así que ese
+ * motivo es falso justo en el caso más común, y queda escrito en
+ * la fila de por qué no se mandó el correo.
+ *
+ * Es el mismo defecto que tenía el candado del RUI, y por eso se
+ * arregla igual: distinguir «no la ha dado» de «la retiró».
+ */
+export async function estadoDeAutorizacion(
   prisma: PrismaService,
   participanteId: string | null,
-): Promise<boolean | null> {
-  if (!participanteId) return null;
+): Promise<EstadoAutorizacion> {
+  if (!participanteId) return 'SIN_FICHA';
 
   const p = await prisma.participante.findUnique({
     where: { id: participanteId },
     select: { personaId: true, convenioId: true },
   });
-  if (!p) return false;
+  if (!p) return 'SIN_FICHA';
 
-  const vivas = await prisma.autorizacionDatos.count({
-    where: {
-      personaId: p.personaId,
-      revocadaEn: null,
-      politica: { convenioId: p.convenioId },
-    },
+  const suyas = await prisma.autorizacionDatos.findMany({
+    where: { personaId: p.personaId, politica: { convenioId: p.convenioId } },
+    select: { revocadaEn: true },
   });
 
-  return vivas > 0;
+  if (suyas.some((a) => a.revocadaEn === null)) return 'VIVA';
+  return suyas.length > 0 ? 'REVOCADA' : 'NUNCA';
+}
+
+/** Si NO se le puede escribir en este convenio. */
+export function noSeLePuedeEscribir(estado: EstadoAutorizacion): boolean {
+  return estado === 'REVOCADA' || estado === 'NUNCA';
 }
 
 /// Lo que se le escribe en la fila cuando se omite. En
 /// palabras, porque alguien va a leer esa lista y va a tener
-/// que explicárselo a otro.
-export const PORQUE_NO_SE_LE_MANDO =
-  'Revocó la autorización de tratamiento de datos en este convenio.';
+/// que explicárselo a otro -- y por eso tiene que ser verdad.
+export function porQueNoSeLeMando(estado: EstadoAutorizacion): string {
+  return estado === 'REVOCADA'
+    ? 'Revocó la autorización de tratamiento de datos en este convenio.'
+    : 'No ha autorizado el tratamiento de sus datos en este convenio.';
+}

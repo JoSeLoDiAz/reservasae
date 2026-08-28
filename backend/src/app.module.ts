@@ -3,6 +3,7 @@ import { ConfigModule } from '@nestjs/config';
 import { APP_GUARD } from '@nestjs/core';
 import { ThrottlerModule } from '@nestjs/throttler';
 
+import { LeadsModule } from './leads/leads.module';
 import { AdminModule } from './admin/admin.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
@@ -22,6 +23,7 @@ import { TablerosModule } from './tableros/tableros.module';
 
 @Module({
   imports: [
+    LeadsModule,
     // sin esto backend/.env no se lee fuera de Docker
     ConfigModule.forRoot({ isGlobal: true }),
     // límite general de peticiones

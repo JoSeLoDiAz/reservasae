@@ -1,6 +1,10 @@
 /** Borra las reservas y pone los contadores a 0. */
 
 import { PrismaClient } from '../generated/prisma';
+import { exigirBaseSegura } from './guardia-de-base';
+
+// el 5433 es produccion, aunque diga localhost
+exigirBaseSegura('Reiniciar reservas');
 
 const prisma = new PrismaClient();
 

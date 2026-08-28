@@ -97,10 +97,18 @@ export default function PaginaFicha() {
     .filter(Boolean)
     .join(" ");
 
-  const autorizacion = f.persona.autorizaciones.find(
-    (a) => a.politica.destinatario === "PARTICIPANTE" &&
+  /// La de este convenio, viva o revocada.
+  ///
+  /// Vienen ordenadas de la mas reciente a la mas antigua, asi
+  /// que la primera es la que cuenta: si volvio a autorizar
+  /// despues de revocar, manda la nueva.
+  const suyas = f.persona.autorizaciones.filter(
+    (a) =>
+      a.politica.destinatario === "PARTICIPANTE" &&
       a.politica.convenioId === f.convenio.id,
   );
+  const autorizacion = suyas.find((a) => !a.revocadaEn);
+  const revocada = autorizacion ? null : suyas.find((a) => a.revocadaEn);
 
   return (
     <div className="space-y-6">
@@ -235,6 +243,29 @@ export default function PaginaFicha() {
               {autorizacion.politica.version}. {ETIQUETA_CANAL[autorizacion.canal]}.
             </p>
             {puedeEscribir && <Revocar id={f.id} alGuardar={conError} />}
+          </div>
+        ) : revocada ? (
+          /* Decir que REVOCÓ, no que nunca autorizó. Son cosas
+             distintas y la segunda invita a deshacer la
+             primera sin saber que se está deshaciendo algo. */
+          <div className="space-y-3">
+            <Aviso tipo="error">
+              Esta persona <strong>revocó</strong> su autorización el{" "}
+              {fecha(revocada.revocadaEn!)}. Mientras siga revocada no se puede
+              matricular ni entra en el reporte al SENA, y eso es lo correcto.
+            </Aviso>
+            <p className="text-sm text-texto-suave">
+              Solo se vuelve a registrar si <strong>ella lo pide</strong>. Volver a
+              marcarla por iniciativa nuestra deshace un derecho que ejerció.
+            </p>
+            <details className="text-sm">
+              <summary className="cursor-pointer text-texto-suave underline">
+                La persona pidió autorizar de nuevo
+              </summary>
+              <div className="mt-4">
+                <RegistrarAutorizacion id={f.id} alGuardar={conError} />
+              </div>
+            </details>
           </div>
         ) : (
           <RegistrarAutorizacion id={f.id} alGuardar={conError} />

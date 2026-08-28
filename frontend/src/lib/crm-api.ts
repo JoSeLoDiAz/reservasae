@@ -321,10 +321,17 @@ export type Ficha = {
       convenio: { sigla: string | null };
       accionFormacion: { codigo: string; nombre: string } | null;
     }>;
+    /// Vienen las vivas Y las revocadas, en orden.
+    ///
+    /// Solo llegaban las vivas, asi que tras revocar la ficha
+    /// decia «todavia no ha autorizado» y ofrecia registrarla
+    /// otra vez: la pantalla borraba de la vista un derecho que
+    /// la persona acababa de ejercer.
     autorizaciones: Array<{
       id: string;
       canal: Canal;
       otorgadaEn: string;
+      revocadaEn: string | null;
       politica: { version: number; destinatario: string; convenioId: string };
     }>;
   };

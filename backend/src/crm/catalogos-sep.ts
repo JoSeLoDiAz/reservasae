@@ -230,7 +230,7 @@ export type IdsDePersona = {
  */
 export function motivoDeIdInvalido(
   dto: IdsDePersona,
-  guardado?: { departamentoSepId?: number | null },
+  guardado?: { departamentoSepId?: number | null; municipioSepId?: number | null },
 ): string | null {
   for (const [lista, valor, que] of [
     [GENEROS_SEP, dto.generoSepId, 'género'],
@@ -242,10 +242,34 @@ export function motivoDeIdInvalido(
     }
   }
 
-  // el departamento que valdrá al terminar, no el que llegó
-  const departamento = dto.departamentoSepId ?? guardado?.departamentoSepId;
-  if (!municipioCuadra(departamento, dto.municipioSepId)) {
-    return 'Ese municipio no pertenece a ese departamento.';
+  /// Los DOS como quedarán al terminar, no como llegaron.
+  ///
+  /// El par se juzga sobre el estado final, y hace falta en los
+  /// dos sentidos. Al principio solo se resolvía el departamento
+  /// contra lo guardado, y eso cerraba «mandar el municipio
+  /// solo» pero dejaba abierto el espejo: `municipioCuadra`
+  /// devuelve `true` en cuanto el municipio llega vacío, así que
+  /// guardando primero Medellín y mandando después el
+  /// departamento de Bogotá el par nunca se volvía a comprobar.
+  /// La misma fila imposible, entrando por el otro lado.
+  /// `!== undefined` y no `??`, y la diferencia es real.
+  ///
+  /// `??` trata el null EXPLICITO igual que «no vino», asi que
+  /// un PATCH que dice «cambio el departamento y BORRO el
+  /// municipio» recuperaba el municipio viejo y se rechazaba a
+  /// si mismo: la ficha quedaba imposible de corregir por el
+  /// unico camino que la arregla. `undefined` es «no lo mandé»;
+  /// `null` es «quitalo», y son cosas distintas.
+  const departamento =
+    dto.departamentoSepId !== undefined
+      ? dto.departamentoSepId
+      : guardado?.departamentoSepId;
+  const municipio =
+    dto.municipioSepId !== undefined ? dto.municipioSepId : guardado?.municipioSepId;
+  if (!municipioCuadra(departamento, municipio)) {
+    return dto.municipioSepId === undefined
+      ? 'El municipio que ya tiene no es de ese departamento. Cambie también el municipio.'
+      : 'Ese municipio no pertenece a ese departamento.';
   }
 
   return null;

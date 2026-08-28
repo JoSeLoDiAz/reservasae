@@ -79,6 +79,7 @@ infraestructura completa más una página que verifica la conexión con el backe
 | `GET` | `/catalogo` | los convenios activos |
 | `GET` | `/catalogo/:slug` | acciones publicadas con sus ofertas y semáforo |
 | `POST` | `/reservas` | reserva N cupos; parte en confirmados + espera |
+| `POST` | `/webhooks/leads` | entra un lead del orquestador (llave en cabecera) |
 | `GET` | `/reservas?nit=` | reservas de una empresa y su total de cupos |
 | `PATCH` | `/reservas/:id` | cambia la cantidad (pide el NIT en el cuerpo) |
 | `POST` | `/reservas/:id/cancelar` | libera cupos y promueve la lista de espera |
@@ -498,8 +499,9 @@ pnpm --filter backend db:crear-admin correo@ejemplo.com "Nombre"   --rol SUPERAD
 > `SUPERADMIN` nace `LIDER_SISTEMAS` en todos los convenios activos; los demás,
 > `GESTOR_INSCRIPCION`.
 
-Falta un paso manual en el panel de Cloudflare: activar **Always Use HTTPS**
-(hoy `http://reservasae.com` responde 200 en vez de redirigir).
+**Always Use HTTPS ya está activo** (comprobado el 27 ago 2026:
+`http://reservasae.com` responde 301). Estuvo pendiente un tiempo y el aviso
+se quedó escrito de más.
 
 ## Stack
 
@@ -1521,6 +1523,24 @@ la reserva invisible para los dos gremios y la tasa de respuesta
 de ambos falseada. El mensaje es el mismo que «no está
 publicado», a propósito.
 
+> **`aDiaBogota` depende de que Node traiga full-icu, y hoy lo trae.**
+> Comprobado dentro del contenedor de producción el 27 ago 2026:
+> `node:22-alpine` da `icu: full` y
+> `toLocaleDateString('en-CA', { timeZone: 'America/Bogota' })` devuelve el día
+> correcto. **Con un Node de small-icu esa llamada ignora la zona en silencio**
+> y devuelve UTC: los tests seguirían pasando en Windows y todo lo de abajo
+> quedaría inerte solo en el servidor. Si algún día se cambia la imagen base,
+> compruébelo con:
+>
+> ```bash
+> docker compose exec -T backend node -e "console.log(new Date('2026-08-28T01:00:00Z').toLocaleDateString('en-CA',{timeZone:'America/Bogota'}))"
+> # tiene que decir 2026-08-27, no 2026-08-28
+> ```
+>
+> Y **Postgres corre en UTC** (`SHOW TimeZone` → UTC), que es justo por lo que
+> `CURRENT_DATE` no valía: entre las 19:00 y la medianoche de Bogotá devuelve el
+> día siguiente. `HOY_BOGOTA` de `comun/dia-bogota.ts` lo corrige.
+
 **Los días son los de Bogotá.** `date_trunc('day', x)` a secas
 parte los días a las 19:00, así que las cinco horas de
 tarde-noche —cuando la gente diligencia— se cargaban al día
@@ -1584,6 +1604,236 @@ de quitarlo y cada Guardar lo dejaba vacío.
 > el candado al código, se comprueba que el test falla, y se
 > devuelve. Un test que no puede fallar es peor que ninguno,
 > porque da confianza sin darla.
+
+### La revisión de los arreglos, y lo que encontró (27 ago 2026)
+
+Seis lentes sobre los cinco bloques. **Los escépticos que debían
+juzgar los hallazgos murieron por límite de sesión**, así que los
+33 candidatos se verificaron a mano contra el código, uno por
+uno. Sobrevivieron doce, y **dos eran regresiones nuevas mías**.
+
+> **Merece la pena repetir la revisión después de arreglar.** Esta
+> es la cuarta vez que se escribe en este archivo, y la primera en
+> que lo demuestra el propio arreglo anterior.
+
+**`exigeCupo` miraba el aula y no la silla, y dejó
+`INSCRITO → EN_FORMACION` imposible.** Es el ingreso tardío, el
+paso documentado para quien entra al aula con el grupo ya
+andando. Como `INSCRITO` no está «en el aula» se le volvía a
+pedir cupo, y `exigirQueQuepa` exige además que la ventana de
+inscripción siga abierta — y esa ventana cierra una semana hábil
+**antes** de que el grupo arranque. O sea que el paso fallaba
+siempre, no a veces. Y habría bloqueado también el regreso al
+aula que el arreglo del `CERTIFICADO` obliga a dar, con lo que
+esa regla se habría bloqueado a sí misma.
+
+Son **tres** predicados y no dos, porque son tres preguntas:
+
+| | |
+|---|---|
+| `exigeDatosParaElAula` | datos y autorización: **siempre** que se entre |
+| `exigeCupo` | solo si la transición ocupa una silla nueva |
+| `esRegresoAlAula` | exime de la **ventana**, no del cupo |
+
+`exigeCupo` es `OCUPA_SILLA.includes(despues) && !OCUPA_SILLA.includes(antes)`,
+con la **misma lista** que `panel-de-cupos.ts` usa para contar. Si
+las dos discrepan, se pide cupo a quien ya lo tiene.
+
+**`aDiaBogota` sobre las fechas de los GRUPOS las retrasaba un
+día.** Un instante y una fecha de calendario no se leen igual:
+`Grupo.fechaInicio` la teclea alguien como `2026-09-01` y se
+guarda a medianoche UTC, así que leerla «en Bogotá» da el 31 de
+agosto. `aDiaBogota` para instantes, `aDiaDeCalendario` para
+fechas tecleadas — **dos funciones y no una con bandera**, porque
+la bandera se olvida en la llamada.
+
+#### Cuatro tests que daban confianza sin darla
+
+Es el hallazgo que más vale de la ronda, porque cuatro de los
+ocho candados nuevos no estaban sujetos por su propio test.
+
+- **`etiqueta-de-ventana.spec` reimplementaba la línea
+  arreglada** en vez de llamarla, así que devolver el código a
+  `- DIA` no lo habría hecho fallar — y la prueba de mutación que
+  se le hizo **mutaba la copia del spec**. Ahora llama a
+  `describirVentana`, que se exportó para eso.
+- **El doble de Prisma de `referencias-del-mismo-formulario`
+  decidía por el prefijo del id** (`startsWith('ajena')`), no por
+  el `formularioId`: quitándole el filtro al servicio, el test
+  seguía pasando. Probaba el doble, no el candado.
+- **`interseca-no-sustituye` buscaba el ámbito con
+  `JSON.stringify(...).includes(...)`**, que aprueba un ámbito
+  metido en un `OR` —donde no filtra— o en un `NOT` —donde filtra
+  al revés—. Ahora recorre el árbol y solo cuenta la raíz y los
+  `AND`.
+- **`escalera.spec` probaba pares elegidos a mano**, y por eso no
+  vio que `INSCRITO → EN_FORMACION` había quedado imposible: ese
+  par no estaba en la lista. Ahora recorre los 121.
+
+> **La lección: un spec que copia la línea que dice proteger no
+> protege nada, y un doble que decide por otra cosa que el filtro
+> real prueba el doble.** Al mutar, hay que mutar el CÓDIGO.
+
+#### La revocación, mirada entera
+
+Abrir la puerta para escribir `revocadaEn` destapó la mitad de
+atrás: había salidas que no la leían.
+
+- **El F7 contaba a quien revocó** como beneficiario de su
+  empresa, mientras los dos reportes de personas ya lo dejaban
+  fuera: los dos archivos que se le entregan al mismo cliente se
+  contradecían.
+- **La cola del RUI mandaba su cédula al portal del DNP** después
+  de la revocación, porque la consulta se había encolado antes.
+  Que ya estuviera apuntada no la vuelve legítima: importa si hay
+  autorización cuando **sale**. El candado va en el trabajador,
+  no solo al revocar, y mira si hay autorización viva en **algún**
+  convenio — la consulta es de la persona, y `Persona` no tiene
+  convenio.
+- **El paso automático al aula** (`matricula.ts`) no la miraba
+  mientras `cambiarEtapa` sí: dos reglas para la misma
+  transición, y la débil era la que corre sola y no mira nadie.
+- **Y la ficha decía «todavía no ha autorizado»**, que es la peor
+  de todas: no es que se le olvidara honrarla, es que la pantalla
+  **borraba de la vista un derecho recién ejercido** y ofrecía
+  deshacerlo con un clic. Ahora dice que revocó y cuándo, y
+  volver a registrarla está plegado detrás de «la persona pidió
+  autorizar de nuevo».
+
+#### Y el resto
+
+- **El par departamento/municipio solo se cerró en un sentido.**
+  `municipioCuadra` devuelve `true` en cuanto el municipio llega
+  vacío, así que guardando primero Medellín y mandando después el
+  departamento de Bogotá el par no se volvía a comprobar. Ahora
+  se juzgan **los dos** como quedarán al terminar.
+- **`celularUtil` entró en una de las tres reglas** que leen
+  `persona.celular`. La peor era la del REPORTE: una fila con «no
+  tiene» pasaba el filtro y salía hacia el SENA como número de
+  contacto. El mensaje distingue «falta» de «no es un número»,
+  que se arreglan de formas distintas.
+- **`respuestasDeFormulario` tenía la misma colisión de spread
+  que `porUbicacion`**: la clave `reserva` explícita borraba el
+  ámbito, así que el informe contaba las respuestas de los dos
+  gremios. Era alcanzable mientras se pudo reservar con el
+  `formularioSlug` del otro convenio.
+- **El asesor no tenía que poder ver la ficha que se le asigna.**
+  Asignar una de ADECOPRIA a quien solo tiene BRITCHAM no daba
+  error: la dejaba con dueño y sin nadie que la viera, y la
+  brecha de nombres la contaba como atendida.
+- **El `- DIA` seguía intacto en `control.ts`** —la misma línea,
+  sin arreglar en el otro sitio— y su `dia()` leía en UTC
+  mientras las series del **mismo fichero** ya cortaban por
+  Bogotá. Y los siete `CURRENT_DATE` del académico son el día del
+  servidor, que corre en UTC.
+- **El 400 de la descarga vacía llegaba como JSON crudo.** Esa
+  descarga va por navegación, así que sustituía el panel por
+  `{"statusCode":400}`: se había cambiado un archivo vacío por
+  algo que parece que el sistema se rompió. El candado se queda
+  —basta pegar la URL—; ahora se cuenta en una hoja HTML mínima.
+
+
+### La tercera vuelta, y por qué hubo una tercera (27 ago 2026)
+
+Se revisaron los arreglos de la segunda vuelta. Los dos
+escépticos confirmaron **seis regresiones más**, todas
+introducidas al arreglar la ronda anterior. Van **tres veces
+seguidas** en que un arreglo trae su propio defecto.
+
+> **La causa de las tres es la misma y conviene nombrarla:** los
+> specs probaban las funciones PURAS —`exigeCupo`,
+> `exigeDatosParaElAula`, `motivoDeTransicionImposible`— y las
+> tres salían bien. El defecto nunca estuvo en los predicados:
+> estuvo en **cómo `cambiarEtapa` los usa**. Ningún spec llamaba
+> a `cambiarEtapa`. Ahora hay `cambiar-etapa.spec.ts`, y las dos
+> regresiones fallan al mutarlas.
+
+**La ventana se comprueba en DOS sitios.** `exigirVentana: false`
+apagaba el `if` de abajo, pero la ventana llega antes dentro de
+`admiteInscripciones`, que junta cuatro razones en un booleano.
+Así que el regreso al aula seguía muriendo con «Se cerró la
+ventana de inscripción de todos los grupos» — y con él,
+certificar a quien volvió. **La regla se bloqueaba a sí misma
+otra vez.** Ahora `PanelDeOferta` devuelve el motivo como
+**código** además de como frase, y la exención cubre solo
+`VENTANA_CERRADA` y `SIN_FECHAS`: que la oferta esté llena o
+cerrada sigue bloqueando a quien vuelve, porque su silla se
+liberó. Con una sola frase habría que leer el texto para
+distinguirlas.
+
+**El candado del RUI apagó el RUI para todos.** Preguntaba «¿hay
+alguna autorización viva?», que es falso para quien todavía no la
+ha dado. El asesor crea la ficha y encola el RUI en el acto; la
+autorización llega después. Un candado contra la revocación se
+llevó por delante el caso normal. Ahora pregunta si **revocó**:
+sin ninguna autorización registrada no hay nada que honrar.
+
+**«Parados» restaba el día de Bogotá menos el día de UTC.**
+`ultimoAcceso` es un instante y su `::date` da el día de UTC;
+`HOY_BOGOTA` da el de Bogotá. El arreglo aplicado a **un lado de
+la resta y no al otro** — el mismo error que la distinción
+instante/calendario existe para evitar, cometido en la línea
+siguiente a escribirla. `fechaBogota()` es para eso.
+`Grupo.fechaInicio::date` sí es correcto contra `HOY_BOGOTA`,
+porque es una fecha de calendario.
+
+**El `??` confundía «lo borré» con «no lo mandé».** Un PATCH que
+cambia el departamento y borra el municipio recuperaba el
+municipio viejo y **se rechazaba a sí mismo**: la ficha quedaba
+imposible de corregir justo por el camino que la arregla.
+`undefined` es «no lo mandé»; `null` es «quítalo».
+
+**Y `RETIRADO → CERTIFICADO` contestaba con un error de cupos.**
+`CERTIFICADO` ocupa silla, así que `exigirQueQuepa` corría antes
+y tapaba el mensaje que dice cómo hacerlo bien — que es para lo
+único que esa regla existe. **El paso imposible se juzga
+primero.**
+
+#### Lo que salió al intentar comprobarlo en vivo
+
+Ninguno de los treinta participantes de pruebas se podía
+matricular, todos con «Esta persona no tiene organización». El
+mensaje era **falso**, y el defecto no era de esta ronda: había
+**tres reglas** para «cuál es la empresa de esta persona» y la
+compuerta usaba la más estrecha.
+
+| | |
+|---|---|
+| el F7 | `p.empresa ?? p.reserva?.empresa` |
+| el reporte al SEP | `p.empresa ?? p.reserva?.empresa ?? null` |
+| **la compuerta** | **solo `p.empresa`** |
+
+O sea que quien llegó por la reserva de una empresa —**el camino
+principal del sistema**— no se podía matricular, mientras el
+reporte que supuestamente lo impedía sí sabía resolverla. Ahora
+la compuerta usa la misma regla, y los campos que el F7 necesita
+se declaran una sola vez en `CAMPOS_DE_EMPRESA`: si la compuerta
+y el reporte piden listas distintas, la compuerta deja pasar a
+quien el reporte después rechaza.
+
+> **Comprobado en vivo de punta a punta**, que es lo que ninguna
+> de las dos rondas anteriores llegó a hacer: se retira a alguien
+> con la ventana de su grupo ya cerrada, se le completa la
+> organización por el enlace público, vuelve al aula (**200**) y
+> al certificar topa con el 80 % — la compuerta correcta, no la
+> ventana.
+
+#### La prueba de mutación se le hizo también a los tests nuevos
+
+Y encontró dos cosas en ellos: un test cuyo escenario **no
+llegaba a lanzar**, así que pasaba con el orden invertido y no
+probaba lo que decía; y un comentario que afirmaba que
+`NO_APROBO` ocupa silla, que es falso. Los dos corregidos.
+
+**Mutar el código y no el spec** es la diferencia entre las dos
+cosas, y ya se falló en eso una vez.
+
+De paso, el rótulo del periodo de `control.ts` —gemelo del del
+tablero académico, con los dos mismos defectos y arreglado una
+ronda más tarde— se quedaba sin ningún test. Se extrajo a
+`rotuloDelPeriodo` y ahora hay uno que además comprueba que **los
+dos dicen lo mismo**: que discrepen es como empezó esto.
+
 
 ### Políticas y formularios sí llevan ámbito (27 ago 2026)
 
@@ -1709,6 +1959,82 @@ y un token). El correo ya sale: ver «El correo».
 
 ---
 
+### La mesa de entrada: el webhook de leads (27 ago 2026)
+
+`POST /api/webhooks/leads`. Lo llama el **orquestador de correos
+de Mauricio**, que recibe de Meta y nos reenvía. Nuestro contrato,
+no el de Meta: si algún día Meta pega directo, se le pone un
+adaptador delante sin tocar nada de dentro.
+
+**El problema que resuelve, y por qué no era obvio.** Un lead de
+un anuncio trae nombre, teléfono y correo, y **no trae cédula**. Y
+`Persona` exige `(tipoDocumentoSepId, numeroDocumento)` como clave
+única, que es justo lo que hace **imposible el duplicado por
+documento** y la razón de que no exista pantalla de fusionar
+duplicados. O sea que un lead de Meta, literalmente, no cabía en
+el CRM.
+
+Volver el documento opcional habría arreglado el caso de hoy y
+roto esa garantía para siempre. Así que el lead aterriza en su
+propia tabla y de ahí sale: **con documento válido se convierte, y
+sin él espera** a que un asesor lo complete. No se pierde, y la
+identidad del CRM no se toca.
+
+- **`carga` guarda el cuerpo entero.** En un webhook no es
+  opcional: es lo que deja depurar, reprocesar y demostrar qué
+  llegó de verdad cuando alguien diga «yo mandé ese lead».
+- **`(origenSistema, externoId)` es único, y esa es la
+  idempotencia.** Los webhooks reintentan y quien los manda ni lo
+  ve; sin esto, un parpadeo de red duplica a una persona. La
+  segunda llegada devuelve la primera con `repetido: true`.
+- **El gremio va explícito y se rechaza si no es uno de los dos.**
+  Adivinarlo mal mete a alguien de ADECOPRIA en BRITCHAM, que es
+  peor que perder el lead.
+- **No lanza por datos flojos.** Un webhook que contesta 400
+  porque falta el apellido invita a que el emisor reintente en
+  bucle o lo descarte. Lo que llega se guarda siempre; lo que
+  falte se dice en `motivo`. Solo se rechaza lo que impide
+  guardarlo: sin gremio y sin id propio.
+- **Se normaliza AL ENTRAR**, no al convertir: si se guarda el
+  celular como vino y se limpia después, la misma persona escrita
+  de dos formas son dos leads que nadie relaciona. Comprobado en
+  vivo: `+57 300 123 4567` queda `3001234567`, que es el formato
+  con el que cruzará contra las personas que ya existen.
+- **«Falta documento» y «el documento no sirve» son mensajes
+  distintos.** El primero es pedirlo; el segundo es que el dato
+  está mal en el origen, y volver a pedirlo no arregla nada.
+
+**La llave.** `LEADS_WEBHOOK_SECRET`, en la cabecera
+`x-clave-leads`, y **el backend no arranca sin ella** — igual que
+`ADMIN_JWT_SECRET`. Dejar la ruta abierta si falta la variable
+sería el «control en pie y vacío de efecto» de siempre: existiría,
+parecería protegida y no lo estaría. Es la **única puerta que
+escribe en el CRM sin sesión**, y lo que se contamina no son datos
+cualesquiera: es con lo que se le reporta al SENA.
+
+Se compara en **tiempo constante**. Un `===` se rinde en la
+primera letra distinta y eso deja medir cuántas se acertaron;
+cuesta una línea evitarlo.
+
+Y la llave se mira **antes** que el cuerpo: validar el DTO primero
+le diría, con sus mensajes de error, qué campos espera esta ruta a
+quien no tiene llave.
+
+> **Probado en vivo contra la base de pruebas**: sin llave 401,
+> con llave mala 401, gremio inventado 400, lead sin cédula 200
+> con «Falta: documento», y el mismo `externoId` otra vez devuelve
+> el mismo id con `repetido: true`. Los tres candados se probaron
+> además por mutación.
+
+**Lo que todavía no hace, y hay que decirlo:** la conversión
+automática a `Participante` cuando el lead SÍ trae documento no
+está escrita — hoy todo entra como `PENDIENTE`. Y no hay pantalla:
+la mesa de entrada se ve por la base. Las dos cosas son el
+siguiente paso, y ninguna cambia lo de arriba.
+
+
+---
+
 ## El correo (26 ago 2026)
 
 Sale por **SMTP de Google Workspace** con el buzón
@@ -1829,6 +2155,13 @@ pnpm db:sembrar-prueba [--rehacer]
   clon** antes de sembrar. Los contenedores lo hacen en el build; los guiones
   que corren desde el clon usan el cliente que haya en `backend/generated`, y
   con uno viejo la siembra falla con errores de tipos que despistan.
+- **La paleta se reparte por GREMIO, no por formulario.** Alternaba
+  `['vino','turquesa']` por índice de formulario y, ordenados por slug, eso
+  daba `adecopria` vino, `adecopria-medellin` turquesa y `britcham-adee` vino
+  **otra vez**: el segundo color se lo llevaba el segundo formulario del mismo
+  gremio y **los dos gremios salían idénticos** — justo lo contrario de lo que
+  la demostración existe para enseñar, y sin que nada fallara. Se ve solo
+  mirando los dos subdominios a la vez.
 - **Los números son repetibles** (generador con semilla fija): dos revisiones
   ven exactamente lo mismo.
 - **El grupo tiene que casar con la etapa, y se elige la OFERTA que lo tenga.**
@@ -2430,6 +2763,59 @@ Verificado contra `docs/proyectos/*.xlsx`, que es la fuente oficial. El
 - **Discrepancia sin resolver:** el NIT de ADECOPRIA es `890.982.432-0` según
   su proyecto, pero el aviso de privacidad que entregaron dice
   `890.901.432-0`. Hay que confirmarlo antes de publicar el texto legal.
+
+### El 5433 es producción, y ahora hay un candado (27 ago 2026)
+
+`backend/.env` decía `localhost:5433` y **no había ningún Postgres
+local**: quien escucha ahí es un `ssh -L 5433:127.0.0.1:5433 sep-vm`
+que trae la base **real** del servidor. Y no era un descuido de un
+rato — lo abre una **tarea programada en cada inicio de sesión**
+(`scripts/tunel-bd.ps1`).
+
+> Este archivo lo avisaba en negrita **dos veces** y aun así casi
+> pasa: un `prisma migrate status` lanzado para preparar una
+> migración salió contra la base real y solo falló porque el túnel
+> no respondía en ese instante. **Un aviso escrito no es un
+> candado.**
+
+**La raíz es que una base local y el túnel son indistinguibles
+desde la cadena**: las dos son `reservasae` en `localhost:5433`. No
+hay nada en el texto que los separe, así que ninguna regla sobre el
+nombre de la base sirve.
+
+Por eso la regla es de **puerto**, que es más burdo y funciona:
+
+| | |
+|---|---|
+| **5433** | producción, siempre, diga lo que diga el host |
+| cualquier otro | su base, o la de pruebas |
+
+- `prisma/guardia-de-base.ts` es una función pura —`destinoDeLaBase`—
+  para poder probarla. Mirar si el proceso del puerto es `ssh`
+  acertaría más y no se puede fijar en un test, y **un candado que
+  no se prueba es el que falla el día que importa**.
+- Lo llaman **los diez guiones que escriben** (`db:borrar-reservas`,
+  `db:crear-admin`, las cinco siembras…). Los de solo lectura
+  —`db:estado`, `db:verificar`— no lo llevan: leer producción a
+  veces es justo lo que se quiere.
+- `prisma migrate deploy` no pasa por ningún guión nuestro, así que
+  `pnpm prisma:deploy` antepone `db:guardia`. **El contenedor no se
+  ve afectado**: `arrancar.sh` llama a `pnpm exec prisma migrate
+  deploy` directo, y dentro `DATABASE_URL` es `db:5432`.
+- **Se puede saltar, y tiene que poder saltarse**: alguna vez hay
+  que corregir producción a mano. `PERMITIR_PRODUCCION=si` y nada
+  más — ni `1`, ni `true`, ni `SI`. Lo que no puede es pasar por
+  descuido.
+
+**El equipo de Josse ya apunta a pruebas.** `scripts/tunel-pruebas.ps1`
+trae `reservasae_prueba` al **5434** —otro puerto a propósito, que es
+toda la defensa— y `backend/.env` apunta ahí. La copia de lo que había
+quedó en `backend/.env.apuntaba-a-produccion.bak`.
+
+Y **`.env.example` ya no propone el 5433 en ninguna línea**, ni
+siquiera comentada: tenía una que lo sugería para «fuera de Docker»,
+que es exactamente cómo se llega a este problema copiando el ejemplo.
+
 
 ## Reglas del entorno (aprendidas a golpes)
 

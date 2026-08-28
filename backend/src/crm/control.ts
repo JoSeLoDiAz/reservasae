@@ -1,4 +1,5 @@
 import { EtapaParticipante, Prisma } from '../../generated/prisma';
+import { aDiaBogota } from '../comun/dia-bogota';
 import type { PrismaService } from '../prisma/prisma.service';
 import { enPeriodo, PRIMERA_MATRICULA } from './anclas';
 import { ETAPAS_DEL_EMBUDO } from './metricas-inscripciones';
@@ -189,9 +190,18 @@ const VACIO: Omit<Control, 'ventana' | 'anterior' | 'variacion'> = {
   leadsPorDia: [],
 };
 
-/** Día ISO: las ventanas cortan a medianoche. */
+/**
+ * El día de Bogotá de un borde de ventana.
+ *
+ * Era `toISOString()`, o sea el día de UTC, así que a partir de
+ * las 19:00 el rótulo del periodo saltaba al día siguiente —
+ * mientras las series de este mismo fichero ya cortaban por el
+ * día de Bogotá. Dos formas de leer un día en el mismo archivo,
+ * y el gráfico pintando barras que su propio rótulo declaraba
+ * fuera del periodo.
+ */
 function dia(d: Date): string {
-  return d.toISOString().slice(0, 10);
+  return aDiaBogota(d);
 }
 
 /** Las dos cifras de cabecera bajo un filtro dado. */
@@ -240,21 +250,33 @@ function comparar(
   };
 }
 
+/**
+ * El rotulo del periodo: «Hoy · 27 ago -> 27 ago».
+ *
+ * Aparte y exportado para poder PROBARLO. Es el gemelo del de
+ * `tablero-academico.ts`, tenia los dos mismos defectos --el
+ * dia de UTC y el «- DIA»-- y se quedo sin arreglar cuando se
+ * arreglo aquel; ahora que se arreglo, se quedaba sin test.
+ */
+export function rotuloDelPeriodo(comparacion: Comparacion) {
+  return {
+    rango: comparacion.rango,
+    etiqueta: comparacion.etiqueta,
+    etiquetaAnterior: comparacion.etiquetaAnterior,
+    desde: comparacion.actual ? dia(comparacion.actual.desde) : null,
+    /// El ultimo dia DENTRO: un milisegundo antes del corte.
+    hasta: comparacion.actual
+      ? dia(new Date(comparacion.actual.hasta.getTime() - 1))
+      : null,
+  };
+}
+
 export async function controlDeInscritos(
   prisma: PrismaService,
   ambito: string[],
   comparacion: Comparacion,
 ): Promise<Control> {
-  const marco = {
-    rango: comparacion.rango,
-    etiqueta: comparacion.etiqueta,
-    etiquetaAnterior: comparacion.etiquetaAnterior,
-    desde: comparacion.actual ? dia(comparacion.actual.desde) : null,
-    // el «hasta» de la ventana es abierto
-    hasta: comparacion.actual
-      ? dia(new Date(comparacion.actual.hasta.getTime() - DIA))
-      : null,
-  };
+  const marco = rotuloDelPeriodo(comparacion);
 
   // con ámbito vacío no se consulta: un IN () es inválido
   if (ambito.length === 0) {

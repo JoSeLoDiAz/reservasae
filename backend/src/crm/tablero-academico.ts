@@ -2,7 +2,12 @@ import { Prisma } from '../../generated/prisma';
 import { enPeriodo, PRIMERA_ENTRADA_AL_AULA } from './anclas';
 import type { PrismaService } from '../prisma/prisma.service';
 import { MINIMO_PARA_CERTIFICAR } from './crm.service';
-import { aDiaBogota } from '../comun/dia-bogota';
+import {
+  aDiaBogota,
+  aDiaDeCalendario,
+  fechaBogota,
+  HOY_BOGOTA,
+} from '../comun/dia-bogota';
 import { variacion, type Comparacion, type Ventana } from './ventana';
 
 /**
@@ -145,9 +150,20 @@ const CLAVES = [
 ] as const;
 
 /** La fecha en ISO corto, o null si no hay. */
-/// El dia de Bogota, no el de UTC: `toISOString()` daba el dia
-/// siguiente a partir de las 19:00.
+/// El dia de Bogota, para INSTANTES: los bordes de la ventana.
+///
+/// `toISOString()` daba el dia siguiente a partir de las 19:00.
 const dia = (d: Date | null): string | null => (d ? aDiaBogota(d) : null);
+
+/// Y este para las FECHAS DE CALENDARIO de los grupos.
+///
+/// Son dos cosas distintas y por poco se leen igual: el inicio
+/// de un grupo lo teclea alguien y se guarda a medianoche UTC,
+/// asi que leerlo «en Bogota» lo retrasa un dia -- el grupo que
+/// empieza el 1 de septiembre salia empezando el 31 de agosto.
+/// Ver `comun/dia-bogota.ts`.
+export const fechaDeGrupo = (d: Date | null): string | null =>
+  d ? aDiaDeCalendario(d) : null;
 
 /** Las etapas que significan haber pisado el aula. */
 const EN_AULA = Prisma.sql`p."etapa" IN (
@@ -307,7 +323,7 @@ function consultaQueArrancan(prisma: PrismaService, suyos: Prisma.Sql, ambito: s
     SELECT af."codigo" AS codigo,
            g."numero" AS numero,
            to_char(g."fechaInicio", 'YYYY-MM-DD') AS inicio,
-           (g."fechaInicio"::date - CURRENT_DATE)::int AS dias,
+           (g."fechaInicio"::date - ${HOY_BOGOTA})::int AS dias,
            COUNT(p."id")::int AS inscritos
       FROM "grupos" g
       JOIN "acciones_formacion" af ON af."id" = g."accionFormacionId"
@@ -316,8 +332,8 @@ function consultaQueArrancan(prisma: PrismaService, suyos: Prisma.Sql, ambito: s
                                  AND ${suyos} AND ${VIVOS}
      WHERE af."convenioId" IN (${Prisma.join(ambito)})
        AND g."fechaInicio" IS NOT NULL
-       AND g."fechaInicio"::date >= CURRENT_DATE
-       AND g."fechaInicio"::date <= CURRENT_DATE + 30
+       AND g."fechaInicio"::date >= ${HOY_BOGOTA}
+       AND g."fechaInicio"::date <= ${HOY_BOGOTA} + 30
      GROUP BY g."id", af."id"
      ORDER BY g."fechaInicio", af."codigo", g."numero"
   `;
@@ -349,7 +365,7 @@ function consultaVencidos(prisma: PrismaService, suyos: Prisma.Sql) {
       JOIN "acciones_formacion" af    ON af."id" = g."accionFormacionId"
      WHERE ${suyos} AND ${EN_AULA}
        AND g."fechaFin" IS NOT NULL
-       AND g."fechaFin"::date < CURRENT_DATE
+       AND g."fechaFin"::date < ${HOY_BOGOTA}
      GROUP BY g."id", af."id"
     HAVING COUNT(*) FILTER (
              WHERE p."etapa" = 'EN_FORMACION'::"EtapaParticipante"
@@ -379,9 +395,9 @@ function consultaParados(prisma: PrismaService, suyos: Prisma.Sql) {
     clasificados AS (
       SELECT CASE
                WHEN p."ultimoAcceso" IS NULL THEN -1
-               WHEN CURRENT_DATE - p."ultimoAcceso"::date <= 7  THEN 0
-               WHEN CURRENT_DATE - p."ultimoAcceso"::date <= 14 THEN 8
-               WHEN CURRENT_DATE - p."ultimoAcceso"::date <= 30 THEN 15
+               WHEN ${HOY_BOGOTA} - ${fechaBogota(Prisma.sql`p."ultimoAcceso"`)} <= 7  THEN 0
+               WHEN ${HOY_BOGOTA} - ${fechaBogota(Prisma.sql`p."ultimoAcceso"`)} <= 14 THEN 8
+               WHEN ${HOY_BOGOTA} - ${fechaBogota(Prisma.sql`p."ultimoAcceso"`)} <= 30 THEN 15
                ELSE 31
              END AS "dias"
         FROM "participantes" p
@@ -432,7 +448,13 @@ function resumir(filas: FilaAccion[]): Cabecera {
 }
 
 /** La ventana en fechas, con el último día dentro. */
-function describirVentana(c: Comparacion): VentanaTablero {
+/// Exportada para poder PROBARLA.
+///
+/// Su spec reimplementaba esta funcion en vez de llamarla, asi
+/// que no podia detectar una regresion aqui: la prueba de
+/// mutacion que se le hizo mutaba la copia del spec. Un test que
+/// copia la linea que dice proteger no protege nada.
+export function describirVentana(c: Comparacion): VentanaTablero {
   /// El ultimo dia DENTRO de la ventana: un milisegundo antes
   /// del corte, no un dia antes.
   ///
@@ -576,7 +598,11 @@ export async function tableroAcademico(
     ...cabecera,
     minimoParaCertificar: MINIMO_PARA_CERTIFICAR,
     porAccion,
-    porGrupo: porGrupo.map((g) => ({ ...g, inicio: dia(g.inicio), fin: dia(g.fin) })),
+    porGrupo: porGrupo.map((g) => ({
+      ...g,
+      inicio: fechaDeGrupo(g.inicio),
+      fin: fechaDeGrupo(g.fin),
+    })),
     porAsesor,
     gruposQueArrancan,
     gruposVencidos,

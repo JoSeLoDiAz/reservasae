@@ -1,8 +1,4 @@
-import {
-  enPalabras,
-  porQueNo,
-  TODAS_LAS_ETAPAS,
-} from './etapas-de-plantilla';
+import { enPalabras, porQueNo, TODAS_LAS_ETAPAS } from './etapas-de-plantilla';
 
 /// Lo que cuida esto: que no salga una «confirmación de
 /// inscripción» a quien todavía no está inscrito. Ese correo

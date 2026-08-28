@@ -54,6 +54,19 @@ const CIERRES: EtapaParticipante[] = ['CERTIFICADO', 'NO_APROBO'];
 const ENTRAR_AL_AULA: EtapaParticipante[] = ['INSCRITO', 'EN_FORMACION'];
 
 /**
+ * Quien OCUPA una silla de la oferta.
+ *
+ * Es la misma lista que `OCUPAN_SILLA` de `panel-de-cupos.ts` y
+ * que `ETAPAS_VIVAS`, y tiene que serlo: si esta lista y la que
+ * cuenta las sillas no coinciden, se pide cupo a quien ya lo
+ * tiene o no se pide a quien no lo tiene.
+ *
+ * Las cuatro salidas del aula NO estan: al retirarse se libera
+ * la silla, asi que volver consume una nueva.
+ */
+const OCUPA_SILLA: EtapaParticipante[] = ['INSCRITO', 'EN_FORMACION', 'CERTIFICADO'];
+
+/**
  * Si hay que comprobar datos, autorización, oferta y contacto.
  *
  * SIEMPRE que el destino sea estar dentro del aula, venga de
@@ -77,22 +90,44 @@ export function exigeDatosParaElAula(
 }
 
 /**
- * Si hay que comprobar que quepa en el grupo.
+ * Si esta transición consume una silla NUEVA.
  *
- * Esto SÍ es solo para quien viene de fuera: el cupo se consume
- * una vez, y volver a exigirlo cerraría el regreso a un grupo
- * lleno — que es justo cuando se hace un regreso.
+ * Es aritmética de sillas y nada más: se ocupa una si el
+ * destino cuenta y el origen no contaba. Por eso mira
+ * `OCUPA_SILLA` y no «estar en el aula», que no es lo mismo.
  *
- * Separar las dos comprobaciones es lo que hace correcto lo
- * anterior. Juntas, había que elegir entre bloquear regresos
- * legítimos y dejar entrar a quien revocó.
+ * **La primera versión miraba el aula y rompió el ingreso
+ * tardío.** `INSCRITO → EN_FORMACION` es el paso documentado
+ * para quien entra al aula con el grupo ya andando, y como
+ * INSCRITO no está «en el aula» se le volvía a pedir cupo — y
+ * `exigirQueQuepa` exige además que la ventana de inscripción
+ * siga abierta, y esa ventana cierra una semana ANTES de que el
+ * grupo arranque. O sea que el paso quedaba imposible siempre,
+ * no a veces. Con la aritmética de sillas sale solo: quien ya
+ * está INSCRITO ya ocupa la suya.
  */
 export function exigeCupo(
   antes: EtapaParticipante,
   despues: EtapaParticipante,
 ): boolean {
-  if (!ENTRAR_AL_AULA.includes(despues)) return false;
-  return !EN_EL_AULA.includes(antes);
+  return OCUPA_SILLA.includes(despues) && !OCUPA_SILLA.includes(antes);
+}
+
+/**
+ * Si esta persona VUELVE al aula habiendo estado antes.
+ *
+ * Sirve para una cosa concreta: a quien vuelve no se le puede
+ * exigir que la ventana de inscripción siga abierta, porque el
+ * grupo al que vuelve ya arrancó y por eso mismo está cerrada.
+ * Exigirla haría imposible el regreso — y con él, el paso por
+ * «En formación» que `motivoDeTransicionImposible` obliga a dar
+ * antes de certificar a quien se había ido. La regla se
+ * bloquearía a sí misma.
+ *
+ * El cupo SÍ se le pide: al retirarse liberó su silla.
+ */
+export function esRegresoAlAula(antes: EtapaParticipante): boolean {
+  return EN_EL_AULA.includes(antes);
 }
 
 /** Por qué no se puede pasar de `antes` a `despues`, o null. */

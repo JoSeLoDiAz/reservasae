@@ -2,6 +2,10 @@
 
 import { PrismaClient, RolAdmin, RolConvenio } from '../generated/prisma';
 import { generarClaveTemporal, hashearClave } from '../src/admin/claves';
+import { exigirBaseSegura } from './guardia-de-base';
+
+// el 5433 es produccion, aunque diga localhost
+exigirBaseSegura('Crear un administrador');
 
 const prisma = new PrismaClient();
 
