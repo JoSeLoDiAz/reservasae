@@ -466,27 +466,33 @@ function ChipUsuario({
   alSalir: () => void;
 }) {
   return (
-    // sin recuadro: en la barra de arriba, un marco alrededor
-    // del nombre lo hacia parecer un boton que no es
-    <div className="flex shrink-0 items-center gap-2.5">
-      <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-marca text-xs font-bold text-marca-texto">
-        {(admin.nombre[0] ?? "?").toUpperCase()}
-      </span>
-      {/* el cargo se esconde en pantallas chicas: en la barra
-          de arriba compite con las migas */}
-      <span className="hidden min-w-0 flex-col leading-tight sm:flex">
-        <span className="truncate text-xs font-semibold">{admin.nombre}</span>
-        <span className="truncate text-[10px] opacity-60">
+    /// Sin la inicial en un cuadrito.
+    ///
+    /// Esa placa de una letra no identificaba a nadie —quien
+    /// está adentro sabe quién es— y le quitaba sitio al
+    /// nombre, que sí sirve. Lo que queda es el nombre con su
+    /// cargo, alineados a la derecha, y una salida que se ve.
+    <div className="flex shrink-0 items-center gap-3">
+      <span className="hidden min-w-0 flex-col items-end leading-tight sm:flex">
+        <span className="truncate text-sm font-semibold">{admin.nombre}</span>
+        <span className="truncate text-xs text-texto-suave">
           {admin.cargo ?? admin.rol}
         </span>
       </span>
+      {/* Un separador fino en vez del cuadrito: dice «esto de
+          aquí es suyo» sin gritar una inicial. */}
+      <span aria-hidden className="hidden h-8 w-px bg-borde sm:block" />
       <button
         onClick={alSalir}
         title="Cerrar sesión"
         aria-label="Cerrar sesión"
-        className="shrink-0 rounded-lg p-1.5 opacity-60 transition hover:bg-error/15 hover:text-error hover:opacity-100"
+        /// Más grande, y con su palabra al lado en pantalla
+        /// ancha. Un icono de 15px sin texto se busca; la
+        /// salida no se debería buscar.
+        className="flex shrink-0 items-center gap-2 rounded-xl px-3 py-2 text-sm text-texto-suave transition hover:bg-error-suave hover:text-error"
       >
-        <IconoSalir tamano={15} />
+        <IconoSalir tamano={20} />
+        <span className="hidden lg:inline">Salir</span>
       </button>
     </div>
   );
@@ -1001,6 +1007,9 @@ export function Tarjeta({
   titulo,
   descripcion,
   centrado,
+  plegable,
+  abiertaPorDefecto = false,
+  insignia,
   children,
 }: {
   titulo: string;
@@ -1010,19 +1019,89 @@ export function Tarjeta({
   /// quedarse pegado arriba. En un formulario o una lista
   /// centrar vertical se ve mal, asi que no es lo de siempre.
   centrado?: boolean;
+  /// Se abre y se cierra con un clic en el titulo.
+  ///
+  /// La ficha de un lead tiene once tarjetas y muchas se
+  /// miran una vez al mes: los datos del interesado, el
+  /// historial, la autorizacion. Todas abiertas obligan a
+  /// recorrer dos pantallas para llegar a lo que uno usa
+  /// todos los dias, que son la etapa y el grupo.
+  plegable?: boolean;
+  abiertaPorDefecto?: boolean;
+  /// Un dato que se ve SIN abrirla. Es lo que hace que
+  /// plegar no esconda: «3 notas», «5 movimientos».
+  insignia?: React.ReactNode;
   children: React.ReactNode;
 }) {
+  const [abierta, setAbierta] = useState(abiertaPorDefecto);
+  const mostrar = !plegable || abierta;
+
   return (
     <section
-      className={`rounded-2xl border border-borde bg-superficie p-6 shadow-sm ${
+      className={`rounded-2xl border border-borde bg-superficie shadow-sm ${
         centrado ? "flex h-full flex-col" : ""
-      }`}
+      } ${plegable && !abierta ? "px-6 py-4" : "p-6"}`}
     >
-      <h2 className="text-lg font-semibold">{titulo}</h2>
-      {descripcion && <p className="mt-1 text-sm text-texto-suave">{descripcion}</p>}
-      <div className={`mt-5 ${centrado ? "flex grow flex-col justify-center" : ""}`}>
-        {children}
-      </div>
+      {plegable ? (
+        <button
+          type="button"
+          onClick={() => setAbierta((v) => !v)}
+          aria-expanded={abierta}
+          className="flex w-full items-center gap-3 text-left"
+        >
+          <span className="min-w-0 flex-1">
+            <span className="block text-lg font-semibold">{titulo}</span>
+            {descripcion && !abierta && (
+              <span className="mt-0.5 block truncate text-sm text-texto-suave">
+                {descripcion}
+              </span>
+            )}
+          </span>
+          {/* La insignia se ve cerrada: plegar no puede
+              esconder que hay algo dentro. */}
+          {insignia && (
+            <span className="shrink-0 rounded-full bg-superficie-alterna px-2.5 py-1 text-xs text-texto-suave">
+              {insignia}
+            </span>
+          )}
+          <svg
+            viewBox="0 0 24 24"
+            width="18"
+            height="18"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden
+            className={`shrink-0 opacity-50 transition-transform ${
+              abierta ? "rotate-180" : ""
+            }`}
+          >
+            <path d="m6 9 6 6 6-6" />
+          </svg>
+        </button>
+      ) : (
+        <>
+          <h2 className="text-lg font-semibold">{titulo}</h2>
+          {descripcion && (
+            <p className="mt-1 text-sm text-texto-suave">{descripcion}</p>
+          )}
+        </>
+      )}
+
+      {mostrar && (
+        <>
+          {plegable && descripcion && (
+            <p className="mt-1 text-sm text-texto-suave">{descripcion}</p>
+          )}
+          <div
+            className={`mt-5 ${centrado ? "flex grow flex-col justify-center" : ""}`}
+          >
+            {children}
+          </div>
+        </>
+      )}
     </section>
   );
 }

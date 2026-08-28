@@ -2,7 +2,7 @@
 
 import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 
-import { AuditoriaService, type Actor } from '../comun/auditoria.service';
+import { ENTIDADES, AuditoriaService, type Actor } from '../comun/auditoria.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { CATALOGO, type Entidad } from './catalogo';
 import { construirFormato, leerPlantilla, type Reparo } from './plantillas';
@@ -316,7 +316,10 @@ export class PlantillasService {
     await this.auditoria.registrar({
       actor,
       accion: 'PARTICIPANTE_EDITADO',
-      entidad: entidad === 'instituciones' ? 'Institucion' : 'Empresa',
+      entidad:
+        entidad === 'instituciones'
+          ? ENTIDADES.INSTITUCION
+          : ENTIDADES.EMPRESA,
       entidadId: 'cargue-masivo',
       resumen:
         `Cargue por plantilla: ${actualizadas} actualizadas` +
@@ -404,7 +407,7 @@ export class PlantillasService {
     await this.auditoria.registrar({
       actor,
       accion: 'PARTICIPANTE_EDITADO',
-      entidad: 'Reserva',
+      entidad: ENTIDADES.RESERVA,
       entidadId: 'cargue-masivo',
       resumen: `Cargue por plantilla: ${lectura.filas.length} reservas`,
       camposTocados: campos,

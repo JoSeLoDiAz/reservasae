@@ -841,7 +841,34 @@ export type MetricasInscripciones = {
   conversion: { inscritos: number; base: number; porcentaje: number };
 };
 
+/// Una fila del «Historial Logs»: qué decía antes un dato.
+export type ValorAnterior = {
+  id: string;
+  campo: string;
+  etiqueta: string;
+  clase: string;
+  valorAnterior: string | null;
+  habiaValor: boolean;
+  actorNombre: string;
+  creadoEn: string;
+  restauradoEn: string | null;
+  restauradoPor: { nombre: string } | null;
+  /// Por qué no hay valor, en palabras. Un hueco a secas se
+  /// lee como un error.
+  porQueSinValor: string | null;
+  sePuedeRestablecer: boolean;
+};
+
 export const crmApi = {
+  historico: (id: string) =>
+    pedir<ValorAnterior[]>(`/admin/participantes/${id}/historico`),
+
+  restablecer: (id: string, valorId: string) =>
+    pedir<{ restablecido: boolean; campo: string }>(
+      `/admin/participantes/${id}/historico/${valorId}/restablecer`,
+      { method: "POST" },
+    ),
+
   borrarParticipacion: (id: string) =>
     pedir<{
       borrado: boolean;

@@ -10,7 +10,7 @@ import {
 import { EstadoConsultaRui } from '../../../generated/prisma';
 import { PrismaService } from '../../prisma/prisma.service';
 import { nombreCompleto } from '../../comun/documento';
-import { AuditoriaService, type Actor } from '../../comun/auditoria.service';
+import { ENTIDADES, AuditoriaService, type Actor } from '../../comun/auditoria.service';
 import { ColaRui } from './cola-rui';
 import { partirNombre } from './partir-nombre';
 import { nombreCoincide } from './comparar-nombres';
@@ -178,7 +178,7 @@ export class RuiService {
     await this.auditoria.registrar({
       actor,
       accion: 'PARTICIPANTE_EDITADO',
-      entidad: 'Persona',
+      entidad: ENTIDADES.PERSONA,
       entidadId: personaId,
       resumen: 'Se tomó el nombre que devolvió el RUI',
       camposTocados: [

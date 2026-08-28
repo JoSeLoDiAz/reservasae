@@ -9,7 +9,7 @@ import {
 import { randomBytes } from 'node:crypto';
 
 import { Prisma } from '../../generated/prisma';
-import { AuditoriaService } from '../comun/auditoria.service';
+import { ENTIDADES, AuditoriaService } from '../comun/auditoria.service';
 import { CorreoService } from '../correo/correo.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { GENEROS_SEP } from '../crm/catalogos-sep.generado';
@@ -989,7 +989,7 @@ ${this.urlPublica()}/completar/${enlace.token}
 
     const previas = await this.prisma.registroAuditoria.findMany({
       where: {
-        entidad: 'participante',
+        entidad: ENTIDADES.PARTICIPANTE,
         entidadId: participanteId,
         accion: 'SITUACION_LABORAL_DECLARADA',
       },
@@ -1006,7 +1006,7 @@ ${this.urlPublica()}/completar/${enlace.token}
     await this.auditoria.registrar({
       actor: { nombre: 'La persona, desde su enlace' },
       accion: 'SITUACION_LABORAL_DECLARADA',
-      entidad: 'participante',
+      entidad: ENTIDADES.PARTICIPANTE,
       entidadId: participanteId,
       convenioId,
       resumen: seContradice

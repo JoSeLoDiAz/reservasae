@@ -179,7 +179,17 @@ export default function PaginaPlantillasCorreo() {
 
       {editando !== null && (
         <Tarjeta titulo={editando ? "Editar la plantilla" : "Nueva plantilla"}>
-          <div className="grid gap-6 lg:grid-cols-[1fr_24rem]">
+          {/* MITAD Y MITAD, y la vista QUIETA.
+
+              Era una barra lateral de 24rem: la vista salía
+              tan angosta que no se parecía a un correo, y al
+              bajar a escribir el mensaje se iba de pantalla
+              justo cuando más falta hace.
+
+              Ahora la vista ocupa la mitad y se queda pegada
+              arriba mientras se escribe en la otra: se teclea
+              en un lado y se ve en el otro, sin buscarla. */}
+          <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
             <div className="space-y-4">
               <div>
                 <label htmlFor="nombre" className="mb-1.5 block text-sm font-medium">
@@ -284,7 +294,7 @@ export default function PaginaPlantillasCorreo() {
               </div>
             </div>
 
-            <div className="space-y-5">
+            <div className="space-y-5 lg:sticky lg:top-4">
             {/* La vista va ARRIBA de la lista de variables: lo
                 primero que uno quiere ver mientras escribe es
                 cómo va quedando, no el catálogo. */}

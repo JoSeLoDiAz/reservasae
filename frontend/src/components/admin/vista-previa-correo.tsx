@@ -24,6 +24,7 @@ export function VistaPreviaCorreo({
   variables,
   banner,
   remitente,
+  paraEjemplo,
 }: {
   asunto: string;
   cuerpo: string;
@@ -31,6 +32,9 @@ export function VistaPreviaCorreo({
   /// El banner elegido, antes de subirlo.
   banner?: File | null;
   remitente?: string;
+  /// A quién se le enseña como destinatario de ejemplo. Sin
+  /// esto la cabecera queda coja y no se parece a un correo.
+  paraEjemplo?: string;
 }) {
   /// El archivo se vuelve una URL temporal del navegador. Se
   /// suelta cuando cambia, o el navegador se queda con la
@@ -73,16 +77,38 @@ export function VistaPreviaCorreo({
 
       {/* Una ventana de correo, no un recuadro de texto: es lo
           que deja ver si el banner queda bien y si el asunto
-          se corta. */}
+          se corta.
+
+          Con la cabecera completa —de quién, para quién, el
+          asunto— porque es lo primero que ve el destinatario y
+          es donde se decide si lo abre. Un asunto que se corta
+          a los 50 caracteres en el celular hay que verlo
+          AQUÍ. */}
       <div className="overflow-hidden rounded-xl border border-borde bg-superficie shadow-sm">
-        <div className="border-b border-borde bg-superficie-alterna px-4 py-3">
-          <p className="text-xs text-texto-suave">
-            De: {remitente ?? "Convoca"}
-          </p>
-          <p className="mt-0.5 font-medium break-words">{asuntoLleno}</p>
+        <div className="space-y-1 border-b border-borde bg-superficie-alterna px-4 py-3">
+          <div className="flex items-baseline gap-2 text-xs text-texto-suave">
+            <span className="w-12 shrink-0">De</span>
+            <span className="truncate text-texto">{remitente ?? "Convoca"}</span>
+          </div>
+          <div className="flex items-baseline gap-2 text-xs text-texto-suave">
+            <span className="w-12 shrink-0">Para</span>
+            <span className="truncate">{paraEjemplo ?? "camila.gomez@ejemplo.com"}</span>
+          </div>
+          <div className="flex items-baseline gap-2 pt-1">
+            <span className="w-12 shrink-0 text-xs text-texto-suave">Asunto</span>
+            <p className="min-w-0 font-medium break-words">{asuntoLleno}</p>
+          </div>
+          {/* Lo que se ve en la lista del celular antes de
+              abrirlo. Si el asunto pasa de ahí, se corta. */}
+          {asuntoLleno.length > 50 && (
+            <p className="pt-1 pl-14 text-[11px] text-aviso">
+              En el celular se corta cerca del carácter 50. Este tiene{" "}
+              {asuntoLleno.length}.
+            </p>
+          )}
         </div>
 
-        <div className="max-h-[26rem] overflow-y-auto">
+        <div className="max-h-[32rem] overflow-y-auto">
           {urlBanner && (
             // eslint-disable-next-line @next/next/no-img-element
             <img

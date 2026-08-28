@@ -11,6 +11,7 @@
 import type { EtapaParticipante } from '../../generated/prisma';
 import {
   esRegresoAlAula,
+  saleDelCupo,
   exigeCupo,
   exigeDatosParaElAula,
   motivoDeTransicionImposible,
@@ -190,5 +191,44 @@ describe('no se cierra una formación que no ocurrió', () => {
     expect(motivoDeTransicionImposible('RETIRADO', 'EN_FORMACION')).toBeNull();
     expect(esRegresoAlAula('RETIRADO')).toBe(true);
     expect(motivoDeTransicionImposible('EN_FORMACION', 'CERTIFICADO')).toBeNull();
+  });
+});
+
+describe('saleDelCupo: qué es «deshacer una inscripción»', () => {
+  it('la matriz entera es el espejo de exigeCupo', () => {
+    cadaPar((antes, despues) => {
+      const esperado =
+        OCUPAN_SILLA.includes(antes) && !OCUPAN_SILLA.includes(despues);
+      expect({ antes, despues, sale: saleDelCupo(antes, despues) }).toEqual({
+        antes,
+        despues,
+        sale: esperado,
+      });
+    });
+  });
+
+  it('INSCRITO → EN_FORMACION NO deshace nada', () => {
+    /// Es el ingreso tardío: las dos ocupan silla, la persona
+    /// sigue contando en el cupo y en el reporte. Un candado que
+    /// mirase «se mueve desde INSCRITO» lo bloquearía y cerraría
+    /// el paso documentado para quien entra con el grupo ya
+    /// andando.
+    expect(saleDelCupo('INSCRITO', 'EN_FORMACION')).toBe(false);
+  });
+
+  it('INSCRITO → CERTIFICADO tampoco: es avanzar', () => {
+    expect(saleDelCupo('INSCRITO', 'CERTIFICADO')).toBe(false);
+  });
+
+  it('salirse del cupo SÍ lo es, venga de donde venga', () => {
+    for (const salida of ['INTERESADO', 'PERDIDO', 'RETIRADO', 'NO_APROBO'] as const) {
+      expect(saleDelCupo('INSCRITO', salida)).toBe(true);
+      expect(saleDelCupo('EN_FORMACION', salida)).toBe(true);
+    }
+  });
+
+  it('quien no ocupaba silla no puede soltarla', () => {
+    expect(saleDelCupo('INTERESADO', 'PERDIDO')).toBe(false);
+    expect(saleDelCupo('RETIRADO', 'PERDIDO')).toBe(false);
   });
 });

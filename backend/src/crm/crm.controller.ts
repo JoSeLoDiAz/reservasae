@@ -13,7 +13,7 @@ import {
 import { RolAdmin, type Admin } from '../../generated/prisma';
 import { AdminActual, AmbitoActual } from '../admin/admin-actual.decorator';
 import { AdminGuard, Requiere, Roles, type Ambito } from '../admin/admin.guard';
-import { conveniosQueCierran } from '../admin/permisos';
+import { conveniosQueCierran, conveniosQueMuevenInscrito } from '../admin/permisos';
 import { PreinscripcionService } from '../preinscripcion/preinscripcion.service';
 import { IpReal } from '../comun/ip-real';
 import { CrmService } from './crm.service';
@@ -290,8 +290,18 @@ export class CrmController {
   @Delete(':id')
   @Roles(RolAdmin.SUPERADMIN)
   @Requiere('inscripciones', 'ESCRIBIR')
-  borrarParticipacion(@Param('id') id: string, @AmbitoActual() ambito: Ambito) {
-    return this.crm.borrarParticipacion(id, ambito.convenios);
+  borrarParticipacion(
+    @Param('id') id: string,
+    @AmbitoActual() ambito: Ambito,
+    @AdminActual() admin: Admin,
+    @IpReal() ip: string,
+  ) {
+    return this.crm.borrarParticipacion(
+      id,
+      ambito.convenios,
+      { id: admin.id, nombre: admin.nombre },
+      ip,
+    );
   }
 
   @Patch(':id/etapa')
@@ -310,6 +320,7 @@ export class CrmController {
       ambito.convenios,
       ip,
       conveniosQueCierran(ambito.roles),
+      conveniosQueMuevenInscrito(ambito.roles),
     );
   }
 
@@ -377,6 +388,30 @@ export class CrmController {
     @AmbitoActual() ambito: Ambito,
   ) {
     return this.plantillasCorreo.enviar(id, plantillaId, ambito.convenios);
+  }
+
+  /// El «Historial Logs»: qué decía antes cada dato.
+  ///
+  /// Separado del historial de movimientos a propósito: son
+  /// dos preguntas distintas. Aquel dice QUÉ HIZO alguien;
+  /// este, QUÉ DECÍA EL DATO.
+  @Get(':id/historico')
+  historico(@Param('id') id: string, @AmbitoActual() ambito: Ambito) {
+    return this.crm.historicoDeValores(id, ambito.convenios);
+  }
+
+  /// Devolver un campo a como estaba. Exige ESCRIBIR: es un
+  /// cambio como cualquier otro, y deja su propia huella.
+  @Post(':id/historico/:valorId/restablecer')
+  @Requiere('inscripciones', 'ESCRIBIR')
+  restablecer(
+    @Param('id') id: string,
+    @Param('valorId') valorId: string,
+    @AmbitoActual() ambito: Ambito,
+    @AdminActual() admin: Admin,
+    @IpReal() ip: string,
+  ) {
+    return this.crm.restablecerValor(id, valorId, ambito.convenios, admin, ip);
   }
 
   /** Un enlace para que la persona complete su ficha. */

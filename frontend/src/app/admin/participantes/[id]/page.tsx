@@ -17,6 +17,7 @@ import {
   Tarjeta,
   useAdmin,
 } from "@/components/admin/marco-admin";
+import { HistoricoDeValores } from "@/components/admin/historico-valores";
 import { EnviarCorreo } from "@/components/admin/enviar-correo";
 import { RevisarPropuesta } from "@/components/admin/revisar-propuesta";
 import { useToast } from "@/components/admin/toast";
@@ -204,23 +205,36 @@ export default function PaginaFicha() {
 
       <DatosDeLaEmpresa ficha={f} />
 
-      {puedeEscribir && <EnlaceCompletar ficha={f} />}
+      {/* Los dos de contactarla, EN PAREJA. Son la misma
+          tarea vista de dos formas —pedirle que complete, o
+          escribirle— y una debajo de la otra gastaban dos
+          pantallas para dos cajas medio vacías.
 
-      {/* Escribirle va DEBAJO del enlace a proposito: primero
-          se le pide que complete lo que falta, y despues se le
-          escribe con los datos ya puestos. Al reves, la
-          plantilla sale llena de huecos. */}
+          El enlace va a la izquierda porque es lo primero:
+          primero se le pide que complete lo que falta, y
+          después se le escribe con los datos ya puestos. Al
+          revés, la plantilla sale llena de huecos. */}
       {puedeEscribir && (
-        <Tarjeta
-          titulo="Escribirle un correo"
-          descripcion="Con una plantilla, que se llena sola con los datos de esta ficha."
-        >
-          <EnviarCorreo participanteId={f.id} />
-        </Tarjeta>
+        <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
+          <EnlaceCompletar ficha={f} />
+          <Tarjeta
+            titulo="Escribirle un correo"
+            descripcion="Con una plantilla, que se llena sola con los datos de esta ficha."
+            plegable
+          >
+            <EnviarCorreo participanteId={f.id} />
+          </Tarjeta>
+        </div>
       )}
 
+      {/* La autorización y las notas, también en pareja: la
+          primera se mira una vez y la segunda se lee de
+          reojo. */}
+      <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
       <Tarjeta
         titulo="Autorización de tratamiento de datos"
+        plegable
+        insignia={autorizacion ? "Autorizada" : "Sin autorizar"}
       >
         {autorizacion ? (
           <div className="space-y-3">
@@ -261,6 +275,8 @@ export default function PaginaFicha() {
       <Tarjeta
         titulo="Notas"
         descripcion="No se borran: una corrección es otra nota."
+        plegable
+        insignia={`${f.notas.length}`}
       >
         <div className="space-y-4">
           <div className="space-y-3">
@@ -340,8 +356,21 @@ export default function PaginaFicha() {
         </div>
       </Tarjeta>
 
+      </div>
+
+      {/* LOS DOS HISTORIALES, en pareja y plegados.
+
+          A la izquierda, qué HIZO alguien. A la derecha, qué
+          DECÍA el dato. Son dos preguntas distintas: la
+          primera no sirve para deshacer —«Ana cambió el correo
+          el martes» no dice cuál era— y la segunda no dice
+          quién lo tocó. */}
+      <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
       <Tarjeta
         titulo="Historial"
+        descripcion="Cada cambio de etapa, con quién lo hizo y por qué."
+        plegable
+        insignia={`${f.movimientos.length}`}
       >
         <ol className="space-y-2.5">
           {f.movimientos.map((m) => (
@@ -370,6 +399,18 @@ export default function PaginaFicha() {
           ))}
         </ol>
       </Tarjeta>
+
+      <Tarjeta
+        titulo="Qué decía antes"
+        descripcion="Cada dato que se corrigió, con su valor anterior."
+        plegable
+      >
+        <HistoricoDeValores
+          participanteId={f.id}
+          puedeEscribir={puedeEscribir}
+        />
+      </Tarjeta>
+      </div>
 
       {f.persona.participaciones.length > 0 && (
         <Tarjeta
@@ -1033,7 +1074,7 @@ function DatosDeLaEmpresa({ ficha }: { ficha: Ficha }) {
 
   if (!e) {
     return (
-      <Tarjeta titulo="Su organización">
+      <Tarjeta titulo="Su organización" plegable>
         <p className="text-sm text-texto-suave">Todavía no tiene organización.</p>
       </Tarjeta>
     );
@@ -1065,16 +1106,40 @@ function DatosDeLaEmpresa({ ficha }: { ficha: Ficha }) {
     : [
         ["NIT", e.digitoVerificacion ? `${e.nit}-${e.digitoVerificacion}` : e.nit],
         ["Razón social", e.razonSocial],
+      ];
+
+  /// Los tres que el ASESOR puede conseguir llamando.
+  ///
+  /// Son los mismos que pide el enlace de completar datos: se
+  /// los sabe el empleado. Van aparte porque antes esta
+  /// tarjeta los mezclaba con los del maestro de empresas y
+  /// salían once «Falta» seguidos, sin decir cuáles eran suyos
+  /// ni qué pasaba si no los conseguía.
+  const DEL_ASESOR: Array<[string, unknown]> = porSuCuenta
+    ? []
+    : [
+        ["Persona de contacto", e.contactoNombre],
+        ["Su cargo", e.contactoCargo],
+        ["Su correo", e.contactoCorreo],
+      ];
+
+  /// Y los que llena el ANALISTA de información, o los trae la
+  /// consulta al RUES por el NIT. No son del asesor y no tiene
+  /// por qué perseguirlos.
+  const DEL_ANALISTA: Array<[string, unknown]> = porSuCuenta
+    ? []
+    : [
         ["Dirección", e.direccion],
         ["Teléfono", e.telefono],
         ["Departamento", e.departamentoSepId],
         ["Municipio", e.municipioSepId],
         ["Sector económico", e.sectorEconomico],
         ["Número de trabajadores", e.numeroTrabajadores],
-        ["Persona de contacto", e.contactoNombre],
-        ["Su cargo", e.contactoCargo],
-        ["Su correo", e.contactoCorreo],
       ];
+
+  const faltanDelAsesor = DEL_ASESOR.filter(
+    ([, v]) => v === null || v === "",
+  ).length;
 
   return (
     /// El título nombra a la organización, no la etiqueta.
@@ -1085,28 +1150,47 @@ function DatosDeLaEmpresa({ ficha }: { ficha: Ficha }) {
     /// una empresa -- porque ahí lo que importa es la figura.
     <Tarjeta
       titulo={porSuCuenta ? "Independiente con RUT" : e.razonSocial}
+      plegable
+      insignia={
+        faltanDelAsesor > 0 ? `Faltan ${faltanDelAsesor} suyos` : "Completa"
+      }
     >
-      <dl className="grid gap-x-6 gap-y-3 sm:grid-cols-3">
-        {CAMPOS.map(([nombre, valor]) => (
-          <div key={nombre}>
-            <dt className="text-xs tracking-wide text-texto-suave uppercase">
-              {nombre}
-            </dt>
-            <dd className="text-sm">
-              {valor === null || valor === "" ? (
-                <span className="text-aviso">Falta</span>
-              ) : (
-                String(valor)
-              )}
-            </dd>
-          </div>
-        ))}
-      </dl>
+      <Campos campos={CAMPOS} />
 
-      <p className="mt-4 text-xs text-texto-suave">
+      {DEL_ASESOR.length > 0 && (
+        <div className="mt-5 border-t border-borde pt-4">
+          <p className="text-xs font-semibold tracking-wide uppercase opacity-55">
+            Lo que usted puede preguntarle
+          </p>
+          <p className="mt-1 mb-3 text-xs text-texto-suave">
+            {faltanDelAsesor === 0
+              ? "Ya están los tres. No hay nada que preguntar."
+              : "Se los sabe el empleado. Son los mismos que pide el enlace de completar datos."}
+          </p>
+          <Campos campos={DEL_ASESOR} />
+        </div>
+      )}
+
+      {DEL_ANALISTA.length > 0 && (
+        <div className="mt-5 border-t border-borde pt-4">
+          <p className="text-xs font-semibold tracking-wide uppercase opacity-55">
+            Lo que llena el analista
+          </p>
+          <p className="mt-1 mb-3 text-xs text-texto-suave">
+            Los trae la consulta al RUES por el NIT, o se corrigen en
+            Empresas registradas. No los persiga usted.
+          </p>
+          <Campos campos={DEL_ANALISTA} />
+        </div>
+      )}
+
+      {/* La pregunta que esta tarjeta no contestaba: ¿esto me
+          frena? No. Comprobado en completitud.ts, que no
+          menciona la empresa por ninguna parte. */}
+      <p className="mt-5 rounded-xl border border-borde bg-superficie-alterna p-3 text-xs leading-relaxed text-texto-suave">
         {porSuCuenta
           ? "Su cédula hace de RUT. No entra en Empresas registradas: ahí van organizaciones."
-          : "Se corrigen en Empresas registradas, que es donde vive el dato."}
+          : "Nada de esto frena la inscripción ni la matrícula, y la persona sale igual en el archivo por persona del SENA. Lo único que espera por estos datos es la fila del F7, que es el resumen por empresa."}
       </p>
     </Tarjeta>
   );
@@ -1292,7 +1376,7 @@ function EnlaceCompletar({ ficha }: { ficha: Ficha }) {
 
   if (noLeFalta) {
     return (
-      <Tarjeta titulo="Enlace para que complete sus datos">
+      <Tarjeta titulo="Enlace para que complete sus datos" plegable>
         <div className="rounded-xl border border-exito/30 bg-exito-suave p-4 text-sm text-exito">
           <p className="font-medium">Datos completos — no aplica</p>
           <p className="mt-1">
@@ -1305,7 +1389,7 @@ function EnlaceCompletar({ ficha }: { ficha: Ficha }) {
   }
 
   return (
-    <Tarjeta titulo="Enlace para que complete sus datos">
+    <Tarjeta titulo="Enlace para que complete sus datos" plegable>
       <div className="space-y-4">
         <LoQuePedira ficha={ficha} />
 
@@ -1358,5 +1442,33 @@ function EnlaceCompletar({ ficha }: { ficha: Ficha }) {
         </Boton>
       </div>
     </Tarjeta>
+  );
+}
+
+/// La rejilla de etiqueta y valor, con «Falta» donde no hay.
+///
+/// Sale tres veces en la tarjeta de la empresa —lo fijo, lo
+/// del asesor y lo del analista— y antes era una sola lista
+/// corrida de once. El «Falta» va en color de aviso y no de
+/// error a propósito: que falte un dato de la empresa no
+/// impide inscribir a nadie.
+function Campos({ campos }: { campos: Array<[string, unknown]> }) {
+  return (
+    <dl className="grid gap-x-6 gap-y-3 sm:grid-cols-3">
+      {campos.map(([nombre, valor]) => (
+        <div key={nombre}>
+          <dt className="text-xs tracking-wide text-texto-suave uppercase">
+            {nombre}
+          </dt>
+          <dd className="text-sm">
+            {valor === null || valor === "" ? (
+              <span className="text-aviso">Falta</span>
+            ) : (
+              String(valor)
+            )}
+          </dd>
+        </div>
+      ))}
+    </dl>
   );
 }

@@ -13,11 +13,23 @@ import {
   Prisma,
   type Admin,
 } from '../../generated/prisma';
-import { AuditoriaService } from '../comun/auditoria.service';
+import {
+  ENTIDADES,
+  AuditoriaService,
+  type Actor,
+} from '../comun/auditoria.service';
+import { taparDocumento } from '../comun/tapar';
+import {
+  CLASE_POR_CAMPO,
+  enPalabras as enPalabrasElCampo,
+  seGuardaElValor,
+  seHistoria,
+} from './clase-de-dato';
 import { documentoValido, normalizarDocumento } from '../comun/documento';
 import { analizar, esInsalvable, repetidosEnElPegado } from './carga';
 import {
   esRegresoAlAula,
+  saleDelCupo,
   exigeCupo,
   exigeDatosParaElAula,
   motivoDeTransicionImposible,
@@ -268,6 +280,26 @@ function aTexto(valor: unknown): string | null {
   if (typeof valor === 'string' && /^\d{4}-\d{2}-\d{2}T/.test(valor)) {
     return valor.slice(0, 10);
   }
+  return aTextoLlano(valor);
+}
+
+/**
+ * Un valor cualquiera como texto, sin perderlo por el camino.
+ *
+ * `String(valor)` sobre un objeto da «[object Object]», que no
+ * es un texto: es la desaparicion del dato con forma de texto.
+ * Ya paso en la celda del F7 y ahi al menos se veia; en el
+ * historial de «que decia antes» no se ve, y el valor viejo ya
+ * no esta en ningun otro sitio.
+ */
+function aTextoLlano(valor: unknown): string {
+  if (typeof valor === 'object' && valor !== null) {
+    try {
+      return JSON.stringify(valor);
+    } catch {
+      return '(no se pudo leer)';
+    }
+  }
   return String(valor);
 }
 
@@ -361,7 +393,7 @@ export class CrmService {
     const porFila = await this.prisma.registroAuditoria.groupBy({
       by: ['entidadId'],
       where: {
-        entidad: 'Participante',
+        entidad: ENTIDADES.PARTICIPANTE,
         accion: 'PARTICIPANTE_EDITADO',
         entidadId: { in: filas.map((f) => f.id) },
       },
@@ -1095,7 +1127,10 @@ export class CrmService {
     let notaAsesor: string | null = null;
 
     if (cambiaAsesor && dto.asesorId) {
-      const asesor = await this.exigirAsesorDelConvenio(dto.asesorId, p.convenioId);
+      const asesor = await this.exigirAsesorDelConvenio(
+        dto.asesorId,
+        p.convenioId,
+      );
       // el mismo texto que el lote
       notaAsesor = `Asignada a ${asesor.nombre}`;
     } else if (cambiaAsesor) {
@@ -1118,6 +1153,25 @@ export class CrmService {
     // Asignarle un asesor no cuenta, que no toca sus datos
     const tocoDatosDePersona = this.queCambio(dePersona, p.persona).length > 0;
 
+    /// El histórico, calculado ANTES de escribir: después del
+    /// update ya no se puede saber qué decía.
+    const historico = [
+      ...this.valoresQueSeVan(
+        dePersona,
+        p.persona,
+        id,
+        { id: admin.id, nombre: admin.nombre },
+        ip,
+      ),
+      ...this.valoresQueSeVan(
+        deParticipante,
+        p,
+        id,
+        { id: admin.id, nombre: admin.nombre },
+        ip,
+      ),
+    ];
+
     const escrituras: Prisma.PrismaPromise<unknown>[] = [
       this.prisma.persona.update({
         where: { id: p.personaId },
@@ -1131,6 +1185,12 @@ export class CrmService {
         },
       }),
     ];
+
+    if (historico.length > 0) {
+      escrituras.push(
+        this.prisma.valorAnterior.createMany({ data: historico }),
+      );
+    }
 
     if (partes.length > 0) {
       escrituras.push(
@@ -1164,7 +1224,7 @@ export class CrmService {
       await this.auditoria.registrar({
         actor: { id: admin.id, nombre: admin.nombre },
         accion: 'PARTICIPANTE_EDITADO',
-        entidad: 'Participante',
+        entidad: ENTIDADES.PARTICIPANTE,
         entidadId: id,
         camposTocados: tocados,
         ip: ip ?? null,
@@ -1175,6 +1235,171 @@ export class CrmService {
   }
 
   /** Qué datos llegan distintos de los que ya hay. */
+  /**
+   * Las filas del histórico de valores, para lo que cambió.
+   *
+   * Se calcula ANTES de escribir, con lo que había: después
+   * del update ya no se puede saber qué decía.
+   *
+   * La política de qué se guarda vive en `clase-de-dato.ts`,
+   * en un solo sitio. Aquí solo se aplica.
+   */
+  /**
+   * El «Historial Logs» de una ficha: qué decía antes.
+   *
+   * Recortado por ámbito como todo lo demás. `exigirParticipante`
+   * ya responde «no existe» si la ficha es de otro gremio, así
+   * que el histórico no puede ser una puerta nueva para verlo.
+   */
+  async historicoDeValores(id: string, ambito: string[]) {
+    await this.exigirParticipante(id, ambito);
+
+    const filas = await this.prisma.valorAnterior.findMany({
+      where: { participanteId: id },
+      orderBy: { creadoEn: 'desc' },
+      take: 200,
+      select: {
+        id: true,
+        campo: true,
+        clase: true,
+        valorAnterior: true,
+        habiaValor: true,
+        actorNombre: true,
+        creadoEn: true,
+        restauradoEn: true,
+        restauradoPor: { select: { nombre: true } },
+      },
+    });
+
+    return filas.map((f) => ({
+      ...f,
+      etiqueta: enPalabrasElCampo(f.campo),
+      /// Se dice explícitamente por qué no hay valor, en vez
+      /// de enseñar un hueco: un hueco se lee como un error.
+      porQueSinValor:
+        f.clase === 'SENSIBLE'
+          ? 'Es población vulnerable: queda que cambió, nunca qué decía.'
+          : !f.habiaValor
+            ? 'Estaba vacío.'
+            : null,
+      /// Restablecer solo tiene sentido si hay a qué volver.
+      sePuedeRestablecer:
+        f.restauradoEn === null && f.clase !== 'SENSIBLE' && f.habiaValor,
+    }));
+  }
+
+  /**
+   * Devolver un campo a como estaba.
+   *
+   * No borra la fila: deshacer TAMBIÉN es un cambio, y se
+   * tiene que poder ver quién lo deshizo. La fila se marca
+   * como restaurada y el cambio nuevo deja su propia fila.
+   */
+  async restablecerValor(
+    participanteId: string,
+    valorId: string,
+    ambito: string[],
+    admin: Admin,
+    ip?: string,
+  ) {
+    await this.exigirParticipante(participanteId, ambito);
+
+    const fila = await this.prisma.valorAnterior.findUnique({
+      where: { id: valorId },
+      select: {
+        id: true,
+        campo: true,
+        clase: true,
+        valorAnterior: true,
+        habiaValor: true,
+        restauradoEn: true,
+        participanteId: true,
+      },
+    });
+
+    /// La fila tiene que ser DE ESTA ficha. Sin esto, un id de
+    /// otra ficha —de otro gremio— restablecería su valor
+    /// aquí, y de paso lo revelaría.
+    if (!fila || fila.participanteId !== participanteId) {
+      throw new NotFoundException('Ese cambio ya no existe.');
+    }
+    if (fila.restauradoEn) {
+      throw new BadRequestException('Ese cambio ya se había restablecido.');
+    }
+    if (fila.clase === 'SENSIBLE' || !fila.habiaValor) {
+      throw new BadRequestException(
+        'De ese dato no se guardó el valor anterior, así que no hay a qué volver.',
+      );
+    }
+
+    /// Se pasa por `actualizar`, que es la única puerta que
+    /// escribe datos: así el restablecimiento deja su propio
+    /// movimiento y su propia fila de histórico, como
+    /// cualquier otro cambio. Si escribiera directo, deshacer
+    /// sería el único cambio invisible del sistema.
+    await this.actualizar(
+      participanteId,
+      { [fila.campo]: fila.valorAnterior },
+      admin,
+      ambito,
+      ip,
+    );
+
+    await this.prisma.valorAnterior.update({
+      where: { id: valorId },
+      data: { restauradoEn: new Date(), restauradoPorId: admin.id },
+    });
+
+    return { restablecido: true, campo: fila.campo };
+  }
+
+  private valoresQueSeVan(
+    llega: object,
+    hay: object,
+    participanteId: string,
+    actor: Actor,
+    ip?: string,
+  ): Prisma.ValorAnteriorCreateManyInput[] {
+    const viejo = hay as Record<string, unknown>;
+    const filas: Prisma.ValorAnteriorCreateManyInput[] = [];
+
+    for (const [campo, valor] of Object.entries(llega)) {
+      if (valor === undefined) continue;
+      if (mismoValor(valor, viejo[campo])) continue;
+      if (!seHistoria(campo)) continue;
+
+      const antes = viejo[campo];
+      const habiaValor = antes !== null && antes !== undefined && antes !== '';
+
+      filas.push({
+        participanteId,
+        campo,
+        clase: CLASE_POR_CAMPO[campo],
+        /// Sin valor cuando la clase es SENSIBLE. Queda la
+        /// constancia del cambio, nunca qué decía.
+        /// `aTextoLlano` y no `String()`.
+        ///
+        /// `String({})` da «[object Object]», y esto es EL
+        /// registro de que decia antes: si sale asi, el valor
+        /// viejo se perdio y este historial --que existe para
+        /// poder volver-- no sirve para volver. Es el mismo
+        /// defecto que tuvo la celda del F7.
+        valorAnterior:
+          seGuardaElValor(campo) && habiaValor
+            ? antes instanceof Date
+              ? antes.toISOString()
+              : aTextoLlano(antes)
+            : null,
+        habiaValor,
+        adminId: actor.id ?? null,
+        actorNombre: actor.nombre,
+        ip: ip ?? null,
+      });
+    }
+
+    return filas;
+  }
+
   private queCambio(llega: object, hay: object): string[] {
     const viejo = hay as Record<string, unknown>;
     const nombres: string[] = [];
@@ -1305,8 +1530,13 @@ export class CrmService {
    * cédula puede estar en el otro convenio, y ahí sigue.
    * Se lleva sus notas, sus movimientos y su avance.
    */
-  async borrarParticipacion(id: string, ambito: string[]) {
-    await this.exigirParticipante(id, ambito);
+  async borrarParticipacion(
+    id: string,
+    ambito: string[],
+    actor: Actor,
+    ip?: string,
+  ) {
+    const suyo = await this.exigirParticipante(id, ambito);
 
     const p = await this.prisma.participante.findUnique({
       where: { id },
@@ -1331,6 +1561,37 @@ export class CrmService {
         where: { participanteId: id },
       });
       await tx.participante.delete({ where: { id } });
+    });
+
+    /// La huella, DESPUÉS de borrar y fuera de la transacción.
+    ///
+    /// Esto era lo único destructivo del CRM que no dejaba
+    /// rastro: se llevaba por delante avances, notas y los
+    /// movimientos de etapa —o sea, su propio historial— y
+    /// nadie podía decir después quién lo hizo ni a quién.
+    /// Preguntar «¿y dónde está Fulano?» no tenía respuesta.
+    ///
+    /// Fuera de la transacción porque auditar no puede tumbar
+    /// el borrado que ya ocurrió, y `registrar()` se traga sus
+    /// propios errores por lo mismo.
+    ///
+    /// El nombre y el documento van en el resumen a propósito:
+    /// la ficha ya no existe, así que `entidadId` apunta a
+    /// nada. Sin decir de quién era, la huella no sirve. Es la
+    /// excepción escrita de la regla de PII, y el motivo es
+    /// que sin ella no queda NADA.
+    await this.auditoria.registrar({
+      actor,
+      accion: 'PARTICIPANTE_BORRADO',
+      entidad: ENTIDADES.PARTICIPANTE,
+      entidadId: id,
+      convenioId: suyo?.convenioId ?? null,
+      resumen:
+        `Se borró la participación de ${p.persona.primerNombre} ` +
+        `${p.persona.primerApellido} (doc. ${taparDocumento(p.persona.numeroDocumento)}), ` +
+        `que estaba en etapa ${p.etapa}. Con ella se fueron ` +
+        `${p._count.avances} avances y ${p._count.notas} notas.`,
+      ip,
     });
 
     return {
@@ -1450,7 +1711,9 @@ export class CrmService {
     const soloLaVentana =
       panel.motivo === 'VENTANA_CERRADA' || panel.motivo === 'SIN_FECHAS';
     if (!panel.admiteInscripciones && !(soloLaVentana && !exigirVentana)) {
-      throw new BadRequestException(panel.porQueNo ?? 'No se puede inscribir en esta oferta.');
+      throw new BadRequestException(
+        panel.porQueNo ?? 'No se puede inscribir en esta oferta.',
+      );
     }
 
     if (!p.coberturaId) {
@@ -1589,7 +1852,7 @@ export class CrmService {
     await this.auditoria.registrar({
       actor: { id: admin.id, nombre: admin.nombre },
       accion: 'REVOCAR_AUTORIZACION',
-      entidad: 'Persona',
+      entidad: ENTIDADES.PERSONA,
       entidadId: p.personaId,
       convenioId: p.convenioId,
       /// El canal y cuantas, NO el motivo.
@@ -1612,6 +1875,7 @@ export class CrmService {
     ambito: string[],
     ip?: string,
     cierran: string[] = [],
+    muevenInscrito: string[] = [],
   ) {
     await this.exigirParticipante(id, ambito);
 
@@ -1633,36 +1897,56 @@ export class CrmService {
 
     /// Poner la etapa que ya tiene no es una transicion.
     ///
-    /// Va ANTES de juzgar el paso: `CERTIFICADO -> CERTIFICADO`
-    /// no es «certificar a alguien que salio del aula», es no
-    /// hacer nada, y contestarle con ese mensaje seria mentir
-    /// sobre lo que pasa.
+    /// Va ANTES de todo: `CERTIFICADO -> CERTIFICADO` no es
+    /// «certificar a alguien que salio del aula», es no hacer
+    /// nada, y contestarle con ese mensaje seria mentir sobre lo
+    /// que pasa.
     if (p.etapa === dto.etapa) return this.obtener(id, ambito);
 
-    /// Tres comprobaciones distintas, y por eso son tres.
+    /// Ya inscrito: de aqui no lo mueve un gestor.
     ///
-    /// - los datos y la autorizacion, SIEMPRE que se entre al
-    ///   aula: la autorizacion se puede revocar.
-    /// - el cupo, solo si esta transicion ocupa una silla nueva.
-    /// - la ventana de inscripcion, solo a quien entra por
-    ///   primera vez: a quien vuelve, su grupo ya arranco y por
-    ///   eso mismo esta cerrada.
+    /// Inscribir es el punto de no retorno: a partir de ahi la
+    /// persona cuenta en el cupo, entra en el reporte al SENA y
+    /// le llegan las citaciones. Sacarla no es corregir un
+    /// tecleo, es deshacer algo que ya salio del sistema.
     ///
-    /// Ver `escalera.ts`.
+    /// Va en el SERVIDOR y no en el boton: esconder el boton es
+    /// comodidad, y quien tenga la pantalla abierta desde antes
+    /// --o llame a la API-- se la salta.
+    /// «Deshacer» es SALIR DEL CUPO, no moverse desde INSCRITO.
+    ///
+    /// Con `dto.etapa !== 'INSCRITO'` tambien caia
+    /// `INSCRITO → EN_FORMACION`, que es el ingreso tardio: no
+    /// deshace nada, las dos ocupan silla y la persona sigue en
+    /// el cupo y en el reporte. Lo cazo `cambiar-etapa.spec.ts`.
+    if (
+      saleDelCupo(p.etapa, dto.etapa) &&
+      !muevenInscrito.includes(p.convenioId)
+    ) {
+      throw new ForbiddenException(
+        'Esta persona ya esta inscrita. Sacarla de ahi la quita del cupo y ' +
+          'del reporte al SENA, asi que lo hace un lider. Pidalo con el ' +
+          'motivo y queda registrado.',
+      );
+    }
+
     /// Primero: ¿es este paso un paso? Ver `escalera.ts`.
     ///
     /// Va ANTES del cupo, y el orden importa. `CERTIFICADO`
     /// ocupa silla, asi que `exigeCupo` es cierto viniendo de
     /// una salida del aula y `exigirQueQuepa` contestaba con un
-    /// error de cupos a quien intentaba `RETIRADO → CERTIFICADO`
+    /// error de cupos a quien intentaba `RETIRADO -> CERTIFICADO`
     /// -- tapando justo el mensaje que dice como hacerlo bien,
     /// que es para lo que existe esta regla.
+
     const imposible = motivoDeTransicionImposible(p.etapa, dto.etapa);
     if (imposible) throw new BadRequestException(imposible);
 
     const compuerta = exigeDatosParaElAula(p.etapa, dto.etapa);
     if (exigeCupo(p.etapa, dto.etapa)) {
-      await this.exigirQueQuepa(p, { exigirVentana: !esRegresoAlAula(p.etapa) });
+      await this.exigirQueQuepa(p, {
+        exigirVentana: !esRegresoAlAula(p.etapa),
+      });
     }
 
     // certificar exige haber aprobado el 80% de lo
@@ -1805,7 +2089,7 @@ export class CrmService {
     await this.auditoria.registrar({
       actor: { id: admin.id, nombre: admin.nombre },
       accion: 'ETAPA_CAMBIADA',
-      entidad: 'participante',
+      entidad: ENTIDADES.PARTICIPANTE,
       entidadId: id,
       convenioId: p.convenioId,
       resumen: `${p.etapa} → ${dto.etapa}${dto.motivo ? `: ${dto.motivo}` : ''}`,
@@ -1841,7 +2125,7 @@ export class CrmService {
     await this.auditoria.registrar({
       actor: { id: admin.id, nombre: admin.nombre },
       accion: 'NOTA_CREADA',
-      entidad: 'participante',
+      entidad: ENTIDADES.PARTICIPANTE,
       entidadId: id,
       resumen: `Gestión por ${[...dto.canales].sort().join(' + ')}`,
     });
@@ -1988,7 +2272,7 @@ export class CrmService {
     await this.auditoria.registrar({
       actor: { id: admin.id, nombre: admin.nombre },
       accion: 'DATOS_DEL_INTERESADO_ACEPTADOS',
-      entidad: 'participante',
+      entidad: ENTIDADES.PARTICIPANTE,
       entidadId: id,
       convenioId: p.convenioId,
       resumen:
@@ -2889,6 +3173,10 @@ export class CrmService {
     if (!p || !ambito.includes(p.convenioId)) {
       throw new NotFoundException('Ese participante no existe.');
     }
+    /// Devuelve el convenio: quien audita después necesita
+    /// saber de qué gremio era, y volver a consultarlo sería
+    /// preguntar dos veces lo mismo.
+    return p;
   }
 
   private donde(f: Filtros): Prisma.ParticipanteWhereInput {

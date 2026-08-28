@@ -64,7 +64,11 @@ const ENTRAR_AL_AULA: EtapaParticipante[] = ['INSCRITO', 'EN_FORMACION'];
  * Las cuatro salidas del aula NO estan: al retirarse se libera
  * la silla, asi que volver consume una nueva.
  */
-const OCUPA_SILLA: EtapaParticipante[] = ['INSCRITO', 'EN_FORMACION', 'CERTIFICADO'];
+const OCUPA_SILLA: EtapaParticipante[] = [
+  'INSCRITO',
+  'EN_FORMACION',
+  'CERTIFICADO',
+];
 
 /**
  * Si hay que comprobar datos, autorización, oferta y contacto.
@@ -114,6 +118,27 @@ export function exigeCupo(
 }
 
 /**
+ * Si esta transición SACA a la persona de su silla.
+ *
+ * Es el espejo de `exigeCupo`: aquella dice cuándo se ocupa una
+ * silla nueva, esta cuándo se suelta la que se tenía. Y es la
+ * definición de «deshacer una inscripción», que no es lo mismo
+ * que «moverse desde INSCRITO».
+ *
+ * `INSCRITO → EN_FORMACION` mueve desde INSCRITO y NO deshace
+ * nada: las dos ocupan silla, la persona sigue contando en el
+ * cupo y en el reporte. Es el ingreso tardío, y bloquearlo
+ * cierra el paso documentado para quien entra al aula con el
+ * grupo ya andando.
+ */
+export function saleDelCupo(
+  antes: EtapaParticipante,
+  despues: EtapaParticipante,
+): boolean {
+  return OCUPA_SILLA.includes(antes) && !OCUPA_SILLA.includes(despues);
+}
+
+/**
  * Si esta persona VUELVE al aula habiendo estado antes.
  *
  * Sirve para una cosa concreta: a quien vuelve no se le puede
@@ -136,7 +161,8 @@ export function motivoDeTransicionImposible(
   despues: EtapaParticipante,
 ): string | null {
   if (CIERRES.includes(despues) && !PUEDE_CERRAR_DESDE.includes(antes)) {
-    const que = despues === 'CERTIFICADO' ? 'Certificar' : 'Dar por no aprobado';
+    const que =
+      despues === 'CERTIFICADO' ? 'Certificar' : 'Dar por no aprobado';
     if (EN_EL_AULA.includes(antes)) {
       return (
         `${que} a alguien que ya salió del aula no se hace de un paso. ` +
