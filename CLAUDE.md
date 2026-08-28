@@ -2004,6 +2004,18 @@ identidad del CRM no se toca.
   distintos.** El primero es pedirlo; el segundo es que el dato
   está mal en el origen, y volver a pedirlo no arregla nada.
 
+**El gremio puede venir por el SUBDOMINIO.**
+`adecopria.reservasae.com/api/webhooks/leads` dice de quién es el lead en la
+propia URL — que es como el resto del sistema resuelve el gremio y se equivoca
+menos que un campo dentro del JSON. Con el subdominio, `convenio` sobra en el
+cuerpo; por la dirección general sigue haciendo falta.
+
+**Si vienen los dos y NO coinciden, se rechaza.** No se elige uno: mandar a la
+URL de ADECOPRIA un cuerpo que dice `britcham-adee` es una contradicción, y
+resolverla en silencio es exactamente cómo un lead acaba en el gremio
+equivocado. Se lee `host` a secas y no `x-forwarded-host` —esa la pone quien
+quiera y nginx ya reescribe `Host`—, que es la misma fuente que usa el panel.
+
 **La llave.** `LEADS_WEBHOOK_SECRET`, en la cabecera
 `x-clave-leads`, y **el backend no arranca sin ella** — igual que
 `ADMIN_JWT_SECRET`. Dejar la ruta abierta si falta la variable

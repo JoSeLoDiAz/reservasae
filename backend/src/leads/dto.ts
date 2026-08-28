@@ -21,13 +21,21 @@ const recortar = ({ value }: { value: unknown }) =>
 const CONVENIOS = ['adecopria', 'britcham-adee'];
 
 export class EntraLeadDto {
-  /// De que gremio es. Explicito: no se adivina.
+  /**
+   * De que gremio es. No hace falta si se llama al subdominio.
+   *
+   * Opcional porque `adecopria.reservasae.com` ya lo dice, y
+   * repetirlo ahi seria pedir dos veces lo mismo. Si viene y NO
+   * coincide con la direccion, el servicio lo rechaza: no se
+   * elige uno de los dos en silencio.
+   */
+  @IsOptional()
   @Transform(recortar)
   @IsString()
   @IsIn(CONVENIOS, {
     message: `El convenio tiene que ser uno de: ${CONVENIOS.join(', ')}.`,
   })
-  convenio!: string;
+  convenio?: string;
 
   /// El id que le da QUIEN lo manda. Es la idempotencia.
   @Transform(recortar)
