@@ -214,8 +214,11 @@ export class CrmController {
   opciones(
     @Query('convenioId') convenioId: string,
     @AmbitoActual() ambito: Ambito,
+    /// A quien se le va a asignar. Con esto solo se ofrecen
+    /// los grupos que cubren donde vive.
+    @Query('participanteId') participanteId?: string,
   ) {
-    return this.crm.opciones(convenioId, ambito.convenios);
+    return this.crm.opciones(convenioId, ambito.convenios, participanteId);
   }
 
   @Get()

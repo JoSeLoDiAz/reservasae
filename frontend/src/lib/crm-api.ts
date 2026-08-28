@@ -794,7 +794,13 @@ export type Asesor = { id: string; nombre: string; correo: string };
 
 export type Opciones = {
   ofertas: OpcionOferta[];
+  /// SOLO los que cubren donde vive la persona, cuando se
+  /// pide para un lead concreto.
   grupos: OpcionGrupo[];
+  /// Cuantos se dejaron fuera por estar en otra parte. Una
+  /// lista que se acorta sola sin decir por que parece rota.
+  gruposFueraDeCobertura?: number;
+  domicilio?: { departamento: string | null; ciudad: string | null };
   /// Quien puede llevar leads en este convenio.
   asesores: Asesor[];
 };
@@ -844,8 +850,13 @@ export const crmApi = {
   tableroAcademico: (ventana: FiltroVentana = {}) =>
     pedir<TableroAcademico>(`/admin/participantes/academico/tablero${consulta(ventana)}`),
 
-  opciones: (convenioId: string) =>
-    pedir<Opciones>(`/admin/participantes/opciones?convenioId=${convenioId}`),
+  /// Con , los grupos vienen recortados a los
+  /// que cubren donde vive esa persona.
+  opciones: (convenioId: string, participanteId?: string) =>
+    pedir<Opciones>(
+      `/admin/participantes/opciones?convenioId=${convenioId}` +
+        (participanteId ? `&participanteId=${participanteId}` : ""),
+    ),
 
   asignarAsesorEnLote: (ids: string[], asesorId: string | null) =>
     pedir<{ cambiadas: number; fuera: number; sinCambio: number }>(

@@ -44,7 +44,7 @@ export const MODULOS: Modulo[] = [
     /// sale ningún aviso.
     clave: 'cronograma',
     emoji: '📅',
-    etiqueta: 'Cronograma',
+    etiqueta: 'Calendario',
     descripcion: 'Las fechas de la formación. De aquí cuelga el resto.',
     enlaces: [
       {
@@ -52,6 +52,16 @@ export const MODULOS: Modulo[] = [
         etiqueta: 'Ver cronograma',
         exacto: true,
         area: 'reserva',
+      },
+      {
+        /// Aquí y no en Configuración: definir una acción de
+        /// formación ES definir el calendario. Sigue pidiendo
+        /// permiso de configuración, que es lo que la deja
+        /// fuera de la vista de quien solo inscribe.
+        href: '/admin/acciones',
+        etiqueta: 'Formación',
+        area: 'configuracion',
+        nivel: 'ESCRIBIR',
       },
     ],
   },
@@ -153,6 +163,50 @@ export const MODULOS: Modulo[] = [
         etiqueta: 'Formulario 2 Largo',
         area: 'inscripciones',
       },
+      {
+        /// El constructor, junto a los formularios que arma.
+        /// Estaba en Configuración, a dos módulos de lo que
+        /// produce.
+        href: '/admin/formularios',
+        etiqueta: 'Creación Formularios',
+        exacto: true,
+        area: 'configuracion',
+        nivel: 'ESCRIBIR',
+      },
+      {
+        /// El habeas data vive con los formularios porque es
+        /// lo PRIMERO que sale en ellos: se lee antes de pedir
+        /// un solo dato. Se llamaba «Políticas», que no dice
+        /// de qué.
+        href: '/admin/politicas',
+        etiqueta: 'Habeas Data',
+        area: 'configuracion',
+        nivel: 'ESCRIBIR',
+      },
+    ],
+  },
+  {
+    /// Todo lo que sale por correo, en un solo sitio: la
+    /// cuenta desde la que sale, lo que dice, y a quiénes.
+    /// Estaban repartidos en Configuración, que es donde uno
+    /// no los busca cuando quiere mandar algo.
+    clave: 'campanas',
+    emoji: '✉️',
+    etiqueta: 'Campaña Mailing',
+    descripcion: 'Lo que se le escribe a la gente, y a quiénes.',
+    enlaces: [
+      {
+        href: '/admin/plantillas-correo',
+        etiqueta: 'Plantillas',
+        area: 'configuracion',
+        nivel: 'ESCRIBIR',
+      },
+      {
+        href: '/admin/correo',
+        etiqueta: 'Cuenta de correo',
+        area: 'configuracion',
+        nivel: 'ESCRIBIR',
+      },
     ],
   },
   {
@@ -161,11 +215,6 @@ export const MODULOS: Modulo[] = [
     etiqueta: 'Configuración',
     descripcion: 'Lo que no es del día a día.',
     enlaces: [
-      { href: '/admin/acciones', etiqueta: 'Formación', area: 'configuracion', nivel: 'ESCRIBIR' },
-      { href: '/admin/formularios', etiqueta: 'Formularios', area: 'configuracion', nivel: 'ESCRIBIR' },
-      { href: '/admin/politicas', etiqueta: 'Políticas', area: 'configuracion', nivel: 'ESCRIBIR' },
-      { href: '/admin/correo', etiqueta: 'Correo', area: 'configuracion', nivel: 'ESCRIBIR' },
-      { href: '/admin/plantillas-correo', etiqueta: 'Plantillas de correo', area: 'configuracion', nivel: 'ESCRIBIR' },
       { href: '/admin/marca', etiqueta: 'Apariencia', soloSuperadmin: true, area: 'configuracion', nivel: 'ESCRIBIR' },
       { href: '/admin/usuarios', etiqueta: 'Usuarios', soloSuperadmin: true },
       { href: '/admin/perfil', etiqueta: 'Mi perfil' },

@@ -64,7 +64,7 @@ export default function PaginaFicha() {
   const cargar = useCallback(async () => {
     const ficha = await crmApi.obtener(id);
     setF(ficha);
-    setOpciones(await crmApi.opciones(ficha.convenio.id));
+    setOpciones(await crmApi.opciones(ficha.convenio.id, ficha.id));
   }, [id]);
 
   useEffect(() => {
@@ -413,6 +413,15 @@ function Asignacion({
   if (!opciones) return null;
 
   const oferta = opciones.ofertas.find((o) => o.id === ofertaId);
+  /// Cuantos grupos se dejaron fuera por estar en otra parte,
+  /// y donde vive la persona. Sin decirlo, una lista que se
+  /// acorta sola parece un sistema roto.
+  const fuera = opciones?.gruposFueraDeCobertura ?? 0;
+  const donde =
+    [opciones?.domicilio?.ciudad, opciones?.domicilio?.departamento]
+      .filter(Boolean)
+      .join(", ") || "su domicilio";
+
   const grupos = oferta
     ? opciones.grupos.filter((g) => g.accionFormacionId === oferta.accionFormacionId)
     : [];
@@ -446,8 +455,12 @@ function Asignacion({
             etiqueta="Grupo"
             ayuda={
               grupos.length === 0
-                ? "Esta acción no tiene grupos cargados."
-                : "Sin grupo con fechas no se puede matricular."
+                ? fuera > 0
+                  ? `Esta acción no tiene grupos donde vive: ${donde}. Los ${fuera} que hay se dictan en otra parte.`
+                  : "Esta acción no tiene grupos cargados."
+                : fuera > 0
+                  ? `Solo los que le sirven por vivir en ${donde}. Se dejaron fuera ${fuera} de otras ubicaciones.`
+                  : "Sin grupo con fechas no se puede matricular."
             }
           >
             <SelectorBuscable

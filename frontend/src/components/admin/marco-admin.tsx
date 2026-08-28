@@ -766,8 +766,30 @@ function BarraLateral({
     >
       {/* `mb-4` también plegada: sin él, el logo y el primer
           icono se tocan y se leen como uno solo */}
+      {/* El botón de plegar va AL LADO del logo, dentro de la
+          barra.
+
+          Estaba flotando medio afuera del borde —24 píxeles,
+          `-right-3`, a una altura fija— encimado al contenido.
+          Ahí ni se veía ni se acertaba: 24 px es la mitad de lo
+          que un dedo necesita, y quedaba pisando la tabla.
+
+          Aquí es un botón normal, del tamaño de los demás,
+          donde uno lo busca. */}
       <div className="mb-4 shrink-0">
-        <Marca plegado={plegado} />
+        <div
+          className={`flex items-center gap-2 ${plegado ? "flex-col" : "justify-between"}`}
+        >
+          <Marca plegado={plegado} />
+          <button
+            onClick={alPlegar}
+            className="grid size-9 shrink-0 place-items-center rounded-lg border border-transparent text-encabezado-texto/70 transition hover:border-encabezado-borde hover:bg-black/5 hover:text-encabezado-texto"
+            aria-label={plegado ? "Desplegar el menú" : "Plegar el menú"}
+            title={plegado ? "Desplegar el menú" : "Plegar el menú"}
+          >
+            {plegado ? <IconoDerecha tamano={18} /> : <IconoIzquierda tamano={18} />}
+          </button>
+        </div>
         {!plegado && (
           /// Bien separado del logo.
           ///
@@ -796,14 +818,6 @@ function BarraLateral({
 
       <Ajustes plegado={plegado} alDesplegar={() => alDesplegarModulo("")} />
 
-      <button
-        onClick={alPlegar}
-        className="absolute top-[76px] -right-3 z-10 grid h-6 w-6 place-items-center rounded-full border border-encabezado-borde bg-encabezado-fondo text-encabezado-texto shadow-sm transition hover:border-marca hover:text-marca"
-        aria-label={plegado ? "Desplegar el menú" : "Plegar el menú"}
-        title={plegado ? "Desplegar" : "Plegar"}
-      >
-        {plegado ? <IconoDerecha tamano={13} /> : <IconoIzquierda tamano={13} />}
-      </button>
     </nav>
   );
 }
