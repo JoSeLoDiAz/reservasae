@@ -1,6 +1,10 @@
 /** Prueba de concurrencia contra la API real. */
 
 import { PrismaClient } from '../generated/prisma';
+import { exigirBaseSegura } from './guardia-de-base';
+
+// el 5433 es produccion, aunque diga localhost
+exigirBaseSegura('La prueba de carga');
 
 const prisma = new PrismaClient();
 // 127.0.0.1: el fetch de Node prueba ::1 primero

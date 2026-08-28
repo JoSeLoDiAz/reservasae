@@ -19,7 +19,7 @@
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "test:e2e": "jest --config ./test/jest-e2e.json",
     "prisma:generate": "prisma generate",
-    "prisma:deploy": "prisma migrate deploy",
+    "prisma:deploy": "pnpm db:guardia && prisma migrate deploy",
     "db:verificar": "ts-node prisma/verificar-invariantes.ts",
     "db:prueba-carga": "ts-node prisma/prueba-carga.ts",
     "db:estado": "ts-node prisma/estado.ts",
@@ -34,7 +34,8 @@
     "db:probar-correo": "ts-node -r dotenv/config prisma/probar-correo.ts",
     "db:probar-buscador-web": "ts-node prisma/probar-buscador-web.ts",
     "db:probar-navegador-web": "ts-node prisma/probar-navegador-web.ts",
-    "db:borrar-reservas": "ts-node prisma/borrar-reservas.ts"
+    "db:borrar-reservas": "ts-node prisma/borrar-reservas.ts",
+    "db:guardia": "ts-node prisma/guardia-de-base-cli.ts"
   },
   "prisma": {
     "seed": "ts-node prisma/seed/index.ts"

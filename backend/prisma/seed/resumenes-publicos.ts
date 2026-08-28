@@ -7,6 +7,10 @@
 /// Se editan desde el panel, en Formularios.
 
 import { PrismaClient } from '../../generated/prisma';
+import { exigirBaseSegura } from '../guardia-de-base';
+
+// el 5433 es produccion, aunque diga localhost
+exigirBaseSegura('La siembra de resumenes');
 
 const prisma = new PrismaClient();
 

@@ -1,6 +1,10 @@
 /** Publica u oculta las acciones de un convenio. */
 
 import { PrismaClient } from '../generated/prisma';
+import { exigirBaseSegura } from './guardia-de-base';
+
+// el 5433 es produccion, aunque diga localhost
+exigirBaseSegura('Publicar acciones');
 
 const prisma = new PrismaClient();
 

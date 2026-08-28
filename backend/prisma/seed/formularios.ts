@@ -6,6 +6,10 @@ import {
   TipoPregunta,
   type Prisma,
 } from '../../generated/prisma';
+import { exigirBaseSegura } from '../guardia-de-base';
+
+// el 5433 es produccion, aunque diga localhost
+exigirBaseSegura('La siembra de formularios');
 
 const prisma = new PrismaClient();
 

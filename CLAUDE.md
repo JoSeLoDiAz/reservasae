@@ -2680,6 +2680,59 @@ Verificado contra `docs/proyectos/*.xlsx`, que es la fuente oficial. El
   su proyecto, pero el aviso de privacidad que entregaron dice
   `890.901.432-0`. Hay que confirmarlo antes de publicar el texto legal.
 
+### El 5433 es producción, y ahora hay un candado (27 ago 2026)
+
+`backend/.env` decía `localhost:5433` y **no había ningún Postgres
+local**: quien escucha ahí es un `ssh -L 5433:127.0.0.1:5433 sep-vm`
+que trae la base **real** del servidor. Y no era un descuido de un
+rato — lo abre una **tarea programada en cada inicio de sesión**
+(`scripts/tunel-bd.ps1`).
+
+> Este archivo lo avisaba en negrita **dos veces** y aun así casi
+> pasa: un `prisma migrate status` lanzado para preparar una
+> migración salió contra la base real y solo falló porque el túnel
+> no respondía en ese instante. **Un aviso escrito no es un
+> candado.**
+
+**La raíz es que una base local y el túnel son indistinguibles
+desde la cadena**: las dos son `reservasae` en `localhost:5433`. No
+hay nada en el texto que los separe, así que ninguna regla sobre el
+nombre de la base sirve.
+
+Por eso la regla es de **puerto**, que es más burdo y funciona:
+
+| | |
+|---|---|
+| **5433** | producción, siempre, diga lo que diga el host |
+| cualquier otro | su base, o la de pruebas |
+
+- `prisma/guardia-de-base.ts` es una función pura —`destinoDeLaBase`—
+  para poder probarla. Mirar si el proceso del puerto es `ssh`
+  acertaría más y no se puede fijar en un test, y **un candado que
+  no se prueba es el que falla el día que importa**.
+- Lo llaman **los diez guiones que escriben** (`db:borrar-reservas`,
+  `db:crear-admin`, las cinco siembras…). Los de solo lectura
+  —`db:estado`, `db:verificar`— no lo llevan: leer producción a
+  veces es justo lo que se quiere.
+- `prisma migrate deploy` no pasa por ningún guión nuestro, así que
+  `pnpm prisma:deploy` antepone `db:guardia`. **El contenedor no se
+  ve afectado**: `arrancar.sh` llama a `pnpm exec prisma migrate
+  deploy` directo, y dentro `DATABASE_URL` es `db:5432`.
+- **Se puede saltar, y tiene que poder saltarse**: alguna vez hay
+  que corregir producción a mano. `PERMITIR_PRODUCCION=si` y nada
+  más — ni `1`, ni `true`, ni `SI`. Lo que no puede es pasar por
+  descuido.
+
+**El equipo de Josse ya apunta a pruebas.** `scripts/tunel-pruebas.ps1`
+trae `reservasae_prueba` al **5434** —otro puerto a propósito, que es
+toda la defensa— y `backend/.env` apunta ahí. La copia de lo que había
+quedó en `backend/.env.apuntaba-a-produccion.bak`.
+
+Y **`.env.example` ya no propone el 5433 en ninguna línea**, ni
+siquiera comentada: tenía una que lo sugería para «fuera de Docker»,
+que es exactamente cómo se llega a este problema copiando el ejemplo.
+
+
 ## Reglas del entorno (aprendidas a golpes)
 
 - **pnpm está fijado en 10.33.0** en `package.json` y en los dos Dockerfiles.
