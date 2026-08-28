@@ -154,24 +154,24 @@ export const MODULOS: Modulo[] = [
     descripcion: 'Lo que llena la persona, y su QR.',
     enlaces: [
       {
-        href: '/admin/formularios-publicos/corto',
-        etiqueta: 'Formulario 1 Corto',
-        area: 'inscripciones',
-      },
-      {
-        href: '/admin/formularios-publicos/largo',
-        etiqueta: 'Formulario 2 Largo',
-        area: 'inscripciones',
-      },
-      {
-        /// El constructor, junto a los formularios que arma.
-        /// Estaba en Configuración, a dos módulos de lo que
-        /// produce.
+        /// Primero el constructor: es donde empieza el
+        /// trabajo. Estaba en Configuración, a dos módulos de
+        /// lo que produce.
         href: '/admin/formularios',
         etiqueta: 'Creación Formularios',
         exacto: true,
         area: 'configuracion',
         nivel: 'ESCRIBIR',
+      },
+      {
+        /// Los dos que están en la calle, en UNA vista con
+        /// pestañas. Eran dos enlaces sueltos y obligaban a ir
+        /// y volver para responder la pregunta que se hace
+        /// siempre: «¿esto en cuál de los dos se pide?».
+        href: '/admin/formularios-publicos',
+        etiqueta: 'Formularios Activos',
+        exacto: true,
+        area: 'inscripciones',
       },
       {
         /// El habeas data vive con los formularios porque es

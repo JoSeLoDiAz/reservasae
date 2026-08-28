@@ -22,6 +22,16 @@ const CAMPO =
 
 type Paso = "PERSONA" | "EMPRESA" | "HECHO";
 
+/// Una sola tabla para las tres. Estaba escrito como un
+/// ternario en el resumen y como tres botones en el
+/// formulario, y las dos listas se desincronizaron en cuanto
+/// aparecio la tercera opcion.
+const SITUACION_EN_PALABRAS: Record<string, string> = {
+  INDEPENDIENTE: "Trabajador independiente",
+  EMPRESA: "Trabajador con vínculo laboral",
+  DESEMPLEADO: "No está trabajando en este momento",
+};
+
 export function CompletarFicha({ token }: { token: string }) {
   const [ficha, setFicha] = useState<FichaAbierta | null>(null);
   /**
@@ -58,7 +68,9 @@ export function CompletarFicha({ token }: { token: string }) {
   const [guardando, setGuardando] = useState(false);
   /// Decide si se pide el NIT de la empresa o la cedula que
   /// hace de RUT. Sin elegir no se muestra ninguno de los dos.
-  const [vinculo, setVinculo] = useState<"" | "INDEPENDIENTE" | "EMPRESA">("");
+  const [vinculo, setVinculo] = useState<
+    "" | "INDEPENDIENTE" | "EMPRESA" | "DESEMPLEADO"
+  >("");
   /// Solo para el independiente: si su RUT es su propia cedula,
   /// sus datos ya estan y no hay nada que volver a pedir.
   const [rutPropio, setRutPropio] = useState<"" | "IGUAL" | "DIFERENTE">("");
@@ -254,6 +266,10 @@ export function CompletarFicha({ token }: { token: string }) {
       await preinscripcionApi.guardarEmpresa(token, {
         ...empresa,
         rutPropio: soloSector,
+        /// Va SIEMPRE, aunque el resto del paso no cambie:
+        /// es lo que deja el rastro de lo que dijo, y con el
+        /// rastro se ve a quien dijo una cosa y luego otra.
+        situacionLaboral: vinculo || undefined,
       });
       setPaso("HECHO");
     } catch (err) {
@@ -303,11 +319,34 @@ export function CompletarFicha({ token }: { token: string }) {
   /// que consultar, asi que si no lo dice el, no lo dice nadie.
   const pideSector = vinculo === "INDEPENDIENTE";
 
-  /// Lo minimo para poder revisar. El NIT (o el RUT) es lo
-  /// unico obligatorio; el resto lo completa quien atienda.
+  /// Al que tiene jefe SI se le exigen los tres datos del
+  /// jefe.
+  ///
+  /// Antes eran opcionales -- «el resto lo completa quien
+  /// atienda» -- y eso vaciaba el enlace de sentido: se podia
+  /// seguir de largo dejandolos en blanco, el enlace se
+  /// cerraba como «completado» y la empresa se quedaba con
+  /// los tres campos en null. Justo los tres que el enlace
+  /// existe para recoger, y nadie se enteraba porque el panel
+  /// decia «lo completaron».
+  ///
+  /// Al independiente no se le exigen aunque se le pregunten:
+  /// su unidad economica es el mismo, y obligarlo a nombrar a
+  /// su jefe es obligarlo a inventarse a alguien.
+  const exigeJefe = vinculo === "EMPRESA";
+
+  /// Lo minimo para poder revisar. El NIT (o el RUT) siempre;
+  /// los del jefe, a quien los tiene.
   const listoParaRevisar =
-    (!pideSector || Boolean(empresa.sectorEconomico)) &&
-    (soloSector || (pideOrganizacion && Boolean(empresa.nit?.trim())));
+    /// Al que no esta trabajando no se le pide nada mas: ni
+    /// NIT, ni sector, ni jefe.
+    vinculo === "DESEMPLEADO" ||
+    ((!pideSector || Boolean(empresa.sectorEconomico)) &&
+    (soloSector || (pideOrganizacion && Boolean(empresa.nit?.trim()))) &&
+    (!exigeJefe ||
+      (Boolean(empresa.contactoNombre?.trim()) &&
+        Boolean(empresa.contactoCargo?.trim()) &&
+        Boolean(empresa.contactoCorreo?.trim()))));
 
   if (paso === "HECHO") {
     return (
@@ -425,22 +464,48 @@ export function CompletarFicha({ token }: { token: string }) {
               tratar, y después se piden. Enseñarla al final —o
               como un enlace que casi nadie abre— es pedir
               primero y avisar después. */}
+          {/* AL QUE YA AUTORIZO se le pliega.
+              La regla de arriba —la politica ANTES de pedir
+              datos— vale para quien todavia no ha
+              autorizado. Este ya lo hizo al reservar, y
+              quedo registrado con su version y su fecha.
+              Volver a plantarle la muralla de texto no le
+              suma ninguna garantia y le empuja fuera de
+              pantalla lo unico que vino a hacer, que es
+              llenar lo que falta.
+              Plegada, no quitada: poder consultarla cuando
+              quiera SI es parte de la ley. */}
           {ficha.politica && (
-            <section className="rounded-2xl border border-borde bg-superficie p-6 shadow-sm">
-              <h2 className="text-lg font-semibold">{ficha.politica.titulo}</h2>
-              {ficha.yaAutorizo && (
-                <p className="mt-1 text-sm text-exito">
-                  Usted ya la aceptó al reservar su cupo. Queda aquí para que la
-                  pueda volver a leer.
+            ficha.yaAutorizo ? (
+              <details className="group rounded-2xl border border-borde bg-superficie px-6 py-4 shadow-sm">
+                <summary className="flex cursor-pointer list-none items-center gap-2 text-sm">
+                  <span className="text-exito">✓</span>
+                  <span className="font-medium">{ficha.politica.titulo}</span>
+                  <span className="text-texto-suave">
+                    — la aceptó al reservar su cupo
+                  </span>
+                  <span className="ml-auto text-xs text-marca underline">
+                    Volver a leerla
+                  </span>
+                </summary>
+                <div className="mt-4 max-h-64 overflow-y-auto rounded-xl border border-borde bg-superficie-alterna p-4 text-sm leading-relaxed whitespace-pre-wrap">
+                  {ficha.politica.contenido}
+                </div>
+                <p className="mt-3 text-xs text-texto-suave">
+                  Versión {ficha.politica.version}
                 </p>
-              )}
-              <div className="mt-4 max-h-64 overflow-y-auto rounded-xl border border-borde bg-superficie-alterna p-4 text-sm leading-relaxed whitespace-pre-wrap">
-                {ficha.politica.contenido}
-              </div>
-              <p className="mt-3 text-xs text-texto-suave">
-                Versión {ficha.politica.version}
-              </p>
-            </section>
+              </details>
+            ) : (
+              <section className="rounded-2xl border border-borde bg-superficie p-6 shadow-sm">
+                <h2 className="text-lg font-semibold">{ficha.politica.titulo}</h2>
+                <div className="mt-4 max-h-64 overflow-y-auto rounded-xl border border-borde bg-superficie-alterna p-4 text-sm leading-relaxed whitespace-pre-wrap">
+                  {ficha.politica.contenido}
+                </div>
+                <p className="mt-3 text-xs text-texto-suave">
+                  Versión {ficha.politica.version}
+                </p>
+              </section>
+            )
           )}
 
           <section className="rounded-2xl border border-borde bg-superficie p-6 shadow-sm">
@@ -589,10 +654,12 @@ export function CompletarFicha({ token }: { token: string }) {
               rehusar no está consentido. */}
           <section className="rounded-2xl border border-borde bg-superficie p-6 shadow-sm">
             <h2 className="text-lg font-semibold">Población vulnerable</h2>
-            <p className="mt-1 text-sm text-texto-suave">
-              El SENA lleva este dato para saber a quién está llegando la
-              formación. Marque lo que le aplique, o siga sin contestar: no
-              cambia en nada su inscripción.
+            <p className="mt-1 text-sm leading-relaxed text-texto-suave">
+              El SENA lleva esta cuenta para saber a quién le está llegando la
+              formación. Si alguna de estas condiciones es la suya,
+              escríbala y elíjala; es <strong>una sola</strong>, la que mejor
+              lo describa. Y si prefiere no decirlo, siga de largo: no cambia
+              en nada su inscripción ni su cupo.
             </p>
 
             {rechazaCaracterizacion ? (
@@ -608,28 +675,11 @@ export function CompletarFicha({ token }: { token: string }) {
               </div>
             ) : (
               <>
-                <div className="mt-4 grid max-h-64 gap-1 overflow-y-auto rounded-xl border border-borde p-3 sm:grid-cols-2">
-                  {ficha.caracterizaciones.map((c) => (
-                    <label
-                      key={c.id}
-                      className="flex cursor-pointer items-start gap-2 rounded-lg px-2 py-1.5 text-sm transition hover:bg-superficie-alterna"
-                    >
-                      <input
-                        type="checkbox"
-                        className="mt-0.5"
-                        checked={caracterizaciones.includes(c.id)}
-                        onChange={(e) =>
-                          setCaracterizaciones((v) =>
-                            e.target.checked
-                              ? [...v, c.id]
-                              : v.filter((x) => x !== c.id),
-                          )
-                        }
-                      />
-                      <span>{bonito(c.etiqueta)}</span>
-                    </label>
-                  ))}
-                </div>
+                <BuscadorDeCaracterizacion
+                  opciones={ficha.caracterizaciones}
+                  elegida={caracterizaciones[0] ?? null}
+                  alElegir={(id) => setCaracterizaciones(id === null ? [] : [id])}
+                />
                 <button
                   type="button"
                   onClick={() => {
@@ -700,7 +750,43 @@ export function CompletarFicha({ token }: { token: string }) {
               >
                 Trabajador con vínculo laboral
               </button>
+
+              {/* La tercera. Va con las otras dos y no
+                  escondida en un «ninguna de las
+                  anteriores»: quien no tiene trabajo no es
+                  un caso raro del formulario, y el SENA
+                  forma sobre todo a quien no lo tiene. */}
+              <button
+                type="button"
+                onClick={() => {
+                  setVinculo("DESEMPLEADO");
+                  setRutPropio("");
+                }}
+                className={`rounded-xl border p-4 text-left font-semibold transition sm:col-span-2 ${
+                  vinculo === "DESEMPLEADO"
+                    ? "border-2 border-marca bg-marca-suave text-marca"
+                    : "border-campo-borde bg-superficie hover:bg-superficie-alterna"
+                }`}
+              >
+                No estoy trabajando en este momento
+              </button>
             </div>
+
+            {/* Se le agradece y se acaba: no hay empresa que
+                preguntarle. Sin esto caia en la rama del NIT
+                y se le pedian los datos de un trabajo que no
+                tiene. */}
+            {vinculo === "DESEMPLEADO" && (
+              <div className="mb-5 rounded-xl border border-marca bg-marca-suave p-5">
+                <p className="font-semibold text-marca">
+                  Gracias, con eso es suficiente.
+                </p>
+                <p className="mt-2 text-sm leading-relaxed">
+                  No tenemos que preguntarle nada más de trabajo. Puede
+                  confirmar su inscripción con el botón de abajo.
+                </p>
+              </div>
+            )}
 
             {/* el independiente puede usar su propia cedula como
                 RUT: si es la misma, sus datos ya los tenemos y
@@ -776,6 +862,7 @@ export function CompletarFicha({ token }: { token: string }) {
                     campo="contactoNombre"
                     valores={empresa}
                     set={setEmpresa}
+                    requerido={exigeJefe}
                   />
                 </div>
                 <Campo
@@ -783,6 +870,7 @@ export function CompletarFicha({ token }: { token: string }) {
                   campo="contactoCargo"
                   valores={empresa}
                   set={setEmpresa}
+                  requerido={exigeJefe}
                 />
                 <Campo
                   etiqueta="Correo electrónico del jefe directo o contacto"
@@ -790,6 +878,7 @@ export function CompletarFicha({ token }: { token: string }) {
                   valores={empresa}
                   set={setEmpresa}
                   tipo="email"
+                  requerido={exigeJefe}
                 />
                 {/* al de empresa se lo trae el RUES por el NIT */}
                 {pideSector && (
@@ -839,13 +928,16 @@ export function CompletarFicha({ token }: { token: string }) {
               </h2>
 
               <dl className="mt-4 grid gap-4 sm:grid-cols-2">
+                {/* Un ternario de dos ramas para TRES
+                    opciones enseñaba «Trabajador
+                    independiente» a quien acababa de marcar
+                    «no estoy trabajando». El resumen existe
+                    para que la persona confirme lo que dijo:
+                    si le enseña otra cosa, la hace confirmar
+                    algo que no eligió. */}
                 <FilaResumen
                   etiqueta="Situación laboral"
-                  valor={
-                    vinculo === "EMPRESA"
-                      ? "Trabajador con vínculo laboral"
-                      : "Trabajador independiente"
-                  }
+                  valor={SITUACION_EN_PALABRAS[vinculo] ?? null}
                 />
                 {soloSector && (
                   <FilaResumen etiqueta="RUT" valor="El mismo de su documento" />
@@ -1087,5 +1179,107 @@ function BuscadorDeNit({
         )}
       </label>
     </>
+  );
+}
+
+/**
+ * La caracterización del SEP: se escribe y van saliendo.
+ *
+ * Son treinta y siete y en una rejilla de casillas no se
+ * encuentra ninguna: hay que leerlas todas para dar con la
+ * suya, y están escritas en el idioma del SEP —«SOBREVIVIENTES
+ * MINAS ANTIPERSONALES»—, no en el de la persona.
+ *
+ * Escribiendo se llega en dos letras. Y es UNA SOLA: el
+ * formulario anterior dejaba marcar varias, que al SENA le
+ * llega como un solo código de todas formas.
+ */
+function BuscadorDeCaracterizacion({
+  opciones,
+  elegida,
+  alElegir,
+}: {
+  opciones: Array<{ id: number; etiqueta: string }>;
+  elegida: number | null;
+  alElegir: (id: number | null) => void;
+}) {
+  const [busca, setBusca] = useState("");
+  const [abierto, setAbierto] = useState(false);
+
+  const laElegida = opciones.find((o) => o.id === elegida) ?? null;
+
+  /// Sin tildes y en minúscula por los dos lados: quien
+  /// escribe «indigena» tiene que encontrar «INDÍGENA», y en
+  /// un teclado de celular la tilde no se pone.
+  const pelado = (t: string) =>
+    t
+      .toLocaleLowerCase("es-CO")
+      .normalize("NFD")
+      .replace(/[̀-ͯ]/g, "");
+
+  const filtradas = busca.trim()
+    ? opciones.filter((o) => pelado(o.etiqueta).includes(pelado(busca)))
+    : opciones;
+
+  if (laElegida) {
+    return (
+      <div className="mt-4 flex flex-wrap items-center gap-3 rounded-xl border border-marca bg-marca-suave p-4">
+        <span className="text-sm font-medium text-marca">
+          {bonito(laElegida.etiqueta)}
+        </span>
+        <button
+          type="button"
+          onClick={() => {
+            alElegir(null);
+            setBusca("");
+            setAbierto(true);
+          }}
+          className="ml-auto text-xs text-marca underline"
+        >
+          Cambiarla
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="mt-4">
+      <input
+        type="text"
+        value={busca}
+        onChange={(e) => {
+          setBusca(e.target.value);
+          setAbierto(true);
+        }}
+        onFocus={() => setAbierto(true)}
+        placeholder="Escriba para buscar: madre, desplazado, discapacidad…"
+        className={CAMPO}
+      />
+
+      {abierto && (
+        <div className="mt-2 max-h-56 overflow-y-auto rounded-xl border border-borde">
+          {filtradas.length === 0 ? (
+            <p className="p-3 text-sm text-texto-suave">
+              Nada con «{busca}». Pruebe con otra palabra, o siga sin
+              contestar.
+            </p>
+          ) : (
+            filtradas.map((o) => (
+              <button
+                key={o.id}
+                type="button"
+                onClick={() => {
+                  alElegir(o.id);
+                  setAbierto(false);
+                }}
+                className="block w-full px-3 py-2 text-left text-sm transition hover:bg-superficie-alterna"
+              >
+                {bonito(o.etiqueta)}
+              </button>
+            ))
+          )}
+        </div>
+      )}
+    </div>
   );
 }

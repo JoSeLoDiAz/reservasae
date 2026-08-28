@@ -47,7 +47,7 @@ export function PreinscripcionPublica({ slug }: { slug: string }) {
   /// Una pantalla a la vez. Todo junto se ve cargado y
   /// ademas pide 8 datos personales antes de saber si hay
   /// algo con cobertura donde vive.
-  const [pantalla, setPantalla] = useState<Pantalla>("eleccion");
+  const [pantalla, setPantalla] = useState<Pantalla>("habeas");
   const [datos, setDatos] = useState({
     tipoDocumentoSepId: "",
     documentoOtroCual: "",
@@ -203,7 +203,7 @@ export function PreinscripcionPublica({ slug }: { slug: string }) {
         {/* el estado del proceso: reservar no es estar inscrito */}
         <BandaDeEstado paso={1} />
 
-        {/* Pantalla 1. Donde vive y que le interesa, nada
+        {/* Pantalla 2. Donde vive y que le interesa, nada
             mas. Pedirle ocho datos personales antes de
             saber si hay algo con cobertura donde vive es
             pedirle trabajo a cambio de nada */}
@@ -322,7 +322,7 @@ export function PreinscripcionPublica({ slug }: { slug: string }) {
           </>
         )}
 
-        {/* Pantalla 2. Con la eleccion arriba, en una linea,
+        {/* Pantalla 3. Con la eleccion arriba, en una linea,
             y un boton para deshacerla */}
         {pantalla === "datos" && (
           <>
@@ -483,7 +483,7 @@ export function PreinscripcionPublica({ slug }: { slug: string }) {
           alVolver={() => setPantalla("eleccion")}
           adelante="Continuar"
           bloqueado={faltaEnDatos.length > 0}
-          alSeguir={() => setPantalla("habeas")}
+          alSeguir={() => setPantalla("revision")}
         />
           </>
         )}
@@ -494,10 +494,16 @@ export function PreinscripcionPublica({ slug }: { slug: string }) {
           </p>
         )}
 
-        {/* Pantalla 3. El habeas data, solo. Iba de casilla
-            al pie de una pantalla larga, con un enlace que
-            casi nadie abria: eso no alcanza para sostener
-            que la persona leyo lo que autorizo */}
+        {/* Pantalla 1. El habeas data, solo y ANTES DE TODO.
+            Iba de casilla al pie de una pantalla larga, con
+            un enlace que casi nadie abria: eso no alcanza
+            para sostener que la persona leyo lo que
+            autorizo.
+            Y va primero porque es lo que autoriza a pedir el
+            resto: preguntarle el domicilio, la cedula y el
+            estrato y AL FINAL pedirle permiso para tratar
+            sus datos es pedir el permiso cuando ya se
+            tomaron. */}
         {pantalla === "habeas" && (
           <>
         <section className="rounded-2xl border border-borde bg-superficie p-6 shadow-sm">
@@ -534,11 +540,9 @@ export function PreinscripcionPublica({ slug }: { slug: string }) {
         </section>
 
         <BotonesDePaso
-          atras="Volver a mis datos"
-          alVolver={() => setPantalla("datos")}
-          adelante="Continuar"
+          adelante="Aceptar y continuar"
           bloqueado={datos.aceptaPolitica !== "si"}
-          alSeguir={() => setPantalla("revision")}
+          alSeguir={() => setPantalla("eleccion")}
         />
           </>
         )}
@@ -640,14 +644,18 @@ function BotonesDePaso({
   bloqueado,
   alSeguir,
 }: {
-  atras: string;
-  alVolver: () => void;
+  /// Sin ellos no se pinta el boton de volver. El primer
+  /// paso no tiene a donde volver, y un boton «atras» que no
+  /// lleva a ninguna parte es peor que no tenerlo.
+  atras?: string;
+  alVolver?: () => void;
   adelante: string;
   bloqueado: boolean;
   alSeguir: () => void;
 }) {
   return (
     <div className="flex flex-wrap gap-3">
+      {atras && alVolver && (
       <button
         type="button"
         onClick={alVolver}
@@ -655,6 +663,7 @@ function BotonesDePaso({
       >
         {atras}
       </button>
+      )}
       <button
         type="button"
         disabled={bloqueado}

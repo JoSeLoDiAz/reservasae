@@ -67,7 +67,14 @@ const BASE = {
 function servicio(conPolitica = true) {
   const prisma = prismaFalso(conPolitica);
   const cola = { encolarSiHaceFalta: () => Promise.resolve() };
-  const s = new PreinscripcionService(prisma as never, cola as never);
+  // la auditoria no es lo que se prueba aqui: se traga las
+  // llamadas y no estorba
+  const auditoria = { registrar: () => Promise.resolve() };
+  const s = new PreinscripcionService(
+    prisma as never,
+    cola as never,
+    auditoria as never,
+  );
   return { s, prisma };
 }
 

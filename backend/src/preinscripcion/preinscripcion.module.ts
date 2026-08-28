@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 
+import { AuditoriaService } from '../comun/auditoria.service';
 import { DirectorioService } from '../crm/directorio.service';
 import { ColaRuiModule } from '../crm/rui/cola-rui';
 import {
@@ -19,7 +20,7 @@ import { PreinscripcionService } from './preinscripcion.service';
     CompletarController,
     DirectorioPublicoController,
   ],
-  providers: [PreinscripcionService, DirectorioService],
+  providers: [PreinscripcionService, DirectorioService, AuditoriaService],
   exports: [PreinscripcionService],
 })
 export class PreinscripcionModule {}

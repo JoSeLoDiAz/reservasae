@@ -20,6 +20,16 @@ export const ACCIONES = [
   'DATOS_DEL_INTERESADO_ACEPTADOS',
   'ESTADO_FORZADO',
   'REVOCAR_AUTORIZACION',
+  /// Lo que la persona dijo de su situación laboral, cada vez
+  /// que lo dice.
+  ///
+  /// Se apunta SIEMPRE, no solo cuando cambia, porque el
+  /// valor está en la secuencia: quien pone «desempleado»,
+  /// ve que ahí se acaba el formulario, y vuelve a empezar
+  /// poniendo «con vínculo laboral» deja dos entradas
+  /// seguidas que se contradicen. Con una sola no se ve
+  /// nada; con las dos, se ve.
+  'SITUACION_LABORAL_DECLARADA',
 ] as const;
 
 export type Accion = (typeof ACCIONES)[number];

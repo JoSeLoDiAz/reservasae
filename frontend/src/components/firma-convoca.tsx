@@ -48,10 +48,16 @@ export function useEstado(): Estado | null {
 export function FirmaConvoca({
   tamano = 32,
   conFrase = true,
+  apilado = false,
   className,
 }: {
   tamano?: number;
   conFrase?: boolean;
+  /// El signo encima del nombre en vez de a su lado. Para el
+  /// pie, donde la firma cierra la pagina centrada y en
+  /// columna; al lado del nombre solo funciona cuando va
+  /// alineada a un borde.
+  apilado?: boolean;
   className?: string;
 }) {
   /// El texto crece con el signo, no aparte.
@@ -63,10 +69,18 @@ export function FirmaConvoca({
 
   return (
     <span
-      className={`flex items-center ${grande ? "gap-3.5" : "gap-2.5"} ${className ?? ""}`}
+      className={`flex ${
+        apilado
+          ? "flex-col items-center gap-2 text-center"
+          : `items-center ${grande ? "gap-3.5" : "gap-2.5"}`
+      } ${className ?? ""}`}
     >
       <SignoConvoca tamano={tamano} className="shrink-0" />
-      <span className="flex min-w-0 flex-col gap-0.5 leading-none">
+      <span
+        className={`flex min-w-0 flex-col gap-0.5 leading-none ${
+          apilado ? "items-center" : ""
+        }`}
+      >
         <span
           className={`font-bold tracking-tight ${
             grande ? "text-[1.75rem]" : "text-[1.05rem]"

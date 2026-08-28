@@ -278,9 +278,13 @@ export function PiePublico() {
     /// es la única forma en que caben.
     <footer className="mx-auto mt-16 w-full max-w-3xl px-6 pb-12 text-sm text-texto-suave">
       {marca?.piePagina && <p className="mb-6">{marca.piePagina}</p>}
-      <div className="flex flex-col gap-4 border-t border-borde pt-6 sm:flex-row sm:items-center sm:justify-between">
-        <FirmaConvoca tamano={26} />
-        <PieDeConvoca className="sm:text-right" />
+      {/* La línea legal arriba y la firma debajo, una sobre
+          otra y no una al lado de la otra: quien firma la
+          página cierra el pie, que es donde uno espera la
+          firma de algo. */}
+      <div className="flex flex-col items-center gap-4 border-t border-borde pt-6 text-center">
+        <PieDeConvoca />
+        <FirmaConvoca tamano={26} apilado />
       </div>
     </footer>
   );

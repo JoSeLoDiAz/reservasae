@@ -9,6 +9,7 @@ import {
 import { randomBytes } from 'node:crypto';
 
 import { Prisma } from '../../generated/prisma';
+import { AuditoriaService } from '../comun/auditoria.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { GENEROS_SEP } from '../crm/catalogos-sep.generado';
 import {
@@ -42,6 +43,7 @@ export class PreinscripcionService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly colaRui: ColaRui,
+    private readonly auditoria: AuditoriaService,
   ) {}
 
   /** Lo que el formulario necesita para dibujarse. */
@@ -783,6 +785,56 @@ export class PreinscripcionService {
    * ir y su fila del F7 nacía incompleta. Si trae NIT se
    * busca o se crea la organización y se le engancha.
    */
+  /// Apunta lo que dijo de su situación laboral, y si se
+  /// contradice con lo que dijo antes, lo dice.
+  ///
+  /// El caso concreto: la persona marca «desempleado», ve que
+  /// ahí se le acaba el formulario, refresca y vuelve a
+  /// empezar marcando «con vínculo laboral». El enlace ya no
+  /// sirve pero el formulario se deja recorrer otra vez, así
+  /// que sin esto no queda ni rastro de la primera respuesta.
+  ///
+  /// No bloquea nada: cambiar de respuesta puede ser
+  /// perfectamente honesto -- se equivocó de botón, o consiguió
+  /// trabajo. Solo lo deja escrito para que quien revise lo
+  /// vea, que es lo que se pidió.
+  private async apuntarSituacion(
+    participanteId: string,
+    convenioId: string | null,
+    dice: string | undefined,
+    ip?: string,
+  ): Promise<void> {
+    if (!dice) return;
+
+    const previas = await this.prisma.registroAuditoria.findMany({
+      where: {
+        entidad: 'participante',
+        entidadId: participanteId,
+        accion: 'SITUACION_LABORAL_DECLARADA',
+      },
+      orderBy: { creadoEn: 'desc' },
+      take: 1,
+      select: { resumen: true },
+    });
+
+    const antes = previas[0]?.resumen ?? null;
+    /// El resumen anterior empieza por la situación, así que
+    /// basta con mirar si la nueva ya está ahí.
+    const seContradice = antes !== null && !antes.startsWith(dice);
+
+    await this.auditoria.registrar({
+      actor: { nombre: 'La persona, desde su enlace' },
+      accion: 'SITUACION_LABORAL_DECLARADA',
+      entidad: 'participante',
+      entidadId: participanteId,
+      convenioId,
+      resumen: seContradice
+        ? `${dice} — OJO: antes había dicho otra cosa (${antes})`
+        : dice,
+      ip,
+    });
+  }
+
   async guardarEmpresa(token: string, dto: DatosEmpresaDto) {
     const enlace = await this.exigirEnlaceVivo(token);
 
@@ -790,6 +842,7 @@ export class PreinscripcionService {
       where: { id: enlace.participanteId },
       select: {
         id: true,
+        convenioId: true,
         reserva: { select: { empresaId: true } },
         empresaId: true,
         persona: {
@@ -816,6 +869,28 @@ export class PreinscripcionService {
     /// tambien entraba un municipio inexistente llegando solo.
     const malo = motivoDeIdInvalido(dto);
     if (malo) throw new BadRequestException(malo);
+
+    /// Antes de guardar nada: queda escrito lo que dijo, y si
+    /// se contradice con lo anterior, queda escrito eso
+    /// tambien.
+    await this.apuntarSituacion(p.id, p.convenioId, dto.situacionLaboral);
+
+    /// El desempleado no tiene organizacion que guardar.
+    ///
+    /// Sin esta salida caia en la rama del NIT, se le exigia
+    /// uno que no tiene, y quedaba dando vueltas en un
+    /// formulario que le pedia los datos de una empresa donde
+    /// no trabaja.
+    if (dto.situacionLaboral === 'DESEMPLEADO') {
+      await this.prisma.enlaceCompletado.update({
+        where: { id: enlace.id },
+        data: { usadoEn: new Date() },
+      });
+      const etapaFinal = await this.inscribirSiEstaCompleto(
+        enlace.participanteId,
+      );
+      return { guardado: true, enlaceCerrado: true, etapa: etapaFinal };
+    }
 
     const datos = {
       direccion: dto.direccion,

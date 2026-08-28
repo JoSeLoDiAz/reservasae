@@ -3,6 +3,7 @@ import {
   IsArray,
   IsBoolean,
   IsEmail,
+  IsIn,
   IsInt,
   IsISO8601,
   IsNotEmpty,
@@ -192,7 +193,18 @@ export class DatosPersonaDto {
 }
 
 /** Lo que el F7 pide de la organización. */
+/// Lo que la persona dice de su situacion laboral. Se
+/// guarda como rastro, no como dato de la ficha: interesa la
+/// SECUENCIA de lo que declaro, no el ultimo valor.
+export const SITUACIONES = ['INDEPENDIENTE', 'EMPRESA', 'DESEMPLEADO'] as const;
+export type Situacion = (typeof SITUACIONES)[number];
+
 export class DatosEmpresaDto {
+  /// Lo que eligio en la primera pregunta. Opcional porque
+  /// las fichas viejas no lo mandan y no se les puede exigir
+  /// ahora.
+  @IsOptional() @IsIn(SITUACIONES) situacionLaboral?: Situacion;
+
   /// El independiente que usa su cedula como RUT.
   ///
   /// Sin esto, lo que mande -- su sector, por ejemplo -- no
