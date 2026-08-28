@@ -13,7 +13,8 @@ import {
   Prisma,
   type Admin,
 } from '../../generated/prisma';
-import { AuditoriaService } from '../comun/auditoria.service';
+import { ENTIDADES, AuditoriaService, type Actor } from '../comun/auditoria.service';
+import { taparDocumento } from '../comun/tapar';
 import { documentoValido, normalizarDocumento } from '../comun/documento';
 import { analizar, esInsalvable, repetidosEnElPegado } from './carga';
 import {
@@ -346,7 +347,7 @@ export class CrmService {
     const porFila = await this.prisma.registroAuditoria.groupBy({
       by: ['entidadId'],
       where: {
-        entidad: 'Participante',
+        entidad: ENTIDADES.PARTICIPANTE,
         accion: 'PARTICIPANTE_EDITADO',
         entidadId: { in: filas.map((f) => f.id) },
       },
@@ -1146,7 +1147,7 @@ export class CrmService {
       await this.auditoria.registrar({
         actor: { id: admin.id, nombre: admin.nombre },
         accion: 'PARTICIPANTE_EDITADO',
-        entidad: 'Participante',
+        entidad: ENTIDADES.PARTICIPANTE,
         entidadId: id,
         camposTocados: tocados,
         ip: ip ?? null,
@@ -1248,8 +1249,13 @@ export class CrmService {
    * cédula puede estar en el otro convenio, y ahí sigue.
    * Se lleva sus notas, sus movimientos y su avance.
    */
-  async borrarParticipacion(id: string, ambito: string[]) {
-    await this.exigirParticipante(id, ambito);
+  async borrarParticipacion(
+    id: string,
+    ambito: string[],
+    actor: Actor,
+    ip?: string,
+  ) {
+    const suyo = await this.exigirParticipante(id, ambito);
 
     const p = await this.prisma.participante.findUnique({
       where: { id },
@@ -1274,6 +1280,37 @@ export class CrmService {
         where: { participanteId: id },
       });
       await tx.participante.delete({ where: { id } });
+    });
+
+    /// La huella, DESPUÉS de borrar y fuera de la transacción.
+    ///
+    /// Esto era lo único destructivo del CRM que no dejaba
+    /// rastro: se llevaba por delante avances, notas y los
+    /// movimientos de etapa —o sea, su propio historial— y
+    /// nadie podía decir después quién lo hizo ni a quién.
+    /// Preguntar «¿y dónde está Fulano?» no tenía respuesta.
+    ///
+    /// Fuera de la transacción porque auditar no puede tumbar
+    /// el borrado que ya ocurrió, y `registrar()` se traga sus
+    /// propios errores por lo mismo.
+    ///
+    /// El nombre y el documento van en el resumen a propósito:
+    /// la ficha ya no existe, así que `entidadId` apunta a
+    /// nada. Sin decir de quién era, la huella no sirve. Es la
+    /// excepción escrita de la regla de PII, y el motivo es
+    /// que sin ella no queda NADA.
+    await this.auditoria.registrar({
+      actor,
+      accion: 'PARTICIPANTE_BORRADO',
+      entidad: ENTIDADES.PARTICIPANTE,
+      entidadId: id,
+      convenioId: suyo?.convenioId ?? null,
+      resumen:
+        `Se borró la participación de ${p.persona.primerNombre} ` +
+        `${p.persona.primerApellido} (doc. ${taparDocumento(p.persona.numeroDocumento)}), ` +
+        `que estaba en etapa ${p.etapa}. Con ella se fueron ` +
+        `${p._count.avances} avances y ${p._count.notas} notas.`,
+      ip,
     });
 
     return {
@@ -1500,7 +1537,7 @@ export class CrmService {
     await this.auditoria.registrar({
       actor: { id: admin.id, nombre: admin.nombre },
       accion: 'REVOCAR_AUTORIZACION',
-      entidad: 'Persona',
+      entidad: ENTIDADES.PERSONA,
       entidadId: p.personaId,
       convenioId: p.convenioId,
       /// El canal y cuantas, NO el motivo.
@@ -1698,7 +1735,7 @@ export class CrmService {
     await this.auditoria.registrar({
       actor: { id: admin.id, nombre: admin.nombre },
       accion: 'ETAPA_CAMBIADA',
-      entidad: 'participante',
+      entidad: ENTIDADES.PARTICIPANTE,
       entidadId: id,
       convenioId: p.convenioId,
       resumen: `${p.etapa} → ${dto.etapa}${dto.motivo ? `: ${dto.motivo}` : ''}`,
@@ -1734,7 +1771,7 @@ export class CrmService {
     await this.auditoria.registrar({
       actor: { id: admin.id, nombre: admin.nombre },
       accion: 'NOTA_CREADA',
-      entidad: 'participante',
+      entidad: ENTIDADES.PARTICIPANTE,
       entidadId: id,
       resumen: `Gestión por ${[...dto.canales].sort().join(' + ')}`,
     });
@@ -1881,7 +1918,7 @@ export class CrmService {
     await this.auditoria.registrar({
       actor: { id: admin.id, nombre: admin.nombre },
       accion: 'DATOS_DEL_INTERESADO_ACEPTADOS',
-      entidad: 'participante',
+      entidad: ENTIDADES.PARTICIPANTE,
       entidadId: id,
       convenioId: p.convenioId,
       resumen:
@@ -2782,6 +2819,10 @@ export class CrmService {
     if (!p || !ambito.includes(p.convenioId)) {
       throw new NotFoundException('Ese participante no existe.');
     }
+    /// Devuelve el convenio: quien audita después necesita
+    /// saber de qué gremio era, y volver a consultarlo sería
+    /// preguntar dos veces lo mismo.
+    return p;
   }
 
   private donde(f: Filtros): Prisma.ParticipanteWhereInput {

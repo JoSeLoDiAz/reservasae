@@ -290,8 +290,18 @@ export class CrmController {
   @Delete(':id')
   @Roles(RolAdmin.SUPERADMIN)
   @Requiere('inscripciones', 'ESCRIBIR')
-  borrarParticipacion(@Param('id') id: string, @AmbitoActual() ambito: Ambito) {
-    return this.crm.borrarParticipacion(id, ambito.convenios);
+  borrarParticipacion(
+    @Param('id') id: string,
+    @AmbitoActual() ambito: Ambito,
+    @AdminActual() admin: Admin,
+    @IpReal() ip: string,
+  ) {
+    return this.crm.borrarParticipacion(
+      id,
+      ambito.convenios,
+      { id: admin.id, nombre: admin.nombre },
+      ip,
+    );
   }
 
   @Patch(':id/etapa')

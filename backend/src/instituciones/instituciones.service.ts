@@ -7,7 +7,7 @@ import {
 } from '@nestjs/common';
 
 import { Prisma } from '../../generated/prisma';
-import { AuditoriaService } from '../comun/auditoria.service';
+import { ENTIDADES, AuditoriaService } from '../comun/auditoria.service';
 import { calcularDigitoVerificacion } from '../comun/nit';
 import { PrismaService } from '../prisma/prisma.service';
 import { AplicarPropuestaDto, EditarInstitucionDto } from './dto';
@@ -277,7 +277,7 @@ export class InstitucionesService {
       await this.auditoria.registrar({
         actor: { id: admin.id, nombre: admin.nombre },
         accion: 'EMPRESA_EDITADA',
-        entidad: 'Institucion',
+        entidad: ENTIDADES.INSTITUCION,
         entidadId: id,
         camposTocados: puestos.map(([campo]) => campo),
         resumen: cambios.join(' · ').slice(0, 900),
