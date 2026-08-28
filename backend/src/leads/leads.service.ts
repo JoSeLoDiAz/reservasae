@@ -2,6 +2,12 @@
 
 import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 
+import {
+  cruzarConElCrm,
+  partirNombreCompleto,
+  porDondeSeEncontro,
+  type Coincidencia,
+} from './cruzar-con-el-crm';
 import { Prisma } from '../../generated/prisma';
 import { celularValido, normalizarCelular } from '../comun/celular';
 import { documentoValido, normalizarDocumento } from '../comun/documento';
@@ -13,6 +19,15 @@ import type { EntraLeadDto } from './dto';
 
 /// Lo que el CRM necesita para que un lead sea una ficha.
 type Faltante = string;
+
+/// Los conectores que traen leads PAGADOS.
+///
+/// Se mira quien lo manda —la cabecera `x-origen-sistema`— y
+/// no lo que venga en el cuerpo. Si viniera en el JSON, quien
+/// llama podria marcarse sus propios leads como pauta, y la
+/// metrica de cuanto cuesta un inscrito dejaria de valer justo
+/// para lo que se creo.
+const SISTEMAS_DE_PAUTA = ['meta', 'facebook', 'instagram', 'pauta', 'ads'];
 
 @Injectable()
 export class LeadsService {
@@ -53,6 +68,14 @@ export class LeadsService {
     const datos = this.limpiar(dto);
     const falta = this.queLeFalta(datos);
 
+    /// Pagado u orgánico, y lo decide QUIÉN LO MANDA, no el
+    /// cuerpo. Si viniera en el JSON, quien llama podría
+    /// marcarse sus propios leads como pauta y la métrica de
+    /// cuánto cuesta un inscrito dejaría de valer.
+    const esPauta = SISTEMAS_DE_PAUTA.some((x: string) =>
+      origenSistema.toLowerCase().includes(x),
+    );
+
     /// El mismo lead dos veces no crea dos fichas.
     ///
     /// Los webhooks reintentan. Sin esto, un reintento de red
@@ -86,12 +109,127 @@ export class LeadsService {
       select: { id: true, estado: true, participanteId: true, motivo: true },
     });
 
+    /// EL CRUCE contra Gestión de leads. Es la mitad que
+    /// faltaba: sin esto el lead se quedaba en su buzón y
+    /// nadie se enteraba.
+    const coincide = await cruzarConElCrm(this.prisma, convenio.id, {
+      tipoDocumentoSepId: datos.tipoDocumentoSepId,
+      numeroDocumento: datos.numeroDocumento,
+      correo: datos.correo,
+      celular: datos.celular,
+    });
+
+    if (coincide) {
+      await this.avisarQueYaEstaba(lead.id, coincide, datos, esPauta);
+      this.log.log(
+        `Lead ${dto.externoId}: ya estaba (por ${coincide.por}). ` +
+          'Queda propuesta para el asesor.',
+      );
+      return {
+        ...this.vista({ ...lead, participanteId: coincide.participanteId }),
+        repetido: false,
+        yaEstaba: true,
+        encontradoPor: coincide.por,
+      };
+    }
+
     this.log.log(
       `Lead ${dto.externoId} de ${origenSistema} para ${convenio.slug}` +
         (falta.length ? ` — pendiente (${falta.join(', ')})` : ' — completo'),
     );
 
-    return { ...this.vista(lead), repetido: false };
+    return { ...this.vista(lead), repetido: false, yaEstaba: false };
+  }
+
+  /**
+   * Ya estaba: NO se pisa nada, se deja una propuesta.
+   *
+   * Es lo que el dueño pidió con «le va a salir la ventana de
+   * los datos que puede cambiar»: la misma pieza que usa el
+   * enlace de completar datos, y la misma pantalla donde el
+   * asesor escoge campo por campo.
+   *
+   * Se marca el origen en la ficha AUNQUE no se toque nada
+   * más. Saber que esa persona volvió por una pauta es la
+   * métrica que se pidió, y no depende de que el asesor
+   * acepte los datos nuevos.
+   */
+  private async avisarQueYaEstaba(
+    leadId: string,
+    coincide: Coincidencia,
+    datos: ReturnType<LeadsService['limpiar']>,
+    esPauta: boolean,
+  ): Promise<void> {
+    const actual = await this.prisma.persona.findUnique({
+      where: { id: coincide.personaId },
+      select: {
+        primerNombre: true,
+        segundoNombre: true,
+        primerApellido: true,
+        segundoApellido: true,
+        correo: true,
+        celular: true,
+      },
+    });
+    if (!actual) return;
+
+    /// Solo lo que es DISTINTO. Proponerle al asesor un campo
+    /// que ya dice lo mismo es hacerle decidir sobre nada.
+    const nombre = datos.nombreCompleto
+      ? partirNombreCompleto(datos.nombreCompleto)
+      : null;
+
+    const llega: Record<string, unknown> = {
+      correo: datos.correo ?? undefined,
+      celular: datos.celular ?? undefined,
+      primerNombre: nombre?.primerNombre || undefined,
+      segundoNombre: nombre?.segundoNombre ?? undefined,
+      primerApellido: nombre?.primerApellido || undefined,
+      segundoApellido: nombre?.segundoApellido ?? undefined,
+    };
+
+    const distintos: Record<string, unknown> = {};
+    for (const [campo, valor] of Object.entries(llega)) {
+      if (valor === undefined) continue;
+      if ((actual as Record<string, unknown>)[campo] === valor) continue;
+      distintos[campo] = valor;
+    }
+
+    await this.prisma.$transaction(async (tx) => {
+      await tx.leadEntrante.update({
+        where: { id: leadId },
+        data: {
+          participanteId: coincide.participanteId,
+          /// CONVERTIDO: este lead YA es una ficha. No se creó
+          /// una nueva porque ya existía, que es justo lo que
+          /// este cruce evita —el solapamiento de leads.
+          estado: 'CONVERTIDO',
+          motivo: porDondeSeEncontro(coincide),
+        },
+      });
+
+      /// El origen se marca SIEMPRE, haya o no datos nuevos.
+      await tx.participante.update({
+        where: { id: coincide.participanteId },
+        data: { origenLead: esPauta ? 'PAUTA' : 'ORGANICO' },
+      });
+
+      if (Object.keys(distintos).length > 0) {
+        /// Una pendiente por ficha: la última es la que vale.
+        await tx.propuestaDeDatos.deleteMany({
+          where: {
+            participanteId: coincide.participanteId,
+            estado: 'PENDIENTE',
+          },
+        });
+        await tx.propuestaDeDatos.create({
+          data: {
+            participanteId: coincide.participanteId,
+            campos: distintos as Prisma.InputJsonValue,
+          },
+        });
+      }
+    });
   }
 
   /**

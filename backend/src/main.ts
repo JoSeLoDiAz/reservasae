@@ -39,6 +39,23 @@ function exigirSecretoDeSesion() {
     );
   }
 
+  /// Y la del webhook, con la MISMA regla.
+  ///
+  /// Se le exigian 32 caracteres pero no se miraba si era el
+  /// valor de ejemplo, y el .env.example proponia
+  /// «cambiar-por-un-secreto-largo-y-aleatorio»: cuarenta
+  /// caracteres, pasa el minimo, y esta escrito en un
+  /// repositorio publico. El backend arrancaba contento con la
+  /// llave que cualquiera puede leer, y esa llave escribe en
+  /// el CRM sin sesion.
+  const leads = process.env.LEADS_WEBHOOK_SECRET;
+  if (leads && DE_EJEMPLO.includes(leads)) {
+    throw new Error(
+      'LEADS_WEBHOOK_SECRET es el valor de ejemplo, que esta publicado en ' +
+        `el repositorio. ${COMO_GENERARLO}`,
+    );
+  }
+
   /// Si parece una frase escrita a mano, se avisa pero se
   /// arranca.
   ///
