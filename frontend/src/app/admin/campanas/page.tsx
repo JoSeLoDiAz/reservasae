@@ -18,6 +18,7 @@ import {
   useAdmin,
 } from "@/components/admin/marco-admin";
 import { useToast } from "@/components/admin/toast";
+import { VistaPreviaCorreo } from "@/components/admin/vista-previa-correo";
 import { ErrorApi } from "@/lib/api";
 import {
   campanasApi,
@@ -373,7 +374,7 @@ function NuevaCampana({
 
   return (
     <Tarjeta titulo="Nueva campaña">
-      <div className="grid gap-5 lg:grid-cols-[1fr_18rem]">
+      <div className="grid gap-6 lg:grid-cols-[1fr_24rem]">
         <div className="space-y-4">
           <div>
             <label htmlFor="c-nombre" className="mb-1.5 block text-sm font-medium">
@@ -483,6 +484,14 @@ function NuevaCampana({
           </div>
         </div>
 
+        <div className="space-y-5">
+          <VistaPreviaCorreo
+            asunto={asunto}
+            cuerpo={cuerpo}
+            variables={variables}
+            banner={banner}
+          />
+
         <div className="rounded-xl border border-borde bg-superficie-alterna p-4">
           <p className="text-sm font-medium">Lo que puede poner</p>
           <p className="mt-1 text-xs text-texto-suave">
@@ -504,6 +513,7 @@ function NuevaCampana({
               </li>
             ))}
           </ul>
+        </div>
         </div>
       </div>
     </Tarjeta>

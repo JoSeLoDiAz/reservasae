@@ -12,6 +12,7 @@ import { useCallback, useEffect, useState } from "react";
 
 import { Aviso, Boton, CLASE_CONTROL, Tarjeta } from "@/components/admin/marco-admin";
 import { useToast } from "@/components/admin/toast";
+import { VistaPreviaCorreo } from "@/components/admin/vista-previa-correo";
 import { ErrorApi } from "@/lib/api";
 import {
   plantillasCorreoApi,
@@ -122,7 +123,7 @@ export default function PaginaPlantillasCorreo() {
 
       {editando !== null && (
         <Tarjeta titulo={editando ? "Editar la plantilla" : "Nueva plantilla"}>
-          <div className="grid gap-5 lg:grid-cols-[1fr_18rem]">
+          <div className="grid gap-6 lg:grid-cols-[1fr_24rem]">
             <div className="space-y-4">
               <div>
                 <label htmlFor="nombre" className="mb-1.5 block text-sm font-medium">
@@ -178,6 +179,16 @@ export default function PaginaPlantillasCorreo() {
               </div>
             </div>
 
+            <div className="space-y-5">
+            {/* La vista va ARRIBA de la lista de variables: lo
+                primero que uno quiere ver mientras escribe es
+                cómo va quedando, no el catálogo. */}
+            <VistaPreviaCorreo
+              asunto={borrador.asunto}
+              cuerpo={borrador.cuerpo}
+              variables={variables}
+            />
+
             {/* A mano y con un clic: escribirlas a mano es como
                 se cuela un {{nombrecompleto}} con la ce
                 minúscula, que el servidor rechaza y nadie
@@ -205,6 +216,7 @@ export default function PaginaPlantillasCorreo() {
                   </li>
                 ))}
               </ul>
+            </div>
             </div>
           </div>
         </Tarjeta>
