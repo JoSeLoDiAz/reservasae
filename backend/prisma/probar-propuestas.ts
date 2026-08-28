@@ -47,6 +47,7 @@ async function main() {
     prisma as unknown as PrismaService,
     new ColaRui(prisma as unknown as PrismaService),
     new AuditoriaService(prisma as unknown as PrismaService),
+    { enviar: () => Promise.resolve({ estado: 'APAGADO' }) } as never,
   );
 
   const p = await prisma.participante.findFirst({

@@ -30,14 +30,22 @@ function prismaFalso(conPolitica: boolean) {
 
   return {
     escrituras,
-    convenio: { findFirst: () => Promise.resolve({ id: 'c1' }) },
+    convenio: {
+      findFirst: () => Promise.resolve({ id: 'c1', nombre: 'ADECOPRIA' }),
+    },
     oferta: {
       findFirst: () => Promise.resolve({ id: 'o1', accionFormacionId: 'af1' }),
     },
     politicaDatos: {
       findFirst: () => Promise.resolve(conPolitica ? { id: 'p1' } : null),
     },
-    persona: { upsert: anota('persona', 'upsert', { id: 'per1' }) },
+    persona: {
+      /// Null: la cédula NO estaba. Es el camino que prueban
+      /// estos casos —alguien que se registra por primera
+      /// vez— y el único en el que se devuelve el token.
+      findUnique: () => Promise.resolve(null),
+      upsert: anota('persona', 'upsert', { id: 'per1' }),
+    },
     participante: {
       findFirst: () => Promise.resolve(null),
       create: anota('participante', 'create', { id: 'par1' }),
@@ -48,7 +56,11 @@ function prismaFalso(conPolitica: boolean) {
     },
     enlaceCompletado: {
       updateMany: anota('enlaceCompletado', 'updateMany', { count: 0 }),
-      create: anota('enlaceCompletado', 'create', { id: 'e1' }),
+      create: anota('enlaceCompletado', 'create', {
+        id: 'e1',
+        token: 'ESTE-TOKEN-NO-PUEDE-SALIR',
+        expiraEn: new Date('2026-12-31T00:00:00Z'),
+      }),
     },
     consultaRui: { findFirst: () => Promise.resolve(null) },
   };
@@ -70,10 +82,15 @@ function servicio(conPolitica = true) {
   // la auditoria no es lo que se prueba aqui: se traga las
   // llamadas y no estorba
   const auditoria = { registrar: () => Promise.resolve() };
+  /// El correo no es lo que se prueba aqui: se traga las
+  /// llamadas y devuelve «apagado», que es lo que hace de
+  /// verdad cuando no hay SMTP configurado.
+  const correo = { enviar: () => Promise.resolve({ estado: 'APAGADO' }) };
   const s = new PreinscripcionService(
     prisma as never,
     cola as never,
     auditoria as never,
+    correo as never,
   );
   return { s, prisma };
 }
@@ -119,5 +136,97 @@ describe('la autorización de datos es obligatoria en el servidor', () => {
     await s.registrar('adecopria', BASE);
 
     expect(prisma.escrituras.map((e) => e.tabla)).toContain('persona');
+  });
+});
+
+/// El falso, con las piezas que una prueba concreta necesita
+/// cambiar. Sin esto, TypeScript fija el tipo de
+/// `persona.findUnique` en «devuelve null» a partir de la
+/// primera versión y no deja sustituirla.
+type Falso = {
+  escrituras: Array<{ tabla: string; metodo: string }>;
+  persona: {
+    findUnique: () => Promise<unknown>;
+    upsert: (args: { update: Record<string, unknown> }) => Promise<unknown>;
+  };
+};
+
+describe('el enlace no se le entrega a quien solo sabe una cédula', () => {
+  /// La ficha que abre ese enlace lleva la dirección, el
+  /// celular, el estrato y la caracterización de población
+  /// vulnerable. Quien llena el formulario público es un
+  /// desconocido: lo único que demuestra es saberse un número
+  /// que está en cualquier fotocopia.
+
+  it('cédula NUEVA: se devuelve el token', async () => {
+    // no hay nada que proteger: la ficha solo tiene lo que él
+    // mismo acaba de escribir
+    const { s } = servicio();
+    const r = (await s.registrar('adecopria', {
+      ...BASE,
+      aceptaPolitica: true,
+    } as never)) as { token: string | null; yaEstaba: boolean };
+
+    expect(r.yaEstaba).toBe(false);
+    expect(r.token).toBe('ESTE-TOKEN-NO-PUEDE-SALIR');
+  });
+
+  it('cédula QUE YA ESTABA: no sale token por ninguna parte', async () => {
+    const prisma = prismaFalso(true) as unknown as Falso;
+    prisma.persona.findUnique = () =>
+      Promise.resolve({ id: 'per1', correo: 'dueña@x.co', celular: '300' });
+
+    const cola = { encolarSiHaceFalta: () => Promise.resolve() };
+    const auditoria = { registrar: () => Promise.resolve() };
+    const correo = { enviar: () => Promise.resolve({ estado: 'ENVIADO' }) };
+    const s = new PreinscripcionService(
+      prisma as never,
+      cola as never,
+      auditoria as never,
+      correo as never,
+    );
+
+    const r = (await s.registrar('adecopria', {
+      ...BASE,
+      aceptaPolitica: true,
+    } as never)) as { token: string | null; yaEstaba: boolean };
+
+    expect(r.yaEstaba).toBe(true);
+    expect(r.token).toBeNull();
+    // y la respuesta ENTERA, por si mañana alguien añade un
+    // campo y se lo lleva de vuelta sin darse cuenta
+    expect(JSON.stringify(r)).not.toContain('ESTE-TOKEN-NO-PUEDE-SALIR');
+  });
+
+  it('el correo del formulario NO pisa el que ya estaba', async () => {
+    // un POST con la cédula de otra persona y un correo propio
+    // desviaba hacia el atacante todo lo que se le mandara
+    // después, sin que la dueña notara nada
+    const prisma = prismaFalso(true) as unknown as Falso;
+    prisma.persona.findUnique = () =>
+      Promise.resolve({ id: 'per1', correo: 'dueña@x.co', celular: '3001' });
+
+    let loQueSeEscribio: Record<string, unknown> = {};
+    prisma.persona.upsert = (args) => {
+      loQueSeEscribio = args.update;
+      return Promise.resolve({ id: 'per1' });
+    };
+
+    const s = new PreinscripcionService(
+      prisma as never,
+      { encolarSiHaceFalta: () => Promise.resolve() } as never,
+      { registrar: () => Promise.resolve() } as never,
+      { enviar: () => Promise.resolve({ estado: 'ENVIADO' }) } as never,
+    );
+
+    await s.registrar('adecopria', {
+      ...BASE,
+      correo: 'atacante@mail.com',
+      celular: '3009999999',
+      aceptaPolitica: true,
+    } as never);
+
+    expect(loQueSeEscribio.correo).toBe('dueña@x.co');
+    expect(loQueSeEscribio.celular).toBe('3001');
   });
 });

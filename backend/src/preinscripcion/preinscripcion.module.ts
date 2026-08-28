@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 
 import { AuditoriaService } from '../comun/auditoria.service';
+import { CorreoModule } from '../correo/correo.module';
 import { DirectorioService } from '../crm/directorio.service';
 import { ColaRuiModule } from '../crm/rui/cola-rui';
 import {
@@ -14,7 +15,7 @@ import { PreinscripcionService } from './preinscripcion.service';
 @Module({
   // solo la cola del RUI, no el CRM entero: el CRM importa
   // a este modulo y el circulo no dejaria arrancar a Nest
-  imports: [ColaRuiModule],
+  imports: [ColaRuiModule, CorreoModule],
   controllers: [
     PreinscripcionController,
     CompletarController,
