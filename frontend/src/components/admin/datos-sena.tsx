@@ -130,6 +130,11 @@ export function DatosSena({
       titulo={
         ficha.etapa === "INSCRITO" ? "Datos del inscrito" : "Datos del interesado"
       }
+      /// Plegable: son veinte campos que se llenan una vez y
+      /// se corrigen de tarde en tarde. Abiertos empujaban
+      /// fuera de pantalla el historial y las notas, que son
+      /// lo que uno mira al abrir una ficha.
+      plegable
     >
       <div className="space-y-4">
         <div className="grid gap-4 sm:grid-cols-2">

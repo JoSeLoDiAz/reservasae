@@ -1007,6 +1007,9 @@ export function Tarjeta({
   titulo,
   descripcion,
   centrado,
+  plegable,
+  abiertaPorDefecto = false,
+  insignia,
   children,
 }: {
   titulo: string;
@@ -1016,19 +1019,89 @@ export function Tarjeta({
   /// quedarse pegado arriba. En un formulario o una lista
   /// centrar vertical se ve mal, asi que no es lo de siempre.
   centrado?: boolean;
+  /// Se abre y se cierra con un clic en el titulo.
+  ///
+  /// La ficha de un lead tiene once tarjetas y muchas se
+  /// miran una vez al mes: los datos del interesado, el
+  /// historial, la autorizacion. Todas abiertas obligan a
+  /// recorrer dos pantallas para llegar a lo que uno usa
+  /// todos los dias, que son la etapa y el grupo.
+  plegable?: boolean;
+  abiertaPorDefecto?: boolean;
+  /// Un dato que se ve SIN abrirla. Es lo que hace que
+  /// plegar no esconda: «3 notas», «5 movimientos».
+  insignia?: React.ReactNode;
   children: React.ReactNode;
 }) {
+  const [abierta, setAbierta] = useState(abiertaPorDefecto);
+  const mostrar = !plegable || abierta;
+
   return (
     <section
-      className={`rounded-2xl border border-borde bg-superficie p-6 shadow-sm ${
+      className={`rounded-2xl border border-borde bg-superficie shadow-sm ${
         centrado ? "flex h-full flex-col" : ""
-      }`}
+      } ${plegable && !abierta ? "px-6 py-4" : "p-6"}`}
     >
-      <h2 className="text-lg font-semibold">{titulo}</h2>
-      {descripcion && <p className="mt-1 text-sm text-texto-suave">{descripcion}</p>}
-      <div className={`mt-5 ${centrado ? "flex grow flex-col justify-center" : ""}`}>
-        {children}
-      </div>
+      {plegable ? (
+        <button
+          type="button"
+          onClick={() => setAbierta((v) => !v)}
+          aria-expanded={abierta}
+          className="flex w-full items-center gap-3 text-left"
+        >
+          <span className="min-w-0 flex-1">
+            <span className="block text-lg font-semibold">{titulo}</span>
+            {descripcion && !abierta && (
+              <span className="mt-0.5 block truncate text-sm text-texto-suave">
+                {descripcion}
+              </span>
+            )}
+          </span>
+          {/* La insignia se ve cerrada: plegar no puede
+              esconder que hay algo dentro. */}
+          {insignia && (
+            <span className="shrink-0 rounded-full bg-superficie-alterna px-2.5 py-1 text-xs text-texto-suave">
+              {insignia}
+            </span>
+          )}
+          <svg
+            viewBox="0 0 24 24"
+            width="18"
+            height="18"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden
+            className={`shrink-0 opacity-50 transition-transform ${
+              abierta ? "rotate-180" : ""
+            }`}
+          >
+            <path d="m6 9 6 6 6-6" />
+          </svg>
+        </button>
+      ) : (
+        <>
+          <h2 className="text-lg font-semibold">{titulo}</h2>
+          {descripcion && (
+            <p className="mt-1 text-sm text-texto-suave">{descripcion}</p>
+          )}
+        </>
+      )}
+
+      {mostrar && (
+        <>
+          {plegable && descripcion && (
+            <p className="mt-1 text-sm text-texto-suave">{descripcion}</p>
+          )}
+          <div
+            className={`mt-5 ${centrado ? "flex grow flex-col justify-center" : ""}`}
+          >
+            {children}
+          </div>
+        </>
+      )}
     </section>
   );
 }

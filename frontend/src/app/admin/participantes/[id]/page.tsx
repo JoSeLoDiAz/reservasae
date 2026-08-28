@@ -196,23 +196,36 @@ export default function PaginaFicha() {
 
       <DatosDeLaEmpresa ficha={f} />
 
-      {puedeEscribir && <EnlaceCompletar ficha={f} />}
+      {/* Los dos de contactarla, EN PAREJA. Son la misma
+          tarea vista de dos formas —pedirle que complete, o
+          escribirle— y una debajo de la otra gastaban dos
+          pantallas para dos cajas medio vacías.
 
-      {/* Escribirle va DEBAJO del enlace a proposito: primero
-          se le pide que complete lo que falta, y despues se le
-          escribe con los datos ya puestos. Al reves, la
-          plantilla sale llena de huecos. */}
+          El enlace va a la izquierda porque es lo primero:
+          primero se le pide que complete lo que falta, y
+          después se le escribe con los datos ya puestos. Al
+          revés, la plantilla sale llena de huecos. */}
       {puedeEscribir && (
-        <Tarjeta
-          titulo="Escribirle un correo"
-          descripcion="Con una plantilla, que se llena sola con los datos de esta ficha."
-        >
-          <EnviarCorreo participanteId={f.id} />
-        </Tarjeta>
+        <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
+          <EnlaceCompletar ficha={f} />
+          <Tarjeta
+            titulo="Escribirle un correo"
+            descripcion="Con una plantilla, que se llena sola con los datos de esta ficha."
+            plegable
+          >
+            <EnviarCorreo participanteId={f.id} />
+          </Tarjeta>
+        </div>
       )}
 
+      {/* La autorización y las notas, también en pareja: la
+          primera se mira una vez y la segunda se lee de
+          reojo. */}
+      <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
       <Tarjeta
         titulo="Autorización de tratamiento de datos"
+        plegable
+        insignia={autorizacion ? "Autorizada" : "Sin autorizar"}
       >
         {autorizacion ? (
           <div className="space-y-3">
@@ -230,6 +243,8 @@ export default function PaginaFicha() {
       <Tarjeta
         titulo="Notas"
         descripcion="No se borran: una corrección es otra nota."
+        plegable
+        insignia={`${f.notas.length}`}
       >
         <div className="space-y-4">
           <div className="space-y-3">
@@ -309,8 +324,16 @@ export default function PaginaFicha() {
         </div>
       </Tarjeta>
 
+      </div>
+
+      {/* El historial: plegado. Se consulta cuando algo no
+          cuadra, no todos los días, y abierto empujaba la
+          ficha entera hacia arriba. */}
       <Tarjeta
         titulo="Historial"
+        descripcion="Cada cambio de etapa, con quién lo hizo y por qué."
+        plegable
+        insignia={`${f.movimientos.length}`}
       >
         <ol className="space-y-2.5">
           {f.movimientos.map((m) => (
@@ -1002,7 +1025,7 @@ function DatosDeLaEmpresa({ ficha }: { ficha: Ficha }) {
 
   if (!e) {
     return (
-      <Tarjeta titulo="Su organización">
+      <Tarjeta titulo="Su organización" plegable>
         <p className="text-sm text-texto-suave">Todavía no tiene organización.</p>
       </Tarjeta>
     );
@@ -1078,6 +1101,10 @@ function DatosDeLaEmpresa({ ficha }: { ficha: Ficha }) {
     /// una empresa -- porque ahí lo que importa es la figura.
     <Tarjeta
       titulo={porSuCuenta ? "Independiente con RUT" : e.razonSocial}
+      plegable
+      insignia={
+        faltanDelAsesor > 0 ? `Faltan ${faltanDelAsesor} suyos` : "Completa"
+      }
     >
       <Campos campos={CAMPOS} />
 
@@ -1300,7 +1327,7 @@ function EnlaceCompletar({ ficha }: { ficha: Ficha }) {
 
   if (noLeFalta) {
     return (
-      <Tarjeta titulo="Enlace para que complete sus datos">
+      <Tarjeta titulo="Enlace para que complete sus datos" plegable>
         <div className="rounded-xl border border-exito/30 bg-exito-suave p-4 text-sm text-exito">
           <p className="font-medium">Datos completos — no aplica</p>
           <p className="mt-1">
@@ -1313,7 +1340,7 @@ function EnlaceCompletar({ ficha }: { ficha: Ficha }) {
   }
 
   return (
-    <Tarjeta titulo="Enlace para que complete sus datos">
+    <Tarjeta titulo="Enlace para que complete sus datos" plegable>
       <div className="space-y-4">
         <LoQuePedira ficha={ficha} />
 
