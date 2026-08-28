@@ -43,9 +43,15 @@ const DIAS_HABILES = [1, 2, 3, 4, 5];
  */
 export const TOPE_DIARIO = 300;
 
-/// Y cuántos por hora, para que no salgan los 300 en diez
-/// minutos aunque quepan en el día.
-export const TOPE_POR_HORA = 40;
+/**
+ * Y cuántos por hora, como freno de emergencia.
+ *
+ * NO es para estirar la campaña: una de 200 tiene que salir
+ * en minutos, no en días. Esto está por si un fallo pone el
+ * bucle a girar sin control -- entonces se para solo antes de
+ * gastarse el cupo del día.
+ */
+export const TOPE_POR_HORA = 250;
 
 /**
  * Cuántos le pueden llegar a UNA persona en un día.
@@ -56,11 +62,23 @@ export const TOPE_POR_HORA = 40;
  */
 export const TOPE_POR_PERSONA_AL_DIA = 2;
 
-/// Cuánto se espera entre uno y otro. Espaciados, no en
-/// ráfaga: es la diferencia entre parecer una persona
-/// escribiendo y parecer un robot vaciando una lista.
-export const PAUSA_MINIMA_MS = 20_000;
-export const PAUSA_MAXIMA_MS = 45_000;
+/**
+ * Cuánto se espera entre uno y otro: uno a tres segundos.
+ *
+ * Empecé poniendo 20 a 45 segundos y estaba mal: eso convierte
+ * una campaña de 200 en dos días de espera, y ese no es el
+ * precio de no llamar la atención.
+ *
+ * Lo que hace que Google cierre una cuenta no es el ritmo: es
+ * pasarse del cupo diario, que le marquen spam y que reboten
+ * muchos correos. Un mail-merge normal manda a este ritmo todo
+ * el tiempo. Doscientos salen en unos siete minutos.
+ *
+ * El azar se queda: una cadencia exacta -- uno cada segundo
+ * clavado -- sí es de las cosas que delatan a un robot.
+ */
+export const PAUSA_MINIMA_MS = 1_000;
+export const PAUSA_MAXIMA_MS = 3_000;
 
 export type Reloj = { ahora: Date };
 

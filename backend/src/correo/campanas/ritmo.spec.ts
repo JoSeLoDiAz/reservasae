@@ -75,28 +75,40 @@ describe('los topes, que son lo que salva la cuenta', () => {
     expect(sePuedeAhora(martesDiez, TOPE_DIARIO - 1, 0).puede).toBe(true);
   });
 
-  it('el tope por hora frena aunque quepa en el día', () => {
-    // sin esto, los 300 del día saldrían en diez minutos, que
-    // es exactamente lo que Gmail marca como envío masivo
+  it('el tope por hora es el freno de emergencia', () => {
+    // no está para estirar la campaña: está por si un fallo
+    // pone el bucle a girar y se gasta el cupo del día
     const r = sePuedeAhora(martesDiez, 10, TOPE_POR_HORA);
     expect(r.puede).toBe(false);
     if (!r.puede) expect(r.motivo).toContain('esta hora');
   });
 
   it('el tope diario está MUY por debajo de lo que Google permite', () => {
-    // Google admite unos 2.000. Perder un día de campaña se
-    // arregla mañana; perder la cuenta, no.
+    // Google admite unos 2.000. Aquí se usa una fracción para
+    // dejarle sitio al correo normal de la oficina, que sale
+    // por la misma cuenta.
     expect(TOPE_DIARIO).toBeLessThanOrEqual(500);
+  });
+
+  it('pero alcanza para una campaña grande en un solo día', () => {
+    // si una campaña de 200 no cabe en un día, el tope no está
+    // protegiendo nada: está estorbando
+    expect(TOPE_DIARIO).toBeGreaterThanOrEqual(200);
   });
 });
 
 describe('la pausa entre uno y otro', () => {
-  it('nunca baja de 20 segundos', () => {
-    expect(pausa(0)).toBeGreaterThanOrEqual(20_000);
+  it('va de uno a tres segundos', () => {
+    expect(pausa(0)).toBeGreaterThanOrEqual(1_000);
+    expect(pausa(1)).toBeLessThanOrEqual(3_000);
   });
 
-  it('ni pasa de 45', () => {
-    expect(pausa(1)).toBeLessThanOrEqual(45_000);
+  it('una campaña de 200 sale en minutos, no en días', () => {
+    // el primer intento fueron 20-45 segundos y eso convertía
+    // 200 correos en dos días de espera. Ese no es el precio
+    // de no llamar la atención.
+    const peor = (200 * pausa(1)) / 60_000;
+    expect(peor).toBeLessThan(15);
   });
 
   it('varía: una cadencia exacta delata a un robot', () => {

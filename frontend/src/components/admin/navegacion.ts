@@ -196,6 +196,13 @@ export const MODULOS: Modulo[] = [
     descripcion: 'Lo que se le escribe a la gente, y a quiénes.',
     enlaces: [
       {
+        href: '/admin/campanas',
+        etiqueta: 'Campañas',
+        exacto: true,
+        area: 'inscripciones',
+        nivel: 'ESCRIBIR',
+      },
+      {
         href: '/admin/plantillas-correo',
         etiqueta: 'Plantillas',
         area: 'configuracion',

@@ -54,6 +54,7 @@ model Convenio {
   politicas     PoliticaDatos[]
   formularios   Formulario[]
   plantillasCorreo PlantillaCorreo[]
+  campanas         Campana[]
   participantes Participante[]
   admins        AdminConvenio[]
 
@@ -762,6 +763,7 @@ model Participante {
   propuestas      PropuestaDeDatos[]
 
   // nadie cuenta dos veces en la misma accion
+  enCampanas    DestinatarioCampana[]
   @@unique([accionFormacionId, personaId])
   @@index([convenioId, etapa])
   @@index([ofertaId, etapa])
@@ -951,6 +953,7 @@ model Admin {
   movimientosParticipante  MovimientoParticipante[]
   notasParticipante        NotaParticipante[]
   plantillasCorreo         PlantillaCorreo[]
+  campanas                 Campana[]
   enlacesEmitidos          EnlaceCompletado[]       @relation("EnlacesEmitidos")
   registrosAuditoria       RegistroAuditoria[]
   propuestasResueltas      PropuestaDeDatos[]
@@ -1475,4 +1478,107 @@ model PlantillaCorreo {
 
   @@index([convenioId, activa])
   @@map("plantillas_correo")
+}
+
+/// En que va una campana.
+enum EstadoCampana {
+  BORRADOR
+  ENVIANDO
+  PAUSADA
+  TERMINADA
+}
+
+/// En que va UN destinatario dentro de la campana.
+enum EstadoDestinatario {
+  PENDIENTE
+  ENVIADO
+  FALLIDO
+  /// No se le mando y se dice por que: sin correo, ya
+  /// recibio dos hoy, se dio de baja.
+  OMITIDO
+}
+
+/// Un correo que sale a muchos, de a uno.
+///
+/// No hay presupuesto para un proveedor de campanas, asi que
+/// esto sale por la cuenta de Gmail de la oficina. Por eso la
+/// campana NO es un envio: es una COLA que un trabajador va
+/// vaciando despacio, respetando el horario de Colombia y los
+/// topes de `correo/campanas/ritmo.ts`. Lanzar no manda nada;
+/// lanzar arma la lista y abre la llave.
+model Campana {
+  id         String @id @default(cuid())
+  convenioId String
+
+  nombre String
+  asunto String
+  cuerpo String
+
+  /// El banner del encabezado. Va en la base como los logos:
+  /// tiene que poder servirse por una URL publica, porque
+  /// quien lo carga es el cliente de correo de otra persona.
+  bannerDatos   Bytes?
+  bannerMime    String?
+  bannerNombre  String?
+  bannerVersion Int     @default(1)
+
+  /// A quienes: las reglas, no la lista. La lista se congela
+  /// al lanzar, en DestinatarioCampana.
+  segmento Json
+
+  estado EstadoCampana @default(BORRADOR)
+
+  creadoPorId String?
+  lanzadaEn   DateTime?
+  terminadaEn DateTime?
+
+  creadoEn      DateTime @default(now())
+  actualizadoEn DateTime @updatedAt
+
+  convenio      Convenio              @relation(fields: [convenioId], references: [id], onDelete: Cascade)
+  creadoPor     Admin?                @relation(fields: [creadoPorId], references: [id], onDelete: SetNull)
+  destinatarios DestinatarioCampana[]
+
+  @@index([convenioId, estado])
+  @@map("campanas")
+}
+
+/// Una persona dentro de una campana, y que le paso.
+model DestinatarioCampana {
+  id             String @id @default(cuid())
+  campanaId      String
+  participanteId String
+
+  /// Congelado al armar la lista: si manana cambia su correo,
+  /// hay que poder saber a donde se mando.
+  correo String
+
+  estado EstadoDestinatario @default(PENDIENTE)
+  /// Por que se omitio o por que fallo. En palabras.
+  motivo String?
+
+  intentos  Int       @default(0)
+  enviadoEn DateTime?
+
+  /// La PRIMERA apertura. El numero de aperturas es
+  /// aproximado a proposito: Gmail descarga la imagen el
+  /// mismo y Apple marca abierto a todos, asi que esto se
+  /// ensena como estimado y nunca como un hecho.
+  abiertoEn DateTime?
+  aperturas Int       @default(0)
+
+  /// Los clics SI son firmes: pasan por nuestro servidor.
+  clicEn DateTime?
+  clics  Int       @default(0)
+
+  creadoEn DateTime @default(now())
+
+  campana      Campana      @relation(fields: [campanaId], references: [id], onDelete: Cascade)
+  participante Participante @relation(fields: [participanteId], references: [id], onDelete: Cascade)
+
+  // una persona, una vez por campana
+  @@unique([campanaId, participanteId])
+  @@index([campanaId, estado])
+  @@index([participanteId, enviadoEn])
+  @@map("destinatarios_campana")
 }
