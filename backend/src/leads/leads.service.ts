@@ -51,9 +51,40 @@ export class LeadsService {
    * diga de qué gremio es, o que no traiga un id propio con el
    * que reconocerlo si vuelve.
    */
-  async entra(dto: EntraLeadDto, origenSistema: string) {
+  async entra(
+    dto: EntraLeadDto,
+    origenSistema: string,
+    /// El gremio que dice la DIRECCION, si el host es de uno.
+    delHost: string | null = null,
+  ) {
+    /// El gremio: primero el SUBDOMINIO, y si no, el cuerpo.
+    ///
+    /// `adecopria.reservasae.com/api/webhooks/leads` dice de
+    /// quien es el lead en la propia URL, que es como el resto
+    /// del sistema resuelve el gremio y se equivoca menos que un
+    /// campo dentro del JSON.
+    ///
+    /// Si vienen los DOS y no coinciden se rechaza, no se elige
+    /// uno: mandar a la URL de ADECOPRIA un cuerpo que dice
+    /// britcham-adee es una contradiccion, y resolverla en
+    /// silencio es exactamente como un lead acaba en el gremio
+    /// equivocado. Ver «Un subdominio por gremio» en CLAUDE.md.
+    const slug = delHost ?? dto.convenio;
+    if (delHost && dto.convenio && dto.convenio !== delHost) {
+      throw new BadRequestException(
+        `La direccion dice «${delHost}» y el cuerpo dice «${dto.convenio}». ` +
+          'No se adivina cual: mande uno de los dos, o los dos iguales.',
+      );
+    }
+    if (!slug) {
+      throw new BadRequestException(
+        'Falta el convenio. Mandelo en el cuerpo, o llame al subdominio del ' +
+          'gremio: adecopria.reservasae.com o britcham-adee.reservasae.com.',
+      );
+    }
+
     const convenio = await this.prisma.convenio.findFirst({
-      where: { slug: dto.convenio, activo: true },
+      where: { slug, activo: true },
       select: { id: true, slug: true },
     });
     /// El gremio va explicito y no se adivina.
@@ -62,7 +93,7 @@ export class LeadsService {
     /// ADECOPRIA en BRITCHAM, que es peor que perder el lead.
     if (!convenio) {
       throw new BadRequestException(
-        `«${dto.convenio}» no es una convocatoria activa. Mande el slug: adecopria o britcham-adee.`,
+        `«${slug}» no es una convocatoria activa. Mande el slug: adecopria o britcham-adee.`,
       );
     }
 

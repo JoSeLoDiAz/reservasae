@@ -25,6 +25,7 @@ import {
 import type { RawBodyRequest } from '@nestjs/common';
 import type { Request, Response } from 'express';
 
+import { etiquetaDelHost } from '../admin/gremio-del-host';
 import { EntraLeadDto } from './dto';
 import { LeadsService } from './leads.service';
 import { LlaveDeLeadsGuard } from './llave-de-leads.guard';
@@ -67,6 +68,7 @@ export class LeadsController {
   async entra(
     @Body() dto: EntraLeadDto,
     @Headers('x-origen-sistema') origen: string | undefined,
+    @Headers('host') host: string | undefined,
   ) {
     /// La llave la comprueba `LlaveDeLeadsGuard`, no una línea
     /// de aquí dentro: un guard corre ANTES del
@@ -77,7 +79,15 @@ export class LeadsController {
     const sistema =
       (origen ?? 'orquestador').trim().slice(0, 80) || 'orquestador';
 
-    return this.leads.entra(dto, sistema);
+    /// El gremio que AFIRMA la direccion.
+    ///
+    /// `host` a secas y no `x-forwarded-host`: esa la pone quien
+    /// quiera, y nginx ya reescribe `Host` con el real. Es la
+    /// misma fuente que lee el backend para el panel, y tenerlas
+    /// distintas fue justo el fallo que se arreglo el 27 ago.
+    const delHost = etiquetaDelHost(host);
+
+    return this.leads.entra(dto, sistema, delHost);
   }
 
   /**

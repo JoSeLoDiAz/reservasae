@@ -199,3 +199,62 @@ describe('el cuerpo original se guarda entero', () => {
     expect(creados[0].carga).toMatchObject({ externoId: 'meta-9911' });
   });
 });
+
+describe('el gremio puede venir por el SUBDOMINIO', () => {
+  /// `adecopria.reservasae.com/api/webhooks/leads` dice de quién
+  /// es el lead en la propia URL. Es como el resto del sistema
+  /// resuelve el gremio, y se equivoca menos que un campo dentro
+  /// del JSON.
+
+  it('sin convenio en el cuerpo, manda la dirección', async () => {
+    const { s, creados } = armar();
+
+    await s.entra(
+      { externoId: 'x1', nombreCompleto: 'Ana' } as never,
+      'orquestador',
+      'adecopria',
+    );
+
+    expect(creados[0].convenioId).toBe('c-ade');
+  });
+
+  it('los dos, y de acuerdo, entra', async () => {
+    const { s, creados } = armar();
+    await s.entra({ ...BASE } as never, 'orquestador', 'adecopria');
+    expect(creados[0].convenioId).toBe('c-ade');
+  });
+
+  it('los dos y en CONTRADICCIÓN: se rechaza, no se elige uno', async () => {
+    /// Mandar a la URL de ADECOPRIA un cuerpo que dice
+    /// britcham-adee es una contradicción. Resolverla en
+    /// silencio —con cualquiera de los dos— es exactamente cómo
+    /// un lead acaba en el gremio equivocado.
+    const { s, creados } = armar();
+
+    await expect(
+      s.entra(
+        { ...BASE, convenio: 'britcham-adee' } as never,
+        'orquestador',
+        'adecopria',
+      ),
+    ).rejects.toThrow(/no se adivina/i);
+    expect(creados).toEqual([]);
+  });
+
+  it('sin ninguno de los dos, se dice cómo mandarlo', async () => {
+    const { s, creados } = armar();
+
+    await expect(
+      s.entra({ externoId: 'x1' } as never, 'orquestador', null),
+    ).rejects.toThrow(/subdominio|convenio/i);
+    expect(creados).toEqual([]);
+  });
+
+  it('la dirección general sigue funcionando con el cuerpo', async () => {
+    /// `reservasae.com` no resuelve gremio, así que el cuerpo
+    /// manda. Es lo que usa hoy el orquestador.
+    const { s, creados } = armar();
+    await s.entra(BASE as never, 'orquestador', null);
+    expect(creados[0].convenioId).toBe('c-ade');
+  });
+});
