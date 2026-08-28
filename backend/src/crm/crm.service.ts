@@ -22,6 +22,7 @@ import {
   exigeDatosParaElAula,
   motivoDeTransicionImposible,
 } from './escalera';
+import { repartirPorCobertura } from './cobertura';
 import { faltaDeLaPersona, revisar } from './completitud';
 import { PanelDeCupos } from './panel-de-cupos';
 import { ColaRui } from './rui/cola-rui';
@@ -241,7 +242,6 @@ function mismoValor(llega: unknown, hay: unknown): boolean {
   return a === b;
 }
 
-
 /// Como se llama cada campo para quien lo lee. Sin esto la
 /// pantalla del asesor diria "departamentoSepId".
 const ETIQUETA_CAMPO: Record<string, string> = {
@@ -390,7 +390,11 @@ export class CrmService {
       departamentos: DEPARTAMENTOS_SEP.filter((d) => d.seleccionable),
       // [id, departamentoId, nombre] para que el navegador
       // filtre sin pedir nada; son 1.126, no 1.126 viajes
-      municipios: MUNICIPIOS_SEP.filter((m) => m[3]).map((m) => [m[0], m[1], m[2]]),
+      municipios: MUNICIPIOS_SEP.filter((m) => m[3]).map((m) => [
+        m[0],
+        m[1],
+        m[2],
+      ]),
       estrato: { minimo: ESTRATO_MINIMO, maximo: ESTRATO_MAXIMO },
       edadMinima: EDAD_MINIMA,
       // los tres del decreto 957, no las 21 del CIIU
@@ -421,9 +425,7 @@ export class CrmService {
     };
 
     return metricasDeInscripciones({
-      prisma: this.prisma as unknown as Parameters<
-        typeof metricasDeInscripciones
-      >[0]['prisma'],
+      prisma: this.prisma,
       donde,
     });
   }
@@ -432,7 +434,11 @@ export class CrmService {
     // sin el tramo tampoco: si se hereda, la pantalla de
     // leads jura que hay cero inscritos porque su propio
     // recorte los deja fuera antes de contarlos
-    const donde = this.donde({ ...filtros, etapa: undefined, tramo: undefined });
+    const donde = this.donde({
+      ...filtros,
+      etapa: undefined,
+      tramo: undefined,
+    });
 
     const porEtapa = await this.prisma.participante.groupBy({
       by: ['etapa'],
@@ -457,7 +463,9 @@ export class CrmService {
       }),
     ]);
 
-    const idsAsesor = porAsesor.map((f) => f.asesorId).filter((id): id is string => !!id);
+    const idsAsesor = porAsesor
+      .map((f) => f.asesorId)
+      .filter((id): id is string => !!id);
     const idsAccion = porAccion
       .map((f) => f.accionFormacionId)
       .filter((id): id is string => !!id);
@@ -475,7 +483,9 @@ export class CrmService {
       }),
     ]);
 
-    const totalAsesor = new Map(porAsesor.map((f) => [f.asesorId, f._count._all]));
+    const totalAsesor = new Map(
+      porAsesor.map((f) => [f.asesorId, f._count._all]),
+    );
     const totalAccion = new Map(
       porAccion.map((f) => [f.accionFormacionId, f._count._all]),
     );
@@ -517,8 +527,14 @@ export class CrmService {
         total: cuenta.get(etapa) ?? 0,
       })),
       total: porEtapa.reduce((s, f) => s + f._count._all, 0),
-      asesores: asesores.map((a) => ({ ...a, total: totalAsesor.get(a.id) ?? 0 })),
-      acciones: acciones.map((a) => ({ ...a, total: totalAccion.get(a.id) ?? 0 })),
+      asesores: asesores.map((a) => ({
+        ...a,
+        total: totalAsesor.get(a.id) ?? 0,
+      })),
+      acciones: acciones.map((a) => ({
+        ...a,
+        total: totalAccion.get(a.id) ?? 0,
+      })),
       sinAsesor: totalAsesor.get(null) ?? 0,
       departamentos,
     };
@@ -572,7 +588,11 @@ export class CrmService {
                 otorgadaEn: true,
                 revocadaEn: true,
                 politica: {
-                  select: { version: true, destinatario: true, convenioId: true },
+                  select: {
+                    version: true,
+                    destinatario: true,
+                    convenioId: true,
+                  },
                 },
               },
             },
@@ -754,7 +774,12 @@ export class CrmService {
     return falta;
   }
 
-  async crear(dto: CrearParticipanteDto, admin: Admin, ambito: string[], ip?: string) {
+  async crear(
+    dto: CrearParticipanteDto,
+    admin: Admin,
+    ambito: string[],
+    ip?: string,
+  ) {
     this.exigirConvenio(dto.convenioId, ambito);
 
     // el tipo tiene que servir para una persona y estar
@@ -798,7 +823,9 @@ export class CrmService {
       throw new NotFoundException('Esa oferta no existe.');
     }
     if (oferta && oferta.accionFormacion.convenioId !== dto.convenioId) {
-      throw new BadRequestException('Esa oferta no pertenece al convenio indicado.');
+      throw new BadRequestException(
+        'Esa oferta no pertenece al convenio indicado.',
+      );
     }
 
     // la reserva se comprobaba: entraba tal cual y una de
@@ -807,14 +834,23 @@ export class CrmService {
     if (dto.reservaId) {
       const reserva = await this.prisma.reserva.findUnique({
         where: { id: dto.reservaId },
-        select: { ofertaId: true, oferta: { select: { accionFormacion: { select: { convenioId: true } } } } },
+        select: {
+          ofertaId: true,
+          oferta: {
+            select: { accionFormacion: { select: { convenioId: true } } },
+          },
+        },
       });
       if (!reserva) throw new NotFoundException('Esa reserva no existe.');
       if (reserva.oferta.accionFormacion.convenioId !== dto.convenioId) {
-        throw new BadRequestException('Esa reserva no pertenece al convenio indicado.');
+        throw new BadRequestException(
+          'Esa reserva no pertenece al convenio indicado.',
+        );
       }
       if (oferta && reserva.ofertaId !== oferta.id) {
-        throw new BadRequestException('Esa reserva no es de la formación que se le asigna.');
+        throw new BadRequestException(
+          'Esa reserva no es de la formación que se le asigna.',
+        );
       }
     }
 
@@ -851,7 +887,9 @@ export class CrmService {
           segundoNombre: dto.segundoNombre ?? null,
           primerApellido: dto.primerApellido,
           segundoApellido: dto.segundoApellido ?? null,
-          fechaNacimiento: dto.fechaNacimiento ? new Date(dto.fechaNacimiento) : null,
+          fechaNacimiento: dto.fechaNacimiento
+            ? new Date(dto.fechaNacimiento)
+            : null,
           sexo: dto.sexo ?? null,
           correo: dto.correo ?? null,
           celular: dto.celular ?? null,
@@ -1003,7 +1041,10 @@ export class CrmService {
         where: { id },
         select: { accionFormacionId: true },
       });
-      if (!cobertura || cobertura.grupo.accionFormacionId !== suya?.accionFormacionId) {
+      if (
+        !cobertura ||
+        cobertura.grupo.accionFormacionId !== suya?.accionFormacionId
+      ) {
         throw new BadRequestException(
           'Ese grupo no es de la acción de formación de esta persona.',
         );
@@ -1027,7 +1068,9 @@ export class CrmService {
       sexo: dto.sexo,
       correo: dto.correo,
       celular: dto.celular,
-      fechaNacimiento: dto.fechaNacimiento ? new Date(dto.fechaNacimiento) : undefined,
+      fechaNacimiento: dto.fechaNacimiento
+        ? new Date(dto.fechaNacimiento)
+        : undefined,
       generoSepId: dto.generoSepId,
       estrato: dto.estrato,
       departamentoSepId: dto.departamentoSepId,
@@ -1066,7 +1109,8 @@ export class CrmService {
 
     const partes: string[] = [];
     if (notaAsesor) partes.push(notaAsesor);
-    if (datos.length > 0) partes.push(`Datos actualizados: ${datos.join(', ')}`);
+    if (datos.length > 0)
+      partes.push(`Datos actualizados: ${datos.join(', ')}`);
 
     // marcar la ficha solo si el asesor toco datos de la
     // persona: desde ese momento, lo que mande el interesado
@@ -1075,7 +1119,10 @@ export class CrmService {
     const tocoDatosDePersona = this.queCambio(dePersona, p.persona).length > 0;
 
     const escrituras: Prisma.PrismaPromise<unknown>[] = [
-      this.prisma.persona.update({ where: { id: p.personaId }, data: dePersona }),
+      this.prisma.persona.update({
+        where: { id: p.personaId },
+        data: dePersona,
+      }),
       this.prisma.participante.update({
         where: { id },
         data: {
@@ -1215,7 +1262,11 @@ export class CrmService {
 
     const cambian = suyas.filter((p) => p.asesorId !== asesorId);
     if (cambian.length === 0) {
-      return { cambiadas: 0, fuera: dto.ids.length - suyas.length, sinCambio: suyas.length };
+      return {
+        cambiadas: 0,
+        fuera: dto.ids.length - suyas.length,
+        sinCambio: suyas.length,
+      };
     }
 
     const nombre = asesorId
@@ -1261,7 +1312,13 @@ export class CrmService {
       where: { id },
       select: {
         etapa: true,
-        persona: { select: { primerNombre: true, primerApellido: true, numeroDocumento: true } },
+        persona: {
+          select: {
+            primerNombre: true,
+            primerApellido: true,
+            numeroDocumento: true,
+          },
+        },
         _count: { select: { avances: true, notas: true } },
       },
     });
@@ -1270,7 +1327,9 @@ export class CrmService {
     await this.prisma.$transaction(async (tx) => {
       await tx.avanceActividad.deleteMany({ where: { participanteId: id } });
       await tx.notaParticipante.deleteMany({ where: { participanteId: id } });
-      await tx.movimientoParticipante.deleteMany({ where: { participanteId: id } });
+      await tx.movimientoParticipante.deleteMany({
+        where: { participanteId: id },
+      });
       await tx.participante.delete({ where: { id } });
     });
 
@@ -1357,9 +1416,9 @@ export class CrmService {
       throw new BadRequestException(
         empresa
           ? `Antes de inscribir hay que completar su organización: ${faltaEmpresa.join(', ')}. ` +
-            'Sin eso no entra en el F7.'
+              'Sin eso no entra en el F7.'
           : 'Esta persona no tiene organización. Sin ella no se puede reportar al ' +
-            'SENA, así que no se puede inscribir. Mándele el enlace para que la complete.',
+              'SENA, así que no se puede inscribir. Mándele el enlace para que la complete.',
       );
     }
 
@@ -1407,7 +1466,8 @@ export class CrmService {
           panel.grupos
             .filter(
               (g) =>
-                g.ventana.estado === 'ABIERTA' || g.ventana.estado === 'AVISANDO',
+                g.ventana.estado === 'ABIERTA' ||
+                g.ventana.estado === 'AVISANDO',
             )
             .map((g) => g.numero),
         ),
@@ -1423,7 +1483,9 @@ export class CrmService {
 
     const suyo = panel.grupos.find((g) => g.coberturaId === p.coberturaId);
     if (!suyo) {
-      throw new BadRequestException('Ese grupo no es de esta acción de formación.');
+      throw new BadRequestException(
+        'Ese grupo no es de esta acción de formación.',
+      );
     }
     if (suyo.ventana.estado === 'SIN_FECHAS') {
       throw new BadRequestException(
@@ -1651,7 +1713,10 @@ export class CrmService {
 
     // certificar es lo que paga el SENA: no lo firma quien
     // digita, aunque digite bien
-    if (CIERRES_DE_FORMACION.includes(dto.etapa) && !cierran.includes(p.convenioId)) {
+    if (
+      CIERRES_DE_FORMACION.includes(dto.etapa) &&
+      !cierran.includes(p.convenioId)
+    ) {
       throw new ForbiddenException(
         'Cerrar una formación (certificar o dar por no aprobado) es del líder ' +
           'del área académica.',
@@ -1697,7 +1762,9 @@ export class CrmService {
         where: { id },
         data: {
           etapa: dto.etapa,
-          motivoSalida: ETAPAS_CON_MOTIVO.includes(dto.etapa) ? dto.motivo : undefined,
+          motivoSalida: ETAPAS_CON_MOTIVO.includes(dto.etapa)
+            ? dto.motivo
+            : undefined,
           // matricularse y certificarse son hechos que ya
           // ocurrieron: se escriben una vez. Volver a pasar
           // por la etapa no cambia cuando pasaron, y el
@@ -1711,9 +1778,12 @@ export class CrmService {
           /// exportar, y la misma persona cambia de rango
           /// entre dos cargues por haber cumplido anos, que es
           /// justo lo que congelarla evita.
-          fechaMatricula: compuerta && !p.fechaMatricula ? new Date() : undefined,
+          fechaMatricula:
+            compuerta && !p.fechaMatricula ? new Date() : undefined,
           fechaCertificacion:
-            dto.etapa === 'CERTIFICADO' && !p.fechaCertificacion ? new Date() : undefined,
+            dto.etapa === 'CERTIFICADO' && !p.fechaCertificacion
+              ? new Date()
+              : undefined,
           // el retiro NO: es la fecha del retiro vigente, y
           // va con su motivo, que si se sobrescribe. Fijarla
           // dejaba la fecha de marzo con el motivo de agosto
@@ -1745,7 +1815,12 @@ export class CrmService {
     return this.obtener(id, ambito);
   }
 
-  async agregarNota(id: string, dto: CrearNotaDto, admin: Admin, ambito: string[]) {
+  async agregarNota(
+    id: string,
+    dto: CrearNotaDto,
+    admin: Admin,
+    ambito: string[],
+  ) {
     await this.exigirParticipante(id, ambito);
 
     const existe = await this.prisma.participante.count({ where: { id } });
@@ -1867,12 +1942,15 @@ export class CrmService {
       where: { participanteId: id, estado: 'PENDIENTE' },
       orderBy: { creadoEn: 'desc' },
     });
-    if (!propuesta) throw new NotFoundException('No hay nada pendiente de decidir.');
+    if (!propuesta)
+      throw new NotFoundException('No hay nada pendiente de decidir.');
 
     const campos = propuesta.campos as Record<string, unknown>;
     const desconocido = aceptados.find((c) => !(c in campos));
     if (desconocido) {
-      throw new BadRequestException(`«${desconocido}» no está en esa propuesta.`);
+      throw new BadRequestException(
+        `«${desconocido}» no está en esa propuesta.`,
+      );
     }
 
     const p = await this.prisma.participante.findUnique({
@@ -1886,11 +1964,14 @@ export class CrmService {
       for (const campo of aceptados) {
         const v = campos[campo];
         // las fechas viajan como texto dentro del JSON
-        data[campo] = campo === 'fechaNacimiento' && typeof v === 'string' ? new Date(v) : v;
+        data[campo] =
+          campo === 'fechaNacimiento' && typeof v === 'string'
+            ? new Date(v)
+            : v;
       }
       await this.prisma.persona.update({
         where: { id: p.personaId },
-        data: data as Prisma.PersonaUpdateInput,
+        data: data,
       });
     }
 
@@ -1941,7 +2022,9 @@ export class CrmService {
     const notas = await this.prisma.notaParticipante.findMany({
       where: {
         canales: { isEmpty: false },
-        participante: ambito.length ? { convenioId: { in: ambito } } : undefined,
+        participante: ambito.length
+          ? { convenioId: { in: ambito } }
+          : undefined,
       },
       select: { canales: true },
     });
@@ -1983,7 +2066,12 @@ export class CrmService {
         },
       },
     });
-    if (!p) return { bloquean: ['el participante no existe'], avisan: [], reporte: [] };
+    if (!p)
+      return {
+        bloquean: ['el participante no existe'],
+        avisan: [],
+        reporte: [],
+      };
 
     const autorizacion = await this.prisma.autorizacionDatos.findFirst({
       where: {
@@ -2018,9 +2106,6 @@ export class CrmService {
 
     return { bloquean: matricula, avisan, reporte };
   }
-
-
-
 
   /** Que pasaria si se confirma este pegado. */
   async previsualizarCarga(dto: CargaDto, ambito: string[]) {
@@ -2072,13 +2157,16 @@ export class CrmService {
     const previa = filas.map((f) => {
       const clave = `${f.tipoDocumentoSepId}:${f.numeroDocumento}`;
       const problemas = [...f.problemas];
-      let estado: 'NUEVA' | 'PERSONA_CONOCIDA' | 'REPETIDA' | 'DESCARTADA' = 'NUEVA';
+      let estado: 'NUEVA' | 'PERSONA_CONOCIDA' | 'REPETIDA' | 'DESCARTADA' =
+        'NUEVA';
 
       if (esInsalvable(f)) {
         estado = 'DESCARTADA';
       } else if (repes.has(clave)) {
         estado = 'REPETIDA';
-        problemas.push('el mismo documento aparece más de una vez en lo pegado');
+        problemas.push(
+          'el mismo documento aparece más de una vez en lo pegado',
+        );
       } else {
         const persona = porDocumento.get(clave);
         if (persona) {
@@ -2098,7 +2186,9 @@ export class CrmService {
       return { ...f, problemas, estado };
     });
 
-    const creables = previa.filter((f) => f.estado !== 'DESCARTADA' && f.estado !== 'REPETIDA');
+    const creables = previa.filter(
+      (f) => f.estado !== 'DESCARTADA' && f.estado !== 'REPETIDA',
+    );
 
     return {
       total: previa.length,
@@ -2112,7 +2202,12 @@ export class CrmService {
   }
 
   /** Crea solo las lineas que el asesor confirmo. */
-  async confirmarCarga(dto: CargaDto, admin: Admin, ambito: string[], ip?: string) {
+  async confirmarCarga(
+    dto: CargaDto,
+    admin: Admin,
+    ambito: string[],
+    ip?: string,
+  ) {
     this.exigirConvenio(dto.convenioId, ambito);
 
     const previa = await this.previsualizarCarga(dto, ambito);
@@ -2185,7 +2280,11 @@ export class CrmService {
       take: TOPE_POR_PAGINA,
       include: {
         persona: {
-          select: { primerNombre: true, primerApellido: true, numeroDocumento: true },
+          select: {
+            primerNombre: true,
+            primerApellido: true,
+            numeroDocumento: true,
+          },
         },
         accionFormacion: { select: { id: true, codigo: true, nombre: true } },
         asesor: { select: { id: true, nombre: true } },
@@ -2193,7 +2292,12 @@ export class CrmService {
           select: {
             grupoId: true,
             grupo: {
-              select: { numero: true, fechaInicio: true, fechaFin: true, horario: true },
+              select: {
+                numero: true,
+                fechaInicio: true,
+                fechaFin: true,
+                horario: true,
+              },
             },
           },
         },
@@ -2201,7 +2305,11 @@ export class CrmService {
           select: {
             estado: true,
             actividad: {
-              select: { obligatoria: true, publicada: true, accionFormacionId: true },
+              select: {
+                obligatoria: true,
+                publicada: true,
+                accionFormacionId: true,
+              },
             },
           },
         },
@@ -2214,7 +2322,9 @@ export class CrmService {
       where: { publicada: true, obligatoria: true },
       _count: { _all: true },
     });
-    const totalDe = new Map(obligatorias.map((a) => [a.accionFormacionId, a._count._all]));
+    const totalDe = new Map(
+      obligatorias.map((a) => [a.accionFormacionId, a._count._all]),
+    );
 
     const ahora = Date.now();
 
@@ -2238,10 +2348,14 @@ export class CrmService {
       // sin calendario no se puede decir si va tarde
       let transcurrido: number | null = null;
       if (inicio !== null && fin !== null && fin > inicio) {
-        transcurrido = Math.min(1, Math.max(0, (ahora - inicio) / (fin - inicio)));
+        transcurrido = Math.min(
+          1,
+          Math.max(0, (ahora - inicio) / (fin - inicio)),
+        );
       }
 
-      const esperadas = transcurrido === null ? null : Math.round(total * transcurrido);
+      const esperadas =
+        transcurrido === null ? null : Math.round(total * transcurrido);
       const desfase = esperadas === null ? null : hechas - esperadas;
 
       const diasSinEntrar = p.ultimoAcceso
@@ -2252,7 +2366,8 @@ export class CrmService {
       // certificar, y se mide contra el total del curso,
       // no contra lo que tocaria a estas alturas
       const porcentaje = total > 0 ? hechas / total : 0;
-      const listoParaCertificar = total > 0 && porcentaje >= MINIMO_PARA_CERTIFICAR;
+      const listoParaCertificar =
+        total > 0 && porcentaje >= MINIMO_PARA_CERTIFICAR;
 
       // quien se fue no se juzga por su ritmo: su etapa ya
       // dice lo que paso. Se le calcula igual para saber
@@ -2384,9 +2499,53 @@ export class CrmService {
     };
   }
 
+  /**
+   * Donde vive, en los nombres con que se llaman las
+   * ubicaciones de los grupos.
+   *
+   * La persona guarda codigos del DANE; las ubicaciones,
+   * nombres. La traduccion va aqui y no en la comparacion,
+   * para que la regla de cobertura se pueda probar sola.
+   */
+  private async dondeVive(participanteId: string) {
+    const p = await this.prisma.participante.findUnique({
+      where: { id: participanteId },
+      select: {
+        persona: { select: { departamentoSepId: true, municipioSepId: true } },
+      },
+    });
+
+    const dep = p?.persona.departamentoSepId;
+    const mun = p?.persona.municipioSepId;
+
+    return {
+      departamento: dep
+        ? (DEPARTAMENTO_POR_ID.get(dep)?.etiqueta ?? null)
+        : null,
+      // el municipio es una tupla [id, depto, nombre, ...]
+      ciudad: mun ? (MUNICIPIO_POR_ID.get(mun)?.[2] ?? null) : null,
+    };
+  }
+
   /** Ofertas y grupos donde se puede colocar a alguien. */
-  async opciones(convenioId: string, ambito: string[]) {
+  async opciones(
+    convenioId: string,
+    ambito: string[],
+    participanteId?: string,
+  ) {
     this.exigirConvenio(convenioId, ambito);
+
+    /// Donde vive la persona a la que se le va a asignar.
+    ///
+    /// Con esto se le ofrecen SOLO los grupos que la cubren.
+    /// Ofrecerle a alguien de Bogota un grupo de Medellin no
+    /// es una opcion: es un error esperando a que alguien lo
+    /// cometa con prisa. Y cuando se comete no se nota -- la
+    /// ficha queda con grupo -- hasta el dia que la persona
+    /// no llega al curso.
+    const vive = participanteId
+      ? await this.dondeVive(participanteId)
+      : { departamento: null, ciudad: null };
 
     const ofertas = await this.prisma.oferta.findMany({
       where: { accionFormacion: { convenioId } },
@@ -2401,7 +2560,9 @@ export class CrmService {
         modalidad: true,
         ubicacion: { select: { nombre: true } },
         accionFormacion: { select: { id: true, codigo: true, nombre: true } },
-        _count: { select: { participantes: { where: { etapa: { in: ETAPAS_VIVAS } } } } },
+        _count: {
+          select: { participantes: { where: { etapa: { in: ETAPAS_VIVAS } } } },
+        },
       },
     });
 
@@ -2412,7 +2573,7 @@ export class CrmService {
         id: true,
         cuposBase: true,
         modalidad: true,
-        ubicacion: { select: { nombre: true } },
+        ubicacion: { select: { nombre: true, tipo: true, departamento: true } },
         grupo: {
           select: {
             numero: true,
@@ -2422,7 +2583,9 @@ export class CrmService {
             accionFormacionId: true,
           },
         },
-        _count: { select: { participantes: { where: { etapa: { in: ETAPAS_VIVAS } } } } },
+        _count: {
+          select: { participantes: { where: { etapa: { in: ETAPAS_VIVAS } } } },
+        },
       },
     });
 
@@ -2434,7 +2597,9 @@ export class CrmService {
         convenios: {
           some: {
             convenioId,
-            rol: { in: ['GESTOR_INSCRIPCION', 'LIDER_INSCRIPCION', 'LIDER_SISTEMAS'] },
+            rol: {
+              in: ['GESTOR_INSCRIPCION', 'LIDER_INSCRIPCION', 'LIDER_SISTEMAS'],
+            },
           },
         },
       },
@@ -2442,8 +2607,15 @@ export class CrmService {
       select: { id: true, nombre: true, correo: true },
     });
 
+    const { cubren, fuera } = repartirPorCobertura(grupos, vive);
+
     return {
       asesores,
+      /// Cuantos se dejaron fuera por vivir en otra parte. Una
+      /// lista que se acorta sola sin decir por que parece un
+      /// sistema roto.
+      gruposFueraDeCobertura: fuera,
+      domicilio: vive,
       ofertas: ofertas.map((o) => ({
         id: o.id,
         accionFormacionId: o.accionFormacion.id,
@@ -2455,7 +2627,7 @@ export class CrmService {
         disponibles: Math.max(0, o.cuposMaximos - o._count.participantes),
         abierta: o.abierta,
       })),
-      grupos: grupos.map((g) => ({
+      grupos: cubren.map((g) => ({
         id: g.id,
         accionFormacionId: g.grupo.accionFormacionId,
         etiqueta: `Grupo ${g.grupo.numero} · ${g.ubicacion.nombre}`,
@@ -2530,7 +2702,11 @@ export class CrmService {
 
     let sobrecupo: { porId: string; motivo: string } | null = null;
     const ocupadas = await this.prisma.participante.count({
-      where: { ofertaId: oferta.id, etapa: { in: ETAPAS_VIVAS }, id: { not: id } },
+      where: {
+        ofertaId: oferta.id,
+        etapa: { in: ETAPAS_VIVAS },
+        id: { not: id },
+      },
     });
 
     if (ocupadas >= oferta.cuposMaximos) {
@@ -2553,7 +2729,9 @@ export class CrmService {
       });
       if (!cobertura) throw new NotFoundException('Ese grupo no existe.');
       if (cobertura.grupo.accionFormacionId !== oferta.accionFormacionId) {
-        throw new BadRequestException('Ese grupo es de otra acción de formación.');
+        throw new BadRequestException(
+          'Ese grupo es de otra acción de formación.',
+        );
       }
       numeroDeGrupo = cobertura.grupo.numero;
     }
@@ -2642,7 +2820,11 @@ export class CrmService {
     }
 
     const yaEsta = await this.prisma.autorizacionDatos.findFirst({
-      where: { personaId: p.personaId, politicaDatosId: politica.id, revocadaEn: null },
+      where: {
+        personaId: p.personaId,
+        politicaDatosId: politica.id,
+        revocadaEn: null,
+      },
       select: { id: true },
     });
     if (yaEsta) return this.obtener(id, ambito);
@@ -2771,10 +2953,26 @@ export class CrmService {
       const documento = normalizarDocumento(buscar);
       y.push({
         OR: [
-          { persona: { primerNombre: { contains: buscar, mode: 'insensitive' } } },
-          { persona: { segundoNombre: { contains: buscar, mode: 'insensitive' } } },
-          { persona: { primerApellido: { contains: buscar, mode: 'insensitive' } } },
-          { persona: { segundoApellido: { contains: buscar, mode: 'insensitive' } } },
+          {
+            persona: {
+              primerNombre: { contains: buscar, mode: 'insensitive' },
+            },
+          },
+          {
+            persona: {
+              segundoNombre: { contains: buscar, mode: 'insensitive' },
+            },
+          },
+          {
+            persona: {
+              primerApellido: { contains: buscar, mode: 'insensitive' },
+            },
+          },
+          {
+            persona: {
+              segundoApellido: { contains: buscar, mode: 'insensitive' },
+            },
+          },
           { persona: { correo: { contains: buscar, mode: 'insensitive' } } },
           ...(documento
             ? [{ persona: { numeroDocumento: { startsWith: documento } } }]
@@ -2808,9 +3006,12 @@ export class CrmService {
     } | null,
   ): 'SIN' | 'PARCIAL' | 'COMPLETA' {
     if (!e) return 'SIN';
-    const puestos = [e.direccion, e.telefono, e.sectorEconomico, e.clasificacion].filter(
-      (v) => v !== null && v !== '',
-    ).length;
+    const puestos = [
+      e.direccion,
+      e.telefono,
+      e.sectorEconomico,
+      e.clasificacion,
+    ].filter((v) => v !== null && v !== '').length;
     if (puestos === 4) return 'COMPLETA';
     return 'PARCIAL';
   }
@@ -2877,7 +3078,8 @@ export class CrmService {
       id: p.id,
       etapa: p.etapa,
       origen: p.origen,
-      datos: falta.length === 0 ? ('COMPLETOS' as const) : ('PARCIALES' as const),
+      datos:
+        falta.length === 0 ? ('COMPLETOS' as const) : ('PARCIALES' as const),
       faltaDeLaPersona: falta,
       creadoEn: p.creadoEn,
       documento: `${siglaDocumento(p.persona.tipoDocumentoSepId)} ${p.persona.numeroDocumento}`,
@@ -2904,7 +3106,8 @@ export class CrmService {
       numeroDocumento: p.persona.numeroDocumento,
       /// Donde vive, no donde se dicta: `ubicacion` es la sede.
       departamento: p.persona.departamentoSepId
-        ? (DEPARTAMENTO_POR_ID.get(p.persona.departamentoSepId)?.etiqueta ?? null)
+        ? (DEPARTAMENTO_POR_ID.get(p.persona.departamentoSepId)?.etiqueta ??
+          null)
         : null,
       municipio: p.persona.municipioSepId
         ? (MUNICIPIO_POR_ID.get(p.persona.municipioSepId)?.[2] ?? null)

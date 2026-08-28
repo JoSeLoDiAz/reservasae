@@ -266,11 +266,25 @@ export function PiePublico() {
   /// texto: la firma y la version son de la casa, no del
   /// cliente, y antes toda la pieza desaparecia con el texto.
   return (
-    <footer className="mx-auto w-full max-w-3xl space-y-3 px-6 pb-10 text-sm text-texto-suave">
-      {marca?.piePagina && <p>{marca.piePagina}</p>}
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-borde pt-4">
-        <FirmaConvoca tamano={26} />
+    /// Separado de lo que hay encima, y en dos extremos.
+    ///
+    /// Antes iba pegado al botón de guardar y las tres piezas
+    /// —la firma, el texto del cliente y la línea legal— caían
+    /// una encima de otra en el mismo renglón. Se leía como un
+    /// amontonamiento, no como un pie.
+    ///
+    /// En pantalla ancha: la firma a la izquierda, lo legal a
+    /// la derecha. En el teléfono, una debajo de la otra, que
+    /// es la única forma en que caben.
+    <footer className="mx-auto mt-16 w-full max-w-3xl px-6 pb-12 text-sm text-texto-suave">
+      {marca?.piePagina && <p className="mb-6">{marca.piePagina}</p>}
+      {/* La línea legal arriba y la firma debajo, una sobre
+          otra y no una al lado de la otra: quien firma la
+          página cierra el pie, que es donde uno espera la
+          firma de algo. */}
+      <div className="flex flex-col items-center gap-4 border-t border-borde pt-6 text-center">
         <PieDeConvoca />
+        <FirmaConvoca tamano={26} apilado />
       </div>
     </footer>
   );

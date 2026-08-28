@@ -67,9 +67,13 @@ const BASE = {
 function servicio(conPolitica = true) {
   const prisma = prismaFalso(conPolitica);
   const cola = { encolarSiHaceFalta: () => Promise.resolve() };
+  // la auditoria no es lo que se prueba aqui: se traga las
+  // llamadas y no estorba
+  const auditoria = { registrar: () => Promise.resolve() };
   const s = new PreinscripcionService(
     prisma as never,
     cola as never,
+    auditoria as never,
   );
   return { s, prisma };
 }
@@ -88,7 +92,7 @@ describe('la autorización de datos es obligatoria en el servidor', () => {
     const { s, prisma } = servicio();
 
     await expect(
-      s.registrar('adecopria', { ...BASE, aceptaPolitica: false } as never),
+      s.registrar('adecopria', { ...BASE, aceptaPolitica: false }),
     ).rejects.toThrow(/política de tratamiento/i);
     expect(prisma.escrituras).toEqual([]);
   });
@@ -96,7 +100,7 @@ describe('la autorización de datos es obligatoria en el servidor', () => {
   it('aceptando, entra Y queda la constancia', async () => {
     const { s, prisma } = servicio();
 
-    await s.registrar('adecopria', { ...BASE, aceptaPolitica: true } as never);
+    await s.registrar('adecopria', { ...BASE, aceptaPolitica: true });
 
     const tablas = prisma.escrituras.map((e) => e.tabla);
     expect(tablas).toContain('persona');
@@ -112,7 +116,7 @@ describe('la autorización de datos es obligatoria en el servidor', () => {
     /// hay nada que constatar.
     const { s, prisma } = servicio(false);
 
-    await s.registrar('adecopria', BASE as never);
+    await s.registrar('adecopria', BASE);
 
     expect(prisma.escrituras.map((e) => e.tabla)).toContain('persona');
   });

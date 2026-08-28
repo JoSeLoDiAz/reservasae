@@ -6,6 +6,7 @@
 /// asesor acepto.
 
 import { PrismaClient } from '../generated/prisma';
+import { AuditoriaService } from '../src/comun/auditoria.service';
 import { PrismaService } from '../src/prisma/prisma.service';
 import { ColaRui } from '../src/crm/rui/cola-rui';
 import { PreinscripcionService } from '../src/preinscripcion/preinscripcion.service';
@@ -45,6 +46,7 @@ async function main() {
   const servicio = new PreinscripcionService(
     prisma as unknown as PrismaService,
     new ColaRui(prisma as unknown as PrismaService),
+    new AuditoriaService(prisma as unknown as PrismaService),
   );
 
   const p = await prisma.participante.findFirst({

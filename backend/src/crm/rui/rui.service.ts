@@ -40,6 +40,14 @@ export type EstadoRuiDeLaFicha = {
   simulado: boolean;
   /// La persona es inventada: no se consulta y se dice.
   esDePrueba: boolean;
+  /// POR QUE salio del simulador y no del RUI.
+  ///
+  /// Antes la ficha traia el motivo escrito a mano -- «se
+  /// enciende con RUI_PROVEEDOR=VENTANILLA» -- y desde que
+  /// hay mas de una razon para simular, ese texto manda a
+  /// arreglar algo que ya estaba bien. El motivo lo sabe el
+  /// servidor; que lo diga el servidor.
+  motivoSimulado: string | null;
 };
 
 @Injectable()
@@ -192,9 +200,16 @@ export class RuiService {
 
     const persona = await this.prisma.persona.findUnique({
       where: { id: personaId },
-      select: { esDePrueba: true },
+      select: { esDePrueba: true, numeroDocumento: true },
     });
     const esDePrueba = persona?.esDePrueba ?? false;
+
+    /// El motivo se calcula con la misma funcion que decide
+    /// si se consulta: si manana cambia la regla, el mensaje
+    /// cambia con ella y no se queda mintiendo.
+    const permiso = permisoDeRui(persona?.numeroDocumento ?? '');
+    const motivo = (simulado: boolean) =>
+      simulado ? (permiso.motivo || null) : null;
 
     if (!c) {
       return {
@@ -208,6 +223,7 @@ export class RuiService {
         // describir, sino con que se va a consultar
         simulado: ruiEsSimulado(),
         esDePrueba,
+        motivoSimulado: motivo(ruiEsSimulado()),
       };
     }
 
@@ -228,6 +244,7 @@ export class RuiService {
       // respuesta, no con que corre el servidor ahora
       simulado: esperando ? ruiEsSimulado() : c.simulado,
       esDePrueba,
+      motivoSimulado: motivo(esperando ? ruiEsSimulado() : c.simulado),
     };
   }
 

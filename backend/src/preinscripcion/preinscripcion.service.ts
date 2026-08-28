@@ -1,9 +1,15 @@
 /** Quien se inscribe por su cuenta, y completa sus datos. */
 
-import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
 import { randomBytes } from 'node:crypto';
 
 import { Prisma } from '../../generated/prisma';
+import { AuditoriaService } from '../comun/auditoria.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { GENEROS_SEP } from '../crm/catalogos-sep.generado';
 import {
@@ -17,7 +23,13 @@ import {
 } from '../crm/catalogos-sep';
 import { faltaDeLaPersona } from '../crm/completitud';
 import { ColaRui } from '../crm/rui/cola-rui';
-import { CrearPreinscripcionDto, DatosEmpresaDto, DatosPersonaDto } from './dto';
+import { CARACTERIZACION_POR_ID } from '../crm/catalogos-sep';
+import { CARACTERIZACIONES_SEP } from '../crm/catalogos-sep.generado';
+import {
+  CrearPreinscripcionDto,
+  DatosEmpresaDto,
+  DatosPersonaDto,
+} from './dto';
 
 /// Cuánto vale un enlace antes de caducar solo.
 const DIAS_DE_VIDA = 15;
@@ -31,6 +43,7 @@ export class PreinscripcionService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly colaRui: ColaRui,
+    private readonly auditoria: AuditoriaService,
   ) {}
 
   /** Lo que el formulario necesita para dibujarse. */
@@ -39,7 +52,8 @@ export class PreinscripcionService {
       where: { slug, activo: true },
       select: { id: true, slug: true, nombre: true, sigla: true },
     });
-    if (!convenio) throw new NotFoundException('No hay una convocatoria con ese nombre.');
+    if (!convenio)
+      throw new NotFoundException('No hay una convocatoria con ese nombre.');
 
     const acciones = await this.prisma.accionFormacion.findMany({
       where: { convenioId: convenio.id, visible: true },
@@ -61,7 +75,9 @@ export class PreinscripcionService {
             cuposMaximos: true,
             cuposOcupados: true,
             // el departamento de la ciudad decide la cobertura
-            ubicacion: { select: { nombre: true, tipo: true, departamento: true } },
+            ubicacion: {
+              select: { nombre: true, tipo: true, departamento: true },
+            },
           },
         },
       },
@@ -127,7 +143,11 @@ export class PreinscripcionService {
   private ubicacionesConOferta(
     acciones: Array<{
       ofertas: Array<{
-        ubicacion: { nombre: string; tipo: string; departamento: string | null };
+        ubicacion: {
+          nombre: string;
+          tipo: string;
+          departamento: string | null;
+        };
       }>;
     }>,
   ) {
@@ -161,10 +181,15 @@ export class PreinscripcionService {
       where: { slug, activo: true },
       select: { id: true },
     });
-    if (!convenio) throw new NotFoundException('No hay una convocatoria con ese nombre.');
+    if (!convenio)
+      throw new NotFoundException('No hay una convocatoria con ese nombre.');
 
     const oferta = await this.prisma.oferta.findFirst({
-      where: { id: dto.ofertaId, abierta: true, accionFormacion: { convenioId: convenio.id, visible: true } },
+      where: {
+        id: dto.ofertaId,
+        abierta: true,
+        accionFormacion: { convenioId: convenio.id, visible: true },
+      },
       select: { id: true, accionFormacionId: true },
     });
     if (!oferta) {
@@ -198,7 +223,10 @@ export class PreinscripcionService {
 
     const documento = dto.numeroDocumento.trim();
 
-    const domicilio = this.domicilioSep(dto.departamentoNombre, dto.ciudadNombre);
+    const domicilio = this.domicilioSep(
+      dto.departamentoNombre,
+      dto.ciudadNombre,
+    );
 
     // la misma cedula es la misma persona en todo el
     // sistema, venga por donde venga
@@ -238,7 +266,10 @@ export class PreinscripcionService {
     // enlace en vez de decirle que no, que es lo mismo
     // que echarla
     const yaEsta = await this.prisma.participante.findFirst({
-      where: { personaId: persona.id, accionFormacionId: oferta.accionFormacionId },
+      where: {
+        personaId: persona.id,
+        accionFormacionId: oferta.accionFormacionId,
+      },
       select: { id: true },
     });
 
@@ -253,7 +284,10 @@ export class PreinscripcionService {
           origen: 'AUTOGESTION',
           etapa: 'INTERESADO',
           movimientos: {
-            create: { etapaDespues: 'INTERESADO', motivo: 'Se inscribió por su cuenta' },
+            create: {
+              etapaDespues: 'INTERESADO',
+              motivo: 'Se inscribió por su cuenta',
+            },
           },
         },
         select: { id: true },
@@ -401,11 +435,20 @@ export class PreinscripcionService {
         cargoEnEmpresa: true,
         nivelOcupacionalSepId: true,
         beneficiarioPrevio: true,
-        reserva: { select: { empresa: { select: { nit: true, razonSocial: true } } } },
+        reserva: {
+          select: { empresa: { select: { nit: true, razonSocial: true } } },
+        },
         empresa: { select: { nit: true, razonSocial: true } },
         persona: {
           include: {
-            autorizaciones: { where: { revocadaEn: null }, select: { id: true } },
+            autorizaciones: {
+              where: { revocadaEn: null },
+              select: { id: true },
+            },
+            /// Lo que ya marco de poblacion vulnerable. Sin
+            /// esto, volver al enlace le preguntaria en blanco
+            /// algo que ya contesto.
+            caracterizaciones: { select: { caracterizacionSepId: true } },
           },
         },
       },
@@ -425,7 +468,10 @@ export class PreinscripcionService {
 
     // la de la reserva manda: es la que la nominó
     const suya = p.reserva?.empresa ?? p.empresa ?? null;
-    const { autorizaciones, ...persona } = p.persona;
+    const { autorizaciones, caracterizaciones, ...persona } = p.persona;
+    const caracterizacionesElegidas = caracterizaciones.map(
+      (c) => c.caracterizacionSepId,
+    );
 
     return {
       expiraEn: enlace.expiraEn,
@@ -454,11 +500,23 @@ export class PreinscripcionService {
       politica,
       documentos: DOCUMENTOS_DEL_FORMULARIO,
       generos: GENEROS_SEP,
+      /// Las 43 del SEP, que es lo que el F7 admite. Se manda
+      /// la lista entera: filtrarla seria decidir por la
+      /// persona cual de sus condiciones cuenta.
+      caracterizaciones: CARACTERIZACIONES_SEP,
+      /// Lo que ya marco, para no volver a preguntarselo en
+      /// blanco si vuelve al enlace.
+      caracterizacionesElegidas: caracterizacionesElegidas,
+      caracterizacionRechazada: persona.caracterizacionRechazada,
       nivelesOcupacionales: NIVELES_OCUPACIONALES_SEP,
       departamentos: DEPARTAMENTOS_SEP.filter((d) => d.seleccionable),
       // [id, departamentoId, nombre]: el navegador filtra
       // sin pedir nada. Son 1.126, no 1.126 viajes
-      municipios: MUNICIPIOS_SEP.filter((m) => m[3]).map((m) => [m[0], m[1], m[2]]),
+      municipios: MUNICIPIOS_SEP.filter((m) => m[3]).map((m) => [
+        m[0],
+        m[1],
+        m[2],
+      ]),
     };
   }
 
@@ -556,7 +614,9 @@ export class PreinscripcionService {
       celular: dto.celular,
       correo: dto.correo,
       generoSepId: dto.generoSepId,
-      fechaNacimiento: dto.fechaNacimiento ? new Date(dto.fechaNacimiento) : undefined,
+      fechaNacimiento: dto.fechaNacimiento
+        ? new Date(dto.fechaNacimiento)
+        : undefined,
       estrato: dto.estrato,
       departamentoSepId: dto.departamentoSepId,
       municipioSepId: dto.municipioSepId,
@@ -573,9 +633,96 @@ export class PreinscripcionService {
       return { guardado: true, enEspera: true };
     }
 
-    await this.prisma.persona.update({ where: { id: p.personaId }, data: suyos });
+    await this.prisma.persona.update({
+      where: { id: p.personaId },
+      data: suyos,
+    });
+    await this.guardarCaracterizaciones(p.personaId, dto);
 
     return { guardado: true, enEspera: false };
+  }
+
+  /**
+   * La población vulnerable, que va aparte.
+   *
+   * No entra en la propuesta al asesor ni se mezcla con el
+   * resto: es un dato SENSIBLE de la ley 1581, y solo su
+   * dueño puede decirlo. Un asesor no debe poder proponerle a
+   * nadie que alguien es víctima del conflicto.
+   *
+   * Se reemplaza entero, no se suma: si la persona vuelve y
+   * quita una casilla, quitarla tiene que servir de algo.
+   *
+   * Y se distingue «no contestó» de «prefirió no decirlo»:
+   * lo primero es un campo que nadie preguntó, lo segundo es
+   * una decisión suya, y solo la segunda se puede defender
+   * ante una auditoría.
+   */
+  private async guardarCaracterizaciones(
+    personaId: string,
+    dto: DatosPersonaDto,
+  ): Promise<void> {
+    const contesto =
+      dto.caracterizaciones !== undefined ||
+      dto.caracterizacionRechazada !== undefined;
+    if (!contesto) return;
+
+    const elegidas = dto.caracterizacionRechazada
+      ? []
+      : [...new Set(dto.caracterizaciones ?? [])].filter((id) =>
+          CARACTERIZACION_POR_ID.has(id),
+        );
+
+    /**
+     * Cada marca cuelga de una autorización, y el esquema lo
+     * exige: `autorizacionId` no es opcional.
+     *
+     * Es lo correcto. Ser víctima del conflicto o tener una
+     * discapacidad es dato sensible de la ley 1581, y un dato
+     * sensible sin un consentimiento concreto detrás no se
+     * puede guardar. Si no hay autorización viva, no se
+     * guarda: se anota que se preguntó y ahí queda.
+     */
+    const autorizacion = await this.prisma.autorizacionDatos.findFirst({
+      where: { personaId, revocadaEn: null },
+      orderBy: { otorgadaEn: 'desc' },
+      select: { id: true },
+    });
+
+    const marcar = this.prisma.persona.update({
+      where: { id: personaId },
+      data: {
+        caracterizacionRechazada: dto.caracterizacionRechazada ?? false,
+        caracterizacionPreguntada: new Date(),
+      },
+    });
+
+    if (!autorizacion) {
+      this.log.warn(
+        `No se guardó la caracterización de ${personaId}: no tiene ninguna ` +
+          'autorización vigente, y es un dato sensible.',
+      );
+      await marcar;
+      return;
+    }
+
+    /// Se reemplaza entera, no se suma: si la persona vuelve
+    /// y quita una casilla, quitarla tiene que servir de algo.
+    await this.prisma.$transaction([
+      this.prisma.caracterizacionPersona.deleteMany({ where: { personaId } }),
+      ...(elegidas.length > 0
+        ? [
+            this.prisma.caracterizacionPersona.createMany({
+              data: elegidas.map((caracterizacionSepId) => ({
+                personaId,
+                caracterizacionSepId,
+                autorizacionId: autorizacion.id,
+              })),
+            }),
+          ]
+        : []),
+      marcar,
+    ]);
   }
 
   /// Guarda lo que difiere de lo que ya hay. Lo que llega
@@ -639,6 +786,56 @@ export class PreinscripcionService {
    * ir y su fila del F7 nacía incompleta. Si trae NIT se
    * busca o se crea la organización y se le engancha.
    */
+  /// Apunta lo que dijo de su situación laboral, y si se
+  /// contradice con lo que dijo antes, lo dice.
+  ///
+  /// El caso concreto: la persona marca «desempleado», ve que
+  /// ahí se le acaba el formulario, refresca y vuelve a
+  /// empezar marcando «con vínculo laboral». El enlace ya no
+  /// sirve pero el formulario se deja recorrer otra vez, así
+  /// que sin esto no queda ni rastro de la primera respuesta.
+  ///
+  /// No bloquea nada: cambiar de respuesta puede ser
+  /// perfectamente honesto -- se equivocó de botón, o consiguió
+  /// trabajo. Solo lo deja escrito para que quien revise lo
+  /// vea, que es lo que se pidió.
+  private async apuntarSituacion(
+    participanteId: string,
+    convenioId: string | null,
+    dice: string | undefined,
+    ip?: string,
+  ): Promise<void> {
+    if (!dice) return;
+
+    const previas = await this.prisma.registroAuditoria.findMany({
+      where: {
+        entidad: 'participante',
+        entidadId: participanteId,
+        accion: 'SITUACION_LABORAL_DECLARADA',
+      },
+      orderBy: { creadoEn: 'desc' },
+      take: 1,
+      select: { resumen: true },
+    });
+
+    const antes = previas[0]?.resumen ?? null;
+    /// El resumen anterior empieza por la situación, así que
+    /// basta con mirar si la nueva ya está ahí.
+    const seContradice = antes !== null && !antes.startsWith(dice);
+
+    await this.auditoria.registrar({
+      actor: { nombre: 'La persona, desde su enlace' },
+      accion: 'SITUACION_LABORAL_DECLARADA',
+      entidad: 'participante',
+      entidadId: participanteId,
+      convenioId,
+      resumen: seContradice
+        ? `${dice} — OJO: antes había dicho otra cosa (${antes})`
+        : dice,
+      ip,
+    });
+  }
+
   async guardarEmpresa(token: string, dto: DatosEmpresaDto) {
     const enlace = await this.exigirEnlaceVivo(token);
 
@@ -646,6 +843,7 @@ export class PreinscripcionService {
       where: { id: enlace.participanteId },
       select: {
         id: true,
+        convenioId: true,
         reserva: { select: { empresaId: true } },
         empresaId: true,
         persona: {
@@ -672,6 +870,28 @@ export class PreinscripcionService {
     /// tambien entraba un municipio inexistente llegando solo.
     const malo = motivoDeIdInvalido(dto);
     if (malo) throw new BadRequestException(malo);
+
+    /// Antes de guardar nada: queda escrito lo que dijo, y si
+    /// se contradice con lo anterior, queda escrito eso
+    /// tambien.
+    await this.apuntarSituacion(p.id, p.convenioId, dto.situacionLaboral);
+
+    /// El desempleado no tiene organizacion que guardar.
+    ///
+    /// Sin esta salida caia en la rama del NIT, se le exigia
+    /// uno que no tiene, y quedaba dando vueltas en un
+    /// formulario que le pedia los datos de una empresa donde
+    /// no trabaja.
+    if (dto.situacionLaboral === 'DESEMPLEADO') {
+      await this.prisma.enlaceCompletado.update({
+        where: { id: enlace.id },
+        data: { usadoEn: new Date() },
+      });
+      const etapaFinal = await this.inscribirSiEstaCompleto(
+        enlace.participanteId,
+      );
+      return { guardado: true, enlaceCerrado: true, etapa: etapaFinal };
+    }
 
     const datos = {
       direccion: dto.direccion,
@@ -700,7 +920,8 @@ export class PreinscripcionService {
       });
     } else if (dto.nit) {
       const nit = dto.nit.replace(/\D/g, '');
-      if (!nit) throw new BadRequestException('Ese NIT no tiene ningún dígito.');
+      if (!nit)
+        throw new BadRequestException('Ese NIT no tiene ningún dígito.');
 
       const empresa = await this.prisma.empresa.upsert({
         where: { nit },
@@ -712,7 +933,9 @@ export class PreinscripcionService {
         },
         // lo que ya se sabía no se pisa con un hueco
         update: Object.fromEntries(
-          Object.entries(datos).filter(([, v]) => v !== undefined && v !== null),
+          Object.entries(datos).filter(
+            ([, v]) => v !== undefined && v !== null,
+          ),
         ),
         select: { id: true },
       });
@@ -896,11 +1119,7 @@ export class PreinscripcionService {
   /// de la oferta; el cargue al SENA exige ids del DANE.
   private domicilioSep(departamento?: string, ciudad?: string) {
     const clave = (t: string) =>
-      t
-        .normalize('NFD')
-        .replace(/[̀-ͯ]/g, '')
-        .toUpperCase()
-        .trim();
+      t.normalize('NFD').replace(/[̀-ͯ]/g, '').toUpperCase().trim();
 
     const depto = departamento
       ? DEPARTAMENTOS_SEP.find((d) => clave(d.etiqueta) === clave(departamento))
@@ -908,7 +1127,9 @@ export class PreinscripcionService {
 
     const muni =
       ciudad && depto
-        ? MUNICIPIOS_SEP.find((m) => m[1] === depto.id && clave(m[2]) === clave(ciudad))
+        ? MUNICIPIOS_SEP.find(
+            (m) => m[1] === depto.id && clave(m[2]) === clave(ciudad),
+          )
         : undefined;
 
     return {

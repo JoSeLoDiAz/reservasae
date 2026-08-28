@@ -22,6 +22,7 @@ import { createTransport, type Transporter } from 'nodemailer';
 import type SMTPPool from 'nodemailer/lib/smtp-pool';
 
 import { desvioConfigurado, etiquetaDeReales, resolverDestino } from './desvio';
+import { escaparHtml } from './escapar';
 
 /// Sin decir de qué tipo es lo que devuelve, `sendMail` da
 /// `any` y el id del mensaje se pierde en una comprobación
@@ -218,6 +219,10 @@ export class CorreoService implements OnModuleInit, OnModuleDestroy {
   /// Se ve a quién iba de verdad.
   private marcar(c: Comunicacion, reales: string[]): Comunicacion {
     const iba = reales.join(', ');
+    /// Escapada para el HTML: la validacion de direcciones
+    /// solo prohibe la arroba y los espacios, asi que `<` y
+    /// `>` pasan y `a<img/src=x>@b.co` llegaba entero aqui.
+    const ibaHtml = escaparHtml(iba);
     const aviso =
       'background:#fde68a;border:1px solid #b45309;color:#3f2d00;' +
       'padding:10px 12px;margin-bottom:16px;font:13px system-ui';
@@ -231,7 +236,7 @@ export class CorreoService implements OnModuleInit, OnModuleDestroy {
         `---\n\n${c.texto}`,
       html: c.html
         ? `<div style="${aviso}"><strong>Entorno de pruebas.</strong> Este ` +
-          `correo no llegó a su destinatario. Iba para: ${iba}</div>${c.html}`
+          `correo no llegó a su destinatario. Iba para: ${ibaHtml}</div>${c.html}`
         : undefined,
     };
   }

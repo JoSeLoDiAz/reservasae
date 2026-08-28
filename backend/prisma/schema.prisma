@@ -53,7 +53,9 @@ model Convenio {
   acciones      AccionFormacion[]
   politicas     PoliticaDatos[]
   formularios   Formulario[]
-  leads         LeadEntrante[]
+  leads            LeadEntrante[]
+  plantillasCorreo PlantillaCorreo[]
+  campanas         Campana[]
   participantes Participante[]
   admins        AdminConvenio[]
 
@@ -822,8 +824,8 @@ model Participante {
 
   // nadie cuenta dos veces en la misma accion
   /// De que lead salio, si salio de uno.
-  lead LeadEntrante?
-
+  lead          LeadEntrante?
+  enCampanas    DestinatarioCampana[]
   @@unique([accionFormacionId, personaId])
   @@index([convenioId, etapa])
   @@index([ofertaId, etapa])
@@ -1012,6 +1014,8 @@ model Admin {
   sobrecuposAutorizados    Participante[]           @relation("SobrecuposAutorizados")
   movimientosParticipante  MovimientoParticipante[]
   notasParticipante        NotaParticipante[]
+  plantillasCorreo         PlantillaCorreo[]
+  campanas                 Campana[]
   enlacesEmitidos          EnlaceCompletado[]       @relation("EnlacesEmitidos")
   registrosAuditoria       RegistroAuditoria[]
   propuestasResueltas      PropuestaDeDatos[]
@@ -1504,4 +1508,181 @@ model AvisoDeCupos {
   @@unique([coberturaId, fechaInicioGrupo])
   @@index([enviadoEn, avisarEn])
   @@map("avisos_de_cupos")
+}
+
+/// Un texto que se escribe una vez y se manda muchas.
+///
+/// Lo que cambia de una persona a otra va entre llaves --
+/// {{saludo}}, {{fechaInicio}} -- y lo resuelve
+/// correo/plantillas/variables.ts. Aqui solo se guarda el
+/// texto: quien decide que se manda y a quien es una persona,
+/// desde la ficha, mirando antes como quedo.
+model PlantillaCorreo {
+  id String @id @default(cuid())
+
+  /// De que gremio es. Null: sirve para todos.
+  convenioId String?
+
+  nombre String /// como la reconoce quien la va a usar
+  asunto String
+  cuerpo String
+
+  /// Se apaga sin borrarla: una plantilla que ya se uso es
+  /// parte de lo que se le dijo a alguien.
+  activa Boolean @default(true)
+
+  /// En que etapas tiene sentido mandarla. Vacio: en
+  /// cualquiera.
+  ///
+  /// Una «confirmacion de inscripcion» a quien todavia no
+  /// esta inscrito es una mentira firmada por el gremio, y de
+  /// las que no se recogen: la persona se queda esperando un
+  /// cupo que nadie le dio. El desplegable no puede ofrecer
+  /// una plantilla que contradice la ficha que tiene al lado.
+  etapasPermitidas EtapaParticipante[]
+
+  creadoPorId String?
+  creadoEn      DateTime @default(now())
+  actualizadoEn DateTime @updatedAt
+
+  convenio  Convenio? @relation(fields: [convenioId], references: [id], onDelete: Cascade)
+  creadoPor Admin?    @relation(fields: [creadoPorId], references: [id], onDelete: SetNull)
+
+  @@index([convenioId, activa])
+  @@map("plantillas_correo")
+}
+
+/// En que va una campana.
+enum OrigenCampana {
+  SEGMENTO
+  CARGUE
+}
+
+enum EstadoCampana {
+  BORRADOR
+  ENVIANDO
+  PAUSADA
+  TERMINADA
+}
+
+/// En que va UN destinatario dentro de la campana.
+enum EstadoDestinatario {
+  PENDIENTE
+  ENVIADO
+  FALLIDO
+  /// No se le mando y se dice por que: sin correo, ya
+  /// recibio dos hoy, se dio de baja.
+  OMITIDO
+}
+
+/// Un correo que sale a muchos, de a uno.
+///
+/// No hay presupuesto para un proveedor de campanas, asi que
+/// esto sale por la cuenta de Gmail de la oficina. Por eso la
+/// campana NO es un envio: es una COLA que un trabajador va
+/// vaciando despacio, respetando el horario de Colombia y los
+/// topes de `correo/campanas/ritmo.ts`. Lanzar no manda nada;
+/// lanzar arma la lista y abre la llave.
+model Campana {
+  id         String @id @default(cuid())
+  convenioId String
+
+  nombre String
+  asunto String
+  cuerpo String
+
+  /// El banner del encabezado. Va en la base como los logos:
+  /// tiene que poder servirse por una URL publica, porque
+  /// quien lo carga es el cliente de correo de otra persona.
+  bannerDatos   Bytes?
+  bannerMime    String?
+  bannerNombre  String?
+  bannerVersion Int     @default(1)
+
+  /// A quienes: las reglas, no la lista. La lista se congela
+  /// al lanzar, en DestinatarioCampana.
+  segmento Json
+
+  /// De donde salen los destinatarios.
+  ///
+  /// SEGMENTO: de la base propia, con las reglas de `segmento`.
+  /// CARGUE:   de un archivo que alguien subio, y entonces la
+  ///           lista existe desde antes de lanzar.
+  ///
+  /// Cambia lo que se puede escribir en el correo: de un
+  /// cargue solo se conocen el correo y el primer nombre, asi
+  /// que una plantilla que use {{grupo}} no tiene con que
+  /// llenarlo.
+  origen OrigenCampana @default(SEGMENTO)
+
+  estado EstadoCampana @default(BORRADOR)
+
+  creadoPorId String?
+  lanzadaEn   DateTime?
+  terminadaEn DateTime?
+
+  creadoEn      DateTime @default(now())
+  actualizadoEn DateTime @updatedAt
+
+  convenio      Convenio              @relation(fields: [convenioId], references: [id], onDelete: Cascade)
+  creadoPor     Admin?                @relation(fields: [creadoPorId], references: [id], onDelete: SetNull)
+  destinatarios DestinatarioCampana[]
+
+  @@index([convenioId, estado])
+  @@map("campanas")
+}
+
+/// Una persona dentro de una campana, y que le paso.
+model DestinatarioCampana {
+  id        String @id @default(cuid())
+  campanaId String
+
+  /// Null cuando vino de un archivo subido: es un correo, no
+  /// una ficha del CRM. Sin esto habria que inventarle un
+  /// participante a cada linea del Excel, y eso llena la base
+  /// de leads falsos que nadie pidio.
+  participanteId String?
+
+  /// El primer nombre que traia el archivo. Los del segmento
+  /// no lo llevan: lo sacan de su ficha, que esta mas al dia
+  /// que una columna de Excel.
+  nombre String?
+
+  /// Congelado al armar la lista: si manana cambia su correo,
+  /// hay que poder saber a donde se mando.
+  correo String
+
+  estado EstadoDestinatario @default(PENDIENTE)
+  /// Por que se omitio o por que fallo. En palabras.
+  motivo String?
+
+  intentos  Int       @default(0)
+  enviadoEn DateTime?
+
+  /// La PRIMERA apertura. El numero de aperturas es
+  /// aproximado a proposito: Gmail descarga la imagen el
+  /// mismo y Apple marca abierto a todos, asi que esto se
+  /// ensena como estimado y nunca como un hecho.
+  abiertoEn DateTime?
+  aperturas Int       @default(0)
+
+  /// Los clics SI son firmes: pasan por nuestro servidor.
+  clicEn DateTime?
+  clics  Int       @default(0)
+
+  creadoEn DateTime @default(now())
+
+  campana      Campana       @relation(fields: [campanaId], references: [id], onDelete: Cascade)
+  participante Participante? @relation(fields: [participanteId], references: [id], onDelete: Cascade)
+
+  /// Un BUZON, una vez por campana. Antes era por
+  /// participante, y eso dejaba pasar el caso comun: una
+  /// misma persona con dos fichas -- inscrita en dos cosas --
+  /// recibia el correo dos veces. El tope de dos al dia
+  /// tampoco lo frenaba, porque contaba por participante.
+  /// Quien lo recibe es el buzon, no la ficha.
+  @@unique([campanaId, correo])
+  @@index([campanaId, estado])
+  @@index([participanteId, enviadoEn])
+  @@map("destinatarios_campana")
 }

@@ -38,8 +38,9 @@ describe('desvío del correo', () => {
   });
 
   it('una lista con espacios y comas de más no cuela vacíos', () => {
-    expect(desvioConfigurado({ CORREO_REDIRIGIR_A: ' a@b.com , , c@d.com ' }))
-      .toEqual(['a@b.com', 'c@d.com']);
+    expect(
+      desvioConfigurado({ CORREO_REDIRIGIR_A: ' a@b.com , , c@d.com ' }),
+    ).toEqual(['a@b.com', 'c@d.com']);
     expect(desvioConfigurado({ CORREO_REDIRIGIR_A: '  ,  ' })).toEqual([]);
   });
 
