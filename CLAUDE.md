@@ -2155,6 +2155,13 @@ pnpm db:sembrar-prueba [--rehacer]
   clon** antes de sembrar. Los contenedores lo hacen en el build; los guiones
   que corren desde el clon usan el cliente que haya en `backend/generated`, y
   con uno viejo la siembra falla con errores de tipos que despistan.
+- **La paleta se reparte por GREMIO, no por formulario.** Alternaba
+  `['vino','turquesa']` por índice de formulario y, ordenados por slug, eso
+  daba `adecopria` vino, `adecopria-medellin` turquesa y `britcham-adee` vino
+  **otra vez**: el segundo color se lo llevaba el segundo formulario del mismo
+  gremio y **los dos gremios salían idénticos** — justo lo contrario de lo que
+  la demostración existe para enseñar, y sin que nada fallara. Se ve solo
+  mirando los dos subdominios a la vez.
 - **Los números son repetibles** (generador con semilla fija): dos revisiones
   ven exactamente lo mismo.
 - **El grupo tiene que casar con la etapa, y se elige la OFERTA que lo tenga.**
