@@ -61,13 +61,25 @@ export class CampanasController {
   /// saber a cuántos va es como se le escribe a cuatrocientas
   /// personas por error.
   @Post('a-cuantos')
-  aCuantos(@Body() dto: { convenioId: string; segmento: SegmentoDto }) {
-    return this.campanas.aCuantos(dto.convenioId, dto.segmento);
+  aCuantos(
+    @Body() dto: { convenioId: string; segmento: SegmentoDto },
+    @AmbitoActual() ambito: Ambito,
+  ) {
+    return this.campanas.aCuantos(
+      dto.convenioId,
+      dto.segmento,
+      ambito.convenios,
+    );
   }
 
   @Post()
-  crear(@Body() dto: CrearCampanaDto, @AdminActual() admin: Admin) {
+  crear(
+    @Body() dto: CrearCampanaDto,
+    @AdminActual() admin: Admin,
+    @AmbitoActual() ambito: Ambito,
+  ) {
     return this.campanas.crear(
+      ambito.convenios,
       dto.convenioId,
       {
         nombre: dto.nombre,
@@ -81,8 +93,12 @@ export class CampanasController {
   }
 
   @Patch(':id')
-  editar(@Param('id') id: string, @Body() dto: EditarCampanaDto) {
-    return this.campanas.editar(id, dto);
+  editar(
+    @Param('id') id: string,
+    @Body() dto: EditarCampanaDto,
+    @AmbitoActual() ambito: Ambito,
+  ) {
+    return this.campanas.editar(ambito.convenios, id, dto);
   }
 
   @Post(':id/banner')
@@ -100,6 +116,7 @@ export class CampanasController {
   async banner(
     @Param('id') id: string,
     @UploadedFile() archivo: Express.Multer.File | undefined,
+    @AmbitoActual() ambito: Ambito,
   ) {
     if (!archivo) throw new BadRequestException('No llegó ningún archivo.');
     if (!TIPOS_BANNER.includes(archivo.mimetype)) {
@@ -120,6 +137,7 @@ export class CampanasController {
       archivo.buffer,
       archivo.mimetype,
       archivo.originalname,
+      ambito.convenios,
     );
   }
 
@@ -149,6 +167,7 @@ export class CampanasController {
   async cargarBase(
     @Param('id') id: string,
     @UploadedFile() archivo: Express.Multer.File | undefined,
+    @AmbitoActual() ambito: Ambito,
   ) {
     if (!archivo) throw new BadRequestException('No llegó ningún archivo.');
     if (archivo.mimetype !== XLSX) {
@@ -163,32 +182,32 @@ export class CampanasController {
           'Revise que no traiga hojas ni imágenes de más.',
       );
     }
-    return this.campanas.cargarBase(id, archivo.buffer);
+    return this.campanas.cargarBase(id, archivo.buffer, ambito.convenios);
   }
 
   @Post(':id/lanzar')
-  lanzar(@Param('id') id: string) {
-    return this.campanas.lanzar(id);
+  lanzar(@Param('id') id: string, @AmbitoActual() ambito: Ambito) {
+    return this.campanas.lanzar(id, ambito.convenios);
   }
 
   @Post(':id/pausar')
-  pausar(@Param('id') id: string) {
-    return this.campanas.pausar(id);
+  pausar(@Param('id') id: string, @AmbitoActual() ambito: Ambito) {
+    return this.campanas.pausar(id, ambito.convenios);
   }
 
   @Post(':id/reanudar')
-  reanudar(@Param('id') id: string) {
-    return this.campanas.reanudar(id);
+  reanudar(@Param('id') id: string, @AmbitoActual() ambito: Ambito) {
+    return this.campanas.reanudar(id, ambito.convenios);
   }
 
   @Get(':id/resultados')
-  resultados(@Param('id') id: string) {
-    return this.campanas.resultados(id);
+  resultados(@Param('id') id: string, @AmbitoActual() ambito: Ambito) {
+    return this.campanas.resultados(id, ambito.convenios);
   }
 
   @Get(':id/destinatarios')
-  destinatarios(@Param('id') id: string) {
-    return this.campanas.destinatarios(id);
+  destinatarios(@Param('id') id: string, @AmbitoActual() ambito: Ambito) {
+    return this.campanas.destinatarios(id, ambito.convenios);
   }
 }
 

@@ -2,6 +2,7 @@
 
 import {
   BadRequestException,
+  ForbiddenException,
   Injectable,
   Logger,
   NotFoundException,
@@ -79,7 +80,9 @@ export class CampanasService {
    * lanza sin saber a cuántos le va es como se le escribe a
    * cuatrocientas personas por error.
    */
-  async aCuantos(convenioId: string, segmento: Segmento) {
+  async aCuantos(convenioId: string, segmento: Segmento, ambito: string[]) {
+    this.exigirConvenio(convenioId, ambito);
+
     const candidatos = await this.prisma.participante.findMany({
       where: comoConsulta(convenioId, segmento),
       select: PARA_SABER_SI_LE_FALTA,
@@ -93,6 +96,7 @@ export class CampanasService {
   }
 
   async crear(
+    ambito: string[],
     convenioId: string,
     datos: {
       nombre: string;
@@ -103,6 +107,11 @@ export class CampanasService {
     },
     adminId: string,
   ) {
+    /// El convenio viene del CUERPO de la petición y solo lo
+    /// validaba `@IsString()`. Con el id del otro gremio se
+    /// creaba una campaña sobre sus participantes y se le
+    /// escribía a sus ciudadanos.
+    this.exigirConvenio(convenioId, ambito);
     this.revisarTexto(datos.asunto, datos.cuerpo);
 
     return this.prisma.campana.create({
@@ -120,6 +129,7 @@ export class CampanasService {
   }
 
   async editar(
+    ambito: string[],
     id: string,
     datos: Partial<{
       nombre: string;
@@ -128,7 +138,7 @@ export class CampanasService {
       segmento: Segmento;
     }>,
   ) {
-    const c = await this.exigir(id);
+    const c = await this.exigir(id, ambito);
 
     /// Una campaña lanzada NO se edita.
     ///
@@ -163,8 +173,8 @@ export class CampanasService {
    * doscientos correos por una cuenta de Gmail sin que la
    * cierren.
    */
-  async lanzar(id: string) {
-    const c = await this.exigir(id);
+  async lanzar(id: string, ambito: string[]) {
+    const c = await this.exigir(id, ambito);
 
     if (c.estado !== 'BORRADOR') {
       throw new BadRequestException('Esta campaña ya se había lanzado.');
@@ -252,8 +262,8 @@ export class CampanasService {
 
   /// Parar y seguir. Una campaña que va mal se para en el
   /// acto: es lo que hace que lanzar no dé miedo.
-  async pausar(id: string) {
-    await this.exigir(id);
+  async pausar(id: string, ambito: string[]) {
+    await this.exigir(id, ambito);
     return this.prisma.campana.update({
       where: { id },
       data: { estado: 'PAUSADA' },
@@ -261,8 +271,8 @@ export class CampanasService {
     });
   }
 
-  async reanudar(id: string) {
-    await this.exigir(id);
+  async reanudar(id: string, ambito: string[]) {
+    await this.exigir(id, ambito);
     return this.prisma.campana.update({
       where: { id },
       data: { estado: 'ENVIANDO' },
@@ -271,8 +281,8 @@ export class CampanasService {
   }
 
   /** Cómo va: lo firme y lo aproximado, separados. */
-  async resultados(id: string) {
-    const c = await this.exigir(id);
+  async resultados(id: string, ambito: string[]) {
+    const c = await this.exigir(id, ambito);
 
     const [porEstado, abiertos, conClic] = await Promise.all([
       this.prisma.destinatarioCampana.groupBy({
@@ -314,7 +324,13 @@ export class CampanasService {
   }
 
   /// Quiénes, uno por uno. Para poder mirar a quién falló.
-  async destinatarios(id: string) {
+  async destinatarios(id: string, ambito: string[]) {
+    /// Esta es la que más dolía: devolvía la lista ENTERA de
+    /// correos de la campaña consultando por `campanaId` a
+    /// secas, sin pasar siquiera por `exigir`. Con el id de
+    /// una campaña ajena, el directorio del otro gremio.
+    await this.exigir(id, ambito);
+
     return this.prisma.destinatarioCampana.findMany({
       where: { campanaId: id },
       orderBy: [{ estado: 'asc' }, { enviadoEn: 'asc' }],
@@ -588,8 +604,8 @@ export class CampanasService {
    * que uno hace despues de corregirlo, y si se acumulara,
    * los correos malos de la primera version seguirian ahi.
    */
-  async cargarBase(id: string, archivo: Buffer) {
-    const c = await this.exigir(id);
+  async cargarBase(id: string, archivo: Buffer, ambito: string[]) {
+    const c = await this.exigir(id, ambito);
 
     if (c.estado !== 'BORRADOR') {
       throw new BadRequestException(
@@ -659,8 +675,14 @@ export class CampanasService {
     };
   }
 
-  async guardarBanner(id: string, datos: Buffer, mime: string, nombre: string) {
-    const c = await this.exigir(id);
+  async guardarBanner(
+    id: string,
+    datos: Buffer,
+    mime: string,
+    nombre: string,
+    ambito: string[],
+  ) {
+    const c = await this.exigir(id, ambito);
     if (c.estado !== 'BORRADOR') {
       throw new BadRequestException(
         'Esta campaña ya se lanzó: cambiarle el banner ahora dejaría a unos ' +
@@ -721,9 +743,38 @@ export class CampanasService {
     });
   }
 
-  private async exigir(id: string) {
+  /**
+   * La campaña, SI es de un gremio que esta cuenta alcanza.
+   *
+   * El ámbito es obligatorio y va en la firma a propósito:
+   * antes esto buscaba por id y ya, así que un admin de
+   * ADECOPRIA que escribiera el id de una campaña de BRITCHAM
+   * podía leerle los resultados, editarle el texto, pausarla o
+   * lanzarla. Y `destinatarios()` le devolvía la lista entera
+   * de correos, que es el activo comercial del gremio.
+   *
+   * Con el parámetro obligatorio, una ruta nueva que se olvide
+   * de pasarlo no compila. Es la única forma de que esto no
+   * vuelva a pasar cuando alguien añada la siguiente.
+   */
+  /// Un convenio que esta cuenta no alcanza no existe para
+  /// ella. Mismo criterio que el resto del CRM.
+  private exigirConvenio(convenioId: string, ambito: string[]) {
+    if (!ambito.includes(convenioId)) {
+      throw new ForbiddenException('No tiene acceso a ese convenio.');
+    }
+  }
+
+  private async exigir(id: string, ambito: string[]) {
     const c = await this.prisma.campana.findUnique({ where: { id } });
-    if (!c) throw new NotFoundException('Esa campaña ya no existe.');
+
+    /// Una campaña de otro gremio responde IGUAL que una que
+    /// no existe. Decir «no tiene permiso» confirmaría que ese
+    /// id es real, y con eso se recorre el catálogo ajeno a
+    /// base de probar.
+    if (!c || !ambito.includes(c.convenioId)) {
+      throw new NotFoundException('Esa campaña ya no existe.');
+    }
     return c;
   }
 
