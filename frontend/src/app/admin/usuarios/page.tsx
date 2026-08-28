@@ -123,19 +123,33 @@ export default function PaginaUsuarios() {
                   </p>
                 )}
 
-                {/* sin concesion no ve nada, y eso hay que verlo */}
-                <div className="mt-2 flex flex-wrap gap-1.5">
+                {/* EL ROL PRIMERO, y con su nombre completo.
+
+                    Lo prominente era «Administra el sistema»,
+                    que es una casilla de sí o no; el rol —que
+                    es lo que de verdad decide qué ve y qué
+                    toca esta persona todos los días— salía
+                    debajo, en letra chica y abreviado.
+
+                    Sin concesión no ve NADA, y eso hay que
+                    verlo de una. */}
+                <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                  {u.rol === "SUPERADMIN" && (
+                    <Pildora tono="aviso">
+                      Administra el sistema · ve y toca todo
+                    </Pildora>
+                  )}
                   {u.concesiones?.length ? (
                     u.concesiones.map((c) => (
                       <Pildora key={c.convenioId} tono="marca">
-                        {c.sigla} ·{" "}
-                        {ROLES_DE_CONVENIO.find((r) => r.valor === c.rol)?.etiqueta ??
-                          c.rol}
+                        {ROLES_DE_CONVENIO.find((r) => r.valor === c.rol)
+                          ?.etiqueta ?? c.rol}{" "}
+                        en {c.sigla}
                       </Pildora>
                     ))
-                  ) : (
+                  ) : u.rol === "SUPERADMIN" ? null : (
                     <Pildora tono="error">
-                      Sin convenios: no ve ninguna pantalla
+                      Sin rol en ningún gremio: no ve ninguna pantalla
                     </Pildora>
                   )}
                 </div>
@@ -143,7 +157,7 @@ export default function PaginaUsuarios() {
 
               <label className="text-sm">
                 <span className="mb-1 block text-xs text-texto-suave">
-                  Administra el sistema
+                  ¿Administra el sistema?
                 </span>
                 <select
                   value={u.rol === "SUPERADMIN" ? "SUPERADMIN" : "GESTOR"}

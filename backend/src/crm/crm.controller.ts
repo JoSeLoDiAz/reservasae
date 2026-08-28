@@ -13,7 +13,7 @@ import {
 import { RolAdmin, type Admin } from '../../generated/prisma';
 import { AdminActual, AmbitoActual } from '../admin/admin-actual.decorator';
 import { AdminGuard, Requiere, Roles, type Ambito } from '../admin/admin.guard';
-import { conveniosQueCierran } from '../admin/permisos';
+import { conveniosQueCierran, conveniosQueMuevenInscrito } from '../admin/permisos';
 import { PreinscripcionService } from '../preinscripcion/preinscripcion.service';
 import { IpReal } from '../comun/ip-real';
 import { CrmService } from './crm.service';
@@ -320,6 +320,7 @@ export class CrmController {
       ambito.convenios,
       ip,
       conveniosQueCierran(ambito.roles),
+      conveniosQueMuevenInscrito(ambito.roles),
     );
   }
 

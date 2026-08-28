@@ -648,6 +648,7 @@ export class CrmService {
 
     if (!p) throw new NotFoundException('Ese participante no existe.');
 
+
     return {
       ...p,
       persona: {
@@ -1749,6 +1750,7 @@ export class CrmService {
     ambito: string[],
     ip?: string,
     cierran: string[] = [],
+    muevenInscrito: string[] = [],
   ) {
     await this.exigirParticipante(id, ambito);
 
@@ -1767,6 +1769,29 @@ export class CrmService {
       },
     });
     if (!p) throw new NotFoundException('Ese participante no existe.');
+
+    /// Ya inscrito: de aqui no lo mueve un gestor.
+    ///
+    /// Inscribir es el punto de no retorno: a partir de ahi
+    /// la persona cuenta en el cupo, entra en el reporte al
+    /// SENA y le llegan las citaciones. Sacarla no es
+    /// corregir un tecleo, es deshacer algo que ya salio del
+    /// sistema.
+    ///
+    /// Va en el SERVIDOR y no en el boton: esconder el boton
+    /// es comodidad, y quien tenga la pantalla abierta desde
+    /// antes —o llame a la API— se la salta.
+    if (
+      p.etapa === 'INSCRITO' &&
+      dto.etapa !== 'INSCRITO' &&
+      !muevenInscrito.includes(p.convenioId)
+    ) {
+      throw new ForbiddenException(
+        'Esta persona ya esta inscrita. Sacarla de ahi la quita del cupo y ' +
+          'del reporte al SENA, asi que lo hace un lider. Pidalo con el ' +
+          'motivo y queda registrado.',
+      );
+    }
 
     /// Dos comprobaciones, no una, y por eso son dos funciones.
     ///

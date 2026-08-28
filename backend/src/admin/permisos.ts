@@ -108,6 +108,33 @@ export const conveniosQueCierran = (roles: Record<string, RolConvenio[]>) =>
     .filter(([, suyos]) => suyos.some((r) => CIERRAN_FORMACION.includes(r)))
     .map(([convenioId]) => convenioId);
 
+/**
+ * Quien puede mover a alguien que YA ESTA INSCRITO.
+ *
+ * Inscribir es el punto de no retorno del proceso: a partir
+ * de ahi la persona cuenta en el cupo, entra en el reporte al
+ * SENA y le llegan las citaciones. Sacarla de ahi no es
+ * corregir un tecleo, es deshacer algo que ya salio del
+ * sistema, y eso lo firma un lider.
+ *
+ * Al gestor no se le quita el trabajo: mueve todo lo de
+ * antes —interesado, contactado, datos completos— que es
+ * donde esta su dia. Lo que no puede es deshacer una
+ * inscripcion sin que nadie mas se entere.
+ */
+export const MUEVEN_INSCRITO: RolConvenio[] = [
+  'LIDER_INSCRIPCION',
+  'LIDER_ACADEMICO',
+  'LIDER_SISTEMAS',
+];
+
+export const conveniosQueMuevenInscrito = (
+  roles: Record<string, RolConvenio[]>,
+) =>
+  Object.entries(roles)
+    .filter(([, suyos]) => suyos.some((r) => MUEVEN_INSCRITO.includes(r)))
+    .map(([convenioId]) => convenioId);
+
 export const AREAS: Area[] = [
   'reserva',
   'inscripciones',
