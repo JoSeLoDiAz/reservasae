@@ -273,17 +273,31 @@ export class RuiService {
     return filas[0] ?? null;
   }
 
-  /** ¿Esta persona tiene una autorización viva, en algún convenio? */
-  private async tieneAutorizacionViva(personaId: string): Promise<boolean> {
-    /// «En algún convenio» y no en uno concreto: la consulta al
-    /// RUI es de la PERSONA y `Persona` no tiene convenio. Si
-    /// sigue autorizada en uno, el trato de sus datos sigue
-    /// amparado; revocar en los dos es lo que la saca.
-    const viva = await this.prisma.autorizacionDatos.findFirst({
-      where: { personaId, revocadaEn: null },
-      select: { id: true },
+  /**
+   * ¿Esta persona REVOCÓ? No es lo mismo que «no autorizó».
+   *
+   * La primera versión preguntaba «¿tiene alguna autorización
+   * viva?», y eso es falso para todo el mundo mientras nadie se
+   * la haya pedido todavía. El asesor crea una ficha y encola el
+   * RUI en el acto (`crm.service.ts`), y la autorización la
+   * registra después: o sea que el candado apagaba el RUI para
+   * TODOS los leads del asesor, no solo para quien revocó. Un
+   * candado que se lleva por delante el caso normal.
+   *
+   * Sin ninguna autorización registrada no hay nada que honrar:
+   * no se ha pedido. Lo que bloquea es haber pedido y que TODAS
+   * estén revocadas.
+   *
+   * «En algún convenio» y no en uno concreto: la consulta al RUI
+   * es de la PERSONA y `Persona` no tiene convenio.
+   */
+  private async haRevocado(personaId: string): Promise<boolean> {
+    const suyas = await this.prisma.autorizacionDatos.findMany({
+      where: { personaId },
+      select: { revocadaEn: true },
     });
-    return viva !== null;
+    if (suyas.length === 0) return false;
+    return suyas.every((a) => a.revocadaEn !== null);
   }
 
   /** Consulta una y guarda lo que salga. */
@@ -306,25 +320,24 @@ export class RuiService {
       );
     }
 
-    /// Y quien revocó no sale al portal del DNP.
+    /// Y quien REVOCÓ no sale al portal del DNP.
     ///
     /// La cola no miraba la autorización en ningún sitio, así
     /// que una consulta encolada ANTES de la revocación seguía
     /// su curso y mandaba la cédula a un tercero después de que
     /// la persona pidiera que no se usaran sus datos. Que la
-    /// consulta ya estuviera en la cola no la vuelve legítima:
-    /// lo que importa es si hay autorización cuando SALE.
+    /// consulta ya estuviera apuntada no la vuelve legítima: lo
+    /// que importa es si vale cuando SALE.
     ///
     /// Va en el trabajador y no solo al revocar, porque una
-    /// consulta se puede encolar después: el guard es lo que
-    /// manda, no el momento en que se apunta.
-    const autorizada = permiso.real ? await this.tieneAutorizacionViva(tarea.personaId) : true;
-    if (permiso.real && !autorizada) {
+    /// consulta se puede encolar después.
+    const revoco = permiso.real ? await this.haRevocado(tarea.personaId) : false;
+    if (revoco) {
       this.log.warn(
         `No se consulta el RUI de ${tarea.numeroDocumento}: revocó la autorización.`,
       );
     }
-    const salirDeVerdad = permiso.real && autorizada;
+    const salirDeVerdad = permiso.real && !revoco;
 
     let resultado;
     try {

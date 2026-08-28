@@ -2,7 +2,12 @@ import { Prisma } from '../../generated/prisma';
 import { enPeriodo, PRIMERA_ENTRADA_AL_AULA } from './anclas';
 import type { PrismaService } from '../prisma/prisma.service';
 import { MINIMO_PARA_CERTIFICAR } from './crm.service';
-import { aDiaBogota, aDiaDeCalendario, HOY_BOGOTA } from '../comun/dia-bogota';
+import {
+  aDiaBogota,
+  aDiaDeCalendario,
+  fechaBogota,
+  HOY_BOGOTA,
+} from '../comun/dia-bogota';
 import { variacion, type Comparacion, type Ventana } from './ventana';
 
 /**
@@ -390,9 +395,9 @@ function consultaParados(prisma: PrismaService, suyos: Prisma.Sql) {
     clasificados AS (
       SELECT CASE
                WHEN p."ultimoAcceso" IS NULL THEN -1
-               WHEN ${HOY_BOGOTA} - p."ultimoAcceso"::date <= 7  THEN 0
-               WHEN ${HOY_BOGOTA} - p."ultimoAcceso"::date <= 14 THEN 8
-               WHEN ${HOY_BOGOTA} - p."ultimoAcceso"::date <= 30 THEN 15
+               WHEN ${HOY_BOGOTA} - ${fechaBogota(Prisma.sql`p."ultimoAcceso"`)} <= 7  THEN 0
+               WHEN ${HOY_BOGOTA} - ${fechaBogota(Prisma.sql`p."ultimoAcceso"`)} <= 14 THEN 8
+               WHEN ${HOY_BOGOTA} - ${fechaBogota(Prisma.sql`p."ultimoAcceso"`)} <= 30 THEN 15
                ELSE 31
              END AS "dias"
         FROM "participantes" p

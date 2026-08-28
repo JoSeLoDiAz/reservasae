@@ -13,6 +13,7 @@
  */
 
 import { aDiaBogota } from '../comun/dia-bogota';
+import { rotuloDelPeriodo } from './control';
 import { describirVentana, fechaDeGrupo } from './tablero-academico';
 import { resolverVentana } from './ventana';
 
@@ -107,5 +108,48 @@ describe('las fechas de un grupo son fechas de calendario', () => {
 
   it('sin fecha no se inventa ninguna', () => {
     expect(fechaDeGrupo(null)).toBeNull();
+  });
+});
+
+describe('el rótulo del control del CRM: el mismo, y hasta hoy sin test', () => {
+  /// `control.ts` tiene su propio rótulo, gemelo del del tablero
+  /// académico. Tenía los DOS mismos defectos —el día de UTC y
+  /// el «- DIA»— y se quedó sin arreglar cuando se arregló
+  /// aquel; y después se quedó sin test. Lo señaló la revisión.
+  function suRotulo(rango: Parameters<typeof resolverVentana>[0], ahora: Date) {
+    return rotuloDelPeriodo(resolverVentana(rango, undefined, undefined, ahora));
+  }
+
+  it('«Hoy» a las 20:00 de Bogotá es el 27, no el 28 ni el 26', () => {
+    const v = suRotulo('HOY', new Date('2026-08-28T01:00:00.000Z'));
+    expect(v.desde).toBe('2026-08-27');
+    expect(v.hasta).toBe('2026-08-27');
+  });
+
+  it('ninguna ventana termina antes de empezar', () => {
+    const ahora = new Date('2026-08-27T19:00:00.000Z');
+    for (const rango of ['HOY', 'AYER', 'SEMANA', 'MES', 'TRIMESTRE', 'ANO'] as const) {
+      const v = suRotulo(rango, ahora);
+      if (!v.desde || !v.hasta) continue;
+      expect({ rango, bien: v.hasta >= v.desde }).toEqual({ rango, bien: true });
+    }
+  });
+
+  it('dice lo mismo que el del tablero académico', () => {
+    /// Son dos, y mientras lo sean tienen que coincidir: que
+    /// discrepen es como empezó esto.
+    const ahora = new Date('2026-08-28T01:00:00.000Z');
+    for (const rango of ['HOY', 'AYER', 'SEMANA', 'MES'] as const) {
+      const c = resolverVentana(rango, undefined, undefined, ahora);
+      expect({
+        rango,
+        desde: rotuloDelPeriodo(c).desde,
+        hasta: rotuloDelPeriodo(c).hasta,
+      }).toEqual({
+        rango,
+        desde: describirVentana(c).desde,
+        hasta: describirVentana(c).hasta,
+      });
+    }
   });
 });

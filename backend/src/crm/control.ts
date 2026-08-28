@@ -250,28 +250,33 @@ function comparar(
   };
 }
 
+/**
+ * El rotulo del periodo: «Hoy · 27 ago -> 27 ago».
+ *
+ * Aparte y exportado para poder PROBARLO. Es el gemelo del de
+ * `tablero-academico.ts`, tenia los dos mismos defectos --el
+ * dia de UTC y el «- DIA»-- y se quedo sin arreglar cuando se
+ * arreglo aquel; ahora que se arreglo, se quedaba sin test.
+ */
+export function rotuloDelPeriodo(comparacion: Comparacion) {
+  return {
+    rango: comparacion.rango,
+    etiqueta: comparacion.etiqueta,
+    etiquetaAnterior: comparacion.etiquetaAnterior,
+    desde: comparacion.actual ? dia(comparacion.actual.desde) : null,
+    /// El ultimo dia DENTRO: un milisegundo antes del corte.
+    hasta: comparacion.actual
+      ? dia(new Date(comparacion.actual.hasta.getTime() - 1))
+      : null,
+  };
+}
+
 export async function controlDeInscritos(
   prisma: PrismaService,
   ambito: string[],
   comparacion: Comparacion,
 ): Promise<Control> {
-  const marco = {
-    rango: comparacion.rango,
-    etiqueta: comparacion.etiqueta,
-    etiquetaAnterior: comparacion.etiquetaAnterior,
-    desde: comparacion.actual ? dia(comparacion.actual.desde) : null,
-    /// El último día DENTRO: un milisegundo antes del corte.
-    ///
-    /// Restaba un día entero, y eso solo vale cuando `hasta` es
-    /// la medianoche siguiente. El periodo en curso se recorta
-    /// en «ahora», que ya está dentro del último día, así que
-    /// «Hoy» se rotulaba «27 ago → 26 ago». El mismo defecto que
-    /// el tablero académico, y aquí se quedó sin arreglar la
-    /// primera vez: la lección de siempre.
-    hasta: comparacion.actual
-      ? dia(new Date(comparacion.actual.hasta.getTime() - 1))
-      : null,
-  };
+  const marco = rotuloDelPeriodo(comparacion);
 
   // con ámbito vacío no se consulta: un IN () es inválido
   if (ambito.length === 0) {

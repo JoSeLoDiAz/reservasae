@@ -1354,7 +1354,23 @@ export class CrmService {
       throw new BadRequestException('Esa oferta ya no existe.');
     }
 
-    if (!panel.admiteInscripciones) {
+    /// La ventana se comprueba en DOS sitios, y la exencion
+    /// tiene que cubrir los dos.
+    ///
+    /// Aqui llega antes, dentro de `admiteInscripciones`, que
+    /// junta cuatro razones distintas en un booleano. La
+    /// primera version solo apago la de mas abajo, asi que el
+    /// regreso al aula seguia muriendo aqui con «Se cerró la
+    /// ventana de inscripción de todos los grupos» -- y con el,
+    /// certificar a quien volvio, porque hay que pasar por «En
+    /// formacion». La regla se bloqueaba a si misma otra vez.
+    ///
+    /// Se exime SOLO de la ventana: que la oferta este llena o
+    /// cerrada sigue bloqueando a quien vuelve, porque su silla
+    /// se libero al retirarse y esta pidiendo una nueva.
+    const soloLaVentana =
+      panel.motivo === 'VENTANA_CERRADA' || panel.motivo === 'SIN_FECHAS';
+    if (!panel.admiteInscripciones && !(soloLaVentana && !exigirVentana)) {
       throw new BadRequestException(panel.porQueNo ?? 'No se puede inscribir en esta oferta.');
     }
 
@@ -1551,14 +1567,21 @@ export class CrmService {
     ///   eso mismo esta cerrada.
     ///
     /// Ver `escalera.ts`.
+    /// Primero: ¿es este paso un paso? Ver `escalera.ts`.
+    ///
+    /// Va ANTES del cupo, y el orden importa. `CERTIFICADO`
+    /// ocupa silla, asi que `exigeCupo` es cierto viniendo de
+    /// una salida del aula y `exigirQueQuepa` contestaba con un
+    /// error de cupos a quien intentaba `RETIRADO → CERTIFICADO`
+    /// -- tapando justo el mensaje que dice como hacerlo bien,
+    /// que es para lo que existe esta regla.
+    const imposible = motivoDeTransicionImposible(p.etapa, dto.etapa);
+    if (imposible) throw new BadRequestException(imposible);
+
     const compuerta = exigeDatosParaElAula(p.etapa, dto.etapa);
     if (exigeCupo(p.etapa, dto.etapa)) {
       await this.exigirQueQuepa(p, { exigirVentana: !esRegresoAlAula(p.etapa) });
     }
-
-    /// Y hay pasos que no son un paso. Ver `escalera.ts`.
-    const imposible = motivoDeTransicionImposible(p.etapa, dto.etapa);
-    if (imposible) throw new BadRequestException(imposible);
 
     // certificar exige haber aprobado el 80% de lo
     // obligatorio: sin eso, la fila que se le manda al

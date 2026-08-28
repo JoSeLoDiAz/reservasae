@@ -39,7 +39,18 @@ export type PanelDeOferta = {
   admiteInscripciones: boolean;
   /// Por que no, cuando no.
   porQueNo: string | null;
+  /// Lo mismo, como CODIGO: hay que poder eximir de uno solo.
+  motivo: MotivoSinInscripciones;
 };
+
+/// Por que una oferta no admite inscripciones ahora mismo.
+export type MotivoSinInscripciones =
+  | 'OFERTA_CERRADA'
+  | 'LLENO'
+  | 'SIN_GRUPOS'
+  | 'SIN_FECHAS'
+  | 'VENTANA_CERRADA'
+  | null;
 
 @Injectable()
 export class PanelDeCupos {
@@ -107,16 +118,29 @@ export class PanelDeCupos {
       (g) => g.ventana.estado === 'ABIERTA' || g.ventana.estado === 'AVISANDO',
     );
 
+    /// El motivo va tambien como CODIGO, no solo como frase.
+    ///
+    /// Quien vuelve al aula esta exento de la VENTANA --su grupo
+    /// ya arranco, asi que esta cerrada por definicion-- pero no
+    /// de que la oferta este llena o cerrada. Con una sola frase
+    /// no hay forma de eximirlo de una cosa y no de las otras
+    /// salvo leyendo el texto, que es justo lo que no se hace.
+    let motivo: MotivoSinInscripciones = null;
     let porQueNo: string | null = null;
-    if (!oferta.abierta) porQueNo = 'La oferta está cerrada.';
-    else if (cupos.lleno) {
+    if (!oferta.abierta) {
+      motivo = 'OFERTA_CERRADA';
+      porQueNo = 'La oferta está cerrada.';
+    } else if (cupos.lleno) {
+      motivo = 'LLENO';
       porQueNo =
         `No quedan cupos: los ${cupos.total} están tomados. ` +
         'Para inscribir a alguien más hay que ampliar la oferta o abrir otro grupo.';
     } else if (grupos.length === 0) {
+      motivo = 'SIN_GRUPOS';
       porQueNo = 'Esta acción no tiene ningún grupo. Sin grupo no se puede inscribir.';
     } else if (!hayVentanaAbierta) {
       const sinFechas = grupos.filter((g) => g.ventana.estado === 'SIN_FECHAS').length;
+      motivo = sinFechas === grupos.length ? 'SIN_FECHAS' : 'VENTANA_CERRADA';
       porQueNo =
         sinFechas === grupos.length
           ? 'Ningún grupo tiene fecha de inicio. El cronograma manda: sin fechas no se inscribe.'
@@ -131,6 +155,7 @@ export class PanelDeCupos {
       grupos,
       admiteInscripciones: porQueNo === null,
       porQueNo,
+      motivo,
     };
   }
 

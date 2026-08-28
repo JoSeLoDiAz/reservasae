@@ -47,6 +47,26 @@ export const HORAS_BOGOTA = -5;
  */
 export const HOY_BOGOTA = Prisma.sql`(NOW() AT TIME ZONE ${ZONA})::date`;
 
+/**
+ * Un INSTANTE, como fecha del calendario de Bogota, para restar.
+ *
+ * `diaBogota` devuelve texto y sirve para agrupar; esto devuelve
+ * `date` y sirve para restar dias contra `HOY_BOGOTA`.
+ *
+ * Hace falta porque `columna::date` a secas da el dia de UTC, y
+ * restarlo de `HOY_BOGOTA` mezcla dos calendarios: el arreglo
+ * aplicado a un lado de la resta y no al otro. Paso con
+ * `ultimoAcceso` justo despues de escribir esta distincion.
+ *
+ * OJO: solo para instantes. Una fecha de calendario ya guardada
+ * a medianoche UTC --`Grupo.fechaInicio`-- se compara con
+ * `columna::date` a secas, porque su `::date` YA es el dia que
+ * alguien tecleo.
+ */
+export function fechaBogota(columna: Prisma.Sql): Prisma.Sql {
+  return Prisma.sql`(${columna} AT TIME ZONE 'UTC' AT TIME ZONE ${ZONA})::date`;
+}
+
 export function diaBogota(columna: Prisma.Sql): Prisma.Sql {
   return Prisma.sql`to_char(date_trunc('day', ${columna} AT TIME ZONE 'UTC' AT TIME ZONE ${ZONA}), 'YYYY-MM-DD')`;
 }

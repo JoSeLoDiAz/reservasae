@@ -252,8 +252,20 @@ export function motivoDeIdInvalido(
   /// guardando primero Medellín y mandando después el
   /// departamento de Bogotá el par nunca se volvía a comprobar.
   /// La misma fila imposible, entrando por el otro lado.
-  const departamento = dto.departamentoSepId ?? guardado?.departamentoSepId;
-  const municipio = dto.municipioSepId ?? guardado?.municipioSepId;
+  /// `!== undefined` y no `??`, y la diferencia es real.
+  ///
+  /// `??` trata el null EXPLICITO igual que «no vino», asi que
+  /// un PATCH que dice «cambio el departamento y BORRO el
+  /// municipio» recuperaba el municipio viejo y se rechazaba a
+  /// si mismo: la ficha quedaba imposible de corregir por el
+  /// unico camino que la arregla. `undefined` es «no lo mandé»;
+  /// `null` es «quitalo», y son cosas distintas.
+  const departamento =
+    dto.departamentoSepId !== undefined
+      ? dto.departamentoSepId
+      : guardado?.departamentoSepId;
+  const municipio =
+    dto.municipioSepId !== undefined ? dto.municipioSepId : guardado?.municipioSepId;
   if (!municipioCuadra(departamento, municipio)) {
     return dto.municipioSepId === undefined
       ? 'El municipio que ya tiene no es de ese departamento. Cambie también el municipio.'
