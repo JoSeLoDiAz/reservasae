@@ -567,12 +567,18 @@ export class ReservasService {
         digitoVerificacion: reserva.empresa.digitoVerificacion,
         razonSocial: reserva.empresa.razonSocial,
       },
-      contacto: {
-        nombre: reserva.contactoNombre,
-        correo: reserva.contactoCorreo,
-        celular: reserva.contactoCelular,
-        cargo: reserva.contactoCargo,
-      },
+      /// El contacto NO sale por aqui.
+      ///
+      /// `vista()` responde a rutas PUBLICAS -consultar, crear,
+      /// editar, cancelar- y la unica credencial para llegar a
+      /// ellas es el NIT, que esta en el RUES y en cualquier
+      /// factura. Devolver nombre, correo y celular del
+      /// contacto convertia eso en el directorio comercial del
+      /// gremio a cambio de un numero publico.
+      ///
+      /// Nadie lo estaba leyendo: la pantalla publica no lo
+      /// pinta y el formulario solo lo manda. El panel lo lee
+      /// por otro camino (tableros), que si pide sesion.
       oferta: {
         id: reserva.oferta.id,
         modalidad: reserva.oferta.modalidad,
