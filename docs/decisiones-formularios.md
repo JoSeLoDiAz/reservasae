@@ -4,6 +4,49 @@
 > cambió después de ver que la versión anterior recogía datos malos
 > o no recogía ninguno.
 
+## Lo que encontró la auditoría (agosto 2026)
+
+Dos cosas de este flujo salieron **críticas**. Están arregladas; van
+aquí para que no vuelvan por descuido.
+
+### Con una cédula ajena se abría la ficha completa
+
+`registrar()` devolvía SIEMPRE un token de enlace, también cuando la
+cédula ya existía. Ese enlace abre `abrir()`, que hace
+`persona: { include: {...} }` —o sea TODOS los campos— más las
+caracterizaciones de población vulnerable.
+
+Dos peticiones sin sesión, sabiéndose una cédula, y salía si alguien
+es víctima del conflicto o tiene una discapacidad. Artículo 5 de la
+Ley 1581.
+
+**La regla ahora:** si la cédula ya estaba, el token NO viaja en la
+respuesta. El enlace se manda al correo QUE YA ESTÁ EN LA BASE, nunca
+al que vino en el formulario — quien controla ese buzón es la dueña de
+la ficha. Hay una prueba sobre la respuesta ENTERA serializada, por si
+mañana alguien añade un campo y se lleva el token de vuelta.
+
+**Cuidado con `include`.** Ese `include` sin `select` es lo que
+convirtió un enlace en una fuga: devuelve columnas que nadie decidió
+devolver. Si añade un campo sensible a `Persona`, sale por ahí solo.
+
+### El registro público machacaba el correo de una persona existente
+
+`dto.correo ?? undefined` solo protege si el campo NO viene. Si el
+desconocido sí lo mandaba, Prisma lo escribía encima: todo lo que el
+sistema le enviara después a esa persona se iba al buzón del atacante,
+y ella no notaba nada.
+
+Ahora manda lo guardado: `yaHabiaPersona?.correo ?? dto.correo`. El
+formulario público **rellena huecos, no corrige**. Corregir es trabajo
+del asesor, que sí sabe con quién está hablando.
+
+### Y una de habeas data que no era del formulario
+
+Revocar la autorización **no detenía los correos**. Ahora se comprueba
+en los tres caminos de envío; está contado en
+[campanas-mailing.md](campanas-mailing.md).
+
 ## El habeas data va PRIMERO
 
 Preinscripción: `habeas → elección → datos → revisión`.
@@ -86,6 +129,22 @@ Preguntarlo de entrada, antes que el nombre, es otra conversación.
 
 Y es **opcional de verdad**: hay un botón para no decirlo. Un dato
 sensible que no se puede rehusar no está consentido.
+
+## Al nominado no se le pregunta dónde trabaja
+
+Si vino por una reserva, la empresa que lo inscribió ya está en la
+ficha con su NIT y su razón social. Ofrecerle las tres opciones de
+situación laboral es hacerle escoger entre tres de las que dos son
+falsas, y darle la ocasión de contradecir a su propia empresa.
+
+La regla: **los datos de una empresa se le piden a la empresa**, o los
+trae la consulta al RUES por el NIT. Al empleado solo se le pregunta
+lo poco que solo él puede saber, y solo si no lo tenemos ya.
+
+Para eso la ficha trae `faltaDeLaEmpresa`. Antes solo devolvía NIT y
+razón social, así que la pantalla no tenía cómo distinguir «no lo
+tenemos» de «no lo pedimos». Si la lista viene vacía, ese paso no
+tiene nada que llenar.
 
 ## Formularios Activos: una vista, no dos
 
