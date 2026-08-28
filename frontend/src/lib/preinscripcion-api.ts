@@ -98,6 +98,15 @@ export type FichaAbierta = {
   politica: { id: string; version: number; titulo: string; contenido: string } | null;
   documentos: ValorSep[];
   generos: ValorSep[];
+  /// Las 43 del SEP: población vulnerable. Es lo que el F7
+  /// lleva y que hasta ahora nadie preguntaba.
+  caracterizaciones: ValorSep[];
+  /// Lo que esta persona ya marcó, para no preguntárselo en
+  /// blanco si vuelve al enlace.
+  caracterizacionesElegidas: number[];
+  /// Dijo que prefiere no decirlo. No es lo mismo que no
+  /// haber contestado.
+  caracterizacionRechazada: boolean;
   nivelesOcupacionales: ValorSep[];
   departamentos: ValorSep[];
   /** [id, departamentoId, nombre]: se filtra sin pedir nada. */

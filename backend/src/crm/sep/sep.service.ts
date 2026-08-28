@@ -33,7 +33,12 @@ const ETAPAS_DEL_REPORTE: EtapaParticipante[] = [
   'CERTIFICADO',
 ];
 
-type Excluido = { nombre: string; documento: string; etapa: string; motivo: string };
+type Excluido = {
+  nombre: string;
+  documento: string;
+  etapa: string;
+  motivo: string;
+};
 
 /**
  * Un libro cuya hoja principal esta vacia no se entrega.
@@ -61,7 +66,10 @@ export class SepService {
 
   /** Cuántos entran, cuántos no y por qué. */
   async alistamiento(convenioId: string, ambito: string[]) {
-    const { listos, excluidos, convenio } = await this.preparar(convenioId, ambito);
+    const { listos, excluidos, convenio } = await this.preparar(
+      convenioId,
+      ambito,
+    );
 
     // agrupado por motivo: la lista accionable no es de
     // personas, es de "187 sin fecha de nacimiento"
@@ -81,7 +89,12 @@ export class SepService {
     };
   }
 
-  async exportar(convenioId: string, formato: Formato, ano: number, ambito: string[]) {
+  async exportar(
+    convenioId: string,
+    formato: Formato,
+    ano: number,
+    ambito: string[],
+  ) {
     const { listos, excluidos } = await this.preparar(convenioId, ambito);
 
     /// Lo mismo que el F7: un archivo con cero personas no se
@@ -208,7 +221,12 @@ export class SepService {
     );
 
     const listas: FilaF7[] = [];
-    const incompletas: Array<{ empresa: string; nit: string; accion: string; motivo: string }> = [];
+    const incompletas: Array<{
+      empresa: string;
+      nit: string;
+      accion: string;
+      motivo: string;
+    }> = [];
     for (const f of todas) {
       const falta = faltaEnF7(f.empresa);
       if (falta.length) {
@@ -330,7 +348,11 @@ export class SepService {
       where: { convenioId, etapa: { in: ETAPAS_DEL_REPORTE } },
       orderBy: [{ accionFormacionId: 'asc' }, { creadoEn: 'asc' }],
       include: {
-        persona: true,
+        /// Con sus caracterizaciones: el reporte las mandaba
+        /// SIEMPRE vacías porque aquí no se pedían y abajo se
+        /// escribía un null a mano. El SENA lleva ese campo y
+        /// nunca le llegó nada.
+        persona: { include: { caracterizaciones: true } },
         // la empresa propia del lead: `include` no la trae
         // sola por ser una relacion, y sin nombrarla aqui la
         // linea de abajo mira siempre null
@@ -394,7 +416,9 @@ export class SepService {
     const excluidos: Excluido[] = [];
 
     for (const p of participantes) {
-      const nombre = [p.persona.primerNombre, p.persona.primerApellido].join(' ');
+      const nombre = [p.persona.primerNombre, p.persona.primerApellido].join(
+        ' ',
+      );
       const documento = p.persona.numeroDocumento;
 
       const { reporte } = revisar({
@@ -454,7 +478,12 @@ export class SepService {
         },
         empresa,
         genero: GENERO_EN_EL_REPORTE[p.persona.generoSepId ?? -1] ?? '',
-        caracterizacionSepId: null,
+        /// La primera que marco. El formato del SEP admite
+        /// UNA, aunque una persona pueda ser varias cosas: se
+        /// manda la primera y las demas quedan guardadas, que
+        /// es mejor que perderlas por no caber.
+        caracterizacionSepId:
+          p.persona.caracterizaciones[0]?.caracterizacionSepId ?? null,
       });
     }
 

@@ -1,7 +1,11 @@
 import { Body, Controller, Get, Param, Patch, Post } from '@nestjs/common';
 import { IpReal } from '../comun/ip-real';
 
-import { CrearPreinscripcionDto, DatosEmpresaDto, DatosPersonaDto } from './dto';
+import {
+  CrearPreinscripcionDto,
+  DatosEmpresaDto,
+  DatosPersonaDto,
+} from './dto';
 import { DirectorioService } from '../crm/directorio.service';
 import { PreinscripcionService } from './preinscripcion.service';
 

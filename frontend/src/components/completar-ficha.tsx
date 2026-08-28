@@ -8,6 +8,14 @@ import { preinscripcionApi, type FichaAbierta } from "@/lib/preinscripcion-api";
 
 import { BannerLogos, ConmutadorTema, PiePublico } from "./marca-publica";
 
+/// Las etiquetas del SEP vienen en mayuscula sostenida --
+/// «MUJER CABEZA DE FAMILIA» -- y a una persona no se le
+/// pregunta a gritos si es victima del conflicto.
+function bonito(t: string): string {
+  const minus = t.toLocaleLowerCase("es-CO");
+  return minus.charAt(0).toLocaleUpperCase("es-CO") + minus.slice(1);
+}
+
 const CAMPO =
   "w-full rounded-xl border border-campo-borde bg-campo-fondo px-3 py-2.5 text-texto " +
   "outline-none transition focus:border-campo-foco focus:ring-2 focus:ring-campo-foco/25";
@@ -29,7 +37,19 @@ export function CompletarFicha({ token }: { token: string }) {
    * render no avisa a React de que hay que volver a pintar.
    */
   const [yaEstaba, setYaEstaba] = useState<Record<string, boolean> | null>(null);
-  const [caducado, setCaducado] = useState<string | null>(null);
+  /**
+   * Por qué no se pudo abrir. Con el ESTADO, no solo el texto.
+   *
+   * Antes cualquier fallo salía como «Este enlace ya no
+   * sirve». Si el servidor estaba caído —o la persona iba en
+   * el bus y se le fue la señal— se le decía que su enlace
+   * estaba muerto, y esa persona no vuelve a intentar: cierra
+   * y llama a preguntar por qué le mandaron un enlace roto.
+   * El enlace estaba bien.
+   */
+  const [fallo, setFallo] = useState<{ estado: number; mensaje: string } | null>(
+    null,
+  );
   const [paso, setPaso] = useState<Paso>("PERSONA");
   /// El paso 1 no se abrió porque no le faltaba nada suyo.
   /// Entonces no hay «paso anterior» al que volver.
@@ -48,6 +68,12 @@ export function CompletarFicha({ token }: { token: string }) {
   const [persona, setPersona] = useState<Record<string, string>>({});
   const [empresa, setEmpresa] = useState<Record<string, string>>({});
 
+  /// Poblacion vulnerable. Se guarda aparte del resto porque
+  /// es lo unico sensible que se pregunta, y porque no es un
+  /// texto: es una lista de casillas.
+  const [caracterizaciones, setCaracterizaciones] = useState<number[]>([]);
+  const [rechazaCaracterizacion, setRechazaCaracterizacion] = useState(false);
+
   useEffect(() => {
     preinscripcionApi
       .abrir(token)
@@ -63,6 +89,10 @@ export function CompletarFicha({ token }: { token: string }) {
           const x = p[k];
           return x !== null && x !== undefined && String(x).trim() !== "";
         };
+        // lo que ya marco, para no preguntarselo en blanco
+        setCaracterizaciones(f.caracterizacionesElegidas);
+        setRechazaCaracterizacion(f.caracterizacionRechazada);
+
         setYaEstaba({
           fechaNacimiento: tiene("fechaNacimiento"),
           estrato: tiene("estrato"),
@@ -116,7 +146,15 @@ export function CompletarFicha({ token }: { token: string }) {
         });
         setEmpresa({ nit: f.nitEmpresa ?? "", razonSocial: f.empresa ?? "" });
       })
-      .catch((e: ErrorApi) => setCaducado(e.message));
+      .catch((e: unknown) => {
+        /// `fetch` que no llega ni a conectarse no lanza un
+        /// ErrorApi, lanza un TypeError pelado. Ese caso es
+        /// justamente el del servidor caído, así que se marca
+        /// con estado 0 para poder distinguirlo.
+        const estado = e instanceof ErrorApi ? e.estado : 0;
+        const mensaje = e instanceof Error ? e.message : String(e);
+        setFallo({ estado, mensaje });
+      });
   }, [token]);
 
   // los del departamento elegido, y solo esos
@@ -126,13 +164,44 @@ export function CompletarFicha({ token }: { token: string }) {
     return ficha.municipios.filter((m) => m[1] === dep);
   }, [ficha, persona.departamentoSepId]);
 
-  if (caducado) {
+  if (fallo) {
+    /// El enlace SOLO se da por muerto cuando el servidor lo
+    /// dice: 404 si no existe, 410 si ya se usó o venció, 400
+    /// si viene mal formado. Cualquier otra cosa —no hay red,
+    /// el servidor está caído, un 500— es un problema nuestro,
+    /// y el enlace sigue bueno.
+    const enlaceMuerto = [400, 404, 410].includes(fallo.estado);
+
     return (
       <>
         <main className="mx-auto w-full max-w-lg px-6 py-20 text-center">
-        <BannerLogos />
-        <h1 className="mt-8 text-2xl font-bold">Este enlace ya no sirve</h1>
-        <p className="mt-3 text-texto-suave">{caducado}</p>
+          <BannerLogos />
+          {enlaceMuerto ? (
+            <>
+              <h1 className="mt-8 text-2xl font-bold">Este enlace ya no sirve</h1>
+              <p className="mt-3 text-texto-suave">{fallo.mensaje}</p>
+              <p className="mt-4 text-sm text-texto-suave">
+                Pídale uno nuevo a la persona que lo está acompañando.
+              </p>
+            </>
+          ) : (
+            <>
+              <h1 className="mt-8 text-2xl font-bold">
+                No pudimos abrir su formulario
+              </h1>
+              <p className="mt-3 text-texto-suave">
+                Su enlace está bien; el problema es nuestro. Vuelva a intentarlo
+                en un momento.
+              </p>
+              <button
+                type="button"
+                onClick={() => window.location.reload()}
+                className="mt-6 rounded-xl border border-marca px-5 py-2 text-sm font-medium text-marca transition hover:bg-marca-suave"
+              >
+                Reintentar
+              </button>
+            </>
+          )}
         </main>
         <PiePublico />
       </>
@@ -163,6 +232,9 @@ export function CompletarFicha({ token }: { token: string }) {
             : persona.beneficiarioPrevio === "SI",
         // ya la acepto al reservar el cupo
         aceptaPolitica: true,
+        // poblacion vulnerable: la lista, o el rechazo
+        caracterizaciones: rechazaCaracterizacion ? [] : caracterizaciones,
+        caracterizacionRechazada: rechazaCaracterizacion,
       });
       setPaso("EMPRESA");
     } catch (err) {
@@ -346,6 +418,31 @@ export function CompletarFicha({ token }: { token: string }) {
         }}
         className="mt-8 space-y-6"
       >
+          {/* La política va PRIMERO, antes de pedir un solo dato.
+
+              Es el orden que manda la ley 1581: primero se dice
+              qué se va a hacer con los datos y quién los va a
+              tratar, y después se piden. Enseñarla al final —o
+              como un enlace que casi nadie abre— es pedir
+              primero y avisar después. */}
+          {ficha.politica && (
+            <section className="rounded-2xl border border-borde bg-superficie p-6 shadow-sm">
+              <h2 className="text-lg font-semibold">{ficha.politica.titulo}</h2>
+              {ficha.yaAutorizo && (
+                <p className="mt-1 text-sm text-exito">
+                  Usted ya la aceptó al reservar su cupo. Queda aquí para que la
+                  pueda volver a leer.
+                </p>
+              )}
+              <div className="mt-4 max-h-64 overflow-y-auto rounded-xl border border-borde bg-superficie-alterna p-4 text-sm leading-relaxed whitespace-pre-wrap">
+                {ficha.politica.contenido}
+              </div>
+              <p className="mt-3 text-xs text-texto-suave">
+                Versión {ficha.politica.version}
+              </p>
+            </section>
+          )}
+
           <section className="rounded-2xl border border-borde bg-superficie p-6 shadow-sm">
             <h2 className="text-lg font-semibold">
               {faltaEnPersona.length === 0
@@ -478,6 +575,74 @@ export function CompletarFicha({ token }: { token: string }) {
             </div>
           </section>
 
+
+          {/* Lo último antes de los datos de la empresa.
+
+              Va al final a propósito: es lo más íntimo que se
+              pregunta —ser víctima del conflicto, tener una
+              discapacidad— y se pide después de que la persona
+              ya vio para qué es todo esto. Preguntarlo de
+              entrada, antes que el nombre, es otra conversación.
+
+              Y es OPCIONAL de verdad: hay un botón para no
+              decirlo, porque un dato sensible que no se puede
+              rehusar no está consentido. */}
+          <section className="rounded-2xl border border-borde bg-superficie p-6 shadow-sm">
+            <h2 className="text-lg font-semibold">Población vulnerable</h2>
+            <p className="mt-1 text-sm text-texto-suave">
+              El SENA lleva este dato para saber a quién está llegando la
+              formación. Marque lo que le aplique, o siga sin contestar: no
+              cambia en nada su inscripción.
+            </p>
+
+            {rechazaCaracterizacion ? (
+              <div className="mt-4 rounded-xl border border-borde bg-superficie-alterna p-4 text-sm">
+                <p>Prefiere no responder. Queda así.</p>
+                <button
+                  type="button"
+                  onClick={() => setRechazaCaracterizacion(false)}
+                  className="mt-2 text-marca underline"
+                >
+                  Cambiar de opinión
+                </button>
+              </div>
+            ) : (
+              <>
+                <div className="mt-4 grid max-h-64 gap-1 overflow-y-auto rounded-xl border border-borde p-3 sm:grid-cols-2">
+                  {ficha.caracterizaciones.map((c) => (
+                    <label
+                      key={c.id}
+                      className="flex cursor-pointer items-start gap-2 rounded-lg px-2 py-1.5 text-sm transition hover:bg-superficie-alterna"
+                    >
+                      <input
+                        type="checkbox"
+                        className="mt-0.5"
+                        checked={caracterizaciones.includes(c.id)}
+                        onChange={(e) =>
+                          setCaracterizaciones((v) =>
+                            e.target.checked
+                              ? [...v, c.id]
+                              : v.filter((x) => x !== c.id),
+                          )
+                        }
+                      />
+                      <span>{bonito(c.etiqueta)}</span>
+                    </label>
+                  ))}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setRechazaCaracterizacion(true);
+                    setCaracterizaciones([]);
+                  }}
+                  className="mt-3 text-sm text-texto-suave underline hover:text-texto"
+                >
+                  Prefiero no responder
+                </button>
+              </>
+            )}
+          </section>
 
           <button
             type="submit"

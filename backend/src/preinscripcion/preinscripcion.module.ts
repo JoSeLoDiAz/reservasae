@@ -14,7 +14,11 @@ import { PreinscripcionService } from './preinscripcion.service';
   // solo la cola del RUI, no el CRM entero: el CRM importa
   // a este modulo y el circulo no dejaria arrancar a Nest
   imports: [ColaRuiModule],
-  controllers: [PreinscripcionController, CompletarController, DirectorioPublicoController],
+  controllers: [
+    PreinscripcionController,
+    CompletarController,
+    DirectorioPublicoController,
+  ],
   providers: [PreinscripcionService, DirectorioService],
   exports: [PreinscripcionService],
 })
