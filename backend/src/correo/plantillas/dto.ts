@@ -9,19 +9,17 @@ import {
 } from 'class-validator';
 
 import type { EtapaParticipante } from '../../../generated/prisma';
+import { TODAS_LAS_ETAPAS } from './etapas-de-plantilla';
 
 /// Las etapas en las que se puede escribir a alguien. Las de
 /// salida -- PERDIDO, RETIRADO, DESERTO, ABANDONO -- no
 /// entran: a quien se fue no se le manda una campana, se le
 /// llama.
-const ETAPAS = [
-  'INTERESADO',
-  'CONTACTADO',
-  'DATOS_COMPLETOS',
-  'INSCRITO',
-  'EN_FORMACION',
-  'CERTIFICADO',
-];
+/// La lista vive en un solo sitio. Estaba copiada aqui y en
+/// el DTO de al lado, las dos recortadas a las seis etapas
+/// «buenas», y eso impedia escribirle a quien NO quedo
+/// inscrito -- que es a quien mas falta le hace un correo.
+const ETAPAS = [...TODAS_LAS_ETAPAS] as string[];
 
 export class CrearPlantillaDto {
   @IsString() @Length(2, 80) nombre!: string;

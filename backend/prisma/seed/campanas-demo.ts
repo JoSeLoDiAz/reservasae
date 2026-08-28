@@ -134,6 +134,51 @@ Cualquier duda que le surja, escríbame a este correo.
 {{gremio}}`,
   },
   {
+    /// Las tres de abajo son las que faltaban: escribirle a
+    /// quien NO siguió. Sin ellas el sistema solo sabe
+    /// felicitar, y quien no quedó se entera por el silencio.
+    nombre: 'No quedó seleccionado esta vez',
+    etapas: ['PERDIDO', 'RETIRADO'],
+    asunto: '{{primerNombre}}, sobre su solicitud de cupo',
+    cuerpo: `{{saludo}}:
+
+Le escribimos sobre su solicitud de cupo en {{accionFormacion}}.
+
+En esta convocatoria los cupos se asignaron y no alcanzamos a incluirlo. Le pedimos disculpas por la espera.
+
+Su registro queda con nosotros: cuando abramos la siguiente cohorte le avisamos antes que a nadie. No tiene que volver a inscribirse.
+
+Gracias por su interés.
+
+{{gremio}}`,
+  },
+  {
+    nombre: 'Dejó el curso: qué pasó',
+    etapas: ['DESERTO', 'ABANDONO'],
+    asunto: '{{primerNombre}}, ¿podemos ayudarle a retomar?',
+    cuerpo: `{{saludo}}:
+
+Vimos que dejó de avanzar en {{accionFormacion}} y queremos saber si podemos ayudarle.
+
+Si fue por tiempo, por conexión o porque el horario no le sirvió, díganoslo respondiendo este correo: en la próxima cohorte podemos acomodarlo mejor.
+
+Y si simplemente ya no le interesa, también está bien. Con saberlo nos ayuda a darle el cupo a alguien más.
+
+{{gremio}}`,
+  },
+  {
+    nombre: 'No aprobó: puede repetirlo',
+    etapas: ['NO_APROBO'],
+    asunto: 'Sobre su resultado en {{accionFormacion}}',
+    cuerpo: `{{saludo}}:
+
+Le contamos que no alcanzó los requisitos para certificarse en {{accionFormacion}}.
+
+Esto no lo deja por fuera: puede presentarse a la siguiente cohorte y lo que ya vio le va a servir. Si quiere que le contemos qué le faltó, respóndanos y lo revisamos con usted.
+
+{{gremio}}`,
+  },
+  {
     /// A propósito sin variables: enseña que una plantilla
     /// puede no llevar ninguna, y esa le sirve a todo el
     /// mundo aunque su ficha esté a medias.

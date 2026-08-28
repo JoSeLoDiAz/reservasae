@@ -1,6 +1,7 @@
 import { Type } from 'class-transformer';
 
 import type { EtapaParticipante } from '../../../generated/prisma';
+import { TODAS_LAS_ETAPAS } from '../plantillas/etapas-de-plantilla';
 import {
   IsArray,
   IsBoolean,
@@ -11,14 +12,11 @@ import {
   ValidateNested,
 } from 'class-validator';
 
-const ETAPAS = [
-  'INTERESADO',
-  'CONTACTADO',
-  'DATOS_COMPLETOS',
-  'INSCRITO',
-  'EN_FORMACION',
-  'CERTIFICADO',
-];
+/// La lista vive en un solo sitio. Estaba copiada aqui y en
+/// el DTO de al lado, las dos recortadas a las seis etapas
+/// «buenas», y eso impedia escribirle a quien NO quedo
+/// inscrito -- que es a quien mas falta le hace un correo.
+const ETAPAS = [...TODAS_LAS_ETAPAS] as string[];
 
 export class SegmentoDto {
   /// Tipada con el enum de la base y validada contra la

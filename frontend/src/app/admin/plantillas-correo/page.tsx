@@ -34,17 +34,46 @@ const VACIO: Borrador = {
   etapasPermitidas: [],
 };
 
-/// Las etapas en las que se le puede escribir a alguien. Las
-/// de salida —perdido, retirado, desertó— no están: a quien
-/// se fue no se le manda una plantilla, se le llama.
-const ETAPAS: Array<[string, string]> = [
-  ["INTERESADO", "Interesado"],
-  ["CONTACTADO", "Contactado"],
-  ["DATOS_COMPLETOS", "Con datos completos"],
-  ["INSCRITO", "Inscrito"],
-  ["EN_FORMACION", "En formación"],
-  ["CERTIFICADO", "Certificado"],
+/// TODAS las etapas, agrupadas por momento.
+///
+/// El primer intento dejó fuera las de salida —perdido,
+/// retirado, no aprobó— con el argumento de que a quien se
+/// fue no se le escribe. Es al revés: a esa persona es a la
+/// que hay que escribirle. «No quedó seleccionado esta vez»,
+/// «lo esperamos en la próxima convocatoria», «cuéntenos por
+/// qué lo dejó». Sin ellas el sistema solo sabe felicitar.
+///
+/// Van agrupadas y no en una lista corrida de once porque
+/// once casillas seguidas no se leen: se marca la primera que
+/// suene y se sigue.
+const GRUPOS: Array<{ titulo: string; etapas: Array<[string, string]> }> = [
+  {
+    titulo: "Mientras avanza",
+    etapas: [
+      ["INTERESADO", "Interesado"],
+      ["CONTACTADO", "Contactado"],
+      ["DATOS_COMPLETOS", "Con datos completos"],
+      ["INSCRITO", "Inscrito"],
+      ["EN_FORMACION", "En formación"],
+    ],
+  },
+  {
+    titulo: "Terminó bien",
+    etapas: [["CERTIFICADO", "Certificado"]],
+  },
+  {
+    titulo: "No siguió",
+    etapas: [
+      ["NO_APROBO", "No aprobó"],
+      ["DESERTO", "Desertó — avisó que se iba"],
+      ["ABANDONO", "Abandonó — dejó de entrar, sin avisar"],
+      ["RETIRADO", "Retirado"],
+      ["PERDIDO", "Perdido — no se logró contactar"],
+    ],
+  },
 ];
+
+const ETAPAS: Array<[string, string]> = GRUPOS.flatMap((g) => g.etapas);
 
 export default function PaginaPlantillasCorreo() {
   const toast = useToast();
@@ -202,28 +231,41 @@ export default function PaginaPlantillasCorreo() {
                 </legend>
                 <p className="mb-3 text-xs text-texto-suave">
                   Si no marca ninguna, sirve para cualquiera. Marque solo si
-                  esta plantilla dice algo que no es cierto en otra etapa.
+                  esta plantilla dice algo que no es cierto en otra etapa —una
+                  «confirmación» no le sirve a quien no quedó, y un «no quedó
+                  seleccionado» no le sirve a quien sí.
                 </p>
-                <div className="grid gap-1.5 sm:grid-cols-2">
-                  {ETAPAS.map(([valor, texto]) => (
-                    <label
-                      key={valor}
-                      className="flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1 text-sm hover:bg-superficie-alterna"
-                    >
-                      <input
-                        type="checkbox"
-                        checked={borrador.etapasPermitidas.includes(valor)}
-                        onChange={(e) =>
-                          setBorrador((b) => ({
-                            ...b,
-                            etapasPermitidas: e.target.checked
-                              ? [...b.etapasPermitidas, valor]
-                              : b.etapasPermitidas.filter((x) => x !== valor),
-                          }))
-                        }
-                      />
-                      <span>{texto}</span>
-                    </label>
+                <div className="space-y-3">
+                  {GRUPOS.map((g) => (
+                    <div key={g.titulo}>
+                      <p className="mb-1 text-[11px] font-semibold tracking-wide uppercase opacity-45">
+                        {g.titulo}
+                      </p>
+                      <div className="grid gap-1.5 sm:grid-cols-2">
+                        {g.etapas.map(([valor, texto]) => (
+                          <label
+                            key={valor}
+                            className="flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1 text-sm hover:bg-superficie-alterna"
+                          >
+                            <input
+                              type="checkbox"
+                              checked={borrador.etapasPermitidas.includes(valor)}
+                              onChange={(e) =>
+                                setBorrador((b) => ({
+                                  ...b,
+                                  etapasPermitidas: e.target.checked
+                                    ? [...b.etapasPermitidas, valor]
+                                    : b.etapasPermitidas.filter(
+                                        (x) => x !== valor,
+                                      ),
+                                }))
+                              }
+                            />
+                            <span>{texto}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
                   ))}
                 </div>
               </fieldset>

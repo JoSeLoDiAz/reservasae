@@ -13,6 +13,34 @@
 
 import type { EtapaParticipante } from '../../../generated/prisma';
 
+/**
+ * TODAS las etapas, y a propósito todas.
+ *
+ * El primer intento dejó fuera las de salida --PERDIDO,
+ * RETIRADO, NO_APROBO, DESERTO, ABANDONO-- con el argumento
+ * de que a quien se fue no se le escribe. Es falso, y es
+ * justo al revés: a esa persona es a la que hay que
+ * escribirle. «No quedó seleccionado esta vez», «lo
+ * esperamos en la próxima convocatoria», «cuéntenos por qué
+ * lo dejó». Sin esas etapas, el sistema solo sabe felicitar.
+ *
+ * El orden es el del recorrido: primero el embudo, luego los
+ * finales buenos, luego los que no lo son.
+ */
+export const TODAS_LAS_ETAPAS = [
+  'INTERESADO',
+  'CONTACTADO',
+  'DATOS_COMPLETOS',
+  'INSCRITO',
+  'EN_FORMACION',
+  'CERTIFICADO',
+  'NO_APROBO',
+  'DESERTO',
+  'ABANDONO',
+  'RETIRADO',
+  'PERDIDO',
+] as const;
+
 /// Cómo se llama cada etapa cuando hay que decírselo a una
 /// persona. Las del enum están en mayúscula sostenida y con
 /// guion bajo.
