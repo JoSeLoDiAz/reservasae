@@ -9,6 +9,19 @@ de inscripción y la autenticación llegan en la siguiente etapa.
   están en [docs/cloudflare.md](docs/cloudflare.md).
 - **Ruta en el servidor:** `/opt/sep/reservasae`
 
+### Por qué está hecho así
+
+Dos documentos para quien vaya a tocar estas partes. No cuentan lo
+que hace el código —eso se lee en el código— sino las decisiones que
+costaron un fallo en producción y que conviene no deshacer sin saber:
+
+- [docs/campanas-mailing.md](docs/campanas-mailing.md) — el módulo de
+  correo masivo. Los topes, el worker, y qué combinación de datos hace
+  que salgan correos de verdad.
+- [docs/decisiones-formularios.md](docs/decisiones-formularios.md) —
+  el orden de las pantallas, el habeas data, y el enlace que se
+  cerraba sin haber recogido nada.
+
 ---
 
 ## Arquitectura
