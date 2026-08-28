@@ -13,7 +13,11 @@ import {
   Prisma,
   type Admin,
 } from '../../generated/prisma';
-import { ENTIDADES, AuditoriaService, type Actor } from '../comun/auditoria.service';
+import {
+  ENTIDADES,
+  AuditoriaService,
+  type Actor,
+} from '../comun/auditoria.service';
 import { taparDocumento } from '../comun/tapar';
 import {
   CLASE_POR_CAMPO,
@@ -25,6 +29,7 @@ import { documentoValido, normalizarDocumento } from '../comun/documento';
 import { analizar, esInsalvable, repetidosEnElPegado } from './carga';
 import {
   esRegresoAlAula,
+  saleDelCupo,
   exigeCupo,
   exigeDatosParaElAula,
   motivoDeTransicionImposible,
@@ -274,6 +279,26 @@ function aTexto(valor: unknown): string | null {
   if (valor instanceof Date) return valor.toISOString().slice(0, 10);
   if (typeof valor === 'string' && /^\d{4}-\d{2}-\d{2}T/.test(valor)) {
     return valor.slice(0, 10);
+  }
+  return aTextoLlano(valor);
+}
+
+/**
+ * Un valor cualquiera como texto, sin perderlo por el camino.
+ *
+ * `String(valor)` sobre un objeto da «[object Object]», que no
+ * es un texto: es la desaparicion del dato con forma de texto.
+ * Ya paso en la celda del F7 y ahi al menos se veia; en el
+ * historial de «que decia antes» no se ve, y el valor viejo ya
+ * no esta en ningun otro sitio.
+ */
+function aTextoLlano(valor: unknown): string {
+  if (typeof valor === 'object' && valor !== null) {
+    try {
+      return JSON.stringify(valor);
+    } catch {
+      return '(no se pudo leer)';
+    }
   }
   return String(valor);
 }
@@ -670,7 +695,6 @@ export class CrmService {
     });
 
     if (!p) throw new NotFoundException('Ese participante no existe.');
-
 
     return {
       ...p,
@@ -1103,7 +1127,10 @@ export class CrmService {
     let notaAsesor: string | null = null;
 
     if (cambiaAsesor && dto.asesorId) {
-      const asesor = await this.exigirAsesorDelConvenio(dto.asesorId, p.convenioId);
+      const asesor = await this.exigirAsesorDelConvenio(
+        dto.asesorId,
+        p.convenioId,
+      );
       // el mismo texto que el lote
       notaAsesor = `Asignada a ${asesor.nombre}`;
     } else if (cambiaAsesor) {
@@ -1312,7 +1339,7 @@ export class CrmService {
     /// sería el único cambio invisible del sistema.
     await this.actualizar(
       participanteId,
-      { [fila.campo]: fila.valorAnterior } as never,
+      { [fila.campo]: fila.valorAnterior },
       admin,
       ambito,
       ip,
@@ -1350,11 +1377,18 @@ export class CrmService {
         clase: CLASE_POR_CAMPO[campo],
         /// Sin valor cuando la clase es SENSIBLE. Queda la
         /// constancia del cambio, nunca qué decía.
+        /// `aTextoLlano` y no `String()`.
+        ///
+        /// `String({})` da «[object Object]», y esto es EL
+        /// registro de que decia antes: si sale asi, el valor
+        /// viejo se perdio y este historial --que existe para
+        /// poder volver-- no sirve para volver. Es el mismo
+        /// defecto que tuvo la celda del F7.
         valorAnterior:
           seGuardaElValor(campo) && habiaValor
             ? antes instanceof Date
               ? antes.toISOString()
-              : String(antes)
+              : aTextoLlano(antes)
             : null,
         habiaValor,
         adminId: actor.id ?? null,
@@ -1677,7 +1711,9 @@ export class CrmService {
     const soloLaVentana =
       panel.motivo === 'VENTANA_CERRADA' || panel.motivo === 'SIN_FECHAS';
     if (!panel.admiteInscripciones && !(soloLaVentana && !exigirVentana)) {
-      throw new BadRequestException(panel.porQueNo ?? 'No se puede inscribir en esta oferta.');
+      throw new BadRequestException(
+        panel.porQueNo ?? 'No se puede inscribir en esta oferta.',
+      );
     }
 
     if (!p.coberturaId) {
@@ -1861,41 +1897,30 @@ export class CrmService {
 
     /// Poner la etapa que ya tiene no es una transicion.
     ///
-    /// Va ANTES de juzgar el paso: `CERTIFICADO -> CERTIFICADO`
-    /// no es «certificar a alguien que salio del aula», es no
-    /// hacer nada, y contestarle con ese mensaje seria mentir
-    /// sobre lo que pasa.
+    /// Va ANTES de todo: `CERTIFICADO -> CERTIFICADO` no es
+    /// «certificar a alguien que salio del aula», es no hacer
+    /// nada, y contestarle con ese mensaje seria mentir sobre lo
+    /// que pasa.
     if (p.etapa === dto.etapa) return this.obtener(id, ambito);
 
-    /// Ya inscrito: de aqui no lo SACA un gestor.
+    /// Ya inscrito: de aqui no lo mueve un gestor.
     ///
-    /// Sacar, no mover. La primera version bloqueaba cualquier
-    /// salida de INSCRITO y una prueba la tumbo: el ingreso
-    /// tardio -- INSCRITO -> EN_FORMACION -- es AVANZAR, es lo
-    /// que pasa cuando alguien entra al aula con el grupo ya
-    /// andando, y negarselo al gestor le rompe el trabajo del
-    /// dia por una regla que iba dirigida a otra cosa.
+    /// Inscribir es el punto de no retorno: a partir de ahi la
+    /// persona cuenta en el cupo, entra en el reporte al SENA y
+    /// le llegan las citaciones. Sacarla no es corregir un
+    /// tecleo, es deshacer algo que ya salio del sistema.
     ///
-    /// Lo que se protege es DESHACER: devolverla a las etapas
-    /// de antes, o marcarla como perdida o retirada. Eso la
-    /// quita del cupo y del reporte al SENA, y no es corregir
-    /// un tecleo -- es deshacer algo que ya salio del sistema.
-    /// Lo firma un lider.
+    /// Va en el SERVIDOR y no en el boton: esconder el boton es
+    /// comodidad, y quien tenga la pantalla abierta desde antes
+    /// --o llame a la API-- se la salta.
+    /// «Deshacer» es SALIR DEL CUPO, no moverse desde INSCRITO.
     ///
-    /// Va DESPUES del no-op de arriba: volver a poner INSCRITO
-    /// sobre INSCRITO no saca a nadie.
-    ///
-    /// Y va en el SERVIDOR y no en el boton: esconder el boton
-    /// es comodidad, y quien tenga la pantalla abierta desde
-    /// antes -- o llame a la API -- se la salta.
-    const AVANZAR_DESDE_INSCRITO: EtapaParticipante[] = [
-      'EN_FORMACION',
-      'CERTIFICADO',
-    ];
-
+    /// Con `dto.etapa !== 'INSCRITO'` tambien caia
+    /// `INSCRITO → EN_FORMACION`, que es el ingreso tardio: no
+    /// deshace nada, las dos ocupan silla y la persona sigue en
+    /// el cupo y en el reporte. Lo cazo `cambiar-etapa.spec.ts`.
     if (
-      p.etapa === 'INSCRITO' &&
-      !AVANZAR_DESDE_INSCRITO.includes(dto.etapa) &&
+      saleDelCupo(p.etapa, dto.etapa) &&
       !muevenInscrito.includes(p.convenioId)
     ) {
       throw new ForbiddenException(
@@ -1905,30 +1930,23 @@ export class CrmService {
       );
     }
 
-    /// Tres comprobaciones distintas, y por eso son tres.
-    ///
-    /// - los datos y la autorizacion, SIEMPRE que se entre al
-    ///   aula: la autorizacion se puede revocar.
-    /// - el cupo, solo si esta transicion ocupa una silla nueva.
-    /// - la ventana de inscripcion, solo a quien entra por
-    ///   primera vez: a quien vuelve, su grupo ya arranco y por
-    ///   eso mismo esta cerrada.
-    ///
-    /// Ver `escalera.ts`.
     /// Primero: ¿es este paso un paso? Ver `escalera.ts`.
     ///
     /// Va ANTES del cupo, y el orden importa. `CERTIFICADO`
     /// ocupa silla, asi que `exigeCupo` es cierto viniendo de
     /// una salida del aula y `exigirQueQuepa` contestaba con un
-    /// error de cupos a quien intentaba `RETIRADO → CERTIFICADO`
+    /// error de cupos a quien intentaba `RETIRADO -> CERTIFICADO`
     /// -- tapando justo el mensaje que dice como hacerlo bien,
     /// que es para lo que existe esta regla.
+
     const imposible = motivoDeTransicionImposible(p.etapa, dto.etapa);
     if (imposible) throw new BadRequestException(imposible);
 
     const compuerta = exigeDatosParaElAula(p.etapa, dto.etapa);
     if (exigeCupo(p.etapa, dto.etapa)) {
-      await this.exigirQueQuepa(p, { exigirVentana: !esRegresoAlAula(p.etapa) });
+      await this.exigirQueQuepa(p, {
+        exigirVentana: !esRegresoAlAula(p.etapa),
+      });
     }
 
     // certificar exige haber aprobado el 80% de lo
