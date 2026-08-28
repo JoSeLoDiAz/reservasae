@@ -7,9 +7,14 @@ export type Alistamiento = {
   noListos: number;
   motivos: Array<{ motivo: string; total: number }>;
   personas: Array<{
+    /// El id de la PARTICIPACIÓN. Una misma persona en dos
+    /// acciones de formación son dos filas, y sin esto la
+    /// pantalla las trataba como la misma.
+    id: string;
     nombre: string;
     documento: string;
     etapa: string;
+    accion: string | null;
     motivo: string;
   }>;
 };

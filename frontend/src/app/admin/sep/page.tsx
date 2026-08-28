@@ -183,15 +183,25 @@ export default function PaginaSep() {
                   <tr>
                     <th>Documento</th>
                     <th>Nombre</th>
+                    <th>Formación</th>
                     <th>Etapa</th>
                     <th>Qué le falta</th>
                   </tr>
                 </thead>
                 <tbody>
+                  {/* La llave es la PARTICIPACIÓN, no la
+                      persona: quien está inscrito en dos
+                      acciones sale dos veces, y son dos filas
+                      distintas con dos cosas que arreglar. La
+                      columna «Formación» está justo para que
+                      no parezcan la misma repetida. */}
                   {datos.personas.map((p) => (
-                    <tr key={p.documento + p.nombre}>
+                    <tr key={p.id}>
                       <td className="font-mono text-sm">{p.documento}</td>
                       <td>{p.nombre}</td>
+                      <td className="text-sm text-texto-suave">
+                        {p.accion ?? "—"}
+                      </td>
                       <td className="text-sm">{p.etapa}</td>
                       <td className="text-sm">{p.motivo}</td>
                     </tr>

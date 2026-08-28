@@ -34,9 +34,19 @@ const ETAPAS_DEL_REPORTE: EtapaParticipante[] = [
 ];
 
 type Excluido = {
+  /// El id de la PARTICIPACIÓN, no el de la persona.
+  ///
+  /// Una misma persona inscrita en dos acciones de formación
+  /// son dos filas legítimas, cada una con lo suyo por
+  /// arreglar. Sin este id, la pantalla las trataba como la
+  /// misma y React se quejaba de llaves repetidas.
+  id: string;
   nombre: string;
   documento: string;
   etapa: string;
+  /// De cuál de sus formaciones habla esta fila. Sin esto, dos
+  /// filas idénticas en pantalla y nadie sabe por qué.
+  accion: string | null;
   motivo: string;
 };
 
@@ -127,6 +137,11 @@ export class SepService {
         columnas: [
           { titulo: 'Documento', clave: 'documento' },
           { titulo: 'Nombre', clave: 'nombre', ancho: 34 },
+          /// Sin esta columna, quien está inscrito en dos
+          /// formaciones sale dos veces en la hoja y parece un
+          /// duplicado. No lo es: son dos participaciones con
+          /// dos cosas distintas por arreglar.
+          { titulo: 'Formación', clave: 'accion', ancho: 34 },
           { titulo: 'Etapa', clave: 'etapa' },
           { titulo: 'Por qué no entró', clave: 'motivo', ancho: 60 },
         ],
@@ -234,7 +249,9 @@ export class SepService {
           empresa: f.empresa.razonSocial,
           nit: f.empresa.nit,
           accion: f.accion,
-          motivo: falta[0],
+          /// Todos, por lo mismo que arriba: decir uno de tres
+          /// manda a arreglar y a volver.
+          motivo: falta.join('; '),
         });
       } else {
         listas.push(f);
@@ -452,10 +469,18 @@ export class SepService {
 
       if (reporte.length > 0) {
         excluidos.push({
+          id: p.id,
           nombre,
           documento,
           etapa: p.etapa,
-          motivo: reporte[0],
+          accion: p.accionFormacion?.nombre ?? null,
+          /// TODOS los motivos, no solo el primero.
+          ///
+          /// Con `reporte[0]` el asesor arreglaba lo que decía
+          /// la hoja, volvía a exportar y la persona SEGUÍA
+          /// fuera —porque le faltaban tres cosas y solo se le
+          /// dijo una—. Dos o tres viajes por lo mismo.
+          motivo: reporte.join('; '),
         });
         continue;
       }
