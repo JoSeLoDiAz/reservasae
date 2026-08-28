@@ -145,91 +145,70 @@ export default function PaginaFicha() {
       )}
 
 
-      {/* Cada una en su tarjeta, y en este orden.
-          
-          La rejilla llena por filas, asi que el orden de aqui
-          es: arriba «Mover de etapa» y «Asesor»; abajo
-          «Accion de formacion» y «Validacion del nombre».
-          A la izquierda lo que decide el asesor, a la derecha
-          lo que tiene que mirar antes de decidir. */}
-      {/* Sin `items-start`: las dos de cada fila se estiran
-          a la mas alta.
-          
-          Con `items-start` cada una medía lo que midiera su
-          contenido, así que quedaban desparejas y la fila se
-          veía rota. La rejilla las empareja sola -- eso es lo
-          que hace por defecto -- y yo se lo había quitado. */}
-      <div className="grid gap-6 xl:grid-cols-2">
-      <Tarjeta titulo="Mover de etapa">
-        <div className="flex flex-wrap gap-2">
-          {ETAPAS_A_MANO.map((e) => (
-            <button
-              key={e}
-              disabled={e === f.etapa}
-              onClick={() => {
-                let motivo: string | undefined;
-                if (ETAPAS_SALIDA.includes(e)) {
-                  const escrito = window.prompt(
-                    `¿Por qué pasa a «${ETIQUETA_ETAPA[e]}»? Es obligatorio.`,
-                  );
-                  if (!escrito?.trim()) return;
-                  motivo = escrito.trim();
-                }
-                void conError(
-                  async () => {
-                    await crmApi.cambiarEtapa(f.id, e as Etapa, motivo);
-                  },
-                  `Ahora está en «${ETIQUETA_ETAPA[e]}».`,
-                );
-              }}
-              className={`rounded-lg border px-3 py-1.5 text-sm ${
-                e === f.etapa
-                  ? "border-marca bg-marca-suave font-medium text-marca"
-                  : "border-borde hover:bg-superficie-alterna"
-              }`}
-            >
-              {ETIQUETA_ETAPA[e]}
-            </button>
-          ))}
-        </div>
-      </Tarjeta>
+      {/* LA FRANJA DE ACCIÓN: las tres cosas que un asesor
+          CAMBIA, juntas y arriba del todo.
 
-      <Asesor ficha={f} opciones={opciones} alGuardar={conError} />
-      <Asignacion ficha={f} opciones={opciones} alGuardar={conError} />
-      <ValidacionRui ficha={f} alGuardar={conError} />
+          Son las únicas tres decisiones de esta pantalla —en
+          qué etapa está, quién la lleva, a qué curso va— y
+          antes estaban repartidas: dos arriba y la tercera
+          abajo, después de dos tarjetas de solo lectura.
+
+          Lo que las junta es haber pasado la etapa a un
+          desplegable. Eran once botones en fila que se comían
+          el ancho entero, y ese ancho es el que ahora ocupa
+          «Acción de formación».
+
+          Aquí SÍ se estiran a la más alta (sin `items-start`):
+          las tres forman una sola barra de mandos, y una que
+          midiera distinto rompería la línea. */}
+      <div className="grid gap-6 lg:grid-cols-3">
+        <MoverDeEtapa ficha={f} alGuardar={conError} />
+        <Asesor ficha={f} opciones={opciones} alGuardar={conError} />
+        <Asignacion ficha={f} opciones={opciones} alGuardar={conError} />
       </div>
 
+      {/* La propuesta va A LO ANCHO, y no dentro de una
+          columna. Es una interrupción —alguien completó sus
+          datos y hay que decidir qué se acepta—, y metida en
+          una columna se lee como una tarjeta más de las diez.
+          Aquí corta la página en dos y se ve. */}
       <PropuestaDelInteresadoCard ficha={f} alGuardar={conError} />
 
-      <DatosSena ficha={f} alGuardar={conError} />
+      {/* EL EXPEDIENTE, en dos columnas.
 
-      <DatosDeLaEmpresa ficha={f} puedeEscribir={puedeEscribir} />
+          IZQUIERDA — hasta dónde va. Los tres momentos por los
+          que pasa una ficha, en el orden en que se llenan:
+          quién es (¿el nombre es el de la cédula?), dónde
+          trabaja, y qué le falta por darnos. Leída de arriba
+          abajo dice sola en qué punto está.
 
-      {/* Los dos de contactarla, EN PAREJA. Son la misma
-          tarea vista de dos formas —pedirle que complete, o
-          escribirle— y una debajo de la otra gastaban dos
-          pantallas para dos cajas medio vacías.
+          DERECHA — quién es, en datos. Es lo que el asesor
+          tiene delante mientras habla por teléfono.
 
-          El enlace va a la izquierda porque es lo primero:
-          primero se le pide que complete lo que falta, y
-          después se le escribe con los datos ya puestos. Al
-          revés, la plantilla sale llena de huecos. */}
-      {puedeEscribir && (
-        <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
-          <EnlaceCompletar ficha={f} />
-          <Tarjeta
-            titulo="Escribirle un correo"
-            descripcion="Con una plantilla, que se llena sola con los datos de esta ficha."
-            plegable
-          >
-            <EnviarCorreo participanteId={f.id} />
-          </Tarjeta>
+          `items-start` a propósito: estas dos NO se emparejan.
+          Son dos pilas independientes y forzarlas a medir lo
+          mismo abre un hueco debajo de la más corta. Es al
+          revés que en la franja de arriba, donde las tres sí
+          se estiran porque forman una sola barra. */}
+      <div className="grid gap-6 xl:grid-cols-2 xl:items-start">
+        <div className="space-y-6">
+          <ValidacionRui ficha={f} alGuardar={conError} />
+          <DatosDeLaEmpresa ficha={f} puedeEscribir={puedeEscribir} />
+          {puedeEscribir && <EnlaceCompletar ficha={f} />}
         </div>
-      )}
 
-      {/* La autorización y las notas, también en pareja: la
-          primera se mira una vez y la segunda se lee de
-          reojo. */}
+        <div className="space-y-6">
+          <DatosSena ficha={f} alGuardar={conError} />
+        </div>
+      </div>
+
+      {/* EL PERMISO Y EL CONTACTO, en pareja y en este orden.
+
+          La autorización va PRIMERO y a la izquierda: es lo
+          que decide si se le puede escribir. Al revés —el
+          correo primero— la pantalla invita a mandar un correo
+          y deja la pregunta de si se podía para después, que
+          es justo el orden en que se cometen esos errores. */}
       <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
       <Tarjeta
         titulo="Autorización de tratamiento de datos"
@@ -272,6 +251,23 @@ export default function PaginaFicha() {
         )}
       </Tarjeta>
 
+      {puedeEscribir && (
+        <Tarjeta
+          titulo="Escribirle un correo"
+          descripcion="Con una plantilla, que se llena sola con los datos de esta ficha."
+          plegable
+        >
+          <EnviarCorreo participanteId={f.id} />
+        </Tarjeta>
+      )}
+      </div>
+
+      {/* Las notas van A LO ANCHO y solas.
+
+          Antes compartían fila con la autorización, y es la
+          única caja de esta pantalla donde se ESCRIBE de
+          verdad: media pantalla dejaba el renglón de la nota
+          tan corto que no cabía una frase entera. */}
       <Tarjeta
         titulo="Notas"
         descripcion="No se borran: una corrección es otra nota."
@@ -356,8 +352,6 @@ export default function PaginaFicha() {
         </div>
       </Tarjeta>
 
-      </div>
-
       {/* LOS DOS HISTORIALES, en pareja y plegados.
 
           A la izquierda, qué HIZO alguien. A la derecha, qué
@@ -367,7 +361,7 @@ export default function PaginaFicha() {
           quién lo tocó. */}
       <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
       <Tarjeta
-        titulo="Historial"
+        titulo="Control de cambios"
         descripcion="Cada cambio de etapa, con quién lo hizo y por qué."
         plegable
         insignia={`${f.movimientos.length}`}
@@ -401,7 +395,7 @@ export default function PaginaFicha() {
       </Tarjeta>
 
       <Tarjeta
-        titulo="Qué decía antes"
+        titulo="Cambios realizados"
         descripcion="Cada dato que se corrigió, con su valor anterior."
         plegable
       >
@@ -467,6 +461,107 @@ export default function PaginaFicha() {
         />
       )}
     </div>
+  );
+}
+
+/**
+ * Cambiar de etapa, en un desplegable.
+ *
+ * Eran once botones en fila. Se veían todos a la vez, que es
+ * lo bueno de un botón, pero ocupaban el ancho entero de la
+ * pantalla para una acción que se hace una vez cada varios
+ * días — y por ese ancho «Acción de formación» tenía que irse
+ * abajo, lejos de las otras dos decisiones.
+ *
+ * Lo que NO se pierde al cambiarlos por un desplegable: la
+ * etapa actual sigue viéndose sin abrir nada (es el valor
+ * seleccionado, y además está la píldora del encabezado), y
+ * las etapas de salida siguen exigiendo motivo.
+ *
+ * Lo que se gana: las tres decisiones caben en una franja.
+ */
+function MoverDeEtapa({
+  ficha,
+  alGuardar,
+}: {
+  ficha: Ficha;
+  alGuardar: (accion: () => Promise<void>, exito?: string) => Promise<void>;
+}) {
+  /// El desplegable NO se controla con estado propio.
+  ///
+  /// Su valor es siempre `ficha.etapa`. Así, si el cambio
+  /// falla —o lo cancelan en el prompt del motivo— el
+  /// desplegable vuelve solo a lo que de verdad hay guardado.
+  /// Con estado propio se quedaría enseñando una etapa que no
+  /// se llegó a grabar, que es la peor forma de mentir: la
+  /// silenciosa.
+  function mover(destino: Etapa) {
+    if (destino === ficha.etapa) return;
+
+    let motivo: string | undefined;
+    if (ETAPAS_SALIDA.includes(destino)) {
+      /// Las etapas de salida piden motivo SIEMPRE. Sacar a
+      /// alguien de una convocatoria sin decir por qué deja
+      /// una ficha que nadie sabe leer seis meses después.
+      const escrito = window.prompt(
+        `¿Por qué pasa a «${ETIQUETA_ETAPA[destino]}»? Es obligatorio.`,
+      );
+      if (!escrito?.trim()) return;
+      motivo = escrito.trim();
+    }
+
+    void alGuardar(
+      async () => {
+        await crmApi.cambiarEtapa(ficha.id, destino, motivo);
+      },
+      `Ahora está en «${ETIQUETA_ETAPA[destino]}».`,
+    );
+  }
+
+  /// La etapa de ahora puede NO ser de las que se mueven a
+  /// mano: `ETAPAS_A_MANO` son cuatro, y una ficha puede estar
+  /// en «En formación» o «Certificado», que las pone el
+  /// sistema.
+  ///
+  /// Con los botones de antes eso no se notaba —ninguno salía
+  /// marcado— pero un `select` con un `value` que no está
+  /// entre sus opciones enseña la PRIMERA, y entonces la
+  /// pantalla diría «Interesado» de alguien que está
+  /// certificado. Por eso la etapa actual se añade como opción
+  /// deshabilitada cuando no está en la lista: se ve la
+  /// verdad, y no se puede volver a ella por error.
+  const aMano = ETAPAS_A_MANO.includes(ficha.etapa)
+    ? ETAPAS_A_MANO
+    : [ficha.etapa, ...ETAPAS_A_MANO];
+
+  return (
+    <Tarjeta titulo="Mover de etapa">
+      <Campo
+        etiqueta="Etapa"
+        ayuda={
+          !ETAPAS_A_MANO.includes(ficha.etapa)
+            ? `«${ETIQUETA_ETAPA[ficha.etapa]}» la pone el sistema. Desde aquí se puede mover a otra, pero no volver a ella.`
+            : "Las etapas de salida piden un motivo antes de guardar."
+        }
+      >
+        <select
+          className={CLASE_CONTROL}
+          value={ficha.etapa}
+          onChange={(e) => mover(e.target.value as Etapa)}
+        >
+          {aMano.map((e) => (
+            <option
+              key={e}
+              value={e}
+              disabled={!ETAPAS_A_MANO.includes(e)}
+            >
+              {ETIQUETA_ETAPA[e]}
+              {ETAPAS_SALIDA.includes(e) ? " · salida" : ""}
+            </option>
+          ))}
+        </select>
+      </Campo>
+    </Tarjeta>
   );
 }
 
@@ -1171,14 +1266,17 @@ function DatosDeLaEmpresa({
   ).length;
 
   return (
-    /// El título nombra a la organización, no la etiqueta.
+    /// El título dice QUÉ ES la tarjeta, no cómo se llama la
+    /// empresa.
     ///
-    /// «Su organización» no dice nada que la persona no sepa;
-    /// la razón social sí, y de un vistazo. Para el
-    /// independiente el título dice lo que es -- un RUT, no
-    /// una empresa -- porque ahí lo que importa es la figura.
+    /// Estuvo un tiempo titulada con la razón social, y era un
+    /// error de orientación: en una columna de tres tarjetas,
+    /// «SOLUCIONES INTEGRALES DEL CARIBE S.A.S.» no le dice a
+    /// nadie que ahí dentro está el NIT. La razón social sigue
+    /// estando, dos renglones más abajo, que es donde se lee
+    /// como dato y no como rótulo.
     <Tarjeta
-      titulo={porSuCuenta ? "Independiente con RUT" : e.razonSocial}
+      titulo={porSuCuenta ? "Independiente con RUT" : "Datos de empresa"}
       plegable
       insignia={
         faltanDelAsesor > 0 ? `Faltan ${faltanDelAsesor} suyos` : "Completa"
@@ -1187,15 +1285,14 @@ function DatosDeLaEmpresa({
       <Campos campos={CAMPOS} />
 
       {DEL_ASESOR.length > 0 && (
+        /// Sin encabezado y sin explicación.
+        ///
+        /// Aquí decía «Lo que usted puede preguntarle — se los
+        /// sabe el empleado». Sobra: quien abre esta ficha ya
+        /// sabe qué le toca a él y qué al analista, y un
+        /// párrafo que se lo recuerda cada vez es ruido que
+        /// tapa los datos. Una línea separa y basta.
         <div className="mt-5 border-t border-borde pt-4">
-          <p className="text-xs font-semibold tracking-wide uppercase opacity-55">
-            Lo que usted puede preguntarle
-          </p>
-          <p className="mt-1 mb-3 text-xs text-texto-suave">
-            {faltanDelAsesor === 0
-              ? "Ya están los tres. No hay nada que preguntar."
-              : "Se los sabe el empleado. Son los mismos que pide el enlace de completar datos."}
-          </p>
           {/* EDITABLES desde aquí.
 
               Antes había que ir a «Empresas registradas» —que
@@ -1215,16 +1312,25 @@ function DatosDeLaEmpresa({
       )}
 
       {DEL_ANALISTA.length > 0 && (
-        <div className="mt-5 border-t border-borde pt-4">
-          <p className="text-xs font-semibold tracking-wide uppercase opacity-55">
-            Lo que llena el analista
-          </p>
-          <p className="mt-1 mb-3 text-xs text-texto-suave">
-            Los trae la consulta al RUES por el NIT, o se corrigen en
-            Empresas registradas. No los persiga usted.
-          </p>
-          <Campos campos={DEL_ANALISTA} />
-        </div>
+        /// PLEGADO, no borrado.
+        ///
+        /// Mauricio pidió que la tarjeta enseñe solo los cinco
+        /// que son del asesor, y tiene razón: seis campos más
+        /// que él no persigue convertían esto en una lista de
+        /// «Falta» que no se puede accionar.
+        ///
+        /// Pero borrarlos sería peor: son los que espera la
+        /// fila del F7, y sin ellos a la vista nadie se entera
+        /// de que faltan hasta que el reporte sale corto. Así
+        /// que se pliegan: fuera de la vista, a un clic.
+        <details className="mt-5 border-t border-borde pt-4">
+          <summary className="cursor-pointer text-xs text-texto-suave">
+            Lo que llena el analista, para el F7 ({DEL_ANALISTA.length})
+          </summary>
+          <div className="mt-3">
+            <Campos campos={DEL_ANALISTA} />
+          </div>
+        </details>
       )}
 
       {/* La pregunta que esta tarjeta no contestaba: ¿esto me
@@ -1289,30 +1395,25 @@ function LoQuePedira({ ficha }: { ficha: Ficha }) {
     );
   }
 
+  /// Cuántos datos son, sin decir cuáles.
+  ///
+  /// Aquí se listaban uno por uno, en dos párrafos —«Primero,
+  /// de su organización: nombre del jefe directo, cargo del
+  /// jefe directo, correo del jefe directo. Después, lo suyo:
+  /// un celular que sea un número.»—, y esa lista no le sirve
+  /// a nadie: el asesor no va a preguntarlos él, los pregunta
+  /// el formulario. Lo único que necesita saber antes de
+  /// mandar el enlace es que hay algo que pedir.
+  const cuantos = empresa.length + persona.length;
+
   return (
     <div className="rounded-xl border border-borde bg-superficie-alterna p-4 text-sm">
-      <p className="font-medium">Lo que le va a pedir</p>
-
-      {empresa.length > 0 && (
-        <div className="mt-2">
-          <p className="text-texto-suave">
-            <strong className="text-texto">Primero, de su organización:</strong>{" "}
-            {empresa.join(", ")}.
-          </p>
-        </div>
-      )}
-
-      {persona.length > 0 && (
-        <div className="mt-2">
-          <p className="text-texto-suave">
-            <strong className="text-texto">Después, lo suyo:</strong>{" "}
-            {persona.join(", ")}.
-          </p>
-        </div>
-      )}
-
-      <p className="mt-3 text-xs text-texto-suave">
-        Solo se le pregunta lo que falta. Lo que ya dio no se le vuelve a pedir.
+      <p className="font-medium">
+        {cuantos === 1 ? "Le falta un dato" : `Le faltan ${cuantos} datos`}
+      </p>
+      <p className="mt-1 text-texto-suave">
+        Solo se pregunta los datos pendientes. Lo que ya dio no se le vuelve a
+        pedir.
       </p>
     </div>
   );

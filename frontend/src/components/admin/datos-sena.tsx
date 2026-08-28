@@ -130,11 +130,21 @@ export function DatosSena({
       titulo={
         ficha.etapa === "INSCRITO" ? "Datos del inscrito" : "Datos del interesado"
       }
-      /// Plegable: son veinte campos que se llenan una vez y
-      /// se corrigen de tarde en tarde. Abiertos empujaban
-      /// fuera de pantalla el historial y las notas, que son
-      /// lo que uno mira al abrir una ficha.
+      /// Plegable, pero ABIERTA de entrada.
+      ///
+      /// El motivo de plegarla era que sus veinte campos
+      /// empujaban fuera de pantalla el historial y las notas.
+      /// Eso dejó de ser cierto: ahora esta tarjeta vive en su
+      /// propia columna, al lado del expediente, y lo que hay
+      /// debajo no depende de su alto.
+      ///
+      /// Y cerrada dejaba media pantalla en blanco, que es lo
+      /// contrario de lo que se pidió: la parte derecha existe
+      /// justamente para tener delante los datos de la persona
+      /// mientras se habla con ella por teléfono. Se puede
+      /// seguir cerrando a mano.
       plegable
+      abiertaPorDefecto
     >
       <div className="space-y-4">
         <div className="grid gap-4 sm:grid-cols-2">
