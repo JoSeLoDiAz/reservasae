@@ -399,3 +399,31 @@ export class ResolverPropuestaDto {
   @IsString({ each: true })
   aceptados!: string[];
 }
+
+/**
+ * Los tres del jefe directo, y solo esos.
+ *
+ * La RAZÓN SOCIAL no está aquí a propósito: la valida el
+ * código contra el registro, y dejar que se escriba a mano por
+ * esta puerta es volver a abrir lo que se cerró en la ruta
+ * pública de reservas, donde cualquiera con un NIT le cambiaba
+ * el nombre a una empresa.
+ */
+export class ContactoDeLaEmpresaDto {
+  @IsOptional()
+  @Transform(recortar)
+  @IsString()
+  @MaxLength(120)
+  contactoNombre?: string;
+
+  @IsOptional()
+  @Transform(recortar)
+  @IsString()
+  @MaxLength(120)
+  contactoCargo?: string;
+
+  @IsOptional()
+  @Transform(recortar)
+  @IsEmail({}, { message: 'El correo del contacto no tiene un formato válido.' })
+  contactoCorreo?: string;
+}
