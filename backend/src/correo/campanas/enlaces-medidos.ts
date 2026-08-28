@@ -44,3 +44,48 @@ export function reescribirEnlaces(
     return `<a href="${destino}">${url}</a>`;
   });
 }
+
+/**
+ * Los enlaces que de verdad lleva un texto.
+ *
+ * Se usa para comprobar, al pulsar, que el destino que viene
+ * en la URL es uno de los que la campaña escribió.
+ */
+export function enlacesDe(texto: string): string[] {
+  return [...new Set(texto.match(ENLACE) ?? [])];
+}
+
+/**
+ * ¿Es este destino uno de los de la campaña?
+ *
+ * Antes solo se comprobaba que empezara por http, y con eso
+ * el dominio del gremio redirigía a donde le pidieran. El
+ * propio comentario del código lo advertía —«sería abrirle la
+ * puerta a que usen nuestro dominio»— pero la comprobación no
+ * lo hacía.
+ *
+ * Importa porque quien recibe el correo YA confía en ese
+ * remitente: le escribió sobre su inscripción al SENA. Un
+ * enlace que sale del dominio del gremio y termina en una
+ * página de estafa no le resulta raro a nadie, y la marca del
+ * gremio queda pegada al fraude.
+ *
+ * No hace falta guardar nada aparte: los enlaces están en el
+ * cuerpo de la campaña, que es la fuente de la verdad.
+ */
+export function destinoPermitido(
+  cuerpoDeLaCampana: string,
+  destino: string | undefined,
+): string | null {
+  if (!destino) return null;
+
+  /// El esquema se sigue exigiendo: es lo que descarta
+  /// `javascript:` y `data:`.
+  if (!/^https?:\/\//i.test(destino)) return null;
+
+  /// Y ahora lo que faltaba: que esté en la lista. Comparación
+  /// exacta, sin normalizar: el que se reescribió salió de
+  /// este mismo texto, así que si no coincide letra por letra
+  /// es que alguien lo cambió por el camino.
+  return enlacesDe(cuerpoDeLaCampana).includes(destino) ? destino : null;
+}

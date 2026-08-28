@@ -20,7 +20,7 @@ import {
 import { escaparHtml } from '../escapar';
 import { revisarBase } from './base-cargada';
 import { datosParaPlantilla, deLaListaSubida } from './datos-plantilla';
-import { reescribirEnlaces } from './enlaces-medidos';
+import { destinoPermitido, reescribirEnlaces } from './enlaces-medidos';
 import {
   inicioDelDiaColombiano,
   sePuedeAhora,
@@ -730,6 +730,26 @@ export class CampanasService {
   }
 
   /** Anota un clic. Este sí es un hecho. */
+  /**
+   * A dónde puede llevar este clic, si es que puede.
+   *
+   * Público a propósito, como el resto de la ruta: quien lo
+   * pulsa es una persona en su correo, sin sesión. Lo que se
+   * comprueba no es quién pide, sino que el destino sea uno de
+   * los que la propia campaña escribió.
+   */
+  async destinoDelClic(
+    campanaId: string,
+    destino: string | undefined,
+  ): Promise<string | null> {
+    const c = await this.prisma.campana.findUnique({
+      where: { id: campanaId },
+      select: { cuerpo: true },
+    });
+    if (!c) return null;
+    return destinoPermitido(c.cuerpo, destino);
+  }
+
   async anotarClic(destinatarioId: string): Promise<void> {
     const d = await this.prisma.destinatarioCampana.findUnique({
       where: { id: destinatarioId },

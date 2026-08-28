@@ -282,17 +282,22 @@ export class CampanasPublicoController {
    */
   @Get(':id/clic/:destinatarioId')
   async clic(
+    @Param('id') campanaId: string,
     @Param('destinatarioId') destinatarioId: string,
     @Query('a') destino: string | undefined,
     @Res() res: Response,
   ) {
     await this.campanas.anotarClic(destinatarioId).catch(() => undefined);
 
-    /// Solo http(s), y nada de `javascript:`. Este parámetro
-    /// viaja en una URL que cualquiera puede reescribir, así
-    /// que redirigir a lo que venga sería abrirle la puerta a
-    /// que usen nuestro dominio para mandar a donde sea.
-    const seguro = destino && /^https?:\/\//i.test(destino) ? destino : '/';
-    res.redirect(302, seguro);
+    /// El destino tiene que ser UNO DE LOS DE ESTA CAMPAÑA.
+    ///
+    /// Antes solo se comprobaba que empezara por http, y con
+    /// eso el dominio del gremio redirigía a donde le
+    /// pidieran. Quien recibe el correo ya confía en ese
+    /// remitente —le escribió sobre su inscripción—, así que
+    /// un enlace que sale de aquí y termina en una página de
+    /// estafa no le resulta raro a nadie.
+    const seguro = await this.campanas.destinoDelClic(campanaId, destino);
+    res.redirect(302, seguro ?? '/');
   }
 }
