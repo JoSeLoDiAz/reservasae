@@ -583,7 +583,7 @@ export function Tabla<T>({
     total !== undefined && total > (filas?.length ?? 0) ? total : null;
 
   return (
-    <div className="flex min-h-0 grow flex-col gap-3">
+    <div className="flex min-h-0 grow flex-col gap-2">
       <Barra
         buscar={buscar}
         setBuscar={setBuscar}
@@ -597,6 +597,24 @@ export function Tabla<T>({
             ? undefined
             : () => bajarCsv(id, enPantalla, filtradas)
         }
+      />
+
+      {/* La paginación va ARRIBA, con los botones.
+          Abajo obligaba a bajar toda la tabla para cambiar de
+          página o de tamaño, y con cincuenta filas eso son dos
+          pantallas de rueda para volver a subir. Aquí está
+          donde se decide qué se está mirando. */}
+      <Pie
+        mostradas={enPagina.length}
+        filtradas={filtradas?.length ?? 0}
+        cargadas={filas?.length ?? 0}
+        total={total}
+        pagina={pagina}
+        paginas={paginas}
+        setPagina={setPagina}
+        tamano={tamano}
+        setTamano={cambiarTamano}
+        alCargarTodo={alCargarTodo}
       />
 
       {chips.length > 0 && (
@@ -925,18 +943,6 @@ export function Tabla<T>({
         )}
       </div>
 
-      <Pie
-        mostradas={enPagina.length}
-        filtradas={filtradas?.length ?? 0}
-        cargadas={filas?.length ?? 0}
-        total={total}
-        pagina={pagina}
-        paginas={paginas}
-        setPagina={setPagina}
-        tamano={tamano}
-        setTamano={cambiarTamano}
-        alCargarTodo={alCargarTodo}
-      />
     </div>
   );
 }
@@ -1407,24 +1413,26 @@ function Pie({
 
   return (
     <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-texto-suave">
-      {/* «Mostrando 26–50 de 175» dice DÓNDE está uno parado.
-          Antes solo decía cuántas filas había en total, que no
-          es lo mismo: con eso no se sabe si lo que se está
-          mirando es el principio o el final. */}
-      <span>
+      {/* Corto: «26–50 / 175».
+
+          Decía «Mostrando 26–50 de 175», que es la misma
+          información en el triple de ancho. Arriba, al lado de
+          los botones, ese ancho es sitio que le quita a la
+          tabla; y quien mira una paginación entiende la barra
+          sin que se lo expliquen. */}
+      <span className="tabular-nums">
         {mostradas > 0 && (
           <>
-            Mostrando{" "}
-            <strong className="font-medium text-texto tabular-nums">
+            <strong className="font-medium text-texto">
               {(desde + 1).toLocaleString("es-CO")}–
               {(desde + mostradas).toLocaleString("es-CO")}
-            </strong>{" "}
-            de{" "}
-            <strong className="font-medium text-texto tabular-nums">
+            </strong>
+            {" / "}
+            <strong className="font-medium text-texto">
               {filtradas.toLocaleString("es-CO")}
             </strong>
             {filtradas !== cargadas &&
-              ` (filtradas de ${cargadas.toLocaleString("es-CO")})`}
+              ` (de ${cargadas.toLocaleString("es-CO")})`}
           </>
         )}
       </span>

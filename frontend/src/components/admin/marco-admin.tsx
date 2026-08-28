@@ -466,27 +466,33 @@ function ChipUsuario({
   alSalir: () => void;
 }) {
   return (
-    // sin recuadro: en la barra de arriba, un marco alrededor
-    // del nombre lo hacia parecer un boton que no es
-    <div className="flex shrink-0 items-center gap-2.5">
-      <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-marca text-xs font-bold text-marca-texto">
-        {(admin.nombre[0] ?? "?").toUpperCase()}
-      </span>
-      {/* el cargo se esconde en pantallas chicas: en la barra
-          de arriba compite con las migas */}
-      <span className="hidden min-w-0 flex-col leading-tight sm:flex">
-        <span className="truncate text-xs font-semibold">{admin.nombre}</span>
-        <span className="truncate text-[10px] opacity-60">
+    /// Sin la inicial en un cuadrito.
+    ///
+    /// Esa placa de una letra no identificaba a nadie —quien
+    /// está adentro sabe quién es— y le quitaba sitio al
+    /// nombre, que sí sirve. Lo que queda es el nombre con su
+    /// cargo, alineados a la derecha, y una salida que se ve.
+    <div className="flex shrink-0 items-center gap-3">
+      <span className="hidden min-w-0 flex-col items-end leading-tight sm:flex">
+        <span className="truncate text-sm font-semibold">{admin.nombre}</span>
+        <span className="truncate text-xs text-texto-suave">
           {admin.cargo ?? admin.rol}
         </span>
       </span>
+      {/* Un separador fino en vez del cuadrito: dice «esto de
+          aquí es suyo» sin gritar una inicial. */}
+      <span aria-hidden className="hidden h-8 w-px bg-borde sm:block" />
       <button
         onClick={alSalir}
         title="Cerrar sesión"
         aria-label="Cerrar sesión"
-        className="shrink-0 rounded-lg p-1.5 opacity-60 transition hover:bg-error/15 hover:text-error hover:opacity-100"
+        /// Más grande, y con su palabra al lado en pantalla
+        /// ancha. Un icono de 15px sin texto se busca; la
+        /// salida no se debería buscar.
+        className="flex shrink-0 items-center gap-2 rounded-xl px-3 py-2 text-sm text-texto-suave transition hover:bg-error-suave hover:text-error"
       >
-        <IconoSalir tamano={15} />
+        <IconoSalir tamano={20} />
+        <span className="hidden lg:inline">Salir</span>
       </button>
     </div>
   );
