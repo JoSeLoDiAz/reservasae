@@ -17,6 +17,7 @@ import {
   Tarjeta,
   useAdmin,
 } from "@/components/admin/marco-admin";
+import { HistoricoDeValores } from "@/components/admin/historico-valores";
 import { EnviarCorreo } from "@/components/admin/enviar-correo";
 import { RevisarPropuesta } from "@/components/admin/revisar-propuesta";
 import { useToast } from "@/components/admin/toast";
@@ -326,9 +327,14 @@ export default function PaginaFicha() {
 
       </div>
 
-      {/* El historial: plegado. Se consulta cuando algo no
-          cuadra, no todos los días, y abierto empujaba la
-          ficha entera hacia arriba. */}
+      {/* LOS DOS HISTORIALES, en pareja y plegados.
+
+          A la izquierda, qué HIZO alguien. A la derecha, qué
+          DECÍA el dato. Son dos preguntas distintas: la
+          primera no sirve para deshacer —«Ana cambió el correo
+          el martes» no dice cuál era— y la segunda no dice
+          quién lo tocó. */}
+      <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
       <Tarjeta
         titulo="Historial"
         descripcion="Cada cambio de etapa, con quién lo hizo y por qué."
@@ -362,6 +368,18 @@ export default function PaginaFicha() {
           ))}
         </ol>
       </Tarjeta>
+
+      <Tarjeta
+        titulo="Qué decía antes"
+        descripcion="Cada dato que se corrigió, con su valor anterior."
+        plegable
+      >
+        <HistoricoDeValores
+          participanteId={f.id}
+          puedeEscribir={puedeEscribir}
+        />
+      </Tarjeta>
+      </div>
 
       {f.persona.participaciones.length > 0 && (
         <Tarjeta

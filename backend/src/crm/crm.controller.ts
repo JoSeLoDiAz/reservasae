@@ -389,6 +389,30 @@ export class CrmController {
     return this.plantillasCorreo.enviar(id, plantillaId, ambito.convenios);
   }
 
+  /// El «Historial Logs»: qué decía antes cada dato.
+  ///
+  /// Separado del historial de movimientos a propósito: son
+  /// dos preguntas distintas. Aquel dice QUÉ HIZO alguien;
+  /// este, QUÉ DECÍA EL DATO.
+  @Get(':id/historico')
+  historico(@Param('id') id: string, @AmbitoActual() ambito: Ambito) {
+    return this.crm.historicoDeValores(id, ambito.convenios);
+  }
+
+  /// Devolver un campo a como estaba. Exige ESCRIBIR: es un
+  /// cambio como cualquier otro, y deja su propia huella.
+  @Post(':id/historico/:valorId/restablecer')
+  @Requiere('inscripciones', 'ESCRIBIR')
+  restablecer(
+    @Param('id') id: string,
+    @Param('valorId') valorId: string,
+    @AmbitoActual() ambito: Ambito,
+    @AdminActual() admin: Admin,
+    @IpReal() ip: string,
+  ) {
+    return this.crm.restablecerValor(id, valorId, ambito.convenios, admin, ip);
+  }
+
   /** Un enlace para que la persona complete su ficha. */
   @Post(':id/enlace')
   @Requiere('inscripciones', 'ESCRIBIR')

@@ -756,6 +756,7 @@ model Participante {
   cobertura       GrupoCobertura?          @relation(fields: [coberturaId], references: [id], onDelete: SetNull)
   asesor          Admin?                   @relation("ParticipantesDelAsesor", fields: [asesorId], references: [id], onDelete: SetNull)
   sobrecupoPor    Admin?                   @relation("SobrecuposAutorizados", fields: [sobrecupoPorId], references: [id], onDelete: SetNull)
+  valoresAnteriores ValorAnterior[]
   movimientos     MovimientoParticipante[]
   notas           NotaParticipante[]
   avances         AvanceActividad[]
@@ -951,6 +952,8 @@ model Admin {
   participantesAsignados   Participante[]           @relation("ParticipantesDelAsesor")
   sobrecuposAutorizados    Participante[]           @relation("SobrecuposAutorizados")
   movimientosParticipante  MovimientoParticipante[]
+  valoresAnteriores        ValorAnterior[]          @relation("ValoresAnteriores")
+  valoresRestaurados       ValorAnterior[]          @relation("ValoresRestaurados")
   notasParticipante        NotaParticipante[]
   plantillasCorreo         PlantillaCorreo[]
   campanas                 Campana[]
@@ -1623,4 +1626,81 @@ model DestinatarioCampana {
   @@index([campanaId, estado])
   @@index([participanteId, enviadoEn])
   @@map("destinatarios_campana")
+}
+
+/// Con qué regla se trata cada dato.
+///
+/// No es una etiqueta: decide si el valor viejo se guarda y
+/// quién lo puede ver.
+enum ClaseDeDato {
+  /// Cambia de verdad con el tiempo: celular, dirección,
+  /// barrio. Se guarda el valor anterior.
+  CONTACTO
+
+  /// Casi siempre es corregir un tecleo. Se guarda el valor
+  /// AUNQUE sea dato personal, por una razón concreta:
+  /// corregir «Perez → Pérez» y sustituirle la identidad a un
+  /// lead se ven IGUAL en una lista de nombres de campo. Sin
+  /// el valor de antes, el histórico deja pasar justo el
+  /// fraude para el que existe.
+  IDENTIDAD
+
+  /// De la ficha del curso, no de la persona: cargo, nivel
+  /// ocupacional, grupo. Se enseña sin tapar.
+  FORMACION
+
+  /// Población vulnerable. NUNCA se guarda el valor: ni
+  /// tapado, ni para un superadmin. Que alguien fue víctima
+  /// del conflicto y lo desmarcó no puede quedar escrito en
+  /// una segunda tabla — es el dato del artículo 5 de la Ley
+  /// 1581, y en Colombia divulgarlo pone a alguien en riesgo.
+  /// Del cambio queda la constancia, no el valor.
+  SENSIBLE
+}
+
+/// Qué decía antes. El «Historial Logs».
+///
+/// El otro historial —MovimientoParticipante— cuenta QUÉ HIZO
+/// alguien. Este cuenta QUÉ DECÍA EL DATO. Son dos preguntas
+/// distintas y por eso son dos tablas: «Ana cambió el correo
+/// el martes» no sirve para restablecerlo, y «decía
+/// maria@ferreteria.com» no dice quién lo tocó.
+///
+/// Existe para poder DESHACER. Sin el valor viejo, una
+/// corrección equivocada es definitiva.
+model ValorAnterior {
+  id             String @id @default(cuid())
+  participanteId String
+
+  /// El campo, con el nombre que usa el código.
+  campo String
+  clase ClaseDeDato
+
+  /// Lo que decía. NULL cuando la clase es SENSIBLE —ahí se
+  /// guarda que cambió, nunca qué decía— y también cuando el
+  /// campo estaba vacío, que es distinto de no haberlo
+  /// guardado. `habiaValor` desempata.
+  valorAnterior String?
+  habiaValor    Boolean @default(true)
+
+  /// Quién y desde dónde. `actorNombre` congelado: la cuenta
+  /// puede desaparecer y la huella no.
+  adminId     String?
+  actorNombre String
+  ip          String?
+
+  /// Se restableció desde aquí. No se borra la fila: deshacer
+  /// también es un cambio, y se tiene que poder ver.
+  restauradoEn   DateTime?
+  restauradoPorId String?
+
+  creadoEn DateTime @default(now())
+
+  participante Participante @relation(fields: [participanteId], references: [id], onDelete: Cascade)
+  admin        Admin?       @relation("ValoresAnteriores", fields: [adminId], references: [id], onDelete: SetNull)
+  restauradoPor Admin?      @relation("ValoresRestaurados", fields: [restauradoPorId], references: [id], onDelete: SetNull)
+
+  @@index([participanteId, creadoEn])
+  @@index([creadoEn])
+  @@map("valores_anteriores")
 }

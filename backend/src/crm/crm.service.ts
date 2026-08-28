@@ -15,6 +15,12 @@ import {
 } from '../../generated/prisma';
 import { ENTIDADES, AuditoriaService, type Actor } from '../comun/auditoria.service';
 import { taparDocumento } from '../comun/tapar';
+import {
+  CLASE_POR_CAMPO,
+  enPalabras as enPalabrasElCampo,
+  seGuardaElValor,
+  seHistoria,
+} from './clase-de-dato';
 import { documentoValido, normalizarDocumento } from '../comun/documento';
 import { analizar, esInsalvable, repetidosEnElPegado } from './carga';
 import {
@@ -1101,6 +1107,25 @@ export class CrmService {
     // Asignarle un asesor no cuenta, que no toca sus datos
     const tocoDatosDePersona = this.queCambio(dePersona, p.persona).length > 0;
 
+    /// El histórico, calculado ANTES de escribir: después del
+    /// update ya no se puede saber qué decía.
+    const historico = [
+      ...this.valoresQueSeVan(
+        dePersona,
+        p.persona,
+        id,
+        { id: admin.id, nombre: admin.nombre },
+        ip,
+      ),
+      ...this.valoresQueSeVan(
+        deParticipante,
+        p,
+        id,
+        { id: admin.id, nombre: admin.nombre },
+        ip,
+      ),
+    ];
+
     const escrituras: Prisma.PrismaPromise<unknown>[] = [
       this.prisma.persona.update({
         where: { id: p.personaId },
@@ -1114,6 +1139,12 @@ export class CrmService {
         },
       }),
     ];
+
+    if (historico.length > 0) {
+      escrituras.push(
+        this.prisma.valorAnterior.createMany({ data: historico }),
+      );
+    }
 
     if (partes.length > 0) {
       escrituras.push(
@@ -1158,6 +1189,164 @@ export class CrmService {
   }
 
   /** Qué datos llegan distintos de los que ya hay. */
+  /**
+   * Las filas del histórico de valores, para lo que cambió.
+   *
+   * Se calcula ANTES de escribir, con lo que había: después
+   * del update ya no se puede saber qué decía.
+   *
+   * La política de qué se guarda vive en `clase-de-dato.ts`,
+   * en un solo sitio. Aquí solo se aplica.
+   */
+  /**
+   * El «Historial Logs» de una ficha: qué decía antes.
+   *
+   * Recortado por ámbito como todo lo demás. `exigirParticipante`
+   * ya responde «no existe» si la ficha es de otro gremio, así
+   * que el histórico no puede ser una puerta nueva para verlo.
+   */
+  async historicoDeValores(id: string, ambito: string[]) {
+    await this.exigirParticipante(id, ambito);
+
+    const filas = await this.prisma.valorAnterior.findMany({
+      where: { participanteId: id },
+      orderBy: { creadoEn: 'desc' },
+      take: 200,
+      select: {
+        id: true,
+        campo: true,
+        clase: true,
+        valorAnterior: true,
+        habiaValor: true,
+        actorNombre: true,
+        creadoEn: true,
+        restauradoEn: true,
+        restauradoPor: { select: { nombre: true } },
+      },
+    });
+
+    return filas.map((f) => ({
+      ...f,
+      etiqueta: enPalabrasElCampo(f.campo),
+      /// Se dice explícitamente por qué no hay valor, en vez
+      /// de enseñar un hueco: un hueco se lee como un error.
+      porQueSinValor:
+        f.clase === 'SENSIBLE'
+          ? 'Es población vulnerable: queda que cambió, nunca qué decía.'
+          : !f.habiaValor
+            ? 'Estaba vacío.'
+            : null,
+      /// Restablecer solo tiene sentido si hay a qué volver.
+      sePuedeRestablecer:
+        f.restauradoEn === null && f.clase !== 'SENSIBLE' && f.habiaValor,
+    }));
+  }
+
+  /**
+   * Devolver un campo a como estaba.
+   *
+   * No borra la fila: deshacer TAMBIÉN es un cambio, y se
+   * tiene que poder ver quién lo deshizo. La fila se marca
+   * como restaurada y el cambio nuevo deja su propia fila.
+   */
+  async restablecerValor(
+    participanteId: string,
+    valorId: string,
+    ambito: string[],
+    admin: Admin,
+    ip?: string,
+  ) {
+    await this.exigirParticipante(participanteId, ambito);
+
+    const fila = await this.prisma.valorAnterior.findUnique({
+      where: { id: valorId },
+      select: {
+        id: true,
+        campo: true,
+        clase: true,
+        valorAnterior: true,
+        habiaValor: true,
+        restauradoEn: true,
+        participanteId: true,
+      },
+    });
+
+    /// La fila tiene que ser DE ESTA ficha. Sin esto, un id de
+    /// otra ficha —de otro gremio— restablecería su valor
+    /// aquí, y de paso lo revelaría.
+    if (!fila || fila.participanteId !== participanteId) {
+      throw new NotFoundException('Ese cambio ya no existe.');
+    }
+    if (fila.restauradoEn) {
+      throw new BadRequestException('Ese cambio ya se había restablecido.');
+    }
+    if (fila.clase === 'SENSIBLE' || !fila.habiaValor) {
+      throw new BadRequestException(
+        'De ese dato no se guardó el valor anterior, así que no hay a qué volver.',
+      );
+    }
+
+    /// Se pasa por `actualizar`, que es la única puerta que
+    /// escribe datos: así el restablecimiento deja su propio
+    /// movimiento y su propia fila de histórico, como
+    /// cualquier otro cambio. Si escribiera directo, deshacer
+    /// sería el único cambio invisible del sistema.
+    await this.actualizar(
+      participanteId,
+      { [fila.campo]: fila.valorAnterior } as never,
+      admin,
+      ambito,
+      ip,
+    );
+
+    await this.prisma.valorAnterior.update({
+      where: { id: valorId },
+      data: { restauradoEn: new Date(), restauradoPorId: admin.id },
+    });
+
+    return { restablecido: true, campo: fila.campo };
+  }
+
+  private valoresQueSeVan(
+    llega: object,
+    hay: object,
+    participanteId: string,
+    actor: Actor,
+    ip?: string,
+  ): Prisma.ValorAnteriorCreateManyInput[] {
+    const viejo = hay as Record<string, unknown>;
+    const filas: Prisma.ValorAnteriorCreateManyInput[] = [];
+
+    for (const [campo, valor] of Object.entries(llega)) {
+      if (valor === undefined) continue;
+      if (mismoValor(valor, viejo[campo])) continue;
+      if (!seHistoria(campo)) continue;
+
+      const antes = viejo[campo];
+      const habiaValor = antes !== null && antes !== undefined && antes !== '';
+
+      filas.push({
+        participanteId,
+        campo,
+        clase: CLASE_POR_CAMPO[campo],
+        /// Sin valor cuando la clase es SENSIBLE. Queda la
+        /// constancia del cambio, nunca qué decía.
+        valorAnterior:
+          seGuardaElValor(campo) && habiaValor
+            ? antes instanceof Date
+              ? antes.toISOString()
+              : String(antes)
+            : null,
+        habiaValor,
+        adminId: actor.id ?? null,
+        actorNombre: actor.nombre,
+        ip: ip ?? null,
+      });
+    }
+
+    return filas;
+  }
+
   private queCambio(llega: object, hay: object): string[] {
     const viejo = hay as Record<string, unknown>;
     const nombres: string[] = [];
