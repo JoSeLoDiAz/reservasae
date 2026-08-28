@@ -79,7 +79,7 @@ export class PlantillasCorreoService {
     const [lista, ficha] = await Promise.all([
       this.listar(convenios, true),
       this.prisma.participante.findUnique({
-        where: { id: participanteId },
+        where: { id: participanteId, convenioId: { in: convenios } },
         select: { etapa: true },
       }),
     ]);
@@ -182,10 +182,14 @@ export class PlantillasCorreoService {
    * el texto ya con el nombre puesto, y ve qué huecos no se
    * pudieron llenar. Nadie manda a ciegas.
    */
-  async vistaPrevia(participanteId: string, plantillaId: string) {
+  async vistaPrevia(
+    participanteId: string,
+    plantillaId: string,
+    ambito: string[],
+  ) {
     const [plantilla, datos] = await Promise.all([
       this.prisma.plantillaCorreo.findUnique({ where: { id: plantillaId } }),
-      this.datosDe(participanteId),
+      this.datosDe(participanteId, ambito),
     ]);
 
     if (!plantilla) throw new NotFoundException('Esa plantilla ya no existe.');
@@ -214,7 +218,7 @@ export class PlantillasCorreoService {
     };
   }
 
-  async enviar(participanteId: string, plantillaId: string) {
+  async enviar(participanteId: string, plantillaId: string, ambito: string[]) {
     /// La compuerta va en el SERVIDOR, no en el desplegable.
     ///
     /// El desplegable ya las apaga, pero apagar un <option> es
@@ -228,7 +232,7 @@ export class PlantillasCorreoService {
         select: { etapasPermitidas: true },
       }),
       this.prisma.participante.findUnique({
-        where: { id: participanteId },
+        where: { id: participanteId, convenioId: { in: ambito } },
         select: { etapa: true },
       }),
     ]);
@@ -238,7 +242,7 @@ export class PlantillasCorreoService {
       if (no) throw new BadRequestException(no);
     }
 
-    const vista = await this.vistaPrevia(participanteId, plantillaId);
+    const vista = await this.vistaPrevia(participanteId, plantillaId, ambito);
 
     if (!vista.para) {
       throw new BadRequestException(
@@ -298,9 +302,20 @@ export class PlantillasCorreoService {
    * alguien cambia de plantilla en el desplegable, y no vale
    * la pena ir cinco veces a la base por cada clic.
    */
-  private async datosDe(participanteId: string) {
+  /**
+   * Los datos de la ficha, SI es de un gremio que esta cuenta
+   * alcanza.
+   *
+   * El ambito es obligatorio y va en la firma a proposito.
+   * Antes esto buscaba por id y ya, y las dos rutas de correo
+   * de la ficha eran las UNICAS de su controlador que no lo
+   * recibian: con el id de un participante ajeno se leia su
+   * nombre, su cedula y su correo, y `enviar` le mandaba un
+   * correo DE VERDAD a un ciudadano del otro gremio.
+   */
+  private async datosDe(participanteId: string, ambito: string[]) {
     const p = await this.prisma.participante.findUnique({
-      where: { id: participanteId },
+      where: { id: participanteId, convenioId: { in: ambito } },
       select: {
         persona: {
           select: {

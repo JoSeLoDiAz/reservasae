@@ -355,15 +355,16 @@ export class CrmController {
     /// persona. Antes se devolvia el catalogo entero, igual
     /// para todos, y por eso ofrecia «confirmacion de
     /// inscripcion» a un interesado.
-    return this.plantillasCorreo.paraLaFicha(id, ambito.concedidos);
+    return this.plantillasCorreo.paraLaFicha(id, ambito.convenios);
   }
 
   @Get(':id/correo/:plantillaId/vista-previa')
   vistaPreviaCorreo(
     @Param('id') id: string,
     @Param('plantillaId') plantillaId: string,
+    @AmbitoActual() ambito: Ambito,
   ) {
-    return this.plantillasCorreo.vistaPrevia(id, plantillaId);
+    return this.plantillasCorreo.vistaPrevia(id, plantillaId, ambito.convenios);
   }
 
   /// Mandar exige ESCRIBIR: es algo que le llega a una
@@ -373,8 +374,9 @@ export class CrmController {
   enviarCorreo(
     @Param('id') id: string,
     @Param('plantillaId') plantillaId: string,
+    @AmbitoActual() ambito: Ambito,
   ) {
-    return this.plantillasCorreo.enviar(id, plantillaId);
+    return this.plantillasCorreo.enviar(id, plantillaId, ambito.convenios);
   }
 
   /** Un enlace para que la persona complete su ficha. */
