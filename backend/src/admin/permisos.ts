@@ -135,6 +135,28 @@ export const conveniosQueMuevenInscrito = (
     .filter(([, suyos]) => suyos.some((r) => MUEVEN_INSCRITO.includes(r)))
     .map(([convenioId]) => convenioId);
 
+/**
+ * Quien REPARTE las fichas entre asesores.
+ *
+ * Un gestor de inscripciones ES un asesor: las suyas las
+ * trabaja, no las reparte. Decidir a quien le toca cada lead
+ * es organizar el trabajo del equipo, y eso lo hace quien
+ * responde por el equipo.
+ *
+ * Sin esto, la tarjeta «Asesor» le salia a todo el mundo y
+ * cualquiera podia pasarle sus fichas a otro -- o quitarselas.
+ */
+export const REPARTEN_FICHAS: RolConvenio[] = [
+  'LIDER_INSCRIPCION',
+  'LIDER_ACADEMICO',
+  'LIDER_SISTEMAS',
+];
+
+export const conveniosQueReparten = (roles: Record<string, RolConvenio[]>) =>
+  Object.entries(roles)
+    .filter(([, suyos]) => suyos.some((r) => REPARTEN_FICHAS.includes(r)))
+    .map(([convenioId]) => convenioId);
+
 export const AREAS: Area[] = [
   'reserva',
   'inscripciones',

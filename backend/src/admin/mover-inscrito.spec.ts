@@ -1,6 +1,8 @@
 import {
   conveniosQueMuevenInscrito,
+  conveniosQueReparten,
   MUEVEN_INSCRITO,
+  REPARTEN_FICHAS,
 } from './permisos';
 
 /// Inscribir es el punto de no retorno: a partir de ahí la
@@ -85,5 +87,34 @@ describe('sacar no es lo mismo que avanzar', () => {
     // cupo sin que nadie lo firme
     expect(AVANZAR).not.toContain('INTERESADO');
     expect(AVANZAR).not.toContain('RETIRADO');
+  });
+});
+
+describe('repartir fichas entre asesores', () => {
+  /// Un gestor de inscripciones ES un asesor: las suyas las
+  /// trabaja, no las reparte. Decidir a quién le toca cada
+  /// lead es organizar el trabajo del equipo.
+
+  it('un gestor NO reparte', () => {
+    expect(REPARTEN_FICHAS).not.toContain('GESTOR_INSCRIPCION');
+    expect(REPARTEN_FICHAS).not.toContain('GESTOR_ACADEMICO');
+  });
+
+  it('consulta tampoco', () => {
+    expect(REPARTEN_FICHAS).not.toContain('CONSULTA');
+  });
+
+  it('los líderes sí', () => {
+    expect(REPARTEN_FICHAS).toContain('LIDER_INSCRIPCION');
+    expect(REPARTEN_FICHAS).toContain('LIDER_SISTEMAS');
+  });
+
+  it('y se responde por convenio, no en general', () => {
+    expect(
+      conveniosQueReparten({
+        'cv-a': ['LIDER_INSCRIPCION'],
+        'cv-b': ['GESTOR_INSCRIPCION'],
+      }),
+    ).toEqual(['cv-a']);
   });
 });

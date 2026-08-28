@@ -1008,9 +1008,31 @@ function Asesor({
   opciones: Opciones | null;
   alGuardar: (a: () => Promise<void>, exito?: string) => Promise<void>;
 }) {
+  const { admin } = useAdmin();
   const [asesorId, setAsesorId] = useState(ficha.asesor?.id ?? "");
   const [guardando, setGuardando] = useState(false);
   if (!opciones) return null;
+
+  /// A quien NO reparte fichas no se le enseña esta tarjeta.
+  ///
+  /// Un gestor de inscripciones ES un asesor: las suyas las
+  /// trabaja, no las reparte. Enseñarle un desplegable que el
+  /// servidor va a rechazar es ofrecerle un error.
+  ///
+  /// Pero se le dice de quién es la ficha, porque eso sí le
+  /// sirve: es la diferencia entre esconder y ocultar.
+  if (!admin.puede?.repartirFichas) {
+    return ficha.asesor ? (
+      <Tarjeta titulo="Asesor">
+        <p className="text-sm">
+          La lleva <strong>{ficha.asesor.nombre}</strong>.
+        </p>
+        <p className="mt-1 text-xs text-texto-suave">
+          Repartir fichas lo hace un líder.
+        </p>
+      </Tarjeta>
+    ) : null;
+  }
 
   const cambiado = asesorId !== (ficha.asesor?.id ?? "");
 

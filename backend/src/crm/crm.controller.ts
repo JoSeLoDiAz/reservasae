@@ -13,7 +13,10 @@ import {
 import { RolAdmin, type Admin } from '../../generated/prisma';
 import { AdminActual, AmbitoActual } from '../admin/admin-actual.decorator';
 import { AdminGuard, Requiere, Roles, type Ambito } from '../admin/admin.guard';
-import { conveniosQueCierran, conveniosQueMuevenInscrito } from '../admin/permisos';
+import {
+  conveniosQueCierran, conveniosQueMuevenInscrito,
+  conveniosQueReparten,
+} from '../admin/permisos';
 import { PreinscripcionService } from '../preinscripcion/preinscripcion.service';
 import { IpReal } from '../comun/ip-real';
 import { CrmService } from './crm.service';
@@ -255,7 +258,13 @@ export class CrmController {
     @AmbitoActual() ambito: Ambito,
     @IpReal() ip: string,
   ) {
-    return this.crm.asignarAsesorEnLote(dto, admin, ambito.convenios, ip);
+    return this.crm.asignarAsesorEnLote(
+      dto,
+      admin,
+      ambito.convenios,
+      ip,
+      conveniosQueReparten(ambito.roles),
+    );
   }
 
   @Get(':id')

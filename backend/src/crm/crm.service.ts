@@ -1464,6 +1464,7 @@ export class CrmService {
     admin: Admin,
     ambito: string[],
     ip?: string,
+    reparten: string[] = [],
   ) {
     const asesorId = dto.asesorId || null;
 
@@ -1472,6 +1473,24 @@ export class CrmService {
       where: { id: { in: dto.ids }, convenioId: { in: ambito } },
       select: { id: true, etapa: true, asesorId: true, convenioId: true },
     });
+
+    /// Repartir fichas es de quien responde por el equipo.
+    ///
+    /// Un gestor de inscripciones ES un asesor: las suyas las
+    /// trabaja, no las reparte. Sin esto, cualquiera podia
+    /// pasarle sus fichas a otro -- o quitarselas.
+    ///
+    /// Se comprueba por convenio y sobre las fichas de VERDAD,
+    /// no sobre lo que venga en el cuerpo.
+    const ajenos = [...new Set(suyas.map((p) => p.convenioId))].filter(
+      (c) => !reparten.includes(c),
+    );
+    if (ajenos.length > 0) {
+      throw new ForbiddenException(
+        'Repartir fichas entre asesores lo hace un lider: es organizar el ' +
+          'trabajo del equipo, no atender un lead.',
+      );
+    }
 
     /// El asesor tiene que ver TODAS las que se le asignan.
     ///
