@@ -27,6 +27,7 @@ import {
   NIVELES_OCUPACIONALES_SEP,
 } from '../crm/catalogos-sep';
 import { faltaDeLaPersona } from '../crm/completitud';
+import { aQueOrganizacionSeAta } from './organizacion-de-la-ficha';
 import { faltaDeLaEmpresa } from './empresa-incompleta';
 import { ColaRui } from '../crm/rui/cola-rui';
 import { CARACTERIZACION_POR_ID } from '../crm/catalogos-sep';
@@ -1090,8 +1091,58 @@ ${this.urlPublica()}/completar/${enlace.token}
       contactoCorreo: dto.contactoCorreo,
     };
 
-    // la de la reserva manda y no se cambia: la nominó ella
-    const suya = p.reserva?.empresaId ?? p.empresaId ?? null;
+    /// La de la RESERVA manda y no se cambia: la nominó ella.
+    ///
+    /// La suya propia SÍ se cambia, y ahí estaba el defecto:
+    /// `p.empresaId` no es una nominación, es su respuesta
+    /// anterior. Corregirla es justo para lo que existe este
+    /// enlace.
+    ///
+    /// Con las dos en el mismo `??`, quien volvía diciendo «me
+    /// equivoqué, trabajo en Vise LTDA» reescribía la
+    /// organización VIEJA con los datos de la nueva. Y como el
+    /// NIT y la razón social no van en `datos`, quedaba una
+    /// fila imposible: el NIT y el nombre de la primera con la
+    /// persona de contacto de la segunda. Visto en producción,
+    /// y la organización nueva no llegaba a crearse.
+    const nitPedido = dto.nit ? dto.nit.replace(/\D/g, '') : null;
+
+    const laDeAhora = p.empresaId
+      ? await this.prisma.empresa.findUnique({
+          where: { id: p.empresaId },
+          select: { id: true, nit: true },
+        })
+      : null;
+
+    /// Al cambiarse cae en la rama del NIT, que hace `upsert` y
+    /// vuelve a atar la ficha. La vieja se queda como estaba:
+    /// puede tener a otra gente detrás.
+    const { atar: suya, cambia: seCambia } = aQueOrganizacionSeAta({
+      nominadaPorReserva: p.reserva?.empresaId ?? null,
+      suyaAhora: laDeAhora,
+      nitQueDice: nitPedido,
+    });
+
+    /// Cambiar de organización queda escrito, como la
+    /// contradicción de situación laboral.
+    ///
+    /// No es un error de la persona —corregirse es legítimo—
+    /// pero sí cambia de quién se la reporta al SENA, y el F7
+    /// va por organización. Sin esta línea el cambio ocurría en
+    /// silencio y nadie podía explicar después por qué esa
+    /// ficha cuenta en otra empresa.
+    if (seCambia && laDeAhora) {
+      await this.auditoria.registrar({
+        actor: { nombre: 'La persona, desde su enlace' },
+        accion: 'ORGANIZACION_CAMBIADA',
+        entidad: ENTIDADES.PARTICIPANTE,
+        entidadId: p.id,
+        convenioId: p.convenioId,
+        resumen:
+          `Cambió de organización: antes NIT ${laDeAhora.nit}, ` +
+          `ahora NIT ${nitPedido}${dto.razonSocial ? ` (${dto.razonSocial})` : ''}`,
+      });
+    }
 
     if (suya) {
       await this.prisma.empresa.update({ where: { id: suya }, data: datos });
