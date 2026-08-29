@@ -60,3 +60,45 @@ describe('el gremio que nombra la dirección', () => {
     expect(etiquetaDelHost('otro.reservasae.com')).toBe('otro');
   });
 });
+
+/// Los subdominios de PRUEBAS, que llevan prefijo.
+///
+/// El 29 ago 2026 produccion se quedo con
+/// `adecopria.reservasae.com` y pruebas se mudo a
+/// `pre-adecopria.reservasae.com`. El codigo no sabia del
+/// prefijo, asi que en pruebas el gremio dejaba de resolverse
+/// —y con el, la marca del panel, la fijacion del gremio y los
+/// dos webhooks—. No fallaba nada a la vista: simplemente
+/// actuaba como si se hubiera entrado por la puerta general.
+describe('el prefijo pre- de los subdominios de pruebas', () => {
+  const CONVENIOS = [
+    { id: 'a', slug: 'adecopria' },
+    { id: 'b', slug: 'britcham-adee' },
+  ];
+
+  it('pre-adecopria es el mismo gremio que adecopria', () => {
+    expect(etiquetaDelHost('pre-adecopria.reservasae.com')).toBe('adecopria');
+  });
+
+  it('tambien con un slug que ya lleva guion', () => {
+    expect(etiquetaDelHost('pre-britcham-adee.reservasae.com')).toBe(
+      'britcham-adee',
+    );
+  });
+
+  it('y resuelve el convenio, que es lo que de verdad importa', () => {
+    expect(
+      gremioDelHost('pre-britcham-adee.reservasae.com', CONVENIOS)?.slug,
+    ).toBe('britcham-adee');
+  });
+
+  it('produccion sigue igual', () => {
+    expect(gremioDelHost('adecopria.reservasae.com', CONVENIOS)?.slug).toBe(
+      'adecopria',
+    );
+  });
+
+  it('«pre-» a secas no es un gremio', () => {
+    expect(etiquetaDelHost('pre-.reservasae.com')).toBeNull();
+  });
+});
