@@ -401,12 +401,48 @@ export class CrmService {
     });
     const ediciones = new Map(porFila.map((f) => [f.entidadId, f._count._all]));
 
+    /// La gestion de toda la pagina, en dos consultas.
+    ///
+    /// Aqui el "sin respuesta" es el de SIEMPRE y no el de
+    /// desde el ultimo contacto, que si da la ficha. Acotarlo
+    /// por fila necesitaria una fecha distinta en cada una, y
+    /// eso ya no es un groupBy. Para lo que sirve la columna
+    /// —a quien no se ha logrado contactar— las dos coinciden,
+    /// porque a esa gente no hay ningun contacto que descontar.
+    const ids = filas.map((f) => f.id);
+    const [contactos, fallidos] = await Promise.all([
+      this.prisma.notaParticipante.groupBy({
+        by: ['participanteId'],
+        where: { participanteId: { in: ids }, resultado: 'CONTACTO' },
+        _max: { creadoEn: true },
+      }),
+      this.prisma.notaParticipante.groupBy({
+        by: ['participanteId'],
+        where: {
+          participanteId: { in: ids },
+          resultado: { in: ['SIN_RESPUESTA', 'DATO_MALO'] },
+        },
+        _count: { _all: true },
+      }),
+    ]);
+    const ultimoContacto = new Map(
+      contactos.map((c) => [c.participanteId, c._max.creadoEn]),
+    );
+    const sinRespuesta = new Map(
+      fallidos.map((c) => [c.participanteId, c._count._all]),
+    );
+
     return {
       total,
       pagina,
       paginas: Math.max(1, Math.ceil(total / porPagina)),
       participantes: filas.map((p) =>
-        this.aFila({ ...p, ediciones: ediciones.get(p.id) ?? 0 }),
+        this.aFila({
+          ...p,
+          ediciones: ediciones.get(p.id) ?? 0,
+          ultimoContacto: ultimoContacto.get(p.id) ?? null,
+          sinRespuesta: sinRespuesta.get(p.id) ?? 0,
+        }),
       ),
     };
   }
@@ -434,6 +470,8 @@ export class CrmService {
       // las unicas que un asesor elige a mano
       etapasAMano: ETAPAS_A_MANO,
       canalesDeContacto: ['CORREO', 'WHATSAPP', 'TEXTO', 'LLAMADA'],
+      // como salio la gestion; el panel los dibuja de aqui
+      resultadosDeGestion: ['CONTACTO', 'SIN_RESPUESTA', 'DATO_MALO'],
     };
   }
 
@@ -718,6 +756,52 @@ export class CrmService {
       }),
       /// En que anda el ultimo enlace que se le mando.
       enlace: await this.estadoDelEnlace(id),
+      /// Cuantas veces se le intento y si alguna se logro.
+      gestion: await this.gestionDe(id),
+    };
+  }
+
+  /**
+   * Cuántas veces se intentó contactar a esta persona.
+   *
+   * NO se cuenta sobre las 50 notas que trae la ficha: con más
+   * de 50 la cifra diría 50 y parecería exacta, que es la peor
+   * clase de número. Va en su propia consulta, sobre el índice
+   * `(participanteId, resultado)`.
+   *
+   * `sinContacto` se cuenta DESDE el último contacto y no desde
+   * siempre: a quien se le habló ayer no se le deben tres
+   * llamadas por las tres de la semana pasada. Es la cifra que
+   * responde a quién hay que insistirle hoy.
+   */
+  private async gestionDe(id: string) {
+    const ultimo = await this.prisma.notaParticipante.findFirst({
+      where: { participanteId: id, resultado: 'CONTACTO' },
+      orderBy: { creadoEn: 'desc' },
+      select: { creadoEn: true },
+    });
+
+    const [intentos, sinContacto, datoMalo] = await Promise.all([
+      this.prisma.notaParticipante.count({
+        where: { participanteId: id, resultado: { not: null } },
+      }),
+      this.prisma.notaParticipante.count({
+        where: {
+          participanteId: id,
+          resultado: { in: ['SIN_RESPUESTA', 'DATO_MALO'] },
+          ...(ultimo ? { creadoEn: { gt: ultimo.creadoEn } } : {}),
+        },
+      }),
+      this.prisma.notaParticipante.count({
+        where: { participanteId: id, resultado: 'DATO_MALO' },
+      }),
+    ]);
+
+    return {
+      intentos,
+      sinContacto,
+      datoMalo,
+      ultimoContacto: ultimo?.creadoEn ?? null,
     };
   }
 
@@ -2225,6 +2309,7 @@ export class CrmService {
         autorNombre: admin.nombre,
         texto: dto.texto,
         canales: dto.canales,
+        resultado: dto.resultado,
       },
     });
 
@@ -2233,7 +2318,9 @@ export class CrmService {
       accion: 'NOTA_CREADA',
       entidad: ENTIDADES.PARTICIPANTE,
       entidadId: id,
-      resumen: `Gestión por ${[...dto.canales].sort().join(' + ')}`,
+      // el resultado va aqui: sin el, la auditoria no
+      // distingue un intento de una conversacion
+      resumen: `Gestión por ${[...dto.canales].sort().join(' + ')} · ${dto.resultado}`,
     });
 
     return nota;
@@ -3560,6 +3647,10 @@ export class CrmService {
     /// Cuantas veces se le edito un campo. Sale del registro
     /// de auditoria, que es donde queda esa traza.
     ediciones: number;
+    /// Cuando se hablo con ella por ultima vez. Nulo = nunca.
+    ultimoContacto: Date | null;
+    /// Intentos que no llegaron a nadie.
+    sinRespuesta: number;
   }) {
     // lo que la persona dejo a medias: es lo que el asesor
     // tiene que completar por telefono
@@ -3594,6 +3685,9 @@ export class CrmService {
       ubicacion: p.oferta?.ubicacion.nombre ?? null,
       asesor: p.asesor,
       notas: p._count.notas,
+      /// Nulo = no se ha hablado con ella nunca.
+      ultimoContacto: p.ultimoContacto,
+      sinRespuesta: p.sinRespuesta,
 
       // --- lo que la tabla de leads pide aparte ---
       tipoDocumento: siglaDocumento(p.persona.tipoDocumentoSepId),

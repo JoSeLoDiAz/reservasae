@@ -252,6 +252,32 @@ export function columnasDeParticipante(): Columna<FilaParticipante>[] {
       filtro: "numero",
     },
     {
+      /// Vacia = nunca se le ha logrado hablar, y esa es la
+      /// lista de a quien insistirle. Es distinta de "sin
+      /// notas": a esta ya se le intento y no contesto.
+      clave: "ultimoContacto",
+      titulo: "Último contacto",
+      valor: (f) => f.ultimoContacto ?? "",
+      pinta: (f) =>
+        f.ultimoContacto ? (
+          <span className="whitespace-nowrap font-mono text-xs">
+            {fechaHora(f.ultimoContacto)}
+          </span>
+        ) : (
+          <span className="text-xs text-aviso">Nunca</span>
+        ),
+    },
+    {
+      /// El de SIEMPRE y no el de desde el ultimo contacto, que
+      /// si da la ficha. Para lo que sirve la columna —a quien
+      /// no se ha logrado contactar— las dos coinciden.
+      clave: "sinRespuesta",
+      titulo: "Intentos sin respuesta",
+      numerica: true,
+      valor: (f) => f.sinRespuesta,
+      filtro: "numero",
+    },
+    {
       clave: "gremio",
       titulo: "Gremio",
       valor: (f) => f.gremio,

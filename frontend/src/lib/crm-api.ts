@@ -88,6 +88,30 @@ export const ETIQUETA_CANAL_CONTACTO: Record<CanalContacto, string> = {
   LLAMADA: "Llamada",
 };
 
+/** Cómo salió la gestión. */
+export type ResultadoGestion = "CONTACTO" | "SIN_RESPUESTA" | "DATO_MALO";
+
+export const RESULTADOS: ResultadoGestion[] = [
+  "CONTACTO",
+  "SIN_RESPUESTA",
+  "DATO_MALO",
+];
+
+/// Cada uno lleva a una acción distinta, y por eso son tres y
+/// no dos: "no contestó" se arregla volviendo a llamar y
+/// "el número no sirve" se arregla pidiéndoselo a la empresa.
+export const ETIQUETA_RESULTADO: Record<ResultadoGestion, string> = {
+  CONTACTO: "Hablé con ella",
+  SIN_RESPUESTA: "No contestó",
+  DATO_MALO: "El dato no sirve",
+};
+
+export const TONO_RESULTADO: Record<ResultadoGestion, string> = {
+  CONTACTO: "text-exito",
+  SIN_RESPUESTA: "text-texto-suave",
+  DATO_MALO: "text-error",
+};
+
 /** Lo que mandó el interesado y espera decisión. */
 export type PropuestaDelInteresado = {
   id: string;
@@ -213,6 +237,10 @@ export type FilaParticipante = {
   ubicacion: string | null;
   asesor: { id: string; nombre: string } | null;
   notas: number;
+  /** Cuándo se habló con ella. Nulo = nunca se ha logrado. */
+  ultimoContacto: string | null;
+  /** Intentos que no llegaron a nadie. */
+  sinRespuesta: number;
 
   /// Lo que la tabla de leads pide por separado.
   tipoDocumento: string;
@@ -385,8 +413,18 @@ export type Ficha = {
     autorNombre: string;
     texto: string;
     canales?: CanalContacto[];
+    /// Nulo en las de antes y en las que escribe el sistema.
+    resultado?: ResultadoGestion | null;
     creadoEn: string;
   }>;
+  /** Cuántas veces se le intentó y si alguna se logró. */
+  gestion: {
+    intentos: number;
+    /** Desde el último contacto, no desde siempre. */
+    sinContacto: number;
+    datoMalo: number;
+    ultimoContacto: string | null;
+  };
 };
 
 export type EstadoAcademico =
@@ -984,10 +1022,15 @@ export const crmApi = {
       body: JSON.stringify({ etapa, motivo }),
     }),
 
-  agregarNota: (id: string, texto: string, canales: CanalContacto[]) =>
+  agregarNota: (
+    id: string,
+    texto: string,
+    canales: CanalContacto[],
+    resultado: ResultadoGestion,
+  ) =>
     pedir<Record<string, unknown>>(`/admin/participantes/${id}/notas`, {
       method: "POST",
-      body: JSON.stringify({ texto, canales }),
+      body: JSON.stringify({ texto, canales, resultado }),
     }),
 
   /** Lo que mandó el interesado, si hay algo pendiente. */

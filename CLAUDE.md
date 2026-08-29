@@ -1073,6 +1073,63 @@ riesgo número uno: acabar con 4.797 cupos reservados y 800 personas
 identificadas. La lista se ordena por cuántos nombres debe cada empresa y, a
 igualdad, por cuánto lleva esperando: **no es un informe, es a quién llamar hoy**.
 
+### Marcar y registrar la gestión (29 ago 2026)
+
+Lo que el cliente llamó «sistema de llamadas». Se descartaron la grabación y el
+marcador automático —eso es un proveedor de telefonía, con minutos y número
+arrendado— y se hizo lo que no depende de nadie de afuera: **marcar desde la
+ficha y dejar constancia de cómo salió**.
+
+- **NO hay tabla de llamadas, y es la decisión que sostiene todo.** Una
+  `Llamada` aparte daría dos verdades sobre «cuántas veces se contactó a esta
+  persona», que es el patrón que este archivo lleva cuatro rondas documentando.
+  `NotaParticipante` ya tenía canal `LLAMADA`, autor congelado y fecha: lo único
+  que le faltaba era **cómo salió**.
+- **`ResultadoGestion` son tres y no dos, porque llevan a acciones distintas.**
+  `CONTACTO` cierra el asunto; `SIN_RESPUESTA` se arregla volviendo a llamar; y
+  `DATO_MALO` **no se arregla llamando** — hay que pedirle el número a la
+  organización. Juntar los dos últimos escondería justo la lista accionable.
+- **Es obligatorio**, por lo mismo que el motivo de una etapa de salida:
+  pedirlo opcional es no pedirlo, y sin él la nota dice que se intentó pero no
+  si se logró.
+- **Los intentos se cuentan DESDE el último contacto, no desde siempre.** A
+  quien se le habló ayer no se le deben tres llamadas por las tres de la semana
+  pasada; contarlas todas metería en la lista de «insistirle hoy» justo a la
+  gente con la que ya se habló. `gestionDe()` en `crm.service.ts`.
+- **No se cuenta sobre las 50 notas que trae la ficha**: con más de 50 la cifra
+  diría 50 y parecería exacta, que es la peor clase de número. Va en su propia
+  consulta, sobre el índice `(participanteId, resultado)`.
+- **En la tabla el «sin respuesta» es el de siempre**, y la columna lo dice.
+  Acotarlo por fila necesitaría una fecha distinta en cada una y eso ya no es un
+  `groupBy`. Para lo que sirve la columna —a quién no se ha logrado contactar—
+  las dos coinciden, porque ahí no hay ningún contacto que descontar.
+- **Las notas del sistema no son intentos.** Las que escribe el propio sistema
+  —al registrar una autorización— van sin canal y sin resultado; contarlas diría
+  que se llamó cuando no llamó nadie.
+- **El botón de llamar hace dos cosas**: abre el marcador y **deja la nota
+  armada en «Llamada»**. Al colgar, registrar es marcar cómo salió y escribir un
+  renglón, que es lo único que un asesor hace de verdad entre llamada y llamada.
+- **`marcable()` del frontend NO es la validación.** La regla de qué celular
+  sirve vive en `comun/celular.ts` del servidor y ahí se queda. Aquella responde
+  otra pregunta —«¿pinto el botón?»— y por eso puede ser más laxa: un fijo se
+  marca igual aunque no sirva para el reporte.
+- **La siembra empareja texto y resultado.** Sueltos, salían notas que dicen «no
+  contesta» marcadas como contacto logrado. Un dato de mentira puede ser
+  inventado; incoherente consigo mismo, no. Y la nota lograda se fecha **antes**
+  que los intentos: al revés, «intentos desde el último contacto» salía cero en
+  todo el mundo.
+- **`gestion.spec.ts` se probó por mutación, y las tres mataron tests**: quitar
+  el corte por el último contacto (3 caen), contar las notas del sistema (1) y
+  coger el contacto más viejo en vez del más reciente (1). El doble de Prisma
+  **aplica los filtros de verdad** sobre una lista en memoria — ya se falló aquí
+  una vez con un doble que decidía por el prefijo del id.
+
+> **Lo que NO se hizo, y hay que decirlo:** no hay grabación. La `evidencia` de
+> una autorización `VERBAL_ASESOR` sigue siendo texto libre, o sea que descansa
+> en la palabra del asesor. Ese es el hueco que solo cierra la telefonía de
+> verdad, y es el argumento a favor de pagarla si algún día hace falta demostrar
+> una autorización dada por teléfono.
+
 ### La carga masiva
 
 Va por **pegado**, no por subida de archivo: es lo que el asesor hace de verdad
@@ -2829,6 +2886,26 @@ El seed lee el JSON y **nunca** el Excel: en producción no hay Python, y el
 XLSX se corrompe con solo abrirlo y guardarlo. Es idempotente y se puede correr
 en cada despliegue; lo único que jamás toca es `cuposOcupados` ni el `visible`
 de una acción que un admin haya ocultado.
+
+### Un índice en la migración y no en el schema (29 ago 2026)
+
+**Volvió a pasar, y esta vez se cazó al vuelo.** La migración
+`20260828180000_origen_del_lead` creó
+`participantes_convenioId_origenLead_idx` **en SQL sin declararlo en
+`schema.prisma`**. La siguiente migración que alguien generara lo borraría — y
+la siguiente fue la mía, que traía un `DROP INDEX` que no era mío.
+
+Es exactamente el defecto que este archivo ya tenía escrito de la revisión del
+subdominio, con las mismas consecuencias: **un índice desaparece y nada falla**,
+solo se pone lento algo, meses después, sin causa visible.
+
+- **La regla: si se crea un índice en SQL, se declara en el schema.** Prisma
+  reconcilia contra el schema, no contra lo que hay en la base.
+- **Se comprueba solo**: si `prisma migrate dev` propone un `DROP INDEX` que
+  nadie pidió, es esto. **No lo deje pasar** — mírelo antes de aplicar.
+- La migración se escribió **a mano** porque `migrate dev` quería resetear la
+  base por deriva vieja de otros modelos. Es legítimo: los `CHECK` ya van a mano
+  por lo mismo. Lo que no es negociable es que el schema y el SQL digan igual.
 
 ### Nota sobre Prisma
 

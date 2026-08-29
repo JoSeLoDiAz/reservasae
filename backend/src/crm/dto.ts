@@ -22,6 +22,7 @@ import {
 import {
   CanalAutorizacion,
   CanalContacto,
+  ResultadoGestion,
   EtapaParticipante,
   OrigenParticipante,
 } from '../../generated/prisma';
@@ -283,6 +284,13 @@ export class CrearNotaDto {
   @ArrayMaxSize(4)
   @IsEnum(CanalContacto, { each: true })
   canales!: CanalContacto[];
+
+  /// Obligatorio, y por la misma razon que el motivo de una
+  /// etapa de salida: pedirlo opcional es no pedirlo. Sin esto
+  /// no se distingue "lo intente" de "hable con ella", que es
+  /// justo la lista de a quien hay que volver a llamar.
+  @IsEnum(ResultadoGestion)
+  resultado!: ResultadoGestion;
 }
 
 export class AgregarNitDto {

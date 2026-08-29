@@ -857,6 +857,9 @@ model Participante {
   @@index([reservaId])
   /// El F7 y el borrado de empresas buscan por aqui.
   @@index([empresaId])
+  /// Lo creo su migracion y no estaba aqui: sin declararlo,
+  /// la siguiente migracion lo borra sola.
+  @@index([convenioId, origenLead])
   @@map("participantes")
 }
 
@@ -890,20 +893,31 @@ enum CanalContacto {
   LLAMADA
 }
 
+/// Cómo salió la gestión. Sin esto no se distingue
+/// "lo intenté" de "hablé con ella".
+enum ResultadoGestion {
+  CONTACTO
+  SIN_RESPUESTA
+  DATO_MALO
+}
+
 model NotaParticipante {
-  id             String          @id @default(cuid())
+  id             String            @id @default(cuid())
   participanteId String
   autorId        String?
   autorNombre    String /// congelado al escribir
   texto          String
   /// Vacío solo en las notas de antes del canal.
   canales        CanalContacto[]
-  creadoEn       DateTime        @default(now())
+  /// Nulo en las de antes y en las que escribe el sistema.
+  resultado      ResultadoGestion?
+  creadoEn       DateTime          @default(now())
 
   participante Participante @relation(fields: [participanteId], references: [id], onDelete: Cascade)
   autor        Admin?       @relation(fields: [autorId], references: [id], onDelete: SetNull)
 
   @@index([participanteId, creadoEn])
+  @@index([participanteId, resultado])
   @@map("notas_participante")
 }
 

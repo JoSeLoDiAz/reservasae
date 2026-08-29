@@ -158,16 +158,70 @@ const CARGOS = [
   'Director comercial', 'Operario', 'Tecnóloga en logística',
 ];
 
-const NOTAS = [
-  'Se llama y confirma interés. Pide que le manden el temario por correo.',
-  'Correo devuelto: la empresa dio uno que ya no existe. Se pide otro.',
-  'Confirma que puede en jornada de la tarde.',
-  'Pendiente de que la empresa mande el documento.',
-  'Se le explica que la formación es gratuita y no exige pago alguno.',
-  'Contesta por WhatsApp: sigue interesada pero está de vacaciones.',
-  'No contesta el celular en tres intentos.',
-  'Queda de confirmar con su jefe antes del viernes.',
+/// El texto y el resultado van juntos a proposito.
+///
+/// Sueltos, la siembra sacaba notas que dicen "no contesta"
+/// marcadas como contacto logrado. Un dato de mentira puede ser
+/// inventado; incoherente consigo mismo, no.
+const NOTAS: Array<{
+  texto: string;
+  resultado: 'CONTACTO' | 'SIN_RESPUESTA' | 'DATO_MALO';
+  canales: Array<'CORREO' | 'WHATSAPP' | 'TEXTO' | 'LLAMADA'>;
+}> = [
+  {
+    texto: 'Se llama y confirma interés. Pide que le manden el temario por correo.',
+    resultado: 'CONTACTO',
+    canales: ['LLAMADA'],
+  },
+  {
+    texto: 'Confirma que puede en jornada de la tarde.',
+    resultado: 'CONTACTO',
+    canales: ['LLAMADA'],
+  },
+  {
+    texto: 'Se le explica que la formación es gratuita y no exige pago alguno.',
+    resultado: 'CONTACTO',
+    canales: ['LLAMADA', 'CORREO'],
+  },
+  {
+    texto: 'Contesta por WhatsApp: sigue interesada pero está de vacaciones.',
+    resultado: 'CONTACTO',
+    canales: ['WHATSAPP'],
+  },
+  {
+    texto: 'Queda de confirmar con su jefe antes del viernes.',
+    resultado: 'CONTACTO',
+    canales: ['LLAMADA'],
+  },
+  {
+    texto: 'No contesta el celular. Se deja mensaje de voz.',
+    resultado: 'SIN_RESPUESTA',
+    canales: ['LLAMADA'],
+  },
+  {
+    texto: 'Segundo intento en la mañana, tampoco contesta.',
+    resultado: 'SIN_RESPUESTA',
+    canales: ['LLAMADA'],
+  },
+  {
+    texto: 'Se le escribe por WhatsApp y no responde.',
+    resultado: 'SIN_RESPUESTA',
+    canales: ['WHATSAPP'],
+  },
+  {
+    texto: 'Correo devuelto: la empresa dio uno que ya no existe. Se pide otro.',
+    resultado: 'DATO_MALO',
+    canales: ['CORREO'],
+  },
+  {
+    texto: 'El número marca apagado desde hace días. Se pide otro a la empresa.',
+    resultado: 'DATO_MALO',
+    canales: ['LLAMADA'],
+  },
 ];
+
+const NOTAS_LOGRADAS = NOTAS.filter((n) => n.resultado === 'CONTACTO');
+const NOTAS_FALLIDAS = NOTAS.filter((n) => n.resultado !== 'CONTACTO');
 
 const BARRIOS = [
   'La Candelaria', 'El Poblado', 'Villa del Río', 'San Antonio', 'Los Alcázares',
@@ -1139,14 +1193,36 @@ async function main() {
     }
 
     // ── notas ──
-    for (let n = 0; n < entre(0, 3); n++) {
+    //
+    // el resultado casa con la etapa: a quien avanzo se le
+    // hablo, y quien sigue en INTERESADO es justo el que se
+    // quiere ver en "nunca se ha logrado contactar". Sin esa
+    // coherencia la pantalla ensena estados imposibles
+    const seLeHablo = etapa !== 'INTERESADO';
+    const cuantas = seLeHablo ? entre(1, 3) : entre(1, 4);
+
+    for (let n = 0; n < cuantas; n++) {
+      // la primera de quien avanzo es el contacto logrado
+      const pool =
+        seLeHablo && n === 0 ? NOTAS_LOGRADAS : NOTAS_FALLIDAS;
+      const cual = unoDe(pool);
+
       await prisma.notaParticipante.create({
         data: {
           participanteId: participante.id,
           autorId: asesor?.id ?? null,
           autorNombre: asesor?.nombre ?? 'Sistema',
-          texto: unoDe(NOTAS),
-          creadoEn: hace(entre(0, diasDesdeAlta)),
+          texto: cual.texto,
+          canales: cual.canales,
+          resultado: cual.resultado,
+          // la lograda va primero en el tiempo, no despues:
+          // si el contacto queda al final, "intentos desde el
+          // ultimo contacto" sale cero en todo el mundo
+          creadoEn: hace(
+            seLeHablo && n === 0
+              ? diasDesdeAlta
+              : entre(0, Math.max(1, diasDesdeAlta - 1)),
+          ),
         },
       });
     }

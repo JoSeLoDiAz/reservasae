@@ -31,8 +31,12 @@ import {
   ETAPAS_SALIDA,
   ETIQUETA_CANAL,
   ETIQUETA_CANAL_CONTACTO,
+  ETIQUETA_RESULTADO,
+  RESULTADOS,
+  TONO_RESULTADO,
   ETIQUETA_RUI,
   type CanalContacto,
+  type ResultadoGestion,
   type ConsultaRui,
   type PropuestaDelInteresado,
   ETIQUETA_ETAPA,
@@ -114,6 +118,19 @@ function Control({
   );
 }
 
+/**
+ * Si el número se puede marcar. NO es la validación.
+ *
+ * La regla de qué celular sirve vive en `comun/celular.ts` del
+ * servidor y ahí se queda: copiarla aquí serían dos verdades
+ * sobre lo mismo. Esto responde otra pregunta —«¿pinto el botón
+ * de llamar?»— y por eso puede ser más laxa: un fijo con
+ * indicativo se marca igual aunque no sirva para el reporte.
+ */
+function marcable(celular: string | null): boolean {
+  return (celular ?? "").replace(/\D/g, "").length >= 7;
+}
+
 export default function PaginaFicha() {
   const { id } = useParams<{ id: string }>();
   const [f, setF] = useState<Ficha | null>(null);
@@ -121,6 +138,7 @@ export default function PaginaFicha() {
   const [error, setError] = useState<string | null>(null);
   const [nota, setNota] = useState("");
   const [canales, setCanales] = useState<CanalContacto[]>([]);
+  const [resultado, setResultado] = useState<ResultadoGestion | null>(null);
   const [borrando, setBorrando] = useState(false);
   const { admin, gremio: gremioElegido } = useAdmin();
   const router = useRouter();
@@ -405,6 +423,77 @@ export default function PaginaFicha() {
         insignia={`${f.notas.length}`}
       >
         <div className="space-y-4">
+          {/* La cifra que hace útil todo lo de abajo.
+
+              «Lleva 4 intentos y nunca se le ha logrado hablar»
+              es una frase accionable; «tiene 4 notas» no lo es.
+              Por eso se cuentan los intentos DESDE el último
+              contacto y no desde siempre. */}
+          {f.gestion.intentos > 0 && (
+            <p className="text-sm">
+              {f.gestion.ultimoContacto ? (
+                <>
+                  Se habló con ella el{" "}
+                  <strong>{fecha(f.gestion.ultimoContacto)}</strong>
+                  {f.gestion.sinContacto > 0 && (
+                    <>
+                      , y desde entonces{" "}
+                      <strong>
+                        {f.gestion.sinContacto}{" "}
+                        {f.gestion.sinContacto === 1 ? "intento" : "intentos"}
+                      </strong>{" "}
+                      sin respuesta
+                    </>
+                  )}
+                  .
+                </>
+              ) : (
+                <span className="text-aviso">
+                  <strong>
+                    {f.gestion.intentos}{" "}
+                    {f.gestion.intentos === 1 ? "intento" : "intentos"}
+                  </strong>{" "}
+                  y nunca se ha logrado hablar con ella.
+                </span>
+              )}
+              {f.gestion.datoMalo > 0 && (
+                <span className="text-error">
+                  {" "}
+                  El dato de contacto se reportó malo — pídaselo a la
+                  organización.
+                </span>
+              )}
+            </p>
+          )}
+
+          {/* MARCAR Y REGISTRAR, en ese orden.
+
+              El botón hace dos cosas a la vez: abre el marcador
+              y deja el formulario armado en «Llamada». Así,
+              al colgar, registrar la gestión es marcar cómo
+              salió y escribir un renglón — que es lo único que
+              un asesor va a hacer de verdad entre llamada y
+              llamada. */}
+          {marcable(f.persona.celular) && (
+            <div className="flex flex-wrap items-center gap-3 rounded-lg border border-borde bg-superficie-alterna px-3 py-2">
+              <a
+                href={`tel:${f.persona.celular}`}
+                onClick={() => {
+                  setCanales((antes) =>
+                    antes.includes("LLAMADA") ? antes : [...antes, "LLAMADA"],
+                  );
+                }}
+                className="rounded-lg border border-marca bg-marca-suave px-3 py-1.5 text-sm font-medium text-marca"
+              >
+                Llamar al {f.persona.celular}
+              </a>
+              <span className="text-xs text-texto-suave">
+                Marca en el teléfono o el softphone de este equipo, y deja la
+                nota lista en «Llamada».
+              </span>
+            </div>
+          )}
+
           <div className="space-y-3">
             {/* el canal antes que el texto: primero por dónde */}
             <div className="flex flex-wrap items-center gap-2">
@@ -435,6 +524,33 @@ export default function PaginaFicha() {
               })}
             </div>
 
+            {/* Cómo salió, que es distinto de por dónde fue.
+
+                Sin esto la nota dice que se intentó y no si se
+                logró, y entonces «lleva cuatro intentos sin
+                contestar» no se puede saber. */}
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-sm text-texto-suave">Cómo salió:</span>
+              {RESULTADOS.map((r) => {
+                const puesto = resultado === r;
+                return (
+                  <button
+                    key={r}
+                    type="button"
+                    aria-pressed={puesto}
+                    onClick={() => setResultado(puesto ? null : r)}
+                    className={`rounded-lg border px-3 py-1.5 text-sm ${
+                      puesto
+                        ? "border-marca bg-marca-suave font-medium text-marca"
+                        : "border-borde hover:bg-superficie-alterna"
+                    }`}
+                  >
+                    {ETIQUETA_RESULTADO[r]}
+                  </button>
+                );
+              })}
+            </div>
+
             <div className="flex gap-3">
               <input
                 className={CLASE_CONTROL}
@@ -443,12 +559,18 @@ export default function PaginaFicha() {
                 onChange={(e) => setNota(e.target.value)}
               />
               <Boton
-                disabled={!nota.trim() || canales.length === 0}
+                disabled={!nota.trim() || canales.length === 0 || !resultado}
                 onClick={() =>
                   conError(async () => {
-                    await crmApi.agregarNota(f.id, nota.trim(), canales);
+                    await crmApi.agregarNota(
+                      f.id,
+                      nota.trim(),
+                      canales,
+                      resultado!,
+                    );
                     setNota("");
                     setCanales([]);
+                    setResultado(null);
                   }, "Nota agregada.")
                 }
               >
@@ -460,6 +582,13 @@ export default function PaginaFicha() {
               <p className="text-sm text-texto-suave">
                 Marque por dónde fue la gestión. Sin eso no se puede medir qué
                 canal funciona.
+              </p>
+            )}
+
+            {canales.length > 0 && !resultado && nota.trim() !== "" && (
+              <p className="text-sm text-texto-suave">
+                Marque cómo salió. Es lo que separa «lo intenté» de «hablé con
+                ella», y de eso sale a quién hay que insistirle.
               </p>
             )}
           </div>
@@ -475,6 +604,12 @@ export default function PaginaFicha() {
                 {n.canales?.length
                   ? `${n.canales.map((c) => ETIQUETA_CANAL_CONTACTO[c]).join(" + ")} · `
                   : ""}
+                {n.resultado && (
+                  <span className={`font-medium ${TONO_RESULTADO[n.resultado]}`}>
+                    {ETIQUETA_RESULTADO[n.resultado]}
+                  </span>
+                )}
+                {n.resultado ? " · " : ""}
                 {n.autorNombre} · {fecha(n.creadoEn)}
               </p>
             </article>
