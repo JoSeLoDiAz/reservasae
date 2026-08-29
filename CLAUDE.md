@@ -1138,6 +1138,40 @@ porque se dio al reservar el cupo—, y la ficha quedaba imposible de terminar.
 > siempre como texto y hoy dependen de esa conversión. Es un cambio aparte y
 > deliberado, no algo que quepa en un arreglo.
 
+### El enlace tiene que poder pedir lo que el panel echa en falta (29 ago 2026)
+
+El panel decía «le falta un dato», ofrecía el enlace de completado para
+arreglarlo, y **el enlace no pedía ese dato**. Generar otro no cambiaba nada:
+la ficha quedaba imposible de terminar por el único camino que existe para
+terminarla. El dato era el **municipio**.
+
+- **La pantalla asume que el domicilio se dio al reservar el cupo**, y por eso
+  no lo pinta — «volver a pedirlos invita a contradecirlos», que es cierto
+  cuando están. Pero se puede crear una ficha desde el panel o convertir un
+  lead sin ellos, y entonces la suposición es falsa. Ahora se piden con el
+  mismo `pide()` que el resto: **solo si faltan**, y el municipio filtrado por
+  el departamento elegido.
+- **Había dos reglas para «qué falta».** El navegador tenía su propia lista y
+  no incluía departamento ni municipio, así que decía «sus datos están
+  completos» mientras el panel decía que faltaba uno. `abrir` devuelve ahora
+  `faltaDeLaPersona` con la **misma** regla del panel.
+- **La lista del navegador NO se puede sustituir por la del servidor**: aquella
+  es viva —cambia según se escribe— y esta es una foto al abrir. Lo que sí
+  tiene que hacer es cubrir lo mismo.
+- **Lo que el servidor declara y el enlace no sabe pedir, se avisa en
+  pantalla.** Un agujero visible se arregla; uno callado se descubre meses
+  después porque una ficha no entra al reporte.
+- **`lo-que-falta-se-puede-pedir.spec.ts` fija el CONJUNTO CERRADO**, no el
+  caso: si alguien añade un campo obligatorio a `faltaDeLaPersona`, falla y le
+  obliga a declarar dónde se captura antes de seguir. Es el criterio de las
+  pruebas de ámbito — recorrer la superficie, no el caso de hoy. Probado por
+  mutación: añadiendo un campo sin declararlo caen 2 de los 5.
+
+> **La lección, que es la de siempre con otra cara:** el sistema sabía que
+> faltaba un dato y sabía ofrecer el camino para arreglarlo, pero nadie había
+> comprobado que ese camino **pasara por ese dato**. Un control en pie y vacío
+> de efecto.
+
 ### La brecha de nombres
 
 `cuposConfirmados − participantes vivos`. Es la cifra que abre el CRM y mide el
