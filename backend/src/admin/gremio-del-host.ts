@@ -13,9 +13,23 @@ const RESERVADOS = new Set(['www', 'prueba', 'api', 'localhost', '127']);
 /// `//malo`, y metida en una URL saca la peticion del origen.
 const PATRON = /^[a-z0-9]+(-[a-z0-9]+)*$/;
 
+/// El prefijo del entorno de pruebas, que NO es del gremio.
+///
+/// `pre-adecopria.reservasae.com` y `adecopria.reservasae.com`
+/// nombran el MISMO gremio en dos entornos distintos: lo que
+/// los separa es el tunel al que apunta el DNS, no la etiqueta.
+/// El prefijo existe porque el comodin de Cloudflare cubre un
+/// solo nivel y `adecopria.prueba.` daria error de TLS.
+///
+/// Sin quitarlo, `pre-adecopria` no casa con ningun convenio y
+/// la direccion cae a la PUERTA GENERAL: el panel de pruebas
+/// enseñaba los dos gremios en una direccion que dice ser de
+/// uno. Un slug de convenio no puede empezar por `pre-`.
+const PREFIJO_DE_PRUEBAS = 'pre-';
+
 export type ConvenioConSlug = { id: string; slug: string };
 
-/** La primera etiqueta del dominio, limpia. */
+/** La primera etiqueta del dominio, limpia y sin `pre-`. */
 export function etiquetaDelHost(host?: string | null): string | null {
   if (!host) return null;
 
@@ -31,7 +45,16 @@ export function etiquetaDelHost(host?: string | null): string | null {
   const primera = partes[0];
   if (!primera || RESERVADOS.has(primera)) return null;
   if (!PATRON.test(primera)) return null;
-  return primera;
+
+  // se quita DESPUES de validar: asi `//malo` se rechaza
+  // antes, y no por parecerse a un prefijo
+  const sinPrefijo = primera.startsWith(PREFIJO_DE_PRUEBAS)
+    ? primera.slice(PREFIJO_DE_PRUEBAS.length)
+    : primera;
+
+  // `pre-` a secas no nombra a nadie
+  if (!sinPrefijo || RESERVADOS.has(sinPrefijo)) return null;
+  return sinPrefijo;
 }
 
 /**
