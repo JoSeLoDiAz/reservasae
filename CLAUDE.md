@@ -888,6 +888,30 @@ avisando de algo que el cliente iba a notar.
 > leads de Meta sencillamente no entran. Se comprueban desde el
 > panel, en **Configuración → Webhook de Meta**, que dice cuál
 > falta y de dónde sale. Ver [docs/webhook-meta.md](docs/webhook-meta.md).
+>
+> **Y las dos del RUI, que produccion no tenia (29 ago 2026):**
+> `RUI_WORKER=1` y `RUI_PROVEEDOR=VENTANILLA`. Sin ellas el
+> backend sube igual, el trabajador queda **apagado** y toda
+> consulta la contesta el **simulador**. La ficha lo dice en rojo
+> —«Esta respuesta no vino del RUI»—, así que no engaña a nadie;
+> lo que pasa es que la validación de identidad **no funciona**.
+>
+> Se descubrió porque el cliente abrió una ficha de producción y
+> vio el aviso. Al encenderlas, la consulta que llevaba encolada
+> desde que se creó la ficha salió al portal y volvió en **dos
+> segundos** con el nombre real, marcando que no coincidía con el
+> tecleado. Chromium ya está en la imagen: lo único que faltaba
+> eran las variables.
+>
+> `RUI_SOLO_ESTOS_DOCUMENTOS` **no se pone en producción**: solo
+> tiene efecto con `ENTORNO=prueba`, y ponerla aquí haría creer
+> que limita algo. Ver `crm/rui/permiso-rui.ts`.
+>
+> **Un `docker restart` NO basta para una variable nueva.** Las
+> del entorno se fijan al CREAR el contenedor, igual que las
+> rutas de red: hay que recrearlo. Pasó aquí — el log siguió
+> diciendo «Apagado» tras reiniciar, y solo cambió con
+> `docker compose up -d --force-recreate backend`.
 
 ```bash
 ssh sep-vm
