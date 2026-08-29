@@ -295,15 +295,33 @@ export function CompletarFicha({ token }: { token: string }) {
   /// Solo se pregunta lo que falta. Si ya lo tiene, no sale.
   const pide = (campo: string) => !yaEstaba?.[campo];
 
+  /// Esta lista es VIVA: cambia según se escribe, y por eso no
+  /// puede ser la del servidor, que es una foto al abrir.
+  ///
+  /// Lo que sí tiene que hacer es cubrir lo mismo. Le faltaban
+  /// el departamento y el municipio, así que decía «sus datos
+  /// están completos» mientras el panel decía «le falta un
+  /// dato» — y el que faltaba era justo uno de esos dos.
   const faltaEnPersona = [
     !persona.fechaNacimiento && "fecha de nacimiento",
     !persona.estrato && "estrato",
+    !persona.departamentoSepId && "departamento",
+    !persona.municipioSepId && "municipio",
     !persona.barrio?.trim() && "barrio o vereda",
     !persona.direccion?.trim() && "dirección",
     !persona.cargoEnEmpresa?.trim() && "cargo actual",
     !persona.nivelOcupacionalSepId && "nivel ocupacional",
     !persona.beneficiarioPrevio && "si se benefició antes",
   ].filter(Boolean) as string[];
+
+  /// Lo que el SERVIDOR dice que falta y esta pantalla no sabe
+  /// preguntar. Vacío casi siempre; cuando no, es un agujero
+  /// como el del municipio y hay que verlo, no descubrirlo
+  /// meses después porque una ficha no entra al reporte.
+  const NO_LO_PREGUNTA_ESTE_ENLACE = ["correo", "celular", "género"];
+  const faltaQueNadiePide = (ficha?.faltaDeLaPersona ?? []).filter((f) =>
+    NO_LO_PREGUNTA_ESTE_ENLACE.some((n) => f.includes(n)),
+  );
 
   const esPresencial = ficha?.formacion?.modalidad === "PRESENCIAL";
 
@@ -545,6 +563,14 @@ export function CompletarFicha({ token }: { token: string }) {
                 : `Falta: ${faltaEnPersona.join(", ")}.`}
             </p>
 
+            {faltaQueNadiePide.length > 0 && (
+              <p className="mt-2 rounded-lg border border-borde px-3 py-2 text-sm text-aviso">
+                Falta también <strong>{faltaQueNadiePide.join(", ")}</strong>, y
+                eso no se pregunta en este enlace. Escríbanos para completarlo:
+                sin ese dato su inscripción queda incompleta.
+              </p>
+            )}
+
             {/* nombres, apellidos, celular, correo, genero,
                 departamento y municipio ya se dieron al reservar
                 el cupo: volver a pedirlos invita a contradecirlos */}
@@ -587,6 +613,71 @@ export function CompletarFicha({ token }: { token: string }) {
                   Del 1 al 6, según su recibo de servicios.
                 </span>
               </label>
+              )}
+
+              {/* DONDE VIVE, solo si no lo tenemos.
+
+                  Casi siempre se dio al reservar el cupo y por
+                  eso no se pregunta. Pero cuando falta, no
+                  preguntarlo era un callejón sin salida: el
+                  panel decía «le falta un dato», ofrecía este
+                  enlace para arreglarlo, y el enlace no pedía
+                  ese dato. Generar otro no cambiaba nada. */}
+              {pide("departamentoSepId") && (
+                <label className="block">
+                  <span className="mb-1.5 block text-sm font-medium">
+                    Departamento donde vive
+                  </span>
+                  <select
+                    value={persona.departamentoSepId ?? ""}
+                    onChange={(e) =>
+                      // cambiar de departamento invalida el municipio
+                      setPersona((p) => ({
+                        ...p,
+                        departamentoSepId: e.target.value,
+                        municipioSepId: "",
+                      }))
+                    }
+                    className={CAMPO}
+                  >
+                    <option value="">Seleccione…</option>
+                    {(ficha?.departamentos ?? []).map((d) => (
+                      <option key={d.id} value={d.id}>
+                        {d.etiqueta}
+                      </option>
+                    ))}
+                  </select>
+                  <span className="mt-1 block text-xs text-texto-suave">
+                    Su domicilio, no la sede donde se dicta.
+                  </span>
+                </label>
+              )}
+
+              {pide("municipioSepId") && (
+                <label className="block">
+                  <span className="mb-1.5 block text-sm font-medium">
+                    Municipio donde vive
+                  </span>
+                  <select
+                    value={persona.municipioSepId ?? ""}
+                    onChange={(e) =>
+                      setPersona((p) => ({ ...p, municipioSepId: e.target.value }))
+                    }
+                    disabled={!persona.departamentoSepId}
+                    className={CAMPO}
+                  >
+                    <option value="">
+                      {persona.departamentoSepId
+                        ? "Seleccione…"
+                        : "Elija primero el departamento"}
+                    </option>
+                    {municipios.map((m) => (
+                      <option key={m[0]} value={m[0]}>
+                        {m[2]}
+                      </option>
+                    ))}
+                  </select>
+                </label>
               )}
 
               {pide("barrio") && (

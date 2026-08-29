@@ -665,6 +665,18 @@ ${this.urlPublica()}/completar/${enlace.token}
       /// su organización, y entonces ese paso del formulario
       /// no tiene por qué existir para esta persona.
       faltaDeLaEmpresa: suya ? faltaDeLaEmpresa(suya) : [],
+      /// Lo que le falta A ELLA, con la MISMA regla del panel.
+      ///
+      /// El formulario tenía su propia lista y no coincidía:
+      /// decía «sus datos están completos» mientras el panel
+      /// decía «le falta un dato». Peor, el dato que faltaba era
+      /// el municipio, que esta pantalla ni preguntaba — así que
+      /// generar otro enlace no arreglaba nada y la ficha
+      /// quedaba imposible de completar.
+      faltaDeLaPersona: faltaDeLaPersona({
+        persona: persona as never,
+        nivelOcupacionalSepId: p.nivelOcupacionalSepId,
+      }),
       cargoEnEmpresa: p.cargoEnEmpresa,
       nivelOcupacionalSepId: p.nivelOcupacionalSepId,
       beneficiarioPrevio: p.beneficiarioPrevio,
