@@ -1102,6 +1102,42 @@ información» abre el resto en `/completar/<token>`.
   (`POST /admin/participantes/:id/enlace`).
 
 
+### Un campo vacío no es un cero (29 ago 2026)
+
+`main.ts` monta el `ValidationPipe` con **`enableImplicitConversion: true`**,
+y eso convierte el valor **según el tipo declarado antes** de que corra un
+`@Transform` propio. En un campo `number?`, la cadena vacía llega al transform
+**ya convertida a `0`** — así que un `value === ''` no se cumple nunca y el
+vacío se guarda como cero.
+
+Y un cero no es un dato ausente: es un id que no existe en ningún catálogo del
+SEP. Lo encontró el cliente en producción: completar la ficha por el enlace
+público contestaba «Ese municipio no pertenece a ese departamento» **sobre un
+municipio que la persona ni veía ni había tocado** —esa pantalla no lo pregunta,
+porque se dio al reservar el cupo—, y la ficha quedaba imposible de terminar.
+
+- **La regla del par departamento/municipio era correcta.** El defecto estaba
+  una capa antes, en lo que le llegaba. Perseguirlo en `motivoDeIdInvalido`
+  —donde ya se habían arreglado dos cosas— no habría dado con él.
+- **`comun/campo-vacio.ts` lee `obj[key]`, el objeto plano sin convertir.** Es
+  la única forma de saber qué mandó el cliente de verdad.
+- **Había TRES copias del helper** —`crm`, `instituciones` y `preinscripcion`—
+  con el mismo defecto en las tres. Ahora es uno, y conserva la diferencia que
+  sí era intencional: `aNumeroONulo` para el panel, donde vaciar un desplegable
+  **borra** el dato, y `aNumeroOAusente` para crear y completar, donde quiere
+  decir «no lo mandé». `motivoDeIdInvalido` ya depende de esa distinción.
+- **El spec construye los DTO con las MISMAS opciones que `main.ts`**, y esa es
+  toda la razón de que exista: con las de por defecto de `plainToInstance` el
+  defecto **no se reproduce** y el test pasa en verde mientras el servidor
+  falla. Probado por mutación: leyendo el valor convertido caen 3 de los 8.
+- **El arreglo no apagó la comprobación**: Medellín con departamento de Bogotá
+  se sigue rechazando. Comprobado en vivo con los tres casos.
+
+> **Si algún día se toca `enableImplicitConversion`, mírese esto primero.**
+> Quitarlo arreglaría la causa de raíz, pero los parámetros de consulta llegan
+> siempre como texto y hoy dependen de esa conversión. Es un cambio aparte y
+> deliberado, no algo que quepa en un arreglo.
+
 ### La brecha de nombres
 
 `cuposConfirmados − participantes vivos`. Es la cifra que abre el CRM y mide el
