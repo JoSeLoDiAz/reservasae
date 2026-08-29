@@ -1516,11 +1516,22 @@ ADECOPRIA, 18 por BRITCHAM y 24 por la general. **19 + 18 ≠ 24 y es correcto**
 > - **Un slug de convenio no puede empezar por `pre-`.**
 > - Probado por mutación: quitando el arreglo caen 4 de los 16.
 
-> **Queda por hacer en el panel**: borrar las rutas `pre-adecopria` y
-> `pre-britcham-adee` del túnel `convoca`. Hoy son inertes, pero si
-> alguien las vuelve a guardar, el panel **reescribe el DNS** y esos
-> nombres pasarían a servir producción.
+> **Borrar una ruta en el panel BORRA TAMBIÉN su CNAME**, aunque el CNAME
+> apunte a otro túnel. Pasó el 29 ago 2026: las rutas de `pre-adecopria` y
+> `pre-britcham-adee` habían quedado inertes bajo `convoca` —su DNS ya iba
+> a `convoca-prueba`— y al limpiarlas del panel los dos nombres se
+> quedaron **sin DNS y caídos**. El panel no comprueba a dónde apunta el
+> registro antes de llevárselo.
 >
+> Si limpia una ruta inerte, **vuelva a crear el DNS después**:
+>
+> ```bash
+> ssh sep-vm cloudflared tunnel route dns --overwrite-dns >   f6bd991c-3d0d-4a0f-b480-cd3df1269139 pre-adecopria.reservasae.com
+> ```
+>
+> Y compruébelo: el certificado del nombre nuevo tarda un minuto largo, así
+> que un `curl` que falla justo después **no significa que esté mal puesto**.
+
 > **Y no se puede probar el subdominio en local:** `etiquetaDelHost` exige
 > tres etiquetas y `localhost:3000` da null. Para verlo en el navegador de
 > un portátil hace falta una entrada en `hosts`, que sí funciona porque la
