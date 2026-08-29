@@ -1492,6 +1492,30 @@ ADECOPRIA, 18 por BRITCHAM y 24 por la general. **19 + 18 ≠ 24 y es correcto**
 > varias veces seguidas: el sufijo `-prueba` de la versión es lo que los
 > distingue.
 >
+> **El prefijo se quita al resolver el gremio, y ese arreglo hizo falta el
+> mismo día.** `etiquetaDelHost` devolvía `pre-adecopria`, que no casa con
+> ningún slug de convenio, así que `gremioDelHost` lo trataba como la
+> **puerta general** — correcto para un subdominio de nadie, y aquí era de
+> alguien. El panel enseñaba **los dos gremios** en una dirección que dice
+> ser de uno, con el desplegable ofreciendo el otro y las cifras sumadas.
+> Lo vio el cliente en cuanto entró.
+>
+> Lo que lo hizo pasar desapercibido un rato: **entró un superadmin**, que
+> es el único candado de la puerta general — y en pruebas está abierta con
+> `PANEL_GENERAL_SOLO_SUPERADMIN` sin poner, así que cualquier cuenta
+> habría visto los dos. El prefijo abrió una puerta que este archivo
+> afirma cerrada.
+>
+> - **`pre-` se quita en los DOS sitios y de la misma forma.** Dos fuentes
+>   para la misma decisión acaban discrepando, y aquí ya pasó una vez con
+>   el formulario de un gremio bajo la marca del otro.
+> - **Se quita DESPUÉS de validar el patrón**, así que `//pre-malo` sigue
+>   muriendo por no ser un dominio y no por parecerse a un prefijo.
+> - **Lo reservado se comprueba antes Y después**, para que `pre-prueba` no
+>   se convierta en `prueba` y se cuele.
+> - **Un slug de convenio no puede empezar por `pre-`.**
+> - Probado por mutación: quitando el arreglo caen 4 de los 16.
+
 > **Queda por hacer en el panel**: borrar las rutas `pre-adecopria` y
 > `pre-britcham-adee` del túnel `convoca`. Hoy son inertes, pero si
 > alguien las vuelve a guardar, el panel **reescribe el DNS** y esos
