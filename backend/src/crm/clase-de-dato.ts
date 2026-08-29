@@ -51,6 +51,15 @@ export const CLASE_POR_CAMPO: Record<string, ClaseDeDato> = {
   beneficiarioPrevio: ClaseDeDato.FORMACION,
   estrato: ClaseDeDato.FORMACION,
 
+  /// De qué organización se la reporta. Se guarda el NIT y no
+  /// el id, que no le dice nada a nadie.
+  ///
+  /// El F7 va por organización, así que cambiarla cambia en qué
+  /// fila cuenta esta persona. Sin el valor viejo, «cambió de
+  /// empresa» no permite reconstruir qué se reportó antes — que
+  /// es exactamente para lo que existe esta clase.
+  empresaNit: ClaseDeDato.FORMACION,
+
   /// Población vulnerable. Queda la CONSTANCIA de que cambió,
   /// NUNCA el valor.
   ///
@@ -93,6 +102,7 @@ export const CAMPO_EN_PALABRAS: Record<string, string> = {
   barrio: 'Barrio o vereda',
   departamentoSepId: 'Departamento',
   municipioSepId: 'Municipio',
+  empresaNit: 'Organización (NIT)',
   primerNombre: 'Primer nombre',
   segundoNombre: 'Segundo nombre',
   primerApellido: 'Primer apellido',

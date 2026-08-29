@@ -1142,6 +1142,28 @@ ${this.urlPublica()}/completar/${enlace.token}
           `Cambió de organización: antes NIT ${laDeAhora.nit}, ` +
           `ahora NIT ${nitPedido}${dto.razonSocial ? ` (${dto.razonSocial})` : ''}`,
       });
+
+      /// Y en «Cambios realizados», que es donde se mira.
+      ///
+      /// La auditoría de arriba responde «quién hizo qué»; esta
+      /// fila responde «qué decía antes», y son dos preguntas
+      /// distintas — está escrito en la propia pantalla. Sin
+      /// ella, el cambio existía en el registro pero la ficha
+      /// no enseñaba de qué organización venía.
+      ///
+      /// El histórico solo lo escribía el panel. Por esta
+      /// puerta —la pública— no se guardaba nada, y es
+      /// justamente la que usa la persona para corregirse.
+      await this.prisma.valorAnterior.create({
+        data: {
+          participanteId: p.id,
+          campo: 'empresaNit',
+          clase: 'FORMACION',
+          valorAnterior: laDeAhora.nit,
+          habiaValor: true,
+          actorNombre: 'La persona, desde su enlace',
+        },
+      });
     }
 
     if (suya) {

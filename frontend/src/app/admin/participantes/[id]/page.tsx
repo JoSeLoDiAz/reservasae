@@ -1749,15 +1749,18 @@ function LoQuePedira({ ficha }: { ficha: Ficha }) {
     );
   }
 
-  /// Cuántos datos son, sin decir cuáles.
+  /// Aquí se decía solo CUÁNTOS, a propósito: «el asesor no va
+  /// a preguntarlos él, los pregunta el formulario».
   ///
-  /// Aquí se listaban uno por uno, en dos párrafos —«Primero,
-  /// de su organización: nombre del jefe directo, cargo del
-  /// jefe directo, correo del jefe directo. Después, lo suyo:
-  /// un celular que sea un número.»—, y esa lista no le sirve
-  /// a nadie: el asesor no va a preguntarlos él, los pregunta
-  /// el formulario. Lo único que necesita saber antes de
-  /// mandar el enlace es que hay algo que pedir.
+  /// Esa razón resultó falsa dos veces el mismo día. El
+  /// municipio faltaba y el enlace NO lo preguntaba, así que
+  /// mandar otro no cambiaba nada; y el sector económico lo
+  /// trae la consulta al RUES, que si está apagada no lo trae
+  /// nunca. En los dos casos el contador se quedaba clavado y
+  /// no había forma de saber por qué.
+  ///
+  /// Decir cuáles es lo que separa «hay que reenviar el
+  /// enlace» de «esto no se arregla reenviando nada».
   const cuantos = empresa.length + persona.length;
 
   return (
@@ -1765,7 +1768,30 @@ function LoQuePedira({ ficha }: { ficha: Ficha }) {
       <p className="font-medium">
         {cuantos === 1 ? "Le falta un dato" : `Le faltan ${cuantos} datos`}
       </p>
-      <p className="mt-1 text-texto-suave">
+
+      {persona.length > 0 && (
+        <p className="mt-2">
+          <span className="text-texto-suave">De ella: </span>
+          {persona.join(", ")}.
+        </p>
+      )}
+
+      {empresa.length > 0 && (
+        <p className="mt-1">
+          <span className="text-texto-suave">De su organización: </span>
+          {empresa.join(", ")}.
+        </p>
+      )}
+
+      {empresa.includes("sector económico") && (
+        <p className="mt-2 text-aviso">
+          El <strong>sector económico</strong> no se lo pregunta el enlace a
+          quien tiene vínculo laboral: lo trae la consulta al RUES por el NIT.
+          Si no llega, se pone a mano desde la organización.
+        </p>
+      )}
+
+      <p className="mt-2 text-texto-suave">
         Solo se pregunta los datos pendientes. Lo que ya dio no se le vuelve a
         pedir.
       </p>
