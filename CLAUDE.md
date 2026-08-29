@@ -22,7 +22,19 @@ registro de ambos.
 > genera expectativas que no siempre se podrán cumplir. "Preinscripción" o
 > "registro de interés" es más seguro en los textos de cara al usuario.
 
-## Estado actual (20 ago 2026 · v0.3.0)
+## Estado actual (29 ago 2026 · v0.3.0)
+
+> **El CRM entero ya está en PRODUCCIÓN** (29 ago 2026). Hasta hoy `main`
+> iba 137 commits por detrás y producción servía la versión del 20 de
+> agosto: todo lo del CRM, el webhook de leads, los subdominios y la
+> gestión de contacto existían solo en pruebas. Se aplicaron 21
+> migraciones (17 → 38) sobre una base con 1 reserva y 0 personas, con
+> copia previa en `~/reservasae-antes-del-crm-*.sql.gz`.
+>
+> **`LEADS_WEBHOOK_SECRET` faltaba en el `.env` de producción** y el
+> backend no arranca sin ella. Estaba avisado en este archivo y aun así
+> se descubrió al desplegar: compruébelas ANTES de `docker compose up`.
+
 
 **Despliegue base funcionando en producción.** Lo que existe hoy es la
 infraestructura completa más una página que verifica la conexión con el backend.
@@ -1441,33 +1453,54 @@ ADECOPRIA, 18 por BRITCHAM y 24 por la general. **19 + 18 ≠ 24 y es correcto**
   general, así que una regresión aquí puede pasar semanas sin que nadie la note.
   Se comprueba con `curl -H 'Host: adecopria.reservasae.com'`.
 
-> ### ⚠️ Los dos subdominios apuntan HOY a PRUEBAS (27 ago 2026)
+> ### Los subdominios de gremio, ya en su sitio (29 ago 2026)
 >
-> `adecopria.reservasae.com` y `britcham-adee.reservasae.com` **sirven la pila de
-> pruebas con datos inventados**, no producción. Su ingress está en
-> `docker/cloudflared/prueba.yml` y su DNS apunta al túnel `convoca-prueba`
-> (`f6bd991c-…`), no a `convoca`.
+> **`adecopria.reservasae.com` y `britcham-adee.reservasae.com` sirven
+> PRODUCCIÓN**, y las de pruebas llevan el prefijo `pre-`:
 >
-> **Por qué:** es la única forma de verlos en un navegador. El comodín de
-> Cloudflare cubre **un solo nivel**, así que `adecopria.prueba.reservasae.com`
-> da error de TLS, y pagar el certificado avanzado por esto no tiene sentido.
-> Nadie conoce estas direcciones todavía y la franja lo grita en cada pantalla.
+> | Nombre | Túnel | Qué sirve |
+> |---|---|---|
+> | `adecopria.reservasae.com` | `convoca` | producción |
+> | `britcham-adee.reservasae.com` | `convoca` | producción |
+> | `pre-adecopria.reservasae.com` | `convoca-prueba` | datos inventados |
+> | `pre-britcham-adee.reservasae.com` | `convoca-prueba` | datos inventados |
 >
-> **Al estrenar de verdad hay que devolverlas**, y son tres pasos:
+> **El prefijo va DELANTE y no detrás, y esa es toda la razón de que
+> exista.** El comodín de Cloudflare cubre un solo nivel, así que
+> `adecopria.prueba.reservasae.com` da error de TLS y habría que pagar el
+> certificado avanzado. `pre-adecopria` sigue siendo un solo nivel y el
+> comodín lo cubre gratis. Hasta el 29 ago 2026 el apaño era servir
+> pruebas en los nombres limpios, que es lo que ahora se deshizo.
 >
-> 1. Quitar los dos `hostname` de `docker/cloudflared/prueba.yml`.
-> 2. `cloudflared tunnel route dns --overwrite-dns 467fde36-227b-481b-8870-ba8763f939fe adecopria.reservasae.com`
->    (y lo mismo con `britcham-adee.reservasae.com`).
-> 3. Reiniciar el túnel de pruebas para que suelte el ingress viejo.
+> **Manda el DNS, no la lista del panel.** El túnel `convoca` corre con
+> `--token`, así que su ingress vive en el panel de Cloudflare; el de
+> pruebas vive en `docker/cloudflared/prueba.yml`. Una ruta listada en el
+> panel cuyo CNAME apunte a otro túnel está **inerte**. Se cambia con:
 >
-> En el panel de Cloudflare las dos rutas siguen listadas bajo el túnel
-> `convoca`; están **inertes**, porque el DNS es lo que decide. Conviene no
-> borrarlas: son lo que hay que reactivar al estrenar.
+> ```bash
+> # convoca = 467fde36-227b-481b-8870-ba8763f939fe
+> # convoca-prueba = f6bd991c-3d0d-4a0f-b480-cd3df1269139
+> ssh sep-vm cloudflared tunnel route dns --overwrite-dns <UUID> <hostname>
+> ```
 >
-> **Y no se puede probar el subdominio en local:** `etiquetaDelHost` exige tres
-> etiquetas y `localhost:3000` da null. Para verlo en el navegador de un
-> portátil hace falta una entrada en `hosts`, que sí funciona porque la regla
-> mira la primera etiqueta y nada más:
+> **Los dos túneles no pueden tener el mismo nombre a la vez.** Durante el
+> cambio se dejaron los limpios en los dos ingress «para que no hubiera un
+> 404 en medio», y el efecto fue peor: `britcham-adee` alternaba entre
+> `0.3.0` y `0.3.0-prueba` según a quién resolviera cada petición — o sea
+> que **la mitad de las visitas veían datos inventados en la dirección de
+> verdad**, sin que nada fallara. Se comprueba pidiendo `/api/estado`
+> varias veces seguidas: el sufijo `-prueba` de la versión es lo que los
+> distingue.
+>
+> **Queda por hacer en el panel**: borrar las rutas `pre-adecopria` y
+> `pre-britcham-adee` del túnel `convoca`. Hoy son inertes, pero si
+> alguien las vuelve a guardar, el panel **reescribe el DNS** y esos
+> nombres pasarían a servir producción.
+>
+> **Y no se puede probar el subdominio en local:** `etiquetaDelHost` exige
+> tres etiquetas y `localhost:3000` da null. Para verlo en el navegador de
+> un portátil hace falta una entrada en `hosts`, que sí funciona porque la
+> regla mira la primera etiqueta y nada más:
 >
 > ```
 > 127.0.0.1 adecopria.local.test
