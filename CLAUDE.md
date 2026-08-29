@@ -1172,6 +1172,40 @@ terminarla. El dato era el **municipio**.
 > comprobado que ese camino **pasara por ese dato**. Un control en pie y vacío
 > de efecto.
 
+### Corregirse de organizacion, y la fila Frankenstein (29 ago 2026)
+
+```ts
+const suya = p.reserva?.empresaId ?? p.empresaId ?? null;   // <- el defecto
+```
+
+El comentario decía «la de la reserva manda y no se cambia: la nominó ella», y
+eso es cierto del **primer** término. El segundo **no es una nominación**: es la
+respuesta anterior de la propia persona, y corregirla es justo para lo que
+existe el enlace de completado.
+
+Con los dos en el mismo `??`, quien volvía diciendo «me equivoqué, trabajo en
+Vise LTDA» **reescribía la organización vieja con los datos de la nueva**. Y
+como el NIT y la razón social no viajan en `datos`, quedaba una fila imposible:
+NIT y razón social de la primera, persona de contacto de la segunda. La
+organización nueva no llegaba a crearse.
+
+- **Visto en producción**, y no es cosmético: `Empresa` se comparte entre los
+  dos gremios y el F7 va **por organización**, así que esa fila se le habría
+  reportado al SENA como una empresa que no existe.
+- **La decisión vive en `preinscripcion/organizacion-de-la-ficha.ts`** y el
+  spec la **llama**, no la copia. Se probó por mutación devolviendo el
+  comportamiento viejo: caen 2 de los 7. Un spec que reimplementa la línea que
+  dice proteger no protege nada, y aquí ya se falló en eso una vez.
+- **Se compara por NIT, no por id**: es lo único que la persona escribe, y ya
+  normalizado — `860.507.033` y `860507033` son el mismo, y sin limpiarlo antes
+  escribirlo con puntos parecería un cambio y crearía una duplicada.
+- **La vieja no se toca al cambiarse**: puede tener a otra gente detrás.
+- **El cambio queda en la auditoría** (`ORGANIZACION_CAMBIADA`). No es un error
+  de la persona, pero cambia de quién se la reporta al SENA; sin dejarlo
+  escrito, pasaba en silencio y después nadie podía explicar por qué esa ficha
+  cuenta en otra empresa. Mismo criterio que la contradicción de situación
+  laboral, que sí se apuntaba.
+
 ### La brecha de nombres
 
 `cuposConfirmados − participantes vivos`. Es la cifra que abre el CRM y mide el
