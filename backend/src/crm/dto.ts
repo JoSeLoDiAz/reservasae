@@ -26,14 +26,11 @@ import {
   EtapaParticipante,
   OrigenParticipante,
 } from '../../generated/prisma';
+import { aNumeroONulo as aNumero } from '../comun/campo-vacio';
 
 const recortar = ({ value }: { value: unknown }) =>
   typeof value === 'string' ? value.trim() : value;
 
-/// "" y null llegan del formulario cuando se vacia un
-/// desplegable: los dos quieren decir "sin dato"
-const aNumero = ({ value }: { value: unknown }) =>
-  value === '' || value === null || value === undefined ? null : Number(value);
 
 export class CrearParticipanteDto {
   // el id del catalogo del SEP, validado en el servicio
