@@ -80,7 +80,17 @@ async function bootstrap() {
   // el webhook escribe sin sesion: sin llave no se arranca
   exigirSecretoDeLeads();
 
-  const app = await NestFactory.create(AppModule);
+  /// `rawBody`: el cuerpo TAL CUAL llegó, byte a byte.
+  ///
+  /// Meta firma sus webhooks con HMAC sobre el cuerpo crudo.
+  /// Si se firma sobre el JSON ya parseado y vuelto a
+  /// serializar, la firma NUNCA cuadra: basta con que cambie
+  /// el orden de una clave o un espacio.
+  ///
+  /// Nest no lo guarda salvo que se le pida, y sin él la única
+  /// alternativa era un orquestador intermedio que tradujera
+  /// —una pieza más que mantener y que se puede caer sola.
+  const app = await NestFactory.create(AppModule, { rawBody: true });
 
   // sin esto req.cookies llega vacio
   app.use(cookieParser());

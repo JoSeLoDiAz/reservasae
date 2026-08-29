@@ -851,6 +851,32 @@ avisando de algo que el cliente iba a notar.
 
 ## Desplegar
 
+> **Antes de `docker compose up`: repase el `.env` del servidor.**
+>
+> Hay variables **sin las cuales el backend NO ARRANCA**, y el
+> despliegue se descubre roto cuando ya está parado:
+>
+> | Variable | Si falta |
+> |---|---|
+> | `ADMIN_JWT_SECRET` | no arranca (mínimo 32 caracteres) |
+> | `LEADS_WEBHOOK_SECRET` | **no arranca** (mínimo 32 caracteres) |
+> | `DATABASE_URL` | no arranca |
+>
+> `LEADS_WEBHOOK_SECRET` es la más fácil de olvidar porque es la
+> más nueva: **existe desde el 27 ago 2026 y no estaba en los
+> despliegues anteriores**. Que tumbe el arranque es deliberado
+> —es la única puerta que escribe en el CRM sin sesión, y
+> dejarla abierta por una variable ausente sería un control en
+> pie y vacío de efecto—, pero eso significa que un `.env`
+> heredado de antes **no levanta**.
+>
+> Y otras que **NO** tumban el arranque, y por eso fallan en
+> silencio: `META_APP_SECRET`, `META_VERIFY_TOKEN` y
+> `META_CONVENIO_SLUG`. Sin ellas el backend sube igual y los
+> leads de Meta sencillamente no entran. Se comprueban desde el
+> panel, en **Configuración → Webhook de Meta**, que dice cuál
+> falta y de dónde sale. Ver [docs/webhook-meta.md](docs/webhook-meta.md).
+
 ```bash
 ssh sep-vm
 cd /opt/sep/reservasae
@@ -1960,12 +1986,74 @@ y un token). El correo ya sale: ver «El correo».
 
 ---
 
+### La acción de formación se elige; la sede se deduce (28 ago 2026)
+
+**La regla, en una línea: el asesor elige un CURSO, no una sede.**
+
+`Oferta` es `accionFormacionId × ubicacionId` (único). Como AF1 se
+oferta en seis departamentos, la ficha —que listaba `ofertas` en
+crudo— enseñaba **AF1 seis veces** y le pedía al asesor que
+supiera cuál le tocaba a esa persona. Eso no es una decisión suya.
+
+`opciones` devuelve ahora **`acciones`**: una fila por acción de
+formación (unas 8 por convenio), con la oferta que le corresponde
+a *esta* persona ya resuelta contra dónde vive:
+
+```ts
+{ accionFormacionId, codigo, nombre, etiqueta,
+  ofertaId, ubicacion,      // null si no hay cobertura
+  cupos, disponibles, abierta,
+  cubre: boolean, sedes: number }
+```
+
+`ofertas` **se conserva** —lo usan las reservas de empresa y los
+informes—, pero la ficha ya no lo mira.
+
+**Si hay varias sedes que cubren a la persona** (su ciudad y su
+departamento, o una virtual), gana la que más cupo libre tenga.
+Es el único desempate que no perjudica a nadie.
+
+**Sin cobertura NO se inscribe.** Si su departamento no tiene esa
+acción, la lista lo dice en la misma línea —«Sin cobertura en
+Chocó · se dicta en 6 sedes»—, el botón se apaga, y la pantalla
+indica que **corresponde escribirle un correo de agradecimiento**.
+
+> **Y la regla vive en `asignar()`, no solo en la pantalla.** Un
+> control que solo está en el navegador no es un control: la ruta
+> se puede llamar directo. `asignar` recalcula `cubreA(sede, vive)`
+> y rechaza con ese mismo mensaje. **No la quite de ahí** «porque
+> la pantalla ya no deja».
+
+**Los grupos se filtran por acción Y sede.** Filtraban solo por
+`accionFormacionId`, y como las seis ofertas de AF1 comparten ese
+id, elegir «AF1 · BOGOTÁ» sacaba también los grupos de Antioquia,
+Cauca, Córdoba, Huila y Santander — se podía guardar una ficha con
+la oferta de Bogotá y un grupo de Santander, que no significa
+nada. Los **virtuales** pasan siempre: no se dictan en ningún
+sitio, así que la sede de la oferta no los descarta.
+
+Para eso `opciones.grupos` trae ahora `ubicacion` suelta. Antes
+solo viajaba dentro del texto «Grupo 5 · SANTANDER», donde el
+código no la podía leer.
+
+**Lo que ya existía y conviene no tocar:** la compuerta de
+matrícula (`faltantesParaMatricular`) ya exige la acción de
+formación para pasar a `INSCRITO`. No hace falta añadir nada ahí.
+
 ### La mesa de entrada: el webhook de leads (27 ago 2026)
 
 `POST /api/webhooks/leads`. Lo llama el **orquestador de correos
 de Mauricio**, que recibe de Meta y nos reenvía. Nuestro contrato,
 no el de Meta: si algún día Meta pega directo, se le pone un
 adaptador delante sin tocar nada de dentro.
+
+> **Ese día llegó (28 ago 2026): Meta ya pega directo.** El adaptador
+> es `POST /api/webhooks/leads/meta`, una segunda puerta con la firma
+> HMAC de Meta en vez de nuestra llave, y `GET` en la misma ruta para
+> el apretón de manos que enciende el webhook. La puerta del
+> orquestador sigue igual y no se tocó. Todo —incluida **una migración
+> sin aplicar que hay que aplicar**— está en
+> [docs/webhook-meta.md](docs/webhook-meta.md).
 
 **El problema que resuelve, y por qué no era obvio.** Un lead de
 un anuncio trae nombre, teléfono y correo, y **no trae cédula**. Y

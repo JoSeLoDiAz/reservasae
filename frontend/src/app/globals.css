@@ -119,6 +119,32 @@
 }
 
 @theme inline {
+  /* ── El radio, en un solo sitio ──────────────────────────
+     Esto es una decisión de ESTILO y no un ajuste suelto: el
+     panel es una herramienta de trabajo institucional, no una
+     app. El redondeo generoso —`rounded-2xl` en cada tarjeta,
+     píldoras de 999px— la hacía parecer lo segundo.
+
+     Se corrige aquí y no en las 361 clases repartidas por el
+     código: en Tailwind v4 el radio es un token, así que
+     `rounded-xl` en cualquier archivo pasa a medir esto. Quien
+     escriba `rounded-2xl` mañana sigue saliendo en el estilo
+     de la casa sin tener que acordarse.
+
+     Los cinco escalones se aplastan a dos —3px y 4px— a
+     propósito: con una diferencia de un píxel entre «lg» y
+     «2xl» ya no hay jerarquía de redondeo que mantener, y esa
+     jerarquía era justo lo que hacía que unas cajas se vieran
+     más blandas que otras sin ningún motivo. */
+  --radius-xs: 2px;
+  --radius-sm: 3px;
+  --radius-md: 3px;
+  --radius-lg: 3px;
+  --radius-xl: 4px;
+  --radius-2xl: 4px;
+  --radius-3xl: 4px;
+  --radius-4xl: 4px;
+
   --color-marca: var(--marca);
   --color-marca-fuerte: var(--marca-fuerte);
   --color-marca-suave: var(--marca-suave);
@@ -154,13 +180,28 @@
   --color-error: var(--error);
   --color-error-suave: var(--error-suave);
 
+  /* SOLO Raleway. Es la unica autorizada por la marca.
+     `--font-mono` apunta tambien a ella para que las 40
+     clases `font-mono` repartidas por el codigo dejen de
+     sacar otra tipografia sin tener que tocarlas una a una.
+     Lo que daba la mono -- que las cifras cuadren en columna
+     -- se conserva con `tabular-nums`, que Raleway trae. */
   --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-mono: var(--font-geist-sans);
 }
 
 body {
   background: var(--fondo);
   color: var(--texto);
+}
+
+/* `font-mono` ya no cambia de tipografia -- solo Raleway esta
+   autorizada -- pero lo que se marcaba asi son documentos,
+   telefonos y fechas, que TIENEN que cuadrar en columna. Las
+   cifras tabulares lo dan sin salirse de la marca. */
+.font-mono {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.01em;
 }
 
 h1,
@@ -235,7 +276,7 @@ h3 {
 :where(a, button, input, select, textarea, [tabindex]):focus-visible {
   outline: 2px solid var(--campo-foco);
   outline-offset: 2px;
-  border-radius: 0.5rem;
+  border-radius: 3px;
 }
 
 /* con el teclado, saltarse el menu */
@@ -269,28 +310,23 @@ h3 {
   scroll-margin-top: 5rem;
 }
 
-/* etiqueta de etapa: color propio, fondo teñido con el */
-.pildora-etapa {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.375rem;
-  border-radius: 999px;
-  border: 1px solid color-mix(in oklab, var(--etapa) 34%, var(--superficie));
-  background: color-mix(in oklab, var(--etapa) 12%, var(--superficie));
-  color: var(--etapa);
-  padding: 0.125rem 0.5rem;
-  font-size: 0.6875rem;
-  font-weight: 500;
-  white-space: nowrap;
-}
+/* La etapa NO es una caja: es texto del color de su etapa.
 
-/* el punto que acompaña a la etiqueta */
-.punto-etapa {
-  width: 0.5rem;
-  height: 0.5rem;
-  border-radius: 999px;
-  background: var(--etapa);
-  flex: none;
+   Paso por pildora redondeada con punto, luego por rectangulo
+   con borde y fondo tenido, y las dos estaban de mas. Con el
+   color puesto en la LETRA ya se distingue una etapa de otra
+   de un vistazo, y la caja solo anadia peso: en una tabla de
+   400 filas, 400 rectangulos de colores compiten con los
+   datos en vez de ordenarlos.
+
+   Esta es la regla de la casa y vale para todo lo que tenga
+   estado -- etapas, completo/parcial, activo/cerrado: el
+   color va en el tipo de letra, sin mas. */
+.pildora-etapa {
+  color: var(--etapa);
+  font-size: inherit;
+  font-weight: 600;
+  white-space: nowrap;
 }
 
 /* impresion / pdf */

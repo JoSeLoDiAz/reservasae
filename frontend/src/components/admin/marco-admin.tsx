@@ -2,7 +2,13 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { createContext, useCallback, useContext, useEffect, useState } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useState,
+} from "react";
 import { createPortal } from "react-dom";
 
 import { ConmutadorTema, useMarca } from "@/components/marca-publica";
@@ -80,6 +86,23 @@ export function MarcoAdmin({ children }: { children: React.ReactNode }) {
   /// porque no se acuerda de qué hay dentro, así que hay que
   /// enseñárselo abierto.
   const [moduloAAbrir, setModuloAAbrir] = useState<string | null>(null);
+
+  /// Aquí vivía un «cinturón encima de los tirantes»: un
+  /// listener que devolvía a cero el `scrollTop` del marco en
+  /// `scroll` y en `focusin`.
+  ///
+  /// Se quitó porque era CÓDIGO MUERTO, y del peor tipo: el
+  /// que parece estar protegiendo algo. El marco lleva
+  /// `overflow: clip`, así que no es contenedor de scroll —
+  /// nunca emite `scroll`, y su `scrollTop` es 0 por
+  /// construcción, de modo que asignárselo no hace nada. El
+  /// `focusin` sí le llegaba, pero corregía el único
+  /// desplazamiento que no podía existir.
+  ///
+  /// El que sí puede desplazarse es `.barra-visible`, y ese
+  /// DEBE poder hacerlo: es justamente cómo se llega a Ajustes
+  /// cuando la ventana es baja. Devolverlo a cero rompería lo
+  /// que se arregló al meter Ajustes dentro de esa columna.
 
   useEffect(() => {
     setPlegadoEstado(window.localStorage.getItem(LLAVE_PLEGADO) === "si");

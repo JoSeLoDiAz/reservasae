@@ -2,6 +2,7 @@
 
 import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 
+import type { AvisoDeMeta } from './meta';
 import {
   cruzarConElCrm,
   partirNombreCompleto,
@@ -170,6 +171,103 @@ export class LeadsService {
     );
 
     return { ...this.vista(lead), repetido: false, yaEstaba: false };
+  }
+
+  /**
+   * Los avisos que manda Meta, guardados sin perder ninguno.
+   *
+   * Meta NO manda los datos de la persona: manda un
+   * `leadgen_id` y ya. Para saber cómo se llama hay que volver
+   * a llamar a su Graph API con un token de la página, y ese
+   * token puede no estar puesto todavía.
+   *
+   * Por eso el aviso se guarda SIEMPRE, con o sin token: un
+   * lead pagado que se pierde porque a nosotros nos faltaba
+   * una credencial es plata tirada. Queda PENDIENTE con su
+   * `leadgen_id`, y completarlo después es una consulta más.
+   *
+   * Y se contesta 200 pase lo que pase: Meta reintenta cuando
+   * no recibe 200, y si insiste sin éxito APAGA el webhook. Un
+   * aviso que no entendemos no puede costar que dejen de
+   * llegar los que sí.
+   */
+  async deMeta(avisos: AvisoDeMeta[]) {
+    if (avisos.length === 0) {
+      /// Meta manda por este mismo webhook cosas que no son
+      /// leads. No es un error y no se registra como tal.
+      return { recibidos: 0, guardados: 0 };
+    }
+
+    /// A qué convenio entran los leads de Meta.
+    ///
+    /// Va en el entorno y no se adivina: son dos gremios, y
+    /// meter a alguien de ADECOPRIA en BRITCHAM es peor que
+    /// dejar el lead esperando.
+    const slug = process.env.META_CONVENIO_SLUG;
+    const convenio = slug
+      ? await this.prisma.convenio.findFirst({
+          where: { slug, activo: true },
+          select: { id: true, slug: true },
+        })
+      : null;
+
+    if (!convenio) {
+      /// NO se pierde: se avisa fuerte y se contesta 200 para
+      /// que Meta no apague el webhook. Lo que falta es
+      /// configuración nuestra, no un problema de ellos.
+      this.log.error(
+        `Llegaron ${avisos.length} leads de Meta y META_CONVENIO_SLUG ` +
+          `${slug ? `apunta a «${slug}», que no es una convocatoria activa` : 'no está puesto'}. ` +
+          'NO se guardaron. Póngalo y pídale a Meta que los reenvíe.',
+      );
+      return { recibidos: avisos.length, guardados: 0, sinConvenio: true };
+    }
+
+    let guardados = 0;
+    for (const aviso of avisos) {
+      /// Uno a uno y con su propio try: si el tercero falla,
+      /// los dos primeros ya están guardados. Un lote entero
+      /// perdido por una fila mala es lo que no puede pasar.
+      try {
+        await this.prisma.leadEntrante.upsert({
+          where: {
+            origenSistema_externoId: {
+              origenSistema: 'meta',
+              externoId: aviso.leadgenId,
+            },
+          },
+          /// Si ya estaba, no se toca: Meta reintenta y un
+          /// reintento no puede duplicar ni pisar lo que ya se
+          /// completó.
+          update: {},
+          create: {
+            convenioId: convenio.id,
+            origenSistema: 'meta',
+            externoId: aviso.leadgenId,
+            origen: 'FACEBOOK',
+            carga: {
+              leadgenId: aviso.leadgenId,
+              formularioId: aviso.formularioId,
+              paginaId: aviso.paginaId,
+              anuncioId: aviso.anuncioId,
+              creadoEn: aviso.creadoEn?.toISOString() ?? null,
+            } as Prisma.InputJsonValue,
+            motivo:
+              'Meta solo manda el identificador. Faltan sus datos: hay que ' +
+              'pedírselos a la Graph API con el token de la página.',
+          },
+        });
+        guardados += 1;
+      } catch (e) {
+        this.log.error(
+          `No se pudo guardar el lead ${aviso.leadgenId} de Meta: ` +
+            (e as Error).message,
+        );
+      }
+    }
+
+    this.log.log(`Meta: ${guardados} de ${avisos.length} avisos guardados.`);
+    return { recibidos: avisos.length, guardados };
   }
 
   /**

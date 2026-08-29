@@ -21,6 +21,14 @@ costaron un fallo en producción y que conviene no deshacer sin saber:
 - [docs/decisiones-formularios.md](docs/decisiones-formularios.md) —
   el orden de las pantallas, el habeas data, y el enlace que se
   cerraba sin haber recogido nada.
+- [docs/webhook-meta.md](docs/webhook-meta.md) — los leads pagados de
+  Facebook e Instagram. **Empieza con una migración sin aplicar**, y
+  sigue con las tres cosas que si se tocan sin saber dejan de llegar
+  los leads que se están pagando.
+- [docs/estilo-del-panel.md](docs/estilo-del-panel.md) — las cinco
+  reglas visuales del panel, cada una puesta en **un solo sitio** para
+  no tener que acordarse de ellas. Si algo «se ve raro», la corrección
+  casi siempre va en el token, no en el componente.
 
 ---
 

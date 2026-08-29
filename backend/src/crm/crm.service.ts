@@ -34,7 +34,7 @@ import {
   exigeDatosParaElAula,
   motivoDeTransicionImposible,
 } from './escalera';
-import { repartirPorCobertura } from './cobertura';
+import { cubreA, repartirPorCobertura } from './cobertura';
 import { faltaDeLaPersona, revisar } from './completitud';
 import { PanelDeCupos } from './panel-de-cupos';
 import { ColaRui } from './rui/cola-rui';
@@ -2948,7 +2948,12 @@ export class CrmService {
         cuposMaximos: true,
         abierta: true,
         modalidad: true,
-        ubicacion: { select: { nombre: true } },
+        /// `tipo` y `departamento` ademas del nombre: son lo
+        /// que necesita `cubreA` para decidir si esta sede
+        /// llega a donde vive la persona. Con solo el nombre no
+        /// se puede distinguir un grupo departamental de uno
+        /// de ciudad, que es justo la diferencia que importa.
+        ubicacion: { select: { nombre: true, tipo: true, departamento: true } },
         accionFormacion: { select: { id: true, codigo: true, nombre: true } },
         _count: {
           select: { participantes: { where: { etapa: { in: ETAPAS_VIVAS } } } },
@@ -2999,8 +3004,69 @@ export class CrmService {
 
     const { cubren, fuera } = repartirPorCobertura(grupos, vive);
 
+    /// LAS ACCIONES DE FORMACION, una por una y ya resueltas.
+    ///
+    /// `ofertas` es la tabla cruda: accion x sede. Como una
+    /// accion se oferta en seis departamentos, la pantalla
+    /// enseñaba AF1 seis veces y el asesor tenia que saber cual
+    /// le tocaba a esta persona. Eso no es una decision suya:
+    /// se deduce de donde vive.
+    ///
+    /// Aqui se colapsa a UNA fila por accion, con la sede que
+    /// le corresponde ya elegida. Si no hay ninguna que la
+    /// cubra, la fila sale igual con `cubre: false` -- no se
+    /// esconde. Esconderla dejaria al asesor sin saber por que
+    /// falta un curso que sabe que existe, y lo que hay que
+    /// decirle es justo lo contrario: que ese curso no llega a
+    /// su departamento y que corresponde agradecerle.
+    const porAccion = new Map<string, (typeof ofertas)[number][]>();
+    for (const o of ofertas) {
+      const lista = porAccion.get(o.accionFormacion.id) ?? [];
+      lista.push(o);
+      porAccion.set(o.accionFormacion.id, lista);
+    }
+
+    const acciones = [...porAccion.entries()].map(([accionFormacionId, suyas]) => {
+      /// Las que llegan a donde vive. Puede haber mas de una
+      /// —una ciudad y su departamento, o una virtual—, y
+      /// entonces manda la que MAS cupo libre tenga: es la
+      /// unica desempate que no perjudica a nadie.
+      const alcanzan = suyas
+        .filter((o) => cubreA({ tipo: o.ubicacion.tipo, nombre: o.ubicacion.nombre, departamento: o.ubicacion.departamento }, vive))
+        .sort(
+          (a, b) =>
+            b.cuposMaximos -
+            b._count.participantes -
+            (a.cuposMaximos - a._count.participantes),
+        );
+
+      const elegida = alcanzan[0] ?? null;
+      const primera = suyas[0];
+
+      return {
+        accionFormacionId,
+        codigo: primera.accionFormacion.codigo,
+        nombre: primera.accionFormacion.nombre,
+        etiqueta: `${primera.accionFormacion.codigo} · ${primera.accionFormacion.nombre}`,
+        /// La oferta que le toca a ESTA persona. Null cuando su
+        /// departamento no tiene cobertura.
+        ofertaId: elegida?.id ?? null,
+        ubicacion: elegida?.ubicacion.nombre ?? null,
+        cupos: elegida?.cuposMaximos ?? 0,
+        disponibles: elegida
+          ? Math.max(0, elegida.cuposMaximos - elegida._count.participantes)
+          : 0,
+        abierta: elegida?.abierta ?? false,
+        cubre: elegida !== null,
+        /// En cuantas sedes se dicta, para poder decir «se
+        /// dicta en 6 departamentos, ninguno el suyo».
+        sedes: suyas.length,
+      };
+    });
+
     return {
       asesores,
+      acciones,
       /// Cuantos se dejaron fuera por vivir en otra parte. Una
       /// lista que se acorta sola sin decir por que parece un
       /// sistema roto.
@@ -3020,6 +3086,15 @@ export class CrmService {
       grupos: cubren.map((g) => ({
         id: g.id,
         accionFormacionId: g.grupo.accionFormacionId,
+        /// La ubicacion, SUELTA y no solo dentro de la
+        /// etiqueta.
+        ///
+        /// Hace falta para que la pantalla pueda casar el
+        /// grupo con la OFERTA elegida. Sin esto solo se podia
+        /// filtrar por accion de formacion, y como la misma
+        /// accion se oferta en seis departamentos, elegir la
+        /// de Bogota sacaba los grupos de todos ellos.
+        ubicacion: g.ubicacion.nombre,
         etiqueta: `Grupo ${g.grupo.numero} · ${g.ubicacion.nombre}`,
         modalidad: g.modalidad,
         cupos: g.cuposBase,
@@ -3071,6 +3146,31 @@ export class CrmService {
 
     if (oferta.accionFormacion.convenioId !== p.convenioId) {
       throw new BadRequestException('Esa oferta es de otro convenio.');
+    }
+
+    /// LA COBERTURA SE COMPRUEBA AQUI, no solo en la pantalla.
+    ///
+    /// Un control que solo vive en el navegador no es un
+    /// control: la ruta se puede llamar directamente. Si esta
+    /// sede no llega a donde vive la persona, no se le asigna
+    /// -- y el mensaje dice que hacer en su lugar, porque
+    /// negarse sin decir para donde no sirve de nada.
+    const vive = await this.dondeVive(id);
+    const sede = await this.prisma.oferta.findUnique({
+      where: { id: dto.ofertaId },
+      select: {
+        ubicacion: { select: { nombre: true, tipo: true, departamento: true } },
+      },
+    });
+    if (sede && !cubreA(sede.ubicacion, vive)) {
+      const donde =
+        [vive.ciudad, vive.departamento].filter(Boolean).join(', ') ||
+        'su domicilio';
+      throw new BadRequestException(
+        `«${oferta.accionFormacion.codigo}» se dicta en ${sede.ubicacion.nombre}, ` +
+          `que no cubre ${donde}. No se puede inscribir a esta persona en esa ` +
+          'accion: corresponde escribirle un correo de agradecimiento.',
+      );
     }
 
     // la misma persona no cuenta dos veces en una accion

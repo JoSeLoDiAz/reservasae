@@ -9,6 +9,7 @@ import { CajonLead } from "@/components/admin/cajon-lead";
 import { columnasDeParticipante } from "@/components/admin/columnas-participante";
 import { Tabla } from "@/components/admin/tabla";
 import { ErrorApi } from "@/lib/api";
+import { useFiltrosEnLaUrl } from "@/lib/filtros-en-la-url";
 import {
   crmApi,
   type FilaParticipante,
@@ -32,25 +33,33 @@ export default function PaginaParticipantes() {
   const [paginas, setPaginas] = useState(1);
   const [error, setError] = useState<string | null>(null);
 
-  const filtros = useMemo<Filtros>(
-    () => ({
-      // Inscripciones acaba al marcar «Inscrito»: de ahi
-      // en adelante manda el seguimiento academico
-      tramo: "INSCRIPCION",
-    }),
-    [],
-  );
+  /// Lo que esta pantalla impone y nadie elige.
+  ///
+  /// Inscripciones acaba al marcar «Inscrito»: de ahí en
+  /// adelante manda el seguimiento académico. No es un filtro
+  /// de la persona, es lo que ESTA pantalla es, y por eso no
+  /// viaja en la dirección ni sale como quitable.
+  const FIJOS = useMemo<Filtros>(() => ({ tramo: "INSCRIPCION" }), []);
+
+  const { filtros, cuantos, limpiar } = useFiltrosEnLaUrl(FIJOS);
 
   const cargar = useCallback(async () => {
     const [listado, res] = await Promise.all([
       crmApi.listar({ ...filtros, pagina: 1, limite: POR_CARGA }),
-      crmApi.resumen(filtros),
+      /// El resumen se pide SIN los filtros de la persona.
+      ///
+      /// Es la foto del conjunto —el embudo entero, cuántos van
+      /// sin asesor—, y filtrarla haría que al pulsar «etapa:
+      /// Contactado» el propio contador de Contactado pasara a
+      /// ser el total. Los números de arriba tienen que seguir
+      /// siendo el mapa mientras se mira un trozo.
+      crmApi.resumen(FIJOS),
     ]);
     setFilas(listado.participantes);
     setTotal(listado.total);
     setPaginas(listado.paginas);
     setResumen(res);
-  }, [filtros]);
+  }, [filtros, FIJOS]);
 
   // por criterio: hacen falta todas
   const cargarTodas = useCallback(async () => {
@@ -77,8 +86,20 @@ export default function PaginaParticipantes() {
     return <p className="text-texto-suave">Cargando…</p>;
   }
 
+  /// DOS preguntas distintas, y confundirlas es el fallo.
+  ///
+  /// `resumen.total` viene SIN los filtros de la persona, así
+  /// que responde «¿hay alguien en el sistema?». `total` viene
+  /// del listado, que sí está filtrado, y responde «¿queda
+  /// alguien con lo que se pidió?».
+  ///
+  /// Con una sola variable, filtrar hasta cero enseñaba
+  /// «todavía no hay nadie inscrito» —que dice que la base
+  /// está vacía— y eso asusta de verdad a quien solo puso mal
+  /// un filtro.
   const hayAlguien = resumen.total > 0;
-  const hayFiltro = false;
+  const hayResultados = total > 0;
+  const hayFiltro = cuantos > 0;
 
 
   return (
@@ -91,12 +112,8 @@ export default function PaginaParticipantes() {
 
       {!hayAlguien && (
         <Tarjeta
-          titulo={hayFiltro ? "Nadie coincide con ese filtro" : "Todavía no hay nadie inscrito"}
-          descripcion={
-            hayFiltro
-              ? "Pruebe a quitar alguno."
-              : "Aquí van a aparecer las personas conforme se capturen."
-          }
+          titulo="Todavía no hay nadie inscrito"
+          descripcion="Aquí van a aparecer las personas conforme se capturen."
         >
           <p className="text-sm text-texto-suave">
             El sistema hoy sabe cuántos cupos reservó cada empresa, pero no quiénes son.
@@ -105,8 +122,27 @@ export default function PaginaParticipantes() {
         </Tarjeta>
       )}
 
+      {hayAlguien && !hayResultados && (
+        /// Hay gente, pero no con lo que se pidió. Se dice
+        /// CUÁNTA hay detrás del filtro y se ofrece quitarlo:
+        /// un vacío sin salida obliga a recargar a mano.
+        <Tarjeta
+          titulo="Nadie coincide con ese filtro"
+          descripcion={
+            hayFiltro
+              ? `Hay ${resumen.total} personas en total. Quite algún filtro para verlas.`
+              : "Pruebe de nuevo en un momento."
+          }
+        >
+          {hayFiltro && (
+            <button onClick={limpiar} className={CLASE_BOTON}>
+              Quitar los filtros
+            </button>
+          )}
+        </Tarjeta>
+      )}
 
-      {hayAlguien && (
+      {hayResultados && (
         <div className="flex min-h-0 grow flex-col">
           <ListaParticipantes
             filas={filas}
