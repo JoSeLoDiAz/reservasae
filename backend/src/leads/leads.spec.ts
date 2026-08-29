@@ -210,7 +210,7 @@ describe('el gremio puede venir por el SUBDOMINIO', () => {
     const { s, creados } = armar();
 
     await s.entra(
-      { externoId: 'x1', nombreCompleto: 'Ana' } as never,
+      { externoId: 'x1', nombreCompleto: 'Ana' },
       'orquestador',
       'adecopria',
     );
@@ -220,7 +220,7 @@ describe('el gremio puede venir por el SUBDOMINIO', () => {
 
   it('los dos, y de acuerdo, entra', async () => {
     const { s, creados } = armar();
-    await s.entra({ ...BASE } as never, 'orquestador', 'adecopria');
+    await s.entra({ ...BASE }, 'orquestador', 'adecopria');
     expect(creados[0].convenioId).toBe('c-ade');
   });
 
@@ -233,7 +233,7 @@ describe('el gremio puede venir por el SUBDOMINIO', () => {
 
     await expect(
       s.entra(
-        { ...BASE, convenio: 'britcham-adee' } as never,
+        { ...BASE, convenio: 'britcham-adee' },
         'orquestador',
         'adecopria',
       ),
@@ -245,7 +245,7 @@ describe('el gremio puede venir por el SUBDOMINIO', () => {
     const { s, creados } = armar();
 
     await expect(
-      s.entra({ externoId: 'x1' } as never, 'orquestador', null),
+      s.entra({ externoId: 'x1' }, 'orquestador', null),
     ).rejects.toThrow(/subdominio|convenio/i);
     expect(creados).toEqual([]);
   });
@@ -254,7 +254,7 @@ describe('el gremio puede venir por el SUBDOMINIO', () => {
     /// `reservasae.com` no resuelve gremio, así que el cuerpo
     /// manda. Es lo que usa hoy el orquestador.
     const { s, creados } = armar();
-    await s.entra(BASE as never, 'orquestador', null);
+    await s.entra(BASE, 'orquestador', null);
     expect(creados[0].convenioId).toBe('c-ade');
   });
 });

@@ -1,0 +1,230 @@
+/** Convertir un lead exige una autorización de verdad. */
+
+/**
+ * Lo que fija este spec no es código, es una decisión: un lead de
+ * un anuncio llenó un formulario de Facebook, no el nuestro, y
+ * NO hay constancia de que autorizara nada. Convertirlo solo
+ * —crear la Persona y consultarla en el RUI, que es un portal
+ * del Estado— sería tratar sus datos sin nada que demostrar.
+ *
+ * Por eso convertir es una acción del asesor que llamó, y por eso
+ * el orden importa: primero la autorización, después el RUI.
+ */
+
+import { ConversionDeLeads } from './conversion.service';
+
+const LEAD = {
+  id: 'l1',
+  convenioId: 'c1',
+  estado: 'PENDIENTE',
+  participanteId: null as string | null,
+  nombreCompleto: 'Ana Lucía Jaramillo Gómez',
+  correo: 'ana@ejemplo.test',
+  celular: '3001234567',
+  tipoDocumentoSepId: 1 as number | null,
+  numeroDocumento: '1019456782' as string | null,
+  origen: 'FACEBOOK',
+  interes: 'IA',
+};
+
+type Opciones = {
+  lead?: Partial<typeof LEAD> | null;
+  hayPolitica?: boolean;
+  yaAutorizada?: boolean;
+};
+
+function armar(o: Opciones = {}) {
+  const hecho: string[] = [];
+  const orden: string[] = [];
+
+  const prisma = {
+    leadEntrante: {
+      findFirst: ({ where }: { where: { convenioId?: { in: string[] } } }) => {
+        // el ambito de verdad: fuera de el, no existe
+        if (where.convenioId && !where.convenioId.in.includes('c1')) {
+          return Promise.resolve(null);
+        }
+        return Promise.resolve(
+          o.lead === null ? null : { ...LEAD, ...(o.lead ?? {}) },
+        );
+      },
+      update: () => {
+        hecho.push('lead.update');
+        return Promise.resolve({ id: 'l1' });
+      },
+    },
+    politicaDatos: {
+      findFirst: () =>
+        Promise.resolve(
+          o.hayPolitica === false ? null : { id: 'pol1', version: 2 },
+        ),
+    },
+    autorizacionDatos: {
+      findFirst: () =>
+        Promise.resolve(o.yaAutorizada ? { id: 'a-vieja' } : null),
+      create: () => {
+        hecho.push('autorizacion.create');
+        orden.push('AUTORIZACION');
+        return Promise.resolve({ id: 'a1' });
+      },
+    },
+  };
+
+  const crm = {
+    crear: () => {
+      hecho.push('crm.crear');
+      orden.push('FICHA');
+      return Promise.resolve({ id: 'p1', personaId: 'per1' });
+    },
+  };
+
+  const cola = {
+    encolarSiHaceFalta: () => {
+      hecho.push('rui.encolar');
+      orden.push('RUI');
+      return Promise.resolve();
+    },
+  };
+
+  return {
+    s: new ConversionDeLeads(prisma as never, crm as never, cola as never),
+    hecho,
+    orden,
+  };
+}
+
+const ADMIN = { id: 'a1', nombre: 'Ana Jaramillo' };
+const DTO = { canal: 'VERBAL_ASESOR', evidencia: 'Llamada del 29 de agosto' };
+
+async function convertir(
+  o: Opciones = {},
+  dto: Record<string, unknown> = DTO,
+  ambito = ['c1'],
+) {
+  const { s, hecho, orden } = armar(o);
+  try {
+    const r = await s.convertir('l1', dto as never, ADMIN as never, ambito);
+    return { ok: true, mensaje: '', hecho, orden, r };
+  } catch (e) {
+    return { ok: false, mensaje: (e as Error).message, hecho, orden, r: null };
+  }
+}
+
+describe('el camino bueno', () => {
+  it('crea la ficha, deja la constancia y marca el lead', async () => {
+    const r = await convertir();
+
+    expect(r.ok).toBe(true);
+    expect(r.hecho).toContain('crm.crear');
+    expect(r.hecho).toContain('autorizacion.create');
+    expect(r.hecho).toContain('lead.update');
+  });
+
+  it('la ficha se crea con `crm.crear`, no con un create propio', async () => {
+    /// Una tercera forma de crear una persona sería una tercera
+    /// regla, y este repositorio ya sabe cómo acaban.
+    const r = await convertir();
+    expect(r.hecho.filter((x) => x === 'crm.crear')).toHaveLength(1);
+  });
+});
+
+describe('el ORDEN: la autorización antes que el RUI', () => {
+  it('el RUI se encola DESPUÉS de la constancia, nunca antes', async () => {
+    /// El RUI es una consulta a un portal del Estado sobre una
+    /// persona. Hacerla antes de que exista la autorización es
+    /// consultarla sin permiso, y el orden es toda la
+    /// diferencia entre una cosa y la otra.
+    const r = await convertir();
+
+    expect(r.orden.indexOf('AUTORIZACION')).toBeLessThan(
+      r.orden.indexOf('RUI'),
+    );
+  });
+
+  it('y la ficha antes que las dos', async () => {
+    const r = await convertir();
+    expect(r.orden).toEqual(['FICHA', 'AUTORIZACION', 'RUI']);
+  });
+});
+
+describe('sin autorización no se convierte, y por eso el canal es obligatorio', () => {
+  it('sin política publicada NO se convierte, ni se consulta el RUI', async () => {
+    /// Esta acción existe PARA dejar la constancia. Sin texto
+    /// contra el que dejarla, convertir crearía una ficha que
+    /// dice estar autorizada y no puede demostrarlo.
+    const r = await convertir({ hayPolitica: false });
+
+    expect(r.ok).toBe(false);
+    expect(r.mensaje).toMatch(/política/i);
+    expect(r.hecho).toEqual([]);
+  });
+
+  it('y el mensaje dice dónde se arregla', async () => {
+    const r = await convertir({ hayPolitica: false });
+    expect(r.mensaje).toMatch(/Políticas/);
+  });
+});
+
+describe('el documento es la llave y no se inventa', () => {
+  it('sin documento no se crea la ficha', async () => {
+    const r = await convertir({
+      lead: { numeroDocumento: null, tipoDocumentoSepId: null },
+    });
+
+    expect(r.ok).toBe(false);
+    expect(r.mensaje).toMatch(/documento/i);
+    expect(r.hecho).toEqual([]);
+  });
+
+  it('el asesor lo puede aportar en la llamada', async () => {
+    /// Casi nunca lo trae un anuncio: lo normal es que el
+    /// asesor lo consiga hablando.
+    const r = await convertir(
+      { lead: { numeroDocumento: null, tipoDocumentoSepId: null } },
+      { ...DTO, tipoDocumentoSepId: 1, numeroDocumento: '1019456782' },
+    );
+    expect(r.ok).toBe(true);
+  });
+
+  it('uno con formato malo se rechaza, y no crea nada', async () => {
+    const r = await convertir(
+      {},
+      { ...DTO, tipoDocumentoSepId: 1, numeroDocumento: 'ABCD1234' },
+    );
+    expect(r.ok).toBe(false);
+    expect(r.hecho).toEqual([]);
+  });
+});
+
+describe('el ámbito y la repetición', () => {
+  it('un lead de otro gremio NO existe: 404, no 403', async () => {
+    /// Un 403 confirmaría que ese lead existe en el otro gremio,
+    /// y eso es un oráculo.
+    const r = await convertir({}, DTO, ['otro-gremio']);
+
+    expect(r.ok).toBe(false);
+    expect(r.mensaje).toMatch(/no existe/i);
+    expect(r.hecho).toEqual([]);
+  });
+
+  it('un lead que ya tiene ficha no se convierte dos veces', async () => {
+    const r = await convertir({ lead: { participanteId: 'p-vieja' } });
+
+    expect(r.ok).toBe(false);
+    expect(r.mensaje).toMatch(/ya tiene ficha/i);
+    expect(r.hecho).toEqual([]);
+  });
+});
+
+describe('si ya tenía autorización viva, no se duplica', () => {
+  it('la ficha se crea igual, la constancia dice YA_TENIA', async () => {
+    /// Registrar dos veces la misma autorización no la hace más
+    /// cierta, y crearía dos filas que habría que revocar por
+    /// separado.
+    const r = await convertir({ yaAutorizada: true });
+
+    expect(r.ok).toBe(true);
+    expect(r.hecho).not.toContain('autorizacion.create');
+    expect((r.r as { constancia: string }).constancia).toBe('YA_TENIA');
+  });
+});
