@@ -14,6 +14,7 @@ import {
   Aviso,
   Boton,
   CLASE_CONTROL,
+  EscogerArchivo,
   Tarjeta,
   useAdmin,
 } from "@/components/admin/marco-admin";
@@ -538,15 +539,16 @@ function NuevaCampana({
           </div>
 
           <div>
-            <label htmlFor="c-banner" className="mb-1.5 block text-sm font-medium">
+            <p className="mb-1.5 block text-sm font-medium">
               Banner del encabezado (opcional)
-            </label>
-            <input
+            </p>
+            <EscogerArchivo
               id="c-banner"
-              type="file"
-              accept="image/png,image/jpeg,image/webp"
-              onChange={(e) => setBanner(e.target.files?.[0] ?? null)}
-              className="text-sm"
+              acepta="image/png,image/jpeg,image/webp"
+              archivo={banner}
+              alElegir={setBanner}
+              etiqueta="Elegir imagen"
+              vacio="Sin banner"
             />
             {/* SVG no: Gmail y Outlook no lo dibujan y quedaría
                 un hueco blanco justo arriba del correo. */}

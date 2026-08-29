@@ -1740,11 +1740,20 @@ function EnlaceCompletar({ ficha }: { ficha: Ficha }) {
   if (noLeFalta) {
     return (
       <Tarjeta titulo="Enlace para que complete sus datos">
+        {/* Sin botón, y dicho con todas las letras.
+
+            Ya no se ofrecía generar —eso estaba bien—, pero la
+            tarjeta no explicaba POR QUÉ, y quedaba la duda de
+            si faltaba pulsar algo. Generar uno aquí sería
+            mandar a la persona a un formulario que no le va a
+            preguntar nada, y de paso anular el que tuviera
+            abierto. */}
         <div className="rounded-xl border border-exito/30 bg-exito-suave p-4 text-sm text-exito">
-          <p className="font-medium">Datos completos — no aplica</p>
+          <p className="font-medium">No le falta ningún dato</p>
           <p className="mt-1">
-            De ajustar los existentes, por favor comuníquese con el interesado
-            para corroborar la información.
+            Ya no se genera ningún enlace: no habría nada que preguntarle. Si
+            necesita corregir algo de lo que ya dio, llámela y cámbielo aquí
+            mismo.
           </p>
         </div>
       </Tarjeta>
@@ -1758,17 +1767,17 @@ function EnlaceCompletar({ ficha }: { ficha: Ficha }) {
 
         <EstadoDelEnlace estado={ficha.enlace} />
 
-        <p className="text-sm text-texto-suave">
-          <strong className="font-medium text-texto">Recomendación:</strong> enviar
-          formulario vía WhatsApp o correo, recuerde no dictar la cédula por
-          teléfono.
-        </p>
+        {/* UNA sola caja, no dos.
 
+            Eran un párrafo suelto de «Recomendación» y debajo
+            un aviso de cuatro renglones que repetía la mitad.
+            Las dos dicen lo mismo —cómo mandarlo y qué pasa si
+            se genera otro—, así que van juntas y en corto: un
+            aviso que hay que leer dos veces no se lee ninguna. */}
         <div className="rounded-xl border border-aviso/30 bg-aviso-suave p-4 text-sm text-aviso">
-          Cada enlace es de un solo uso y anula al anterior, al generar uno nuevo,
-          el que ya recibió el interesado dejará de funcionar, antes de generarlo,
-          revise su estado. Si el enlace enviado aún no ha sido abierto, no genere
-          otro.
+          <strong className="font-medium">Recomendaciones:</strong> envíe el
+          formulario por WhatsApp o correo, nunca dicte la cédula por teléfono.
+          Recuerde que cada enlace es de un solo uso y anula al anterior.
         </div>
 
         {enlace && (

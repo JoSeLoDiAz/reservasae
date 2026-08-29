@@ -156,7 +156,10 @@ export function GestorLogos({ formularioId, heredados, alCambiar }: Props) {
           ref={entradaArchivo}
           type="file"
           accept="image/svg+xml,image/png,image/webp"
-          className="hidden"
+          /// `sr-only` y no `hidden`: con `display:none` el
+          /// input deja de recibir el foco y no hay forma de
+          /// llegar al campo con el teclado.
+          className="sr-only"
           onChange={(e) => {
             const archivo = e.target.files?.[0];
             if (archivo) {

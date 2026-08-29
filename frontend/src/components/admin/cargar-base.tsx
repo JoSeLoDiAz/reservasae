@@ -68,7 +68,10 @@ export function CargarBase({
           <input
             type="file"
             accept=".xlsx"
-            className="hidden"
+            /// `sr-only` y no `hidden`: con `display:none` el
+            /// input deja de recibir el foco y no hay forma de
+            /// llegar al campo con el teclado.
+            className="sr-only"
             disabled={subiendo}
             onChange={(e) => {
               const f = e.target.files?.[0];

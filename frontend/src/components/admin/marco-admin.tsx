@@ -7,6 +7,7 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useRef,
   useState,
 } from "react";
 import { createPortal } from "react-dom";
@@ -1199,6 +1200,89 @@ export function Boton({
     >
       {children}
     </button>
+  );
+}
+
+/**
+ * Escoger un archivo, con un botón de verdad.
+ *
+ * El `<input type="file">` a pelo lo pinta el navegador, y en
+ * Chrome sale como «Seleccionar archivo · Ningún archivo
+ * seleccionado» en gris: no parece un control del panel, no se
+ * puede alinear con nada y encima cambia de aspecto y de idioma
+ * según el navegador de cada quien.
+ *
+ * El input SIGUE ahí, con `sr-only` y no `hidden`: escondido
+ * con `display:none` deja de recibir el foco y el campo se
+ * vuelve inalcanzable con el teclado. Así conserva su
+ * comportamiento —incluido arrastrar y soltar sobre la
+ * etiqueta— y solo se le cambia la cara.
+ */
+export function EscogerArchivo({
+  id,
+  acepta,
+  archivo,
+  alElegir,
+  etiqueta = "Elegir archivo",
+  vacio = "Ningún archivo elegido",
+}: {
+  id: string;
+  acepta: string;
+  archivo: File | null;
+  alElegir: (f: File | null) => void;
+  etiqueta?: string;
+  vacio?: string;
+}) {
+  const entrada = useRef<HTMLInputElement>(null);
+
+  return (
+    <div className="flex flex-wrap items-center gap-3">
+      <input
+        ref={entrada}
+        id={id}
+        type="file"
+        accept={acepta}
+        className="sr-only"
+        onChange={(e) => alElegir(e.target.files?.[0] ?? null)}
+      />
+
+      {/* `<label>` y no `<button>`: pulsando la etiqueta de un
+          input de archivo el navegador abre el diálogo solo, sin
+          que haya que llamar a `.click()`. Y con `htmlFor` el
+          lector de pantalla los sigue leyendo como una cosa. */}
+      <label
+        htmlFor={id}
+        className="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-borde bg-superficie px-4 py-2 text-sm font-medium transition hover:border-marca hover:bg-superficie-alterna"
+      >
+        {etiqueta}
+      </label>
+
+      <span
+        className={`min-w-0 flex-1 truncate text-sm ${
+          archivo ? "" : "text-texto-suave"
+        }`}
+        title={archivo?.name}
+      >
+        {archivo ? archivo.name : vacio}
+      </span>
+
+      {archivo && (
+        <button
+          type="button"
+          className="shrink-0 text-sm text-texto-suave underline"
+          onClick={() => {
+            alElegir(null);
+            /// Vaciar el input además del estado. Sin esto,
+            /// volver a escoger EL MISMO archivo no dispara
+            /// `change` —el valor no cambió— y parece que el
+            /// botón dejó de funcionar.
+            if (entrada.current) entrada.current.value = "";
+          }}
+        >
+          Quitar
+        </button>
+      )}
+    </div>
   );
 }
 
