@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Geist_Mono, Raleway } from "next/font/google";
+import { Raleway } from "next/font/google";
 
 import { EstilosGremio } from "@/components/estilos-gremio";
 import { FranjaEntorno } from "@/components/franja-entorno";
@@ -12,11 +12,6 @@ import "./globals.css";
 // Raleway: la institucional del Grupo AE
 const raleway = Raleway({
   variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
   subsets: ["latin"],
 });
 
@@ -36,7 +31,7 @@ export default function RootLayout({
   return (
     <html
       lang="es"
-      className={`${raleway.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${raleway.variable} h-full antialiased`}
       // el script fija data-tema antes
       suppressHydrationWarning
     >

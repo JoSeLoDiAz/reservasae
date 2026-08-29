@@ -21,11 +21,28 @@ function fechaHora(valor: string | null): string {
   });
 }
 
+/// El color va en la LETRA. Sin fondo, sin borde, sin
+/// subrayado: en una tabla de 400 filas, 400 rectangulos de
+/// color compiten con los datos en vez de ordenarlos, y el
+/// subrayado se lee como un enlace que no lleva a ninguna
+/// parte.
 const TONO_EMPRESA: Record<FilaParticipante["datosEmpresa"], string> = {
-  SIN: "bg-superficie-alterna text-texto-suave",
-  PARCIAL: "bg-aviso-suave text-aviso",
-  COMPLETA: "bg-exito-suave text-exito",
+  SIN: "text-texto-suave",
+  PARCIAL: "text-aviso",
+  COMPLETA: "text-exito",
 };
+
+/// Cuantos datos le faltan a la persona, escrito bien.
+///
+/// «Faltan 1» no lo dice nadie. Y va en UNA funcion porque se
+/// escribe en dos sitios -- el valor que se ordena y exporta,
+/// y lo que se pinta -- y con dos copias una se queda en
+/// plural el dia que se toque la otra.
+function pendientes(f: FilaParticipante): string {
+  if (f.datos === "COMPLETOS") return "Sin pendientes";
+  const n = f.faltaDeLaPersona.length;
+  return n === 1 ? "Falta 1" : `Faltan ${n}`;
+}
 
 /**
  * Las columnas de un lead, en un solo sitio.
@@ -134,22 +151,51 @@ export function columnasDeParticipante(): Columna<FilaParticipante>[] {
     },
     {
       clave: "datos",
-      titulo: "Estado de los datos",
-      valor: (f) => (f.datos === "COMPLETOS" ? "Datos completos" : "Datos parciales"),
+      /// «Datos pendientes» y no «Estado de los datos».
+      ///
+      /// Esta columna decía «Datos completos / Datos
+      /// parciales» y la de al lado dice «Etapa: Datos
+      /// completos». Con las mismas dos palabras para dos
+      /// cosas distintas, ver «Datos completos» en una y
+      /// «Datos parciales» en la otra parecía una
+      /// contradicción del sistema, y no lo era:
+      ///
+      ///   · la ETAPA la mueve una persona;
+      ///   · esto lo CALCULA `completitud.ts` mirando si están
+      ///     el correo, el celular, la fecha de nacimiento, el
+      ///     género, el estrato, el departamento, el municipio
+      ///     y la dirección.
+      ///
+      /// Se puede estar en la etapa «Datos completos» y
+      /// deberle datos al SENA. Ahora se dice CUÁNTOS faltan,
+      /// que además es accionable: «Faltan 4» le dice al asesor
+      /// que hay algo que pedir; «Datos parciales» no.
+      titulo: "Datos pendientes",
+      /// «Falta 1» y no «Faltan 1». Una sola función para los
+      /// dos sitios donde se escribe —el valor que se ordena y
+      /// exporta, y lo que se pinta— porque tenerlo dos veces
+      /// es como uno de los dos se queda en plural.
+      valor: (f) => pendientes(f),
       pinta: (f) => (
         <span
           title={
             f.datos === "COMPLETOS"
-              ? "La ficha tiene todo lo que hace falta."
+              ? "No le falta ningún dato de los que pide el reporte."
               : `Falta: ${f.faltaDeLaPersona.join(", ")}`
           }
-          className={`rounded-lg px-2 py-0.5 text-sm font-medium whitespace-nowrap ${
-            f.datos === "COMPLETOS"
-              ? "bg-exito-suave text-exito"
-              : "bg-aviso-suave text-aviso"
+          /// El color va en la LETRA, sin caja y sin subrayado.
+          ///
+          /// Sin caja porque en una tabla de 400 filas, 400
+          /// rectángulos de color compiten con los datos en vez
+          /// de ordenarlos. Y sin subrayado porque en una tabla
+          /// el texto subrayado se lee como un enlace, y este
+          /// no lleva a ninguna parte: se confundiría con las
+          /// columnas que sí son pulsables.
+          className={`font-medium whitespace-nowrap ${
+            f.datos === "COMPLETOS" ? "text-exito" : "text-aviso"
           }`}
         >
-          {f.datos === "COMPLETOS" ? "Datos completos" : "Datos parciales"}
+          {pendientes(f)}
         </span>
       ),
       filtro: "opciones",
@@ -191,9 +237,7 @@ export function columnasDeParticipante(): Columna<FilaParticipante>[] {
       valor: (f) => ETIQUETA_DATOS_EMPRESA[f.datosEmpresa],
       pinta: (f) => (
         <span
-          className={`rounded-lg px-2 py-0.5 text-sm font-medium whitespace-nowrap ${
-            TONO_EMPRESA[f.datosEmpresa]
-          }`}
+          className={`font-medium whitespace-nowrap ${TONO_EMPRESA[f.datosEmpresa]}`}
         >
           {ETIQUETA_DATOS_EMPRESA[f.datosEmpresa]}
         </span>

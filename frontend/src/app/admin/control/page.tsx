@@ -193,9 +193,6 @@ export default function PaginaControl() {
       <header className="flex flex-wrap items-start justify-between gap-4">
         <div className="min-w-0">
           <h1 className="text-2xl font-bold tracking-tight">Control de Inscritos</h1>
-          <p className="mt-1 max-w-3xl text-texto-suave">
-            A quién hay que llamar hoy, cuántos entraron, a qué ritmo y por qué puerta.
-          </p>
         </div>
         {/* solo en Análisis: es de esos datos, y en la otra
             pestaña diría una hora que no le corresponde */}

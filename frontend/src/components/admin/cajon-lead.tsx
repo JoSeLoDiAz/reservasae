@@ -383,21 +383,54 @@ export function CajonLead({
         {error && <Aviso tipo="error">{error}</Aviso>}
         {exito && <Aviso tipo="exito">{exito}</Aviso>}
 
-        <div className="flex flex-wrap items-center gap-2">
-          <PildoraEtapa etapa={fila.etapa} />
-          <span className="rounded-lg bg-superficie-alterna px-2 py-0.5 text-sm text-texto-suave">
-            {ETIQUETA_ORIGEN_LEAD[fila.origenLead]}
-          </span>
-          <span
-            className={`rounded-lg px-2 py-0.5 text-sm font-medium ${
-              fila.datos === "COMPLETOS"
-                ? "bg-exito-suave text-exito"
-                : "bg-aviso-suave text-aviso"
-            }`}
-          >
-            {fila.datos === "COMPLETOS" ? "Datos completos" : "Datos parciales"}
-          </span>
-        </div>
+        {/* CON RÓTULO cada uno.
+
+            Eran tres valores sueltos en fila —«Datos completos
+            · Importación · Datos parciales»— sin decir qué era
+            cada cual, y encima dos de ellos empezaban por la
+            misma palabra: parecía que la ficha se contradecía a
+            sí misma. Son tres cosas distintas y ahora lo dicen.
+
+            Y el color va en la letra, sin caja: es la misma
+            regla que en la tabla, y tenerla distinta aquí haría
+            que el mismo dato se viera de dos formas según por
+            dónde se llegara. */}
+        <dl className="grid grid-cols-3 gap-4">
+          <div className="min-w-0">
+            <dt className="text-[0.6875rem] font-semibold tracking-wider text-texto-suave uppercase">
+              Etapa
+            </dt>
+            <dd className="mt-0.5 truncate text-sm">
+              <PildoraEtapa etapa={fila.etapa} />
+            </dd>
+          </div>
+
+          <div className="min-w-0">
+            <dt className="text-[0.6875rem] font-semibold tracking-wider text-texto-suave uppercase">
+              Origen
+            </dt>
+            <dd className="mt-0.5 truncate text-sm text-texto-suave">
+              {ETIQUETA_ORIGEN_LEAD[fila.origenLead]}
+            </dd>
+          </div>
+
+          <div className="min-w-0">
+            <dt className="text-[0.6875rem] font-semibold tracking-wider text-texto-suave uppercase">
+              Datos pendientes
+            </dt>
+            <dd
+              className={`mt-0.5 truncate text-sm font-medium ${
+                fila.datos === "COMPLETOS" ? "text-exito" : "text-aviso"
+              }`}
+            >
+              {fila.datos === "COMPLETOS"
+                ? "Sin pendientes"
+                : fila.faltaDeLaPersona.length === 1
+                  ? "Falta 1"
+                  : `Faltan ${fila.faltaDeLaPersona.length}`}
+            </dd>
+          </div>
+        </dl>
 
         {/* Las mismas acciones que en el lead completo.
             
