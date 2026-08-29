@@ -80,6 +80,7 @@ infraestructura completa más una página que verifica la conexión con el backe
 | `GET` | `/catalogo/:slug` | acciones publicadas con sus ofertas y semáforo |
 | `POST` | `/reservas` | reserva N cupos; parte en confirmados + espera |
 | `POST` | `/webhooks/leads` | entra un lead del orquestador (llave en cabecera) |
+| `POST` | `/admin/leads/:id/convertir` | el asesor lo vuelve ficha, con su autorización |
 | `GET` | `/reservas?nit=` | reservas de una empresa y su total de cupos |
 | `PATCH` | `/reservas/:id` | cambia la cantidad (pide el NIT en el cuerpo) |
 | `POST` | `/reservas/:id/cancelar` | libera cupos y promueve la lista de espera |
@@ -2125,6 +2126,32 @@ quien no tiene llave.
 > con «Falta: documento», y el mismo `externoId` otra vez devuelve
 > el mismo id con `repetido: true`. Los tres candados se probaron
 > además por mutación.
+
+**Convertir un lead en ficha es una acción del ASESOR, no del
+webhook.** `POST /admin/leads/:id/convertir`, con
+`inscripciones · ESCRIBIR`.
+
+Un lead de un anuncio llenó un formulario de Facebook, no el nuestro. Meta exige
+un enlace a la política, pero eso es un enlace nuestro dentro de un formulario
+suyo: **no es la constancia que este sistema guarda** —contra la versión exacta
+del texto, con canal y evidencia—. Convertirlo solo significaría crear una
+`Persona` y **consultarla en el RUI, que es un portal del Estado**, sin nada que
+demostrar; y fabricar una `AutorizacionDatos` desde el clic en Facebook sería
+inventarse la prueba, que es peor que no tenerla.
+
+- **El canal y la evidencia son obligatorios.** Pedirlos opcionales es no
+  pedirlos, igual que en las etapas de salida.
+- **Sin política publicada NO se convierte.** Esta acción existe PARA dejar la
+  constancia; sin texto contra el que dejarla, crearía una ficha que dice estar
+  autorizada y no puede demostrarlo. El mensaje dice dónde se publica.
+- **El RUI se encola DESPUÉS de la constancia, nunca antes.** El orden es toda
+  la diferencia entre consultar a alguien con permiso y sin él, y su spec lo
+  fija comparando las posiciones.
+- **La ficha se crea con `crm.crear`**, la misma puerta del asesor: una tercera
+  forma de crear una persona sería una tercera regla.
+- **La constancia vive en `crm/constancia-de-autorizacion.ts`**, compartida con
+  la preinscripción. Estaba escrita solo allí, y dos copias serían dos reglas
+  sobre lo que hay que poder demostrar.
 
 **Lo que todavía no hace, y hay que decirlo:** la conversión
 automática a `Participante` cuando el lead SÍ trae documento no

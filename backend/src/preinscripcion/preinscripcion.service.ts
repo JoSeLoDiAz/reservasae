@@ -12,6 +12,10 @@ import { Prisma } from '../../generated/prisma';
 import { ENTIDADES, AuditoriaService } from '../comun/auditoria.service';
 import { CorreoService } from '../correo/correo.service';
 import { PrismaService } from '../prisma/prisma.service';
+import {
+  dejarConstancia,
+  politicaVigente,
+} from '../crm/constancia-de-autorizacion';
 import { GENEROS_SEP } from '../crm/catalogos-sep.generado';
 import {
   DEPARTAMENTOS_SEP,
@@ -489,41 +493,30 @@ ${this.urlPublica()}/completar/${enlace.token}
    * cuando. Por eso se guarda contra el id de la politica.
    */
   /** La política que la persona tiene que aceptar. */
+  /// La misma que usa la conversión de un lead.
   private async politicaVigente(convenioId: string) {
-    return this.prisma.politicaDatos.findFirst({
-      where: {
-        convenioId,
-        destinatario: 'PARTICIPANTE',
-        vigenteDesde: { lte: new Date() },
-      },
-      orderBy: { version: 'desc' },
-      select: { id: true },
-    });
+    return politicaVigente(this.prisma, convenioId);
   }
 
+  /**
+   * La constancia, con la regla COMPARTIDA.
+   *
+   * Estaba escrita aquí y la conversión de un lead necesita la
+   * misma: dos copias serían dos reglas sobre lo que hay que
+   * poder demostrar. Ver `crm/constancia-de-autorizacion.ts`.
+   */
   private async dejarConstancia(
     personaId: string,
     convenioId: string,
     participanteId: string,
     ip?: string,
   ) {
-    const politica = await this.politicaVigente(convenioId);
-    if (!politica) return;
-
-    const ya = await this.prisma.autorizacionDatos.findFirst({
-      where: { personaId, politicaDatosId: politica.id, revocadaEn: null },
-      select: { id: true },
-    });
-    if (ya) return;
-
-    await this.prisma.autorizacionDatos.create({
-      data: {
-        personaId,
-        politicaDatosId: politica.id,
-        canal: 'FORMULARIO_WEB',
-        evidencia: `Formulario de preinscripción, participante ${participanteId}`,
-        ip: ip ?? null,
-      },
+    await dejarConstancia(this.prisma, {
+      personaId,
+      convenioId,
+      canal: 'FORMULARIO_WEB',
+      evidencia: `Formulario de preinscripción, participante ${participanteId}`,
+      ip,
     });
   }
 

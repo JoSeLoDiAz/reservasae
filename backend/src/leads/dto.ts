@@ -12,7 +12,7 @@ import {
   MaxLength,
 } from 'class-validator';
 
-import { OrigenParticipante } from '../../generated/prisma';
+import { CanalAutorizacion, OrigenParticipante } from '../../generated/prisma';
 
 const recortar = ({ value }: { value: unknown }) =>
   typeof value === 'string' ? value.trim() : value;
@@ -88,4 +88,38 @@ export class EntraLeadDto {
   @IsOptional()
   @IsObject()
   carga?: Record<string, unknown>;
+}
+
+/**
+ * Convertir un lead en ficha. Lo hace un ASESOR, no el webhook.
+ *
+ * Un lead de un anuncio llenó un formulario de Facebook, no el
+ * nuestro: no hay constancia de que autorizara el tratamiento de
+ * sus datos. Convertirlo solo, y de paso consultarlo en el RUI
+ * —un portal del Estado—, seria tratar sus datos sin nada que
+ * demostrar. Por eso convertir es una acción de quien llamó, y
+ * el canal de la autorización es OBLIGATORIO: pedirlo opcional
+ * es no pedirlo.
+ */
+export class ConvertirLeadDto {
+  /// Por donde lo autorizo. Casi siempre VERBAL_ASESOR.
+  @IsEnum(CanalAutorizacion)
+  canal!: CanalAutorizacion;
+
+  /// Donde quedo la prueba: la llamada, el acta, el correo.
+  @Transform(recortar)
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(500)
+  evidencia!: string;
+
+  /// El tipo de documento, si el lead no lo trajo.
+  @IsOptional() @IsInt() tipoDocumentoSepId?: number;
+
+  /// El documento, si el lead no lo trajo o venia mal.
+  @IsOptional()
+  @Transform(recortar)
+  @IsString()
+  @MaxLength(40)
+  numeroDocumento?: string;
 }

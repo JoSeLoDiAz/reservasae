@@ -6,6 +6,10 @@ import { JwtModule } from '@nestjs/jwt';
 import { ColaRuiModule } from '../crm/rui/cola-rui';
 import { PrismaModule } from '../prisma/prisma.module';
 
+import { CrmModule } from '../crm/crm.module';
+
+import { ConversionController } from './conversion.controller';
+import { ConversionDeLeads } from './conversion.service';
 import { LeadsController } from './leads.controller';
 import { LeadsService } from './leads.service';
 import { MetaPruebasController } from './meta-pruebas.controller';
@@ -14,6 +18,9 @@ import { MetaPruebasController } from './meta-pruebas.controller';
   imports: [
     PrismaModule,
     ColaRuiModule,
+    /// La conversion crea la ficha con `crm.crear`, la misma
+    /// puerta que usa el asesor desde el panel.
+    CrmModule,
     /// El banco de pruebas SÍ lleva sesión de admin, y el
     /// `AdminGuard` necesita el JwtService. El webhook en sí
     /// no: ese se autentica con una llave o con la firma de
@@ -23,7 +30,7 @@ import { MetaPruebasController } from './meta-pruebas.controller';
       signOptions: { expiresIn: '8h' },
     }),
   ],
-  controllers: [LeadsController, MetaPruebasController],
-  providers: [LeadsService],
+  controllers: [LeadsController, MetaPruebasController, ConversionController],
+  providers: [LeadsService, ConversionDeLeads],
 })
 export class LeadsModule {}
