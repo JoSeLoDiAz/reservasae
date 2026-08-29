@@ -3,16 +3,19 @@
 /// Esta pantalla contesta una sola pregunta: «¿va a funcionar
 /// cuando conecte Meta?».
 ///
-/// Existe porque conectar Meta depende de cosas que no
-/// dependen de nosotros —una app aprobada, una página con
-/// permisos, un dominio público— y todas pueden tardar
-/// semanas. Sin esta pantalla habría que esperar a tenerlas
-/// para descubrir si lo nuestro estaba bien.
+/// Y la contesta POR GREMIO. Hay una app de Meta por cada uno
+/// —una app, una URL de devolución, un gremio—, así que cada
+/// uno tiene su propio secreto y su propio token. El estado de
+/// uno no dice absolutamente nada del otro.
 ///
-/// Va en tres pasos, en el orden en que se rompen las cosas:
-/// primero lo que falta, luego el apretón de manos —que es lo
-/// que ENCIENDE el webhook—, y por último un lead de mentira
-/// que entra por la misma puerta que entrará el de verdad.
+/// Eso importa más de lo que parece: cada app firma con SU
+/// secreto, así que si a un gremio le falta el suyo, Meta le
+/// manda los leads y nosotros los rechazamos todos por «firma
+/// inválida». Y ese síntoma no se lee como un error de
+/// configuración: se lee como «Meta no nos está mandando
+/// nada», que es de los más caros de diagnosticar porque no
+/// hay nada roto que mirar. Verlos aquí uno al lado del otro
+/// es lo que hace que salte a la vista.
 
 import { useCallback, useEffect, useState } from "react";
 
@@ -21,6 +24,7 @@ import { ErrorApi } from "@/lib/api";
 import {
   metaApi,
   type EstadoMeta,
+  type GremioMeta,
   type Resultado,
   type ResultadoAviso,
 } from "@/lib/meta-api";
@@ -35,14 +39,16 @@ function ParaCopiar({ etiqueta, valor }: { etiqueta: string; valor: string }) {
 
   return (
     <div>
-      <p className="text-sm font-medium">{etiqueta}</p>
+      <p className="text-[0.6875rem] font-semibold tracking-wider text-texto-suave uppercase">
+        {etiqueta}
+      </p>
       <div className="mt-1 flex items-center gap-2">
-        <code className="min-w-0 flex-1 overflow-x-auto rounded-md bg-superficie-alterna px-3 py-2 font-mono text-sm whitespace-nowrap">
+        <code className="min-w-0 flex-1 overflow-x-auto rounded bg-superficie-alterna px-3 py-2 font-mono text-sm whitespace-nowrap">
           {valor}
         </code>
         <button
           type="button"
-          className="shrink-0 rounded-md border border-borde px-3 py-2 text-sm hover:border-marca"
+          className="shrink-0 rounded border border-borde px-3 py-2 text-sm hover:border-marca"
           onClick={() => {
             void navigator.clipboard.writeText(valor).then(() => {
               setCopiado(true);
@@ -72,12 +78,210 @@ function Veredicto({ r }: { r: Resultado }) {
   );
 }
 
-export default function PaginaMeta() {
-  const [estado, setEstado] = useState<EstadoMeta | null>(null);
-  const [error, setError] = useState<string | null>(null);
+function PanelDeGremio({
+  g,
+  puedeSimular,
+  campo,
+  alRecargar,
+}: {
+  g: GremioMeta;
+  puedeSimular: boolean;
+  campo: string;
+  alRecargar: () => Promise<void>;
+}) {
   const [verificacion, setVerificacion] = useState<Resultado | null>(null);
   const [aviso, setAviso] = useState<ResultadoAviso | null>(null);
   const [ocupado, setOcupado] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  async function correr(cual: string, accion: () => Promise<void>) {
+    setError(null);
+    setOcupado(cual);
+    try {
+      await accion();
+      await alRecargar();
+    } catch (e) {
+      setError((e as ErrorApi).message);
+    } finally {
+      setOcupado(null);
+    }
+  }
+
+  return (
+    <Tarjeta
+      titulo={g.nombre}
+      /// La insignia dice el estado sin abrir nada, y en el
+      /// color de la casa: en la letra, sin caja.
+      insignia={
+        <span className={g.listo ? "text-exito" : "text-aviso"}>
+          {g.listo ? "Listo" : `Faltan ${g.faltan.length}`}
+        </span>
+      }
+    >
+      <div className="space-y-5">
+        {error && <Aviso tipo="error">{error}</Aviso>}
+
+        {g.faltan.length > 0 && (
+          <div>
+            <p className="text-texto-suave">
+              Mientras falte cualquiera de estas, este gremio no recibe leads.
+              Las dos son <strong>suyas</strong>: cada app de Meta tiene su
+              propio secreto y su propio token.
+            </p>
+            <ul className="mt-3 space-y-2">
+              {g.faltan.map((f) => (
+                <li
+                  key={f}
+                  className="rounded border-l-2 border-error bg-error-suave px-3 py-2 text-sm"
+                >
+                  {f}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {g.sinTabla && (
+          <Aviso tipo="error">
+            La tabla de leads no existe todavía. Falta aplicar la migración
+            «20260828090000_mesa_de_entrada_de_leads». Los avisos de Meta
+            llegarían bien, pero no habría dónde guardarlos.
+          </Aviso>
+        )}
+
+        <div className="space-y-4 border-t border-borde pt-4">
+          <ParaCopiar
+            etiqueta="URL de devolución de llamada"
+            valor={g.urlDeDevolucion}
+          />
+          <ParaCopiar etiqueta="Campo al que suscribirse" valor={campo} />
+          <p className="text-sm text-texto-suave">
+            El <strong>token de verificación</strong>{" "}
+            {g.tokenPuesto ? "ya está puesto" : "todavía no está puesto"} y el{" "}
+            <strong>secreto de la app</strong>{" "}
+            {g.secretoPuesto ? "también" : "tampoco"}. Ninguno de los dos se
+            muestra aquí a propósito: una credencial en pantalla es una
+            credencial en una captura.
+          </p>
+        </div>
+
+        {!g.sinTabla && (
+          <div className="flex flex-wrap gap-6 border-t border-borde pt-4 text-sm">
+            <span>
+              Leads recibidos:{" "}
+              <strong className="tabular-nums">{g.leads.total}</strong>
+            </span>
+            <span>
+              Sin completar:{" "}
+              <strong className="tabular-nums">{g.leads.pendientes}</strong>
+            </span>
+          </div>
+        )}
+
+        <div className="border-t border-borde pt-4">
+          <p className="text-texto-suave">
+            El <strong>apretón de manos</strong> es lo que enciende el webhook.
+            Meta llama una vez y espera que le devolvamos su palabra clave tal
+            cual; si falla no avisa, simplemente no llegan leads. Esta prueba
+            hace esa misma llamada contra nosotros mismos y no escribe nada.
+          </p>
+          <div className="mt-3 flex flex-wrap gap-3">
+            <Boton
+              disabled={ocupado !== null}
+              onClick={() =>
+                correr("verificacion", async () => {
+                  setVerificacion(await metaApi.probarVerificacion(g.slug));
+                })
+              }
+            >
+              {ocupado === "verificacion" ? "Probando…" : "Probar el apretón"}
+            </Boton>
+
+            {puedeSimular && (
+              <>
+                <Boton
+                  disabled={ocupado !== null}
+                  onClick={() =>
+                    correr("aviso", async () => {
+                      setAviso(await metaApi.probarAviso(g.slug, 3));
+                    })
+                  }
+                >
+                  {ocupado === "aviso" ? "Mandando…" : "Mandar tres leads de mentira"}
+                </Boton>
+                <button
+                  type="button"
+                  disabled={ocupado !== null}
+                  className="underline disabled:opacity-50"
+                  onClick={() =>
+                    correr("limpiar", async () => {
+                      const { borrados } = await metaApi.limpiar();
+                      setAviso(null);
+                      setError(
+                        borrados === 0
+                          ? "No había leads de prueba que borrar."
+                          : `Se borraron ${borrados} leads de prueba.`,
+                      );
+                    })
+                  }
+                >
+                  Borrar los de prueba
+                </button>
+              </>
+            )}
+          </div>
+
+          {puedeSimular && (
+            <p className="mt-2 text-sm text-texto-suave">
+              «Tres de golpe» es la prueba que de verdad importa: Meta agrupa
+              varios avisos en un mismo envío, y quedarse con el primero es un
+              fallo que nadie nota hasta que faltan leads. Se firman con el
+              secreto <strong>de este gremio</strong>.
+            </p>
+          )}
+
+          {verificacion && (
+            <div className="mt-4">
+              <Veredicto r={verificacion} />
+            </div>
+          )}
+
+          {aviso && (
+            <div className="mt-4 space-y-3">
+              <Veredicto r={aviso} />
+              {aviso.filas && aviso.filas.length > 0 && (
+                <div className="overflow-x-auto rounded border border-borde">
+                  <table className="w-full text-sm">
+                    <thead className="bg-superficie-alterna text-left">
+                      <tr>
+                        <th className="px-3 py-2 font-medium">Lead</th>
+                        <th className="px-3 py-2 font-medium">Estado</th>
+                        <th className="px-3 py-2 font-medium">Origen</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {aviso.filas.map((f) => (
+                        <tr key={f.externoId} className="border-t border-borde">
+                          <td className="px-3 py-2 font-mono">{f.externoId}</td>
+                          <td className="px-3 py-2">{f.estado}</td>
+                          <td className="px-3 py-2">{f.origen}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+    </Tarjeta>
+  );
+}
+
+export default function PaginaMeta() {
+  const [estado, setEstado] = useState<EstadoMeta | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   const cargar = useCallback(async () => {
     try {
@@ -91,19 +295,6 @@ export default function PaginaMeta() {
     void cargar();
   }, [cargar]);
 
-  async function correr(cual: string, accion: () => Promise<void>) {
-    setError(null);
-    setOcupado(cual);
-    try {
-      await accion();
-      await cargar();
-    } catch (e) {
-      setError((e as ErrorApi).message);
-    } finally {
-      setOcupado(null);
-    }
-  }
-
   if (!estado && !error) return <p className="text-texto-suave">Cargando…</p>;
 
   return (
@@ -111,10 +302,10 @@ export default function PaginaMeta() {
       <header>
         <h1 className="text-2xl font-bold tracking-tight">Webhook de Meta</h1>
         <p className="mt-1 max-w-3xl text-texto-suave">
-          Por aquí entran los leads que se pagan en Facebook e Instagram. Esta
-          pantalla deja comprobar que funciona <strong>antes</strong> de tener
-          Meta conectado: lo que depende de nosotros se prueba entero desde
-          aquí, y es donde están los errores que podemos cometer.
+          Por aquí entran los leads que se pagan en Facebook e Instagram. Hay{" "}
+          <strong>una app de Meta por gremio</strong>, así que cada uno tiene su
+          propia URL, su propio secreto y su propio token: lo que esté bien en
+          uno no dice nada del otro.
         </p>
       </header>
 
@@ -122,234 +313,38 @@ export default function PaginaMeta() {
 
       {estado && (
         <>
-          <Tarjeta
-            titulo="1 · Qué falta"
-            descripcion="Las tres cosas que hay que poner en el .env del servidor."
-          >
-            {estado.listo ? (
-              <Aviso tipo="exito">
-                <p className="font-medium">No falta nada.</p>
-                <p className="mt-1">
-                  Los leads de Meta entrarían a{" "}
-                  <strong>{estado.convenio?.nombre}</strong>.
-                </p>
-              </Aviso>
-            ) : (
-              <div className="space-y-3">
-                <p className="text-texto-suave">
-                  Mientras falte cualquiera de estas, el webhook no queda
-                  encendido a medias: queda apagado.
-                </p>
-                <ul className="space-y-2">
-                  {estado.faltan.map((f) => (
-                    <li
-                      key={f}
-                      className="rounded-md border border-error bg-error-suave px-3 py-2 text-sm"
-                    >
-                      {f}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
+          {estado.listo && (
+            <Aviso tipo="exito">
+              Los {estado.gremios.length} gremios están configurados.
+            </Aviso>
+          )}
 
-            {!estado.sinTabla && (
-              <div className="mt-4 flex flex-wrap gap-6 border-t border-borde pt-4 text-sm">
-                <span>
-                  Leads de Meta recibidos:{" "}
-                  <strong className="tabular-nums">{estado.leads.total}</strong>
-                </span>
-                <span>
-                  Sin completar:{" "}
-                  <strong className="tabular-nums">
-                    {estado.leads.pendientes}
-                  </strong>
-                </span>
-              </div>
-            )}
-          </Tarjeta>
+          {/* Uno debajo del otro y a lo ancho, no en dos
+              columnas: cada uno lleva sus botones de prueba y
+              sus resultados, y en media pantalla el veredicto
+              queda ilegible. */}
+          {estado.gremios.map((g) => (
+            <PanelDeGremio
+              key={g.slug}
+              g={g}
+              campo={estado.campo}
+              puedeSimular={estado.puedeSimular}
+              alRecargar={cargar}
+            />
+          ))}
 
-          <Tarjeta
-            titulo="2 · Lo que hay que pegar en Meta"
-            descripcion="En la app de Meta, en Webhooks de la página."
-          >
-            <div className="space-y-4">
-              <ParaCopiar
-                etiqueta="URL de devolución de llamada"
-                valor={estado.paraMeta.urlDeDevolucion}
-              />
-              <ParaCopiar
-                etiqueta="Campo al que suscribirse"
-                valor={estado.paraMeta.campo}
-              />
-              <div>
-                <p className="text-sm font-medium">Token de verificación</p>
-                <p className="mt-1 text-sm text-texto-suave">
-                  {estado.paraMeta.tokenPuesto ? (
-                    <>
-                      Es el valor de <code>META_VERIFY_TOKEN</code> del{" "}
-                      <code>.env</code>. No se muestra aquí a propósito: una
-                      credencial en pantalla es una credencial en una captura.
-                    </>
-                  ) : (
-                    <>
-                      Todavía no hay ninguno. Póngalo en{" "}
-                      <code>META_VERIFY_TOKEN</code>: se lo inventa usted, y va
-                      escrito igual en el <code>.env</code> y en Meta.
-                    </>
-                  )}
-                </p>
-              </div>
-            </div>
-          </Tarjeta>
-
-          <Tarjeta
-            titulo="3 · El apretón de manos"
-            descripcion="Es lo que ENCIENDE el webhook. Si esto falla, Meta no avisa: simplemente no llegan leads."
-          >
-            <p className="text-texto-suave">
-              Antes de mandar nada, Meta llama una vez y espera que le
-              devolvamos su palabra clave tal cual. Esta prueba hace
-              exactamente esa llamada contra nosotros mismos. No escribe nada,
-              así que se puede correr también en el servidor de verdad.
-            </p>
-            <div className="mt-4">
-              <Boton
-                disabled={ocupado !== null}
-                onClick={() =>
-                  correr("verificacion", async () => {
-                    setVerificacion(await metaApi.probarVerificacion());
-                  })
-                }
-              >
-                {ocupado === "verificacion" ? "Probando…" : "Probar"}
-              </Boton>
-            </div>
-            {verificacion && (
-              <div className="mt-4">
-                <Veredicto r={verificacion} />
-              </div>
-            )}
-          </Tarjeta>
-
-          <Tarjeta
-            titulo="4 · Un lead de mentira"
-            descripcion="Entra por la misma puerta, firmado igual, y se guarda igual."
-          >
-            {!estado.puedeSimular ? (
-              <Aviso tipo="error">
-                Inventar leads solo se puede en el entorno de pruebas. En el
-                servidor de verdad llenaría Gestión de leads de gente que no
-                existe.
-              </Aviso>
-            ) : (
-              <>
-                <p className="text-texto-suave">
-                  Se arma el mismo cuerpo que manda Meta, se firma con el mismo
-                  secreto y se manda a la misma ruta. Lo que se comprueba es
-                  todo lo nuestro: que la firma cuadre, que el cuerpo llegue
-                  entero y que los avisos se guarden. Los leads que salen de
-                  aquí se llaman <code>PRUEBA-…</code> para que se vean a un
-                  metro.
-                </p>
-                <div className="mt-4 flex flex-wrap gap-3">
-                  <Boton
-                    disabled={ocupado !== null}
-                    onClick={() =>
-                      correr("aviso", async () => {
-                        setAviso(await metaApi.probarAviso(1));
-                      })
-                    }
-                  >
-                    {ocupado === "aviso" ? "Mandando…" : "Mandar uno"}
-                  </Boton>
-                  <Boton
-                    disabled={ocupado !== null}
-                    onClick={() =>
-                      correr("lote", async () => {
-                        setAviso(await metaApi.probarAviso(3));
-                      })
-                    }
-                  >
-                    {ocupado === "lote" ? "Mandando…" : "Mandar tres de golpe"}
-                  </Boton>
-                  <button
-                    type="button"
-                    disabled={ocupado !== null}
-                    className="underline disabled:opacity-50"
-                    onClick={() =>
-                      correr("limpiar", async () => {
-                        const { borrados } = await metaApi.limpiar();
-                        setAviso(null);
-                        setVerificacion(null);
-                        setError(
-                          borrados === 0
-                            ? "No había leads de prueba que borrar."
-                            : `Se borraron ${borrados} leads de prueba.`,
-                        );
-                      })
-                    }
-                  >
-                    Borrar los de prueba
-                  </button>
-                </div>
-                <p className="mt-2 text-sm text-texto-suave">
-                  «Tres de golpe» es la prueba que de verdad importa: Meta
-                  agrupa varios avisos en un mismo envío, y quedarse con el
-                  primero es un fallo que nadie nota hasta que faltan leads.
-                </p>
-
-                {aviso && (
-                  <div className="mt-4 space-y-3">
-                    <Veredicto r={aviso} />
-                    {aviso.filas && aviso.filas.length > 0 && (
-                      <div className="overflow-x-auto rounded-md border border-borde">
-                        <table className="w-full text-sm">
-                          <thead className="bg-superficie-alterna text-left">
-                            <tr>
-                              <th className="px-3 py-2 font-medium">Lead</th>
-                              <th className="px-3 py-2 font-medium">Estado</th>
-                              <th className="px-3 py-2 font-medium">Origen</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {aviso.filas.map((f) => (
-                              <tr
-                                key={f.externoId}
-                                className="border-t border-borde"
-                              >
-                                <td className="px-3 py-2 font-mono">
-                                  {f.externoId}
-                                </td>
-                                <td className="px-3 py-2">{f.estado}</td>
-                                <td className="px-3 py-2">{f.origen}</td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </>
-            )}
-          </Tarjeta>
-
-          <Tarjeta
-            titulo="Lo que esto NO prueba"
-            descripcion="Para que nadie lo dé por conectado antes de tiempo."
-          >
+          <Tarjeta titulo="Lo que esto NO prueba">
             <ul className="list-disc space-y-2 pl-5 text-texto-suave">
               <li>
-                <strong>Que Meta llegue al dominio.</strong> Eso solo se sabe el
-                día que se conecta de verdad, y depende del DNS y del
-                certificado, no del código.
+                <strong>Que Meta llegue al dominio.</strong> Depende del DNS y
+                del certificado, no del código, y solo se sabe el día que se
+                conecta.
               </li>
               <li>
                 <strong>Que lleguen los datos de la persona.</strong> Meta{" "}
-                <em>no</em> los manda: manda un identificador y ya. Para saber
-                cómo se llama hay que volver a pedírselo a Meta con un token de
-                la página. Por eso el lead se guarda igual, sin nombre, y se
+                <em>no</em> los manda: manda un identificador. Para saber cómo
+                se llama hay que volver a pedírselo a Meta con un token de la
+                página. Por eso el lead se guarda igual, sin nombre, y se
                 completa después: un lead pagado que se pierde porque nos
                 faltaba una credencial es plata tirada.
               </li>

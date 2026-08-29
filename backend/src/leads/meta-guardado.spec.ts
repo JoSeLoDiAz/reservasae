@@ -61,37 +61,33 @@ function armar(opciones: { slug?: string; revienta?: string } = {}) {
     encolarSiHaceFalta: () => Promise.resolve(),
   } as never);
 
-  process.env.META_CONVENIO_SLUG = opciones.slug ?? 'adecopria';
-
-  return { s, guardados };
+  /// El gremio entra por PARAMETRO, no por variable de
+  /// entorno: lo dice el subdominio por el que llamo Meta.
+  return { s, guardados, slug: opciones.slug ?? 'adecopria' };
 }
 
-const ANTES = process.env.META_CONVENIO_SLUG;
-afterAll(() => {
-  if (ANTES === undefined) delete process.env.META_CONVENIO_SLUG;
-  else process.env.META_CONVENIO_SLUG = ANTES;
-});
-
 describe('el gremio no se adivina', () => {
-  it('sin META_CONVENIO_SLUG no se guarda nada', async () => {
-    // meter a alguien de un gremio en el otro es peor que
-    // dejar el lead esperando
-    const { s, guardados } = armar({ slug: '' });
-    const r = await s.deMeta([aviso('1')]);
+  it('sin subdominio de gremio no se guarda nada', async () => {
+    // Meta tiene que llamar a adecopria.reservasae.com o a
+    // britcham-adee.reservasae.com: por la direccion general
+    // no se sabe de quien es el lead, y meter a alguien de un
+    // gremio en el otro es peor que dejar el lead esperando
+    const { s, guardados, slug } = armar({ slug: '' });
+    const r = await s.deMeta([aviso('1')], slug);
     expect(guardados).toHaveLength(0);
     expect(r.sinConvenio).toBe(true);
   });
 
   it('con un slug que no existe, tampoco', async () => {
-    const { s, guardados } = armar({ slug: 'no-existe' });
-    expect((await s.deMeta([aviso('1')])).sinConvenio).toBe(true);
+    const { s, guardados, slug } = armar({ slug: 'no-existe' });
+    expect((await s.deMeta([aviso('1')], slug)).sinConvenio).toBe(true);
     expect(guardados).toHaveLength(0);
   });
 
   it('pero se dice cuántos llegaron, para poder pedirlos otra vez', async () => {
     // callar el número seria perderlos sin saber cuantos
-    const { s } = armar({ slug: '' });
-    expect((await s.deMeta([aviso('1'), aviso('2')])).recibidos).toBe(2);
+    const { s, slug } = armar({ slug: '' });
+    expect((await s.deMeta([aviso('1'), aviso('2')], slug)).recibidos).toBe(2);
   });
 });
 
@@ -99,8 +95,8 @@ describe('no se pierde ningún aviso', () => {
   it('los tres de un mismo envío se guardan', async () => {
     // Meta agrupa; quedarse con el primero es el fallo que
     // nadie nota hasta que faltan leads
-    const { s, guardados } = armar();
-    const r = await s.deMeta([aviso('1'), aviso('2'), aviso('3')]);
+    const { s, guardados, slug } = armar();
+    const r = await s.deMeta([aviso('1'), aviso('2'), aviso('3')], slug);
     expect(r.guardados).toBe(3);
     expect(guardados.map((g) => g.externoId)).toEqual(['1', '2', '3']);
   });
@@ -108,16 +104,16 @@ describe('no se pierde ningún aviso', () => {
   it('si uno falla, los otros SÍ se guardan', async () => {
     // uno a uno y con su propio try: un lote entero perdido
     // por una fila mala es lo que no puede pasar
-    const { s, guardados } = armar({ revienta: '2' });
-    const r = await s.deMeta([aviso('1'), aviso('2'), aviso('3')]);
+    const { s, guardados, slug } = armar({ revienta: '2' });
+    const r = await s.deMeta([aviso('1'), aviso('2'), aviso('3')], slug);
     expect(r.guardados).toBe(2);
     expect(guardados.map((g) => g.externoId)).toEqual(['1', '3']);
   });
 
   it('un envío sin leads no es un error', async () => {
     // Meta manda por el mismo webhook cambios de la pagina
-    const { s, guardados } = armar();
-    const r = await s.deMeta([]);
+    const { s, guardados, slug } = armar();
+    const r = await s.deMeta([], slug);
     expect(r.recibidos).toBe(0);
     expect(guardados).toHaveLength(0);
   });
@@ -127,21 +123,21 @@ describe('lo que queda guardado', () => {
   it('se guarda aunque Meta no mande los datos de la persona', async () => {
     // un lead pagado que se pierde porque a nosotros nos
     // faltaba una credencial es plata tirada
-    const { s, guardados } = armar();
-    await s.deMeta([aviso('9')]);
+    const { s, guardados, slug } = armar();
+    await s.deMeta([aviso('9')], slug);
     expect(guardados).toHaveLength(1);
     expect(guardados[0].motivo).toMatch(/Graph API|identificador/i);
   });
 
   it('queda como FACEBOOK, que es lo que lo marca como pauta', async () => {
-    const { s, guardados } = armar();
-    await s.deMeta([aviso('9')]);
+    const { s, guardados, slug } = armar();
+    await s.deMeta([aviso('9')], slug);
     expect(guardados[0].origen).toBe('FACEBOOK');
   });
 
   it('el cuerpo entero se conserva, para poder completarlo después', async () => {
-    const { s, guardados } = armar();
-    await s.deMeta([aviso('9')]);
+    const { s, guardados, slug } = armar();
+    await s.deMeta([aviso('9')], slug);
     const carga = guardados[0].carga as Record<string, unknown>;
     expect(carga.leadgenId).toBe('9');
     expect(carga.anuncioId).toBe('a-1');
@@ -151,8 +147,8 @@ describe('lo que queda guardado', () => {
   it('un reintento de Meta NO pisa lo que ya se completó', async () => {
     // `update` vacio a proposito: Meta reintenta, y un
     // reintento no puede borrar el nombre que ya se pidio
-    const { s, guardados } = armar();
-    await s.deMeta([aviso('9')]);
+    const { s, guardados, slug } = armar();
+    await s.deMeta([aviso('9')], slug);
     expect(guardados[0].__update).toEqual({});
   });
 });

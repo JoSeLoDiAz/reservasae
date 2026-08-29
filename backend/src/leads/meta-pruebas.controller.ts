@@ -31,6 +31,11 @@ import type { Request } from 'express';
 import { AdminGuard, Requiere } from '../admin/admin.guard';
 import { PrismaService } from '../prisma/prisma.service';
 
+import {
+  configDeMeta,
+  loQueFalta,
+  nombreDeVariable,
+} from './meta-por-gremio';
 import { esDePrueba, PREFIJO_DE_PRUEBA, simularAviso } from './simulador-meta';
 
 /// El camino público del webhook, con el `/api` que pone
@@ -83,110 +88,84 @@ export class MetaPruebasController {
   @Get()
   @Requiere('configuracion')
   async estado(@Req() peticion: Request) {
-    const slug = process.env.META_CONVENIO_SLUG;
-    const convenio = slug
-      ? await this.prisma.convenio.findFirst({
-          where: { slug },
-          select: { id: true, slug: true, nombre: true, activo: true },
-        })
-      : null;
-
-    const faltan: string[] = [];
-    if (!process.env.META_APP_SECRET) {
-      faltan.push(
-        'META_APP_SECRET — lo da Meta en «Configuración de la app». ' +
-          'Es con lo que se comprueba que un aviso viene de ellos.',
-      );
-    }
-    if (!process.env.META_VERIFY_TOKEN) {
-      faltan.push(
-        'META_VERIFY_TOKEN — lo inventa usted. Es una contraseña ' +
-          'cualquiera que se escribe igual aquí y en Meta, y es lo que ' +
-          'deja que Meta encienda el webhook.',
-      );
-    }
-    if (!slug) {
-      faltan.push(
-        'META_CONVENIO_SLUG — a qué gremio entran los leads de Meta. ' +
-          'No se adivina: meter a alguien de un gremio en el otro es ' +
-          'peor que dejar el lead esperando.',
-      );
-    } else if (!convenio) {
-      faltan.push(
-        `META_CONVENIO_SLUG dice «${slug}» y no hay ninguna convocatoria ` +
-          'con ese nombre.',
-      );
-    } else if (!convenio.activo) {
-      faltan.push(
-        `La convocatoria «${convenio.nombre}» está cerrada. Los leads ` +
-          'de Meta no entrarían a ninguna parte.',
-      );
-    }
-
-    /// Cuántos leads de Meta hay ya, para no tener que ir a
-    /// buscarlos a otra pantalla después de probar.
+    /// UNA FILA POR GREMIO.
     ///
-    /// Envuelto porque la tabla puede NO existir: la migración
-    /// que la crea puede estar sin aplicar, y entonces esta
-    /// pantalla —la que existe justo para decir qué falta— se
-    /// caería entera sin decir qué falta.
-    let total = 0;
-    let pendientes = 0;
-    let sinTabla = false;
-    if (convenio) {
-      try {
-        [total, pendientes] = await Promise.all([
-          this.prisma.leadEntrante.count({
-            where: { origenSistema: 'meta', convenioId: convenio.id },
-          }),
-          this.prisma.leadEntrante.count({
-            where: {
-              origenSistema: 'meta',
-              convenioId: convenio.id,
-              estado: 'PENDIENTE',
-            },
-          }),
-        ]);
-      } catch (e) {
-        /// P2021 es «esa tabla no existe». Cualquier otro
-        /// fallo de base sí se deja subir: taparlos todos
-        /// sería enseñar ceros cuando la base está caída.
-        if ((e as { code?: string }).code !== 'P2021') throw e;
-        sinTabla = true;
-        faltan.push(
-          'La tabla de leads no existe todavía. Falta aplicar la ' +
-            'migración «20260828090000_mesa_de_entrada_de_leads». Hasta ' +
-            'entonces los avisos de Meta llegan bien pero no se pueden ' +
-            'guardar.',
-        );
-      }
-    }
+    /// Antes esto miraba tres variables sueltas y hablaba de
+    /// «el» webhook, en singular. Con una app de Meta por
+    /// gremio hay DOS webhooks, cada uno con su URL, su
+    /// secreto y su token — y el estado de uno no dice nada
+    /// del otro.
+    ///
+    /// Enseñarlos juntos es lo que hace que se vea de un
+    /// vistazo el fallo caro: que a uno de los dos le falte el
+    /// secreto. Ese no se nota mirando Meta —los leads salen—
+    /// sino aquí.
+    const convenios = await this.prisma.convenio.findMany({
+      where: { activo: true },
+      select: { id: true, slug: true, nombre: true },
+      orderBy: { slug: 'asc' },
+    });
+
+    const base = urlPublica(peticion);
+
+    const gremios = await Promise.all(
+      convenios.map(async (c) => {
+        const config = configDeMeta(c.slug);
+        const faltan = loQueFalta(config);
+
+        /// Cuántos leads de Meta lleva. Envuelto porque la
+        /// tabla puede NO existir: la migración que la crea
+        /// puede estar sin aplicar, y entonces esta pantalla
+        /// —la que existe para decir qué falta— se caería
+        /// entera sin decir qué falta.
+        let total = 0;
+        let pendientes = 0;
+        let sinTabla = false;
+        try {
+          [total, pendientes] = await Promise.all([
+            this.prisma.leadEntrante.count({
+              where: { origenSistema: 'meta', convenioId: c.id },
+            }),
+            this.prisma.leadEntrante.count({
+              where: {
+                origenSistema: 'meta',
+                convenioId: c.id,
+                estado: 'PENDIENTE',
+              },
+            }),
+          ]);
+        } catch (e) {
+          /// P2021 es «esa tabla no existe». Cualquier otro
+          /// fallo de base sí sube: taparlos todos sería
+          /// enseñar ceros con la base caída.
+          if ((e as { code?: string }).code !== 'P2021') throw e;
+          sinTabla = true;
+        }
+
+        return {
+          slug: c.slug,
+          nombre: c.nombre,
+          listo: faltan.length === 0,
+          faltan,
+          /// La URL de ESTE gremio. Cada app de Meta apunta a
+          /// su subdominio, y es la dirección la que dice de
+          /// quién es el lead que entra.
+          urlDeDevolucion: base.replace('://', `://${c.slug}.`),
+          /// El token NO viaja: solo si está puesto. Es una
+          /// credencial, y una credencial en pantalla es una
+          /// credencial en una captura.
+          tokenPuesto: Boolean(config.verifyToken),
+          secretoPuesto: Boolean(config.appSecret),
+          leads: { total, pendientes },
+          sinTabla,
+        };
+      }),
+    );
 
     return {
-      listo: faltan.length === 0,
-      faltan,
-      /// Lo que hay que pegar en Meta, tal cual, para no
-      /// tener que armarlo a mano.
-      paraMeta: {
-        urlDeDevolucion: urlPublica(peticion),
-        /// El token NO se devuelve: se dice si está puesto.
-        /// Es una credencial, y una credencial en una
-        /// pantalla es una credencial en una captura.
-        tokenPuesto: Boolean(process.env.META_VERIFY_TOKEN),
-        campo: 'leadgen',
-      },
-      convenio: convenio
-        ? {
-            slug: convenio.slug,
-            nombre: convenio.nombre,
-            activo: convenio.activo,
-          }
-        : null,
-      leads: { total, pendientes },
-      /// Se dice aparte de `faltan` porque no es una variable
-      /// de entorno que se pone: es una migración que se
-      /// aplica, y el remedio no se parece en nada.
-      sinTabla,
+      listo: gremios.every((g) => g.listo),
+      gremios,
+      campo: 'leadgen',
       /// Solo en pruebas se pueden inventar leads. En el
       /// servidor de verdad, inventarlos ensuciaría la base
       /// con gente que no existe.
@@ -208,14 +187,21 @@ export class MetaPruebasController {
   @Post('verificacion')
   @Requiere('configuracion')
   @HttpCode(200)
-  async probarVerificacion() {
-    const esperado = process.env.META_VERIFY_TOKEN;
+  async probarVerificacion(@Query('gremio') gremio?: string) {
+    /// El gremio va EXPLICITO: cada app de Meta tiene su token
+    /// y probar «el» webhook en singular ya no significa nada.
+    if (!gremio) {
+      return { pasa: false, porque: 'Falta decir de qué gremio.' };
+    }
+
+    const esperado = configDeMeta(gremio).verifyToken;
     if (!esperado) {
       return {
         pasa: false,
         porque:
-          'Falta META_VERIFY_TOKEN. Sin él Meta no puede encender el ' +
-          'webhook, porque no hay contra qué comparar.',
+          `Falta ${nombreDeVariable('META_VERIFY_TOKEN', gremio)}. Sin él Meta ` +
+          'no puede encender el webhook de este gremio, porque no hay contra ' +
+          'qué comparar.',
       };
     }
 
@@ -281,7 +267,10 @@ export class MetaPruebasController {
   @Post('aviso')
   @Requiere('configuracion', 'ESCRIBIR')
   @HttpCode(200)
-  async probarAviso(@Query('cuantos') cuantos?: string) {
+  async probarAviso(
+    @Query('cuantos') cuantos?: string,
+    @Query('gremio') gremio?: string,
+  ) {
     if (process.env.ENTORNO !== 'prueba') {
       throw new BadRequestException(
         'Inventar leads solo se puede en el entorno de pruebas. En el ' +
@@ -289,18 +278,26 @@ export class MetaPruebasController {
       );
     }
 
+    if (!gremio) {
+      return { pasa: false, porque: 'Falta decir de qué gremio.' };
+    }
+
+    /// Se firma con el secreto DE ESE GREMIO, que es justo lo
+    /// que hay que probar: si aquí se usara uno solo, la prueba
+    /// pasaría y en producción los leads del otro gremio se
+    /// rechazarían todos por firma inválida.
     const simulado = simularAviso(
       { cuantos: Number(cuantos ?? 1) || 1, ahora: Date.now() },
-      process.env.META_APP_SECRET,
+      configDeMeta(gremio).appSecret ?? undefined,
     );
 
     if (!simulado) {
       return {
         pasa: false,
         porque:
-          'Falta META_APP_SECRET. Para probar sirve cualquier valor: lo ' +
-          'que se comprueba es que la firma cuadre a los dos lados. El ' +
-          'de verdad lo da Meta cuando se conecte.',
+          `Falta ${nombreDeVariable('META_APP_SECRET', gremio)}. Para probar ` +
+          'sirve cualquier valor: lo que se comprueba es que la firma cuadre ' +
+          'a los dos lados. El de verdad lo da Meta cuando se conecte.',
       };
     }
 
@@ -396,7 +393,7 @@ export class MetaPruebasController {
           'exactamente lo que hará Meta.'
         : cuerpo?.sinConvenio
           ? 'La ruta los recibió pero no los guardó: falta decir a qué ' +
-            'gremio entran (META_CONVENIO_SLUG).'
+            'gremio entran: Meta tiene que llamar al subdominio del gremio.'
           : `Se mandaron ${simulado.leadgenIds.length} y quedaron ` +
             `${filas.length} en la tabla.`,
       filas: filas.map((f) => ({ ...f, deprueba: esDePrueba(f.externoId) })),

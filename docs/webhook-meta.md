@@ -55,7 +55,7 @@ Hay **dos puertas distintas**, y se autentican distinto a propósito:
 | Ruta | Quién llama | Con qué se autentica |
 |---|---|---|
 | `POST /webhooks/leads` | Nuestro orquestador | `LEADS_WEBHOOK_SECRET` en una cabecera |
-| `GET  /webhooks/leads/meta` | Meta, para encender el webhook | `META_VERIFY_TOKEN` |
+| `GET  /webhooks/leads/meta` | Meta, para encender el webhook | El `META_VERIFY_TOKEN_<GREMIO>` del subdominio |
 | `POST /webhooks/leads/meta` | Meta, con cada lead | Su propia firma HMAC |
 
 Juntarlas sería tener una ruta que acepta dos autenticaciones, y una
@@ -97,44 +97,65 @@ porque a nosotros nos faltaba una credencial es plata tirada.
 Esa segunda mitad —pedirle los datos a la Graph API— **está sin
 hacer**. Es lo siguiente cuando haya app aprobada y token de página.
 
-## Variables de entorno
+## Variables de entorno — **son de cada gremio**
 
-Las tres van juntas. Con una sola puesta el webhook no queda encendido
-a medias: queda apagado.
+Hay **una app de Meta por gremio**. Una app = una URL de
+devolución = un gremio. Por eso las variables llevan sufijo:
 
 | Variable | De dónde sale |
 |---|---|
-| `META_APP_SECRET` | Meta → app → Configuración → Básica → «Clave secreta de la app» |
-| `META_VERIFY_TOKEN` | Te lo inventas tú. Va escrito **igual** en el `.env` y en Meta |
-| `META_CONVENIO_SLUG` | A qué gremio entran. `britcham-adee` o `adecopria` |
+| `META_APP_SECRET_<GREMIO>` | Meta → app → Configuración → Básica → «Clave secreta de la app». **Cada app la suya.** |
+| `META_VERIFY_TOKEN_<GREMIO>` | Se lo inventa usted. Va escrito **igual** aquí y en Meta |
 
-El gremio **no se adivina**: son dos, y meter a alguien de uno en el
-otro es peor que dejar el lead esperando. Si la variable falta, los
-avisos llegan, se cuentan y se registra un error fuerte en el log
-diciendo que hay que pedirle a Meta que los reenvíe — pero se
-contesta 200, para que Meta no apague el webhook por una omisión
-nuestra.
+El sufijo es el slug en mayúsculas con el guion cambiado por
+raya baja: `britcham-adee` → `META_APP_SECRET_BRITCHAM_ADEE`.
+
+> **Por qué esto no es un detalle de estilo.** Cada app firma
+> sus avisos con **su** secreto. Si se verifica la firma de un
+> gremio con el secreto del otro, se rechazan **todos** sus
+> leads por «firma inválida» — y ese síntoma no se lee como un
+> error de configuración: se lee como **«Meta no nos está
+> mandando nada»**, que es de los más caros de diagnosticar
+> porque no hay nada roto que mirar.
+>
+> `META_VERIFY_TOKEN` es menos grave y también rompe: el
+> `hub.challenge` de cada app se compara con el suyo, así que
+> con uno solo no se puede ni suscribir la segunda.
+
+**No hay respaldo a las variables sin sufijo, a propósito.** Un
+respaldo haría que el gremio mal configurado usara el secreto
+del otro, y el fallo volvería a ser silencioso.
+
+### `META_CONVENIO_SLUG` ya no existe
+
+El gremio lo dice el **subdominio** por el que entra la
+llamada, igual que en la puerta del orquestador. Además de
+quitar una variable, levanta un tope real: con
+`META_CONVENIO_SLUG` **solo un gremio podía recibir leads de
+Meta, nunca los dos**.
+
+`page_id` viaja en el cuerpo y se guarda; sirve como
+comprobación cruzada, no como la llave.
 
 ## Qué pegar en Meta
 
-En la app de Meta, en **Webhooks** de la página:
+En la app de **cada gremio**, en **Webhooks** de su página:
 
 ```
-URL de devolución:  https://<dominio>/api/webhooks/leads/meta
-Token:              el mismo META_VERIFY_TOKEN
+URL de devolución:  https://<gremio>.reservasae.com/api/webhooks/leads/meta
+Token:              el META_VERIFY_TOKEN_<GREMIO> que corresponda
 Campo suscrito:     leadgen
 ```
 
-El `/api` delante lo pone nginx (`docker/nginx/*.conf`, `location
-/api/` con `rewrite ^/api/(.*)$ /$1`).
+El `/api` delante lo pone nginx (`docker/nginx/*.conf`).
 
-**El apretón de manos es donde se atasca todo el mundo.** Antes de
-mandar nada, Meta llama con un `GET` y espera su `hub.challenge`
-devuelto **tal cual, en texto plano**. Si se le contesta un JSON, o
-entre comillas, o con un salto de línea detrás, no valida y no
-enciende — y no dice por qué: simplemente no llegan leads. Por eso el
-handler usa `@Res()` sin passthrough, que es la única forma de que
-Nest no serialice a JSON lo que se devuelva.
+**El apretón de manos es donde se atasca todo el mundo.** Antes
+de mandar nada, Meta llama con un `GET` y espera su
+`hub.challenge` devuelto **tal cual, en texto plano**. Si se le
+contesta un JSON, o entre comillas, o con un salto de línea, no
+valida y no enciende — y no dice por qué: simplemente no llegan
+leads. Por eso el handler usa `@Res()` sin passthrough, que es
+la única forma de que Nest no serialice a JSON lo que devuelva.
 
 ## Cómo probarlo sin tener Meta conectado
 
@@ -144,11 +165,14 @@ Existe porque conectar Meta necesita una app aprobada, una página con
 permisos y un dominio público, y nada de eso depende de nosotros. Lo
 que sí depende de nosotros se prueba entero desde ahí.
 
-La pantalla va en cuatro pasos, en el orden en que se rompen las
-cosas:
+**Enseña una tarjeta POR GREMIO**, y eso es lo importante: el
+estado de uno no dice nada del otro, y ver los dos juntos es lo
+que hace que salte a la vista que a uno le falta el secreto.
 
-1. **Qué falta** — las variables que no están, con de dónde sale cada
-   una.
+Cada tarjeta va en el orden en que se rompen las cosas:
+
+1. **Qué falta** — las variables que no están, con su nombre
+   exacto para copiarlo y pegarlo.
 2. **Lo que hay que pegar en Meta** — la URL y el campo, con botón de
    copiar. El token no se muestra: una credencial en pantalla es una
    credencial en una captura.

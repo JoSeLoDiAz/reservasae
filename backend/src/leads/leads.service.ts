@@ -191,7 +191,7 @@ export class LeadsService {
    * aviso que no entendemos no puede costar que dejen de
    * llegar los que sí.
    */
-  async deMeta(avisos: AvisoDeMeta[]) {
+  async deMeta(avisos: AvisoDeMeta[], slugDelHost: string | null = null) {
     if (avisos.length === 0) {
       /// Meta manda por este mismo webhook cosas que no son
       /// leads. No es un error y no se registra como tal.
@@ -203,7 +203,14 @@ export class LeadsService {
     /// Va en el entorno y no se adivina: son dos gremios, y
     /// meter a alguien de ADECOPRIA en BRITCHAM es peor que
     /// dejar el lead esperando.
-    const slug = process.env.META_CONVENIO_SLUG;
+    /// El gremio lo dice el SUBDOMINIO por el que entro.
+    ///
+    /// Antes salia de `META_CONVENIO_SLUG`, una variable con un
+    /// solo valor — o sea que solo UN gremio podia recibir
+    /// leads de Meta, nunca los dos. Con una app por gremio,
+    /// cada una tiene su URL de devolucion y la direccion ya
+    /// dice de quien es el lead.
+    const slug = slugDelHost;
     const convenio = slug
       ? await this.prisma.convenio.findFirst({
           where: { slug, activo: true },
@@ -216,9 +223,12 @@ export class LeadsService {
       /// que Meta no apague el webhook. Lo que falta es
       /// configuración nuestra, no un problema de ellos.
       this.log.error(
-        `Llegaron ${avisos.length} leads de Meta y META_CONVENIO_SLUG ` +
-          `${slug ? `apunta a «${slug}», que no es una convocatoria activa` : 'no está puesto'}. ` +
-          'NO se guardaron. Póngalo y pídale a Meta que los reenvíe.',
+        `Llegaron ${avisos.length} leads de Meta` +
+          (slug
+            ? ` por el subdominio «${slug}», que no es una convocatoria activa.`
+            : ' por la direccion general, que no dice de que gremio son. ' +
+              'Meta tiene que llamar al subdominio del gremio.') +
+          ' NO se guardaron. Corrijalo y pidale a Meta que los reenvie.',
       );
       return { recibidos: avisos.length, guardados: 0, sinConvenio: true };
     }

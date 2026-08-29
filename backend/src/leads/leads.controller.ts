@@ -35,6 +35,7 @@ import {
   firmaDeMeta,
   respuestaDeVerificacion,
 } from './meta';
+import { configDeMeta } from './meta-por-gremio';
 
 /**
  * Cuelga de `/webhooks` y NO del panel: no lleva sesión, la
@@ -106,13 +107,21 @@ export class LeadsController {
     @Query('hub.mode') modo: string | undefined,
     @Query('hub.verify_token') token: string | undefined,
     @Query('hub.challenge') reto: string | undefined,
+    @Headers('host') host: string | undefined,
     @Res() res: Response,
   ) {
+    /// El gremio lo dice el SUBDOMINIO, igual que en la puerta
+    /// del orquestador. Hay una app de Meta por gremio, y cada
+    /// app tiene su propia URL de devolucion: por eso la
+    /// direccion basta para saber de quien es esta llamada.
+    const slug = etiquetaDelHost(host);
+    const config = slug ? configDeMeta(slug) : null;
+
     const respuesta = respuestaDeVerificacion(
       modo,
       token,
       reto,
-      process.env.META_VERIFY_TOKEN,
+      config?.verifyToken ?? undefined,
     );
 
     if (respuesta === null) {
@@ -139,12 +148,26 @@ export class LeadsController {
    */
   @Post('meta')
   @HttpCode(200)
-  async deMeta(@Req() req: RawBodyRequest<Request>) {
+  async deMeta(
+    @Req() req: RawBodyRequest<Request>,
+    @Headers('host') host: string | undefined,
+  ) {
+    /// CADA GREMIO CON SU SECRETO.
+    ///
+    /// Aqui se leia `process.env.META_APP_SECRET`, una sola
+    /// variable. Con una app de Meta por gremio eso rechaza los
+    /// leads de uno de los dos por «firma invalida» — y ese
+    /// sintoma no se lee como un error de configuracion, se lee
+    /// como «Meta no nos manda nada», que es de los mas caros
+    /// de diagnosticar porque no hay nada roto que mirar.
+    const slug = etiquetaDelHost(host);
+    const config = slug ? configDeMeta(slug) : null;
+
     if (
       !firmaDeMeta(
         req.rawBody,
         req.headers[CABECERA_FIRMA] as string | undefined,
-        process.env.META_APP_SECRET,
+        config?.appSecret ?? undefined,
       )
     ) {
       throw new UnauthorizedException('Firma inválida.');
@@ -156,6 +179,8 @@ export class LeadsController {
     /// éxito APAGA el webhook. Un aviso que no entendemos no
     /// puede costar que dejen de llegar los que sí. Lo que no
     /// se pudo usar queda en el log y en la tabla.
-    return this.leads.deMeta(avisosDeLead(req.body));
+    /// El gremio va EXPLICITO al servicio: lo dice la
+    /// direccion por la que entro, no una variable de entorno.
+    return this.leads.deMeta(avisosDeLead(req.body), slug);
   }
 }

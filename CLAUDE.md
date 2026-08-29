@@ -872,7 +872,7 @@ avisando de algo que el cliente iba a notar.
 >
 > Y otras que **NO** tumban el arranque, y por eso fallan en
 > silencio: `META_APP_SECRET`, `META_VERIFY_TOKEN` y
-> `META_CONVENIO_SLUG`. Sin ellas el backend sube igual y los
+> `META_APP_SECRET_<GREMIO> / META_VERIFY_TOKEN_<GREMIO>`. Sin ellas el backend sube igual y los
 > leads de Meta sencillamente no entran. Se comprueban desde el
 > panel, en **Configuración → Webhook de Meta**, que dice cuál
 > falta y de dónde sale. Ver [docs/webhook-meta.md](docs/webhook-meta.md).
