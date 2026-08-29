@@ -21,13 +21,5 @@ ingress:
   - hostname: pre-britcham-adee.reservasae.com
     service: http://nginx-prueba:80
 
-  # TRANSICION: los sin prefijo ya son de produccion y su DNS
-  # se esta moviendo al tunel convoca. Se quedan aqui hasta
-  # que el cambio propague, para que no haya un 404 en medio.
-  - hostname: adecopria.reservasae.com
-    service: http://nginx-prueba:80
-  - hostname: britcham-adee.reservasae.com
-    service: http://nginx-prueba:80
-
   # todo lo demas no es de este tunel
   - service: http_status:404
