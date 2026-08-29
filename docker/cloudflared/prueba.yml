@@ -7,19 +7,27 @@ ingress:
   - hostname: prueba.reservasae.com
     service: http://nginx-prueba:80
 
-  # los subdominios de gremio, apuntados a PRUEBAS a proposito
+  # los gremios en PRUEBAS llevan el prefijo pre-
   #
-  # Es la unica forma de verlos en un navegador: el comodin
-  # de Cloudflare cubre un solo nivel, asi que
-  # adecopria.prueba.reservasae.com daria error de TLS.
+  # El comodin de Cloudflare cubre un solo nivel, asi que
+  # adecopria.prueba.reservasae.com daria error de TLS. Por eso
+  # el prefijo va delante y no detras: pre-adecopria sigue
+  # siendo un solo nivel y el certificado lo cubre.
   #
-  # Sirven datos INVENTADOS en una direccion de
-  # reservasae.com. La franja lo grita en cada pantalla, y
-  # nadie conoce estas direcciones todavia. Al estrenar de
-  # verdad hay que devolverlas al tunel convoca.
+  # Sirven datos INVENTADOS. La franja lo grita en cada
+  # pantalla, y los nombres sin prefijo son los de verdad.
+  - hostname: pre-adecopria.reservasae.com
+    service: http://nginx-prueba:80
+  - hostname: pre-britcham-adee.reservasae.com
+    service: http://nginx-prueba:80
+
+  # TRANSICION: los sin prefijo ya son de produccion y su DNS
+  # se esta moviendo al tunel convoca. Se quedan aqui hasta
+  # que el cambio propague, para que no haya un 404 en medio.
   - hostname: adecopria.reservasae.com
     service: http://nginx-prueba:80
   - hostname: britcham-adee.reservasae.com
     service: http://nginx-prueba:80
+
   # todo lo demas no es de este tunel
   - service: http_status:404
