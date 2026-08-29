@@ -46,6 +46,74 @@ import {
 const fecha = (s: string) =>
   new Date(s).toLocaleString("es-CO", { dateStyle: "medium", timeStyle: "short" });
 
+const soloDia = (s: string) =>
+  new Date(s).toLocaleDateString("es-CO", { dateStyle: "medium" });
+
+/**
+ * Un dato de identidad, con su etiqueta encima y pequeña.
+ *
+ * La cabecera anterior apilaba tres renglones de texto gris
+ * sin decir qué era cada uno: había que deducir que
+ * «1010316499» era el documento y que «ADECOPRIA» era el
+ * gremio. En una ficha que se abre cien veces al día, deducir
+ * cuesta más que leer.
+ */
+function Hecho({
+  etiqueta,
+  valor,
+  mono,
+}: {
+  etiqueta: string;
+  valor: React.ReactNode;
+  mono?: boolean;
+}) {
+  return (
+    <div className="min-w-0">
+      <dt className="text-[0.6875rem] font-semibold tracking-wider text-texto-suave uppercase">
+        {etiqueta}
+      </dt>
+      <dd className={`mt-0.5 truncate text-sm ${mono ? "font-mono" : ""}`}>
+        {valor}
+      </dd>
+    </div>
+  );
+}
+
+/**
+ * Un control de la barra de acción.
+ *
+ * Sustituye a `Tarjeta` en los tres de arriba, y esa es la
+ * diferencia entre esto y lo de antes: tres tarjetas con
+ * borde, sombra y 24px de aire dentro, para tres desplegables,
+ * ocupaban media pantalla y dejaban a «Asesor» con 150px de
+ * vacío porque la rejilla las estiraba a la más alta.
+ *
+ * Un CRM no pone cada control en su caja: pone la identidad
+ * arriba y debajo una barra donde se actúa. Eso es lo que es.
+ */
+function Control({
+  etiqueta,
+  ancho = "",
+  children,
+}: {
+  etiqueta: string;
+  /// Cuántas de las doce columnas ocupa en la barra. Vacío
+  /// para los que no viven en ella.
+  ancho?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    /// `min-w-0` para que un nombre de curso largo no ensanche
+    /// su columna y descuadre las otras dos.
+    <div className={`min-w-0 ${ancho}`}>
+      <p className="text-[0.6875rem] font-semibold tracking-wider text-texto-suave uppercase">
+        {etiqueta}
+      </p>
+      <div className="mt-1.5">{children}</div>
+    </div>
+  );
+}
+
 export default function PaginaFicha() {
   const { id } = useParams<{ id: string }>();
   const [f, setF] = useState<Ficha | null>(null);
@@ -54,7 +122,7 @@ export default function PaginaFicha() {
   const [nota, setNota] = useState("");
   const [canales, setCanales] = useState<CanalContacto[]>([]);
   const [borrando, setBorrando] = useState(false);
-  const { admin } = useAdmin();
+  const { admin, gremio: gremioElegido } = useAdmin();
   const router = useRouter();
   const toast = useToast();
   const esSuperadmin = admin.rol === "SUPERADMIN";
@@ -97,6 +165,7 @@ export default function PaginaFicha() {
     .filter(Boolean)
     .join(" ");
 
+
   /// La de este convenio, viva o revocada.
   ///
   /// Vienen ordenadas de la mas reciente a la mas antigua, asi
@@ -118,17 +187,101 @@ export default function PaginaFicha() {
         </Link>
       </div>
 
-      <header className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">{nombre}</h1>
-          <p className="mt-1 font-mono text-sm text-texto-suave">
-            {f.persona.documento}
-          </p>
-          <p className="mt-1 text-sm text-texto-suave">
-            {f.convenio.sigla ?? f.convenio.nombre} · {ETIQUETA_ORIGEN[f.origen]}
-          </p>
+      {/* LA CABECERA DE LA FICHA: quién es, y qué se le hace.
+          Una sola pieza, no cinco cajas flotando.
+
+          Arriba la identidad, con cada dato etiquetado. Debajo,
+          pegada y dentro del mismo borde, la barra donde se
+          actúa. Que compartan caja es lo que dice que la barra
+          opera sobre ESTA persona — separadas, eran tres
+          controles sueltos en la página. */}
+      <header
+        /// SIN `overflow-hidden`.
+        ///
+        /// Lo tenía para que el fondo de la barra no se saliera
+        /// por las esquinas redondeadas. Con 4px de radio eso
+        /// ya no se nota, y a cambio recortaba el desplegable
+        /// de «Acción de formación» y el de «Grupo»: los dos
+        /// son `SelectorBuscable`, que abre su lista DENTRO de
+        /// la página, así que un ancestro con overflow se la
+        /// come. El de «Asesor» no se enteraba porque es un
+        /// `<select>` nativo y su lista la pinta el sistema
+        /// operativo, por encima de todo.
+        className="rounded-2xl border border-borde bg-superficie"
+      >
+        {/* Aquí hubo un filo de color, unas iniciales en un
+            cuadro y un riel con el recorrido. Los tres fuera:
+            eran adornos alrededor del dato, y el dato ya se
+            dice solo. La etapa se lee en su color, a la
+            derecha, y con eso basta. */}
+        <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-4 px-5 py-4 sm:px-6">
+          <div className="min-w-0">
+            <h1 className="truncate text-2xl font-bold tracking-tight">
+              {nombre}
+            </h1>
+
+            {/* Los cuatro datos que identifican la ficha, en
+                línea y etiquetados. `gap-x-8` y no un separador
+                «·»: los puntos medios se leen como parte del
+                dato cuando el valor ya trae puntuación. */}
+            <dl className="mt-3 flex flex-wrap gap-x-8 gap-y-3">
+              <Hecho etiqueta="Documento" valor={f.persona.documento} mono />
+              {/* El gremio SOLO cuando se están mirando los
+                  dos. Si arriba se eligió ADECOPRIA, toda la
+                  pantalla es de ADECOPRIA y repetirlo en cada
+                  ficha es gastar un hueco en decir algo que ya
+                  está dicho. */}
+              {!gremioElegido && (
+                <Hecho
+                  etiqueta="Gremio"
+                  valor={f.convenio.sigla ?? f.convenio.nombre}
+                />
+              )}
+              {/* «Entró por» y «En el sistema desde» se fueron
+                  a «Control de cambios».
+
+                  Los dos cuentan de dónde salió esta ficha y
+                  cuándo, que es exactamente lo que esa tarjeta
+                  narra —su primera línea ya es el alta—. En la
+                  cabecera ocupaban el sitio de lo que sí se
+                  mira al abrir: quién es y en qué punto va. */}
+            </dl>
+          </div>
+
+          {/* La etapa, en su color y con su rótulo, alineada
+              con los demás datos: es uno más, el que más pesa.
+              Arriba a la derecha porque es lo primero que se
+              busca al abrir una ficha. */}
+          <div className="text-right">
+            <p className="text-[0.6875rem] font-semibold tracking-wider text-texto-suave uppercase">
+              Etapa
+            </p>
+            <p className="mt-0.5 text-sm">
+              <PildoraEtapa etapa={f.etapa} />
+            </p>
+          </div>
         </div>
-        <PildoraEtapa etapa={f.etapa} />
+
+        {/* LA BARRA DE ACCIÓN.
+
+            `items-start` a propósito, y es la corrección del
+            fallo que se veía: sin él la rejilla estiraba las
+            tres columnas a la más alta y «Asesor» —que solo
+            tiene un desplegable y un botón— quedaba con un
+            palmo de vacío debajo. Cada una mide lo suyo. */}
+        {/* Anchos DESIGUALES a propósito, sobre doce columnas.
+
+            Con cuatro iguales, «Mover de etapa» —que solo
+            enseña una palabra— tenía el mismo sitio que
+            «Acción de formación», cuyo nombre pasa de sesenta
+            caracteres y salía cortado con puntos suspensivos.
+            Simétrico no es que todo mida igual: es que cada
+            uno mida lo que su contenido pide. */}
+        <div className="grid items-start gap-x-6 gap-y-5 rounded-b-2xl border-t border-borde bg-superficie-alterna px-5 py-4 sm:px-6 md:grid-cols-2 xl:grid-cols-12">
+          <MoverDeEtapa ficha={f} alGuardar={conError} />
+          <Asesor ficha={f} opciones={opciones} alGuardar={conError} />
+          <Asignacion ficha={f} opciones={opciones} alGuardar={conError} />
+        </div>
       </header>
 
       {error && <Aviso tipo="error">{error}</Aviso>}
@@ -144,28 +297,6 @@ export default function PaginaFicha() {
         </Aviso>
       )}
 
-
-      {/* LA FRANJA DE ACCIÓN: las tres cosas que un asesor
-          CAMBIA, juntas y arriba del todo.
-
-          Son las únicas tres decisiones de esta pantalla —en
-          qué etapa está, quién la lleva, a qué curso va— y
-          antes estaban repartidas: dos arriba y la tercera
-          abajo, después de dos tarjetas de solo lectura.
-
-          Lo que las junta es haber pasado la etapa a un
-          desplegable. Eran once botones en fila que se comían
-          el ancho entero, y ese ancho es el que ahora ocupa
-          «Acción de formación».
-
-          Aquí SÍ se estiran a la más alta (sin `items-start`):
-          las tres forman una sola barra de mandos, y una que
-          midiera distinto rompería la línea. */}
-      <div className="grid gap-6 lg:grid-cols-3">
-        <MoverDeEtapa ficha={f} alGuardar={conError} />
-        <Asesor ficha={f} opciones={opciones} alGuardar={conError} />
-        <Asignacion ficha={f} opciones={opciones} alGuardar={conError} />
-      </div>
 
       {/* La propuesta va A LO ANCHO, y no dentro de una
           columna. Es una interrupción —alguien completó sus
@@ -202,17 +333,26 @@ export default function PaginaFicha() {
         </div>
       </div>
 
-      {/* EL PERMISO Y EL CONTACTO, en pareja y en este orden.
+      {/* EL CORREO Y EL PERMISO, en pareja.
 
-          La autorización va PRIMERO y a la izquierda: es lo
-          que decide si se le puede escribir. Al revés —el
-          correo primero— la pantalla invita a mandar un correo
-          y deja la pregunta de si se podía para después, que
-          es justo el orden en que se cometen esos errores. */}
-      <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
+          El correo a la izquierda porque es lo que se hace, y
+          la autorización a la derecha porque es lo que se
+          consulta. Sin `items-start`: aquí las dos SÍ se
+          estiran a la misma altura, que es lo que las hace
+          parecer una pareja y no dos cajas sueltas de distinto
+          tamaño. */}
+      <div className="grid gap-6 lg:grid-cols-2">
+      {puedeEscribir && (
+        <Tarjeta
+          titulo="Escribirle un correo"
+          descripcion="Con una plantilla, que se llena sola con los datos de esta ficha."
+        >
+          <EnviarCorreo participanteId={f.id} />
+        </Tarjeta>
+      )}
+
       <Tarjeta
         titulo="Autorización de tratamiento de datos"
-        plegable
         insignia={autorizacion ? "Autorizada" : "Sin autorizar"}
       >
         {autorizacion ? (
@@ -251,15 +391,6 @@ export default function PaginaFicha() {
         )}
       </Tarjeta>
 
-      {puedeEscribir && (
-        <Tarjeta
-          titulo="Escribirle un correo"
-          descripcion="Con una plantilla, que se llena sola con los datos de esta ficha."
-          plegable
-        >
-          <EnviarCorreo participanteId={f.id} />
-        </Tarjeta>
-      )}
       </div>
 
       {/* Las notas van A LO ANCHO y solas.
@@ -271,7 +402,6 @@ export default function PaginaFicha() {
       <Tarjeta
         titulo="Notas"
         descripcion="No se borran: una corrección es otra nota."
-        plegable
         insignia={`${f.notas.length}`}
       >
         <div className="space-y-4">
@@ -362,10 +492,17 @@ export default function PaginaFicha() {
       <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
       <Tarjeta
         titulo="Control de cambios"
-        descripcion="Cada cambio de etapa, con quién lo hizo y por qué."
-        plegable
+        descripcion="De dónde salió esta ficha, y cada cambio de etapa."
         insignia={`${f.movimientos.length}`}
       >
+        {/* De dónde viene y desde cuándo, encima de la lista.
+            Es el encabezado de la historia: lo que había antes
+            del primer movimiento. */}
+        <dl className="mb-4 flex flex-wrap gap-x-8 gap-y-3 border-b border-borde pb-4">
+          <Hecho etiqueta="Entró por" valor={ETIQUETA_ORIGEN[f.origen]} />
+          <Hecho etiqueta="En el sistema desde" valor={soloDia(f.creadoEn)} />
+        </dl>
+
         <ol className="space-y-2.5">
           {f.movimientos.map((m) => (
             <li key={m.id} className="text-sm">
@@ -397,7 +534,6 @@ export default function PaginaFicha() {
       <Tarjeta
         titulo="Cambios realizados"
         descripcion="Cada dato que se corrigió, con su valor anterior."
-        plegable
       >
         <HistoricoDeValores
           participanteId={f.id}
@@ -535,17 +671,26 @@ function MoverDeEtapa({
     : [ficha.etapa, ...ETAPAS_A_MANO];
 
   return (
-    <Tarjeta titulo="Mover de etapa">
-      <Campo
-        etiqueta="Etapa"
-        ayuda={
-          !ETAPAS_A_MANO.includes(ficha.etapa)
-            ? `«${ETIQUETA_ETAPA[ficha.etapa]}» la pone el sistema. Desde aquí se puede mover a otra, pero no volver a ella.`
-            : "Las etapas de salida piden un motivo antes de guardar."
-        }
-      >
+    /// Sin texto de ayuda debajo.
+    ///
+    /// Habia dos. Uno decia «las etapas de salida piden un
+    /// motivo antes de guardar», que no significa nada para
+    /// quien lo lee -- y ademas el sistema ya se lo pide en el
+    /// momento, que es cuando sirve saberlo. El otro explicaba
+    /// las etapas que pone el sistema, y eso se ve solo: salen
+    /// deshabilitadas en la lista.
+    ///
+    /// Lo que quedaba era un parrafo debajo de un desplegable
+    /// que descuadraba la barra. Va en `title`: quien lo
+    /// necesite lo encuentra, y quien no, ve una barra limpia.
+    <Control etiqueta="Mover de etapa" ancho="xl:col-span-2">
         <select
           className={CLASE_CONTROL}
+          title={
+            !ETAPAS_A_MANO.includes(ficha.etapa)
+              ? `«${ETIQUETA_ETAPA[ficha.etapa]}» la pone el sistema: se puede salir de ella, pero no volver.`
+              : undefined
+          }
           value={ficha.etapa}
           onChange={(e) => mover(e.target.value as Etapa)}
         >
@@ -560,8 +705,7 @@ function MoverDeEtapa({
             </option>
           ))}
         </select>
-      </Campo>
-    </Tarjeta>
+    </Control>
   );
 }
 
@@ -574,12 +718,42 @@ function Asignacion({
   opciones: Opciones | null;
   alGuardar: (a: () => Promise<void>, exito?: string) => Promise<void>;
 }) {
-  const [ofertaId, setOfertaId] = useState(ficha.oferta?.id ?? "");
+  /// Se guarda la ACCION elegida, no la oferta.
+  ///
+  /// La oferta —accion x sede— la deduce el servidor de donde
+  /// vive la persona. El asesor elige un curso; que ese curso
+  /// se dicte en Antioquia o en Santander no es una decision
+  /// suya, y pedirsela era lo que hacia que AF1 saliera seis
+  /// veces en la lista.
+  /// `null` mientras nadie ha tocado nada, y entonces manda lo
+  /// que ya tiene la ficha. Se deriva en vez de copiarse en un
+  /// efecto: asi, cuando llegan las opciones tarde, la lista
+  /// aparece con su valor ya puesto y no en blanco.
+  const [elegida, setElegida] = useState<string | null>(null);
   const [coberturaId, setCoberturaId] = useState(ficha.cobertura?.id ?? "");
 
   if (!opciones) return null;
 
-  const oferta = opciones.ofertas.find((o) => o.id === ofertaId);
+  const guardada = ficha.oferta
+    ? (opciones.acciones.find((a) => a.ofertaId === ficha.oferta!.id)
+        ?.accionFormacionId ?? "")
+    : "";
+  const accionId = elegida ?? guardada;
+  const setAccionId = setElegida;
+
+  const accion = opciones.acciones.find(
+    (a) => a.accionFormacionId === accionId,
+  );
+  /// La oferta que le toca, ya resuelta por el servidor.
+  const ofertaId = accion?.ofertaId ?? "";
+  const oferta = accion?.cubre
+    ? {
+        accionFormacionId: accion.accionFormacionId,
+        ubicacion: accion.ubicacion ?? "",
+        disponibles: accion.disponibles,
+        etiqueta: accion.etiqueta,
+      }
+    : undefined;
   /// Cuantos grupos se dejaron fuera por estar en otra parte,
   /// y donde vive la persona. Sin decirlo, una lista que se
   /// acorta sola parece un sistema roto.
@@ -589,47 +763,112 @@ function Asignacion({
       .filter(Boolean)
       .join(", ") || "su domicilio";
 
+  /// Los grupos de LA OFERTA elegida: su acción Y su sede.
+  ///
+  /// Filtraba solo por `accionFormacionId`, y ese era el
+  /// fallo: la misma acción se oferta en seis departamentos y
+  /// todas esas ofertas comparten el mismo id de acción. Así
+  /// que elegir «AF1 · BOGOTÁ D.C» sacaba también los grupos
+  /// de Antioquia, Cauca, Córdoba, Huila y Santander — y se
+  /// podía guardar una ficha con la oferta de Bogotá y un
+  /// grupo de Santander, que no significa nada.
+  ///
+  /// Los VIRTUALES se quedan siempre: no se dictan en ningún
+  /// sitio, así que la sede de la oferta no los descarta.
   const grupos = oferta
-    ? opciones.grupos.filter((g) => g.accionFormacionId === oferta.accionFormacionId)
+    ? opciones.grupos.filter(
+        (g) =>
+          g.accionFormacionId === oferta.accionFormacionId &&
+          (g.modalidad === "VIRTUAL" || g.ubicacion === oferta.ubicacion),
+      )
     : [];
 
   const gruposVisibles = grupos;
 
   return (
-    <Tarjeta titulo="Acción de formación y grupo">
-      <div className="space-y-4">
-        <Campo etiqueta="">
-          <SelectorBuscable
-            valor={ofertaId}
-            alElegir={(id) => {
-              setOfertaId(id);
-              setCoberturaId("");
-            }}
-            marcador="AF8, inteligencia artificial, Bolívar…"
-            opciones={opciones.ofertas.map((o) => ({
-              id: o.id,
-              etiqueta: o.etiqueta,
-              detalle: `${o.ubicacion} · ${o.disponibles} de ${o.cupos} libres${
-                o.abierta ? "" : " · cerrada"
-              }`,
-              busca: o.ubicacion,
-            }))}
-          />
-        </Campo>
+    /// DOS celdas de la rejilla, no una.
+    ///
+    /// Era una sola con los dos desplegables apilados, y por
+    /// eso medía el doble que las otras: la fila entera se
+    /// estiraba a su alto y dejaba un palmo de vacío debajo de
+    /// «Mover de etapa» y de «Asesor». Un fragmento devuelve
+    /// dos hijos y la rejilla los coloca uno al lado del otro.
+    ///
+    /// Y de paso se arregla el rótulo: decía «Acción de
+    /// formación y grupo» encima de un desplegable que solo
+    /// tiene la acción, con el grupo en otro campo debajo.
+    <>
+      <Control etiqueta="Acción de formación" ancho="xl:col-span-4">
+        {/* UNA fila por acción, no una por acción×sede.
 
-        {oferta && (
-          <Campo
-            etiqueta="Grupo"
-            ayuda={
-              grupos.length === 0
-                ? fuera > 0
-                  ? `Esta acción no tiene grupos donde vive: ${donde}. Los ${fuera} que hay se dictan en otra parte.`
-                  : "Esta acción no tiene grupos cargados."
-                : fuera > 0
-                  ? `Solo los que le sirven por vivir en ${donde}. Se dejaron fuera ${fuera} de otras ubicaciones.`
-                  : "Sin grupo con fechas no se puede matricular."
-            }
-          >
+            Antes esta lista salía de `opciones.ofertas`, que es
+            la tabla cruda: como AF1 se oferta en seis
+            departamentos, AF1 aparecía seis veces y el asesor
+            tenía que saber cuál le tocaba a esta persona. No es
+            una decisión suya: la sede se deduce de dónde vive,
+            y ahora la deduce el servidor.
+
+            Las que NO llegan a su departamento salen igual, con
+            su aviso. Esconderlas dejaría al asesor sin saber
+            por qué falta un curso que sabe que existe. */}
+        <SelectorBuscable
+          valor={accionId}
+          alElegir={(id) => {
+            setAccionId(id);
+            setCoberturaId("");
+          }}
+          marcador="AF8, inteligencia artificial…"
+          opciones={opciones.acciones.map((a) => ({
+            id: a.accionFormacionId,
+            etiqueta: a.etiqueta,
+            detalle: a.cubre
+              ? `${a.ubicacion} · ${a.disponibles} de ${a.cupos} libres${
+                  a.abierta ? "" : " · cerrada"
+                }`
+              : `Sin cobertura en ${donde} · se dicta en ${a.sedes} ${
+                  a.sedes === 1 ? "sede" : "sedes"
+                }`,
+            busca: a.codigo,
+          }))}
+        />
+      </Control>
+
+      <Control etiqueta="Grupo" ancho="xl:col-span-3">
+        {/* El grupo y su boton EN LINEA, igual que el asesor y
+            el suyo. Es lo que hace que las cuatro columnas
+            midan lo mismo: con el boton debajo, esta columna
+            era mas alta que las otras tres y volvia el
+            «espaciote».
+
+            La lista ya viene recortada a los grupos que le
+            sirven por donde vive. Eso se explicaba en un
+            parrafo de dos renglones —«Solo los que le sirven
+            por vivir en GALAN, SANTANDER. Se dejaron fuera
+            39...»—, el texto mas largo de toda la barra. Va en
+            `title`. */}
+        <div
+          className="flex items-center gap-2"
+          title={
+            oferta && fuera > 0
+              ? `Solo los grupos que le sirven por vivir en ${donde}. Se dejaron fuera ${fuera} de otras ubicaciones.`
+              : undefined
+          }
+        >
+        {accion && !accion.cubre ? (
+          /// SIN COBERTURA. Ni grupo ni guardar.
+          ///
+          /// Esta acción no llega a su departamento, así que no
+          /// hay grupo que ofrecerle y no se le puede
+          /// inscribir. Lo que sí hay es algo que hacer: darle
+          /// las gracias. Decirlo aquí es lo que evita que la
+          /// ficha se quede colgada esperando un cupo que no va
+          /// a existir.
+          <p className="grow text-sm text-aviso">
+            No hay cobertura en {donde}. No se puede inscribir:
+            corresponde escribirle un correo de agradecimiento.
+          </p>
+        ) : oferta ? (
+          <div className="min-w-0 grow">
             <SelectorBuscable
               valor={coberturaId}
               alElegir={setCoberturaId}
@@ -644,18 +883,32 @@ function Asignacion({
                 }`,
               }))}
             />
-          </Campo>
-        )}
-
-        {ficha.sobrecupoMotivo && (
-          <p className="text-sm text-texto-suave">
-            Sobrecupo autorizado{ficha.sobrecupoPor && ` por ${ficha.sobrecupoPor.nombre}`}:{" "}
-            {ficha.sobrecupoMotivo}
+          </div>
+        ) : (
+          /// Sin acción elegida no hay grupos que ofrecer, pero
+          /// la celda se queda: si desapareciera, las otras
+          /// tres se recolocarían al elegir una acción y la
+          /// barra daría un salto.
+          <p className="grow text-sm text-texto-suave">
+            Elija primero una acción.
           </p>
         )}
 
         <Boton
-          disabled={!ofertaId || (ofertaId === ficha.oferta?.id && coberturaId === (ficha.cobertura?.id ?? ""))}
+          /// Sin cobertura NO se guarda. La regla vive también
+          /// en el servidor —`asignar` la comprueba—, y esto es
+          /// solo para no ofrecer un botón que va a fallar.
+          title={
+            ficha.sobrecupoMotivo
+              ? `Sobrecupo autorizado${ficha.sobrecupoPor ? ` por ${ficha.sobrecupoPor.nombre}` : ""}: ${ficha.sobrecupoMotivo}`
+              : undefined
+          }
+          disabled={
+            !ofertaId ||
+            accion?.cubre === false ||
+            (ofertaId === ficha.oferta?.id &&
+              coberturaId === (ficha.cobertura?.id ?? ""))
+          }
           onClick={() => {
             let motivo: string | undefined;
             if (oferta && oferta.disponibles === 0 && ofertaId !== ficha.oferta?.id) {
@@ -674,10 +927,11 @@ function Asignacion({
             );
           }}
         >
-          Guardar asignación
+          Guardar
         </Boton>
-      </div>
-    </Tarjeta>
+        </div>
+      </Control>
+    </>
   );
 }
 
@@ -1118,38 +1372,33 @@ function Asesor({
   /// sirve: es la diferencia entre esconder y ocultar.
   if (!admin.puede?.repartirFichas) {
     return ficha.asesor ? (
-      <Tarjeta titulo="Asesor">
-        <p className="text-sm">
-          La lleva <strong>{ficha.asesor.nombre}</strong>.
+      <Control etiqueta="Asesor" ancho="xl:col-span-3">
+        <p className="text-sm" title="Repartir fichas lo hace un líder.">
+          {ficha.asesor.nombre}
         </p>
-        <p className="mt-1 text-xs text-texto-suave">
-          Repartir fichas lo hace un líder.
-        </p>
-      </Tarjeta>
+      </Control>
     ) : null;
   }
 
   const cambiado = asesorId !== (ficha.asesor?.id ?? "");
 
   return (
-    <Tarjeta titulo="Asesor">
-      <div className="flex flex-wrap items-end gap-3">
-        <div className="min-w-64 grow">
-          <Campo etiqueta="">
-            <select
-              className={CLASE_CONTROL}
-              value={asesorId}
-              onChange={(e) => setAsesorId(e.target.value)}
-            >
-              <option value="">Sin asignar</option>
-              {opciones.asesores.map((a) => (
-                <option key={a.id} value={a.id}>
-                  {a.nombre}
-                </option>
-              ))}
-            </select>
-          </Campo>
-        </div>
+    <Control etiqueta="Asesor" ancho="xl:col-span-3">
+      {/* `min-w-0` en el desplegable: sin el, un nombre largo
+          empuja al boton fuera de la columna. */}
+      <div className="flex items-center gap-2">
+        <select
+          className={`${CLASE_CONTROL} min-w-0 grow`}
+          value={asesorId}
+          onChange={(e) => setAsesorId(e.target.value)}
+        >
+          <option value="">Sin asignar</option>
+          {opciones.asesores.map((a) => (
+            <option key={a.id} value={a.id}>
+              {a.nombre}
+            </option>
+          ))}
+        </select>
 
         <Boton
           type="button"
@@ -1168,8 +1417,7 @@ function Asesor({
           {guardando ? "Guardando…" : "Asignar"}
         </Boton>
       </div>
-
-    </Tarjeta>
+    </Control>
   );
 }
 
@@ -1198,7 +1446,7 @@ function DatosDeLaEmpresa({
 
   if (!e) {
     return (
-      <Tarjeta titulo="Su organización" plegable>
+      <Tarjeta titulo="Su organización">
         <p className="text-sm text-texto-suave">Todavía no tiene organización.</p>
       </Tarjeta>
     );
@@ -1247,19 +1495,10 @@ function DatosDeLaEmpresa({
         ["Su correo", e.contactoCorreo],
       ];
 
-  /// Y los que llena el ANALISTA de información, o los trae la
-  /// consulta al RUES por el NIT. No son del asesor y no tiene
-  /// por qué perseguirlos.
-  const DEL_ANALISTA: Array<[string, unknown]> = porSuCuenta
-    ? []
-    : [
-        ["Dirección", e.direccion],
-        ["Teléfono", e.telefono],
-        ["Departamento", e.departamentoSepId],
-        ["Municipio", e.municipioSepId],
-        ["Sector económico", e.sectorEconomico],
-        ["Número de trabajadores", e.numeroTrabajadores],
-      ];
+  /// Los seis del analista —dirección, teléfono,
+  /// departamento, municipio, sector, número de trabajadores—
+  /// ya no se listan aquí. Se ven y se corrigen en Empresas
+  /// registradas, que es de quien son.
 
   const faltanDelAsesor = DEL_ASESOR.filter(
     ([, v]) => v === null || v === "",
@@ -1277,7 +1516,6 @@ function DatosDeLaEmpresa({
     /// como dato y no como rótulo.
     <Tarjeta
       titulo={porSuCuenta ? "Independiente con RUT" : "Datos de empresa"}
-      plegable
       insignia={
         faltanDelAsesor > 0 ? `Faltan ${faltanDelAsesor} suyos` : "Completa"
       }
@@ -1311,36 +1549,17 @@ function DatosDeLaEmpresa({
         </div>
       )}
 
-      {DEL_ANALISTA.length > 0 && (
-        /// PLEGADO, no borrado.
-        ///
-        /// Mauricio pidió que la tarjeta enseñe solo los cinco
-        /// que son del asesor, y tiene razón: seis campos más
-        /// que él no persigue convertían esto en una lista de
-        /// «Falta» que no se puede accionar.
-        ///
-        /// Pero borrarlos sería peor: son los que espera la
-        /// fila del F7, y sin ellos a la vista nadie se entera
-        /// de que faltan hasta que el reporte sale corto. Así
-        /// que se pliegan: fuera de la vista, a un clic.
-        <details className="mt-5 border-t border-borde pt-4">
-          <summary className="cursor-pointer text-xs text-texto-suave">
-            Lo que llena el analista, para el F7 ({DEL_ANALISTA.length})
-          </summary>
-          <div className="mt-3">
-            <Campos campos={DEL_ANALISTA} />
-          </div>
-        </details>
-      )}
+      {/* Aquí iban los seis campos del analista, plegados, y
+          debajo una nota de cuatro renglones sobre el F7.
 
-      {/* La pregunta que esta tarjeta no contestaba: ¿esto me
-          frena? No. Comprobado en completitud.ts, que no
-          menciona la empresa por ninguna parte. */}
-      <p className="mt-5 rounded-xl border border-borde bg-superficie-alterna p-3 text-xs leading-relaxed text-texto-suave">
-        {porSuCuenta
-          ? "Su cédula hace de RUT. No entra en Empresas registradas: ahí van organizaciones."
-          : "Nada de esto frena la inscripción ni la matrícula, y la persona sale igual en el archivo por persona del SENA. Lo único que espera por estos datos es la fila del F7, que es el resumen por empresa."}
-      </p>
+          Los dos fuera. Quien inscribe se encarga de tres
+          datos —contacto, cargo, correo— y ya lo sabe; el
+          resto le llenaba la tarjeta de cosas que no persigue
+          y la dejaba mucho más alta que «Datos del
+          interesado», que es con la que tiene que emparejar.
+
+          No se pierde nada: esos campos se ven y se corrigen
+          en Empresas registradas, que es de quien son. */}
     </Tarjeta>
   );
 }
@@ -1520,7 +1739,7 @@ function EnlaceCompletar({ ficha }: { ficha: Ficha }) {
 
   if (noLeFalta) {
     return (
-      <Tarjeta titulo="Enlace para que complete sus datos" plegable>
+      <Tarjeta titulo="Enlace para que complete sus datos">
         <div className="rounded-xl border border-exito/30 bg-exito-suave p-4 text-sm text-exito">
           <p className="font-medium">Datos completos — no aplica</p>
           <p className="mt-1">
@@ -1533,7 +1752,7 @@ function EnlaceCompletar({ ficha }: { ficha: Ficha }) {
   }
 
   return (
-    <Tarjeta titulo="Enlace para que complete sus datos" plegable>
+    <Tarjeta titulo="Enlace para que complete sus datos">
       <div className="space-y-4">
         <LoQuePedira ficha={ficha} />
 

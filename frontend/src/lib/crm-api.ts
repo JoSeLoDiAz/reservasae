@@ -785,9 +785,30 @@ export type OpcionOferta = {
   abierta: boolean;
 };
 
+/// Una accion de formacion, YA resuelta contra donde vive la
+/// persona. Una fila por accion -- no una por accion x sede.
+export type OpcionAccion = {
+  accionFormacionId: string;
+  codigo: string;
+  nombre: string;
+  etiqueta: string;
+  /// La oferta que le toca a esta persona. Null si su
+  /// departamento no tiene cobertura para esta accion.
+  ofertaId: string | null;
+  ubicacion: string | null;
+  cupos: number;
+  disponibles: number;
+  abierta: boolean;
+  cubre: boolean;
+  /// En cuantas sedes se dicta en total.
+  sedes: number;
+};
+
 export type OpcionGrupo = {
   id: string;
   accionFormacionId: string;
+  /// Donde se dicta. Es lo que deja casarlo con la oferta.
+  ubicacion: string;
   etiqueta: string;
   modalidad: string;
   cupos: number;
@@ -800,6 +821,10 @@ export type OpcionGrupo = {
 export type Asesor = { id: string; nombre: string; correo: string };
 
 export type Opciones = {
+  /// Lo que se elige en la ficha: una fila por accion.
+  acciones: OpcionAccion[];
+  /// La tabla cruda accion x sede. Se conserva porque la usan
+  /// las reservas de empresa y los informes.
   ofertas: OpcionOferta[];
   /// SOLO los que cubren donde vive la persona, cuando se
   /// pide para un lead concreto.
