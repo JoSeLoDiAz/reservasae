@@ -21,6 +21,36 @@ import {
 } from "@/lib/admin-api";
 import { bonito, ErrorApi } from "@/lib/api";
 
+/// Solo el dia y el mes: el año se repite en las 67 filas y
+/// no distingue nada. En la fila abierta sí va completo.
+const CORTA = new Intl.DateTimeFormat("es-CO", { day: "numeric", month: "short" });
+
+/** De cuando a cuando va una accion, mirando todos sus grupos. */
+function ventanaDe(grupos: GrupoCronograma[]) {
+  const inicios = grupos.map((g) => g.fechaInicio).filter(Boolean) as string[];
+  const fines = grupos.map((g) => g.fechaFin).filter(Boolean) as string[];
+  if (!inicios.length && !fines.length) return null;
+  const desde = inicios.length ? inicios.slice().sort()[0] : null;
+  const hasta = fines.length ? fines.slice().sort().at(-1)! : null;
+  return { desde, hasta };
+}
+
+/// Las fechas del cronograma se TECLEAN (2026-09-01), asi que se
+/// leen por sus tres numeros y no con `new Date`, que las
+/// interpreta en UTC y en Bogota devuelve el dia anterior. Es la
+/// misma distincion instante/calendario del backend.
+function comoDia(iso: string) {
+  const [a, m, d] = iso.slice(0, 10).split("-").map(Number);
+  return new Date(a, m - 1, d);
+}
+
+const rango = (v: { desde: string | null; hasta: string | null }) =>
+  v.desde && v.hasta
+    ? `${CORTA.format(comoDia(v.desde))} – ${CORTA.format(comoDia(v.hasta))}`
+    : v.desde
+      ? `desde el ${CORTA.format(comoDia(v.desde))}`
+      : `hasta el ${CORTA.format(comoDia(v.hasta!))}`;
+
 const TONO: Record<EstadoGrupo, "marca" | "exito" | "aviso" | "error" | "neutro"> = {
   SIN_FECHAS: "error",
   POR_EMPEZAR: "neutro",
@@ -75,6 +105,20 @@ export default function PaginaCronograma() {
   const enCurso = grupos.filter((g) => g.estado === "EN_CURSO").length;
   const porEmpezar = grupos.filter((g) => g.estado === "POR_EMPEZAR").length;
   const sinFechas = grupos.filter((g) => g.estado === "SIN_FECHAS").length;
+  const terminados = grupos.filter((g) => g.estado === "TERMINADO").length;
+
+  /// Agrupadas por gremio, como en Formacion. Sin esto los
+  /// codigos vuelven a empezar en AF1 a mitad de la lista y
+  /// parecen repetidos.
+  const porConvenio = visibles.reduce<Array<{ convenio: string; acciones: AccionCronograma[] }>>(
+    (bloques, a) => {
+      const y = bloques.find((b) => b.convenio === a.convenio);
+      if (y) y.acciones.push(a);
+      else bloques.push({ convenio: a.convenio, acciones: [a] });
+      return bloques;
+    },
+    [],
+  );
 
   return (
     <div>
@@ -88,10 +132,27 @@ export default function PaginaCronograma() {
 
       {error && <Aviso tipo="error">{error}</Aviso>}
 
+      {/* Las cuatro con pie: con una sola frase debajo, esa
+          tarjeta media mas alta y la fila quedaba descuadrada. */}
       <div className="grid gap-px border-t border-b border-hairline bg-hairline sm:grid-cols-2 lg:grid-cols-4">
-        <TarjetaCifra etiqueta="Grupos" valor={grupos.length} icono={IconoFormacion} />
-        <TarjetaCifra etiqueta="En curso" valor={enCurso} tono="exito" />
-        <TarjetaCifra etiqueta="Por empezar" valor={porEmpezar} tono="neutro" />
+        <TarjetaCifra
+          etiqueta="Grupos"
+          valor={grupos.length}
+          pie={`en ${acciones.length} acciones de formación`}
+          icono={IconoFormacion}
+        />
+        <TarjetaCifra
+          etiqueta="En curso"
+          valor={enCurso}
+          pie={enCurso > 0 ? "dictándose ahora mismo" : "ninguno ha arrancado todavía"}
+          tono="exito"
+        />
+        <TarjetaCifra
+          etiqueta="Por empezar"
+          valor={porEmpezar}
+          pie={terminados > 0 ? `${terminados} ya terminaron` : "con fecha puesta"}
+          tono="neutro"
+        />
         <TarjetaCifra
           etiqueta="Sin fechas"
           valor={sinFechas}
@@ -100,12 +161,26 @@ export default function PaginaCronograma() {
         />
       </div>
 
-      <input
-        className={`${CLASE_CONTROL} max-w-md`}
-        placeholder="Buscar por código, curso o ciudad…"
-        value={buscar}
-        onChange={(e) => setBuscar(e.target.value)}
-      />
+      <div className="flex flex-wrap items-center gap-3 border-b border-borde bg-superficie px-7 py-3">
+        <input
+          className={`${CLASE_CONTROL} max-w-sm`}
+          placeholder="Buscar por código, curso o ciudad…"
+          value={buscar}
+          onChange={(e) => setBuscar(e.target.value)}
+        />
+        {buscar && (
+          <button
+            type="button"
+            onClick={() => setBuscar("")}
+            className="sin-aro text-[0.78125rem] text-texto-suave underline-offset-2 transition hover:text-marca hover:underline"
+          >
+            Quitar la búsqueda
+          </button>
+        )}
+        <span className="ml-auto text-[0.78125rem] text-texto-suave tabular-nums">
+          {visibles.length} de {acciones.length} acciones
+        </span>
+      </div>
 
       {visibles.length === 0 ? (
         <Vacio titulo="Ninguna formación coincide" icono={IconoFormacion}>
@@ -118,16 +193,27 @@ export default function PaginaCronograma() {
         /// fila y fila, y eso se lee como un rayado. La
         /// separacion la hace la raya de cada banda.
         <div>
-          {visibles.map((a) => (
-            <Accion
-              key={a.id}
-              accion={a}
-              abierta={abierta === a.id}
-              alAbrir={() => setAbierta(abierta === a.id ? null : a.id)}
-              puedeEditar={puedeEditar}
-              alGuardar={cargar}
-              alFallar={setError}
-            />
+          {porConvenio.map((b) => (
+            <div key={b.convenio}>
+              <h2 className="border-b border-hairline bg-superficie-alterna px-7 py-2 text-[0.65625rem] font-semibold tracking-[0.06em] text-marca uppercase">
+                {b.convenio}
+                <span className="ml-2 font-normal tracking-normal text-texto-suave normal-case">
+                  {b.acciones.length}{" "}
+                  {b.acciones.length === 1 ? "acción" : "acciones"}
+                </span>
+              </h2>
+              {b.acciones.map((a) => (
+                <Accion
+                  key={a.id}
+                  accion={a}
+                  abierta={abierta === a.id}
+                  alAbrir={() => setAbierta(abierta === a.id ? null : a.id)}
+                  puedeEditar={puedeEditar}
+                  alGuardar={cargar}
+                  alFallar={setError}
+                />
+              ))}
+            </div>
           ))}
         </div>
       )}
@@ -151,6 +237,9 @@ function Accion({
   alGuardar: () => Promise<void>;
   alFallar: (m: string) => void;
 }) {
+  const ventana = ventanaDe(accion.grupos);
+  const enCurso = accion.grupos.filter((g) => g.estado === "EN_CURSO").length;
+
   return (
     <section className="overflow-hidden border-t border-hairline bg-superficie">
       <button
@@ -167,20 +256,40 @@ function Accion({
             <span className="font-mono text-[0.65625rem] font-semibold tracking-[0.05em] text-texto-suave">{accion.codigo}</span>
             <span className="text-[0.84375rem] font-semibold text-titulo">{bonito(accion.nombre)}</span>
             {!accion.visible && <Pildora tono="neutro">Sin publicar</Pildora>}
-            {accion.sinFechas > 0 && (
-              <Pildora tono="error">
-                {accion.sinFechas} {accion.sinFechas === 1 ? "grupo" : "grupos"} sin fechas
-              </Pildora>
-            )}
           </span>
           <span className="mt-0.5 block text-[0.71875rem] text-texto-suave">
-            {accion.convenio} · {accion.horas} horas · {accion.grupos.length}{" "}
+            {accion.horas} horas · {accion.grupos.length}{" "}
             {accion.grupos.length === 1 ? "grupo" : "grupos"} · {accion.inscritos} de{" "}
             {accion.cupos} cupos
           </span>
         </span>
-        <span aria-hidden className="shrink-0 text-texto-suave">
-          {abierta ? "▴" : "▾"}
+
+        {/* Lo que la pantalla promete y callaba hasta abrirla:
+            CUANDO. Iba todo el hueco vacio hasta el chevron. */}
+        <span className="hidden shrink-0 text-right sm:block">
+          <span className="block text-[0.78125rem] font-semibold text-titulo tabular-nums">
+            {ventana ? rango(ventana) : "Sin fechas"}
+          </span>
+          <span className="mt-0.5 block text-[0.71875rem] text-texto-suave">
+            {accion.sinFechas > 0 ? (
+              <span className="font-semibold text-error">
+                {accion.sinFechas}{" "}
+                {accion.sinFechas === 1 ? "grupo sin fecha" : "grupos sin fechas"}
+              </span>
+            ) : enCurso > 0 ? (
+              <span className="font-semibold text-exito">
+                {enCurso} en curso
+              </span>
+            ) : (
+              "calendario completo"
+            )}
+          </span>
+        </span>
+
+        <span aria-hidden className="shrink-0 text-texto-suave transition-transform" style={{ transform: abierta ? "rotate(180deg)" : undefined }}>
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+            <path d="M2.5 4.5 6 8l3.5-3.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
         </span>
       </button>
 
