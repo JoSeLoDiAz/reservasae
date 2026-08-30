@@ -52,6 +52,7 @@ import {
 } from './dto';
 import { controlDeInscritos } from './control';
 import { tableroPorAccion } from './tablero-af';
+import { planeacionDePauta } from './planeacion-de-pauta';
 import { tableroAcademico } from './tablero-academico';
 import {
   compararDos,
@@ -206,6 +207,28 @@ export class CrmController {
     @Query('coberturaId') coberturaId?: string,
   ) {
     return tableroPorAccion(this.prisma, ambito.convenios, {
+      accionFormacionId,
+      coberturaId,
+    });
+  }
+
+  /**
+   * La tabla del Comité de Marketing.
+   *
+   * Va por la sede de la oferta y no por el domicilio de la
+   * persona, que es lo que hace que la fila cuadre consigo
+   * misma: los cupos tienen sede. `control/por-accion`
+   * responde la otra pregunta —de dónde salió la gente— y por
+   * eso son dos rutas y no una con bandera.
+   */
+  @Get('control/planeacion-de-pauta')
+  @Requiere('inscritos')
+  planeacionDePauta(
+    @AmbitoActual() ambito: Ambito,
+    @Query('accionFormacionId') accionFormacionId?: string,
+    @Query('coberturaId') coberturaId?: string,
+  ) {
+    return planeacionDePauta(this.prisma, ambito.convenios, {
       accionFormacionId,
       coberturaId,
     });

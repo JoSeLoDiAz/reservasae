@@ -574,6 +574,21 @@ export type Ventana = {
 /** Fracción: 0.25 es un 25 % más. Null si antes no había. */
 export type Variaciones = Record<string, number | null>;
 
+/** Una fila de la tabla del Comité de Marketing. */
+export type FilaDePlaneacion = {
+  departamento: string;
+  totalCupos: number;
+  reservados: number;
+  inscritos: number;
+  leadsOrganicos: number;
+  leadsImportados: number;
+};
+
+export type PlaneacionDePauta = {
+  filas: FilaDePlaneacion[];
+  totales: Omit<FilaDePlaneacion, "departamento">;
+};
+
 export type Corte = { etiqueta: string; total: number };
 
 /** Un tramo de espera y cuántos llevan ahí. */
@@ -1018,6 +1033,15 @@ export const crmApi = {
 
   metricas: (filtros: Filtros = {}) =>
     pedir<MetricasInscripciones>(`/admin/participantes/metricas${consulta(filtros)}`),
+
+  planeacionDePauta: (accionFormacionId?: string, coberturaId?: string) =>
+    pedir<PlaneacionDePauta>(
+      `/admin/participantes/control/planeacion-de-pauta${
+        accionFormacionId
+          ? `?accionFormacionId=${accionFormacionId}${coberturaId ? `&coberturaId=${coberturaId}` : ""}`
+          : ""
+      }`,
+    ),
 
   resumen: (filtros: Filtros = {}) =>
     pedir<Resumen>(`/admin/participantes/resumen${consulta(filtros)}`),

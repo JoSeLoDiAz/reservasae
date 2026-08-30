@@ -17,6 +17,7 @@ import {
 } from "@/components/admin/graficos";
 import { IndicadorActualizacion } from "@/components/admin/indicador-actualizacion";
 import { Aviso, CLASE_CONTROL, useAdmin } from "@/components/admin/marco-admin";
+import { ComiteMarketing } from "@/components/admin/comite-marketing";
 import { PanelMetas } from "@/components/admin/panel-metas";
 import { TableroPorAccion } from "@/components/admin/tablero-por-accion";
 import {
@@ -132,7 +133,7 @@ function textoDuracion(dias: number | null): string {
 /// contaban lo mismo por caminos distintos.
 const PESTANAS = [
   { clave: "metas", etiqueta: "Metas y avance" },
-  { clave: "analisis", etiqueta: "Análisis a fondo" },
+  { clave: "comite", etiqueta: "Comité Marketing" },
 ] as const;
 
 type Pestana = (typeof PESTANAS)[number]["clave"];
@@ -146,7 +147,7 @@ export default function PaginaControl() {
   useEffect(() => {
     try {
       const guardada = window.localStorage.getItem("control:pestana");
-      if (guardada === "metas" || guardada === "analisis") setPestana(guardada);
+      if (guardada === "metas" || guardada === "comite") setPestana(guardada);
     } catch {
       // navegador sin almacenamiento: se queda con la de por defecto
     }
@@ -208,7 +209,7 @@ export default function PaginaControl() {
         </div>
         {/* solo en Análisis: es de esos datos, y en la otra
             pestaña diría una hora que no le corresponde */}
-        {pestana === "analisis" && (
+        {pestana === "metas" && (
           <IndicadorActualizacion
             actualizadoEn={vivos.actualizadoEn}
             refrescando={vivos.refrescando}
@@ -240,9 +241,9 @@ export default function PaginaControl() {
         ))}
       </div>
 
-      {pestana === "metas" && <PanelMetas />}
+      {pestana === "comite" && <ComiteMarketing />}
 
-      {pestana === "analisis" && (
+      {pestana === "metas" && (
         <>
       <div className="rounded-lg border border-borde bg-superficie px-4 py-2.5">
         <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
@@ -351,9 +352,100 @@ export default function PaginaControl() {
       ) : (
         <Cuerpo d={vivos.datos} adminId={admin.id} eligio={eligio} />
       )}
+
+      {/* El panel de metas por acción no cabía en ninguna de las
+          dos pestañas nuevas, y borrarlo sería perder el corte
+          por acción contra su propia meta. Va plegado al pie. */}
+      <Bloque
+        plegable
+        titulo="Metas por acción de formación"
+        descripcion="El avance de cada acción contra lo que su proyecto comprometió."
+      >
+        <PanelMetas />
+      </Bloque>
         </>
       )}
     </div>
+  );
+}
+
+/**
+ * Cuánta captación hace falta para cerrar la meta.
+ *
+ * Los dos números de arriba los pone quien mira —cuántos leads
+ * cuesta un inscrito y cuánto cuesta un lead— porque nadie los
+ * sabe de antemano y cambian con cada campaña. Lo de abajo se
+ * recalcula solo.
+ */
+function Planificador({ faltan }: { faltan: number }) {
+  const [conversion, setConversion] = useState(3);
+  const [costo, setCosto] = useState(12000);
+
+  const leads = faltan * conversion;
+  const inversion = leads * costo;
+
+  return (
+    <Bloque
+      titulo="Planificador de captación"
+      descripcion="Cuántos leads y cuánta inversión hacen falta para cerrar lo que le queda a la meta."
+    >
+      <div className="flex flex-wrap items-end gap-x-6 gap-y-3">
+        <div>
+          <p className="mb-1 text-[0.6875rem] font-medium text-texto-suave">
+            Conversión objetivo
+          </p>
+          <select
+            className={`${CLASE_CONTROL} max-w-[11rem]`}
+            value={conversion}
+            onChange={(e) => setConversion(Number(e.target.value))}
+            aria-label="Leads por inscrito"
+          >
+            {Array.from({ length: 10 }, (_, i) => i + 1).map((v) => (
+              <option key={v} value={v}>
+                {v} {v === 1 ? "lead" : "leads"} · 1 inscrito
+              </option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <p className="mb-1 text-[0.6875rem] font-medium text-texto-suave">
+            Costo por lead
+          </p>
+          <input
+            type="number"
+            min={0}
+            step={500}
+            className={`${CLASE_CONTROL} max-w-[8rem]`}
+            value={costo}
+            onChange={(e) => setCosto(Math.max(0, Number(e.target.value)))}
+            aria-label="Costo por lead, en pesos"
+          />
+        </div>
+
+        <div className="flex grow flex-wrap gap-2.5 border-l border-hairline pl-6">
+          <Cifra
+            etiqueta="Inscritos que faltan"
+            valor={n(faltan)}
+            pie="para llegar a la meta"
+          />
+          <Cifra
+            etiqueta="Leads necesarios"
+            valor={n(leads)}
+            pie={`a ${conversion} por inscrito`}
+          />
+          <Cifra
+            etiqueta="Inversión estimada"
+            valor={
+              inversion >= 1_000_000
+                ? `$${(inversion / 1_000_000).toLocaleString("es-CO", { maximumFractionDigits: 1 })} M`
+                : `$${inversion.toLocaleString("es-CO")}`
+            }
+            pie="el valor de la pauta"
+            color="var(--marca)"
+          />
+        </div>
+      </div>
+    </Bloque>
   );
 }
 
@@ -427,11 +519,26 @@ function Cuerpo({ d, adminId, eligio }: { d: Control; adminId: string; eligio: b
     (a, b) => b.cupos - b.inscritos - (a.cupos - a.inscritos),
   )[0];
 
-  const prioridades: Array<{ tono: Tono; que: string; hacer: string }> = [];
+  const avanceMeta = d.metaComprometida > 0 ? inscritosSiempre / d.metaComprometida : 0;
+  const faltanParaLaMeta = Math.max(0, d.metaComprometida - inscritosSiempre);
+  const rotuloDeLaMeta =
+    d.metaComprometida === 0
+      ? "Sin meta cargada"
+      : avanceMeta >= 0.9
+        ? "En meta"
+        : avanceMeta >= 0.6
+          ? "En camino"
+          : avanceMeta >= 0.25
+            ? "Por debajo"
+            : "Muy por debajo";
+
+  const prioridades: Array<{ tono: Tono; cifra: number; que: string; hacer: string; accion: string }> = [];
   if (sinNombre > 0)
     prioridades.push({
       tono: cobertura >= 0.8 ? "bueno" : cobertura >= 0.4 ? "normal" : "aviso",
-      que: `${n(sinNombre)} de los ${n(d.cuposConfirmados)} cupos apartados no tienen todavía un nombre detrás.`,
+      cifra: sinNombre,
+      accion: "Cobrar nombres",
+      que: `de los ${n(d.cuposConfirmados)} cupos apartados no tienen todavía un nombre detrás.`,
       hacer: empresaFloja
         ? `La que más debe es ${empresaFloja.razonSocial}, con ${n(empresaFloja.cupos - empresaFloja.inscritos)} pendientes. Pídale los nombres.`
         : "Pida los nombres a las organizaciones que apartaron cupos.",
@@ -439,154 +546,162 @@ function Cuerpo({ d, adminId, eligio }: { d: Control; adminId: string; eligio: b
   if (frios > 0)
     prioridades.push({
       tono: "aviso",
-      que: `${n(frios)} de los ${n(esperando)} leads que esperan una primera llamada llevan más de una semana.`,
+      cifra: frios,
+      accion: "Llamar",
+      que: `de los ${n(esperando)} leads que esperan una primera llamada llevan más de una semana.`,
       hacer: "Llámelos hoy: cuanto más se enfría un lead, menos se inscribe.",
     });
   if (d.sinAsignar > 0)
     prioridades.push({
       tono: "normal",
-      que: `${n(d.sinAsignar)} leads no tienen asesor asignado.`,
+      cifra: d.sinAsignar,
+      accion: "Asignar",
+      que: "leads no tienen asesor asignado.",
       hacer: "Repártalos, porque hoy no los está llamando nadie.",
     });
   if (mejorCanal)
     prioridades.push({
       tono: "bueno",
-      que: `El canal que mejor rinde es «${ETIQUETA_ORIGEN[mejorCanal.etiqueta as Origen] ?? mejorCanal.etiqueta}»: inscribe a ${porcentaje(mejorCanal.conversion)} de los que trae.`,
+      cifra: Math.round(mejorCanal.conversion * 100),
+      accion: "Ver canal",
+      que: `% inscribe «${ETIQUETA_ORIGEN[mejorCanal.etiqueta as Origen] ?? mejorCanal.etiqueta}», el canal que mejor rinde.`,
       hacer: "Es por donde conviene meter esfuerzo antes que por el que más volumen trae.",
     });
 
   return (
     <div className="flex flex-col gap-3">
-      {/* Las cifras, como en la ficha de una acción de
-          formación: una sola fila, un solo tamaño, y la META
-          de primera — es contra lo único que se cumple o no.
-          Los minigráficos se fueron: eran un idioma más, y la
-          misma serie se lee entera en «Ritmo», más abajo. */}
+      {/* NIVEL 1 · la meta y lo que hay que hacer hoy. Es lo
+             único que tiene que leerse en cinco segundos. */}
+      <section className="grid gap-3 lg:grid-cols-2">
+        <Bloque titulo="Avance sobre la meta">
+          <div className="flex flex-wrap items-end justify-between gap-4">
+            <div>
+              <p className="text-[2.5rem] leading-none font-bold text-titulo tabular-nums">
+                {n(inscritosSiempre)}
+              </p>
+              <p className="mt-1.5 text-[0.78125rem] text-texto-suave">
+                de {n(d.metaComprometida)} beneficiarios comprometidos
+              </p>
+            </div>
+            {/* El porcentaje es la alarma, y va en el TEXTO:
+                un fondo rojo rompería la regla de que el color
+                no se usa en fondos. */}
+            <div className="text-right">
+              <p
+                className={`text-[2rem] leading-none font-bold tabular-nums ${
+                  avanceMeta >= 0.9
+                    ? "text-exito"
+                    : avanceMeta >= 0.25
+                      ? "text-aviso"
+                      : "text-error"
+                }`}
+              >
+                {porcentaje(avanceMeta)}
+              </p>
+              <p className="mt-1.5 text-[0.78125rem] font-medium text-texto-suave">
+                {rotuloDeLaMeta}
+              </p>
+            </div>
+          </div>
+
+          <div className="mt-4">
+            <BarraAvance valor={inscritosSiempre} maximo={Math.max(d.metaComprometida, 1)} />
+          </div>
+
+          <div className="mt-4 flex flex-wrap gap-2.5 border-t border-hairline pt-4">
+            <Cifra
+              etiqueta="Cupos apartados"
+              valor={n(d.cuposConfirmados)}
+              pie={
+                sinNombre > 0 ? `${n(sinNombre)} sin nombre detrás` : "todos con nombre"
+              }
+            />
+            <Cifra
+              etiqueta="De lead a inscrito"
+              valor={
+                d.diasHastaInscribir === null
+                  ? "—"
+                  : `${Math.round(d.diasHastaInscribir)} días`
+              }
+              pie="promedio del periodo"
+            />
+          </div>
+        </Bloque>
+
+        <Bloque
+          estirado
+          titulo="Qué atender primero"
+          descripcion="Lo que estas cifras piden hacer hoy, en orden."
+        >
+          {prioridades.length === 0 ? (
+            <p className="text-[0.78125rem] text-texto-suave">
+              No hay nada pendiente: los cupos tienen nombre y no queda nadie sin llamar.
+            </p>
+          ) : (
+            <ul className="divide-y divide-hairline">
+              {prioridades.map((p) => (
+                <li key={p.que} className="flex items-center gap-3 py-2.5 first:pt-0">
+                  <span
+                    className={`w-[3.25rem] shrink-0 text-right text-[1.375rem] leading-none font-bold tabular-nums ${
+                      p.tono === "aviso"
+                        ? "text-error"
+                        : p.tono === "bueno"
+                          ? "text-exito"
+                          : "text-aviso"
+                    }`}
+                  >
+                    {n(p.cifra)}
+                  </span>
+                  <p className="min-w-0 grow text-[0.78125rem] leading-snug">
+                    <span className="text-titulo">{p.que}</span>{" "}
+                    <span className="text-texto-suave">{p.hacer}</span>
+                  </p>
+                  <span className="shrink-0 text-[0.6875rem] font-semibold text-marca uppercase tracking-[0.06em]">
+                    {p.accion}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Bloque>
+      </section>
+
+      {/* Cuánta captación hace falta para cerrar la meta. */}
+      <Planificador faltan={faltanParaLaMeta} />
+
+      {/* La franja de contexto: secundaria, y por eso va sin
+          bloque y en la escala pequeña. */}
       <div className="flex flex-wrap gap-2.5">
         <Cifra
-          etiqueta="Avance sobre la meta"
-          valor={n(inscritosSiempre)}
-          pie={
-            d.metaComprometida > 0
-              ? `de ${n(d.metaComprometida)} comprometidos · ${porcentaje(inscritosSiempre / d.metaComprometida)}`
-              : "no hay meta cargada en los proyectos"
-          }
-          color="var(--marca)"
+          etiqueta="Leads que llegaron"
+          valor={n(leadsDelPeriodo)}
+          pie={`leads nuevos ${alcanceSerie}`}
         />
         <Cifra
-          etiqueta="Cupos apartados"
-          valor={n(d.cuposConfirmados)}
-          pie={
-            sinNombre > 0
-              ? `el tope de captura · ${n(sinNombre)} sin nombre detrás`
-              : "el tope de captura · todos con nombre"
+          etiqueta="Conversión global"
+          valor={leads > 0 ? porcentaje(convertidas / leads) : "—"}
+          pie={`${n(convertidas)} de ${n(leads)} leads`}
+        />
+        <Cifra
+          etiqueta="Cobertura de cupos"
+          valor={d.cuposConfirmados > 0 ? porcentaje(cobertura) : "—"}
+          pie={`${n(d.inscritosConReserva)} de ${n(d.cuposConfirmados)} apartados`}
+        />
+        <Cifra
+          etiqueta="Sin cupo de empresa"
+          valor={
+            inscritosSiempre > 0
+              ? porcentaje(d.inscritosPorSuCuenta / inscritosSiempre)
+              : "—"
           }
+          pie={`${n(d.inscritosPorSuCuenta)} llegaron por su cuenta`}
         />
         <Cifra
           etiqueta="Llegaron a inscrito"
           valor={n(d.total)}
           pie={`${corte}${contra ? ` · ${textoDelta(d.variacion.total)} que ${contra}` : ""}`}
         />
-        <Cifra
-          etiqueta="Leads que llegaron"
-          valor={n(leadsDelPeriodo)}
-          pie={`leads nuevos ${alcanceSerie}, en cualquier etapa`}
-        />
-        <Cifra
-          etiqueta="De lead a inscrito"
-          valor={d.diasHastaInscribir === null ? "—" : `${Math.round(d.diasHastaInscribir)} días`}
-          pie={
-            d.diasHastaInscribir === null
-              ? "todavía no hay inscritos en el corte"
-              : "promedio de los inscritos del periodo"
-          }
-        />
       </div>
-
-      {/* lo que hay que hacer, antes que cómo se calcula */}
-      {prioridades.length > 0 && (
-        <Bloque
-          titulo="Qué atender primero"
-          descripcion="Lo que estas cifras piden hacer hoy, en orden."
-        >
-          <ul className="space-y-2.5">
-            {prioridades.map((p) => (
-              <li key={p.que} className="flex gap-2.5">
-                <span
-                  className={`mt-[6px] size-2 shrink-0 rounded-full ${
-                    p.tono === "aviso"
-                      ? "bg-error"
-                      : p.tono === "bueno"
-                        ? "bg-exito"
-                        : "bg-aviso"
-                  }`}
-                />
-                <p className="text-[0.8125rem] leading-snug">
-                  <span className="font-medium text-titulo">{p.que}</span>{" "}
-                  <span className="text-texto-suave">{p.hacer}</span>
-                </p>
-              </li>
-            ))}
-          </ul>
-        </Bloque>
-      )}
-
-      {/* la cola de trabajo: un solo bloque, no dos */}
-      <Bloque
-        titulo="Cola de trabajo"
-        descripcion="Leads que todavía esperan gestión: los que no tienen asesor asignado y los que, teniéndolo, aún no han recibido una primera llamada. No depende del periodo seleccionado."
-        acciones={
-          <Link
-            href="/admin/participantes"
-            className="text-[0.78125rem] font-medium text-marca"
-          >
-            Ir al tablero de inscripciones
-          </Link>
-        }
-      >
-        {/* una cifra no necesita un bloque entero */}
-        <div className="mb-4 flex flex-wrap items-stretch gap-2.5">
-          <div className="rounded-lg border border-borde bg-superficie px-3.5 py-2">
-            <div className="text-[0.6875rem] leading-none text-texto-suave">
-              Sin asesor asignado
-            </div>
-            <div
-              className={`mt-1 text-[1.0625rem] leading-none font-bold tabular-nums ${
-                d.sinAsignar > 0 ? "text-aviso" : "text-exito"
-              }`}
-            >
-              {n(d.sinAsignar)}
-            </div>
-            <div className="mt-1 text-[0.6875rem] leading-none text-texto-suave">
-              {d.sinAsignar > 0 ? "repartir es el primer paso" : "todos tienen responsable"}
-            </div>
-          </div>
-          <div className="rounded-lg border border-borde bg-superficie px-3.5 py-2">
-            <div className="text-[0.6875rem] leading-none text-texto-suave">
-              Esperando primera llamada
-            </div>
-            <div className="mt-1 text-[1.0625rem] leading-none font-bold text-titulo tabular-nums">
-              {n(esperando)}
-            </div>
-            <div className="mt-1 text-[0.6875rem] leading-none text-texto-suave">
-              {esperando > 0
-                ? `${n(frios)} llevan más de una semana · ${porcentaje(frios / esperando)}`
-                : "nadie pendiente de contacto"}
-            </div>
-          </div>
-        </div>
-        <ListaBarras
-          datos={tramos.map((t) => ({
-            etiqueta: t.etiqueta,
-            valor: t.total,
-            detalle: esperando > 0 ? porcentaje(t.total / esperando) : undefined,
-          }))}
-          vacio="No hay nadie esperando a que lo llamen."
-        />
-      </Bloque>
-
-      <TableroPorAccion />
-
 
       {/* Tres cortes de la MISMA pregunta —cómo va la
           captación— que eran tres bloques con tres bordes y
@@ -812,8 +927,8 @@ function Cuerpo({ d, adminId, eligio }: { d: Control; adminId: string; eligio: b
 
         <Bloque
           plano
-          titulo="Las organizaciones con más nombres"
-          descripcion="Cuántos nombres ha entregado cada organización de los cupos que apartó. Lo que falta es a quién llamar."
+          titulo="Cupos apartados sin nombre detrás"
+          descripcion="Cuántos nombres ha entregado cada organización de los cupos que apartó. Ordenadas por lo que deben: es a quién llamar."
         >
           {d.topEmpresas.length === 0 ? (
             <p className="py-6 text-center text-sm text-texto-suave">
@@ -821,7 +936,9 @@ function Cuerpo({ d, adminId, eligio }: { d: Control; adminId: string; eligio: b
             </p>
           ) : (
             <ul className="space-y-3">
-              {d.topEmpresas.map((e) => (
+              {[...d.topEmpresas]
+                .sort((a, b) => b.cupos - b.inscritos - (a.cupos - a.inscritos))
+                .map((e) => (
                 <li key={e.nit}>
                   <div className="flex items-baseline justify-between gap-3 text-sm">
                     <span className="truncate" title={e.razonSocial}>
@@ -838,7 +955,7 @@ function Cuerpo({ d, adminId, eligio }: { d: Control; adminId: string; eligio: b
                     <span className="tabular-nums">{n(e.inscritos)}</span> nombres de{" "}
                     <span className="tabular-nums">{n(e.cupos)}</span> cupos ·{" "}
                     {e.cupos > e.inscritos
-                      ? `le faltan ${n(e.cupos - e.inscritos)}`
+                      ? `le falta ${n(e.cupos - e.inscritos)}`
                       : "sin nombres pendientes"}
                   </p>
                 </li>
