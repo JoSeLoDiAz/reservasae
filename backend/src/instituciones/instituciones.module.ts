@@ -6,6 +6,7 @@ import { InstitucionesController } from './instituciones.controller';
 import { InstitucionesService } from './instituciones.service';
 import { DisparadorInscripcion } from './web/disparador';
 import { ProveedorWebNavegador } from './web/proveedor-navegador';
+import { ProveedorWebRues } from './web/proveedor-rues';
 import {
   comoSeConsulta,
   PROVEEDOR_WEB,
@@ -18,6 +19,7 @@ import { WebWorker } from './web/web.worker';
 /// Por defecto el navegador, que no necesita nada. Ver
 /// `comoSeConsulta()`.
 const QUIEN_CONTESTA = {
+  RUES: ProveedorWebRues,
   NAVEGADOR: ProveedorWebNavegador,
   API: ProveedorWebClaude,
   APAGADO: ProveedorWebApagado,

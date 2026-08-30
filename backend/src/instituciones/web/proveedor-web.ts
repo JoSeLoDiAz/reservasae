@@ -91,7 +91,7 @@ export function laPregunta(nit: string): string {
   );
 }
 
-export type ComoSeConsulta = 'NAVEGADOR' | 'API' | 'APAGADO';
+export type ComoSeConsulta = 'RUES' | 'NAVEGADOR' | 'API' | 'APAGADO';
 
 /**
  * Quién contesta, y por defecto el navegador.
@@ -107,6 +107,9 @@ export type ComoSeConsulta = 'NAVEGADOR' | 'API' | 'APAGADO';
 export function comoSeConsulta(): ComoSeConsulta {
   const elegido = process.env.WEB_PROVEEDOR?.toUpperCase();
   if (elegido === 'APAGADO') return 'APAGADO';
+  /// El registro mercantil: sin clave, sin navegador y sin muro. Trae
+  /// menos campos que el buscador, pero los que trae son del registro.
+  if (elegido === 'RUES') return 'RUES';
   if (elegido === 'API') return process.env.WEB_API_KEY ? 'API' : 'APAGADO';
   return 'NAVEGADOR';
 }
