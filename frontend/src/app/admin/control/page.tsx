@@ -189,10 +189,15 @@ export default function PaginaControl() {
       (vivos.datos?.ventana.etiquetaAnterior ?? '').includes('días contra'));
 
   return (
-    <div>
-      <header className="border-b border-borde bg-superficie px-7 pt-[26px] pb-[22px] flex flex-wrap items-start justify-between gap-4">
+    <div className="flex flex-col gap-3 px-4 pt-3 pb-6">
+      <header className="flex flex-wrap items-start justify-between gap-4">
         <div className="min-w-0">
-          <h1 className="text-[1.3125rem] font-bold tracking-[-0.02em] text-titulo">Control de Inscritos</h1>
+          <h1 className="text-[1.125rem] font-bold tracking-[-0.02em] text-titulo">
+            Control de Inscritos
+          </h1>
+          <p className="mt-0.5 text-[0.78125rem] text-texto-suave">
+            Cómo va la inscripción contra la meta, y de dónde viene cada lead.
+          </p>
         </div>
         {/* solo en Análisis: es de esos datos, y en la otra
             pestaña diría una hora que no le corresponde */}
@@ -209,7 +214,7 @@ export default function PaginaControl() {
       <div
         role="tablist"
         aria-label="Qué mirar"
-        className="flex gap-1 border-b border-borde"
+        className="flex gap-1 self-start rounded-lg border border-borde bg-superficie p-1"
       >
         {PESTANAS.map((p) => (
           <button
@@ -217,10 +222,10 @@ export default function PaginaControl() {
             role="tab"
             aria-selected={pestana === p.clave}
             onClick={() => cambiar(p.clave)}
-            className={`-mb-px border-b-2 px-4 py-2 text-sm font-medium transition ${
+            className={`sin-aro rounded-md px-4 py-1.5 text-[0.78125rem] font-semibold transition ${
               pestana === p.clave
-                ? "border-marca text-marca"
-                : "border-transparent text-texto-suave hover:text-texto"
+                ? "bg-marca-suave text-marca"
+                : "text-texto-suave hover:text-texto"
             }`}
           >
             {p.etiqueta}
@@ -232,7 +237,7 @@ export default function PaginaControl() {
 
       {pestana === "analisis" && (
         <>
-      <div className="border-b border-borde bg-superficie px-7 py-5">
+      <div className="rounded-lg border border-borde bg-superficie px-7 py-5">
         <div className="grid lg:grid-cols-2">
           <div>
             <p className="mb-1.5 text-sm font-medium">Periodo</p>
