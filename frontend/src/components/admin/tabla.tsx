@@ -561,6 +561,14 @@ export function Tabla<T>({
   function limpiar() {
     setBuscar("");
     setFiltros({});
+    /// Y CIERRA el panel.
+    ///
+    /// Sin esto, tras vaciar los filtros la fila de
+    /// desplegables seguia abierta y el boton «Filtros» seguia
+    /// resaltado -- se resalta con `panel === "filtros"`, no
+    /// solo con la cuenta --, asi que parecia que quedaba algo
+    /// puesto. Si ya no hay filtro, no hay nada que enseniar.
+    setPanel(null);
   }
 
   /// La columna que se esta arrastrando y sobre cual esta.
@@ -1122,7 +1130,7 @@ function Barra({
   alDescargar?: () => void;
 }) {
   const boton = (activo: boolean) =>
-    "inline-flex items-center gap-1.5 rounded-xl border px-3 py-2 text-sm transition " +
+    "inline-flex h-[34px] items-center gap-1.5 rounded-lg border px-3.5 text-[0.78125rem] font-semibold transition " +
     (activo
       ? "border-marca bg-marca-suave text-marca"
       : "border-borde bg-superficie hover:bg-superficie-alterna");

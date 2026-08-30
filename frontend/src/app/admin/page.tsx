@@ -108,7 +108,7 @@ export default function Tablero() {
           </button>
           <Link
             href="/admin/reservas"
-            className="rounded-xl bg-marca px-4 py-2 font-medium text-marca-texto transition hover:bg-marca-fuerte"
+            className="inline-flex h-[34px] items-center rounded-lg bg-marca px-3.5 text-[0.78125rem] font-semibold text-marca-texto transition hover:bg-marca-fuerte"
           >
             Ver reservas
           </Link>
