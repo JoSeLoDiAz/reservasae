@@ -538,8 +538,10 @@ select[size]:not([size='1']) {
   }
 
   @page {
-    size: A4 portrait;
-    margin: 12mm 10mm;
+    /* horizontal: la tabla lleva siete columnas y en vertical el
+       horario y las sedes se envuelven */
+    size: A4 landscape;
+    margin: 10mm;
   }
 
   /* conservar fondos al imprimir */

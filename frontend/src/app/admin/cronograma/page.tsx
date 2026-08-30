@@ -189,12 +189,18 @@ export default function PaginaCronograma() {
         </p>
       </header>
 
+      {/* Todo lo de abajo va sobre el FONDO de la pagina y con
+          margen a los lados, no en una banda blanca a sangre. Es
+          lo que hace que las tarjetas blancas se vean: sobre
+          `superficie` eran blanco sobre blanco. Igual que en
+          Gestion de leads. */}
+      <div className="flex flex-col gap-3 px-4 pt-4 pb-6">
       {error && <Aviso tipo="error">{error}</Aviso>}
 
       {/* Las mismas tarjetas de Gestion de leads: sueltas, con
           su borde y su curva, y con sombra solo al pasar por
           encima. Cuentan lo que se esta VIENDO. */}
-      <div className="flex flex-wrap gap-2.5 border-b border-borde bg-superficie px-7 py-3">
+      <div className="flex flex-wrap gap-2.5">
         <Cifra
           etiqueta="Acciones de formación"
           valor={visibles.length}
@@ -229,7 +235,7 @@ export default function PaginaCronograma() {
         />
       </div>
 
-      <div className="no-imprimir flex flex-wrap items-center gap-2.5 border-b border-borde bg-superficie px-7 py-3">
+      <div className="no-imprimir flex flex-wrap items-center gap-2.5">
         {/* Crece con lo que sobre: asi no queda hueco muerto
             entre el ultimo filtro y el boton de la derecha. */}
         <input
@@ -396,9 +402,9 @@ export default function PaginaCronograma() {
         /// Con `space-y-3` se veia el fondo de la pagina entre
         /// fila y fila, y eso se lee como un rayado. La
         /// separacion la hace la raya de cada banda.
-        <div className="no-imprimir">
+        <div className="no-imprimir overflow-hidden rounded-lg border border-borde bg-superficie">
           {porConvenio.map((b) => (
-            <div key={b.convenio} className="border-t-2 border-borde">
+            <div key={b.convenio} className="border-t border-borde first:border-t-0">
               <h2 className="border-b border-borde bg-superficie-alterna px-7 py-2.5 text-[0.65625rem] font-semibold tracking-[0.06em] text-marca uppercase">
                 {b.convenio}
                 <span className="ml-2 font-normal tracking-normal text-texto-suave normal-case">
@@ -423,6 +429,7 @@ export default function PaginaCronograma() {
           ))}
         </div>
       )}
+      </div>
     </div>
   );
 }
