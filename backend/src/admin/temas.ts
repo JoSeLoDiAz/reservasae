@@ -233,7 +233,7 @@ export const TEMAS_POR_DEFECTO: Record<EsquemaColor, ColoresTema> = {
     encabezadoTexto: '#0f172a',
     encabezadoBorde: '#e2e8f0',
 
-    tablaCabeceraFondo: '#f1f5f9',
+    tablaCabeceraFondo: '#eef4fe',
     tablaCabeceraTexto: '#475569',
     tablaFilaAlterna: '#f8fafc',
     tablaFilaResaltada: '#eff6ff',
@@ -284,7 +284,7 @@ export const TEMAS_POR_DEFECTO: Record<EsquemaColor, ColoresTema> = {
     encabezadoTexto: '#e8edf7',
     encabezadoBorde: '#26324a',
 
-    tablaCabeceraFondo: '#1a2439',
+    tablaCabeceraFondo: '#16213c',
     tablaCabeceraTexto: '#c3cee0',
     tablaFilaAlterna: '#101a2b',
     tablaFilaResaltada: '#172554',
