@@ -68,6 +68,53 @@ export function Cifra({
   );
 }
 
+/**
+ * Una sección en su propia caja, sobre el fondo de la página.
+ *
+ * Es la contraria de `Tarjeta`: aquella es una franja a sangre
+ * con raya abajo, y sirve cuando la pantalla entera es una
+ * columna de franjas. Esta es para pantallas al estilo de
+ * Gestión de leads, donde el contenido va sobre el fondo con
+ * margen y cada bloque se despega con su borde.
+ *
+ * El relleno lateral es de 28px y NO se cambia: hay listas que
+ * lo compensan con `-mx-7` para llegar de borde a borde.
+ */
+export function Bloque({
+  titulo,
+  descripcion,
+  acciones,
+  sinRelleno,
+  children,
+}: {
+  titulo?: string;
+  descripcion?: React.ReactNode;
+  /** Botones a la derecha del título. */
+  acciones?: React.ReactNode;
+  /** Para tablas, que traen su propio relleno. */
+  sinRelleno?: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className="overflow-hidden rounded-lg border border-borde bg-superficie">
+      {(titulo || acciones) && (
+        <div className="flex flex-wrap items-start justify-between gap-3 border-b border-borde px-7 py-3">
+          <div className="min-w-0">
+            {titulo && (
+              <h2 className="text-[0.875rem] font-semibold text-titulo">{titulo}</h2>
+            )}
+            {descripcion && (
+              <p className="mt-0.5 text-[0.75rem] text-texto-suave">{descripcion}</p>
+            )}
+          </div>
+          {acciones}
+        </div>
+      )}
+      <div className={sinRelleno ? "" : "px-7 py-4"}>{children}</div>
+    </section>
+  );
+}
+
 export function TarjetaCifra({
   etiqueta,
   valor,
