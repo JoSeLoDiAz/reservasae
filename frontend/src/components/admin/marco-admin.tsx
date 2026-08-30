@@ -29,7 +29,7 @@ import { ErrorApi } from "@/lib/api";
 
 import { PanelAccesibilidad } from "./accesibilidad";
 import { CambioDeClaveObligatorio } from "./cambio-clave";
-import { ICONO_DE_MODULO,
+import { ICONO_DE_MODULO, IconoResumen,
   IconoAccesibilidad,
   IconoCerrar,
   IconoDerecha,
@@ -498,6 +498,69 @@ function RotuloDelPanel() {
 }
 
 /**
+ * La entrada al tablero, con nombre.
+ *
+ * Antes al tablero solo se llegaba por el logotipo. Eso no es
+ * descubrible: nadie pulsa un logotipo esperando navegar, y no
+ * habia forma de saber que se podia. El logotipo sigue
+ * llevando -- quien ya lo sabia no pierde el atajo -- pero
+ * ahora hay una fila que lo dice.
+ *
+ * Va fuera de «Panel de gestion» y encima del rotulo porque no
+ * es un modulo: no agrupa pantallas, es una sola.
+ */
+function FilaResumen({
+  ruta,
+  plegado,
+  alNavegar,
+  alDesplegar,
+}: {
+  ruta: string;
+  plegado?: boolean;
+  alNavegar?: () => void;
+  alDesplegar?: () => void;
+}) {
+  const activo = ruta === "/admin";
+
+  if (plegado) {
+    return (
+      <Link
+        href="/admin"
+        title="Resumen — el tablero"
+        onClick={() => {
+          alNavegar?.();
+          alDesplegar?.();
+        }}
+        className={`mb-2 flex h-[34px] w-[34px] items-center justify-center self-center rounded-full border transition ${
+          activo
+            ? "border-marca bg-marca-suave text-marca"
+            : "border-borde text-texto-suave hover:border-texto-suave hover:text-titulo"
+        }`}
+      >
+        <IconoResumen tamano={17} />
+      </Link>
+    );
+  }
+
+  return (
+    <Link
+      href="/admin"
+      onClick={alNavegar}
+      className={`mt-3 flex items-center gap-2.5 rounded-lg px-3 py-2 text-[13px] font-semibold transition ${
+        activo
+          ? "bg-marca-suave text-marca"
+          : "opacity-70 hover:bg-current/8 hover:opacity-100"
+      }`}
+    >
+      <span className="shrink-0 leading-none">
+        <IconoResumen tamano={17} />
+      </span>
+      Resumen
+    </Link>
+  );
+}
+
+/**
  * Quien esta dentro.
  *
  * Vive arriba a la derecha, que es donde se busca: es lo
@@ -676,6 +739,14 @@ function Grupos({
 
   return (
     <>
+      {plegado && (
+        <FilaResumen
+          ruta={ruta}
+          plegado
+          alNavegar={alNavegar}
+          alDesplegar={() => alDesplegar?.("")}
+        />
+      )}
       {MODULOS.map((modulo) => {
         const enlaces = enlacesVisibles(modulo, permisos, esSuperadmin);
         if (enlaces.length === 0) return null;
@@ -698,10 +769,15 @@ function Grupos({
               onClick={() => alDesplegar?.(modulo.clave)}
               title={`${modulo.etiqueta} — ${modulo.descripcion}`}
               aria-expanded={false}
-              className={`mb-1 flex h-10 w-full items-center justify-center rounded-xl transition ${
+              /// Circulo de 34 con borde de 1px, no un cuadro
+              /// relleno: el rail sin etiquetas ya es bastante
+              /// acertijo, y un circulo con borde se lee como
+              /// boton mientras que un bloque de color se lee
+              /// como estado.
+              className={`mb-2 flex h-[34px] w-[34px] items-center justify-center self-center rounded-full border transition ${
                 activo
-                  ? "bg-current/12"
-                  : "opacity-60 hover:bg-current/8 hover:opacity-100"
+                  ? "border-marca bg-marca-suave text-marca"
+                  : "border-borde text-texto-suave hover:border-texto-suave hover:text-titulo"
               }`}
             >
               {(() => {
@@ -722,9 +798,14 @@ function Grupos({
                 onClick={() => alternar(modulo.clave)}
                 aria-expanded={desplegado}
                 title={modulo.descripcion}
-                className={`flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm transition ${
+                /// 13px y peso 600, que es la medida del
+                /// redisenio para el modulo. De paso cabe:
+                /// a 14px «Gestion de Inscripciones» y
+                /// «Sistemas de Informacion» se cortaban con
+                /// puntos suspensivos en la barra de 250.
+                className={`flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-[13px] font-semibold transition ${
                   desplegado
-                    ? "font-medium opacity-100"
+                    ? "opacity-100"
                     : "opacity-65 hover:bg-current/8 hover:opacity-100"
                 }`}
               >
@@ -823,7 +904,7 @@ function BarraLateral({
       aria-label="Secciones del panel"
       // el alto lo pone el contenedor, que ya resta la franja
       className={`no-imprimir z-20 hidden h-full shrink-0 flex-col border-r border-encabezado-borde bg-encabezado-fondo text-encabezado-texto transition-[width] duration-200 md:flex ${
-        plegado ? "w-[72px] px-3 py-4" : "w-[292px] px-4 py-4"
+        plegado ? "w-[62px] px-3 py-4" : "w-[250px] px-4 py-4"
       }`}
     >
       {/* `mb-4` también plegada: sin él, el logo y el primer
@@ -861,6 +942,7 @@ function BarraLateral({
           /// todo el menú nacía encaramado en el borde.
           <div className="mt-8">
             <SelectorGremio gremios={gremios} gremio={gremio} alElegir={alElegir} />
+            <FilaResumen ruta={ruta} />
             <RotuloDelPanel />
           </div>
         )}

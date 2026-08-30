@@ -751,7 +751,16 @@ export function Tabla<T>({
         <div className="caja-scroll min-h-0 flex-1 overflow-auto overscroll-contain">
             <table
               ref={tablaRef}
-              className="tabla-datos w-full text-sm"
+              /// Los carriles verticales solo cuando hay muchas
+              /// columnas.
+              ///
+              /// Con 22 el ojo salta en horizontal y necesita el
+              /// carril para saber en cual va. Con cinco o seis
+              /// no aporta nada y ensucia: son rayas que no
+              /// separan nada que no separara ya el espacio.
+              className={`tabla-datos w-full text-sm${
+                enPantalla.length > 8 ? " con-carriles" : ""
+              }`}
               style={{
                 /// El suelo de la tabla entera.
                 ///

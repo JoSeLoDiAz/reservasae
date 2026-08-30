@@ -592,14 +592,14 @@ h3 {
    La raya va a la DERECHA de cada celda y se le quita a la
    última: así no se dibuja una línea pegada al borde de la
    tarjeta, que se ve como un error de alineación. */
-.tabla-datos thead th:not(:last-child),
-.tabla-datos tbody td:not(:last-child) {
-  /* Se quedan, pero en `--hairline`.
-     El redisenio no las menciona; la decision de ponerlas si
-     esta escrita, y es por las 22 columnas: con el ojo
-     saltando de una a otra la raya horizontal sola no basta
-     para saber en cual va uno. Bajarlas a hairline las deja
-     estar sin competir con el dato. */
+.tabla-datos.con-carriles thead th:not(:last-child),
+.tabla-datos.con-carriles tbody td:not(:last-child) {
+  /* En `--hairline`, y solo si la tabla pasa de ocho columnas
+     -- de ahi la clase `con-carriles`.
+     Con 22 el ojo salta en horizontal y necesita el carril
+     para saber en cual va. En una de cinco o seis sobran:
+     son rayas que no separan nada que no separara ya el
+     espacio, y ensucian el dato. */
   border-right: 1px solid var(--hairline);
 }
 
