@@ -236,8 +236,8 @@ export default function PaginaFicha() {
   /// fija en 1240px centrado y aqui ocupa lo que haya. Es la
   /// unica desviacion, y es la que se pidio.
   return (
-    <div style={{ padding: "28px 20px 48px" }}>
-      <div className="mb-4">
+    <div className="flex flex-col gap-3 px-4 pt-3 pb-6">
+      <div>
         <Link
           href="/admin/participantes"
           className="inline-flex items-center gap-1 text-[0.75rem] text-texto-suave transition hover:text-marca"
@@ -246,14 +246,10 @@ export default function PaginaFicha() {
         </Link>
       </div>
 
-      {error && (
-        <div className="mb-4">
-          <Aviso tipo="error">{error}</Aviso>
-        </div>
-      )}
+      {error && <Aviso tipo="error">{error}</Aviso>}
 
       {f.faltantes.bloquean.length > 0 && (
-        <div className="mb-4">
+        <div>
           <Aviso tipo="error">
             <p className="font-medium">Todavía no se puede matricular</p>
             <ul className="mt-2 list-inside list-disc">
@@ -277,7 +273,7 @@ export default function PaginaFicha() {
       {/* Bandas, no una tarjeta flotante.
           Era un bloque con radio 18 y una sombra larga, en medio
           de una pagina que ya no tiene tarjetas. */}
-      <section style={{ overflow: "hidden" }}>
+      <section className="overflow-hidden rounded-lg border border-borde bg-superficie">
         {/* ── 1. IDENTIDAD ────────────────────────────────── */}
         <div
           style={{
