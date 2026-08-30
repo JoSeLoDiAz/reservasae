@@ -68,6 +68,7 @@ export default function PaginaCarga() {
   const [deArchivo, setDeArchivo] = useState<string | null>(null);
   const [nombreArchivo, setNombreArchivo] = useState<string | null>(null);
   const [historico, setHistorico] = useState<CargaDelHistorico[] | null>(null);
+  const [falloHistorico, setFalloHistorico] = useState<string | null>(null);
   const [encima, setEncima] = useState(false);
   const selector = useRef<HTMLInputElement>(null);
 
@@ -106,8 +107,14 @@ export default function PaginaCarga() {
 
   const verHistorico = useCallback(() => {
     void historicoDeCargas(convenioId || undefined)
-      .then(setHistorico)
-      .catch(() => setHistorico([]));
+      .then((h) => {
+        setHistorico(h);
+        setFalloHistorico(null);
+      })
+      .catch((e) => {
+        setHistorico([]);
+        setFalloHistorico((e as ErrorApi).message);
+      });
   }, [convenioId]);
 
   useEffect(verHistorico, [verHistorico]);
@@ -469,6 +476,12 @@ export default function PaginaCarga() {
       >
         {historico === null ? (
           <p className="text-[0.78125rem] text-texto-suave">Consultando…</p>
+        ) : falloHistorico ? (
+          <Aviso tipo="error">
+            No se pudo consultar el historial: {falloHistorico}. Mientras esto falle,
+            confirmar una importación también fallará, porque el registro se escribe
+            antes de crear a nadie.
+          </Aviso>
         ) : historico.length === 0 ? (
           <p className="text-[0.78125rem] text-texto-suave">
             Todavía no se ha registrado ninguna importación en este ámbito. La primera
