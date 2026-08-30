@@ -31,6 +31,7 @@ export function Desplegable({
   desactivado,
   id,
   alto = 32,
+  enBarra,
 }: {
   valor: string;
   opciones: OpcionDesplegable[];
@@ -41,6 +42,10 @@ export function Desplegable({
   /// Para poder cuadrarlo con el campo de al lado: en una barra
   /// de filtros todo tiene que medir lo mismo.
   alto?: number;
+  /// En la barra lateral: el disparador va con los tokens del
+  /// ENCABEZADO, que es lo que pinta esa barra. Con los del
+  /// campo saldria una caja blanca sobre una barra de color.
+  enBarra?: boolean;
 }) {
   const [abierto, setAbierto] = useState(false);
   const [marcada, setMarcada] = useState(0);
@@ -160,9 +165,13 @@ export function Desplegable({
         onKeyDown={teclas}
         style={{ height: alto }}
         className={
-          "flex w-full items-center gap-2 rounded-lg border bg-campo-fondo px-3 " +
+          "flex w-full items-center gap-2 rounded-lg border px-3 " +
           "text-left text-[0.78125rem] transition disabled:cursor-not-allowed disabled:opacity-60 " +
-          (abierto ? "border-marca" : "border-campo-borde hover:border-marca/60")
+          (enBarra
+            ? "bg-transparent " +
+              (abierto ? "border-current" : "border-encabezado-borde/60 hover:border-current/60")
+            : "bg-campo-fondo " +
+              (abierto ? "border-marca" : "border-campo-borde hover:border-marca/60"))
         }
       >
         <span className={"min-w-0 flex-1 truncate " + (elegida ? "" : "text-texto-suave")}>

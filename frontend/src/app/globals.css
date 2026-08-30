@@ -283,6 +283,21 @@ h3 {
   letter-spacing: -0.01em;
 }
 
+/*
+ * Dentro de la barra y de la cabecera manda el color de ELLAS.
+ *
+ * `--titulo` es el color de un titulo sobre el CONTENIDO. La
+ * barra lateral se pinta con los tokens de encabezado, y con
+ * «Barra superior del color de la marca» ese fondo es oscuro:
+ * un `h2` con `--titulo` quedaba casi negro sobre verde y el
+ * nombre del modulo no se leia. Se hereda, y punto.
+ */
+[class*="text-encabezado-texto"] h1,
+[class*="text-encabezado-texto"] h2,
+[class*="text-encabezado-texto"] h3 {
+  color: inherit;
+}
+
 /* respetar menos animacion */
 @media (prefers-reduced-motion: reduce) {
   *,
