@@ -740,7 +740,7 @@ export function Embudo({
   const distinto = enLaVista !== undefined && enLaVista !== total;
 
   return (
-    <div className="flex flex-wrap items-center gap-5 py-[11px]">
+    <div className="flex flex-wrap items-center gap-4 py-[11px]">
       <div
         className="whitespace-nowrap text-texto-suave"
         style={{ fontSize: T.menudo }}
@@ -758,7 +758,14 @@ export function Embudo({
         )}
       </div>
 
-      <div className="flex h-1 min-w-[220px] flex-1 overflow-hidden rounded-sm bg-superficie-alterna">
+      {/* La barra no se estira sin fin.
+          En una pantalla ancha, con `flex-1` a secas quedaban
+          «79 registros» pegado a la izquierda, la barra en medio
+          y los numeros al fondo a la derecha: un metro de
+          separacion entre tres cosas que son UNA. Con el tope
+          las tres se leen juntas, y no se pierde ni el renglon
+          unico ni la proporcion, que es lo que la barra dice. */}
+      <div className="flex h-1 min-w-[220px] max-w-[360px] flex-1 overflow-hidden rounded-sm bg-superficie-alterna">
         {tramos
           .filter((t) => t.total > 0)
           .map((t) => (

@@ -165,7 +165,7 @@ export default function PaginaEmpresas() {
   /// bandas vayan a sangre, y sin esto la barra de
   /// busqueda y la paginacion quedaban pegadas al canto.
   return (
-    <div className="flex min-h-0 grow flex-col gap-4 px-7 pt-5">
+    <div className="flex min-h-0 grow flex-col gap-4 px-4 pt-4">
       {/* sin encabezado: lo dice la miga de arriba, y el
           total va en el pie de la tabla */}
 

@@ -221,7 +221,7 @@ export default function PaginaReservas() {
   /// bandas vayan a sangre, y sin esto la barra de
   /// busqueda y la paginacion quedaban pegadas al canto.
   return (
-    <div className="flex min-h-0 grow flex-col gap-4 px-7 pt-5">
+    <div className="flex min-h-0 grow flex-col gap-4 px-4 pt-4">
       {/* Sin título ni conteo: lo dice la miga, y la cifra
           va en el pie de la tabla. El aviso solo aparece si
           el servidor deja de contestar; el resto del tiempo
