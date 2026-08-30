@@ -279,9 +279,9 @@ export default function PaginaAcciones() {
         <div key={convenio} className="border-t border-borde first:border-t-0">
           {/* La misma cabecera que el cronograma: son las dos
               pantallas del mismo modulo y tienen que leerse igual. */}
-          <h2 className="flex items-center justify-between gap-3 border-b border-borde bg-superficie-alterna px-7 py-2.5 text-[0.65625rem] font-semibold tracking-[0.06em] text-marca uppercase">
+          <h2 className="flex items-center justify-between gap-3 border-b border-borde bg-superficie-alterna px-7 py-2.5 text-[0.65625rem] font-bold tracking-[0.06em] text-marca uppercase">
             <span>{lista[0].convenioSigla ?? convenio}</span>
-            <span className="font-normal tracking-normal text-texto-suave normal-case tabular-nums">
+            <span className="tracking-normal text-texto-suave normal-case tabular-nums">
               {lista.filter((a) => a.visible).length} de {lista.length} publicadas
             </span>
           </h2>
@@ -296,7 +296,7 @@ export default function PaginaAcciones() {
           {/* Titulos de columna. Sin ellos la barra es una raya
               azul sin nombre: no se sabe si es ocupacion, avance
               o tiempo. */}
-          <div className="flex flex-wrap items-center gap-x-4 border-b border-hairline py-2 text-[0.65625rem] font-semibold tracking-[0.06em] text-texto-suave uppercase">
+          <div className="flex flex-wrap items-center gap-x-4 border-b border-hairline py-2 text-[0.65625rem] font-bold tracking-[0.06em] text-texto-suave uppercase">
             <div className="w-[30px] shrink-0">AF</div>
             <div className="min-w-64 grow">Acción de formación</div>
             <div className="w-[130px] shrink-0">Ocupación</div>
@@ -316,7 +316,7 @@ export default function PaginaAcciones() {
                 <div className="min-w-64 grow">
                   <Link
                     href={`/admin/acciones/${a.id}`}
-                    className="text-[0.84375rem] font-semibold leading-snug text-titulo no-underline hover:text-marca"
+                    className="text-[0.84375rem] leading-snug text-titulo no-underline hover:text-marca"
                   >
                     {bonito(a.nombre)}
                   </Link>
