@@ -282,9 +282,16 @@ export function CompletarFicha({ token }: { token: string }) {
   /// que pedir los datos de la organizacion.
   /// El paso 2 no deja avanzar a medias: si pasara, la ficha
   /// llega incompleta al SENA y ya nadie sabe que falto.
+  /// El domicilio entra aquí, y hacía falta: se añadió al
+  /// formulario y no a esta comprobación, así que se podía
+  /// guardar con el municipio vacío — y volver al callejón sin
+  /// salida que el campo existe para cerrar. Quien ya lo tenga
+  /// lo trae en el estado, así que no le estorba.
   const listoPersona = Boolean(
     persona.fechaNacimiento &&
       persona.estrato &&
+      persona.departamentoSepId &&
+      persona.municipioSepId &&
       persona.barrio?.trim() &&
       persona.direccion?.trim() &&
       persona.cargoEnEmpresa?.trim() &&
@@ -809,6 +816,19 @@ export function CompletarFicha({ token }: { token: string }) {
               </>
             )}
           </section>
+
+          {/* Por qué está gris, AL LADO del botón.
+
+              «Falta: cargo actual» sale arriba del todo, y con
+              el formulario largo queda fuera de pantalla: se ve
+              un botón apagado y nada más. Un botón deshabilitado
+              que no dice qué le falta se lee como un sistema
+              roto, no como un formulario incompleto. */}
+          {!listoPersona && faltaEnPersona.length > 0 && (
+            <p className="mb-3 text-center text-sm text-aviso">
+              Para seguir falta: <strong>{faltaEnPersona.join(", ")}</strong>.
+            </p>
+          )}
 
           <button
             type="submit"
