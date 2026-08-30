@@ -178,23 +178,23 @@ export default function PaginaCronograma() {
 
   return (
     <div>
-      <header className="border-b border-borde bg-superficie px-7 pt-[26px] pb-[22px]">
-        <h1 className="text-[1.3125rem] font-bold tracking-[-0.02em] text-titulo">
-          Cronograma
-        </h1>
-        <p className="mt-1 text-texto-suave">
-          Aquí se ponen las fechas de cada grupo: cuándo empieza y cuándo termina.
-          Un grupo sin fechas no se puede matricular, y de sus participantes no se
-          puede saber si van al día.
-        </p>
-      </header>
-
       {/* Todo lo de abajo va sobre el FONDO de la pagina y con
           margen a los lados, no en una banda blanca a sangre. Es
           lo que hace que las tarjetas blancas se vean: sobre
           `superficie` eran blanco sobre blanco. Igual que en
           Gestion de leads. */}
       <div className="flex flex-col gap-3 px-4 pt-4 pb-6">
+        <div>
+          <h1 className="text-[1.125rem] font-bold tracking-[-0.02em] text-titulo">
+            Cronograma
+          </h1>
+          <p className="mt-0.5 text-[0.78125rem] text-texto-suave">
+            Aquí se ponen las fechas de cada grupo: cuándo empieza y cuándo termina. Un
+            grupo sin fechas no se puede matricular, y de sus participantes no se puede
+            saber si van al día.
+          </p>
+        </div>
+
       {error && <Aviso tipo="error">{error}</Aviso>}
 
       {/* Las mismas tarjetas de Gestion de leads: sueltas, con
