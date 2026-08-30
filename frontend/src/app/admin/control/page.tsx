@@ -334,14 +334,7 @@ export default function PaginaControl() {
         )}
 
         <p className="mt-3 text-xs text-texto-suave">
-          Aquí se cruzan <strong className="font-medium">dos fechas distintas</strong>. Los
-          inscritos, sus cortes y su ritmo van por la fecha en que la persona{" "}
-          <strong className="font-medium">llegó a ser inscrita</strong>. El embudo y la
-          llegada de leads van por la fecha en que{" "}
-          <strong className="font-medium">llegó el lead</strong>, porque los peldaños de
-          arriba no tienen matrícula y sin eso desaparecerían enteros. Las colas de trabajo,
-          los cupos, la cobertura, la conversión y las organizaciones{" "}
-          <strong className="font-medium">no se recortan nunca</strong>: son lo que hay hoy.
+          El periodo acota los inscritos, el ritmo y las series por día. Las colas de trabajo, los cupos, la cobertura, la conversión y las organizaciones muestran siempre la situación actual. Compare con otro periodo para saber si la captación mejora, se sostiene o se estanca.
           {rango === "PERSONALIZADO" && (!desde || !hasta) && (
             <span className="text-aviso"> Faltan las dos fechas, así que se muestra todo.</span>
           )}
@@ -430,57 +423,6 @@ function Cuerpo({ d, adminId, eligio }: { d: Control; adminId: string; eligio: b
 
   return (
     <div className="flex flex-col gap-3">
-      {/* la cola de trabajo, antes que nada */}
-      <section className="grid gap-3 lg:grid-cols-3">
-        <Bloque
-          estirado
-          titulo="Leads sin asesor"
-          descripcion="Leads por trabajar que no son de nadie. No lleva periodo: es una cola, no un hecho fechado."
-        >
-          <p
-            className={`text-5xl font-semibold tabular-nums ${
-              d.sinAsignar > 0 ? "text-aviso" : "text-exito"
-            }`}
-          >
-            {n(d.sinAsignar)}
-          </p>
-          <p className="mt-2 text-xs text-texto-suave">
-            {d.sinAsignar > 0
-              ? "Nadie las está llamando: repartirlas es el primer trabajo del día."
-              : "Todos los leads por trabajar tienen dueño."}
-          </p>
-          <Link
-            href="/admin/participantes"
-            className="mt-4 inline-block text-sm font-medium text-marca"
-          >
-            Ir al tablero de inscripciones
-          </Link>
-        </Bloque>
-
-        <div className="lg:col-span-2">
-          <Bloque
-            estirado
-            titulo="Cuánto llevan esperando sin que los llamen"
-            descripcion="Solo quien sigue en «Interesado», por su fecha de llegada: en cuanto alguien lo llama el lead pasa a «Contactado» y sale de aquí. Tampoco lleva periodo, porque recortarla la dejaría vacía justo cuando más larga está."
-          >
-            <Termometro tramos={tramos} vacio="No hay nadie esperando a que lo llamen." />
-            <p className="mt-4 border-t border-borde pt-3 text-xs text-texto-suave">
-              <strong className="font-medium tabular-nums">{n(esperando)}</strong> personas
-              esperando en total
-              {esperando > 0 && (
-                <>
-                  {" · "}
-                  <strong className="font-medium tabular-nums">{n(frios)}</strong> llevan más
-                  de una semana, el {porcentaje(frios / esperando)} de la cola
-                </>
-              )}
-            </p>
-          </Bloque>
-        </div>
-      </section>
-
-      <TableroPorAccion />
-
       {/* las cifras de cabecera */}
       <section className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-4">
         <TarjetaCifra
@@ -510,10 +452,60 @@ function Cuerpo({ d, adminId, eligio }: { d: Control; adminId: string; eligio: b
         />
       </section>
 
+      {/* la cola de trabajo: un solo bloque, no dos */}
+      <Bloque
+        titulo="Cola de trabajo"
+        descripcion="Leads que todavía esperan gestión: los que no tienen asesor asignado y los que, teniéndolo, aún no han recibido una primera llamada. No depende del periodo seleccionado."
+        acciones={
+          <Link
+            href="/admin/participantes"
+            className="text-[0.78125rem] font-medium text-marca"
+          >
+            Ir al tablero de inscripciones
+          </Link>
+        }
+      >
+        {/* una cifra no necesita un bloque entero */}
+        <div className="mb-4 flex flex-wrap items-stretch gap-2.5">
+          <div className="rounded-lg border border-borde bg-superficie px-3.5 py-2">
+            <div className="text-[0.6875rem] leading-none text-texto-suave">
+              Sin asesor asignado
+            </div>
+            <div
+              className={`mt-1 text-[1.0625rem] leading-none font-bold tabular-nums ${
+                d.sinAsignar > 0 ? "text-aviso" : "text-exito"
+              }`}
+            >
+              {n(d.sinAsignar)}
+            </div>
+            <div className="mt-1 text-[0.6875rem] leading-none text-texto-suave">
+              {d.sinAsignar > 0 ? "repartir es el primer paso" : "todos tienen responsable"}
+            </div>
+          </div>
+          <div className="rounded-lg border border-borde bg-superficie px-3.5 py-2">
+            <div className="text-[0.6875rem] leading-none text-texto-suave">
+              Esperando primera llamada
+            </div>
+            <div className="mt-1 text-[1.0625rem] leading-none font-bold text-titulo tabular-nums">
+              {n(esperando)}
+            </div>
+            <div className="mt-1 text-[0.6875rem] leading-none text-texto-suave">
+              {esperando > 0
+                ? `${n(frios)} llevan más de una semana · ${porcentaje(frios / esperando)}`
+                : "nadie pendiente de contacto"}
+            </div>
+          </div>
+        </div>
+        <Termometro tramos={tramos} vacio="No hay nadie esperando a que lo llamen." />
+      </Bloque>
+
+      <TableroPorAccion />
+
+
       {/* las tasas */}
       <Bloque
         titulo="Las tres tasas"
-        descripcion="Ninguna lleva periodo: las tres miden lo que hay hoy contra lo que se comprometió, y recortarlas por «ayer» daría cifras falsas."
+        descripcion="Avance frente a lo comprometido en el proyecto. Miden la situación actual, no la de un periodo."
       >
         <div className="grid sm:grid-cols-3">
           <Tasa
@@ -630,7 +622,7 @@ function Cuerpo({ d, adminId, eligio }: { d: Control; adminId: string; eligio: b
       <section className="grid lg:grid-cols-2">
         <Bloque
           titulo="De dónde vienen: volumen"
-          descripcion="Cuántos de los inscritos del periodo entraron por cada puerta. Dice cuál trae más, nunca cuál trae mejor."
+          descripcion="Canal de entrada de los inscritos del periodo. Indica cuál aporta más registros, no cuál los aporta mejores."
         >
           <Donut
             datos={d.porOrigen.map((o) => ({
@@ -645,7 +637,7 @@ function Cuerpo({ d, adminId, eligio }: { d: Control; adminId: string; eligio: b
 
         <Bloque
           titulo="De dónde vienen: calidad"
-          descripcion="Cuánto convierte cada puerta, sobre todos sus leads y sin periodo. No es lo mismo que el volumen: una pauta puede traer trescientos leads y convertir el 2 %."
+          descripcion="Porcentaje de leads que cada canal llega a inscribir, sobre su histórico completo. Un canal puede aportar mucho volumen y convertir poco: es la cifra que indica dónde conviene invertir."
         >
           <BarrasApiladas
             filas={d.conversionPorOrigen.map((o) => ({
@@ -665,7 +657,7 @@ function Cuerpo({ d, adminId, eligio }: { d: Control; adminId: string; eligio: b
       {/* los asesores */}
       <Bloque
         titulo="Por asesor"
-        descripcion="Ordenada por conversión, que es HISTÓRICA: todos los que llegó a inscribir sobre todos sus leads, sin periodo. Así se lee quién convierte mejor —quien lleva 200 y convierte el 5 % lo hace peor que quien lleva 20 y convierte el 40 %— y no a quién le entró una inscripción esta mañana."
+        descripcion="Rendimiento de cada asesor, ordenado por su tasa de conversión histórica: inscritos sobre el total de leads que ha gestionado. Mide desempeño sostenido, no la actividad de un día."
       >
         {mio && (
           <p className="mb-4 rounded-xl bg-marca-suave px-3 py-2 text-sm">
@@ -732,7 +724,7 @@ function Cuerpo({ d, adminId, eligio }: { d: Control; adminId: string; eligio: b
       <section className="grid lg:grid-cols-2">
         <Bloque
           titulo="Las organizaciones con más nombres"
-          descripcion="Nombres puestos contra cupos apartados. Ninguna de las dos cifras lleva periodo: los cupos salen de reservas, y medir contra ellos unos inscritos recortados daría deudas inventadas."
+          descripcion="Nombres registrados frente a los cupos que cada organización tiene reservados. La diferencia es lo que falta por completar. No depende del periodo seleccionado."
         >
           {d.topEmpresas.length === 0 ? (
             <p className="py-6 text-center text-sm text-texto-suave">
@@ -768,7 +760,7 @@ function Cuerpo({ d, adminId, eligio }: { d: Control; adminId: string; eligio: b
 
         <Bloque
           titulo="Por acción de formación"
-          descripcion="Qué curso eligieron los inscritos del periodo. Quien todavía no tiene acción asignada no aparece."
+          descripcion="Distribución de los inscritos del periodo entre las acciones de formación. No incluye a quienes aún no tienen acción asignada."
         >
           <ListaBarras
             datos={d.porAccion.map((a) => ({
@@ -786,7 +778,7 @@ function Cuerpo({ d, adminId, eligio }: { d: Control; adminId: string; eligio: b
       <section className="grid lg:grid-cols-3">
         <Bloque
           titulo="Por ubicación"
-          descripcion="Dónde se dicta lo que eligieron: ciudad o departamento."
+          descripcion="Ciudad o departamento donde se dicta la formación que eligieron los inscritos del periodo."
         >
           <ListaBarras
             datos={d.porUbicacion.map((u) => ({
@@ -801,7 +793,7 @@ function Cuerpo({ d, adminId, eligio }: { d: Control; adminId: string; eligio: b
           />
         </Bloque>
 
-        <Bloque titulo="Por grupo" descripcion="El reparto real: es lo que se le reporta al SENA.">
+        <Bloque titulo="Por grupo" descripcion="Distribución por grupo, tal como se reporta al SENA.">
           <ListaBarras
             datos={d.porGrupo.map((g) => ({
               clave: g.clave,
@@ -822,7 +814,7 @@ function Cuerpo({ d, adminId, eligio }: { d: Control; adminId: string; eligio: b
         <div className="space-y-6">
           <Bloque
             titulo="Por convenio"
-            descripcion="Los inscritos del periodo, entre los convenios que se pueden ver."
+            descripcion="Inscritos del periodo en cada uno de los convenios a los que tiene acceso."
           >
             <Donut
               datos={d.porConvenio.map((c) => ({ etiqueta: c.etiqueta, valor: c.total }))}
@@ -835,7 +827,7 @@ function Cuerpo({ d, adminId, eligio }: { d: Control; adminId: string; eligio: b
 
           <Bloque
             titulo="Por modalidad"
-            descripcion="Presencial, virtual o híbrida. Sale de la oferta, así que quien no tiene una asignada no cuenta."
+            descripcion="Modalidad de la oferta asignada: presencial, virtual o híbrida. No incluye a quienes aún no tienen oferta."
           >
             <Donut
               datos={d.porModalidad.map((m) => ({

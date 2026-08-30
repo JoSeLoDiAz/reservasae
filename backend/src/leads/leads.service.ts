@@ -15,6 +15,7 @@ import { documentoValido, normalizarDocumento } from '../comun/documento';
 import { DOCUMENTOS_DE_PERSONA } from '../crm/catalogos-sep';
 import { ColaRui } from '../crm/rui/cola-rui';
 import { PrismaService } from '../prisma/prisma.service';
+import { registrarToqueDeOrigen } from '../crm/origen-del-lead';
 
 import type { EntraLeadDto } from './dto';
 
@@ -347,9 +348,21 @@ export class LeadsService {
         },
       });
 
-      /// El origen se marca SIEMPRE, haya o no datos nuevos.
-      await tx.participante.update({
-        where: { id: coincide.participanteId },
+      /// El toque se deja SIEMPRE, haya o no datos nuevos:
+      /// que esta persona volviera por una pauta es la
+      /// metrica que se pidio.
+      await registrarToqueDeOrigen(
+        tx,
+        coincide.participanteId,
+        esPauta ? 'REDES' : 'AUTOGESTION',
+      );
+
+      /// Pero el PRIMER origen no se pisa. A quien ya estaba
+      /// —lo subio el community manager en una lista— la pauta
+      /// no le quita el lead: consta que volvio por ahi, y a
+      /// quien lo trajo se le sigue reconociendo.
+      await tx.participante.updateMany({
+        where: { id: coincide.participanteId, origenLead: null },
         data: { origenLead: esPauta ? 'PAUTA' : 'ORGANICO' },
       });
 

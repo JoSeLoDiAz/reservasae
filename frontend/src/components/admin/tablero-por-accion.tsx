@@ -10,9 +10,9 @@ import { bonito } from "@/lib/api";
 
 type Fila = {
   departamento: string;
-  directo: number;
-  pagada: number;
-  organica: number;
+  pauta: number;
+  organico: number;
+  importacion: number;
   interesados: number;
   inscritos: number;
   descartados: number;
@@ -29,10 +29,11 @@ type Tablero = {
   }>;
   filas: Fila[];
   totales: Omit<Fila, "departamento">;
-  porCanasta: Array<{ canasta: string; etiqueta: string; total: number }>;
+  porPuerta: Array<{ puerta: string; etiqueta: string; total: number }>;
+  rescatePorPauta: { tocados: number; yaEranDeOtro: number; inscritos: number };
   serie: Array<{ dia: string; llegaron: number; inscritos: number }>;
   conversion: Array<{
-    canasta: string;
+    puerta: string;
     etiqueta: string;
     base: number;
     inscritos: number;
@@ -83,10 +84,10 @@ export function TableroPorAccion() {
   return (
     <Bloque
       titulo="Comportamiento por acción de formación"
-      descripcion="Para una acción concreta: de qué departamento llegó cada lead, por qué canal entró y en qué quedó. Es el corte que decide dónde reforzar la captación."
+      descripcion="Comportamiento de una acción de formación concreta: procedencia de los leads, canal por el que entraron y resultado obtenido. Permite identificar en qué territorio y por qué canal conviene reforzar la captación."
       acciones={
         <div className="flex flex-wrap items-center gap-2.5">
-          <div className="w-[330px]">
+          <div className="w-[430px]">
             <Desplegable
               alto={34}
               marcador="Elija una acción de formación"
@@ -238,8 +239,8 @@ export function TableroPorAccion() {
               </h3>
               <div className="mt-3">
                 <ListaBarras
-                  datos={datos.porCanasta.map((c) => ({
-                    clave: c.canasta,
+                  datos={datos.porPuerta.map((c) => ({
+                    clave: c.puerta,
                     etiqueta: c.etiqueta,
                     valor: c.total,
                     detalle: t.total ? porcentaje(c.total / t.total) : undefined,
@@ -247,6 +248,26 @@ export function TableroPorAccion() {
                   vacio="Sin leads que repartir."
                 />
               </div>
+              {datos.rescatePorPauta.tocados > 0 && (
+                <p className="mt-3 border-t border-hairline pt-3 text-[0.71875rem] text-texto-suave">
+                  La pauta impactó a{" "}
+                  <strong className="font-semibold text-titulo tabular-nums">
+                    {n(datos.rescatePorPauta.tocados)}
+                  </strong>{" "}
+                  leads de esta acción.
+                  {datos.rescatePorPauta.yaEranDeOtro > 0 && (
+                    <>
+                      {" "}
+                      <strong className="font-semibold text-titulo tabular-nums">
+                        {n(datos.rescatePorPauta.yaEranDeOtro)}
+                      </strong>{" "}
+                      de ellos ya estaban registrados por otra vía y se mantienen
+                      contabilizados en su origen inicial: la campaña queda registrada
+                      sin reasignar leads que ya tenían responsable.
+                    </>
+                  )}
+                </p>
+              )}
             </div>
             <div>
               <h3 className="text-[0.625rem] font-semibold tracking-[0.1em] text-marca uppercase">
@@ -259,7 +280,7 @@ export function TableroPorAccion() {
               <div className="mt-3">
                 <ListaBarras
                   datos={datos.conversion.map((c) => ({
-                    clave: c.canasta,
+                    clave: c.puerta,
                     etiqueta: c.etiqueta,
                     valor: Math.round(c.tasa * 100),
                     detalle: `${n(c.inscritos)} de ${n(c.base)}`,
@@ -281,9 +302,9 @@ export function TableroPorAccion() {
                 <thead>
                   <tr>
                     <th>Departamento</th>
-                    <th>Directo y referidos</th>
-                    <th>Campaña pagada</th>
-                    <th>Redes orgánicas</th>
+                    <th>Pauta</th>
+                    <th>Orgánico</th>
+                    <th>Importación</th>
                     <th>En gestión</th>
                     <th>Inscritos</th>
                     <th>Descartados</th>
@@ -294,9 +315,9 @@ export function TableroPorAccion() {
                   {datos.filas.map((f) => (
                     <tr key={f.departamento}>
                       <td>{f.departamento}</td>
-                      <td className="tabular-nums">{n(f.directo)}</td>
-                      <td className="tabular-nums">{n(f.pagada)}</td>
-                      <td className="tabular-nums">{n(f.organica)}</td>
+                      <td className="tabular-nums">{n(f.pauta)}</td>
+                      <td className="tabular-nums">{n(f.organico)}</td>
+                      <td className="tabular-nums">{n(f.importacion)}</td>
                       <td className="tabular-nums">{n(f.interesados)}</td>
                       <td className="font-semibold text-exito tabular-nums">
                         {n(f.inscritos)}
@@ -307,9 +328,9 @@ export function TableroPorAccion() {
                   ))}
                   <tr className="font-bold">
                     <td>Total</td>
-                    <td className="tabular-nums">{n(t.directo)}</td>
-                    <td className="tabular-nums">{n(t.pagada)}</td>
-                    <td className="tabular-nums">{n(t.organica)}</td>
+                    <td className="tabular-nums">{n(t.pauta)}</td>
+                    <td className="tabular-nums">{n(t.organico)}</td>
+                    <td className="tabular-nums">{n(t.importacion)}</td>
                     <td className="tabular-nums">{n(t.interesados)}</td>
                     <td className="text-exito tabular-nums">{n(t.inscritos)}</td>
                     <td className="tabular-nums">{n(t.descartados)}</td>

@@ -112,13 +112,13 @@ export function Bloque({
   return (
     <section
       className={
-        "overflow-hidden rounded-lg border border-borde bg-superficie " +
+        "rounded-lg border border-borde bg-superficie " +
         (partible ? "bloque-partible " : "bloque-entero ") +
         (estirado ? "bloque-estirado flex h-full flex-col" : "")
       }
     >
       {(titulo || acciones) && (
-        <div className="cabecera-de-bloque flex flex-wrap items-start justify-between gap-3 border-b border-borde bg-marca-suave px-7 py-3">
+        <div className="cabecera-de-bloque flex flex-wrap items-start justify-between gap-3 rounded-t-[7px] border-b border-borde bg-marca-suave px-7 py-3">
           <div className="min-w-0">
             {titulo && (
               <h2 className="text-[0.875rem] font-semibold text-titulo">{titulo}</h2>
