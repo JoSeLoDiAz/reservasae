@@ -16,7 +16,7 @@ import {
   crmApi,
   type FilaParticipante,
   type Filtros,
-  ETAPAS_AVANCE,
+  ETAPAS_DEL_EMBUDO,
   ETIQUETA_ETAPA,
   type Resumen,
 } from "@/lib/crm-api";
@@ -155,17 +155,20 @@ export default function PaginaParticipantes() {
           asi que va en barra y no en seis cifras sueltas. */}
       {hayAlguien && (
         <div className="-mt-1">
-          {/* TODAS las etapas con gente, no solo las de avance.
-              Con solo las de avance la barra dibujaba 49 y el
-              numero decia 56: los que ya salieron -- perdidos,
-              retirados -- no entraban en el dibujo pero si en la
-              cifra. Y quien se fue tambien es parte del embudo:
-              es justo lo que hay que mirar. */}
+          {/* Solo las CINCO de leads.
+              Salian tambien En formacion, Certificado, Retirado,
+              No aprobo, Desertó y Abandonó, que son de Gestion
+              Academica: el seguimiento del grupo, no el trabajo
+              del asesor. Mezclarlas hacia que el embudo contara
+              gente que esta pantalla ni siquiera lista.
+              La lista es la misma que usa el filtro `tramo` de
+              esta pantalla, asi que el total del embudo y el de
+              la tabla salen iguales. */}
           <Embudo
             sinAsesor={resumen.sinAsesor}
             enLaVista={total}
             tramos={resumen.etapas
-              .filter((e) => e.total > 0)
+              .filter((e) => e.total > 0 && ETAPAS_DEL_EMBUDO.includes(e.etapa))
               .map((e) => ({
                 etiqueta: ETIQUETA_ETAPA[e.etapa],
                 total: e.total,

@@ -723,6 +723,12 @@ export function Embudo({
   /// entraban en el dibujo pero sí en la cifra. Una barra cuyas
   /// partes no suman lo que dice el número de al lado no se
   /// puede leer.
+  /// Sin raya arriba.
+  ///
+  /// En el prototipo el embudo va DEBAJO de la barra de botones
+  /// y esa raya lo separa de ella. Aquí va encima de todo, y sin
+  /// nada arriba la raya se quedaba flotando sola cruzando la
+  /// pantalla.
   const total = tramos.reduce((a, t) => a + t.total, 0);
   const suma = total || 1;
 
@@ -734,7 +740,7 @@ export function Embudo({
   const distinto = enLaVista !== undefined && enLaVista !== total;
 
   return (
-    <div className="flex flex-wrap items-center gap-5 border-t border-hairline py-[11px]">
+    <div className="flex flex-wrap items-center gap-5 py-[11px]">
       <div
         className="whitespace-nowrap text-texto-suave"
         style={{ fontSize: T.menudo }}
