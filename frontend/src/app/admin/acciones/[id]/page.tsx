@@ -301,7 +301,7 @@ export default function DetalleDeAccion({ params }: { params: Promise<{ id: stri
               <div className="flex gap-2">
                 {/* La escala. Sin ella una barra alta no dice si
                     son tres cupos o trescientos. */}
-                <div className="flex h-28 w-7 shrink-0 flex-col justify-between pt-4 text-right text-[0.65625rem] text-texto-suave tabular-nums">
+                <div className="mr-1 flex h-28 w-9 shrink-0 flex-col justify-between pt-4 text-right text-[0.65625rem] text-texto-suave tabular-nums">
                   <span>{n(topeSerie)}</span>
                   <span>{n(Math.round(topeSerie / 2))}</span>
                   <span>0</span>

@@ -588,9 +588,36 @@ select[size]:not([size='1']) {
   }
 
   /* no partir una tarjeta entre paginas */
+  /*
+   * `break-inside: avoid` en un bloque ALTO no lo protege: lo
+   * empuja entero a la hoja siguiente y deja media pagina en
+   * blanco. Se pide solo que no se parta si CABE, que es lo que
+   * hace `avoid-page` sobre bloques cortos; los largos fluyen.
+   */
   .imprimible-bloque {
-    break-inside: avoid;
     box-shadow: none;
+  }
+  /* lo que si tiene que ir junto: una fila, una tarjeta */
+  .imprimible-bloque tr,
+  .imprimible-bloque li {
+    break-inside: avoid;
+  }
+
+  /*
+   * En papel la cabecera de bloque va con un teñido MUY leve. En
+   * pantalla `marca-suave` separa; impreso, una franja de color
+   * cada cinco centimetros se come la tinta y compite con el
+   * texto, que es lo que se viene a leer.
+   */
+  .solo-impresion .titulo-de-accion,
+  section > div:first-child {
+    background: color-mix(in oklab, var(--marca-suave) 45%, #ffffff) !important;
+  }
+
+  /* y las secciones, mas apretadas: en papel no hay que respirar */
+  section > div {
+    padding-top: 8px !important;
+    padding-bottom: 8px !important;
   }
 
   .imprimible-salto {
