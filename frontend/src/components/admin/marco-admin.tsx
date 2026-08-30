@@ -1360,33 +1360,39 @@ export function Boton({
  * el titulo y una linea que dice de que va la seccion.
  */
 export function EncabezadoSeccion({
-  icono,
   titulo,
   descripcion,
   accion,
 }: {
-  icono: React.ReactNode;
+  /// Se acepta y NO se pinta: ver el comentario de abajo.
+  icono?: React.ReactNode;
   titulo: string;
   descripcion?: string;
   accion?: React.ReactNode;
 }) {
+  /// Sin el circulo verde del icono.
+  ///
+  /// Cada seccion de la ficha llevaba su icono metido en un
+  /// circulo de `--acento-suave`, y bajando por la pestania
+  /// salian cinco circulos verdes que no distinguian nada: el
+  /// titulo ya dice de que es la seccion. Ademas el verde no es
+  /// color de marca -- entro con el handoff anterior -- y en el
+  /// redisenio las secciones se separan por una raya, no por
+  /// una insignia.
+  ///
+  /// La prop `icono` se sigue aceptando para no tocar las cinco
+  /// llamadas, pero no se pinta. Igual que en `TarjetaCifra`.
   return (
     <div className="flex items-center justify-between gap-4">
-      <div className="flex min-w-0 items-center gap-3">
-        <span
-          aria-hidden
-          className="grid size-9.5 shrink-0 place-items-center rounded-full bg-acento-suave text-acento-texto"
-        >
-          {icono}
-        </span>
-        <div className="min-w-0">
-          <p className="truncate text-base font-semibold">{titulo}</p>
-          {descripcion && (
-            <p className="mt-0.5 truncate text-sm text-texto-suave">
-              {descripcion}
-            </p>
-          )}
-        </div>
+      <div className="min-w-0">
+        <p className="truncate text-[0.90625rem] font-semibold text-titulo">
+          {titulo}
+        </p>
+        {descripcion && (
+          <p className="mt-1 text-[0.78125rem] leading-relaxed text-texto-suave">
+            {descripcion}
+          </p>
+        )}
       </div>
       {accion}
     </div>

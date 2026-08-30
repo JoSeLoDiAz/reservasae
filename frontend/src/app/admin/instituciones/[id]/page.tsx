@@ -930,7 +930,7 @@ function SelloSinGuardar() {
   return (
     <span
       title="Lo escribió usted y todavía no se ha guardado."
-      className="inline-flex items-center gap-1.5 rounded-full border border-marca/40 bg-marca-suave px-2 py-0.5 text-[11px] text-marca"
+      className="inline-flex items-center gap-1.5 text-[0.71875rem] font-semibold text-marca"
     >
       Sin guardar
     </span>

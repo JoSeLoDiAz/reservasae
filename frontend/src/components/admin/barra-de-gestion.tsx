@@ -34,6 +34,7 @@ import {
   type Ficha,
   type Opciones,
 } from "@/lib/crm-api";
+import { bonito } from "@/lib/api";
 
 const D = {
   barra: {
@@ -46,6 +47,19 @@ const D = {
     flexWrap: "wrap" as const,
   },
   campo: { flex: "1 1 170px", minWidth: 150 },
+  /// La flecha va en un envoltorio y no en el `select`: con
+  /// `appearance:none` el navegador le quita la suya, y sin
+  /// ninguna los cuatro campos parecian texto plano. Un control
+  /// que no parece control no se pulsa.
+  envoltorio: { position: "relative" as const },
+  flecha: {
+    position: "absolute" as const,
+    right: 0,
+    bottom: 8,
+    fontSize: 9,
+    color: "var(--texto-suave)",
+    pointerEvents: "none" as const,
+  },
   rotulo: {
     fontWeight: 600,
     fontSize: "0.625rem",
@@ -58,6 +72,7 @@ const D = {
   /// dibujar la caja en Chrome.
   control: {
     marginTop: 6,
+    paddingRight: 16,
     paddingBottom: 6,
     background: "transparent",
     border: "none",
@@ -198,6 +213,7 @@ export function BarraDeGestion({
     <div style={D.barra}>
       <div style={D.campo}>
         <div style={D.rotulo}>MOVER DE ETAPA</div>
+        <div style={D.envoltorio}>
         <select
           style={D.control}
           value={ficha.etapa}
@@ -209,11 +225,14 @@ export function BarraDeGestion({
             </option>
           ))}
         </select>
+        <span aria-hidden style={D.flecha}>▾</span>
+        </div>
       </div>
 
       <div style={D.campo}>
         <div style={D.rotulo}>ASESOR RESPONSABLE</div>
         {puedeRepartir ? (
+          <div style={D.envoltorio}>
           <select
             style={{ ...D.control, ...(asesorId ? {} : D.vacio) }}
             value={asesorId}
@@ -226,6 +245,8 @@ export function BarraDeGestion({
               </option>
             ))}
           </select>
+          <span aria-hidden style={D.flecha}>▾</span>
+          </div>
         ) : (
           <div style={{ ...D.control, cursor: "default" }}>
             {ficha.asesor?.nombre ?? "Sin asignar"}
@@ -235,6 +256,7 @@ export function BarraDeGestion({
 
       <div style={D.campo}>
         <div style={D.rotulo}>ACCIÓN DE FORMACIÓN</div>
+        <div style={D.envoltorio}>
         <select
           style={{ ...D.control, ...(accionElegida ? {} : D.vacio) }}
           value={accionElegida}
@@ -246,11 +268,17 @@ export function BarraDeGestion({
           <option value="">Sin asignar</option>
           {opciones.acciones.map((a) => (
             <option key={a.accionFormacionId} value={a.accionFormacionId}>
-              {a.etiqueta}
+              {/* En capitalizacion normal. La base los guarda en
+                  MAYUSCULAS y aqui salian tal cual: setenta
+                  caracteres gritando dentro de un desplegable.
+                  El resto del panel ya los pasa por `bonito()`. */}
+              {bonito(a.etiqueta)}
               {a.cubre ? "" : " · sin cobertura"}
             </option>
           ))}
         </select>
+        <span aria-hidden style={D.flecha}>▾</span>
+        </div>
       </div>
 
       <div style={D.campo}>

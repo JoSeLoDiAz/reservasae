@@ -358,7 +358,7 @@ export default function PaginaPlantillasCorreo() {
         >
           <div className="space-y-3">
             {!p.activa && (
-              <span className="inline-block rounded-full bg-superficie-alterna px-2.5 py-1 text-xs text-texto-suave">
+              <span className="inline-block text-[0.75rem] font-semibold text-texto-suave">
                 Apagada · no aparece al escribir un correo
               </span>
             )}

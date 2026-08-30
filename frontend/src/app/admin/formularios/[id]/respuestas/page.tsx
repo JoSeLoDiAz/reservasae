@@ -124,7 +124,7 @@ function BloquePregunta({
         <>
           {n(pregunta.respondidas)} de {n(totalReservas)} ({pregunta.tasaRespuesta} %)
           {pregunta.archivada && (
-            <span className="ml-2 rounded-full bg-superficie-alterna px-2 py-0.5 text-xs">
+            <span className="ml-2 text-[0.75rem] font-semibold text-texto-suave">
               archivada
             </span>
           )}

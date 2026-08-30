@@ -1021,11 +1021,13 @@ function BloqueAccion({
 }) {
   return (
     <div className="border-t border-borde px-4 py-5 first:border-t-0">
-      <p className="flex items-center gap-2.5 text-[0.6875rem] font-semibold tracking-[0.1em] text-acento-texto uppercase">
-        <span
-          aria-hidden
-          className="grid size-7 shrink-0 place-items-center rounded-full bg-acento-suave"
-        >
+      {/* Sin el circulo verde, y en el azul de marca.
+          Es el mismo criterio que en los rotulos de grupo del
+          expediente: bajando por el panel salian tres circulos
+          verdes que no distinguian nada, y el verde no es color
+          de marca. El icono se queda, pero suelto. */}
+      <p className="flex items-center gap-2 text-[0.625rem] font-semibold tracking-[0.1em] text-marca uppercase">
+        <span aria-hidden className="shrink-0">
           {icono}
         </span>
         {titulo}
@@ -1093,12 +1095,15 @@ const E = {
     gap: 10,
   },
   rotuloFila: { display: "flex", alignItems: "center", gap: 9 },
+  /// El icono suelto, sin circulo de color.
+  ///
+  /// Eran tres circulos verdes bajando por el panel de
+  /// acciones, uno por bloque. No distinguian nada -- el rotulo
+  /// ya dice de que es el bloque -- y el verde no es color de
+  /// marca. Se conserva el nombre `circuloVerde` porque lo usan
+  /// tres sitios y renombrarlo no cambia nada de lo que se ve.
   circuloVerde: {
-    width: 28,
-    height: 28,
-    borderRadius: "50%",
-    background: "var(--acento-suave)",
-    color: "var(--acento-texto)",
+    color: "var(--marca)",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
@@ -1122,10 +1127,15 @@ const E = {
     justifyContent: "center",
     flex: "none",
   },
+  /// El rotulo de grupo: azul de marca y versalita, igual que
+  /// `RotuloDeGrupo`. Iba en verde de acento, que no es color
+  /// de marca.
   rotulo: {
-    fontWeight: 600, fontSize: 11,
+    fontWeight: 600,
+    fontSize: "0.625rem",
     letterSpacing: ".1em",
-    color: "var(--acento-texto)",
+    textTransform: "uppercase" as const,
+    color: "var(--marca)",
   },
   parrafo: { fontSize: 12.5, color: "var(--texto-suave)", lineHeight: 1.5 },
   raya: { height: 1, background: "var(--superficie-alterna)" },
@@ -1634,13 +1644,26 @@ function RegistrarAutorizacion({
   const [evidencia, setEvidencia] = useState("");
 
   return (
-    <div>
-      <Aviso tipo="error">
-        Esta persona todavía no ha autorizado el tratamiento de sus datos. Sin eso no se
-        puede matricular ni incluir en el reporte al SENA.
-      </Aviso>
+    <div className="space-y-4">
+      {/* Punto y texto, no una caja rosa.
+          `Aviso` pinta un recuadro con borde y radio, y aqui va
+          dentro de un panel de 370px: el recuadro dentro del
+          panel dentro de la ficha son tres marcos anidados. */}
+      <p className="flex items-baseline gap-2.5 text-[0.78125rem] leading-relaxed text-texto">
+        <span
+          aria-hidden
+          className="mt-[1px] h-[7px] w-[7px] shrink-0 rounded-full bg-error"
+        />
+        <span>
+          Esta persona todavía no ha autorizado el tratamiento de sus datos. Sin
+          eso no se puede matricular ni incluir en el reporte al SENA.
+        </span>
+      </p>
 
-      <div className="grid sm:grid-cols-2">
+      {/* En UNA columna. A dos, dentro de un panel de 370px,
+          cada campo se quedaba en 170 y el desplegable cortaba
+          su propio texto: «Lo autorizó de viva». */}
+      <div className="space-y-3">
         <Campo etiqueta="Cómo lo autorizó">
           <select
             className={CLASE_CONTROL}
@@ -1666,6 +1689,7 @@ function RegistrarAutorizacion({
       </div>
 
       <Boton
+        className="w-full"
         onClick={() =>
           alGuardar(async () => {
             await crmApi.autorizar(id, canal, evidencia.trim() || undefined);
@@ -2159,29 +2183,20 @@ function DatosDeLaEmpresa({
               marginBottom: 12,
             }}
           >
+            {/* Sin circulo verde, como los demas rotulos de
+                grupo del expediente. Este se me quedo suelto
+                porque va escrito a mano y no por
+                `RotuloDeGrupo`. */}
             <span
               style={{
-                width: 28,
-                height: 28,
-                borderRadius: "50%",
-                background: "var(--acento-suave)",
-                color: "var(--acento-texto)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                flex: "none",
-              }}
-            >
-              <IconoPerfil tamano={14} />
-            </span>
-            <span
-              style={{
-                fontWeight: 600, fontSize: 11,
+                fontWeight: 600,
+                fontSize: "0.625rem",
                 letterSpacing: ".1em",
-                color: "var(--acento-texto)",
+                textTransform: "uppercase",
+                color: "var(--marca)",
               }}
             >
-              PERSONA DE CONTACTO EN LA EMPRESA
+              Persona de contacto en la empresa
             </span>
           </p>
           {/* EDITABLES desde aquí.
@@ -2482,13 +2497,16 @@ function EnlaceCompletar({ ficha }: { ficha: Ficha }) {
 /// impide inscribir a nadie.
 function Campos({ campos }: { campos: Array<[string, unknown]> }) {
   return (
-    <dl className="grid gap-x-6 gap-y-3 sm:grid-cols-3">
+    <dl className="grid gap-x-6 gap-y-3.5 sm:grid-cols-3">
       {campos.map(([nombre, valor]) => (
         <div key={nombre}>
-          <dt className="text-xs tracking-wide text-texto-suave uppercase">
-            {nombre}
-          </dt>
-          <dd className="text-sm">
+          {/* El rotulo de un CAMPO va en capitalizacion normal.
+              Iba en versalita, igual que los rotulos de GRUPO,
+              y con los dos iguales la pestania Empresa se leia
+              como una lista de titulos sin datos. En «Datos»
+              siempre fue asi; aqui se habia quedado distinto. */}
+          <dt className="text-[0.71875rem] text-texto-suave">{nombre}</dt>
+          <dd className="text-[0.84375rem]">
             {valor === null || valor === "" ? (
               <span className="text-aviso">Falta</span>
             ) : (
@@ -2549,7 +2567,7 @@ function ContactoDeLaEmpresa({
       <div className="grid sm:grid-cols-3">
         {CAMPOS.map(([clave, etiqueta]) => (
           <label key={clave} className="block">
-            <span className="mb-1 block text-xs tracking-wide text-texto-suave uppercase">
+            <span className="mb-1 block text-[0.71875rem] text-texto-suave">
               {etiqueta}
             </span>
             <input
