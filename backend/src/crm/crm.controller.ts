@@ -8,11 +8,13 @@ import {
   Patch,
   Post,
   Query,
+  Res,
   UploadedFile,
   UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
+import type { Response } from 'express';
 
 import { RolAdmin, type Admin } from '../../generated/prisma';
 import { AdminActual, AmbitoActual } from '../admin/admin-actual.decorator';
@@ -23,7 +25,12 @@ import {
 } from '../admin/permisos';
 import { PreinscripcionService } from '../preinscripcion/preinscripcion.service';
 import { IpReal } from '../comun/ip-real';
-import { MAXIMO_ARCHIVO_CARGA, textoDelArchivo } from './carga-archivo';
+import {
+  libroDePlantilla,
+  MAXIMO_ARCHIVO_CARGA,
+  textoDelArchivo,
+} from './carga-archivo';
+import { enviarLibro } from '../tableros/exportar';
 import { CrmService } from './crm.service';
 import { DirectorioService } from './directorio.service';
 import { PlantillasCorreoService } from '../correo/plantillas/plantillas-correo.service';
@@ -242,6 +249,12 @@ export class CrmController {
   @Requiere('inscripciones', 'ESCRIBIR')
   previsualizarCarga(@Body() dto: CargaDto, @AmbitoActual() ambito: Ambito) {
     return this.crm.previsualizarCarga(dto, ambito.convenios);
+  }
+
+  @Get('carga/plantilla')
+  @Requiere('inscripciones', 'ESCRIBIR')
+  async plantillaDeCarga(@Res() res: Response) {
+    enviarLibro(res, await libroDePlantilla(), 'plantilla-participantes');
   }
 
   @Post('carga/archivo')

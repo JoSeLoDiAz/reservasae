@@ -205,7 +205,7 @@ export default function PaginaSep() {
                 </tbody>
               </table>
               <p className="mt-3 text-sm text-texto-suave">
-                Se arreglan desde la ficha de cada persona, en{" "}
+                Se arreglan desde el lead de cada persona, en{" "}
                 <Link href="/admin/inscritos" className="underline">
                   Inscritos
                 </Link>

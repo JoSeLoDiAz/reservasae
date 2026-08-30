@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import {
   Aviso,
@@ -14,6 +14,7 @@ import {
 import { adminApi } from "@/lib/admin-api";
 import { ErrorApi } from "@/lib/api";
 import { crmApi, type OpcionOferta } from "@/lib/crm-api";
+import { Desplegable } from "@/components/admin/desplegable";
 
 type Estado = "NUEVA" | "PERSONA_CONOCIDA" | "REPETIDA" | "DESCARTADA";
 
@@ -40,10 +41,10 @@ type Previa = {
 };
 
 const ETIQUETA_ESTADO: Record<Estado, string> = {
-  NUEVA: "Se crea",
-  PERSONA_CONOCIDA: "Ya está en el sistema",
-  REPETIDA: "Repetida aquí",
-  DESCARTADA: "No se crea",
+  NUEVA: "Se importará",
+  PERSONA_CONOCIDA: "Ya registrada en el sistema",
+  REPETIDA: "Duplicada en el archivo",
+  DESCARTADA: "No se importará",
 };
 
 export default function PaginaCarga() {
@@ -53,6 +54,7 @@ export default function PaginaCarga() {
   >([]);
   const [ofertas, setOfertas] = useState<OpcionOferta[]>([]);
   const [convenioId, setConvenioId] = useState("");
+  const [accionId, setAccionId] = useState("");
   const [ofertaId, setOfertaId] = useState("");
   const [texto, setTexto] = useState("");
   const [previa, setPrevia] = useState<Previa | null>(null);
@@ -72,6 +74,28 @@ export default function PaginaCarga() {
       })
       .catch((e) => setError((e as ErrorApi).message));
   }, []);
+
+  /// El desplegable ensenaba `ofertas` en crudo, y una oferta es
+  /// accion x sede: AF1 salia seis veces, una por departamento.
+  /// Se elige el CURSO, y la sede solo cuando hay mas de una.
+  const acciones = useMemo(() => {
+    const m = new Map<string, { id: string; etiqueta: string; sedes: OpcionOferta[] }>();
+    for (const o of ofertas) {
+      const y = m.get(o.accionFormacionId);
+      if (y) y.sedes.push(o);
+      else m.set(o.accionFormacionId, { id: o.accionFormacionId, etiqueta: o.etiqueta, sedes: [o] });
+    }
+    return [...m.values()];
+  }, [ofertas]);
+
+  const sedes = acciones.find((a) => a.id === accionId)?.sedes ?? [];
+
+  /// Con una sola sede no hay nada que elegir: se fija sola. Un
+  /// desplegable de una sola opcion es un paso que no decide nada.
+  useEffect(() => {
+    if (sedes.length === 1) setOfertaId(sedes[0].id);
+    else if (!sedes.some((o) => o.id === ofertaId)) setOfertaId("");
+  }, [accionId, sedes, ofertaId]);
 
   useEffect(() => {
     if (!convenioId) return;
@@ -114,7 +138,7 @@ export default function PaginaCarga() {
   }
 
   return (
-    <div>
+    <div className="pb-10">
       <header className="border-b border-borde bg-superficie px-7 pt-[18px] pb-[22px]">
         <Link
           href="/admin/participantes"
@@ -123,70 +147,113 @@ export default function PaginaCarga() {
           <span aria-hidden="true">&larr;</span> Gestión de leads
         </Link>
         <h1 className="mt-2 text-[1.3125rem] font-bold tracking-[-0.02em] text-titulo">
-          Cargar una lista
+          Importar participantes
         </h1>
         <p className="mt-1 text-texto-suave">
-          Suba el archivo que le mandó la empresa, o copie las celdas y péguelas. Verá
-          qué va a pasar antes de confirmar nada.
+          Cargue el archivo remitido por la organización, o pegue los datos desde una hoja
+          de cálculo. El sistema valida cada registro y presenta el resultado antes de
+          crear nada.
         </p>
       </header>
 
-      {error && <Aviso tipo="error">{error}</Aviso>}
+      {error && (
+        <div className="px-7 pt-4">
+          <Aviso tipo="error">{error}</Aviso>
+        </div>
+      )}
 
       <Tarjeta
-        titulo="Dónde van"
-        descripcion="La acción de formación es opcional: si no la sabe todavía, se asigna después desde cada ficha."
+        titulo="Paso 1 · Destino de los registros"
+        descripcion="Determina a qué convenio quedan asociados los participantes. La acción de formación puede asignarse ahora o más adelante, desde cada lead."
       >
-        <div className="grid sm:grid-cols-2">
+        <div
+          className={
+            "grid gap-x-7 gap-y-4 " +
+            (sedes.length > 1
+              ? "lg:grid-cols-[280px_minmax(0,1fr)_270px]"
+              : "lg:grid-cols-[280px_minmax(0,1fr)]")
+          }
+        >
           <Campo etiqueta="Convenio">
-            <select
-              className={CLASE_CONTROL}
-              value={convenioId}
-              onChange={(e) => {
-                setConvenioId(e.target.value);
+            <Desplegable
+              marcador="Seleccione un convenio"
+              valor={convenioId}
+              opciones={convenios.map((c) => ({
+                valor: c.id,
+                etiqueta: c.sigla ?? c.nombre,
+                detalle: c.sigla ? c.nombre : undefined,
+              }))}
+              alElegir={(v) => {
+                setConvenioId(v);
+                setAccionId("");
                 setOfertaId("");
                 setPrevia(null);
               }}
-            >
-              <option value="">Elija uno</option>
-              {convenios.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.sigla ?? c.nombre}
-                </option>
-              ))}
-            </select>
+            />
           </Campo>
 
           <Campo etiqueta="Acción de formación">
-            <select
-              className={CLASE_CONTROL}
-              value={ofertaId}
-              onChange={(e) => {
-                setOfertaId(e.target.value);
+            <Desplegable
+              marcador="Sin asignar por el momento"
+              valor={accionId}
+              desactivado={!convenioId}
+              opciones={[
+                { valor: "", etiqueta: "Sin asignar por el momento" },
+                ...acciones.map((a) => ({
+                  valor: a.id,
+                  etiqueta: a.etiqueta,
+                  detalle:
+                    a.sedes.length === 1
+                      ? `Grupo único · ${a.sedes[0].ubicacion} · ${a.sedes[0].disponibles} cupos`
+                      : `${a.sedes.length} grupos`,
+                })),
+              ]}
+              alElegir={(v) => {
+                setAccionId(v);
                 setPrevia(null);
               }}
-              disabled={!convenioId}
-            >
-              <option value="">Sin asignar por ahora</option>
-              {ofertas.map((o) => (
-                <option key={o.id} value={o.id}>
-                  {o.etiqueta} · {o.ubicacion} · {o.disponibles} libres
-                </option>
-              ))}
-            </select>
+            />
           </Campo>
+
+          {sedes.length > 1 && (
+            <Campo etiqueta="Grupo">
+              <Desplegable
+                marcador="Seleccione el grupo"
+                valor={ofertaId}
+                opciones={sedes.map((o) => ({
+                  valor: o.id,
+                  etiqueta: o.ubicacion,
+                  detalle: `${o.disponibles} cupos disponibles`,
+                }))}
+                alElegir={(v) => {
+                  setOfertaId(v);
+                  setPrevia(null);
+                }}
+              />
+            </Campo>
+          )}
         </div>
+
+        {accionId && sedes.length === 1 && (
+          <p className="mt-3 text-[0.78125rem] text-texto-suave">
+            Esta acción tiene un solo grupo, en {sedes[0].ubicacion}, con{" "}
+            {sedes[0].disponibles} cupos disponibles.
+          </p>
+        )}
       </Tarjeta>
 
       <Tarjeta
-        titulo="La lista"
-        descripcion="Suba el archivo o pegue las celdas. Van ocho columnas, en este orden, y si la primera fila son títulos se salta sola."
+        titulo="Paso 2 · Origen de los datos"
+        descripcion="Se admiten archivos .xlsx y .csv. Deben contener las ocho columnas indicadas, en ese orden; si la primera fila corresponde a los encabezados, se omite automáticamente."
       >
-        <div className="space-y-3">
-          <p className="rounded-md bg-superficie-alterna p-3 font-mono text-xs">
-            tipo · documento · primer nombre · segundo nombre · primer apellido ·
-            segundo apellido · correo · celular
-          </p>
+        <div className="space-y-4">
+          <div className="overflow-x-auto rounded-lg border border-borde bg-superficie-alterna px-4 py-3">
+            <p className="text-[0.78125rem] whitespace-nowrap text-texto-suave">
+              <span className="font-semibold text-titulo">Columnas requeridas:</span>{" "}
+              tipo de documento · número de documento · primer nombre · segundo nombre ·
+              primer apellido · segundo apellido · correo electrónico · teléfono celular
+            </p>
+          </div>
 
           <div
             onDragOver={(e) => {
@@ -200,7 +267,7 @@ export default function PaginaCarga() {
               void leerArchivo(e.dataTransfer.files?.[0]);
             }}
             className={
-              "flex flex-wrap items-center gap-3 rounded-lg border border-dashed px-4 py-3 transition " +
+              "flex flex-wrap items-center gap-x-4 gap-y-3 rounded-lg border border-dashed px-5 py-4 transition " +
               (encima ? "border-marca bg-marca-suave" : "border-campo-borde bg-campo-fondo")
             }
           >
@@ -218,62 +285,75 @@ export default function PaginaCarga() {
               type="button"
               disabled={ocupado}
               onClick={() => selector.current?.click()}
-              className="inline-flex h-[32px] items-center rounded-[9px] border border-campo-borde bg-superficie px-[13px] text-[0.78125rem] font-semibold text-titulo transition hover:border-marca disabled:opacity-50"
+              className="sin-aro inline-flex h-[32px] items-center rounded-[9px] bg-marca px-[13px] text-[0.78125rem] font-semibold whitespace-nowrap text-marca-texto transition hover:bg-marca-fuerte disabled:cursor-not-allowed disabled:bg-campo-borde disabled:text-texto-suave"
             >
-              {ocupado ? "Leyendo…" : "Elegir un archivo"}
+              {ocupado ? "Leyendo el archivo…" : "Seleccionar archivo"}
             </button>
-            <span className="text-xs text-texto-suave">
+
+            <a
+              href="/api/admin/participantes/carga/plantilla"
+              className="sin-aro inline-flex h-[32px] items-center rounded-[9px] border border-campo-borde bg-superficie px-[13px] text-[0.78125rem] font-semibold whitespace-nowrap text-titulo no-underline transition hover:border-marca"
+            >
+              Descargar plantilla
+            </a>
+
+            <span className="text-[0.78125rem] text-texto-suave">
               {deArchivo
-                ? `Se leyó ${deArchivo}. Revíselo abajo antes de continuar.`
-                : "Arrastre aquí el .xlsx o el .csv que le mandó la empresa, o péguelo abajo."}
+                ? `Archivo procesado: ${deArchivo}. Verifique el contenido antes de continuar.`
+                : "También puede arrastrar el archivo hasta aquí."}
             </span>
           </div>
 
-          <textarea
-            className={`${CLASE_CONTROL} min-h-56 font-mono text-sm`}
-            placeholder={
-              "CC\t1019456782\tLaura\tCamila\tGómez\tRojas\tlaura@empresa.com\t3001234567"
-            }
-            value={texto}
-            onChange={(e) => {
-              setTexto(e.target.value);
-              setDeArchivo(null);
-              setPrevia(null);
-            }}
-          />
+          <div className="space-y-2">
+            <p className="text-[0.78125rem] font-semibold text-titulo">
+              Datos por procesar
+            </p>
+            <textarea
+              className={`${CLASE_CONTROL} min-h-56 font-mono text-[0.78125rem] leading-relaxed`}
+              placeholder="Pegue aquí las celdas copiadas de la hoja de cálculo, o cargue el archivo con el botón de arriba."
+              value={texto}
+              onChange={(e) => {
+                setTexto(e.target.value);
+                setDeArchivo(null);
+                setPrevia(null);
+              }}
+            />
+          </div>
 
-          <Boton
-            disabled={!convenioId || !texto.trim() || ocupado}
-            onClick={() =>
-              conError(async () => {
-                setPrevia(
-                  (await (
-                    await fetch("/api/admin/participantes/carga/previsualizar", {
-                      method: "POST",
-                      headers: { "content-type": "application/json" },
-                      body: JSON.stringify({
-                        convenioId,
-                        ofertaId: ofertaId || undefined,
-                        texto,
-                      }),
-                    })
-                  ).json()) as Previa,
-                );
-              })
-            }
-          >
-            {ocupado ? "Revisando…" : "Ver qué va a pasar"}
-          </Boton>
+          <div className="pt-1">
+            <Boton
+              disabled={!convenioId || !texto.trim() || ocupado}
+              onClick={() =>
+                conError(async () => {
+                  setPrevia(
+                    (await (
+                      await fetch("/api/admin/participantes/carga/previsualizar", {
+                        method: "POST",
+                        headers: { "content-type": "application/json" },
+                        body: JSON.stringify({
+                          convenioId,
+                          ofertaId: ofertaId || undefined,
+                          texto,
+                        }),
+                      })
+                    ).json()) as Previa,
+                  );
+                })
+              }
+            >
+              {ocupado ? "Validando…" : "Validar registros"}
+            </Boton>
+          </div>
         </div>
       </Tarjeta>
 
       {previa && (
         <Tarjeta
-          titulo={`${previa.total} filas leídas`}
-          descripcion={`Se crearían ${previa.creables}. ${previa.conocidas} ya existen como persona, ${previa.repetidas} vienen repetidas y ${previa.descartadas} no se pueden crear.`}
+          titulo={`Paso 3 · Validación de ${previa.total} ${previa.total === 1 ? "registro" : "registros"}`}
+          descripcion={`${previa.creables} se importarán. ${previa.conocidas} corresponden a personas ya registradas, ${previa.repetidas} están duplicadas en el archivo y ${previa.descartadas} no cumplen los requisitos mínimos.`}
         >
-          <div className="space-y-4">
-            <div className="caja-scroll max-h-96 overflow-auto">
+          <div className="space-y-5">
+            <div className="caja-scroll max-h-96 overflow-auto rounded-lg border border-borde">
               <table className="tabla-datos">
                 <thead>
                   <tr>
@@ -281,25 +361,25 @@ export default function PaginaCarga() {
                     <th>Documento</th>
                     <th>Nombre</th>
                     <th>Contacto</th>
-                    <th>Qué pasa</th>
+                    <th>Resultado</th>
                   </tr>
                 </thead>
                 <tbody>
                   {previa.filas.map((f) => (
                     <tr key={f.linea}>
-                      <td>{f.linea}</td>
-                      <td className="font-mono text-sm">
+                      <td className="tabular-nums">{f.linea}</td>
+                      <td className="font-mono">
                         {f.sigla} {f.numeroDocumento || "—"}
                       </td>
                       <td>
                         {f.primerNombre} {f.primerApellido}
                       </td>
-                      <td className="text-sm">{f.correo ?? f.celular ?? "—"}</td>
+                      <td>{f.correo ?? f.celular ?? "—"}</td>
                       <td>
                         <p
                           className={
                             f.estado === "DESCARTADA" || f.estado === "REPETIDA"
-                              ? "font-medium text-error"
+                              ? "font-semibold text-error"
                               : ""
                           }
                         >
@@ -337,7 +417,7 @@ export default function PaginaCarga() {
                     };
                     if (res.fallos?.length) {
                       setError(
-                        `Se crearon ${res.creados}. Fallaron ${res.fallos.length}: ` +
+                        `Se importaron ${res.creados} registros. ${res.fallos.length} no se pudieron crear: ` +
                           res.fallos
                             .slice(0, 3)
                             .map((x) => `línea ${x.linea} (${x.motivo})`)
@@ -349,11 +429,14 @@ export default function PaginaCarga() {
                   })
                 }
               >
-                {ocupado ? "Creando…" : `Crear ${previa.creables} participantes`}
+                {ocupado
+                  ? "Importando…"
+                  : `Importar ${previa.creables} ${previa.creables === 1 ? "participante" : "participantes"}`}
               </Boton>
             ) : (
               <Aviso tipo="error">
-                Ninguna fila se puede crear. Corrija la lista y vuelva a pegarla.
+                Ningún registro del archivo cumple los requisitos mínimos. Corrija los
+                datos y vuelva a cargarlos.
               </Aviso>
             )}
           </div>

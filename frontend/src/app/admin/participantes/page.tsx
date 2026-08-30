@@ -340,7 +340,7 @@ function ListaParticipantes({
   const [aviso, setAviso] = useState<string | null>(null);
   /// El lead abierto en el panel lateral. Se guarda la fila
   /// entera y no el id: el panel pinta al instante con lo que
-  /// ya se trajo, y termina de llenarse cuando llega la ficha.
+  /// ya se trajo, y termina de llenarse cuando llega el lead.
   const [abierto, setAbierto] = useState<FilaParticipante | null>(null);
 
   const columnas = useMemo(() => columnasDeParticipante(), []);
@@ -393,7 +393,7 @@ function ListaParticipantes({
             asesores={asesores}
             alTerminar={async (n) => {
               limpiar();
-              setAviso(`${n} ${n === 1 ? "ficha" : "fichas"} con asesor nuevo.`);
+              setAviso(`${n} ${n === 1 ? "lead" : "leads"} con asesor nuevo.`);
               await alCambiar();
             }}
           />

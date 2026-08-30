@@ -12,11 +12,11 @@
 /// CLARA, no oscura, y con los campos SUBRAYADOS.
 ///
 /// Era una barra `var(--titulo)` con los cuatro valores metidos en
-/// cajas. Eso venía del handoff de la ficha, que es anterior;
+/// cajas. Eso venía del handoff de el lead, que es anterior;
 /// el rediseño premium la pone sobre `--superficie-alterna` y
 /// deja los valores con una sola raya debajo. La diferencia no
 /// es de gusto: una barra negra en medio de una pantalla clara
-/// parte la ficha en dos y hace que lo de abajo parezca otra
+/// parte el lead en dos y hace que lo de abajo parezca otra
 /// página. Con la raya sola sigue leyéndose que son campos y
 /// deja de competir con el contenido.
 ///
@@ -101,30 +101,30 @@ const D = {
 };
 
 export function BarraDeGestion({
-  ficha,
+  lead,
   opciones,
   puedeRepartir,
   alGuardar,
 }: {
-  ficha: Ficha;
+  lead: Ficha;
   opciones: Opciones | null;
-  /// Quien no reparte fichas ve de quién es, pero no la mueve.
+  /// Quien no reparte leads ve de quién es, pero no la mueve.
   puedeRepartir: boolean;
   alGuardar: (accion: () => Promise<void>, exito?: string) => Promise<void>;
 }) {
-  const [asesorId, setAsesorId] = useState(ficha.asesor?.id ?? "");
+  const [asesorId, setAsesorId] = useState(lead.asesor?.id ?? "");
   const [accionId, setAccionId] = useState<string | null>(null);
-  const [coberturaId, setCoberturaId] = useState(ficha.cobertura?.id ?? "");
+  const [coberturaId, setCoberturaId] = useState(lead.cobertura?.id ?? "");
   const [guardando, setGuardando] = useState(false);
 
   if (!opciones) return null;
 
   /// La acción guardada se DERIVA de la oferta que tiene la
-  /// ficha, no se copia en un efecto: así, cuando las opciones
+  /// lead, no se copia en un efecto: así, cuando las opciones
   /// llegan tarde, el desplegable ya sale con su valor puesto
   /// en vez de en blanco.
-  const guardada = ficha.oferta
-    ? (opciones.acciones.find((a) => a.ofertaId === ficha.oferta!.id)
+  const guardada = lead.oferta
+    ? (opciones.acciones.find((a) => a.ofertaId === lead.oferta!.id)
         ?.accionFormacionId ?? "")
     : "";
   const accionElegida = accionId ?? guardada;
@@ -140,10 +140,10 @@ export function BarraDeGestion({
       )
     : [];
 
-  const cambioAsesor = asesorId !== (ficha.asesor?.id ?? "");
+  const cambioAsesor = asesorId !== (lead.asesor?.id ?? "");
   const cambioAccion =
-    (accion?.ofertaId ?? "") !== (ficha.oferta?.id ?? "") ||
-    coberturaId !== (ficha.cobertura?.id ?? "");
+    (accion?.ofertaId ?? "") !== (lead.oferta?.id ?? "") ||
+    coberturaId !== (lead.cobertura?.id ?? "");
   const hayCambios = cambioAsesor || cambioAccion;
 
   /// Sin cobertura no se guarda nada: esa acción no llega al
@@ -152,7 +152,7 @@ export function BarraDeGestion({
   const bloqueado = accion !== undefined && !accion.cubre;
 
   function mover(destino: Etapa) {
-    if (destino === ficha.etapa) return;
+    if (destino === lead.etapa) return;
     let motivo: string | undefined;
     if (ETAPAS_SALIDA.includes(destino)) {
       const escrito = window.prompt(
@@ -163,7 +163,7 @@ export function BarraDeGestion({
     }
     void alGuardar(
       async () => {
-        await crmApi.cambiarEtapa(ficha.id, destino, motivo);
+        await crmApi.cambiarEtapa(lead.id, destino, motivo);
       },
       `Ahora está en «${ETIQUETA_ETAPA[destino]}».`,
     );
@@ -177,11 +177,11 @@ export function BarraDeGestion({
         /// si cambió. Mandar los dos siempre escribiría en el
         /// historial cambios que nadie hizo.
         if (cambioAsesor) {
-          await crmApi.actualizar(ficha.id, { asesorId: asesorId || null });
+          await crmApi.actualizar(lead.id, { asesorId: asesorId || null });
         }
         if (cambioAccion && accion?.ofertaId) {
           let motivo: string | undefined;
-          if (accion.disponibles === 0 && accion.ofertaId !== ficha.oferta?.id) {
+          if (accion.disponibles === 0 && accion.ofertaId !== lead.oferta?.id) {
             const escrito = window.prompt(
               `«${accion.etiqueta}» no tiene cupos libres. ` +
                 "¿Por qué se coloca por encima del cupo? Queda registrado a su nombre.",
@@ -190,7 +190,7 @@ export function BarraDeGestion({
             motivo = escrito.trim();
           }
           await crmApi.asignar(
-            ficha.id,
+            lead.id,
             accion.ofertaId,
             coberturaId || undefined,
             motivo,
@@ -205,9 +205,9 @@ export function BarraDeGestion({
   /// La etapa actual puede NO ser de las que se mueven a mano.
   /// Se añade como opción deshabilitada para que el desplegable
   /// diga la verdad en vez de enseñar la primera de la lista.
-  const etapas = ETAPAS_A_MANO.includes(ficha.etapa)
+  const etapas = ETAPAS_A_MANO.includes(lead.etapa)
     ? ETAPAS_A_MANO
-    : [ficha.etapa, ...ETAPAS_A_MANO];
+    : [lead.etapa, ...ETAPAS_A_MANO];
 
   return (
     <div style={D.barra}>
@@ -216,7 +216,7 @@ export function BarraDeGestion({
         <div style={D.envoltorio}>
         <select
           style={D.control}
-          value={ficha.etapa}
+          value={lead.etapa}
           onChange={(e) => mover(e.target.value as Etapa)}
         >
           {etapas.map((e) => (
@@ -249,7 +249,7 @@ export function BarraDeGestion({
           </div>
         ) : (
           <div style={{ ...D.control, cursor: "default" }}>
-            {ficha.asesor?.nombre ?? "Sin asignar"}
+            {lead.asesor?.nombre ?? "Sin asignar"}
           </div>
         )}
       </div>

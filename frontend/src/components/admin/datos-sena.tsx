@@ -17,7 +17,7 @@ import { crmApi, type CatalogosSep, type Ficha } from "@/lib/crm-api";
 type Campos = {
   /// La identidad. Sale del formulario corto y aqui no se
   /// veia: el asesor tenia que subir a la cabecera de la
-  /// ficha para leer un apellido, y no habia forma de
+  /// lead para leer un apellido, y no habia forma de
   /// corregirlo desde donde se corrige todo lo demas.
   primerNombre: string;
   segundoNombre: string;
@@ -97,19 +97,19 @@ function Grupo({
 }
 
 export function DatosSena({
-  ficha,
+  lead,
   alGuardar,
 }: {
-  ficha: Ficha;
+  lead: Ficha;
   alGuardar: (accion: () => Promise<void>) => Promise<void>;
 }) {
   const [catalogos, setCatalogos] = useState<CatalogosSep | null>(null);
-  const [c, setC] = useState<Campos>(() => desdeFicha(ficha));
+  const [c, setC] = useState<Campos>(() => desdeFicha(lead));
   const [guardando, setGuardando] = useState(false);
   /// Lectura por defecto, edicion a peticion.
   ///
   /// Los veinte campos salian SIEMPRE como cajas de input, y
-  /// eso convierte una ficha que se consulta cien veces al dia
+  /// eso convierte un lead que se consulta cien veces al dia
   /// en un formulario que parece a medio llenar. En lectura se
   /// leen como datos; el boton los abre cuando hay algo que
   /// corregir.
@@ -120,8 +120,8 @@ export function DatosSena({
   }, []);
 
   useEffect(() => {
-    setC(desdeFicha(ficha));
-  }, [ficha]);
+    setC(desdeFicha(lead));
+  }, [lead]);
 
   // los municipios del departamento elegido, y nada mas
   const municipios = useMemo(() => {
@@ -135,7 +135,7 @@ export function DatosSena({
   /// entero: enumerar campo por campo garantiza que el día
   /// que se agregue uno, alguien olvide añadirlo aquí.
   const hayCambios =
-    JSON.stringify(c) !== JSON.stringify(desdeFicha(ficha));
+    JSON.stringify(c) !== JSON.stringify(desdeFicha(lead));
 
   function poner<K extends keyof Campos>(clave: K, valor: Campos[K]) {
     setC((v) => ({ ...v, [clave]: valor }));
@@ -147,7 +147,7 @@ export function DatosSena({
     setGuardando(true);
     try {
       await alGuardar(async () => {
-        await crmApi.actualizar(ficha.id, {
+        await crmApi.actualizar(lead.id, {
           primerNombre: c.primerNombre.trim() || undefined,
           segundoNombre: c.segundoNombre.trim() || undefined,
           primerApellido: c.primerApellido.trim() || undefined,
@@ -176,11 +176,11 @@ export function DatosSena({
       /// El título dice en qué punto va, y por eso cambia.
       ///
       /// «Datos para el reporte» hablaba del SENA, que es lo
-      /// último que le importa a quien está mirando la ficha.
+      /// último que le importa a quien está mirando el lead.
       /// Ahora nombra a la persona, y al pasar a inscrito el
       /// título cambia con ella: la transición se ve.
       titulo={
-        ficha.etapa === "INSCRITO" ? "Datos del inscrito" : "Datos del interesado"
+        lead.etapa === "INSCRITO" ? "Datos del inscrito" : "Datos del interesado"
       }
       /// FIJA, no plegable.
       ///
@@ -209,7 +209,7 @@ export function DatosSena({
               /// a lo guardado. Sin esto, cerrar la edicion
               /// dejaria a la vista valores que no estan en la
               /// base y nadie sabria cuales.
-              if (editando) setC(desdeFicha(ficha));
+              if (editando) setC(desdeFicha(lead));
               setEditando(!editando);
             }}
             className={
@@ -230,13 +230,13 @@ export function DatosSena({
               etiqueta="Tipo de documento"
               valor={
                 catalogos?.documentosPersona.find(
-                  (d) => d.id === ficha.persona.tipoDocumentoSepId,
-                )?.etiqueta ?? String(ficha.persona.tipoDocumentoSepId)
+                  (d) => d.id === lead.persona.tipoDocumentoSepId,
+                )?.etiqueta ?? String(lead.persona.tipoDocumentoSepId)
               }
             />
             <Leido
               etiqueta="Número de documento"
-              valor={ficha.persona.numeroDocumento}
+              valor={lead.persona.numeroDocumento}
             />
           </Grupo>
 
@@ -331,8 +331,8 @@ export function DatosSena({
               className={`${CLASE_CONTROL} opacity-70`}
               value={
                 catalogos?.documentosPersona.find(
-                  (d) => d.id === ficha.persona.tipoDocumentoSepId,
-                )?.etiqueta ?? String(ficha.persona.tipoDocumentoSepId)
+                  (d) => d.id === lead.persona.tipoDocumentoSepId,
+                )?.etiqueta ?? String(lead.persona.tipoDocumentoSepId)
               }
             />
           </Campo>
@@ -341,7 +341,7 @@ export function DatosSena({
             <input
               readOnly
               className={`${CLASE_CONTROL} font-mono opacity-70`}
-              value={ficha.persona.numeroDocumento}
+              value={lead.persona.numeroDocumento}
             />
           </Campo>
 

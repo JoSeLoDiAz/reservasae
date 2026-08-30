@@ -63,7 +63,7 @@ import {
 const fecha = (s: string) =>
   new Date(s).toLocaleString("es-CO", { dateStyle: "medium", timeStyle: "short" });
 
-/// Las cinco vistas de la ficha, en el orden en que se usan:
+/// Las cinco vistas de el lead, en el orden en que se usan:
 /// primero lo que se corrige todos los dias, al final lo que se
 /// consulta de tarde en tarde.
 const PESTANAS = [
@@ -85,7 +85,7 @@ const soloDia = (s: string) =>
  * La cabecera anterior apilaba tres renglones de texto gris
  * sin decir qué era cada uno: había que deducir que
  * «1010316499» era el documento y que «ADECOPRIA» era el
- * gremio. En una ficha que se abre cien veces al día, deducir
+ * gremio. En un lead que se abre cien veces al día, deducir
  * cuesta más que leer.
  */
 function Hecho({
@@ -178,9 +178,9 @@ export default function PaginaFicha() {
     !admin.permisos || alcanza(admin.permisos.inscripciones, "ESCRIBIR");
 
   const cargar = useCallback(async () => {
-    const ficha = await crmApi.obtener(id);
-    setF(ficha);
-    setOpciones(await crmApi.opciones(ficha.convenio.id, ficha.id));
+    const lead = await crmApi.obtener(id);
+    setF(lead);
+    setOpciones(await crmApi.opciones(lead.convenio.id, lead.id));
   }, [id]);
 
   useEffect(() => {
@@ -269,7 +269,7 @@ export default function PaginaFicha() {
           interrupción —alguien completó sus datos y hay que
           decidir— y dentro de una pestaña no se vería hasta que
           alguien entrara en ella. */}
-      <PropuestaDelInteresadoCard ficha={f} alGuardar={conError} />
+      <PropuestaDelInteresadoCard lead={f} alGuardar={conError} />
 
       {/* UNA SOLA TARJETA con todo dentro, en tres franjas: quién
           es, qué se le hace, y el expediente. Antes eran once
@@ -377,7 +377,7 @@ export default function PaginaFicha() {
             oscuro una barra casi negra se perdería contra el
             fondo. */}
         <BarraDeGestion
-          ficha={f}
+          lead={f}
           opciones={opciones}
           puedeRepartir={Boolean(admin.puede?.repartirFichas)}
           alGuardar={conError}
@@ -395,7 +395,7 @@ export default function PaginaFicha() {
         >
           <div style={{ flex: 1, minWidth: 520 }}>
             {/* Las pestañas cortan once tarjetas en cinco vistas.
-                El asesor abre la ficha para UNA cosa —corregir un
+                El asesor abre el lead para UNA cosa —corregir un
                 dato, mirar el historial— y antes tenía que recorrer
                 la página entera para dar con ella. */}
             {/* Texto subrayado, no un grupo de pildoras.
@@ -410,7 +410,7 @@ export default function PaginaFicha() {
                 pixel al activarse. */}
             <div
               role="tablist"
-              aria-label="Secciones de la ficha"
+              aria-label="Secciones de el lead"
               style={{
                 display: "flex",
                 gap: 24,
@@ -444,10 +444,10 @@ export default function PaginaFicha() {
               })}
             </div>
 
-            {pestana === "datos" && <DatosSena ficha={f} alGuardar={conError} />}
+            {pestana === "datos" && <DatosSena lead={f} alGuardar={conError} />}
 
             {pestana === "empresa" && (
-              <DatosDeLaEmpresa ficha={f} puedeEscribir={puedeEscribir} />
+              <DatosDeLaEmpresa lead={f} puedeEscribir={puedeEscribir} />
             )}
 
             {pestana === "notas" && (
@@ -826,7 +826,7 @@ export default function PaginaFicha() {
               >
                 {/* Sin icono.
                     El circulo negro con el rayo era el unico
-                    icono con fondo que quedaba en la ficha, y
+                    icono con fondo que quedaba en el lead, y
                     despues de quitar los cinco circulos verdes
                     se quedaba solo: un adorno que no distingue
                     nada, porque «Acciones» ya lo dice. */}
@@ -932,7 +932,7 @@ export default function PaginaFicha() {
                         dicte el documento por teléfono. Cada enlace es de un solo uso
                         y anula el anterior.
                       </div>
-                      <EnlaceCompletar ficha={f} />
+                      <EnlaceCompletar lead={f} />
                     </div>
                   </>
                 )}
@@ -944,7 +944,7 @@ export default function PaginaFicha() {
                   <div style={E.rotuloFila}>
                     <span style={E.rotulo}>VALIDACIÓN DEL NOMBRE</span>
                   </div>
-                  <ValidacionRui ficha={f} alGuardar={conError} />
+                  <ValidacionRui lead={f} alGuardar={conError} />
                 </div>
               </div>
             </div>
@@ -953,7 +953,7 @@ export default function PaginaFicha() {
       </section>
 
       {/* Los otros cursos de la MISMA persona, fuera de la
-          tarjeta: no son de esta ficha, son un puente a otras. */}
+          tarjeta: no son de este lead, son un puente a otras. */}
       {f.persona.participaciones.length > 0 && (
         <Tarjeta
           titulo="Otros cursos de esta persona"
@@ -1042,7 +1042,7 @@ function BloqueAccion({
   );
 }
 
-/// Una ficha de datos del panel: fondo suave y filas de
+/// Un lead de datos del panel: fondo suave y filas de
 /// clave a la izquierda, valor a la derecha.
 function FichaDeDatos({ filas }: { filas: Array<[string, React.ReactNode]> }) {
   return (
@@ -1060,7 +1060,7 @@ function FichaDeDatos({ filas }: { filas: Array<[string, React.ReactNode]> }) {
   );
 }
 
-/// Una ficha con rotulo encima, como «ULTIMO ENLACE GENERADO».
+/// Un lead con rotulo encima, como «ULTIMO ENLACE GENERADO».
 function FichaConRotulo({
   rotulo,
   filas,
@@ -1225,28 +1225,28 @@ const ESTADO_ENLACE: Record<string, string> = {
 
 
 function MoverDeEtapa({
-  ficha,
+  lead,
   alGuardar,
 }: {
-  ficha: Ficha;
+  lead: Ficha;
   alGuardar: (accion: () => Promise<void>, exito?: string) => Promise<void>;
 }) {
   /// El desplegable NO se controla con estado propio.
   ///
-  /// Su valor es siempre `ficha.etapa`. Así, si el cambio
+  /// Su valor es siempre `lead.etapa`. Así, si el cambio
   /// falla —o lo cancelan en el prompt del motivo— el
   /// desplegable vuelve solo a lo que de verdad hay guardado.
   /// Con estado propio se quedaría enseñando una etapa que no
   /// se llegó a grabar, que es la peor forma de mentir: la
   /// silenciosa.
   function mover(destino: Etapa) {
-    if (destino === ficha.etapa) return;
+    if (destino === lead.etapa) return;
 
     let motivo: string | undefined;
     if (ETAPAS_SALIDA.includes(destino)) {
       /// Las etapas de salida piden motivo SIEMPRE. Sacar a
       /// alguien de una convocatoria sin decir por qué deja
-      /// una ficha que nadie sabe leer seis meses después.
+      /// un lead que nadie sabe leer seis meses después.
       const escrito = window.prompt(
         `¿Por qué pasa a «${ETIQUETA_ETAPA[destino]}»? Es obligatorio.`,
       );
@@ -1256,14 +1256,14 @@ function MoverDeEtapa({
 
     void alGuardar(
       async () => {
-        await crmApi.cambiarEtapa(ficha.id, destino, motivo);
+        await crmApi.cambiarEtapa(lead.id, destino, motivo);
       },
       `Ahora está en «${ETIQUETA_ETAPA[destino]}».`,
     );
   }
 
   /// La etapa de ahora puede NO ser de las que se mueven a
-  /// mano: `ETAPAS_A_MANO` son cuatro, y una ficha puede estar
+  /// mano: `ETAPAS_A_MANO` son cuatro, y un lead puede estar
   /// en «En formación» o «Certificado», que las pone el
   /// sistema.
   ///
@@ -1274,9 +1274,9 @@ function MoverDeEtapa({
   /// certificado. Por eso la etapa actual se añade como opción
   /// deshabilitada cuando no está en la lista: se ve la
   /// verdad, y no se puede volver a ella por error.
-  const aMano = ETAPAS_A_MANO.includes(ficha.etapa)
+  const aMano = ETAPAS_A_MANO.includes(lead.etapa)
     ? ETAPAS_A_MANO
-    : [ficha.etapa, ...ETAPAS_A_MANO];
+    : [lead.etapa, ...ETAPAS_A_MANO];
 
   return (
     /// Sin texto de ayuda debajo.
@@ -1295,11 +1295,11 @@ function MoverDeEtapa({
         <select
           className={CLASE_CONTROL}
           title={
-            !ETAPAS_A_MANO.includes(ficha.etapa)
-              ? `«${ETIQUETA_ETAPA[ficha.etapa]}» la pone el sistema: se puede salir de ella, pero no volver.`
+            !ETAPAS_A_MANO.includes(lead.etapa)
+              ? `«${ETIQUETA_ETAPA[lead.etapa]}» la pone el sistema: se puede salir de ella, pero no volver.`
               : undefined
           }
-          value={ficha.etapa}
+          value={lead.etapa}
           onChange={(e) => mover(e.target.value as Etapa)}
         >
           {aMano.map((e) => (
@@ -1318,11 +1318,11 @@ function MoverDeEtapa({
 }
 
 function Asignacion({
-  ficha,
+  lead,
   opciones,
   alGuardar,
 }: {
-  ficha: Ficha;
+  lead: Ficha;
   opciones: Opciones | null;
   alGuardar: (a: () => Promise<void>, exito?: string) => Promise<void>;
 }) {
@@ -1334,16 +1334,16 @@ function Asignacion({
   /// suya, y pedirsela era lo que hacia que AF1 saliera seis
   /// veces en la lista.
   /// `null` mientras nadie ha tocado nada, y entonces manda lo
-  /// que ya tiene la ficha. Se deriva en vez de copiarse en un
+  /// que ya tiene el lead. Se deriva en vez de copiarse en un
   /// efecto: asi, cuando llegan las opciones tarde, la lista
   /// aparece con su valor ya puesto y no en blanco.
   const [elegida, setElegida] = useState<string | null>(null);
-  const [coberturaId, setCoberturaId] = useState(ficha.cobertura?.id ?? "");
+  const [coberturaId, setCoberturaId] = useState(lead.cobertura?.id ?? "");
 
   if (!opciones) return null;
 
-  const guardada = ficha.oferta
-    ? (opciones.acciones.find((a) => a.ofertaId === ficha.oferta!.id)
+  const guardada = lead.oferta
+    ? (opciones.acciones.find((a) => a.ofertaId === lead.oferta!.id)
         ?.accionFormacionId ?? "")
     : "";
   const accionId = elegida ?? guardada;
@@ -1378,7 +1378,7 @@ function Asignacion({
   /// todas esas ofertas comparten el mismo id de acción. Así
   /// que elegir «AF1 · BOGOTÁ D.C» sacaba también los grupos
   /// de Antioquia, Cauca, Córdoba, Huila y Santander — y se
-  /// podía guardar una ficha con la oferta de Bogotá y un
+  /// podía guardar un lead con la oferta de Bogotá y un
   /// grupo de Santander, que no significa nada.
   ///
   /// Los VIRTUALES se quedan siempre: no se dictan en ningún
@@ -1469,7 +1469,7 @@ function Asignacion({
           /// hay grupo que ofrecerle y no se le puede
           /// inscribir. Lo que sí hay es algo que hacer: darle
           /// las gracias. Decirlo aquí es lo que evita que la
-          /// ficha se quede colgada esperando un cupo que no va
+          /// lead se quede colgada esperando un cupo que no va
           /// a existir.
           <p className="grow text-sm text-aviso">
             No hay cobertura en {donde}. No se puede inscribir:
@@ -1507,19 +1507,19 @@ function Asignacion({
           /// en el servidor —`asignar` la comprueba—, y esto es
           /// solo para no ofrecer un botón que va a fallar.
           title={
-            ficha.sobrecupoMotivo
-              ? `Sobrecupo autorizado${ficha.sobrecupoPor ? ` por ${ficha.sobrecupoPor.nombre}` : ""}: ${ficha.sobrecupoMotivo}`
+            lead.sobrecupoMotivo
+              ? `Sobrecupo autorizado${lead.sobrecupoPor ? ` por ${lead.sobrecupoPor.nombre}` : ""}: ${lead.sobrecupoMotivo}`
               : undefined
           }
           disabled={
             !ofertaId ||
             accion?.cubre === false ||
-            (ofertaId === ficha.oferta?.id &&
-              coberturaId === (ficha.cobertura?.id ?? ""))
+            (ofertaId === lead.oferta?.id &&
+              coberturaId === (lead.cobertura?.id ?? ""))
           }
           onClick={() => {
             let motivo: string | undefined;
-            if (oferta && oferta.disponibles === 0 && ofertaId !== ficha.oferta?.id) {
+            if (oferta && oferta.disponibles === 0 && ofertaId !== lead.oferta?.id) {
               const escrito = window.prompt(
                 `«${oferta.etiqueta}» no tiene cupos libres. ` +
                   "¿Por qué se coloca por encima del cupo? Queda registrado a su nombre.",
@@ -1529,7 +1529,7 @@ function Asignacion({
             }
             void alGuardar(
               async () => {
-                await crmApi.asignar(ficha.id, ofertaId, coberturaId || undefined, motivo);
+                await crmApi.asignar(lead.id, ofertaId, coberturaId || undefined, motivo);
               },
               "Asignación guardada.",
             );
@@ -1594,7 +1594,7 @@ function Revocar({
           </select>
         </Campo>
 
-        <Campo etiqueta="Qué dijo" ayuda="Queda en el historial de la ficha.">
+        <Campo etiqueta="Qué dijo" ayuda="Queda en el historial de el lead.">
           <input
             className={CLASE_CONTROL}
             value={motivo}
@@ -1642,7 +1642,7 @@ function RegistrarAutorizacion({
       {/* Punto y texto, no una caja rosa.
           `Aviso` pinta un recuadro con borde y radio, y aqui va
           dentro de un panel de 370px: el recuadro dentro del
-          panel dentro de la ficha son tres marcos anidados. */}
+          panel dentro de el lead son tres marcos anidados. */}
       <p className="flex items-baseline gap-2.5 text-[0.78125rem] leading-relaxed text-texto">
         <span
           aria-hidden
@@ -1699,13 +1699,13 @@ function RegistrarAutorizacion({
 /** Quién lleva este lead. Sin dueño, nadie llama. */
 /// Lo que devolvio el RUI contra lo que tecleo la persona.
 /// Se refresca solo mientras espera y para cuando resuelve:
-/// el asesor no recarga ni cuenta segundos, y una ficha ya
+/// el asesor no recarga ni cuenta segundos, y un lead ya
 /// resuelta no sigue preguntando cada tres segundos.
 function ValidacionRui({
-  ficha,
+  lead,
   alGuardar,
 }: {
-  ficha: Ficha;
+  lead: Ficha;
   alGuardar: (accion: () => Promise<void>, exito?: string) => Promise<void>;
 }) {
   const [pidiendo, setPidiendo] = useState(false);
@@ -1713,10 +1713,10 @@ function ValidacionRui({
   /// Dijo «No»: se queda con el que digitó y la pregunta
   /// deja de estorbar. No se guarda nada -- no hay nada que
   /// cambiar -- pero tampoco se le vuelve a preguntar cada
-  /// vez que abre la ficha.
+  /// vez que abre el lead.
   const [decidido, setDecidido] = useState(false);
 
-  const traer = useCallback(() => crmApi.estadoRui(ficha.id), [ficha.id]);
+  const traer = useCallback(() => crmApi.estadoRui(lead.id), [lead.id]);
   const { datos: rui, refrescar } = useDatosVivos<ConsultaRui>(traer, {
     intervaloMs: 3000,
     activo: true,
@@ -1760,7 +1760,7 @@ function ValidacionRui({
             <p className="mt-1">
               Lo que aparece abajo lo generó un simulador, no la Ventanilla
               Social. No sirve para decidir nada, y por eso no se ofrece dejar
-              este nombre en la ficha.
+              este nombre en el lead.
             </p>
             {/* El motivo lo manda el servidor. Aquí estaba escrito
                 a mano —«se enciende con RUI_PROVEEDOR=VENTANILLA»—
@@ -1802,7 +1802,7 @@ function ValidacionRui({
             onClick={() => {
               setPidiendo(true);
               void crmApi
-                .reconsultarRui(ficha.id)
+                .reconsultarRui(lead.id)
                 .catch(() => undefined)
                 .finally(() => {
                   setPidiendo(false);
@@ -1842,7 +1842,7 @@ function ValidacionRui({
               inscribir.
             </p>
 
-            {/* La decisión, con un botón. Antes la ficha
+            {/* La decisión, con un botón. Antes el lead
                 enseñaba la diferencia y ahí lo dejaba: el
                 asesor tenía que ir a teclear el nombre bueno
                 a mano, campo por campo, mirándolo aquí.
@@ -1864,7 +1864,7 @@ function ValidacionRui({
                 onClick={() => {
                   setTomando(true);
                   void crmApi
-                    .tomarNombreDelRui(ficha.id)
+                    .tomarNombreDelRui(lead.id)
                     .then(() =>
                       alGuardar(async () => undefined, "Se dejó el nombre del RUI."),
                     )
@@ -1899,16 +1899,16 @@ function ValidacionRui({
 
 
 /// Lo que mando el interesado por su enlace cuando el asesor
-/// ya habia tocado la ficha. No se pisa nada solo: el asesor
+/// ya habia tocado el lead. No se pisa nada solo: el asesor
 /// ve las dos versiones y elige cuales entran.
 function PropuestaDelInteresadoCard({
-  ficha,
+  lead,
   alGuardar,
 }: {
-  ficha: Ficha;
+  lead: Ficha;
   alGuardar: (accion: () => Promise<void>, exito?: string) => Promise<void>;
 }) {
-  const traer = useCallback(() => crmApi.propuesta(ficha.id), [ficha.id]);
+  const traer = useCallback(() => crmApi.propuesta(lead.id), [lead.id]);
   const { datos, refrescar } = useDatosVivos<PropuestaDelInteresado | null>(traer, {
     intervaloMs: 60_000,
   });
@@ -1927,7 +1927,7 @@ function PropuestaDelInteresadoCard({
       {/* Un aviso corto que ABRE la decision, no la decision
           entera metida entre otras diez tarjetas.
 
-          Antes esto era una tabla mas de la ficha, con scroll,
+          Antes esto era una tabla mas de el lead, con scroll,
           y se resolvia sin mirar. Es una decision sobre los
           datos de una persona: merece que uno se detenga. */}
       <div className="rounded-2xl border border-aviso/40 bg-aviso-suave p-5">
@@ -1937,7 +1937,7 @@ function PropuestaDelInteresadoCard({
               El interesado completó sus datos
             </p>
             <p className="mt-1 text-sm text-aviso">
-              Usted ya había tocado esta ficha, así que nada se sobrescribió.{" "}
+              Usted ya había tocado este lead, así que nada se sobrescribió.{" "}
               {propuesta.campos.length}{" "}
               {propuesta.campos.length === 1 ? "dato espera" : "datos esperan"} su
               decisión.
@@ -1956,7 +1956,7 @@ function PropuestaDelInteresadoCard({
           alCerrar={() => setAbierto(false)}
           alResolver={async (campos) => {
             await alGuardar(async () => {
-              await crmApi.resolverPropuesta(ficha.id, campos);
+              await crmApi.resolverPropuesta(lead.id, campos);
               refrescar();
             }, campos.length === 0
               ? "No se cambió ningún dato."
@@ -1969,38 +1969,38 @@ function PropuestaDelInteresadoCard({
 }
 
 function Asesor({
-  ficha,
+  lead,
   opciones,
   alGuardar,
 }: {
-  ficha: Ficha;
+  lead: Ficha;
   opciones: Opciones | null;
   alGuardar: (a: () => Promise<void>, exito?: string) => Promise<void>;
 }) {
   const { admin } = useAdmin();
-  const [asesorId, setAsesorId] = useState(ficha.asesor?.id ?? "");
+  const [asesorId, setAsesorId] = useState(lead.asesor?.id ?? "");
   const [guardando, setGuardando] = useState(false);
   if (!opciones) return null;
 
-  /// A quien NO reparte fichas no se le enseña esta tarjeta.
+  /// A quien NO reparte leads no se le enseña esta tarjeta.
   ///
   /// Un gestor de inscripciones ES un asesor: las suyas las
   /// trabaja, no las reparte. Enseñarle un desplegable que el
   /// servidor va a rechazar es ofrecerle un error.
   ///
-  /// Pero se le dice de quién es la ficha, porque eso sí le
+  /// Pero se le dice de quién es el lead, porque eso sí le
   /// sirve: es la diferencia entre esconder y ocultar.
   if (!admin.puede?.repartirFichas) {
-    return ficha.asesor ? (
+    return lead.asesor ? (
       <Control etiqueta="Asesor" ancho="xl:col-span-3">
-        <p className="text-sm" title="Repartir fichas lo hace un líder.">
-          {ficha.asesor.nombre}
+        <p className="text-sm" title="Repartir leads lo hace un líder.">
+          {lead.asesor.nombre}
         </p>
       </Control>
     ) : null;
   }
 
-  const cambiado = asesorId !== (ficha.asesor?.id ?? "");
+  const cambiado = asesorId !== (lead.asesor?.id ?? "");
 
   return (
     <Control etiqueta="Asesor" ancho="xl:col-span-3">
@@ -2027,7 +2027,7 @@ function Asesor({
             setGuardando(true);
             await alGuardar(
               async () => {
-                await crmApi.actualizar(ficha.id, { asesorId: asesorId || null });
+                await crmApi.actualizar(lead.id, { asesorId: asesorId || null });
               },
               asesorId ? "Asesor asignado." : "Se quitó el asesor.",
             );
@@ -2044,7 +2044,7 @@ function Asesor({
 /**
  * Los datos de su organización, los trece.
  *
- * El formulario largo se los pregunta a la persona y la ficha
+ * El formulario largo se los pregunta a la persona y el lead
  * no enseñaba ninguno: el asesor veía «le falta la empresa»
  * sin poder mirar qué había contestado ya. Aquí están todos,
  * incluidos los que llegan vacíos -- ver el hueco es la mitad
@@ -2055,14 +2055,14 @@ function Asesor({
  * garantizar que un día no coincidan.
  */
 function DatosDeLaEmpresa({
-  ficha,
+  lead,
   puedeEscribir,
 }: {
-  ficha: Ficha;
+  lead: Ficha;
   puedeEscribir: boolean;
 }) {
-  const e = ficha.empresa;
-  const fichaId = ficha.id;
+  const e = lead.empresa;
+  const fichaId = lead.id;
 
   if (!e) {
     return (
@@ -2078,7 +2078,7 @@ function DatosDeLaEmpresa({
   /// pedírselos es pedirle que se invente a alguien. Tampoco
   /// se crea en Empresas registradas: ahí van organizaciones,
   /// y esto es una persona.
-  const porSuCuenta = ficha.trabajaPorSuCuenta;
+  const porSuCuenta = lead.trabajaPorSuCuenta;
 
   /// Del independiente, su casa y su celular.
   ///
@@ -2091,8 +2091,8 @@ function DatosDeLaEmpresa({
     ? [
         ["RUT (su cédula)", e.nit],
         ["A nombre de", e.razonSocial],
-        ["Dirección", e.direccion ?? ficha.persona.direccion],
-        ["Teléfono", e.telefono ?? ficha.persona.celular],
+        ["Dirección", e.direccion ?? lead.persona.direccion],
+        ["Teléfono", e.telefono ?? lead.persona.celular],
         ["Sector económico", e.sectorEconomico],
       ]
     : [
@@ -2164,7 +2164,7 @@ function DatosDeLaEmpresa({
         /// Sin encabezado y sin explicación.
         ///
         /// Aquí decía «Lo que usted puede preguntarle — se los
-        /// sabe el empleado». Sobra: quien abre esta ficha ya
+        /// sabe el empleado». Sobra: quien abre este lead ya
         /// sabe qué le toca a él y qué al analista, y un
         /// párrafo que se lo recuerda cada vez es ruido que
         /// tapa los datos. Una línea separa y basta.
@@ -2248,7 +2248,7 @@ async function copiarTexto(texto: string) {
 
 /**
  * El enlace de un solo uso para que la persona llene su propia
- * ficha. Sin esto solo lo tiene quien se autoinscribió: a los
+ * lead. Sin esto solo lo tiene quien se autoinscribió: a los
  * leads creados a mano o venidos de una reserva no había forma
  * de mandárselo.
  */
@@ -2256,20 +2256,20 @@ async function copiarTexto(texto: string) {
  * Que le va a pedir el enlace, hoy.
  *
  * La empresa va primero porque el formulario largo la pide
- * primero, y porque sin ella su ficha no entra en el F7 por
+ * primero, y porque sin ella su lead no entra en el F7 por
  * mas completo que este lo suyo. Si no falta nada, se dice:
  * mandar un enlace que no pide nada solo confunde.
  */
-function LoQuePedira({ ficha }: { ficha: Ficha }) {
-  const empresa = ficha.faltaDeLaEmpresa;
-  const persona = ficha.faltaDeLaPersona;
+function LoQuePedira({ lead }: { lead: Ficha }) {
+  const empresa = lead.faltaDeLaEmpresa;
+  const persona = lead.faltaDeLaPersona;
 
   if (empresa.length === 0 && persona.length === 0) {
     return (
       <div className="rounded-xl border border-exito/30 bg-exito-suave p-4 text-sm text-exito">
         <p className="font-medium">No le falta nada</p>
         <p className="mt-1">
-          Su ficha y la de su organización están completas. El enlace no le va a
+          Su lead y la de su organización están completas. El enlace no le va a
           preguntar nada.
         </p>
       </div>
@@ -2347,25 +2347,25 @@ function EstadoDelEnlace({ estado }: { estado: Ficha["enlace"] }) {
   );
 }
 
-function EnlaceCompletar({ ficha }: { ficha: Ficha }) {
+function EnlaceCompletar({ lead }: { lead: Ficha }) {
   const toast = useToast();
   const [enlace, setEnlace] = useState<{ url: string } | null>(null);
   const [emitiendo, setEmitiendo] = useState(false);
   const [copiado, setCopiado] = useState(false);
 
   /// Cuántos datos le va a pedir. Es el mismo número que sale
-  /// en la ficha de abajo y el que decide si hay enlace que
+  /// en el lead de abajo y el que decide si hay enlace que
   /// generar, así que se cuenta una vez.
   const pendientes =
-    ficha.faltaDeLaEmpresa.length + ficha.faltaDeLaPersona.length;
+    lead.faltaDeLaEmpresa.length + lead.faltaDeLaPersona.length;
 
   // autoinscrito: ya tuvo uno
-  const yaHubo = enlace !== null || ficha.origen === "AUTOGESTION";
+  const yaHubo = enlace !== null || lead.origen === "AUTOGESTION";
 
   async function generar() {
     setEmitiendo(true);
     try {
-      const { token } = await crmApi.emitirEnlace(ficha.id);
+      const { token } = await crmApi.emitirEnlace(lead.id);
       setEnlace({ url: `${window.location.origin}/completar/${token}` });
       setCopiado(false);
       toast.exito(
@@ -2459,7 +2459,7 @@ function EnlaceCompletar({ ficha }: { ficha: Ficha }) {
 
       {/* LA FICHA DEL ÚLTIMO ENLACE, tal como el diseño:
           rótulo pequeño arriba y cuatro filas clave/valor. */}
-      {ficha.enlace && (
+      {lead.enlace && (
         <div style={{ ...E.ficha, marginTop: 10 }}>
           <div
             style={{
@@ -2472,10 +2472,10 @@ function EnlaceCompletar({ ficha }: { ficha: Ficha }) {
           >
             ÚLTIMO ENLACE GENERADO
           </div>
-          <FilaFicha clave="Estado" valor={ESTADO_ENLACE[ficha.enlace.estado]} />
+          <FilaFicha clave="Estado" valor={ESTADO_ENLACE[lead.enlace.estado]} />
           <FilaFicha clave="Datos pendientes" valor={String(pendientes)} />
-          <FilaFicha clave="Generado" valor={fecha(ficha.enlace.creadoEn)} />
-          <FilaFicha clave="Por" valor={ficha.enlace.emitidoPor ?? "—"} />
+          <FilaFicha clave="Generado" valor={fecha(lead.enlace.creadoEn)} />
+          <FilaFicha clave="Por" valor={lead.enlace.emitidoPor ?? "—"} />
         </div>
       )}
     </>
@@ -2514,7 +2514,7 @@ function Campos({ campos }: { campos: Array<[string, unknown]> }) {
 }
 
 /**
- * Los tres del jefe directo, escribibles desde la ficha.
+ * Los tres del jefe directo, escribibles desde el lead.
  *
  * Antes esta tarjeta era de solo lectura y decía «se corrigen
  * en Empresas registradas». Pero un gestor de inscripciones no

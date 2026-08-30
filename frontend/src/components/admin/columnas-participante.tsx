@@ -288,7 +288,7 @@ export function columnasDeParticipante(): Columna<FilaParticipante>[] {
     },
     {
       /// El de SIEMPRE y no el de desde el ultimo contacto, que
-      /// si da la ficha. Para lo que sirve la columna —a quien
+      /// si da el lead. Para lo que sirve la columna —a quien
       /// no se ha logrado contactar— las dos coinciden.
       clave: "sinRespuesta",
       ancho: "104px",

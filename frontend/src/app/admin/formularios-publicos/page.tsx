@@ -203,7 +203,7 @@ export default function FormulariosActivos() {
               <p>
                 Cada enlace de este formulario es{" "}
                 <strong>personal y de un solo uso</strong>: se emite desde la
-                ficha del lead, caduca, y el siguiente anula al anterior.
+                lead del lead, caduca, y el siguiente anula al anterior.
               </p>
               <p className="text-texto-suave">
                 Un QR pegado en una pared solo puede llevar a un sitio, y esta

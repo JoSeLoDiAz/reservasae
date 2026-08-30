@@ -171,7 +171,7 @@ export default function PaginaPlantillasCorreo() {
           <h1 className="text-[1.3125rem] font-bold tracking-[-0.02em] text-titulo">Plantillas de correo</h1>
           <p className="mt-1 max-w-3xl text-texto-suave">
             Se escriben una vez y se mandan muchas. Lo que cambia de una persona a
-            otra va entre llaves, y se llena solo con los datos de su ficha.
+            otra va entre llaves, y se llena solo con los datos de su lead.
           </p>
         </div>
         {editando === null && <Boton onClick={abrirNueva}>Nueva plantilla</Boton>}
@@ -340,7 +340,7 @@ export default function PaginaPlantillasCorreo() {
       {plantillas.length === 0 && editando === null && (
         <Tarjeta titulo="Todavía no hay ninguna">
           <p className="text-sm text-texto-suave">
-            Cree la primera con «Nueva plantilla». Después, en la ficha de un lead,
+            Cree la primera con «Nueva plantilla». Después, en el lead de un lead,
             aparece para escogerla.
           </p>
         </Tarjeta>

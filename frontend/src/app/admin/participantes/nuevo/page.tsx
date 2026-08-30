@@ -105,7 +105,7 @@ export default function PaginaNuevoParticipante() {
         </h1>
         <p className="mt-1 text-texto-suave">
           Con el documento y el nombre basta para empezar. La acción de formación y el
-          grupo se asignan después, desde su ficha.
+          grupo se asignan después, desde su lead.
         </p>
       </header>
 

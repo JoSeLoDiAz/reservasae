@@ -140,13 +140,13 @@ export function VistaPreviaCorreo({
       )}
 
       {/* Lo que aquí sale lleno puede llegar vacío a alguien:
-          el ejemplo tiene todos los datos y una ficha real no
+          el ejemplo tiene todos los datos y un lead real no
           siempre. Decirlo evita la sorpresa de que la campaña
           omita a media lista. */}
       {puestos.size > 0 && (
         <p className="text-xs text-texto-suave">
           Usa {puestos.size} {puestos.size === 1 ? "variable" : "variables"}. A
-          quien le falte alguna de esas en su ficha, no se le manda: sale en la
+          quien le falte alguna de esas en su lead, no se le manda: sale en la
           lista de omitidos con el motivo.
         </p>
       )}

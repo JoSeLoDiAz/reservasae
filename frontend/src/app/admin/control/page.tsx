@@ -403,8 +403,8 @@ function Cuerpo({ d, adminId, eligio }: { d: Control; adminId: string; eligio: b
   const inscritosSiempre = d.inscritosConReserva + d.inscritosPorSuCuenta;
   const leadsDelPeriodo = d.leadsPorDia.reduce((s, p) => s + p.total, 0);
 
-  // de toda ficha a inscrito
-  const fichas = d.conversionPorOrigen.reduce((s, o) => s + o.leads, 0);
+  // de toda lead a inscrito
+  const leads = d.conversionPorOrigen.reduce((s, o) => s + o.leads, 0);
   const convertidas = d.conversionPorOrigen.reduce((s, o) => s + o.inscritos, 0);
   const cobertura = d.cuposConfirmados > 0 ? d.inscritosConReserva / d.cuposConfirmados : 0;
 
@@ -416,7 +416,7 @@ function Cuerpo({ d, adminId, eligio }: { d: Control; adminId: string; eligio: b
     return b.conversion - a.conversion;
   });
   const mio = d.porAsesor.find((a) => a.asesorId === adminId) ?? null;
-  const fichasRepartidas = d.porAsesor.reduce((s, a) => s + a.asignados, 0);
+  const leadsRepartidos = d.porAsesor.reduce((s, a) => s + a.asignados, 0);
 
   const conOrigen = d.porOrigen.reduce((s, o) => s + o.total, 0);
   const conModalidad = d.porModalidad.reduce((s, m) => s + m.total, 0);
@@ -427,7 +427,7 @@ function Cuerpo({ d, adminId, eligio }: { d: Control; adminId: string; eligio: b
       <section className="grid lg:grid-cols-3">
         <Tarjeta
           titulo="Leads sin asesor"
-          descripcion="Fichas por trabajar que no son de nadie. No lleva periodo: es una cola, no un hecho fechado."
+          descripcion="Leads por trabajar que no son de nadie. No lleva periodo: es una cola, no un hecho fechado."
         >
           <p
             className={`text-5xl font-semibold tabular-nums ${
@@ -439,7 +439,7 @@ function Cuerpo({ d, adminId, eligio }: { d: Control; adminId: string; eligio: b
           <p className="mt-2 text-xs text-texto-suave">
             {d.sinAsignar > 0
               ? "Nadie las está llamando: repartirlas es el primer trabajo del día."
-              : "Todas las fichas por trabajar tienen dueño."}
+              : "Todos los leads por trabajar tienen dueño."}
           </p>
           <Link
             href="/admin/participantes"
@@ -452,7 +452,7 @@ function Cuerpo({ d, adminId, eligio }: { d: Control; adminId: string; eligio: b
         <div className="lg:col-span-2">
           <Tarjeta
             titulo="Cuánto llevan esperando sin que los llamen"
-            descripcion="Solo quien sigue en «Interesado», por su fecha de llegada: en cuanto alguien lo llama la ficha pasa a «Contactado» y sale de aquí. Tampoco lleva periodo, porque recortarla la dejaría vacía justo cuando más larga está."
+            descripcion="Solo quien sigue en «Interesado», por su fecha de llegada: en cuanto alguien lo llama el lead pasa a «Contactado» y sale de aquí. Tampoco lleva periodo, porque recortarla la dejaría vacía justo cuando más larga está."
           >
             <Termometro tramos={tramos} vacio="No hay nadie esperando a que lo llamen." />
             <p className="mt-4 border-t border-borde pt-3 text-xs text-texto-suave">
@@ -482,7 +482,7 @@ function Cuerpo({ d, adminId, eligio }: { d: Control; adminId: string; eligio: b
         <TarjetaCifra
           titulo="Leads que llegaron"
           valor={leadsDelPeriodo}
-          detalle={`fichas nuevas ${alcanceSerie}, en cualquier etapa`}
+          detalle={`leads nuevos ${alcanceSerie}, en cualquier etapa`}
           chispa={d.leadsPorDia.length > 1 ? d.leadsPorDia.map((p) => p.total) : undefined}
         />
         <TarjetaCifra
@@ -527,8 +527,8 @@ function Cuerpo({ d, adminId, eligio }: { d: Control; adminId: string; eligio: b
           <Tasa
             titulo="Conversión global"
             parte={convertidas}
-            total={fichas}
-            detalle="fichas que llegaron a inscrito"
+            total={leads}
+            detalle="leads que llegaron a inscrito"
           />
           <Tasa
             titulo="Llegaron por su cuenta"
@@ -632,7 +632,7 @@ function Cuerpo({ d, adminId, eligio }: { d: Control; adminId: string; eligio: b
 
         <Tarjeta
           titulo="De dónde vienen: calidad"
-          descripcion="Cuánto convierte cada puerta, sobre todas sus fichas y sin periodo. No es lo mismo que el volumen: una pauta puede traer trescientos leads y convertir el 2 %."
+          descripcion="Cuánto convierte cada puerta, sobre todos sus leads y sin periodo. No es lo mismo que el volumen: una pauta puede traer trescientos leads y convertir el 2 %."
         >
           <BarrasApiladas
             filas={d.conversionPorOrigen.map((o) => ({
@@ -644,7 +644,7 @@ function Cuerpo({ d, adminId, eligio }: { d: Control; adminId: string; eligio: b
               { nombre: "Llegaron a inscrito", color: SERIE.uno },
               { nombre: "Todavía no", color: SERIE.dos },
             ]}
-            vacio="Todavía no hay fichas."
+            vacio="Todavía no hay leads."
           />
         </Tarjeta>
       </section>
@@ -652,13 +652,13 @@ function Cuerpo({ d, adminId, eligio }: { d: Control; adminId: string; eligio: b
       {/* los asesores */}
       <Tarjeta
         titulo="Por asesor"
-        descripcion="Ordenada por conversión, que es HISTÓRICA: todos los que llegó a inscribir sobre todas sus fichas, sin periodo. Así se lee quién convierte mejor —quien lleva 200 y convierte el 5 % lo hace peor que quien lleva 20 y convierte el 40 %— y no a quién le entró una inscripción esta mañana."
+        descripcion="Ordenada por conversión, que es HISTÓRICA: todos los que llegó a inscribir sobre todos sus leads, sin periodo. Así se lee quién convierte mejor —quien lleva 200 y convierte el 5 % lo hace peor que quien lleva 20 y convierte el 40 %— y no a quién le entró una inscripción esta mañana."
       >
         {mio && (
           <p className="mb-4 rounded-xl bg-marca-suave px-3 py-2 text-sm">
             <strong className="font-semibold">Tuyos:</strong>{" "}
             <span className="tabular-nums">{n(mio.asignados)}</span> de{" "}
-            <span className="tabular-nums">{n(fichasRepartidas)}</span> fichas ·{" "}
+            <span className="tabular-nums">{n(leadsRepartidos)}</span> leads ·{" "}
             <span className="tabular-nums">{n(mio.total)}</span> de{" "}
             <span className="tabular-nums">{n(d.total)}</span> inscritos del periodo · tu
             conversión histórica es del{" "}
@@ -676,7 +676,7 @@ function Cuerpo({ d, adminId, eligio }: { d: Control; adminId: string; eligio: b
               <thead>
                 <tr>
                   <th>Asesor</th>
-                  <th>Fichas</th>
+                  <th>Leads</th>
                   <th>Inscritos siempre</th>
                   <th>Conversión</th>
                   <th>En el periodo</th>

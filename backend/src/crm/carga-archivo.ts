@@ -62,3 +62,38 @@ export async function textoDelArchivo(datos: Buffer, nombre: string): Promise<st
 
   return lineas.join('\n');
 }
+
+/// Las ocho columnas, en su orden. Es lo mismo que lee
+/// `previsualizarCarga`: si la plantilla y el lector discrepan,
+/// la plantilla ensena a equivocarse.
+export const COLUMNAS_DE_CARGA = [
+  'Tipo de documento',
+  'Numero de documento',
+  'Primer nombre',
+  'Segundo nombre',
+  'Primer apellido',
+  'Segundo apellido',
+  'Correo electronico',
+  'Telefono celular',
+] as const;
+
+/** La plantilla vacia que se descarga, con una fila de ejemplo. */
+export async function libroDePlantilla(): Promise<Buffer> {
+  const libro = new ExcelJS.Workbook();
+  const hoja = libro.addWorksheet('Participantes');
+
+  hoja.addRow([...COLUMNAS_DE_CARGA]);
+  hoja.getRow(1).font = { bold: true };
+  hoja.addRow([
+    'CC', '1019456782', 'Laura', 'Camila', 'Gomez', 'Rojas',
+    'laura@empresa.com', '3001234567',
+  ]);
+  hoja.columns.forEach((c) => {
+    c.width = 22;
+  });
+  // el documento es texto: como numero, Excel se come los ceros
+  // de la izquierda y parte las cedulas largas
+  hoja.getColumn(2).numFmt = '@';
+
+  return Buffer.from(await libro.xlsx.writeBuffer());
+}

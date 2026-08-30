@@ -9,7 +9,7 @@
 ///   misma para todo el mundo, y se puede repartir en un QR.
 ///
 ///   El LARGO es personal. Cada enlace se emite desde la
-///   ficha de un lead, es de un solo uso y caduca. NO tiene
+///   lead de un lead, es de un solo uso y caduca. NO tiene
 ///   QR, y ofrecerlo seria mentir: un QR pegado en una pared
 ///   solo puede llevar a un sitio, y este cambia por persona.
 

@@ -190,14 +190,14 @@ export function EnviarCorreo({ participanteId }: { participanteId: string }) {
               </p>
               <p className="mt-1">
                 {vista.faltantes.map((f) => `{{${f}}}`).join(", ")}. Se ven abajo,
-                tal cual. Complételos en la ficha, o escoja otra plantilla.
+                tal cual. Complételos en el lead, o escoja otra plantilla.
               </p>
             </div>
           )}
 
           {!vista.para && (
             <div className="rounded-xl border border-error/30 bg-error-suave p-3 text-sm text-error">
-              {vista.nombre} no tiene correo en la ficha. Sin correo no hay a dónde
+              {vista.nombre} no tiene correo en el lead. Sin correo no hay a dónde
               mandarlo.
             </div>
           )}

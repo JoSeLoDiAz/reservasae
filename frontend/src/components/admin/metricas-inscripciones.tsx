@@ -156,7 +156,7 @@ export function TargetsInscripciones({ metricas }: { metricas: Repartos | null }
         etiqueta="Estado del lead"
         detalle={estadoLider?.etiqueta ?? "Sin datos"}
         cifra={estadoLider ? pct(estadoLider.valor, total) : "—"}
-        guia="Proporción de leads cuya ficha ya reúne los datos exigidos por el reporte."
+        guia="Proporción de leads cuya lead ya reúne los datos exigidos por el reporte."
       />
 
       {porGremio.map((g) => {
