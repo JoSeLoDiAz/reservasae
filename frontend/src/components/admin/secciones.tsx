@@ -481,7 +481,7 @@ export function SelectorDeFiltro({
  * tabla: el color va en la marca pequeña y en la letra, no en
  * un rectángulo que compita con el contenido.
  */
-export function Aviso({
+export function AvisoDeSeccion({
   children,
   color = "var(--marca)",
 }: {

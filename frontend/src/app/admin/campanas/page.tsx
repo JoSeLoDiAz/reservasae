@@ -22,6 +22,10 @@ import { useToast } from "@/components/admin/toast";
 import { CargarBase } from "@/components/admin/cargar-base";
 import { CuandoVaASalir } from "@/components/admin/cuando-sale";
 import { VistaPreviaCorreo } from "@/components/admin/vista-previa-correo";
+import {
+  AvisoDeSeccion,
+  TextoDeSeccion,
+} from "@/components/admin/secciones";
 import { ErrorApi } from "@/lib/api";
 import {
   campanasApi,
@@ -90,10 +94,10 @@ export default function PaginaCampanas() {
       </header>
 
       {!convenioId && (
-        <div className="rounded-2xl border border-aviso/40 bg-aviso-suave p-5 text-sm text-aviso">
+        <AvisoDeSeccion color="var(--aviso)">
           Elija un gremio arriba para poder crear una campaña. Una campaña es
           siempre de un gremio: la de uno no le escribe a la gente del otro.
-        </div>
+        </AvisoDeSeccion>
       )}
 
       <ComoSale />
@@ -208,14 +212,18 @@ export default function PaginaCampanas() {
 /// regla de la casa, no un detalle de una campaña.
 function ComoSale() {
   return (
-    <div className="border-b border-borde bg-superficie-alterna p-5 text-sm">
-      <p className="font-medium">Cómo sale, y por qué así</p>
-      <p className="mt-1 text-texto-suave">
+    /// Banda normal, no un bloque de color.
+    ///
+    /// Iba sobre `--superficie-alterna`, y con eso la pantalla
+    /// tenia tres fondos: el de la pagina, el de las bandas y
+    /// este. El maximo del redisenio son dos.
+    <TextoDeSeccion titulo="Cómo sale, y por qué así">
+      <p className="mt-1.5 text-[0.78125rem] leading-relaxed text-texto-suave">
         Salen por la cuenta de la oficina, de a uno, con{" "}
         <strong className="text-texto">uno a tres segundos</strong> entre cada
         uno: una campaña de 200 sale en unos siete minutos.
       </p>
-      <p className="mt-2 text-texto-suave">
+      <p className="mt-2 text-[0.78125rem] leading-relaxed text-texto-suave">
         Dentro del <strong className="text-texto">horario de Colombia</strong>{" "}
         —8 de la mañana a 6 de la tarde, de lunes a viernes—, hasta{" "}
         <strong className="text-texto">300 al día</strong> y{" "}
@@ -224,19 +232,23 @@ function ComoSale() {
         diario y que la gente marque spam. Por eso el freno está ahí y no en la
         velocidad.
       </p>
-    </div>
+    </TextoDeSeccion>
   );
 }
 
 function Pildora({ estado }: { estado: Campana["estado"] }) {
+  /// El color en la letra, como en el resto del panel.
   const tono: Record<Campana["estado"], string> = {
-    BORRADOR: "bg-superficie-alterna text-texto-suave",
-    ENVIANDO: "bg-marca-suave text-marca",
-    PAUSADA: "bg-aviso-suave text-aviso",
-    TERMINADA: "bg-exito-suave text-exito",
+    BORRADOR: "text-texto-suave",
+    ENVIANDO: "text-marca",
+    PAUSADA: "text-aviso",
+    TERMINADA: "text-exito",
   };
   return (
-    <span className={`rounded-full px-2.5 py-1 text-xs ${tono[estado]}`}>
+    <span
+      className={`font-semibold whitespace-nowrap ${tono[estado]}`}
+      style={{ fontSize: "0.75rem" }}
+    >
       {ETIQUETA_ESTADO_CAMPANA[estado]}
     </span>
   );
