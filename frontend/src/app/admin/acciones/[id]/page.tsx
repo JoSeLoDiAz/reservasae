@@ -74,11 +74,8 @@ export default function DetalleDeAccion({ params }: { params: Promise<{ id: stri
     });
   };
   const diaCorto = (t: string) => {
-    const [a, m, d] = t.slice(0, 10).split("-").map(Number);
-    return new Date(a, m - 1, d).toLocaleDateString("es-CO", {
-      day: "numeric",
-      month: "short",
-    });
+    const [, m, d] = t.slice(0, 10).split("-");
+    return `${d}/${m}`;
   };
 
   /// La serie trae SOLO los dias con movimiento. Ocho dias
@@ -112,6 +109,20 @@ export default function DetalleDeAccion({ params }: { params: Promise<{ id: stri
     (mejor, d) => (!mejor || d.cupos > mejor.cupos ? d : mejor),
     null,
   );
+
+  /// Cual fue la ultima barra rotulada antes de `i`. Se usa para
+  /// no pintar dos fechas pegadas: con 41 columnas de 20px, dos
+  /// «01/07» seguidos se solapan y no se lee ninguno.
+  const rotuladas: number[] = [];
+  serieCompleta.forEach((d, i) => {
+    if (d.cupos > 0 && (rotuladas.length === 0 || i - rotuladas[rotuladas.length - 1] >= 3)) {
+      rotuladas.push(i);
+    }
+  });
+  const ultimaRotulada = (i: number) => {
+    const previas = rotuladas.filter((x) => x < i);
+    return previas.length ? previas[previas.length - 1] : -99;
+  };
   const activas = datos.reservas.filter((r) => r.estado !== "CANCELADA");
 
   return (
@@ -206,6 +217,67 @@ export default function DetalleDeAccion({ params }: { params: Promise<{ id: stri
         />
       </div>
 
+      {/* El orden lo manda lo que hay que ver primero:
+          para que sirve el curso, como va, donde esta el cupo,
+          quien reservo, y al final el plan del proyecto -- que no
+          cambia y se consulta una vez. */}
+      {datos.objetivo && (
+        <div className="imprimible-bloque">
+          <Bloque titulo="Objetivo de la acción" descripcion="Texto del proyecto, sin modificar.">
+            <p className="text-sm leading-relaxed text-texto-suave">{datos.objetivo}</p>
+          </Bloque>
+        </div>
+      )}
+
+      <div className="imprimible-bloque">
+          <Bloque
+            titulo="Grupos programados"
+            descripcion="Cómo reparte el proyecto los cupos entre grupos y territorios. Esta distribución no lleva contador propio: el cupo se descuenta contra la oferta."
+          >
+            {/* Filas, no ocho cajas con hueco entre ellas.
+                Cada grupo iba en un recuadro con borde y radio,
+                separados por 16px: ocho cajas apiladas es justo
+                el lenguaje que este redisenio quita, y encima
+                obligaba a bajar dos pantallas para ver los ocho.
+                Ahora se separan por la raya, como todas las
+                listas del panel. */}
+            {/* En dos columnas: ocho grupos apilados obligaban a
+                bajar dos pantallas para ver los ocho. */}
+            <div className="-mx-7 grid md:grid-cols-2 md:divide-x md:divide-hairline">
+              {datos.grupos.map((g) => (
+                <div
+                  key={g.numero}
+                  className="border-t border-hairline px-7 py-3.5 first:border-t-0 md:[&:nth-child(2)]:border-t-0"
+                >
+                  <div className="flex flex-wrap items-baseline justify-between gap-2">
+                    <p className="font-medium">
+                      Grupo {g.numero}
+                      <span className="ml-2 text-xs font-normal text-texto-suave">
+                        {MODALIDAD[g.modalidad]}
+                        {g.sede ? ` · ${bonito(g.sede)}` : ""}
+                      </span>
+                    </p>
+                    <p className="text-sm tabular-nums text-texto-suave">
+                      {n(g.cuposBase)} + 30 % = {n(g.cuposMaximos)}
+                    </p>
+                  </div>
+                  {!g.fechaInicio && (
+                    <p className="mt-1 text-xs text-aviso">Sin fecha asignada</p>
+                  )}
+                  <ul className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-texto-suave">
+                    {g.coberturas.map((c) => (
+                      <li key={`${c.ubicacion}-${c.modalidad}`}>
+                        {bonito(c.ubicacion)}{" "}
+                        <span className="tabular-nums">{n(c.cuposMaximos)}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
+            </div>
+          </Bloque>
+      </div>
+
       {/* Un solo bloque de ritmo. Habia dos: la tira de barras
           y una tarjeta con las mismas cifras que ya estan arriba.
 
@@ -226,44 +298,64 @@ export default function DetalleDeAccion({ params }: { params: Promise<{ id: stri
               <div className="flex gap-2">
                 {/* La escala. Sin ella una barra alta no dice si
                     son tres cupos o trescientos. */}
-                <div className="flex h-24 w-9 shrink-0 flex-col justify-between text-right text-[0.65625rem] text-texto-suave tabular-nums">
+                <div className="flex h-28 w-7 shrink-0 flex-col justify-between pt-4 text-right text-[0.65625rem] text-texto-suave tabular-nums">
                   <span>{n(topeSerie)}</span>
                   <span>{n(Math.round(topeSerie / 2))}</span>
                   <span>0</span>
                 </div>
 
                 <div className="min-w-0 grow">
-                  <div className="relative h-24 border-b border-borde">
+                  <div className="relative h-28 border-b border-borde">
                     {/* la media, para leer cada dia contra ella */}
                     <div
                       className="absolute inset-x-0 border-t border-dashed border-texto-suave/45"
                       style={{ bottom: `${(mediaSerie / topeSerie) * 100}%` }}
                     />
                     <div className="flex h-full items-end gap-[2px]">
-                      {serieCompleta.map((d) => (
-                        <div
-                          key={d.dia}
-                          title={`${diaLargo(d.dia)}: ${n(d.cupos)} cupos`}
-                          className={
-                            "min-h-[2px] flex-1 rounded-t transition " +
-                            (d.cupos > 0 ? "bg-marca hover:bg-marca-fuerte" : "bg-borde")
-                          }
-                          style={{
-                            height: `${Math.max(2, (d.cupos / topeSerie) * 100)}%`,
-                          }}
-                        />
-                      ))}
+                      {serieCompleta.map((d, i) => {
+                        /// La fecha solo bajo las barras con
+                        /// movimiento, y saltando las que caen
+                        /// muy juntas: 41 fechas seguidas se
+                        /// pisan y no se lee ninguna.
+                        const rotula = d.cupos > 0 && i - ultimaRotulada(i) >= 3;
+                        return (
+                          <div
+                            key={d.dia}
+                            title={`${diaLargo(d.dia)}: ${n(d.cupos)} cupos`}
+                            className="group relative flex h-full min-w-0 flex-1 flex-col justify-end"
+                          >
+                            {d.cupos > 0 && (
+                              <span className="absolute inset-x-0 -top-0.5 text-center text-[0.625rem] font-semibold text-titulo tabular-nums"
+                                style={{ bottom: `calc(${(d.cupos / topeSerie) * 100}% + 2px)` }}
+                              >
+                                {n(d.cupos)}
+                              </span>
+                            )}
+                            <div
+                              className={
+                                "w-full rounded-t transition " +
+                                (d.cupos > 0
+                                  ? "bg-gradient-to-t from-marca to-marca/40 group-hover:to-marca"
+                                  : "bg-borde/70")
+                              }
+                              style={{
+                                height: `${Math.max(2, (d.cupos / topeSerie) * 100)}%`,
+                              }}
+                            />
+                            {rotula && (
+                              <span className="absolute -bottom-4 left-1/2 -translate-x-1/2 text-[0.625rem] whitespace-nowrap text-texto-suave tabular-nums">
+                                {diaCorto(d.dia)}
+                              </span>
+                            )}
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
-
-                  {/* de cuando a cuando */}
-                  <div className="mt-1 flex justify-between text-[0.65625rem] text-texto-suave tabular-nums">
-                    <span>{diaCorto(serieCompleta[0].dia)}</span>
-                    <span className="text-texto-suave/70">
-                      {serieCompleta.length} días
-                    </span>
-                    <span>{diaCorto(serieCompleta[serieCompleta.length - 1].dia)}</span>
-                  </div>
+                  <p className="mt-5 text-right text-[0.65625rem] text-texto-suave tabular-nums">
+                    {serieCompleta.length} días · del {diaCorto(serieCompleta[0].dia)} al{" "}
+                    {diaCorto(serieCompleta[serieCompleta.length - 1].dia)}
+                  </p>
                 </div>
               </div>
             </div>
@@ -296,22 +388,25 @@ export default function DetalleDeAccion({ params }: { params: Promise<{ id: stri
         )}
       </Bloque>
 
+      {/* El detalle y el ranking, uno al lado del otro: son la
+          misma pregunta -- donde esta el cupo -- respondida con
+          numeros y con proporcion. */}
+      <div className="grid gap-3 xl:grid-cols-2 xl:[grid-auto-rows:1fr]">
       <div className="imprimible-bloque">
         <Bloque
-          titulo="Oferta por ubicación"
-          descripcion={`${datos.ofertas.length} ubicaciones. Es contra estas filas que se descuenta el cupo.`}
+          estirado
+          titulo="Detalle por ubicación"
+          descripcion={`${datos.ofertas.length} ubicaciones. El cupo se descuenta contra estas filas.`}
         >
-          <div className="overflow-x-auto">
+          <div className="caja-scroll tabla-fija h-full overflow-auto">
             <table className="tabla-datos text-sm">
               <thead>
                 <tr>
                   <th>Ubicación</th>
-                  <th>Modalidad</th>
                   <th className="text-right">Cupos</th>
                   <th className="text-right">Reservados</th>
                   <th className="text-right">Libres</th>
                   <th className="text-right">Espera</th>
-                  <th className="min-w-32">Avance</th>
                   <th>Estado</th>
                 </tr>
               </thead>
@@ -326,9 +421,6 @@ export default function DetalleDeAccion({ params }: { params: Promise<{ id: stri
                         </span>
                       )}
                     </td>
-                    <td className="whitespace-nowrap text-texto-suave">
-                      {MODALIDAD[o.modalidad]}
-                    </td>
                     <td className="text-right tabular-nums">{n(o.cupos)}</td>
                     <td className="text-right tabular-nums">{n(o.ocupados)}</td>
                     <td className="text-right tabular-nums">{n(o.disponibles)}</td>
@@ -340,9 +432,6 @@ export default function DetalleDeAccion({ params }: { params: Promise<{ id: stri
                       )}
                     </td>
                     <td>
-                      <BarraAvance valor={o.ocupados} maximo={o.cupos} compacta />
-                    </td>
-                    <td>
                       <EtiquetaEstado estado={o.estado} />
                     </td>
                   </tr>
@@ -352,61 +441,11 @@ export default function DetalleDeAccion({ params }: { params: Promise<{ id: stri
           </div>
         </Bloque>
       </div>
-
-      <div className="grid lg:grid-cols-[1fr_1.2fr]">
         <div className="imprimible-bloque">
           <Bloque
-            titulo="Grupos comprometidos"
-            descripcion="El plan del proyecto: cuántas cohortes y con qué reparto. No llevan contador propio."
-          >
-            {/* Filas, no ocho cajas con hueco entre ellas.
-                Cada grupo iba en un recuadro con borde y radio,
-                separados por 16px: ocho cajas apiladas es justo
-                el lenguaje que este redisenio quita, y encima
-                obligaba a bajar dos pantallas para ver los ocho.
-                Ahora se separan por la raya, como todas las
-                listas del panel. */}
-            {/* En dos columnas: ocho grupos apilados obligaban a
-                bajar dos pantallas para ver los ocho. */}
-            <div className="-mx-7 grid xl:grid-cols-2">
-              {datos.grupos.map((g) => (
-                <div
-                  key={g.numero}
-                  className="border-t border-hairline px-7 py-3 first:border-t-0"
-                >
-                  <div className="flex flex-wrap items-baseline justify-between gap-2">
-                    <p className="font-medium">
-                      Grupo {g.numero}
-                      <span className="ml-2 text-xs font-normal text-texto-suave">
-                        {MODALIDAD[g.modalidad]}
-                        {g.sede ? ` · ${bonito(g.sede)}` : ""}
-                      </span>
-                    </p>
-                    <p className="text-sm tabular-nums text-texto-suave">
-                      {n(g.cuposBase)} + 30 % = {n(g.cuposMaximos)}
-                    </p>
-                  </div>
-                  {!g.fechaInicio && (
-                    <p className="mt-1 text-xs text-aviso">Sin fecha asignada</p>
-                  )}
-                  <ul className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-texto-suave">
-                    {g.coberturas.map((c) => (
-                      <li key={`${c.ubicacion}-${c.modalidad}`}>
-                        {bonito(c.ubicacion)}{" "}
-                        <span className="tabular-nums">{n(c.cuposMaximos)}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              ))}
-            </div>
-          </Bloque>
-        </div>
-
-        <div className="imprimible-bloque">
-          <Bloque
-            titulo="Dónde se está llenando"
-            descripcion="Cupos reservados por ubicación, ordenados."
+            estirado
+            titulo="Ubicaciones con más reservas"
+            descripcion="Ordenadas por cupos reservados, de mayor a menor."
           >
             <ListaBarras
               datos={datos.ofertas
@@ -422,6 +461,9 @@ export default function DetalleDeAccion({ params }: { params: Promise<{ id: stri
           </Bloque>
         </div>
       </div>
+
+
+
 
       <div className="imprimible-bloque imprimible-salto">
         <Bloque
@@ -485,13 +527,6 @@ export default function DetalleDeAccion({ params }: { params: Promise<{ id: stri
         </Bloque>
       </div>
 
-      {datos.objetivo && (
-        <div className="imprimible-bloque">
-          <Bloque titulo="Objetivo de la acción" descripcion="Tal como está en el proyecto.">
-            <p className="text-sm leading-relaxed text-texto-suave">{datos.objetivo}</p>
-          </Bloque>
-        </div>
-      )}
     </div>
   );
 }

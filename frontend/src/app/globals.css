@@ -415,6 +415,19 @@ select[size]:not([size='1']) {
   padding-right: 12px;
 }
 
+/* la cabecera se queda al desplazar la tabla */
+/*
+ * En una caja con scroll, la cabecera se va arriba y quedan
+ * columnas de numeros sin decir de que son. Es el mismo problema
+ * que en papel resuelve `display: table-header-group`.
+ */
+.tabla-fija thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--tabla-cabecera-fondo);
+}
+
 /* botones que no llevan aro */
 .sin-aro:focus,
 .sin-aro:focus-visible {

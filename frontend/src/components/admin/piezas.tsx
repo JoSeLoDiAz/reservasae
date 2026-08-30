@@ -85,6 +85,7 @@ export function Bloque({
   descripcion,
   acciones,
   sinRelleno,
+  estirado,
   children,
 }: {
   titulo?: string;
@@ -93,10 +94,17 @@ export function Bloque({
   acciones?: React.ReactNode;
   /** Para tablas, que traen su propio relleno. */
   sinRelleno?: boolean;
+  /** Que ocupe todo el alto: dos bloques de una fila miden igual. */
+  estirado?: boolean;
   children: React.ReactNode;
 }) {
   return (
-    <section className="overflow-hidden rounded-lg border border-borde bg-superficie">
+    <section
+      className={
+        "overflow-hidden rounded-lg border border-borde bg-superficie " +
+        (estirado ? "flex h-full flex-col" : "")
+      }
+    >
       {(titulo || acciones) && (
         <div className="flex flex-wrap items-start justify-between gap-3 border-b border-borde px-7 py-3">
           <div className="min-w-0">
@@ -110,7 +118,13 @@ export function Bloque({
           {acciones}
         </div>
       )}
-      <div className={sinRelleno ? "" : "px-7 py-4"}>{children}</div>
+      <div
+        className={
+          (sinRelleno ? "" : "px-7 py-4") + (estirado ? " min-h-0 grow" : "")
+        }
+      >
+        {children}
+      </div>
     </section>
   );
 }
