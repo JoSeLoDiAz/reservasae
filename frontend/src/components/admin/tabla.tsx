@@ -638,6 +638,13 @@ export function Tabla<T>({
 
   return (
     <div className="flex min-h-0 grow flex-col gap-2">
+      {/* El resumen ARRIBA y la barra debajo.
+          Estuvo al reves -- primero se decide que se mira y
+          luego se resume --, y se cambio a peticion del dueño
+          del producto: al llegar quiere ver el reparto y
+          despues filtrar. */}
+      {resumen}
+
       <Barra
         buscar={buscar}
         setBuscar={setBuscar}
@@ -652,8 +659,6 @@ export function Tabla<T>({
             : () => bajarCsv(id, enPantalla, filtradas)
         }
       />
-
-      {resumen}
 
       {/* La paginación va ARRIBA, con los botones.
           Abajo obligaba a bajar toda la tabla para cambiar de
@@ -1188,7 +1193,7 @@ function Barra({
         <button
           type="button"
           onClick={alDescargar}
-          className="inline-flex h-[34px] items-center rounded-lg bg-marca px-3.5 text-[0.78125rem] font-semibold text-marca-texto transition hover:bg-marca-fuerte"
+          className="inline-flex h-[34px] items-center rounded-lg border border-marca bg-marca px-3.5 text-[0.78125rem] font-semibold text-marca-texto transition hover:bg-marca-fuerte"
         >
           Descargar en Excel
         </button>

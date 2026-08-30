@@ -253,7 +253,7 @@ export default function PaginaReservas() {
           <>
             <button
               onClick={() => descargar("reservas", {})}
-              className="inline-flex h-[34px] items-center rounded-lg bg-marca px-3.5 text-[0.78125rem] font-semibold text-marca-texto transition hover:bg-marca-fuerte"
+              className="inline-flex h-[34px] items-center rounded-lg border border-marca bg-marca px-3.5 text-[0.78125rem] font-semibold text-marca-texto transition hover:bg-marca-fuerte"
             >
               Descargar en Excel
             </button>

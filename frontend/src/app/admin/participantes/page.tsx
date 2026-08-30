@@ -26,7 +26,7 @@ import {
 /// La pinta del boton de «Descargar en Excel», para que los
 /// tres de la barra se lean como hermanos.
 const CLASE_BOTON =
-  "inline-flex h-[34px] items-center justify-center rounded-lg bg-marca px-3.5 text-[0.78125rem] font-semibold whitespace-nowrap text-marca-texto no-underline transition hover:bg-marca-fuerte";
+  "inline-flex h-[34px] items-center justify-center rounded-lg border border-marca bg-marca px-3.5 text-[0.78125rem] font-semibold whitespace-nowrap text-marca-texto no-underline transition hover:bg-marca-fuerte";
 
 // el tablero reparte una carga entre nueve columnas
 const POR_CARGA = 300;
