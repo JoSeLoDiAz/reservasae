@@ -68,8 +68,8 @@ export default function PaginaConstructor({
   const disponibles = campos.filter((c) => !usados.has(c.campo));
 
   return (
-    <div className="space-y-6">
-      <header className="flex flex-wrap items-start justify-between gap-4">
+    <div>
+      <header className="border-b border-borde bg-superficie px-7 pt-[26px] pb-[22px] flex flex-wrap items-start justify-between gap-4">
         <div>
           <Link href="/admin/formularios" className="text-sm text-marca hover:underline">
             ← Formularios

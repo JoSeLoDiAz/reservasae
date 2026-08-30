@@ -165,10 +165,10 @@ export default function PaginaPlantillasCorreo() {
   }
 
   return (
-    <div className="space-y-6">
-      <header className="flex flex-wrap items-start justify-between gap-4">
+    <div>
+      <header className="border-b border-borde bg-superficie px-7 pt-[26px] pb-[22px] flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Plantillas de correo</h1>
+          <h1 className="text-[1.3125rem] font-bold tracking-[-0.02em] text-titulo">Plantillas de correo</h1>
           <p className="mt-1 max-w-3xl text-texto-suave">
             Se escriben una vez y se mandan muchas. Lo que cambia de una persona a
             otra va entre llaves, y se llena solo con los datos de su ficha.
@@ -189,7 +189,7 @@ export default function PaginaPlantillasCorreo() {
               Ahora la vista ocupa la mitad y se queda pegada
               arriba mientras se escribe en la otra: se teclea
               en un lado y se ve en el otro, sin buscarla. */}
-          <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
+          <div className="grid lg:grid-cols-2 lg:items-start">
             <div className="space-y-4">
               <div>
                 <label htmlFor="nombre" className="mb-1.5 block text-sm font-medium">

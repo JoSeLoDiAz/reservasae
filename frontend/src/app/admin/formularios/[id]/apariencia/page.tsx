@@ -29,7 +29,7 @@ export default function PaginaAparienciaFormulario({
   if (!formulario || !general) return <p className="text-texto-suave">Cargando…</p>;
 
   return (
-    <div className="space-y-6">
+    <div>
       <header>
         <Link
           href={`/admin/formularios/${id}`}

@@ -48,18 +48,22 @@ function Target({
   guia: string;
 }) {
   return (
-    <div
-      title={guia}
-      className="flex items-center gap-3 rounded-xl border border-borde bg-superficie px-3 py-2.5"
-    >
-      <span className="min-w-0 flex-1">
-        <span className="block truncate text-[10px] font-semibold tracking-[0.1em] text-texto-suave uppercase">
-          {etiqueta}
-        </span>
-        <span className="block truncate text-xs text-texto-suave">{detalle}</span>
+    /// Celda de la franja, no tarjeta.
+    ///
+    /// La cifra iba a la derecha en pequenio y el rotulo a la
+    /// izquierda. Ahora se apila -- rotulo, cifra grande, pie --
+    /// que es como se lee un indicador: primero que mide, luego
+    /// cuanto. Con ocho en fila, ocho cifras alineadas abajo se
+    /// comparan de un vistazo; a la derecha de cada caja, no.
+    <div title={guia} className="bg-superficie px-7 pt-[18px] pb-5">
+      <span className="block truncate text-[0.625rem] font-semibold tracking-[0.1em] text-texto-suave uppercase">
+        {etiqueta}
       </span>
-      <span className="shrink-0 text-lg leading-none font-semibold tabular-nums text-titulo">
+      <span className="mt-2 block text-[2rem] leading-none font-bold tracking-[-0.03em] tabular-nums text-titulo">
         {cifra}
+      </span>
+      <span className="mt-[3px] block truncate text-[0.71875rem] text-texto-suave">
+        {detalle}
       </span>
     </div>
   );
@@ -110,7 +114,7 @@ function BarrasVerticales({ datos }: { datos: Reparto[] }) {
 export function TargetsInscripciones({ metricas }: { metricas: Repartos | null }) {
   if (!metricas) {
     return (
-      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-px border-t border-b border-hairline bg-hairline sm:grid-cols-2 lg:grid-cols-4">
         {Array.from({ length: 8 }, (_, i) => (
           <div
             key={i}
@@ -140,7 +144,7 @@ export function TargetsInscripciones({ metricas }: { metricas: Repartos | null }
   const asesorLider = mayor(porAsesor);
 
   return (
-    <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+    <div className="grid gap-px border-t border-b border-hairline bg-hairline sm:grid-cols-2 lg:grid-cols-4">
       <Target
         etiqueta="Etapa del lead"
         detalle={etapaLider?.etiqueta ?? "Sin datos"}
@@ -233,7 +237,7 @@ export function GraficasInscripciones({ metricas }: { metricas: Repartos | null 
   const conDomicilio = total - sinDepartamento;
 
   return (
-    <div className="grid gap-4 lg:grid-cols-2">
+    <div className="grid lg:grid-cols-2">
       <Tarjeta centrado titulo="Gremio">
         <div>
           <Donut

@@ -151,8 +151,8 @@ export default function PaginaAcademico() {
     });
 
   return (
-    <div className="space-y-6">
-      <header className="flex flex-wrap items-start justify-between gap-4">
+    <div>
+      <header className="border-b border-borde bg-superficie px-7 pt-[26px] pb-[22px] flex flex-wrap items-start justify-between gap-4">
         <div>
           {/* sin título: la miga de arriba ya lo dice. La
               bajada se queda: explica contra qué se mide */}
@@ -190,7 +190,7 @@ export default function PaginaAcademico() {
         aprobado. Si el grupo no tiene fechas no se juzga: se dice que no ha empezado.
       </p>
 
-      <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-6">
+      <div className="grid sm:grid-cols-3 lg:grid-cols-6">
         {ORDEN.map((estado) => (
           <button
             key={estado}
@@ -222,7 +222,7 @@ export default function PaginaAcademico() {
             — no se miden por ritmo: cuenta por qué se fueron
           </span>
         </h2>
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid sm:grid-cols-2 lg:grid-cols-4">
           {SALIDAS.map(([etapa, n]) => (
             <button
               key={etapa}

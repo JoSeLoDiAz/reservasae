@@ -33,9 +33,9 @@ export default function PaginaFormularios() {
   }, [cargar]);
 
   return (
-    <div className="space-y-6">
+    <div>
       <header>
-        <h1 className="text-2xl font-bold tracking-tight">Formularios</h1>
+        <h1 className="text-[1.3125rem] font-bold tracking-[-0.02em] text-titulo">Formularios</h1>
         <p className="mt-1 text-texto-suave">
           Lo que ve quien entra a reservar. Puede crear preguntas, agruparlas en
           secciones y publicarlas sin tocar el código.
@@ -48,7 +48,7 @@ export default function PaginaFormularios() {
 
       {!formularios && <Esqueleto filas={3} />}
 
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid md:grid-cols-2">
         {formularios?.map((f) => (
           <div
             key={f.id}
@@ -151,7 +151,7 @@ function NuevoFormulario({
       titulo="Nuevo formulario"
       descripcion="Nace en borrador. No se puede publicar hasta que tenga los campos que el sistema necesita para crear una reserva."
     >
-      <form onSubmit={enviar} className="grid gap-4 sm:grid-cols-2">
+      <form onSubmit={enviar} className="grid sm:grid-cols-2">
         <Campo etiqueta="Convenio">
           <select
             value={convenioId}

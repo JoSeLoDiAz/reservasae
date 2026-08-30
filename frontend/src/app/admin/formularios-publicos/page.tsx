@@ -112,9 +112,9 @@ export default function FormulariosActivos() {
     : gremios;
 
   return (
-    <div className="space-y-6">
+    <div>
       <header>
-        <h1 className="text-2xl font-bold tracking-tight">
+        <h1 className="text-[1.3125rem] font-bold tracking-[-0.02em] text-titulo">
           Formularios activos
         </h1>
         <p className="mt-1 max-w-3xl text-texto-suave">

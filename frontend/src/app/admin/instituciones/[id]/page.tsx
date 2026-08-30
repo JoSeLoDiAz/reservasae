@@ -352,16 +352,16 @@ export default function PaginaInstitucion({
   };
 
   return (
-    <div className="space-y-6">
+    <div>
       <div>
         <Link href="/admin/instituciones" className="text-sm text-marca hover:underline">
           ← Volver a instituciones
         </Link>
       </div>
 
-      <header className="flex flex-wrap items-start justify-between gap-4">
+      <header className="border-b border-borde bg-superficie px-7 pt-[26px] pb-[22px] flex flex-wrap items-start justify-between gap-4">
         <div className="min-w-0">
-          <h1 className="text-2xl font-bold tracking-tight">
+          <h1 className="text-[1.3125rem] font-bold tracking-[-0.02em] text-titulo">
             {bonito(ficha.razonSocial)}
           </h1>
           <p className="mt-1 font-mono text-sm text-texto-suave">
@@ -441,7 +441,7 @@ export default function PaginaInstitucion({
           }}
           className="space-y-5"
         >
-          <div className="grid gap-5 sm:grid-cols-2">
+          <div className="grid sm:grid-cols-2">
             <CampoConFuente
               clave="razonSocial"
               fuente={fuentes.razonSocial}

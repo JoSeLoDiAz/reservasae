@@ -324,7 +324,15 @@ export function MarcoAdmin({ children }: { children: React.ReactNode }) {
             /// leen de arriba abajo— sigan pudiéndose recorrer. Las
             /// pantallas de tabla no lo usan: su contenido cabe porque
             /// la tabla scrollea por dentro.
-            className="flex w-full min-h-0 grow flex-col overflow-y-auto overscroll-contain px-4 py-6 lg:px-8"
+            /// Sin relleno lateral: las secciones van A SANGRE.
+            ///
+            /// El redisenio no apila tarjetas sobre un fondo,
+            /// apila bandas que ocupan el ancho entero y se
+            /// separan por una raya. El relleno lo pone cada
+            /// banda por dentro (28px), no el contenedor: si lo
+            /// pusiera el contenedor, las rayas se quedarian
+            /// cortas y flotando en vez de cruzar la pantalla.
+            className="flex w-full min-h-0 grow flex-col overflow-y-auto overscroll-contain"
           >
             {/* Sin tope de ancho: son tablas de trabajo y en un
                 monitor ancho `max-w-6xl` las dejaba espichadas.
@@ -1194,10 +1202,20 @@ export function Tarjeta({
   const mostrar = !plegable || abierta;
 
   return (
+    /// Una BANDA, no una tarjeta.
+    ///
+    /// Antes era `rounded-2xl border ... p-6`: una caja
+    /// flotando sobre el fondo. Una pantalla con seis bloques
+    /// eran seis cajas compitiendo entre ellas, y ese es
+    /// justamente el lenguaje que este redisenio elimina.
+    ///
+    /// Ahora ocupa el ancho, no tiene radio y solo lleva raya
+    /// abajo. Se cambia aqui y no en las 150 llamadas
+    /// repartidas por el codigo.
     <section
-      className={`rounded-2xl border border-borde bg-superficie ${
+      className={`border-b border-borde bg-superficie ${
         centrado ? "flex h-full flex-col" : ""
-      } ${plegable && !abierta ? "px-6 py-4" : "p-6"}`}
+      } ${plegable && !abierta ? "px-7 py-4" : "px-7 py-5"}`}
     >
       {encabezado ? (
         <>

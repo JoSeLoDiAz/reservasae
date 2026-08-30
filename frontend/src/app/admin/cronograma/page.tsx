@@ -77,9 +77,9 @@ export default function PaginaCronograma() {
   const sinFechas = grupos.filter((g) => g.estado === "SIN_FECHAS").length;
 
   return (
-    <div className="space-y-6">
+    <div>
       <header>
-        <h1 className="text-2xl font-bold tracking-tight">Cronograma</h1>
+        <h1 className="text-[1.3125rem] font-bold tracking-[-0.02em] text-titulo">Cronograma</h1>
         <p className="mt-1 text-sm text-texto-suave">
           Cuándo empieza y termina cada grupo. De estas fechas depende todo el
           seguimiento académico: sin ellas no se puede medir quién va al día.
@@ -88,7 +88,7 @@ export default function PaginaCronograma() {
 
       {error && <Aviso tipo="error">{error}</Aviso>}
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-px border-t border-b border-hairline bg-hairline sm:grid-cols-2 lg:grid-cols-4">
         <TarjetaCifra etiqueta="Grupos" valor={grupos.length} icono={IconoFormacion} />
         <TarjetaCifra etiqueta="En curso" valor={enCurso} tono="exito" />
         <TarjetaCifra etiqueta="Por empezar" valor={porEmpezar} tono="neutro" />

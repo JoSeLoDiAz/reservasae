@@ -189,10 +189,10 @@ export default function PaginaControl() {
       (vivos.datos?.ventana.etiquetaAnterior ?? '').includes('días contra'));
 
   return (
-    <div className="space-y-6">
-      <header className="flex flex-wrap items-start justify-between gap-4">
+    <div>
+      <header className="border-b border-borde bg-superficie px-7 pt-[26px] pb-[22px] flex flex-wrap items-start justify-between gap-4">
         <div className="min-w-0">
-          <h1 className="text-2xl font-bold tracking-tight">Control de Inscritos</h1>
+          <h1 className="text-[1.3125rem] font-bold tracking-[-0.02em] text-titulo">Control de Inscritos</h1>
         </div>
         {/* solo en Análisis: es de esos datos, y en la otra
             pestaña diría una hora que no le corresponde */}
@@ -233,7 +233,7 @@ export default function PaginaControl() {
       {pestana === "analisis" && (
         <>
       <div className="rounded-2xl border border-borde bg-superficie p-5">
-        <div className="grid gap-4 lg:grid-cols-2">
+        <div className="grid lg:grid-cols-2">
           <div>
             <p className="mb-1.5 text-sm font-medium">Periodo</p>
             <div className="flex flex-wrap items-center gap-3">
@@ -424,7 +424,7 @@ function Cuerpo({ d, adminId, eligio }: { d: Control; adminId: string; eligio: b
   return (
     <div className="space-y-6">
       {/* la cola de trabajo, antes que nada */}
-      <section className="grid gap-6 lg:grid-cols-3">
+      <section className="grid lg:grid-cols-3">
         <Tarjeta
           titulo="Leads sin asesor"
           descripcion="Fichas por trabajar que no son de nadie. No lleva periodo: es una cola, no un hecho fechado."
@@ -471,7 +471,7 @@ function Cuerpo({ d, adminId, eligio }: { d: Control; adminId: string; eligio: b
       </section>
 
       {/* las cifras de cabecera */}
-      <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <section className="grid gap-px border-t border-b border-hairline bg-hairline sm:grid-cols-2 lg:grid-cols-4">
         <TarjetaCifra
           titulo="Llegaron a inscrito"
           valor={d.total}
@@ -504,7 +504,7 @@ function Cuerpo({ d, adminId, eligio }: { d: Control; adminId: string; eligio: b
         titulo="Las tres tasas"
         descripcion="Ninguna lleva periodo: las tres miden lo que hay hoy contra lo que se comprometió, y recortarlas por «ayer» daría cifras falsas."
       >
-        <div className="grid gap-6 sm:grid-cols-3">
+        <div className="grid sm:grid-cols-3">
           <Tasa
             titulo="Cobertura de los cupos"
             parte={d.inscritosConReserva}
@@ -549,7 +549,7 @@ function Cuerpo({ d, adminId, eligio }: { d: Control; adminId: string; eligio: b
       </Tarjeta>
 
       {/* el embudo y el ritmo */}
-      <section className="grid gap-6 lg:grid-cols-3">
+      <section className="grid lg:grid-cols-3">
         <Tarjeta
           titulo="El embudo"
           descripcion={
@@ -614,7 +614,7 @@ function Cuerpo({ d, adminId, eligio }: { d: Control; adminId: string; eligio: b
       </section>
 
       {/* el origen: volumen y calidad */}
-      <section className="grid gap-6 lg:grid-cols-2">
+      <section className="grid lg:grid-cols-2">
         <Tarjeta
           titulo="De dónde vienen: volumen"
           descripcion="Cuántos de los inscritos del periodo entraron por cada puerta. Dice cuál trae más, nunca cuál trae mejor."
@@ -716,7 +716,7 @@ function Cuerpo({ d, adminId, eligio }: { d: Control; adminId: string; eligio: b
       </Tarjeta>
 
       {/* quien debe nombres */}
-      <section className="grid gap-6 lg:grid-cols-2">
+      <section className="grid lg:grid-cols-2">
         <Tarjeta
           titulo="Las organizaciones con más nombres"
           descripcion="Nombres puestos contra cupos apartados. Ninguna de las dos cifras lleva periodo: los cupos salen de reservas, y medir contra ellos unos inscritos recortados daría deudas inventadas."
@@ -770,7 +770,7 @@ function Cuerpo({ d, adminId, eligio }: { d: Control; adminId: string; eligio: b
       </section>
 
       {/* los repartos */}
-      <section className="grid gap-6 lg:grid-cols-3">
+      <section className="grid lg:grid-cols-3">
         <Tarjeta
           titulo="Por ubicación"
           descripcion="Dónde se dicta lo que eligieron: ciudad o departamento."

@@ -40,14 +40,14 @@ export default function PaginaRespuestas({
     }));
 
   return (
-    <div className="space-y-6">
+    <div>
       <EncabezadoImpresion
         titulo={`Respuestas · ${formulario.titulo}`}
         subtitulo={`/${formulario.slug}`}
       />
       <SelloDeDatos actualizadoEn={vivos.actualizadoEn} />
 
-      <header className="no-imprimir flex flex-wrap items-start justify-between gap-4">
+      <header className="border-b border-borde bg-superficie px-7 pt-[26px] pb-[22px] no-imprimir flex flex-wrap items-start justify-between gap-4">
         <div>
           <Link
             href={`/admin/formularios/${id}`}
@@ -72,7 +72,7 @@ export default function PaginaRespuestas({
         <BotonPdf />
       </header>
 
-      <div className="imprimible-bloque grid gap-4 sm:grid-cols-3">
+      <div className="imprimible-bloque grid gap-px border-t border-b border-hairline bg-hairline sm:grid-cols-3">
         <TarjetaCifra titulo="Reservas del formulario" valor={totalReservas} />
         <TarjetaCifra titulo="Preguntas propias" valor={preguntas.length} />
         <TarjetaCifra
@@ -152,7 +152,7 @@ function BloquePregunta({
         )}
 
         {pregunta.numero && (
-          <div className="grid gap-4 sm:grid-cols-4">
+          <div className="grid gap-px border-t border-b border-hairline bg-hairline sm:grid-cols-4">
             <TarjetaCifra titulo="Media" valor={pregunta.numero.media ?? "—"} />
             <TarjetaCifra titulo="Mediana" valor={pregunta.numero.mediana ?? "—"} />
             <TarjetaCifra titulo="Mínimo" valor={pregunta.numero.minimo ?? "—"} />

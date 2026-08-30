@@ -74,7 +74,7 @@ export default function DetalleDeAccion({ params }: { params: Promise<{ id: stri
       />
       <SelloDeDatos actualizadoEn={vivos.actualizadoEn} />
 
-      <header className="no-imprimir flex flex-wrap items-start justify-between gap-4">
+      <header className="border-b border-borde bg-superficie px-7 pt-[26px] pb-[22px] no-imprimir flex flex-wrap items-start justify-between gap-4">
         <div className="min-w-0">
           <Link href="/admin/acciones" className="text-sm text-marca hover:underline">
             ← Formación
@@ -185,7 +185,7 @@ export default function DetalleDeAccion({ params }: { params: Promise<{ id: stri
         titulo="Ritmo de esta acción"
         descripcion="Cupos netos por día de los últimos 14, descontando ediciones y cancelaciones."
       >
-        <div className="grid gap-4 sm:grid-cols-3">
+        <div className="grid sm:grid-cols-3">
           <div>
             <p className="text-3xl font-semibold tabular-nums">
               {datos.proyeccion.ritmoDiario.toLocaleString("es-CO", {
@@ -266,7 +266,7 @@ export default function DetalleDeAccion({ params }: { params: Promise<{ id: stri
         </Tarjeta>
       </div>
 
-      <div className="grid gap-5 lg:grid-cols-[1fr_1.2fr]">
+      <div className="grid lg:grid-cols-[1fr_1.2fr]">
         <div className="imprimible-bloque">
           <Tarjeta
             titulo="Grupos comprometidos"

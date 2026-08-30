@@ -79,6 +79,70 @@ function Encabezado({ titulo, nota }: { titulo?: string; nota?: string }) {
   );
 }
 
+/**
+ * La cabecera de una pantalla.
+ *
+ * Titulo a 21px/700 y la nota debajo. El relleno es 26px
+ * arriba, 28 a los lados y 22 abajo -- y baja a 16 arriba
+ * cuando hay enlace «Volver», porque el enlace ya ocupa esa
+ * banda y con los 26 se abria un hueco.
+ *
+ * El «Volver» es un ENLACE y no un boton, a proposito: ir
+ * hacia atras no es una accion de la misma clase que
+ * «Guardar», y mezclarlas en la misma barra las confunde.
+ */
+export function CabeceraDePantalla({
+  titulo,
+  nota,
+  volver,
+  acciones,
+}: {
+  titulo: string;
+  nota?: React.ReactNode;
+  /// `{ href, texto }` del enlace de vuelta.
+  volver?: { href: string; texto: string };
+  acciones?: React.ReactNode;
+}) {
+  return (
+    <Seccion>
+      {volver && (
+        <div className="px-7 pt-3.5">
+          <a
+            href={volver.href}
+            className="font-semibold text-marca no-underline hover:underline"
+            style={{ fontSize: T.cuerpo }}
+          >
+            ← Volver a {volver.texto}
+          </a>
+        </div>
+      )}
+      <div
+        className={`flex flex-wrap items-start justify-between gap-4 px-7 pb-[22px] ${
+          volver ? "pt-4" : "pt-[26px]"
+        }`}
+      >
+        <div className="min-w-0">
+          <h1
+            className="font-bold text-titulo"
+            style={{ fontSize: "1.3125rem", letterSpacing: "-0.02em" }}
+          >
+            {titulo}
+          </h1>
+          {nota && (
+            <div
+              className="mt-1.5 max-w-[760px] text-texto-suave"
+              style={{ fontSize: T.cuerpo, lineHeight: 1.6 }}
+            >
+              {nota}
+            </div>
+          )}
+        </div>
+        {acciones && <div className="flex flex-wrap gap-2">{acciones}</div>}
+      </div>
+    </Seccion>
+  );
+}
+
 /* ── 2. kpis ─────────────────────────────────────────────── */
 
 export type Indicador = {
@@ -110,11 +174,11 @@ export function Kpis({ items }: { items: Indicador[] }) {
   return (
     <Seccion>
       <div
-        className="grid border-t border-hairline"
+        className="grid gap-px border-t border-hairline bg-hairline"
         style={{ gridTemplateColumns: columnas }}
       >
         {items.map((k, i) => (
-          <div key={`${k.rotulo}-${i}`} className="border-l border-hairline px-7 pt-[18px] pb-5">
+          <div key={`${k.rotulo}-${i}`} className="bg-superficie px-7 pt-[18px] pb-5">
             <div
               className="font-semibold uppercase text-texto-suave"
               style={{ fontSize: T.rotulo, letterSpacing: "0.1em" }}

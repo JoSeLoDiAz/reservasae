@@ -93,7 +93,7 @@ export default function PaginaNuevoParticipante() {
   return (
     <div className="max-w-2xl space-y-6">
       <header>
-        <h1 className="text-2xl font-bold tracking-tight">Inscribir a alguien</h1>
+        <h1 className="text-[1.3125rem] font-bold tracking-[-0.02em] text-titulo">Inscribir a alguien</h1>
         <p className="mt-1 text-texto-suave">
           Con el documento y el nombre basta para empezar. La acción de formación y el
           grupo se asignan después, desde su ficha.
@@ -107,7 +107,7 @@ export default function PaginaNuevoParticipante() {
         descripcion="El documento identifica a la persona en todo el sistema: si ya está en otro curso, se reconoce sola."
       >
         <div className="space-y-4">
-          <div className="grid gap-4 sm:grid-cols-[1fr_1.4fr]">
+          <div className="grid sm:grid-cols-[1fr_1.4fr]">
             <Campo etiqueta="Tipo de documento">
               <select
                 className={CLASE_CONTROL}
@@ -135,7 +135,7 @@ export default function PaginaNuevoParticipante() {
             </Campo>
           </div>
 
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid sm:grid-cols-2">
             <Campo etiqueta="Primer nombre">
               <input
                 className={CLASE_CONTROL}
@@ -177,7 +177,7 @@ export default function PaginaNuevoParticipante() {
         titulo="Cómo contactarla"
         descripcion="Hace falta al menos uno de los dos para poder matricularla."
       >
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid sm:grid-cols-2">
           <Campo etiqueta="Correo">
             <input
               className={CLASE_CONTROL}
@@ -198,7 +198,7 @@ export default function PaginaNuevoParticipante() {
       </Tarjeta>
 
       <Tarjeta titulo="De dónde viene">
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid sm:grid-cols-2">
           <Campo etiqueta="Convenio">
             <select
               className={CLASE_CONTROL}

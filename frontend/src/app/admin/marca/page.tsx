@@ -142,9 +142,9 @@ export default function PaginaMarca() {
   }
 
   return (
-    <div className="space-y-6">
+    <div>
       <header>
-        <h1 className="text-2xl font-bold tracking-tight">Apariencia</h1>
+        <h1 className="text-[1.3125rem] font-bold tracking-[-0.02em] text-titulo">Apariencia</h1>
         <p className="mt-1 text-texto-suave">
           {gremio?.fijo
             ? "Esta es la marca GENERAL, la que comparten los dos gremios. La de este gremio se edita en su formulario."
@@ -271,7 +271,7 @@ export default function PaginaMarca() {
             descripcion="Qué ve quien entra por primera vez, y si puede cambiarlo."
           >
             <div className="space-y-4">
-              <div className="grid gap-3 sm:grid-cols-3">
+              <div className="grid sm:grid-cols-3">
                 {MODOS.map((m) => (
                   <label
                     key={m.valor}

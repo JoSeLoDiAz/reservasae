@@ -91,7 +91,7 @@ export default function PaginaCarga() {
   }
 
   return (
-    <div className="space-y-6">
+    <div>
       <div>
         <Link href="/admin/participantes" className="text-sm underline">
           ← Volver a inscripciones
@@ -99,7 +99,7 @@ export default function PaginaCarga() {
       </div>
 
       <header>
-        <h1 className="text-2xl font-bold tracking-tight">Cargar una lista</h1>
+        <h1 className="text-[1.3125rem] font-bold tracking-[-0.02em] text-titulo">Cargar una lista</h1>
         <p className="mt-1 text-texto-suave">
           Copie las celdas desde el Excel que le mandó la empresa y péguelas aquí. Verá
           qué va a pasar antes de confirmar nada.
@@ -112,7 +112,7 @@ export default function PaginaCarga() {
         titulo="Dónde van"
         descripcion="La acción de formación es opcional: si no la sabe todavía, se asigna después desde cada ficha."
       >
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid sm:grid-cols-2">
           <Campo etiqueta="Convenio">
             <select
               className={CLASE_CONTROL}

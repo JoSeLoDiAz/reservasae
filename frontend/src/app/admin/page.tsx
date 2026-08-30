@@ -79,13 +79,13 @@ export default function Tablero() {
   const ultimos = ubicaciones.filter((u) => u.estado === "ULTIMOS_CUPOS").length;
 
   return (
-    <div className="space-y-6">
+    <div>
       <EncabezadoImpresion titulo="Tablero de ocupación" />
       <SelloDeDatos actualizadoEn={vivos.actualizadoEn} />
 
-      <header className="flex flex-wrap items-start justify-between gap-4">
+      <header className="border-b border-borde bg-superficie px-7 pt-[26px] pb-[22px] flex flex-wrap items-start justify-between gap-4">
         <div className="no-imprimir">
-          <h1 className="text-2xl font-bold tracking-tight">Hola, {admin.nombre.split(" ")[0]}</h1>
+          <h1 className="text-[1.3125rem] font-bold tracking-[-0.02em] text-titulo">Hola, {admin.nombre.split(" ")[0]}</h1>
           <p className="mt-1 text-texto-suave">
             Ocupación de cupos. Se actualiza sola cada 30 segundos.
           </p>
@@ -116,7 +116,7 @@ export default function Tablero() {
       </header>
 
       {/* lo que se mira primero, de un vistazo */}
-      <div className="imprimible-bloque grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="imprimible-bloque grid gap-px border-t border-b border-hairline bg-hairline sm:grid-cols-2 lg:grid-cols-4">
         <TarjetaCifra
           etiqueta="Cupos con dueño"
           valor={n(resumen.ocupados)}
@@ -412,7 +412,7 @@ function Alertas({
   }
 
   return (
-    <div className="grid gap-4 sm:grid-cols-3">
+    <div className="grid sm:grid-cols-3">
       <div className="rounded-2xl border border-borde bg-superficie p-5">
         <p className="text-sm text-texto-suave">Ubicaciones completas</p>
         <p className="mt-1 text-2xl font-semibold tabular-nums">

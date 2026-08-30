@@ -649,7 +649,7 @@ export default function PaginaFicha() {
                 }
               >
                 <div className="space-y-5">
-                  <dl className="grid gap-4 sm:grid-cols-2">
+                  <dl className="grid sm:grid-cols-2">
                     <div className="rounded border border-borde bg-superficie-alterna p-3.5">
                       <dt className="text-[0.6875rem] font-semibold tracking-wider text-texto-suave uppercase">
                         Origen del lead
@@ -1542,7 +1542,7 @@ function Revocar({
         de revocación, que es lo que hay que poder demostrar.
       </Aviso>
 
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid sm:grid-cols-2">
         <Campo etiqueta="Por dónde lo pidió">
           <select
             className={CLASE_CONTROL}
@@ -1607,7 +1607,7 @@ function RegistrarAutorizacion({
         puede matricular ni incluir en el reporte al SENA.
       </Aviso>
 
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid sm:grid-cols-2">
         <Campo etiqueta="Cómo lo autorizó">
           <select
             className={CLASE_CONTROL}
@@ -1765,7 +1765,7 @@ function ValidacionRui({
         </div>
 
         {delRui && (
-          <dl className="grid gap-2 sm:grid-cols-2">
+          <dl className="grid sm:grid-cols-2">
             <div>
               <dt className="text-xs uppercase tracking-wide text-texto-suave">
                 Como lo digito
@@ -2513,7 +2513,7 @@ function ContactoDeLaEmpresa({
 
   return (
     <div className="space-y-3">
-      <div className="grid gap-3 sm:grid-cols-3">
+      <div className="grid sm:grid-cols-3">
         {CAMPOS.map(([clave, etiqueta]) => (
           <label key={clave} className="block">
             <span className="mb-1 block text-xs tracking-wide text-texto-suave uppercase">

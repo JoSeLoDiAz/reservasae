@@ -74,9 +74,9 @@ export default function PaginaPoliticas() {
   const sinTexto = cobertura.filter((c) => !c.reserva);
 
   return (
-    <div className="space-y-6">
+    <div>
       <header>
-        <h1 className="text-2xl font-bold tracking-tight">Políticas de datos</h1>
+        <h1 className="text-[1.3125rem] font-bold tracking-[-0.02em] text-titulo">Políticas de datos</h1>
         <p className="mt-1 text-texto-suave">
           El texto que la gente acepta. Se versiona: el que alguien ya aceptó no se
           cambia nunca, se publica uno nuevo.

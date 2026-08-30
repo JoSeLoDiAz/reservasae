@@ -15,52 +15,65 @@ const VARIABLE: Record<Tono, string> = {
 };
 
 /**
- * La cifra grande con su icono en un cuadro teñido. El
- * fondo sale de `color-mix` sobre el mismo token que el
- * trazo, así que un solo color da los dos y sigue
- * obedeciendo al editor de apariencia.
+ * Un indicador, como una CELDA de la franja.
+ *
+ * Era una tarjeta con borde, radio y su icono en un cuadro
+ * tenido. Ahora es una celda de la banda de indicadores: la
+ * separacion la pone la raya de la izquierda, no una caja.
+ *
+ * El icono se fue. El prototipo no lo tiene, y con ocho
+ * indicadores en fila ocho cuadros de color pesaban mas que
+ * las propias cifras. La prop se sigue aceptando para no
+ * tocar las 27 llamadas, pero no se pinta.
+ *
+ * Rotulo de 10px en versalita, cifra de 32 y pie de 11,5: los
+ * tres en rem, que es lo que deja que el ajuste de texto del
+ * panel los siga escalando.
  */
 export function TarjetaCifra({
   etiqueta,
   valor,
   pie,
-  icono: Icono,
   tono = "marca",
   href,
 }: {
   etiqueta: string;
   valor: React.ReactNode;
   pie?: React.ReactNode;
+  /// Se acepta y NO se pinta: ver el comentario de arriba.
   icono?: Icono;
   tono?: Tono;
   href?: string;
 }) {
-  const color = VARIABLE[tono];
-
   const cuerpo = (
     <>
-      <div className="flex items-start justify-between gap-3">
-        <p className="text-sm font-medium text-texto-suave">{etiqueta}</p>
-        {Icono && (
-          <span
-            className="grid h-9 w-9 shrink-0 place-items-center rounded-xl"
-            style={{
-              backgroundColor: `color-mix(in oklab, ${color} 14%, transparent)`,
-              color,
-            }}
-          >
-            <Icono tamano={18} />
-          </span>
-        )}
-      </div>
-      <p className="mt-3 text-3xl font-bold tabular-nums">{valor}</p>
-      {pie && <p className="mt-1 text-xs text-texto-suave">{pie}</p>}
+      <p
+        className="font-semibold uppercase text-texto-suave"
+        style={{ fontSize: "0.625rem", letterSpacing: "0.1em" }}
+      >
+        {etiqueta}
+      </p>
+      <p
+        className="mt-2 font-bold tabular-nums"
+        style={{
+          fontSize: "2rem",
+          letterSpacing: "-0.03em",
+          color: tono === "marca" ? "var(--titulo)" : VARIABLE[tono],
+        }}
+      >
+        {valor}
+      </p>
+      {pie && (
+        <p className="mt-[3px] text-texto-suave" style={{ fontSize: "0.71875rem" }}>
+          {pie}
+        </p>
+      )}
     </>
   );
 
   const clase =
-    "rounded-2xl border border-borde bg-superficie p-5 transition" +
-    (href ? " block no-underline hover:border-marca" : "");
+    "bg-superficie px-7 pt-[18px] pb-5 transition" +
+    (href ? " block no-underline hover:bg-tabla-fila-resaltada" : "");
 
   return href ? (
     <Link href={href} className={clase}>
