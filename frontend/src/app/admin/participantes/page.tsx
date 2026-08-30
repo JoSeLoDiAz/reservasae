@@ -25,6 +25,16 @@ import {
 
 /// La pinta del boton de «Descargar en Excel», para que los
 /// tres de la barra se lean como hermanos.
+/// El secundario: misma caja, contorno en vez de relleno.
+///
+/// En la barra solo hay UN boton relleno -- la accion
+/// principal -- y el resto van con contorno. Es lo que hace el
+/// demo, y lo que deja que el primario signifique algo.
+const CLASE_BOTON_SECUNDARIO =
+  "inline-flex h-[34px] items-center justify-center rounded-lg border border-borde bg-superficie px-3.5 " +
+  "text-[0.78125rem] font-semibold whitespace-nowrap text-titulo no-underline " +
+  "transition hover:bg-superficie-alterna";
+
 const CLASE_BOTON =
   "inline-flex h-[34px] items-center justify-center rounded-lg border border-marca bg-marca px-3.5 text-[0.78125rem] font-semibold whitespace-nowrap text-marca-texto no-underline transition hover:bg-marca-fuerte";
 
@@ -367,7 +377,10 @@ function ListaParticipantes({
         /// se empieza el dia y merecen verse.
         acciones={
           <>
-            <Link href="/admin/participantes/carga" className={CLASE_BOTON}>
+            <Link
+              href="/admin/participantes/carga"
+              className={CLASE_BOTON_SECUNDARIO}
+            >
               Cargar una lista
             </Link>
             <Link href="/admin/participantes/nuevo" className={CLASE_BOTON}>

@@ -970,6 +970,9 @@ export function Tabla<T>({
                         setEncima(null);
                       }}
                       onClick={() => ordenarPor(c)}
+                      /// Que se puede arrastrar no se ve solo con
+                      /// el cursor de mano: hay que decirlo.
+                      title={`Ordenar por ${c.titulo} · arrastre para mover la columna`}
                       className={
                         "inline-flex cursor-grab items-center gap-1 hover:opacity-70 " +
                         (c.numerica ? "flex-row-reverse" : "")
@@ -1193,7 +1196,14 @@ function Barra({
         <button
           type="button"
           onClick={alDescargar}
-          className="inline-flex h-[34px] items-center rounded-lg border border-marca bg-marca px-3.5 text-[0.78125rem] font-semibold text-marca-texto transition hover:bg-marca-fuerte"
+          /// Secundario, no primario.
+          ///
+          /// En el demo el UNICO boton relleno de la barra es
+          /// «Inscribir a alguien». Tres azules seguidos pesan
+          /// mas que la tabla que hay debajo, y ademas dejan de
+          /// decir cual es la accion principal: si todo destaca,
+          /// no destaca nada.
+          className="inline-flex h-[34px] items-center rounded-lg border border-borde bg-superficie px-3.5 text-[0.78125rem] font-semibold text-titulo transition hover:bg-superficie-alterna"
         >
           Descargar en Excel
         </button>

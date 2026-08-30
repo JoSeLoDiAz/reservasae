@@ -736,7 +736,7 @@ export function Embudo({
   }) => (
     <div
       className={
-        "flex-1 min-w-[112px] rounded-lg border border-borde bg-superficie px-3.5 py-2.5 transition " +
+        "flex-1 min-w-[112px] rounded-lg border border-borde bg-superficie px-3.5 py-2 transition " +
         /// La sombra al pasar por encima: suave y hacia fuera,
         /// para que la tarjeta se despegue un punto sin
         /// moverse. Es lo unico que flota aqui, y solo mientras
@@ -744,16 +744,20 @@ export function Embudo({
         "hover:border-marca/40 hover:shadow-[0_2px_14px_-6px_rgba(15,23,42,0.28)]"
       }
     >
+      {/* Apretadas a proposito: cada pixel de alto que se
+          ahorran aqui es una fila mas de tabla, que es lo que
+          se vino a mirar. Bajan de 61px a 46 sin perder nada --
+          el rotulo se sigue leyendo y la cifra sigue mandando. */}
       <div
-        className="truncate text-texto-suave"
+        className="truncate leading-none text-texto-suave"
         style={{ fontSize: T.pie }}
         title={etiqueta}
       >
         {etiqueta}
       </div>
       <div
-        className="mt-0.5 font-bold tabular-nums"
-        style={{ fontSize: "1.125rem", color }}
+        className="mt-1 font-bold leading-none tabular-nums"
+        style={{ fontSize: "1.0625rem", color }}
       >
         {valor}
       </div>
