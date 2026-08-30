@@ -707,95 +707,74 @@ export type TramoDeEmbudo = {
 export function Embudo({
   tramos,
   sinAsesor,
-  enLaVista,
 }: {
   tramos: TramoDeEmbudo[];
   sinAsesor?: number;
-  /// Cuántos está enseñando la tabla de abajo. Solo se pinta
-  /// cuando NO coincide con el total del embudo.
-  enLaVista?: number;
 }) {
-  /// El total sale de sumar los tramos, no viene aparte.
+  /// Tarjetas INDIVIDUALES que llenan el ancho de la tabla.
   ///
-  /// Venía del resumen del servidor y decía 56 mientras la
-  /// barra dibujaba 49: se estaban pintando solo las etapas de
-  /// avance y los que ya salieron -- perdidos, retirados -- no
-  /// entraban en el dibujo pero sí en la cifra. Una barra cuyas
-  /// partes no suman lo que dice el número de al lado no se
-  /// puede leer.
-  /// Sin raya arriba.
+  /// Cada una con su marco y su hueco -- no una barra dividida
+  /// en trozos -- pero repartiendose entre todas el mismo ancho
+  /// que la tabla de abajo. Sueltas y alineadas a la izquierda
+  /// dejaban medio metro vacio a la derecha y no se entendia
+  /// que fueran el resumen de lo de abajo.
   ///
-  /// En el prototipo el embudo va DEBAJO de la barra de botones
-  /// y esa raya lo separa de ella. Aquí va encima de todo, y sin
-  /// nada arriba la raya se quedaba flotando sola cruzando la
-  /// pantalla.
-  const total = tramos.reduce((a, t) => a + t.total, 0);
-  const suma = total || 1;
-
-  /// Y el rótulo decía «en esta vista», que era falso: el
-  /// resumen se pide SIN los filtros de la persona a propósito,
-  /// para que al filtrar por «Contactado» el contador de
-  /// Contactado no pase a ser el total. Es el mapa del
-  /// conjunto, no de lo filtrado, y ahora lo dice.
-  const distinto = enLaVista !== undefined && enLaVista !== total;
+  /// El marco es el mismo que el de la tabla -- borde de 1px y
+  /// radio de 10 -- para que los dos bloques se lean como parte
+  /// de la misma pantalla.
+  const Tarjeta = ({
+    etiqueta,
+    valor,
+    color,
+  }: {
+    etiqueta: string;
+    valor: number;
+    color: string;
+  }) => (
+    <div
+      className={
+        "flex-1 min-w-[112px] rounded-lg border border-borde bg-superficie px-3.5 py-2.5 transition " +
+        /// La sombra al pasar por encima: suave y hacia fuera,
+        /// para que la tarjeta se despegue un punto sin
+        /// moverse. Es lo unico que flota aqui, y solo mientras
+        /// el raton esta encima.
+        "hover:border-marca/40 hover:shadow-[0_2px_14px_-6px_rgba(15,23,42,0.28)]"
+      }
+    >
+      <div
+        className="truncate text-texto-suave"
+        style={{ fontSize: T.pie }}
+        title={etiqueta}
+      >
+        {etiqueta}
+      </div>
+      <div
+        className="mt-0.5 font-bold tabular-nums"
+        style={{ fontSize: "1.125rem", color }}
+      >
+        {valor}
+      </div>
+    </div>
+  );
 
   return (
-    <div className="flex flex-wrap items-center gap-4 py-[11px]">
-      <div
-        className="whitespace-nowrap text-texto-suave"
-        style={{ fontSize: T.menudo }}
-      >
-        <span className="font-bold tabular-nums text-titulo">{total}</span>{" "}
-        {distinto ? "en total" : "registros"}
-        {distinto && (
-          <>
-            {" · "}
-            <span className="font-bold tabular-nums text-titulo">
-              {enLaVista}
-            </span>{" "}
-            con el filtro puesto
-          </>
-        )}
-      </div>
-
-      {/* La barra no se estira sin fin.
-          En una pantalla ancha, con `flex-1` a secas quedaban
-          «79 registros» pegado a la izquierda, la barra en medio
-          y los numeros al fondo a la derecha: un metro de
-          separacion entre tres cosas que son UNA. Con el tope
-          las tres se leen juntas, y no se pierde ni el renglon
-          unico ni la proporcion, que es lo que la barra dice. */}
-      <div className="flex h-1 min-w-[220px] max-w-[360px] flex-1 overflow-hidden rounded-sm bg-superficie-alterna">
-        {tramos
-          .filter((t) => t.total > 0)
-          .map((t) => (
-            <div
-              key={t.etiqueta}
-              title={`${t.etiqueta}: ${t.total}`}
-              style={{ width: `${(t.total / suma) * 100}%`, background: t.color }}
-            />
-          ))}
-      </div>
-
-      <div
-        className="flex flex-wrap items-center gap-3.5"
-        style={{ fontSize: T.pie }}
-      >
-        {tramos.map((t) => (
-          <div key={t.etiqueta} className="whitespace-nowrap">
-            <span className="text-texto-suave">{t.etiqueta}</span>{" "}
-            <span className="font-bold tabular-nums" style={{ color: t.color }}>
-              {t.total}
-            </span>
-          </div>
-        ))}
-        {sinAsesor !== undefined && sinAsesor > 0 && (
-          <div className="whitespace-nowrap border-l border-borde pl-1.5">
-            <span className="text-texto-suave">Sin asesor</span>{" "}
-            <span className="font-bold tabular-nums text-aviso">{sinAsesor}</span>
-          </div>
-        )}
-      </div>
+    <div className="flex flex-wrap gap-2">
+      {tramos.map((t) => (
+        <Tarjeta
+          key={t.etiqueta}
+          etiqueta={t.etiqueta}
+          valor={t.total}
+          color={t.color}
+        />
+      ))}
+      {sinAsesor !== undefined && sinAsesor > 0 && (
+        /// Separada del resto: no es una etapa del proceso, es
+        /// una cola de trabajo. Quien no tiene asesor puede
+        /// estar en cualquiera de las cinco.
+        <div className="ml-1 flex flex-1 border-l border-borde pl-3">
+          <Tarjeta etiqueta="Sin asesor" valor={sinAsesor} color="var(--aviso)" />
+        </div>
+      )}
     </div>
   );
 }

@@ -210,7 +210,6 @@ export default function PaginaParticipantes() {
               la tabla salen iguales. */}
           <Embudo
             sinAsesor={resumen.sinAsesor}
-            enLaVista={total}
             tramos={resumen.etapas
               .filter((e) => e.total > 0 && ETAPAS_DEL_EMBUDO.includes(e.etapa))
               .map((e) => ({

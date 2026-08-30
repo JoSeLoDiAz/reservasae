@@ -528,6 +528,39 @@ h3 {
   }
 }
 
+/* La barra de desplazamiento de la tabla, discreta.
+
+   La de siempre es una franja gris de 15px pegada al borde
+   derecho, y dentro de un marco con radio queda como un parche.
+
+   No se quita: sin ella nadie sabe que hay mas filas debajo, y
+   arrastrarla es la forma rapida de recorrer cuatrocientas. Se
+   adelgaza a 8px, se le quita el carril, y el tirador va en el
+   color del borde -- se ve cuando se busca y no compite con los
+   datos cuando no. Al pasar por encima se marca. */
+.caja-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: var(--borde) transparent;
+}
+.caja-scroll::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+.caja-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+.caja-scroll::-webkit-scrollbar-thumb {
+  background: var(--borde);
+  border-radius: 999px;
+}
+.caja-scroll:hover::-webkit-scrollbar-thumb {
+  background: var(--campo-borde);
+}
+/* la esquina donde se cruzan las dos barras */
+.caja-scroll::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
 /* estilo comun de tablas de datos */
 .tabla-datos {
   width: 100%;

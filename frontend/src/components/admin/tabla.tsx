@@ -439,10 +439,24 @@ export function Tabla<T>({
   /// Si el usuario ajustó una a mano, manda su ancho: lo
   /// arrastró él y respetarlo es lo mínimo. Las demás piden
   /// lo cómodo.
+  /// `c.ancho` es TEXTO -- «148px» -- y esto es una suma.
+  ///
+  /// Sin convertirlo, `120 + "148px"` da la cadena «120148px» y
+  /// a partir de ahi el minimo de la tabla es basura: las
+  /// columnas se comprimian todas y un correo salia en cuatro
+  /// renglones. Se lee el numero del texto y si no lo hay se
+  /// usa lo comodo.
+  const enPixeles = (v: string | number | undefined): number => {
+    if (typeof v === "number") return v;
+    if (!v) return ANCHO_COMODO;
+    const n = parseFloat(v);
+    return Number.isFinite(n) ? n : ANCHO_COMODO;
+  };
+
   const anchoMinimoTabla = useMemo(
     () =>
       enPantalla.reduce(
-        (suma, c) => suma + (anchos[c.clave] ?? c.ancho ?? ANCHO_COMODO),
+        (suma, c) => suma + enPixeles(anchos[c.clave] ?? c.ancho),
         seleccion ? 40 : 0,
       ),
     [enPantalla, anchos, seleccion],
@@ -782,7 +796,15 @@ export function Tabla<T>({
           Asi que se queda dentro del relleno de la pantalla y se
           le anade separacion abajo. La raya de arriba es lo
           unico que la separa de la barra. */}
-      <div className="mb-5 flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-borde bg-superficie">
+      {/* Crece hasta lo que haya, pero NO se estira sin
+          contenido.
+          Llevaba `flex-1`, que es `grow:1 shrink:1`: con diez
+          filas el marco seguia ocupando el alto entero y dejaba
+          media pantalla en blanco debajo. `flex-initial` es
+          `grow:0 shrink:1` -- con pocas filas mide lo que miden
+          las filas, y con cincuenta se encoge a lo que hay y
+          scrollea por dentro, que es lo que ya hacia. */}
+      <div className="mb-5 flex min-h-0 flex-initial flex-col overflow-hidden rounded-lg border border-borde bg-superficie">
         {/* Se estira con su contenedor en vez de llevar un tope
             fijo: con `max-h` quedaba media pantalla en blanco
             debajo cuando la ventana era alta. */}
@@ -872,13 +894,6 @@ export function Tabla<T>({
                     /// sobre el mismo elemento se pisan. Y el
                     /// clic de ordenar tampoco estorba: cuando
                     /// hay arrastre, el navegador no lo emite.
-                    draggable
-                    onDragStart={(e) => {
-                      setArrastrada(c.clave);
-                      e.dataTransfer.effectAllowed = "move";
-                      // Firefox no arranca el arrastre sin esto
-                      e.dataTransfer.setData("text/plain", c.clave);
-                    }}
                     onDragOver={(e) => {
                       if (!arrastrada || arrastrada === c.clave) return;
                       e.preventDefault();
@@ -899,7 +914,7 @@ export function Tabla<T>({
                       setEncima(null);
                     }}
                     className={
-                      "relative cursor-grab select-none" +
+                      "relative select-none" +
                       (c.numerica ? " text-right" : "") +
                       (arrastrada === c.clave ? " opacity-40" : "") +
                       /// La raya de donde va a caer, del lado por
@@ -921,11 +936,29 @@ export function Tabla<T>({
                         : "none"
                     }
                   >
+                    {/* El titulo ES el tirador del arrastre.
+                        Estaba en el `th` entero, y con eso un
+                        pointerdown sobre el tirador de ancho
+                        arrancaba el arrastre del ancestro: se
+                        perdio el redimensionado. `draggable` en
+                        el hijo no basta para pararlo, hay que no
+                        ponerlo arriba. */}
                     <button
                       type="button"
+                      draggable
+                      onDragStart={(e) => {
+                        setArrastrada(c.clave);
+                        e.dataTransfer.effectAllowed = "move";
+                        // Firefox no arranca el arrastre sin esto
+                        e.dataTransfer.setData("text/plain", c.clave);
+                      }}
+                      onDragEnd={() => {
+                        setArrastrada(null);
+                        setEncima(null);
+                      }}
                       onClick={() => ordenarPor(c)}
                       className={
-                        "inline-flex items-center gap-1 hover:opacity-70 " +
+                        "inline-flex cursor-grab items-center gap-1 hover:opacity-70 " +
                         (c.numerica ? "flex-row-reverse" : "")
                       }
                     >
@@ -934,11 +967,6 @@ export function Tabla<T>({
                         (orden.asc ? <IconoArriba tamano={13} /> : <IconoAbajo tamano={13} />)}
                     </button>
 
-                    {/* El tirador NO arrastra la columna: es
-                        para el ancho. Sin `draggable={false}` el
-                        `th` de arriba se lleva el gesto y no se
-                        puede redimensionar. */}
-                    <span draggable={false} onDragStart={(e) => e.preventDefault()}>
                     <TiradorDeAncho
                       titulo={c.titulo}
                       alto={altoTabla}
@@ -967,7 +995,6 @@ export function Tabla<T>({
                       alSoltarDobleClic={() => setAnchos({})
                       }
                     />
-                    </span>
                   </th>
                 ))}
               </tr>
@@ -1532,9 +1559,25 @@ function Pie({
               {(desde + mostradas).toLocaleString("es-CO")}
             </strong>
             {" / "}
-            <strong className="font-medium text-texto">
-              {filtradas.toLocaleString("es-CO")}
-            </strong>
+            {/* El total, pulsable: enseña TODAS en una tabla.
+                Para ver las 79 de una habia que abrir «Por
+                pagina» y buscar un tamanio que las cubriera; y
+                si eran 137, ninguno de los cuatro servia. Aqui
+                el numero que uno ya esta mirando lo hace. */}
+            {filtradas > mostradas ? (
+              <button
+                type="button"
+                onClick={() => setTamano(filtradas)}
+                title={`Ver las ${filtradas.toLocaleString("es-CO")} en una sola tabla`}
+                className="font-semibold text-marca underline decoration-dotted underline-offset-2 hover:decoration-solid"
+              >
+                {filtradas.toLocaleString("es-CO")}
+              </button>
+            ) : (
+              <strong className="font-medium text-texto">
+                {filtradas.toLocaleString("es-CO")}
+              </strong>
+            )}
             {filtradas !== cargadas &&
               ` (de ${cargadas.toLocaleString("es-CO")})`}
           </>
