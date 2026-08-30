@@ -36,6 +36,7 @@ export function TarjetaCifra({
   pie,
   tono = "marca",
   href,
+  compacta,
 }: {
   etiqueta: string;
   valor: React.ReactNode;
@@ -44,6 +45,9 @@ export function TarjetaCifra({
   icono?: Icono;
   tono?: Tono;
   href?: string;
+  /// Menos alta, para pantallas donde la cifra acompaña y lo
+  /// que se viene a mirar es la lista de abajo.
+  compacta?: boolean;
 }) {
   const cuerpo = (
     <>
@@ -54,9 +58,9 @@ export function TarjetaCifra({
         {etiqueta}
       </p>
       <p
-        className="mt-2 font-bold tabular-nums"
+        className={(compacta ? "mt-1" : "mt-2") + " font-bold tabular-nums"}
         style={{
-          fontSize: "2rem",
+          fontSize: compacta ? "1.5rem" : "2rem",
           letterSpacing: "-0.03em",
           color: tono === "marca" ? "var(--titulo)" : VARIABLE[tono],
         }}
@@ -72,7 +76,7 @@ export function TarjetaCifra({
   );
 
   const clase =
-    "bg-superficie px-7 pt-[18px] pb-5 transition" +
+    (compacta ? "bg-superficie px-7 pt-3 pb-[13px] transition" : "bg-superficie px-7 pt-[18px] pb-5 transition") +
     (href ? " block no-underline hover:bg-tabla-fila-resaltada" : "");
 
   return href ? (

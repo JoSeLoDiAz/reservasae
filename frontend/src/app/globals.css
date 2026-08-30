@@ -553,10 +553,22 @@ select[size]:not([size='1']) {
   }
 
   /* ocultar controles en papel */
+  /*
+   * `button` a secas escondia tambien los botones que NO son un
+   * control sino CONTENIDO: la fila de una accion del cronograma
+   * es un boton, y con la regla anterior el cronograma impreso
+   * salia en blanco. Lo que se marque `.imprimible` se imprime.
+   */
   .no-imprimir,
   header nav,
-  button {
+  button:not(.imprimible) {
     display: none !important;
+  }
+  /* sin apariencia de control: en papel es texto. La sangria
+     SI se conserva, o la fila se desalinea de todo lo demas */
+  button.imprimible {
+    background: transparent !important;
+    border: 0 !important;
   }
 
   /* no partir una tarjeta entre paginas */

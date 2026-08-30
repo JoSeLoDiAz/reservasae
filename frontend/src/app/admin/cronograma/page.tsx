@@ -11,6 +11,7 @@ import {
   useAdmin,
 } from "@/components/admin/marco-admin";
 import { Esqueleto, Pildora, TarjetaCifra, Vacio } from "@/components/admin/piezas";
+import { Desplegable } from "@/components/admin/desplegable";
 import {
   alcanza,
   cronogramaApi,
@@ -70,6 +71,11 @@ export default function PaginaCronograma() {
   const [error, setError] = useState<string | null>(null);
   const [abierta, setAbierta] = useState<string | null>(null);
   const [buscar, setBuscar] = useState("");
+  const [gremio, setGremio] = useState("");
+  const [estado, setEstado] = useState("");
+  /// Para imprimir hay que abrirlo todo: un cronograma impreso
+  /// con los acordeones cerrados es una hoja de titulos.
+  const [imprimiendo, setImprimiendo] = useState(false);
 
   // por el permiso, no por el rol de cuenta: quien
   // configura la formacion es el lider de sistemas
@@ -87,19 +93,48 @@ export default function PaginaCronograma() {
     void cargar();
   }, [cargar]);
 
+  /// Se cierra con `afterprint` y NO justo despues de `print()`.
+  /// Aquella version dependia de que `print()` bloquee hasta que
+  /// se cierre el dialogo: es cierto en Chrome hoy, pero es una
+  /// suposicion sobre el navegador y no un hecho del contrato.
+  useEffect(() => {
+    const fin = () => setImprimiendo(false);
+    window.addEventListener("afterprint", fin);
+    return () => window.removeEventListener("afterprint", fin);
+  }, []);
+
   if (!acciones) return <Esqueleto conCifras filas={4} />;
 
   const sinTildes = (t: string) =>
     t.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
   const aguja = sinTildes(buscar.trim());
-  const visibles = acciones.filter(
-    (a) =>
+  const visibles = acciones.filter((a) => {
+    const coincide =
       !aguja ||
       sinTildes(`${a.codigo} ${a.nombre} ${a.convenio}`).includes(aguja) ||
       a.grupos.some((g) =>
         g.ubicaciones.some((u) => sinTildes(u.nombre).includes(aguja)),
-      ),
-  );
+      );
+    /// El estado es de un GRUPO, no de la accion: se deja la
+    /// accion que tenga al menos uno en ese estado. Esconder la
+    /// accion entera ocultaria los grupos que si cumplen.
+    const porEstado = !estado || a.grupos.some((g) => g.estado === estado);
+    return coincide && (!gremio || a.convenio === gremio) && porEstado;
+  });
+
+  const gremios = [...new Set(acciones.map((a) => a.convenio))];
+  const hayFiltro = Boolean(aguja || gremio || estado);
+
+  /// Se abre todo, se deja pintar, y se imprime. El navegador ya
+  /// sabe paginar y guardar en PDF; la hoja `@media print` de
+  /// `globals.css` fuerza el tema claro y expande los scrolls.
+  function exportarPdf() {
+    setImprimiendo(true);
+    /// Dos cuadros: uno para que React pinte los 67 grupos y
+    /// otro para que el navegador haga el diseño antes de que
+    /// `print()` congele la pagina.
+    requestAnimationFrame(() => requestAnimationFrame(() => window.print()));
+  }
 
   const grupos = acciones.flatMap((a) => a.grupos);
   const enCurso = grupos.filter((g) => g.estado === "EN_CURSO").length;
@@ -122,12 +157,24 @@ export default function PaginaCronograma() {
 
   return (
     <div>
-      <header className="border-b border-borde bg-superficie px-7 pt-[26px] pb-[22px]">
-        <h1 className="text-[1.3125rem] font-bold tracking-[-0.02em] text-titulo">Cronograma</h1>
-        <p className="mt-1 text-sm text-texto-suave">
-          Cuándo empieza y termina cada grupo. De estas fechas depende todo el
-          seguimiento académico: sin ellas no se puede medir quién va al día.
-        </p>
+      <header className="flex flex-wrap items-start justify-between gap-4 border-b border-borde bg-superficie px-7 pt-[26px] pb-[22px]">
+        <div className="min-w-0">
+          <h1 className="text-[1.3125rem] font-bold tracking-[-0.02em] text-titulo">
+            Cronograma
+          </h1>
+          <p className="mt-1 text-texto-suave">
+            Fechas de inicio y cierre de cada grupo. El seguimiento académico se
+            calcula contra ellas: sin fechas no es posible establecer el avance de un
+            participante.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={exportarPdf}
+          className="sin-aro no-imprimir inline-flex h-[32px] shrink-0 items-center rounded-[9px] border border-campo-borde bg-superficie px-[13px] text-[0.78125rem] font-semibold whitespace-nowrap text-titulo transition hover:border-marca"
+        >
+          Exportar a PDF
+        </button>
       </header>
 
       {error && <Aviso tipo="error">{error}</Aviso>}
@@ -136,55 +183,110 @@ export default function PaginaCronograma() {
           tarjeta media mas alta y la fila quedaba descuadrada. */}
       <div className="grid gap-px border-t border-b border-hairline bg-hairline sm:grid-cols-2 lg:grid-cols-4">
         <TarjetaCifra
+          compacta
           etiqueta="Grupos"
           valor={grupos.length}
           pie={`en ${acciones.length} acciones de formación`}
           icono={IconoFormacion}
         />
         <TarjetaCifra
+          compacta
           etiqueta="En curso"
           valor={enCurso}
-          pie={enCurso > 0 ? "dictándose ahora mismo" : "ninguno ha arrancado todavía"}
+          pie={enCurso > 0 ? "en desarrollo actualmente" : "ninguno ha iniciado"}
           tono="exito"
         />
         <TarjetaCifra
+          compacta
           etiqueta="Por empezar"
           valor={porEmpezar}
-          pie={terminados > 0 ? `${terminados} ya terminaron` : "con fecha puesta"}
+          pie={terminados > 0 ? `${terminados} ya finalizaron` : "con fecha programada"}
           tono="neutro"
         />
         <TarjetaCifra
+          compacta
           etiqueta="Sin fechas"
           valor={sinFechas}
-          pie={sinFechas > 0 ? "no se puede matricular en ellos" : "todos tienen calendario"}
+          pie={sinFechas > 0 ? "impiden matricular" : "programación completa"}
           tono={sinFechas > 0 ? "error" : "exito"}
         />
       </div>
 
-      <div className="flex flex-wrap items-center gap-3 border-b border-borde bg-superficie px-7 py-3">
-        <input
-          className={`${CLASE_CONTROL} max-w-sm`}
-          placeholder="Buscar por código, curso o ciudad…"
-          value={buscar}
-          onChange={(e) => setBuscar(e.target.value)}
-        />
-        {buscar && (
-          <button
-            type="button"
-            onClick={() => setBuscar("")}
-            className="sin-aro text-[0.78125rem] text-texto-suave underline-offset-2 transition hover:text-marca hover:underline"
-          >
-            Quitar la búsqueda
-          </button>
-        )}
-        <span className="ml-auto text-[0.78125rem] text-texto-suave tabular-nums">
-          {visibles.length} de {acciones.length} acciones
-        </span>
+      <div className="no-imprimir border-b border-borde bg-superficie px-7 py-4">
+        <div className="flex flex-wrap items-end gap-4">
+          <label className="min-w-[260px] grow basis-[340px]">
+            <span className="mb-1 block text-[0.71875rem] font-semibold text-titulo">
+              Buscar
+            </span>
+            <input
+              className={`${CLASE_CONTROL} h-[38px] text-[0.84375rem]`}
+              placeholder="Código, nombre de la acción o ciudad…"
+              value={buscar}
+              onChange={(e) => setBuscar(e.target.value)}
+            />
+          </label>
+
+          <label className="w-[220px] shrink-0">
+            <span className="mb-1 block text-[0.71875rem] font-semibold text-titulo">
+              Convenio
+            </span>
+            <Desplegable
+              marcador="Todos los convenios"
+              valor={gremio}
+              opciones={[
+                { valor: "", etiqueta: "Todos los convenios" },
+                ...gremios.map((g) => ({ valor: g, etiqueta: g })),
+              ]}
+              alElegir={setGremio}
+            />
+          </label>
+
+          <label className="w-[220px] shrink-0">
+            <span className="mb-1 block text-[0.71875rem] font-semibold text-titulo">
+              Estado del grupo
+            </span>
+            <Desplegable
+              marcador="Todos los estados"
+              valor={estado}
+              opciones={[
+                { valor: "", etiqueta: "Todos los estados" },
+                ...(["EN_CURSO", "POR_EMPEZAR", "TERMINADO", "SIN_FECHAS"] as EstadoGrupo[]).map(
+                  (e) => ({
+                    valor: e,
+                    etiqueta: ETIQUETA_ESTADO_GRUPO[e],
+                    detalle: `${grupos.filter((g) => g.estado === e).length} grupos`,
+                  }),
+                ),
+              ]}
+              alElegir={setEstado}
+            />
+          </label>
+
+          <div className="ml-auto flex items-center gap-4 pb-[7px]">
+            {hayFiltro && (
+              <button
+                type="button"
+                onClick={() => {
+                  setBuscar("");
+                  setGremio("");
+                  setEstado("");
+                }}
+                className="sin-aro text-[0.78125rem] font-semibold text-marca underline-offset-2 transition hover:underline"
+              >
+                Limpiar filtros
+              </button>
+            )}
+            <span className="text-[0.78125rem] text-texto-suave tabular-nums">
+              {visibles.length} de {acciones.length} acciones
+            </span>
+          </div>
+        </div>
       </div>
 
       {visibles.length === 0 ? (
-        <Vacio titulo="Ninguna formación coincide" icono={IconoFormacion}>
-          Pruebe con el código (AF8), parte del nombre o una ciudad.
+        <Vacio titulo="Sin resultados" icono={IconoFormacion}>
+          Ninguna acción de formación coincide con los criterios aplicados. Pruebe con
+          el código (AF8), parte del nombre o una ciudad.
         </Vacio>
       ) : (
         /// Pegadas, no separadas por hueco.
@@ -194,8 +296,8 @@ export default function PaginaCronograma() {
         /// separacion la hace la raya de cada banda.
         <div>
           {porConvenio.map((b) => (
-            <div key={b.convenio}>
-              <h2 className="border-b border-hairline bg-superficie-alterna px-7 py-2 text-[0.65625rem] font-semibold tracking-[0.06em] text-marca uppercase">
+            <div key={b.convenio} className="border-t-2 border-borde">
+              <h2 className="border-b border-borde bg-superficie-alterna px-7 py-2.5 text-[0.65625rem] font-semibold tracking-[0.06em] text-marca uppercase">
                 {b.convenio}
                 <span className="ml-2 font-normal tracking-normal text-texto-suave normal-case">
                   {b.acciones.length}{" "}
@@ -207,6 +309,7 @@ export default function PaginaCronograma() {
                   key={a.id}
                   accion={a}
                   abierta={abierta === a.id}
+                  imprimiendo={imprimiendo}
                   alAbrir={() => setAbierta(abierta === a.id ? null : a.id)}
                   puedeEditar={puedeEditar}
                   alGuardar={cargar}
@@ -225,6 +328,7 @@ export default function PaginaCronograma() {
 function Accion({
   accion,
   abierta,
+  imprimiendo,
   alAbrir,
   puedeEditar,
   alGuardar,
@@ -232,6 +336,7 @@ function Accion({
 }: {
   accion: AccionCronograma;
   abierta: boolean;
+  imprimiendo: boolean;
   alAbrir: () => void;
   puedeEditar: boolean;
   alGuardar: () => Promise<void>;
@@ -249,7 +354,7 @@ function Accion({
         /// fila del prototipo. Con `p-5` cada fila ocupaba
         /// medio tercio mas y en pantalla cabian cinco donde
         /// caben ocho.
-        className="flex w-full items-center gap-4 px-7 py-3 text-left transition hover:bg-tabla-fila-resaltada"
+        className="imprimible flex w-full items-center gap-4 px-7 py-3 text-left transition hover:bg-tabla-fila-resaltada"
       >
         <span className="min-w-0 grow">
           <span className="flex flex-wrap items-center gap-2">
@@ -281,26 +386,28 @@ function Accion({
                 {enCurso} en curso
               </span>
             ) : (
-              "calendario completo"
+              "programación completa"
             )}
           </span>
         </span>
 
-        <span aria-hidden className="shrink-0 text-texto-suave transition-transform" style={{ transform: abierta ? "rotate(180deg)" : undefined }}>
+        <span aria-hidden className="no-imprimir shrink-0 text-texto-suave transition-transform" style={{ transform: abierta ? "rotate(180deg)" : undefined }}>
           <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
             <path d="M2.5 4.5 6 8l3.5-3.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
         </span>
       </button>
 
-      {abierta && (
-        <div className="border-t border-hairline px-7 pt-4 pb-5">
+      {(abierta || imprimiendo) && (
+        <div className="border-t border-hairline bg-superficie-alterna px-7 pt-4 pb-5">
           {accion.grupos.length === 0 ? (
-            <p className="text-sm text-texto-suave">
-              Esta acción no tiene grupos cargados.
+            <p className="text-[0.78125rem] text-texto-suave">
+              No hay grupos registrados para esta acción de formación.
             </p>
           ) : (
-            <div className="space-y-3">
+            /// En dos columnas: ocho grupos apilados dejaban la
+            /// pagina larguisima y la mitad derecha vacia.
+            <div className="grid gap-3 xl:grid-cols-2">
               {accion.grupos.map((g) => (
                 <Grupo
                   key={g.id}
@@ -353,49 +460,50 @@ function Grupo({
   }
 
   return (
-    <div className="rounded-xl border border-borde p-4">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-0">
-          <p className="flex flex-wrap items-center gap-2 font-medium">
+    <div className="imprimible-bloque rounded-lg border border-borde bg-superficie p-4">
+      <div className="flex items-start justify-between gap-3">
+        <p className="flex min-w-0 flex-wrap items-center gap-2">
+          <span className="text-[0.84375rem] font-semibold text-titulo">
             Grupo {grupo.numero}
-            <Pildora tono={TONO[grupo.estado]}>
-              {ETIQUETA_ESTADO_GRUPO[grupo.estado]}
-            </Pildora>
-            {grupo.sepGrupoId && (
-              <span className="font-mono text-xs text-texto-suave">
-                SEP {grupo.sepGrupoId}
-              </span>
-            )}
-          </p>
-          <p className="mt-1 text-sm text-texto-suave">
-            {fecha(grupo.fechaInicio)} → {fecha(grupo.fechaFin)}
-            {grupo.horario && ` · ${grupo.horario}`}
-          </p>
-        </div>
-
-        <div className="flex items-center gap-3 text-sm">
-          <span className="tabular-nums text-texto-suave">
-            {grupo.inscritos} de {grupo.cupos}
           </span>
-          {puedeEditar && (
-            <button
-              onClick={() => setEditando(!editando)}
-              className="text-marca underline"
-            >
-              {editando ? "Cerrar" : "Fechas"}
-            </button>
+          <Pildora tono={TONO[grupo.estado]}>
+            {ETIQUETA_ESTADO_GRUPO[grupo.estado]}
+          </Pildora>
+          {grupo.sepGrupoId && (
+            <span className="font-mono text-[0.6875rem] text-texto-suave">
+              SEP {grupo.sepGrupoId}
+            </span>
           )}
-        </div>
+        </p>
+        <span className="shrink-0 text-[0.78125rem] text-texto-suave tabular-nums">
+          {grupo.inscritos} de {grupo.cupos}
+        </span>
       </div>
 
+      <p className="mt-1.5 text-[0.78125rem] text-texto-suave">
+        {fecha(grupo.fechaInicio)} → {fecha(grupo.fechaFin)}
+        {grupo.horario && ` · ${grupo.horario}`}
+      </p>
+
       {/* dónde se dictará y con cuántos cupos */}
-      <div className="mt-3 flex flex-wrap gap-1.5">
+      <div className="mt-2.5 flex flex-wrap gap-1.5">
         {grupo.ubicaciones.map((u) => (
           <Pildora key={u.id} tono="neutro">
             {bonito(u.nombre)} · {u.inscritos}/{u.cupos}
           </Pildora>
         ))}
       </div>
+
+      {puedeEditar && (
+        /// La accion al pie y no arriba: alli competia con la
+        /// cifra de cupos y en columna estrecha las partia.
+        <button
+          onClick={() => setEditando(!editando)}
+          className="sin-aro no-imprimir mt-2.5 text-[0.78125rem] font-semibold text-marca underline-offset-2 transition hover:underline"
+        >
+          {editando ? "Cerrar" : "Editar fechas"}
+        </button>
+      )}
 
       {editando && (
         <div className="mt-4 grid gap-3 border-t border-borde pt-4 sm:grid-cols-3">
