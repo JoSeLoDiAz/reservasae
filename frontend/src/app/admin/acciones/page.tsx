@@ -3,8 +3,9 @@
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 
-import { Aviso, CLASE_CONTROL } from "@/components/admin/marco-admin";
-import { Esqueleto, TarjetaCifra, Vacio } from "@/components/admin/piezas";
+import { Aviso } from "@/components/admin/marco-admin";
+import { Cifra, Esqueleto, Vacio } from "@/components/admin/piezas";
+import { Desplegable } from "@/components/admin/desplegable";
 import { IconoFormacion } from "@/components/admin/iconos";
 import { adminApi, type AccionAdmin } from "@/lib/admin-api";
 import { bonito, ErrorApi } from "@/lib/api";
@@ -20,6 +21,9 @@ export default function PaginaAcciones() {
   const [error, setError] = useState<string | null>(null);
   const [ocupada, setOcupada] = useState<string | null>(null);
   const [buscar, setBuscar] = useState("");
+  const [gremio, setGremio] = useState("");
+  const [publicacion, setPublicacion] = useState("");
+  const [modalidad, setModalidad] = useState("");
 
   const cargar = useCallback(async () => {
     setAcciones(await adminApi.acciones());
@@ -47,8 +51,14 @@ export default function PaginaAcciones() {
   const sinTildes = (t: string) =>
     t.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
   const aguja = sinTildes(buscar.trim());
-  const visibles = (acciones ?? []).filter(
-    (a) => !aguja || sinTildes(`${a.codigo} ${a.nombre} ${a.convenio}`).includes(aguja),
+  const todas = acciones ?? [];
+  const visibles = todas.filter(
+    (a) =>
+      (!aguja || sinTildes(`${a.codigo} ${a.nombre} ${a.convenio}`).includes(aguja)) &&
+      (!gremio || a.convenio === gremio) &&
+      (!modalidad || a.modalidad === modalidad) &&
+      (!publicacion ||
+        (publicacion === "PUBLICADA" ? a.visible : !a.visible)),
   );
 
   const porConvenio = new Map<string, AccionAdmin[]>();
@@ -56,101 +66,227 @@ export default function PaginaAcciones() {
     porConvenio.set(a.convenio, [...(porConvenio.get(a.convenio) ?? []), a]);
   }
 
-  const todas = acciones ?? [];
-  const publicadas = todas.filter((a) => a.visible).length;
-  const ocupados = todas.reduce((n, a) => n + a.cuposOcupados, 0);
-  const tope = todas.reduce((n, a) => n + a.cuposMaximos, 0);
+  const gremios = [...new Set(todas.map((a) => a.convenio))];
+  const modalidades = [...new Set(todas.map((a) => a.modalidad))];
+  const hayFiltro = Boolean(aguja || gremio || publicacion || modalidad);
+
+  /// Las cifras cuentan lo que se esta VIENDO, como en el
+  /// cronograma: si dijeran siempre el total, el filtro y la
+  /// tarjeta contarian cosas distintas.
+  const publicadas = visibles.filter((a) => a.visible).length;
+  const ocupados = visibles.reduce((n, a) => n + a.cuposOcupados, 0);
+  const tope = visibles.reduce((n, a) => n + a.cuposMaximos, 0);
+  const deTotal = (n: number) => (hayFiltro ? `de ${n} en total` : null);
+
+  function limpiar() {
+    setBuscar("");
+    setGremio("");
+    setPublicacion("");
+    setModalidad("");
+  }
 
   return (
-    <div>
-      <header className="border-b border-borde bg-superficie px-7 pt-[26px] pb-[22px]">
-        <h1 className="text-[1.3125rem] font-bold tracking-[-0.02em] text-titulo">Formación</h1>
-        <p className="mt-1 text-texto-suave">
-          Publique u oculte cada acción. Ocultar no cancela nada: las reservas
-          hechas siguen vivas y contando, la acción solo desaparece del sitio
-          público.
+    <div className="flex flex-col gap-3 px-4 pt-4 pb-6">
+      <div className="no-imprimir">
+        <h1 className="text-[1.125rem] font-bold tracking-[-0.02em] text-titulo">
+          Formación
+        </h1>
+        <p className="mt-0.5 text-[0.78125rem] text-texto-suave">
+          Publique u oculte cada acción. Ocultar no cancela nada: las reservas hechas
+          siguen vivas y contando, la acción solo desaparece del sitio público.
         </p>
-      </header>
+      </div>
 
       {error && <Aviso tipo="error">{error}</Aviso>}
       {!acciones ? (
         <Esqueleto conCifras filas={5} />
       ) : (
         <>
-          <div className="grid gap-px border-t border-b border-hairline bg-hairline sm:grid-cols-2 lg:grid-cols-4">
-            <TarjetaCifra
-              etiqueta="Acciones"
-              valor={todas.length}
-              pie={`en ${porConvenio.size || 1} convenios`}
-              icono={IconoFormacion}
+          <div className="no-imprimir flex flex-wrap gap-2.5">
+            <Cifra
+              etiqueta="Acciones de formación"
+              valor={visibles.length}
+              pie={deTotal(todas.length) ?? `en ${gremios.length} convenios`}
             />
-            <TarjetaCifra
+            <Cifra
               etiqueta="Publicadas"
               valor={publicadas}
-              pie="visibles en el sitio público"
-              tono="exito"
+              color="var(--exito)"
+              pie="se ven en el sitio público"
             />
-            <TarjetaCifra
+            <Cifra
               etiqueta="Ocultas"
-              valor={todas.length - publicadas}
+              valor={visibles.length - publicadas}
+              color={
+                visibles.length - publicadas > 0 ? "var(--aviso)" : "var(--titulo)"
+              }
               pie={
-                todas.length - publicadas > 0
+                visibles.length - publicadas > 0
                   ? "no se pueden reservar"
                   : "ninguna está retirada"
               }
-              tono={todas.length - publicadas > 0 ? "aviso" : "neutro"}
             />
             {/* Contra el TOPE de inscripcion, no contra la meta:
                 son dos avances distintos y este es el del cupo. */}
-            <TarjetaCifra
+            <Cifra
               etiqueta="Cupos ocupados"
               valor={ocupados}
               pie={`de ${tope.toLocaleString("es-CO")} disponibles`}
-              tono="neutro"
             />
           </div>
 
-          <div className="flex flex-wrap items-center gap-3 border-b border-borde bg-superficie px-7 py-3">
+          <div className="no-imprimir flex flex-wrap items-center gap-2.5">
             <input
-              className={`${CLASE_CONTROL} max-w-sm`}
+              className="h-[34px] min-w-[170px] flex-1 rounded-lg border border-campo-borde bg-campo-fondo px-3 text-[0.78125rem] outline-none transition focus:border-campo-foco"
               placeholder="Buscar por código, curso o convenio…"
               value={buscar}
               onChange={(e) => setBuscar(e.target.value)}
             />
-            {buscar && (
+
+            <div className="w-[190px]">
+              <Desplegable
+                alto={34}
+                marcador="Convenios"
+                valor={gremio}
+                opciones={[
+                  { valor: "", etiqueta: "Convenios" },
+                  ...gremios.map((g) => ({
+                    valor: g,
+                    etiqueta: todas.find((a) => a.convenio === g)?.convenioSigla ?? g,
+                    detalle: `${todas.filter((a) => a.convenio === g).length} acciones`,
+                  })),
+                ]}
+                alElegir={setGremio}
+              />
+            </div>
+
+            <div className="w-[180px]">
+              <Desplegable
+                alto={34}
+                marcador="Publicación"
+                valor={publicacion}
+                opciones={[
+                  { valor: "", etiqueta: "Publicación" },
+                  {
+                    valor: "PUBLICADA",
+                    etiqueta: "Publicadas",
+                    detalle: `${todas.filter((a) => a.visible).length} acciones`,
+                  },
+                  {
+                    valor: "OCULTA",
+                    etiqueta: "Ocultas",
+                    detalle: `${todas.filter((a) => !a.visible).length} acciones`,
+                  },
+                ]}
+                alElegir={setPublicacion}
+              />
+            </div>
+
+            <div className="w-[180px]">
+              <Desplegable
+                alto={34}
+                marcador="Modalidad"
+                valor={modalidad}
+                opciones={[
+                  { valor: "", etiqueta: "Modalidad" },
+                  ...modalidades.map((m) => ({
+                    valor: m,
+                    etiqueta: MODALIDAD[m as keyof typeof MODALIDAD] ?? m,
+                    detalle: `${todas.filter((a) => a.modalidad === m).length} acciones`,
+                  })),
+                ]}
+                alElegir={setModalidad}
+              />
+            </div>
+
+            {hayFiltro && (
               <button
                 type="button"
-                onClick={() => setBuscar("")}
-                className="sin-aro text-[0.78125rem] text-texto-suave underline-offset-2 transition hover:text-marca hover:underline"
+                onClick={limpiar}
+                className="sin-aro inline-flex h-[34px] items-center rounded-lg border border-borde bg-superficie px-3.5 text-[0.78125rem] font-semibold whitespace-nowrap text-titulo transition hover:border-marca"
               >
-                Quitar la búsqueda
+                Quitar filtros
               </button>
             )}
-            <span className="ml-auto text-[0.78125rem] text-texto-suave tabular-nums">
-              {visibles.length} de {todas.length} acciones
-            </span>
+
+            <button
+              type="button"
+              onClick={() => window.print()}
+              className="sin-aro inline-flex h-[34px] items-center rounded-lg border border-borde bg-superficie px-3.5 text-[0.78125rem] font-semibold whitespace-nowrap text-titulo transition hover:border-marca"
+            >
+              Exportar a PDF
+            </button>
           </div>
         </>
       )}
 
+      {/* Lo que sale en el PDF: el catálogo, sin los controles. */}
+      {acciones && visibles.length > 0 && (
+        <div className="solo-impresion">
+          <p className="titulo-impreso">
+            Formación · {visibles.length} acciones · {publicadas} publicadas
+          </p>
+          {[...porConvenio.entries()].map(([convenio, lista]) => (
+            <section key={convenio} className="bloque-de-accion">
+              <h2 className="titulo-de-accion">
+                {lista[0].convenioSigla ?? convenio} · /{convenio} ·{" "}
+                {lista.filter((a) => a.visible).length} de {lista.length} publicadas
+              </h2>
+              <table className="tabla-datos w-full">
+                <thead>
+                  <tr>
+                    <th>Código</th>
+                    <th>Acción de formación</th>
+                    <th>Evento</th>
+                    <th>Modalidad</th>
+                    <th>Horas</th>
+                    <th>Ubicaciones</th>
+                    <th>Cupos</th>
+                    <th>Publicación</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {lista.map((a) => (
+                    <tr key={a.id}>
+                      <td>{a.codigo}</td>
+                      <td className="envuelve">{bonito(a.nombre)}</td>
+                      <td>{a.evento}</td>
+                      <td>{MODALIDAD[a.modalidad]}</td>
+                      <td className="tabular-nums">{a.horas ? `${a.horas} h` : "—"}</td>
+                      <td className="tabular-nums">{a.ofertas}</td>
+                      <td className="tabular-nums">
+                        {a.cuposOcupados} de {a.cuposMaximos}
+                      </td>
+                      <td>{a.visible ? "Publicada" : "Oculta"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </section>
+          ))}
+        </div>
+      )}
+
       {acciones && visibles.length === 0 && (
-        <Vacio titulo="Ninguna formación coincide" icono={IconoFormacion}>
-          Pruebe con el código (AF8), parte del nombre o el convenio.
+        <Vacio titulo="Sin resultados" icono={IconoFormacion}>
+          Ninguna acción de formación coincide con los criterios aplicados. Pruebe con
+          el código (AF8), parte del nombre o el convenio.
         </Vacio>
       )}
 
+      <div className="no-imprimir overflow-hidden rounded-lg border border-borde bg-superficie">
       {[...porConvenio.entries()].map(([convenio, lista]) => (
-        <div key={convenio}>
+        <div key={convenio} className="border-t border-borde first:border-t-0">
           {/* La misma cabecera que el cronograma: son las dos
               pantallas del mismo modulo y tienen que leerse igual. */}
-          <h2 className="border-b border-hairline bg-superficie-alterna px-7 py-2 text-[0.65625rem] font-semibold tracking-[0.06em] text-marca uppercase">
+          <h2 className="border-b border-borde bg-superficie-alterna px-7 py-2.5 text-[0.65625rem] font-semibold tracking-[0.06em] text-marca uppercase">
             {lista[0].convenioSigla ?? convenio}
             <span className="ml-2 font-normal tracking-normal text-texto-suave normal-case">
               /{convenio} · {lista.filter((a) => a.visible).length} de {lista.length}{" "}
               publicadas
             </span>
           </h2>
-          <div className="border-b border-borde bg-superficie px-7">
+          <div className="px-7">
           {/* La fila del redisenio: el CODIGO en su propia
               columna a la izquierda, el nombre, el detalle
               debajo, y a la derecha la barra de ocupacion con
@@ -217,6 +353,7 @@ export default function PaginaAcciones() {
           </div>
         </div>
       ))}
+      </div>
     </div>
   );
 }

@@ -670,7 +670,9 @@ select[size]:not([size='1']) {
   .solo-impresion .tabla-datos td {
     white-space: nowrap;
   }
-  .solo-impresion .tabla-datos td:nth-child(6) {
+  /* la columna larga de cada tabla: la que se marque envuelve
+     y se lleva el ancho sobrante. Las demas van en una linea. */
+  .solo-impresion .tabla-datos td.envuelve {
     white-space: normal;
     width: 100%;
   }

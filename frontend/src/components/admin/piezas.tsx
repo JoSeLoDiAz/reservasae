@@ -30,6 +30,44 @@ const VARIABLE: Record<Tono, string> = {
  * tres en rem, que es lo que deja que el ajuste de texto del
  * panel los siga escalando.
  */
+/**
+ * La tarjeta de cifra de Gestión de leads, tal cual: suelta, con
+ * su borde y su curva, y sombra solo al pasar por encima — que es
+ * lo único que puede flotar en el contenido.
+ */
+export function Cifra({
+  etiqueta,
+  valor,
+  pie,
+  color = "var(--titulo)",
+}: {
+  etiqueta: string;
+  valor: number;
+  pie?: string | null;
+  color?: string;
+}) {
+  return (
+    <div
+      className={
+        "min-w-[150px] flex-1 rounded-lg border border-borde bg-superficie px-3.5 py-2 transition " +
+        "hover:border-marca/40 hover:shadow-[0_2px_14px_-6px_rgba(15,23,42,0.28)]"
+      }
+    >
+      <div className="truncate leading-none text-texto-suave" style={{ fontSize: "0.6875rem" }} title={etiqueta}>
+        {etiqueta}
+      </div>
+      <div className="mt-1 font-bold leading-none tabular-nums" style={{ fontSize: "1.0625rem", color }}>
+        {valor}
+      </div>
+      {pie && (
+        <div className="mt-1 truncate leading-none text-texto-suave" style={{ fontSize: "0.6875rem" }}>
+          {pie}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function TarjetaCifra({
   etiqueta,
   valor,
