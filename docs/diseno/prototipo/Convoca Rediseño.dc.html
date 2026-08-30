@@ -1,0 +1,2236 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous" />
+<link href="https://fonts.googleapis.com/css2?family=Raleway:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<style>
+  *, *::before, *::after { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body { font-family: Raleway, system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+  button, input, select { font: inherit; color: inherit; }
+  a { color: var(--marca); text-decoration: none; }
+  a:hover { color: var(--marca-fuerte); }
+    
+  :root {
+    --marca: #1d4ed8;
+    --marca-fuerte: color-mix(in oklab, var(--marca) 76%, #000);
+    --marca-suave: color-mix(in oklab, var(--marca) 8%, #fff);
+    --marca-texto: #ffffff;
+    --fondo: #f6f7f9;
+    --superficie: #ffffff;
+    --superficie-alterna: #f4f6f9;
+    --borde: #e2e8f0;
+    --hairline: color-mix(in oklab, var(--borde) 62%, #fff);
+    --titulo: #0f172a;
+    --texto: #1e293b;
+    --texto-suave: #64748b;
+    --tabla-cabecera-texto: #475569;
+    --tabla-fila-resaltada: color-mix(in oklab, var(--marca) 4%, #fff);
+    --campo-fondo: #ffffff;
+    --campo-borde: #cbd5e1;
+    --exito: #047857;
+    --aviso: #a16207;
+    --error: #be123c;
+    --acento: #16a06a;
+    --acento-texto: #0f7a52;
+    --acento-suave: #eef7f2;
+    --etapa-interesado: #5b6472;
+    --etapa-contactado: #1f4e85;
+    --etapa-datos-completos: #4c3a8c;
+    --etapa-inscrito: #1a6e58;
+    --etapa-en-formacion: #8a5a12;
+    --pad-fila: 9px;
+  }
+  [data-tema="oscuro"] {
+    --marca: #60a5fa;
+    --marca-fuerte: color-mix(in oklab, var(--marca) 76%, #fff);
+    --marca-suave: color-mix(in oklab, var(--marca) 14%, #0b1220);
+    --marca-texto: #0b1220;
+    --fondo: #0b1220;
+    --superficie: #131c2e;
+    --superficie-alterna: #1a2439;
+    --borde: #26324a;
+    --hairline: color-mix(in oklab, var(--borde) 74%, #0b1220);
+    --titulo: #f2f6ff;
+    --texto: #e8edf7;
+    --texto-suave: #9aa8c0;
+    --tabla-cabecera-texto: #c3cee0;
+    --tabla-fila-resaltada: color-mix(in oklab, var(--marca) 9%, #131c2e);
+    --campo-fondo: #0f1829;
+    --campo-borde: #33405c;
+    --exito: #34d399;
+    --aviso: #fbbf24;
+    --error: #fb7185;
+    --acento: #34d399;
+    --acento-texto: #5ee0ad;
+    --acento-suave: #0d2b21;
+    --etapa-interesado: #a3aec0;
+    --etapa-contactado: #7cb2f0;
+    --etapa-datos-completos: #b3a4f0;
+    --etapa-inscrito: #5ec6a8;
+    --etapa-en-formacion: #e0b155;
+  }
+  ::selection { background: var(--marca-suave); }
+</style>
+</helmet>
+
+<div ref="{{ raizRef }}" style="display:flex;height:100vh;min-height:640px;overflow:hidden;background:var(--fondo);color:var(--texto);font-family:Raleway,system-ui,sans-serif;font-size:13.5px;line-height:1.45">
+
+  <aside style="width:{{ anchoPanel }};flex:0 0 {{ anchoPanel }};display:flex;flex-direction:column;background:var(--superficie);border-right:1px solid var(--borde);transition:width .18s ease">
+
+    <sc-if value="{{ panelCerrado }}" hint-placeholder-val="{{ false }}">
+      <div style="display:flex;flex-direction:column;align-items:center;gap:16px;padding:20px 0 16px;border-bottom:1px solid var(--hairline)">
+        <img src="logo-convoca.png" alt="Convoca" style="width:24px;height:24px" />
+        <div onClick="{{ alternarPanel }}" title="Mostrar el panel de gestión" style="width:26px;height:26px;display:flex;align-items:center;justify-content:center;border-radius:8px;font-size:14px;color:var(--texto-suave);cursor:pointer" style-hover="background:var(--superficie-alterna);color:var(--titulo)">›</div>
+      </div>
+      <div style="flex:1;overflow-y:auto;display:flex;flex-direction:column;align-items:center;gap:6px;padding:14px 0">
+        <div onClick="{{ irResumen }}" title="Panel / Resumen" style="width:34px;height:34px;flex:0 0 34px;display:flex;align-items:center;justify-content:center;border:1px solid {{ bordeResumen }};border-radius:50%;background:{{ fondoResumen }};color:{{ colorResumen }};cursor:pointer;margin-bottom:6px" style-hover="color:var(--titulo);border-color:var(--texto-suave)">
+          <span style="width:17px;height:17px;background:currentColor;-webkit-mask-image:{{ iconoResumen }};mask-image:{{ iconoResumen }};-webkit-mask-repeat:no-repeat;mask-repeat:no-repeat;-webkit-mask-position:center;mask-position:center;-webkit-mask-size:contain;mask-size:contain"></span>
+        </div>
+        <sc-for list="{{ modulos }}" as="m" hint-placeholder-count="7">
+          <div onClick="{{ m.irAlRail }}" title="{{ m.nombre }}" style="width:34px;height:34px;flex:0 0 34px;display:flex;align-items:center;justify-content:center;border:1px solid {{ m.bordeMarca }};border-radius:50%;background:{{ m.fondoMarca }};color:{{ m.colorMarca }};cursor:pointer" style-hover="color:var(--titulo);border-color:var(--texto-suave)">
+            <span style="width:17px;height:17px;background:currentColor;-webkit-mask-image:{{ m.icono }};mask-image:{{ m.icono }};-webkit-mask-repeat:no-repeat;mask-repeat:no-repeat;-webkit-mask-position:center;mask-position:center;-webkit-mask-size:contain;mask-size:contain"></span>
+          </div>
+        </sc-for>
+      </div>
+      <div style="border-top:1px solid var(--hairline);padding:12px 0;display:flex;justify-content:center">
+        <div onClick="{{ alternarTema }}" title="{{ rotuloTema }}" style="width:34px;height:34px;display:flex;align-items:center;justify-content:center;border:1px solid var(--borde);border-radius:50%;font-size:13px;color:var(--texto-suave);cursor:pointer" style-hover="color:var(--titulo);border-color:var(--texto-suave)">{{ iconoTema }}</div>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{ panelAbierto }}" hint-placeholder-val="{{ true }}">
+    <div style="display:flex;align-items:flex-start;gap:10px;padding:20px 18px 18px">
+      <img src="logo-convoca.png" alt="Convoca" style="width:24px;height:24px;flex:0 0 24px;margin-top:2px" />
+      <div style="flex:1;min-width:0">
+        <div style="font-size:15.5px;font-weight:700;letter-spacing:-.01em;color:var(--titulo)">Convoca</div>
+        <div style="font-size:11px;line-height:1.35;color:var(--texto-suave)">Relaciones que generan resultados</div>
+      </div>
+      <div onClick="{{ alternarPanel }}" title="Ocultar el panel de gestión" style="width:24px;height:24px;display:flex;align-items:center;justify-content:center;border-radius:7px;font-size:14px;color:var(--texto-suave);cursor:pointer" style-hover="background:var(--superficie-alterna);color:var(--titulo)">‹</div>
+    </div>
+
+    <div style="padding:0 18px 16px">
+      <div style="font-size:10px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--texto-suave);margin-bottom:6px">Seleccione gremio</div>
+      <select style="width:100%;height:34px;padding:0 8px;border:1px solid var(--campo-borde);border-radius:10px;background:var(--campo-fondo);color:var(--texto);font-size:13px;font-weight:500">
+        <option>Todos los gremios</option>
+        <option>ADECOPRIA</option>
+        <option>BRITCHAM ADEE</option>
+      </select>
+    </div>
+
+    <div style="flex:1;overflow-y:auto;padding-bottom:12px;border-top:1px solid var(--hairline)">
+      <div onClick="{{ irResumen }}" style="display:flex;align-items:center;gap:10px;margin:12px 12px 4px;padding:9px 10px;border-radius:10px;cursor:pointer;font-size:13px;font-weight:600;color:{{ textoResumen }};background:{{ filaResumen }}" style-hover="background:var(--superficie-alterna)">
+        <span style="flex:0 0 17px;width:17px;height:17px;background:{{ textoResumen }};-webkit-mask-image:{{ iconoResumen }};mask-image:{{ iconoResumen }};-webkit-mask-repeat:no-repeat;mask-repeat:no-repeat;-webkit-mask-position:center;mask-position:center;-webkit-mask-size:contain;mask-size:contain"></span>
+        <span style="flex:1;min-width:0">Resumen</span>
+      </div>
+      <div style="font-size:10px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--texto-suave);padding:12px 18px 8px">Panel de gestión</div>
+      <sc-for list="{{ modulos }}" as="m" hint-placeholder-count="7">
+        <div>
+          <div onClick="{{ m.alternar }}" style="display:flex;align-items:center;gap:10px;padding:8px 18px;cursor:pointer;font-size:13px;font-weight:600;color:var(--titulo)" style-hover="background:var(--superficie-alterna)">
+            <span style="flex:0 0 17px;width:17px;height:17px;background:{{ m.colorIcono }};-webkit-mask-image:{{ m.icono }};mask-image:{{ m.icono }};-webkit-mask-repeat:no-repeat;mask-repeat:no-repeat;-webkit-mask-position:center;mask-position:center;-webkit-mask-size:contain;mask-size:contain"></span>
+            <span style="flex:1;min-width:0">{{ m.nombre }}</span>
+            <span style="font-size:9px;color:var(--texto-suave);transform:{{ m.giro }}">▾</span>
+          </div>
+          <sc-if value="{{ m.abierto }}" hint-placeholder-val="{{ false }}">
+            <div style="padding:2px 0 6px">
+              <sc-for list="{{ m.hijos }}" as="h" hint-placeholder-count="2">
+                <div onClick="{{ h.ir }}" style="display:flex;align-items:center;padding:7px 18px 7px 41px;cursor:pointer;font-size:12.5px;font-weight:{{ h.peso }};color:{{ h.color }};background:{{ h.fondo }};box-shadow:{{ h.regla }}">{{ h.nombre }}</div>
+              </sc-for>
+            </div>
+          </sc-if>
+        </div>
+      </sc-for>
+    </div>
+
+    <div style="border-top:1px solid var(--borde);padding:12px 18px;display:flex;align-items:center;gap:10px">
+      <div style="font-size:10px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--texto-suave)">Ajustes</div>
+      <div style="flex:1;display:flex;border:1px solid var(--borde);border-radius:10px;overflow:hidden">
+        <div onClick="{{ ponerClaro }}" style="flex:1;text-align:center;padding:5px 0;font-size:11px;font-weight:600;cursor:pointer;color:{{ colorClaro }};background:{{ fondoClaro }}">Claro</div>
+        <div onClick="{{ ponerOscuro }}" style="flex:1;text-align:center;padding:5px 0;font-size:11px;font-weight:600;cursor:pointer;border-left:1px solid var(--borde);color:{{ colorOscuro }};background:{{ fondoOscuro }}">Oscuro</div>
+      </div>
+    </div>
+    </sc-if>
+  </aside>
+
+  <main style="flex:1;min-width:0;display:flex;flex-direction:column;overflow:hidden">
+
+    <header style="flex:0 0 auto;display:flex;align-items:center;gap:16px;padding:0 28px;height:56px;border-bottom:1px solid var(--borde);background:var(--superficie)">
+      <div style="flex:1;min-width:0;display:flex;align-items:center;gap:7px;font-size:12.5px;color:var(--texto-suave)">
+        <sc-for list="{{ rutas }}" as="r" hint-placeholder-count="2">
+          <div style="display:flex;align-items:center;gap:7px;min-width:0">
+            <span onClick="{{ r.ir }}" style="font-weight:{{ r.peso }};color:{{ r.color }};cursor:{{ r.cursor }};white-space:nowrap;overflow:hidden;text-overflow:ellipsis" style-hover="color:var(--marca)">{{ r.nombre }}</span>
+            <span style="opacity:.45">{{ r.sep }}</span>
+          </div>
+        </sc-for>
+      </div>
+      <div style="text-align:right;line-height:1.3">
+        <div style="font-size:12.5px;font-weight:600;color:var(--titulo)">Ana Jaramillo</div>
+        <div style="font-size:11px;color:var(--texto-suave)">Líder de sistemas de información</div>
+      </div>
+      <div style="width:1px;height:24px;background:var(--borde)"></div>
+      <div style="font-size:12.5px;font-weight:600;color:var(--texto-suave);cursor:pointer" style-hover="color:var(--marca)">Salir</div>
+    </header>
+
+    <sc-if value="{{ esTablero }}" hint-placeholder-val="{{ true }}">
+    <div style="flex:1;min-height:0;overflow-y:auto">
+      <div style="background:var(--superficie);border-bottom:1px solid var(--borde)">
+        <div style="display:flex;align-items:flex-end;gap:24px;padding:28px 28px 22px">
+          <div style="flex:1;min-width:0">
+            <h1 style="margin:0;font-size:26px;font-weight:700;letter-spacing:-.022em;color:var(--titulo)">Hola, Ana</h1>
+            <p style="margin:6px 0 0;font-size:13px;color:var(--texto-suave)">Ocupación de cupos. Se actualiza sola cada 30 segundos.</p>
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end">
+            <button style="flex:0 0 auto;white-space:nowrap;height:34px;padding:0 14px;border:1px solid var(--borde);border-radius:10px;background:transparent;font-size:12.5px;font-weight:600;color:var(--texto);cursor:pointer" style-hover="border-color:var(--marca);color:var(--marca)">PDF para reunión</button>
+            <button style="flex:0 0 auto;white-space:nowrap;height:34px;padding:0 14px;border:1px solid var(--borde);border-radius:10px;background:transparent;font-size:12.5px;font-weight:600;color:var(--texto);cursor:pointer" style-hover="border-color:var(--marca);color:var(--marca)">Descargar Excel</button>
+            <button style="flex:0 0 auto;white-space:nowrap;height:34px;padding:0 16px;border:1px solid var(--marca);border-radius:10px;background:var(--marca);font-size:12.5px;font-weight:600;color:var(--marca-texto);cursor:pointer" style-hover="background:var(--marca-fuerte);border-color:var(--marca-fuerte)">Ver reservas</button>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));border-top:1px solid var(--hairline)">
+          <sc-for list="{{ kpis }}" as="k" hint-placeholder-count="4">
+            <div style="padding:18px 28px 20px;border-left:1px solid var(--hairline)">
+              <div style="font-size:10px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--texto-suave)">{{ k.rotulo }}</div>
+              <div style="margin-top:8px;font-size:32px;font-weight:700;letter-spacing:-.03em;font-variant-numeric:tabular-nums;color:var(--titulo)">{{ k.valor }}</div>
+              <div style="margin-top:3px;font-size:11.5px;color:var(--texto-suave)">{{ k.pie }}</div>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));background:var(--superficie);border-bottom:1px solid var(--borde)">
+        <sc-for list="{{ anillos }}" as="a" hint-placeholder-count="3">
+          <div style="padding:22px 28px 24px;border-left:1px solid var(--hairline)">
+            <div style="font-size:14px;font-weight:600;color:var(--titulo)">{{ a.titulo }}</div>
+            <div style="margin-top:4px;font-size:12px;line-height:1.45;color:var(--texto-suave);min-height:35px">{{ a.nota }}</div>
+            <div style="margin-top:12px;display:flex;align-items:center;gap:16px">
+              <svg viewBox="0 0 72 72" style="width:60px;height:60px;flex:0 0 60px;transform:rotate(-90deg)">
+                <circle cx="36" cy="36" r="30" fill="none" stroke="var(--hairline)" stroke-width="6"></circle>
+                <circle cx="36" cy="36" r="30" fill="none" stroke="{{ a.color }}" stroke-width="6" stroke-linecap="round" stroke-dasharray="{{ a.trazo }}"></circle>
+              </svg>
+              <div style="min-width:0">
+                <div style="font-size:24px;font-weight:700;letter-spacing:-.025em;font-variant-numeric:tabular-nums;color:var(--titulo)">{{ a.cifra }}</div>
+                <div style="margin-top:2px;font-size:11.5px;color:var(--texto-suave)">{{ a.detalle }}</div>
+              </div>
+            </div>
+          </div>
+        </sc-for>
+      </div>
+
+      <div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));background:var(--superficie);border-bottom:1px solid var(--borde)">
+        <sc-for list="{{ ritmos }}" as="r" hint-placeholder-count="4">
+          <div style="padding:16px 28px 18px;border-left:1px solid var(--hairline)">
+            <div style="font-size:11.5px;font-weight:600;color:var(--texto-suave)">{{ r.rotulo }}</div>
+            <div style="margin-top:5px;font-size:19px;font-weight:700;letter-spacing:-.02em;font-variant-numeric:tabular-nums;color:{{ r.color }}">{{ r.valor }}<span style="font-size:12px;font-weight:500;color:var(--texto-suave)">{{ r.unidad }}</span></div>
+            <div style="margin-top:3px;font-size:11px;color:var(--texto-suave)">{{ r.pie }}</div>
+          </div>
+        </sc-for>
+      </div>
+
+      <div style="background:var(--superficie);border-bottom:1px solid var(--borde)">
+        <div style="padding:20px 28px 4px">
+          <div style="font-size:14.5px;font-weight:600;color:var(--titulo)">Ocupación por acción de formación</div>
+          <div style="margin-top:3px;font-size:12px;color:var(--texto-suave)">Cupos reservados contra el cupo total de cada acción, de la que más ha avanzado a la que menos.</div>
+        </div>
+        <div style="padding:12px 0 4px">
+          <sc-for list="{{ acciones }}" as="c" hint-placeholder-count="7">
+            <div style="display:flex;align-items:center;gap:18px;padding:10px 28px;border-top:1px solid var(--hairline)" style-hover="background:var(--tabla-fila-resaltada)">
+              <div style="flex:0 0 30px;font-size:10.5px;font-weight:600;letter-spacing:.05em;color:var(--texto-suave);font-variant-numeric:tabular-nums">{{ c.codigo }}</div>
+              <div style="flex:1;min-width:0;font-size:13px;font-weight:500;color:var(--titulo);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ c.nombre }}</div>
+              <div style="flex:0 0 132px;font-size:11px;color:var(--texto-suave);text-align:right;white-space:nowrap">{{ c.modalidad }}</div>
+              <div style="flex:0 0 130px;height:4px;border-radius:2px;background:var(--superficie-alterna);overflow:hidden">
+                <div style="height:100%;border-radius:2px;background:var(--marca);width:{{ c.ancho }}"></div>
+              </div>
+              <div style="flex:0 0 112px;text-align:right;font-size:12px;font-variant-numeric:tabular-nums;color:var(--texto);white-space:nowrap">{{ c.cupos }}</div>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+    </div>
+    </sc-if>
+
+    <sc-if value="{{ esLeads }}" hint-placeholder-val="{{ false }}">
+    <div style="flex:1;min-height:0;display:flex;flex-direction:column;overflow:hidden">
+      <div style="flex:0 0 auto;background:var(--superficie);border-bottom:1px solid var(--borde);padding:14px 28px 0">
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding-bottom:12px">
+          <div style="flex:1 1 240px;min-width:190px;max-width:400px;display:flex;align-items:center;gap:8px;height:34px;padding:0 12px;border:1px solid var(--campo-borde);border-radius:10px;background:var(--campo-fondo)">
+            <svg viewBox="0 0 16 16" style="width:13px;height:13px;flex:0 0 13px;opacity:.5"><circle cx="7" cy="7" r="5" fill="none" stroke="currentColor" stroke-width="1.6"></circle><line x1="10.8" y1="10.8" x2="14" y2="14" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"></line></svg>
+            <input placeholder="Buscar en lo que está a la vista…" style="flex:1;min-width:0;border:none;outline:none;background:transparent;font-size:12.5px" />
+          </div>
+          <button style="flex:0 0 auto;white-space:nowrap;height:34px;padding:0 13px;border:1px solid var(--borde);border-radius:10px;background:transparent;font-size:12.5px;font-weight:600;cursor:pointer" style-hover="border-color:var(--marca);color:var(--marca)">Filtros</button>
+          <button style="flex:0 0 auto;white-space:nowrap;height:34px;padding:0 13px;border:1px solid var(--borde);border-radius:10px;background:transparent;font-size:12.5px;font-weight:600;cursor:pointer" style-hover="border-color:var(--marca);color:var(--marca)">Columnas <span style="font-variant-numeric:tabular-nums;color:var(--texto-suave)">22</span></button>
+          <button style="flex:0 0 auto;white-space:nowrap;height:34px;padding:0 13px;border:1px solid var(--borde);border-radius:10px;background:transparent;font-size:12.5px;font-weight:600;cursor:pointer" style-hover="border-color:var(--marca);color:var(--marca)">Vistas</button>
+          <button style="margin-left:auto;flex:0 0 auto;white-space:nowrap;height:34px;padding:0 13px;border:1px solid var(--borde);border-radius:10px;background:transparent;font-size:12.5px;font-weight:600;cursor:pointer" style-hover="border-color:var(--marca);color:var(--marca)">Descargar en Excel</button>
+          <button onClick="{{ irCarga }}" style="flex:0 0 auto;white-space:nowrap;height:34px;padding:0 13px;border:1px solid var(--borde);border-radius:10px;background:transparent;font-size:12.5px;font-weight:600;cursor:pointer" style-hover="border-color:var(--marca);color:var(--marca)">Cargar una lista</button>
+          <button onClick="{{ irNuevo }}" style="flex:0 0 auto;white-space:nowrap;height:34px;padding:0 16px;border:1px solid var(--marca);border-radius:10px;background:var(--marca);font-size:12.5px;font-weight:600;color:var(--marca-texto);cursor:pointer" style-hover="background:var(--marca-fuerte);border-color:var(--marca-fuerte)">Inscribir a alguien</button>
+        </div>
+
+        <div style="display:flex;align-items:center;gap:20px;flex-wrap:wrap;padding:11px 0;border-top:1px solid var(--hairline)">
+          <div style="font-size:12px;color:var(--texto-suave);white-space:nowrap"><span style="font-weight:700;color:var(--titulo);font-variant-numeric:tabular-nums">79</span> registros en esta vista</div>
+          <div style="flex:1;min-width:220px;display:flex;height:4px;border-radius:2px;overflow:hidden;background:var(--superficie-alterna)">
+            <sc-for list="{{ embudo }}" as="e" hint-placeholder-count="5">
+              <div style="height:100%;width:{{ e.ancho }};background:{{ e.color }}"></div>
+            </sc-for>
+          </div>
+          <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;font-size:11.5px">
+            <sc-for list="{{ embudo }}" as="e" hint-placeholder-count="5">
+              <div style="white-space:nowrap"><span style="color:var(--texto-suave)">{{ e.nombre }}</span> <span style="font-weight:700;font-variant-numeric:tabular-nums;color:{{ e.color }}">{{ e.n }}</span></div>
+            </sc-for>
+            <div style="white-space:nowrap;padding-left:6px;border-left:1px solid var(--borde)"><span style="color:var(--texto-suave)">Sin asesor</span> <span style="font-weight:700;font-variant-numeric:tabular-nums;color:var(--aviso)">22</span></div>
+          </div>
+        </div>
+
+        <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;padding:10px 0 11px;border-top:1px solid var(--hairline);font-size:12px;color:var(--texto-suave)">
+          <div style="font-variant-numeric:tabular-nums;white-space:nowrap"><span style="font-weight:600;color:var(--texto)">1–50</span> / 79</div>
+          <div style="display:flex;align-items:center;gap:6px;white-space:nowrap">Por página
+            <select style="height:26px;border:1px solid var(--campo-borde);border-radius:8px;background:var(--campo-fondo);font-size:12px;padding:0 4px">
+              <option>50</option>
+              <option>100</option>
+            </select>
+          </div>
+          <div style="flex:1"></div>
+          <div style="display:flex;align-items:center;gap:14px;font-weight:600;white-space:nowrap">
+            <span style="opacity:.4">« Anterior</span>
+            <span style="font-variant-numeric:tabular-nums;color:var(--texto)">1 de 2</span>
+            <span style="color:var(--marca);cursor:pointer">Siguiente »</span>
+          </div>
+        </div>
+      </div>
+
+      <div style="flex:1;min-height:0;overflow:auto;background:var(--superficie)">
+        <table style="width:100%;border-collapse:collapse;font-size:12.5px">
+          <thead>
+            <tr>
+              <th style="position:sticky;top:0;z-index:1;width:36px;padding:0 0 0 28px;background:var(--superficie);border-bottom:1px solid var(--borde)"><input type="checkbox" /></th>
+              <sc-for list="{{ columnas }}" as="col" hint-placeholder-count="9">
+                <th style="position:sticky;top:0;z-index:1;text-align:{{ col.alineado }};padding:10px 14px 10px 0;background:var(--superficie);border-bottom:1px solid var(--borde);font-size:10px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;color:var(--tabla-cabecera-texto);white-space:nowrap">{{ col.titulo }}</th>
+              </sc-for>
+            </tr>
+          </thead>
+          <tbody>
+            <sc-for list="{{ filas }}" as="f" hint-placeholder-count="11">
+              <tr style="border-bottom:1px solid var(--hairline)" style-hover="background:var(--tabla-fila-resaltada)">
+                <td style="padding:var(--pad-fila) 0 var(--pad-fila) 28px;vertical-align:top"><input type="checkbox" /></td>
+                <td style="padding:var(--pad-fila) 14px var(--pad-fila) 0;vertical-align:top;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11px;color:var(--texto-suave);white-space:nowrap">{{ f.fecha }}</td>
+                <td style="padding:var(--pad-fila) 14px var(--pad-fila) 0;vertical-align:top;color:var(--texto-suave);word-break:break-all;max-width:150px">{{ f.correo }}</td>
+                <td style="padding:var(--pad-fila) 14px var(--pad-fila) 0;vertical-align:top;font-variant-numeric:tabular-nums;white-space:nowrap">{{ f.celular }}</td>
+                <td style="padding:var(--pad-fila) 14px var(--pad-fila) 0;vertical-align:top"><span onClick="{{ irFicha }}" style="font-weight:600;color:var(--marca);text-decoration:underline;text-underline-offset:2px;cursor:pointer">{{ f.nombre }}</span></td>
+                <td style="padding:var(--pad-fila) 14px var(--pad-fila) 0;vertical-align:top;color:var(--texto-suave);white-space:nowrap">{{ f.tipoDoc }}</td>
+                <td style="padding:var(--pad-fila) 14px var(--pad-fila) 0;vertical-align:top;font-variant-numeric:tabular-nums;white-space:nowrap">{{ f.documento }}</td>
+                <td style="padding:var(--pad-fila) 14px var(--pad-fila) 0;vertical-align:top;font-size:11.5px;color:var(--texto-suave)">{{ f.departamento }}</td>
+                <td style="padding:var(--pad-fila) 14px var(--pad-fila) 0;vertical-align:top;font-weight:600;white-space:nowrap;color:{{ f.colorEtapa }}">{{ f.etapa }}</td>
+                <td style="padding:var(--pad-fila) 28px var(--pad-fila) 0;vertical-align:top;text-align:right;white-space:nowrap;font-weight:{{ f.pesoDatos }};color:{{ f.colorDatos }}">{{ f.datos }}</td>
+              </tr>
+            </sc-for>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    </sc-if>
+
+    <sc-if value="{{ esFicha }}" hint-placeholder-val="{{ false }}">
+    <div style="flex:1;min-height:0;overflow-y:auto">
+      <div style="background:var(--superficie);border-bottom:1px solid var(--borde)">
+        <div onClick="{{ irLeads }}" style="padding:14px 28px 0;font-size:12.5px;font-weight:600;color:var(--marca);cursor:pointer;width:fit-content">← Volver a inscripciones</div>
+        <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;padding:16px 28px 20px">
+          <div style="width:44px;height:44px;flex:0 0 44px;border-radius:50%;background:var(--marca-suave);color:var(--marca);display:flex;align-items:center;justify-content:center;font-size:14.5px;font-weight:700">SA</div>
+          <div style="flex:1;min-width:200px">
+            <h1 style="margin:0;font-size:23px;font-weight:700;letter-spacing:-.022em;color:var(--titulo)">Sofía Arias Beltrán</h1>
+            <div style="margin-top:4px;font-size:12px;color:var(--texto-suave)">C.C. 1010331478 · En sistema desde 1/08/2026 · La empresa lo nominó</div>
+          </div>
+          <div style="text-align:right">
+            <div style="font-size:10px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--texto-suave)">Etapa actual</div>
+            <div style="margin-top:3px;font-size:14.5px;font-weight:700;color:var(--etapa-interesado)">Interesado</div>
+          </div>
+        </div>
+      </div>
+
+      <div style="background:var(--superficie-alterna);border-bottom:1px solid var(--borde);display:flex;align-items:flex-end;gap:24px;flex-wrap:wrap;padding:14px 28px 16px">
+        <sc-for list="{{ gestion }}" as="g" hint-placeholder-count="4">
+          <div style="flex:1 1 170px;min-width:150px">
+            <div style="font-size:10px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--texto-suave)">{{ g.rotulo }}</div>
+            <div style="margin-top:6px;padding-bottom:6px;border-bottom:1px solid var(--campo-borde);display:flex;align-items:center;gap:8px;font-size:13.5px;font-weight:{{ g.peso }};color:{{ g.color }};cursor:pointer" style-hover="border-color:var(--marca)">
+              <span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ g.valor }}</span>
+              <span style="font-size:9px;color:var(--texto-suave)">▾</span>
+            </div>
+          </div>
+        </sc-for>
+        <button style="flex:0 0 auto;white-space:nowrap;height:36px;padding:0 18px;border:1px solid var(--marca);border-radius:10px;background:var(--marca);font-size:12.5px;font-weight:600;color:var(--marca-texto);cursor:pointer" style-hover="background:var(--marca-fuerte);border-color:var(--marca-fuerte)">Guardar gestión</button>
+      </div>
+
+      <div style="display:flex;align-items:stretch;flex-wrap:wrap">
+        <div style="flex:1 1 520px;min-width:0;background:var(--superficie);border-right:1px solid var(--borde)">
+          <div style="display:flex;gap:24px;flex-wrap:wrap;padding:0 28px;border-bottom:1px solid var(--borde)">
+            <sc-for list="{{ pestanas }}" as="p" hint-placeholder-count="5">
+              <div onClick="{{ p.ver }}" style="padding:12px 0;font-size:13px;font-weight:600;cursor:pointer;color:{{ p.color }};box-shadow:{{ p.subrayado }}">{{ p.nombre }}</div>
+            </sc-for>
+          </div>
+
+          <div style="display:flex;align-items:flex-start;gap:16px;padding:20px 28px 16px">
+            <div style="flex:1;min-width:0">
+              <div style="font-size:15px;font-weight:600;color:var(--titulo)">{{ tituloPanel }}</div>
+              <div style="margin-top:3px;font-size:12px;color:var(--texto-suave)">{{ notaPanel }}</div>
+            </div>
+            <sc-if value="{{ editable }}" hint-placeholder-val="{{ true }}">
+              <button style="flex:0 0 auto;white-space:nowrap;height:34px;padding:0 14px;border:1px solid var(--borde);border-radius:10px;background:transparent;font-size:12.5px;font-weight:600;cursor:pointer" style-hover="border-color:var(--marca);color:var(--marca)">Editar datos</button>
+            </sc-if>
+          </div>
+
+          <sc-if value="{{ esCampos }}" hint-placeholder-val="{{ true }}">
+            <sc-for list="{{ bloques }}" as="b" hint-placeholder-count="4">
+              <div style="border-top:1px solid var(--hairline);padding:15px 28px 17px">
+                <div style="font-size:10px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--marca)">{{ b.titulo }}</div>
+                <div style="margin-top:11px;display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));column-gap:28px;row-gap:13px">
+                  <sc-for list="{{ b.campos }}" as="c" hint-placeholder-count="4">
+                    <div style="min-width:0">
+                      <div style="font-size:11px;color:var(--texto-suave)">{{ c.rotulo }}</div>
+                      <div style="margin-top:2px;font-size:13.5px;font-weight:500;color:var(--titulo);overflow-wrap:anywhere">{{ c.valor }}</div>
+                    </div>
+                  </sc-for>
+                </div>
+              </div>
+            </sc-for>
+          </sc-if>
+
+          <sc-if value="{{ esNotas }}" hint-placeholder-val="{{ false }}">
+            <div style="border-top:1px solid var(--hairline);padding:20px 28px 24px">
+              <div style="padding:26px 24px;border:1px dashed var(--borde);border-radius:12px;text-align:center">
+                <div style="font-size:13.5px;font-weight:600;color:var(--titulo)">Todavía no hay ninguna nota</div>
+                <div style="margin:6px auto 0;max-width:400px;font-size:12px;line-height:1.5;color:var(--texto-suave)">Cada nota queda con la fecha y el nombre de quien la escribe. Es donde se deja constancia de lo que se acordó en la llamada.</div>
+              </div>
+              <div style="margin-top:16px">
+                <div style="font-size:10px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--texto-suave)">Escribir una nota</div>
+                <div style="margin-top:10px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:10px 14px;border:1px solid var(--hairline);border-radius:12px;background:var(--marca-suave)">
+                  <button style="flex:0 0 auto;height:30px;padding:0 12px;border:1px solid var(--marca);border-radius:8px;background:transparent;font-size:12.5px;font-weight:600;color:var(--marca);cursor:pointer">Llamar al 328286621</button>
+                  <span style="flex:1;min-width:220px;font-size:12px;color:var(--texto-suave)">Marca en el teléfono de este equipo y deja la nota lista en «Llamada».</span>
+                </div>
+                <div style="margin-top:12px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+                  <span style="flex:0 0 68px;font-size:12px;color:var(--texto-suave)">Vía</span>
+                  <sc-for list="{{ notaVias }}" as="v" hint-placeholder-count="4">
+                    <button style="flex:0 0 auto;height:30px;padding:0 13px;border:1px solid {{ v.borde }};border-radius:8px;background:{{ v.fondo }};font-size:12.5px;font-weight:{{ v.peso }};color:{{ v.color }};cursor:pointer">{{ v.texto }}</button>
+                  </sc-for>
+                </div>
+                <div style="margin-top:8px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+                  <span style="flex:0 0 68px;font-size:12px;color:var(--texto-suave)">Cómo salió</span>
+                  <sc-for list="{{ notaResultados }}" as="v" hint-placeholder-count="3">
+                    <button style="flex:0 0 auto;height:30px;padding:0 13px;border:1px solid {{ v.borde }};border-radius:8px;background:{{ v.fondo }};font-size:12.5px;font-weight:{{ v.peso }};color:{{ v.color }};cursor:pointer">{{ v.texto }}</button>
+                  </sc-for>
+                </div>
+                <textarea placeholder="Qué se habló, qué quedó pendiente y para cuándo." style="margin-top:12px;width:100%;min-height:96px;padding:11px 13px;border:1px solid var(--campo-borde);border-radius:12px;background:var(--campo-fondo);color:var(--texto);font-size:13px;line-height:1.5;resize:vertical;outline:none"></textarea>
+                <div style="margin-top:10px;display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+                  <button style="flex:0 0 auto;height:34px;padding:0 16px;border:1px solid var(--marca);border-radius:10px;background:var(--marca);font-size:12.5px;font-weight:600;color:var(--marca-texto);cursor:pointer" style-hover="background:var(--marca-fuerte);border-color:var(--marca-fuerte)">Guardar nota</button>
+                  <span style="font-size:11.5px;color:var(--texto-suave)">Las notas no se borran: una corrección entra como nota nueva.</span>
+                </div>
+                <div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--hairline);font-size:12px;color:var(--texto-suave)">Autorización de tratamiento registrada (v1), por VERBAL_ASESOR · Ana Jaramillo · 27/08/2026, 7:33 p. m.</div>
+              </div>
+            </div>
+          </sc-if>
+
+          <sc-if value="{{ esHistorial }}" hint-placeholder-val="{{ false }}">
+            <div style="border-top:1px solid var(--hairline);padding:6px 28px 24px">
+              <sc-for list="{{ eventos }}" as="ev" hint-placeholder-count="2">
+                <div style="display:flex;gap:18px;padding:15px 0;border-bottom:1px solid var(--hairline)">
+                  <div style="flex:0 0 170px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11px;color:var(--texto-suave);padding-top:2px;white-space:nowrap">{{ ev.fecha }}</div>
+                  <div style="min-width:0">
+                    <div style="font-size:13.5px;font-weight:600;color:var(--titulo)">{{ ev.titulo }}</div>
+                    <div style="margin-top:2px;font-size:12px;color:var(--texto-suave)">{{ ev.detalle }}</div>
+                  </div>
+                </div>
+              </sc-for>
+              <div style="padding-top:14px;font-size:12px;color:var(--texto-suave)">Dos movimientos desde que entró. Todavía no se le ha llamado.</div>
+            </div>
+          </sc-if>
+        </div>
+
+        <div style="flex:1 1 320px;max-width:340px;min-width:280px;background:var(--superficie)">
+          <div style="padding:16px 22px 14px;border-bottom:1px solid var(--hairline)">
+            <div style="font-size:14.5px;font-weight:600;color:var(--titulo)">Acciones</div>
+            <div style="margin-top:2px;font-size:12px;color:var(--texto-suave)">Contacto y solicitud de información.</div>
+          </div>
+
+          <div style="padding:16px 22px 18px;border-bottom:1px solid var(--hairline)">
+            <div style="font-size:10px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--acento-texto)">Validación del nombre</div>
+            <div style="margin-top:9px;font-size:13.5px;font-weight:600;color:var(--titulo)">Consulta no realizada</div>
+            <div style="margin-top:4px;font-size:11.5px;line-height:1.5;color:var(--texto-suave)">Documento de prueba: no se consulta ante el RUI.</div>
+          </div>
+
+          <div style="padding:16px 22px 18px;border-bottom:1px solid var(--hairline)">
+            <div style="font-size:10px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--texto-suave)">Autorización de datos</div>
+            <div style="margin-top:11px;display:grid;grid-template-columns:auto 1fr;column-gap:14px;row-gap:8px;font-size:12.5px">
+              <div style="color:var(--texto-suave)">Estado</div>
+              <div style="text-align:right;font-weight:600;color:var(--exito)">Autorizada (v1)</div>
+              <div style="color:var(--texto-suave)">Fecha</div>
+              <div style="text-align:right;font-variant-numeric:tabular-nums">16/08/2026, 2:04 a. m.</div>
+              <div style="color:var(--texto-suave)">Modalidad</div>
+              <div style="text-align:right">Lo aceptó en el formulario web</div>
+            </div>
+            <div style="margin-top:13px;font-size:11.5px;line-height:1.5;color:var(--texto-suave)">Si el interesado solicita revocar su autorización, regístrelo aquí para dejar constancia.</div>
+            <button style="margin-top:11px;width:100%;height:36px;border:1px solid var(--borde);border-radius:10px;background:transparent;font-size:12.5px;font-weight:600;color:var(--error);cursor:pointer" style-hover="border-color:var(--error)">Revocar autorización</button>
+          </div>
+
+          <div style="padding:16px 22px 18px;border-bottom:1px solid var(--hairline)">
+            <div style="font-size:10px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--texto-suave)">Escribirle un correo</div>
+            <div style="margin-top:8px;font-size:11.5px;line-height:1.5;color:var(--texto-suave)">El asistente genera un borrador con el nombre, la empresa y el estado actual del registro. Revíselo antes de enviarlo.</div>
+            <button style="margin-top:11px;width:100%;height:36px;border:1px solid var(--marca);border-radius:10px;background:var(--marca);font-size:12.5px;font-weight:600;color:var(--marca-texto);cursor:pointer" style-hover="background:var(--marca-fuerte);border-color:var(--marca-fuerte)">Escribir un correo</button>
+          </div>
+
+          <div style="padding:16px 22px 22px">
+            <div style="font-size:10px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--texto-suave)">Enlace para que complete sus datos</div>
+            <div style="margin-top:8px;font-size:11.5px;line-height:1.5;color:var(--texto-suave)">Genera un enlace personalizado para que el interesado llene lo que le falta sin entrar al panel.</div>
+            <button style="margin-top:11px;width:100%;height:36px;border:1px solid var(--borde);border-radius:10px;background:transparent;font-size:12.5px;font-weight:600;cursor:pointer" style-hover="border-color:var(--marca);color:var(--marca)">Generar enlace</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    </sc-if>
+
+    <sc-if value="{{ esGenerica }}" hint-placeholder-val="{{ false }}">
+    <div style="flex:1;min-height:0;overflow-y:auto">
+      <sc-if value="{{ genVolver }}" hint-placeholder-val="{{ false }}">
+        <div style="background:var(--superficie)">
+          <div onClick="{{ genVolverIr }}" style="padding:14px 28px 0;font-size:12.5px;font-weight:600;color:var(--marca);cursor:pointer;width:fit-content">← {{ genVolver }}</div>
+        </div>
+      </sc-if>
+      <sc-if value="{{ genTitulo }}" hint-placeholder-val="{{ false }}">
+        <div style="background:var(--superficie);border-bottom:1px solid var(--borde);padding:{{ genPadArriba }} 28px 22px;display:flex;align-items:flex-end;gap:20px;flex-wrap:wrap">
+          <div style="flex:1 1 320px;min-width:0">
+            <h1 style="margin:0;font-size:24px;font-weight:700;letter-spacing:-.022em;color:var(--titulo)">{{ genTitulo }}</h1>
+            <p style="margin:6px 0 0;max-width:720px;font-size:13px;line-height:1.5;color:var(--texto-suave)">{{ genNota }}</p>
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end">
+            <sc-for list="{{ genAcciones }}" as="b" hint-placeholder-count="0">
+              <button onClick="{{ b.ir }}" style="flex:0 0 auto;white-space:nowrap;height:34px;padding:0 15px;border:1px solid {{ b.borde }};border-radius:10px;background:{{ b.fondo }};font-size:12.5px;font-weight:600;color:{{ b.color }};cursor:pointer">{{ b.texto }}</button>
+            </sc-for>
+          </div>
+        </div>
+      </sc-if>
+
+      <sc-for list="{{ secciones }}" as="s" hint-placeholder-count="2">
+        <div style="background:var(--superficie);border-bottom:1px solid var(--borde)">
+
+          <sc-if value="{{ s.esAviso }}" hint-placeholder-val="{{ false }}">
+            <div style="padding:14px 28px;display:flex;gap:10px;align-items:baseline">
+              <span style="flex:0 0 7px;width:7px;height:7px;border-radius:50%;background:{{ s.color }};transform:translateY(-1px)"></span>
+              <div style="flex:1;font-size:12.5px;line-height:1.55;color:var(--texto);max-width:980px">{{ s.texto }}</div>
+            </div>
+          </sc-if>
+
+          <sc-if value="{{ s.esBarra }}" hint-placeholder-val="{{ false }}">
+            <div style="padding:14px 28px 0">
+              <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding-bottom:12px">
+                <div style="flex:1 1 240px;min-width:190px;max-width:400px;display:flex;align-items:center;gap:8px;height:34px;padding:0 12px;border:1px solid var(--campo-borde);border-radius:10px;background:var(--campo-fondo)">
+                  <svg viewBox="0 0 16 16" style="width:13px;height:13px;flex:0 0 13px;opacity:.5"><circle cx="7" cy="7" r="5" fill="none" stroke="currentColor" stroke-width="1.6"></circle><line x1="10.8" y1="10.8" x2="14" y2="14" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"></line></svg>
+                  <input placeholder="{{ s.buscar }}" style="flex:1;min-width:0;border:none;outline:none;background:transparent;font-size:12.5px" />
+                </div>
+                <sc-for list="{{ s.botones }}" as="b" hint-placeholder-count="3">
+                  <button onClick="{{ b.ir }}" style="flex:0 0 auto;white-space:nowrap;height:34px;padding:0 14px;border:1px solid {{ b.borde }};border-radius:10px;background:{{ b.fondo }};font-size:12.5px;font-weight:600;color:{{ b.color }};cursor:pointer">{{ b.texto }}</button>
+                </sc-for>
+                <div style="margin-left:auto;display:flex;gap:8px;flex-wrap:wrap">
+                  <sc-for list="{{ s.acciones }}" as="b" hint-placeholder-count="2">
+                    <button onClick="{{ b.ir }}" style="flex:0 0 auto;white-space:nowrap;height:34px;padding:0 14px;border:1px solid {{ b.borde }};border-radius:10px;background:{{ b.fondo }};font-size:12.5px;font-weight:600;color:{{ b.color }};cursor:pointer">{{ b.texto }}</button>
+                  </sc-for>
+                </div>
+              </div>
+              <sc-if value="{{ s.paginacion }}" hint-placeholder-val="{{ false }}">
+                <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;padding:10px 0 11px;border-top:1px solid var(--hairline);font-size:12px;color:var(--texto-suave)">
+                  <div style="font-variant-numeric:tabular-nums;white-space:nowrap"><span style="font-weight:600;color:var(--texto)">{{ s.tramo }}</span> / {{ s.total }}</div>
+                  <div style="display:flex;align-items:center;gap:6px;white-space:nowrap">Por página
+                    <select style="height:26px;border:1px solid var(--campo-borde);border-radius:8px;background:var(--campo-fondo);font-size:12px;padding:0 4px"><option>50</option><option>100</option></select>
+                  </div>
+                  <div style="flex:1"></div>
+                  <div style="display:flex;align-items:center;gap:14px;font-weight:600;white-space:nowrap">
+                    <span style="opacity:.4">« Anterior</span>
+                    <span style="font-variant-numeric:tabular-nums;color:var(--texto)">{{ s.paginas }}</span>
+                    <span style="color:{{ s.colorSiguiente }};cursor:pointer">Siguiente »</span>
+                  </div>
+                </div>
+              </sc-if>
+            </div>
+          </sc-if>
+
+          <sc-if value="{{ s.esTabla }}" hint-placeholder-val="{{ false }}">
+            <div style="overflow-x:auto">
+              <table style="width:100%;min-width:940px;border-collapse:collapse;font-size:12.5px">
+                <thead>
+                  <tr>
+                    <sc-for list="{{ s.cols }}" as="col" hint-placeholder-count="6">
+                      <th style="text-align:{{ col.alinear }};padding:10px {{ col.padDer }} 10px {{ col.padIzq }};background:var(--superficie);border-bottom:1px solid var(--borde);font-size:10px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;color:var(--tabla-cabecera-texto);white-space:nowrap">{{ col.t }}</th>
+                    </sc-for>
+                  </tr>
+                </thead>
+                <tbody>
+                  <sc-for list="{{ s.filas }}" as="fila" hint-placeholder-count="8">
+                    <tr style="border-bottom:1px solid var(--hairline)" style-hover="background:var(--tabla-fila-resaltada)">
+                      <sc-for list="{{ fila.celdas }}" as="cel" hint-placeholder-count="6">
+                        <td style="padding:var(--pad-fila) {{ cel.padDer }} var(--pad-fila) {{ cel.padIzq }};vertical-align:top;text-align:{{ cel.alinear }};color:{{ cel.color }};font-weight:{{ cel.peso }};font-family:{{ cel.fuente }};font-size:{{ cel.tam }};white-space:{{ cel.corte }};text-decoration:{{ cel.subrayado }};font-variant-numeric:tabular-nums">
+                          {{ cel.v }}
+                          <sc-if value="{{ cel.sub }}" hint-placeholder-val="{{ false }}">
+                            <div style="margin-top:1px;font-size:11px;font-weight:400;text-decoration:none;color:var(--texto-suave)">{{ cel.sub }}</div>
+                          </sc-if>
+                        </td>
+                      </sc-for>
+                    </tr>
+                  </sc-for>
+                </tbody>
+              </table>
+            </div>
+          </sc-if>
+
+          <sc-if value="{{ s.esKpis }}" hint-placeholder-val="{{ false }}">
+            <div style="display:grid;grid-template-columns:{{ s.cols }}">
+              <sc-for list="{{ s.items }}" as="k" hint-placeholder-count="4">
+                <div style="padding:16px 24px 18px;border-left:1px solid var(--hairline);border-top:1px solid var(--hairline)">
+                  <div style="font-size:10px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--texto-suave)">{{ k.rotulo }}</div>
+                  <div style="margin-top:6px;display:flex;align-items:baseline;gap:8px;flex-wrap:wrap">
+                    <span style="white-space:nowrap;font-size:{{ k.tam }};font-weight:700;letter-spacing:-.025em;font-variant-numeric:tabular-nums;color:{{ k.color }}">{{ k.valor }}</span>
+                    <span style="font-size:12px;color:var(--texto-suave)">{{ k.pie }}</span>
+                  </div>
+                </div>
+              </sc-for>
+            </div>
+          </sc-if>
+
+          <sc-if value="{{ s.esFiltros }}" hint-placeholder-val="{{ false }}">
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;padding:14px 28px">
+              <sc-for list="{{ s.items }}" as="f" hint-placeholder-count="4">
+                <select style="width:100%;min-width:0;height:34px;padding:0 8px;border:1px solid var(--campo-borde);border-radius:10px;background:var(--campo-fondo);color:var(--texto);font-size:12.5px;font-weight:500"><option>{{ f }}</option></select>
+              </sc-for>
+            </div>
+          </sc-if>
+
+          <sc-if value="{{ s.esPaneles }}" hint-placeholder-val="{{ false }}">
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr))">
+              <sc-for list="{{ s.items }}" as="pan" hint-placeholder-count="2">
+                <div style="padding:20px 24px 22px;border-left:1px solid var(--hairline);border-top:1px solid var(--hairline);min-width:0">
+                  <div style="font-size:14.5px;font-weight:600;color:var(--titulo)">{{ pan.titulo }}</div>
+                  <sc-if value="{{ pan.nota }}" hint-placeholder-val="{{ false }}">
+                    <div style="margin-top:3px;font-size:12px;color:var(--texto-suave)">{{ pan.nota }}</div>
+                  </sc-if>
+                  <sc-if value="{{ pan.esDona }}" hint-placeholder-val="{{ false }}">
+                    <div style="margin-top:20px;display:flex;align-items:center;gap:32px;flex-wrap:wrap">
+                      <div style="position:relative;flex:0 0 188px;width:188px;height:188px">
+                        <svg viewBox="0 0 132 132" style="width:188px;height:188px;transform:rotate(-90deg)">
+                          <sc-for list="{{ pan.arcos }}" as="arc" hint-placeholder-count="2">
+                            <circle cx="66" cy="66" r="52" fill="none" stroke="{{ arc.color }}" stroke-width="17" stroke-dasharray="{{ arc.trazo }}" stroke-dashoffset="{{ arc.desfase }}"></circle>
+                          </sc-for>
+                        </svg>
+                        <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center">
+                          <div style="font-size:38px;font-weight:700;letter-spacing:-.03em;font-variant-numeric:tabular-nums;color:var(--titulo)">{{ pan.total }}</div>
+                          <div style="font-size:12.5px;color:var(--texto-suave)">{{ pan.unidad }}</div>
+                        </div>
+                      </div>
+                      <div style="flex:1;min-width:190px;display:flex;flex-direction:column;gap:12px">
+                        <sc-for list="{{ pan.items }}" as="it" hint-placeholder-count="2">
+                          <div style="display:flex;align-items:center;gap:10px;font-size:13.5px">
+                            <span style="flex:0 0 8px;width:8px;height:8px;border-radius:2px;background:{{ it.color }}"></span>
+                            <span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--texto)">{{ it.etiqueta }}</span>
+                            <span style="font-weight:700;font-variant-numeric:tabular-nums;color:var(--titulo)">{{ it.valor }}</span>
+                            <span style="flex:0 0 52px;text-align:right;font-variant-numeric:tabular-nums;color:var(--texto-suave)">{{ it.pct }}</span>
+                          </div>
+                        </sc-for>
+                      </div>
+                    </div>
+                  </sc-if>
+                  <sc-if value="{{ pan.esBarras }}" hint-placeholder-val="{{ false }}">
+                    <div style="margin-top:14px;display:flex;flex-direction:column;gap:18px">
+                      <sc-for list="{{ pan.grupos }}" as="gr" hint-placeholder-count="1">
+                        <div>
+                          <sc-if value="{{ gr.rotulo }}" hint-placeholder-val="{{ false }}">
+                            <div style="font-size:10px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--texto-suave);margin-bottom:10px">{{ gr.rotulo }}</div>
+                          </sc-if>
+                          <div style="display:flex;flex-direction:column;gap:9px">
+                            <sc-for list="{{ gr.items }}" as="it" hint-placeholder-count="4">
+                              <div style="display:flex;align-items:center;gap:12px;font-size:12.5px">
+                                <span style="flex:0 0 118px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--texto)">{{ it.etiqueta }}</span>
+                                <span style="flex:1;min-width:60px;height:6px;border-radius:3px;background:var(--superficie-alterna);overflow:hidden"><span style="display:block;height:100%;border-radius:3px;width:{{ it.ancho }};background:{{ it.color }}"></span></span>
+                                <span style="flex:0 0 34px;text-align:right;font-weight:700;font-variant-numeric:tabular-nums;color:var(--titulo)">{{ it.valor }}</span>
+                                <span style="flex:0 0 52px;text-align:right;font-variant-numeric:tabular-nums;color:var(--texto-suave)">{{ it.pct }}</span>
+                              </div>
+                            </sc-for>
+                          </div>
+                        </div>
+                      </sc-for>
+                    </div>
+                  </sc-if>
+                </div>
+              </sc-for>
+            </div>
+          </sc-if>
+
+          <sc-if value="{{ s.esLista }}" hint-placeholder-val="{{ false }}">
+            <div>
+              <sc-if value="{{ s.titulo }}" hint-placeholder-val="{{ false }}">
+                <div style="padding:20px 28px 4px">
+                  <div style="font-size:14.5px;font-weight:600;color:var(--titulo)">{{ s.titulo }}</div>
+                  <div style="margin-top:3px;font-size:12px;color:var(--texto-suave)">{{ s.nota }}</div>
+                </div>
+              </sc-if>
+              <div style="padding:12px 0 4px;display:grid;grid-template-columns:{{ s.rejilla }}">
+                <sc-if value="{{ s.vacio }}" hint-placeholder-val="{{ false }}">
+                  <div style="padding:22px 28px;text-align:center;font-size:12.5px;color:var(--texto-suave)">{{ s.vacio }}</div>
+                </sc-if>
+                <sc-for list="{{ s.items }}" as="it" hint-placeholder-count="5">
+                  <div onClick="{{ it.ir }}" style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;padding:12px 28px;border-top:1px solid var(--hairline);cursor:{{ it.cursor }}" style-hover="background:var(--tabla-fila-resaltada)">
+                    <sc-if value="{{ it.codigo }}" hint-placeholder-val="{{ false }}">
+                      <div style="flex:0 0 30px;font-size:10.5px;font-weight:600;letter-spacing:.05em;color:var(--texto-suave)">{{ it.codigo }}</div>
+                    </sc-if>
+                    <div style="flex:1 1 320px;min-width:0">
+                      <div style="font-size:13.5px;font-weight:600;color:var(--titulo);overflow-wrap:anywhere">{{ it.titulo }}</div>
+                      <div style="margin-top:2px;font-size:11.5px;color:var(--texto-suave)">{{ it.sub }}</div>
+                    </div>
+                    <sc-if value="{{ it.tieneBarra }}" hint-placeholder-val="{{ false }}">
+                      <div style="flex:0 0 130px;height:4px;border-radius:2px;background:var(--superficie-alterna);overflow:hidden"><div style="height:100%;border-radius:2px;background:var(--marca);width:{{ it.ancho }}"></div></div>
+                    </sc-if>
+                    <div style="flex:0 0 auto;font-size:12px;font-variant-numeric:tabular-nums;color:var(--texto);text-align:right;min-width:104px">{{ it.derecha }}</div>
+                    <sc-if value="{{ it.estado }}" hint-placeholder-val="{{ false }}">
+                      <div style="flex:0 0 auto;min-width:88px;text-align:right;font-size:12px;font-weight:600;color:{{ it.estadoColor }}">{{ it.estado }}</div>
+                    </sc-if>
+                  </div>
+                </sc-for>
+              </div>
+            </div>
+          </sc-if>
+
+          <sc-if value="{{ s.esAcordeon }}" hint-placeholder-val="{{ false }}">
+            <div>
+              <sc-for list="{{ s.items }}" as="a" hint-placeholder-count="4">
+                <div style="border-top:1px solid var(--hairline)">
+                  <div style="display:flex;align-items:center;gap:14px;padding:14px 28px;cursor:pointer" style-hover="background:var(--tabla-fila-resaltada)">
+                    <div style="flex:1;min-width:0">
+                      <div style="display:flex;align-items:baseline;gap:9px;flex-wrap:wrap">
+                        <span style="font-size:10.5px;font-weight:700;letter-spacing:.06em;color:var(--texto-suave)">{{ a.codigo }}</span>
+                        <span style="font-size:14px;font-weight:600;color:var(--titulo);overflow-wrap:anywhere">{{ a.titulo }}</span>
+                      </div>
+                      <div style="margin-top:3px;font-size:12px;color:var(--texto-suave)">{{ a.sub }}</div>
+                    </div>
+                    <span style="flex:0 0 auto;font-size:11px;color:var(--texto-suave)">{{ a.flecha }}</span>
+                  </div>
+                  <sc-if value="{{ a.abierto }}" hint-placeholder-val="{{ false }}">
+                    <div style="padding:0 28px 18px;display:flex;flex-direction:column;gap:10px">
+                      <sc-for list="{{ a.grupos }}" as="g" hint-placeholder-count="2">
+                        <div style="border:1px solid var(--borde);border-radius:12px;padding:14px 16px;background:var(--superficie)">
+                          <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+                            <span style="font-size:14px;font-weight:600;color:var(--titulo)">{{ g.nombre }}</span>
+                            <span style="font-size:11px;font-weight:600;color:{{ g.estadoColor }}">{{ g.estado }}</span>
+                            <span style="font-size:11.5px;font-variant-numeric:tabular-nums;color:var(--texto-suave)">{{ g.sep }}</span>
+                            <span style="flex:1"></span>
+                            <span style="font-size:12px;font-variant-numeric:tabular-nums;color:var(--texto)">{{ g.cupos }}</span>
+                            <span style="font-size:12px;font-weight:600;color:var(--marca);cursor:pointer">{{ g.accion }}</span>
+                          </div>
+                          <div style="margin-top:6px;font-size:12.5px;color:var(--texto-suave)">{{ g.fechas }}</div>
+                          <div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap">
+                            <sc-for list="{{ g.sedes }}" as="sd" hint-placeholder-count="1">
+                              <span style="font-size:11.5px;color:var(--texto-suave);padding:3px 9px;border:1px solid var(--hairline);border-radius:999px">{{ sd }}</span>
+                            </sc-for>
+                          </div>
+                          <sc-if value="{{ g.editando }}" hint-placeholder-val="{{ false }}">
+                            <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--hairline)">
+                              <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px">
+                                <div>
+                                  <label style="display:block;font-size:11.5px;font-weight:600;color:var(--texto)">Empieza</label>
+                                  <input value="20/10/2026" style="margin-top:6px;width:100%;height:36px;padding:0 12px;border:1px solid var(--campo-borde);border-radius:10px;background:var(--campo-fondo);color:var(--texto);font-size:13px;outline:none" />
+                                </div>
+                                <div>
+                                  <label style="display:block;font-size:11.5px;font-weight:600;color:var(--texto)">Termina</label>
+                                  <input value="23/11/2026" style="margin-top:6px;width:100%;height:36px;padding:0 12px;border:1px solid var(--campo-borde);border-radius:10px;background:var(--campo-fondo);color:var(--texto);font-size:13px;outline:none" />
+                                </div>
+                                <div>
+                                  <label style="display:block;font-size:11.5px;font-weight:600;color:var(--texto)">Horario</label>
+                                  <input value="Sábados, 8:00 a. m. a 4:00 p. m." style="margin-top:6px;width:100%;height:36px;padding:0 12px;border:1px solid var(--campo-borde);border-radius:10px;background:var(--campo-fondo);color:var(--texto);font-size:13px;outline:none" />
+                                </div>
+                              </div>
+                              <div style="margin-top:12px;display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+                                <button style="flex:0 0 auto;height:34px;padding:0 16px;border:1px solid var(--marca);border-radius:10px;background:var(--marca);font-size:12.5px;font-weight:600;color:var(--marca-texto);cursor:pointer">Guardar fechas</button>
+                                <span style="font-size:11.5px;color:var(--texto-suave)">Cambiar estas fechas mueve el «va al día» de todo el grupo en el seguimiento académico.</span>
+                              </div>
+                            </div>
+                          </sc-if>
+                        </div>
+                      </sc-for>
+                    </div>
+                  </sc-if>
+                </div>
+              </sc-for>
+            </div>
+          </sc-if>
+
+          <sc-if value="{{ s.esCampos }}" hint-placeholder-val="{{ false }}">
+            <div style="padding:20px 28px 22px">
+              <div style="font-size:14.5px;font-weight:600;color:var(--titulo)">{{ s.titulo }}</div>
+              <sc-if value="{{ s.nota }}" hint-placeholder-val="{{ false }}">
+                <div style="margin-top:3px;max-width:760px;font-size:12.5px;line-height:1.55;color:var(--texto-suave)">{{ s.nota }}</div>
+              </sc-if>
+              <div style="margin-top:16px;display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));column-gap:28px;row-gap:15px">
+                <sc-for list="{{ s.items }}" as="c" hint-placeholder-count="4">
+                  <div style="min-width:0">
+                    <div style="font-size:11px;color:var(--texto-suave)">{{ c.rotulo }}</div>
+                    <div style="margin-top:2px;font-size:13.5px;font-weight:500;color:{{ c.color }};overflow-wrap:anywhere">{{ c.valor }}</div>
+                  </div>
+                </sc-for>
+              </div>
+            </div>
+          </sc-if>
+
+          <sc-if value="{{ s.esForm }}" hint-placeholder-val="{{ false }}">
+            <div style="padding:20px 28px 24px">
+              <div style="font-size:14.5px;font-weight:600;color:var(--titulo)">{{ s.titulo }}</div>
+              <sc-if value="{{ s.nota }}" hint-placeholder-val="{{ false }}">
+                <div style="margin-top:3px;max-width:760px;font-size:12.5px;line-height:1.55;color:var(--texto-suave)">{{ s.nota }}</div>
+              </sc-if>
+              <div style="margin-top:16px;display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));column-gap:24px;row-gap:16px;max-width:900px">
+                <sc-for list="{{ s.items }}" as="c" hint-placeholder-count="4">
+                  <div style="min-width:0">
+                    <label style="display:block;font-size:11.5px;font-weight:600;color:var(--texto)">{{ c.rotulo }}</label>
+                    <input value="{{ c.valor }}" placeholder="{{ c.hueco }}" style="margin-top:6px;width:100%;height:36px;padding:0 12px;border:1px solid var(--campo-borde);border-radius:10px;background:var(--campo-fondo);color:var(--texto);font-size:13px;outline:none" />
+                    <sc-if value="{{ c.ayuda }}" hint-placeholder-val="{{ false }}">
+                      <div style="margin-top:5px;font-size:11px;line-height:1.45;color:var(--texto-suave)">{{ c.ayuda }}</div>
+                    </sc-if>
+                  </div>
+                </sc-for>
+              </div>
+              <sc-if value="{{ s.tieneBotones }}" hint-placeholder-val="{{ false }}">
+                <div style="margin-top:18px;display:flex;gap:8px;flex-wrap:wrap">
+                  <sc-for list="{{ s.botones }}" as="b" hint-placeholder-count="1">
+                    <button style="flex:0 0 auto;white-space:nowrap;height:36px;padding:0 16px;border:1px solid {{ b.borde }};border-radius:10px;background:{{ b.fondo }};font-size:12.5px;font-weight:600;color:{{ b.color }};cursor:pointer">{{ b.texto }}</button>
+                  </sc-for>
+                </div>
+              </sc-if>
+            </div>
+          </sc-if>
+
+          <sc-if value="{{ s.esTexto }}" hint-placeholder-val="{{ false }}">
+            <div style="padding:20px 28px 22px">
+              <div style="font-size:14.5px;font-weight:600;color:var(--titulo)">{{ s.titulo }}</div>
+              <div style="margin-top:6px;max-width:760px;font-size:12.5px;line-height:1.6;color:var(--texto-suave)">{{ s.nota }}</div>
+              <sc-if value="{{ s.cuerpo }}" hint-placeholder-val="{{ false }}">
+                <p style="margin:14px 0 0;font-size:13px;line-height:1.7;color:var(--texto);text-wrap:pretty">{{ s.cuerpo }}</p>
+              </sc-if>
+              <sc-if value="{{ s.tieneBotones }}" hint-placeholder-val="{{ false }}">
+                <div style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap">
+                  <sc-for list="{{ s.botones }}" as="b" hint-placeholder-count="2">
+                    <button onClick="{{ b.ir }}" style="flex:0 0 auto;white-space:nowrap;height:34px;padding:0 15px;border:1px solid {{ b.borde }};border-radius:10px;background:{{ b.fondo }};font-size:12.5px;font-weight:600;color:{{ b.color }};cursor:pointer">{{ b.texto }}</button>
+                  </sc-for>
+                </div>
+              </sc-if>
+            </div>
+          </sc-if>
+
+        </div>
+      </sc-for>
+    </div>
+    </sc-if>
+
+    <sc-if value="{{ esPendiente }}" hint-placeholder-val="{{ false }}">
+    <div style="flex:1;min-height:0;overflow-y:auto;display:flex;align-items:center;justify-content:center;padding:40px 28px">
+      <div style="max-width:460px;text-align:center">
+        <div style="font-size:10px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--texto-suave)">{{ pendienteModulo }}</div>
+        <h2 style="margin:8px 0 0;font-size:22px;font-weight:700;letter-spacing:-.02em;color:var(--titulo)">{{ pendienteNombre }}</h2>
+        <p style="margin:10px 0 0;font-size:13px;line-height:1.6;color:var(--texto-suave)">Esta pantalla existe en el sistema y todavía no entra en el rediseño. Este documento cubre el tablero, la gestión de leads y la ficha del interesado: son las tres que fijan el lenguaje visual con el que se reconstruye el resto.</p>
+        <button onClick="{{ irLeads }}" style="margin-top:18px;height:34px;padding:0 16px;border:1px solid var(--borde);border-radius:10px;background:transparent;font-size:12.5px;font-weight:600;color:var(--texto);cursor:pointer" style-hover="border-color:var(--marca);color:var(--marca)">Volver a Gestión de leads</button>
+      </div>
+    </div>
+    </sc-if>
+
+  </main>
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1440,&quot;height&quot;:900},&quot;pantalla&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;Tablero&quot;,&quot;Gestión de leads&quot;,&quot;Ficha del lead&quot;],&quot;default&quot;:&quot;Tablero&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Vista&quot;},&quot;tema&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;Claro&quot;,&quot;Oscuro&quot;],&quot;default&quot;:&quot;Claro&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Vista&quot;},&quot;marca&quot;:{&quot;editor&quot;:&quot;color&quot;,&quot;options&quot;:[&quot;#1d4ed8&quot;,&quot;#4338ca&quot;,&quot;#0e7490&quot;,&quot;#9f1239&quot;],&quot;default&quot;:&quot;#1d4ed8&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Apariencia · Colores&quot;},&quot;marcaOscuro&quot;:{&quot;editor&quot;:&quot;color&quot;,&quot;options&quot;:[&quot;#60a5fa&quot;,&quot;#a5b4fc&quot;,&quot;#67e8f9&quot;,&quot;#fda4af&quot;],&quot;default&quot;:&quot;#60a5fa&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Apariencia · Colores&quot;},&quot;densidad&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;Compacta&quot;,&quot;Cómoda&quot;],&quot;default&quot;:&quot;Compacta&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Tablas&quot;}}">
+function trazo(d) {
+  const svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">' + d + '</svg>';
+  return "url('data:image/svg+xml," + encodeURIComponent(svg) + "')";
+}
+
+const ICONO_RESUMEN = trazo('<rect x="3" y="3" width="7" height="8" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="11" width="7" height="10" rx="1.5"/>');
+
+const ICONOS = {
+  "Calendario": trazo('<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M8 3v4M16 3v4M3 10h18"/>'),
+  "Gestión de Inscripciones": trazo('<path d="M15 5h3a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h3"/><rect x="9" y="3" width="6" height="4" rx="1"/><path d="M9 14l2 2 4-4"/>'),
+  "Sistemas de Información": trazo('<path d="M12 3l9 5-9 5-9-5 9-5z"/><path d="M3 13l9 5 9-5"/>'),
+  "Gestión Académica": trazo('<path d="M4 4v16h16"/><path d="M8 16l4-5 3 3 4-6"/>'),
+  "Formularios": trazo('<path d="M15 3H6v18h13V7z"/><path d="M15 3v4h4"/><path d="M9 12h7M9 16h5"/>'),
+  "Campaña Mailing": trazo('<rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 8.5l9 5.5 9-5.5"/>'),
+  "Configuración": trazo('<path d="M5 7h14M5 12h14M5 17h14"/><circle cx="9" cy="7" r="2"/><circle cx="15" cy="12" r="2"/><circle cx="9" cy="17" r="2"/>')
+};
+
+const MODULO_DE = {};
+const ETIQUETA = { "Acción AF1": "AF1", "Acción AF2": "AF2", "Acción AF3": "AF3", "Acción AF4": "AF4", "Acción AF5": "AF5", "Acción AF6": "AF6", "Acción AF7": "AF7" };
+
+const MODULOS = [
+  { marca: "Ca", nombre: "Calendario", hijos: ["Ver cronograma", "Formación"] },
+  { marca: "In", nombre: "Gestión de Inscripciones", hijos: ["Gestión de leads", "Control de Inscritos"] },
+  { marca: "Si", nombre: "Sistemas de Información", hijos: ["Reservas", "Empresas registradas", "Empresas aliadas - afiliadas", "Inscritos Acción Formación", "Reportes SENA"] },
+  { marca: "Ac", nombre: "Gestión Académica", hijos: ["Tablero académico", "Avance"] },
+  { marca: "Fo", nombre: "Formularios", hijos: ["Creación Formularios", "Formularios Activos", "Habeas Data"] },
+  { marca: "Ma", nombre: "Campaña Mailing", hijos: ["Campañas", "Plantillas", "Cuenta de correo"] },
+  { marca: "Cf", nombre: "Configuración", hijos: ["Apariencia", "Webhook de Meta", "Usuarios", "Mi perfil"] }
+];
+
+const FILAS = [
+  ["1/08/26, 8:04 a. m.", "sofia.arias29@ejemplo.test", "328765869", "Sofía Arias Beltrán", "C.C.", "1010331478", "BOYACÁ", "Interesado", "Faltan 4"],
+  ["3/08/26, 8:04 a. m.", "david.pinzon26@ejemplo.test", "328286621", "David Alejandro Pinzón Rojas", "C.C.", "1010316499", "SANTANDER", "Contactado", "Faltan 2"],
+  ["12/08/26, 8:04 a. m.", "ivan.mendoza1@ejemplo.test", "324486943", "Iván Andrea Mendoza Peña", "C.C.", "1010209352", "—", "Interesado", "Faltan 6"],
+  ["8/08/26, 8:04 a. m.", "mariana.castano12@ejemplo.test", "301812170", "Mariana María Castaño Bermúdez", "C.E.", "1010263251", "AMAZONAS", "Inscrito", "Sin pendientes"],
+  ["5/08/26, 8:04 a. m.", "sebastian.bermudez18@ejemplo.test", "313899455", "Sebastián Andrea Bermúdez Torres", "C.C.", "1010284310", "CAUCA", "Contactado", "Falta 1"],
+  ["17/08/26, 8:04 a. m.", "javier.ospina35@ejemplo.test", "317576133", "Javier José Ospina Gómez", "C.C.", "1010364123", "CALDAS", "Interesado", "Faltan 3"],
+  ["16/08/26, 8:04 a. m.", "diego.molina40@ejemplo.test", "312003848", "Diego Molina Herrera", "C.C.", "1010396293", "CUNDINAMARCA", "Inscrito", "Sin pendientes"],
+  ["4/08/26, 8:04 a. m.", "laura.cifuentes30@ejemplo.test", "319136020", "Laura Antonio Cifuentes Torres", "C.C.", "1010339854", "GUAINÍA", "Datos completos", "Sin pendientes"],
+  ["16/08/26, 8:04 a. m.", "sofia.martinez19@ejemplo.test", "318548501", "Sofía Isabel Martínez Cárdenas", "C.C.", "1010290827", "—", "Interesado", "Faltan 5"],
+  ["17/08/26, 8:04 a. m.", "oscar.cardenas13@ejemplo.test", "311382205", "Óscar Antonio Cárdenas Torres", "C.E.", "1010264618", "SUCRE", "Contactado", "Faltan 2"],
+  ["7/08/26, 8:04 a. m.", "oscar.zapata3@ejemplo.test", "314019119", "Óscar María Zapata Beltrán", "C.E.", "1010217705", "BOYACÁ", "En formación", "Sin pendientes"]
+];
+
+const ETAPA_COLOR = {
+  "Interesado": "var(--etapa-interesado)",
+  "Contactado": "var(--etapa-contactado)",
+  "Datos completos": "var(--etapa-datos-completos)",
+  "Inscrito": "var(--etapa-inscrito)",
+  "En formación": "var(--etapa-en-formacion)"
+};
+
+const EMBUDO = [
+  ["Interesado", 21, "var(--etapa-interesado)"],
+  ["Contactado", 24, "var(--etapa-contactado)"],
+  ["Datos completos", 1, "var(--etapa-datos-completos)"],
+  ["Inscrito", 28, "var(--etapa-inscrito)"],
+  ["En formación", 5, "var(--etapa-en-formacion)"]
+];
+
+const ACCIONES = [
+  ["AF1", "Despliegue de Agentes Autónomos con IA para la Maximización del Rendimiento Organizacional", "CURSO virtual · 40 h", 102, 520],
+  ["AF2", "Arquitectura Financiera: Visualizacion Predictiva y Modelado con IA Generativa", "CURSO virtual · 40 h", 82, 520],
+  ["AF3", "Estrategias de Escalamiento y Automatización de la Demanda para Empresas Emergentes", "CURSO virtual · 40 h", 43, 520],
+  ["AF7", "Expansión Global: Prospección y Modelación de Negocios Escalables con IA", "TALLER-BOOTCAMP · 16 h", 25, 78],
+  ["AF5", "Seguridad y Gobierno de Datos: Protección de la Información y Mitigación de Riesgos Informáticos", "TALLER presencial · 8 h", 22, 39],
+  ["AF6", "Sofisticación Turística y Gastronómica: Innovación de Experiencias y Encadenamientos con la Economía Campesina", "TALLER presencial · 8 h", 8, 195],
+  ["AF4", "Mujeres Líderes Digitales: Ecosistemas de Inteligencia Artificial Generativa para la Estrategia Organizacional", "TALLER presencial · 8 h", 0, 195]
+];
+
+const CONTENIDO = {
+  Datos: {
+    titulo: "Datos del interesado",
+    nota: "Información básica de identificación del beneficiario.",
+    bloques: [
+      { titulo: "Identificación", campos: [
+        { rotulo: "Tipo de documento", valor: "Cédula de Ciudadanía" },
+        { rotulo: "Número de documento", valor: "1010331478" }
+      ] },
+      { titulo: "Nombre completo", campos: [
+        { rotulo: "Primer nombre", valor: "Sofía" },
+        { rotulo: "Segundo nombre", valor: "—" },
+        { rotulo: "Primer apellido", valor: "Arias" },
+        { rotulo: "Segundo apellido", valor: "Beltrán" }
+      ] },
+      { titulo: "Perfil", campos: [
+        { rotulo: "Fecha de nacimiento", valor: "20/1/1999" },
+        { rotulo: "Género", valor: "FEMENINO" },
+        { rotulo: "Estrato socioeconómico", valor: "1" },
+        { rotulo: "Nivel ocupacional", valor: "MEDIO" }
+      ] },
+      { titulo: "Contacto", campos: [
+        { rotulo: "Correo", valor: "sofia.arias29@ejemplo.test" },
+        { rotulo: "Celular", valor: "328765869" },
+        { rotulo: "Departamento", valor: "BOYACÁ" },
+        { rotulo: "Municipio", valor: "—" }
+      ] }
+    ]
+  },
+  Empresa: {
+    titulo: "Organización que la nominó",
+    nota: "Estos datos los completa el analista. De aquí sale la fila del formato F7 en el reporte al SENA.",
+    bloques: [
+      { titulo: "Identificación", campos: [
+        { rotulo: "Razón social", valor: "ABC LABORATORIOS S.A.S." },
+        { rotulo: "NIT", valor: "860031945-8" },
+        { rotulo: "Nombre comercial", valor: "ABC LABORATORIOS" },
+        { rotulo: "Fecha de fundación", valor: "8/10/1997" }
+      ] },
+      { titulo: "Ubicación y contacto", campos: [
+        { rotulo: "Dirección", valor: "Carrera 2 # 10 - 20" },
+        { rotulo: "Ciudad", valor: "Bogotá" },
+        { rotulo: "Departamento", valor: "Bogotá D.C." },
+        { rotulo: "Teléfono", valor: "6012072026" }
+      ] },
+      { titulo: "Clasificación", campos: [
+        { rotulo: "Sector económico", valor: "Servicios" },
+        { rotulo: "Código CIIU", valor: "2100" },
+        { rotulo: "Clasificación", valor: "Empresa privada" },
+        { rotulo: "Tamaño", valor: "Pequeña · 11 empleados" }
+      ] }
+    ]
+  },
+  Origen: {
+    titulo: "Origen del registro",
+    nota: "Por dónde entró al sistema y con qué formación se registró.",
+    bloques: [
+      { titulo: "Entrada", campos: [
+        { rotulo: "Origen del lead", valor: "La empresa lo nominó" },
+        { rotulo: "Gremio", valor: "BRITCHAM ADEE" },
+        { rotulo: "Fecha de creación", valor: "1/08/2026, 8:04 a. m." },
+        { rotulo: "Última actividad", valor: "16/08/2026, 2:04 a. m." }
+      ] },
+      { titulo: "Interés declarado", campos: [
+        { rotulo: "Acción de formación", valor: "AF1 · Despliegue de Agentes Autónomos con IA para la Maximización del Rendimiento Organizacional" },
+        { rotulo: "Modalidad", valor: "CURSO virtual · 40 horas" },
+        { rotulo: "Departamento de la oferta", valor: "BOYACÁ" },
+        { rotulo: "Grupo", valor: "Sin asignar" }
+      ] }
+    ]
+  },
+  Notas: {
+    titulo: "Notas de seguimiento",
+    nota: "Lo que se habló por teléfono, por escrito y con fecha."
+  },
+  Historial: {
+    titulo: "Historial del registro",
+    nota: "Cada movimiento queda anotado y no se reescribe."
+  }
+};
+
+const EVENTOS = [
+  { fecha: "16/08/2026, 2:04 a. m.", titulo: "Aceptó la política de tratamiento de datos", detalle: "Versión 1 · La aceptó en el formulario web" },
+  { fecha: "1/08/2026, 8:04 a. m.", titulo: "Entró al sistema en etapa Interesado", detalle: "La empresa lo nominó · BRITCHAM ADEE" }
+];
+
+function cel(v, o) {
+  o = o || {};
+  return {
+    v: v,
+    sub: o.sub || "",
+    color: o.color || "var(--texto)",
+    peso: o.peso || 400,
+    fuente: o.mono ? "ui-monospace,SFMono-Regular,Menlo,monospace" : "inherit",
+    tam: o.mono ? "11px" : "12.5px",
+    corte: o.corte || "nowrap",
+    alinear: o.alinear || "left",
+    subrayado: o.link ? "underline" : "none",
+    padIzq: "0px",
+    padDer: "14px"
+  };
+}
+
+function normaliza(celdas) {
+  celdas.forEach(function (c, i) {
+    if (i === 0) c.padIzq = "28px";
+    if (i === celdas.length - 1) c.padDer = "28px";
+  });
+  return { celdas: celdas };
+}
+
+function cols(defs) {
+  return defs.map(function (d, i) {
+    return {
+      t: d.t,
+      alinear: d.alinear || "left",
+      padIzq: i === 0 ? "28px" : "0px",
+      padDer: i === defs.length - 1 ? "28px" : "14px"
+    };
+  });
+}
+
+function btn(texto, tipo, ir) {
+  const primario = tipo === "p";
+  return {
+    texto: texto,
+    fondo: primario ? "var(--marca)" : "transparent",
+    color: primario ? "var(--marca-texto)" : "var(--texto)",
+    borde: primario ? "var(--marca)" : "var(--borde)",
+    ir: ir || null
+  };
+}
+
+function barra(o) {
+  return {
+    esBarra: true, esTabla: false, esAviso: false,
+    buscar: o.buscar || "Buscar en lo que está a la vista…",
+    botones: o.botones || [],
+    acciones: o.acciones || [],
+    paginacion: !!o.tramo,
+    tramo: o.tramo || "",
+    total: o.total || "",
+    paginas: o.paginas || "",
+    colorSiguiente: o.paginas ? "var(--marca)" : "var(--texto-suave)"
+  };
+}
+
+function tabla(defs, filas) {
+  return { esTabla: true, esBarra: false, esAviso: false, cols: cols(defs), filas: filas };
+}
+
+function aviso(texto, color) {
+  return { esAviso: true, esBarra: false, esTabla: false, texto: texto, color: color || "var(--marca)" };
+}
+
+const RESERVAS = [
+  ["20 de ago de 26", "TURISMO RUTA DORADA S.A.S.", "900125403-9", "Santiago Pinzón", "contacto19@ejemplo.test", "AF1 Gestión de la Atención y Neuroeducación en la Era Digital", "Bogotá D.C", "Reserva de cupos — ADECOPRIA", "/adecopria", "10"],
+  ["19 de ago de 26", "SERVICIOS INTEGRALES ZAFIRO S.A.S.", "900117381-3", "Óscar Salazar", "contacto13@ejemplo.test", "AF7 Salto Adelante (leapfrogging): Coherencia y Escala", "Magdalena", "Reserva de cupos — ADECOPRIA", "/adecopria", "4"],
+  ["19 de ago de 26", "TRANSPORTES EL CÓNDOR LTDA.", "900106685-5", "Mauricio Herrera", "contacto5@ejemplo.test", "AF6 Fábrica de Soluciones Digitales: Metodologías Ágiles", "Popayán", "Reserva de cupos — ADECOPRIA", "/adecopria", "14"],
+  ["18 de ago de 26", "DISTRIBUIDORA EL FARO S.A.S.", "900112033-9", "Ricardo Molina", "contacto9@ejemplo.test", "AF2 Arquitectura Financiera: Visualizacion Predictiva", "Cundinamarca", "Reserva de cupos — BRITCHAM y ADEE", "/britcham-adee", "16"],
+  ["17 de ago de 26", "PANIFICADORA LA ESPIGA LTDA.", "900118718-4", "Adriana Martínez", "contacto14@ejemplo.test", "AF8 Inteligencia Artificial y Ecoeficiencia", "Norte de Santander", "Reserva de cupos — BRITCHAM y ADEE", "/britcham-adee", "18"],
+  ["16 de ago de 26", "REFRIGERACIÓN POLAR LTDA.", "900128077-1", "Felipe Herrera", "contacto21@ejemplo.test", "AF1 Despliegue de Agentes Autónomos con IA", "Bolívar", "Reserva de cupos — BRITCHAM y ADEE", "/britcham-adee", "7"],
+  ["15 de ago de 26", "CONFECCIONES AURORA S.A.S.", "900113370-0", "Felipe Gómez", "contacto10@ejemplo.test", "AF3 Estrategias de Escalamiento y Automatización", "Cundinamarca", "Reserva de cupos — BRITCHAM y ADEE", "/britcham-adee", "16"],
+  ["13 de ago de 26", "AGROINSUMOS DEL LLANO S.A.S.", "900102674-2", "Carlos Salazar", "contacto2@ejemplo.test", "AF1 Gestión de la Atención y Neuroeducación en la Era Digital", "Bogotá D.C", "Reserva de cupos — ADECOPRIA", "/adecopria", "10"],
+  ["12 de ago de 26", "INGENIERÍA Y MONTAJES DELTA LTDA.", "900122729-7", "Valentina Arias", "contacto17@ejemplo.test", "AF7 Salto Adelante (leapfrogging): Coherencia y Escala", "Valle del Cauca", "Reserva de cupos — ADECOPRIA", "/adecopria", "5"]
+];
+
+const REGISTRADAS = [
+  ["860031945-8", "ABC LABORATORIOS S.A.S.", "Abc Laboratorios", "Bogotá", "Pequeña", "Empresa privada", "Lista para reportar", "Nada"],
+  ["890905211-1", "ALCALDÍA DE MEDELLÍN", "Alcaldia", "—", "—", "—", "Le faltan 8 datos", "8 datos"],
+  ["890983674-0", "ALCALDÍA EL RETIRO", "", "—", "—", "—", "Le faltan 9 datos", "9 datos"],
+  ["890399011-3", "ALCALDÍA SANTIAGO DE CALI", "", "—", "—", "—", "Le faltan 9 datos", "9 datos"],
+  ["811008807-5", "ASOCIACION ANTIOQUEÑA DE EDUCACION INFANTIL A.A.E.I", "", "—", "—", "—", "Le faltan 9 datos", "9 datos"],
+  ["800205517-9", "ASOCIACIÓN COLOMBIANA DE EDUCACIÓN PRIVADA (ASOCOLDEP)", "", "—", "—", "—", "Le faltan 9 datos", "9 datos"],
+  ["890982432-0", "ASOCIACION DE EDUCACION PRIVADA ADECOPRIA", "", "—", "—", "—", "Le faltan 9 datos", "9 datos"],
+  ["860019021-9", "ASOCIACION PARA LA ENSENANZA ASPAEN", "", "—", "—", "—", "Le faltan 9 datos", "9 datos"],
+  ["822002548-5", "ASOCIACION SOCIO-CULTURAL NACATSI", "", "—", "—", "—", "Le faltan 9 datos", "9 datos"],
+  ["901830745-8", "BIBLIOS S.A.S", "", "—", "—", "—", "Le faltan 9 datos", "9 datos"],
+  ["890900842-6", "CAJA DE COMPENSACION FAMILIAR COMFENALCO ANTIOQUIA", "", "—", "—", "—", "Le faltan 9 datos", "9 datos"],
+  ["890936732-1", "CASCANUECES S.A.S. (GUARDERÍA Y PREESCOLAR CASCANUECES)", "", "—", "—", "—", "Le faltan 9 datos", "9 datos"]
+];
+
+const ALIADAS = [
+  ["900100000-0", "ACEROS DEL NORTE S.A.S."], ["900102674-2", "AGROINSUMOS DEL LLANO S.A.S."],
+  ["900105348-4", "ALIMENTOS DOÑA ROSA S.A.S."], ["900124066-8", "AVÍCOLA EL AMANECER S.A.S."],
+  ["900109359-7", "CAFÉ DE ALTURA S.A.S."], ["900126740-0", "CALZADO PRISMA S.A.S."],
+  ["900121392-6", "COMERCIALIZADORA PUERTO AZUL S.A.S."], ["900113370-0", "CONFECCIONES AURORA S.A.S."],
+  ["900104011-3", "CONSTRUCTORA VÍA VERDE S.A."], ["900112033-9", "DISTRIBUIDORA EL FARO S.A.S."],
+  ["900129414-2", "EDITORIAL TINTA VIVA S.A.S."], ["900122729-7", "INGENIERÍA Y MONTAJES DELTA LTDA."],
+  ["900114707-1", "LÁCTEOS SAN RAFAEL LTDA."], ["900130751-3", "LOGÍSTICA SUR EXPRESS S.A.S."],
+  ["900116044-2", "MADERAS DEL PACÍFICO S.A.S."], ["900110696-8", "METALMECÁNICA BOLÍVAR LTDA."]
+];
+
+const INSCRITOS = [
+  ["19/08/26, 8:04 a. m.", "sandra.pena17@ejemplo.test", "325345487", "Sandra Peña Castaño", "C.C.", "1010280701", "—"],
+  ["15/08/26, 8:04 a. m.", "andres.arias49@ejemplo.test", "302462589", "Andrés Antonio Arias Cárdenas", "C.C.", "1010437560", "SANTANDER"],
+  ["10/08/26, 8:04 a. m.", "oscar.beltran43@ejemplo.test", "326692444", "Óscar Beltrán Beltrán", "C.E.", "1010406391", "META"],
+  ["19/08/26, 8:04 a. m.", "david.pinzon26@ejemplo.test", "328286621", "David Alejandro Pinzón Rojas", "C.C.", "1010316499", "SANTANDER"],
+  ["30/07/26, 8:04 a. m.", "luisa.bermudez52@ejemplo.test", "315008212", "Luisa Antonio Bermúdez Pinzón", "C.C.", "1010451056", "CASANARE"],
+  ["19/08/26, 8:04 a. m.", "carolina.cardenas8@ejemplo.test", "317215945", "Carolina Isabel Cárdenas Martínez", "C.C.", "1010245048", "—"],
+  ["18/08/26, 8:04 a. m.", "ivan.cifuentes44@ejemplo.test", "305673020", "Iván Isabel Cifuentes Guerrero", "C.E.", "1010412282", "BOLÍVAR"],
+  ["3/08/26, 8:04 a. m.", "ricardo.vargas50@ejemplo.test", "318477813", "Ricardo Vargas Suárez", "C.C.", "1010443201", "HUILA"],
+  ["30/07/26, 8:04 a. m.", "mariana.suarez53@ejemplo.test", "315686867", "Mariana Suárez Guerrero", "C.E.", "1010455780", "CÓRDOBA"],
+  ["10/08/26, 8:04 a. m.", "javier.arias46@ejemplo.test", "316433707", "Javier Arias Gómez", "C.C.", "1010419782", "SANTANDER"],
+  ["29/07/26, 8:04 a. m.", "ivan.mendoza1@ejemplo.test", "324486943", "Iván Andrea Mendoza Peña", "C.C.", "1010209352", "—"]
+];
+
+const PANTALLAS = {
+  "Reservas": function () {
+    return {
+      secciones: [
+        barra({ botones: [btn("Filtros"), btn("Columnas 7"), btn("Vistas")], acciones: [btn("Descargar en Excel"), btn("Descargar formato"), btn("Cargar archivo", "p")], tramo: "1–50", total: "60", paginas: "1 de 2" }),
+        tabla(
+          [{ t: "Fecha" }, { t: "Organización" }, { t: "Contacto" }, { t: "Formación" }, { t: "Entró por" }, { t: "Cupos", alinear: "right" }, { t: "Estado", alinear: "right" }],
+          RESERVAS.map(function (r) {
+            return normaliza([
+              cel(r[0], { color: "var(--texto-suave)" }),
+              cel(r[1], { peso: 600, sub: r[2], corte: "normal" }),
+              cel(r[3], { sub: r[4], corte: "normal" }),
+              cel(r[5], { sub: r[6], corte: "normal" }),
+              cel(r[7], { color: "var(--texto-suave)", sub: r[8], corte: "normal" }),
+              cel(r[9], { alinear: "right", peso: 600 }),
+              cel("Confirmada", { alinear: "right", peso: 600, color: "var(--exito)" })
+            ]);
+          })
+        )
+      ]
+    };
+  },
+  "Empresas registradas": function (nav) {
+    return {
+      secciones: [
+        aviso("Los datos llegan como sugerencia automática. Revise campo por campo y apruebe lo que esté bien; lo que no se apruebe no se reporta al SENA.", "var(--marca)"),
+        barra({ botones: [btn("Filtros"), btn("Columnas 8"), btn("Vistas"), btn("Por revisar · 2", "s", nav("Por revisar")), btn("Abrir una ficha", "s", nav("Ficha de empresa"))], acciones: [btn("Descargar en Excel"), btn("Descargar formato"), btn("Cargar archivo", "p")], tramo: "1–50", total: "175", paginas: "1 de 4" }),
+        tabla(
+          [{ t: "NIT" }, { t: "Razón social" }, { t: "Ciudad" }, { t: "Tamaño" }, { t: "Clasificación" }, { t: "Estado" }, { t: "Le falta", alinear: "right" }],
+          REGISTRADAS.map(function (r) {
+            const lista = r[6] === "Lista para reportar";
+            return normaliza([
+              cel(r[0], { mono: true, color: "var(--texto-suave)" }),
+              cel(r[1], { peso: 600, sub: r[2], corte: "normal" }),
+              cel(r[3], { color: "var(--texto-suave)" }),
+              cel(r[4], { color: "var(--texto-suave)" }),
+              cel(r[5], { color: "var(--texto-suave)" }),
+              cel(r[6], { peso: 600, color: lista ? "var(--exito)" : "var(--error)" }),
+              cel(r[7], { alinear: "right", color: lista ? "var(--texto-suave)" : "var(--texto)" })
+            ]);
+          })
+        )
+      ]
+    };
+  },
+  "Empresas aliadas - afiliadas": function () {
+    return {
+      secciones: [
+        barra({ botones: [btn("Filtros"), btn("Columnas 2"), btn("Vistas")], acciones: [btn("Descargar en Excel"), btn("Descargar formato"), btn("Cargar archivo", "p")], tramo: "1–24", total: "24" }),
+        tabla(
+          [{ t: "NIT" }, { t: "Organización" }],
+          ALIADAS.map(function (r) {
+            return normaliza([
+              cel(r[0], { mono: true, color: "var(--texto-suave)" }),
+              cel(r[1], { peso: 600, corte: "normal" })
+            ]);
+          })
+        )
+      ]
+    };
+  },
+  "Inscritos Acción Formación": function () {
+    return {
+      secciones: [
+        barra({ botones: [btn("Filtros"), btn("Columnas 22"), btn("Vistas")], acciones: [btn("Descargar en Excel", "p")], tramo: "1–28", total: "28" }),
+        tabla(
+          [{ t: "Fecha de creación" }, { t: "Correo" }, { t: "Número de teléfono" }, { t: "Nombre completo" }, { t: "Tipo documento" }, { t: "Número documento" }, { t: "Departamento" }],
+          INSCRITOS.map(function (r) {
+            return normaliza([
+              cel(r[0], { mono: true, color: "var(--texto-suave)" }),
+              cel(r[1], { color: "var(--texto-suave)", corte: "normal" }),
+              cel(r[2]),
+              cel(r[3], { peso: 600, color: "var(--marca)", link: true, corte: "normal" }),
+              cel(r[4], { color: "var(--texto-suave)" }),
+              cel(r[5]),
+              cel(r[6], { color: "var(--texto-suave)" })
+            ]);
+          })
+        )
+      ]
+    };
+  }
+};
+
+function kpis(items) {
+  const n = items.length;
+  const cols = n > 5 ? "repeat(" + Math.ceil(n / 2) + ",minmax(0,1fr))" : "repeat(auto-fit,minmax(200px,1fr))";
+  return { esKpis: true, cols: cols, items: items.map(function (k) {
+    return { rotulo: k[0], valor: k[1], pie: k[2] || "", tam: k[3] || "24px", color: k[4] || "var(--titulo)" };
+  }) };
+}
+function filtros(items) { return { esFiltros: true, items: items }; }
+function paneles(items) { return { esPaneles: true, items: items }; }
+
+function dona(titulo, nota, total, unidad, items) {
+  const C = 2 * Math.PI * 52;
+  let acc = 0;
+  const arcos = items.map(function (it) {
+    const len = C * it.p / 100;
+    const a = { color: it.color, trazo: len.toFixed(2) + " " + (C - len).toFixed(2), desfase: (-acc).toFixed(2) };
+    acc += len;
+    return a;
+  });
+  return { titulo: titulo, nota: nota, esDona: true, total: total, unidad: unidad, arcos: arcos,
+    items: items.map(function (it) {
+      return { etiqueta: it.e, valor: it.v, pct: String(it.p).replace(".", ",") + " %", color: it.color };
+    }) };
+}
+
+function panelBarras(titulo, nota, grupos) {
+  return { titulo: titulo, nota: nota, esBarras: true, grupos: grupos.map(function (g) {
+    const max = Math.max.apply(null, g.items.map(function (i) { return i.v; })) || 1;
+    return { rotulo: g.rotulo || "", items: g.items.map(function (i) {
+      return { etiqueta: i.e, valor: i.v, pct: i.p || "", ancho: Math.max(1.5, i.v / max * 100).toFixed(1) + "%", color: i.color || "var(--marca)" };
+    }) };
+  }) };
+}
+
+function lista(o) {
+  return { esLista: true, titulo: o.titulo || "", nota: o.nota || "",
+    rejilla: o.cols === 2 ? "repeat(" + columnasEquilibradas(o.items.length) + ",minmax(0,1fr))" : "1fr",
+    items: o.items.map(function (i) {
+    return { codigo: i.codigo || "", titulo: i.titulo, sub: i.sub || "", derecha: i.derecha || "",
+      tieneBarra: i.pct !== undefined, ancho: (i.pct || 0) + "%", ir: i.ir || null, cursor: i.ir ? "pointer" : "default",
+      estado: i.estado || "", estadoColor: i.color || "var(--exito)" };
+  }) };
+}
+
+MODULOS.forEach(function (m) { m.hijos.forEach(function (h) { MODULO_DE[h] = m.nombre; }); });
+
+function columnasEquilibradas(n) {
+  if (n <= 2) return n || 1;
+  let mejor = 2, hueco = n % 2 ? 1 : 0;
+  [3, 4].forEach(function (k) {
+    if (k > n) return;
+    const h = (k - n % k) % k;
+    if (h <= hueco) { hueco = h; mejor = k; }
+  });
+  return mejor;
+}
+
+function texto(o) { return { esTexto: true, titulo: o.titulo, nota: o.nota, cuerpo: o.cuerpo || "", tieneBotones: !!o.botones, botones: o.botones || [] }; }
+
+PANTALLAS["Reportes SENA"] = function () {
+  return {
+    titulo: "Reportes al SENA",
+    nota: "Quién entra en el archivo y quién no, antes de generarlo. Un archivo por convenio: el SEP nunca ha visto uno con los dos.",
+    acciones: [],
+    secciones: [
+      filtros(["BRITCHAM ADEE"]),
+      kpis([
+        ["Entran en el archivo", "0", "de 34 en formación", "30px", "var(--exito)"],
+        ["Se quedan fuera", "34", "por datos que faltan", "30px", "var(--aviso)"]
+      ]),
+      texto({
+        titulo: "Descargar",
+        nota: "El de control es para revisar y pasar; el del SEP es el que se sube. Las filas que no están listas no salen con huecos: van en una segunda hoja, con su motivo. El F7 va por organización, no por persona: una fila es una empresa dentro de una acción, con cuántos de los suyos se están formando.",
+        botones: [btn("Reporte de control"), btn("Reporte al SEP"), btn("F7 · empresas (0)")]
+      }),
+      lista({ titulo: "Por qué no entran", nota: "Ordenado por cuánta gente arregla cada cosa.", items: [
+        { titulo: "El celular no es un número", derecha: "25 personas" },
+        { titulo: "El celular no es un número · no tiene empresa donde labora", derecha: "6 personas" },
+        { titulo: "No tiene grupo asignado · el grupo no tiene su id del SEP", derecha: "1 persona" },
+        { titulo: "El celular no es un número · no tiene grupo asignado · el grupo no tiene su id del SEP", derecha: "1 persona" },
+        { titulo: "El celular no es un número · falta el departamento y el municipio de domicilio", derecha: "1 persona" }
+      ] })
+    ]
+  };
+};
+
+PANTALLAS["Control de Inscritos"] = function () {
+  return {
+    titulo: "Control de Inscritos",
+    nota: "Cómo va el embudo, por gremio, por acción de formación y por asesor.",
+    secciones: [
+      kpis([
+        ["Etapa del lead", "35,4 %", "Inscrito"],
+        ["Estado del lead", "81 %", "Datos parciales"],
+        ["ADECOPRIA", "11", "AF7"],
+        ["BRITCHAM ADEE", "15", "AF8"],
+        ["Departamento", "20 %", "ANTIOQUIA"],
+        ["Inscripciones por asesor", "27,8 %", "Sin asignar"],
+        ["Conversión", "35,4 %", "28 de 79"],
+        ["Promedio de leads por día", "2,5", "32 días corridos"]
+      ]),
+      filtros(["Todos los gremios", "Toda la formación", "Toda etapa", "Todo estado", "Todos los asesores", "Todos los departamentos"]),
+      paneles([
+        dona("Gremio", "De qué gremio es cada lead.", "79", "leads", [
+          { e: "BRITCHAM ADEE", v: 43, p: "54,4", color: "var(--marca)" },
+          { e: "ADECOPRIA", v: 36, p: "45,6", color: "var(--aviso)" }
+        ]),
+        panelBarras("Acción de formación", "Cuántos leads pidió cada curso, por gremio.", [
+          { rotulo: "ADECOPRIA", items: [{ e: "AF7", v: 11 }, { e: "AF1", v: 9 }, { e: "AF3", v: 8 }, { e: "AF2", v: 6 }, { e: "AF4", v: 1 }, { e: "AF6", v: 1 }] },
+          { rotulo: "BRITCHAM ADEE", items: [{ e: "AF8", v: 15 }, { e: "AF1", v: 10 }, { e: "AF2", v: 10 }, { e: "AF3", v: 5 }, { e: "AF5", v: 1 }, { e: "AF6", v: 1 }, { e: "AF7", v: 1 }] }
+        ])
+      ]),
+      paneles([
+        panelBarras("Etapa del lead", "En qué punto del embudo está cada uno.", [
+          { rotulo: "", items: [
+            { e: "Interesado", v: 21, p: "26,6 %", color: "var(--etapa-interesado)" },
+            { e: "Contactado", v: 24, p: "30,4 %", color: "var(--etapa-contactado)" },
+            { e: "Datos completos", v: 1, p: "1,3 %", color: "var(--etapa-datos-completos)" },
+            { e: "Inscrito", v: 28, p: "35,4 %", color: "var(--etapa-inscrito)" }
+          ] }
+        ]),
+        dona("Estado de los datos", "Cuántos tienen la ficha completa.", "79", "leads", [
+          { e: "Datos completos", v: 15, p: "19,0", color: "var(--exito)" },
+          { e: "Datos parciales", v: 64, p: "81,0", color: "var(--aviso)" }
+        ])
+      ])
+    ]
+  };
+};
+
+PANTALLAS["Tablero académico"] = function () {
+  return {
+    titulo: "Tablero académico",
+    nota: "Cómo va cada acción de formación, cada grupo y cada asesor, con la cola de trabajo delante. Persona a persona, quién va al día y quién no, está en Avance.",
+    secciones: [
+      filtros(["Desde el principio", "Comparar con el periodo anterior"]),
+      texto({ titulo: "Sin entrar al aula", nota: "De los que siguen en formación, cuánto llevan sin abrir el aula. Es la lista de a quién llamar. No depende del periodo: es la foto de hoy, con todas las cohortes dentro." }),
+      kpis([
+        ["Entró hace 0 a 7 días", "22", "", "24px", "var(--exito)"],
+        ["8 a 14 días", "0"],
+        ["15 a 30 días", "0"],
+        ["Más de 30 días", "0"],
+        ["Nunca entró", "0"]
+      ]),
+      texto({ titulo: "Grupos vencidos con gente dentro", nota: "La fecha de fin ya pasó y siguen con gente en formación: hay que cerrarlos o justificarlos. Ningún grupo pasado de fecha tiene gente en formación." }),
+      lista({ titulo: "Grupos que arrancan", nota: "Los próximos 30 días, con cuánta gente lleva cada uno. Es la agenda de la semana.", items: [
+        { codigo: "AF1", titulo: "Grupo 1", sub: "1 de septiembre de 2026 · 2 personas", derecha: "en 3 días", estado: "Por empezar", color: "var(--aviso)" },
+        { codigo: "AF1", titulo: "Grupo 4", sub: "1 de septiembre de 2026 · 0 personas", derecha: "en 3 días", estado: "Por empezar", color: "var(--aviso)" },
+        { codigo: "AF2", titulo: "Grupo 7", sub: "1 de septiembre de 2026 · 0 personas", derecha: "en 3 días", estado: "Por empezar", color: "var(--aviso)" }
+      ] })
+    ]
+  };
+};
+
+PANTALLAS["Avance"] = function () {
+  return {
+    titulo: "Avance",
+    nota: "Quién va al día y quién no, contra el calendario de su grupo. Sin ingreso nunca entró, Sin arrancar entró y no aprobó nada, Parado lleva 14 días sin volver, y Atrasado va dos actividades o más por debajo de lo que tocaría. Se certifica con el 80 % de lo obligatorio aprobado.",
+    secciones: [
+      kpis([
+        ["Sin ingreso", "0"], ["Atrasado", "0"], ["Al día", "0"],
+        ["Listo para certificar", "0"], ["Certificado", "12", "", "24px", "var(--exito)"], ["Sin empezar", "22"]
+      ]),
+      texto({ titulo: "Quienes salieron del aula", nota: "No se miden por ritmo: cuenta por qué se fueron." }),
+      kpis([
+        ["Desertó", "3", "Avisó que se retiraba"],
+        ["Abandonó", "4", "Dejó de entrar al aula sin decir nada"],
+        ["Retirado", "3", "Se retiró antes de empezar la formación"],
+        ["No aprobó", "2", "", "24px", "var(--error)"]
+      ]),
+      filtros(["Toda la formación", "Todos los grupos", "Todos los asesores"]),
+      lista({ items: [
+        { codigo: "AF1", titulo: "Despliegue de Agentes Autónomos con IA para la Maximización del Rendimiento Organizacional", sub: "3 grupos · 5 personas", derecha: "5 personas" },
+        { codigo: "AF1", titulo: "Gestión de la Atención y Neuroeducación en la Era Digital", sub: "3 grupos · 4 personas", derecha: "4 personas" },
+        { codigo: "AF2", titulo: "Arquitectura Financiera: Visualizacion Predictiva y Modelado con IA Generativa", sub: "6 grupos · 9 personas", derecha: "9 personas" },
+        { codigo: "AF2", titulo: "Diseño Estratégico de Ecosistemas Educativos con Inteligencia Artificial", sub: "2 grupos · 3 personas", derecha: "3 personas" },
+        { codigo: "AF3", titulo: "Gobernanza Estratégica de la Diversidad, Equidad e Inclusión (DEI) para Mujeres Líderes en el Sector Educativo", sub: "2 grupos · 2 personas", derecha: "2 personas" }
+      ] })
+    ]
+  };
+};
+
+PANTALLAS["Ver cronograma"] = function (nav) {
+  return {
+    titulo: "Cronograma",
+    nota: "Cuándo empieza y termina cada grupo. De estas fechas depende todo el seguimiento académico: sin ellas no se puede medir quién va al día.",
+    secciones: [
+      kpis([["Grupos", "67"], ["En curso", "0"], ["Por empezar", "67"], ["Sin fechas", "0", "todos tienen calendario"]]),
+      barra({ buscar: "Buscar por código, curso o ciudad…", botones: [], acciones: [] }),
+      { esAcordeon: true, items: [
+        { codigo: "AF1", titulo: "Despliegue de Agentes Autónomos con IA para la Maximización del Rendimiento Organizacional", sub: "BRITCHAM ADEE · 40 horas · 8 grupos · 8 de 400 cupos", flecha: "▾" },
+        { codigo: "AF2", titulo: "Arquitectura Financiera: Visualizacion Predictiva y Modelado con IA Generativa", sub: "BRITCHAM ADEE · 40 horas · 8 grupos · 10 de 400 cupos", flecha: "▾" },
+        { codigo: "AF3", titulo: "Estrategias de Escalamiento y Automatización de la Demanda para Empresas Emergentes", sub: "BRITCHAM ADEE · 40 horas · 8 grupos · 1 de 400 cupos", flecha: "▾" },
+        { codigo: "AF6", titulo: "Fábrica de Soluciones Digitales: Metodologías de Innovación Abierta y Estructuración de Laboratorios Tecnológicos Institucionales", sub: "ADECOPRIA · 16 horas · 2 grupos · 0 de 60 cupos", flecha: "▴", abierto: true, grupos: [
+          { nombre: "Grupo 1", estado: "Por empezar", estadoColor: "var(--texto-suave)", sep: "SEP -17752", cupos: "0 de 30", accion: "Cerrar", editando: true,
+            fechas: "20 de oct de 2026 → 23 de nov de 2026 · Sábados, 8:00 a. m. a 4:00 p. m.", sedes: ["Medellín · 0/30"] },
+          { nombre: "Grupo 2", estado: "Por empezar", estadoColor: "var(--texto-suave)", sep: "SEP -17753", cupos: "0 de 30", accion: "Fechas",
+            fechas: "27 de oct de 2026 → 18 de dic de 2026 · Lunes a jueves, 6:00 p. m. a 9:00 p. m.", sedes: ["Popayán · 0/30"] }
+        ] },
+        { codigo: "AF7", titulo: "Salto Adelante (leapfrogging): Coherencia, Equidad y Humanismo en la Escuela Híbrida", sub: "ADECOPRIA · 2 horas · 2 grupos · 7 de 500 cupos", flecha: "▾" }
+      ] }
+    ]
+  };
+};
+
+PANTALLAS["Formación"] = function (nav) {
+  return {
+    titulo: "Formación",
+    nota: "Publique u oculte cada acción. Ocultar no cancela nada: las reservas hechas siguen vivas y contando, la acción solo desaparece del sitio público.",
+    secciones: [
+      lista({ titulo: "ADECOPRIA", nota: "/adecopria · 7 de 7 publicadas", items: [
+        { codigo: "AF1", titulo: "Gestión de la Atención y Neuroeducación en la Era Digital", sub: "CURSO virtual · 40 h · 9 ubicaciones", derecha: "33 de 520 cupos", pct: 6.3, estado: "Publicada", ir: nav("Acción AF1") },
+        { codigo: "AF2", titulo: "Diseño Estratégico de Ecosistemas Educativos con Inteligencia Artificial", sub: "CURSO virtual · 40 h · 9 ubicaciones", derecha: "21 de 520 cupos", pct: 4, estado: "Publicada", ir: nav("Acción AF2") },
+        { codigo: "AF3", titulo: "Gobernanza Estratégica de la Diversidad, Equidad E Inclusión (dei) para Mujeres Líderes en el Sector Educativo", sub: "TALLER presencial · 8 h · 5 ubicaciones", derecha: "29 de 195 cupos", pct: 14.9, estado: "Publicada", ir: nav("Acción AF3") },
+        { codigo: "AF4", titulo: "Realidad Virtual y Cartografías Digitales para la Innovación Institucional", sub: "TALLER presencial · 8 h · 1 ubicación", derecha: "0 de 39 cupos", pct: 0, estado: "Publicada", ir: nav("Acción AF4") },
+        { codigo: "AF5", titulo: "Modelos de Asociatividad y Cooperativismo Escolar: Emprendimiento Social y Redes de Comercialización Responsable", sub: "TALLER presencial · 8 h · 2 ubicaciones", derecha: "0 de 78 cupos", pct: 0, estado: "Publicada", ir: nav("Acción AF5") },
+        { codigo: "AF6", titulo: "Fábrica de Soluciones Digitales: Metodologías de Innovación Abierta y Estructuración de Laboratorios Tecnológicos Institucionales", sub: "TALLER-BOOTCAMP presencial · 16 h · 2 ubicaciones", derecha: "14 de 78 cupos", pct: 17.9, estado: "Publicada", ir: nav("Acción AF6") },
+        { codigo: "AF7", titulo: "Salto Adelante (leapfrogging): Coherencia, Equidad y Humanismo en la Escuela Híbrida", sub: "FORO híbrido · 2 h · 10 ubicaciones", derecha: "52 de 650 cupos", pct: 8, estado: "Publicada", ir: nav("Acción AF7") }
+      ] }),
+      lista({ titulo: "BRITCHAM ADEE", nota: "/britcham-adee · 8 de 8 publicadas", items: [
+        { codigo: "AF1", titulo: "Despliegue de Agentes Autónomos con IA para la Maximización del Rendimiento Organizacional", sub: "CURSO virtual · 40 h · 14 ubicaciones", derecha: "102 de 520 cupos", pct: 19.6, estado: "Publicada", ir: nav("Ficha de acción de formación") },
+        { codigo: "AF2", titulo: "Arquitectura Financiera: Visualizacion Predictiva y Modelado con IA Generativa", sub: "CURSO virtual · 40 h · 14 ubicaciones", derecha: "82 de 520 cupos", pct: 15.8, estado: "Publicada" },
+        { codigo: "AF3", titulo: "Estrategias de Escalamiento y Automatización de la Demanda para Empresas Emergentes", sub: "CURSO virtual · 40 h · 14 ubicaciones", derecha: "43 de 520 cupos", pct: 8.3, estado: "Publicada" },
+        { codigo: "AF4", titulo: "Mujeres Líderes Digitales: Ecosistemas de Inteligencia Artificial Generativa para la Estrategia Organizacional", sub: "TALLER presencial · 8 h · 4 ubicaciones", derecha: "0 de 195 cupos", pct: 0, estado: "Publicada" },
+        { codigo: "AF5", titulo: "Seguridad y Gobierno de Datos: Protección de la Información y Mitigación de Riesgos Informáticos", sub: "TALLER presencial · 8 h · 1 ubicación", derecha: "22 de 39 cupos", pct: 56.4, estado: "Publicada" },
+        { codigo: "AF6", titulo: "Sofisticación Turística y Gastronómica: Innovación de Experiencias y Encadenamientos con la Economía Campesina", sub: "TALLER presencial · 8 h · 5 ubicaciones", derecha: "8 de 195 cupos", pct: 4.1, estado: "Publicada" },
+        { codigo: "AF7", titulo: "Expansión Global: Prospección y Modelación de Negocios Escalables con IA", sub: "TALLER-BOOTCAMP presencial · 16 h · 2 ubicaciones", derecha: "25 de 78 cupos", pct: 32, estado: "Publicada" }
+      ] })
+    ]
+  };
+};
+
+function campos(titulo, nota, items) {
+  return { esCampos: true, titulo: titulo, nota: nota, items: items.map(function (c) {
+    return { rotulo: c[0], valor: c[1], color: c[2] || "var(--titulo)" };
+  }) };
+}
+function form(titulo, nota, items, botones) {
+  return { esForm: true, titulo: titulo, nota: nota, tieneBotones: !!botones, botones: botones || [],
+    items: items.map(function (c) { return { rotulo: c[0], valor: c[1] || "", hueco: c[2] || "", ayuda: c[3] || "" }; }) };
+}
+
+PANTALLAS["Creación Formularios"] = function (nav) {
+  return {
+    titulo: "Formularios",
+    nota: "Lo que ve quien entra a reservar. Puede crear preguntas, agruparlas en secciones y publicarlas sin tocar el código.",
+    acciones: [btn("Crear formulario", "p", nav("Editor del formulario"))],
+    secciones: [
+      lista({ items: [
+        { titulo: "Reserva de cupos — BRITCHAM y ADEE", sub: "/britcham-adee · BRITCHAM ADEE · 16 preguntas en 5 secciones", derecha: "Duplicar", estado: "Publicado", ir: nav("Editor del formulario") },
+        { titulo: "Reserva de cupos — ADECOPRIA", sub: "/adecopria · ADECOPRIA · 14 preguntas en 5 secciones", derecha: "Duplicar", estado: "Publicado", ir: nav("Editor del formulario") },
+        { titulo: "Prueba", sub: "/pruebasvarias · BRITCHAM ADEE · 0 preguntas en 1 sección", derecha: "Duplicar", estado: "Borrador", color: "var(--texto-suave)", ir: nav("Editor del formulario") }
+      ] })
+    ]
+  };
+};
+
+PANTALLAS["Formularios Activos"] = function () {
+  return {
+    titulo: "Formularios activos",
+    nota: "Los dos momentos de una misma recolección. El corto es público y trae a la persona al embudo; el largo se le manda después, uno por uno, y solo le pregunta lo que le falte.",
+    acciones: [btn("Formulario 1 · Corto", "p"), btn("Formulario 2 · Largo")],
+    secciones: [
+      texto({ titulo: "Formulario 1 · Corto", nota: "Público, el mismo para todos. Se reparte por QR y por enlace. Los datos básicos: con esto la persona ya entra al embudo y se le puede hacer seguimiento. Pedirle más en este punto es perderlo." }),
+      campos("Lo que le pregunta", "Lo marcado con asterisco es obligatorio. El resto se le vuelve a pedir en el Formulario 2, y solo lo que falte.", [
+        ["Quién es", "Tipo de documento * · Número de documento * · Primer nombre * · Segundo nombre · Primer apellido * · Segundo apellido · Género"],
+        ["Cómo ubicarlo", "Celular · Correo · Departamento · Ciudad"],
+        ["Qué quiere estudiar", "Acción de formación *"],
+        ["Permiso", "Política y Tratamiento de Datos Personales *"]
+      ]),
+      campos("ADECOPRIA", "Esta es la dirección que se reparte. La misma para todo el mundo.", [
+        ["Enlace público", "reservasae.com/adecopria/preinscripcion"],
+        ["Código QR", "Descargable en PNG y en SVG"]
+      ])
+    ]
+  };
+};
+
+PANTALLAS["Habeas Data"] = function () {
+  return {
+    titulo: "Políticas de datos",
+    nota: "El texto que la gente acepta. Se versiona: el que alguien ya aceptó no se cambia nunca, se publica uno nuevo.",
+    secciones: [
+      lista({ titulo: "BRITCHAM ADEE", nota: "UNION TEMPORAL BRITCHAM ADEE", items: [
+        { titulo: "Preinscripción — la empresa", sub: "La acepta quien diligencia el formulario en nombre de su organización. Sin este texto vigente no se puede publicar ninguna acción de formación.", derecha: "Publicar versión nueva", estado: "Vigente · v1" },
+        { titulo: "Inscripción — la persona", sub: "La acepta cada persona al inscribirse. Es la que autoriza el tratamiento de sus datos: una empresa no puede autorizarlo por sus empleados. La han aceptado 48.", derecha: "Publicar versión nueva", estado: "Vigente · v1" }
+      ] }),
+      lista({ titulo: "ADECOPRIA", nota: "ASOCIACION DE EDUCACION PRIVADA", items: [
+        { titulo: "Preinscripción — la empresa", sub: "La acepta quien diligencia el formulario en nombre de su organización.", derecha: "Publicar versión nueva", estado: "Vigente · v1" },
+        { titulo: "Inscripción — la persona", sub: "La acepta cada persona al inscribirse.", derecha: "Publicar versión nueva", estado: "Vigente · v1" }
+      ] })
+    ]
+  };
+};
+
+PANTALLAS["Campañas"] = function () {
+  return {
+    titulo: "Campañas",
+    nota: "Un correo que sale a muchos, de a uno. Se lanza y va saliendo solo, en horario de Colombia.",
+    secciones: [
+      aviso("Elija un gremio arriba para poder crear una campaña. Una campaña es siempre de un gremio: la de uno no le escribe a la gente del otro.", "var(--aviso)"),
+      texto({ titulo: "Cómo sale, y por qué así", nota: "Salen por la cuenta de la oficina, de a uno, con uno a tres segundos entre cada uno: una campaña de 200 sale en unos siete minutos. Dentro del horario de Colombia —8 de la mañana a 6 de la tarde, de lunes a viernes—, hasta 300 al día y máximo 2 por persona. Lo que hace que Google cierre una cuenta no es el ritmo: es pasarse del cupo diario y que la gente marque spam." }),
+      lista({ items: [
+        { titulo: "Convocatoria segundo semestre", sub: "ADECOPRIA · 0 destinatarios · «Abrimos inscripciones para el segundo semestre» · creada el 27/08/2026", derecha: "Lanzar", estado: "Borrador", color: "var(--texto-suave)" },
+        { titulo: "Jornada de inducción", sub: "ADECOPRIA · 17 destinatarios · «Jornada de inducción: confirme su asistencia» · lanzada el 25/08/2026", derecha: "Reanudar", estado: "Pausada", color: "var(--aviso)" },
+        { titulo: "Encuesta de satisfacción", sub: "ADECOPRIA · 27 destinatarios · «¿Cómo le pareció la formación?»", derecha: "Ver resultados", estado: "Terminada" }
+      ] })
+    ]
+  };
+};
+
+PANTALLAS["Plantillas"] = function () {
+  return {
+    titulo: "Plantillas de correo",
+    nota: "Se escriben una vez y se mandan muchas. Lo que cambia de una persona a otra va entre llaves, y se llena solo con los datos de su ficha.",
+    acciones: [btn("Nueva plantilla", "p")],
+    secciones: [
+      lista({ items: [
+        { titulo: "Aviso general (sin datos personales)", sub: "Sirve para todos los gremios · Asunto: Cambio de fecha en la jornada de inducción", derecha: "Editar", estado: "Activa" },
+        { titulo: "Bienvenida a la formación", sub: "Solo para quien esté inscrito o en formación · Asunto: {{tratamiento}} {{primerApellido}}, quedó inscrito en {{accionFormacion}}", derecha: "Editar", estado: "Activa" },
+        { titulo: "Confirmación de inscripción", sub: "Sirve para todos los gremios", derecha: "Editar", estado: "Activa" }
+      ] })
+    ]
+  };
+};
+
+PANTALLAS["Cuenta de correo"] = function () {
+  return {
+    titulo: "Correo saliente",
+    nota: "Por aquí salen los avisos que manda Convoca. Si esto no está activo, no sale ninguno.",
+    secciones: [
+      aviso("El correo está saliendo.", "var(--exito)"),
+      aviso("Todo el correo se desvía y no llega a su destinatario. Salga para quien salga, lo recibe proyectosena@grupo-ae.com.co. Se quita borrando CORREO_REDIRIGIR_A del servidor.", "var(--aviso)"),
+      campos("Cómo está configurado", "", [
+        ["Servidor", "smtp.gmail.com"],
+        ["Puerto", "587"],
+        ["Cuenta", "proyectosena@grupo-ae.com.co"],
+        ["Sale como", "Convoca - Grupo AE <proyectosena@grupo-ae.com.co>"],
+        ["Clave", "Puesta", "var(--exito)"]
+      ]),
+      form("Mandar uno de prueba", "Para verlo llegar con sus propios ojos.", [
+        ["A qué dirección", "ana.jaramillo@ejemplo.test"]
+      ], [btn("Mandar prueba", "p")])
+    ]
+  };
+};
+
+PANTALLAS["Apariencia"] = function () {
+  return {
+    titulo: "Apariencia",
+    nota: "Colores, textos y logo. Al guardar se aplican en todo el sistema, también en este panel.",
+    acciones: [btn("Guardar cambios", "p")],
+    secciones: [
+      campos("La cara de cada gremio", "Cada gremio entra por su propia dirección, y allí el sitio sale con los colores y los logos de uno de sus formularios. Sin elegir ninguno, ese gremio usa la marca general.", [
+        ["BRITCHAM ADEE · britcham-adee.reservasae.com", "Reserva de cupos — BRITCHAM y ADEE"],
+        ["ADECOPRIA · adecopria.reservasae.com", "Reserva de cupos — ADECOPRIA"]
+      ]),
+      texto({ titulo: "Logos de la cabecera", nota: "Hasta tres, uno por entidad. SVG, PNG o WebP con fondo transparente, máximo 1 MB cada uno. Se muestran a 80 px de alto, así que conviene entregarlos a 960 × 288 px o mayor. JPG no sirve: no tiene transparencia y deja un recuadro blanco.", botones: [btn("Añadir logo", "p")] }),
+      form("Textos del sitio público", "", [
+        ["Nombre de la aplicación", "Convoca"],
+        ["Lema", "Relaciones que generan resultados"]
+      ]),
+      texto({ titulo: "Colores", nota: "Son 50 tokens por esquema, y cada gremio tiene los suyos en claro y en oscuro. Todo lo que se ve en este rediseño sale de ellos: cambiar el color de marca aquí repinta botones, enlaces, el menú activo y los gráficos, sin tocar una sola pantalla." })
+    ]
+  };
+};
+
+PANTALLAS["Usuarios"] = function () {
+  return {
+    titulo: "Usuarios",
+    nota: "Quién puede entrar al panel y qué puede hacer.",
+    secciones: [
+      form("Crear usuario", "Se genera una contraseña temporal que se muestra una sola vez. Quien entre con ella tendrá que cambiarla.", [
+        ["Correo", "", "nombre@ejemplo.test"],
+        ["Nombre completo", "", "Nombre y apellidos"],
+        ["¿Administra el sistema?", "No, solo su trabajo", "", "Lo que ve y hace lo deciden los convenios y roles."],
+        ["A qué convenios entra", "BRITCHAM ADEE · ADECOPRIA", "", "Sin marcar ninguno, la cuenta entra al panel y no ve una sola pantalla."]
+      ], [btn("Crear usuario", "p")]),
+      lista({ titulo: "Cuentas", nota: "", items: [
+        { titulo: "Ana Jaramillo (usted)", sub: "ana.jaramillo@ejemplo.test · Líder de sistemas de información en BRITCHAM ADEE y en ADECOPRIA", derecha: "Convenios", estado: "Administra el sistema", color: "var(--aviso)" },
+        { titulo: "Carlos Mesa", sub: "carlos.mesa@ejemplo.test", derecha: "Nueva contraseña", estado: "Activo" }
+      ] })
+    ]
+  };
+};
+
+PANTALLAS["Mi perfil"] = function () {
+  return {
+    titulo: "Mi perfil",
+    nota: "ana.jaramillo@ejemplo.test · Superadministrador",
+    secciones: [
+      form("Mis datos", "", [
+        ["Nombre completo", "Ana Jaramillo"],
+        ["Cargo", "Líder de sistemas de información"],
+        ["Celular", "", "300 000 0000"],
+        ["Organización", "Grupo AE"]
+      ], [btn("Guardar cambios", "p")]),
+      form("Cambiar mi contraseña", "El correo no se puede cambiar desde aquí: es el identificador de la cuenta.", [
+        ["Contraseña actual", "", "••••••••••"],
+        ["Contraseña nueva", "", "••••••••••", "Mínimo 10 caracteres."],
+        ["Repita la contraseña nueva", "", "••••••••••"]
+      ], [btn("Cambiar contraseña", "p")])
+    ]
+  };
+};
+
+PANTALLAS["Webhook de Meta"] = function () {
+  return {
+    titulo: "Webhook de Meta",
+    nota: "Por aquí entran los leads que se pagan en Facebook e Instagram. Hay una app de Meta por gremio, así que cada uno tiene su propia URL, su propio secreto y su propio token: lo que esté bien en uno no dice nada del otro.",
+    secciones: [
+      aviso("ASOCIACION DE EDUCACION PRIVADA — mientras falte cualquiera de las dos credenciales, este gremio no recibe leads.", "var(--error)"),
+      campos("Lo que hay que configurar", "El token de verificación y el secreto de la app no se muestran a propósito: una credencial en pantalla es una credencial en una captura.", [
+        ["URL de devolución de llamada", "adecopria.reservasae.com/api/webhooks/leads/meta"],
+        ["Campo al que suscribirse", "leadgen"],
+        ["META_APP_SECRET_ADECOPRIA", "Sin poner", "var(--error)"],
+        ["META_VERIFY_TOKEN_ADECOPRIA", "Sin poner", "var(--error)"],
+        ["Leads recibidos", "0"],
+        ["Sin completar", "0"]
+      ]),
+      texto({ titulo: "Probar la conexión", nota: "El apretón de manos es lo que enciende el webhook. Meta llama una vez y espera que le devolvamos su palabra clave tal cual; si falla no avisa, simplemente no llegan leads. «Tres de golpe» es la prueba que de verdad importa: Meta agrupa varios avisos en un mismo envío, y quedarse con el primero es un fallo que nadie nota hasta que faltan leads.", botones: [btn("Probar el apretón", "p"), btn("Mandar tres leads de mentira"), btn("Borrar los de prueba")] })
+    ]
+  };
+};
+
+PANTALLAS["Inscribir a alguien"] = function (nav) {
+  return {
+    titulo: "Inscribir a alguien",
+    nota: "Con el documento y el nombre basta para empezar. La acción de formación y el grupo se asignan después, desde su ficha.",
+    volver: { texto: "Volver a Gestión de leads", ir: nav("Gestión de leads") },
+    secciones: [
+      form("Quién es", "El documento identifica a la persona en todo el sistema: si ya está en otro curso, se reconoce sola.", [
+        ["Tipo de documento", "Cédula de Ciudadanía"],
+        ["Número", "", "1019456782"],
+        ["Primer nombre", "", "María"],
+        ["Segundo nombre", "", "del Carmen"],
+        ["Primer apellido", "", "de la Hoz"],
+        ["Segundo apellido", "", "Rojas", "Van en cuatro casillas porque el cargue al SENA los pide separados, y partir «María del Carmen de la Hoz» por espacios se equivoca siempre."]
+      ]),
+      form("Cómo contactarla", "Hace falta al menos uno de los dos para poder matricularla.", [
+        ["Correo", "", "nombre@empresa.com"],
+        ["Celular", "", "3001234567"]
+      ]),
+      form("De dónde viene", "", [
+        ["Convenio", "", "Elija uno"],
+        ["Origen", "Lo capturó un asesor"]
+      ], [btn("Inscribir", "p")])
+    ]
+  };
+};
+
+PANTALLAS["Cargar una lista"] = function (nav) {
+  return {
+    titulo: "Cargar una lista",
+    nota: "Copie las celdas desde el Excel que le mandó la empresa y péguelas aquí. Verá qué va a pasar antes de confirmar nada.",
+    volver: { texto: "Volver a Gestión de leads", ir: nav("Gestión de leads") },
+    secciones: [
+      form("Dónde van", "La acción de formación es opcional: si no la sabe todavía, se asigna después desde cada ficha.", [
+        ["Convenio", "", "Elija uno"],
+        ["Acción de formación", "Sin asignar por ahora"]
+      ]),
+      texto({ titulo: "La lista", nota: "Ocho columnas, en este orden: tipo · documento · primer nombre · segundo nombre · primer apellido · segundo apellido · correo · celular. Si la primera fila son títulos, se salta sola." }),
+      form("Pegue aquí las celdas", "", [
+        ["Ejemplo de una fila", "CC  1019456782  Laura  Camila  Gómez  Rojas  laura@empresa.com  3001234567"]
+      ], [btn("Ver qué va a pasar", "p")])
+    ]
+  };
+};
+
+PANTALLAS["Ficha de empresa"] = function (nav) {
+  return {
+    titulo: "ABC Laboratorios S.A.S.",
+    nota: "NIT 860031945-8 · Nombre comercial: Abc Laboratorios · Actualizada por Ana Jaramillo el 23/08/2026 a las 3:00 p. m.",
+    volver: { texto: "Volver a Empresas registradas", ir: nav("Empresas registradas") },
+    acciones: [btn("Guardar empresa", "p")],
+    secciones: [
+      texto({ titulo: "Datos de la empresa", nota: "Valide los campos que considere pertinentes antes de guardar. Lo que no se apruebe aquí no se reporta al SENA." }),
+      form("Identificación", "", [
+        ["Razón social", "ABC LABORATORIOS S.A.S."],
+        ["Nombre comercial", "ABC LABORATORIOS"],
+        ["Fecha de fundación", "08/10/1997"],
+        ["Teléfono", "6012072026"]
+      ]),
+      form("Ubicación", "", [
+        ["Dirección", "CARRERA 2 -10 -20"],
+        ["Ciudad", "Bogotá"],
+        ["Departamento", "Bogotá D.C"],
+        ["Correo", "PRUEBAS@ABCLABORATORIO.COM.CO"]
+      ]),
+      form("Clasificación", "", [
+        ["Sector económico", "Servicios"],
+        ["Código CIIU", "2100", "", "La actividad económica como la clasifica la DIAN."],
+        ["Clasificación", "Empresa privada"],
+        ["Tamaño", "Pequeña"],
+        ["Número de empleados", "11"],
+        ["Página web", "WWW.ABCLABORATORIOS.COM.CO"]
+      ], [btn("Guardar empresa", "p")])
+    ]
+  };
+};
+
+PANTALLAS["Ficha de acción de formación"] = function (nav) {
+  return {
+    titulo: "Gestión de la Atención y Neuroeducación en la Era Digital",
+    nota: "AF1 · ADECOPRIA · CURSO virtual · 40 horas · Publicada",
+    volver: { texto: "Volver a Formación", ir: nav("Formación") },
+    acciones: [btn("Ocultar"), btn("Exportar a PDF", "p")],
+    secciones: [
+      kpis([
+        ["Avance sobre la meta", "33", "de 400 beneficiarios · 8,3 % · lo comprometido en el proyecto"],
+        ["Ocupación del tope", "487", "cupos libres de 520 · 6,3 % · meta más 30 % por deserción"],
+        ["Quién ha reservado", "3", "organizaciones · 0 en lista de espera"]
+      ]),
+      texto({ titulo: "Ritmo de esta acción", nota: "Cupos netos por día de los últimos 14, descontando ediciones y cancelaciones: 0,7 cupos al día. Faltan 367 para la meta. A este ritmo, más de un año." }),
+      tabla(
+        [{ t: "Ubicación" }, { t: "Modalidad" }, { t: "Cupos", alinear: "right" }, { t: "Reservados", alinear: "right" }, { t: "Libres", alinear: "right" }, { t: "Espera", alinear: "right" }, { t: "Estado", alinear: "right" }],
+        [
+          ["Antioquia", 130, 0, 130], ["Bogotá D.C", 65, 20, 45], ["Cauca", 33, 13, 20],
+          ["Córdoba", 65, 0, 65], ["Huila", 33, 0, 33], ["Magdalena", 32, 0, 32],
+          ["Risaralda", 65, 0, 65], ["Santander", 32, 0, 32], ["Valle del Cauca", 65, 0, 65]
+        ].map(function (r) {
+          return normaliza([
+            cel(r[0], { peso: 500 }),
+            cel("Virtual", { color: "var(--texto-suave)" }),
+            cel(r[1], { alinear: "right" }),
+            cel(r[2], { alinear: "right", peso: r[2] ? 600 : 400, color: r[2] ? "var(--titulo)" : "var(--texto-suave)" }),
+            cel(r[3], { alinear: "right" }),
+            cel("—", { alinear: "right", color: "var(--texto-suave)" }),
+            cel("Disponible", { alinear: "right", peso: 500, color: "var(--exito)" })
+          ]);
+        })
+      ),
+      lista({ titulo: "Grupos comprometidos", nota: "El plan del proyecto: cuántas cohortes y con qué reparto. No llevan contador propio.", cols: 2, items: [
+        { titulo: "Grupo 1", sub: "Virtual · Bogotá D.C 65", derecha: "50 + 30 % = 65" },
+        { titulo: "Grupo 2", sub: "Virtual · Antioquia 65", derecha: "50 + 30 % = 65" },
+        { titulo: "Grupo 3", sub: "Virtual · Antioquia 65", derecha: "50 + 30 % = 65" },
+        { titulo: "Grupo 4", sub: "Virtual · Huila 33 · Magdalena 32", derecha: "50 + 30 % = 65" },
+        { titulo: "Grupo 5", sub: "Virtual · Cauca 33 · Santander 32", derecha: "50 + 30 % = 65" },
+        { titulo: "Grupo 6", sub: "Virtual · Córdoba 65", derecha: "50 + 30 % = 65" },
+        { titulo: "Grupo 7", sub: "Virtual · Risaralda 65", derecha: "50 + 30 % = 65" },
+        { titulo: "Grupo 8", sub: "Virtual · Valle del Cauca 65", derecha: "50 + 30 % = 65" }
+      ] }),
+      lista({ titulo: "Dónde se está llenando", nota: "Cupos reservados por ubicación, ordenados. Solo salen las que tienen algo: las nueve completas están en la tabla de arriba.", items: [
+        { titulo: "Bogotá D.C", derecha: "20 de 65", pct: 30.8 },
+        { titulo: "Cauca", derecha: "13 de 33", pct: 39.4 }
+      ] }),
+      tabla(
+        [{ t: "Fecha" }, { t: "Organización" }, { t: "Contacto" }, { t: "Ubicación" }, { t: "Cupos", alinear: "right" }, { t: "Estado", alinear: "right" }],
+        [
+          ["20 de ago", "Turismo Ruta Dorada S.a.s.", "900125403", "Santiago Pinzón", "contacto19@ejemplo.test", "Bogotá D.C", "10"],
+          ["13 de ago", "Agroinsumos del Llano S.a.s.", "900102674", "Carlos Salazar", "contacto2@ejemplo.test", "Bogotá D.C", "10"],
+          ["11 de jul", "Lácteos San Rafael Ltda.", "900114707", "Jorge Suárez", "contacto11@ejemplo.test", "Cauca", "13"]
+        ].map(function (r) {
+          return normaliza([
+            cel(r[0], { color: "var(--texto-suave)" }),
+            cel(r[1], { peso: 600, sub: r[2], corte: "normal" }),
+            cel(r[3], { sub: r[4], corte: "normal" }),
+            cel(r[5]),
+            cel(r[6], { alinear: "right", peso: 600 }),
+            cel("Confirmada", { alinear: "right", peso: 500, color: "var(--exito)" })
+          ]);
+        })
+      ),
+      texto({ titulo: "Objetivo de la acción", nota: "Tal como está en el proyecto.", cuerpo: "FORTALECER LAS COMPETENCIAS PEDAGÓGICAS, NEUROEDUCATIVAS Y SOCIOEMOCIONALES DE LOS DOCENTES PARA GESTIONAR LA ATENCIÓN, PROMOVER LA AUTORREGULACIÓN Y FOMENTAR LA AUTONOMÍA DE LOS ESTUDIANTES FRENTE A LOS EFECTOS DE LA SOBREESTIMULACIÓN POR PANTALLAS, MEDIANTE LA APLICACIÓN DE ESTRATEGIAS PRÁCTICAS QUE MEJOREN EL CLIMA DE AULA, OPTIMICEN EL TIEMPO EFECTIVO DE ENSEÑANZA Y CONTRIBUYAN A ELEVAR LA PRODUCTIVIDAD EDUCATIVA Y LA CALIDAD DE LOS APRENDIZAJES EN LAS INSTITUCIONES AFILIADAS AL GREMIO. ESTE OBJETIVO SE RELACIONA DIRECTAMENTE CON EL OBJETO SOCIAL DEL GREMIO, EN LA MEDIDA EN QUE CONTRIBUYE AL FORTALECIMIENTO DE LA CALIDAD EDUCATIVA, AL DESARROLLO PROFESIONAL DEL TALENTO HUMANO DOCENTE Y AL AUMENTO DE LA COMPETITIVIDAD DE LAS INSTITUCIONES EDUCATIVAS QUE REPRESENTA, RESPONDIENDO A LA NECESIDAD DE FORMACIÓN IDENTIFICADA Y A SU IMPACTO EN LA PRODUCTIVIDAD Y COMPETITIVIDAD DEL SECTOR." })
+    ]
+  };
+};
+
+PANTALLAS["Por revisar"] = function (nav) {
+  return {
+    titulo: "Por revisar",
+    nota: "Ninguna consulta automática escribe en la ficha de una organización: deja aquí una propuesta. Hasta que una persona no la acepte campo por campo, ese dato no se reporta al SENA. Lo que se marque queda en la ficha; lo que se deje sin marcar se descarta junto con la propuesta.",
+    volver: { texto: "Volver a Empresas registradas", ir: nav("Empresas registradas") },
+    secciones: [
+      aviso("Dos propuestas esperando, de la más antigua a la más reciente. Las dos las trajo el buscador web: son las que conviene revisar con más cuidado.", "var(--aviso)"),
+      lista({ titulo: "Caja de Compensacion Familiar Comfenalco Antioquia", nota: "NIT 890900842 · espera hace 3 días · Sugerido, sin verificar. Marque solo lo que haya contrastado con la organización.", items: [
+        { titulo: "COMFENALCO ANTIOQUIA", sub: "Nombre comercial", derecha: "Aceptar" },
+        { titulo: "29 de agosto de 1957", sub: "Fecha de fundación", derecha: "Aceptar" },
+        { titulo: "Carrera 50 # 53 - 43, Medellín", sub: "Dirección", derecha: "Aceptar" },
+        { titulo: "(604) 444 7110", sub: "Teléfono", derecha: "Aceptar" },
+        { titulo: "comentarios@comfenalcoantioquia.com", sub: "Correo", derecha: "Aceptar" },
+        { titulo: "www.comfenalcoantioquia.com.co", sub: "Página web", derecha: "Aceptar" },
+        { titulo: "Medellín · Antioquia", sub: "Ciudad y departamento", derecha: "Aceptar" }
+      ] })
+    ]
+  };
+};
+
+PANTALLAS["Editor del formulario"] = function (nav) {
+  return {
+    titulo: "Prueba",
+    nota: "/pruebasvarias · Borrador",
+    volver: { texto: "Volver a Formularios", ir: nav("Creación Formularios") },
+    acciones: [btn("Respuestas", "s", nav("Respuestas del formulario")), btn("Apariencia", "s", nav("Apariencia del formulario")), btn("Publicar", "p")],
+    secciones: [
+      aviso("Este formulario todavía está vacío. Le faltan los nueve campos obligatorios: NIT, nombre de la organización, nombre completo de quien reserva, correo electrónico, curso, ciudad o departamento, cuántos cupos desea reservar, aceptación de los términos y autorización de tratamiento de datos personales. Se añaden abajo, con «Añadir pregunta» dentro de una sección.", "var(--aviso)"),
+      form("Textos del formulario", "Son los que se leen en /pruebasvarias, no solo aquí dentro.", [
+        ["Título", "Prueba", "", "El titular de la página pública."],
+        ["Introducción", "", "Se muestra bajo el título, antes de las preguntas."],
+        ["Mensaje al terminar", "", "Lo que ve la persona cuando envía el formulario."]
+      ], [btn("Añadir pregunta", "p")])
+    ]
+  };
+};
+
+PANTALLAS["Apariencia del formulario"] = function (nav) {
+  return {
+    titulo: "Apariencia del formulario",
+    nota: "Solo afecta a /pruebasvarias. Lo que no cambie aquí sigue a la apariencia general, y cambiará con ella.",
+    volver: { texto: "Volver al formulario", ir: nav("Editor del formulario") },
+    secciones: [
+      texto({ titulo: "Logos del formulario", nota: "Hasta tres, uno por entidad. Sin ninguno propio se muestran los de la apariencia general. SVG, PNG o WebP con fondo transparente, máximo 1 MB cada uno; se ven a 80 px de alto.", botones: [btn("Añadir logo", "p")] }),
+      lista({ titulo: "Empiece por una combinación", nota: "Todas están comprobadas: ningún texto queda por debajo del contraste mínimo. Después puede retocar lo que quiera.", items: [
+        { titulo: "Azul institucional", sub: "El de siempre. Sobrio y neutro.", derecha: "Usar", estado: "En uso" },
+        { titulo: "Verde empresarial", sub: "Sereno, con encabezado blanco.", derecha: "Usar" },
+        { titulo: "Índigo con barra de color", sub: "La barra superior lleva el color de la entidad.", derecha: "Usar" },
+        { titulo: "Vino", sub: "Cálido y formal.", derecha: "Usar" },
+        { titulo: "Naranja cálido", sub: "Cercano, para convocatorias abiertas.", derecha: "Usar" },
+        { titulo: "Gris pizarra", sub: "Casi sin color: manda el contenido.", derecha: "Usar" }
+      ] })
+    ]
+  };
+};
+
+PANTALLAS["Respuestas del formulario"] = function (nav) {
+  return {
+    titulo: "Respuestas",
+    nota: "Qué contestó la gente, agregado. Sin nombres: la reserva es de la organización.",
+    volver: { texto: "Volver al formulario", ir: nav("Editor del formulario") },
+    acciones: [btn("Exportar a PDF", "p")],
+    secciones: [
+      kpis([
+        ["Reservas del formulario", "0"],
+        ["Preguntas propias", "0"],
+        ["Preguntas archivadas", "0", "sus respuestas siguen contando"]
+      ]),
+      texto({ titulo: "Sin preguntas propias", nota: "Este formulario solo tiene campos del sistema (NIT, curso, cupos…), que ya salen en el informe de reservas. Cuando añada preguntas propias, sus respuestas se agregan aquí." })
+    ]
+  };
+};
+
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    const inicial = props.pantalla === "Gestión de leads" ? "leads" : props.pantalla === "Ficha del lead" ? "ficha" : "tablero";
+    this.state = {
+      pantalla: inicial,
+      tema: props.tema === "Oscuro" ? "oscuro" : "claro",
+      abierto: inicial === "tablero" ? null : "Gestión de Inscripciones",
+      tab: "Datos",
+      pendiente: "",
+      pendienteModulo: "",
+      generica: "",
+      panel: (function () { try { return localStorage.getItem("convoca-panel") !== "cerrado"; } catch (e) { return true; } })()
+    };
+    this.raizRef = React.createRef();
+  }
+
+  componentDidMount() { this.pintar(); }
+  componentDidUpdate() { this.pintar(); }
+
+  pintar() {
+    const el = this.raizRef.current;
+    if (!el) return;
+    el.setAttribute("data-tema", this.state.tema);
+    const oscuro = this.state.tema === "oscuro";
+    el.style.setProperty("--marca", (oscuro ? this.props.marcaOscuro : this.props.marca) || (oscuro ? "#60a5fa" : "#1d4ed8"));
+    el.style.setProperty("--pad-fila", this.props.densidad === "Cómoda" ? "13px" : "9px");
+  }
+
+  ir(pantalla, abierto) {
+    this.setState({ pantalla: pantalla, abierto: abierto === undefined ? this.state.abierto : abierto });
+  }
+
+  renderVals() {
+    const p = this.state.pantalla;
+    const tab = this.state.tab;
+    const activo = p === "leads" ? "Gestión de leads" : p === "pendiente" ? this.state.pendiente : null;
+
+    const moduloActivo = this.state.pendienteModulo || (p === "leads" || p === "ficha" ? "Gestión de Inscripciones" : null);
+    const abrirPanel = (nombre) => {
+      try { localStorage.setItem("convoca-panel", "abierto"); } catch (e) {}
+      this.setState({ panel: true, abierto: nombre });
+    };
+
+    const modulos = MODULOS.map((m) => ({
+      marca: m.marca,
+      icono: ICONOS[m.nombre],
+      esActivo: moduloActivo === m.nombre,
+      fondoMarca: moduloActivo === m.nombre ? "var(--titulo)" : "transparent",
+      bordeMarca: moduloActivo === m.nombre ? "var(--titulo)" : "var(--borde)",
+      colorMarca: moduloActivo === m.nombre ? "var(--superficie)" : "var(--texto-suave)",
+      colorIcono: moduloActivo === m.nombre ? "var(--titulo)" : "var(--texto-suave)",
+      irAlRail: () => abrirPanel(m.nombre),
+      nombre: m.nombre,
+      abierto: this.state.abierto === m.nombre,
+      giro: this.state.abierto === m.nombre ? "rotate(0deg)" : "rotate(-90deg)",
+      alternar: () => this.setState({ abierto: this.state.abierto === m.nombre ? null : m.nombre }),
+      hijos: m.hijos.map((h) => ({
+        nombre: h,
+        peso: h === activo ? 600 : 500,
+        color: h === activo ? "var(--marca)" : "var(--texto-suave)",
+        fondo: h === activo ? "var(--marca-suave)" : "transparent",
+        regla: h === activo ? "inset 2px 0 0 0 var(--marca)" : "none",
+        ir: () => {
+          if (h === "Gestión de leads") return this.ir("leads", m.nombre);
+          if (PANTALLAS[h]) return this.setState({ pantalla: "generica", generica: h, pendienteModulo: m.nombre, abierto: m.nombre });
+          this.setState({ pantalla: "pendiente", pendiente: h, pendienteModulo: m.nombre, abierto: m.nombre });
+        }
+      }))
+    }));
+
+    const nav = (nombre) => () => {
+      const mod = MODULO_DE[nombre];
+      this.setState({
+        pantalla: "generica",
+        generica: nombre,
+        pendienteModulo: mod || this.state.pendienteModulo,
+        abierto: mod || this.state.abierto,
+        desde: mod ? null : (this.state.generica || (p === "leads" ? "Gestión de leads" : null))
+      });
+    };
+
+    const irA = (nombre) => {
+      if (!nombre) return null;
+      if (nombre === "Gestión de leads") return () => this.ir("leads", "Gestión de Inscripciones");
+      if (PANTALLAS[nombre]) return nav(nombre);
+      return null;
+    };
+
+    const crudas = {
+      tablero: ["Panel", "Resumen"],
+      leads: ["Gestión de Inscripciones", "Gestión de leads"],
+      ficha: ["Gestión de Inscripciones", "Gestión de leads", "Sofía Arias Beltrán"],
+      pendiente: [this.state.pendienteModulo, this.state.pendiente],
+      generica: [this.state.pendienteModulo, this.state.desde, ETIQUETA[this.state.generica] || this.state.generica]
+    }[p].filter(Boolean);
+
+    const rutas = crudas.map((nombre, i) => {
+      const ultimo = i === crudas.length - 1;
+      const salto = ultimo ? null : irA(nombre);
+      return {
+        nombre: nombre,
+        sep: ultimo ? "" : "/",
+        peso: ultimo ? 600 : 500,
+        color: ultimo ? "var(--titulo)" : "var(--texto-suave)",
+        cursor: salto ? "pointer" : "default",
+        ir: salto
+      };
+    });
+    const gen = (p === "generica" && PANTALLAS[this.state.generica]) ? PANTALLAS[this.state.generica](nav) : { secciones: [] };
+
+    const anillo = (pct) => (2 * Math.PI * 30 * pct / 100).toFixed(1) + " " + (2 * Math.PI * 30).toFixed(1);
+
+    const alternarPanel = () => {
+      const abierto = !this.state.panel;
+      try { localStorage.setItem("convoca-panel", abierto ? "abierto" : "cerrado"); } catch (e) {}
+      this.setState({ panel: abierto });
+    };
+
+    return {
+      raizRef: this.raizRef,
+      esTablero: p === "tablero",
+      esLeads: p === "leads",
+      esFicha: p === "ficha",
+      rutas: rutas,
+      irResumen: () => this.setState({ pantalla: "tablero", abierto: null, pendienteModulo: "", desde: null }),
+      iconoResumen: ICONO_RESUMEN,
+      bordeResumen: p === "tablero" ? "var(--titulo)" : "var(--borde)",
+      fondoResumen: p === "tablero" ? "var(--titulo)" : "transparent",
+      colorResumen: p === "tablero" ? "var(--superficie)" : "var(--texto-suave)",
+      filaResumen: p === "tablero" ? "var(--marca-suave)" : "transparent",
+      textoResumen: p === "tablero" ? "var(--marca)" : "var(--titulo)",
+      modulos: modulos,
+      irLeads: () => this.ir("leads", "Gestión de Inscripciones"),
+      notaVias: ["Llamada", "Correo", "WhatsApp", "Texto"].map((t, i) => ({
+        texto: t, borde: i === 0 ? "var(--marca)" : "var(--borde)", fondo: i === 0 ? "var(--marca-suave)" : "transparent",
+        color: i === 0 ? "var(--marca)" : "var(--texto)", peso: i === 0 ? 600 : 500
+      })),
+      notaResultados: ["Hablé con ella", "No contestó", "El dato no sirve"].map((t) => ({
+        texto: t, borde: "var(--borde)", fondo: "transparent", color: "var(--texto)", peso: 500
+      })),
+      irNuevo: nav("Inscribir a alguien"),
+      irCarga: nav("Cargar una lista"),
+      irFicha: () => this.ir("ficha", "Gestión de Inscripciones"),
+      ponerClaro: () => this.setState({ tema: "claro" }),
+      ponerOscuro: () => this.setState({ tema: "oscuro" }),
+      colorClaro: this.state.tema === "claro" ? "var(--marca)" : "var(--texto-suave)",
+      fondoClaro: this.state.tema === "claro" ? "var(--marca-suave)" : "transparent",
+      colorOscuro: this.state.tema === "oscuro" ? "var(--marca)" : "var(--texto-suave)",
+      fondoOscuro: this.state.tema === "oscuro" ? "var(--marca-suave)" : "transparent",
+
+      kpis: [
+        { rotulo: "Cupos con dueño", valor: "539", pie: "14,6 % de los 3.690 comprometidos" },
+        { rotulo: "Cupos libres", valor: "4.258", pie: "de 4.797 en total" },
+        { rotulo: "Organizaciones", valor: "24", pie: "9,6 cupos por reserva" },
+        { rotulo: "En lista de espera", valor: "34", pie: "esperan a que alguien cancele" }
+      ],
+      anillos: [
+        { titulo: "Avance sobre la meta", nota: "Contra lo comprometido en los proyectos, sin el sobrecupo.", cifra: "14,6 %", detalle: "539 de 3.690 beneficiarios", color: "var(--marca)", trazo: anillo(14.6) },
+        { titulo: "Ocupación del tope", nota: "El tope de inscripción es la meta más 30 % por deserción.", cifra: "11,2 %", detalle: "4.258 cupos libres de 4.797", color: "var(--marca)", trazo: anillo(11.2) },
+        { titulo: "Organizaciones", nota: "Cuántas han reservado y cuánto concentran las diez mayores.", cifra: "58,6 %", detalle: "24 · 9,6 cupos por reserva · 34 en espera", color: "var(--marca)", trazo: anillo(58.6) }
+      ],
+      ritmos: [
+        { rotulo: "Ritmo (14 días)", valor: "3,3", unidad: " cupos/día", pie: "7 días: 0 · 14 días: 3,3", color: "var(--titulo)" },
+        { rotulo: "Faltan para la meta", valor: "3.151", unidad: " cupos", pie: "Meta comprometida: 3.690", color: "var(--titulo)" },
+        { rotulo: "Fecha estimada", valor: "—", unidad: "", pie: "A este ritmo, más de un año.", color: "var(--texto-suave)" },
+        { rotulo: "Tendencia", valor: "Frenando", unidad: "", pie: "Comparando la última semana con las dos últimas.", color: "var(--aviso)" }
+      ],
+      acciones: ACCIONES.map((a) => ({
+        codigo: a[0],
+        nombre: a[1],
+        modalidad: a[2],
+        ancho: Math.max(1.5, a[3] / a[4] * 100).toFixed(1) + "%",
+        cupos: a[3] + " de " + a[4] + " cupos"
+      })),
+
+      embudo: EMBUDO.map((e) => ({
+        nombre: e[0],
+        n: e[1],
+        color: e[2],
+        ancho: (e[1] / 79 * 100).toFixed(2) + "%"
+      })),
+
+      columnas: [
+        { titulo: "Fecha de creación", alineado: "left" },
+        { titulo: "Correo", alineado: "left" },
+        { titulo: "Número de teléfono", alineado: "left" },
+        { titulo: "Nombre completo", alineado: "left" },
+        { titulo: "Tipo documento", alineado: "left" },
+        { titulo: "Número documento", alineado: "left" },
+        { titulo: "Departamento", alineado: "left" },
+        { titulo: "Etapa lead", alineado: "left" },
+        { titulo: "Datos pendientes", alineado: "right" }
+      ],
+      filas: FILAS.map((f) => ({
+        fecha: f[0], correo: f[1], celular: f[2], nombre: f[3], tipoDoc: f[4],
+        documento: f[5], departamento: f[6], etapa: f[7],
+        colorEtapa: ETAPA_COLOR[f[7]],
+        datos: f[8],
+        pesoDatos: f[8] === "Sin pendientes" ? 400 : 600,
+        colorDatos: f[8] === "Sin pendientes" ? "var(--texto-suave)" : "var(--aviso)"
+      })),
+
+      gestion: [
+        { rotulo: "Mover de etapa", valor: "Interesado", color: "var(--titulo)", peso: 600 },
+        { rotulo: "Asesor responsable", valor: "Sin asignar", color: "var(--texto-suave)", peso: 500 },
+        { rotulo: "Acción de formación", valor: "Sin asignar", color: "var(--texto-suave)", peso: 500 },
+        { rotulo: "Grupo", valor: "Sin asignar", color: "var(--texto-suave)", peso: 500 }
+      ],
+      esPendiente: p === "pendiente",
+      esGenerica: p === "generica",
+      genVolver: gen.volver ? gen.volver.texto : "",
+      genVolverIr: gen.volver ? gen.volver.ir : null,
+      genPadArriba: gen.volver ? "16px" : "26px",
+      genTitulo: gen.titulo || "",
+      genNota: gen.nota || "",
+      genAcciones: gen.acciones || [],
+      alternarTema: () => this.setState({ tema: this.state.tema === "claro" ? "oscuro" : "claro" }),
+      rotuloTema: this.state.tema === "claro" ? "Cambiar a modo oscuro" : "Cambiar a modo claro",
+      iconoTema: this.state.tema === "claro" ? "☾" : "☀",
+      panelAbierto: this.state.panel,
+      panelCerrado: !this.state.panel,
+      anchoPanel: this.state.panel ? "250px" : "62px",
+      alternarPanel: alternarPanel,
+      secciones: gen.secciones,
+      pendienteNombre: this.state.pendiente,
+      pendienteModulo: this.state.pendienteModulo,
+
+      pestanas: ["Datos", "Empresa", "Notas", "Origen", "Historial"].map((n) => ({
+        nombre: n,
+        color: n === tab ? "var(--titulo)" : "var(--texto-suave)",
+        subrayado: n === tab ? "inset 0 -2px 0 0 var(--marca)" : "none",
+        ver: () => this.setState({ tab: n })
+      })),
+      tituloPanel: (CONTENIDO[tab] || CONTENIDO.Datos).titulo,
+      notaPanel: (CONTENIDO[tab] || CONTENIDO.Datos).nota,
+      editable: !!(CONTENIDO[tab] || {}).bloques,
+      esCampos: !!(CONTENIDO[tab] || {}).bloques,
+      esNotas: tab === "Notas",
+      esHistorial: tab === "Historial",
+      bloques: (CONTENIDO[tab] || CONTENIDO.Datos).bloques || [],
+      eventos: EVENTOS
+    };
+  }
+}
+
+
+
+const FICHAS_AF = {
+  AF1: {
+    t: "Gestión de la Atención y Neuroeducación en la Era Digital", m: "CURSO virtual · 40 horas",
+    a: ["33", "de 400 beneficiarios · 8,3 %"], o: ["487", "cupos libres de 520 · 6,3 %"], r: ["3", "organizaciones · 0 en lista de espera"],
+    ritmo: "0,7 cupos al día. Faltan 367 para la meta. A este ritmo, más de un año.",
+    mod: "Virtual",
+    ub: [["Antioquia", 130, 0, 130], ["Bogotá D.C", 65, 20, 45], ["Cauca", 33, 13, 20], ["Córdoba", 65, 0, 65], ["Huila", 33, 0, 33], ["Magdalena", 32, 0, 32], ["Risaralda", 65, 0, 65], ["Santander", 32, 0, 32], ["Valle del Cauca", 65, 0, 65]],
+    cupo: "50 + 30 % = 65",
+    gr: [["Grupo 1", "Virtual · Bogotá D.C 65"], ["Grupo 2", "Virtual · Antioquia 65"], ["Grupo 3", "Virtual · Antioquia 65"], ["Grupo 4", "Virtual · Huila 33 · Magdalena 32"], ["Grupo 5", "Virtual · Cauca 33 · Santander 32"], ["Grupo 6", "Virtual · Córdoba 65"], ["Grupo 7", "Virtual · Risaralda 65"], ["Grupo 8", "Virtual · Valle del Cauca 65"]],
+    ll: [["Bogotá D.C", 20, 65], ["Cauca", 13, 33]],
+    resN: "3 activas de 3 registradas.",
+    res: [["20 de ago", "Turismo Ruta Dorada S.a.s.", "900125403", "Santiago Pinzón", "contacto19@ejemplo.test", "Bogotá D.C", 10, "Confirmada"], ["13 de ago", "Agroinsumos del Llano S.a.s.", "900102674", "Carlos Salazar", "contacto2@ejemplo.test", "Bogotá D.C", 10, "Confirmada"], ["11 de jul", "Lácteos San Rafael Ltda.", "900114707", "Jorge Suárez", "contacto11@ejemplo.test", "Cauca", 13, "Confirmada"]],
+    obj: "FORTALECER LAS COMPETENCIAS PEDAGÓGICAS, NEUROEDUCATIVAS Y SOCIOEMOCIONALES DE LOS DOCENTES PARA GESTIONAR LA ATENCIÓN, PROMOVER LA AUTORREGULACIÓN Y FOMENTAR LA AUTONOMÍA DE LOS ESTUDIANTES FRENTE A LOS EFECTOS DE LA SOBREESTIMULACIÓN POR PANTALLAS, MEDIANTE LA APLICACIÓN DE ESTRATEGIAS PRÁCTICAS QUE MEJOREN EL CLIMA DE AULA, OPTIMICEN EL TIEMPO EFECTIVO DE ENSEÑANZA Y CONTRIBUYAN A ELEVAR LA PRODUCTIVIDAD EDUCATIVA Y LA CALIDAD DE LOS APRENDIZAJES EN LAS INSTITUCIONES AFILIADAS AL GREMIO. ESTE OBJETIVO SE RELACIONA DIRECTAMENTE CON EL OBJETO SOCIAL DEL GREMIO, EN LA MEDIDA EN QUE CONTRIBUYE AL FORTALECIMIENTO DE LA CALIDAD EDUCATIVA, AL DESARROLLO PROFESIONAL DEL TALENTO HUMANO DOCENTE Y AL AUMENTO DE LA COMPETITIVIDAD DE LAS INSTITUCIONES EDUCATIVAS QUE REPRESENTA, RESPONDIENDO A LA NECESIDAD DE FORMACIÓN IDENTIFICADA Y A SU IMPACTO EN LA PRODUCTIVIDAD Y COMPETITIVIDAD DEL SECTOR."
+  },
+  AF2: {
+    t: "Diseño Estratégico de Ecosistemas Educativos con Inteligencia Artificial", m: "CURSO virtual · 40 horas",
+    a: ["21", "de 400 beneficiarios · 5,3 %"], o: ["499", "cupos libres de 520 · 4,0 %"], r: ["3", "organizaciones · 0 en lista de espera"],
+    ritmo: "0 cupos al día. Faltan 379 para la meta. Sin movimiento en la ventana.",
+    mod: "Virtual",
+    ub: [["Antioquia", 163, 0, 163], ["Bogotá D.C", 65, 0, 65], ["Cauca", 33, 16, 17], ["Córdoba", 33, 0, 33], ["Huila", 32, 0, 32], ["Magdalena", 32, 0, 32], ["Risaralda", 65, 5, 60], ["Santander", 32, 0, 32], ["Valle del Cauca", 65, 0, 65]],
+    cupo: "50 + 30 % = 65",
+    gr: [["Grupo 1", "Virtual · Bogotá D.C 65"], ["Grupo 2", "Virtual · Antioquia 33 · Magdalena 32"], ["Grupo 3", "Virtual · Antioquia 65"], ["Grupo 4", "Virtual · Antioquia 65"], ["Grupo 5", "Virtual · Cauca 33 · Santander 32"], ["Grupo 6", "Virtual · Córdoba 33 · Huila 32"], ["Grupo 7", "Virtual · Risaralda 65"], ["Grupo 8", "Virtual · Valle del Cauca 65"]],
+    ll: [["Cauca", 16, 33], ["Risaralda", 5, 65]],
+    resN: "3 activas de 4 registradas.",
+    res: [["12 de ago", "Metalmecánica Bolívar Ltda.", "900110696", "Adriana Rodríguez", "contacto8@ejemplo.test", "Cauca", 0, "Cancelada"], ["8 de ago", "Alimentos Doña Rosa S.a.s.", "900105348", "Valentina Zapata", "contacto4@ejemplo.test", "Cauca", 7, "Confirmada"], ["3 de ago", "Refrigeración Polar Ltda.", "900128077", "Felipe Peña", "contacto21@ejemplo.test", "Risaralda", 5, "Confirmada"], ["20 de jul", "Logística Sur Express S.a.s.", "900130751", "Camilo Zapata", "contacto23@ejemplo.test", "Cauca", 9, "Confirmada"]],
+    obj: "FORTALECER LAS COMPETENCIAS PEDAGÓGICAS Y DIGITALES DE LOS AGENTES EDUCATIVOS PARA LA INTEGRACIÓN DE LA INTELIGENCIA ARTIFICIAL GENERATIVA EN EL DISEÑO, DESARROLLO Y EVALUACIÓN DE AMBIENTES DE APRENDIZAJE, MEDIANTE ESTRATEGIAS DE CO-CREACIÓN QUE OPTIMICEN LOS TIEMPOS DE PLANEACIÓN DOCENTE, PERSONALICEN LOS PROCESOS DE ENSEÑANZA-APRENDIZAJE Y MEJOREN LA CALIDAD EDUCATIVA, GENERANDO UN IMPACTO DIRECTO EN LA PRODUCTIVIDAD INSTITUCIONAL AL REDUCIR CARGAS OPERATIVAS EN LA PLANEACIÓN PEDAGÓGICA, Y FORTALECIENDO LA COMPETITIVIDAD DE LAS INSTITUCIONES EDUCATIVAS AFILIADAS AL GREMIO MEDIANTE LA CONSOLIDACIÓN DE UNA CULTURA DE INNOVACIÓN Y USO PEDAGÓGICO RESPONSABLE DE LA INTELIGENCIA ARTIFICIAL. ESTE OBJETIVO SE RELACIONA DIRECTAMENTE CON EL OBJETO SOCIAL DEL GREMIO, EN LA MEDIDA EN QUE CONTRIBUYE AL FORTALECIMIENTO DE LA CALIDAD EDUCATIVA, AL DESARROLLO PROFESIONAL DEL TALENTO HUMANO DOCENTE, A LA PROMOCIÓN DE LA INNOVACIÓN PEDAGÓGICA Y A LA MEJORA CONTINUA DE LAS INSTITUCIONES EDUCATIVAS QUE REPRESENTA, RESPONDIENDO DE MANERA DIRECTA A LA NECESIDAD DE FORMACIÓN IDENTIFICADA EN MATERIA DE ADOPCIÓN DE HERRAMIENTAS DIGITALES Y USO PEDAGÓGICO DE LA INTELIGENCIA ARTIFICIAL GENERATIVA, Y CONSOLIDANDO MEJORES CONDICIONES DE PRODUCTIVIDAD Y COMPETITIVIDAD PARA EL SECTOR EDUCATIVO PRIVADO."
+  },
+  AF3: {
+    t: "Gobernanza Estratégica de la Diversidad, Equidad E Inclusión (dei) para Mujeres Líderes en el Sector Educativo", m: "TALLER presencial · 8 horas",
+    a: ["29", "de 150 beneficiarios · 19,3 %"], o: ["166", "cupos libres de 195 · 14,9 %"], r: ["3", "organizaciones · 6 en lista de espera"],
+    ritmo: "0 cupos al día. Faltan 121 para la meta. Sin movimiento en la ventana.",
+    mod: "Presencial",
+    ub: [["Apartadó", 39, 0, 39, "Antioquia"], ["Cali", 39, 16, 23, "Valle del Cauca"], ["Medellín", 39, 13, 26, "Antioquia"], ["Pereira", 39, 0, 39, "Risaralda", 6], ["Santa Marta", 39, 0, 39, "Magdalena"]],
+    cupo: "30 + 30 % = 39",
+    gr: [["Grupo 1", "Presencial · Apartadó 39"], ["Grupo 2", "Presencial · Medellín 39"], ["Grupo 3", "Presencial · Santa Marta 39"], ["Grupo 4", "Presencial · Pereira 39"], ["Grupo 5", "Presencial · Cali 39"]],
+    ll: [["Cali", 16, 39], ["Medellín", 13, 39]],
+    resN: "3 activas de 3 registradas.",
+    res: [["12 de ago", "Transportes el Cóndor Ltda.", "900106685", "Valentina Castaño", "contacto5@ejemplo.test", "Cali", 16, "Confirmada"], ["28 de jul", "Servicios Integrales Zafiro S.a.s.", "900117381", "Adriana Ospina", "contacto13@ejemplo.test", "Pereira", "0 +6", "En espera"], ["10 de jul", "Química Industrial Kairós S.a.", "900120055", "Carlos Ospina", "contacto15@ejemplo.test", "Medellín", 13, "Confirmada"]],
+    obj: "ESTRUCTURAR LINEAMIENTOS DE GOBERNANZA EN DIVERSIDAD, EQUIDAD E INCLUSIÓN (DEI) Y DISEÑO DE ECOSISTEMAS EDUCATIVOS ACCESIBLES, DIRIGIDOS A MUJERES LÍDERES Y PERSONAL DIRECTIVO, CON EL FIN DE ARTICULAR LAS POLÍTICAS INSTITUCIONALES CON LA PLANEACIÓN ESTRATÉGICA CORPORATIVA, MITIGAR LAS BRECHAS ESTRUCTURALES DE POBLACIONES DIVERSAS Y ELEVAR LOS INDICADORES DE COMPETITIVIDAD ORGANIZACIONAL. LOS RESULTADOS ESPERADOS SON: QUE LAS PARTICIPANTES COMPRENDAN LOS MARCOS NORMATIVOS DE LA INCLUSIÓN COMO ESTÁNDAR DE CUMPLIMIENTO; CONOZCAN ESTRATEGIAS GERENCIALES PARA LA GESTIÓN DEL CAMBIO DEI; Y SEAN CAPACES DE DISEÑAR ARQUITECTURAS INSTITUCIONALES CON ENFOQUES DIFERENCIALES DE GÉNERO, ETNIA Y DISCAPACIDAD, ASEGURANDO ECOSISTEMAS QUE POTENCIEN EL TALENTO DIVERSO. ESTE OBJETIVO RESPONDE DIRECTAMENTE A LA NECESIDAD AF3, QUE EVIDENCIA UNA DESARTICULACIÓN ENTRE LA ALTA DIRECCIÓN Y LAS POLÍTICAS DE INCLUSIÓN. LA ACCIÓN FORMATIVA SOLUCIONA PARCIALMENTE ESTA NECESIDAD AL DOTAR AL 46% DE LAS MUJERES LÍDERES ORGANIZACIONALES QUE REQUIEREN FORMACIÓN URGENTE, CON HERRAMIENTAS PARA TRADUCIR LAS ESTRATEGIAS MACRO EN INDICADORES (KPIS) Y DIRECTRICES EFECTIVAS DE EQUIDAD CORPORATIVA. ESTA FORMACIÓN RESPONDE A LOS RETOS DEL GREMIO Y SE ALINEA CON SU OBJETO SOCIAL AL PROMOVER ECOSISTEMAS SOSTENIBLES, CONTRIBUYENDO A CERRAR BRECHAS DE CAPITAL HUMANO ESPECIALIZADO, POTENCIAR EL LIDERAZGO FEMENINO Y AUMENTAR SIGNIFICATIVAMENTE LA PRODUCTIVIDAD Y LA COMPETITIVIDAD TERRITORIAL DE LAS INSTITUCIONES AFILIADAS"
+  },
+  AF4: {
+    t: "Realidad Virtual y Cartografías Digitales para la Innovación Institucional", m: "TALLER presencial · 8 horas",
+    a: ["0", "de 30 beneficiarios · 0,0 %"], o: ["39", "cupos libres de 39 · 0,0 %"], r: ["0", "organizaciones · 0 en lista de espera"],
+    ritmo: "0 cupos al día. Faltan 30 para la meta. Sin movimiento en la ventana.",
+    mod: "Presencial",
+    ub: [["Popayán", 39, 0, 39, "Cauca"]],
+    cupo: "30 + 30 % = 39",
+    gr: [["Grupo 1", "Presencial · Popayán 39"]],
+    ll: [], resN: "0 activas de 0 registradas.", res: [],
+    obj: "FORTALECER LAS COMPETENCIAS DIGITALES E INNOVADORAS DE LOS LÍDERES DE LAS INSTITUCIONES EDUCATIVAS PRIVADAS AFILIADAS A ADECOPRIA MEDIANTE LA APLICACIÓN DE CARTOGRAFÍAS DIGITALES, ESPACIOS VIRTUALES 3D Y ESTRATEGIAS METACOGNITIVAS, CON EL FIN DE DISEÑAR EXPERIENCIAS DE APRENDIZAJE INMERSIVAS QUE TRANSFORMEN LAS PRÁCTICAS PEDAGÓGICAS, PROMUEVAN EL PENSAMIENTO CREATIVO Y CRÍTICO EN LOS ESTUDIANTES, Y GENEREN UN IMPACTO MEDIBLE EN LA PRODUCTIVIDAD INSTITUCIONAL AL OPTIMIZAR LOS TIEMPOS DE DISEÑO Y ACTUALIZACIÓN DE CONTENIDOS PEDAGÓGICOS, ASÍ COMO EN LA COMPETITIVIDAD DEL SERVICIO EDUCATIVO AL POSICIONAR A LAS INSTITUCIONES AFILIADAS COMO REFERENTES EN INNOVACIÓN DIGITAL Y APRENDIZAJE INMERSIVO. ESTA ACCIÓN DE FORMACIÓN DA RESPUESTA PARCIAL A LA NECESIDAD DETECTADA Y A LOS RETOS DE FORMACIÓN DEL GREMIO ADECOPRIA, Y SE ALINEA CON SU OBJETO SOCIAL, QUE EXISTE PARA «REPRESENTAR Y FORTALECER A LAS INSTITUCIONES EDUCATIVAS AFILIADAS, CON EL FIN DE GARANTIZAR EL POSICIONAMIENTO DE CADA UNA Y LA CALIDAD DE LA EDUCACIÓN BRINDADA», ASÍ COMO PARA GENERAR REFLEXIÓN PEDAGÓGICA DESDE LA PLURALIDAD Y LA CONFIANZA, EN ESPACIOS DE RELACIONAMIENTO E INNOVACIÓN, PARA TRANSFORMAR LA EDUCACIÓN PRIVADA EN UN POTENCIADOR DEL SER, Y FORTALECER LA «FORMACIÓN EN INNOVACIÓN» COMO EJE ESTRATÉGICO PARA LA TRANSFORMACIÓN EDUCATIVA Y EL FORTALECIMIENTO DE LA PRODUCTIVIDAD Y COMPETITIVIDAD DEL SECTOR."
+  },
+  AF5: {
+    t: "Modelos de Asociatividad y Cooperativismo Escolar: Emprendimiento Social y Redes de Comercialización Responsable", m: "TALLER presencial · 8 horas",
+    a: ["0", "de 60 beneficiarios · 0,0 %"], o: ["78", "cupos libres de 78 · 0,0 %"], r: ["0", "organizaciones · 0 en lista de espera"],
+    ritmo: "0 cupos al día. Faltan 60 para la meta. Sin movimiento en la ventana.",
+    mod: "Presencial",
+    ub: [["Medellín", 39, 0, 39, "Antioquia"], ["Popayán", 39, 0, 39, "Cauca"]],
+    cupo: "30 + 30 % = 39",
+    gr: [["Grupo 1", "Presencial · Medellín 39"], ["Grupo 2", "Presencial · Popayán 39"]],
+    ll: [], resN: "0 activas de 0 registradas.", res: [],
+    obj: "FORTALECER LAS COMPETENCIAS DEL PERSONAL DOCENTE Y ESTUDIANTES EN MODELOS DE ASOCIATIVIDAD Y COOPERATIVISMO ESCOLAR, MEDIANTE LA APROPIACIÓN DE PRINCIPIOS DE ECONOMÍA SOLIDARIA, LA INTEGRACIÓN DE LOS OBJETIVOS DE DESARROLLO SOSTENIBLE (ODS) Y ESTRATEGIAS PARA LA CREACIÓN Y GESTIÓN DE REDES DE COMERCIALIZACIÓN RESPONSABLE, QUE PERMITAN TRANSFORMAR LAS VISIONES DE NEGOCIO INDIVIDUALES EN INICIATIVAS COLABORATIVAS CON IMPACTO SOCIAL, AMBIENTAL Y ECONÓMICO SOSTENIBLE. ESPECÍFICAMENTE, SE BUSCA QUE LOS PARTICIPANTES COMPRENDAN LOS FUNDAMENTOS DEL COOPERATIVISMO ESCOLAR, INTEGREN LOS ODS EN SUS PROYECTOS EMPRENDEDORES, DISEÑEN ESTRATEGIAS PARA FERIAS DE COMERCIO JUSTO Y DESARROLLEN HABILIDADES PARA EL TRABAJO COLABORATIVO Y LA TOMA DE DECISIONES COLECTIVAS. ESTA ACCIÓN DE FORMACIÓN DA RESPUESTA PARCIAL A LA NECESIDAD DETECTADA AF5 Y A LOS RETOS DE FORMACIÓN DE ADECOPRIA, ALINEÁNDOSE CON SU OBJETO SOCIAL DE PROMOVER UNA EDUCACIÓN INTEGRAL QUE FOMENTE EL EMPRENDIMIENTO SOCIAL, LA CULTURA SOLIDARIA Y EL DESARROLLO SOSTENIBLE. EL FORTALECIMIENTO DE COMPETENCIAS EN COOPERATIVISMO ESCOLAR CONTRIBUYE DIRECTAMENTE A LA FORMACIÓN DE CIUDADANOS CON CAPACIDAD DE GENERAR INICIATIVAS PRODUCTIVAS COLABORATIVAS QUE RESPONDAN A LAS DEMANDAS DEL ENTORNO, POTENCIANDO LA EMPLEABILIDAD, LA INNOVACIÓN SOCIAL Y EL DESARROLLO ECONÓMICO LOCAL. LA FORMACIÓN PERMITIRÁ A LOS PARTICIPANTES APLICAR MODELOS DE ASOCIATIVIDAD QUE MEJOREN SU CAPACIDAD DE COMERCIALIZACIÓN, GENERACIÓN DE INGRESOS Y SOSTENIBILIDAD, FORTALECIENDO EL TEJIDO SOCIAL Y PRODUCTIVO DE LA REGIÓN."
+  },
+  AF6: {
+    t: "Fábrica de Soluciones Digitales: Metodologías de Innovación Abierta y Estructuración de Laboratorios Tecnológicos Institucionales", m: "TALLER-BOOTCAMP presencial · 16 horas",
+    a: ["14", "de 60 beneficiarios · 23,3 %"], o: ["64", "cupos libres de 78 · 17,9 %"], r: ["1", "organización · 0 en lista de espera"],
+    ritmo: "1 cupo al día. Faltan 46 para la meta. A este ritmo se llena el 14 de octubre de 2026.",
+    mod: "Presencial",
+    ub: [["Medellín", 39, 0, 39, "Antioquia"], ["Popayán", 39, 14, 25, "Cauca"]],
+    cupo: "30 + 30 % = 39",
+    gr: [["Grupo 1", "Presencial · Medellín 39"], ["Grupo 2", "Presencial · Popayán 39"]],
+    ll: [["Popayán", 14, 39]],
+    resN: "1 activa de 1 registrada.",
+    res: [["19 de ago", "Transportes el Cóndor Ltda.", "900106685", "Mauricio Herrera", "contacto5@ejemplo.test", "Popayán", 14, "Confirmada"]],
+    obj: "DESARROLLAR COMPETENCIAS AVANZADAS EN GESTIÓN DE LA INNOVACIÓN, DISEÑO DE PRODUCTOS DIGITALES Y ESTRUCTURACIÓN DE CÉLULAS DE DESARROLLO EDTECH A TRAVÉS DE METODOLOGÍAS INMERSIVAS DE BOOTCAMP, CON EL FIN DE INSTALAR CAPACIDADES DE INNOVACIÓN AUTÓNOMA EN CADA INSTITUCIÓN PARA LA CREACIÓN INTERNA DE APLICACIONES Y SOLUCIONES DE ALTO IMPACTO EDUCATIVO, OPTIMIZANDO LA PRODUCTIVIDAD INSTITUCIONAL AL REDUCIR LA DEPENDENCIA DE PROVEEDORES EXTERNOS Y FORTALECIENDO LA COMPETITIVIDAD DEL SECTOR EDUCATIVO PRIVADO MEDIANTE SOLUCIONES TECNOLÓGICAS PROPIAS, ESCALABLES Y SOSTENIBLES."
+  },
+  AF7: {
+    t: "Salto Adelante (leapfrogging): Coherencia, Equidad y Humanismo en la Escuela Híbrida", m: "FORO híbrido · 2 horas",
+    a: ["52", "de 500 beneficiarios · 10,4 %"], o: ["598", "cupos libres de 650 · 8,0 %"], r: ["6", "organizaciones · 0 en lista de espera"],
+    ritmo: "−0,1 cupos al día. Faltan 448 para la meta. Se está cancelando más de lo que entra.",
+    mod: "Virtual",
+    ub: [["Antioquia", 117, 0, 117], ["Bogotá D.C", 65, 0, 65], ["Cauca", 39, 26, 13], ["Córdoba", 52, 0, 52], ["Huila", 39, 6, 33], ["Magdalena", 52, 4, 48], ["Medellín", 78, 0, 78, "Antioquia", 0, "Presencial"], ["Pereira", 78, 0, 78, "Risaralda", 0, "Presencial"], ["Santander", 65, 0, 65], ["Valle del Cauca", 65, 16, 49]],
+    cupo: "250 + 30 % = 325",
+    gr: [["Grupo 1", "Híbrido · Medellín 78 · Bogotá D.C 65 · Antioquia 52 · Huila 39 · Cauca 39 · Córdoba 52"], ["Grupo 2", "Híbrido · Pereira 78 · Antioquia 65 · Magdalena 52 · Santander 65 · Valle del Cauca 65"]],
+    ll: [["Cauca", 26, 39], ["Valle del Cauca", 16, 65], ["Huila", 6, 39], ["Magdalena", 4, 52]],
+    resN: "6 activas de 7 registradas.",
+    res: [["19 de ago", "Servicios Integrales Zafiro S.a.s.", "900117381", "Óscar Salazar", "contacto13@ejemplo.test", "Magdalena", 4, "Confirmada"], ["12 de ago", "Ingeniería y Montajes Delta Ltda.", "900122729", "Valentina Arias", "contacto17@ejemplo.test", "Valle del Cauca", 5, "Confirmada"], ["9 de ago", "Turismo Ruta Dorada S.a.s.", "900125403", "Diana Arias", "contacto19@ejemplo.test", "Cauca", 11, "Confirmada"], ["22 de jul", "Agroinsumos del Llano S.a.s.", "900102674", "Sofía Peña", "contacto2@ejemplo.test", "Huila", 6, "Confirmada"], ["5 de jul", "Maderas del Pacífico S.a.s.", "900116044", "Miguel Quintero", "contacto12@ejemplo.test", "Valle del Cauca", 11, "Confirmada"], ["4 de jul", "Refrigeración Polar Ltda.", "900128077", "Felipe Ospina", "contacto21@ejemplo.test", "Cauca", 15, "Confirmada"]],
+    obj: "FORTALECER LAS COMPETENCIAS DE DIRECTIVOS Y DOCENTES DE LAS INSTITUCIONES EDUCATIVAS ASOCIADAS A ADECOPRIA EN LIDERAZGO SISTÉMICO, GESTIÓN DEL CAMBIO CON ENFOQUE HUMANO Y DISEÑO DE ENTORNOS HÍBRIDOS EQUITATIVOS, MEDIANTE LA APROPIACIÓN CRÍTICA DE HERRAMIENTAS PEDAGÓGICAS Y TECNOLÓGICAS, PARA REDUCIR LA DESMOTIVACIÓN DOCENTE (30,9 %), CERRAR BRECHAS DE EQUIDAD Y GENERAR UN IMPACTO DIRECTO EN LA PRODUCTIVIDAD INSTITUCIONAL AL OPTIMIZAR LOS PROCESOS DE TRANSFORMACIÓN HÍBRIDA Y REDUCIR EL DESGASTE ASOCIADO A LA RESISTENCIA AL CAMBIO, MEJORANDO ASÍ LA COMPETITIVIDAD Y CALIDAD EDUCATIVA DEL SECTOR PRIVADO. ESTA ACCIÓN DE FORMACIÓN DA RESPUESTA PARCIAL A LA NECESIDAD DETECTADA Y A LOS RETOS DE FORMACIÓN DEL GREMIO Y SE ALINEA CON SU OBJETO SOCIAL: REPRESENTAR Y FORTALECER A LAS INSTITUCIONES EDUCATIVAS AFILIADAS, CON EL FIN DE GARANTIZAR EL POSICIONAMIENTO DE CADA UNA Y LA CALIDAD DE LA EDUCACIÓN BRINDADA, A TRAVÉS DE LA ASESORÍA Y CAPACITACIÓN PERMANENTE, ASÍ COMO CON SU PROPÓSITO SUPERIOR DE TRASCENDER LA EDUCACIÓN PARA TRANSFORMAR LA SOCIEDAD, CONTRIBUYENDO A LA CUALIFICACIÓN DEL SECTOR EDUCATIVO PRIVADO COLOMBIANO Y AL FORTALECIMIENTO SOSTENIDO DE SU PRODUCTIVIDAD Y COMPETITIVIDAD INSTITUCIONAL."
+  }
+};
+
+Object.keys(FICHAS_AF).forEach(function (codigo) {
+  const d = FICHAS_AF[codigo];
+  PANTALLAS["Acción " + codigo] = function (nav) {
+    return {
+      titulo: d.t,
+      nota: codigo + " · ADECOPRIA · " + d.m + " · Publicada",
+      volver: { texto: "Volver a Formación", ir: nav("Formación") },
+      acciones: [btn("Ocultar"), btn("Exportar a PDF", "p")],
+      secciones: [
+        kpis([["Avance sobre la meta", d.a[0], d.a[1]], ["Ocupación del tope", d.o[0], d.o[1]], ["Quién ha reservado", d.r[0], d.r[1]]]),
+        texto({ titulo: "Ritmo de esta acción", nota: "Cupos netos por día de los últimos 14, descontando ediciones y cancelaciones: " + d.ritmo }),
+        texto({ titulo: "Oferta por ubicación", nota: d.ub.length + (d.ub.length === 1 ? " ubicación." : " ubicaciones.") + " Es contra estas filas que se descuenta el cupo." }),
+        tabla(
+          [{ t: "Ubicación" }, { t: "Modalidad" }, { t: "Cupos", alinear: "right" }, { t: "Reservados", alinear: "right" }, { t: "Libres", alinear: "right" }, { t: "Espera", alinear: "right" }, { t: "Estado", alinear: "right" }],
+          d.ub.map(function (u) {
+            return normaliza([
+              cel(u[0], { peso: 500, sub: u[4] || "" }),
+              cel(u[6] || d.mod, { color: "var(--texto-suave)" }),
+              cel(u[1], { alinear: "right" }),
+              cel(u[2], { alinear: "right", peso: u[2] ? 600 : 400, color: u[2] ? "var(--titulo)" : "var(--texto-suave)" }),
+              cel(u[3], { alinear: "right" }),
+              cel(u[5] ? u[5] : "—", { alinear: "right", color: u[5] ? "var(--aviso)" : "var(--texto-suave)" }),
+              cel("Disponible", { alinear: "right", peso: 500, color: "var(--exito)" })
+            ]);
+          })
+        ),
+        lista({ titulo: "Grupos comprometidos", nota: "El plan del proyecto: cuántas cohortes y con qué reparto. No llevan contador propio.", cols: 2,
+          items: d.gr.map(function (g) { return { titulo: g[0], sub: g[1], derecha: d.cupo }; }) }),
+        lista({ titulo: "Dónde se está llenando", nota: "Cupos reservados por ubicación, ordenados.", vacio: "Todavía no hay ninguna reserva en esta acción.",
+          items: d.ll.map(function (l) { return { titulo: l[0], derecha: l[1] + " de " + l[2], pct: Math.round(l[1] / l[2] * 1000) / 10 }; }) }),
+        texto({ titulo: "Reservas", nota: d.resN + (d.res.length ? "" : " Nadie ha reservado en esta acción todavía.") }),
+        tabla(
+          [{ t: "Fecha" }, { t: "Organización" }, { t: "Contacto" }, { t: "Ubicación" }, { t: "Cupos", alinear: "right" }, { t: "Estado", alinear: "right" }],
+          d.res.map(function (r) {
+            const cancelada = r[7] === "Cancelada";
+            const espera = r[7] === "En espera";
+            return normaliza([
+              cel(r[0], { color: "var(--texto-suave)" }),
+              cel(r[1], { peso: 600, sub: r[2], corte: "normal" }),
+              cel(r[3], { sub: r[4], corte: "normal" }),
+              cel(r[5]),
+              cel(r[6], { alinear: "right", peso: 600 }),
+              cel(r[7], { alinear: "right", peso: 500, color: cancelada ? "var(--error)" : espera ? "var(--aviso)" : "var(--exito)" })
+            ]);
+          })
+        ),
+        texto({ titulo: "Objetivo de la acción", nota: "Tal como está en el proyecto.", cuerpo: d.obj })
+      ]
+    };
+  };
+});</script>
+</body>
+</html>
