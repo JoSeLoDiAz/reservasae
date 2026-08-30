@@ -30,6 +30,7 @@ export function Desplegable({
   marcador = "Seleccione una opción",
   desactivado,
   id,
+  alto = 32,
 }: {
   valor: string;
   opciones: OpcionDesplegable[];
@@ -37,6 +38,9 @@ export function Desplegable({
   marcador?: string;
   desactivado?: boolean;
   id?: string;
+  /// Para poder cuadrarlo con el campo de al lado: en una barra
+  /// de filtros todo tiene que medir lo mismo.
+  alto?: number;
 }) {
   const [abierto, setAbierto] = useState(false);
   const [marcada, setMarcada] = useState(0);
@@ -154,8 +158,9 @@ export function Desplegable({
         disabled={desactivado}
         onClick={() => setAbierto((v) => !v)}
         onKeyDown={teclas}
+        style={{ height: alto }}
         className={
-          "flex w-full items-center gap-2 rounded-lg border bg-campo-fondo px-3 py-[7px] " +
+          "flex w-full items-center gap-2 rounded-lg border bg-campo-fondo px-3 " +
           "text-left text-[0.78125rem] transition disabled:cursor-not-allowed disabled:opacity-60 " +
           (abierto ? "border-marca" : "border-campo-borde hover:border-marca/60")
         }

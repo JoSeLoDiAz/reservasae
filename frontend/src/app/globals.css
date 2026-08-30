@@ -582,9 +582,43 @@ select[size]:not([size='1']) {
   }
 
   /* expandir los contenedores con scroll */
-  .caja-scroll {
-    max-height: none !important;
+  /*
+   * Y CUALQUIER recorte, no solo `.caja-scroll`. Un ancestro con
+   * `overflow: hidden` no recorta un poco al imprimir: se lleva
+   * el documento entero a una sola pagina. El acordeon del
+   * cronograma lo llevaba, y el PDF salia con una hoja.
+   */
+  /*
+   * En papel NADA recorta. Se pone en todo y no en una lista de
+   * clases: ya se intento con `overflow-hidden` y `overflow-auto`
+   * y se escapo `overflow-clip`, que es otra palabra para lo
+   * mismo. Enumerar recortes es una lista que siempre esta
+   * incompleta.
+   */
+  html,
+  body,
+  body * {
     overflow: visible !important;
+  }
+
+  /*
+   * Y la cascara del panel es una columna flex a la altura de la
+   * VENTANA -- `h-screen` arriba y `min-h-0 grow` bajando --, asi
+   * que sin esto el documento mide una pantalla y el PDF sale de
+   * una sola hoja aunque nada recorte.
+   */
+  html,
+  body,
+  main,
+  main > *,
+  [class*="h-screen"],
+  [class*="h-dvh"],
+  [class*="min-h-0"],
+  [class*="max-h-"],
+  .caja-scroll {
+    height: auto !important;
+    max-height: none !important;
+    min-height: 0 !important;
   }
 
   thead {

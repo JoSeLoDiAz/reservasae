@@ -73,6 +73,8 @@ export default function PaginaCronograma() {
   const [buscar, setBuscar] = useState("");
   const [gremio, setGremio] = useState("");
   const [estado, setEstado] = useState("");
+  const [accionId, setAccionId] = useState("");
+  const [numeroGrupo, setNumeroGrupo] = useState("");
   /// Para imprimir hay que abrirlo todo: un cronograma impreso
   /// con los acordeones cerrados es una hoja de titulos.
   const [imprimiendo, setImprimiendo] = useState(false);
@@ -108,6 +110,8 @@ export default function PaginaCronograma() {
   const sinTildes = (t: string) =>
     t.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
   const aguja = sinTildes(buscar.trim());
+  const grupos = acciones.flatMap((a) => a.grupos);
+
   const visibles = acciones.filter((a) => {
     const coincide =
       !aguja ||
@@ -115,15 +119,47 @@ export default function PaginaCronograma() {
       a.grupos.some((g) =>
         g.ubicaciones.some((u) => sinTildes(u.nombre).includes(aguja)),
       );
-    /// El estado es de un GRUPO, no de la accion: se deja la
-    /// accion que tenga al menos uno en ese estado. Esconder la
-    /// accion entera ocultaria los grupos que si cumplen.
+    /// El estado y el numero son de un GRUPO, no de la accion:
+    /// se deja la accion que tenga al menos uno que cumpla.
+    /// Esconder la accion entera ocultaria los que si cumplen.
     const porEstado = !estado || a.grupos.some((g) => g.estado === estado);
-    return coincide && (!gremio || a.convenio === gremio) && porEstado;
+    const porNumero =
+      !numeroGrupo || a.grupos.some((g) => String(g.numero) === numeroGrupo);
+    return (
+      coincide &&
+      (!gremio || a.convenio === gremio) &&
+      (!accionId || a.id === accionId) &&
+      porEstado &&
+      porNumero
+    );
   });
 
   const gremios = [...new Set(acciones.map((a) => a.convenio))];
-  const hayFiltro = Boolean(aguja || gremio || estado);
+  const numeros = [...new Set(grupos.map((g) => g.numero))].sort((x, y) => x - y);
+  const hayFiltro = Boolean(aguja || gremio || estado || accionId || numeroGrupo);
+
+  /// Las cifras cuentan lo que se esta VIENDO. Antes contaban
+  /// siempre el total y al lado aparecia un «15 de 15» suelto que
+  /// no se sabia a que se referia: la cifra y el filtro decian
+  /// cosas distintas.
+  const gruposVisibles = visibles.flatMap((a) =>
+    a.grupos.filter(
+      (g) =>
+        (!estado || g.estado === estado) &&
+        (!numeroGrupo || String(g.numero) === numeroGrupo),
+    ),
+  );
+  const cuenta = (e: EstadoGrupo) =>
+    gruposVisibles.filter((g) => g.estado === e).length;
+  const deTotal = (n: number) => (hayFiltro ? `de ${n} en total` : null);
+
+  function limpiar() {
+    setBuscar("");
+    setGremio("");
+    setEstado("");
+    setAccionId("");
+    setNumeroGrupo("");
+  }
 
   /// Se abre todo, se deja pintar, y se imprime. El navegador ya
   /// sabe paginar y guardar en PDF; la hoja `@media print` de
@@ -136,7 +172,6 @@ export default function PaginaCronograma() {
     requestAnimationFrame(() => requestAnimationFrame(() => window.print()));
   }
 
-  const grupos = acciones.flatMap((a) => a.grupos);
   const enCurso = grupos.filter((g) => g.estado === "EN_CURSO").length;
   const porEmpezar = grupos.filter((g) => g.estado === "POR_EMPEZAR").length;
   const sinFechas = grupos.filter((g) => g.estado === "SIN_FECHAS").length;
@@ -157,130 +192,153 @@ export default function PaginaCronograma() {
 
   return (
     <div>
-      <header className="flex flex-wrap items-start justify-between gap-4 border-b border-borde bg-superficie px-7 pt-[26px] pb-[22px]">
-        <div className="min-w-0">
-          <h1 className="text-[1.3125rem] font-bold tracking-[-0.02em] text-titulo">
-            Cronograma
-          </h1>
-          <p className="mt-1 text-texto-suave">
-            Fechas de inicio y cierre de cada grupo. El seguimiento académico se
-            calcula contra ellas: sin fechas no es posible establecer el avance de un
-            participante.
-          </p>
-        </div>
-        <button
-          type="button"
-          onClick={exportarPdf}
-          className="sin-aro no-imprimir inline-flex h-[32px] shrink-0 items-center rounded-[9px] border border-campo-borde bg-superficie px-[13px] text-[0.78125rem] font-semibold whitespace-nowrap text-titulo transition hover:border-marca"
-        >
-          Exportar a PDF
-        </button>
+      <header className="border-b border-borde bg-superficie px-7 pt-[26px] pb-[22px]">
+        <h1 className="text-[1.3125rem] font-bold tracking-[-0.02em] text-titulo">
+          Cronograma
+        </h1>
+        <p className="mt-1 text-texto-suave">
+          Aquí se ponen las fechas de cada grupo: cuándo empieza y cuándo termina.
+          Un grupo sin fechas no se puede matricular, y de sus participantes no se
+          puede saber si van al día.
+        </p>
       </header>
 
       {error && <Aviso tipo="error">{error}</Aviso>}
 
-      {/* Las cuatro con pie: con una sola frase debajo, esa
-          tarjeta media mas alta y la fila quedaba descuadrada. */}
-      <div className="grid gap-px border-t border-b border-hairline bg-hairline sm:grid-cols-2 lg:grid-cols-4">
-        <TarjetaCifra
-          compacta
+      {/* Las mismas tarjetas de Gestion de leads: sueltas, con
+          su borde y su curva, y con sombra solo al pasar por
+          encima. Cuentan lo que se esta VIENDO. */}
+      <div className="flex flex-wrap gap-2.5 border-b border-borde bg-superficie px-7 py-3">
+        <Cifra
+          etiqueta="Acciones de formación"
+          valor={visibles.length}
+          pie={deTotal(acciones.length) ?? `en ${gremios.length} convenios`}
+        />
+        <Cifra
           etiqueta="Grupos"
-          valor={grupos.length}
-          pie={`en ${acciones.length} acciones de formación`}
-          icono={IconoFormacion}
+          valor={gruposVisibles.length}
+          pie={deTotal(grupos.length) ?? "con su fecha y su horario"}
         />
-        <TarjetaCifra
-          compacta
+        <Cifra
           etiqueta="En curso"
-          valor={enCurso}
-          pie={enCurso > 0 ? "en desarrollo actualmente" : "ninguno ha iniciado"}
-          tono="exito"
+          valor={cuenta("EN_CURSO")}
+          color="var(--exito)"
+          pie="dictándose hoy"
         />
-        <TarjetaCifra
-          compacta
+        <Cifra
           etiqueta="Por empezar"
-          valor={porEmpezar}
-          pie={terminados > 0 ? `${terminados} ya finalizaron` : "con fecha programada"}
-          tono="neutro"
+          valor={cuenta("POR_EMPEZAR")}
+          color="var(--titulo)"
+          pie="ya tienen fecha"
         />
-        <TarjetaCifra
-          compacta
+        <Cifra
           etiqueta="Sin fechas"
-          valor={sinFechas}
-          pie={sinFechas > 0 ? "impiden matricular" : "programación completa"}
-          tono={sinFechas > 0 ? "error" : "exito"}
+          valor={cuenta("SIN_FECHAS")}
+          color={cuenta("SIN_FECHAS") > 0 ? "var(--error)" : "var(--exito)"}
+          pie={
+            cuenta("SIN_FECHAS") > 0
+              ? "hay que ponérselas"
+              : "no falta ninguna"
+          }
         />
       </div>
 
-      <div className="no-imprimir border-b border-borde bg-superficie px-7 py-4">
-        <div className="flex flex-wrap items-end gap-4">
-          <label className="min-w-[260px] grow basis-[340px]">
-            <span className="mb-1 block text-[0.71875rem] font-semibold text-titulo">
-              Buscar
-            </span>
-            <input
-              className={`${CLASE_CONTROL} h-[38px] text-[0.84375rem]`}
-              placeholder="Código, nombre de la acción o ciudad…"
-              value={buscar}
-              onChange={(e) => setBuscar(e.target.value)}
-            />
-          </label>
+      <div className="no-imprimir flex flex-wrap items-center gap-2.5 border-b border-borde bg-superficie px-7 py-3">
+        <input
+          className="h-[34px] w-[260px] rounded-lg border border-campo-borde bg-campo-fondo px-3 text-[0.78125rem] outline-none transition focus:border-campo-foco"
+          placeholder="Buscar por código, curso o ciudad…"
+          value={buscar}
+          onChange={(e) => setBuscar(e.target.value)}
+        />
 
-          <label className="w-[220px] shrink-0">
-            <span className="mb-1 block text-[0.71875rem] font-semibold text-titulo">
-              Convenio
-            </span>
-            <Desplegable
-              marcador="Todos los convenios"
-              valor={gremio}
-              opciones={[
-                { valor: "", etiqueta: "Todos los convenios" },
-                ...gremios.map((g) => ({ valor: g, etiqueta: g })),
-              ]}
-              alElegir={setGremio}
-            />
-          </label>
-
-          <label className="w-[220px] shrink-0">
-            <span className="mb-1 block text-[0.71875rem] font-semibold text-titulo">
-              Estado del grupo
-            </span>
-            <Desplegable
-              marcador="Todos los estados"
-              valor={estado}
-              opciones={[
-                { valor: "", etiqueta: "Todos los estados" },
-                ...(["EN_CURSO", "POR_EMPEZAR", "TERMINADO", "SIN_FECHAS"] as EstadoGrupo[]).map(
-                  (e) => ({
-                    valor: e,
-                    etiqueta: ETIQUETA_ESTADO_GRUPO[e],
-                    detalle: `${grupos.filter((g) => g.estado === e).length} grupos`,
-                  }),
-                ),
-              ]}
-              alElegir={setEstado}
-            />
-          </label>
-
-          <div className="ml-auto flex items-center gap-4 pb-[7px]">
-            {hayFiltro && (
-              <button
-                type="button"
-                onClick={() => {
-                  setBuscar("");
-                  setGremio("");
-                  setEstado("");
-                }}
-                className="sin-aro text-[0.78125rem] font-semibold text-marca underline-offset-2 transition hover:underline"
-              >
-                Limpiar filtros
-              </button>
-            )}
-            <span className="text-[0.78125rem] text-texto-suave tabular-nums">
-              {visibles.length} de {acciones.length} acciones
-            </span>
-          </div>
+        {/* Todo lo que se puede filtrar sin teclear nada. */}
+        <div className="w-[210px]">
+          <Desplegable
+            alto={34}
+            marcador="Acción de formación"
+            valor={accionId}
+            opciones={[
+              { valor: "", etiqueta: "Todas las acciones" },
+              ...acciones.map((a) => ({
+                valor: a.id,
+                etiqueta: `${a.codigo} · ${bonito(a.nombre)}`,
+                detalle: `${a.convenio} · ${a.grupos.length} grupos`,
+              })),
+            ]}
+            alElegir={setAccionId}
+          />
         </div>
+
+        <div className="w-[160px]">
+          <Desplegable
+            alto={34}
+            marcador="Grupo"
+            valor={numeroGrupo}
+            opciones={[
+              { valor: "", etiqueta: "Todos los grupos" },
+              ...numeros.map((n) => ({
+                valor: String(n),
+                etiqueta: `Grupo ${n}`,
+                detalle: `${grupos.filter((g) => g.numero === n).length} acciones`,
+              })),
+            ]}
+            alElegir={setNumeroGrupo}
+          />
+        </div>
+
+        <div className="w-[170px]">
+          <Desplegable
+            alto={34}
+            marcador="Convenio"
+            valor={gremio}
+            opciones={[
+              { valor: "", etiqueta: "Todos los convenios" },
+              ...gremios.map((g) => ({
+                valor: g,
+                etiqueta: g,
+                detalle: `${acciones.filter((a) => a.convenio === g).length} acciones`,
+              })),
+            ]}
+            alElegir={setGremio}
+          />
+        </div>
+
+        <div className="w-[170px]">
+          <Desplegable
+            alto={34}
+            marcador="Estado"
+            valor={estado}
+            opciones={[
+              { valor: "", etiqueta: "Todos los estados" },
+              ...(["EN_CURSO", "POR_EMPEZAR", "TERMINADO", "SIN_FECHAS"] as EstadoGrupo[]).map(
+                (e) => ({
+                  valor: e,
+                  etiqueta: ETIQUETA_ESTADO_GRUPO[e],
+                  detalle: `${grupos.filter((g) => g.estado === e).length} grupos`,
+                }),
+              ),
+            ]}
+            alElegir={setEstado}
+          />
+        </div>
+
+        {hayFiltro && (
+          <button
+            type="button"
+            onClick={limpiar}
+            className="sin-aro inline-flex h-[34px] items-center rounded-lg border border-borde bg-superficie px-3.5 text-[0.78125rem] font-semibold whitespace-nowrap text-titulo transition hover:border-marca"
+          >
+            Quitar filtros
+          </button>
+        )}
+
+        <button
+          type="button"
+          onClick={exportarPdf}
+          className="sin-aro ml-auto inline-flex h-[34px] items-center rounded-lg border border-borde bg-superficie px-3.5 text-[0.78125rem] font-semibold whitespace-nowrap text-titulo transition hover:border-marca"
+        >
+          Exportar a PDF
+        </button>
       </div>
 
       {visibles.length === 0 ? (
@@ -308,6 +366,8 @@ export default function PaginaCronograma() {
                 <Accion
                   key={a.id}
                   accion={a}
+                  estado={estado}
+                  numeroGrupo={numeroGrupo}
                   abierta={abierta === a.id}
                   imprimiendo={imprimiendo}
                   alAbrir={() => setAbierta(abierta === a.id ? null : a.id)}
@@ -324,9 +384,49 @@ export default function PaginaCronograma() {
   );
 }
 
+/**
+ * La tarjeta de cifra de Gestión de leads, tal cual: suelta, con
+ * su borde y su curva, y sombra solo al pasar por encima — que es
+ * lo único que puede flotar en el contenido.
+ */
+function Cifra({
+  etiqueta,
+  valor,
+  pie,
+  color = "var(--titulo)",
+}: {
+  etiqueta: string;
+  valor: number;
+  pie?: string | null;
+  color?: string;
+}) {
+  return (
+    <div
+      className={
+        "min-w-[150px] flex-1 rounded-lg border border-borde bg-superficie px-3.5 py-2 transition " +
+        "hover:border-marca/40 hover:shadow-[0_2px_14px_-6px_rgba(15,23,42,0.28)]"
+      }
+    >
+      <div className="truncate leading-none text-texto-suave" style={{ fontSize: "0.6875rem" }} title={etiqueta}>
+        {etiqueta}
+      </div>
+      <div className="mt-1 font-bold leading-none tabular-nums" style={{ fontSize: "1.0625rem", color }}>
+        {valor}
+      </div>
+      {pie && (
+        <div className="mt-1 truncate leading-none text-texto-suave" style={{ fontSize: "0.6875rem" }}>
+          {pie}
+        </div>
+      )}
+    </div>
+  );
+}
+
 /** Una acción, plegada. Al abrirla salen sus grupos. */
 function Accion({
   accion,
+  estado,
+  numeroGrupo,
   abierta,
   imprimiendo,
   alAbrir,
@@ -335,6 +435,8 @@ function Accion({
   alFallar,
 }: {
   accion: AccionCronograma;
+  estado: string;
+  numeroGrupo: string;
   abierta: boolean;
   imprimiendo: boolean;
   alAbrir: () => void;
@@ -342,6 +444,14 @@ function Accion({
   alGuardar: () => Promise<void>;
   alFallar: (m: string) => void;
 }) {
+  /// Los mismos filtros dentro: abrir una accion filtrada por
+  /// «sin fechas» y ver los ocho grupos seria contradecir el
+  /// filtro que la trajo hasta aqui.
+  const suyos = accion.grupos.filter(
+    (g) =>
+      (!estado || g.estado === estado) &&
+      (!numeroGrupo || String(g.numero) === numeroGrupo),
+  );
   const ventana = ventanaDe(accion.grupos);
   const enCurso = accion.grupos.filter((g) => g.estado === "EN_CURSO").length;
 
@@ -386,7 +496,7 @@ function Accion({
                 {enCurso} en curso
               </span>
             ) : (
-              "programación completa"
+              `${accion.grupos.length} ${accion.grupos.length === 1 ? "grupo" : "grupos"} con fecha`
             )}
           </span>
         </span>
@@ -400,15 +510,15 @@ function Accion({
 
       {(abierta || imprimiendo) && (
         <div className="border-t border-hairline bg-superficie-alterna px-7 pt-4 pb-5">
-          {accion.grupos.length === 0 ? (
+          {suyos.length === 0 ? (
             <p className="text-[0.78125rem] text-texto-suave">
-              No hay grupos registrados para esta acción de formación.
+              No hay grupos que coincidan con los filtros aplicados.
             </p>
           ) : (
             /// En dos columnas: ocho grupos apilados dejaban la
             /// pagina larguisima y la mitad derecha vacia.
             <div className="grid gap-3 xl:grid-cols-2">
-              {accion.grupos.map((g) => (
+              {suyos.map((g) => (
                 <Grupo
                   key={g.id}
                   grupo={g}
