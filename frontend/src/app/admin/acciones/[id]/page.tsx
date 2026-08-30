@@ -398,6 +398,7 @@ export default function DetalleDeAccion({ params }: { params: Promise<{ id: stri
       <div className="imprimible-bloque">
         <Bloque
           estirado
+          partible
           titulo="Detalle por ubicación"
           descripcion={`${datos.ofertas.length} ubicaciones. El cupo se descuenta contra estas filas.`}
         >
@@ -470,6 +471,7 @@ export default function DetalleDeAccion({ params }: { params: Promise<{ id: stri
 
       <div className="imprimible-bloque imprimible-salto">
         <Bloque
+          partible
           titulo="Reservas"
           descripcion={`${activas.length} activas de ${datos.reservas.length} registradas.`}
         >

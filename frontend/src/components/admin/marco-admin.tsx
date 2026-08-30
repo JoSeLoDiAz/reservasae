@@ -541,8 +541,8 @@ function FilaResumen({
         }}
         className={`mb-2 flex h-[34px] w-[34px] items-center justify-center self-center rounded-full border transition ${
           activo
-            ? "border-titulo bg-titulo text-superficie"
-            : "border-borde text-texto-suave hover:border-texto-suave hover:text-titulo"
+            ? "border-current bg-current text-encabezado-fondo"
+            : "border-current/25 opacity-70 hover:border-current/60 hover:opacity-100"
         }`}
       >
         <IconoResumen tamano={17} />
@@ -775,7 +775,7 @@ function Grupos({
               key={modulo.clave}
               type="button"
               onClick={() => alDesplegar?.(modulo.clave)}
-              title={`${modulo.etiqueta} — ${modulo.descripcion}`}
+              title={modulo.etiqueta}
               aria-expanded={false}
               /// Circulo de 34 con borde de 1px, no un cuadro
               /// relleno: el rail sin etiquetas ya es bastante
@@ -790,8 +790,8 @@ function Grupos({
               /// donde esta uno es lo unico que se tiene.
               className={`mb-2 flex h-[34px] w-[34px] items-center justify-center self-center rounded-full border transition ${
                 activo
-                  ? "border-titulo bg-titulo text-superficie"
-                  : "border-borde text-texto-suave hover:border-texto-suave hover:text-titulo"
+                  ? "border-current bg-current text-encabezado-fondo"
+                  : "border-current/25 opacity-70 hover:border-current/60 hover:opacity-100"
               }`}
             >
               {(() => {
@@ -811,7 +811,7 @@ function Grupos({
                 type="button"
                 onClick={() => alternar(modulo.clave)}
                 aria-expanded={desplegado}
-                title={modulo.descripcion}
+                title={modulo.etiqueta}
                 /// 13px y peso 600, que es la medida del
                 /// redisenio para el modulo. De paso cabe:
                 /// a 14px «Gestion de Inscripciones» y
@@ -872,7 +872,7 @@ function Grupos({
                       {activo && (
                         <span
                           aria-hidden
-                          className="absolute top-1.5 bottom-1.5 -left-1 w-[3px] rounded-full bg-marca"
+                          className="absolute top-1.5 bottom-1.5 -left-1 w-[3px] rounded-full bg-current"
                         />
                       )}
                       <span className="truncate">{enlace.etiqueta}</span>

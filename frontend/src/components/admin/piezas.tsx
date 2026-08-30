@@ -86,6 +86,7 @@ export function Bloque({
   acciones,
   sinRelleno,
   estirado,
+  partible,
   children,
 }: {
   titulo?: string;
@@ -96,17 +97,28 @@ export function Bloque({
   sinRelleno?: boolean;
   /** Que ocupe todo el alto: dos bloques de una fila miden igual. */
   estirado?: boolean;
+  /**
+   * Que pueda partirse entre hojas al imprimir.
+   *
+   * Por omisión un bloque NO se parte: se muda entero a la hoja
+   * siguiente. Eso está bien para los cortos y es justo lo que
+   * deja media página en blanco cuando el bloque es una tabla de
+   * catorce filas. Los largos se marcan aquí, y entonces parten
+   * por fila, con su cabecera repetida.
+   */
+  partible?: boolean;
   children: React.ReactNode;
 }) {
   return (
     <section
       className={
         "overflow-hidden rounded-lg border border-borde bg-superficie " +
-        (estirado ? "flex h-full flex-col" : "")
+        (partible ? "bloque-partible " : "bloque-entero ") +
+        (estirado ? "bloque-estirado flex h-full flex-col" : "")
       }
     >
       {(titulo || acciones) && (
-        <div className="flex flex-wrap items-start justify-between gap-3 border-b border-borde bg-marca-suave px-7 py-3">
+        <div className="cabecera-de-bloque flex flex-wrap items-start justify-between gap-3 border-b border-borde bg-marca-suave px-7 py-3">
           <div className="min-w-0">
             {titulo && (
               <h2 className="text-[0.875rem] font-semibold text-titulo">{titulo}</h2>

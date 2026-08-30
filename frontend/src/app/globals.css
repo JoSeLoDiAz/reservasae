@@ -604,20 +604,81 @@ select[size]:not([size='1']) {
   }
 
   /*
-   * En papel la cabecera de bloque va con un teñido MUY leve. En
-   * pantalla `marca-suave` separa; impreso, una franja de color
-   * cada cinco centimetros se come la tinta y compite con el
-   * texto, que es lo que se viene a leer.
+   * En papel la cabecera de bloque va SIN teñir. En pantalla
+   * `marca-suave` separa unos bloques de otros; impreso, una
+   * franja de color cada cinco centimetros se come la tinta y
+   * compite con el texto, que es lo que se viene a leer. La raya
+   * de abajo ya separa.
    */
-  .solo-impresion .titulo-de-accion,
-  section > div:first-child {
-    background: color-mix(in oklab, var(--marca-suave) 45%, #ffffff) !important;
+  /*
+   * En papel, las rejillas de la pantalla pasan a flujo.
+   *
+   * Una rejilla de dos columnas al paginar no reparte: empuja la
+   * fila entera a la hoja siguiente y deja el hueco abierto bajo
+   * la cabecera. En pantalla la rejilla gana espacio; en papel
+   * las hojas son gratis y lo que importa es que no haya huecos.
+   *
+   * Se deja fuera lo que se dibuja CON rejilla -- la grafica de
+   * barras -- que en flujo se desarma.
+   */
+  section [class*="grid-cols"]:not([class*="flex"]) {
+    display: block !important;
+  }
+  section [class*="grid-cols"] > * {
+    break-inside: avoid;
+  }
+  /* los divisores verticales no significan nada en una columna */
+  section [class*="divide-x"] > * {
+    border-left: 0 !important;
   }
 
-  /* y las secciones, mas apretadas: en papel no hay que respirar */
-  section > div {
-    padding-top: 8px !important;
-    padding-bottom: 8px !important;
+  /*
+   * Un bloque, o cabe entero o se parte. No hay termino medio y
+   * no lo puede decidir el CSS, que no sabe cuanto mide: lo dice
+   * quien escribe la pantalla con `partible`.
+   *
+   * `bloque-entero` se muda completo a la hoja siguiente si no
+   * cabe -- bien para los cortos. `bloque-partible` fluye y
+   * parte por fila, que es lo unico razonable en una tabla de
+   * catorce.
+   */
+  /*
+   * `estirado` existe para que dos bloques de una fila midan lo
+   * mismo EN PANTALLA. En papel no hay fila -- las rejillas ya
+   * fluyen -- y ese `h-full` deja una caja con borde y sin nada
+   * dentro al final de la hoja.
+   */
+  .bloque-estirado {
+    display: block !important;
+    height: auto !important;
+  }
+  .bloque-estirado > div {
+    min-height: 0 !important;
+    flex: none !important;
+  }
+
+  .bloque-entero {
+    break-inside: avoid;
+  }
+  .bloque-partible {
+    break-inside: auto;
+  }
+  /* una cabecera nunca cierra una hoja */
+  .cabecera-de-bloque,
+  .solo-impresion .titulo-de-accion {
+    break-after: avoid;
+  }
+  /* y dentro de un partible, la fila no se corta por la mitad */
+  .bloque-partible tr,
+  .bloque-partible li,
+  .bloque-partible [class*="grid-cols"] > * {
+    break-inside: avoid;
+  }
+
+  .cabecera-de-bloque {
+    background: transparent !important;
+    padding-top: 7px !important;
+    padding-bottom: 7px !important;
   }
 
   .imprimible-salto {
