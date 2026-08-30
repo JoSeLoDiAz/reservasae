@@ -301,23 +301,31 @@ const ESTADOS: Record<
 > = {
   DISPONIBLE: {
     texto: "Disponible",
-    clase: "bg-exito-suave text-exito",
+    clase: "text-exito",
     icono: <IconoCirculoCheck />,
   },
   ULTIMOS_CUPOS: {
     texto: "Últimos cupos",
-    clase: "bg-aviso-suave text-aviso",
+    clase: "text-aviso",
     icono: <IconoTriangulo />,
   },
-  COMPLETO: { texto: "Completo", clase: "bg-error-suave text-error", icono: <IconoCirculoX /> },
+  COMPLETO: { texto: "Completo", clase: "text-error", icono: <IconoCirculoX /> },
 };
 
-/** Icono + texto, nunca solo color. */
+/**
+ * Icono + texto, nunca solo color.
+ *
+ * Sin fondo tenido: el color va en la letra y en el icono. Era
+ * una pildora rellena, y en una tabla de catorce ubicaciones
+ * catorce rectangulos de color pesan mas que las cifras que uno
+ * vino a comparar. El icono se queda -- es lo que hace que el
+ * estado se lea en papel y sin distinguir el color.
+ */
 export function EtiquetaEstado({ estado }: { estado: EstadoSemaforo }) {
   const e = ESTADOS[estado];
   return (
     <span
-      className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-2.5 py-0.5 text-xs font-medium ${e.clase}`}
+      className={`inline-flex items-center gap-1.5 whitespace-nowrap text-[0.75rem] font-semibold ${e.clase}`}
     >
       {e.icono}
       {e.texto}

@@ -241,7 +241,7 @@ export default function PaginaInstituciones() {
   /// bandas vayan a sangre, y sin esto la barra de
   /// busqueda y la paginacion quedaban pegadas al canto.
   return (
-    <div className="flex min-h-0 grow flex-col gap-4 px-7 pt-5">
+    <div className="flex min-h-0 grow flex-col">
       <header className="border-b border-borde bg-superficie px-7 pt-[26px] pb-[22px]">
         {/* sin título: lo dice la miga. La cifra se fue al
             lado del buscador, que es donde se mira cuando uno
@@ -255,6 +255,7 @@ export default function PaginaInstituciones() {
         </p>
       </header>
 
+      <div className="flex min-h-0 grow flex-col gap-4 px-7 pt-4">
       {error && <Aviso tipo="error">{error}</Aviso>}
 
       {!listado && cargando && <p className="text-texto-suave">Cargando…</p>}
@@ -293,6 +294,7 @@ export default function PaginaInstituciones() {
 
         </>
       )}
+      </div>
     </div>
   );
 }
