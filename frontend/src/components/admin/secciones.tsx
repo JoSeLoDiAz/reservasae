@@ -705,15 +705,33 @@ export type TramoDeEmbudo = {
  * estar en cualquiera de los seis.
  */
 export function Embudo({
-  total,
   tramos,
   sinAsesor,
+  enLaVista,
 }: {
-  total: number;
   tramos: TramoDeEmbudo[];
   sinAsesor?: number;
+  /// Cuántos está enseñando la tabla de abajo. Solo se pinta
+  /// cuando NO coincide con el total del embudo.
+  enLaVista?: number;
 }) {
-  const suma = tramos.reduce((a, t) => a + t.total, 0) || 1;
+  /// El total sale de sumar los tramos, no viene aparte.
+  ///
+  /// Venía del resumen del servidor y decía 56 mientras la
+  /// barra dibujaba 49: se estaban pintando solo las etapas de
+  /// avance y los que ya salieron -- perdidos, retirados -- no
+  /// entraban en el dibujo pero sí en la cifra. Una barra cuyas
+  /// partes no suman lo que dice el número de al lado no se
+  /// puede leer.
+  const total = tramos.reduce((a, t) => a + t.total, 0);
+  const suma = total || 1;
+
+  /// Y el rótulo decía «en esta vista», que era falso: el
+  /// resumen se pide SIN los filtros de la persona a propósito,
+  /// para que al filtrar por «Contactado» el contador de
+  /// Contactado no pase a ser el total. Es el mapa del
+  /// conjunto, no de lo filtrado, y ahora lo dice.
+  const distinto = enLaVista !== undefined && enLaVista !== total;
 
   return (
     <div className="flex flex-wrap items-center gap-5 border-t border-hairline py-[11px]">
@@ -722,7 +740,16 @@ export function Embudo({
         style={{ fontSize: T.menudo }}
       >
         <span className="font-bold tabular-nums text-titulo">{total}</span>{" "}
-        registros en esta vista
+        {distinto ? "en total" : "registros"}
+        {distinto && (
+          <>
+            {" · "}
+            <span className="font-bold tabular-nums text-titulo">
+              {enLaVista}
+            </span>{" "}
+            con el filtro puesto
+          </>
+        )}
       </div>
 
       <div className="flex h-1 min-w-[220px] flex-1 overflow-hidden rounded-sm bg-superficie-alterna">

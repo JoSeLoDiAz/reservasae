@@ -155,11 +155,17 @@ export default function PaginaParticipantes() {
           asi que va en barra y no en seis cifras sueltas. */}
       {hayAlguien && (
         <div className="-mt-1">
+          {/* TODAS las etapas con gente, no solo las de avance.
+              Con solo las de avance la barra dibujaba 49 y el
+              numero decia 56: los que ya salieron -- perdidos,
+              retirados -- no entraban en el dibujo pero si en la
+              cifra. Y quien se fue tambien es parte del embudo:
+              es justo lo que hay que mirar. */}
           <Embudo
-            total={resumen.total}
             sinAsesor={resumen.sinAsesor}
+            enLaVista={total}
             tramos={resumen.etapas
-              .filter((e) => ETAPAS_AVANCE.includes(e.etapa))
+              .filter((e) => e.total > 0)
               .map((e) => ({
                 etiqueta: ETIQUETA_ETAPA[e.etapa],
                 total: e.total,
