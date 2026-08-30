@@ -13,6 +13,7 @@ import {
   Min,
 } from 'class-validator';
 
+import { aNumeroOAusente as aNumero } from '../comun/campo-vacio';
 import { ClasificacionEmpresa, TamanoEmpresa } from '../../generated/prisma';
 
 const recortar = ({ value }: { value: unknown }) =>
@@ -24,10 +25,6 @@ const aTexto = ({ value }: { value: unknown }) =>
     ? undefined
     : recortar({ value });
 
-const aNumero = ({ value }: { value: unknown }) =>
-  value === '' || value === null || value === undefined
-    ? undefined
-    : Number(value);
 
 /**
  * Lo que un humano corrige de una ficha.

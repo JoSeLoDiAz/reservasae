@@ -30,6 +30,13 @@ export const ACCIONES = [
   /// seguidas que se contradicen. Con una sola no se ve
   /// nada; con las dos, se ve.
   'SITUACION_LABORAL_DECLARADA',
+  /// Se cambió de organización desde su propio enlace.
+  ///
+  /// Corregirse es legítimo, pero cambia de quién se la
+  /// reporta al SENA y el F7 va por organización. Sin dejarlo
+  /// escrito, el cambio pasa en silencio y despues nadie puede
+  /// explicar por que esa ficha cuenta en otra empresa.
+  'ORGANIZACION_CAMBIADA',
 ] as const;
 
 export type Accion = (typeof ACCIONES)[number];

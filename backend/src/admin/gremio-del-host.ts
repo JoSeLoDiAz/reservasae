@@ -34,7 +34,7 @@ const PATRON = /^[a-z0-9]+(-[a-z0-9]+)*$/;
 
 export type ConvenioConSlug = { id: string; slug: string };
 
-/** La primera etiqueta del dominio, limpia. */
+/** La primera etiqueta del dominio, limpia y sin `pre-`. */
 export function etiquetaDelHost(host?: string | null): string | null {
   if (!host) return null;
 
@@ -51,14 +51,22 @@ export function etiquetaDelHost(host?: string | null): string | null {
   if (!primera || RESERVADOS.has(primera)) return null;
   if (!PATRON.test(primera)) return null;
 
-  /// El prefijo de pruebas se quita DESPUES de validar el
-  /// patron, no antes: asi `pre-` a secas —que quedaria en
-  /// cadena vacia— no llega a colarse como etiqueta.
+  /// Se quita DESPUES de validar el patron, nunca antes.
+  ///
+  /// Asi `//malo` se rechaza por no ser un dominio y no por
+  /// parecerse a un prefijo, y `pre-` a secas —que quedaria en
+  /// cadena vacia— tampoco llega a colarse como etiqueta.
   const sinPrefijo = primera.startsWith(PREFIJO_DE_PRUEBAS)
     ? primera.slice(PREFIJO_DE_PRUEBAS.length)
     : primera;
 
-  return sinPrefijo || null;
+  /// Y lo RESERVADO se comprueba otra vez, ya sin prefijo.
+  ///
+  /// Sin esta segunda vuelta, `pre-prueba` se convierte en
+  /// `prueba` y se cuela justo por el nombre que la primera
+  /// comprobacion aparta. Su spec lo fija.
+  if (!sinPrefijo || RESERVADOS.has(sinPrefijo)) return null;
+  return sinPrefijo;
 }
 
 /**

@@ -89,6 +89,8 @@ export type FichaAbierta = {
   /// Lo que le falta A LA EMPRESA. Vacío: no hay nada que
   /// preguntarle de su organización.
   faltaDeLaEmpresa: string[];
+  /// Lo que le falta con la MISMA regla del panel.
+  faltaDeLaPersona: string[];
   cargoEnEmpresa: string | null;
   nivelOcupacionalSepId: number | null;
   beneficiarioPrevio: boolean | null;

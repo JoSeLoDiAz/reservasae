@@ -13,15 +13,11 @@ import {
   MaxLength,
   Min,
 } from 'class-validator';
+import { aNumeroOAusente as aNumero } from '../comun/campo-vacio';
 
 const recortar = ({ value }: { value: unknown }) =>
   typeof value === 'string' ? value.trim() : value;
 
-/// "" del formulario vale como "no lo puso".
-const aNumero = ({ value }: { value: unknown }) =>
-  value === '' || value === null || value === undefined
-    ? undefined
-    : Number(value);
 
 const aTexto = ({ value }: { value: unknown }) =>
   typeof value === 'string' && value.trim() === ''

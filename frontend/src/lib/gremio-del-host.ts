@@ -17,7 +17,21 @@ const RESERVADOS = new Set(["www", "prueba", "api", "localhost", "127"]);
 /// `//malo`, y metida en una URL saca la peticion del origen.
 const PATRON = /^[a-z0-9]+(-[a-z0-9]+)*$/;
 
-/** La primera etiqueta del dominio, limpia. */
+/// El prefijo del entorno de pruebas, que NO es del gremio.
+///
+/// `pre-adecopria` y `adecopria` son el MISMO gremio en dos
+/// entornos: los separa el tunel al que apunta el DNS, no la
+/// etiqueta. Aqui hace falta porque el middleware reescribe la
+/// raiz a `/<slug>/preinscripcion`, y `/pre-adecopria/...` no
+/// es ninguna ruta.
+///
+/// Se quita IGUAL que en el backend y a proposito: dos fuentes
+/// para la misma decision acaban discrepando, y este proyecto
+/// ya tuvo el formulario de un gremio bajo la marca del otro
+/// por exactamente eso.
+const PREFIJO_DE_PRUEBAS = "pre-";
+
+/** La primera etiqueta del dominio, limpia y sin `pre-`. */
 export function etiquetaDelHost(host?: string | null): string | null {
   if (!host) return null;
 
@@ -31,5 +45,12 @@ export function etiquetaDelHost(host?: string | null): string | null {
   const primera = partes[0];
   if (!primera || RESERVADOS.has(primera)) return null;
   if (!PATRON.test(primera)) return null;
-  return primera;
+
+  // se quita DESPUES de validar, igual que en el backend
+  const sinPrefijo = primera.startsWith(PREFIJO_DE_PRUEBAS)
+    ? primera.slice(PREFIJO_DE_PRUEBAS.length)
+    : primera;
+
+  if (!sinPrefijo || RESERVADOS.has(sinPrefijo)) return null;
+  return sinPrefijo;
 }

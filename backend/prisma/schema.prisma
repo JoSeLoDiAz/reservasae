@@ -599,6 +599,12 @@ enum OrigenLead {
   /// Llegó solo: el formulario público, un referido, una
   /// llamada.
   ORGANICO
+  /// Lo cargó el equipo: empresa, asesor, referido o feria.
+  ///
+  /// Faltaba, y `origenDeLead()` ya lo devolvía: es su caso por
+  /// omisión. La migración de `toques_de_origen` lo escribía y
+  /// moría con «invalid input value for enum».
+  IMPORTACION
 }
 
 /// Por donde entraron los datos de una importacion.

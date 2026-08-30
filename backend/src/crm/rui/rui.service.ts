@@ -101,7 +101,7 @@ export class RuiService {
     const c = await this.prisma.consultaRui.findFirst({
       where: { personaId, estado: EstadoConsultaRui.LISTA },
       orderBy: { creadoEn: 'desc' },
-      select: { nombreEncontrado: true, simulado: true },
+      select: { id: true, nombreEncontrado: true, simulado: true },
     });
 
     if (!c?.nombreEncontrado) {
@@ -134,6 +134,25 @@ export class RuiService {
         segundoNombre: partes.segundoNombre || null,
         primerApellido: partes.primerApellido,
         segundoApellido: partes.segundoApellido || null,
+      },
+    });
+
+    /// Y la consulta deja de estar en discrepancia.
+    ///
+    /// Sin esto se cambiaba el nombre y la tarjeta seguía
+    /// diciendo «los dos nombres no coinciden», comparando el
+    /// del RUI contra un `nombreTecleado` que ya no existía en
+    /// ninguna parte. El asesor pulsaba «Sí», veía que no pasaba
+    /// nada, y volvía a pulsar.
+    ///
+    /// Ahora coinciden porque el tecleado ES el del RUI: no se
+    /// está tapando una discrepancia, se está registrando que
+    /// se resolvió.
+    await this.prisma.consultaRui.update({
+      where: { id: c.id },
+      data: {
+        nombreTecleado: c.nombreEncontrado,
+        nombreCoincide: true,
       },
     });
 
@@ -267,6 +286,22 @@ export class RuiService {
   /// Toma una y la marca EN_CURSO en la misma sentencia.
   /// SKIP LOCKED es lo que permite levantar un segundo
   /// worker sin que los dos agarren la misma fila.
+  ///
+  /// Y RECUPERA las que quedaron colgadas.
+  ///
+  /// Antes solo miraba `PENDIENTE`, así que una consulta que el
+  /// worker ya había tomado cuando el proceso murió se quedaba
+  /// en `EN_CURSO` PARA SIEMPRE: nadie la volvía a coger y la
+  /// ficha decía «consultando…» sin avanzar nunca. Pasó en
+  /// producción con un despliegue —el contenedor se recrea y
+  /// mata al worker a media consulta—, y pasaría igual con un
+  /// reinicio o un failover de sede.
+  ///
+  /// Cinco minutos es holgado a propósito: la consulta al
+  /// portal tarda 25 segundos como mucho, así que una fila
+  /// tomada hace cinco minutos es de un worker que ya no
+  /// existe. Y `INTENTOS_MAXIMOS` impide que una que falla
+  /// siempre se quede dando vueltas.
   async tomarSiguiente() {
     const filas = await this.prisma.$queryRaw<
       Array<{
@@ -281,6 +316,8 @@ export class RuiService {
       WHERE "id" = (
         SELECT "id" FROM "consultas_rui"
         WHERE "estado" = 'PENDIENTE'
+           OR ("estado" = 'EN_CURSO'
+               AND "tomadaEn" < NOW() - INTERVAL '5 minutes')
         ORDER BY "prioridad" DESC, "creadoEn" ASC
         FOR UPDATE SKIP LOCKED
         LIMIT 1

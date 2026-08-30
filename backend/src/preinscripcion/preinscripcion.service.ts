@@ -27,6 +27,9 @@ import {
   NIVELES_OCUPACIONALES_SEP,
 } from '../crm/catalogos-sep';
 import { faltaDeLaPersona } from '../crm/completitud';
+import { DirectorioService } from '../crm/directorio.service';
+import { aQueOrganizacionSeAta } from './organizacion-de-la-ficha';
+import { entraAlDirectorio } from './entra-al-directorio';
 import { faltaDeLaEmpresa } from './empresa-incompleta';
 import { ColaRui } from '../crm/rui/cola-rui';
 import { CARACTERIZACION_POR_ID } from '../crm/catalogos-sep';
@@ -51,6 +54,7 @@ export class PreinscripcionService {
     private readonly colaRui: ColaRui,
     private readonly auditoria: AuditoriaService,
     private readonly correo: CorreoService,
+    private readonly directorio: DirectorioService,
   ) {}
 
   /** Lo que el formulario necesita para dibujarse. */
@@ -665,6 +669,18 @@ ${this.urlPublica()}/completar/${enlace.token}
       /// su organización, y entonces ese paso del formulario
       /// no tiene por qué existir para esta persona.
       faltaDeLaEmpresa: suya ? faltaDeLaEmpresa(suya) : [],
+      /// Lo que le falta A ELLA, con la MISMA regla del panel.
+      ///
+      /// El formulario tenía su propia lista y no coincidía:
+      /// decía «sus datos están completos» mientras el panel
+      /// decía «le falta un dato». Peor, el dato que faltaba era
+      /// el municipio, que esta pantalla ni preguntaba — así que
+      /// generar otro enlace no arreglaba nada y la ficha
+      /// quedaba imposible de completar.
+      faltaDeLaPersona: faltaDeLaPersona({
+        persona: persona as never,
+        nivelOcupacionalSepId: p.nivelOcupacionalSepId,
+      }),
       cargoEnEmpresa: p.cargoEnEmpresa,
       nivelOcupacionalSepId: p.nivelOcupacionalSepId,
       beneficiarioPrevio: p.beneficiarioPrevio,
@@ -1078,8 +1094,80 @@ ${this.urlPublica()}/completar/${enlace.token}
       contactoCorreo: dto.contactoCorreo,
     };
 
-    // la de la reserva manda y no se cambia: la nominó ella
-    const suya = p.reserva?.empresaId ?? p.empresaId ?? null;
+    /// La de la RESERVA manda y no se cambia: la nominó ella.
+    ///
+    /// La suya propia SÍ se cambia, y ahí estaba el defecto:
+    /// `p.empresaId` no es una nominación, es su respuesta
+    /// anterior. Corregirla es justo para lo que existe este
+    /// enlace.
+    ///
+    /// Con las dos en el mismo `??`, quien volvía diciendo «me
+    /// equivoqué, trabajo en Vise LTDA» reescribía la
+    /// organización VIEJA con los datos de la nueva. Y como el
+    /// NIT y la razón social no van en `datos`, quedaba una
+    /// fila imposible: el NIT y el nombre de la primera con la
+    /// persona de contacto de la segunda. Visto en producción,
+    /// y la organización nueva no llegaba a crearse.
+    const nitPedido = dto.nit ? dto.nit.replace(/\D/g, '') : null;
+
+    const laDeAhora = p.empresaId
+      ? await this.prisma.empresa.findUnique({
+          where: { id: p.empresaId },
+          select: { id: true, nit: true },
+        })
+      : null;
+
+    /// Al cambiarse cae en la rama del NIT, que hace `upsert` y
+    /// vuelve a atar la ficha. La vieja se queda como estaba:
+    /// puede tener a otra gente detrás.
+    const { atar: suya, cambia: seCambia } = aQueOrganizacionSeAta({
+      nominadaPorReserva: p.reserva?.empresaId ?? null,
+      suyaAhora: laDeAhora,
+      nitQueDice: nitPedido,
+    });
+
+    /// Cambiar de organización queda escrito, como la
+    /// contradicción de situación laboral.
+    ///
+    /// No es un error de la persona —corregirse es legítimo—
+    /// pero sí cambia de quién se la reporta al SENA, y el F7
+    /// va por organización. Sin esta línea el cambio ocurría en
+    /// silencio y nadie podía explicar después por qué esa
+    /// ficha cuenta en otra empresa.
+    if (seCambia && laDeAhora) {
+      await this.auditoria.registrar({
+        actor: { nombre: 'La persona, desde su enlace' },
+        accion: 'ORGANIZACION_CAMBIADA',
+        entidad: ENTIDADES.PARTICIPANTE,
+        entidadId: p.id,
+        convenioId: p.convenioId,
+        resumen:
+          `Cambió de organización: antes NIT ${laDeAhora.nit}, ` +
+          `ahora NIT ${nitPedido}${dto.razonSocial ? ` (${dto.razonSocial})` : ''}`,
+      });
+
+      /// Y en «Cambios realizados», que es donde se mira.
+      ///
+      /// La auditoría de arriba responde «quién hizo qué»; esta
+      /// fila responde «qué decía antes», y son dos preguntas
+      /// distintas — está escrito en la propia pantalla. Sin
+      /// ella, el cambio existía en el registro pero la ficha
+      /// no enseñaba de qué organización venía.
+      ///
+      /// El histórico solo lo escribía el panel. Por esta
+      /// puerta —la pública— no se guardaba nada, y es
+      /// justamente la que usa la persona para corregirse.
+      await this.prisma.valorAnterior.create({
+        data: {
+          participanteId: p.id,
+          campo: 'empresaNit',
+          clase: 'FORMACION',
+          valorAnterior: laDeAhora.nit,
+          habiaValor: true,
+          actorNombre: 'La persona, desde su enlace',
+        },
+      });
+    }
 
     if (suya) {
       await this.prisma.empresa.update({ where: { id: suya }, data: datos });
@@ -1117,6 +1205,46 @@ ${this.urlPublica()}/completar/${enlace.token}
         where: { id: p.id },
         data: { empresaId: empresa.id },
       });
+
+      /// Y entra al DIRECTORIO, marcada como tecleada.
+      ///
+      /// `empresas` e `instituciones` son dos tablas distintas
+      /// a propósito: la primera son las organizaciones del
+      /// CRM, la segunda el maestro de NIT compartido entre los
+      /// gremios. Nadie las conectaba, así que una organización
+      /// que llegaba por el formulario público no aparecía en
+      /// «Empresas registradas» ni la veía el buscador del
+      /// RUES, que trabaja sobre el directorio.
+      ///
+      /// Va por `agregarManual`, que la marca `fuente: HUMANO`:
+      /// es texto que escribió una persona, no una fuente
+      /// oficial, y esa marca es lo que permite revisarla
+      /// después y que el RUES la corrija.
+      ///
+      /// No se hace en la rama del RUT propio: ahí el NIT es la
+      /// CÉDULA de alguien, y el directorio es una tabla
+      /// compartida de organizaciones. Meter cédulas ahí es
+      /// esparcir un dato personal a un sitio que nadie
+      /// consideró personal.
+      if (
+        entraAlDirectorio({
+          nit,
+          razonSocial: dto.razonSocial ?? '',
+          esRutPropio: false,
+        })
+      ) {
+        try {
+          await this.directorio.agregarManual(nit, dto.razonSocial!);
+        } catch (e) {
+          /// Que no llegue al directorio NO puede tumbar la
+          /// inscripción: es un apunte de apoyo, y la persona
+          /// ya dijo lo suyo.
+          this.log.warn(
+            `No se pudo apuntar el NIT ${nit} en el directorio: ` +
+              (e instanceof Error ? e.message : String(e)),
+          );
+        }
+      }
     } else if (dto.rutPropio) {
       // su cedula es su RUT: la persona es su propia unidad
       // economica y asi la reporta el F7

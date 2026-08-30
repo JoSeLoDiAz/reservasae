@@ -942,6 +942,30 @@ avisando de algo que el cliente iba a notar.
 > leads de Meta sencillamente no entran. Se comprueban desde el
 > panel, en **Configuración → Webhook de Meta**, que dice cuál
 > falta y de dónde sale. Ver [docs/webhook-meta.md](docs/webhook-meta.md).
+>
+> **Y las dos del RUI, que produccion no tenia (29 ago 2026):**
+> `RUI_WORKER=1` y `RUI_PROVEEDOR=VENTANILLA`. Sin ellas el
+> backend sube igual, el trabajador queda **apagado** y toda
+> consulta la contesta el **simulador**. La ficha lo dice en rojo
+> —«Esta respuesta no vino del RUI»—, así que no engaña a nadie;
+> lo que pasa es que la validación de identidad **no funciona**.
+>
+> Se descubrió porque el cliente abrió una ficha de producción y
+> vio el aviso. Al encenderlas, la consulta que llevaba encolada
+> desde que se creó la ficha salió al portal y volvió en **dos
+> segundos** con el nombre real, marcando que no coincidía con el
+> tecleado. Chromium ya está en la imagen: lo único que faltaba
+> eran las variables.
+>
+> `RUI_SOLO_ESTOS_DOCUMENTOS` **no se pone en producción**: solo
+> tiene efecto con `ENTORNO=prueba`, y ponerla aquí haría creer
+> que limita algo. Ver `crm/rui/permiso-rui.ts`.
+>
+> **Un `docker restart` NO basta para una variable nueva.** Las
+> del entorno se fijan al CREAR el contenedor, igual que las
+> rutas de red: hay que recrearlo. Pasó aquí — el log siguió
+> diciendo «Apagado» tras reiniciar, y solo cambió con
+> `docker compose up -d --force-recreate backend`.
 
 ```bash
 ssh sep-vm
@@ -1131,6 +1155,110 @@ información» abre el resto en `/completar/<token>`.
 - Cualquiera de dentro puede **volver a emitirlo** desde la ficha
   (`POST /admin/participantes/:id/enlace`).
 
+
+### Un campo vacío no es un cero (29 ago 2026)
+
+`main.ts` monta el `ValidationPipe` con **`enableImplicitConversion: true`**,
+y eso convierte el valor **según el tipo declarado antes** de que corra un
+`@Transform` propio. En un campo `number?`, la cadena vacía llega al transform
+**ya convertida a `0`** — así que un `value === ''` no se cumple nunca y el
+vacío se guarda como cero.
+
+Y un cero no es un dato ausente: es un id que no existe en ningún catálogo del
+SEP. Lo encontró el cliente en producción: completar la ficha por el enlace
+público contestaba «Ese municipio no pertenece a ese departamento» **sobre un
+municipio que la persona ni veía ni había tocado** —esa pantalla no lo pregunta,
+porque se dio al reservar el cupo—, y la ficha quedaba imposible de terminar.
+
+- **La regla del par departamento/municipio era correcta.** El defecto estaba
+  una capa antes, en lo que le llegaba. Perseguirlo en `motivoDeIdInvalido`
+  —donde ya se habían arreglado dos cosas— no habría dado con él.
+- **`comun/campo-vacio.ts` lee `obj[key]`, el objeto plano sin convertir.** Es
+  la única forma de saber qué mandó el cliente de verdad.
+- **Había TRES copias del helper** —`crm`, `instituciones` y `preinscripcion`—
+  con el mismo defecto en las tres. Ahora es uno, y conserva la diferencia que
+  sí era intencional: `aNumeroONulo` para el panel, donde vaciar un desplegable
+  **borra** el dato, y `aNumeroOAusente` para crear y completar, donde quiere
+  decir «no lo mandé». `motivoDeIdInvalido` ya depende de esa distinción.
+- **El spec construye los DTO con las MISMAS opciones que `main.ts`**, y esa es
+  toda la razón de que exista: con las de por defecto de `plainToInstance` el
+  defecto **no se reproduce** y el test pasa en verde mientras el servidor
+  falla. Probado por mutación: leyendo el valor convertido caen 3 de los 8.
+- **El arreglo no apagó la comprobación**: Medellín con departamento de Bogotá
+  se sigue rechazando. Comprobado en vivo con los tres casos.
+
+> **Si algún día se toca `enableImplicitConversion`, mírese esto primero.**
+> Quitarlo arreglaría la causa de raíz, pero los parámetros de consulta llegan
+> siempre como texto y hoy dependen de esa conversión. Es un cambio aparte y
+> deliberado, no algo que quepa en un arreglo.
+
+### El enlace tiene que poder pedir lo que el panel echa en falta (29 ago 2026)
+
+El panel decía «le falta un dato», ofrecía el enlace de completado para
+arreglarlo, y **el enlace no pedía ese dato**. Generar otro no cambiaba nada:
+la ficha quedaba imposible de terminar por el único camino que existe para
+terminarla. El dato era el **municipio**.
+
+- **La pantalla asume que el domicilio se dio al reservar el cupo**, y por eso
+  no lo pinta — «volver a pedirlos invita a contradecirlos», que es cierto
+  cuando están. Pero se puede crear una ficha desde el panel o convertir un
+  lead sin ellos, y entonces la suposición es falsa. Ahora se piden con el
+  mismo `pide()` que el resto: **solo si faltan**, y el municipio filtrado por
+  el departamento elegido.
+- **Había dos reglas para «qué falta».** El navegador tenía su propia lista y
+  no incluía departamento ni municipio, así que decía «sus datos están
+  completos» mientras el panel decía que faltaba uno. `abrir` devuelve ahora
+  `faltaDeLaPersona` con la **misma** regla del panel.
+- **La lista del navegador NO se puede sustituir por la del servidor**: aquella
+  es viva —cambia según se escribe— y esta es una foto al abrir. Lo que sí
+  tiene que hacer es cubrir lo mismo.
+- **Lo que el servidor declara y el enlace no sabe pedir, se avisa en
+  pantalla.** Un agujero visible se arregla; uno callado se descubre meses
+  después porque una ficha no entra al reporte.
+- **`lo-que-falta-se-puede-pedir.spec.ts` fija el CONJUNTO CERRADO**, no el
+  caso: si alguien añade un campo obligatorio a `faltaDeLaPersona`, falla y le
+  obliga a declarar dónde se captura antes de seguir. Es el criterio de las
+  pruebas de ámbito — recorrer la superficie, no el caso de hoy. Probado por
+  mutación: añadiendo un campo sin declararlo caen 2 de los 5.
+
+> **La lección, que es la de siempre con otra cara:** el sistema sabía que
+> faltaba un dato y sabía ofrecer el camino para arreglarlo, pero nadie había
+> comprobado que ese camino **pasara por ese dato**. Un control en pie y vacío
+> de efecto.
+
+### Corregirse de organizacion, y la fila Frankenstein (29 ago 2026)
+
+```ts
+const suya = p.reserva?.empresaId ?? p.empresaId ?? null;   // <- el defecto
+```
+
+El comentario decía «la de la reserva manda y no se cambia: la nominó ella», y
+eso es cierto del **primer** término. El segundo **no es una nominación**: es la
+respuesta anterior de la propia persona, y corregirla es justo para lo que
+existe el enlace de completado.
+
+Con los dos en el mismo `??`, quien volvía diciendo «me equivoqué, trabajo en
+Vise LTDA» **reescribía la organización vieja con los datos de la nueva**. Y
+como el NIT y la razón social no viajan en `datos`, quedaba una fila imposible:
+NIT y razón social de la primera, persona de contacto de la segunda. La
+organización nueva no llegaba a crearse.
+
+- **Visto en producción**, y no es cosmético: `Empresa` se comparte entre los
+  dos gremios y el F7 va **por organización**, así que esa fila se le habría
+  reportado al SENA como una empresa que no existe.
+- **La decisión vive en `preinscripcion/organizacion-de-la-ficha.ts`** y el
+  spec la **llama**, no la copia. Se probó por mutación devolviendo el
+  comportamiento viejo: caen 2 de los 7. Un spec que reimplementa la línea que
+  dice proteger no protege nada, y aquí ya se falló en eso una vez.
+- **Se compara por NIT, no por id**: es lo único que la persona escribe, y ya
+  normalizado — `860.507.033` y `860507033` son el mismo, y sin limpiarlo antes
+  escribirlo con puntos parecería un cambio y crearía una duplicada.
+- **La vieja no se toca al cambiarse**: puede tener a otra gente detrás.
+- **El cambio queda en la auditoría** (`ORGANIZACION_CAMBIADA`). No es un error
+  de la persona, pero cambia de quién se la reporta al SENA; sin dejarlo
+  escrito, pasaba en silencio y después nadie podía explicar por qué esa ficha
+  cuenta en otra empresa. Mismo criterio que la contradicción de situación
+  laboral, que sí se apuntaba.
 
 ### La brecha de nombres
 
@@ -1328,6 +1456,20 @@ SEP** (54, el que se sube) y el **F7 de empresas** (18). Código en
   completado. Así la lista de incompletas es accionable y no una queja.
 - **`Empresa.clasificacion`** (pública, privada o mixta) se añadió para la
   última columna, que no tenía de dónde salir.
+- **Los tres datos del jefe directo NO bloquean la inscripción**, y es una
+  decisión del cliente, no un descuido (30 ago 2026). Nombre, cargo y correo de
+  la persona de contacto son tres columnas del F7, y sin ellas la organización
+  **no entra al reporte** — pero exigirlos para poder cerrar la inscripción es
+  la misma rigidez que ya se descartó con las fechas del grupo: *bloquear la
+  captura por algo que no depende de aquí es hacer el sistema más rígido que el
+  proceso, que es como se abandonan los sistemas*. Un empleado puede no saberse
+  el correo de su jefe, y perder la inscripción entera por eso es peor que
+  perseguir el dato con una llamada. Lo que sostiene la decisión es que la
+  falta **se ve**: el panel dice qué falta y de quién, y `/admin/empresas` da la
+  lista accionable. Cambiarlo es una línea; volver a decidirlo, no.
+- **El cuarto de esa lista, el sector económico, sí lo resuelve solo** el
+  buscador por NIT: lo trae del RUES. De los cuatro, el robot cubre uno y los
+  tres del jefe se quedan siempre en manos de una persona.
 
 > **La siembra de pruebas pone los ids del SEP en NEGATIVO.** Los primeros los
 > copié del archivo de muestra —`2959`, `9087`, `17689`, que son reales— y un
@@ -1546,11 +1688,46 @@ ADECOPRIA, 18 por BRITCHAM y 24 por la general. **19 + 18 ≠ 24 y es correcto**
 > varias veces seguidas: el sufijo `-prueba` de la versión es lo que los
 > distingue.
 >
-> **Queda por hacer en el panel**: borrar las rutas `pre-adecopria` y
-> `pre-britcham-adee` del túnel `convoca`. Hoy son inertes, pero si
-> alguien las vuelve a guardar, el panel **reescribe el DNS** y esos
-> nombres pasarían a servir producción.
+> **El prefijo se quita al resolver el gremio, y ese arreglo hizo falta el
+> mismo día.** `etiquetaDelHost` devolvía `pre-adecopria`, que no casa con
+> ningún slug de convenio, así que `gremioDelHost` lo trataba como la
+> **puerta general** — correcto para un subdominio de nadie, y aquí era de
+> alguien. El panel enseñaba **los dos gremios** en una dirección que dice
+> ser de uno, con el desplegable ofreciendo el otro y las cifras sumadas.
+> Lo vio el cliente en cuanto entró.
 >
+> Lo que lo hizo pasar desapercibido un rato: **entró un superadmin**, que
+> es el único candado de la puerta general — y en pruebas está abierta con
+> `PANEL_GENERAL_SOLO_SUPERADMIN` sin poner, así que cualquier cuenta
+> habría visto los dos. El prefijo abrió una puerta que este archivo
+> afirma cerrada.
+>
+> - **`pre-` se quita en los DOS sitios y de la misma forma.** Dos fuentes
+>   para la misma decisión acaban discrepando, y aquí ya pasó una vez con
+>   el formulario de un gremio bajo la marca del otro.
+> - **Se quita DESPUÉS de validar el patrón**, así que `//pre-malo` sigue
+>   muriendo por no ser un dominio y no por parecerse a un prefijo.
+> - **Lo reservado se comprueba antes Y después**, para que `pre-prueba` no
+>   se convierta en `prueba` y se cuele.
+> - **Un slug de convenio no puede empezar por `pre-`.**
+> - Probado por mutación: quitando el arreglo caen 4 de los 16.
+
+> **Borrar una ruta en el panel BORRA TAMBIÉN su CNAME**, aunque el CNAME
+> apunte a otro túnel. Pasó el 29 ago 2026: las rutas de `pre-adecopria` y
+> `pre-britcham-adee` habían quedado inertes bajo `convoca` —su DNS ya iba
+> a `convoca-prueba`— y al limpiarlas del panel los dos nombres se
+> quedaron **sin DNS y caídos**. El panel no comprueba a dónde apunta el
+> registro antes de llevárselo.
+>
+> Si limpia una ruta inerte, **vuelva a crear el DNS después**:
+>
+> ```bash
+> ssh sep-vm cloudflared tunnel route dns --overwrite-dns >   f6bd991c-3d0d-4a0f-b480-cd3df1269139 pre-adecopria.reservasae.com
+> ```
+>
+> Y compruébelo: el certificado del nombre nuevo tarda un minuto largo, así
+> que un `curl` que falla justo después **no significa que esté mal puesto**.
+
 > **Y no se puede probar el subdominio en local:** `etiquetaDelHost` exige
 > tres etiquetas y `localhost:3000` da null. Para verlo en el navegador de
 > un portátil hace falta una entrada en `hosts`, que sí funciona porque la
