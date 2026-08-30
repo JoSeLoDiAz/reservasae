@@ -18,9 +18,10 @@ import {
   type Tono,
 } from "@/components/admin/graficos";
 import { IndicadorActualizacion } from "@/components/admin/indicador-actualizacion";
-import { Aviso, CLASE_CONTROL, Tarjeta, useAdmin } from "@/components/admin/marco-admin";
+import { Aviso, CLASE_CONTROL, useAdmin } from "@/components/admin/marco-admin";
 import { PanelMetas } from "@/components/admin/panel-metas";
-import { Esqueleto } from "@/components/admin/piezas";
+import {
+  Bloque, Esqueleto } from "@/components/admin/piezas";
 import {
   crmApi,
   ETIQUETA_ETAPA,
@@ -427,10 +428,11 @@ function Cuerpo({ d, adminId, eligio }: { d: Control; adminId: string; eligio: b
   const conModalidad = d.porModalidad.reduce((s, m) => s + m.total, 0);
 
   return (
-    <div>
+    <div className="flex flex-col gap-3">
       {/* la cola de trabajo, antes que nada */}
-      <section className="grid lg:grid-cols-3">
-        <Tarjeta
+      <section className="grid gap-3 lg:grid-cols-3">
+        <Bloque
+          estirado
           titulo="Leads sin asesor"
           descripcion="Leads por trabajar que no son de nadie. No lleva periodo: es una cola, no un hecho fechado."
         >
@@ -452,10 +454,11 @@ function Cuerpo({ d, adminId, eligio }: { d: Control; adminId: string; eligio: b
           >
             Ir al tablero de inscripciones
           </Link>
-        </Tarjeta>
+        </Bloque>
 
         <div className="lg:col-span-2">
-          <Tarjeta
+          <Bloque
+            estirado
             titulo="Cuánto llevan esperando sin que los llamen"
             descripcion="Solo quien sigue en «Interesado», por su fecha de llegada: en cuanto alguien lo llama el lead pasa a «Contactado» y sale de aquí. Tampoco lleva periodo, porque recortarla la dejaría vacía justo cuando más larga está."
           >
@@ -471,12 +474,12 @@ function Cuerpo({ d, adminId, eligio }: { d: Control; adminId: string; eligio: b
                 </>
               )}
             </p>
-          </Tarjeta>
+          </Bloque>
         </div>
       </section>
 
       {/* las cifras de cabecera */}
-      <section className="grid gap-px border-t border-b border-hairline bg-hairline sm:grid-cols-2 lg:grid-cols-4">
+      <section className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-4">
         <TarjetaCifra
           titulo="Llegaron a inscrito"
           valor={d.total}
@@ -505,7 +508,7 @@ function Cuerpo({ d, adminId, eligio }: { d: Control; adminId: string; eligio: b
       </section>
 
       {/* las tasas */}
-      <Tarjeta
+      <Bloque
         titulo="Las tres tasas"
         descripcion="Ninguna lleva periodo: las tres miden lo que hay hoy contra lo que se comprometió, y recortarlas por «ayer» daría cifras falsas."
       >
@@ -551,11 +554,12 @@ function Cuerpo({ d, adminId, eligio }: { d: Control; adminId: string; eligio: b
           <strong className="font-medium tabular-nums">{n(d.inscritosPorSuCuenta)}</strong>{" "}
           que llegaron por redes, feria o referido no tienen ninguna reserva detrás.
         </p>
-      </Tarjeta>
+      </Bloque>
 
       {/* el embudo y el ritmo */}
       <section className="grid lg:grid-cols-3">
-        <Tarjeta
+        <Bloque
+          estirado
           titulo="El embudo"
           descripcion={
             <>
@@ -602,10 +606,11 @@ function Cuerpo({ d, adminId, eligio }: { d: Control; adminId: string; eligio: b
             está hoy en «Inscrito». Quien ya pasó al aula no aparece aquí: estos cinco
             peldaños no son todo el recorrido.
           </p>
-        </Tarjeta>
+        </Bloque>
 
         <div className="lg:col-span-2">
-          <Tarjeta
+          <Bloque
+          estirado
             titulo="Ritmo: llegada contra inscripción"
             descripcion={`Los leads por el día en que llegaron y los inscritos por el día en que lo fueron, ${alcanceSerie}. Es la gráfica que separa las dos preguntas: si entran leads y no salen inscripciones, el problema está en el seguimiento y no en la pauta.`}
           >
@@ -614,13 +619,13 @@ function Cuerpo({ d, adminId, eligio }: { d: Control; adminId: string; eligio: b
               b={{ nombre: "Llegaron a inscrito", datos: d.serie, color: SERIE.dos }}
               vacio="Todavía no hay movimiento que mostrar."
             />
-          </Tarjeta>
+          </Bloque>
         </div>
       </section>
 
       {/* el origen: volumen y calidad */}
       <section className="grid lg:grid-cols-2">
-        <Tarjeta
+        <Bloque
           titulo="De dónde vienen: volumen"
           descripcion="Cuántos de los inscritos del periodo entraron por cada puerta. Dice cuál trae más, nunca cuál trae mejor."
         >
@@ -633,9 +638,9 @@ function Cuerpo({ d, adminId, eligio }: { d: Control; adminId: string; eligio: b
             detalleCentro="inscritos"
             vacio="Todavía no hay inscritos en el periodo."
           />
-        </Tarjeta>
+        </Bloque>
 
-        <Tarjeta
+        <Bloque
           titulo="De dónde vienen: calidad"
           descripcion="Cuánto convierte cada puerta, sobre todos sus leads y sin periodo. No es lo mismo que el volumen: una pauta puede traer trescientos leads y convertir el 2 %."
         >
@@ -651,11 +656,11 @@ function Cuerpo({ d, adminId, eligio }: { d: Control; adminId: string; eligio: b
             ]}
             vacio="Todavía no hay leads."
           />
-        </Tarjeta>
+        </Bloque>
       </section>
 
       {/* los asesores */}
-      <Tarjeta
+      <Bloque
         titulo="Por asesor"
         descripcion="Ordenada por conversión, que es HISTÓRICA: todos los que llegó a inscribir sobre todos sus leads, sin periodo. Así se lee quién convierte mejor —quien lleva 200 y convierte el 5 % lo hace peor que quien lleva 20 y convierte el 40 %— y no a quién le entró una inscripción esta mañana."
       >
@@ -718,11 +723,11 @@ function Cuerpo({ d, adminId, eligio }: { d: Control; adminId: string; eligio: b
             </table>
           </div>
         )}
-      </Tarjeta>
+      </Bloque>
 
       {/* quien debe nombres */}
       <section className="grid lg:grid-cols-2">
-        <Tarjeta
+        <Bloque
           titulo="Las organizaciones con más nombres"
           descripcion="Nombres puestos contra cupos apartados. Ninguna de las dos cifras lleva periodo: los cupos salen de reservas, y medir contra ellos unos inscritos recortados daría deudas inventadas."
         >
@@ -756,9 +761,9 @@ function Cuerpo({ d, adminId, eligio }: { d: Control; adminId: string; eligio: b
               ))}
             </ul>
           )}
-        </Tarjeta>
+        </Bloque>
 
-        <Tarjeta
+        <Bloque
           titulo="Por acción de formación"
           descripcion="Qué curso eligieron los inscritos del periodo. Quien todavía no tiene acción asignada no aparece."
         >
@@ -771,12 +776,12 @@ function Cuerpo({ d, adminId, eligio }: { d: Control; adminId: string; eligio: b
             vacio="Todavía no hay inscritos en el periodo."
             maximoFilas={12}
           />
-        </Tarjeta>
+        </Bloque>
       </section>
 
       {/* los repartos */}
       <section className="grid lg:grid-cols-3">
-        <Tarjeta
+        <Bloque
           titulo="Por ubicación"
           descripcion="Dónde se dicta lo que eligieron: ciudad o departamento."
         >
@@ -791,9 +796,9 @@ function Cuerpo({ d, adminId, eligio }: { d: Control; adminId: string; eligio: b
             vacio="Todavía no hay inscritos con oferta."
             maximoFilas={12}
           />
-        </Tarjeta>
+        </Bloque>
 
-        <Tarjeta titulo="Por grupo" descripcion="El reparto real: es lo que se le reporta al SENA.">
+        <Bloque titulo="Por grupo" descripcion="El reparto real: es lo que se le reporta al SENA.">
           <ListaBarras
             datos={d.porGrupo.map((g) => ({
               clave: g.clave,
@@ -809,10 +814,10 @@ function Cuerpo({ d, adminId, eligio }: { d: Control; adminId: string; eligio: b
             vacio="Nadie tiene grupo asignado todavía."
             maximoFilas={12}
           />
-        </Tarjeta>
+        </Bloque>
 
         <div className="space-y-6">
-          <Tarjeta
+          <Bloque
             titulo="Por convenio"
             descripcion="Los inscritos del periodo, entre los convenios que se pueden ver."
           >
@@ -823,9 +828,9 @@ function Cuerpo({ d, adminId, eligio }: { d: Control; adminId: string; eligio: b
               detalleCentro="inscritos"
               vacio="Todavía no hay inscritos en el periodo."
             />
-          </Tarjeta>
+          </Bloque>
 
-          <Tarjeta
+          <Bloque
             titulo="Por modalidad"
             descripcion="Presencial, virtual o híbrida. Sale de la oferta, así que quien no tiene una asignada no cuenta."
           >
@@ -839,7 +844,7 @@ function Cuerpo({ d, adminId, eligio }: { d: Control; adminId: string; eligio: b
               detalleCentro="con oferta"
               vacio="Todavía no hay inscritos con oferta."
             />
-          </Tarjeta>
+          </Bloque>
         </div>
       </section>
     </div>

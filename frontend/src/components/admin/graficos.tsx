@@ -173,7 +173,7 @@ export function BarrasAgrupadas({
                 <div
                   key={series[i].nombre}
                   title={`${categoria.etiqueta} · ${series[i].nombre}: ${n(valor)}`}
-                  className="w-[30%] max-w-6 rounded-t transition-opacity hover:opacity-70"
+                  className="w-[30%] max-w-6 rounded-t-[5px] transition-opacity hover:opacity-70"
                   style={{
                     height: `${Math.max((valor / tope) * 100, valor > 0 ? 1.5 : 0)}%`,
                     background: series[i].color,
@@ -403,7 +403,7 @@ export function BarrasPorDia({
           >
             {/* zona sensible de altura completa */}
             <div
-              className="w-full rounded-t bg-marca transition-opacity"
+              className="w-full rounded-t-[5px] bg-marca transition-opacity"
               style={{
                 height: `${Math.max((d.cupos / maximo) * 100, d.cupos > 0 ? 2 : 0)}%`,
                 opacity: encima === null || encima === i ? 1 : 0.45,
@@ -815,7 +815,7 @@ export function DosSeriesPorDia({
             onMouseLeave={() => setEncima(null)}
           >
             <div
-              className="w-1/2 rounded-t transition-opacity"
+              className="w-1/2 rounded-t-[5px] transition-opacity"
               style={{
                 height: alto(d.a),
                 background: colorA,
@@ -823,7 +823,7 @@ export function DosSeriesPorDia({
               }}
             />
             <div
-              className="w-1/2 rounded-t transition-opacity"
+              className="w-1/2 rounded-t-[5px] transition-opacity"
               style={{
                 height: alto(d.b),
                 background: colorB,
