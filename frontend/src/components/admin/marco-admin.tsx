@@ -1344,7 +1344,7 @@ export function Boton({
       ///
       /// Alto 34, radio 10 y sin sombra: la separacion de este
       /// redisenio es por borde de 1px, nunca por sombra.
-      className={`inline-flex h-[34px] items-center justify-center gap-2 rounded-lg bg-marca px-[14px] text-[12.5px] font-semibold text-marca-texto transition hover:bg-marca-fuerte disabled:cursor-not-allowed disabled:bg-campo-borde disabled:text-texto-suave ${resto.className ?? ""}`}
+      className={`inline-flex h-[34px] items-center justify-center gap-2 rounded-lg bg-marca px-[14px] text-[12.5px] font-semibold text-marca-texto transition hover:bg-marca-fuerte disabled:cursor-not-allowed disabled:bg-campo-borde disabled:text-texto-suave sin-aro ${resto.className ?? ""}`}
     >
       {children}
     </button>

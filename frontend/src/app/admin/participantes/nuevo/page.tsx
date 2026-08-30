@@ -103,7 +103,7 @@ export default function PaginaNuevoParticipante() {
         <h1 className="mt-2 text-[1.3125rem] font-bold tracking-[-0.02em] text-titulo">
           Inscribir a alguien
         </h1>
-        <p className="mt-1 max-w-2xl text-texto-suave">
+        <p className="mt-1 text-texto-suave">
           Con el documento y el nombre basta para empezar. La acción de formación y el
           grupo se asignan después, desde su ficha.
         </p>

@@ -352,6 +352,12 @@ h3 {
   border-radius: 10px;
 }
 
+/* botones que no llevan aro */
+.sin-aro:focus,
+.sin-aro:focus-visible {
+  outline: none;
+}
+
 /* con el teclado, saltarse el menu */
 .salto-al-contenido {
   position: absolute;

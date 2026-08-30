@@ -1203,7 +1203,7 @@ function Barra({
           /// mas que la tabla que hay debajo, y ademas dejan de
           /// decir cual es la accion principal: si todo destaca,
           /// no destaca nada.
-          className="inline-flex h-[34px] items-center rounded-lg bg-marca px-3.5 text-[0.78125rem] font-semibold text-marca-texto transition hover:bg-marca-fuerte"
+          className="inline-flex h-[34px] items-center rounded-lg bg-marca px-3.5 text-[0.78125rem] font-semibold text-marca-texto transition hover:bg-marca-fuerte sin-aro"
         >
           Descargar en Excel
         </button>
