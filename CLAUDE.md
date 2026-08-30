@@ -2347,6 +2347,40 @@ código no la podía leer.
 matrícula (`faltantesParaMatricular`) ya exige la acción de
 formación para pasar a `INSCRITO`. No hace falta añadir nada ahí.
 
+### Un lead puede tener DOS orígenes (30 ago 2026)
+
+**El caso: alguien que el community manager subió en una lista y que meses
+después cae por una pauta pagada.** Tuvo dos orígenes y los dos son ciertos.
+`Participante.origen` guarda uno solo, así que había que elegir, y las dos
+salidas eran falsas:
+
+| | |
+|---|---|
+| pisar la columna | la pauta se lleva un lead que ya era de alguien |
+| dejarla quieta | la campaña funcionó y no consta en ningún sitio |
+
+Por eso los toques van **aparte**, en `ToqueDeOrigen`, y no encima.
+
+- **El PRIMER origen manda para la atribución y no se pisa nunca.** El
+  `update` del webhook de Meta pasó a `updateMany` con `origenLead: null` en el
+  `where`: solo escribe si no había nada. Antes escribía siempre —
+  `leads.service.ts`, en `avisarQueYaEstaba`— y ahí es donde el community
+  manager perdía su lead sin que nada fallara.
+- **La fila del toque no se pisa: se cuenta.** Clave única
+  `(participanteId, origen)`, y volver por el mismo anuncio suma `veces`. Dos
+  filas dirían que llegó por dos sitios distintos.
+- **El informe por acción los enseña separados.** Las tres puertas siguen
+  saliendo del primer origen —`origenDeLeadSql`—, y debajo va una línea aparte:
+  cuántos tocó la pauta y **cuántos de esos ya eran de otro**. La campaña queda
+  registrada sin reasignar nada.
+- **La regla del origen vive en `crm/origen-del-lead.ts`, una sola vez.** Estaba
+  privada dentro de `crm.service` (`CrmService.PAUTA`), así que el informe por
+  acción se escribió con otra: leía la columna `origenLead`, **que solo llena el
+  webhook de Meta**, y todo lo demás caía fuera de «pauta». La columna salía en
+  cero y nadie lo notaba. Es, otra vez, dos verdades sobre la misma decisión.
+- `origen-del-lead.spec.ts` se probó por mutación: pisar el contador en vez de
+  sumarlo y sacar la autogestión de «orgánico» matan un test cada uno.
+
 ### La mesa de entrada: el webhook de leads (27 ago 2026)
 
 `POST /api/webhooks/leads`. Lo llama el **orquestador de correos

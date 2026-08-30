@@ -1,11 +1,11 @@
 "use client";
 
 import { useState } from "react";
+import { Bloque } from "./piezas";
 
 import type { MetricasInscripciones as Repartos, Reparto } from "@/lib/crm-api";
 
 import { Donut, ListaBarras, Medidor, n } from "./graficos";
-import { Tarjeta } from "./marco-admin";
 
 /// El porcentaje de una parte, o raya si no hay sobre que
 /// calcularlo. Un «0%» con base cero no es cero: es que no
@@ -55,14 +55,20 @@ function Target({
     /// que es como se lee un indicador: primero que mide, luego
     /// cuanto. Con ocho en fila, ocho cifras alineadas abajo se
     /// comparan de un vistazo; a la derecha de cada caja, no.
-    <div title={guia} className="bg-superficie px-7 pt-[18px] pb-5">
-      <span className="block truncate text-[0.625rem] font-semibold tracking-[0.1em] text-texto-suave uppercase">
+    <div
+      title={guia}
+      className={
+        "rounded-lg border border-borde bg-superficie px-3.5 py-2 transition " +
+        "hover:border-marca/40 hover:shadow-[0_2px_14px_-6px_rgba(15,23,42,0.28)]"
+      }
+    >
+      <span className="block truncate text-[0.6875rem] leading-none text-texto-suave">
         {etiqueta}
       </span>
-      <span className="mt-2 block text-[2rem] leading-none font-bold tracking-[-0.03em] tabular-nums text-titulo">
+      <span className="mt-1 block text-[1.0625rem] leading-none font-bold tabular-nums text-titulo">
         {cifra}
       </span>
-      <span className="mt-[3px] block truncate text-[0.71875rem] text-texto-suave">
+      <span className="mt-1 block truncate text-[0.6875rem] leading-none text-texto-suave">
         {detalle}
       </span>
     </div>
@@ -114,11 +120,11 @@ function BarrasVerticales({ datos }: { datos: Reparto[] }) {
 export function TargetsInscripciones({ metricas }: { metricas: Repartos | null }) {
   if (!metricas) {
     return (
-      <div className="grid gap-px border-t border-b border-hairline bg-hairline sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-4">
         {Array.from({ length: 8 }, (_, i) => (
           <div
             key={i}
-            className="h-[52px] animate-pulse rounded-xl border border-borde bg-superficie-alterna"
+            className="h-[62px] animate-pulse rounded-lg border border-borde bg-superficie-alterna"
           />
         ))}
       </div>
@@ -144,7 +150,7 @@ export function TargetsInscripciones({ metricas }: { metricas: Repartos | null }
   const asesorLider = mayor(porAsesor);
 
   return (
-    <div className="grid gap-px border-t border-b border-hairline bg-hairline sm:grid-cols-2 lg:grid-cols-4">
+    <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-4">
       <Target
         etiqueta="Etapa del lead"
         detalle={etapaLider?.etiqueta ?? "Sin datos"}
@@ -237,8 +243,8 @@ export function GraficasInscripciones({ metricas }: { metricas: Repartos | null 
   const conDomicilio = total - sinDepartamento;
 
   return (
-    <div className="grid lg:grid-cols-2">
-      <Tarjeta centrado titulo="Gremio">
+    <div className="grid gap-3 lg:grid-cols-2">
+      <Bloque estirado titulo="Gremio">
         <div>
           <Donut
             datos={porGremioTotal.map((g) => ({ etiqueta: g.etiqueta, valor: g.valor }))}
@@ -248,9 +254,9 @@ export function GraficasInscripciones({ metricas }: { metricas: Repartos | null 
             vacio="Nadie coincide con estos filtros."
           />
         </div>
-      </Tarjeta>
+      </Bloque>
 
-      <Tarjeta centrado titulo="Acción de formación">
+      <Bloque estirado titulo="Acción de formación">
         <div className="space-y-4">
           {porGremio.map((g) => (
             <div key={g.convenioId}>
@@ -261,9 +267,9 @@ export function GraficasInscripciones({ metricas }: { metricas: Repartos | null 
             </div>
           ))}
         </div>
-      </Tarjeta>
+      </Bloque>
 
-      <Tarjeta centrado titulo="Etapa del lead">
+      <Bloque estirado titulo="Etapa del lead">
         <div>
           <ListaBarras
             datos={porEtapa.map((e) => ({
@@ -274,9 +280,9 @@ export function GraficasInscripciones({ metricas }: { metricas: Repartos | null 
             vacio="Nadie coincide con estos filtros."
           />
         </div>
-      </Tarjeta>
+      </Bloque>
 
-      <Tarjeta centrado titulo="Estado de los datos">
+      <Bloque estirado titulo="Estado de los datos">
         <div>
           <Donut
             datos={[
@@ -296,9 +302,9 @@ export function GraficasInscripciones({ metricas }: { metricas: Repartos | null 
             detalleCentro={total === 1 ? "lead" : "leads"}
           />
         </div>
-      </Tarjeta>
+      </Bloque>
 
-      <Tarjeta centrado titulo="Asesores">
+      <Bloque estirado titulo="Asesores">
         <div>
           <Donut
             datos={porAsesor.map((a) => ({ etiqueta: a.etiqueta, valor: a.valor }))}
@@ -308,9 +314,9 @@ export function GraficasInscripciones({ metricas }: { metricas: Repartos | null 
             vacio="Nadie tiene leads asignados."
           />
         </div>
-      </Tarjeta>
+      </Bloque>
 
-      <Tarjeta centrado titulo="Departamentos">
+      <Bloque estirado titulo="Departamentos">
         <div>
           <ListaBarras
             datos={porDepartamento.map((d) => ({
@@ -342,12 +348,12 @@ export function GraficasInscripciones({ metricas }: { metricas: Repartos | null 
             </p>
           )}
         </div>
-      </Tarjeta>
+      </Bloque>
 
       {/* Una conversion por gremio: son dos, y la del conjunto
           no dice cual de los dos esta convirtiendo. */}
       {porGremio.map((g) => (
-        <Tarjeta centrado key={g.convenioId} titulo={`Conversión · ${g.gremio}`}>
+        <Bloque estirado key={g.convenioId} titulo={`Conversión · ${g.gremio}`}>
           <div>
             <Medidor
               porcentaje={g.conversion.porcentaje}
@@ -358,7 +364,7 @@ export function GraficasInscripciones({ metricas }: { metricas: Repartos | null 
               )} llegaron a inscrito`}
             />
           </div>
-        </Tarjeta>
+        </Bloque>
       ))}
     </div>
   );

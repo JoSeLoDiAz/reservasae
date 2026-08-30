@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { Desplegable } from "./desplegable";
 
 import { Aviso, CLASE_CONTROL } from "@/components/admin/marco-admin";
 import {
@@ -107,19 +108,16 @@ export function PanelMetas() {
         className="grid gap-2"
         style={{ gridTemplateColumns: "repeat(auto-fit,minmax(150px,1fr))" }}
       >
-        <select
-          className={CLASE_CONTROL}
-          value={convenioId}
-          onChange={(e) => setConvenioId(e.target.value)}
-          aria-label="Filtrar por gremio"
-        >
-          <option value="">Todos los gremios</option>
-          {(metricas?.porGremio ?? []).map((g) => (
-            <option key={g.convenioId} value={g.convenioId}>
-              {g.gremio} ({g.conversion.base})
-            </option>
-          ))}
-        </select>
+        <Desplegable
+          alto={34}
+          marcador="Gremios"
+          valor={convenioId}
+          opciones={[
+            { valor: "", etiqueta: "Gremios" },
+            ...(metricas?.porGremio ?? []).map((g) => ({ valor: g.convenioId, etiqueta: g.gremio, detalle: `${g.conversion.base} leads` })),
+          ]}
+          alElegir={setConvenioId}
+        />
 
         <SelectorBuscable
           clase="w-full"
@@ -135,60 +133,60 @@ export function PanelMetas() {
           }))}
         />
 
-        <select
-          className={CLASE_CONTROL}
-          value={etapa}
-          onChange={(e) => setEtapa(e.target.value)}
-          aria-label="Filtrar por etapa del lead"
-        >
-          <option value="">Toda etapa</option>
-          {ETAPAS_A_MANO.map((e: Etapa) => (
-            <option key={e} value={e}>
-              {ETIQUETA_ETAPA[e]}
-            </option>
-          ))}
-        </select>
+        <Desplegable
+          alto={34}
+          marcador="Etapa"
+          valor={etapa}
+          opciones={[
+            { valor: "", etiqueta: "Etapa" },
+            ...ETAPAS_A_MANO.map((e: Etapa) => ({ valor: e, etiqueta: ETIQUETA_ETAPA[e] })),
+          ]}
+          alElegir={setEtapa}
+        />
 
-        <select
-          className={CLASE_CONTROL}
-          value={estado}
-          onChange={(e) => setEstado(e.target.value as "" | "COMPLETO" | "PARCIAL")}
-          aria-label="Filtrar por estado de los datos"
-        >
-          <option value="">Todo estado</option>
-          <option value="COMPLETO">Datos completos</option>
-          <option value="PARCIAL">Datos parciales</option>
-        </select>
+        <Desplegable
+          alto={34}
+          marcador="Estado de los datos"
+          valor={estado}
+          opciones={[
+            { valor: "", etiqueta: "Estado de los datos" },
+            { valor: "COMPLETO", etiqueta: "Datos completos" },
+            { valor: "PARCIAL", etiqueta: "Datos parciales" },
+          ]}
+          alElegir={(v) => setEstado(v as "" | "COMPLETO" | "PARCIAL")}
+        />
 
-        <select
-          className={CLASE_CONTROL}
-          value={asesorId}
-          onChange={(e) => setAsesorId(e.target.value)}
-          aria-label="Filtrar por asesor"
-        >
-          <option value="">Todos los asesores</option>
-          {(resumen?.asesores ?? []).map((a) => (
-            <option key={a.id} value={a.id}>
-              {a.nombre} ({a.total})
-            </option>
-          ))}
-        </select>
+        <Desplegable
+          alto={34}
+          marcador="Asesores"
+          valor={asesorId}
+          opciones={[
+            { valor: "", etiqueta: "Asesores" },
+            ...(resumen?.asesores ?? []).map((a) => ({
+              valor: a.id,
+              etiqueta: a.nombre,
+              detalle: `${a.total} ${a.total === 1 ? "lead" : "leads"}`,
+            })),
+          ]}
+          alElegir={setAsesorId}
+        />
 
-        <select
-          className={CLASE_CONTROL}
-          value={departamentoSepId}
-          onChange={(e) => setDepartamentoSepId(e.target.value)}
-          aria-label="Filtrar por departamento"
-        >
-          <option value="">Todos los departamentos</option>
-          {(resumen?.departamentos ?? [])
-            .filter((d) => d.id !== null)
-            .map((d) => (
-              <option key={d.id} value={String(d.id)}>
-                {d.nombre} ({d.total})
-              </option>
-            ))}
-        </select>
+        <Desplegable
+          alto={34}
+          marcador="Departamentos"
+          valor={departamentoSepId}
+          opciones={[
+            { valor: "", etiqueta: "Departamentos" },
+            ...(resumen?.departamentos ?? [])
+              .filter((d) => d.id !== null)
+              .map((d) => ({
+                valor: String(d.id),
+                etiqueta: d.nombre,
+                detalle: `${d.total} ${d.total === 1 ? "lead" : "leads"}`,
+              })),
+          ]}
+          alElegir={setDepartamentoSepId}
+        />
 
       </div>
 

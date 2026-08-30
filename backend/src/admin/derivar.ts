@@ -34,7 +34,7 @@ const NEUTROS: Record<EsquemaColor, Record<string, Receta>> = {
     texto: { l: 0.25, c: 0.02 },
     textoSuave: { l: 0.55, c: 0.015 },
 
-    tablaCabeceraFondo: { l: 0.958, c: 0.008 },
+    tablaCabeceraFondo: { l: 0.958, c: 0.03 },
     tablaCabeceraTexto: { l: 0.4, c: 0.015 },
     tablaFilaAlterna: { l: 0.978, c: 0.006 },
     tablaFilaResaltada: { l: 0.955, c: 0.025 },
@@ -53,7 +53,7 @@ const NEUTROS: Record<EsquemaColor, Record<string, Receta>> = {
     texto: { l: 0.94, c: 0.012 },
     textoSuave: { l: 0.715, c: 0.02 },
 
-    tablaCabeceraFondo: { l: 0.275, c: 0.024 },
+    tablaCabeceraFondo: { l: 0.275, c: 0.06 },
     tablaCabeceraTexto: { l: 0.845, c: 0.016 },
     tablaFilaAlterna: { l: 0.155, c: 0.022 },
     tablaFilaResaltada: { l: 0.29, c: 0.055 },

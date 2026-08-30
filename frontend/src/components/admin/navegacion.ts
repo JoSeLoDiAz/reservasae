@@ -48,20 +48,23 @@ export const MODULOS: Modulo[] = [
     descripcion: 'Las fechas de la formación. De aquí cuelga el resto.',
     enlaces: [
       {
-        href: '/admin/cronograma',
-        etiqueta: 'Ver cronograma',
-        exacto: true,
-        area: 'reserva',
-      },
-      {
+        /// Primero: el cronograma pone fechas a los grupos de
+        /// una acción, así que la acción existe antes.
+        ///
         /// Aquí y no en Configuración: definir una acción de
         /// formación ES definir el calendario. Sigue pidiendo
         /// permiso de configuración, que es lo que la deja
         /// fuera de la vista de quien solo inscribe.
         href: '/admin/acciones',
-        etiqueta: 'Formación',
+        etiqueta: 'Acciones de Formación',
         area: 'configuracion',
         nivel: 'ESCRIBIR',
+      },
+      {
+        href: '/admin/cronograma',
+        etiqueta: 'Cronograma',
+        exacto: true,
+        area: 'reserva',
       },
     ],
   },

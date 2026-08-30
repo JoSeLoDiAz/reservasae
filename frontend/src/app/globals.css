@@ -283,6 +283,21 @@ h3 {
   letter-spacing: -0.01em;
 }
 
+/*
+ * Dentro de la barra y de la cabecera manda el color de ELLAS.
+ *
+ * `--titulo` es el color de un titulo sobre el CONTENIDO. La
+ * barra lateral se pinta con los tokens de encabezado, y con
+ * «Barra superior del color de la marca» ese fondo es oscuro:
+ * un `h2` con `--titulo` quedaba casi negro sobre verde y el
+ * nombre del modulo no se leia. Se hereda, y punto.
+ */
+[class*="text-encabezado-texto"] h1,
+[class*="text-encabezado-texto"] h2,
+[class*="text-encabezado-texto"] h3 {
+  color: inherit;
+}
+
 /* respetar menos animacion */
 @media (prefers-reduced-motion: reduce) {
   *,
@@ -415,6 +430,19 @@ select[size]:not([size='1']) {
   padding-right: 12px;
 }
 
+/* la cabecera se queda al desplazar la tabla */
+/*
+ * En una caja con scroll, la cabecera se va arriba y quedan
+ * columnas de numeros sin decir de que son. Es el mismo problema
+ * que en papel resuelve `display: table-header-group`.
+ */
+.tabla-fija thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--tabla-cabecera-fondo);
+}
+
 /* botones que no llevan aro */
 .sin-aro:focus,
 .sin-aro:focus-visible {
@@ -538,7 +566,10 @@ select[size]:not([size='1']) {
   }
 
   @page {
-    margin: 14mm 12mm;
+    /* horizontal: la tabla lleva siete columnas y en vertical el
+       horario y las sedes se envuelven */
+    size: A4 landscape;
+    margin: 8mm;
   }
 
   /* conservar fondos al imprimir */
@@ -553,16 +584,116 @@ select[size]:not([size='1']) {
   }
 
   /* ocultar controles en papel */
+  /*
+   * `button` a secas escondia tambien los botones que NO son un
+   * control sino CONTENIDO: la fila de una accion del cronograma
+   * es un boton, y con la regla anterior el cronograma impreso
+   * salia en blanco. Lo que se marque `.imprimible` se imprime.
+   */
   .no-imprimir,
   header nav,
-  button {
+  button:not(.imprimible) {
     display: none !important;
+  }
+  /* sin apariencia de control: en papel es texto. La sangria
+     SI se conserva, o la fila se desalinea de todo lo demas */
+  button.imprimible {
+    background: transparent !important;
+    border: 0 !important;
   }
 
   /* no partir una tarjeta entre paginas */
+  /*
+   * `break-inside: avoid` en un bloque ALTO no lo protege: lo
+   * empuja entero a la hoja siguiente y deja media pagina en
+   * blanco. Se pide solo que no se parta si CABE, que es lo que
+   * hace `avoid-page` sobre bloques cortos; los largos fluyen.
+   */
   .imprimible-bloque {
-    break-inside: avoid;
     box-shadow: none;
+  }
+  /* lo que si tiene que ir junto: una fila, una tarjeta */
+  .imprimible-bloque tr,
+  .imprimible-bloque li {
+    break-inside: avoid;
+  }
+
+  /*
+   * En papel la cabecera de bloque va SIN teñir. En pantalla
+   * `marca-suave` separa unos bloques de otros; impreso, una
+   * franja de color cada cinco centimetros se come la tinta y
+   * compite con el texto, que es lo que se viene a leer. La raya
+   * de abajo ya separa.
+   */
+  /*
+   * En papel, las rejillas de la pantalla pasan a flujo.
+   *
+   * Una rejilla de dos columnas al paginar no reparte: empuja la
+   * fila entera a la hoja siguiente y deja el hueco abierto bajo
+   * la cabecera. En pantalla la rejilla gana espacio; en papel
+   * las hojas son gratis y lo que importa es que no haya huecos.
+   *
+   * Se deja fuera lo que se dibuja CON rejilla -- la grafica de
+   * barras -- que en flujo se desarma.
+   */
+  section [class*="grid-cols"]:not([class*="flex"]) {
+    display: block !important;
+  }
+  section [class*="grid-cols"] > * {
+    break-inside: avoid;
+  }
+  /* los divisores verticales no significan nada en una columna */
+  section [class*="divide-x"] > * {
+    border-left: 0 !important;
+  }
+
+  /*
+   * Un bloque, o cabe entero o se parte. No hay termino medio y
+   * no lo puede decidir el CSS, que no sabe cuanto mide: lo dice
+   * quien escribe la pantalla con `partible`.
+   *
+   * `bloque-entero` se muda completo a la hoja siguiente si no
+   * cabe -- bien para los cortos. `bloque-partible` fluye y
+   * parte por fila, que es lo unico razonable en una tabla de
+   * catorce.
+   */
+  /*
+   * `estirado` existe para que dos bloques de una fila midan lo
+   * mismo EN PANTALLA. En papel no hay fila -- las rejillas ya
+   * fluyen -- y ese `h-full` deja una caja con borde y sin nada
+   * dentro al final de la hoja.
+   */
+  .bloque-estirado {
+    display: block !important;
+    height: auto !important;
+  }
+  .bloque-estirado > div {
+    min-height: 0 !important;
+    flex: none !important;
+  }
+
+  .bloque-entero {
+    break-inside: avoid;
+  }
+  .bloque-partible {
+    break-inside: auto;
+  }
+  /* una cabecera nunca cierra una hoja */
+  .cabecera-de-bloque,
+  .solo-impresion .titulo-de-accion {
+    break-after: avoid;
+  }
+  /* y dentro de un partible, la fila no se corta por la mitad */
+  .bloque-partible tr,
+  .bloque-partible li,
+  .bloque-partible [class*="grid-cols"] > * {
+    break-inside: avoid;
+  }
+
+  .cabecera-de-bloque {
+    background: transparent !important;
+    padding-top: 7px !important;
+    padding-bottom: 7px !important;
   }
 
   .imprimible-salto {
@@ -570,9 +701,43 @@ select[size]:not([size='1']) {
   }
 
   /* expandir los contenedores con scroll */
-  .caja-scroll {
-    max-height: none !important;
+  /*
+   * Y CUALQUIER recorte, no solo `.caja-scroll`. Un ancestro con
+   * `overflow: hidden` no recorta un poco al imprimir: se lleva
+   * el documento entero a una sola pagina. El acordeon del
+   * cronograma lo llevaba, y el PDF salia con una hoja.
+   */
+  /*
+   * En papel NADA recorta. Se pone en todo y no en una lista de
+   * clases: ya se intento con `overflow-hidden` y `overflow-auto`
+   * y se escapo `overflow-clip`, que es otra palabra para lo
+   * mismo. Enumerar recortes es una lista que siempre esta
+   * incompleta.
+   */
+  html,
+  body,
+  body * {
     overflow: visible !important;
+  }
+
+  /*
+   * Y la cascara del panel es una columna flex a la altura de la
+   * VENTANA -- `h-screen` arriba y `min-h-0 grow` bajando --, asi
+   * que sin esto el documento mide una pantalla y el PDF sale de
+   * una sola hoja aunque nada recorte.
+   */
+  html,
+  body,
+  main,
+  main > *,
+  [class*="h-screen"],
+  [class*="h-dvh"],
+  [class*="min-h-0"],
+  [class*="max-h-"],
+  .caja-scroll {
+    height: auto !important;
+    max-height: none !important;
+    min-height: 0 !important;
   }
 
   thead {
@@ -594,6 +759,107 @@ select[size]:not([size='1']) {
 @media print {
   .solo-impresion {
     display: block;
+  }
+  /* la tabla del PDF: la de leads, apretada para que quepa */
+  .solo-impresion .tabla-datos {
+    width: 100%;
+    border-collapse: collapse;
+  }
+  .solo-impresion .tabla-datos th,
+  .solo-impresion .tabla-datos td {
+    padding: 3px 8px;
+    font-size: 8pt;
+    line-height: 1.3;
+    vertical-align: top;
+  }
+  .solo-impresion .tabla-datos th {
+    font-size: 6.5pt;
+  }
+
+  /*
+   * SOLO las sedes envuelven. El horario tambien lo hacia y con
+   * 40px de ancho «Martes y jueves, 7:00 a. m. a 11:00 a. m.»
+   * salia en cinco lineas: cada fila medía cinco veces lo que
+   * debe y el PDF pasaba de tres hojas a trece.
+   */
+  .solo-impresion .tabla-datos th,
+  .solo-impresion .tabla-datos td {
+    white-space: nowrap;
+  }
+  /* la columna larga de cada tabla: la que se marque envuelve
+     y se lleva el ancho sobrante. Las demas van en una linea. */
+  .solo-impresion .tabla-datos td.envuelve {
+    white-space: normal;
+    width: 100%;
+  }
+
+  /*
+   * Una tabla corta no tiene por que salir apretada. El tamaño
+   * de arriba esta pensado para los 67 grupos del cronograma;
+   * las 15 acciones de Formacion caben de sobra y dejaban media
+   * hoja en blanco. `.holgada` reparte ese espacio.
+   */
+  .solo-impresion.holgada .tabla-datos th,
+  .solo-impresion.holgada .tabla-datos td {
+    padding: 5px 9px;
+    font-size: 9pt;
+    line-height: 1.35;
+  }
+  .solo-impresion.holgada .tabla-datos th {
+    font-size: 7.5pt;
+  }
+  .solo-impresion.holgada .titulo-de-accion {
+    margin: 12px 0 4px;
+    font-size: 10pt;
+  }
+  .solo-impresion.holgada .titulo-impreso {
+    margin-bottom: 10px;
+    font-size: 12pt;
+  }
+
+  /* el titulo de cada accion, y sus grupos con el */
+  .solo-impresion .titulo-de-accion {
+    margin: 10px 0 3px;
+    font-size: 8.5pt;
+    font-weight: 700;
+    color: var(--titulo);
+    white-space: normal;
+  }
+  .solo-impresion section.bloque-de-accion {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .solo-impresion .titulo-impreso {
+    margin: 0 0 4px;
+    font-size: 9.5pt;
+    font-weight: 700;
+    color: var(--titulo);
+  }
+
+  /*
+   * El envoltorio de la pantalla lleva relleno arriba y abajo
+   * para separarse de la barra lateral. En papel no hay barra
+   * lateral, y esos 40px son los que empujaban el catalogo de
+   * Formacion a una segunda hoja por un pixel.
+   */
+  .solo-impresion {
+    margin: 0;
+  }
+  body [class*="pt-4"],
+  body [class*="pb-6"],
+  body [class*="px-4"] {
+    padding: 0 !important;
+  }
+
+  /* ninguna fila se parte */
+  tr,
+  thead {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+  .solo-impresion thead {
+    display: table-header-group;
   }
 }
 

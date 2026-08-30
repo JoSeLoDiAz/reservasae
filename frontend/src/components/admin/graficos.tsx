@@ -173,7 +173,7 @@ export function BarrasAgrupadas({
                 <div
                   key={series[i].nombre}
                   title={`${categoria.etiqueta} · ${series[i].nombre}: ${n(valor)}`}
-                  className="w-[30%] max-w-6 rounded-t transition-opacity hover:opacity-70"
+                  className="w-[30%] max-w-6 rounded-t-[5px] transition-opacity hover:opacity-70"
                   style={{
                     height: `${Math.max((valor / tope) * 100, valor > 0 ? 1.5 : 0)}%`,
                     background: series[i].color,
@@ -243,7 +243,7 @@ export function BarraAvance({
         }`}
       >
         <div
-          className="h-full rounded-full bg-marca transition-[width] duration-500"
+          className="h-full rounded-full bg-gradient-to-r from-marca to-marca/40 transition-[width] duration-500"
           style={{ width: `${porcentaje}%` }}
         />
       </div>
@@ -291,9 +291,9 @@ export function ListaBarras({
               {d.detalle && <span className="ml-2 text-xs text-texto-suave">{d.detalle}</span>}
             </span>
           </div>
-          <div className="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-superficie-alterna">
+          <div className="mt-1 h-2 w-full overflow-hidden rounded-full bg-superficie-alterna">
             <div
-              className="h-full rounded-full bg-marca"
+              className="h-full rounded-full bg-gradient-to-r from-marca to-marca/40"
               style={{ width: `${(d.valor / tope) * 100}%` }}
             />
           </div>
@@ -312,19 +312,17 @@ export function ListaBarras({
 
 const ESTADOS: Record<
   EstadoSemaforo,
-  { texto: string; clase: string; icono: React.ReactNode }
+  { texto: string; clase: string }
 > = {
   DISPONIBLE: {
     texto: "Disponible",
     clase: "text-exito",
-    icono: <IconoCirculoCheck />,
   },
   ULTIMOS_CUPOS: {
     texto: "Últimos cupos",
     clase: "text-aviso",
-    icono: <IconoTriangulo />,
   },
-  COMPLETO: { texto: "Completo", clase: "text-error", icono: <IconoCirculoX /> },
+  COMPLETO: { texto: "Completo", clase: "text-error" },
 };
 
 /**
@@ -339,10 +337,16 @@ const ESTADOS: Record<
 export function EtiquetaEstado({ estado }: { estado: EstadoSemaforo }) {
   const e = ESTADOS[estado];
   return (
+    /// Sin icono.
+    ///
+    /// Estaba para que «Completo» y «Ultimos cupos» se
+    /// distinguieran sin color: rojo y ambar quedan a ΔE 4,9 bajo
+    /// deuteranopia. Pero lo que de verdad los distingue es la
+    /// PALABRA, que sigue ahi: la regla es no depender del color
+    /// solo, y el texto ya la cumple. El icono era refuerzo.
     <span
-      className={`inline-flex items-center gap-1.5 whitespace-nowrap text-[0.75rem] font-semibold ${e.clase}`}
+      className={`whitespace-nowrap text-[0.75rem] font-semibold ${e.clase}`}
     >
-      {e.icono}
       {e.texto}
     </span>
   );
@@ -399,7 +403,7 @@ export function BarrasPorDia({
           >
             {/* zona sensible de altura completa */}
             <div
-              className="w-full rounded-t bg-marca transition-opacity"
+              className="w-full rounded-t-[5px] bg-marca transition-opacity"
               style={{
                 height: `${Math.max((d.cupos / maximo) * 100, d.cupos > 0 ? 2 : 0)}%`,
                 opacity: encima === null || encima === i ? 1 : 0.45,
@@ -453,32 +457,8 @@ const TRAZO = {
   strokeLinejoin: "round",
 } as const;
 
-function IconoCirculoCheck() {
-  return (
-    <svg viewBox="0 0 24 24" className="size-3.5 shrink-0" aria-hidden {...TRAZO}>
-      <circle cx="12" cy="12" r="9" />
-      <path d="m8.5 12 2.5 2.5 4.5-5" />
-    </svg>
-  );
-}
 
-function IconoTriangulo() {
-  return (
-    <svg viewBox="0 0 24 24" className="size-3.5 shrink-0" aria-hidden {...TRAZO}>
-      <path d="M12 4 2.5 20h19L12 4Z" />
-      <path d="M12 10v4M12 17.5v.01" />
-    </svg>
-  );
-}
 
-function IconoCirculoX() {
-  return (
-    <svg viewBox="0 0 24 24" className="size-3.5 shrink-0" aria-hidden {...TRAZO}>
-      <circle cx="12" cy="12" r="9" />
-      <path d="m9 9 6 6M15 9l-6 6" />
-    </svg>
-  );
-}
 
 // tono compartido
 
@@ -835,7 +815,7 @@ export function DosSeriesPorDia({
             onMouseLeave={() => setEncima(null)}
           >
             <div
-              className="w-1/2 rounded-t transition-opacity"
+              className="w-1/2 rounded-t-[5px] transition-opacity"
               style={{
                 height: alto(d.a),
                 background: colorA,
@@ -843,7 +823,7 @@ export function DosSeriesPorDia({
               }}
             />
             <div
-              className="w-1/2 rounded-t transition-opacity"
+              className="w-1/2 rounded-t-[5px] transition-opacity"
               style={{
                 height: alto(d.b),
                 background: colorB,
@@ -910,11 +890,18 @@ export function Tasa({
 
   return (
     <div>
-      {titulo && <p className="text-sm text-texto-suave">{titulo}</p>}
-      <p className={`mt-1 text-3xl font-semibold leading-none tabular-nums ${TONO_TEXTO[tono]}`}>
+      {titulo && (
+        <p className="text-[0.6875rem] leading-none text-texto-suave">{titulo}</p>
+      )}
+      {/* El mismo cuerpo que `Cifra`: dos escalas para el mismo
+          tipo de dato es lo que hacía que la pantalla se leyera
+          como pedazos de pantallas distintas. */}
+      <p
+        className={`mt-1 text-[1.0625rem] font-bold leading-none tabular-nums ${TONO_TEXTO[tono]}`}
+      >
         {hay ? `${porciento.toFixed(1).replace(".", ",")} %` : "—"}
       </p>
-      <p className="mt-1.5 text-xs tabular-nums text-texto-suave">
+      <p className="mt-1 text-[0.6875rem] tabular-nums text-texto-suave">
         {texto}
         {detalle && <span className="ml-2">· {detalle}</span>}
       </p>

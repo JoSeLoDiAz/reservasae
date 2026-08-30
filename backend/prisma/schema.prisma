@@ -650,6 +650,41 @@ model CargaDeParticipantes {
   @@map("cargas_de_participantes")
 }
 
+/// Cada canal por el que ESTA persona ha llegado alguna vez.
+///
+/// `Participante.origen` guarda uno solo, y una persona puede
+/// entrar dos veces: la sube el community manager en una lista
+/// y meses despues cae por una pauta pagada. Pisando la columna,
+/// la pauta se lleva un lead que ya era de alguien; dejandola
+/// quieta, la pauta no consta en ningun sitio. Las dos cosas son
+/// falsas, y por eso los toques van aparte.
+///
+/// La FILA no se pisa: se cuenta. Una persona que vuelve por el
+/// mismo anuncio suma `veces`, no crea otro toque.
+model ToqueDeOrigen {
+  id String @id @default(cuid())
+
+  participanteId String
+  participante   Participante @relation(fields: [participanteId], references: [id], onDelete: Cascade)
+
+  /// El canal, del mismo catalogo que la ficha.
+  origen OrigenParticipante
+
+  /// Pagado u organico, ya resuelto al registrarlo.
+  clase OrigenLead
+
+  primeraVez DateTime @default(now())
+  ultimaVez  DateTime @default(now())
+  veces      Int      @default(1)
+
+  /// De que anuncio vino, cuando se sabe.
+  campana String?
+
+  @@unique([participanteId, origen])
+  @@index([participanteId])
+  @@map("toques_de_origen")
+}
+
 enum OrigenParticipante {
   EMPRESA
   ASESOR
@@ -842,6 +877,10 @@ model Participante {
   /// sería inventarse una métrica.
   origenLead OrigenLead?
 
+  /// Todos los canales por los que ha llegado, no solo el
+  /// primero. Ver `ToqueDeOrigen`.
+  toquesDeOrigen ToqueDeOrigen[]
+
   /// Cuando un asesor toco los datos de esta ficha. A
   /// partir de ahi, lo que mande el interesado no pisa: se
   /// guarda como propuesta y alguien decide.
@@ -917,6 +956,12 @@ model Participante {
   @@index([cargaId])
   /// El F7 y el borrado de empresas buscan por aqui.
   @@index([empresaId])
+  /// Se filtra por persona en 21 sitios y no habia indice: el
+  /// @@unique de arriba no sirve, porque alli personaId va
+  /// segundo y Postgres solo aprovecha la primera columna.
+  /// Ademas la relacion es Restrict, asi que tocar una Persona
+  /// recorria participantes entera.
+  @@index([personaId])
   /// Lo creo su migracion y no estaba aqui: sin declararlo,
   /// la siguiente migracion lo borra sola.
   @@index([convenioId, origenLead])

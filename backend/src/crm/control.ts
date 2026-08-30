@@ -129,6 +129,8 @@ export type Cabecera = {
 export type Control = Cabecera & {
   /** El techo contra el que se mide la captura. */
   cuposConfirmados: number;
+  /// Los beneficiarios comprometidos, sin sobrecupo.
+  metaComprometida: number;
   /**
    * Quien llegó a inscrito ocupando un cupo reservado, sin
    * ventana. Es el numerador de la cobertura: los cupos
@@ -171,6 +173,7 @@ export type Control = Cabecera & {
 const VACIO: Omit<Control, 'ventana' | 'anterior' | 'variacion'> = {
   total: 0,
   cuposConfirmados: 0,
+  metaComprometida: 0,
   inscritosConReserva: 0,
   inscritosPorSuCuenta: 0,
   diasHastaInscribir: null,
@@ -336,6 +339,7 @@ export async function controlDeInscritos(
     ahora,
     anterior,
     cupos,
+    meta,
     cobertura,
     embudo,
     sinAsignar,
@@ -365,6 +369,23 @@ export async function controlDeInscritos(
         JOIN "acciones_formacion" af ON af."id" = o."accionFormacionId"
        WHERE af."convenioId" IN (${Prisma.join(ambito)})
          AND r."estado" <> 'CANCELADA'
+    `,
+
+    /**
+     * Lo COMPROMETIDO en los proyectos, sin el 30 % de
+     * sobrecupo: es la meta contra la que se cumple o no.
+     *
+     * El tope de inscripción —`cuposConfirmados` de arriba—
+     * es otra cosa: llegar al 100 % de él no es el objetivo,
+     * cumplir la meta sí. Esta pantalla no tenía ninguna de
+     * las dos y por eso no se sabía contra qué se avanza.
+     */
+    prisma.$queryRaw<Array<{ meta: bigint | null }>>`
+      SELECT COALESCE(SUM(gc."cuposBase"), 0) AS meta
+        FROM "grupos_cobertura" gc
+        JOIN "grupos" g              ON g."id" = gc."grupoId"
+        JOIN "acciones_formacion" af ON af."id" = g."accionFormacionId"
+       WHERE af."convenioId" IN (${Prisma.join(ambito)})
     `,
 
     /**
@@ -681,6 +702,7 @@ export async function controlDeInscritos(
   return {
     ...ahora,
     cuposConfirmados: Number(cupos[0]?.cupos ?? 0),
+    metaComprometida: Number(meta[0]?.meta ?? 0),
     inscritosConReserva: Number(cobertura[0]?.conReserva ?? 0),
     inscritosPorSuCuenta: Number(cobertura[0]?.porSuCuenta ?? 0),
     embudo: embudo.map((f) => ({ etapa: f.etapa, total: cifra(f) })),

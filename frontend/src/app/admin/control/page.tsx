@@ -7,20 +7,19 @@ import { estiloEtapa } from "@/components/admin/etapa";
 import {
   BarraAvance,
   BarrasApiladas,
-  Donut,
   DosSeriesPorDia,
   ListaBarras,
   n,
   SERIE,
-  TarjetaCifra,
   Tasa,
-  Termometro,
   type Tono,
 } from "@/components/admin/graficos";
 import { IndicadorActualizacion } from "@/components/admin/indicador-actualizacion";
-import { Aviso, CLASE_CONTROL, Tarjeta, useAdmin } from "@/components/admin/marco-admin";
+import { Aviso, CLASE_CONTROL, useAdmin } from "@/components/admin/marco-admin";
 import { PanelMetas } from "@/components/admin/panel-metas";
-import { Esqueleto } from "@/components/admin/piezas";
+import { TableroPorAccion } from "@/components/admin/tablero-por-accion";
+import {
+  Bloque, Cifra, Esqueleto } from "@/components/admin/piezas";
 import {
   crmApi,
   ETIQUETA_ETAPA,
@@ -62,6 +61,13 @@ const TRAMOS_ESPERA: Array<{ dias: number; etiqueta: string; tono: Tono }> = [
   { dias: 8, etiqueta: "8 a 14 días", tono: "aviso" },
   { dias: 15, etiqueta: "15 días o más", tono: "malo" },
 ];
+
+/// El delta en palabras: «+12 %» sin contexto no se lee.
+function textoDelta(v: number | null): string {
+  if (v === null || v === 0) return "igual";
+  const signo = v > 0 ? "más" : "menos";
+  return `${Math.abs(Math.round(v))} % ${signo}`;
+}
 
 function porcentaje(fraccion: number): string {
   return `${Math.round(fraccion * 100)} %`;
@@ -189,10 +195,15 @@ export default function PaginaControl() {
       (vivos.datos?.ventana.etiquetaAnterior ?? '').includes('días contra'));
 
   return (
-    <div>
-      <header className="border-b border-borde bg-superficie px-7 pt-[26px] pb-[22px] flex flex-wrap items-start justify-between gap-4">
+    <div className="flex flex-col gap-3 px-4 pt-3 pb-6">
+      <header className="flex flex-wrap items-start justify-between gap-4">
         <div className="min-w-0">
-          <h1 className="text-[1.3125rem] font-bold tracking-[-0.02em] text-titulo">Control de Inscritos</h1>
+          <h1 className="text-[1.125rem] font-bold tracking-[-0.02em] text-titulo">
+            Control de Inscritos
+          </h1>
+          <p className="mt-0.5 text-[0.78125rem] text-texto-suave">
+            Cómo va la inscripción contra la meta, y de dónde viene cada lead.
+          </p>
         </div>
         {/* solo en Análisis: es de esos datos, y en la otra
             pestaña diría una hora que no le corresponde */}
@@ -209,7 +220,7 @@ export default function PaginaControl() {
       <div
         role="tablist"
         aria-label="Qué mirar"
-        className="flex gap-1 border-b border-borde"
+        className="flex gap-1 self-start rounded-lg border border-borde bg-superficie p-1"
       >
         {PESTANAS.map((p) => (
           <button
@@ -217,10 +228,10 @@ export default function PaginaControl() {
             role="tab"
             aria-selected={pestana === p.clave}
             onClick={() => cambiar(p.clave)}
-            className={`-mb-px border-b-2 px-4 py-2 text-sm font-medium transition ${
+            className={`sin-aro rounded-md px-4 py-1.5 text-[0.78125rem] font-semibold transition ${
               pestana === p.clave
-                ? "border-marca text-marca"
-                : "border-transparent text-texto-suave hover:text-texto"
+                ? "bg-marca-suave text-marca"
+                : "text-texto-suave hover:text-texto"
             }`}
           >
             {p.etiqueta}
@@ -232,11 +243,11 @@ export default function PaginaControl() {
 
       {pestana === "analisis" && (
         <>
-      <div className="border-b border-borde bg-superficie px-7 py-5">
-        <div className="grid lg:grid-cols-2">
-          <div>
-            <p className="mb-1.5 text-sm font-medium">Periodo</p>
-            <div className="flex flex-wrap items-center gap-3">
+      <div className="rounded-lg border border-borde bg-superficie px-4 py-2.5">
+        <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="shrink-0 text-[0.6875rem] font-medium text-texto-suave">Periodo</p>
+            <div className="flex flex-wrap items-center gap-2">
               <select
                 className={`${CLASE_CONTROL} max-w-[14rem]`}
                 value={rango}
@@ -274,9 +285,11 @@ export default function PaginaControl() {
             </div>
           </div>
 
-          <div>
-            <p className="mb-1.5 text-sm font-medium">Comparar con</p>
-            <div className="flex flex-wrap items-center gap-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="shrink-0 text-[0.6875rem] font-medium text-texto-suave">
+              Comparar con
+            </p>
+            <div className="flex flex-wrap items-center gap-2">
               <select
                 className={`${CLASE_CONTROL} max-w-[14rem]`}
                 value={contra}
@@ -314,8 +327,6 @@ export default function PaginaControl() {
               )}
             </div>
           </div>
-        </div>
-
         {duracionDistinta && (
           <p className="mt-4 rounded-xl bg-aviso-suave px-3 py-2 text-xs text-aviso">
             <strong className="font-semibold">Los dos periodos no duran lo mismo:</strong>{" "}
@@ -326,25 +337,10 @@ export default function PaginaControl() {
           </p>
         )}
 
-        <p className="mt-3 text-xs text-texto-suave">
-          Aquí se cruzan <strong className="font-medium">dos fechas distintas</strong>. Los
-          inscritos, sus cortes y su ritmo van por la fecha en que la persona{" "}
-          <strong className="font-medium">llegó a ser inscrita</strong>. El embudo y la
-          llegada de leads van por la fecha en que{" "}
-          <strong className="font-medium">llegó el lead</strong>, porque los peldaños de
-          arriba no tienen matrícula y sin eso desaparecerían enteros. Las colas de trabajo,
-          los cupos, la cobertura, la conversión y las organizaciones{" "}
-          <strong className="font-medium">no se recortan nunca</strong>: son lo que hay hoy.
-          {rango === "PERSONALIZADO" && (!desde || !hasta) && (
-            <span className="text-aviso"> Faltan las dos fechas, así que se muestra todo.</span>
-          )}
-          {contra === "PERSONALIZADO" && (!contraDesde || !contraHasta) && (
-            <span className="text-aviso">
-              {" "}
-              A la comparación le faltan fechas, así que no hay con qué comparar.
-            </span>
-          )}
-        </p>
+          <p className="text-[0.6875rem] text-texto-suave">
+            Acota los inscritos, el ritmo y las series por día; el resto es la situación de hoy.
+          </p>
+        </div>
       </div>
 
       {vivos.error ? (
@@ -421,88 +417,180 @@ function Cuerpo({ d, adminId, eligio }: { d: Control; adminId: string; eligio: b
   const conOrigen = d.porOrigen.reduce((s, o) => s + o.total, 0);
   const conModalidad = d.porModalidad.reduce((s, m) => s + m.total, 0);
 
+  // lo que hay que hacer, sacado de las mismas cifras
+  const sinNombre = Math.max(0, d.cuposConfirmados - d.inscritosConReserva);
+  const mejorCanal = [...d.conversionPorOrigen]
+    .filter((o) => o.leads >= 5)
+    .sort((a, b) => b.conversion - a.conversion)[0];
+  const empresaFloja = [...d.topEmpresas].sort(
+    (a, b) => b.cupos - b.inscritos - (a.cupos - a.inscritos),
+  )[0];
+
+  const prioridades: Array<{ tono: Tono; que: string; hacer: string }> = [];
+  if (sinNombre > 0)
+    prioridades.push({
+      tono: cobertura >= 0.8 ? "bueno" : cobertura >= 0.4 ? "normal" : "aviso",
+      que: `${n(sinNombre)} de los ${n(d.cuposConfirmados)} cupos apartados no tienen todavía un nombre detrás.`,
+      hacer: empresaFloja
+        ? `La que más debe es ${empresaFloja.razonSocial}, con ${n(empresaFloja.cupos - empresaFloja.inscritos)} pendientes. Pídale los nombres.`
+        : "Pida los nombres a las organizaciones que apartaron cupos.",
+    });
+  if (frios > 0)
+    prioridades.push({
+      tono: "aviso",
+      que: `${n(frios)} de los ${n(esperando)} leads que esperan una primera llamada llevan más de una semana.`,
+      hacer: "Llámelos hoy: cuanto más se enfría un lead, menos se inscribe.",
+    });
+  if (d.sinAsignar > 0)
+    prioridades.push({
+      tono: "normal",
+      que: `${n(d.sinAsignar)} leads no tienen asesor asignado.`,
+      hacer: "Repártalos, porque hoy no los está llamando nadie.",
+    });
+  if (mejorCanal)
+    prioridades.push({
+      tono: "bueno",
+      que: `El canal que mejor rinde es «${ETIQUETA_ORIGEN[mejorCanal.etiqueta as Origen] ?? mejorCanal.etiqueta}»: inscribe a ${porcentaje(mejorCanal.conversion)} de los que trae.`,
+      hacer: "Es por donde conviene meter esfuerzo antes que por el que más volumen trae.",
+    });
+
   return (
-    <div>
-      {/* la cola de trabajo, antes que nada */}
-      <section className="grid lg:grid-cols-3">
-        <Tarjeta
-          titulo="Leads sin asesor"
-          descripcion="Leads por trabajar que no son de nadie. No lleva periodo: es una cola, no un hecho fechado."
+    <div className="flex flex-col gap-3">
+      {/* Las cifras, como en la ficha de una acción de
+          formación: una sola fila, un solo tamaño, y la META
+          de primera — es contra lo único que se cumple o no.
+          Los minigráficos se fueron: eran un idioma más, y la
+          misma serie se lee entera en «Ritmo», más abajo. */}
+      <div className="flex flex-wrap gap-2.5">
+        <Cifra
+          etiqueta="Avance sobre la meta"
+          valor={n(inscritosSiempre)}
+          pie={
+            d.metaComprometida > 0
+              ? `de ${n(d.metaComprometida)} comprometidos · ${porcentaje(inscritosSiempre / d.metaComprometida)}`
+              : "no hay meta cargada en los proyectos"
+          }
+          color="var(--marca)"
+        />
+        <Cifra
+          etiqueta="Cupos apartados"
+          valor={n(d.cuposConfirmados)}
+          pie={
+            sinNombre > 0
+              ? `el tope de captura · ${n(sinNombre)} sin nombre detrás`
+              : "el tope de captura · todos con nombre"
+          }
+        />
+        <Cifra
+          etiqueta="Llegaron a inscrito"
+          valor={n(d.total)}
+          pie={`${corte}${contra ? ` · ${textoDelta(d.variacion.total)} que ${contra}` : ""}`}
+        />
+        <Cifra
+          etiqueta="Leads que llegaron"
+          valor={n(leadsDelPeriodo)}
+          pie={`leads nuevos ${alcanceSerie}, en cualquier etapa`}
+        />
+        <Cifra
+          etiqueta="De lead a inscrito"
+          valor={d.diasHastaInscribir === null ? "—" : `${Math.round(d.diasHastaInscribir)} días`}
+          pie={
+            d.diasHastaInscribir === null
+              ? "todavía no hay inscritos en el corte"
+              : "promedio de los inscritos del periodo"
+          }
+        />
+      </div>
+
+      {/* lo que hay que hacer, antes que cómo se calcula */}
+      {prioridades.length > 0 && (
+        <Bloque
+          titulo="Qué atender primero"
+          descripcion="Lo que estas cifras piden hacer hoy, en orden."
         >
-          <p
-            className={`text-5xl font-semibold tabular-nums ${
-              d.sinAsignar > 0 ? "text-aviso" : "text-exito"
-            }`}
-          >
-            {n(d.sinAsignar)}
-          </p>
-          <p className="mt-2 text-xs text-texto-suave">
-            {d.sinAsignar > 0
-              ? "Nadie las está llamando: repartirlas es el primer trabajo del día."
-              : "Todos los leads por trabajar tienen dueño."}
-          </p>
+          <ul className="space-y-2.5">
+            {prioridades.map((p) => (
+              <li key={p.que} className="flex gap-2.5">
+                <span
+                  className={`mt-[6px] size-2 shrink-0 rounded-full ${
+                    p.tono === "aviso"
+                      ? "bg-error"
+                      : p.tono === "bueno"
+                        ? "bg-exito"
+                        : "bg-aviso"
+                  }`}
+                />
+                <p className="text-[0.8125rem] leading-snug">
+                  <span className="font-medium text-titulo">{p.que}</span>{" "}
+                  <span className="text-texto-suave">{p.hacer}</span>
+                </p>
+              </li>
+            ))}
+          </ul>
+        </Bloque>
+      )}
+
+      {/* la cola de trabajo: un solo bloque, no dos */}
+      <Bloque
+        titulo="Cola de trabajo"
+        descripcion="Leads que todavía esperan gestión: los que no tienen asesor asignado y los que, teniéndolo, aún no han recibido una primera llamada. No depende del periodo seleccionado."
+        acciones={
           <Link
             href="/admin/participantes"
-            className="mt-4 inline-block text-sm font-medium text-marca"
+            className="text-[0.78125rem] font-medium text-marca"
           >
             Ir al tablero de inscripciones
           </Link>
-        </Tarjeta>
-
-        <div className="lg:col-span-2">
-          <Tarjeta
-            titulo="Cuánto llevan esperando sin que los llamen"
-            descripcion="Solo quien sigue en «Interesado», por su fecha de llegada: en cuanto alguien lo llama el lead pasa a «Contactado» y sale de aquí. Tampoco lleva periodo, porque recortarla la dejaría vacía justo cuando más larga está."
-          >
-            <Termometro tramos={tramos} vacio="No hay nadie esperando a que lo llamen." />
-            <p className="mt-4 border-t border-borde pt-3 text-xs text-texto-suave">
-              <strong className="font-medium tabular-nums">{n(esperando)}</strong> personas
-              esperando en total
-              {esperando > 0 && (
-                <>
-                  {" · "}
-                  <strong className="font-medium tabular-nums">{n(frios)}</strong> llevan más
-                  de una semana, el {porcentaje(frios / esperando)} de la cola
-                </>
-              )}
-            </p>
-          </Tarjeta>
+        }
+      >
+        {/* una cifra no necesita un bloque entero */}
+        <div className="mb-4 flex flex-wrap items-stretch gap-2.5">
+          <div className="rounded-lg border border-borde bg-superficie px-3.5 py-2">
+            <div className="text-[0.6875rem] leading-none text-texto-suave">
+              Sin asesor asignado
+            </div>
+            <div
+              className={`mt-1 text-[1.0625rem] leading-none font-bold tabular-nums ${
+                d.sinAsignar > 0 ? "text-aviso" : "text-exito"
+              }`}
+            >
+              {n(d.sinAsignar)}
+            </div>
+            <div className="mt-1 text-[0.6875rem] leading-none text-texto-suave">
+              {d.sinAsignar > 0 ? "repartir es el primer paso" : "todos tienen responsable"}
+            </div>
+          </div>
+          <div className="rounded-lg border border-borde bg-superficie px-3.5 py-2">
+            <div className="text-[0.6875rem] leading-none text-texto-suave">
+              Esperando primera llamada
+            </div>
+            <div className="mt-1 text-[1.0625rem] leading-none font-bold text-titulo tabular-nums">
+              {n(esperando)}
+            </div>
+            <div className="mt-1 text-[0.6875rem] leading-none text-texto-suave">
+              {esperando > 0
+                ? `${n(frios)} llevan más de una semana · ${porcentaje(frios / esperando)}`
+                : "nadie pendiente de contacto"}
+            </div>
+          </div>
         </div>
-      </section>
+        <ListaBarras
+          datos={tramos.map((t) => ({
+            etiqueta: t.etiqueta,
+            valor: t.total,
+            detalle: esperando > 0 ? porcentaje(t.total / esperando) : undefined,
+          }))}
+          vacio="No hay nadie esperando a que lo llamen."
+        />
+      </Bloque>
 
-      {/* las cifras de cabecera */}
-      <section className="grid gap-px border-t border-b border-hairline bg-hairline sm:grid-cols-2 lg:grid-cols-4">
-        <TarjetaCifra
-          titulo="Llegaron a inscrito"
-          valor={d.total}
-          detalle={`${corte} · se matricularon en el corte, aunque hoy ya cursen`}
-          chispa={d.serie.length > 1 ? d.serie.map((p) => p.total) : undefined}
-          delta={{ valor: d.variacion.total, contra }}
-        />
-        <TarjetaCifra
-          titulo="Leads que llegaron"
-          valor={leadsDelPeriodo}
-          detalle={`leads nuevos ${alcanceSerie}, en cualquier etapa`}
-          chispa={d.leadsPorDia.length > 1 ? d.leadsPorDia.map((p) => p.total) : undefined}
-        />
-        <TarjetaCifra
-          titulo="Cupos confirmados"
-          valor={d.cuposConfirmados}
-          detalle="el techo de la captura · sale de reservas, así que no lleva periodo"
-        />
-        <TarjetaCifra
-          titulo="De lead a inscrito"
-          valor={d.diasHastaInscribir === null ? "—" : Math.round(d.diasHastaInscribir)}
-          sufijo={d.diasHastaInscribir === null ? undefined : "días"}
-          detalle="promedio de los inscritos del periodo"
-          delta={{ valor: d.variacion.diasHastaInscribir, contra, invertido: true }}
-        />
-      </section>
+      <TableroPorAccion />
+
 
       {/* las tasas */}
-      <Tarjeta
-        titulo="Las tres tasas"
-        descripcion="Ninguna lleva periodo: las tres miden lo que hay hoy contra lo que se comprometió, y recortarlas por «ayer» daría cifras falsas."
+      <Bloque
+        titulo="Cómo va contra lo comprometido"
+        descripcion="La situación de hoy, no la del periodo."
       >
         <div className="grid sm:grid-cols-3">
           <Tasa
@@ -531,36 +619,21 @@ function Cuerpo({ d, adminId, eligio }: { d: Control; adminId: string; eligio: b
             detalle="leads que llegaron a inscrito"
           />
           <Tasa
-            titulo="Llegaron por su cuenta"
+            titulo="Sin cupo de una empresa"
             parte={d.inscritosPorSuCuenta}
             total={inscritosSiempre}
-            detalle="el resto entró por un cupo reservado"
+            detalle="el resto ocupa un cupo que apartó una organización"
           />
         </div>
 
-        <p className="mt-5 border-t border-borde pt-3 text-xs text-texto-suave">
-          La cobertura no se mueve al cambiar el periodo, y es a propósito: los cupos salen
-          de reservas y no pueden llevar ventana, así que medir contra ellos unos inscritos
-          recortados daría «0 % de cobertura» con solo elegir «ayer». Solo cuenta a quien
-          ocupa un cupo reservado: los{" "}
-          <strong className="font-medium tabular-nums">{n(d.inscritosPorSuCuenta)}</strong>{" "}
-          que llegaron por redes, feria o referido no tienen ninguna reserva detrás.
-        </p>
-      </Tarjeta>
+      </Bloque>
 
       {/* el embudo y el ritmo */}
       <section className="grid lg:grid-cols-3">
-        <Tarjeta
-          titulo="El embudo"
-          descripcion={
-            <>
-              Una foto de dónde está cada quien <strong className="font-medium">hoy</strong>:
-              cada persona cuenta en un solo peldaño, así que no es un acumulado y los
-              peldaños no se restan entre sí. Va por la fecha en que{" "}
-              <strong className="font-medium">llegó el lead</strong>, no por la de
-              inscripción.
-            </>
-          }
+        <Bloque
+          estirado
+          titulo="En qué punto está cada quien"
+          descripcion="Dónde está hoy cada persona que llegó en el periodo. Cada una cuenta en un solo peldaño."
         >
           <ul className="space-y-3">
             {escalones.map((e) => (
@@ -597,10 +670,11 @@ function Cuerpo({ d, adminId, eligio }: { d: Control; adminId: string; eligio: b
             está hoy en «Inscrito». Quien ya pasó al aula no aparece aquí: estos cinco
             peldaños no son todo el recorrido.
           </p>
-        </Tarjeta>
+        </Bloque>
 
         <div className="lg:col-span-2">
-          <Tarjeta
+          <Bloque
+          estirado
             titulo="Ritmo: llegada contra inscripción"
             descripcion={`Los leads por el día en que llegaron y los inscritos por el día en que lo fueron, ${alcanceSerie}. Es la gráfica que separa las dos preguntas: si entran leads y no salen inscripciones, el problema está en el seguimiento y no en la pauta.`}
           >
@@ -609,30 +683,29 @@ function Cuerpo({ d, adminId, eligio }: { d: Control; adminId: string; eligio: b
               b={{ nombre: "Llegaron a inscrito", datos: d.serie, color: SERIE.dos }}
               vacio="Todavía no hay movimiento que mostrar."
             />
-          </Tarjeta>
+          </Bloque>
         </div>
       </section>
 
       {/* el origen: volumen y calidad */}
       <section className="grid lg:grid-cols-2">
-        <Tarjeta
-          titulo="De dónde vienen: volumen"
-          descripcion="Cuántos de los inscritos del periodo entraron por cada puerta. Dice cuál trae más, nunca cuál trae mejor."
+        <Bloque
+          titulo="Qué canal trae más"
+          descripcion="Por dónde entraron los inscritos del periodo."
         >
-          <Donut
+          <ListaBarras
             datos={d.porOrigen.map((o) => ({
               etiqueta: ETIQUETA_ORIGEN[o.etiqueta as Origen] ?? o.etiqueta,
               valor: o.total,
+              detalle: conOrigen > 0 ? porcentaje(o.total / conOrigen) : undefined,
             }))}
-            centro={n(conOrigen)}
-            detalleCentro="inscritos"
             vacio="Todavía no hay inscritos en el periodo."
           />
-        </Tarjeta>
+        </Bloque>
 
-        <Tarjeta
-          titulo="De dónde vienen: calidad"
-          descripcion="Cuánto convierte cada puerta, sobre todos sus leads y sin periodo. No es lo mismo que el volumen: una pauta puede traer trescientos leads y convertir el 2 %."
+        <Bloque
+          titulo="Qué canal inscribe más"
+          descripcion="De cada canal, cuántos acaba inscribiendo. Traer mucho no es traer bueno."
         >
           <BarrasApiladas
             filas={d.conversionPorOrigen.map((o) => ({
@@ -646,13 +719,13 @@ function Cuerpo({ d, adminId, eligio }: { d: Control; adminId: string; eligio: b
             ]}
             vacio="Todavía no hay leads."
           />
-        </Tarjeta>
+        </Bloque>
       </section>
 
       {/* los asesores */}
-      <Tarjeta
+      <Bloque
         titulo="Por asesor"
-        descripcion="Ordenada por conversión, que es HISTÓRICA: todos los que llegó a inscribir sobre todos sus leads, sin periodo. Así se lee quién convierte mejor —quien lleva 200 y convierte el 5 % lo hace peor que quien lleva 20 y convierte el 40 %— y no a quién le entró una inscripción esta mañana."
+        descripcion="Cuántos inscribe cada asesor de los leads que ha llevado. Ordenado por eso, no por la actividad de un día."
       >
         {mio && (
           <p className="mb-4 rounded-xl bg-marca-suave px-3 py-2 text-sm">
@@ -713,13 +786,13 @@ function Cuerpo({ d, adminId, eligio }: { d: Control; adminId: string; eligio: b
             </table>
           </div>
         )}
-      </Tarjeta>
+      </Bloque>
 
       {/* quien debe nombres */}
       <section className="grid lg:grid-cols-2">
-        <Tarjeta
+        <Bloque
           titulo="Las organizaciones con más nombres"
-          descripcion="Nombres puestos contra cupos apartados. Ninguna de las dos cifras lleva periodo: los cupos salen de reservas, y medir contra ellos unos inscritos recortados daría deudas inventadas."
+          descripcion="Cuántos nombres ha entregado cada organización de los cupos que apartó. Lo que falta es a quién llamar."
         >
           {d.topEmpresas.length === 0 ? (
             <p className="py-6 text-center text-sm text-texto-suave">
@@ -751,11 +824,11 @@ function Cuerpo({ d, adminId, eligio }: { d: Control; adminId: string; eligio: b
               ))}
             </ul>
           )}
-        </Tarjeta>
+        </Bloque>
 
-        <Tarjeta
+        <Bloque
           titulo="Por acción de formación"
-          descripcion="Qué curso eligieron los inscritos del periodo. Quien todavía no tiene acción asignada no aparece."
+          descripcion="Distribución de los inscritos del periodo entre las acciones de formación. No incluye a quienes aún no tienen acción asignada."
         >
           <ListaBarras
             datos={d.porAccion.map((a) => ({
@@ -766,14 +839,14 @@ function Cuerpo({ d, adminId, eligio }: { d: Control; adminId: string; eligio: b
             vacio="Todavía no hay inscritos en el periodo."
             maximoFilas={12}
           />
-        </Tarjeta>
+        </Bloque>
       </section>
 
       {/* los repartos */}
       <section className="grid lg:grid-cols-3">
-        <Tarjeta
+        <Bloque
           titulo="Por ubicación"
-          descripcion="Dónde se dicta lo que eligieron: ciudad o departamento."
+          descripcion="Ciudad o departamento donde se dicta la formación que eligieron los inscritos del periodo."
         >
           <ListaBarras
             datos={d.porUbicacion.map((u) => ({
@@ -786,9 +859,9 @@ function Cuerpo({ d, adminId, eligio }: { d: Control; adminId: string; eligio: b
             vacio="Todavía no hay inscritos con oferta."
             maximoFilas={12}
           />
-        </Tarjeta>
+        </Bloque>
 
-        <Tarjeta titulo="Por grupo" descripcion="El reparto real: es lo que se le reporta al SENA.">
+        <Bloque titulo="Por grupo" descripcion="Distribución por grupo, tal como se reporta al SENA.">
           <ListaBarras
             datos={d.porGrupo.map((g) => ({
               clave: g.clave,
@@ -804,37 +877,36 @@ function Cuerpo({ d, adminId, eligio }: { d: Control; adminId: string; eligio: b
             vacio="Nadie tiene grupo asignado todavía."
             maximoFilas={12}
           />
-        </Tarjeta>
+        </Bloque>
 
         <div className="space-y-6">
-          <Tarjeta
+          <Bloque
             titulo="Por convenio"
-            descripcion="Los inscritos del periodo, entre los convenios que se pueden ver."
+            descripcion="Inscritos del periodo en cada uno de los convenios a los que tiene acceso."
           >
-            <Donut
-              datos={d.porConvenio.map((c) => ({ etiqueta: c.etiqueta, valor: c.total }))}
-              tamano={120}
-              centro={n(d.total)}
-              detalleCentro="inscritos"
+            <ListaBarras
+              datos={d.porConvenio.map((c) => ({
+                etiqueta: c.etiqueta,
+                valor: c.total,
+                detalle: d.total > 0 ? porcentaje(c.total / d.total) : undefined,
+              }))}
               vacio="Todavía no hay inscritos en el periodo."
             />
-          </Tarjeta>
+          </Bloque>
 
-          <Tarjeta
+          <Bloque
             titulo="Por modalidad"
-            descripcion="Presencial, virtual o híbrida. Sale de la oferta, así que quien no tiene una asignada no cuenta."
+            descripcion="Modalidad de la oferta asignada: presencial, virtual o híbrida. No incluye a quienes aún no tienen oferta."
           >
-            <Donut
+            <ListaBarras
               datos={d.porModalidad.map((m) => ({
                 etiqueta: m.etiqueta.charAt(0) + m.etiqueta.slice(1).toLowerCase(),
                 valor: m.total,
+                detalle: conModalidad > 0 ? porcentaje(m.total / conModalidad) : undefined,
               }))}
-              tamano={120}
-              centro={n(conModalidad)}
-              detalleCentro="con oferta"
               vacio="Todavía no hay inscritos con oferta."
             />
-          </Tarjeta>
+          </Bloque>
         </div>
       </section>
     </div>

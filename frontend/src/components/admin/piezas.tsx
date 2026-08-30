@@ -30,12 +30,124 @@ const VARIABLE: Record<Tono, string> = {
  * tres en rem, que es lo que deja que el ajuste de texto del
  * panel los siga escalando.
  */
+/**
+ * La tarjeta de cifra de Gestión de leads, tal cual: suelta, con
+ * su borde y su curva, y sombra solo al pasar por encima — que es
+ * lo único que puede flotar en el contenido.
+ */
+export function Cifra({
+  etiqueta,
+  valor,
+  pie,
+  color = "var(--titulo)",
+}: {
+  etiqueta: string;
+  valor: number | string;
+  pie?: string | null;
+  color?: string;
+}) {
+  return (
+    <div
+      className={
+        "min-w-[150px] flex-1 rounded-lg border border-borde bg-superficie px-3.5 py-2 transition " +
+        "hover:border-marca/40 hover:shadow-[0_2px_14px_-6px_rgba(15,23,42,0.28)]"
+      }
+    >
+      <div className="truncate leading-none text-texto-suave" style={{ fontSize: "0.6875rem" }} title={etiqueta}>
+        {etiqueta}
+      </div>
+      <div className="mt-1 font-bold leading-none tabular-nums" style={{ fontSize: "1.0625rem", color }}>
+        {valor}
+      </div>
+      {pie && (
+        <div className="mt-1 truncate leading-none text-texto-suave" style={{ fontSize: "0.6875rem" }}>
+          {pie}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Una sección en su propia caja, sobre el fondo de la página.
+ *
+ * Es la contraria de `Tarjeta`: aquella es una franja a sangre
+ * con raya abajo, y sirve cuando la pantalla entera es una
+ * columna de franjas. Esta es para pantallas al estilo de
+ * Gestión de leads, donde el contenido va sobre el fondo con
+ * margen y cada bloque se despega con su borde.
+ *
+ * El relleno lateral es de 28px y NO se cambia: hay listas que
+ * lo compensan con `-mx-7` para llegar de borde a borde.
+ */
+export function Bloque({
+  titulo,
+  descripcion,
+  acciones,
+  sinRelleno,
+  estirado,
+  partible,
+  children,
+}: {
+  titulo?: string;
+  descripcion?: React.ReactNode;
+  /** Botones a la derecha del título. */
+  acciones?: React.ReactNode;
+  /** Para tablas, que traen su propio relleno. */
+  sinRelleno?: boolean;
+  /** Que ocupe todo el alto: dos bloques de una fila miden igual. */
+  estirado?: boolean;
+  /**
+   * Que pueda partirse entre hojas al imprimir.
+   *
+   * Por omisión un bloque NO se parte: se muda entero a la hoja
+   * siguiente. Eso está bien para los cortos y es justo lo que
+   * deja media página en blanco cuando el bloque es una tabla de
+   * catorce filas. Los largos se marcan aquí, y entonces parten
+   * por fila, con su cabecera repetida.
+   */
+  partible?: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <section
+      className={
+        "rounded-lg border border-borde bg-superficie " +
+        (partible ? "bloque-partible " : "bloque-entero ") +
+        (estirado ? "bloque-estirado flex h-full flex-col" : "")
+      }
+    >
+      {(titulo || acciones) && (
+        <div className="cabecera-de-bloque flex flex-wrap items-start justify-between gap-3 rounded-t-[7px] border-b border-borde bg-marca-suave px-7 py-3">
+          <div className="min-w-0">
+            {titulo && (
+              <h2 className="text-[0.875rem] font-semibold text-titulo">{titulo}</h2>
+            )}
+            {descripcion && (
+              <p className="mt-0.5 text-[0.75rem] text-texto-suave">{descripcion}</p>
+            )}
+          </div>
+          {acciones}
+        </div>
+      )}
+      <div
+        className={
+          (sinRelleno ? "" : "px-7 py-4") + (estirado ? " min-h-0 grow" : "")
+        }
+      >
+        {children}
+      </div>
+    </section>
+  );
+}
+
 export function TarjetaCifra({
   etiqueta,
   valor,
   pie,
   tono = "marca",
   href,
+  compacta,
 }: {
   etiqueta: string;
   valor: React.ReactNode;
@@ -44,6 +156,9 @@ export function TarjetaCifra({
   icono?: Icono;
   tono?: Tono;
   href?: string;
+  /// Menos alta, para pantallas donde la cifra acompaña y lo
+  /// que se viene a mirar es la lista de abajo.
+  compacta?: boolean;
 }) {
   const cuerpo = (
     <>
@@ -54,9 +169,9 @@ export function TarjetaCifra({
         {etiqueta}
       </p>
       <p
-        className="mt-2 font-bold tabular-nums"
+        className={(compacta ? "mt-1" : "mt-2") + " font-bold tabular-nums"}
         style={{
-          fontSize: "2rem",
+          fontSize: compacta ? "1.5rem" : "2rem",
           letterSpacing: "-0.03em",
           color: tono === "marca" ? "var(--titulo)" : VARIABLE[tono],
         }}
@@ -72,7 +187,7 @@ export function TarjetaCifra({
   );
 
   const clase =
-    "bg-superficie px-7 pt-[18px] pb-5 transition" +
+    (compacta ? "bg-superficie px-7 pt-3 pb-[13px] transition" : "bg-superficie px-7 pt-[18px] pb-5 transition") +
     (href ? " block no-underline hover:bg-tabla-fila-resaltada" : "");
 
   return href ? (

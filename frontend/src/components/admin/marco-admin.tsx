@@ -38,6 +38,7 @@ import { ICONO_DE_MODULO, IconoResumen,
   IconoSalir,
 } from "./iconos";
 import { enlacesVisibles, estaActivo, MODULOS } from "./navegacion";
+import { Desplegable } from "./desplegable";
 
 type Contexto = {
   admin: AdminActual;
@@ -474,18 +475,20 @@ function SelectorGremio({
   return (
     <label className="block">
       <span className={ROTULO + " mb-1.5 block"}>Seleccione Gremio</span>
-      <select
-        value={gremio ?? ""}
-        onChange={(e) => alElegir(e.target.value || null)}
-        className="w-full rounded-lg border border-encabezado-borde/60 bg-transparent px-2.5 py-1.5 text-sm font-medium outline-none focus:border-marca"
-      >
-        <option value="">Todos los gremios</option>
-        {gremios.map((g) => (
-          <option key={g.convenioId} value={g.convenioId}>
-            {g.sigla}
-          </option>
-        ))}
-      </select>
+      <Desplegable
+        enBarra
+        alto={34}
+        marcador="Todos los gremios"
+        valor={gremio ?? ""}
+        opciones={[
+          { valor: "", etiqueta: "Todos los gremios" },
+          ...gremios.map((g) => ({
+            valor: g.convenioId,
+            etiqueta: g.sigla ?? g.convenioId,
+          })),
+        ]}
+        alElegir={(v) => alElegir(v || null)}
+      />
     </label>
   );
 }
@@ -541,8 +544,8 @@ function FilaResumen({
         }}
         className={`mb-2 flex h-[34px] w-[34px] items-center justify-center self-center rounded-full border transition ${
           activo
-            ? "border-titulo bg-titulo text-superficie"
-            : "border-borde text-texto-suave hover:border-texto-suave hover:text-titulo"
+            ? "border-encabezado-texto bg-encabezado-texto text-encabezado-fondo"
+            : "border-current/35 opacity-85 hover:border-current/70 hover:opacity-100"
         }`}
       >
         <IconoResumen tamano={17} />
@@ -557,7 +560,7 @@ function FilaResumen({
       className={`mt-3 flex items-center gap-2.5 rounded-lg px-3 py-2 text-[13px] font-semibold transition ${
         activo
           ? "bg-marca-suave text-marca"
-          : "opacity-70 hover:bg-current/8 hover:opacity-100"
+          : "opacity-85 hover:bg-current/10 hover:opacity-100"
       }`}
     >
       <span className="shrink-0 leading-none">
@@ -775,7 +778,7 @@ function Grupos({
               key={modulo.clave}
               type="button"
               onClick={() => alDesplegar?.(modulo.clave)}
-              title={`${modulo.etiqueta} — ${modulo.descripcion}`}
+              title={modulo.etiqueta}
               aria-expanded={false}
               /// Circulo de 34 con borde de 1px, no un cuadro
               /// relleno: el rail sin etiquetas ya es bastante
@@ -790,8 +793,8 @@ function Grupos({
               /// donde esta uno es lo unico que se tiene.
               className={`mb-2 flex h-[34px] w-[34px] items-center justify-center self-center rounded-full border transition ${
                 activo
-                  ? "border-titulo bg-titulo text-superficie"
-                  : "border-borde text-texto-suave hover:border-texto-suave hover:text-titulo"
+                  ? "border-encabezado-texto bg-encabezado-texto text-encabezado-fondo"
+                  : "border-current/35 opacity-85 hover:border-current/70 hover:opacity-100"
               }`}
             >
               {(() => {
@@ -811,7 +814,7 @@ function Grupos({
                 type="button"
                 onClick={() => alternar(modulo.clave)}
                 aria-expanded={desplegado}
-                title={modulo.descripcion}
+                title={modulo.etiqueta}
                 /// 13px y peso 600, que es la medida del
                 /// redisenio para el modulo. De paso cabe:
                 /// a 14px «Gestion de Inscripciones» y
@@ -820,7 +823,7 @@ function Grupos({
                 className={`flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-[13px] font-semibold transition ${
                   desplegado
                     ? "opacity-100"
-                    : "opacity-65 hover:bg-current/8 hover:opacity-100"
+                    : "opacity-80 hover:bg-current/10 hover:opacity-100"
                 }`}
               >
                 {(() => {
@@ -865,14 +868,14 @@ function Grupos({
                       aria-current={activo ? "page" : undefined}
                       className={`relative flex items-center gap-2.5 rounded-xl px-3 py-2 text-sm transition ${
                         activo
-                          ? "bg-current/12 font-medium"
-                          : "opacity-65 hover:bg-current/8 hover:opacity-100"
+                          ? "bg-current/15 font-semibold"
+                          : "opacity-80 hover:bg-current/10 hover:opacity-100"
                       }`}
                     >
                       {activo && (
                         <span
                           aria-hidden
-                          className="absolute top-1.5 bottom-1.5 -left-1 w-[3px] rounded-full bg-marca"
+                          className="absolute top-1.5 bottom-1.5 -left-1 w-[3px] rounded-full bg-current"
                         />
                       )}
                       <span className="truncate">{enlace.etiqueta}</span>
