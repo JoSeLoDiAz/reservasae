@@ -21,9 +21,9 @@ import {
 const POR_VIAJE = 200;
 
 const ETIQUETA_ESTADO: Record<EstadoReserva, { texto: string; clase: string }> = {
-  CONFIRMADA: { texto: "Confirmada", clase: "bg-exito-suave text-exito" },
-  LISTA_ESPERA: { texto: "En espera", clase: "bg-aviso-suave text-aviso" },
-  CANCELADA: { texto: "Cancelada", clase: "bg-error-suave text-error" },
+  CONFIRMADA: { texto: "Confirmada", clase: "text-exito" },
+  LISTA_ESPERA: { texto: "En espera", clase: "text-aviso" },
+  CANCELADA: { texto: "Cancelada", clase: "text-error" },
 };
 
 const fecha = (iso: string) =>
@@ -183,7 +183,7 @@ export default function PaginaReservas() {
         pinta: (r) => (
           <span
             className={
-              "whitespace-nowrap rounded-full px-2.5 py-0.5 text-xs font-medium " +
+              "whitespace-nowrap text-[0.75rem] font-semibold " +
               ETIQUETA_ESTADO[r.estado].clase
             }
           >
@@ -216,8 +216,12 @@ export default function PaginaReservas() {
     [],
   );
 
+  /// El relleno lateral lo pone la pantalla, no el
+  /// marco: el contenedor dejo de ponerlo para que las
+  /// bandas vayan a sangre, y sin esto la barra de
+  /// busqueda y la paginacion quedaban pegadas al canto.
   return (
-    <div className="flex min-h-0 grow flex-col gap-6">
+    <div className="flex min-h-0 grow flex-col gap-4 px-4 pt-4">
       {/* Sin título ni conteo: lo dice la miga, y la cifra
           va en el pie de la tabla. El aviso solo aparece si
           el servidor deja de contestar; el resto del tiempo
@@ -249,7 +253,7 @@ export default function PaginaReservas() {
           <>
             <button
               onClick={() => descargar("reservas", {})}
-              className="rounded-xl bg-marca px-4 py-2 text-sm font-medium text-marca-texto transition hover:bg-marca-fuerte"
+              className="inline-flex h-[34px] items-center rounded-lg border border-marca bg-marca px-3.5 text-[0.78125rem] font-semibold text-marca-texto transition hover:bg-marca-fuerte"
             >
               Descargar en Excel
             </button>
@@ -312,7 +316,7 @@ function PanelReserva({
     >
       <span
         className={
-          "inline-block rounded-full px-2.5 py-0.5 text-xs font-medium " + estado.clase
+          "inline-block text-[0.75rem] font-semibold " + estado.clase
         }
       >
         {estado.texto}

@@ -165,13 +165,13 @@ export default function PaginaPlantillasCorreo() {
   }
 
   return (
-    <div className="space-y-6">
-      <header className="flex flex-wrap items-start justify-between gap-4">
+    <div>
+      <header className="border-b border-borde bg-superficie px-7 pt-[26px] pb-[22px] flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Plantillas de correo</h1>
+          <h1 className="text-[1.3125rem] font-bold tracking-[-0.02em] text-titulo">Plantillas de correo</h1>
           <p className="mt-1 max-w-3xl text-texto-suave">
             Se escriben una vez y se mandan muchas. Lo que cambia de una persona a
-            otra va entre llaves, y se llena solo con los datos de su ficha.
+            otra va entre llaves, y se llena solo con los datos de su lead.
           </p>
         </div>
         {editando === null && <Boton onClick={abrirNueva}>Nueva plantilla</Boton>}
@@ -189,7 +189,7 @@ export default function PaginaPlantillasCorreo() {
               Ahora la vista ocupa la mitad y se queda pegada
               arriba mientras se escribe en la otra: se teclea
               en un lado y se ve en el otro, sin buscarla. */}
-          <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
+          <div className="grid lg:grid-cols-2 lg:items-start">
             <div className="space-y-4">
               <div>
                 <label htmlFor="nombre" className="mb-1.5 block text-sm font-medium">
@@ -340,7 +340,7 @@ export default function PaginaPlantillasCorreo() {
       {plantillas.length === 0 && editando === null && (
         <Tarjeta titulo="Todavía no hay ninguna">
           <p className="text-sm text-texto-suave">
-            Cree la primera con «Nueva plantilla». Después, en la ficha de un lead,
+            Cree la primera con «Nueva plantilla». Después, en el lead de un lead,
             aparece para escogerla.
           </p>
         </Tarjeta>
@@ -358,7 +358,7 @@ export default function PaginaPlantillasCorreo() {
         >
           <div className="space-y-3">
             {!p.activa && (
-              <span className="inline-block rounded-full bg-superficie-alterna px-2.5 py-1 text-xs text-texto-suave">
+              <span className="inline-block text-[0.75rem] font-semibold text-texto-suave">
                 Apagada · no aparece al escribir un correo
               </span>
             )}

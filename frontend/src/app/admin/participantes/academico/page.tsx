@@ -151,8 +151,8 @@ export default function PaginaAcademico() {
     });
 
   return (
-    <div className="space-y-6">
-      <header className="flex flex-wrap items-start justify-between gap-4">
+    <div>
+      <header className="border-b border-borde bg-superficie px-7 pt-[26px] pb-[22px] flex flex-wrap items-start justify-between gap-4">
         <div>
           {/* sin título: la miga de arriba ya lo dice. La
               bajada se queda: explica contra qué se mide */}
@@ -160,7 +160,7 @@ export default function PaginaAcademico() {
             Quién va al día y quién no, contra el calendario de su grupo.
           </p>
           {resumen.analizadas < resumen.total && (
-            <p className="mt-2 inline-block rounded-full bg-aviso-suave px-3 py-1 text-sm text-aviso">
+            <p className="mt-2 inline-block whitespace-nowrap font-semibold text-sm text-aviso">
               Hay {resumen.total.toLocaleString("es-CO")} personas en el aula y se están
               mirando las {resumen.analizadas.toLocaleString("es-CO")} más recientes. Filtre
               por acción o por grupo para ver el resto.
@@ -190,7 +190,7 @@ export default function PaginaAcademico() {
         aprobado. Si el grupo no tiene fechas no se juzga: se dice que no ha empezado.
       </p>
 
-      <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-6">
+      <div className="grid sm:grid-cols-3 lg:grid-cols-6">
         {ORDEN.map((estado) => (
           <button
             key={estado}
@@ -199,12 +199,12 @@ export default function PaginaAcademico() {
               setFiltro(filtro === estado ? "" : estado);
             }}
             style={{ ["--etapa"]: COLOR[estado] } as React.CSSProperties}
-            className={`rounded-2xl border bg-superficie p-4 text-left shadow-sm transition hover:shadow-md ${
+            className={`rounded-2xl border bg-superficie p-4 text-left transition ${
               filtro === estado ? "border-2" : "border-borde"
             }`}
             aria-pressed={filtro === estado}
           >
-            <span className="flex items-center gap-2 text-xs tracking-wide uppercase">
+            <span className="flex items-center gap-2 text-[0.625rem] font-semibold tracking-[0.1em] uppercase">
               <span className="punto-etapa" aria-hidden />
               <span className="text-texto-suave">{ETIQUETA_ACADEMICA[estado]}</span>
             </span>
@@ -222,7 +222,7 @@ export default function PaginaAcademico() {
             — no se miden por ritmo: cuenta por qué se fueron
           </span>
         </h2>
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid sm:grid-cols-2 lg:grid-cols-4">
           {SALIDAS.map(([etapa, n]) => (
             <button
               key={etapa}
@@ -232,11 +232,11 @@ export default function PaginaAcademico() {
               }}
               aria-pressed={salida === etapa}
               style={estiloEtapa(etapa)}
-              className={`rounded-2xl border bg-superficie p-4 text-left shadow-sm transition hover:shadow-md ${
+              className={`rounded-2xl border bg-superficie p-4 text-left transition ${
                 salida === etapa ? "border-2" : "border-borde"
               }`}
             >
-              <span className="flex items-center gap-2 text-xs tracking-wide uppercase">
+              <span className="flex items-center gap-2 text-[0.625rem] font-semibold tracking-[0.1em] uppercase">
                 <span className="punto-etapa" aria-hidden />
                 <span className="text-texto-suave">{ETIQUETA_ETAPA[etapa]}</span>
               </span>
@@ -395,7 +395,7 @@ function AccionAcordeon({
   ).length;
 
   return (
-    <section className="overflow-hidden rounded-2xl border border-borde bg-superficie shadow-sm">
+    <section className="overflow-hidden border-b border-borde bg-superficie">
       <button
         onClick={alAbrir}
         aria-expanded={abierta}

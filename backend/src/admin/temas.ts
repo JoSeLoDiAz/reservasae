@@ -132,6 +132,9 @@ export const COMPROBACIONES_CONTRASTE: Array<{
   fondo: string;
   descripcion: string;
   grande?: boolean;
+  /// No es texto sobre fondo: son dos colores que tienen que
+  /// poder distinguirse. El umbral es otro -- ver el frontend.
+  entreEstados?: boolean;
 }> = [
   { frente: 'texto', fondo: 'fondo', descripcion: 'Texto sobre el fondo' },
   { frente: 'texto', fondo: 'superficie', descripcion: 'Texto sobre las tarjetas' },
@@ -144,9 +147,49 @@ export const COMPROBACIONES_CONTRASTE: Array<{
   { frente: 'tablaCabeceraTexto', fondo: 'tablaCabeceraFondo', descripcion: 'Cabecera de tabla' },
   { frente: 'texto', fondo: 'tablaFilaAlterna', descripcion: 'Texto en la fila alterna' },
   { frente: 'texto', fondo: 'campoFondo', descripcion: 'Lo que se escribe en un campo' },
-  { frente: 'exito', fondo: 'exitoSuave', descripcion: 'Etiqueta de disponible' },
-  { frente: 'aviso', fondo: 'avisoSuave', descripcion: 'Etiqueta de últimos cupos' },
-  { frente: 'error', fondo: 'errorSuave', descripcion: 'Mensaje de error' },
+  /// Los estados se miden contra `superficie`, no contra su
+  /// propio fondo tenido.
+  ///
+  /// El par `exito` / `exitoSuave` medía una pildora rellena, y
+  /// esas ya no existen: el estado va en la LETRA sobre la
+  /// banda. Seguir midiendo el par viejo daba por bueno un
+  /// verde que se lee sobre su propio fondo claro y no sobre el
+  /// blanco de la tabla, que es donde de verdad está.
+  { frente: 'exito', fondo: 'superficie', descripcion: 'Estado «disponible» en una tabla' },
+  { frente: 'aviso', fondo: 'superficie', descripcion: 'Estado «últimos cupos» en una tabla' },
+  { frente: 'error', fondo: 'superficie', descripcion: 'Estado «completo» o error' },
+
+  /// Y DISTINGUIBLES ENTRE SÍ.
+  ///
+  /// Es la salvaguarda que pide DECISIONES 2 al dejar los tres
+  /// editables: si alguien los repinta parecidos, un dato
+  /// verificado y uno sin verificar acaban del mismo color y el
+  /// color deja de significar nada.
+  ///
+  /// Se mide con la misma razón de la WCAG y no por diferencia
+  /// de tono a propósito: dos colores pueden diferir mucho de
+  /// tono y nada de luminosidad -- rojo y verde son el caso de
+  /// libro -- y esa es justamente la pareja que no distingue
+  /// quien tiene daltonismo. Midiendo luminosidad, el aviso
+  /// salta también para ellos.
+  {
+    frente: 'exito',
+    fondo: 'aviso',
+    descripcion: 'Distinguir «disponible» de «últimos cupos»',
+    entreEstados: true,
+  },
+  {
+    frente: 'aviso',
+    fondo: 'error',
+    descripcion: 'Distinguir «últimos cupos» de «completo»',
+    entreEstados: true,
+  },
+  {
+    frente: 'exito',
+    fondo: 'error',
+    descripcion: 'Distinguir «disponible» de «completo»',
+    entreEstados: true,
+  },
 
   // la pildora tiñe la superficie con su propio color,
   // asi que el par que hay que medir es contra ella
@@ -173,13 +216,17 @@ export const TEMAS_POR_DEFECTO: Record<EsquemaColor, ColoresTema> = {
     marcaSuave: '#eff6ff',
     marcaTexto: '#ffffff',
 
-    fondo: '#f8fafc',
+    fondo: '#f6f7f9',
     superficie: '#ffffff',
-    superficieAlterna: '#f1f5f9',
+    superficieAlterna: '#f4f6f9',
     borde: '#e2e8f0',
 
     titulo: '#0f172a',
-    texto: '#0f172a',
+    /// El cuerpo un punto por debajo del titulo.
+    ///
+    /// Estaban los dos en #0f172a, y con el mismo color no hay
+    /// jerarquia que leer: el titulo pesaba igual que el dato.
+    texto: '#1e293b',
     textoSuave: '#64748b',
 
     encabezadoFondo: '#ffffff',
@@ -187,7 +234,7 @@ export const TEMAS_POR_DEFECTO: Record<EsquemaColor, ColoresTema> = {
     encabezadoBorde: '#e2e8f0',
 
     tablaCabeceraFondo: '#f1f5f9',
-    tablaCabeceraTexto: '#334155',
+    tablaCabeceraTexto: '#475569',
     tablaFilaAlterna: '#f8fafc',
     tablaFilaResaltada: '#eff6ff',
     tablaBorde: '#e2e8f0',

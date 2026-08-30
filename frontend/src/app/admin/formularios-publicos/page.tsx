@@ -112,9 +112,9 @@ export default function FormulariosActivos() {
     : gremios;
 
   return (
-    <div className="space-y-6">
-      <header>
-        <h1 className="text-2xl font-bold tracking-tight">
+    <div>
+      <header className="border-b border-borde bg-superficie px-7 pt-[26px] pb-[22px]">
+        <h1 className="text-[1.3125rem] font-bold tracking-[-0.02em] text-titulo">
           Formularios activos
         </h1>
         <p className="mt-1 max-w-3xl text-texto-suave">
@@ -146,7 +146,7 @@ export default function FormulariosActivos() {
             onClick={() => setCual(valor)}
             className={`rounded-lg px-4 py-2 text-sm transition ${
               cual === valor
-                ? "bg-marca font-medium text-marca-texto shadow-sm"
+                ? "bg-marca font-medium text-marca-texto"
                 : "text-texto-suave hover:text-texto"
             }`}
           >
@@ -203,7 +203,7 @@ export default function FormulariosActivos() {
               <p>
                 Cada enlace de este formulario es{" "}
                 <strong>personal y de un solo uso</strong>: se emite desde la
-                ficha del lead, caduca, y el siguiente anula al anterior.
+                lead del lead, caduca, y el siguiente anula al anterior.
               </p>
               <p className="text-texto-suave">
                 Un QR pegado en una pared solo puede llevar a un sitio, y esta

@@ -272,6 +272,7 @@ export function Tabla<T>({
   alClic,
   vacio,
   acciones,
+  resumen,
   seleccion,
   accionesLote,
   alCargarTodo,
@@ -287,6 +288,10 @@ export function Tabla<T>({
   alClic?: (f: T) => void;
   vacio?: ReactNode;
   acciones?: ReactNode;
+  /// Lo que va DEBAJO de la barra de botones y encima de la
+  /// paginacion. Hoy lo usa el embudo de leads. Es una ranura y
+  /// no un componente fijo porque cada pantalla resume lo suyo.
+  resumen?: ReactNode;
   seleccion?: boolean;
   accionesLote?: (ids: string[], limpiar: () => void) => ReactNode;
   alCargarTodo?: () => void;
@@ -434,10 +439,24 @@ export function Tabla<T>({
   /// Si el usuario ajustó una a mano, manda su ancho: lo
   /// arrastró él y respetarlo es lo mínimo. Las demás piden
   /// lo cómodo.
+  /// `c.ancho` es TEXTO -- «148px» -- y esto es una suma.
+  ///
+  /// Sin convertirlo, `120 + "148px"` da la cadena «120148px» y
+  /// a partir de ahi el minimo de la tabla es basura: las
+  /// columnas se comprimian todas y un correo salia en cuatro
+  /// renglones. Se lee el numero del texto y si no lo hay se
+  /// usa lo comodo.
+  const enPixeles = (v: string | number | undefined): number => {
+    if (typeof v === "number") return v;
+    if (!v) return ANCHO_COMODO;
+    const n = parseFloat(v);
+    return Number.isFinite(n) ? n : ANCHO_COMODO;
+  };
+
   const anchoMinimoTabla = useMemo(
     () =>
       enPantalla.reduce(
-        (suma, c) => suma + (anchos[c.clave] ?? c.ancho ?? ANCHO_COMODO),
+        (suma, c) => suma + enPixeles(anchos[c.clave] ?? c.ancho),
         seleccion ? 40 : 0,
       ),
     [enPantalla, anchos, seleccion],
@@ -542,6 +561,41 @@ export function Tabla<T>({
   function limpiar() {
     setBuscar("");
     setFiltros({});
+    /// Y CIERRA el panel.
+    ///
+    /// Sin esto, tras vaciar los filtros la fila de
+    /// desplegables seguia abierta y el boton «Filtros» seguia
+    /// resaltado -- se resalta con `panel === "filtros"`, no
+    /// solo con la cuenta --, asi que parecia que quedaba algo
+    /// puesto. Si ya no hay filtro, no hay nada que enseniar.
+    setPanel(null);
+  }
+
+  /// La columna que se esta arrastrando y sobre cual esta.
+  ///
+  /// Se lleva aqui y no dentro del `th` porque el indicador de
+  /// donde va a caer lo pinta la columna de DESTINO, no la que
+  /// se arrastra.
+  const [arrastrada, setArrastrada] = useState<string | null>(null);
+  const [encima, setEncima] = useState<string | null>(null);
+
+  /// Poner una columna donde estaba otra.
+  ///
+  /// Reordena, no intercambia: arrastrar «Correo» hasta el
+  /// primer sitio tiene que EMPUJAR a las demas una posicion,
+  /// no cambiarla por la primera. Intercambiando, mover una
+  /// columna cuatro sitios desordena las otras cuatro.
+  function soltarEn(clave: string, destino: string) {
+    if (clave === destino) return;
+    setVisibles((v) => {
+      const desde = v.indexOf(clave);
+      const hasta = v.indexOf(destino);
+      if (desde < 0 || hasta < 0) return v;
+      const copia = [...v];
+      copia.splice(desde, 1);
+      copia.splice(hasta, 0, clave);
+      return copia;
+    });
   }
 
   function mover(clave: string, paso: number) {
@@ -584,6 +638,13 @@ export function Tabla<T>({
 
   return (
     <div className="flex min-h-0 grow flex-col gap-2">
+      {/* El resumen ARRIBA y la barra debajo.
+          Estuvo al reves -- primero se decide que se mira y
+          luego se resume --, y se cambio a peticion del dueño
+          del producto: al llegar quiere ver el reparto y
+          despues filtrar. */}
+      {resumen}
+
       <Barra
         buscar={buscar}
         setBuscar={setBuscar}
@@ -716,7 +777,7 @@ export function Tabla<T>({
           )}
 
           {todasLasQueCoinciden && totalServidor !== null && (
-            <span className="rounded-full bg-aviso-suave px-2.5 py-1 text-xs text-aviso">
+            <span className="whitespace-nowrap font-semibold text-xs text-aviso">
               Sobre las {(filas?.length ?? 0).toLocaleString("es-CO")} cargadas de{" "}
               {totalServidor.toLocaleString("es-CO")}
             </span>
@@ -739,7 +800,24 @@ export function Tabla<T>({
           bloque normal, la tabla crece sin límite, la página
           entera se va hacia arriba al bajar, y hay que
           devolverse hasta arriba para poder filtrar. */}
-      <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-borde bg-superficie shadow-sm">
+      {/* Sin marco, pero CON aire a los lados y abajo.
+          El marco se fue -- la tabla no es una tarjeta, es la
+          pantalla -- pero llevarla a sangre la pegaba a los dos
+          cantos de la ventana y la ultima fila quedaba contra el
+          borde de abajo. Se lee peor, no mejor: el ojo necesita
+          saber donde acaba.
+          Asi que se queda dentro del relleno de la pantalla y se
+          le anade separacion abajo. La raya de arriba es lo
+          unico que la separa de la barra. */}
+      {/* Crece hasta lo que haya, pero NO se estira sin
+          contenido.
+          Llevaba `flex-1`, que es `grow:1 shrink:1`: con diez
+          filas el marco seguia ocupando el alto entero y dejaba
+          media pantalla en blanco debajo. `flex-initial` es
+          `grow:0 shrink:1` -- con pocas filas mide lo que miden
+          las filas, y con cincuenta se encoge a lo que hay y
+          scrollea por dentro, que es lo que ya hacia. */}
+      <div className="mb-5 flex min-h-0 flex-initial flex-col overflow-hidden rounded-lg border border-borde bg-superficie">
         {/* Se estira con su contenedor en vez de llevar un tope
             fijo: con `max-h` quedaba media pantalla en blanco
             debajo cuando la ventana era alta. */}
@@ -751,7 +829,16 @@ export function Tabla<T>({
         <div className="caja-scroll min-h-0 flex-1 overflow-auto overscroll-contain">
             <table
               ref={tablaRef}
-              className="tabla-datos w-full text-sm"
+              /// Los carriles verticales solo cuando hay muchas
+              /// columnas.
+              ///
+              /// Con 22 el ojo salta en horizontal y necesita el
+              /// carril para saber en cual va. Con cinco o seis
+              /// no aporta nada y ensucia: son rayas que no
+              /// separan nada que no separara ya el espacio.
+              className={`tabla-datos w-full text-sm${
+                enPantalla.length > 8 ? " con-carriles" : ""
+              }`}
               style={{
                 /// El suelo de la tabla entera.
                 ///
@@ -812,8 +899,47 @@ export function Tabla<T>({
                           ? { width: c.ancho }
                           : undefined
                     }
+                    /// Arrastrable para reordenar.
+                    ///
+                    /// Con la API de arrastre del navegador y no
+                    /// con `pointerdown`, que ya lo usa el
+                    /// tirador de ancho: dos gestos de puntero
+                    /// sobre el mismo elemento se pisan. Y el
+                    /// clic de ordenar tampoco estorba: cuando
+                    /// hay arrastre, el navegador no lo emite.
+                    onDragOver={(e) => {
+                      if (!arrastrada || arrastrada === c.clave) return;
+                      e.preventDefault();
+                      e.dataTransfer.dropEffect = "move";
+                      setEncima(c.clave);
+                    }}
+                    onDragLeave={() =>
+                      setEncima((x) => (x === c.clave ? null : x))
+                    }
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      if (arrastrada) soltarEn(arrastrada, c.clave);
+                      setArrastrada(null);
+                      setEncima(null);
+                    }}
+                    onDragEnd={() => {
+                      setArrastrada(null);
+                      setEncima(null);
+                    }}
                     className={
-                      "relative" + (c.numerica ? " text-right" : "")
+                      "relative select-none" +
+                      (c.numerica ? " text-right" : "") +
+                      (arrastrada === c.clave ? " opacity-40" : "") +
+                      /// La raya de donde va a caer, del lado por
+                      /// el que se acerca. Sin ella uno suelta a
+                      /// ciegas y tiene que deshacerlo para ver
+                      /// donde quedo.
+                      (encima === c.clave
+                        ? enPantalla.findIndex((x) => x.clave === arrastrada) <
+                          enPantalla.findIndex((x) => x.clave === c.clave)
+                          ? " shadow-[inset_-2px_0_var(--marca)]"
+                          : " shadow-[inset_2px_0_var(--marca)]"
+                        : "")
                     }
                     aria-sort={
                       orden?.clave === c.clave
@@ -823,11 +949,32 @@ export function Tabla<T>({
                         : "none"
                     }
                   >
+                    {/* El titulo ES el tirador del arrastre.
+                        Estaba en el `th` entero, y con eso un
+                        pointerdown sobre el tirador de ancho
+                        arrancaba el arrastre del ancestro: se
+                        perdio el redimensionado. `draggable` en
+                        el hijo no basta para pararlo, hay que no
+                        ponerlo arriba. */}
                     <button
                       type="button"
+                      draggable
+                      onDragStart={(e) => {
+                        setArrastrada(c.clave);
+                        e.dataTransfer.effectAllowed = "move";
+                        // Firefox no arranca el arrastre sin esto
+                        e.dataTransfer.setData("text/plain", c.clave);
+                      }}
+                      onDragEnd={() => {
+                        setArrastrada(null);
+                        setEncima(null);
+                      }}
                       onClick={() => ordenarPor(c)}
+                      /// Que se puede arrastrar no se ve solo con
+                      /// el cursor de mano: hay que decirlo.
+                      title={`Ordenar por ${c.titulo} · arrastre para mover la columna`}
                       className={
-                        "inline-flex items-center gap-1 hover:opacity-70 " +
+                        "inline-flex cursor-grab items-center gap-1 hover:opacity-70 " +
                         (c.numerica ? "flex-row-reverse" : "")
                       }
                     >
@@ -991,7 +1138,7 @@ function Barra({
   alDescargar?: () => void;
 }) {
   const boton = (activo: boolean) =>
-    "inline-flex items-center gap-1.5 rounded-xl border px-3 py-2 text-sm transition " +
+    "inline-flex h-[34px] items-center gap-1.5 rounded-lg border px-3.5 text-[0.78125rem] font-semibold transition " +
     (activo
       ? "border-marca bg-marca-suave text-marca"
       : "border-borde bg-superficie hover:bg-superficie-alterna");
@@ -1008,7 +1155,7 @@ function Barra({
           value={buscar}
           onChange={(e) => setBuscar(e.target.value)}
           placeholder="Buscar en lo que está a la vista…"
-          className="w-full rounded-xl border border-campo-borde bg-campo-fondo py-2 pl-9 pr-3 text-sm outline-none transition focus:border-campo-foco focus:ring-2 focus:ring-campo-foco/25"
+          className="h-[34px] w-full rounded-lg border border-campo-borde bg-campo-fondo py-0 pl-9 pr-3 text-[0.78125rem] outline-none transition focus:border-campo-foco focus:ring-2 focus:ring-campo-foco/25"
         />
       </label>
 
@@ -1049,7 +1196,14 @@ function Barra({
         <button
           type="button"
           onClick={alDescargar}
-          className="rounded-xl bg-marca px-4 py-2 text-sm font-medium text-marca-texto transition hover:bg-marca-fuerte"
+          /// Secundario, no primario.
+          ///
+          /// En el demo el UNICO boton relleno de la barra es
+          /// «Inscribir a alguien». Tres azules seguidos pesan
+          /// mas que la tabla que hay debajo, y ademas dejan de
+          /// decir cual es la accion principal: si todo destaca,
+          /// no destaca nada.
+          className="inline-flex h-[32px] items-center rounded-[9px] bg-marca px-[13px] text-[0.78125rem] font-semibold text-marca-texto transition hover:bg-marca-fuerte sin-aro"
         >
           Descargar en Excel
         </button>
@@ -1175,7 +1329,7 @@ function PanelColumnas<T>({
   const fuera = columnas.filter((c) => !visibles.includes(c.clave));
 
   return (
-    <div className="rounded-2xl border border-borde bg-superficie p-4 shadow-sm">
+    <div className="rounded-2xl border border-borde bg-superficie p-4">
       <div className="mb-3 flex items-center justify-between">
         <h3 className="text-sm font-semibold">Qué columnas se ven</h3>
         <div className="flex items-center gap-3">
@@ -1201,7 +1355,7 @@ function PanelColumnas<T>({
             {puestas.map((c, i) => (
               <li
                 key={c.clave}
-                className="flex items-center gap-2 rounded-lg border border-borde px-2.5 py-1.5 text-sm"
+                className="flex h-[34px] items-center gap-2 rounded-lg border border-borde px-3.5 text-[0.78125rem]"
               >
                 <span className="flex-1 truncate">{c.titulo}</span>
                 <button
@@ -1250,7 +1404,7 @@ function PanelColumnas<T>({
                   <button
                     type="button"
                     onClick={() => alternar(c)}
-                    className="rounded-lg border border-borde px-2.5 py-1.5 text-sm transition hover:border-marca hover:bg-marca-suave"
+                    className="h-[34px] rounded-lg border border-borde px-3.5 text-[0.78125rem] font-semibold transition hover:border-marca hover:bg-marca-suave"
                   >
                     + {c.titulo}
                   </button>
@@ -1290,7 +1444,7 @@ function PanelVistas({
   }
 
   return (
-    <div className="rounded-2xl border border-borde bg-superficie p-4 shadow-sm">
+    <div className="rounded-2xl border border-borde bg-superficie p-4">
       <div className="mb-3 flex items-center justify-between">
         <h3 className="text-sm font-semibold">Vistas guardadas</h3>
         <button type="button" onClick={cerrar} aria-label="Cerrar">
@@ -1428,9 +1582,25 @@ function Pie({
               {(desde + mostradas).toLocaleString("es-CO")}
             </strong>
             {" / "}
-            <strong className="font-medium text-texto">
-              {filtradas.toLocaleString("es-CO")}
-            </strong>
+            {/* El total, pulsable: enseña TODAS en una tabla.
+                Para ver las 79 de una habia que abrir «Por
+                pagina» y buscar un tamanio que las cubriera; y
+                si eran 137, ninguno de los cuatro servia. Aqui
+                el numero que uno ya esta mirando lo hace. */}
+            {filtradas > mostradas ? (
+              <button
+                type="button"
+                onClick={() => setTamano(filtradas)}
+                title={`Ver las ${filtradas.toLocaleString("es-CO")} en una sola tabla`}
+                className="font-semibold text-marca underline decoration-dotted underline-offset-2 hover:decoration-solid"
+              >
+                {filtradas.toLocaleString("es-CO")}
+              </button>
+            ) : (
+              <strong className="font-medium text-texto">
+                {filtradas.toLocaleString("es-CO")}
+              </strong>
+            )}
             {filtradas !== cargadas &&
               ` (de ${cargadas.toLocaleString("es-CO")})`}
           </>
@@ -1438,7 +1608,7 @@ function Pie({
       </span>
 
       {faltan && (
-        <span className="rounded-full bg-aviso-suave px-2.5 py-1 text-aviso">
+        <span className="whitespace-nowrap font-semibold text-aviso">
           Filtrando sobre {cargadas.toLocaleString("es-CO")} de{" "}
           {total.toLocaleString("es-CO")}
           {alCargarTodo && (

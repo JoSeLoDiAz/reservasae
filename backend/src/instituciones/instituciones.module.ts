@@ -4,6 +4,7 @@ import { JwtModule } from '@nestjs/jwt';
 import { AuditoriaService } from '../comun/auditoria.service';
 import { InstitucionesController } from './instituciones.controller';
 import { InstitucionesService } from './instituciones.service';
+import { DisparadorInscripcion } from './web/disparador';
 import { ProveedorWebNavegador } from './web/proveedor-navegador';
 import {
   comoSeConsulta,
@@ -42,7 +43,8 @@ const proveedorWeb = {
     proveedorWeb,
     WebService,
     WebWorker,
+    DisparadorInscripcion,
   ],
-  exports: [InstitucionesService, WebService],
+  exports: [InstitucionesService, WebService, DisparadorInscripcion],
 })
 export class InstitucionesModule {}

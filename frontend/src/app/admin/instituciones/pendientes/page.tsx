@@ -135,9 +135,9 @@ export default function PaginaPendientes() {
   const sugeridas = propuestas?.filter((p) => p.fuente === "WEB").length ?? 0;
 
   return (
-    <div className="space-y-6">
-      <header>
-        <h1 className="text-2xl font-bold tracking-tight">Por revisar</h1>
+    <div>
+      <header className="border-b border-borde bg-superficie px-7 pt-[26px] pb-[22px]">
+        <h1 className="text-[1.3125rem] font-bold tracking-[-0.02em] text-titulo">Por revisar</h1>
         <p className="mt-1 max-w-3xl text-texto-suave">
           Ninguna consulta automática escribe en la ficha de una organización: deja aquí
           una propuesta. Hasta que una persona no la acepte campo por campo, ese dato no
@@ -280,11 +280,11 @@ function TarjetaPropuesta({
   /// que marca la propuesta del buscador en la ficha.
   return (
     <article
-      className={`rounded-2xl border bg-superficie p-6 shadow-sm ${
+      className={`rounded-2xl border bg-superficie p-6 ${
         sugerida ? "border-aviso/40" : "border-borde"
       }`}
     >
-      <header className="flex flex-wrap items-start justify-between gap-3">
+      <header className="border-b border-borde bg-superficie px-7 pt-[26px] pb-[22px] flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
           <h2 className="text-lg font-semibold">
             <Link

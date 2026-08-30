@@ -59,6 +59,7 @@ export function columnasDeParticipante(): Columna<FilaParticipante>[] {
   return [
     {
       clave: "creadoEn",
+      ancho: "148px",
       titulo: "Fecha de creación",
       valor: (f) => f.creadoEn,
       pinta: (f) => (
@@ -69,18 +70,21 @@ export function columnasDeParticipante(): Columna<FilaParticipante>[] {
     },
     {
       clave: "correo",
+      ancho: "215px",
       titulo: "Correo",
       valor: (f) => f.correo,
       filtro: "texto",
     },
     {
       clave: "celular",
+      ancho: "120px",
       titulo: "Número de teléfono",
       valor: (f) => f.celular,
       filtro: "texto",
     },
     {
       clave: "nombre",
+      ancho: "205px",
       titulo: "Nombre completo",
       fija: true,
       valor: (f) => f.nombre,
@@ -99,12 +103,14 @@ export function columnasDeParticipante(): Columna<FilaParticipante>[] {
     },
     {
       clave: "tipoDocumento",
+      ancho: "96px",
       titulo: "Tipo documento",
       valor: (f) => f.tipoDocumento,
       filtro: "opciones",
     },
     {
       clave: "numeroDocumento",
+      ancho: "128px",
       titulo: "Número documento",
       valor: (f) => f.numeroDocumento,
       pinta: (f) => <span className="font-mono text-sm">{f.numeroDocumento}</span>,
@@ -112,12 +118,14 @@ export function columnasDeParticipante(): Columna<FilaParticipante>[] {
     },
     {
       clave: "departamento",
+      ancho: "128px",
       titulo: "Departamento",
       valor: (f) => f.departamento,
       filtro: "opciones",
     },
     {
       clave: "municipio",
+      ancho: "124px",
       titulo: "Municipio",
       valor: (f) => f.municipio,
       filtro: "opciones",
@@ -126,6 +134,7 @@ export function columnasDeParticipante(): Columna<FilaParticipante>[] {
       /// Solo el codigo. El nombre completo pasa de sesenta
       /// caracteres y una fila con eso deja de leerse.
       clave: "accionCodigo",
+      ancho: "104px",
       titulo: "Acción formación interés",
       valor: (f) => f.accionCodigo,
       pinta: (f) =>
@@ -138,12 +147,14 @@ export function columnasDeParticipante(): Columna<FilaParticipante>[] {
     },
     {
       clave: "asesor",
+      ancho: "126px",
       titulo: "Asesor",
       valor: (f) => f.asesor?.nombre ?? "Sin asignar",
       filtro: "opciones",
     },
     {
       clave: "etapa",
+      ancho: "124px",
       titulo: "Etapa lead",
       valor: (f) => ETIQUETA_ETAPA[f.etapa],
       pinta: (f) => <PildoraEtapa etapa={f.etapa} />,
@@ -151,6 +162,7 @@ export function columnasDeParticipante(): Columna<FilaParticipante>[] {
     },
     {
       clave: "datos",
+      ancho: "116px",
       /// «Datos pendientes» y no «Estado de los datos».
       ///
       /// Esta columna decía «Datos completos / Datos
@@ -202,12 +214,14 @@ export function columnasDeParticipante(): Columna<FilaParticipante>[] {
     },
     {
       clave: "origenLead",
+      ancho: "104px",
       titulo: "Origen lead",
       valor: (f) => ETIQUETA_ORIGEN_LEAD[f.origenLead],
       filtro: "opciones",
     },
     {
       clave: "ultimaActividad",
+      ancho: "140px",
       titulo: "Última actividad",
       valor: (f) => f.ultimaActividad,
       pinta: (f) => (
@@ -220,12 +234,14 @@ export function columnasDeParticipante(): Columna<FilaParticipante>[] {
       /// De donde viene, no donde esta: sirve para ver por
       /// que camino llego a la etapa de hoy.
       clave: "etapaAnterior",
+      ancho: "124px",
       titulo: "Última etapa lead",
       valor: (f) => (f.etapaAnterior ? ETIQUETA_ETAPA[f.etapaAnterior] : "Sin cambios"),
       filtro: "opciones",
     },
     {
       clave: "cambios",
+      ancho: "92px",
       titulo: "Cambios realizados",
       numerica: true,
       valor: (f) => f.cambios,
@@ -233,6 +249,7 @@ export function columnasDeParticipante(): Columna<FilaParticipante>[] {
     },
     {
       clave: "datosEmpresa",
+      ancho: "136px",
       titulo: "Datos de empresa",
       valor: (f) => ETIQUETA_DATOS_EMPRESA[f.datosEmpresa],
       pinta: (f) => (
@@ -246,6 +263,7 @@ export function columnasDeParticipante(): Columna<FilaParticipante>[] {
     },
     {
       clave: "notas",
+      ancho: "72px",
       titulo: "Notas",
       numerica: true,
       valor: (f) => f.notas,
@@ -256,6 +274,7 @@ export function columnasDeParticipante(): Columna<FilaParticipante>[] {
       /// lista de a quien insistirle. Es distinta de "sin
       /// notas": a esta ya se le intento y no contesto.
       clave: "ultimoContacto",
+      ancho: "140px",
       titulo: "Último contacto",
       valor: (f) => f.ultimoContacto ?? "",
       pinta: (f) =>
@@ -269,9 +288,10 @@ export function columnasDeParticipante(): Columna<FilaParticipante>[] {
     },
     {
       /// El de SIEMPRE y no el de desde el ultimo contacto, que
-      /// si da la ficha. Para lo que sirve la columna —a quien
+      /// si da el lead. Para lo que sirve la columna —a quien
       /// no se ha logrado contactar— las dos coinciden.
       clave: "sinRespuesta",
+      ancho: "104px",
       titulo: "Intentos sin respuesta",
       numerica: true,
       valor: (f) => f.sinRespuesta,
@@ -279,12 +299,14 @@ export function columnasDeParticipante(): Columna<FilaParticipante>[] {
     },
     {
       clave: "gremio",
+      ancho: "124px",
       titulo: "Gremio",
       valor: (f) => f.gremio,
       filtro: "opciones",
     },
     {
       clave: "antiguedadDias",
+      ancho: "104px",
       titulo: "Antigüedad lead en días",
       numerica: true,
       valor: (f) => f.antiguedadDias,

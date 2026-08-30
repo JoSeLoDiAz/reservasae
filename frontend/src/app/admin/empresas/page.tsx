@@ -160,8 +160,12 @@ export default function PaginaEmpresas() {
     [],
   );
 
+  /// El relleno lateral lo pone la pantalla, no el
+  /// marco: el contenedor dejo de ponerlo para que las
+  /// bandas vayan a sangre, y sin esto la barra de
+  /// busqueda y la paginacion quedaban pegadas al canto.
   return (
-    <div className="flex min-h-0 grow flex-col gap-6">
+    <div className="flex min-h-0 grow flex-col gap-4 px-4 pt-4">
       {/* sin encabezado: lo dice la miga de arriba, y el
           total va en el pie de la tabla */}
 
@@ -183,7 +187,7 @@ export default function PaginaEmpresas() {
           <>
             <button
               onClick={() => descargar("empresas", {})}
-              className="rounded-xl bg-marca px-4 py-2 text-sm font-medium text-marca-texto transition hover:bg-marca-fuerte"
+              className="inline-flex h-[34px] items-center rounded-lg border border-marca bg-marca px-3.5 text-[0.78125rem] font-semibold text-marca-texto transition hover:bg-marca-fuerte"
             >
               Descargar en Excel
             </button>

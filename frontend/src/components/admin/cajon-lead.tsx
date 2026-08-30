@@ -139,7 +139,7 @@ type Campo = {
   etiqueta: string;
   tipo: Tipo;
   /// Si cuenta para «datos completos». Los que no, se pueden
-  /// dejar vacios sin que la ficha quede incompleta.
+  /// dejar vacios sin que el lead quede incompleta.
   exigido?: boolean;
   ancho?: boolean;
 };
@@ -254,10 +254,10 @@ export function CajonLead({
   /** Para que la tabla se entere de que cambió. */
   alGuardar: () => void;
 }) {
-  const [ficha, setFicha] = useState<Ficha | null>(null);
+  const [lead, setFicha] = useState<Ficha | null>(null);
   const [catalogos, setCatalogos] = useState<CatalogosSep | null>(null);
   const [editando, setEditando] = useState(false);
-  /// Con la ficha a medias, ver los cuarenta campos para
+  /// Con el lead a medias, ver los cuarenta campos para
   /// encontrar los cinco que faltan es perder el tiempo.
   const [soloFalta, setSoloFalta] = useState(false);
   const [borrador, setBorrador] = useState<Record<string, string>>({});
@@ -300,13 +300,13 @@ export function CajonLead({
   }
 
   async function guardar() {
-    if (!ficha) return;
+    if (!lead) return;
     setError(null);
     setGuardando(true);
     try {
       // solo lo que cambio: mandar el resto pisaria con lo
       // mismo y ensuciaria el historial de cambios
-      const antes = aBorrador(ficha);
+      const antes = aBorrador(lead);
       const cambios: Record<string, unknown> = {};
 
       for (const c of TODOS) {
@@ -356,7 +356,7 @@ export function CajonLead({
             <button
               type="button"
               onClick={() => {
-                if (ficha) setBorrador(aBorrador(ficha));
+                if (lead) setBorrador(aBorrador(lead));
                 setEditando(false);
               }}
               className="text-sm text-texto-suave underline"
@@ -366,7 +366,7 @@ export function CajonLead({
           </div>
         ) : (
           <div className="flex flex-wrap items-center gap-4">
-            <Boton onClick={() => setEditando(true)} disabled={!ficha}>
+            <Boton onClick={() => setEditando(true)} disabled={!lead}>
               Editar datos
             </Boton>
             <a
@@ -388,7 +388,7 @@ export function CajonLead({
             Eran tres valores sueltos en fila —«Datos completos
             · Importación · Datos parciales»— sin decir qué era
             cada cual, y encima dos de ellos empezaban por la
-            misma palabra: parecía que la ficha se contradecía a
+            misma palabra: parecía que el lead se contradecía a
             sí misma. Son tres cosas distintas y ahora lo dicen.
 
             Y el color va en la letra, sin caja: es la misma
@@ -397,7 +397,7 @@ export function CajonLead({
             dónde se llegara. */}
         <dl className="grid grid-cols-3 gap-4">
           <div className="min-w-0">
-            <dt className="text-[0.6875rem] font-semibold tracking-wider text-texto-suave uppercase">
+            <dt className="text-[0.625rem] font-semibold tracking-[0.1em] text-texto-suave uppercase">
               Etapa
             </dt>
             <dd className="mt-0.5 truncate text-sm">
@@ -406,7 +406,7 @@ export function CajonLead({
           </div>
 
           <div className="min-w-0">
-            <dt className="text-[0.6875rem] font-semibold tracking-wider text-texto-suave uppercase">
+            <dt className="text-[0.625rem] font-semibold tracking-[0.1em] text-texto-suave uppercase">
               Origen
             </dt>
             <dd className="mt-0.5 truncate text-sm text-texto-suave">
@@ -415,7 +415,7 @@ export function CajonLead({
           </div>
 
           <div className="min-w-0">
-            <dt className="text-[0.6875rem] font-semibold tracking-wider text-texto-suave uppercase">
+            <dt className="text-[0.625rem] font-semibold tracking-[0.1em] text-texto-suave uppercase">
               Datos pendientes
             </dt>
             <dd
@@ -435,7 +435,7 @@ export function CajonLead({
         {/* Las mismas acciones que en el lead completo.
             
             Antes esto solo enseñaba datos: para mover de etapa
-            o asignar asesor había que abrir la ficha entera,
+            o asignar asesor había que abrir el lead entera,
             perder la tabla y volver. Son las dos decisiones que
             se toman mirando una lista, y ahora se toman aquí. */}
         {!editando && <Acciones fila={fila} alHecho={alGuardar} />}
@@ -472,7 +472,7 @@ export function CajonLead({
                   <h3 className="mb-2 text-sm font-semibold tracking-[0.06em] text-texto-suave uppercase">
                     {g.titulo}
                   </h3>
-                  <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="grid sm:grid-cols-2">
                     {campos.map((c) => (
                       <label
                         key={c.clave}
@@ -575,7 +575,7 @@ export function CajonLead({
             />
             <Dato titulo="Notas" valor={String(fila.notas)} />
             <Dato titulo="Antigüedad lead en días" valor={String(fila.antiguedadDias)} />
-            <Dato titulo="Cargo actual" valor={ficha?.cargoEnEmpresa} />
+            <Dato titulo="Cargo actual" valor={lead?.cargoEnEmpresa} />
           </dl>
         )}
 

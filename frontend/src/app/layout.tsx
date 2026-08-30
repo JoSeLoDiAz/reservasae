@@ -9,11 +9,18 @@ import { SCRIPT_PALETA } from "@/lib/marca";
 import { SCRIPT_SIN_PARPADEO } from "@/lib/tema";
 import "./globals.css";
 
-// Raleway: la institucional del Grupo AE
+/// LA UNICA AUTORIZADA POR LA MARCA.
+///
+/// El handoff del redisenio pedia Sora y Public Sans, y se
+/// llegaron a cargar. Pero la tipografia no es una decision de
+/// diseno de pantalla: es de marca, y la marca solo autoriza
+/// Raleway. Se conservan del diseno los TAMANOS, los pesos y
+/// los espaciados; la letra es esta.
 const raleway = Raleway({
   variable: "--font-geist-sans",
   subsets: ["latin"],
 });
+
 
 export const metadata: Metadata = {
   title: "Convoca",

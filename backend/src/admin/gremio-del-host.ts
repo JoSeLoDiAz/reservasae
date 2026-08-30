@@ -6,26 +6,31 @@
 /// convenio, ni aunque alguien bautice así uno.
 const RESERVADOS = new Set(['www', 'prueba', 'api', 'localhost', '127']);
 
+/// El prefijo que llevan los subdominios de PRUEBAS.
+///
+/// `pre-adecopria.reservasae.com` sirve el entorno de pruebas
+/// del mismo gremio que `adecopria.reservasae.com`. Va delante
+/// y no detras por el comodin de Cloudflare, que cubre un solo
+/// nivel: `adecopria.prueba.reservasae.com` daria error de TLS.
+///
+/// Aqui se quita antes de buscar el convenio. Sin esto la
+/// etiqueta seria `pre-adecopria`, que no es el slug de ningun
+/// convenio, y el gremio se quedaria sin resolver EN SILENCIO:
+/// el panel perderia la marca y dejaria de fijar el gremio, y
+/// los dos webhooks —el del orquestador y el de Meta—
+/// rechazarian todo lo que les llegara por esa direccion.
+///
+/// Ojo si alguna vez se crea un convenio cuyo slug empiece por
+/// `pre-`: esto se lo comeria. Hoy son `adecopria` y
+/// `britcham-adee`, y quien cree el tercero tiene que saberlo.
+const PREFIJO_DE_PRUEBAS = 'pre-';
+
 /// Lo que puede ser un slug, y nada mas.
 ///
 /// El Host lo escribe el cliente y no tiene por que ser un
 /// dominio: `//malo.reservasae.com` daria la etiqueta
 /// `//malo`, y metida en una URL saca la peticion del origen.
 const PATRON = /^[a-z0-9]+(-[a-z0-9]+)*$/;
-
-/// El prefijo del entorno de pruebas, que NO es del gremio.
-///
-/// `pre-adecopria.reservasae.com` y `adecopria.reservasae.com`
-/// nombran el MISMO gremio en dos entornos distintos: lo que
-/// los separa es el tunel al que apunta el DNS, no la etiqueta.
-/// El prefijo existe porque el comodin de Cloudflare cubre un
-/// solo nivel y `adecopria.prueba.` daria error de TLS.
-///
-/// Sin quitarlo, `pre-adecopria` no casa con ningun convenio y
-/// la direccion cae a la PUERTA GENERAL: el panel de pruebas
-/// enseñaba los dos gremios en una direccion que dice ser de
-/// uno. Un slug de convenio no puede empezar por `pre-`.
-const PREFIJO_DE_PRUEBAS = 'pre-';
 
 export type ConvenioConSlug = { id: string; slug: string };
 
@@ -46,13 +51,20 @@ export function etiquetaDelHost(host?: string | null): string | null {
   if (!primera || RESERVADOS.has(primera)) return null;
   if (!PATRON.test(primera)) return null;
 
-  // se quita DESPUES de validar: asi `//malo` se rechaza
-  // antes, y no por parecerse a un prefijo
+  /// Se quita DESPUES de validar el patron, nunca antes.
+  ///
+  /// Asi `//malo` se rechaza por no ser un dominio y no por
+  /// parecerse a un prefijo, y `pre-` a secas —que quedaria en
+  /// cadena vacia— tampoco llega a colarse como etiqueta.
   const sinPrefijo = primera.startsWith(PREFIJO_DE_PRUEBAS)
     ? primera.slice(PREFIJO_DE_PRUEBAS.length)
     : primera;
 
-  // `pre-` a secas no nombra a nadie
+  /// Y lo RESERVADO se comprueba otra vez, ya sin prefijo.
+  ///
+  /// Sin esta segunda vuelta, `pre-prueba` se convierte en
+  /// `prueba` y se cuela justo por el nombre que la primera
+  /// comprobacion aparta. Su spec lo fija.
   if (!sinPrefijo || RESERVADOS.has(sinPrefijo)) return null;
   return sinPrefijo;
 }

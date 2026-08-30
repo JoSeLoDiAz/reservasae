@@ -19,6 +19,7 @@ import {
   type Actor,
 } from '../comun/auditoria.service';
 import { taparDocumento } from '../comun/tapar';
+import { DisparadorInscripcion } from '../instituciones/web/disparador';
 import {
   CLASE_POR_CAMPO,
   enPalabras as enPalabrasElCampo,
@@ -326,6 +327,7 @@ export class CrmService {
     private readonly auditoria: AuditoriaService,
     private readonly colaRui: ColaRui,
     private readonly cupos: PanelDeCupos,
+    private readonly disparador: DisparadorInscripcion,
   ) {}
 
   async listar(filtros: Filtros) {
@@ -2286,6 +2288,30 @@ export class CrmService {
       ip,
     });
 
+    /// Al entrar a INSCRITO se completan los datos de su empresa: si es
+    /// NIT va a la cola del buscador web, y si es persona natural se
+    /// propone con reglas fijas, sin buscar nada.
+    ///
+    /// Va FUERA de la transaccion y no puede tumbar el cambio de etapa.
+    /// Completar la ficha es un complemento, no un requisito: si a la
+    /// empresa le faltan los 3 datos de contacto, o no tiene empresa, el
+    /// disparador se queja y aqui solo queda anotado. Bloquear la
+    /// inscripcion por eso seria una regla de negocio nueva, y no es la
+    /// que hay hoy.
+    ///
+    /// Llegar aqui ya implica que es una transicion real: poner la etapa
+    /// que ya se tenia sale mucho antes.
+    if (dto.etapa === EtapaParticipante.INSCRITO) {
+      try {
+        await this.disparador.alInscribir(id);
+      } catch (e) {
+        this.log.warn(
+          `Participante ${id} paso a INSCRITO, pero no se disparo la ` +
+            `validacion de su empresa: ${e instanceof Error ? e.message : String(e)}`,
+        );
+      }
+    }
+
     return this.obtener(id, ambito);
   }
 
@@ -2697,13 +2723,37 @@ export class CrmService {
         (!permitidas || permitidas.has(f.linea)),
     );
 
+    /// El registro se abre ANTES de crear a nadie.
+    ///
+    /// Si se abriera al final, una importacion que se caiga a
+    /// la mitad no dejaria rastro -- y es justo la que hay que
+    /// poder mirar. El historico existe para saber que paso, no
+    /// solo lo que salio bien.
+    const carga = await this.prisma.cargaDeParticipantes.create({
+      data: {
+        convenioId: dto.convenioId,
+        ofertaId: dto.ofertaId ?? null,
+        adminId: admin.id,
+        // congelado, como el autor de una nota
+        autor: admin.nombre,
+        origen: dto.origenDeCarga ?? 'PEGADO',
+        nombreArchivo: dto.nombreArchivo ?? null,
+        filas: previa.total,
+        yaExistian: previa.conocidas,
+        duplicados: previa.repetidas,
+        descartados: previa.descartadas,
+        ip: ip ?? null,
+      },
+    });
+
     let creados = 0;
+    const nuevos: string[] = [];
     const fallos: Array<{ linea: number; motivo: string }> = [];
 
     // una a una: un fallo no debe tumbar las 39 buenas
     for (const f of aCrear) {
       try {
-        await this.crear(
+        const hecho = await this.crear(
           {
             tipoDocumentoSepId: f.tipoDocumentoSepId,
             numeroDocumento: f.numeroDocumento,
@@ -2722,6 +2772,7 @@ export class CrmService {
           ip,
         );
         creados += 1;
+        if (hecho?.id) nuevos.push(hecho.id);
       } catch (e) {
         fallos.push({
           linea: f.linea,
@@ -2730,7 +2781,69 @@ export class CrmService {
       }
     }
 
-    return { creados, fallos, intentadas: aCrear.length };
+    /// De una sola vez y no dentro de `crear`: asi la firma de
+    /// la unica puerta que crea gente no cambia por esto.
+    if (nuevos.length) {
+      await this.prisma.participante.updateMany({
+        where: { id: { in: nuevos } },
+        data: { cargaId: carga.id },
+      });
+    }
+
+    await this.prisma.cargaDeParticipantes.update({
+      where: { id: carga.id },
+      data: { creados, fallidos: fallos.length },
+    });
+
+    return { creados, fallos, intentadas: aCrear.length, cargaId: carga.id };
+  }
+
+  /** El historico de importaciones del ambito. */
+  async cargas(ambito: string[], convenioId?: string) {
+    /// El filtro pedido se INTERSECA con el ambito, nunca lo
+    /// sustituye: pedir un convenio de fuera devuelve vacio, no
+    /// el de otro gremio.
+    const convenios = convenioId
+      ? ambito.filter((c) => c === convenioId)
+      : ambito;
+    if (!convenios.length) return [];
+
+    const filas = await this.prisma.cargaDeParticipantes.findMany({
+      where: { convenioId: { in: convenios } },
+      orderBy: { creadoEn: 'desc' },
+      take: 100,
+      select: {
+        id: true,
+        creadoEn: true,
+        autor: true,
+        origen: true,
+        nombreArchivo: true,
+        filas: true,
+        creados: true,
+        yaExistian: true,
+        duplicados: true,
+        descartados: true,
+        fallidos: true,
+        convenio: { select: { sigla: true, nombre: true } },
+        oferta: {
+          select: {
+            ubicacion: { select: { nombre: true } },
+            accionFormacion: { select: { codigo: true, nombre: true } },
+          },
+        },
+      },
+    });
+
+    return filas.map((f) => ({
+      ...f,
+      convenio: f.convenio.sigla ?? f.convenio.nombre,
+      /// El curso al que fue la importacion, ya escrito: la
+      /// pantalla no tiene por que rearmar la etiqueta.
+      destino: f.oferta
+        ? `${f.oferta.accionFormacion.codigo} · ${f.oferta.ubicacion.nombre}`
+        : null,
+      oferta: undefined,
+    }));
   }
 
   /** Cupos reservados sin una persona detras. */

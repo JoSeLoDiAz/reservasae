@@ -29,7 +29,7 @@ import { ErrorApi } from "@/lib/api";
 
 import { PanelAccesibilidad } from "./accesibilidad";
 import { CambioDeClaveObligatorio } from "./cambio-clave";
-import {
+import { ICONO_DE_MODULO, IconoResumen,
   IconoAccesibilidad,
   IconoCerrar,
   IconoDerecha,
@@ -324,7 +324,15 @@ export function MarcoAdmin({ children }: { children: React.ReactNode }) {
             /// leen de arriba abajo— sigan pudiéndose recorrer. Las
             /// pantallas de tabla no lo usan: su contenido cabe porque
             /// la tabla scrollea por dentro.
-            className="flex w-full min-h-0 grow flex-col overflow-y-auto overscroll-contain px-4 py-6 lg:px-8"
+            /// Sin relleno lateral: las secciones van A SANGRE.
+            ///
+            /// El redisenio no apila tarjetas sobre un fondo,
+            /// apila bandas que ocupan el ancho entero y se
+            /// separan por una raya. El relleno lo pone cada
+            /// banda por dentro (28px), no el contenedor: si lo
+            /// pusiera el contenedor, las rayas se quedarian
+            /// cortas y flotando en vez de cruzar la pantalla.
+            className="flex w-full min-h-0 grow flex-col overflow-y-auto overscroll-contain"
           >
             {/* Sin tope de ancho: son tablas de trabajo y en un
                 monitor ancho `max-w-6xl` las dejaba espichadas.
@@ -391,7 +399,7 @@ function Marca({ plegado }: { plegado?: boolean }) {
         /// elige el administrador, así que sin la placa el logo
         /// desaparece en modo oscuro — y también en claro si
         /// alguien pone el encabezado en un color fuerte.
-        <div className="mx-auto flex w-fit max-w-full flex-wrap items-center justify-center gap-x-2.5 gap-y-1.5 rounded-xl bg-white px-2.5 py-2 shadow-sm">
+        <div className="mx-auto flex w-fit max-w-full flex-wrap items-center justify-center gap-x-2.5 gap-y-1.5 rounded-xl bg-white px-2.5 py-2">
           {logos.map((l) => (
             // eslint-disable-next-line @next/next/no-img-element
             <img
@@ -495,6 +503,69 @@ function SelectorGremio({
  */
 function RotuloDelPanel() {
   return <p className={ROTULO + " mt-7 mb-3"}>Panel de gestión</p>;
+}
+
+/**
+ * La entrada al tablero, con nombre.
+ *
+ * Antes al tablero solo se llegaba por el logotipo. Eso no es
+ * descubrible: nadie pulsa un logotipo esperando navegar, y no
+ * habia forma de saber que se podia. El logotipo sigue
+ * llevando -- quien ya lo sabia no pierde el atajo -- pero
+ * ahora hay una fila que lo dice.
+ *
+ * Va fuera de «Panel de gestion» y encima del rotulo porque no
+ * es un modulo: no agrupa pantallas, es una sola.
+ */
+function FilaResumen({
+  ruta,
+  plegado,
+  alNavegar,
+  alDesplegar,
+}: {
+  ruta: string;
+  plegado?: boolean;
+  alNavegar?: () => void;
+  alDesplegar?: () => void;
+}) {
+  const activo = ruta === "/admin";
+
+  if (plegado) {
+    return (
+      <Link
+        href="/admin"
+        title="Resumen — el tablero"
+        onClick={() => {
+          alNavegar?.();
+          alDesplegar?.();
+        }}
+        className={`mb-2 flex h-[34px] w-[34px] items-center justify-center self-center rounded-full border transition ${
+          activo
+            ? "border-titulo bg-titulo text-superficie"
+            : "border-borde text-texto-suave hover:border-texto-suave hover:text-titulo"
+        }`}
+      >
+        <IconoResumen tamano={17} />
+      </Link>
+    );
+  }
+
+  return (
+    <Link
+      href="/admin"
+      onClick={alNavegar}
+      className={`mt-3 flex items-center gap-2.5 rounded-lg px-3 py-2 text-[13px] font-semibold transition ${
+        activo
+          ? "bg-marca-suave text-marca"
+          : "opacity-70 hover:bg-current/8 hover:opacity-100"
+      }`}
+    >
+      <span className="shrink-0 leading-none">
+        <IconoResumen tamano={17} />
+      </span>
+      Resumen
+    </Link>
+  );
 }
 
 /**
@@ -676,6 +747,14 @@ function Grupos({
 
   return (
     <>
+      {plegado && (
+        <FilaResumen
+          ruta={ruta}
+          plegado
+          alNavegar={alNavegar}
+          alDesplegar={() => alDesplegar?.("")}
+        />
+      )}
       {MODULOS.map((modulo) => {
         const enlaces = enlacesVisibles(modulo, permisos, esSuperadmin);
         if (enlaces.length === 0) return null;
@@ -698,15 +777,27 @@ function Grupos({
               onClick={() => alDesplegar?.(modulo.clave)}
               title={`${modulo.etiqueta} — ${modulo.descripcion}`}
               aria-expanded={false}
-              className={`mb-1 flex h-10 w-full items-center justify-center rounded-xl transition ${
+              /// Circulo de 34 con borde de 1px, no un cuadro
+              /// relleno: el rail sin etiquetas ya es bastante
+              /// acertijo, y un circulo con borde se lee como
+              /// boton mientras que un bloque de color se lee
+              /// como estado.
+              /// El activo va INVERTIDO -- circulo relleno con
+              /// `--titulo` y el icono en `--superficie` --, que
+              /// es lo que pide el redisenio. Con el relleno
+              /// suave apenas se distinguia del fondo de la
+              /// barra a 34px, y en un rail sin etiquetas saber
+              /// donde esta uno es lo unico que se tiene.
+              className={`mb-2 flex h-[34px] w-[34px] items-center justify-center self-center rounded-full border transition ${
                 activo
-                  ? "bg-current/12"
-                  : "opacity-60 hover:bg-current/8 hover:opacity-100"
+                  ? "border-titulo bg-titulo text-superficie"
+                  : "border-borde text-texto-suave hover:border-texto-suave hover:text-titulo"
               }`}
             >
-              <span aria-hidden className="text-lg leading-none">
-                {modulo.emoji}
-              </span>
+              {(() => {
+                const Icono = ICONO_DE_MODULO[modulo.clave];
+                return Icono ? <Icono tamano={17} /> : null;
+              })()}
             </button>
           );
         }
@@ -721,15 +812,25 @@ function Grupos({
                 onClick={() => alternar(modulo.clave)}
                 aria-expanded={desplegado}
                 title={modulo.descripcion}
-                className={`flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm transition ${
+                /// 13px y peso 600, que es la medida del
+                /// redisenio para el modulo. De paso cabe:
+                /// a 14px «Gestion de Inscripciones» y
+                /// «Sistemas de Informacion» se cortaban con
+                /// puntos suspensivos en la barra de 250.
+                className={`flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-[13px] font-semibold transition ${
                   desplegado
-                    ? "font-medium opacity-100"
+                    ? "opacity-100"
                     : "opacity-65 hover:bg-current/8 hover:opacity-100"
                 }`}
               >
-                <span aria-hidden className="shrink-0 text-base leading-none">
-                  {modulo.emoji}
-                </span>
+                {(() => {
+                  const Icono = ICONO_DE_MODULO[modulo.clave];
+                  return Icono ? (
+                    <span className="shrink-0 leading-none">
+                      <Icono tamano={17} />
+                    </span>
+                  ) : null;
+                })()}
                 <span className="truncate">
                   {modulo.etiqueta}
                 </span>
@@ -817,7 +918,7 @@ function BarraLateral({
       aria-label="Secciones del panel"
       // el alto lo pone el contenedor, que ya resta la franja
       className={`no-imprimir z-20 hidden h-full shrink-0 flex-col border-r border-encabezado-borde bg-encabezado-fondo text-encabezado-texto transition-[width] duration-200 md:flex ${
-        plegado ? "w-[72px] px-3 py-4" : "w-[292px] px-4 py-4"
+        plegado ? "w-[62px] px-3 py-4" : "w-[250px] px-4 py-4"
       }`}
     >
       {/* `mb-4` también plegada: sin él, el logo y el primer
@@ -855,6 +956,7 @@ function BarraLateral({
           /// todo el menú nacía encaramado en el borde.
           <div className="mt-8">
             <SelectorGremio gremios={gremios} gremio={gremio} alElegir={alElegir} />
+            <FilaResumen ruta={ruta} />
             <RotuloDelPanel />
           </div>
         )}
@@ -1064,12 +1166,27 @@ function Cabecera({
 
 // piezas compartidas del panel
 
+/**
+ * La medida de un campo: alto 34, radio 10, letra 12,5.
+ *
+ * Son las del redisenio, y se ponen aqui porque esta clase la
+ * usan 174 controles en treinta archivos: cambiarla una vez es
+ * lo que deja TODOS los campos del panel a la misma medida.
+ *
+ * El alto se consigue con el relleno y no con `h-[34px]`
+ * a proposito: cuatro `textarea` usan esta misma clase, y con
+ * una altura fija se quedarian en un renglon. Con relleno, un
+ * campo de una linea mide 34 y el textarea crece.
+ *
+ * 7px arriba y abajo + 18 de linea + 2 de borde = 34.
+ */
 export const CLASE_CONTROL =
-  "w-full rounded-xl border border-campo-borde bg-campo-fondo px-3 py-2.5 text-texto " +
+  "w-full rounded-lg border border-campo-borde bg-campo-fondo px-3 py-[7px] text-[0.78125rem] text-texto " +
   "outline-none transition focus:border-campo-foco focus:ring-2 focus:ring-campo-foco/25";
 
 export function Tarjeta({
   titulo,
+  encabezado,
   descripcion,
   centrado,
   plegable,
@@ -1078,6 +1195,9 @@ export function Tarjeta({
   children,
 }: {
   titulo: string;
+  /// Un encabezado propio, con su circulo de icono. Cuando va,
+  /// sustituye al titulo y la descripcion de siempre.
+  encabezado?: React.ReactNode;
   descripcion?: React.ReactNode;
   /// Solo para las graficas: dos tarjetas de la misma fila
   /// miden lo mismo y el contenido se centra en vez de
@@ -1102,12 +1222,27 @@ export function Tarjeta({
   const mostrar = !plegable || abierta;
 
   return (
+    /// Una BANDA, no una tarjeta.
+    ///
+    /// Antes era `rounded-2xl border ... p-6`: una caja
+    /// flotando sobre el fondo. Una pantalla con seis bloques
+    /// eran seis cajas compitiendo entre ellas, y ese es
+    /// justamente el lenguaje que este redisenio elimina.
+    ///
+    /// Ahora ocupa el ancho, no tiene radio y solo lleva raya
+    /// abajo. Se cambia aqui y no en las 150 llamadas
+    /// repartidas por el codigo.
     <section
-      className={`rounded-2xl border border-borde bg-superficie shadow-sm ${
+      className={`border-b border-borde bg-superficie ${
         centrado ? "flex h-full flex-col" : ""
-      } ${plegable && !abierta ? "px-6 py-4" : "p-6"}`}
+      } ${plegable && !abierta ? "px-7 py-4" : "px-7 py-5"}`}
     >
-      {plegable ? (
+      {encabezado ? (
+        <>
+          {encabezado}
+          <div className="mt-4">{children}</div>
+        </>
+      ) : plegable ? (
         <button
           type="button"
           onClick={() => setAbierta((v) => !v)}
@@ -1155,7 +1290,10 @@ export function Tarjeta({
         </>
       )}
 
-      {mostrar && (
+      {/* `!encabezado`: con encabezado propio los hijos ya se
+          pintaron arriba, y sin esto salian DOS VECES — la
+          tarjeta de Notas aparecia duplicada entera. */}
+      {!encabezado && mostrar && (
         <>
           {plegable && descripcion && (
             <p className="mt-1 text-sm text-texto-suave">{descripcion}</p>
@@ -1182,7 +1320,7 @@ export function Campo({
 }) {
   return (
     <label className="block">
-      <span className="mb-1.5 block text-sm font-medium">{etiqueta}</span>
+      <span className="mb-1.5 block text-[12.5px] font-medium">{etiqueta}</span>
       {children}
       {ayuda && <span className="mt-1.5 block text-xs text-texto-suave">{ayuda}</span>}
     </label>
@@ -1196,7 +1334,17 @@ export function Boton({
   return (
     <button
       {...resto}
-      className={`inline-flex items-center justify-center gap-2 rounded-xl bg-marca px-5 py-2.5 text-sm font-medium text-marca-texto shadow-sm transition hover:bg-marca-fuerte disabled:opacity-50 ${resto.className ?? ""}`}
+      /// El azul de marca, no el verde.
+      ///
+      /// Estuvo en `--acento` una temporada, y eso pintaba de
+      /// verde el boton principal de TODO el panel. `--marca`
+      /// es el color del producto -- y el que cada gremio edita
+      /// desde Apariencia --, asi que fijar aqui otro le quita
+      /// esa palanca sin que nadie se entere.
+      ///
+      /// Alto 34, radio 10 y sin sombra: la separacion de este
+      /// redisenio es por borde de 1px, nunca por sombra.
+      className={`inline-flex h-[32px] items-center justify-center gap-2 rounded-[9px] bg-marca px-[13px] text-[12.5px] font-semibold text-marca-texto transition hover:bg-marca-fuerte disabled:cursor-not-allowed disabled:bg-campo-borde disabled:text-texto-suave sin-aro ${resto.className ?? ""}`}
     >
       {children}
     </button>
@@ -1218,6 +1366,74 @@ export function Boton({
  * comportamiento —incluido arrastrar y soltar sobre la
  * etiqueta— y solo se le cambia la cara.
  */
+/**
+ * El encabezado de una seccion, con su circulo de icono.
+ *
+ * Es el patron que repite el handoff en todos los paneles:
+ * circulo verde palido de 38px con el icono dentro, y al lado
+ * el titulo y una linea que dice de que va la seccion.
+ */
+export function EncabezadoSeccion({
+  titulo,
+  descripcion,
+  accion,
+}: {
+  /// Se acepta y NO se pinta: ver el comentario de abajo.
+  icono?: React.ReactNode;
+  titulo: string;
+  descripcion?: string;
+  accion?: React.ReactNode;
+}) {
+  /// Sin el circulo verde del icono.
+  ///
+  /// Cada seccion de la ficha llevaba su icono metido en un
+  /// circulo de `--acento-suave`, y bajando por la pestania
+  /// salian cinco circulos verdes que no distinguian nada: el
+  /// titulo ya dice de que es la seccion. Ademas el verde no es
+  /// color de marca -- entro con el handoff anterior -- y en el
+  /// redisenio las secciones se separan por una raya, no por
+  /// una insignia.
+  ///
+  /// La prop `icono` se sigue aceptando para no tocar las cinco
+  /// llamadas, pero no se pinta. Igual que en `TarjetaCifra`.
+  return (
+    <div className="flex items-center justify-between gap-4">
+      <div className="min-w-0">
+        <p className="truncate text-[0.90625rem] font-semibold text-titulo">
+          {titulo}
+        </p>
+        {descripcion && (
+          <p className="mt-1 text-[0.78125rem] leading-relaxed text-texto-suave">
+            {descripcion}
+          </p>
+        )}
+      </div>
+      {accion}
+    </div>
+  );
+}
+
+/**
+ * El rotulo de un grupo de campos. Es lo que parte los veinte
+ * campos de «Datos» en seis bloques legibles.
+ *
+ * Sin el cuadrito verde y en el azul de marca.
+ *
+ * Llevaba un punto de `--acento` delante, y con seis grupos
+ * eran seis puntos verdes bajando por la ficha que no decian
+ * nada: el rotulo ya se distingue por la versalita y el peso.
+ * El verde ademas no es color de marca -- es el que entro con
+ * el handoff anterior --, y aqui manda `--marca`, que es el que
+ * cada gremio edita.
+ */
+export function RotuloDeGrupo({ children }: { children: React.ReactNode }) {
+  return (
+    <p className="text-[0.625rem] font-semibold tracking-[0.1em] text-marca uppercase">
+      {children}
+    </p>
+  );
+}
+
 export function EscogerArchivo({
   id,
   acepta,

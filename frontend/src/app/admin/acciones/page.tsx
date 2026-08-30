@@ -46,9 +46,9 @@ export default function PaginaAcciones() {
   }
 
   return (
-    <div className="space-y-6">
-      <header>
-        <h1 className="text-2xl font-bold tracking-tight">Formación</h1>
+    <div>
+      <header className="border-b border-borde bg-superficie px-7 pt-[26px] pb-[22px]">
+        <h1 className="text-[1.3125rem] font-bold tracking-[-0.02em] text-titulo">Formación</h1>
         <p className="mt-1 text-texto-suave">
           Publique u oculte cada acción. Ocultar no cancela nada: las reservas
           hechas siguen vivas y contando, la acción solo desaparece del sitio
@@ -65,33 +65,50 @@ export default function PaginaAcciones() {
           titulo={lista[0].convenioSigla ?? convenio}
           descripcion={`/${convenio} · ${lista.filter((a) => a.visible).length} de ${lista.length} publicadas`}
         >
-          <ul className="divide-y divide-borde">
+          {/* La fila del redisenio: el CODIGO en su propia
+              columna a la izquierda, el nombre, el detalle
+              debajo, y a la derecha la barra de ocupacion con
+              su cifra. El codigo iba metido en medio de la
+              linea de detalle -- «AF1 · CURSO virtual · 40 h» --
+              y ahi no sirve para buscar: uno recorre la columna
+              de codigos con el dedo, no lee la frase. */}
+          <ul className="divide-y divide-hairline">
             {lista.map((a) => (
-              <li key={a.id} className="flex flex-wrap items-start gap-x-4 gap-y-3 py-4">
+              <li key={a.id} className="flex flex-wrap items-center gap-x-4 gap-y-2 py-3">
+                <div className="w-[30px] shrink-0 text-[0.65625rem] font-semibold tracking-[0.05em] text-texto-suave">
+                  {a.codigo}
+                </div>
                 <div className="min-w-64 grow">
                   <Link
                     href={`/admin/acciones/${a.id}`}
-                    className="font-medium leading-snug hover:text-marca hover:underline"
+                    className="text-[0.84375rem] font-semibold leading-snug text-titulo no-underline hover:text-marca"
                   >
                     {bonito(a.nombre)}
                   </Link>
-                  <p className="mt-1 text-sm text-texto-suave">
-                    {a.codigo} · {a.evento} {MODALIDAD[a.modalidad].toLowerCase()}
+                  <p className="mt-0.5 text-[0.71875rem] text-texto-suave">
+                    {a.evento} {MODALIDAD[a.modalidad].toLowerCase()}
                     {a.horas ? ` · ${a.horas} h` : ""} · {a.ofertas} ubicaciones
                   </p>
-                  <p className="mt-1 text-sm">
-                    <span className="text-texto-suave">
-                      {a.cuposOcupados} de {a.cuposMaximos} cupos reservados
-                    </span>
-                  </p>
+                </div>
+
+                {/* Cuanto lleva lleno. La proporcion se ve, el
+                    numero se lee: hacen falta los dos. */}
+                <div className="h-1 w-[130px] shrink-0 overflow-hidden rounded-full bg-superficie-alterna">
+                  <div
+                    className="h-full rounded-full bg-marca"
+                    style={{
+                      width: `${Math.min(100, a.cuposMaximos ? (a.cuposOcupados / a.cuposMaximos) * 100 : 0)}%`,
+                    }}
+                  />
+                </div>
+                <div className="w-[132px] shrink-0 text-right text-[0.75rem] tabular-nums text-texto">
+                  {a.cuposOcupados} de {a.cuposMaximos} cupos
                 </div>
 
                 <div className="flex items-center gap-3">
                   <span
-                    className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                      a.visible
-                        ? "bg-exito-suave text-exito"
-                        : "bg-fondo text-texto-suave"
+                    className={`w-[68px] text-[0.75rem] font-semibold whitespace-nowrap ${
+                      a.visible ? "text-exito" : "text-texto-suave"
                     }`}
                   >
                     {a.visible ? "Publicada" : "Oculta"}
@@ -99,9 +116,9 @@ export default function PaginaAcciones() {
                   <button
                     onClick={() => alternar(a)}
                     disabled={ocupada === a.id}
-                    className={`rounded-lg px-4 py-1.5 text-sm font-medium transition disabled:opacity-50 ${
+                    className={`h-[30px] rounded-lg px-3 text-[0.75rem] font-semibold transition disabled:opacity-50 ${
                       a.visible
-                        ? "border border-borde hover:bg-fondo"
+                        ? "border border-borde bg-superficie hover:bg-superficie-alterna"
                         : "bg-marca text-marca-texto hover:bg-marca-fuerte"
                     }`}
                   >

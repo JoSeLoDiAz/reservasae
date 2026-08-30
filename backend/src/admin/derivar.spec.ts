@@ -52,6 +52,9 @@ describe('derivarTemas', () => {
         const temas = derivarTemas({ principal, encabezadoDeColor });
         for (const esquema of ESQUEMAS) {
           for (const par of COMPROBACIONES_CONTRASTE) {
+            // los pares entre estados van por distancia de
+            // color, no por WCAG: aqui no aplican
+            if (par.entreEstados) continue;
             const razon = contraste(temas[esquema][par.frente], temas[esquema][par.fondo]);
             expect({ principal, encabezadoDeColor, esquema, par: par.descripcion, razon })
               .toMatchObject({ razon: expect.any(Number) });
@@ -107,6 +110,9 @@ describe('plantillas', () => {
       const temas = temasDePlantilla(plantilla);
       for (const esquema of ESQUEMAS) {
         for (const par of COMPROBACIONES_CONTRASTE) {
+          // los pares entre estados van por distancia de
+          // color, no por WCAG: aqui no aplican
+          if (par.entreEstados) continue;
           const razon = contraste(temas[esquema][par.frente], temas[esquema][par.fondo]);
           expect(
             `${plantilla.clave} ${esquema} ${par.descripcion}: ${razon?.toFixed(2)}`,

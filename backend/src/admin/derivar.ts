@@ -133,6 +133,11 @@ export function corregirContraste(colores: ColoresTema): ColoresTema {
     let quedanFallos = false;
 
     for (const par of COMPROBACIONES_CONTRASTE) {
+      // «distinguir dos estados» no es texto sobre fondo: su
+      // medida es la distancia de color, no la luminosidad. Rojo
+      // y verde nunca llegan a 4,5:1, asi que corregirlos aqui
+      // los empuja hasta negro.
+      if (par.entreEstados) continue;
       const minimo = minimoExigido(par.grande);
       const fondo = salida[par.fondo];
       let frente = salida[par.frente];

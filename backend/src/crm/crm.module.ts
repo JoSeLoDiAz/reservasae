@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
 
 import { AuditoriaService } from '../comun/auditoria.service';
+import { InstitucionesModule } from '../instituciones/instituciones.module';
 import { PreinscripcionModule } from '../preinscripcion/preinscripcion.module';
 import { CrmController } from './crm.controller';
 import { CrmService } from './crm.service';
@@ -31,6 +32,8 @@ import { SepService } from './sep/sep.service';
     // el asesor emite el enlace desde la ficha
     PreinscripcionModule,
     ColaRuiModule,
+    // el cambio a INSCRITO dispara la validacion de la empresa
+    InstitucionesModule,
   ],
   controllers: [CrmController, SepController],
   providers: [

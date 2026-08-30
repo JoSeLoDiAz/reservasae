@@ -84,12 +84,23 @@ export function EnviarCorreo({ participanteId }: { participanteId: string }) {
 
   if (!abierto) {
     return (
+      /// El boton verde relleno del diseno, con sus valores
+      /// exactos: `--marca`, radio 11, padding 13, 600 14px.
       <button
         type="button"
         onClick={() => setAbierto(true)}
-        className="rounded-xl border border-marca px-4 py-2 text-sm font-medium text-marca transition hover:bg-marca-suave"
+        style={{
+          background: "var(--marca)",
+          color: "var(--marca-texto)",
+          border: "none",
+          borderRadius: 11,
+          padding: 13,
+          fontWeight: 600, fontSize: 14,
+          cursor: "pointer",
+          width: "100%",
+        }}
       >
-        Escribirle un correo
+        Escribir un correo
       </button>
     );
   }
@@ -179,14 +190,14 @@ export function EnviarCorreo({ participanteId }: { participanteId: string }) {
               </p>
               <p className="mt-1">
                 {vista.faltantes.map((f) => `{{${f}}}`).join(", ")}. Se ven abajo,
-                tal cual. Complételos en la ficha, o escoja otra plantilla.
+                tal cual. Complételos en el lead, o escoja otra plantilla.
               </p>
             </div>
           )}
 
           {!vista.para && (
             <div className="rounded-xl border border-error/30 bg-error-suave p-3 text-sm text-error">
-              {vista.nombre} no tiene correo en la ficha. Sin correo no hay a dónde
+              {vista.nombre} no tiene correo en el lead. Sin correo no hay a dónde
               mandarlo.
             </div>
           )}

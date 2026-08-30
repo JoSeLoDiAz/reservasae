@@ -4,6 +4,7 @@ import Link from "next/link";
 import { use, useCallback, useState } from "react";
 
 import { BotonPdf, EncabezadoImpresion } from "@/components/admin/boton-pdf";
+import { Kpis, Seccion } from "@/components/admin/secciones";
 import {
   BarraAvance,
   EtiquetaEstado,
@@ -30,9 +31,9 @@ const MODALIDAD: Record<string, string> = {
 };
 
 const ESTADO: Record<string, { texto: string; clase: string }> = {
-  CONFIRMADA: { texto: "Confirmada", clase: "bg-exito-suave text-exito" },
-  LISTA_ESPERA: { texto: "En espera", clase: "bg-aviso-suave text-aviso" },
-  CANCELADA: { texto: "Cancelada", clase: "bg-error-suave text-error" },
+  CONFIRMADA: { texto: "Confirmada", clase: "text-exito" },
+  LISTA_ESPERA: { texto: "En espera", clase: "text-aviso" },
+  CANCELADA: { texto: "Cancelada", clase: "text-error" },
 };
 
 export default function DetalleDeAccion({ params }: { params: Promise<{ id: string }> }) {
@@ -67,19 +68,21 @@ export default function DetalleDeAccion({ params }: { params: Promise<{ id: stri
   const activas = datos.reservas.filter((r) => r.estado !== "CANCELADA");
 
   return (
-    <div className="space-y-5">
+    <div>
       <EncabezadoImpresion
         titulo={`${datos.codigo} · ${bonito(datos.nombre)}`}
         subtitulo={datos.convenio.sigla ?? datos.convenio.slug}
       />
       <SelloDeDatos actualizadoEn={vivos.actualizadoEn} />
 
-      <header className="no-imprimir flex flex-wrap items-start justify-between gap-4">
+      <header className="border-b border-borde bg-superficie px-7 pt-[26px] pb-[22px] no-imprimir flex flex-wrap items-start justify-between gap-4">
         <div className="min-w-0">
           <Link href="/admin/acciones" className="text-sm text-marca hover:underline">
             ← Formación
           </Link>
-          <h1 className="mt-2 text-2xl font-semibold leading-snug">{bonito(datos.nombre)}</h1>
+          <h1 className="mt-2 text-[1.4375rem] font-bold leading-snug tracking-[-0.022em] text-titulo">
+            {bonito(datos.nombre)}
+          </h1>
           <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-texto-suave">
             <span className="font-mono text-xs">{datos.codigo}</span>
             <span>·</span>
@@ -94,6 +97,19 @@ export default function DetalleDeAccion({ params }: { params: Promise<{ id: stri
                 <span>{datos.horas} horas</span>
               </>
             )}
+            {/* El estado, DENTRO de la linea de datos.
+                Estaba arriba a la derecha como pildora verde, y
+                ahi pesaba mas que el nombre de la accion. Es un
+                dato mas de la ficha, como la modalidad o las
+                horas: va donde estan los demas. */}
+            <span>·</span>
+            <span
+              className={`font-semibold ${
+                datos.visible ? "text-exito" : "text-texto-suave"
+              }`}
+            >
+              {datos.visible ? "Publicada" : "Oculta"}
+            </span>
           </p>
           <div className="mt-3">
             <IndicadorActualizacion
@@ -106,17 +122,10 @@ export default function DetalleDeAccion({ params }: { params: Promise<{ id: stri
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          <span
-            className={`rounded-full px-3 py-1 text-sm font-medium ${
-              datos.visible ? "bg-exito-suave text-exito" : "bg-superficie-alterna text-texto-suave"
-            }`}
-          >
-            {datos.visible ? "Publicada" : "Oculta"}
-          </span>
           <button
             onClick={alternarPublicacion}
             disabled={ocupado}
-            className="rounded-xl border border-borde px-4 py-2 text-sm font-medium hover:bg-superficie-alterna disabled:opacity-50"
+            className="h-[34px] rounded-lg border border-borde bg-superficie px-3.5 text-[0.78125rem] font-semibold text-titulo hover:bg-superficie-alterna disabled:opacity-50"
           >
             {datos.visible ? "Ocultar" : "Publicar"}
           </button>
@@ -124,68 +133,65 @@ export default function DetalleDeAccion({ params }: { params: Promise<{ id: stri
         </div>
       </header>
 
-      <div className="imprimible-bloque grid gap-4 lg:grid-cols-3">
-        <Tarjeta titulo="Avance sobre la meta" descripcion="Lo comprometido en el proyecto.">
-          <Medidor
-            porcentaje={datos.avanceMeta}
-            color="var(--exito)"
-            cifra={datos.ocupados}
-            detalle={`de ${n(datos.metaBase)} beneficiarios`}
-            etiqueta="Avance sobre la meta"
-          />
-        </Tarjeta>
+      {/* Los tres indicadores, como en el demo: rotulo en
+          versalita, cifra grande y la nota debajo con el
+          porcentaje. Sin anillo.
 
-        <Tarjeta titulo="Ocupación del tope" descripcion="Meta más 30 % por deserción.">
-          <Medidor
-            porcentaje={datos.avance}
-            cifra={datos.disponibles}
-            detalle={`cupos libres de ${n(datos.cupos)}`}
-            etiqueta="Ocupación del tope"
-          />
-        </Tarjeta>
+          Los anillos venian del disenio anterior. No se pierde
+          nada quitandolos -- el porcentaje que dibujaban pasa a
+          la nota, escrito -- y se gana lo que ocupaban: los
+          tres indicadores caben en una franja de la altura de
+          las demas del panel, en vez de en tres tarjetas de
+          200px. La grafica de ritmo se queda: esa SI dice algo
+          que un numero no dice. */}
+      <Kpis
+        items={[
+          {
+            rotulo: "Avance sobre la meta",
+            valor: n(datos.ocupados),
+            pie: `de ${n(datos.metaBase)} beneficiarios · ${datos.avanceMeta.toLocaleString("es-CO", { maximumFractionDigits: 1 })} %`,
+          },
+          {
+            rotulo: "Ocupación del tope",
+            valor: n(datos.disponibles),
+            pie: `cupos libres de ${n(datos.cupos)} · ${datos.avance.toLocaleString("es-CO", { maximumFractionDigits: 1 })} %`,
+          },
+          {
+            rotulo: "Quién ha reservado",
+            valor: n(datos.organizaciones),
+            pie:
+              datos.enEspera > 0
+                ? `organizaciones · ${n(datos.enEspera)} en lista de espera`
+                : "organizaciones · nadie en lista de espera",
+          },
+        ]}
+      />
 
-        <Tarjeta titulo="Quién ha reservado">
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <p className="text-3xl font-semibold tabular-nums">{datos.organizaciones}</p>
-              <p className="mt-1 text-xs text-texto-suave">organizaciones</p>
-            </div>
-            <div>
-              <p
-                className={`text-3xl font-semibold tabular-nums ${
-                  datos.enEspera > 0 ? "text-aviso" : ""
-                }`}
-              >
-                {n(datos.enEspera)}
-              </p>
-              <p className="mt-1 text-xs text-texto-suave">en lista de espera</p>
+      {datos.serie.length > 0 && (
+        <Seccion>
+          <div className="px-7 py-4">
+            <p className="mb-2 text-[0.625rem] font-semibold uppercase tracking-[0.1em] text-texto-suave">
+              Ritmo · últimos 60 días
+            </p>
+            <div className="flex h-12 items-end gap-[2px]">
+              {datos.serie.map((s) => (
+                <div
+                  key={s.dia}
+                  title={`${s.dia}: ${n(s.cupos)} cupos`}
+                  className="min-h-0.5 flex-1 rounded-t bg-marca"
+                  style={{ height: `${(s.cupos / topeSerie) * 100}%` }}
+                />
+              ))}
             </div>
           </div>
-          {datos.serie.length > 0 && (
-            <div className="mt-5">
-              <p className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-texto-suave">
-                Ritmo · últimos 60 días
-              </p>
-              <div className="flex h-12 items-end gap-[2px]">
-                {datos.serie.map((s) => (
-                  <div
-                    key={s.dia}
-                    title={`${s.dia}: ${n(s.cupos)} cupos`}
-                    className="min-h-0.5 flex-1 rounded-t bg-marca"
-                    style={{ height: `${(s.cupos / topeSerie) * 100}%` }}
-                  />
-                ))}
-              </div>
-            </div>
-          )}
-        </Tarjeta>
-      </div>
+        </Seccion>
+      )}
 
       <Tarjeta
         titulo="Ritmo de esta acción"
         descripcion="Cupos netos por día de los últimos 14, descontando ediciones y cancelaciones."
       >
-        <div className="grid gap-4 sm:grid-cols-3">
+        <div className="grid sm:grid-cols-3">
           <div>
             <p className="text-3xl font-semibold tabular-nums">
               {datos.proyeccion.ritmoDiario.toLocaleString("es-CO", {
@@ -266,15 +272,25 @@ export default function DetalleDeAccion({ params }: { params: Promise<{ id: stri
         </Tarjeta>
       </div>
 
-      <div className="grid gap-5 lg:grid-cols-[1fr_1.2fr]">
+      <div className="grid lg:grid-cols-[1fr_1.2fr]">
         <div className="imprimible-bloque">
           <Tarjeta
             titulo="Grupos comprometidos"
             descripcion="El plan del proyecto: cuántas cohortes y con qué reparto. No llevan contador propio."
           >
-            <div className="space-y-4">
+            {/* Filas, no ocho cajas con hueco entre ellas.
+                Cada grupo iba en un recuadro con borde y radio,
+                separados por 16px: ocho cajas apiladas es justo
+                el lenguaje que este redisenio quita, y encima
+                obligaba a bajar dos pantallas para ver los ocho.
+                Ahora se separan por la raya, como todas las
+                listas del panel. */}
+            <div className="-mx-7">
               {datos.grupos.map((g) => (
-                <div key={g.numero} className="rounded-lg border border-borde p-3">
+                <div
+                  key={g.numero}
+                  className="border-t border-hairline px-7 py-3 first:border-t-0"
+                >
                   <div className="flex flex-wrap items-baseline justify-between gap-2">
                     <p className="font-medium">
                       Grupo {g.numero}
@@ -367,7 +383,7 @@ export default function DetalleDeAccion({ params }: { params: Promise<{ id: stri
                     </td>
                     <td>
                       <span
-                        className={`whitespace-nowrap rounded-full px-2.5 py-0.5 text-xs font-medium ${ESTADO[r.estado].clase}`}
+                        className={`whitespace-nowrap text-[0.75rem] font-semibold ${ESTADO[r.estado].clase}`}
                       >
                         {ESTADO[r.estado].texto}
                       </span>

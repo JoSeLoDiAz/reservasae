@@ -9,7 +9,7 @@
 ///   misma para todo el mundo, y se puede repartir en un QR.
 ///
 ///   El LARGO es personal. Cada enlace se emite desde la
-///   ficha de un lead, es de un solo uso y caduca. NO tiene
+///   lead de un lead, es de un solo uso y caduca. NO tiene
 ///   QR, y ofrecerlo seria mentir: un QR pegado en una pared
 ///   solo puede llevar a un sitio, y este cambia por persona.
 
@@ -128,7 +128,7 @@ function Direccion({ url }: { url: string }) {
 /** Lo que el formulario le pregunta a la persona. */
 export function LoQuePregunta({ bloques }: { bloques: Bloque[] }) {
   return (
-    <div className="grid gap-5 sm:grid-cols-2">
+    <div className="grid gap-4 sm:grid-cols-2">
       {bloques.map((b) => (
         <div key={b.titulo}>
           <h3 className="mb-2 text-xs tracking-wide text-texto-suave uppercase">
@@ -162,7 +162,7 @@ export function EnlacePublico({
 }) {
   return (
     <Tarjeta titulo={sigla}>
-      <div className="grid gap-5 sm:grid-cols-[1fr_auto] sm:items-start">
+      <div className="grid sm:grid-cols-[1fr_auto] sm:items-start">
         <div className="space-y-3">
           <p className="text-sm text-texto-suave">
             Esta es la dirección que se reparte. La misma para todo el mundo.

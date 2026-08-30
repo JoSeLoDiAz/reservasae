@@ -394,6 +394,16 @@ export class CargaDto {
   /** Solo al confirmar: las líneas que se van a crear. */
   @IsOptional()
   lineas?: number[];
+
+  /** Para el histórico: por dónde entraron los datos. */
+  @IsOptional()
+  @IsIn(['ARCHIVO', 'PEGADO'])
+  origenDeCarga?: 'ARCHIVO' | 'PEGADO';
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  nombreArchivo?: string;
 }
 
 export class ResolverPropuestaDto {

@@ -30,7 +30,7 @@ export function ConsultaReservas() {
     <div className="space-y-8">
       <form
         onSubmit={buscar}
-        className="rounded-2xl border border-borde bg-superficie p-6 shadow-sm"
+        className="rounded-2xl border border-borde bg-superficie p-6"
       >
         <label className="block">
           <span className="mb-1.5 block text-sm font-medium">
@@ -64,7 +64,7 @@ export function ConsultaReservas() {
       )}
 
       {datos?.empresa && (
-        <section className="rounded-2xl border border-borde bg-superficie p-6 shadow-sm">
+        <section className="rounded-2xl border border-borde bg-superficie p-6">
           <h2 className="text-lg font-medium">{bonito(datos.empresa.razonSocial)}</h2>
           <p className="text-sm text-texto-suave">
             NIT {datos.empresa.nit}
@@ -95,9 +95,9 @@ export function ConsultaReservas() {
 }
 
 const ESTADOS = {
-  CONFIRMADA: { texto: "Confirmada", clase: "bg-exito-suave text-exito" },
-  LISTA_ESPERA: { texto: "En lista de espera", clase: "bg-aviso-suave text-aviso" },
-  CANCELADA: { texto: "Cancelada", clase: "bg-error-suave text-error" },
+  CONFIRMADA: { texto: "Confirmada", clase: "text-exito" },
+  LISTA_ESPERA: { texto: "En lista de espera", clase: "text-aviso" },
+  CANCELADA: { texto: "Cancelada", clase: "text-error" },
 } as const;
 
 function TarjetaReserva({

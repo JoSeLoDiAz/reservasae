@@ -79,13 +79,13 @@ export default function Tablero() {
   const ultimos = ubicaciones.filter((u) => u.estado === "ULTIMOS_CUPOS").length;
 
   return (
-    <div className="space-y-6">
+    <div>
       <EncabezadoImpresion titulo="Tablero de ocupación" />
       <SelloDeDatos actualizadoEn={vivos.actualizadoEn} />
 
-      <header className="flex flex-wrap items-start justify-between gap-4">
+      <header className="border-b border-borde bg-superficie px-7 pt-[26px] pb-[22px] flex flex-wrap items-start justify-between gap-4">
         <div className="no-imprimir">
-          <h1 className="text-2xl font-bold tracking-tight">Hola, {admin.nombre.split(" ")[0]}</h1>
+          <h1 className="text-[1.3125rem] font-bold tracking-[-0.02em] text-titulo">Hola, {admin.nombre.split(" ")[0]}</h1>
           <p className="mt-1 text-texto-suave">
             Ocupación de cupos. Se actualiza sola cada 30 segundos.
           </p>
@@ -108,7 +108,7 @@ export default function Tablero() {
           </button>
           <Link
             href="/admin/reservas"
-            className="rounded-xl bg-marca px-4 py-2 font-medium text-marca-texto transition hover:bg-marca-fuerte"
+            className="inline-flex h-[34px] items-center rounded-lg border border-marca bg-marca px-3.5 text-[0.78125rem] font-semibold text-marca-texto transition hover:bg-marca-fuerte"
           >
             Ver reservas
           </Link>
@@ -116,7 +116,7 @@ export default function Tablero() {
       </header>
 
       {/* lo que se mira primero, de un vistazo */}
-      <div className="imprimible-bloque grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="imprimible-bloque grid gap-px border-t border-b border-hairline bg-hairline sm:grid-cols-2 lg:grid-cols-4">
         <TarjetaCifra
           etiqueta="Cupos con dueño"
           valor={n(resumen.ocupados)}
@@ -149,7 +149,7 @@ export default function Tablero() {
       </div>
 
       {/* dos lecturas del avance */}
-      <div className="imprimible-bloque grid gap-4 lg:grid-cols-3">
+      <div className="imprimible-bloque grid lg:grid-cols-3">
         <Tarjeta
           titulo="Avance sobre la meta"
           descripcion="Contra lo comprometido en los proyectos, sin el sobrecupo."
@@ -207,7 +207,7 @@ export default function Tablero() {
         <div className="imprimible-bloque space-y-7">
           {[...porConvenio.entries()].map(([convenio, lista]) => (
             <div key={convenio}>
-              <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-texto-suave">
+              <p className="mb-3 text-[0.625rem] font-semibold tracking-[0.1em] uppercase tracking-wide text-texto-suave">
                 {lista[0].convenioSigla ?? convenio}
               </p>
               <div className="space-y-4">
@@ -244,7 +244,7 @@ export default function Tablero() {
         </div>
       </Tarjeta>
 
-      <div className="imprimible-bloque grid gap-6 lg:grid-cols-2">
+      <div className="imprimible-bloque grid lg:grid-cols-2">
         <Tarjeta
           titulo="Cobertura territorial"
           descripcion="Cupos reservados en cada departamento o sede, sumando todas las acciones."
@@ -289,7 +289,7 @@ export default function Tablero() {
         </Tarjeta>
       </div>
 
-      <div className="imprimible-bloque grid gap-6 lg:grid-cols-3">
+      <div className="imprimible-bloque grid lg:grid-cols-3">
         <Tarjeta titulo="Ofertado contra reservado" descripcion="Por modalidad.">
           <BarrasAgrupadas
             categorias={analisis.modalidad.map((m) => ({
@@ -412,8 +412,8 @@ function Alertas({
   }
 
   return (
-    <div className="grid gap-4 sm:grid-cols-3">
-      <div className="rounded-2xl border border-borde bg-superficie p-5 shadow-sm">
+    <div className="grid sm:grid-cols-3">
+      <div className="border-b border-borde bg-superficie px-7 py-5">
         <p className="text-sm text-texto-suave">Ubicaciones completas</p>
         <p className="mt-1 text-2xl font-semibold tabular-nums">
           {completas}
@@ -425,7 +425,7 @@ function Alertas({
         </p>
       </div>
 
-      <div className="rounded-2xl border border-borde bg-superficie p-5 shadow-sm">
+      <div className="border-b border-borde bg-superficie px-7 py-5">
         <p className="text-sm text-texto-suave">Tasa de cancelación</p>
         <p className="mt-1 text-2xl font-semibold tabular-nums">
           {resumen.tasaCancelacion.toFixed(1).replace(".", ",")}
@@ -436,7 +436,7 @@ function Alertas({
         </p>
       </div>
 
-      <div className="rounded-2xl border border-borde bg-superficie p-5 shadow-sm">
+      <div className="border-b border-borde bg-superficie px-7 py-5">
         <p className="text-sm text-texto-suave">Sin ninguna reserva</p>
         <p className="mt-1 text-2xl font-semibold tabular-nums">
           {sinReservas.length}

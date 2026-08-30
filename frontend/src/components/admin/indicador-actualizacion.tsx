@@ -60,7 +60,7 @@ export function IndicadorActualizacion({
           de fiar. Eso sí no se puede adivinar mirando. */}
       <span
         aria-live="polite"
-        className="rounded-full bg-aviso-suave px-2.5 py-0.5 text-xs font-medium text-aviso"
+        className="whitespace-nowrap text-xs font-semibold text-aviso"
       >
         Sin conexión · lo que ve es de{" "}
         {actualizadoEn ? hace(actualizadoEn, ahora) : "antes"}

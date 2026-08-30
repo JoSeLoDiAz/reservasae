@@ -5,19 +5,32 @@ import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 
 import { ConfirmarBorrado } from "@/components/admin/confirmar-borrado";
-import { IconoCheck } from "@/components/admin/iconos";
+import {
+  IconoBrecha,
+  IconoCheck,
+  IconoFormularios,
+  IconoGuardar,
+  IconoOrden,
+  IconoOrganizaciones,
+  IconoPerfil,
+  IconoEnlace,
+  IconoEscudo,
+  IconoSobre,
+} from "@/components/admin/iconos";
 import { SelectorBuscable } from "@/components/admin/selector-buscable";
 import { DatosSena } from "@/components/admin/datos-sena";
-import { PildoraEtapa } from "@/components/admin/etapa";
+import { colorEtapa, PildoraEtapa } from "@/components/admin/etapa";
 import {
   Aviso,
   Boton,
   Campo,
   CLASE_CONTROL,
+  EncabezadoSeccion,
   Tarjeta,
   useAdmin,
 } from "@/components/admin/marco-admin";
 import { HistoricoDeValores } from "@/components/admin/historico-valores";
+import { BarraDeGestion } from "@/components/admin/barra-de-gestion";
 import { EnviarCorreo } from "@/components/admin/enviar-correo";
 import { RevisarPropuesta } from "@/components/admin/revisar-propuesta";
 import { useToast } from "@/components/admin/toast";
@@ -50,6 +63,19 @@ import {
 const fecha = (s: string) =>
   new Date(s).toLocaleString("es-CO", { dateStyle: "medium", timeStyle: "short" });
 
+/// Las cinco vistas de el lead, en el orden en que se usan:
+/// primero lo que se corrige todos los dias, al final lo que se
+/// consulta de tarde en tarde.
+const PESTANAS = [
+  { id: "datos", etiqueta: "Datos" },
+  { id: "empresa", etiqueta: "Empresa" },
+  { id: "notas", etiqueta: "Notas" },
+  { id: "origen", etiqueta: "Origen" },
+  { id: "historial", etiqueta: "Historial" },
+] as const;
+
+type Pestana = (typeof PESTANAS)[number]["id"];
+
 const soloDia = (s: string) =>
   new Date(s).toLocaleDateString("es-CO", { dateStyle: "medium" });
 
@@ -59,7 +85,7 @@ const soloDia = (s: string) =>
  * La cabecera anterior apilaba tres renglones de texto gris
  * sin decir qué era cada uno: había que deducir que
  * «1010316499» era el documento y que «ADECOPRIA» era el
- * gremio. En una ficha que se abre cien veces al día, deducir
+ * gremio. En un lead que se abre cien veces al día, deducir
  * cuesta más que leer.
  */
 function Hecho({
@@ -73,7 +99,7 @@ function Hecho({
 }) {
   return (
     <div className="min-w-0">
-      <dt className="text-[0.6875rem] font-semibold tracking-wider text-texto-suave uppercase">
+      <dt className="text-[0.625rem] font-semibold tracking-[0.1em] text-texto-suave uppercase">
         {etiqueta}
       </dt>
       <dd className={`mt-0.5 truncate text-sm ${mono ? "font-mono" : ""}`}>
@@ -110,7 +136,7 @@ function Control({
     /// `min-w-0` para que un nombre de curso largo no ensanche
     /// su columna y descuadre las otras dos.
     <div className={`min-w-0 ${ancho}`}>
-      <p className="text-[0.6875rem] font-semibold tracking-wider text-texto-suave uppercase">
+      <p className="text-[0.625rem] font-semibold tracking-[0.1em] text-texto-suave uppercase">
         {etiqueta}
       </p>
       <div className="mt-1.5">{children}</div>
@@ -140,6 +166,9 @@ export default function PaginaFicha() {
   const [canales, setCanales] = useState<CanalContacto[]>([]);
   const [resultado, setResultado] = useState<ResultadoGestion | null>(null);
   const [borrando, setBorrando] = useState(false);
+  /// La pestaña abierta. Arranca en «Datos» porque es a lo que
+  /// se entra nueve de cada diez veces.
+  const [pestana, setPestana] = useState<Pestana>("datos");
   const { admin, gremio: gremioElegido } = useAdmin();
   const router = useRouter();
   const toast = useToast();
@@ -149,9 +178,9 @@ export default function PaginaFicha() {
     !admin.permisos || alcanza(admin.permisos.inscripciones, "ESCRIBIR");
 
   const cargar = useCallback(async () => {
-    const ficha = await crmApi.obtener(id);
-    setF(ficha);
-    setOpciones(await crmApi.opciones(ficha.convenio.id, ficha.id));
+    const lead = await crmApi.obtener(id);
+    setF(lead);
+    setOpciones(await crmApi.opciones(lead.convenio.id, lead.id));
   }, [id]);
 
   useEffect(() => {
@@ -189,6 +218,12 @@ export default function PaginaFicha() {
   /// Vienen ordenadas de la mas reciente a la mas antigua, asi
   /// que la primera es la que cuenta: si volvio a autorizar
   /// despues de revocar, manda la nueva.
+  /// Dos letras: la del nombre y la del primer apellido. Tres
+  /// en un circulo de 48px se leen como una palabra rara.
+  const iniciales =
+    `${f.persona.primerNombre?.[0] ?? ""}${f.persona.primerApellido?.[0] ?? ""}`
+      .toLocaleUpperCase("es-CO") || "?";
+
   const suyas = f.persona.autorizaciones.filter(
     (a) =>
       a.politica.destinatario === "PARTICIPANTE" &&
@@ -197,486 +232,728 @@ export default function PaginaFicha() {
   const autorizacion = suyas.find((a) => !a.revocadaEn);
   const revocada = autorizacion ? null : suyas.find((a) => a.revocadaEn);
 
+  /// Igual que el diseno en todo MENOS el ancho: el diseno lo
+  /// fija en 1240px centrado y aqui ocupa lo que haya. Es la
+  /// unica desviacion, y es la que se pidio.
   return (
-    <div className="space-y-6">
-      <div>
-        <Link href="/admin/participantes" className="text-sm underline">
-          ← Volver a inscripciones
+    <div style={{ padding: "28px 20px 48px" }}>
+      <div className="mb-4">
+        <Link
+          href="/admin/participantes"
+          className="inline-flex items-center gap-1 text-[0.75rem] text-texto-suave transition hover:text-marca"
+        >
+          <span aria-hidden="true">&larr;</span> Gestión de leads
         </Link>
       </div>
 
-      {/* LA CABECERA DE LA FICHA: quién es, y qué se le hace.
-          Una sola pieza, no cinco cajas flotando.
-
-          Arriba la identidad, con cada dato etiquetado. Debajo,
-          pegada y dentro del mismo borde, la barra donde se
-          actúa. Que compartan caja es lo que dice que la barra
-          opera sobre ESTA persona — separadas, eran tres
-          controles sueltos en la página. */}
-      <header
-        /// SIN `overflow-hidden`.
-        ///
-        /// Lo tenía para que el fondo de la barra no se saliera
-        /// por las esquinas redondeadas. Con 4px de radio eso
-        /// ya no se nota, y a cambio recortaba el desplegable
-        /// de «Acción de formación» y el de «Grupo»: los dos
-        /// son `SelectorBuscable`, que abre su lista DENTRO de
-        /// la página, así que un ancestro con overflow se la
-        /// come. El de «Asesor» no se enteraba porque es un
-        /// `<select>` nativo y su lista la pinta el sistema
-        /// operativo, por encima de todo.
-        className="rounded-2xl border border-borde bg-superficie"
-      >
-        {/* Aquí hubo un filo de color, unas iniciales en un
-            cuadro y un riel con el recorrido. Los tres fuera:
-            eran adornos alrededor del dato, y el dato ya se
-            dice solo. La etapa se lee en su color, a la
-            derecha, y con eso basta. */}
-        <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-4 px-5 py-4 sm:px-6">
-          <div className="min-w-0">
-            <h1 className="truncate text-2xl font-bold tracking-tight">
-              {nombre}
-            </h1>
-
-            {/* Los cuatro datos que identifican la ficha, en
-                línea y etiquetados. `gap-x-8` y no un separador
-                «·»: los puntos medios se leen como parte del
-                dato cuando el valor ya trae puntuación. */}
-            <dl className="mt-3 flex flex-wrap gap-x-8 gap-y-3">
-              <Hecho etiqueta="Documento" valor={f.persona.documento} mono />
-              {/* El gremio SOLO cuando se están mirando los
-                  dos. Si arriba se eligió ADECOPRIA, toda la
-                  pantalla es de ADECOPRIA y repetirlo en cada
-                  ficha es gastar un hueco en decir algo que ya
-                  está dicho. */}
-              {!gremioElegido && (
-                <Hecho
-                  etiqueta="Gremio"
-                  valor={f.convenio.sigla ?? f.convenio.nombre}
-                />
-              )}
-              {/* «Entró por» y «En el sistema desde» se fueron
-                  a «Control de cambios».
-
-                  Los dos cuentan de dónde salió esta ficha y
-                  cuándo, que es exactamente lo que esa tarjeta
-                  narra —su primera línea ya es el alta—. En la
-                  cabecera ocupaban el sitio de lo que sí se
-                  mira al abrir: quién es y en qué punto va. */}
-            </dl>
-          </div>
-
-          {/* La etapa, en su color y con su rótulo, alineada
-              con los demás datos: es uno más, el que más pesa.
-              Arriba a la derecha porque es lo primero que se
-              busca al abrir una ficha. */}
-          <div className="text-right">
-            <p className="text-[0.6875rem] font-semibold tracking-wider text-texto-suave uppercase">
-              Etapa
-            </p>
-            <p className="mt-0.5 text-sm">
-              <PildoraEtapa etapa={f.etapa} />
-            </p>
-          </div>
+      {error && (
+        <div className="mb-4">
+          <Aviso tipo="error">{error}</Aviso>
         </div>
-
-        {/* LA BARRA DE ACCIÓN.
-
-            `items-start` a propósito, y es la corrección del
-            fallo que se veía: sin él la rejilla estiraba las
-            tres columnas a la más alta y «Asesor» —que solo
-            tiene un desplegable y un botón— quedaba con un
-            palmo de vacío debajo. Cada una mide lo suyo. */}
-        {/* Anchos DESIGUALES a propósito, sobre doce columnas.
-
-            Con cuatro iguales, «Mover de etapa» —que solo
-            enseña una palabra— tenía el mismo sitio que
-            «Acción de formación», cuyo nombre pasa de sesenta
-            caracteres y salía cortado con puntos suspensivos.
-            Simétrico no es que todo mida igual: es que cada
-            uno mida lo que su contenido pide. */}
-        <div className="grid items-start gap-x-6 gap-y-5 rounded-b-2xl border-t border-borde bg-superficie-alterna px-5 py-4 sm:px-6 md:grid-cols-2 xl:grid-cols-12">
-          <MoverDeEtapa ficha={f} alGuardar={conError} />
-          <Asesor ficha={f} opciones={opciones} alGuardar={conError} />
-          <Asignacion ficha={f} opciones={opciones} alGuardar={conError} />
-        </div>
-      </header>
-
-      {error && <Aviso tipo="error">{error}</Aviso>}
+      )}
 
       {f.faltantes.bloquean.length > 0 && (
-        <Aviso tipo="error">
-          <p className="font-medium">Todavía no se puede matricular</p>
-          <ul className="mt-2 list-inside list-disc">
-            {f.faltantes.bloquean.map((x) => (
-              <li key={x}>{x}</li>
-            ))}
-          </ul>
-        </Aviso>
+        <div className="mb-4">
+          <Aviso tipo="error">
+            <p className="font-medium">Todavía no se puede matricular</p>
+            <ul className="mt-2 list-inside list-disc">
+              {f.faltantes.bloquean.map((x) => (
+                <li key={x}>{x}</li>
+              ))}
+            </ul>
+          </Aviso>
+        </div>
       )}
 
+      {/* La propuesta va FUERA de la tarjeta y a lo ancho: es una
+          interrupción —alguien completó sus datos y hay que
+          decidir— y dentro de una pestaña no se vería hasta que
+          alguien entrara en ella. */}
+      <PropuestaDelInteresadoCard lead={f} alGuardar={conError} />
 
-      {/* La propuesta va A LO ANCHO, y no dentro de una
-          columna. Es una interrupción —alguien completó sus
-          datos y hay que decidir qué se acepta—, y metida en
-          una columna se lee como una tarjeta más de las diez.
-          Aquí corta la página en dos y se ve. */}
-      <PropuestaDelInteresadoCard ficha={f} alGuardar={conError} />
-
-      {/* EL EXPEDIENTE, en dos columnas.
-
-          IZQUIERDA — hasta dónde va. Los tres momentos por los
-          que pasa una ficha, en el orden en que se llenan:
-          quién es (¿el nombre es el de la cédula?), dónde
-          trabaja, y qué le falta por darnos. Leída de arriba
-          abajo dice sola en qué punto está.
-
-          DERECHA — quién es, en datos. Es lo que el asesor
-          tiene delante mientras habla por teléfono.
-
-          `items-start` a propósito: estas dos NO se emparejan.
-          Son dos pilas independientes y forzarlas a medir lo
-          mismo abre un hueco debajo de la más corta. Es al
-          revés que en la franja de arriba, donde las tres sí
-          se estiran porque forman una sola barra. */}
-      <div className="grid gap-6 xl:grid-cols-2 xl:items-start">
-        <div className="space-y-6">
-          <ValidacionRui ficha={f} alGuardar={conError} />
-          <DatosDeLaEmpresa ficha={f} puedeEscribir={puedeEscribir} />
-          {puedeEscribir && <EnlaceCompletar ficha={f} />}
-        </div>
-
-        <div className="space-y-6">
-          <DatosSena ficha={f} alGuardar={conError} />
-        </div>
-      </div>
-
-      {/* EL CORREO Y EL PERMISO, en pareja.
-
-          El correo a la izquierda porque es lo que se hace, y
-          la autorización a la derecha porque es lo que se
-          consulta. Sin `items-start`: aquí las dos SÍ se
-          estiran a la misma altura, que es lo que las hace
-          parecer una pareja y no dos cajas sueltas de distinto
-          tamaño. */}
-      <div className="grid gap-6 lg:grid-cols-2">
-      {puedeEscribir && (
-        <Tarjeta
-          titulo="Escribirle un correo"
-          descripcion="Con una plantilla, que se llena sola con los datos de esta ficha."
+      {/* UNA SOLA TARJETA con todo dentro, en tres franjas: quién
+          es, qué se le hace, y el expediente. Antes eran once
+          tarjetas sueltas flotando en la página. */}
+      {/* Bandas, no una tarjeta flotante.
+          Era un bloque con radio 18 y una sombra larga, en medio
+          de una pagina que ya no tiene tarjetas. */}
+      <section style={{ overflow: "hidden" }}>
+        {/* ── 1. IDENTIDAD ────────────────────────────────── */}
+        <div
+          style={{
+            background: "var(--superficie)",
+            borderBottom: "1px solid var(--borde)",
+            padding: "16px 28px 20px",
+            display: "flex",
+            alignItems: "center",
+            gap: 16,
+            flexWrap: "wrap",
+          }}
         >
-          <EnviarCorreo participanteId={f.id} />
-        </Tarjeta>
-      )}
-
-      <Tarjeta
-        titulo="Autorización de tratamiento de datos"
-        insignia={autorizacion ? "Autorizada" : "Sin autorizar"}
-      >
-        {autorizacion ? (
-          <div className="space-y-3">
-            <p className="text-sm">
-              Autorizada el <strong>{fecha(autorizacion.otorgadaEn)}</strong> — versión{" "}
-              {autorizacion.politica.version}. {ETIQUETA_CANAL[autorizacion.canal]}.
-            </p>
-            {puedeEscribir && <Revocar id={f.id} alGuardar={conError} />}
+          <div
+            aria-hidden
+            style={{
+              width: 44,
+              height: 44,
+              flex: "0 0 44px",
+              borderRadius: "50%",
+              background: "var(--marca-suave)",
+              color: "var(--marca)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontWeight: 700,
+              fontSize: "0.90625rem",
+            }}
+          >
+            {iniciales}
           </div>
-        ) : revocada ? (
-          /* Decir que REVOCÓ, no que nunca autorizó. Son cosas
-             distintas y la segunda invita a deshacer la
-             primera sin saber que se está deshaciendo algo. */
-          <div className="space-y-3">
-            <Aviso tipo="error">
-              Esta persona <strong>revocó</strong> su autorización el{" "}
-              {fecha(revocada.revocadaEn!)}. Mientras siga revocada no se puede
-              matricular ni entra en el reporte al SENA, y eso es lo correcto.
-            </Aviso>
-            <p className="text-sm text-texto-suave">
-              Solo se vuelve a registrar si <strong>ella lo pide</strong>. Volver a
-              marcarla por iniciativa nuestra deshace un derecho que ejerció.
-            </p>
-            <details className="text-sm">
-              <summary className="cursor-pointer text-texto-suave underline">
-                La persona pidió autorizar de nuevo
-              </summary>
-              <div className="mt-4">
-                <RegistrarAutorizacion id={f.id} alGuardar={conError} />
-              </div>
-            </details>
-          </div>
-        ) : (
-          <RegistrarAutorizacion id={f.id} alGuardar={conError} />
-        )}
-      </Tarjeta>
 
-      </div>
-
-      {/* Las notas van A LO ANCHO y solas.
-
-          Antes compartían fila con la autorización, y es la
-          única caja de esta pantalla donde se ESCRIBE de
-          verdad: media pantalla dejaba el renglón de la nota
-          tan corto que no cabía una frase entera. */}
-      <Tarjeta
-        titulo="Notas"
-        descripcion="No se borran: una corrección es otra nota."
-        insignia={`${f.notas.length}`}
-      >
-        <div className="space-y-4">
-          {/* La cifra que hace útil todo lo de abajo.
-
-              «Lleva 4 intentos y nunca se le ha logrado hablar»
-              es una frase accionable; «tiene 4 notas» no lo es.
-              Por eso se cuentan los intentos DESDE el último
-              contacto y no desde siempre. */}
-          {f.gestion.intentos > 0 && (
-            <p className="text-sm">
-              {f.gestion.ultimoContacto ? (
-                <>
-                  Se habló con ella el{" "}
-                  <strong>{fecha(f.gestion.ultimoContacto)}</strong>
-                  {f.gestion.sinContacto > 0 && (
-                    <>
-                      , y desde entonces{" "}
-                      <strong>
-                        {f.gestion.sinContacto}{" "}
-                        {f.gestion.sinContacto === 1 ? "intento" : "intentos"}
-                      </strong>{" "}
-                      sin respuesta
-                    </>
-                  )}
-                  .
-                </>
-              ) : (
-                <span className="text-aviso">
-                  <strong>
-                    {f.gestion.intentos}{" "}
-                    {f.gestion.intentos === 1 ? "intento" : "intentos"}
-                  </strong>{" "}
-                  y nunca se ha logrado hablar con ella.
-                </span>
-              )}
-              {f.gestion.datoMalo > 0 && (
-                <span className="text-error">
-                  {" "}
-                  El dato de contacto se reportó malo — pídaselo a la
-                  organización.
-                </span>
-              )}
-            </p>
-          )}
-
-          {/* MARCAR Y REGISTRAR, en ese orden.
-
-              El botón hace dos cosas a la vez: abre el marcador
-              y deja el formulario armado en «Llamada». Así,
-              al colgar, registrar la gestión es marcar cómo
-              salió y escribir un renglón — que es lo único que
-              un asesor va a hacer de verdad entre llamada y
-              llamada. */}
-          {marcable(f.persona.celular) && (
-            <div className="flex flex-wrap items-center gap-3 rounded-lg border border-borde bg-superficie-alterna px-3 py-2">
-              <a
-                href={`tel:${f.persona.celular}`}
-                onClick={() => {
-                  setCanales((antes) =>
-                    antes.includes("LLAMADA") ? antes : [...antes, "LLAMADA"],
-                  );
-                }}
-                className="rounded-lg border border-marca bg-marca-suave px-3 py-1.5 text-sm font-medium text-marca"
-              >
-                Llamar al {f.persona.celular}
-              </a>
-              <span className="text-xs text-texto-suave">
-                Marca en el teléfono o el softphone de este equipo, y deja la
-                nota lista en «Llamada».
-              </span>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <h1
+              style={{
+                margin: 0,
+                fontWeight: 700,
+                fontSize: "1.4375rem",
+                lineHeight: 1.15,
+                letterSpacing: "-.022em",
+                color: "var(--titulo)",
+              }}
+            >
+              {nombre}
+            </h1>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+                marginTop: 4,
+                fontSize: "0.75rem",
+                color: "var(--texto-suave)",
+                flexWrap: "wrap",
+              }}
+            >
+              <span>{f.persona.documento}</span>
+              <span aria-hidden style={{ width: 3, height: 3, borderRadius: "50%", background: "var(--texto-suave)", opacity: 0.6 }} />
+              <span>En sistema desde {soloDia(f.creadoEn)}</span>
+              <span aria-hidden style={{ width: 3, height: 3, borderRadius: "50%", background: "var(--texto-suave)", opacity: 0.6 }} />
+              <span>{ETIQUETA_ORIGEN[f.origen]}</span>
             </div>
-          )}
+          </div>
 
-          <div className="space-y-3">
-            {/* el canal antes que el texto: primero por dónde */}
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="text-sm text-texto-suave">Vía:</span>
-              {CANALES.map((c) => {
-                const puesto = canales.includes(c);
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end" }}>
+            <span
+              style={{
+                fontWeight: 600,
+                fontSize: "0.625rem",
+                letterSpacing: ".1em",
+                textTransform: "uppercase",
+                color: "var(--texto-suave)",
+              }}
+            >
+              Etapa actual
+            </span>
+            {/* El valor en el color de su etapa, sin pildora ni
+                punto: el color va en la letra. */}
+            <span
+              style={{
+                marginTop: 3,
+                fontSize: "0.90625rem",
+                fontWeight: 700,
+                color: colorEtapa(f.etapa),
+              }}
+            >
+              {ETIQUETA_ETAPA[f.etapa]}
+            </span>
+          </div>
+        </div>
+
+        {/* ── 2. BARRA DE GESTIÓN ─────────────────────────────
+            Oscura y pegada a la identidad: es lo único de esta
+            pantalla que CAMBIA el estado, y separarla del resto es
+            lo que la hace encontrable sin buscarla.
+
+            Los colores salen de tokens y no van fijos: en modo
+            oscuro una barra casi negra se perdería contra el
+            fondo. */}
+        <BarraDeGestion
+          lead={f}
+          opciones={opciones}
+          puedeRepartir={Boolean(admin.puede?.repartirFichas)}
+          alGuardar={conError}
+        />
+
+        {/* ── 3. CUERPO: pestañas y acciones ──────────────── */}
+        <div
+          style={{
+            display: "flex",
+            gap: 22,
+            padding: "24px 28px 30px",
+            alignItems: "flex-start",
+            flexWrap: "wrap",
+          }}
+        >
+          <div style={{ flex: 1, minWidth: 520 }}>
+            {/* Las pestañas cortan once tarjetas en cinco vistas.
+                El asesor abre el lead para UNA cosa —corregir un
+                dato, mirar el historial— y antes tenía que recorrer
+                la página entera para dar con ella. */}
+            {/* Texto subrayado, no un grupo de pildoras.
+                Era una caja gris con cinco botones blancos
+                dentro, y eso mete un tercer fondo justo encima
+                del expediente. En el redisenio la pestania
+                activa se marca con una raya de 2px debajo y el
+                color de marca: pesa menos y se lee igual.
+
+                La raya va como `box-shadow: inset` y no como
+                `border-bottom` para que no mueva el texto un
+                pixel al activarse. */}
+            <div
+              role="tablist"
+              aria-label="Secciones de el lead"
+              style={{
+                display: "flex",
+                gap: 24,
+                flexWrap: "wrap",
+                borderBottom: "1px solid var(--borde)",
+                marginBottom: 20,
+              }}
+            >
+              {PESTANAS.map((p) => {
+                const activa = pestana === p.id;
                 return (
                   <button
-                    key={c}
-                    type="button"
-                    aria-pressed={puesto}
-                    onClick={() =>
-                      setCanales((antes) =>
-                        antes.includes(c)
-                          ? antes.filter((x) => x !== c)
-                          : [...antes, c],
-                      )
-                    }
-                    className={`rounded-lg border px-3 py-1.5 text-sm ${
-                      puesto
-                        ? "border-marca bg-marca-suave font-medium text-marca"
-                        : "border-borde hover:bg-superficie-alterna"
-                    }`}
+                    key={p.id}
+                    role="tab"
+                    aria-selected={activa}
+                    onClick={() => setPestana(p.id)}
+                    style={{
+                      border: "none",
+                      background: "transparent",
+                      padding: "12px 0",
+                      fontWeight: 600,
+                      fontSize: "0.8125rem",
+                      cursor: "pointer",
+                      color: activa ? "var(--marca)" : "var(--texto-suave)",
+                      boxShadow: activa ? "inset 0 -2px var(--marca)" : "none",
+                    }}
                   >
-                    {ETIQUETA_CANAL_CONTACTO[c]}
+                    {p.etiqueta}
                   </button>
                 );
               })}
             </div>
 
-            {/* Cómo salió, que es distinto de por dónde fue.
+            {pestana === "datos" && <DatosSena lead={f} alGuardar={conError} />}
 
-                Sin esto la nota dice que se intentó y no si se
-                logró, y entonces «lleva cuatro intentos sin
-                contestar» no se puede saber. */}
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="text-sm text-texto-suave">Cómo salió:</span>
-              {RESULTADOS.map((r) => {
-                const puesto = resultado === r;
-                return (
-                  <button
-                    key={r}
-                    type="button"
-                    aria-pressed={puesto}
-                    onClick={() => setResultado(puesto ? null : r)}
-                    className={`rounded-lg border px-3 py-1.5 text-sm ${
-                      puesto
-                        ? "border-marca bg-marca-suave font-medium text-marca"
-                        : "border-borde hover:bg-superficie-alterna"
-                    }`}
-                  >
-                    {ETIQUETA_RESULTADO[r]}
-                  </button>
-                );
-              })}
-            </div>
+            {pestana === "empresa" && (
+              <DatosDeLaEmpresa lead={f} puedeEscribir={puedeEscribir} />
+            )}
 
-            <div className="flex gap-3">
-              <input
-                className={CLASE_CONTROL}
-                placeholder="Qué pasó con esta persona"
-                value={nota}
-                onChange={(e) => setNota(e.target.value)}
-              />
-              <Boton
-                disabled={!nota.trim() || canales.length === 0 || !resultado}
-                onClick={() =>
-                  conError(async () => {
-                    await crmApi.agregarNota(
-                      f.id,
-                      nota.trim(),
-                      canales,
-                      resultado!,
-                    );
-                    setNota("");
-                    setCanales([]);
-                    setResultado(null);
-                  }, "Nota agregada.")
+            {pestana === "notas" && (
+              <>
+                <Tarjeta
+                  titulo=""
+                  encabezado={
+                    <EncabezadoSeccion
+                      icono={<IconoFormularios tamano={18} />}
+                      titulo="Notas"
+                      descripcion="Las notas no se eliminan; cada corrección se registra como una nueva entrada."
+                    />
+                  }
+                  insignia={`${f.notas.length}`}
+                >
+                  <div className="space-y-4">
+                    {/* La cifra que hace útil todo lo de abajo.
+
+                        «Lleva 4 intentos y nunca se le ha logrado hablar»
+                        es una frase accionable; «tiene 4 notas» no lo es.
+                        Por eso se cuentan los intentos DESDE el último
+                        contacto y no desde siempre. */}
+                    {f.gestion.intentos > 0 && (
+                      <p className="text-sm">
+                        {f.gestion.ultimoContacto ? (
+                          <>
+                            Se habló con ella el{" "}
+                            <strong>{fecha(f.gestion.ultimoContacto)}</strong>
+                            {f.gestion.sinContacto > 0 && (
+                              <>
+                                , y desde entonces{" "}
+                                <strong>
+                                  {f.gestion.sinContacto}{" "}
+                                  {f.gestion.sinContacto === 1 ? "intento" : "intentos"}
+                                </strong>{" "}
+                                sin respuesta
+                              </>
+                            )}
+                            .
+                          </>
+                        ) : (
+                          <span className="text-aviso">
+                            <strong>
+                              {f.gestion.intentos}{" "}
+                              {f.gestion.intentos === 1 ? "intento" : "intentos"}
+                            </strong>{" "}
+                            y nunca se ha logrado hablar con ella.
+                          </span>
+                        )}
+                        {f.gestion.datoMalo > 0 && (
+                          <span className="text-error">
+                            {" "}
+                            El dato de contacto se reportó malo — pídaselo a la
+                            organización.
+                          </span>
+                        )}
+                      </p>
+                    )}
+
+                    {/* MARCAR Y REGISTRAR, en ese orden.
+
+                        El botón hace dos cosas a la vez: abre el marcador
+                        y deja el formulario armado en «Llamada». Así,
+                        al colgar, registrar la gestión es marcar cómo
+                        salió y escribir un renglón — que es lo único que
+                        un asesor va a hacer de verdad entre llamada y
+                        llamada. */}
+                    {marcable(f.persona.celular) && (
+                      <div className="flex flex-wrap items-center gap-3 rounded-lg border border-borde bg-superficie-alterna px-3 py-2">
+                        <a
+                          href={`tel:${f.persona.celular}`}
+                          onClick={() => {
+                            setCanales((antes) =>
+                              antes.includes("LLAMADA") ? antes : [...antes, "LLAMADA"],
+                            );
+                          }}
+                          className="rounded-lg border border-marca bg-marca-suave px-3 py-1.5 text-sm font-medium text-marca"
+                        >
+                          Llamar al {f.persona.celular}
+                        </a>
+                        <span className="text-xs text-texto-suave">
+                          Marca en el teléfono o el softphone de este equipo, y deja la
+                          nota lista en «Llamada».
+                        </span>
+                      </div>
+                    )}
+
+                    <div className="space-y-3">
+                      {/* el canal antes que el texto: primero por dónde */}
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="text-sm text-texto-suave">Vía:</span>
+                        {CANALES.map((c) => {
+                          const puesto = canales.includes(c);
+                          return (
+                            <button
+                              key={c}
+                              type="button"
+                              aria-pressed={puesto}
+                              onClick={() =>
+                                setCanales((antes) =>
+                                  antes.includes(c)
+                                    ? antes.filter((x) => x !== c)
+                                    : [...antes, c],
+                                )
+                              }
+                              className={`rounded-lg border px-3 py-1.5 text-sm ${
+                                puesto
+                                  ? "border-marca bg-marca-suave font-medium text-marca"
+                                  : "border-borde hover:bg-superficie-alterna"
+                              }`}
+                            >
+                              {ETIQUETA_CANAL_CONTACTO[c]}
+                            </button>
+                          );
+                        })}
+                      </div>
+
+                      {/* Cómo salió, que es distinto de por dónde fue.
+
+                          Sin esto la nota dice que se intentó y no si se
+                          logró, y entonces «lleva cuatro intentos sin
+                          contestar» no se puede saber. */}
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="text-sm text-texto-suave">Cómo salió:</span>
+                        {RESULTADOS.map((r) => {
+                          const puesto = resultado === r;
+                          return (
+                            <button
+                              key={r}
+                              type="button"
+                              aria-pressed={puesto}
+                              onClick={() => setResultado(puesto ? null : r)}
+                              className={`rounded-lg border px-3 py-1.5 text-sm ${
+                                puesto
+                                  ? "border-marca bg-marca-suave font-medium text-marca"
+                                  : "border-borde hover:bg-superficie-alterna"
+                              }`}
+                            >
+                              {ETIQUETA_RESULTADO[r]}
+                            </button>
+                          );
+                        })}
+                      </div>
+
+                      <div className="flex gap-3">
+                        <input
+                          className={CLASE_CONTROL}
+                          placeholder="Qué pasó con esta persona"
+                          value={nota}
+                          onChange={(e) => setNota(e.target.value)}
+                        />
+                        <Boton
+                          disabled={!nota.trim() || canales.length === 0 || !resultado}
+                          onClick={() =>
+                            conError(async () => {
+                              await crmApi.agregarNota(
+                                f.id,
+                                nota.trim(),
+                                canales,
+                                resultado!,
+                              );
+                              setNota("");
+                              setCanales([]);
+                              setResultado(null);
+                            }, "Nota agregada.")
+                          }
+                        >
+                          Agregar
+                        </Boton>
+                      </div>
+
+                      {canales.length === 0 && nota.trim() !== "" && (
+                        <p className="text-sm text-texto-suave">
+                          Marque por dónde fue la gestión. Sin eso no se puede medir qué
+                          canal funciona.
+                        </p>
+                      )}
+
+                      {canales.length > 0 && !resultado && nota.trim() !== "" && (
+                        <p className="text-sm text-texto-suave">
+                          Marque cómo salió. Es lo que separa «lo intenté» de «hablé con
+                          ella», y de eso sale a quién hay que insistirle.
+                        </p>
+                      )}
+                    </div>
+
+                    {f.notas.length === 0 && (
+                      <p className="text-sm text-texto-suave">Todavía no hay notas.</p>
+                    )}
+
+                    {f.notas.map((n) => (
+                      <article key={n.id} className="border-t border-borde pt-3">
+                        <p className="text-sm">{n.texto}</p>
+                        <p className="mt-1 text-xs text-texto-suave">
+                          {n.canales?.length
+                            ? `${n.canales.map((c) => ETIQUETA_CANAL_CONTACTO[c]).join(" + ")} · `
+                            : ""}
+                          {n.resultado && (
+                            <span className={`font-medium ${TONO_RESULTADO[n.resultado]}`}>
+                              {ETIQUETA_RESULTADO[n.resultado]}
+                            </span>
+                          )}
+                          {n.resultado ? " · " : ""}
+                          {n.autorNombre} · {fecha(n.creadoEn)}
+                        </p>
+                      </article>
+                    ))}
+                  </div>
+                </Tarjeta>
+
+              </>
+            )}
+
+            {pestana === "origen" && (
+              <Tarjeta
+                titulo=""
+                encabezado={
+                  <EncabezadoSeccion
+                    icono={<IconoBrecha tamano={18} />}
+                    titulo="Origen y verificación del lead"
+                    descripcion="De dónde proviene el lead y verificaciones realizadas."
+                  />
                 }
               >
-                Agregar
-              </Boton>
-            </div>
+                <div className="space-y-5">
+                  <dl className="grid sm:grid-cols-2">
+                    <div className="rounded border border-borde bg-superficie-alterna p-3.5">
+                      <dt className="text-[0.625rem] font-semibold tracking-[0.1em] text-texto-suave uppercase">
+                        Origen del lead
+                      </dt>
+                      <dd className="mt-1 text-sm font-semibold">
+                        {ETIQUETA_ORIGEN[f.origen]}
+                      </dd>
+                    </div>
+                    <div className="rounded border border-borde bg-superficie-alterna p-3.5">
+                      <dt className="text-[0.625rem] font-semibold tracking-[0.1em] text-texto-suave uppercase">
+                        Fecha de registro
+                      </dt>
+                      <dd className="mt-1 text-sm font-semibold">
+                        {soloDia(f.creadoEn)}
+                      </dd>
+                    </div>
+                  </dl>
 
-            {canales.length === 0 && nota.trim() !== "" && (
-              <p className="text-sm text-texto-suave">
-                Marque por dónde fue la gestión. Sin eso no se puede medir qué
-                canal funciona.
-              </p>
+                </div>
+              </Tarjeta>
             )}
 
-            {canales.length > 0 && !resultado && nota.trim() !== "" && (
-              <p className="text-sm text-texto-suave">
-                Marque cómo salió. Es lo que separa «lo intenté» de «hablé con
-                ella», y de eso sale a quién hay que insistirle.
-              </p>
+            {pestana === "historial" && (
+              <>
+                <div className="grid gap-4">
+                <Tarjeta
+                  titulo=""
+                  encabezado={
+                    <EncabezadoSeccion
+                      icono={<IconoOrden tamano={18} />}
+                      titulo="Control de cambios"
+                      descripcion="Origen del registro y trazabilidad de los cambios de etapa."
+                    />
+                  }
+                >
+                  {/* De dónde viene y desde cuándo, encima de la lista.
+                      Es el encabezado de la historia: lo que había antes
+                      del primer movimiento. */}
+                  <dl className="mb-4 flex flex-wrap gap-x-8 gap-y-3 border-b border-borde pb-4">
+                    <Hecho etiqueta="Entró por" valor={ETIQUETA_ORIGEN[f.origen]} />
+                    <Hecho etiqueta="En el sistema desde" valor={soloDia(f.creadoEn)} />
+                  </dl>
+
+                  {/* EL TIMELINE del diseño: una línea de 2px que
+                      corre por detrás y un nodo hueco de 11px con
+                      borde verde por cada movimiento.
+
+                      La línea va de `top:6px` a `bottom:6px` y no
+                      de borde a borde: así arranca y termina EN el
+                      primer y el último nodo en vez de sobresalir
+                      por arriba y por abajo. */}
+                  <div style={{ position: "relative", paddingLeft: 22 }}>
+                    <div
+                      aria-hidden
+                      style={{
+                        position: "absolute",
+                        left: 5,
+                        top: 6,
+                        bottom: 6,
+                        width: 2,
+                        background: "var(--borde)",
+                      }}
+                    />
+                    {f.movimientos.map((m) => (
+                      <div key={m.id} style={{ position: "relative", padding: "0 0 18px" }}>
+                        <span
+                          aria-hidden
+                          style={{
+                            position: "absolute",
+                            left: -22,
+                            top: 3,
+                            width: 11,
+                            height: 11,
+                            borderRadius: "50%",
+                            background: "var(--superficie)",
+                            border: "2.5px solid var(--marca)",
+                          }}
+                        />
+                        <div style={{ fontSize: 13.5, color: "var(--texto)" }}>
+                          <span style={{ color: "var(--texto-suave)" }}>{fecha(m.creadoEn)} —</span>{" "}
+                          {m.etapaAntes === m.etapaDespues ? (
+                            <b>{m.nota ?? "Se le hizo un cambio"}</b>
+                          ) : (
+                            <>
+                              {m.etapaAntes
+                                ? `${ETIQUETA_ETAPA[m.etapaAntes]} → `
+                                : "Alta en "}
+                              <b>{ETIQUETA_ETAPA[m.etapaDespues]}</b>
+                            </>
+                          )}
+                        </div>
+                        <div style={{ fontSize: 12.5, color: "var(--texto-suave)", marginTop: 2 }}>
+                          {m.admin ? `por ${m.admin.nombre}` : "por el sistema"}
+                          {m.motivo ? ` · ${m.motivo}` : ""}
+                          {m.nota && m.etapaAntes !== m.etapaDespues
+                            ? ` · ${m.nota}`
+                            : ""}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </Tarjeta>
+
+                <Tarjeta
+                  titulo=""
+                  encabezado={
+                    <EncabezadoSeccion
+                      icono={<IconoGuardar tamano={18} />}
+                      titulo="Cambios realizados"
+                      descripcion="Registro de correcciones con su valor anterior."
+                    />
+                  }
+                >
+                  <HistoricoDeValores
+                    participanteId={f.id}
+                    puedeEscribir={puedeEscribir}
+                  />
+                </Tarjeta>
+                </div>
+              </>
             )}
           </div>
 
-          {f.notas.length === 0 && (
-            <p className="text-sm text-texto-suave">Todavía no hay notas.</p>
-          )}
+          {/* EL PANEL DE ACCIONES: lo que se HACE con esta persona,
+              siempre a la vista y sin depender de la pestaña que
+              esté abierta. Antes el correo y el enlace estaban al
+              final de la página, debajo de todo lo que se lee. */}
+          {/* EL PANEL DE ACCIONES: lo que se HACE con esta
+              persona. UNA sola tarjeta con bloques separados por
+              lineas, no cuatro tarjetas sueltas: son la misma
+              caja de herramientas y verlas juntas es lo que hace
+              que se encuentren. */}
+          <aside style={{ width: 370, flex: "none" }}>
+            <div
+              style={{
+                background: "var(--superficie)",
+                border: "1px solid var(--borde)",
+                borderRadius: 16,
+                overflow: "hidden",
+              }}
+            >
+              <div
+                style={{
+                  padding: "16px 18px",
+                  borderBottom: "1px solid var(--hairline)",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 10,
+                }}
+              >
+                {/* Sin icono.
+                    El circulo negro con el rayo era el unico
+                    icono con fondo que quedaba en el lead, y
+                    despues de quitar los cinco circulos verdes
+                    se quedaba solo: un adorno que no distingue
+                    nada, porque «Acciones» ya lo dice. */}
+                <div>
+                  <div style={{ fontWeight: 600, fontSize: "0.90625rem", color: "var(--titulo)" }}>
+                    Acciones
+                  </div>
+                  <div style={{ fontSize: 12, color: "var(--texto-suave)" }}>
+                    Contacto y solicitud de información.
+                  </div>
+                </div>
+              </div>
 
-          {f.notas.map((n) => (
-            <article key={n.id} className="border-t border-borde pt-3">
-              <p className="text-sm">{n.texto}</p>
-              <p className="mt-1 text-xs text-texto-suave">
-                {n.canales?.length
-                  ? `${n.canales.map((c) => ETIQUETA_CANAL_CONTACTO[c]).join(" + ")} · `
-                  : ""}
-                {n.resultado && (
-                  <span className={`font-medium ${TONO_RESULTADO[n.resultado]}`}>
-                    {ETIQUETA_RESULTADO[n.resultado]}
-                  </span>
+              <div
+                style={{
+                  padding: 18,
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 20,
+                }}
+              >
+                {/* ── AUTORIZACIÓN DE DATOS ── */}
+                <div style={E.bloque}>
+                  <div style={E.rotuloFila}>
+                    <span style={E.circuloVerde}>
+                      <IconoEscudo tamano={15} />
+                    </span>
+                    <span style={E.rotulo}>AUTORIZACIÓN DE DATOS</span>
+                  </div>
+
+                  {autorizacion ? (
+                    <>
+                      <div style={E.ficha}>
+                        <FilaFicha
+                          clave="Estado"
+                          valor={`Autorizada (v${autorizacion.politica.version})`}
+                        />
+                        <FilaFicha clave="Fecha" valor={fecha(autorizacion.otorgadaEn)} />
+                        <FilaFicha
+                          clave="Modalidad"
+                          valor={ETIQUETA_CANAL[autorizacion.canal]}
+                        />
+                      </div>
+                      <div style={E.parrafo}>
+                        Si el interesado solicita revocar su autorización, regístrelo
+                        aquí para dejar constancia.
+                      </div>
+                      {puedeEscribir && <Revocar id={f.id} alGuardar={conError} />}
+                    </>
+                  ) : revocada ? (
+                    <>
+                      <div style={E.parrafo}>
+                        Esta persona <strong>revocó</strong> su autorización el{" "}
+                        {fecha(revocada.revocadaEn!)}. Mientras siga revocada no se
+                        puede matricular ni entra en el reporte al SENA.
+                      </div>
+                      <details style={{ fontSize: 12.5 }}>
+                        <summary style={{ cursor: "pointer", color: "var(--texto-suave)" }}>
+                          La persona pidió autorizar de nuevo
+                        </summary>
+                        <div style={{ marginTop: 10 }}>
+                          <RegistrarAutorizacion id={f.id} alGuardar={conError} />
+                        </div>
+                      </details>
+                    </>
+                  ) : (
+                    <RegistrarAutorizacion id={f.id} alGuardar={conError} />
+                  )}
+                </div>
+
+                {puedeEscribir && (
+                  <>
+                    <div style={E.raya} />
+
+                    {/* ── ESCRIBIRLE UN CORREO ── */}
+                    <div style={E.bloque}>
+                      <div style={E.rotuloFila}>
+                        <span style={E.circuloVerde}>
+                          <IconoSobre tamano={15} />
+                        </span>
+                        <span style={E.rotulo}>ESCRIBIRLE UN CORREO</span>
+                      </div>
+                      <div style={E.parrafo}>
+                        El asistente genera un borrador con el nombre, la empresa y el
+                        estado actual del registro. Revíselo antes de enviarlo.
+                      </div>
+                      <EnviarCorreo participanteId={f.id} />
+                    </div>
+
+                    <div style={E.raya} />
+
+                    {/* ── ENLACE PARA QUE COMPLETE SUS DATOS ── */}
+                    <div style={E.bloque}>
+                      <div style={E.rotuloFila}>
+                        <span style={E.circuloVerde}>
+                          <IconoEnlace tamano={15} />
+                        </span>
+                        <span style={E.rotulo}>ENLACE PARA QUE COMPLETE SUS DATOS</span>
+                      </div>
+                      <div style={E.parrafo}>
+                        Genera un enlace personalizado para que el interesado complete
+                        los campos pendientes. Compártalo por WhatsApp o correo; no
+                        dicte el documento por teléfono. Cada enlace es de un solo uso
+                        y anula el anterior.
+                      </div>
+                      <EnlaceCompletar lead={f} />
+                    </div>
+                  </>
                 )}
-                {n.resultado ? " · " : ""}
-                {n.autorNombre} · {fecha(n.creadoEn)}
-              </p>
-            </article>
-          ))}
+
+                <div style={E.raya} />
+
+                {/* ── VALIDACIÓN DEL NOMBRE ── */}
+                <div style={{ ...E.bloque, gap: 8 }}>
+                  <div style={E.rotuloFila}>
+                    <span style={E.rotulo}>VALIDACIÓN DEL NOMBRE</span>
+                  </div>
+                  <ValidacionRui lead={f} alGuardar={conError} />
+                </div>
+              </div>
+            </div>
+          </aside>
         </div>
-      </Tarjeta>
+      </section>
 
-      {/* LOS DOS HISTORIALES, en pareja y plegados.
-
-          A la izquierda, qué HIZO alguien. A la derecha, qué
-          DECÍA el dato. Son dos preguntas distintas: la
-          primera no sirve para deshacer —«Ana cambió el correo
-          el martes» no dice cuál era— y la segunda no dice
-          quién lo tocó. */}
-      <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
-      <Tarjeta
-        titulo="Control de cambios"
-        descripcion="De dónde salió esta ficha, y cada cambio de etapa."
-        insignia={`${f.movimientos.length}`}
-      >
-        {/* De dónde viene y desde cuándo, encima de la lista.
-            Es el encabezado de la historia: lo que había antes
-            del primer movimiento. */}
-        <dl className="mb-4 flex flex-wrap gap-x-8 gap-y-3 border-b border-borde pb-4">
-          <Hecho etiqueta="Entró por" valor={ETIQUETA_ORIGEN[f.origen]} />
-          <Hecho etiqueta="En el sistema desde" valor={soloDia(f.creadoEn)} />
-        </dl>
-
-        <ol className="space-y-2.5">
-          {f.movimientos.map((m) => (
-            <li key={m.id} className="text-sm">
-              <span className="text-texto-suave">{fecha(m.creadoEn)}</span> —{" "}
-              {m.etapaAntes === m.etapaDespues ? (
-                // no cambio de etapa: fue otra cosa, y la nota
-                // es la que dice cual
-                <strong>{m.nota ?? "Se le hizo un cambio"}</strong>
-              ) : (
-                <>
-                  {m.etapaAntes ? `${ETIQUETA_ETAPA[m.etapaAntes]} → ` : "Alta en "}
-                  <strong>{ETIQUETA_ETAPA[m.etapaDespues]}</strong>
-                </>
-              )}
-              {m.admin ? (
-                <span className="text-texto-suave"> · por {m.admin.nombre}</span>
-              ) : (
-                <span className="text-texto-suave"> · por el sistema</span>
-              )}
-              {m.motivo && <span className="text-texto-suave"> · {m.motivo}</span>}
-              {m.nota && m.etapaAntes !== m.etapaDespues && (
-                <span className="text-texto-suave"> · {m.nota}</span>
-              )}
-            </li>
-          ))}
-        </ol>
-      </Tarjeta>
-
-      <Tarjeta
-        titulo="Cambios realizados"
-        descripcion="Cada dato que se corrigió, con su valor anterior."
-      >
-        <HistoricoDeValores
-          participanteId={f.id}
-          puedeEscribir={puedeEscribir}
-        />
-      </Tarjeta>
-      </div>
-
+      {/* Los otros cursos de la MISMA persona, fuera de la
+          tarjeta: no son de este lead, son un puente a otras. */}
       {f.persona.participaciones.length > 0 && (
         <Tarjeta
           titulo="Otros cursos de esta persona"
@@ -735,6 +1012,200 @@ export default function PaginaFicha() {
   );
 }
 
+
+/// El encabezado de un bloque del panel de acciones: circulo
+/// verde palido con su icono y el rotulo en mayusculas.
+function BloqueAccion({
+  icono,
+  titulo,
+  children,
+}: {
+  icono: React.ReactNode;
+  titulo: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="border-t border-borde px-4 py-5 first:border-t-0">
+      {/* Sin el circulo verde, y en el azul de marca.
+          Es el mismo criterio que en los rotulos de grupo del
+          expediente: bajando por el panel salian tres circulos
+          verdes que no distinguian nada, y el verde no es color
+          de marca. El icono se queda, pero suelto. */}
+      <p className="flex items-center gap-2 text-[0.625rem] font-semibold tracking-[0.1em] text-marca uppercase">
+        <span aria-hidden className="shrink-0">
+          {icono}
+        </span>
+        {titulo}
+      </p>
+      <div className="mt-3">{children}</div>
+    </div>
+  );
+}
+
+/// Un lead de datos del panel: fondo suave y filas de
+/// clave a la izquierda, valor a la derecha.
+function FichaDeDatos({ filas }: { filas: Array<[string, React.ReactNode]> }) {
+  return (
+    <dl className="rounded-xl border border-borde bg-superficie-alterna p-3.5">
+      {filas.map(([clave, valor]) => (
+        <div
+          key={clave}
+          className="flex items-baseline justify-between gap-4 py-1 text-[0.8125rem]"
+        >
+          <dt className="shrink-0 text-texto-suave">{clave}</dt>
+          <dd className="min-w-0 truncate text-right font-semibold">{valor}</dd>
+        </div>
+      ))}
+    </dl>
+  );
+}
+
+/// Un lead con rotulo encima, como «ULTIMO ENLACE GENERADO».
+function FichaConRotulo({
+  rotulo,
+  filas,
+}: {
+  rotulo: string;
+  filas: Array<[string, React.ReactNode]>;
+}) {
+  return (
+    <div className="mt-3 rounded-xl border border-borde bg-superficie-alterna p-3.5">
+      <p className="text-[0.625rem] font-semibold tracking-[0.1em] text-texto-suave uppercase">
+        {rotulo}
+      </p>
+      <dl className="mt-2">
+        {filas.map(([clave, valor]) => (
+          <div
+            key={clave}
+            className="flex items-baseline justify-between gap-4 py-1 text-[0.8125rem]"
+          >
+            <dt className="shrink-0 text-texto-suave">{clave}</dt>
+            <dd className="min-w-0 truncate text-right font-semibold">{valor}</dd>
+          </div>
+        ))}
+      </dl>
+    </div>
+  );
+}
+
+
+/// Los estilos del rail de acciones, copiados del archivo de
+/// diseno uno por uno. Van en un objeto y no repartidos por el
+/// JSX para que se puedan comparar de un vistazo contra el
+/// original, que es como se comprueba que estan IGUALES.
+const E = {
+  bloque: {
+    display: "flex",
+    flexDirection: "column" as const,
+    gap: 10,
+  },
+  rotuloFila: { display: "flex", alignItems: "center", gap: 9 },
+  /// El icono suelto, sin circulo de color.
+  ///
+  /// Eran tres circulos verdes bajando por el panel de
+  /// acciones, uno por bloque. No distinguian nada -- el rotulo
+  /// ya dice de que es el bloque -- y el verde no es color de
+  /// marca. Se conserva el nombre `circuloVerde` porque lo usan
+  /// tres sitios y renombrarlo no cambia nada de lo que se ve.
+  circuloVerde: {
+    color: "var(--marca)",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    flex: "none",
+  },
+  /// El circulo invertido, y el icono en `--superficie`, NO en
+  /// blanco fijo.
+  ///
+  /// `--titulo` en modo oscuro es casi blanco, asi que con el
+  /// icono en `#fff` era blanco sobre blanco: el circulo
+  /// aparecia vacio. Con `--superficie` el icono es siempre lo
+  /// contrario del relleno, en los dos temas.
+  /// El rotulo de grupo: azul de marca y versalita, igual que
+  /// `RotuloDeGrupo`. Iba en verde de acento, que no es color
+  /// de marca.
+  rotulo: {
+    fontWeight: 600,
+    fontSize: "0.625rem",
+    letterSpacing: ".1em",
+    textTransform: "uppercase" as const,
+    color: "var(--marca)",
+  },
+  parrafo: { fontSize: 12.5, color: "var(--texto-suave)", lineHeight: 1.5 },
+  raya: { height: 1, background: "var(--superficie-alterna)" },
+  ficha: {
+    background: "var(--superficie)",
+    border: "1px solid var(--hairline)",
+    borderRadius: 12,
+    padding: 14,
+    display: "flex",
+    flexDirection: "column" as const,
+    gap: 9,
+  },
+  /// Los tres botones del rail, tal cual el diseno.
+  /// Azul de marca (DECISIONES 10), y por token: un hex a
+  /// mano no sabe que existe el modo oscuro.
+  botonVerde: {
+    background: "var(--marca)",
+    color: "var(--marca-texto)",
+    border: "none",
+    borderRadius: 11,
+    padding: 13,
+    fontWeight: 600, fontSize: 14,
+    cursor: "pointer",
+    width: "100%",
+  },
+  botonContorno: {
+    background: "var(--superficie)",
+    color: "var(--titulo)",
+    border: "1.5px solid var(--campo-borde)",
+    borderRadius: 11,
+    padding: 13,
+    fontWeight: 600, fontSize: 14,
+    cursor: "pointer",
+    width: "100%",
+  },
+  botonRojo: {
+    background: "var(--superficie)",
+    color: "var(--error)",
+    border: "1.5px solid var(--error)",
+    borderRadius: 11,
+    padding: 12,
+    fontWeight: 600, fontSize: 13.5,
+    cursor: "pointer",
+    width: "100%",
+  },
+} as const;
+
+/// Una fila de la ficha: clave gris a la izquierda, valor en
+/// negrita a la derecha.
+function FilaFicha({ clave, valor }: { clave: string; valor: React.ReactNode }) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        justifyContent: "space-between",
+        gap: 12,
+        fontSize: 12.5,
+      }}
+    >
+      <span style={{ color: "var(--texto-suave)" }}>{clave}</span>
+      <span style={{ color: "var(--texto)", fontWeight: 600 }}>{valor}</span>
+    </div>
+  );
+}
+
+
+/// El estado del enlace, dicho como en el diseño: una frase
+/// corta, no el nombre del enum.
+const ESTADO_ENLACE: Record<string, string> = {
+  SIN_ABRIR: "Sin abrir",
+  ABIERTO: "Abierto, sin completar",
+  COMPLETADO: "Completado",
+  ANULADO: "Anulado por uno nuevo",
+  CADUCADO: "Caducado sin usar",
+};
+
 /**
  * Cambiar de etapa, en un desplegable.
  *
@@ -751,29 +1222,31 @@ export default function PaginaFicha() {
  *
  * Lo que se gana: las tres decisiones caben en una franja.
  */
+
+
 function MoverDeEtapa({
-  ficha,
+  lead,
   alGuardar,
 }: {
-  ficha: Ficha;
+  lead: Ficha;
   alGuardar: (accion: () => Promise<void>, exito?: string) => Promise<void>;
 }) {
   /// El desplegable NO se controla con estado propio.
   ///
-  /// Su valor es siempre `ficha.etapa`. Así, si el cambio
+  /// Su valor es siempre `lead.etapa`. Así, si el cambio
   /// falla —o lo cancelan en el prompt del motivo— el
   /// desplegable vuelve solo a lo que de verdad hay guardado.
   /// Con estado propio se quedaría enseñando una etapa que no
   /// se llegó a grabar, que es la peor forma de mentir: la
   /// silenciosa.
   function mover(destino: Etapa) {
-    if (destino === ficha.etapa) return;
+    if (destino === lead.etapa) return;
 
     let motivo: string | undefined;
     if (ETAPAS_SALIDA.includes(destino)) {
       /// Las etapas de salida piden motivo SIEMPRE. Sacar a
       /// alguien de una convocatoria sin decir por qué deja
-      /// una ficha que nadie sabe leer seis meses después.
+      /// un lead que nadie sabe leer seis meses después.
       const escrito = window.prompt(
         `¿Por qué pasa a «${ETIQUETA_ETAPA[destino]}»? Es obligatorio.`,
       );
@@ -783,14 +1256,14 @@ function MoverDeEtapa({
 
     void alGuardar(
       async () => {
-        await crmApi.cambiarEtapa(ficha.id, destino, motivo);
+        await crmApi.cambiarEtapa(lead.id, destino, motivo);
       },
       `Ahora está en «${ETIQUETA_ETAPA[destino]}».`,
     );
   }
 
   /// La etapa de ahora puede NO ser de las que se mueven a
-  /// mano: `ETAPAS_A_MANO` son cuatro, y una ficha puede estar
+  /// mano: `ETAPAS_A_MANO` son cuatro, y un lead puede estar
   /// en «En formación» o «Certificado», que las pone el
   /// sistema.
   ///
@@ -801,9 +1274,9 @@ function MoverDeEtapa({
   /// certificado. Por eso la etapa actual se añade como opción
   /// deshabilitada cuando no está en la lista: se ve la
   /// verdad, y no se puede volver a ella por error.
-  const aMano = ETAPAS_A_MANO.includes(ficha.etapa)
+  const aMano = ETAPAS_A_MANO.includes(lead.etapa)
     ? ETAPAS_A_MANO
-    : [ficha.etapa, ...ETAPAS_A_MANO];
+    : [lead.etapa, ...ETAPAS_A_MANO];
 
   return (
     /// Sin texto de ayuda debajo.
@@ -822,11 +1295,11 @@ function MoverDeEtapa({
         <select
           className={CLASE_CONTROL}
           title={
-            !ETAPAS_A_MANO.includes(ficha.etapa)
-              ? `«${ETIQUETA_ETAPA[ficha.etapa]}» la pone el sistema: se puede salir de ella, pero no volver.`
+            !ETAPAS_A_MANO.includes(lead.etapa)
+              ? `«${ETIQUETA_ETAPA[lead.etapa]}» la pone el sistema: se puede salir de ella, pero no volver.`
               : undefined
           }
-          value={ficha.etapa}
+          value={lead.etapa}
           onChange={(e) => mover(e.target.value as Etapa)}
         >
           {aMano.map((e) => (
@@ -845,11 +1318,11 @@ function MoverDeEtapa({
 }
 
 function Asignacion({
-  ficha,
+  lead,
   opciones,
   alGuardar,
 }: {
-  ficha: Ficha;
+  lead: Ficha;
   opciones: Opciones | null;
   alGuardar: (a: () => Promise<void>, exito?: string) => Promise<void>;
 }) {
@@ -861,16 +1334,16 @@ function Asignacion({
   /// suya, y pedirsela era lo que hacia que AF1 saliera seis
   /// veces en la lista.
   /// `null` mientras nadie ha tocado nada, y entonces manda lo
-  /// que ya tiene la ficha. Se deriva en vez de copiarse en un
+  /// que ya tiene el lead. Se deriva en vez de copiarse en un
   /// efecto: asi, cuando llegan las opciones tarde, la lista
   /// aparece con su valor ya puesto y no en blanco.
   const [elegida, setElegida] = useState<string | null>(null);
-  const [coberturaId, setCoberturaId] = useState(ficha.cobertura?.id ?? "");
+  const [coberturaId, setCoberturaId] = useState(lead.cobertura?.id ?? "");
 
   if (!opciones) return null;
 
-  const guardada = ficha.oferta
-    ? (opciones.acciones.find((a) => a.ofertaId === ficha.oferta!.id)
+  const guardada = lead.oferta
+    ? (opciones.acciones.find((a) => a.ofertaId === lead.oferta!.id)
         ?.accionFormacionId ?? "")
     : "";
   const accionId = elegida ?? guardada;
@@ -905,7 +1378,7 @@ function Asignacion({
   /// todas esas ofertas comparten el mismo id de acción. Así
   /// que elegir «AF1 · BOGOTÁ D.C» sacaba también los grupos
   /// de Antioquia, Cauca, Córdoba, Huila y Santander — y se
-  /// podía guardar una ficha con la oferta de Bogotá y un
+  /// podía guardar un lead con la oferta de Bogotá y un
   /// grupo de Santander, que no significa nada.
   ///
   /// Los VIRTUALES se quedan siempre: no se dictan en ningún
@@ -996,7 +1469,7 @@ function Asignacion({
           /// hay grupo que ofrecerle y no se le puede
           /// inscribir. Lo que sí hay es algo que hacer: darle
           /// las gracias. Decirlo aquí es lo que evita que la
-          /// ficha se quede colgada esperando un cupo que no va
+          /// lead se quede colgada esperando un cupo que no va
           /// a existir.
           <p className="grow text-sm text-aviso">
             No hay cobertura en {donde}. No se puede inscribir:
@@ -1034,19 +1507,19 @@ function Asignacion({
           /// en el servidor —`asignar` la comprueba—, y esto es
           /// solo para no ofrecer un botón que va a fallar.
           title={
-            ficha.sobrecupoMotivo
-              ? `Sobrecupo autorizado${ficha.sobrecupoPor ? ` por ${ficha.sobrecupoPor.nombre}` : ""}: ${ficha.sobrecupoMotivo}`
+            lead.sobrecupoMotivo
+              ? `Sobrecupo autorizado${lead.sobrecupoPor ? ` por ${lead.sobrecupoPor.nombre}` : ""}: ${lead.sobrecupoMotivo}`
               : undefined
           }
           disabled={
             !ofertaId ||
             accion?.cubre === false ||
-            (ofertaId === ficha.oferta?.id &&
-              coberturaId === (ficha.cobertura?.id ?? ""))
+            (ofertaId === lead.oferta?.id &&
+              coberturaId === (lead.cobertura?.id ?? ""))
           }
           onClick={() => {
             let motivo: string | undefined;
-            if (oferta && oferta.disponibles === 0 && ofertaId !== ficha.oferta?.id) {
+            if (oferta && oferta.disponibles === 0 && ofertaId !== lead.oferta?.id) {
               const escrito = window.prompt(
                 `«${oferta.etiqueta}» no tiene cupos libres. ` +
                   "¿Por qué se coloca por encima del cupo? Queda registrado a su nombre.",
@@ -1056,7 +1529,7 @@ function Asignacion({
             }
             void alGuardar(
               async () => {
-                await crmApi.asignar(ficha.id, ofertaId, coberturaId || undefined, motivo);
+                await crmApi.asignar(lead.id, ofertaId, coberturaId || undefined, motivo);
               },
               "Asignación guardada.",
             );
@@ -1092,12 +1565,8 @@ function Revocar({
 
   if (!abierto) {
     return (
-      <button
-        type="button"
-        onClick={() => setAbierto(true)}
-        className="text-sm text-texto-suave underline hover:text-error"
-      >
-        La persona pidió revocar su autorización
+      <button type="button" onClick={() => setAbierto(true)} style={E.botonRojo}>
+        Revocar autorización
       </button>
     );
   }
@@ -1110,7 +1579,7 @@ function Revocar({
         de revocación, que es lo que hay que poder demostrar.
       </Aviso>
 
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid sm:grid-cols-2">
         <Campo etiqueta="Por dónde lo pidió">
           <select
             className={CLASE_CONTROL}
@@ -1125,7 +1594,7 @@ function Revocar({
           </select>
         </Campo>
 
-        <Campo etiqueta="Qué dijo" ayuda="Queda en el historial de la ficha.">
+        <Campo etiqueta="Qué dijo" ayuda="Queda en el historial de el lead.">
           <input
             className={CLASE_CONTROL}
             value={motivo}
@@ -1170,12 +1639,25 @@ function RegistrarAutorizacion({
 
   return (
     <div className="space-y-4">
-      <Aviso tipo="error">
-        Esta persona todavía no ha autorizado el tratamiento de sus datos. Sin eso no se
-        puede matricular ni incluir en el reporte al SENA.
-      </Aviso>
+      {/* Punto y texto, no una caja rosa.
+          `Aviso` pinta un recuadro con borde y radio, y aqui va
+          dentro de un panel de 370px: el recuadro dentro del
+          panel dentro de el lead son tres marcos anidados. */}
+      <p className="flex items-baseline gap-2.5 text-[0.78125rem] leading-relaxed text-texto">
+        <span
+          aria-hidden
+          className="mt-[1px] h-[7px] w-[7px] shrink-0 rounded-full bg-error"
+        />
+        <span>
+          Esta persona todavía no ha autorizado el tratamiento de sus datos. Sin
+          eso no se puede matricular ni incluir en el reporte al SENA.
+        </span>
+      </p>
 
-      <div className="grid gap-4 sm:grid-cols-2">
+      {/* En UNA columna. A dos, dentro de un panel de 370px,
+          cada campo se quedaba en 170 y el desplegable cortaba
+          su propio texto: «Lo autorizó de viva». */}
+      <div className="space-y-3">
         <Campo etiqueta="Cómo lo autorizó">
           <select
             className={CLASE_CONTROL}
@@ -1201,6 +1683,7 @@ function RegistrarAutorizacion({
       </div>
 
       <Boton
+        className="w-full"
         onClick={() =>
           alGuardar(async () => {
             await crmApi.autorizar(id, canal, evidencia.trim() || undefined);
@@ -1216,13 +1699,13 @@ function RegistrarAutorizacion({
 /** Quién lleva este lead. Sin dueño, nadie llama. */
 /// Lo que devolvio el RUI contra lo que tecleo la persona.
 /// Se refresca solo mientras espera y para cuando resuelve:
-/// el asesor no recarga ni cuenta segundos, y una ficha ya
+/// el asesor no recarga ni cuenta segundos, y un lead ya
 /// resuelta no sigue preguntando cada tres segundos.
 function ValidacionRui({
-  ficha,
+  lead,
   alGuardar,
 }: {
-  ficha: Ficha;
+  lead: Ficha;
   alGuardar: (accion: () => Promise<void>, exito?: string) => Promise<void>;
 }) {
   const [pidiendo, setPidiendo] = useState(false);
@@ -1230,10 +1713,10 @@ function ValidacionRui({
   /// Dijo «No»: se queda con el que digitó y la pregunta
   /// deja de estorbar. No se guarda nada -- no hay nada que
   /// cambiar -- pero tampoco se le vuelve a preguntar cada
-  /// vez que abre la ficha.
+  /// vez que abre el lead.
   const [decidido, setDecidido] = useState(false);
 
-  const traer = useCallback(() => crmApi.estadoRui(ficha.id), [ficha.id]);
+  const traer = useCallback(() => crmApi.estadoRui(lead.id), [lead.id]);
   const { datos: rui, refrescar } = useDatosVivos<ConsultaRui>(traer, {
     intervaloMs: 3000,
     activo: true,
@@ -1250,21 +1733,23 @@ function ValidacionRui({
   /// no se puede hacer clic en algo que no debería pasar.
   if (rui.esDePrueba) {
     return (
-      <Tarjeta titulo="Validación del nombre">
-        <div className="rounded-xl border border-borde bg-superficie-alterna p-4 text-sm">
-          <p className="font-medium">No se consulta: es un dato de prueba</p>
-          <p className="mt-1 text-texto-suave">
-            Esta cédula la inventó la siembra de prueba, pero el número le
-            pertenece a una persona real. Consultarla le pediría al Estado la
-            identidad de alguien que no pidió nada.
-          </p>
+      <div>
+        <div style={{ fontSize: 13, fontWeight: 600, color: "var(--texto)" }}>
+          Consulta no realizada
         </div>
-      </Tarjeta>
+        {/* Una linea y no un parrafo de cuatro: el motivo de
+            fondo —que la cedula es inventada pero el numero le
+            pertenece a alguien real— esta escrito en el codigo,
+            que es donde hace falta para no quitarlo sin saber. */}
+        <div style={{ fontSize: 12, color: "var(--texto-suave)", marginTop: 2 }}>
+          Documento de prueba: no se consulta ante el RUI.
+        </div>
+      </div>
     );
   }
 
   return (
-    <Tarjeta titulo="Validación del nombre">
+    <div>
       <div className="space-y-3">
         {/* mientras el detector sea el de mentira hay que
             decirlo aqui: un nombre inventado al lado de una
@@ -1275,7 +1760,7 @@ function ValidacionRui({
             <p className="mt-1">
               Lo que aparece abajo lo generó un simulador, no la Ventanilla
               Social. No sirve para decidir nada, y por eso no se ofrece dejar
-              este nombre en la ficha.
+              este nombre en el lead.
             </p>
             {/* El motivo lo manda el servidor. Aquí estaba escrito
                 a mano —«se enciende con RUI_PROVEEDOR=VENTANILLA»—
@@ -1317,7 +1802,7 @@ function ValidacionRui({
             onClick={() => {
               setPidiendo(true);
               void crmApi
-                .reconsultarRui(ficha.id)
+                .reconsultarRui(lead.id)
                 .catch(() => undefined)
                 .finally(() => {
                   setPidiendo(false);
@@ -1331,7 +1816,7 @@ function ValidacionRui({
         </div>
 
         {delRui && (
-          <dl className="grid gap-2 sm:grid-cols-2">
+          <dl className="grid sm:grid-cols-2">
             <div>
               <dt className="text-xs uppercase tracking-wide text-texto-suave">
                 Como lo digito
@@ -1357,7 +1842,7 @@ function ValidacionRui({
               inscribir.
             </p>
 
-            {/* La decisión, con un botón. Antes la ficha
+            {/* La decisión, con un botón. Antes el lead
                 enseñaba la diferencia y ahí lo dejaba: el
                 asesor tenía que ir a teclear el nombre bueno
                 a mano, campo por campo, mirándolo aquí.
@@ -1379,7 +1864,7 @@ function ValidacionRui({
                 onClick={() => {
                   setTomando(true);
                   void crmApi
-                    .tomarNombreDelRui(ficha.id)
+                    .tomarNombreDelRui(lead.id)
                     .then(() =>
                       alGuardar(async () => undefined, "Se dejó el nombre del RUI."),
                     )
@@ -1408,22 +1893,22 @@ function ValidacionRui({
           </p>
         )}
       </div>
-    </Tarjeta>
+    </div>
   );
 }
 
 
 /// Lo que mando el interesado por su enlace cuando el asesor
-/// ya habia tocado la ficha. No se pisa nada solo: el asesor
+/// ya habia tocado el lead. No se pisa nada solo: el asesor
 /// ve las dos versiones y elige cuales entran.
 function PropuestaDelInteresadoCard({
-  ficha,
+  lead,
   alGuardar,
 }: {
-  ficha: Ficha;
+  lead: Ficha;
   alGuardar: (accion: () => Promise<void>, exito?: string) => Promise<void>;
 }) {
-  const traer = useCallback(() => crmApi.propuesta(ficha.id), [ficha.id]);
+  const traer = useCallback(() => crmApi.propuesta(lead.id), [lead.id]);
   const { datos, refrescar } = useDatosVivos<PropuestaDelInteresado | null>(traer, {
     intervaloMs: 60_000,
   });
@@ -1442,7 +1927,7 @@ function PropuestaDelInteresadoCard({
       {/* Un aviso corto que ABRE la decision, no la decision
           entera metida entre otras diez tarjetas.
 
-          Antes esto era una tabla mas de la ficha, con scroll,
+          Antes esto era una tabla mas de el lead, con scroll,
           y se resolvia sin mirar. Es una decision sobre los
           datos de una persona: merece que uno se detenga. */}
       <div className="rounded-2xl border border-aviso/40 bg-aviso-suave p-5">
@@ -1452,7 +1937,7 @@ function PropuestaDelInteresadoCard({
               El interesado completó sus datos
             </p>
             <p className="mt-1 text-sm text-aviso">
-              Usted ya había tocado esta ficha, así que nada se sobrescribió.{" "}
+              Usted ya había tocado este lead, así que nada se sobrescribió.{" "}
               {propuesta.campos.length}{" "}
               {propuesta.campos.length === 1 ? "dato espera" : "datos esperan"} su
               decisión.
@@ -1471,7 +1956,7 @@ function PropuestaDelInteresadoCard({
           alCerrar={() => setAbierto(false)}
           alResolver={async (campos) => {
             await alGuardar(async () => {
-              await crmApi.resolverPropuesta(ficha.id, campos);
+              await crmApi.resolverPropuesta(lead.id, campos);
               refrescar();
             }, campos.length === 0
               ? "No se cambió ningún dato."
@@ -1484,38 +1969,38 @@ function PropuestaDelInteresadoCard({
 }
 
 function Asesor({
-  ficha,
+  lead,
   opciones,
   alGuardar,
 }: {
-  ficha: Ficha;
+  lead: Ficha;
   opciones: Opciones | null;
   alGuardar: (a: () => Promise<void>, exito?: string) => Promise<void>;
 }) {
   const { admin } = useAdmin();
-  const [asesorId, setAsesorId] = useState(ficha.asesor?.id ?? "");
+  const [asesorId, setAsesorId] = useState(lead.asesor?.id ?? "");
   const [guardando, setGuardando] = useState(false);
   if (!opciones) return null;
 
-  /// A quien NO reparte fichas no se le enseña esta tarjeta.
+  /// A quien NO reparte leads no se le enseña esta tarjeta.
   ///
   /// Un gestor de inscripciones ES un asesor: las suyas las
   /// trabaja, no las reparte. Enseñarle un desplegable que el
   /// servidor va a rechazar es ofrecerle un error.
   ///
-  /// Pero se le dice de quién es la ficha, porque eso sí le
+  /// Pero se le dice de quién es el lead, porque eso sí le
   /// sirve: es la diferencia entre esconder y ocultar.
   if (!admin.puede?.repartirFichas) {
-    return ficha.asesor ? (
+    return lead.asesor ? (
       <Control etiqueta="Asesor" ancho="xl:col-span-3">
-        <p className="text-sm" title="Repartir fichas lo hace un líder.">
-          {ficha.asesor.nombre}
+        <p className="text-sm" title="Repartir leads lo hace un líder.">
+          {lead.asesor.nombre}
         </p>
       </Control>
     ) : null;
   }
 
-  const cambiado = asesorId !== (ficha.asesor?.id ?? "");
+  const cambiado = asesorId !== (lead.asesor?.id ?? "");
 
   return (
     <Control etiqueta="Asesor" ancho="xl:col-span-3">
@@ -1542,7 +2027,7 @@ function Asesor({
             setGuardando(true);
             await alGuardar(
               async () => {
-                await crmApi.actualizar(ficha.id, { asesorId: asesorId || null });
+                await crmApi.actualizar(lead.id, { asesorId: asesorId || null });
               },
               asesorId ? "Asesor asignado." : "Se quitó el asesor.",
             );
@@ -1559,7 +2044,7 @@ function Asesor({
 /**
  * Los datos de su organización, los trece.
  *
- * El formulario largo se los pregunta a la persona y la ficha
+ * El formulario largo se los pregunta a la persona y el lead
  * no enseñaba ninguno: el asesor veía «le falta la empresa»
  * sin poder mirar qué había contestado ya. Aquí están todos,
  * incluidos los que llegan vacíos -- ver el hueco es la mitad
@@ -1570,14 +2055,14 @@ function Asesor({
  * garantizar que un día no coincidan.
  */
 function DatosDeLaEmpresa({
-  ficha,
+  lead,
   puedeEscribir,
 }: {
-  ficha: Ficha;
+  lead: Ficha;
   puedeEscribir: boolean;
 }) {
-  const e = ficha.empresa;
-  const fichaId = ficha.id;
+  const e = lead.empresa;
+  const fichaId = lead.id;
 
   if (!e) {
     return (
@@ -1593,7 +2078,7 @@ function DatosDeLaEmpresa({
   /// pedírselos es pedirle que se invente a alguien. Tampoco
   /// se crea en Empresas registradas: ahí van organizaciones,
   /// y esto es una persona.
-  const porSuCuenta = ficha.trabajaPorSuCuenta;
+  const porSuCuenta = lead.trabajaPorSuCuenta;
 
   /// Del independiente, su casa y su celular.
   ///
@@ -1606,8 +2091,8 @@ function DatosDeLaEmpresa({
     ? [
         ["RUT (su cédula)", e.nit],
         ["A nombre de", e.razonSocial],
-        ["Dirección", e.direccion ?? ficha.persona.direccion],
-        ["Teléfono", e.telefono ?? ficha.persona.celular],
+        ["Dirección", e.direccion ?? lead.persona.direccion],
+        ["Teléfono", e.telefono ?? lead.persona.celular],
         ["Sector económico", e.sectorEconomico],
       ]
     : [
@@ -1649,23 +2134,65 @@ function DatosDeLaEmpresa({
     /// nadie que ahí dentro está el NIT. La razón social sigue
     /// estando, dos renglones más abajo, que es donde se lee
     /// como dato y no como rótulo.
-    <Tarjeta
-      titulo={porSuCuenta ? "Independiente con RUT" : "Datos de empresa"}
-      insignia={
-        faltanDelAsesor > 0 ? `Faltan ${faltanDelAsesor} suyos` : "Completa"
-      }
-    >
-      <Campos campos={CAMPOS} />
+    <Tarjeta titulo="">
+      {/* El encabezado del diseno: circulo de icono, titulo,
+          subtitulo. Va dentro y no como `titulo` de la Tarjeta
+          porque esa no sabe pintar el circulo. */}
+      <EncabezadoSeccion
+        icono={<IconoOrganizaciones tamano={18} />}
+        titulo={porSuCuenta ? "Independiente con RUT" : "Datos de empresa"}
+        descripcion="Información de la empresa asociada al lead."
+        accion={
+          <span
+            style={{
+              fontSize: 12.5,
+              color: faltanDelAsesor > 0 ? "var(--aviso)" : "var(--exito)",
+              fontWeight: 600,
+              whiteSpace: "nowrap",
+            }}
+          >
+            {faltanDelAsesor > 0 ? `Faltan ${faltanDelAsesor} suyos` : "Completa"}
+          </span>
+        }
+      />
+
+      <div style={{ marginTop: 16 }}>
+        <Campos campos={CAMPOS} />
+      </div>
 
       {DEL_ASESOR.length > 0 && (
         /// Sin encabezado y sin explicación.
         ///
         /// Aquí decía «Lo que usted puede preguntarle — se los
-        /// sabe el empleado». Sobra: quien abre esta ficha ya
+        /// sabe el empleado». Sobra: quien abre este lead ya
         /// sabe qué le toca a él y qué al analista, y un
         /// párrafo que se lo recuerda cada vez es ruido que
         /// tapa los datos. Una línea separa y basta.
         <div className="mt-5 border-t border-borde pt-4">
+          <p
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 9,
+              marginBottom: 12,
+            }}
+          >
+            {/* Sin circulo verde, como los demas rotulos de
+                grupo del expediente. Este se me quedo suelto
+                porque va escrito a mano y no por
+                `RotuloDeGrupo`. */}
+            <span
+              style={{
+                fontWeight: 600,
+                fontSize: "0.625rem",
+                letterSpacing: ".1em",
+                textTransform: "uppercase",
+                color: "var(--marca)",
+              }}
+            >
+              Persona de contacto en la empresa
+            </span>
+          </p>
           {/* EDITABLES desde aquí.
 
               Antes había que ir a «Empresas registradas» —que
@@ -1721,7 +2248,7 @@ async function copiarTexto(texto: string) {
 
 /**
  * El enlace de un solo uso para que la persona llene su propia
- * ficha. Sin esto solo lo tiene quien se autoinscribió: a los
+ * lead. Sin esto solo lo tiene quien se autoinscribió: a los
  * leads creados a mano o venidos de una reserva no había forma
  * de mandárselo.
  */
@@ -1729,20 +2256,20 @@ async function copiarTexto(texto: string) {
  * Que le va a pedir el enlace, hoy.
  *
  * La empresa va primero porque el formulario largo la pide
- * primero, y porque sin ella su ficha no entra en el F7 por
+ * primero, y porque sin ella su lead no entra en el F7 por
  * mas completo que este lo suyo. Si no falta nada, se dice:
  * mandar un enlace que no pide nada solo confunde.
  */
-function LoQuePedira({ ficha }: { ficha: Ficha }) {
-  const empresa = ficha.faltaDeLaEmpresa;
-  const persona = ficha.faltaDeLaPersona;
+function LoQuePedira({ lead }: { lead: Ficha }) {
+  const empresa = lead.faltaDeLaEmpresa;
+  const persona = lead.faltaDeLaPersona;
 
   if (empresa.length === 0 && persona.length === 0) {
     return (
       <div className="rounded-xl border border-exito/30 bg-exito-suave p-4 text-sm text-exito">
         <p className="font-medium">No le falta nada</p>
         <p className="mt-1">
-          Su ficha y la de su organización están completas. El enlace no le va a
+          Su lead y la de su organización están completas. El enlace no le va a
           preguntar nada.
         </p>
       </div>
@@ -1846,27 +2373,26 @@ function EstadoDelEnlace({ estado }: { estado: Ficha["enlace"] }) {
   );
 }
 
-function EnlaceCompletar({ ficha }: { ficha: Ficha }) {
+function EnlaceCompletar({ lead }: { lead: Ficha }) {
   const toast = useToast();
-  const [enlace, setEnlace] = useState<
-    { url: string; expiraEn: string; dias: number } | null
-  >(null);
+  const [enlace, setEnlace] = useState<{ url: string } | null>(null);
   const [emitiendo, setEmitiendo] = useState(false);
   const [copiado, setCopiado] = useState(false);
 
+  /// Cuántos datos le va a pedir. Es el mismo número que sale
+  /// en el lead de abajo y el que decide si hay enlace que
+  /// generar, así que se cuenta una vez.
+  const pendientes =
+    lead.faltaDeLaEmpresa.length + lead.faltaDeLaPersona.length;
+
   // autoinscrito: ya tuvo uno
-  const yaHubo = enlace !== null || ficha.origen === "AUTOGESTION";
+  const yaHubo = enlace !== null || lead.origen === "AUTOGESTION";
 
   async function generar() {
     setEmitiendo(true);
     try {
-      const { token, expiraEn } = await crmApi.emitirEnlace(ficha.id);
-      // los dias se cuentan al emitirlo
-      const dias = Math.max(
-        0,
-        Math.ceil((new Date(expiraEn).getTime() - Date.now()) / 86_400_000),
-      );
-      setEnlace({ url: `${window.location.origin}/completar/${token}`, expiraEn, dias });
+      const { token } = await crmApi.emitirEnlace(lead.id);
+      setEnlace({ url: `${window.location.origin}/completar/${token}` });
       setCopiado(false);
       toast.exito(
         yaHubo ? "Enlace nuevo listo. El anterior ya no sirve." : "Enlace generado.",
@@ -1890,91 +2416,95 @@ function EnlaceCompletar({ ficha }: { ficha: Ficha }) {
     }
   }
 
-  /// Si no le falta nada, no hay enlace que mandar.
-  ///
-  /// Generarlo igual manda a la persona a un formulario que
-  /// no le va a preguntar nada, y de paso anula el que tuviera
-  /// abierto. Aqui se corta antes.
-  const noLeFalta =
-    ficha.faltaDeLaEmpresa.length === 0 && ficha.faltaDeLaPersona.length === 0;
-
-  if (noLeFalta) {
+  /// Si no le falta nada, no hay enlace que mandar: generarlo
+  /// llevaría a la persona a un formulario que no le pregunta
+  /// nada y anularía el que tuviera abierto.
+  if (pendientes === 0) {
     return (
-      <Tarjeta titulo="Enlace para que complete sus datos">
-        {/* Sin botón, y dicho con todas las letras.
-
-            Ya no se ofrecía generar —eso estaba bien—, pero la
-            tarjeta no explicaba POR QUÉ, y quedaba la duda de
-            si faltaba pulsar algo. Generar uno aquí sería
-            mandar a la persona a un formulario que no le va a
-            preguntar nada, y de paso anular el que tuviera
-            abierto. */}
-        <div className="rounded-xl border border-exito/30 bg-exito-suave p-4 text-sm text-exito">
-          <p className="font-medium">No le falta ningún dato</p>
-          <p className="mt-1">
-            Ya no se genera ningún enlace: no habría nada que preguntarle. Si
-            necesita corregir algo de lo que ya dio, llámela y cámbielo aquí
-            mismo.
-          </p>
-        </div>
-      </Tarjeta>
+      <div style={{ fontSize: 12.5, color: "var(--texto-suave)", lineHeight: 1.5 }}>
+        No le falta ningún dato, así que no se genera ningún enlace. Si hay algo
+        que corregir, llámela y cámbielo aquí mismo.
+      </div>
     );
   }
 
+  /// El párrafo que explica el enlace NO va aquí: lo pone el
+  /// bloque del raíl, encima. En el diseño sale una sola vez,
+  /// entre el rótulo y el botón.
   return (
-    <Tarjeta titulo="Enlace para que complete sus datos">
-      <div className="space-y-4">
-        <LoQuePedira ficha={ficha} />
+    <>
+      <button
+        type="button"
+        onClick={generar}
+        disabled={emitiendo}
+        style={{ ...E.botonContorno, opacity: emitiendo ? 0.55 : 1 }}
+      >
+        {emitiendo ? "Generando…" : yaHubo ? "Generar uno nuevo" : "Generar enlace"}
+      </button>
 
-        <EstadoDelEnlace estado={ficha.enlace} />
-
-        {/* UNA sola caja, no dos.
-
-            Eran un párrafo suelto de «Recomendación» y debajo
-            un aviso de cuatro renglones que repetía la mitad.
-            Las dos dicen lo mismo —cómo mandarlo y qué pasa si
-            se genera otro—, así que van juntas y en corto: un
-            aviso que hay que leer dos veces no se lee ninguna. */}
-        <div className="rounded-xl border border-aviso/30 bg-aviso-suave p-4 text-sm text-aviso">
-          <strong className="font-medium">Recomendaciones:</strong> envíe el
-          formulario por WhatsApp o correo, nunca dicte la cédula por teléfono.
-          Recuerde que cada enlace es de un solo uso y anula al anterior.
+      {/* El enlace recién generado, para copiarlo. No está en
+          el diseño —allí el botón no hace nada— pero sin esto
+          lo generado no sale de la pantalla. */}
+      {enlace && (
+        <div style={{ ...E.ficha, marginTop: 10 }}>
+          <input
+            readOnly
+            value={enlace.url}
+            aria-label="Enlace para que complete sus datos"
+            onFocus={(e) => e.currentTarget.select()}
+            style={{
+              width: "100%",
+              boxSizing: "border-box",
+              border: "1px solid var(--campo-borde)",
+              background: "var(--superficie)",
+              borderRadius: 9,
+              padding: "9px 12px",
+              fontSize: 13,
+              color: "var(--titulo)",
+            }}
+          />
+          <button
+            type="button"
+            onClick={copiar}
+            style={{
+              background: "var(--superficie)",
+              color: "var(--titulo)",
+              border: "1.5px solid var(--campo-borde)",
+              borderRadius: 10,
+              padding: "8px 14px",
+              fontWeight: 600,
+              fontSize: 13,
+              cursor: "pointer",
+              alignSelf: "flex-start",
+            }}
+          >
+            {copiado ? "Copiado" : "Copiar enlace"}
+          </button>
         </div>
+      )}
 
-        {enlace && (
-          <div className="space-y-3">
-            <Campo etiqueta="Enlace">
-              <input
-                readOnly
-                value={enlace.url}
-                onFocus={(e) => e.currentTarget.select()}
-                className={`${CLASE_CONTROL} font-mono text-xs`}
-              />
-            </Campo>
-
-            <div className="flex flex-wrap items-center gap-3">
-              <button
-                type="button"
-                onClick={copiar}
-                className="inline-flex items-center gap-2 rounded-lg border border-borde px-3 py-1.5 text-sm hover:bg-superficie-alterna"
-              >
-                {copiado && <IconoCheck tamano={15} />}
-                {copiado ? "Copiado" : "Copiar enlace"}
-              </button>
-
-              <p className="text-sm text-texto-suave">
-                Caduca en {enlace.dias} {enlace.dias === 1 ? "día" : "días"} — el{" "}
-                {fecha(enlace.expiraEn)}.
-              </p>
-            </div>
+      {/* LA FICHA DEL ÚLTIMO ENLACE, tal como el diseño:
+          rótulo pequeño arriba y cuatro filas clave/valor. */}
+      {lead.enlace && (
+        <div style={{ ...E.ficha, marginTop: 10 }}>
+          <div
+            style={{
+              fontWeight: 600,
+              fontSize: 10,
+              letterSpacing: ".1em",
+              color: "var(--texto-suave)",
+              marginBottom: 2,
+            }}
+          >
+            ÚLTIMO ENLACE GENERADO
           </div>
-        )}
-
-        <Boton type="button" onClick={generar} disabled={emitiendo}>
-          {emitiendo ? "Generando…" : yaHubo ? "Generar uno nuevo" : "Generar enlace"}
-        </Boton>
-      </div>
-    </Tarjeta>
+          <FilaFicha clave="Estado" valor={ESTADO_ENLACE[lead.enlace.estado]} />
+          <FilaFicha clave="Datos pendientes" valor={String(pendientes)} />
+          <FilaFicha clave="Generado" valor={fecha(lead.enlace.creadoEn)} />
+          <FilaFicha clave="Por" valor={lead.enlace.emitidoPor ?? "—"} />
+        </div>
+      )}
+    </>
   );
 }
 
@@ -1987,13 +2517,16 @@ function EnlaceCompletar({ ficha }: { ficha: Ficha }) {
 /// impide inscribir a nadie.
 function Campos({ campos }: { campos: Array<[string, unknown]> }) {
   return (
-    <dl className="grid gap-x-6 gap-y-3 sm:grid-cols-3">
+    <dl className="grid gap-x-6 gap-y-3.5 sm:grid-cols-3">
       {campos.map(([nombre, valor]) => (
         <div key={nombre}>
-          <dt className="text-xs tracking-wide text-texto-suave uppercase">
-            {nombre}
-          </dt>
-          <dd className="text-sm">
+          {/* El rotulo de un CAMPO va en capitalizacion normal.
+              Iba en versalita, igual que los rotulos de GRUPO,
+              y con los dos iguales la pestania Empresa se leia
+              como una lista de titulos sin datos. En «Datos»
+              siempre fue asi; aqui se habia quedado distinto. */}
+          <dt className="text-[0.71875rem] text-texto-suave">{nombre}</dt>
+          <dd className="text-[0.84375rem]">
             {valor === null || valor === "" ? (
               <span className="text-aviso">Falta</span>
             ) : (
@@ -2007,7 +2540,7 @@ function Campos({ campos }: { campos: Array<[string, unknown]> }) {
 }
 
 /**
- * Los tres del jefe directo, escribibles desde la ficha.
+ * Los tres del jefe directo, escribibles desde el lead.
  *
  * Antes esta tarjeta era de solo lectura y decía «se corrigen
  * en Empresas registradas». Pero un gestor de inscripciones no
@@ -2051,10 +2584,10 @@ function ContactoDeLaEmpresa({
 
   return (
     <div className="space-y-3">
-      <div className="grid gap-3 sm:grid-cols-3">
+      <div className="grid sm:grid-cols-3">
         {CAMPOS.map(([clave, etiqueta]) => (
           <label key={clave} className="block">
-            <span className="mb-1 block text-xs tracking-wide text-texto-suave uppercase">
+            <span className="mb-1 block text-[0.71875rem] text-texto-suave">
               {etiqueta}
             </span>
             <input

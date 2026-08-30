@@ -55,9 +55,9 @@ export default function PaginaPerfil() {
   }
 
   return (
-    <div className="space-y-6">
-      <header>
-        <h1 className="text-2xl font-bold tracking-tight">Mi perfil</h1>
+    <div>
+      <header className="border-b border-borde bg-superficie px-7 pt-[26px] pb-[22px]">
+        <h1 className="text-[1.3125rem] font-bold tracking-[-0.02em] text-titulo">Mi perfil</h1>
         <p className="mt-1 text-texto-suave">
           {admin.correo} · {ROLES[admin.rol] ?? admin.rol}
         </p>
@@ -74,7 +74,7 @@ export default function PaginaPerfil() {
             />
           </Campo>
 
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid sm:grid-cols-2">
             <Campo etiqueta="Cargo">
               <input
                 value={datos.cargo}

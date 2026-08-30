@@ -15,52 +15,65 @@ const VARIABLE: Record<Tono, string> = {
 };
 
 /**
- * La cifra grande con su icono en un cuadro teñido. El
- * fondo sale de `color-mix` sobre el mismo token que el
- * trazo, así que un solo color da los dos y sigue
- * obedeciendo al editor de apariencia.
+ * Un indicador, como una CELDA de la franja.
+ *
+ * Era una tarjeta con borde, radio y su icono en un cuadro
+ * tenido. Ahora es una celda de la banda de indicadores: la
+ * separacion la pone la raya de la izquierda, no una caja.
+ *
+ * El icono se fue. El prototipo no lo tiene, y con ocho
+ * indicadores en fila ocho cuadros de color pesaban mas que
+ * las propias cifras. La prop se sigue aceptando para no
+ * tocar las 27 llamadas, pero no se pinta.
+ *
+ * Rotulo de 10px en versalita, cifra de 32 y pie de 11,5: los
+ * tres en rem, que es lo que deja que el ajuste de texto del
+ * panel los siga escalando.
  */
 export function TarjetaCifra({
   etiqueta,
   valor,
   pie,
-  icono: Icono,
   tono = "marca",
   href,
 }: {
   etiqueta: string;
   valor: React.ReactNode;
   pie?: React.ReactNode;
+  /// Se acepta y NO se pinta: ver el comentario de arriba.
   icono?: Icono;
   tono?: Tono;
   href?: string;
 }) {
-  const color = VARIABLE[tono];
-
   const cuerpo = (
     <>
-      <div className="flex items-start justify-between gap-3">
-        <p className="text-sm font-medium text-texto-suave">{etiqueta}</p>
-        {Icono && (
-          <span
-            className="grid h-9 w-9 shrink-0 place-items-center rounded-xl"
-            style={{
-              backgroundColor: `color-mix(in oklab, ${color} 14%, transparent)`,
-              color,
-            }}
-          >
-            <Icono tamano={18} />
-          </span>
-        )}
-      </div>
-      <p className="mt-3 text-3xl font-bold tabular-nums">{valor}</p>
-      {pie && <p className="mt-1 text-xs text-texto-suave">{pie}</p>}
+      <p
+        className="font-semibold uppercase text-texto-suave"
+        style={{ fontSize: "0.625rem", letterSpacing: "0.1em" }}
+      >
+        {etiqueta}
+      </p>
+      <p
+        className="mt-2 font-bold tabular-nums"
+        style={{
+          fontSize: "2rem",
+          letterSpacing: "-0.03em",
+          color: tono === "marca" ? "var(--titulo)" : VARIABLE[tono],
+        }}
+      >
+        {valor}
+      </p>
+      {pie && (
+        <p className="mt-[3px] text-texto-suave" style={{ fontSize: "0.71875rem" }}>
+          {pie}
+        </p>
+      )}
     </>
   );
 
   const clase =
-    "rounded-2xl border border-borde bg-superficie p-5 shadow-sm transition" +
-    (href ? " block no-underline hover:border-marca hover:shadow-md" : "");
+    "bg-superficie px-7 pt-[18px] pb-5 transition" +
+    (href ? " block no-underline hover:bg-tabla-fila-resaltada" : "");
 
   return href ? (
     <Link href={href} className={clase}>
@@ -82,17 +95,29 @@ export function Pildora({
   tono?: Tono;
   children: React.ReactNode;
 }) {
+  /// El color va en la LETRA, no en una caja.
+  ///
+  /// Era una pildora con fondo tenido y radio completo. En una
+  /// tabla de 400 filas, 400 rectangulos de color compiten con
+  /// los datos en vez de ordenarlos: uno acaba viendo la
+  /// alfombra de colores y no la fila que buscaba.
+  ///
+  /// Se conserva el peso 600, que es lo que sigue haciendo que
+  /// el estado destaque sin fondo. Y se conserva el texto: el
+  /// color acompania, nunca es lo unico que distingue -- en
+  /// papel y en daltonismo el color no llega.
   const clases: Record<Tono, string> = {
-    marca: "bg-marca-suave text-marca",
-    exito: "bg-exito-suave text-exito",
-    aviso: "bg-aviso-suave text-aviso",
-    error: "bg-error-suave text-error",
-    neutro: "bg-superficie-alterna text-texto-suave",
+    marca: "text-marca",
+    exito: "text-exito",
+    aviso: "text-aviso",
+    error: "text-error",
+    neutro: "text-texto-suave",
   };
 
   return (
     <span
-      className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium whitespace-nowrap ${clases[tono]}`}
+      className={`inline-flex items-center gap-1.5 font-semibold whitespace-nowrap ${clases[tono]}`}
+      style={{ fontSize: "0.75rem" }}
     >
       {children}
     </span>
@@ -110,11 +135,21 @@ export function Encabezado({
   children?: React.ReactNode;
 }) {
   return (
-    <header className="mb-6 flex flex-wrap items-start justify-between gap-4">
+    /// Una banda mas, con su relleno propio.
+    ///
+    /// Llevaba `mb-6` y ningun relleno lateral: eso funcionaba
+    /// cuando el contenedor de la pagina ponia el margen. Ahora
+    /// las secciones van a sangre y el relleno lo pone cada una,
+    /// asi que sin esto el titulo quedaba pegado al canto.
+    <header className="flex flex-wrap items-start justify-between gap-4 border-b border-borde bg-superficie px-7 pt-[26px] pb-[22px]">
       <div className="min-w-0">
-        <h1 className="text-2xl font-bold tracking-tight">{titulo}</h1>
+        <h1 className="text-[1.3125rem] font-bold tracking-[-0.02em] text-titulo">
+          {titulo}
+        </h1>
         {descripcion && (
-          <p className="mt-1 max-w-2xl text-sm text-texto-suave">{descripcion}</p>
+          <p className="mt-1.5 max-w-[760px] text-[0.78125rem] leading-relaxed text-texto-suave">
+            {descripcion}
+          </p>
         )}
       </div>
       {children && <div className="flex shrink-0 flex-wrap gap-2">{children}</div>}
@@ -181,11 +216,11 @@ export function Esqueleto({
       </span>
 
       {conCifras && (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid sm:grid-cols-2 lg:grid-cols-4">
           {Array.from({ length: 4 }, (_, i) => (
             <div
               key={i}
-              className="rounded-2xl border border-borde bg-superficie p-5 shadow-sm"
+              className="rounded-2xl border border-borde bg-superficie p-5"
             >
               <div className="h-3.5 w-24 animate-pulse rounded-full bg-current/10" />
               <div className="mt-4 h-8 w-16 animate-pulse rounded-lg bg-current/10" />
@@ -194,7 +229,7 @@ export function Esqueleto({
         </div>
       )}
 
-      <div className="rounded-2xl border border-borde bg-superficie p-5 shadow-sm">
+      <div className="rounded-2xl border border-borde bg-superficie p-5">
         <div className="h-4 w-40 animate-pulse rounded-full bg-current/10" />
         <div className="mt-5 space-y-3">
           {Array.from({ length: filas }, (_, i) => (

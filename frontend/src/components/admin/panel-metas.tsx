@@ -98,7 +98,15 @@ export function PanelMetas() {
           lo que se esta mirando. */}
       {/* Seis en rejilla y no en fila: asi ocupan el mismo
           ancho que las graficas de abajo y no quedan cortos. */}
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+      {/* La rejilla del redisenio: `auto-fit` con minimo de
+          150px y 8px de hueco, no seis columnas fijas. Con las
+          fijas, en una pantalla estrecha caian a dos y cada
+          filtro se quedaba en 300px -- el doble de lo que
+          necesita -- y en una ancha sobraba sitio al final. */}
+      <div
+        className="grid gap-2"
+        style={{ gridTemplateColumns: "repeat(auto-fit,minmax(150px,1fr))" }}
+      >
         <select
           className={CLASE_CONTROL}
           value={convenioId}

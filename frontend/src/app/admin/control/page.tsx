@@ -189,10 +189,10 @@ export default function PaginaControl() {
       (vivos.datos?.ventana.etiquetaAnterior ?? '').includes('días contra'));
 
   return (
-    <div className="space-y-6">
-      <header className="flex flex-wrap items-start justify-between gap-4">
+    <div>
+      <header className="border-b border-borde bg-superficie px-7 pt-[26px] pb-[22px] flex flex-wrap items-start justify-between gap-4">
         <div className="min-w-0">
-          <h1 className="text-2xl font-bold tracking-tight">Control de Inscritos</h1>
+          <h1 className="text-[1.3125rem] font-bold tracking-[-0.02em] text-titulo">Control de Inscritos</h1>
         </div>
         {/* solo en Análisis: es de esos datos, y en la otra
             pestaña diría una hora que no le corresponde */}
@@ -232,8 +232,8 @@ export default function PaginaControl() {
 
       {pestana === "analisis" && (
         <>
-      <div className="rounded-2xl border border-borde bg-superficie p-5 shadow-sm">
-        <div className="grid gap-4 lg:grid-cols-2">
+      <div className="border-b border-borde bg-superficie px-7 py-5">
+        <div className="grid lg:grid-cols-2">
           <div>
             <p className="mb-1.5 text-sm font-medium">Periodo</p>
             <div className="flex flex-wrap items-center gap-3">
@@ -403,8 +403,8 @@ function Cuerpo({ d, adminId, eligio }: { d: Control; adminId: string; eligio: b
   const inscritosSiempre = d.inscritosConReserva + d.inscritosPorSuCuenta;
   const leadsDelPeriodo = d.leadsPorDia.reduce((s, p) => s + p.total, 0);
 
-  // de toda ficha a inscrito
-  const fichas = d.conversionPorOrigen.reduce((s, o) => s + o.leads, 0);
+  // de toda lead a inscrito
+  const leads = d.conversionPorOrigen.reduce((s, o) => s + o.leads, 0);
   const convertidas = d.conversionPorOrigen.reduce((s, o) => s + o.inscritos, 0);
   const cobertura = d.cuposConfirmados > 0 ? d.inscritosConReserva / d.cuposConfirmados : 0;
 
@@ -416,18 +416,18 @@ function Cuerpo({ d, adminId, eligio }: { d: Control; adminId: string; eligio: b
     return b.conversion - a.conversion;
   });
   const mio = d.porAsesor.find((a) => a.asesorId === adminId) ?? null;
-  const fichasRepartidas = d.porAsesor.reduce((s, a) => s + a.asignados, 0);
+  const leadsRepartidos = d.porAsesor.reduce((s, a) => s + a.asignados, 0);
 
   const conOrigen = d.porOrigen.reduce((s, o) => s + o.total, 0);
   const conModalidad = d.porModalidad.reduce((s, m) => s + m.total, 0);
 
   return (
-    <div className="space-y-6">
+    <div>
       {/* la cola de trabajo, antes que nada */}
-      <section className="grid gap-6 lg:grid-cols-3">
+      <section className="grid lg:grid-cols-3">
         <Tarjeta
           titulo="Leads sin asesor"
-          descripcion="Fichas por trabajar que no son de nadie. No lleva periodo: es una cola, no un hecho fechado."
+          descripcion="Leads por trabajar que no son de nadie. No lleva periodo: es una cola, no un hecho fechado."
         >
           <p
             className={`text-5xl font-semibold tabular-nums ${
@@ -439,7 +439,7 @@ function Cuerpo({ d, adminId, eligio }: { d: Control; adminId: string; eligio: b
           <p className="mt-2 text-xs text-texto-suave">
             {d.sinAsignar > 0
               ? "Nadie las está llamando: repartirlas es el primer trabajo del día."
-              : "Todas las fichas por trabajar tienen dueño."}
+              : "Todos los leads por trabajar tienen dueño."}
           </p>
           <Link
             href="/admin/participantes"
@@ -452,7 +452,7 @@ function Cuerpo({ d, adminId, eligio }: { d: Control; adminId: string; eligio: b
         <div className="lg:col-span-2">
           <Tarjeta
             titulo="Cuánto llevan esperando sin que los llamen"
-            descripcion="Solo quien sigue en «Interesado», por su fecha de llegada: en cuanto alguien lo llama la ficha pasa a «Contactado» y sale de aquí. Tampoco lleva periodo, porque recortarla la dejaría vacía justo cuando más larga está."
+            descripcion="Solo quien sigue en «Interesado», por su fecha de llegada: en cuanto alguien lo llama el lead pasa a «Contactado» y sale de aquí. Tampoco lleva periodo, porque recortarla la dejaría vacía justo cuando más larga está."
           >
             <Termometro tramos={tramos} vacio="No hay nadie esperando a que lo llamen." />
             <p className="mt-4 border-t border-borde pt-3 text-xs text-texto-suave">
@@ -471,7 +471,7 @@ function Cuerpo({ d, adminId, eligio }: { d: Control; adminId: string; eligio: b
       </section>
 
       {/* las cifras de cabecera */}
-      <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <section className="grid gap-px border-t border-b border-hairline bg-hairline sm:grid-cols-2 lg:grid-cols-4">
         <TarjetaCifra
           titulo="Llegaron a inscrito"
           valor={d.total}
@@ -482,7 +482,7 @@ function Cuerpo({ d, adminId, eligio }: { d: Control; adminId: string; eligio: b
         <TarjetaCifra
           titulo="Leads que llegaron"
           valor={leadsDelPeriodo}
-          detalle={`fichas nuevas ${alcanceSerie}, en cualquier etapa`}
+          detalle={`leads nuevos ${alcanceSerie}, en cualquier etapa`}
           chispa={d.leadsPorDia.length > 1 ? d.leadsPorDia.map((p) => p.total) : undefined}
         />
         <TarjetaCifra
@@ -504,7 +504,7 @@ function Cuerpo({ d, adminId, eligio }: { d: Control; adminId: string; eligio: b
         titulo="Las tres tasas"
         descripcion="Ninguna lleva periodo: las tres miden lo que hay hoy contra lo que se comprometió, y recortarlas por «ayer» daría cifras falsas."
       >
-        <div className="grid gap-6 sm:grid-cols-3">
+        <div className="grid sm:grid-cols-3">
           <Tasa
             titulo="Cobertura de los cupos"
             parte={d.inscritosConReserva}
@@ -527,8 +527,8 @@ function Cuerpo({ d, adminId, eligio }: { d: Control; adminId: string; eligio: b
           <Tasa
             titulo="Conversión global"
             parte={convertidas}
-            total={fichas}
-            detalle="fichas que llegaron a inscrito"
+            total={leads}
+            detalle="leads que llegaron a inscrito"
           />
           <Tasa
             titulo="Llegaron por su cuenta"
@@ -549,7 +549,7 @@ function Cuerpo({ d, adminId, eligio }: { d: Control; adminId: string; eligio: b
       </Tarjeta>
 
       {/* el embudo y el ritmo */}
-      <section className="grid gap-6 lg:grid-cols-3">
+      <section className="grid lg:grid-cols-3">
         <Tarjeta
           titulo="El embudo"
           descripcion={
@@ -614,7 +614,7 @@ function Cuerpo({ d, adminId, eligio }: { d: Control; adminId: string; eligio: b
       </section>
 
       {/* el origen: volumen y calidad */}
-      <section className="grid gap-6 lg:grid-cols-2">
+      <section className="grid lg:grid-cols-2">
         <Tarjeta
           titulo="De dónde vienen: volumen"
           descripcion="Cuántos de los inscritos del periodo entraron por cada puerta. Dice cuál trae más, nunca cuál trae mejor."
@@ -632,7 +632,7 @@ function Cuerpo({ d, adminId, eligio }: { d: Control; adminId: string; eligio: b
 
         <Tarjeta
           titulo="De dónde vienen: calidad"
-          descripcion="Cuánto convierte cada puerta, sobre todas sus fichas y sin periodo. No es lo mismo que el volumen: una pauta puede traer trescientos leads y convertir el 2 %."
+          descripcion="Cuánto convierte cada puerta, sobre todos sus leads y sin periodo. No es lo mismo que el volumen: una pauta puede traer trescientos leads y convertir el 2 %."
         >
           <BarrasApiladas
             filas={d.conversionPorOrigen.map((o) => ({
@@ -644,7 +644,7 @@ function Cuerpo({ d, adminId, eligio }: { d: Control; adminId: string; eligio: b
               { nombre: "Llegaron a inscrito", color: SERIE.uno },
               { nombre: "Todavía no", color: SERIE.dos },
             ]}
-            vacio="Todavía no hay fichas."
+            vacio="Todavía no hay leads."
           />
         </Tarjeta>
       </section>
@@ -652,13 +652,13 @@ function Cuerpo({ d, adminId, eligio }: { d: Control; adminId: string; eligio: b
       {/* los asesores */}
       <Tarjeta
         titulo="Por asesor"
-        descripcion="Ordenada por conversión, que es HISTÓRICA: todos los que llegó a inscribir sobre todas sus fichas, sin periodo. Así se lee quién convierte mejor —quien lleva 200 y convierte el 5 % lo hace peor que quien lleva 20 y convierte el 40 %— y no a quién le entró una inscripción esta mañana."
+        descripcion="Ordenada por conversión, que es HISTÓRICA: todos los que llegó a inscribir sobre todos sus leads, sin periodo. Así se lee quién convierte mejor —quien lleva 200 y convierte el 5 % lo hace peor que quien lleva 20 y convierte el 40 %— y no a quién le entró una inscripción esta mañana."
       >
         {mio && (
           <p className="mb-4 rounded-xl bg-marca-suave px-3 py-2 text-sm">
             <strong className="font-semibold">Tuyos:</strong>{" "}
             <span className="tabular-nums">{n(mio.asignados)}</span> de{" "}
-            <span className="tabular-nums">{n(fichasRepartidas)}</span> fichas ·{" "}
+            <span className="tabular-nums">{n(leadsRepartidos)}</span> leads ·{" "}
             <span className="tabular-nums">{n(mio.total)}</span> de{" "}
             <span className="tabular-nums">{n(d.total)}</span> inscritos del periodo · tu
             conversión histórica es del{" "}
@@ -676,7 +676,7 @@ function Cuerpo({ d, adminId, eligio }: { d: Control; adminId: string; eligio: b
               <thead>
                 <tr>
                   <th>Asesor</th>
-                  <th>Fichas</th>
+                  <th>Leads</th>
                   <th>Inscritos siempre</th>
                   <th>Conversión</th>
                   <th>En el periodo</th>
@@ -716,7 +716,7 @@ function Cuerpo({ d, adminId, eligio }: { d: Control; adminId: string; eligio: b
       </Tarjeta>
 
       {/* quien debe nombres */}
-      <section className="grid gap-6 lg:grid-cols-2">
+      <section className="grid lg:grid-cols-2">
         <Tarjeta
           titulo="Las organizaciones con más nombres"
           descripcion="Nombres puestos contra cupos apartados. Ninguna de las dos cifras lleva periodo: los cupos salen de reservas, y medir contra ellos unos inscritos recortados daría deudas inventadas."
@@ -770,7 +770,7 @@ function Cuerpo({ d, adminId, eligio }: { d: Control; adminId: string; eligio: b
       </section>
 
       {/* los repartos */}
-      <section className="grid gap-6 lg:grid-cols-3">
+      <section className="grid lg:grid-cols-3">
         <Tarjeta
           titulo="Por ubicación"
           descripcion="Dónde se dicta lo que eligieron: ciudad o departamento."

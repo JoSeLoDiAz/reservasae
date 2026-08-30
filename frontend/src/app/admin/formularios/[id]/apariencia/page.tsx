@@ -29,8 +29,8 @@ export default function PaginaAparienciaFormulario({
   if (!formulario || !general) return <p className="text-texto-suave">Cargando…</p>;
 
   return (
-    <div className="space-y-6">
-      <header>
+    <div>
+      <header className="border-b border-borde bg-superficie px-7 pt-[26px] pb-[22px]">
         <Link
           href={`/admin/formularios/${id}`}
           className="text-sm text-marca hover:underline"

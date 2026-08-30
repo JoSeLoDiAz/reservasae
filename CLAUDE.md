@@ -22,6 +22,60 @@ registro de ambos.
 > genera expectativas que no siempre se podrán cumplir. "Preinscripción" o
 > "registro de interés" es más seguro en los textos de cara al usuario.
 
+## El diseño manda desde fuera del código (30 ago 2026)
+
+Hay un rediseño visual definido en un handoff. **Antes de tocar cualquier
+pantalla, estilo o componente de interfaz, léelo**: es la autoridad, no una
+sugerencia.
+
+| | |
+|---|---|
+| `docs/diseno/DECISIONES.md` | **Manda sobre todo lo demás**, incluido el README de al lado |
+| `docs/diseno/README.md` | Tokens, tipografía, medidas, iconos, las 8 secciones y las 38 pantallas |
+| `docs/diseno/prototipo/Convoca Rediseño.dc.html` | De dónde salen las medidas exactas de una pantalla concreta |
+
+**El prototipo no abre en el navegador, y es a propósito.** Su runtime es
+`support.js` y el handoff prohíbe traerlo al repositorio, así que no está. El
+HTML sí, porque las medidas se leen del propio archivo: los estilos van en
+línea. Así se sacó todo lo que hay aplicado — `grep` sobre el archivo, no a ojo.
+Si necesita verlo renderizado, el zip completo está fuera del repositorio.
+
+### Las reglas que no se cambian sin preguntar
+
+- Bordes de 1px, nunca sombras en el contenido. Sombra solo en lo que **flota**:
+  modales, desplegables, cajón, toast.
+- El color va en el texto y en marcas pequeñas, **no en fondos**. Máximo dos
+  fondos por pantalla.
+- Jerarquía por tipografía, no por tamaño de caja.
+- Iconos de trazo que tomen el color del tema. **Nada de emoji.**
+- Nunca media pantalla vacía; un bloque vacío dice **por qué** lo está.
+- La navegación hacia atrás es un **enlace**, no un botón. Los botones son acciones.
+- La ruta de navegación (breadcrumb) nunca se pierde.
+- Cifras siempre en `tabular-nums`.
+- Catálogo de temas: **39 tokens**. `--acento*` fijos en CSS. Los de estado
+  (`--exito` / `--aviso` / `--error`) **se quedan editables**.
+- Botón primario: **azul de marca** (`--marca`), nunca verde.
+
+### Los tamaños van en `rem`; las cajas, en `px`
+
+El handoff da todo en píxeles. Los **tamaños de letra** aquí van en `rem`, porque
+el panel escala el texto del 80 % al 150 % moviendo el `font-size` de la raíz y
+eso solo mueve los `rem`. Las **medidas de caja** —alto de fila, alto de campo,
+radios, ancho del panel— sí van en px: no deben crecer con el texto.
+
+### Una corrección al handoff
+
+Dice «39 tokens editables **por gremio**». El panel no funciona así: el modelo
+`Tema` tiene `esquema @unique`, o sea **dos filas** —CLARO y OSCURO— para todo el
+sistema. Lo que sí es por gremio es la paleta de los **formularios públicos**,
+que se sirve por otra ruta. Con esto: «Restablecer los colores» en Apariencia
+cambia el panel de los dos gremios a la vez, no el de quien lo pulsa.
+
+### Cuándo NO decidir solo
+
+Si la duda es funcional y no visual —qué hace un botón, qué datos trae una
+pantalla, si se sobrescribe algo que un administrador guardó— **pregunte**.
+
 ## Estado actual (29 ago 2026 · v0.3.0)
 
 > **El CRM entero ya está en PRODUCCIÓN** (29 ago 2026). Hasta hoy `main`

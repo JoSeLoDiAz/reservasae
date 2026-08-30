@@ -77,9 +77,9 @@ export default function PaginaCronograma() {
   const sinFechas = grupos.filter((g) => g.estado === "SIN_FECHAS").length;
 
   return (
-    <div className="space-y-6">
-      <header>
-        <h1 className="text-2xl font-bold tracking-tight">Cronograma</h1>
+    <div>
+      <header className="border-b border-borde bg-superficie px-7 pt-[26px] pb-[22px]">
+        <h1 className="text-[1.3125rem] font-bold tracking-[-0.02em] text-titulo">Cronograma</h1>
         <p className="mt-1 text-sm text-texto-suave">
           Cuándo empieza y termina cada grupo. De estas fechas depende todo el
           seguimiento académico: sin ellas no se puede medir quién va al día.
@@ -88,7 +88,7 @@ export default function PaginaCronograma() {
 
       {error && <Aviso tipo="error">{error}</Aviso>}
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-px border-t border-b border-hairline bg-hairline sm:grid-cols-2 lg:grid-cols-4">
         <TarjetaCifra etiqueta="Grupos" valor={grupos.length} icono={IconoFormacion} />
         <TarjetaCifra etiqueta="En curso" valor={enCurso} tono="exito" />
         <TarjetaCifra etiqueta="Por empezar" valor={porEmpezar} tono="neutro" />
@@ -112,7 +112,12 @@ export default function PaginaCronograma() {
           Pruebe con el código (AF8), parte del nombre o una ciudad.
         </Vacio>
       ) : (
-        <div className="space-y-3">
+        /// Pegadas, no separadas por hueco.
+        ///
+        /// Con `space-y-3` se veia el fondo de la pagina entre
+        /// fila y fila, y eso se lee como un rayado. La
+        /// separacion la hace la raya de cada banda.
+        <div>
           {visibles.map((a) => (
             <Accion
               key={a.id}
@@ -147,16 +152,20 @@ function Accion({
   alFallar: (m: string) => void;
 }) {
   return (
-    <section className="overflow-hidden rounded-2xl border border-borde bg-superficie shadow-sm">
+    <section className="overflow-hidden border-t border-hairline bg-superficie">
       <button
         onClick={alAbrir}
         aria-expanded={abierta}
-        className="flex w-full items-center gap-4 p-5 text-left transition hover:bg-superficie-alterna"
+        /// 12px arriba y abajo, 28 a los lados: la medida de
+        /// fila del prototipo. Con `p-5` cada fila ocupaba
+        /// medio tercio mas y en pantalla cabian cinco donde
+        /// caben ocho.
+        className="flex w-full items-center gap-4 px-7 py-3 text-left transition hover:bg-tabla-fila-resaltada"
       >
         <span className="min-w-0 grow">
           <span className="flex flex-wrap items-center gap-2">
-            <span className="font-mono text-xs text-texto-suave">{accion.codigo}</span>
-            <span className="font-medium">{bonito(accion.nombre)}</span>
+            <span className="font-mono text-[0.65625rem] font-semibold tracking-[0.05em] text-texto-suave">{accion.codigo}</span>
+            <span className="text-[0.84375rem] font-semibold text-titulo">{bonito(accion.nombre)}</span>
             {!accion.visible && <Pildora tono="neutro">Sin publicar</Pildora>}
             {accion.sinFechas > 0 && (
               <Pildora tono="error">
@@ -164,7 +173,7 @@ function Accion({
               </Pildora>
             )}
           </span>
-          <span className="mt-1 block text-sm text-texto-suave">
+          <span className="mt-0.5 block text-[0.71875rem] text-texto-suave">
             {accion.convenio} · {accion.horas} horas · {accion.grupos.length}{" "}
             {accion.grupos.length === 1 ? "grupo" : "grupos"} · {accion.inscritos} de{" "}
             {accion.cupos} cupos
@@ -176,7 +185,7 @@ function Accion({
       </button>
 
       {abierta && (
-        <div className="border-t border-borde p-5 pt-4">
+        <div className="border-t border-hairline px-7 pt-4 pb-5">
           {accion.grupos.length === 0 ? (
             <p className="text-sm text-texto-suave">
               Esta acción no tiene grupos cargados.

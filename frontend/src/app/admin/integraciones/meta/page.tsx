@@ -39,7 +39,7 @@ function ParaCopiar({ etiqueta, valor }: { etiqueta: string; valor: string }) {
 
   return (
     <div>
-      <p className="text-[0.6875rem] font-semibold tracking-wider text-texto-suave uppercase">
+      <p className="text-[0.625rem] font-semibold tracking-[0.1em] text-texto-suave uppercase">
         {etiqueta}
       </p>
       <div className="mt-1 flex items-center gap-2">
@@ -298,9 +298,9 @@ export default function PaginaMeta() {
   if (!estado && !error) return <p className="text-texto-suave">Cargando…</p>;
 
   return (
-    <div className="space-y-6">
-      <header>
-        <h1 className="text-2xl font-bold tracking-tight">Webhook de Meta</h1>
+    <div>
+      <header className="border-b border-borde bg-superficie px-7 pt-[26px] pb-[22px]">
+        <h1 className="text-[1.3125rem] font-bold tracking-[-0.02em] text-titulo">Webhook de Meta</h1>
         <p className="mt-1 max-w-3xl text-texto-suave">
           Por aquí entran los leads que se pagan en Facebook e Instagram. Hay{" "}
           <strong>una app de Meta por gremio</strong>, así que cada uno tiene su

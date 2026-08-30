@@ -22,6 +22,10 @@ import { useToast } from "@/components/admin/toast";
 import { CargarBase } from "@/components/admin/cargar-base";
 import { CuandoVaASalir } from "@/components/admin/cuando-sale";
 import { VistaPreviaCorreo } from "@/components/admin/vista-previa-correo";
+import {
+  AvisoDeSeccion,
+  TextoDeSeccion,
+} from "@/components/admin/secciones";
 import { ErrorApi } from "@/lib/api";
 import {
   campanasApi,
@@ -75,10 +79,10 @@ export default function PaginaCampanas() {
   }
 
   return (
-    <div className="space-y-6">
-      <header className="flex flex-wrap items-start justify-between gap-4">
+    <div>
+      <header className="border-b border-borde bg-superficie px-7 pt-[26px] pb-[22px] flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Campañas</h1>
+          <h1 className="text-[1.3125rem] font-bold tracking-[-0.02em] text-titulo">Campañas</h1>
           <p className="mt-1 max-w-3xl text-texto-suave">
             Un correo que sale a muchos, de a uno. Se lanza y va saliendo solo,
             en horario de Colombia.
@@ -90,10 +94,10 @@ export default function PaginaCampanas() {
       </header>
 
       {!convenioId && (
-        <div className="rounded-2xl border border-aviso/40 bg-aviso-suave p-5 text-sm text-aviso">
+        <AvisoDeSeccion color="var(--aviso)">
           Elija un gremio arriba para poder crear una campaña. Una campaña es
           siempre de un gremio: la de uno no le escribe a la gente del otro.
-        </div>
+        </AvisoDeSeccion>
       )}
 
       <ComoSale />
@@ -208,14 +212,18 @@ export default function PaginaCampanas() {
 /// regla de la casa, no un detalle de una campaña.
 function ComoSale() {
   return (
-    <div className="rounded-2xl border border-borde bg-superficie-alterna p-5 text-sm">
-      <p className="font-medium">Cómo sale, y por qué así</p>
-      <p className="mt-1 text-texto-suave">
+    /// Banda normal, no un bloque de color.
+    ///
+    /// Iba sobre `--superficie-alterna`, y con eso la pantalla
+    /// tenia tres fondos: el de la pagina, el de las bandas y
+    /// este. El maximo del redisenio son dos.
+    <TextoDeSeccion titulo="Cómo sale, y por qué así">
+      <p className="mt-1.5 text-[0.78125rem] leading-relaxed text-texto-suave">
         Salen por la cuenta de la oficina, de a uno, con{" "}
         <strong className="text-texto">uno a tres segundos</strong> entre cada
         uno: una campaña de 200 sale en unos siete minutos.
       </p>
-      <p className="mt-2 text-texto-suave">
+      <p className="mt-2 text-[0.78125rem] leading-relaxed text-texto-suave">
         Dentro del <strong className="text-texto">horario de Colombia</strong>{" "}
         —8 de la mañana a 6 de la tarde, de lunes a viernes—, hasta{" "}
         <strong className="text-texto">300 al día</strong> y{" "}
@@ -224,19 +232,23 @@ function ComoSale() {
         diario y que la gente marque spam. Por eso el freno está ahí y no en la
         velocidad.
       </p>
-    </div>
+    </TextoDeSeccion>
   );
 }
 
 function Pildora({ estado }: { estado: Campana["estado"] }) {
+  /// El color en la letra, como en el resto del panel.
   const tono: Record<Campana["estado"], string> = {
-    BORRADOR: "bg-superficie-alterna text-texto-suave",
-    ENVIANDO: "bg-marca-suave text-marca",
-    PAUSADA: "bg-aviso-suave text-aviso",
-    TERMINADA: "bg-exito-suave text-exito",
+    BORRADOR: "text-texto-suave",
+    ENVIANDO: "text-marca",
+    PAUSADA: "text-aviso",
+    TERMINADA: "text-exito",
   };
   return (
-    <span className={`rounded-full px-2.5 py-1 text-xs ${tono[estado]}`}>
+    <span
+      className={`font-semibold whitespace-nowrap ${tono[estado]}`}
+      style={{ fontSize: "0.75rem" }}
+    >
       {ETIQUETA_ESTADO_CAMPANA[estado]}
     </span>
   );
@@ -265,7 +277,7 @@ function ResultadosDe({ id }: { id: string }) {
 
   return (
     <div className="space-y-3 rounded-xl border border-borde p-4">
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid sm:grid-cols-2 lg:grid-cols-4">
         <Cifra titulo="Enviados" valor={r.enviados} de={r.total} />
         <Cifra titulo="Por salir" valor={r.pendientes} />
         <Cifra titulo="Hicieron clic" valor={r.conClic} de={r.enviados} firme />
@@ -405,8 +417,16 @@ function NuevaCampana({
           Ahora la vista ocupa la mitad y se queda pegada
           arriba mientras se escribe en la otra: se teclea
           en un lado y se ve en el otro, sin buscarla. */}
-      <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
-        <div className="space-y-4">
+      {/* Una raya entre lo que se llena y lo que se ve.
+
+          Las dos columnas se tocaban sin nada en medio y el ojo
+          no sabia donde acababa el formulario y empezaba la
+          vista previa: parecia una sola cosa apretada. La raya
+          es la misma que separa las bandas -- `--hairline` --,
+          y solo aparece cuando hay dos columnas de verdad: en
+          pantalla angosta se apilan y ahi la raya sobraria. */}
+      <div className="grid lg:grid-cols-2 lg:items-start">
+        <div className="space-y-5 pr-0 lg:pr-8">
           <div>
             <label htmlFor="c-nombre" className="mb-1.5 block text-sm font-medium">
               Cómo la va a reconocer
@@ -424,7 +444,7 @@ function NuevaCampana({
               porque decide si el segmento pinta algo. */}
           <div>
             <p className="mb-1.5 text-sm font-medium">De dónde sale la lista</p>
-            <div className="grid gap-2 sm:grid-cols-2">
+            <div className="grid sm:grid-cols-2">
               {(
                 [
                   ["SEGMENTO", "De su base", "Con reglas sobre los inscritos"],
@@ -574,7 +594,11 @@ function NuevaCampana({
           </div>
         </div>
 
-        <div className="space-y-5 lg:sticky lg:top-4">
+        {/* La raya que separa lo que se llena de lo que se ve.
+            Solo a partir de `lg`: por debajo las columnas se
+            apilan y una raya a la izquierda no separaria nada,
+            colgaria del borde. */}
+        <div className="space-y-5 lg:sticky lg:top-4 lg:border-l lg:border-hairline lg:pl-8">
           <VistaPreviaCorreo
             asunto={asunto}
             cuerpo={cuerpo}
@@ -582,18 +606,24 @@ function NuevaCampana({
             banner={banner}
           />
 
-        <div className="rounded-xl border border-borde bg-superficie-alterna p-4">
-          <p className="text-sm font-medium">Lo que puede poner</p>
-          <p className="mt-1 text-xs text-texto-suave">
+        <div className="pt-5">
+          <p className="text-[0.90625rem] font-semibold text-titulo">
+            Lo que puede poner
+          </p>
+          <p className="mt-1 text-[0.75rem] text-texto-suave">
             Se llena con los datos de cada persona.
           </p>
-          <ul className="mt-3 space-y-1.5">
+          {/* En columnas, no en una tira de quince.
+              A una columna la lista bajaba mas que el formulario
+              de al lado y dejaba media pantalla vacia; en dos o
+              tres se ve entera sin bajar. */}
+          <ul className="mt-3 grid gap-x-6 gap-y-1.5 sm:grid-cols-2 xl:grid-cols-3">
             {variables.map((v) => (
               <li key={v.clave}>
                 <button
                   type="button"
                   onClick={() => setCuerpo((c) => `${c}{{${v.clave}}}`)}
-                  className="w-full rounded-lg px-2 py-1 text-left transition hover:bg-superficie"
+                  className="w-full rounded-lg px-2 py-1 text-left transition hover:bg-superficie-alterna"
                 >
                   <span className="font-mono text-[12px] text-marca">
                     {`{{${v.clave}}}`}

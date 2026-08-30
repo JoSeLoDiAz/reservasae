@@ -2,13 +2,13 @@
 
 /** Qué se deja y qué se cambia, campo por campo. */
 
-/// Cuando el asesor ya tocó la ficha y después el interesado
+/// Cuando el asesor ya tocó el lead y después el interesado
 /// manda lo suyo, nada se sobrescribe: queda esperando. Esta
 /// es la pantalla donde alguien decide.
 ///
-/// Va en una ventana y no en una tarjeta más de la ficha
+/// Va en una ventana y no en una tarjeta más de el lead
 /// porque es UNA DECISIÓN, y una decisión merece que uno se
-/// detenga. En la ficha quedaba entre otras diez tarjetas, con
+/// detenga. En el lead quedaba entre otras diez tarjetas, con
 /// scroll, y se resolvía sin mirar.
 ///
 /// Y va con dos opciones por campo en vez de una casilla. Una
@@ -88,7 +88,7 @@ export function RevisarPropuesta({
         <header className="border-b border-borde p-6">
           <h2 className="text-lg font-semibold">El interesado completó sus datos</h2>
           <p className="mt-1 text-sm text-texto-suave">
-            Usted ya había tocado esta ficha, así que nada se sobrescribió. Decida
+            Usted ya había tocado este lead, así que nada se sobrescribió. Decida
             campo por campo.
           </p>
           <div className="mt-3 flex flex-wrap items-center gap-3 text-sm">

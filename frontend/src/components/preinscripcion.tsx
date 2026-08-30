@@ -209,7 +209,7 @@ export function PreinscripcionPublica({ slug }: { slug: string }) {
             pedirle trabajo a cambio de nada */}
         {pantalla === "eleccion" && (
           <>
-        <section className="rounded-2xl border border-borde bg-superficie p-6 shadow-sm">
+        <section className="rounded-2xl border border-borde bg-superficie p-6">
           <h2 className="text-lg font-semibold">Ubicación de domicilio</h2>
           <p className="mt-1 text-sm text-texto-suave">
             Seleccione su departamento y ciudad para consultar las acciones de formación
@@ -333,7 +333,7 @@ export function PreinscripcionPublica({ slug }: { slug: string }) {
           alCambiar={() => setPantalla("eleccion")}
         />
 
-        <section className="rounded-2xl border border-borde bg-superficie p-6 shadow-sm">
+        <section className="rounded-2xl border border-borde bg-superficie p-6">
           <h2 className="text-lg font-semibold">Datos Personales</h2>
           <p className="mt-1 text-sm text-texto-suave">
             Para formalizar su inscripción, complete la siguiente información:
@@ -506,7 +506,7 @@ export function PreinscripcionPublica({ slug }: { slug: string }) {
             tomaron. */}
         {pantalla === "habeas" && (
           <>
-        <section className="rounded-2xl border border-borde bg-superficie p-6 shadow-sm">
+        <section className="rounded-2xl border border-borde bg-superficie p-6">
           <h2 className="text-lg font-semibold">
             {catalogo.politica?.titulo ?? "Política y Tratamiento de Datos Personales"}
           </h2>
@@ -571,7 +571,7 @@ export function PreinscripcionPublica({ slug }: { slug: string }) {
               <button
                 type="submit"
                 disabled={enviando}
-                className="rounded-xl bg-marca px-7 py-3.5 font-medium text-marca-texto shadow-sm transition hover:bg-marca-fuerte disabled:opacity-50"
+                className="rounded-xl bg-marca px-7 py-3.5 font-medium text-marca-texto transition hover:bg-marca-fuerte disabled:opacity-50"
               >
                 {enviando ? "Registrando…" : "Está correcto, reservar mi cupo"}
               </button>
@@ -668,7 +668,7 @@ function BotonesDePaso({
         type="button"
         disabled={bloqueado}
         onClick={alSeguir}
-        className="flex-1 rounded-xl bg-marca px-6 py-3 font-medium text-marca-texto shadow-sm transition hover:bg-marca-fuerte disabled:opacity-50"
+        className="flex-1 rounded-xl bg-marca px-6 py-3 font-medium text-marca-texto transition hover:bg-marca-fuerte disabled:opacity-50"
       >
         {adelante}
       </button>
@@ -750,7 +750,7 @@ function TarjetaAccion({
       type="button"
       onClick={alElegir}
       aria-pressed={elegida}
-      className={`flex flex-col gap-3 rounded-2xl border p-5 text-left shadow-sm transition ${
+      className={`flex flex-col gap-3 rounded-2xl border p-5 text-left transition ${
         elegida
           ? "border-2 border-marca bg-superficie"
           : "border-borde bg-superficie hover:border-campo-borde"
@@ -887,7 +887,7 @@ function Registrada({ token, nombre }: { token: string; nombre: string }) {
 
       <a
         href={`/completar/${token}`}
-        className="mt-8 inline-block rounded-xl bg-marca px-6 py-3 font-medium text-marca-texto shadow-sm transition hover:bg-marca-fuerte"
+        className="mt-8 inline-block rounded-xl bg-marca px-6 py-3 font-medium text-marca-texto transition hover:bg-marca-fuerte"
       >
         Continuar con mi inscripción a la acción de formación
       </a>

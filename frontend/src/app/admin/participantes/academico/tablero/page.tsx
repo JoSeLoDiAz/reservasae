@@ -238,10 +238,10 @@ export default function PaginaTableroAcademico() {
   const contraAcota = contra ? acota(contra, contraDesde, contraHasta) : true;
 
   return (
-    <div className="space-y-6">
-      <header className="flex flex-wrap items-start justify-between gap-4">
+    <div>
+      <header className="border-b border-borde bg-superficie px-7 pt-[26px] pb-[22px] flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Tablero académico</h1>
+          <h1 className="text-[1.3125rem] font-bold tracking-[-0.02em] text-titulo">Tablero académico</h1>
           <p className="mt-1 max-w-3xl text-texto-suave">
             Cómo va cada acción de formación, cada grupo y cada asesor, con la cola de
             trabajo delante. Persona a persona, quién va al día y quién no, está en{" "}
@@ -259,8 +259,8 @@ export default function PaginaTableroAcademico() {
         />
       </header>
 
-      <section className="no-imprimir rounded-2xl border border-borde bg-superficie p-5 shadow-sm">
-        <div className="grid gap-4 lg:grid-cols-2">
+      <section className="no-imprimir border-b border-borde bg-superficie px-7 py-5">
+        <div className="grid lg:grid-cols-2">
           <div>
             <label className="mb-1.5 block text-sm font-medium" htmlFor="periodo-aula">
               Periodo
@@ -418,7 +418,7 @@ function Cuerpo({ d, adminId }: { d: TableroAcademico; adminId: string }) {
   const reparto = repartoTotal(d.porAccion);
 
   return (
-    <div className="space-y-6">
+    <div>
       {d.sinMedir > 0 && <AvisoMedibles d={d} />}
 
       <ColaDeTrabajo
@@ -445,7 +445,7 @@ function Cuerpo({ d, adminId }: { d: TableroAcademico; adminId: string }) {
           </p>
         </div>
 
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-px border-t border-b border-hairline bg-hairline sm:grid-cols-2 lg:grid-cols-4">
           <TarjetaCifra
             titulo="En el aula"
             valor={d.total}
@@ -501,7 +501,7 @@ function Cuerpo({ d, adminId }: { d: TableroAcademico; adminId: string }) {
             titulo="Las tasas del aula"
             descripcion="Cada una con su fracción debajo: sin el denominador, un porcentaje no se puede juzgar."
           >
-            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="grid sm:grid-cols-2 lg:grid-cols-4">
               <Tasa
                 titulo="Terminación"
                 parte={d.certificados}
@@ -539,7 +539,7 @@ function Cuerpo({ d, adminId }: { d: TableroAcademico; adminId: string }) {
             </p>
           </Tarjeta>
 
-          <div className="grid gap-6 lg:grid-cols-2">
+          <div className="grid lg:grid-cols-2">
             <Tarjeta
               titulo="En qué acabó cada quien"
               descripcion="Las seis etapas del aula suman exactamente los que entraron."
@@ -550,7 +550,7 @@ function Cuerpo({ d, adminId }: { d: TableroAcademico; adminId: string }) {
                   valor: reparto[i],
                   color: colorEtapa(r.etapa),
                 }))}
-                tamano={168}
+                tamano={188}
                 centro={n(d.total)}
                 detalleCentro="en el aula"
               />
@@ -568,7 +568,7 @@ function Cuerpo({ d, adminId }: { d: TableroAcademico; adminId: string }) {
                 <div className="text-center">
                   <Anillo
                     porcentaje={d.avanceMedio * 100}
-                    tamano={168}
+                    tamano={188}
                     etiqueta="Avance medio"
                   />
                   <p className="mt-2 text-xs tabular-nums text-texto-suave">
@@ -706,7 +706,7 @@ function ColaDeTrabajo({
           <>
             <Termometro tramos={tramos} />
 
-            <div className="mt-6 grid gap-6 sm:grid-cols-2">
+            <div className="mt-6 grid sm:grid-cols-2">
               <Tasa
                 titulo="Sin entrar hace 15 días o más, o nunca"
                 parte={urgentes}
@@ -728,7 +728,7 @@ function ColaDeTrabajo({
         )}
       </Tarjeta>
 
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid lg:grid-cols-2">
         <Tarjeta
           titulo="Grupos vencidos con gente dentro"
           descripcion="La fecha de fin ya pasó y siguen con gente en formación: hay que cerrarlos o justificarlos."

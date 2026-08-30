@@ -48,6 +48,27 @@ export const ETAPAS_AVANCE: Etapa[] = [
  * las dos partes obliga a mirar dos sitios para saber si
  * queda trabajo pendiente.
  */
+/**
+ * Las cinco del embudo de LEADS. Ni una más.
+ *
+ * Espejo de `ETAPAS_DEL_EMBUDO` del backend, que es la lista que
+ * usa el filtro `tramo: "INSCRIPCION"` de esta misma pantalla.
+ * Tienen que ser la misma o el embudo cuenta una cosa y la tabla
+ * de debajo otra.
+ *
+ * Lo que va DESPUÉS de matricular —En formación, Certificado,
+ * Retirado, No aprobó, Desertó, Abandonó— es de Gestión
+ * Académica y no pinta nada aquí: son el seguimiento del grupo,
+ * no el trabajo del asesor.
+ */
+export const ETAPAS_DEL_EMBUDO: Etapa[] = [
+  "INTERESADO",
+  "CONTACTADO",
+  "DATOS_COMPLETOS",
+  "INSCRITO",
+  "PERDIDO",
+];
+
 export const ETAPAS_DE_INSCRIPCION: Etapa[] = [
   "INTERESADO",
   "CONTACTADO",
@@ -1082,3 +1103,25 @@ export function diasDesde(fecha: string): number {
   const ms = Date.now() - new Date(fecha).getTime();
   return Math.max(0, Math.floor(ms / 86_400_000));
 }
+
+/** Una importacion del historico. */
+export type CargaDelHistorico = {
+  id: string;
+  creadoEn: string;
+  autor: string;
+  origen: "ARCHIVO" | "PEGADO";
+  nombreArchivo: string | null;
+  filas: number;
+  creados: number;
+  yaExistian: number;
+  duplicados: number;
+  descartados: number;
+  fallidos: number;
+  convenio: string;
+  destino: string | null;
+};
+
+export const historicoDeCargas = (convenioId?: string) =>
+  pedir<CargaDelHistorico[]>(
+    `/admin/participantes/carga/historico${convenioId ? `?convenioId=${convenioId}` : ""}`,
+  );

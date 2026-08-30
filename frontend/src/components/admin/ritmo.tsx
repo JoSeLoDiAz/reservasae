@@ -61,7 +61,7 @@ export function BloqueRitmo({ informe }: { informe: InformeProyeccion }) {
 
   return (
     <div className="space-y-4">
-      <div className="imprimible-bloque grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="imprimible-bloque grid gap-px border-t border-b border-hairline bg-hairline sm:grid-cols-2 lg:grid-cols-4">
         <TarjetaCifra
           titulo={`Ritmo (${informe.dias} días)`}
           valor={ritmo(t.ritmoDiario)}

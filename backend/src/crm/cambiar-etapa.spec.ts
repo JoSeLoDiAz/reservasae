@@ -48,6 +48,8 @@ type Opciones = {
   ventana?: string;
   /// false = la empresa le viene de su reserva, no propia.
   empresaPropia?: boolean;
+  /// El disparador se queja (p.ej. a la empresa le faltan los 3 datos).
+  disparadorFalla?: boolean;
 };
 
 function armar(o: Opciones) {
@@ -114,11 +116,23 @@ function armar(o: Opciones) {
       }),
   };
 
+  /// A quien se le disparo la validacion de su empresa.
+  const inscritos: string[] = [];
+  const disparador = {
+    alInscribir: (id: string) => {
+      inscritos.push(id);
+      return o.disparadorFalla
+        ? Promise.reject(new Error('faltan persona de contacto, cargo y correo'))
+        : Promise.resolve('ENCOLADO');
+    },
+  };
+
   const s = new CrmService(
     prisma as never,
     { registrar: () => Promise.resolve() } as never,
     { encolarSiHaceFalta: () => Promise.resolve() } as never,
     cupos as never,
+    disparador as never,
   );
 
   /// Otra cosa, y ya probada en `completitud.spec`.
@@ -128,19 +142,19 @@ function armar(o: Opciones) {
     .mockResolvedValue({ bloquean: [], avisan: [], reporte: [] } as never);
   jest.spyOn(s, 'obtener').mockResolvedValue({ id: 'p1', ok: true } as never);
 
-  return { s, escrituras };
+  return { s, escrituras, inscritos };
 }
 
 const ADMIN = { id: 'a1', nombre: 'Ana Jaramillo' };
 
 /** Lo que contesta el método: el resultado o el mensaje del error. */
 async function pasarA(opciones: Opciones, etapa: string, cierran: string[] = ['c1']) {
-  const { s, escrituras } = armar(opciones);
+  const { s, escrituras, inscritos } = armar(opciones);
   try {
     await s.cambiarEtapa('p1', { etapa } as never, ADMIN as never, ['c1'], undefined, cierran);
-    return { ok: true, mensaje: '', escrituras };
+    return { ok: true, mensaje: '', escrituras, inscritos };
   } catch (e) {
-    return { ok: false, mensaje: (e as Error).message, escrituras };
+    return { ok: false, mensaje: (e as Error).message, escrituras, inscritos };
   }
 }
 
@@ -309,5 +323,42 @@ describe('la organización sale de la suya O de la de su reserva', () => {
     await expect(
       s.cambiarEtapa('p1', { etapa: 'INSCRITO' } as never, ADMIN as never, ['c1'], undefined, ['c1']),
     ).rejects.toThrow(/organización/i);
+  });
+});
+
+describe('entrar a INSCRITO dispara la validacion de su empresa', () => {
+  /// El buscador web completa la ficha de la empresa, pero eso es un
+  /// complemento del cambio de etapa, no un requisito suyo.
+  it('al pasar a INSCRITO se dispara, con el id del participante', async () => {
+    const r = await pasarA(
+      { etapa: 'INTERESADO', motivo: null, ventana: 'ABIERTA' },
+      'INSCRITO',
+    );
+
+    expect(r.ok).toBe(true);
+    expect(r.inscritos).toEqual(['p1']);
+  });
+
+  it('las demas etapas no lo disparan', async () => {
+    const r = await pasarA(
+      { etapa: 'INTERESADO', motivo: null, ventana: 'ABIERTA' },
+      'CONTACTADO',
+    );
+
+    expect(r.ok).toBe(true);
+    expect(r.inscritos).toEqual([]);
+  });
+
+  /// Esto es lo que separa un complemento de un requisito: si a la
+  /// empresa le faltan los 3 datos de contacto, el disparador se queja
+  /// y la inscripcion tiene que seguir su curso igual.
+  it('si el disparador se queja, la etapa cambia de todos modos', async () => {
+    const r = await pasarA(
+      { etapa: 'INTERESADO', motivo: null, ventana: 'ABIERTA', disparadorFalla: true },
+      'INSCRITO',
+    );
+
+    expect(r.ok).toBe(true);
+    expect(r.inscritos).toEqual(['p1']);
   });
 });
