@@ -82,6 +82,37 @@ export default function PaginaParticipantes() {
   }, [cargar]);
 
 
+  /// El ERROR va antes que el «Cargando…», y ese orden es el
+  /// arreglo.
+  ///
+  /// Estaba al revés: si la petición fallaba, `filas` se
+  /// quedaba en null y la pantalla decía «Cargando…» para
+  /// siempre. El mensaje se guardaba en `error` y no llegaba a
+  /// pintarse nunca, porque este `return` cortaba antes.
+  ///
+  /// Una pantalla que se queda cargando no se puede
+  /// diagnosticar: no dice si el servidor está caído, si la
+  /// sesión caducó o si hay un fallo de datos. Ahora lo dice.
+  if (error && !filas) {
+    return (
+      <div className="space-y-4">
+        <Aviso tipo="error">
+          <p className="font-medium">No se pudo cargar la lista</p>
+          <p className="mt-1">{error}</p>
+        </Aviso>
+        <button
+          onClick={() => {
+            setError(null);
+            void cargar().catch((e) => setError((e as ErrorApi).message));
+          }}
+          className={CLASE_BOTON}
+        >
+          Reintentar
+        </button>
+      </div>
+    );
+  }
+
   if (!filas || !resumen) {
     return <p className="text-texto-suave">Cargando…</p>;
   }

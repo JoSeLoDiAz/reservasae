@@ -84,12 +84,23 @@ export function EnviarCorreo({ participanteId }: { participanteId: string }) {
 
   if (!abierto) {
     return (
+      /// El boton verde relleno del diseno, con sus valores
+      /// exactos: #16a06a, radio 11, padding 13, 600 14px.
       <button
         type="button"
         onClick={() => setAbierto(true)}
-        className="rounded-xl border border-marca px-4 py-2 text-sm font-medium text-marca transition hover:bg-marca-suave"
+        style={{
+          background: "#16a06a",
+          color: "#fff",
+          border: "none",
+          borderRadius: 11,
+          padding: 13,
+          fontWeight: 600, fontSize: 14,
+          cursor: "pointer",
+          width: "100%",
+        }}
       >
-        Escribirle un correo
+        Escribir un correo
       </button>
     );
   }

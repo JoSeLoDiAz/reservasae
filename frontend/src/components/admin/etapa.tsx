@@ -31,6 +31,7 @@ export function estiloEtapa(etapa: Etapa): CSSProperties {
 export function PildoraEtapa({ etapa }: { etapa: Etapa }) {
   return (
     <span className="pildora-etapa" style={estiloEtapa(etapa)}>
+      <span className="punto-etapa" aria-hidden />
       {ETIQUETA_ETAPA[etapa]}
     </span>
   );

@@ -2,7 +2,15 @@
 
 import { useEffect, useMemo, useState } from "react";
 
-import { Boton, Campo, CLASE_CONTROL, Tarjeta } from "@/components/admin/marco-admin";
+import {
+  Boton,
+  Campo,
+  CLASE_CONTROL,
+  EncabezadoSeccion,
+  RotuloDeGrupo,
+  Tarjeta,
+} from "@/components/admin/marco-admin";
+import { IconoPerfil } from "@/components/admin/iconos";
 import { crmApi, type CatalogosSep, type Ficha } from "@/lib/crm-api";
 
 /** Lo que el cargue al SEP necesita de cada persona. */
@@ -52,6 +60,42 @@ function desdeFicha(f: Ficha): Campos {
   };
 }
 
+
+/// Un dato en modo lectura: rotulo pequenio arriba, valor
+/// debajo. Es como se ve el 90 % del tiempo.
+function Leido({ etiqueta, valor }: { etiqueta: string; valor: React.ReactNode }) {
+  return (
+    <div className="min-w-0">
+      <p className="text-xs font-medium text-texto-suave">{etiqueta}</p>
+      <p className="mt-1 truncate text-sm font-medium">
+        {valor === "" || valor === null || valor === undefined ? (
+          <span className="text-texto-suave">—</span>
+        ) : (
+          valor
+        )}
+      </p>
+    </div>
+  );
+}
+
+/// Un grupo de campos: su rotulo verde y la rejilla de dos.
+function Grupo({
+  titulo,
+  children,
+}: {
+  titulo: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="border-b border-borde py-4 last:border-b-0">
+      <RotuloDeGrupo>{titulo}</RotuloDeGrupo>
+      <div className="mt-3 grid gap-x-6 gap-y-3.5 sm:grid-cols-2">
+        {children}
+      </div>
+    </div>
+  );
+}
+
 export function DatosSena({
   ficha,
   alGuardar,
@@ -62,6 +106,14 @@ export function DatosSena({
   const [catalogos, setCatalogos] = useState<CatalogosSep | null>(null);
   const [c, setC] = useState<Campos>(() => desdeFicha(ficha));
   const [guardando, setGuardando] = useState(false);
+  /// Lectura por defecto, edicion a peticion.
+  ///
+  /// Los veinte campos salian SIEMPRE como cajas de input, y
+  /// eso convierte una ficha que se consulta cien veces al dia
+  /// en un formulario que parece a medio llenar. En lectura se
+  /// leen como datos; el boton los abre cuando hay algo que
+  /// corregir.
+  const [editando, setEditando] = useState(false);
 
   useEffect(() => {
     void crmApi.catalogos().then(setCatalogos).catch(() => setCatalogos(null));
@@ -139,7 +191,134 @@ export function DatosSena({
       /// plegarla solo servía para esconder lo que se viene a
       /// mirar.
     >
-      <div className="space-y-4">
+      <EncabezadoSeccion
+        icono={<IconoPerfil tamano={18} />}
+        titulo={
+          ficha.etapa === "INSCRITO"
+            ? "Datos del inscrito"
+            : "Datos del interesado"
+        }
+        descripcion="Información básica de identificación del beneficiario."
+        accion={
+          <button
+            type="button"
+            onClick={() => {
+              /// Al cancelar se descarta lo tecleado y se vuelve
+              /// a lo guardado. Sin esto, cerrar la edicion
+              /// dejaria a la vista valores que no estan en la
+              /// base y nadie sabria cuales.
+              if (editando) setC(desdeFicha(ficha));
+              setEditando(!editando);
+            }}
+            className={
+              editando
+                ? "shrink-0 rounded-lg border border-error/40 bg-error-suave px-4 py-2 text-sm font-semibold text-error"
+                : "shrink-0 rounded-lg bg-gestion-fondo px-4 py-2 text-sm font-semibold text-gestion-texto"
+            }
+          >
+            {editando ? "Cancelar" : "Editar datos"}
+          </button>
+        }
+      />
+
+      {!editando && (
+        <div className="mt-2">
+          <Grupo titulo="Identificación">
+            <Leido
+              etiqueta="Tipo de documento"
+              valor={
+                catalogos?.documentosPersona.find(
+                  (d) => d.id === ficha.persona.tipoDocumentoSepId,
+                )?.etiqueta ?? String(ficha.persona.tipoDocumentoSepId)
+              }
+            />
+            <Leido
+              etiqueta="Número de documento"
+              valor={ficha.persona.numeroDocumento}
+            />
+          </Grupo>
+
+          <Grupo titulo="Nombre completo">
+            <Leido etiqueta="Primer nombre" valor={c.primerNombre} />
+            <Leido etiqueta="Segundo nombre" valor={c.segundoNombre} />
+            <Leido etiqueta="Primer apellido" valor={c.primerApellido} />
+            <Leido etiqueta="Segundo apellido" valor={c.segundoApellido} />
+          </Grupo>
+
+          <Grupo titulo="Perfil">
+            <Leido
+              etiqueta="Fecha de nacimiento"
+              valor={
+                c.fechaNacimiento
+                  ? new Date(`${c.fechaNacimiento}T00:00:00`).toLocaleDateString(
+                      "es-CO",
+                    )
+                  : ""
+              }
+            />
+            <Leido
+              etiqueta="Género"
+              valor={
+                (catalogos?.generos ?? []).find((g) => g.id === c.generoSepId)
+                  ?.etiqueta ?? ""
+              }
+            />
+            <Leido
+              etiqueta="Estrato socioeconómico"
+              valor={c.estrato === null ? "" : String(c.estrato)}
+            />
+            <Leido
+              etiqueta="Nivel ocupacional"
+              valor={
+                (catalogos?.nivelesOcupacionales ?? []).find(
+                  (n) => n.id === c.nivelOcupacionalSepId,
+                )?.etiqueta ?? ""
+              }
+            />
+          </Grupo>
+
+          <Grupo titulo="Contacto">
+            <Leido etiqueta="Correo" valor={c.correo} />
+            <Leido etiqueta="Celular" valor={c.celular} />
+          </Grupo>
+
+          <Grupo titulo="Domicilio">
+            <Leido
+              etiqueta="Departamento"
+              valor={
+                (catalogos?.departamentos ?? []).find(
+                  (d) => d.id === c.departamentoSepId,
+                )?.etiqueta ?? ""
+              }
+            />
+            <Leido
+              etiqueta="Municipio"
+              valor={
+                municipios.find((m) => m[0] === c.municipioSepId)?.[2] ?? ""
+              }
+            />
+            <Leido etiqueta="Barrio o vereda" valor={c.barrio} />
+            <Leido etiqueta="Dirección" valor={c.direccion} />
+          </Grupo>
+
+          <Grupo titulo="Vínculo">
+            <Leido etiqueta="Cargo en la empresa" valor={c.cargoEnEmpresa} />
+            <Leido
+              etiqueta="¿Se ha beneficiado antes?"
+              valor={
+                c.beneficiarioPrevio === null
+                  ? ""
+                  : c.beneficiarioPrevio
+                    ? "Sí"
+                    : "No"
+              }
+            />
+          </Grupo>
+        </div>
+      )}
+
+      {editando && (
+      <div className="mt-4 space-y-4">
         <div className="grid gap-4 sm:grid-cols-2">
           {/* El documento no se edita: es la llave de la
               persona en todo el sistema y cambiarlo aqui
@@ -347,20 +526,25 @@ export function DatosSena({
           </Campo>
         </div>
 
-        <div className="flex items-center gap-3">
-          {/* Gris hasta que haya algo que guardar.
-              
-              Un botón siempre activo no dice si uno tocó algo
-              o no, y en una tarjeta de veinte campos esa duda
-              es constante. Igual que «Guardar asignación». */}
+        <div className="flex justify-end">
+          {/* Gris hasta que haya algo que guardar: un boton
+              siempre activo no dice si uno toco algo o no. */}
           <Boton onClick={guardar} disabled={guardando || !hayCambios}>
-            {guardando ? "Guardando…" : "Guardar"}
+            {guardando ? "Guardando…" : "Guardar cambios"}
           </Boton>
-          <span className="text-xs text-texto-suave">
-            La caracterización de población se pedirá aparte: es dato sensible.
-          </span>
         </div>
       </div>
+      )}
+
+      {/* La nota del dato sensible va SIEMPRE, se este leyendo o
+          editando: es una advertencia sobre lo que esta pantalla
+          NO pide, y esconderla en un modo la haria aparecer y
+          desaparecer sin motivo. */}
+      <p className="mt-4 flex items-center gap-2 border-t border-borde pt-4 text-xs text-texto-suave">
+        <span aria-hidden>🔒</span>
+        La caracterización poblacional se gestiona por separado por tratarse de
+        datos sensibles.
+      </p>
     </Tarjeta>
   );
 }
