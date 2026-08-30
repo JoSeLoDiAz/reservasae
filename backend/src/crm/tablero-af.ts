@@ -3,6 +3,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { diaBogota } from '../comun/dia-bogota';
 import { DEPARTAMENTOS_SEP } from './catalogos-sep.generado';
 import {
+  CANALES_DE_ORIGEN_DE_LEAD,
   ETIQUETA_ORIGEN_DE_LEAD,
   origenDeLeadSql,
   type OrigenDeLead,
@@ -48,7 +49,12 @@ export type TableroAf = {
   filas: FilaDelTablero[];
   totales: Omit<FilaDelTablero, 'departamento'>;
   /// Para el gráfico de puertas, ya sumado.
-  porPuerta: Array<{ puerta: OrigenDeLead; etiqueta: string; total: number }>;
+  porPuerta: Array<{
+    puerta: OrigenDeLead;
+    etiqueta: string;
+    canales: string;
+    total: number;
+  }>;
   /// Lo que la pauta volvió a tocar SIN ser suyo: gente que ya
   /// estaba en el sistema y que el anuncio trajo de vuelta.
   /// Se cuenta aparte para que la campaña conste sin quitarle
@@ -310,6 +316,7 @@ export async function tableroPorAccion(
     porPuerta: claves.map((c) => ({
       puerta: c,
       etiqueta: ETIQUETA_ORIGEN_DE_LEAD[c],
+      canales: CANALES_DE_ORIGEN_DE_LEAD[c],
       total: puertas[c].base,
     })),
     conversion: claves.map((c) => ({

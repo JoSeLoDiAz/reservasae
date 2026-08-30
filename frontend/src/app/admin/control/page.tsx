@@ -334,17 +334,7 @@ export default function PaginaControl() {
         )}
 
         <p className="mt-3 text-xs text-texto-suave">
-          El periodo acota los inscritos, el ritmo y las series por día. Las colas de trabajo, los cupos, la cobertura, la conversión y las organizaciones muestran siempre la situación actual. Compare con otro periodo para saber si la captación mejora, se sostiene o se estanca.
-          {rango === "PERSONALIZADO" && (!desde || !hasta) && (
-            <span className="text-aviso"> Faltan las dos fechas, así que se muestra todo.</span>
-          )}
-          {contra === "PERSONALIZADO" && (!contraDesde || !contraHasta) && (
-            <span className="text-aviso">
-              {" "}
-              A la comparación le faltan fechas, así que no hay con qué comparar.
-            </span>
-          )}
-        </p>
+          El periodo acota los inscritos, el ritmo y las series por día. Todo lo demás muestra la situación de hoy.</p>
       </div>
 
       {vivos.error ? (
@@ -421,6 +411,43 @@ function Cuerpo({ d, adminId, eligio }: { d: Control; adminId: string; eligio: b
   const conOrigen = d.porOrigen.reduce((s, o) => s + o.total, 0);
   const conModalidad = d.porModalidad.reduce((s, m) => s + m.total, 0);
 
+  // lo que hay que hacer, sacado de las mismas cifras
+  const sinNombre = Math.max(0, d.cuposConfirmados - d.inscritosConReserva);
+  const mejorCanal = [...d.conversionPorOrigen]
+    .filter((o) => o.leads >= 5)
+    .sort((a, b) => b.conversion - a.conversion)[0];
+  const empresaFloja = [...d.topEmpresas].sort(
+    (a, b) => b.cupos - b.inscritos - (a.cupos - a.inscritos),
+  )[0];
+
+  const prioridades: Array<{ tono: Tono; que: string; hacer: string }> = [];
+  if (sinNombre > 0)
+    prioridades.push({
+      tono: cobertura >= 0.8 ? "bueno" : cobertura >= 0.4 ? "normal" : "aviso",
+      que: `${n(sinNombre)} de los ${n(d.cuposConfirmados)} cupos apartados no tienen todavía un nombre detrás.`,
+      hacer: empresaFloja
+        ? `La que más debe es ${empresaFloja.razonSocial}, con ${n(empresaFloja.cupos - empresaFloja.inscritos)} pendientes. Pídale los nombres.`
+        : "Pida los nombres a las organizaciones que apartaron cupos.",
+    });
+  if (frios > 0)
+    prioridades.push({
+      tono: "aviso",
+      que: `${n(frios)} de los ${n(esperando)} leads que esperan una primera llamada llevan más de una semana.`,
+      hacer: "Llámelos hoy: cuanto más se enfría un lead, menos se inscribe.",
+    });
+  if (d.sinAsignar > 0)
+    prioridades.push({
+      tono: "normal",
+      que: `${n(d.sinAsignar)} leads no tienen asesor asignado.`,
+      hacer: "Repártalos, porque hoy no los está llamando nadie.",
+    });
+  if (mejorCanal)
+    prioridades.push({
+      tono: "bueno",
+      que: `El canal que mejor rinde es «${ETIQUETA_ORIGEN[mejorCanal.etiqueta as Origen] ?? mejorCanal.etiqueta}»: inscribe a ${porcentaje(mejorCanal.conversion)} de los que trae.`,
+      hacer: "Es por donde conviene meter esfuerzo antes que por el que más volumen trae.",
+    });
+
   return (
     <div className="flex flex-col gap-3">
       {/* las cifras de cabecera */}
@@ -451,6 +478,34 @@ function Cuerpo({ d, adminId, eligio }: { d: Control; adminId: string; eligio: b
           delta={{ valor: d.variacion.diasHastaInscribir, contra, invertido: true }}
         />
       </section>
+
+      {/* lo que hay que hacer, antes que cómo se calcula */}
+      {prioridades.length > 0 && (
+        <Bloque
+          titulo="Qué atender primero"
+          descripcion="Lo que estas cifras piden hacer hoy, en orden."
+        >
+          <ul className="space-y-2.5">
+            {prioridades.map((p) => (
+              <li key={p.que} className="flex gap-2.5">
+                <span
+                  className={`mt-[6px] size-2 shrink-0 rounded-full ${
+                    p.tono === "aviso"
+                      ? "bg-error"
+                      : p.tono === "bueno"
+                        ? "bg-exito"
+                        : "bg-aviso"
+                  }`}
+                />
+                <p className="text-[0.8125rem] leading-snug">
+                  <span className="font-medium text-titulo">{p.que}</span>{" "}
+                  <span className="text-texto-suave">{p.hacer}</span>
+                </p>
+              </li>
+            ))}
+          </ul>
+        </Bloque>
+      )}
 
       {/* la cola de trabajo: un solo bloque, no dos */}
       <Bloque
@@ -504,8 +559,8 @@ function Cuerpo({ d, adminId, eligio }: { d: Control; adminId: string; eligio: b
 
       {/* las tasas */}
       <Bloque
-        titulo="Las tres tasas"
-        descripcion="Avance frente a lo comprometido en el proyecto. Miden la situación actual, no la de un periodo."
+        titulo="Cómo va contra lo comprometido"
+        descripcion="La situación de hoy, no la del periodo."
       >
         <div className="grid sm:grid-cols-3">
           <Tasa
@@ -534,37 +589,21 @@ function Cuerpo({ d, adminId, eligio }: { d: Control; adminId: string; eligio: b
             detalle="leads que llegaron a inscrito"
           />
           <Tasa
-            titulo="Llegaron por su cuenta"
+            titulo="Sin cupo de una empresa"
             parte={d.inscritosPorSuCuenta}
             total={inscritosSiempre}
-            detalle="el resto entró por un cupo reservado"
+            detalle="el resto ocupa un cupo que apartó una organización"
           />
         </div>
 
-        <p className="mt-5 border-t border-borde pt-3 text-xs text-texto-suave">
-          La cobertura no se mueve al cambiar el periodo, y es a propósito: los cupos salen
-          de reservas y no pueden llevar ventana, así que medir contra ellos unos inscritos
-          recortados daría «0 % de cobertura» con solo elegir «ayer». Solo cuenta a quien
-          ocupa un cupo reservado: los{" "}
-          <strong className="font-medium tabular-nums">{n(d.inscritosPorSuCuenta)}</strong>{" "}
-          que llegaron por redes, feria o referido no tienen ninguna reserva detrás.
-        </p>
       </Bloque>
 
       {/* el embudo y el ritmo */}
       <section className="grid lg:grid-cols-3">
         <Bloque
           estirado
-          titulo="El embudo"
-          descripcion={
-            <>
-              Una foto de dónde está cada quien <strong className="font-medium">hoy</strong>:
-              cada persona cuenta en un solo peldaño, así que no es un acumulado y los
-              peldaños no se restan entre sí. Va por la fecha en que{" "}
-              <strong className="font-medium">llegó el lead</strong>, no por la de
-              inscripción.
-            </>
-          }
+          titulo="En qué punto está cada quien"
+          descripcion="Dónde está hoy cada persona que llegó en el periodo. Cada una cuenta en un solo peldaño."
         >
           <ul className="space-y-3">
             {escalones.map((e) => (
@@ -621,8 +660,8 @@ function Cuerpo({ d, adminId, eligio }: { d: Control; adminId: string; eligio: b
       {/* el origen: volumen y calidad */}
       <section className="grid lg:grid-cols-2">
         <Bloque
-          titulo="De dónde vienen: volumen"
-          descripcion="Canal de entrada de los inscritos del periodo. Indica cuál aporta más registros, no cuál los aporta mejores."
+          titulo="Qué canal trae más"
+          descripcion="Por dónde entraron los inscritos del periodo."
         >
           <Donut
             datos={d.porOrigen.map((o) => ({
@@ -636,8 +675,8 @@ function Cuerpo({ d, adminId, eligio }: { d: Control; adminId: string; eligio: b
         </Bloque>
 
         <Bloque
-          titulo="De dónde vienen: calidad"
-          descripcion="Porcentaje de leads que cada canal llega a inscribir, sobre su histórico completo. Un canal puede aportar mucho volumen y convertir poco: es la cifra que indica dónde conviene invertir."
+          titulo="Qué canal inscribe más"
+          descripcion="De cada canal, cuántos acaba inscribiendo. Traer mucho no es traer bueno."
         >
           <BarrasApiladas
             filas={d.conversionPorOrigen.map((o) => ({
@@ -657,7 +696,7 @@ function Cuerpo({ d, adminId, eligio }: { d: Control; adminId: string; eligio: b
       {/* los asesores */}
       <Bloque
         titulo="Por asesor"
-        descripcion="Rendimiento de cada asesor, ordenado por su tasa de conversión histórica: inscritos sobre el total de leads que ha gestionado. Mide desempeño sostenido, no la actividad de un día."
+        descripcion="Cuántos inscribe cada asesor de los leads que ha llevado. Ordenado por eso, no por la actividad de un día."
       >
         {mio && (
           <p className="mb-4 rounded-xl bg-marca-suave px-3 py-2 text-sm">
@@ -724,7 +763,7 @@ function Cuerpo({ d, adminId, eligio }: { d: Control; adminId: string; eligio: b
       <section className="grid lg:grid-cols-2">
         <Bloque
           titulo="Las organizaciones con más nombres"
-          descripcion="Nombres registrados frente a los cupos que cada organización tiene reservados. La diferencia es lo que falta por completar. No depende del periodo seleccionado."
+          descripcion="Cuántos nombres ha entregado cada organización de los cupos que apartó. Lo que falta es a quién llamar."
         >
           {d.topEmpresas.length === 0 ? (
             <p className="py-6 text-center text-sm text-texto-suave">

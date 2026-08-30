@@ -29,7 +29,7 @@ type Tablero = {
   }>;
   filas: Fila[];
   totales: Omit<Fila, "departamento">;
-  porPuerta: Array<{ puerta: string; etiqueta: string; total: number }>;
+  porPuerta: Array<{ puerta: string; etiqueta: string; canales: string; total: number }>;
   rescatePorPauta: { tocados: number; yaEranDeOtro: number; inscritos: number };
   serie: Array<{ dia: string; llegaron: number; inscritos: number }>;
   conversion: Array<{
@@ -236,15 +236,19 @@ export function TableroPorAccion() {
           <section className="grid gap-6 border-t border-hairline pt-4 lg:grid-cols-2">
             <div>
               <h3 className="text-[0.625rem] font-semibold tracking-[0.1em] text-marca uppercase">
-                Por dónde entraron
+                Quién trajo el lead
               </h3>
+              <p className="mt-1 text-[0.71875rem] text-texto-suave">
+                Los canales sueltos —«Redes sociales», «La empresa lo nominó»— agrupados
+                en las tres formas en que llega alguien.
+              </p>
               <div className="mt-3">
                 <ListaBarras
                   datos={datos.porPuerta.map((c) => ({
                     clave: c.puerta,
                     etiqueta: c.etiqueta,
                     valor: c.total,
-                    detalle: t.total ? porcentaje(c.total / t.total) : undefined,
+                    detalle: `${c.canales}${t.total ? ` · ${porcentaje(c.total / t.total)}` : ""}`,
                   }))}
                   vacio="Sin leads que repartir."
                 />
@@ -272,11 +276,10 @@ export function TableroPorAccion() {
             </div>
             <div>
               <h3 className="text-[0.625rem] font-semibold tracking-[0.1em] text-marca uppercase">
-                Cuánto convierte cada canal
+                Cuántos acaba inscribiendo cada uno
               </h3>
               <p className="mt-1 text-[0.71875rem] text-texto-suave">
-                No es lo mismo que el volumen: un canal puede traer muchos leads y
-                convertir poco. Esta es la cifra que decide dónde reforzar.
+                Traer muchos no es traer buenos. Esta es la cifra que dice dónde reforzar.
               </p>
               <div className="mt-3">
                 <ListaBarras
@@ -304,8 +307,8 @@ export function TableroPorAccion() {
                   <tr>
                     <th>Departamento</th>
                     <th>Pauta</th>
-                    <th>Orgánico</th>
-                    <th>Importación</th>
+                    <th>Por su cuenta</th>
+                    <th>Lo cargó el equipo</th>
                     <th>En gestión</th>
                     <th>Inscritos</th>
                     <th>Descartados</th>

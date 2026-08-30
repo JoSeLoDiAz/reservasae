@@ -17,9 +17,19 @@ import { Prisma, type OrigenParticipante } from '../../generated/prisma';
 export type OrigenDeLead = 'PAUTA' | 'ORGANICO' | 'IMPORTACION';
 
 export const ETIQUETA_ORIGEN_DE_LEAD: Record<OrigenDeLead, string> = {
-  PAUTA: 'Pauta',
-  ORGANICO: 'Orgánico',
-  IMPORTACION: 'Importación',
+  PAUTA: 'Pauta pagada',
+  ORGANICO: 'Llegó por su cuenta',
+  IMPORTACION: 'Lo cargó el equipo',
+};
+
+/// Qué canales entran en cada grupo. Va a la pantalla porque
+/// al lado se listan los canales sueltos —«Redes sociales»,
+/// «La empresa lo nominó»— y sin esto son dos vocabularios
+/// para lo mismo, que es justo lo que no se entiende.
+export const CANALES_DE_ORIGEN_DE_LEAD: Record<OrigenDeLead, string> = {
+  PAUTA: 'redes sociales',
+  ORGANICO: 'se inscribió solo',
+  IMPORTACION: 'empresa, asesor, referido o feria',
 };
 
 /// Las redes de Meta: lo que se paga.
