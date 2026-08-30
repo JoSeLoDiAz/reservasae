@@ -240,7 +240,15 @@ export async function tableroPorAccion(
   /// tiene toque de pauta y primer origen de otro. Contarla
   /// como pauta le quitaria el lead a quien lo consiguio;
   /// no contarla dejaria la campaña sin constancia.
-  const rescate = await prisma.$queryRaw<
+  /// La tabla puede no existir todavia: en un clon local las
+  /// migraciones las corre una persona, no el arranque. En los
+  /// contenedores el CMD hace `migrate deploy` ANTES de servir,
+  /// asi que esta ventana no existe en produccion.
+  const [{ hay }] = await prisma.$queryRaw<Array<{ hay: boolean }>>(
+    Prisma.sql`SELECT to_regclass('public.toques_de_origen') IS NOT NULL AS hay`,
+  );
+
+  const rescate = !hay ? [] : await prisma.$queryRaw<
     Array<{ suya: boolean; total: bigint; inscritos: bigint }>
   >(Prisma.sql`
     SELECT

@@ -65,11 +65,15 @@ export function TableroPorAccion() {
     const q = new URLSearchParams();
     if (accionId) q.set("accionFormacionId", accionId);
     if (coberturaId) q.set("coberturaId", coberturaId);
-    setDatos(
-      await pedir<Tablero>(
-        `/admin/participantes/control/por-accion${q.size ? `?${q}` : ""}`,
-      ),
+    const t = await pedir<Tablero>(
+      `/admin/participantes/control/por-accion${q.size ? `?${q}` : ""}`,
     );
+    setDatos(t);
+    /// Entra con la primera puesta. Este es el corte que decide
+    /// dónde reforzar la captación, y arrancar con un bloque
+    /// vacío que pide elegir deja la pantalla diciendo nada
+    /// justo donde más tiene que decir.
+    if (!accionId && t.acciones.length > 0) setAccionId(t.acciones[0].id);
   }, [accionId, coberturaId]);
 
   useEffect(() => {
@@ -123,11 +127,8 @@ export function TableroPorAccion() {
         </div>
       }
     >
-      {!accionId ? (
-        <p className="text-[0.78125rem] text-texto-suave">
-          Elija una acción de formación para ver su comportamiento. El informe es por
-          acción: la suma de todas ya está en los cortes de arriba.
-        </p>
+      {!accionId || !datos ? (
+        <p className="text-[0.78125rem] text-texto-suave">Cargando el informe…</p>
       ) : !t || t.total === 0 ? (
         <p className="text-[0.78125rem] text-texto-suave">
           Esta acción todavía no tiene leads registrados
