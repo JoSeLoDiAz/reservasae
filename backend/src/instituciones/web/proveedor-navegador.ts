@@ -13,6 +13,7 @@
 ///   (web.service consulta N veces), así que aquí no se reintenta solo.
 
 import { spawn, type ChildProcess } from 'node:child_process';
+import { rmSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { Injectable, Logger, type OnModuleDestroy } from '@nestjs/common';
@@ -59,7 +60,12 @@ const NO_NOS_DEJARON =
 const PERFIL =
   process.env.WEB_NAVEGADOR_PERFIL ?? join(process.cwd(), '.perfil-buscador');
 
-const ARRANQUE = 20_000;
+/// 45 s, no 20: en el portatil Chrome abre el puerto en dos segundos,
+/// pero un chromium frio dentro del contenedor —con Xvfb recien
+/// levantado y el disco de la imagen— tarda bastante mas la primera vez.
+/// Ya no se pierde nada esperando: si el proceso se muere, se sale en el
+/// acto sin agotar el plazo.
+const ARRANQUE = 45_000;
 
 function rutaDeChrome(): string | null {
   return rutaDelNavegador(process.env.WEB_NAVEGADOR_RUTA);
@@ -120,6 +126,14 @@ export class ProveedorWebNavegador implements ProveedorWeb, OnModuleDestroy {
     const enContenedor =
       process.platform === 'linux' ? ['--no-sandbox', '--disable-dev-shm-usage'] : [];
 
+    /// Un Chrome anterior que siga vivo, o uno que se fuera con el
+    /// contenedor, deja el perfil marcado como en uso, y el siguiente se
+    /// niega a arrancar sin abrir el puerto. Como este perfil es solo
+    /// nuestro y de usar y tirar, los candados se quitan antes.
+    for (const candado of ['SingletonLock', 'SingletonSocket', 'SingletonCookie']) {
+      rmSync(join(PERFIL, candado), { force: true });
+    }
+
     this.proceso = spawn(
       chrome,
       [
@@ -132,8 +146,23 @@ export class ProveedorWebNavegador implements ProveedorWeb, OnModuleDestroy {
         ...(conPantalla && process.env.WEB_CON_CABEZA !== '1' ? escondido : []),
         'about:blank',
       ],
-      { detached: false, stdio: 'ignore' },
+      // stderr NO se tira: es donde Chrome cuenta por que no arranco.
+      // Iba en 'ignore', y por eso el unico sintoma posible era «no
+      // abrio el puerto a tiempo», que no dice nada.
+      { detached: false, stdio: ['ignore', 'ignore', 'pipe'] },
     );
+
+    let queja = '';
+    this.proceso.stderr?.on('data', (trozo: Buffer) => {
+      queja = (queja + trozo.toString()).slice(-600);
+    });
+
+    /// Si el proceso se muere, no tiene sentido esperar el resto del
+    /// plazo: se sale ya y se dice con que codigo.
+    let murioCon: number | null = null;
+    this.proceso.on('exit', (codigo) => {
+      murioCon = codigo ?? -1;
+    });
     this.proceso.on('error', (e) => this.log.error(`No pude arrancar Chrome: ${e.message}`));
 
     const hasta = Date.now() + ARRANQUE;
@@ -142,10 +171,28 @@ export class ProveedorWebNavegador implements ProveedorWeb, OnModuleDestroy {
         this.log.log(`Chrome arrancado en ${donde}.`);
         return donde;
       }
+      if (murioCon !== null) break;
       await new Promise((r) => setTimeout(r, 300));
     }
 
-    throw new Error(`Chrome no abrió el puerto ${puerto} a tiempo.`);
+    throw new Error(this.porQueNoArranco(puerto, murioCon, queja));
+  }
+
+  /// El mensaje que se guarda en la consulta. Lleva lo que dijo Chrome,
+  /// porque sin eso no hay forma de saber si falto memoria, si no estaba
+  /// el binario o si el perfil seguia tomado.
+  private porQueNoArranco(puerto: number, murioCon: number | null, queja: string): string {
+    const ultimas = queja
+      .split('\n')
+      .map((l) => l.trim())
+      .filter(Boolean)
+      .slice(-3)
+      .join(' · ');
+    const detalle = ultimas ? ` Chrome dijo: ${ultimas}` : '';
+
+    return murioCon === null
+      ? `Chrome no abrió el puerto ${puerto} en ${ARRANQUE / 1000} s.${detalle}`
+      : `Chrome se cerró solo (código ${murioCon}) sin abrir el puerto ${puerto}.${detalle}`;
   }
 
   private async contesta(donde: string): Promise<boolean> {
