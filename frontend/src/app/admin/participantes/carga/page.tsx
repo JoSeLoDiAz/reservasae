@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import {
   Aviso,
@@ -58,6 +58,9 @@ export default function PaginaCarga() {
   const [previa, setPrevia] = useState<Previa | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [ocupado, setOcupado] = useState(false);
+  const [deArchivo, setDeArchivo] = useState<string | null>(null);
+  const [encima, setEncima] = useState(false);
+  const selector = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     void adminApi
@@ -77,6 +80,26 @@ export default function PaginaCarga() {
       .then((o) => setOfertas(o.ofertas))
       .catch(() => setOfertas([]));
   }, [convenioId]);
+
+  /// El archivo se vuelve el MISMO texto que se pegaria y cae en
+  /// la misma caja. Asi hay un solo lector de filas, y se ve lo
+  /// que trajo el archivo antes de confirmar nada.
+  async function leerArchivo(f: File | null | undefined) {
+    if (!f) return;
+    await conError(async () => {
+      const cuerpo = new FormData();
+      cuerpo.append("archivo", f);
+      const r = await fetch("/api/admin/participantes/carga/archivo", {
+        method: "POST",
+        body: cuerpo,
+      });
+      const d = (await r.json()) as { texto?: string; filas?: number; message?: string };
+      if (!r.ok) throw new Error(d.message ?? "No se pudo leer el archivo.");
+      setTexto(d.texto ?? "");
+      setDeArchivo(`${f.name} · ${d.filas} ${d.filas === 1 ? "fila" : "filas"}`);
+      setPrevia(null);
+    });
+  }
 
   async function conError(accion: () => Promise<void>) {
     setError(null);
@@ -103,7 +126,7 @@ export default function PaginaCarga() {
           Cargar una lista
         </h1>
         <p className="mt-1 text-texto-suave">
-          Copie las celdas desde el Excel que le mandó la empresa y péguelas aquí. Verá
+          Suba el archivo que le mandó la empresa, o copie las celdas y péguelas. Verá
           qué va a pasar antes de confirmar nada.
         </p>
       </header>
@@ -157,13 +180,54 @@ export default function PaginaCarga() {
 
       <Tarjeta
         titulo="La lista"
-        descripcion="Ocho columnas, en este orden. Si la primera fila son títulos, se salta sola."
+        descripcion="Suba el archivo o pegue las celdas. Van ocho columnas, en este orden, y si la primera fila son títulos se salta sola."
       >
         <div className="space-y-3">
           <p className="rounded-md bg-superficie-alterna p-3 font-mono text-xs">
             tipo · documento · primer nombre · segundo nombre · primer apellido ·
             segundo apellido · correo · celular
           </p>
+
+          <div
+            onDragOver={(e) => {
+              e.preventDefault();
+              setEncima(true);
+            }}
+            onDragLeave={() => setEncima(false)}
+            onDrop={(e) => {
+              e.preventDefault();
+              setEncima(false);
+              void leerArchivo(e.dataTransfer.files?.[0]);
+            }}
+            className={
+              "flex flex-wrap items-center gap-3 rounded-lg border border-dashed px-4 py-3 transition " +
+              (encima ? "border-marca bg-marca-suave" : "border-campo-borde bg-campo-fondo")
+            }
+          >
+            <input
+              ref={selector}
+              type="file"
+              accept=".xlsx,.csv"
+              className="hidden"
+              onChange={(e) => {
+                void leerArchivo(e.target.files?.[0]);
+                e.target.value = "";
+              }}
+            />
+            <button
+              type="button"
+              disabled={ocupado}
+              onClick={() => selector.current?.click()}
+              className="inline-flex h-[32px] items-center rounded-[9px] border border-campo-borde bg-superficie px-[13px] text-[0.78125rem] font-semibold text-titulo transition hover:border-marca disabled:opacity-50"
+            >
+              {ocupado ? "Leyendo…" : "Elegir un archivo"}
+            </button>
+            <span className="text-xs text-texto-suave">
+              {deArchivo
+                ? `Se leyó ${deArchivo}. Revíselo abajo antes de continuar.`
+                : "Arrastre aquí el .xlsx o el .csv que le mandó la empresa, o péguelo abajo."}
+            </span>
+          </div>
 
           <textarea
             className={`${CLASE_CONTROL} min-h-56 font-mono text-sm`}
@@ -173,6 +237,7 @@ export default function PaginaCarga() {
             value={texto}
             onChange={(e) => {
               setTexto(e.target.value);
+              setDeArchivo(null);
               setPrevia(null);
             }}
           />

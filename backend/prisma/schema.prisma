@@ -1369,6 +1369,10 @@ model ConsultaRues {
 
   @@index([estado, prioridad, creadoEn])
   @@index([institucionId])
+  // el dedup por NIT (banco de empresas unicas) consulta por esta
+  // columna: sin indice, cada encolar() hace scan de tabla
+  @@index([nit])
+  @@index([nit, estado])
   @@map("consultas_rues")
 }
 

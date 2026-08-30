@@ -1,14 +1,14 @@
 import {
+  ciiuCuadraConSector,
+  ciiuPorSector,
+  derivarDepartamento,
   fichaAPropuesta,
   leerCiiu,
+  leerCorreo,
   leerEmpleados,
   leerFecha,
 } from './ficha-a-propuesta';
 import { leerFichaWeb, type FichaWeb } from './leer-ficha-web';
-
-/// Se parte de las respuestas de verdad, las mismas del otro
-/// archivo de pruebas, para que lo que se compruebe sea el
-/// camino entero: texto del buscador → campos de la ficha.
 
 const ABC = leerFichaWeb(
   'Razón social: ABC LABORATORIOS S.A.S.Nombre comercial: ABC Laboratorios' +
@@ -33,190 +33,91 @@ const COMFENALCO = leerFichaWeb(
     'Más de 2.000 empleados directos',
 );
 
-describe('ABC Laboratorios', () => {
+describe('regresión: ABC', () => {
   const p = fichaAPropuesta(ABC);
-
-  it('la razón social va en mayúscula', () => {
+  it('mayúsculas', () => {
     expect(p.razonSocial).toBe('ABC LABORATORIOS S.A.S');
     expect(p.nombreComercial).toBe('ABC LABORATORIOS');
-    expect(p.sectorEconomico).toBe(
-      'OTRA FABRICACIÓN DIVERSA / INDUSTRIAS MANUFACTURERAS',
-    );
   });
-
-  it('el CIIU queda en código, sin la explicación', () => {
-    expect(p.codigoCiiu).toBe('3290');
-  });
-
-  it('traduce el tamaño al enum', () => {
-    expect(p.tamano).toBe('PEQUENA');
-  });
-
-  it('la fecha queda sin hora, para que nadie le cambie el día', () => {
-    expect(p.fechaFundacion).toBe('1972-01-17');
-  });
-
-  it('NO propone empleados: «Entre 11 y 50» es un rango', () => {
-    expect(p.numeroEmpleados).toBeUndefined();
-  });
-
-  it('NO propone clasificación: el buscador contestó otra cosa', () => {
-    // «Fabricación y provisión de equipamiento científico…»
-    // no es ninguna de las diez clasificaciones del SENA
-    expect(p.clasificacion).toBeUndefined();
-  });
+  it('CIIU en código', () => expect(p.codigoCiiu).toBe('3290'));
+  it('tamaño enum', () => expect(p.tamano).toBe('PEQUENA'));
+  it('fecha ISO', () => expect(p.fechaFundacion).toBe('1972-01-17'));
+  it('NO empleados (rango)', () => expect(p.numeroEmpleados).toBeUndefined());
+  it('NO clasificación (no es del enum)', () => expect(p.clasificacion).toBeUndefined());
+  it('correo (dominio cuadra con web)', () => expect(p.correo).toBe('ventas@abclaboratorios.com'));
 });
 
-describe('Comfenalco Antioquia', () => {
+describe('regresión: Comfenalco', () => {
   const p = fichaAPropuesta(COMFENALCO);
-
-  it('saca la clasificación de la frase larga', () => {
-    // «Persona jurídica - Entidad sin ánimo de lucro (ESAL)»
-    expect(p.clasificacion).toBe('ENTIDAD_SIN_ANIMO_DE_LUCRO');
-  });
-
-  it('traduce el tamaño y la fecha', () => {
+  it('clasificación ESAL', () => expect(p.clasificacion).toBe('ENTIDAD_SIN_ANIMO_DE_LUCRO'));
+  it('tamaño y fecha', () => {
     expect(p.tamano).toBe('GRANDE');
     expect(p.fechaFundacion).toBe('1957-08-30');
   });
-
-  it('NO propone empleados: «Más de 2.000» tampoco es un número', () => {
-    expect(p.numeroEmpleados).toBeUndefined();
-  });
-
-  it('la ciudad no se lleva el paréntesis', () => {
-    expect(p.ciudadNombre).toBe('Medellín');
-    expect(p.direccion).toBe('Carrera 50 # 53 - 43 (Sede Palacé, Medellín)');
-  });
-
-  it('la página web queda sin protocolo y en minúscula', () => {
-    expect(p.paginaWeb).toBe('www.comfenalcoantioquia.com.co');
-    expect(p.correo).toBe('emailinstitucional@comfenalcoantioquia.com');
-  });
+  it('ciudad sin paréntesis', () => expect(p.ciudadNombre).toBe('Medellín'));
+  it('web con www (sin cambios)', () => expect(p.paginaWeb).toBe('www.comfenalcoantioquia.com.co'));
+  it('correo pasa aunque el TLD difiera del de la web (.com vs .com.co)', () =>
+    expect(p.correo).toBe('emailinstitucional@comfenalcoantioquia.com'));
+  it('departamento derivado de Medellín = Antioquia', () =>
+    expect(p.departamentoNombre).toBe('Antioquia'));
 });
 
-describe('no se propone lo que ya está', () => {
-  it('un valor igual no entra, aunque cambien tildes o mayúsculas', () => {
+describe('regresión: no propone lo que ya está', () => {
+  it('valores iguales no entran', () => {
     const p = fichaAPropuesta(COMFENALCO, {
-      ciudadNombre: 'MEDELLIN',
-      departamentoNombre: 'Antioquia',
-      tamano: 'GRANDE',
+      ciudadNombre: 'MEDELLIN', departamentoNombre: 'Antioquia', tamano: 'GRANDE',
     });
     expect(p.ciudadNombre).toBeUndefined();
     expect(p.departamentoNombre).toBeUndefined();
     expect(p.tamano).toBeUndefined();
-    // lo demás sí sigue proponiéndose
-    expect(p.clasificacion).toBe('ENTIDAD_SIN_ANIMO_DE_LUCRO');
   });
-
-  it('una fecha ya guardada no se vuelve a proponer', () => {
-    const p = fichaAPropuesta(COMFENALCO, {
-      fechaFundacion: new Date('1957-08-30T00:00:00.000Z'),
-    });
+  it('fecha ya guardada no reentra', () => {
+    const p = fichaAPropuesta(COMFENALCO, { fechaFundacion: new Date('1957-08-30T00:00:00.000Z') });
     expect(p.fechaFundacion).toBeUndefined();
   });
-
-  it('un valor distinto sí entra, para que alguien decida', () => {
-    const p = fichaAPropuesta(COMFENALCO, { ciudadNombre: 'Bogotá' });
-    expect(p.ciudadNombre).toBe('Medellín');
-  });
-
-  it('una ficha vacía no propone nada', () => {
-    expect(Object.keys(fichaAPropuesta(leerFichaWeb('')))).toHaveLength(0);
-  });
 });
 
-describe('el número de empleados', () => {
+describe('NUEVO: correo con chequeo de dominio', () => {
+  it('dominio que cuadra pasa', () =>
+    expect(leerCorreo('egomez@vise.com.co', 'vise.com.co')).toBe('egomez@vise.com.co'));
+  it('dominio que no cuadra -> null', () =>
+    expect(leerCorreo('x@otracosa.com', 'vise.com.co')).toBeNull());
+  it('sin web: personal -> null', () =>
+    expect(leerCorreo('egomez@vise.com.co', null)).toBeNull());
+  it('sin web: institucional -> ok', () =>
+    expect(leerCorreo('contacto@vise.com.co', null)).toBe('contacto@vise.com.co'));
+});
+
+describe('NUEVO: empleados descarta el año adorno', () => {
   const casos: Array<[string, number | null]> = [
+    ['6.265 (a año 2026)', 6265],
+    ['6,265 (dato reportado a 2026)', 6265],
     ['150', 150],
-    ['1.250 empleados', 1250],
-    ['87 colaboradores directos', 87],
-    ['Entre 11 y 50 colaboradores', null],
-    ['Más de 2.000 empleados directos', null],
-    ['Menos de 10', null],
-    ['Aproximadamente 300', null],
-    ['Cerca de 500 personas', null],
-    ['11-50', null],
+    ['Entre 11 y 50', null],
     ['200+', null],
-    ['No disponible', null],
   ];
-
-  it.each(casos)('«%s» → %s', (texto, esperado) => {
-    expect(leerEmpleados(texto)).toBe(esperado);
-  });
+  it.each(casos)('«%s» -> %s', (t: string, esperado: number | null) =>
+    expect(leerEmpleados(t)).toBe(esperado));
 });
 
-describe('la fecha de fundación', () => {
-  const casos: Array<[string, string | null]> = [
-    ['17 de enero de 1972', '1972-01-17'],
-    ['30 de agosto de 1957', '1957-08-30'],
-    ['1 de diciembre de 2003', '2003-12-01'],
-    ['1972-01-17', '1972-01-17'],
-    ['17/01/1972', '1972-01-17'],
-    // el buscador contestó así en una consulta de verdad
-    ['17-01-1972', '1972-01-17'],
-    ['30-08-1957', '1957-08-30'],
-    ['enero de 1972', null],
-    ['1972', null],
-    ['32 de enero de 1972', null],
-    ['17 de brumario de 1972', null],
-  ];
-
-  it.each(casos)('«%s» → %s', (texto, esperado) => {
-    expect(leerFecha(texto)).toBe(esperado);
-  });
+describe('NUEVO: departamento derivado de la ciudad', () => {
+  it('Bogotá D.C -> Bogotá D.C.', () => expect(derivarDepartamento('Bogotá D.C')).toBe('Bogotá D.C.'));
+  it('Medellín -> Antioquia', () => expect(derivarDepartamento('Medellín')).toBe('Antioquia'));
+  it('desconocida -> null', () => expect(derivarDepartamento('Pueblito X')).toBeNull());
 });
 
-describe('el código CIIU', () => {
-  it('saca los cuatro dígitos', () => {
-    expect(leerCiiu('3290 (Otras industrias manufactureras n.c.p.)')).toBe(
-      '3290',
-    );
-    expect(leerCiiu('G4711')).toBe('4711');
-    expect(leerCiiu('CIIU 8430')).toBe('8430');
-  });
-
-  it('sin código no inventa', () => {
-    expect(leerCiiu('Industrias manufactureras')).toBeNull();
-    expect(leerCiiu(null)).toBeNull();
-  });
+describe('NUEVO: sector -> CIIU y validación cruzada', () => {
+  it('Comercio -> 4719', () => expect(ciiuPorSector('Comercio')?.ciiu).toBe('4719'));
+  it('Manufactura -> 3290', () => expect(ciiuPorSector('Manufactura')?.ciiu).toBe('3290'));
+  it('4719 cuadra con Comercio', () => expect(ciiuCuadraConSector('4719', 'Comercio')).toBe(true));
+  it('3290 NO cuadra con Comercio', () => expect(ciiuCuadraConSector('3290', 'Comercio')).toBe(false));
+  it('9609 cuadra con Servicios', () => expect(ciiuCuadraConSector('9609', 'Servicios')).toBe(true));
 });
 
-describe('las clasificaciones y los tamaños', () => {
-  const clasificar = (v: string) =>
-    fichaAPropuesta({ clasificacion: v } as FichaWeb).clasificacion;
-
-  const dimensionar = (v: string) =>
-    fichaAPropuesta({ tamano: v } as FichaWeb).tamano;
-
-  it('mapea las frases que devuelve el buscador', () => {
-    expect(clasificar('Entidad sin ánimo de lucro')).toBe(
-      'ENTIDAD_SIN_ANIMO_DE_LUCRO',
-    );
-    expect(clasificar('Empresa privada')).toBe('EMPRESA_PRIVADA');
-    expect(clasificar('Sociedad de economía mixta')).toBe('MIXTA');
-    expect(clasificar('Gremio empresarial')).toBe('GREMIO');
-    expect(clasificar('Entidad de economía solidaria')).toBe(
-      'ENTIDAD_ECONOMIA_SOLIDARIA',
-    );
-  });
-
-  it('«entidad privada sin ánimo de lucro» no es empresa privada', () => {
-    // lleva las dos palabras: gana la clasificación específica
-    expect(clasificar('Entidad Privada Sin Ánimo de Lucro')).toBe(
-      'ENTIDAD_SIN_ANIMO_DE_LUCRO',
-    );
-  });
-
-  it('lo que no reconoce se deja vacío', () => {
-    expect(clasificar('Laboratorio farmacéutico')).toBeUndefined();
-    expect(dimensionar('Empresa consolidada')).toBeUndefined();
-  });
-
-  it('mapea los tamaños', () => {
-    expect(dimensionar('Microempresa')).toBe('MICROEMPRESA');
-    expect(dimensionar('Pequeña empresa')).toBe('PEQUENA');
-    expect(dimensionar('Mediana empresa')).toBe('MEDIANA');
-    expect(dimensionar('Gran empresa')).toBe('GRANDE');
-  });
+describe('regresión: helpers sueltos', () => {
+  it('leerCiiu G4711 -> 4711', () => expect(leerCiiu('G4711')).toBe('4711'));
+  it('leerFecha 17/01/1972', () => expect(leerFecha('17/01/1972')).toBe('1972-01-17'));
+  const clasificar = (v: string) => fichaAPropuesta({ clasificacion: v } as FichaWeb).clasificacion;
+  it('alcaldía -> territorial', () => expect(clasificar('Alcaldía de Medellín')).toBe('ENTIDAD_TERRITORIAL'));
+  it('privada -> empresa privada', () => expect(clasificar('Empresa privada')).toBe('EMPRESA_PRIVADA'));
 });

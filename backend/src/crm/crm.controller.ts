@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -7,8 +8,11 @@ import {
   Patch,
   Post,
   Query,
+  UploadedFile,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 
 import { RolAdmin, type Admin } from '../../generated/prisma';
 import { AdminActual, AmbitoActual } from '../admin/admin-actual.decorator';
@@ -19,6 +23,7 @@ import {
 } from '../admin/permisos';
 import { PreinscripcionService } from '../preinscripcion/preinscripcion.service';
 import { IpReal } from '../comun/ip-real';
+import { MAXIMO_ARCHIVO_CARGA, textoDelArchivo } from './carga-archivo';
 import { CrmService } from './crm.service';
 import { DirectorioService } from './directorio.service';
 import { PlantillasCorreoService } from '../correo/plantillas/plantillas-correo.service';
@@ -237,6 +242,48 @@ export class CrmController {
   @Requiere('inscripciones', 'ESCRIBIR')
   previsualizarCarga(@Body() dto: CargaDto, @AmbitoActual() ambito: Ambito) {
     return this.crm.previsualizarCarga(dto, ambito.convenios);
+  }
+
+  @Post('carga/archivo')
+  @Requiere('inscripciones', 'ESCRIBIR')
+  /// El limite va en multer, no en una comprobacion de abajo:
+  /// sin el, el archivo entero entra en memoria antes de que
+  /// podamos rechazarlo.
+  @UseInterceptors(
+    FileInterceptor('archivo', { limits: { fileSize: MAXIMO_ARCHIVO_CARGA } }),
+  )
+  async cargaDesdeArchivo(@UploadedFile() archivo?: Express.Multer.File) {
+    if (!archivo) throw new BadRequestException('No llegó ningún archivo.');
+
+    const nombre = archivo.originalname ?? '';
+    if (/\.xls$/i.test(nombre)) {
+      throw new BadRequestException(
+        'Ese es un Excel antiguo (.xls). Ábralo y vuelva a guardarlo como .xlsx, o como .csv.',
+      );
+    }
+    if (!/\.(xlsx|csv)$/i.test(nombre)) {
+      throw new BadRequestException('Solo se pueden subir archivos .xlsx o .csv.');
+    }
+
+    let texto: string;
+    try {
+      texto = await textoDelArchivo(archivo.buffer, nombre);
+    } catch {
+      throw new BadRequestException(
+        'No se pudo leer el archivo. Compruebe que abre bien en Excel.',
+      );
+    }
+
+    if (!texto) {
+      throw new BadRequestException('El archivo no tiene ninguna fila con datos.');
+    }
+    if (texto.length > 200_000) {
+      throw new BadRequestException(
+        'El archivo trae demasiadas filas. Pártalo y súbalo por partes.',
+      );
+    }
+
+    return { texto, filas: texto.split('\n').length };
   }
 
   @Post('carga/confirmar')

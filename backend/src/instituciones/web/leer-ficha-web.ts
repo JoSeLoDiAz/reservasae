@@ -1,22 +1,13 @@
 /** De la respuesta del buscador web a los catorce campos. */
 
-/// La respuesta viene en prosa, y el corte NO se puede hacer
-/// por saltos de línea.
-///
-/// Esta es la trampa, y sale de las respuestas de verdad:
-///
-///     Razón social: ABC LABORATORIOS S.A.S.Nombre comercial: ABC Laboratorios
-///
-/// El valor de un campo termina justo donde empieza la
-/// etiqueta del siguiente, sin espacio ni salto. Partir por
-/// «\n» deja «ABC LABORATORIOS S.A.S.Nombre comercial: ABC
-/// Laboratorios» como razón social entera.
-///
-/// Por eso se corta por las ETIQUETAS: se buscan todas, se
-/// ordenan por dónde aparecen, y cada valor es lo que hay
-/// entre una y la siguiente. Y de paso aguanta que la
-/// respuesta traiga títulos con emoji, viñetas o negrita en
-/// medio: nada de eso es una etiqueta.
+/// La respuesta viene en prosa y el corte NO se hace por saltos de
+/// línea, sino por ETIQUETAS: se buscan todas, se ordenan por dónde
+/// aparecen, y cada valor es lo que hay entre una y la siguiente.
+/// Mejora de este port: cada valor se corta además en el primer salto
+/// de línea, porque cuando la respuesta viene una línea por campo, lo
+/// que sigue al salto son las CITAS que el buscador pega debajo
+/// («Veritrade», «+8», «RUES»…). En las respuestas «todo pegado» no
+/// hay salto y el corte no estorba.
 
 export type FichaWeb = {
   razonSocial: string | null;
@@ -35,18 +26,12 @@ export type FichaWeb = {
   numeroEmpleados: string | null;
 };
 
-/// Las catorce, con las formas en que las escribe la IA.
-/// La primera de cada lista es la que se le pide.
 const ETIQUETAS: Array<{ clave: keyof FichaWeb; nombres: string[] }> = [
   { clave: 'razonSocial', nombres: ['Razón social', 'Razon social'] },
   { clave: 'nombreComercial', nombres: ['Nombre comercial'] },
   {
     clave: 'fechaFundacion',
-    nombres: [
-      'Fecha de fundación',
-      'Fecha de fundacion',
-      'Fecha de constitución',
-    ],
+    nombres: ['Fecha de fundación', 'Fecha de fundacion', 'Fecha de constitución'],
   },
   { clave: 'direccion', nombres: ['Dirección', 'Direccion'] },
   { clave: 'telefono', nombres: ['Teléfono', 'Telefono', 'Teléfonos'] },
@@ -84,7 +69,6 @@ const VACIA: FichaWeb = {
   numeroEmpleados: null,
 };
 
-/// Lo que la IA contesta cuando no sabe. No es un dato.
 const NO_SABE = [
   'no disponible',
   'no se encontro',
@@ -101,12 +85,9 @@ const NO_SABE = [
   '—',
 ];
 
-const sinTildes = (t: string) =>
+const sinTildes = (t: string): string =>
   t.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
 
-/// El cierre de una frase que la IA a veces pega al final,
-/// del tipo «Si requieres una copia actualizada...». Corta el
-/// último valor para que no se lleve el párrafo entero.
 const REMATES = [
   'si requieres',
   'si necesitas',
@@ -115,8 +96,6 @@ const REMATES = [
   'hay alguna otra',
   'espero que',
   'nota:',
-  // el pie del buscador, seguido de las fuentes que citó:
-  // sin esto el último campo se lleva media página pegada
   'la ia puede cometer errores',
   'mostrar todo',
 ];
@@ -124,18 +103,11 @@ const REMATES = [
 export function leerFichaWeb(texto: string): FichaWeb {
   if (!texto?.trim()) return { ...VACIA };
 
-  /// Dónde empieza cada etiqueta.
-  ///
-  /// Se busca sobre el texto SIN tildes y en minúscula, pero
-  /// se corta sobre el original: así «Razón social» encuentra
-  /// «Razon social» sin perder los acentos del valor.
   const plano = sinTildes(texto);
-  const marcas: Array<{ clave: keyof FichaWeb; desde: number; hasta: number }> =
-    [];
+  const marcas: Array<{ clave: keyof FichaWeb; desde: number; hasta: number }> = [];
 
   for (const { clave, nombres } of ETIQUETAS) {
     for (const nombre of nombres) {
-      // la etiqueta va seguida de dos puntos, con o sin espacio
       const patron = new RegExp(sinTildes(nombre) + '\\s*:', 'g');
       const m = patron.exec(plano);
       if (m) {
@@ -150,7 +122,6 @@ export function leerFichaWeb(texto: string): FichaWeb {
   marcas.sort((a, b) => a.desde - b.desde);
 
   const ficha = { ...VACIA };
-
   for (let i = 0; i < marcas.length; i += 1) {
     const fin = i + 1 < marcas.length ? marcas[i + 1].desde : texto.length;
     ficha[marcas[i].clave] = limpiar(texto.slice(marcas[i].hasta, fin));
@@ -160,41 +131,29 @@ export function leerFichaWeb(texto: string): FichaWeb {
 }
 
 function limpiar(bruto: string): string | null {
-  let v = bruto;
+  // El valor termina en el primer salto de línea: lo que sigue son las
+  // citas que el buscador pega debajo. En «todo pegado» no hay salto.
+  let v = bruto.split('\n')[0];
 
-  // el remate de cortesía no es parte del último dato
   const plano = sinTildes(v);
   for (const r of REMATES) {
     const i = plano.indexOf(sinTildes(r));
     if (i > 0) v = v.slice(0, i);
   }
 
-  /// Un emoji corta el valor, no se limpia.
-  ///
-  /// La IA separa las secciones con títulos que empiezan por
-  /// emoji: «…abclaboratorios.com📊 Clasificación y Actividad
-  /// Económica». Ese título no lleva dos puntos, así que no
-  /// es una etiqueta y no marca corte -- pero el valor
-  /// terminó justo antes. Quitar solo el emoji dejaba
-  /// «abclaboratorios.com Clasificación y Actividad
-  /// Económica» como página web.
   const emoji = v.search(/\p{Extended_Pictographic}/u);
   if (emoji > 0) v = v.slice(0, emoji);
 
   v = v
-    // por si quedó alguno al principio
     .replace(/\p{Extended_Pictographic}/gu, ' ')
-    // viñetas, negritas y comillas de adorno
     .replace(/[*•·▪]/g, ' ')
     .replace(/\s+/g, ' ')
     .trim()
-    // puntuación suelta al final
     .replace(/[.,;:]+$/, '')
     .trim();
 
   if (!v) return null;
   if (NO_SABE.includes(sinTildes(v))) return null;
-  // un valor de doscientos caracteres no es un dato, es prosa
   if (v.length > 200) return null;
 
   return v;
