@@ -272,6 +272,7 @@ export function Tabla<T>({
   alClic,
   vacio,
   acciones,
+  resumen,
   seleccion,
   accionesLote,
   alCargarTodo,
@@ -287,6 +288,10 @@ export function Tabla<T>({
   alClic?: (f: T) => void;
   vacio?: ReactNode;
   acciones?: ReactNode;
+  /// Lo que va DEBAJO de la barra de botones y encima de la
+  /// paginacion. Hoy lo usa el embudo de leads. Es una ranura y
+  /// no un componente fijo porque cada pantalla resume lo suyo.
+  resumen?: ReactNode;
   seleccion?: boolean;
   accionesLote?: (ids: string[], limpiar: () => void) => ReactNode;
   alCargarTodo?: () => void;
@@ -544,6 +549,33 @@ export function Tabla<T>({
     setFiltros({});
   }
 
+  /// La columna que se esta arrastrando y sobre cual esta.
+  ///
+  /// Se lleva aqui y no dentro del `th` porque el indicador de
+  /// donde va a caer lo pinta la columna de DESTINO, no la que
+  /// se arrastra.
+  const [arrastrada, setArrastrada] = useState<string | null>(null);
+  const [encima, setEncima] = useState<string | null>(null);
+
+  /// Poner una columna donde estaba otra.
+  ///
+  /// Reordena, no intercambia: arrastrar «Correo» hasta el
+  /// primer sitio tiene que EMPUJAR a las demas una posicion,
+  /// no cambiarla por la primera. Intercambiando, mover una
+  /// columna cuatro sitios desordena las otras cuatro.
+  function soltarEn(clave: string, destino: string) {
+    if (clave === destino) return;
+    setVisibles((v) => {
+      const desde = v.indexOf(clave);
+      const hasta = v.indexOf(destino);
+      if (desde < 0 || hasta < 0) return v;
+      const copia = [...v];
+      copia.splice(desde, 1);
+      copia.splice(hasta, 0, clave);
+      return copia;
+    });
+  }
+
   function mover(clave: string, paso: number) {
     setVisibles((v) => {
       const i = v.indexOf(clave);
@@ -598,6 +630,8 @@ export function Tabla<T>({
             : () => bajarCsv(id, enPantalla, filtradas)
         }
       />
+
+      {resumen}
 
       {/* La paginación va ARRIBA, con los botones.
           Abajo obligaba a bajar toda la tabla para cambiar de
@@ -739,7 +773,16 @@ export function Tabla<T>({
           bloque normal, la tabla crece sin límite, la página
           entera se va hacia arriba al bajar, y hay que
           devolverse hasta arriba para poder filtrar. */}
-      <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-borde bg-superficie">
+      {/* Sin marco, pero CON aire a los lados y abajo.
+          El marco se fue -- la tabla no es una tarjeta, es la
+          pantalla -- pero llevarla a sangre la pegaba a los dos
+          cantos de la ventana y la ultima fila quedaba contra el
+          borde de abajo. Se lee peor, no mejor: el ojo necesita
+          saber donde acaba.
+          Asi que se queda dentro del relleno de la pantalla y se
+          le anade separacion abajo. La raya de arriba es lo
+          unico que la separa de la barra. */}
+      <div className="mb-5 flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-borde bg-superficie">
         {/* Se estira con su contenedor en vez de llevar un tope
             fijo: con `max-h` quedaba media pantalla en blanco
             debajo cuando la ventana era alta. */}
@@ -821,8 +864,54 @@ export function Tabla<T>({
                           ? { width: c.ancho }
                           : undefined
                     }
+                    /// Arrastrable para reordenar.
+                    ///
+                    /// Con la API de arrastre del navegador y no
+                    /// con `pointerdown`, que ya lo usa el
+                    /// tirador de ancho: dos gestos de puntero
+                    /// sobre el mismo elemento se pisan. Y el
+                    /// clic de ordenar tampoco estorba: cuando
+                    /// hay arrastre, el navegador no lo emite.
+                    draggable
+                    onDragStart={(e) => {
+                      setArrastrada(c.clave);
+                      e.dataTransfer.effectAllowed = "move";
+                      // Firefox no arranca el arrastre sin esto
+                      e.dataTransfer.setData("text/plain", c.clave);
+                    }}
+                    onDragOver={(e) => {
+                      if (!arrastrada || arrastrada === c.clave) return;
+                      e.preventDefault();
+                      e.dataTransfer.dropEffect = "move";
+                      setEncima(c.clave);
+                    }}
+                    onDragLeave={() =>
+                      setEncima((x) => (x === c.clave ? null : x))
+                    }
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      if (arrastrada) soltarEn(arrastrada, c.clave);
+                      setArrastrada(null);
+                      setEncima(null);
+                    }}
+                    onDragEnd={() => {
+                      setArrastrada(null);
+                      setEncima(null);
+                    }}
                     className={
-                      "relative" + (c.numerica ? " text-right" : "")
+                      "relative cursor-grab select-none" +
+                      (c.numerica ? " text-right" : "") +
+                      (arrastrada === c.clave ? " opacity-40" : "") +
+                      /// La raya de donde va a caer, del lado por
+                      /// el que se acerca. Sin ella uno suelta a
+                      /// ciegas y tiene que deshacerlo para ver
+                      /// donde quedo.
+                      (encima === c.clave
+                        ? enPantalla.findIndex((x) => x.clave === arrastrada) <
+                          enPantalla.findIndex((x) => x.clave === c.clave)
+                          ? " shadow-[inset_-2px_0_var(--marca)]"
+                          : " shadow-[inset_2px_0_var(--marca)]"
+                        : "")
                     }
                     aria-sort={
                       orden?.clave === c.clave
@@ -845,6 +934,11 @@ export function Tabla<T>({
                         (orden.asc ? <IconoArriba tamano={13} /> : <IconoAbajo tamano={13} />)}
                     </button>
 
+                    {/* El tirador NO arrastra la columna: es
+                        para el ancho. Sin `draggable={false}` el
+                        `th` de arriba se lleva el gesto y no se
+                        puede redimensionar. */}
+                    <span draggable={false} onDragStart={(e) => e.preventDefault()}>
                     <TiradorDeAncho
                       titulo={c.titulo}
                       alto={altoTabla}
@@ -873,6 +967,7 @@ export function Tabla<T>({
                       alSoltarDobleClic={() => setAnchos({})
                       }
                     />
+                    </span>
                   </th>
                 ))}
               </tr>
@@ -1210,7 +1305,7 @@ function PanelColumnas<T>({
             {puestas.map((c, i) => (
               <li
                 key={c.clave}
-                className="flex h-[34px] items-center gap-2 rounded-lg border border-borde px-3.5 text-[0.78125rem] font-semibold"
+                className="flex h-[34px] items-center gap-2 rounded-lg border border-borde px-3.5 text-[0.78125rem]"
               >
                 <span className="flex-1 truncate">{c.titulo}</span>
                 <button

@@ -153,30 +153,6 @@ export default function PaginaParticipantes() {
           pregunta que se hace el lider al llegar -- «¿dónde se
           está atascando la gente?» --, y esa es de proporcion,
           asi que va en barra y no en seis cifras sueltas. */}
-      {hayAlguien && (
-        <div className="-mt-1">
-          {/* Solo las CINCO de leads.
-              Salian tambien En formacion, Certificado, Retirado,
-              No aprobo, Desertó y Abandonó, que son de Gestion
-              Academica: el seguimiento del grupo, no el trabajo
-              del asesor. Mezclarlas hacia que el embudo contara
-              gente que esta pantalla ni siquiera lista.
-              La lista es la misma que usa el filtro `tramo` de
-              esta pantalla, asi que el total del embudo y el de
-              la tabla salen iguales. */}
-          <Embudo
-            sinAsesor={resumen.sinAsesor}
-            enLaVista={total}
-            tramos={resumen.etapas
-              .filter((e) => e.total > 0 && ETAPAS_DEL_EMBUDO.includes(e.etapa))
-              .map((e) => ({
-                etiqueta: ETIQUETA_ETAPA[e.etapa],
-                total: e.total,
-                color: colorEtapa(e.etapa),
-              }))}
-          />
-        </div>
-      )}
 
       {/* El orden es el del tablero de abajo: se filtra por lo
           que se esta mirando. El buscador no va aqui, va con la
@@ -220,6 +196,32 @@ export default function PaginaParticipantes() {
             filas={filas}
             total={total}
             asesores={resumen.asesores}
+            resumen={
+              hayAlguien ? (
+                <div>
+          {/* Solo las CINCO de leads.
+              Salian tambien En formacion, Certificado, Retirado,
+              No aprobo, Desertó y Abandonó, que son de Gestion
+              Academica: el seguimiento del grupo, no el trabajo
+              del asesor. Mezclarlas hacia que el embudo contara
+              gente que esta pantalla ni siquiera lista.
+              La lista es la misma que usa el filtro `tramo` de
+              esta pantalla, asi que el total del embudo y el de
+              la tabla salen iguales. */}
+          <Embudo
+            sinAsesor={resumen.sinAsesor}
+            enLaVista={total}
+            tramos={resumen.etapas
+              .filter((e) => e.total > 0 && ETAPAS_DEL_EMBUDO.includes(e.etapa))
+              .map((e) => ({
+                etiqueta: ETIQUETA_ETAPA[e.etapa],
+                total: e.total,
+                color: colorEtapa(e.etapa),
+              }))}
+          />
+                </div>
+              ) : null
+            }
             alCambiar={cargar}
             alCargarTodo={filas.length < total ? cargarTodas : undefined}
           />
@@ -236,12 +238,17 @@ function ListaParticipantes({
   filas,
   total,
   asesores,
+  resumen,
   alCambiar,
   alCargarTodo,
 }: {
   filas: FilaParticipante[];
   total: number;
   asesores: Array<{ id: string; nombre: string }>;
+  /// El embudo, ya montado. Viene hecho de la pantalla y no se
+  /// arma aqui porque los datos que necesita -- el reparto por
+  /// etapa, cuantos van sin asesor -- los tiene ella.
+  resumen?: React.ReactNode;
   alCambiar: () => Promise<void>;
   alCargarTodo?: () => void;
 }) {
@@ -266,6 +273,10 @@ function ListaParticipantes({
       )}
 
       <Tabla
+        /// El embudo va DEBAJO de la barra de botones, que es
+        /// donde lo pone el prototipo: primero se decide qué se
+        /// mira, y luego se resume lo que hay.
+        resumen={resumen}
         id="participantes"
         columnas={columnas}
         filas={filas}
