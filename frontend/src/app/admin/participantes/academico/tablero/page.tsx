@@ -418,7 +418,7 @@ function Cuerpo({ d, adminId }: { d: TableroAcademico; adminId: string }) {
   const reparto = repartoTotal(d.porAccion);
 
   return (
-    <div className="space-y-6">
+    <div>
       {d.sinMedir > 0 && <AvisoMedibles d={d} />}
 
       <ColaDeTrabajo

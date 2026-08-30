@@ -725,7 +725,7 @@ export default function PaginaFicha() {
                             height: 11,
                             borderRadius: "50%",
                             background: "#fff",
-                            border: "2.5px solid #16a06a",
+                            border: "2.5px solid var(--marca)",
                           }}
                         />
                         <div style={{ fontSize: 13.5, color: "#334155" }}>
@@ -1108,9 +1108,11 @@ const E = {
     gap: 9,
   },
   /// Los tres botones del rail, tal cual el diseno.
+  /// Azul de marca (DECISIONES 10), y por token: un hex a
+  /// mano no sabe que existe el modo oscuro.
   botonVerde: {
-    background: "#16a06a",
-    color: "#fff",
+    background: "var(--marca)",
+    color: "var(--marca-texto)",
     border: "none",
     borderRadius: 11,
     padding: 13,
@@ -1601,7 +1603,7 @@ function RegistrarAutorizacion({
   const [evidencia, setEvidencia] = useState("");
 
   return (
-    <div className="space-y-4">
+    <div>
       <Aviso tipo="error">
         Esta persona todavía no ha autorizado el tratamiento de sus datos. Sin eso no se
         puede matricular ni incluir en el reporte al SENA.

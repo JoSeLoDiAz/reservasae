@@ -56,9 +56,12 @@ const D = {
   /// El gris del diseño para «Sin asignar»: un valor vacío no
   /// se lee igual que uno puesto.
   vacio: { color: "#94a3b8" },
+  /// Azul de marca, no el verde del handoff anterior.
+  /// DECISIONES 10 lo fija: el primario es `--marca`, que
+  /// ademas es el color que cada gremio edita.
   boton: {
-    background: "#16a06a",
-    color: "#fff",
+    background: "var(--marca)",
+    color: "var(--marca-texto)",
     border: "none",
     borderRadius: 10,
     padding: "11px 22px",

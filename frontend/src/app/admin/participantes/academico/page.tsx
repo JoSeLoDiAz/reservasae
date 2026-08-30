@@ -160,7 +160,7 @@ export default function PaginaAcademico() {
             Quién va al día y quién no, contra el calendario de su grupo.
           </p>
           {resumen.analizadas < resumen.total && (
-            <p className="mt-2 inline-block rounded-full bg-aviso-suave px-3 py-1 text-sm text-aviso">
+            <p className="mt-2 inline-block whitespace-nowrap font-semibold text-sm text-aviso">
               Hay {resumen.total.toLocaleString("es-CO")} personas en el aula y se están
               mirando las {resumen.analizadas.toLocaleString("es-CO")} más recientes. Filtre
               por acción o por grupo para ver el resto.

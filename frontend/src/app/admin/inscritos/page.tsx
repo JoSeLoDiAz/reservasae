@@ -51,8 +51,12 @@ export default function PaginaInscritos() {
 
   const { listado } = vivos.datos;
 
+  /// El relleno lateral lo pone la pantalla, no el
+  /// marco: el contenedor dejo de ponerlo para que las
+  /// bandas vayan a sangre, y sin esto la barra de
+  /// busqueda y la paginacion quedaban pegadas al canto.
   return (
-    <div className="flex min-h-0 grow flex-col gap-6">
+    <div className="flex min-h-0 grow flex-col gap-4 px-7 pt-5">
       {/* Entre la miga y la tabla no queda nada: el buscador
           de la propia tabla ya filtra, y tener dos cajas de
           búsqueda en la misma pantalla solo hace dudar de

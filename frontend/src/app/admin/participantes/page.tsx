@@ -95,7 +95,7 @@ export default function PaginaParticipantes() {
   /// sesión caducó o si hay un fallo de datos. Ahora lo dice.
   if (error && !filas) {
     return (
-      <div className="space-y-4">
+      <div>
         <Aviso tipo="error">
           <p className="font-medium">No se pudo cargar la lista</p>
           <p className="mt-1">{error}</p>
@@ -133,8 +133,12 @@ export default function PaginaParticipantes() {
   const hayFiltro = cuantos > 0;
 
 
+  /// El relleno lateral lo pone la pantalla, no el
+  /// marco: el contenedor dejo de ponerlo para que las
+  /// bandas vayan a sangre, y sin esto la barra de
+  /// busqueda y la paginacion quedaban pegadas al canto.
   return (
-    <div className="flex min-h-0 grow flex-col gap-6">
+    <div className="flex min-h-0 grow flex-col gap-4 px-7 pt-5">
       {error && <Aviso tipo="error">{error}</Aviso>}
 
       {/* El orden es el del tablero de abajo: se filtra por lo

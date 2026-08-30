@@ -75,7 +75,7 @@ export default function PaginaPoliticas() {
 
   return (
     <div>
-      <header>
+      <header className="border-b border-borde bg-superficie px-7 pt-[26px] pb-[22px]">
         <h1 className="text-[1.3125rem] font-bold tracking-[-0.02em] text-titulo">Políticas de datos</h1>
         <p className="mt-1 text-texto-suave">
           El texto que la gente acepta. Se versiona: el que alguien ya aceptó no se
@@ -134,8 +134,8 @@ export default function PaginaPoliticas() {
                     <span
                       className={
                         vigente
-                          ? "rounded-full bg-exito-suave px-3 py-1 text-sm"
-                          : "rounded-full bg-error-suave px-3 py-1 text-sm"
+                          ? "whitespace-nowrap font-semibold text-exito text-sm"
+                          : "whitespace-nowrap font-semibold text-error text-sm"
                       }
                     >
                       {vigente ? `Vigente · v${vigente.version}` : "Sin publicar"}

@@ -422,7 +422,7 @@ function Cuerpo({ d, adminId, eligio }: { d: Control; adminId: string; eligio: b
   const conModalidad = d.porModalidad.reduce((s, m) => s + m.total, 0);
 
   return (
-    <div className="space-y-6">
+    <div>
       {/* la cola de trabajo, antes que nada */}
       <section className="grid lg:grid-cols-3">
         <Tarjeta

@@ -85,12 +85,12 @@ export function EnviarCorreo({ participanteId }: { participanteId: string }) {
   if (!abierto) {
     return (
       /// El boton verde relleno del diseno, con sus valores
-      /// exactos: #16a06a, radio 11, padding 13, 600 14px.
+      /// exactos: `--marca`, radio 11, padding 13, 600 14px.
       <button
         type="button"
         onClick={() => setAbierto(true)}
         style={{
-          background: "#16a06a",
+          background: "var(--marca)",
           color: "#fff",
           border: "none",
           borderRadius: 11,

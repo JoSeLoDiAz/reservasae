@@ -67,7 +67,7 @@ export default function DetalleDeAccion({ params }: { params: Promise<{ id: stri
   const activas = datos.reservas.filter((r) => r.estado !== "CANCELADA");
 
   return (
-    <div className="space-y-5">
+    <div>
       <EncabezadoImpresion
         titulo={`${datos.codigo} · ${bonito(datos.nombre)}`}
         subtitulo={datos.convenio.sigla ?? datos.convenio.slug}

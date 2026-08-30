@@ -135,11 +135,21 @@ export function Encabezado({
   children?: React.ReactNode;
 }) {
   return (
-    <header className="mb-6 flex flex-wrap items-start justify-between gap-4">
+    /// Una banda mas, con su relleno propio.
+    ///
+    /// Llevaba `mb-6` y ningun relleno lateral: eso funcionaba
+    /// cuando el contenedor de la pagina ponia el margen. Ahora
+    /// las secciones van a sangre y el relleno lo pone cada una,
+    /// asi que sin esto el titulo quedaba pegado al canto.
+    <header className="flex flex-wrap items-start justify-between gap-4 border-b border-borde bg-superficie px-7 pt-[26px] pb-[22px]">
       <div className="min-w-0">
-        <h1 className="text-2xl font-bold tracking-tight">{titulo}</h1>
+        <h1 className="text-[1.3125rem] font-bold tracking-[-0.02em] text-titulo">
+          {titulo}
+        </h1>
         {descripcion && (
-          <p className="mt-1 max-w-2xl text-sm text-texto-suave">{descripcion}</p>
+          <p className="mt-1.5 max-w-[760px] text-[0.78125rem] leading-relaxed text-texto-suave">
+            {descripcion}
+          </p>
         )}
       </div>
       {children && <div className="flex shrink-0 flex-wrap gap-2">{children}</div>}

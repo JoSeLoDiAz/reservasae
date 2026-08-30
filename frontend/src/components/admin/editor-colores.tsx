@@ -180,7 +180,7 @@ function InsigniaHerencia({
   }
   return (
     <span className="mt-1 inline-flex items-center gap-2 text-xs">
-      <span className="rounded-full bg-marca-suave px-2 py-0.5 font-medium text-marca">
+      <span className="whitespace-nowrap font-semibold text-marca">
         Propio
       </span>
       <button type="button" onClick={alHeredar} className="underline text-texto-suave">

@@ -216,8 +216,12 @@ export default function PaginaReservas() {
     [],
   );
 
+  /// El relleno lateral lo pone la pantalla, no el
+  /// marco: el contenedor dejo de ponerlo para que las
+  /// bandas vayan a sangre, y sin esto la barra de
+  /// busqueda y la paginacion quedaban pegadas al canto.
   return (
-    <div className="flex min-h-0 grow flex-col gap-6">
+    <div className="flex min-h-0 grow flex-col gap-4 px-7 pt-5">
       {/* Sin título ni conteo: lo dice la miga, y la cifra
           va en el pie de la tabla. El aviso solo aparece si
           el servidor deja de contestar; el resto del tiempo

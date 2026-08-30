@@ -236,9 +236,13 @@ export default function PaginaInstituciones() {
     [],
   );
 
+  /// El relleno lateral lo pone la pantalla, no el
+  /// marco: el contenedor dejo de ponerlo para que las
+  /// bandas vayan a sangre, y sin esto la barra de
+  /// busqueda y la paginacion quedaban pegadas al canto.
   return (
-    <div className="flex min-h-0 grow flex-col gap-6">
-      <header>
+    <div className="flex min-h-0 grow flex-col gap-4 px-7 pt-5">
+      <header className="border-b border-borde bg-superficie px-7 pt-[26px] pb-[22px]">
         {/* sin título: lo dice la miga. La cifra se fue al
             lado del buscador, que es donde se mira cuando uno
             está filtrando */}

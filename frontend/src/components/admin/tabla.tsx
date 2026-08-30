@@ -716,7 +716,7 @@ export function Tabla<T>({
           )}
 
           {todasLasQueCoinciden && totalServidor !== null && (
-            <span className="rounded-full bg-aviso-suave px-2.5 py-1 text-xs text-aviso">
+            <span className="whitespace-nowrap font-semibold text-xs text-aviso">
               Sobre las {(filas?.length ?? 0).toLocaleString("es-CO")} cargadas de{" "}
               {totalServidor.toLocaleString("es-CO")}
             </span>
@@ -1447,7 +1447,7 @@ function Pie({
       </span>
 
       {faltan && (
-        <span className="rounded-full bg-aviso-suave px-2.5 py-1 text-aviso">
+        <span className="whitespace-nowrap font-semibold text-aviso">
           Filtrando sobre {cargadas.toLocaleString("es-CO")} de{" "}
           {total.toLocaleString("es-CO")}
           {alCargarTodo && (

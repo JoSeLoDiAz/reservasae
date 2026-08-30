@@ -113,7 +113,7 @@ export default function FormulariosActivos() {
 
   return (
     <div>
-      <header>
+      <header className="border-b border-borde bg-superficie px-7 pt-[26px] pb-[22px]">
         <h1 className="text-[1.3125rem] font-bold tracking-[-0.02em] text-titulo">
           Formularios activos
         </h1>
