@@ -173,13 +173,17 @@ export const TEMAS_POR_DEFECTO: Record<EsquemaColor, ColoresTema> = {
     marcaSuave: '#eff6ff',
     marcaTexto: '#ffffff',
 
-    fondo: '#f8fafc',
+    fondo: '#f6f7f9',
     superficie: '#ffffff',
-    superficieAlterna: '#f1f5f9',
+    superficieAlterna: '#f4f6f9',
     borde: '#e2e8f0',
 
     titulo: '#0f172a',
-    texto: '#0f172a',
+    /// El cuerpo un punto por debajo del titulo.
+    ///
+    /// Estaban los dos en #0f172a, y con el mismo color no hay
+    /// jerarquia que leer: el titulo pesaba igual que el dato.
+    texto: '#1e293b',
     textoSuave: '#64748b',
 
     encabezadoFondo: '#ffffff',
@@ -187,7 +191,7 @@ export const TEMAS_POR_DEFECTO: Record<EsquemaColor, ColoresTema> = {
     encabezadoBorde: '#e2e8f0',
 
     tablaCabeceraFondo: '#f1f5f9',
-    tablaCabeceraTexto: '#334155',
+    tablaCabeceraTexto: '#475569',
     tablaFilaAlterna: '#f8fafc',
     tablaFilaResaltada: '#eff6ff',
     tablaBorde: '#e2e8f0',

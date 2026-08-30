@@ -739,7 +739,7 @@ export function Tabla<T>({
           bloque normal, la tabla crece sin límite, la página
           entera se va hacia arriba al bajar, y hay que
           devolverse hasta arriba para poder filtrar. */}
-      <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-borde bg-superficie shadow-sm">
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-borde bg-superficie">
         {/* Se estira con su contenedor en vez de llevar un tope
             fijo: con `max-h` quedaba media pantalla en blanco
             debajo cuando la ventana era alta. */}
@@ -1175,7 +1175,7 @@ function PanelColumnas<T>({
   const fuera = columnas.filter((c) => !visibles.includes(c.clave));
 
   return (
-    <div className="rounded-2xl border border-borde bg-superficie p-4 shadow-sm">
+    <div className="rounded-2xl border border-borde bg-superficie p-4">
       <div className="mb-3 flex items-center justify-between">
         <h3 className="text-sm font-semibold">Qué columnas se ven</h3>
         <div className="flex items-center gap-3">
@@ -1290,7 +1290,7 @@ function PanelVistas({
   }
 
   return (
-    <div className="rounded-2xl border border-borde bg-superficie p-4 shadow-sm">
+    <div className="rounded-2xl border border-borde bg-superficie p-4">
       <div className="mb-3 flex items-center justify-between">
         <h3 className="text-sm font-semibold">Vistas guardadas</h3>
         <button type="button" onClick={cerrar} aria-label="Cerrar">

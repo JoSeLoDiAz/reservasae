@@ -280,7 +280,7 @@ function TarjetaPropuesta({
   /// que marca la propuesta del buscador en la ficha.
   return (
     <article
-      className={`rounded-2xl border bg-superficie p-6 shadow-sm ${
+      className={`rounded-2xl border bg-superficie p-6 ${
         sugerida ? "border-aviso/40" : "border-borde"
       }`}
     >

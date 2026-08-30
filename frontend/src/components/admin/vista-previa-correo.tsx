@@ -84,7 +84,7 @@ export function VistaPreviaCorreo({
           es donde se decide si lo abre. Un asunto que se corta
           a los 50 caracteres en el celular hay que verlo
           AQUÍ. */}
-      <div className="overflow-hidden rounded-xl border border-borde bg-superficie shadow-sm">
+      <div className="overflow-hidden rounded-xl border border-borde bg-superficie">
         <div className="space-y-1 border-b border-borde bg-superficie-alterna px-4 py-3">
           <div className="flex items-baseline gap-2 text-xs text-texto-suave">
             <span className="w-12 shrink-0">De</span>

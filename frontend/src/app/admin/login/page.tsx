@@ -125,7 +125,7 @@ export default function PaginaAcceso() {
             <button
               type="submit"
               disabled={entrando}
-              className="w-full rounded-xl bg-marca px-5 py-2.5 font-medium text-marca-texto shadow-sm transition hover:bg-marca-fuerte disabled:opacity-50"
+              className="w-full rounded-xl bg-marca px-5 py-2.5 font-medium text-marca-texto transition hover:bg-marca-fuerte disabled:opacity-50"
             >
               {entrando ? "Entrando…" : "Entrar"}
             </button>
@@ -164,7 +164,7 @@ function Marca({ claro = false }: { claro?: boolean }) {
       /// 48 px contra los 56 del signo: se ven de verdad y
       /// siguen leyendose como la segunda linea. Igualarlos
       /// dejaria dos cosas peleando por el mismo sitio.
-      <div className="flex w-fit max-w-full flex-wrap items-center gap-x-6 gap-y-3 self-start rounded-2xl bg-white px-6 py-4 shadow-sm">
+      <div className="flex w-fit max-w-full flex-wrap items-center gap-x-6 gap-y-3 self-start rounded-2xl bg-white px-6 py-4">
         {logos.map((logo) => (
           // <img>: tamano desconocido y ya viene cacheado
           // eslint-disable-next-line @next/next/no-img-element

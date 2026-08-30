@@ -11,13 +11,18 @@
   --marca-suave: #eff6ff;
   --marca-texto: #ffffff;
 
-  --fondo: #f8fafc;
+  --fondo: #f6f7f9;
   --superficie: #ffffff;
-  --superficie-alterna: #f1f5f9;
+  --superficie-alterna: #f4f6f9;
   --borde: #e2e8f0;
+  /* El separador de dentro de un bloque, mas tenue que el
+     borde que lo delimita. Sin esto las filas de una tabla se
+     leian con la misma fuerza que el marco de la tabla, y
+     todo pesaba igual. */
+  --hairline: color-mix(in oklab, var(--borde) 62%, #fff);
 
   --titulo: #0f172a;
-  --texto: #0f172a;
+  --texto: #1e293b;
   --texto-suave: #64748b;
 
   --encabezado-fondo: #ffffff;
@@ -25,7 +30,7 @@
   --encabezado-borde: #e2e8f0;
 
   --tabla-cabecera-fondo: #f1f5f9;
-  --tabla-cabecera-texto: #334155;
+  --tabla-cabecera-texto: #475569;
   --tabla-fila-alterna: #f8fafc;
   --tabla-fila-resaltada: #eff6ff;
   --tabla-borde: #e2e8f0;
@@ -41,6 +46,21 @@
   --error: #be123c;
   --error-suave: #fff1f2;
 
+  /* La paleta del handoff del redisenio de la ficha, tal
+     cual. Va en tokens y no en clases fijas por una razon
+     practica: en modo oscuro una barra #0f172a se pierde
+     contra el fondo, y asi el bloque de abajo la reajusta sin
+     tocar una sola clase. */
+  --acento: #16a06a;
+  --acento-texto: #0f7a52;
+  --acento-suave: #eef7f2;
+
+  --gestion-fondo: #0f172a;
+  --gestion-texto: #e2e8f0;
+  --gestion-rotulo: #7c89a0;
+  --gestion-campo: #1c2738;
+  --gestion-campo-borde: #2c394d;
+
   /* etapas del crm */
   --etapa-interesado: #5b6472;
   --etapa-contactado: #1f4e85;
@@ -53,6 +73,12 @@
   --etapa-no-aprobo: #c22a1e;
   --etapa-deserto: #0f7f94;
   --etapa-abandono: #2f3a8e;
+
+  /* El alto de una fila de tabla, en un solo sitio. Es token
+     y no un numero suelto porque la densidad es una decision
+     de producto: quien mira 400 filas al dia la quiere
+     apretada, y cambiarla es cambiar una linea. */
+  --pad-fila: 0.5625rem; /* 9px */
 
   /* series de los graficos */
   --serie-1: #2a78d6;
@@ -72,6 +98,7 @@
   --superficie: #131c2e;
   --superficie-alterna: #1a2439;
   --borde: #26324a;
+  --hairline: color-mix(in oklab, var(--borde) 74%, #0b1220);
 
   --titulo: #f2f6ff;
   --texto: #e8edf7;
@@ -98,6 +125,20 @@
   --aviso-suave: #2e1f03;
   --error: #fb7185;
   --error-suave: #3f0d16;
+
+  /* En oscuro la barra NO puede ser mas oscura que el fondo:
+     desapareceria. Se sube un escalon sobre `--superficie`. */
+  /* El verde del handoff, aclarado para fondo oscuro: el
+     #16a06a sobre #0b1220 no llega al contraste minimo. */
+  --acento: #34d399;
+  --acento-texto: #5ee0ad;
+  --acento-suave: #0d2b21;
+
+  --gestion-fondo: #1e2a41;
+  --gestion-texto: #e8edf7;
+  --gestion-rotulo: #9aa8c0;
+  --gestion-campo: #131c2e;
+  --gestion-campo-borde: #33405c;
 
   /* etapas aclaradas para fondo oscuro */
   --etapa-interesado: #a3aec0;
@@ -136,14 +177,18 @@
      «2xl» ya no hay jerarquía de redondeo que mantener, y esa
      jerarquía era justo lo que hacía que unas cajas se vieran
      más blandas que otras sin ningún motivo. */
-  --radius-xs: 2px;
-  --radius-sm: 3px;
-  --radius-md: 3px;
-  --radius-lg: 3px;
-  --radius-xl: 4px;
-  --radius-2xl: 4px;
-  --radius-3xl: 4px;
-  --radius-4xl: 4px;
+  /* Los radios del handoff del redisenio: tarjetas 16px,
+     sub-tarjetas y fichas 12px, inputs y botones 9-10px.
+     Estuvieron aplastados a 3px durante un rato y eso es lo
+     que hacia que la pantalla no se pareciera al diseno. */
+  --radius-xs: 7px;
+  --radius-sm: 8px;
+  --radius-md: 10px;
+  --radius-lg: 10px;
+  --radius-xl: 14px;
+  --radius-2xl: 14px;
+  --radius-3xl: 14px;
+  --radius-4xl: 14px;
 
   --color-marca: var(--marca);
   --color-marca-fuerte: var(--marca-fuerte);
@@ -154,6 +199,7 @@
   --color-superficie: var(--superficie);
   --color-superficie-alterna: var(--superficie-alterna);
   --color-borde: var(--borde);
+  --color-hairline: var(--hairline);
 
   --color-texto: var(--texto);
   --color-texto-suave: var(--texto-suave);
@@ -173,6 +219,16 @@
   --color-campo-borde: var(--campo-borde);
   --color-campo-foco: var(--campo-foco);
 
+  --color-acento: var(--acento);
+  --color-acento-texto: var(--acento-texto);
+  --color-acento-suave: var(--acento-suave);
+
+  --color-gestion-fondo: var(--gestion-fondo);
+  --color-gestion-texto: var(--gestion-texto);
+  --color-gestion-rotulo: var(--gestion-rotulo);
+  --color-gestion-campo: var(--gestion-campo);
+  --color-gestion-campo-borde: var(--gestion-campo-borde);
+
   --color-exito: var(--exito);
   --color-exito-suave: var(--exito-suave);
   --color-aviso: var(--aviso);
@@ -186,6 +242,11 @@
      sacar otra tipografia sin tener que tocarlas una a una.
      Lo que daba la mono -- que las cifras cuadren en columna
      -- se conserva con `tabular-nums`, que Raleway trae. */
+  /* Raleway y nada mas: es la unica que autoriza la marca.
+     El handoff pedia Sora y Public Sans y se llegaron a
+     cargar, pero la tipografia no es una decision de pantalla.
+     Del diseno se conservan los tamanos, los pesos y los
+     espaciados; la letra es esta. */
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-sans);
 }
@@ -193,6 +254,11 @@
 body {
   background: var(--fondo);
   color: var(--texto);
+  /* 13,5px del redisenio, en rem para que el ajuste de texto
+     del panel (80 %-150 %) lo siga escalando. */
+  font-size: 0.84375rem;
+  line-height: 1.45;
+  -webkit-font-smoothing: antialiased;
 }
 
 /* `font-mono` ya no cambia de tipografia -- solo Raleway esta
@@ -208,6 +274,7 @@ h1,
 h2,
 h3 {
   color: var(--titulo);
+  letter-spacing: -0.01em;
 }
 
 /* respetar menos animacion */
@@ -276,7 +343,7 @@ h3 {
 :where(a, button, input, select, textarea, [tabindex]):focus-visible {
   outline: 2px solid var(--campo-foco);
   outline-offset: 2px;
-  border-radius: 3px;
+  border-radius: 10px;
 }
 
 /* con el teclado, saltarse el menu */
@@ -323,10 +390,23 @@ h3 {
    estado -- etapas, completo/parcial, activo/cerrado: el
    color va en el tipo de letra, sin mas. */
 .pildora-etapa {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4375rem;
   color: var(--etapa);
   font-size: inherit;
   font-weight: 600;
   white-space: nowrap;
+}
+
+/* El punto de color que acompana a la etapa. Vuelve porque el
+   handoff lo pide: circulo 8x8 delante del texto. */
+.punto-etapa {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 999px;
+  background: var(--etapa);
+  flex: none;
 }
 
 /* impresion / pdf */
@@ -452,13 +532,15 @@ h3 {
   color: var(--tabla-cabecera-texto);
   text-align: left;
   font-weight: 600;
-  /* el mismo cuerpo que las filas: la cabecera se distingue
-     por la mayuscula y el peso, no por ser mas pequena */
-  font-size: 0.875rem;
-  letter-spacing: 0.04em;
+  /* 10,5px del redisenio, en rem para que siga creciendo con
+     el ajuste de texto del panel. Antes iba al mismo cuerpo
+     que las filas; ahora la cabecera es rotulo y la fila es
+     dato, y se distinguen por tamano ademas de por peso. */
+  font-size: 0.65625rem;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
-  padding: 0.75rem 1rem;
-  border-bottom: 1px solid var(--tabla-borde);
+  padding: 0.625rem 0.875rem;
+  border-bottom: 1px solid var(--borde);
   /* El título se acomoda al ancho de su columna.
 
      Con `nowrap` se salía de la celda y la de al lado le
@@ -485,17 +567,19 @@ h3 {
   overflow-wrap: break-word;
 }
 .tabla-datos tbody td {
-  font-size: 0.875rem;
-  padding: 0.8125rem 1rem;
-  border-bottom: 1px solid var(--tabla-borde);
+  /* 12,5px */
+  font-size: 0.78125rem;
+  padding: var(--pad-fila) 0.875rem;
+  border-bottom: 1px solid var(--hairline);
 }
 /* la ultima no lleva raya: ya la pone la tarjeta */
 .tabla-datos tbody tr:last-child td {
   border-bottom: 0;
 }
-.tabla-datos tbody tr:nth-child(even) {
-  background: var(--tabla-fila-alterna);
-}
+/* Sin cebra.
+   La fila se separa por su raya de `--hairline`, no por un
+   fondo alterno. Eran las dos cosas a la vez, y con eso una
+   tabla ya iba por el tercer fondo de la pantalla. */
 .tabla-datos tbody tr:hover {
   background: var(--tabla-fila-resaltada);
 }
@@ -510,7 +594,13 @@ h3 {
    tarjeta, que se ve como un error de alineación. */
 .tabla-datos thead th:not(:last-child),
 .tabla-datos tbody td:not(:last-child) {
-  border-right: 1px solid var(--tabla-borde);
+  /* Se quedan, pero en `--hairline`.
+     El redisenio no las menciona; la decision de ponerlas si
+     esta escrita, y es por las 22 columnas: con el ojo
+     saltando de una a otra la raya horizontal sola no basta
+     para saber en cual va uno. Bajarlas a hairline las deja
+     estar sin competir con el dato. */
+  border-right: 1px solid var(--hairline);
 }
 
 /* Lo que no cabe se queda dentro.

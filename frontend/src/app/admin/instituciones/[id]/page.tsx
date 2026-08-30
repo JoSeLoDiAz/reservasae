@@ -989,7 +989,7 @@ function TarjetaPropuesta({
 
   return (
     <section
-      className={`rounded-2xl border bg-superficie p-6 shadow-sm ${
+      className={`rounded-2xl border bg-superficie p-6 ${
         esWeb ? "border-aviso/40" : "border-borde"
       }`}
     >

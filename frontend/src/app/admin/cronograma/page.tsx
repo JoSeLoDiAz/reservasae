@@ -147,7 +147,7 @@ function Accion({
   alFallar: (m: string) => void;
 }) {
   return (
-    <section className="overflow-hidden rounded-2xl border border-borde bg-superficie shadow-sm">
+    <section className="overflow-hidden rounded-2xl border border-borde bg-superficie">
       <button
         onClick={alAbrir}
         aria-expanded={abierta}

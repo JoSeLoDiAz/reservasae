@@ -29,7 +29,7 @@ import { ErrorApi } from "@/lib/api";
 
 import { PanelAccesibilidad } from "./accesibilidad";
 import { CambioDeClaveObligatorio } from "./cambio-clave";
-import {
+import { ICONO_DE_MODULO,
   IconoAccesibilidad,
   IconoCerrar,
   IconoDerecha,
@@ -391,7 +391,7 @@ function Marca({ plegado }: { plegado?: boolean }) {
         /// elige el administrador, así que sin la placa el logo
         /// desaparece en modo oscuro — y también en claro si
         /// alguien pone el encabezado en un color fuerte.
-        <div className="mx-auto flex w-fit max-w-full flex-wrap items-center justify-center gap-x-2.5 gap-y-1.5 rounded-xl bg-white px-2.5 py-2 shadow-sm">
+        <div className="mx-auto flex w-fit max-w-full flex-wrap items-center justify-center gap-x-2.5 gap-y-1.5 rounded-xl bg-white px-2.5 py-2">
           {logos.map((l) => (
             // eslint-disable-next-line @next/next/no-img-element
             <img
@@ -704,9 +704,10 @@ function Grupos({
                   : "opacity-60 hover:bg-current/8 hover:opacity-100"
               }`}
             >
-              <span aria-hidden className="text-lg leading-none">
-                {modulo.emoji}
-              </span>
+              {(() => {
+                const Icono = ICONO_DE_MODULO[modulo.clave];
+                return Icono ? <Icono tamano={17} /> : null;
+              })()}
             </button>
           );
         }
@@ -727,9 +728,14 @@ function Grupos({
                     : "opacity-65 hover:bg-current/8 hover:opacity-100"
                 }`}
               >
-                <span aria-hidden className="shrink-0 text-base leading-none">
-                  {modulo.emoji}
-                </span>
+                {(() => {
+                  const Icono = ICONO_DE_MODULO[modulo.clave];
+                  return Icono ? (
+                    <span className="shrink-0 leading-none">
+                      <Icono tamano={17} />
+                    </span>
+                  ) : null;
+                })()}
                 <span className="truncate">
                   {modulo.etiqueta}
                 </span>
@@ -1070,6 +1076,7 @@ export const CLASE_CONTROL =
 
 export function Tarjeta({
   titulo,
+  encabezado,
   descripcion,
   centrado,
   plegable,
@@ -1078,6 +1085,9 @@ export function Tarjeta({
   children,
 }: {
   titulo: string;
+  /// Un encabezado propio, con su circulo de icono. Cuando va,
+  /// sustituye al titulo y la descripcion de siempre.
+  encabezado?: React.ReactNode;
   descripcion?: React.ReactNode;
   /// Solo para las graficas: dos tarjetas de la misma fila
   /// miden lo mismo y el contenido se centra en vez de
@@ -1103,11 +1113,16 @@ export function Tarjeta({
 
   return (
     <section
-      className={`rounded-2xl border border-borde bg-superficie shadow-sm ${
+      className={`rounded-2xl border border-borde bg-superficie ${
         centrado ? "flex h-full flex-col" : ""
       } ${plegable && !abierta ? "px-6 py-4" : "p-6"}`}
     >
-      {plegable ? (
+      {encabezado ? (
+        <>
+          {encabezado}
+          <div className="mt-4">{children}</div>
+        </>
+      ) : plegable ? (
         <button
           type="button"
           onClick={() => setAbierta((v) => !v)}
@@ -1155,7 +1170,10 @@ export function Tarjeta({
         </>
       )}
 
-      {mostrar && (
+      {/* `!encabezado`: con encabezado propio los hijos ya se
+          pintaron arriba, y sin esto salian DOS VECES — la
+          tarjeta de Notas aparecia duplicada entera. */}
+      {!encabezado && mostrar && (
         <>
           {plegable && descripcion && (
             <p className="mt-1 text-sm text-texto-suave">{descripcion}</p>
@@ -1182,7 +1200,7 @@ export function Campo({
 }) {
   return (
     <label className="block">
-      <span className="mb-1.5 block text-sm font-medium">{etiqueta}</span>
+      <span className="mb-1.5 block text-[12.5px] font-medium">{etiqueta}</span>
       {children}
       {ayuda && <span className="mt-1.5 block text-xs text-texto-suave">{ayuda}</span>}
     </label>
@@ -1196,7 +1214,17 @@ export function Boton({
   return (
     <button
       {...resto}
-      className={`inline-flex items-center justify-center gap-2 rounded-xl bg-marca px-5 py-2.5 text-sm font-medium text-marca-texto shadow-sm transition hover:bg-marca-fuerte disabled:opacity-50 ${resto.className ?? ""}`}
+      /// El azul de marca, no el verde.
+      ///
+      /// Estuvo en `--acento` una temporada, y eso pintaba de
+      /// verde el boton principal de TODO el panel. `--marca`
+      /// es el color del producto -- y el que cada gremio edita
+      /// desde Apariencia --, asi que fijar aqui otro le quita
+      /// esa palanca sin que nadie se entere.
+      ///
+      /// Alto 34, radio 10 y sin sombra: la separacion de este
+      /// redisenio es por borde de 1px, nunca por sombra.
+      className={`inline-flex h-[34px] items-center justify-center gap-2 rounded-lg bg-marca px-[14px] text-[12.5px] font-semibold text-marca-texto transition hover:bg-marca-fuerte disabled:opacity-50 ${resto.className ?? ""}`}
     >
       {children}
     </button>
@@ -1218,6 +1246,61 @@ export function Boton({
  * comportamiento —incluido arrastrar y soltar sobre la
  * etiqueta— y solo se le cambia la cara.
  */
+/**
+ * El encabezado de una seccion, con su circulo de icono.
+ *
+ * Es el patron que repite el handoff en todos los paneles:
+ * circulo verde palido de 38px con el icono dentro, y al lado
+ * el titulo y una linea que dice de que va la seccion.
+ */
+export function EncabezadoSeccion({
+  icono,
+  titulo,
+  descripcion,
+  accion,
+}: {
+  icono: React.ReactNode;
+  titulo: string;
+  descripcion?: string;
+  accion?: React.ReactNode;
+}) {
+  return (
+    <div className="flex items-center justify-between gap-4">
+      <div className="flex min-w-0 items-center gap-3">
+        <span
+          aria-hidden
+          className="grid size-9.5 shrink-0 place-items-center rounded-full bg-acento-suave text-acento-texto"
+        >
+          {icono}
+        </span>
+        <div className="min-w-0">
+          <p className="truncate text-base font-semibold">{titulo}</p>
+          {descripcion && (
+            <p className="mt-0.5 truncate text-sm text-texto-suave">
+              {descripcion}
+            </p>
+          )}
+        </div>
+      </div>
+      {accion}
+    </div>
+  );
+}
+
+/**
+ * El rotulo de un grupo de campos: cuadrito verde y texto en
+ * mayusculas pequenas. Es lo que parte los veinte campos de
+ * «Datos» en seis bloques legibles.
+ */
+export function RotuloDeGrupo({ children }: { children: React.ReactNode }) {
+  return (
+    <p className="flex items-center gap-2 text-[0.6875rem] font-semibold tracking-[0.1em] text-acento-texto uppercase">
+      <span aria-hidden className="size-1.5 rounded-xs bg-acento" />
+      {children}
+    </p>
+  );
+}
+
 export function EscogerArchivo({
   id,
   acepta,

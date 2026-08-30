@@ -288,3 +288,124 @@ export const IconoPapelera = (p: Props) => (
     <path d="M4 7h16M9 7V5h6v2M6 7l1 13h10l1-13" />
   </Svg>
 );
+
+/// Los cuatro del panel de acciones del redisenio de la ficha.
+/// Dibujados aqui como los demas: traer un paquete de mil
+/// iconos por usar cuatro no compensa.
+
+/** Un rayo. Encabeza el panel de acciones. */
+export function IconoRayo(p: Props) {
+  return (
+    <Svg {...p}>
+      <path d="M13 2 4 14h6l-1 8 9-12h-6l1-8Z" />
+    </Svg>
+  );
+}
+
+/** Un escudo con visto: la autorizacion de datos. */
+export function IconoEscudo(p: Props) {
+  return (
+    <Svg {...p}>
+      <path d="M12 3 5 6v5c0 4.4 3 8.4 7 9.5 4-1.1 7-5.1 7-9.5V6l-7-3Z" />
+      <path d="m9 12 2 2 4-4" />
+    </Svg>
+  );
+}
+
+/** Un sobre: escribirle un correo. */
+export function IconoSobre(p: Props) {
+  return (
+    <Svg {...p}>
+      <rect x="3" y="5" width="18" height="14" rx="2" />
+      <path d="m3 7 9 6 9-6" />
+    </Svg>
+  );
+}
+
+/** Dos eslabones: el enlace para completar datos. */
+export function IconoEnlace(p: Props) {
+  return (
+    <Svg {...p}>
+      <path d="M10 13a5 5 0 0 0 7 0l2-2a5 5 0 0 0-7-7l-1 1" />
+      <path d="M14 11a5 5 0 0 0-7 0l-2 2a5 5 0 0 0 7 7l1-1" />
+    </Svg>
+  );
+}
+
+/* ── Los iconos de los siete módulos del menú ──────────────
+   Sustituyen a los emoji que llevaba la barra. La razón que
+   defendía el emoji era buena -- seis grupos se distinguen de
+   un vistazo -- y estos la conservan: siguen siendo una marca
+   por módulo, distinta de un vistazo.
+
+   Lo que gana es lo que el emoji no podía dar: se dibujan en
+   `currentColor`, así que obedecen al tema y al estado activo,
+   y se ven igual en Windows, en Mac y en Android. Un emoji lo
+   pinta cada sistema a su manera y siempre con su propio
+   color, que es el que se salía de la paleta del gremio. */
+
+export const IconoModuloCalendario: Icono = (p) => (
+  <Svg {...p}>
+    <rect x="3" y="5" width="18" height="16" rx="2" />
+    <path d="M8 3v4M16 3v4M3 10h18" />
+  </Svg>
+);
+
+export const IconoModuloInscripciones: Icono = (p) => (
+  <Svg {...p}>
+    <path d="M15 5h3a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h3" />
+    <rect x="9" y="3" width="6" height="4" rx="1" />
+    <path d="M9 14l2 2 4-4" />
+  </Svg>
+);
+
+export const IconoModuloSistemas: Icono = (p) => (
+  <Svg {...p}>
+    <path d="M12 3l9 5-9 5-9-5 9-5z" />
+    <path d="M3 13l9 5 9-5" />
+  </Svg>
+);
+
+export const IconoModuloAcademica: Icono = (p) => (
+  <Svg {...p}>
+    <path d="M4 4v16h16" />
+    <path d="M8 16l4-5 3 3 4-6" />
+  </Svg>
+);
+
+export const IconoModuloFormularios: Icono = (p) => (
+  <Svg {...p}>
+    <path d="M15 3H6v18h13V7z" />
+    <path d="M15 3v4h4" />
+    <path d="M9 12h7M9 16h5" />
+  </Svg>
+);
+
+export const IconoModuloMailing: Icono = (p) => (
+  <Svg {...p}>
+    <rect x="3" y="6" width="18" height="13" rx="2" />
+    <path d="M3 8.5l9 5.5 9-5.5" />
+  </Svg>
+);
+
+export const IconoModuloConfiguracion: Icono = (p) => (
+  <Svg {...p}>
+    <path d="M5 7h14M5 12h14M5 17h14" />
+    <circle cx="9" cy="7" r="2" />
+    <circle cx="15" cy="12" r="2" />
+    <circle cx="9" cy="17" r="2" />
+  </Svg>
+);
+
+/// Por la clave del módulo, que es la que ya viaja en
+/// `navegacion.ts`. Así añadir el icono no obligó a tocar la
+/// definición del menú ni sus permisos.
+export const ICONO_DE_MODULO: Record<string, Icono> = {
+  cronograma: IconoModuloCalendario,
+  inscripciones: IconoModuloInscripciones,
+  sistemas: IconoModuloSistemas,
+  academico: IconoModuloAcademica,
+  formularios: IconoModuloFormularios,
+  campanas: IconoModuloMailing,
+  configuracion: IconoModuloConfiguracion,
+};

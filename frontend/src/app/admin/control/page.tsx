@@ -232,7 +232,7 @@ export default function PaginaControl() {
 
       {pestana === "analisis" && (
         <>
-      <div className="rounded-2xl border border-borde bg-superficie p-5 shadow-sm">
+      <div className="rounded-2xl border border-borde bg-superficie p-5">
         <div className="grid gap-4 lg:grid-cols-2">
           <div>
             <p className="mb-1.5 text-sm font-medium">Periodo</p>

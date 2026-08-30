@@ -101,7 +101,7 @@ export function ConfirmarBorrado({
             type="button"
             onClick={borrar}
             disabled={!coincide || borrando}
-            className="rounded-xl bg-error px-5 py-2.5 text-sm font-medium text-superficie shadow-sm transition disabled:opacity-40"
+            className="rounded-xl bg-error px-5 py-2.5 text-sm font-medium text-superficie transition disabled:opacity-40"
           >
             {borrando ? "Borrando…" : "Borrar definitivamente"}
           </button>

@@ -146,7 +146,7 @@ export default function FormulariosActivos() {
             onClick={() => setCual(valor)}
             className={`rounded-lg px-4 py-2 text-sm transition ${
               cual === valor
-                ? "bg-marca font-medium text-marca-texto shadow-sm"
+                ? "bg-marca font-medium text-marca-texto"
                 : "text-texto-suave hover:text-texto"
             }`}
           >

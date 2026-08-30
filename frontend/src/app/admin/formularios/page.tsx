@@ -52,7 +52,7 @@ export default function PaginaFormularios() {
         {formularios?.map((f) => (
           <div
             key={f.id}
-            className="rounded-xl border border-borde bg-superficie p-5 transition hover:border-marca hover:shadow-sm"
+            className="rounded-xl border border-borde bg-superficie p-5 transition hover:border-marca hover:"
           >
             <div className="flex items-start justify-between gap-3">
               <Link

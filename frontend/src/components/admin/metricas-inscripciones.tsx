@@ -50,7 +50,7 @@ function Target({
   return (
     <div
       title={guia}
-      className="flex items-center gap-3 rounded-xl border border-borde bg-superficie px-3 py-2.5 shadow-sm"
+      className="flex items-center gap-3 rounded-xl border border-borde bg-superficie px-3 py-2.5"
     >
       <span className="min-w-0 flex-1">
         <span className="block truncate text-[10px] font-semibold tracking-[0.1em] text-texto-suave uppercase">

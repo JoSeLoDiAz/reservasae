@@ -502,7 +502,7 @@ export function CompletarFicha({ token }: { token: string }) {
               quiera SI es parte de la ley. */}
           {ficha.politica && (
             ficha.yaAutorizo ? (
-              <details className="group rounded-2xl border border-borde bg-superficie px-6 py-4 shadow-sm">
+              <details className="group rounded-2xl border border-borde bg-superficie px-6 py-4">
                 <summary className="flex cursor-pointer list-none items-center gap-2 text-sm">
                   <span className="text-exito">✓</span>
                   <span className="font-medium">{ficha.politica.titulo}</span>
@@ -521,7 +521,7 @@ export function CompletarFicha({ token }: { token: string }) {
                 </p>
               </details>
             ) : (
-              <section className="rounded-2xl border border-borde bg-superficie p-6 shadow-sm">
+              <section className="rounded-2xl border border-borde bg-superficie p-6">
                 <h2 className="text-lg font-semibold">{ficha.politica.titulo}</h2>
                 <div className="mt-4 max-h-64 overflow-y-auto rounded-xl border border-borde bg-superficie-alterna p-4 text-sm leading-relaxed whitespace-pre-wrap">
                   {ficha.politica.contenido}
@@ -533,7 +533,7 @@ export function CompletarFicha({ token }: { token: string }) {
             )
           )}
 
-          <section className="rounded-2xl border border-borde bg-superficie p-6 shadow-sm">
+          <section className="rounded-2xl border border-borde bg-superficie p-6">
             <h2 className="text-lg font-semibold">
               {faltaEnPersona.length === 0
                 ? "Sus datos están completos"
@@ -677,7 +677,7 @@ export function CompletarFicha({ token }: { token: string }) {
               Y es OPCIONAL de verdad: hay un botón para no
               decirlo, porque un dato sensible que no se puede
               rehusar no está consentido. */}
-          <section className="rounded-2xl border border-borde bg-superficie p-6 shadow-sm">
+          <section className="rounded-2xl border border-borde bg-superficie p-6">
             <h2 className="text-lg font-semibold">Población vulnerable</h2>
             <p className="mt-1 text-sm leading-relaxed text-texto-suave">
               El SENA lleva esta cuenta para saber a quién le está llegando la
@@ -722,7 +722,7 @@ export function CompletarFicha({ token }: { token: string }) {
           <button
             type="submit"
             disabled={guardando || !listoPersona}
-            className="w-full rounded-xl bg-marca px-6 py-3 font-medium text-marca-texto shadow-sm transition hover:bg-marca-fuerte disabled:opacity-50"
+            className="w-full rounded-xl bg-marca px-6 py-3 font-medium text-marca-texto transition hover:bg-marca-fuerte disabled:opacity-50"
           >
             {guardando ? "Guardando…" : "Guardar y seguir"}
           </button>
@@ -739,7 +739,7 @@ export function CompletarFicha({ token }: { token: string }) {
         }}
         className="mt-8 space-y-6"
       >
-          <section className="rounded-2xl border border-borde bg-superficie p-6 shadow-sm">
+          <section className="rounded-2xl border border-borde bg-superficie p-6">
             {/* AL NOMINADO no se le pregunta: ya se sabe.
                 Lo inscribió su empresa, con NIT y razón social
                 guardados. Ofrecerle tres opciones de las que
@@ -942,7 +942,7 @@ export function CompletarFicha({ token }: { token: string }) {
                   type="button"
                   disabled={!listoParaRevisar}
                   onClick={() => setRevisando(true)}
-                  className="rounded-xl bg-marca px-6 py-3 font-medium text-marca-texto shadow-sm transition hover:bg-marca-fuerte disabled:opacity-50"
+                  className="rounded-xl bg-marca px-6 py-3 font-medium text-marca-texto transition hover:bg-marca-fuerte disabled:opacity-50"
                 >
                   Revisar y confirmar
                 </button>
@@ -1014,7 +1014,7 @@ export function CompletarFicha({ token }: { token: string }) {
                 <button
                   type="submit"
                   disabled={guardando}
-                  className="rounded-xl bg-marca px-7 py-3.5 font-medium text-marca-texto shadow-sm transition hover:bg-marca-fuerte disabled:opacity-50"
+                  className="rounded-xl bg-marca px-7 py-3.5 font-medium text-marca-texto transition hover:bg-marca-fuerte disabled:opacity-50"
                 >
                   {guardando ? "Enviando…" : "Está correcto, confirmar inscripción"}
                 </button>

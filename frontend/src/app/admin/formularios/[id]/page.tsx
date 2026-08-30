@@ -380,7 +380,7 @@ function BloqueSeccion({
   }
 
   return (
-    <section className="rounded-2xl border border-borde bg-superficie p-6 shadow-sm">
+    <section className="rounded-2xl border border-borde bg-superficie p-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
         {editando ? (
           <form

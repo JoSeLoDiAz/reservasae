@@ -208,7 +208,7 @@ export function FormularioReserva({ slug }: { slug: string }) {
 
   if (estado === "no-disponible") {
     return (
-      <div className="rounded-2xl border border-borde bg-superficie p-6 shadow-sm">
+      <div className="rounded-2xl border border-borde bg-superficie p-6">
         <h2 className="font-medium">No hay formación disponible en este momento</h2>
         <p className="mt-2 text-sm text-texto-suave">
           {error ?? "Vuelva a intentarlo más tarde."}
@@ -227,7 +227,7 @@ export function FormularioReserva({ slug }: { slug: string }) {
         const visibles = bloque.preguntas.filter(visible);
         if (!visibles.length) return null;
         return (
-          <section key={bloque.id} className="rounded-2xl border border-borde bg-superficie p-6 shadow-sm">
+          <section key={bloque.id} className="rounded-2xl border border-borde bg-superficie p-6">
             <h2 className="text-lg font-medium">{bloque.titulo}</h2>
             {bloque.descripcion && (
               <p className="mt-1 text-sm text-texto-suave">{bloque.descripcion}</p>
@@ -611,7 +611,7 @@ function TarjetaCurso({
       className={`relative flex h-full cursor-pointer flex-col rounded-xl border p-5 transition ${
         elegida
           ? "border-marca bg-marca-suave ring-2 ring-marca/20"
-          : "border-borde bg-superficie hover:border-marca/50 hover:shadow-sm"
+          : "border-borde bg-superficie hover:border-marca/50 hover:"
       }`}
     >
       {/* radio oculto pero accesible */}
@@ -688,7 +688,7 @@ function ResumenOferta({ oferta }: { oferta: Oferta }) {
 function Confirmacion({ reserva, mensaje }: { reserva: Reserva; mensaje?: string | null }) {
   const enEspera = reserva.cuposEnEspera > 0;
   return (
-    <div className="rounded-2xl border border-borde bg-superficie p-6 shadow-sm">
+    <div className="rounded-2xl border border-borde bg-superficie p-6">
       <span
         className={`inline-block rounded-full px-3 py-1 text-sm font-medium ${
           reserva.cuposConfirmados > 0

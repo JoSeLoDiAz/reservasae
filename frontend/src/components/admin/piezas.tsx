@@ -59,8 +59,8 @@ export function TarjetaCifra({
   );
 
   const clase =
-    "rounded-2xl border border-borde bg-superficie p-5 shadow-sm transition" +
-    (href ? " block no-underline hover:border-marca hover:shadow-md" : "");
+    "rounded-2xl border border-borde bg-superficie p-5 transition" +
+    (href ? " block no-underline hover:border-marca" : "");
 
   return href ? (
     <Link href={href} className={clase}>
@@ -185,7 +185,7 @@ export function Esqueleto({
           {Array.from({ length: 4 }, (_, i) => (
             <div
               key={i}
-              className="rounded-2xl border border-borde bg-superficie p-5 shadow-sm"
+              className="rounded-2xl border border-borde bg-superficie p-5"
             >
               <div className="h-3.5 w-24 animate-pulse rounded-full bg-current/10" />
               <div className="mt-4 h-8 w-16 animate-pulse rounded-lg bg-current/10" />
@@ -194,7 +194,7 @@ export function Esqueleto({
         </div>
       )}
 
-      <div className="rounded-2xl border border-borde bg-superficie p-5 shadow-sm">
+      <div className="rounded-2xl border border-borde bg-superficie p-5">
         <div className="h-4 w-40 animate-pulse rounded-full bg-current/10" />
         <div className="mt-5 space-y-3">
           {Array.from({ length: filas }, (_, i) => (

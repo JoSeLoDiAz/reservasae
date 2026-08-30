@@ -199,7 +199,7 @@ export default function PaginaAcademico() {
               setFiltro(filtro === estado ? "" : estado);
             }}
             style={{ ["--etapa"]: COLOR[estado] } as React.CSSProperties}
-            className={`rounded-2xl border bg-superficie p-4 text-left shadow-sm transition hover:shadow-md ${
+            className={`rounded-2xl border bg-superficie p-4 text-left transition ${
               filtro === estado ? "border-2" : "border-borde"
             }`}
             aria-pressed={filtro === estado}
@@ -232,7 +232,7 @@ export default function PaginaAcademico() {
               }}
               aria-pressed={salida === etapa}
               style={estiloEtapa(etapa)}
-              className={`rounded-2xl border bg-superficie p-4 text-left shadow-sm transition hover:shadow-md ${
+              className={`rounded-2xl border bg-superficie p-4 text-left transition ${
                 salida === etapa ? "border-2" : "border-borde"
               }`}
             >
@@ -395,7 +395,7 @@ function AccionAcordeon({
   ).length;
 
   return (
-    <section className="overflow-hidden rounded-2xl border border-borde bg-superficie shadow-sm">
+    <section className="overflow-hidden rounded-2xl border border-borde bg-superficie">
       <button
         onClick={alAbrir}
         aria-expanded={abierta}
