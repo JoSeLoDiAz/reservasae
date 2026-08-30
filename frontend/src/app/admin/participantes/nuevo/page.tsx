@@ -119,8 +119,8 @@ export default function PaginaNuevoParticipante() {
         titulo="Quién es"
         descripcion="El documento identifica a la persona en todo el sistema: si ya está en otro curso, se reconoce sola."
       >
-        <div className="max-w-2xl space-y-4">
-          <div className="grid sm:grid-cols-[1fr_1.4fr]">
+        <div className="space-y-4">
+          <div className="grid grid-cols-[repeat(auto-fit,minmax(220px,1fr))] gap-x-7 gap-y-4">
             <Campo etiqueta="Tipo de documento">
               <select
                 className={CLASE_CONTROL}
@@ -146,9 +146,7 @@ export default function PaginaNuevoParticipante() {
                 inputMode="numeric"
               />
             </Campo>
-          </div>
 
-          <div className="grid max-w-2xl sm:grid-cols-2">
             <Campo etiqueta="Primer nombre">
               <input
                 className={CLASE_CONTROL}
@@ -187,10 +185,10 @@ export default function PaginaNuevoParticipante() {
       </Tarjeta>
 
       <Tarjeta
-        titulo="Cómo contactarla"
-        descripcion="Hace falta al menos uno de los dos para poder matricularla."
+        titulo="Cómo contactarla, y de dónde viene"
+        descripcion="Hace falta al menos una de las dos formas de contacto para poder matricularla."
       >
-        <div className="grid max-w-2xl sm:grid-cols-2">
+        <div className="grid grid-cols-[repeat(auto-fit,minmax(220px,1fr))] gap-x-7 gap-y-4">
           <Campo etiqueta="Correo">
             <input
               className={CLASE_CONTROL}
@@ -207,11 +205,7 @@ export default function PaginaNuevoParticipante() {
               inputMode="tel"
             />
           </Campo>
-        </div>
-      </Tarjeta>
 
-      <Tarjeta titulo="De dónde viene">
-        <div className="grid max-w-2xl sm:grid-cols-2">
           <Campo etiqueta="Convenio">
             <select
               className={CLASE_CONTROL}
