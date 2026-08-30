@@ -21,9 +21,9 @@ import {
 const POR_VIAJE = 200;
 
 const ETIQUETA_ESTADO: Record<EstadoReserva, { texto: string; clase: string }> = {
-  CONFIRMADA: { texto: "Confirmada", clase: "bg-exito-suave text-exito" },
-  LISTA_ESPERA: { texto: "En espera", clase: "bg-aviso-suave text-aviso" },
-  CANCELADA: { texto: "Cancelada", clase: "bg-error-suave text-error" },
+  CONFIRMADA: { texto: "Confirmada", clase: "text-exito" },
+  LISTA_ESPERA: { texto: "En espera", clase: "text-aviso" },
+  CANCELADA: { texto: "Cancelada", clase: "text-error" },
 };
 
 const fecha = (iso: string) =>
@@ -183,7 +183,7 @@ export default function PaginaReservas() {
         pinta: (r) => (
           <span
             className={
-              "whitespace-nowrap rounded-full px-2.5 py-0.5 text-xs font-medium " +
+              "whitespace-nowrap text-[0.75rem] font-semibold " +
               ETIQUETA_ESTADO[r.estado].clase
             }
           >
@@ -316,7 +316,7 @@ function PanelReserva({
     >
       <span
         className={
-          "inline-block rounded-full px-2.5 py-0.5 text-xs font-medium " + estado.clase
+          "inline-block text-[0.75rem] font-semibold " + estado.clase
         }
       >
         {estado.texto}

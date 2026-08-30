@@ -541,7 +541,7 @@ function FilaResumen({
         }}
         className={`mb-2 flex h-[34px] w-[34px] items-center justify-center self-center rounded-full border transition ${
           activo
-            ? "border-marca bg-marca-suave text-marca"
+            ? "border-titulo bg-titulo text-superficie"
             : "border-borde text-texto-suave hover:border-texto-suave hover:text-titulo"
         }`}
       >
@@ -782,9 +782,15 @@ function Grupos({
               /// acertijo, y un circulo con borde se lee como
               /// boton mientras que un bloque de color se lee
               /// como estado.
+              /// El activo va INVERTIDO -- circulo relleno con
+              /// `--titulo` y el icono en `--superficie` --, que
+              /// es lo que pide el redisenio. Con el relleno
+              /// suave apenas se distinguia del fondo de la
+              /// barra a 34px, y en un rail sin etiquetas saber
+              /// donde esta uno es lo unico que se tiene.
               className={`mb-2 flex h-[34px] w-[34px] items-center justify-center self-center rounded-full border transition ${
                 activo
-                  ? "border-marca bg-marca-suave text-marca"
+                  ? "border-titulo bg-titulo text-superficie"
                   : "border-borde text-texto-suave hover:border-texto-suave hover:text-titulo"
               }`}
             >

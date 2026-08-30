@@ -95,9 +95,9 @@ export function ConsultaReservas() {
 }
 
 const ESTADOS = {
-  CONFIRMADA: { texto: "Confirmada", clase: "bg-exito-suave text-exito" },
-  LISTA_ESPERA: { texto: "En lista de espera", clase: "bg-aviso-suave text-aviso" },
-  CANCELADA: { texto: "Cancelada", clase: "bg-error-suave text-error" },
+  CONFIRMADA: { texto: "Confirmada", clase: "text-exito" },
+  LISTA_ESPERA: { texto: "En lista de espera", clase: "text-aviso" },
+  CANCELADA: { texto: "Cancelada", clase: "text-error" },
 } as const;
 
 function TarjetaReserva({

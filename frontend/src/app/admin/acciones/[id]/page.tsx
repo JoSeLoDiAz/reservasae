@@ -31,9 +31,9 @@ const MODALIDAD: Record<string, string> = {
 };
 
 const ESTADO: Record<string, { texto: string; clase: string }> = {
-  CONFIRMADA: { texto: "Confirmada", clase: "bg-exito-suave text-exito" },
-  LISTA_ESPERA: { texto: "En espera", clase: "bg-aviso-suave text-aviso" },
-  CANCELADA: { texto: "Cancelada", clase: "bg-error-suave text-error" },
+  CONFIRMADA: { texto: "Confirmada", clase: "text-exito" },
+  LISTA_ESPERA: { texto: "En espera", clase: "text-aviso" },
+  CANCELADA: { texto: "Cancelada", clase: "text-error" },
 };
 
 export default function DetalleDeAccion({ params }: { params: Promise<{ id: string }> }) {
@@ -383,7 +383,7 @@ export default function DetalleDeAccion({ params }: { params: Promise<{ id: stri
                     </td>
                     <td>
                       <span
-                        className={`whitespace-nowrap rounded-full px-2.5 py-0.5 text-xs font-medium ${ESTADO[r.estado].clase}`}
+                        className={`whitespace-nowrap text-[0.75rem] font-semibold ${ESTADO[r.estado].clase}`}
                       >
                         {ESTADO[r.estado].texto}
                       </span>

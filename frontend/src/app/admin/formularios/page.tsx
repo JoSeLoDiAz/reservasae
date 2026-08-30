@@ -62,7 +62,7 @@ export default function PaginaFormularios() {
                 {f.titulo}
               </Link>
               <span
-                className={`shrink-0 rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                className={`shrink-0 text-[0.75rem] font-semibold ${
                   f.publicado ? "bg-exito-suave text-exito" : "bg-fondo text-texto-suave"
                 }`}
               >
