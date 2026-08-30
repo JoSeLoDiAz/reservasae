@@ -8,6 +8,7 @@ import {
   BarraAvance,
   BarrasApiladas,
   DosSeriesPorDia,
+  Donut,
   ListaBarras,
   n,
   SERIE,
@@ -705,12 +706,13 @@ function Cuerpo({ d, adminId, eligio }: { d: Control; adminId: string; eligio: b
           titulo="Qué canal trae más"
           descripcion="Por dónde entraron los inscritos del periodo."
         >
-          <ListaBarras
+          <Donut
             datos={d.porOrigen.map((o) => ({
               etiqueta: ETIQUETA_ORIGEN[o.etiqueta as Origen] ?? o.etiqueta,
               valor: o.total,
-              detalle: conOrigen > 0 ? porcentaje(o.total / conOrigen) : undefined,
             }))}
+            centro={n(conOrigen)}
+            detalleCentro="inscritos"
             vacio="Todavía no hay inscritos en el periodo."
           />
         </Bloque>
@@ -849,8 +851,9 @@ function Cuerpo({ d, adminId, eligio }: { d: Control; adminId: string; eligio: b
 
       {/* ---- 4. el reparto: los cinco cortes, un bloque ---- */}
       <Bloque
+        plegable
         titulo="Cómo se reparten los inscritos"
-        descripcion="Los mismos inscritos del periodo, vistos por curso, por territorio, por grupo, por convenio y por modalidad."
+        descripcion="Los mismos inscritos, vistos por curso, territorio, grupo, convenio y modalidad. Se abre cuando hace falta un número concreto."
       >
         <div className="space-y-7">
         <section className="grid gap-7 lg:grid-cols-2">
@@ -914,12 +917,14 @@ function Cuerpo({ d, adminId, eligio }: { d: Control; adminId: string; eligio: b
             titulo="Por convenio"
             descripcion="Inscritos del periodo en cada uno de los convenios a los que tiene acceso."
           >
-            <ListaBarras
-              datos={d.porConvenio.map((c) => ({
-                etiqueta: c.etiqueta,
-                valor: c.total,
-                detalle: d.total > 0 ? porcentaje(c.total / d.total) : undefined,
-              }))}
+            {/* Dos trozos de un todo: eso es un donut. En dos
+                barras el ojo compara longitudes cuando lo que
+                importa es la proporción. */}
+            <Donut
+              datos={d.porConvenio.map((c) => ({ etiqueta: c.etiqueta, valor: c.total }))}
+              tamano={120}
+              centro={n(d.total)}
+              detalleCentro="inscritos"
               vacio="Todavía no hay inscritos en el periodo."
             />
           </Bloque>
@@ -929,12 +934,14 @@ function Cuerpo({ d, adminId, eligio }: { d: Control; adminId: string; eligio: b
             titulo="Por modalidad"
             descripcion="Modalidad de la oferta asignada: presencial, virtual o híbrida. No incluye a quienes aún no tienen oferta."
           >
-            <ListaBarras
+            <Donut
               datos={d.porModalidad.map((m) => ({
                 etiqueta: m.etiqueta.charAt(0) + m.etiqueta.slice(1).toLowerCase(),
                 valor: m.total,
-                detalle: conModalidad > 0 ? porcentaje(m.total / conModalidad) : undefined,
               }))}
+              tamano={120}
+              centro={n(conModalidad)}
+              detalleCentro="con oferta"
               vacio="Todavía no hay inscritos con oferta."
             />
           </Bloque>

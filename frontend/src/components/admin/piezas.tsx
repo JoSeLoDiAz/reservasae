@@ -88,6 +88,7 @@ export function Bloque({
   estirado,
   partible,
   plano,
+  plegable,
   children,
 }: {
   titulo?: string;
@@ -117,8 +118,39 @@ export function Bloque({
    * dentro de un solo bloque, cada uno con su rótulo.
    */
   plano?: boolean;
+  /**
+   * Que nazca cerrado, con el título como puerta.
+   *
+   * Para los cortes de CONSULTA: los que se miran cuando se
+   * busca un número concreto y no para decidir nada. Abiertos
+   * ocupan media pantalla y son lo primero que se lee como
+   * ruido.
+   */
+  plegable?: boolean;
   children: React.ReactNode;
 }) {
+  if (plegable) {
+    return (
+      <details className="group bloque-entero rounded-lg border border-borde bg-superficie">
+        <summary className="sin-aro cabecera-de-bloque flex cursor-pointer list-none items-start justify-between gap-3 rounded-t-[7px] bg-marca-suave px-7 py-3 select-none group-open:border-b group-open:border-borde">
+          <div className="min-w-0">
+            {titulo && (
+              <h2 className="text-[0.875rem] font-semibold text-titulo">{titulo}</h2>
+            )}
+            {descripcion && (
+              <p className="mt-0.5 text-[0.75rem] text-texto-suave">{descripcion}</p>
+            )}
+          </div>
+          <span className="shrink-0 text-[0.75rem] font-medium text-marca">
+            <span className="group-open:hidden">Ver</span>
+            <span className="hidden group-open:inline">Ocultar</span>
+          </span>
+        </summary>
+        <div className="px-7 py-4">{children}</div>
+      </details>
+    );
+  }
+
   if (plano) {
     return (
       <section className={estirado ? "flex h-full flex-col" : undefined}>
