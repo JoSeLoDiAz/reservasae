@@ -101,7 +101,7 @@ export class RuiService {
     const c = await this.prisma.consultaRui.findFirst({
       where: { personaId, estado: EstadoConsultaRui.LISTA },
       orderBy: { creadoEn: 'desc' },
-      select: { nombreEncontrado: true, simulado: true },
+      select: { id: true, nombreEncontrado: true, simulado: true },
     });
 
     if (!c?.nombreEncontrado) {
@@ -134,6 +134,25 @@ export class RuiService {
         segundoNombre: partes.segundoNombre || null,
         primerApellido: partes.primerApellido,
         segundoApellido: partes.segundoApellido || null,
+      },
+    });
+
+    /// Y la consulta deja de estar en discrepancia.
+    ///
+    /// Sin esto se cambiaba el nombre y la tarjeta seguía
+    /// diciendo «los dos nombres no coinciden», comparando el
+    /// del RUI contra un `nombreTecleado` que ya no existía en
+    /// ninguna parte. El asesor pulsaba «Sí», veía que no pasaba
+    /// nada, y volvía a pulsar.
+    ///
+    /// Ahora coinciden porque el tecleado ES el del RUI: no se
+    /// está tapando una discrepancia, se está registrando que
+    /// se resolvió.
+    await this.prisma.consultaRui.update({
+      where: { id: c.id },
+      data: {
+        nombreTecleado: c.nombreEncontrado,
+        nombreCoincide: true,
       },
     });
 
