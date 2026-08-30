@@ -472,7 +472,7 @@ export function CajonLead({
                   <h3 className="mb-2 text-sm font-semibold tracking-[0.06em] text-texto-suave uppercase">
                     {g.titulo}
                   </h3>
-                  <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="grid sm:grid-cols-2">
                     {campos.map((c) => (
                       <label
                         key={c.clave}

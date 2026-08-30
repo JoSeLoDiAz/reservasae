@@ -216,7 +216,7 @@ export function Esqueleto({
       </span>
 
       {conCifras && (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid sm:grid-cols-2 lg:grid-cols-4">
           {Array.from({ length: 4 }, (_, i) => (
             <div
               key={i}

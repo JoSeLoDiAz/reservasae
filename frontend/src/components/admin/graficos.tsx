@@ -60,7 +60,7 @@ export function TarjetaCifra({
 export function Anillo({
   porcentaje,
   color = "var(--marca)",
-  tamano = 84,
+  tamano = 60,
   etiqueta,
 }: {
   porcentaje: number;
@@ -68,7 +68,12 @@ export function Anillo({
   tamano?: number;
   etiqueta?: string;
 }) {
-  const radio = 34;
+  /// Las medidas del prototipo: lienzo de 72, radio 30 y trazo
+  /// de 6. Y la pista en `--hairline`, no en
+  /// `--superficie-alterna`: el anillo va DENTRO de una banda
+  /// que ya usa ese tono de fondo, y con los dos iguales la
+  /// parte vacia del anillo desaparecia.
+  const radio = 30;
   const circunferencia = 2 * Math.PI * radio;
   const avance = Math.max(0, Math.min(porcentaje, 100));
 
@@ -76,35 +81,30 @@ export function Anillo({
     <svg
       width={tamano}
       height={tamano}
-      viewBox="0 0 80 80"
+      viewBox="0 0 72 72"
       role="img"
       aria-label={`${etiqueta ? `${etiqueta}: ` : ""}${avance.toFixed(1).replace(".", ",")} por ciento`}
       className="shrink-0"
     >
-      <circle cx="40" cy="40" r={radio} fill="none" stroke="var(--superficie-alterna)" strokeWidth="9" />
+      <circle cx="36" cy="36" r={radio} fill="none" stroke="var(--hairline)" strokeWidth="6" />
       <circle
-        cx="40"
-        cy="40"
+        cx="36"
+        cy="36"
         r={radio}
         fill="none"
         stroke={color}
-        strokeWidth="9"
+        strokeWidth="6"
         strokeLinecap="round"
         strokeDasharray={`${(avance / 100) * circunferencia} ${circunferencia}`}
-        transform="rotate(-90 40 40)"
+        transform="rotate(-90 36 36)"
         className="transition-[stroke-dasharray] duration-500"
       />
-      <text
-        x="40"
-        y="41"
-        textAnchor="middle"
-        fontSize="15"
-        fontWeight="680"
-        fill="var(--titulo)"
-        style={{ fontVariantNumeric: "tabular-nums" }}
-      >
-        {avance.toFixed(1).replace(".", ",")}%
-      </text>
+      {/* Sin cifra DENTRO del anillo.
+          A 60px el porcentaje quedaba en 15px apretado contra
+          el trazo, y ademas se repetia con el numero grande de
+          al lado. El anillo dice la proporcion; el numero, el
+          dato. Cada uno una cosa. El valor exacto sigue estando
+          para quien no ve el dibujo: va en el `aria-label`. */}
     </svg>
   );
 }
@@ -125,11 +125,26 @@ export function Medidor({
   return (
     <div className="flex items-center gap-4">
       <Anillo porcentaje={porcentaje} color={color} etiqueta={etiqueta} />
+      {/* El PORCENTAJE es la cifra grande, y el conteo va
+          debajo. Es lo que hace el demo, y tiene su logica: el
+          anillo dibuja una proporcion, asi que la cifra que lo
+          acompania tiene que ser esa misma proporcion. Con el
+          conteo arriba, el dibujo y el numero decian cosas
+          distintas y habia que traducir de uno a otro.
+
+          El porcentaje vivia DENTRO del anillo en 15px; al
+          bajar el anillo a 60px ya no cabia, y aqui se lee
+          mejor. */}
       <div className="min-w-0">
-        <p className="text-3xl font-semibold leading-none tabular-nums text-titulo">
-          {typeof cifra === "number" ? n(cifra) : cifra}
+        <p className="text-[1.5rem] font-bold leading-none tracking-[-0.025em] tabular-nums text-titulo">
+          {porcentaje.toLocaleString("es-CO", { maximumFractionDigits: 1 })} %
         </p>
-        <p className="mt-1.5 text-xs text-texto-suave">{detalle}</p>
+        <p className="mt-1 text-[0.71875rem] text-texto-suave">
+          <span className="font-semibold text-texto">
+            {typeof cifra === "number" ? n(cifra) : cifra}
+          </span>{" "}
+          {detalle}
+        </p>
       </div>
     </div>
   );

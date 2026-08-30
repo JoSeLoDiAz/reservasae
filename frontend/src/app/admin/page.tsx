@@ -149,7 +149,7 @@ export default function Tablero() {
       </div>
 
       {/* dos lecturas del avance */}
-      <div className="imprimible-bloque grid gap-4 lg:grid-cols-3">
+      <div className="imprimible-bloque grid lg:grid-cols-3">
         <Tarjeta
           titulo="Avance sobre la meta"
           descripcion="Contra lo comprometido en los proyectos, sin el sobrecupo."
@@ -244,7 +244,7 @@ export default function Tablero() {
         </div>
       </Tarjeta>
 
-      <div className="imprimible-bloque grid gap-6 lg:grid-cols-2">
+      <div className="imprimible-bloque grid lg:grid-cols-2">
         <Tarjeta
           titulo="Cobertura territorial"
           descripcion="Cupos reservados en cada departamento o sede, sumando todas las acciones."
@@ -289,7 +289,7 @@ export default function Tablero() {
         </Tarjeta>
       </div>
 
-      <div className="imprimible-bloque grid gap-6 lg:grid-cols-3">
+      <div className="imprimible-bloque grid lg:grid-cols-3">
         <Tarjeta titulo="Ofertado contra reservado" descripcion="Por modalidad.">
           <BarrasAgrupadas
             categorias={analisis.modalidad.map((m) => ({

@@ -706,7 +706,7 @@ function ColaDeTrabajo({
           <>
             <Termometro tramos={tramos} />
 
-            <div className="mt-6 grid gap-6 sm:grid-cols-2">
+            <div className="mt-6 grid sm:grid-cols-2">
               <Tasa
                 titulo="Sin entrar hace 15 días o más, o nunca"
                 parte={urgentes}

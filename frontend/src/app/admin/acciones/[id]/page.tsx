@@ -278,9 +278,19 @@ export default function DetalleDeAccion({ params }: { params: Promise<{ id: stri
             titulo="Grupos comprometidos"
             descripcion="El plan del proyecto: cuántas cohortes y con qué reparto. No llevan contador propio."
           >
-            <div className="space-y-4">
+            {/* Filas, no ocho cajas con hueco entre ellas.
+                Cada grupo iba en un recuadro con borde y radio,
+                separados por 16px: ocho cajas apiladas es justo
+                el lenguaje que este redisenio quita, y encima
+                obligaba a bajar dos pantallas para ver los ocho.
+                Ahora se separan por la raya, como todas las
+                listas del panel. */}
+            <div className="-mx-7">
               {datos.grupos.map((g) => (
-                <div key={g.numero} className="rounded-lg border border-borde p-3">
+                <div
+                  key={g.numero}
+                  className="border-t border-hairline px-7 py-3 first:border-t-0"
+                >
                   <div className="flex flex-wrap items-baseline justify-between gap-2">
                     <p className="font-medium">
                       Grupo {g.numero}

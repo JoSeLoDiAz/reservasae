@@ -91,7 +91,7 @@ export function EditorColores({
         ))}
       </div>
 
-      <div className="grid gap-8 lg:grid-cols-[1fr_minmax(0,26rem)] lg:items-start">
+      <div className="grid lg:grid-cols-[1fr_minmax(0,26rem)] lg:items-start">
         <div className="space-y-8">
           <details className="rounded-lg border border-borde">
             <summary className="cursor-pointer select-none px-4 py-3 font-medium">
