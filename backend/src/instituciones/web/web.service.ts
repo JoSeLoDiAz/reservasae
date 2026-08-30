@@ -128,6 +128,20 @@ export class WebService {
   /// Toma una fila y la marca en curso en el mismo golpe. `SKIP LOCKED`
   /// deja que mañana corran dos trabajadores sin que los dos consulten
   /// -- y paguen -- el mismo NIT.
+  ///
+  /// Y RECUPERA las que quedaron colgadas.
+  ///
+  /// Mirando solo `PENDIENTE`, una fila que el trabajador ya
+  /// habia tomado cuando el proceso murio se quedaba
+  /// `EN_CURSO` para siempre. Y aqui es PEOR que en el RUI:
+  /// `SIN_RESOLVER` incluye `EN_CURSO`, asi que una colgada
+  /// ademas impide encolar otra para ese NIT. Se encontro una
+  /// del 26 de agosto bloqueando su institucion cuatro dias.
+  ///
+  /// Quince minutos, no cinco: son 90 s por intento y tres
+  /// corridas de consenso, o sea casi cinco minutos de trabajo
+  /// legitimo en el peor caso. La ventana tiene que dejar
+  /// terminar a un trabajador vivo.
   private async tomarSiguiente() {
     const filas = await this.prisma.$queryRaw<
       Array<{ id: string; institucionId: string; nit: string }>
@@ -137,6 +151,8 @@ export class WebService {
       WHERE "id" = (
         SELECT "id" FROM "consultas_rues"
         WHERE "estado" = 'PENDIENTE'
+           OR ("estado" = 'EN_CURSO'
+               AND "tomadaEn" < NOW() - INTERVAL '15 minutes')
         ORDER BY "prioridad" DESC, "creadoEn" ASC
         FOR UPDATE SKIP LOCKED
         LIMIT 1
