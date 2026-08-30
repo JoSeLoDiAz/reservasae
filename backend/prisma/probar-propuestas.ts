@@ -7,6 +7,7 @@
 
 import { PrismaClient } from '../generated/prisma';
 import { AuditoriaService } from '../src/comun/auditoria.service';
+import { DirectorioService } from '../src/crm/directorio.service';
 import { PrismaService } from '../src/prisma/prisma.service';
 import { ColaRui } from '../src/crm/rui/cola-rui';
 import { PreinscripcionService } from '../src/preinscripcion/preinscripcion.service';
@@ -48,6 +49,7 @@ async function main() {
     new ColaRui(prisma as unknown as PrismaService),
     new AuditoriaService(prisma as unknown as PrismaService),
     { enviar: () => Promise.resolve({ estado: 'APAGADO' }) } as never,
+    new DirectorioService(prisma as unknown as PrismaService),
   );
 
   const p = await prisma.participante.findFirst({

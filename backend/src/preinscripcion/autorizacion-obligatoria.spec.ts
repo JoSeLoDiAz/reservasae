@@ -95,6 +95,7 @@ function servicio(conPolitica = true) {
     cola as never,
     auditoria as never,
     correo as never,
+    { agregarManual: () => Promise.resolve(null) } as never,
   );
   return { s, prisma };
 }
@@ -188,6 +189,7 @@ describe('el enlace no se le entrega a quien solo sabe una cédula', () => {
       cola as never,
       auditoria as never,
       correo as never,
+    { agregarManual: () => Promise.resolve(null) } as never,
     );
 
     const r = (await s.registrar('adecopria', {
@@ -221,6 +223,7 @@ describe('el enlace no se le entrega a quien solo sabe una cédula', () => {
       { encolarSiHaceFalta: () => Promise.resolve() } as never,
       { registrar: () => Promise.resolve() } as never,
       { enviar: () => Promise.resolve({ estado: 'ENVIADO' }) } as never,
+        { agregarManual: () => Promise.resolve(null) } as never,
     );
 
     await s.registrar('adecopria', {
@@ -269,6 +272,7 @@ describe('la misma cédula que vuelve con otro correo', () => {
       { encolarSiHaceFalta: () => Promise.resolve() } as never,
       { registrar: () => Promise.resolve() } as never,
       { enviar: () => Promise.resolve({ estado: 'ENVIADO' }) } as never,
+        { agregarManual: () => Promise.resolve(null) } as never,
     );
     return { s, prisma };
   }

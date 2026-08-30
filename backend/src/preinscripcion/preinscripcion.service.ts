@@ -27,7 +27,9 @@ import {
   NIVELES_OCUPACIONALES_SEP,
 } from '../crm/catalogos-sep';
 import { faltaDeLaPersona } from '../crm/completitud';
+import { DirectorioService } from '../crm/directorio.service';
 import { aQueOrganizacionSeAta } from './organizacion-de-la-ficha';
+import { entraAlDirectorio } from './entra-al-directorio';
 import { faltaDeLaEmpresa } from './empresa-incompleta';
 import { ColaRui } from '../crm/rui/cola-rui';
 import { CARACTERIZACION_POR_ID } from '../crm/catalogos-sep';
@@ -52,6 +54,7 @@ export class PreinscripcionService {
     private readonly colaRui: ColaRui,
     private readonly auditoria: AuditoriaService,
     private readonly correo: CorreoService,
+    private readonly directorio: DirectorioService,
   ) {}
 
   /** Lo que el formulario necesita para dibujarse. */
@@ -1202,6 +1205,46 @@ ${this.urlPublica()}/completar/${enlace.token}
         where: { id: p.id },
         data: { empresaId: empresa.id },
       });
+
+      /// Y entra al DIRECTORIO, marcada como tecleada.
+      ///
+      /// `empresas` e `instituciones` son dos tablas distintas
+      /// a propósito: la primera son las organizaciones del
+      /// CRM, la segunda el maestro de NIT compartido entre los
+      /// gremios. Nadie las conectaba, así que una organización
+      /// que llegaba por el formulario público no aparecía en
+      /// «Empresas registradas» ni la veía el buscador del
+      /// RUES, que trabaja sobre el directorio.
+      ///
+      /// Va por `agregarManual`, que la marca `fuente: HUMANO`:
+      /// es texto que escribió una persona, no una fuente
+      /// oficial, y esa marca es lo que permite revisarla
+      /// después y que el RUES la corrija.
+      ///
+      /// No se hace en la rama del RUT propio: ahí el NIT es la
+      /// CÉDULA de alguien, y el directorio es una tabla
+      /// compartida de organizaciones. Meter cédulas ahí es
+      /// esparcir un dato personal a un sitio que nadie
+      /// consideró personal.
+      if (
+        entraAlDirectorio({
+          nit,
+          razonSocial: dto.razonSocial ?? '',
+          esRutPropio: false,
+        })
+      ) {
+        try {
+          await this.directorio.agregarManual(nit, dto.razonSocial!);
+        } catch (e) {
+          /// Que no llegue al directorio NO puede tumbar la
+          /// inscripción: es un apunte de apoyo, y la persona
+          /// ya dijo lo suyo.
+          this.log.warn(
+            `No se pudo apuntar el NIT ${nit} en el directorio: ` +
+              (e instanceof Error ? e.message : String(e)),
+          );
+        }
+      }
     } else if (dto.rutPropio) {
       // su cedula es su RUT: la persona es su propia unidad
       // economica y asi la reporta el F7
