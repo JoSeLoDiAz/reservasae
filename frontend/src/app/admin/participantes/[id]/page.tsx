@@ -36,7 +36,7 @@ import { RevisarPropuesta } from "@/components/admin/revisar-propuesta";
 import { useToast } from "@/components/admin/toast";
 import { alcanza } from "@/lib/admin-api";
 import { useDatosVivos } from "@/lib/datos-vivos";
-import { ErrorApi } from "@/lib/api";
+import { bonito, ErrorApi } from "@/lib/api";
 import {
   CANALES,
   crmApi,
@@ -663,31 +663,70 @@ export default function PaginaFicha() {
                 encabezado={
                   <EncabezadoSeccion
                     icono={<IconoBrecha tamano={18} />}
-                    titulo="Origen y verificación del lead"
-                    descripcion="De dónde proviene el lead y verificaciones realizadas."
+                    titulo="Origen del registro"
+                    descripcion="Por dónde entró al sistema y con qué formación se registró."
                   />
                 }
               >
-                <div className="space-y-5">
-                  <dl className="grid sm:grid-cols-2">
-                    <div className="rounded border border-borde bg-superficie-alterna p-3.5">
-                      <dt className="text-[0.625rem] font-semibold tracking-[0.1em] text-texto-suave uppercase">
-                        Origen del lead
-                      </dt>
-                      <dd className="mt-1 text-sm font-semibold">
-                        {ETIQUETA_ORIGEN[f.origen]}
-                      </dd>
-                    </div>
-                    <div className="rounded border border-borde bg-superficie-alterna p-3.5">
-                      <dt className="text-[0.625rem] font-semibold tracking-[0.1em] text-texto-suave uppercase">
-                        Fecha de registro
-                      </dt>
-                      <dd className="mt-1 text-sm font-semibold">
-                        {soloDia(f.creadoEn)}
-                      </dd>
-                    </div>
-                  </dl>
+                {/* Como en el demo: dos grupos rotulados y los
+                    datos en columnas, sin recuadros. Eran dos
+                    cajas con dos datos y el resto de lo que se
+                    pregunta al abrir «Origen» estaba repartido
+                    por otras pestañas.
 
+                    De solo lectura: aqui se consulta de donde
+                    vino: lo que se edita esta en la barra de
+                    arriba y en «Datos». */}
+                <div className="space-y-5">
+                  <section>
+                    <h3 className="text-[0.625rem] font-semibold tracking-[0.1em] text-marca uppercase">
+                      Entrada
+                    </h3>
+                    <dl className="mt-2.5 grid gap-x-8 gap-y-4 sm:grid-cols-2 xl:grid-cols-4">
+                      <Hecho etiqueta="Origen del lead" valor={ETIQUETA_ORIGEN[f.origen]} />
+                      <Hecho
+                        etiqueta="Gremio"
+                        valor={f.convenio?.sigla ?? f.convenio?.nombre ?? "—"}
+                      />
+                      <Hecho etiqueta="Fecha de creación" valor={fecha(f.creadoEn)} />
+                      <Hecho
+                        etiqueta="Etapa actual"
+                        valor={ETIQUETA_ETAPA[f.etapa]}
+                      />
+                    </dl>
+                  </section>
+
+                  <section className="border-t border-hairline pt-4">
+                    <h3 className="text-[0.625rem] font-semibold tracking-[0.1em] text-marca uppercase">
+                      Interés declarado
+                    </h3>
+                    <dl className="mt-2.5 grid gap-x-8 gap-y-4 sm:grid-cols-2 xl:grid-cols-4">
+                      <Hecho
+                        etiqueta="Acción de formación"
+                        valor={
+                          f.accionFormacion
+                            ? `${f.accionFormacion.codigo} · ${bonito(f.accionFormacion.nombre)}`
+                            : "Sin asignar"
+                        }
+                      />
+                      <Hecho
+                        etiqueta="Sede de la oferta"
+                        valor={
+                          f.oferta ? bonito(f.oferta.ubicacion.nombre) : "Sin asignar"
+                        }
+                      />
+                      <Hecho
+                        etiqueta="Cupos de esa oferta"
+                        valor={f.oferta ? String(f.oferta.cuposMaximos) : "—"}
+                      />
+                      <Hecho
+                        etiqueta="Grupo"
+                        valor={
+                          f.cobertura ? `Grupo ${f.cobertura.grupo.numero}` : "Sin asignar"
+                        }
+                      />
+                    </dl>
+                  </section>
                 </div>
               </Tarjeta>
             )}
@@ -701,18 +740,13 @@ export default function PaginaFicha() {
                     <EncabezadoSeccion
                       icono={<IconoOrden tamano={18} />}
                       titulo="Control de cambios"
-                      descripcion="Origen del registro y trazabilidad de los cambios de etapa."
+                      descripcion="Trazabilidad de los cambios de etapa, del más reciente al primero."
                     />
                   }
                 >
-                  {/* De dónde viene y desde cuándo, encima de la lista.
-                      Es el encabezado de la historia: lo que había antes
-                      del primer movimiento. */}
-                  <dl className="mb-4 flex flex-wrap gap-x-8 gap-y-3 border-b border-borde pb-4">
-                    <Hecho etiqueta="Entró por" valor={ETIQUETA_ORIGEN[f.origen]} />
-                    <Hecho etiqueta="En el sistema desde" valor={soloDia(f.creadoEn)} />
-                  </dl>
-
+                  {/* De dónde viene ya no va aquí: está entero en
+                      «Origen». Dos sitios para el mismo dato son dos
+                      sitios que pueden discrepar. */}
                   {/* EL TIMELINE del diseño: una línea de 2px que
                       corre por detrás y un nodo hueco de 11px con
                       borde verde por cada movimiento.

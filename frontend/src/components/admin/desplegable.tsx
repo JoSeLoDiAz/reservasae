@@ -32,6 +32,7 @@ export function Desplegable({
   id,
   alto = 32,
   enBarra,
+  subrayado,
 }: {
   valor: string;
   opciones: OpcionDesplegable[];
@@ -46,6 +47,10 @@ export function Desplegable({
   /// ENCABEZADO, que es lo que pinta esa barra. Con los del
   /// campo saldria una caja blanca sobre una barra de color.
   enBarra?: boolean;
+  /// Sin caja, solo una raya debajo. Es como se ven los campos
+  /// de la barra de gestión de un lead, donde cuatro cajas
+  /// seguidas pesarían más que la ficha entera.
+  subrayado?: boolean;
 }) {
   const [abierto, setAbierto] = useState(false);
   const [marcada, setMarcada] = useState(0);
@@ -165,7 +170,11 @@ export function Desplegable({
         onKeyDown={teclas}
         style={{ height: alto }}
         className={
-          "flex w-full items-center gap-2 rounded-lg border px-3 " +
+          subrayado
+            ? "flex w-full items-center gap-2 rounded-none border-0 border-b bg-transparent px-0 " +
+              "text-left text-[0.84375rem] transition disabled:cursor-not-allowed disabled:opacity-60 " +
+              (abierto ? "border-marca" : "border-campo-borde hover:border-marca/60")
+            : "flex w-full items-center gap-2 rounded-lg border px-3 " +
           "text-left text-[0.78125rem] transition disabled:cursor-not-allowed disabled:opacity-60 " +
           (enBarra
             ? "bg-transparent " +

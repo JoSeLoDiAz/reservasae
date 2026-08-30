@@ -24,6 +24,7 @@
 /// color y en modo oscuro estos valores se recalculan.
 
 import { useState } from "react";
+import { Desplegable } from "./desplegable";
 
 import {
   crmApi,
@@ -47,6 +48,10 @@ const D = {
     flexWrap: "wrap" as const,
   },
   campo: { flex: "1 1 170px", minWidth: 150 },
+  /// La accion de formacion son setenta caracteres y el grupo es
+  /// «Grupo 3». Repartir a partes iguales estrangula la larga.
+  campoAncho: { flex: "2 1 320px", minWidth: 260 },
+  campoCorto: { flex: "0 1 150px", minWidth: 120 },
   /// La flecha va en un envoltorio y no en el `select`: con
   /// `appearance:none` el navegador le quita la suya, y sin
   /// ninguna los cuatro campos parecian texto plano. Un control
@@ -213,39 +218,36 @@ export function BarraDeGestion({
     <div style={D.barra}>
       <div style={D.campo}>
         <div style={D.rotulo}>MOVER DE ETAPA</div>
-        <div style={D.envoltorio}>
-        <select
-          style={D.control}
-          value={lead.etapa}
-          onChange={(e) => mover(e.target.value as Etapa)}
-        >
-          {etapas.map((e) => (
-            <option key={e} value={e} disabled={!ETAPAS_A_MANO.includes(e)}>
-              {ETIQUETA_ETAPA[e]}
-            </option>
-          ))}
-        </select>
-        <span aria-hidden style={D.flecha}>▾</span>
+        <div style={{ marginTop: 6 }}>
+          <Desplegable
+            subrayado
+            alto={30}
+            valor={lead.etapa}
+            opciones={etapas.map((e) => ({
+              valor: e,
+              etiqueta: ETIQUETA_ETAPA[e],
+              desactivada: !ETAPAS_A_MANO.includes(e),
+            }))}
+            alElegir={(v) => mover(v as Etapa)}
+          />
         </div>
       </div>
 
       <div style={D.campo}>
         <div style={D.rotulo}>ASESOR RESPONSABLE</div>
         {puedeRepartir ? (
-          <div style={D.envoltorio}>
-          <select
-            style={{ ...D.control, ...(asesorId ? {} : D.vacio) }}
-            value={asesorId}
-            onChange={(e) => setAsesorId(e.target.value)}
-          >
-            <option value="">Sin asignar</option>
-            {opciones.asesores.map((a) => (
-              <option key={a.id} value={a.id}>
-                {a.nombre}
-              </option>
-            ))}
-          </select>
-          <span aria-hidden style={D.flecha}>▾</span>
+          <div style={{ marginTop: 6 }}>
+            <Desplegable
+              subrayado
+              alto={30}
+              marcador="Sin asignar"
+              valor={asesorId}
+              opciones={[
+                { valor: "", etiqueta: "Sin asignar" },
+                ...opciones.asesores.map((a) => ({ valor: a.id, etiqueta: a.nombre })),
+              ]}
+              alElegir={setAsesorId}
+            />
           </div>
         ) : (
           <div style={{ ...D.control, cursor: "default" }}>
@@ -254,50 +256,51 @@ export function BarraDeGestion({
         )}
       </div>
 
-      <div style={D.campo}>
+      <div style={D.campoAncho}>
         <div style={D.rotulo}>ACCIÓN DE FORMACIÓN</div>
-        <div style={D.envoltorio}>
-        <select
-          style={{ ...D.control, ...(accionElegida ? {} : D.vacio) }}
-          value={accionElegida}
-          onChange={(e) => {
-            setAccionId(e.target.value);
-            setCoberturaId("");
-          }}
-        >
-          <option value="">Sin asignar</option>
-          {opciones.acciones.map((a) => (
-            <option key={a.accionFormacionId} value={a.accionFormacionId}>
-              {/* En capitalizacion normal. La base los guarda en
-                  MAYUSCULAS y aqui salian tal cual: setenta
-                  caracteres gritando dentro de un desplegable.
-                  El resto del panel ya los pasa por `bonito()`. */}
-              {bonito(a.etiqueta)}
-              {a.cubre ? "" : " · sin cobertura"}
-            </option>
-          ))}
-        </select>
-        <span aria-hidden style={D.flecha}>▾</span>
+        <div style={{ marginTop: 6 }}>
+          <Desplegable
+            subrayado
+            alto={30}
+            marcador="Sin asignar"
+            valor={accionElegida}
+            opciones={[
+              { valor: "", etiqueta: "Sin asignar" },
+              ...opciones.acciones.map((a) => ({
+                valor: a.accionFormacionId,
+                /// En capitalizacion normal: la base los guarda
+                /// en MAYUSCULAS y aqui salian gritando.
+                etiqueta: bonito(a.etiqueta),
+                detalle: a.cubre
+                  ? `${a.ubicacion ?? ""} · ${a.disponibles} cupos`
+                  : `Sin cobertura · se dicta en ${a.sedes} sedes`,
+                desactivada: !a.cubre,
+              })),
+            ]}
+            alElegir={(v) => {
+              setAccionId(v);
+              setCoberturaId("");
+            }}
+          />
         </div>
       </div>
 
-      <div style={D.campo}>
+      <div style={D.campoCorto}>
         <div style={D.rotulo}>GRUPO</div>
-        <select
-          style={{ ...D.control, ...(coberturaId ? {} : D.vacio) }}
-          value={coberturaId}
-          disabled={!accion?.cubre}
-          onChange={(e) => setCoberturaId(e.target.value)}
-        >
-          <option value="">
-            {bloqueado ? "Sin cobertura" : "Sin asignar"}
-          </option>
-          {grupos.map((g) => (
-            <option key={g.id} value={g.id}>
-              {g.etiqueta}
-            </option>
-          ))}
-        </select>
+        <div style={{ marginTop: 6 }}>
+          <Desplegable
+            subrayado
+            alto={30}
+            marcador={bloqueado ? "Sin cobertura" : "Sin asignar"}
+            desactivado={!accion?.cubre}
+            valor={coberturaId}
+            opciones={[
+              { valor: "", etiqueta: bloqueado ? "Sin cobertura" : "Sin asignar" },
+              ...grupos.map((g) => ({ valor: g.id, etiqueta: g.etiqueta })),
+            ]}
+            alElegir={setCoberturaId}
+          />
+        </div>
       </div>
 
       <button
