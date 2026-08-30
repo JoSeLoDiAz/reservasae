@@ -15,7 +15,6 @@ import {
   IconoPerfil,
   IconoEnlace,
   IconoEscudo,
-  IconoRayo,
   IconoSobre,
 } from "@/components/admin/iconos";
 import { SelectorBuscable } from "@/components/admin/selector-buscable";
@@ -822,9 +821,12 @@ export default function PaginaFicha() {
                   gap: 10,
                 }}
               >
-                <div style={E.circuloOscuro}>
-                  <IconoRayo tamano={16} />
-                </div>
+                {/* Sin icono.
+                    El circulo negro con el rayo era el unico
+                    icono con fondo que quedaba en la ficha, y
+                    despues de quitar los cinco circulos verdes
+                    se quedaba solo: un adorno que no distingue
+                    nada, porque «Acciones» ya lo dice. */}
                 <div>
                   <div style={{ fontWeight: 600, fontSize: "0.90625rem", color: "var(--titulo)" }}>
                     Acciones
@@ -1116,17 +1118,6 @@ const E = {
   /// icono en `#fff` era blanco sobre blanco: el circulo
   /// aparecia vacio. Con `--superficie` el icono es siempre lo
   /// contrario del relleno, en los dos temas.
-  circuloOscuro: {
-    width: 32,
-    height: 32,
-    borderRadius: "50%",
-    background: "var(--titulo)",
-    color: "var(--superficie)",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    flex: "none",
-  },
   /// El rotulo de grupo: azul de marca y versalita, igual que
   /// `RotuloDeGrupo`. Iba en verde de acento, que no es color
   /// de marca.
