@@ -3,8 +3,9 @@
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 
-import { Aviso, Tarjeta } from "@/components/admin/marco-admin";
-import { Esqueleto } from "@/components/admin/piezas";
+import { Aviso, CLASE_CONTROL } from "@/components/admin/marco-admin";
+import { Esqueleto, TarjetaCifra, Vacio } from "@/components/admin/piezas";
+import { IconoFormacion } from "@/components/admin/iconos";
 import { adminApi, type AccionAdmin } from "@/lib/admin-api";
 import { bonito, ErrorApi } from "@/lib/api";
 
@@ -18,6 +19,7 @@ export default function PaginaAcciones() {
   const [acciones, setAcciones] = useState<AccionAdmin[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [ocupada, setOcupada] = useState<string | null>(null);
+  const [buscar, setBuscar] = useState("");
 
   const cargar = useCallback(async () => {
     setAcciones(await adminApi.acciones());
@@ -40,10 +42,24 @@ export default function PaginaAcciones() {
     }
   }
 
+  /// El mismo buscador que el cronograma: son las dos caras de
+  /// la misma lista y se buscan igual.
+  const sinTildes = (t: string) =>
+    t.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  const aguja = sinTildes(buscar.trim());
+  const visibles = (acciones ?? []).filter(
+    (a) => !aguja || sinTildes(`${a.codigo} ${a.nombre} ${a.convenio}`).includes(aguja),
+  );
+
   const porConvenio = new Map<string, AccionAdmin[]>();
-  for (const a of acciones ?? []) {
+  for (const a of visibles) {
     porConvenio.set(a.convenio, [...(porConvenio.get(a.convenio) ?? []), a]);
   }
+
+  const todas = acciones ?? [];
+  const publicadas = todas.filter((a) => a.visible).length;
+  const ocupados = todas.reduce((n, a) => n + a.cuposOcupados, 0);
+  const tope = todas.reduce((n, a) => n + a.cuposMaximos, 0);
 
   return (
     <div>
@@ -57,14 +73,84 @@ export default function PaginaAcciones() {
       </header>
 
       {error && <Aviso tipo="error">{error}</Aviso>}
-      {!acciones && <Esqueleto filas={5} />}
+      {!acciones ? (
+        <Esqueleto conCifras filas={5} />
+      ) : (
+        <>
+          <div className="grid gap-px border-t border-b border-hairline bg-hairline sm:grid-cols-2 lg:grid-cols-4">
+            <TarjetaCifra
+              etiqueta="Acciones"
+              valor={todas.length}
+              pie={`en ${porConvenio.size || 1} convenios`}
+              icono={IconoFormacion}
+            />
+            <TarjetaCifra
+              etiqueta="Publicadas"
+              valor={publicadas}
+              pie="visibles en el sitio público"
+              tono="exito"
+            />
+            <TarjetaCifra
+              etiqueta="Ocultas"
+              valor={todas.length - publicadas}
+              pie={
+                todas.length - publicadas > 0
+                  ? "no se pueden reservar"
+                  : "ninguna está retirada"
+              }
+              tono={todas.length - publicadas > 0 ? "aviso" : "neutro"}
+            />
+            {/* Contra el TOPE de inscripcion, no contra la meta:
+                son dos avances distintos y este es el del cupo. */}
+            <TarjetaCifra
+              etiqueta="Cupos ocupados"
+              valor={ocupados}
+              pie={`de ${tope.toLocaleString("es-CO")} disponibles`}
+              tono="neutro"
+            />
+          </div>
+
+          <div className="flex flex-wrap items-center gap-3 border-b border-borde bg-superficie px-7 py-3">
+            <input
+              className={`${CLASE_CONTROL} max-w-sm`}
+              placeholder="Buscar por código, curso o convenio…"
+              value={buscar}
+              onChange={(e) => setBuscar(e.target.value)}
+            />
+            {buscar && (
+              <button
+                type="button"
+                onClick={() => setBuscar("")}
+                className="sin-aro text-[0.78125rem] text-texto-suave underline-offset-2 transition hover:text-marca hover:underline"
+              >
+                Quitar la búsqueda
+              </button>
+            )}
+            <span className="ml-auto text-[0.78125rem] text-texto-suave tabular-nums">
+              {visibles.length} de {todas.length} acciones
+            </span>
+          </div>
+        </>
+      )}
+
+      {acciones && visibles.length === 0 && (
+        <Vacio titulo="Ninguna formación coincide" icono={IconoFormacion}>
+          Pruebe con el código (AF8), parte del nombre o el convenio.
+        </Vacio>
+      )}
 
       {[...porConvenio.entries()].map(([convenio, lista]) => (
-        <Tarjeta
-          key={convenio}
-          titulo={lista[0].convenioSigla ?? convenio}
-          descripcion={`/${convenio} · ${lista.filter((a) => a.visible).length} de ${lista.length} publicadas`}
-        >
+        <div key={convenio}>
+          {/* La misma cabecera que el cronograma: son las dos
+              pantallas del mismo modulo y tienen que leerse igual. */}
+          <h2 className="border-b border-hairline bg-superficie-alterna px-7 py-2 text-[0.65625rem] font-semibold tracking-[0.06em] text-marca uppercase">
+            {lista[0].convenioSigla ?? convenio}
+            <span className="ml-2 font-normal tracking-normal text-texto-suave normal-case">
+              /{convenio} · {lista.filter((a) => a.visible).length} de {lista.length}{" "}
+              publicadas
+            </span>
+          </h2>
+          <div className="border-b border-borde bg-superficie px-7">
           {/* La fila del redisenio: el CODIGO en su propia
               columna a la izquierda, el nombre, el detalle
               debajo, y a la derecha la barra de ocupacion con
@@ -128,7 +214,8 @@ export default function PaginaAcciones() {
               </li>
             ))}
           </ul>
-        </Tarjeta>
+          </div>
+        </div>
       ))}
     </div>
   );
