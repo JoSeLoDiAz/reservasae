@@ -594,18 +594,24 @@ function NuevaCampana({
             banner={banner}
           />
 
-        <div className="rounded-xl border border-borde bg-superficie-alterna p-4">
-          <p className="text-sm font-medium">Lo que puede poner</p>
-          <p className="mt-1 text-xs text-texto-suave">
+        <div className="border-b border-borde bg-superficie px-7 py-5">
+          <p className="text-[0.90625rem] font-semibold text-titulo">
+            Lo que puede poner
+          </p>
+          <p className="mt-1 text-[0.75rem] text-texto-suave">
             Se llena con los datos de cada persona.
           </p>
-          <ul className="mt-3 space-y-1.5">
+          {/* En columnas, no en una tira de quince.
+              A una columna la lista bajaba mas que el formulario
+              de al lado y dejaba media pantalla vacia; en dos o
+              tres se ve entera sin bajar. */}
+          <ul className="mt-3 grid gap-x-6 gap-y-1.5 sm:grid-cols-2 xl:grid-cols-3">
             {variables.map((v) => (
               <li key={v.clave}>
                 <button
                   type="button"
                   onClick={() => setCuerpo((c) => `${c}{{${v.clave}}}`)}
-                  className="w-full rounded-lg px-2 py-1 text-left transition hover:bg-superficie"
+                  className="w-full rounded-lg px-2 py-1 text-left transition hover:bg-superficie-alterna"
                 >
                   <span className="font-mono text-[12px] text-marca">
                     {`{{${v.clave}}}`}

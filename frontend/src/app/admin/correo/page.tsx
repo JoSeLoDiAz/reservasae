@@ -11,6 +11,7 @@
 import { useCallback, useEffect, useState } from "react";
 
 import { Aviso, Boton, CLASE_CONTROL, Tarjeta, useAdmin } from "@/components/admin/marco-admin";
+import { AvisoDeSeccion } from "@/components/admin/secciones";
 import { ErrorApi } from "@/lib/api";
 import { correoApi, type EstadoCorreo } from "@/lib/correo-api";
 
@@ -109,8 +110,8 @@ export default function PaginaCorreo() {
           </div>
 
           {estado.desviadoA.length > 0 && (
-            <div className="rounded-xl border border-aviso/30 bg-aviso-suave p-4 text-sm text-aviso">
-              <p className="font-medium">
+            <AvisoDeSeccion color="var(--aviso)">
+              <p className="font-semibold text-aviso">
                 Todo el correo se desvía y no llega a su destinatario.
               </p>
               <p className="mt-1">
@@ -118,12 +119,12 @@ export default function PaginaCorreo() {
                 <strong>{estado.desviadoA.join(", ")}</strong>. Se quita
                 borrando <code>CORREO_REDIRIGIR_A</code> del servidor.
               </p>
-            </div>
+            </AvisoDeSeccion>
           )}
 
           {estado.esPrueba && estado.desviadoA.length === 0 && (
-            <div className="rounded-xl border border-error/30 bg-error-suave p-4 text-sm text-error">
-              <p className="font-medium">
+            <AvisoDeSeccion color="var(--error)">
+              <p className="font-semibold text-error">
                 Entorno de pruebas sin desvío: no va a salir ningún correo.
               </p>
               <p className="mt-1">
@@ -131,7 +132,7 @@ export default function PaginaCorreo() {
                 correo de prueba le llegaría a una persona real. Se arregla
                 poniendo <code>CORREO_REDIRIGIR_A</code>.
               </p>
-            </div>
+            </AvisoDeSeccion>
           )}
 
           <dl className="grid gap-x-8 gap-y-3 text-sm sm:grid-cols-2">

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 
 import { Aviso, Boton, CLASE_CONTROL, Tarjeta } from "@/components/admin/marco-admin";
+import { Kpis } from "@/components/admin/secciones";
 import { BotonSuave } from "@/components/admin/piezas";
 import { adminApi } from "@/lib/admin-api";
 import { ErrorApi } from "@/lib/api";
@@ -88,20 +89,15 @@ export default function PaginaSep() {
 
       {datos && (
         <>
-          <div className="grid sm:grid-cols-2">
-            <div className="rounded-2xl border border-exito/30 bg-exito-suave p-5">
-              <p className="text-sm font-medium text-exito">Entran en el archivo</p>
-              <p className="mt-2 text-3xl font-bold tabular-nums text-exito">
-                {datos.listos}
-              </p>
-            </div>
-            <div className="rounded-2xl border border-aviso/30 bg-aviso-suave p-5">
-              <p className="text-sm font-medium text-aviso">Se quedan fuera</p>
-              <p className="mt-2 text-3xl font-bold tabular-nums text-aviso">
-                {datos.noListos}
-              </p>
-            </div>
-          </div>
+          {/* Dos indicadores, no dos avisos: son cifras. Van
+              como la franja del resto del panel, y el color se
+              queda en la cifra y en el rotulo. */}
+          <Kpis
+            items={[
+              { rotulo: "Entran en el archivo", valor: datos.listos },
+              { rotulo: "Se quedan fuera", valor: datos.noListos },
+            ]}
+          />
 
           <Tarjeta
             titulo="Descargar"
