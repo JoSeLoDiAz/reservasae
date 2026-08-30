@@ -1,6 +1,6 @@
 "use client";
 
-/** La barra oscura de la ficha: lo único que cambia el estado. */
+/** La barra de gestión de la ficha: lo único que cambia el estado. */
 
 /// Es una sola pieza y no tres controles sueltos, y eso es a
 /// propósito. Antes cada uno guardaba por su cuenta —«Asignar»
@@ -9,9 +9,19 @@
 /// pide UN botón, «Guardar gestión», y para eso el estado de
 /// los tres tiene que vivir en el mismo sitio.
 ///
-/// Los colores van literales del archivo de diseño. Están
-/// juntos arriba para poder compararlos de un vistazo contra
-/// el original, que es como se comprueba que son iguales.
+/// CLARA, no oscura, y con los campos SUBRAYADOS.
+///
+/// Era una barra `#0f172a` con los cuatro valores metidos en
+/// cajas. Eso venía del handoff de la ficha, que es anterior;
+/// el rediseño premium la pone sobre `--superficie-alterna` y
+/// deja los valores con una sola raya debajo. La diferencia no
+/// es de gusto: una barra negra en medio de una pantalla clara
+/// parte la ficha en dos y hace que lo de abajo parezca otra
+/// página. Con la raya sola sigue leyéndose que son campos y
+/// deja de competir con el contenido.
+///
+/// Y todo por token, no en hexadecimal: el gremio edita su
+/// color y en modo oscuro estos valores se recalculan.
 
 import { useState } from "react";
 
@@ -27,45 +37,49 @@ import {
 
 const D = {
   barra: {
-    background: "#0f172a",
-    color: "#e2e8f0",
-    padding: "16px 28px",
+    background: "var(--superficie-alterna)",
+    borderBottom: "1px solid var(--borde)",
+    padding: "14px 28px 16px",
     display: "flex",
     alignItems: "flex-end",
-    gap: 20,
+    gap: 24,
     flexWrap: "wrap" as const,
   },
-  campo: { flex: 1, minWidth: 160 },
+  campo: { flex: "1 1 170px", minWidth: 150 },
   rotulo: {
-    fontWeight: 600, fontSize: 10,
-    letterSpacing: ".12em",
-    color: "#7c89a0",
-    marginBottom: 7,
+    fontWeight: 600,
+    fontSize: "0.625rem",
+    letterSpacing: ".1em",
+    textTransform: "uppercase" as const,
+    color: "var(--texto-suave)",
   },
+  /// Una raya debajo, no una caja. `appearance:none` le quita
+  /// al `select` su marco propio, que es lo que volvia a
+  /// dibujar la caja en Chrome.
   control: {
-    background: "#1c2738",
-    border: "1px solid #2c394d",
-    borderRadius: 10,
-    padding: "10px 13px",
-    fontSize: 14,
-    color: "#fff",
+    marginTop: 6,
+    paddingBottom: 6,
+    background: "transparent",
+    border: "none",
+    borderBottom: "1px solid var(--campo-borde)",
+    borderRadius: 0,
+    fontSize: "0.84375rem",
+    color: "var(--titulo)",
     width: "100%",
     appearance: "none" as const,
     cursor: "pointer",
   },
-  /// El gris del diseño para «Sin asignar»: un valor vacío no
-  /// se lee igual que uno puesto.
-  vacio: { color: "#94a3b8" },
-  /// Azul de marca, no el verde del handoff anterior.
-  /// DECISIONES 10 lo fija: el primario es `--marca`, que
-  /// ademas es el color que cada gremio edita.
+  /// Un valor vacío no se lee igual que uno puesto.
+  vacio: { color: "var(--texto-suave)" },
   boton: {
     background: "var(--marca)",
     color: "var(--marca-texto)",
-    border: "none",
+    border: "1px solid var(--marca)",
     borderRadius: 10,
-    padding: "11px 22px",
-    fontWeight: 600, fontSize: 14,
+    height: 36,
+    padding: "0 18px",
+    fontWeight: 600,
+    fontSize: "0.78125rem",
     cursor: "pointer",
     flex: "none" as const,
   },

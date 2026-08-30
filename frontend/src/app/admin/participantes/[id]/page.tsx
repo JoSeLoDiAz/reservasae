@@ -20,7 +20,7 @@ import {
 } from "@/components/admin/iconos";
 import { SelectorBuscable } from "@/components/admin/selector-buscable";
 import { DatosSena } from "@/components/admin/datos-sena";
-import { PildoraEtapa } from "@/components/admin/etapa";
+import { colorEtapa, PildoraEtapa } from "@/components/admin/etapa";
 import {
   Aviso,
   Boton,
@@ -272,80 +272,96 @@ export default function PaginaFicha() {
       {/* UNA SOLA TARJETA con todo dentro, en tres franjas: quién
           es, qué se le hace, y el expediente. Antes eran once
           tarjetas sueltas flotando en la página. */}
-      <section
-        style={{
-          background: "#f6f7f9",
-          border: "1px solid #e3e7ec",
-          borderRadius: 18,
-          boxShadow: "0 24px 60px -34px rgba(15,23,42,.24)",
-          overflow: "hidden",
-        }}
-      >
+      {/* Bandas, no una tarjeta flotante.
+          Era un bloque con radio 18 y una sombra larga, en medio
+          de una pagina que ya no tiene tarjetas. */}
+      <section style={{ overflow: "hidden" }}>
         {/* ── 1. IDENTIDAD ────────────────────────────────── */}
         <div
           style={{
-            background: "#ffffff",
-            borderBottom: "1px solid #e8ebef",
-            padding: "22px 28px",
+            background: "var(--superficie)",
+            borderBottom: "1px solid var(--borde)",
+            padding: "16px 28px 20px",
             display: "flex",
             alignItems: "center",
-            gap: 18,
+            gap: 16,
+            flexWrap: "wrap",
           }}
         >
           <div
             aria-hidden
             style={{
-              width: 54,
-              height: 54,
+              width: 44,
+              height: 44,
+              flex: "0 0 44px",
               borderRadius: "50%",
-              background: "#0f172a",
-              color: "#fff",
+              background: "var(--marca-suave)",
+              color: "var(--marca)",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              fontWeight: 600, fontSize: 18,
-              letterSpacing: ".5px",
-              flex: "none",
+              fontWeight: 700,
+              fontSize: "0.90625rem",
             }}
           >
             {iniciales}
           </div>
 
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontWeight: 700, fontSize: 21, lineHeight: 1.15, letterSpacing: "-.01em" }}>
+            <h1
+              style={{
+                margin: 0,
+                fontWeight: 700,
+                fontSize: "1.4375rem",
+                lineHeight: 1.15,
+                letterSpacing: "-.022em",
+                color: "var(--titulo)",
+              }}
+            >
               {nombre}
-            </div>
+            </h1>
             <div
               style={{
                 display: "flex",
                 alignItems: "center",
-                gap: 14,
-                marginTop: 5,
-                fontSize: 13,
-                color: "#64748b",
+                gap: 8,
+                marginTop: 4,
+                fontSize: "0.75rem",
+                color: "var(--texto-suave)",
                 flexWrap: "wrap",
               }}
             >
               <span>{f.persona.documento}</span>
-              <span aria-hidden style={{ width: 4, height: 4, borderRadius: "50%", background: "#cbd5e1" }} />
+              <span aria-hidden style={{ width: 3, height: 3, borderRadius: "50%", background: "var(--texto-suave)", opacity: 0.6 }} />
               <span>En sistema desde {soloDia(f.creadoEn)}</span>
-              <span aria-hidden style={{ width: 4, height: 4, borderRadius: "50%", background: "#cbd5e1" }} />
+              <span aria-hidden style={{ width: 3, height: 3, borderRadius: "50%", background: "var(--texto-suave)", opacity: 0.6 }} />
               <span>{ETIQUETA_ORIGEN[f.origen]}</span>
             </div>
           </div>
 
-          <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 8 }}>
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end" }}>
             <span
               style={{
-                fontWeight: 600, fontSize: 10,
-                letterSpacing: ".12em",
-                color: "#94a3b8",
+                fontWeight: 600,
+                fontSize: "0.625rem",
+                letterSpacing: ".1em",
+                textTransform: "uppercase",
+                color: "var(--texto-suave)",
               }}
             >
-              ETAPA ACTUAL
+              Etapa actual
             </span>
-            <span style={{ fontSize: 14 }}>
-              <PildoraEtapa etapa={f.etapa} />
+            {/* El valor en el color de su etapa, sin pildora ni
+                punto: el color va en la letra. */}
+            <span
+              style={{
+                marginTop: 3,
+                fontSize: "0.90625rem",
+                fontWeight: 700,
+                color: colorEtapa(f.etapa),
+              }}
+            >
+              {ETIQUETA_ETAPA[f.etapa]}
             </span>
           </div>
         </div>
@@ -380,16 +396,24 @@ export default function PaginaFicha() {
                 El asesor abre la ficha para UNA cosa —corregir un
                 dato, mirar el historial— y antes tenía que recorrer
                 la página entera para dar con ella. */}
+            {/* Texto subrayado, no un grupo de pildoras.
+                Era una caja gris con cinco botones blancos
+                dentro, y eso mete un tercer fondo justo encima
+                del expediente. En el redisenio la pestania
+                activa se marca con una raya de 2px debajo y el
+                color de marca: pesa menos y se lee igual.
+
+                La raya va como `box-shadow: inset` y no como
+                `border-bottom` para que no mueva el texto un
+                pixel al activarse. */}
             <div
               role="tablist"
               aria-label="Secciones de la ficha"
               style={{
                 display: "flex",
-                gap: 4,
-                background: "#eef0f3",
-                border: "1px solid #e3e7ec",
-                borderRadius: 12,
-                padding: 4,
+                gap: 24,
+                flexWrap: "wrap",
+                borderBottom: "1px solid var(--borde)",
                 marginBottom: 20,
               }}
             >
@@ -402,16 +426,14 @@ export default function PaginaFicha() {
                     aria-selected={activa}
                     onClick={() => setPestana(p.id)}
                     style={{
-                      flex: 1,
                       border: "none",
-                      borderRadius: 9,
-                      padding: "10px 8px",
-                      fontWeight: 600, fontSize: 13.5,
+                      background: "transparent",
+                      padding: "12px 0",
+                      fontWeight: 600,
+                      fontSize: "0.8125rem",
                       cursor: "pointer",
-                      transition: "all .15s",
-                      background: activa ? "#fff" : "transparent",
-                      color: activa ? "#0f172a" : "#64748b",
-                      boxShadow: activa ? "0 1px 3px rgba(15,23,42,.12)" : "none",
+                      color: activa ? "var(--marca)" : "var(--texto-suave)",
+                      boxShadow: activa ? "inset 0 -2px var(--marca)" : "none",
                     }}
                   >
                     {p.etiqueta}

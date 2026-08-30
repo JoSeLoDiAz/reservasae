@@ -191,15 +191,17 @@ export function DatosSena({
       /// plegarla solo servía para esconder lo que se viene a
       /// mirar.
     >
-      <EncabezadoSeccion
-        icono={<IconoPerfil tamano={18} />}
-        titulo={
-          ficha.etapa === "INSCRITO"
-            ? "Datos del inscrito"
-            : "Datos del interesado"
-        }
-        descripcion="Información básica de identificación del beneficiario."
-        accion={
+      {/* Sin icono y SIN repetir el titulo.
+          La tarjeta ya lo pone arriba, y aqui salia otra vez
+          tres centimetros mas abajo con un circulo al lado:
+          uno lee dos veces lo mismo y busca la diferencia.
+          Por eso no se usa `EncabezadoSeccion`: ese existe para
+          llevar icono y titulo, y aqui sobran los dos. */}
+      <div className="flex items-start justify-between gap-4">
+        <p className="text-[0.78125rem] leading-relaxed text-texto-suave">
+          Información básica de identificación del beneficiario.
+        </p>
+        {
           <button
             type="button"
             onClick={() => {
@@ -213,13 +215,13 @@ export function DatosSena({
             className={
               editando
                 ? "shrink-0 rounded-lg border border-error/40 bg-error-suave px-4 py-2 text-sm font-semibold text-error"
-                : "shrink-0 rounded-lg bg-gestion-fondo px-4 py-2 text-sm font-semibold text-gestion-texto"
+                : "shrink-0 rounded-lg border border-borde bg-superficie px-3.5 h-[34px] text-[0.78125rem] font-semibold text-titulo hover:bg-superficie-alterna"
             }
           >
             {editando ? "Cancelar" : "Editar datos"}
           </button>
         }
-      />
+      </div>
 
       {!editando && (
         <div className="mt-2">

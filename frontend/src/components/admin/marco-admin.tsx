@@ -1388,14 +1388,21 @@ export function EncabezadoSeccion({
 }
 
 /**
- * El rotulo de un grupo de campos: cuadrito verde y texto en
- * mayusculas pequenas. Es lo que parte los veinte campos de
- * «Datos» en seis bloques legibles.
+ * El rotulo de un grupo de campos. Es lo que parte los veinte
+ * campos de «Datos» en seis bloques legibles.
+ *
+ * Sin el cuadrito verde y en el azul de marca.
+ *
+ * Llevaba un punto de `--acento` delante, y con seis grupos
+ * eran seis puntos verdes bajando por la ficha que no decian
+ * nada: el rotulo ya se distingue por la versalita y el peso.
+ * El verde ademas no es color de marca -- es el que entro con
+ * el handoff anterior --, y aqui manda `--marca`, que es el que
+ * cada gremio edita.
  */
 export function RotuloDeGrupo({ children }: { children: React.ReactNode }) {
   return (
-    <p className="flex items-center gap-2 text-[0.6875rem] font-semibold tracking-[0.1em] text-acento-texto uppercase">
-      <span aria-hidden className="size-1.5 rounded-xs bg-acento" />
+    <p className="text-[0.625rem] font-semibold tracking-[0.1em] text-marca uppercase">
       {children}
     </p>
   );
