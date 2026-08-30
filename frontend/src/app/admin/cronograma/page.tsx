@@ -69,7 +69,7 @@ export default function PaginaCronograma() {
   const { admin } = useAdmin();
   const [acciones, setAcciones] = useState<AccionCronograma[] | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [abierta, setAbierta] = useState<string | null>(null);
+  const [abiertas, setAbiertas] = useState<Set<string>>(new Set());
   const [buscar, setBuscar] = useState("");
   const [gremio, setGremio] = useState("");
   const [estado, setEstado] = useState("");
@@ -184,7 +184,7 @@ export default function PaginaCronograma() {
           `superficie` eran blanco sobre blanco. Igual que en
           Gestion de leads. */}
       <div className="flex flex-col gap-3 px-4 pt-4 pb-6">
-        <div>
+        <div className="no-imprimir">
           <h1 className="text-[1.125rem] font-bold tracking-[-0.02em] text-titulo">
             Cronograma
           </h1>
@@ -200,7 +200,7 @@ export default function PaginaCronograma() {
       {/* Las mismas tarjetas de Gestion de leads: sueltas, con
           su borde y su curva, y con sombra solo al pasar por
           encima. Cuentan lo que se esta VIENDO. */}
-      <div className="flex flex-wrap gap-2.5">
+      <div className="no-imprimir flex flex-wrap gap-2.5">
         <Cifra
           etiqueta="Acciones de formación"
           valor={visibles.length}
@@ -239,14 +239,14 @@ export default function PaginaCronograma() {
         {/* Crece con lo que sobre: asi no queda hueco muerto
             entre el ultimo filtro y el boton de la derecha. */}
         <input
-          className="h-[34px] min-w-[220px] flex-1 rounded-lg border border-campo-borde bg-campo-fondo px-3 text-[0.78125rem] outline-none transition focus:border-campo-foco"
+          className="h-[34px] min-w-[170px] flex-1 rounded-lg border border-campo-borde bg-campo-fondo px-3 text-[0.78125rem] outline-none transition focus:border-campo-foco"
           placeholder="Buscar por código, curso o ciudad…"
           value={buscar}
           onChange={(e) => setBuscar(e.target.value)}
         />
 
         {/* Todo lo que se puede filtrar sin teclear nada. */}
-        <div className="w-[210px]">
+        <div className="w-[330px]">
           <Desplegable
             alto={34}
             marcador="Acción de formación"
@@ -335,40 +335,44 @@ export default function PaginaCronograma() {
         </button>
       </div>
 
-      {/* Lo que sale en el PDF. En pantalla no se ve.
-          Va AGRUPADA por accion, con su nombre una sola vez en una
-          fila que cruza la tabla: repetido en cada grupo ocupaba
-          seis lineas por fila y el PDF pasaba de tres hojas a
-          catorce. */}
-      <div className="solo-impresion px-7 py-4">
-        <table className="tabla-datos w-full">
-          <thead>
-            <tr>
-              <th>Grupo</th>
-              <th>Estado</th>
-              <th>Inicio</th>
-              <th>Fin</th>
-              <th>Horario</th>
-              <th>Sedes</th>
-              <th>Inscritos</th>
-            </tr>
-          </thead>
-          <tbody>
-            {visibles.map((a) => {
-              const suyos = a.grupos.filter(
-                (g) =>
-                  (!estado || g.estado === estado) &&
-                  (!numeroGrupo || String(g.numero) === numeroGrupo),
-              );
-              if (!suyos.length) return null;
-              return (
-                <Fragment key={a.id}>
+      {/* Lo que sale en el PDF, y NADA mas: es «ver el
+          cronograma», no un informe con portada. */}
+      <div className="solo-impresion">
+        <p className="titulo-impreso">
+          Cronograma · {gruposVisibles.length} grupos en {visibles.length} acciones de
+          formación
+        </p>
+
+        {/* Un bloque por accion: la accion es un TITULO y debajo
+            solo sus grupos. La fila que cruzaba la tabla obligaba
+            a repetir la cabecera de columnas y dejaba la primera
+            hoja en blanco. */}
+        {visibles.map((a) => {
+          const suyos = a.grupos.filter(
+            (g) =>
+              (!estado || g.estado === estado) &&
+              (!numeroGrupo || String(g.numero) === numeroGrupo),
+          );
+          if (!suyos.length) return null;
+          return (
+            <section key={a.id} className="bloque-de-accion">
+              <h2 className="titulo-de-accion">
+                {a.convenio} · {a.codigo} · {bonito(a.nombre)} · {a.horas} horas ·{" "}
+                {a.inscritos} de {a.cupos} cupos
+              </h2>
+              <table className="tabla-datos w-full">
+                <thead>
                   <tr>
-                    <td colSpan={7} className="fila-de-accion">
-                      {a.convenio} · {a.codigo} · {bonito(a.nombre)} ·{" "}
-                      {a.horas} horas · {a.inscritos} de {a.cupos} cupos
-                    </td>
+                    <th>Grupo</th>
+                    <th>Estado</th>
+                    <th>Inicio</th>
+                    <th>Fin</th>
+                    <th>Horario</th>
+                    <th>Sedes</th>
+                    <th>Inscritos</th>
                   </tr>
+                </thead>
+                <tbody>
                   {suyos.map((g) => (
                     <tr key={g.id}>
                       <td className="tabular-nums">Grupo {g.numero}</td>
@@ -384,11 +388,11 @@ export default function PaginaCronograma() {
                       </td>
                     </tr>
                   ))}
-                </Fragment>
-              );
-            })}
-          </tbody>
-        </table>
+                </tbody>
+              </table>
+            </section>
+          );
+        })}
       </div>
 
       {visibles.length === 0 ? (
@@ -418,8 +422,14 @@ export default function PaginaCronograma() {
                   accion={a}
                   estado={estado}
                   numeroGrupo={numeroGrupo}
-                  abierta={abierta === a.id}
-                  alAbrir={() => setAbierta(abierta === a.id ? null : a.id)}
+                  abierta={abiertas.has(a.id)}
+                  alAbrir={() =>
+                    setAbiertas((v) => {
+                      const n = new Set(v);
+                      if (!n.delete(a.id)) n.add(a.id);
+                      return n;
+                    })
+                  }
                   puedeEditar={puedeEditar}
                   alGuardar={cargar}
                   alFallar={setError}
@@ -512,7 +522,7 @@ function Accion({
         /// fila del prototipo. Con `p-5` cada fila ocupaba
         /// medio tercio mas y en pantalla cabian cinco donde
         /// caben ocho.
-        className="flex w-full items-center gap-4 px-7 py-3 text-left transition hover:bg-tabla-fila-resaltada"
+        className="sin-aro flex w-full items-center gap-4 px-7 py-3 text-left transition hover:bg-tabla-fila-resaltada"
       >
         <span className="min-w-0 grow">
           <span className="flex flex-wrap items-center gap-2">

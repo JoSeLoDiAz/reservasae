@@ -644,51 +644,63 @@ select[size]:not([size='1']) {
   .solo-impresion {
     display: block;
   }
-  /*
-   * La tabla del PDF, con la misma pinta que la de Gestion de
-   * leads -- es `.tabla-datos`, la misma clase -- pero apretada
-   * para que quepa en vertical. Ni tan pequena que no se lea ni
-   * tan holgada que parta la informacion.
-   */
-  .solo-impresion .tabla-datos th,
-  .solo-impresion .tabla-datos td {
-    padding: 4px 7px;
-    font-size: 8.5pt;
-    line-height: 1.35;
-    vertical-align: top;
-  }
-  .solo-impresion .tabla-datos th {
-    font-size: 7pt;
-  }
-  /* la de sedes es la unica larga: que envuelva, no que empuje */
-  /* horario y sedes envuelven; las demas no */
-  .solo-impresion .tabla-datos td:nth-child(5),
-  .solo-impresion .tabla-datos td:nth-child(6),
-  .solo-impresion td.fila-de-accion {
-    white-space: normal;
-  }
+  /* la tabla del PDF: la de leads, apretada para que quepa */
   .solo-impresion .tabla-datos {
     width: 100%;
     border-collapse: collapse;
   }
-  /* la fila que dice de que accion son los grupos de debajo */
-  .solo-impresion td.fila-de-accion {
-    background: var(--superficie-alterna);
-    font-weight: 700;
+  .solo-impresion .tabla-datos th,
+  .solo-impresion .tabla-datos td {
+    padding: 3px 8px;
     font-size: 8pt;
-    padding-top: 7px;
-    padding-bottom: 6px;
-    border-top: 1px solid var(--borde);
+    line-height: 1.3;
+    vertical-align: top;
+  }
+  .solo-impresion .tabla-datos th {
+    font-size: 6.5pt;
   }
 
-  /* NADA se parte entre hojas */
-  tr,
-  thead,
-  .solo-impresion .tabla-datos tr {
+  /*
+   * SOLO las sedes envuelven. El horario tambien lo hacia y con
+   * 40px de ancho «Martes y jueves, 7:00 a. m. a 11:00 a. m.»
+   * salia en cinco lineas: cada fila medía cinco veces lo que
+   * debe y el PDF pasaba de tres hojas a trece.
+   */
+  .solo-impresion .tabla-datos th,
+  .solo-impresion .tabla-datos td {
+    white-space: nowrap;
+  }
+  .solo-impresion .tabla-datos td:nth-child(6) {
+    white-space: normal;
+    width: 100%;
+  }
+
+  /* el titulo de cada accion, y sus grupos con el */
+  .solo-impresion .titulo-de-accion {
+    margin: 10px 0 3px;
+    font-size: 8.5pt;
+    font-weight: 700;
+    color: var(--titulo);
+    white-space: normal;
+  }
+  .solo-impresion section.bloque-de-accion {
     break-inside: avoid;
     page-break-inside: avoid;
   }
-  /* la cabecera vuelve a salir en cada hoja */
+
+  .solo-impresion .titulo-impreso {
+    margin: 0 0 4px;
+    font-size: 9.5pt;
+    font-weight: 700;
+    color: var(--titulo);
+  }
+
+  /* ninguna fila se parte */
+  tr,
+  thead {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
   .solo-impresion thead {
     display: table-header-group;
   }
