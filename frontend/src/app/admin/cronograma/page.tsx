@@ -246,7 +246,7 @@ export default function PaginaCronograma() {
         />
 
         {/* Todo lo que se puede filtrar sin teclear nada. */}
-        <div className="w-[330px]">
+        <div className="w-[430px]">
           <Desplegable
             alto={34}
             marcador="Acción de formación"
