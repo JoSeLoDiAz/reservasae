@@ -10,6 +10,7 @@ import {
   type CatalogoColores,
   type ColoresTema,
   type Esquema,
+  seDistinguen,
 } from "@/lib/tema";
 
 const ESQUEMAS: Esquema[] = ["CLARO", "OSCURO"];
@@ -408,16 +409,22 @@ export function VistaPrevia({ colores }: { colores: ColoresTema }) {
           className="space-y-3 rounded-lg border p-4"
           style={{ background: c("superficie"), borderColor: c("borde") }}
         >
-          <div className="flex flex-wrap gap-2">
+          {/* La vista previa enseña lo que se va a ver.
+              Los tres estados iban aquí como píldoras rellenas,
+              y esas ya no existen en ninguna pantalla: el estado
+              va en la LETRA. Con la píldora, quien ajustaba el
+              color lo juzgaba sobre un fondo teñido que no es el
+              que va a tener delante. */}
+          <div className="flex flex-wrap gap-4">
             {[
-              { texto: "Disponible", frente: "exito", fondo: "exitoSuave" },
-              { texto: "Últimos cupos", frente: "aviso", fondo: "avisoSuave" },
-              { texto: "Completo", frente: "error", fondo: "errorSuave" },
+              { texto: "Disponible", frente: "exito" },
+              { texto: "Últimos cupos", frente: "aviso" },
+              { texto: "Completo", frente: "error" },
             ].map((e) => (
               <span
                 key={e.texto}
-                className="rounded-full px-2.5 py-0.5 text-xs font-medium"
-                style={{ background: c(e.fondo), color: c(e.frente) }}
+                className="text-[0.75rem] font-semibold"
+                style={{ color: c(e.frente) }}
               >
                 {e.texto}
               </span>
@@ -524,8 +531,30 @@ export function RevisionContraste({
 }) {
   const [corrigiendo, setCorrigiendo] = useState(false);
 
+  /// Dos varas de medir, porque son dos preguntas distintas.
+  ///
+  /// «¿Se LEE?» es texto sobre un fondo, y eso lo contesta la
+  /// razon de la WCAG. «¿Se DISTINGUEN?» son dos colores de
+  /// estado uno al lado del otro, y para eso la razon de la
+  /// WCAG no sirve: mide luminosidad, y dos colores pueden
+  /// diferir mucho de tono y poco de luminosidad. Con ella, la
+  /// paleta de fabrica -- que esta elegida a proposito para
+  /// verse bien -- fallaba las seis comprobaciones. Ver
+  /// `seDistinguen` en `lib/tema.ts`.
   const resultados = catalogo.comprobacionesContraste.map((c) => {
-    const razon = contraste(colores[c.frente] ?? "", colores[c.fondo] ?? "");
+    const a = colores[c.frente] ?? "";
+    const b = colores[c.fondo] ?? "";
+
+    if (c.entreEstados) {
+      const d = seDistinguen(a, b);
+      return {
+        ...c,
+        razon: d?.distancia ?? null,
+        nivel: d === null ? null : d.bastante ? ("AA" as const) : ("INSUFICIENTE" as const),
+      };
+    }
+
+    const razon = contraste(a, b);
     return { ...c, razon, nivel: razon === null ? null : nivelContraste(razon, c.grande) };
   });
 
@@ -538,7 +567,10 @@ export function RevisionContraste({
       </h3>
       <p className="mt-1 text-sm text-texto-suave">
         Contraste según la WCAG: mínimo 4,5 para texto normal y 3 para títulos
-        grandes.
+        grandes. Los tres colores de estado se comprueban además{" "}
+        <strong className="font-semibold text-texto">entre sí</strong>: si se
+        parecen demasiado, un dato verificado y uno sin verificar acaban del
+        mismo color.
       </p>
 
       {fallos.length > 0 && (
@@ -586,7 +618,16 @@ export function RevisionContraste({
             </span>
             <span className="flex items-center gap-2">
               <span className="font-mono text-texto-suave">
-                {r.razon ? `${r.razon.toFixed(1)}:1` : "—"}
+                {/* «:1» solo en las razones de contraste. En las
+                    filas de distincion el numero es una DISTANCIA
+                    entre dos colores, no una razon, y ponerle
+                    «:1» invita a compararlo con el 4,5 de la
+                    WCAG, que es otra escala. */}
+                {r.razon === null
+                  ? "—"
+                  : r.entreEstados
+                    ? `distancia ${r.razon.toFixed(0)}`
+                    : `${r.razon.toFixed(1)}:1`}
               </span>
               <EtiquetaNivel nivel={r.nivel} />
             </span>
