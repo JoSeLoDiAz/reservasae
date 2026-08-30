@@ -417,8 +417,16 @@ function NuevaCampana({
           Ahora la vista ocupa la mitad y se queda pegada
           arriba mientras se escribe en la otra: se teclea
           en un lado y se ve en el otro, sin buscarla. */}
+      {/* Una raya entre lo que se llena y lo que se ve.
+
+          Las dos columnas se tocaban sin nada en medio y el ojo
+          no sabia donde acababa el formulario y empezaba la
+          vista previa: parecia una sola cosa apretada. La raya
+          es la misma que separa las bandas -- `--hairline` --,
+          y solo aparece cuando hay dos columnas de verdad: en
+          pantalla angosta se apilan y ahi la raya sobraria. */}
       <div className="grid lg:grid-cols-2 lg:items-start">
-        <div className="space-y-4">
+        <div className="space-y-5 pr-0 lg:pr-8">
           <div>
             <label htmlFor="c-nombre" className="mb-1.5 block text-sm font-medium">
               Cómo la va a reconocer
@@ -586,7 +594,11 @@ function NuevaCampana({
           </div>
         </div>
 
-        <div className="space-y-5 lg:sticky lg:top-4">
+        {/* La raya que separa lo que se llena de lo que se ve.
+            Solo a partir de `lg`: por debajo las columnas se
+            apilan y una raya a la izquierda no separaria nada,
+            colgaria del borde. */}
+        <div className="space-y-5 lg:sticky lg:top-4 lg:border-l lg:border-hairline lg:pl-8">
           <VistaPreviaCorreo
             asunto={asunto}
             cuerpo={cuerpo}
@@ -594,7 +606,7 @@ function NuevaCampana({
             banner={banner}
           />
 
-        <div className="border-b border-borde bg-superficie px-7 py-5">
+        <div className="pt-5">
           <p className="text-[0.90625rem] font-semibold text-titulo">
             Lo que puede poner
           </p>

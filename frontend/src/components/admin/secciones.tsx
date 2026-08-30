@@ -674,3 +674,88 @@ export function Dona({
     </Seccion>
   );
 }
+
+/* ── 9. embudo ───────────────────────────────────────────── */
+
+export type TramoDeEmbudo = {
+  etiqueta: string;
+  total: number;
+  color: string;
+};
+
+/**
+ * El embudo por etapas, en UNA fila.
+ *
+ * El servidor ya manda este reparto en cada carga de la lista y
+ * hasta ahora no lo miraba nadie: se pagaba la consulta y se
+ * tiraba el resultado.
+ *
+ * Total, barra y leyenda van en la misma linea, no apilados.
+ * Es una tira de contexto encima de la tabla, no un panel: si
+ * ocupa tres renglones empuja las filas hacia abajo y quita
+ * justo lo que uno vino a mirar.
+ *
+ * En la leyenda el color va en el NUMERO y la etiqueta se queda
+ * en gris. Al reves -- etiqueta de color y numero neutro -- se
+ * lee la palabra y no la cifra, que es lo que se compara.
+ *
+ * «Sin asesor» va detras de una raya vertical: no es una etapa
+ * del proceso, es una cola de trabajo. Sin la raya parece el
+ * septimo paso del embudo, y una persona sin asesor puede
+ * estar en cualquiera de los seis.
+ */
+export function Embudo({
+  total,
+  tramos,
+  sinAsesor,
+}: {
+  total: number;
+  tramos: TramoDeEmbudo[];
+  sinAsesor?: number;
+}) {
+  const suma = tramos.reduce((a, t) => a + t.total, 0) || 1;
+
+  return (
+    <div className="flex flex-wrap items-center gap-5 border-t border-hairline py-[11px]">
+      <div
+        className="whitespace-nowrap text-texto-suave"
+        style={{ fontSize: T.menudo }}
+      >
+        <span className="font-bold tabular-nums text-titulo">{total}</span>{" "}
+        registros en esta vista
+      </div>
+
+      <div className="flex h-1 min-w-[220px] flex-1 overflow-hidden rounded-sm bg-superficie-alterna">
+        {tramos
+          .filter((t) => t.total > 0)
+          .map((t) => (
+            <div
+              key={t.etiqueta}
+              title={`${t.etiqueta}: ${t.total}`}
+              style={{ width: `${(t.total / suma) * 100}%`, background: t.color }}
+            />
+          ))}
+      </div>
+
+      <div
+        className="flex flex-wrap items-center gap-3.5"
+        style={{ fontSize: T.pie }}
+      >
+        {tramos.map((t) => (
+          <div key={t.etiqueta} className="whitespace-nowrap">
+            <span className="text-texto-suave">{t.etiqueta}</span>{" "}
+            <span className="font-bold tabular-nums" style={{ color: t.color }}>
+              {t.total}
+            </span>
+          </div>
+        ))}
+        {sinAsesor !== undefined && sinAsesor > 0 && (
+          <div className="whitespace-nowrap border-l border-borde pl-1.5">
+            <span className="text-texto-suave">Sin asesor</span>{" "}
+            <span className="font-bold tabular-nums text-aviso">{sinAsesor}</span>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}

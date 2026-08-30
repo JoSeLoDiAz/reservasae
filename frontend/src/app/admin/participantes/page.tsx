@@ -6,6 +6,8 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Aviso, CLASE_CONTROL, Tarjeta } from "@/components/admin/marco-admin";
 import { CajonLead } from "@/components/admin/cajon-lead";
+import { Embudo } from "@/components/admin/secciones";
+import { colorEtapa } from "@/components/admin/etapa";
 import { columnasDeParticipante } from "@/components/admin/columnas-participante";
 import { Tabla } from "@/components/admin/tabla";
 import { ErrorApi } from "@/lib/api";
@@ -14,6 +16,8 @@ import {
   crmApi,
   type FilaParticipante,
   type Filtros,
+  ETAPAS_AVANCE,
+  ETIQUETA_ETAPA,
   type Resumen,
 } from "@/lib/crm-api";
 
@@ -140,6 +144,30 @@ export default function PaginaParticipantes() {
   return (
     <div className="flex min-h-0 grow flex-col gap-4 px-7 pt-5">
       {error && <Aviso tipo="error">{error}</Aviso>}
+
+      {/* El embudo.
+
+          El servidor ya manda este reparto en CADA carga de la
+          lista, y hasta hoy no lo miraba nadie: se pagaba la
+          consulta y se tiraba el resultado. Contesta la
+          pregunta que se hace el lider al llegar -- «¿dónde se
+          está atascando la gente?» --, y esa es de proporcion,
+          asi que va en barra y no en seis cifras sueltas. */}
+      {hayAlguien && (
+        <div className="-mt-1">
+          <Embudo
+            total={resumen.total}
+            sinAsesor={resumen.sinAsesor}
+            tramos={resumen.etapas
+              .filter((e) => ETAPAS_AVANCE.includes(e.etapa))
+              .map((e) => ({
+                etiqueta: ETIQUETA_ETAPA[e.etapa],
+                total: e.total,
+                color: colorEtapa(e.etapa),
+              }))}
+          />
+        </div>
+      )}
 
       {/* El orden es el del tablero de abajo: se filtra por lo
           que se esta mirando. El buscador no va aqui, va con la
