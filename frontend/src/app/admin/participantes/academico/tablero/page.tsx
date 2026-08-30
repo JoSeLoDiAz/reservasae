@@ -550,7 +550,7 @@ function Cuerpo({ d, adminId }: { d: TableroAcademico; adminId: string }) {
                   valor: reparto[i],
                   color: colorEtapa(r.etapa),
                 }))}
-                tamano={168}
+                tamano={188}
                 centro={n(d.total)}
                 detalleCentro="en el aula"
               />
@@ -568,7 +568,7 @@ function Cuerpo({ d, adminId }: { d: TableroAcademico; adminId: string }) {
                 <div className="text-center">
                   <Anillo
                     porcentaje={d.avanceMedio * 100}
-                    tamano={168}
+                    tamano={188}
                     etiqueta="Avance medio"
                   />
                   <p className="mt-2 text-xs tabular-nums text-texto-suave">

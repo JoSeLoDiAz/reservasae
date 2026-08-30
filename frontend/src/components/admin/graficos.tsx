@@ -527,7 +527,7 @@ export type PorcionDonut = { etiqueta: string; valor: number; color?: string };
  */
 export function Donut({
   datos,
-  tamano = 148,
+  tamano = 188,
   centro,
   detalleCentro,
   vacio = "Sin datos todavía.",
@@ -542,7 +542,12 @@ export function Donut({
     return <p className="py-6 text-center text-sm text-texto-suave">{vacio}</p>;
   }
 
-  const radio = 38;
+  /// Las medidas del prototipo: lienzo de 132, radio 52 y
+  /// trazo de 17, dibujado a 188px. Estaba en 100/38/13 a
+  /// 148px -- el mismo dibujo a otra escala --, y al lado del
+  /// anillo de 60px la relacion entre los dos no era la del
+  /// disenio.
+  const radio = 52;
   const circunferencia = 2 * Math.PI * radio;
   const suma = datos.reduce((t, d) => t + Math.max(d.valor, 0), 0);
   const conColor = datos.map((d, i) => ({
@@ -579,7 +584,7 @@ export function Donut({
       <svg
         width={tamano}
         height={tamano}
-        viewBox="0 0 100 100"
+        viewBox="0 0 132 132"
         role="img"
         aria-label={conColor
           .map((d) => `${d.etiqueta}: ${n(d.valor)}, ${formatoPorcentaje(d.valor, suma)}`)
@@ -587,45 +592,52 @@ export function Donut({
         className="shrink-0"
       >
         <circle
-          cx="50"
-          cy="50"
+          cx="66"
+          cy="66"
           r={radio}
           fill="none"
-          stroke="var(--superficie-alterna)"
-          strokeWidth="13"
+          stroke="var(--hairline)"
+          strokeWidth="17"
         />
         {segmentos.map((s, i) => (
           <circle
             key={`${s.etiqueta}-${i}`}
-            cx="50"
-            cy="50"
+            cx="66"
+            cy="66"
             r={radio}
             fill="none"
             stroke={s.color}
-            strokeWidth="13"
+            strokeWidth="17"
             strokeDasharray={`${Math.max(s.largo - hueco, 0.8)} ${circunferencia}`}
             strokeDashoffset={-s.desfase}
-            transform="rotate(-90 50 50)"
+            transform="rotate(-90 66 66)"
             className="transition-[stroke-dasharray] duration-500"
           >
             <title>{`${s.etiqueta}: ${n(s.valor)}`}</title>
           </circle>
         ))}
         {centro && (
+          /// Centrado en 66 y reescalado con el lienzo.
+          ///
+          /// El texto seguia en las coordenadas del lienzo de
+          /// 100 -- x=50 -- y con el de 132 se quedaba a la
+          /// izquierda del centro. Los cuerpos salen de los del
+          /// prototipo (38px y 12,5px sobre 188 de render) por
+          /// la escala del lienzo: 132/188 = 0,702.
           <text
-            x="50"
-            y={detalleCentro ? 48 : 55}
+            x="66"
+            y={detalleCentro ? 64 : 74}
             textAnchor="middle"
-            fontSize="17"
-            fontWeight="680"
+            fontSize="26.5"
+            fontWeight="700"
             fill="var(--titulo)"
-            style={{ fontVariantNumeric: "tabular-nums" }}
+            style={{ fontVariantNumeric: "tabular-nums", letterSpacing: "-0.03em" }}
           >
             {centro}
           </text>
         )}
         {detalleCentro && (
-          <text x="50" y="61" textAnchor="middle" fontSize="7.5" fill="var(--texto-suave)">
+          <text x="66" y="80" textAnchor="middle" fontSize="8.8" fill="var(--texto-suave)">
             {detalleCentro}
           </text>
         )}

@@ -1017,7 +1017,7 @@ function Barra({
           value={buscar}
           onChange={(e) => setBuscar(e.target.value)}
           placeholder="Buscar en lo que está a la vista…"
-          className="w-full rounded-xl border border-campo-borde bg-campo-fondo py-2 pl-9 pr-3 text-sm outline-none transition focus:border-campo-foco focus:ring-2 focus:ring-campo-foco/25"
+          className="h-[34px] w-full rounded-lg border border-campo-borde bg-campo-fondo py-0 pl-9 pr-3 text-[0.78125rem] outline-none transition focus:border-campo-foco focus:ring-2 focus:ring-campo-foco/25"
         />
       </label>
 
@@ -1058,7 +1058,7 @@ function Barra({
         <button
           type="button"
           onClick={alDescargar}
-          className="rounded-xl bg-marca px-4 py-2 text-sm font-medium text-marca-texto transition hover:bg-marca-fuerte"
+          className="inline-flex h-[34px] items-center rounded-lg bg-marca px-3.5 text-[0.78125rem] font-semibold text-marca-texto transition hover:bg-marca-fuerte"
         >
           Descargar en Excel
         </button>
@@ -1210,7 +1210,7 @@ function PanelColumnas<T>({
             {puestas.map((c, i) => (
               <li
                 key={c.clave}
-                className="flex items-center gap-2 rounded-lg border border-borde px-2.5 py-1.5 text-sm"
+                className="flex h-[34px] items-center gap-2 rounded-lg border border-borde px-3.5 text-[0.78125rem] font-semibold"
               >
                 <span className="flex-1 truncate">{c.titulo}</span>
                 <button
@@ -1259,7 +1259,7 @@ function PanelColumnas<T>({
                   <button
                     type="button"
                     onClick={() => alternar(c)}
-                    className="rounded-lg border border-borde px-2.5 py-1.5 text-sm transition hover:border-marca hover:bg-marca-suave"
+                    className="h-[34px] rounded-lg border border-borde px-3.5 text-[0.78125rem] font-semibold transition hover:border-marca hover:bg-marca-suave"
                   >
                     + {c.titulo}
                   </button>

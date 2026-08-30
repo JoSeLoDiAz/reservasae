@@ -242,7 +242,7 @@ export function GraficasInscripciones({ metricas }: { metricas: Repartos | null 
         <div>
           <Donut
             datos={porGremioTotal.map((g) => ({ etiqueta: g.etiqueta, valor: g.valor }))}
-            tamano={196}
+            tamano={188}
             centro={n(total)}
             detalleCentro={total === 1 ? "lead" : "leads"}
             vacio="Nadie coincide con estos filtros."
@@ -291,7 +291,7 @@ export function GraficasInscripciones({ metricas }: { metricas: Repartos | null 
                 color: "var(--aviso)",
               },
             ]}
-            tamano={196}
+            tamano={188}
             centro={n(total)}
             detalleCentro={total === 1 ? "lead" : "leads"}
           />
@@ -302,7 +302,7 @@ export function GraficasInscripciones({ metricas }: { metricas: Repartos | null 
         <div>
           <Donut
             datos={porAsesor.map((a) => ({ etiqueta: a.etiqueta, valor: a.valor }))}
-            tamano={196}
+            tamano={188}
             centro={n(total)}
             detalleCentro={total === 1 ? "lead" : "leads"}
             vacio="Nadie tiene leads asignados."

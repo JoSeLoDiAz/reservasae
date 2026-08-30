@@ -1166,8 +1166,22 @@ function Cabecera({
 
 // piezas compartidas del panel
 
+/**
+ * La medida de un campo: alto 34, radio 10, letra 12,5.
+ *
+ * Son las del redisenio, y se ponen aqui porque esta clase la
+ * usan 174 controles en treinta archivos: cambiarla una vez es
+ * lo que deja TODOS los campos del panel a la misma medida.
+ *
+ * El alto se consigue con el relleno y no con `h-[34px]`
+ * a proposito: cuatro `textarea` usan esta misma clase, y con
+ * una altura fija se quedarian en un renglon. Con relleno, un
+ * campo de una linea mide 34 y el textarea crece.
+ *
+ * 7px arriba y abajo + 18 de linea + 2 de borde = 34.
+ */
 export const CLASE_CONTROL =
-  "w-full rounded-xl border border-campo-borde bg-campo-fondo px-3 py-2.5 text-texto " +
+  "w-full rounded-lg border border-campo-borde bg-campo-fondo px-3 py-[7px] text-[0.78125rem] text-texto " +
   "outline-none transition focus:border-campo-foco focus:ring-2 focus:ring-campo-foco/25";
 
 export function Tarjeta({
