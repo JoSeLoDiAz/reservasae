@@ -1103,3 +1103,25 @@ export function diasDesde(fecha: string): number {
   const ms = Date.now() - new Date(fecha).getTime();
   return Math.max(0, Math.floor(ms / 86_400_000));
 }
+
+/** Una importacion del historico. */
+export type CargaDelHistorico = {
+  id: string;
+  creadoEn: string;
+  autor: string;
+  origen: "ARCHIVO" | "PEGADO";
+  nombreArchivo: string | null;
+  filas: number;
+  creados: number;
+  yaExistian: number;
+  duplicados: number;
+  descartados: number;
+  fallidos: number;
+  convenio: string;
+  destino: string | null;
+};
+
+export const historicoDeCargas = (convenioId?: string) =>
+  pedir<CargaDelHistorico[]>(
+    `/admin/participantes/carga/historico${convenioId ? `?convenioId=${convenioId}` : ""}`,
+  );

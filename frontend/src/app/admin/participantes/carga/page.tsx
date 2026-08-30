@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import {
   Aviso,
@@ -13,7 +13,12 @@ import {
 } from "@/components/admin/marco-admin";
 import { adminApi } from "@/lib/admin-api";
 import { ErrorApi } from "@/lib/api";
-import { crmApi, type OpcionOferta } from "@/lib/crm-api";
+import {
+  crmApi,
+  historicoDeCargas,
+  type CargaDelHistorico,
+  type OpcionOferta,
+} from "@/lib/crm-api";
 import { Desplegable } from "@/components/admin/desplegable";
 
 type Estado = "NUEVA" | "PERSONA_CONOCIDA" | "REPETIDA" | "DESCARTADA";
@@ -61,6 +66,8 @@ export default function PaginaCarga() {
   const [error, setError] = useState<string | null>(null);
   const [ocupado, setOcupado] = useState(false);
   const [deArchivo, setDeArchivo] = useState<string | null>(null);
+  const [nombreArchivo, setNombreArchivo] = useState<string | null>(null);
+  const [historico, setHistorico] = useState<CargaDelHistorico[] | null>(null);
   const [encima, setEncima] = useState(false);
   const selector = useRef<HTMLInputElement>(null);
 
@@ -97,6 +104,14 @@ export default function PaginaCarga() {
     else if (!sedes.some((o) => o.id === ofertaId)) setOfertaId("");
   }, [accionId, sedes, ofertaId]);
 
+  const verHistorico = useCallback(() => {
+    void historicoDeCargas(convenioId || undefined)
+      .then(setHistorico)
+      .catch(() => setHistorico([]));
+  }, [convenioId]);
+
+  useEffect(verHistorico, [verHistorico]);
+
   useEffect(() => {
     if (!convenioId) return;
     void crmApi
@@ -120,6 +135,7 @@ export default function PaginaCarga() {
       const d = (await r.json()) as { texto?: string; filas?: number; message?: string };
       if (!r.ok) throw new Error(d.message ?? "No se pudo leer el archivo.");
       setTexto(d.texto ?? "");
+      setNombreArchivo(f.name);
       setDeArchivo(`${f.name} · ${d.filas} ${d.filas === 1 ? "fila" : "filas"}`);
       setPrevia(null);
     });
@@ -315,6 +331,7 @@ export default function PaginaCarga() {
               onChange={(e) => {
                 setTexto(e.target.value);
                 setDeArchivo(null);
+                setNombreArchivo(null);
                 setPrevia(null);
               }}
             />
@@ -409,12 +426,15 @@ export default function PaginaCarga() {
                         convenioId,
                         ofertaId: ofertaId || undefined,
                         texto,
+                        origenDeCarga: nombreArchivo ? "ARCHIVO" : "PEGADO",
+                        nombreArchivo: nombreArchivo ?? undefined,
                       }),
                     });
                     const res = (await r.json()) as {
                       creados: number;
                       fallos: Array<{ linea: number; motivo: string }>;
                     };
+                    verHistorico();
                     if (res.fallos?.length) {
                       setError(
                         `Se importaron ${res.creados} registros. ${res.fallos.length} no se pudieron crear: ` +
@@ -442,6 +462,89 @@ export default function PaginaCarga() {
           </div>
         </Tarjeta>
       )}
+
+      <Tarjeta
+        titulo="Historial de importaciones"
+        descripcion="Cada carga confirmada queda registrada con su responsable, su origen y su resultado. Se conservan las cien más recientes del ámbito."
+      >
+        {historico === null ? (
+          <p className="text-[0.78125rem] text-texto-suave">Consultando…</p>
+        ) : historico.length === 0 ? (
+          <p className="text-[0.78125rem] text-texto-suave">
+            Todavía no se ha registrado ninguna importación en este ámbito. La primera
+            que confirme aparecerá aquí.
+          </p>
+        ) : (
+          <div className="caja-scroll max-h-80 overflow-auto rounded-lg border border-borde">
+            <table className="tabla-datos">
+              <thead>
+                <tr>
+                  <th>Fecha</th>
+                  <th>Responsable</th>
+                  <th>Origen</th>
+                  <th>Convenio</th>
+                  <th>Acción de formación</th>
+                  <th>Registros</th>
+                  <th>Resultado</th>
+                </tr>
+              </thead>
+              <tbody>
+                {historico.map((c) => (
+                  <tr key={c.id}>
+                    <td className="whitespace-nowrap tabular-nums">
+                      {new Date(c.creadoEn).toLocaleString("es-CO", {
+                        dateStyle: "short",
+                        timeStyle: "short",
+                      })}
+                    </td>
+                    <td>{c.autor}</td>
+                    <td>
+                      {c.origen === "ARCHIVO" ? (
+                        <>
+                          Archivo
+                          {c.nombreArchivo && (
+                            <span className="block text-xs text-texto-suave">
+                              {c.nombreArchivo}
+                            </span>
+                          )}
+                        </>
+                      ) : (
+                        "Pegado"
+                      )}
+                    </td>
+                    <td>{c.convenio}</td>
+                    <td>{c.destino ?? "Sin asignar"}</td>
+                    <td className="tabular-nums">{c.filas}</td>
+                    <td>
+                      <span className="font-semibold text-exito tabular-nums">
+                        {c.creados} importados
+                      </span>
+                      {/* Lo que NO entro se dice y no se calla: un
+                          historico que solo cuenta los aciertos no
+                          sirve para reconstruir que paso. */}
+                      {(c.yaExistian > 0 ||
+                        c.duplicados > 0 ||
+                        c.descartados > 0 ||
+                        c.fallidos > 0) && (
+                        <span className="block text-xs text-texto-suave tabular-nums">
+                          {[
+                            c.yaExistian > 0 && `${c.yaExistian} ya existían`,
+                            c.duplicados > 0 && `${c.duplicados} duplicados`,
+                            c.descartados > 0 && `${c.descartados} descartados`,
+                            c.fallidos > 0 && `${c.fallidos} con error`,
+                          ]
+                            .filter(Boolean)
+                            .join(" · ")}
+                        </span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Tarjeta>
     </div>
   );
 }

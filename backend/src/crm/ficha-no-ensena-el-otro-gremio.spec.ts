@@ -45,6 +45,7 @@ function conAmbito(ambito: string[]) {
     {} as never,
     {} as never,
     {} as never,
+    { alInscribir: () => Promise.resolve() } as never,
   );
   return { servicio, consultas };
 }

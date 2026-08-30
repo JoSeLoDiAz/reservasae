@@ -299,6 +299,17 @@ export class CrmController {
     return { texto, filas: texto.split('\n').length };
   }
 
+  @Get('carga/historico')
+  /// VER y no ESCRIBIR: el historico es para consultarlo, y
+  /// quien solo mira tiene que poder ver quien subio que.
+  @Requiere('inscripciones', 'VER')
+  cargas(
+    @Query('convenioId') convenioId: string | undefined,
+    @AmbitoActual() ambito: Ambito,
+  ) {
+    return this.crm.cargas(ambito.convenios, convenioId);
+  }
+
   @Post('carga/confirmar')
   @Requiere('inscripciones', 'ESCRIBIR')
   confirmarCarga(

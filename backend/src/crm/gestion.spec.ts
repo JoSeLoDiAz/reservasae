@@ -79,6 +79,7 @@ function armar(notas: Nota[]) {
     {} as never,
     {} as never,
     {} as never,
+    { alInscribir: () => Promise.resolve() } as never,
   );
 
   return (id: string) =>

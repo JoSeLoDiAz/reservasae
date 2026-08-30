@@ -50,19 +50,21 @@ model Convenio {
   /// el formulario que da la marca
   formularioMarcaId String?
 
-  acciones      AccionFormacion[]
-  politicas     PoliticaDatos[]
-  formularios   Formulario[]
+  acciones         AccionFormacion[]
+  politicas        PoliticaDatos[]
+  formularios      Formulario[]
   leads            LeadEntrante[]
   plantillasCorreo PlantillaCorreo[]
   campanas         Campana[]
-  participantes Participante[]
-  admins        AdminConvenio[]
+  participantes    Participante[]
+  admins           AdminConvenio[]
 
   /// Nombrada porque Convenio y Formulario ya se relacionan
   /// por `Formulario.convenioId`, y sin nombre Prisma no
   /// sabria cual de las dos es cual.
   formularioMarca Formulario? @relation("MarcaDelGremio", fields: [formularioMarcaId], references: [id], onDelete: SetNull)
+
+  cargasDeParticipantes CargaDeParticipantes[]
 
   @@index([formularioMarcaId])
   @@map("convenios")
@@ -187,6 +189,8 @@ model Oferta {
   ubicacion       Ubicacion       @relation(fields: [ubicacionId], references: [id])
   reservas        Reserva[]
   participantes   Participante[]
+
+  cargasDeParticipantes CargaDeParticipantes[]
 
   @@unique([accionFormacionId, ubicacionId])
   @@index([accionFormacionId])
@@ -597,6 +601,55 @@ enum OrigenLead {
   ORGANICO
 }
 
+/// Por donde entraron los datos de una importacion.
+enum OrigenDeCarga {
+  ARCHIVO
+  PEGADO
+}
+
+/// Quien importo, que, cuando y como salio.
+///
+/// La fila se crea ANTES de empezar a crear gente, no despues:
+/// una importacion que se caiga a la mitad tiene que dejar
+/// rastro igual. Un historico que solo guarda lo que salio bien
+/// no sirve para lo unico que se le pide, que es saber que paso.
+model CargaDeParticipantes {
+  id String @id @default(cuid())
+
+  convenioId String
+  ofertaId   String?
+
+  /// Puede quedar en nulo si se desactiva la cuenta, por eso
+  /// `autor` va congelado al lado -- mismo criterio que las
+  /// notas: el historico tiene que poder decir quien fue
+  /// aunque la cuenta ya no exista.
+  adminId String?
+  autor   String
+
+  origen        OrigenDeCarga
+  nombreArchivo String?
+
+  /// El recuento de la previsualizacion, tal como se le
+  /// enseño a quien confirmo.
+  filas       Int
+  creados     Int @default(0)
+  yaExistian  Int @default(0)
+  duplicados  Int @default(0)
+  descartados Int @default(0)
+  fallidos    Int @default(0)
+
+  ip       String?
+  creadoEn DateTime @default(now())
+
+  convenio      Convenio       @relation(fields: [convenioId], references: [id], onDelete: Restrict)
+  oferta        Oferta?        @relation(fields: [ofertaId], references: [id], onDelete: SetNull)
+  admin         Admin?         @relation("CargasDelAdmin", fields: [adminId], references: [id], onDelete: SetNull)
+  participantes Participante[]
+
+  @@index([convenioId, creadoEn])
+  @@map("cargas_de_participantes")
+}
+
 enum OrigenParticipante {
   EMPRESA
   ASESOR
@@ -675,7 +728,7 @@ model LeadEntrante {
   tipoDocumentoSepId Int?
   numeroDocumento    String?
   /// Que dijo que le interesa, en sus palabras.
-  interes String?
+  interes            String?
 
   /// El cuerpo entero, tal cual. Es lo que deja depurar,
   /// reprocesar y demostrar que llego de verdad.
@@ -801,6 +854,9 @@ model Participante {
 
   asesorId String?
 
+  /// De que importacion salio, si salio de una.
+  cargaId String?
+
   cargoEnEmpresa   String?
   nivelEducativo   String?
   nivelOcupacional String?
@@ -829,32 +885,36 @@ model Participante {
   creadoEn      DateTime @default(now())
   actualizadoEn DateTime @updatedAt
 
-  persona         Persona                  @relation(fields: [personaId], references: [id], onDelete: Restrict)
-  convenio        Convenio                 @relation(fields: [convenioId], references: [id], onDelete: Restrict)
-  reserva         Reserva?                 @relation(fields: [reservaId], references: [id], onDelete: Restrict)
-  empresa         Empresa?                 @relation(fields: [empresaId], references: [id], onDelete: SetNull)
-  oferta          Oferta?                  @relation(fields: [ofertaId], references: [id], onDelete: Restrict)
-  accionFormacion AccionFormacion?         @relation(fields: [accionFormacionId], references: [id], onDelete: Restrict)
-  cobertura       GrupoCobertura?          @relation(fields: [coberturaId], references: [id], onDelete: SetNull)
-  asesor          Admin?                   @relation("ParticipantesDelAsesor", fields: [asesorId], references: [id], onDelete: SetNull)
-  sobrecupoPor    Admin?                   @relation("SobrecuposAutorizados", fields: [sobrecupoPorId], references: [id], onDelete: SetNull)
+  persona           Persona                  @relation(fields: [personaId], references: [id], onDelete: Restrict)
+  convenio          Convenio                 @relation(fields: [convenioId], references: [id], onDelete: Restrict)
+  reserva           Reserva?                 @relation(fields: [reservaId], references: [id], onDelete: Restrict)
+  empresa           Empresa?                 @relation(fields: [empresaId], references: [id], onDelete: SetNull)
+  oferta            Oferta?                  @relation(fields: [ofertaId], references: [id], onDelete: Restrict)
+  accionFormacion   AccionFormacion?         @relation(fields: [accionFormacionId], references: [id], onDelete: Restrict)
+  cobertura         GrupoCobertura?          @relation(fields: [coberturaId], references: [id], onDelete: SetNull)
+  asesor            Admin?                   @relation("ParticipantesDelAsesor", fields: [asesorId], references: [id], onDelete: SetNull)
+  sobrecupoPor      Admin?                   @relation("SobrecuposAutorizados", fields: [sobrecupoPorId], references: [id], onDelete: SetNull)
+  carga             CargaDeParticipantes?    @relation(fields: [cargaId], references: [id], onDelete: SetNull)
   valoresAnteriores ValorAnterior[]
-  movimientos     MovimientoParticipante[]
-  notas           NotaParticipante[]
-  avances         AvanceActividad[]
-  enlaces         EnlaceCompletado[]
-  propuestas      PropuestaDeDatos[]
+  movimientos       MovimientoParticipante[]
+  notas             NotaParticipante[]
+  avances           AvanceActividad[]
+  enlaces           EnlaceCompletado[]
+  propuestas        PropuestaDeDatos[]
 
   // nadie cuenta dos veces en la misma accion
   /// De que lead salio, si salio de uno.
-  lead          LeadEntrante?
-  enCampanas    DestinatarioCampana[]
+  lead       LeadEntrante?
+  enCampanas DestinatarioCampana[]
+
   @@unique([accionFormacionId, personaId])
   @@index([convenioId, etapa])
   @@index([ofertaId, etapa])
   @@index([coberturaId, etapa])
   @@index([asesorId, etapa])
   @@index([reservaId])
+  /// Para poder abrir una importacion y ver a quien metio.
+  @@index([cargaId])
   /// El F7 y el borrado de empresas buscan por aqui.
   @@index([empresaId])
   /// Lo creo su migracion y no estaba aqui: sin declararlo,
@@ -1060,6 +1120,8 @@ model Admin {
   propuestasResueltas      PropuestaDeDatos[]
   institucionesVerificadas Institucion[]
   propuestasInstitucion    PropuestaInstitucion[]
+
+  cargasDeParticipantes CargaDeParticipantes[] @relation("CargasDelAdmin")
 
   @@map("administradores")
 }
@@ -1584,7 +1646,7 @@ model PlantillaCorreo {
   /// una plantilla que contradice la ficha que tiene al lado.
   etapasPermitidas EtapaParticipante[]
 
-  creadoPorId String?
+  creadoPorId   String?
   creadoEn      DateTime @default(now())
   actualizadoEn DateTime @updatedAt
 
@@ -1793,14 +1855,14 @@ model ValorAnterior {
 
   /// Se restableció desde aquí. No se borra la fila: deshacer
   /// también es un cambio, y se tiene que poder ver.
-  restauradoEn   DateTime?
+  restauradoEn    DateTime?
   restauradoPorId String?
 
   creadoEn DateTime @default(now())
 
-  participante Participante @relation(fields: [participanteId], references: [id], onDelete: Cascade)
-  admin        Admin?       @relation("ValoresAnteriores", fields: [adminId], references: [id], onDelete: SetNull)
-  restauradoPor Admin?      @relation("ValoresRestaurados", fields: [restauradoPorId], references: [id], onDelete: SetNull)
+  participante  Participante @relation(fields: [participanteId], references: [id], onDelete: Cascade)
+  admin         Admin?       @relation("ValoresAnteriores", fields: [adminId], references: [id], onDelete: SetNull)
+  restauradoPor Admin?       @relation("ValoresRestaurados", fields: [restauradoPorId], references: [id], onDelete: SetNull)
 
   @@index([participanteId, creadoEn])
   @@index([creadoEn])
