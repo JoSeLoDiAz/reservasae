@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
@@ -91,22 +92,34 @@ export default function PaginaNuevoParticipante() {
   }
 
   return (
-    <div className="max-w-2xl space-y-6">
-      <header className="border-b border-borde bg-superficie px-7 pt-[26px] pb-[22px]">
-        <h1 className="text-[1.3125rem] font-bold tracking-[-0.02em] text-titulo">Inscribir a alguien</h1>
-        <p className="mt-1 text-texto-suave">
+    <div className="flex min-h-0 grow flex-col">
+      <header className="border-b border-borde bg-superficie px-7 pt-[18px] pb-[22px]">
+        <Link
+          href="/admin/participantes"
+          className="inline-flex items-center gap-1 text-[0.75rem] text-texto-suave transition hover:text-marca"
+        >
+          <span aria-hidden="true">&larr;</span> Gestión de leads
+        </Link>
+        <h1 className="mt-2 text-[1.3125rem] font-bold tracking-[-0.02em] text-titulo">
+          Inscribir a alguien
+        </h1>
+        <p className="mt-1 max-w-2xl text-texto-suave">
           Con el documento y el nombre basta para empezar. La acción de formación y el
           grupo se asignan después, desde su ficha.
         </p>
       </header>
 
-      {error && <Aviso tipo="error">{error}</Aviso>}
+      {error && (
+        <div className="px-7 pt-4">
+          <Aviso tipo="error">{error}</Aviso>
+        </div>
+      )}
 
       <Tarjeta
         titulo="Quién es"
         descripcion="El documento identifica a la persona en todo el sistema: si ya está en otro curso, se reconoce sola."
       >
-        <div className="space-y-4">
+        <div className="max-w-2xl space-y-4">
           <div className="grid sm:grid-cols-[1fr_1.4fr]">
             <Campo etiqueta="Tipo de documento">
               <select
@@ -135,7 +148,7 @@ export default function PaginaNuevoParticipante() {
             </Campo>
           </div>
 
-          <div className="grid sm:grid-cols-2">
+          <div className="grid max-w-2xl sm:grid-cols-2">
             <Campo etiqueta="Primer nombre">
               <input
                 className={CLASE_CONTROL}
@@ -177,7 +190,7 @@ export default function PaginaNuevoParticipante() {
         titulo="Cómo contactarla"
         descripcion="Hace falta al menos uno de los dos para poder matricularla."
       >
-        <div className="grid sm:grid-cols-2">
+        <div className="grid max-w-2xl sm:grid-cols-2">
           <Campo etiqueta="Correo">
             <input
               className={CLASE_CONTROL}
@@ -198,7 +211,7 @@ export default function PaginaNuevoParticipante() {
       </Tarjeta>
 
       <Tarjeta titulo="De dónde viene">
-        <div className="grid sm:grid-cols-2">
+        <div className="grid max-w-2xl sm:grid-cols-2">
           <Campo etiqueta="Convenio">
             <select
               className={CLASE_CONTROL}
@@ -230,13 +243,16 @@ export default function PaginaNuevoParticipante() {
         </div>
       </Tarjeta>
 
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-4 px-7 py-5">
         <Boton onClick={guardar} disabled={!listo || guardando}>
           {guardando ? "Guardando…" : "Inscribir"}
         </Boton>
-        <button onClick={() => router.back()} className="underline">
+        <Link
+          href="/admin/participantes"
+          className="text-[0.78125rem] text-texto-suave underline-offset-2 transition hover:text-marca hover:underline"
+        >
           Cancelar
-        </button>
+        </Link>
       </div>
     </div>
   );

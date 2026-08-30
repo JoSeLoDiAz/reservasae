@@ -238,8 +238,11 @@ export default function PaginaFicha() {
   return (
     <div style={{ padding: "28px 20px 48px" }}>
       <div className="mb-4">
-        <Link href="/admin/participantes" className="text-sm underline">
-          &larr; Volver a inscripciones
+        <Link
+          href="/admin/participantes"
+          className="inline-flex items-center gap-1 text-[0.75rem] text-texto-suave transition hover:text-marca"
+        >
+          <span aria-hidden="true">&larr;</span> Gestión de leads
         </Link>
       </div>
 

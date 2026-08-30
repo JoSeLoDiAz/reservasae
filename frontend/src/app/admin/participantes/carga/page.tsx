@@ -92,14 +92,16 @@ export default function PaginaCarga() {
 
   return (
     <div>
-      <div>
-        <Link href="/admin/participantes" className="text-sm underline">
-          ← Volver a inscripciones
+      <header className="border-b border-borde bg-superficie px-7 pt-[18px] pb-[22px]">
+        <Link
+          href="/admin/participantes"
+          className="inline-flex items-center gap-1 text-[0.75rem] text-texto-suave transition hover:text-marca"
+        >
+          <span aria-hidden="true">&larr;</span> Gestión de leads
         </Link>
-      </div>
-
-      <header className="border-b border-borde bg-superficie px-7 pt-[26px] pb-[22px]">
-        <h1 className="text-[1.3125rem] font-bold tracking-[-0.02em] text-titulo">Cargar una lista</h1>
+        <h1 className="mt-2 text-[1.3125rem] font-bold tracking-[-0.02em] text-titulo">
+          Cargar una lista
+        </h1>
         <p className="mt-1 text-texto-suave">
           Copie las celdas desde el Excel que le mandó la empresa y péguelas aquí. Verá
           qué va a pasar antes de confirmar nada.
