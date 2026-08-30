@@ -538,7 +538,8 @@ select[size]:not([size='1']) {
   }
 
   @page {
-    margin: 14mm 12mm;
+    size: A4 portrait;
+    margin: 12mm 10mm;
   }
 
   /* conservar fondos al imprimir */
@@ -640,6 +641,54 @@ select[size]:not([size='1']) {
 @media print {
   .solo-impresion {
     display: block;
+  }
+  /*
+   * La tabla del PDF, con la misma pinta que la de Gestion de
+   * leads -- es `.tabla-datos`, la misma clase -- pero apretada
+   * para que quepa en vertical. Ni tan pequena que no se lea ni
+   * tan holgada que parta la informacion.
+   */
+  .solo-impresion .tabla-datos th,
+  .solo-impresion .tabla-datos td {
+    padding: 4px 7px;
+    font-size: 8.5pt;
+    line-height: 1.35;
+    vertical-align: top;
+  }
+  .solo-impresion .tabla-datos th {
+    font-size: 7pt;
+  }
+  /* la de sedes es la unica larga: que envuelva, no que empuje */
+  /* horario y sedes envuelven; las demas no */
+  .solo-impresion .tabla-datos td:nth-child(5),
+  .solo-impresion .tabla-datos td:nth-child(6),
+  .solo-impresion td.fila-de-accion {
+    white-space: normal;
+  }
+  .solo-impresion .tabla-datos {
+    width: 100%;
+    border-collapse: collapse;
+  }
+  /* la fila que dice de que accion son los grupos de debajo */
+  .solo-impresion td.fila-de-accion {
+    background: var(--superficie-alterna);
+    font-weight: 700;
+    font-size: 8pt;
+    padding-top: 7px;
+    padding-bottom: 6px;
+    border-top: 1px solid var(--borde);
+  }
+
+  /* NADA se parte entre hojas */
+  tr,
+  thead,
+  .solo-impresion .tabla-datos tr {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+  /* la cabecera vuelve a salir en cada hoja */
+  .solo-impresion thead {
+    display: table-header-group;
   }
 }
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { Fragment, useCallback, useEffect, useState } from "react";
 
 import { IconoFormacion } from "@/components/admin/iconos";
 import {
@@ -75,9 +75,7 @@ export default function PaginaCronograma() {
   const [estado, setEstado] = useState("");
   const [accionId, setAccionId] = useState("");
   const [numeroGrupo, setNumeroGrupo] = useState("");
-  /// Para imprimir hay que abrirlo todo: un cronograma impreso
-  /// con los acordeones cerrados es una hoja de titulos.
-  const [imprimiendo, setImprimiendo] = useState(false);
+
 
   // por el permiso, no por el rol de cuenta: quien
   // configura la formacion es el lider de sistemas
@@ -95,15 +93,6 @@ export default function PaginaCronograma() {
     void cargar();
   }, [cargar]);
 
-  /// Se cierra con `afterprint` y NO justo despues de `print()`.
-  /// Aquella version dependia de que `print()` bloquee hasta que
-  /// se cierre el dialogo: es cierto en Chrome hoy, pero es una
-  /// suposicion sobre el navegador y no un hecho del contrato.
-  useEffect(() => {
-    const fin = () => setImprimiendo(false);
-    window.addEventListener("afterprint", fin);
-    return () => window.removeEventListener("afterprint", fin);
-  }, []);
 
   if (!acciones) return <Esqueleto conCifras filas={4} />;
 
@@ -161,15 +150,12 @@ export default function PaginaCronograma() {
     setNumeroGrupo("");
   }
 
-  /// Se abre todo, se deja pintar, y se imprime. El navegador ya
-  /// sabe paginar y guardar en PDF; la hoja `@media print` de
-  /// `globals.css` fuerza el tema claro y expande los scrolls.
+  /// Se imprime y ya: lo que sale en papel NO son las tarjetas
+  /// de la pantalla sino la tabla de abajo, que sale entera
+  /// siempre. Antes se abrian los 67 acordeones y el PDF eran
+  /// once hojas de fichas donde no se encontraba nada.
   function exportarPdf() {
-    setImprimiendo(true);
-    /// Dos cuadros: uno para que React pinte los 67 grupos y
-    /// otro para que el navegador haga el diseño antes de que
-    /// `print()` congele la pagina.
-    requestAnimationFrame(() => requestAnimationFrame(() => window.print()));
+    window.print();
   }
 
   const enCurso = grupos.filter((g) => g.estado === "EN_CURSO").length;
@@ -244,8 +230,10 @@ export default function PaginaCronograma() {
       </div>
 
       <div className="no-imprimir flex flex-wrap items-center gap-2.5 border-b border-borde bg-superficie px-7 py-3">
+        {/* Crece con lo que sobre: asi no queda hueco muerto
+            entre el ultimo filtro y el boton de la derecha. */}
         <input
-          className="h-[34px] w-[260px] rounded-lg border border-campo-borde bg-campo-fondo px-3 text-[0.78125rem] outline-none transition focus:border-campo-foco"
+          className="h-[34px] min-w-[220px] flex-1 rounded-lg border border-campo-borde bg-campo-fondo px-3 text-[0.78125rem] outline-none transition focus:border-campo-foco"
           placeholder="Buscar por código, curso o ciudad…"
           value={buscar}
           onChange={(e) => setBuscar(e.target.value)}
@@ -335,10 +323,66 @@ export default function PaginaCronograma() {
         <button
           type="button"
           onClick={exportarPdf}
-          className="sin-aro ml-auto inline-flex h-[34px] items-center rounded-lg border border-borde bg-superficie px-3.5 text-[0.78125rem] font-semibold whitespace-nowrap text-titulo transition hover:border-marca"
+          className="sin-aro inline-flex h-[34px] items-center rounded-lg border border-borde bg-superficie px-3.5 text-[0.78125rem] font-semibold whitespace-nowrap text-titulo transition hover:border-marca"
         >
           Exportar a PDF
         </button>
+      </div>
+
+      {/* Lo que sale en el PDF. En pantalla no se ve.
+          Va AGRUPADA por accion, con su nombre una sola vez en una
+          fila que cruza la tabla: repetido en cada grupo ocupaba
+          seis lineas por fila y el PDF pasaba de tres hojas a
+          catorce. */}
+      <div className="solo-impresion px-7 py-4">
+        <table className="tabla-datos w-full">
+          <thead>
+            <tr>
+              <th>Grupo</th>
+              <th>Estado</th>
+              <th>Inicio</th>
+              <th>Fin</th>
+              <th>Horario</th>
+              <th>Sedes</th>
+              <th>Inscritos</th>
+            </tr>
+          </thead>
+          <tbody>
+            {visibles.map((a) => {
+              const suyos = a.grupos.filter(
+                (g) =>
+                  (!estado || g.estado === estado) &&
+                  (!numeroGrupo || String(g.numero) === numeroGrupo),
+              );
+              if (!suyos.length) return null;
+              return (
+                <Fragment key={a.id}>
+                  <tr>
+                    <td colSpan={7} className="fila-de-accion">
+                      {a.convenio} · {a.codigo} · {bonito(a.nombre)} ·{" "}
+                      {a.horas} horas · {a.inscritos} de {a.cupos} cupos
+                    </td>
+                  </tr>
+                  {suyos.map((g) => (
+                    <tr key={g.id}>
+                      <td className="tabular-nums">Grupo {g.numero}</td>
+                      <td>{ETIQUETA_ESTADO_GRUPO[g.estado]}</td>
+                      <td className="tabular-nums">{fecha(g.fechaInicio)}</td>
+                      <td className="tabular-nums">{fecha(g.fechaFin)}</td>
+                      <td>{g.horario ?? "—"}</td>
+                      <td>
+                        {g.ubicaciones.map((u) => bonito(u.nombre)).join(", ") || "—"}
+                      </td>
+                      <td className="tabular-nums">
+                        {g.inscritos} de {g.cupos}
+                      </td>
+                    </tr>
+                  ))}
+                </Fragment>
+              );
+            })}
+          </tbody>
+        </table>
       </div>
 
       {visibles.length === 0 ? (
@@ -352,7 +396,7 @@ export default function PaginaCronograma() {
         /// Con `space-y-3` se veia el fondo de la pagina entre
         /// fila y fila, y eso se lee como un rayado. La
         /// separacion la hace la raya de cada banda.
-        <div>
+        <div className="no-imprimir">
           {porConvenio.map((b) => (
             <div key={b.convenio} className="border-t-2 border-borde">
               <h2 className="border-b border-borde bg-superficie-alterna px-7 py-2.5 text-[0.65625rem] font-semibold tracking-[0.06em] text-marca uppercase">
@@ -369,7 +413,6 @@ export default function PaginaCronograma() {
                   estado={estado}
                   numeroGrupo={numeroGrupo}
                   abierta={abierta === a.id}
-                  imprimiendo={imprimiendo}
                   alAbrir={() => setAbierta(abierta === a.id ? null : a.id)}
                   puedeEditar={puedeEditar}
                   alGuardar={cargar}
@@ -428,7 +471,6 @@ function Accion({
   estado,
   numeroGrupo,
   abierta,
-  imprimiendo,
   alAbrir,
   puedeEditar,
   alGuardar,
@@ -438,7 +480,6 @@ function Accion({
   estado: string;
   numeroGrupo: string;
   abierta: boolean;
-  imprimiendo: boolean;
   alAbrir: () => void;
   puedeEditar: boolean;
   alGuardar: () => Promise<void>;
@@ -464,7 +505,7 @@ function Accion({
         /// fila del prototipo. Con `p-5` cada fila ocupaba
         /// medio tercio mas y en pantalla cabian cinco donde
         /// caben ocho.
-        className="imprimible flex w-full items-center gap-4 px-7 py-3 text-left transition hover:bg-tabla-fila-resaltada"
+        className="flex w-full items-center gap-4 px-7 py-3 text-left transition hover:bg-tabla-fila-resaltada"
       >
         <span className="min-w-0 grow">
           <span className="flex flex-wrap items-center gap-2">
@@ -508,7 +549,7 @@ function Accion({
         </span>
       </button>
 
-      {(abierta || imprimiendo) && (
+      {abierta && (
         <div className="border-t border-hairline bg-superficie-alterna px-7 pt-4 pb-5">
           {suyos.length === 0 ? (
             <p className="text-[0.78125rem] text-texto-suave">
