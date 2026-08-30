@@ -31,10 +31,10 @@ import {
 /// principal -- y el resto van con contorno. Es lo que hace el
 /// demo, y lo que deja que el primario signifique algo.
 const CLASE_BOTON_SECUNDARIO =
-  "inline-flex h-[34px] items-center justify-center rounded-lg bg-marca px-3.5 text-[0.78125rem] font-semibold whitespace-nowrap text-marca-texto no-underline transition hover:bg-marca-fuerte sin-aro";
+  "inline-flex h-[32px] items-center justify-center rounded-[9px] bg-marca px-[13px] text-[0.78125rem] font-semibold whitespace-nowrap text-marca-texto no-underline transition hover:bg-marca-fuerte sin-aro";
 
 const CLASE_BOTON =
-  "inline-flex h-[34px] items-center justify-center rounded-lg bg-marca px-3.5 text-[0.78125rem] font-semibold whitespace-nowrap text-marca-texto no-underline transition hover:bg-marca-fuerte sin-aro";
+  "inline-flex h-[32px] items-center justify-center rounded-[9px] bg-marca px-[13px] text-[0.78125rem] font-semibold whitespace-nowrap text-marca-texto no-underline transition hover:bg-marca-fuerte sin-aro";
 
 // el tablero reparte una carga entre nueve columnas
 const POR_CARGA = 300;
