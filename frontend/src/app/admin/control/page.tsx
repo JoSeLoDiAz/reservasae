@@ -20,6 +20,7 @@ import {
 import { IndicadorActualizacion } from "@/components/admin/indicador-actualizacion";
 import { Aviso, CLASE_CONTROL, useAdmin } from "@/components/admin/marco-admin";
 import { PanelMetas } from "@/components/admin/panel-metas";
+import { TableroPorAccion } from "@/components/admin/tablero-por-accion";
 import {
   Bloque, Esqueleto } from "@/components/admin/piezas";
 import {
@@ -477,6 +478,8 @@ function Cuerpo({ d, adminId, eligio }: { d: Control; adminId: string; eligio: b
           </Bloque>
         </div>
       </section>
+
+      <TableroPorAccion />
 
       {/* las cifras de cabecera */}
       <section className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-4">

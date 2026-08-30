@@ -51,6 +51,7 @@ import {
   RegistrarAutorizacionDto,
 } from './dto';
 import { controlDeInscritos } from './control';
+import { tableroPorAccion } from './tablero-af';
 import { tableroAcademico } from './tablero-academico';
 import {
   compararDos,
@@ -188,6 +189,26 @@ export class CrmController {
       ambito.convenios,
       ventanaPedida(rango, desde, hasta, contra, contraDesde, contraHasta),
     );
+  }
+
+  /**
+   * El informe por accion de formacion.
+   *
+   * Sin `accionFormacionId` devuelve solo el catalogo: es un
+   * informe POR accion, y sumar las quince daria el tablero
+   * general que ya esta dos pantallas mas arriba.
+   */
+  @Get('control/por-accion')
+  @Requiere('inscritos')
+  porAccion(
+    @AmbitoActual() ambito: Ambito,
+    @Query('accionFormacionId') accionFormacionId?: string,
+    @Query('coberturaId') coberturaId?: string,
+  ) {
+    return tableroPorAccion(this.prisma, ambito.convenios, {
+      accionFormacionId,
+      coberturaId,
+    });
   }
 
   /** Las listas del SEP que dibujan los formularios. */
