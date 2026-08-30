@@ -204,7 +204,7 @@ export default function PaginaAcademico() {
             }`}
             aria-pressed={filtro === estado}
           >
-            <span className="flex items-center gap-2 text-xs tracking-wide uppercase">
+            <span className="flex items-center gap-2 text-[0.625rem] font-semibold tracking-[0.1em] uppercase">
               <span className="punto-etapa" aria-hidden />
               <span className="text-texto-suave">{ETIQUETA_ACADEMICA[estado]}</span>
             </span>
@@ -236,7 +236,7 @@ export default function PaginaAcademico() {
                 salida === etapa ? "border-2" : "border-borde"
               }`}
             >
-              <span className="flex items-center gap-2 text-xs tracking-wide uppercase">
+              <span className="flex items-center gap-2 text-[0.625rem] font-semibold tracking-[0.1em] uppercase">
                 <span className="punto-etapa" aria-hidden />
                 <span className="text-texto-suave">{ETIQUETA_ETAPA[etapa]}</span>
               </span>

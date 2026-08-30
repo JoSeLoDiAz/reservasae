@@ -207,7 +207,7 @@ export default function Tablero() {
         <div className="imprimible-bloque space-y-7">
           {[...porConvenio.entries()].map(([convenio, lista]) => (
             <div key={convenio}>
-              <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-texto-suave">
+              <p className="mb-3 text-[0.625rem] font-semibold tracking-[0.1em] uppercase tracking-wide text-texto-suave">
                 {lista[0].convenioSigla ?? convenio}
               </p>
               <div className="space-y-4">

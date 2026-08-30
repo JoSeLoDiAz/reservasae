@@ -100,7 +100,7 @@ function Hecho({
 }) {
   return (
     <div className="min-w-0">
-      <dt className="text-[0.6875rem] font-semibold tracking-wider text-texto-suave uppercase">
+      <dt className="text-[0.625rem] font-semibold tracking-[0.1em] text-texto-suave uppercase">
         {etiqueta}
       </dt>
       <dd className={`mt-0.5 truncate text-sm ${mono ? "font-mono" : ""}`}>
@@ -137,7 +137,7 @@ function Control({
     /// `min-w-0` para que un nombre de curso largo no ensanche
     /// su columna y descuadre las otras dos.
     <div className={`min-w-0 ${ancho}`}>
-      <p className="text-[0.6875rem] font-semibold tracking-wider text-texto-suave uppercase">
+      <p className="text-[0.625rem] font-semibold tracking-[0.1em] text-texto-suave uppercase">
         {etiqueta}
       </p>
       <div className="mt-1.5">{children}</div>
@@ -673,7 +673,7 @@ export default function PaginaFicha() {
                 <div className="space-y-5">
                   <dl className="grid sm:grid-cols-2">
                     <div className="rounded border border-borde bg-superficie-alterna p-3.5">
-                      <dt className="text-[0.6875rem] font-semibold tracking-wider text-texto-suave uppercase">
+                      <dt className="text-[0.625rem] font-semibold tracking-[0.1em] text-texto-suave uppercase">
                         Origen del lead
                       </dt>
                       <dd className="mt-1 text-sm font-semibold">
@@ -681,7 +681,7 @@ export default function PaginaFicha() {
                       </dd>
                     </div>
                     <div className="rounded border border-borde bg-superficie-alterna p-3.5">
-                      <dt className="text-[0.6875rem] font-semibold tracking-wider text-texto-suave uppercase">
+                      <dt className="text-[0.625rem] font-semibold tracking-[0.1em] text-texto-suave uppercase">
                         Fecha de registro
                       </dt>
                       <dd className="mt-1 text-sm font-semibold">
@@ -2152,7 +2152,7 @@ function DatosDeLaEmpresa({
           <span
             style={{
               fontSize: 12.5,
-              color: faltanDelAsesor > 0 ? "var(--aviso)" : "var(--acento-texto)",
+              color: faltanDelAsesor > 0 ? "var(--aviso)" : "var(--exito)",
               fontWeight: 600,
               whiteSpace: "nowrap",
             }}

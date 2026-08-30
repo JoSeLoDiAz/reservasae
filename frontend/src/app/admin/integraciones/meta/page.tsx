@@ -39,7 +39,7 @@ function ParaCopiar({ etiqueta, valor }: { etiqueta: string; valor: string }) {
 
   return (
     <div>
-      <p className="text-[0.6875rem] font-semibold tracking-wider text-texto-suave uppercase">
+      <p className="text-[0.625rem] font-semibold tracking-[0.1em] text-texto-suave uppercase">
         {etiqueta}
       </p>
       <div className="mt-1 flex items-center gap-2">

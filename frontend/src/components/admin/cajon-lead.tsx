@@ -397,7 +397,7 @@ export function CajonLead({
             dónde se llegara. */}
         <dl className="grid grid-cols-3 gap-4">
           <div className="min-w-0">
-            <dt className="text-[0.6875rem] font-semibold tracking-wider text-texto-suave uppercase">
+            <dt className="text-[0.625rem] font-semibold tracking-[0.1em] text-texto-suave uppercase">
               Etapa
             </dt>
             <dd className="mt-0.5 truncate text-sm">
@@ -406,7 +406,7 @@ export function CajonLead({
           </div>
 
           <div className="min-w-0">
-            <dt className="text-[0.6875rem] font-semibold tracking-wider text-texto-suave uppercase">
+            <dt className="text-[0.625rem] font-semibold tracking-[0.1em] text-texto-suave uppercase">
               Origen
             </dt>
             <dd className="mt-0.5 truncate text-sm text-texto-suave">
@@ -415,7 +415,7 @@ export function CajonLead({
           </div>
 
           <div className="min-w-0">
-            <dt className="text-[0.6875rem] font-semibold tracking-wider text-texto-suave uppercase">
+            <dt className="text-[0.625rem] font-semibold tracking-[0.1em] text-texto-suave uppercase">
               Datos pendientes
             </dt>
             <dd
