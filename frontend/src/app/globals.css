@@ -77,8 +77,14 @@
   /* El alto de una fila de tabla, en un solo sitio. Es token
      y no un numero suelto porque la densidad es una decision
      de producto: quien mira 400 filas al dia la quiere
-     apretada, y cambiarla es cambiar una linea. */
-  --pad-fila: 0.5625rem; /* 9px */
+     apretada, y cambiarla es cambiar una linea.
+
+     En px y no en rem, al reves que los tamanios de letra:
+     una MEDIDA DE CAJA no debe crecer con el ajuste de texto.
+     Si creciera, subir el texto al 150 % separaria las filas
+     el doble y la tabla perderia justo la densidad que la
+     hace util. El texto crece; el relleno se queda. */
+  --pad-fila: 9px;
 
   /* series de los graficos */
   --serie-1: #2a78d6;
