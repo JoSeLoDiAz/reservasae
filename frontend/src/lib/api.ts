@@ -164,3 +164,42 @@ export function bonito(texto: string): string {
     })
     .join(" ");
 }
+
+/// Las siglas que de verdad aparecen en estos textos. Es una
+/// lista y no una regla porque no hay regla: «IA» y «la» se
+/// escriben igual de cortas, y adivinar cual es sigla se
+/// equivoca en las dos direcciones.
+const SIGLAS = [
+  "SENA", "BRITCHAM", "ADEE", "ADECOPRIA", "SEP", "RUES", "NIT",
+  "IA", "DEI", "TIC", "TICS", "LMS", "PDF", "ONG", "MIPYME", "MIPYMES",
+  "PYME", "PYMES", "DANE", "DNP", "RUI", "CRM", "AF",
+];
+
+/**
+ * Un texto que viene EN MAYÚSCULAS, devuelto como párrafo.
+ *
+ * `bonito` pone Título Capital, que está bien para el nombre de
+ * un curso y mal para un párrafo de ocho renglones: deja todas
+ * las palabras capitalizadas y se lee casi tan mal como el
+ * original. Un párrafo se lee en minúscula, con mayúscula al
+ * empezar cada frase.
+ */
+export function comoParrafo(texto: string): string {
+  if (!texto || texto !== texto.toUpperCase()) return texto;
+
+  const bajado = texto
+    .toLowerCase()
+    .replace(/(^\s*|[.!?]\s+)([a-záéíóúñü])/g, (_, antes, letra) => antes + letra.toUpperCase());
+
+  /// Una pasada por sigla, no una por palabra: mas simple, y no
+  /// depende de que el reemplazo con funcion se comporte igual
+  /// despues de minificar.
+  return SIGLAS.reduce(
+    (texto, sigla) =>
+      texto.replace(
+        new RegExp(`(^|[^a-záéíóúñü])${sigla.toLowerCase()}(?![a-záéíóúñü])`, "gi"),
+        (_, antes: string) => antes + sigla,
+      ),
+    bajado,
+  );
+}

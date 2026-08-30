@@ -89,7 +89,7 @@ export default function PaginaAcciones() {
     <div className="flex flex-col gap-3 px-4 pt-4 pb-6">
       <div className="no-imprimir">
         <h1 className="text-[1.125rem] font-bold tracking-[-0.02em] text-titulo">
-          Formación
+          Acciones de formación
         </h1>
         <p className="mt-0.5 text-[0.78125rem] text-texto-suave">
           Publique u oculte cada acción. Ocultar no cancela nada: las reservas hechas
@@ -279,11 +279,10 @@ export default function PaginaAcciones() {
         <div key={convenio} className="border-t border-borde first:border-t-0">
           {/* La misma cabecera que el cronograma: son las dos
               pantallas del mismo modulo y tienen que leerse igual. */}
-          <h2 className="border-b border-borde bg-superficie-alterna px-7 py-2.5 text-[0.65625rem] font-semibold tracking-[0.06em] text-marca uppercase">
-            {lista[0].convenioSigla ?? convenio}
-            <span className="ml-2 font-normal tracking-normal text-texto-suave normal-case">
-              /{convenio} · {lista.filter((a) => a.visible).length} de {lista.length}{" "}
-              publicadas
+          <h2 className="flex items-center justify-between gap-3 border-b border-borde bg-superficie-alterna px-7 py-2.5 text-[0.65625rem] font-semibold tracking-[0.06em] text-marca uppercase">
+            <span>{lista[0].convenioSigla ?? convenio}</span>
+            <span className="font-normal tracking-normal text-texto-suave normal-case tabular-nums">
+              {lista.filter((a) => a.visible).length} de {lista.length} publicadas
             </span>
           </h2>
           <div className="px-7">
@@ -294,6 +293,20 @@ export default function PaginaAcciones() {
               linea de detalle -- «AF1 · CURSO virtual · 40 h» --
               y ahi no sirve para buscar: uno recorre la columna
               de codigos con el dedo, no lee la frase. */}
+          {/* Titulos de columna. Sin ellos la barra es una raya
+              azul sin nombre: no se sabe si es ocupacion, avance
+              o tiempo. */}
+          <div className="flex flex-wrap items-center gap-x-4 border-b border-hairline py-2 text-[0.65625rem] font-semibold tracking-[0.06em] text-texto-suave uppercase">
+            <div className="w-[30px] shrink-0">AF</div>
+            <div className="min-w-64 grow">Acción de formación</div>
+            <div className="w-[130px] shrink-0">Ocupación</div>
+            <div className="w-[132px] shrink-0">Cupos</div>
+            <div className="flex items-center gap-3">
+              <span className="w-[68px]">Estado</span>
+              <span className="w-[62px]">Acción</span>
+            </div>
+          </div>
+
           <ul className="divide-y divide-hairline">
             {lista.map((a) => (
               <li key={a.id} className="flex flex-wrap items-center gap-x-4 gap-y-2 py-3">
@@ -315,15 +328,15 @@ export default function PaginaAcciones() {
 
                 {/* Cuanto lleva lleno. La proporcion se ve, el
                     numero se lee: hacen falta los dos. */}
-                <div className="h-1 w-[130px] shrink-0 overflow-hidden rounded-full bg-superficie-alterna">
+                <div className="h-2 w-[130px] shrink-0 overflow-hidden rounded-full bg-superficie-alterna">
                   <div
-                    className="h-full rounded-full bg-marca"
+                    className="h-full rounded-full bg-gradient-to-r from-marca to-marca/40"
                     style={{
                       width: `${Math.min(100, a.cuposMaximos ? (a.cuposOcupados / a.cuposMaximos) * 100 : 0)}%`,
                     }}
                   />
                 </div>
-                <div className="w-[132px] shrink-0 text-right text-[0.75rem] tabular-nums text-texto">
+                <div className="w-[132px] shrink-0 text-[0.75rem] tabular-nums text-texto">
                   {a.cuposOcupados} de {a.cuposMaximos} cupos
                 </div>
 
@@ -338,7 +351,7 @@ export default function PaginaAcciones() {
                   <button
                     onClick={() => alternar(a)}
                     disabled={ocupada === a.id}
-                    className={`h-[30px] rounded-lg px-3 text-[0.75rem] font-semibold transition disabled:opacity-50 ${
+                    className={`h-[30px] w-[62px] rounded-lg px-3 text-[0.75rem] font-semibold transition disabled:opacity-50 ${
                       a.visible
                         ? "border border-borde bg-superficie hover:bg-superficie-alterna"
                         : "bg-marca text-marca-texto hover:bg-marca-fuerte"

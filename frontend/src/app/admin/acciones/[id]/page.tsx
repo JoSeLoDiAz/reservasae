@@ -20,7 +20,7 @@ import { Aviso } from "@/components/admin/marco-admin";
 import { textoDeEstado } from "@/components/admin/ritmo";
 import { Bloque, Cifra, Esqueleto } from "@/components/admin/piezas";
 import { adminApi } from "@/lib/admin-api";
-import { bonito, ErrorApi } from "@/lib/api";
+import { bonito, comoParrafo, ErrorApi } from "@/lib/api";
 import { useDatosVivos } from "@/lib/datos-vivos";
 import { tablerosApi, type DetalleAccion } from "@/lib/tableros-api";
 
@@ -224,7 +224,9 @@ export default function DetalleDeAccion({ params }: { params: Promise<{ id: stri
       {datos.objetivo && (
         <div className="imprimible-bloque">
           <Bloque titulo="Objetivo de la acción" descripcion="Texto del proyecto, sin modificar.">
-            <p className="text-sm leading-relaxed text-texto-suave">{datos.objetivo}</p>
+            <p className="text-[0.84375rem] leading-relaxed text-texto">
+              {comoParrafo(datos.objetivo)}
+            </p>
           </Bloque>
         </div>
       )}
@@ -247,31 +249,32 @@ export default function DetalleDeAccion({ params }: { params: Promise<{ id: stri
               {datos.grupos.map((g) => (
                 <div
                   key={g.numero}
-                  className="border-t border-hairline px-7 py-3.5 first:border-t-0 md:[&:nth-child(2)]:border-t-0"
+                  className="flex flex-wrap items-baseline gap-x-3 gap-y-1 border-t border-hairline px-7 py-2 first:border-t-0 md:[&:nth-child(2)]:border-t-0"
                 >
-                  <div className="flex flex-wrap items-baseline justify-between gap-2">
-                    <p className="font-medium">
-                      Grupo {g.numero}
-                      <span className="ml-2 text-xs font-normal text-texto-suave">
-                        {MODALIDAD[g.modalidad]}
-                        {g.sede ? ` · ${bonito(g.sede)}` : ""}
-                      </span>
-                    </p>
-                    <p className="text-sm tabular-nums text-texto-suave">
-                      {n(g.cuposBase)} + 30 % = {n(g.cuposMaximos)}
-                    </p>
-                  </div>
+                  {/* Todo en UNA linea. En dos, el reparto iba
+                      debajo y el «50 + 30 % = 65» se iba al otro
+                      extremo de la columna: cada grupo medía el
+                      doble y dejaba un hueco a lo ancho. */}
+                  <span className="text-[0.78125rem] font-semibold text-titulo">
+                    Grupo {g.numero}
+                  </span>
+                  <span className="text-[0.71875rem] text-texto-suave">
+                    {MODALIDAD[g.modalidad]}
+                    {g.sede ? ` · ${bonito(g.sede)}` : ""}
+                  </span>
+                  <span className="min-w-0 grow text-[0.71875rem] text-texto-suave">
+                    {g.coberturas
+                      .map((c) => `${bonito(c.ubicacion)} ${n(c.cuposMaximos)}`)
+                      .join(" · ")}
+                  </span>
                   {!g.fechaInicio && (
-                    <p className="mt-1 text-xs text-aviso">Sin fecha asignada</p>
+                    <span className="text-[0.71875rem] font-semibold text-aviso">
+                      Sin fecha
+                    </span>
                   )}
-                  <ul className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-texto-suave">
-                    {g.coberturas.map((c) => (
-                      <li key={`${c.ubicacion}-${c.modalidad}`}>
-                        {bonito(c.ubicacion)}{" "}
-                        <span className="tabular-nums">{n(c.cuposMaximos)}</span>
-                      </li>
-                    ))}
-                  </ul>
+                  <span className="shrink-0 text-[0.71875rem] text-texto-suave tabular-nums">
+                    {n(g.cuposBase)} + 30 % = {n(g.cuposMaximos)}
+                  </span>
                 </div>
               ))}
             </div>
