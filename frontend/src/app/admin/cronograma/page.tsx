@@ -249,10 +249,10 @@ export default function PaginaCronograma() {
         <div className="w-[430px]">
           <Desplegable
             alto={34}
-            marcador="Acción de formación"
+            marcador="Acciones de formación"
             valor={accionId}
             opciones={[
-              { valor: "", etiqueta: "Todas las acciones" },
+              { valor: "", etiqueta: "Acciones de formación" },
               ...acciones.map((a) => ({
                 valor: a.id,
                 etiqueta: `${a.codigo} · ${bonito(a.nombre)}`,
@@ -266,10 +266,10 @@ export default function PaginaCronograma() {
         <div className="w-[160px]">
           <Desplegable
             alto={34}
-            marcador="Grupo"
+            marcador="Grupos"
             valor={numeroGrupo}
             opciones={[
-              { valor: "", etiqueta: "Todos los grupos" },
+              { valor: "", etiqueta: "Grupos" },
               ...numeros.map((n) => ({
                 valor: String(n),
                 etiqueta: `Grupo ${n}`,
@@ -283,10 +283,10 @@ export default function PaginaCronograma() {
         <div className="w-[170px]">
           <Desplegable
             alto={34}
-            marcador="Convenio"
+            marcador="Convenios"
             valor={gremio}
             opciones={[
-              { valor: "", etiqueta: "Todos los convenios" },
+              { valor: "", etiqueta: "Convenios" },
               ...gremios.map((g) => ({
                 valor: g,
                 etiqueta: g,
@@ -300,10 +300,10 @@ export default function PaginaCronograma() {
         <div className="w-[170px]">
           <Desplegable
             alto={34}
-            marcador="Estado"
+            marcador="Estados"
             valor={estado}
             opciones={[
-              { valor: "", etiqueta: "Todos los estados" },
+              { valor: "", etiqueta: "Estados" },
               ...(["EN_CURSO", "POR_EMPEZAR", "TERMINADO", "SIN_FECHAS"] as EstadoGrupo[]).map(
                 (e) => ({
                   valor: e,
