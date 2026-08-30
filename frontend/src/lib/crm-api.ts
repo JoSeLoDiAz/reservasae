@@ -624,6 +624,8 @@ export type CabeceraControl = {
 export type Control = CabeceraControl & {
   /** Sale de reservas, así que nunca lleva ventana. */
   cuposConfirmados: number;
+  /** Los beneficiarios comprometidos en los proyectos, sin sobrecupo. */
+  metaComprometida: number;
   /** Inscritos con cupo reservado. */
   inscritosConReserva: number;
   /** Los que llegaron por su cuenta. */

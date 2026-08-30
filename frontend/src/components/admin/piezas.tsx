@@ -42,7 +42,7 @@ export function Cifra({
   color = "var(--titulo)",
 }: {
   etiqueta: string;
-  valor: number;
+  valor: number | string;
   pie?: string | null;
   color?: string;
 }) {

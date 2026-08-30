@@ -7,14 +7,11 @@ import { estiloEtapa } from "@/components/admin/etapa";
 import {
   BarraAvance,
   BarrasApiladas,
-  Donut,
   DosSeriesPorDia,
   ListaBarras,
   n,
   SERIE,
-  TarjetaCifra,
   Tasa,
-  Termometro,
   type Tono,
 } from "@/components/admin/graficos";
 import { IndicadorActualizacion } from "@/components/admin/indicador-actualizacion";
@@ -22,7 +19,7 @@ import { Aviso, CLASE_CONTROL, useAdmin } from "@/components/admin/marco-admin";
 import { PanelMetas } from "@/components/admin/panel-metas";
 import { TableroPorAccion } from "@/components/admin/tablero-por-accion";
 import {
-  Bloque, Esqueleto } from "@/components/admin/piezas";
+  Bloque, Cifra, Esqueleto } from "@/components/admin/piezas";
 import {
   crmApi,
   ETIQUETA_ETAPA,
@@ -64,6 +61,13 @@ const TRAMOS_ESPERA: Array<{ dias: number; etiqueta: string; tono: Tono }> = [
   { dias: 8, etiqueta: "8 a 14 días", tono: "aviso" },
   { dias: 15, etiqueta: "15 días o más", tono: "malo" },
 ];
+
+/// El delta en palabras: «+12 %» sin contexto no se lee.
+function textoDelta(v: number | null): string {
+  if (v === null || v === 0) return "igual";
+  const signo = v > 0 ? "más" : "menos";
+  return `${Math.abs(Math.round(v))} % ${signo}`;
+}
 
 function porcentaje(fraccion: number): string {
   return `${Math.round(fraccion * 100)} %`;
@@ -239,11 +243,11 @@ export default function PaginaControl() {
 
       {pestana === "analisis" && (
         <>
-      <div className="rounded-lg border border-borde bg-superficie px-7 py-5">
-        <div className="grid lg:grid-cols-2">
-          <div>
-            <p className="mb-1.5 text-sm font-medium">Periodo</p>
-            <div className="flex flex-wrap items-center gap-3">
+      <div className="rounded-lg border border-borde bg-superficie px-4 py-2.5">
+        <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="shrink-0 text-[0.6875rem] font-medium text-texto-suave">Periodo</p>
+            <div className="flex flex-wrap items-center gap-2">
               <select
                 className={`${CLASE_CONTROL} max-w-[14rem]`}
                 value={rango}
@@ -281,9 +285,11 @@ export default function PaginaControl() {
             </div>
           </div>
 
-          <div>
-            <p className="mb-1.5 text-sm font-medium">Comparar con</p>
-            <div className="flex flex-wrap items-center gap-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="shrink-0 text-[0.6875rem] font-medium text-texto-suave">
+              Comparar con
+            </p>
+            <div className="flex flex-wrap items-center gap-2">
               <select
                 className={`${CLASE_CONTROL} max-w-[14rem]`}
                 value={contra}
@@ -321,8 +327,6 @@ export default function PaginaControl() {
               )}
             </div>
           </div>
-        </div>
-
         {duracionDistinta && (
           <p className="mt-4 rounded-xl bg-aviso-suave px-3 py-2 text-xs text-aviso">
             <strong className="font-semibold">Los dos periodos no duran lo mismo:</strong>{" "}
@@ -333,8 +337,10 @@ export default function PaginaControl() {
           </p>
         )}
 
-        <p className="mt-3 text-xs text-texto-suave">
-          El periodo acota los inscritos, el ritmo y las series por día. Todo lo demás muestra la situación de hoy.</p>
+          <p className="text-[0.6875rem] text-texto-suave">
+            Acota los inscritos, el ritmo y las series por día; el resto es la situación de hoy.
+          </p>
+        </div>
       </div>
 
       {vivos.error ? (
@@ -450,34 +456,51 @@ function Cuerpo({ d, adminId, eligio }: { d: Control; adminId: string; eligio: b
 
   return (
     <div className="flex flex-col gap-3">
-      {/* las cifras de cabecera */}
-      <section className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-4">
-        <TarjetaCifra
-          titulo="Llegaron a inscrito"
-          valor={d.total}
-          detalle={`${corte} · se matricularon en el corte, aunque hoy ya cursen`}
-          chispa={d.serie.length > 1 ? d.serie.map((p) => p.total) : undefined}
-          delta={{ valor: d.variacion.total, contra }}
+      {/* Las cifras, como en la ficha de una acción de
+          formación: una sola fila, un solo tamaño, y la META
+          de primera — es contra lo único que se cumple o no.
+          Los minigráficos se fueron: eran un idioma más, y la
+          misma serie se lee entera en «Ritmo», más abajo. */}
+      <div className="flex flex-wrap gap-2.5">
+        <Cifra
+          etiqueta="Avance sobre la meta"
+          valor={n(inscritosSiempre)}
+          pie={
+            d.metaComprometida > 0
+              ? `de ${n(d.metaComprometida)} comprometidos · ${porcentaje(inscritosSiempre / d.metaComprometida)}`
+              : "no hay meta cargada en los proyectos"
+          }
+          color="var(--marca)"
         />
-        <TarjetaCifra
-          titulo="Leads que llegaron"
-          valor={leadsDelPeriodo}
-          detalle={`leads nuevos ${alcanceSerie}, en cualquier etapa`}
-          chispa={d.leadsPorDia.length > 1 ? d.leadsPorDia.map((p) => p.total) : undefined}
+        <Cifra
+          etiqueta="Cupos apartados"
+          valor={n(d.cuposConfirmados)}
+          pie={
+            sinNombre > 0
+              ? `el tope de captura · ${n(sinNombre)} sin nombre detrás`
+              : "el tope de captura · todos con nombre"
+          }
         />
-        <TarjetaCifra
-          titulo="Cupos confirmados"
-          valor={d.cuposConfirmados}
-          detalle="el techo de la captura · sale de reservas, así que no lleva periodo"
+        <Cifra
+          etiqueta="Llegaron a inscrito"
+          valor={n(d.total)}
+          pie={`${corte}${contra ? ` · ${textoDelta(d.variacion.total)} que ${contra}` : ""}`}
         />
-        <TarjetaCifra
-          titulo="De lead a inscrito"
-          valor={d.diasHastaInscribir === null ? "—" : Math.round(d.diasHastaInscribir)}
-          sufijo={d.diasHastaInscribir === null ? undefined : "días"}
-          detalle="promedio de los inscritos del periodo"
-          delta={{ valor: d.variacion.diasHastaInscribir, contra, invertido: true }}
+        <Cifra
+          etiqueta="Leads que llegaron"
+          valor={n(leadsDelPeriodo)}
+          pie={`leads nuevos ${alcanceSerie}, en cualquier etapa`}
         />
-      </section>
+        <Cifra
+          etiqueta="De lead a inscrito"
+          valor={d.diasHastaInscribir === null ? "—" : `${Math.round(d.diasHastaInscribir)} días`}
+          pie={
+            d.diasHastaInscribir === null
+              ? "todavía no hay inscritos en el corte"
+              : "promedio de los inscritos del periodo"
+          }
+        />
+      </div>
 
       {/* lo que hay que hacer, antes que cómo se calcula */}
       {prioridades.length > 0 && (
@@ -551,7 +574,14 @@ function Cuerpo({ d, adminId, eligio }: { d: Control; adminId: string; eligio: b
             </div>
           </div>
         </div>
-        <Termometro tramos={tramos} vacio="No hay nadie esperando a que lo llamen." />
+        <ListaBarras
+          datos={tramos.map((t) => ({
+            etiqueta: t.etiqueta,
+            valor: t.total,
+            detalle: esperando > 0 ? porcentaje(t.total / esperando) : undefined,
+          }))}
+          vacio="No hay nadie esperando a que lo llamen."
+        />
       </Bloque>
 
       <TableroPorAccion />
@@ -663,13 +693,12 @@ function Cuerpo({ d, adminId, eligio }: { d: Control; adminId: string; eligio: b
           titulo="Qué canal trae más"
           descripcion="Por dónde entraron los inscritos del periodo."
         >
-          <Donut
+          <ListaBarras
             datos={d.porOrigen.map((o) => ({
               etiqueta: ETIQUETA_ORIGEN[o.etiqueta as Origen] ?? o.etiqueta,
               valor: o.total,
+              detalle: conOrigen > 0 ? porcentaje(o.total / conOrigen) : undefined,
             }))}
-            centro={n(conOrigen)}
-            detalleCentro="inscritos"
             vacio="Todavía no hay inscritos en el periodo."
           />
         </Bloque>
@@ -855,11 +884,12 @@ function Cuerpo({ d, adminId, eligio }: { d: Control; adminId: string; eligio: b
             titulo="Por convenio"
             descripcion="Inscritos del periodo en cada uno de los convenios a los que tiene acceso."
           >
-            <Donut
-              datos={d.porConvenio.map((c) => ({ etiqueta: c.etiqueta, valor: c.total }))}
-              tamano={120}
-              centro={n(d.total)}
-              detalleCentro="inscritos"
+            <ListaBarras
+              datos={d.porConvenio.map((c) => ({
+                etiqueta: c.etiqueta,
+                valor: c.total,
+                detalle: d.total > 0 ? porcentaje(c.total / d.total) : undefined,
+              }))}
               vacio="Todavía no hay inscritos en el periodo."
             />
           </Bloque>
@@ -868,14 +898,12 @@ function Cuerpo({ d, adminId, eligio }: { d: Control; adminId: string; eligio: b
             titulo="Por modalidad"
             descripcion="Modalidad de la oferta asignada: presencial, virtual o híbrida. No incluye a quienes aún no tienen oferta."
           >
-            <Donut
+            <ListaBarras
               datos={d.porModalidad.map((m) => ({
                 etiqueta: m.etiqueta.charAt(0) + m.etiqueta.slice(1).toLowerCase(),
                 valor: m.total,
+                detalle: conModalidad > 0 ? porcentaje(m.total / conModalidad) : undefined,
               }))}
-              tamano={120}
-              centro={n(conModalidad)}
-              detalleCentro="con oferta"
               vacio="Todavía no hay inscritos con oferta."
             />
           </Bloque>

@@ -890,11 +890,18 @@ export function Tasa({
 
   return (
     <div>
-      {titulo && <p className="text-sm text-texto-suave">{titulo}</p>}
-      <p className={`mt-1 text-3xl font-semibold leading-none tabular-nums ${TONO_TEXTO[tono]}`}>
+      {titulo && (
+        <p className="text-[0.6875rem] leading-none text-texto-suave">{titulo}</p>
+      )}
+      {/* El mismo cuerpo que `Cifra`: dos escalas para el mismo
+          tipo de dato es lo que hacía que la pantalla se leyera
+          como pedazos de pantallas distintas. */}
+      <p
+        className={`mt-1 text-[1.0625rem] font-bold leading-none tabular-nums ${TONO_TEXTO[tono]}`}
+      >
         {hay ? `${porciento.toFixed(1).replace(".", ",")} %` : "—"}
       </p>
-      <p className="mt-1.5 text-xs tabular-nums text-texto-suave">
+      <p className="mt-1 text-[0.6875rem] tabular-nums text-texto-suave">
         {texto}
         {detalle && <span className="ml-2">· {detalle}</span>}
       </p>
