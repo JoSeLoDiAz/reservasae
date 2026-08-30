@@ -91,7 +91,7 @@ export function EnviarCorreo({ participanteId }: { participanteId: string }) {
         onClick={() => setAbierto(true)}
         style={{
           background: "var(--marca)",
-          color: "#fff",
+          color: "var(--marca-texto)",
           border: "none",
           borderRadius: 11,
           padding: 13,

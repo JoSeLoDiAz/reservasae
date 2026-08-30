@@ -732,7 +732,7 @@ export default function PaginaFicha() {
                         top: 6,
                         bottom: 6,
                         width: 2,
-                        background: "#e8ebef",
+                        background: "var(--borde)",
                       }}
                     />
                     {f.movimientos.map((m) => (
@@ -746,12 +746,12 @@ export default function PaginaFicha() {
                             width: 11,
                             height: 11,
                             borderRadius: "50%",
-                            background: "#fff",
+                            background: "var(--superficie)",
                             border: "2.5px solid var(--marca)",
                           }}
                         />
-                        <div style={{ fontSize: 13.5, color: "#334155" }}>
-                          <span style={{ color: "#94a3b8" }}>{fecha(m.creadoEn)} —</span>{" "}
+                        <div style={{ fontSize: 13.5, color: "var(--texto)" }}>
+                          <span style={{ color: "var(--texto-suave)" }}>{fecha(m.creadoEn)} —</span>{" "}
                           {m.etapaAntes === m.etapaDespues ? (
                             <b>{m.nota ?? "Se le hizo un cambio"}</b>
                           ) : (
@@ -763,7 +763,7 @@ export default function PaginaFicha() {
                             </>
                           )}
                         </div>
-                        <div style={{ fontSize: 12.5, color: "#94a3b8", marginTop: 2 }}>
+                        <div style={{ fontSize: 12.5, color: "var(--texto-suave)", marginTop: 2 }}>
                           {m.admin ? `por ${m.admin.nombre}` : "por el sistema"}
                           {m.motivo ? ` · ${m.motivo}` : ""}
                           {m.nota && m.etapaAntes !== m.etapaDespues
@@ -807,8 +807,8 @@ export default function PaginaFicha() {
           <aside style={{ width: 370, flex: "none" }}>
             <div
               style={{
-                background: "#fff",
-                border: "1px solid #e8ebef",
+                background: "var(--superficie)",
+                border: "1px solid var(--borde)",
                 borderRadius: 16,
                 overflow: "hidden",
               }}
@@ -816,7 +816,7 @@ export default function PaginaFicha() {
               <div
                 style={{
                   padding: "16px 18px",
-                  borderBottom: "1px solid #eef1f4",
+                  borderBottom: "1px solid var(--hairline)",
                   display: "flex",
                   alignItems: "center",
                   gap: 10,
@@ -826,8 +826,10 @@ export default function PaginaFicha() {
                   <IconoRayo tamano={16} />
                 </div>
                 <div>
-                  <div style={{ fontWeight: 600, fontSize: 15 }}>Acciones</div>
-                  <div style={{ fontSize: 12, color: "#94a3b8" }}>
+                  <div style={{ fontWeight: 600, fontSize: "0.90625rem", color: "var(--titulo)" }}>
+                    Acciones
+                  </div>
+                  <div style={{ fontSize: 12, color: "var(--texto-suave)" }}>
                     Contacto y solicitud de información.
                   </div>
                 </div>
@@ -877,7 +879,7 @@ export default function PaginaFicha() {
                         puede matricular ni entra en el reporte al SENA.
                       </div>
                       <details style={{ fontSize: 12.5 }}>
-                        <summary style={{ cursor: "pointer", color: "#94a3b8" }}>
+                        <summary style={{ cursor: "pointer", color: "var(--texto-suave)" }}>
                           La persona pidió autorizar de nuevo
                         </summary>
                         <div style={{ marginTop: 10 }}>
@@ -1095,19 +1097,26 @@ const E = {
     width: 28,
     height: 28,
     borderRadius: "50%",
-    background: "#eef7f2",
-    color: "#0f7a52",
+    background: "var(--acento-suave)",
+    color: "var(--acento-texto)",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
     flex: "none",
   },
+  /// El circulo invertido, y el icono en `--superficie`, NO en
+  /// blanco fijo.
+  ///
+  /// `--titulo` en modo oscuro es casi blanco, asi que con el
+  /// icono en `#fff` era blanco sobre blanco: el circulo
+  /// aparecia vacio. Con `--superficie` el icono es siempre lo
+  /// contrario del relleno, en los dos temas.
   circuloOscuro: {
     width: 32,
     height: 32,
     borderRadius: "50%",
-    background: "#0f172a",
-    color: "#fff",
+    background: "var(--titulo)",
+    color: "var(--superficie)",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
@@ -1116,13 +1125,13 @@ const E = {
   rotulo: {
     fontWeight: 600, fontSize: 11,
     letterSpacing: ".1em",
-    color: "#0f7a52",
+    color: "var(--acento-texto)",
   },
-  parrafo: { fontSize: 12.5, color: "#94a3b8", lineHeight: 1.5 },
-  raya: { height: 1, background: "#f1f4f7" },
+  parrafo: { fontSize: 12.5, color: "var(--texto-suave)", lineHeight: 1.5 },
+  raya: { height: 1, background: "var(--superficie-alterna)" },
   ficha: {
-    background: "#f8fafb",
-    border: "1px solid #eef1f4",
+    background: "var(--superficie)",
+    border: "1px solid var(--hairline)",
     borderRadius: 12,
     padding: 14,
     display: "flex",
@@ -1143,9 +1152,9 @@ const E = {
     width: "100%",
   },
   botonContorno: {
-    background: "#fff",
-    color: "#0f172a",
-    border: "1.5px solid #d5dbe2",
+    background: "var(--superficie)",
+    color: "var(--titulo)",
+    border: "1.5px solid var(--campo-borde)",
     borderRadius: 11,
     padding: 13,
     fontWeight: 600, fontSize: 14,
@@ -1153,9 +1162,9 @@ const E = {
     width: "100%",
   },
   botonRojo: {
-    background: "#fff",
-    color: "#b91c1c",
-    border: "1.5px solid #f0c2c2",
+    background: "var(--superficie)",
+    color: "var(--error)",
+    border: "1.5px solid var(--error)",
     borderRadius: 11,
     padding: 12,
     fontWeight: 600, fontSize: 13.5,
@@ -1176,8 +1185,8 @@ function FilaFicha({ clave, valor }: { clave: string; valor: React.ReactNode }) 
         fontSize: 12.5,
       }}
     >
-      <span style={{ color: "#94a3b8" }}>{clave}</span>
-      <span style={{ color: "#334155", fontWeight: 600 }}>{valor}</span>
+      <span style={{ color: "var(--texto-suave)" }}>{clave}</span>
+      <span style={{ color: "var(--texto)", fontWeight: 600 }}>{valor}</span>
     </div>
   );
 }
@@ -1707,14 +1716,14 @@ function ValidacionRui({
   if (rui.esDePrueba) {
     return (
       <div>
-        <div style={{ fontSize: 13, fontWeight: 600, color: "#334155" }}>
+        <div style={{ fontSize: 13, fontWeight: 600, color: "var(--texto)" }}>
           Consulta no realizada
         </div>
         {/* Una linea y no un parrafo de cuatro: el motivo de
             fondo —que la cedula es inventada pero el numero le
             pertenece a alguien real— esta escrito en el codigo,
             que es donde hace falta para no quitarlo sin saber. */}
-        <div style={{ fontSize: 12, color: "#94a3b8", marginTop: 2 }}>
+        <div style={{ fontSize: 12, color: "var(--texto-suave)", marginTop: 2 }}>
           Documento de prueba: no se consulta ante el RUI.
         </div>
       </div>
@@ -2119,7 +2128,7 @@ function DatosDeLaEmpresa({
           <span
             style={{
               fontSize: 12.5,
-              color: faltanDelAsesor > 0 ? "#8a5a00" : "#0f7a52",
+              color: faltanDelAsesor > 0 ? "var(--aviso)" : "var(--acento-texto)",
               fontWeight: 600,
               whiteSpace: "nowrap",
             }}
@@ -2155,8 +2164,8 @@ function DatosDeLaEmpresa({
                 width: 28,
                 height: 28,
                 borderRadius: "50%",
-                background: "#eef7f2",
-                color: "#0f7a52",
+                background: "var(--acento-suave)",
+                color: "var(--acento-texto)",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
@@ -2169,7 +2178,7 @@ function DatosDeLaEmpresa({
               style={{
                 fontWeight: 600, fontSize: 11,
                 letterSpacing: ".1em",
-                color: "#0f7a52",
+                color: "var(--acento-texto)",
               }}
             >
               PERSONA DE CONTACTO EN LA EMPRESA
@@ -2377,7 +2386,7 @@ function EnlaceCompletar({ ficha }: { ficha: Ficha }) {
   /// nada y anularía el que tuviera abierto.
   if (pendientes === 0) {
     return (
-      <div style={{ fontSize: 12.5, color: "#94a3b8", lineHeight: 1.5 }}>
+      <div style={{ fontSize: 12.5, color: "var(--texto-suave)", lineHeight: 1.5 }}>
         No le falta ningún dato, así que no se genera ningún enlace. Si hay algo
         que corregir, llámela y cámbielo aquí mismo.
       </div>
@@ -2411,21 +2420,21 @@ function EnlaceCompletar({ ficha }: { ficha: Ficha }) {
             style={{
               width: "100%",
               boxSizing: "border-box",
-              border: "1px solid #cfd6de",
-              background: "#fff",
+              border: "1px solid var(--campo-borde)",
+              background: "var(--superficie)",
               borderRadius: 9,
               padding: "9px 12px",
               fontSize: 13,
-              color: "#0f172a",
+              color: "var(--titulo)",
             }}
           />
           <button
             type="button"
             onClick={copiar}
             style={{
-              background: "#fff",
-              color: "#0f172a",
-              border: "1.5px solid #d5dbe2",
+              background: "var(--superficie)",
+              color: "var(--titulo)",
+              border: "1.5px solid var(--campo-borde)",
               borderRadius: 10,
               padding: "8px 14px",
               fontWeight: 600,
@@ -2448,7 +2457,7 @@ function EnlaceCompletar({ ficha }: { ficha: Ficha }) {
               fontWeight: 600,
               fontSize: 10,
               letterSpacing: ".1em",
-              color: "#94a3b8",
+              color: "var(--texto-suave)",
               marginBottom: 2,
             }}
           >

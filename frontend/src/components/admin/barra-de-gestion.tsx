@@ -11,7 +11,7 @@
 ///
 /// CLARA, no oscura, y con los campos SUBRAYADOS.
 ///
-/// Era una barra `#0f172a` con los cuatro valores metidos en
+/// Era una barra `var(--titulo)` con los cuatro valores metidos en
 /// cajas. Eso venía del handoff de la ficha, que es anterior;
 /// el rediseño premium la pone sobre `--superficie-alterna` y
 /// deja los valores con una sola raya debajo. La diferencia no
