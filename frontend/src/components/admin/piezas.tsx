@@ -106,7 +106,7 @@ export function Bloque({
       }
     >
       {(titulo || acciones) && (
-        <div className="flex flex-wrap items-start justify-between gap-3 border-b border-borde px-7 py-3">
+        <div className="flex flex-wrap items-start justify-between gap-3 border-b border-borde bg-marca-suave px-7 py-3">
           <div className="min-w-0">
             {titulo && (
               <h2 className="text-[0.875rem] font-semibold text-titulo">{titulo}</h2>
