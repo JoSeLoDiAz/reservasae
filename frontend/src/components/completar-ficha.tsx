@@ -108,6 +108,14 @@ export function CompletarFicha({ token }: { token: string }) {
         setYaEstaba({
           fechaNacimiento: tiene("fechaNacimiento"),
           estrato: tiene("estrato"),
+          /// Sin estas dos, `pide()` devolvía `true` SIEMPRE y
+          /// el domicilio se preguntaba aunque ya lo hubiera
+          /// dado al reservar el cupo. Es la diferencia entre
+          /// «se le pide lo que falta» y «se le vuelve a pedir
+          /// todo». Añadir un campo al formulario y no a esta
+          /// lista es media función.
+          departamentoSepId: tiene("departamentoSepId"),
+          municipioSepId: tiene("municipioSepId"),
           barrio: tiene("barrio"),
           direccion: tiene("direccion"),
           cargoEnEmpresa: f.cargoEnEmpresa !== null,

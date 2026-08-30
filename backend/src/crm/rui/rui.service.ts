@@ -286,6 +286,22 @@ export class RuiService {
   /// Toma una y la marca EN_CURSO en la misma sentencia.
   /// SKIP LOCKED es lo que permite levantar un segundo
   /// worker sin que los dos agarren la misma fila.
+  ///
+  /// Y RECUPERA las que quedaron colgadas.
+  ///
+  /// Antes solo miraba `PENDIENTE`, así que una consulta que el
+  /// worker ya había tomado cuando el proceso murió se quedaba
+  /// en `EN_CURSO` PARA SIEMPRE: nadie la volvía a coger y la
+  /// ficha decía «consultando…» sin avanzar nunca. Pasó en
+  /// producción con un despliegue —el contenedor se recrea y
+  /// mata al worker a media consulta—, y pasaría igual con un
+  /// reinicio o un failover de sede.
+  ///
+  /// Cinco minutos es holgado a propósito: la consulta al
+  /// portal tarda 25 segundos como mucho, así que una fila
+  /// tomada hace cinco minutos es de un worker que ya no
+  /// existe. Y `INTENTOS_MAXIMOS` impide que una que falla
+  /// siempre se quede dando vueltas.
   async tomarSiguiente() {
     const filas = await this.prisma.$queryRaw<
       Array<{
@@ -300,6 +316,8 @@ export class RuiService {
       WHERE "id" = (
         SELECT "id" FROM "consultas_rui"
         WHERE "estado" = 'PENDIENTE'
+           OR ("estado" = 'EN_CURSO'
+               AND "tomadaEn" < NOW() - INTERVAL '5 minutes')
         ORDER BY "prioridad" DESC, "creadoEn" ASC
         FOR UPDATE SKIP LOCKED
         LIMIT 1
