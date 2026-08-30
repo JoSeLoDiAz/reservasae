@@ -1456,6 +1456,20 @@ SEP** (54, el que se sube) y el **F7 de empresas** (18). Código en
   completado. Así la lista de incompletas es accionable y no una queja.
 - **`Empresa.clasificacion`** (pública, privada o mixta) se añadió para la
   última columna, que no tenía de dónde salir.
+- **Los tres datos del jefe directo NO bloquean la inscripción**, y es una
+  decisión del cliente, no un descuido (30 ago 2026). Nombre, cargo y correo de
+  la persona de contacto son tres columnas del F7, y sin ellas la organización
+  **no entra al reporte** — pero exigirlos para poder cerrar la inscripción es
+  la misma rigidez que ya se descartó con las fechas del grupo: *bloquear la
+  captura por algo que no depende de aquí es hacer el sistema más rígido que el
+  proceso, que es como se abandonan los sistemas*. Un empleado puede no saberse
+  el correo de su jefe, y perder la inscripción entera por eso es peor que
+  perseguir el dato con una llamada. Lo que sostiene la decisión es que la
+  falta **se ve**: el panel dice qué falta y de quién, y `/admin/empresas` da la
+  lista accionable. Cambiarlo es una línea; volver a decidirlo, no.
+- **El cuarto de esa lista, el sector económico, sí lo resuelve solo** el
+  buscador por NIT: lo trae del RUES. De los cuatro, el robot cubre uno y los
+  tres del jefe se quedan siempre en manos de una persona.
 
 > **La siembra de pruebas pone los ids del SEP en NEGATIVO.** Los primeros los
 > copié del archivo de muestra —`2959`, `9087`, `17689`, que son reales— y un
