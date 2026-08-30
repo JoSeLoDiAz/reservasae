@@ -409,7 +409,7 @@ export default function PaginaCronograma() {
         <div className="no-imprimir overflow-hidden rounded-lg border border-borde bg-superficie">
           {porConvenio.map((b) => (
             <div key={b.convenio} className="border-t border-borde first:border-t-0">
-              <h2 className="border-b border-borde bg-superficie-alterna px-7 py-2.5 text-[0.65625rem] font-semibold tracking-[0.06em] text-marca uppercase">
+              <h2 className="border-b border-borde bg-marca-suave px-7 py-2.5 text-[0.65625rem] font-bold tracking-[0.06em] text-marca uppercase">
                 {b.convenio}
                 <span className="ml-2 font-normal tracking-normal text-texto-suave normal-case">
                   {b.acciones.length}{" "}

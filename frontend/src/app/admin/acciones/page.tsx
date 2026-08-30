@@ -279,7 +279,7 @@ export default function PaginaAcciones() {
         <div key={convenio} className="border-t border-borde first:border-t-0">
           {/* La misma cabecera que el cronograma: son las dos
               pantallas del mismo modulo y tienen que leerse igual. */}
-          <h2 className="flex items-center justify-between gap-3 border-b border-borde bg-superficie-alterna px-7 py-2.5 text-[0.65625rem] font-bold tracking-[0.06em] text-marca uppercase">
+          <h2 className="flex items-center justify-between gap-3 border-b border-borde bg-marca-suave px-7 py-2.5 text-[0.65625rem] font-bold tracking-[0.06em] text-marca uppercase">
             <span>{lista[0].convenioSigla ?? convenio}</span>
             <span className="tracking-normal text-texto-suave normal-case tabular-nums">
               {lista.filter((a) => a.visible).length} de {lista.length} publicadas
