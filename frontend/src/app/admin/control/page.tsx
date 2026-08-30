@@ -587,11 +587,15 @@ function Cuerpo({ d, adminId, eligio }: { d: Control; adminId: string; eligio: b
       <TableroPorAccion />
 
 
-      {/* las tasas */}
+      {/* Tres cortes de la MISMA pregunta —cómo va la
+          captación— que eran tres bloques con tres bordes y
+          tres franjas. Van dentro de uno. */}
       <Bloque
-        titulo="Cómo va contra lo comprometido"
-        descripcion="La situación de hoy, no la del periodo."
+        titulo="Cómo va la captación"
+        descripcion="El avance contra lo comprometido, dónde está cada quien y a qué ritmo entra."
       >
+        <div className="space-y-7">
+        <Bloque plano titulo="Contra lo comprometido">
         <div className="grid sm:grid-cols-3">
           <Tasa
             titulo="Cobertura de los cupos"
@@ -626,11 +630,11 @@ function Cuerpo({ d, adminId, eligio }: { d: Control; adminId: string; eligio: b
           />
         </div>
 
-      </Bloque>
+        </Bloque>
 
-      {/* el embudo y el ritmo */}
-      <section className="grid lg:grid-cols-3">
+        <section className="grid gap-7 lg:grid-cols-3">
         <Bloque
+          plano
           estirado
           titulo="En qué punto está cada quien"
           descripcion="Dónde está hoy cada persona que llegó en el periodo. Cada una cuenta en un solo peldaño."
@@ -674,7 +678,8 @@ function Cuerpo({ d, adminId, eligio }: { d: Control; adminId: string; eligio: b
 
         <div className="lg:col-span-2">
           <Bloque
-          estirado
+            plano
+            estirado
             titulo="Ritmo: llegada contra inscripción"
             descripcion={`Los leads por el día en que llegaron y los inscritos por el día en que lo fueron, ${alcanceSerie}. Es la gráfica que separa las dos preguntas: si entran leads y no salen inscripciones, el problema está en el seguimiento y no en la pauta.`}
           >
@@ -685,11 +690,18 @@ function Cuerpo({ d, adminId, eligio }: { d: Control; adminId: string; eligio: b
             />
           </Bloque>
         </div>
-      </section>
+        </section>
+        </div>
+      </Bloque>
 
-      {/* el origen: volumen y calidad */}
-      <section className="grid lg:grid-cols-2">
+      {/* ---- 2. de dónde vienen: las dos caras, un bloque ---- */}
+      <Bloque
+        titulo="De dónde vienen los leads"
+        descripcion="Qué canal aporta más registros y cuál acaba inscribiendo a más de los que trae."
+      >
+        <section className="grid gap-7 lg:grid-cols-2">
         <Bloque
+          plano
           titulo="Qué canal trae más"
           descripcion="Por dónde entraron los inscritos del periodo."
         >
@@ -704,6 +716,7 @@ function Cuerpo({ d, adminId, eligio }: { d: Control; adminId: string; eligio: b
         </Bloque>
 
         <Bloque
+          plano
           titulo="Qué canal inscribe más"
           descripcion="De cada canal, cuántos acaba inscribiendo. Traer mucho no es traer bueno."
         >
@@ -720,10 +733,17 @@ function Cuerpo({ d, adminId, eligio }: { d: Control; adminId: string; eligio: b
             vacio="Todavía no hay leads."
           />
         </Bloque>
-      </section>
+        </section>
+      </Bloque>
 
-      {/* los asesores */}
+      {/* ---- 3. quién lo trabaja: asesores y organizaciones ---- */}
       <Bloque
+        titulo="Quién lo está trabajando"
+        descripcion="El rendimiento de cada asesor y lo que cada organización tiene pendiente de entregar."
+      >
+        <div className="space-y-7">
+        <Bloque
+        plano
         titulo="Por asesor"
         descripcion="Cuántos inscribe cada asesor de los leads que ha llevado. Ordenado por eso, no por la actividad de un día."
       >
@@ -788,9 +808,8 @@ function Cuerpo({ d, adminId, eligio }: { d: Control; adminId: string; eligio: b
         )}
       </Bloque>
 
-      {/* quien debe nombres */}
-      <section className="grid lg:grid-cols-2">
         <Bloque
+          plano
           titulo="Las organizaciones con más nombres"
           descripcion="Cuántos nombres ha entregado cada organización de los cupos que apartó. Lo que falta es a quién llamar."
         >
@@ -825,8 +844,18 @@ function Cuerpo({ d, adminId, eligio }: { d: Control; adminId: string; eligio: b
             </ul>
           )}
         </Bloque>
+        </div>
+      </Bloque>
 
+      {/* ---- 4. el reparto: los cinco cortes, un bloque ---- */}
+      <Bloque
+        titulo="Cómo se reparten los inscritos"
+        descripcion="Los mismos inscritos del periodo, vistos por curso, por territorio, por grupo, por convenio y por modalidad."
+      >
+        <div className="space-y-7">
+        <section className="grid gap-7 lg:grid-cols-2">
         <Bloque
+          plano
           titulo="Por acción de formación"
           descripcion="Distribución de los inscritos del periodo entre las acciones de formación. No incluye a quienes aún no tienen acción asignada."
         >
@@ -842,9 +871,9 @@ function Cuerpo({ d, adminId, eligio }: { d: Control; adminId: string; eligio: b
         </Bloque>
       </section>
 
-      {/* los repartos */}
-      <section className="grid lg:grid-cols-3">
+        <section className="grid gap-7 lg:grid-cols-3">
         <Bloque
+          plano
           titulo="Por ubicación"
           descripcion="Ciudad o departamento donde se dicta la formación que eligieron los inscritos del periodo."
         >
@@ -861,7 +890,7 @@ function Cuerpo({ d, adminId, eligio }: { d: Control; adminId: string; eligio: b
           />
         </Bloque>
 
-        <Bloque titulo="Por grupo" descripcion="Distribución por grupo, tal como se reporta al SENA.">
+        <Bloque plano titulo="Por grupo" descripcion="Distribución por grupo, tal como se reporta al SENA.">
           <ListaBarras
             datos={d.porGrupo.map((g) => ({
               clave: g.clave,
@@ -881,6 +910,7 @@ function Cuerpo({ d, adminId, eligio }: { d: Control; adminId: string; eligio: b
 
         <div className="space-y-6">
           <Bloque
+            plano
             titulo="Por convenio"
             descripcion="Inscritos del periodo en cada uno de los convenios a los que tiene acceso."
           >
@@ -895,6 +925,7 @@ function Cuerpo({ d, adminId, eligio }: { d: Control; adminId: string; eligio: b
           </Bloque>
 
           <Bloque
+            plano
             titulo="Por modalidad"
             descripcion="Modalidad de la oferta asignada: presencial, virtual o híbrida. No incluye a quienes aún no tienen oferta."
           >
@@ -908,7 +939,9 @@ function Cuerpo({ d, adminId, eligio }: { d: Control; adminId: string; eligio: b
             />
           </Bloque>
         </div>
-      </section>
+        </section>
+        </div>
+      </Bloque>
     </div>
   );
 }

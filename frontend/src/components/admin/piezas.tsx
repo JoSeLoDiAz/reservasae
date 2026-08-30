@@ -87,6 +87,7 @@ export function Bloque({
   sinRelleno,
   estirado,
   partible,
+  plano,
   children,
 }: {
   titulo?: string;
@@ -107,8 +108,33 @@ export function Bloque({
    * por fila, con su cabecera repetida.
    */
   partible?: boolean;
+  /**
+   * Sin borde ni franja: un corte DENTRO de otro bloque.
+   *
+   * Veinte cortes son veinte bordes y veinte franjas de color,
+   * y eso se lee como veinte pantallas pegadas en vez de como
+   * un informe. Los que responden a la misma pregunta van
+   * dentro de un solo bloque, cada uno con su rótulo.
+   */
+  plano?: boolean;
   children: React.ReactNode;
 }) {
+  if (plano) {
+    return (
+      <section className={estirado ? "flex h-full flex-col" : undefined}>
+        {titulo && (
+          <h3 className="text-[0.625rem] font-semibold tracking-[0.1em] text-marca uppercase">
+            {titulo}
+          </h3>
+        )}
+        {descripcion && (
+          <p className="mt-1 text-[0.71875rem] text-texto-suave">{descripcion}</p>
+        )}
+        <div className={estirado ? "mt-3 min-h-0 grow" : "mt-3"}>{children}</div>
+      </section>
+    );
+  }
+
   return (
     <section
       className={
