@@ -266,9 +266,14 @@ export class ProveedorWebNavegador implements ProveedorWeb, OnModuleDestroy {
     );
     return {
       estado: 'FALLO',
+      /// Insistir es contraproducente: cada reintento son tres corridas
+      /// mas contra un buscador que ya nos marco. Se para aqui y espera
+      /// a una persona.
+      reintentar: false,
       error:
         'El buscador no dejó pasar: pide aceptar condiciones o verificar que ' +
-        'no es un robot. ' +
+        'no es un robot. Se resuelve una vez a mano con WEB_CON_CABEZA=1, o ' +
+        'usando WEB_PROVEEDOR=API. ' +
         texto.slice(0, 120),
     };
   }

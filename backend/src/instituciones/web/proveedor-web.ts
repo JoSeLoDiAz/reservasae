@@ -34,7 +34,11 @@ export type RespuestaWeb =
   /// la forma de responder, esto es lo único que dice en qué
   /// cambió.
   | { estado: 'SIN_RESULTADO'; crudo?: string }
-  | { estado: 'FALLO'; error: string };
+  /// `reintentar: false` para lo que no se arregla insistiendo. El muro
+  /// del buscador es el caso: pide una persona (aceptar condiciones o el
+  /// captcha), y volver a preguntar cada seis segundos solo confirma que
+  /// somos un robot y alarga el bloqueo.
+  | { estado: 'FALLO'; error: string; reintentar?: boolean };
 
 export interface ProveedorWeb {
   consultar(nit: string): Promise<RespuestaWeb>;

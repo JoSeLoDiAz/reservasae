@@ -194,6 +194,11 @@ export class WebService {
     const fichas: FichaWeb[] = [];
     let ultimoError = '';
     let ultimoCrudo = '';
+    /// Cuando el proveedor dice que no insistamos (el muro), esto se
+    /// queda pegado hasta `guardar`. Antes se perdia: aqui solo se
+    /// conservaba el TEXTO del error y el FALLO se rehacia sin la
+    /// bandera, asi que la consulta volvia a PENDIENTE igual.
+    let noInsistir = false;
 
     for (let i = 0; i < CORRIDAS_CONSENSO; i += 1) {
       let r: RespuestaWeb;
@@ -208,6 +213,12 @@ export class WebService {
         ultimoCrudo = r.crudo;
       } else if (r.estado === 'FALLO') {
         ultimoError = r.error;
+        if (r.reintentar === false) {
+          /// Y se corta el consenso: las corridas que faltan irian
+          /// contra el mismo muro, y cada una nos marca un poco mas.
+          noInsistir = true;
+          break;
+        }
       } else if (r.crudo) {
         ultimoCrudo = r.crudo;
       }
@@ -217,7 +228,7 @@ export class WebService {
     if (fichas.length === 0) {
       return {
         resultado: ultimoError
-          ? { estado: 'FALLO', error: ultimoError }
+          ? { estado: 'FALLO', error: ultimoError, reintentar: !noInsistir }
           : { estado: 'SIN_RESULTADO', crudo: ultimoCrudo || undefined },
       };
     }
@@ -243,7 +254,10 @@ export class WebService {
     if (!c) return;
 
     if (resultado.estado === 'FALLO') {
-      const seRinde = c.intentos >= INTENTOS_MAXIMOS;
+      /// Hay fallos que no se arreglan insistiendo: el muro del buscador
+      /// pide una persona, y cada reintento son tres corridas mas contra
+      /// quien ya nos marco. El proveedor lo dice con `reintentar: false`.
+      const seRinde = resultado.reintentar === false || c.intentos >= INTENTOS_MAXIMOS;
       await this.prisma.consultaRues.update({
         where: { id },
         data: {
