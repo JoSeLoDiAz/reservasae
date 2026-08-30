@@ -6,6 +6,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Aviso, CLASE_CONTROL, Tarjeta } from "@/components/admin/marco-admin";
 import { CajonLead } from "@/components/admin/cajon-lead";
+import { IconoCerrar } from "@/components/admin/iconos";
 import { Embudo } from "@/components/admin/secciones";
 import { colorEtapa } from "@/components/admin/etapa";
 import { columnasDeParticipante } from "@/components/admin/columnas-participante";
@@ -17,6 +18,7 @@ import {
   type FilaParticipante,
   type Filtros,
   ETAPAS_DEL_EMBUDO,
+  type Etapa,
   ETIQUETA_ETAPA,
   type Resumen,
 } from "@/lib/crm-api";
@@ -29,6 +31,42 @@ const CLASE_BOTON =
 
 // el tablero reparte una carga entre nueve columnas
 const POR_CARGA = 300;
+
+/// Como se llama cada filtro en pantalla. Sin esto el chip
+/// diria «accionFormacionId», que no le dice nada a nadie.
+const ROTULO_FILTRO: Record<string, string> = {
+  etapa: "Etapa",
+  estado: "Datos",
+  asesorId: "Asesor",
+  accionFormacionId: "Acción",
+  grupoId: "Grupo",
+  departamentoSepId: "Departamento",
+  buscar: "Busca",
+};
+
+/// El valor legible. Los ids se traducen contra el resumen,
+/// que ya trae los nombres: sin eso el chip enseñaria un cuid.
+function nombreDeFiltro(
+  clave: string,
+  valor: string,
+  resumen: Resumen,
+): string {
+  if (clave === "etapa") return ETIQUETA_ETAPA[valor as Etapa] ?? valor;
+  if (clave === "estado") return valor === "COMPLETO" ? "Completos" : "Parciales";
+  if (clave === "asesorId") {
+    return resumen.asesores.find((a) => a.id === valor)?.nombre ?? "Sin asignar";
+  }
+  if (clave === "accionFormacionId") {
+    const a = resumen.acciones.find((x) => x.id === valor);
+    return a ? a.codigo : valor;
+  }
+  if (clave === "departamentoSepId") {
+    return (
+      resumen.departamentos.find((d) => String(d.id) === valor)?.nombre ?? valor
+    );
+  }
+  return valor;
+}
 
 export default function PaginaParticipantes() {
   const [filas, setFilas] = useState<FilaParticipante[] | null>(null);
@@ -45,7 +83,8 @@ export default function PaginaParticipantes() {
   /// viaja en la dirección ni sale como quitable.
   const FIJOS = useMemo<Filtros>(() => ({ tramo: "INSCRIPCION" }), []);
 
-  const { filtros, cuantos, limpiar } = useFiltrosEnLaUrl(FIJOS);
+  const { filtros, puestos, cuantos, cambiar, limpiar } =
+    useFiltrosEnLaUrl(FIJOS);
 
   const cargar = useCallback(async () => {
     const [listado, res] = await Promise.all([
@@ -188,6 +227,46 @@ export default function PaginaParticipantes() {
             </button>
           )}
         </Tarjeta>
+      )}
+
+      {/* Los filtros puestos, a la vista y con su ✕.
+          Antes «Quitar los filtros» solo aparecia cuando NO
+          habia resultados: con el filtro puesto y filas en
+          pantalla no habia forma de ver que estaba filtrado ni
+          de quitarlo, y habia que adivinar donde se habia
+          puesto. El hook ya devolvia `puestos` para esto -- lo
+          dice su propio comentario -- y nunca se pinto. */}
+      {cuantos > 0 && (
+        <div className="flex flex-wrap items-center gap-2">
+          {(Object.entries(puestos) as Array<[string, string]>).map(
+            ([clave, valor]) => (
+              <span
+                key={clave}
+                className="inline-flex items-center gap-1.5 rounded-full border border-marca/30 bg-marca-suave px-2.5 py-1 text-[0.71875rem]"
+              >
+                <span className="text-texto-suave">{ROTULO_FILTRO[clave] ?? clave}</span>
+                <strong className="font-semibold">
+                  {nombreDeFiltro(clave, valor, resumen)}
+                </strong>
+                <button
+                  type="button"
+                  onClick={() => cambiar({ [clave]: "" })}
+                  aria-label={`Quitar el filtro de ${ROTULO_FILTRO[clave] ?? clave}`}
+                  className="opacity-60 transition hover:opacity-100"
+                >
+                  <IconoCerrar tamano={12} />
+                </button>
+              </span>
+            ),
+          )}
+          <button
+            type="button"
+            onClick={limpiar}
+            className="text-[0.71875rem] text-texto-suave underline hover:text-texto"
+          >
+            Quitar todos
+          </button>
+        </div>
       )}
 
       {hayResultados && (

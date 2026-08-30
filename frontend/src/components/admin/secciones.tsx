@@ -722,6 +722,9 @@ export function Embudo({
   /// El marco es el mismo que el de la tabla -- borde de 1px y
   /// radio de 10 -- para que los dos bloques se lean como parte
   /// de la misma pantalla.
+  /// «Sin asesor» va sin raya de separacion: cada tarjeta ya
+  /// tiene su marco, y una raya entre dos marcos es una linea
+  /// que no separa nada. Que va aparte se ve por el hueco.
   const Tarjeta = ({
     etiqueta,
     valor,
@@ -771,7 +774,7 @@ export function Embudo({
         /// Separada del resto: no es una etapa del proceso, es
         /// una cola de trabajo. Quien no tiene asesor puede
         /// estar en cualquiera de las cinco.
-        <div className="ml-1 flex flex-1 border-l border-borde pl-3">
+        <div className="flex flex-1 pl-1">
           <Tarjeta etiqueta="Sin asesor" valor={sinAsesor} color="var(--aviso)" />
         </div>
       )}
