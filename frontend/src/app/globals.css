@@ -541,7 +541,7 @@ select[size]:not([size='1']) {
     /* horizontal: la tabla lleva siete columnas y en vertical el
        horario y las sedes se envuelven */
     size: A4 landscape;
-    margin: 10mm;
+    margin: 8mm;
   }
 
   /* conservar fondos al imprimir */
@@ -677,6 +677,30 @@ select[size]:not([size='1']) {
     width: 100%;
   }
 
+  /*
+   * Una tabla corta no tiene por que salir apretada. El tamaño
+   * de arriba esta pensado para los 67 grupos del cronograma;
+   * las 15 acciones de Formacion caben de sobra y dejaban media
+   * hoja en blanco. `.holgada` reparte ese espacio.
+   */
+  .solo-impresion.holgada .tabla-datos th,
+  .solo-impresion.holgada .tabla-datos td {
+    padding: 5px 9px;
+    font-size: 9pt;
+    line-height: 1.35;
+  }
+  .solo-impresion.holgada .tabla-datos th {
+    font-size: 7.5pt;
+  }
+  .solo-impresion.holgada .titulo-de-accion {
+    margin: 12px 0 4px;
+    font-size: 10pt;
+  }
+  .solo-impresion.holgada .titulo-impreso {
+    margin-bottom: 10px;
+    font-size: 12pt;
+  }
+
   /* el titulo de cada accion, y sus grupos con el */
   .solo-impresion .titulo-de-accion {
     margin: 10px 0 3px;
@@ -695,6 +719,21 @@ select[size]:not([size='1']) {
     font-size: 9.5pt;
     font-weight: 700;
     color: var(--titulo);
+  }
+
+  /*
+   * El envoltorio de la pantalla lleva relleno arriba y abajo
+   * para separarse de la barra lateral. En papel no hay barra
+   * lateral, y esos 40px son los que empujaban el catalogo de
+   * Formacion a una segunda hoja por un pixel.
+   */
+  .solo-impresion {
+    margin: 0;
+  }
+  body [class*="pt-4"],
+  body [class*="pb-6"],
+  body [class*="px-4"] {
+    padding: 0 !important;
   }
 
   /* ninguna fila se parte */

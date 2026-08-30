@@ -222,7 +222,7 @@ export default function PaginaAcciones() {
 
       {/* Lo que sale en el PDF: el catálogo, sin los controles. */}
       {acciones && visibles.length > 0 && (
-        <div className="solo-impresion">
+        <div className="solo-impresion holgada">
           <p className="titulo-impreso">
             Formación · {visibles.length} acciones · {publicadas} publicadas
           </p>
