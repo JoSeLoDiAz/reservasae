@@ -208,7 +208,7 @@ export default function PaginaCampanas() {
 /// regla de la casa, no un detalle de una campaña.
 function ComoSale() {
   return (
-    <div className="rounded-2xl border border-borde bg-superficie-alterna p-5 text-sm">
+    <div className="border-b border-borde bg-superficie-alterna p-5 text-sm">
       <p className="font-medium">Cómo sale, y por qué así</p>
       <p className="mt-1 text-texto-suave">
         Salen por la cuenta de la oficina, de a uno, con{" "}

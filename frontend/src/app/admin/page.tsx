@@ -413,7 +413,7 @@ function Alertas({
 
   return (
     <div className="grid sm:grid-cols-3">
-      <div className="rounded-2xl border border-borde bg-superficie p-5">
+      <div className="border-b border-borde bg-superficie px-7 py-5">
         <p className="text-sm text-texto-suave">Ubicaciones completas</p>
         <p className="mt-1 text-2xl font-semibold tabular-nums">
           {completas}
@@ -425,7 +425,7 @@ function Alertas({
         </p>
       </div>
 
-      <div className="rounded-2xl border border-borde bg-superficie p-5">
+      <div className="border-b border-borde bg-superficie px-7 py-5">
         <p className="text-sm text-texto-suave">Tasa de cancelación</p>
         <p className="mt-1 text-2xl font-semibold tabular-nums">
           {resumen.tasaCancelacion.toFixed(1).replace(".", ",")}
@@ -436,7 +436,7 @@ function Alertas({
         </p>
       </div>
 
-      <div className="rounded-2xl border border-borde bg-superficie p-5">
+      <div className="border-b border-borde bg-superficie px-7 py-5">
         <p className="text-sm text-texto-suave">Sin ninguna reserva</p>
         <p className="mt-1 text-2xl font-semibold tabular-nums">
           {sinReservas.length}

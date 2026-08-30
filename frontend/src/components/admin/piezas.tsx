@@ -95,17 +95,29 @@ export function Pildora({
   tono?: Tono;
   children: React.ReactNode;
 }) {
+  /// El color va en la LETRA, no en una caja.
+  ///
+  /// Era una pildora con fondo tenido y radio completo. En una
+  /// tabla de 400 filas, 400 rectangulos de color compiten con
+  /// los datos en vez de ordenarlos: uno acaba viendo la
+  /// alfombra de colores y no la fila que buscaba.
+  ///
+  /// Se conserva el peso 600, que es lo que sigue haciendo que
+  /// el estado destaque sin fondo. Y se conserva el texto: el
+  /// color acompania, nunca es lo unico que distingue -- en
+  /// papel y en daltonismo el color no llega.
   const clases: Record<Tono, string> = {
-    marca: "bg-marca-suave text-marca",
-    exito: "bg-exito-suave text-exito",
-    aviso: "bg-aviso-suave text-aviso",
-    error: "bg-error-suave text-error",
-    neutro: "bg-superficie-alterna text-texto-suave",
+    marca: "text-marca",
+    exito: "text-exito",
+    aviso: "text-aviso",
+    error: "text-error",
+    neutro: "text-texto-suave",
   };
 
   return (
     <span
-      className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium whitespace-nowrap ${clases[tono]}`}
+      className={`inline-flex items-center gap-1.5 font-semibold whitespace-nowrap ${clases[tono]}`}
+      style={{ fontSize: "0.75rem" }}
     >
       {children}
     </span>

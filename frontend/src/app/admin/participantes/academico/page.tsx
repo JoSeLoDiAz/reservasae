@@ -395,7 +395,7 @@ function AccionAcordeon({
   ).length;
 
   return (
-    <section className="overflow-hidden rounded-2xl border border-borde bg-superficie">
+    <section className="overflow-hidden border-b border-borde bg-superficie">
       <button
         onClick={alAbrir}
         aria-expanded={abierta}

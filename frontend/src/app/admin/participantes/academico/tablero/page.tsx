@@ -259,7 +259,7 @@ export default function PaginaTableroAcademico() {
         />
       </header>
 
-      <section className="no-imprimir rounded-2xl border border-borde bg-superficie p-5">
+      <section className="no-imprimir border-b border-borde bg-superficie px-7 py-5">
         <div className="grid lg:grid-cols-2">
           <div>
             <label className="mb-1.5 block text-sm font-medium" htmlFor="periodo-aula">
