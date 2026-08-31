@@ -72,6 +72,28 @@ export async function planeacionDePauta(
     AND af."convenioId" IN (${Prisma.join(ambito)})`;
 
   /**
+   * Los cupos, acotados al grupo elegido.
+   *
+   * Un grupo del desplegable es un `GrupoCobertura`, y ese va atado a UNA
+   * ubicación: «Grupo 1 · BOGOTÁ D.C». Sin esto, elegir un grupo filtraba
+   * la gente pero no los cupos, así que la tabla seguía sacando los nueve
+   * departamentos -- con sus cupos y sin nadie dentro-- y el filtro
+   * parecía no hacer nada.
+   *
+   * Se acota por la UBICACIÓN del grupo, no por sus cupos: las reservas
+   * cuelgan de la oferta, no del grupo, y cambiar de dónde salen los
+   * cupos dejaría «cupos pendientes» descuadrado. Queda pendiente decidir
+   * si al elegir grupo los cupos deben ser los suyos
+   * (`grupos_cobertura.cuposMaximos`) en vez de los de la oferta.
+   */
+  const cuposDelGrupo = filtros.coberturaId
+    ? Prisma.sql`AND o."ubicacionId" = (
+        SELECT gc."ubicacionId" FROM "grupos_cobertura" gc
+         WHERE gc."id" = ${filtros.coberturaId}
+      )`
+    : Prisma.empty;
+
+  /**
    * Los cupos y lo reservado, por sede.
    *
    * `reservados` son los cupos apartados que TODAVÍA no tienen
@@ -105,7 +127,7 @@ export async function planeacionDePauta(
          AND p."reservaId" IS NOT NULL
          AND p."etapa"::text IN (${Prisma.join(LLEGO_A_INSCRITO)})
     ) ins ON TRUE
-    WHERE ${deLaAccion}
+    WHERE ${deLaAccion} ${cuposDelGrupo}
     GROUP BY 1
   `);
 
