@@ -40,7 +40,12 @@ docker/nginx/logs/
 *.swo
 
 # ── Herramientas locales (Claude Code, etc.) ──
-.claude/
+# Los ajustes locales no se comparten, pero las fichas de los subagentes sí:
+# son parte de la arquitectura, no de la máquina de cada uno. Se excluye el
+# contenido de la carpeta y se rescata `agents/` --hace falta el `/*`, porque
+# si se ignora el directorio entero git no baja a mirar dentro.
+.claude/*
+!.claude/agents/
 
 # ── OS ──
 .DS_Store
