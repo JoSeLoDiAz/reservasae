@@ -59,12 +59,7 @@ function armar(coincide: { firme: boolean; por: string }) {
     $transaction: (f: (t: unknown) => Promise<unknown>) => f(tx),
   };
 
-  const s = new LeadsService(
-    prisma as never,
-    {} as never,
-    {} as never,
-    {} as never,
-  );
+  const s = new LeadsService(prisma as never, {} as never);
 
   const llamar = (
     s as unknown as {
