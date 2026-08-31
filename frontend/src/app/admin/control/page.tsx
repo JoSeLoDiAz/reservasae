@@ -369,86 +369,6 @@ export default function PaginaControl() {
   );
 }
 
-/**
- * Cuánta captación hace falta para cerrar la meta.
- *
- * Los dos números de arriba los pone quien mira —cuántos leads
- * cuesta un inscrito y cuánto cuesta un lead— porque nadie los
- * sabe de antemano y cambian con cada campaña. Lo de abajo se
- * recalcula solo.
- */
-function Planificador({ faltan }: { faltan: number }) {
-  const [conversion, setConversion] = useState(3);
-  const [costo, setCosto] = useState(12000);
-
-  const leads = faltan * conversion;
-  const inversion = leads * costo;
-
-  return (
-    <Bloque
-      titulo="Planificador de captación"
-      descripcion="Cuántos leads y cuánta inversión hacen falta para cerrar lo que le queda a la meta."
-    >
-      <div className="flex flex-wrap items-end gap-x-6 gap-y-3">
-        <div>
-          <p className="mb-1 text-[0.6875rem] font-medium text-texto-suave">
-            Conversión objetivo
-          </p>
-          <select
-            className={`${CLASE_CONTROL} max-w-[11rem]`}
-            value={conversion}
-            onChange={(e) => setConversion(Number(e.target.value))}
-            aria-label="Leads por inscrito"
-          >
-            {Array.from({ length: 10 }, (_, i) => i + 1).map((v) => (
-              <option key={v} value={v}>
-                {v} {v === 1 ? "lead" : "leads"} · 1 inscrito
-              </option>
-            ))}
-          </select>
-        </div>
-        <div>
-          <p className="mb-1 text-[0.6875rem] font-medium text-texto-suave">
-            Costo por lead
-          </p>
-          <input
-            type="number"
-            min={0}
-            step={500}
-            className={`${CLASE_CONTROL} max-w-[8rem]`}
-            value={costo}
-            onChange={(e) => setCosto(Math.max(0, Number(e.target.value)))}
-            aria-label="Costo por lead, en pesos"
-          />
-        </div>
-
-        <div className="flex grow flex-wrap gap-2.5 border-l border-hairline pl-6">
-          <Cifra
-            etiqueta="Inscritos que faltan"
-            valor={n(faltan)}
-            pie="para llegar a la meta"
-          />
-          <Cifra
-            etiqueta="Leads necesarios"
-            valor={n(leads)}
-            pie={`a ${conversion} por inscrito`}
-          />
-          <Cifra
-            etiqueta="Inversión estimada"
-            valor={
-              inversion >= 1_000_000
-                ? `$${(inversion / 1_000_000).toLocaleString("es-CO", { maximumFractionDigits: 1 })} M`
-                : `$${inversion.toLocaleString("es-CO")}`
-            }
-            pie="el valor de la pauta"
-            color="var(--marca)"
-          />
-        </div>
-      </div>
-    </Bloque>
-  );
-}
-
 /** Las cifras y las gráficas del periodo elegido. */
 function Cuerpo({ d, adminId, eligio }: { d: Control; adminId: string; eligio: boolean }) {
   const hayVentana = d.ventana.desde !== null && d.ventana.hasta !== null;
@@ -520,7 +440,6 @@ function Cuerpo({ d, adminId, eligio }: { d: Control; adminId: string; eligio: b
   )[0];
 
   const avanceMeta = d.metaComprometida > 0 ? inscritosSiempre / d.metaComprometida : 0;
-  const faltanParaLaMeta = Math.max(0, d.metaComprometida - inscritosSiempre);
   const rotuloDeLaMeta =
     d.metaComprometida === 0
       ? "Sin meta cargada"
@@ -667,7 +586,6 @@ function Cuerpo({ d, adminId, eligio }: { d: Control; adminId: string; eligio: b
       </section>
 
       {/* Cuánta captación hace falta para cerrar la meta. */}
-      <Planificador faltan={faltanParaLaMeta} />
 
       {/* La franja de contexto: secundaria, y por eso va sin
           bloque y en la escala pequeña. */}
