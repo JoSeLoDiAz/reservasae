@@ -103,9 +103,12 @@ export function ComiteMarketing() {
 
   return (
     <div className="flex flex-col gap-3">
-      {/* los seis filtros, en una línea */}
-      <div className="rounded-lg border border-borde bg-superficie px-4 py-2.5">
-        <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
+      {/* Los filtros, arriba y sin caja.
+          Con borde y fondo propios pesaban igual que la tabla que
+          mandan, y se leían como un bloque más en vez de como el mando
+          de la pantalla. Van alineados a la derecha, arriba del todo. */}
+      <div className="-mt-1">
+        <div className="flex flex-wrap items-center justify-end gap-x-5 gap-y-2">
           <div className="flex items-center gap-2">
             <p className="shrink-0 text-[0.6875rem] font-medium text-texto-suave">Convenio</p>
             <select
