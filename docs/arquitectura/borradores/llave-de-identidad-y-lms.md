@@ -102,7 +102,7 @@ la divergencia.
 normalizado:
 
 ```sql
-ALTER TABLE "crm_personas"
+ALTER TABLE "personas"
   ADD CONSTRAINT "personas_documento_normalizado"
   CHECK ("numeroDocumento" ~ '^[A-Z0-9]{4,20}$');
 ```

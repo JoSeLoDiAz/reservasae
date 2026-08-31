@@ -478,7 +478,7 @@ Solo las entidades de negocio de INV-7. `CONFIRMADO EN CÓDIGO`.
 | Entidad | Tabla | Se crea en | Se modifica en | Se borra en |
 |---|---|---|---|---|
 | `LeadEntrante` | `leads_entrantes` | `leads.service.ts` (webhook) | — | `meta-pruebas.controller.ts` (solo `ENTORNO` de pruebas) |
-| `Persona` | `crm_personas` | `crm.service.ts:892` · `preinscripcion.service.ts` | `crm.service.ts` | — (protegida por `Restrict`) |
+| `Persona` | `personas` | `crm.service.ts:892` · `preinscripcion.service.ts` | `crm.service.ts` | — (protegida por `Restrict`) |
 | `Participante` | `participantes` | `crm.service.ts:892` · `preinscripcion.service.ts:190-344` | `crm.service.ts` (`cambiarEtapa`, `asignar:3353`) | **`crm.service.ts:1755`** (`DELETE` real, `SUPERADMIN`) |
 | `Reserva` | `reservas` | `reservas.service.ts` (público) | `reservas.service.ts:159` · **`plantillas.service.ts:400-405`** | — (se cancela) |
 | `Oferta` | `ofertas` | seed | `reservas.service.ts:369` (contador) · `cronograma.service.ts` | — |
