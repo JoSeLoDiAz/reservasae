@@ -1,12 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 import { colorEtapa, estiloEtapa } from "@/components/admin/etapa";
 import { IndicadorActualizacion } from "@/components/admin/indicador-actualizacion";
 import { Aviso, CLASE_CONTROL, Tarjeta } from "@/components/admin/marco-admin";
 import { Esqueleto } from "@/components/admin/piezas";
+import { TableroAcademico } from "@/components/admin/tablero-academico";
 import { SelectorBuscable } from "@/components/admin/selector-buscable";
 import { useDatosVivos } from "@/lib/datos-vivos";
 import {
@@ -50,7 +51,68 @@ function fecha(iso: string | null) {
   });
 }
 
-export default function PaginaAcademico() {
+type Vista = "avance" | "tablero";
+
+/**
+ * Seguimiento academico, con sus dos zooms en una sola puerta.
+ *
+ * Eran dos entradas de menu: «Avance» --persona a persona-- y «Tablero
+ * academico» --por accion, grupo y asesor--. La misma pregunta con
+ * distinto zoom, y cada una enlazaba a la otra en su propio subtitulo,
+ * que es la sennial de que nunca debieron ser dos.
+ *
+ * Se monta SOLO la pestania que se mira: las dos piden datos distintos
+ * y caros, y tenerlas montadas a la vez pedia los dos siempre.
+ */
+export default function PaginaSeguimiento() {
+  const [vista, setVista] = useState<Vista>("avance");
+
+  useEffect(() => {
+    try {
+      const guardada = window.localStorage.getItem("academico:vista");
+      if (guardada === "avance" || guardada === "tablero") setVista(guardada);
+    } catch {
+      // navegador sin almacenamiento: se queda con la de por defecto
+    }
+  }, []);
+
+  function cambiar(a: Vista) {
+    setVista(a);
+    try {
+      window.localStorage.setItem("academico:vista", a);
+    } catch {
+      // no poder recordarlo no es motivo para no cambiar
+    }
+  }
+
+  return (
+    <div>
+      <div
+        role="tablist"
+        aria-label="Qué mirar"
+        className="m-4 flex gap-1 self-start rounded-lg border border-borde bg-superficie p-1 w-fit"
+      >
+        {(["avance", "tablero"] as const).map((v) => (
+          <button
+            key={v}
+            role="tab"
+            aria-selected={vista === v}
+            onClick={() => cambiar(v)}
+            className={`sin-aro rounded-md px-4 py-1.5 text-[0.78125rem] font-semibold transition ${
+              vista === v ? "bg-marca-suave text-marca" : "text-texto-suave hover:text-texto"
+            }`}
+          >
+            {v === "avance" ? "Avance" : "Tablero"}
+          </button>
+        ))}
+      </div>
+
+      {vista === "avance" ? <Avance /> : <TableroAcademico />}
+    </div>
+  );
+}
+
+function Avance() {
   const [filtro, setFiltro] = useState<EstadoAcademico | "">("");
   const [salida, setSalida] = useState<Etapa | "">("");
   const [accionAbierta, setAccionAbierta] = useState<string | null>(null);

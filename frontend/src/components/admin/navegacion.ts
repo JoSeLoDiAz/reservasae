@@ -12,9 +12,6 @@ export type Enlace = {
   area?: Area;
   /// Y con qué nivel: escribir para lo que no es consulta.
   nivel?: Nivel;
-  /// Se conserva mientras se fusiona con otra vista. Sale
-  /// con una marca para que nadie lo dé por definitivo.
-  temporal?: boolean;
 };
 
 export type Modulo = {
@@ -81,6 +78,17 @@ export const MODULOS: Modulo[] = [
         area: 'inscripciones',
       },
       {
+        /// Los mismos participantes, cortados por accion de
+        /// formacion. Vive aqui y no en «Sistemas de
+        /// informacion» porque es una vista de la gente que se
+        /// esta inscribiendo, no un dato que sostenga el
+        /// reporte: quien la busca viene de la lista de leads.
+        href: '/admin/inscritos',
+        etiqueta: 'Inscritos por acción',
+        exacto: true,
+        area: 'inscritos',
+      },
+      {
         /// Una sola entrada, con dos pestañas dentro.
         ///
         /// Eran dos: «Panel Control de Inscritos» y «Control de
@@ -115,12 +123,6 @@ export const MODULOS: Modulo[] = [
         etiqueta: 'Empresas aliadas - afiliadas',
         area: 'reserva',
       },
-      {
-        href: '/admin/inscritos',
-        etiqueta: 'Inscritos Acción Formación',
-        exacto: true,
-        area: 'inscritos',
-      },
       { href: '/admin/sep', etiqueta: 'Reportes SENA', area: 'reportes' },
     ],
   },
@@ -131,37 +133,42 @@ export const MODULOS: Modulo[] = [
     descripcion: 'Quién va al día y quién no.',
     enlaces: [
       {
-        /// Los dos se quedan mientras se define cómo se parte
-        /// en seguimiento virtual y presencial.
-        href: '/admin/participantes/academico/tablero',
-        etiqueta: 'Tablero académico',
-        area: 'academico',
-        temporal: true,
-      },
-      {
+        /// Una sola entrada, con dos pestañas dentro.
+        ///
+        /// Eran dos: «Tablero académico» --por acción, grupo y
+        /// asesor-- y «Avance» --persona a persona--. La misma
+        /// pregunta con distinto zoom, y cada una enlazaba a la
+        /// otra en su propio subtítulo: la señal de que nunca
+        /// debieron ser dos. La ruta del tablero redirige.
         href: '/admin/participantes/academico',
-        etiqueta: 'Avance',
-        exacto: true,
+        etiqueta: 'Seguimiento académico',
         area: 'academico',
-        temporal: true,
       },
     ],
   },
   {
-    /// Los dos momentos del formulario público, no los
-    /// formularios de reserva de las empresas: esos siguen en
-    /// Configuración, que es donde se arman.
+    /// Los DOS sistemas de preguntas, juntos y con su dueño en
+    /// el nombre: el que llena una empresa para apartar cupos y
+    /// el que llena una persona para preinscribirse. No son dos
+    /// estados de lo mismo, aunque se llamaran así.
     clave: 'formularios',
     emoji: '📋',
     etiqueta: 'Formularios',
-    descripcion: 'Lo que llena la persona, y su QR.',
+    descripcion: 'Lo que se le pregunta a quien entra, y a quién se le pregunta.',
     enlaces: [
       {
-        /// Primero el constructor: es donde empieza el
-        /// trabajo. Estaba en Configuración, a dos módulos de
-        /// lo que produce.
+        /// El nombre dice A QUIÉN se le pregunta, no en qué
+        /// estado está.
+        ///
+        /// Se llamaban «Creación Formularios» y «Formularios
+        /// Activos», que se leen como dos momentos del MISMO
+        /// objeto -- el que se crea y el que ya está publicado --
+        /// y son dos sistemas distintos: aquí se arman los
+        /// formularios con los que una EMPRESA aparta cupos;
+        /// abajo están los que llena una PERSONA para
+        /// preinscribirse. Nadie pasa de uno al otro.
         href: '/admin/formularios',
-        etiqueta: 'Creación Formularios',
+        etiqueta: 'Formularios de reserva (empresas)',
         exacto: true,
         area: 'configuracion',
         nivel: 'ESCRIBIR',
@@ -172,7 +179,7 @@ export const MODULOS: Modulo[] = [
         /// y volver para responder la pregunta que se hace
         /// siempre: «¿esto en cuál de los dos se pide?».
         href: '/admin/formularios-publicos',
-        etiqueta: 'Formularios Activos',
+        etiqueta: 'Preinscripción (personas)',
         exacto: true,
         area: 'inscripciones',
       },
