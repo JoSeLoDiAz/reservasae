@@ -3381,6 +3381,7 @@ export class CrmService {
         accionFormacionId: true,
         /// Suelto, para poder exigir que el grupo sea de ESTA sede.
         ubicacionId: true,
+        abierta: true,
         ubicacion: { select: { nombre: true } },
         accionFormacion: {
           select: { convenioId: true, codigo: true, nombre: true },
@@ -3388,6 +3389,25 @@ export class CrmService {
       },
     });
     if (!oferta) throw new NotFoundException('Esa oferta no existe.');
+
+    /**
+     * Una oferta cerrada está cerrada también para el asesor.
+     *
+     * El interruptor existía y solo lo miraba el catálogo público
+     * (`catalogo.service.ts`): en el CRM se leía únicamente para
+     * pintarlo en pantalla, nunca para bloquear. Se podía cerrar una
+     * oferta, dejar de ofrecerla a la calle, y seguir metiéndole gente
+     * desde dentro.
+     *
+     * Se cierra volviendo a abrirla, a propósito: que quede el rastro
+     * de quién la reabrió y no una excepción silenciosa por ficha.
+     */
+    if (!oferta.abierta) {
+      throw new BadRequestException(
+        `«${oferta.accionFormacion.codigo}» está cerrada en ${oferta.ubicacion.nombre}. ` +
+          'Para inscribir aquí hay que volver a abrirla.',
+      );
+    }
 
     if (oferta.accionFormacion.convenioId !== p.convenioId) {
       throw new BadRequestException('Esa oferta es de otro convenio.');
