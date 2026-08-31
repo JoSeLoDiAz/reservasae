@@ -45,6 +45,7 @@ export function ComiteMarketing() {
   const [datos, setDatos] = useState<PlaneacionDePauta | null>(null);
   const [accionId, setAccionId] = useState("");
   const [coberturaId, setCoberturaId] = useState("");
+  const [convenio, setConvenio] = useState("");
   const [conversion, setConversion] = useState(3);
   const [costo, setCosto] = useState(COSTO_POR_OMISION);
 
@@ -67,6 +68,14 @@ export function ComiteMarketing() {
 
   const accion = catalogo?.acciones.find((a) => a.id === accionId);
   const grupos = accion?.grupos ?? [];
+
+  /// Los convenios salen del propio catálogo: uno inventado no
+  /// tendría ninguna acción detrás, y la lista se acota sola a
+  /// los que esta cuenta puede ver.
+  const convenios = [...new Set((catalogo?.acciones ?? []).map((a) => a.convenio))].sort();
+  const visibles = (catalogo?.acciones ?? []).filter(
+    (a) => !convenio || a.convenio === convenio,
+  );
 
   /// Las cinco columnas calculadas, en un sitio: la tabla y su
   /// fila de totales las necesitan iguales.
@@ -98,6 +107,37 @@ export function ComiteMarketing() {
       <div className="rounded-lg border border-borde bg-superficie px-4 py-2.5">
         <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
           <div className="flex items-center gap-2">
+            <p className="shrink-0 text-[0.6875rem] font-medium text-texto-suave">Convenio</p>
+            <select
+              className={`${CLASE_CONTROL} max-w-[11rem]`}
+              value={convenio}
+              onChange={(e) => {
+                const v = e.target.value;
+                setConvenio(v);
+                /// Si la acción elegida no es de ese convenio,
+                /// se pasa a la primera que sí: dejarla puesta
+                /// enseñaría una tabla que el filtro dice no
+                /// estar mirando.
+                const quedan = (catalogo?.acciones ?? []).filter(
+                  (a) => !v || a.convenio === v,
+                );
+                if (!quedan.some((a) => a.id === accionId)) {
+                  setAccionId(quedan[0]?.id ?? "");
+                  setCoberturaId("");
+                }
+              }}
+              aria-label="Convenio"
+            >
+              <option value="">Ambos convenios</option>
+              {convenios.map((c) => (
+                <option key={c} value={c}>
+                  {c}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="flex items-center gap-2">
             <p className="shrink-0 text-[0.6875rem] font-medium text-texto-suave">
               Acción de formación
             </p>
@@ -106,7 +146,7 @@ export function ComiteMarketing() {
                 alto={32}
                 marcador="Elija una acción"
                 valor={accionId}
-                opciones={(catalogo?.acciones ?? []).map((a) => ({
+                opciones={visibles.map((a) => ({
                   valor: a.id,
                   etiqueta: `${a.codigo} · ${bonito(a.nombre)}`,
                   detalle: a.convenio,
