@@ -347,6 +347,8 @@ export type GrupoCronograma = {
     nombre: string;
     tipo: string;
     cupos: number;
+    /// El tope duro de esa sede, sobrecupo incluido.
+    tope: number;
     inscritos: number;
   }>;
 };
@@ -384,6 +386,24 @@ export const cronogramaApi = {
     },
   ) =>
     pedir<{ actualizado: boolean }>(`/admin/cronograma/grupos/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(datos),
+    }),
+
+  /// Los cupos de un grupo EN UNA SEDE.
+  ///
+  /// El tope de la oferta se recalcula solo como la suma de las suyas,
+  /// y vuelve en la respuesta para poder ensenarlo sin recargar.
+  actualizarCupos: (
+    coberturaId: string,
+    datos: { cuposBase?: number; cuposMaximos?: number },
+  ) =>
+    pedir<{
+      coberturaId: string;
+      cuposBase: number;
+      cuposMaximos: number;
+      topeDeLaOferta: number;
+    }>(`/admin/cronograma/coberturas/${coberturaId}/cupos`, {
       method: "PATCH",
       body: JSON.stringify(datos),
     }),

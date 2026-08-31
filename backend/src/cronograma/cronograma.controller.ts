@@ -4,7 +4,7 @@ import { RolAdmin } from '../../generated/prisma';
 import { AmbitoActual } from '../admin/admin-actual.decorator';
 import { AdminGuard, Requiere, Roles, type Ambito } from '../admin/admin.guard';
 import { CronogramaService } from './cronograma.service';
-import { ActualizarGrupoDto } from './dto';
+import { ActualizarCuposDto, ActualizarGrupoDto } from './dto';
 
 /** El calendario de los grupos. Lo ve todo el mundo. */
 @Controller('admin/cronograma')
@@ -30,5 +30,22 @@ export class CronogramaController {
     @AmbitoActual() ambito: Ambito,
   ) {
     return this.cronograma.actualizarGrupo(id, dto, ambito.convenios);
+  }
+
+  /**
+   * Los cupos de un grupo en una sede.
+   *
+   * Mismo permiso que las fechas: repartir plazas entre departamentos
+   * cambia lo que se le prometio al SENA por cada uno, y mueve el tope
+   * de la oferta entera.
+   */
+  @Patch('coberturas/:id/cupos')
+  @Requiere('configuracion', 'ESCRIBIR')
+  actualizarCupos(
+    @Param('id') id: string,
+    @Body() dto: ActualizarCuposDto,
+    @AmbitoActual() ambito: Ambito,
+  ) {
+    return this.cronograma.actualizarCupos(id, dto, ambito.convenios);
   }
 }
