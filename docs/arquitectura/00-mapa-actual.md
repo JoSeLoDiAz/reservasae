@@ -563,31 +563,67 @@ Ordenados por lo que cuesta si pasa.
 9. **Una violación de `CHECK` sale como 500 crudo.** No hay `ExceptionFilter` global. Las 17
    barreras de la base existen, pero al usuario le llegan como error del servidor. `CONFIRMADO EN CÓDIGO`.
 
-10. **`Matricula` y `VigiaDeCupos` arrancan siempre y sin candado.** Con dos réplicas del backend
-    corren duplicados. `CONFIRMADO EN CÓDIGO`.
+10. **`Matricula` y `VigiaDeCupos` arrancan siempre y sin candado**, a diferencia de los tres
+    workers, que sí tienen interruptor (`matricula.ts:35-38`, `vigia-de-cupos.ts:34-37`,
+    providers incondicionales en `crm.module.ts:41` y `:43`).
+
+    Dentro de una sede no hay duplicado: `container_name: reservasae_backend` impide escalar.
+    **El riesgo está entre sedes.** `promover.sh` **no apaga a la sede relevada** — deja un
+    PENDIENTE por escrito (`:97-103`) para que un humano entre por ssh a rendirla, y avisa:
+    *"la sede caída seguirá escribiendo en su propia base hasta que se rinda"*. Y
+    `recuperar-mando.sh:85` promueve con `FORZAR=si`, que anula el guardia
+    *"el principal sigue atendiendo"* de `promover.sh:33-39`.
+
+    Es decir: **hay ventanas reales con dos backends escribiendo**, acotadas por
+    `autorendirse.timer` si está instalado, o indefinidas si no.
+    **Viola INV-9.** `CONFIRMADO EN CÓDIGO`. Cómo comprobarlo en la máquina real:
+    [`docs/operacion/comprobaciones-en-servidor.md`](../operacion/comprobaciones-en-servidor.md).
 
 ---
 
 ## SUPUESTOS
 
-Lo que asumí por falta de información. Cada uno necesita tu respuesta para cerrarse.
+Lo que asumí por falta de información.
 
-1. **`SUPUESTO`: producción corre hoy una sola réplica del backend.** Si no, el punto 10 de
-   arriba ya está ocurriendo. *Necesito: cuántas instancias hay levantadas.*
-2. **`SUPUESTO`: el cargue masivo de reservas no se usa todavía en producción.** Si ya se usa,
-   el hallazgo 1 no es un riesgo futuro sino un descuadre presente. *Necesito: ¿alguien ha
-   subido ese `.xlsx` alguna vez?*
-3. **`SUPUESTO`: `scripts/rendirse.sh` solo lo ejecuta un operador a mano.** Hay timers de
-   systemd de "autorendirse" en `docs/systemd/`. *Necesito: ¿están instalados y activos?*
+> **Los supuestos 1, 2 y 3 ya están cerrados** hasta donde el repositorio puede cerrarlos. El
+> dueño del proyecto no construyó la infraestructura, así que se investigaron en vez de
+> preguntarse. Lo que queda de ellos son comprobaciones en la máquina real, con los comandos
+> escritos en
+> [`docs/operacion/comprobaciones-en-servidor.md`](../operacion/comprobaciones-en-servidor.md).
+> **Mientras no se ejecuten, se opera dando por hecho el caso pesimista.**
+
+1. **~~Producción corre una sola réplica del backend~~ · CERRADO.** Dentro de una sede, sí:
+   `container_name: reservasae_backend` (`docker-compose.yml:18`) impide escalar, y nginx
+   apunta a uno solo. **Pero entre sedes hay ventana de split-brain**: ver hallazgo crítico 10.
+2. **~~El cargue masivo de reservas no se usa todavía~~ · CERRADO como pregunta, abierto como
+   dato.** Sí deja rastro: una fila con `entidad='reserva'` y `entidadId='cargue-masivo'`
+   (`plantillas.service.ts:407-414`). **Pero es cota inferior, no prueba**: se escribe fuera
+   de transacción y `AuditoriaService.registrar` se traga sus excepciones
+   (`auditoria.service.ts:116-135`). La consulta que sí lo detecta —tandas de reservas
+   tocadas sin `MovimientoReserva`— está en el documento de comprobaciones.
+3. **~~`rendirse.sh` solo lo ejecuta un operador~~ · CERRADO.** Existe `autorendirse.timer`
+   (cada 2 min) en `docs/systemd/`. Si está instalado, **la destrucción del volumen de
+   Postgres (`rendirse.sh:90-92`) puede ocurrir automática y desatendida.** Queda comprobar si
+   lo está.
 4. **`SUPUESTO`: el reporte al SEP es el entregable contractual con el SENA.** Ningún frente lo
    inventarió a fondo. *Necesito: confirmarlo, para priorizarlo en Fase 1.*
 5. **`SUPUESTO`: `CLAUDE.md` y `docs/diseno/DECISIONES.md` siguen vigentes.** `CLAUDE.md` declara
    que DECISIONES.md manda sobre todo. *Necesito: ¿sigue siendo así, o han quedado atrás?*
 6. **`SUPUESTO`: las carpetas `bosquejo*` son historia y se pueden ignorar.** No entran en ningún
    build. *Necesito: confirmar que no hay nada vivo ahí antes de tratarlas como ruido.*
-7. **`SUPUESTO`: no hay copia de seguridad automática hoy.** Solo encontré el `pg_dump` de
-   `rendirse.sh`. *Necesito: si existe algo fuera del repo (un cron del servidor, un snapshot
-   del proveedor), dímelo — cambia por completo el plan de migración.*
+7. **~~No hay copia de seguridad automática~~ · CERRADO en el repositorio, pendiente en el
+   servidor.** Ninguno de los seis `.timer` usa `OnCalendar` y ninguno respalda nada. El único
+   `pg_dump` (`rendirse.sh:57-63`) lo dispara un failover —no el reloj—, escribe sin comprimir
+   en el home de la máquina cuyo volumen se borra 30 líneas después, y **se autoborra si sale
+   vacío** (`:63`).
+
+   **Y la replicación no tapa ese hueco.** Es física: replica también el DDL — el propio
+   `CLAUDE.md:2804-2806` lo dice, comprobado creando y borrando una tabla. Un `DROP TABLE` o
+   un `DELETE` **llega a las tres sedes en segundos**. Protege contra que se queme un
+   servidor; no contra un error humano ni contra una migración mala.
+
+   `NO ENCONTRADO`: archivado de WAL, PITR, `pgbackrest`, `barman`, `wal-g`, ni una sola línea
+   sobre cómo restaurar. *Queda comprobar en el servidor si hay algo fuera del repo.*
 
 ---
 
