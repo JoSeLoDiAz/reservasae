@@ -6,6 +6,7 @@ import { useEffect, useMemo, useState } from "react";
 import { IconoOrganizaciones } from "@/components/admin/iconos";
 import { Aviso } from "@/components/admin/marco-admin";
 import { Pildora, Vacio } from "@/components/admin/piezas";
+import { PropuestasPendientes } from "@/components/admin/propuestas-pendientes";
 import { Tabla, type Columna } from "@/components/admin/tabla";
 import { CarguePlantilla } from "@/components/admin/cargue-plantilla";
 import { bonito, ErrorApi, enMayusculas } from "@/lib/api";
@@ -32,7 +33,67 @@ const CLASE_SUGERIDO = "font-medium text-aviso";
  * El maestro de organizaciones: una fila por NIT, con lo que
  * se sabe de cada una y si eso alcanza para reportarla.
  */
-export default function PaginaInstituciones() {
+type Vista = "banco" | "pendientes";
+
+/**
+ * El banco de empresas, con sus propuestas al lado.
+ *
+ * «Por revisar» era una pagina huerfana en /instituciones/pendientes:
+ * no estaba en el menu y solo se llegaba escribiendo la URL, asi que
+ * las propuestas del buscador web se quedaban ahi sin que nadie supiera
+ * que existian. Ahora es una pestania de la pantalla donde se buscan.
+ *
+ * Se monta solo la que se mira: las dos piden datos distintos.
+ */
+export default function PaginaBancoDeEmpresas() {
+  const [vista, setVista] = useState<Vista>("banco");
+
+  useEffect(() => {
+    try {
+      const guardada = window.localStorage.getItem("instituciones:vista");
+      if (guardada === "banco" || guardada === "pendientes") setVista(guardada);
+    } catch {
+      // navegador sin almacenamiento: se queda con la de por defecto
+    }
+  }, []);
+
+  function cambiar(a: Vista) {
+    setVista(a);
+    try {
+      window.localStorage.setItem("instituciones:vista", a);
+    } catch {
+      // no poder recordarlo no es motivo para no cambiar
+    }
+  }
+
+  return (
+    <div className="flex min-h-0 grow flex-col">
+      <div
+        role="tablist"
+        aria-label="Qué mirar"
+        className="m-4 flex w-fit gap-1 self-start rounded-lg border border-borde bg-superficie p-1"
+      >
+        {(["banco", "pendientes"] as const).map((v) => (
+          <button
+            key={v}
+            role="tab"
+            aria-selected={vista === v}
+            onClick={() => cambiar(v)}
+            className={`sin-aro rounded-md px-4 py-1.5 text-[0.78125rem] font-semibold transition ${
+              vista === v ? "bg-marca-suave text-marca" : "text-texto-suave hover:text-texto"
+            }`}
+          >
+            {v === "banco" ? "Empresas registradas" : "Por revisar"}
+          </button>
+        ))}
+      </div>
+
+      {vista === "banco" ? <Banco /> : <PropuestasPendientes />}
+    </div>
+  );
+}
+
+function Banco() {
   const [listado, setListado] = useState<Listado | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [cargando, setCargando] = useState(true);
