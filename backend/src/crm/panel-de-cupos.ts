@@ -13,11 +13,7 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { ventanaDe, type VentanaInscripcion } from './calendario-inscripcion';
 import { repartirCupos, type CuposDeLaOferta } from './cupos';
-
-/// Ocupa silla quien esta inscrito o mas alla. La misma lista
-/// que `ETAPAS_VIVAS`; se repite aqui para no arrastrar todo
-/// `crm.service.ts` a un modulo que solo cuenta.
-const OCUPAN_SILLA = ['INSCRITO', 'EN_FORMACION', 'CERTIFICADO'] as const;
+import { OCUPAN_SILLA } from './etapas';
 
 export type PanelDeOferta = {
   ofertaId: string;

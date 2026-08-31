@@ -21,17 +21,14 @@ import {
   type FilaF7,
 } from './formato-f7';
 import * as usoDirecto from './formato-uso-directo';
+import { ETAPAS_DEL_REPORTE } from '../etapas';
 
 export type Formato = 'uso-directo' | 'cargue-sep' | 'f7';
 
 /// Solo quien ya tiene silla. Se dice cuáles entran, no
 /// cuáles se excluyen: por descarte entraría INTERESADO, que es
 /// un nombre que alguien tecleó y saldría como ACTIVO.
-const ETAPAS_DEL_REPORTE: EtapaParticipante[] = [
-  'INSCRITO',
-  'EN_FORMACION',
-  'CERTIFICADO',
-];
+
 
 type Excluido = {
   /// El id de la PARTICIPACIÓN, no el de la persona.

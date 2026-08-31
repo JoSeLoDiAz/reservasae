@@ -61,6 +61,7 @@ import {
   siglaDocumento,
   TAMANOS_EMPRESA_SEP,
 } from './catalogos-sep';
+import { OCUPAN_SILLA } from './etapas';
 import { PrismaService } from '../prisma/prisma.service';
 import {
   ActualizarParticipanteDto,
@@ -102,11 +103,7 @@ const TOPE_POR_PAGINA = 300;
  * ofertas, y puede destapar sobrecupos que antes quedaban
  * escondidos detras de leads que nunca se inscribieron.
  */
-export const ETAPAS_VIVAS: EtapaParticipante[] = [
-  'INSCRITO',
-  'EN_FORMACION',
-  'CERTIFICADO',
-];
+export const ETAPAS_VIVAS = OCUPAN_SILLA;
 
 /// De estas no se sale sin explicar por que.
 const ETAPAS_CON_MOTIVO: EtapaParticipante[] = [

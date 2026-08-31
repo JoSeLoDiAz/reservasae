@@ -29,6 +29,7 @@
  */
 
 import type { EtapaParticipante } from '../../generated/prisma';
+import { OCUPAN_SILLA } from './etapas';
 
 /// Haber pisado el aula, se siga dentro o no.
 const EN_EL_AULA: EtapaParticipante[] = [
@@ -64,11 +65,7 @@ const ENTRAR_AL_AULA: EtapaParticipante[] = ['INSCRITO', 'EN_FORMACION'];
  * Las cuatro salidas del aula NO estan: al retirarse se libera
  * la silla, asi que volver consume una nueva.
  */
-const OCUPA_SILLA: EtapaParticipante[] = [
-  'INSCRITO',
-  'EN_FORMACION',
-  'CERTIFICADO',
-];
+const OCUPA_SILLA = OCUPAN_SILLA;
 
 /**
  * Si hay que comprobar datos, autorización, oferta y contacto.
