@@ -7,6 +7,7 @@ import { Aviso } from "@/components/admin/marco-admin";
 import { Cifra, Esqueleto, Vacio } from "@/components/admin/piezas";
 import { Desplegable } from "@/components/admin/desplegable";
 import { IconoFormacion } from "@/components/admin/iconos";
+import { CronogramaVista } from "@/components/admin/cronograma-vista";
 import { adminApi, type AccionAdmin } from "@/lib/admin-api";
 import { bonito, ErrorApi } from "@/lib/api";
 
@@ -16,7 +17,76 @@ const MODALIDAD = {
   HIBRIDA: "Híbrido",
 } as const;
 
-export default function PaginaAcciones() {
+type Vista = "catalogo" | "cronograma";
+
+/**
+ * Las acciones de formacion y sus fechas, en una sola puerta.
+ *
+ * Eran dos entradas del menu con LA MISMA lista debajo: agrupada igual
+ * por convenio y con el mismo buscador. El codigo viejo del cronograma
+ * ya lo decia --«son las dos caras de la misma lista»--. Lo que cambia
+ * es el zoom: en «Catalogo» cada accion es una fila con su interruptor
+ * de publicar; en «Cronograma» se abre y da sus grupos con sus fechas.
+ *
+ * Se monta SOLO la pestania que se mira, y eso no es cosmetica: la
+ * consulta del cronograma trae todas las acciones por sus grupos por
+ * sus coberturas, con un conteo de participantes por cobertura. Tenerla
+ * montada siempre la dispararia en cada visita a esta pantalla.
+ *
+ * Los permisos no cambian: el backend exige configuracion:ESCRIBIR para
+ * mover una fecha, y la vista mira lo mismo antes de dejar editar.
+ */
+export default function PaginaFormacion() {
+  const [vista, setVista] = useState<Vista>("catalogo");
+
+  useEffect(() => {
+    try {
+      const guardada = window.localStorage.getItem("formacion:vista");
+      if (guardada === "catalogo" || guardada === "cronograma") setVista(guardada);
+    } catch {
+      // navegador sin almacenamiento: se queda con la de por defecto
+    }
+  }, []);
+
+  function cambiar(a: Vista) {
+    setVista(a);
+    try {
+      window.localStorage.setItem("formacion:vista", a);
+    } catch {
+      // no poder recordarlo no es motivo para no cambiar
+    }
+  }
+
+  return (
+    <div>
+      <div className="no-imprimir px-4 pt-4">
+        <div
+          role="tablist"
+          aria-label="Qué mirar"
+          className="mt-3 flex w-fit gap-1 rounded-lg border border-borde bg-superficie p-1"
+        >
+          {(["catalogo", "cronograma"] as const).map((v) => (
+            <button
+              key={v}
+              role="tab"
+              aria-selected={vista === v}
+              onClick={() => cambiar(v)}
+              className={`sin-aro rounded-md px-4 py-1.5 text-[0.78125rem] font-semibold transition ${
+                vista === v ? "bg-marca-suave text-marca" : "text-texto-suave hover:text-texto"
+              }`}
+            >
+              {v === "catalogo" ? "Catálogo" : "Cronograma"}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {vista === "catalogo" ? <Catalogo /> : <CronogramaVista />}
+    </div>
+  );
+}
+
+function Catalogo() {
   const [acciones, setAcciones] = useState<AccionAdmin[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [ocupada, setOcupada] = useState<string | null>(null);
@@ -88,9 +158,6 @@ export default function PaginaAcciones() {
   return (
     <div className="flex flex-col gap-3 px-4 pt-4 pb-6">
       <div className="no-imprimir">
-        <h1 className="text-[1.125rem] font-bold tracking-[-0.02em] text-titulo">
-          Acciones de formación
-        </h1>
         <p className="mt-0.5 text-[0.78125rem] text-texto-suave">
           Publique u oculte cada acción. Ocultar no cancela nada: las reservas hechas
           siguen vivas y contando, la acción solo desaparece del sitio público.

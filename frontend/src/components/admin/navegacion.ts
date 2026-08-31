@@ -45,22 +45,24 @@ export const MODULOS: Modulo[] = [
     descripcion: 'Las fechas de la formación. De aquí cuelga el resto.',
     enlaces: [
       {
-        /// Primero: el cronograma pone fechas a los grupos de
-        /// una acción, así que la acción existe antes.
+        /// Una sola entrada, con dos pestañas dentro.
         ///
-        /// Aquí y no en Configuración: definir una acción de
-        /// formación ES definir el calendario. Sigue pidiendo
-        /// permiso de configuración, que es lo que la deja
-        /// fuera de la vista de quien solo inscribe.
+        /// Eran «Acciones de Formación» y «Cronograma», y
+        /// debajo tenían LA MISMA lista: agrupada igual por
+        /// convenio y con el mismo buscador. El código del
+        /// cronograma ya lo decía —«son las dos caras de la
+        /// misma lista»—. Lo que cambia es el zoom: en
+        /// «Catálogo» cada acción es una fila con su
+        /// interruptor de publicar; en «Cronograma» se abre y
+        /// da sus grupos con sus fechas.
+        ///
+        /// Pide `reserva` y no `configuracion:ESCRIBIR`: es el
+        /// permiso con el que se MIRA, que es lo que tenía el
+        /// cronograma. Mover una fecha o publicar una acción
+        /// sigue exigiendo `configuracion:ESCRIBIR`, y lo
+        /// exige el backend, no el menú.
         href: '/admin/acciones',
         etiqueta: 'Acciones de Formación',
-        area: 'configuracion',
-        nivel: 'ESCRIBIR',
-      },
-      {
-        href: '/admin/cronograma',
-        etiqueta: 'Cronograma',
-        exacto: true,
         area: 'reserva',
       },
     ],
