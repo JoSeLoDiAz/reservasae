@@ -150,43 +150,6 @@ export default function DetalleDeAccion({ params }: { params: Promise<{ id: stri
             <span>{datos.convenio.sigla ?? datos.convenio.nombre}</span>
           </p>
 
-          {/* Los datos de la acción, con su rótulo.
-              Iban todos en una línea separados por puntos --evento,
-              modalidad, horas y el estado--, y ahí «40 horas» y
-              «Publicada» pesaban lo mismo que un separador. Cada uno
-              con su nombre encima se lee de un vistazo. */}
-          <div className="mt-3 flex flex-wrap gap-x-8 gap-y-3 rounded-lg border border-borde bg-superficie-alterna px-4 py-3">
-            <div>
-              <p className="text-[0.625rem] font-semibold tracking-[0.1em] text-texto-suave uppercase">
-                Modalidad
-              </p>
-              <p className="mt-0.5 text-[0.84375rem] font-medium text-titulo">
-                {datos.evento} · {MODALIDAD[datos.modalidad]?.toLowerCase()}
-              </p>
-            </div>
-
-            <div>
-              <p className="text-[0.625rem] font-semibold tracking-[0.1em] text-texto-suave uppercase">
-                Intensidad horaria
-              </p>
-              <p className="mt-0.5 text-[0.84375rem] font-medium text-titulo">
-                {datos.horas ? `${datos.horas} horas` : "Sin definir"}
-              </p>
-            </div>
-
-            <div>
-              <p className="text-[0.625rem] font-semibold tracking-[0.1em] text-texto-suave uppercase">
-                En el sitio público
-              </p>
-              <p
-                className={`mt-0.5 text-[0.84375rem] font-semibold ${
-                  datos.visible ? "text-exito" : "text-texto-suave"
-                }`}
-              >
-                {datos.visible ? "Publicada" : "Oculta"}
-              </p>
-            </div>
-          </div>
         </div>
 
         <div className="flex flex-wrap items-center gap-2.5">
@@ -206,6 +169,47 @@ export default function DetalleDeAccion({ params }: { params: Promise<{ id: stri
           <BotonPdf />
         </div>
       </header>
+
+      {/* Los datos de la acción, con su rótulo.
+          Iban todos en una línea separados por puntos --evento,
+          modalidad, horas y el estado--, y ahí «40 horas» y
+          «Publicada» pesaban lo mismo que un separador.
+
+          A TODO EL ANCHO y en tres columnas, no dentro de la cabecera:
+          allí compartía sitio con el indicador y los botones, la columna
+          quedaba estrecha y cada dato se caía a su propia línea. */}
+      <div className="no-imprimir grid gap-y-3 rounded-lg border border-borde bg-superficie px-5 py-3.5 sm:grid-cols-3 sm:[&>*+*]:border-l sm:[&>*+*]:border-hairline sm:[&>*+*]:pl-6">
+        <div>
+          <p className="text-[0.625rem] font-semibold tracking-[0.1em] text-texto-suave uppercase">
+            Modalidad
+          </p>
+          <p className="mt-0.5 text-[0.84375rem] font-medium text-titulo">
+            {datos.evento} · {MODALIDAD[datos.modalidad]?.toLowerCase()}
+          </p>
+        </div>
+
+        <div>
+          <p className="text-[0.625rem] font-semibold tracking-[0.1em] text-texto-suave uppercase">
+            Intensidad horaria
+          </p>
+          <p className="mt-0.5 text-[0.84375rem] font-medium text-titulo">
+            {datos.horas ? `${datos.horas} horas` : "Sin definir"}
+          </p>
+        </div>
+
+        <div>
+          <p className="text-[0.625rem] font-semibold tracking-[0.1em] text-texto-suave uppercase">
+            En el sitio público
+          </p>
+          <p
+            className={`mt-0.5 text-[0.84375rem] font-semibold ${
+              datos.visible ? "text-exito" : "text-texto-suave"
+            }`}
+          >
+            {datos.visible ? "Publicada" : "Oculta"}
+          </p>
+        </div>
+      </div>
 
       {/* Las tarjetas de Gestion de leads, sobre el fondo. */}
       <div className="no-imprimir flex flex-wrap gap-2.5">
