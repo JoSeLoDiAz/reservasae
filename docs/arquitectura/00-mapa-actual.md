@@ -99,8 +99,12 @@ los tres `package.json`. Todo lo periódico está hecho a mano dentro del proces
 | **`VigiaDeCupos`** | `setInterval` cada 12 h | **arranca SIEMPRE** |
 
 `NO ENCONTRADO: cualquier advisory lock, elección de líder o candado que impida que dos
-backends corran los mismos workers.` Con dos réplicas, `Matricula` y `VigiaDeCupos` corren
-duplicados.
+backends corran los mismos workers.`
+
+**Dentro de una sede eso no puede pasar**: `container_name: reservasae_backend`
+(`docker-compose.yml:18`) impide escalar el servicio. **El riesgo está entre sedes** — ver el
+hallazgo crítico 10 y
+[`docs/operacion/comprobaciones-en-servidor.md`](../operacion/comprobaciones-en-servidor.md).
 
 El cron real de la instalación son **seis timers de systemd** en `docs/systemd/`, y son de
 infraestructura (túnel, base, conmutación entre sedes), no de negocio.
@@ -115,7 +119,7 @@ infraestructura (túnel, base, conmutación entre sedes), no de negocio.
 |---|---|
 | Modelos | 43 (todos con `@@map`) |
 | Enums | 31 |
-| `@@unique` de tabla | 23 · más 6 `@unique` en línea |
+| `@@unique` de tabla | **22** (decía 23; corregido en Fase 1) · más 6 `@unique` en línea |
 | `@@index` | 62 |
 | Claves primarias compuestas | 0 |
 | Migraciones | 43 |
@@ -170,9 +174,19 @@ erDiagram
   PoliticaDatos ||--o{ AutorizacionDatos : "Restrict 1067"
 ```
 
-**La cadena de INV-7 tiene un eslabón suelto.** `LeadEntrante` (`:750`) **no apunta a
-`Persona` ni a `Participante`**. Cuelga de `Convenio` y nada más. La trazabilidad
-`webhook → lead → participante` no se puede recorrer con una consulta. `CONFIRMADO EN CÓDIGO`.
+> ### ⚠️ Corregido en Fase 1 — esto que sigue era FALSO
+>
+> Escribí aquí que `LeadEntrante` no apuntaba a `Persona` ni a `Participante`, y que por eso la
+> cadena de INV-7 estaba rota en el primer eslabón. **No es cierto.** `schema.prisma:783` tiene
+> `participanteId String? @unique`, con su FK en
+> `migrations/20260828090000_mesa_de_entrada_de_leads/`.
+>
+> Lo que **sí** falta es la relación con `Persona`. Y ese `@unique` resulta ser un problema
+> peor: revienta con 500 el segundo lead de la misma persona — hallazgo **A-03** de
+> [`01-auditoria.md`](01-auditoria.md).
+>
+> Lo dejo escrito en su sitio en vez de borrarlo, porque saber qué dimos por bueno y no lo era
+> vale más que un documento que parezca no haberse equivocado nunca.
 
 ### Ausencias estructurales
 
@@ -380,7 +394,7 @@ contador cuadra con `SUM(cuposConfirmados)` (`:140-144`) y que el cupo liberado 
 ### Otras ausencias
 
 - **`NO ENCONTRADO`: job de reconciliación.** Solo un detector manual que imprime el descuadre
-  (`backend/src/crm/estado.ts:44-56`).
+  (`backend/prisma/estado.ts:43-57`).
 - **`NO ENCONTRADO`: ningún `CHECK` sobre `grupos_cobertura`** en las 43 migraciones. Ni
   `cuposBase >= 0` ni `cuposMaximos >= cuposBase`.
 - **`NO ENCONTRADO`: `ExceptionFilter` global.** Una violación de `CHECK` sale como **500 crudo**,
