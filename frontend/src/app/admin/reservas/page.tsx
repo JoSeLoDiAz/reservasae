@@ -392,14 +392,14 @@ function PanelReserva({
             <>
               Se borran <strong>{bonito(reserva.empresa.razonSocial)}</strong> y sus{" "}
               {reserva.cuposConfirmados} cupos en {reserva.oferta.codigo}{" "}
-              {bonito(reserva.oferta.ubicacion)}. Los cupos vuelven a la oferta. Si la
-              organización se queda sin ninguna otra reserva, se borra también. Esto no se
+              {bonito(reserva.oferta.ubicacion)}. Los cupos vuelven a la oferta. La
+              reserva no se borra: queda como cancelada, con su historial. Esto no se
               deshace.
             </>
           }
           alCerrar={() => setBorrando(false)}
           alConfirmar={async () => {
-            await tablerosApi.borrarReserva(reserva.id);
+            await tablerosApi.cancelarReserva(reserva.id);
             setBorrando(false);
             alBorrar();
           }}

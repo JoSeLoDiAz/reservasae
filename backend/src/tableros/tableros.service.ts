@@ -1114,7 +1114,7 @@ export class TablerosService {
    * organización se queda sin ninguna, se va con ella:
    * una empresa sin reservas no es nada.
    */
-  async borrarReserva(id: string, ambito: string[]) {
+  async cancelarReserva(id: string, ambito: string[]) {
     const reserva = await this.prisma.reserva.findFirst({
       where: { id, ...reservaDeConvenio(ambito) },
       include: {
@@ -1129,31 +1129,67 @@ export class TablerosService {
     if (reserva._count.participantes > 0) {
       throw new ConflictException(
         `Esta reserva tiene ${reserva._count.participantes} personas inscritas. ` +
-          'Quítelas primero, o cancele la reserva en vez de borrarla.',
+          'Quítelas de la reserva antes de cancelarla: si no, se quedan ocupando un cupo que ya nadie apartó.',
       );
     }
 
+    /**
+     * Se CANCELA, no se borra.
+     *
+     * Borrarla se llevaba por delante tres cosas que no son suyas: sus
+     * `MovimientoReserva` --que son la auditoría de cada cambio de
+     * cupos, y con ella se reescribían gráficas ya publicadas--, sus
+     * respuestas del formulario, y, si era la última de esa empresa,
+     * la EMPRESA ENTERA. Con la empresa se iba el empleador de los
+     * inscritos que llegaron por su cuenta y nunca vinieron de esa
+     * reserva. Todo eso sin dejar una línea en la auditoría.
+     *
+     * `CANCELADA` ya existía, ya devuelve los cupos y conserva la fila
+     * con su historial. Es lo mismo que hace la pantalla pública.
+     */
     const devueltos = await this.prisma.$transaction(async (tx) => {
-      const cupos = reserva.estado === 'CANCELADA' ? 0 : reserva.cuposConfirmados;
+      if (reserva.estado === 'CANCELADA') return { cupos: 0, yaEstaba: true };
+
+      /// La fila de la oferta, tomada antes de mover su contador: es el
+      /// mismo candado que usan crear, editar y cancelar en reservas.
+      await tx.$queryRaw`SELECT "id" FROM "ofertas" WHERE "id" = ${reserva.ofertaId} FOR UPDATE`;
+
+      const cupos = reserva.cuposConfirmados;
       if (cupos > 0) {
         await tx.oferta.update({
           where: { id: reserva.ofertaId },
           data: { cuposOcupados: { decrement: cupos } },
         });
       }
-      await tx.movimientoReserva.deleteMany({ where: { reservaId: id } });
-      await tx.respuesta.deleteMany({ where: { reservaId: id } });
-      await tx.reserva.delete({ where: { id } });
 
-      const quedan = await tx.reserva.count({ where: { empresaId: reserva.empresaId } });
-      if (quedan === 0) await tx.empresa.delete({ where: { id: reserva.empresaId } });
-      return { cupos, empresaBorrada: quedan === 0 };
+      await tx.reserva.update({
+        where: { id },
+        data: {
+          cuposConfirmados: 0,
+          cuposEnEspera: 0,
+          estado: 'CANCELADA',
+          canceladaEn: new Date(),
+        },
+      });
+
+      await tx.movimientoReserva.create({
+        data: {
+          reservaId: id,
+          accion: 'CANCELACION',
+          confirmadosAntes: reserva.cuposConfirmados,
+          confirmadosDespues: 0,
+          enEsperaAntes: reserva.cuposEnEspera,
+          enEsperaDespues: 0,
+        },
+      });
+
+      return { cupos, yaEstaba: false };
     });
 
     return {
-      borrada: true,
+      cancelada: true,
+      yaEstaba: devueltos.yaEstaba,
       cuposDevueltos: devueltos.cupos,
-      empresaBorrada: devueltos.empresaBorrada,
       organizacion: reserva.empresa.razonSocial,
     };
   }

@@ -1,4 +1,13 @@
-import { Controller, Delete, Get, Param, Query, Res, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  HttpCode,
+  Param,
+  Post,
+  Query,
+  Res,
+  UseGuards,
+} from '@nestjs/common';
 import type { Response } from 'express';
 
 import { EstadoReserva, RolAdmin } from '../../generated/prisma';
@@ -92,12 +101,20 @@ export class TablerosController {
     );
   }
 
-  /** Borra una reserva y devuelve sus cupos. */
-  @Delete('reservas/:id')
+  /**
+   * Cancela una reserva y devuelve sus cupos.
+   *
+   * No hay borrado: borrar se llevaba el historial de cupos, las
+   * respuestas del formulario y, si era la ultima de esa empresa, la
+   * EMPRESA ENTERA --dejando sin empleador a inscritos que nunca
+   * vinieron de esa reserva--.
+   */
+  @Post('reservas/:id/cancelar')
+  @HttpCode(200)
   @Roles(RolAdmin.SUPERADMIN)
   @Requiere('reserva', 'VER')
-  borrarReserva(@Param('id') id: string, @AmbitoActual() ambito: Ambito) {
-    return this.tableros.borrarReserva(id, ambito.convenios);
+  cancelarReserva(@Param('id') id: string, @AmbitoActual() ambito: Ambito) {
+    return this.tableros.cancelarReserva(id, ambito.convenios);
   }
 
   /** Cuántas reservas trajo cada enlace público. */

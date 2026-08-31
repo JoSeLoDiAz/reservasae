@@ -356,13 +356,15 @@ export const tablerosApi = {
 
   formularios: () => pedir<FilaFormulario[]>("/admin/tableros/formularios"),
 
-  borrarReserva: (id: string) =>
+  /// Cancelar, no borrar: borrar se llevaba el historial de cupos y,
+  /// si era la ultima reserva de la empresa, la empresa entera.
+  cancelarReserva: (id: string) =>
     pedir<{
-      borrada: boolean;
+      cancelada: boolean;
+      yaEstaba: boolean;
       cuposDevueltos: number;
-      empresaBorrada: boolean;
       organizacion: string;
-    }>(`/admin/tableros/reservas/${id}`, { method: "DELETE" }),
+    }>(`/admin/tableros/reservas/${id}/cancelar`, { method: "POST" }),
 };
 
 /** Descarga por navegación. */
