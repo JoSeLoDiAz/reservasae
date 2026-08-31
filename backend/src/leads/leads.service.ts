@@ -155,14 +155,25 @@ export class LeadsService {
     if (coincide) {
       await this.avisarQueYaEstaba(lead.id, coincide, datos, esPauta);
       this.log.log(
-        `Lead ${dto.externoId}: ya estaba (por ${coincide.por}). ` +
-          'Queda propuesta para el asesor.',
+        `Lead ${dto.externoId}: ${coincide.firme ? 'ya estaba' : 'se PARECE a uno'} ` +
+          `(por ${coincide.por}). Queda propuesta para el asesor.`,
       );
       return {
-        ...this.vista({ ...lead, participanteId: coincide.participanteId }),
+        /// El id de la ficha, solo si de verdad se ató.
+        ///
+        /// Devolverlo en una coincidencia floja le diría a quien
+        /// llama que el lead YA es esa persona — que es lo mismo
+        /// que haberlo decidido, solo que por fuera.
+        ...this.vista(
+          coincide.firme
+            ? { ...lead, participanteId: coincide.participanteId }
+            : lead,
+        ),
         repetido: false,
-        yaEstaba: true,
+        yaEstaba: coincide.firme,
         encontradoPor: coincide.por,
+        /// Hay a quién parecerse, pero falta confirmarlo.
+        porConfirmar: !coincide.firme,
       };
     }
 
@@ -336,16 +347,40 @@ export class LeadsService {
     }
 
     await this.prisma.$transaction(async (tx) => {
+      /// Solo la coincidencia FIRME ata el lead a la ficha.
+      ///
+      /// `firme` se calculaba y no la leía nadie: se ataba
+      /// `participanteId` y se marcaba CONVERTIDO con cualquier
+      /// coincidencia, también con las del correo y el celular.
+      /// El log decía «queda propuesta para el asesor» y la
+      /// propuesta sí se creaba, pero la decisión ya estaba
+      /// tomada: el lead quedaba pegado a esa persona.
+      ///
+      /// Y es justo el caso contra el que el fichero del cruce
+      /// avisa: una familia comparte buzón y una empresa pone
+      /// el correo de la secretaria en veinte formularios. Un
+      /// lead nuevo caía sobre la ficha de otra persona.
+      ///
+      /// Con documento se ata; con correo o celular se deja
+      /// PENDIENTE y la propuesta espera a que un asesor
+      /// confirme, que es lo que el diseño decía y no hacía.
       await tx.leadEntrante.update({
         where: { id: leadId },
-        data: {
-          participanteId: coincide.participanteId,
-          /// CONVERTIDO: este lead YA es una ficha. No se creó
-          /// una nueva porque ya existía, que es justo lo que
-          /// este cruce evita —el solapamiento de leads.
-          estado: 'CONVERTIDO',
-          motivo: porDondeSeEncontro(coincide),
-        },
+        data: coincide.firme
+          ? {
+              participanteId: coincide.participanteId,
+              /// CONVERTIDO: este lead YA es una ficha. No se
+              /// creó una nueva porque ya existía, que es justo
+              /// lo que este cruce evita.
+              estado: 'CONVERTIDO',
+              motivo: porDondeSeEncontro(coincide),
+            }
+          : {
+              /// Sin atar. El motivo dice a quién se PARECE,
+              /// para que el asesor sepa dónde mirar.
+              estado: 'PENDIENTE',
+              motivo: `Posible repetido — ${porDondeSeEncontro(coincide)}. Confirme antes de unirlos.`,
+            },
       });
 
       /// El toque se deja SIEMPRE, haya o no datos nuevos:

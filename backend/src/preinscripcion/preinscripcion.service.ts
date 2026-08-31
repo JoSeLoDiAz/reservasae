@@ -27,6 +27,7 @@ import {
   NIVELES_OCUPACIONALES_SEP,
 } from '../crm/catalogos-sep';
 import { faltaDeLaPersona } from '../crm/completitud';
+import { normalizarDocumento } from '../comun/documento';
 import { DirectorioService } from '../crm/directorio.service';
 import { aQueOrganizacionSeAta } from './organizacion-de-la-ficha';
 import { entraAlDirectorio } from './entra-al-directorio';
@@ -233,7 +234,25 @@ export class PreinscripcionService {
     const malo = motivoDeIdInvalido(dto);
     if (malo) throw new BadRequestException(malo);
 
-    const documento = dto.numeroDocumento.trim();
+    /// Normalizado, como en TODAS las demás puertas.
+    ///
+    /// Aquí solo se hacía `.trim()`, y esta es la puerta por la
+    /// que entra más gente. `1.020.304.050` y `1020304050` son
+    /// la misma cédula y creaban dos `Persona` distintas: el
+    /// `@@unique` no las ve iguales porque el texto no lo es.
+    ///
+    /// O sea que el duplicado por documento —el que este
+    /// sistema declara imposible, y por lo que no existe
+    /// pantalla de fusionar— sí se podía crear, justo por el
+    /// formulario público. La carga masiva, el panel, la
+    /// búsqueda, la conversión de leads y el webhook ya
+    /// normalizaban; faltaba esta.
+    const documento = normalizarDocumento(dto.numeroDocumento);
+    if (!documento) {
+      throw new BadRequestException(
+        'Ese número de documento no tiene forma de documento.',
+      );
+    }
 
     const domicilio = this.domicilioSep(
       dto.departamentoNombre,
