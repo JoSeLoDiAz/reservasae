@@ -51,8 +51,24 @@ const CAMINO = '/api/webhooks/leads/meta';
 /// que la prueba saliera a internet y volviera a otro
 /// servidor —al de producción, en el peor caso—. 127.0.0.1 y
 /// el puerto propio no se pueden equivocar.
-function aMiMismo(): string {
-  return `http://127.0.0.1:${process.env.PORT ?? 4000}/webhooks/leads/meta`;
+function aMiMismo(peticion: Request, slug: string): string {
+  /// La URL PUBLICA de este gremio, no 127.0.0.1.
+  ///
+  /// La ruta de Meta resuelve el gremio del `Host`, y llamando
+  /// por IP no hay gremio que resolver: no encontraba ni el
+  /// token ni el secreto, y el banco contestaba 403 y 401 como
+  /// si la configuracion estuviera mal. Acusaba a la
+  /// configuracion de un fallo suyo, que es lo peor que puede
+  /// hacer una pantalla cuya razon de ser es decir que falta.
+  ///
+  /// Poner el `Host` a mano NO sirve: `fetch` la descarta -- es
+  /// cabecera prohibida por la especificacion. Comprobado: con
+  /// `fetch` llega `127.0.0.1`.
+  ///
+  /// La direccion sale del Host de ESTA peticion, no de una
+  /// variable: por eso no puede apuntar a otro servidor. Desde
+  /// el panel de pruebas se prueba pruebas.
+  return urlDeDevolucion(peticion, slug);
 }
 
 /**
@@ -259,7 +275,7 @@ export class MetaPruebasController {
     /// devolviera una constante, un reto fijo no lo notaría.
     const reto = `reto-${Date.now()}`;
     const url =
-      `${aMiMismo()}?hub.mode=subscribe` +
+      `${aMiMismo(peticion, gremio)}?hub.mode=subscribe` +
       `&hub.verify_token=${encodeURIComponent(esperado)}` +
       `&hub.challenge=${encodeURIComponent(reto)}`;
 
@@ -321,6 +337,7 @@ export class MetaPruebasController {
   @Requiere('configuracion', 'ESCRIBIR')
   @HttpCode(200)
   async probarAviso(
+    @Req() peticion: Request,
     @Query('cuantos') cuantos?: string,
     @Query('gremio') gremio?: string,
   ) {
@@ -360,7 +377,7 @@ export class MetaPruebasController {
       /// serializar el objeto cambiaría un espacio y la firma
       /// dejaría de cuadrar — y el fallo parecería de Meta
       /// cuando sería nuestro.
-      respuesta = await fetch(aMiMismo(), {
+      respuesta = await fetch(aMiMismo(peticion, gremio), {
         method: 'POST',
         headers: {
           'content-type': 'application/json',
