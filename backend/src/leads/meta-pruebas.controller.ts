@@ -55,6 +55,30 @@ function aMiMismo(): string {
   return `http://127.0.0.1:${process.env.PORT ?? 4000}/webhooks/leads/meta`;
 }
 
+/**
+ * El `Host` que hay que fingir, y por qué hace falta.
+ *
+ * La ruta de Meta resuelve el gremio del `Host` —hay una app
+ * por gremio y es la direccion la que dice de quien es el lead—.
+ * Llamandose a si misma por `127.0.0.1` no hay gremio que
+ * resolver: no encuentra ni el token ni el secreto, y el banco
+ * contestaba 403 en el apreton y 401 en la firma como si la
+ * configuracion estuviera mal. Estaba bien; lo que faltaba era
+ * decir por que puerta entraba la prueba.
+ *
+ * Se manda el mismo host que Meta va a usar, asi que la prueba
+ * recorre exactamente el camino de verdad.
+ */
+function hostDelGremio(peticion: Request, slug: string): string {
+  const host = (peticion.headers.host ?? '').toLowerCase();
+  if (!host || host.startsWith('localhost') || host.startsWith('127.0.0.1')) {
+    return host || 'localhost';
+  }
+  const dominio = host.replace(SOLO_EL_DOMINIO, '');
+  const prefijo = process.env.ENTORNO === 'prueba' ? 'pre-' : '';
+  return `${prefijo}${slug}.${dominio}`;
+}
+
 /// De dónde sale la URL que hay que pegarle a Meta.
 ///
 /// Del Host de ESTA petición: es la dirección por la que el
@@ -210,7 +234,10 @@ export class MetaPruebasController {
   @Post('verificacion')
   @Requiere('configuracion')
   @HttpCode(200)
-  async probarVerificacion(@Query('gremio') gremio?: string) {
+  async probarVerificacion(
+    @Req() peticion: Request,
+    @Query('gremio') gremio?: string,
+  ) {
     /// El gremio va EXPLICITO: cada app de Meta tiene su token
     /// y probar «el» webhook en singular ya no significa nada.
     if (!gremio) {
@@ -238,7 +265,10 @@ export class MetaPruebasController {
 
     let respuesta: globalThis.Response;
     try {
-      respuesta = await fetch(url);
+      respuesta = await fetch(url, {
+        // el gremio va en el Host, como lo mandara Meta
+        headers: { host: hostDelGremio(peticion, gremio) },
+      });
     } catch (e) {
       return {
         pasa: false,
