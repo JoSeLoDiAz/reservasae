@@ -73,6 +73,9 @@ export function ComiteMarketing() {
   /// tendría ninguna acción detrás, y la lista se acota sola a
   /// los que esta cuenta puede ver.
   const convenios = [...new Set((catalogo?.acciones ?? []).map((a) => a.convenio))].sort();
+
+  /// Hay un grupo elegido: la fila deja de hablar de la ciudad entera.
+  const porGrupo = coberturaId !== "";
   const visibles = (catalogo?.acciones ?? []).filter(
     (a) => !convenio || a.convenio === convenio,
   );
@@ -86,7 +89,16 @@ export function ComiteMarketing() {
     leadsOrganicos: number;
     leadsImportados: number;
   }) => {
-    const pendientes = Math.max(0, f.totalCupos - f.inscritos - f.reservados);
+    /// Con un grupo elegido, los reservados NO se restan.
+    ///
+    /// Una empresa aparta cupos en una CIUDAD, no en un grupo: cuando
+    /// aparta todavia no tiene nombres, y a que grupo va cada persona
+    /// se decide despues, una por una. Asi que restarle a un grupo unos
+    /// reservados que pueden acabar todos en el grupo de al lado da un
+    /// numero que no significa nada. Se deja de restar y se deja de
+    /// ensenar; abajo se explica por que.
+    const reservados = porGrupo ? 0 : f.reservados;
+    const pendientes = Math.max(0, f.totalCupos - f.inscritos - reservados);
     const totalLeads = f.leadsOrganicos + f.leadsImportados;
     const sePuedenInscribir = Math.floor(totalLeads / conversion);
     const faltan = Math.max(0, pendientes - sePuedenInscribir);
@@ -232,7 +244,7 @@ export function ComiteMarketing() {
                   <tr>
                     <th>Departamento</th>
                     <th>Total cupos</th>
-                    <th>Reservados</th>
+                    {!porGrupo && <th>Reservados</th>}
                     <th>Inscritos</th>
                     <th>Cupos pend.</th>
                     <th>Leads orgánicos</th>
@@ -251,7 +263,9 @@ export function ComiteMarketing() {
                       <tr key={f.departamento}>
                         <td>{f.departamento}</td>
                         <td className="tabular-nums">{n(f.totalCupos)}</td>
-                        <td className="tabular-nums">{n(f.reservados)}</td>
+                        {!porGrupo && (
+                          <td className="tabular-nums">{n(f.reservados)}</td>
+                        )}
                         <td className="font-semibold text-exito tabular-nums">
                           {n(f.inscritos)}
                         </td>
@@ -275,7 +289,9 @@ export function ComiteMarketing() {
                       <tr className="font-bold">
                         <td>Total</td>
                         <td className="tabular-nums">{n(t.totalCupos)}</td>
-                        <td className="tabular-nums">{n(t.reservados)}</td>
+                        {!porGrupo && (
+                          <td className="tabular-nums">{n(t.reservados)}</td>
+                        )}
                         <td className="text-exito tabular-nums">{n(t.inscritos)}</td>
                         <td className="tabular-nums">{n(c.pendientes)}</td>
                         <td className="tabular-nums">{n(t.leadsOrganicos)}</td>
@@ -293,7 +309,7 @@ export function ComiteMarketing() {
             </div>
 
             <p className="border-t border-borde px-7 py-3 text-[0.6875rem] leading-relaxed text-texto-suave">
-              Cupos pend. = total cupos − inscritos − reservados. Se pueden inscribir =
+              Cupos pend. = total cupos {porGrupo ? "" : "− reservados"} − inscritos. Se pueden inscribir =
               total leads ÷ conversión. Faltan = cupos pendientes − los que se pueden
               inscribir. Leads pauta = faltan × conversión. Costo pauta = leads pauta ×
               costo por lead.
@@ -301,6 +317,15 @@ export function ComiteMarketing() {
               Total cupos y Reservados vienen del CRM; los reservados descuentan cupo
               aunque todavía no figuren como inscritos.
             </p>
+            {porGrupo && (
+              <p className="border-t border-borde px-7 py-3 text-[0.6875rem] leading-relaxed text-texto-suave">
+                Con un grupo elegido no se enseñan los reservados: una empresa aparta
+                cupos en una <strong className="font-medium">ciudad</strong>, no en un
+                grupo. A qué grupo va cada persona se decide después, una por una, así
+                que esos cupos podrían acabar todos en otro grupo. Restarlos aquí daría
+                un número que no significa nada.
+              </p>
+            )}
           </>
         )}
       </Bloque>
