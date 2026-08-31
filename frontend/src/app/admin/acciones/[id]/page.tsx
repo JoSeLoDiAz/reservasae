@@ -139,36 +139,54 @@ export default function DetalleDeAccion({ params }: { params: Promise<{ id: stri
             href="/admin/acciones"
             className="inline-flex items-center gap-1 text-[0.75rem] text-texto-suave transition hover:text-marca"
           >
-            <span aria-hidden="true">&larr;</span> Formación
+            <span aria-hidden="true">&larr;</span> Acciones de formación
           </Link>
           <h1 className="mt-1.5 text-[1.125rem] font-bold leading-snug tracking-[-0.02em] text-titulo">
             {bonito(datos.nombre)}
           </h1>
-          <p className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[0.78125rem] text-texto-suave">
+          <p className="mt-0.5 flex flex-wrap items-center gap-x-2 text-[0.78125rem] text-texto-suave">
             <span className="font-mono text-[0.6875rem]">{datos.codigo}</span>
             <span>·</span>
             <span>{datos.convenio.sigla ?? datos.convenio.nombre}</span>
-            <span>·</span>
-            <span>
-              {datos.evento} {MODALIDAD[datos.modalidad]?.toLowerCase()}
-            </span>
-            {datos.horas && (
-              <>
-                <span>·</span>
-                <span>{datos.horas} horas</span>
-              </>
-            )}
-            {/* El estado, DENTRO de la linea de datos: es un dato
-                mas, como la modalidad o las horas. */}
-            <span>·</span>
-            <span
-              className={`font-semibold ${
-                datos.visible ? "text-exito" : "text-texto-suave"
-              }`}
-            >
-              {datos.visible ? "Publicada" : "Oculta"}
-            </span>
           </p>
+
+          {/* Los datos de la acción, con su rótulo.
+              Iban todos en una línea separados por puntos --evento,
+              modalidad, horas y el estado--, y ahí «40 horas» y
+              «Publicada» pesaban lo mismo que un separador. Cada uno
+              con su nombre encima se lee de un vistazo. */}
+          <div className="mt-3 flex flex-wrap gap-x-8 gap-y-3 rounded-lg border border-borde bg-superficie-alterna px-4 py-3">
+            <div>
+              <p className="text-[0.625rem] font-semibold tracking-[0.1em] text-texto-suave uppercase">
+                Modalidad
+              </p>
+              <p className="mt-0.5 text-[0.84375rem] font-medium text-titulo">
+                {datos.evento} · {MODALIDAD[datos.modalidad]?.toLowerCase()}
+              </p>
+            </div>
+
+            <div>
+              <p className="text-[0.625rem] font-semibold tracking-[0.1em] text-texto-suave uppercase">
+                Intensidad horaria
+              </p>
+              <p className="mt-0.5 text-[0.84375rem] font-medium text-titulo">
+                {datos.horas ? `${datos.horas} horas` : "Sin definir"}
+              </p>
+            </div>
+
+            <div>
+              <p className="text-[0.625rem] font-semibold tracking-[0.1em] text-texto-suave uppercase">
+                En el sitio público
+              </p>
+              <p
+                className={`mt-0.5 text-[0.84375rem] font-semibold ${
+                  datos.visible ? "text-exito" : "text-texto-suave"
+                }`}
+              >
+                {datos.visible ? "Publicada" : "Oculta"}
+              </p>
+            </div>
+          </div>
         </div>
 
         <div className="flex flex-wrap items-center gap-2.5">

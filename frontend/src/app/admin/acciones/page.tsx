@@ -158,9 +158,17 @@ function Catalogo() {
   return (
     <div className="flex flex-col gap-3 px-4 pt-4 pb-6">
       <div className="no-imprimir">
+        {/* La pestaña es para VER el catálogo; publicar es una acción
+            que se hace desde aquí, no lo que la pestaña es. Antes la
+            bajada hablaba solo de publicar y dejaba sin explicar la
+            pantalla. */}
         <p className="mt-0.5 text-[0.78125rem] text-texto-suave">
-          Publique u oculte cada acción. Ocultar no cancela nada: las reservas hechas
-          siguen vivas y contando, la acción solo desaparece del sitio público.
+          Todas las acciones de formación, por convenio, con su ocupación y su estado.
+          Las fechas de sus grupos están en la pestaña «Cronograma».
+        </p>
+        <p className="mt-1 text-[0.71875rem] text-texto-suave">
+          Ocultar no cancela nada: las reservas hechas siguen vivas y contando, la acción
+          solo desaparece del sitio público.
         </p>
       </div>
 
