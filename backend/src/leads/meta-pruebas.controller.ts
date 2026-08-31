@@ -61,16 +61,41 @@ function aMiMismo(): string {
 /// navegador llegó al panel, o sea la que de verdad funciona
 /// desde fuera. Una constante en el `.env` se queda vieja el
 /// día que cambie el dominio y nadie se entera.
-function urlPublica(peticion: Request): string {
-  const host = peticion.headers.host ?? 'localhost:3100';
-  /// `x-forwarded-proto` lo pone nginx. Sin él se mira si el
-  /// host es local: en el servidor siempre hay TLS.
-  const protocolo =
-    (peticion.headers['x-forwarded-proto'] as string | undefined) ??
-    (host.startsWith('localhost') || host.startsWith('127.0.0.1')
-      ? 'http'
-      : 'https');
-  return `${protocolo}://${host}${CAMINO}`;
+/// El dominio, sin la etiqueta del gremio ni la del entorno.
+///
+/// `pre-adecopria.reservasae.com` -> `reservasae.com`.
+const SOLO_EL_DOMINIO = /^(?:pre-)?[a-z0-9-]+\.(?=[a-z0-9-]+\.[a-z]{2,})/;
+
+/**
+ * La URL de devolución de ESTE gremio.
+ *
+ * Antes hacía `base.replace('://', '://' + slug + '.')`, que le
+ * pega la etiqueta del gremio a lo que haya. Mirada desde
+ * `pre-adecopria.reservasae.com` —donde se mira, porque es el
+ * panel del gremio— salía
+ * `adecopria.pre-adecopria.reservasae.com`, que no existe.
+ *
+ * Y es la URL que alguien copia y pega en la consola de Meta.
+ * Una direccion equivocada ahi no falla ruidosamente: Meta
+ * simplemente no entrega, y eso se lee como «el webhook no
+ * funciona».
+ *
+ * Se rehace desde el dominio, conservando el prefijo del
+ * ENTORNO: en pruebas las direcciones llevan `pre-`.
+ */
+function urlDeDevolucion(peticion: Request, slug: string): string {
+  const host = (peticion.headers.host ?? 'localhost:3100').toLowerCase();
+
+  const local = host.startsWith('localhost') || host.startsWith('127.0.0.1');
+  if (local) return `http://${host}${CAMINO}`;
+
+  /// Siempre `https` de cara afuera. `x-forwarded-proto` dice
+  /// `http` porque el TLS termina en Cloudflare y a nginx le
+  /// llega en claro: fiarse de él pinta una URL con http que
+  /// Meta rechaza.
+  const dominio = host.replace(SOLO_EL_DOMINIO, '');
+  const prefijo = process.env.ENTORNO === 'prueba' ? 'pre-' : '';
+  return `https://${prefijo}${slug}.${dominio}${CAMINO}`;
 }
 
 @Controller('admin/pruebas/meta')
@@ -105,8 +130,6 @@ export class MetaPruebasController {
       select: { id: true, slug: true, nombre: true },
       orderBy: { slug: 'asc' },
     });
-
-    const base = urlPublica(peticion);
 
     const gremios = await Promise.all(
       convenios.map(async (c) => {
@@ -150,7 +173,7 @@ export class MetaPruebasController {
           /// La URL de ESTE gremio. Cada app de Meta apunta a
           /// su subdominio, y es la dirección la que dice de
           /// quién es el lead que entra.
-          urlDeDevolucion: base.replace('://', `://${c.slug}.`),
+          urlDeDevolucion: urlDeDevolucion(peticion, c.slug),
           /// El token NO viaja: solo si está puesto. Es una
           /// credencial, y una credencial en pantalla es una
           /// credencial en una captura.
