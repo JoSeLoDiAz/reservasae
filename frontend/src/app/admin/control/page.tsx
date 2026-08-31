@@ -551,10 +551,15 @@ function Cuerpo({ d, adminId, eligio }: { d: Control; adminId: string; eligio: b
 
   return (
     <div className="flex flex-col gap-3">
-      {/* Las cinco cifras van PRIMERO: son el resumen de la pantalla y
-          se leen de un vistazo. Siguen sin bloque y en la escala
-          pequeña, que es lo que las distingue de lo que viene debajo. */}
-      <div className="flex flex-wrap gap-2.5">
+      {/* Las cifras van PRIMERO: son el resumen de la pantalla y se leen
+          de un vistazo. Sin bloque y en la escala pequeña, que es lo que
+          las distingue de lo que viene debajo.
+
+          En REJILLA y no en `flex-wrap`: siete tarjetas sueltas se
+          rompían donde cabían y dejaban una segunda fila corta y
+          desalineada. Con columnas fijas caen parejas —siete en pantalla
+          ancha, cuatro y tres en portátil— y se leen como una banda. */}
+      <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-7">
         <Cifra
           etiqueta="Leads que llegaron"
           valor={n(leadsDelPeriodo)}
