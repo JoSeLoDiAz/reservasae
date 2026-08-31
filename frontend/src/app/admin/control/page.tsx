@@ -34,6 +34,20 @@ import {
 } from "@/lib/crm-api";
 import { useDatosVivos } from "@/lib/datos-vivos";
 
+/**
+ * Cortes apilados dentro de un bloque, con una línea entre ellos.
+ *
+ * Los `Bloque plano` van sin borde a propósito —veinte bordes se leen
+ * como veinte pantallas pegadas—, pero sin NADA en medio tampoco se ve
+ * dónde acaba uno y empieza el siguiente. Una línea fina y aire basta.
+ */
+const CORTES_APILADOS =
+  "divide-y divide-hairline [&>*]:py-7 [&>*:first-child]:pt-0 [&>*:last-child]:pb-0";
+
+/** Lo mismo cuando los cortes van uno al lado del otro. */
+const CORTES_EN_COLUMNAS =
+  "lg:[&>*+*]:border-l lg:[&>*+*]:border-hairline lg:[&>*+*]:pl-7";
+
 /** Las cuatro del embudo más su salida, en orden. */
 const EMBUDO: Etapa[] = [
   "INTERESADO",
@@ -207,15 +221,33 @@ export default function PaginaControl() {
             Cómo va la inscripción contra la meta, y de dónde viene cada lead.
           </p>
         </div>
-        {/* solo en Análisis: es de esos datos, y en la otra
-            pestaña diría una hora que no le corresponde */}
+        {/* Los filtros van aquí, a la altura del título: mandan sobre
+            toda la pantalla y ocupaban una franja entera ellos solos.
+            El indicador va al lado porque es de estos datos, y en la
+            otra pestaña diría una hora que no le corresponde. */}
         {pestana === "metas" && (
-          <IndicadorActualizacion
-            actualizadoEn={vivos.actualizadoEn}
-            refrescando={vivos.refrescando}
-            desactualizado={vivos.desactualizado}
-            alRefrescar={vivos.refrescar}
-          />
+          <div className="flex flex-wrap items-center justify-end gap-x-5 gap-y-2">
+            <ControlesDePeriodo
+              rango={rango}
+              alCambiarRango={setRango}
+              desde={desde}
+              alCambiarDesde={setDesde}
+              hasta={hasta}
+              alCambiarHasta={setHasta}
+              contra={contra}
+              alCambiarContra={setContra}
+              contraDesde={contraDesde}
+              alCambiarContraDesde={setContraDesde}
+              contraHasta={contraHasta}
+              alCambiarContraHasta={setContraHasta}
+            />
+            <IndicadorActualizacion
+              actualizadoEn={vivos.actualizadoEn}
+              refrescando={vivos.refrescando}
+              desactualizado={vivos.desactualizado}
+              alRefrescar={vivos.refrescar}
+            />
+          </div>
         )}
       </header>
 
@@ -245,105 +277,17 @@ export default function PaginaControl() {
 
       {pestana === "metas" && (
         <>
-      <div className="rounded-lg border border-borde bg-superficie px-4 py-2.5">
-        <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
-          <div className="flex flex-wrap items-center gap-2">
-            <p className="shrink-0 text-[0.6875rem] font-medium text-texto-suave">Periodo</p>
-            <div className="flex flex-wrap items-center gap-2">
-              <select
-                className={`${CLASE_CONTROL} max-w-[14rem]`}
-                value={rango}
-                onChange={(e) => setRango(e.target.value as Rango)}
-                aria-label="Periodo"
-              >
-                {RANGOS.map((r) => (
-                  <option key={r} value={r}>
-                    {ETIQUETA_RANGO[r]}
-                  </option>
-                ))}
-              </select>
-
-              {rango === "PERSONALIZADO" && (
-                <>
-                  <input
-                    type="date"
-                    className={`${CLASE_CONTROL} max-w-[11rem]`}
-                    value={desde}
-                    max={hasta || undefined}
-                    onChange={(e) => setDesde(e.target.value)}
-                    aria-label="Desde"
-                  />
-                  <span className="text-sm text-texto-suave">y</span>
-                  <input
-                    type="date"
-                    className={`${CLASE_CONTROL} max-w-[11rem]`}
-                    value={hasta}
-                    min={desde || undefined}
-                    onChange={(e) => setHasta(e.target.value)}
-                    aria-label="Hasta"
-                  />
-                </>
-              )}
-            </div>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-2">
-            <p className="shrink-0 text-[0.6875rem] font-medium text-texto-suave">
-              Comparar con
-            </p>
-            <div className="flex flex-wrap items-center gap-2">
-              <select
-                className={`${CLASE_CONTROL} max-w-[14rem]`}
-                value={contra}
-                onChange={(e) => setContra(e.target.value as Rango | "AUTO")}
-                aria-label="Comparar con"
-              >
-                <option value="AUTO">El periodo anterior</option>
-                {RANGOS.map((r) => (
-                  <option key={r} value={r}>
-                    {ETIQUETA_RANGO[r]}
-                  </option>
-                ))}
-              </select>
-
-              {contra === "PERSONALIZADO" && (
-                <>
-                  <input
-                    type="date"
-                    className={`${CLASE_CONTROL} max-w-[11rem]`}
-                    value={contraDesde}
-                    max={contraHasta || undefined}
-                    onChange={(e) => setContraDesde(e.target.value)}
-                    aria-label="Comparar desde"
-                  />
-                  <span className="text-sm text-texto-suave">y</span>
-                  <input
-                    type="date"
-                    className={`${CLASE_CONTROL} max-w-[11rem]`}
-                    value={contraHasta}
-                    min={contraDesde || undefined}
-                    onChange={(e) => setContraHasta(e.target.value)}
-                    aria-label="Comparar hasta"
-                  />
-                </>
-              )}
-            </div>
-          </div>
-        {duracionDistinta && (
-          <p className="mt-4 rounded-xl bg-aviso-suave px-3 py-2 text-xs text-aviso">
-            <strong className="font-semibold">Los dos periodos no duran lo mismo:</strong>{" "}
-            {ETIQUETA_RANGO[rango].toLowerCase()} abarca {textoDuracion(diasA)} y{" "}
-            {ETIQUETA_RANGO[contra as Rango].toLowerCase()} abarca {textoDuracion(diasB)}.
-            Comparar volumen entre ventanas de distinta duración no significa nada —la más
-            larga gana siempre—; la media de días de lead a inscrito sí se puede leer.
-          </p>
-        )}
-
-          <p className="text-[0.6875rem] text-texto-suave">
-            Acota los inscritos, el ritmo y las series por día; el resto es la situación de hoy.
-          </p>
-        </div>
-      </div>
+      {/* El aviso no cabe arriba con los filtros: es prosa, y solo
+          aparece cuando los dos periodos no duran lo mismo. */}
+      {duracionDistinta && (
+        <p className="rounded-xl bg-aviso-suave px-3 py-2 text-xs text-aviso">
+          <strong className="font-semibold">Los dos periodos no duran lo mismo:</strong>{" "}
+          {ETIQUETA_RANGO[rango].toLowerCase()} abarca {textoDuracion(diasA)} y{" "}
+          {ETIQUETA_RANGO[contra as Rango].toLowerCase()} abarca {textoDuracion(diasB)}.
+          Comparar volumen entre ventanas de distinta duración no significa nada —la más
+          larga gana siempre—; la media de días de lead a inscrito sí se puede leer.
+        </p>
+      )}
 
       {vivos.error ? (
         <Aviso tipo="error">{vivos.error}</Aviso>
@@ -365,6 +309,124 @@ export default function PaginaControl() {
       </Bloque>
         </>
       )}
+    </div>
+  );
+}
+
+/**
+ * Los dos desplegables del periodo, para la cabecera.
+ *
+ * Vivían en una franja propia debajo de las pestañas, con borde y fondo,
+ * ocupando el ancho entero para dos selects. Aquí arriba pesan lo que
+ * tienen que pesar: son el filtro de la pantalla, no un bloque más.
+ */
+function ControlesDePeriodo({
+  rango,
+  alCambiarRango,
+  desde,
+  alCambiarDesde,
+  hasta,
+  alCambiarHasta,
+  contra,
+  alCambiarContra,
+  contraDesde,
+  alCambiarContraDesde,
+  contraHasta,
+  alCambiarContraHasta,
+}: {
+  rango: Rango;
+  alCambiarRango: (r: Rango) => void;
+  desde: string;
+  alCambiarDesde: (v: string) => void;
+  hasta: string;
+  alCambiarHasta: (v: string) => void;
+  contra: Rango | "AUTO";
+  alCambiarContra: (r: Rango | "AUTO") => void;
+  contraDesde: string;
+  alCambiarContraDesde: (v: string) => void;
+  contraHasta: string;
+  alCambiarContraHasta: (v: string) => void;
+}) {
+  return (
+    <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+      <div className="flex flex-wrap items-center gap-2">
+        <p className="shrink-0 text-[0.6875rem] font-medium text-texto-suave">Periodo</p>
+        <select
+          className={`${CLASE_CONTROL} max-w-[12rem]`}
+          value={rango}
+          onChange={(e) => alCambiarRango(e.target.value as Rango)}
+          aria-label="Periodo"
+        >
+          {RANGOS.map((r) => (
+            <option key={r} value={r}>
+              {ETIQUETA_RANGO[r]}
+            </option>
+          ))}
+        </select>
+
+        {rango === "PERSONALIZADO" && (
+          <>
+            <input
+              type="date"
+              className={`${CLASE_CONTROL} max-w-[10rem]`}
+              value={desde}
+              max={hasta || undefined}
+              onChange={(e) => alCambiarDesde(e.target.value)}
+              aria-label="Desde"
+            />
+            <span className="text-sm text-texto-suave">y</span>
+            <input
+              type="date"
+              className={`${CLASE_CONTROL} max-w-[10rem]`}
+              value={hasta}
+              min={desde || undefined}
+              onChange={(e) => alCambiarHasta(e.target.value)}
+              aria-label="Hasta"
+            />
+          </>
+        )}
+      </div>
+
+      <div className="flex flex-wrap items-center gap-2">
+        <p className="shrink-0 text-[0.6875rem] font-medium text-texto-suave">
+          Comparar con
+        </p>
+        <select
+          className={`${CLASE_CONTROL} max-w-[12rem]`}
+          value={contra}
+          onChange={(e) => alCambiarContra(e.target.value as Rango | "AUTO")}
+          aria-label="Comparar con"
+        >
+          <option value="AUTO">El periodo anterior</option>
+          {RANGOS.map((r) => (
+            <option key={r} value={r}>
+              {ETIQUETA_RANGO[r]}
+            </option>
+          ))}
+        </select>
+
+        {contra === "PERSONALIZADO" && (
+          <>
+            <input
+              type="date"
+              className={`${CLASE_CONTROL} max-w-[10rem]`}
+              value={contraDesde}
+              max={contraHasta || undefined}
+              onChange={(e) => alCambiarContraDesde(e.target.value)}
+              aria-label="Comparar desde"
+            />
+            <span className="text-sm text-texto-suave">y</span>
+            <input
+              type="date"
+              className={`${CLASE_CONTROL} max-w-[10rem]`}
+              value={contraHasta}
+              min={contraDesde || undefined}
+              onChange={(e) => alCambiarContraHasta(e.target.value)}
+              aria-label="Comparar hasta"
+            />
+          </>
+        )}
+      </div>
     </div>
   );
 }
@@ -489,9 +551,59 @@ function Cuerpo({ d, adminId, eligio }: { d: Control; adminId: string; eligio: b
 
   return (
     <div className="flex flex-col gap-3">
+      {/* Las cinco cifras van PRIMERO: son el resumen de la pantalla y
+          se leen de un vistazo. Siguen sin bloque y en la escala
+          pequeña, que es lo que las distingue de lo que viene debajo. */}
+      <div className="flex flex-wrap gap-2.5">
+        <Cifra
+          etiqueta="Leads que llegaron"
+          valor={n(leadsDelPeriodo)}
+          pie={`leads nuevos ${alcanceSerie}`}
+        />
+        <Cifra
+          etiqueta="Conversión global"
+          valor={leads > 0 ? porcentaje(convertidas / leads) : "—"}
+          pie={`${n(convertidas)} de ${n(leads)} leads`}
+        />
+        <Cifra
+          etiqueta="Cobertura de cupos"
+          valor={d.cuposConfirmados > 0 ? porcentaje(cobertura) : "—"}
+          pie={`${n(d.inscritosConReserva)} de ${n(d.cuposConfirmados)} apartados`}
+        />
+        <Cifra
+          etiqueta="Sin cupo de empresa"
+          valor={
+            inscritosSiempre > 0
+              ? porcentaje(d.inscritosPorSuCuenta / inscritosSiempre)
+              : "—"
+          }
+          pie={`${n(d.inscritosPorSuCuenta)} llegaron por su cuenta`}
+        />
+        <Cifra
+          etiqueta="Llegaron a inscrito"
+          valor={n(d.total)}
+          pie={`${corte}${contra ? ` · ${textoDelta(d.variacion.total)} que ${contra}` : ""}`}
+        />
+        <Cifra
+          etiqueta="Cupos apartados"
+          valor={n(d.cuposConfirmados)}
+          pie={
+            sinNombre > 0 ? `${n(sinNombre)} sin nombre detrás` : "todos con nombre"
+          }
+        />
+        <Cifra
+          etiqueta="De lead a inscrito"
+          valor={
+            d.diasHastaInscribir === null
+              ? "—"
+              : `${Math.round(d.diasHastaInscribir)} días`
+          }
+          pie="promedio del periodo"
+        />
+      </div>
+
       {/* NIVEL 1 · la meta y lo que hay que hacer hoy. Es lo
              único que tiene que leerse en cinco segundos. */}
-      <section className="grid gap-3 lg:grid-cols-2">
         <Bloque titulo="Avance sobre la meta">
           <div className="flex flex-wrap items-end justify-between gap-4">
             <div>
@@ -527,108 +639,20 @@ function Cuerpo({ d, adminId, eligio }: { d: Control; adminId: string; eligio: b
             <BarraAvance valor={inscritosSiempre} maximo={Math.max(d.metaComprometida, 1)} />
           </div>
 
-          <div className="mt-4 flex flex-wrap gap-2.5 border-t border-hairline pt-4">
-            <Cifra
-              etiqueta="Cupos apartados"
-              valor={n(d.cuposConfirmados)}
-              pie={
-                sinNombre > 0 ? `${n(sinNombre)} sin nombre detrás` : "todos con nombre"
-              }
-            />
-            <Cifra
-              etiqueta="De lead a inscrito"
-              valor={
-                d.diasHastaInscribir === null
-                  ? "—"
-                  : `${Math.round(d.diasHastaInscribir)} días`
-              }
-              pie="promedio del periodo"
-            />
-          </div>
         </Bloque>
 
-        <Bloque
-          estirado
-          titulo="Qué atender primero"
-          descripcion="Lo que estas cifras piden hacer hoy, en orden."
-        >
-          {prioridades.length === 0 ? (
-            <p className="text-[0.78125rem] text-texto-suave">
-              No hay nada pendiente: los cupos tienen nombre y no queda nadie sin llamar.
-            </p>
-          ) : (
-            <ul className="divide-y divide-hairline">
-              {prioridades.map((p) => (
-                <li key={p.que} className="flex items-center gap-3 py-2.5 first:pt-0">
-                  <span
-                    className={`w-[3.25rem] shrink-0 text-right text-[1.375rem] leading-none font-bold tabular-nums ${
-                      p.tono === "aviso"
-                        ? "text-error"
-                        : p.tono === "bueno"
-                          ? "text-exito"
-                          : "text-aviso"
-                    }`}
-                  >
-                    {n(p.cifra)}
-                  </span>
-                  <p className="min-w-0 grow text-[0.78125rem] leading-snug">
-                    <span className="text-titulo">{p.que}</span>{" "}
-                    <span className="text-texto-suave">{p.hacer}</span>
-                  </p>
-                  <span className="shrink-0 text-[0.6875rem] font-semibold text-marca uppercase tracking-[0.06em]">
-                    {p.accion}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          )}
-        </Bloque>
-      </section>
 
-      {/* Cuánta captación hace falta para cerrar la meta. */}
 
-      {/* La franja de contexto: secundaria, y por eso va sin
-          bloque y en la escala pequeña. */}
-      <div className="flex flex-wrap gap-2.5">
-        <Cifra
-          etiqueta="Leads que llegaron"
-          valor={n(leadsDelPeriodo)}
-          pie={`leads nuevos ${alcanceSerie}`}
-        />
-        <Cifra
-          etiqueta="Conversión global"
-          valor={leads > 0 ? porcentaje(convertidas / leads) : "—"}
-          pie={`${n(convertidas)} de ${n(leads)} leads`}
-        />
-        <Cifra
-          etiqueta="Cobertura de cupos"
-          valor={d.cuposConfirmados > 0 ? porcentaje(cobertura) : "—"}
-          pie={`${n(d.inscritosConReserva)} de ${n(d.cuposConfirmados)} apartados`}
-        />
-        <Cifra
-          etiqueta="Sin cupo de empresa"
-          valor={
-            inscritosSiempre > 0
-              ? porcentaje(d.inscritosPorSuCuenta / inscritosSiempre)
-              : "—"
-          }
-          pie={`${n(d.inscritosPorSuCuenta)} llegaron por su cuenta`}
-        />
-        <Cifra
-          etiqueta="Llegaron a inscrito"
-          valor={n(d.total)}
-          pie={`${corte}${contra ? ` · ${textoDelta(d.variacion.total)} que ${contra}` : ""}`}
-        />
-      </div>
 
       {/* Tres cortes de la MISMA pregunta —cómo va la
           captación— que eran tres bloques con tres bordes y
           tres franjas. Van dentro de uno. */}
       <Bloque
         titulo="Cómo va la captación"
-        descripcion="El avance contra lo comprometido, dónde está cada quien y a qué ritmo entra."
+        descripcion="El avance contra lo comprometido y qué hacer con él, dónde está cada quien, y a qué ritmo entra."
       >
-        <div className="space-y-7">
+        <div className={CORTES_APILADOS}>
+        <section className={`grid gap-7 lg:grid-cols-2 ${CORTES_EN_COLUMNAS}`}>
         <Bloque plano titulo="Contra lo comprometido">
         <div className="grid sm:grid-cols-3">
           <Tasa
@@ -665,8 +689,45 @@ function Cuerpo({ d, adminId, eligio }: { d: Control; adminId: string; eligio: b
         </div>
 
         </Bloque>
+        <Bloque
+          plano
+          estirado
+          titulo="Qué atender primero"
+          descripcion="Lo que estas cifras piden hacer hoy, en orden."
+        >
+          {prioridades.length === 0 ? (
+            <p className="text-[0.78125rem] text-texto-suave">
+              No hay nada pendiente: los cupos tienen nombre y no queda nadie sin llamar.
+            </p>
+          ) : (
+            <ul className="divide-y divide-hairline">
+              {prioridades.map((p) => (
+                <li key={p.que} className="flex items-center gap-3 py-2.5 first:pt-0">
+                  <span
+                    className={`w-[3.25rem] shrink-0 text-right text-[1.375rem] leading-none font-bold tabular-nums ${
+                      p.tono === "aviso"
+                        ? "text-error"
+                        : p.tono === "bueno"
+                          ? "text-exito"
+                          : "text-aviso"
+                    }`}
+                  >
+                    {n(p.cifra)}
+                  </span>
+                  <p className="min-w-0 grow text-[0.78125rem] leading-snug">
+                    <span className="text-titulo">{p.que}</span>{" "}
+                    <span className="text-texto-suave">{p.hacer}</span>
+                  </p>
+                  <span className="shrink-0 text-[0.6875rem] font-semibold text-marca uppercase tracking-[0.06em]">
+                    {p.accion}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Bloque>
+        </section>
 
-        <section className="grid gap-7 lg:grid-cols-3">
         <Bloque
           plano
           estirado
@@ -710,7 +771,6 @@ function Cuerpo({ d, adminId, eligio }: { d: Control; adminId: string; eligio: b
           </p>
         </Bloque>
 
-        <div className="lg:col-span-2">
           <Bloque
             plano
             estirado
@@ -724,8 +784,6 @@ function Cuerpo({ d, adminId, eligio }: { d: Control; adminId: string; eligio: b
             />
           </Bloque>
         </div>
-        </section>
-        </div>
       </Bloque>
 
       {/* ---- 2. de dónde vienen: las dos caras, un bloque ---- */}
@@ -733,7 +791,7 @@ function Cuerpo({ d, adminId, eligio }: { d: Control; adminId: string; eligio: b
         titulo="De dónde vienen los leads"
         descripcion="Qué canal aporta más registros y cuál acaba inscribiendo a más de los que trae."
       >
-        <section className="grid gap-7 lg:grid-cols-2">
+        <section className={`grid gap-7 lg:grid-cols-2 ${CORTES_EN_COLUMNAS}`}>
         <Bloque
           plano
           titulo="Qué canal trae más"
@@ -776,7 +834,7 @@ function Cuerpo({ d, adminId, eligio }: { d: Control; adminId: string; eligio: b
         titulo="Quién lo está trabajando"
         descripcion="El rendimiento de cada asesor y lo que cada organización tiene pendiente de entregar."
       >
-        <div className="space-y-7">
+        <div className={CORTES_APILADOS}>
         <Bloque
         plano
         titulo="Por asesor"
@@ -890,8 +948,8 @@ function Cuerpo({ d, adminId, eligio }: { d: Control; adminId: string; eligio: b
         titulo="Cómo se reparten los inscritos"
         descripcion="Los mismos inscritos, vistos por curso, territorio, grupo, convenio y modalidad. Se abre cuando hace falta un número concreto."
       >
-        <div className="space-y-7">
-        <section className="grid gap-7 lg:grid-cols-2">
+        <div className={CORTES_APILADOS}>
+        <section className={`grid gap-7 lg:grid-cols-2 ${CORTES_EN_COLUMNAS}`}>
         <Bloque
           plano
           titulo="Por acción de formación"
@@ -909,7 +967,7 @@ function Cuerpo({ d, adminId, eligio }: { d: Control; adminId: string; eligio: b
         </Bloque>
       </section>
 
-        <section className="grid gap-7 lg:grid-cols-3">
+        <section className={`grid gap-7 lg:grid-cols-3 ${CORTES_EN_COLUMNAS}`}>
         <Bloque
           plano
           titulo="Por ubicación"
