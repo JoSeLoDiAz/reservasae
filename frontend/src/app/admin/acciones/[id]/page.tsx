@@ -133,7 +133,10 @@ export default function DetalleDeAccion({ params }: { params: Promise<{ id: stri
       />
       <SelloDeDatos actualizadoEn={vivos.actualizadoEn} />
 
-      <header className="no-imprimir flex flex-wrap items-start justify-between gap-4">
+      {/* `items-center` y no `items-start`: los botones se alineaban
+          con la primera línea --el enlace de volver-- y quedaban
+          flotando arriba, descuadrados con el título. */}
+      <header className="no-imprimir flex flex-wrap items-center justify-between gap-4">
         <div className="min-w-0">
           <Link
             href="/admin/acciones"
@@ -149,7 +152,6 @@ export default function DetalleDeAccion({ params }: { params: Promise<{ id: stri
             <span>·</span>
             <span>{datos.convenio.sigla ?? datos.convenio.nombre}</span>
           </p>
-
         </div>
 
         <div className="flex flex-wrap items-center gap-2.5">
@@ -159,26 +161,46 @@ export default function DetalleDeAccion({ params }: { params: Promise<{ id: stri
             desactualizado={vivos.desactualizado}
             alRefrescar={vivos.refrescar}
           />
+          {/* Estado y acción en un solo control.
+              Estaban separados: el boton decia «Ocultar» --sin decir de
+              dónde-- y la tarjeta repetía al lado «Publicada». Lo mismo
+              dicho dos veces, y ninguna de las dos se explicaba sola.
+              Aquí el pill dice cómo está la acción, y al pulsarlo cambia;
+              el `title` es el que anuncia qué va a pasar. */}
           <button
             onClick={alternarPublicacion}
             disabled={ocupado}
-            className="sin-aro inline-flex h-[34px] items-center rounded-lg border border-borde bg-superficie px-3.5 text-[0.78125rem] font-semibold whitespace-nowrap text-titulo transition hover:border-marca disabled:opacity-50"
+            title={
+              datos.visible
+                ? "Quitar del sitio público"
+                : "Publicar en el sitio público"
+            }
+            className={`sin-aro inline-flex h-[34px] items-center gap-2 rounded-lg border px-3.5 text-[0.78125rem] font-semibold whitespace-nowrap transition disabled:opacity-50 ${
+              datos.visible
+                ? "border-exito/30 bg-exito-suave text-exito hover:border-exito"
+                : "border-borde bg-superficie text-texto-suave hover:border-marca"
+            }`}
           >
-            {datos.visible ? "Ocultar" : "Publicar"}
+            <span
+              aria-hidden
+              className={`h-1.5 w-1.5 rounded-full ${
+                datos.visible ? "bg-exito" : "bg-texto-suave"
+              }`}
+            />
+            {datos.visible ? "En el sitio público" : "Fuera del sitio"}
           </button>
           <BotonPdf />
         </div>
       </header>
 
-      {/* Los datos de la acción, con su rótulo.
-          Iban todos en una línea separados por puntos --evento,
-          modalidad, horas y el estado--, y ahí «40 horas» y
-          «Publicada» pesaban lo mismo que un separador.
-
-          A TODO EL ANCHO y en tres columnas, no dentro de la cabecera:
-          allí compartía sitio con el indicador y los botones, la columna
-          quedaba estrecha y cada dato se caía a su propia línea. */}
-      <div className="no-imprimir grid gap-y-3 rounded-lg border border-borde bg-superficie px-5 py-3.5 sm:grid-cols-3 sm:[&>*+*]:border-l sm:[&>*+*]:border-hairline sm:[&>*+*]:pl-6">
+      {/* Los datos de la acción, cada uno con su rótulo.
+          Iban en una sola línea separados por puntos --evento, modalidad,
+          horas y estado--, y ahí «40 horas» pesaba lo mismo que un
+          separador. Va fuera de la cabecera a propósito: dentro compartía
+          ancho con el indicador y los botones, se estrechaba, y cada dato
+          se caía a su propia línea. El estado ya no está aquí, lo dice el
+          pill de la cabecera. */}
+      <div className="no-imprimir flex flex-wrap gap-y-3 rounded-lg border border-borde bg-superficie px-5 py-3.5 sm:[&>*+*]:ml-6 sm:[&>*+*]:border-l sm:[&>*+*]:border-hairline sm:[&>*+*]:pl-6">
         <div>
           <p className="text-[0.625rem] font-semibold tracking-[0.1em] text-texto-suave uppercase">
             Modalidad
@@ -197,18 +219,6 @@ export default function DetalleDeAccion({ params }: { params: Promise<{ id: stri
           </p>
         </div>
 
-        <div>
-          <p className="text-[0.625rem] font-semibold tracking-[0.1em] text-texto-suave uppercase">
-            En el sitio público
-          </p>
-          <p
-            className={`mt-0.5 text-[0.84375rem] font-semibold ${
-              datos.visible ? "text-exito" : "text-texto-suave"
-            }`}
-          >
-            {datos.visible ? "Publicada" : "Oculta"}
-          </p>
-        </div>
       </div>
 
       {/* Las tarjetas de Gestion de leads, sobre el fondo. */}
