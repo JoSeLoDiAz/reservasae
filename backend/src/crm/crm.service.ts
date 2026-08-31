@@ -35,7 +35,7 @@ import {
   exigeDatosParaElAula,
   motivoDeTransicionImposible,
 } from './escalera';
-import { cubreA, repartirPorCobertura } from './cobertura';
+import { cubreA, exigirCoberturaDeLaOferta, repartirPorCobertura } from './cobertura';
 import { faltaDeLaPersona, revisar } from './completitud';
 import { PanelDeCupos } from './panel-de-cupos';
 import { ColaRui } from './rui/cola-rui';
@@ -1148,22 +1148,25 @@ export class CrmService {
     // nada, y una cobertura de otro curso manda al SEP un
     // AF y un grupo que se contradicen
     if (dto.coberturaId) {
-      const cobertura = await this.prisma.grupoCobertura.findUnique({
-        where: { id: dto.coberturaId },
-        select: { grupo: { select: { accionFormacionId: true } } },
-      });
       const suya = await this.prisma.participante.findUnique({
         where: { id },
-        select: { accionFormacionId: true },
+        select: {
+          accionFormacionId: true,
+          /// La sede sale de su oferta. Sin esto solo se comprobaba la
+          /// acción, y entraba un grupo de otra ciudad por esta puerta
+          /// aunque `asignar` lo cerrara por la suya.
+          oferta: { select: { ubicacionId: true } },
+        },
       });
-      if (
-        !cobertura ||
-        cobertura.grupo.accionFormacionId !== suya?.accionFormacionId
-      ) {
+      if (!suya?.accionFormacionId) {
         throw new BadRequestException(
-          'Ese grupo no es de la acción de formación de esta persona.',
+          'Esta persona todavía no tiene acción de formación: no se le puede poner grupo.',
         );
       }
+      await exigirCoberturaDeLaOferta(this.prisma, dto.coberturaId, {
+        accionFormacionId: suya.accionFormacionId,
+        ubicacionId: suya.oferta?.ubicacionId ?? null,
+      });
     }
 
     if (dto.fechaNacimiento) {
@@ -3333,6 +3336,8 @@ export class CrmService {
         id: true,
         cuposMaximos: true,
         accionFormacionId: true,
+        /// Suelto, para poder exigir que el grupo sea de ESTA sede.
+        ubicacionId: true,
         ubicacion: { select: { nombre: true } },
         accionFormacion: {
           select: { convenioId: true, codigo: true, nombre: true },
@@ -3408,19 +3413,11 @@ export class CrmService {
 
     let numeroDeGrupo: number | null = null;
     if (dto.coberturaId) {
-      const cobertura = await this.prisma.grupoCobertura.findUnique({
-        where: { id: dto.coberturaId },
-        select: {
-          grupo: { select: { accionFormacionId: true, numero: true } },
-        },
+      const cobertura = await exigirCoberturaDeLaOferta(this.prisma, dto.coberturaId, {
+        accionFormacionId: oferta.accionFormacionId,
+        ubicacionId: oferta.ubicacionId,
       });
-      if (!cobertura) throw new NotFoundException('Ese grupo no existe.');
-      if (cobertura.grupo.accionFormacionId !== oferta.accionFormacionId) {
-        throw new BadRequestException(
-          'Ese grupo es de otra acción de formación.',
-        );
-      }
-      numeroDeGrupo = cobertura.grupo.numero;
+      numeroDeGrupo = cobertura.numero;
     }
 
     const cobertura = dto.coberturaId ?? null;

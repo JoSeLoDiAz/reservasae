@@ -59,6 +59,9 @@ export class PanelDeCupos {
         id: true,
         cuposMaximos: true,
         abierta: true,
+        /// Hace falta suelto, no solo el nombre: es con lo que se
+        /// acotan los grupos a los de ESTA sede.
+        ubicacionId: true,
         accionFormacion: { select: { id: true, nombre: true } },
         ubicacion: { select: { nombre: true } },
         reservas: {
@@ -89,14 +92,32 @@ export class PanelDeCupos {
       inscritosLibres: libres,
     });
 
-    // los grupos que sirven a esta accion, con su calendario
+    /**
+     * Los grupos que sirven a esta oferta: los de su acción Y DE SU
+     * SEDE.
+     *
+     * Sin `ubicacionId` esta lista traía los grupos de todas las
+     * ciudades donde se da el curso, y es la lista que autoriza la
+     * inscripción: se podía meter a alguien de Bogotá en el grupo de
+     * Atlántico, y ese grupo viajaba al SENA.
+     *
+     * Y el conteo lleva el mismo filtro de etapa que el de la oferta
+     * treinta líneas más arriba. Sin él contaba como silla ocupada a
+     * todo el que tuviera grupo puesto --interesados, perdidos,
+     * retirados-- y bloqueaba inscripciones con el aula medio vacía.
+     */
     const coberturas = await this.prisma.grupoCobertura.findMany({
-      where: { grupo: { accionFormacionId: oferta.accionFormacion.id } },
+      where: {
+        grupo: { accionFormacionId: oferta.accionFormacion.id },
+        ubicacionId: oferta.ubicacionId,
+      },
       select: {
         id: true,
         cuposMaximos: true,
         grupo: { select: { id: true, numero: true, fechaInicio: true } },
-        _count: { select: { participantes: true } },
+        _count: {
+          select: { participantes: { where: { etapa: { in: [...OCUPAN_SILLA] } } } },
+        },
       },
       orderBy: { grupo: { numero: 'asc' } },
     });
@@ -180,7 +201,13 @@ export class PanelDeCupos {
           },
         },
         ubicacion: { select: { nombre: true } },
-        _count: { select: { participantes: true } },
+        /// El mismo filtro que en `deLaOferta`. Sin él, un grupo con
+        /// leads muertos apuntados salía con `faltan: 0`, se caía del
+        /// filtro de abajo y NUNCA se mandaba el aviso que libera los
+        /// turnos preferentes que la empresa no usó.
+        _count: {
+          select: { participantes: { where: { etapa: { in: [...OCUPAN_SILLA] } } } },
+        },
       },
     });
 
