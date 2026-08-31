@@ -3,12 +3,12 @@
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 
-import { Aviso } from "@/components/admin/marco-admin";
+import { Aviso, useAdmin } from "@/components/admin/marco-admin";
 import { Cifra, Esqueleto, Vacio } from "@/components/admin/piezas";
 import { Desplegable } from "@/components/admin/desplegable";
 import { IconoFormacion } from "@/components/admin/iconos";
 import { CronogramaVista } from "@/components/admin/cronograma-vista";
-import { adminApi, type AccionAdmin } from "@/lib/admin-api";
+import { adminApi, alcanza, type AccionAdmin } from "@/lib/admin-api";
 import { bonito, ErrorApi } from "@/lib/api";
 
 const MODALIDAD = {
@@ -87,6 +87,13 @@ export default function PaginaFormacion() {
 }
 
 function Catalogo() {
+  const { admin } = useAdmin();
+
+  /// Publicar es del lider de sistemas: en la matriz de permisos
+  /// `configuracion: ESCRIBIR` solo lo tiene ese rol. Al menu esta
+  /// pantalla le pide solo `reserva`, asi que aqui entra gente que
+  /// no puede publicar y no debe ver el boton.
+  const puedePublicar = alcanza(admin.permisos?.configuracion, "ESCRIBIR");
   const [acciones, setAcciones] = useState<AccionAdmin[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [ocupada, setOcupada] = useState<string | null>(null);
@@ -167,8 +174,9 @@ function Catalogo() {
           Las fechas de sus grupos están en la pestaña «Cronograma».
         </p>
         <p className="mt-1 text-[0.71875rem] text-texto-suave">
-          Ocultar no cancela nada: las reservas hechas siguen vivas y contando, la acción
-          solo desaparece del sitio público.
+          Ocultar solo la quita del sitio público: deja de poder reservarse y
+          preinscribirse desde fuera. Las reservas hechas siguen vivas y contando, y
+          desde el CRM se puede seguir inscribiendo con normalidad.
         </p>
       </div>
 
@@ -423,17 +431,28 @@ function Catalogo() {
                   >
                     {a.visible ? "Publicada" : "Oculta"}
                   </span>
-                  <button
-                    onClick={() => alternar(a)}
-                    disabled={ocupada === a.id}
-                    className={`h-[30px] w-[62px] rounded-lg px-3 text-[0.75rem] font-semibold transition disabled:opacity-50 ${
-                      a.visible
-                        ? "border border-borde bg-superficie hover:bg-superficie-alterna"
-                        : "bg-marca text-marca-texto hover:bg-marca-fuerte"
-                    }`}
-                  >
-                    {ocupada === a.id ? "…" : a.visible ? "Ocultar" : "Publicar"}
-                  </button>
+                  {/* El estado lo ve todo el mundo; el boton, solo
+                      quien puede publicar. Antes se le pintaba a
+                      cualquiera que abriera la pantalla y al pulsarlo
+                      devolvia 403. */}
+                  {puedePublicar && (
+                    <button
+                      onClick={() => alternar(a)}
+                      disabled={ocupada === a.id}
+                      title={
+                        a.visible
+                          ? "Quitar del sitio público"
+                          : "Publicar en el sitio público"
+                      }
+                      className={`h-[30px] w-[62px] rounded-lg px-3 text-[0.75rem] font-semibold transition disabled:opacity-50 ${
+                        a.visible
+                          ? "border border-borde bg-superficie hover:bg-superficie-alterna"
+                          : "bg-marca text-marca-texto hover:bg-marca-fuerte"
+                      }`}
+                    >
+                      {ocupada === a.id ? "…" : a.visible ? "Ocultar" : "Publicar"}
+                    </button>
+                  )}
                 </div>
               </li>
             ))}

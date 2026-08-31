@@ -6,20 +6,18 @@ import { use, useCallback, useState } from "react";
 import { BotonPdf, EncabezadoImpresion } from "@/components/admin/boton-pdf";
 
 import {
-  BarraAvance,
   EtiquetaEstado,
   ListaBarras,
-  Medidor,
   n,
 } from "@/components/admin/graficos";
 import {
   IndicadorActualizacion,
   SelloDeDatos,
 } from "@/components/admin/indicador-actualizacion";
-import { Aviso } from "@/components/admin/marco-admin";
+import { Aviso, useAdmin } from "@/components/admin/marco-admin";
 import { textoDeEstado } from "@/components/admin/ritmo";
 import { Bloque, Cifra, Esqueleto } from "@/components/admin/piezas";
-import { adminApi } from "@/lib/admin-api";
+import { adminApi, alcanza } from "@/lib/admin-api";
 import { bonito, comoParrafo, ErrorApi } from "@/lib/api";
 import { useDatosVivos } from "@/lib/datos-vivos";
 import { tablerosApi, type DetalleAccion } from "@/lib/tableros-api";
@@ -36,8 +34,28 @@ const ESTADO: Record<string, { texto: string; clase: string }> = {
   CANCELADA: { texto: "Cancelada", clase: "text-error" },
 };
 
+/// El pill de publicación se pinta igual sea botón o dato:
+/// que cambie el permiso no debe cambiar el aspecto.
+const CLASE_PILL =
+  "inline-flex h-[34px] items-center gap-2 rounded-lg border px-3.5 text-[0.78125rem] font-semibold whitespace-nowrap";
+
+const TONO_PILL = (visible: boolean) =>
+  visible
+    ? "border-exito/30 bg-exito-suave text-exito"
+    : "border-borde bg-superficie text-texto-suave";
+
+function PuntoDePublicacion({ visible }: { visible: boolean }) {
+  return (
+    <span
+      aria-hidden
+      className={`h-1.5 w-1.5 rounded-full ${visible ? "bg-exito" : "bg-texto-suave"}`}
+    />
+  );
+}
+
 export default function DetalleDeAccion({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
+  const { admin } = useAdmin();
   const [errorAccion, setErrorAccion] = useState<string | null>(null);
   const [ocupado, setOcupado] = useState(false);
 
@@ -50,6 +68,12 @@ export default function DetalleDeAccion({ params }: { params: Promise<{ id: stri
 
   if (error) return <Aviso tipo="error">{error}</Aviso>;
   if (!datos) return <Esqueleto conCifras />;
+
+  /// Publicar es del lider de sistemas y de nadie mas: en la matriz
+  /// de permisos `configuracion: ESCRIBIR` solo lo tiene ese rol.
+  /// Se mira el permiso, no el rol de cuenta, igual que en
+  /// `cronograma-vista.tsx`.
+  const puedePublicar = alcanza(admin.permisos?.configuracion, "ESCRIBIR");
 
   async function alternarPublicacion() {
     if (!datos) return;
@@ -161,34 +185,40 @@ export default function DetalleDeAccion({ params }: { params: Promise<{ id: stri
             desactualizado={vivos.desactualizado}
             alRefrescar={vivos.refrescar}
           />
-          {/* Estado y acción en un solo control.
-              Estaban separados: el boton decia «Ocultar» --sin decir de
+          {/* Estado y acción en un solo sitio.
+              Estaban separados: el botón decía «Ocultar» --sin decir de
               dónde-- y la tarjeta repetía al lado «Publicada». Lo mismo
               dicho dos veces, y ninguna de las dos se explicaba sola.
-              Aquí el pill dice cómo está la acción, y al pulsarlo cambia;
-              el `title` es el que anuncia qué va a pasar. */}
-          <button
-            onClick={alternarPublicacion}
-            disabled={ocupado}
-            title={
-              datos.visible
-                ? "Quitar del sitio público"
-                : "Publicar en el sitio público"
-            }
-            className={`sin-aro inline-flex h-[34px] items-center gap-2 rounded-lg border px-3.5 text-[0.78125rem] font-semibold whitespace-nowrap transition disabled:opacity-50 ${
-              datos.visible
-                ? "border-exito/30 bg-exito-suave text-exito hover:border-exito"
-                : "border-borde bg-superficie text-texto-suave hover:border-marca"
-            }`}
-          >
-            <span
-              aria-hidden
-              className={`h-1.5 w-1.5 rounded-full ${
-                datos.visible ? "bg-exito" : "bg-texto-suave"
-              }`}
-            />
-            {datos.visible ? "En el sitio público" : "Fuera del sitio"}
-          </button>
+
+              Y era BOTÓN para todo el mundo, cuando publicar solo lo
+              puede el líder de sistemas. Quien entra desde inscripciones
+              --el menú solo le pide `reserva`-- veía un botón que promete
+              «Publicar en el sitio público» y al pulsarlo comía un 403.
+              Ahora a ese le llega el mismo pill como DATO, sin prometer
+              nada. Es lo que ya hace `cronograma-vista.tsx`: la píldora
+              de publicación la ve todo el mundo, los controles no. */}
+          {puedePublicar ? (
+            <button
+              onClick={alternarPublicacion}
+              disabled={ocupado}
+              title={
+                datos.visible
+                  ? "Quitar del sitio público"
+                  : "Publicar en el sitio público"
+              }
+              className={`sin-aro ${CLASE_PILL} transition disabled:opacity-50 ${
+                datos.visible ? "hover:border-exito" : "hover:border-marca"
+              } ${TONO_PILL(datos.visible)}`}
+            >
+              <PuntoDePublicacion visible={datos.visible} />
+              {datos.visible ? "En el sitio público" : "Fuera del sitio"}
+            </button>
+          ) : (
+            <span className={`${CLASE_PILL} ${TONO_PILL(datos.visible)}`}>
+              <PuntoDePublicacion visible={datos.visible} />
+              {datos.visible ? "En el sitio público" : "Fuera del sitio"}
+            </span>
+          )}
           <BotonPdf />
         </div>
       </header>
