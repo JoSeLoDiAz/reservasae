@@ -2233,8 +2233,50 @@ export class CrmService {
       }
     }
 
-    await this.prisma.$transaction([
-      this.prisma.participante.update({
+    /**
+     * El candado del aforo.
+     *
+     * `exigirQueQuepa` mira las sillas y las escribe DESPUÉS, en otra
+     * consulta. Entre lo uno y lo otro cabe otro asesor haciendo lo
+     * mismo: los dos ven la última silla libre y los dos entran. Las
+     * reservas ya se protegían así (`bloquearOferta`, con `FOR UPDATE`);
+     * inscribir no.
+     *
+     * Se vuelve a contar aquí dentro, con la fila de la oferta tomada,
+     * de modo que el segundo espera al primero y ve el sitio ya lleno.
+     * La comprobación de arriba se queda: falla antes y con mejores
+     * mensajes. Esta es la que no se puede saltar.
+     */
+    const cuentaSillas = exigeCupo(p.etapa, dto.etapa) && p.ofertaId !== null;
+
+    await this.prisma.$transaction(async (tx) => {
+      if (cuentaSillas) {
+        await tx.$queryRaw`SELECT "id" FROM "ofertas" WHERE "id" = ${p.ofertaId} FOR UPDATE`;
+
+        if (p.coberturaId) {
+          const [cobertura, dentro] = await Promise.all([
+            tx.grupoCobertura.findUnique({
+              where: { id: p.coberturaId },
+              select: { cuposMaximos: true, grupo: { select: { numero: true } } },
+            }),
+            tx.participante.count({
+              where: {
+                coberturaId: p.coberturaId,
+                etapa: { in: OCUPAN_SILLA },
+                id: { not: id },
+              },
+            }),
+          ]);
+          if (cobertura && dentro >= cobertura.cuposMaximos) {
+            throw new BadRequestException(
+              `El grupo ${cobertura.grupo.numero} se acaba de llenar ` +
+                `(${dentro} de ${cobertura.cuposMaximos}). Elija otro grupo.`,
+            );
+          }
+        }
+      }
+
+      await tx.participante.update({
         where: { id },
         data: {
           etapa: dto.etapa,
@@ -2265,8 +2307,9 @@ export class CrmService {
           // dejaba la fecha de marzo con el motivo de agosto
           fechaRetiro: dto.etapa === 'RETIRADO' ? new Date() : undefined,
         },
-      }),
-      this.prisma.movimientoParticipante.create({
+      });
+
+      await tx.movimientoParticipante.create({
         data: {
           participanteId: id,
           etapaAntes: p.etapa,
@@ -2275,8 +2318,8 @@ export class CrmService {
           adminId: admin.id,
           ip: ip ?? null,
         },
-      }),
-    ]);
+      });
+    });
 
     await this.auditoria.registrar({
       actor: { id: admin.id, nombre: admin.nombre },

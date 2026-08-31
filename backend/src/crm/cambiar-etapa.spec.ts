@@ -57,6 +57,7 @@ function armar(o: Opciones) {
 
   const prisma = {
     participante: {
+      count: () => Promise.resolve(0),
       findFirst: () => Promise.resolve({ id: 'p1' }),
       findUnique: () =>
         Promise.resolve({
@@ -82,6 +83,12 @@ function armar(o: Opciones) {
         return Promise.resolve({ id: 'p1' });
       },
     },
+    /// El aforo del grupo, para el candado que toma `cambiarEtapa`
+    /// antes de escribir. Con sitio de sobra: lo que se prueba aqui es
+    /// la escalera de etapas, no el lleno.
+    grupoCobertura: {
+      findUnique: () => Promise.resolve({ cuposMaximos: 30, grupo: { numero: 1 } }),
+    },
     movimientoParticipante: {
       create: () => {
         escrituras.push('movimiento.create');
@@ -90,7 +97,16 @@ function armar(o: Opciones) {
     },
     actividad: { count: () => Promise.resolve(10) },
     avanceActividad: { count: () => Promise.resolve(10) },
-    $transaction: (ops: unknown[]) => Promise.all(ops as Promise<unknown>[]),
+    /// Admite las dos formas: la lista de siempre y la interactiva,
+    /// que es la que usa `cambiarEtapa` desde que toma el candado del
+    /// aforo antes de escribir.
+    $transaction: (x: unknown) =>
+      typeof x === 'function'
+        ? (x as (tx: unknown) => Promise<unknown>)(prisma)
+        : Promise.all(x as Promise<unknown>[]),
+    /// El `SELECT ... FOR UPDATE` del candado: aqui no hay base, y lo
+    /// que se prueba es la regla, no el bloqueo.
+    $queryRaw: () => Promise.resolve([]),
   };
 
   const cupos = {
