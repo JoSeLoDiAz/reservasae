@@ -11,6 +11,8 @@ import {
   Controller,
   Get,
   HttpCode,
+  Param,
+  Patch,
   Post,
   Query,
   UseGuards,
@@ -23,7 +25,7 @@ import { AdminGuard, Requiere, Roles, type Ambito } from '../admin/admin.guard';
 import { AdminActual } from '../admin/admin-actual.decorator';
 import { IpReal } from '../comun/ip-real';
 
-import { ConvertirLoteDto } from './dto';
+import { ArreglarLeadDto, ConvertirLoteDto } from './dto';
 import { LoteDeLeads } from './lote.service';
 import { MesaDeEntrada } from './mesa-de-entrada.service';
 
@@ -94,5 +96,21 @@ export class MesaDeEntradaController {
     @IpReal() ip: string,
   ) {
     return this.lote.convertir(dto.ids, dto.asesorId, admin, ambito.convenios, ip);
+  }
+
+  /**
+   * Arregla un lead que llegó mal.
+   *
+   * `ESCRIBIR`: cambia los datos con los que después se va a
+   * crear una ficha. Verlo es una cosa y componerlo es otra.
+   */
+  @Patch(':id')
+  @Requiere('inscripciones', 'ESCRIBIR')
+  arreglar(
+    @Param('id') id: string,
+    @Body() dto: ArreglarLeadDto,
+    @AmbitoActual() ambito: Ambito,
+  ) {
+    return this.mesa.arreglar(id, dto, ambito.convenios);
   }
 }

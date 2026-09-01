@@ -39,6 +39,15 @@ function armar() {
         return Promise.resolve([]);
       },
     },
+    /// Y los cursos que se ofrecen para arreglar un lead: sin
+    /// ámbito, el desplegable ofrecería los del otro gremio y el
+    /// servidor rechazaría lo que la pantalla dejó elegir.
+    accionFormacion: {
+      findMany: (a: { where?: unknown }) => {
+        vistos.push(a);
+        return Promise.resolve([]);
+      },
+    },
   };
 
   return { s: new MesaDeEntrada(prisma as never), vistos };

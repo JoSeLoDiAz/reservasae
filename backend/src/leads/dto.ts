@@ -17,6 +17,7 @@ import {
   ValidateNested,
 } from 'class-validator';
 
+import { aNumeroONulo } from '../comun/campo-vacio';
 import { CanalAutorizacion, OrigenParticipante } from '../../generated/prisma';
 
 const recortar = ({ value }: { value: unknown }) =>
@@ -307,4 +308,37 @@ export class ConvertirLeadDto {
   @IsString()
   @MaxLength(40)
   numeroDocumento?: string;
+}
+
+/**
+ * Arreglar un lead desde la mesa de entrada.
+ *
+ * Es la otra mitad de «recibir todos los leads»: si entran todos,
+ * alguien tiene que poder componer los que llegaron mal. Sin esta
+ * puerta, un lead con la ciudad mal escrita se queda atascado
+ * para siempre — el panel diría qué le falta y no habría por
+ * dónde arreglarlo, que es el patrón que este proyecto ya se
+ * comió una vez con el enlace de completado.
+ *
+ * Todo opcional: se manda solo lo que se corrige. `null` borra;
+ * ausente no toca.
+ */
+export class ArreglarLeadDto {
+  /// El curso, por su id. Se elige de una lista, no se teclea.
+  @IsOptional() @IsString() accionFormacionId?: string | null;
+
+  /// El domicilio, por id del SEP. Igual que en la ficha.
+  @IsOptional() @Transform(aNumeroONulo) @IsInt() departamentoSepId?: number | null;
+  @IsOptional() @Transform(aNumeroONulo) @IsInt() municipioSepId?: number | null;
+  @IsOptional() @Transform(aNumeroONulo) @IsInt() generoSepId?: number | null;
+
+  /// El documento, que es lo que le falta al que entró sin él.
+  @IsOptional() @Transform(aNumeroONulo) @IsInt() tipoDocumentoSepId?: number | null;
+  @IsOptional() @Transform(recortar) @IsString() @MaxLength(40) numeroDocumento?: string | null;
+
+  @IsOptional() @Transform(recortar) @IsString() @MaxLength(120) primerNombre?: string | null;
+  @IsOptional() @Transform(recortar) @IsString() @MaxLength(120) primerApellido?: string | null;
+  @IsOptional() @Transform(recortar) @IsString() @MaxLength(120) segundoApellido?: string | null;
+  @IsOptional() @Transform(recortar) @IsString() @MaxLength(160) correo?: string | null;
+  @IsOptional() @Transform(recortar) @IsString() @MaxLength(40) celular?: string | null;
 }
