@@ -76,7 +76,15 @@ export class MesaDeEntradaController {
    * 200 y no 201: puede que no se cree ninguna. Un 201 diria que
    * si, y el cuerpo diria que no.
    */
-  @Post('lote/convertir')
+  /// Un solo segmento, y NO 'lote/convertir'.
+  ///
+  /// Aquella la capturaba `@Post(':id/convertir')` del otro
+  /// controlador con `:id = 'lote'`: dos segmentos, mismo molde.
+  /// El lote llegaba a la conversion de UNO y contestaba que le
+  /// faltaba el canal. Depender del orden en que se registran los
+  /// controladores lo arreglaria hoy y lo romperia en silencio el
+  /// dia que alguien los reordene.
+  @Post('convertir-lote')
   @Requiere('inscripciones', 'ESCRIBIR')
   @HttpCode(200)
   convertirLote(

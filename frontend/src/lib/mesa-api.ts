@@ -85,7 +85,7 @@ export const mesaApi = {
   },
 
   convertirLote: (ids: string[]) =>
-    pedir<ResultadoDelLote>("/admin/leads/lote/convertir", {
+    pedir<ResultadoDelLote>("/admin/leads/convertir-lote", {
       method: "POST",
       body: JSON.stringify({ ids }),
     }),
