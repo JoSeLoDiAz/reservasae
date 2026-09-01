@@ -298,6 +298,42 @@ h3 {
   color: inherit;
 }
 
+/* el signo se dibuja: del contorno vacio a la persona formada */
+@keyframes signo-arco-dibuja {
+  from {
+    stroke-dashoffset: 1;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes signo-disco-asienta {
+  from {
+    transform: scale(0);
+  }
+  60% {
+    transform: scale(1.18);
+  }
+  to {
+    transform: scale(1);
+  }
+}
+
+/* el arco entra primero; el disco llega cuando el corro ya esta */
+.signo-arco {
+  stroke-dasharray: 1;
+  animation: signo-arco-dibuja 620ms cubic-bezier(0.33, 1, 0.68, 1) both;
+}
+
+.signo-disco {
+  /* el origen es el centro del disco, no el del lienzo: sin esto
+     escala desde la esquina y sale disparado */
+  transform-origin: 16px 25.75px;
+  animation: signo-disco-asienta 380ms cubic-bezier(0.34, 1.4, 0.64, 1) 420ms
+    both;
+}
+
 /* respetar menos animacion */
 @media (prefers-reduced-motion: reduce) {
   *,
@@ -305,6 +341,12 @@ h3 {
   *::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
+    /* la espera tambien: sin esto, una animacion con delay se
+    queda en su PRIMER fotograma ese rato y despues salta al
+    ultimo, que es un parpadeo justo para quien pidio no
+    tenerlos. La duracion sola no basta. */
+    animation-delay: 0s !important;
+    transition-delay: 0s !important;
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }
@@ -316,6 +358,12 @@ h3 {
 :root[data-sin-movimiento="si"] *::after {
   animation-duration: 0.01ms !important;
   animation-iteration-count: 1 !important;
+  /* la espera tambien: sin esto, una animacion con delay se
+  queda en su PRIMER fotograma ese rato y despues salta al
+  ultimo, que es un parpadeo justo para quien pidio no
+  tenerlos. La duracion sola no basta. */
+  animation-delay: 0s !important;
+  transition-delay: 0s !important;
   transition-duration: 0.01ms !important;
   scroll-behavior: auto !important;
 }

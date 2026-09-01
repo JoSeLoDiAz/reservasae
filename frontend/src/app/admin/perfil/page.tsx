@@ -135,7 +135,7 @@ function SobreConvoca() {
   const enPruebas = (estado?.version ?? "").includes("prueba");
 
   return (
-    <Tarjeta titulo="Sobre Convoca">
+    <Tarjeta titulo="Sobre Convoca CRM">
       <div className="space-y-5">
         <FirmaConvoca tamano={40} />
 

@@ -14,7 +14,7 @@ import { createPortal } from "react-dom";
 
 import { ConmutadorTema, useMarca } from "@/components/marca-publica";
 
-import { FirmaConvoca } from "@/components/firma-convoca";
+import { FirmaConvoca, PieDeConvoca } from "@/components/firma-convoca";
 
 import { SignoConvoca } from "./signo-convoca";
 import {
@@ -340,6 +340,27 @@ export function MarcoAdmin({ children }: { children: React.ReactNode }) {
                 Cada pantalla decide que bloques suyos se quedan
                 cortos, que es donde de verdad importa. */}
             <div className="flex min-h-0 w-full grow flex-col">{children}</div>
+
+            {/* El pie del panel.
+
+                Va DENTRO de `<main>` y como hermano de `children`,
+                no a nivel de `<body>`: el marco es una rejilla de
+                alto completo y `<main>` es el unico que scrollea,
+                asi que un pie de fuera se quedaria pegado a la
+                ventana o directamente no se veria nunca.
+
+                Y como hermano de `children` y no dentro, para que
+                cada pantalla no tenga que acordarse de ponerlo.
+
+                `mt-auto` lo empuja abajo cuando la pantalla es
+                corta, y lo deja al final del scroll cuando es
+                larga. Las dos son la posicion correcta.
+
+                No lleva `.no-imprimir`: en papel es justo donde
+                tiene sentido decir de quien es el documento. */}
+            <footer className="mt-auto border-t border-borde px-7 py-4">
+              <PieDeConvoca />
+            </footer>
           </main>
         </div>
       </div>
@@ -366,6 +387,8 @@ function migas(ruta: string): string[] {
 /// su frase. En el panel de un gremio manda el gremio, y
 /// Convoca firma abajo.
 function Marca({ plegado }: { plegado?: boolean }) {
+  /// La ruta, solo para remontar el signo al navegar.
+  const ruta = usePathname();
   /// Se guarda CUALES fuentes fallaron, no un booleano.
   ///
   /// Con tres logos, uno roto se llevaria a los otros dos por
@@ -387,7 +410,7 @@ function Marca({ plegado }: { plegado?: boolean }) {
   /// solo pueda lucirse; y con `flex-wrap`, si aun asi no
   /// caben, bajan a otra fila en vez de espicharse.
   const anchoMaximo =
-    logos.length >= 3 ? "4.5rem" : logos.length === 2 ? "6.5rem" : "9.5rem";
+    logos.length >= 3 ? "5rem" : logos.length === 2 ? "7rem" : "10.5rem";
 
   return (
     <div className="flex flex-col items-center gap-3">
@@ -413,7 +436,7 @@ function Marca({ plegado }: { plegado?: boolean }) {
                 )
               }
               style={{ maxWidth: anchoMaximo }}
-              className="h-8 w-auto shrink object-contain"
+              className="h-11 w-auto shrink object-contain"
             />
           ))}
         </div>
@@ -422,17 +445,26 @@ function Marca({ plegado }: { plegado?: boolean }) {
       <Link
         href="/admin"
         // plegado no hay texto que lo nombre
-        aria-label={plegado ? "Convoca" : undefined}
+        aria-label={plegado ? "Convoca CRM" : undefined}
         className="flex max-w-full items-center justify-center gap-2.5 no-underline"
       >
         {/* La MISMA firma que el login, el pie publico y la
             ficha del perfil, no una copia con los mismos
             estilos: cuatro copias acaban diciendo cuatro
             cosas. Plegada solo cabe el signo. */}
+        {/* `key` con la ruta: al navegar el nodo se remonta y la
+            animacion vuelve a correr. Sin la key, React reusa el
+            mismo elemento y solo se dibujaria una vez, al entrar
+            al panel. */}
         {plegado ? (
-          <SignoConvoca tamano={30} className="shrink-0" />
+          <SignoConvoca
+            key={ruta}
+            tamano={34}
+            animado
+            className="shrink-0"
+          />
         ) : (
-          <FirmaConvoca tamano={32} />
+          <FirmaConvoca key={ruta} tamano={42} animado />
         )}
       </Link>
     </div>

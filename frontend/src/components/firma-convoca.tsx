@@ -19,6 +19,13 @@ import { useEffect, useState } from "react";
 
 import { SignoConvoca } from "@/components/admin/signo-convoca";
 
+/// El nombre visible del producto, en un solo sitio.
+///
+/// Estaba escrito a pelo dentro del JSX, y el mismo texto vive en
+/// el `<title>`, en los correos y en una columna de la base. Una
+/// constante no arregla eso sola, pero al menos aqui no se
+/// escribe dos veces.
+const NOMBRE = "Convoca CRM";
 const FRASE = "Relaciones que generan resultados";
 
 type Estado = { version: string; hora: string };
@@ -44,11 +51,12 @@ export function useEstado(): Estado | null {
   return estado;
 }
 
-/** El signo con el nombre y, si cabe, la frase. */
+/** El signo con el nombre, la línea y la frase. */
 export function FirmaConvoca({
   tamano = 32,
   conFrase = true,
   apilado = false,
+  animado = false,
   className,
 }: {
   tamano?: number;
@@ -58,6 +66,8 @@ export function FirmaConvoca({
   /// columna; al lado del nombre solo funciona cuando va
   /// alineada a un borde.
   apilado?: boolean;
+  /// El signo se dibuja al montarse.
+  animado?: boolean;
   className?: string;
 }) {
   /// El texto crece con el signo, no aparte.
@@ -75,9 +85,9 @@ export function FirmaConvoca({
           : `items-center ${grande ? "gap-3.5" : "gap-2.5"}`
       } ${className ?? ""}`}
     >
-      <SignoConvoca tamano={tamano} className="shrink-0" />
+      <SignoConvoca tamano={tamano} animado={animado} className="shrink-0" />
       <span
-        className={`flex min-w-0 flex-col gap-0.5 leading-none ${
+        className={`flex min-w-0 flex-col leading-none ${
           apilado ? "items-center" : ""
         }`}
       >
@@ -86,16 +96,39 @@ export function FirmaConvoca({
             grande ? "text-[1.75rem]" : "text-[1.05rem]"
           }`}
         >
-          Convoca
+          {NOMBRE}
         </span>
         {conFrase && (
-          <span
-            className={`leading-snug font-medium opacity-65 ${
-              grande ? "text-[13px]" : "text-[10.5px]"
-            }`}
-          >
-            {FRASE}
-          </span>
+          <>
+            {/* La línea, y no es del prototipo.
+
+                Allá la cabecera de marca es una sola fila SIN
+                separador; la única `hairline` del panel está
+                debajo del selector de gremio. Esta forma —nombre,
+                línea, frase— la pidió el cliente el 1 sep 2026, y
+                se monta con el MISMO grosor y el mismo token que
+                aquella para no inventar un segundo separador.
+
+                `currentColor` al 22 % y no `--hairline`: la firma
+                se pinta sobre el encabezado, cuyo color elige el
+                administrador, y un token de superficie
+                desaparecería sobre un fondo oscuro. Con el color
+                del texto sobrevive a las dieciséis plantillas,
+                igual que el signo. */}
+            <span
+              aria-hidden="true"
+              className={`${apilado ? "w-10" : "w-full"} ${
+                grande ? "my-2" : "my-1.5"
+              } h-px shrink-0 bg-current opacity-[0.22]`}
+            />
+            <span
+              className={`leading-snug font-medium opacity-65 ${
+                grande ? "text-[13px]" : "text-[10.5px]"
+              }`}
+            >
+              {FRASE}
+            </span>
+          </>
         )}
       </span>
     </span>
@@ -122,7 +155,7 @@ export function PieDeConvoca({ className }: { className?: string }) {
       {estado ? (
         <>
           {" · "}
-          <span className="font-mono">Convoca {estado.version}</span>
+          <span className="font-mono">{NOMBRE} {estado.version}</span>
         </>
       ) : null}
     </p>

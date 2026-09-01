@@ -1,13 +1,13 @@
 import { ConsultaReservas } from "@/components/consulta-reservas";
 
-export const metadata = { title: "Consultar mis reservas · Convoca" };
+export const metadata = { title: "Consultar mis reservas · Convoca CRM" };
 
 export default function PaginaConsulta() {
   return (
     <main className="mx-auto w-full max-w-3xl px-6 py-10">
       <header className="mb-8">
         {/* sin enlace a la raíz */}
-        <span className="text-sm font-medium text-marca">Convoca</span>
+        <span className="text-sm font-medium text-marca">Convoca CRM</span>
         <h1 className="mt-2 text-3xl font-semibold tracking-tight">
           Consultar mis reservas
         </h1>

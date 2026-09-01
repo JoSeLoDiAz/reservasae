@@ -9,7 +9,13 @@ continua especializada** se inscriben o manifiestan interés. La formación es
 **gratuita** y se oferta bajo **dos convenios** distintos; el sistema unifica el
 registro de ambos.
 
-- **Nombre visible en la interfaz:** Convoca
+- **Nombre visible en la interfaz:** **Convoca CRM**, así, en todo el sistema.
+  No «Convoca» a secas: el producto es un CRM y el propio handoff de diseño se
+  titula «Rediseño del CRM Convoca». Aplica a la cabecera del panel, al `<title>`,
+  al inicio de sesión, a los correos y a cualquier sitio donde se nombre el
+  producto. Lo que **no** cambia es el identificador técnico —el dominio, los
+  contenedores, la llave `convoca:plegado`—, que no es un nombre visible.
+- **Eslogan:** «Relaciones que generan resultados» (del handoff de diseño).
 - **Dominio:** <https://reservasae.com>
 - **Repositorio:** `git@github.com:JoSeLoDiAz/reservasae.git` (privado)
 - **Ruta en el servidor:** `/opt/sep/reservasae`
@@ -71,12 +77,89 @@ sistema. Lo que sí es por gremio es la paleta de los **formularios públicos**,
 que se sirve por otra ruta. Con esto: «Restablecer los colores» en Apariencia
 cambia el panel de los dos gremios a la vez, no el de quien lo pulsa.
 
+### Dos cambios deliberados al handoff (1 sep 2026)
+
+Los pidió el cliente **después** del handoff, así que mandan sobre él. Van escritos
+aquí porque leyendo solo el prototipo parecerían errores de implementación.
+
+**1 · La firma lleva línea, y el prototipo no la tiene.** Allá la cabecera de marca
+es una sola fila —logo 24×24, nombre 15,5/700, bajada 11px— **sin ningún
+separador**; la única `hairline` del panel está debajo del selector de gremio. La
+forma nueva es:
+
+```
+ ╭───╮   Convoca CRM
+ │ C │   ───────────────
+ ╰───╯   Relaciones que generan resultados
+```
+
+- La línea usa el **mismo grosor y el mismo token** que aquella para no inventar un
+  segundo separador — pero pintada con `currentColor` al 22 %, no con `--hairline`.
+  La firma va sobre el encabezado, cuyo color elige el administrador, y un token de
+  superficie desaparecería sobre un fondo oscuro. Con el color del texto sobrevive a
+  las dieciséis plantillas, igual que el signo.
+- **Plegado no cabe y no se intenta**: 62 px de ancho dan 38 útiles, donde no entra
+  ni el nombre ni el eslogan. Ahí queda el signo solo, como ya hacía el prototipo.
+
+**2 · Los logos van más grandes.** El handoff fija 24×24 en el panel y la
+implementación ya estaba en 32 por su cuenta. Ahora el signo va a 42 desplegado y
+los del gremio a 44 px de alto. El techo real lo pone la barra: 260 px de ancho.
+
+### El signo se anima, y solo de una forma
+
+`SignoConvoca` acepta `animado`: el arco se dibuja de un trazo y el disco se asienta
+al final. **Eso no contradice el «no lo anime» de su docblock, que sigue en pie**:
+lo prohibido es *girarlo*, porque un aro que da vueltas es el indicador de carga y
+de ese hay que separarse. Dibujarse es lo contrario — cuenta la misma frase que el
+signo dice quieto, del contorno vacío a la persona formada, en el orden en que se
+lee.
+
+- **Se dispara al cambiar de pantalla** poniéndole `key={ruta}`: React remonta el
+  nodo y la animación vuelve a correr. Sin la key solo se dibujaría al entrar.
+- **El último fotograma ES el estado de reposo**, y no es un detalle: las dos reglas
+  que apagan el movimiento dejan la animación en `0,01 ms`, o sea que salta a su
+  último fotograma. Una que terminara en `opacity: 0` dejaría sin signo a quien pide
+  menos movimiento.
+- **Esas reglas ahora anulan también la ESPERA.** Forzaban `animation-duration` y no
+  `animation-delay`, así que una animación con retardo —como la del disco, que entra
+  420 ms después— se quedaba en su primer fotograma ese rato y después saltaba al
+  último: un parpadeo justo para quien pidió no tenerlos.
+- `pathLength={1}` normaliza el largo del arco, así que el guion se escribe en
+  fracciones y sigue valiendo si mañana cambia el radio.
+
+### El nombre visible vive en TRES sitios, y hay que tocar los tres
+
+Es la trampa de este cambio. `Marca.nombreApp` es una **columna de la base** con
+valor por defecto, y **pisa al código** en el `<title>` y en la cabecera de los
+formularios públicos. Cambiar solo el código deja producción diciendo «Convoca».
+
+| | |
+|---|---|
+| `firma-convoca.tsx` | la constante `NOMBRE`, que cubre seis puntos de pintado |
+| literales sueltos | 17 en total, entre frontend y backend (correos, PDF, xlsx) |
+| `Marca.nombreApp` | la base — migración `20260901120000_convoca_crm` |
+
+La migración **solo actualiza las filas que siguen en el valor viejo**: un
+administrador pudo cambiarlo a propósito y pisárselo sería decidir por él.
+
+Y `SMTP_NOMBRE` va en el `.env` de cada servidor, fuera de git: si no se cambia
+allí, el remitente de todos los correos sigue diciendo «Convoca» aunque el código
+diga otra cosa.
+
+### La versión lleva siglas
+
+`0.4.0-JD`. Es un prerelease de semver válido, así que `-prueba` se le suma detrás
+sin romper nada: en pruebas la cadena es `0.4.0-JD-prueba`. **El sufijo del entorno
+va siempre el último**, porque `perfil/page.tsx` es el único sitio que parsea la
+cadena y busca «prueba» al final. Los dos `package.json` —raíz y backend— se suben
+juntos; el del frontend **no**, que sería una tercera verdad.
+
 ### Cuándo NO decidir solo
 
 Si la duda es funcional y no visual —qué hace un botón, qué datos trae una
 pantalla, si se sobrescribe algo que un administrador guardó— **pregunte**.
 
-## Estado actual (29 ago 2026 · v0.3.0)
+## Estado actual (1 sep 2026 · v0.4.0-JD)
 
 > **El CRM entero ya está en PRODUCCIÓN** (29 ago 2026). Hasta hoy `main`
 > iba 137 commits por detrás y producción servía la versión del 20 de
