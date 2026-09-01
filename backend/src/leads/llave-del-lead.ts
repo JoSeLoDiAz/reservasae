@@ -27,11 +27,15 @@ import { normalizarDocumento } from '../comun/documento';
 
 export type Llave = { llave: string } | { falta: string };
 
-export function llaveDelLead(dto: {
-  externoId?: string | null;
-  tipoDocumentoSepId?: number | null;
-  numeroDocumento?: string | null;
-}): Llave {
+export function llaveDelLead(
+  dto: {
+    externoId?: string | null;
+    tipoDocumentoSepId?: number | null;
+    numeroDocumento?: string | null;
+  },
+  /// El codigo del curso ya resuelto: `AF1`, o null.
+  codigoDelCurso?: string | null,
+): Llave {
   const propio = (dto.externoId ?? '').trim();
   if (propio) return { llave: propio };
 
@@ -41,7 +45,19 @@ export function llaveDelLead(dto: {
   const tipo = dto.tipoDocumentoSepId;
 
   if (numero && tipo !== null && tipo !== undefined) {
-    return { llave: `doc:${tipo}-${numero}` };
+    /// El CURSO va en la llave, y esto es lo que permite que la
+    /// misma persona se inscriba en varias formaciones.
+    ///
+    /// Con la cedula sola, quien ya pidio AF1 y despues pide AF2
+    /// vuelve como «repetido» y su segunda peticion se pierde en
+    /// silencio -- que es justo lo contrario de lo que este
+    /// webhook existe para hacer.
+    ///
+    /// Va el CODIGO resuelto y no el texto: «AF1», «af 1» y
+    /// «AF1 - los nuevos metodos» son la misma inscripcion, y
+    /// con el texto crudo serian tres.
+    const curso = codigoDelCurso ?? 'sin-af';
+    return { llave: `doc:${tipo}-${numero}:${curso}` };
   }
 
   /// Sin ninguna de las dos NO se guarda, y es deliberado.

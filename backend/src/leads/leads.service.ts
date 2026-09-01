@@ -18,6 +18,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { registrarToqueDeOrigen } from '../crm/origen-del-lead';
 import { accionQuePidio } from './accion-que-pidio';
 import { llaveDelLead } from './llave-del-lead';
+import { siglasAdmitidas, tipoDeDocumento } from './tipo-de-documento';
 
 import type { EntraLeadDto } from './dto';
 
@@ -107,7 +108,19 @@ export class LeadsService {
       );
     }
 
-    const datos = this.limpiar(dto);
+    /// El tipo de documento, dicho como lo dice la gente.
+    ///
+    /// Se admite `CC`, `PPT`, el nombre entero o el numero. Se
+    /// resuelve ANTES de limpiar porque de el depende la llave.
+    const tipoDoc = tipoDeDocumento(dto.tipoDocumento ?? dto.tipoDocumentoSepId);
+    if (dto.numeroDocumento?.trim() && tipoDoc === null) {
+      throw new BadRequestException(
+        'Mando un documento sin decir de que tipo, o con un tipo que no ' +
+          `reconocemos. Use la sigla: ${siglasAdmitidas().slice(0, 6).join(', ')}...`,
+      );
+    }
+
+    const datos = this.limpiar(dto, tipoDoc);
     const falta = this.queLeFalta(datos);
 
     /// Que curso pidio, si lo nombro.
@@ -131,7 +144,10 @@ export class LeadsService {
     /// sirve de llave sin inventar una segunda regla. Va
     /// normalizado: `1.020.304.050` y `1020304050` tienen que
     /// dar la MISMA, o el reintento duplica.
-    const llave = llaveDelLead(dto);
+    const llave = llaveDelLead(
+      { ...dto, tipoDocumentoSepId: tipoDoc },
+      pedida?.codigo ?? null,
+    );
     if ('falta' in llave) throw new BadRequestException(llave.falta);
     const externoId = llave.llave;
 
@@ -458,7 +474,7 @@ export class LeadsService {
    * como vino y se limpia después, la misma persona escrita de
    * dos formas son dos leads que nadie relaciona.
    */
-  private limpiar(dto: EntraLeadDto) {
+  private limpiar(dto: EntraLeadDto, tipoDoc: number | null) {
     const numero = dto.numeroDocumento
       ? normalizarDocumento(dto.numeroDocumento)
       : null;
@@ -471,12 +487,7 @@ export class LeadsService {
     /// pueden ser dos nombres y dos apellidos, o uno y tres.
     /// Si el emisor las manda separadas, ya no hay que adivinar
     /// -- y quien lleno el formulario si lo sabia.
-    const enPiezas = [
-      dto.primerNombre,
-      dto.segundoNombre,
-      dto.primerApellido,
-      dto.segundoApellido,
-    ]
+    const enPiezas = [dto.nombres, dto.primerApellido, dto.segundoApellido]
       .map((x) => x?.trim())
       .filter(Boolean)
       .join(' ');
@@ -485,19 +496,27 @@ export class LeadsService {
       nombreCompleto: enPiezas || dto.nombreCompleto?.trim() || null,
       /// Se guardan tambien sueltas: al convertir se usan tal
       /// cual en vez de volver a partir lo que ya venia partido.
+      /// Los nombres llegan juntos y los apellidos separados,
+      /// que es como los escribe la gente. Los dos nombres se
+      /// parten aqui --«Ana Maria» -> «Ana» + «Maria»-- y eso SI
+      /// se puede: lo dificil es saber donde acaban los nombres
+      /// y empiezan los apellidos, y eso ya viene resuelto.
       piezasDelNombre: dto.primerApellido?.trim()
-        ? {
-            primerNombre: dto.primerNombre?.trim() || null,
-            segundoNombre: dto.segundoNombre?.trim() || null,
-            primerApellido: dto.primerApellido.trim(),
-            segundoApellido: dto.segundoApellido?.trim() || null,
-          }
+        ? (() => {
+            const ns = (dto.nombres ?? '').trim().split(/\s+/).filter(Boolean);
+            return {
+              primerNombre: ns[0] ?? null,
+              segundoNombre: ns.slice(1).join(' ') || null,
+              primerApellido: dto.primerApellido!.trim(),
+              segundoApellido: dto.segundoApellido?.trim() || null,
+            };
+          })()
         : null,
       correo: dto.correo?.trim().toLowerCase() || null,
       /// Vacio si no es un celular: guardar «no tiene» seria
       /// guardar algo que no sirve para llamar a nadie.
       celular: celular && celularValido(celular) ? celular : null,
-      tipoDocumentoSepId: dto.tipoDocumentoSepId ?? null,
+      tipoDocumentoSepId: tipoDoc,
       numeroDocumento: numero || null,
       /// Si MANDARON algo, aunque no sirviera.
       ///

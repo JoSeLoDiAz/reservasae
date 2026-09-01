@@ -67,17 +67,16 @@ export class EntraLeadDto {
    *
    * Si vienen las piezas, mandan sobre `nombreCompleto`.
    */
+  /// Los nombres, juntos: «Ana Maria». Los apellidos NO.
+  ///
+  /// Separar los apellidos si hace falta --son dos columnas del
+  /// reporte al SENA y partirlos es adivinar-- pero los nombres
+  /// van juntos, que es como los escribe la gente.
   @IsOptional()
   @Transform(recortar)
   @IsString()
-  @MaxLength(60)
-  primerNombre?: string;
-
-  @IsOptional()
-  @Transform(recortar)
-  @IsString()
-  @MaxLength(60)
-  segundoNombre?: string;
+  @MaxLength(120)
+  nombres?: string;
 
   @IsOptional()
   @Transform(recortar)
@@ -111,6 +110,22 @@ export class EntraLeadDto {
   @MaxLength(40)
   celular?: string;
 
+  /**
+   * El tipo de documento, dicho como lo dice la gente.
+   *
+   * `CC`, `PPT`, `CE`, `PASAPORTE`, o el nombre entero. El
+   * catalogo del SEP los numera --1 es cedula, 61 es permiso por
+   * proteccion temporal-- y esos numeros no los sabe nadie fuera
+   * de aqui: pedirlos es pedirle a un tercero que copie una
+   * tabla nuestra y la mantenga al dia.
+   */
+  @IsOptional()
+  @Transform(recortar)
+  @IsString()
+  @MaxLength(60)
+  tipoDocumento?: string;
+
+  /// El id del SEP, para quien ya lo tenga. Se prefiere la sigla.
   @IsOptional() @IsInt() tipoDocumentoSepId?: number;
   @IsOptional()
   @Transform(recortar)

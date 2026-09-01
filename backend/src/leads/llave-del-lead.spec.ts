@@ -15,8 +15,8 @@ type Entrada = {
   numeroDocumento?: string | null;
 };
 
-const llave = (dto: Entrada) => {
-  const r = llaveDelLead(dto);
+const llave = (dto: Entrada, curso?: string | null) => {
+  const r = llaveDelLead(dto, curso);
   return 'llave' in r ? r.llave : null;
 };
 
@@ -27,9 +27,15 @@ const porQueNo = (dto: Entrada) => {
 };
 
 describe('el documento es la llave', () => {
-  it('con tipo y número sale una llave estable', () => {
+  it('con tipo, número y curso sale una llave estable', () => {
+    expect(
+      llave({ tipoDocumentoSepId: 1, numeroDocumento: '1020304050' }, 'AF1'),
+    ).toBe('doc:1-1020304050:AF1');
+  });
+
+  it('sin curso resuelto, la llave lo dice', () => {
     expect(llave({ tipoDocumentoSepId: 1, numeroDocumento: '1020304050' })).toBe(
-      'doc:1-1020304050',
+      'doc:1-1020304050:sin-af',
     );
   });
 
@@ -45,7 +51,9 @@ describe('el documento es la llave', () => {
       '1_020_304_050',
     ];
     const salidas = new Set(
-      formas.map((n) => llave({ tipoDocumentoSepId: 1, numeroDocumento: n })),
+      formas.map((n) =>
+        llave({ tipoDocumentoSepId: 1, numeroDocumento: n }, 'AF1'),
+      ),
     );
 
     expect({ formas: formas.length, distintas: salidas.size }).toEqual({
@@ -81,12 +89,15 @@ describe('si el emisor trae su propio id, manda ese', () => {
   it('un externoId en blanco no cuenta como id', () => {
     for (const vacio of ['', '   ', null, undefined]) {
       expect(
-        llave({
-          externoId: vacio,
-          tipoDocumentoSepId: 1,
-          numeroDocumento: '1020304050',
-        }),
-      ).toBe('doc:1-1020304050');
+        llave(
+          {
+            externoId: vacio,
+            tipoDocumentoSepId: 1,
+            numeroDocumento: '1020304050',
+          },
+          'AF1',
+        ),
+      ).toBe('doc:1-1020304050:AF1');
     }
   });
 });
@@ -128,5 +139,35 @@ describe('sin ninguna de las dos NO se guarda', () => {
 
   it('y el mensaje dice cómo arreglarlo, no solo que falló', () => {
     expect(porQueNo({})).toMatch(/reintento/i);
+  });
+});
+
+describe('la misma persona puede inscribirse en varios cursos', () => {
+  const ANA = { tipoDocumentoSepId: 1, numeroDocumento: '1020304050' };
+
+  it('AF1 y AF2 son DOS leads, no uno repetido', () => {
+    /// Es el caso que pidio el cliente: alguien se inscribe en
+    /// una formacion y despues en otra. Con la cedula sola, la
+    /// segunda volvia como «repetido» y su peticion se perdia en
+    /// silencio.
+    expect(llave(ANA, 'AF1')).not.toBe(llave(ANA, 'AF2'));
+  });
+
+  it('pero el MISMO curso escrito de tres formas es UNO', () => {
+    /// Va el codigo ya resuelto y no el texto: «AF1»,
+    /// «af 1» y «AF1 - los nuevos metodos» resuelven todas a
+    /// AF1, asi que son la misma inscripcion.
+    const tres = new Set([llave(ANA, 'AF1'), llave(ANA, 'AF1'), llave(ANA, 'AF1')]);
+    expect(tres.size).toBe(1);
+  });
+
+  it('dos personas distintas en el mismo curso siguen siendo dos', () => {
+    const OTRO = { tipoDocumentoSepId: 1, numeroDocumento: '9998887776' };
+    expect(llave(ANA, 'AF1')).not.toBe(llave(OTRO, 'AF1'));
+  });
+
+  it('y la misma cedula con OTRO tipo de documento tambien', () => {
+    const conPasaporte = { tipoDocumentoSepId: 41, numeroDocumento: '1020304050' };
+    expect(llave(ANA, 'AF1')).not.toBe(llave(conPasaporte, 'AF1'));
   });
 });
