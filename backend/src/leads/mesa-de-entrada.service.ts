@@ -11,6 +11,10 @@ import { Injectable } from '@nestjs/common';
 
 import { Prisma } from '../../generated/prisma';
 import { PrismaService } from '../prisma/prisma.service';
+import {
+  autorizoAlRegistrarse,
+  loQueLeFaltaAlLead,
+} from './listo-para-ficha';
 
 /// Cuántos por página. La mesa se mira, no se estudia.
 const POR_PAGINA = 50;
@@ -74,6 +78,7 @@ export class MesaDeEntrada {
           interes: true,
           recibidoEn: true,
           participanteId: true,
+          accionFormacionId: true,
           convenio: { select: { slug: true, sigla: true } },
           accionFormacion: { select: { codigo: true, nombre: true } },
         },
@@ -125,6 +130,18 @@ export class MesaDeEntrada {
         recibidoEn: l.recibidoEn,
         /// Si ya tiene ficha, para poder saltar a ella.
         participanteId: l.participanteId,
+        /// Qué le falta para poder ser ficha. Vacío: está listo.
+        ///
+        /// Lo calcula el SERVIDOR con la misma función que usa el
+        /// lote al convertir. Si la pantalla se lo inventara por
+        /// su cuenta serían dos verdades: encendería la casilla de
+        /// un lead que el servidor va a rechazar, o la apagaría en
+        /// uno perfectamente convertible.
+        falta: loQueLeFaltaAlLead(l),
+        /// Y si autorizó al registrarse, porque cambia lo que
+        /// pasa al convertirlo: sin esto la ficha nace sin
+        /// autorización y no se puede matricular ni reportar.
+        autorizoAlRegistrarse: autorizoAlRegistrarse(l.origen),
       })),
     };
   }

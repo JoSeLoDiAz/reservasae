@@ -95,6 +95,20 @@ export class CrearParticipanteDto {
   @IsString()
   ofertaId?: string;
 
+  /// La accion SIN la sede, para quien todavia no tiene domicilio.
+  ///
+  /// Normalmente la accion se deduce de la oferta, y la oferta es
+  /// accion x ubicacion. Un lead de una pauta dice que curso quiere
+  /// y NO dice donde vive, asi que no hay con que elegir la sede.
+  /// Sin esto la ficha nacia sin curso y el dato se perdia.
+  ///
+  /// Y de paso es lo que hace morder al unique (accionFormacionId,
+  /// personaId): con la accion en NULL, Postgres trata cada nulo
+  /// como distinto y la misma persona entraba dos veces.
+  @IsOptional()
+  @IsString()
+  accionFormacionId?: string;
+
   @IsOptional()
   @IsString()
   reservaId?: string;

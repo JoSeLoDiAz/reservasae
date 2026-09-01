@@ -43,6 +43,10 @@ import { ColaRui } from '../crm/rui/cola-rui';
 import { PrismaService } from '../prisma/prisma.service';
 
 import type { ConvertirLeadDto } from './dto';
+import {
+  autorizoAlRegistrarse,
+  evidenciaDelLead,
+} from './listo-para-ficha';
 
 @Injectable()
 export class ConversionDeLeads {
@@ -54,12 +58,26 @@ export class ConversionDeLeads {
     private readonly colaRui: ColaRui,
   ) {}
 
+  /**
+   * Convierte un lead en ficha.
+   *
+   * `sinConstancia` es para el lote, y solo para el lead que NO
+   * llego por un formulario: a quien escribio por WhatsApp nadie
+   * le enseño un texto que aceptar, asi que no hay autorizacion
+   * que registrar. La ficha nace igual --crearla nunca ha exigido
+   * autorizacion, solo matricular la exige-- y queda diciendo que
+   * le falta.
+   *
+   * NO es un atajo para saltarse la constancia cuando la hay:
+   * quien decide es `convertirDeLote`, mirando por donde entro.
+   */
   async convertir(
     leadId: string,
     dto: ConvertirLeadDto,
     admin: Admin,
     ambito: string[],
     ip?: string,
+    opciones?: { sinConstancia?: boolean },
   ) {
     /// Fuera del ámbito la fila NO EXISTE: 404 y no 403.
     ///
@@ -83,6 +101,8 @@ export class ConversionDeLeads {
         numeroDocumento: true,
         origen: true,
         interes: true,
+        accionFormacionId: true,
+        recibidoEn: true,
       },
     });
     if (!lead) throw new NotFoundException('No existe ese lead.');
@@ -124,8 +144,10 @@ export class ConversionDeLeads {
     /// que dice estar autorizada y no puede demostrarlo — que es
     /// exactamente lo que no puede pasar. El arreglo está a una
     /// pantalla: publicar la política del convenio.
-    const politica = await politicaVigente(this.prisma, lead.convenioId);
-    if (!politica) {
+    const politica = opciones?.sinConstancia
+      ? null
+      : await politicaVigente(this.prisma, lead.convenioId);
+    if (!opciones?.sinConstancia && !politica) {
       throw new BadRequestException(
         'Este convenio no tiene política de tratamiento de datos publicada, ' +
           'así que no hay contra qué dejar la constancia. Publíquela en ' +
@@ -168,10 +190,21 @@ export class ConversionDeLeads {
         correo: lead.correo ?? undefined,
         celular: lead.celular ?? undefined,
         origen: lead.origen,
+        /// El curso que pidio, sin sede: un lead no dice donde
+        /// vive, asi que no hay con que elegir la oferta. Sin
+        /// esto la ficha nacia sin curso y el dato se perdia --
+        /// justo el que la mesa usa para saber si esta listo.
+        accionFormacionId: lead.accionFormacionId ?? undefined,
       },
       admin,
       ambito,
       ip,
+      /// El RUI lo encolamos NOSOTROS, despues de la constancia.
+      /// `crear` lo hacia por dentro, asi que la cedula salia
+      /// hacia el portal del DNP antes de que hubiera nada que
+      /// demostrar -- lo contrario de lo que este fichero dice
+      /// hacer dos lineas mas abajo.
+      { encolarRui: false },
     );
 
     const participanteId = (ficha as { id: string }).id;
@@ -181,13 +214,15 @@ export class ConversionDeLeads {
     /// asesor. Sin esto la ficha nace sin autorización y no se
     /// puede matricular ni reportar -- que es correcto, pero
     /// entonces convertir no habría servido de nada.
-    const constancia = await dejarConstancia(this.prisma, {
-      personaId,
-      convenioId: lead.convenioId,
-      canal: dto.canal,
-      evidencia: dto.evidencia,
-      ip,
-    });
+    const constancia = opciones?.sinConstancia
+      ? 'SIN_AUTORIZACION'
+      : await dejarConstancia(this.prisma, {
+          personaId,
+          convenioId: lead.convenioId,
+          canal: dto.canal,
+          evidencia: dto.evidencia,
+          ip,
+        });
 
     await this.prisma.leadEntrante.update({
       where: { id: lead.id },
@@ -195,7 +230,10 @@ export class ConversionDeLeads {
         participanteId,
         estado: 'CONVERTIDO',
         procesadoEn: new Date(),
-        motivo: `Convertido por ${admin.nombre}. Autorizó por ${dto.canal}.`,
+        motivo: opciones?.sinConstancia
+          ? `Convertido por ${admin.nombre}. SIN autorización de datos: ` +
+            'no llegó por un formulario, hay que pedírsela.'
+          : `Convertido por ${admin.nombre}. Autorizó por ${dto.canal}.`,
       },
     });
 
@@ -218,6 +256,99 @@ export class ConversionDeLeads {
         `(autorización: ${dto.canal}, constancia: ${constancia}).`,
     );
 
-    return { participanteId, constancia };
+    return {
+      participanteId,
+      constancia,
+      conAutorizacion: constancia === 'REGISTRADA' || constancia === 'YA_TENIA',
+    };
+  }
+
+  /**
+   * La conversion del lote: la autorizacion NO la teclea nadie.
+   *
+   * Esto es lo que separa esta constancia de un invento. Al asesor
+   * no se le pide que afirme nada sobre cien personas: se mira por
+   * donde entro CADA lead y, si fue por un formulario --el de una
+   * pauta de Meta o el nuestro, donde no se puede enviar sin
+   * aceptar la politica--, la evidencia sale de su propio registro:
+   * el id que le dio el emisor, cuando llego y por donde. El cuerpo
+   * entero de esa peticion sigue guardado en su `carga`.
+   *
+   * Cien constancias distintas, cada una apuntando a su prueba. No
+   * una frase estampada cien veces, que es lo que este archivo
+   * lleva advirtiendo desde que existe la mesa de entrada.
+   */
+  async convertirDeLote(
+    leadId: string,
+    admin: Admin,
+    ambito: string[],
+    ip?: string,
+  ) {
+    const lead = await this.prisma.leadEntrante.findFirst({
+      where: { id: leadId, convenioId: { in: ambito } },
+      select: {
+        id: true,
+        externoId: true,
+        origen: true,
+        origenSistema: true,
+        recibidoEn: true,
+        convenioId: true,
+        tipoDocumentoSepId: true,
+        numeroDocumento: true,
+      },
+    });
+    if (!lead) throw new NotFoundException('Ese lead no existe.');
+
+    const porFormulario = autorizoAlRegistrarse(lead.origen);
+
+    /// Y si revoco DESPUES de registrarse, manda la revocacion.
+    ///
+    /// La autorizacion de este lead es un hecho del pasado: la dio
+    /// al llenar el formulario. Si mas tarde pidio que dejaran de
+    /// usar sus datos, escribirla ahora resucitaria en silencio un
+    /// derecho que ya ejercio -- y `dejarConstancia` no lo ve,
+    /// porque solo mira las que siguen vivas.
+    const revocoDespues = porFormulario
+      ? await this.revocoDespuesDe(lead, lead.recibidoEn)
+      : false;
+
+    const conConstancia = porFormulario && !revocoDespues;
+
+    return this.convertir(
+      leadId,
+      {
+        /// Lleno el formulario: ese es el canal, literalmente.
+        canal: 'FORMULARIO_WEB' as ConvertirLeadDto['canal'],
+        evidencia: evidenciaDelLead(lead),
+      } as ConvertirLeadDto,
+      admin,
+      ambito,
+      ip,
+      { sinConstancia: !conConstancia },
+    );
+  }
+
+  /// ¿Revoco despues de esta fecha?
+  ///
+  /// Se busca por documento porque la ficha todavia no existe: la
+  /// persona puede llevar tiempo en el sistema por otro lado.
+  private async revocoDespuesDe(
+    lead: { tipoDocumentoSepId: number | null; numeroDocumento: string | null },
+    desde: Date,
+  ): Promise<boolean> {
+    if (lead.tipoDocumentoSepId === null || !lead.numeroDocumento) return false;
+    const numero = normalizarDocumento(lead.numeroDocumento);
+    if (!numero) return false;
+    const persona = await this.prisma.persona.findFirst({
+      where: { tipoDocumentoSepId: lead.tipoDocumentoSepId, numeroDocumento: numero },
+      select: { id: true },
+    });
+    if (!persona) return false;
+
+    const revocada = await this.prisma.autorizacionDatos.findFirst({
+      where: { personaId: persona.id, revocadaEn: { gt: desde } },
+      select: { id: true },
+    });
+    return Boolean(revocada);
   }
 }

@@ -889,11 +889,21 @@ export class CrmService {
     return falta;
   }
 
+  /**
+   * Crea la ficha.
+   *
+   * `encolarRui: false` es para quien tiene que dejar la
+   * constancia ANTES de que la cedula salga hacia el portal del
+   * DNP -- hoy solo la conversion de un lead. Encolar aqui dentro
+   * hacia imposible ese orden desde fuera, porque `crear` volvia
+   * con la consulta ya encolada.
+   */
   async crear(
     dto: CrearParticipanteDto,
     admin: Admin,
     ambito: string[],
     ip?: string,
+    opciones?: { encolarRui?: boolean },
   ) {
     this.exigirConvenio(dto.convenioId, ambito);
 
@@ -942,6 +952,32 @@ export class CrmService {
         'Esa oferta no pertenece al convenio indicado.',
       );
     }
+
+    /// La accion puede venir SIN oferta: es el caso del lead, que
+    /// dice que curso quiere y no dice donde vive.
+    ///
+    /// Se comprueba que sea del convenio por lo mismo que la
+    /// oferta: sin esto, una accion del otro gremio entraria y la
+    /// ficha contaria contra la cobertura de quien no es.
+    const accionSuelta =
+      !oferta && dto.accionFormacionId
+        ? await this.prisma.accionFormacion.findUnique({
+            where: { id: dto.accionFormacionId },
+            select: { id: true, convenioId: true },
+          })
+        : null;
+
+    if (dto.accionFormacionId && !oferta && !accionSuelta) {
+      throw new NotFoundException('Esa accion de formacion no existe.');
+    }
+    if (accionSuelta && accionSuelta.convenioId !== dto.convenioId) {
+      throw new BadRequestException(
+        'Esa accion de formacion no pertenece al convenio indicado.',
+      );
+    }
+
+    /// Manda la oferta si vino: lleva la sede dentro.
+    const accionId = oferta?.accionFormacionId ?? accionSuelta?.id ?? null;
 
     // la reserva se comprobaba: entraba tal cual y una de
     // otro convenio sumaba a la cobertura de este sin
@@ -1019,12 +1055,16 @@ export class CrmService {
         },
       });
 
-      if (oferta) {
+      /// Va contra `accionId`, no contra `oferta`.
+      ///
+      /// Estaba dentro de un `if (oferta)`, asi que el camino que
+      /// NO manda oferta --convertir un lead-- no lo corria nunca:
+      /// dos leads de la misma persona daban dos fichas. Y el
+      /// unique de la base tampoco lo paraba, porque con la accion
+      /// en NULL Postgres trata cada nulo como distinto.
+      if (accionId) {
         const repetido = await tx.participante.findFirst({
-          where: {
-            personaId: persona.id,
-            accionFormacionId: oferta.accionFormacionId,
-          },
+          where: { personaId: persona.id, accionFormacionId: accionId },
           select: { id: true },
         });
         if (repetido) {
@@ -1040,7 +1080,7 @@ export class CrmService {
           personaId: persona.id,
           convenioId: dto.convenioId,
           ofertaId: oferta?.id ?? null,
-          accionFormacionId: oferta?.accionFormacionId ?? null,
+          accionFormacionId: accionId,
           reservaId: dto.reservaId ?? null,
           origen: dto.origen ?? 'ASESOR',
           asesorId: dto.asesorId ?? admin.id,
@@ -1067,7 +1107,9 @@ export class CrmService {
     // fuera de la transaccion a proposito: si encolar falla,
     // el lead ya quedo guardado y no se arrastra con el
     try {
-      await this.colaRui.encolarSiHaceFalta(creado.personaId);
+      if (opciones?.encolarRui !== false) {
+        await this.colaRui.encolarSiHaceFalta(creado.personaId);
+      }
     } catch (e) {
       this.log.warn(
         `No se pudo encolar la consulta al RUI: ` +

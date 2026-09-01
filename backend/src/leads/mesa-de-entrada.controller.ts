@@ -6,19 +6,35 @@
  * y así cada merge del día no es un conflicto.
  */
 
-import { Controller, Get, Query, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  Post,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
 
-import { RolAdmin } from '../../generated/prisma';
+import { RolAdmin, type Admin } from '../../generated/prisma';
 import { AmbitoActual } from '../admin/admin-actual.decorator';
 import { AdminGuard, Requiere, Roles, type Ambito } from '../admin/admin.guard';
 
+import { AdminActual } from '../admin/admin-actual.decorator';
+import { IpReal } from '../comun/ip-real';
+
+import { ConvertirLoteDto } from './dto';
+import { LoteDeLeads } from './lote.service';
 import { MesaDeEntrada } from './mesa-de-entrada.service';
 
 @Controller('admin/leads')
 @UseGuards(AdminGuard)
 @Roles(RolAdmin.SUPERADMIN, RolAdmin.GESTOR)
 export class MesaDeEntradaController {
-  constructor(private readonly mesa: MesaDeEntrada) {}
+  constructor(
+    private readonly mesa: MesaDeEntrada,
+    private readonly lote: LoteDeLeads,
+  ) {}
 
   /**
    * Lo que llegó por los webhooks.
@@ -47,5 +63,28 @@ export class MesaDeEntradaController {
       },
       ambito.convenios,
     );
+  }
+
+  /**
+   * Convierte varios de una vez.
+   *
+   * `ESCRIBIR` y no `VER`: crea fichas. Es la misma exigencia que
+   * la conversion de uno, y tiene que serlo -- si el lote pidiera
+   * menos, seria la puerta de servicio por la que se entra a hacer
+   * cien veces lo que de una en una no se puede.
+   *
+   * 200 y no 201: puede que no se cree ninguna. Un 201 diria que
+   * si, y el cuerpo diria que no.
+   */
+  @Post('lote/convertir')
+  @Requiere('inscripciones', 'ESCRIBIR')
+  @HttpCode(200)
+  convertirLote(
+    @Body() dto: ConvertirLoteDto,
+    @AdminActual() admin: Admin,
+    @AmbitoActual() ambito: Ambito,
+    @IpReal() ip: string,
+  ) {
+    return this.lote.convertir(dto.ids, admin, ambito.convenios, ip);
   }
 }

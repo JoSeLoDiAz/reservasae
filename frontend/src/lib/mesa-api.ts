@@ -25,6 +25,24 @@ export type LeadDeLaMesa = {
   recibidoEn: string;
   /// Si ya tiene ficha, para poder saltar a ella.
   participanteId: string | null;
+  /// Qué le falta para poder ser ficha. Vacío: está listo.
+  ///
+  /// Lo dice el SERVIDOR, que es el que después va a convertir.
+  /// Calcularlo aquí sería una segunda verdad: la casilla se
+  /// encendería en un lead que el servidor va a rechazar.
+  falta: string[];
+  /// Si autorizó al llenar el formulario de la pauta.
+  autorizoAlRegistrarse: boolean;
+};
+
+export type ResultadoDelLote = {
+  pedidos: number;
+  convertidos: number;
+  conAutorizacion: number;
+  sinAutorizacion: number;
+  fallaron: number;
+  fuera: number;
+  problemas: Array<{ leadId: string; nombre?: string; porque?: string }>;
 };
 
 export type ListadoDeLaMesa = {
@@ -65,4 +83,14 @@ export const mesaApi = {
     const cola = p.toString();
     return pedir<ListadoDeLaMesa>(`/admin/leads${cola ? `?${cola}` : ""}`);
   },
+
+  convertirLote: (ids: string[]) =>
+    pedir<ResultadoDelLote>("/admin/leads/lote/convertir", {
+      method: "POST",
+      body: JSON.stringify({ ids }),
+    }),
 };
+
+/// Cuántos caben de una vez. Lo fija el servidor; aquí solo se
+/// usa para no dejar seleccionar de más y decirlo antes.
+export const TOPE_DEL_LOTE = 100;

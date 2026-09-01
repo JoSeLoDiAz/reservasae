@@ -1,9 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
-import { Aviso } from "@/components/admin/marco-admin";
+import { Aviso, Boton } from "@/components/admin/marco-admin";
 import { Cifra, Encabezado, Vacio } from "@/components/admin/piezas";
 import { useDatosVivos } from "@/lib/datos-vivos";
 import { ErrorApi } from "@/lib/api";
@@ -11,8 +11,11 @@ import {
   ETIQUETA_ESTADO_LEAD,
   mesaApi,
   TONO_ESTADO_LEAD,
+  TOPE_DEL_LOTE,
   type EstadoLead,
+  type LeadDeLaMesa,
   type ListadoDeLaMesa,
+  type ResultadoDelLote,
 } from "@/lib/mesa-api";
 
 /**
@@ -48,6 +51,11 @@ export default function PaginaMesa() {
   /// una petición por letra.
   const [buscado, setBuscado] = useState("");
 
+  const [marcados, setMarcados] = useState<Set<string>>(new Set());
+  const [confirmando, setConfirmando] = useState(false);
+  const [convirtiendo, setConvirtiendo] = useState(false);
+  const [resultado, setResultado] = useState<ResultadoDelLote | null>(null);
+
   useEffect(() => {
     const t = setTimeout(() => setBuscado(buscar), 350);
     return () => clearTimeout(t);
@@ -69,23 +77,122 @@ export default function PaginaMesa() {
 
   useDatosVivos(cargar);
 
+  const leads = useMemo(() => datos?.leads ?? [], [datos]);
+
+  /// Los que se pueden convertir, DE ESTA PÁGINA.
+  ///
+  /// La distinción importa: seleccionar «todos» viendo 50 de 392
+  /// y convertir 392 sería hacer algo que nadie pidió, y decir
+  /// 392 habiendo convertido 50 sería mentir sobre lo que pasó.
+  const listos = useMemo(() => leads.filter((l) => l.falta.length === 0), [leads]);
+
+  /// Solo los marcados que siguen estando y siguen listos.
+  ///
+  /// La lista se refresca sola cada 30 s: sin esto, un lead que
+  /// alguien más convirtió mientras tanto seguiría contando.
+  const seleccionados = useMemo(
+    () => listos.filter((l) => marcados.has(l.id)).map((l) => l.id),
+    [listos, marcados],
+  );
+
+  const pasaDelTope = seleccionados.length > TOPE_DEL_LOTE;
+
+  function alternar(id: string) {
+    setMarcados((antes) => {
+      const nuevo = new Set(antes);
+      if (nuevo.has(id)) nuevo.delete(id);
+      else nuevo.add(id);
+      return nuevo;
+    });
+  }
+
+  function marcarTodosLosListos() {
+    if (seleccionados.length === listos.length) setMarcados(new Set());
+    else setMarcados(new Set(listos.slice(0, TOPE_DEL_LOTE).map((l) => l.id)));
+  }
+
+  async function convertir() {
+    setConvirtiendo(true);
+    try {
+      const r = await mesaApi.convertirLote(seleccionados);
+      setResultado(r);
+      setMarcados(new Set());
+      setConfirmando(false);
+      await cargar();
+    } catch (e) {
+      setError(
+        e instanceof ErrorApi ? e.message : "No se pudieron convertir los leads.",
+      );
+      setConfirmando(false);
+    } finally {
+      setConvirtiendo(false);
+    }
+  }
+
   const r = datos?.resumen ?? {};
+  /// Cuántos de los marcados van a quedar sin autorización.
+  const sinAutorizar = listos.filter(
+    (l) => marcados.has(l.id) && !l.autorizoAlRegistrarse,
+  ).length;
 
   return (
     <>
       <Encabezado
         titulo="Mesa de entrada"
-        descripcion="Lo que llega por los webhooks: la pauta de Meta y el orquestador de correos. Todavía no son fichas — un lead de un anuncio no trae autorización de datos — así que alguien los llama y los convierte."
+        descripcion="Lo que llega por los webhooks: la pauta de Meta y el orquestador de correos. Todavía no son fichas — alguien las revisa y las convierte, y ahí entran a Gestión de leads como Interesados."
       />
 
       <section className="space-y-5 px-7 py-6">
         {error && <Aviso tipo="error">{error}</Aviso>}
 
+        {resultado && (
+          <Aviso tipo={resultado.fallaron ? "error" : "exito"}>
+            <div className="font-semibold">
+              {resultado.convertidos} de {resultado.pedidos}{" "}
+              {resultado.convertidos === 1 ? "quedó" : "quedaron"} como ficha en
+              Interesado.
+            </div>
+            {resultado.sinAutorizacion > 0 && (
+              /// Decirlo es la mitad del trabajo: sin esto,
+              /// «convertí 40» parecería que las 40 pueden
+              /// matricularse, y no pueden.
+              <div className="mt-1 text-sm">
+                {resultado.sinAutorizacion} sin autorización de datos: no
+                llegaron por un formulario, así que hay que pedírsela antes de
+                poder matricularlas o reportarlas.
+              </div>
+            )}
+            {resultado.fuera > 0 && (
+              <div className="mt-1 text-sm">
+                {resultado.fuera} no son de este gremio y no se tocaron.
+              </div>
+            )}
+            {resultado.problemas.length > 0 && (
+              <ul className="mt-2 space-y-0.5 text-sm">
+                {resultado.problemas.slice(0, 8).map((p) => (
+                  <li key={p.leadId}>
+                    <span className="font-medium">{p.nombre}</span> — {p.porque}
+                  </li>
+                ))}
+                {resultado.problemas.length > 8 && (
+                  <li>y {resultado.problemas.length - 8} más.</li>
+                )}
+              </ul>
+            )}
+            <button
+              className="mt-2 text-sm font-medium underline"
+              onClick={() => setResultado(null)}
+            >
+              Entendido
+            </button>
+          </Aviso>
+        )}
+
         <div className="flex flex-wrap gap-3">
           <Cifra
             etiqueta="Sin atender"
             valor={r.PENDIENTE ?? 0}
-            pie="esperan que alguien los llame"
+            pie="esperan que alguien los revise"
             color="var(--aviso)"
           />
           <Cifra
@@ -118,11 +225,81 @@ export default function PaginaMesa() {
           {datos && (
             <span className="text-sm text-texto-suave">
               {datos.total} {datos.total === 1 ? "lead" : "leads"}
+              {datos.paginas > 1 && ` · viendo ${leads.length}`}
             </span>
           )}
         </div>
 
-        {datos && datos.leads.length === 0 ? (
+        {seleccionados.length > 0 && (
+          <div className="flex flex-wrap items-center gap-3 rounded-xl border border-marca/30 bg-marca-suave px-4 py-3">
+            <span className="text-sm font-semibold">
+              {seleccionados.length} seleccionado
+              {seleccionados.length === 1 ? "" : "s"}
+            </span>
+            {sinAutorizar > 0 && (
+              <span className="text-sm text-aviso">
+                {sinAutorizar} sin autorización de datos
+              </span>
+            )}
+            {pasaDelTope && (
+              <span className="text-sm text-error">
+                Máximo {TOPE_DEL_LOTE} por vez
+              </span>
+            )}
+            <div className="ml-auto flex gap-2">
+              <button
+                className="text-sm font-medium text-texto-suave hover:underline"
+                onClick={() => setMarcados(new Set())}
+              >
+                Quitar la selección
+              </button>
+              <Boton onClick={() => setConfirmando(true)} disabled={pasaDelTope}>
+                Convertir a Interesado
+              </Boton>
+            </div>
+          </div>
+        )}
+
+        {confirmando && (
+          <div className="space-y-3 rounded-xl border border-borde bg-superficie-2 p-5">
+            <div className="font-semibold">
+              Va a convertir {seleccionados.length} lead
+              {seleccionados.length === 1 ? "" : "s"} en fichas.
+            </div>
+            <ul className="space-y-1 text-sm text-texto-suave">
+              <li>
+                Nacen en <strong>Interesado</strong>, con el curso que pidieron.
+              </li>
+              <li>
+                {seleccionados.length - sinAutorizar} autorizaron al llenar el
+                formulario: se les deja la constancia con su propio registro
+                como prueba.
+              </li>
+              {sinAutorizar > 0 && (
+                <li className="text-aviso">
+                  {sinAutorizar} no llegaron por un formulario, así que no
+                  consta que autorizaran. Quedan como ficha, pero no se podrán
+                  matricular ni reportar hasta que alguien les pida la
+                  autorización.
+                </li>
+              )}
+            </ul>
+            <div className="flex gap-2">
+              <Boton onClick={convertir} disabled={convirtiendo}>
+                {convirtiendo ? "Convirtiendo…" : "Sí, convertirlos"}
+              </Boton>
+              <button
+                className="text-sm font-medium text-texto-suave hover:underline"
+                onClick={() => setConfirmando(false)}
+                disabled={convirtiendo}
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        )}
+
+        {datos && leads.length === 0 ? (
           <Vacio titulo="No hay leads que mostrar">
             {buscado || estado
               ? "Con esos filtros no aparece ninguno."
@@ -130,9 +307,20 @@ export default function PaginaMesa() {
           </Vacio>
         ) : (
           <div className="caja-scroll overflow-x-auto rounded-xl border border-borde">
-            <table className="w-full min-w-[1000px] text-sm">
+            <table className="w-full min-w-[1060px] text-sm">
               <thead className="bg-tabla-cabecera text-left text-xs tracking-wide text-texto-suave uppercase">
                 <tr>
+                  <th className="w-10 px-4 py-2.5">
+                    <input
+                      type="checkbox"
+                      aria-label="Seleccionar los que están listos"
+                      checked={
+                        listos.length > 0 && seleccionados.length === listos.length
+                      }
+                      disabled={listos.length === 0}
+                      onChange={marcarTodosLosListos}
+                    />
+                  </th>
                   <th className="px-4 py-2.5 font-medium">Persona</th>
                   <th className="px-4 py-2.5 font-medium">Contacto</th>
                   <th className="px-4 py-2.5 font-medium">Entró por</th>
@@ -142,13 +330,31 @@ export default function PaginaMesa() {
                 </tr>
               </thead>
               <tbody>
-                {(datos?.leads ?? []).map((l) => (
+                {leads.map((l: LeadDeLaMesa) => (
                   <tr key={l.id} className="border-t border-borde align-top">
+                    <td className="px-4 py-2.5">
+                      <input
+                        type="checkbox"
+                        aria-label={"Seleccionar a " + l.nombre}
+                        checked={marcados.has(l.id)}
+                        disabled={l.falta.length > 0}
+                        onChange={() => alternar(l.id)}
+                      />
+                    </td>
+
                     <td className="px-4 py-2.5">
                       <div className="font-medium">{l.nombre}</div>
                       <div className="text-xs text-texto-suave">
                         {l.documento ?? "sin documento"} · {l.gremio}
                       </div>
+                      {/* Un lead que no se puede marcar y no dice
+                          por qué es un lead que alguien va a dar
+                          por perdido. */}
+                      {l.falta.length > 0 && l.estado === "PENDIENTE" && (
+                        <div className="mt-0.5 text-xs text-aviso">
+                          Le falta {l.falta.join(", ")}
+                        </div>
+                      )}
                     </td>
 
                     <td className="px-4 py-2.5">
@@ -164,6 +370,11 @@ export default function PaginaMesa() {
                           por qué red: uno es el canal y el otro
                           quién nos lo entregó. */}
                       <div className="text-xs text-texto-suave">{l.porDonde}</div>
+                      {!l.autorizoAlRegistrarse && l.estado === "PENDIENTE" && (
+                        <div className="text-xs text-texto-suave">
+                          sin autorización
+                        </div>
+                      )}
                     </td>
 
                     <td className="px-4 py-2.5">

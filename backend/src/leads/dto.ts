@@ -199,6 +199,38 @@ export class EntraLoteDto {
   leads!: EntraLeadDto[];
 }
 
+/// Cuantos leads caben en una conversion por lote.
+///
+/// Cada uno escribe una persona, una ficha, un movimiento, una
+/// constancia y una auditoria, y encola el RUI: unas diez
+/// escrituras. Cloudflare corta a los ~100 s, asi que el tope no
+/// sale de lo que aguante la base sino de lo que aguanta la
+/// conexion. Con 100 y ~150 ms por fila van 15 s, que deja
+/// margen; con 392 la peticion moriria en el aire y quien la
+/// mando no sabria cuales entraron -- lo peor que le puede pasar
+/// a una accion por lote.
+export const TOPE_DEL_LOTE_DE_LEADS = 100;
+
+/**
+ * Convertir varios de golpe.
+ *
+ * NO lleva canal ni evidencia, y esa ausencia es la decision: la
+ * autorizacion sale de por donde entro cada lead, no de lo que
+ * teclee quien pulsa el boton. Una sola frase repetida cien veces
+ * seria fabricar cien pruebas.
+ */
+export class ConvertirLoteDto {
+  @IsArray()
+  @ArrayNotEmpty({ message: 'No seleccionó ningún lead.' })
+  @ArrayMaxSize(TOPE_DEL_LOTE_DE_LEADS, {
+    message:
+      `Un lote admite hasta ${TOPE_DEL_LOTE_DE_LEADS} leads. ` +
+      'Con más, la petición tardaría más de lo que aguanta la conexión.',
+  })
+  @IsString({ each: true })
+  ids!: string[];
+}
+
 export class ConvertirLeadDto {
   /// Por donde lo autorizo. Casi siempre VERBAL_ASESOR.
   @IsEnum(CanalAutorizacion)
