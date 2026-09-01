@@ -55,6 +55,10 @@ export default function PaginaMesa() {
   const [confirmando, setConfirmando] = useState(false);
   const [convirtiendo, setConvirtiendo] = useState(false);
   const [resultado, setResultado] = useState<ResultadoDelLote | null>(null);
+  /// A quién se le asignan. NO se rellena solo con quien está
+  /// mirando: en un lote de cien, el que importa casi nunca es el
+  /// que va a llamar. Que empiece vacío obliga a elegir.
+  const [asesorId, setAsesorId] = useState("");
 
   useEffect(() => {
     const t = setTimeout(() => setBuscado(buscar), 350);
@@ -114,10 +118,13 @@ export default function PaginaMesa() {
   async function convertir() {
     setConvirtiendo(true);
     try {
-      const r = await mesaApi.convertirLote(seleccionados);
+      const r = await mesaApi.convertirLote(seleccionados, asesorId);
       setResultado(r);
       setMarcados(new Set());
       setConfirmando(false);
+      /// El asesor NO se limpia: repartir un lote es hacer varias
+      /// tandas seguidas, y volver a elegir cada vez es fricción.
+      /// Cambiarlo es un clic cuando toca el siguiente.
       await cargar();
     } catch (e) {
       setError(
@@ -271,6 +278,10 @@ export default function PaginaMesa() {
                 Nacen en <strong>Interesado</strong>, con el curso que pidieron.
               </li>
               <li>
+                Les falta la <strong>sede</strong>: sale de dónde viva cada
+                persona, y eso el lead no lo trae. Se completa en la ficha.
+              </li>
+              <li>
                 {seleccionados.length - sinAutorizar} autorizaron al llenar el
                 formulario: se les deja la constancia con su propio registro
                 como prueba.
@@ -284,8 +295,34 @@ export default function PaginaMesa() {
                 </li>
               )}
             </ul>
+            <div className="space-y-1">
+              <label
+                className="block text-sm font-medium"
+                htmlFor="asesor-del-lote"
+              >
+                ¿Quién las va a atender?
+              </label>
+              <select
+                id="asesor-del-lote"
+                className={CLASE_CAMPO + " w-full max-w-sm"}
+                value={asesorId}
+                onChange={(e) => setAsesorId(e.target.value)}
+              >
+                <option value="">Elija un asesor…</option>
+                {(datos?.asesores ?? []).map((a) => (
+                  <option key={a.id} value={a.id}>
+                    {a.nombre}
+                  </option>
+                ))}
+              </select>
+              <p className="text-xs text-texto-suave">
+                Se les asigna a esta persona. Puede hacer varias tandas: veinte
+                para una, diez para otra.
+              </p>
+            </div>
+
             <div className="flex gap-2">
-              <Boton onClick={convertir} disabled={convirtiendo}>
+              <Boton onClick={convertir} disabled={convirtiendo || !asesorId}>
                 {convirtiendo ? "Convirtiendo…" : "Sí, convertirlos"}
               </Boton>
               <button

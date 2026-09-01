@@ -95,7 +95,33 @@ export class MesaDeEntrada {
       }),
     ]);
 
+    /// Quién puede llevar estos leads.
+    ///
+    /// Va en la MISMA llamada que la lista: pedirla aparte serían
+    /// dos viajes para pintar una pantalla, y este panel ya tiene
+    /// escrito por qué eso no se hace.
+    ///
+    /// Misma regla que usa la ficha (`opciones`): concesión en
+    /// alguno de los convenios del ámbito y un rol que atienda
+    /// inscripciones. Los de solo consulta no llevan leads.
+    const asesores = await this.prisma.admin.findMany({
+      where: {
+        activo: true,
+        convenios: {
+          some: {
+            convenioId: { in: ambito },
+            rol: {
+              in: ['GESTOR_INSCRIPCION', 'LIDER_INSCRIPCION', 'LIDER_SISTEMAS'],
+            },
+          },
+        },
+      },
+      orderBy: { nombre: 'asc' },
+      select: { id: true, nombre: true, correo: true },
+    });
+
     return {
+      asesores,
       total,
       pagina,
       paginas: Math.max(1, Math.ceil(total / porPagina)),

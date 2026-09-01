@@ -15,6 +15,8 @@ import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import type { Admin } from '../../generated/prisma';
 import { PrismaService } from '../prisma/prisma.service';
 
+import { CrmService } from '../crm/crm.service';
+
 import { ConversionDeLeads } from './conversion.service';
 import { TOPE_DEL_LOTE_DE_LEADS } from './dto';
 import { loQueLeFaltaAlLead } from './listo-para-ficha';
@@ -39,6 +41,7 @@ export class LoteDeLeads {
   constructor(
     private readonly prisma: PrismaService,
     private readonly conversion: ConversionDeLeads,
+    private readonly crm: CrmService,
   ) {}
 
   /**
@@ -50,6 +53,7 @@ export class LoteDeLeads {
    */
   async convertir(
     ids: string[],
+    asesorId: string,
     admin: Admin,
     ambito: string[],
     ip?: string,
@@ -97,6 +101,19 @@ export class LoteDeLeads {
 
     const fuera = unicos.length - leads.length;
 
+    /// El asesor se comprueba UNA vez y ANTES de convertir nada.
+    ///
+    /// Dentro del bucle serian cien consultas iguales; y despues,
+    /// tarde: quedarian cien fichas creadas y sin dueño, que es el
+    /// estado del que este lote existe para sacarlas. Se mira
+    /// contra cada convenio distinto que haya dentro, porque
+    /// bastaria con que uno no fuera suyo para dejarle fichas que
+    /// no ve -- y una ficha con dueño que nadie mira la cuenta la
+    /// brecha de nombres como atendida.
+    for (const convenioId of new Set(leads.map((l) => l.convenioId))) {
+      await this.crm.exigirAsesorDelConvenio(asesorId, convenioId);
+    }
+
     const filas: Fila[] = [];
     for (const lead of leads) {
       const nombre = lead.nombreCompleto ?? lead.primerNombre ?? lead.id;
@@ -121,6 +138,7 @@ export class LoteDeLeads {
       try {
         const r = await this.conversion.convertirDeLote(
           lead.id,
+          asesorId,
           admin,
           ambito,
           ip,

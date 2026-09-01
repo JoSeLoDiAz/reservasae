@@ -1649,7 +1649,12 @@ export class CrmService {
    * Va aquí una vez porque la usan la ficha y el lote, que
    * tenían cada una su media comprobación.
    */
-  private async exigirAsesorDelConvenio(asesorId: string, convenioId: string) {
+  /// Publico: lo usa tambien el lote de la mesa de entrada.
+  ///
+  /// Un asesor sin concesion en ese convenio no VE la ficha que
+  /// se le asigna: quedaria con dueño y sin nadie que la mire, y
+  /// la brecha de nombres la contaria como atendida.
+  async exigirAsesorDelConvenio(asesorId: string, convenioId: string) {
     const asesor = await this.prisma.admin.findFirst({
       where: { id: asesorId, activo: true },
       select: { id: true, nombre: true, rol: true },

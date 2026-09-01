@@ -29,6 +29,16 @@ function armar() {
         return Promise.resolve([]);
       },
     },
+    /// La lista de asesores también se acota por ámbito: sin eso,
+    /// el desplegable ofrecería a gente del otro gremio y
+    /// asignarles una ficha las dejaría con dueño y sin nadie que
+    /// las vea.
+    admin: {
+      findMany: (a: { where?: unknown }) => {
+        vistos.push(a);
+        return Promise.resolve([]);
+      },
+    },
   };
 
   return { s: new MesaDeEntrada(prisma as never), vistos };
@@ -45,6 +55,10 @@ function acotanPor(nodo: unknown): string[][] {
   const c = o.convenioId as { in?: string[] } | string | undefined;
   if (c && typeof c === 'object' && Array.isArray(c.in)) salida.push(c.in);
   if (typeof c === 'string') salida.push([c]);
+
+  /// El de la lista de asesores va anidado en `convenios.some`.
+  const some = (o.convenios as { some?: unknown } | undefined)?.some;
+  if (some) salida.push(...acotanPor(some));
 
   const and = o.AND;
   if (Array.isArray(and)) for (const x of and) salida.push(...acotanPor(x));

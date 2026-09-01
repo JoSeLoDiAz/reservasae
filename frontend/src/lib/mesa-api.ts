@@ -45,8 +45,13 @@ export type ResultadoDelLote = {
   problemas: Array<{ leadId: string; nombre?: string; porque?: string }>;
 };
 
+export type AsesorDeLaMesa = { id: string; nombre: string; correo: string };
+
 export type ListadoDeLaMesa = {
   total: number;
+  /// Quién puede llevar estos leads. Viene en la misma llamada:
+  /// pedirla aparte serían dos viajes para una pantalla.
+  asesores: AsesorDeLaMesa[];
   pagina: number;
   paginas: number;
   /// Cuántos hay por estado, en TODO el ámbito.
@@ -84,10 +89,10 @@ export const mesaApi = {
     return pedir<ListadoDeLaMesa>(`/admin/leads${cola ? `?${cola}` : ""}`);
   },
 
-  convertirLote: (ids: string[]) =>
+  convertirLote: (ids: string[], asesorId: string) =>
     pedir<ResultadoDelLote>("/admin/leads/convertir-lote", {
       method: "POST",
-      body: JSON.stringify({ ids }),
+      body: JSON.stringify({ ids, asesorId }),
     }),
 };
 

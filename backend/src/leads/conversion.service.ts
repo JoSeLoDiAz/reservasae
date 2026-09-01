@@ -77,7 +77,7 @@ export class ConversionDeLeads {
     admin: Admin,
     ambito: string[],
     ip?: string,
-    opciones?: { sinConstancia?: boolean },
+    opciones?: { sinConstancia?: boolean; asesorId?: string },
   ) {
     /// Fuera del ámbito la fila NO EXISTE: 404 y no 403.
     ///
@@ -195,6 +195,12 @@ export class ConversionDeLeads {
         /// esto la ficha nacia sin curso y el dato se perdia --
         /// justo el que la mesa usa para saber si esta listo.
         accionFormacionId: lead.accionFormacionId ?? undefined,
+        /// A quien lo va a llamar, no a quien pulso el boton.
+        ///
+        /// `crm.crear` cae en `admin.id` si no viene nadie, y en
+        /// un lote de cien eso es asignarselas todas a quien las
+        /// importo. Un lote se reparte.
+        asesorId: opciones?.asesorId,
       },
       admin,
       ambito,
@@ -280,6 +286,7 @@ export class ConversionDeLeads {
    */
   async convertirDeLote(
     leadId: string,
+    asesorId: string,
     admin: Admin,
     ambito: string[],
     ip?: string,
@@ -324,7 +331,7 @@ export class ConversionDeLeads {
       admin,
       ambito,
       ip,
-      { sinConstancia: !conConstancia },
+      { sinConstancia: !conConstancia, asesorId },
     );
   }
 

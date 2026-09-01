@@ -229,6 +229,20 @@ export class ConvertirLoteDto {
   })
   @IsString({ each: true })
   ids!: string[];
+
+  /// A quien se le asignan, y es OBLIGATORIO.
+  ///
+  /// `crm.crear` pone al que crea la ficha si no viene nadie
+  /// (`dto.asesorId ?? admin.id`), y eso en un lote de cien es
+  /// asignarselas todas a quien pulso el boton -- que casi nunca
+  /// es quien las va a llamar. Un lote se reparte: veinte para
+  /// uno, diez para otro.
+  ///
+  /// Opcional seria peor que no pedirlo: volveria al mismo por
+  /// omision sin que nadie lo note.
+  @IsString()
+  @IsNotEmpty({ message: 'Elija a qué asesor se le asignan.' })
+  asesorId!: string;
 }
 
 export class ConvertirLeadDto {

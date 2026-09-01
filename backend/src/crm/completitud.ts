@@ -86,7 +86,25 @@ export function revisar(p: ParaRevisar): Revision {
   const persona = p.persona;
 
   // ── matrícula ──
-  if (!p.ofertaId) matricula.push('falta asignarle una acción de formación');
+  /// Falta el CURSO o falta la SEDE: no es lo mismo.
+  ///
+  /// Esto decía siempre «falta asignarle una acción de formación»
+  /// mirando `ofertaId`, y `Oferta` es acción × ubicación. Una
+  /// ficha que llega con su curso —las del webhook llegan así—
+  /// leía que le faltaba justo lo que sí tenía, y quien lo leyera
+  /// se iba a buscar el defecto al sitio equivocado. Pasó.
+  ///
+  /// Y llevan a cosas distintas: sin curso hay que preguntarle
+  /// qué quiere estudiar; con curso y sin sede hay que
+  /// preguntarle DÓNDE VIVE, que es de donde sale la sede.
+  if (!p.ofertaId) {
+    matricula.push(
+      p.accionFormacionId
+        ? 'falta la sede: se sabe qué curso quiere, pero no dónde lo va a tomar. ' +
+          'Sale del departamento y la ciudad de la persona.'
+        : 'falta asignarle una acción de formación',
+    );
+  }
   /// `celularUtil` y no `!!celular`: un «no tiene» escrito en
   /// la casilla pasaba la compuerta y dejaba matriculado a
   /// alguien a quien nadie puede llamar, que es justo lo que
