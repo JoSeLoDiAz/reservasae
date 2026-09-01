@@ -73,6 +73,10 @@ export class ConversionDeLeads {
         estado: true,
         participanteId: true,
         nombreCompleto: true,
+        primerNombre: true,
+        segundoNombre: true,
+        primerApellido: true,
+        segundoApellido: true,
         correo: true,
         celular: true,
         tipoDocumentoSepId: true,
@@ -129,7 +133,19 @@ export class ConversionDeLeads {
       );
     }
 
-    const nombre = partirNombreCompleto(lead.nombreCompleto ?? '');
+    /// Las piezas que mando el emisor, si las mando.
+    ///
+    /// Volver a partir lo que ya venia partido cambia un dato
+    /// cierto por uno adivinado -- y estas cuatro son columnas
+    /// del reporte al SENA.
+    const nombre = lead.primerApellido
+      ? {
+          primerNombre: lead.primerNombre ?? '',
+          segundoNombre: lead.segundoNombre ?? undefined,
+          primerApellido: lead.primerApellido,
+          segundoApellido: lead.segundoApellido ?? undefined,
+        }
+      : partirNombreCompleto(lead.nombreCompleto ?? '');
     if (!nombre.primerNombre || !nombre.primerApellido) {
       throw new BadRequestException(
         'Falta el nombre o el apellido. Complételos en el lead antes de convertirlo.',

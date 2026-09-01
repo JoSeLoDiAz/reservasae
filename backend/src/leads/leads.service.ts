@@ -17,6 +17,7 @@ import { ColaRui } from '../crm/rui/cola-rui';
 import { PrismaService } from '../prisma/prisma.service';
 import { registrarToqueDeOrigen } from '../crm/origen-del-lead';
 import { accionQuePidio } from './accion-que-pidio';
+import { llaveDelLead } from './llave-del-lead';
 
 import type { EntraLeadDto } from './dto';
 
@@ -124,9 +125,19 @@ export class LeadsService {
     ///
     /// Los webhooks reintentan. Sin esto, un reintento de red
     /// —que quien lo manda ni ve— duplica a una persona.
+    /// La llave: su id si lo trae, y si no el DOCUMENTO.
+    ///
+    /// El documento es la identidad en todo el sistema, asi que
+    /// sirve de llave sin inventar una segunda regla. Va
+    /// normalizado: `1.020.304.050` y `1020304050` tienen que
+    /// dar la MISMA, o el reintento duplica.
+    const llave = llaveDelLead(dto);
+    if ('falta' in llave) throw new BadRequestException(llave.falta);
+    const externoId = llave.llave;
+
     const ya = await this.prisma.leadEntrante.findUnique({
       where: {
-        origenSistema_externoId: { origenSistema, externoId: dto.externoId },
+        origenSistema_externoId: { origenSistema, externoId },
       },
       select: { id: true, estado: true, participanteId: true, motivo: true },
     });
@@ -138,9 +149,14 @@ export class LeadsService {
       data: {
         convenioId: convenio.id,
         origenSistema,
-        externoId: dto.externoId,
+        externoId,
         origen: dto.origen ?? 'OTRO',
         nombreCompleto: datos.nombreCompleto,
+        /// Tal como llegaron, si llegaron separadas.
+        primerNombre: datos.piezasDelNombre?.primerNombre ?? null,
+        segundoNombre: datos.piezasDelNombre?.segundoNombre ?? null,
+        primerApellido: datos.piezasDelNombre?.primerApellido ?? null,
+        segundoApellido: datos.piezasDelNombre?.segundoApellido ?? null,
         correo: datos.correo,
         celular: datos.celular,
         tipoDocumentoSepId: datos.tipoDocumentoSepId,
@@ -171,7 +187,7 @@ export class LeadsService {
     if (coincide) {
       await this.avisarQueYaEstaba(lead.id, coincide, datos, esPauta);
       this.log.log(
-        `Lead ${dto.externoId}: ${coincide.firme ? 'ya estaba' : 'se PARECE a uno'} ` +
+        `Lead ${externoId}: ${coincide.firme ? 'ya estaba' : 'se PARECE a uno'} ` +
           `(por ${coincide.por}). Queda propuesta para el asesor.`,
       );
       return {
@@ -194,7 +210,7 @@ export class LeadsService {
     }
 
     this.log.log(
-      `Lead ${dto.externoId} de ${origenSistema} para ${convenio.slug}` +
+      `Lead ${externoId} de ${origenSistema} para ${convenio.slug}` +
         (falta.length ? ` — pendiente (${falta.join(', ')})` : ' — completo'),
     );
 
@@ -449,8 +465,34 @@ export class LeadsService {
 
     const celular = dto.celular ? normalizarCelular(dto.celular) : null;
 
+    /// Las piezas mandan sobre la frase entera.
+    ///
+    /// Partir un nombre es adivinar: «Ana Maria Ruiz Gomez»
+    /// pueden ser dos nombres y dos apellidos, o uno y tres.
+    /// Si el emisor las manda separadas, ya no hay que adivinar
+    /// -- y quien lleno el formulario si lo sabia.
+    const enPiezas = [
+      dto.primerNombre,
+      dto.segundoNombre,
+      dto.primerApellido,
+      dto.segundoApellido,
+    ]
+      .map((x) => x?.trim())
+      .filter(Boolean)
+      .join(' ');
+
     return {
-      nombreCompleto: dto.nombreCompleto?.trim() || null,
+      nombreCompleto: enPiezas || dto.nombreCompleto?.trim() || null,
+      /// Se guardan tambien sueltas: al convertir se usan tal
+      /// cual en vez de volver a partir lo que ya venia partido.
+      piezasDelNombre: dto.primerApellido?.trim()
+        ? {
+            primerNombre: dto.primerNombre?.trim() || null,
+            segundoNombre: dto.segundoNombre?.trim() || null,
+            primerApellido: dto.primerApellido.trim(),
+            segundoApellido: dto.segundoApellido?.trim() || null,
+          }
+        : null,
       correo: dto.correo?.trim().toLowerCase() || null,
       /// Vacio si no es un celular: guardar «no tiene» seria
       /// guardar algo que no sirve para llamar a nadie.

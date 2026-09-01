@@ -765,6 +765,20 @@ model LeadEntrante {
   /// Lo que llego. Todo opcional: un anuncio pregunta lo que
   /// quiere, y lo que no venga no se inventa.
   nombreCompleto     String?
+
+  /// El nombre en piezas, si el emisor lo mando asi.
+  ///
+  /// Partir una frase es adivinar: «Ana Maria Ruiz Gomez» pueden
+  /// ser dos nombres y dos apellidos, o uno y tres. Y estas
+  /// cuatro son columnas del reporte al SENA, asi que adivinar
+  /// mal se le reporta al Estado.
+  ///
+  /// Quien lleno el formulario si lo sabia: si las manda
+  /// separadas, se guardan separadas y nadie vuelve a adivinar.
+  primerNombre       String?
+  segundoNombre      String?
+  primerApellido     String?
+  segundoApellido    String?
   correo             String?
   celular            String?
   tipoDocumentoSepId Int?

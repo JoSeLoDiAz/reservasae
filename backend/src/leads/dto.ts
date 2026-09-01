@@ -37,12 +37,59 @@ export class EntraLeadDto {
   })
   convenio?: string;
 
-  /// El id que le da QUIEN lo manda. Es la idempotencia.
+  /**
+   * El id del emisor, si lo tiene. OPCIONAL.
+   *
+   * Era obligatorio, y dejo de serlo porque el DOCUMENTO sirve
+   * de llave: es la identidad en todo el sistema -- `Persona` es
+   * unica por `(tipoDocumentoSepId, numeroDocumento)` -- asi que
+   * usarlo aqui es la misma regla y no una segunda que mantener.
+   *
+   * Con las dos manda esta, que es mas firme: un documento puede
+   * llegar mal tecleado y un id propio no.
+   *
+   * Lo que NO se puede es no mandar ninguna. Ver `llaveDelLead`.
+   */
+  @IsOptional()
   @Transform(recortar)
   @IsString()
-  @IsNotEmpty()
   @MaxLength(200)
-  externoId!: string;
+  externoId?: string;
+
+  /**
+   * El nombre, en piezas.
+   *
+   * Se admiten las cuatro por separado ademas de
+   * `nombreCompleto`, y es mejor mandarlas asi: partir un nombre
+   * es adivinar. «Ana Maria Ruiz Gomez» puede ser dos nombres y
+   * dos apellidos, o un nombre y tres apellidos, y quien llenó
+   * el formulario lo sabe y nosotros no.
+   *
+   * Si vienen las piezas, mandan sobre `nombreCompleto`.
+   */
+  @IsOptional()
+  @Transform(recortar)
+  @IsString()
+  @MaxLength(60)
+  primerNombre?: string;
+
+  @IsOptional()
+  @Transform(recortar)
+  @IsString()
+  @MaxLength(60)
+  segundoNombre?: string;
+
+  @IsOptional()
+  @Transform(recortar)
+  @IsString()
+  @MaxLength(60)
+  primerApellido?: string;
+
+  @IsOptional()
+  @Transform(recortar)
+  @IsString()
+  @MaxLength(60)
+  segundoApellido?: string;
 
   @IsOptional()
   @IsEnum(OrigenParticipante)
