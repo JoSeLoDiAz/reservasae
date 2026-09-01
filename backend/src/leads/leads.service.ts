@@ -234,6 +234,75 @@ export class LeadsService {
   }
 
   /**
+   * Varios leads de una vez, para cargar un historico.
+   *
+   * FILA A FILA y SIN transaccion, igual que la carga masiva del
+   * panel y por lo mismo: en un lote de 500, que la 17 traiga un
+   * documento invalido no puede tumbar las otras 499.
+   *
+   * Y se contesta fila por fila. Un lote que devuelve «ok» y se
+   * traga trece errores es peor que mandar mil peticiones: quien
+   * lo mando cree que entraron todos, y los trece se pierden sin
+   * que nadie lo sepa nunca.
+   */
+  async entraLote(
+    leads: EntraLeadDto[],
+    origenSistema: string,
+    delHost: string | null = null,
+  ) {
+    const filas: Array<Record<string, unknown>> = [];
+
+    for (let i = 0; i < leads.length; i++) {
+      /// La posicion viaja en la respuesta. Sin ella, «el 17
+      /// fallo» obliga a contar a mano en un JSON de 500.
+      const fila: Record<string, unknown> = { fila: i + 1 };
+      try {
+        const r = await this.entra(leads[i], origenSistema, delHost);
+        Object.assign(fila, {
+          ok: true,
+          id: r.id,
+          estado: r.estado,
+          repetido: r.repetido,
+          motivo: r.motivo ?? null,
+        });
+      } catch (e) {
+        /// El error de ESA fila, no del lote. Se dice cual era
+        /// el lead para poder encontrarlo en el origen.
+        Object.assign(fila, {
+          ok: false,
+          porque: e instanceof Error ? e.message : String(e),
+          documento: leads[i].numeroDocumento ?? null,
+          externoId: leads[i].externoId ?? null,
+        });
+      }
+      filas.push(fila);
+    }
+
+    const entraron = filas.filter((f) => f.ok && !f.repetido).length;
+    const repetidos = filas.filter((f) => f.ok && f.repetido).length;
+    const fallaron = filas.filter((f) => !f.ok).length;
+
+    this.log.log(
+      `Lote de ${leads.length} por ${origenSistema}: ` +
+        `${entraron} nuevos, ${repetidos} repetidos, ${fallaron} con error.`,
+    );
+
+    return {
+      recibidos: leads.length,
+      entraron,
+      repetidos,
+      fallaron,
+      /// Solo las que fallaron, arriba y aparte.
+      ///
+      /// Quien manda un lote de 500 no va a leer 500 filas para
+      /// encontrar las 13 malas. Se le dan servidas, y la lista
+      /// completa queda debajo para quien la quiera.
+      errores: filas.filter((f) => !f.ok),
+      filas,
+    };
+  }
+
+  /**
    * Los avisos que manda Meta, guardados sin perder ninguno.
    *
    * Meta NO manda los datos de la persona: manda un

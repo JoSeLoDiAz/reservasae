@@ -1,7 +1,10 @@
 /** Lo que el orquestador nos manda por cada lead. */
 
-import { Transform } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import {
+  ArrayMaxSize,
+  ArrayNotEmpty,
+  IsArray,
   IsEnum,
   IsIn,
   IsNotEmpty,
@@ -10,6 +13,7 @@ import {
   IsOptional,
   IsString,
   MaxLength,
+  ValidateNested,
 } from 'class-validator';
 
 import { CanalAutorizacion, OrigenParticipante } from '../../generated/prisma';
@@ -163,6 +167,38 @@ export class EntraLeadDto {
  * el canal de la autorización es OBLIGATORIO: pedirlo opcional
  * es no pedirlo.
  */
+/// Cuantos leads caben en una peticion.
+///
+/// No es un numero redondo por gusto: 500 leads son unas 2.500
+/// consultas, y Cloudflare corta a los ~100 s. Con mas, la
+/// peticion moriria en el aire y quien la mando no sabria cuales
+/// entraron -- que es peor que mandarlos de a uno.
+export const TOPE_DEL_LOTE = 500;
+
+/**
+ * Varios leads de una vez.
+ *
+ * Para cargar un historico, no para el goteo del dia: un lead de
+ * una pauta llega solo y de a uno.
+ *
+ * Se responde FILA POR FILA. Un lote que contesta «ok» y se traga
+ * trece errores es peor que mil peticiones: quien lo mando cree
+ * que entraron todos y los trece se pierden sin que nadie lo
+ * sepa nunca.
+ */
+export class EntraLoteDto {
+  @IsArray()
+  @ArrayNotEmpty({ message: 'El lote viene vacio.' })
+  @ArrayMaxSize(TOPE_DEL_LOTE, {
+    message:
+      `Un lote admite hasta ${TOPE_DEL_LOTE} leads. ` +
+      'Partalo: mas no cabe en el tiempo que aguanta la conexion.',
+  })
+  @ValidateNested({ each: true })
+  @Type(() => EntraLeadDto)
+  leads!: EntraLeadDto[];
+}
+
 export class ConvertirLeadDto {
   /// Por donde lo autorizo. Casi siempre VERBAL_ASESOR.
   @IsEnum(CanalAutorizacion)
