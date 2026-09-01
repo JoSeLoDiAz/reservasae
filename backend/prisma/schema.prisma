@@ -796,6 +796,18 @@ model LeadEntrante {
   accionFormacionId  String?
   accionFormacion    AccionFormacion? @relation(fields: [accionFormacionId], references: [id], onDelete: SetNull)
 
+  /// Donde vive, para poder resolver la SEDE.
+  ///
+  /// `Oferta` es accion x ubicacion: con el curso solo se sabe
+  /// que quiere y no donde lo va a tomar, y sin eso la ficha
+  /// nace sin poder matricularse. El formulario publico lo
+  /// pregunta antes que nada, y el de la pauta tambien.
+  departamentoSepId  Int?
+  municipioSepId     Int?
+  generoSepId        Int?
+  /// Que marco la casilla al registrarse. Null: no lo dijo.
+  aceptaHabeasData   Boolean?
+
   /// El cuerpo entero, tal cual. Es lo que deja depurar,
   /// reprocesar y demostrar que llego de verdad.
   carga Json

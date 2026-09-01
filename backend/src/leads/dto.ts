@@ -5,6 +5,7 @@ import {
   ArrayMaxSize,
   ArrayNotEmpty,
   IsArray,
+  IsBoolean,
   IsEnum,
   IsIn,
   IsNotEmpty,
@@ -136,6 +137,46 @@ export class EntraLeadDto {
   @IsString()
   @MaxLength(40)
   numeroDocumento?: string;
+
+  /// DONDE VIVE. Por nombre o por codigo DANE, da igual.
+  ///
+  /// Es lo que faltaba para poder matricular: `Oferta` es accion
+  /// x ubicacion, asi que con el curso solo se sabe QUE quiere y
+  /// no DONDE lo va a tomar. El formulario publico lo pregunta
+  /// antes que nada por eso mismo, y el de la pauta tiene que
+  /// preguntar lo mismo o la ficha nace a medias.
+  @IsOptional()
+  @Transform(recortar)
+  @IsString()
+  @MaxLength(120)
+  departamento?: string;
+
+  @IsOptional()
+  @Transform(recortar)
+  @IsString()
+  @MaxLength(120)
+  ciudad?: string;
+
+  /// El genero, por su etiqueta o su id del SEP.
+  ///
+  /// Es columna del reporte y el formulario publico lo pide, asi
+  /// que sin el la ficha queda incompleta para el cargue.
+  @IsOptional()
+  @Transform(recortar)
+  @IsString()
+  @MaxLength(60)
+  genero?: string;
+
+  /// Que acepto el tratamiento de datos al registrarse.
+  ///
+  /// Cuando viene en `true` es la constancia de que la persona
+  /// marco la casilla en el formulario de la pauta, que es lo
+  /// que el formulario publico exige antes que nada. Si no
+  /// viene, se deduce de por donde entro -- pero declararlo es
+  /// mas fuerte que deducirlo.
+  @IsOptional()
+  @IsBoolean()
+  aceptaHabeasData?: boolean;
 
   /// Que dijo que le interesa, en sus palabras.
   @IsOptional()

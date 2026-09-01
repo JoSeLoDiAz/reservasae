@@ -17,6 +17,8 @@ import { ColaRui } from '../crm/rui/cola-rui';
 import { PrismaService } from '../prisma/prisma.service';
 import { registrarToqueDeOrigen } from '../crm/origen-del-lead';
 import { accionQuePidio } from './accion-que-pidio';
+import { generoQueDijo } from './genero-que-dijo';
+import { ubicacionQueDijo } from './ubicacion-que-dijo';
 import { llaveDelLead } from './llave-del-lead';
 import { siglasAdmitidas, tipoDeDocumento } from './tipo-de-documento';
 
@@ -126,6 +128,15 @@ export class LeadsService {
     /// Que curso pidio, si lo nombro.
     const pedida = accionQuePidio(dto.interes, convenio.acciones);
 
+    /// Donde vive, resuelto contra el catalogo del SEP.
+    ///
+    /// Lo que no se reconozca NO tumba el lead: se apunta y se
+    /// dice en `motivo`. Un webhook que contesta 400 porque no
+    /// conoce un municipio invita a reintentar en bucle o a
+    /// descartar el lead, y perderlo es peor que guardarlo
+    /// incompleto.
+    const donde = ubicacionQueDijo(dto.departamento, dto.ciudad);
+
     /// Pagado u orgánico, y lo decide QUIÉN LO MANDA, no el
     /// cuerpo. Si viniera en el JSON, quien llama podría
     /// marcarse sus propios leads como pauta y la métrica de
@@ -183,6 +194,16 @@ export class LeadsService {
         /// tiene: las dos cosas quedan igual y el asesor
         /// pregunta, que es mejor que meterlo en otro curso.
         accionFormacionId: pedida?.id ?? null,
+        /// Donde vive, ya resuelto contra el catalogo del SEP.
+        ///
+        /// Se resuelve AL ENTRAR y no al convertir, por lo mismo
+        /// que el celular: guardarlo como vino y limpiarlo
+        /// despues deja el mismo sitio escrito de dos formas y
+        /// nadie las relaciona.
+        departamentoSepId: donde.departamentoSepId,
+        municipioSepId: donde.municipioSepId,
+        generoSepId: generoQueDijo(dto.genero),
+        aceptaHabeasData: dto.aceptaHabeasData ?? null,
         // el cuerpo entero, para poder depurar y reprocesar
         carga: (dto.carga ?? dto) as Prisma.InputJsonValue,
         motivo: falta.length ? `Falta: ${falta.join(', ')}.` : null,
