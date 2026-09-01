@@ -17,6 +17,7 @@ import { Prisma } from '../../generated/prisma';
 import {
   DOCUMENTOS_DE_PERSONA,
   motivoDeIdInvalido,
+  siglaDocumento,
 } from '../crm/catalogos-sep';
 import { documentoValido, normalizarDocumento } from '../comun/documento';
 import { PrismaService } from '../prisma/prisma.service';
@@ -162,8 +163,14 @@ export class MesaDeEntrada {
             .join(' ') ||
           l.nombreCompleto ||
           '(sin nombre)',
+        /// La SIGLA, no el número del catálogo.
+        ///
+        /// Salía «1 · 1020304050» y el 1 es el id del SEP, que no
+        /// significa nada para quien atiende. El resto del panel
+        /// ya lo hace así —crm.service.ts:740— y ese es el
+        /// formato que el asesor reconoce: «CC 1020304050».
         documento: l.numeroDocumento
-          ? `${l.tipoDocumentoSepId ?? '?'} · ${l.numeroDocumento}`
+          ? `${l.tipoDocumentoSepId != null ? siglaDocumento(l.tipoDocumentoSepId) : '?'} ${l.numeroDocumento}`
           : null,
         correo: l.correo,
         celular: l.celular,
