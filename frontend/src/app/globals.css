@@ -298,7 +298,41 @@ h3 {
   color: inherit;
 }
 
-/* el signo se dibuja: del contorno vacio a la persona formada */
+/* LA FIRMA SE ESCRIBE.
+
+   El componente se llama `FirmaConvoca` y eso es lo que gobierna
+   la animacion entera: todo entra de izquierda a derecha y
+   encadenado, como se escribe una firma. El signo se dibuja, el
+   nombre se descubre, la raya se traza y la frase se posa.
+
+   Nada aparece de golpe y nada se mueve mucho: son 880 ms de
+   punta a punta y ningun desplazamiento pasa de 4 px. Una
+   animacion que se ve cincuenta veces al dia tiene que poder
+   verse cincuenta veces al dia.
+
+   TODAS terminan en el estado de reposo. No es un detalle de
+   estilo: las dos reglas de mas abajo dejan la animacion en
+   0,01 ms, o sea que saltan a su ULTIMO fotograma. Una que
+   acabara en `opacity: 0` dejaria la firma invisible a quien
+   pidio menos movimiento. */
+
+/* el signo LLEGA, y despues se dibuja por dentro.
+
+   Sin esto el arco se traza sobre un hueco vacio y la firma
+   empieza en la nada. Con un 8 % de escala basta: lo que se
+   quiere es que el sitio del signo exista antes que el trazo, no
+   un efecto de entrada. */
+@keyframes signo-llega {
+  from {
+    opacity: 0;
+    transform: scale(0.92);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
 @keyframes signo-arco-dibuja {
   from {
     stroke-dashoffset: 1;
@@ -320,18 +354,76 @@ h3 {
   }
 }
 
-/* el arco entra primero; el disco llega cuando el corro ya esta */
+/* el nombre se descubre, no se desvanece: la mascara avanza como
+   avanzaria la mano al escribirlo */
+@keyframes firma-nombre-descubre {
+  from {
+    clip-path: inset(0 100% 0 0);
+    opacity: 0.35;
+  }
+  to {
+    clip-path: inset(0 0 0 0);
+    opacity: 1;
+  }
+}
+
+/* la raya se traza desde su borde izquierdo */
+@keyframes firma-linea-traza {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+/* la frase se posa: sube 4px y aparece */
+@keyframes firma-frase-posa {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 0.65;
+    transform: translateY(0);
+  }
+}
+
+.signo-llega {
+  animation: signo-llega 420ms cubic-bezier(0.33, 1, 0.68, 1) both;
+}
+
 .signo-arco {
   stroke-dasharray: 1;
-  animation: signo-arco-dibuja 620ms cubic-bezier(0.33, 1, 0.68, 1) both;
+  animation: signo-arco-dibuja 560ms cubic-bezier(0.33, 1, 0.68, 1) both;
 }
 
 .signo-disco {
   /* el origen es el centro del disco, no el del lienzo: sin esto
      escala desde la esquina y sale disparado */
   transform-origin: 16px 25.75px;
-  animation: signo-disco-asienta 380ms cubic-bezier(0.34, 1.4, 0.64, 1) 420ms
+  animation: signo-disco-asienta 340ms cubic-bezier(0.34, 1.4, 0.64, 1) 400ms
     both;
+}
+
+.firma-nombre {
+  animation: firma-nombre-descubre 460ms cubic-bezier(0.33, 1, 0.68, 1) 160ms
+    both;
+}
+
+.firma-linea {
+  transform-origin: left center;
+  animation: firma-linea-traza 320ms cubic-bezier(0.33, 1, 0.68, 1) 440ms both;
+}
+
+/* apilada la raya va corta y centrada: trazarla desde un borde
+   la descuadra del eje */
+.firma-linea-centro {
+  transform-origin: center;
+}
+
+.firma-frase {
+  animation: firma-frase-posa 320ms cubic-bezier(0.33, 1, 0.68, 1) 560ms both;
 }
 
 /* respetar menos animacion */

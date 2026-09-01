@@ -51,7 +51,19 @@ export function useEstado(): Estado | null {
   return estado;
 }
 
-/** El signo con el nombre, la línea y la frase. */
+/**
+ * El signo con el nombre, la línea y la frase.
+ *
+ * Con `animado` se escribe: el signo se dibuja, el nombre se
+ * descubre bajo una máscara que avanza, la raya se traza desde su
+ * izquierda y la frase se posa. Todo encadenado y de izquierda a
+ * derecha, que es como se escribe una firma — y este componente
+ * se llama así por algo.
+ *
+ * Los tiempos viven en `globals.css`, no aquí: son cinco
+ * animaciones que tienen que solaparse entre ellas, y repartidas
+ * en dos ficheros acabarían descuadradas.
+ */
 export function FirmaConvoca({
   tamano = 32,
   conFrase = true,
@@ -94,7 +106,7 @@ export function FirmaConvoca({
         <span
           className={`font-bold tracking-tight ${
             grande ? "text-[1.75rem]" : "text-[1.05rem]"
-          }`}
+          } ${animado ? "firma-nombre" : ""}`}
         >
           {NOMBRE}
         </span>
@@ -119,12 +131,14 @@ export function FirmaConvoca({
               aria-hidden="true"
               className={`${apilado ? "w-10" : "w-full"} ${
                 grande ? "my-2" : "my-1.5"
-              } h-px shrink-0 bg-current opacity-[0.22]`}
+              } h-px shrink-0 bg-current opacity-[0.22] ${
+                animado ? `firma-linea ${apilado ? "firma-linea-centro" : ""}` : ""
+              }`}
             />
             <span
               className={`leading-snug font-medium opacity-65 ${
                 grande ? "text-[13px]" : "text-[10.5px]"
-              }`}
+              } ${animado ? "firma-frase" : ""}`}
             >
               {FRASE}
             </span>

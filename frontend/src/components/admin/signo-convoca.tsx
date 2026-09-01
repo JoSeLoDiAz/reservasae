@@ -68,7 +68,7 @@ export function SignoConvoca({
       strokeWidth={2.75}
       strokeLinecap="round"
       strokeLinejoin="round"
-      className={className}
+      className={`${animado ? "signo-llega " : ""}${className ?? ""}`}
       aria-hidden="true"
     >
       {/* el corro: 260°, abierto abajo, centro (16 · 15,15)
