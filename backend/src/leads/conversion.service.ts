@@ -32,7 +32,12 @@ import {
 } from '@nestjs/common';
 
 import { documentoValido, normalizarDocumento } from '../comun/documento';
-import { DOCUMENTOS_DE_PERSONA } from '../crm/catalogos-sep';
+import {
+  DEPARTAMENTO_POR_ID,
+  DOCUMENTOS_DE_PERSONA,
+  MUNICIPIO_POR_ID,
+} from '../crm/catalogos-sep';
+import { sedeQueLeToca } from './sede-que-le-toca';
 import {
   dejarConstancia,
   politicaVigente,
@@ -103,6 +108,9 @@ export class ConversionDeLeads {
         interes: true,
         accionFormacionId: true,
         recibidoEn: true,
+        departamentoSepId: true,
+        municipioSepId: true,
+        generoSepId: true,
       },
     });
     if (!lead) throw new NotFoundException('No existe ese lead.');
@@ -174,6 +182,20 @@ export class ConversionDeLeads {
       );
     }
 
+    /// LA SEDE, que es lo que faltaba para poder matricular.
+    ///
+    /// `Oferta` es accion x ubicacion: con el curso solo se sabe
+    /// QUE quiere y no DONDE lo va a tomar, asi que la ficha
+    /// nacia con la accion puesta y el panel decia «falta la
+    /// sede». Con el domicilio ya se puede elegir.
+    ///
+    /// Si ninguna sede lo cubre queda en null y la ficha nace
+    /// solo con la accion, que es lo correcto: asignarle una
+    /// sede donde no puede ir seria peor que dejarla sin sede.
+    const oferta = lead.accionFormacionId
+      ? await this.sedeDelLead(lead)
+      : null;
+
     /// Se crea con `crm.crear`, no con un `persona.create` de
     /// aquí. Es la MISMA puerta que usa el asesor desde el
     /// panel: una tercera forma de crear una persona sería una
@@ -195,6 +217,13 @@ export class ConversionDeLeads {
         /// esto la ficha nacia sin curso y el dato se perdia --
         /// justo el que la mesa usa para saber si esta listo.
         accionFormacionId: lead.accionFormacionId ?? undefined,
+        /// La sede, si alguna lo cubre. Con ella la ficha nace
+        /// pudiendo matricularse; sin ella, el panel dice que
+        /// falta y el asesor la resuelve al llamar.
+        ofertaId: oferta?.id,
+        generoSepId: lead.generoSepId ?? undefined,
+        departamentoSepId: lead.departamentoSepId ?? undefined,
+        municipioSepId: lead.municipioSepId ?? undefined,
         /// A quien lo va a llamar, no a quien pulso el boton.
         ///
         /// `crm.crear` cae en `admin.id` si no viene nadie, y en
@@ -357,5 +386,50 @@ export class ConversionDeLeads {
       select: { id: true },
     });
     return Boolean(revocada);
+  }
+
+  /**
+   * La sede que le toca, contra donde vive.
+   *
+   * Se traen SOLO las ofertas de su accion —no las 106— y se
+   * elige con `sedeQueLeToca`, que es la misma regla de la ficha
+   * del asesor: dos formas de elegir sede acaban eligiendo sedes
+   * distintas para la misma persona.
+   */
+  private async sedeDelLead(lead: {
+    accionFormacionId: string | null;
+    departamentoSepId: number | null;
+    municipioSepId: number | null;
+  }) {
+    if (!lead.accionFormacionId) return null;
+
+    const ofertas = await this.prisma.oferta.findMany({
+      where: { accionFormacionId: lead.accionFormacionId },
+      select: {
+        id: true,
+        accionFormacionId: true,
+        cuposMaximos: true,
+        cuposOcupados: true,
+        ubicacion: {
+          select: { nombre: true, tipo: true, departamento: true },
+        },
+      },
+    });
+
+    /// Los NOMBRES, que es con lo que compara `cubreA`.
+    ///
+    /// El lead guarda ids del SEP y la cobertura se decide por
+    /// nombre normalizado, porque `Ubicacion` no lleva codigo
+    /// DANE. Traducir aqui es lo que junta las dos mitades.
+    const vive = {
+      departamento: lead.departamentoSepId
+        ? (DEPARTAMENTO_POR_ID.get(lead.departamentoSepId)?.etiqueta ?? null)
+        : null,
+      ciudad: lead.municipioSepId
+        ? (MUNICIPIO_POR_ID.get(lead.municipioSepId)?.[2] ?? null)
+        : null,
+    };
+
+    return sedeQueLeToca(ofertas, lead.accionFormacionId, vive);
   }
 }

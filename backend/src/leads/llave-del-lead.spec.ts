@@ -113,32 +113,85 @@ describe('el prefijo `doc:` evita que las dos llaves choquen', () => {
   });
 });
 
-describe('sin ninguna de las dos NO se guarda', () => {
-  it('sin documento y sin externoId, se dice qué falta', () => {
-    const motivo = porQueNo({});
-    expect(motivo).not.toBeNull();
-    expect(motivo).toMatch(/documento/i);
-    expect(motivo).toMatch(/externoId/);
+describe('sin documento ENTRA IGUAL: la llave sale del contenido', () => {
+  /**
+   * Un lead de una pauta PAGADA que se rechaza es dinero
+   * quemado, y quien lo mandó ni se entera. Perderlo es peor que
+   * guardarlo raro — y el equipo le pone el documento después,
+   * desde la mesa de entrada.
+   */
+
+  it('con correo y nombre, se guarda', () => {
+    const r = llaveDelLead({
+      correo: 'ana@ejemplo.test',
+      nombres: 'Ana',
+      primerApellido: 'Ruiz',
+    });
+    expect('llave' in r).toBe(true);
   });
 
-  it('con el número pero sin el tipo, tampoco', () => {
-    /// Media llave no es una llave: el mismo número puede ser
-    /// una cédula o un pasaporte.
-    expect('falta' in llaveDelLead({ numeroDocumento: '1020304050' })).toBe(true);
+  it('y el reintento del MISMO cuerpo es el mismo lead', () => {
+    /// Es lo que se temía al rechazarlos, y es lo que hay que
+    /// conservar: sin esto, un parpadeo de red duplica.
+    const cuerpo = {
+      correo: 'ana@ejemplo.test',
+      celular: '+57 300 111 2222',
+      nombres: 'Ana',
+      primerApellido: 'Ruiz',
+    };
+    expect(llaveDelLead(cuerpo, 'AF1')).toEqual(llaveDelLead(cuerpo, 'AF1'));
   });
 
-  it('con un documento que no tiene forma de documento, tampoco', () => {
+  it('el celular se normaliza, como el documento', () => {
+    /// `+57 300 111 2222` y `3001112222` son el mismo número, y
+    /// sin limpiarlo el reintento con otro formato sería otro
+    /// lead.
+    const a = llaveDelLead({ celular: '+57 300 111 2222', nombres: 'Ana' });
+    const b = llaveDelLead({ celular: '3001112222', nombres: 'Ana' });
+    expect(a).toEqual(b);
+  });
+
+  it('y sigue distinguiendo cursos, como con documento', () => {
+    const cuerpo = { correo: 'ana@ejemplo.test', nombres: 'Ana' };
+    expect(llaveDelLead(cuerpo, 'AF1')).not.toEqual(llaveDelLead(cuerpo, 'AF2'));
+  });
+
+  it('con el número pero sin el tipo, cae al contenido', () => {
+    /// Media llave no es una llave para el documento —el mismo
+    /// número puede ser una cédula o un pasaporte— pero eso ya no
+    /// significa rechazar: se cae a la del contenido.
+    const r = llaveDelLead({ numeroDocumento: '1020304050', nombres: 'Ana' });
+    expect('llave' in r).toBe(true);
+    expect((r as { llave: string }).llave.startsWith('doc:')).toBe(false);
+  });
+
+  it('un documento sin forma de documento tampoco forma llave de documento', () => {
     /// `normalizarDocumento` devuelve null y no una cadena rara:
     /// una llave inventada sobre basura deduplica basura.
     for (const malo of ['', '  ', '...', '12']) {
-      expect(
-        'falta' in llaveDelLead({ tipoDocumentoSepId: 1, numeroDocumento: malo }),
-      ).toBe(true);
+      const r = llaveDelLead({
+        tipoDocumentoSepId: 1,
+        numeroDocumento: malo,
+        correo: 'x@ejemplo.test',
+      });
+      expect((r as { llave?: string }).llave?.startsWith('doc:')).not.toBe(true);
     }
   });
 
-  it('y el mensaje dice cómo arreglarlo, no solo que falló', () => {
-    expect(porQueNo({})).toMatch(/reintento/i);
+  it('una petición VACÍA sí se rechaza', () => {
+    /// Sin documento, sin externoId, sin correo, sin celular y
+    /// sin nombre no es un lead incompleto: es una petición
+    /// vacía, y una fila por cada reintento de eso llena la mesa
+    /// de ruido que nadie puede atender.
+    const motivo = porQueNo({});
+    expect(motivo).not.toBeNull();
+    expect(motivo).toMatch(/nada con que reconocerlo/i);
+  });
+
+  it('y el mensaje dice QUE hace falta, no solo que fallo', () => {
+    /// Un «no se pudo» sin decir con que se arregla obliga a
+    /// adivinar, y quien integra no tiene el codigo delante.
+    expect(porQueNo({})).toMatch(/correo|celular|nombre/i);
   });
 });
 

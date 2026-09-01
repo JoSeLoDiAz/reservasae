@@ -7,10 +7,20 @@
  * leads se mueren de viejos.
  */
 
-import { Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 
 import { Prisma } from '../../generated/prisma';
+import {
+  DOCUMENTOS_DE_PERSONA,
+  motivoDeIdInvalido,
+} from '../crm/catalogos-sep';
 import { PrismaService } from '../prisma/prisma.service';
+
+import { ArreglarLeadDto } from './dto';
 import {
   autorizoAlRegistrarse,
   loQueLeFaltaAlLead,
@@ -120,8 +130,20 @@ export class MesaDeEntrada {
       select: { id: true, nombre: true, correo: true },
     });
 
+    /// Los cursos con los que se arregla un lead sin curso.
+    ///
+    /// Van los del ambito y visibles: ofrecer los del otro gremio
+    /// dejaria elegir uno que el servidor va a rechazar, y los
+    /// ocultos pondrian gente en algo que no esta abierto.
+    const cursos = await this.prisma.accionFormacion.findMany({
+      where: { convenioId: { in: ambito }, visible: true },
+      orderBy: { codigo: 'asc' },
+      select: { id: true, codigo: true, nombre: true, convenioId: true },
+    });
+
     return {
       asesores,
+      cursos,
       total,
       pagina,
       paginas: Math.max(1, Math.ceil(total / porPagina)),
@@ -192,5 +214,113 @@ export class MesaDeEntrada {
         { externoId: { contains: t, mode: 'insensitive' } },
       ],
     };
+  }
+
+  /**
+   * Arregla un lead que llegó mal.
+   *
+   * Es la otra mitad de «recibir todos los leads»: si entran
+   * todos, alguien tiene que poder componer los que llegaron
+   * incompletos. El curso que no se reconoció, la ciudad mal
+   * escrita, el documento que no venía.
+   *
+   * Sin esta puerta, la mesa dice qué falta y no da por dónde
+   * arreglarlo — que es exactamente el callejón que este proyecto
+   * ya se comió con el enlace de completado.
+   */
+  async arreglar(id: string, dto: ArreglarLeadDto, ambito: string[]) {
+    /// Fuera del ámbito la fila NO EXISTE: 404 y no 403.
+    const lead = await this.prisma.leadEntrante.findFirst({
+      where: { id, convenioId: { in: ambito } },
+      select: { id: true, convenioId: true, estado: true, participanteId: true },
+    });
+    if (!lead) throw new NotFoundException('Ese lead no existe.');
+
+    /// Uno ya convertido no se toca.
+    ///
+    /// Su ficha ya existe y es la que manda: cambiar el lead
+    /// dejaría los dos diciendo cosas distintas sobre la misma
+    /// persona, y el que nadie mira sería el lead. Lo que haya
+    /// que corregir se corrige en la ficha.
+    if (lead.participanteId || lead.estado !== 'PENDIENTE') {
+      throw new BadRequestException(
+        'Este lead ya se atendió. Corrija los datos en su ficha, que es la ' +
+          'que vale.',
+      );
+    }
+
+    /// El curso tiene que ser de SU convenio.
+    ///
+    /// AF1 existe en los dos gremios y es un curso distinto en
+    /// cada uno: aceptar el de fuera dejaría la ficha contando
+    /// contra la cobertura de quien no es.
+    if (dto.accionFormacionId) {
+      const suya = await this.prisma.accionFormacion.findFirst({
+        where: { id: dto.accionFormacionId, convenioId: lead.convenioId },
+        select: { id: true },
+      });
+      if (!suya) {
+        throw new BadRequestException(
+          'Esa acción de formación no es de este convenio.',
+        );
+      }
+    }
+
+    /// El par departamento/municipio se juzga como quedará al
+    /// terminar, no como llegó: es la misma regla del panel y del
+    /// enlace de completado, y comprobar solo lo que se manda
+    /// deja pasar un municipio que ya no cuadra con el
+    /// departamento nuevo.
+    const antes = await this.prisma.leadEntrante.findUnique({
+      where: { id },
+      select: { departamentoSepId: true, municipioSepId: true },
+    });
+    const dep =
+      dto.departamentoSepId === undefined
+        ? antes?.departamentoSepId
+        : dto.departamentoSepId;
+    const mun =
+      dto.municipioSepId === undefined
+        ? antes?.municipioSepId
+        : dto.municipioSepId;
+
+    const malo = motivoDeIdInvalido({
+      departamentoSepId: dep ?? undefined,
+      municipioSepId: mun ?? undefined,
+      generoSepId: dto.generoSepId ?? undefined,
+    });
+    if (malo) throw new BadRequestException(malo);
+
+    /// El tipo de documento se valida aparte: tiene que servir
+    /// para una PERSONA. `motivoDeIdInvalido` no lo cubre porque
+    /// el catalogo mezcla los de empresa (NIT) con los de
+    /// persona, y un NIT en una ficha de alguien es un cargue
+    /// falso al SENA.
+    if (
+      dto.tipoDocumentoSepId != null &&
+      !DOCUMENTOS_DE_PERSONA.some((t) => t.id === dto.tipoDocumentoSepId)
+    ) {
+      throw new BadRequestException(
+        'Ese tipo de documento no se admite para una persona.',
+      );
+    }
+
+    return this.prisma.leadEntrante.update({
+      where: { id },
+      data: {
+        accionFormacionId: dto.accionFormacionId,
+        departamentoSepId: dto.departamentoSepId,
+        municipioSepId: dto.municipioSepId,
+        generoSepId: dto.generoSepId,
+        tipoDocumentoSepId: dto.tipoDocumentoSepId,
+        numeroDocumento: dto.numeroDocumento,
+        primerNombre: dto.primerNombre,
+        primerApellido: dto.primerApellido,
+        segundoApellido: dto.segundoApellido,
+        correo: dto.correo,
+        celular: dto.celular,
+      },
+      select: { id: true },
+    });
   }
 }

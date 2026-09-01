@@ -133,6 +133,21 @@ export class CrearParticipanteDto {
   @MinLength(10)
   @MaxLength(300)
   sobrecupoMotivo?: string;
+  /// El domicilio y el genero, desde el primer momento.
+  ///
+  /// No los aceptaba, asi que una ficha creada por la API nacia
+  /// sin ellos aunque quien la creara los tuviera -- y el
+  /// domicilio es de donde sale la SEDE, que es lo que despues
+  /// bloquea la matricula. Pedirlos por el enlace de completado
+  /// cuando ya venian en el lead es hacer trabajar a la persona
+  /// por un dato que ya dio.
+  @IsOptional() @Transform(aNumero) @IsInt() generoSepId?: number | null;
+  @IsOptional()
+  @Transform(aNumero)
+  @IsInt()
+  departamentoSepId?: number | null;
+  @IsOptional() @Transform(aNumero) @IsInt() municipioSepId?: number | null;
+
 }
 
 export class ActualizarParticipanteDto {

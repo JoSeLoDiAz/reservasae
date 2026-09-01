@@ -1044,11 +1044,20 @@ export class CrmService {
           sexo: dto.sexo ?? null,
           correo: dto.correo ?? null,
           celular: dto.celular ?? null,
+          /// El domicilio es de donde sale la SEDE, asi que
+          /// perderlo aqui obliga a pedirlo despues por el
+          /// enlace de completado -- un dato que ya habia dado.
+          generoSepId: dto.generoSepId ?? null,
+          departamentoSepId: dto.departamentoSepId ?? null,
+          municipioSepId: dto.municipioSepId ?? null,
         },
         // no se pisa lo que ya hay con lo que llega vacio
         update: {
           correo: dto.correo ?? undefined,
           celular: dto.celular ?? undefined,
+          generoSepId: dto.generoSepId ?? undefined,
+          departamentoSepId: dto.departamentoSepId ?? undefined,
+          municipioSepId: dto.municipioSepId ?? undefined,
           fechaNacimiento: dto.fechaNacimiento
             ? new Date(dto.fechaNacimiento)
             : undefined,
