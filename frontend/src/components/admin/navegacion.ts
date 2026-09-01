@@ -74,6 +74,16 @@ export const MODULOS: Modulo[] = [
     descripcion: 'Convertir cupos en personas con nombre.',
     enlaces: [
       {
+        /// Va PRIMERO porque es el orden del proceso: el lead
+        /// llega por el webhook y despues se gestiona. Ponerla
+        /// despues de la lista sugeriria que es un detalle de
+        /// ella, y es su origen.
+        href: '/admin/mesa',
+        etiqueta: 'Mesa de entrada',
+        exacto: true,
+        area: 'inscripciones',
+      },
+      {
         href: '/admin/participantes',
         etiqueta: 'Gestión de leads',
         exacto: true,
