@@ -9,6 +9,8 @@ import { PrismaModule } from '../prisma/prisma.module';
 import { CrmModule } from '../crm/crm.module';
 
 import { ConversionController } from './conversion.controller';
+import { MesaDeEntradaController } from './mesa-de-entrada.controller';
+import { MesaDeEntrada } from './mesa-de-entrada.service';
 import { ConversionDeLeads } from './conversion.service';
 import { LeadsController } from './leads.controller';
 import { LeadsService } from './leads.service';
@@ -30,7 +32,12 @@ import { MetaPruebasController } from './meta-pruebas.controller';
       signOptions: { expiresIn: '8h' },
     }),
   ],
-  controllers: [LeadsController, MetaPruebasController, ConversionController],
-  providers: [LeadsService, ConversionDeLeads],
+  controllers: [
+    LeadsController,
+    MetaPruebasController,
+    ConversionController,
+    MesaDeEntradaController,
+  ],
+  providers: [LeadsService, ConversionDeLeads, MesaDeEntrada],
 })
 export class LeadsModule {}
