@@ -73,7 +73,7 @@ export default function PaginaCorreo() {
       <header className="border-b border-borde bg-superficie px-7 pt-[26px] pb-[22px]">
         <h1 className="text-[1.3125rem] font-bold tracking-[-0.02em] text-titulo">Correo saliente</h1>
         <p className="mt-1 max-w-3xl text-texto-suave">
-          Por aquí salen los avisos que manda Convoca. Si esto no está en verde,
+          Por aquí salen los avisos que manda Convoca CRM. Si esto no está en verde,
           no sale ninguno.
         </p>
       </header>

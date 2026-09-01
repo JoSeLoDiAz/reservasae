@@ -71,7 +71,7 @@ function Lista({ titulo, destinos }: { titulo: string; destinos: Destino[] }) {
 export function IndicePruebas() {
   return (
     <main className="mx-auto w-full max-w-3xl grow px-6 py-12">
-      <h1 className="text-2xl font-semibold">Convoca — entorno de pruebas</h1>
+      <h1 className="text-2xl font-semibold">Convoca CRM — entorno de pruebas</h1>
       <p className="mt-2 text-texto-suave">
         Una copia completa del sistema con datos inventados. El sitio real no tiene
         esta portada: su raíz responde 404 a propósito, y aquí existe solo para no

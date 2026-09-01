@@ -51,8 +51,48 @@ const CAMINO = '/api/webhooks/leads/meta';
 /// que la prueba saliera a internet y volviera a otro
 /// servidor —al de producción, en el peor caso—. 127.0.0.1 y
 /// el puerto propio no se pueden equivocar.
-function aMiMismo(): string {
-  return `http://127.0.0.1:${process.env.PORT ?? 4000}/webhooks/leads/meta`;
+function aMiMismo(peticion: Request, slug: string): string {
+  /// La URL PUBLICA de este gremio, no 127.0.0.1.
+  ///
+  /// La ruta de Meta resuelve el gremio del `Host`, y llamando
+  /// por IP no hay gremio que resolver: no encontraba ni el
+  /// token ni el secreto, y el banco contestaba 403 y 401 como
+  /// si la configuracion estuviera mal. Acusaba a la
+  /// configuracion de un fallo suyo, que es lo peor que puede
+  /// hacer una pantalla cuya razon de ser es decir que falta.
+  ///
+  /// Poner el `Host` a mano NO sirve: `fetch` la descarta -- es
+  /// cabecera prohibida por la especificacion. Comprobado: con
+  /// `fetch` llega `127.0.0.1`.
+  ///
+  /// La direccion sale del Host de ESTA peticion, no de una
+  /// variable: por eso no puede apuntar a otro servidor. Desde
+  /// el panel de pruebas se prueba pruebas.
+  return urlDeDevolucion(peticion, slug);
+}
+
+/**
+ * El `Host` que hay que fingir, y por qué hace falta.
+ *
+ * La ruta de Meta resuelve el gremio del `Host` —hay una app
+ * por gremio y es la direccion la que dice de quien es el lead—.
+ * Llamandose a si misma por `127.0.0.1` no hay gremio que
+ * resolver: no encuentra ni el token ni el secreto, y el banco
+ * contestaba 403 en el apreton y 401 en la firma como si la
+ * configuracion estuviera mal. Estaba bien; lo que faltaba era
+ * decir por que puerta entraba la prueba.
+ *
+ * Se manda el mismo host que Meta va a usar, asi que la prueba
+ * recorre exactamente el camino de verdad.
+ */
+function hostDelGremio(peticion: Request, slug: string): string {
+  const host = (peticion.headers.host ?? '').toLowerCase();
+  if (!host || host.startsWith('localhost') || host.startsWith('127.0.0.1')) {
+    return host || 'localhost';
+  }
+  const dominio = host.replace(SOLO_EL_DOMINIO, '');
+  const prefijo = process.env.ENTORNO === 'prueba' ? 'pre-' : '';
+  return `${prefijo}${slug}.${dominio}`;
 }
 
 /// De dónde sale la URL que hay que pegarle a Meta.
@@ -61,16 +101,41 @@ function aMiMismo(): string {
 /// navegador llegó al panel, o sea la que de verdad funciona
 /// desde fuera. Una constante en el `.env` se queda vieja el
 /// día que cambie el dominio y nadie se entera.
-function urlPublica(peticion: Request): string {
-  const host = peticion.headers.host ?? 'localhost:3100';
-  /// `x-forwarded-proto` lo pone nginx. Sin él se mira si el
-  /// host es local: en el servidor siempre hay TLS.
-  const protocolo =
-    (peticion.headers['x-forwarded-proto'] as string | undefined) ??
-    (host.startsWith('localhost') || host.startsWith('127.0.0.1')
-      ? 'http'
-      : 'https');
-  return `${protocolo}://${host}${CAMINO}`;
+/// El dominio, sin la etiqueta del gremio ni la del entorno.
+///
+/// `pre-adecopria.reservasae.com` -> `reservasae.com`.
+const SOLO_EL_DOMINIO = /^(?:pre-)?[a-z0-9-]+\.(?=[a-z0-9-]+\.[a-z]{2,})/;
+
+/**
+ * La URL de devolución de ESTE gremio.
+ *
+ * Antes hacía `base.replace('://', '://' + slug + '.')`, que le
+ * pega la etiqueta del gremio a lo que haya. Mirada desde
+ * `pre-adecopria.reservasae.com` —donde se mira, porque es el
+ * panel del gremio— salía
+ * `adecopria.pre-adecopria.reservasae.com`, que no existe.
+ *
+ * Y es la URL que alguien copia y pega en la consola de Meta.
+ * Una direccion equivocada ahi no falla ruidosamente: Meta
+ * simplemente no entrega, y eso se lee como «el webhook no
+ * funciona».
+ *
+ * Se rehace desde el dominio, conservando el prefijo del
+ * ENTORNO: en pruebas las direcciones llevan `pre-`.
+ */
+function urlDeDevolucion(peticion: Request, slug: string): string {
+  const host = (peticion.headers.host ?? 'localhost:3100').toLowerCase();
+
+  const local = host.startsWith('localhost') || host.startsWith('127.0.0.1');
+  if (local) return `http://${host}${CAMINO}`;
+
+  /// Siempre `https` de cara afuera. `x-forwarded-proto` dice
+  /// `http` porque el TLS termina en Cloudflare y a nginx le
+  /// llega en claro: fiarse de él pinta una URL con http que
+  /// Meta rechaza.
+  const dominio = host.replace(SOLO_EL_DOMINIO, '');
+  const prefijo = process.env.ENTORNO === 'prueba' ? 'pre-' : '';
+  return `https://${prefijo}${slug}.${dominio}${CAMINO}`;
 }
 
 @Controller('admin/pruebas/meta')
@@ -105,8 +170,6 @@ export class MetaPruebasController {
       select: { id: true, slug: true, nombre: true },
       orderBy: { slug: 'asc' },
     });
-
-    const base = urlPublica(peticion);
 
     const gremios = await Promise.all(
       convenios.map(async (c) => {
@@ -150,7 +213,7 @@ export class MetaPruebasController {
           /// La URL de ESTE gremio. Cada app de Meta apunta a
           /// su subdominio, y es la dirección la que dice de
           /// quién es el lead que entra.
-          urlDeDevolucion: base.replace('://', `://${c.slug}.`),
+          urlDeDevolucion: urlDeDevolucion(peticion, c.slug),
           /// El token NO viaja: solo si está puesto. Es una
           /// credencial, y una credencial en pantalla es una
           /// credencial en una captura.
@@ -187,7 +250,10 @@ export class MetaPruebasController {
   @Post('verificacion')
   @Requiere('configuracion')
   @HttpCode(200)
-  async probarVerificacion(@Query('gremio') gremio?: string) {
+  async probarVerificacion(
+    @Req() peticion: Request,
+    @Query('gremio') gremio?: string,
+  ) {
     /// El gremio va EXPLICITO: cada app de Meta tiene su token
     /// y probar «el» webhook en singular ya no significa nada.
     if (!gremio) {
@@ -209,13 +275,16 @@ export class MetaPruebasController {
     /// devolviera una constante, un reto fijo no lo notaría.
     const reto = `reto-${Date.now()}`;
     const url =
-      `${aMiMismo()}?hub.mode=subscribe` +
+      `${aMiMismo(peticion, gremio)}?hub.mode=subscribe` +
       `&hub.verify_token=${encodeURIComponent(esperado)}` +
       `&hub.challenge=${encodeURIComponent(reto)}`;
 
     let respuesta: globalThis.Response;
     try {
-      respuesta = await fetch(url);
+      respuesta = await fetch(url, {
+        // el gremio va en el Host, como lo mandara Meta
+        headers: { host: hostDelGremio(peticion, gremio) },
+      });
     } catch (e) {
       return {
         pasa: false,
@@ -268,6 +337,7 @@ export class MetaPruebasController {
   @Requiere('configuracion', 'ESCRIBIR')
   @HttpCode(200)
   async probarAviso(
+    @Req() peticion: Request,
     @Query('cuantos') cuantos?: string,
     @Query('gremio') gremio?: string,
   ) {
@@ -307,7 +377,7 @@ export class MetaPruebasController {
       /// serializar el objeto cambiaría un espacio y la firma
       /// dejaría de cuadrar — y el fallo parecería de Meta
       /// cuando sería nuestro.
-      respuesta = await fetch(aMiMismo(), {
+      respuesta = await fetch(aMiMismo(peticion, gremio), {
         method: 'POST',
         headers: {
           'content-type': 'application/json',

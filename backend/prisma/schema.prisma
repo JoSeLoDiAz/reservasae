@@ -101,6 +101,7 @@ model AccionFormacion {
   ofertas       Oferta[]
   participantes Participante[]
   actividades   Actividad[]
+  leads         LeadEntrante[]
 
   // el codigo solo es unico por convenio
   @@unique([convenioId, codigo])
@@ -764,12 +765,36 @@ model LeadEntrante {
   /// Lo que llego. Todo opcional: un anuncio pregunta lo que
   /// quiere, y lo que no venga no se inventa.
   nombreCompleto     String?
+
+  /// El nombre en piezas, si el emisor lo mando asi.
+  ///
+  /// Partir una frase es adivinar: «Ana Maria Ruiz Gomez» pueden
+  /// ser dos nombres y dos apellidos, o uno y tres. Y estas
+  /// cuatro son columnas del reporte al SENA, asi que adivinar
+  /// mal se le reporta al Estado.
+  ///
+  /// Quien lleno el formulario si lo sabia: si las manda
+  /// separadas, se guardan separadas y nadie vuelve a adivinar.
+  primerNombre       String?
+  segundoNombre      String?
+  primerApellido     String?
+  segundoApellido    String?
   correo             String?
   celular            String?
   tipoDocumentoSepId Int?
   numeroDocumento    String?
   /// Que dijo que le interesa, en sus palabras.
   interes            String?
+
+  /// La accion que nombra ese texto, ya resuelta.
+  ///
+  /// Se resuelve AL ENTRAR y no al convertir, como el celular:
+  /// guardar la frase cruda y leerla despues deja dos leads que
+  /// piden lo mismo escrito distinto sin relacionar. Nulo cuando
+  /// no nombra ninguna, que NO es lo mismo que nombrar una que
+  /// no tenemos: las dos quedan en null y el asesor pregunta.
+  accionFormacionId  String?
+  accionFormacion    AccionFormacion? @relation(fields: [accionFormacionId], references: [id], onDelete: SetNull)
 
   /// El cuerpo entero, tal cual. Es lo que deja depurar,
   /// reprocesar y demostrar que llego de verdad.
@@ -790,6 +815,10 @@ model LeadEntrante {
 
   @@unique([origenSistema, externoId])
   @@index([convenioId, estado, recibidoEn])
+  /// Declarado aqui a proposito: un indice que existe en SQL y
+  /// no en el schema lo borra la siguiente migracion sin que
+  /// nadie lo note. Ya paso con el de origenLead.
+  @@index([accionFormacionId])
   @@map("leads_entrantes")
 }
 
@@ -1269,7 +1298,7 @@ model Logo {
 model Marca {
   id String @id @default("unica")
 
-  nombreApp         String  @default("Convoca")
+  nombreApp         String  @default("Convoca CRM")
   tituloPublico     String  @default("Reserve sus cupos de formación")
   subtituloPublico  String  @default("La formación es gratuita y los cupos son limitados.")
   /// Aviso libre bajo el encabezado de las publicas.

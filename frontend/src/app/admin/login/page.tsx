@@ -53,7 +53,7 @@ export default function PaginaAcceso() {
             gremio. Quien entra por aqui trabaja el sistema;
             quien llega al formulario viene por su gremio. */}
         <div className="space-y-7">
-          <FirmaConvoca tamano={56} />
+          <FirmaConvoca tamano={56} animado />
           <Marca />
         </div>
 
@@ -79,7 +79,7 @@ export default function PaginaAcceso() {
               esta es la unica cabecera: Convoca arriba y el
               cliente debajo, igual que en el panel grande. */}
           <div className="mb-8 space-y-5 lg:hidden">
-            <FirmaConvoca tamano={44} />
+            <FirmaConvoca tamano={44} animado />
             <Marca claro />
           </div>
 

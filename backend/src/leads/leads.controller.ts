@@ -26,7 +26,7 @@ import type { RawBodyRequest } from '@nestjs/common';
 import type { Request, Response } from 'express';
 
 import { etiquetaDelHost } from '../admin/gremio-del-host';
-import { EntraLeadDto } from './dto';
+import { EntraLeadDto, EntraLoteDto } from './dto';
 import { LeadsService } from './leads.service';
 import { LlaveDeLeadsGuard } from './llave-de-leads.guard';
 import {
@@ -89,6 +89,26 @@ export class LeadsController {
     const delHost = etiquetaDelHost(host);
 
     return this.leads.entra(dto, sistema, delHost);
+  }
+
+  /**
+   * Varios leads de una vez. Para cargar un historico.
+   *
+   * Mismo camino que el de uno: misma llave, mismo gremio por
+   * subdominio, misma idempotencia. Lo unico que cambia es que
+   * se contesta fila por fila.
+   */
+  @Post('lote')
+  @UseGuards(LlaveDeLeadsGuard)
+  @HttpCode(200)
+  async entraLote(
+    @Body() dto: EntraLoteDto,
+    @Headers('x-origen-sistema') origen: string | undefined,
+    @Headers('host') host: string | undefined,
+  ) {
+    const sistema =
+      (origen ?? 'orquestador').trim().slice(0, 80) || 'orquestador';
+    return this.leads.entraLote(dto.leads, sistema, etiquetaDelHost(host));
   }
 
   /**

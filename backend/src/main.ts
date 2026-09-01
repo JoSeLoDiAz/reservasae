@@ -1,6 +1,7 @@
 import { exigirSecretoDeLeads } from './leads/secreto-de-leads';
 import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
+import type { NestExpressApplication } from '@nestjs/platform-express';
 import cookieParser from 'cookie-parser';
 
 import { AppModule } from './app.module';
@@ -90,7 +91,33 @@ async function bootstrap() {
   /// Nest no lo guarda salvo que se le pida, y sin él la única
   /// alternativa era un orquestador intermedio que tradujera
   /// —una pieza más que mantener y que se puede caer sola.
-  const app = await NestFactory.create(AppModule, { rawBody: true });
+  /// `bodyParser.json.limit`: el lote de leads no cabia en 100 KB.
+  ///
+  /// Ese es el tope por defecto de Express, y 500 leads pesan
+  /// unos 115 KB: el webhook contestaba 413 con un lote del
+  /// tamaño que el propio endpoint dice admitir. Un limite que
+  /// contradice al contrato es peor que uno estrecho.
+  ///
+  /// 1 MB y no mas: da holgura sobre los 500 --el tope real lo
+  /// pone `ArrayMaxSize`, que ademas dice por que-- y no abre la
+  /// puerta a que alguien mande un cuerpo enorme por el webhook,
+  /// que es la unica ruta que escribe sin sesion.
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, {
+    rawBody: true,
+  });
+
+  /// El lote de leads no cabia en los 100 KB por defecto.
+  ///
+  /// 500 leads pesan unos 115 KB, asi que el webhook contestaba
+  /// 413 con un lote del tamaño que el propio endpoint dice
+  /// admitir. Un limite que contradice al contrato es peor que
+  /// uno estrecho: se descubre en produccion con datos de verdad.
+  ///
+  /// 1 MB y no mas: holgura sobre los 500 --el tope real lo pone
+  /// `ArrayMaxSize`, que ademas dice por que se rechaza-- sin
+  /// abrirle la puerta a un cuerpo enorme por el webhook, que es
+  /// la unica ruta que escribe sin sesion.
+  app.useBodyParser('json', { limit: '1mb' });
 
   // sin esto req.cookies llega vacio
   app.use(cookieParser());

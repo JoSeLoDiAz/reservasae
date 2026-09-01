@@ -37,7 +37,7 @@ export function EncabezadoImpresion({
   return (
     <div className="solo-impresion mb-6 border-b border-borde pb-3">
       <p className="text-[10px] font-semibold uppercase tracking-widest text-texto-suave">
-        Convoca · Reserva de cupos de formación
+        Convoca CRM · Reserva de cupos de formación
       </p>
       <h1 className="mt-1 text-xl font-semibold">{titulo}</h1>
       <p className="mt-0.5 text-xs text-texto-suave">

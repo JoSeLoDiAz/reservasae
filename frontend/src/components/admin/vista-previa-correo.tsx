@@ -88,7 +88,7 @@ export function VistaPreviaCorreo({
         <div className="space-y-1 border-b border-borde bg-superficie-alterna px-4 py-3">
           <div className="flex items-baseline gap-2 text-xs text-texto-suave">
             <span className="w-12 shrink-0">De</span>
-            <span className="truncate text-texto">{remitente ?? "Convoca"}</span>
+            <span className="truncate text-texto">{remitente ?? "Convoca CRM"}</span>
           </div>
           <div className="flex items-baseline gap-2 text-xs text-texto-suave">
             <span className="w-12 shrink-0">Para</span>

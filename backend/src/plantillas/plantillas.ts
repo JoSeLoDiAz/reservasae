@@ -217,7 +217,7 @@ export async function construirFormato(
   filas?: Array<Record<string, unknown>>,
 ): Promise<Buffer> {
   const libro = new ExcelJS.Workbook();
-  libro.creator = 'Convoca';
+  libro.creator = 'Convoca CRM';
   libro.created = new Date();
 
   const hoja = libro.addWorksheet(plantilla.nombre.slice(0, 31));

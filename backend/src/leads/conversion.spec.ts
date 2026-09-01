@@ -70,10 +70,31 @@ function armar(o: Opciones = {}) {
     },
   };
 
+  /// El doble ENCOLA, como el real.
+  ///
+  /// Antes no lo hacia, y por eso este spec no podia fallar: el
+  /// `CrmService` de verdad encola el RUI al final de `crear`, o
+  /// sea ANTES de que la conversion deje la constancia. La
+  /// asercion de orden pasaba porque el unico 'RUI' que se
+  /// apuntaba era el de la llamada explicita de mas abajo.
+  ///
+  /// Ahora obedece a `encolarRui`, que es lo que la conversion le
+  /// pasa: si alguien le quita ese `{ encolarRui: false }`, el
+  /// doble apunta 'RUI' antes que 'AUTORIZACION' y el test cae.
   const crm = {
-    crear: () => {
+    crear: (
+      _dto: unknown,
+      _admin: unknown,
+      _ambito: unknown,
+      _ip: unknown,
+      opciones?: { encolarRui?: boolean },
+    ) => {
       hecho.push('crm.crear');
       orden.push('FICHA');
+      if (opciones?.encolarRui !== false) {
+        hecho.push('rui.encolar');
+        orden.push('RUI');
+      }
       return Promise.resolve({ id: 'p1', personaId: 'per1' });
     },
   };

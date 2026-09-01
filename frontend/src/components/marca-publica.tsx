@@ -229,7 +229,7 @@ export function BannerLogos() {
   if (!logos.length) {
     return (
       <span className="text-sm font-medium text-marca">
-        {marca?.nombreApp ?? "Convoca"}
+        {marca?.nombreApp ?? "Convoca CRM"}
       </span>
     );
   }

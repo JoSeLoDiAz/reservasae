@@ -385,7 +385,7 @@ export function VistaPrevia({ colores }: { colores: ColoresTema }) {
           borderBottom: `1px solid ${c("encabezadoBorde")}`,
         }}
       >
-        <span className="font-semibold">Convoca</span>
+        <span className="font-semibold">Convoca CRM</span>
         <span className="text-sm opacity-70">Encabezado</span>
       </div>
 

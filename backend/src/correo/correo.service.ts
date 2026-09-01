@@ -140,7 +140,7 @@ export class CorreoService implements OnModuleInit, OnModuleDestroy {
   /// De quién sale. Con nombre, porque un correo que llega de
   /// una dirección suelta parece robado.
   private get remitente(): string {
-    const nombre = process.env.SMTP_NOMBRE ?? 'Convoca';
+    const nombre = process.env.SMTP_NOMBRE ?? 'Convoca CRM';
     const buzon = process.env.SMTP_DESDE ?? process.env.SMTP_USUARIO ?? '';
     return `"${nombre}" <${buzon}>`;
   }

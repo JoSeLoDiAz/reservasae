@@ -16,6 +16,9 @@ import { DOCUMENTOS_DE_PERSONA } from '../crm/catalogos-sep';
 import { ColaRui } from '../crm/rui/cola-rui';
 import { PrismaService } from '../prisma/prisma.service';
 import { registrarToqueDeOrigen } from '../crm/origen-del-lead';
+import { accionQuePidio } from './accion-que-pidio';
+import { llaveDelLead } from './llave-del-lead';
+import { siglasAdmitidas, tipoDeDocumento } from './tipo-de-documento';
 
 import type { EntraLeadDto } from './dto';
 
@@ -86,7 +89,14 @@ export class LeadsService {
 
     const convenio = await this.prisma.convenio.findFirst({
       where: { slug, activo: true },
-      select: { id: true, slug: true },
+      select: {
+        id: true,
+        slug: true,
+        /// Para resolver QUE CURSO pidio. Van las de este
+        /// convenio y nada mas: el mismo codigo es otro curso
+        /// en el otro gremio.
+        acciones: { select: { id: true, codigo: true, visible: true } },
+      },
     });
     /// El gremio va explicito y no se adivina.
     ///
@@ -98,8 +108,23 @@ export class LeadsService {
       );
     }
 
-    const datos = this.limpiar(dto);
+    /// El tipo de documento, dicho como lo dice la gente.
+    ///
+    /// Se admite `CC`, `PPT`, el nombre entero o el numero. Se
+    /// resuelve ANTES de limpiar porque de el depende la llave.
+    const tipoDoc = tipoDeDocumento(dto.tipoDocumento ?? dto.tipoDocumentoSepId);
+    if (dto.numeroDocumento?.trim() && tipoDoc === null) {
+      throw new BadRequestException(
+        'Mando un documento sin decir de que tipo, o con un tipo que no ' +
+          `reconocemos. Use la sigla: ${siglasAdmitidas().slice(0, 6).join(', ')}...`,
+      );
+    }
+
+    const datos = this.limpiar(dto, tipoDoc);
     const falta = this.queLeFalta(datos);
+
+    /// Que curso pidio, si lo nombro.
+    const pedida = accionQuePidio(dto.interes, convenio.acciones);
 
     /// Pagado u orgánico, y lo decide QUIÉN LO MANDA, no el
     /// cuerpo. Si viniera en el JSON, quien llama podría
@@ -113,9 +138,22 @@ export class LeadsService {
     ///
     /// Los webhooks reintentan. Sin esto, un reintento de red
     /// —que quien lo manda ni ve— duplica a una persona.
+    /// La llave: su id si lo trae, y si no el DOCUMENTO.
+    ///
+    /// El documento es la identidad en todo el sistema, asi que
+    /// sirve de llave sin inventar una segunda regla. Va
+    /// normalizado: `1.020.304.050` y `1020304050` tienen que
+    /// dar la MISMA, o el reintento duplica.
+    const llave = llaveDelLead(
+      { ...dto, tipoDocumentoSepId: tipoDoc },
+      pedida?.codigo ?? null,
+    );
+    if ('falta' in llave) throw new BadRequestException(llave.falta);
+    const externoId = llave.llave;
+
     const ya = await this.prisma.leadEntrante.findUnique({
       where: {
-        origenSistema_externoId: { origenSistema, externoId: dto.externoId },
+        origenSistema_externoId: { origenSistema, externoId },
       },
       select: { id: true, estado: true, participanteId: true, motivo: true },
     });
@@ -127,14 +165,24 @@ export class LeadsService {
       data: {
         convenioId: convenio.id,
         origenSistema,
-        externoId: dto.externoId,
+        externoId,
         origen: dto.origen ?? 'OTRO',
         nombreCompleto: datos.nombreCompleto,
+        /// Tal como llegaron, si llegaron separadas.
+        primerNombre: datos.piezasDelNombre?.primerNombre ?? null,
+        segundoNombre: datos.piezasDelNombre?.segundoNombre ?? null,
+        primerApellido: datos.piezasDelNombre?.primerApellido ?? null,
+        segundoApellido: datos.piezasDelNombre?.segundoApellido ?? null,
         correo: datos.correo,
         celular: datos.celular,
         tipoDocumentoSepId: datos.tipoDocumentoSepId,
         numeroDocumento: datos.numeroDocumento,
         interes: dto.interes ?? null,
+        /// Resuelta AL ENTRAR, como el celular. Nula si no
+        /// nombra ninguna o si nombra una que este gremio no
+        /// tiene: las dos cosas quedan igual y el asesor
+        /// pregunta, que es mejor que meterlo en otro curso.
+        accionFormacionId: pedida?.id ?? null,
         // el cuerpo entero, para poder depurar y reprocesar
         carga: (dto.carga ?? dto) as Prisma.InputJsonValue,
         motivo: falta.length ? `Falta: ${falta.join(', ')}.` : null,
@@ -155,23 +203,103 @@ export class LeadsService {
     if (coincide) {
       await this.avisarQueYaEstaba(lead.id, coincide, datos, esPauta);
       this.log.log(
-        `Lead ${dto.externoId}: ya estaba (por ${coincide.por}). ` +
-          'Queda propuesta para el asesor.',
+        `Lead ${externoId}: ${coincide.firme ? 'ya estaba' : 'se PARECE a uno'} ` +
+          `(por ${coincide.por}). Queda propuesta para el asesor.`,
       );
       return {
-        ...this.vista({ ...lead, participanteId: coincide.participanteId }),
+        /// El id de la ficha, solo si de verdad se ató.
+        ///
+        /// Devolverlo en una coincidencia floja le diría a quien
+        /// llama que el lead YA es esa persona — que es lo mismo
+        /// que haberlo decidido, solo que por fuera.
+        ...this.vista(
+          coincide.firme
+            ? { ...lead, participanteId: coincide.participanteId }
+            : lead,
+        ),
         repetido: false,
-        yaEstaba: true,
+        yaEstaba: coincide.firme,
         encontradoPor: coincide.por,
+        /// Hay a quién parecerse, pero falta confirmarlo.
+        porConfirmar: !coincide.firme,
       };
     }
 
     this.log.log(
-      `Lead ${dto.externoId} de ${origenSistema} para ${convenio.slug}` +
+      `Lead ${externoId} de ${origenSistema} para ${convenio.slug}` +
         (falta.length ? ` — pendiente (${falta.join(', ')})` : ' — completo'),
     );
 
     return { ...this.vista(lead), repetido: false, yaEstaba: false };
+  }
+
+  /**
+   * Varios leads de una vez, para cargar un historico.
+   *
+   * FILA A FILA y SIN transaccion, igual que la carga masiva del
+   * panel y por lo mismo: en un lote de 500, que la 17 traiga un
+   * documento invalido no puede tumbar las otras 499.
+   *
+   * Y se contesta fila por fila. Un lote que devuelve «ok» y se
+   * traga trece errores es peor que mandar mil peticiones: quien
+   * lo mando cree que entraron todos, y los trece se pierden sin
+   * que nadie lo sepa nunca.
+   */
+  async entraLote(
+    leads: EntraLeadDto[],
+    origenSistema: string,
+    delHost: string | null = null,
+  ) {
+    const filas: Array<Record<string, unknown>> = [];
+
+    for (let i = 0; i < leads.length; i++) {
+      /// La posicion viaja en la respuesta. Sin ella, «el 17
+      /// fallo» obliga a contar a mano en un JSON de 500.
+      const fila: Record<string, unknown> = { fila: i + 1 };
+      try {
+        const r = await this.entra(leads[i], origenSistema, delHost);
+        Object.assign(fila, {
+          ok: true,
+          id: r.id,
+          estado: r.estado,
+          repetido: r.repetido,
+          motivo: r.motivo ?? null,
+        });
+      } catch (e) {
+        /// El error de ESA fila, no del lote. Se dice cual era
+        /// el lead para poder encontrarlo en el origen.
+        Object.assign(fila, {
+          ok: false,
+          porque: e instanceof Error ? e.message : String(e),
+          documento: leads[i].numeroDocumento ?? null,
+          externoId: leads[i].externoId ?? null,
+        });
+      }
+      filas.push(fila);
+    }
+
+    const entraron = filas.filter((f) => f.ok && !f.repetido).length;
+    const repetidos = filas.filter((f) => f.ok && f.repetido).length;
+    const fallaron = filas.filter((f) => !f.ok).length;
+
+    this.log.log(
+      `Lote de ${leads.length} por ${origenSistema}: ` +
+        `${entraron} nuevos, ${repetidos} repetidos, ${fallaron} con error.`,
+    );
+
+    return {
+      recibidos: leads.length,
+      entraron,
+      repetidos,
+      fallaron,
+      /// Solo las que fallaron, arriba y aparte.
+      ///
+      /// Quien manda un lote de 500 no va a leer 500 filas para
+      /// encontrar las 13 malas. Se le dan servidas, y la lista
+      /// completa queda debajo para quien la quiera.
+      errores: filas.filter((f) => !f.ok),
+      filas,
+    };
   }
 
   /**
@@ -336,16 +464,40 @@ export class LeadsService {
     }
 
     await this.prisma.$transaction(async (tx) => {
+      /// Solo la coincidencia FIRME ata el lead a la ficha.
+      ///
+      /// `firme` se calculaba y no la leía nadie: se ataba
+      /// `participanteId` y se marcaba CONVERTIDO con cualquier
+      /// coincidencia, también con las del correo y el celular.
+      /// El log decía «queda propuesta para el asesor» y la
+      /// propuesta sí se creaba, pero la decisión ya estaba
+      /// tomada: el lead quedaba pegado a esa persona.
+      ///
+      /// Y es justo el caso contra el que el fichero del cruce
+      /// avisa: una familia comparte buzón y una empresa pone
+      /// el correo de la secretaria en veinte formularios. Un
+      /// lead nuevo caía sobre la ficha de otra persona.
+      ///
+      /// Con documento se ata; con correo o celular se deja
+      /// PENDIENTE y la propuesta espera a que un asesor
+      /// confirme, que es lo que el diseño decía y no hacía.
       await tx.leadEntrante.update({
         where: { id: leadId },
-        data: {
-          participanteId: coincide.participanteId,
-          /// CONVERTIDO: este lead YA es una ficha. No se creó
-          /// una nueva porque ya existía, que es justo lo que
-          /// este cruce evita —el solapamiento de leads.
-          estado: 'CONVERTIDO',
-          motivo: porDondeSeEncontro(coincide),
-        },
+        data: coincide.firme
+          ? {
+              participanteId: coincide.participanteId,
+              /// CONVERTIDO: este lead YA es una ficha. No se
+              /// creó una nueva porque ya existía, que es justo
+              /// lo que este cruce evita.
+              estado: 'CONVERTIDO',
+              motivo: porDondeSeEncontro(coincide),
+            }
+          : {
+              /// Sin atar. El motivo dice a quién se PARECE,
+              /// para que el asesor sepa dónde mirar.
+              estado: 'PENDIENTE',
+              motivo: `Posible repetido — ${porDondeSeEncontro(coincide)}. Confirme antes de unirlos.`,
+            },
       });
 
       /// El toque se deja SIEMPRE, haya o no datos nuevos:
@@ -391,20 +543,49 @@ export class LeadsService {
    * como vino y se limpia después, la misma persona escrita de
    * dos formas son dos leads que nadie relaciona.
    */
-  private limpiar(dto: EntraLeadDto) {
+  private limpiar(dto: EntraLeadDto, tipoDoc: number | null) {
     const numero = dto.numeroDocumento
       ? normalizarDocumento(dto.numeroDocumento)
       : null;
 
     const celular = dto.celular ? normalizarCelular(dto.celular) : null;
 
+    /// Las piezas mandan sobre la frase entera.
+    ///
+    /// Partir un nombre es adivinar: «Ana Maria Ruiz Gomez»
+    /// pueden ser dos nombres y dos apellidos, o uno y tres.
+    /// Si el emisor las manda separadas, ya no hay que adivinar
+    /// -- y quien lleno el formulario si lo sabia.
+    const enPiezas = [dto.nombres, dto.primerApellido, dto.segundoApellido]
+      .map((x) => x?.trim())
+      .filter(Boolean)
+      .join(' ');
+
     return {
-      nombreCompleto: dto.nombreCompleto?.trim() || null,
+      nombreCompleto: enPiezas || dto.nombreCompleto?.trim() || null,
+      /// Se guardan tambien sueltas: al convertir se usan tal
+      /// cual en vez de volver a partir lo que ya venia partido.
+      /// Los nombres llegan juntos y los apellidos separados,
+      /// que es como los escribe la gente. Los dos nombres se
+      /// parten aqui --«Ana Maria» -> «Ana» + «Maria»-- y eso SI
+      /// se puede: lo dificil es saber donde acaban los nombres
+      /// y empiezan los apellidos, y eso ya viene resuelto.
+      piezasDelNombre: dto.primerApellido?.trim()
+        ? (() => {
+            const ns = (dto.nombres ?? '').trim().split(/\s+/).filter(Boolean);
+            return {
+              primerNombre: ns[0] ?? null,
+              segundoNombre: ns.slice(1).join(' ') || null,
+              primerApellido: dto.primerApellido!.trim(),
+              segundoApellido: dto.segundoApellido?.trim() || null,
+            };
+          })()
+        : null,
       correo: dto.correo?.trim().toLowerCase() || null,
       /// Vacio si no es un celular: guardar «no tiene» seria
       /// guardar algo que no sirve para llamar a nadie.
       celular: celular && celularValido(celular) ? celular : null,
-      tipoDocumentoSepId: dto.tipoDocumentoSepId ?? null,
+      tipoDocumentoSepId: tipoDoc,
       numeroDocumento: numero || null,
       /// Si MANDARON algo, aunque no sirviera.
       ///

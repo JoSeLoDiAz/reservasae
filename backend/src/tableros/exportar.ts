@@ -36,7 +36,7 @@ export type Hoja = {
 
 export async function construirLibro(hojas: Hoja[]): Promise<Buffer> {
   const libro = new ExcelJS.Workbook();
-  libro.creator = 'Convoca';
+  libro.creator = 'Convoca CRM';
   libro.created = new Date();
 
   for (const definicion of hojas) {
