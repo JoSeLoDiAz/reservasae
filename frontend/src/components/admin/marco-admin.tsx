@@ -341,27 +341,30 @@ export function MarcoAdmin({ children }: { children: React.ReactNode }) {
                 cortos, que es donde de verdad importa. */}
             <div className="flex min-h-0 w-full grow flex-col">{children}</div>
 
-            {/* El pie del panel.
-
-                Va DENTRO de `<main>` y como hermano de `children`,
-                no a nivel de `<body>`: el marco es una rejilla de
-                alto completo y `<main>` es el unico que scrollea,
-                asi que un pie de fuera se quedaria pegado a la
-                ventana o directamente no se veria nunca.
-
-                Y como hermano de `children` y no dentro, para que
-                cada pantalla no tenga que acordarse de ponerlo.
-
-                `mt-auto` lo empuja abajo cuando la pantalla es
-                corta, y lo deja al final del scroll cuando es
-                larga. Las dos son la posicion correcta.
-
-                No lleva `.no-imprimir`: en papel es justo donde
-                tiene sentido decir de quien es el documento. */}
-            <footer className="mt-auto border-t border-borde px-7 py-4">
-              <PieDeConvoca />
-            </footer>
           </main>
+
+          {/* El pie del panel, HERMANO de `<main>` y no dentro.
+
+              Dentro estaba mal, y se vio: `<main>` es el que
+              scrollea y su hijo lleva `min-h-0`, asi que se
+              dimensiona al hueco disponible y el contenido, mas
+              alto, se pintaba POR ENCIMA del pie. El pie salia
+              flotando en mitad de la tabla.
+
+              Aqui es una banda del marco, como la cabecera: una
+              arriba y otra abajo, y `<main>` scrollea entre las
+              dos. Asi no depende de cuanto mida el contenido, que
+              es lo que lo rompia.
+
+              Lleva fondo PROPIO (`bg-superficie`) y no
+              transparente: sin el, el contenido se le ve por
+              debajo al scrollear. Ese fue el otro sintoma.
+
+              No lleva `.no-imprimir`: en papel es justo donde
+              tiene sentido decir de quien es el documento. */}
+          <footer className="shrink-0 border-t border-borde bg-superficie px-7 py-2">
+            <PieDeConvoca />
+          </footer>
         </div>
       </div>
     </ContextoAdmin.Provider>
