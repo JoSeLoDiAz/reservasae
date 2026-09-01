@@ -101,6 +101,7 @@ model AccionFormacion {
   ofertas       Oferta[]
   participantes Participante[]
   actividades   Actividad[]
+  leads         LeadEntrante[]
 
   // el codigo solo es unico por convenio
   @@unique([convenioId, codigo])
@@ -771,6 +772,16 @@ model LeadEntrante {
   /// Que dijo que le interesa, en sus palabras.
   interes            String?
 
+  /// La accion que nombra ese texto, ya resuelta.
+  ///
+  /// Se resuelve AL ENTRAR y no al convertir, como el celular:
+  /// guardar la frase cruda y leerla despues deja dos leads que
+  /// piden lo mismo escrito distinto sin relacionar. Nulo cuando
+  /// no nombra ninguna, que NO es lo mismo que nombrar una que
+  /// no tenemos: las dos quedan en null y el asesor pregunta.
+  accionFormacionId  String?
+  accionFormacion    AccionFormacion? @relation(fields: [accionFormacionId], references: [id], onDelete: SetNull)
+
   /// El cuerpo entero, tal cual. Es lo que deja depurar,
   /// reprocesar y demostrar que llego de verdad.
   carga Json
@@ -790,6 +801,10 @@ model LeadEntrante {
 
   @@unique([origenSistema, externoId])
   @@index([convenioId, estado, recibidoEn])
+  /// Declarado aqui a proposito: un indice que existe en SQL y
+  /// no en el schema lo borra la siguiente migracion sin que
+  /// nadie lo note. Ya paso con el de origenLead.
+  @@index([accionFormacionId])
   @@map("leads_entrantes")
 }
 

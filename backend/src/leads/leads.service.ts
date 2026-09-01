@@ -16,6 +16,7 @@ import { DOCUMENTOS_DE_PERSONA } from '../crm/catalogos-sep';
 import { ColaRui } from '../crm/rui/cola-rui';
 import { PrismaService } from '../prisma/prisma.service';
 import { registrarToqueDeOrigen } from '../crm/origen-del-lead';
+import { accionQuePidio } from './accion-que-pidio';
 
 import type { EntraLeadDto } from './dto';
 
@@ -86,7 +87,14 @@ export class LeadsService {
 
     const convenio = await this.prisma.convenio.findFirst({
       where: { slug, activo: true },
-      select: { id: true, slug: true },
+      select: {
+        id: true,
+        slug: true,
+        /// Para resolver QUE CURSO pidio. Van las de este
+        /// convenio y nada mas: el mismo codigo es otro curso
+        /// en el otro gremio.
+        acciones: { select: { id: true, codigo: true, visible: true } },
+      },
     });
     /// El gremio va explicito y no se adivina.
     ///
@@ -100,6 +108,9 @@ export class LeadsService {
 
     const datos = this.limpiar(dto);
     const falta = this.queLeFalta(datos);
+
+    /// Que curso pidio, si lo nombro.
+    const pedida = accionQuePidio(dto.interes, convenio.acciones);
 
     /// Pagado u orgánico, y lo decide QUIÉN LO MANDA, no el
     /// cuerpo. Si viniera en el JSON, quien llama podría
@@ -135,6 +146,11 @@ export class LeadsService {
         tipoDocumentoSepId: datos.tipoDocumentoSepId,
         numeroDocumento: datos.numeroDocumento,
         interes: dto.interes ?? null,
+        /// Resuelta AL ENTRAR, como el celular. Nula si no
+        /// nombra ninguna o si nombra una que este gremio no
+        /// tiene: las dos cosas quedan igual y el asesor
+        /// pregunta, que es mejor que meterlo en otro curso.
+        accionFormacionId: pedida?.id ?? null,
         // el cuerpo entero, para poder depurar y reprocesar
         carga: (dto.carga ?? dto) as Prisma.InputJsonValue,
         motivo: falta.length ? `Falta: ${falta.join(', ')}.` : null,
