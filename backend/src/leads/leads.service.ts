@@ -115,15 +115,26 @@ export class LeadsService {
     /// Se admite `CC`, `PPT`, el nombre entero o el numero. Se
     /// resuelve ANTES de limpiar porque de el depende la llave.
     const tipoDoc = tipoDeDocumento(dto.tipoDocumento ?? dto.tipoDocumentoSepId);
-    if (dto.numeroDocumento?.trim() && tipoDoc === null) {
-      throw new BadRequestException(
-        'Mando un documento sin decir de que tipo, o con un tipo que no ' +
-          `reconocemos. Use la sigla: ${siglasAdmitidas().slice(0, 6).join(', ')}...`,
-      );
-    }
+    /// Un tipo raro NO tumba el lead: se apunta y entra.
+    ///
+    /// Antes se rechazaba, y era perder un lead de una pauta
+    /// pagada por una sigla mal escrita. El numero se guarda
+    /// igual y el equipo le pone el tipo desde la mesa de
+    /// entrada, que es para lo que existe esa pantalla.
+    ///
+    /// Sin tipo no se forma la llave del documento, asi que se
+    /// cae a la del contenido -- y por eso el lead sigue siendo
+    /// idempotente aunque le falte.
+    const tipoRaro = Boolean(dto.numeroDocumento?.trim()) && tipoDoc === null;
 
     const datos = this.limpiar(dto, tipoDoc);
     const falta = this.queLeFalta(datos);
+    if (tipoRaro) {
+      falta.push(
+        `el tipo de documento («${dto.tipoDocumento ?? dto.tipoDocumentoSepId}» ` +
+          `no se reconoce; use ${siglasAdmitidas().slice(0, 6).join(', ')}...)`,
+      );
+    }
 
     /// Que curso pidio, si lo nombro.
     const pedida = accionQuePidio(dto.interes, convenio.acciones);
