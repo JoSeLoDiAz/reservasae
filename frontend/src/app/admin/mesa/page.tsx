@@ -3,7 +3,9 @@
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
+import { ArreglarLead } from "@/components/admin/arreglar-lead";
 import { Aviso, Boton, useAdmin } from "@/components/admin/marco-admin";
+import { crmApi, type CatalogosSep } from "@/lib/crm-api";
 import { Cifra, Encabezado, Vacio } from "@/components/admin/piezas";
 import { useDatosVivos } from "@/lib/datos-vivos";
 import { ErrorApi } from "@/lib/api";
@@ -74,6 +76,12 @@ export default function PaginaMesa() {
   /// hiciera las dos invita a pulsar la que no era.
   const [descartando, setDescartando] = useState(false);
   const [motivo, setMotivo] = useState("");
+  /// Cual se esta arreglando. Null: ninguno.
+  const [arreglando, setArreglando] = useState<LeadDeLaMesa | null>(null);
+  const [catalogos, setCatalogos] = useState<CatalogosSep | null>(null);
+  /// La pagina. Con 392 leads, sin esto solo se ven 50 y los
+  /// otros 342 son invisibles salvo buscando.
+  const [pagina, setPagina] = useState(1);
   /// A quién se le asignan. NO se rellena solo con quien está
   /// mirando: en un lote de cien, el que importa casi nunca es el
   /// que va a llamar. Que empiece vacío obliga a elegir.
@@ -84,10 +92,24 @@ export default function PaginaMesa() {
     return () => clearTimeout(t);
   }, [buscar]);
 
+  useEffect(() => {
+    void crmApi.catalogos().then(setCatalogos).catch(() => setCatalogos(null));
+  }, []);
+
+  /// Volver a la 1 al filtrar. Sin esto, filtrar estando en la
+  /// pagina 4 deja una lista vacia que parece que no hay nada.
+  useEffect(() => {
+    setPagina(1);
+  }, [estado, buscado]);
+
   const cargar = useCallback(async () => {
     try {
       setDatos(
-        await mesaApi.listar({ estado: estado || undefined, buscar: buscado }),
+        await mesaApi.listar({
+          estado: estado || undefined,
+          buscar: buscado,
+          pagina,
+        }),
       );
       setError(null);
     } catch (e) {
@@ -96,7 +118,7 @@ export default function PaginaMesa() {
       /// la lista cada vez que la conexión tose.
       setError(e instanceof ErrorApi ? e.message : "No se pudo cargar la mesa.");
     }
-  }, [estado, buscado]);
+  }, [estado, buscado, pagina]);
 
   /// Cada 10 s, no cada 30.
   ///
@@ -513,6 +535,18 @@ export default function PaginaMesa() {
                           Le falta {l.falta.join(", ")}
                         </div>
                       )}
+                      {/* Arreglar está en TODAS las pendientes, no
+                          solo en las que les falta algo: también se
+                          corrige un correo mal escrito que no
+                          impide convertir pero sí llamar. */}
+                      {l.estado === "PENDIENTE" && (
+                        <button
+                          className="mt-0.5 text-xs font-medium text-marca hover:underline"
+                          onClick={() => setArreglando(l)}
+                        >
+                          Arreglar
+                        </button>
+                      )}
                     </td>
 
                     <td className="px-4 py-2.5">
@@ -577,7 +611,40 @@ export default function PaginaMesa() {
             </table>
           </div>
         )}
+        {/* Pasar de página. Con 392 leads y 50 por página, sin
+            esto los otros 342 son invisibles salvo buscando. */}
+        {datos && datos.paginas > 1 && (
+          <div className="flex items-center justify-center gap-3 text-sm">
+            <button
+              className="rounded-lg border border-borde px-3 py-1 disabled:opacity-40"
+              onClick={() => setPagina((p) => Math.max(1, p - 1))}
+              disabled={pagina <= 1}
+            >
+              Anterior
+            </button>
+            <span className="text-texto-suave">
+              Página {datos.pagina} de {datos.paginas}
+            </span>
+            <button
+              className="rounded-lg border border-borde px-3 py-1 disabled:opacity-40"
+              onClick={() => setPagina((p) => Math.min(datos.paginas, p + 1))}
+              disabled={pagina >= datos.paginas}
+            >
+              Siguiente
+            </button>
+          </div>
+        )}
       </section>
+
+      {arreglando && (
+        <ArreglarLead
+          lead={arreglando}
+          cursos={datos?.cursos ?? []}
+          catalogos={catalogos}
+          alCerrar={() => setArreglando(null)}
+          alGuardado={cargar}
+        />
+      )}
     </>
   );
 }

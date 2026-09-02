@@ -91,6 +91,9 @@ export class MesaDeEntrada {
           recibidoEn: true,
           participanteId: true,
           accionFormacionId: true,
+          departamentoSepId: true,
+          municipioSepId: true,
+          generoSepId: true,
           convenio: { select: { slug: true, sigla: true } },
           accionFormacion: { select: { codigo: true, nombre: true } },
         },
@@ -186,6 +189,26 @@ export class MesaDeEntrada {
         recibidoEn: l.recibidoEn,
         /// Si ya tiene ficha, para poder saltar a ella.
         participanteId: l.participanteId,
+        /// Los valores EN CRUDO, para poder rellenar el
+        /// formulario que los corrige.
+        ///
+        /// Arriba van compuestos --«Ana María Ruiz», «C.C.
+        /// 1020304050»-- que es lo que se lee en la tabla y lo
+        /// que NO se puede meter en un campo: descomponerlos en
+        /// el navegador seria adivinar dónde acaba el nombre.
+        crudo: {
+          tipoDocumentoSepId: l.tipoDocumentoSepId,
+          numeroDocumento: l.numeroDocumento,
+          primerNombre: l.primerNombre,
+          primerApellido: l.primerApellido,
+          segundoApellido: l.segundoApellido,
+          correo: l.correo,
+          celular: l.celular,
+          accionFormacionId: l.accionFormacionId,
+          departamentoSepId: l.departamentoSepId,
+          municipioSepId: l.municipioSepId,
+          generoSepId: l.generoSepId,
+        },
         /// Qué le falta para poder ser ficha. Vacío: está listo.
         ///
         /// Lo calcula el SERVIDOR con la misma función que usa el
