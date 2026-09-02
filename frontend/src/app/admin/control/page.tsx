@@ -29,6 +29,7 @@ import {
   ETIQUETA_RANGO,
   type Control,
   type Etapa,
+  type Filtros,
   type Origen,
   type Rango,
 } from "@/lib/crm-api";
@@ -186,6 +187,26 @@ export default function PaginaControl() {
 
   const eligio = contra !== "AUTO";
 
+  /**
+   * Los cortes que elige el panel de arriba, para que ESTA
+   * mitad de la pantalla corte igual.
+   *
+   * El periodo lo manda la cabecera y los cortes el panel, pero
+   * las dos consultas los llevan: si solo cortase una, el
+   * embudo diría «BRITCHAM» y el ritmo seguiría contando los
+   * dos gremios en la misma pantalla.
+   */
+  const [cortes, setCortes] = useState<Filtros>({});
+
+  /// La clave del refresco lleva los cortes: sin ellos, cambiar
+  /// de gremio no volvía a pedir nada y se quedaba lo anterior.
+  const claveCortes = [
+    cortes.convenioId,
+    cortes.accionFormacionId,
+    cortes.asesorId,
+    cortes.departamentoSepId,
+  ].join("|");
+
   const vivos = useDatosVivos<Control>(
     useCallback(
       () =>
@@ -196,10 +217,16 @@ export default function PaginaControl() {
           contra: contra === "AUTO" ? undefined : contra,
           contraDesde: contra === "AUTO" ? undefined : contraDesde || undefined,
           contraHasta: contra === "AUTO" ? undefined : contraHasta || undefined,
+          convenioId: cortes.convenioId,
+          accionFormacionId: cortes.accionFormacionId,
+          asesorId: cortes.asesorId,
+          departamentoSepId: cortes.departamentoSepId,
         }),
-      [rango, desde, hasta, contra, contraDesde, contraHasta],
+      [rango, desde, hasta, contra, contraDesde, contraHasta, cortes],
     ),
-    { clave: `${rango}|${desde}|${hasta}|${contra}|${contraDesde}|${contraHasta}` },
+    {
+      clave: `${rango}|${desde}|${hasta}|${contra}|${contraDesde}|${contraHasta}|${claveCortes}`,
+    },
   );
 
   const diasA = diasDeRango(rango, desde, hasta);
@@ -300,7 +327,7 @@ export default function PaginaControl() {
           y compara periodos. Separados, porque no se combinan
           —lo explica `panel-metas.tsx`— y juntarlos daría a
           entender que sí. */}
-      <PanelMetas />
+      <PanelMetas alCambiarFiltros={setCortes} />
 
       {vivos.error ? (
         <Aviso tipo="error">{vivos.error}</Aviso>

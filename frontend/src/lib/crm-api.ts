@@ -1006,7 +1006,10 @@ export const crmApi = {
       notasBorradas: number;
     }>(`/admin/participantes/${id}`, { method: "DELETE" }),
 
-  control: (ventana: FiltroVentana = {}) =>
+  /// La ventana Y los cortes: el backend acepta los dos desde
+  /// que la pantalla filtra entera. Antes solo tomaba fechas,
+  /// y media cifra respondia al filtro y media no.
+  control: (ventana: FiltroVentana & Filtros = {}) =>
     pedir<Control>(`/admin/participantes/control${consulta(ventana)}`),
 
   tableroAcademico: (ventana: FiltroVentana = {}) =>

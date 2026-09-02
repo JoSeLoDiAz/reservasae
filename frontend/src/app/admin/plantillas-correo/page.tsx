@@ -249,6 +249,10 @@ function Lista({
         </Boton>
       </header>
 
+      {/* La lista NO se capa: es una tabla de trabajo y en un
+          monitor ancho el ancho se aprovecha —el asunto deja de
+          cortarse—. Es la regla del marco: solo se capa lo que
+          se lee mal estirado, y eso es el formulario, no esto. */}
       <div className="px-7 py-5">
         {plantillas.length === 0 ? (
           /// El vacío no es una fila más: es una invitación, y
@@ -598,7 +602,20 @@ function Editor({
         </h1>
       </header>
 
-      <div className="px-7 py-5">
+      {/* Tope de ancho, y SIN centrar.
+          El marco no pone tope a propósito —«cada pantalla
+          decide qué bloques suyos se quedan cortos»— y este es
+          uno de los que se queda corto: sin él, en un monitor de
+          1920 los tres grupos de etapas se van cada uno a una
+          esquina, con medio palmo de vacío tras «Certificado», y
+          el correo de la vista previa queda como un sello en
+          mitad de una hoja. Un formulario no se lee a lo ancho.
+
+          Sin `mx-auto` porque la cabecera va a sangre como en
+          todo el panel: centrarlo dejaría el título a la
+          izquierda y los campos empezando en mitad de la
+          pantalla. */}
+      <div className="max-w-[1080px] px-7 py-5">
         {/* ── Datos de la plantilla ── */}
         <div className="mb-5 flex flex-col gap-4 rounded-md border border-borde bg-superficie p-5">
           <div className="grid gap-3.5 sm:grid-cols-2">
@@ -702,7 +719,12 @@ function Editor({
                   «confirmación» no le sirve a quien no quedó, y un «no quedó
                   seleccionado» no le sirve a quien sí.
                 </p>
-                <div className="mt-2.5 grid gap-6 sm:grid-cols-3">
+                {/* Las tres columnas, juntas y no repartidas.
+                    Estiradas al ancho de la banda se leen como
+                    tres listas sin relación; a 760 px se ven
+                    como lo que son: un mismo recorrido en tres
+                    tramos. */}
+                <div className="mt-2.5 grid max-w-[760px] gap-6 sm:grid-cols-3">
                   {GRUPOS.map((g) => (
                     <div key={g.titulo}>
                       <p className="mb-2.5 text-[10.5px] font-bold tracking-[0.05em] uppercase text-texto-suave opacity-75">

@@ -14,7 +14,7 @@ import {
   noSeLePuedeEscribir,
   porQueNoSeLeMando,
 } from '../autorizacion-vigente';
-import { escaparHtml } from '../escapar';
+import { escaparAtributo, escaparHtml } from '../escapar';
 import { porQueNo } from './etapas-de-plantilla';
 import {
   resolver,
@@ -64,6 +64,11 @@ export class PlantillasCorreoService {
         etapasPermitidas: true,
         convenioId: true,
         actualizadoEn: true,
+        /// El mime dice SI hay cabezote y la versión rompe el
+        /// caché. Los bytes no salen de aquí: son hasta 2 MB
+        /// por plantilla y esto lo pide una lista entera.
+        bannerMime: true,
+        bannerVersion: true,
         convenio: { select: { sigla: true, nombre: true } },
         creadoPor: { select: { nombre: true } },
       },
@@ -156,6 +161,50 @@ export class PlantillasCorreoService {
       where: { id },
       data: { activa: false },
     });
+  }
+
+  /**
+   * El cabezote: la franja de arriba del correo.
+   *
+   * A diferencia del de una campaña, este SÍ se puede cambiar
+   * cuando quiera. Una campaña ya lanzada dejaría a unos con
+   * una imagen y a otros con otra; una plantilla no se ha
+   * mandado a nadie todavía —se manda cada vez, desde una
+   * ficha—, así que cambiarlo solo afecta a lo que salga de
+   * aquí en adelante.
+   */
+  async guardarBanner(
+    id: string,
+    datos: Buffer,
+    mime: string,
+    nombre: string,
+    ambito: string[],
+  ) {
+    await this.exigir(id, ambito);
+    await this.prisma.plantillaCorreo.update({
+      where: { id },
+      data: {
+        // Prisma quiere Uint8Array, no Buffer
+        bannerDatos: new Uint8Array(datos),
+        bannerMime: mime,
+        bannerNombre: nombre,
+        // la versión sube para que el caché no sirva el viejo
+        bannerVersion: { increment: 1 },
+      },
+    });
+    return { listo: true };
+  }
+
+  /// Quitarlo es poner los tres campos en null. La versión NO
+  /// se toca: si mañana sube otro, tiene que seguir subiendo
+  /// desde donde iba o Gmail servirá el que ya tenía guardado.
+  async quitarBanner(id: string, ambito: string[]) {
+    await this.exigir(id, ambito);
+    await this.prisma.plantillaCorreo.update({
+      where: { id },
+      data: { bannerDatos: null, bannerMime: null, bannerNombre: null },
+    });
+    return { listo: true };
   }
 
   /**
@@ -260,7 +309,11 @@ export class PlantillasCorreoService {
     const [plantilla, ficha] = await Promise.all([
       this.prisma.plantillaCorreo.findUnique({
         where: { id: plantillaId },
-        select: { etapasPermitidas: true },
+        select: {
+          etapasPermitidas: true,
+          bannerMime: true,
+          bannerVersion: true,
+        },
       }),
       this.prisma.participante.findUnique({
         where: { id: participanteId, convenioId: { in: ambito } },
@@ -308,11 +361,21 @@ export class PlantillasCorreoService {
       );
     }
 
+    /// El cabezote va por URL y no adjunto: quien lo descarga
+    /// es el cliente de correo de la otra persona. La versión
+    /// viaja en la dirección porque la respuesta se cachea una
+    /// semana; sin ella, cambiar el cabezote no cambiaría nada
+    /// en las bandejas que ya lo tienen.
+    const cabezote =
+      plantilla?.bannerMime
+        ? `${urlPublica()}/plantillas-correo/${plantillaId}/banner?v=${plantilla.bannerVersion}`
+        : null;
+
     const r = await this.correo.enviar({
       para: vista.para,
       asunto: vista.asunto,
       texto: vista.cuerpo,
-      html: aHtml(vista.cuerpo),
+      html: aHtml(vista.cuerpo, cabezote),
     });
 
     if (r.estado === 'FALLO') throw new BadRequestException(r.error);
@@ -447,7 +510,7 @@ function enBonito(m: string | null | undefined): string | null {
  * decir nada de HTML. Después los saltos de línea se vuelven
  * párrafos, que es lo que quien escribió esperaba ver.
  */
-export function aHtml(texto: string): string {
+export function aHtml(texto: string, cabezote?: string | null): string {
   /// El escapado vive en un solo sitio: habia tres copias en
   /// el modulo y no coincidian entre si.
   const escapado = escaparHtml(texto);
@@ -457,10 +520,29 @@ export function aHtml(texto: string): string {
     .map((p) => `<p>${p.replace(/\n/g, '<br>')}</p>`)
     .join('\n');
 
+  /// Ancho tope 600 y `display:block`: es lo que aguantan
+  /// Gmail y Outlook sin meter un hueco blanco debajo. El
+  /// `alt` va vacio a proposito -- es decoracion, y con texto
+  /// alternativo quien tenga las imagenes apagadas empieza el
+  /// correo leyendo el nombre de un archivo.
+  const franja = cabezote
+    ? `<img src="${escaparAtributo(cabezote)}" alt="" style="display:block;width:100%;max-width:600px;height:auto;border:0">`
+    : '';
+
   return (
     '<div style="font-family:system-ui,-apple-system,Segoe UI,sans-serif;' +
     'font-size:15px;line-height:1.55;color:#161a26">' +
+    franja +
     parrafos +
     '</div>'
+  );
+}
+
+/// De donde cuelga lo que abre el cliente de correo de otra
+/// persona. Mismo origen que el de las campanas.
+function urlPublica(): string {
+  return (process.env.URL_PUBLICA ?? 'http://localhost:3100').replace(
+    /\/+$/,
+    '',
   );
 }

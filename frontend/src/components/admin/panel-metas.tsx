@@ -39,7 +39,19 @@ import {
  * asesor. Eso vive en Gestión de leads, que es la otra vista
  * del mismo grupo de personas.
  */
-export function PanelMetas() {
+export function PanelMetas({
+  alCambiarFiltros,
+}: {
+  /**
+   * Avisa hacia arriba de los cortes elegidos.
+   *
+   * La pantalla entera se filtra con los mismos seis, y el
+   * cuerpo de periodos pide `control` por su cuenta: sin esto,
+   * el embudo cortaba por gremio y el ritmo seguía con los dos.
+   * Media cifra respondiendo al filtro es peor que ninguna.
+   */
+  alCambiarFiltros?: (f: Filtros) => void;
+} = {}) {
   const [convenioId, setConvenioId] = useState("");
   const [accionFormacionId, setAccionFormacionId] = useState("");
   const [etapa, setEtapa] = useState("");
@@ -77,6 +89,14 @@ export function PanelMetas() {
   useEffect(() => {
     void cargar().catch((e) => setError((e as ErrorApi).message));
   }, [cargar]);
+
+  /// El aviso va en su propio efecto y no dentro de `cargar`:
+  /// metido allí, el padre se enteraría solo cuando la consulta
+  /// terminase bien, y con la red lenta la mitad de la pantalla
+  /// se quedaría mirando el filtro anterior.
+  useEffect(() => {
+    alCambiarFiltros?.(filtros);
+  }, [filtros, alCambiarFiltros]);
 
   /**
    * El embudo, ACUMULADO: quién llegó a cada hito.

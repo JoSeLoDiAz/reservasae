@@ -9,7 +9,10 @@ import { CampanasService } from './campanas/campanas.service';
 import { CampanasWorker } from './campanas/campanas.worker';
 import { CorreoController } from './correo.controller';
 import { CorreoService } from './correo.service';
-import { PlantillasCorreoController } from './plantillas/plantillas-correo.controller';
+import {
+  PlantillasCorreoController,
+  PlantillasCorreoPublicoController,
+} from './plantillas/plantillas-correo.controller';
 import { PlantillasCorreoService } from './plantillas/plantillas-correo.service';
 
 /// Global: los avisos de cupos, el enlace al interesado y lo
@@ -27,6 +30,7 @@ import { PlantillasCorreoService } from './plantillas/plantillas-correo.service'
   controllers: [
     CorreoController,
     PlantillasCorreoController,
+    PlantillasCorreoPublicoController,
     CampanasController,
     CampanasPublicoController,
   ],

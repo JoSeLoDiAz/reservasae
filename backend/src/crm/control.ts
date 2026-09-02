@@ -274,10 +274,19 @@ export function rotuloDelPeriodo(comparacion: Comparacion) {
   };
 }
 
+/** Los cortes que la pantalla puede pedir además de la ventana. */
+export type RecorteDeControl = {
+  convenioId?: string;
+  accionFormacionId?: string;
+  asesorId?: string;
+  departamentoSepId?: number;
+};
+
 export async function controlDeInscritos(
   prisma: PrismaService,
   ambito: string[],
   comparacion: Comparacion,
+  recorte?: RecorteDeControl,
 ): Promise<Control> {
   const marco = rotuloDelPeriodo(comparacion);
 
@@ -291,7 +300,28 @@ export async function controlDeInscritos(
     };
   }
 
-  const suyos = Prisma.sql`p."convenioId" IN (${Prisma.join(ambito)})`;
+  /**
+   * El ámbito, y encima los cortes que pida la pantalla.
+   *
+   * El ámbito ACOTA y el filtro RECORTA dentro: un `convenioId`
+   * de fuera devuelve vacío, nunca todo. Es la misma regla del
+   * resto del panel, y el defecto que ya apareció dos veces por
+   * escribirla con un spread donde la clave repetida borraba la
+   * anterior.
+   *
+   * Sin estos cortes la pantalla tenía media cifra que respondía
+   * al filtro y media que no —el embudo por un lado y el ritmo
+   * por otro—, que es peor que no filtrar.
+   */
+  const suyos = Prisma.sql`p."convenioId" IN (${Prisma.join(ambito)})
+    ${recorte?.convenioId ? Prisma.sql`AND p."convenioId" = ${recorte.convenioId}` : Prisma.empty}
+    ${recorte?.accionFormacionId ? Prisma.sql`AND p."accionFormacionId" = ${recorte.accionFormacionId}` : Prisma.empty}
+    ${recorte?.asesorId ? Prisma.sql`AND p."asesorId" = ${recorte.asesorId}` : Prisma.empty}
+    ${
+      recorte?.departamentoSepId
+        ? Prisma.sql`AND EXISTS (SELECT 1 FROM "personas" pe WHERE pe."id" = p."personaId" AND pe."departamentoSepId" = ${recorte.departamentoSepId})`
+        : Prisma.empty
+    }`;
 
   /**
    * «Llegó a inscrito», por el hecho y no por el estado.

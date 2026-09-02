@@ -12,9 +12,29 @@
 /// cada quien tiene los suyos -- a unos les va a faltar el
 /// grupo y a otros el asesor.
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 
 import type { VariableCorreo } from "@/lib/plantillas-correo-api";
+
+/// En qué se está mirando el correo.
+///
+/// Los anchos no son de pantalla: son los del ÁREA DE LECTURA
+/// del cliente de correo, que es lo que de verdad decide dónde
+/// parte una línea. En un computador Gmail deja el mensaje en
+/// unos 640 px por mucho que el monitor mida 1920 —por eso una
+/// plantilla se maqueta a 600— y en un celular el ancho útil
+/// ronda los 360.
+///
+/// Sirve para ver lo único que no se puede arreglar después:
+/// un asunto que se corta, una palabra larga que desborda, un
+/// cabezote que en el celular queda ilegible.
+type Dispositivo = "pc" | "tableta" | "celular";
+
+const ANCHOS: Array<{ clave: Dispositivo; texto: string; px: number }> = [
+  { clave: "pc", texto: "Computador", px: 640 },
+  { clave: "tableta", texto: "Tableta", px: 480 },
+  { clave: "celular", texto: "Celular", px: 360 },
+];
 
 export const HUECO = /\{\{\s*([a-zA-ZÀ-ÿ0-9_]+)\s*\}\}/g;
 
@@ -141,6 +161,9 @@ export function VistaPreviaCorreo({
     return URL.createObjectURL(banner);
   }, [banner]);
 
+  const [dispositivo, setDispositivo] = useState<Dispositivo>("pc");
+  const ancho = ANCHOS.find((a) => a.clave === dispositivo) ?? ANCHOS[0];
+
   const ejemplos = useMemo(() => ejemplosDe(variables), [variables]);
 
   const asuntoR = resolver(asunto || "(sin asunto)", ejemplos);
@@ -165,11 +188,19 @@ export function VistaPreviaCorreo({
      50 caracteres en el celular hay que verlo AQUÍ. */
   const ventana = (
     <div
+      /// El ancho va en estilo y no en clase porque lo elige
+      /// quien mira: son tres medidas concretas, no un juego
+      /// de puntos de corte.
+      style={carta ? { width: "100%", maxWidth: ancho.px } : undefined}
       className={`overflow-hidden rounded-xl border bg-superficie ${
-        carta ? "mx-auto max-w-[640px] border-campo-borde" : "border-borde"
+        carta ? "mx-auto border-campo-borde" : "border-borde"
       }`}
     >
-      <div className="space-y-1 border-b border-borde bg-superficie-alterna px-4 py-3">
+      <div
+        className={`space-y-1 border-b border-borde bg-superficie-alterna ${
+          carta ? "px-[18px] py-3.5" : "px-4 py-3"
+        }`}
+      >
         <div className="flex items-baseline gap-2 text-xs text-texto-suave">
           <span className="w-12 shrink-0">De</span>
           <span className="truncate text-texto">{remitente ?? "Convoca CRM"}</span>
@@ -199,7 +230,15 @@ export function VistaPreviaCorreo({
           // eslint-disable-next-line @next/next/no-img-element
           <img src={imagen} alt="Cabezote del correo" className="block w-full" />
         )}
-        <div className={carta ? "px-[18px] py-5" : "px-5 py-4"}>
+        {/* El cuerpo guarda un alto mínimo aunque esté vacío:
+            sin él la ventana se encoge a dos renglones y dentro
+            de un recuadro ancho no se lee como un correo, se lee
+            como una tarjeta apretada. */}
+        <div
+          className={
+            carta ? "min-h-[220px] px-[18px] py-5" : "px-5 py-4"
+          }
+        >
           {cuerpoVacio ? (
             <p className="text-sm text-texto-suave italic">
               Escriba el mensaje y aquí se va viendo.
@@ -219,7 +258,42 @@ export function VistaPreviaCorreo({
   /// mensaje no ocupa mil píxeles de ancho en ninguna bandeja.
   if (carta) {
     return (
-      <div className="rounded-xl border border-borde bg-superficie-alterna p-6">
+      <div className="rounded-xl border border-borde bg-superficie-alterna px-6 pt-4 pb-6">
+        {/* El conmutador va DENTRO del gris y encima del
+            correo, alineado con él: es el marco de la pantalla
+            en la que se está mirando, no un ajuste del panel. */}
+        <div
+          className="mx-auto mb-3.5 flex flex-wrap items-center gap-2.5"
+          /// El ancho MÁS ANCHO de los tres y no el elegido: si
+          /// la barra se encogiera con el correo, al pasar a
+          /// celular los tres botones se irían a dos renglones y
+          /// el conmutador saltaría de sitio justo al usarlo.
+          style={{ maxWidth: ANCHOS[0].px }}
+        >
+          <span className="text-[11px] font-semibold tracking-[0.05em] uppercase text-texto-suave opacity-80">
+            Así se ve en
+          </span>
+          <div className="flex gap-0.5 rounded-sm border border-borde bg-superficie p-[3px]">
+            {ANCHOS.map((a) => (
+              <button
+                key={a.clave}
+                type="button"
+                onClick={() => setDispositivo(a.clave)}
+                className={`rounded-xs px-2.5 py-1 text-[11.5px] font-semibold transition ${
+                  a.clave === dispositivo
+                    ? "bg-superficie-alterna text-titulo"
+                    : "text-texto-suave hover:text-texto"
+                }`}
+              >
+                {a.texto}
+              </button>
+            ))}
+          </div>
+          <span className="ml-auto text-[11px] text-texto-suave tabular-nums">
+            {ancho.px} px de ancho
+          </span>
+        </div>
+
         {ventana}
       </div>
     );

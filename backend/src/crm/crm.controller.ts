@@ -178,6 +178,12 @@ export class CrmController {
   @Requiere('inscritos')
   control(
     @AmbitoActual() ambito: Ambito,
+    /// Los mismos cortes que aceptan `metricas` y `resumen`.
+    ///
+    /// Sin ellos la pantalla tenía media cifra que respondía al
+    /// filtro y media que no: el embudo y el reparto cortaban,
+    /// y el ritmo, la meta y los grupos seguían con todo.
+    @Query() corte: FiltrosParticipantesDto,
     @Query('rango') rango?: string,
     @Query('desde') desde?: string,
     @Query('hasta') hasta?: string,
@@ -189,6 +195,12 @@ export class CrmController {
       this.prisma,
       ambito.convenios,
       ventanaPedida(rango, desde, hasta, contra, contraDesde, contraHasta),
+      {
+        convenioId: corte.convenioId,
+        accionFormacionId: corte.accionFormacionId,
+        asesorId: corte.asesorId,
+        departamentoSepId: corte.departamentoSepId,
+      },
     );
   }
 
