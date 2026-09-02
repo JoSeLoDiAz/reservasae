@@ -1218,3 +1218,39 @@ select[size]:not([size='1']) {
    queda sin de que medir y reparte todas las columnas al
    minimo. Se probo, y la tabla entera quedo en ochenta
    pixeles por columna. */
+
+/* el fondo de las pantallas públicas */
+/*
+   Tres capas a distinta velocidad: lo que está «más lejos» se
+   mueve menos, que es lo que da la sensación de profundidad. El
+   desplazamiento lo escribe `fondo-publico.tsx` en --px/--py, y
+   aquí cada capa se lleva su fracción.
+
+   La deriva es lenta a propósito -- 28 a 46 s por vuelta. Un
+   fondo que se nota en un formulario donde alguien teclea su
+   cédula es un fondo mal hecho.
+*/
+.fondo-publico {
+  --px: 0px;
+  --py: 0px;
+}
+.fondo-capa-1 {
+  transform: translate3d(calc(var(--px) * 0.25), calc(var(--py) * 0.25), 0);
+  animation: fondo-deriva-a 46s ease-in-out infinite;
+}
+.fondo-capa-2 {
+  transform: translate3d(calc(var(--px) * 0.55), calc(var(--py) * 0.55), 0);
+  animation: fondo-deriva-b 34s ease-in-out infinite;
+}
+.fondo-capa-3 {
+  transform: translate3d(calc(var(--px) * 1), calc(var(--py) * 1), 0);
+  animation: fondo-deriva-a 28s ease-in-out infinite reverse;
+}
+@keyframes fondo-deriva-a {
+  0%, 100% { translate: 0 0; }
+  50%      { translate: 0 -14px; }
+}
+@keyframes fondo-deriva-b {
+  0%, 100% { translate: 0 0; }
+  50%      { translate: 8px 10px; }
+}

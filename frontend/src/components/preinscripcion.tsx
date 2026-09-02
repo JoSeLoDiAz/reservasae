@@ -13,6 +13,7 @@ import {
   type OfertaPublica,
 } from "@/lib/preinscripcion-api";
 
+import { FondoPublico } from "./fondo-publico";
 import { BannerLogos, EncabezadoPublico, PiePublico } from "./marca-publica";
 
 /// Los dos ids del catalogo del SEP que cambian el
@@ -597,6 +598,7 @@ export function PreinscripcionPublica({ slug }: { slug: string }) {
         )}
       </form>
       </main>
+      <FondoPublico />
       <PiePublico />
     </>
   );
@@ -906,6 +908,7 @@ function Registrada({ token, nombre }: { token: string; nombre: string }) {
         Continuar con mi registro de preinscripción
       </a>
       </main>
+      <FondoPublico />
       <PiePublico />
     </>
   );

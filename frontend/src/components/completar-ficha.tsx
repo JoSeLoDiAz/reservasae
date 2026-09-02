@@ -6,6 +6,7 @@ import { ErrorApi } from "@/lib/api";
 import { juntar, primero, resto } from "@/lib/nombres";
 import { preinscripcionApi, type FichaAbierta } from "@/lib/preinscripcion-api";
 
+import { FondoPublico } from "./fondo-publico";
 import { BannerLogos, ConmutadorTema, PiePublico } from "./marca-publica";
 
 /// Las etiquetas del SEP vienen en mayuscula sostenida --
@@ -223,7 +224,8 @@ export function CompletarFicha({ token }: { token: string }) {
             </>
           )}
         </main>
-        <PiePublico />
+        <FondoPublico />
+      <PiePublico />
       </>
     );
   }
@@ -422,7 +424,8 @@ export function CompletarFicha({ token }: { token: string }) {
             : "Su inscripción se completó satisfactoriamente. Pronto le enviaremos información sobre horarios, plataforma y cómo acceder a la formación."}
         </p>
         </main>
-        <PiePublico />
+        <FondoPublico />
+      <PiePublico />
       </>
     );
   }
@@ -1154,6 +1157,7 @@ export function CompletarFicha({ token }: { token: string }) {
         </form>
       )}
       </main>
+      <FondoPublico />
       <PiePublico />
     </>
   );

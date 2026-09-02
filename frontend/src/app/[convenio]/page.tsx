@@ -1,4 +1,5 @@
 import { FormularioReserva } from "@/components/formulario-reserva";
+import { FondoPublico } from "@/components/fondo-publico";
 import { EncabezadoPublico, PiePublico } from "@/components/marca-publica";
 
 /** Una página para todos los convenios. */
@@ -15,6 +16,7 @@ export default async function PaginaConvenio({
         <EncabezadoPublico />
         <FormularioReserva slug={convenio} />
       </main>
+      <FondoPublico />
       <PiePublico />
     </>
   );

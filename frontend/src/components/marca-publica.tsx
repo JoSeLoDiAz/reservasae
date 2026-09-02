@@ -221,32 +221,48 @@ export function ConmutadorTema({ compacto = false }: { compacto?: boolean }) {
   );
 }
 
-/** Los logos de las entidades, en fila. */
+/** La firma de Convoca y, debajo, los logos de las entidades. */
+/// Las dos cosas van JUNTAS aqui y no en `EncabezadoPublico`
+/// porque `completar-ficha` y la pantalla de «Registrada» pintan
+/// este banner suelto, sin encabezado. Con la firma arriba y el
+/// banner aqui, la firma salia en 2 de las 6 pantallas publicas
+/// -- y se perdia justo en /completar, que es donde la persona
+/// entrega mas datos. Metida dentro, sale en las seis y nadie
+/// puede olvidarla al escribir la septima.
 export function BannerLogos() {
   const { marca } = useMarca();
   const logos = marca?.logos ?? [];
 
-  if (!logos.length) {
-    return (
-      <span className="text-sm font-medium text-marca">
-        {marca?.nombreApp ?? "Convoca CRM"}
-      </span>
-    );
-  }
-
   return (
-    <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
-      {logos.map((logo) => (
-        // <img>: tamano desconocido y ya viene cacheado
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          key={logo.id}
-          src={urlLogo(logo)}
-          alt={logo.etiqueta}
-          // max-w: que no desborden en movil
-          className="h-20 w-auto max-w-[45vw] object-contain sm:max-w-[14rem]"
-        />
-      ))}
+    <div className="flex flex-col items-start gap-5">
+      {/* SIN el eslogan, y mas pequena que los logos del gremio.
+
+          Va arriba porque lo pidio el cliente. El eslogan no:
+          «Relaciones que generan resultados» es una frase
+          comercial y esta cabecera encabeza tambien la pantalla
+          donde se autoriza el tratamiento de datos personales.
+          Ademas el pie ya la dice.
+
+          36 px contra los 80 de los logos, a proposito: la cara
+          publica es del GREMIO -- por eso `GET /marca` varia por
+          Host y el banner va a 80 -- y quien reparte el enlace es
+          el. Estar primero y ser menor dice quien atiende sin
+          quitarle la cara a nadie. */}
+      <FirmaConvoca tamano={36} conFrase={false} animado />
+
+      <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
+        {logos.map((logo) => (
+          // <img>: tamano desconocido y ya viene cacheado
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            key={logo.id}
+            src={urlLogo(logo)}
+            alt={logo.etiqueta}
+            // max-w: que no desborden en movil
+            className="h-20 w-auto max-w-[45vw] object-contain sm:max-w-[14rem]"
+          />
+        ))}
+      </div>
     </div>
   );
 }
