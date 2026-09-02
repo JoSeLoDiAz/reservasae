@@ -11,6 +11,7 @@ import {
   Tarjeta,
 } from "@/components/admin/marco-admin";
 import { IconoPerfil } from "@/components/admin/iconos";
+import { Caracterizacion } from "@/components/admin/caracterizacion";
 import { crmApi, type CatalogosSep, type Ficha } from "@/lib/crm-api";
 
 /** Lo que el cargue al SEP necesita de cada persona. */
@@ -172,6 +173,7 @@ export function DatosSena({
   }
 
   return (
+    <>
     <Tarjeta
       /// El título dice en qué punto va, y por eso cambia.
       ///
@@ -538,15 +540,50 @@ export function DatosSena({
       </div>
       )}
 
-      {/* La nota del dato sensible va SIEMPRE, se este leyendo o
-          editando: es una advertencia sobre lo que esta pantalla
-          NO pide, y esconderla en un modo la haria aparecer y
-          desaparecer sin motivo. */}
-      <p className="mt-4 flex items-center gap-2 border-t border-borde pt-4 text-xs text-texto-suave">
-        <span aria-hidden>🔒</span>
-        La caracterización poblacional se gestiona por separado por tratarse de
-        datos sensibles.
-      </p>
-    </Tarjeta>
+        {/* La caracterización YA NO se remite a otro sitio.
+
+            Aquí había una nota que decía que «se gestiona por
+            separado por tratarse de datos sensibles». La razón
+            era cierta y la consecuencia falsa: no se gestionaba
+            en ninguna parte salvo por el enlace público, que
+            además no se le emite a quien ya estaba en el sistema.
+
+            Ahora se captura en su propio bloque, con los candados
+            en el servidor: sin autorización viva no se guarda,
+            cuelga de la de su convenio, y queda en la
+            auditoría. */}
+      </Tarjeta>
+
+      {/* En su PROPIA tarjeta, no dentro de la de arriba.
+
+          No es un campo mas del SEP: se guarda por otro camino,
+          tiene sus propios candados y su propio permiso. Meterlo
+          entre el estrato y el barrio lo haria parecer lo que no
+          es. */}
+      {catalogos && (
+        <Caracterizacion
+          catalogo={catalogos.caracterizaciones}
+          ninguna={catalogos.caracterizacionNinguna}
+          elegidas={(lead.persona.caracterizaciones ?? []).map(
+            (x) => x.caracterizacionSepId,
+          )}
+          rechazada={lead.persona.caracterizacionRechazada ?? false}
+          preguntadaEn={lead.persona.caracterizacionPreguntada ?? null}
+          /// Viva y de ESTE convenio: es la que el servidor va a
+          /// exigir, asi que la pantalla mira la misma.
+          tieneAutorizacion={(lead.persona.autorizaciones ?? []).some(
+            (a) =>
+              a.revocadaEn === null &&
+              a.politica.convenioId === lead.convenio.id,
+          )}
+          puedeEscribir={editando}
+          alGuardar={(v) =>
+            alGuardar(async () => {
+              await crmApi.actualizar(lead.id, v);
+            })
+          }
+        />
+      )}
+    </>
   );
 }

@@ -632,6 +632,14 @@ export class CrmService {
       include: {
         persona: {
           include: {
+            /// Sus marcas de caracterizacion, para poder
+            /// pintarlas. Solo las AMPARADAS por una autorizacion
+            /// viva: una revocada no se enseña como si contara.
+            caracterizaciones: {
+              where: { autorizacion: { revocadaEn: null } },
+              orderBy: { creadoEn: 'asc' },
+              select: { caracterizacionSepId: true },
+            },
             /// Los otros cursos de la misma persona, SOLO los
             /// del ambito.
             ///

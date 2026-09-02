@@ -376,6 +376,14 @@ export type Ficha = {
     /// decia «todavia no ha autorizado» y ofrecia registrarla
     /// otra vez: la pantalla borraba de la vista un derecho que
     /// la persona acababa de ejercer.
+    /// Sus marcas de caracterizacion, SOLO las amparadas por
+    /// una autorizacion viva: una revocada no se enseña como si
+    /// contara.
+    caracterizaciones: Array<{ caracterizacionSepId: number }>;
+    caracterizacionRechazada: boolean;
+    /// Cuando se le pregunto. Null: nunca. Es lo que distingue
+    /// «no se recogio» de «se recogio y no marco nada».
+    caracterizacionPreguntada: string | null;
     autorizaciones: Array<{
       id: string;
       canal: Canal;
@@ -779,6 +787,10 @@ export type CatalogosSep = {
   documentosPersona: TipoDocumentoSep[];
   documentosEmpresa: TipoDocumentoSep[];
   generos: Array<{ id: number; etiqueta: string }>;
+  /// Los 54 valores de caracterizacion de poblacion.
+  caracterizaciones: Array<{ id: number; etiqueta: string }>;
+  /// El id de «Ninguna», para poder avisar de lo que significa.
+  caracterizacionNinguna: number;
   nivelesOcupacionales: Array<{ id: number; etiqueta: string }>;
   tamanosEmpresa: Array<{ id: number; etiqueta: string }>;
   departamentos: Array<{ id: number; etiqueta: string }>;
