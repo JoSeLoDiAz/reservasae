@@ -391,7 +391,28 @@ export class SepService {
         /// SIEMPRE vacías porque aquí no se pedían y abajo se
         /// escribía un null a mano. El SENA lleva ese campo y
         /// nunca le llegó nada.
-        persona: { include: { caracterizaciones: true } },
+        persona: {
+          include: {
+            /// SOLO las amparadas por una autorización VIVA.
+            ///
+            /// Traía todas. Una persona que revocó en un gremio
+            /// seguía exportando su marca sensible en el reporte
+            /// del otro, porque allí su autorización sigue viva y
+            /// la marca no se filtraba por la suya. Eso es
+            /// mandarle al Estado un dato sensible amparado por
+            /// un consentimiento retirado.
+            ///
+            /// Y CON ORDEN. Abajo se manda `[0]` y el comentario
+            /// dice «la primera que marcó»: sin `orderBy` eso lo
+            /// decidía Postgres, así que dos exportaciones del
+            /// mismo día podían mandar marcas distintas de la
+            /// misma persona.
+            caracterizaciones: {
+              where: { autorizacion: { revocadaEn: null } },
+              orderBy: { creadoEn: 'asc' },
+            },
+          },
+        },
         // la empresa propia del lead: `include` no la trae
         // sola por ser una relacion, y sin nombrarla aqui la
         // linea de abajo mira siempre null

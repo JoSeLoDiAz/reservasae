@@ -872,7 +872,7 @@ ${this.urlPublica()}/completar/${enlace.token}
       where: { id: p.personaId },
       data: suyos,
     });
-    await this.guardarCaracterizaciones(p.personaId, dto);
+    await this.guardarCaracterizaciones(p.personaId, dto, enlace.participanteId);
 
     return { guardado: true, enEspera: false };
   }
@@ -896,6 +896,9 @@ ${this.urlPublica()}/completar/${enlace.token}
   private async guardarCaracterizaciones(
     personaId: string,
     dto: DatosPersonaDto,
+    /// De qué ficha viene, para colgarla de la autorización de
+    /// SU convenio y no de otra cualquiera.
+    participanteId: string,
   ): Promise<void> {
     const contesto =
       dto.caracterizaciones !== undefined ||
@@ -918,8 +921,25 @@ ${this.urlPublica()}/completar/${enlace.token}
      * puede guardar. Si no hay autorización viva, no se
      * guarda: se anota que se preguntó y ahí queda.
      */
+    /// La autorización de ESTE convenio, no una cualquiera.
+    ///
+    /// Buscaba `{ personaId, revocadaEn: null }` a secas, y una
+    /// persona autorizada en los dos gremios tiene DOS. La marca
+    /// sensible acababa colgada del texto que aceptó para el
+    /// otro: la constancia señalaba una política que esa persona
+    /// no leyó para esto.
+    ///
+    /// Y no es cosmético: al revocar en un gremio, la marca
+    /// amparada por aquel deja de contar — pero si estaba colgada
+    /// del gremio equivocado, ni se entera.
     const autorizacion = await this.prisma.autorizacionDatos.findFirst({
-      where: { personaId, revocadaEn: null },
+      where: {
+        personaId,
+        revocadaEn: null,
+        politica: {
+          convenio: { participantes: { some: { id: participanteId } } },
+        },
+      },
       orderBy: { otorgadaEn: 'desc' },
       select: { id: true },
     });
