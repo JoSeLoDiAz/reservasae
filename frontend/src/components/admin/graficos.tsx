@@ -511,12 +511,31 @@ export function Donut({
   centro,
   detalleCentro,
   vacio = "Sin datos todavía.",
+  soloDibujo = false,
+  leyendaDebajo = false,
 }: {
   datos: PorcionDonut[];
   tamano?: number;
   centro?: string;
   detalleCentro?: string;
   vacio?: string;
+  /**
+   * Solo el anillo, sin su leyenda.
+   *
+   * Para cuando quien llama ya pinta la lista —con barras, o
+   * con otra cifra al lado— y la leyenda de aquí seria la misma
+   * informacion dos veces en la misma tarjeta.
+   */
+  soloDibujo?: boolean;
+  /**
+   * La leyenda DEBAJO del anillo, no a su lado.
+   *
+   * Al lado, la leyenda se come la mitad del ancho y el anillo
+   * queda pequeño; con dos o tres porciones de etiqueta larga
+   * eso no compensa. Debajo, el anillo va centrado y a su
+   * tamaño, y cada fila de la leyenda tiene el ancho entero.
+   */
+  leyendaDebajo?: boolean;
 }) {
   if (!datos.length) {
     return <p className="py-6 text-center text-sm text-texto-suave">{vacio}</p>;
@@ -560,7 +579,15 @@ export function Donut({
   }
 
   return (
-    <div className="flex w-full flex-col items-center gap-5 sm:flex-row">
+    <div
+      className={
+        soloDibujo
+          ? "flex shrink-0"
+          : leyendaDebajo
+            ? "flex w-full flex-col items-center gap-3.5"
+            : "flex w-full flex-col items-center gap-5 sm:flex-row"
+      }
+    >
       <svg
         width={tamano}
         height={tamano}
@@ -623,6 +650,7 @@ export function Donut({
         )}
       </svg>
 
+      {!soloDibujo && (
       <ul className="w-full min-w-0 flex-1 space-y-2 text-sm">
         {conColor.map((d, i) => (
           <li key={`${d.etiqueta}-${i}`} className="flex items-baseline gap-2">
@@ -637,6 +665,7 @@ export function Donut({
           </li>
         ))}
       </ul>
+      )}
     </div>
   );
 }
