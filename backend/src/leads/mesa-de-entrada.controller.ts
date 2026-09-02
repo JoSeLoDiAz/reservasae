@@ -27,6 +27,7 @@ import { conveniosQueReparten } from '../admin/permisos';
 import { IpReal } from '../comun/ip-real';
 
 import { ArreglarLeadDto, ConvertirLoteDto } from './dto';
+import { Comparativo } from './comparativo.service';
 import { LoteDeLeads } from './lote.service';
 import { MesaDeEntrada } from './mesa-de-entrada.service';
 
@@ -37,6 +38,7 @@ export class MesaDeEntradaController {
   constructor(
     private readonly mesa: MesaDeEntrada,
     private readonly lote: LoteDeLeads,
+    private readonly comparar: Comparativo,
   ) {}
 
   /**
@@ -122,5 +124,22 @@ export class MesaDeEntradaController {
     @AmbitoActual() ambito: Ambito,
   ) {
     return this.mesa.arreglar(id, dto, ambito.convenios);
+  }
+
+  /**
+   * Los mismos datos, dichos por la ficha, los leads y el RUI.
+   *
+   * `VER` y no `ESCRIBIR`: mirar el comparativo no cambia nada.
+   * Aplicar un valor va por el `PATCH` de la ficha, que ya tiene
+   * su propio nivel -- y asi el coordinador de consulta puede
+   * revisarlo todo sin poder tocar nada.
+   */
+  @Get('comparativo/:participanteId')
+  @Requiere('inscripciones')
+  comparativo(
+    @Param('participanteId') id: string,
+    @AmbitoActual() ambito: Ambito,
+  ) {
+    return this.comparar.de(id, ambito.convenios);
   }
 }
