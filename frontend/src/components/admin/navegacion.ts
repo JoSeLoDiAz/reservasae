@@ -179,8 +179,15 @@ export const MODULOS: Modulo[] = [
         /// formularios con los que una EMPRESA aparta cupos;
         /// abajo están los que llena una PERSONA para
         /// preinscribirse. Nadie pasa de uno al otro.
+        /// Corto EN EL MENU y largo DENTRO.
+        ///
+        /// «Formularios de reserva (empresas)» no cabe en la
+        /// barra: salia cortado como «Formularios de reserva
+        /// (...», que es peor que no decirlo. El nombre entero
+        /// vive en el titulo de la pantalla, que es donde hay
+        /// sitio y donde se lee una vez que ya se entro.
         href: '/admin/formularios',
-        etiqueta: 'Formularios de reserva (empresas)',
+        etiqueta: 'Formularios Empresas',
         exacto: true,
         area: 'configuracion',
         nivel: 'ESCRIBIR',
@@ -190,8 +197,12 @@ export const MODULOS: Modulo[] = [
         /// pestañas. Eran dos enlaces sueltos y obligaban a ir
         /// y volver para responder la pregunta que se hace
         /// siempre: «¿esto en cuál de los dos se pide?».
+        /// Hermano del de arriba, y por eso se llaman igual de
+        /// parecido: «Formularios Empresas» y «Formularios
+        /// Personas» se leen como los dos que son. El nombre
+        /// entero --«Formularios activos»-- esta dentro.
         href: '/admin/formularios-publicos',
-        etiqueta: 'Preinscripción (personas)',
+        etiqueta: 'Formularios Personas',
         exacto: true,
         area: 'inscripciones',
       },

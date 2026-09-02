@@ -38,6 +38,7 @@ import { ICONO_DE_MODULO, IconoResumen,
   IconoSalir,
 } from "./iconos";
 import { enlacesVisibles, estaActivo, MODULOS } from "./navegacion";
+import { Cargando } from "./piezas";
 import { Desplegable } from "./desplegable";
 
 type Contexto = {
@@ -193,7 +194,15 @@ export function MarcoAdmin({ children }: { children: React.ReactNode }) {
   }, [cargar]);
 
   if (cargando) {
-    return <p className="p-10 text-texto-suave">Cargando…</p>;
+    /// Esta es la pantalla ENTERA, antes de que exista el
+    /// marco: no hay barra, ni miga, ni nada. Un renglón en la
+    /// esquina de arriba no se lee como «espere», se lee como
+    /// que la aplicación se rompió al abrirla.
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <Cargando que="Entrando…" />
+      </div>
+    );
   }
 
   if (bloqueo) {
