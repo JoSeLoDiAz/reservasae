@@ -235,20 +235,24 @@ export function BannerLogos() {
 
   return (
     <div className="flex flex-col items-start gap-5">
-      {/* SIN el eslogan, y mas pequena que los logos del gremio.
+      {/* La firma entera, con su linea y su eslogan, animada.
 
-          Va arriba porque lo pidio el cliente. El eslogan no:
-          «Relaciones que generan resultados» es una frase
-          comercial y esta cabecera encabeza tambien la pantalla
-          donde se autoriza el tratamiento de datos personales.
-          Ademas el pie ya la dice.
+          El eslogan lo quite y el cliente lo pidio de vuelta: es
+          su decision. Queda dicho lo que se vio al revisarlo,
+          para que no parezca un descuido: «Relaciones que generan
+          resultados» encabeza tambien la pantalla donde la
+          persona autoriza el tratamiento de sus datos, y el pie
+          la repite mas abajo. Sabiendolo, se deja.
 
-          36 px contra los 80 de los logos, a proposito: la cara
-          publica es del GREMIO -- por eso `GET /marca` varia por
-          Host y el banner va a 80 -- y quien reparte el enlace es
-          el. Estar primero y ser menor dice quien atiende sin
-          quitarle la cara a nadie. */}
-      <FirmaConvoca tamano={36} conFrase={false} animado />
+          44 px es el UMBRAL de `FirmaConvoca`: por debajo el
+          eslogan cae a 10,5 px y no se lee, que es lo contrario
+          de pedirlo. Y sigue siendo la mitad que los 80 de los
+          logos del gremio, a proposito: la cara publica es suya
+          --por eso `GET /marca` varia por Host y el banner va a
+          80-- y quien reparte el enlace es el. Estar primero y
+          ser menor dice quien atiende sin quitarle la cara a
+          nadie. */}
+      <FirmaConvoca tamano={44} animado />
 
       <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
         {logos.map((logo) => (
