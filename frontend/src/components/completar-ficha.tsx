@@ -700,8 +700,19 @@ export function CompletarFicha({ token }: { token: string }) {
                   preguntarlo era un callejón sin salida: el
                   panel decía «le falta un dato», ofrecía este
                   enlace para arreglarlo, y el enlace no pedía
-                  ese dato. Generar otro no cambiaba nada. */}
-              {pide("departamentoSepId") && (
+                  ese dato. Generar otro no cambiaba nada.
+
+                  Y SALE SIEMPRE QUE SE PIDA EL MUNICIPIO, aunque
+                  ya lo sepamos.
+
+                  Antes solo se pintaba si faltaba, así que el
+                  municipio salía SOLO, filtrado por un
+                  departamento que la persona no veía: elegir la
+                  ciudad de una lista sin saber de qué
+                  departamento sale es adivinar. Va relleno y
+                  editable — es SU domicilio y puede corregirlo,
+                  que es justo para lo que existe este enlace. */}
+              {(pide("departamentoSepId") || pide("municipioSepId")) && (
                 <label className="block">
                   <span className="mb-1.5 block text-sm font-medium">
                     Departamento de residencia
@@ -736,30 +747,6 @@ export function CompletarFicha({ token }: { token: string }) {
                   <span className="mb-1.5 block text-sm font-medium">
                     Municipio de residencia
                   </span>
-                  {/* SE DICE CUAL SE ESTA ASUMIENDO.
-
-                      Cuando el departamento ya se dio al reservar
-                      el cupo, `pide()` no lo pinta -- y entonces
-                      el municipio salia solo, filtrado por un
-                      departamento que la persona no ve. Se lee
-                      como si el sistema hubiera decidido donde
-                      vive.
-
-                      Se dice cual es y como corregirlo. Volver a
-                      preguntarlo invita a contradecirlo; callarlo
-                      es peor. */}
-                  {!pide("departamentoSepId") && (
-                    <span className="mb-1.5 block text-xs text-texto-suave">
-                      Los de{" "}
-                      <strong>
-                        {(ficha?.departamentos ?? []).find(
-                          (d) => String(d.id) === String(persona.departamentoSepId),
-                        )?.etiqueta ?? "su departamento"}
-                      </strong>
-                      , que es el departamento que registró antes. Si no es ese,
-                      dígaselo al asesor cuando lo llame.
-                    </span>
-                  )}
                   <select
                     value={persona.municipioSepId ?? ""}
                     onChange={(e) =>
@@ -875,8 +862,9 @@ export function CompletarFicha({ token }: { token: string }) {
             <p className="mt-1 text-sm leading-relaxed text-texto-suave">
               Si alguna de estas condiciones es la suya, escríbala y
               elíjala; es <strong>una sola</strong>, la que mejor lo describa.
-              Y si prefiere no decirlo, siga de largo o marque «prefiero no
-              responder»: no cambia en nada su preinscripción ni su cupo.
+              Y si prefiere no decirlo, marque «prefiero no responder» o
+              escriba «ninguna»: no cambia en nada su preinscripción ni su
+              cupo.
             </p>
 
             {rechazaCaracterizacion ? (
