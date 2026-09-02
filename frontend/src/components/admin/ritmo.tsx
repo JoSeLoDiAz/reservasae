@@ -41,7 +41,7 @@ export function textoDeEstado(p: Proyeccion): string {
   }
 }
 
-function Tendencia({ p }: { p: Proyeccion }) {
+export function Tendencia({ p }: { p: Proyeccion }) {
   /// Sin las dos no hay tendencia que comparar, y decir
   /// «estable» seria afirmar algo que no se sabe.
   if (p.ritmo7 === null || p.ritmo14 === null) {
