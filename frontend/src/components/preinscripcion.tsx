@@ -211,10 +211,21 @@ export function PreinscripcionPublica({ slug }: { slug: string }) {
         {pantalla === "eleccion" && (
           <>
         <section className="rounded-2xl border border-borde bg-superficie p-6">
-          <h2 className="text-lg font-semibold">Ubicación de domicilio</h2>
+          {/* NO es donde vive: es donde quiere estudiar.
+
+              Decia «Ubicacion de domicilio» y no lo es -- se usa
+              para filtrar que acciones tienen cobertura ahi. Lo
+              vio el cliente probando: alguien de Bogota puede
+              querer tomarla en Santander, y con el rotulo viejo
+              acababa reportado al SENA como residente en
+              Santander. El domicilio de verdad se pregunta en el
+              enlace de completado, aparte. */}
+          <h2 className="text-lg font-semibold">
+            Ubicación de interés de la formación
+          </h2>
           <p className="mt-1 text-sm text-texto-suave">
-            Seleccione su departamento y ciudad para consultar las acciones de formación
-            disponibles.
+            Seleccione el departamento y la ciudad de su interés para consultar
+            las acciones de formación disponibles en estas.
           </p>
 
           <div className="mt-5 grid gap-4 sm:grid-cols-2">

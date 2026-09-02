@@ -712,7 +712,19 @@ export function CompletarFicha({ token }: { token: string }) {
                   departamento sale es adivinar. Va relleno y
                   editable — es SU domicilio y puede corregirlo,
                   que es justo para lo que existe este enlace. */}
-              {(pide("departamentoSepId") || pide("municipioSepId")) && (
+              {/* SIEMPRE, aunque ya haya valor.
+
+                  Lo que trae guardado NO es una afirmacion suya
+                  sobre donde vive: es lo que eligio en el
+                  formulario para ver que cursos hay con cobertura
+                  ahi. Alguien de Bogota que quiera estudiar en
+                  Santander llegaba aqui con «Santander» puesto y,
+                  si no se le preguntaba, se reportaba al SENA como
+                  residente en Santander.
+
+                  Asi que se pregunta y se ofrece relleno: si
+                  coincide, un clic; si no, lo corrige. Es la
+                  diferencia entre suponer y preguntar. */}
                 <label className="block">
                   <span className="mb-1.5 block text-sm font-medium">
                     Departamento de residencia
@@ -740,9 +752,7 @@ export function CompletarFicha({ token }: { token: string }) {
                     Su domicilio, no la sede donde se dicta.
                   </span>
                 </label>
-              )}
 
-              {pide("municipioSepId") && (
                 <label className="block">
                   <span className="mb-1.5 block text-sm font-medium">
                     Municipio de residencia
@@ -767,7 +777,6 @@ export function CompletarFicha({ token }: { token: string }) {
                     ))}
                   </select>
                 </label>
-              )}
 
               {pide("barrio") && (
                 <Campo etiqueta="Barrio o vereda" campo="barrio" valores={persona} set={setPersona} />
@@ -1213,7 +1222,7 @@ export function CompletarFicha({ token }: { token: string }) {
                   disabled={guardando}
                   className="rounded-xl bg-marca px-7 py-3.5 font-medium text-marca-texto transition hover:bg-marca-fuerte disabled:opacity-50"
                 >
-                  {guardando ? "Enviando…" : "Está correcto, confirmar inscripción"}
+                  {guardando ? "Enviando…" : "Está correcto, confirmar preinscripción"}
                 </button>
                 <button
                   type="button"
@@ -1411,7 +1420,9 @@ function BuscadorDeNit({
             Antes no existía: el NIT y el dígito iban juntos en una
             sola casilla y el dígito se perdía. */}
         <label className="block w-24 shrink-0">
-          <span className="mb-1.5 block text-sm font-medium">Dígito</span>
+          {/* «DV» y no «Dígito»: es como lo llama todo el mundo en
+              Colombia y es lo que dice el RUT. */}
+          <span className="mb-1.5 block text-sm font-medium">DV</span>
           <input
             value={digito}
             inputMode="numeric"
@@ -1420,7 +1431,7 @@ function BuscadorDeNit({
             className={CAMPO}
           />
           <span className="mt-1 block text-xs text-texto-suave">
-            El de después del guion.
+            Dígito de verificación, el de después del guion.
           </span>
         </label>
       </div>
