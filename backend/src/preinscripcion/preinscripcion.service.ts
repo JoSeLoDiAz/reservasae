@@ -41,6 +41,8 @@ import {
   DatosPersonaDto,
 } from './dto';
 
+import { cerrarLeadsQueEsperaban } from '../leads/leads-que-esperaban';
+
 /// Cuánto vale un enlace antes de caducar solo.
 const DIAS_DE_VIDA = 15;
 /// La menor edad que el SENA admite en estos programas.
@@ -361,6 +363,31 @@ export class PreinscripcionService {
         },
         select: { id: true },
       }));
+
+    /// Los leads que esta persona tenía esperando en la mesa.
+    ///
+    /// El cruce funcionaba en un solo sentido: si el lead llegaba
+    /// DESPUÉS lo ataba `cruzar-con-el-crm`, pero si llegaba
+    /// ANTES se quedaba en «Sin atender» para siempre. Un asesor
+    /// acababa llamándola para ofrecerle esto mismo.
+    ///
+    /// Va en try/catch y no dentro de una transacción: que esto
+    /// falle no puede tumbar una inscripción que la persona ya
+    /// completó. Un lead sin cerrar se arregla desde la mesa; una
+    /// inscripción perdida, no.
+    try {
+      await cerrarLeadsQueEsperaban(this.prisma as never, {
+        participanteId: participante.id,
+        convenioId: convenio.id,
+        tipoDocumentoSepId: dto.tipoDocumentoSepId,
+        numeroDocumento: documento,
+      });
+    } catch (e) {
+      this.log.warn(
+        'No se pudieron cerrar los leads que esperaban: ' +
+          (e instanceof Error ? e.message : String(e)),
+      );
+    }
 
     /// Si trajo datos DISTINTOS de los que ya teníamos, se
     /// deja como PROPUESTA para que un asesor decida.
