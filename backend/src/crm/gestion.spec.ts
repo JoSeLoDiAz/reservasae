@@ -52,7 +52,7 @@ function cumple(n: Nota, where: Record<string, unknown>): boolean {
 
 function armar(notas: Nota[]) {
   const prisma = {
-    notaParticipante: {
+    notaDeGestion: {
       findFirst: ({
         where,
         orderBy,

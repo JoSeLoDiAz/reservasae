@@ -843,11 +843,27 @@ model LeadEntrante {
   recibidoEn  DateTime  @default(now())
   procesadoEn DateTime?
 
+  /// De quien es este lead. Sin dueno, cientos de leads son un
+  /// monton compartido donde todos llaman a los mismos tres. Es
+  /// la misma razon por la que la brecha de nombres se ordena
+  /// por quien debe mas: no es un informe, es a quien llamar hoy.
+  asesorId String?
+
+  /// Cuando se gestiono por ultima vez. Se escribe en la MISMA
+  /// transaccion que la nota: es lo unico que permite ordenar la
+  /// cola por «al que hace mas que no se llama», y con volumen de
+  /// pauta la cola ES el producto.
+  ultimaGestionEn DateTime?
+
   convenio     Convenio      @relation(fields: [convenioId], references: [id], onDelete: Restrict)
   participante Participante? @relation(fields: [participanteId], references: [id], onDelete: SetNull)
+  asesor       Admin?        @relation("LeadsDelAsesor", fields: [asesorId], references: [id], onDelete: SetNull)
+  notas        NotaDeGestion[]
 
   @@unique([origenSistema, externoId])
   @@index([convenioId, estado, recibidoEn])
+  /// La cola del asesor, ordenada por lo que lleva sin tocarse.
+  @@index([convenioId, asesorId, ultimaGestionEn])
   /// Declarado aqui a proposito: un indice que existe en SQL y
   /// no en el schema lo borra la siguiente migracion sin que
   /// nadie lo note. Ya paso con el de origenLead.
@@ -1007,7 +1023,7 @@ model Participante {
   carga             CargaDeParticipantes?    @relation(fields: [cargaId], references: [id], onDelete: SetNull)
   valoresAnteriores ValorAnterior[]
   movimientos       MovimientoParticipante[]
-  notas             NotaParticipante[]
+  notas             NotaDeGestion[]
   avances           AvanceActividad[]
   enlaces           EnlaceCompletado[]
   propuestas        PropuestaDeDatos[]
@@ -1077,23 +1093,48 @@ enum ResultadoGestion {
   DATO_MALO
 }
 
-model NotaParticipante {
-  id             String            @id @default(cuid())
-  participanteId String
-  autorId        String?
-  autorNombre    String /// congelado al escribir
-  texto          String
-  /// Vacío solo en las notas de antes del canal.
-  canales        CanalContacto[]
-  /// Nulo en las de antes y en las que escribe el sistema.
-  resultado      ResultadoGestion?
-  creadoEn       DateTime          @default(now())
+/// La gestion: una llamada, un correo, una nota. De un LEAD o de
+/// una ficha, y despues de convertir, de los dos.
+///
+/// Se llamaba `NotaParticipante` y la tabla SIGUE llamandose asi:
+/// renombrarla arrastraria la PK, dos indices y dos FK a mano, y
+/// un indice mal reconciliado desaparece sin que nada falle. El
+/// MODELO si se renombra, porque una nota que solo cuelga de un
+/// lead no es «de participante», y dejarle el nombre viejo es
+/// invitar a que alguien cree `NotaLead` -- que es justo el fork
+/// que esto existe para evitar. Ya se rechazo una tabla `Llamada`
+/// aparte por lo mismo: daria dos verdades sobre cuantas veces se
+/// contacto a esta persona.
+model NotaDeGestion {
+  id String @id @default(cuid())
 
-  participante Participante @relation(fields: [participanteId], references: [id], onDelete: Cascade)
-  autor        Admin?       @relation(fields: [autorId], references: [id], onDelete: SetNull)
+  /// Nulo mientras la gestion es de un LEAD que todavia no tiene
+  /// ficha. Al convertir se rellena SIN borrar `leadId`: asi las
+  /// llamadas que costo conseguir la cedula siguen contando en la
+  /// ficha, y `gestionDe()` funciona sin tocarla.
+  participanteId String?
+  /// Nulo en las notas escritas ya sobre la ficha.
+  leadId         String?
+
+  autorId     String?
+  autorNombre String /// congelado al escribir
+  texto       String
+  /// Vacío solo en las notas de antes del canal.
+  canales     CanalContacto[]
+  /// Nulo en las de antes y en las que escribe el sistema.
+  resultado   ResultadoGestion?
+  creadoEn    DateTime          @default(now())
+
+  /// SET NULL y no CASCADE: borrar una ficha no puede llevarse el
+  /// historial del lead, que sigue existiendo.
+  participante Participante? @relation(fields: [participanteId], references: [id], onDelete: SetNull)
+  lead         LeadEntrante? @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  autor        Admin?        @relation(fields: [autorId], references: [id], onDelete: SetNull)
 
   @@index([participanteId, creadoEn])
   @@index([participanteId, resultado])
+  @@index([leadId, creadoEn])
+  @@index([leadId, resultado])
   @@map("notas_participante")
 }
 
@@ -1228,7 +1269,11 @@ model Admin {
   movimientosParticipante  MovimientoParticipante[]
   valoresAnteriores        ValorAnterior[]          @relation("ValoresAnteriores")
   valoresRestaurados       ValorAnterior[]          @relation("ValoresRestaurados")
-  notasParticipante        NotaParticipante[]
+  notasParticipante        NotaDeGestion[]
+  /// Los leads que lleva. Nombrada porque Admin y LeadEntrante
+  /// no se relacionan por ningun otro sitio, pero un dia lo
+  /// haran y sin nombre Prisma no sabria cual es cual.
+  leadsQueLleva            LeadEntrante[]  @relation("LeadsDelAsesor")
   plantillasCorreo         PlantillaCorreo[]
   campanas                 Campana[]
   enlacesEmitidos          EnlaceCompletado[]       @relation("EnlacesEmitidos")

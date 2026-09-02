@@ -413,12 +413,12 @@ export class CrmService {
     /// porque a esa gente no hay ningun contacto que descontar.
     const ids = filas.map((f) => f.id);
     const [contactos, fallidos] = await Promise.all([
-      this.prisma.notaParticipante.groupBy({
+      this.prisma.notaDeGestion.groupBy({
         by: ['participanteId'],
         where: { participanteId: { in: ids }, resultado: 'CONTACTO' },
         _max: { creadoEn: true },
       }),
-      this.prisma.notaParticipante.groupBy({
+      this.prisma.notaDeGestion.groupBy({
         by: ['participanteId'],
         where: {
           participanteId: { in: ids },
@@ -797,24 +797,24 @@ export class CrmService {
    * responde a quién hay que insistirle hoy.
    */
   private async gestionDe(id: string) {
-    const ultimo = await this.prisma.notaParticipante.findFirst({
+    const ultimo = await this.prisma.notaDeGestion.findFirst({
       where: { participanteId: id, resultado: 'CONTACTO' },
       orderBy: { creadoEn: 'desc' },
       select: { creadoEn: true },
     });
 
     const [intentos, sinContacto, datoMalo] = await Promise.all([
-      this.prisma.notaParticipante.count({
+      this.prisma.notaDeGestion.count({
         where: { participanteId: id, resultado: { not: null } },
       }),
-      this.prisma.notaParticipante.count({
+      this.prisma.notaDeGestion.count({
         where: {
           participanteId: id,
           resultado: { in: ['SIN_RESPUESTA', 'DATO_MALO'] },
           ...(ultimo ? { creadoEn: { gt: ultimo.creadoEn } } : {}),
         },
       }),
-      this.prisma.notaParticipante.count({
+      this.prisma.notaDeGestion.count({
         where: { participanteId: id, resultado: 'DATO_MALO' },
       }),
     ]);
@@ -1978,7 +1978,18 @@ export class CrmService {
 
     await this.prisma.$transaction(async (tx) => {
       await tx.avanceActividad.deleteMany({ where: { participanteId: id } });
-      await tx.notaParticipante.deleteMany({ where: { participanteId: id } });
+      /// Solo las que son SUYAS y de nadie mas.
+      ///
+      /// Una nota escrita sobre el lead y re-apuntada al convertir
+      /// lleva las DOS columnas: es la misma llamada vista desde
+      /// los dos lados. Borrarla aqui se llevaria por delante el
+      /// historial del lead, que sigue existiendo. Las compartidas
+      /// sobreviven por el `SET NULL` de la FK, que las deja
+      /// colgando solo del lead -- y por eso el CHECK es «al menos
+      /// una» y no «exactamente una».
+      await tx.notaDeGestion.deleteMany({
+        where: { participanteId: id, leadId: null },
+      });
       await tx.movimientoParticipante.deleteMany({
         where: { participanteId: id },
       });
@@ -2601,7 +2612,7 @@ export class CrmService {
 
     // el nombre se congela: si el autor cambia el suyo,
     // la nota sigue diciendo quien la escribio
-    const nota = await this.prisma.notaParticipante.create({
+    const nota = await this.prisma.notaDeGestion.create({
       data: {
         participanteId: id,
         autorId: admin.id,
@@ -2795,7 +2806,7 @@ export class CrmService {
   /// distinta de "solo correo", y sumarlas por separado
   /// contaría dos veces la misma conversación.
   async metricaDeCanales(ambito: string[]) {
-    const notas = await this.prisma.notaParticipante.findMany({
+    const notas = await this.prisma.notaDeGestion.findMany({
       where: {
         canales: { isEmpty: false },
         participante: ambito.length
@@ -3822,7 +3833,7 @@ export class CrmService {
           ip: ip ?? null,
         },
       }),
-      this.prisma.notaParticipante.create({
+      this.prisma.notaDeGestion.create({
         data: {
           participanteId: id,
           autorId: admin.id,

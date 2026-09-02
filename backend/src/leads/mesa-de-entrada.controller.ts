@@ -28,11 +28,14 @@ import { IpReal } from '../comun/ip-real';
 
 import {
   ArreglarLeadDto,
+  AsignarLeadsDto,
   ConvertirLoteDto,
   DescartarLoteDto,
 } from './dto';
 import { Comparativo } from './comparativo.service';
 import { LoteDeLeads } from './lote.service';
+import { CrearNotaDto } from '../crm/dto';
+import { GestionDelLead } from './gestion-del-lead.service';
 import { MesaDeEntrada } from './mesa-de-entrada.service';
 
 @Controller('admin/leads')
@@ -43,6 +46,7 @@ export class MesaDeEntradaController {
     private readonly mesa: MesaDeEntrada,
     private readonly lote: LoteDeLeads,
     private readonly comparar: Comparativo,
+    private readonly gestion: GestionDelLead,
   ) {}
 
   /**
@@ -112,6 +116,43 @@ export class MesaDeEntradaController {
       conveniosQueReparten(ambito.roles),
       ip,
     );
+  }
+
+  /**
+   * Deja una nota de gestión sobre un lead: la llamada.
+   *
+   * Va en UN SOLO SEGMENTO por la trampa que ya se comió
+   * `convertir-lote`: con `@Post(':id/notas')` después de otra
+   * ruta de dos segmentos, Nest podría capturarla con `:id` valiendo
+   * otra cosa. Aquí no colisiona porque `:id` no tiene más
+   * segmentos, pero el lote SÍ lo necesita.
+   */
+  @Post(':id/notas')
+  @Requiere('inscripciones', 'ESCRIBIR')
+  agregarNota(
+    @Param('id') id: string,
+    @Body() dto: CrearNotaDto,
+    @AdminActual() admin: Admin,
+    @AmbitoActual() ambito: Ambito,
+    @IpReal() ip: string,
+  ) {
+    return this.gestion.agregarNota(id, dto, admin, ambito.convenios, ip);
+  }
+
+  /**
+   * Reparte leads entre asesores.
+   *
+   * Un solo segmento, por lo mismo que `convertir-lote`.
+   */
+  @Post('asignar-lote')
+  @Requiere('inscripciones', 'ESCRIBIR')
+  asignarLote(
+    @Body() dto: AsignarLeadsDto,
+    @AdminActual() admin: Admin,
+    @AmbitoActual() ambito: Ambito,
+    @IpReal() ip: string,
+  ) {
+    return this.gestion.asignar(dto.ids, dto.asesorId ?? null, admin, ambito.convenios, ip);
   }
 
   /**

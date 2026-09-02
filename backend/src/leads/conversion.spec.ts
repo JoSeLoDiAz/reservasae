@@ -36,6 +36,7 @@ type Opciones = {
 function armar(o: Opciones = {}) {
   const hecho: string[] = [];
   const orden: string[] = [];
+  const notasReapuntadas: string[] = [];
 
   const prisma = {
     leadEntrante: {
@@ -51,6 +52,31 @@ function armar(o: Opciones = {}) {
       update: () => {
         hecho.push('lead.update');
         return Promise.resolve({ id: 'l1' });
+      },
+    },
+    /// Las notas del lead que pasan a la ficha.
+    ///
+    /// APLICA EL FILTRO DE VERDAD: solo re-apunta las que cuelgan
+    /// de ESE lead y todavía no tienen ficha. Un doble que
+    /// aceptara cualquier `where` probaría el doble, no el
+    /// candado -- que es el error que este proyecto ya cometió con
+    /// el que decidía por el prefijo del id.
+    notaDeGestion: {
+      updateMany: ({
+        where,
+        data,
+      }: {
+        where: { leadId?: string; participanteId?: string | null };
+        data: { participanteId?: string };
+      }) => {
+        if (where.leadId !== 'l1' || where.participanteId !== null) {
+          hecho.push('nota.updateMany.CON_FILTRO_MALO');
+          return Promise.resolve({ count: 0 });
+        }
+        hecho.push('nota.updateMany');
+        orden.push('NOTAS');
+        notasReapuntadas.push(data.participanteId ?? '');
+        return Promise.resolve({ count: 1 });
       },
     },
     politicaDatos: {
@@ -107,10 +133,20 @@ function armar(o: Opciones = {}) {
     },
   };
 
+  /// El doble de «a quien se parece»: contesta que NADIE revoco.
+  /// Es el caso normal, y los specs de revocacion viven aparte.
+  const seParece = { revoco: () => Promise.resolve(false) };
+
   return {
-    s: new ConversionDeLeads(prisma as never, crm as never, cola as never),
+    s: new ConversionDeLeads(
+      prisma as never,
+      crm as never,
+      cola as never,
+      seParece as never,
+    ),
     hecho,
     orden,
+    notasReapuntadas,
   };
 }
 
@@ -122,12 +158,19 @@ async function convertir(
   dto: Record<string, unknown> = DTO,
   ambito = ['c1'],
 ) {
-  const { s, hecho, orden } = armar(o);
+  const { s, hecho, orden, notasReapuntadas } = armar(o);
   try {
     const r = await s.convertir('l1', dto as never, ADMIN as never, ambito);
-    return { ok: true, mensaje: '', hecho, orden, r };
+    return { ok: true, mensaje: '', hecho, orden, notasReapuntadas, r };
   } catch (e) {
-    return { ok: false, mensaje: (e as Error).message, hecho, orden, r: null };
+    return {
+      ok: false,
+      mensaje: (e as Error).message,
+      hecho,
+      orden,
+      notasReapuntadas,
+      r: null,
+    };
   }
 }
 
@@ -164,7 +207,23 @@ describe('el ORDEN: la autorización antes que el RUI', () => {
 
   it('y la ficha antes que las dos', async () => {
     const r = await convertir();
-    expect(r.orden).toEqual(['FICHA', 'AUTORIZACION', 'RUI']);
+    /// El orden ENTERO, no solo el par que importa. Fijarlo
+    /// completo es lo que hace que un paso nuevo colado en medio
+    /// tenga que declararse aquí en vez de aparecer callado.
+    ///
+    /// `NOTAS` va después de la constancia y antes del RUI: es
+    /// re-apuntar a la ficha las llamadas que se hicieron sobre el
+    /// lead, y no puede ir antes de que la ficha exista.
+    expect(r.orden).toEqual(['FICHA', 'AUTORIZACION', 'NOTAS', 'RUI']);
+  });
+
+  it('y las notas del lead pasan a la ficha, sin perder el lead', async () => {
+    /// Es el trabajo de conseguir la cédula por teléfono. Si se
+    /// perdiera al convertir, la mesa habría servido para nada.
+    const r = await convertir();
+    expect(r.hecho).toContain('nota.updateMany');
+    expect(r.hecho).not.toContain('nota.updateMany.CON_FILTRO_MALO');
+    expect(r.notasReapuntadas).toEqual(['p1']);
   });
 });
 

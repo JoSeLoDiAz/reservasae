@@ -47,7 +47,12 @@ function armar() {
     },
   };
 
-  return { s: new MesaDeEntrada(prisma as never), escrituras };
+  return { s: new MesaDeEntrada(prisma as never, {
+    /// Nadie revoco: es el caso normal y la revocacion tiene su
+    /// propio spec.
+    cualesRevocaron: () => Promise.resolve(new Set<string>()),
+    revoco: () => Promise.resolve(false),
+  } as never), escrituras };
 }
 
 describe('arreglar un lead desde la mesa', () => {

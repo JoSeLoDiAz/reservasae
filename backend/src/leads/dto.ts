@@ -393,3 +393,21 @@ export class DescartarLoteDto {
   @MaxLength(300)
   motivo!: string;
 }
+
+/** Repartir leads entre asesores, desde la mesa. */
+export class AsignarLeadsDto {
+  @IsArray()
+  @ArrayNotEmpty({ message: 'No seleccionó ningún lead.' })
+  @ArrayMaxSize(TOPE_DEL_LOTE_DE_LEADS, {
+    message: `Un lote admite hasta ${TOPE_DEL_LOTE_DE_LEADS} leads.`,
+  })
+  @IsString({ each: true })
+  ids!: string[];
+
+  /// A quién. `null` los devuelve al montón sin dueño, que hace
+  /// falta: un asesor se va de vacaciones y sus leads tienen que
+  /// poder volver a la cola común.
+  @IsOptional()
+  @IsString()
+  asesorId?: string | null;
+}

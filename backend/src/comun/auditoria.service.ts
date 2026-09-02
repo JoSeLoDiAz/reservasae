@@ -60,6 +60,7 @@ export const ENTIDADES = {
   INSTITUCION: 'institucion',
   RESERVA: 'reserva',
   EMPRESA: 'empresa',
+  LEAD: 'lead',
 } as const;
 
 export type Entidad = (typeof ENTIDADES)[keyof typeof ENTIDADES];

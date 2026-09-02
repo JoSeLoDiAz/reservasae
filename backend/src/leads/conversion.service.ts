@@ -44,6 +44,7 @@ import {
   politicaVigente,
 } from '../crm/constancia-de-autorizacion';
 import { CrmService } from '../crm/crm.service';
+import { AQuienSeParece } from './a-quien-se-parece';
 import { partirNombreCompleto } from './cruzar-con-el-crm';
 import { ColaRui } from '../crm/rui/cola-rui';
 import { PrismaService } from '../prisma/prisma.service';
@@ -62,6 +63,7 @@ export class ConversionDeLeads {
     private readonly prisma: PrismaService,
     private readonly crm: CrmService,
     private readonly colaRui: ColaRui,
+    private readonly seParece: AQuienSeParece,
   ) {}
 
   /**
@@ -274,6 +276,21 @@ export class ConversionDeLeads {
       },
     });
 
+    /// Las llamadas que costo conseguir la cedula pasan a la ficha.
+    ///
+    /// Se RELLENA `participanteId` y NO se borra `leadId`: la nota
+    /// queda colgando de los dos, que es lo que hace continuo el
+    /// rastro. Con las dos columnas, `gestionDe()` cuenta los
+    /// intentos desde el ultimo contacto sin tocar una linea, y la
+    /// mesa sigue enseñando el historial del lead.
+    ///
+    /// Sin esto, el trabajo de conseguir el documento por telefono
+    /// desaparecia justo al convertir -- y era el trabajo entero.
+    await this.prisma.notaDeGestion.updateMany({
+      where: { leadId: lead.id, participanteId: null },
+      data: { participanteId },
+    });
+
     /// El RUI, AHORA y no antes.
     ///
     /// Es una consulta a un portal del Estado sobre una persona.
@@ -334,6 +351,11 @@ export class ConversionDeLeads {
         tipoDocumentoSepId: true,
         numeroDocumento: true,
         aceptaHabeasData: true,
+        /// Para cruzar la revocacion tambien por aqui: un lead de
+        /// pauta no trae cedula y solo con ella no se comprueba
+        /// nada.
+        correo: true,
+        celular: true,
       },
     });
     if (!lead) throw new NotFoundException('Ese lead no existe.');
@@ -375,26 +397,25 @@ export class ConversionDeLeads {
 
   /// ¿Revoco despues de esta fecha?
   ///
-  /// Se busca por documento porque la ficha todavia no existe: la
-  /// persona puede llevar tiempo en el sistema por otro lado.
+  /// Buscaba SOLO por documento y salia con `false` sin mirar
+  /// cuando el lead no traia cedula. O sea que para el caso que
+  /// mas importa --el lead de pauta sin documento, que es todo
+  /// este encargo-- la comprobacion era un no-op: un control en
+  /// pie y vacio de efecto, como la casilla de habeas data que
+  /// se guardaba y no leia nadie.
+  ///
+  /// Ahora cruza tambien por correo y celular, con las mismas
+  /// llaves que usa `cruzarConElCrm` para reconocer a alguien.
   private async revocoDespuesDe(
-    lead: { tipoDocumentoSepId: number | null; numeroDocumento: string | null },
+    lead: {
+      tipoDocumentoSepId: number | null;
+      numeroDocumento: string | null;
+      correo: string | null;
+      celular: string | null;
+    },
     desde: Date,
   ): Promise<boolean> {
-    if (lead.tipoDocumentoSepId === null || !lead.numeroDocumento) return false;
-    const numero = normalizarDocumento(lead.numeroDocumento);
-    if (!numero) return false;
-    const persona = await this.prisma.persona.findFirst({
-      where: { tipoDocumentoSepId: lead.tipoDocumentoSepId, numeroDocumento: numero },
-      select: { id: true },
-    });
-    if (!persona) return false;
-
-    const revocada = await this.prisma.autorizacionDatos.findFirst({
-      where: { personaId: persona.id, revocadaEn: { gt: desde } },
-      select: { id: true },
-    });
-    return Boolean(revocada);
+    return this.seParece.revoco(lead, desde);
   }
 
   /**

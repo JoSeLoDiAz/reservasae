@@ -50,7 +50,12 @@ function armar() {
     },
   };
 
-  return { s: new MesaDeEntrada(prisma as never), vistos };
+  return { s: new MesaDeEntrada(prisma as never, {
+    /// Nadie revoco: es el caso normal y la revocacion tiene su
+    /// propio spec.
+    cualesRevocaron: () => Promise.resolve(new Set<string>()),
+    revoco: () => Promise.resolve(false),
+  } as never), vistos };
 }
 
 /// Los `convenioId` que de verdad ACOTAN: los de la raíz y los

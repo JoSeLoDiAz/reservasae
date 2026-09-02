@@ -345,7 +345,7 @@ async function borrarLoSembrado() {
   // orden inverso a las dependencias
   await prisma.avanceActividad.deleteMany();
   await prisma.movimientoParticipante.deleteMany();
-  await prisma.notaParticipante.deleteMany();
+  await prisma.notaDeGestion.deleteMany();
   await prisma.participante.deleteMany();
   await prisma.autorizacionDatos.deleteMany();
   await prisma.persona.deleteMany();
@@ -1207,7 +1207,7 @@ async function main() {
         seLeHablo && n === 0 ? NOTAS_LOGRADAS : NOTAS_FALLIDAS;
       const cual = unoDe(pool);
 
-      await prisma.notaParticipante.create({
+      await prisma.notaDeGestion.create({
         data: {
           participanteId: participante.id,
           autorId: asesor?.id ?? null,

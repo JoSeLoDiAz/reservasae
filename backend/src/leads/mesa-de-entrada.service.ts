@@ -22,6 +22,8 @@ import {
 import { documentoValido, normalizarDocumento } from '../comun/documento';
 import { PrismaService } from '../prisma/prisma.service';
 
+import { AQuienSeParece } from './a-quien-se-parece';
+import { puedoContactar } from './puedo-contactar';
 import { ArreglarLeadDto } from './dto';
 import {
   autorizoAlRegistrarse,
@@ -43,7 +45,10 @@ export type FiltrosDeLaMesa = {
 
 @Injectable()
 export class MesaDeEntrada {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly seParece: AQuienSeParece,
+  ) {}
 
   async listar(filtros: FiltrosDeLaMesa, ambito: string[]) {
     /// El ámbito ACOTA, nunca lo sustituye el filtro pedido.
@@ -96,6 +101,13 @@ export class MesaDeEntrada {
           generoSepId: true,
           /// Lo que marco la persona: manda sobre el origen.
           aceptaHabeasData: true,
+          /// De quien es y cuando se toco por ultima vez.
+          asesorId: true,
+          ultimaGestionEn: true,
+          asesor: { select: { id: true, nombre: true } },
+          /// Cuantas veces se ha gestionado. Es el numero que
+          /// dice a quien hay que insistirle hoy.
+          _count: { select: { notas: true } },
           convenio: { select: { slug: true, sigla: true } },
           accionFormacion: { select: { codigo: true, nombre: true } },
         },
@@ -136,6 +148,22 @@ export class MesaDeEntrada {
       orderBy: { nombre: 'asc' },
       select: { id: true, nombre: true, correo: true },
     });
+
+    /// Quiénes revocaron, en UNA consulta para toda la página.
+    ///
+    /// La regla de si se puede llamar es la MISMA que aplica el
+    /// `POST :id/notas`. Si la pantalla se lo inventara, pintaría
+    /// el botón de llamar a alguien a quien el servidor va a
+    /// rechazar -- o peor, lo pintaría y el servidor lo aceptaría.
+    const revocaron = await this.seParece.cualesRevocaron(
+      filas.map((l) => ({
+        id: l.id,
+        tipoDocumentoSepId: l.tipoDocumentoSepId,
+        numeroDocumento: l.numeroDocumento,
+        correo: l.correo,
+        celular: l.celular,
+      })),
+    );
 
     /// Los cursos con los que se arregla un lead sin curso.
     ///
@@ -223,6 +251,18 @@ export class MesaDeEntrada {
         /// pasa al convertirlo: sin esto la ficha nace sin
         /// autorización y no se puede matricular ni reportar.
         autorizoAlRegistrarse: autorizoAlRegistrarse(l.origen, l.aceptaHabeasData),
+        /// De quién es, para poder trabajar la cola propia.
+        asesor: l.asesor,
+        /// Cuándo se tocó y cuántas veces: es lo que ordena «a
+        /// quién hay que insistirle hoy».
+        ultimaGestionEn: l.ultimaGestionEn,
+        gestiones: l._count.notas,
+        /// Si se puede llamar, con la MISMA regla del servidor.
+        puedoContactar: puedoContactar({
+          estado: l.estado,
+          participanteId: l.participanteId,
+          revoco: revocaron.has(l.id),
+        }),
       })),
     };
   }

@@ -10,6 +10,9 @@ import { CrmModule } from '../crm/crm.module';
 
 import { ConversionController } from './conversion.controller';
 import { MesaDeEntradaController } from './mesa-de-entrada.controller';
+import { AuditoriaService } from '../comun/auditoria.service';
+import { AQuienSeParece } from './a-quien-se-parece';
+import { GestionDelLead } from './gestion-del-lead.service';
 import { Comparativo } from './comparativo.service';
 import { MesaDeEntrada } from './mesa-de-entrada.service';
 import { LoteDeLeads } from './lote.service';
@@ -46,6 +49,11 @@ import { MetaPruebasController } from './meta-pruebas.controller';
     MesaDeEntrada,
     LoteDeLeads,
     Comparativo,
+    GestionDelLead,
+    AQuienSeParece,
+    /// Igual que en CrmModule: se provee aqui en vez de importar
+    /// un modulo, que es como ya lo hace el resto.
+    AuditoriaService,
   ],
 })
 export class LeadsModule {}
