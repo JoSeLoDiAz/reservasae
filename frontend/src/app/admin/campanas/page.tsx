@@ -8,9 +8,18 @@
 /// va saliendo. En medio no hay botón de «mandar ya», porque
 /// no existe: la cola se vacía sola dentro del horario.
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import {
+  CatalogoDeVariables,
+  pegarEnElCursor,
+} from "@/components/admin/catalogo-de-variables";
+import { Cargando } from "@/components/admin/piezas";
+import { Desplegable } from "@/components/admin/desplegable";
+import { IconoDerecha } from "@/components/admin/iconos";
+
+import {
+  AccionesDePagina,
   Aviso,
   Boton,
   CLASE_CONTROL,
@@ -74,24 +83,27 @@ export default function PaginaCampanas() {
     return error ? (
       <Aviso tipo="error">{error}</Aviso>
     ) : (
-      <p className="text-texto-suave">Cargando…</p>
+      <Cargando />
     );
   }
 
   return (
-    <div>
-      <header className="border-b border-borde bg-superficie px-7 pt-[26px] pb-[22px] flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <h1 className="text-[1.3125rem] font-bold tracking-[-0.02em] text-titulo">Campañas</h1>
-          <p className="mt-1 max-w-3xl text-texto-suave">
-            Un correo que sale a muchos, de a uno. Se lanza y va saliendo solo,
-            en horario de Colombia.
-          </p>
-        </div>
-        {!creando && convenioId && (
+    /// Sin cabecera propia, como Calendario y Gestión de
+    /// Inscripciones. La miga de arriba ya dice «Campaña
+    /// Mailing / Campañas»; repetirlo debajo en grande era
+    /// decirlo dos veces y dejaba este módulo con otra cara que
+    /// el resto del panel. El botón sube a la barra, que es
+    /// donde el resto de pantallas pone el suyo.
+    ///
+    /// Lo que decía la bajada --de a uno, en horario de
+    /// Colombia-- no se pierde: está entero y mejor contado en
+    /// «Cómo sale, y por qué así», que va justo debajo.
+    <div className="flex min-h-0 grow flex-col gap-4 px-4 pt-4">
+      {!creando && convenioId && (
+        <AccionesDePagina>
           <Boton onClick={() => setCreando(true)}>Nueva campaña</Boton>
-        )}
-      </header>
+        </AccionesDePagina>
+      )}
 
       {!convenioId && (
         <AvisoDeSeccion color="var(--aviso)">
@@ -350,6 +362,14 @@ function NuevaCampana({
   const [clave, setClave] = useState(segmentos[0]?.clave ?? "");
   const [cuantos, setCuantos] = useState<number | null>(null);
   const [banner, setBanner] = useState<File | null>(null);
+
+  /// Lo mismo que en Plantillas de correo, y por lo mismo: el
+  /// catálogo de variables se abre donde se escribe, y la
+  /// vista previa se pliega para poder dejarla abierta sin que
+  /// empuje el formulario fuera de pantalla.
+  const cajaCuerpo = useRef<HTMLTextAreaElement>(null);
+  const [catalogoAbierto, setCatalogoAbierto] = useState(false);
+  const [previaAbierta, setPreviaAbierta] = useState(true);
   const [ocupado, setOcupado] = useState(false);
   /// De dónde salen los destinatarios. Por defecto de la
   /// base, que es lo que se hace casi siempre.
@@ -407,26 +427,23 @@ function NuevaCampana({
 
   return (
     <Tarjeta titulo="Nueva campaña">
-      {/* MITAD Y MITAD, y la vista QUIETA.
+      {/* UNA COLUMNA, y la vista previa al final.
 
-          Era una barra lateral de 24rem: la vista salía
-          tan angosta que no se parecía a un correo, y al
-          bajar a escribir el mensaje se iba de pantalla
-          justo cuando más falta hace.
+          Fue mitad y mitad —el formulario a la izquierda, la
+          vista pegada arriba a la derecha—, y eso resolvía lo
+          de antes: una barra lateral de 24rem donde el correo
+          salía tan angosto que no parecía un correo.
 
-          Ahora la vista ocupa la mitad y se queda pegada
-          arriba mientras se escribe en la otra: se teclea
-          en un lado y se ve en el otro, sin buscarla. */}
-      {/* Una raya entre lo que se llena y lo que se ve.
+          Pero media pantalla tampoco alcanza. Un correo se
+          maqueta a 600 px y la columna daba menos, así que
+          seguía enseñándose encogido, que es justo lo que no
+          se quería. Con el ancho entero cabe de verdad, y de
+          paso cabe verlo en el ancho de cada dispositivo.
 
-          Las dos columnas se tocaban sin nada en medio y el ojo
-          no sabia donde acababa el formulario y empezaba la
-          vista previa: parecia una sola cosa apretada. La raya
-          es la misma que separa las bandas -- `--hairline` --,
-          y solo aparece cuando hay dos columnas de verdad: en
-          pantalla angosta se apilan y ahi la raya sobraria. */}
-      <div className="grid lg:grid-cols-2 lg:items-start">
-        <div className="space-y-5 pr-0 lg:pr-8">
+          Lo que se pierde —tenerla al lado mientras se
+          teclea— se recupera plegándola: se deja abierta y se
+          baja a mirarla, o se cierra y no estorba. */}
+      <div className="space-y-5">
           <div>
             <label htmlFor="c-nombre" className="mb-1.5 block text-sm font-medium">
               Cómo la va a reconocer
@@ -444,7 +461,10 @@ function NuevaCampana({
               porque decide si el segmento pinta algo. */}
           <div>
             <p className="mb-1.5 text-sm font-medium">De dónde sale la lista</p>
-            <div className="grid sm:grid-cols-2">
+            {/* Con aire entre las dos. Pegadas se leían como un
+                solo control partido por una raya, y no lo son:
+                son dos caminos distintos y excluyentes. */}
+            <div className="grid gap-3 sm:grid-cols-2">
               {(
                 [
                   ["SEGMENTO", "De su base", "Con reglas sobre los inscritos"],
@@ -493,18 +513,25 @@ function NuevaCampana({
             <label htmlFor="c-seg" className="mb-1.5 block text-sm font-medium">
               A quiénes
             </label>
-            <select
+            {/* El desplegable de la casa, no el del sistema
+                operativo: el nativo se pinta distinto en cada
+                navegador y no obedece al tema --en oscuro salía
+                una lista blanca--. Y de paso cabe el `para` de
+                cada segmento como segunda línea, que hoy solo
+                se leía DESPUÉS de elegir: elegir a ciegas y
+                enterarse luego es justo lo que no se quiere
+                cuando lo siguiente es mandarle un correo a
+                trescientas personas. */}
+            <Desplegable
               id="c-seg"
-              className={CLASE_CONTROL}
-              value={clave}
-              onChange={(e) => setClave(e.target.value)}
-            >
-              {segmentos.map((s) => (
-                <option key={s.clave} value={s.clave}>
-                  {s.titulo}
-                </option>
-              ))}
-            </select>
+              valor={clave}
+              alElegir={setClave}
+              opciones={segmentos.map((s) => ({
+                valor: s.clave,
+                etiqueta: s.titulo,
+                detalle: s.para,
+              }))}
+            />
             {elegido && (
               <p className="mt-1.5 text-sm text-texto-suave">
                 {elegido.para}{" "}
@@ -547,6 +574,7 @@ function NuevaCampana({
             </label>
             <textarea
               id="c-cuerpo"
+              ref={cajaCuerpo}
               rows={12}
               className={`${CLASE_CONTROL} font-mono text-[13px] leading-relaxed`}
               value={cuerpo}
@@ -556,6 +584,35 @@ function NuevaCampana({
             <p className="mt-1.5 text-xs text-texto-suave">
               Si escribe un enlace, se cuenta quién le da clic.
             </p>
+
+            <div className="mt-3">
+              <button
+                type="button"
+                onClick={() => setCatalogoAbierto(!catalogoAbierto)}
+                className="inline-flex items-center gap-2 rounded-sm border border-campo-borde bg-superficie px-3 py-2 text-[13px] font-semibold text-marca transition hover:border-marca"
+              >
+                <span className="text-[15px] leading-none">+</span> Insertar dato
+                <IconoDerecha
+                  tamano={12}
+                  className={`transition-transform ${catalogoAbierto ? "rotate-90" : ""}`}
+                />
+              </button>
+              <span className="ml-2.5 text-[11.5px] text-texto-suave opacity-80">
+                Se pega donde esté el cursor.
+              </span>
+
+              {catalogoAbierto && (
+                <CatalogoDeVariables
+                  variables={variables}
+                  alPegar={(clave) => {
+                    setCatalogoAbierto(false);
+                    setCuerpo((c) =>
+                      pegarEnElCursor(cajaCuerpo.current, c, clave),
+                    );
+                  }}
+                />
+              )}
+            </div>
           </div>
 
           <div>
@@ -578,6 +635,50 @@ function NuevaCampana({
             </p>
           </div>
 
+          {/* La vista previa, A LO ANCHO y plegable.
+              Estaba en una columna de la mitad, y ahí el correo
+              no cabe: un mensaje se maqueta a 600 px y la
+              columna daba menos. Con el ancho entero se puede
+              enseñar tal como sale --y en el ancho de cada
+              dispositivo--, que en una campaña importa más que
+              en una plantilla: esto sale a cientos, y casi
+              todos lo abren en el celular. */}
+          <div>
+            <button
+              type="button"
+              onClick={() => setPreviaAbierta(!previaAbierta)}
+              className="flex w-full items-center gap-2.5 rounded-md border border-borde bg-superficie px-4 py-3 text-left transition hover:border-campo-borde"
+            >
+              <span className="text-[12px] font-bold tracking-[0.03em] uppercase text-texto-suave opacity-80">
+                Así va a salir
+              </span>
+              <span className="rounded-xs bg-marca-suave px-2 py-0.5 text-[11px] font-semibold text-marca">
+                Con datos de ejemplo
+              </span>
+              <span className="ml-auto text-[12px] font-semibold text-texto-suave">
+                {previaAbierta ? "Ocultar" : "Ver"}
+              </span>
+              <IconoDerecha
+                tamano={12}
+                className={`text-texto-suave transition-transform ${
+                  previaAbierta ? "rotate-90" : ""
+                }`}
+              />
+            </button>
+
+            {previaAbierta && (
+              <div className="mt-3">
+                <VistaPreviaCorreo
+                  variante="carta"
+                  asunto={asunto}
+                  cuerpo={cuerpo}
+                  variables={variables}
+                  banner={banner}
+                />
+              </div>
+            )}
+          </div>
+
           <div className="flex flex-wrap items-center gap-3 border-t border-borde pt-4">
             <Boton
               onClick={() => void crear()}
@@ -592,49 +693,6 @@ function NuevaCampana({
               Crear no manda nada. Se lanza después, cuando la haya revisado.
             </span>
           </div>
-        </div>
-
-        {/* La raya que separa lo que se llena de lo que se ve.
-            Solo a partir de `lg`: por debajo las columnas se
-            apilan y una raya a la izquierda no separaria nada,
-            colgaria del borde. */}
-        <div className="space-y-5 lg:sticky lg:top-4 lg:border-l lg:border-hairline lg:pl-8">
-          <VistaPreviaCorreo
-            asunto={asunto}
-            cuerpo={cuerpo}
-            variables={variables}
-            banner={banner}
-          />
-
-        <div className="pt-5">
-          <p className="text-[0.90625rem] font-semibold text-titulo">
-            Lo que puede poner
-          </p>
-          <p className="mt-1 text-[0.75rem] text-texto-suave">
-            Se llena con los datos de cada persona.
-          </p>
-          {/* En columnas, no en una tira de quince.
-              A una columna la lista bajaba mas que el formulario
-              de al lado y dejaba media pantalla vacia; en dos o
-              tres se ve entera sin bajar. */}
-          <ul className="mt-3 grid gap-x-6 gap-y-1.5 sm:grid-cols-2 xl:grid-cols-3">
-            {variables.map((v) => (
-              <li key={v.clave}>
-                <button
-                  type="button"
-                  onClick={() => setCuerpo((c) => `${c}{{${v.clave}}}`)}
-                  className="w-full rounded-lg px-2 py-1 text-left transition hover:bg-superficie-alterna"
-                >
-                  <span className="font-mono text-[12px] text-marca">
-                    {`{{${v.clave}}}`}
-                  </span>
-                  <span className="block text-xs text-texto-suave">{v.titulo}</span>
-                </button>
-              </li>
-            ))}
-          </ul>
-        </div>
-        </div>
       </div>
     </Tarjeta>
   );

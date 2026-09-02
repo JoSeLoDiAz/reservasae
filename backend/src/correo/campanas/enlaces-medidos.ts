@@ -19,7 +19,7 @@ const ENLACE = /(https?:\/\/[^\s<]+)/g;
  */
 export function reescribirEnlaces(
   escapado: string,
-  baseUrl: string,
+  baseApi: string,
   campanaId: string,
   destinatarioId: string,
 ): string {
@@ -35,7 +35,7 @@ export function reescribirEnlaces(
     /// interés donde solo hubo una página rota.
     const real = url.replace(/&amp;/g, '&');
 
-    const destino = `${baseUrl}/campanas/${campanaId}/clic/${destinatarioId}?a=${encodeURIComponent(real)}`;
+    const destino = `${baseApi}/campanas/${campanaId}/clic/${destinatarioId}?a=${encodeURIComponent(real)}`;
 
     /// El texto visible se deja COMO ESTABA, escapado. Lo que
     /// se cambia es a dónde lleva, no lo que la persona lee:

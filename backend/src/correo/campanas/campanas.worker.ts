@@ -8,6 +8,7 @@ import {
 } from '@nestjs/common';
 
 import { correoConectado } from '../correo.service';
+import { API_EN_LOCAL, urlPublicaDeLaApi } from '../url-publica';
 import { CampanasService } from './campanas.service';
 import { pausa } from './ritmo';
 
@@ -56,11 +57,15 @@ export class CampanasWorker implements OnModuleInit, OnModuleDestroy {
   /// La URL con la que se arman los enlaces del correo. Tiene
   /// que ser la PÚBLICA: quien pulsa el enlace es una persona
   /// en su casa, y `localhost` allí no lleva a ninguna parte.
-  private get baseUrl(): string {
-    return (process.env.URL_PUBLICA ?? 'http://localhost:3100').replace(
-      /\/+$/,
-      '',
-    );
+  ///
+  /// Y lleva `/api`. Las TRES direcciones que salen de aquí
+  /// --el banner, el píxel de apertura y el enlace medido-- son
+  /// endpoints del backend, y nginx solo manda al backend lo
+  /// que empieza por `/api/`. Sin él, cada enlace de cada
+  /// correo de una campaña llevaba al 404 del Next en vez de a
+  /// su destino. Ver `correo/url-publica.ts`.
+  private get baseApi(): string {
+    return urlPublicaDeLaApi() ?? API_EN_LOCAL;
   }
 
   private async bucle(): Promise<void> {
@@ -70,7 +75,7 @@ export class CampanasWorker implements OnModuleInit, OnModuleDestroy {
     while (!this.parar) {
       let hubo = false;
       try {
-        hubo = await this.campanas.enviarUno(this.baseUrl);
+        hubo = await this.campanas.enviarUno(this.baseApi);
       } catch (e) {
         // que un fallo no mate el bucle entero
         this.log.error(`Fallo mandando: ${(e as Error).message}`);

@@ -1762,6 +1762,19 @@ model PlantillaCorreo {
   /// una plantilla que contradice la ficha que tiene al lado.
   etapasPermitidas EtapaParticipante[]
 
+  /// El cabezote: la franja que va de primeras, arriba del
+  /// texto. Igual que el de una campana y por el mismo
+  /// motivo: tiene que poder servirse por una URL publica,
+  /// porque quien lo carga es el cliente de correo de otra
+  /// persona, no el panel.
+  ///
+  /// La version sube en cada cambio para que el cache de
+  /// Gmail no siga sirviendo el viejo.
+  bannerDatos   Bytes?
+  bannerMime    String?
+  bannerNombre  String?
+  bannerVersion Int     @default(1)
+
   creadoPorId   String?
   creadoEn      DateTime @default(now())
   actualizadoEn DateTime @updatedAt
