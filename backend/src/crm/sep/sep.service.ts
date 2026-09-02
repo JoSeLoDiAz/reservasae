@@ -363,14 +363,25 @@ export class SepService {
     });
     if (!convenio) throw new NotFoundException('Ese convenio no existe.');
 
-    // esto no es "falta en una fila": sin ello no hay
-    // archivo. Se aborta, no se entregan 800 filas menos
-    if (convenio.sepProyectoId === null) {
-      throw new BadRequestException(
-        `${convenio.sigla ?? convenio.nombre} no tiene su id de proyecto del SEP. ` +
-          'Póngalo en Formación antes de exportar.',
-      );
-    }
+    /// SIN id de proyecto se exporta IGUAL, con la celda vacía.
+    ///
+    /// Antes se abortaba, y el razonamiento tenía sentido: sin ese
+    /// id el archivo no carga, y entregar 800 filas que van a
+    /// rebotar es peor que no entregar nada.
+    ///
+    /// Pero el id no lo tenemos todavía: lo asigna el SENA y aún
+    /// no lo ha dado. Con el aborto, el reporte NO SE PUEDE
+    /// GENERAR — ni para revisarlo, ni para contar cuántos entran,
+    /// ni para mandárselo a nadie. O sea que un control puesto
+    /// para proteger un cargue está impidiendo el trabajo de
+    /// antes del cargue.
+    ///
+    /// Es el mismo caso que `PERSONA ID` y `EMPRESA ID`, que ya
+    /// van vacíos por decisión del cliente: columnas que él
+    /// completa cuando las tiene. Decisión suya, 2 sep 2026.
+    ///
+    /// Lo que NO se hace es inventarse un número. Vacío se ve y se
+    /// llena; un id equivocado carga contra el proyecto de otro.
 
     const participantes = await this.prisma.participante.findMany({
       where: { convenioId, etapa: { in: ETAPAS_DEL_REPORTE } },

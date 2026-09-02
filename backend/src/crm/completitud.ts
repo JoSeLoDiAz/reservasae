@@ -151,10 +151,28 @@ export function revisar(p: ParaRevisar): Revision {
     reporte.push('falta decir si se benefició anteriormente');
   }
 
-  // sin los ids del SEP la fila no la reconoce nadie
+  /// El GRUPO sí se exige: es del proceso, no del SEP.
+  ///
+  /// Sin grupo asignado la fila no dice a qué cohorte pertenece
+  /// esa persona, y eso lo decidimos aquí — no depende de nadie
+  /// de fuera.
   if (!p.coberturaId) reporte.push('no tiene grupo asignado');
-  if (p.accionSepId === null) reporte.push('la acción no tiene su id del SEP');
-  if (p.grupoSepId === null) reporte.push('el grupo no tiene su id del SEP');
+
+  /// Los IDS DEL SEP ya NO sacan la fila del reporte.
+  ///
+  /// Los asigna el SENA y todavía no los ha dado. Exigirlos
+  /// dejaba el reporte VACÍO —cero filas— y con él no se puede
+  /// ni revisar, ni contar cuántos entran, ni enseñárselo a
+  /// nadie: un control puesto para proteger el cargue estaba
+  /// impidiendo el trabajo de antes del cargue.
+  ///
+  /// Salen con la celda vacía, igual que `PERSONA ID` y
+  /// `EMPRESA ID`, que el cliente completa cuando los tiene.
+  /// Decisión suya, 2 sep 2026.
+  ///
+  /// Cuando lleguen, esta regla se puede devolver en una línea —
+  /// y entonces sí volverá a tener sentido, porque el archivo
+  /// tendrá que cargar de verdad.
 
   return { matricula, reporte };
 }
