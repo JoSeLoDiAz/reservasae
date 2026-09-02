@@ -137,12 +137,17 @@ function armar(o: Opciones = {}) {
   /// Es el caso normal, y los specs de revocacion viven aparte.
   const seParece = { revoco: () => Promise.resolve(false) };
 
+  /// Y el del cruce del documento: no es de nadie mas. El cruce
+  /// tiene su propio spec, con las tres salidas.
+  const deQuienEs = { mirar: () => Promise.resolve({ que: 'LIBRE' }) };
+
   return {
     s: new ConversionDeLeads(
       prisma as never,
       crm as never,
       cola as never,
       seParece as never,
+      deQuienEs as never,
     ),
     hecho,
     orden,

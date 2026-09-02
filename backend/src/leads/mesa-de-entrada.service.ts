@@ -9,6 +9,7 @@
 
 import {
   BadRequestException,
+  ConflictException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -23,6 +24,10 @@ import { documentoValido, normalizarDocumento } from '../comun/documento';
 import { PrismaService } from '../prisma/prisma.service';
 
 import { AQuienSeParece } from './a-quien-se-parece';
+import {
+  DeQuienEsEseDocumento,
+  porQueNoEsSuya,
+} from './de-quien-es-ese-documento';
 import { puedoContactar } from './puedo-contactar';
 import { ArreglarLeadDto } from './dto';
 import {
@@ -48,6 +53,7 @@ export class MesaDeEntrada {
   constructor(
     private readonly prisma: PrismaService,
     private readonly seParece: AQuienSeParece,
+    private readonly deQuienEs: DeQuienEsEseDocumento,
   ) {}
 
   async listar(filtros: FiltrosDeLaMesa, ambito: string[]) {
@@ -346,7 +352,19 @@ export class MesaDeEntrada {
     /// departamento nuevo.
     const antes = await this.prisma.leadEntrante.findUnique({
       where: { id },
-      select: { departamentoSepId: true, municipioSepId: true },
+      select: {
+        departamentoSepId: true,
+        municipioSepId: true,
+        /// Lo que hace falta para cruzar el documento como
+        /// quedará, más abajo.
+        tipoDocumentoSepId: true,
+        numeroDocumento: true,
+        nombreCompleto: true,
+        primerNombre: true,
+        segundoNombre: true,
+        primerApellido: true,
+        segundoApellido: true,
+      },
     });
     const dep =
       dto.departamentoSepId === undefined
@@ -404,6 +422,48 @@ export class MesaDeEntrada {
         );
       }
       numeroDocumento = limpio;
+    }
+
+    /// ¿DE QUIÉN ES ESA CÉDULA?
+    ///
+    /// Se avisa AQUÍ, al escribirla, y no al convertir. La que
+    /// manda sigue siendo la conversión —esta pantalla no es un
+    /// control— pero enterarse en el momento de teclear es la
+    /// diferencia entre corregir un dígito y descubrir media hora
+    /// después que la ficha se creó sobre otra persona.
+    ///
+    /// Se juzga como QUEDARÁ, igual que el par
+    /// departamento/municipio: el asesor puede cambiar solo el
+    /// número y dejar el tipo y el nombre que ya traía el lead.
+    const tipoFinal =
+      dto.tipoDocumentoSepId === undefined
+        ? antes?.tipoDocumentoSepId
+        : dto.tipoDocumentoSepId;
+    const numeroFinal =
+      numeroDocumento === undefined ? antes?.numeroDocumento : numeroDocumento;
+
+    if (tipoFinal != null && numeroFinal) {
+      const nombreFinal = [
+        dto.primerNombre === undefined ? antes?.primerNombre : dto.primerNombre,
+        antes?.segundoNombre,
+        dto.primerApellido === undefined ? antes?.primerApellido : dto.primerApellido,
+        dto.segundoApellido === undefined
+          ? antes?.segundoApellido
+          : dto.segundoApellido,
+      ]
+        .filter(Boolean)
+        .join(' ');
+
+      const deQuien = await this.deQuienEs.mirar(
+        tipoFinal,
+        numeroFinal,
+        /// Si el lead vino con el nombre entero sin partir, ese
+        /// sirve igual: `compararNombres` va por palabras.
+        nombreFinal || (antes?.nombreCompleto ?? ''),
+      );
+      if (deQuien.que === 'ES_DE_OTRO') {
+        throw new ConflictException(porQueNoEsSuya(deQuien.pista));
+      }
     }
 
     return this.prisma.leadEntrante.update({

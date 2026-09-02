@@ -12,6 +12,7 @@ import { ConversionController } from './conversion.controller';
 import { MesaDeEntradaController } from './mesa-de-entrada.controller';
 import { AuditoriaService } from '../comun/auditoria.service';
 import { AQuienSeParece } from './a-quien-se-parece';
+import { DeQuienEsEseDocumento } from './de-quien-es-ese-documento';
 import { GestionDelLead } from './gestion-del-lead.service';
 import { Comparativo } from './comparativo.service';
 import { MesaDeEntrada } from './mesa-de-entrada.service';
@@ -51,6 +52,7 @@ import { MetaPruebasController } from './meta-pruebas.controller';
     Comparativo,
     GestionDelLead,
     AQuienSeParece,
+    DeQuienEsEseDocumento,
     /// Igual que en CrmModule: se provee aqui en vez de importar
     /// un modulo, que es como ya lo hace el resto.
     AuditoriaService,

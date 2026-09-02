@@ -55,6 +55,10 @@ function armar() {
     /// propio spec.
     cualesRevocaron: () => Promise.resolve(new Set<string>()),
     revoco: () => Promise.resolve(false),
+  } as never, {
+    /// Ese documento no es de nadie mas: caso normal, y el cruce
+    /// tiene su propio spec.
+    mirar: () => Promise.resolve({ que: 'LIBRE' }),
   } as never), vistos };
 }
 

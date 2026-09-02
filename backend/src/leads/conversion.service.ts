@@ -45,6 +45,10 @@ import {
 } from '../crm/constancia-de-autorizacion';
 import { CrmService } from '../crm/crm.service';
 import { AQuienSeParece } from './a-quien-se-parece';
+import {
+  DeQuienEsEseDocumento,
+  porQueNoEsSuya,
+} from './de-quien-es-ese-documento';
 import { partirNombreCompleto } from './cruzar-con-el-crm';
 import { ColaRui } from '../crm/rui/cola-rui';
 import { PrismaService } from '../prisma/prisma.service';
@@ -64,6 +68,7 @@ export class ConversionDeLeads {
     private readonly crm: CrmService,
     private readonly colaRui: ColaRui,
     private readonly seParece: AQuienSeParece,
+    private readonly deQuienEs: DeQuienEsEseDocumento,
   ) {}
 
   /**
@@ -184,6 +189,32 @@ export class ConversionDeLeads {
       throw new BadRequestException(
         'Falta el nombre o el apellido. Complételos en el lead antes de convertirlo.',
       );
+    }
+
+    /// ¿DE QUIÉN ES ESA CÉDULA?
+    ///
+    /// Va aquí, después de tener el nombre y ANTES de crear nada:
+    /// `crm.crear` hace `upsert` por (tipo, número), así que un
+    /// dígito mal reutiliza la Persona de un tercero y le pisa el
+    /// correo, el celular y el domicilio con los de este lead. Eso
+    /// no se deshace con un botón.
+    ///
+    /// Es el caso que previó el cliente: «puede ser que lo pongan
+    /// mal». Se comprueba en LA QUE MANDA, no solo en la pantalla.
+    const deQuien = await this.deQuienEs.mirar(
+      tipo,
+      numero,
+      [
+        nombre.primerNombre,
+        nombre.segundoNombre,
+        nombre.primerApellido,
+        nombre.segundoApellido,
+      ]
+        .filter(Boolean)
+        .join(' '),
+    );
+    if (deQuien.que === 'ES_DE_OTRO') {
+      throw new ConflictException(porQueNoEsSuya(deQuien.pista));
     }
 
     /// LA SEDE, que es lo que faltaba para poder matricular.
