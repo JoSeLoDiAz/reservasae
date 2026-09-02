@@ -68,26 +68,19 @@ export async function cerrarLeadsQueEsperaban(
 
   if (esperando.length === 0) return 0;
 
-  /// Se atan TODOS los que esperaban, no solo uno.
+  /// Se atan TODOS los que esperaban, y ahora de verdad.
   ///
-  /// Puede haber llegado por Instagram y por Facebook: son dos
-  /// leads y los dos los trajo la pauta. Cerrar uno y dejar el
-  /// otro pendiente deja media verdad en la mesa.
+  /// Antes solo el primero podía apuntar a la ficha: los demás se
+  /// cerraban sin vínculo, porque `participanteId` era @unique.
+  /// Ese índice se quitó —decía «un participante, como mucho un
+  /// lead», y el dominio dice lo contrario— así que los N se atan
+  /// y en la ficha se ven los N.
   ///
-  /// `participanteId` es @unique, así que solo el primero puede
-  /// apuntar a la ficha; los demás se cierran igual, con su
-  /// motivo, para que salgan de la mesa.
+  /// Importa para el comparativo: cada lead trae lo que la
+  /// persona dijo en ese momento, y el que se quedaba sin vínculo
+  /// desaparecía de la tabla que existe para compararlos.
   await tx.leadEntrante.updateMany({
-    where: { id: { in: esperando.slice(1).map((l) => l.id) } },
-    data: {
-      estado: 'CONVERTIDO',
-      procesadoEn: new Date(),
-      motivo: 'La persona se inscribió por el formulario público.',
-    },
-  });
-
-  await tx.leadEntrante.updateMany({
-    where: { id: esperando[0].id },
+    where: { id: { in: esperando.map((l) => l.id) } },
     data: {
       participanteId: datos.participanteId,
       estado: 'CONVERTIDO',

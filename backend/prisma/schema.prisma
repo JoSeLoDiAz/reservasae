@@ -826,7 +826,19 @@ model LeadEntrante {
   motivo String?
 
   /// La ficha que salio de aqui, si salio.
-  participanteId String? @unique
+  /// SIN @unique, y no es un descuido.
+  ///
+  /// Decia «un participante, como mucho un lead», y el dominio
+  /// dice lo contrario: que la misma persona llene el formulario
+  /// dos veces es lo normal. El SEGUNDO lead de alguien que ya
+  /// tiene ficha reventaba el indice, salia 500 crudo, y se
+  /// autoocultaba -- el reintento entraba por la guarda de
+  /// idempotencia y devolvia 200 con `repetido: true`.
+  /// Comprobado en vivo antes de quitarlo.
+  ///
+  /// La idempotencia NUNCA la dio este indice: la da
+  /// @@unique([origenSistema, externoId]), que no se toca.
+  participanteId String?
 
   recibidoEn  DateTime  @default(now())
   procesadoEn DateTime?
@@ -840,6 +852,9 @@ model LeadEntrante {
   /// no en el schema lo borra la siguiente migracion sin que
   /// nadie lo note. Ya paso con el de origenLead.
   @@index([accionFormacionId])
+  /// El que sustituye al @unique que se quito: se sigue
+  /// buscando por ficha, pero ya pueden ser varios leads.
+  @@index([participanteId])
   @@map("leads_entrantes")
 }
 
@@ -999,7 +1014,7 @@ model Participante {
 
   // nadie cuenta dos veces en la misma accion
   /// De que lead salio, si salio de uno.
-  lead       LeadEntrante?
+  leads      LeadEntrante[]
   enCampanas DestinatarioCampana[]
 
   @@unique([accionFormacionId, personaId])
