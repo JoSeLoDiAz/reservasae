@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
+import { SignoConvoca } from "@/components/admin/signo-convoca";
 import { FirmaConvoca, PieDeConvoca } from "@/components/firma-convoca";
 import { ConmutadorTema, useMarca } from "@/components/marca-publica";
 import { adminApi, urlLogo } from "@/lib/admin-api";
@@ -57,18 +58,40 @@ export default function PaginaAcceso() {
       className="grid lg:grid-cols-2"
     >
       {/* el panel de marca: solo desde lg, o roba la pantalla */}
-      <section className="relative hidden flex-col justify-between bg-marca p-10 text-marca-texto lg:flex">
+      <section className="relative hidden flex-col justify-between overflow-hidden bg-marca p-10 text-marca-texto lg:flex">
+        {/* EL SIGNO, gigante y casi invisible.
+
+            El panel eran tres cosas pegadas a una pared: la
+            firma arriba, la placa, un vacío grande y el titular
+            abajo. El criterio 6 del rediseño dice que no se deja
+            media pantalla vacía, y aquí estaba.
+
+            Se llena con la marca PROPIA y no con decoración
+            inventada: es el mismo signo de la firma, a 34rem y al
+            6 %. Se sale por el borde a propósito — un dibujo
+            entero y centrado se lee como una ilustración; uno
+            cortado se lee como fondo.
+
+            `aria-hidden` y `pointer-events-none`: no es
+            contenido, no se selecciona y no tapa nada. */}
+        <div
+          aria-hidden
+          className="pointer-events-none absolute -right-24 top-1/2 -translate-y-1/2 opacity-[0.06]"
+        >
+          <SignoConvoca tamano={544} />
+        </div>
+
         {/* Convoca ARRIBA y grande, y el cliente debajo.
             Al contrario que en el panel, y a proposito: esta
             es la puerta del PRODUCTO, no la cara publica del
             gremio. Quien entra por aqui trabaja el sistema;
             quien llega al formulario viene por su gremio. */}
-        <div className="space-y-7">
+        <div className="relative space-y-7">
           <FirmaConvoca tamano={56} animado />
           <Marca />
         </div>
 
-        <div className="login-entra max-w-md" style={{ "--retraso": "980ms" } as React.CSSProperties}>
+        <div className="login-entra relative max-w-md" style={{ "--retraso": "980ms" } as React.CSSProperties}>
           <h2 className="text-3xl leading-tight font-bold">
             De los cupos apartados a las personas formadas.
           </h2>
@@ -231,10 +254,10 @@ function Marca({ claro = false }: { claro?: boolean }) {
     /// ancho maximo tambien sale de la cuenta.
     const alto =
       logos.length >= 3
-        ? 'h-[5.5rem] max-w-[11rem]'
+        ? 'h-[3.5rem] max-w-[9rem]'
         : logos.length === 2
-          ? 'h-[6.5rem] max-w-[14rem]'
-          : 'h-[7.5rem] max-w-[19rem]';
+          ? 'h-[4rem] max-w-[11rem]'
+          : 'h-[4.75rem] max-w-[14rem]';
 
     return (
       // self-start: en una columna flex, si no, la placa
@@ -243,17 +266,34 @@ function Marca({ claro = false }: { claro?: boolean }) {
       /// ahora sea mas alto que el signo. Quien manda es la
       /// POSICION: el signo va arriba con su nombre y su linea;
       /// este, debajo y en su placa.
-      <div className="login-placa flex w-fit max-w-full flex-wrap items-center gap-x-7 gap-y-4 self-start rounded-2xl bg-white px-7 py-5">
-        {logos.map((logo) => (
-          // <img>: tamano desconocido y ya viene cacheado
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            key={logo.id}
-            src={urlLogo(logo)}
-            alt={logo.etiqueta}
-            className={`w-auto object-contain ${alto}`}
-          />
-        ))}
+      <div className="login-placa w-fit max-w-full self-start rounded-2xl bg-white px-6 py-5">
+        <div className="flex flex-wrap items-center gap-x-6 gap-y-4">
+          {logos.map((logo) => (
+            // <img>: tamano desconocido y ya viene cacheado
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              key={logo.id}
+              src={urlLogo(logo)}
+              alt={logo.etiqueta}
+              className={`w-auto object-contain ${alto}`}
+            />
+          ))}
+        </div>
+
+        {/* Quien convoca, dicho con palabras.
+
+            La placa era una caja blanca con un dibujo dentro, sin
+            decir de quien. Con el rotulo pasa a ser una tarjeta
+            que afirma algo -- y quien entra por
+            `adecopria.reservasae.com` ve confirmado que llego a
+            donde queria.
+
+            En gris sobre la placa blanca, no en el color del
+            gremio: el color va en el logo, y repetirlo en el
+            texto haria competir dos cosas por lo mismo. */}
+        <p className="mt-4 border-t border-slate-200 pt-3 text-[11px] font-medium tracking-wide text-slate-500 uppercase">
+          {logos.map((l) => l.etiqueta).join(' · ')}
+        </p>
       </div>
     );
   }
