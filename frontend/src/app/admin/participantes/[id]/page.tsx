@@ -37,6 +37,7 @@ import { useToast } from "@/components/admin/toast";
 import { alcanza } from "@/lib/admin-api";
 import { useDatosVivos } from "@/lib/datos-vivos";
 import { bonito, ErrorApi } from "@/lib/api";
+import { ComparativoDeDatos } from "@/components/admin/comparativo-de-datos";
 import {
   CANALES,
   crmApi,
@@ -981,6 +982,22 @@ export default function PaginaFicha() {
           </aside>
         </div>
       </section>
+
+      {/* De dónde salen los datos: la ficha, lo que llegó por
+          los anuncios y lo que dice el RUI, al lado.
+
+          Va DESPUÉS de la ficha y no dentro: no es un dato más,
+          es de dónde vienen todos. Y antes de «otros cursos»,
+          porque esto habla de ESTA persona y aquello es un
+          puente a otras pantallas. */}
+      <ComparativoDeDatos
+        participanteId={f.id}
+        puedeEscribir={puedeEscribir}
+        alAplicar={async (clave, valor) => {
+          await crmApi.actualizar(f.id, { [clave]: valor });
+          await cargar();
+        }}
+      />
 
       {/* Los otros cursos de la MISMA persona, fuera de la
           tarjeta: no son de este lead, son un puente a otras. */}

@@ -102,3 +102,40 @@ export const mesaApi = {
 /// Cuántos caben de una vez. Lo fija el servidor; aquí solo se
 /// usa para no dejar seleccionar de más y decirlo antes.
 export const TOPE_DEL_LOTE = 100;
+
+/// Un dato, dicho por quien lo diga.
+export type Dicho = { valor: string | number | null; texto: string | null };
+
+export type FilaComparada = {
+  campo: string;
+  etiqueta: string;
+  /// Con qué clave se manda al PATCH. Null: no se aplica desde
+  /// aquí — el documento es la identidad, no un dato más.
+  clave: string | null;
+  ficha: Dicho;
+  leads: Array<Dicho & { deQuien: string }>;
+  rui: Dicho | null;
+  /// La ficha dice algo y otra fuente dice otra cosa.
+  discrepa: boolean;
+  /// La ficha lo tiene vacío y alguna fuente lo trae.
+  falta: boolean;
+};
+
+export type Comparativo = {
+  participanteId: string;
+  fuentes: Array<{
+    id: string;
+    origen: string;
+    porDonde: string;
+    recibidoEn: string;
+  }>;
+  rui: { simulado: boolean; consultadoEn: string } | null;
+  filas: FilaComparada[];
+  discrepan: number;
+  faltan: number;
+};
+
+export const comparativoApi = {
+  de: (participanteId: string) =>
+    pedir<Comparativo>(`/admin/leads/comparativo/${participanteId}`),
+};
