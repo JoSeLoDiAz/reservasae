@@ -12,6 +12,17 @@ export default function PaginaAcceso() {
   const router = useRouter();
   const [correo, setCorreo] = useState("");
   const [clave, setClave] = useState("");
+  const [verClave, setVerClave] = useState(false);
+  /// Si el Bloq Mayus esta puesto. `null` mientras no se ha
+  /// tocado el campo: no se avisa de algo que no se sabe.
+  const [mayusculas, setMayusculas] = useState(false);
+
+  /// `getModifierState` es lo unico que lo dice, y solo dentro
+  /// de un evento de teclado: no se puede consultar al cargar.
+  /// Por eso el aviso aparece al escribir y no antes.
+  const mirarMayusculas = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    setMayusculas(e.getModifierState("CapsLock"));
+  };
   const [error, setError] = useState<string | null>(null);
   const [entrando, setEntrando] = useState(false);
 
@@ -57,7 +68,7 @@ export default function PaginaAcceso() {
           <Marca />
         </div>
 
-        <div className="max-w-md">
+        <div className="login-entra max-w-md" style={{ "--retraso": "980ms" } as React.CSSProperties}>
           <h2 className="text-3xl leading-tight font-bold">
             De los cupos apartados a las personas formadas.
           </h2>
@@ -83,12 +94,27 @@ export default function PaginaAcceso() {
             <Marca claro />
           </div>
 
-          <h1 className="text-2xl font-bold">Bienvenido</h1>
-          <p className="mt-1 text-sm text-texto-suave">
-            Entre con el correo con el que le crearon la cuenta.
-          </p>
+          {/* El lado derecho entra escalonado, DETRAS de la
+              firma: el saludo, los campos y el boton.
 
-          <form onSubmit={enviar} className="mt-8 space-y-4">
+              Empieza a los 700 ms, que es cuando la firma ya ha
+              dicho lo suyo. Antes se leerian como dos cosas
+              pasando a la vez. */}
+          <div
+            className="login-entra"
+            style={{ "--retraso": "700ms" } as React.CSSProperties}
+          >
+            <h1 className="text-2xl font-bold">Bienvenido</h1>
+            <p className="mt-1 text-sm text-texto-suave">
+              Entre con el correo con el que le crearon la cuenta.
+            </p>
+          </div>
+
+          <form
+            onSubmit={enviar}
+            className="login-entra mt-8 space-y-4"
+            style={{ "--retraso": "840ms" } as React.CSSProperties}
+          >
             <label className="block">
               <span className="mb-1.5 block text-sm font-medium">Correo</span>
               <input
@@ -103,14 +129,51 @@ export default function PaginaAcceso() {
 
             <label className="block">
               <span className="mb-1.5 block text-sm font-medium">Contraseña</span>
-              <input
-                required
-                type="password"
-                autoComplete="current-password"
-                value={clave}
-                onChange={(e) => setClave(e.target.value)}
-                className={clase}
-              />
+              <div className="relative">
+                <input
+                  required
+                  type={verClave ? "text" : "password"}
+                  autoComplete="current-password"
+                  value={clave}
+                  onChange={(e) => setClave(e.target.value)}
+                  /// Se mira al PULSAR y al SOLTAR. Solo con `keyup` no se
+                  /// entera hasta la segunda letra; solo con `keydown`, la
+                  /// propia tecla Bloq Mayus no se refleja hasta la
+                  /// siguiente.
+                  onKeyDown={mirarMayusculas}
+                  onKeyUp={mirarMayusculas}
+                  className={clase + " pr-11"}
+                />
+                {/* El ojito, y no es comodidad.
+
+                    Una contraseña que no se puede leer se teclea a
+                    ciegas, y en un teclado ajeno o con el movil en la
+                    mano eso es la mitad de los «correo o contraseña
+                    incorrectos».
+
+                    `tabIndex={-1}`: el tabulador va del campo al boton
+                    de entrar, que es lo que espera quien escribe. */}
+                <button
+                  type="button"
+                  tabIndex={-1}
+                  onClick={() => setVerClave((v) => !v)}
+                  aria-label={verClave ? "Ocultar la contraseña" : "Ver la contraseña"}
+                  className="absolute inset-y-0 right-0 flex w-11 items-center justify-center text-texto-suave transition hover:text-texto"
+                >
+                  <Ojo abierto={verClave} />
+                </button>
+              </div>
+
+              {/* Bloq Mayus, que es la otra mitad del problema.
+
+                  Con la contraseña en puntos no hay forma de verlo, y el
+                  mensaje que sale despues dice «incorrectos» sin decir
+                  por que. Se avisa MIENTRAS escribe, no al fallar. */}
+              {mayusculas && (
+                <p className="mt-1.5 text-xs text-aviso" role="status">
+                  Tiene el Bloq Mayus activado.
+                </p>
+              )}
             </label>
 
             {error && (
@@ -161,10 +224,16 @@ function Marca({ claro = false }: { claro?: boolean }) {
       // se estira a todo el ancho y queda una caja vacia
       /// Mas grandes que antes, pero por DEBAJO de Convoca.
       ///
-      /// 48 px contra los 56 del signo: se ven de verdad y
-      /// siguen leyendose como la segunda linea. Igualarlos
-      /// dejaria dos cosas peleando por el mismo sitio.
-      <div className="flex w-fit max-w-full flex-wrap items-center gap-x-6 gap-y-3 self-start rounded-2xl bg-white px-6 py-4">
+      /// 72 px contra los 56 del signo. Estaban en 48 y se veian
+      /// pequeños --lo dijo el cliente mirandolo-- porque un logo
+      /// institucional lleva texto dentro: a 48 px la bajada del
+      /// logo de ADECOPRIA no se lee.
+      ///
+      /// Sigue por debajo en JERARQUIA aunque sea mas alto: el
+      /// signo de Convoca va arriba, con su nombre al lado y su
+      /// linea; este va debajo, en su placa. Quien manda es la
+      /// posicion, no el tamaño.
+      <div className="login-placa flex w-fit max-w-full flex-wrap items-center gap-x-6 gap-y-3 self-start rounded-2xl bg-white px-6 py-4">
         {logos.map((logo) => (
           // <img>: tamano desconocido y ya viene cacheado
           // eslint-disable-next-line @next/next/no-img-element
@@ -191,4 +260,34 @@ function Marca({ claro = false }: { claro?: boolean }) {
   /// ya identifica el producto. En cuanto el gremio cargue sus
   /// logos, la rama de arriba los pinta.
   return null;
+}
+
+/**
+ * El ojo, dibujado y no importado.
+ *
+ * Mismo criterio que `iconos.tsx`: traerse un paquete de mil
+ * iconos por uno engorda el bundle y añade algo que mantener.
+ * Toma el color del texto, así que sirve en las dos paletas.
+ */
+function Ojo({ abierto }: { abierto: boolean }) {
+  return (
+    <svg
+      width="18"
+      height="18"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.75}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7-10-7-10-7Z" />
+      <circle cx="12" cy="12" r="3" />
+      {/* Tachado cuando la contraseña está A LA VISTA: el icono
+          dice lo que pasa AHORA, no lo que hace el botón. Al
+          revés, quien lo mira cree que está oculta. */}
+      {abierto && <path d="m4 4 16 16" />}
+    </svg>
+  );
 }
