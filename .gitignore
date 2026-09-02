@@ -78,3 +78,15 @@ bosquejo*/preinscripcion-convoca.html
 *.cookie
 cookies.txt
 galletas.txt
+
+# Sondas de usar y tirar de las revisiones adversariales.
+#
+# Los subagentes escriben specs temporales para comprobar una
+# afirmacion contra el codigo, y con un `git add -A` se cuelan en
+# un commit. No son tests del proyecto: corren en cada `pnpm test`
+# y un dia uno falla y nadie sabe que protegia.
+#
+# El prefijo `zz` no es casual: los ordena al final y se ven de un
+# vistazo. Un spec de verdad NUNCA se llama asi.
+backend/src/**/zz*.spec.ts
+frontend/src/**/zz*.spec.ts
