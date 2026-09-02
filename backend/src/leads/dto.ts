@@ -288,7 +288,19 @@ export class ConvertirLoteDto {
   @IsString({ each: true })
   ids!: string[];
 
-  /// A quien se le asignan, y es OBLIGATORIO.
+  /// A quien se le asignan. OPCIONAL, y quien manda es el rol.
+  ///
+  /// Un ASESOR que convierte se las queda: acaba de decidir que
+  /// las va a atender el, y obligarle a elegirse a si mismo en un
+  /// desplegable es un paso que no decide nada.
+  ///
+  /// Un LIDER si tiene que elegir, porque el no las atiende:
+  /// reparte. Es la misma linea que ya separa quien puede
+  /// asignarle fichas a otro (`REPARTEN_FICHAS`), y usarla aqui
+  /// evita una segunda regla sobre lo mismo.
+  ///
+  /// Antes era obligatorio para todos, y estaba mal por eso: le
+  /// pedia al asesor que se eligiera a si mismo cien veces.
   ///
   /// `crm.crear` pone al que crea la ficha si no viene nadie
   /// (`dto.asesorId ?? admin.id`), y eso en un lote de cien es
@@ -298,9 +310,9 @@ export class ConvertirLoteDto {
   ///
   /// Opcional seria peor que no pedirlo: volveria al mismo por
   /// omision sin que nadie lo note.
+  @IsOptional()
   @IsString()
-  @IsNotEmpty({ message: 'Elija a qué asesor se le asignan.' })
-  asesorId!: string;
+  asesorId?: string;
 }
 
 export class ConvertirLeadDto {

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
-import { Aviso, Boton } from "@/components/admin/marco-admin";
+import { Aviso, Boton, useAdmin } from "@/components/admin/marco-admin";
 import { Cifra, Encabezado, Vacio } from "@/components/admin/piezas";
 import { useDatosVivos } from "@/lib/datos-vivos";
 import { ErrorApi } from "@/lib/api";
@@ -43,9 +43,23 @@ function cuando(iso: string): string {
 }
 
 export default function PaginaMesa() {
+  const { admin } = useAdmin();
+  /// Quien REPARTE elige asesor; quien no, se las queda.
+  ///
+  /// Es la misma linea que ya separa a quien puede pasarle fichas
+  /// a otro. Un asesor que convierte acaba de decidir que las
+  /// atiende el: pedirle que se elija a si mismo no decide nada.
+  const reparte = Boolean(admin?.puede?.repartirFichas);
   const [datos, setDatos] = useState<ListadoDeLaMesa | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [estado, setEstado] = useState("");
+  /// Por defecto SOLO lo pendiente, que es lo que la mesa es.
+  ///
+  /// Un lead convertido ya no se atiende aqui: tiene ficha y vive
+  /// en Gestion de leads. Dejarlo en la lista obliga a leerlo
+  /// cada vez para descartarlo, y con cientos convertidos la
+  /// pantalla deja de servir para lo unico que sirve -- ver a
+  /// quien falta por atender.
+  const [estado, setEstado] = useState<string>("PENDIENTE");
   const [buscar, setBuscar] = useState("");
   /// Lo que de verdad se manda: consultar en cada tecla sería
   /// una petición por letra.
@@ -79,7 +93,14 @@ export default function PaginaMesa() {
     }
   }, [estado, buscado]);
 
-  useDatosVivos(cargar);
+  /// Cada 10 s, no cada 30.
+  ///
+  /// Aqui trabajan varios asesores a la vez sobre la misma lista:
+  /// uno filtra por su accion de formacion, marca veinte y los
+  /// convierte. Con 30 s, otro estaria mirando durante medio
+  /// minuto leads que ya tienen dueño, los marcaria, y al
+  /// convertir se llevaria un «ya se atendio» por cada uno.
+  useDatosVivos(cargar, { intervaloMs: 10_000 });
 
   const leads = useMemo(() => datos?.leads ?? [], [datos]);
 
@@ -118,7 +139,7 @@ export default function PaginaMesa() {
   async function convertir() {
     setConvirtiendo(true);
     try {
-      const r = await mesaApi.convertirLote(seleccionados, asesorId);
+      const r = await mesaApi.convertirLote(seleccionados, reparte ? asesorId : undefined);
       setResultado(r);
       setMarcados(new Set());
       setConfirmando(false);
@@ -222,7 +243,7 @@ export default function PaginaMesa() {
             value={estado}
             onChange={(e) => setEstado(e.target.value)}
           >
-            <option value="">Todos los estados</option>
+            <option value="">Todos, incluidos los ya atendidos</option>
             {ESTADOS.map((s) => (
               <option key={s} value={s}>
                 {ETIQUETA_ESTADO_LEAD[s]}
@@ -295,6 +316,13 @@ export default function PaginaMesa() {
                 </li>
               )}
             </ul>
+            {!reparte && (
+              <p className="text-sm">
+                Quedan asignadas <strong>a usted</strong>.
+              </p>
+            )}
+
+            {reparte && (
             <div className="space-y-1">
               <label
                 className="block text-sm font-medium"
@@ -320,9 +348,10 @@ export default function PaginaMesa() {
                 para una, diez para otra.
               </p>
             </div>
+            )}
 
             <div className="flex gap-2">
-              <Boton onClick={convertir} disabled={convirtiendo || !asesorId}>
+              <Boton onClick={convertir} disabled={convirtiendo || (reparte && !asesorId)}>
                 {convirtiendo ? "Convirtiendo…" : "Sí, convertirlos"}
               </Boton>
               <button

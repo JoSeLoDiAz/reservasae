@@ -53,11 +53,26 @@ export class LoteDeLeads {
    */
   async convertir(
     ids: string[],
-    asesorId: string,
+    pedido: string | undefined,
     admin: Admin,
     ambito: string[],
+    /// En que convenios PUEDE repartir. Vacio: no reparte.
+    reparten: string[],
     ip?: string,
   ) {
+    /// Quien NO reparte se las queda; quien reparte elige.
+    ///
+    /// Un asesor que convierte acaba de decidir que las atiende
+    /// el: pedirle que se elija a si mismo en un desplegable es
+    /// un paso que no decide nada. Un lider no las atiende, asi
+    /// que tiene que decir de quien son.
+    const puedeRepartir = reparten.length > 0;
+    if (puedeRepartir && !pedido) {
+      throw new BadRequestException(
+        'Elija a qué asesor se le asignan: usted reparte fichas, no las atiende.',
+      );
+    }
+    const asesorId = puedeRepartir ? pedido! : admin.id;
     if (ids.length > TOPE_DEL_LOTE_DE_LEADS) {
       throw new BadRequestException(
         `Un lote admite hasta ${TOPE_DEL_LOTE_DE_LEADS} leads. ` +

@@ -23,6 +23,7 @@ import { AmbitoActual } from '../admin/admin-actual.decorator';
 import { AdminGuard, Requiere, Roles, type Ambito } from '../admin/admin.guard';
 
 import { AdminActual } from '../admin/admin-actual.decorator';
+import { conveniosQueReparten } from '../admin/permisos';
 import { IpReal } from '../comun/ip-real';
 
 import { ArreglarLeadDto, ConvertirLoteDto } from './dto';
@@ -95,7 +96,16 @@ export class MesaDeEntradaController {
     @AmbitoActual() ambito: Ambito,
     @IpReal() ip: string,
   ) {
-    return this.lote.convertir(dto.ids, dto.asesorId, admin, ambito.convenios, ip);
+    return this.lote.convertir(
+      dto.ids,
+      dto.asesorId,
+      admin,
+      ambito.convenios,
+      /// En que convenios reparte: decide si elige asesor o si
+      /// se queda las fichas el mismo.
+      conveniosQueReparten(ambito.roles),
+      ip,
+    );
   }
 
   /**

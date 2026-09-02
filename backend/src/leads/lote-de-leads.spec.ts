@@ -99,11 +99,15 @@ function armar(leads: LeadFalso[], falla: (id: string) => boolean = () => false)
   };
 
   const s = new LoteDeLeads(prisma as never, conversion as never, crm as never);
-  const admin = { correo: 'a@b.co', nombre: 'Ana' };
+  const admin = { id: 'ana', correo: 'a@b.co', nombre: 'Ana' };
   return { s, admin, convertidos, comprobados };
 }
 
 const AMBITO = ['c-adecopria'];
+/// Un lider: reparte, asi que ELIGE a quien se las asigna.
+const REPARTE = ['c-adecopria'];
+/// Un asesor: no reparte, asi que se las queda.
+const NO_REPARTE: string[] = [];
 
 describe('un lead del otro gremio ni se convierte ni se menciona', () => {
   it('no se convierte', async () => {
@@ -112,7 +116,7 @@ describe('un lead del otro gremio ni se convierte ni se menciona', () => {
       lead({ id: 'ajeno', convenioId: 'c-britcham' }),
     ]);
 
-    await s.convertir(['mio', 'ajeno'], 'ana', admin as never, AMBITO);
+    await s.convertir(['mio', 'ajeno'], 'ana', admin as never, AMBITO, REPARTE);
 
     expect(convertidos).toEqual(['mio']);
   });
@@ -125,7 +129,7 @@ describe('un lead del otro gremio ni se convierte ni se menciona', () => {
       lead({ id: 'ajeno', convenioId: 'c-britcham' }),
     ]);
 
-    const r = await s.convertir(['mio', 'ajeno'], 'ana', admin as never, AMBITO);
+    const r = await s.convertir(['mio', 'ajeno'], 'ana', admin as never, AMBITO, REPARTE);
 
     expect(r.fuera).toBe(1);
     expect(JSON.stringify(r.filas)).not.toContain('ajeno');
@@ -133,7 +137,7 @@ describe('un lead del otro gremio ni se convierte ni se menciona', () => {
 
   it('con ámbito vacío no se convierte ninguno', async () => {
     const { s, admin, convertidos } = armar([lead({ id: 'mio' })]);
-    const r = await s.convertir(['mio'], 'ana', admin as never, []);
+    const r = await s.convertir(['mio'], 'ana', admin as never, [], REPARTE);
 
     expect(convertidos).toEqual([]);
     expect(r.convertidos).toBe(0);
@@ -149,7 +153,7 @@ describe('la regla de «listo» se comprueba en el SERVIDOR', () => {
       lead({ id: 'sin-curso', accionFormacionId: null }),
     ]);
 
-    const r = await s.convertir(['sin-curso'], 'ana', admin as never, AMBITO);
+    const r = await s.convertir(['sin-curso'], 'ana', admin as never, AMBITO, REPARTE);
 
     expect(convertidos).toEqual([]);
     expect(r.problemas[0].porque).toMatch(/curso/i);
@@ -160,7 +164,7 @@ describe('la regla de «listo» se comprueba en el SERVIDOR', () => {
       lead({ id: 'sin-doc', numeroDocumento: null, tipoDocumentoSepId: null }),
     ]);
 
-    await s.convertir(['sin-doc'], 'ana', admin as never, AMBITO);
+    await s.convertir(['sin-doc'], 'ana', admin as never, AMBITO, REPARTE);
     expect(convertidos).toEqual([]);
   });
 
@@ -169,7 +173,7 @@ describe('la regla de «listo» se comprueba en el SERVIDOR', () => {
       lead({ id: 'ya', estado: 'CONVERTIDO', participanteId: 'p-vieja' }),
     ]);
 
-    const r = await s.convertir(['ya'], 'ana', admin as never, AMBITO);
+    const r = await s.convertir(['ya'], 'ana', admin as never, AMBITO, REPARTE);
 
     expect(convertidos).toEqual([]);
     expect(r.problemas[0].porque).toMatch(/atendió|atendio/i);
@@ -183,7 +187,7 @@ describe('una fila mala no se lleva a las demás', () => {
       (id) => id === 'b',
     );
 
-    const r = await s.convertir(['a', 'b', 'c'], 'ana', admin as never, AMBITO);
+    const r = await s.convertir(['a', 'b', 'c'], 'ana', admin as never, AMBITO, REPARTE);
 
     expect(convertidos).toEqual(['a', 'c']);
     expect({ convertidos: r.convertidos, fallaron: r.fallaron }).toEqual({
@@ -200,7 +204,7 @@ describe('el mismo id dos veces es un intento, no dos', () => {
     /// error que no es del usuario y que ensucia el recuento.
     const { s, admin, convertidos } = armar([lead({ id: 'a' })]);
 
-    const r = await s.convertir(['a', 'a', 'a'], 'ana', admin as never, AMBITO);
+    const r = await s.convertir(['a', 'a', 'a'], 'ana', admin as never, AMBITO, REPARTE);
 
     expect(convertidos).toEqual(['a']);
     expect(r.pedidos).toBe(1);
@@ -212,7 +216,7 @@ describe('el tope', () => {
     const { s, admin } = armar([]);
     const muchos = Array.from({ length: 101 }, (_, i) => 'l' + i);
 
-    await expect(s.convertir(muchos, 'ana', admin as never, AMBITO)).rejects.toThrow(
+    await expect(s.convertir(muchos, 'ana', admin as never, AMBITO, REPARTE)).rejects.toThrow(
       /hasta 100/,
     );
   });
@@ -225,7 +229,7 @@ describe('el asesor se elige, y tiene que poder ver las fichas', () => {
     const { s, admin, convertidos } = armar([lead({ id: 'a' })]);
 
     await expect(
-      s.convertir(['a'], 'ajeno', admin as never, AMBITO),
+      s.convertir(['a'], 'ajeno', admin as never, AMBITO, REPARTE),
     ).rejects.toThrow(/convenio/i);
 
     /// Y NO se convierte ninguna: la comprobación va ANTES.
@@ -240,8 +244,45 @@ describe('el asesor se elige, y tiene que poder ver las fichas', () => {
       lead({ id: 'c' }),
     ]);
 
-    await s.convertir(['a', 'b', 'c'], 'ana', admin as never, AMBITO);
+    await s.convertir(['a', 'b', 'c'], 'ana', admin as never, AMBITO, REPARTE);
 
     expect(comprobados).toEqual([['ana', 'c-adecopria']]);
+  });
+});
+
+describe('quien reparte elige; quien no, se las queda', () => {
+  it('un ASESOR no tiene que elegirse a si mismo', () => {
+    /// Acaba de decidir que las atiende el. Pedirle que se elija
+    /// en un desplegable es un paso que no decide nada.
+    const { s, admin, comprobados } = armar([lead({ id: 'a' })]);
+
+    return s
+      .convertir(['a'], undefined, admin as never, AMBITO, NO_REPARTE)
+      .then(() => {
+        expect(comprobados).toEqual([['ana', 'c-adecopria']]);
+      });
+  });
+
+  it('y aunque nombre a otro, se las queda EL', async () => {
+    /// El candado importa mas que la comodidad: si un asesor
+    /// pudiera asignarle fichas a otro por la API, la linea que
+    /// separa atender de repartir seria un adorno.
+    const { s, admin, comprobados } = armar([lead({ id: 'a' })]);
+
+    await s.convertir(['a'], 'otro', admin as never, AMBITO, NO_REPARTE);
+
+    expect(comprobados).toEqual([['ana', 'c-adecopria']]);
+  });
+
+  it('un LIDER sin elegir asesor no convierte nada', async () => {
+    /// El no las atiende: reparte. Dejarle convertir sin elegir
+    /// le asignaria cien fichas a alguien que no las va a llamar.
+    const { s, admin, convertidos } = armar([lead({ id: 'a' })]);
+
+    await expect(
+      s.convertir(['a'], undefined, admin as never, AMBITO, REPARTE),
+    ).rejects.toThrow(/asesor/i);
+
+    expect(convertidos).toEqual([]);
   });
 });

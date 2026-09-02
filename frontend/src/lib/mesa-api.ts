@@ -89,10 +89,13 @@ export const mesaApi = {
     return pedir<ListadoDeLaMesa>(`/admin/leads${cola ? `?${cola}` : ""}`);
   },
 
-  convertirLote: (ids: string[], asesorId: string) =>
+  /// `asesorId` solo lo manda quien REPARTE. Quien no, se las
+  /// queda: el servidor le pone su propio id, y mandarlo desde
+  /// aqui seria dejar que el navegador decidiera de quien son.
+  convertirLote: (ids: string[], asesorId?: string) =>
     pedir<ResultadoDelLote>("/admin/leads/convertir-lote", {
       method: "POST",
-      body: JSON.stringify({ ids, asesorId }),
+      body: JSON.stringify(asesorId ? { ids, asesorId } : { ids }),
     }),
 };
 
