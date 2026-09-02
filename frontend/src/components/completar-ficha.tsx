@@ -464,8 +464,8 @@ export function CompletarFicha({ token }: { token: string }) {
         <div className="flex flex-wrap items-center gap-y-2">
           {[
             { n: 1, texto: "Reserva de cupo", estado: "hecho" },
-            { n: 2, texto: "Datos de inscripción", estado: "ahora" },
-            { n: 3, texto: "Inscripción confirmada", estado: "falta" },
+            { n: 2, texto: "Datos de preinscripción", estado: "ahora" },
+            { n: 3, texto: "Preinscripción confirmada", estado: "falta" },
           ].map((x, i, todos) => (
             <div key={x.n} className="flex flex-1 items-center gap-2">
               <span
