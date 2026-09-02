@@ -33,7 +33,27 @@ export type LeadDeLaMesa = {
   falta: string[];
   /// Si autorizó al llenar el formulario de la pauta.
   autorizoAlRegistrarse: boolean;
+  /// Los valores EN CRUDO, para rellenar el formulario que los
+  /// corrige. Arriba van compuestos, que es lo que se lee pero no
+  /// lo que se puede meter en un campo.
+  crudo: {
+    tipoDocumentoSepId: number | null;
+    numeroDocumento: string | null;
+    primerNombre: string | null;
+    primerApellido: string | null;
+    segundoApellido: string | null;
+    correo: string | null;
+    celular: string | null;
+    accionFormacionId: string | null;
+    departamentoSepId: number | null;
+    municipioSepId: number | null;
+    generoSepId: number | null;
+  };
 };
+
+/// Lo que se puede corregir de un lead. Todo opcional: se manda
+/// solo lo que cambia.
+export type ArregloDeLead = Partial<LeadDeLaMesa["crudo"]>;
 
 export type ResultadoDelLote = {
   pedidos: number;
@@ -52,6 +72,15 @@ export type ListadoDeLaMesa = {
   /// Quién puede llevar estos leads. Viene en la misma llamada:
   /// pedirla aparte serían dos viajes para una pantalla.
   asesores: AsesorDeLaMesa[];
+  /// Los cursos con los que se arregla un lead sin curso. Del
+  /// ámbito y visibles: ofrecer los del otro gremio dejaría
+  /// elegir uno que el servidor va a rechazar.
+  cursos: Array<{
+    id: string;
+    codigo: string;
+    nombre: string;
+    convenioId: string;
+  }>;
   pagina: number;
   paginas: number;
   /// Cuántos hay por estado, en TODO el ámbito.
@@ -96,6 +125,12 @@ export const mesaApi = {
     pedir<ResultadoDelLote>("/admin/leads/convertir-lote", {
       method: "POST",
       body: JSON.stringify(asesorId ? { ids, asesorId } : { ids }),
+    }),
+
+  arreglar: (id: string, cambios: ArregloDeLead) =>
+    pedir<{ id: string }>(`/admin/leads/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(cambios),
     }),
 
   descartarLote: (ids: string[], motivo: string) =>
