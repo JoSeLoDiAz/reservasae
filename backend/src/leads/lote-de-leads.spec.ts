@@ -54,18 +54,37 @@ function lead(p: Partial<LeadFalso> & { id: string }): LeadFalso {
 
 function armar(leads: LeadFalso[], falla: (id: string) => boolean = () => false) {
   const convertidos: string[] = [];
+  const descartados: string[] = [];
 
   const prisma = {
     leadEntrante: {
+      updateMany: (a: { where: { id: { in: string[] } } }) => {
+        descartados.push(...a.where.id.in);
+        return Promise.resolve({ count: a.where.id.in.length });
+      },
       findMany: (a: {
-        where: { id: { in: string[] }; convenioId: { in: string[] } };
+        where: {
+          id: { in: string[] };
+          convenioId: { in: string[] };
+          estado?: string;
+          participanteId?: null;
+        };
       }) => {
         /// El doble FILTRA de verdad: por id y por convenio, que
         /// es exactamente lo que se dice estar probando.
         const ids = new Set(a.where.id.in);
         const conv = new Set(a.where.convenioId.in);
         return Promise.resolve(
-          leads.filter((l) => ids.has(l.id) && conv.has(l.convenioId)),
+          leads.filter(
+            (l) =>
+              ids.has(l.id) &&
+              conv.has(l.convenioId) &&
+              /// El doble APLICA tambien los filtros del descarte,
+              /// que son los que de verdad protegen aqui.
+              (a.where.estado === undefined || l.estado === a.where.estado) &&
+              (a.where.participanteId === undefined ||
+                l.participanteId === a.where.participanteId),
+          ),
         );
       },
     },
@@ -100,7 +119,7 @@ function armar(leads: LeadFalso[], falla: (id: string) => boolean = () => false)
 
   const s = new LoteDeLeads(prisma as never, conversion as never, crm as never);
   const admin = { id: 'ana', correo: 'a@b.co', nombre: 'Ana' };
-  return { s, admin, convertidos, comprobados };
+  return { s, admin, convertidos, comprobados, descartados };
 }
 
 const AMBITO = ['c-adecopria'];
@@ -284,5 +303,61 @@ describe('quien reparte elige; quien no, se las queda', () => {
     ).rejects.toThrow(/asesor/i);
 
     expect(convertidos).toEqual([]);
+  });
+});
+
+describe('descartar saca de la mesa, no borra', () => {
+  it('descarta los pendientes de su ámbito', async () => {
+    const { s, admin, descartados } = armar([lead({ id: 'a' }), lead({ id: 'b' })]);
+
+    const r = await s.descartar(['a', 'b'], 'no contesta', admin as never, AMBITO);
+
+    expect(r.descartados).toBe(2);
+    expect(descartados.sort()).toEqual(['a', 'b']);
+  });
+
+  it('uno del otro gremio no se toca, y no se dice cuál', async () => {
+    /// Contestar «ese no es suyo» confirma que existe en el otro
+    /// gremio, que es un oráculo. Se cuenta y ya.
+    const { s, admin, descartados } = armar([
+      lead({ id: 'mio' }),
+      lead({ id: 'ajeno', convenioId: 'c-britcham' }),
+    ]);
+
+    const r = await s.descartar(['mio', 'ajeno'], 'x', admin as never, AMBITO);
+
+    expect({ d: r.descartados, sin: r.sinTocar }).toEqual({ d: 1, sin: 1 });
+    expect(descartados).toEqual(['mio']);
+  });
+
+  it('uno que YA TIENE FICHA no se descarta', async () => {
+    /// Eso no es descartar un lead: es contradecir a la ficha que
+    /// ya existe.
+    const { s, admin, descartados } = armar([
+      lead({ id: 'ya', estado: 'CONVERTIDO', participanteId: 'p-1' }),
+    ]);
+
+    const r = await s.descartar(['ya'], 'x', admin as never, AMBITO);
+
+    expect(r.descartados).toBe(0);
+    expect(descartados).toEqual([]);
+  });
+
+  it('el motivo queda con el nombre de quien lo hizo', async () => {
+    /// Sin eso, la mesa se vacía y nadie puede decir por qué se
+    /// descartó a nadie -- que es justo lo que hay que poder
+    /// explicar cuando alguien pregunta por qué no le llamaron.
+    let escrito = '';
+    const { s, admin } = armar([lead({ id: 'a' })]);
+    (s as unknown as { prisma: { leadEntrante: { updateMany: unknown } } }).prisma.leadEntrante.updateMany =
+      (a: { data: { motivo: string } }) => {
+        escrito = a.data.motivo;
+        return Promise.resolve({ count: 1 });
+      };
+
+    await s.descartar(['a'], 'número equivocado', admin as never, AMBITO);
+
+    expect(escrito).toContain('Ana');
+    expect(escrito).toContain('número equivocado');
   });
 });

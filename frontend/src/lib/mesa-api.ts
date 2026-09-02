@@ -97,6 +97,12 @@ export const mesaApi = {
       method: "POST",
       body: JSON.stringify(asesorId ? { ids, asesorId } : { ids }),
     }),
+
+  descartarLote: (ids: string[], motivo: string) =>
+    pedir<{ pedidos: number; descartados: number; sinTocar: number }>(
+      "/admin/leads/descartar-lote",
+      { method: "POST", body: JSON.stringify({ ids, motivo }) },
+    ),
 };
 
 /// Cuántos caben de una vez. Lo fija el servidor; aquí solo se

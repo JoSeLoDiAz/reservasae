@@ -26,7 +26,11 @@ import { AdminActual } from '../admin/admin-actual.decorator';
 import { conveniosQueReparten } from '../admin/permisos';
 import { IpReal } from '../comun/ip-real';
 
-import { ArreglarLeadDto, ConvertirLoteDto } from './dto';
+import {
+  ArreglarLeadDto,
+  ConvertirLoteDto,
+  DescartarLoteDto,
+} from './dto';
 import { Comparativo } from './comparativo.service';
 import { LoteDeLeads } from './lote.service';
 import { MesaDeEntrada } from './mesa-de-entrada.service';
@@ -141,5 +145,22 @@ export class MesaDeEntradaController {
     @AmbitoActual() ambito: Ambito,
   ) {
     return this.comparar.de(id, ambito.convenios);
+  }
+
+  /**
+   * Descarta varios, con su motivo.
+   *
+   * `ESCRIBIR`: saca gente de la mesa. Verla es una cosa y
+   * decidir que no se le llama es otra.
+   */
+  @Post('descartar-lote')
+  @Requiere('inscripciones', 'ESCRIBIR')
+  @HttpCode(200)
+  descartarLote(
+    @Body() dto: DescartarLoteDto,
+    @AdminActual() admin: Admin,
+    @AmbitoActual() ambito: Ambito,
+  ) {
+    return this.lote.descartar(dto.ids, dto.motivo, admin, ambito.convenios);
   }
 }

@@ -370,3 +370,26 @@ export class ArreglarLeadDto {
   @IsOptional() @Transform(recortar) @IsString() @MaxLength(160) correo?: string | null;
   @IsOptional() @Transform(recortar) @IsString() @MaxLength(40) celular?: string | null;
 }
+
+/**
+ * Descartar leads de la mesa.
+ *
+ * El MOTIVO es obligatorio, por lo mismo que en las etapas de
+ * salida y en la revocacion: pedirlo opcional es no pedirlo, y
+ * sin el la mesa se vacia sin que nadie pueda decir por que se
+ * descarto a nadie -- que es justo lo que hay que poder explicar
+ * cuando alguien pregunta por que no se le llamo.
+ */
+export class DescartarLoteDto {
+  @IsArray()
+  @ArrayNotEmpty({ message: 'No seleccionó ningún lead.' })
+  @ArrayMaxSize(TOPE_DEL_LOTE_DE_LEADS)
+  @IsString({ each: true })
+  ids!: string[];
+
+  @Transform(recortar)
+  @IsString()
+  @IsNotEmpty({ message: 'Diga por qué se descartan.' })
+  @MaxLength(300)
+  motivo!: string;
+}

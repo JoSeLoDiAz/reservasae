@@ -201,4 +201,62 @@ export class LoteDeLeads {
       filas,
     };
   }
+
+  /**
+   * Descarta leads de la mesa, con su motivo.
+   *
+   * No se BORRAN: se marcan. Un lead descartado sigue siendo la
+   * prueba de que alguien llego y de que se decidio no atenderlo,
+   * y borrarlo deja la mesa limpia y la pregunta «¿por que no me
+   * llamaron?» sin respuesta.
+   *
+   * Y el que ya tiene ficha NO se descarta: eso no es descartar
+   * un lead, es contradecir a la ficha que ya existe. Se dice y
+   * se cuenta aparte.
+   */
+  async descartar(
+    ids: string[],
+    motivo: string,
+    admin: Admin,
+    ambito: string[],
+  ) {
+    const unicos = [...new Set(ids)];
+
+    /// Solo los PENDIENTES y de su ambito. El resto ni se
+    /// menciona: decir «ese no es suyo» confirma que existe.
+    const suyos = await this.prisma.leadEntrante.findMany({
+      where: {
+        id: { in: unicos },
+        convenioId: { in: ambito },
+        estado: 'PENDIENTE',
+        participanteId: null,
+      },
+      select: { id: true },
+    });
+
+    if (suyos.length > 0) {
+      await this.prisma.leadEntrante.updateMany({
+        where: { id: { in: suyos.map((l) => l.id) } },
+        data: {
+          estado: 'DESCARTADO',
+          procesadoEn: new Date(),
+          motivo: `Descartado por ${admin.nombre}: ${motivo}`,
+        },
+      });
+    }
+
+    this.log.log(
+      `${suyos.length} lead(s) descartados por ${admin.correo}: ${motivo}`,
+    );
+
+    return {
+      pedidos: unicos.length,
+      descartados: suyos.length,
+      /// Los que no se pudieron: ya atendidos, o de otro gremio.
+      /// Se cuentan juntos a proposito -- distinguirlos diria
+      /// cuales son del otro gremio, que es lo mismo que decir
+      /// que existen.
+      sinTocar: unicos.length - suyos.length,
+    };
+  }
 }

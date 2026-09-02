@@ -69,6 +69,11 @@ export default function PaginaMesa() {
   const [confirmando, setConfirmando] = useState(false);
   const [convirtiendo, setConvirtiendo] = useState(false);
   const [resultado, setResultado] = useState<ResultadoDelLote | null>(null);
+  /// Descartar tiene su propio dialogo, no comparte el de
+  /// convertir: son dos decisiones opuestas y un dialogo que
+  /// hiciera las dos invita a pulsar la que no era.
+  const [descartando, setDescartando] = useState(false);
+  const [motivo, setMotivo] = useState("");
   /// A quién se le asignan. NO se rellena solo con quien está
   /// mirando: en un lote de cien, el que importa casi nunca es el
   /// que va a llamar. Que empiece vacío obliga a elegir.
@@ -152,6 +157,32 @@ export default function PaginaMesa() {
         e instanceof ErrorApi ? e.message : "No se pudieron convertir los leads.",
       );
       setConfirmando(false);
+    } finally {
+      setConvirtiendo(false);
+    }
+  }
+
+  async function descartar() {
+    setConvirtiendo(true);
+    try {
+      const r = await mesaApi.descartarLote(seleccionados, motivo);
+      setResultado({
+        pedidos: r.pedidos,
+        convertidos: 0,
+        conAutorizacion: 0,
+        sinAutorizacion: 0,
+        fallaron: 0,
+        fuera: r.sinTocar,
+        problemas: [],
+      });
+      setMarcados(new Set());
+      setDescartando(false);
+      setMotivo("");
+      await cargar();
+    } catch (e) {
+      setError(
+        e instanceof ErrorApi ? e.message : "No se pudieron descartar.",
+      );
     } finally {
       setConvirtiendo(false);
     }
@@ -281,6 +312,18 @@ export default function PaginaMesa() {
               >
                 Quitar la selección
               </button>
+              {/* Descartar es un ENLACE y convertir un boton.
+
+                  Los dos son acciones, pero solo una es la que se
+                  hace noventa veces de cada cien. Dos botones
+                  iguales al lado obligan a leer cual es cual cada
+                  vez, y aqui se pulsa rapido. */}
+              <button
+                className="text-sm font-medium text-texto-suave hover:text-error hover:underline"
+                onClick={() => setDescartando(true)}
+              >
+                Descartar
+              </button>
               <Boton onClick={() => setConfirmando(true)} disabled={pasaDelTope}>
                 Convertir a Interesado
               </Boton>
@@ -357,6 +400,55 @@ export default function PaginaMesa() {
               <button
                 className="text-sm font-medium text-texto-suave hover:underline"
                 onClick={() => setConfirmando(false)}
+                disabled={convirtiendo}
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        )}
+
+        {descartando && (
+          <div className="space-y-3 rounded-xl border border-error/30 bg-error-suave p-5">
+            <div className="font-semibold text-error">
+              Va a descartar {seleccionados.length} lead
+              {seleccionados.length === 1 ? "" : "s"}.
+            </div>
+            <p className="text-sm">
+              No se borran: salen de la mesa y quedan con su motivo. Un lead
+              descartado sigue siendo la prueba de que alguien llegó y de que
+              se decidió no atenderlo.
+            </p>
+            <div className="space-y-1">
+              <label className="block text-sm font-medium" htmlFor="motivo">
+                ¿Por qué se descartan?
+              </label>
+              <input
+                id="motivo"
+                className={CLASE_CAMPO + " w-full max-w-md"}
+                placeholder="Número equivocado, no le interesa, duplicado…"
+                value={motivo}
+                onChange={(e) => setMotivo(e.target.value)}
+              />
+              {/* Obligatorio, como el motivo de una etapa de
+                  salida: pedirlo opcional es no pedirlo, y sin el
+                  la mesa se vacia y nadie puede decir por que se
+                  descarto a nadie. */}
+              <p className="text-xs text-texto-suave">
+                Queda escrito con su nombre. Es lo que se responde cuando
+                alguien pregunta por qué no le llamaron.
+              </p>
+            </div>
+            <div className="flex gap-2">
+              <Boton
+                onClick={descartar}
+                disabled={convirtiendo || !motivo.trim()}
+              >
+                {convirtiendo ? "Descartando…" : "Sí, descartarlos"}
+              </Boton>
+              <button
+                className="text-sm font-medium text-texto-suave hover:underline"
+                onClick={() => setDescartando(false)}
                 disabled={convirtiendo}
               >
                 Cancelar
