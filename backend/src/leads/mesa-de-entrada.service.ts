@@ -94,6 +94,8 @@ export class MesaDeEntrada {
           departamentoSepId: true,
           municipioSepId: true,
           generoSepId: true,
+          /// Lo que marco la persona: manda sobre el origen.
+          aceptaHabeasData: true,
           convenio: { select: { slug: true, sigla: true } },
           accionFormacion: { select: { codigo: true, nombre: true } },
         },
@@ -220,7 +222,7 @@ export class MesaDeEntrada {
         /// Y si autorizó al registrarse, porque cambia lo que
         /// pasa al convertirlo: sin esto la ficha nace sin
         /// autorización y no se puede matricular ni reportar.
-        autorizoAlRegistrarse: autorizoAlRegistrarse(l.origen),
+        autorizoAlRegistrarse: autorizoAlRegistrarse(l.origen, l.aceptaHabeasData),
       })),
     };
   }

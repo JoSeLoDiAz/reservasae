@@ -98,8 +98,32 @@ export function loQueLeFaltaAlLead(lead: LeadJuzgable): string[] {
  * en una lista, menos. Estampárselo sería inventarse la prueba, y
  * una prueba falsa es peor que ninguna — la que falta BLOQUEA el
  * reporte al SENA; la falsa lo ABRE.
+ *
+ * Y LO QUE DIJO LA PERSONA MANDA SOBRE LA PUERTA POR LA QUE ENTRÓ.
+ *
+ * `LeadEntrante.aceptaHabeasData` existía, se guardaba desde el
+ * webhook y no lo leía nadie: la constancia salía del origen y de
+ * nada más. O sea que un lead de Facebook con la casilla SIN
+ * marcar recibía igualmente una `AutorizacionDatos` con canal
+ * FORMULARIO_WEB y evidencia apuntando a una carga que decía lo
+ * contrario. Indistinguible de una buena salvo abriendo el JSON.
+ *
+ * Los tres valores NO son dos:
+ *
+ *   true   marcó la casilla. Autorización de verdad.
+ *   false  se le preguntó y dijo que NO. Nunca hay constancia,
+ *          venga de donde venga.
+ *   null   el emisor no manda ese campo. Vale el argumento de
+ *          arriba —el formulario no se puede enviar sin aceptar—
+ *          y la constancia se mantiene, que es como funcionaba
+ *          antes de que existiera la columna.
  */
-export function autorizoAlRegistrarse(origen: OrigenParticipante): boolean {
+export function autorizoAlRegistrarse(
+  origen: OrigenParticipante,
+  /// Lo que la persona marcó, si el emisor lo manda.
+  aceptaHabeasData?: boolean | null,
+): boolean {
+  if (aceptaHabeasData === false) return false;
   const puerta = origenDeLead(origen);
   return puerta === 'PAUTA' || puerta === 'ORGANICO';
 }

@@ -333,11 +333,18 @@ export class ConversionDeLeads {
         convenioId: true,
         tipoDocumentoSepId: true,
         numeroDocumento: true,
+        aceptaHabeasData: true,
       },
     });
     if (!lead) throw new NotFoundException('Ese lead no existe.');
 
-    const porFormulario = autorizoAlRegistrarse(lead.origen);
+    /// Lo que la persona MARCO manda sobre la puerta por la que
+    /// entro. Un `false` explicito no se convierte en constancia
+    /// ni viniendo de un formulario.
+    const porFormulario = autorizoAlRegistrarse(
+      lead.origen,
+      lead.aceptaHabeasData,
+    );
 
     /// Y si revoco DESPUES de registrarse, manda la revocacion.
     ///
