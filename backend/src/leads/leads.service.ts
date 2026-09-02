@@ -535,6 +535,28 @@ export class LeadsService {
             },
       });
 
+      /// Y NADA MAS se escribe sobre la ficha ajena si el cruce
+      /// no fue firme.
+      ///
+      /// Atar el lead ya se ramificaba arriba, pero las tres
+      /// escrituras de abajo no: corrían con cualquier
+      /// coincidencia. O sea que el lead ya no quedaba pegado a
+      /// esa persona —eso se arregló— pero a esa persona se le
+      /// seguía estampando un toque de pauta, fijándole el
+      /// origen y creándole una propuesta de datos.
+      ///
+      /// Es el mismo caso del que avisa el fichero del cruce, y
+      /// con el mismo daño: la empresa que pone el correo de la
+      /// secretaria en veinte formularios le carga a ella veinte
+      /// toques de pauta, y la métrica de coste por inscrito
+      /// atribuye a una sola persona lo que trajeron veinte.
+      ///
+      /// Sobre una coincidencia floja no tenemos derecho a
+      /// escribir en esa ficha. El aviso al asesor va donde debe
+      /// ir: en el `motivo` del propio lead, que ya dice
+      /// «Posible repetido — … Confirme antes de unirlos».
+      if (!coincide.firme) return;
+
       /// El toque se deja SIEMPRE, haya o no datos nuevos:
       /// que esta persona volviera por una pauta es la
       /// metrica que se pidio.

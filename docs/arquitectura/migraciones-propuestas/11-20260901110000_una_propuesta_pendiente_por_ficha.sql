@@ -1,0 +1,147 @@
+-- 20260901110000_una_propuesta_pendiente_por_ficha
+-- Despliegue 4 · paso contract · orden 11 de 12
+-- Arregla: A-04 / B-22 / D-11, ultimo paso: convierte en garantia de base lo que hoy es un comentario -- «una pendiente por ficha: la ultima es la que vale» (preinscripcion.service.ts:958).
+--
+-- AUDITADA POR SEPARADO: *** NO SE DESPLIEGA TAL CUAL ***
+-- La migración está bien pensada y es honesta en lo grande: acierta al declararse la única que puede fallar, acierta en la causa (UNIQUE sobre duplicados vivos), acierta en el orden (enum → código atómico → PM-2 → índice), acierta en no meter archivadoEn, acierta en no declarar el índice parcial en el schema, y el rollback es limpio y siempre ejecutable — quitar un índice único es una relajación y n
+--
+-- PASO MANUAL PREVIO, obligatorio:
+--   PM-2 · DEDUPLICAR LAS PROPUESTAS PENDIENTES, A MANO Y EN UN DESPLIEGUE ANTERIOR. El CREATE UNIQUE INDEX falla si hay dos PENDIENTE de la misma ficha, y las hay: la ventana de preinscripcion.service.ts:959-965 corre sobre this.prisma FUERA de toda transaccion --dejarPropuesta (:920) se llama desde registrar (:365), ruta publica sin guard-- y lleva meses abierta. Con la guarda de puerto delante:
+--   
+--     \i docs/operacion/00-guardia-de-puerto.sql
+--     -- Cuantas hay. Si sale 0, el paso sobra.
+--     SELECT "participanteId", count(*) FROM "propuestas_de_datos"
+--      WHERE "estado" = 'PENDIENTE' GROUP BY 1 HAVING count(*) > 1;
+--   
+--     -- Marcar como REEMPLAZADA todas menos la mas nueva. NO se borra nada.
+--     UPDATE "propuestas_de_datos" p SET "estado" = 'REEMPLAZADA', "resueltoEn" = now()
+--      WHERE "estado" = 'PENDIENTE'
+--        AND "id" <> (SELECT x."id" FROM "propuestas_de_datos" x
+--                      WHERE x."participanteId" = p."participanteId" AND x."estado" = 'PENDIENTE'
+--
+-- ESTE FICHERO NO ESTA EN backend/prisma/migrations/ A PROPOSITO:
+-- alli el arranque del contenedor lo ejecutaria solo. Se mueve a mano,
+-- despues de revisarlo y de correr la verificacion previa.
+
+
+-- ===================================================================
+-- ATENCION: ESTA ES LA UNICA MIGRACION DE ESTA ENTREGA QUE PUEDE
+-- FALLAR AL APLICARSE. NO SE DESPLIEGA SIN HABER HECHO ANTES EL
+-- PASO MANUAL PM-2. Leer el analisis completo antes de moverla al
+-- directorio de migraciones.
+-- ===================================================================
+--
+-- Convierte en restriccion lo que hoy es un comentario:
+-- preinscripcion.service.ts:958, «una pendiente por ficha: la
+-- ultima es la que vale».
+--
+-- Va LA ULTIMA de su bloque, y el orden completo es:
+--   1. 20260831140000  el valor REEMPLAZADA (despliegue anterior)
+--   2. CODIGO: los cuatro `deleteMany` pasan a `updateMany` a
+--      REEMPLAZADA, y el par (marcar + crear) pasa a ser UN SOLO
+--      ACTO por ficha -- una transaccion interactiva, o un
+--      INSERT ... ON CONFLICT. En preinscripcion.service.ts:959-965
+--      y en leads.service.ts:371-382.
+--   3. PM-2: deduplicar a mano lo que ya hay.
+--   4. Y SOLO ENTONCES, este fichero.
+--
+-- No hay «el SQL va delante del codigo»: aqui el SQL delante del
+-- codigo es un 500 en la puerta publica. Con el indice puesto y
+-- el `create` sin atomizar, el segundo envio concurrente sale
+-- como P2002 y, sin ExceptionFilter en backend/src/main.ts, eso
+-- es un 500 crudo en `POST` de preinscripcion, que es ruta
+-- publica sin guard (preinscripcion.controller.ts:12,22-29).
+
+CREATE UNIQUE INDEX "propuestas_una_pendiente_viva"
+    ON "propuestas_de_datos"("participanteId")
+ WHERE "estado" = 'PENDIENTE';
+
+-- Parcial = invisible para Prisma (D-05). No lleva @@unique en el
+-- schema. Si `migrate dev` propone borrarlo, es esto:
+-- CLAUDE.md:3202-3203.
+--
+-- Y NO se anade `AND "archivadoEn" IS NULL`: el eje de vitalidad
+-- de esta tabla es `estado`, no `archivadoEn`. Se resolvio el
+-- bloqueante y se retiro la propuesta de
+-- 02-patrones-transversales.md §3.3: `propuestas_de_datos` no
+-- recibe columnas de archivado, ni en esta fase ni despues,
+-- porque dos ejes de vitalidad sobre la misma tabla es la trampa
+-- por la que ya se retiraron dos disenos.
+
+-- ======================================================================
+-- VERIFICACION PREVIA
+-- ======================================================================
+-- -- ===================================================================
+-- -- LA CONSULTA QUE DECIDE SI ESTA MIGRACION SE DESPLIEGA O NO.
+-- -- Si devuelve UNA SOLA FILA, NO SE DESPLIEGA. Se hace PM-2 primero.
+-- -- ===================================================================
+-- SELECT "participanteId", count(*) AS "pendientes"
+--   FROM "propuestas_de_datos"
+--  WHERE "estado" = 'PENDIENTE'
+--  GROUP BY 1 HAVING count(*) > 1
+--  ORDER BY 2 DESC;
+-- -- Esperado: CERO filas.
+-- 
+-- -- Y el conteo resumido, para el registro:
+-- SELECT count(*) AS "fichas con duplicado" FROM (
+--   SELECT "participanteId" FROM "propuestas_de_datos"
+--    WHERE "estado" = 'PENDIENTE' GROUP BY 1 HAVING count(*) > 1) t;
+-- -- Esperado: 0
+-- 
+-- -- 2. Y la comprobacion de que el CODIGO ya esta desplegado, sin la
+-- --    cual el 0 de arriba no dura: tiene que existir al menos una
+-- --    propuesta marcada REEMPLAZADA, o haber constancia de que el
+-- --    commit con el updateMany atomico esta en produccion.
+-- SELECT count(*) AS "ya marcadas reemplazadas"
+--   FROM "propuestas_de_datos" WHERE "estado" = 'REEMPLAZADA';
+-- -- Si es 0 Y no hay constancia del despliegue de codigo, PARE: se
+-- -- estaria creando el indice sobre un sistema que todavia crea
+-- -- duplicados, y la ventana entre PM-2 y el arranque basta para
+-- -- que aparezca uno nuevo y la migracion falle.
+-- 
+-- -- 3. Y fuera de SQL: que los CUATRO escritores ya no borren.
+-- --      grep -rn "propuestaDeDatos.deleteMany\|propuestaInstitucion.deleteMany" backend/src
+-- --    Tiene que dar CERO. Si queda uno, ese seguira borrando lo
+-- --    que los otros tres marcan, sobre la misma tabla, y la
+-- --    regla 1 queda a medias.
+
+-- ======================================================================
+-- VERIFICACION POSTERIOR
+-- ======================================================================
+-- -- 1. El indice existe y es parcial.
+-- SELECT indexname, indexdef FROM pg_indexes
+--  WHERE indexname = 'propuestas_una_pendiente_viva';
+-- -- Esperado: 1 fila, con WHERE (estado = 'PENDIENTE'::"EstadoPropuesta")
+-- 
+-- -- 2. INVARIANTE, ahora garantizado por la base: cero duplicados.
+-- SELECT count(*) AS "duplicados" FROM (
+--   SELECT "participanteId" FROM "propuestas_de_datos"
+--    WHERE "estado" = 'PENDIENTE' GROUP BY 1 HAVING count(*) > 1) t;
+-- -- Esperado: 0, y ya no puede ser otra cosa.
+-- 
+-- -- 3. INVARIANTE de que no se perdio nada al deduplicar (regla 1):
+-- --    el total de propuestas antes y despues de PM-2 tiene que ser
+-- --    EL MISMO. Lo que cambio es su estado, no su existencia.
+-- SELECT count(*) AS "total propuestas" FROM "propuestas_de_datos";
+-- -- Esperado: el mismo numero que antes de PM-2. Si bajo, ALGUIEN
+-- -- BORRO en vez de marcar, y eso es una violacion de la regla 1
+-- -- que hay que investigar antes de seguir.
+-- 
+-- -- 4. Y la prueba de que la puerta publica sigue en pie, que es lo
+-- --    unico que este indice podia romper: enviar dos veces seguidas
+-- --    el formulario de preinscripcion de la misma ficha desde el
+-- --    navegador. Tiene que contestar 200 las dos veces y dejar UNA
+-- --    pendiente. Si contesta 500, SE REVIERTE INMEDIATAMENTE: el
+-- --    codigo atomico no estaba donde se creia.
+-- 
+-- -- Criterio: si (2) no es 0, si (3) bajo respecto de antes de PM-2,
+-- -- o si (4) da 500, SE REVIERTE.
+
+-- ======================================================================
+-- ROLLBACK
+-- ======================================================================
+-- DROP INDEX IF EXISTS "propuestas_una_pendiente_viva";
+-- DELETE FROM "_prisma_migrations"
+--  WHERE "migration_name" = '20260901110000_una_propuesta_pendiente_por_ficha';
+-- -- Este rollback SI es limpio y siempre ejecutable: quitar un
+-- -- indice unico es una relajacion. No hay dato que se pierda.

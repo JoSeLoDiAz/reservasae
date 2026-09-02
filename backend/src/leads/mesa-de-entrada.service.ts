@@ -17,7 +17,9 @@ import { Prisma } from '../../generated/prisma';
 import {
   DOCUMENTOS_DE_PERSONA,
   motivoDeIdInvalido,
+  siglaDocumento,
 } from '../crm/catalogos-sep';
+import { documentoValido, normalizarDocumento } from '../comun/documento';
 import { PrismaService } from '../prisma/prisma.service';
 
 import { ArreglarLeadDto } from './dto';
@@ -161,8 +163,14 @@ export class MesaDeEntrada {
             .join(' ') ||
           l.nombreCompleto ||
           '(sin nombre)',
+        /// La SIGLA, no el número del catálogo.
+        ///
+        /// Salía «1 · 1020304050» y el 1 es el id del SEP, que no
+        /// significa nada para quien atiende. El resto del panel
+        /// ya lo hace así —crm.service.ts:740— y ese es el
+        /// formato que el asesor reconoce: «CC 1020304050».
         documento: l.numeroDocumento
-          ? `${l.tipoDocumentoSepId ?? '?'} · ${l.numeroDocumento}`
+          ? `${l.tipoDocumentoSepId != null ? siglaDocumento(l.tipoDocumentoSepId) : '?'} ${l.numeroDocumento}`
           : null,
         correo: l.correo,
         celular: l.celular,
@@ -305,6 +313,34 @@ export class MesaDeEntrada {
       );
     }
 
+    /// El documento se NORMALIZA antes de guardarlo, como en las
+    /// otras siete puertas.
+    ///
+    /// `@Transform(recortar)` del DTO solo quita espacios: deja
+    /// pasar «1.020.304.050», que es una `Persona` distinta de
+    /// «1020304050» porque el `@@unique` compara el texto. Es el
+    /// mismo agujero que tenía la preinscripción pública, y esta
+    /// puerta es peor: aquí se compone a mano justo el lead al
+    /// que le faltaba el documento, así que es donde MÁS se
+    /// teclea con puntos.
+    let numeroDocumento = dto.numeroDocumento;
+    if (numeroDocumento != null && numeroDocumento !== '') {
+      const limpio = normalizarDocumento(numeroDocumento);
+      if (!limpio) {
+        throw new BadRequestException(
+          'Ese número de documento no tiene forma de documento.',
+        );
+      }
+      /// Y que sirva para ESE tipo: los numéricos no admiten letras.
+      const tipo = dto.tipoDocumentoSepId;
+      if (tipo != null && !documentoValido(tipo, limpio)) {
+        throw new BadRequestException(
+          'Ese número no corresponde con el tipo de documento elegido.',
+        );
+      }
+      numeroDocumento = limpio;
+    }
+
     return this.prisma.leadEntrante.update({
       where: { id },
       data: {
@@ -313,7 +349,7 @@ export class MesaDeEntrada {
         municipioSepId: dto.municipioSepId,
         generoSepId: dto.generoSepId,
         tipoDocumentoSepId: dto.tipoDocumentoSepId,
-        numeroDocumento: dto.numeroDocumento,
+        numeroDocumento,
         primerNombre: dto.primerNombre,
         primerApellido: dto.primerApellido,
         segundoApellido: dto.segundoApellido,

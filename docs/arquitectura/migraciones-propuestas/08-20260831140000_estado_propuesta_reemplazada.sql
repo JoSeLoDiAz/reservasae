@@ -1,0 +1,148 @@
+-- 20260831140000_estado_propuesta_reemplazada
+-- Despliegue 2 · paso expand · orden 8 de 12
+-- Arregla: A-04, B-22 y D-11, primer paso: las propuestas dejan de borrarse. Es el valor que permite que los cuatro deleteMany pasen a updateMany. Ejecuta la decision de .decisiones-f3.md: la vitalidad de propuestas_de_datos la gobierna `estado`, no una columna de archivo.
+--
+-- AUDITADA POR SEPARADO: SEGURA de aplicar sola.
+-- APTA. Aplicada sola no puede fallar ni esperar candado, y no rompe nada vivo. Comprobado abriendo cada fichero. LO QUE ESTA BIEN: el tipo existe (20260823071935/migration.sql:4) y el nombre esta bien escrito; el censo de accesos es COMPLETO -- `grep -rn "propuestaDeDatos\.\|propuestaInstitucion\." backend/src` da 15 lineas y ni una mas, cero SQL crudo contra las dos tablas; los lectores citados ex
+--
+-- ESTE FICHERO NO ESTA EN backend/prisma/migrations/ A PROPOSITO:
+-- alli el arranque del contenedor lo ejecutaria solo. Se mueve a mano,
+-- despues de revisarlo y de correr la verificacion previa.
+
+
+-- Un valor y NADA MAS en este fichero.
+--
+-- Va en su PROPIA migracion y ANTES de cualquiera que lo use, y
+-- no es una mania: Postgres no deja USAR un valor de enum recien
+-- anadido dentro de la misma transaccion, y Prisma corre cada
+-- migracion en una. Juntarlas es lo que hizo fallar aquella con
+-- «invalid input value for enum "OrigenLead": "IMPORTACION"».
+-- El precedente esta escrito en el repositorio:
+-- 20260830185000_origen_lead_importacion/migration.sql:3-7.
+--
+-- POR QUE ESTE ENUM SI Y EstadoReserva NO. ADR 0012 punto 5 fija
+-- el test obligatorio antes de anadir un valor a cualquier enum:
+-- hacer las dos listas --los predicados que preguntan «¿no es
+-- X?» y los Record del frontend--. Para EstadoReserva dieron 22
+-- y 3, y por eso se rechazo. Para EstadoPropuesta dan 1 y 0:
+--
+--   · El unico predicado negativo es instituciones.service.ts:365,
+--     `if (propuesta.estado !== 'PENDIENTE') throw`. Con el valor
+--     nuevo, resolver por id una propuesta REEMPLAZADA contesta
+--     «Esa propuesta ya se resolvio», que es la respuesta correcta.
+--   · grep -rn "EstadoPropuesta" frontend/src -> CERO. Ningun
+--     Record exhaustivo, ninguna union escrita a mano, nada que
+--     compile mal ni que reviente en runtime (regla 7).
+--
+-- Y los cuatro lectores filtran POR IGUALDAD a PENDIENTE, no por
+-- negacion, asi que el valor nuevo les es transparente:
+--   crm.service.ts:2444-2446, :2487-2489,
+--   instituciones.service.ts:158-160, :329-331.
+-- Los otros tres accesos son por id y por tanto inocuos:
+--   crm.service.ts:2524, instituciones.service.ts:354, :415.
+--
+-- OJO: este enum lo COMPARTEN DOS modelos, PropuestaDeDatos
+-- (schema.prisma:1608) y PropuestaInstitucion (:1422). El valor
+-- entra para los dos, y los cuatro sitios que hoy borran
+-- --leads.service.ts:371-376, preinscripcion.service.ts:959-961,
+-- instituciones/web/disparador.ts:206-208 y
+-- instituciones/web/web.service.ts:296-298-- hay que tratarlos
+-- IGUAL. Si se marca en uno y se sigue borrando en otro sobre la
+-- misma tabla, la regla 1 queda a medias.
+
+ALTER TYPE "EstadoPropuesta" ADD VALUE IF NOT EXISTS 'REEMPLAZADA';
+
+-- ======================================================================
+-- VERIFICACION PREVIA
+-- ======================================================================
+-- -- 1. El enum tiene hoy exactamente tres valores.
+-- SELECT string_agg(enumlabel, ', ' ORDER BY enumsortorder) AS "valores"
+--   FROM pg_enum e JOIN pg_type t ON t.oid = e.enumtypid
+--  WHERE t.typname = 'EstadoPropuesta';
+-- -- Esperado: PENDIENTE, ACEPTADA, DESCARTADA
+-- 
+-- -- 2. Quien usa el tipo. Tienen que ser exactamente estas dos
+-- --    columnas: si aparece una tercera, el analisis de la regla 7
+-- --    hay que rehacerlo antes de desplegar.
+-- SELECT c.relname AS "tabla", a.attname AS "columna"
+--   FROM pg_attribute a JOIN pg_class c ON c.oid = a.attrelid
+--                       JOIN pg_type  t ON t.oid = a.atttypid
+--  WHERE t.typname = 'EstadoPropuesta' AND NOT a.attisdropped
+--  ORDER BY 1;
+-- -- Esperado: propuestas_de_datos.estado y propuestas_institucion.estado
+-- 
+-- -- 3. Este fichero de migracion contiene UNA sola sentencia. Si
+-- --    alguien le anadio algo mas, PARE: es el fallo que ya reviento
+-- --    en produccion una vez.
+-- 
+-- -- 4. Y el candado automatico de esa misma regla, que YA EXISTE en
+-- --    el repositorio (comprobado):
+-- --      pnpm test backend/src/prisma/enums-antes-de-usarlos.spec.ts
+-- --    Lee las migraciones en el orden en que Prisma las aplica, sin
+-- --    base de datos, y falla si alguna USA un valor de enum en la
+-- --    misma migracion que lo anade.
+
+-- ======================================================================
+-- VERIFICACION POSTERIOR
+-- ======================================================================
+-- -- 1. El valor esta, y es el CUARTO (el orden importa para los
+-- --    ORDER BY que alguien escriba sobre el enum).
+-- SELECT string_agg(enumlabel, ', ' ORDER BY enumsortorder) AS "valores"
+--   FROM pg_enum e JOIN pg_type t ON t.oid = e.enumtypid
+--  WHERE t.typname = 'EstadoPropuesta';
+-- -- Esperado: PENDIENTE, ACEPTADA, DESCARTADA, REEMPLAZADA
+-- 
+-- -- 2. INVARIANTE al aplicar: NADIE lo usa todavia. El valor entra
+-- --    antes que el codigo, nunca al reves.
+-- SELECT (SELECT count(*) FROM "propuestas_de_datos"   WHERE "estado" = 'REEMPLAZADA') AS "propuestas",
+--        (SELECT count(*) FROM "propuestas_institucion" WHERE "estado" = 'REEMPLAZADA') AS "instituciones";
+-- -- Esperado: 0 y 0
+-- 
+-- -- 3. INVARIANTE que hay que mirar cuando el codigo entre: el
+-- --    reparto por estado. REEMPLAZADA solo debe crecer, y ACEPTADA
+-- --    y DESCARTADA no deben caer -- si caen, se esta marcando como
+-- --    reemplazada alguna que un asesor si resolvio.
+-- SELECT "estado", count(*) FROM "propuestas_de_datos" GROUP BY 1 ORDER BY 2 DESC;
+-- SELECT "estado", count(*) FROM "propuestas_institucion" GROUP BY 1 ORDER BY 2 DESC;
+-- 
+-- -- Criterio: si (1) no muestra los cuatro valores, o si (2) no da
+-- -- 0 y 0 justo despues de aplicar, SE REVIERTE con el guion de
+-- -- rollback -- que solo es ejecutable mientras (2) siga en 0.
+
+-- ======================================================================
+-- ROLLBACK
+-- ======================================================================
+-- -- Postgres NO sabe quitar un valor de un enum. El rollback es
+-- -- recrear el tipo, y SOLO es ejecutable si NINGUNA fila usa
+-- -- todavia 'REEMPLAZADA' -- o sea, antes de desplegar el codigo
+-- -- que lo escribe. Si ya hay filas, el ALTER COLUMN falla y NO se
+-- -- fuerza: hay que decidir a que estado pasan esas propuestas, y
+-- -- esa decision no es de un rollback.
+-- --
+-- -- Comprobar primero:
+-- --   SELECT count(*) FROM "propuestas_de_datos"  WHERE "estado" = 'REEMPLAZADA';
+-- --   SELECT count(*) FROM "propuestas_institucion" WHERE "estado" = 'REEMPLAZADA';
+-- --   Las dos tienen que dar 0.
+-- 
+-- ALTER TYPE "EstadoPropuesta" RENAME TO "EstadoPropuesta_viejo";
+-- 
+-- CREATE TYPE "EstadoPropuesta" AS ENUM ('PENDIENTE', 'ACEPTADA', 'DESCARTADA');
+-- 
+-- ALTER TABLE "propuestas_de_datos" ALTER COLUMN "estado" DROP DEFAULT;
+-- ALTER TABLE "propuestas_de_datos"
+--   ALTER COLUMN "estado" TYPE "EstadoPropuesta"
+--   USING "estado"::text::"EstadoPropuesta";
+-- ALTER TABLE "propuestas_de_datos" ALTER COLUMN "estado" SET DEFAULT 'PENDIENTE';
+-- 
+-- -- La tabla se llama en SINGULAR: schema.prisma:1436 mapea
+-- -- PropuestaInstitucion a "propuestas_institucion".
+-- ALTER TABLE "propuestas_institucion" ALTER COLUMN "estado" DROP DEFAULT;
+-- ALTER TABLE "propuestas_institucion"
+--   ALTER COLUMN "estado" TYPE "EstadoPropuesta"
+--   USING "estado"::text::"EstadoPropuesta";
+-- ALTER TABLE "propuestas_institucion" ALTER COLUMN "estado" SET DEFAULT 'PENDIENTE';
+-- 
+-- DROP TYPE "EstadoPropuesta_viejo";
+-- 
+-- DELETE FROM "_prisma_migrations"
+--  WHERE "migration_name" = '20260831140000_estado_propuesta_reemplazada';

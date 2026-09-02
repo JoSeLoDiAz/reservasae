@@ -1126,6 +1126,30 @@ export class CrmService {
       );
     }
 
+    /// La huella de que esta ficha nació, y por qué puerta.
+    ///
+    /// `PARTICIPANTE_CREADO` estaba declarado en el catálogo
+    /// desde el principio y NO LO EMITÍA NADIE: crear una ficha
+    /// —por el panel, por preinscripción, por conversión de un
+    /// lead o por cargue— no dejaba una sola fila en la
+    /// bitácora. Quedaba el `MovimientoParticipante`, que dice
+    /// la etapa pero no quién ni desde dónde.
+    ///
+    /// Va FUERA de la transacción y por el mismo motivo que el
+    /// resto: `registrar()` se traga sus errores a propósito, y
+    /// auditar no puede tumbar la ficha que audita.
+    await this.auditoria.registrar({
+      actor: { id: admin.id, nombre: admin.nombre },
+      accion: 'PARTICIPANTE_CREADO',
+      entidad: ENTIDADES.PARTICIPANTE,
+      entidadId: creado.id,
+      convenioId: dto.convenioId,
+      resumen: sobrecupo
+        ? `Ficha creada con sobrecupo autorizado: ${sobrecupo.motivo}`
+        : 'Ficha creada.',
+      ip: ip ?? null,
+    });
+
     return creado;
   }
 

@@ -1,0 +1,123 @@
+-- 20260901090000_lead_por_participante_deja_de_ser_unico
+-- Despliegue 3 · paso contract · orden 9 de 12
+-- Arregla: A-03: `LeadEntrante.participanteId String? @unique` (schema.prisma:783, comprobado) declara «un participante, como mucho un lead». Hoy el segundo lead de una persona ya fichada sale 500 crudo, el lead queda PENDIENTE para siempre, y el fallo se autooculta porque el reintento entra por la guarda de i
+--
+-- AUDITADA POR SEPARADO: SEGURA de aplicar sola.
+-- "La migracion en si esta bien y no tumba el arranque: DDL puro de indices, sin dato capaz de rechazarla, con el DROP apuntando a un indice suelto y no a un constraint (20260828090000/migration.sql:45), la FK intacta (:53), la unicidad de idempotencia (:49) sin tocar, nombres todos reales, rollback ejecutable y honesto sobre cuando deja de serlo, y verificaciones que corren tal cual. El bloqueo es 
+--
+-- PASO MANUAL PREVIO, obligatorio:
+--   DOS COSAS DE CODIGO, y sin las dos esta migracion no se despliega. (1) EL RAMIFICADO POR `firme` TIENE QUE ESTAR EN LA MISMA IMAGEN. Hoy A-02 --el cruce flojo por CORREO o CELULAR que marca CONVERTIDO contra la ficha de otra persona-- esta acotado precisamente porque este indice revienta: el radio es 1, no 20. Al quitarlo, ese cruce podra atar N leads a una ficha ajena, en silencio y sin 500 que avise; se cambia un fallo ruidoso por uno callado, que es peor. El valor `firme: true/false` ya se calcula en cruzar-con-el-crm.ts (:74 documento, :93 correo, :110 celular) y hoy no lo lee nadie fuera de ese fichero. (2) EL schema.prisma EN EL MISMO COMMIT: quitar @unique de :783, declarar @@index([participanteId]), y convertir Participante.lead (:952, comprobado que ahi esta como `lead LeadEntrante?`) en `leads LeadEntrante[]`. Sin editar :952 Prisma se niega a validar el 1-1 al desaparecer el @unique del lado FK, y sin el @@index el siguiente `migrate dev` regenera el unico que esta migracion acaba de tirar. AVISO SOBRE EL ROLLBACK: en cuanto exista el primer participante con dos leads deja de ser ejecutable, y volver atras exigiria borrar uno de los dos, que es lo que la regla 1 prohibe.
+--
+-- ESTE FICHERO NO ESTA EN backend/prisma/migrations/ A PROPOSITO:
+-- alli el arranque del contenedor lo ejecutaria solo. Se mueve a mano,
+-- despues de revisarlo y de correr la verificacion previa.
+
+
+-- A-03. `LeadEntrante.participanteId String? @unique`
+-- (schema.prisma:783) declara «un participante, como mucho un
+-- lead». El dominio dice lo contrario: que la misma persona
+-- llene el formulario dos veces es lo normal, no el caso raro.
+--
+-- Hoy el segundo lead de una persona ya fichada viola el indice
+-- en leads.service.ts:339-349, sale 500 crudo --no hay
+-- ExceptionFilter-- y el lead queda PENDIENTE para siempre. Y se
+-- autooculta: el reintento entra por la guarda de idempotencia y
+-- devuelve 200 con `repetido: true`. Nadie se entera nunca.
+--
+-- La idempotencia NO la daba este indice: la da
+-- @@unique([origenSistema, externoId]) (schema.prisma:791), que
+-- es la que consulta leads.service.ts:116-119 con la clave
+-- compuesta `origenSistema_externoId`. Esa NO se toca.
+--
+-- Y no se vuelve parcial: un parcial sobre «vivo» seguiria
+-- prohibiendo dos leads vivos de la misma persona, que es justo
+-- el caso que hay que permitir.
+--
+-- ESTA MIGRACION NO VA SOLA. Ver el analisis de fallo: sin el
+-- ramificado por `firme` en el mismo despliegue, se cambia un
+-- 500 visible por un cruce silencioso.
+
+DROP INDEX IF EXISTS "leads_entrantes_participanteId_key";
+
+CREATE INDEX IF NOT EXISTS "leads_entrantes_participanteId_idx"
+    ON "leads_entrantes"("participanteId");
+
+-- La FK `leads_entrantes_participanteId_fkey` NO depende de este
+-- indice --una FK se apoya en el indice de la columna
+-- REFERENCIADA, que es la PK de `participantes`-- asi que sigue
+-- en pie y no hay que recrearla. Comprobado en
+-- migrations/20260828090000_mesa_de_entrada_de_leads/migration.sql:45,53
+
+-- ======================================================================
+-- VERIFICACION PREVIA
+-- ======================================================================
+-- -- 1. EL BLOQUEO DE VERDAD, Y NO ES DE BASE DE DATOS (tomado del
+-- --    juego B): comprobar que el ramificado por `firme` ya esta
+-- --    desplegado. Hoy este @unique es lo UNICO que limita el radio
+-- --    de A-02 a un solo lead. Se comprueba en el codigo:
+-- --      grep -n "firme" backend/src/leads/leads.service.ts
+-- --    Tiene que aparecer. Si no aparece, ESTA MIGRACION NO ENTRA.
+-- 
+-- -- 2. El indice unico esta ahi y se llama asi.
+-- SELECT indexname, indexdef FROM pg_indexes
+--  WHERE tablename = 'leads_entrantes' AND indexname = 'leads_entrantes_participanteId_key';
+-- -- Esperado: 1 fila, CREATE UNIQUE INDEX ... ON leads_entrantes ("participanteId")
+-- 
+-- -- 3. LA OTRA unicidad, la que SI es la idempotencia, sigue viva.
+-- --    Si esta consulta no devuelve fila, PARE: se esta borrando la
+-- --    que no es.
+-- SELECT indexname FROM pg_indexes
+--  WHERE tablename = 'leads_entrantes'
+--    AND indexname = 'leads_entrantes_origenSistema_externoId_key';
+-- -- Esperado: 1 fila
+-- 
+-- -- 4. Y la pregunta de negocio: cuantos leads hay atrapados hoy
+-- --    por este indice (PENDIENTE con un cruce que no pudo escribir).
+-- SELECT "estado", count(*) FROM "leads_entrantes" GROUP BY 1 ORDER BY 2 DESC;
+-- -- Informativo: los PENDIENTE de mas son la cosecha de A-03.
+
+-- ======================================================================
+-- VERIFICACION POSTERIOR
+-- ======================================================================
+-- -- 1. El unico se fue, el normal esta, y el de idempotencia sigue.
+-- SELECT
+--   (SELECT count(*) FROM pg_indexes
+--      WHERE indexname='leads_entrantes_participanteId_key')            AS "unico (debe ser 0)",
+--   (SELECT count(*) FROM pg_indexes
+--      WHERE indexname='leads_entrantes_participanteId_idx')            AS "normal (debe ser 1)",
+--   (SELECT count(*) FROM pg_indexes
+--      WHERE indexname='leads_entrantes_origenSistema_externoId_key')   AS "idempotencia (debe ser 1)";
+-- -- Esperado: 0, 1, 1
+-- 
+-- -- 2. La FK sobrevivio al DROP INDEX.
+-- SELECT count(*) FROM pg_constraint
+--  WHERE conname = 'leads_entrantes_participanteId_fkey' AND convalidated;
+-- -- Esperado: 1
+-- 
+-- -- 3. INVARIANTE nuevo, que antes era imposible y ahora hay que
+-- --    vigilar: cuantas fichas tienen mas de un lead, y ninguna
+-- --    deberia tener una cantidad absurda. Si aparece una ficha con
+-- --    decenas de leads, NO es la funcionalidad nueva: es A-02
+-- --    atando leads ajenos por correo, y hay que parar.
+-- SELECT "participanteId", count(*) AS "leads"
+--   FROM "leads_entrantes" WHERE "participanteId" IS NOT NULL
+--  GROUP BY 1 HAVING count(*) > 1 ORDER BY 2 DESC LIMIT 20;
+-- -- Esperado los primeros dias: pocas filas, con 2 o 3 leads.
+-- 
+-- -- Criterio: si (1) no da 0,1,1 o si (2) no da 1, SE REVIERTE. Si
+-- -- (3) empieza a mostrar fichas con muchos leads, se revierte el
+-- -- CODIGO (no la migracion) y se mira el cruce por correo.
+
+-- ======================================================================
+-- ROLLBACK
+-- ======================================================================
+-- -- Solo es ejecutable si NO se ha creado todavia un segundo lead
+-- -- para el mismo participante. Si ya existe, este CREATE UNIQUE
+-- -- INDEX falla, y esa es la senal de que el arreglo estaba bien:
+-- -- volver atras exigiria decidir cual de los dos leads se tira, y
+-- -- tirar leads es lo que la regla 1 prohibe.
+-- DROP INDEX IF EXISTS "leads_entrantes_participanteId_idx";
+-- CREATE UNIQUE INDEX "leads_entrantes_participanteId_key"
+--     ON "leads_entrantes"("participanteId");
+-- DELETE FROM "_prisma_migrations"
+--  WHERE "migration_name" = '20260901090000_lead_por_participante_deja_de_ser_unico';
