@@ -512,7 +512,6 @@ export function Donut({
   detalleCentro,
   vacio = "Sin datos todavía.",
   soloDibujo = false,
-  leyendaDebajo = false,
 }: {
   datos: PorcionDonut[];
   tamano?: number;
@@ -527,15 +526,6 @@ export function Donut({
    * informacion dos veces en la misma tarjeta.
    */
   soloDibujo?: boolean;
-  /**
-   * La leyenda DEBAJO del anillo, no a su lado.
-   *
-   * Al lado, la leyenda se come la mitad del ancho y el anillo
-   * queda pequeño; con dos o tres porciones de etiqueta larga
-   * eso no compensa. Debajo, el anillo va centrado y a su
-   * tamaño, y cada fila de la leyenda tiene el ancho entero.
-   */
-  leyendaDebajo?: boolean;
 }) {
   if (!datos.length) {
     return <p className="py-6 text-center text-sm text-texto-suave">{vacio}</p>;
@@ -583,9 +573,7 @@ export function Donut({
       className={
         soloDibujo
           ? "flex shrink-0"
-          : leyendaDebajo
-            ? "flex w-full flex-col items-center gap-3.5"
-            : "flex w-full flex-col items-center gap-5 sm:flex-row"
+          : "flex w-full flex-col items-center gap-5 sm:flex-row"
       }
     >
       <svg
