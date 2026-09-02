@@ -83,7 +83,7 @@ export function PanelAccesibilidad({ alCerrar }: { alCerrar: () => void }) {
         <button
           onClick={alCerrar}
           aria-label="Cerrar"
-          className="-mt-1 -mr-1 rounded-lg px-2 py-1 text-lg leading-none text-texto-suave hover:bg-superficie-alterna"
+          className="-mt-1 -mr-1 rounded-lg px-2 py-1 text-lg leading-none text-texto-suave transition hover:bg-superficie-alterna"
         >
           ✕
         </button>

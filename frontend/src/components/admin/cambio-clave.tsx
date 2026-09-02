@@ -126,7 +126,7 @@ export function FormularioCambioClave({
       <button
         type="submit"
         disabled={enviando}
-        className="rounded-xl bg-marca px-5 py-2 font-medium text-marca-texto hover:bg-marca-fuerte disabled:opacity-50"
+        className="rounded-xl bg-marca px-5 py-2 font-medium text-marca-texto transition hover:bg-marca-fuerte disabled:opacity-50"
       >
         {enviando ? "Guardando…" : textoBoton}
       </button>

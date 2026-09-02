@@ -129,7 +129,7 @@ export function SelectorBuscable({
               <button
                 type="button"
                 onClick={() => elegir("")}
-                className="w-full rounded-lg px-3 py-2 text-left text-sm text-texto-suave hover:bg-superficie-alterna"
+                className="w-full rounded-lg px-3 py-2 text-left text-sm text-texto-suave transition hover:bg-superficie-alterna"
               >
                 {vacio}
               </button>

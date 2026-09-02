@@ -119,7 +119,7 @@ export function GestorLogos({ formularioId, heredados, alCambiar }: Props) {
                   onClick={() =>
                     accion(() => adminApi.actualizarLogo(logo.id, { direccion: "IZQUIERDA" }))
                   }
-                  className="rounded-lg border border-borde px-3 py-2 text-sm hover:bg-fondo disabled:opacity-30"
+                  className="rounded-lg border border-borde px-3 py-2 text-sm transition hover:bg-fondo disabled:opacity-30"
                 >
                   ←
                 </button>
@@ -131,7 +131,7 @@ export function GestorLogos({ formularioId, heredados, alCambiar }: Props) {
                   onClick={() =>
                     accion(() => adminApi.actualizarLogo(logo.id, { direccion: "DERECHA" }))
                   }
-                  className="rounded-lg border border-borde px-3 py-2 text-sm hover:bg-fondo disabled:opacity-30"
+                  className="rounded-lg border border-borde px-3 py-2 text-sm transition hover:bg-fondo disabled:opacity-30"
                 >
                   →
                 </button>
@@ -139,7 +139,7 @@ export function GestorLogos({ formularioId, heredados, alCambiar }: Props) {
                   type="button"
                   disabled={ocupado}
                   onClick={() => accion(() => adminApi.borrarLogo(logo.id))}
-                  className="ml-2 rounded-lg border border-borde px-3 py-2 text-sm text-error hover:bg-error-suave disabled:opacity-50"
+                  className="ml-2 rounded-lg border border-borde px-3 py-2 text-sm text-error transition hover:bg-error-suave disabled:opacity-50"
                 >
                   Quitar
                 </button>

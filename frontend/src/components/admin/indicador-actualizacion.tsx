@@ -74,7 +74,7 @@ export function IndicadorActualizacion({
         type="button"
         onClick={alRefrescar}
         disabled={refrescando}
-        className="rounded-lg border border-borde px-3 py-1 hover:bg-fondo disabled:opacity-50"
+        className="rounded-lg border border-borde px-3 py-1 transition hover:bg-fondo disabled:opacity-50"
       >
         {refrescando ? "Reintentando…" : "Reintentar"}
       </button>

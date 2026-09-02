@@ -338,7 +338,7 @@ export function Lista({
                 <a
                   key={`${it.titulo}-${i}`}
                   href={it.href}
-                  className={`${clases} no-underline hover:bg-tabla-fila-resaltada`}
+                  className={`${clases} no-underline transition hover:bg-tabla-fila-resaltada`}
                 >
                   {dentro}
                 </a>
@@ -348,7 +348,7 @@ export function Lista({
               <div
                 key={`${it.titulo}-${i}`}
                 onClick={it.alPulsar}
-                className={`${clases} ${it.alPulsar ? "cursor-pointer hover:bg-tabla-fila-resaltada" : ""}`}
+                className={`${clases} ${it.alPulsar ? "cursor-pointer transition hover:bg-tabla-fila-resaltada" : ""}`}
               >
                 {dentro}
               </div>

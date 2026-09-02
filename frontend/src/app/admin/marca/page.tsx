@@ -353,7 +353,7 @@ export default function PaginaMarca() {
                       return adminApi.restablecerTema("OSCURO");
                     })
                   }
-                  className="rounded-xl border border-borde px-5 py-2 text-sm hover:bg-fondo disabled:opacity-50"
+                  className="rounded-xl border border-borde px-5 py-2 text-sm transition hover:bg-fondo disabled:opacity-50"
                 >
                   Restablecer los colores
                 </button>

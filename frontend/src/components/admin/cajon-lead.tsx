@@ -87,7 +87,7 @@ function Acciones({
                   setEtapa(e);
                 });
               }}
-              className={`rounded-lg border px-3 py-1.5 text-sm disabled:opacity-60 ${
+              className={`rounded-lg border px-3 py-1.5 text-sm transition disabled:opacity-60 ${
                 e === etapa
                   ? "border-marca bg-marca-suave font-medium text-marca"
                   : "border-borde bg-superficie hover:bg-superficie-alterna"

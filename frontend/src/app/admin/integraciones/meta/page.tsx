@@ -48,7 +48,7 @@ function ParaCopiar({ etiqueta, valor }: { etiqueta: string; valor: string }) {
         </code>
         <button
           type="button"
-          className="shrink-0 rounded border border-borde px-3 py-2 text-sm hover:border-marca"
+          className="shrink-0 rounded border border-borde px-3 py-2 text-sm transition hover:border-marca"
           onClick={() => {
             void navigator.clipboard.writeText(valor).then(() => {
               setCopiado(true);

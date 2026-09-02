@@ -322,6 +322,32 @@ h3 {
    empieza en la nada. Con un 8 % de escala basta: lo que se
    quiere es que el sitio del signo exista antes que el trazo, no
    un efecto de entrada. */
+/**
+ * La barra fina de «estoy trayendo el dato nuevo».
+ *
+ * Un trozo que cruza y vuelve, no una barra que se llena: no se
+ * sabe cuánto va a tardar la consulta, y una barra de progreso
+ * que miente sobre lo que falta es peor que ninguna.
+ *
+ * Quien pide menos movimiento en el sistema no la ve moverse;
+ * la franja se queda quieta, que sigue diciendo que algo está
+ * pasando.
+ */
+@keyframes recorrer {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(400%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-\[recorrer_1\.1s_ease-in-out_infinite\] {
+    animation: none;
+  }
+}
+
 @keyframes signo-llega {
   from {
     opacity: 0;
