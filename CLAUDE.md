@@ -2036,6 +2036,35 @@ de quitarlo y cada Guardar lo dejaba vacío.
 > devuelve. Un test que no puede fallar es peor que ninguno,
 > porque da confianza sin darla.
 
+### La prueba de mutación vale más que el verde — si la mutación se aplicó
+
+**Compruebe que el experimento CORRIÓ.** Pasó el 2 sep 2026: se mutó un
+`replace` de cadena exacta que no encontró la línea, los veinte tests siguieron
+en verde, y por un momento pareció que el test no servía.
+
+**Un experimento que no corre y uno que sale negativo son indistinguibles**, y
+los dos se leen como «el test no sujeta nada». La diferencia es que uno miente.
+Repitiéndolo por número de línea, cayeron 2 de 20.
+
+Tres reglas que salen de haberlo hecho mal tres veces esta semana:
+
+- **Mute el CÓDIGO, nunca el spec.** Un spec que copia la línea que dice
+  proteger no protege nada, y mutar la copia no prueba el original.
+- **Compruebe que la mutación entró.** Un `assert` en el script, o el número de
+  línea, o mirar el `git diff`. Que los tests sigan en verde después de mutar es
+  información **solo si** la mutación se aplicó.
+- **Y mute también el DOBLE cuando el doble decide.** Si el doble no aplica el
+  filtro real, los tests prueban el doble. Ya pasó con el prefijo del id, con el
+  `crear()` que no encolaba, con el que ignoraba el correo y con el `$queryRaw`
+  que devolvía `[]` sin mirar.
+
+> **El aserto que nadie escribe es el que protege del ARREGLO EXCESIVO.** Al
+> fijar el `FOR UPDATE` de `cambiarEtapa` se escribieron tres: que se toma, que
+> se toma antes de escribir, y **que NO se toma cuando la transición no ocupa
+> silla**. Sin el tercero, alguien «arregla» el candado poniéndolo siempre y
+> serializa el trabajo del equipo entero sin que ninguna prueba se queje.
+> Lo señaló Mauricio Andrés.
+
 ### La revisión de los arreglos, y lo que encontró (27 ago 2026)
 
 Seis lentes sobre los cinco bloques. **Los escépticos que debían
