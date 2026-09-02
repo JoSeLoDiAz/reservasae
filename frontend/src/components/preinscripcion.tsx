@@ -283,13 +283,13 @@ export function PreinscripcionPublica({ slug }: { slug: string }) {
             </div>
 
             <p className="mt-1 text-sm text-texto-suave">
-              A continuación, las acciones de formación disponibles para su inscripción:
+              A continuación, las acciones de formación disponibles para su preinscripción:
             </p>
 
             {conCobertura.length > 0 && (
               <p className="mt-3 rounded-xl bg-marca-suave px-4 py-3 text-sm text-marca">
                 Seleccione la que sea de su mayor interés, considerando que solo puede
-                inscribirse en una.
+                preinscribirse en una.
               </p>
             )}
 
@@ -336,7 +336,14 @@ export function PreinscripcionPublica({ slug }: { slug: string }) {
         <section className="rounded-2xl border border-borde bg-superficie p-6">
           <h2 className="text-lg font-semibold">Datos Personales</h2>
           <p className="mt-1 text-sm text-texto-suave">
-            Para formalizar su inscripción, complete la siguiente información:
+            Para formalizar su preinscripción, complete la siguiente información:
+          </p>
+          {/* Se dice ARRIBA que todos hacen falta, no solo abajo
+              cuales faltan. Enterarse campo a campo de que otro
+              era obligatorio es como se abandona un formulario. */}
+          <p className="mt-2 text-sm font-medium text-texto">
+            Recuerde que todos los campos son obligatorios para completar su
+            preinscripción.
           </p>
 
           {/* dos columnas desde tablet, tres en escritorio: en
@@ -519,9 +526,8 @@ export function PreinscripcionPublica({ slug }: { slug: string }) {
           </div>
 
           <p className="mt-5 rounded-xl border border-borde bg-superficie-alterna px-4 py-3 text-sm leading-relaxed text-texto-suave">
-            Su autorización es necesaria para procesar su cupo y continuar con su
-            inscripción, sin ella, no podemos usar sus datos para confirmar su
-            participación.
+            Necesitamos su autorización para continuar con su preinscripción: sin
+            ella no podemos usar sus datos para comunicarnos con usted.
           </p>
 
           <label className="mt-4 flex cursor-pointer items-start gap-3 rounded-xl border border-campo-borde bg-campo-fondo p-4 text-sm">
@@ -573,7 +579,7 @@ export function PreinscripcionPublica({ slug }: { slug: string }) {
                 disabled={enviando}
                 className="rounded-xl bg-marca px-7 py-3.5 font-medium text-marca-texto transition hover:bg-marca-fuerte disabled:opacity-50"
               >
-                {enviando ? "Registrando…" : "Está correcto, reservar mi cupo"}
+                {enviando ? "Registrando…" : "Está correcto, confirmar mi preinscripción"}
               </button>
               <button
                 type="button"
@@ -683,8 +689,8 @@ function BotonesDePaso({
 function BandaDeEstado({ paso }: { paso: 1 | 2 | 3 }) {
   const pasos = [
     { n: 1, texto: "Reserva de cupo" },
-    { n: 2, texto: "Datos de inscripción" },
-    { n: 3, texto: "Inscripción confirmada" },
+    { n: 2, texto: "Datos de preinscripción" },
+    { n: 3, texto: "Preinscripción confirmada" },
   ];
 
   return (
@@ -868,10 +874,16 @@ function Texto({
   );
 }
 
-/** El cupo quedó apartado. Falta la inscripción. */
-/// Reservar no es estar inscrito, y es aqui donde se
+/** Quedó preinscrita. La inscripción la cierra un asesor. */
+/// Preinscribirse no es estar inscrito, y es aqui donde se
 /// decide si la persona sigue o se va: por eso la pantalla
 /// la llama por su nombre y deja un solo camino abierto.
+///
+/// Y dice QUIEN cierra la inscripcion. «Termine su
+/// inscripcion» ponia el cierre en manos de la persona, y no
+/// esta en sus manos: por muchos datos que llene, la
+/// inscripcion no es efectiva hasta que un asesor la
+/// contacte. Prometer lo contrario es prometer un cupo.
 function Registrada({ token, nombre }: { token: string; nombre: string }) {
   return (
     <>
@@ -879,17 +891,19 @@ function Registrada({ token, nombre }: { token: string; nombre: string }) {
       <BannerLogos />
 
       <h1 className="mt-8 text-2xl font-bold text-balance">
-        ¡Gracias{nombre ? ` ${nombre}` : ""}, su cupo fue reservado exitosamente!
+        ¡Gracias{nombre ? ` ${nombre}` : ""}, su preinscripción fue realizada
+        exitosamente!
       </h1>
       <p className="mt-3 text-texto-suave">
-        Termine su inscripción para asegurar su participación.
+        Su inscripción no será efectiva hasta tanto no sea contactado por un
+        asesor.
       </p>
 
       <a
         href={`/completar/${token}`}
         className="mt-8 inline-block rounded-xl bg-marca px-6 py-3 font-medium text-marca-texto transition hover:bg-marca-fuerte"
       >
-        Continuar con mi inscripción a la acción de formación
+        Continuar con mi registro de preinscripción
       </a>
       </main>
       <PiePublico />
