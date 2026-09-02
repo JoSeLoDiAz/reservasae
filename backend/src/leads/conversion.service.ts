@@ -37,6 +37,7 @@ import {
   DOCUMENTOS_DE_PERSONA,
   MUNICIPIO_POR_ID,
 } from '../crm/catalogos-sep';
+import { sedePedida } from './sede-pedida';
 import { sedeQueLeToca } from './sede-que-le-toca';
 import {
   dejarConstancia,
@@ -111,6 +112,7 @@ export class ConversionDeLeads {
         departamentoSepId: true,
         municipioSepId: true,
         generoSepId: true,
+        sedePedida: true,
       },
     });
     if (!lead) throw new NotFoundException('No existe ese lead.');
@@ -400,6 +402,7 @@ export class ConversionDeLeads {
     accionFormacionId: string | null;
     departamentoSepId: number | null;
     municipioSepId: number | null;
+    sedePedida?: string | null;
   }) {
     if (!lead.accionFormacionId) return null;
 
@@ -429,6 +432,25 @@ export class ConversionDeLeads {
         ? (MUNICIPIO_POR_ID.get(lead.municipioSepId)?.[2] ?? null)
         : null,
     };
+
+    /// LO QUE PIDIO manda sobre lo que se deduce.
+    ///
+    /// Para una hibrida la sede es la modalidad, y deducirla del
+    /// domicilio le quita la eleccion: AF7 en Medellin se iria
+    /// siempre a la virtual por tener mas cupo, aunque la
+    /// persona hubiera dicho que va presencial.
+    ///
+    /// Si pidio una que ese curso no tiene, NO se cae al
+    /// domicilio: se queda sin sede y el motivo dice donde si se
+    /// dicta. Caer seria darle una sede que no pidio y que
+    /// ademas puede ser de otra modalidad.
+    const pedida = sedePedida(
+      lead.sedePedida,
+      ofertas,
+      lead.accionFormacionId,
+    );
+    if (pedida && 'sede' in pedida) return pedida.sede;
+    if (pedida) return null;
 
     return sedeQueLeToca(ofertas, lead.accionFormacionId, vive);
   }

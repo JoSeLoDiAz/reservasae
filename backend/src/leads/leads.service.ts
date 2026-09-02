@@ -215,6 +215,9 @@ export class LeadsService {
         municipioSepId: donde.municipioSepId,
         generoSepId: generoQueDijo(dto.genero),
         aceptaHabeasData: dto.aceptaHabeasData ?? null,
+        /// Tal como la escribio: se resuelve al convertir, contra
+        /// las sedes del curso que tenga entonces.
+        sedePedida: dto.sede ?? null,
         // el cuerpo entero, para poder depurar y reprocesar
         carga: (dto.carga ?? dto) as Prisma.InputJsonValue,
         motivo: falta.length ? `Falta: ${falta.join(', ')}.` : null,

@@ -808,6 +808,15 @@ model LeadEntrante {
   /// Que marco la casilla al registrarse. Null: no lo dijo.
   aceptaHabeasData   Boolean?
 
+  /// DONDE quiere tomarlo, tal como lo escribio.
+  ///
+  /// Se guarda el TEXTO y no un id resuelto, y es deliberado: las
+  /// sedes de un curso dependen del curso, y el curso puede
+  /// cambiar despues --el asesor lo corrige desde la mesa--. Con
+  /// un id resuelto contra el curso viejo, cambiar el curso
+  /// dejaria una sede que ya no significa nada.
+  sedePedida         String?
+
   /// El cuerpo entero, tal cual. Es lo que deja depurar,
   /// reprocesar y demostrar que llego de verdad.
   carga Json

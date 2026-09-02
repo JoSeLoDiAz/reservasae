@@ -34,7 +34,7 @@ export type DondeVive = {
 /// Sin tildes, sin mayúsculas y sin espacios de más:
 /// «BOGOTÁ D.C.» y «Bogota D.C» son el mismo sitio, y quien
 /// escribió cada uno no se puso de acuerdo con el otro.
-function igual(a: string | null, b: string | null): boolean {
+export function igual(a: string | null, b: string | null): boolean {
   if (!a || !b) return false;
   /// Los puntos se BORRAN, no se vuelven espacio: «D.C.» y
   /// «DC» son la misma sigla, y cambiándolos por espacio

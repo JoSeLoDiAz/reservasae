@@ -179,6 +179,22 @@ export class EntraLeadDto {
   @IsBoolean()
   aceptaHabeasData?: boolean;
 
+  /// DONDE quiere tomarlo. NO es lo mismo que donde vive.
+  ///
+  /// Para una formacion HIBRIDA la sede ES la modalidad: AF7 se
+  /// dicta en MEDELLIN (presencial) y en ANTIOQUIA (virtual), y
+  /// quien vive en Medellin puede hacer las dos. Sin este campo
+  /// no hay forma de decir cual quiere, y el sistema se queda
+  /// siempre con la misma.
+  ///
+  /// Por nombre, como lo eligio en el desplegable. Puede ser una
+  /// ciudad o un departamento, con tildes o sin ellas.
+  @IsOptional()
+  @Transform(recortar)
+  @IsString()
+  @MaxLength(120)
+  sede?: string;
+
   /// Que dijo que le interesa, en sus palabras.
   @IsOptional()
   @Transform(recortar)

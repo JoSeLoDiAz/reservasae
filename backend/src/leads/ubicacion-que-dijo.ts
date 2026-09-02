@@ -85,16 +85,34 @@ export function ubicacionQueDijo(
     noReconocido.push(`ciudad «${ciudad}»`);
   }
 
+  /// Si no se reconocio el departamento pero SI el municipio, el
+  /// departamento es el suyo.
+  ///
+  /// Es lo que arregla Bogota, y no es un caso especial escrito a
+  /// mano: el catalogo llama al departamento «BOGOTA D.C» y al
+  /// municipio «BOGOTA», y la gente escribe «Bogota» en los dos
+  /// campos. Hoy eso deja el departamento en NULL --comprobado--
+  /// y entonces NINGUNA oferta de tipo DEPARTAMENTO lo cubre: la
+  /// persona se queda sin las virtuales de su propia ciudad.
+  ///
+  /// Deducirlo del municipio no adivina nada: un municipio
+  /// pertenece a un solo departamento, siempre.
+  const depFinal = dep?.id ?? mun?.depId ?? null;
+
   return {
-    departamentoSepId: dep?.id ?? null,
+    departamentoSepId: depFinal,
     /// El municipio SOLO si cuadra con su departamento.
     ///
     /// Guardar uno de otro departamento es exactamente lo que
     /// `motivoDeIdInvalido` rechaza en el panel, y la ficha
     /// quedaría imposible de terminar por el enlace público.
     municipioSepId:
-      mun && (!dep || mun.depId === dep.id) ? mun.id : null,
-    noReconocido,
+      mun && (depFinal === null || mun.depId === depFinal) ? mun.id : null,
+    /// El departamento deducido del municipio NO es un dato sin
+    /// reconocer: se reconocio, por el otro lado.
+    noReconocido: noReconocido.filter(
+      (x) => !(depFinal !== null && x.startsWith('departamento')),
+    ),
   };
 }
 
