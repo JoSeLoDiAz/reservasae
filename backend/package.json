@@ -32,6 +32,7 @@
     "db:sembrar-directorio": "ts-node prisma/seed/directorio-nit.ts",
     "db:sembrar-resumenes": "ts-node prisma/seed/resumenes-publicos.ts",
     "db:sembrar-campanas": "ts-node prisma/seed/campanas-demo.ts",
+    "db:sembrar-academico": "ts-node prisma/seed/academico-demo.ts",
     "db:probar-correo": "ts-node -r dotenv/config prisma/probar-correo.ts",
     "db:probar-buscador-web": "ts-node prisma/probar-buscador-web.ts",
     "db:probar-navegador-web": "ts-node prisma/probar-navegador-web.ts",
