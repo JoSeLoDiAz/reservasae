@@ -14,7 +14,7 @@ ALTER TABLE "leads_entrantes" ADD COLUMN "ultimaGestionEn" TIMESTAMP(3);
 
 ALTER TABLE "leads_entrantes"
   ADD CONSTRAINT "leads_entrantes_asesorId_fkey"
-  FOREIGN KEY ("asesorId") REFERENCES "admins"("id")
+  FOREIGN KEY ("asesorId") REFERENCES "administradores"("id")
   ON DELETE SET NULL ON UPDATE CASCADE;
 
 CREATE INDEX "leads_entrantes_convenioId_asesorId_ultimaGestionEn_idx"
