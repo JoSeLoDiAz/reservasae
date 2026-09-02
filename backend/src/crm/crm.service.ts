@@ -53,6 +53,9 @@ import {
   edadCumplida,
   ESTRATO_MAXIMO,
   ESTRATO_MINIMO,
+  CARACTERIZACION_POR_ID,
+  CARACTERIZACIONES_SEP,
+  CARACTERIZACION_NINGUNA,
   GENEROS_SEP,
   motivoDeIdInvalido,
   MUNICIPIOS_SEP,
@@ -452,6 +455,18 @@ export class CrmService {
       documentosPersona: DOCUMENTOS_DE_PERSONA,
       documentosEmpresa: DOCUMENTOS_DE_EMPRESA,
       generos: GENEROS_SEP,
+      /// Los 54 valores de caracterizacion de poblacion.
+      ///
+      /// No estaban, asi que el panel no tenia de donde dibujar
+      /// el selector -- y por eso la ficha llevaba una nota
+      /// diciendo que «se gestiona por separado», que en la
+      /// practica significaba que no se gestionaba.
+      ///
+      /// Son datos SENSIBLES del art. 5 de la Ley 1581: van al
+      /// panel para poder capturarlos, no para tratarlos como un
+      /// campo mas. Lo que los separa esta en el servicio.
+      caracterizaciones: CARACTERIZACIONES_SEP,
+      caracterizacionNinguna: CARACTERIZACION_NINGUNA,
       nivelesOcupacionales: NIVELES_OCUPACIONALES_SEP,
       tamanosEmpresa: TAMANOS_EMPRESA_SEP,
       departamentos: DEPARTAMENTOS_SEP.filter((d) => d.seleccionable),
@@ -1392,6 +1407,15 @@ export class CrmService {
       });
     }
 
+    /// LA CARACTERIZACION, aparte y con sus propios candados.
+    ///
+    /// No va con el resto de campos y no es por comodidad: son
+    /// datos SENSIBLES del art. 5 de la Ley 1581, viven en su
+    /// propia tabla, cuelgan de la autorizacion que los ampara y
+    /// se borran y se reescriben en bloque -- no se «actualizan».
+    await this.guardarCaracterizacion(id, dto, admin, ip);
+
+
     return this.obtener(id, ambito);
   }
 
@@ -1599,6 +1623,124 @@ export class CrmService {
     });
 
     return this.obtener(id, ambito);
+  }
+
+  /**
+   * La caracterización de población, desde el panel.
+   *
+   * Son datos SENSIBLES del art. 5 de la Ley 1581 —etnia,
+   * discapacidad, condición de víctima, diversidad sexual— y por
+   * eso no se guardan como un campo más de la ficha:
+   *
+   *   · Cada marca CUELGA de la autorización que la ampara, y del
+   *     convenio correcto. Sin autorización viva no se guarda
+   *     ninguna, y se dice por qué en vez de fallar callando.
+   *   · Se borran y se reescriben EN BLOQUE. Quitar una marca es
+   *     tan significativo como ponerla, y un `upsert` por id
+   *     dejaría las viejas ahí para siempre.
+   *   · NUNCA se escribe `35 = NINGUNA` por omisión. Vacío es «no
+   *     se le preguntó»; 35 es «dijo que no». Solo una de las dos
+   *     se puede afirmar, y solo si ella lo dijo.
+   *   · Y queda en la auditoría CON EL CAMPO, no con el valor:
+   *     `clase-de-dato.ts` los marca SENSIBLE justamente para que
+   *     el historial diga que cambiaron sin repetir qué son.
+   */
+  private async guardarCaracterizacion(
+    participanteId: string,
+    dto: ActualizarParticipanteDto,
+    admin: Admin,
+    ip?: string,
+  ): Promise<void> {
+    const contesto =
+      dto.caracterizaciones !== undefined ||
+      dto.caracterizacionRechazada !== undefined;
+    if (!contesto) return;
+
+    const p = await this.prisma.participante.findUnique({
+      where: { id: participanteId },
+      select: { personaId: true, convenioId: true },
+    });
+    if (!p) return;
+
+    /// Rechazar es una respuesta: borra las marcas y lo deja
+    /// dicho. No es lo mismo que mandar la lista vacía.
+    const elegidas = dto.caracterizacionRechazada
+      ? []
+      : [...new Set(dto.caracterizaciones ?? [])].filter((id) =>
+          CARACTERIZACION_POR_ID.has(id),
+        );
+
+    /// La autorización viva DE ESTE CONVENIO.
+    ///
+    /// Una persona autorizada en los dos gremios tiene dos, y
+    /// colgar la marca de la del otro haría que la constancia
+    /// señalara un texto que no leyó para esto — y que al revocar
+    /// en su gremio la marca ni se enterara.
+    const autorizacion = elegidas.length
+      ? await this.prisma.autorizacionDatos.findFirst({
+          where: {
+            personaId: p.personaId,
+            revocadaEn: null,
+            politica: { convenioId: p.convenioId },
+          },
+          orderBy: { otorgadaEn: 'desc' },
+          select: { id: true },
+        })
+      : null;
+
+    if (elegidas.length && !autorizacion) {
+      /// Se DICE, no se traga.
+      ///
+      /// El enlace público lo dejaba en un warn del log y seguía:
+      /// la persona contestaba, la respuesta se perdía y nadie se
+      /// enteraba. Aquí hay un asesor delante que puede
+      /// registrar la autorización y volver a intentarlo.
+      throw new BadRequestException(
+        'No se puede registrar la caracterización sin autorización de datos ' +
+          'vigente: son datos sensibles y tienen que colgar de un ' +
+          'consentimiento. Regístrela primero en esta misma ficha.',
+      );
+    }
+
+    await this.prisma.$transaction(async (tx) => {
+      await tx.caracterizacionPersona.deleteMany({
+        where: { personaId: p.personaId },
+      });
+
+      if (elegidas.length && autorizacion) {
+        await tx.caracterizacionPersona.createMany({
+          data: elegidas.map((caracterizacionSepId) => ({
+            personaId: p.personaId,
+            caracterizacionSepId,
+            autorizacionId: autorizacion.id,
+          })),
+        });
+      }
+
+      await tx.persona.update({
+        where: { id: p.personaId },
+        data: {
+          caracterizacionRechazada: dto.caracterizacionRechazada ?? false,
+          /// Que se le preguntó, y cuándo. Es lo que distingue
+          /// «no se recogió» de «se recogió y no marcó nada».
+          caracterizacionPreguntada: new Date(),
+        },
+      });
+    });
+
+    /// La huella, con el CAMPO y no con el valor.
+    await this.auditoria.registrar({
+      actor: { id: admin.id, nombre: admin.nombre },
+      accion: 'PARTICIPANTE_EDITADO',
+      entidad: ENTIDADES.PARTICIPANTE,
+      entidadId: participanteId,
+      convenioId: p.convenioId,
+      resumen: dto.caracterizacionRechazada
+        ? 'Prefirió no responder la caracterización de población.'
+        : `Caracterización de población: ${elegidas.length} marca(s).`,
+      camposTocados: ['caracterizaciones'],
+      ip: ip ?? null,
+    });
   }
 
   private valoresQueSeVan(

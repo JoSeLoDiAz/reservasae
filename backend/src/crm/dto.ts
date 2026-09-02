@@ -241,6 +241,31 @@ export class ActualizarParticipanteDto {
 
   @IsOptional() @Transform(aNumero) @IsInt() nivelOcupacionalSepId?: number | null;
   @IsOptional() @IsBoolean() beneficiarioPrevio?: boolean;
+  /// CARACTERIZACION DE POBLACION. Datos SENSIBLES.
+  ///
+  /// Etnia, discapacidad, condicion de victima, diversidad
+  /// sexual: art. 5 de la Ley 1581. Cada marca cuelga de la
+  /// autorizacion que la ampara, y sin autorizacion viva no se
+  /// guarda ninguna.
+  ///
+  /// Es una LISTA porque una persona puede ser varias cosas a la
+  /// vez -- indigena Y victima. El formato del SEP admite una
+  /// sola, pero perderlas al guardarlas seria decidir por ella
+  /// cual la define.
+  @IsOptional()
+  @IsArray()
+  @IsInt({ each: true })
+  caracterizaciones?: number[];
+
+  /// Que dijo que prefiere no responder.
+  ///
+  /// NO es lo mismo que no marcar nada, y por eso son dos campos:
+  /// vacio es «no se le pregunto» y esto es «se le pregunto y no
+  /// quiso». Solo una de las dos se puede afirmar.
+  @IsOptional()
+  @IsBoolean()
+  caracterizacionRechazada?: boolean;
+
 }
 
 export class ActualizarEmpresaSepDto {
