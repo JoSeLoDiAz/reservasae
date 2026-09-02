@@ -104,9 +104,22 @@ function armar(o: Opciones) {
       typeof x === 'function'
         ? (x as (tx: unknown) => Promise<unknown>)(prisma)
         : Promise.all(x as Promise<unknown>[]),
-    /// El `SELECT ... FOR UPDATE` del candado: aqui no hay base, y lo
-    /// que se prueba es la regla, no el bloqueo.
-    $queryRaw: () => Promise.resolve([]),
+    /// El `SELECT ... FOR UPDATE` del candado.
+    ///
+    /// Aqui no hay base, asi que no se puede probar que el
+    /// bloqueo BLOQUEE. Pero si se puede probar que se TOMA, y
+    /// eso es lo que faltaba: el doble devolvia `[]` sin mirar,
+    /// asi que borrando esa linea de `crm.service.ts` no fallaba
+    /// ningun test. El candado contra la sobreventa podia
+    /// desaparecer sin que nada lo notara.
+    ///
+    /// Lo señalo Mauricio Andres, y es el mismo patron que yo
+    /// acababa de cometer en el doble del cruce: no que el spec
+    /// mienta, sino que no sujeta lo que dice sujetar.
+    $queryRaw: () => {
+      escrituras.push('BLOQUEO_DE_LA_OFERTA');
+      return Promise.resolve([]);
+    },
   };
 
   const cupos = {
@@ -376,5 +389,57 @@ describe('entrar a INSCRITO dispara la validacion de su empresa', () => {
 
     expect(r.ok).toBe(true);
     expect(r.inscritos).toEqual(['p1']);
+  });
+});
+
+describe('el candado contra la sobreventa se TOMA', () => {
+  /**
+   * No se puede probar sin base que el bloqueo BLOQUEE. Pero sí
+   * que se toma, y en el orden bueno — y eso es lo que faltaba:
+   * el doble devolvía `[]` sin mirar, así que borrando el
+   * `SELECT ... FOR UPDATE` de `crm.service.ts` no fallaba ningún
+   * test. El candado podía desaparecer sin que nada lo notara.
+   *
+   * Lo señaló Mauricio Andrés, y es el mismo patrón que yo
+   * acababa de cometer en el doble del cruce: no que el spec
+   * mienta, sino que no sujeta lo que dice sujetar.
+   */
+
+  it('se toma cuando la transición ocupa una silla nueva', async () => {
+    const r = await pasarA(
+      { etapa: 'DATOS_COMPLETOS', motivo: null, ventana: 'ABIERTA' },
+      'INSCRITO',
+    );
+
+    expect(r.ok).toBe(true);
+    expect(r.escrituras).toContain('BLOQUEO_DE_LA_OFERTA');
+  });
+
+  it('y ANTES de escribir, no después', async () => {
+    /// El orden es todo el mecanismo: escribir y después
+    /// bloquear deja pasar al segundo asesor entre las dos
+    /// cosas, que es exactamente lo que el bloqueo impide.
+    const r = await pasarA(
+      { etapa: 'DATOS_COMPLETOS', motivo: null, ventana: 'ABIERTA' },
+      'INSCRITO',
+    );
+
+    const bloqueo = r.escrituras.indexOf('BLOQUEO_DE_LA_OFERTA');
+    const escribe = r.escrituras.indexOf('participante.update');
+    expect(bloqueo).toBeGreaterThanOrEqual(0);
+    expect(bloqueo).toBeLessThan(escribe);
+  });
+
+  it('NO se toma cuando la transición no ocupa silla', async () => {
+    /// Bloquear la oferta para mover a alguien de INTERESADO a
+    /// CONTACTADO serializaría el trabajo de todo el equipo por
+    /// nada.
+    const r = await pasarA(
+      { etapa: 'INTERESADO', motivo: null, ventana: 'ABIERTA' },
+      'CONTACTADO',
+    );
+
+    expect(r.ok).toBe(true);
+    expect(r.escrituras).not.toContain('BLOQUEO_DE_LA_OFERTA');
   });
 });
