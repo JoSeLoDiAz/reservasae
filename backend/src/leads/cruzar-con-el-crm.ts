@@ -38,6 +38,14 @@ export type LlavesDelLead = {
   numeroDocumento: string | null;
   correo: string | null;
   celular: string | null;
+  /// Qué curso pidió, si se reconoció.
+  ///
+  /// No sirve para ENCONTRARLA —una persona es la misma pida lo
+  /// que pida— pero sí para elegir CUÁL de sus fichas. Hay una
+  /// por curso (@@unique accionFormacionId, personaId), y quien
+  /// ya está en AF1 y pide AF5 por un anuncio tiene que caer en
+  /// la de AF5.
+  accionFormacionId: string | null;
 };
 
 /**
@@ -56,15 +64,12 @@ export async function cruzarConElCrm(
 ): Promise<Coincidencia | null> {
   /// 1. El documento. La única que es firme.
   if (llaves.tipoDocumentoSepId && llaves.numeroDocumento) {
-    const porDoc = await prisma.participante.findFirst({
-      where: {
-        convenioId,
-        persona: {
-          tipoDocumentoSepId: llaves.tipoDocumentoSepId,
-          numeroDocumento: llaves.numeroDocumento,
-        },
+    const porDoc = await elegirFicha(prisma, llaves, {
+      convenioId,
+      persona: {
+        tipoDocumentoSepId: llaves.tipoDocumentoSepId,
+        numeroDocumento: llaves.numeroDocumento,
       },
-      select: { id: true, personaId: true },
     });
     if (porDoc) {
       return {
@@ -204,4 +209,48 @@ export function partirNombreCompleto(completo: string): {
     primerApellido: partes[partes.length - 2],
     segundoApellido: partes[partes.length - 1],
   };
+}
+
+/**
+ * Cuál de las fichas de esa persona, no una cualquiera.
+ *
+ * `findFirst` sin `orderBy` no es determinista en Postgres: la
+ * misma consulta puede devolver filas distintas con el tiempo.
+ * Mientras `LeadEntrante.participanteId` era @unique daba igual
+ * —el segundo lead reventaba antes de llegar aquí— pero al
+ * quitarlo, ese azar pasó a decidir a qué ficha se ata el lead.
+ *
+ * Y hay una ficha POR CURSO. Quien ya está en AF1 y pide AF5 por
+ * un anuncio tiene que caer en la de AF5: si cae en la de AF1, a
+ * esa ficha equivocada le llegan el toque de pauta, el origen del
+ * lead y la propuesta de datos — y el comparativo enseña ese lead
+ * colgando del curso que no era.
+ *
+ * Lo encontró Mauricio Andrés al revisar la migración 09.
+ */
+async function elegirFicha(
+  prisma: PrismaService,
+  llaves: LlavesDelLead,
+  donde: Record<string, unknown>,
+): Promise<{ id: string; personaId: string } | null> {
+  /// 1. La de SU curso, si pidió uno y la tiene.
+  if (llaves.accionFormacionId) {
+    const suya = await prisma.participante.findFirst({
+      where: { ...donde, accionFormacionId: llaves.accionFormacionId },
+      select: { id: true, personaId: true },
+    });
+    if (suya) return suya;
+  }
+
+  /// 2. Y si no, la MÁS RECIENTE.
+  ///
+  /// No es arbitrario aunque lo parezca: si pidió un curso que
+  /// todavía no tiene, lo que está haciendo es nuevo, y la ficha
+  /// que mejor lo representa es la última que abrió. Lo que no
+  /// puede ser es «la que devuelva el motor».
+  return prisma.participante.findFirst({
+    where: donde,
+    orderBy: { creadoEn: 'desc' },
+    select: { id: true, personaId: true },
+  });
 }

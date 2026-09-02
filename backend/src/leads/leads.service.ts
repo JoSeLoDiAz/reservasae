@@ -233,6 +233,13 @@ export class LeadsService {
       numeroDocumento: datos.numeroDocumento,
       correo: datos.correo,
       celular: datos.celular,
+        /// El curso, para elegir CUAL de sus fichas.
+        ///
+        /// Hay una por curso. Sin esto, quien ya esta en AF1 y
+        /// pide AF5 por un anuncio se ataba a la de AF1 --y a esa
+        /// le caian el toque de pauta, el origen y la propuesta--
+        /// porque `findFirst` sin orden devuelve cualquiera.
+        accionFormacionId: pedida?.id ?? null,
     });
 
     if (coincide) {
