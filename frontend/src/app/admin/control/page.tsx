@@ -289,6 +289,19 @@ export default function PaginaControl() {
         </p>
       )}
 
+      {/* El proceso ABRE la pantalla, y no las cifras del periodo.
+          Estaba plegado al pie, y ahí un embudo no lo ve nadie:
+          quien entra aquí viene a saber dónde se le cae la gente,
+          y eso es lo primero que tiene que leer.
+
+          Va antes que `Cuerpo` a propósito, aunque los dos hablen
+          del mismo grupo de personas: este corta por gremio,
+          acción, etapa, asesor y departamento; el otro por fechas
+          y compara periodos. Separados, porque no se combinan
+          —lo explica `panel-metas.tsx`— y juntarlos daría a
+          entender que sí. */}
+      <PanelMetas />
+
       {vivos.error ? (
         <Aviso tipo="error">{vivos.error}</Aviso>
       ) : !vivos.datos ? (
@@ -296,17 +309,6 @@ export default function PaginaControl() {
       ) : (
         <Cuerpo d={vivos.datos} adminId={admin.id} eligio={eligio} />
       )}
-
-      {/* El panel de metas por acción no cabía en ninguna de las
-          dos pestañas nuevas, y borrarlo sería perder el corte
-          por acción contra su propia meta. Va plegado al pie. */}
-      <Bloque
-        plegable
-        titulo="Metas por acción de formación"
-        descripcion="El avance de cada acción contra lo que su proyecto comprometió."
-      >
-        <PanelMetas />
-      </Bloque>
         </>
       )}
     </div>

@@ -18,9 +18,23 @@ export type PlantillaCorreo = {
   etapasPermitidas: string[];
   convenioId: string | null;
   actualizadoEn: string;
+  /// El cabezote. El mime dice si lo hay; la versión rompe el
+  /// caché del navegador cuando se cambia. Los bytes no
+  /// viajan aquí: se piden por su URL.
+  bannerMime: string | null;
+  bannerVersion: number;
   convenio: { sigla: string | null; nombre: string } | null;
   creadoPor: { nombre: string } | null;
 };
+
+/// A dónde apunta el `<img>` del cabezote. Lleva la versión
+/// porque la respuesta se cachea una semana.
+export function urlDelCabezote(p: {
+  id: string;
+  bannerVersion: number;
+}): string {
+  return `/api/plantillas-correo/${p.id}/banner?v=${p.bannerVersion}`;
+}
 
 /// La misma plantilla, pero mirada contra UNA ficha: trae el
 /// motivo por el que no se le puede mandar a esa persona.
@@ -50,7 +64,10 @@ export const plantillasCorreoApi = {
     nombre: string;
     asunto: string;
     cuerpo: string;
+    /// Null o ausente: sirve para todos los gremios.
     convenioId?: string | null;
+    /// Vacío o ausente: sirve en cualquier etapa.
+    etapasPermitidas?: string[];
   }) =>
     pedir<PlantillaCorreo>("/admin/plantillas-correo", {
       method: "POST",
@@ -67,6 +84,47 @@ export const plantillasCorreoApi = {
   /// lo que se le dijo a alguien.
   apagar: (id: string) =>
     pedir<PlantillaCorreo>(`/admin/plantillas-correo/${id}`, { method: "DELETE" }),
+
+  /**
+   * El cabezote del correo.
+   *
+   * No pasa por `pedir` porque va como FormData: ahí el
+   * navegador tiene que poner él mismo el `content-type` con
+   * la frontera del multipart, y ponerlo a mano rompe la
+   * subida.
+   */
+  subirCabezote: async (id: string, archivo: File) => {
+    const cuerpo = new FormData();
+    cuerpo.append("archivo", archivo);
+
+    const gremio =
+      typeof window === "undefined"
+        ? null
+        : window.localStorage.getItem("convoca:gremio");
+
+    const r = await fetch(`/api/admin/plantillas-correo/${id}/banner`, {
+      method: "POST",
+      body: cuerpo,
+      headers: gremio ? { "x-gremio": gremio } : undefined,
+    });
+
+    const datos = (await r.json().catch(() => null)) as
+      | { message?: string | string[] }
+      | null;
+
+    if (!r.ok) {
+      const bruto = datos?.message;
+      throw new Error(
+        (Array.isArray(bruto) ? bruto.join(". ") : bruto) ??
+          "No se pudo subir el cabezote.",
+      );
+    }
+  },
+
+  quitarCabezote: (id: string) =>
+    pedir<{ listo: boolean }>(`/admin/plantillas-correo/${id}/banner`, {
+      method: "DELETE",
+    }),
 
   // --- desde la ficha del lead ---
 

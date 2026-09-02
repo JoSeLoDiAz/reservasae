@@ -3,11 +3,13 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Desplegable } from "./desplegable";
 
+import { EmbudoProceso, type Hito } from "@/components/admin/embudo-proceso";
 import { Aviso, CLASE_CONTROL } from "@/components/admin/marco-admin";
 import {
   GraficasInscripciones,
   TargetsInscripciones,
 } from "@/components/admin/metricas-inscripciones";
+import { Bloque } from "@/components/admin/piezas";
 import { SelectorBuscable } from "@/components/admin/selector-buscable";
 import { ErrorApi } from "@/lib/api";
 import {
@@ -76,6 +78,89 @@ export function PanelMetas() {
     void cargar().catch((e) => setError((e as ErrorApi).message));
   }, [cargar]);
 
+  /**
+   * El embudo, ACUMULADO: quién llegó a cada hito.
+   *
+   * Se arma desde `resumen.etapas` y no desde `control.embudo`
+   * a propósito. El del control viene recortado a las cinco
+   * etapas de inscripción —y con razón, ver el comentario de
+   * `control.ts:46`—, así que quien pasó al aula desaparece:
+   * un acumulado hecho con eso contaría como «no inscritos» a
+   * los veintitrés que están en formación.
+   *
+   * «Alcanzó el hito X» = está en X o más adelante. Contar solo
+   * a quien está PARADO en cada etapa da un embudo que sube y
+   * baja, y un embudo que sube no se puede leer.
+   */
+  const hitos = useMemo<Hito[]>(() => {
+    if (!resumen) return [];
+    const en = new Map(resumen.etapas.map((e) => [e.etapa, e.total]));
+    const c = (...es: Etapa[]) => es.reduce((s, e) => s + (en.get(e) ?? 0), 0);
+
+    /// Todo lo que hay DESPUÉS de inscribirse, tanto lo que
+    /// acabó bien como las cuatro formas de salir del aula.
+    const trasInscribir = c(
+      "EN_FORMACION",
+      "CERTIFICADO",
+      "RETIRADO",
+      "NO_APROBO",
+      "DESERTO",
+      "ABANDONO",
+    );
+    const inscritos = c("INSCRITO") + trasInscribir;
+    const conDatos = inscritos + c("DATOS_COMPLETOS");
+
+    /// SUPUESTO, y hay que decirlo: a quien se marcó PERDIDO se
+    /// le cuenta como contactado. No sabemos en qué punto se
+    /// perdió —la ficha guarda la etapa de ahora, no por dónde
+    /// pasó—, y darlo por no contactado inflaría la caída del
+    /// primer paso, que es justo la que más se mira.
+    const contactados = conDatos + c("CONTACTADO") + c("PERDIDO");
+    const entraron = contactados + c("INTERESADO");
+
+    return [
+      { etapa: "INTERESADO", etiqueta: "Entraron", total: entraron },
+      { etapa: "CONTACTADO", etiqueta: "Contactados", total: contactados },
+      { etapa: "DATOS_COMPLETOS", etiqueta: "Con datos", total: conDatos },
+      { etapa: "INSCRITO", etiqueta: "Inscritos", total: inscritos },
+    ];
+  }, [resumen]);
+
+  const notas = useMemo(() => {
+    if (!resumen) return [];
+    const en = new Map(resumen.etapas.map((e) => [e.etapa, e.total]));
+    const g = (e: Etapa) => en.get(e) ?? 0;
+    return [
+      {
+        cifra: g("INTERESADO") + g("CONTACTADO") + g("DATOS_COMPLETOS"),
+        etiqueta: "aún no se inscriben",
+        detalle:
+          "Siguen en el embudo de captación: interesados, contactados o con los datos ya completos.",
+        tono: "aviso" as const,
+      },
+      {
+        cifra: g("DATOS_COMPLETOS"),
+        etiqueta: "listos para inscribir",
+        detalle:
+          "Tienen los datos completos y no están inscritos. Es lo que se puede cerrar hoy sin pedir nada más.",
+        tono: "marca" as const,
+      },
+      {
+        cifra: g("PERDIDO"),
+        etiqueta: "no interesados",
+        detalle: "Dijeron que no. Salen del embudo y no vuelven a contarse como pendientes.",
+        tono: "error" as const,
+      },
+      {
+        cifra: g("INSCRITO"),
+        etiqueta: "inscritos sin entrar al aula",
+        detalle:
+          "Ya están inscritos pero su grupo todavía no arranca, o no se ha registrado su avance.",
+        tono: "exito" as const,
+      },
+    ];
+  }, [resumen]);
+
   const hayFiltro = Boolean(
     convenioId || accionFormacionId || etapa || estado || asesorId || departamentoSepId,
   );
@@ -92,6 +177,20 @@ export function PanelMetas() {
   return (
     <div className="space-y-6">
       {error && <Aviso tipo="error">{error}</Aviso>}
+
+      {/* El embudo ABRE, y no las cifras sueltas.
+          La pregunta que trae aquí a coordinación es «dónde se
+          me cae la gente», y eso no lo contesta un marcador:
+          lo contesta ver los cuatro hitos con su caída. */}
+      {hitos.length > 0 && hitos[0].total > 0 && (
+        <Bloque
+          estirado
+          titulo="El proceso de inscripción, paso a paso"
+          descripcion="Cuántos llegan a cada hito y cuántos se caen entre uno y otro. Cada hito cuenta a quien lo alcanzó, aunque hoy esté más adelante."
+        >
+          <EmbudoProceso hitos={hitos} notas={notas} />
+        </Bloque>
+      )}
 
       <TargetsInscripciones metricas={metricas} />
 
