@@ -6,6 +6,7 @@ import { ErrorApi } from "@/lib/api";
 import { juntar, primero, resto } from "@/lib/nombres";
 import { preinscripcionApi, type FichaAbierta } from "@/lib/preinscripcion-api";
 
+import { ModalPolitica } from "./modal-politica";
 import { FondoPublico } from "./fondo-publico";
 import { BannerLogos, ConmutadorTema, PiePublico } from "./marca-publica";
 
@@ -16,6 +17,22 @@ function bonito(t: string): string {
   const minus = t.toLocaleLowerCase("es-CO");
   return minus.charAt(0).toLocaleUpperCase("es-CO") + minus.slice(1);
 }
+
+/// Los topes del calendario de la fecha de nacimiento.
+///
+/// Se calculan al cargar el modulo y no en cada render: por un
+/// dia de diferencia no cambia nada, y asi no hay dos valores
+/// distintos entre el servidor y el navegador.
+const HACE_18 = (() => {
+  const d = new Date();
+  d.setFullYear(d.getFullYear() - 18);
+  return d.toISOString().slice(0, 10);
+})();
+const HACE_100 = (() => {
+  const d = new Date();
+  d.setFullYear(d.getFullYear() - 100);
+  return d.toISOString().slice(0, 10);
+})();
 
 const CAMPO =
   "w-full rounded-xl border border-campo-borde bg-campo-fondo px-3 py-2.5 text-texto " +
@@ -67,6 +84,8 @@ export function CompletarFicha({ token }: { token: string }) {
   const [saltoElPaso1, setSaltoElPaso1] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [guardando, setGuardando] = useState(false);
+  /// El modal de la politica, para quien quiera releerla.
+  const [verPolitica, setVerPolitica] = useState(false);
   /// Decide si se pide el NIT de la empresa o la cedula que
   /// hace de RUT. Sin elegir no se muestra ninguno de los dos.
   const [vinculo, setVinculo] = useState<
@@ -230,7 +249,7 @@ export function CompletarFicha({ token }: { token: string }) {
     );
   }
 
-  if (!ficha) return <p className="p-10 text-texto-suave">Abriendo su ficha…</p>;
+  if (!ficha) return <p className="p-10 text-texto-suave">Abriendo su registro…</p>;
 
   const nombre = `${primero(persona.nombres ?? "")} ${persona.primerApellido ?? ""}`.trim();
 
@@ -414,14 +433,21 @@ export function CompletarFicha({ token }: { token: string }) {
         <main className="mx-auto w-full max-w-lg px-6 py-20 text-center">
         <BannerLogos />
         <h1 className="mt-8 text-2xl font-bold">¡Gracias, {nombre}!</h1>
-        {/* lo que sigue depende de la modalidad: en virtual se
-            manda el acceso, en presencial hay que citar la sede.
+        {/* NO se prometen horarios ni plataforma, y ya no se
+            distingue presencial de virtual.
+
+            Lo que acaba de pasar es que completó su REGISTRO DE
+            PREINSCRIPCION, no que quedara inscrito: eso lo cierra
+            un asesor. Prometerle la sede o el acceso al aula es
+            prometer un cupo que todavia nadie le dio.
+
             Y no se habla de «quien le atendio»: puede que nadie
-            lo haya llamado y lo haya hecho todo por su cuenta */}
+            lo haya llamado y lo haya hecho todo por su cuenta. */}
         <p className="mt-3 text-texto-suave">
-          {esPresencial
-            ? "Su inscripción se completó satisfactoriamente. Nos comunicaremos pronto para indicarle la sede y los detalles de asistencia a la acción de formación."
-            : "Su inscripción se completó satisfactoriamente. Pronto le enviaremos información sobre horarios, plataforma y cómo acceder a la formación."}
+          Su registro de preinscripción ha sido completado
+          satisfactoriamente. Pronto uno de nuestros asesores se
+          comunicará con usted para confirmar su inscripción y los pasos a
+          seguir.
         </p>
         </main>
         <FondoPublico />
@@ -442,7 +468,9 @@ export function CompletarFicha({ token }: { token: string }) {
 
       <header className="mt-8">
         <h1 className="text-2xl font-bold tracking-tight">
-          {paso === "PERSONA" ? "Formalización de la inscripción" : "Información Laboral"}
+          {paso === "PERSONA"
+            ? "Formalización de la preinscripción"
+            : "Información Laboral"}
         </h1>
         <p className="mt-2 text-sm text-texto-suave">
           {paso === "PERSONA"
@@ -538,24 +566,40 @@ export function CompletarFicha({ token }: { token: string }) {
               quiera SI es parte de la ley. */}
           {ficha.politica && (
             ficha.yaAutorizo ? (
-              <details className="group rounded-2xl border border-borde bg-superficie px-6 py-4">
-                <summary className="flex cursor-pointer list-none items-center gap-2 text-sm">
-                  <span className="text-exito">✓</span>
-                  <span className="font-medium">{ficha.politica.titulo}</span>
-                  <span className="text-texto-suave">
-                    — la aceptó al reservar su cupo
-                  </span>
-                  <span className="ml-auto text-xs text-marca underline">
-                    Volver a leerla
-                  </span>
-                </summary>
-                <div className="mt-4 max-h-64 overflow-y-auto rounded-xl border border-borde bg-superficie-alterna p-4 text-sm leading-relaxed whitespace-pre-wrap">
-                  {ficha.politica.contenido}
-                </div>
-                <p className="mt-3 text-xs text-texto-suave">
-                  Versión {ficha.politica.version}
-                </p>
-              </details>
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-2xl border border-borde bg-superficie px-6 py-4">
+                {/* Icono de trazo, no un «✓» de texto: el
+                    rediseño pide iconos que tomen el color del
+                    tema, y nada de emoji ni caracteres sueltos. */}
+                <span className="text-exito">
+                  <svg
+                    width={18}
+                    height={18}
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth={1.8}
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    aria-hidden
+                  >
+                    <circle cx="12" cy="12" r="9" />
+                    <path d="m8.5 12 2.5 2.5 4.5-5" />
+                  </svg>
+                </span>
+                <span className="text-sm font-medium">
+                  {ficha.politica.titulo}
+                </span>
+                <span className="text-sm text-texto-suave">
+                  — la aceptó al reservar su cupo
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setVerPolitica(true)}
+                  className="ml-auto rounded-lg border border-marca bg-marca-suave px-3 py-1.5 text-xs font-medium text-marca transition hover:bg-marca-suave/70"
+                >
+                  Volver a leerla
+                </button>
+              </div>
             ) : (
               <section className="rounded-2xl border border-borde bg-superficie p-6">
                 <h2 className="text-lg font-semibold">{ficha.politica.titulo}</h2>
@@ -598,16 +642,32 @@ export function CompletarFicha({ token }: { token: string }) {
                 <span className="mb-1.5 block text-sm font-medium">
                   Fecha de nacimiento
                 </span>
+                {/* Acotado por los dos lados.
+
+                    `type="date"` ya deja teclear -- el navegador
+                    parte la casilla en dia/mes/ano -- pero el
+                    calendario abria en el mes de hoy y para una
+                    fecha de nacimiento hay que retroceder cuarenta
+                    anos a mano. Con `max` en «hace 18 anos» abre
+                    donde toca.
+
+                    Y de paso el limite es el mismo que ya rechaza
+                    el servidor: los menores no ingresan. Aqui se
+                    dice ANTES en vez de dejar que lo descubra al
+                    guardar. */}
                 <input
                   type="date"
                   value={persona.fechaNacimiento ?? ""}
+                  min={HACE_100}
+                  max={HACE_18}
                   onChange={(e) =>
                     setPersona((p) => ({ ...p, fechaNacimiento: e.target.value }))
                   }
                   className={CAMPO}
                 />
                 <span className="mt-1 block text-xs text-texto-suave">
-                  La formación admite personas mayores de 18 años.
+                  Puede escribirla o elegirla del calendario. La formación
+                  admite personas mayores de 18 años.
                 </span>
               </label>
               )}
@@ -644,7 +704,7 @@ export function CompletarFicha({ token }: { token: string }) {
               {pide("departamentoSepId") && (
                 <label className="block">
                   <span className="mb-1.5 block text-sm font-medium">
-                    Departamento donde vive
+                    Departamento de residencia
                   </span>
                   <select
                     value={persona.departamentoSepId ?? ""}
@@ -674,8 +734,32 @@ export function CompletarFicha({ token }: { token: string }) {
               {pide("municipioSepId") && (
                 <label className="block">
                   <span className="mb-1.5 block text-sm font-medium">
-                    Municipio donde vive
+                    Municipio de residencia
                   </span>
+                  {/* SE DICE CUAL SE ESTA ASUMIENDO.
+
+                      Cuando el departamento ya se dio al reservar
+                      el cupo, `pide()` no lo pinta -- y entonces
+                      el municipio salia solo, filtrado por un
+                      departamento que la persona no ve. Se lee
+                      como si el sistema hubiera decidido donde
+                      vive.
+
+                      Se dice cual es y como corregirlo. Volver a
+                      preguntarlo invita a contradecirlo; callarlo
+                      es peor. */}
+                  {!pide("departamentoSepId") && (
+                    <span className="mb-1.5 block text-xs text-texto-suave">
+                      Los de{" "}
+                      <strong>
+                        {(ficha?.departamentos ?? []).find(
+                          (d) => String(d.id) === String(persona.departamentoSepId),
+                        )?.etiqueta ?? "su departamento"}
+                      </strong>
+                      , que es el departamento que registró antes. Si no es ese,
+                      dígaselo al asesor cuando lo llame.
+                    </span>
+                  )}
                   <select
                     value={persona.municipioSepId ?? ""}
                     onChange={(e) =>
@@ -789,11 +873,10 @@ export function CompletarFicha({ token }: { token: string }) {
           <section className="rounded-2xl border border-borde bg-superficie p-6">
             <h2 className="text-lg font-semibold">Población vulnerable</h2>
             <p className="mt-1 text-sm leading-relaxed text-texto-suave">
-              El SENA lleva esta cuenta para saber a quién le está llegando la
-              formación. Si alguna de estas condiciones es la suya,
-              escríbala y elíjala; es <strong>una sola</strong>, la que mejor
-              lo describa. Y si prefiere no decirlo, siga de largo: no cambia
-              en nada su inscripción ni su cupo.
+              Si alguna de estas condiciones es la suya, escríbala y
+              elíjala; es <strong>una sola</strong>, la que mejor lo describa.
+              Y si prefiere no decirlo, siga de largo o marque «prefiero no
+              responder»: no cambia en nada su preinscripción ni su cupo.
             </p>
 
             {rechazaCaracterizacion ? (
@@ -1016,8 +1099,12 @@ export function CompletarFicha({ token }: { token: string }) {
                 {!ficha.empresaFijada && (
                   <BuscadorDeNit
                     nit={empresa.nit}
+                    digito={empresa.digitoVerificacion ?? ""}
                     razonSocial={empresa.razonSocial}
                     esRut={vinculo === "INDEPENDIENTE"}
+                    alCambiarDigito={(digitoVerificacion) =>
+                      setEmpresa((e) => ({ ...e, digitoVerificacion }))
+                    }
                     alCambiar={(nit, razonSocial) =>
                       setEmpresa((e) => ({ ...e, nit, razonSocial }))
                     }
@@ -1152,13 +1239,24 @@ export function CompletarFicha({ token }: { token: string }) {
           )}
 
           <p className="text-xs text-texto-suave">
-            Finalice su inscripción presionando el botón de confirmación.
+            Finalice su registro de preinscripción presionando el botón de confirmación.
           </p>
         </form>
       )}
       </main>
       <FondoPublico />
       <PiePublico />
+
+      {/* Fuera del <main> a proposito: flota sobre la pantalla,
+          no es contenido de la pagina. */}
+      {verPolitica && ficha.politica && (
+        <ModalPolitica
+          titulo={ficha.politica.titulo}
+          contenido={ficha.politica.contenido}
+          version={ficha.politica.version}
+          alCerrar={() => setVerPolitica(false)}
+        />
+      )}
     </>
   );
 }
@@ -1245,13 +1343,25 @@ function SelectorDeSector({
 
 function BuscadorDeNit({
   nit,
+  digito,
   razonSocial,
   alCambiar,
+  alCambiarDigito,
   esRut,
 }: {
   nit: string;
+  /// El dígito de verificación, APARTE.
+  ///
+  /// Iba dentro del mismo campo y no se guardaba: el modelo tiene
+  /// `digitoVerificacion` en su propia columna y el DTO ya lo
+  /// admitía, así que se perdía en la pantalla y en ningún otro
+  /// sitio. Y no es cosmético: en el F7 el NIT va sin dígito, y
+  /// un `899999034-1` metido en la columna del NIT no cuadra con
+  /// ningún registro del SENA.
+  digito: string;
   razonSocial: string;
   alCambiar: (nit: string, razonSocial: string) => void;
+  alCambiarDigito: (digito: string) => void;
   /// El independiente no tiene NIT de empresa: tiene RUT.
   esRut?: boolean;
 }) {
@@ -1269,6 +1379,11 @@ function BuscadorDeNit({
     setBuscando(true);
     try {
       const r = await preinscripcionApi.buscarNit(limpio);
+      /// El RUES lo calcula, así que se rellena solo y la persona
+      /// no tiene que saberse el suyo. Queda editable: si el
+      /// nuestro discrepa del que tiene en su papel, manda el
+      /// suyo.
+      if (r.digitoVerificacion) alCambiarDigito(r.digitoVerificacion);
       const nombres = r.instituciones.map((i) => i.razonSocial);
       setEncontradas(nombres);
       // una sola: se pone y ya, sin hacer elegir
@@ -1285,22 +1400,42 @@ function BuscadorDeNit({
 
   return (
     <>
-      <label className="block">
-        <span className="mb-1.5 block text-sm font-medium">
-          {esRut ? "RUT" : "NIT de la empresa"}{" "}
-          <span className="text-error">·</span>
-        </span>
-        <input
-          value={nit}
-          inputMode="numeric"
-          onChange={(e) => alCambiar(e.target.value.replace(/\D/g, ""), razonSocial)}
-          onBlur={(e) => void buscar(e.target.value)}
-          className={CAMPO}
-        />
-        <span className="mt-1 block text-xs text-texto-suave">
-          {buscando ? "Buscando…" : "Escriba solo el número."}
-        </span>
-      </label>
+      <div className="flex gap-3">
+        <label className="block flex-1">
+          <span className="mb-1.5 block text-sm font-medium">
+            {esRut ? "RUT" : "NIT de la empresa"}{" "}
+            <span className="text-error">·</span>
+          </span>
+          <input
+            value={nit}
+            inputMode="numeric"
+            onChange={(e) => alCambiar(e.target.value.replace(/\D/g, ""), razonSocial)}
+            onBlur={(e) => void buscar(e.target.value)}
+            className={CAMPO}
+          />
+          <span className="mt-1 block text-xs text-texto-suave">
+            {buscando ? "Buscando…" : "Sin puntos ni guion, y sin el dígito."}
+          </span>
+        </label>
+
+        {/* Su propio campo, estrecho porque es UN dígito.
+
+            Antes no existía: el NIT y el dígito iban juntos en una
+            sola casilla y el dígito se perdía. */}
+        <label className="block w-24 shrink-0">
+          <span className="mb-1.5 block text-sm font-medium">Dígito</span>
+          <input
+            value={digito}
+            inputMode="numeric"
+            maxLength={1}
+            onChange={(e) => alCambiarDigito(e.target.value.replace(/\D/g, ""))}
+            className={CAMPO}
+          />
+          <span className="mt-1 block text-xs text-texto-suave">
+            El de después del guion.
+          </span>
+        </label>
+      </div>
 
       <label className="block">
         <span className="mb-1.5 block text-sm font-medium">
