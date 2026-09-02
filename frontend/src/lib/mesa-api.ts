@@ -33,6 +33,15 @@ export type LeadDeLaMesa = {
   falta: string[];
   /// Si autorizó al llenar el formulario de la pauta.
   autorizoAlRegistrarse: boolean;
+  /// De quién es. Null: sin dueño, en el montón común.
+  asesor: { id: string; nombre: string } | null;
+  /// Cuándo se tocó por última vez, y cuántas veces. Es lo que
+  /// dice a quién hay que insistirle hoy.
+  ultimaGestionEn: string | null;
+  gestiones: number;
+  /// Si se le puede llamar. La regla vive en el SERVIDOR: esto
+  /// solo la pinta. `POST /notas` la vuelve a aplicar.
+  puedoContactar: "SI" | "REVOCO" | "YA_NO_ESTA_EN_LA_MESA";
   /// Los valores EN CRUDO, para rellenar el formulario que los
   /// corrige. Arriba van compuestos, que es lo que se lee pero no
   /// lo que se puede meter en un campo.
@@ -132,6 +141,26 @@ export const mesaApi = {
       method: "PATCH",
       body: JSON.stringify(cambios),
     }),
+
+  /// La nota de gestión sobre un LEAD, sin convertirlo.
+  ///
+  /// Misma forma que la de la ficha, y a propósito: es la misma
+  /// tabla y el mismo DTO del servidor.
+  agregarNota: (
+    id: string,
+    nota: { texto: string; canales: string[]; resultado: string },
+  ) =>
+    pedir<{ id: string; creadoEn: string }>(`/admin/leads/${id}/notas`, {
+      method: "POST",
+      body: JSON.stringify(nota),
+    }),
+
+  /// Repartir. `null` los devuelve al montón sin dueño.
+  asignar: (ids: string[], asesorId: string | null) =>
+    pedir<{ repartidos: number; sinTocar: number; total: number }>(
+      "/admin/leads/asignar-lote",
+      { method: "POST", body: JSON.stringify({ ids, asesorId }) },
+    ),
 
   descartarLote: (ids: string[], motivo: string) =>
     pedir<{ pedidos: number; descartados: number; sinTocar: number }>(

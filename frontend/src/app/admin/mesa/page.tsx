@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { ArreglarLead } from "@/components/admin/arreglar-lead";
+import { GestionarLead } from "@/components/admin/gestionar-lead";
 import { Aviso, Boton, useAdmin } from "@/components/admin/marco-admin";
 import { crmApi, type CatalogosSep } from "@/lib/crm-api";
 import { Cifra, Encabezado, Vacio } from "@/components/admin/piezas";
@@ -78,6 +79,8 @@ export default function PaginaMesa() {
   const [motivo, setMotivo] = useState("");
   /// Cual se esta arreglando. Null: ninguno.
   const [arreglando, setArreglando] = useState<LeadDeLaMesa | null>(null);
+  /// Cual se esta gestionando -- la llamada.
+  const [gestionando, setGestionando] = useState<LeadDeLaMesa | null>(null);
   const [catalogos, setCatalogos] = useState<CatalogosSep | null>(null);
   /// La pagina. Con 392 leads, sin esto solo se ven 50 y los
   /// otros 342 son invisibles salvo buscando.
@@ -540,12 +543,31 @@ export default function PaginaMesa() {
                           corrige un correo mal escrito que no
                           impide convertir pero sí llamar. */}
                       {l.estado === "PENDIENTE" && (
-                        <button
-                          className="mt-0.5 text-xs font-medium text-marca hover:underline"
-                          onClick={() => setArreglando(l)}
-                        >
-                          Arreglar
-                        </button>
+                        <div className="mt-0.5 flex flex-wrap gap-3">
+                          <button
+                            className="text-xs font-medium text-marca hover:underline"
+                            onClick={() => setArreglando(l)}
+                          >
+                            Arreglar
+                          </button>
+                          {/* Gestionar sale SIEMPRE que siga en la
+                              mesa, tenga documento o no: es
+                              justamente el lead sin cédula el que
+                              hay que llamar para conseguirla.
+
+                              Si no se puede contactar, el cajón lo
+                              dice con su motivo. Esconder el botón
+                              dejaría un lead mudo que nadie sabe
+                              por qué no se toca. */}
+                          <button
+                            className="text-xs font-medium text-marca hover:underline"
+                            onClick={() => setGestionando(l)}
+                          >
+                            {l.gestiones > 0
+                              ? `Gestionar (${l.gestiones})`
+                              : "Gestionar"}
+                          </button>
+                        </div>
                       )}
                     </td>
 
@@ -642,6 +664,14 @@ export default function PaginaMesa() {
           cursos={datos?.cursos ?? []}
           catalogos={catalogos}
           alCerrar={() => setArreglando(null)}
+          alGuardado={cargar}
+        />
+      )}
+
+      {gestionando && (
+        <GestionarLead
+          lead={gestionando}
+          alCerrar={() => setGestionando(null)}
           alGuardado={cargar}
         />
       )}
