@@ -19,6 +19,15 @@ import { n } from "./graficos";
 import type { Etapa } from "@/lib/crm-api";
 
 export type Hito = {
+  /**
+   * De qué COLOR se pinta. No es la identidad del hito.
+   *
+   * Dos peldaños distintos pueden compartir etapa con toda la
+   * razón: en el panel académico, «Listos para certificar» y
+   * «Certificados» son los dos `CERTIFICADO` porque los dos se
+   * pintan del verde de esa etapa. Quien lo lea como un
+   * identificador se lleva un disgusto —ver la `key` de abajo—.
+   */
   etapa: Etapa;
   etiqueta: string;
   /// Cuántos LLEGARON hasta aquí, contando a los que siguieron.
@@ -77,7 +86,17 @@ export function EmbudoProceso({
 
           return (
             <div
-              key={h.etapa}
+              /// La posición, no la etapa.
+              ///
+              /// `etapa` es el color y se repite a propósito:
+              /// React veía dos hitos `CERTIFICADO` y entendía
+              /// que eran el mismo, así que uno de los dos
+              /// desaparecía o se duplicaba. Con la etiqueta
+              /// delante se lee en las herramientas de React, y
+              /// el índice cierra el paso a cualquier repetida
+              /// que quede: este embudo es una lista fija, no se
+              /// reordena ni se filtra en el navegador.
+              key={`${h.etiqueta}#${i}`}
               className="flex min-w-0 flex-1 flex-col items-center"
               title={`${h.etiqueta}: ${n(h.total)} de ${n(primero)} (${porcentaje(h.total, primero)})${
                 caida > 0 ? ` · se quedaron ${n(caida)} en el paso anterior` : ""
@@ -126,9 +145,9 @@ export function EmbudoProceso({
 
       {notas.length > 0 && (
         <div className="mt-4 grid gap-2.5 border-t border-hairline pt-4 sm:grid-cols-2 lg:grid-cols-4">
-          {notas.map((nt) => (
+          {notas.map((nt, i) => (
             <div
-              key={nt.etiqueta}
+              key={`${nt.etiqueta}#${i}`}
               className="rounded-[11px] border border-hairline px-3.5 py-3"
               title={nt.detalle}
             >
