@@ -255,7 +255,7 @@ export default function PaginaPlantillasCorreo() {
                         {g.etapas.map(([valor, texto]) => (
                           <label
                             key={valor}
-                            className="flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1 text-sm hover:bg-superficie-alterna"
+                            className="flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1 text-sm transition hover:bg-superficie-alterna"
                           >
                             <input
                               type="checkbox"

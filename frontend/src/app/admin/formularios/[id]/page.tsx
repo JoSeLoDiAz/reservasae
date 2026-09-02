@@ -81,13 +81,13 @@ export default function PaginaConstructor({
         <div className="flex items-center gap-3">
           <Link
             href={`/admin/formularios/${id}/respuestas`}
-            className="rounded-xl border border-borde px-4 py-2 text-sm hover:bg-fondo"
+            className="rounded-xl border border-borde px-4 py-2 text-sm transition hover:bg-fondo"
           >
             Respuestas
           </Link>
           <Link
             href={`/admin/formularios/${id}/apariencia`}
-            className="rounded-xl border border-borde px-4 py-2 text-sm hover:bg-fondo"
+            className="rounded-xl border border-borde px-4 py-2 text-sm transition hover:bg-fondo"
           >
             Apariencia
           </Link>

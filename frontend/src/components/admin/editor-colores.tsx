@@ -64,7 +64,7 @@ export function EditorColores({
             <button
               type="button"
               onClick={herencia.alHeredarTodo}
-              className="rounded-lg border border-borde px-3 py-1.5 hover:bg-fondo"
+              className="rounded-lg border border-borde px-3 py-1.5 transition hover:bg-fondo"
             >
               Volver a heredar todo
             </button>
@@ -593,7 +593,7 @@ export function RevisionContraste({
                   setCorrigiendo(false);
                 }
               }}
-              className="shrink-0 rounded-lg border border-aviso/40 px-3 py-1.5 font-medium hover:bg-superficie disabled:opacity-50"
+              className="shrink-0 rounded-lg border border-aviso/40 px-3 py-1.5 font-medium transition hover:bg-superficie disabled:opacity-50"
             >
               {corrigiendo
                 ? "Corrigiendo…"

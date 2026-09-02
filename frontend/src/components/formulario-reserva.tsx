@@ -729,14 +729,14 @@ function Confirmacion({ reserva, mensaje }: { reserva: Reserva; mensaje?: string
       <div className="mt-6 flex flex-wrap gap-4">
         <Link
           href="/consulta"
-          className="rounded-xl bg-marca px-5 py-2.5 text-sm font-medium text-marca-texto hover:bg-marca-fuerte"
+          className="rounded-xl bg-marca px-5 py-2.5 text-sm font-medium text-marca-texto transition hover:bg-marca-fuerte"
         >
           Ver mis reservas
         </Link>
         <button
           type="button"
           onClick={() => window.location.reload()}
-          className="rounded-xl border border-borde px-5 py-2.5 text-sm font-medium hover:bg-fondo"
+          className="rounded-xl border border-borde px-5 py-2.5 text-sm font-medium transition hover:bg-fondo"
         >
           Reservar otro curso
         </button>

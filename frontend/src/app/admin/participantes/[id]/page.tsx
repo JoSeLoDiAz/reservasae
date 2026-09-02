@@ -550,7 +550,7 @@ export default function PaginaFicha() {
                                     : [...antes, c],
                                 )
                               }
-                              className={`rounded-lg border px-3 py-1.5 text-sm ${
+                              className={`rounded-lg border px-3 py-1.5 text-sm transition ${
                                 puesto
                                   ? "border-marca bg-marca-suave font-medium text-marca"
                                   : "border-borde hover:bg-superficie-alterna"
@@ -577,7 +577,7 @@ export default function PaginaFicha() {
                               type="button"
                               aria-pressed={puesto}
                               onClick={() => setResultado(puesto ? null : r)}
-                              className={`rounded-lg border px-3 py-1.5 text-sm ${
+                              className={`rounded-lg border px-3 py-1.5 text-sm transition ${
                                 puesto
                                   ? "border-marca bg-marca-suave font-medium text-marca"
                                   : "border-borde hover:bg-superficie-alterna"
@@ -1856,7 +1856,7 @@ function ValidacionRui({
                   refrescar();
                 });
             }}
-            className="rounded-lg border border-borde px-3 py-1 text-sm hover:bg-superficie-alterna disabled:opacity-50"
+            className="rounded-lg border border-borde px-3 py-1 text-sm transition hover:bg-superficie-alterna disabled:opacity-50"
           >
             Volver a consultar
           </button>

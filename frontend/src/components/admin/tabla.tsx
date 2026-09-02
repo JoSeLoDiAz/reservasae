@@ -696,7 +696,7 @@ export function Tabla<T>({
                   type="button"
                   onClick={() => setFiltros((f) => ({ ...f, [col]: "" }))}
                   aria-label={"Quitar el filtro de " + (def?.titulo ?? col)}
-                  className="opacity-60 hover:opacity-100"
+                  className="opacity-60 transition hover:opacity-100"
                 >
                   <IconoCerrar tamano={12} />
                 </button>
@@ -1363,7 +1363,7 @@ function PanelColumnas<T>({
                   onClick={() => mover(c.clave, -1)}
                   disabled={i === 0}
                   aria-label={"Subir " + c.titulo}
-                  className="opacity-60 hover:opacity-100 disabled:opacity-20"
+                  className="opacity-60 transition hover:opacity-100 disabled:opacity-20"
                 >
                   <IconoArriba tamano={14} />
                 </button>
@@ -1372,7 +1372,7 @@ function PanelColumnas<T>({
                   onClick={() => mover(c.clave, 1)}
                   disabled={i === puestas.length - 1}
                   aria-label={"Bajar " + c.titulo}
-                  className="opacity-60 hover:opacity-100 disabled:opacity-20"
+                  className="opacity-60 transition hover:opacity-100 disabled:opacity-20"
                 >
                   <IconoAbajo tamano={14} />
                 </button>
@@ -1382,7 +1382,7 @@ function PanelColumnas<T>({
                   disabled={c.fija}
                   aria-label={c.fija ? c.titulo + " no se puede quitar" : "Quitar " + c.titulo}
                   title={c.fija ? "Sin ella no se sabe de quién es la fila" : undefined}
-                  className="opacity-60 hover:opacity-100 disabled:opacity-20"
+                  className="opacity-60 transition hover:opacity-100 disabled:opacity-20"
                 >
                   <IconoCerrar tamano={14} />
                 </button>
@@ -1479,7 +1479,7 @@ function PanelVistas({
                   type="button"
                   onClick={() => setVistas(vistas.filter((x) => x.nombre !== v.nombre))}
                   aria-label={"Borrar la vista " + v.nombre}
-                  className="opacity-60 hover:opacity-100"
+                  className="opacity-60 transition hover:opacity-100"
                 >
                   <IconoPapelera tamano={15} />
                 </button>

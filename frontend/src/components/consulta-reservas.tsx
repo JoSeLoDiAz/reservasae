@@ -48,7 +48,7 @@ export function ConsultaReservas() {
             <button
               type="submit"
               disabled={buscando}
-              className="rounded-lg bg-marca px-6 py-2 font-medium text-marca-texto hover:bg-marca-fuerte disabled:opacity-50"
+              className="rounded-lg bg-marca px-6 py-2 font-medium text-marca-texto transition hover:bg-marca-fuerte disabled:opacity-50"
             >
               {buscando ? "Buscando…" : "Consultar"}
             </button>
@@ -190,7 +190,7 @@ function TarjetaReserva({
           <button
             onClick={guardar}
             disabled={ocupado}
-            className="rounded-lg bg-marca px-4 py-1.5 text-sm font-medium text-marca-texto hover:bg-marca-fuerte disabled:opacity-50"
+            className="rounded-lg bg-marca px-4 py-1.5 text-sm font-medium text-marca-texto transition hover:bg-marca-fuerte disabled:opacity-50"
           >
             Guardar
           </button>
