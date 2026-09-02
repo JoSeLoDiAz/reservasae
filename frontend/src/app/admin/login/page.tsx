@@ -219,21 +219,31 @@ function Marca({ claro = false }: { claro?: boolean }) {
   const logos = marca?.logos ?? [];
 
   if (logos.length) {
+    /// EL ALTO DEPENDE DE CUANTOS SON.
+    ///
+    /// Con uno solo puede lucirse; con tres tienen que caber en
+    /// el ancho del panel sin espicharse. Fijarlo en un numero
+    /// deja el caso de uno pequeño o el de tres desbordado, y
+    /// aqui pasaba lo primero: a 48 px la bajada del logo de
+    /// ADECOPRIA no se leia.
+    ///
+    /// Es la misma regla que ya usa la barra del panel, donde el
+    /// ancho maximo tambien sale de la cuenta.
+    const alto =
+      logos.length >= 3
+        ? 'h-[5.5rem] max-w-[11rem]'
+        : logos.length === 2
+          ? 'h-[6.5rem] max-w-[14rem]'
+          : 'h-[7.5rem] max-w-[19rem]';
+
     return (
       // self-start: en una columna flex, si no, la placa
       // se estira a todo el ancho y queda una caja vacia
-      /// Mas grandes que antes, pero por DEBAJO de Convoca.
-      ///
-      /// 72 px contra los 56 del signo. Estaban en 48 y se veian
-      /// pequeños --lo dijo el cliente mirandolo-- porque un logo
-      /// institucional lleva texto dentro: a 48 px la bajada del
-      /// logo de ADECOPRIA no se lee.
-      ///
-      /// Sigue por debajo en JERARQUIA aunque sea mas alto: el
-      /// signo de Convoca va arriba, con su nombre al lado y su
-      /// linea; este va debajo, en su placa. Quien manda es la
-      /// posicion, no el tamaño.
-      <div className="login-placa flex w-fit max-w-full flex-wrap items-center gap-x-6 gap-y-3 self-start rounded-2xl bg-white px-6 py-4">
+      /// Y SIGUE POR DEBAJO DE CONVOCA EN JERARQUIA, aunque
+      /// ahora sea mas alto que el signo. Quien manda es la
+      /// POSICION: el signo va arriba con su nombre y su linea;
+      /// este, debajo y en su placa.
+      <div className="login-placa flex w-fit max-w-full flex-wrap items-center gap-x-7 gap-y-4 self-start rounded-2xl bg-white px-7 py-5">
         {logos.map((logo) => (
           // <img>: tamano desconocido y ya viene cacheado
           // eslint-disable-next-line @next/next/no-img-element
@@ -241,7 +251,7 @@ function Marca({ claro = false }: { claro?: boolean }) {
             key={logo.id}
             src={urlLogo(logo)}
             alt={logo.etiqueta}
-            className="h-12 w-auto max-w-[10.5rem] object-contain"
+            className={`w-auto object-contain ${alto}`}
           />
         ))}
       </div>
