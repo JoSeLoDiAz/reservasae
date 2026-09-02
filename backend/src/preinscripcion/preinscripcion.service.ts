@@ -865,6 +865,25 @@ ${this.urlPublica()}/completar/${enlace.token}
     // perderia lo que la persona se molesto en escribir
     if (tocada.datosTocadosPorAsesorEn) {
       await this.dejarPropuesta(enlace.participanteId, p.personaId, suyos);
+      /**
+       * La caracterización SÍ se guarda, aunque lo demás quede
+       * en espera.
+       *
+       * No pasaba, y se perdía sin ruido: la persona marcaba
+       * «desplazada por la violencia», la pantalla le decía que
+       * había guardado, y la respuesta no llegaba a ningún
+       * sitio. Ni al dato, ni a una propuesta —`dejarPropuesta`
+       * solo lleva los campos de `Persona`—, ni siquiera a la
+       * marca de que se le había preguntado.
+       *
+       * Va aparte del candado del asesor a propósito. Ese
+       * candado existe para que lo que teclea el interesado no
+       * pise una corrección del asesor; pero esto no es un campo
+       * que el asesor corrija: es una declaración de ELLA sobre
+       * ella misma, y el bloque entero existe para recoger lo
+       * que ella dijo. El asesor no tiene un dato mejor.
+       */
+      await this.guardarCaracterizaciones(p.personaId, dto, enlace.participanteId);
       return { guardado: true, enEspera: true };
     }
 

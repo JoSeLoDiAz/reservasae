@@ -563,6 +563,7 @@ export function DatosSena({
       {catalogos && (
         <Caracterizacion
           catalogo={catalogos.caracterizaciones}
+          grupos={catalogos.gruposCaracterizacion}
           ninguna={catalogos.caracterizacionNinguna}
           elegidas={(lead.persona.caracterizaciones ?? []).map(
             (x) => x.caracterizacionSepId,

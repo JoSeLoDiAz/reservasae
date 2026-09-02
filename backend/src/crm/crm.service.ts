@@ -56,6 +56,7 @@ import {
   CARACTERIZACION_POR_ID,
   CARACTERIZACIONES_SEP,
   CARACTERIZACION_NINGUNA,
+  GRUPOS_DE_CARACTERIZACION,
   GENEROS_SEP,
   motivoDeIdInvalido,
   MUNICIPIOS_SEP,
@@ -467,6 +468,14 @@ export class CrmService {
       /// campo mas. Lo que los separa esta en el servicio.
       caracterizaciones: CARACTERIZACIONES_SEP,
       caracterizacionNinguna: CARACTERIZACION_NINGUNA,
+      /// En que grupo va cada una, SOLO para la pantalla.
+      ///
+      /// El SEP las entrega en fila, sin categorias: es un
+      /// catalogo de cargue, no una pantalla. Cincuenta y cuatro
+      /// casillas seguidas no se leen, y lo que no se lee no se
+      /// marca. No se manda al SENA ni se guarda: los ids son
+      /// los mismos de siempre.
+      gruposCaracterizacion: GRUPOS_DE_CARACTERIZACION,
       nivelesOcupacionales: NIVELES_OCUPACIONALES_SEP,
       tamanosEmpresa: TAMANOS_EMPRESA_SEP,
       departamentos: DEPARTAMENTOS_SEP.filter((d) => d.seleccionable),
