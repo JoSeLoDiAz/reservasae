@@ -2,12 +2,12 @@
 
 import { useCallback, useEffect, useState } from "react";
 
+import { Desplegable } from "@/components/admin/desplegable";
 import {
   Aviso,
   Boton,
   Campo,
   CLASE_CONTROL,
-  Tarjeta,
   useAdmin,
 } from "@/components/admin/marco-admin";
 import {
@@ -18,7 +18,7 @@ import {
   type RolAdmin,
   type RolConvenio,
 } from "@/lib/admin-api";
-import { Pildora } from "@/components/admin/piezas";
+import { Bloque, Pildora } from "@/components/admin/piezas";
 import { ErrorApi } from "@/lib/api";
 
 /**
@@ -71,8 +71,8 @@ export default function PaginaUsuarios() {
   }
 
   return (
-    <div>
-      <header className="border-b border-borde bg-superficie px-7 pt-[26px] pb-[22px]">
+    <div className="flex min-h-0 grow flex-col gap-4 px-4 pt-4 pb-6">
+      <header>
         <h1 className="text-[1.3125rem] font-bold tracking-[-0.02em] text-titulo">Usuarios</h1>
         <p className="mt-1 text-texto-suave">
           Quién puede entrar al panel y qué puede hacer.
@@ -103,7 +103,7 @@ export default function PaginaUsuarios() {
         alFallar={setError}
       />
 
-      <Tarjeta titulo="Cuentas">
+      <Bloque titulo="Cuentas">
         {!usuarios && <p className="text-texto-suave">Cargando…</p>}
 
         <ul className="divide-y divide-borde">
@@ -155,26 +155,36 @@ export default function PaginaUsuarios() {
                 </div>
               </div>
 
-              <label className="text-sm">
+              {/* `div` y no `label`: el desplegable de la casa
+                  es un `button`, y una etiqueta que envuelve un
+                  botón no le pone nombre a nada --el clic en el
+                  texto no lo activa--. El nombre se lo da
+                  `etiquetaAria`. */}
+              <div className="text-sm">
                 <span className="mb-1 block text-xs text-texto-suave">
                   ¿Administra el sistema?
                 </span>
-                <select
-                  value={u.rol === "SUPERADMIN" ? "SUPERADMIN" : "GESTOR"}
-                  disabled={u.id === admin.id}
-                  onChange={(e) =>
+                {/* El desplegable de la casa. El nativo lo pinta
+                    el sistema operativo: se ve distinto en cada
+                    navegador y en tema oscuro abre una lista
+                    blanca. */}
+                <Desplegable
+                  valor={u.rol === "SUPERADMIN" ? "SUPERADMIN" : "GESTOR"}
+                  desactivado={u.id === admin.id}
+                  etiquetaAria={`¿${u.nombre} administra el sistema?`}
+                  alElegir={(v) =>
                     conError(async () => {
                       await adminApi.actualizarUsuario(u.id, {
-                        rol: e.target.value as RolAdmin,
+                        rol: v as RolAdmin,
                       });
                     })
                   }
-                  className="rounded-xl border border-borde px-2 py-1.5 text-sm disabled:opacity-50"
-                >
-                  <option value="SUPERADMIN">Sí</option>
-                  <option value="GESTOR">No</option>
-                </select>
-              </label>
+                  opciones={[
+                    { valor: "SUPERADMIN", etiqueta: "Sí" },
+                    { valor: "GESTOR", etiqueta: "No" },
+                  ]}
+                />
+              </div>
 
               <div className="flex gap-3 text-sm">
                 <button
@@ -227,7 +237,7 @@ export default function PaginaUsuarios() {
             </li>
           ))}
         </ul>
-      </Tarjeta>
+      </Bloque>
     </div>
   );
 }
@@ -284,7 +294,7 @@ function FormularioNuevoUsuario({
   }
 
   return (
-    <Tarjeta
+    <Bloque
       titulo="Crear usuario"
       descripcion="Se genera una contraseña temporal que se muestra una sola vez. Quien entre con ella tendrá que cambiarla."
     >
@@ -312,17 +322,20 @@ function FormularioNuevoUsuario({
           etiqueta="¿Administra el sistema?"
           ayuda={ROLES.find((r) => r.valor === rol)?.descripcion}
         >
-          <select
-            value={rol}
-            onChange={(e) => setRol(e.target.value as RolAdmin)}
-            className={CLASE_CONTROL}
-          >
-            {ROLES.map((r) => (
-              <option key={r.valor} value={r.valor}>
-                {r.etiqueta}
-              </option>
-            ))}
-          </select>
+          {/* Con la descripción de cada rol como segunda línea:
+              antes solo se leía la del rol YA elegido, debajo
+              del campo. Elegir a ciegas y enterarse después de
+              qué se acaba de conceder no es lo que uno quiere
+              en la pantalla de permisos. */}
+          <Desplegable
+            valor={rol}
+            alElegir={(v) => setRol(v as RolAdmin)}
+            opciones={ROLES.map((r) => ({
+              valor: r.valor,
+              etiqueta: r.etiqueta,
+              detalle: r.descripcion,
+            }))}
+          />
         </Campo>
 
         <div className="sm:col-span-2">
@@ -351,7 +364,7 @@ function FormularioNuevoUsuario({
           </Boton>
         </div>
       </form>
-    </Tarjeta>
+    </Bloque>
   );
 }
 
@@ -439,18 +452,18 @@ function FilaConvenio({
 
       {valor && (
         <>
-          <select
-            value={valor}
-            onChange={(e) => alCambiar(e.target.value as RolConvenio)}
-            className={`${CLASE_CONTROL} sm:max-w-md`}
-            aria-label={`Rol en ${convenio.sigla ?? convenio.slug}`}
-          >
-            {ROLES_DE_CONVENIO.map((r) => (
-              <option key={r.valor} value={r.valor}>
-                {r.etiqueta}
-              </option>
-            ))}
-          </select>
+          <div className="min-w-56 flex-1 sm:max-w-md">
+            <Desplegable
+              valor={valor}
+              alElegir={(v) => alCambiar(v as RolConvenio)}
+              etiquetaAria={`Rol en ${convenio.sigla ?? convenio.slug}`}
+              opciones={ROLES_DE_CONVENIO.map((r) => ({
+                valor: r.valor,
+                etiqueta: r.etiqueta,
+                detalle: r.descripcion,
+              }))}
+            />
+          </div>
           <p className="w-full text-xs text-texto-suave">
             {ROLES_DE_CONVENIO.find((r) => r.valor === valor)?.descripcion}
           </p>

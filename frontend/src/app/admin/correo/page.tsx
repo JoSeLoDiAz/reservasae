@@ -10,8 +10,8 @@
 
 import { useCallback, useEffect, useState } from "react";
 
-import { Aviso, Boton, CLASE_CONTROL, Tarjeta, useAdmin } from "@/components/admin/marco-admin";
-import { AvisoDeSeccion } from "@/components/admin/secciones";
+import { Bloque, Cargando } from "@/components/admin/piezas";
+import { Aviso, Boton, CLASE_CONTROL, useAdmin } from "@/components/admin/marco-admin";
 import { ErrorApi } from "@/lib/api";
 import { correoApi, type EstadoCorreo } from "@/lib/correo-api";
 
@@ -62,80 +62,91 @@ export default function PaginaCorreo() {
     return error ? (
       <Aviso tipo="error">{error}</Aviso>
     ) : (
-      <p className="text-texto-suave">Cargando…</p>
+      <Cargando />
     );
   }
 
   const sale = estado.configurado && estado.acepta;
 
   return (
-    <div>
-      <header className="border-b border-borde bg-superficie px-7 pt-[26px] pb-[22px]">
-        <h1 className="text-[1.3125rem] font-bold tracking-[-0.02em] text-titulo">Correo saliente</h1>
-        <p className="mt-1 max-w-3xl text-texto-suave">
-          Por aquí salen los avisos que manda Convoca CRM. Si esto no está en verde,
-          no sale ninguno.
-        </p>
-      </header>
-
+    /// Sin cabecera propia, como el resto del panel. La miga
+    /// de arriba ya dice «Campaña Mailing / Cuenta de correo».
+    /// Lo que decía la bajada --si esto no está en verde no
+    /// sale ningún aviso-- lo dice el propio semáforo de la
+    /// primera tarjeta, que es donde se mira.
+    <div className="flex min-h-0 grow flex-col gap-4 px-4 pt-4 pb-6">
       {error && <Aviso tipo="error">{error}</Aviso>}
       {exito && <Aviso tipo="exito">{exito}</Aviso>}
 
-      <Tarjeta titulo="Cómo está">
+      <Bloque titulo="Cómo está">
         <div className="space-y-4">
-          <div
-            className={`flex items-start gap-3 rounded-xl border p-4 ${
-              sale
-                ? "border-exito/30 bg-exito-suave text-exito"
-                : "border-error/30 bg-error-suave text-error"
-            }`}
-          >
-            <span className="text-lg leading-none">{sale ? "✓" : "✕"}</span>
-            <div>
-              <p className="font-medium">
-                {sale
-                  ? "El correo está saliendo."
-                  : estado.configurado
-                    ? "Está configurado, pero el servidor no lo acepta."
-                    : "No está configurado."}
+          {/* El estado, en el COLOR DE LA LETRA.
+
+              Era un recuadro relleno de verde o de rojo, con
+              borde y una palomita grande. Es la regla 2 del
+              panel al revés —«sin caja, sin borde, sin fondo,
+              sin punto»— y aquí encima gritaba: esta pantalla
+              se mira una vez al mes para comprobar que todo
+              sigue bien, y lo normal era abrirla y recibir un
+              bloque verde a toda página.
+
+              El punto de color se queda porque es el mismo que
+              usa el resto del panel para una nota, y porque
+              rojo y verde solos no bastan: uno de cada doce
+              hombres no los distingue, y el texto dice cuál es
+              sin depender del color. */}
+          <Nota color={sale ? "var(--exito)" : "var(--error)"}>
+            <p className={`font-semibold ${sale ? "text-exito" : "text-error"}`}>
+              {sale
+                ? "El correo está saliendo."
+                : estado.configurado
+                  ? "Está configurado, pero el servidor no lo acepta."
+                  : "No está configurado."}
+            </p>
+            {estado.error && (
+              <p className="mt-0.5 text-texto-suave">{estado.error}</p>
+            )}
+            {!estado.configurado && (
+              <p className="mt-0.5 text-texto-suave">
+                Faltan <code>SMTP_SERVIDOR</code>, <code>SMTP_USUARIO</code> o{" "}
+                <code>SMTP_CLAVE</code> en el servidor.
               </p>
-              {estado.error && <p className="mt-1 text-sm">{estado.error}</p>}
-              {!estado.configurado && (
-                <p className="mt-1 text-sm">
-                  Faltan <code>SMTP_SERVIDOR</code>, <code>SMTP_USUARIO</code> o{" "}
-                  <code>SMTP_CLAVE</code> en el servidor.
-                </p>
-              )}
-            </div>
-          </div>
+            )}
+          </Nota>
 
           {estado.desviadoA.length > 0 && (
-            <AvisoDeSeccion color="var(--aviso)">
+            <Nota color="var(--aviso)">
               <p className="font-semibold text-aviso">
                 Todo el correo se desvía y no llega a su destinatario.
               </p>
-              <p className="mt-1">
+              <p className="mt-0.5 text-texto-suave">
                 Salga para quien salga, lo reciben{" "}
-                <strong>{estado.desviadoA.join(", ")}</strong>. Se quita
-                borrando <code>CORREO_REDIRIGIR_A</code> del servidor.
+                <strong className="text-texto">
+                  {estado.desviadoA.join(", ")}
+                </strong>
+                . Se quita borrando <code>CORREO_REDIRIGIR_A</code> del
+                servidor.
               </p>
-            </AvisoDeSeccion>
+            </Nota>
           )}
 
           {estado.esPrueba && estado.desviadoA.length === 0 && (
-            <AvisoDeSeccion color="var(--error)">
+            <Nota color="var(--error)">
               <p className="font-semibold text-error">
                 Entorno de pruebas sin desvío: no va a salir ningún correo.
               </p>
-              <p className="mt-1">
+              <p className="mt-0.5 text-texto-suave">
                 Es a propósito. Con las credenciales de verdad puestas, un
                 correo de prueba le llegaría a una persona real. Se arregla
                 poniendo <code>CORREO_REDIRIGIR_A</code>.
               </p>
-            </AvisoDeSeccion>
+            </Nota>
           )}
 
-          <dl className="grid gap-x-8 gap-y-3 text-sm sm:grid-cols-2">
+          {/* Una raya y no otra caja: separa «cómo está» de
+              «con qué está puesto», que es lo que se viene a
+              mirar después. */}
+          <dl className="grid gap-x-8 gap-y-3 border-t border-hairline pt-4 text-sm sm:grid-cols-2">
             <Dato titulo="Servidor" valor={estado.servidor} mono />
             <Dato titulo="Puerto" valor={String(estado.puerto)} mono />
             <Dato titulo="Cuenta" valor={estado.usuario} mono />
@@ -147,9 +158,9 @@ export default function PaginaCorreo() {
             <Dato titulo="Clave" valor={estado.tieneClave ? "Puesta" : "Sin poner"} />
           </dl>
         </div>
-      </Tarjeta>
+      </Bloque>
 
-      <Tarjeta
+      <Bloque
         titulo="Mandar uno de prueba"
         descripcion="Para verlo llegar con sus propios ojos."
       >
@@ -178,7 +189,32 @@ export default function PaginaCorreo() {
             {ocupado ? "Mandando…" : "Mandar prueba"}
           </Boton>
         </form>
-      </Tarjeta>
+      </Bloque>
+    </div>
+  );
+}
+
+/// Una nota dentro de un bloque: punto de color y texto.
+///
+/// Es el mismo idioma que `AvisoDeSeccion`, que era lo que
+/// había aquí, pero esa es una BANDA --lleva su propio `px-7`
+/// y su raya de abajo-- y metida dentro de un bloque quedaba
+/// sangrada dos veces y con una raya suelta en medio.
+function Nota({
+  color,
+  children,
+}: {
+  color: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="flex items-baseline gap-2.5">
+      <span
+        aria-hidden
+        className="h-[7px] w-[7px] shrink-0 -translate-y-px rounded-full"
+        style={{ background: color }}
+      />
+      <div className="min-w-0 flex-1 text-sm leading-relaxed">{children}</div>
     </div>
   );
 }

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { use, useEffect, useState } from "react";
 
+import { Cargando } from "@/components/admin/piezas";
 import { AparienciaHeredada } from "@/components/admin/apariencia-heredada";
 import { adminApi, type Marca } from "@/lib/admin-api";
 import { formulariosApi, type FormularioAdmin } from "@/lib/formularios-api";
@@ -26,7 +27,7 @@ export default function PaginaAparienciaFormulario({
     );
   }, [id]);
 
-  if (!formulario || !general) return <p className="text-texto-suave">Cargando…</p>;
+  if (!formulario || !general) return <Cargando />;
 
   return (
     <div>

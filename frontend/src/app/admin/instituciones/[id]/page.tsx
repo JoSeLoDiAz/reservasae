@@ -9,6 +9,7 @@ import {
   CLASE_CONTROL,
   Tarjeta,
 } from "@/components/admin/marco-admin";
+import { Cargando } from "@/components/admin/piezas";
 import { useToast } from "@/components/admin/toast";
 import { bonito, ErrorApi } from "@/lib/api";
 import {
@@ -292,7 +293,7 @@ export default function PaginaInstitucion({
     return error ? (
       <Aviso tipo="error">{error}</Aviso>
     ) : (
-      <p className="text-texto-suave">Cargando…</p>
+      <Cargando />
     );
   }
 

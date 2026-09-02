@@ -19,7 +19,8 @@
 
 import { useCallback, useEffect, useState } from "react";
 
-import { Aviso, Boton, Tarjeta } from "@/components/admin/marco-admin";
+import { Bloque, Cargando } from "@/components/admin/piezas";
+import { Aviso, Boton } from "@/components/admin/marco-admin";
 import { ErrorApi } from "@/lib/api";
 import {
   metaApi,
@@ -108,12 +109,19 @@ function PanelDeGremio({
   }
 
   return (
-    <Tarjeta
+    <Bloque
       titulo={g.nombre}
-      /// La insignia dice el estado sin abrir nada, y en el
-      /// color de la casa: en la letra, sin caja.
-      insignia={
-        <span className={g.listo ? "text-exito" : "text-aviso"}>
+      /// El estado, a la derecha del título y en el color de
+      /// la casa: en la letra, sin caja. Era `insignia`, que
+      /// es de `Tarjeta` y existe para verse CON la tarjeta
+      /// plegada; `Bloque` no se pliega, así que aquí es lo
+      /// que va al lado del título y nada más.
+      acciones={
+        <span
+          className={`text-sm font-semibold ${
+            g.listo ? "text-exito" : "text-aviso"
+          }`}
+        >
           {g.listo ? "Listo" : `Faltan ${g.faltan.length}`}
         </span>
       }
@@ -275,7 +283,7 @@ function PanelDeGremio({
           )}
         </div>
       </div>
-    </Tarjeta>
+    </Bloque>
   );
 }
 
@@ -295,11 +303,11 @@ export default function PaginaMeta() {
     void cargar();
   }, [cargar]);
 
-  if (!estado && !error) return <p className="text-texto-suave">Cargando…</p>;
+  if (!estado && !error) return <Cargando />;
 
   return (
-    <div>
-      <header className="border-b border-borde bg-superficie px-7 pt-[26px] pb-[22px]">
+    <div className="flex min-h-0 grow flex-col gap-4 px-4 pt-4 pb-6">
+      <header>
         <h1 className="text-[1.3125rem] font-bold tracking-[-0.02em] text-titulo">Webhook de Meta</h1>
         <p className="mt-1 max-w-3xl text-texto-suave">
           Por aquí entran los leads que se pagan en Facebook e Instagram. Hay{" "}
@@ -333,7 +341,7 @@ export default function PaginaMeta() {
             />
           ))}
 
-          <Tarjeta titulo="Lo que esto NO prueba">
+          <Bloque titulo="Lo que esto NO prueba">
             <ul className="list-disc space-y-2 pl-5 text-texto-suave">
               <li>
                 <strong>Que Meta llegue al dominio.</strong> Depende del DNS y
@@ -349,7 +357,7 @@ export default function PaginaMeta() {
                 faltaba una credencial es plata tirada.
               </li>
             </ul>
-          </Tarjeta>
+          </Bloque>
         </>
       )}
     </div>

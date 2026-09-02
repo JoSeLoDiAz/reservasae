@@ -14,12 +14,13 @@ import { useEffect, useState } from "react";
 import {
   EnlacePublico,
   LoQuePregunta,
-  type Bloque,
+  type Bloque as BloqueDePreguntas,
 } from "@/components/admin/formulario-publico";
-import { Tarjeta, useAdmin } from "@/components/admin/marco-admin";
+import { Bloque } from "@/components/admin/piezas";
+import { useAdmin } from "@/components/admin/marco-admin";
 import { adminApi } from "@/lib/admin-api";
 
-const CORTO: Bloque[] = [
+const CORTO: BloqueDePreguntas[] = [
   {
     titulo: "Quién es",
     campos: [
@@ -56,7 +57,7 @@ const CORTO: Bloque[] = [
   },
 ];
 
-const LARGO: Bloque[] = [
+const LARGO: BloqueDePreguntas[] = [
   {
     titulo: "Primero, su organización",
     campos: [
@@ -112,8 +113,12 @@ export default function FormulariosActivos() {
     : gremios;
 
   return (
-    <div>
-      <header className="border-b border-borde bg-superficie px-7 pt-[26px] pb-[22px]">
+    <div className="flex min-h-0 grow flex-col gap-4 px-4 pt-4 pb-6">
+      {/* El nombre entero va AQUI. En el menu se llama
+          «Formularios Personas», hermano de «Formularios
+          Empresas»: los dos juntos se leen como los dos que
+          son, y ninguno sale cortado en la barra. */}
+      <header>
         <h1 className="text-[1.3125rem] font-bold tracking-[-0.02em] text-titulo">
           Formularios activos
         </h1>
@@ -157,7 +162,7 @@ export default function FormulariosActivos() {
 
       {cual === "CORTO" ? (
         <>
-          <Tarjeta
+          <Bloque
             titulo="Formulario 1 · Corto"
             descripcion="Público, el mismo para todos. Se reparte por QR y por enlace."
           >
@@ -165,16 +170,16 @@ export default function FormulariosActivos() {
               Los datos básicos. Con esto la persona ya entra al embudo y se le
               puede hacer seguimiento. Pedirle más en este punto es perderlo.
             </p>
-          </Tarjeta>
+          </Bloque>
 
-          <Tarjeta titulo="Lo que le pregunta">
+          <Bloque titulo="Lo que le pregunta">
             <LoQuePregunta bloques={CORTO} />
             <p className="mt-4 text-xs text-texto-suave">
               Lo marcado con <span className="text-aviso">*</span> es
               obligatorio. El resto se le vuelve a pedir en el Formulario 2, y
               solo lo que falte.
             </p>
-          </Tarjeta>
+          </Bloque>
 
           {cuales.map((g) =>
             slugs[g.convenioId] ? (
@@ -188,7 +193,7 @@ export default function FormulariosActivos() {
         </>
       ) : (
         <>
-          <Tarjeta
+          <Bloque
             titulo="Formulario 2 · Largo"
             descripcion="Personal y de un solo uso. No es público."
           >
@@ -196,9 +201,9 @@ export default function FormulariosActivos() {
               Lo que falta para poder reportar a la persona al SENA. Se le manda
               después de que llene el corto.
             </p>
-          </Tarjeta>
+          </Bloque>
 
-          <Tarjeta titulo="Este no tiene QR, y no es un olvido">
+          <Bloque titulo="Este no tiene QR, y no es un olvido">
             <div className="space-y-2 text-sm">
               <p>
                 Cada enlace de este formulario es{" "}
@@ -212,15 +217,15 @@ export default function FormulariosActivos() {
                 complete sus datos».
               </p>
             </div>
-          </Tarjeta>
+          </Bloque>
 
-          <Tarjeta titulo="Lo que le pregunta">
+          <Bloque titulo="Lo que le pregunta">
             <LoQuePregunta bloques={LARGO} />
             <p className="mt-4 text-xs text-texto-suave">
               Solo se le pregunta lo que falta. Lo que ya dio en el corto no se
               le vuelve a pedir.
             </p>
-          </Tarjeta>
+          </Bloque>
         </>
       )}
     </div>
