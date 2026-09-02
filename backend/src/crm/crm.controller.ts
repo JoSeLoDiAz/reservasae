@@ -183,7 +183,15 @@ export class CrmController {
     /// Sin ellos la pantalla tenía media cifra que respondía al
     /// filtro y media que no: el embudo y el reparto cortaban,
     /// y el ritmo, la meta y los grupos seguían con todo.
-    @Query() corte: FiltrosParticipantesDto,
+    ///
+    /// Uno a uno y NO con el DTO entero: el ValidationPipe global
+    /// lleva `forbidNonWhitelisted`, así que un `@Query()` tipado
+    /// con `FiltrosParticipantesDto` rechazaba la ventana con
+    /// «property rango should not exist» y tumbaba la pantalla.
+    @Query('convenioId') convenioId?: string,
+    @Query('accionFormacionId') accionFormacionId?: string,
+    @Query('asesorId') asesorId?: string,
+    @Query('departamentoSepId') departamentoSepId?: string,
     @Query('rango') rango?: string,
     @Query('desde') desde?: string,
     @Query('hasta') hasta?: string,
@@ -196,10 +204,14 @@ export class CrmController {
       ambito.convenios,
       ventanaPedida(rango, desde, hasta, contra, contraDesde, contraHasta),
       {
-        convenioId: corte.convenioId,
-        accionFormacionId: corte.accionFormacionId,
-        asesorId: corte.asesorId,
-        departamentoSepId: corte.departamentoSepId,
+        convenioId: convenioId || undefined,
+        accionFormacionId: accionFormacionId || undefined,
+        asesorId: asesorId || undefined,
+        /// Llega como texto por la URL: sin convertir, el `=` de
+        /// Prisma compara un número contra una cadena y no casa.
+        departamentoSepId: departamentoSepId
+          ? Number(departamentoSepId)
+          : undefined,
       },
     );
   }
