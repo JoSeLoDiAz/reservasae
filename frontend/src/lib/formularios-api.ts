@@ -154,6 +154,17 @@ export const formulariosApi = {
 
   listar: () => pedir<ResumenFormulario[]>("/admin/formularios"),
 
+  /// Las dos líneas que ve quien se preinscribe, por acción.
+  ///
+  /// La ruta existía desde hace tiempo y no la llamaba nadie: una
+  /// API sin pantalla, así que en el formulario público salía lo
+  /// que hubiera dejado la siembra.
+  guardarResumen: (accionId: string, resumen: string | null) =>
+    pedir<{ id: string; codigo: string; resumenPublico: string | null }>(
+      `/admin/formularios/resumenes/${accionId}`,
+      { method: "PATCH", body: cuerpo({ resumen }) },
+    ),
+
   obtener: (id: string) => pedir<FormularioAdmin>(`/admin/formularios/${id}`),
 
   crear: (datos: { convenioId: string; slug: string; titulo: string }) =>

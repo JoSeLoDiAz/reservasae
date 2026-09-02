@@ -225,7 +225,7 @@ export function PreinscripcionPublica({ slug }: { slug: string }) {
           </h2>
           <p className="mt-1 text-sm text-texto-suave">
             Seleccione el departamento y la ciudad de su interés para consultar
-            las acciones de formación disponibles en estas.
+            las acciones de formación disponibles.
           </p>
 
           <div className="mt-5 grid gap-4 sm:grid-cols-2">
@@ -907,9 +907,24 @@ function Registrada({ token, nombre }: { token: string; nombre: string }) {
         ¡Gracias{nombre ? ` ${nombre}` : ""}, su preinscripción fue realizada
         exitosamente!
       </h1>
+      {/* Las dos cosas, y en este orden.
+
+          Primero lo que NO depende de ella --que la inscripcion
+          la cierra un asesor-- y despues lo que si: completar sus
+          datos ahora, si quiere. Al reves, el ofrecimiento se lee
+          como «termine usted y quedara inscrito», que es
+          justamente lo que no pasa.
+
+          Y se dice que es OPCIONAL. Quien no lo haga no pierde
+          nada: el asesor se lo preguntara por telefono. */}
       <p className="mt-3 text-texto-suave">
         Su inscripción no será efectiva hasta tanto no sea contactado por un
         asesor.
+      </p>
+      <p className="mt-2 text-texto-suave">
+        Si lo desea, puede continuar ahora con su registro de preinscripción y
+        completar sus datos. También puede dejarlo y esperar a que un asesor se
+        comunique con usted.
       </p>
 
       <a

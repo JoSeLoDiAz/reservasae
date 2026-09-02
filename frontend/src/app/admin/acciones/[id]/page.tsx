@@ -14,6 +14,7 @@ import {
   IndicadorActualizacion,
   SelloDeDatos,
 } from "@/components/admin/indicador-actualizacion";
+import { ResumenPublico } from "@/components/admin/resumen-publico";
 import { Aviso, useAdmin } from "@/components/admin/marco-admin";
 import { textoDeEstado } from "@/components/admin/ritmo";
 import { Bloque, Cifra, Esqueleto } from "@/components/admin/piezas";
@@ -283,6 +284,24 @@ export default function DetalleDeAccion({ params }: { params: Promise<{ id: stri
           para que sirve el curso, como va, donde esta el cupo,
           quien reservo, y al final el plan del proyecto -- que no
           cambia y se consulta una vez. */}
+      {/* LO QUE VE QUIEN SE PREINSCRIBE, y se edita aquí.
+
+          La ruta que guarda este texto existía desde hace tiempo
+          y no la llamaba NADIE: una API sin pantalla. Así que en
+          el formulario público salía lo que hubiera dejado la
+          siembra, y en producción eso es texto inventado.
+
+          Va encima del objetivo a propósito: el objetivo es del
+          proyecto y no se toca; esto es lo que de verdad lee la
+          persona antes de elegir. */}
+      <div className="no-imprimir">
+        <ResumenPublico
+          accionId={datos.id}
+          valor={datos.resumenPublico}
+          alGuardado={vivos.refrescar}
+        />
+      </div>
+
       {datos.objetivo && (
         <div className="imprimible-bloque">
           <Bloque titulo="Objetivo de la acción" descripcion="Texto del proyecto, sin modificar.">

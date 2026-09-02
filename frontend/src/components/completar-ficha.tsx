@@ -1466,6 +1466,34 @@ function BuscadorDeNit({
               Ninguna es la mía, la escribo
             </button>
           </>
+        ) : encontradas?.length === 1 && !aMano ? (
+          /* LO TRAJO EL REGISTRO, y se dice.
+
+             Antes se pintaba en un campo normal, indistinguible
+             de lo que uno escribe. Es editable --siempre lo fue--
+             pero no lo parecia, asi que quien veia un nombre que
+             no es el suyo daba por hecho que no se podia tocar.
+
+             Ahora se ve de donde viene y hay un boton para
+             corregirlo. El registro orienta; la persona decide. */
+          <>
+            <div className="flex items-center gap-3 rounded-lg border border-borde bg-superficie-alterna px-3 py-2.5">
+              <span className="min-w-0 flex-1 text-sm font-medium">
+                {razonSocial}
+              </span>
+              <button
+                type="button"
+                onClick={() => setAMano(true)}
+                className="shrink-0 rounded-lg border border-marca bg-marca-suave px-3 py-1.5 text-xs font-medium text-marca"
+              >
+                Cambiar
+              </button>
+            </div>
+            <span className="mt-1 block text-xs text-texto-suave">
+              Así aparece en el registro de comercio. Si no es correcto,
+              cámbielo.
+            </span>
+          </>
         ) : (
           <input
             value={razonSocial}
@@ -1476,7 +1504,8 @@ function BuscadorDeNit({
 
         {encontradas && encontradas.length > 1 && !aMano && (
           <span className="mt-1 block text-xs text-texto-suave">
-            Ese NIT ampara a {encontradas.length} organizaciones.
+            Ese NIT ampara a {encontradas.length} organizaciones. Elija la suya o
+            escríbala.
           </span>
         )}
       </label>

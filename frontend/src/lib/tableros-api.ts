@@ -274,6 +274,8 @@ export type DetalleAccion = {
   horas: number | null;
   objetivo: string | null;
   ambiente: string | null;
+  /// Las dos líneas que ve quien se preinscribe.
+  resumenPublico: string | null;
   visible: boolean;
   convenio: { slug: string; sigla: string | null; nombre: string };
   cupos: number;

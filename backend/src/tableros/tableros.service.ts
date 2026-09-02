@@ -424,6 +424,12 @@ export class TablerosService {
       horas: accion.horas,
       objetivo: accion.objetivo,
       ambiente: accion.ambiente,
+      /// El texto de la tarjeta publica, que se edita aqui mismo.
+      ///
+      /// La ruta que lo guarda existia desde hace tiempo y no la
+      /// llamaba nadie: una API sin pantalla. Asi que en el
+      /// formulario publico salia lo que dejo la siembra.
+      resumenPublico: accion.resumenPublico,
       visible: accion.visible,
       convenio: accion.convenio,
 
