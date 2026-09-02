@@ -86,9 +86,9 @@ export async function cruzarConElCrm(
   /// veinte formularios haría que los veinte fueran «la misma
   /// persona».
   if (llaves.correo) {
-    const porCorreo = await prisma.participante.findFirst({
-      where: { convenioId, persona: { correo: llaves.correo } },
-      select: { id: true, personaId: true },
+    const porCorreo = await elegirFicha(prisma, llaves, {
+      convenioId,
+      persona: { correo: llaves.correo },
     });
     if (porCorreo) {
       return {
@@ -103,9 +103,9 @@ export async function cruzarConElCrm(
   /// 3. El celular. La más floja, y aun así sirve: mucha gente
   /// no deja correo pero sí número.
   if (llaves.celular) {
-    const porCelular = await prisma.participante.findFirst({
-      where: { convenioId, persona: { celular: llaves.celular } },
-      select: { id: true, personaId: true },
+    const porCelular = await elegirFicha(prisma, llaves, {
+      convenioId,
+      persona: { celular: llaves.celular },
     });
     if (porCelular) {
       return {
@@ -226,7 +226,19 @@ export function partirNombreCompleto(completo: string): {
  * lead y la propuesta de datos — y el comparativo enseña ese lead
  * colgando del curso que no era.
  *
- * Lo encontró Mauricio Andrés al revisar la migración 09.
+ * Lo encontró Mauricio Andrés al revisar la migración 09, y lo
+ * completó al barrer el patrón: la primera versión solo pasaba
+ * por aquí la rama del DOCUMENTO, y las otras dos seguían con un
+ * `findFirst` pelado.
+ *
+ * Y ahí importa MÁS, no menos. Buscar por documento devuelve una
+ * ficha por curso de UNA persona; buscar por correo devuelve las
+ * de VARIAS —la secretaria que puso el suyo en veinte
+ * formularios— que es el caso del que avisa el comentario de
+ * arriba. El daño se queda en el motivo y en el comparativo,
+ * porque una coincidencia floja ya no escribe en la ficha, pero
+ * seguía sin ser determinista: el mismo lead podía señalar a una
+ * persona distinta según el día.
  */
 async function elegirFicha(
   prisma: PrismaService,

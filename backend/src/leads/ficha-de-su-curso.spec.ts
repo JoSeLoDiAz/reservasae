@@ -28,6 +28,11 @@ type FichaFalsa = {
   convenioId: string;
   accionFormacionId: string | null;
   creadoEn: Date;
+  /// Los de SU persona, para que el doble pueda filtrar por
+  /// ellos igual que hace Prisma. Sin esto, los casos de correo
+  /// y celular pasarían sin probar nada.
+  correo?: string | null;
+  celular?: string | null;
 };
 
 function armar(fichas: FichaFalsa[]) {
@@ -39,6 +44,22 @@ function armar(fichas: FichaFalsa[]) {
       }) => {
         const w = a.where;
         let hay = fichas.filter((f) => f.convenioId === w.convenioId);
+
+        /// Los filtros de la PERSONA, que es por lo que busca
+        /// cada rama. Sin esto el doble ignoraría el correo y el
+        /// celular, y los tests de esas dos ramas pasarían sin
+        /// probar nada -- el defecto que este proyecto lleva
+        /// documentado: un doble que decide por otra cosa que el
+        /// filtro real prueba el doble.
+        const per = w.persona as
+          | { correo?: string; celular?: string; numeroDocumento?: string }
+          | undefined;
+        if (per?.correo !== undefined) {
+          hay = hay.filter((f) => f.correo === per.correo);
+        }
+        if (per?.celular !== undefined) {
+          hay = hay.filter((f) => f.celular === per.celular);
+        }
 
         /// El filtro por curso, cuando el servicio lo manda.
         if (w.accionFormacionId !== undefined) {
@@ -72,6 +93,8 @@ const DOS: FichaFalsa[] = [
     convenioId: 'c-1',
     accionFormacionId: 'af1',
     creadoEn: new Date('2026-01-01'),
+    correo: 'casa@x.test',
+    celular: '3001112222',
   },
   {
     id: 'ficha-af5',
@@ -79,6 +102,8 @@ const DOS: FichaFalsa[] = [
     convenioId: 'c-1',
     accionFormacionId: 'af5',
     creadoEn: new Date('2026-06-01'),
+    correo: 'casa@x.test',
+    celular: '3001112222',
   },
 ];
 
@@ -141,5 +166,54 @@ describe('sigue sin salirse del convenio', () => {
       accionFormacionId: 'af5',
     });
     expect(r).toBeNull();
+  });
+});
+
+describe('las OTRAS dos ramas también eligen, no cogen cualquiera', () => {
+  /**
+   * La primera versión solo pasaba por `elegirFicha` la rama del
+   * documento. Y ahí importa MENOS que en estas: por documento
+   * salen las fichas de UNA persona; por correo salen las de
+   * VARIAS —la secretaria que puso el suyo en veinte
+   * formularios—, que es el caso del que avisa el comentario del
+   * propio fichero.
+   *
+   * Lo completó Mauricio Andrés barriendo el patrón por todo el
+   * backend.
+   */
+
+  const POR_CORREO = { ...LLAVES, numeroDocumento: null, correo: 'casa@x.test' };
+
+  it('por CORREO elige la ficha de su curso', async () => {
+    const r = await cruzarConElCrm(armar(DOS) as never, 'c-1', {
+      ...POR_CORREO,
+      tipoDocumentoSepId: null,
+      accionFormacionId: 'af5',
+    });
+    expect(r?.participanteId).toBe('ficha-af5');
+    /// Y sigue diciendo que la coincidencia NO es firme.
+    expect(r?.firme).toBe(false);
+  });
+
+  it('por CELULAR también', async () => {
+    const r = await cruzarConElCrm(armar(DOS) as never, 'c-1', {
+      ...LLAVES,
+      tipoDocumentoSepId: null,
+      numeroDocumento: null,
+      correo: null,
+      celular: '3001112222',
+      accionFormacionId: 'af1',
+    });
+    expect(r?.participanteId).toBe('ficha-af1');
+    expect(r?.firme).toBe(false);
+  });
+
+  it('y sin curso, la más reciente, no la que salga', async () => {
+    const r = await cruzarConElCrm(armar(DOS) as never, 'c-1', {
+      ...POR_CORREO,
+      tipoDocumentoSepId: null,
+      accionFormacionId: null,
+    });
+    expect(r?.participanteId).toBe('ficha-af5');
   });
 });
