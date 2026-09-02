@@ -282,6 +282,36 @@ export type RecorteDeControl = {
   departamentoSepId?: number;
 };
 
+/**
+ * El recorte que se aplica a los CUPOS y a la META.
+ *
+ * Solo convenio y acción, y es una decisión, no un olvido: una
+ * meta del SENA se compromete por proyecto y se reparte por
+ * acción y por grupo. No se reparte por asesor, ni por
+ * departamento, ni por etapa, así que acotarla por esos tres no
+ * significaría nada —daría cero, o la meta entera, según cómo se
+ * escribiera el JOIN—.
+ *
+ * Sin esto la meta salía SIEMPRE la del ámbito completo: con un
+ * gremio elegido, el embudo comparaba los diecinueve inscritos
+ * de ADECOPRIA contra los 3.690 comprometidos de los dos
+ * gremios, y el porcentaje de debajo era mentira. Lo avisaba el
+ * encargo de diseño y estaba sin hacer.
+ *
+ * Va aparte y exportada para poder fijarlo en una prueba: es una
+ * cifra de cumplimiento ante el SENA, y que alguien meta aquí el
+ * asesor «para que filtre como los demás» tiene que romper algo.
+ *
+ * `af` es el alias de `acciones_formacion` en las dos consultas
+ * que la usan.
+ */
+export function recorteDeMeta(recorte?: RecorteDeControl): Prisma.Sql {
+  return Prisma.sql`
+    ${recorte?.convenioId ? Prisma.sql`AND af."convenioId" = ${recorte.convenioId}` : Prisma.empty}
+    ${recorte?.accionFormacionId ? Prisma.sql`AND af."id" = ${recorte.accionFormacionId}` : Prisma.empty}
+  `;
+}
+
 export async function controlDeInscritos(
   prisma: PrismaService,
   ambito: string[],
@@ -313,6 +343,8 @@ export async function controlDeInscritos(
    * al filtro y media que no —el embudo por un lado y el ritmo
    * por otro—, que es peor que no filtrar.
    */
+  const acotaMeta = recorteDeMeta(recorte);
+
   const suyos = Prisma.sql`p."convenioId" IN (${Prisma.join(ambito)})
     ${recorte?.convenioId ? Prisma.sql`AND p."convenioId" = ${recorte.convenioId}` : Prisma.empty}
     ${recorte?.accionFormacionId ? Prisma.sql`AND p."accionFormacionId" = ${recorte.accionFormacionId}` : Prisma.empty}
@@ -399,6 +431,7 @@ export async function controlDeInscritos(
         JOIN "acciones_formacion" af ON af."id" = o."accionFormacionId"
        WHERE af."convenioId" IN (${Prisma.join(ambito)})
          AND r."estado" <> 'CANCELADA'
+         ${acotaMeta}
     `,
 
     /**
@@ -416,6 +449,7 @@ export async function controlDeInscritos(
         JOIN "grupos" g              ON g."id" = gc."grupoId"
         JOIN "acciones_formacion" af ON af."id" = g."accionFormacionId"
        WHERE af."convenioId" IN (${Prisma.join(ambito)})
+         ${acotaMeta}
     `,
 
     /**

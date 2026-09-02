@@ -20,7 +20,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 
-import { n } from "./graficos";
+import { ListaBarras, n } from "./graficos";
 
 /// San Andrés y Providencia queda a 700 km de la costa: metido
 /// en el encuadre, el continente se encoge a la mitad para
@@ -28,6 +28,33 @@ import { n } from "./graficos";
 const FUERA_DEL_ENCUADRE = ["SAN ANDRES Y PROVIDENCIA"];
 
 const ALTO = 420;
+
+/**
+ * ¿Entiende este navegador `color-mix(in oklab, …)`?
+ *
+ * Importa, y mucho: un `fill` que el navegador no sabe leer no
+ * se queda en gris, se queda en NEGRO —es el valor inicial de
+ * `fill` en SVG—. En un Chrome anterior al 111, un Safari
+ * anterior al 16.2 o un navegador de empresa con la versión
+ * congelada, el mapa de coordinación saldría en negro sólido, y
+ * nadie se enteraría hasta que alguien lo abriera.
+ *
+ * Se calcula una vez y se guarda. No hace falta estado ni efecto
+ * —y por eso no lo lleva—: los `path` solo existen DESPUÉS de
+ * que la geometría llegue por `fetch`, que es cosa del
+ * navegador, así que el servidor nunca llega a pintar uno y no
+ * hay hidratación que romper.
+ */
+let mezclaSoportada: boolean | null = null;
+function soportaMezcla(): boolean {
+  if (mezclaSoportada === null) {
+    mezclaSoportada =
+      typeof CSS !== "undefined" &&
+      typeof CSS.supports === "function" &&
+      CSS.supports("color", "color-mix(in oklab, red 50%, blue)");
+  }
+  return mezclaSoportada;
+}
 
 type Rasgo = {
   properties: Record<string, string>;
@@ -80,14 +107,42 @@ export function MapaColombia({
 
   useEffect(() => {
     let vivo = true;
-    fetch("/geo/colombia-departamentos.json")
+
+    /// Con plazo, y por eso un `AbortController`.
+    ///
+    /// Sin él, una petición que se queda colgada —proxy raro,
+    /// red mala, el fichero que no está en la imagen— dejaba la
+    /// tarjeta girando para siempre: `fetch` no falla, así que
+    /// el `catch` no entra y el respaldo no llega NUNCA. Doce
+    /// segundos y a las barras, que es información de verdad.
+    const corta = new AbortController();
+    const plazo = setTimeout(() => corta.abort(), 12_000);
+
+    fetch("/geo/colombia-departamentos.json", { signal: corta.signal })
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
-      .then((j: { features: Rasgo[] }) => {
-        if (vivo) setRasgos(j.features ?? []);
+      .then((j: { features?: Rasgo[] }) => {
+        if (!vivo) return;
+        /// Un `200` no basta: si nginx o el servidor devuelven la
+        /// página de error en HTML, `.json()` revienta y cae en
+        /// el `catch`; pero si devuelven un JSON que no es esto
+        /// —un `{}`, otra versión del fichero— hay que darse
+        /// cuenta aquí.
+        const fs = Array.isArray(j?.features) ? j.features : [];
+        if (fs.length === 0) {
+          setFallo(true);
+          return;
+        }
+        setRasgos(fs);
       })
-      .catch(() => vivo && setFallo(true));
+      .catch(() => {
+        if (vivo) setFallo(true);
+      })
+      .finally(() => clearTimeout(plazo));
+
     return () => {
       vivo = false;
+      clearTimeout(plazo);
+      corta.abort();
     };
   }, []);
 
@@ -151,26 +206,38 @@ export function MapaColombia({
   }, [rasgos, porNombre]);
 
   if (fallo) {
-    /// La lista, solo cuando el mapa no puede pintarse. Es el
-    /// respaldo declarado en el encargo, no una alternativa.
+    /// Las barras SOLO cuando el mapa no puede pintarse. Es el
+    /// respaldo que declara el encargo, no una alternativa: con
+    /// veintisiete departamentos la lista es larga y no dice
+    /// DONDE se concentra la gente, solo cual tiene mas.
     return (
-      <ul className="space-y-1.5">
-        {[...datos]
+      <div>
+        <p className="mb-3 text-[0.71875rem] text-texto-suave">
+          No se pudo cargar el mapa. Va la lista, ordenada de más a menos.
+        </p>
+        <ListaBarras
+          datos={[...datos]
+            .sort((a, b) => b.total - a.total)
+            .map((d) => ({ etiqueta: d.nombre, valor: d.total }))}
+          sufijo=" personas"
+          vacio="Sin personas con estos filtros."
+        />
+      </div>
+    );
+  }
+
+  /// Geometria cargada pero sin encuadre posible: al respaldo.
+  /// Antes se quedaba en el esqueleto, y un esqueleto que no
+  /// termina nunca se lee como «la pagina esta rota».
+  if (rasgos && !dibujo) {
+    return (
+      <ListaBarras
+        datos={[...datos]
           .sort((a, b) => b.total - a.total)
-          .slice(0, 12)
-          .map((d) => (
-            <li key={d.nombre} className="flex items-center gap-2 text-[0.78125rem]">
-              <span className="min-w-0 flex-1 truncate">{d.nombre}</span>
-              <span className="h-1.5 w-24 overflow-hidden rounded-full bg-superficie-alterna">
-                <span
-                  className="block h-full rounded-full bg-marca"
-                  style={{ width: `${(d.total / cima) * 100}%` }}
-                />
-              </span>
-              <span className="w-6 text-right font-semibold tabular-nums">{n(d.total)}</span>
-            </li>
-          ))}
-      </ul>
+          .map((d) => ({ etiqueta: d.nombre, valor: d.total }))}
+        sufijo=" personas"
+        vacio="Sin personas con estos filtros."
+      />
     );
   }
 
@@ -193,6 +260,10 @@ export function MapaColombia({
         role="img"
         aria-label="Personas por departamento"
       >
+        {/* El fondo, para que la vía sin `color-mix` mezcle
+            contra la superficie de la tarjeta y no contra lo que
+            haya debajo del SVG. */}
+        <rect width="100%" height="100%" fill="var(--superficie)" />
         {dibujo.caminos.map((c) => {
           /// La intensidad va por raíz y no lineal: con un
           /// departamento que se lleva la mitad, en lineal los
@@ -200,17 +271,25 @@ export function MapaColombia({
           /// de distinguir entre «pocos» y «ninguno».
           const f = c.total > 0 ? Math.sqrt(c.total / cima) : 0;
           const mezcla = Math.round(8 + f * 82);
+          /// Sin `color-mix`, el mismo azul con transparencia
+          /// sobre el fondo de la tarjeta. No es idéntico —mezcla
+          /// en sRGB y no en oklab—, pero es el mismo azul en la
+          /// misma proporción y funciona en cualquier navegador.
+          const mezclaOk = soportaMezcla();
+          const relleno =
+            c.total === 0
+              ? "var(--superficie-alterna)"
+              : mezclaOk
+                ? `color-mix(in oklab, var(--marca) ${mezcla}%, var(--superficie))`
+                : "var(--marca)";
           return (
             <path
               key={c.nombre}
               d={c.d}
               stroke="var(--superficie)"
               strokeWidth={0.6}
-              fill={
-                c.total > 0
-                  ? `color-mix(in oklab, var(--marca) ${mezcla}%, var(--superficie))`
-                  : "var(--superficie-alterna)"
-              }
+              fill={relleno}
+              fillOpacity={c.total > 0 && !mezclaOk ? mezcla / 100 : 1}
               className="transition-[fill]"
             >
               <title>{`${c.nombre}: ${n(c.total)} ${c.total === 1 ? "persona" : "personas"}`}</title>

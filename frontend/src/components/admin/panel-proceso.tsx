@@ -30,7 +30,6 @@ import { Aviso } from "./marco-admin";
 import { SelectorBuscable } from "./selector-buscable";
 import {
   Donut,
-  ListaBarras,
   Medidor,
   n,
   SERIE,
@@ -260,6 +259,9 @@ export function PanelProceso({
   /// estaba mirando, y aquí se mira para comparar.
   const claseCargando = cargando && control ? "opacity-45 pointer-events-none" : "";
 
+  /// Ver el comentario de `meta` en el embudo.
+  const metaComparable = !asesorId && !departamentoSepId && !etapa;
+
   const hayFiltro = Boolean(
     convenioId || accionFormacionId || etapa || asesorId || departamentoSepId,
   );
@@ -323,6 +325,57 @@ export function PanelProceso({
     }));
 
   /// Los grupos de la acción abierta, para el desglose.
+  /**
+   * El gremio que se está mirando, si es uno solo.
+   *
+   * Puede serlo por filtro o porque en el corte no hay más que
+   * uno. En los dos casos la dona de convenio sobra —una sola
+   * porción no reparte nada— y hace falta su nombre para el
+   * subtítulo.
+   */
+  const gremioUnico = useMemo(() => {
+    if (convenioId) {
+      return (metricas?.porGremio ?? []).find((g) => g.convenioId === convenioId)?.gremio ?? null;
+    }
+    const cs = control?.porConvenio ?? [];
+    return cs.length === 1 ? cs[0].etiqueta : null;
+  }, [convenioId, metricas, control]);
+
+  /**
+   * Las acciones del gremio, para la dona que ocupa el hueco.
+   *
+   * Con un solo gremio la tarjeta «Por convenio» no dice nada, y
+   * dejar «Por modalidad» sola a lo ancho desperdicia media
+   * fila. Lo que sí interesa entonces es en qué acciones se
+   * reparte ESE gremio.
+   *
+   * Cinco y «Otras acciones»: con once porciones la dona es un
+   * arcoíris ilegible y la leyenda tapa la tarjeta. Las que se
+   * agrupan siguen contando —la suma cuadra con el total—, solo
+   * dejan de tener porción propia.
+   */
+  const CIMA_ACCIONES = 5;
+  const donutAcciones: PorcionDonut[] = useMemo(() => {
+    const filas = [...(control?.porAccion ?? [])].sort((a, b) => b.total - a.total);
+    if (filas.length === 0) return [];
+    const cabeza = filas.slice(0, CIMA_ACCIONES).map((f, i) => {
+      /// «AF1 · NOMBRE» → «AF1 · Nombre». El código en alta, que
+      /// es como se nombra, y el resto en frase: igual que en el
+      /// desglose de abajo, que habla de las mismas acciones.
+      const codigo = f.etiqueta.split(" ")[0] ?? "";
+      const resto = f.etiqueta.slice(codigo.length);
+      return {
+        etiqueta: `${codigo}${frase(resto)}`,
+        valor: f.total,
+        color: PALETA_CANAL[i % PALETA_CANAL.length],
+      };
+    });
+    const cola = filas.slice(CIMA_ACCIONES).reduce((t, f) => t + f.total, 0);
+    return cola > 0
+      ? [...cabeza, { etiqueta: "Otras acciones", valor: cola, color: "var(--superficie-alterna)" }]
+      : cabeza;
+  }, [control]);
+
   /// Los grupos de la acción abierta, también de más a menos.
   const gruposDe = (codigo: string) =>
     (control?.porGrupo ?? [])
@@ -443,7 +496,22 @@ export function PanelProceso({
         </div>
       </div>
 
-      <div className={`space-y-4 transition-opacity ${claseCargando}`}>
+      {/* La barra fina de arriba mientras llega el dato nuevo.
+          El encargo la pide junto al atenuado, y hace falta: la
+          opacidad sola, en una pantalla que ya es clara, casi no
+          se nota, y quien cambia un filtro no sabe si pasó algo.
+          `aria-hidden` porque el aviso de verdad para un lector
+          de pantalla es el `aria-busy` de abajo. */}
+      {cargando && control && (
+        <div className="h-0.5 overflow-hidden rounded-full bg-superficie-alterna" aria-hidden>
+          <div className="h-full w-1/3 animate-[recorrer_1.1s_ease-in-out_infinite] rounded-full bg-marca" />
+        </div>
+      )}
+
+      <div
+        className={`space-y-4 transition-opacity ${claseCargando}`}
+        aria-busy={cargando && Boolean(control)}
+      >
         {/* ── 2 · El embudo ── */}
         <Bloque
           estirado
@@ -453,7 +521,15 @@ export function PanelProceso({
           <EmbudoProceso
             hitos={hitos}
             notas={notas}
-            meta={control?.metaComprometida ?? null}
+            /* La meta solo cuando se puede comparar de verdad.
+               El backend ya la acota por gremio y por acción,
+               que es como se compromete con el SENA. Pero una
+               meta no se reparte por asesor, ni por departamento,
+               ni por etapa: con uno de esos tres puesto, arriba
+               habría un numerador filtrado y abajo una meta que
+               no lo está, y el porcentaje sería mentira. Antes de
+               enseñar una cifra falsa, ninguna. */
+            meta={metaComparable ? control?.metaComprometida ?? null : null}
           />
         </Bloque>
 
@@ -512,11 +588,30 @@ export function PanelProceso({
 
         {/* ── 4 · De qué está hecha esa gente ── */}
         <div className="grid gap-4 min-[1000px]:grid-cols-2">
-          {/* Con un solo gremio filtrado la tarta sobra: una sola
-              porción no reparte nada. */}
-          {!convenioId && donutConvenio.length > 1 && (
+          {/* Con un solo gremio la tarta de convenios sobra —una
+              sola porción no reparte nada— y en su hueco entra
+              cómo se reparten las acciones DE ESE gremio, que es
+              la pregunta que queda cuando ya se sabe cuál es.
+              El encargo decía dejar «Por modalidad» sola a lo
+              ancho; media fila vacía no informa de nada. */}
+          {donutConvenio.length > 1 && !gremioUnico ? (
             <Bloque titulo="Por convenio" descripcion="Cómo se reparten entre los dos gremios.">
               <Donut datos={donutConvenio} detalleCentro="personas" />
+            </Bloque>
+          ) : (
+            <Bloque
+              titulo="Por acción de formación"
+              descripcion={
+                gremioUnico
+                  ? `Cómo se reparten sus acciones dentro de ${gremioUnico}.`
+                  : "Cómo se reparten las acciones de formación."
+              }
+            >
+              <Donut
+                datos={donutAcciones}
+                detalleCentro="personas"
+                vacio="Sin acciones con personas."
+              />
             </Bloque>
           )}
           <Bloque titulo="Por modalidad" descripcion="Presencial frente a virtual.">

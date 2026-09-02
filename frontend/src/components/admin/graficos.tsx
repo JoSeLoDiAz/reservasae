@@ -623,7 +623,22 @@ export function Donut({
             <title>{`${s.etiqueta}: ${n(s.valor)}`}</title>
           </circle>
         ))}
-        {centro && (
+        {suma === 0 && (
+          /// Todo a cero: una raya en el centro. Sin ella, un
+          /// anillo gris y vacío se lee como «esto no cargó»
+          /// cuando lo que dice es «aquí no hay nadie».
+          <text
+            x="66"
+            y={detalleCentro ? 64 : 74}
+            textAnchor="middle"
+            fontSize="26.5"
+            fontWeight="700"
+            fill="var(--texto-suave)"
+          >
+            —
+          </text>
+        )}
+        {centro && suma > 0 && (
           /// Centrado en 66 y reescalado con el lienzo.
           ///
           /// El texto seguia en las coordenadas del lienzo de
