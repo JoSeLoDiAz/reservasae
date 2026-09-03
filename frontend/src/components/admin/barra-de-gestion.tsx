@@ -214,11 +214,42 @@ export function BarraDeGestion({
     ? ETAPAS_A_MANO
     : [lead.etapa, ...ETAPAS_A_MANO];
 
+  /// Sin el campo —una ficha servida por un backend anterior—
+  /// se deja pasar: el servidor sigue siendo el que decide, y
+  /// bloquear por no saber sería peor que no avisar.
+  const puedeInscribir = lead.inscripcion?.admite !== false;
+
+  /// Lo mismo en corto, para caber en la segunda línea de la
+  /// opción. La frase entera va debajo del campo.
+  const MOTIVO_CORTO: Record<string, string> = {
+    OFERTA_CERRADA: "La oferta está cerrada",
+    LLENO: "No quedan cupos",
+    SIN_GRUPOS: "La acción no tiene grupos",
+    SIN_FECHAS: "Ningún grupo tiene fecha",
+    VENTANA_CERRADA: "Se cerró la ventana",
+    SIN_OFERTA: "Sin oferta asignada",
+  };
+  const motivoCorto = lead.inscripcion?.motivo
+    ? MOTIVO_CORTO[lead.inscripcion.motivo]
+    : undefined;
+
   return (
     <div style={D.barra}>
       <div style={D.campo}>
         <div style={D.rotulo}>MOVER DE ETAPA</div>
         <div style={{ marginTop: 6 }}>
+          {/* «Inscrito» se desactiva CON SU MOTIVO cuando la
+              oferta no admite inscripciones.
+
+              Antes se podía elegir, se pulsaba «Guardar gestión»
+              y el servidor lo rechazaba: salía un recuadro rojo
+              encima del nombre de la persona diciendo que ningún
+              grupo tiene fecha de inicio. La ficha está bien —lo
+              que falta es una fecha en el cronograma— y así
+              puesto parecía que la rota era ella.
+
+              El servidor sigue comprobándolo: esto no es el
+              candado, es no hacerle perder el viaje. */}
           <Desplegable
             subrayado
             alto={30}
@@ -226,11 +257,21 @@ export function BarraDeGestion({
             opciones={etapas.map((e) => ({
               valor: e,
               etiqueta: ETIQUETA_ETAPA[e],
-              desactivada: !ETAPAS_A_MANO.includes(e),
+              detalle: e === "INSCRITO" && !puedeInscribir ? motivoCorto : undefined,
+              desactivada:
+                !ETAPAS_A_MANO.includes(e) || (e === "INSCRITO" && !puedeInscribir),
             }))}
             alElegir={(v) => mover(v as Etapa)}
           />
         </div>
+        {!puedeInscribir && lead.inscripcion?.porQueNo && (
+          /* Debajo del campo y en ámbar, no en rojo arriba del
+             todo: es una condición de la oferta, no un error de
+             esta persona. */
+          <p className="mt-1.5 text-[0.6875rem] leading-snug text-aviso">
+            {lead.inscripcion.porQueNo}
+          </p>
+        )}
       </div>
 
       <div style={D.campo}>

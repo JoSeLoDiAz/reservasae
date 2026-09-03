@@ -789,6 +789,39 @@ export class CrmService {
       enlace: await this.estadoDelEnlace(id),
       /// Cuantas veces se le intento y si alguna se logro.
       gestion: await this.gestionDe(id),
+      /**
+       * Si su oferta admite inscripciones, y si no, por que.
+       *
+       * Va en la ficha para poder decirlo ANTES de que lo
+       * intente. La misma comprobacion se hace al inscribir
+       * —`cambiarEtapa` la exige y lanza— pero solo se veia AL
+       * GUARDAR: se elegia «Inscrito», se pulsaba, y salia un
+       * recuadro rojo encima del nombre de la persona diciendo
+       * que ningun grupo tiene fecha. La ficha esta bien; lo que
+       * falta es una fecha en el cronograma, y asi puesto parece
+       * que la rota es ella.
+       *
+       * El CODIGO va con la frase: la pantalla necesita saber si
+       * el motivo se arregla en el cronograma, en la oferta o
+       * ampliando cupos, y leyendo el texto no se distingue.
+       *
+       * Es una consulta mas por ficha abierta. Se paga: la
+       * alternativa es que se entere fallando.
+       */
+      inscripcion: await this.puedeInscribirse(p.ofertaId),
+    };
+  }
+
+  /// El motivo por el que esta oferta no admite inscripciones,
+  /// listo para la pantalla. Null en `porQueNo` cuando si admite.
+  private async puedeInscribirse(ofertaId: string | null) {
+    if (!ofertaId) return { admite: false, porQueNo: 'No tiene oferta asignada.', motivo: 'SIN_OFERTA' as const };
+    const panel = await this.cupos.deLaOferta(ofertaId);
+    if (!panel) return { admite: false, porQueNo: 'No se encontró su oferta.', motivo: 'SIN_OFERTA' as const };
+    return {
+      admite: panel.admiteInscripciones,
+      porQueNo: panel.porQueNo,
+      motivo: panel.motivo,
     };
   }
 

@@ -454,6 +454,28 @@ export type Ficha = {
     datoMalo: number;
     ultimoContacto: string | null;
   };
+  /**
+   * Si su oferta admite inscripciones, y si no, por qué.
+   *
+   * Llega en la ficha para poder decirlo ANTES de que lo
+   * intente. El servidor lo comprueba igual al inscribir, pero
+   * enterarse al guardar significa un recuadro rojo encima del
+   * nombre de la persona por algo que no tiene que ver con ella.
+   */
+  inscripcion: {
+    admite: boolean;
+    porQueNo: string | null;
+    /// Dónde se arregla: en el cronograma, en la oferta, o
+    /// ampliando cupos. Leyendo la frase no se distingue.
+    motivo:
+      | "OFERTA_CERRADA"
+      | "LLENO"
+      | "SIN_GRUPOS"
+      | "SIN_FECHAS"
+      | "VENTANA_CERRADA"
+      | "SIN_OFERTA"
+      | null;
+  };
 };
 
 export type EstadoAcademico =
