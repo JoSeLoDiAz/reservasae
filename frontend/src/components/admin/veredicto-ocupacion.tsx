@@ -20,6 +20,12 @@
  * marca dentro de esa barra. Puestos así se entiende que
  * 14,6 % y 11,2 % no se contradicen: uno se mide contra la
  * marca y el otro contra el final.
+ *
+ * Y la linea de abajo dice POR QUE existe ese 30 %. Lo pidio
+ * Jose: «contra el tope con sobrecupo (4.797)» no explicaba que
+ * el margen es por desercion esperada, y sin eso alguien iba a
+ * leer 4.797 como la meta. La cifra que se responde ante el SENA
+ * son los 3.690.
  */
 
 import { Chispa, n } from "./graficos";
@@ -60,8 +66,10 @@ export function VeredictoOcupacion({
             <strong className="font-semibold text-texto tabular-nums">
               {n(resumen.ocupados)}
             </strong>{" "}
-            de {n(resumen.metaBase)} cupos comprometidos. Contra el tope con
-            sobrecupo ({n(resumen.cupos)}) va el{" "}
+            de {n(resumen.metaBase)} cupos comprometidos. Contra el tope de{" "}
+            {n(resumen.cupos)} —los comprometidos más un 30 % que el SENA
+            permite inscribir de más, contando con que unos cuantos deserten—
+            va el{" "}
             <span className="tabular-nums">{resumen.avance.toFixed(1)} %</span>.
           </p>
         </Bloque>

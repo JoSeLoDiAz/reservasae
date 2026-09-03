@@ -534,7 +534,21 @@ export function PanelProceso({
           />
         </Bloque>
 
-        {/* ── 3 · Las tres tasas y el tiempo ── */}
+        {/* ── 3 · Lo que hay que hacer hoy ──
+
+            Segundo puesto y no noveno: es lo unico de la
+            pantalla que se HACE. Lo de arriba y lo de abajo
+            describe —cuantos entraron, donde se caen, de donde
+            vienen— y esto dice que hacer, con el nombre de a
+            quien llamar.
+
+            Va justo debajo del embudo a proposito: el embudo
+            enseña donde se cae la gente y esto dice como
+            recogerla. Al final se leia despues de todo lo que
+            solo se mira, que es como se perdio la primera vez. */}
+        <PendientesDeHoy control={control ?? null} />
+
+        {/* ── 4 · Las tres tasas y el tiempo ── */}
         <div className="grid gap-4 min-[620px]:grid-cols-2 min-[1120px]:grid-cols-4">
           <Bloque estirado>
             <Medidor
@@ -587,7 +601,7 @@ export function PanelProceso({
           </Bloque>
         </div>
 
-        {/* ── 4 · De qué está hecha esa gente ── */}
+        {/* ── 5 · De qué está hecha esa gente ── */}
         <div className="grid gap-4 min-[1000px]:grid-cols-2">
           {/* Con un solo gremio la tarta de convenios sobra —una
               sola porción no reparte nada— y en su hueco entra
@@ -620,7 +634,7 @@ export function PanelProceso({
           </Bloque>
         </div>
 
-        {/* ── 5 · Dónde está cada quien y si sus datos sirven ── */}
+        {/* ── 6 · Dónde está cada quien y si sus datos sirven ── */}
         <div className="grid gap-4 min-[1000px]:grid-cols-2">
           <Bloque
             titulo="Dónde está cada persona hoy"
@@ -683,7 +697,7 @@ export function PanelProceso({
           </Bloque>
         </div>
 
-        {/* ── 6 · A qué ritmo entra y por dónde ── */}
+        {/* ── 7 · A qué ritmo entra y por dónde ── */}
         <div className="grid gap-4 min-[1000px]:grid-cols-2">
           <Bloque
             titulo="Ritmo de inscripción"
@@ -729,7 +743,7 @@ export function PanelProceso({
           </Bloque>
         </div>
 
-        {/* ── 7 · Dónde vive y quién la atiende ── */}
+        {/* ── 8 · Dónde vive y quién la atiende ── */}
         <div className="grid gap-4 min-[1000px]:grid-cols-[0.9fr_1.1fr]">
           <Bloque
             titulo="Por departamento"
@@ -751,7 +765,7 @@ export function PanelProceso({
           </Bloque>
         </div>
 
-        {/* ── 8 · El detalle, con sus grupos dentro ── */}
+        {/* ── 9 · El detalle, con sus grupos dentro ── */}
         <Bloque
           estirado
           titulo="Desglose por acción de formación"
@@ -766,17 +780,6 @@ export function PanelProceso({
           />
         </Bloque>
 
-        {/* ── 9 · Lo que hay que hacer hoy ──
-
-            Vuelve porque lo pidió José: es la única lista
-            ACCIONABLE de la pantalla. Todo lo de arriba describe
-            —cuántos entraron, dónde se caen, de dónde vienen—;
-            esto dice qué hacer y con el nombre de a quién llamar.
-
-            Va en su propio componente y no suelto aquí: se perdió
-            una vez al rediseñar la pantalla, y así el siguiente
-            rediseño lo puede mover pero no borrarlo sin verlo. */}
-        <PendientesDeHoy control={control ?? null} />
       </div>
     </div>
   );
