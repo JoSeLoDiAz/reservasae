@@ -2731,6 +2731,76 @@ docker compose -f docker-compose.prueba.yml exec nginx-prueba nginx -s reload
   `docker-compose.yml` y su override, así que `desplegar.sh` y los demás
   guiones de sede lo ignoran por completo.
 
+### Catorce interesados completos, para recorrer el camino (3 sep 2026)
+
+```bash
+cd /opt/sep/reservasae-prueba/backend
+export ENTORNO=prueba
+export DATABASE_URL=...@127.0.0.1:5434/reservasae_prueba   # el puerto PUBLICADO
+pnpm exec prisma generate     # si el clon trae el schema nuevo
+pnpm db:sembrar-interesados
+```
+
+Siete por gremio, en `INTERESADO`, **completos y con empresa**. Los pidió el
+cliente porque con los de la siembra general no se puede: dos tercios están a
+medias a propósito —es el trabajo pendiente que enseña el CRM— y con esos no se
+recorre el camino entero.
+
+- **Nacen SIN GRUPO**, que es lo importante. Por la regla del cliente —«nada de
+  lo inscrito debe estar asociado al cronograma»— el grupo es lo último. Así
+  quedan justo en el estado en que la pantalla de asignar por lote tiene a quién
+  ofrecer: pasan la compuerta de matrícula y entran al reporte **en cuanto se les
+  ponga cohorte**, que es lo único que les falta.
+- **Van agrupados en cuatro ofertas** y no repartidos en catorce. Con una persona
+  por curso cada celda tendría un solo candidato y el lote no enseñaría nada.
+- **La empresa lleva los ocho datos de `faltaEnF7`** más `clasificacion`, que no
+  está en esa lista y es lo único que separa PARCIAL de COMPLETA en la columna de
+  la tabla. La siembra general no llena ninguno.
+- **Se comprueba solo, con las reglas de verdad**: `revisar` para lo que falta y
+  `cubreA` para que la sede cubra de verdad a la persona. Un guión de siembra que
+  se cree a sí mismo produce datos que contradicen al sistema que prueban, y
+  entonces quien mire la pantalla busca el defecto en el código.
+- **Es repetible** y va en **una transacción**: borra antes de escribir, así que
+  un fallo a mitad dejaría los viejos borrados y ninguno nuevo puesto. Pasó en la
+  primera corrida y revirtió limpia.
+- **`db:sembrar-prueba --rehacer` se las lleva por delante** (su `deleteMany()`
+  no tiene filtro). Después de rehacer la siembra general hay que volver a correr
+  este guión.
+
+> **Comprobado de punta a punta contra pruebas**: los cuatro de Santander pasan a
+> `INSCRITO` sin una sola pared, aparecen en el lote filtrados por su cobertura y
+> su modalidad, y la asignación devuelve `asignadas: 4, fuera: 0, sinCupo: 0,
+> cabenAhora: 28` — los 32 del grupo menos los cuatro. Después se resembró para
+> devolverlos a `INTERESADO`.
+
+#### Tres cosas que salieron al escribirlo
+
+**Borrar una ficha son cuatro pasos, y el `delete` obvio revienta.**
+`notas_participante.participanteId` es `ON DELETE SET NULL` y lleva el CHECK
+`nota_cuelga_de_algo`, así que un `participante.delete()` a secas muere con un
+`23514` que no dice nada de lo que pasó. El orden bueno vivía escrito una sola
+vez dentro de `crm.service.eliminar`; ahora está en
+`crm/borrar-participaciones.ts` y lo usan los dos. **Uno de los pasos es sutil**
+—las notas COMPARTIDAS con un lead no se borran, porque el lead sigue vivo— y por
+eso no se puede confiar en que alguien lo reescriba igual. Probado por mutación:
+borrar la ficha primero mata 4 de 8.
+
+**«Quién puede llevar una ficha» estaba escrito dos veces** —la ficha y la mesa
+de entrada— y la siembra iba a ser la tercera. Ahora es
+`crm/quien-lleva-fichas.ts`. Lo destapó el propio guión y de la peor manera:
+escribí la lista a mano sin `LIDER_SISTEMAS` y **las catorce salieron sin asesor
+sin que nada fallara**, porque en BRITCHAM ADEE no hay ningún gestor de
+inscripciones —solo académico, sistemas y consulta— y el `?? null` convirtió el
+vacío en «se pidió así».
+
+**Una organización sin RESERVA no sale en `/admin/empresas`, y el F7 sí la
+reporta.** `empresaDeConvenio` llega al convenio **solo por las reservas**
+(`tableros/ambito.ts`), pero desde que un participante puede llevar `empresaId`
+propio, una empresa pertenece a un convenio también por ahí. O sea que el F7 de
+un gremio puede reportar una organización que la pantalla de organizaciones de
+ese mismo gremio no lista. **No se ha tocado**: es una regla de ámbito y
+cambiarla es una decisión aparte, no un efecto secundario de sembrar datos.
+
 ### Los datos falsos
 
 ```bash
