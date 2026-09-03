@@ -37,8 +37,7 @@ import {
   DOCUMENTOS_DE_PERSONA,
   MUNICIPIO_POR_ID,
 } from '../crm/catalogos-sep';
-import { sedePedida } from './sede-pedida';
-import { sedeQueLeToca } from './sede-que-le-toca';
+import { sedeQueTendra } from './sede-que-tendra';
 import {
   dejarConstancia,
   politicaVigente,
@@ -492,25 +491,11 @@ export class ConversionDeLeads {
         : null,
     };
 
-    /// LO QUE PIDIO manda sobre lo que se deduce.
+    /// La decision entera vive en `sedeQueTendra`, no aqui.
     ///
-    /// Para una hibrida la sede es la modalidad, y deducirla del
-    /// domicilio le quita la eleccion: AF7 en Medellin se iria
-    /// siempre a la virtual por tener mas cupo, aunque la
-    /// persona hubiera dicho que va presencial.
-    ///
-    /// Si pidio una que ese curso no tiene, NO se cae al
-    /// domicilio: se queda sin sede y el motivo dice donde si se
-    /// dicta. Caer seria darle una sede que no pidio y que
-    /// ademas puede ser de otra modalidad.
-    const pedida = sedePedida(
-      lead.sedePedida,
-      ofertas,
-      lead.accionFormacionId,
-    );
-    if (pedida && 'sede' in pedida) return pedida.sede;
-    if (pedida) return null;
-
-    return sedeQueLeToca(ofertas, lead.accionFormacionId, vive);
+    /// Tenerla aqui dejaba a la mesa con media --deducia del
+    /// domicilio y no miraba `sedePedida`--, asi que pintaba una
+    /// sede y la conversion elegia otra. Comprobado en vivo.
+    return sedeQueTendra(lead, ofertas, vive);
   }
 }

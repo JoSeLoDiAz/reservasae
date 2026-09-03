@@ -32,7 +32,7 @@ import {
   porQueNoEsSuya,
 } from './de-quien-es-ese-documento';
 import { puedoContactar } from './puedo-contactar';
-import { sedeQueLeToca } from './sede-que-le-toca';
+import { sedeQueTendra } from './sede-que-tendra';
 import { ArreglarLeadDto } from './dto';
 import {
   autorizoAlRegistrarse,
@@ -106,6 +106,10 @@ export class MesaDeEntrada {
           recibidoEn: true,
           participanteId: true,
           accionFormacionId: true,
+          /// Hace falta para la sede: `sedeQueTendra` la honra
+          /// primero, y sin traerla la mesa volvería a enseñar la
+          /// deducida del domicilio.
+          sedePedida: true,
           departamentoSepId: true,
           municipioSepId: true,
           generoSepId: true,
@@ -299,8 +303,15 @@ export class MesaDeEntrada {
         /// departamento no tiene ese curso, y entonces no se la
         /// puede inscribir — se dice aquí y no al fallar.
         sede: (() => {
-          if (!l.accionFormacionId) return null;
-          const o = sedeQueLeToca(ofertas, l.accionFormacionId, {
+          /// `sedeQueTendra` y no `sedeQueLeToca`: la decisión
+          /// ENTERA, que incluye honrar la sede que pidió.
+          ///
+          /// Con la segunda, la mesa pintaba la sede deducida del
+          /// domicilio mientras la conversión miraba primero
+          /// `sedePedida` y devolvía null si ese curso no la
+          /// dicta: el asesor leía «SANTANDER» y la ficha nacía
+          /// sin oferta. Comprobado en vivo.
+          const o = sedeQueTendra(l, ofertas, {
             departamento: l.departamentoSepId
               ? (DEPARTAMENTO_POR_ID.get(l.departamentoSepId)?.etiqueta ?? null)
               : null,

@@ -31,13 +31,50 @@ import { sedeQueLeToca, type OfertaCandidata } from './sede-que-le-toca';
 const MESA = readFileSync(join(__dirname, 'mesa-de-entrada.service.ts'), 'utf8');
 const CONVERSION = readFileSync(join(__dirname, 'conversion.service.ts'), 'utf8');
 
-describe('las dos deducen la sede con la misma función', () => {
-  it('la mesa llama a `sedeQueLeToca`', () => {
-    expect(MESA).toContain('sedeQueLeToca(');
+describe('las dos deducen la sede con la misma DECISIÓN', () => {
+  /**
+   * ESTE BLOQUE ESTABA MAL Y DEJÓ PASAR EL DEFECTO QUE DICE
+   * IMPEDIR. Comprobaba que las dos contuvieran `sedeQueLeToca(`,
+   * y las dos lo contenían — pero la conversión hacía ADEMÁS otra
+   * cosa antes: honrar `lead.sedePedida` y devolver null si ese
+   * curso no la dicta. O sea que compartían la función y no la
+   * decisión, y el spec no sabía distinguirlo.
+   *
+   * El efecto, comprobado en vivo: un lead de Bucaramanga que
+   * pide AF1 en Cartagena sale en la mesa con «Sede: SANTANDER»
+   * y su ficha nace con `ofertaId = NULL`.
+   *
+   * Ahora se fija la función que contiene la decisión ENTERA, y
+   * se prohíbe que cualquiera de las dos llame a las mitades por
+   * su cuenta — que es lo único que distingue «comparten la
+   * decisión» de «comparten un trozo».
+   */
+  it('la mesa llama a `sedeQueTendra`', () => {
+    expect(MESA).toContain('sedeQueTendra(');
   });
 
   it('y la conversión también', () => {
-    expect(CONVERSION).toContain('sedeQueLeToca(');
+    expect(CONVERSION).toContain('sedeQueTendra(');
+  });
+
+  it('y NINGUNA de las dos llama a las mitades por su cuenta', () => {
+    /// `sedeQueLeToca` es media decisión y `sedePedida` la otra
+    /// media. Quien llame a una sola vuelve a tener media regla,
+    /// que es exactamente como se produjo el defecto.
+    for (const [nombre, fuente] of [
+      ['la mesa', MESA],
+      ['la conversión', CONVERSION],
+    ] as const) {
+      expect([nombre, fuente.includes('sedeQueLeToca(')]).toEqual([nombre, false]);
+      expect([nombre, fuente.includes('sedePedida(')]).toEqual([nombre, false]);
+    }
+  });
+
+  it('la mesa trae `sedePedida` de la base', () => {
+    /// Sin el campo en el `select`, `sedeQueTendra` lo recibe
+    /// undefined y se comporta como la mitad vieja: en verde y
+    /// enseñando la sede equivocada.
+    expect(MESA).toContain('sedePedida: true');
   });
 
   it('la mesa NO tiene un `cubreA` propio', () => {
