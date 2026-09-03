@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
+import { Bloque, Cargando } from "@/components/admin/piezas";
+import { Desplegable } from "@/components/admin/desplegable";
 import { EditorColores } from "@/components/admin/editor-colores";
 import {
   AparienciaHeredada,
@@ -14,7 +16,6 @@ import {
   Boton,
   Campo,
   CLASE_CONTROL,
-  Tarjeta,
 } from "@/components/admin/marco-admin";
 import { useMarca } from "@/components/marca-publica";
 import {
@@ -102,7 +103,7 @@ export default function PaginaMarca() {
       .catch(() => setGremio(null));
   }, []);
 
-  if (!marca) return <p className="text-texto-suave">Cargando…</p>;
+  if (!marca) return <Cargando />;
 
   const catalogo = marca.catalogoColores;
 
@@ -142,8 +143,8 @@ export default function PaginaMarca() {
   }
 
   return (
-    <div>
-      <header className="border-b border-borde bg-superficie px-7 pt-[26px] pb-[22px]">
+    <div className="flex min-h-0 grow flex-col gap-4 px-4 pt-4 pb-6">
+      <header>
         <h1 className="text-[1.3125rem] font-bold tracking-[-0.02em] text-titulo">Apariencia</h1>
         <p className="mt-1 text-texto-suave">
           {gremio?.fijo
@@ -176,23 +177,23 @@ export default function PaginaMarca() {
             descripcionLogos="Hasta tres, uno por entidad: las del convenio más la capacitadora. Sin ninguno propio se muestran los generales. SVG, PNG o WebP con fondo transparente, máximo 1 MB cada uno; se ven a 80 px de alto."
           />
         ) : (
-          <Tarjeta titulo="La apariencia de este gremio">
+          <Bloque titulo="La apariencia de este gremio">
             <AvisoDeGremio gremio={gremio} que="los logos y los colores" />
-          </Tarjeta>
+          </Bloque>
         )
       ) : (
-        <Tarjeta
+        <Bloque
           titulo="Logos de la cabecera"
           descripcion="Hasta tres, uno por entidad. SVG, PNG o WebP con fondo transparente, máximo 1 MB cada uno. Se muestran a 80 px de alto, así que conviene entregarlos a 960 × 288 px o mayor, o en SVG. JPG no sirve: no tiene transparencia y deja un recuadro blanco."
         >
           <GestorLogos />
-        </Tarjeta>
+        </Bloque>
       )}
 
       {gremio?.fijo ? (
-        <Tarjeta titulo="Textos y colores del sitio">
+        <Bloque titulo="Textos y colores del sitio">
           <AvisoDeGremio gremio={gremio} que="los textos y los colores" />
-        </Tarjeta>
+        </Bloque>
       ) : (
         <>
         <form
@@ -212,7 +213,7 @@ export default function PaginaMarca() {
           }}
           className="space-y-6"
         >
-          <Tarjeta titulo="Textos del sitio público">
+          <Bloque titulo="Textos del sitio público">
             <div className="space-y-4">
               <Campo etiqueta="Nombre de la aplicación" ayuda="Pestaña del navegador y encabezado.">
                 <input
@@ -264,9 +265,9 @@ export default function PaginaMarca() {
                 />
               </Campo>
             </div>
-          </Tarjeta>
+          </Bloque>
 
-          <Tarjeta
+          <Bloque
             titulo="Modo claro y oscuro"
             descripcion="Qué ve quien entra por primera vez, y si puede cambiarlo."
           >
@@ -311,14 +312,14 @@ export default function PaginaMarca() {
                 </span>
               </label>
             </div>
-          </Tarjeta>
+          </Bloque>
 
           <Boton type="submit" disabled={guardando}>
             {guardando ? "Guardando…" : "Guardar textos y modo"}
           </Boton>
         </form>
 
-        <Tarjeta
+        <Bloque
           titulo="Colores"
           descripcion="Cada modo tiene su paleta completa. No basta con aclarar u oscurecer la otra: en modo oscuro un color de marca muy saturado deslumbra y hace vibrar los bordes del texto."
         >
@@ -360,7 +361,7 @@ export default function PaginaMarca() {
               </div>
             }
           />
-        </Tarjeta>
+        </Bloque>
         </>
       )}
     </div>
@@ -410,7 +411,7 @@ function MarcaDeCadaGremio() {
   }
 
   return (
-    <Tarjeta
+    <Bloque
       titulo="La cara de cada gremio"
       descripcion="Cada gremio entra por su propia dirección, y allí el sitio sale con los colores y los logos de uno de sus formularios. Aquí se elige cuál. Sin elegir ninguno, ese gremio usa la marca general de abajo."
     >
@@ -437,26 +438,31 @@ function MarcaDeCadaGremio() {
                 etiqueta="Formulario que le da la marca"
                 ayuda="Vale también uno en borrador: publicar al público y elegir la paleta del panel son dos decisiones distintas."
               >
-                <select
-                  value={g.formularioMarcaId ?? ""}
-                  disabled={ocupado === g.id}
-                  onChange={(e) => void elegir(g.id, e.target.value)}
-                  className={CLASE_CONTROL}
-                >
-                  <option value="">La marca general</option>
-                  {g.formularios.map((f) => (
-                    <option key={f.id} value={f.id}>
-                      {f.titulo}
-                      {f.publicado ? "" : " (borrador)"}
-                    </option>
-                  ))}
-                </select>
+                {/* El desplegable de la casa, no el del sistema
+                    operativo: el nativo se pinta distinto en
+                    cada navegador y en tema oscuro abre una
+                    lista blanca. Y aquí gana además que el
+                    «(borrador)» quepa como segunda línea en vez
+                    de arrastrarse detrás del título. */}
+                <Desplegable
+                  valor={g.formularioMarcaId ?? ""}
+                  desactivado={ocupado === g.id}
+                  alElegir={(v) => void elegir(g.id, v)}
+                  opciones={[
+                    { valor: "", etiqueta: "La marca general" },
+                    ...g.formularios.map((f) => ({
+                      valor: f.id,
+                      etiqueta: f.titulo,
+                      detalle: f.publicado ? undefined : "En borrador",
+                    })),
+                  ]}
+                />
               </Campo>
             )}
           </div>
         ))}
       </div>
-    </Tarjeta>
+    </Bloque>
   );
 }
 

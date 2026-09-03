@@ -178,6 +178,85 @@ export function rangoEdadSep(edad: number): number {
 /// La salida para quien no quiere responder.
 export const CARACTERIZACION_NINGUNA = 35;
 
+// caracterización: los 54 valores, en grupos
+
+/**
+ * Los grupos en que se enseñan las caracterizaciones.
+ *
+ * El SEP entrega los 54 valores en una lista plana, sin ninguna
+ * categoría: es un catálogo de cargue, no una pantalla. Puestos
+ * tal cual, quien atiende a una persona tiene que leerse las 54
+ * para encontrar «DISCAPACIDAD AUDITIVA», y en la práctica no se
+ * lee ninguna.
+ *
+ * El agrupamiento es SOLO de pantalla. No se envía al SENA, no
+ * se guarda y no cambia ni un id: el cargue sigue mandando el
+ * mismo número que mandaba. Si mañana el SEP reordena su
+ * catálogo, esto no se entera y no tiene por qué.
+ *
+ * Van aquí y no en el frontend porque el mismo catálogo lo
+ * pintan DOS sitios —el panel y el formulario de completar
+ * ficha—, y con la agrupación en una pantalla la otra seguiría
+ * con las 54 en fila.
+ *
+ * El orden de los grupos es el de la pregunta que se hace: se
+ * pregunta por la pertenencia étnica antes que por el hecho
+ * victimizante.
+ */
+export const GRUPOS_DE_CARACTERIZACION = [
+  { clave: 'ETNIA', etiqueta: 'Pertenencia étnica', ids: [20, 24, 30, 32, 33, 34, 61] },
+  {
+    clave: 'DISCAPACIDAD',
+    etiqueta: 'Discapacidad',
+    ids: [10, 11, 12, 13, 14, 15, 16, 17],
+  },
+  {
+    clave: 'DESPLAZAMIENTO',
+    etiqueta: 'Desplazamiento',
+    ids: [1, 2, 3, 4, 5, 6, 7, 8, 9],
+  },
+  {
+    clave: 'CONFLICTO',
+    etiqueta: 'Víctima del conflicto armado',
+    ids: [26, 28, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 82],
+  },
+  { clave: 'DIVERSIDAD', etiqueta: 'Diversidad sexual', ids: [81] },
+  {
+    clave: 'OTRAS',
+    etiqueta: 'Otras poblaciones',
+    ids: [18, 19, 21, 22, 23, 25, 27, 29, 31, 36, 37, 38, 39],
+  },
+] as const;
+
+/// Donde cae lo que no está en ningún grupo.
+///
+/// Hace falta de verdad: el catálogo se GENERA de un CSV del
+/// SEP, y el día que ese CSV traiga un valor nuevo nadie se
+/// acordará de meterlo aquí. Sin este cajón, ese valor no
+/// saldría en pantalla —y no salir en pantalla es no poder
+/// marcarlo, con la persona delante diciendo que le aplica—.
+/// Se prefiere que aparezca en «Otras poblaciones» a que
+/// desaparezca en silencio. La prueba lo fija.
+export const GRUPO_DE_RESERVA = 'OTRAS';
+
+export type ClaveDeGrupo = (typeof GRUPOS_DE_CARACTERIZACION)[number]['clave'];
+
+const GRUPO_POR_CARACTERIZACION = new Map<number, ClaveDeGrupo>(
+  GRUPOS_DE_CARACTERIZACION.flatMap((g) => g.ids.map((id) => [id, g.clave] as const)),
+);
+
+/**
+ * En qué grupo va una caracterización.
+ *
+ * `null` solo para «Ninguna», que no es una población: es la
+ * respuesta «no pertenezco a ninguna». Va suelta y arriba, no
+ * escondida dentro de un grupo entre otras cincuenta.
+ */
+export function grupoDeCaracterizacion(id: number): ClaveDeGrupo | null {
+  if (id === CARACTERIZACION_NINGUNA) return null;
+  return GRUPO_POR_CARACTERIZACION.get(id) ?? GRUPO_DE_RESERVA;
+}
+
 /// En este proyecto no hay transferencia.
 export const PERFIL_TRANSFERENCIA_NO_APLICA = { id: 4, etiqueta: 'NO APLICA' };
 

@@ -2,12 +2,12 @@
 
 import { useCallback, useEffect, useState } from "react";
 
+import { Bloque, Cargando } from "@/components/admin/piezas";
 import {
   Aviso,
   Boton,
   Campo,
   CLASE_CONTROL,
-  Tarjeta,
 } from "@/components/admin/marco-admin";
 import { ErrorApi } from "@/lib/api";
 import {
@@ -68,16 +68,23 @@ export default function PaginaPoliticas() {
   }
 
   if (!politicas || !cobertura) {
-    return <p className="text-texto-suave">Cargando…</p>;
+    return <Cargando />;
   }
 
   const sinTexto = cobertura.filter((c) => !c.reserva);
 
   return (
-    <div>
-      <header className="border-b border-borde bg-superficie px-7 pt-[26px] pb-[22px]">
-        <h1 className="text-[1.3125rem] font-bold tracking-[-0.02em] text-titulo">Políticas de datos</h1>
-        <p className="mt-1 text-texto-suave">
+    <div className="flex min-h-0 grow flex-col gap-4 px-4 pt-4 pb-6">
+      {/* «Habeas Data» y no «Políticas de datos».
+          El menú y la miga dicen una cosa y el título decía
+          otra, que es justo el lío que se acaba de arreglar en
+          las dos pantallas hermanas de este módulo. Lo que la
+          cosa ES lo explica la bajada, que para eso está. */}
+      <header>
+        <h1 className="text-[1.3125rem] font-bold tracking-[-0.02em] text-titulo">
+          Habeas Data
+        </h1>
+        <p className="mt-1 max-w-3xl text-texto-suave">
           El texto que la gente acepta. Se versiona: el que alguien ya aceptó no se
           cambia nunca, se publica uno nuevo.
         </p>
@@ -102,7 +109,7 @@ export default function PaginaPoliticas() {
       )}
 
       {cobertura.map((c) => (
-        <Tarjeta
+        <Bloque
           key={c.convenio.id}
           titulo={c.convenio.sigla ?? c.convenio.nombre}
           descripcion={c.convenio.nombre}
@@ -201,7 +208,7 @@ export default function PaginaPoliticas() {
               );
             })}
           </div>
-        </Tarjeta>
+        </Bloque>
       ))}
     </div>
   );

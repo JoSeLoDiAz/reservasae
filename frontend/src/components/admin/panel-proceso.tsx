@@ -678,13 +678,7 @@ export function PanelProceso({
             titulo="Estado de los datos"
             descripcion="Cuántas fichas están completas y cuántas a medias."
           >
-            <Donut
-              datos={donutDatos}
-              tamano={150}
-              detalleCentro="personas"
-              vacio="Sin fichas todavía."
-              leyendaDebajo
-            />
+            <Donut datos={donutDatos} detalleCentro="personas" vacio="Sin fichas todavía." />
           </Bloque>
         </div>
 

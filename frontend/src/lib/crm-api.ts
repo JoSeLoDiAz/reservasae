@@ -783,6 +783,12 @@ export type TableroAcademico = CabeceraAcademica & {
   variacion: Variaciones;
 };
 
+export type GrupoDeCaracterizacion = {
+  clave: string;
+  etiqueta: string;
+  ids: readonly number[];
+};
+
 export type CatalogosSep = {
   documentosPersona: TipoDocumentoSep[];
   documentosEmpresa: TipoDocumentoSep[];
@@ -791,6 +797,11 @@ export type CatalogosSep = {
   caracterizaciones: Array<{ id: number; etiqueta: string }>;
   /// El id de «Ninguna», para poder avisar de lo que significa.
   caracterizacionNinguna: number;
+  /// Los grupos en que se enseñan, SOLO de pantalla: no se
+  /// mandan al SENA ni se guardan. Los decide el backend para
+  /// que el panel y el formulario de completar ficha enseñen lo
+  /// mismo.
+  gruposCaracterizacion: GrupoDeCaracterizacion[];
   nivelesOcupacionales: Array<{ id: number; etiqueta: string }>;
   tamanosEmpresa: Array<{ id: number; etiqueta: string }>;
   departamentos: Array<{ id: number; etiqueta: string }>;

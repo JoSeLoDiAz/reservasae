@@ -18,8 +18,20 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import { IconoBuscar, IconoDerecha, IconoIzquierda } from "@/components/admin/iconos";
-import { Aviso, Boton, CLASE_CONTROL, useAdmin } from "@/components/admin/marco-admin";
+import {
+  CatalogoDeVariables,
+  pegarEnElCursor,
+} from "@/components/admin/catalogo-de-variables";
+import { Cargando } from "@/components/admin/piezas";
+import { Desplegable } from "@/components/admin/desplegable";
+import { IconoDerecha, IconoIzquierda } from "@/components/admin/iconos";
+import {
+  AccionesDePagina,
+  Aviso,
+  Boton,
+  CLASE_CONTROL,
+  useAdmin,
+} from "@/components/admin/marco-admin";
 import { useToast } from "@/components/admin/toast";
 import {
   ejemplosDe,
@@ -97,37 +109,6 @@ const EN_PALABRAS: Record<string, string> = Object.fromEntries(
   ),
 );
 
-/// Cómo se reparten las variables en el panel de «Insertar
-/// dato». Es reparto de PRESENTACIÓN: el catálogo manda, y lo
-/// que llegue del servidor y no esté aquí cae en «Otros» en
-/// vez de desaparecer.
-const GRUPOS_DE_VARIABLE: Array<{ titulo: string; claves: string[] }> = [
-  {
-    titulo: "La persona",
-    claves: [
-      "tratamiento",
-      "saludo",
-      "primerNombre",
-      "nombreCompleto",
-      "primerApellido",
-      "documento",
-    ],
-  },
-  { titulo: "Contacto", claves: ["correo", "celular", "empresa"] },
-  {
-    titulo: "La formación",
-    claves: [
-      "accionFormacion",
-      "grupo",
-      "fechaInicio",
-      "ubicacion",
-      "modalidad",
-      "asesor",
-      "gremio",
-    ],
-  },
-];
-
 const FECHA = new Intl.DateTimeFormat("es-CO", {
   day: "numeric",
   month: "short",
@@ -170,7 +151,7 @@ export default function PaginaPlantillasCorreo() {
     return error ? (
       <Aviso tipo="error">{error}</Aviso>
     ) : (
-      <p className="text-texto-suave">Cargando…</p>
+      <Cargando />
     );
   }
 
@@ -233,27 +214,20 @@ function Lista({
   }
 
   return (
-    <div>
-      <header className="border-b border-borde bg-superficie px-7 pt-[26px] pb-[22px] flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <h1 className="text-[1.3125rem] font-bold tracking-[-0.02em] text-titulo">
-            Plantillas de correo
-          </h1>
-          <p className="mt-1 max-w-3xl text-texto-suave">
-            Se escriben una vez y se mandan muchas. Lo que cambia de una persona a
-            otra va entre llaves, y se llena solo con los datos de su lead.
-          </p>
-        </div>
+    /// Sin cabecera propia, como Calendario y Gestión de
+    /// Inscripciones. La miga de arriba ya dice «Campaña
+    /// Mailing / Plantillas»; repetirlo debajo en grande era
+    /// decirlo dos veces y dejaba este módulo con otra cara que
+    /// el resto del panel. El botón sube a la barra, que es
+    /// donde el resto de pantallas pone el suyo.
+    <div className="flex min-h-0 grow flex-col gap-4 px-4 pt-4">
+      <AccionesDePagina>
         <Boton onClick={() => alEditar("nueva")}>
           <span className="text-base leading-none">+</span> Nueva plantilla
         </Boton>
-      </header>
+      </AccionesDePagina>
 
-      {/* La lista NO se capa: es una tabla de trabajo y en un
-          monitor ancho el ancho se aprovecha —el asunto deja de
-          cortarse—. Es la regla del marco: solo se capa lo que
-          se lee mal estirado, y eso es el formulario, no esto. */}
-      <div className="px-7 py-5">
+      <div>
         {plantillas.length === 0 ? (
           /// El vacío no es una fila más: es una invitación, y
           /// por eso lleva el borde punteado. Con el borde
@@ -497,7 +471,6 @@ function Editor({
 
   const [etapasAbiertas, setEtapasAbiertas] = useState(false);
   const [catalogoAbierto, setCatalogoAbierto] = useState(false);
-  const [consulta, setConsulta] = useState("");
   const [previaAbierta, setPreviaAbierta] = useState(true);
   const [ocupado, setOcupado] = useState(false);
 
@@ -547,30 +520,9 @@ function Editor({
     }
   }
 
-  /// Pega la variable donde esté el cursor. Escribirlas a
-  /// mano es como se cuela un `{{nombrecompleto}}` con la ce
-  /// minúscula, que el servidor rechaza y nadie entiende por
-  /// qué.
   function pegar(clave: string) {
-    const trozo = `{{${clave}}}`;
     setCatalogoAbierto(false);
-    setConsulta("");
-
-    const ta = caja.current;
-    if (!ta) {
-      setB((v) => ({ ...v, cuerpo: v.cuerpo + trozo }));
-      return;
-    }
-    const { selectionStart: a, selectionEnd: z } = ta;
-    setB((v) => ({
-      ...v,
-      cuerpo: v.cuerpo.slice(0, a) + trozo + v.cuerpo.slice(z),
-    }));
-    // devolver el cursor detrás de lo pegado
-    requestAnimationFrame(() => {
-      ta.focus();
-      ta.setSelectionRange(a + trozo.length, a + trozo.length);
-    });
+    setB((v) => ({ ...v, cuerpo: pegarEnElCursor(caja.current, v.cuerpo, clave) }));
   }
 
   function conmutarEtapa(valor: string) {
@@ -588,34 +540,28 @@ function Editor({
       : "Cualquier etapa (sin restricción)";
 
   return (
-    <div>
-      <header className="border-b border-borde bg-superficie px-7 pt-[26px] pb-[22px] flex items-center gap-3">
-        <button
-          type="button"
-          onClick={alSalir}
-          className="inline-flex items-center gap-1.5 rounded-sm border border-borde bg-superficie px-3 py-[7px] text-[12.5px] font-semibold text-texto-suave transition hover:text-texto"
-        >
-          <IconoIzquierda tamano={14} /> Plantillas
-        </button>
-        <h1 className="text-[1.1875rem] font-bold tracking-[-0.01em] text-titulo">
-          {origen ? "Editar la plantilla" : "Nueva plantilla"}
-        </h1>
+    <div className="flex min-h-0 grow flex-col gap-4 px-4 pt-4">
+      {/* El editor SÍ lleva título, igual que la ficha de una
+          acción de formación: es una subvista y la miga de
+          arriba no sabe de ella. Mismo patrón que allí —el
+          enlace de volver encima, el título en 1.125rem—, no
+          la banda a sangre que llevaba antes. */}
+      <header className="flex flex-wrap items-center justify-between gap-4">
+        <div className="min-w-0">
+          <button
+            type="button"
+            onClick={alSalir}
+            className="inline-flex items-center gap-1 text-[0.75rem] text-texto-suave transition hover:text-marca"
+          >
+            <IconoIzquierda tamano={12} /> Plantillas de correo
+          </button>
+          <h1 className="mt-1.5 text-[1.125rem] font-bold leading-snug tracking-[-0.02em] text-titulo">
+            {origen ? "Editar la plantilla" : "Nueva plantilla"}
+          </h1>
+        </div>
       </header>
 
-      {/* Tope de ancho, y SIN centrar.
-          El marco no pone tope a propósito —«cada pantalla
-          decide qué bloques suyos se quedan cortos»— y este es
-          uno de los que se queda corto: sin él, en un monitor de
-          1920 los tres grupos de etapas se van cada uno a una
-          esquina, con medio palmo de vacío tras «Certificado», y
-          el correo de la vista previa queda como un sello en
-          mitad de una hoja. Un formulario no se lee a lo ancho.
-
-          Sin `mx-auto` porque la cabecera va a sangre como en
-          todo el panel: centrarlo dejaría el título a la
-          izquierda y los campos empezando en mitad de la
-          pantalla. */}
-      <div className="max-w-[1080px] px-7 py-5">
+      <div>
         {/* ── Datos de la plantilla ── */}
         <div className="mb-5 flex flex-col gap-4 rounded-md border border-borde bg-superficie p-5">
           <div className="grid gap-3.5 sm:grid-cols-2">
@@ -636,25 +582,30 @@ function Editor({
                 creaba aquí salía global, aunque la lista
                 dijera «Solo para ADECOPRIA» en las que sí lo
                 llevaban. */}
-            <label className="block">
+            <div className="block">
               <span className="mb-1.5 block text-[12px] font-semibold text-texto-suave">
                 Alcance
               </span>
-              <select
-                className={CLASE_CONTROL}
-                value={b.convenioId ?? ""}
-                onChange={(e) =>
-                  setB({ ...b, convenioId: e.target.value || null })
-                }
-              >
-                <option value="">Sirve para todos los gremios</option>
-                {gremios.map((g) => (
-                  <option key={g.convenioId} value={g.convenioId}>
-                    Solo para {g.sigla}
-                  </option>
-                ))}
-              </select>
-            </label>
+              {/* El desplegable de la casa, como en Calendario:
+                  el nativo se pinta distinto en cada navegador
+                  y en tema oscuro abre una lista blanca. */}
+              <Desplegable
+                valor={b.convenioId ?? ""}
+                alElegir={(v) => setB({ ...b, convenioId: v || null })}
+                opciones={[
+                  {
+                    valor: "",
+                    etiqueta: "Sirve para todos los gremios",
+                    detalle: "La ven todos, y cualquiera puede usarla",
+                  },
+                  ...gremios.map((g) => ({
+                    valor: g.convenioId,
+                    etiqueta: `Solo para ${g.sigla}`,
+                    detalle: "No aparece en los otros gremios",
+                  })),
+                ]}
+              />
+            </div>
           </div>
 
           <label className="block">
@@ -719,12 +670,7 @@ function Editor({
                   «confirmación» no le sirve a quien no quedó, y un «no quedó
                   seleccionado» no le sirve a quien sí.
                 </p>
-                {/* Las tres columnas, juntas y no repartidas.
-                    Estiradas al ancho de la banda se leen como
-                    tres listas sin relación; a 760 px se ven
-                    como lo que son: un mismo recorrido en tres
-                    tramos. */}
-                <div className="mt-2.5 grid max-w-[760px] gap-6 sm:grid-cols-3">
+                <div className="mt-2.5 grid gap-6 sm:grid-cols-3">
                   {GRUPOS.map((g) => (
                     <div key={g.titulo}>
                       <p className="mb-2.5 text-[10.5px] font-bold tracking-[0.05em] uppercase text-texto-suave opacity-75">
@@ -834,12 +780,7 @@ function Editor({
               </span>
 
               {catalogoAbierto && (
-                <Catalogo
-                  variables={variables}
-                  consulta={consulta}
-                  alBuscar={setConsulta}
-                  alPegar={pegar}
-                />
+                <CatalogoDeVariables variables={variables} alPegar={pegar} />
               )}
             </div>
           </div>
@@ -922,96 +863,6 @@ function Editor({
 }
 
 // ─────────────────────────── piezas del editor ──────────────
-
-/// El catálogo, en su sitio y no flotando. Un desplegable
-/// encima del cuerpo tapa justo lo que se está escribiendo, y
-/// hay que cerrarlo para comprobar dónde cayó lo pegado.
-function Catalogo({
-  variables,
-  consulta,
-  alBuscar,
-  alPegar,
-}: {
-  variables: VariableCorreo[];
-  consulta: string;
-  alBuscar: (v: string) => void;
-  alPegar: (clave: string) => void;
-}) {
-  const q = consulta.trim().toLocaleLowerCase("es-CO");
-  const casa = (v: VariableCorreo) =>
-    !q ||
-    v.clave.toLocaleLowerCase("es-CO").includes(q) ||
-    v.titulo.toLocaleLowerCase("es-CO").includes(q) ||
-    v.ejemplo.toLocaleLowerCase("es-CO").includes(q);
-
-  const puestas = new Set(GRUPOS_DE_VARIABLE.flatMap((g) => g.claves));
-  const grupos = [
-    ...GRUPOS_DE_VARIABLE.map((g) => ({
-      titulo: g.titulo,
-      items: g.claves.flatMap((c) => {
-        const v = variables.find((x) => x.clave === c);
-        return v && casa(v) ? [v] : [];
-      }),
-    })),
-    /// Lo que traiga el servidor y no esté repartido arriba.
-    /// Sin esto, añadir una variable en el backend la haría
-    /// invisible en el panel y nadie sabría por qué.
-    {
-      titulo: "Otros",
-      items: variables.filter((v) => !puestas.has(v.clave) && casa(v)),
-    },
-  ].filter((g) => g.items.length > 0);
-
-  return (
-    <div className="mt-2.5 max-h-[300px] overflow-auto rounded-sm border border-borde bg-superficie-alterna">
-      <div className="sticky top-0 z-10 border-b border-borde bg-superficie-alterna p-2.5">
-        <div className="flex items-center gap-2 rounded-sm border border-borde bg-superficie px-3 py-[7px]">
-          <IconoBuscar tamano={14} className="shrink-0 text-texto-suave" />
-          <input
-            className="min-w-0 flex-1 bg-transparent text-[13px] outline-none"
-            value={consulta}
-            onChange={(e) => alBuscar(e.target.value)}
-            placeholder="Buscar dato"
-          />
-        </div>
-      </div>
-
-      <div className="px-1.5 pt-1.5 pb-2">
-        {grupos.map((g, i) => (
-          <div
-            key={g.titulo}
-            className={i > 0 ? "mt-1 border-t border-borde pt-1" : undefined}
-          >
-            <p className="px-2.5 pt-2 pb-1 text-[10px] font-bold tracking-[0.06em] uppercase text-texto-suave opacity-80">
-              {g.titulo}
-            </p>
-            {g.items.map((v) => (
-              <button
-                key={v.clave}
-                type="button"
-                onClick={() => alPegar(v.clave)}
-                className="flex w-full items-baseline gap-2.5 rounded-xs px-2.5 py-2 text-left transition hover:bg-superficie"
-              >
-                <span className="shrink-0 font-mono text-[12px] font-bold text-marca">
-                  {`{{${v.clave}}}`}
-                </span>
-                <span className="min-w-0 truncate text-[12px] text-texto-suave">
-                  {v.titulo} · <em className="opacity-80">{v.ejemplo}</em>
-                </span>
-              </button>
-            ))}
-          </div>
-        ))}
-
-        {grupos.length === 0 && (
-          <p className="px-2.5 py-3 text-[12.5px] text-texto-suave">
-            Ningún dato coincide con «{consulta}».
-          </p>
-        )}
-      </div>
-    </div>
-  );
-}
 
 /// La franja de arriba del correo. Se sube después de guardar
 /// —necesita el id de la plantilla—, así que aquí solo se

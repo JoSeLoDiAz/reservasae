@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 
 import {
   Aviso, CLASE_CONTROL, Tarjeta } from "@/components/admin/marco-admin";
+import { Cargando } from "@/components/admin/piezas";
 import { CajonLead } from "@/components/admin/cajon-lead";
 import { IconoCerrar } from "@/components/admin/iconos";
 import { Embudo } from "@/components/admin/secciones";
@@ -164,7 +165,7 @@ export default function PaginaParticipantes() {
   }
 
   if (!filas || !resumen) {
-    return <p className="text-texto-suave">Cargando…</p>;
+    return <Cargando />;
   }
 
   /// DOS preguntas distintas, y confundirlas es el fallo.

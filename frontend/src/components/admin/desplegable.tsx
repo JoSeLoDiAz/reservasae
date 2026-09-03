@@ -30,6 +30,7 @@ export function Desplegable({
   marcador = "Seleccione una opción",
   desactivado,
   id,
+  etiquetaAria,
   alto = 32,
   enBarra,
   subrayado,
@@ -40,6 +41,13 @@ export function Desplegable({
   marcador?: string;
   desactivado?: boolean;
   id?: string;
+  /// Cómo se llama cuando NO hay una etiqueta visible al lado.
+  ///
+  /// Un `<select>` acepta `aria-label` y esto no lo tenía, así
+  /// que al cambiar uno por otro el control se quedaba sin
+  /// nombre: quien navega con lector de pantalla oye el valor
+  /// —«Gestor de inscripción»— y no de qué es.
+  etiquetaAria?: string;
   /// Para poder cuadrarlo con el campo de al lado: en una barra
   /// de filtros todo tiene que medir lo mismo.
   alto?: number;
@@ -162,6 +170,7 @@ export function Desplegable({
         type="button"
         id={id}
         role="combobox"
+        aria-label={etiquetaAria}
         aria-expanded={abierto}
         aria-controls={idLista}
         aria-haspopup="listbox"

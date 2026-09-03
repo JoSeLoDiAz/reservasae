@@ -3,15 +3,15 @@
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 
+import { Desplegable } from "@/components/admin/desplegable";
 import {
   Aviso,
   Boton,
   Campo,
   CLASE_CONTROL,
-  Tarjeta,
   useAdmin,
 } from "@/components/admin/marco-admin";
-import { Esqueleto } from "@/components/admin/piezas";
+import { Bloque, Esqueleto } from "@/components/admin/piezas";
 import { adminApi } from "@/lib/admin-api";
 import { ErrorApi } from "@/lib/api";
 import { formulariosApi, type ResumenFormulario } from "@/lib/formularios-api";
@@ -33,10 +33,14 @@ export default function PaginaFormularios() {
   }, [cargar]);
 
   return (
-    <div>
-      <header className="border-b border-borde bg-superficie px-7 pt-[26px] pb-[22px]">
-        <h1 className="text-[1.3125rem] font-bold tracking-[-0.02em] text-titulo">Formularios</h1>
-        <p className="mt-1 text-texto-suave">
+    <div className="flex min-h-0 grow flex-col gap-4 px-4 pt-4 pb-6">
+      {/* El nombre entero va AQUI y no en el menu: en la barra
+          salia cortado como «Formularios de reserva (...». */}
+      <header>
+        <h1 className="text-[1.3125rem] font-bold tracking-[-0.02em] text-titulo">
+          Formularios de reserva (empresas)
+        </h1>
+        <p className="mt-1 max-w-3xl text-texto-suave">
           Lo que ve quien entra a reservar. Puede crear preguntas, agruparlas en
           secciones y publicarlas sin tocar el código.
         </p>
@@ -44,15 +48,23 @@ export default function PaginaFormularios() {
 
       {error && <Aviso tipo="error">{error}</Aviso>}
 
-      <NuevoFormulario alCrear={cargar} alFallar={setError} />
+      <div>
+        <NuevoFormulario alCrear={cargar} alFallar={setError} />
+      </div>
 
       {!formularios && <Esqueleto filas={3} />}
 
-      <div className="grid md:grid-cols-2">
+      {/* Con aire entre las fichas. Pegadas, la rejilla se leia
+          como una tabla sin rayas: dos cajas tocandose no son
+          dos cosas, son una partida. */}
+      <div className="grid gap-4 md:grid-cols-2">
         {formularios?.map((f) => (
           <div
             key={f.id}
-            className="rounded-xl border border-borde bg-superficie p-5 transition hover:border-marca hover:"
+            /// Llevaba un `hover:` suelto al final, sin utilidad
+            /// detrás. Tailwind no lo genera y no rompe nada,
+            /// pero es un resto de algo que se borró a medias.
+            className="rounded-xl border border-borde bg-superficie p-5 transition hover:border-marca"
           >
             <div className="flex items-start justify-between gap-3">
               <Link
@@ -62,8 +74,13 @@ export default function PaginaFormularios() {
                 {f.titulo}
               </Link>
               <span
+                /// El color va en la letra, sin fondo. Quedaban
+                /// el `bg-exito-suave` y el `bg-fondo` de
+                /// cuando esto era una píldora: sin relleno
+                /// alrededor, pintan una mancha pegada al
+                /// texto. Es la regla 2 del panel.
                 className={`shrink-0 text-[0.75rem] font-semibold ${
-                  f.publicado ? "bg-exito-suave text-exito" : "bg-fondo text-texto-suave"
+                  f.publicado ? "text-exito" : "text-texto-suave"
                 }`}
               >
                 {f.publicado ? "Publicado" : "Borrador"}
@@ -147,23 +164,26 @@ function NuevoFormulario({
   }
 
   return (
-    <Tarjeta
+    <Bloque
       titulo="Nuevo formulario"
       descripcion="Nace en borrador. No se puede publicar hasta que tenga los campos que el sistema necesita para crear una reserva."
     >
-      <form onSubmit={enviar} className="grid sm:grid-cols-2">
+      {/* Con aire entre los campos: pegados, las dos columnas
+          se leían como una sola caja partida. */}
+      <form onSubmit={enviar} className="grid gap-4 sm:grid-cols-2">
         <Campo etiqueta="Convenio">
-          <select
-            value={convenioId}
-            onChange={(e) => setConvenioId(e.target.value)}
-            className={CLASE_CONTROL}
-          >
-            {convenios.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.sigla ?? c.nombre}
-              </option>
-            ))}
-          </select>
+          {/* El desplegable de la casa, no el del sistema
+              operativo: el nativo se pinta distinto en cada
+              navegador y en tema oscuro abre una lista blanca. */}
+          <Desplegable
+            valor={convenioId}
+            alElegir={setConvenioId}
+            opciones={convenios.map((c) => ({
+              valor: c.id,
+              etiqueta: c.sigla ?? c.nombre,
+              detalle: c.sigla ? c.nombre : undefined,
+            }))}
+          />
         </Campo>
 
         <Campo etiqueta="Título">
@@ -209,7 +229,7 @@ function NuevoFormulario({
           </button>
         </div>
       </form>
-    </Tarjeta>
+    </Bloque>
   );
 }
 

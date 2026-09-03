@@ -2,13 +2,13 @@
 
 import { useState } from "react";
 
+import { Bloque } from "@/components/admin/piezas";
 import { FormularioCambioClave } from "@/components/admin/cambio-clave";
 import {
   Aviso,
   Boton,
   Campo,
   CLASE_CONTROL,
-  Tarjeta,
   useAdmin,
 } from "@/components/admin/marco-admin";
 import { FirmaConvoca, useEstado } from "@/components/firma-convoca";
@@ -55,15 +55,15 @@ export default function PaginaPerfil() {
   }
 
   return (
-    <div>
-      <header className="border-b border-borde bg-superficie px-7 pt-[26px] pb-[22px]">
+    <div className="flex min-h-0 grow flex-col gap-4 px-4 pt-4 pb-6">
+      <header>
         <h1 className="text-[1.3125rem] font-bold tracking-[-0.02em] text-titulo">Mi perfil</h1>
         <p className="mt-1 text-texto-suave">
           {admin.correo} · {ROLES[admin.rol] ?? admin.rol}
         </p>
       </header>
 
-      <Tarjeta titulo="Mis datos">
+      <Bloque titulo="Mis datos">
         <form onSubmit={guardar} className="space-y-4">
           <Campo etiqueta="Nombre completo">
             <input
@@ -107,14 +107,14 @@ export default function PaginaPerfil() {
             {guardando ? "Guardando…" : "Guardar cambios"}
           </Boton>
         </form>
-      </Tarjeta>
+      </Bloque>
 
-      <Tarjeta
+      <Bloque
         titulo="Cambiar mi contraseña"
         descripcion="El correo no se puede cambiar desde aquí: es el identificador de la cuenta."
       >
         <FormularioCambioClave alTerminar={refrescar} />
-      </Tarjeta>
+      </Bloque>
 
       <SobreConvoca />
     </div>
@@ -135,7 +135,7 @@ function SobreConvoca() {
   const enPruebas = (estado?.version ?? "").includes("prueba");
 
   return (
-    <Tarjeta titulo="Sobre Convoca CRM">
+    <Bloque titulo="Sobre Convoca CRM">
       <div className="space-y-5">
         <FirmaConvoca tamano={40} />
 
@@ -164,7 +164,7 @@ function SobreConvoca() {
           dato que conviene copiar.
         </p>
       </div>
-    </Tarjeta>
+    </Bloque>
   );
 }
 

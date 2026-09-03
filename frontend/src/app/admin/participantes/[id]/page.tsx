@@ -18,6 +18,7 @@ import {
   IconoSobre,
 } from "@/components/admin/iconos";
 import { SelectorBuscable } from "@/components/admin/selector-buscable";
+import { Caracterizacion } from "@/components/admin/caracterizacion";
 import { DatosSena } from "@/components/admin/datos-sena";
 import { colorEtapa, PildoraEtapa } from "@/components/admin/etapa";
 import {
@@ -926,6 +927,45 @@ export default function PaginaFicha() {
                   ) : (
                     <RegistrarAutorizacion id={f.id} alGuardar={conError} />
                   )}
+                </div>
+
+                <div style={E.raya} />
+
+                {/* ── CARACTERIZACIÓN DE POBLACIÓN ──
+
+                    Aquí y no en la pestaña «Datos». Ocupaba media
+                    pantalla con seis grupos y un buscador para
+                    una cosa que se toca una vez en la vida de la
+                    ficha, y empujaba hacia abajo lo que sí se
+                    mira a diario. En esta columna queda pegada a
+                    la autorización, que es de la que cuelga y a
+                    la que manda el aviso cuando falta. La lista
+                    entera se abre en un cajón. */}
+                <div style={E.bloque}>
+                  <div style={E.rotuloFila}>
+                    <span style={E.circuloVerde}>
+                      <IconoEscudo tamano={15} />
+                    </span>
+                    <span style={E.rotulo}>CARACTERIZACIÓN DE POBLACIÓN</span>
+                  </div>
+
+                  <Caracterizacion
+                    elegidas={(f.persona.caracterizaciones ?? []).map(
+                      (x) => x.caracterizacionSepId,
+                    )}
+                    rechazada={f.persona.caracterizacionRechazada ?? false}
+                    preguntadaEn={f.persona.caracterizacionPreguntada ?? null}
+                    /// Viva y de ESTE convenio: es la que el
+                    /// servidor va a exigir, así que la pantalla
+                    /// mira la misma.
+                    tieneAutorizacion={Boolean(autorizacion)}
+                    puedeEscribir={puedeEscribir}
+                    alGuardar={(v) =>
+                      conError(async () => {
+                        await crmApi.actualizar(f.id, v);
+                      }, "Caracterización guardada.")
+                    }
+                  />
                 </div>
 
                 {puedeEscribir && (

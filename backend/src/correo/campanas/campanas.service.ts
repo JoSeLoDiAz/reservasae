@@ -368,7 +368,7 @@ export class CampanasService {
    * si no es hora, si ya se llegó al tope o si a esa persona ya
    * le escribimos dos veces hoy, no sale.
    */
-  async enviarUno(baseUrl: string): Promise<boolean> {
+  async enviarUno(baseApi: string): Promise<boolean> {
     const ahora = new Date();
     const desdeHoy = inicioDelDiaColombiano(ahora);
     const haceUnaHora = new Date(ahora.getTime() - 60 * 60 * 1000);
@@ -486,7 +486,7 @@ export class CampanasService {
         siguiente.campana.id,
         siguiente.id,
         Boolean(siguiente.campana.bannerDatos),
-        baseUrl,
+        baseApi,
       ),
     });
 
@@ -563,13 +563,13 @@ export class CampanasService {
     campanaId: string,
     destinatarioId: string,
     conBanner: boolean,
-    baseUrl: string,
+    baseApi: string,
   ): string {
     const escapado = escaparHtml(texto);
 
     const conEnlaces = reescribirEnlaces(
       escapado,
-      baseUrl,
+      baseApi,
       campanaId,
       destinatarioId,
     );
@@ -580,12 +580,12 @@ export class CampanasService {
       .join('\n');
 
     const banner = conBanner
-      ? `<img src="${baseUrl}/campanas/${campanaId}/banner" alt="" style="display:block;width:100%;max-width:600px;height:auto;border:0">`
+      ? `<img src="${baseApi}/campanas/${campanaId}/banner" alt="" style="display:block;width:100%;max-width:600px;height:auto;border:0">`
       : '';
 
     /// El pixel va al final y mide APROXIMADO. Se pone porque
     /// se pidió, no porque el número sea de fiar.
-    const pixel = `<img src="${baseUrl}/campanas/${campanaId}/abierto/${destinatarioId}" width="1" height="1" alt="" style="display:block">`;
+    const pixel = `<img src="${baseApi}/campanas/${campanaId}/abierto/${destinatarioId}" width="1" height="1" alt="" style="display:block">`;
 
     return (
       '<div style="max-width:600px;margin:0 auto;font-family:system-ui,-apple-system,' +

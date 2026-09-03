@@ -375,6 +375,36 @@ export function BotonSuave({
  * gris con la forma de lo que va a venir orienta más que
  * la palabra "cargando", y evita el salto cuando entra.
  */
+/**
+ * La pantalla entera mientras llegan los datos.
+ *
+ * Un «Cargando…» suelto y pegado al canto de arriba a la
+ * izquierda no se lee como «espere»: se lee como que la
+ * pantalla se rompió y eso es lo único que quedó. Centrado en
+ * el hueco que va a ocupar el contenido dice lo que pasa, y de
+ * paso el ojo ya está donde va a aparecer la cosa.
+ *
+ * Va donde la pantalla NO tiene todavía forma. Cuando sí la
+ * tiene --se sabe que van filas de una tabla-- es mejor
+ * `Esqueleto`, que enseña la forma en vez de anunciarla.
+ *
+ * El círculo que gira es de las poquísimas cosas que llevan
+ * `rounded-full` con permiso: es de verdad redondo.
+ */
+export function Cargando({ que = "Cargando…" }: { que?: string }) {
+  return (
+    <div className="flex min-h-0 grow flex-col items-center justify-center gap-3 px-4 py-20 text-texto-suave">
+      <span
+        aria-hidden
+        className="h-6 w-6 animate-spin rounded-full border-2 border-current/25 border-t-current"
+      />
+      <p role="status" className="text-sm">
+        {que}
+      </p>
+    </div>
+  );
+}
+
 export function Esqueleto({
   filas = 3,
   conCifras = false,

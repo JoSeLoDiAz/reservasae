@@ -15,6 +15,7 @@ import {
   porQueNoSeLeMando,
 } from '../autorizacion-vigente';
 import { escaparAtributo, escaparHtml } from '../escapar';
+import { urlPublicaDeLaApi } from '../url-publica';
 import { porQueNo } from './etapas-de-plantilla';
 import {
   resolver,
@@ -366,10 +367,25 @@ export class PlantillasCorreoService {
     /// viaja en la dirección porque la respuesta se cachea una
     /// semana; sin ella, cambiar el cabezote no cambiaría nada
     /// en las bandejas que ya lo tienen.
-    const cabezote =
-      plantilla?.bannerMime
-        ? `${urlPublica()}/plantillas-correo/${plantillaId}/banner?v=${plantilla.bannerVersion}`
-        : null;
+    ///
+    /// Y va por `/api/`. `URL_PUBLICA` es la del FRONTEND
+    /// --`preinscripcion` la usa para `/completar/<token>`, que
+    /// es una pantalla-- y en el servidor nginx solo enruta dos
+    /// cosas: `/` al frontend y `/api/` al backend, quitando el
+    /// prefijo (`docker/nginx/prueba.conf:55`). Sin `/api/`
+    /// esta imagen le pega al Next y devuelve 404, y en el
+    /// correo se ve el hueco. En local también funciona: el
+    /// rewrite de `next.config.ts` hace lo mismo.
+    ///
+    /// Sin `URL_PUBLICA` NO se pone cabezote, y aquí no vale el
+    /// `?? 'http://localhost:3100'` que usan los enlaces. Un
+    /// enlace roto se ve al pulsarlo y quien lo recibe entiende
+    /// que algo falló; una imagen rota se pinta sola, arriba
+    /// del todo, en el sitio donde va el logo del gremio. Mejor
+    /// que no salga a que salga el icono de imagen partida.
+    const cabezote = plantilla?.bannerMime
+      ? urlDelCabezote(plantillaId, plantilla.bannerVersion)
+      : null;
 
     const r = await this.correo.enviar({
       para: vista.para,
@@ -538,11 +554,28 @@ export function aHtml(texto: string, cabezote?: string | null): string {
   );
 }
 
-/// De donde cuelga lo que abre el cliente de correo de otra
-/// persona. Mismo origen que el de las campanas.
-function urlPublica(): string {
-  return (process.env.URL_PUBLICA ?? 'http://localhost:3100').replace(
-    /\/+$/,
-    '',
-  );
+/**
+ * A donde apunta el `<img>` del cabezote dentro del correo.
+ *
+ * Sale de `urlPublicaDeLaApi()` y no de `urlPublica()`: esto es
+ * un endpoint del backend, y nginx solo le manda al backend lo
+ * que empieza por `/api/`. La regla entera, con el porque, esta
+ * en `correo/url-publica.ts`.
+ *
+ * La version viaja en la direccion porque la respuesta se
+ * cachea una semana: sin ella, cambiar el cabezote no cambia
+ * nada en las bandejas que ya lo tienen.
+ *
+ * Null sin `URL_PUBLICA`, y aqui NO vale el `localhost` que
+ * usan los enlaces: un enlace roto se ve al pulsarlo, una
+ * imagen rota se pinta sola y arriba del todo, en el sitio
+ * donde va el logo del gremio.
+ */
+export function urlDelCabezote(
+  plantillaId: string,
+  bannerVersion: number,
+): string | null {
+  const base = urlPublicaDeLaApi();
+  if (!base) return null;
+  return `${base}/plantillas-correo/${plantillaId}/banner?v=${bannerVersion}`;
 }
