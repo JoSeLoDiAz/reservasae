@@ -868,44 +868,33 @@ export function CompletarFicha({ token }: { token: string }) {
               rehusar no está consentido. */}
           <section className="rounded-2xl border border-borde bg-superficie p-6">
             <h2 className="text-lg font-semibold">Población vulnerable</h2>
+            {/* SIN «prefiero no responder». Decisión del cliente,
+                tomada sabiendo lo que sigue.
+
+                No son lo mismo y el sistema los distinguía a
+                propósito: «sin marcar» es que no se preguntó,
+                «prefiero no responder» es que se preguntó y no
+                quiso decirlo, y «Ninguna» es que AFIRMÓ no
+                pertenecer a ninguna. Quitando el del medio, quien
+                sí pertenece a una población y no quiere decirlo
+                tiene que declarar que no pertenece.
+
+                Se le explicó y lo reafirmó. Queda escrito aquí
+                para que quien lo lea dentro de un año sepa que fue
+                una decisión y no un descuido, y para que sepa que
+                deshacerlo es devolver este bloque. */}
             <p className="mt-1 text-sm leading-relaxed text-texto-suave">
               Si alguna de estas condiciones es la suya, escríbala y
               elíjala; es <strong>una sola</strong>, la que mejor lo describa.
-              Y si prefiere no decirlo, marque «prefiero no responder» o
-              escriba «ninguna»: no cambia en nada su preinscripción ni su
-              cupo.
+              Y si no es ninguna, escriba «ninguna»: no cambia en nada su
+              preinscripción ni su cupo.
             </p>
 
-            {rechazaCaracterizacion ? (
-              <div className="mt-4 rounded-xl border border-borde bg-superficie-alterna p-4 text-sm">
-                <p>Prefiere no responder. Queda así.</p>
-                <button
-                  type="button"
-                  onClick={() => setRechazaCaracterizacion(false)}
-                  className="mt-2 text-marca underline"
-                >
-                  Cambiar de opinión
-                </button>
-              </div>
-            ) : (
-              <>
-                <BuscadorDeCaracterizacion
-                  opciones={ficha.caracterizaciones}
-                  elegida={caracterizaciones[0] ?? null}
-                  alElegir={(id) => setCaracterizaciones(id === null ? [] : [id])}
-                />
-                <button
-                  type="button"
-                  onClick={() => {
-                    setRechazaCaracterizacion(true);
-                    setCaracterizaciones([]);
-                  }}
-                  className="mt-3 text-sm text-texto-suave underline hover:text-texto"
-                >
-                  Prefiero no responder
-                </button>
-              </>
-            )}
+            <BuscadorDeCaracterizacion
+              opciones={ficha.caracterizaciones}
+              elegida={caracterizaciones[0] ?? null}
+              alElegir={(id) => setCaracterizaciones(id === null ? [] : [id])}
+            />
           </section>
 
           {/* Por qué está gris, AL LADO del botón.
