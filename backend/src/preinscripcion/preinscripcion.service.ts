@@ -423,8 +423,6 @@ export class PreinscripcionService {
 
     await this.pedirElRui(persona.id);
 
-    const enlace = await this.emitirEnlace(participante.id, null);
-
     /// EL TOKEN NO SALE SI LA CÉDULA YA ESTABA.
     ///
     /// Este enlace abre la ficha ENTERA de la persona: su
@@ -446,6 +444,19 @@ export class PreinscripcionService {
     /// Cuando la cédula es nueva sí se devuelve: la ficha solo
     /// contiene lo que él mismo acaba de escribir.
     if (!yaHabiaPersona) {
+      /// SOLO AQUI SE EMITE, y el sitio importa.
+      ///
+      /// Estaba antes del `if`, asi que se emitia SIEMPRE -- y
+      /// `emitirEnlace` ANULA el anterior. Mientras el correo
+      /// automatico llevaba el enlace daba igual: se emitia uno y
+      /// se mandaba.
+      ///
+      /// Desde que ese correo no lleva enlace (3 sep 2026) y solo
+      /// lo manda el asesor, emitirlo aqui seria romperle el suyo:
+      /// la persona se vuelve a registrar por su cuenta, se anula
+      /// el token que el asesor mando, y el enlace que ella tenia
+      /// en su bandeja deja de abrir sin que nadie sepa por que.
+      const enlace = await this.emitirEnlace(participante.id, null);
       return {
         registrado: true,
         yaEstaba: false,
@@ -463,22 +474,38 @@ export class PreinscripcionService {
     if (suCorreo) {
       const r = await this.correo.enviar({
         para: suCorreo,
-        asunto: 'Su enlace para completar la inscripción',
+        asunto: `Su preinscripción en ${convenio.nombre}`,
+        /// SIN ENLACE, y es una decision del cliente del 3 sep
+        /// 2026: «el correo debe llegar solamente si el asesor lo
+        /// envia».
+        ///
+        /// Antes llevaba el token de completado. Se manda a este
+        /// buzon y no al que vino en el formulario --quien lo
+        /// controla es la duena de la ficha-- asi que era seguro,
+        /// pero seguia siendo un enlace de un solo uso viajando
+        /// solo porque alguien tecleo una cedula.
+        ///
+        /// Lo que queda es un acuse: le decimos que hay un
+        /// registro con su documento y que un asesor la va a
+        /// llamar. Si de verdad quiere completar sus datos, el
+        /// asesor le emite el enlace desde la ficha --
+        /// `POST /admin/participantes/:id/enlace`, que ya existe.
+        ///
+        /// Y la ultima linea NO se quita: es la unica forma que
+        /// tiene alguien de enterarse de que usaron su cedula.
         texto:
           `Buen día:
 
 ` +
-          `Recibimos un registro con su documento en ${convenio.nombre}.
+          `Recibimos su preinscripción en ${convenio.nombre}.
 
 ` +
-          `Si fue usted, complete sus datos aquí:
-${this.urlPublica()}/completar/${enlace.token}
+          `Ya teníamos un registro con su documento, así que no hace falta que ` +
+          `haga nada más: uno de nuestros asesores se comunicará con usted para ` +
+          `confirmar su inscripción y los pasos a seguir.
 
 ` +
-          `El enlace vence el ${enlace.expiraEn.toLocaleDateString('es-CO')}.
-
-` +
-          `Si NO fue usted, no haga nada y avísenos respondiendo este correo.
+          `Si NO fue usted quien se registró, avísenos respondiendo este correo.
 `,
       });
       enviado = r.estado === 'ENVIADO';
@@ -495,8 +522,8 @@ ${this.urlPublica()}/completar/${enlace.token}
       /// mandamos a su correo registrado» le sirve a la dueña
       /// y no le dice nada a un desconocido.
       mensaje: enviado
-        ? 'Ya tenía un registro con ese documento. Le mandamos el enlace al correo que tiene registrado.'
-        : 'Ya tenía un registro con ese documento. Comuníquese con el gremio para continuar.',
+        ? 'Ya tenía un registro con ese documento. Le mandamos un correo a la dirección que tiene registrada, y un asesor se comunicará con usted.'
+        : 'Ya tenía un registro con ese documento. Un asesor se comunicará con usted.',
     };
   }
 
