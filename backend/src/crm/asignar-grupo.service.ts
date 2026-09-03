@@ -29,7 +29,7 @@ import {
 
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditoriaService, ENTIDADES } from '../comun/auditoria.service';
-import { NO_RECIBEN_GRUPO, OCUPAN_SILLA, RETIENEN_ASIENTO } from './etapas';
+import { OCUPAN_SILLA, RETIENEN_ASIENTO } from './etapas';
 import {
   cuantosCaben,
   elegiblesDelGrupo,
@@ -69,7 +69,11 @@ export class AsignarGrupo {
         /// Solo las que tienen a alguien esperando: una lista de
         /// ofertas con cero pendientes es ruido que hay que
         /// atravesar para llegar a las que sí.
-        participantes: { some: { coberturaId: null, etapa: { notIn: NO_RECIBEN_GRUPO } } },
+        ///
+        /// Y «esperando» son los YA INSCRITOS, la misma regla que
+        /// `elegiblesDelGrupo`. Si aquí se contara a los interesados,
+        /// la fila diría «120 sin grupo» y al abrirla saldrían ocho.
+        participantes: { some: { coberturaId: null, etapa: { in: OCUPAN_SILLA } } },
       },
       select: {
         id: true,
@@ -81,7 +85,7 @@ export class AsignarGrupo {
         },
         _count: {
           select: {
-            participantes: { where: { coberturaId: null, etapa: { notIn: NO_RECIBEN_GRUPO } } },
+            participantes: { where: { coberturaId: null, etapa: { in: OCUPAN_SILLA } } },
           },
         },
       },

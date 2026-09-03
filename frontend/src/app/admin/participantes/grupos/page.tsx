@@ -125,7 +125,7 @@ export default function AsignarGrupoPorLote() {
 
       <Encabezado
         titulo="Asignar grupo por lote"
-        descripcion="Quien se preinscribe elige su curso y su sede, pero no su grupo — y sin grupo la ficha no entra al reporte del SENA. Aquí se reparten de a muchos."
+        descripcion="Solo sale quien YA está inscrito y todavía no tiene cohorte: el grupo es lo último que se asigna, cuando la persona ya está dentro. Y sin él su ficha no entra al reporte del SENA."
       />
 
       {error && <Aviso tipo="error">{error}</Aviso>}
@@ -134,13 +134,15 @@ export default function AsignarGrupoPorLote() {
       {ofertas === null ? (
         <Esqueleto />
       ) : ofertas.length === 0 ? (
-        <Vacio titulo="Nadie está esperando grupo">
-          Todas las fichas con curso y sede ya tienen su cohorte asignada.
-          Cuando entren preinscripciones nuevas aparecerán aquí.
+        <Vacio titulo="Nadie inscrito está esperando grupo">
+          Todos los inscritos ya tienen su cohorte. Los interesados y
+          contactados no salen aquí a propósito: el grupo se asigna cuando la
+          persona ya está dentro, y hasta entonces se le pone de a una desde su
+          ficha.
         </Vacio>
       ) : (
         <Bloque
-          titulo="Dónde hay gente esperando"
+          titulo="Dónde hay inscritos esperando"
           descripcion="Una fila por curso y sede. El grupo se elige después: varios grupos pueden servir la misma sede, y se reparten el mismo montón."
         >
           <div className="flex flex-col gap-2">
@@ -160,7 +162,8 @@ export default function AsignarGrupoPorLote() {
                   {o.sede} · {o.modalidad.toLowerCase()}
                 </span>
                 <span className="ml-auto tabular-nums font-medium text-marca">
-                  {o.sinGrupo} sin grupo
+                  {o.sinGrupo} {o.sinGrupo === 1 ? "inscrito" : "inscritos"} sin
+                  grupo
                 </span>
                 <span className="text-xs text-texto-suave">
                   {/* Cuántos grupos la sirven. Si son dos, el
@@ -250,7 +253,7 @@ export default function AsignarGrupoPorLote() {
                   </div>
 
                   {lista.candidatos.length === 0 ? (
-                    <Vacio titulo="Ya no queda nadie de esta oferta sin grupo">
+                    <Vacio titulo="Ya no queda ningún inscrito de esta oferta sin grupo">
                       Elija otra fila de arriba.
                     </Vacio>
                   ) : (

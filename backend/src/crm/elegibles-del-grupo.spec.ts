@@ -43,8 +43,16 @@ describe('el where: cuatro igualdades y ni un OR', () => {
     expect(w.coberturaId).toBeNull();
   });
 
-  it('y quien salió NO recibe cohorte', () => {
-    expect(w.etapa).toEqual({ notIn: NO_RECIBEN_GRUPO });
+  it('SOLO los ya inscritos, y es lo que el cliente corrigió', () => {
+    /// «El grupo es lo último que se asigna, una vez se llame y se
+    /// completen los datos.» Un INTERESADO puede no llegar nunca a
+    /// inscribirse, y apuntarlo a una cohorte le reserva un asiento
+    /// del cupo comprometido con el SENA.
+    ///
+    /// Es `OCUPAN_SILLA` y no `['INSCRITO']`: con la lista corta se
+    /// quedarían sin poder asignar en bloque los que YA están en el
+    /// aula, que son justo los que el reporte necesita con cohorte.
+    expect(w.etapa).toEqual({ in: OCUPAN_SILLA });
   });
 
   it('no lleva NINGÚN filtro de modalidad', () => {
@@ -56,28 +64,40 @@ describe('el where: cuatro igualdades y ni un OR', () => {
 });
 
 describe('las etapas: quién entra en la lista', () => {
-  /// EL ASERTO QUE PROTEGE DE LA EQUIVOCACIÓN MÁS FÁCIL.
+  /// EL LOTE ES SOLO PARA LOS YA INSCRITOS, por decisión del
+  /// cliente del 3 sep 2026. Antes ofrecía todo el montón de la
+  /// pauta y él lo corrigió: el grupo se asigna al final, cuando la
+  /// persona ya está dentro.
   ///
-  /// `OCUPAN_SILLA` son solo INSCRITO, EN_FORMACION y CERTIFICADO.
-  /// Usarla aquí devolvería CERO de los que necesitan grupo, porque
-  /// el montón de la pauta es INTERESADO y CONTACTADO.
+  /// El desplegable de la FICHA sigue admitiendo a un interesado —
+  /// ahí hay un asesor mirando una sola persona. Lo que no puede es
+  /// pasar de a trescientos.
   const DEL_MONTON = ['INTERESADO', 'CONTACTADO', 'DATOS_COMPLETOS'] as const;
 
-  it.each(DEL_MONTON)('%s SÍ entra: es el montón de la pauta', (e) => {
-    expect(NO_RECIBEN_GRUPO).not.toContain(e);
+  it.each(DEL_MONTON)('%s NO entra al lote: todavía no está dentro', (e) => {
+    expect(OCUPAN_SILLA).not.toContain(e);
   });
 
-  it('INSCRITO también, y son los más valiosos', () => {
+  it('INSCRITO sí, y son los que el reporte necesita', () => {
     /// Desde el 3 sep 2026 se inscribe sin grupo, así que estos son
     /// exactamente los que `completitud.ts` deja fuera del reporte
     /// con «no tiene grupo asignado».
-    expect(NO_RECIBEN_GRUPO).not.toContain('INSCRITO');
+    expect(OCUPAN_SILLA).toContain('INSCRITO');
+  });
+
+  it('y quien ya está en el aula también', () => {
+    /// El aserto que impide acortar la lista a `['INSCRITO']`: quien
+    /// está en formación o certificado sin cohorte también hace
+    /// falta en el reporte.
+    expect(OCUPAN_SILLA).toContain('EN_FORMACION');
+    expect(OCUPAN_SILLA).toContain('CERTIFICADO');
   });
 
   it.each(['RETIRADO', 'DESERTO', 'ABANDONO', 'NO_APROBO', 'PERDIDO'] as const)(
     '%s NO entra',
     (e) => {
       expect(NO_RECIBEN_GRUPO).toContain(e);
+      expect(OCUPAN_SILLA).not.toContain(e);
     },
   );
 

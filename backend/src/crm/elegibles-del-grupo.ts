@@ -28,7 +28,7 @@
  * propia sería la cuarta verdad sobre la misma decisión.
  */
 
-import { NO_RECIBEN_GRUPO } from './etapas';
+import { OCUPAN_SILLA } from './etapas';
 
 import type { Prisma } from '../../generated/prisma';
 
@@ -40,7 +40,25 @@ export type CeldaDestino = {
 };
 
 /**
- * A quién ofrece el lote.
+ * A quién ofrece el lote: SOLO A QUIEN YA ESTÁ INSCRITO.
+ *
+ * Lo pidió el cliente, y con un argumento que corrige el diseño:
+ * «el grupo es lo último que se asigna, una vez se llame y se
+ * completen los datos». Un INTERESADO puede no llegar nunca a
+ * inscribirse, así que apuntarlo a una cohorte le reserva un asiento
+ * que quizá no use — y el asiento sale del cupo comprometido con el
+ * SENA.
+ *
+ * Se usa `OCUPAN_SILLA` y no una lista propia: son las tres etapas
+ * que este sistema llama «ya inscrito» —INSCRITO, EN_FORMACION y
+ * CERTIFICADO— y es la MISMA de la que deriva `ETAPAS_DEL_REPORTE`.
+ * Escribir aquí `['INSCRITO']` a secas dejaría sin poder asignar en
+ * bloque justamente a los que ya están en el aula, que son los que
+ * el reporte necesita con cohorte.
+ *
+ * Por la ficha se puede seguir asignando grupo a un INTERESADO, y
+ * eso no cambia: ahí hay un asesor mirando UNA persona. Lo que no
+ * puede es pasar de a trescientos.
  *
  * `coberturaId: null` es lo que lo vuelve seguro: este lote RELLENA
  * el hueco, nunca mueve a nadie de cohorte. Cambiar de grupo a alguien
@@ -58,8 +76,8 @@ export function elegiblesDelGrupo(d: {
     ofertaId: d.ofertaId,
     /// Solo el hueco.
     coberturaId: null,
-    /// Quien salió ya no recibe cohorte.
-    etapa: { notIn: NO_RECIBEN_GRUPO },
+    /// SOLO LOS YA INSCRITOS. Ver el docblock.
+    etapa: { in: OCUPAN_SILLA },
   };
 }
 

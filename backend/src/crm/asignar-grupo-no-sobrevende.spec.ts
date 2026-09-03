@@ -17,7 +17,7 @@
  */
 
 import { AsignarGrupo } from './asignar-grupo.service';
-import { NO_RECIBEN_GRUPO, RETIENEN_ASIENTO } from './etapas';
+import { OCUPAN_SILLA, RETIENEN_ASIENTO } from './etapas';
 
 type Ficha = {
   id: string;
@@ -65,7 +65,16 @@ function armar(
             f.convenioId === w.convenioId &&
             f.ofertaId === w.ofertaId &&
             f.coberturaId === null &&
-            !NO_RECIBEN_GRUPO.includes(f.etapa as never),
+            /// SE APLICA EL `where` QUE MANDA EL SERVICIO, no una
+            /// copia de la regla.
+            ///
+            /// Estaba con `OCUPAN_SILLA.includes(...)` a mano, y al
+            /// mutar la regla de verdad solo caía 1 de 38: el doble
+            /// decidía por su cuenta, así que los tests probaban el
+            /// doble. Es la trampa que este repositorio lleva
+            /// documentada desde el que decidía por el prefijo del
+            /// id.
+            cumpleLaEtapa(f.etapa, w.etapa),
         );
         return Promise.resolve(hay.map((f) => ({ id: f.id, etapa: f.etapa })));
       },
@@ -130,6 +139,17 @@ function armar(
   return { s, escrito, tomo: () => bloqueo, asignados: () => asignados };
 }
 
+/// Aplica el filtro de etapa TAL COMO LLEGA en el `where`. Es lo
+/// que convierte al doble en un espejo de Prisma y no en una
+/// segunda implementación de la regla.
+function cumpleLaEtapa(etapa: string, filtro: unknown): boolean {
+  const f = filtro as { in?: string[]; notIn?: string[] } | undefined;
+  if (!f) return true;
+  if (f.in) return f.in.includes(etapa);
+  if (f.notIn) return !f.notIn.includes(etapa);
+  return true;
+}
+
 const ADMIN = { id: 'a-1', nombre: 'Ana Jaramillo' };
 
 /// Cinco esperando, la celda admite 3.
@@ -138,7 +158,8 @@ const CINCO: Ficha[] = [1, 2, 3, 4, 5].map((n) => ({
   convenioId: 'c-1',
   ofertaId: 'of-1',
   coberturaId: null,
-  etapa: 'INTERESADO',
+  /// INSCRITOS, que es a quienes ofrece el lote desde el 3 sep 2026.
+  etapa: 'INSCRITO',
 }));
 
 describe('no sobrevende', () => {
@@ -157,6 +178,10 @@ describe('no sobrevende', () => {
     /// interesados ya en la celda, solo cabe uno más. Contando con
     /// `OCUPAN_SILLA` la celda se vería vacía y entrarían tres.
     const yaDentro: Ficha[] = [
+      /// Interesados A PROPOSITO: por la ficha se les puede poner
+      /// grupo de a uno, y entonces RETIENEN el asiento aunque el
+      /// lote no los ofrezca. Es justo la distincion que sostiene
+      /// las dos listas.
       { id: 'x1', convenioId: 'c-1', ofertaId: 'of-1', coberturaId: 'cel-1', etapa: 'INTERESADO' },
       { id: 'x2', convenioId: 'c-1', ofertaId: 'of-1', coberturaId: 'cel-1', etapa: 'CONTACTADO' },
     ];
@@ -198,7 +223,7 @@ describe('lo que NO entra, no se escribe', () => {
       convenioId: 'c-2',
       ofertaId: 'of-1',
       coberturaId: null,
-      etapa: 'INTERESADO',
+      etapa: 'INSCRITO',
     };
     const { s, asignados } = armar([ajena, ...CINCO]);
 
@@ -214,7 +239,7 @@ describe('lo que NO entra, no se escribe', () => {
       convenioId: 'c-1',
       ofertaId: 'of-9',
       coberturaId: null,
-      etapa: 'INTERESADO',
+      etapa: 'INSCRITO',
     };
     const { s, asignados } = armar([otra, ...CINCO]);
 
@@ -230,7 +255,7 @@ describe('lo que NO entra, no se escribe', () => {
       convenioId: 'c-1',
       ofertaId: 'of-1',
       coberturaId: 'cel-9',
-      etapa: 'INTERESADO',
+      etapa: 'INSCRITO',
     };
     const { s, asignados } = armar([conGrupo, ...CINCO]);
 
@@ -277,5 +302,55 @@ describe('el aserto que protege del arreglo excesivo', () => {
     expect(r.asignadas).toBe(5);
     expect(r.sinCupo).toBe(0);
     expect(RETIENEN_ASIENTO).toContain('INTERESADO');
+  });
+});
+
+describe('el lote es SOLO para los ya inscritos', () => {
+  /**
+   * La corrección del cliente del 3 sep 2026: «el grupo es lo último
+   * que se asigna, una vez se llame y se completen los datos».
+   *
+   * Un INTERESADO puede no llegar nunca a inscribirse, y apuntarlo a
+   * una cohorte le reserva un asiento del cupo comprometido con el
+   * SENA. Por la ficha sí se le puede poner grupo de a uno — ahí hay
+   * un asesor mirando una persona. Lo que no puede es pasar de a
+   * trescientos.
+   */
+  const DEL_MONTON = ['INTERESADO', 'CONTACTADO', 'DATOS_COMPLETOS'] as const;
+
+  it.each(DEL_MONTON)('un %s marcado a mano NO se asigna', async (etapa) => {
+    const suelto: Ficha = {
+      id: 'del-monton',
+      convenioId: 'c-1',
+      ofertaId: 'of-1',
+      coberturaId: null,
+      etapa,
+    };
+    const { s, asignados } = armar([suelto, ...CINCO]);
+
+    const r = await s.asignar('cel-1', ['del-monton', 'p1'], ADMIN, ['c-1']);
+
+    /// Se cuenta en `fuera`, que es lo honesto: no se tocó.
+    expect(r.fuera).toBe(1);
+    expect(asignados()).toEqual(['p1']);
+  });
+
+  it('pero quien ya está EN EL AULA sí, y hace falta', async () => {
+    /// El aserto que impide acortar la regla a `['INSCRITO']`: quien
+    /// está en formación sin cohorte también la necesita para el
+    /// reporte.
+    const enAula: Ficha = {
+      id: 'en-aula',
+      convenioId: 'c-1',
+      ofertaId: 'of-1',
+      coberturaId: null,
+      etapa: 'EN_FORMACION',
+    };
+    const { s, asignados } = armar([enAula]);
+
+    const r = await s.asignar('cel-1', ['en-aula'], ADMIN, ['c-1']);
+
+    expect(r.asignadas).toBe(1);
+    expect(asignados()).toEqual(['en-aula']);
   });
 });
