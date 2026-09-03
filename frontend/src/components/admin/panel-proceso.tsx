@@ -35,6 +35,7 @@ import {
   SERIE,
   type PorcionDonut,
 } from "./graficos";
+import { PendientesDeHoy } from "./pendientes-de-hoy";
 import { Bloque } from "./piezas";
 import { colorEtapa } from "./etapa";
 import { ErrorApi } from "@/lib/api";
@@ -764,6 +765,18 @@ export function PanelProceso({
             grupos={gruposDe}
           />
         </Bloque>
+
+        {/* ── 9 · Lo que hay que hacer hoy ──
+
+            Vuelve porque lo pidió José: es la única lista
+            ACCIONABLE de la pantalla. Todo lo de arriba describe
+            —cuántos entraron, dónde se caen, de dónde vienen—;
+            esto dice qué hacer y con el nombre de a quién llamar.
+
+            Va en su propio componente y no suelto aquí: se perdió
+            una vez al rediseñar la pantalla, y así el siguiente
+            rediseño lo puede mover pero no borrarlo sin verlo. */}
+        <PendientesDeHoy control={control ?? null} />
       </div>
     </div>
   );
