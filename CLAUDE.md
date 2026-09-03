@@ -2731,20 +2731,58 @@ docker compose -f docker-compose.prueba.yml exec nginx-prueba nginx -s reload
   `docker-compose.yml` y su override, así que `desplegar.sh` y los demás
   guiones de sede lo ignoran por completo.
 
-### Catorce interesados completos, para recorrer el camino (3 sep 2026)
+### Catorce fichas y catorce leads: el estado limpio (3 sep 2026)
 
 ```bash
 cd /opt/sep/reservasae-prueba/backend
 export ENTORNO=prueba
 export DATABASE_URL=...@127.0.0.1:5434/reservasae_prueba   # el puerto PUBLICADO
+export LEADS_WEBHOOK_SECRET=$(grep -m1 ^LEADS_WEBHOOK_SECRET= .env.prueba | cut -d= -f2-)
 pnpm exec prisma generate     # si el clon trae el schema nuevo
 pnpm db:sembrar-interesados
 ```
 
-Siete por gremio, en `INTERESADO`, **completos y con empresa**. Los pidió el
-cliente porque con los de la siembra general no se puede: dos tercios están a
-medias a propósito —es el trabajo pendiente que enseña el CRM— y con esos no se
-recorre el camino entero.
+**Deja la base en un estado conocido**: catorce fichas en `INTERESADO` —siete por
+gremio, completas y con empresa— y catorce leads en la mesa de entrada, siete por
+gremio. Del CRM no queda nada más. Lo pidió el cliente porque con la siembra
+general no se puede recorrer el camino: dos tercios de sus fichas están a medias
+a propósito —es el trabajo pendiente que enseña el CRM— y las sesenta de la lista
+tapan lo que se quiere mirar.
+
+**Las reservas y las organizaciones que las hicieron NO se borran.** Son el módulo
+de pre-reserva, otra pantalla; y borrarlas obligaría a devolver a cero
+`Oferta.cuposOcupados`, que se mueve con un UPDATE condicional y no con un
+`deleteMany`. El efecto secundario es útil: con 4.797 cupos reservados y catorce
+personas detrás, la brecha de nombres queda enorme, que es la cifra que el CRM
+existe para enseñar.
+
+**El filtro del borrado es `esDePrueba`**, y no es decorativo: es la marca que
+mira `cola-rui.ts` para no pedirle al DNP la identidad de un ciudadano real, y
+aquí sirve de segunda cosa — un `deleteMany` sin condición sería el guión que se
+lleva por delante una ficha de verdad el día que la haya.
+
+#### Los catorce leads van POR EL WEBHOOK, y por las dos puertas
+
+Es la puerta de verdad —la que llama el orquestador y por la que pega Meta—, así
+que sembrarlos por ahí prueba de paso la llave, la resolución del gremio, la
+normalización del celular, el cruce contra quien ya está en el CRM y la deducción
+de la sede. Un INSERT daría filas que ningún lead real podría producir.
+
+- **ADECOPRIA entra por el SUBDOMINIO** y **BRITCHAM con `convenio` en el
+  cuerpo**. Las dos están documentadas y las dos tienen que funcionar; sembrar
+  solo por una dejaría la otra sin ejercer.
+- **`fetch` no sirve para esto.** `Host` es una cabecera prohibida en undici y la
+  descarta **en silencio**: los quince envíos salieron con «Falta el convenio» y
+  el subdominio nunca llegó. Va con `node:http`.
+- **Son casos, no catorce filas iguales**: completo, sin documento, sin cobertura
+  en su departamento, con un interés que no casa con ningún curso, con la cédula
+  de una de las catorce fichas —que la mesa marca «Ya son ficha»—, sin
+  autorización, sin correo, con el nombre sin partir, con la ubicación por código
+  DANE, con sede distinta de donde vive, repetido y con el documento mal escrito.
+- **Se siembran DESPUÉS de las fichas**, a propósito: uno trae la cédula de Marta
+  Vargas y lo que se quiere ver es el cruce contra alguien que ya está dentro.
+
+Siete por gremio, en `INTERESADO`, **completos y con empresa**.
 
 - **Nacen SIN GRUPO**, que es lo importante. Por la regla del cliente —«nada de
   lo inscrito debe estar asociado al cronograma»— el grupo es lo último. Así
