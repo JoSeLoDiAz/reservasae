@@ -152,7 +152,15 @@ export class DisparadorInscripcion {
 
     const razonSocial = empresa.razonSocial.trim().replace(/\s+/g, ' ');
     const ficha = await this.prisma.institucion.upsert({
-      where: { nit_razonSocial: { nit: empresa.nit, razonSocial } },
+      /// Por NIT: un NIT es una organizacion. Con la llave vieja
+      /// esto creaba una segunda ficha cada vez que la razon
+      /// social llegaba escrita de otra forma.
+      ///
+      /// Y NO se pisa el nombre aqui: este camino viene del CRM,
+      /// no de una fuente oficial, y el directorio ya puede tener
+      /// uno mejor --verificado o del RUES--. Solo se marca
+      /// activa.
+      where: { nit: empresa.nit },
       update: { activo: true },
       create: {
         nit: empresa.nit,

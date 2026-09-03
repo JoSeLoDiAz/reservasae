@@ -194,8 +194,11 @@ async function main() {
   let repetidos = 0;
 
   for (const [nit, dv, razonSocial] of BANCO) {
+    /// Por NIT: desde el 3 sep 2026 un NIT es UNA organizacion.
+    /// Si el banco trae dos nombres para el mismo NIT, se queda
+    /// el primero -- sembrar no corrige lo que ya hay.
     const antes = await prisma.institucion.findUnique({
-      where: { nit_razonSocial: { nit, razonSocial } },
+      where: { nit },
     });
     if (antes) {
       repetidos += 1;
