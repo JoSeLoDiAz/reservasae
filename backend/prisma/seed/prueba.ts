@@ -26,38 +26,13 @@ import {
 } from '../../src/crm/catalogos-sep';
 import { PLANTILLAS, temasDePlantilla } from '../../src/admin/plantillas-tema';
 import { conValoresPorDefecto } from '../../src/admin/temas';
+import { soloEnPruebas } from './solo-pruebas';
 
 const prisma = new PrismaClient();
 
 const CLAVE_DEMO = 'Prueba2026*';
 
 // ---------------------------------------------------------------------------
-
-/** Solo corre contra la base de pruebas. */
-function comprobarQueEsPruebas() {
-  const url = process.env.DATABASE_URL ?? '';
-  const nombreBase = url.split('/').pop()?.split('?')[0] ?? '';
-
-  const problemas: string[] = [];
-  if (process.env.ENTORNO !== 'prueba') {
-    problemas.push('ENTORNO no vale "prueba"');
-  }
-  if (!nombreBase.includes('prueba')) {
-    problemas.push(`la base se llama "${nombreBase}" y no lleva "prueba"`);
-  }
-
-  if (problemas.length > 0) {
-    console.error('\n✗ Esta siembra inventa datos y NO debe tocar producción.');
-    for (const p of problemas) console.error(`  · ${p}`);
-    // la imagen de produccion no trae ts-node: va desde
-    // el clon del servidor, contra el puerto publicado
-    console.error('\n  Se ejecuta desde /opt/sep/reservasae-prueba/backend así:');
-    console.error('    export ENTORNO=prueba');
-    console.error('    export DATABASE_URL=...@127.0.0.1:5434/reservasae_prueba');
-    console.error('    pnpm db:sembrar-prueba\n');
-    process.exit(1);
-  }
-}
 
 // numeros repetibles: dos revisiones ven lo mismo
 function generador(semilla: number) {
@@ -894,7 +869,7 @@ async function sembrarRespuestas(
 // ---------------------------------------------------------------------------
 
 async function main() {
-  comprobarQueEsPruebas();
+  soloEnPruebas('db:sembrar-prueba');
   console.log('\nSembrando el entorno de pruebas…\n');
 
   const convenios = await prisma.convenio.findMany({
