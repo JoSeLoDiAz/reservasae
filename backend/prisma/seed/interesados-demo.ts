@@ -54,6 +54,7 @@ import {
   MUNICIPIO_POR_ID,
 } from '../../src/crm/catalogos-sep';
 import { cubreA } from '../../src/crm/cobertura';
+import { PUEDEN_LLEVAR_FICHAS } from '../../src/crm/quien-lleva-fichas';
 import { revisar } from '../../src/crm/completitud';
 import { exigirBaseSegura } from '../guardia-de-base';
 import { soloEnPruebas } from './solo-pruebas';
@@ -463,11 +464,18 @@ async function main() {
     // La mitad con dueño y la mitad sin él, a propósito: sin
     // asesor es el estado normal de lo recién llegado y es lo que
     // alimenta el reparto por lote; con asesor es lo que ya se
-    // repartió. Con todas iguales no se puede probar ninguna de
-    // las dos cosas.
+    // repartió. Con todas iguales no se puede probar ninguna.
+    //
+    // La lista de roles sale de `PUEDEN_LLEVAR_FICHAS`, la misma
+    // que llena el desplegable del panel. Escribirla aquí a mano
+    // fue el primer intento y dejó las catorce sin asesor: en
+    // BRITCHAM ADEE no hay ningún gestor de inscripciones —solo
+    // académico, sistemas y consulta—, así que una lista propia
+    // sin `LIDER_SISTEMAS` no encontraba a nadie y no fallaba.
     const asesores = await db.adminConvenio.findMany({
-      where: { rol: { in: ['GESTOR_INSCRIPCION', 'LIDER_INSCRIPCION'] } },
+      where: { rol: { in: PUEDEN_LLEVAR_FICHAS }, admin: { activo: true } },
       select: { adminId: true, convenioId: true },
+      orderBy: { rol: 'asc' },
     });
     const asesorDe = new Map<string, string>();
     for (const a of asesores) if (!asesorDe.has(a.convenioId)) asesorDe.set(a.convenioId, a.adminId);
@@ -518,6 +526,12 @@ async function main() {
 
       const politicaId = politicaDe.get(convenioId);
       if (!politicaId) throw new Error(`${f.gremio} no tiene politica publicada`);
+    /// Sin esto el fallo es MUDO: `?? null` deja la ficha sin
+    /// dueño y parece que se pidió así. Ya pasó en la primera
+    /// corrida y las catorce salieron sin asesor.
+    if (f.conAsesor && !asesorDe.get(convenioId)) {
+      throw new Error(`${f.gremio} no tiene a nadie que pueda llevar fichas`);
+    }
 
       const persona = await db.persona.create({
         data: {

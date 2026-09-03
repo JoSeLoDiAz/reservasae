@@ -28,6 +28,7 @@ import {
 } from './clase-de-dato';
 import { documentoValido, normalizarDocumento } from '../comun/documento';
 import { borrarParticipaciones } from './borrar-participaciones';
+import { llevanFichasEn } from './quien-lleva-fichas';
 import { analizar, esInsalvable, repetidosEnElPegado } from './carga';
 import {
   saleDelCupo,
@@ -3507,17 +3508,7 @@ export class CrmService {
     // quien puede llevar leads en este convenio: los que
     // tienen concesion aqui, y no los de solo consulta
     const asesores = await this.prisma.admin.findMany({
-      where: {
-        activo: true,
-        convenios: {
-          some: {
-            convenioId,
-            rol: {
-              in: ['GESTOR_INSCRIPCION', 'LIDER_INSCRIPCION', 'LIDER_SISTEMAS'],
-            },
-          },
-        },
-      },
+      where: llevanFichasEn(convenioId),
       orderBy: { nombre: 'asc' },
       select: { id: true, nombre: true, correo: true },
     });

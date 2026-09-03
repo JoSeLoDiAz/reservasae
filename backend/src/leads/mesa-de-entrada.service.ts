@@ -7,6 +7,7 @@
  * leads se mueren de viejos.
  */
 
+import { llevanFichasEn } from '../crm/quien-lleva-fichas';
 import {
   BadRequestException,
   ConflictException,
@@ -143,17 +144,7 @@ export class MesaDeEntrada {
     /// alguno de los convenios del ámbito y un rol que atienda
     /// inscripciones. Los de solo consulta no llevan leads.
     const asesores = await this.prisma.admin.findMany({
-      where: {
-        activo: true,
-        convenios: {
-          some: {
-            convenioId: { in: ambito },
-            rol: {
-              in: ['GESTOR_INSCRIPCION', 'LIDER_INSCRIPCION', 'LIDER_SISTEMAS'],
-            },
-          },
-        },
-      },
+      where: llevanFichasEn(ambito),
       orderBy: { nombre: 'asc' },
       select: { id: true, nombre: true, correo: true },
     });
