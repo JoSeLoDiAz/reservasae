@@ -221,12 +221,13 @@ export function BarraDeGestion({
 
   /// Lo mismo en corto, para caber en la segunda línea de la
   /// opción. La frase entera va debajo del campo.
+  /// Solo tres. El cronograma ya no bloquea (081fcbc), asi que
+  /// «ningun grupo tiene fecha» y «se cerro la ventana» ya no
+  /// pueden llegar: dejarlos seria prometer un aviso que no se
+  /// va a dar.
   const MOTIVO_CORTO: Record<string, string> = {
     OFERTA_CERRADA: "La oferta está cerrada",
     LLENO: "No quedan cupos",
-    SIN_GRUPOS: "La acción no tiene grupos",
-    SIN_FECHAS: "Ningún grupo tiene fecha",
-    VENTANA_CERRADA: "Se cerró la ventana",
     SIN_OFERTA: "Sin oferta asignada",
   };
   const motivoCorto = lead.inscripcion?.motivo

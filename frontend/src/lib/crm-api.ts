@@ -465,16 +465,18 @@ export type Ficha = {
   inscripcion: {
     admite: boolean;
     porQueNo: string | null;
-    /// Dónde se arregla: en el cronograma, en la oferta, o
-    /// ampliando cupos. Leyendo la frase no se distingue.
-    motivo:
-      | "OFERTA_CERRADA"
-      | "LLENO"
-      | "SIN_GRUPOS"
-      | "SIN_FECHAS"
-      | "VENTANA_CERRADA"
-      | "SIN_OFERTA"
-      | null;
+    /**
+     * Dónde se arregla: en la oferta o ampliando cupos.
+     *
+     * Solo quedan dos, y es una decisión de José del 3 sep 2026
+     * (081fcbc): el cronograma AVISA, NO BLOQUEA. `SIN_GRUPOS`,
+     * `SIN_FECHAS` y `VENTANA_CERRADA` se quitaron —bloquear la
+     * captura por unas fechas que pone el SENA cuando puede es
+     * hacer el sistema más rígido que el proceso—. Si alguien
+     * los devuelve aquí, que sea sabiendo que los quitó una
+     * orden del cliente.
+     */
+    motivo: "OFERTA_CERRADA" | "LLENO" | "SIN_OFERTA" | null;
   };
 };
 
