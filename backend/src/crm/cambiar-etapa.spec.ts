@@ -188,13 +188,20 @@ async function pasarA(opciones: Opciones, etapa: string, cierran: string[] = ['c
 }
 
 describe('el regreso al aula con el grupo ya andando', () => {
-  it('RETIRADO → EN_FORMACION pasa, aunque la ventana esté cerrada', async () => {
-    /// Es LA regresión: la ventana se comprueba en dos sitios y
-    /// la exención solo apagaba el segundo, así que esto moría
-    /// en el primero con «Se cerró la ventana de inscripción de
-    /// todos los grupos». Un grupo en curso SIEMPRE la tiene
-    /// cerrada, así que fallaba siempre, no a veces.
-    const r = await pasarA({ etapa: 'RETIRADO', motivo: 'VENTANA_CERRADA' }, 'EN_FORMACION');
+  /**
+   * ESTOS TESTS SIGUEN VALIENDO, y por un motivo distinto.
+   *
+   * Antes protegían una EXENCIÓN: la ventana bloqueaba y a quien
+   * volvía se le eximía. Desde el 3 sep 2026 el cronograma no
+   * bloquea a nadie —orden del cliente—, así que ya no hay nada
+   * de lo que eximir.
+   *
+   * Lo que afirman —que se puede volver al aula con el grupo ya
+   * andando— es lo que importa y no ha cambiado. Se quedan como
+   * prueba de que la pared no vuelva por otro sitio.
+   */
+  it('RETIRADO → EN_FORMACION pasa con el grupo ya arrancado', async () => {
+    const r = await pasarA({ etapa: 'RETIRADO', motivo: null }, 'EN_FORMACION');
 
     expect(r.mensaje).not.toMatch(/ventana/i);
     expect(r.ok).toBe(true);
@@ -202,17 +209,17 @@ describe('el regreso al aula con el grupo ya andando', () => {
   });
 
   it('y con los grupos sin fechas, también', async () => {
-    const r = await pasarA({ etapa: 'ABANDONO', motivo: 'SIN_FECHAS' }, 'EN_FORMACION');
+    const r = await pasarA({ etapa: 'ABANDONO', motivo: null }, 'EN_FORMACION');
     expect(r.ok).toBe(true);
   });
 
   it('INSCRITO → EN_FORMACION (ingreso tardío) ni siquiera pide cupo', async () => {
-    const r = await pasarA({ etapa: 'INSCRITO', motivo: 'VENTANA_CERRADA' }, 'EN_FORMACION');
+    const r = await pasarA({ etapa: 'INSCRITO', motivo: null }, 'EN_FORMACION');
     expect(r.ok).toBe(true);
   });
 });
 
-describe('la exención es SOLO de la ventana', () => {
+describe('el cupo y la oferta SIGUEN bloqueando: no son cronograma', () => {
   it('con la oferta llena, quien vuelve sigue bloqueado', async () => {
     /// Su silla se liberó al retirarse: volver pide una nueva, y
     /// si no la hay, no la hay. Eximirlo de esto sería
@@ -240,14 +247,21 @@ describe('la exención es SOLO de la ventana', () => {
   });
 });
 
-describe('quien viene de fuera SÍ tiene que encontrar la ventana abierta', () => {
-  it('INTERESADO → INSCRITO con la ventana cerrada se niega', async () => {
-    /// La exención es de quien VUELVE. A quien entra por primera
-    /// vez la ventana le aplica entera.
-    const r = await pasarA({ etapa: 'INTERESADO', motivo: 'VENTANA_CERRADA' }, 'INSCRITO');
+describe('quien viene de fuera tampoco topa con el cronograma', () => {
+  it('INTERESADO → INSCRITO pasa aunque el grupo ya arrancara', async () => {
+    /// EL ASERTO QUE PROTEGE DEL ARREGLO EXCESIVO AL REVES.
+    ///
+    /// Antes esto se NEGABA: la exención era solo de quien
+    /// volvía. Desde que el cronograma no bloquea, tampoco le
+    /// aplica a quien entra por primera vez — que es lo que se
+    /// ordenó: «nada de lo inscrito debe estar asociado al
+    /// cronograma».
+    ///
+    /// Si alguien devuelve la pared «solo para los nuevos», este
+    /// test cae y le obliga a mirar por qué.
+    const r = await pasarA({ etapa: 'INTERESADO', motivo: null }, 'INSCRITO');
 
-    expect(r.ok).toBe(false);
-    expect(r.mensaje).toMatch(/VENTANA_CERRADA/);
+    expect(r.ok).toBe(true);
   });
 
   it('y con todo abierto, entra', async () => {
@@ -300,13 +314,13 @@ describe('la cadena completa del regreso', () => {
     /// falla, certificar a quien volvió es imposible y no
     /// difícil, que es lo que estuvo pasando.
     const alAula = await pasarA(
-      { etapa: 'RETIRADO', motivo: 'VENTANA_CERRADA' },
+      { etapa: 'RETIRADO', motivo: null },
       'EN_FORMACION',
     );
     expect(alAula.ok).toBe(true);
 
     const certificar = await pasarA(
-      { etapa: 'EN_FORMACION', motivo: 'VENTANA_CERRADA' },
+      { etapa: 'EN_FORMACION', motivo: null },
       'CERTIFICADO',
     );
     expect(certificar.ok).toBe(true);

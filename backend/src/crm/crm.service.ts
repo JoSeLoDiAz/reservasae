@@ -29,7 +29,6 @@ import {
 import { documentoValido, normalizarDocumento } from '../comun/documento';
 import { analizar, esInsalvable, repetidosEnElPegado } from './carga';
 import {
-  esRegresoAlAula,
   saleDelCupo,
   exigeCupo,
   exigeDatosParaElAula,
@@ -340,20 +339,25 @@ export class CrmService {
       this.prisma.participante.count({ where: donde }),
       this.prisma.participante.findMany({
         where: donde,
-        /// Los de pre-reserva primero, y de esos los que aun
-        /// no estan inscritos.
+        /// POR ORDEN DE LLEGADA, del mas reciente al mas viejo.
+        /// Orden del cliente, 3 sep 2026.
         ///
-        /// Una empresa que aparto cuarenta cupos tiene
-        /// cuarenta turnos preferentes con fecha de
-        /// vencimiento: si no se completan antes del cierre
-        /// se liberan al monton comun. Ponerlos arriba no es
-        /// cosmetica -- es que quien inscribe atienda primero
-        /// lo que caduca. Ordenar por fecha de creacion los
-        /// hundia entre los leads sueltos.
-        orderBy: [
-          { reservaId: { sort: 'desc', nulls: 'last' } },
-          { creadoEn: 'desc' },
-        ],
+        /// Antes iban primero TODOS los que venian de una reserva
+        /// de empresa y solo dentro de cada grupo por fecha, con
+        /// este argumento: una empresa que aparto cuarenta cupos
+        /// tiene cuarenta turnos con vencimiento, asi que ponerlos
+        /// arriba hacia que se atendiera primero lo que caduca.
+        ///
+        /// El efecto es que la lista NO se leia como una bandeja:
+        /// un lead que acaba de entrar aparecia debajo de fichas
+        /// de hace semanas, y quien abre esta pantalla lo que
+        /// quiere saber es que ha llegado.
+        ///
+        /// Lo que se pierde y hay que decirlo: los cupos de
+        /// empresa dejan de flotar solos. Se siguen pudiendo ver
+        /// primero -- la tabla ordena por columna y guarda vistas
+        /// con nombre --, pero ya no salen arriba por omision.
+        orderBy: { creadoEn: 'desc' },
         skip: (pagina - 1) * porPagina,
         take: porPagina,
         include: {
@@ -2098,16 +2102,6 @@ export class CrmService {
       ofertaId: string | null;
       coberturaId: string | null;
     },
-    /// `exigirVentana` distingue entrar de VOLVER.
-    ///
-    /// La ventana de inscripcion cierra una semana habil ANTES
-    /// de que el grupo arranque, asi que un grupo en curso
-    /// siempre la tiene cerrada. A quien vuelve al aula hay que
-    /// pedirle cupo -- al retirarse libero su silla -- pero no
-    /// una ventana que no puede estar abierta: seria negarle el
-    /// regreso siempre, y con el, el paso por «En formacion»
-    /// que hay que dar antes de certificarlo.
-    { exigirVentana = true }: { exigirVentana?: boolean } = {},
   ) {
     /// Sin los datos de su organización no se inscribe.
     ///
@@ -2183,41 +2177,33 @@ export class CrmService {
     /// Se exime SOLO de la ventana: que la oferta este llena o
     /// cerrada sigue bloqueando a quien vuelve, porque su silla
     /// se libero al retirarse y esta pidiendo una nueva.
-    const soloLaVentana =
-      panel.motivo === 'VENTANA_CERRADA' || panel.motivo === 'SIN_FECHAS';
-    if (!panel.admiteInscripciones && !(soloLaVentana && !exigirVentana)) {
+    /// Ya no hay ventana de la que eximir: el cronograma dejo de
+    /// bloquear el 3 sep 2026, por orden del cliente. Lo que queda
+    /// en `admiteInscripciones` es oferta cerrada y cupo lleno, y
+    /// de eso NO se exime a nadie -- ni a quien vuelve al aula,
+    /// porque su silla se libero al retirarse y esta pidiendo una
+    /// nueva.
+    if (!panel.admiteInscripciones) {
       throw new BadRequestException(
         panel.porQueNo ?? 'No se puede inscribir en esta oferta.',
       );
     }
 
-    if (!p.coberturaId) {
-      /// Por número de grupo, sin repetir.
-      ///
-      /// `panel.grupos` son COBERTURAS: un grupo tiene una por
-      /// ciudad y modalidad, así que el Grupo 1 con seis
-      /// ciudades salía seis veces y el mensaje decía «Grupo
-      /// 1, Grupo 1, Grupo 1...». Lo que se elige es la
-      /// cobertura, pero lo que se lee es el grupo.
-      const numeros = [
-        ...new Set(
-          panel.grupos
-            .filter(
-              (g) =>
-                g.ventana.estado === 'ABIERTA' ||
-                g.ventana.estado === 'AVISANDO',
-            )
-            .map((g) => g.numero),
-        ),
-      ].sort((a, b) => a - b);
-
-      throw new BadRequestException(
-        'Falta decir a qué grupo entra. ' +
-          (numeros.length
-            ? `Hoy admiten: ${numeros.map((n) => `Grupo ${n}`).join(', ')}.`
-            : 'Ningún grupo tiene la ventana abierta.'),
-      );
-    }
+    /// SIN GRUPO TAMBIEN SE INSCRIBE, y esta era la quinta pared.
+    ///
+    /// El grupo ES el cronograma, asi que exigirlo para inscribir
+    /// es exactamente lo que se ordeno quitar. Y el codigo ya se
+    /// contradecia solo: `matricula.inscritosSinGrupo()` CUENTA a
+    /// los inscritos sin cobertura -- un estado que este `throw`
+    /// hacia imposible de alcanzar. Una metrica de algo que no
+    /// puede pasar.
+    ///
+    /// Quien se queda sin grupo NO desaparece: `completitud.ts`
+    /// lo dice --«no tiene grupo asignado»-- y por eso no entra
+    /// al reporte del SENA hasta que alguien se lo ponga. Esa es
+    /// la puerta correcta: el reporte avisa, la inscripcion no
+    /// bloquea.
+    if (!p.coberturaId) return;
 
     const suyo = panel.grupos.find((g) => g.coberturaId === p.coberturaId);
     if (!suyo) {
@@ -2225,19 +2211,8 @@ export class CrmService {
         'Ese grupo no es de esta acción de formación.',
       );
     }
-    if (suyo.ventana.estado === 'SIN_FECHAS') {
-      throw new BadRequestException(
-        `El grupo ${suyo.numero} no tiene fecha de inicio. Sin fecha no se puede inscribir: ` +
-          'el cronograma es lo que después lo lleva al aula.',
-      );
-    }
-    if (exigirVentana && suyo.ventana.estado === 'CERRADA') {
-      const cierre = suyo.ventana.cierre?.toISOString().slice(0, 10);
-      throw new BadRequestException(
-        `La inscripción del grupo ${suyo.numero} cerró el ${cierre}, ` +
-          'una semana hábil antes de que arranque. Elija otro grupo.',
-      );
-    }
+
+    /// El cupo del grupo SI bloquea: es un contador, no una fecha.
     if (suyo.inscritos >= suyo.cuposMaximos) {
       throw new BadRequestException(
         `El grupo ${suyo.numero} ya está lleno (${suyo.inscritos} de ${suyo.cuposMaximos}).`,
@@ -2419,9 +2394,7 @@ export class CrmService {
 
     const compuerta = exigeDatosParaElAula(p.etapa, dto.etapa);
     if (exigeCupo(p.etapa, dto.etapa)) {
-      await this.exigirQueQuepa(p, {
-        exigirVentana: !esRegresoAlAula(p.etapa),
-      });
+      await this.exigirQueQuepa(p);
     }
 
     // certificar exige haber aprobado el 80% de lo

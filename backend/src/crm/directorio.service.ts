@@ -84,8 +84,15 @@ export class DirectorioService {
     }
 
     const fila = await this.prisma.institucion.upsert({
-      where: { nit_razonSocial: { nit: lectura.nit, razonSocial: nombre } },
-      update: { activo: true },
+      /// Por NIT, no por (nit, nombre).
+      ///
+      /// Con la llave vieja, escribir un nombre distinto para el
+      /// mismo NIT CREABA OTRA FILA -- y asi es como el SENA
+      /// acababa siendo «SENA» y «SENA REGIONAL ANTIOQUIA» a la
+      /// vez. Un NIT es una organizacion: lo que la persona
+      /// escribe CORRIGE el nombre, no anade una segunda.
+      where: { nit: lectura.nit },
+      update: { activo: true, razonSocial: nombre },
       create: {
         nit: lectura.nit,
         razonSocial: nombre,

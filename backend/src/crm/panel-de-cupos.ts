@@ -43,9 +43,9 @@ export type PanelDeOferta = {
 export type MotivoSinInscripciones =
   | 'OFERTA_CERRADA'
   | 'LLENO'
-  | 'SIN_GRUPOS'
-  | 'SIN_FECHAS'
-  | 'VENTANA_CERRADA'
+  /// SIN_GRUPOS, SIN_FECHAS y VENTANA_CERRADA se quitaron el 3
+  /// sep 2026: el cronograma avisa, no bloquea. Si alguien los
+  /// devuelve, que sea sabiendo que contradice esa orden.
   | null;
 
 @Injectable()
@@ -131,10 +131,6 @@ export class PanelDeCupos {
       ventana: ventanaDe(c.grupo.fechaInicio, hoy),
     }));
 
-    const hayVentanaAbierta = grupos.some(
-      (g) => g.ventana.estado === 'ABIERTA' || g.ventana.estado === 'AVISANDO',
-    );
-
     /// El motivo va tambien como CODIGO, no solo como frase.
     ///
     /// Quien vuelve al aula esta exento de la VENTANA --su grupo
@@ -152,17 +148,39 @@ export class PanelDeCupos {
       porQueNo =
         `No quedan cupos: los ${cupos.total} están tomados. ` +
         'Para inscribir a alguien más hay que ampliar la oferta o abrir otro grupo.';
-    } else if (grupos.length === 0) {
-      motivo = 'SIN_GRUPOS';
-      porQueNo = 'Esta acción no tiene ningún grupo. Sin grupo no se puede inscribir.';
-    } else if (!hayVentanaAbierta) {
-      const sinFechas = grupos.filter((g) => g.ventana.estado === 'SIN_FECHAS').length;
-      motivo = sinFechas === grupos.length ? 'SIN_FECHAS' : 'VENTANA_CERRADA';
-      porQueNo =
-        sinFechas === grupos.length
-          ? 'Ningún grupo tiene fecha de inicio. El cronograma manda: sin fechas no se inscribe.'
-          : 'Se cerró la ventana de inscripción de todos los grupos.';
     }
+
+    /// EL CRONOGRAMA NO BLOQUEA LA INSCRIPCION. Orden del cliente,
+    /// 3 sep 2026, y ademas es lo que este proyecto ya tenia
+    /// escrito y el codigo contradecia:
+    ///
+    ///   «El grupo y sus fechas AVISAN, NO BLOQUEAN -- las pone el
+    ///    SENA cuando puede, y bloquear la captura por algo que no
+    ///    depende de aqui es hacer el sistema mas rigido que el
+    ///    proceso, que es como se abandonan los sistemas.»
+    ///
+    /// Aqui bloqueaban tres cosas que son todas cronograma: que no
+    /// hubiera grupos, que ninguno tuviera fecha, y que la ventana
+    /// de los cinco dias habiles hubiera pasado. Las tres pasan a
+    /// AVISO.
+    ///
+    /// Lo que SIGUE bloqueando es lo que no es cronograma: la
+    /// oferta cerrada --una decision explicita de un admin-- y el
+    /// cupo lleno, que es el contador y la garantia contra la
+    /// sobreventa. Esos no se tocan.
+
+    /// SIN AVISO, y no por descuido.
+    ///
+    /// Escribi un `avisoDeCronograma` aqui y lo quite: este panel
+    /// NO llega al navegador -- solo lo usa `cambiarEtapa` del
+    /// lado del servidor --, asi que habria sido un campo que no
+    /// lee nadie. Una API sin pantalla es el mismo defecto que
+    /// este proyecto lleva rondas documentando, y hoy mismo se
+    /// arreglo uno igual con el resumen de las acciones.
+    ///
+    /// Si se quiere avisar en la ficha --«ojo, este grupo arranco
+    /// hace un mes»-- hace falta llevar el panel a la pantalla, y
+    /// eso es un encargo aparte.
 
     return {
       ofertaId: oferta.id,

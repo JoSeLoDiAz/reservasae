@@ -1372,8 +1372,10 @@ function BuscadorDeNit({
       if (r.digitoVerificacion) alCambiarDigito(r.digitoVerificacion);
       const nombres = r.instituciones.map((i) => i.razonSocial);
       setEncontradas(nombres);
-      // una sola: se pone y ya, sin hacer elegir
-      if (nombres.length === 1) alCambiar(limpio, nombres[0]);
+      /// UN NIT, UNA ORGANIZACION. Desde el 3 sep 2026 el
+      /// directorio es unico por NIT, asi que o viene una o no
+      /// viene ninguna: ya no hay «elija cual».
+      if (nombres.length >= 1) alCambiar(limpio, nombres[0]);
       else alCambiar(limpio, "");
       setAMano(nombres.length === 0);
     } catch {
@@ -1430,32 +1432,7 @@ function BuscadorDeNit({
           {esRut ? "Nombre completo" : "Nombre de la organización"}
         </span>
 
-        {encontradas && encontradas.length > 1 && !aMano ? (
-          <>
-            <select
-              value={razonSocial}
-              onChange={(e) => alCambiar(nit, e.target.value)}
-              className={CAMPO}
-            >
-              <option value="">Elija cuál…</option>
-              {encontradas.map((n) => (
-                <option key={n} value={n}>
-                  {n}
-                </option>
-              ))}
-            </select>
-            <button
-              type="button"
-              onClick={() => {
-                setAMano(true);
-                alCambiar(nit, "");
-              }}
-              className="mt-1 text-xs underline"
-            >
-              Ninguna es la mía, la escribo
-            </button>
-          </>
-        ) : encontradas?.length === 1 && !aMano ? (
+        {encontradas?.length === 1 && !aMano ? (
           /* LO TRAJO EL REGISTRO, y se dice.
 
              Antes se pintaba en un campo normal, indistinguible
@@ -1491,12 +1468,7 @@ function BuscadorDeNit({
           />
         )}
 
-        {encontradas && encontradas.length > 1 && !aMano && (
-          <span className="mt-1 block text-xs text-texto-suave">
-            Ese NIT ampara a {encontradas.length} organizaciones. Elija la suya o
-            escríbala.
-          </span>
-        )}
+
       </label>
     </>
   );

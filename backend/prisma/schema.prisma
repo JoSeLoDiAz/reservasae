@@ -1507,7 +1507,19 @@ model Institucion {
   propuestas    PropuestaInstitucion[]
   consultas     ConsultaRues[]
 
-  @@unique([nit, razonSocial])
+  /// UN NIT, UNA ORGANIZACION. Orden del cliente, 3 sep 2026.
+  ///
+  /// Era `[nit, razonSocial]`, asi que el mismo NIT admitia
+  /// varias filas y el formulario publico preguntaba «ese NIT
+  /// ampara a 2 organizaciones, elija la suya».
+  ///
+  /// `Empresa` --la tabla que va al F7-- YA era unica por nit, o
+  /// sea que un NIT ya era una organizacion donde importa. El
+  /// directorio era el unico sitio que decia otra cosa.
+  ///
+  /// Lo que la persona corrige no es cual de varias: es EL
+  /// nombre. Y se guarda, que para eso es un directorio.
+  @@unique([nit])
   @@index([nit, activo])
   @@index([razonSocial])
   @@map("instituciones")
