@@ -101,7 +101,8 @@ export function revisar(p: ParaRevisar): Revision {
     matricula.push(
       p.accionFormacionId
         ? 'falta la sede: se sabe qué curso quiere, pero no dónde lo va a tomar. ' +
-          'Sale del departamento y la ciudad de la persona.'
+          'Sale del departamento y la ciudad de la persona — y si su ' +
+          'departamento no tiene ese curso, no se la puede inscribir.'
         : 'falta asignarle una acción de formación',
     );
   }
