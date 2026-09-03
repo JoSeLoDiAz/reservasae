@@ -1,9 +1,17 @@
 /** Catorce interesados completos, siete por gremio. */
 
 /**
- * LO PIDIÓ EL CLIENTE: «pon unos siete de cada gremio en
- * interesado, pero nuevos, con empresa, con todo; y elimina los
- * registros que hay».
+ * LO PIDIÓ EL CLIENTE: «elimina todos los registros de prueba y
+ * deja esos catorce en interesados; el resto, eliminar. Y los
+ * catorce leads también, mitad para cada gremio».
+ *
+ * Así que este guión deja la base en UN estado conocido: catorce
+ * fichas y catorce leads, y nada más del CRM. No borra las
+ * reservas ni las organizaciones que las hicieron —eso es el
+ * módulo de pre-reserva de cupos, otra pantalla y otra cosa—, y
+ * el efecto secundario es útil: con 4.797 cupos reservados y
+ * catorce personas detrás, la brecha de nombres queda enorme, que
+ * es justo la cifra que el CRM existe para enseñar.
  *
  * Lo que hace este guión y por qué así:
  *
@@ -57,6 +65,7 @@ import { cubreA } from '../../src/crm/cobertura';
 import { PUEDEN_LLEVAR_FICHAS } from '../../src/crm/quien-lleva-fichas';
 import { revisar } from '../../src/crm/completitud';
 import { exigirBaseSegura } from '../guardia-de-base';
+import { LEADS, sembrarLeads } from './leads-de-la-mesa';
 import { soloEnPruebas } from './solo-pruebas';
 
 const prisma = new PrismaClient();
@@ -379,18 +388,24 @@ async function borrarLoSuyo(db: Cliente): Promise<number> {
 }
 
 /**
- * Y los INTERESADO que había, que es la otra mitad del encargo.
+ * Y TODO lo demás del CRM, que es la otra mitad del encargo.
  *
- * SOLO esa etapa y SOLO los de prueba. Lo demás de la siembra
- * —los que están en el aula, los certificados, lo que sostiene
- * los tableros que se enseñan— no se toca: un `deleteMany` sin
- * condición aquí sería el guión que se lleva por delante lo que
- * nadie le pidió. La persona se queda si tiene otra participación
- * viva, porque la misma cédula puede estar en el otro convenio.
+ * `esDePrueba` es el filtro y no es decorativo: es la marca que
+ * `cola-rui.ts` mira para no consultarle al DNP la identidad de un
+ * ciudadano real, y aquí sirve de segunda cosa — un `deleteMany`
+ * sin ninguna condición sería el guión que se lleva por delante
+ * una ficha de verdad el día que la haya. Comprobado antes de
+ * correrlo: en pruebas las 108 personas la llevan y ninguna es
+ * real.
+ *
+ * NO se tocan las reservas ni las organizaciones que las hicieron.
+ * Son el módulo de pre-reserva de cupos, que es otra pantalla y
+ * otra cosa; y borrarlas obligaría además a devolver a cero
+ * `Oferta.cuposOcupados`, que se mueve con un UPDATE condicional
+ * y no con un `deleteMany`.
  */
-async function borrarInteresadosViejos(db: Cliente): Promise<number> {
+async function borrarTodoLoDelCrm(db: Cliente): Promise<number> {
   const count = await borrarParticipaciones(db, {
-    etapa: EtapaParticipante.INTERESADO,
     persona: { esDePrueba: true, numeroDocumento: { not: { startsWith: MARCA_DOCUMENTO } } },
   });
 
@@ -399,6 +414,24 @@ async function borrarInteresadosViejos(db: Cliente): Promise<number> {
     where: { esDePrueba: true, participaciones: { none: {} } },
   });
 
+  return count;
+}
+
+/**
+ * Y la mesa de entrada, para que empiece vacía.
+ *
+ * Los leads se vuelven a sembrar por el webhook al final. Se
+ * borran ANTES de escribir las fichas porque una nota de gestión
+ * puede colgar de un lead y de una ficha a la vez, y el orden
+ * importa por lo mismo que en `borrarParticipaciones`.
+ */
+async function vaciarLaMesa(db: Cliente): Promise<number> {
+  const leads = await db.leadEntrante.findMany({ select: { id: true } });
+  const ids = leads.map((l) => l.id);
+  if (ids.length === 0) return 0;
+
+  await db.notaDeGestion.deleteMany({ where: { leadId: { in: ids } } });
+  const { count } = await db.leadEntrante.deleteMany({ where: { id: { in: ids } } });
   return count;
 }
 
@@ -421,10 +454,11 @@ async function main() {
   await prisma.$transaction(
     async (db) => {
     const mias = await borrarLoSuyo(db);
-    const viejos = await borrarInteresadosViejos(db);
+    const viejos = await borrarTodoLoDelCrm(db);
+    const enLaMesa = await vaciarLaMesa(db);
     console.log(
-      `  · se quitaron ${viejos} interesados de la siembra general` +
-        (mias ? ` y ${mias} de una corrida previa de este guión` : ''),
+      `  · se quitaron ${viejos} fichas de la siembra general, ` +
+        `${mias} de una corrida previa de este guión y ${enLaMesa} leads de la mesa`,
     );
 
     // ── las organizaciones ──
@@ -608,6 +642,61 @@ async function main() {
   );
 
   await comprobar();
+  await ponerLosLeads();
+}
+
+/**
+ * Los catorce de la mesa, por el webhook.
+ *
+ * Va DESPUÉS de las fichas y a propósito: uno de los leads trae la
+ * cédula de Marta Vargas, que es una de las catorce, y lo que se
+ * quiere ver es justo el cruce contra alguien que ya está en el
+ * CRM. Al revés no cruzaría con nadie.
+ *
+ * NO se planta si el backend no responde. Las fichas ya están
+ * escritas y son la mitad del encargo; tumbar el guión entero por
+ * esto obligaría a repetirlo todo, y además el `deleteMany` de
+ * arriba ya se ejecutó. Se dice qué falta y cómo arreglarlo.
+ */
+async function ponerLosLeads() {
+  const base = process.env.URL_INTERNA ?? 'http://127.0.0.1:4601';
+  const clave = process.env.LEADS_WEBHOOK_SECRET;
+
+  if (!clave) {
+    console.error(
+      '\n! La mesa de entrada quedó VACÍA: falta `LEADS_WEBHOOK_SECRET`.\n' +
+        '  Sale del .env del servidor, y sin ella el webhook contesta 401.\n' +
+        '  export LEADS_WEBHOOK_SECRET=$(grep -m1 ^LEADS_WEBHOOK_SECRET= .env.prueba | cut -d= -f2-)',
+    );
+    process.exitCode = 1;
+    return;
+  }
+
+  let resultados;
+  try {
+    resultados = await sembrarLeads(base, clave);
+  } catch (e) {
+    console.error(`
+! La mesa de entrada quedó VACÍA: no se pudo hablar con ${base}.`);
+    console.error(`  ${(e as Error).message}`);
+    process.exitCode = 1;
+    return;
+  }
+
+  const bien = resultados.filter((r) => r.estado === 200 || r.estado === 201);
+  console.log(`\n  Mesa de entrada: ${bien.length} de ${resultados.length} envíos aceptados`);
+  for (const r of resultados) {
+    const marca = r.estado < 300 ? '·' : '✗';
+    console.log(`    ${marca} [${r.estado}] ${r.caso}`);
+    if (r.estado >= 300) console.log(`        ${r.cuerpo}`);
+  }
+
+  if (bien.length !== resultados.length) {
+    console.error('\n✗ Algún lead no entró. Mírelo arriba.');
+    process.exitCode = 1;
+    return;
+  }
+  console.log(`\n✓ ${LEADS.length} leads en la mesa, siete por gremio.`);
 }
 
 /**
