@@ -63,3 +63,40 @@ export const ETAPAS_DEL_AULA: EtapaParticipante[] = [
 export function ocupaSilla(etapa: EtapaParticipante): boolean {
   return OCUPAN_SILLA.includes(etapa);
 }
+
+/**
+ * Quién RETIENE un asiento de la cohorte, aunque no ocupe silla.
+ *
+ * No es lo mismo que `OCUPAN_SILLA`, y la diferencia es justo lo que
+ * hacía falta para poder asignar grupo por lote.
+ *
+ * `OCUPAN_SILLA` responde «¿consumió el aula?» — solo desde
+ * `INSCRITO`. Pero a la cohorte se apunta gente mucho antes: un
+ * `INTERESADO` con `coberturaId` puesto ya tiene su nombre en ese
+ * grupo, y si el lote cuenta con `OCUPAN_SILLA` ve el grupo vacío y
+ * mete a doscientos más encima de los doscientos que ya estaban.
+ *
+ * Los dos números se enseñan, porque son dos preguntas: «sillas
+ * ocupadas» y «fichas apuntadas a esta cohorte». Con uno solo, o se
+ * sobrevende o parece lleno lo que está libre.
+ *
+ * Fuera quedan las salidas —quien se retiró liberó su asiento— y
+ * `PERDIDO`, que nunca llegó a tenerlo.
+ */
+export const RETIENEN_ASIENTO: EtapaParticipante[] = [
+  'INTERESADO',
+  'CONTACTADO',
+  'DATOS_COMPLETOS',
+  'INSCRITO',
+  'EN_FORMACION',
+  'CERTIFICADO',
+];
+
+/// Las que ya no reciben grupo: salieron o nunca entraron.
+export const NO_RECIBEN_GRUPO: EtapaParticipante[] = [
+  'PERDIDO',
+  'RETIRADO',
+  'NO_APROBO',
+  'DESERTO',
+  'ABANDONO',
+];

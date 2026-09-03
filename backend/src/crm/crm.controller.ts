@@ -32,6 +32,7 @@ import {
 } from './carga-archivo';
 import { enviarLibro } from '../tableros/exportar';
 import { CrmService } from './crm.service';
+import { AsignarGrupo } from './asignar-grupo.service';
 import { DirectorioService } from './directorio.service';
 import { PlantillasCorreoService } from '../correo/plantillas/plantillas-correo.service';
 import { RuiService } from './rui/rui.service';
@@ -41,6 +42,7 @@ import {
   AgregarNitDto,
   ResolverPropuestaDto,
   AsignarAsesorEnLoteDto,
+  AsignarGrupoEnLoteDto,
   AsignarFormacionDto,
   CargaDto,
   CambiarEtapaDto,
@@ -126,6 +128,7 @@ export class CrmController {
     private readonly directorio: DirectorioService,
     private readonly rui: RuiService,
     private readonly plantillasCorreo: PlantillasCorreoService,
+    private readonly grupos: AsignarGrupo,
   ) {}
 
   /** Qué instituciones hay bajo ese NIT. */
@@ -404,6 +407,52 @@ export class CrmController {
       ambito.convenios,
       ip,
       conveniosQueReparten(ambito.roles),
+    );
+  }
+
+  /**
+   * Las ofertas con gente sin grupo, y los grupos que las sirven.
+   *
+   * Antes de `:id` a proposito: si no, «grupos» se leeria como el id
+   * de una ficha. Es la trampa que ya se comio `convertir-lote`.
+   */
+  @Get('grupos/pendientes')
+  @Requiere('inscripciones')
+  gruposPendientes(@AmbitoActual() ambito: Ambito) {
+    return this.grupos.pendientes(ambito.convenios);
+  }
+
+  /** Los que esperan grupo en una oferta. */
+  @Get('grupos/candidatos/:ofertaId')
+  @Requiere('inscripciones')
+  candidatosDeGrupo(
+    @Param('ofertaId') ofertaId: string,
+    @AmbitoActual() ambito: Ambito,
+  ) {
+    return this.grupos.candidatos(ofertaId, ambito.convenios);
+  }
+
+  /**
+   * Asigna un grupo a varias fichas de una vez.
+   *
+   * `ESCRIBIR` y no reparto de lider: poner la cohorte es atender la
+   * inscripcion, no organizar el trabajo del equipo. Es lo que hace
+   * falta para que esa ficha entre al reporte del SENA.
+   */
+  @Patch('grupos/lote')
+  @Requiere('inscripciones', 'ESCRIBIR')
+  asignarGrupoEnLote(
+    @Body() dto: AsignarGrupoEnLoteDto,
+    @AdminActual() admin: Admin,
+    @AmbitoActual() ambito: Ambito,
+    @IpReal() ip: string,
+  ) {
+    return this.grupos.asignar(
+      dto.coberturaId,
+      dto.ids,
+      admin,
+      ambito.convenios,
+      ip,
     );
   }
 
