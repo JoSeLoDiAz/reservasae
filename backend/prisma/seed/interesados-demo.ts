@@ -571,6 +571,7 @@ async function main() {
           cargoEnEmpresa: f.cargo,
           nivelOcupacionalSepId: f.nivelOcupacionalSepId,
           beneficiarioPrevio: f.beneficiarioPrevio,
+          asesorId: f.conAsesor ? (asesorDe.get(convenioId) as string) : null,
           creadoEn: hace(f.dias),
         },
         select: { id: true },
@@ -628,6 +629,7 @@ async function comprobar() {
       nivelOcupacionalSepId: true,
       beneficiarioPrevio: true,
       empresaId: true,
+      asesorId: true,
       persona: {
         select: {
           numeroDocumento: true,
@@ -672,6 +674,19 @@ async function comprobar() {
     }
     if (!f.empresaId) problemas.push(`${doc}: se quedó sin organización`);
     if (f.coberturaId) problemas.push(`${doc}: nació con grupo, y el grupo es lo último`);
+  }
+
+  /// El reparto de asesor se comprueba APARTE, y por algo.
+  ///
+  /// `revisar` no lo mira —no es un dato de la persona ni del
+  /// reporte—, así que la primera corrida salió «✓ las 14
+  /// completas» con las catorce sin dueño: el guión se creyó a sí
+  /// mismo porque nadie le preguntó por esto. Lo que sujeta el
+  /// reparto es contar, no confiar.
+  const conDueno = fichas.filter((f) => f.asesorId).length;
+  const esperados = FICHAS.filter((f) => f.conAsesor).length;
+  if (conDueno !== esperados) {
+    problemas.push(`se esperaban ${esperados} fichas con asesor y hay ${conDueno}`);
   }
 
   if (fichas.length !== FICHAS.length) {
