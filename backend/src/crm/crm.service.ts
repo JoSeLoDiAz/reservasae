@@ -339,20 +339,25 @@ export class CrmService {
       this.prisma.participante.count({ where: donde }),
       this.prisma.participante.findMany({
         where: donde,
-        /// Los de pre-reserva primero, y de esos los que aun
-        /// no estan inscritos.
+        /// POR ORDEN DE LLEGADA, del mas reciente al mas viejo.
+        /// Orden del cliente, 3 sep 2026.
         ///
-        /// Una empresa que aparto cuarenta cupos tiene
-        /// cuarenta turnos preferentes con fecha de
-        /// vencimiento: si no se completan antes del cierre
-        /// se liberan al monton comun. Ponerlos arriba no es
-        /// cosmetica -- es que quien inscribe atienda primero
-        /// lo que caduca. Ordenar por fecha de creacion los
-        /// hundia entre los leads sueltos.
-        orderBy: [
-          { reservaId: { sort: 'desc', nulls: 'last' } },
-          { creadoEn: 'desc' },
-        ],
+        /// Antes iban primero TODOS los que venian de una reserva
+        /// de empresa y solo dentro de cada grupo por fecha, con
+        /// este argumento: una empresa que aparto cuarenta cupos
+        /// tiene cuarenta turnos con vencimiento, asi que ponerlos
+        /// arriba hacia que se atendiera primero lo que caduca.
+        ///
+        /// El efecto es que la lista NO se leia como una bandeja:
+        /// un lead que acaba de entrar aparecia debajo de fichas
+        /// de hace semanas, y quien abre esta pantalla lo que
+        /// quiere saber es que ha llegado.
+        ///
+        /// Lo que se pierde y hay que decirlo: los cupos de
+        /// empresa dejan de flotar solos. Se siguen pudiendo ver
+        /// primero -- la tabla ordena por columna y guarda vistas
+        /// con nombre --, pero ya no salen arriba por omision.
+        orderBy: { creadoEn: 'desc' },
         skip: (pagina - 1) * porPagina,
         take: porPagina,
         include: {
