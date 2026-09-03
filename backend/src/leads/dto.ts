@@ -17,6 +17,7 @@ import {
   ValidateNested,
 } from 'class-validator';
 
+import { booleanoDeVerdad } from '../comun/booleano-de-verdad';
 import { aNumeroONulo } from '../comun/campo-vacio';
 import { CanalAutorizacion, OrigenParticipante } from '../../generated/prisma';
 
@@ -175,7 +176,13 @@ export class EntraLeadDto {
   /// que el formulario publico exige antes que nada. Si no
   /// viene, se deduce de por donde entro -- pero declararlo es
   /// mas fuerte que deducirlo.
+  ///
+  /// SE LEE EL VALOR CRUDO. `enableImplicitConversion` convierte
+  /// un `boolean` con la regla de JavaScript, asi que la cadena
+  /// «false» llegaba como TRUE -- una constancia de autorizacion
+  /// que la persona no dio. Comprobado en vivo.
   @IsOptional()
+  @Transform(({ obj, key }) => booleanoDeVerdad((obj as Record<string, unknown>)[key]))
   @IsBoolean()
   aceptaHabeasData?: boolean;
 
