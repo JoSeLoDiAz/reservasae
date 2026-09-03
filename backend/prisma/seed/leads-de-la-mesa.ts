@@ -28,6 +28,8 @@
  *   · con el documento mal escrito
  */
 
+import { request } from 'node:http';
+
 /// Lo que se le manda al webhook por cada lead.
 export type LeadDemo = {
   gremio: 'adecopria' | 'britcham-adee';
@@ -304,32 +306,80 @@ export const LEADS: LeadDemo[] = [
 ];
 
 /**
+ * Una petición al webhook. Va por `node:http` y NO por `fetch`.
+ *
+ * `fetch` no sirve aquí: `Host` es una cabecera prohibida en
+ * undici y la descarta en silencio, así que las quince salieron
+ * con «Falta el convenio» — el subdominio nunca llegó. Con
+ * `http.request` sí se puede fijar, que es lo que hace falta para
+ * entrar por la misma puerta que usa Meta.
+ */
+function pedir(
+  base: string,
+  host: string | null,
+  clave: string,
+  cuerpo: unknown,
+): Promise<{ estado: number; texto: string }> {
+  const datos = JSON.stringify(cuerpo);
+  const url = new URL(`${base}/api/webhooks/leads`);
+
+  return new Promise((resolve, reject) => {
+    const req = request(
+      {
+        hostname: url.hostname,
+        port: url.port,
+        path: url.pathname,
+        method: 'POST',
+        headers: {
+          ...(host ? { Host: host } : {}),
+          'Content-Type': 'application/json',
+          'Content-Length': Buffer.byteLength(datos),
+          'x-clave-leads': clave,
+        },
+      },
+      (res) => {
+        let texto = '';
+        res.setEncoding('utf8');
+        res.on('data', (t) => (texto += t));
+        res.on('end', () => resolve({ estado: res.statusCode ?? 0, texto }));
+      },
+    );
+    req.on('error', reject);
+    req.write(datos);
+    req.end();
+  });
+}
+
+/**
  * Los manda al webhook y cuenta qué contestó.
  *
- * No lanza si uno falla: se dice cuál y se sigue. Un guión de
- * siembra que se planta en el lead trece deja la mesa a medias y
- * sin decir en qué estado quedó.
+ * SE USAN LAS DOS PUERTAS, y a propósito: los de ADECOPRIA entran
+ * por el SUBDOMINIO —que es como pega Meta y como se equivoca uno
+ * menos, porque la dirección dice de quién es el lead— y los de
+ * BRITCHAM con `convenio` EN EL CUERPO, que es lo que hace falta
+ * llamando a la dirección general. Las dos están documentadas y
+ * las dos tienen que funcionar; sembrar solo por una dejaría la
+ * otra sin ejercer.
+ *
+ * No lanza si uno falla: se dice cuál y se sigue. Un guión que se
+ * planta en el lead trece deja la mesa a medias y sin decir en qué
+ * estado quedó.
  */
 export async function sembrarLeads(base: string, clave: string) {
   const salida: Array<{ caso: string; estado: number; cuerpo: string }> = [];
 
   for (const l of LEADS) {
+    const porSubdominio = l.gremio === 'adecopria';
+    const host = porSubdominio ? `pre-${l.gremio}.reservasae.com` : null;
+    const cuerpo = porSubdominio ? l.cuerpo : { ...l.cuerpo, convenio: l.gremio };
+    const puerta = porSubdominio ? 'subdominio' : 'cuerpo';
+
     for (let i = 0; i < (l.veces ?? 1); i++) {
-      const r = await fetch(`${base}/api/webhooks/leads`, {
-        method: 'POST',
-        headers: {
-          // el gremio va por el subdominio, como en produccion
-          Host: `pre-${l.gremio}.reservasae.com`,
-          'Content-Type': 'application/json',
-          'x-clave-leads': clave,
-        },
-        body: JSON.stringify(l.cuerpo),
-      });
-      const texto = await r.text();
+      const r = await pedir(base, host, clave, cuerpo);
       salida.push({
-        caso: `${l.gremio} · ${l.caso}${i > 0 ? ' (2.ª vez)' : ''}`,
-        estado: r.status,
-        cuerpo: texto.slice(0, 300),
+        caso: `${l.gremio} (${puerta}) · ${l.caso}${i > 0 ? ' (2.ª vez)' : ''}`,
+        estado: r.estado,
+        cuerpo: r.texto.slice(0, 300),
       });
     }
   }
