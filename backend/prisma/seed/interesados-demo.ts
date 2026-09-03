@@ -704,6 +704,7 @@ async function comprobar() {
     `\n✓ Las ${fichas.length} pasan la compuerta de matrícula y entrarán al ` +
       'reporte en cuanto se les asigne grupo, que es lo único que les falta.',
   );
+  console.log(`  ${conDueno} con asesor y ${fichas.length - conDueno} en el montón común.`);
 }
 
 main()
