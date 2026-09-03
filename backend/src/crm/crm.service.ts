@@ -2156,31 +2156,21 @@ export class CrmService {
       );
     }
 
-    if (!p.coberturaId) {
-      /// Por número de grupo, sin repetir.
-      ///
-      /// `panel.grupos` son COBERTURAS: un grupo tiene una por
-      /// ciudad y modalidad, así que el Grupo 1 con seis
-      /// ciudades salía seis veces y el mensaje decía «Grupo
-      /// 1, Grupo 1, Grupo 1...». Lo que se elige es la
-      /// cobertura, pero lo que se lee es el grupo.
-      /// TODOS los grupos, no solo los de ventana abierta.
-      ///
-      /// Filtrarlos dejaba la lista vacia justo cuando mas falta
-      /// hace -- «Ningun grupo tiene la ventana abierta» y ni un
-      /// numero que elegir --, que es la misma pared que se acaba
-      /// de tirar unas lineas mas arriba.
-      const numeros = [...new Set(panel.grupos.map((g) => g.numero))].sort(
-        (a, b) => a - b,
-      );
-
-      throw new BadRequestException(
-        'Falta decir a qué grupo entra. ' +
-          (numeros.length
-            ? `Los de esta oferta: ${numeros.map((n) => `Grupo ${n}`).join(', ')}.`
-            : 'Esta oferta todavía no tiene grupos en el cronograma.'),
-      );
-    }
+    /// SIN GRUPO TAMBIEN SE INSCRIBE, y esta era la quinta pared.
+    ///
+    /// El grupo ES el cronograma, asi que exigirlo para inscribir
+    /// es exactamente lo que se ordeno quitar. Y el codigo ya se
+    /// contradecia solo: `matricula.inscritosSinGrupo()` CUENTA a
+    /// los inscritos sin cobertura -- un estado que este `throw`
+    /// hacia imposible de alcanzar. Una metrica de algo que no
+    /// puede pasar.
+    ///
+    /// Quien se queda sin grupo NO desaparece: `completitud.ts`
+    /// lo dice --«no tiene grupo asignado»-- y por eso no entra
+    /// al reporte del SENA hasta que alguien se lo ponga. Esa es
+    /// la puerta correcta: el reporte avisa, la inscripcion no
+    /// bloquea.
+    if (!p.coberturaId) return;
 
     const suyo = panel.grupos.find((g) => g.coberturaId === p.coberturaId);
     if (!suyo) {
@@ -2189,6 +2179,7 @@ export class CrmService {
       );
     }
 
+    /// El cupo del grupo SI bloquea: es un contador, no una fecha.
     if (suyo.inscritos >= suyo.cuposMaximos) {
       throw new BadRequestException(
         `El grupo ${suyo.numero} ya está lleno (${suyo.inscritos} de ${suyo.cuposMaximos}).`,
