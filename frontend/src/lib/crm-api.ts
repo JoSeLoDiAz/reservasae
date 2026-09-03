@@ -934,8 +934,18 @@ export type OpcionGrupo = {
   ubicacion: string;
   etiqueta: string;
   modalidad: string;
+  /// El TOPE, con el 30 % de sobrecupo ya dentro. Es la columna con
+  /// la que mide el candado del servidor.
   cupos: number;
+  /// Lo comprometido en el proyecto, sin sobrecupo.
+  comprometidos: number;
+  /// Los que consumen aula.
   ocupados: number;
+  /// Los que tienen esta cohorte escrita y no han salido. Son DOS
+  /// preguntas distintas y hacen falta las dos.
+  apuntados: number;
+  /// Cuantos QUEDAN. Es lo que hay que ver al asignar.
+  caben: number;
   fechaInicio: string | null;
   fechaFin: string | null;
   horario: string | null;

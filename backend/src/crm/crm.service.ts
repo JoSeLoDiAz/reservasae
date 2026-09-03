@@ -64,7 +64,7 @@ import {
   siglaDocumento,
   TAMANOS_EMPRESA_SEP,
 } from './catalogos-sep';
-import { OCUPAN_SILLA } from './etapas';
+import { OCUPAN_SILLA, RETIENEN_ASIENTO } from './etapas';
 import { PrismaService } from '../prisma/prisma.service';
 import {
   ActualizarParticipanteDto,
@@ -3466,6 +3466,14 @@ export class CrmService {
       select: {
         id: true,
         cuposBase: true,
+        /// El TOPE, con el 30 % de sobrecupo ya dentro.
+        ///
+        /// La pantalla enseñaba `cuposBase` y el candado del
+        /// servidor mide con `cuposMaximos`: un grupo de 50 con 50
+        /// apuntados se leia «lleno» cuando aun caben 15. La
+        /// pantalla y el candado tienen que medir con la MISMA
+        /// columna.
+        cuposMaximos: true,
         modalidad: true,
         ubicacion: { select: { nombre: true, tipo: true, departamento: true } },
         grupo: {
@@ -3478,10 +3486,32 @@ export class CrmService {
           },
         },
         _count: {
-          select: { participantes: { where: { etapa: { in: ETAPAS_VIVAS } } } },
+          select: {
+            /// SILLAS: quien consumio aula.
+            participantes: { where: { etapa: { in: ETAPAS_VIVAS } } },
+          },
         },
       },
     });
+
+    /// Y los APUNTADOS a la cohorte, que es OTRA pregunta.
+    ///
+    /// A un grupo se apunta gente desde INTERESADO y solo consume
+    /// aula quien esta inscrito. Contando solo las sillas, un grupo
+    /// con doscientos interesados dentro se veia VACIO -- y quien
+    /// asigna metia otros doscientos encima sin enterarse.
+    const apuntadosPorCelda = new Map(
+      (
+        await this.prisma.participante.groupBy({
+          by: ['coberturaId'],
+          where: {
+            coberturaId: { in: grupos.map((g) => g.id) },
+            etapa: { in: RETIENEN_ASIENTO },
+          },
+          _count: { _all: true },
+        })
+      ).map((x) => [x.coberturaId, x._count._all]),
+    );
 
     // quien puede llevar leads en este convenio: los que
     // tienen concesion aqui, y no los de solo consulta
@@ -3596,8 +3626,22 @@ export class CrmService {
         ubicacion: g.ubicacion.nombre,
         etiqueta: `Grupo ${g.grupo.numero} · ${g.ubicacion.nombre}`,
         modalidad: g.modalidad,
-        cupos: g.cuposBase,
+        /// El TOPE, no lo comprometido: es con lo que mide el
+        /// candado del servidor.
+        cupos: g.cuposMaximos,
+        comprometidos: g.cuposBase,
+        /// Los que consumen aula.
         ocupados: g._count.participantes,
+        /// Los que tienen esta cohorte escrita y no han salido.
+        apuntados: apuntadosPorCelda.get(g.id) ?? 0,
+        /// CUANTOS QUEDAN, que es lo que hay que ver al asignar.
+        /// Lo pidio el cliente: «cada vez que una persona se
+        /// inscribe y se asigna a un grupo, que nos muestre
+        /// cuantos cupos quedan».
+        caben: Math.max(
+          0,
+          g.cuposMaximos - (apuntadosPorCelda.get(g.id) ?? 0),
+        ),
         fechaInicio: g.grupo.fechaInicio,
         fechaFin: g.grupo.fechaFin,
         horario: g.grupo.horario,
