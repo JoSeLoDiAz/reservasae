@@ -208,6 +208,12 @@ export class DatosPersonaDto {
   caracterizaciones?: number[];
 
   /** La persona prefiere no decirlo. */
+  /// Tambien por el valor crudo, y aqui importa mas de lo que
+  /// parece: un «false» con comillas se guardaria como TRUE, y
+  /// entonces la ficha diria «se le pregunto y no quiso
+  /// responder» de alguien que SI contesto. Es un hecho sobre un
+  /// dato sensible, puesto al reves.
+  @Transform(({ obj, key }) => booleanoDeVerdad((obj as Record<string, unknown>)[key]))
   @IsOptional() @IsBoolean() caracterizacionRechazada?: boolean;
 }
 
@@ -231,6 +237,11 @@ export class DatosEmpresaDto {
   /// quedaba sin `else`, asi que el dato se descartaba en
   /// silencio. Con esto, la persona es su propia unidad
   /// economica, que es como el F7 la reporta.
+  /// Y este decide de quien es el NIT: con «false» leido como
+  /// TRUE, la cedula de la persona se toma como el NIT de su
+  /// empresa y se crea una organizacion que no existe -- que
+  /// despues viaja al F7.
+  @Transform(({ obj, key }) => booleanoDeVerdad((obj as Record<string, unknown>)[key]))
   @IsOptional() @IsBoolean() rutPropio?: boolean;
 
   // solo de quien no vino por una reserva: la suya ya la
