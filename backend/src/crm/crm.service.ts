@@ -29,7 +29,6 @@ import {
 import { documentoValido, normalizarDocumento } from '../comun/documento';
 import { analizar, esInsalvable, repetidosEnElPegado } from './carga';
 import {
-  esRegresoAlAula,
   saleDelCupo,
   exigeCupo,
   exigeDatosParaElAula,
@@ -2065,16 +2064,6 @@ export class CrmService {
       ofertaId: string | null;
       coberturaId: string | null;
     },
-    /// `exigirVentana` distingue entrar de VOLVER.
-    ///
-    /// La ventana de inscripcion cierra una semana habil ANTES
-    /// de que el grupo arranque, asi que un grupo en curso
-    /// siempre la tiene cerrada. A quien vuelve al aula hay que
-    /// pedirle cupo -- al retirarse libero su silla -- pero no
-    /// una ventana que no puede estar abierta: seria negarle el
-    /// regreso siempre, y con el, el paso por «En formacion»
-    /// que hay que dar antes de certificarlo.
-    { exigirVentana = true }: { exigirVentana?: boolean } = {},
   ) {
     /// Sin los datos de su organización no se inscribe.
     ///
@@ -2150,9 +2139,13 @@ export class CrmService {
     /// Se exime SOLO de la ventana: que la oferta este llena o
     /// cerrada sigue bloqueando a quien vuelve, porque su silla
     /// se libero al retirarse y esta pidiendo una nueva.
-    const soloLaVentana =
-      panel.motivo === 'VENTANA_CERRADA' || panel.motivo === 'SIN_FECHAS';
-    if (!panel.admiteInscripciones && !(soloLaVentana && !exigirVentana)) {
+    /// Ya no hay ventana de la que eximir: el cronograma dejo de
+    /// bloquear el 3 sep 2026, por orden del cliente. Lo que queda
+    /// en `admiteInscripciones` es oferta cerrada y cupo lleno, y
+    /// de eso NO se exime a nadie -- ni a quien vuelve al aula,
+    /// porque su silla se libero al retirarse y esta pidiendo una
+    /// nueva.
+    if (!panel.admiteInscripciones) {
       throw new BadRequestException(
         panel.porQueNo ?? 'No se puede inscribir en esta oferta.',
       );
@@ -2166,23 +2159,21 @@ export class CrmService {
       /// ciudades salía seis veces y el mensaje decía «Grupo
       /// 1, Grupo 1, Grupo 1...». Lo que se elige es la
       /// cobertura, pero lo que se lee es el grupo.
-      const numeros = [
-        ...new Set(
-          panel.grupos
-            .filter(
-              (g) =>
-                g.ventana.estado === 'ABIERTA' ||
-                g.ventana.estado === 'AVISANDO',
-            )
-            .map((g) => g.numero),
-        ),
-      ].sort((a, b) => a - b);
+      /// TODOS los grupos, no solo los de ventana abierta.
+      ///
+      /// Filtrarlos dejaba la lista vacia justo cuando mas falta
+      /// hace -- «Ningun grupo tiene la ventana abierta» y ni un
+      /// numero que elegir --, que es la misma pared que se acaba
+      /// de tirar unas lineas mas arriba.
+      const numeros = [...new Set(panel.grupos.map((g) => g.numero))].sort(
+        (a, b) => a - b,
+      );
 
       throw new BadRequestException(
         'Falta decir a qué grupo entra. ' +
           (numeros.length
-            ? `Hoy admiten: ${numeros.map((n) => `Grupo ${n}`).join(', ')}.`
-            : 'Ningún grupo tiene la ventana abierta.'),
+            ? `Los de esta oferta: ${numeros.map((n) => `Grupo ${n}`).join(', ')}.`
+            : 'Esta oferta todavía no tiene grupos en el cronograma.'),
       );
     }
 
@@ -2192,19 +2183,7 @@ export class CrmService {
         'Ese grupo no es de esta acción de formación.',
       );
     }
-    if (suyo.ventana.estado === 'SIN_FECHAS') {
-      throw new BadRequestException(
-        `El grupo ${suyo.numero} no tiene fecha de inicio. Sin fecha no se puede inscribir: ` +
-          'el cronograma es lo que después lo lleva al aula.',
-      );
-    }
-    if (exigirVentana && suyo.ventana.estado === 'CERRADA') {
-      const cierre = suyo.ventana.cierre?.toISOString().slice(0, 10);
-      throw new BadRequestException(
-        `La inscripción del grupo ${suyo.numero} cerró el ${cierre}, ` +
-          'una semana hábil antes de que arranque. Elija otro grupo.',
-      );
-    }
+
     if (suyo.inscritos >= suyo.cuposMaximos) {
       throw new BadRequestException(
         `El grupo ${suyo.numero} ya está lleno (${suyo.inscritos} de ${suyo.cuposMaximos}).`,
@@ -2386,9 +2365,7 @@ export class CrmService {
 
     const compuerta = exigeDatosParaElAula(p.etapa, dto.etapa);
     if (exigeCupo(p.etapa, dto.etapa)) {
-      await this.exigirQueQuepa(p, {
-        exigirVentana: !esRegresoAlAula(p.etapa),
-      });
+      await this.exigirQueQuepa(p);
     }
 
     // certificar exige haber aprobado el 80% de lo
