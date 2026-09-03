@@ -35,6 +35,11 @@
  * · ES REPETIBLE. Reconoce lo suyo por el documento y por el NIT
  *   (`MARCA_*`) y lo borra antes de rehacerlo: correrlo dos veces
  *   no duplica a nadie ni toca lo que no es suyo.
+ *
+ * OJO: `db:sembrar-prueba --rehacer` SÍ se las lleva por delante.
+ * Su `borrarLoSembrado()` hace `deleteMany()` sin filtro sobre
+ * personas, empresas y participantes. Después de rehacer la
+ * siembra general hay que volver a correr este guión.
  */
 
 import {
@@ -43,6 +48,12 @@ import {
   OrigenParticipante,
   PrismaClient,
 } from '../../generated/prisma';
+import { borrarParticipaciones } from '../../src/crm/borrar-participaciones';
+import {
+  DEPARTAMENTO_POR_ID,
+  MUNICIPIO_POR_ID,
+} from '../../src/crm/catalogos-sep';
+import { cubreA } from '../../src/crm/cobertura';
 import { revisar } from '../../src/crm/completitud';
 import { exigirBaseSegura } from '../guardia-de-base';
 import { soloEnPruebas } from './solo-pruebas';
@@ -156,6 +167,8 @@ type Ficha = {
   origen: OrigenParticipante;
   cargo: string;
   empresa: number;
+  /// Si ya tiene asesor asignado o sigue en el montón común.
+  conAsesor: boolean;
   /// Hace cuántos días entró: da variedad a la lista y al ritmo.
   dias: number;
 };
@@ -179,7 +192,7 @@ const FICHAS: Ficha[] = [
     barrio: 'Cabecera del Llano', direccion: 'Calle 48 # 31-22 apto 501',
     nivelOcupacionalSepId: 2, beneficiarioPrevio: false,
     origen: OrigenParticipante.EMPRESA, cargo: 'Coordinadora de producción',
-    empresa: 0, dias: 12,
+    empresa: 0, conAsesor: true, dias: 12,
   },
   {
     gremio: 'adecopria', codigo: 'AF1', sede: 'SANTANDER',
@@ -191,7 +204,7 @@ const FICHAS: Ficha[] = [
     barrio: 'Álvarez', direccion: 'Carrera 27 # 51-08',
     nivelOcupacionalSepId: 1, beneficiarioPrevio: true,
     origen: OrigenParticipante.EMPRESA, cargo: 'Jefe de planta',
-    empresa: 0, dias: 12,
+    empresa: 0, conAsesor: false, dias: 12,
   },
   {
     gremio: 'adecopria', codigo: 'AF1', sede: 'SANTANDER',
@@ -203,7 +216,7 @@ const FICHAS: Ficha[] = [
     barrio: 'Cañaveral', direccion: 'Calle 6 # 9-41',
     nivelOcupacionalSepId: 3, beneficiarioPrevio: false,
     origen: OrigenParticipante.REDES, cargo: 'Auxiliar de bodega',
-    empresa: 1, dias: 6,
+    empresa: 1, conAsesor: true, dias: 6,
   },
   {
     gremio: 'adecopria', codigo: 'AF1', sede: 'SANTANDER',
@@ -215,7 +228,7 @@ const FICHAS: Ficha[] = [
     barrio: 'La Joya', direccion: 'Transversal 93 # 34-17',
     nivelOcupacionalSepId: 3, beneficiarioPrevio: false,
     origen: OrigenParticipante.AUTOGESTION, cargo: 'Operario',
-    empresa: 1, dias: 3,
+    empresa: 1, conAsesor: false, dias: 3,
   },
   // ── ADECOPRIA · AF3 · MEDELLÍN (presencial) ──
   {
@@ -228,7 +241,7 @@ const FICHAS: Ficha[] = [
     barrio: 'Laureles', direccion: 'Circular 4 # 71-30',
     nivelOcupacionalSepId: 1, beneficiarioPrevio: false,
     origen: OrigenParticipante.EMPRESA, cargo: 'Gerente comercial',
-    empresa: 2, dias: 9,
+    empresa: 2, conAsesor: true, dias: 9,
   },
   {
     gremio: 'adecopria', codigo: 'AF3', sede: 'MEDELLÍN',
@@ -240,7 +253,7 @@ const FICHAS: Ficha[] = [
     barrio: 'Manrique', direccion: 'Calle 77 # 45-19',
     nivelOcupacionalSepId: 3, beneficiarioPrevio: false,
     origen: OrigenParticipante.REFERIDO, cargo: 'Auxiliar de confección',
-    empresa: 2, dias: 4,
+    empresa: 2, conAsesor: false, dias: 4,
   },
   {
     gremio: 'adecopria', codigo: 'AF3', sede: 'MEDELLÍN',
@@ -252,7 +265,7 @@ const FICHAS: Ficha[] = [
     barrio: 'El Poblado', direccion: 'Carrera 43A # 5-33 torre 2',
     nivelOcupacionalSepId: 2, beneficiarioPrevio: true,
     origen: OrigenParticipante.EVENTO, cargo: 'Analista de calidad',
-    empresa: 2, dias: 20,
+    empresa: 2, conAsesor: true, dias: 20,
   },
   // ── BRITCHAM ADEE · AF1 · BOGOTÁ D.C (virtual) ──
   {
@@ -265,7 +278,7 @@ const FICHAS: Ficha[] = [
     barrio: 'Kennedy', direccion: 'Calle 38 sur # 78G-12',
     nivelOcupacionalSepId: 3, beneficiarioPrevio: false,
     origen: OrigenParticipante.EMPRESA, cargo: 'Auxiliar logístico',
-    empresa: 3, dias: 11,
+    empresa: 3, conAsesor: false, dias: 11,
   },
   {
     gremio: 'britcham-adee', codigo: 'AF1', sede: 'BOGOTÁ D.C',
@@ -277,7 +290,7 @@ const FICHAS: Ficha[] = [
     barrio: 'Cedritos', direccion: 'Carrera 19 # 140-44 apto 302',
     nivelOcupacionalSepId: 2, beneficiarioPrevio: false,
     origen: OrigenParticipante.EMPRESA, cargo: 'Coordinadora de transporte',
-    empresa: 3, dias: 11,
+    empresa: 3, conAsesor: true, dias: 11,
   },
   {
     gremio: 'britcham-adee', codigo: 'AF1', sede: 'BOGOTÁ D.C',
@@ -289,7 +302,7 @@ const FICHAS: Ficha[] = [
     barrio: 'Suba Rincón', direccion: 'Calle 129B # 91-27',
     nivelOcupacionalSepId: 3, beneficiarioPrevio: true,
     origen: OrigenParticipante.REDES, cargo: 'Practicante',
-    empresa: 4, dias: 2,
+    empresa: 4, conAsesor: false, dias: 2,
   },
   {
     gremio: 'britcham-adee', codigo: 'AF1', sede: 'BOGOTÁ D.C',
@@ -301,7 +314,7 @@ const FICHAS: Ficha[] = [
     barrio: 'Bosa Centro', direccion: 'Diagonal 72 sur # 80-15',
     nivelOcupacionalSepId: 3, beneficiarioPrevio: false,
     origen: OrigenParticipante.AUTOGESTION, cargo: 'Asistente administrativa',
-    empresa: 4, dias: 5,
+    empresa: 4, conAsesor: true, dias: 5,
   },
   // ── BRITCHAM ADEE · AF4 · CARTAGENA (presencial) ──
   {
@@ -314,7 +327,7 @@ const FICHAS: Ficha[] = [
     barrio: 'Manga', direccion: 'Calle Real # 20-91',
     nivelOcupacionalSepId: 1, beneficiarioPrevio: true,
     origen: OrigenParticipante.EMPRESA, cargo: 'Superintendente',
-    empresa: 5, dias: 15,
+    empresa: 5, conAsesor: false, dias: 15,
   },
   {
     gremio: 'britcham-adee', codigo: 'AF4', sede: 'CARTAGENA',
@@ -326,7 +339,7 @@ const FICHAS: Ficha[] = [
     barrio: 'El Bosque', direccion: 'Transversal 54 # 21-30',
     nivelOcupacionalSepId: 3, beneficiarioPrevio: false,
     origen: OrigenParticipante.EMPRESA, cargo: 'Auxiliar de mantenimiento',
-    empresa: 5, dias: 15,
+    empresa: 5, conAsesor: true, dias: 15,
   },
   {
     gremio: 'britcham-adee', codigo: 'AF4', sede: 'CARTAGENA',
@@ -338,7 +351,7 @@ const FICHAS: Ficha[] = [
     barrio: 'Olaya Herrera', direccion: 'Sector Rafael Núñez, Calle 31 # 51-12',
     nivelOcupacionalSepId: 2, beneficiarioPrevio: false,
     origen: OrigenParticipante.REFERIDO, cargo: 'Supervisor de seguridad',
-    empresa: 5, dias: 8,
+    empresa: 5, conAsesor: false, dias: 8,
   },
 ];
 
@@ -350,8 +363,9 @@ async function borrarLoSuyo(db: Cliente): Promise<number> {
   });
   const ids = mias.map((p) => p.id);
 
-  // notas, movimientos y avances cuelgan en cascada
-  const fichas = await db.participante.deleteMany({ where: { personaId: { in: ids } } });
+  // el orden lo pone `borrarParticipaciones`: las notas NO
+  // cuelgan en cascada, y borrarlas mal rompe un CHECK
+  const fichas = await borrarParticipaciones(db, { personaId: { in: ids } });
   await db.autorizacionDatos.deleteMany({ where: { personaId: { in: ids } } });
   await db.persona.deleteMany({ where: { id: { in: ids } } });
 
@@ -360,7 +374,7 @@ async function borrarLoSuyo(db: Cliente): Promise<number> {
     where: { nit: { startsWith: MARCA_NIT }, reservas: { none: {} }, participantes: { none: {} } },
   });
 
-  return fichas.count;
+  return fichas;
 }
 
 /**
@@ -374,11 +388,9 @@ async function borrarLoSuyo(db: Cliente): Promise<number> {
  * viva, porque la misma cédula puede estar en el otro convenio.
  */
 async function borrarInteresadosViejos(db: Cliente): Promise<number> {
-  const { count } = await db.participante.deleteMany({
-    where: {
-      etapa: EtapaParticipante.INTERESADO,
-      persona: { esDePrueba: true, numeroDocumento: { not: { startsWith: MARCA_DOCUMENTO } } },
-    },
+  const count = await borrarParticipaciones(db, {
+    etapa: EtapaParticipante.INTERESADO,
+    persona: { esDePrueba: true, numeroDocumento: { not: { startsWith: MARCA_DOCUMENTO } } },
   });
 
   // las personas que se quedaron sin ninguna participacion
@@ -401,7 +413,7 @@ async function main() {
       id: true,
       accionFormacionId: true,
       accionFormacion: { select: { codigo: true, convenioId: true } },
-      ubicacion: { select: { nombre: true } },
+      ubicacion: { select: { nombre: true, tipo: true, departamento: true } },
     },
   });
 
@@ -446,6 +458,20 @@ async function main() {
     }
     console.log(`  · ${EMPRESAS.length} organizaciones, completas para el F7`);
 
+      // ── los asesores de cada gremio ──
+    //
+    // La mitad con dueño y la mitad sin él, a propósito: sin
+    // asesor es el estado normal de lo recién llegado y es lo que
+    // alimenta el reparto por lote; con asesor es lo que ya se
+    // repartió. Con todas iguales no se puede probar ninguna de
+    // las dos cosas.
+    const asesores = await db.adminConvenio.findMany({
+      where: { rol: { in: ['GESTOR_INSCRIPCION', 'LIDER_INSCRIPCION'] } },
+      select: { adminId: true, convenioId: true },
+    });
+    const asesorDe = new Map<string, string>();
+    for (const a of asesores) if (!asesorDe.has(a.convenioId)) asesorDe.set(a.convenioId, a.adminId);
+
     // ── la politica vigente de cada gremio ──
     const politicas = await db.politicaDatos.findMany({
       where: { destinatario: 'PARTICIPANTE' },
@@ -468,6 +494,27 @@ async function main() {
           o.ubicacion.nombre === f.sede,
       );
       if (!oferta) throw new Error(`No hay oferta de ${f.codigo} en ${f.sede} para ${f.gremio}`);
+
+    /// Que la sede de verdad la cubra, con LA REGLA DE VERDAD.
+    ///
+    /// Escribir el `ofertaId` a mano sin comprobarlo deja fichas
+    /// que el propio servidor rechaza en cuanto alguien pulse
+    /// «asignar»: la pantalla diría «se dicta en X, que no cubre
+    /// Y». Serían datos de prueba que contradicen al sistema que
+    /// prueban, y quien lo viera buscaría el defecto en el código.
+    ///
+    /// Se traduce el domicilio igual que `dondeVive()`: `cubreA`
+    /// compara NOMBRES contra `Ubicacion`, no ids del SEP.
+    const vive = {
+      departamento: DEPARTAMENTO_POR_ID.get(f.departamentoSepId)?.etiqueta ?? null,
+      ciudad: MUNICIPIO_POR_ID.get(f.municipioSepId)?.[2] ?? null,
+    };
+    if (!cubreA({ ...oferta.ubicacion }, vive)) {
+      throw new Error(
+        `${f.primerNombre} ${f.primerApellido} vive en ${vive.ciudad}, ${vive.departamento} ` +
+          `y ${f.codigo} se dicta en ${oferta.ubicacion.nombre} (${oferta.ubicacion.tipo}): no la cubre.`,
+      );
+    }
 
       const politicaId = politicaDe.get(convenioId);
       if (!politicaId) throw new Error(`${f.gremio} no tiene politica publicada`);

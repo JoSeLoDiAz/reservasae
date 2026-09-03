@@ -27,6 +27,7 @@ import {
   seHistoria,
 } from './clase-de-dato';
 import { documentoValido, normalizarDocumento } from '../comun/documento';
+import { borrarParticipaciones } from './borrar-participaciones';
 import { analizar, esInsalvable, repetidosEnElPegado } from './carga';
 import {
   saleDelCupo,
@@ -2022,24 +2023,14 @@ export class CrmService {
     });
     if (!p) throw new NotFoundException('Ese participante no existe.');
 
+    /// El orden vive en `borrarParticipaciones`, no aqui.
+    ///
+    /// Son cuatro pasos y uno es sutil --las notas compartidas con
+    /// el lead NO se borran--, asi que en cuanto hubo un segundo
+    /// sitio que borra fichas, copiarlo habria dado dos ordenes
+    /// que discrepan en el paso que menos se usa.
     await this.prisma.$transaction(async (tx) => {
-      await tx.avanceActividad.deleteMany({ where: { participanteId: id } });
-      /// Solo las que son SUYAS y de nadie mas.
-      ///
-      /// Una nota escrita sobre el lead y re-apuntada al convertir
-      /// lleva las DOS columnas: es la misma llamada vista desde
-      /// los dos lados. Borrarla aqui se llevaria por delante el
-      /// historial del lead, que sigue existiendo. Las compartidas
-      /// sobreviven por el `SET NULL` de la FK, que las deja
-      /// colgando solo del lead -- y por eso el CHECK es «al menos
-      /// una» y no «exactamente una».
-      await tx.notaDeGestion.deleteMany({
-        where: { participanteId: id, leadId: null },
-      });
-      await tx.movimientoParticipante.deleteMany({
-        where: { participanteId: id },
-      });
-      await tx.participante.delete({ where: { id } });
+      await borrarParticipaciones(tx, { id });
     });
 
     /// La huella, DESPUÉS de borrar y fuera de la transacción.
