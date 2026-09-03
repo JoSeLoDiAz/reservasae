@@ -22,6 +22,10 @@ export type LeadDeLaMesa = {
   pidio: string | null;
   /// Y lo que se resolvió del catálogo. Null: no se reconoció.
   curso: string | null;
+  /// La sede que le tocaría al convertirlo, resuelta con la MISMA
+  /// regla que usa la conversión. Null: su departamento no tiene
+  /// ese curso, así que no se la puede inscribir.
+  sede: string | null;
   recibidoEn: string;
   /// Si ya tiene ficha, para poder saltar a ella.
   participanteId: string | null;

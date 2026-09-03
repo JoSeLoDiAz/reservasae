@@ -19,6 +19,8 @@ import {
   DOCUMENTOS_DE_PERSONA,
   motivoDeIdInvalido,
   siglaDocumento,
+  DEPARTAMENTO_POR_ID,
+  MUNICIPIO_POR_ID,
 } from '../crm/catalogos-sep';
 import { documentoValido, normalizarDocumento } from '../comun/documento';
 import { PrismaService } from '../prisma/prisma.service';
@@ -29,6 +31,7 @@ import {
   porQueNoEsSuya,
 } from './de-quien-es-ese-documento';
 import { puedoContactar } from './puedo-contactar';
+import { sedeQueLeToca } from './sede-que-le-toca';
 import { ArreglarLeadDto } from './dto';
 import {
   autorizoAlRegistrarse,
@@ -155,6 +158,44 @@ export class MesaDeEntrada {
       select: { id: true, nombre: true, correo: true },
     });
 
+    /// LA SEDE QUE LE TOCARÍA, resuelta ya en la mesa.
+    ///
+    /// Lo pidió el cliente: «en el lead que llegue, que ya diga la
+    /// acción de formación y la cobertura que quiera, y al pasarlo a
+    /// interesado que lleve eso cargado».
+    ///
+    /// La segunda mitad ya funcionaba —`convertir` resuelve la sede
+    /// con `sedeQueLeToca`— pero la mesa no la enseñaba, así que el
+    /// asesor convertía a ciegas: no sabía si iba a nacer con sede o
+    /// si el departamento de esa persona no tiene ese curso.
+    ///
+    /// Se resuelve con la MISMA función que usa la conversión. Otra
+    /// regla aquí elegiría una sede distinta de la que va a quedar,
+    /// que es peor que no decir nada.
+    ///
+    /// Y en UNA consulta para toda la página: es pura sobre una
+    /// lista, así que no hace falta preguntar por cada fila.
+    const cursosDeLosLeads = [
+      ...new Set(filas.map((l) => l.accionFormacionId).filter(Boolean)),
+    ] as string[];
+    const ofertas = cursosDeLosLeads.length
+      ? await this.prisma.oferta.findMany({
+          where: {
+            accionFormacionId: { in: cursosDeLosLeads },
+            accionFormacion: { convenioId: { in: ambito } },
+          },
+          select: {
+            id: true,
+            accionFormacionId: true,
+            cuposMaximos: true,
+            cuposOcupados: true,
+            ubicacion: {
+              select: { nombre: true, tipo: true, departamento: true },
+            },
+          },
+        })
+      : [];
+
     /// Quiénes revocaron, en UNA consulta para toda la página.
     ///
     /// La regla de si se puede llamar es la MISMA que aplica el
@@ -263,6 +304,21 @@ export class MesaDeEntrada {
         /// quién hay que insistirle hoy».
         ultimaGestionEn: l.ultimaGestionEn,
         gestiones: l._count.notas,
+        /// La sede que le tocaría al convertirlo. Null: su
+        /// departamento no tiene ese curso, y entonces no se la
+        /// puede inscribir — se dice aquí y no al fallar.
+        sede: (() => {
+          if (!l.accionFormacionId) return null;
+          const o = sedeQueLeToca(ofertas, l.accionFormacionId, {
+            departamento: l.departamentoSepId
+              ? (DEPARTAMENTO_POR_ID.get(l.departamentoSepId)?.etiqueta ?? null)
+              : null,
+            ciudad: l.municipioSepId
+              ? (MUNICIPIO_POR_ID.get(l.municipioSepId)?.[2] ?? null)
+              : null,
+          });
+          return o?.ubicacion.nombre ?? null;
+        })(),
         /// Si se puede llamar, con la MISMA regla del servidor.
         puedoContactar: puedoContactar({
           estado: l.estado,
