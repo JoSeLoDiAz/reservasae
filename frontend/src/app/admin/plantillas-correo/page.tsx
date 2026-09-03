@@ -29,6 +29,7 @@ import {
   AccionesDePagina,
   Aviso,
   Boton,
+  BotonDeCabecera,
   CLASE_CONTROL,
   useAdmin,
 } from "@/components/admin/marco-admin";
@@ -222,9 +223,9 @@ function Lista({
     /// donde el resto de pantallas pone el suyo.
     <div className="flex min-h-0 grow flex-col gap-4 px-4 pt-4">
       <AccionesDePagina>
-        <Boton onClick={() => alEditar("nueva")}>
+        <BotonDeCabecera onClick={() => alEditar("nueva")}>
           <span className="text-base leading-none">+</span> Nueva plantilla
-        </Boton>
+        </BotonDeCabecera>
       </AccionesDePagina>
 
       <div>

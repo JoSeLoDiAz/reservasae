@@ -1399,6 +1399,44 @@ export function Boton({
 }
 
 /**
+ * El botón principal de una pantalla, DENTRO de la cabecera.
+ *
+ * `Boton` va de `--marca` sobre `--marca-texto`, y eso está
+ * pensado para el fondo claro del cuerpo. En la cabecera el
+ * fondo es `--encabezado-fondo`, que cada gremio edita desde
+ * Apariencia: ADECOPRIA lo tiene verde oscuro y su `--marca`
+ * también es verde, así que «Nueva campaña» salía verde sobre
+ * verde y no se leía.
+ *
+ * Y no se arregla eligiendo otro color fijo: el siguiente gremio
+ * elegirá otro par y volvería a pasar.
+ *
+ * Se invierte el par de la propia cabecera —el texto pasa a ser
+ * el fondo del botón y al revés—. Esos dos tienen que
+ * contrastar por definición, porque si no la cabecera no se
+ * leería; invertirlos da un botón legible con CUALQUIER tema, sin
+ * saber de qué color es ninguno.
+ *
+ * Misma geometría que `Boton`: alto 32, radio 9, 12,5px en
+ * semibold. Es el mismo botón, en otro fondo.
+ */
+export function BotonDeCabecera({
+  children,
+  ...resto
+}: React.ButtonHTMLAttributes<HTMLButtonElement>) {
+  return (
+    <button
+      {...resto}
+      className={`sin-aro inline-flex h-[32px] items-center justify-center gap-1.5 rounded-[9px] bg-encabezado-texto px-[13px] text-[12.5px] font-semibold text-encabezado-fondo transition hover:opacity-85 disabled:cursor-not-allowed disabled:opacity-45 ${
+        resto.className ?? ""
+      }`}
+    >
+      {children}
+    </button>
+  );
+}
+
+/**
  * Escoger un archivo, con un botón de verdad.
  *
  * El `<input type="file">` a pelo lo pinta el navegador, y en

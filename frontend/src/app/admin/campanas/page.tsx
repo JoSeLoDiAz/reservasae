@@ -22,6 +22,7 @@ import {
   AccionesDePagina,
   Aviso,
   Boton,
+  BotonDeCabecera,
   CLASE_CONTROL,
   EscogerArchivo,
   Tarjeta,
@@ -101,7 +102,7 @@ export default function PaginaCampanas() {
     <div className="flex min-h-0 grow flex-col gap-4 px-4 pt-4">
       {!creando && convenioId && (
         <AccionesDePagina>
-          <Boton onClick={() => setCreando(true)}>Nueva campaña</Boton>
+          <BotonDeCabecera onClick={() => setCreando(true)}>Nueva campaña</BotonDeCabecera>
         </AccionesDePagina>
       )}
 
