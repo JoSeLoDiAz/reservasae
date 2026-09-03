@@ -1,4 +1,5 @@
 import { Transform } from 'class-transformer';
+import { booleanoDeVerdad } from '../comun/booleano-de-verdad';
 import {
   IsArray,
   IsBoolean,
@@ -103,6 +104,17 @@ export class CrearPreinscripcionDto {
   /// Aceptar la politica de datos. Sin esto no hay con que
   /// responder si manana preguntan de donde salieron sus
   /// datos, asi que la pantalla no deja pasar sin marcarlo.
+  /// El valor CRUDO, igual que en `leads/dto.ts`.
+  ///
+  /// `enableImplicitConversion` convierte un `boolean` con la
+  /// regla de JavaScript: cualquier cadena no vacia es `true`, y
+  /// «false» llegaba como TRUE. Aqui es una constancia de que la
+  /// persona acepto la politica, y guardarla al reves le estampa
+  /// una autorizacion que NO dio.
+  ///
+  /// Este endpoint es PUBLICO: quien lo llama no es una pantalla
+  /// nuestra, asi que el tipo del JSON no se puede dar por bueno.
+  @Transform(({ obj, key }) => booleanoDeVerdad((obj as Record<string, unknown>)[key]))
   @IsOptional() @IsBoolean() aceptaPolitica?: boolean;
 }
 
@@ -165,6 +177,17 @@ export class DatosPersonaDto {
   @IsOptional() @IsBoolean() beneficiarioPrevio?: boolean;
 
   /** Aceptar la politica: es lo que hay que demostrar. */
+  /// El valor CRUDO, igual que en `leads/dto.ts`.
+  ///
+  /// `enableImplicitConversion` convierte un `boolean` con la
+  /// regla de JavaScript: cualquier cadena no vacia es `true`, y
+  /// «false» llegaba como TRUE. Aqui es una constancia de que la
+  /// persona acepto la politica, y guardarla al reves le estampa
+  /// una autorizacion que NO dio.
+  ///
+  /// Este endpoint es PUBLICO: quien lo llama no es una pantalla
+  /// nuestra, asi que el tipo del JSON no se puede dar por bueno.
+  @Transform(({ obj, key }) => booleanoDeVerdad((obj as Record<string, unknown>)[key]))
   @IsOptional() @IsBoolean() aceptaPolitica?: boolean;
 
   /**

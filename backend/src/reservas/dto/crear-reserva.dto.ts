@@ -1,4 +1,5 @@
 import { Transform, Type } from 'class-transformer';
+import { booleanoDeVerdad } from '../../comun/booleano-de-verdad';
 import {
   ArrayMaxSize,
   Equals,
@@ -87,10 +88,32 @@ export class CrearReservaDto {
   cuposSolicitados!: number;
 
   // sin consentimiento no hay registro
+  /// El valor CRUDO, igual que en `leads/dto.ts`.
+  ///
+  /// `enableImplicitConversion` convierte un `boolean` con la
+  /// regla de JavaScript: cualquier cadena no vacia es `true`, y
+  /// «false» llegaba como TRUE. Aqui es una constancia de que la
+  /// persona acepto la politica, y guardarla al reves le estampa
+  /// una autorizacion que NO dio.
+  ///
+  /// Este endpoint es PUBLICO: quien lo llama no es una pantalla
+  /// nuestra, asi que el tipo del JSON no se puede dar por bueno.
+  @Transform(({ obj, key }) => booleanoDeVerdad((obj as Record<string, unknown>)[key]))
   @IsBoolean()
   @Equals(true, { message: 'Debe aceptar los términos de participación.' })
   aceptaTerminos!: boolean;
 
+  /// El valor CRUDO, igual que en `leads/dto.ts`.
+  ///
+  /// `enableImplicitConversion` convierte un `boolean` con la
+  /// regla de JavaScript: cualquier cadena no vacia es `true`, y
+  /// «false» llegaba como TRUE. Aqui es una constancia de que la
+  /// persona acepto la politica, y guardarla al reves le estampa
+  /// una autorizacion que NO dio.
+  ///
+  /// Este endpoint es PUBLICO: quien lo llama no es una pantalla
+  /// nuestra, asi que el tipo del JSON no se puede dar por bueno.
+  @Transform(({ obj, key }) => booleanoDeVerdad((obj as Record<string, unknown>)[key]))
   @IsBoolean()
   @Equals(true, { message: 'Debe aceptar la política de tratamiento de datos.' })
   aceptaPoliticaDatos!: boolean;
