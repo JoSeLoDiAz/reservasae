@@ -90,6 +90,17 @@ export const MODULOS: Modulo[] = [
         area: 'inscripciones',
       },
       {
+        /// Detras de la lista de leads a proposito: se llega
+        /// aqui DESPUES de ver que hay gente sin grupo, no
+        /// antes. Y es «inscripciones» y no «inscritos» porque
+        /// escribe sobre la ficha: poner la cohorte es atender
+        /// la inscripcion, no mirarla.
+        href: '/admin/participantes/grupos',
+        etiqueta: 'Asignar grupo por lote',
+        exacto: true,
+        area: 'inscripciones',
+      },
+      {
         /// Los mismos participantes, cortados por accion de
         /// formacion. Vive aqui y no en «Sistemas de
         /// informacion» porque es una vista de la gente que se

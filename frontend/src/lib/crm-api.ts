@@ -1007,6 +1007,57 @@ export type ValorAnterior = {
   sePuedeRestablecer: boolean;
 };
 
+/// Una celda de grupo: grupo x sede x modalidad. Es lo que de
+/// verdad se llena, y lo que lleva su propio cupo.
+export type CeldaDeGrupo = {
+  coberturaId: string;
+  numero: number;
+  fechaInicio: string | null;
+  horario: string | null;
+  /// El tope, con el 30 % de sobrecupo ya dentro.
+  tope: number;
+  comprometidos: number;
+  /// Los que tienen esta celda escrita y no han salido.
+  apuntados: number;
+  /// Los que ademas consumen aula. Son DOS preguntas distintas.
+  sillasOcupadas: number;
+  caben: number;
+};
+
+export type OfertaSinGrupo = {
+  ofertaId: string;
+  convenioId: string;
+  accion: string;
+  sede: string;
+  tipoDeSede: string;
+  modalidad: string;
+  sinGrupo: number;
+  celdas: CeldaDeGrupo[];
+};
+
+export type CandidatoDeGrupo = {
+  id: string;
+  etapa: Etapa;
+  creadoEn: string;
+  persona: {
+    primerNombre: string;
+    primerApellido: string;
+    numeroDocumento: string;
+    correo: string | null;
+    celular: string | null;
+  };
+  asesor: { nombre: string } | null;
+};
+
+export type CandidatosDeGrupo = {
+  ofertaId: string;
+  accion: string;
+  sede: string;
+  modalidad: string;
+  total: number;
+  candidatos: CandidatoDeGrupo[];
+};
+
 export const crmApi = {
   /// Los tres del jefe directo, desde la ficha del lead.
   /// La razón social NO va aquí: la valida el código.
@@ -1057,6 +1108,28 @@ export const crmApi = {
       `/admin/participantes/opciones?convenioId=${convenioId}` +
         (participanteId ? `&participanteId=${participanteId}` : ""),
     ),
+
+  /// Las ofertas con gente sin grupo, y las celdas que las sirven.
+  ///
+  /// La unidad es la OFERTA y no el grupo: varias celdas comparten
+  /// oferta, y abriendo grupo por grupo se verian los mismos
+  /// candidatos dos veces.
+  gruposPendientes: () =>
+    pedir<{ ofertas: OfertaSinGrupo[] }>("/admin/participantes/grupos/pendientes"),
+
+  candidatosDeGrupo: (ofertaId: string) =>
+    pedir<CandidatosDeGrupo>(`/admin/participantes/grupos/candidatos/${ofertaId}`),
+
+  asignarGrupoEnLote: (coberturaId: string, ids: string[]) =>
+    pedir<{
+      asignadas: number;
+      fuera: number;
+      sinCupo: number;
+      cabenAhora: number;
+    }>("/admin/participantes/grupos/lote", {
+      method: "PATCH",
+      body: JSON.stringify({ coberturaId, ids }),
+    }),
 
   asignarAsesorEnLote: (ids: string[], asesorId: string | null) =>
     pedir<{ cambiadas: number; fuera: number; sinCambio: number }>(
