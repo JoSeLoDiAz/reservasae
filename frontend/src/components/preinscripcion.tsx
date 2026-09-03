@@ -904,27 +904,30 @@ function Registrada({ token, nombre }: { token: string; nombre: string }) {
       <BannerLogos />
 
       <h1 className="mt-8 text-2xl font-bold text-balance">
-        ¡Gracias{nombre ? ` ${nombre}` : ""}, su preinscripción fue realizada
-        exitosamente!
+        {/* El titular saluda y ya: el parrafo de abajo cuenta
+            que paso. Antes decia «su preinscripcion fue realizada
+            exitosamente» y el parrafo repetia «su preinscripcion
+            ha sido registrada» -- dos veces la misma palabra en
+            dos renglones seguidos. */}
+        ¡Gracias{nombre ? `, ${nombre}` : ""}!
       </h1>
-      {/* Las dos cosas, y en este orden.
+      {/* En USTED, como el resto del formulario.
 
-          Primero lo que NO depende de ella --que la inscripcion
-          la cierra un asesor-- y despues lo que si: completar sus
-          datos ahora, si quiere. Al reves, el ofrecimiento se lee
-          como «termine usted y quedara inscrito», que es
-          justamente lo que no pasa.
+          El texto vino redactado en tu --«tu preinscripcion»,
+          «contigo»-- y todo lo demas trata de usted: «Seleccione»,
+          «complete la siguiente informacion», «Su inscripcion».
+          Cambiar de voz en la ultima pantalla se nota, y se lee
+          como si la hubiera escrito otro.
 
-          Y se dice que es OPCIONAL. Quien no lo haga no pierde
-          nada: el asesor se lo preguntara por telefono. */}
+          Y dice «se pondra en contacto», no «nuestra llamada»: el
+          asesor tambien escribe por WhatsApp o por correo, y los
+          tres canales estan en el CRM. Prometer una llamada es
+          prometer de mas. */}
       <p className="mt-3 text-texto-suave">
-        Su inscripción no será efectiva hasta tanto no sea contactado por un
-        asesor.
-      </p>
-      <p className="mt-2 text-texto-suave">
-        Si lo desea, puede continuar ahora con su registro de preinscripción y
-        completar sus datos. También puede dejarlo y esperar a que un asesor se
-        comunique con usted.
+        Su preinscripción ha sido registrada correctamente y está pendiente de
+        confirmación. Un asesor se pondrá en contacto con usted para continuar
+        el proceso. Si lo desea, puede completar ahora sus datos o esperar a que
+        nos comuniquemos.
       </p>
 
       <a
