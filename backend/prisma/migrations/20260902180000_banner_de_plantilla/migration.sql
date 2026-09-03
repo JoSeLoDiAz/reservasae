@@ -1,11 +1,14 @@
--- El banner del encabezado, en las plantillas de correo.
+-- VACIA A PROPOSITO. La sustituye
+-- `20260902100000_plantilla_con_cabezote`, que hace lo mismo y
+-- llego antes.
 --
--- El codigo que lo usa entro con la rama arq/crm-hardening y
--- venia SIN esta migracion ni las columnas en el schema: el
--- backend no compilaba. Son las mismas cuatro que ya tiene
--- `campanas`, con la misma semantica.
-
-ALTER TABLE "plantillas_correo" ADD COLUMN "bannerDatos" BYTEA;
-ALTER TABLE "plantillas_correo" ADD COLUMN "bannerMime" TEXT;
-ALTER TABLE "plantillas_correo" ADD COLUMN "bannerNombre" TEXT;
-ALTER TABLE "plantillas_correo" ADD COLUMN "bannerVersion" INTEGER NOT NULL DEFAULT 1;
+-- Se escribieron las dos el mismo dia: al mezclar la rama de
+-- Mauricio Andres por la manana, su codigo del banner venia sin
+-- schema ni migracion, asi que se anadio aqui. Su rama la traia
+-- de verdad y llego con la mezcla de la tarde.
+--
+-- NO SE BORRA EL FICHERO. Esta migracion ya esta APLICADA y
+-- registrada en produccion y en pruebas; quitarla dejaria una
+-- fila en `_prisma_migrations` sin fichero, que es deriva. Vacia
+-- es un no-op en una base nueva y sigue cuadrando en las que ya
+-- la corrieron.

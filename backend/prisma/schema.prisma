@@ -1793,13 +1793,6 @@ model PlantillaCorreo {
   asunto String
   cuerpo String
 
-  /// El banner del encabezado. Igual que en Campana: va en la
-  /// base porque lo carga el cliente de correo de otra persona.
-  bannerDatos   Bytes?
-  bannerMime    String?
-  bannerNombre  String?
-  bannerVersion Int     @default(1)
-
   /// Se apaga sin borrarla: una plantilla que ya se uso es
   /// parte de lo que se le dijo a alguien.
   activa Boolean @default(true)
