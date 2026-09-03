@@ -8,14 +8,20 @@
  * tiene que decirlo — quien la usa no tiene por qué saber que
  * este bloque no es como los demás.
  *
- * Tres cosas que NO son iguales y que aquí se distinguen:
+ * DOS estados, desde que el cliente lo pidió (17b57b7):
  *
  *   sin marcar        no se le preguntó
- *   «prefiere no…»    se le preguntó y no quiso responder
  *   «Ninguna»         dijo que no pertenece a ninguna
  *
- * Solo la persona puede pasar de la primera a las otras dos. Por
+ * Solo la persona puede pasar de la primera a la segunda. Por
  * eso «Ninguna» se puede elegir, pero nunca se marca sola.
+ *
+ * Hubo un tercero —«prefiere no responder»— que ya no se puede
+ * poner por ninguna de las dos puertas, pero SE SIGUE LEYENDO:
+ * hay fichas con esa marca, y quitar el texto no borra el hecho
+ * de que esa persona dijo que no quería decirlo. Sin enseñarlo,
+ * pasaría a leerse «se le preguntó y no marcó ninguna», que es
+ * otra cosa.
  *
  * VIVE EN EL ASIDE, en tres renglones, y la lista se abre en un
  * cajón. Ocupaba media pantalla de la pestaña «Datos» para una
@@ -309,28 +315,35 @@ function CajonDeCaracterizacion({
             </p>
           )}
 
-          {puedeEscribir && (
-            <label className="mb-3 flex items-start gap-2 text-sm">
-              <input
-                type="checkbox"
-                checked={noQuiso}
-                onChange={(e) => {
-                  setNoQuiso(e.target.checked);
-                  if (e.target.checked) setMarcadas([]);
-                }}
-                className="mt-0.5"
-              />
-              <span>
-                Prefiere no responder
-                <span className="block text-xs text-texto-suave">
-                  No es lo mismo que dejarlo en blanco: deja constancia de que se le
-                  preguntó.
-                </span>
+          {/* «Prefiere no responder» ya NO se puede poner.
+
+              Decisión del cliente, y José la aplicó en el
+              formulario público (17b57b7). Aquí se cierra la otra
+              mitad: si el formulario ya no la ofrece, el panel
+              tampoco puede, o la misma pregunta admite tres
+              respuestas por una puerta y dos por la otra.
+
+              Pero SE SIGUE LEYENDO. Hay fichas con la marca ya
+              puesta —una en el banco de pruebas, y en producción
+              lo que haya—, y quitar el texto no borra el hecho:
+              esa persona dijo que no quería decirlo. Sin este
+              aviso pasaría a leerse «se le preguntó y no marcó
+              ninguna», que es otra cosa y no es lo que pasó.
+
+              Se sale marcando algo: `alternar` limpia la marca,
+              así que la ficha no se queda encallada. */}
+          {noQuiso && (
+            <p className="mb-3 rounded-lg border border-borde bg-superficie-alterna p-3 text-sm">
+              Esta persona <strong>prefirió no responder</strong>, y así quedó
+              registrado.
+              <span className="mt-1 block text-xs text-texto-suave">
+                Ya no se puede volver a marcar así: la opción se retiró del
+                formulario y del panel. Marcando cualquier casilla se sustituye.
               </span>
-            </label>
+            </p>
           )}
 
-          {!noQuiso && (
+          {(
             <>
               {/* «Ninguna» FUERA de los grupos y arriba.
 
