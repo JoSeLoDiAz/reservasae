@@ -9,6 +9,7 @@ import { CrmService } from './crm.service';
 import { Matricula } from './matricula';
 import { PanelDeCupos } from './panel-de-cupos';
 import { VigiaDeCupos } from './vigia-de-cupos';
+import { AsignarGrupo } from './asignar-grupo.service';
 import { DirectorioService } from './directorio.service';
 import { ColaRuiModule } from './rui/cola-rui';
 import {
@@ -43,6 +44,7 @@ import { SepService } from './sep/sep.service';
     VigiaDeCupos,
     SepService,
     DirectorioService,
+    AsignarGrupo,
     RuiService,
     RuiWorker,
     AuditoriaService,

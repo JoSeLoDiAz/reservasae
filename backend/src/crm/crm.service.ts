@@ -27,6 +27,8 @@ import {
   seHistoria,
 } from './clase-de-dato';
 import { documentoValido, normalizarDocumento } from '../comun/documento';
+import { borrarParticipaciones } from './borrar-participaciones';
+import { llevanFichasEn } from './quien-lleva-fichas';
 import { analizar, esInsalvable, repetidosEnElPegado } from './carga';
 import {
   saleDelCupo,
@@ -64,7 +66,7 @@ import {
   siglaDocumento,
   TAMANOS_EMPRESA_SEP,
 } from './catalogos-sep';
-import { OCUPAN_SILLA } from './etapas';
+import { OCUPAN_SILLA, RETIENEN_ASIENTO } from './etapas';
 import { PrismaService } from '../prisma/prisma.service';
 import {
   ActualizarParticipanteDto,
@@ -1033,9 +1035,11 @@ export class CrmService {
    * hacia imposible ese orden desde fuera, porque `crear` volvia
    * con la consulta ya encolada.
    */
+  /// `admin` puede ser null: lo escribe el sistema, no una
+  /// persona. Ver `conversion-automatica.ts`.
   async crear(
     dto: CrearParticipanteDto,
-    admin: Admin,
+    admin: Admin | null,
     ambito: string[],
     ip?: string,
     opciones?: { encolarRui?: boolean },
@@ -1154,6 +1158,12 @@ export class CrmService {
               'cupos ocupados. Para inscribir por encima del cupo hay que indicar el motivo.',
           );
         }
+        /// El sobrecupo lo firma alguien, siempre.
+        if (!admin) {
+          throw new BadRequestException(
+            'Un sobrecupo tiene que autorizarlo una persona.',
+          );
+        }
         sobrecupo = { porId: admin.id, motivo: dto.sobrecupoMotivo };
       }
     }
@@ -1227,7 +1237,7 @@ export class CrmService {
           accionFormacionId: accionId,
           reservaId: dto.reservaId ?? null,
           origen: dto.origen ?? 'ASESOR',
-          asesorId: dto.asesorId ?? admin.id,
+          asesorId: dto.asesorId ?? admin?.id ?? null,
           cargoEnEmpresa: dto.cargoEnEmpresa ?? null,
           sobrecupoPorId: sobrecupo?.porId ?? null,
           sobrecupoMotivo: sobrecupo?.motivo ?? null,
@@ -1239,7 +1249,7 @@ export class CrmService {
           participanteId: participante.id,
           etapaAntes: null,
           etapaDespues: participante.etapa,
-          adminId: admin.id,
+          adminId: admin?.id ?? null,
           nota: sobrecupo ? `Sobrecupo autorizado: ${sobrecupo.motivo}` : null,
           ip: ip ?? null,
         },
@@ -1274,7 +1284,11 @@ export class CrmService {
     /// resto: `registrar()` se traga sus errores a propósito, y
     /// auditar no puede tumbar la ficha que audita.
     await this.auditoria.registrar({
-      actor: { id: admin.id, nombre: admin.nombre },
+      /// Sin persona detrás, la bitácora dice el sistema. Lo
+      /// que no puede es quedarse sin actor.
+      actor: admin
+        ? { id: admin.id, nombre: admin.nombre }
+        : { id: null, nombre: 'Sistema' },
       accion: 'PARTICIPANTE_CREADO',
       entidad: ENTIDADES.PARTICIPANTE,
       entidadId: creado.id,
@@ -2107,24 +2121,14 @@ export class CrmService {
     });
     if (!p) throw new NotFoundException('Ese participante no existe.');
 
+    /// El orden vive en `borrarParticipaciones`, no aqui.
+    ///
+    /// Son cuatro pasos y uno es sutil --las notas compartidas con
+    /// el lead NO se borran--, asi que en cuanto hubo un segundo
+    /// sitio que borra fichas, copiarlo habria dado dos ordenes
+    /// que discrepan en el paso que menos se usa.
     await this.prisma.$transaction(async (tx) => {
-      await tx.avanceActividad.deleteMany({ where: { participanteId: id } });
-      /// Solo las que son SUYAS y de nadie mas.
-      ///
-      /// Una nota escrita sobre el lead y re-apuntada al convertir
-      /// lleva las DOS columnas: es la misma llamada vista desde
-      /// los dos lados. Borrarla aqui se llevaria por delante el
-      /// historial del lead, que sigue existiendo. Las compartidas
-      /// sobreviven por el `SET NULL` de la FK, que las deja
-      /// colgando solo del lead -- y por eso el CHECK es «al menos
-      /// una» y no «exactamente una».
-      await tx.notaDeGestion.deleteMany({
-        where: { participanteId: id, leadId: null },
-      });
-      await tx.movimientoParticipante.deleteMany({
-        where: { participanteId: id },
-      });
-      await tx.participante.delete({ where: { id } });
+      await borrarParticipaciones(tx, { id });
     });
 
     /// La huella, DESPUÉS de borrar y fuera de la transacción.
@@ -3551,6 +3555,14 @@ export class CrmService {
       select: {
         id: true,
         cuposBase: true,
+        /// El TOPE, con el 30 % de sobrecupo ya dentro.
+        ///
+        /// La pantalla enseñaba `cuposBase` y el candado del
+        /// servidor mide con `cuposMaximos`: un grupo de 50 con 50
+        /// apuntados se leia «lleno» cuando aun caben 15. La
+        /// pantalla y el candado tienen que medir con la MISMA
+        /// columna.
+        cuposMaximos: true,
         modalidad: true,
         ubicacion: { select: { nombre: true, tipo: true, departamento: true } },
         grupo: {
@@ -3563,25 +3575,37 @@ export class CrmService {
           },
         },
         _count: {
-          select: { participantes: { where: { etapa: { in: ETAPAS_VIVAS } } } },
+          select: {
+            /// SILLAS: quien consumio aula.
+            participantes: { where: { etapa: { in: ETAPAS_VIVAS } } },
+          },
         },
       },
     });
 
+    /// Y los APUNTADOS a la cohorte, que es OTRA pregunta.
+    ///
+    /// A un grupo se apunta gente desde INTERESADO y solo consume
+    /// aula quien esta inscrito. Contando solo las sillas, un grupo
+    /// con doscientos interesados dentro se veia VACIO -- y quien
+    /// asigna metia otros doscientos encima sin enterarse.
+    const apuntadosPorCelda = new Map(
+      (
+        await this.prisma.participante.groupBy({
+          by: ['coberturaId'],
+          where: {
+            coberturaId: { in: grupos.map((g) => g.id) },
+            etapa: { in: RETIENEN_ASIENTO },
+          },
+          _count: { _all: true },
+        })
+      ).map((x) => [x.coberturaId, x._count._all]),
+    );
+
     // quien puede llevar leads en este convenio: los que
     // tienen concesion aqui, y no los de solo consulta
     const asesores = await this.prisma.admin.findMany({
-      where: {
-        activo: true,
-        convenios: {
-          some: {
-            convenioId,
-            rol: {
-              in: ['GESTOR_INSCRIPCION', 'LIDER_INSCRIPCION', 'LIDER_SISTEMAS'],
-            },
-          },
-        },
-      },
+      where: llevanFichasEn(convenioId),
       orderBy: { nombre: 'asc' },
       select: { id: true, nombre: true, correo: true },
     });
@@ -3681,8 +3705,22 @@ export class CrmService {
         ubicacion: g.ubicacion.nombre,
         etiqueta: `Grupo ${g.grupo.numero} · ${g.ubicacion.nombre}`,
         modalidad: g.modalidad,
-        cupos: g.cuposBase,
+        /// El TOPE, no lo comprometido: es con lo que mide el
+        /// candado del servidor.
+        cupos: g.cuposMaximos,
+        comprometidos: g.cuposBase,
+        /// Los que consumen aula.
         ocupados: g._count.participantes,
+        /// Los que tienen esta cohorte escrita y no han salido.
+        apuntados: apuntadosPorCelda.get(g.id) ?? 0,
+        /// CUANTOS QUEDAN, que es lo que hay que ver al asignar.
+        /// Lo pidio el cliente: «cada vez que una persona se
+        /// inscribe y se asigna a un grupo, que nos muestre
+        /// cuantos cupos quedan».
+        caben: Math.max(
+          0,
+          g.cuposMaximos - (apuntadosPorCelda.get(g.id) ?? 0),
+        ),
         fechaInicio: g.grupo.fechaInicio,
         fechaFin: g.grupo.fechaFin,
         horario: g.grupo.horario,

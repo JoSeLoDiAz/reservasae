@@ -83,7 +83,11 @@ function armar(firme: boolean) {
 describe('cruce flojo contra una ficha que ya existe', () => {
   it('con coincidencia FLOJA no escribe nada sobre la ficha ajena', async () => {
     const { prisma, escrito } = armar(false);
-    const s = new LeadsService(prisma as never, { encolar: () => {} } as never);
+    const s = new LeadsService(
+      prisma as never,
+      { encolar: () => {} } as never,
+      { intentar: () => Promise.resolve({ paso: false, porque: 'doble', falta: [] }) } as never,
+    );
 
     await (s as never as {
       avisarQueYaEstaba: (
@@ -114,7 +118,11 @@ describe('cruce flojo contra una ficha que ya existe', () => {
 
   it('con coincidencia FIRME sí deja el toque, el origen y la propuesta', async () => {
     const { prisma, escrito } = armar(true);
-    const s = new LeadsService(prisma as never, { encolar: () => {} } as never);
+    const s = new LeadsService(
+      prisma as never,
+      { encolar: () => {} } as never,
+      { intentar: () => Promise.resolve({ paso: false, porque: 'doble', falta: [] }) } as never,
+    );
 
     await (s as never as {
       avisarQueYaEstaba: (

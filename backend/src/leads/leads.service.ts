@@ -14,6 +14,7 @@ import { celularValido, normalizarCelular } from '../comun/celular';
 import { documentoValido, normalizarDocumento } from '../comun/documento';
 import { DOCUMENTOS_DE_PERSONA } from '../crm/catalogos-sep';
 import { ColaRui } from '../crm/rui/cola-rui';
+import { ConversionAutomatica } from './conversion-automatica';
 import { PrismaService } from '../prisma/prisma.service';
 import { registrarToqueDeOrigen } from '../crm/origen-del-lead';
 import { accionQuePidio } from './accion-que-pidio';
@@ -43,6 +44,7 @@ export class LeadsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly colaRui: ColaRui,
+    private readonly automatica: ConversionAutomatica,
   ) {}
 
   /**
@@ -267,12 +269,30 @@ export class LeadsService {
       };
     }
 
+    /// Si llega completo, pasa a interesado sin esperar a nadie.
+    ///
+    /// Se contesta lo que pasó: quien lo mandó necesita saber si
+    /// quedó en la mesa o ya es una ficha, y qué le faltó.
+    const intento = await this.automatica.intentar(lead.id);
+    const despues = intento.paso
+      ? await this.prisma.leadEntrante.findUnique({
+          where: { id: lead.id },
+          select: { id: true, estado: true, participanteId: true, motivo: true },
+        })
+      : null;
+
     this.log.log(
-      `Lead ${externoId} de ${origenSistema} para ${convenio.slug}` +
-        (falta.length ? ` — pendiente (${falta.join(', ')})` : ' — completo'),
+      `Lead ${externoId} de ${origenSistema} para ${convenio.slug} — ` +
+        intento.porque,
     );
 
-    return { ...this.vista(lead), repetido: false, yaEstaba: false };
+    return {
+      ...this.vista(despues ?? lead),
+      repetido: false,
+      yaEstaba: false,
+      traslado: intento.porque,
+      falta: intento.falta ?? [],
+    };
   }
 
   /**

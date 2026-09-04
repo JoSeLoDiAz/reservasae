@@ -600,6 +600,29 @@ export default function PaginaMesa() {
                       ) : (
                         <div className="text-aviso">Sin curso reconocido</div>
                       )}
+                      {/* LA SEDE, resuelta ya aquí.
+
+                          Al convertir, `sedeQueLeToca` la deduce de
+                          dónde vive y la ficha nace con ella. Pero la
+                          mesa no la enseñaba, así que se convertía a
+                          ciegas: no se sabía si iba a nacer pudiendo
+                          matricularse o si el departamento de esa
+                          persona no tiene ese curso.
+
+                          Null con curso puesto NO es un dato que
+                          falte: es que no hay sede que le sirva, y
+                          eso se arregla escribiéndole, no
+                          convirtiéndola. */}
+                      {l.curso &&
+                        (l.sede ? (
+                          <div className="text-xs text-texto-suave">
+                            Sede: {l.sede}
+                          </div>
+                        ) : (
+                          <div className="text-xs text-aviso">
+                            Ninguna sede de este curso llega a donde vive
+                          </div>
+                        ))}
                       {l.pidio && (
                         <div className="text-xs text-texto-suave">{l.pidio}</div>
                       )}

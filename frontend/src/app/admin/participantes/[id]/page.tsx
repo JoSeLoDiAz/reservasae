@@ -1429,10 +1429,18 @@ function Asignacion({
 
   if (!opciones) return null;
 
-  const guardada = lead.oferta
-    ? (opciones.acciones.find((a) => a.ofertaId === lead.oferta!.id)
-        ?.accionFormacionId ?? "")
-    : "";
+  /// El curso se lee del curso, no de la sede.
+  ///
+  /// Solo miraba `lead.oferta`, y quien tiene curso pero no sede
+  /// —porque su departamento no lo dicta— salia con «Sin
+  /// asignar» teniendo el curso guardado.
+  const guardada =
+    (lead.oferta
+      ? opciones.acciones.find((a) => a.ofertaId === lead.oferta!.id)
+          ?.accionFormacionId
+      : null) ??
+    lead.accionFormacion?.id ??
+    "";
   const accionId = elegida ?? guardada;
   const setAccionId = setElegida;
 
@@ -1571,11 +1579,23 @@ function Asignacion({
               opciones={gruposVisibles.map((g) => ({
                 id: g.id,
                 etiqueta: g.etiqueta,
-                detalle: `${g.ocupados} de ${g.cupos}${
-                  g.fechaInicio
+                /// CUANTOS QUEDAN primero, que es lo que decide.
+                ///
+                /// Decia «42 de 78» --las sillas contra el
+                /// comprometido-- y eso no contesta la pregunta que
+                /// uno tiene delante del desplegable. Dos defectos
+                /// de golpe: contaba solo a quien consume aula, asi
+                /// que un grupo con doscientos interesados dentro se
+                /// veia vacio; y medida contra `cuposBase`, sin el
+                /// 30 % de sobrecupo, mientras el candado del
+                /// servidor mide contra el tope.
+                detalle:
+                  `${g.caben > 0 ? `caben ${g.caben}` : "sin sitio"}` +
+                  ` · ${g.apuntados} de ${g.cupos}` +
+                  (g.ocupados ? ` · ${g.ocupados} en el aula` : "") +
+                  (g.fechaInicio
                     ? ` · desde ${new Date(g.fechaInicio).toLocaleDateString("es-CO")}`
-                    : " · sin fechas"
-                }`,
+                    : " · sin fechas"),
               }))}
             />
           </div>

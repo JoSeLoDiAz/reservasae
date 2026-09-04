@@ -122,6 +122,20 @@ export function BarraDeGestion({
   const [coberturaId, setCoberturaId] = useState(lead.cobertura?.id ?? "");
   const [guardando, setGuardando] = useState(false);
 
+  /// Dónde vive, para poder decirlo en vez de callarlo. La misma
+  /// expresión que la ficha, y por eso mismo dice lo mismo.
+  const donde =
+    [opciones?.domicilio?.ciudad, opciones?.domicilio?.departamento]
+      .filter(Boolean)
+      .join(", ") || "su domicilio";
+
+  /// Si NINGUNA acción le sirve, no es un detalle de un
+  /// desplegable: es que a esta persona no se la puede inscribir.
+  /// La otra pantalla ya lo dice; aquí faltaba.
+  const ningunaCubre =
+    (opciones?.acciones.length ?? 0) > 0 &&
+    !opciones!.acciones.some((a) => a.cubre);
+
   if (!opciones) return null;
 
   /// La acción guardada se DERIVA de la oferta que tiene la
@@ -300,6 +314,26 @@ export function BarraDeGestion({
 
       <div style={D.campoAncho}>
         <div style={D.rotulo}>ACCIÓN DE FORMACIÓN</div>
+        {ningunaCubre && (
+          /* NINGUNA le sirve: no es un detalle del desplegable.
+
+             El aviso de arriba dice «falta la sede… sale del
+             departamento y la ciudad», y eso manda a asignar algo
+             que no existe: el departamento se conoce, y ahí no hay
+             oferta. Lo que corresponde está escrito en CLAUDE.md y
+             la otra pantalla ya lo hacía. */
+          <div
+            style={{
+              marginTop: 6,
+              fontSize: "0.78125rem",
+              lineHeight: 1.45,
+              color: "var(--aviso)",
+            }}
+          >
+            Ninguna acción de formación llega a {donde}. No se la puede
+            inscribir: corresponde escribirle un correo de agradecimiento.
+          </div>
+        )}
         <div style={{ marginTop: 6 }}>
           <Desplegable
             subrayado
@@ -313,9 +347,21 @@ export function BarraDeGestion({
                 /// En capitalizacion normal: la base los guarda
                 /// en MAYUSCULAS y aqui salian gritando.
                 etiqueta: bonito(a.etiqueta),
+                /// SE DICE DÓNDE, y no solo que no cubre.
+                ///
+                /// Decía «Sin cobertura · se dicta en 14 sedes» a
+                /// secas, y el asesor no puede hacer nada con eso:
+                /// no sabe si el problema es que falta el domicilio
+                /// o que ese departamento no tiene el curso. El
+                /// otro desplegable de la ficha ya lo decía bien
+                /// —«Sin cobertura en SUCRE»— y este se quedó a
+                /// medias: dos implementaciones del mismo texto,
+                /// una completa y otra no.
                 detalle: a.cubre
                   ? `${a.ubicacion ?? ""} · ${a.disponibles} cupos`
-                  : `Sin cobertura · se dicta en ${a.sedes} sedes`,
+                  : `Sin cobertura en ${donde} · se dicta en ${a.sedes} ${
+                      a.sedes === 1 ? "sede" : "sedes"
+                    }`,
                 desactivada: !a.cubre,
               })),
             ]}

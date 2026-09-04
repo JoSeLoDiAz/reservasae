@@ -1,3 +1,4 @@
+import { TOPE_DEL_LOTE_DE_GRUPO } from './asignar-grupo.service';
 import { Transform } from 'class-transformer';
 import {
   ArrayMaxSize,
@@ -495,4 +496,21 @@ export class ContactoDeLaEmpresaDto {
   @Transform(recortar)
   @IsEmail({}, { message: 'El correo del contacto no tiene un formato válido.' })
   contactoCorreo?: string;
+}
+
+/** Asignar un grupo a varias fichas de una vez. */
+export class AsignarGrupoEnLoteDto {
+  /// La CELDA, no el grupo: un grupo puede tener varias coberturas
+  /// —una por ciudad y modalidad— y lo que se llena es la celda.
+  @IsString()
+  @IsNotEmpty()
+  coberturaId!: string;
+
+  @IsArray()
+  @ArrayNotEmpty({ message: 'No seleccionó a nadie.' })
+  @ArrayMaxSize(TOPE_DEL_LOTE_DE_GRUPO, {
+    message: `Un lote admite hasta ${TOPE_DEL_LOTE_DE_GRUPO} personas.`,
+  })
+  @IsString({ each: true })
+  ids!: string[];
 }

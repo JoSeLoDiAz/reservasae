@@ -54,6 +54,10 @@ function armar(existente: unknown = null) {
     {
       encolarSiHaceFalta: () => Promise.resolve(),
     } as never,
+    {
+      intentar: () =>
+        Promise.resolve({ paso: false, porque: 'doble', falta: [] }),
+    } as never,
   );
 
   return { s, creados };
