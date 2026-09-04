@@ -99,14 +99,14 @@ Para desarrollo **no necesitas Docker ni Postgres todavía** (aún no hay modelo
 de datos). Abre dos terminales:
 
 ```bash
-# Terminal 1 — backend en http://localhost:4000
+# Terminal 1 — backend en http://localhost:4100  (PORT=4100 en backend/.env)
 pnpm dev:backend
 
-# Terminal 2 — frontend en http://localhost:3000
+# Terminal 2 — frontend en http://localhost:3100
 pnpm dev:frontend
 ```
 
-Abre <http://localhost:3000>. Debe mostrar la tarjeta "Conexión con el backend"
+Abre <http://localhost:3100>. Debe mostrar la tarjeta "Conexión con el backend"
 en verde. Si sale en rojo, el backend no está arriba.
 
 ### Si necesitas la base de datos en local
@@ -119,6 +119,8 @@ Y en `backend/.env` apunta al puerto publicado:
 
 ```
 DATABASE_URL=postgresql://reservasae:TU_CLAVE@localhost:5433/reservasae?schema=public
+# con el compose, el 5433. Con Postgres nativo use otro puerto propio (5544):
+# el 5433 tambien lo usa el tunel a produccion en algunos portatiles.
 ```
 
 ---

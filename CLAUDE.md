@@ -736,20 +736,38 @@ cd reservasae
 pnpm install
 
 cp backend/.env.example backend/.env
+# En backend/.env: PORT=4100 y su propia DATABASE_URL. Las dos
+# vienen con el valor de Docker, que en el portatil no sirve.
+# Los dos avisos de abajo explican por que.
 docker compose up -d db          # Postgres en localhost:5433
 pnpm --filter backend exec prisma migrate deploy
 pnpm --filter backend prisma db seed
 
-pnpm dev:backend    # :4000
-pnpm dev:frontend   # :3000
+pnpm dev:backend    # :4100  (NO el 4000: ver abajo)
+pnpm dev:frontend   # :3100
 pnpm --filter backend db:crear-admin tu@correo.com "Tu Nombre"
 ```
+
+> **En el portátil el backend va en el 4100, no en el 4000.** El 4000 es el de
+> Docker, donde nginx le habla a `backend:4000`. Fuera de Docker manda
+> `frontend/next.config.ts`, que proxea `/api` a `127.0.0.1:4100` escrito a
+> fuego. Con el `PORT=4000` que se hereda de `.env.example`, todo *arranca* y
+> todo `/api` da 500 sin un solo mensaje: el panel se queda en «Entrando…».
+> Ponga `PORT=4100` en `backend/.env`.
 
 > **Cada quien con su base, y esto no es opcional.** El `backend/.env` del
 > portátil de Josse apunta, vía túnel SSH, **a la base del servidor**: cualquier
 > migración o seed que se corra desde ahí va directo a producción. Un `.env`
 > copiado de otro equipo hereda ese apunte sin avisar. Empiece siempre desde
-> `.env.example` y compruebe que `DATABASE_URL` dice `localhost:5433`.
+> `.env.example` y compruebe que `DATABASE_URL` apunta a **su** base.
+>
+> Cuál es «su» base depende de cómo la levante, y **el 5433 significa dos cosas
+> distintas según el equipo**: con `docker compose up -d db` es el contenedor
+> local, pero en un portátil donde corra `scripts/tunel-bd.ps1` ese mismo
+> puerto **es producción**. Por eso `prisma/guardia-de-base.ts` se planta al
+> verlo, y por eso quien no use Docker hace mejor en coger otro puerto —el
+> 5544, que es el que propone `.env.example`— y quitarse la ambigüedad de
+> encima.
 
 **Trabajar en la rama propia**, nunca en `dev` directamente:
 
@@ -863,11 +881,17 @@ pnpm install
 Copy-Item backend\.env.example backend\.env
 ```
 
-**Abre `backend/.env` y comprueba que `DATABASE_URL` dice `localhost:5433`.**
-No es un formalismo: el `.env` del portátil de Josse apunta, vía túnel SSH, **a la
-base del servidor**, y un `.env` copiado de otro equipo hereda ese apunte sin
-avisar. Cualquier migración o seed que se corra con ese apunte va directo a
-producción. Empieza siempre desde `.env.example`.
+**Abre `backend/.env` y toca dos cosas antes de nada:**
+
+1. **`PORT=4100`.** Viene con el 4000, que es el de Docker. Fuera de Docker el
+   frontend proxea `/api` a `127.0.0.1:4100` escrito a fuego en
+   `frontend/next.config.ts`, así que con el 4000 todo arranca y todo `/api`
+   da 500 — sin error visible: el panel se queda en «Entrando…».
+2. **`DATABASE_URL` apuntando a *tu* base.** No es un formalismo: el `.env` del
+   portátil de Josse apunta, vía túnel SSH, **a la base del servidor**, y un
+   `.env` copiado de otro equipo hereda ese apunte sin avisar. Cualquier
+   migración o seed que se corra con ese apunte va directo a producción.
+   Empieza siempre desde `.env.example`.
 
 Hace falta además `ADMIN_JWT_SECRET`, mínimo 32 caracteres. Sin ella el backend
 **no arranca**, y es deliberado. Para local vale cualquier cosa larga:
@@ -883,11 +907,14 @@ usa: `pnpm dev:backend`, `dev:frontend`, las migraciones, las siembras y los tes
 corren en Node a secas. Quien no tenga Docker instala PostgreSQL y ya.
 
 **Instala PostgreSQL 17** desde <https://www.postgresql.org/download/windows/>.
-En el instalador, **pon el puerto 5433 en vez del 5432**: es el que ya dice
-`.env.example`, y así no hay que tocar la cadena de conexión ni acordarse de por
-qué no conecta. Apunta la contraseña que le des a `postgres`.
+En el instalador, **pon el puerto 5544 en vez del 5432**. El 5544 no es
+capricho: el 5432 se lo suele quedar otro Postgres ya instalado, y el 5433 está
+pedido —lo usa el contenedor del compose, y en algunos portátiles el túnel SSH
+a producción, que es la razón de que `prisma/guardia-de-base.ts` se plante al
+verlo—. Un puerto propio evita las dos colisiones de una vez. Apunta la
+contraseña que le des a `postgres`.
 
-Luego, en «SQL Shell (psql)» —entrando como `postgres` al puerto 5433—:
+Luego, en «SQL Shell (psql)» —entrando como `postgres` al puerto 5544—:
 
 ```sql
 CREATE ROLE reservasae WITH LOGIN PASSWORD 'la-que-quieras';
@@ -897,15 +924,16 @@ CREATE DATABASE reservasae OWNER reservasae;
 Y en `backend/.env`:
 
 ```
-DATABASE_URL="postgresql://reservasae:la-que-quieras@localhost:5433/reservasae?schema=public"
+DATABASE_URL="postgresql://reservasae:la-que-quieras@localhost:5544/reservasae?schema=public"
 ```
 
 A partir de ahí, **todo lo demás es idéntico**: `prisma migrate deploy`, `db seed`,
 `db:crear-admin` y los dos `pnpm dev:`. Sáltate solo el `docker compose up -d db`.
 
-> Si algún día instalas Docker, el `db` del compose también publica el 5433 y
-> chocará con el Postgres nativo. Se arregla parando el servicio de Windows
-> («Servicios» → `postgresql-x64-17` → Detener) antes de levantar el compose.
+> Con el nativo en el 5544 y el `db` del compose en el 5433 ya no chocan: se
+> pueden tener los dos. Si alguna vez pones el nativo en el 5433, sí chocan, y
+> se arregla parando el servicio de Windows («Servicios» →
+> `postgresql-x64-17` → Detener) antes de levantar el compose.
 
 **La otra opción es Postgres dentro de WSL 2**, que ya está instalado. Es más
 parecido a producción —el mismo Postgres de Linux— pero tiene una trampa: el
@@ -945,11 +973,29 @@ pnpm --filter backend db:sembrar-prueba --rehacer
 ### Arrancar
 
 ```powershell
-pnpm dev:backend     # :4000
-pnpm dev:frontend    # :3000
+pnpm dev:backend     # :4100
+pnpm dev:frontend    # :3100
 ```
 
-Entra en <http://localhost:3000/admin> con la cuenta que creaste.
+Entra en <http://localhost:3100/admin> con la cuenta que creaste.
+
+**O los dos de una vez, y sueltos de la terminal**, con
+`scripts/dev-local.ps1`. Arrancados asi sobreviven a cerrar la terminal --o la
+sesion de Claude Code-- que los lanzo, que es justo lo que NO pasa con los dos
+`pnpm dev:` de arriba:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\dev-local.ps1             # levantar
+powershell -ExecutionPolicy Bypass -File scripts\dev-local.ps1 -Estado     # quien esta vivo
+powershell -ExecutionPolicy Bypass -File scripts\dev-local.ps1 -Reiniciar  # parar y levantar
+powershell -ExecutionPolicy Bypass -File scripts\dev-local.ps1 -Parar      # parar
+```
+
+Levanta el backend **antes** que el frontend a proposito --el frontend le proxea
+`/api`-- y espera a que cada puerto conteste antes de decir que esta arriba.
+Mira el PUERTO, no un PID guardado, asi que no se cree nada que no sea verdad.
+Los registros quedan en `%LOCALAPPDATA%/convoca-dev`. No se arranca solo al
+encender el equipo: eso es deliberado.
 
 > **Cuidado con `localhost` al probar la API desde Node.** El fetch de Node resuelve
 > `localhost` a `::1` y Nest escucha en `0.0.0.0`, que es solo IPv4: la conexión se
@@ -1728,7 +1774,7 @@ ADECOPRIA, 18 por BRITCHAM y 24 por la general. **19 + 18 ≠ 24 y es correcto**
   no haya destello. Está aislado en su propio archivo justo para poder moverlo a
   `[convenio]/layout.tsx` y al del panel si algún día pesa.
 - **Nada de esto se ve en local**: `etiquetaDelHost` exige tres etiquetas y
-  `localhost:3000` da null siempre. El día a día seguirá viendo la marca
+  `localhost:3100` da null siempre. El día a día seguirá viendo la marca
   general, así que una regresión aquí puede pasar semanas sin que nadie la note.
   Se comprueba con `curl -H 'Host: adecopria.reservasae.com'`.
 
@@ -1812,7 +1858,7 @@ ADECOPRIA, 18 por BRITCHAM y 24 por la general. **19 + 18 ≠ 24 y es correcto**
 > que un `curl` que falla justo después **no significa que esté mal puesto**.
 
 > **Y no se puede probar el subdominio en local:** `etiquetaDelHost` exige
-> tres etiquetas y `localhost:3000` da null. Para verlo en el navegador de
+> tres etiquetas y `localhost:3100` da null. Para verlo en el navegador de
 > un portátil hace falta una entrada en `hosts`, que sí funciona porque la
 > regla mira la primera etiqueta y nada más:
 >
