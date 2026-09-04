@@ -42,11 +42,15 @@ def dibujar(color):
     im = Image.new("RGBA", (LADO, LADO), (0, 0, 0, 0))
     d = ImageDraw.Draw(im)
 
+    # PIL dibuja el trazo HACIA DENTRO del rectangulo; el SVG
+    # lo centra sobre el radio. Sin este medio trazo de mas, la
+    # linea queda por dentro y los remates sobresalen.
+    fuera = RADIO + TRAZO / 2
     caja = [
-        CENTRO[0] - RADIO,
-        CENTRO[1] - RADIO,
-        CENTRO[0] + RADIO,
-        CENTRO[1] + RADIO,
+        CENTRO[0] - fuera,
+        CENTRO[1] - fuera,
+        CENTRO[0] + fuera,
+        CENTRO[1] + fuera,
     ]
     d.arc(caja, start=DESDE, end=HASTA, fill=color, width=int(round(TRAZO)))
 

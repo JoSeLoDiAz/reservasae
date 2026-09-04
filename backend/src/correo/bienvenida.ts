@@ -154,12 +154,16 @@ export function armarBienvenida(d: DatosDeBienvenida): {
   /// Van sobre la tarjeta clara y no sobre la banda: están
   /// hechos para papel y necesitan su placa blanca.
   const deLaEntidad = d.logos.length
-    ? `<tr><td class="aire" style="padding:26px 40px 0" align="center">${d.logos
-        .map(
-          (l) =>
-            `<img src="${escaparHtml(l.url)}" alt="${escaparHtml(l.alt)}" height="46" style="height:46px;width:auto;margin:0 10px;vertical-align:middle;border:0">`,
-        )
-        .join('')}</td></tr>`
+    ? `<tr><td class="aire" style="padding:24px 40px 0" align="center">
+         <table role="presentation" cellpadding="0" cellspacing="0" align="center">
+           <tr><td class="placa" bgcolor="#ffffff" style="background:#ffffff;border-radius:10px;padding:14px 22px">${d.logos
+             .map(
+               (l) =>
+                 `<img src="${escaparHtml(l.url)}" alt="${escaparHtml(l.alt)}" height="46" style="height:46px;width:auto;margin:0 10px;vertical-align:middle;border:0">`,
+             )
+             .join('')}</td></tr>
+         </table>
+       </td></tr>`
     : '';
 
   /// En el movil se apilan: en dos columnas, un correo largo
@@ -180,8 +184,16 @@ export function armarBienvenida(d: DatosDeBienvenida): {
 <html lang="es"><head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="light">
+<meta name="supported-color-schemes" content="light">
 <title>${escaparHtml(asunto)}</title>
 <style>
+  :root{color-scheme:light;supported-color-schemes:light}
+  /* el cliente que invierte no puede llevarse la placa: esos
+     logos estan hechos para papel */
+  @media (prefers-color-scheme:dark){
+    .placa{background:#ffffff!important}
+  }
   @media (max-width:620px){
     .caja{width:100%!important}
     .aire{padding-left:22px!important;padding-right:22px!important}
