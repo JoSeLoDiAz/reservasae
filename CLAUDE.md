@@ -1664,14 +1664,14 @@ quién son los datos, el **área** qué se puede hacer con ellos.
 Las seis áreas son `reserva`, `inscripciones`, `inscritos`, `reportes`,
 `academico` y `configuracion`, con tres niveles: `NADA`, `VER`, `ESCRIBIR`.
 
-|  | Gestor insc. | Líder insc. | Gestor acad. | Líder acad. | Líder sist. | Consulta |
-|---|:--:|:--:|:--:|:--:|:--:|:--:|
-| reserva | ver | ver | ver | ver | ver | ver |
-| inscripciones | **escribe** | **escribe** | ver | ver | **escribe** | ver |
-| inscritos | ver | ver | ver | ver | ver | ver |
-| reportes | ver | **escribe** | — | — | **escribe** | — |
-| academico | ver | ver | **escribe** | **escribe** | **escribe** | ver |
-| configuracion | — | — | — | — | **escribe** | — |
+|  | Gestor insc. | Líder insc. | Gestor acad. | Líder acad. | Líder sist. | Country M. | Consulta |
+|---|:--:|:--:|:--:|:--:|:--:|:--:|:--:|
+| reserva | ver | ver | ver | ver | ver | ver | ver |
+| inscripciones | **escribe** | **escribe** | ver | ver | **escribe** | ver | ver |
+| inscritos | ver | ver | ver | ver | ver | ver | ver |
+| reportes | ver | **escribe** | — | — | **escribe** | **escribe** | — |
+| academico | ver | ver | **escribe** | **escribe** | **escribe** | ver | ver |
+| configuracion | — | — | — | — | **escribe** | **escribe** | — |
 
 - **`reportes` es un área aparte de `inscritos`** por lo que lleva dentro: el
   archivo del SEP son 800 cédulas con fecha de nacimiento y celular. Ver el
@@ -1718,8 +1718,18 @@ Las seis áreas son `reserva`, `inscripciones`, `inscritos`, `reportes`,
 > discrepar.** `RolAdmin` debería quedarse solo en «es superadmin o no» y todo
 > lo demás salir de la concesión, pero los controladores aún llevan
 > `@Roles(SUPERADMIN, GESTOR)`, así que una cuenta con `RolAdmin.CONSULTA` no
-> entra al CRM aunque su concesión diga otra cosa. Hoy no hace daño porque la
-> siembra da `GESTOR` a todos; limpiarlo es trabajo aparte.
+> entra al CRM aunque su concesión diga otra cosa.
+>
+> **Y sí hizo daño**, el 4 sep 2026, en cuanto existió la primera cuenta de solo
+> lectura: la cabecera la presentaba como «GESTOR» —que es falso de las dos
+> maneras— y, peor, un candado que decía apartar a «una cuenta de solo consulta»
+> no la apartaba, porque miraba `RolAdmin` y ella es `RolAdmin.GESTOR`. Ese era
+> el que dejaba escribir en el directorio maestro de NIT.
+>
+> Lo que se hizo: `/admin/yo` devuelve `rolEnGremio` y la pantalla pinta ESO.
+> Limpiar los `@Roles` de los controladores sigue siendo trabajo aparte —y ahora
+> con un motivo, no solo por orden. Ojo además: **`CONSULTA` existe en los dos
+> enums**, así que el mismo texto puede venir del rol equivocado.
 
 Lo que el cliente pidió, y que ya está:
 
@@ -1732,6 +1742,101 @@ Lo que el cliente pidió, y que ya está:
   son sus reservas y sus totales. Decisión explícita del cliente. Por eso las
   empresas de un convenio más las del otro suman **más** que el total: 15 + 23
   contra 24, y es correcto.
+
+### Lo que salió al crear la primera cuenta de solo lectura (4 sep 2026)
+
+Se creó una cuenta `CONSULTA` para quien lleva la pauta. De ahí salieron tres
+cosas, y solo la primera era cosmética.
+
+**La cabecera decía «GESTOR» a una cuenta que no modifica nada.** Pintaba el
+`RolAdmin`, y ese solo significa «es superadmin o no»: lo que gobierna es la
+concesión por convenio, y **nunca llegaba a la pantalla**. Bajarle el `RolAdmin`
+a `CONSULTA` no era la salida —los controladores del CRM llevan
+`@Roles(SUPERADMIN, GESTOR)` y se quedaría sin entrar—: lo que faltaba era que
+`/admin/yo` devolviera `rolEnGremio`.
+
+- **Manda el gremio de la DIRECCIÓN.** En un subdominio la respuesta es una
+  sola; con roles distintos en cada gremio y por la puerta general dice «Varios
+  roles» en vez de elegir uno. Del superadmin se sigue diciendo que lo es.
+- **`CONSULTA` existe en los DOS enums**, `RolAdmin` y `RolConvenio`. Por eso se
+  confundía tan fácil: el mismo texto podía venir del rol equivocado.
+
+**Dar de alta un NIT escribía con permiso de solo mirar.** `POST
+/admin/participantes/nit` escribe en el directorio maestro —la tabla que
+comparten los dos gremios— y no llevaba `@Requiere` propio: heredaba el de la
+clase, que es `VER`. La cuenta recién creada podía escribir ahí.
+
+Y el comentario de esa clase decía que estaba cubierto —«una cuenta de solo
+consulta no tiene nada que hacer»— pero ese candado mira `RolAdmin`, y una
+cuenta de consulta *por concesión* es `RolAdmin.GESTOR`. **Un control en pie y
+vacío de efecto**, esta vez por la mezcla de los dos enums.
+
+`escribir-pide-escribir.spec.ts` lee los metadatos DE VERDAD —`Reflect.getMetadata`
+sobre cada handler, no una expresión regular sobre el texto— de los 92 de los
+controladores con `AdminGuard`, y exige que todo POST, PUT, PATCH y DELETE
+resuelva a `ESCRIBIR`. Lo que se deja pasar va en una lista con su porqué.
+
+**La carga masiva reventaba con cualquier error del servidor.** Los dos `fetch`
+hacían `.json()` sin mirar `r.ok`, así que el cuerpo del error se usaba como si
+fueran los datos: «Validación de *undefined* registros» y después una excepción
+en el render. Y en confirmar era peor y no era un crash — `verHistorico()` y el
+`router.push` corrían **antes** de mirar nada, así que un fallo sacaba de la
+pantalla **como si la carga hubiera funcionado**. Un falso éxito es peor que un
+error.
+
+No era de la cuenta de consulta: le pasaba a cualquiera, incluido un 400 de
+validación con una lista mal pegada. Los tres pasan ahora por `pedir()`, y
+`el-panel-mira-si-fallo.spec.ts` fija lo que `pedir.ts` ya decía de sí mismo
+—«la única puerta de salida al backend»— recorriendo el panel entero. Encontró
+un quinto `fetch` que el `grep` no vio, partido en dos líneas.
+
+> **Las tres las destapó una cuenta nueva, no una revisión.** El rol de solo
+> lectura no creó ninguna: solo las hizo visibles, igual que hicieron los
+> subdominios en su día.
+
+### El Country Manager, y por qué hizo falta un rol (4 sep 2026)
+
+**La matriz no tenía asiento para quien DIRIGE.** Está escrita para quien
+trabaja el proceso, y eso se ve en cuanto alguien pide «ver los informes sin
+poder tocar nada»: los dos roles que descargan —líder de inscripciones y líder
+de sistemas— **también escriben**, y el único que no escribe, `CONSULTA`, deja
+sin ver ni cuántas personas entran al reporte.
+
+`COUNTRY_MANAGER` cierra ese hueco: ve todo en `VER`, descarga los informes y
+configura —de ahí cuelga la apariencia, que es lo que pidió—, y no crea, ni
+mueve de etapa, ni certifica. No lleva fichas, no las reparte y no deshace una
+inscripción.
+
+- **Es el cargo real**, no una aproximación: quien dirige, gestiona y supervisa
+  las operaciones comerciales, estratégicas y de personal de los dos gremios.
+  Va en inglés a propósito — la convención pide español *porque es el
+  vocabulario del negocio*, y aquí el vocabulario del negocio ES «Country
+  Manager».
+- **Cambió a propósito una regla que el spec fijaba como contrato.** «Solo
+  sistemas configura» pasa a nombrar a los dos, y está escrito en el test, no
+  escondido.
+- **La primera migración no se editó al renombrarlo.** Ya estaba aplicada en
+  pruebas, y cambiarle el contenido rompe la suma de control y deja
+  `migrate deploy` sin poder correr. Fue una segunda con `RENAME VALUE`, que
+  arrastra consigo las filas que ya lo usaban — comprobado.
+
+> **Añadir un valor al enum toca SIETE sitios**, y el compilador solo caza
+> algunos. El schema, la migración, `permisos.ts`, `roles-en-palabras.ts`, el
+> spec de la matriz, la siembra de pruebas y **el frontend, que tiene su propia
+> copia del tipo Y de la matriz entera**. Lo cazó `tsc` en dos de ellos gracias
+> a los `Record<RolConvenio, …>`; el resto no avisa.
+
+### El panel tiene una copia de la matriz, y ahora está sujeta
+
+`frontend/src/lib/admin-api.ts` lleva `PERMISOS_POR_ROL`, un espejo declarado de
+`PERMISOS` con su propio comentario pidiendo mantenerlo a mano. Era una
+duplicación consciente y **sin nada que la sujetara**, que es como acaban
+discrepando: el síntoma sería una pantalla prometiéndole a un administrador un
+permiso que el guard después le niega.
+
+`el-espejo-no-se-separa.spec.ts` compara las dos —casilla por casilla y nombre
+por nombre— leyendo el archivo del panel. Probado por mutación: separar una
+casilla cae 1, cambiar una etiqueta cae 1.
 
 ### Un subdominio por gremio (26 ago 2026)
 
@@ -2812,12 +2917,95 @@ contactando»*. Alguien que se preinscribió en
 > de la clase, o sea prohibida. En pruebas el remitente general
 > salió «Convoca CRM - P oyectos SENA».
 >
-> El spec probaba `
+> El spec probaba `
+
 ` —que el rango ` -` ya
 > cubre—, así que **pasaba por el motivo equivocado**, y ningún
 > caso comprobaba que un nombre corriente saliera entero. Ese es el
 > test que hacía falta. CR y LF no se nombran aparte: sobran, y
 > nombrarlas fue lo que coló la `r`.
+
+### El correo de acceso, y el de recuperación (4 sep 2026)
+
+Al crear una cuenta le llega su acceso, y al reiniciarle la clave también.
+Antes la clave temporal **solo se veía una vez en pantalla**: si quien la creaba
+no la copiaba en ese momento, había que reiniciarla otra vez.
+
+**Es UNA carta con dos motivos, no dos plantillas.** Cambian el asunto y la
+línea de arriba; el resto —firma, logo, colores, puertas— es idéntico. Dos
+plantillas casi iguales acaban discrepando, y aquí lo que discreparía es el
+logo o el color de un gremio.
+
+| | Alta | Recuperación |
+|---|---|---|
+| Asunto | Su acceso a X | Su nueva contraseña de X |
+| Arriba | Ya tiene cuenta en X | Se solicitó la recuperación de su contraseña |
+
+- **La marca sale del gremio de QUIEN LO RECIBE**, no de la puerta por la que se
+  mandó. El correo va de *su* acceso: a una cuenta de un gremio le llega su
+  color y su puerta; a una de los dos, el morado y las tres. Con la otra regla,
+  el mismo correo saldría de un color u otro según por qué pestaña andaba quien
+  lo mandó, y eso no significa nada para quien lo lee.
+- **Se resuelve con `obtenerMarcaDeGremio` y `obtenerMarca`**, las MISMAS que
+  pintan el panel por Host. Una tercera forma de elegir la marca acabaría
+  enseñando el logo de un gremio con los colores del otro — ya pasó una vez.
+- **Las dos rutas preguntan por el id de la cuenta** (`conveniosDe`), no por los
+  convenios del DTO. Una sola forma de responder «¿de qué gremio es esta
+  persona?».
+- **Va en el CONTROLADOR y no en el servicio.** Crear la cuenta y avisar son dos
+  cosas, y meterlo dentro acoplaba el módulo de administración al de correo en
+  cada prueba. **Nunca tumba la creación**: si el correo falla, la cuenta existe
+  y la clave se sigue viendo.
+- **Solo lleva las puertas por las que esa cuenta entra de verdad.** La general
+  únicamente si la deja pasar — en producción está cerrada a quien no es
+  superadmin. Mandar un enlace que rechaza es el mismo defecto que pintar un
+  botón que da 403.
+- **Firma con el nombre general y no con un gremio**: la cuenta es del sistema y
+  puede alcanzar a los dos.
+
+> **La contraseña viaja en el correo.** Es temporal y `debeCambiarClave` obliga
+> a cambiarla al entrar, así que es el patrón corriente, pero es una credencial
+> en una bandeja. La alternativa —un enlace de un solo uso para que la ponga
+> quien la recibe— es más trabajo y está sin hacer a propósito.
+
+#### El signo se rasteriza, y por qué
+
+En el panel `SignoConvoca` es un SVG dibujado que toma `currentColor`. **Un
+correo no puede usarlo**: Gmail no renderiza SVG en `<img>` ni admite `data:`.
+
+`scripts/generar-signo.py` lo dibuja con la MISMA geometría del componente
+—arco de 260° abierto abajo, centro (16 · 15,15), radio 10,6, trazo 2,75 y el
+disco de 3,1 en la abertura—. **Si allí cambia el radio o el trazo, hay que
+volver a correrlo**; el guion lo dice.
+
+- **Salen DOS, blanco y oscuro**, y se elige por la luminancia del color del
+  TEXTO del encabezado. Es la misma pregunta que en el panel resuelve
+  `currentColor` sin preguntar. Hoy los tres ámbitos tienen banda oscura, pero
+  la paleta la elige un administrador y un signo invisible no avisa.
+- **PIL dibuja el trazo HACIA DENTRO del rectángulo; el SVG lo centra sobre el
+  radio.** Sin medio trazo de más en la caja, la línea queda por dentro y los
+  remates redondos sobresalen como bultos. Lo vio el cliente antes que yo.
+- **Se comprueba midiendo, no mirando**: los dos en la MISMA captura y al mismo
+  tamaño, restados píxel a píxel. 2,69 % de diferencia y toda en el borde. Dos
+  renders por separado no valen — uno sale a otra escala y la comparación miente.
+
+#### La forma de la carta
+
+**La firma va primero y con el orden de la barra del panel**: el signo AL LADO
+del nombre, la línea debajo del nombre y el eslogan bajo la línea. Y **después**
+el logo de la entidad. Lo eligió el cliente comparando el correo contra el
+sistema, y tiene razón: es la firma del panel, no una versión parecida.
+
+- **Los logos de la entidad van sobre PLACA BLANCA explícita.** Es una regla que
+  este archivo ya tenía escrita de ellos —«están hechos para papel»— y que hasta
+  ahora solo cumplía el panel. Gmail en modo oscuro invierte el correo, y el
+  logo de ADECOPRIA, que lleva su texto en negro, quedaba ilegible. **No hay
+  forma de impedirle a Gmail que invierta**; sí de que no se lleve por delante
+  lo único que no puede perder.
+- **Se verificó renderizando de verdad**, con el Chromium que ya vive en la
+  imagen del backend, a 740 y a 400 px. De ahí salió un arreglo que no se ve
+  leyendo el HTML: en el móvil el correo se partía a mitad de palabra, así que
+  la etiqueta y el valor se apilan por debajo de 620.
 
 ### Que no caiga en spam
 
@@ -3037,6 +3225,27 @@ el RUI no las consulta nunca, y la marca para borrarlas es el rango de documento
   molestar por encima de 15.000, que es tres veces el proyecto entero. **No se
   tocó**: cambiarlo sin necesidad sería optimizar contra un problema que no
   existe.
+
+### La marca de pruebas es la de producción (4 sep 2026)
+
+Los colores y los logos de `temas`, de los formularios de gremio y de `logos`
+se copiaron desde producción. Antes pruebas llevaba una paleta inventada y un
+logo de mentira —«GLOBANT»—, y eso hacía que **cada muestra que se enseñaba no
+se pareciera a lo que iba a salir**: se revisaba un correo con banda blanca
+cuando producción la manda morada, y se perdía media revisión discutiendo eso.
+
+| Ámbito | Banda | Logos |
+|---|---|---|
+| general | `#702482` | Grupo AE |
+| ADECOPRIA | `#315a00` | Grupo AE + ADECOPRIA |
+| BRITCHAM ADEE | `#2f40a2` | Grupo AE + BritCham Colombia + ADEE |
+
+- **`db:sembrar-prueba --rehacer` lo deshace**: la siembra reparte sus propios
+  colores por gremio. Después de rehacerla hay que volver a copiar.
+- La copia de lo que había quedó en `~/pruebas-marca-antes-*.sql.gz`.
+- **Los logos no se copian tal cual**: `formularioId` apunta a ids que difieren
+  entre las dos bases, así que se resuelven por `slug`. Y `actualizadoEn` es
+  `@updatedAt` —lo pone Prisma—, así que un INSERT crudo tiene que darlo.
 
 ### Los datos falsos
 
