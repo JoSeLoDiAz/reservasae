@@ -201,25 +201,13 @@ export class AdminController {
   async crearUsuario(@Body() dto: CrearAdminDto) {
     const creada = await this.admin.crearAdmin(dto);
 
-    /// El logo y los colores salen DE SU GREMIO cuando la
-    /// cuenta es de uno solo. En los dos —o en ninguno— va la
-    /// marca general, que es la de Grupo AE.
-    ///
-    /// Se resuelve con las mismas dos funciones que pintan el
-    /// panel por Host: una tercera forma de elegir la marca
-    /// acabaria enseñando el logo de un gremio con los
-    /// colores del otro.
-    const suyos = await this.admin.gremiosDe(
-      dto.concesiones.map((c) => c.convenioId),
-    );
-    const marca =
-      suyos.length === 1
-        ? await this.admin.obtenerMarcaDeGremio(suyos[0].slug)
-        : await this.admin.obtenerMarca();
-
     /// Avisar va DESPUES y no puede tumbar la creacion: la
     /// clave temporal se sigue viendo en pantalla.
-    await this.bienvenida.enviar(creada.admin, creada.claveTemporal, marca);
+    await this.bienvenida.enviar(
+      creada.admin,
+      creada.claveTemporal,
+      await this.marcaDe(creada.admin.id),
+    );
     return creada;
   }
 
@@ -236,8 +224,29 @@ export class AdminController {
   @Post('usuarios/:id/clave')
   @Roles(RolAdmin.SUPERADMIN)
   @HttpCode(200)
-  reiniciarClave(@AdminActual() admin: Admin, @Param('id') id: string) {
-    return this.admin.reiniciarClave(admin, id);
+  async reiniciarClave(@AdminActual() admin: Admin, @Param('id') id: string) {
+    const nueva = await this.admin.reiniciarClave(admin, id);
+
+    /// Le llega igual que el alta, con su banda y su logo. Lo
+    /// unico que cambia es que dice por que: se pidio.
+    await this.bienvenida.enviar(
+      nueva.admin,
+      nueva.claveTemporal,
+      await this.marcaDe(nueva.admin.id),
+      'RECUPERACION',
+    );
+    return nueva;
+  }
+
+  /// De donde salen el logo y los colores de esa cuenta: de SU
+  /// gremio si es de uno solo, y si no, la general.
+  ///
+  /// Con las mismas dos funciones que pintan el panel por Host.
+  private async marcaDe(adminId: string) {
+    const suyos = await this.admin.conveniosDe(adminId);
+    return suyos.length === 1
+      ? this.admin.obtenerMarcaDeGremio(suyos[0].slug)
+      : this.admin.obtenerMarca();
   }
 
   // marca

@@ -11,7 +11,12 @@ import type { RolAdmin, RolConvenio } from '../../generated/prisma';
 import { hostDelGremio } from '../comun/host-del-gremio';
 import { papelDe } from '../admin/roles-en-palabras';
 import { PrismaService } from '../prisma/prisma.service';
-import { armarBienvenida, esClaro, puertasDe } from './bienvenida';
+import {
+  armarBienvenida,
+  esClaro,
+  puertasDe,
+  type MotivoDelCorreo,
+} from './bienvenida';
 import { CorreoService } from './correo.service';
 import { quienFirma } from './quien-firma';
 import { urlPublica, urlPublicaDeLaApi } from './url-publica';
@@ -50,7 +55,12 @@ export class BienvenidaService {
   ) {}
 
   /** Lo que se le manda, sin mandarlo. Para poder probarlo. */
-  async armar(admin: CuentaNueva, claveTemporal: string, marca: MarcaDelCorreo) {
+  async armar(
+    admin: CuentaNueva,
+    claveTemporal: string,
+    marca: MarcaDelCorreo,
+    motivo: MotivoDelCorreo = 'ALTA',
+  ) {
     const concesiones = await this.prisma.adminConvenio.findMany({
       where: { adminId: admin.id },
       select: {
@@ -73,6 +83,7 @@ export class BienvenidaService {
     }));
 
     return armarBienvenida({
+      motivo,
       nombre: admin.nombre,
       correo: admin.correo,
       claveTemporal,
@@ -109,9 +120,10 @@ export class BienvenidaService {
     admin: CuentaNueva,
     claveTemporal: string,
     marca: MarcaDelCorreo,
+    motivo: MotivoDelCorreo = 'ALTA',
   ): Promise<void> {
     try {
-      const carta = await this.armar(admin, claveTemporal, marca);
+      const carta = await this.armar(admin, claveTemporal, marca, motivo);
       const r = await this.correo.enviar({
         /// Firma el nombre general y no un gremio: la cuenta
         /// es del SISTEMA, y puede alcanzar a los dos.
@@ -120,11 +132,11 @@ export class BienvenidaService {
         ...carta,
       });
       if (r.estado === 'FALLO') {
-        this.log.warn(`No salió el acceso de ${admin.correo}: ${r.error}`);
+        this.log.warn(`No salió el correo de ${admin.correo}: ${r.error}`);
       }
     } catch (e) {
       this.log.error(
-        `No se pudo armar el acceso de ${admin.correo}: ${(e as Error).message}`,
+        `No se pudo armar el correo de ${admin.correo}: ${(e as Error).message}`,
       );
     }
   }

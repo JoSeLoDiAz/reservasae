@@ -16,6 +16,7 @@ const base = {
 
 const carta = (extra: Record<string, unknown> = {}) =>
   armarBienvenida({
+    motivo: 'ALTA',
     nombre: 'Catalina Hernandez',
     correo: 'catalina@grupo-ae.com.co',
     claveTemporal: 'Xk4m-92pQ',
@@ -184,6 +185,41 @@ describe('lo que dice el correo', () => {
     expect(c.html).toContain('width=device-width');
     expect(c.html).toContain('max-width:600px');
     expect(c.html).toContain('@media (max-width:620px)');
+  });
+});
+
+describe('cuando se le reinicia la contraseña', () => {
+  const recuperar = () => carta({ motivo: 'RECUPERACION' });
+
+  it('el asunto dice que es una contraseña nueva', () => {
+    expect(recuperar().asunto).toBe('Su nueva contraseña de Convoca CRM');
+    expect(carta().asunto).toBe('Su acceso a Convoca CRM');
+  });
+
+  it('dice POR QUE le llega: se pidió', () => {
+    for (const t of [recuperar().texto, recuperar().html]) {
+      expect(t).toContain('Se solicitó la recuperación de su contraseña');
+      expect(t).not.toContain('Ya tiene cuenta');
+    }
+  });
+
+  it('lleva la clave nueva, igual que el alta', () => {
+    expect(recuperar().html).toContain('Xk4m-92pQ');
+    expect(recuperar().html).toContain('temporal');
+  });
+
+  /// La carta es la misma: misma firma, mismo logo, mismas
+  /// puertas. Solo cambia por que se le escribe.
+  it('es la misma carta: firma, logo y puertas', () => {
+    const r = carta({
+      motivo: 'RECUPERACION',
+      signo: 'https://x.test/signo-convoca.png',
+      logos: [{ url: 'https://x.test/grupo-ae.png', alt: 'Grupo AE' }],
+    });
+    expect(r.html).toContain('signo-convoca.png');
+    expect(r.html).toContain('grupo-ae.png');
+    expect(r.html).toContain('Convoca CRM');
+    expect(r.html).toContain('adecopria.reservasae.com/admin');
   });
 });
 

@@ -11,7 +11,12 @@ export type PuertaDelPanel = { etiqueta: string; url: string };
 
 export type GremioDeLaCuenta = { slug: string; sigla: string };
 
+/// Por que se le escribe. La carta es la misma; cambian el
+/// asunto y la linea que explica de que va.
+export type MotivoDelCorreo = 'ALTA' | 'RECUPERACION';
+
 export type DatosDeBienvenida = {
+  motivo: MotivoDelCorreo;
   nombre: string;
   correo: string;
   claveTemporal: string;
@@ -113,12 +118,20 @@ export function armarBienvenida(d: DatosDeBienvenida): {
 } {
   const c = (k: keyof typeof NEUTRO) => color(d.colores, k);
   const donde = enPalabras(d.gremios);
-  const asunto = `Su acceso a ${d.nombreApp}`;
+  const esAlta = d.motivo === 'ALTA';
+
+  const asunto = esAlta
+    ? `Su acceso a ${d.nombreApp}`
+    : `Su nueva contraseña de ${d.nombreApp}`;
+
+  const deQueVa = esAlta
+    ? `Ya tiene cuenta en ${d.nombreApp}.`
+    : 'Se solicitó la recuperación de su contraseña.';
 
   const texto = [
     `Hola, ${d.nombre}.`,
     '',
-    `Ya tiene cuenta en ${d.nombreApp}.`,
+    deQueVa,
     '',
     'SU ACCESO',
     `  Usuario:    ${d.correo}`,
@@ -219,7 +232,7 @@ export function armarBienvenida(d: DatosDeBienvenida): {
       <tr><td class="aire" style="padding:26px 40px 0;font:400 16px/1.6 system-ui,sans-serif;color:${c('texto')}">
         <div style="border-top:1px solid ${c('borde')};padding:24px 0 0">
           Hola, <strong>${escaparHtml(d.nombre)}</strong>.
-          <div style="padding:10px 0 0;color:${c('textoSuave')}">Ya tiene cuenta en ${escaparHtml(d.nombreApp)}.</div>
+          <div style="padding:10px 0 0;color:${c('textoSuave')}">${escaparHtml(deQueVa)}</div>
         </div>
       </td></tr>
 

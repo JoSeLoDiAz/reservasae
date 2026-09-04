@@ -188,6 +188,18 @@ export class AdminService {
   }
 
   /** Los gremios de una cuenta, con lo que se lee de ellos. */
+  /** Los gremios de una cuenta, por su id. */
+  async conveniosDe(adminId: string) {
+    const filas = await this.prisma.adminConvenio.findMany({
+      where: { adminId },
+      select: { convenio: { select: { slug: true, sigla: true } } },
+    });
+    // una cuenta puede tener dos filas en el mismo convenio
+    const vistos = new Map<string, { slug: string; sigla: string | null }>();
+    for (const f of filas) vistos.set(f.convenio.slug, f.convenio);
+    return [...vistos.values()];
+  }
+
   async gremiosDe(convenioIds: string[]) {
     if (convenioIds.length === 0) return [];
     const cs = await this.prisma.convenio.findMany({
@@ -308,7 +320,9 @@ export class AdminService {
       where: { id },
       data: { hashClave: await hashearClave(claveTemporal), debeCambiarClave: true },
     });
-    return { claveTemporal };
+    /// Sale tambien a quien, para poder escribirle. Va la
+    /// VISTA y no la fila: aquella no lleva el hash.
+    return { claveTemporal, admin: vistaAdmin(objetivo) };
   }
 
   /** Tiene que quedar al menos un superadmin activo. */
