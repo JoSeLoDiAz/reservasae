@@ -90,3 +90,6 @@ galletas.txt
 # vistazo. Un spec de verdad NUNCA se llama asi.
 backend/src/**/zz*.spec.ts
 frontend/src/**/zz*.spec.ts
+
+# copias de las pruebas de mutacion
+*.bak
