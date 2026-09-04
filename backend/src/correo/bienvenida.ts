@@ -134,21 +134,25 @@ export function armarBienvenida(d: DatosDeBienvenida): {
     'Si no esperaba este correo, no haga nada y avísenos.',
   ].join('\n');
 
-  /// La firma va PRIMERO: el signo, el nombre y DEBAJO el
-  /// eslogan, con la línea entre medias. Es la misma de la
-  /// barra del panel, en el mismo orden.
+  /// La firma va PRIMERO, y con la forma de la barra del
+  /// panel: el signo AL LADO del nombre, la línea debajo del
+  /// nombre y el eslogan bajo la línea. Lo eligió el cliente
+  /// comparándola con el sistema.
+  const F = "system-ui,-apple-system,'Segoe UI',sans-serif";
   const signo = d.signo
-    ? `<tr><td align="center" style="padding:0 0 14px">
-         <img src="${escaparHtml(d.signo)}" alt="" width="46" height="46" style="display:block;width:46px;height:46px;border:0">
-       </td></tr>`
+    ? `<td valign="middle" style="padding:0 16px 0 0">
+         <img src="${escaparHtml(d.signo)}" alt="" width="52" height="52" style="display:block;width:52px;height:52px;border:0">
+       </td>`
     : '';
 
-  const firma = `<table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+  const firma = `<table role="presentation" cellpadding="0" cellspacing="0" align="center"><tr>
       ${signo}
-      <tr><td align="center" style="font:800 22px/1.25 system-ui,-apple-system,'Segoe UI',sans-serif;color:${c('encabezadoTexto')};letter-spacing:-.02em">${escaparHtml(d.nombreApp)}</td></tr>
-      <tr><td align="center" style="padding:9px 0 8px"><div style="width:120px;height:1px;background:${c('encabezadoTexto')};opacity:.35;font-size:0;line-height:0">&nbsp;</div></td></tr>
-      <tr><td align="center" style="font:400 13px/1.5 system-ui,-apple-system,'Segoe UI',sans-serif;color:${c('encabezadoTexto')};opacity:.85">${escaparHtml(d.eslogan)}</td></tr>
-    </table>`;
+      <td valign="middle">
+        <div style="font:800 22px/1.2 ${F};color:${c('encabezadoTexto')};letter-spacing:-.02em">${escaparHtml(d.nombreApp)}</div>
+        <div style="height:1px;background:${c('encabezadoTexto')};opacity:.35;font-size:0;line-height:0;margin:7px 0 6px">&nbsp;</div>
+        <div style="font:400 12.5px/1.4 ${F};color:${c('encabezadoTexto')};opacity:.85">${escaparHtml(d.eslogan)}</div>
+      </td>
+    </tr></table>`;
 
   /// Y DESPUÉS el de la entidad: Grupo AE, o los del gremio.
   /// Van sobre la tarjeta clara y no sobre la banda: están
@@ -208,7 +212,7 @@ export function armarBienvenida(d: DatosDeBienvenida): {
   <tr><td align="center">
     <table role="presentation" class="caja" width="600" cellpadding="0" cellspacing="0" style="width:600px;max-width:600px;background:${c('superficie')};border:1px solid ${c('borde')};border-radius:14px;overflow:hidden">
 
-      <tr><td class="aire" style="background:${c('encabezadoFondo')};padding:34px 40px 32px">${firma}</td></tr>
+      <tr><td class="aire" align="center" style="background:${c('encabezadoFondo')};padding:34px 40px 32px">${firma}</td></tr>
 
       ${deLaEntidad}
 

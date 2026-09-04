@@ -197,7 +197,7 @@ describe('el orden de arriba', () => {
     });
     const firma = c.html.indexOf('signo-convoca.png');
     const entidad = c.html.indexOf('grupo-ae.png');
-    const nombre = c.html.indexOf('Convoca CRM</td>');
+    const nombre = c.html.indexOf('>Convoca CRM</div>');
     expect(firma).toBeGreaterThan(-1);
     expect(firma).toBeLessThan(nombre);
     expect(nombre).toBeLessThan(entidad);
@@ -205,7 +205,7 @@ describe('el orden de arriba', () => {
 
   it('el eslogan va DEBAJO del nombre', () => {
     const c = carta();
-    expect(c.html.indexOf('Convoca CRM</td>')).toBeLessThan(
+    expect(c.html.indexOf('>Convoca CRM</div>')).toBeLessThan(
       c.html.indexOf('Relaciones que generan resultados'),
     );
   });
