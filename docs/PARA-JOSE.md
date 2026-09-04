@@ -3,8 +3,55 @@
 **Una sola lista.** Solo está aquí lo que **no puedo hacer yo**: ejecutar migraciones, y
 decisiones o datos que solo tú tienes. Todo lo demás ya está hecho y commiteado.
 
-Rama: `arq/crm-hardening`, también en `dev-mauricio`.
-Estado hoy: **`tsc` limpio en backend y frontend · 1047 pruebas en 96 suites, verde.**
+Rama: `arq/crm-hardening`.
+Estado hoy: **`tsc` limpio en backend y frontend · 1322 pruebas en 121 suites, verde.**
+
+---
+
+## Parte 0 · Desplegar la entrega del 4 de septiembre de 2026
+
+**Rama `arq/crm-hardening`. Ya trae `origin/dev` fusionado** (fusión limpia, sin
+conflictos) y verificado después de fusionar: `tsc` limpio en los dos lados,
+1322 pruebas verdes y `next build` correcto.
+
+### 1 · No hay migraciones
+
+No se tocó `schema.prisma` ni se añadió nada en `backend/prisma/migrations/`.
+**No hay que correr `prisma migrate deploy` para esta entrega.** Lo de la
+Parte 1 de este documento sigue pendiente y es aparte.
+
+### 2 · Hay que reconstruir el BACKEND, no solo el frontend
+
+Es lo único que puede salir mal, y sale mal en silencio. Cambiaron
+`crm.service.ts`, `tableros.service.ts`, `proyeccion.ts` y `etapas.ts`, y el
+backend corre desde `dist/`. Si se despliega el frontend contra el backend
+viejo:
+
+- la columna **Grupo** de Gestión de leads sale vacía,
+- los grupos desplegados en el Resumen salen en **NaN**,
+- la proyección contra el cronograma no aparece.
+
+Pasó en local exactamente así.
+
+### 3 · El orden importa: backend primero
+
+Frontend nuevo contra backend viejo es el fallo de arriba. Al revés no rompe
+nada.
+
+```bash
+git checkout arq/crm-hardening && git pull
+docker compose build backend frontend
+docker compose up -d backend      # primero
+docker compose up -d frontend     # después
+```
+
+### 4 · Avisar al equipo de un cambio de comportamiento
+
+**El grupo de un participante ya no se puede cambiar una vez asignado.** Es lo
+que viaja al SENA junto a la persona, y moverlo después de reportarla deja dos
+verdades. Hoy **no tiene escape**: si alguien lo pone mal, solo se corrige
+desde la base de datos. Si eso estorba en la operación, la salida limpia es
+dejar que un líder pueda corregirlo.
 
 ---
 
