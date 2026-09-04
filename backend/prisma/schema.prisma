@@ -1294,6 +1294,8 @@ enum RolConvenio {
   LIDER_ACADEMICO
   GESTOR_ACADEMICO
   LIDER_SISTEMAS
+  /// Dirige: mira todo y saca informes, no trabaja casos.
+  COORDINACION_ADMINISTRATIVA
   CONSULTA
 }
 

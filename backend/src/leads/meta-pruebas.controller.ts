@@ -29,6 +29,7 @@ import {
 import type { Request } from 'express';
 
 import { AdminGuard, Requiere } from '../admin/admin.guard';
+import { hostDelGremio } from '../comun/host-del-gremio';
 import { PrismaService } from '../prisma/prisma.service';
 
 import {
@@ -85,14 +86,8 @@ function aMiMismo(peticion: Request, slug: string): string {
  * Se manda el mismo host que Meta va a usar, asi que la prueba
  * recorre exactamente el camino de verdad.
  */
-function hostDelGremio(peticion: Request, slug: string): string {
-  const host = (peticion.headers.host ?? '').toLowerCase();
-  if (!host || host.startsWith('localhost') || host.startsWith('127.0.0.1')) {
-    return host || 'localhost';
-  }
-  const dominio = host.replace(SOLO_EL_DOMINIO, '');
-  const prefijo = process.env.ENTORNO === 'prueba' ? 'pre-' : '';
-  return `${prefijo}${slug}.${dominio}`;
+function hostDeLaPeticion(peticion: Request, slug: string): string {
+  return hostDelGremio(peticion.headers.host, slug);
 }
 
 /// De dónde sale la URL que hay que pegarle a Meta.
@@ -101,11 +96,6 @@ function hostDelGremio(peticion: Request, slug: string): string {
 /// navegador llegó al panel, o sea la que de verdad funciona
 /// desde fuera. Una constante en el `.env` se queda vieja el
 /// día que cambie el dominio y nadie se entera.
-/// El dominio, sin la etiqueta del gremio ni la del entorno.
-///
-/// `pre-adecopria.reservasae.com` -> `reservasae.com`.
-const SOLO_EL_DOMINIO = /^(?:pre-)?[a-z0-9-]+\.(?=[a-z0-9-]+\.[a-z]{2,})/;
-
 /**
  * La URL de devolución de ESTE gremio.
  *
@@ -133,9 +123,7 @@ function urlDeDevolucion(peticion: Request, slug: string): string {
   /// `http` porque el TLS termina en Cloudflare y a nginx le
   /// llega en claro: fiarse de él pinta una URL con http que
   /// Meta rechaza.
-  const dominio = host.replace(SOLO_EL_DOMINIO, '');
-  const prefijo = process.env.ENTORNO === 'prueba' ? 'pre-' : '';
-  return `https://${prefijo}${slug}.${dominio}${CAMINO}`;
+  return `https://${hostDelGremio(host, slug)}${CAMINO}`;
 }
 
 @Controller('admin/pruebas/meta')
@@ -283,7 +271,7 @@ export class MetaPruebasController {
     try {
       respuesta = await fetch(url, {
         // el gremio va en el Host, como lo mandara Meta
-        headers: { host: hostDelGremio(peticion, gremio) },
+        headers: { host: hostDeLaPeticion(peticion, gremio) },
       });
     } catch (e) {
       return {

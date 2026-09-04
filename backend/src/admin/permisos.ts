@@ -69,6 +69,18 @@ export const PERMISOS: Record<RolConvenio, Record<Area, Nivel>> = {
     academico: E,
     configuracion: E,
   },
+  /// Dirige. Mira TODO el avance y saca los informes, pero
+  /// no trabaja casos: no crea, no mueve de etapa, no
+  /// certifica. Configura, que es de donde sale la
+  /// apariencia.
+  COORDINACION_ADMINISTRATIVA: {
+    reserva: V,
+    inscripciones: V,
+    inscritos: V,
+    reportes: E,
+    academico: V,
+    configuracion: E,
+  },
   CONSULTA: {
     reserva: V,
     inscripciones: V,

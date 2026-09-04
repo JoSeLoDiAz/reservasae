@@ -83,6 +83,14 @@ export const PERMISOS_POR_ROL: Record<RolConvenio, Record<Area, Nivel>> = {
     academico: "ESCRIBIR",
     configuracion: "ESCRIBIR",
   },
+  COORDINACION_ADMINISTRATIVA: {
+    reserva: "VER",
+    inscripciones: "VER",
+    inscritos: "VER",
+    reportes: "ESCRIBIR",
+    academico: "VER",
+    configuracion: "ESCRIBIR",
+  },
   CONSULTA: {
     reserva: "VER",
     inscripciones: "VER",
@@ -99,6 +107,7 @@ export type RolConvenio =
   | "LIDER_ACADEMICO"
   | "GESTOR_ACADEMICO"
   | "LIDER_SISTEMAS"
+  | "COORDINACION_ADMINISTRATIVA"
   | "CONSULTA";
 
 /** A qué convenio entra una cuenta y con qué rol. */
@@ -139,6 +148,11 @@ export const ROLES_DE_CONVENIO: Array<{
     valor: "GESTOR_ACADEMICO",
     etiqueta: "Gestor(a) de seguimiento académico",
     descripcion: "Registra el avance en el aula. No certifica.",
+  },
+  {
+    valor: "COORDINACION_ADMINISTRATIVA",
+    etiqueta: "Coordinadora Administrativa",
+    descripcion: "Ve todo el avance y descarga los informes. No trabaja casos.",
   },
   {
     valor: "CONSULTA",

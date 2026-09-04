@@ -1,12 +1,15 @@
 import { RolConvenio } from '../../generated/prisma';
 import {
   AREAS,
+  MUEVEN_INSCRITO,
   PERMISOS,
+  REPARTEN_FICHAS,
   alcanza,
   conveniosQueCierran,
   nivelDe,
   resumenDePermisos,
 } from './permisos';
+import { PUEDEN_LLEVAR_FICHAS } from '../crm/quien-lleva-fichas';
 
 const ROLES = Object.values(RolConvenio);
 
@@ -25,11 +28,32 @@ describe('la matriz de permisos', () => {
     }
   });
 
-  it('solo sistemas configura', () => {
+  /// Cambió a propósito el 4 sep 2026: la dirección pidió
+  /// poder cambiar la apariencia, y esa cuelga de aquí.
+  it('configuran sistemas y la coordinación administrativa', () => {
+    const CONFIGURAN = ['LIDER_SISTEMAS', 'COORDINACION_ADMINISTRATIVA'];
     for (const rol of ROLES) {
       const puede = alcanza(PERMISOS[rol].configuracion, 'ESCRIBIR');
-      expect(puede).toBe(rol === 'LIDER_SISTEMAS');
+      expect(puede).toBe(CONFIGURAN.includes(rol));
     }
+  });
+
+  it('quien dirige mira el proceso, no lo trabaja', () => {
+    const suyo = PERMISOS.COORDINACION_ADMINISTRATIVA;
+    expect(suyo.reserva).toBe('VER');
+    expect(suyo.inscripciones).toBe('VER');
+    expect(suyo.inscritos).toBe('VER');
+    expect(suyo.academico).toBe('VER');
+    // pero SI saca los archivos: lo pidio la direccion
+    expect(suyo.reportes).toBe('ESCRIBIR');
+  });
+
+  /// Quien dirige no entra en el reparto del trabajo.
+  it('quien dirige no lleva fichas, ni las reparte, ni deshace una inscripción', () => {
+    const rol = RolConvenio.COORDINACION_ADMINISTRATIVA;
+    expect(PUEDEN_LLEVAR_FICHAS).not.toContain(rol);
+    expect(REPARTEN_FICHAS).not.toContain(rol);
+    expect(MUEVEN_INSCRITO).not.toContain(rol);
   });
 
   it('el gestor de inscripciones ve el alistamiento pero no descarga', () => {

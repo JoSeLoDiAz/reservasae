@@ -25,6 +25,7 @@ import request from 'supertest';
 import { AdminController, MarcaPublicaController } from './admin.controller';
 import { AdminGuard, COOKIE_SESION } from './admin.guard';
 import { AdminService } from './admin.service';
+import { BienvenidaService } from '../correo/bienvenida.service';
 import { PrismaService } from '../prisma/prisma.service';
 
 const SECRETO = 'un-secreto-larguisimo-de-mas-de-32-caracteres';
@@ -107,6 +108,8 @@ describe('logos: nada del convenio ajeno', () => {
         AdminService,
         AdminGuard,
         { provide: PrismaService, useValue: prismaFalso },
+        // aqui se prueban los logos, no el correo de acceso
+        { provide: BienvenidaService, useValue: { enviar: jest.fn() } },
       ],
     }).compile();
 

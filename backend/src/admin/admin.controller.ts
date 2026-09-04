@@ -30,6 +30,7 @@ import {
 } from '../comun/logo';
 import { AdminActual, AmbitoActual } from './admin-actual.decorator';
 import { rolQueSeEnsena } from './rol-que-se-ensena';
+import { BienvenidaService } from '../correo/bienvenida.service';
 import {
   AdminGuard,
   COOKIE_SESION,
@@ -69,6 +70,7 @@ export class AdminController {
   constructor(
     private readonly admin: AdminService,
     private readonly jwt: JwtService,
+    private readonly bienvenida: BienvenidaService,
   ) {}
 
   // sesión
@@ -196,8 +198,12 @@ export class AdminController {
 
   @Post('usuarios')
   @Roles(RolAdmin.SUPERADMIN)
-  crearUsuario(@Body() dto: CrearAdminDto) {
-    return this.admin.crearAdmin(dto);
+  async crearUsuario(@Body() dto: CrearAdminDto) {
+    const creada = await this.admin.crearAdmin(dto);
+    /// Avisar va DESPUES y no puede tumbar la creacion: la
+    /// clave temporal se sigue viendo en pantalla.
+    await this.bienvenida.enviar(creada.admin, creada.claveTemporal);
+    return creada;
   }
 
   @Patch('usuarios/:id')

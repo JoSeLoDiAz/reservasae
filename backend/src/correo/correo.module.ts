@@ -7,6 +7,7 @@ import {
 } from './campanas/campanas.controller';
 import { CampanasService } from './campanas/campanas.service';
 import { CampanasWorker } from './campanas/campanas.worker';
+import { BienvenidaService } from './bienvenida.service';
 import { CorreoController } from './correo.controller';
 import { CorreoService } from './correo.service';
 import {
@@ -35,6 +36,7 @@ import { PlantillasCorreoService } from './plantillas/plantillas-correo.service'
     CampanasPublicoController,
   ],
   providers: [
+    BienvenidaService,
     CorreoService,
     PlantillasCorreoService,
     CampanasService,
@@ -44,6 +46,6 @@ import { PlantillasCorreoService } from './plantillas/plantillas-correo.service'
   /// del lead —que vive en el CRM— es donde se manda el
   /// correo. Escribir la plantilla es configuración; usarla
   /// es trabajo del asesor, y cada cosa en su pantalla.
-  exports: [CorreoService, PlantillasCorreoService],
+  exports: [BienvenidaService, CorreoService, PlantillasCorreoService],
 })
 export class CorreoModule {}
