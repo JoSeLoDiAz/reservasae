@@ -969,9 +969,11 @@ export class CrmService {
    * hacia imposible ese orden desde fuera, porque `crear` volvia
    * con la consulta ya encolada.
    */
+  /// `admin` puede ser null: lo escribe el sistema, no una
+  /// persona. Ver `conversion-automatica.ts`.
   async crear(
     dto: CrearParticipanteDto,
-    admin: Admin,
+    admin: Admin | null,
     ambito: string[],
     ip?: string,
     opciones?: { encolarRui?: boolean },
@@ -1090,6 +1092,12 @@ export class CrmService {
               'cupos ocupados. Para inscribir por encima del cupo hay que indicar el motivo.',
           );
         }
+        /// El sobrecupo lo firma alguien, siempre.
+        if (!admin) {
+          throw new BadRequestException(
+            'Un sobrecupo tiene que autorizarlo una persona.',
+          );
+        }
         sobrecupo = { porId: admin.id, motivo: dto.sobrecupoMotivo };
       }
     }
@@ -1163,7 +1171,7 @@ export class CrmService {
           accionFormacionId: accionId,
           reservaId: dto.reservaId ?? null,
           origen: dto.origen ?? 'ASESOR',
-          asesorId: dto.asesorId ?? admin.id,
+          asesorId: dto.asesorId ?? admin?.id ?? null,
           cargoEnEmpresa: dto.cargoEnEmpresa ?? null,
           sobrecupoPorId: sobrecupo?.porId ?? null,
           sobrecupoMotivo: sobrecupo?.motivo ?? null,
@@ -1175,7 +1183,7 @@ export class CrmService {
           participanteId: participante.id,
           etapaAntes: null,
           etapaDespues: participante.etapa,
-          adminId: admin.id,
+          adminId: admin?.id ?? null,
           nota: sobrecupo ? `Sobrecupo autorizado: ${sobrecupo.motivo}` : null,
           ip: ip ?? null,
         },
@@ -1210,7 +1218,11 @@ export class CrmService {
     /// resto: `registrar()` se traga sus errores a propósito, y
     /// auditar no puede tumbar la ficha que audita.
     await this.auditoria.registrar({
-      actor: { id: admin.id, nombre: admin.nombre },
+      /// Sin persona detrás, la bitácora dice el sistema. Lo
+      /// que no puede es quedarse sin actor.
+      actor: admin
+        ? { id: admin.id, nombre: admin.nombre }
+        : { id: null, nombre: 'Sistema' },
       accion: 'PARTICIPANTE_CREADO',
       entidad: ENTIDADES.PARTICIPANTE,
       entidadId: creado.id,

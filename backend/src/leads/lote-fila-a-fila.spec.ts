@@ -16,7 +16,7 @@ import { LeadsService } from './leads.service';
 /// Un servicio cuyo `entra` obedece un guion: por cada posición,
 /// o devuelve algo o lanza. Se prueba el LOTE, no el alta.
 function armar(guion: Array<'ok' | 'repetido' | 'falla'>) {
-  const s = new LeadsService({} as never, {} as never);
+  const s = new LeadsService({} as never, {} as never, { intentar: () => Promise.resolve({ paso: false, porque: 'doble', falta: [] }) } as never);
 
   let i = 0;
   (s as unknown as { entra: unknown }).entra = () => {
