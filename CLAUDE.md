@@ -2954,6 +2954,45 @@ un gremio puede reportar una organización que la pantalla de organizaciones de
 ese mismo gremio no lista. **No se ha tocado**: es una regla de ámbito y
 cambiarla es una decisión aparte, no un efecto secundario de sembrar datos.
 
+### Carga de volumen: 50.000 fichas (4 sep 2026)
+
+```bash
+cd /opt/sep/reservasae-prueba/backend
+export ENTORNO=prueba
+export DATABASE_URL=...@127.0.0.1:5434/reservasae_prueba
+pnpm db:sembrar-volumen          # CUANTOS=5000 para menos
+pnpm db:borrar-volumen           # se las lleva sin tocar lo demas
+```
+
+Lo pidió el cliente para ver si el panel aguanta. **No es realista**: son 24
+veces la oferta de ADECOPRIA (2.080 cupos), así que los tableros dicen
+porcentajes imposibles. Lo que se prueba son las listas, los filtros, la
+paginación, los agregados y los reportes.
+
+Va con `createMany` en lotes de 5.000 — 50.000 personas, 50.000 fichas, 49.000
+notas y 1.500 organizaciones en **18 segundos**. Con `esDePrueba` puesto, así que
+el RUI no las consulta nunca, y la marca para borrarlas es el rango de documento
+(20.000.001 en adelante).
+
+**Qué salió, medido:**
+
+| | 5.000 | 15.000 | 50.000 |
+|---|---|---|---|
+| Portada del panel | 15 ms | 17 ms | **13 ms** |
+| Lista de fichas | 30 ms | 51 ms | 111 ms |
+| Métricas de inscripciones | 215 ms | 643 ms | **2,20 s** |
+
+- **La portada no se entera del volumen**, y es la prueba de que la decisión de
+  agregar en la base y no en Node era la correcta.
+- **La lista crece sublinealmente** y aguanta la paginación profunda.
+- **`metricasDeInscripciones` es LINEAL** porque trae todas las filas a Node y
+  cuenta en memoria. Está escrito así a propósito —«seis `groupBy` cuestan más
+  que traer las filas», y «datos completos» no es una columna—, y a la escala del
+  proyecto es correcto: con las 4.797 del tope real son ~200 ms. Empieza a
+  molestar por encima de 15.000, que es tres veces el proyecto entero. **No se
+  tocó**: cambiarlo sin necesidad sería optimizar contra un problema que no
+  existe.
+
 ### Los datos falsos
 
 ```bash
