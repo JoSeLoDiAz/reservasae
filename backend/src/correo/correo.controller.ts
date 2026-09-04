@@ -15,18 +15,32 @@ import {
 } from '@nestjs/common';
 
 import type { Admin } from '../../generated/prisma';
-import { AdminActual } from '../admin/admin-actual.decorator';
-import { AdminGuard, Requiere } from '../admin/admin.guard';
+import { AdminActual, AmbitoActual } from '../admin/admin-actual.decorator';
+import { AdminGuard, Requiere, type Ambito } from '../admin/admin.guard';
+import { PrismaService } from '../prisma/prisma.service';
 import { CorreoService, correoConectado } from './correo.service';
 import { desvioConfigurado } from './desvio';
 import { escaparHtml } from './escapar';
+import { quienFirma } from './quien-firma';
 import { ProbarCorreoDto } from './dto';
 
 @Controller('admin/correo')
 @UseGuards(AdminGuard)
 @Requiere('configuracion', 'ESCRIBIR')
 export class CorreoController {
-  constructor(private readonly correo: CorreoService) {}
+  constructor(
+    private readonly correo: CorreoService,
+    private readonly prisma: PrismaService,
+  ) {}
+
+  /// El gremio que fija la DIRECCION, si la fija.
+  private async gremio(ambito: Ambito) {
+    if (!ambito.gremioFijo || !ambito.gremioElegido) return null;
+    return this.prisma.convenio.findUnique({
+      where: { id: ambito.gremioElegido },
+      select: { sigla: true, nombre: true },
+    });
+  }
 
   /**
    * Cómo está configurado, y si el servidor lo acepta.
@@ -36,7 +50,7 @@ export class CorreoController {
    * una, no cuál es.
    */
   @Get('estado')
-  async estado() {
+  async estado(@AmbitoActual() ambito: Ambito) {
     const configurado = correoConectado();
     const prueba = configurado ? await this.correo.probar() : null;
 
@@ -46,7 +60,7 @@ export class CorreoController {
       puerto: Number(process.env.SMTP_PUERTO ?? 587),
       usuario: process.env.SMTP_USUARIO ?? null,
       remitente: process.env.SMTP_DESDE ?? process.env.SMTP_USUARIO ?? null,
-      nombre: process.env.SMTP_NOMBRE ?? 'Convoca CRM',
+      nombre: quienFirma(await this.gremio(ambito)),
       tieneClave: Boolean(process.env.SMTP_CLAVE),
       /// Si todo se desvía, hay que verlo aquí: si no, la
       /// pantalla diría que el correo sale y nadie sabría
@@ -62,7 +76,11 @@ export class CorreoController {
 
   /** Manda uno de prueba a donde le digan. */
   @Post('probar')
-  async probar(@Body() dto: ProbarCorreoDto, @AdminActual() admin: Admin) {
+  async probar(
+    @Body() dto: ProbarCorreoDto,
+    @AdminActual() admin: Admin,
+    @AmbitoActual() ambito: Ambito,
+  ) {
     if (!correoConectado()) {
       throw new BadRequestException(
         'El correo no está configurado en el servidor.',
@@ -70,6 +88,7 @@ export class CorreoController {
     }
 
     const r = await this.correo.enviar({
+      deParte: quienFirma(await this.gremio(ambito)),
       para: dto.para,
       asunto: 'Convoca CRM · prueba de correo',
       texto:

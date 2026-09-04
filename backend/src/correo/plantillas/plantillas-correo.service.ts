@@ -8,6 +8,7 @@ import {
 
 import { PrismaService } from '../../prisma/prisma.service';
 import { CorreoService } from '../correo.service';
+import { quienFirma } from '../quien-firma';
 import type { EtapaParticipante } from '../../../generated/prisma';
 import {
   estadoDeAutorizacion,
@@ -318,7 +319,10 @@ export class PlantillasCorreoService {
       }),
       this.prisma.participante.findUnique({
         where: { id: participanteId, convenioId: { in: ambito } },
-        select: { etapa: true },
+        select: {
+          etapa: true,
+          convenio: { select: { sigla: true, nombre: true } },
+        },
       }),
     ]);
 
@@ -388,6 +392,7 @@ export class PlantillasCorreoService {
       : null;
 
     const r = await this.correo.enviar({
+      deParte: quienFirma(ficha?.convenio),
       para: vista.para,
       asunto: vista.asunto,
       texto: vista.cuerpo,

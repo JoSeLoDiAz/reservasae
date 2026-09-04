@@ -11,6 +11,7 @@ import {
 import { construirFormato, leerPlantilla } from '../../plantillas/plantillas';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CorreoService } from '../correo.service';
+import { quienFirma } from '../quien-firma';
 import {
   resolver,
   valoresDe,
@@ -394,7 +395,13 @@ export class CampanasService {
         participanteId: true,
         nombre: true,
         campana: {
-          select: { id: true, asunto: true, cuerpo: true, bannerDatos: true },
+          select: {
+            id: true,
+            asunto: true,
+            cuerpo: true,
+            bannerDatos: true,
+            convenio: { select: { sigla: true, nombre: true } },
+          },
         },
       },
     });
@@ -478,6 +485,7 @@ export class CampanasService {
     }
 
     const r = await this.correo.enviar({
+      deParte: quienFirma(siguiente.campana.convenio),
       para: siguiente.correo,
       asunto: asunto.texto,
       texto: cuerpo.texto,
