@@ -178,7 +178,21 @@ export type AdminActual = {
   /// Si lo fija la DIRECCIÓN y no el desplegable. En el
   /// subdominio de un gremio no hay nada que elegir.
   gremioFijo?: boolean;
+  /// Su concesión en el gremio que se está mirando.
+  ///
+  /// Es lo que hay que enseñar: `rol` es el `RolAdmin`, que
+  /// solo dice si es superadmin. Null para el superadmin y
+  /// cuando lleva roles distintos en cada gremio.
+  rolEnGremio?: RolConvenio | null;
 };
+
+/** Cómo se presenta la cuenta, que no es su `rol`. */
+export function comoSePresenta(admin: AdminActual): string {
+  if (admin.cargo) return admin.cargo;
+  const suyo = ROLES_DE_CONVENIO.find((r) => r.valor === admin.rolEnGremio);
+  if (suyo) return suyo.etiqueta;
+  return admin.rol === "SUPERADMIN" ? "Superadmin" : "Varios roles";
+}
 
 const ESCALA: Nivel[] = ["NADA", "VER", "ESCRIBIR"];
 

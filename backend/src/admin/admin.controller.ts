@@ -29,6 +29,7 @@ import {
   TIPOS_LOGO,
 } from '../comun/logo';
 import { AdminActual, AmbitoActual } from './admin-actual.decorator';
+import { rolQueSeEnsena } from './rol-que-se-ensena';
 import {
   AdminGuard,
   COOKIE_SESION,
@@ -163,6 +164,13 @@ export class AdminController {
       ),
       gremioElegido: ambito.gremioElegido,
       gremioFijo: ambito.gremioFijo,
+
+      /// Su concesion, que es lo que de verdad gobierna.
+      ///
+      /// La cabecera pintaba `RolAdmin`, y ese solo dice si es
+      /// superadmin: una cuenta de CONSULTA salia como
+      /// «GESTOR», que es falso y ademas asusta.
+      rolEnGremio: rolQueSeEnsena(admin.rol, ambito),
     };
   }
 
