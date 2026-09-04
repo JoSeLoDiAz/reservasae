@@ -696,7 +696,12 @@ async function ponerLosLeads() {
     process.exitCode = 1;
     return;
   }
-  console.log(`\n✓ ${LEADS.length} leads en la mesa, siete por gremio.`);
+  // los completos pasan solos: la mesa guarda excepciones
+  const solos = resultados.filter((r) => r.paso).length;
+  console.log(
+    `\n✓ ${LEADS.length} leads entraron. ${solos} pasaron solos a interesado; ` +
+      `${LEADS.length - solos} se quedan en la mesa esperando a alguien.`,
+  );
 }
 
 /**

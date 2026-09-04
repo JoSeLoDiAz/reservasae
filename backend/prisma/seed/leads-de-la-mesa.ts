@@ -366,7 +366,12 @@ function pedir(
  * estado quedó.
  */
 export async function sembrarLeads(base: string, clave: string) {
-  const salida: Array<{ caso: string; estado: number; cuerpo: string }> = [];
+  const salida: Array<{
+    caso: string;
+    estado: number;
+    cuerpo: string;
+    paso?: boolean;
+  }> = [];
 
   for (const l of LEADS) {
     const porSubdominio = l.gremio === 'adecopria';
@@ -376,10 +381,17 @@ export async function sembrarLeads(base: string, clave: string) {
 
     for (let i = 0; i < (l.veces ?? 1); i++) {
       const r = await pedir(base, host, clave, cuerpo);
+      let paso = false;
+      try {
+        paso = (JSON.parse(r.texto) as { estado?: string }).estado === 'CONVERTIDO';
+      } catch {
+        paso = false;
+      }
       salida.push({
         caso: `${l.gremio} (${puerta}) · ${l.caso}${i > 0 ? ' (2.ª vez)' : ''}`,
         estado: r.estado,
         cuerpo: r.texto.slice(0, 300),
+        paso,
       });
     }
   }

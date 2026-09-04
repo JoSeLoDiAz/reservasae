@@ -2640,6 +2640,39 @@ quien no tiene llave.
 > el mismo id con `repetido: true`. Los tres candados se probaron
 > además por mutación.
 
+#### El lead completo pasa solo (4 sep 2026)
+
+Lo pidió el cliente. Si el lead llega con la información completa, no espera a
+que un asesor lo convierta: **pasa a Gestión de leads como `INTERESADO` y queda
+SIN ASESOR**, en el montón común, que es de donde se reparte.
+
+- **Qué es «completo» no se inventa**: es `loQueLeFaltaAlLead`, la misma regla
+  que enciende la casilla en la mesa y que ya usaba el lote. Documento válido,
+  nombre, apellido y curso.
+- **Lo que NO pasa solo es lo que no autorizó.** `autorizoAlRegistrarse` ya
+  distinguía los tres casos, y aquí manda: un `false` explícito se queda en la
+  mesa para que lo mire una persona. Crearle la ficha sería seguir tratando los
+  datos de alguien que pidió que no. Y quien no llegó por un formulario tampoco:
+  a quien escribió por WhatsApp nadie le enseñó un texto.
+- **El cruce de documento sigue protegiendo**: si esa cédula es de otra persona
+  que ya está en el CRM, la conversión lanza y el lead se queda.
+- **Se contesta lo que pasó.** La respuesta del webhook lleva `traslado` —en
+  palabras— y `falta` con lo que le faltó. Sin eso, quien manda el lead no sabe
+  si quedó atendido o esperando.
+- **Una decisión, dos disparadores.** `intentar()` la llama el webhook al
+  entrar, para contestar en el acto, y un barrido cada minuto recoge los que
+  alguien completó después desde la mesa: se arregla el dato y a los segundos se
+  va solo. Se apaga con `CONVERSION_AUTOMATICA=no`.
+- **`crm.crear` y `convertir` admiten actor nulo**: lo escribe el sistema. La
+  bitácora dice «Sistema» y el movimiento va sin `adminId`, igual que el
+  trabajador de matrícula.
+
+> **El efecto que hay que esperar: la mesa deja de ser una bandeja de entrada y
+> pasa a ser la lista de excepciones.** Comprobado en pruebas — de catorce leads
+> sembrados se quedaron los siete que de verdad necesitan a alguien: dos sin
+> cédula, uno con la cédula mal escrita, uno cuyo interés no nombra ningún
+> curso, uno que dijo que no, y dos que no llegaron por un formulario.
+
 **Convertir un lead en ficha es una acción del ASESOR, no del
 webhook.** `POST /admin/leads/:id/convertir`, con
 `inscripciones · ESCRIBIR`.
