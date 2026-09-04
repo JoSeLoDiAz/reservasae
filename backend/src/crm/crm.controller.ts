@@ -139,6 +139,7 @@ export class CrmController {
 
   /** Alta manual cuando el NIT no está o trae otro nombre. */
   @Post('nit')
+  @Requiere('inscripciones', 'ESCRIBIR')
   agregarNit(@Body() dto: AgregarNitDto) {
     return this.directorio.agregarManual(dto.nit, dto.razonSocial);
   }
