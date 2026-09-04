@@ -543,6 +543,42 @@ usan tanto `/admin/marca` como la apariencia de cada formulario.
   como texto de enlace sobre fondo claro y tiene que llegar a 4,5:1. El editor
   lo dice en vez de hacerlo callando.
 
+### El panel lleva el color de su logo (4 sep 2026)
+
+Lo pidió el cliente: que la interfaz se mezcle con el logo, y que cada gremio
+lleve el suyo. **No hizo falta tocar una línea de código de pantalla** — el panel
+se pinta entero con tokens y `GET /marca` varía por Host, así que basta con
+cambiar los colores.
+
+| Puerta | Marca | De dónde sale |
+|---|---|---|
+| `reservasae.com` | `#9900b6` magenta | Grupo AE, el medio de su gradiente |
+| `adecopria.` | `#407302` verde | el verde de su logo |
+| `britcham-adee.` | `#4157c1` azul | el azul de ADEE |
+
+- **El color se MUESTREA del logo, no se elige a ojo.** Los PNG están en la base;
+  se bajan por `GET /marca/logos/:id` y se saca el tono dominante ignorando el
+  blanco, el negro y lo desaturado, que son fondo y texto.
+- **La paleta se DERIVA, no se escribe.** `backend/prisma/seed/colores-de-marca.ts`
+  llama a `derivarTemas`, la misma función del editor y de las dieciséis
+  plantillas: OKLCH y `corregirContraste`. Por eso el magenta `#C615EA` del logo
+  sale como `#9900b6` en el panel — tiene que llegar a 4,5:1 como texto de enlace.
+  Escribir los hex a mano habría dado una paleta bonita e ilegible.
+- **El general va en `temas`; cada gremio guarda SOLO lo que difiere** en su
+  formulario de marca. Son 18 tokens de 39; el resto hereda. Guardar los 39
+  mataría la herencia en silencio.
+- El guión imprime los pares que no llegan al mínimo. Las tres paletas salieron
+  limpias.
+
+> **Ojo con ADECOPRIA:** su marca es VERDE, y la regla del handoff dice «botón
+> primario: azul de marca, nunca verde». Se leyó como «use el token `--marca`, no
+> un verde escrito a fuego» — que es lo que hace el editor de apariencia. Si el
+> cliente lo ve mal, se cambia el color y ya.
+
+De paso, las etiquetas de los logos dejaron de ser nombres de archivo: eran el
+texto alternativo, y decían «BritCham_Rectangle_FullColor» y «Diseño sin título
+(2)» a quien usa lector de pantalla.
+
 ### La forma del panel
 
 Sale de SICC —el sistema de correspondencia del mismo grupo— pero **solo la

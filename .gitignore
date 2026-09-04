@@ -93,3 +93,6 @@ frontend/src/**/zz*.spec.ts
 
 # copias de las pruebas de mutacion
 *.bak
+
+# salida de colores-de-marca
+paletas.json
