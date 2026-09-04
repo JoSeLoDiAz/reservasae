@@ -11,7 +11,7 @@ import type { RolAdmin, RolConvenio } from '../../generated/prisma';
 import { hostDelGremio } from '../comun/host-del-gremio';
 import { papelDe } from '../admin/roles-en-palabras';
 import { PrismaService } from '../prisma/prisma.service';
-import { armarBienvenida, puertasDe } from './bienvenida';
+import { armarBienvenida, esClaro, puertasDe } from './bienvenida';
 import { CorreoService } from './correo.service';
 import { quienFirma } from './quien-firma';
 import { urlPublica, urlPublicaDeLaApi } from './url-publica';
@@ -65,6 +65,8 @@ export class BienvenidaService {
     const sitio = urlPublica();
     const host = sitio ? new URL(sitio).host : 'reservasae.com';
 
+    const claro = (marca.temas.CLARO ?? {}) as Record<string, string | undefined>;
+
     const gremios = concesiones.map((c) => ({
       slug: c.convenio.slug,
       sigla: c.convenio.sigla ?? c.convenio.nombre,
@@ -84,7 +86,13 @@ export class BienvenidaService {
         gremios,
         hostDeGremio: (slug) => hostDelGremio(host, slug),
       }),
-      colores: marca.temas.CLARO ?? {},
+      colores: claro,
+      /// El blanco sobre una banda oscura y el oscuro sobre
+      /// una clara, mirando el color del TEXTO del encabezado
+      /// — que es de donde el panel lo saca.
+      signo: sitio
+        ? `${sitio}/signo-convoca${esClaro(claro.encabezadoTexto) ? '' : '-oscuro'}.png`
+        : null,
       logos: api
         ? marca.logos.map((l) => ({
             url: `${api}/marca/logos/${l.id}?v=${l.version}`,

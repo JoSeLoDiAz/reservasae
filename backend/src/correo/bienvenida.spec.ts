@@ -1,6 +1,6 @@
 /** El correo de acceso dice la verdad y no inyecta nada. */
 
-import { armarBienvenida, enPalabras, puertasDe } from './bienvenida';
+import { armarBienvenida, enPalabras, esClaro, puertasDe } from './bienvenida';
 import { hostDelGremio } from '../comun/host-del-gremio';
 
 const GREMIOS = [
@@ -22,7 +22,13 @@ const carta = (extra: Record<string, unknown> = {}) =>
     papel: 'Country Manager',
     gremios: ['ADECOPRIA', 'BRITCHAM ADEE'],
     puertas: [{ etiqueta: 'ADECOPRIA', url: 'https://adecopria.reservasae.com/admin' }],
-    colores: { marca: '#9900b6', texto: '#17121b' },
+    colores: {
+      marca: '#9900b6',
+      texto: '#17121b',
+      encabezadoFondo: '#702482',
+      encabezadoTexto: '#ffffff',
+    },
+    signo: 'https://reservasae.com/signo-convoca.png',
     logos: [],
     nombreApp: 'Convoca CRM',
     eslogan: 'Relaciones que generan resultados',
@@ -128,8 +134,8 @@ describe('lo que dice el correo', () => {
     expect(c.html).toContain('&lt;img');
   });
 
-  it('sin logos no queda ninguna imagen rota', () => {
-    expect(carta({ logos: [] }).html).not.toContain('<img');
+  it('sin logos ni signo no queda ninguna imagen rota', () => {
+    expect(carta({ logos: [], signo: null }).html).not.toContain('<img');
   });
 
   it('con logos van todos', () => {
@@ -139,7 +145,8 @@ describe('lo que dice el correo', () => {
         { url: 'https://reservasae.com/api/marca/logos/b?v=2', alt: 'ADEE' },
       ],
     });
-    expect((c.html.match(/<img/g) ?? []).length).toBe(2);
+    // tres: el signo de la firma y los dos de la entidad
+    expect((c.html.match(/<img/g) ?? []).length).toBe(3);
   });
 
   /// Tres logos con el mismo `alt` dejan la cabecera
@@ -153,7 +160,10 @@ describe('lo que dice el correo', () => {
     });
     expect(c.html).toContain('alt="BritCham Colombia"');
     expect(c.html).toContain('alt="ADEE"');
-    expect(c.html).not.toContain('alt=""');
+    /// El signo SI va con `alt=""`, y es lo correcto: el
+    /// nombre esta escrito al lado, asi que repetirlo seria
+    /// hacer que el lector de pantalla lo diga dos veces.
+    expect((c.html.match(/alt=""/g) ?? []).length).toBe(1);
   });
 
   /// Un color inventado acaba dentro de un `style`.
@@ -174,6 +184,58 @@ describe('lo que dice el correo', () => {
     expect(c.html).toContain('width=device-width');
     expect(c.html).toContain('max-width:600px');
     expect(c.html).toContain('@media (max-width:620px)');
+  });
+});
+
+describe('el orden de arriba', () => {
+  /// Lo pidio el cliente: primero la firma de Convoca y
+  /// DESPUES el logo de la entidad.
+  it('la firma va antes que el logo de la entidad', () => {
+    const c = carta({
+      signo: 'https://x.test/signo-convoca.png',
+      logos: [{ url: 'https://x.test/grupo-ae.png', alt: 'Grupo AE' }],
+    });
+    const firma = c.html.indexOf('signo-convoca.png');
+    const entidad = c.html.indexOf('grupo-ae.png');
+    const nombre = c.html.indexOf('Convoca CRM</td>');
+    expect(firma).toBeGreaterThan(-1);
+    expect(firma).toBeLessThan(nombre);
+    expect(nombre).toBeLessThan(entidad);
+  });
+
+  it('el eslogan va DEBAJO del nombre', () => {
+    const c = carta();
+    expect(c.html.indexOf('Convoca CRM</td>')).toBeLessThan(
+      c.html.indexOf('Relaciones que generan resultados'),
+    );
+  });
+
+  it('la firma va sobre la banda del encabezado', () => {
+    expect(carta().html).toContain('background:#702482');
+  });
+
+  it('sin signo la firma sigue saliendo', () => {
+    const c = carta({ signo: null });
+    expect(c.html).toContain('Convoca CRM');
+    expect(c.html).not.toContain('signo-convoca');
+  });
+});
+
+describe('cuál de los dos signos', () => {
+  /// El del panel va en `currentColor`; aquí hay que elegir.
+  it('un encabezado de texto claro pide el signo blanco', () => {
+    expect(esClaro('#ffffff')).toBe(true);
+    expect(esClaro('#e8edf7')).toBe(true);
+  });
+
+  it('uno oscuro pide el otro', () => {
+    expect(esClaro('#0f172a')).toBe(false);
+    expect(esClaro('#17121b')).toBe(false);
+  });
+
+  it('sin color se supone claro, que es lo de siempre', () => {
+    expect(esClaro(undefined)).toBe(true);
+    expect(esClaro('rojo')).toBe(true);
   });
 });
 

@@ -1,7 +1,8 @@
 /** El correo de quien estrena cuenta. */
 
 /// Va con LOS COLORES DE LA MARCA y no con un gris cualquiera:
-/// lo pidió la dirección. Salen de la tabla `temas`, así que
+/// lo pidió la dirección. Salen de la tabla `temas` —y del
+/// formulario del gremio, si la cuenta es de uno—, así que
 /// cambiar la paleta del panel cambia también el correo.
 
 import { escaparHtml } from './escapar';
@@ -18,11 +19,15 @@ export type DatosDeBienvenida = {
   papel: string;
   gremios: string[];
   puertas: PuertaDelPanel[];
-  /// Del tema CLARO. Se cae a un neutro si falta alguno.
+  /// Del tema CLARO ya fusionado. Se cae a un neutro si falta.
   colores: Record<string, string | undefined>;
-  /// Absolutos y públicos, o ninguno: una imagen rota arriba
-  /// del todo es peor que no poner nada. La `alt` es el
-  /// nombre de la entidad, que es para lo que existe.
+  /// El signo de Convoca, ya elegido claro u oscuro. Null sin
+  /// `URL_PUBLICA`.
+  signo: string | null;
+  /// Los de la entidad: Grupo AE, o los del gremio. Absolutos
+  /// y públicos, o ninguno — una imagen rota arriba del todo es
+  /// peor que no poner nada. La `alt` es el nombre de la
+  /// entidad, que es para lo que existe la etiqueta.
   logos: Array<{ url: string; alt: string }>;
   nombreApp: string;
   eslogan: string;
@@ -35,10 +40,29 @@ const NEUTRO = {
   superficie: '#ffffff',
   fondo: '#f6f3f7',
   borde: '#e2dce6',
+  encabezadoFondo: '#2b2333',
+  encabezadoTexto: '#ffffff',
 };
 
 const color = (c: Record<string, string | undefined>, k: keyof typeof NEUTRO) =>
   /^#[0-9a-fA-F]{6}$/.test(c[k] ?? '') ? (c[k] as string) : NEUTRO[k];
+
+/**
+ * Si ese color es claro.
+ *
+ * Decide cuál de los dos signos va: el blanco sobre una banda
+ * oscura y el oscuro sobre una clara. Es la misma pregunta que
+ * en el panel resuelve `currentColor` sin preguntar nada.
+ */
+export function esClaro(hex: string | undefined): boolean {
+  if (!/^#[0-9a-fA-F]{6}$/.test(hex ?? '')) return true;
+  const n = parseInt((hex as string).slice(1), 16);
+  const [r, g, b] = [(n >> 16) & 255, (n >> 8) & 255, n & 255].map((v) => {
+    const s = v / 255;
+    return s <= 0.03928 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
+  });
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b > 0.4;
+}
 
 /** Lista en palabras: «A», «A y B», «A, B y C». */
 export function enPalabras(cosas: string[]): string {
@@ -110,20 +134,40 @@ export function armarBienvenida(d: DatosDeBienvenida): {
     'Si no esperaba este correo, no haga nada y avísenos.',
   ].join('\n');
 
-  const logos = d.logos.length
-    ? `<tr><td align="center" style="padding:0 0 18px">${d.logos
+  /// La firma va PRIMERO: el signo, el nombre y DEBAJO el
+  /// eslogan, con la línea entre medias. Es la misma de la
+  /// barra del panel, en el mismo orden.
+  const signo = d.signo
+    ? `<tr><td align="center" style="padding:0 0 14px">
+         <img src="${escaparHtml(d.signo)}" alt="" width="46" height="46" style="display:block;width:46px;height:46px;border:0">
+       </td></tr>`
+    : '';
+
+  const firma = `<table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+      ${signo}
+      <tr><td align="center" style="font:800 22px/1.25 system-ui,-apple-system,'Segoe UI',sans-serif;color:${c('encabezadoTexto')};letter-spacing:-.02em">${escaparHtml(d.nombreApp)}</td></tr>
+      <tr><td align="center" style="padding:9px 0 8px"><div style="width:120px;height:1px;background:${c('encabezadoTexto')};opacity:.35;font-size:0;line-height:0">&nbsp;</div></td></tr>
+      <tr><td align="center" style="font:400 13px/1.5 system-ui,-apple-system,'Segoe UI',sans-serif;color:${c('encabezadoTexto')};opacity:.85">${escaparHtml(d.eslogan)}</td></tr>
+    </table>`;
+
+  /// Y DESPUÉS el de la entidad: Grupo AE, o los del gremio.
+  /// Van sobre la tarjeta clara y no sobre la banda: están
+  /// hechos para papel y necesitan su placa blanca.
+  const deLaEntidad = d.logos.length
+    ? `<tr><td class="aire" style="padding:26px 40px 0" align="center">${d.logos
         .map(
           (l) =>
-            `<img src="${escaparHtml(l.url)}" alt="${escaparHtml(l.alt)}" height="38" ` +
-            `style="height:38px;width:auto;margin:0 9px;vertical-align:middle;border:0">`,
+            `<img src="${escaparHtml(l.url)}" alt="${escaparHtml(l.alt)}" height="46" style="height:46px;width:auto;margin:0 10px;vertical-align:middle;border:0">`,
         )
         .join('')}</td></tr>`
     : '';
 
+  /// En el movil se apilan: en dos columnas, un correo largo
+  /// se parte a mitad de palabra y no hay sitio que ganar.
   const fila = (etiqueta: string, valor: string) =>
     `<tr>
-       <td style="padding:9px 0;font:600 12px/1.4 system-ui,sans-serif;color:${c('textoSuave')};text-transform:uppercase;letter-spacing:.06em;white-space:nowrap">${etiqueta}</td>
-       <td style="padding:9px 0 9px 18px;font:600 15px/1.4 ui-monospace,Menlo,Consolas,monospace;color:${c('texto')};word-break:break-all">${valor}</td>
+       <td class="et" style="padding:9px 0;font:600 12px/1.4 system-ui,sans-serif;color:${c('textoSuave')};text-transform:uppercase;letter-spacing:.06em;white-space:nowrap">${etiqueta}</td>
+       <td class="va" style="padding:9px 0 9px 18px;font:600 15px/1.4 ui-monospace,Menlo,Consolas,monospace;color:${c('texto')};word-break:break-word">${valor}</td>
      </tr>`;
 
   const puerta = (p: PuertaDelPanel) =>
@@ -141,6 +185,9 @@ export function armarBienvenida(d: DatosDeBienvenida): {
   @media (max-width:620px){
     .caja{width:100%!important}
     .aire{padding-left:22px!important;padding-right:22px!important}
+    .et,.va{display:block!important;width:100%!important}
+    .et{padding:11px 0 0!important}
+    .va{padding:3px 0 11px!important}
   }
 </style>
 </head>
@@ -149,19 +196,15 @@ export function armarBienvenida(d: DatosDeBienvenida): {
   <tr><td align="center">
     <table role="presentation" class="caja" width="600" cellpadding="0" cellspacing="0" style="width:600px;max-width:600px;background:${c('superficie')};border:1px solid ${c('borde')};border-radius:14px;overflow:hidden">
 
-      <tr><td style="background:${c('marca')};height:5px;line-height:5px;font-size:0">&nbsp;</td></tr>
+      <tr><td class="aire" style="background:${c('encabezadoFondo')};padding:34px 40px 32px">${firma}</td></tr>
 
-      <tr><td class="aire" style="padding:34px 40px 0">
-        <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
-          ${logos}
-          <tr><td align="center" style="font:800 21px/1.25 system-ui,sans-serif;color:${c('texto')};letter-spacing:-.02em">${escaparHtml(d.nombreApp)}</td></tr>
-          <tr><td align="center" style="padding:5px 0 0;font:400 13px/1.5 system-ui,sans-serif;color:${c('textoSuave')}">${escaparHtml(d.eslogan)}</td></tr>
-        </table>
-      </td></tr>
+      ${deLaEntidad}
 
-      <tr><td class="aire" style="padding:30px 40px 0;font:400 16px/1.6 system-ui,sans-serif;color:${c('texto')}">
-        Hola, <strong>${escaparHtml(d.nombre)}</strong>.
-        <div style="padding:10px 0 0;color:${c('textoSuave')}">Ya tiene cuenta en ${escaparHtml(d.nombreApp)}.</div>
+      <tr><td class="aire" style="padding:26px 40px 0;font:400 16px/1.6 system-ui,sans-serif;color:${c('texto')}">
+        <div style="border-top:1px solid ${c('borde')};padding:24px 0 0">
+          Hola, <strong>${escaparHtml(d.nombre)}</strong>.
+          <div style="padding:10px 0 0;color:${c('textoSuave')}">Ya tiene cuenta en ${escaparHtml(d.nombreApp)}.</div>
+        </div>
       </td></tr>
 
       <tr><td class="aire" style="padding:24px 40px 0">
