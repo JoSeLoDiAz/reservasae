@@ -23,13 +23,51 @@ function ritmo(valor: number): string {
   return valor.toLocaleString("es-CO", { maximumFractionDigits: 1 });
 }
 
-/** Texto del estado de la proyección. */
+/**
+ * Qué pasa con esta meta, contra el CRONOGRAMA.
+ *
+ * El plazo manda sobre el ritmo. «A este ritmo se llena el 22
+ * de junio de 2027» es cierto y no sirve de nada: para esa
+ * fecha el curso arrancó y cerró hace meses. Cuando hay fecha
+ * de cierre, la respuesta es si llega o no llega antes de ella,
+ * y cuántos cupos quedarían sin llenar.
+ *
+ * Sin cronograma se vuelve a lo de antes --el ritmo solo-- y se
+ * DICE que falta la fecha. Eso es accionable: alguien la carga
+ * y la pantalla empieza a contestar de verdad.
+ */
 export function textoDeEstado(p: Proyeccion): string {
+  // estas dos no dependen del plazo
+  if (p.estado === "CUMPLIDA") return "Meta cumplida.";
+  if (p.estado === "SIN_META") return "No hay meta registrada.";
+
+  switch (p.cronograma) {
+    case "CERRADA":
+      return `Inscripción cerrada el ${fechaLarga(p.cierre!)}. Quedaron ${n(
+        p.faltan,
+      )} cupos sin llenar.`;
+
+    case "ALCANZA":
+      return `Alcanza la meta antes del cierre, el ${fechaLarga(p.cierre!)}.`;
+
+    case "NO_ALCANZA":
+      return (
+        `No alcanza: cierra el ${fechaLarga(p.cierre!)} y al ritmo de hoy ` +
+        `quedarían ${n(p.faltaranAlCierre!)} cupos sin llenar.` +
+        /// Un ritmo negativo no es «poco»: es que se esta
+        /// cancelando. Sin decirlo, el numero de arriba se lee
+        /// como lentitud.
+        (p.estado === "RETROCEDE" ? " Se está cancelando más de lo que entra." : "")
+      );
+
+    case "SIN_CRONOGRAMA":
+      return `${soloElRitmo(p)} Falta cargar la fecha de inicio del grupo.`;
+  }
+}
+
+/// Lo que se puede decir con el ritmo y nada más.
+function soloElRitmo(p: Proyeccion): string {
   switch (p.estado) {
-    case "CUMPLIDA":
-      return "Meta cumplida.";
-    case "SIN_META":
-      return "No hay meta registrada.";
     case "SIN_RITMO":
       return "Sin movimiento en la ventana.";
     case "RETROCEDE":
@@ -38,9 +76,19 @@ export function textoDeEstado(p: Proyeccion): string {
       return "A este ritmo, más de un año.";
     case "ESTIMADA":
       return `A este ritmo se llena el ${fechaLarga(p.fechaEstimada!)}.`;
+    default:
+      return "";
   }
 }
 
+/**
+ * Si esta semana entra más o menos que las dos anteriores.
+ *
+ * Decía «acelerando» y «frenando», que es vocabulario de carro
+ * y no de gestión: Mauricio preguntó qué quería decir frenando,
+ * que es la señal de que la palabra no estaba trabajando. Ahora
+ * nombra lo que mide --el ritmo-- y hacia dónde va.
+ */
 export function Tendencia({ p }: { p: Proyeccion }) {
   /// Sin las dos no hay tendencia que comparar, y decir
   /// «estable» seria afirmar algo que no se sabe.
@@ -48,11 +96,12 @@ export function Tendencia({ p }: { p: Proyeccion }) {
     return <span className="text-texto-suave">—</span>;
   }
   const diferencia = p.ritmo7 - p.ritmo14;
-  if (Math.abs(diferencia) < 0.05) return <span className="text-texto-suave">estable</span>;
+  if (Math.abs(diferencia) < 0.05)
+    return <span className="text-texto-suave">Ritmo estable</span>;
   return diferencia > 0 ? (
-    <span className="text-exito">▲ acelerando</span>
+    <span className="text-exito">▲ Ritmo al alza</span>
   ) : (
-    <span className="text-aviso">▼ frenando</span>
+    <span className="text-aviso">▼ Ritmo a la baja</span>
   );
 }
 
@@ -91,9 +140,9 @@ export function BloqueRitmo({ informe }: { informe: InformeProyeccion }) {
             t.ritmo7 === null || t.ritmo14 === null
               ? "—"
               : t.ritmo7 > t.ritmo14
-                ? "Acelerando"
+                ? "Al alza"
                 : t.ritmo7 < t.ritmo14
-                  ? "Frenando"
+                  ? "A la baja"
                   : "Estable"
           }
           detalle={

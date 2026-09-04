@@ -1,6 +1,7 @@
-/** A qué ritmo entran los cupos. */
+/** A qué ritmo entran los cupos, y si llegan a tiempo. */
 
-import { aDiaBogota, diaBogotaHace } from '../comun/dia-bogota';
+import { aDiaBogota, aDiaDeCalendario, diaBogotaHace } from '../comun/dia-bogota';
+import { cierreDeInscripciones, hoyEnColombia } from '../crm/calendario-inscripcion';
 
 export type PuntoNeto = { dia: string; neto: number };
 
@@ -11,6 +12,30 @@ export type EstadoProyeccion =
   | 'RETROCEDE'
   | 'MUY_LEJOS'
   | 'ESTIMADA';
+
+/**
+ * El veredicto contra el cronograma, que es la pregunta de
+ * verdad.
+ *
+ * `estado` contesta «cuándo se llenaría si nada cambia», y eso
+ * daba fechas de 2027 que no significan nada: para entonces el
+ * curso ya arrancó y cerró. Lo que se quiere saber es si llega
+ * ANTES de que cierre inscripción, y el cierre sale del
+ * cronograma --cinco días hábiles antes de que arranque el
+ * grupo, `cierreDeInscripciones`--.
+ *
+ * Va en un campo aparte y no dentro de `estado` porque son dos
+ * preguntas distintas: una es el ritmo y la otra es el plazo.
+ * Mezclarlas obligaría a repetir cada estado por dos.
+ */
+export type VeredictoCronograma =
+  /// Ningun grupo tiene fecha de inicio. El esquema las deja
+  /// opcionales --«los proyectos no traen fechas»--, asi que
+  /// esto no es un error: es que nadie la ha cargado.
+  | 'SIN_CRONOGRAMA'
+  | 'CERRADA'
+  | 'ALCANZA'
+  | 'NO_ALCANZA';
 
 export type Confianza = 'BAJA' | 'NORMAL';
 
@@ -31,6 +56,16 @@ export type Proyeccion = {
   /** Días hasta llegar a la meta. */
   diasEstimados: number | null;
   fechaEstimada: string | null;
+
+  // el plazo, que es lo que manda
+
+  /** El último día en que se puede inscribir. Del cronograma. */
+  cierre: string | null;
+  /** Días de calendario hasta el cierre. Negativo si ya pasó. */
+  diasAlCierre: number | null;
+  /** Cuántos cupos faltarían el día del cierre, al ritmo de hoy. */
+  faltaranAlCierre: number | null;
+  cronograma: VeredictoCronograma;
 };
 
 const DIA_MS = 24 * 60 * 60 * 1000;
@@ -69,6 +104,62 @@ export function ritmoPorDia(
   return total / dias;
 }
 
+/**
+ * Hasta cuándo se puede inscribir a una acción entera.
+ *
+ * El ÚLTIMO cierre de sus grupos, no el primero: la meta de la
+ * acción se sigue llenando mientras quede un grupo abierto.
+ * Los grupos sin fecha no cuentan --no restan plazo, porque no
+ * se sabe el suyo--; si ninguno la tiene, no hay cierre.
+ */
+export function cierreDeLaAccion(fechasDeInicio: Array<Date | null>): Date | null {
+  const cierres = fechasDeInicio
+    .filter((f): f is Date => f instanceof Date)
+    .map(cierreDeInscripciones);
+  if (!cierres.length) return null;
+  return cierres.reduce((a, b) => (b > a ? b : a));
+}
+
+/// El plazo, aparte del ritmo.
+function contraElCronograma(
+  cierre: Date | null | undefined,
+  hoy: Date,
+  faltan: number,
+  ritmoDiario: number,
+): Pick<Proyeccion, 'cierre' | 'diasAlCierre' | 'faltaranAlCierre' | 'cronograma'> {
+  if (!cierre) {
+    return {
+      cierre: null,
+      diasAlCierre: null,
+      faltaranAlCierre: null,
+      cronograma: 'SIN_CRONOGRAMA',
+    };
+  }
+
+  /// `aDiaDeCalendario` y no `aDiaBogota`: el cierre se deriva
+  /// de `Grupo.fechaInicio`, que es una fecha TECLEADA guardada
+  /// a medianoche UTC. Leerla en Bogota la retrasa un dia.
+  const dia = aDiaDeCalendario(cierre);
+  const diasAlCierre = Math.round((cierre.getTime() - hoyEnColombia(hoy).getTime()) / DIA_MS);
+
+  if (diasAlCierre < 0) {
+    return { cierre: dia, diasAlCierre, faltaranAlCierre: faltan, cronograma: 'CERRADA' };
+  }
+
+  /// Lo que entraria de aqui al cierre al ritmo de hoy. Un
+  /// ritmo negativo resta, que es lo correcto: si se cancela
+  /// mas de lo que entra, el dia del cierre falta MAS.
+  const entraran = ritmoDiario * diasAlCierre;
+  const faltaranAlCierre = Math.max(0, Math.ceil(faltan - entraran));
+
+  return {
+    cierre: dia,
+    diasAlCierre,
+    faltaranAlCierre,
+    cronograma: faltaranAlCierre === 0 ? 'ALCANZA' : 'NO_ALCANZA',
+  };
+}
+
 export function calcularProyeccion(entrada: {
   serie: PuntoNeto[];
   ocupados: number;
@@ -78,6 +169,8 @@ export function calcularProyeccion(entrada: {
   origen?: 'MOVIMIENTOS' | 'APROXIMADO';
   /** Días de historia disponibles. */
   diasDeHistoria?: number;
+  /** El cierre de inscripción que sale del cronograma. */
+  cierre?: Date | null;
 }): Proyeccion {
   const { serie, ocupados, meta, dias, hoy } = entrada;
 
@@ -88,6 +181,8 @@ export function calcularProyeccion(entrada: {
   const ritmo14 = ritmoPorDia(serie, 14, hoy, dias);
   const faltan = Math.max(0, meta - ocupados);
 
+  const plazo = contraElCronograma(entrada.cierre, hoy, faltan, ritmoDiario);
+
   const base: Omit<Proyeccion, 'estado' | 'diasEstimados' | 'fechaEstimada'> = {
     confianza: (entrada.diasDeHistoria ?? dias) < 7 ? 'BAJA' : 'NORMAL',
     origen: entrada.origen ?? 'MOVIMIENTOS',
@@ -97,6 +192,7 @@ export function calcularProyeccion(entrada: {
     ritmoDiario,
     ritmo7,
     ritmo14,
+    ...plazo,
   };
 
   const sinFecha = { diasEstimados: null, fechaEstimada: null };

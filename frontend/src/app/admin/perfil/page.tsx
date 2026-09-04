@@ -64,7 +64,11 @@ export default function PaginaPerfil() {
       </header>
 
       <Bloque titulo="Mis datos">
-        <form onSubmit={guardar} className="space-y-4">
+        {/* `space-y-5` y no 4: entre el pie de un campo y el
+            rótulo del siguiente había menos aire que entre el
+            rótulo y su propia caja, así que cada etiqueta se
+            leía pegada al campo de ARRIBA en vez de al suyo. */}
+        <form onSubmit={guardar} className="space-y-5">
           <Campo etiqueta="Nombre completo">
             <input
               required
@@ -74,7 +78,9 @@ export default function PaginaPerfil() {
             />
           </Campo>
 
-          <div className="grid sm:grid-cols-2">
+          {/* Sin `gap`, «Cargo» y «Celular» se tocaban: las dos
+              cajas quedaban pegadas por el costado. */}
+          <div className="grid gap-x-6 gap-y-5 sm:grid-cols-2">
             <Campo etiqueta="Cargo">
               <input
                 value={datos.cargo}
@@ -103,9 +109,13 @@ export default function PaginaPerfil() {
           {error && <Aviso tipo="error">{error}</Aviso>}
           {guardado && !error && <Aviso tipo="exito">Datos guardados.</Aviso>}
 
-          <Boton type="submit" disabled={guardando}>
-            {guardando ? "Guardando…" : "Guardar cambios"}
-          </Boton>
+          {/* Separado por la raya: es el final del formulario y
+              nacía contra la caja de «Organización». */}
+          <div className="border-t border-hairline pt-5">
+            <Boton type="submit" disabled={guardando}>
+              {guardando ? "Guardando…" : "Guardar cambios"}
+            </Boton>
+          </div>
         </form>
       </Bloque>
 

@@ -221,14 +221,25 @@ export function BarraAvance({
   compacta?: boolean;
 }) {
   const porcentaje = maximo > 0 ? Math.min((valor / maximo) * 100, 100) : 0;
-  const texto = `${n(valor)} de ${n(maximo)} (${porcentaje.toFixed(1)} %)`;
+  /// Coma decimal, que es la de aqui: `toFixed` da «0.0», y en
+  /// la misma pantalla convivia con los «6,9 %» que ya salian
+  /// bien de `toLocaleString`. Dos separadores distintos en una
+  /// cifra y otra se lee como un fallo, y lo es.
+  const pct = porcentaje.toLocaleString("es-CO", {
+    minimumFractionDigits: 1,
+    maximumFractionDigits: 1,
+  });
+  const texto = `${n(valor)} de ${n(maximo)} · ${pct} %`;
 
   return (
     <div>
       {etiqueta && (
-        <div className="mb-1 flex items-baseline justify-between gap-3 text-sm">
-          <span>{etiqueta}</span>
-          <span className="tabular-nums text-texto-suave">{texto}</span>
+        <div className="mb-1.5 flex items-baseline justify-between gap-3 text-sm">
+          <span className="min-w-0">{etiqueta}</span>
+          <span className="shrink-0 tabular-nums text-texto-suave">
+            <strong className="font-semibold text-texto">{n(valor)}</strong> de{" "}
+            {n(maximo)} · {pct} %
+          </span>
         </div>
       )}
       <div
@@ -1018,12 +1029,18 @@ export function Chispa({
   alto = 20,
   color = "var(--marca)",
   etiqueta,
+  /// Por omision no se encoge, que es lo que quiere una chispa
+  /// metida en una linea de texto. Con `w-full h-auto` se
+  /// estira a lo que mida su columna: el `viewBox` ya esta
+  /// puesto, asi que escala sin deformarse.
+  clase = "shrink-0",
 }: {
   datos: number[];
   ancho?: number;
   alto?: number;
   color?: string;
   etiqueta?: string;
+  clase?: string;
 }) {
   if (!datos.length) return null;
 
@@ -1048,7 +1065,7 @@ export function Chispa({
       aria-label={`${etiqueta ? `${etiqueta}, ` : ""}tendencia de ${n(datos[0])} a ${n(
         datos[datos.length - 1],
       )}`}
-      className="shrink-0"
+      className={clase}
     >
       {puntos.length > 1 && (
         <polyline
@@ -1062,6 +1079,115 @@ export function Chispa({
       )}
       <circle cx={ultimo[0]} cy={ultimo[1]} r="1.75" fill={color} />
     </svg>
+  );
+}
+
+// area de una serie
+
+/**
+ * La serie de un periodo, con el area rellena.
+ *
+ * Hermana de `Chispa` y no la misma: la chispa es un trazo que
+ * cabe en una linea de texto y no lleva escala. Esta es la
+ * grafica de un bloque -- se estira a su columna, marca el
+ * ultimo dia con un punto y deja los dos extremos rotulados --,
+ * que es lo que hace falta cuando la serie ES el contenido y no
+ * un adorno al lado de una cifra.
+ *
+ * El degradado va de la marca al vacio: da volumen sin meter un
+ * segundo color, que en una serie de un solo dato seria un
+ * color que no significa nada.
+ */
+export function AreaDeSerie({
+  datos,
+  alto = 132,
+  desde,
+  hasta,
+  etiqueta,
+}: {
+  datos: number[];
+  alto?: number;
+  /** Rotulo del extremo izquierdo. */
+  desde?: string;
+  /** Y del derecho. */
+  hasta?: string;
+  etiqueta?: string;
+}) {
+  if (!datos.length) return null;
+
+  /// Coordenadas en una caja fija que el `viewBox` escala: asi
+  /// la grafica se adapta al ancho sin recalcular nada.
+  const ancho = 600;
+  const margen = 6;
+  const maximo = Math.max(...datos);
+  const minimo = Math.min(...datos);
+  const plano = maximo === minimo;
+  const paso = datos.length > 1 ? (ancho - margen * 2) / (datos.length - 1) : 0;
+
+  const puntos = datos.map((v, i) => {
+    const x = margen + i * paso;
+    const y = plano
+      ? alto / 2
+      : alto - margen - ((v - minimo) / (maximo - minimo)) * (alto - margen * 2);
+    return [x, y] as const;
+  });
+
+  const trazo = puntos.map(([x, y]) => `${x},${y}`).join(" ");
+  const ultimo = puntos[puntos.length - 1];
+  /// El area cierra contra el suelo de la caja, no contra el
+  /// minimo: cerrar contra el minimo deja el relleno flotando.
+  const relleno = `${margen},${alto} ${trazo} ${ultimo[0]},${alto}`;
+  const id = `area-${datos.length}-${Math.round(maximo)}`;
+
+  return (
+    <figure className="m-0">
+      <svg
+        viewBox={`0 0 ${ancho} ${alto}`}
+        preserveAspectRatio="none"
+        role="img"
+        aria-label={`${etiqueta ? `${etiqueta}, ` : ""}de ${n(datos[0])} a ${n(
+          datos[datos.length - 1],
+        )}`}
+        className="h-auto w-full"
+        style={{ height: alto }}
+      >
+        <defs>
+          <linearGradient id={id} x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="var(--marca)" stopOpacity="0.22" />
+            <stop offset="100%" stopColor="var(--marca)" stopOpacity="0" />
+          </linearGradient>
+        </defs>
+
+        <polygon points={relleno} fill={`url(#${id})`} />
+        {puntos.length > 1 && (
+          <polyline
+            points={trazo}
+            fill="none"
+            stroke="var(--marca)"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            vectorEffect="non-scaling-stroke"
+          />
+        )}
+        <circle
+          cx={ultimo[0]}
+          cy={ultimo[1]}
+          r="4"
+          fill="var(--superficie)"
+          stroke="var(--marca)"
+          strokeWidth="2"
+          vectorEffect="non-scaling-stroke"
+        />
+      </svg>
+
+      {(desde || hasta) && (
+        <figcaption className="mt-1 flex justify-between text-[0.6875rem] text-texto-suave">
+          <span>{desde}</span>
+          <span>{hasta}</span>
+        </figcaption>
+      )}
+    </figure>
   );
 }
 

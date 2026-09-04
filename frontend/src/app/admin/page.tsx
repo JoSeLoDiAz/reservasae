@@ -12,29 +12,38 @@
  * contesta salía con el mismo peso que «tasa de cancelación»,
  * doce bloques más abajo.
  *
- * El orden es la respuesta: veredicto → cifras → dónde empujar
- * → territorio → composición → detalle.
+ * El orden es la respuesta: veredicto, cifras, dónde empujar,
+ * territorio, quién concentra.
  *
  * Lo que se quitó y por qué está en el comentario de cada
  * pieza; en corto: dos medidores que se contradecían (ahora un
  * termómetro), dos tablas de las mismas quince acciones (ahora
  * una), y la lista de «ubicaciones sin una sola reserva», que
- * es una cifra de la tira y se filtra en el detalle.
+ * es una cifra de la tira.
+ *
+ * En la revisión de Mauricio se cayeron dos bloques más:
+ *
+ *   - «De qué está hecha la demanda» entero. De sus tres
+ *     piezas solo se miraba «Por modalidad», que subió al
+ *     veredicto; «Por gremio» y «Tamaño de la organización» no
+ *     se usaban para decidir nada desde aquí.
+ *   - «Detalle por acción y ubicación». Era una tabla de 106
+ *     filas que repetía lo que ya vive dentro de cada acción
+ *     --«Grupos programados» y «Detalle por ubicación», en
+ *     `/admin/acciones/[id]`--. El camino es pulsar la acción,
+ *     no arrastrar la tabla entera hasta aquí.
+ *
+ * Y «Concentración» salió de «Territorio» a bloque propio con
+ * el nombre que usa el equipo: son las reservas de aliados y
+ * afiliados, no una nota al pie del mapa.
  */
 
 import Link from "next/link";
-import { useCallback, useState } from "react";
+import { useCallback } from "react";
 
 import { AccionesOcupacionRitmo } from "@/components/admin/acciones-ocupacion-ritmo";
 import { BotonPdf, EncabezadoImpresion } from "@/components/admin/boton-pdf";
-import {
-  BarraAvance,
-  BarrasAgrupadas,
-  EtiquetaEstado,
-  ListaBarras,
-  n,
-  SERIE,
-} from "@/components/admin/graficos";
+import { ListaBarras, n } from "@/components/admin/graficos";
 import {
   IndicadorActualizacion,
   SelloDeDatos,
@@ -46,18 +55,7 @@ import { Bloque, Cargando, TarjetaCifra } from "@/components/admin/piezas";
 import { VeredictoOcupacion } from "@/components/admin/veredicto-ocupacion";
 import { bonito } from "@/lib/api";
 import { useDatosVivos } from "@/lib/datos-vivos";
-import {
-  descargar,
-  tablerosApi,
-  type Analisis,
-  type FilaUbicacion,
-} from "@/lib/tableros-api";
-
-const MODALIDAD: Record<string, string> = {
-  PRESENCIAL: "Presencial",
-  VIRTUAL: "Virtual",
-  HIBRIDA: "Híbrido",
-};
+import { tablerosApi, type Analisis } from "@/lib/tableros-api";
 
 /// Las ciudades suman a su departamento para pintar el mapa.
 ///
@@ -84,24 +82,24 @@ export default function Tablero() {
 
   const vivos = useDatosVivos(
     useCallback(async () => {
-      const [resumen, acciones, analisis, ubicaciones, serie, proyeccion] =
-        await Promise.all([
-          tablerosApi.resumen(),
-          tablerosApi.acciones(),
-          tablerosApi.analisis(),
-          tablerosApi.ubicaciones(),
-          tablerosApi.serie(30),
-          tablerosApi.proyeccion(14),
-        ]);
-      return { resumen, acciones, analisis, ubicaciones, serie, proyeccion };
+      /// `ubicaciones()` ya no se pide: era la fuente del
+      /// «Detalle por acción y ubicación», que se quitó. Una
+      /// consulta menos cada treinta segundos.
+      const [resumen, acciones, analisis, serie, proyeccion] = await Promise.all([
+        tablerosApi.resumen(),
+        tablerosApi.acciones(),
+        tablerosApi.analisis(),
+        tablerosApi.serie(30),
+        tablerosApi.proyeccion(14),
+      ]);
+      return { resumen, acciones, analisis, serie, proyeccion };
     }, []),
   );
 
   if (vivos.error) return <Aviso tipo="error">{vivos.error}</Aviso>;
   if (!vivos.datos) return <Cargando que="Cargando el tablero…" />;
 
-  const { resumen, acciones, analisis, ubicaciones, serie, proyeccion } =
-    vivos.datos;
+  const { resumen, acciones, analisis, serie, proyeccion } = vivos.datos;
 
   /// En el refresco de cada 30 s NO se vacía el layout: se
   /// atenúa lo que hay. Vaciarlo da un salto de media pantalla
@@ -110,19 +108,21 @@ export default function Tablero() {
   const atenuado = vivos.refrescando ? "opacity-45 pointer-events-none" : "";
 
   return (
-    <div className="flex flex-col gap-3 px-4 pt-3 pb-6">
-      <EncabezadoImpresion titulo="Tablero de ocupación" />
+    <div className="resumen-impreso flex flex-col gap-3 px-4 pt-3 pb-6">
+      <EncabezadoImpresion
+        titulo="Resumen de ocupación"
+        subtitulo="Cupos comprometidos con el SENA"
+      />
       <SelloDeDatos actualizadoEn={vivos.actualizadoEn} />
 
-      {/* ── 1 · Cabecera ── */}
+      {/* 1 - Cabecera */}
       <header className="no-imprimir flex flex-wrap items-start justify-between gap-4">
         <div className="min-w-0">
           <h1 className="text-[1.125rem] font-bold tracking-[-0.02em] text-titulo">
             Hola, {admin.nombre.split(" ")[0]}
           </h1>
           <p className="mt-0.5 text-[0.78125rem] text-texto-suave">
-            Ocupación de los cupos comprometidos con el SENA. Se actualiza sola
-            cada 30 segundos.
+            Resumen de ocupación de los cupos comprometidos
           </p>
         </div>
 
@@ -133,13 +133,15 @@ export default function Tablero() {
             desactualizado={vivos.desactualizado}
             alRefrescar={vivos.refrescar}
           />
+          {/* Sin «Descargar Excel».
+
+              Esta pantalla es el informe: se proyecta en
+              reunión y se lleva en PDF. El Excel era la
+              tercera forma de sacar lo mismo --y la que nadie
+              usaba-- al lado de la que sí. La exportación de
+              ocupación sigue viva en la API por si hace falta
+              devolverla. */}
           <BotonPdf etiqueta="PDF para reunión" />
-          <button
-            onClick={() => descargar("ocupacion")}
-            className="h-[34px] rounded-lg border border-borde px-3.5 text-[0.78125rem] font-semibold transition hover:bg-superficie-alterna"
-          >
-            Descargar Excel
-          </button>
           <Link
             href="/admin/reservas"
             className="inline-flex h-[34px] items-center rounded-lg border border-marca bg-marca px-3.5 text-[0.78125rem] font-semibold text-marca-texto transition hover:bg-marca-fuerte"
@@ -164,19 +166,19 @@ export default function Tablero() {
         className={`flex flex-col gap-3 transition-opacity ${atenuado}`}
         aria-busy={vivos.refrescando}
       >
-        {/* ── 2 · El veredicto ── */}
+        {/* 2 - El veredicto */}
         <VeredictoOcupacion
           resumen={resumen}
           serie={serie}
           proyeccion={proyeccion}
+          analisis={analisis}
         />
 
-        {/* ── 3 · Las cifras clave ──
+        {/* 3 - Las cifras clave.
             Seis, y fusionan dos tiras que estaban separadas.
-            «Ubicaciones completas» se cayó: como cifra suelta era
-            ruido, y su información vive mejor en el filtro
-            «Ocultar las completas» del detalle. */}
-        <div className="imprimible-bloque grid gap-px overflow-hidden rounded-lg border border-borde bg-hairline sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+            «Ubicaciones completas» se cayó: como cifra suelta
+            era ruido. */}
+        <div className="imprimible-bloque imprimible-cifras grid gap-px overflow-hidden rounded-lg border border-borde bg-hairline sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
           <TarjetaCifra
             compacta
             etiqueta="Cupos con dueño"
@@ -210,8 +212,7 @@ export default function Tablero() {
             tono={resumen.tasaCancelacion > 10 ? "aviso" : "neutro"}
           />
           {/* La lista de «ubicaciones sin una sola reserva» era
-              un bloque entero al final. Como cifra dice lo mismo,
-              y el detalle de abajo permite ir a verlas. */}
+              un bloque entero al final. Como cifra dice lo mismo. */}
           <TarjetaCifra
             compacta
             etiqueta="Sin ninguna reserva"
@@ -221,26 +222,20 @@ export default function Tablero() {
           />
         </div>
 
-        {/* ── 4 · Dónde empujar ── */}
+        {/* 4 - Dónde empujar */}
         <AccionesOcupacionRitmo acciones={acciones} proyeccion={proyeccion} />
 
-        {/* ── 5 · Territorio ── */}
+        {/* 5 - Territorio */}
         <Territorio analisis={analisis} />
 
-        {/* ── 6 · Composición ── */}
-        <Composicion analisis={analisis} />
-
-        {/* ── 7 · El detalle, plegado ──
-            Sustituye a un Excel y el equipo la quiere a mano,
-            pero 106 filas abiertas parten la pantalla en dos.
-            Plegada cumple las dos cosas. */}
-        <TablaUbicaciones filas={ubicaciones} />
+        {/* 6 - Quién concentra los cupos */}
+        <ReservasDeAliados analisis={analisis} />
       </div>
     </div>
   );
 }
 
-// ─────────────────────────── territorio ─────────────────────
+// territorio
 
 function Territorio({ analisis }: { analisis: Analisis }) {
   /// El mapa suma las ciudades a su departamento; el ranking de
@@ -270,16 +265,13 @@ function Territorio({ analisis }: { analisis: Analisis }) {
       detalle: `de ${n(t.cupos)}`,
     }));
 
-  const conc = analisis.concentracion;
-
   return (
-    <Bloque
-      titulo="Territorio"
-      descripcion="Dónde están los cupos con dueño, y en cuántas manos."
-    >
+    <Bloque partible titulo="Territorio" descripcion="Dónde están los cupos con dueño.">
       <div className="grid gap-6 lg:grid-cols-2">
         <Bloque plano titulo="En el mapa" descripcion="Por departamento">
-          <MapaColombia datos={mapa} />
+          <div className="mapa-en-papel">
+            <MapaColombia datos={mapa} />
+          </div>
         </Bloque>
 
         <Bloque
@@ -294,218 +286,50 @@ function Territorio({ analisis }: { analisis: Analisis }) {
           />
         </Bloque>
       </div>
-
-      <div className="mt-6 border-t border-hairline pt-5">
-        <Bloque
-          plano
-          titulo="Concentración"
-          descripcion={
-            conc.organizaciones > 0
-              ? `Las 10 organizaciones con más cupos suman el ${conc.porcentajeDiezMayores
-                  .toFixed(1)
-                  .replace(".", ",")} % del total.`
-              : "Cuánto se reparte la oferta entre organizaciones."
-          }
-        >
-          <ListaBarras
-            datos={conc.diezMayores.map((e) => ({
-              clave: e.razonSocial,
-              etiqueta: bonito(e.razonSocial),
-              valor: e.cupos,
-              detalle: `${e.porcentaje.toFixed(1).replace(".", ",")} %`,
-            }))}
-            vacio="Todavía no hay organizaciones con cupos."
-          />
-
-          {conc.porcentajeDiezMayores > 60 && conc.organizaciones > 10 && (
-            <p className="mt-4 text-[0.78125rem] text-aviso">
-              Diez organizaciones concentran más del 60 % de los cupos. Puede
-              valer la pena revisar si la convocatoria está llegando lo bastante
-              ancha.
-            </p>
-          )}
-        </Bloque>
-      </div>
     </Bloque>
   );
 }
 
-// ────────────────────────── composición ─────────────────────
+// aliados y afiliados
 
-function Composicion({ analisis }: { analisis: Analisis }) {
-  const t = analisis.tamano;
-
-  return (
-    <Bloque
-      titulo="De qué está hecha la demanda"
-      descripcion="Modalidad, gremio y tamaño de quien reserva."
-    >
-      <div className="grid gap-6 lg:grid-cols-3">
-        <Bloque plano titulo="Por modalidad" descripcion="Ofertado contra reservado">
-          <BarrasAgrupadas
-            categorias={analisis.modalidad.map((m) => ({
-              etiqueta: MODALIDAD[m.nombre] ?? m.nombre,
-              valores: [m.cupos, m.ocupados],
-            }))}
-            series={[
-              { nombre: "Ofertados", color: SERIE.uno },
-              { nombre: "Reservados", color: SERIE.dos },
-            ]}
-          />
-        </Bloque>
-
-        <Bloque plano titulo="Por gremio" descripcion="Según lo declarado en el formulario">
-          <ListaBarras
-            datos={analisis.gremio.map((g) => ({
-              clave: g.nombre,
-              etiqueta: g.nombre,
-              valor: g.cupos,
-              detalle: `${g.empresas} org.`,
-            }))}
-            maximoFilas={8}
-            vacio="Nadie ha declarado gremio todavía."
-          />
-        </Bloque>
-
-        <Bloque
-          plano
-          titulo="Tamaño de la organización"
-          descripcion="Decreto 957 de 2019: por ingresos y sector, que es el criterio del reporte"
-        >
-          {/* La cifra que los proyectos comprometen va aparte y
-              ya sumada: para saber si se cumple, sumar tres
-              barras a ojo no vale. */}
-          <p className="mb-3 text-[0.78125rem]">
-            <strong className="tabular-nums">{n(t.mipymes.empresas)}</strong>{" "}
-            {t.mipymes.empresas === 1
-              ? "organización es mipyme"
-              : "organizaciones son mipymes"}
-            , con <strong className="tabular-nums">{n(t.mipymes.cupos)}</strong>{" "}
-            cupos.
-          </p>
-
-          <ListaBarras
-            datos={t.filas.map((f) => ({
-              clave: f.nombre,
-              etiqueta: f.nombre,
-              valor: f.cupos,
-              detalle: `${f.empresas} org.`,
-            }))}
-            vacio="Sin datos de tamaño todavía."
-          />
-
-          {/* Decirlo no es un detalle: hasta que todas declaren
-              su rango de ingresos, esta cifra mezcla dos
-              criterios que NO dan lo mismo. Callarlo daría un
-              recuento que parece exacto y no lo es. */}
-          {(t.criterio.EMPLEADOS > 0 || t.criterio.SIN_DATO > 0) && (
-            <p className="mt-3 text-[0.71875rem] leading-relaxed text-texto-suave">
-              {t.criterio.DECRETO_957 > 0 && (
-                <>{n(t.criterio.DECRETO_957)} clasificadas por su rango de ingresos. </>
-              )}
-              {t.criterio.EMPLEADOS > 0 && (
-                <>
-                  {n(t.criterio.EMPLEADOS)} por número de colaboradores, que es el
-                  criterio viejo y puede dar otra talla.{" "}
-                </>
-              )}
-              {t.criterio.SIN_DATO > 0 && (
-                <>{n(t.criterio.SIN_DATO)} sin ningún dato de tamaño.</>
-              )}
-            </p>
-          )}
-        </Bloque>
-      </div>
-    </Bloque>
-  );
-}
-
-// ─────────────────────────── el detalle ─────────────────────
-
-function TablaUbicaciones({ filas }: { filas: FilaUbicacion[] }) {
-  const [soloConCupo, setSoloConCupo] = useState(false);
-  const [buscar, setBuscar] = useState("");
-
-  const visibles = filas
-    .filter((f) => (soloConCupo ? f.estado !== "COMPLETO" : true))
-    .filter((f) =>
-      buscar.trim()
-        ? `${f.codigo} ${f.accion} ${f.ubicacion}`
-            .toLowerCase()
-            .includes(buscar.trim().toLowerCase())
-        : true,
-    );
+/**
+ * En cuántas manos están los cupos.
+ *
+ * Era «Concentración», un sub-bloque colgado del final de
+ * «Territorio», y ahí se leía como una nota al pie del mapa
+ * cuando es otra pregunta: no DÓNDE están los cupos, sino
+ * QUIÉN los tiene. Aparte, y con el nombre que usa el equipo.
+ */
+function ReservasDeAliados({ analisis }: { analisis: Analisis }) {
+  const conc = analisis.concentracion;
 
   return (
     <Bloque
-      plegable
-      titulo={`Detalle por acción y ubicación (${filas.length})`}
-      descripcion="La tabla que reemplaza al dashboard del Excel."
+      partible
+      titulo="Reservas de Aliados y Afiliados"
+      descripcion={
+        conc.organizaciones > 0
+          ? `Las 10 organizaciones con más cupos suman el ${conc.porcentajeDiezMayores
+              .toFixed(1)
+              .replace(".", ",")} % del total.`
+          : "Cuánto se reparte la oferta entre organizaciones."
+      }
     >
-      <div className="no-imprimir mb-4 flex flex-wrap items-center gap-4">
-        <input
-          value={buscar}
-          onChange={(e) => setBuscar(e.target.value)}
-          placeholder="Filtrar por código, acción o ubicación"
-          className="min-w-56 flex-1 rounded-lg border border-campo-borde bg-campo-fondo px-3 py-2 text-sm outline-none focus:border-campo-foco focus:ring-2 focus:ring-campo-foco/25 sm:max-w-md"
-        />
-        <label className="flex gap-2 text-sm">
-          <input
-            type="checkbox"
-            checked={soloConCupo}
-            onChange={(e) => setSoloConCupo(e.target.checked)}
-            className="size-4 accent-[var(--marca)]"
-          />
-          Ocultar las completas
-        </label>
-      </div>
+      <ListaBarras
+        datos={conc.diezMayores.map((e) => ({
+          clave: e.razonSocial,
+          etiqueta: bonito(e.razonSocial),
+          valor: e.cupos,
+          detalle: `${e.porcentaje.toFixed(1).replace(".", ",")} %`,
+        }))}
+        vacio="Todavía no hay organizaciones con cupos."
+      />
 
-      {visibles.length === 0 ? (
-        <p className="py-6 text-center text-sm text-texto-suave">
-          Sin combinaciones con ese filtro.
+      {conc.porcentajeDiezMayores > 60 && conc.organizaciones > 10 && (
+        <p className="mt-4 text-[0.78125rem] text-aviso">
+          Diez organizaciones concentran más del 60 % de los cupos. Puede valer
+          la pena revisar si la convocatoria está llegando lo bastante ancha.
         </p>
-      ) : (
-        <div className="caja-scroll max-h-[32rem] overflow-auto">
-          <table className="tabla-datos text-sm">
-            <thead className="sticky top-0 z-10">
-              <tr>
-                <th>Convenio</th>
-                <th>Código</th>
-                <th>Ubicación</th>
-                <th className="text-right">Cupos</th>
-                <th className="text-right">Reservados</th>
-                <th className="text-right">Libres</th>
-                <th className="min-w-32">Avance</th>
-                <th>Estado</th>
-              </tr>
-            </thead>
-            <tbody>
-              {visibles.map((f) => (
-                <tr key={f.id}>
-                  <td className="whitespace-nowrap text-texto-suave">
-                    {f.convenioSigla ?? f.convenio}
-                  </td>
-                  <td className="whitespace-nowrap font-mono text-xs">{f.codigo}</td>
-                  <td className="whitespace-nowrap">
-                    {bonito(f.ubicacion)}
-                    <span className="ml-2 text-xs text-texto-suave">
-                      {f.modalidad === "PRESENCIAL" ? "presencial" : "virtual"}
-                    </span>
-                  </td>
-                  <td className="text-right tabular-nums">{n(f.cupos)}</td>
-                  <td className="text-right tabular-nums">{n(f.ocupados)}</td>
-                  <td className="text-right tabular-nums">{n(f.disponibles)}</td>
-                  <td>
-                    <BarraAvance valor={f.ocupados} maximo={f.cupos} compacta />
-                  </td>
-                  <td>
-                    <EtiquetaEstado estado={f.estado} />
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
       )}
     </Bloque>
   );

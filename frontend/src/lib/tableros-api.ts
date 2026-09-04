@@ -68,6 +68,40 @@ export type Analisis = {
   }>;
 };
 
+/// En que punto va la ventana de inscripcion de un grupo.
+export type EstadoVentana =
+  | "SIN_FECHAS"
+  | "ABIERTA"
+  | "POR_AVISAR"
+  | "AVISANDO"
+  | "CERRADA";
+
+/// COMO VA un grupo, no como esta repartido.
+///
+/// `inscritos` son participantes en etapa de las que ocupan
+/// silla --INSCRITO, EN_FORMACION, CERTIFICADO--, que es la
+/// misma definicion con la que el backend gobierna la
+/// inscripcion. No son reservas: son personas dentro.
+export type GrupoDeAccion = {
+  numero: number;
+  modalidad: Modalidad;
+  sede: string | null;
+  /// Los que ya estan dentro.
+  inscritos: number;
+  cuposMaximos: number;
+  /// Lo que le queda por llenar al grupo.
+  faltan: number;
+  /// Leads del grupo que todavia se pueden trabajar: ni estan
+  /// inscritos ni estan perdidos. Con estos se llena `faltan`.
+  porDepurar: number;
+  fechaInicio: string | null;
+  /// Cinco habiles antes del arranque.
+  cierre: string | null;
+  /// Habiles que quedan para inscribir. Negativo si ya cerro.
+  diasHabilesRestantes: number | null;
+  estadoVentana: EstadoVentana;
+};
+
 export type FilaAccion = {
   id: string;
   codigo: string;
@@ -85,6 +119,7 @@ export type FilaAccion = {
   enEspera: number;
   avance: number;
   estado: EstadoSemaforo;
+  grupos: GrupoDeAccion[];
 };
 
 export type FilaUbicacion = {
@@ -202,6 +237,17 @@ export type EstadoProyeccion =
   | "MUY_LEJOS"
   | "ESTIMADA";
 
+/// El veredicto contra el cronograma.
+///
+/// OJO con SIN_CRONOGRAMA: no es un error, es que nadie cargo
+/// la fecha de inicio del grupo --el esquema las deja
+/// opcionales, «los proyectos no traen fechas»--.
+export type VeredictoCronograma =
+  | "SIN_CRONOGRAMA"
+  | "CERRADA"
+  | "ALCANZA"
+  | "NO_ALCANZA";
+
 export type Proyeccion = {
   estado: EstadoProyeccion;
   confianza: "BAJA" | "NORMAL";
@@ -216,6 +262,17 @@ export type Proyeccion = {
   ritmo14: number | null;
   diasEstimados: number | null;
   fechaEstimada: string | null;
+
+  // el plazo del cronograma, que es el que manda
+
+  /// El ultimo dia en que se puede inscribir: cinco habiles
+  /// antes de que arranque el grupo.
+  cierre: string | null;
+  /// Dias de calendario hasta el cierre. Negativo si ya paso.
+  diasAlCierre: number | null;
+  /// Cuantos cupos faltarian el dia del cierre, al ritmo de hoy.
+  faltaranAlCierre: number | null;
+  cronograma: VeredictoCronograma;
 };
 
 export type ProyeccionAccion = Proyeccion & {

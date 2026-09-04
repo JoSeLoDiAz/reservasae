@@ -15,13 +15,15 @@ import {
   sqlDeConvenio,
 } from './ambito';
 import { PrismaService } from '../prisma/prisma.service';
-import { diaBogota } from '../comun/dia-bogota';
+import { aDiaDeCalendario, diaBogota } from '../comun/dia-bogota';
+import { ventanaDe } from '../crm/calendario-inscripcion';
+import { OCUPAN_SILLA, POR_DEPURAR } from '../crm/etapas';
 import {
   TALLAS,
   TALLAS_MIPYME,
   tallaDeOrganizacion,
 } from '../crm/catalogos-sep';
-import { calcularProyeccion, type PuntoNeto } from './proyeccion';
+import { calcularProyeccion, cierreDeLaAccion, type PuntoNeto } from './proyeccion';
 
 export type FiltrosReservas = {
   /// Lo pone el controlador desde el guard, no la peticion.
@@ -288,15 +290,72 @@ export class TablerosService {
   }
 
   /** Ocupación por acción de formación. */
-  async porAccion(ambito: string[]) {
+  async porAccion(ambito: string[], hoy = new Date()) {
     const acciones = await this.prisma.accionFormacion.findMany({
       where: deConvenio(ambito),
       orderBy: [{ convenio: { orden: 'asc' } }, { orden: 'asc' }],
       include: {
         convenio: { select: { slug: true, sigla: true } },
         ofertas: { select: { cuposMaximos: true, cuposOcupados: true } },
+        /// Los grupos viajan con la fila para que el tablero
+        /// los abra sin otra vuelta al servidor: son pocos por
+        /// accion y la pantalla ya se refresca sola.
+        ///
+        /// La gente de cada grupo NO se cuenta aqui: hace falta
+        /// contarla dos veces --los que ocupan silla y los que
+        /// todavia se pueden depurar-- y un `_count` anidado
+        /// solo admite UN filtro por relacion. Va en el
+        /// `groupBy` de abajo.
+        grupos: {
+          orderBy: { numero: 'asc' },
+          include: {
+            sede: { select: { nombre: true } },
+            coberturas: {
+              select: {
+                id: true,
+                cuposMaximos: true,
+              },
+            },
+          },
+        },
       },
     });
+
+    /**
+     * La gente de cada grupo, en UNA consulta.
+     *
+     * Dos recuentos de la MISMA relacion: los que ocupan silla
+     * --inscritos-- y los que todavia se pueden trabajar para
+     * llenar lo que falta. Un `groupBy` por cobertura y etapa
+     * los trae los dos de un viaje, y el filtro por los ids ya
+     * cargados lo deja acotado al ambito sin volver a decirlo.
+     */
+    const idsCobertura = acciones.flatMap((a) =>
+      a.grupos.flatMap((g) => g.coberturas.map((c) => c.id)),
+    );
+    const porEtapa = idsCobertura.length
+      ? await this.prisma.participante.groupBy({
+          by: ['coberturaId', 'etapa'],
+          where: { coberturaId: { in: idsCobertura } },
+          _count: { _all: true },
+        })
+      : [];
+
+    const inscritosDe = new Map<string, number>();
+    const depurablesDe = new Map<string, number>();
+    for (const fila of porEtapa) {
+      if (!fila.coberturaId) continue;
+      const donde = OCUPAN_SILLA.includes(fila.etapa)
+        ? inscritosDe
+        : POR_DEPURAR.includes(fila.etapa)
+          ? depurablesDe
+          : null;
+      /// Las perdidas y las salidas no caen en ninguno de los
+      /// dos, y eso es a proposito: ni ocupan silla ni se
+      /// pueden depurar.
+      if (!donde) continue;
+      donde.set(fila.coberturaId, (donde.get(fila.coberturaId) ?? 0) + fila._count._all);
+    }
 
     // la espera vive en las reservas
     const espera = await this.prisma.reserva.groupBy({
@@ -342,6 +401,45 @@ export class TablerosService {
         enEspera: esperaPorAccion.get(a.id) ?? 0,
         avance: cupos ? Math.round((ocupados / cupos) * 1000) / 10 : 0,
         estado: semaforo(cupos, ocupados),
+        /// COMO VA cada grupo, no como esta repartido.
+        ///
+        /// El reparto por ubicaciones --«Medellin 78, Bogota
+        /// 65...»-- es la estructura del proyecto y ya vive en
+        /// la pantalla de la accion. Aqui lo que se pregunta es
+        /// cuanta gente lleva dentro y cuanto le queda de
+        /// ventana.
+        ///
+        /// `inscritos` cuenta participantes de sus coberturas
+        /// en etapa de OCUPAN_SILLA, que es la misma definicion
+        /// que gobierna la inscripcion en `panel-de-cupos`.
+        /// `porDepurar` son los leads con los que todavia se
+        /// puede llenar lo que falta.
+        grupos: a.grupos.map((g) => {
+          const ventana = ventanaDe(g.fechaInicio, hoy);
+          const cuposMaximos = g.coberturas.reduce((s, c) => s + c.cuposMaximos, 0);
+          const inscritos = g.coberturas.reduce(
+            (s, c) => s + (inscritosDe.get(c.id) ?? 0),
+            0,
+          );
+          return {
+            numero: g.numero,
+            modalidad: g.modalidad,
+            sede: g.sede?.nombre ?? null,
+            inscritos,
+            cuposMaximos,
+            faltan: Math.max(0, cuposMaximos - inscritos),
+            porDepurar: g.coberturas.reduce(
+              (s, c) => s + (depurablesDe.get(c.id) ?? 0),
+              0,
+            ),
+            fechaInicio: g.fechaInicio ? aDiaDeCalendario(g.fechaInicio) : null,
+            /// Cinco habiles antes del arranque. Es la fecha que
+            /// manda sobre el ritmo.
+            cierre: ventana.cierre ? aDiaDeCalendario(ventana.cierre) : null,
+            diasHabilesRestantes: ventana.diasHabilesRestantes,
+            estadoVentana: ventana.estado,
+          };
+        }),
       };
     });
   }
@@ -411,6 +509,7 @@ export class TablerosService {
       hoy: new Date(),
       origen: suyo.origen,
       diasDeHistoria: await this.diasDeHistoria(ambito),
+      cierre: cierreDeLaAccion(accion.grupos.map((g) => g.fechaInicio)),
     });
 
     return {
@@ -790,7 +889,7 @@ export class TablerosService {
           visible: true,
           convenio: { select: { sigla: true, slug: true } },
           ofertas: { select: { cuposOcupados: true } },
-          grupos: { select: { coberturas: { select: { cuposBase: true } } } },
+          grupos: { select: { fechaInicio: true, coberturas: { select: { cuposBase: true } } } },
         },
         orderBy: { codigo: 'asc' },
       }),
@@ -804,6 +903,8 @@ export class TablerosService {
       hoy,
       origen,
       diasDeHistoria: historia,
+      // el plazo del cronograma: el ultimo grupo que cierra
+      cierre: cierreDeLaAccion(acciones.flatMap((a) => a.grupos.map((g) => g.fechaInicio))),
     });
 
     // la serie de cada acción
@@ -829,6 +930,7 @@ export class TablerosService {
             hoy,
             origen: suyo.origen,
             diasDeHistoria: historia,
+            cierre: cierreDeLaAccion(accion.grupos.map((g) => g.fechaInicio)),
           }),
         };
       }),

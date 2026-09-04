@@ -365,6 +365,9 @@ export class CrmService {
           convenio: { select: { sigla: true, slug: true } },
           accionFormacion: { select: { codigo: true, nombre: true } },
           oferta: { select: { ubicacion: { select: { nombre: true } } } },
+          /// El grupo, para su columna en la tabla de leads. Va
+          /// por la cobertura, que es de donde cuelga la persona.
+          cobertura: { select: { grupo: { select: { numero: true } } } },
           asesor: { select: { id: true, nombre: true } },
           empresa: {
             select: {
@@ -607,6 +610,68 @@ export class CrmService {
       cuentaDepto.set(k, (cuentaDepto.get(k) ?? 0) + 1);
     }
 
+    /**
+     * Los grupos, para el filtro de la pantalla de control.
+     *
+     * El participante NO cuelga del grupo: cuelga de una
+     * `cobertura` --grupo x ubicacion--, asi que varias
+     * coberturas suman al mismo grupo y hay que plegarlas.
+     *
+     * La etiqueta lleva el codigo de la accion delante porque
+     * «Grupo 1» existe en las quince: sin el, el desplegable
+     * saldria con quince «Grupo 1» y ninguno diria de cual.
+     */
+    const porCobertura = await this.prisma.participante.groupBy({
+      by: ['coberturaId'],
+      where: donde,
+      _count: { _all: true },
+    });
+
+    const idsCobertura = porCobertura
+      .map((f) => f.coberturaId)
+      .filter((id): id is string => !!id);
+
+    const coberturas = idsCobertura.length
+      ? await this.prisma.grupoCobertura.findMany({
+          where: { id: { in: idsCobertura } },
+          select: {
+            id: true,
+            grupo: {
+              select: {
+                id: true,
+                numero: true,
+                accionFormacion: { select: { codigo: true } },
+              },
+            },
+          },
+        })
+      : [];
+
+    const totalCobertura = new Map(
+      porCobertura.map((f) => [f.coberturaId, f._count._all]),
+    );
+
+    const porGrupo = new Map<
+      string,
+      { id: string; numero: number; accion: string; total: number }
+    >();
+    for (const c of coberturas) {
+      const ya = porGrupo.get(c.grupo.id);
+      const suma = totalCobertura.get(c.id) ?? 0;
+      if (ya) ya.total += suma;
+      else
+        porGrupo.set(c.grupo.id, {
+          id: c.grupo.id,
+          numero: c.grupo.numero,
+          accion: c.grupo.accionFormacion.codigo,
+          total: suma,
+        });
+    }
+
+    const grupos = [...porGrupo.values()].sort(
+      (a, b) => a.accion.localeCompare(b.accion) || a.numero - b.numero,
+    );
+
     const departamentos = [...cuentaDepto.entries()]
       .map(([id, total]) => ({
         id,
@@ -633,6 +698,7 @@ export class CrmService {
         total: totalAccion.get(a.id) ?? 0,
       })),
       sinAsesor: totalAsesor.get(null) ?? 0,
+      grupos,
       departamentos,
     };
   }
@@ -1305,6 +1371,25 @@ export class CrmService {
       if (!suya?.accionFormacionId) {
         throw new BadRequestException(
           'Esta persona todavía no tiene acción de formación: no se le puede poner grupo.',
+        );
+      }
+
+      /**
+       * EL GRUPO NO SE CAMBIA. Encargo de Mauricio.
+       *
+       * Se ponia sin mas y se podia volver a poner cuantas veces
+       * hiciera falta. El grupo es lo que viaja al SENA junto a
+       * la persona, y moverlo despues de reportarla deja dos
+       * verdades: la que se entrego y la que hay.
+       *
+       * Poner el MISMO no es cambiarlo y se deja pasar: la ficha
+       * se manda entera desde la pantalla, asi que si no,
+       * guardar cualquier otro campo fallaria.
+       */
+      /// `p.coberturaId` y no otra consulta: ya viene arriba.
+      if (p.coberturaId && p.coberturaId !== dto.coberturaId) {
+        throw new ConflictException(
+          'Esta persona ya tiene grupo asignado, y el grupo no se cambia una vez puesto.',
         );
       }
       await exigirCoberturaDeLaOferta(this.prisma, dto.coberturaId, {
@@ -4050,6 +4135,9 @@ export class CrmService {
     convenio: { sigla: string | null; slug: string };
     accionFormacion: { codigo: string; nombre: string } | null;
     oferta: { ubicacion: { nombre: string } } | null;
+    /// Opcional: no todas las consultas que arman una fila lo
+    /// piden, y sin el la columna sale vacia en vez de romper.
+    cobertura?: { grupo: { numero: number } } | null;
     asesor: { id: string; nombre: string } | null;
     reservaId: string | null;
     reserva: {
@@ -4128,6 +4216,9 @@ export class CrmService {
         : null,
       /// Solo el codigo: en una columna no cabe el nombre.
       accionCodigo: p.accionFormacion?.codigo ?? null,
+      /// El numero a secas: la columna va al lado de la accion,
+      /// que ya dice de cual es.
+      grupo: p.cobertura ? p.cobertura.grupo.numero : null,
       gremio: p.convenio.sigla ?? p.convenio.slug,
       origenLead: CrmService.PAUTA.has(p.origen)
         ? ('PAUTA' as const)

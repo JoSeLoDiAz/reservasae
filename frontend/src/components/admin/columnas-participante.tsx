@@ -146,6 +146,25 @@ export function columnasDeParticipante(): Columna<FilaParticipante>[] {
       filtro: "opciones",
     },
     {
+      /// Al lado de la acción, que es de donde cuelga: «Grupo 1»
+      /// solo tiene sentido sabiendo de qué acción es, y así se
+      /// leen las dos de una pasada.
+      clave: "grupo",
+      ancho: "78px",
+      titulo: "Grupo",
+      valor: (f) => f.grupo,
+      pinta: (f) =>
+        f.grupo === null ? (
+          /// Se dice, no se deja en blanco: sin grupo la persona
+          /// no entra en el reporte al SENA, y una celda vacía
+          /// se lee como que el dato no se pidió.
+          <span className="text-[0.75rem] text-texto-suave">Sin grupo</span>
+        ) : (
+          <span className="tabular-nums">Grupo {f.grupo}</span>
+        ),
+      filtro: "opciones",
+    },
+    {
       clave: "asesor",
       ancho: "126px",
       titulo: "Asesor",

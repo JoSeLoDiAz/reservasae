@@ -12,9 +12,13 @@ import {
 } from "@/components/admin/marco-admin";
 import {
   adminApi,
+  AREAS,
+  ETIQUETA_AREA,
+  PERMISOS_POR_ROL,
   ROLES_DE_CONVENIO,
   type AdminActual,
   type Concesion,
+  type Nivel,
   type RolAdmin,
   type RolConvenio,
 } from "@/lib/admin-api";
@@ -40,6 +44,125 @@ const ROLES: Array<{ valor: RolAdmin; etiqueta: string; descripcion: string }> =
     descripcion: "Lo que ve y hace lo deciden los convenios y roles de abajo.",
   },
 ];
+
+/**
+ * QUÉ VE CADA ROL, en una tabla y no en una frase.
+ *
+ * Antes cada rol traía una línea de descripción --«Todo lo del
+ * gestor, y descarga los reportes al SENA»-- y con eso había
+ * que adivinar si esa persona iba a poder abrir Reportes o
+ * tocar la Configuración. Conceder a ciegas y enterarse después
+ * es justo lo que no se quiere en la pantalla de permisos.
+ *
+ * Se lee como un comparativo: una fila por área del panel y una
+ * columna por rol, con la marca en cada cruce. De un vistazo se
+ * ve quién escribe, quién solo mira y quién no entra.
+ *
+ * NO se puede tocar: es la tabla que aplica el servidor. Lo que
+ * se elige es el ROL, abajo, y esto dice qué trae cada uno.
+ */
+function MatrizDePermisos() {
+  return (
+    <Bloque
+      titulo="Qué ve y qué toca cada rol"
+      descripcion="El rol se elige por convenio. Esta tabla dice lo que trae cada uno; la aplica el servidor y no se puede editar aquí."
+    >
+      <div className="caja-scroll overflow-x-auto">
+        <table className="w-full min-w-[720px] border-collapse text-sm">
+          <thead>
+            <tr>
+              <th className="sticky left-0 z-10 border-b border-borde bg-superficie px-3 py-2.5 text-left text-[0.6875rem] font-bold tracking-[0.05em] uppercase text-texto-suave">
+                Área del panel
+              </th>
+              {ROLES_DE_CONVENIO.map((r) => (
+                <th
+                  key={r.valor}
+                  title={r.descripcion}
+                  className="border-b border-borde px-2 py-2.5 text-center align-bottom text-[0.71875rem] leading-tight font-semibold text-titulo"
+                >
+                  {r.etiqueta}
+                </th>
+              ))}
+            </tr>
+          </thead>
+
+          <tbody>
+            {AREAS.map((area, i) => (
+              <tr key={area} className={i % 2 ? "bg-superficie-alterna/40" : undefined}>
+                <th
+                  scope="row"
+                  className={`sticky left-0 z-10 border-b border-hairline px-3 py-2 text-left text-[0.8125rem] font-medium text-titulo ${
+                    i % 2 ? "bg-superficie-alterna" : "bg-superficie"
+                  }`}
+                >
+                  {ETIQUETA_AREA[area]}
+                </th>
+
+                {ROLES_DE_CONVENIO.map((r) => (
+                  <td
+                    key={r.valor}
+                    className="border-b border-hairline px-2 py-2 text-center"
+                  >
+                    <Marca nivel={PERMISOS_POR_ROL[r.valor][area]} />
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      <p className="mt-3 text-[0.75rem] text-texto-suave">
+        <strong className="font-semibold text-texto">Edita</strong> puede crear
+        y cambiar. <strong className="font-semibold text-texto">Ve</strong> solo
+        consulta. Un guion es que esa área no le aparece en el menú.
+      </p>
+    </Bloque>
+  );
+}
+
+/**
+ * La marca de un cruce.
+ *
+ * Lleva PALABRA además de color e icono: «Edita» y «Ve» son dos
+ * verdes que bajo deuteranopia quedan a menos de cinco de
+ * distancia, y esta tabla es justo donde confundirlos concede
+ * de más.
+ */
+function Marca({ nivel }: { nivel: Nivel }) {
+  if (nivel === "NADA") {
+    return (
+      <span className="text-texto-suave" title="No entra">
+        <span aria-hidden>—</span>
+        <span className="sr-only">No entra</span>
+      </span>
+    );
+  }
+
+  const escribe = nivel === "ESCRIBIR";
+
+  return (
+    <span
+      className={`inline-flex items-center gap-1 text-[0.71875rem] font-semibold ${
+        escribe ? "text-exito" : "text-texto-suave"
+      }`}
+    >
+      <svg
+        viewBox="0 0 14 14"
+        className="size-3.5 shrink-0"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2.2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        aria-hidden
+      >
+        <path d="M2 7.5l3.2 3.2L12 3.8" />
+      </svg>
+      {escribe ? "Edita" : "Ve"}
+    </span>
+  );
+}
 
 export default function PaginaUsuarios() {
   const { admin } = useAdmin();
@@ -102,6 +225,8 @@ export default function PaginaUsuarios() {
         }}
         alFallar={setError}
       />
+
+      <MatrizDePermisos />
 
       <Bloque titulo="Cuentas">
         {!usuarios && <p className="text-texto-suave">Cargando…</p>}
@@ -298,7 +423,11 @@ function FormularioNuevoUsuario({
       titulo="Crear usuario"
       descripcion="Se genera una contraseña temporal que se muestra una sola vez. Quien entre con ella tendrá que cambiarla."
     >
-      <form onSubmit={enviar} className="grid sm:grid-cols-2">
+      {/* La rejilla iba SIN `gap`: los campos se tocaban, la
+          ayuda de un campo quedaba pegada al rótulo del
+          siguiente y el botón nacía contra la caja de convenios.
+          Con aire, cada decisión se lee como una. */}
+      <form onSubmit={enviar} className="grid gap-x-6 gap-y-5 sm:grid-cols-2">
         <Campo etiqueta="Correo">
           <input
             required
@@ -358,7 +487,10 @@ function FormularioNuevoUsuario({
           </div>
         </div>
 
-        <div className="flex items-end">
+        {/* A lo ancho y separado por la raya: es el final del
+            formulario, no una celda más de la rejilla. Metido en
+            media columna nacía pegado a la caja de convenios. */}
+        <div className="border-t border-hairline pt-5 sm:col-span-2">
           <Boton type="submit" disabled={creando}>
             {creando ? "Creando…" : "Crear usuario"}
           </Boton>

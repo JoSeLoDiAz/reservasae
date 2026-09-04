@@ -8,6 +8,7 @@ import { IndicadorActualizacion } from "@/components/admin/indicador-actualizaci
 import { Aviso, CLASE_CONTROL, Tarjeta } from "@/components/admin/marco-admin";
 import { Esqueleto } from "@/components/admin/piezas";
 import { PanelAcademico } from "@/components/admin/panel-academico";
+import { TableroAcademico } from "@/components/admin/tablero-academico";
 import { Desplegable } from "@/components/admin/desplegable";
 import { SelectorBuscable } from "@/components/admin/selector-buscable";
 import { useDatosVivos } from "@/lib/datos-vivos";
@@ -75,7 +76,64 @@ function fecha(iso: string | null) {
  * otro para la tabla— es como se acaba comparando un
  * numerador con un denominador que no le corresponde.
  */
-export default function PaginaSeguimiento() {
+/**
+ * Las DOS hojas de Gestión Académica, con sus pestañas.
+ *
+ * «Tablero académico» era una pantalla del menú y se fusionó
+ * aquí; su ruta quedó redirigiendo. Pero el tablero contesta
+ * otra cosa --cómo va cada acción, cada grupo y cada asesor,
+ * con sus cortes y su aviso de medibles-- y esa lectura se
+ * perdió: el componente seguía escrito y no lo pintaba nadie.
+ *
+ * Vuelve como pestaña y no como pantalla aparte, que es el
+ * mismo patrón de Control de Inscritos: dos vistas de la misma
+ * cosa comparten cabecera, y así no hay dos entradas de menú
+ * que compitan. «Seguimiento» sigue siendo la primera, que es
+ * la que se abre a diario.
+ */
+const HOJAS = [
+  { clave: "seguimiento", etiqueta: "Seguimiento" },
+  { clave: "tablero", etiqueta: "Tablero académico" },
+] as const;
+
+type Hoja = (typeof HOJAS)[number]["clave"];
+
+export default function PaginaAcademica() {
+  const [hoja, setHoja] = useState<Hoja>("seguimiento");
+
+  return (
+    <div className="flex flex-col gap-3 px-4 pt-3">
+      <div
+        role="tablist"
+        aria-label="Qué mirar"
+        className="flex gap-1 self-start rounded-lg border border-borde bg-superficie p-1"
+      >
+        {HOJAS.map((h) => (
+          <button
+            key={h.clave}
+            role="tab"
+            aria-selected={hoja === h.clave}
+            onClick={() => setHoja(h.clave)}
+            className={`sin-aro rounded-md px-4 py-1.5 text-[0.78125rem] font-semibold transition ${
+              hoja === h.clave
+                ? "bg-marca-suave text-marca"
+                : "text-texto-suave hover:text-texto"
+            }`}
+          >
+            {h.etiqueta}
+          </button>
+        ))}
+      </div>
+
+      {/* Montado y desmontado, no escondido: cada hoja pide sus
+          propios datos cada treinta segundos, y dejarlas las dos
+          vivas dobla las consultas para enseñar una. */}
+      {hoja === "seguimiento" ? <Seguimiento /> : <TableroAcademico />}
+    </div>
+  );
+}
+
+function Seguimiento() {
   const [filtro, setFiltro] = useState<EstadoAcademico | "">("");
   const [salida, setSalida] = useState<Etapa | "">("");
   const [accionAbierta, setAccionAbierta] = useState<string | null>(null);
@@ -194,7 +252,10 @@ export default function PaginaSeguimiento() {
     /// cómo va la cosa, y hasta ahora cada una tenía la suya.
     /// Cabecera sin banda, filtros en su tarjeta y una sola
     /// fila, y de ahí para abajo bloques.
-    <div className="flex flex-col gap-3 px-4 pt-3 pb-6">
+    ///
+    /// Sin `px-4 pt-3`: los pone la página, que ahora envuelve
+    /// las dos hojas. Repetirlos aquí duplicaba el margen.
+    <div className="flex flex-col gap-3 pb-6">
       <header className="flex flex-wrap items-start justify-between gap-4">
         <div className="min-w-0">
           <h1 className="text-[1.125rem] font-bold tracking-[-0.02em] text-titulo">

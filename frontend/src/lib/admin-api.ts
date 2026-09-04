@@ -18,6 +18,81 @@ export type Area =
 
 export type Nivel = "NADA" | "VER" | "ESCRIBIR";
 
+/// Cómo se llama cada área en pantalla. Las claves son las del
+/// backend; esto es lo que lee una persona.
+export const ETIQUETA_AREA: Record<Area, string> = {
+  reserva: "Reservas y cronograma",
+  inscripciones: "Gestión de inscripciones",
+  inscritos: "Datos de los inscritos",
+  reportes: "Reportes al SENA",
+  academico: "Seguimiento académico",
+  configuracion: "Configuración",
+};
+
+export const AREAS = Object.keys(ETIQUETA_AREA) as Area[];
+
+/**
+ * Qué puede hacer cada rol, para PINTARLO.
+ *
+ * Es el espejo de `PERMISOS` en `backend/src/admin/permisos.ts`
+ * y no manda nada: la cerradura está en el guard del servidor.
+ * Existe para que la pantalla de usuarios pueda enseñar la
+ * tabla entera antes de conceder, en vez de una frase por rol.
+ *
+ * Si allí se cambia una casilla, aquí también. Es el precio de
+ * no pedirle la tabla al servidor para dibujar una ayuda.
+ */
+export const PERMISOS_POR_ROL: Record<RolConvenio, Record<Area, Nivel>> = {
+  GESTOR_INSCRIPCION: {
+    reserva: "VER",
+    inscripciones: "ESCRIBIR",
+    inscritos: "VER",
+    reportes: "VER",
+    academico: "VER",
+    configuracion: "NADA",
+  },
+  LIDER_INSCRIPCION: {
+    reserva: "ESCRIBIR",
+    inscripciones: "ESCRIBIR",
+    inscritos: "VER",
+    reportes: "ESCRIBIR",
+    academico: "VER",
+    configuracion: "NADA",
+  },
+  GESTOR_ACADEMICO: {
+    reserva: "VER",
+    inscripciones: "VER",
+    inscritos: "VER",
+    reportes: "NADA",
+    academico: "ESCRIBIR",
+    configuracion: "NADA",
+  },
+  LIDER_ACADEMICO: {
+    reserva: "VER",
+    inscripciones: "VER",
+    inscritos: "VER",
+    reportes: "NADA",
+    academico: "ESCRIBIR",
+    configuracion: "NADA",
+  },
+  LIDER_SISTEMAS: {
+    reserva: "ESCRIBIR",
+    inscripciones: "ESCRIBIR",
+    inscritos: "VER",
+    reportes: "ESCRIBIR",
+    academico: "ESCRIBIR",
+    configuracion: "ESCRIBIR",
+  },
+  CONSULTA: {
+    reserva: "VER",
+    inscripciones: "VER",
+    inscritos: "VER",
+    reportes: "NADA",
+    academico: "VER",
+    configuracion: "NADA",
+  },
+};
+
 export type RolConvenio =
   | "LIDER_INSCRIPCION"
   | "GESTOR_INSCRIPCION"

@@ -27,7 +27,6 @@ import { Desplegable } from "./desplegable";
 import { EmbudoProceso, type Hito } from "./embudo-proceso";
 import { MapaColombia } from "./mapa-colombia";
 import { Aviso } from "./marco-admin";
-import { SelectorBuscable } from "./selector-buscable";
 import {
   Donut,
   Medidor,
@@ -90,14 +89,12 @@ function pct(parte: number, total: number): string {
 }
 
 export function PanelProceso({
-  periodo,
   control,
   alCambiarFiltros,
 }: {
-  /// Los controles de periodo, que los pinta la página: van en
-  /// la misma tarjeta que los demás filtros aunque su dato lo
-  /// mande otra consulta.
-  periodo?: React.ReactNode;
+  /// El periodo ya no entra aquí: vive en la cabecera de la
+  /// página, al frente del título. Enmarca la pantalla entera
+  /// --las dos pestañas--, y estos filtros solo recortan esta.
   /**
    * El control del periodo, YA PEDIDO por la página.
    *
@@ -112,6 +109,7 @@ export function PanelProceso({
 }) {
   const [convenioId, setConvenioId] = useState("");
   const [accionFormacionId, setAccionFormacionId] = useState("");
+  const [grupoId, setGrupoId] = useState("");
   const [etapa, setEtapa] = useState("");
   const [asesorId, setAsesorId] = useState("");
   const [departamentoSepId, setDepartamentoSepId] = useState("");
@@ -126,11 +124,12 @@ export function PanelProceso({
     () => ({
       convenioId: convenioId || undefined,
       accionFormacionId: accionFormacionId || undefined,
+      grupoId: grupoId || undefined,
       etapa: (etapa || undefined) as Filtros["etapa"],
       asesorId: asesorId || undefined,
       departamentoSepId: departamentoSepId ? Number(departamentoSepId) : undefined,
     }),
-    [convenioId, accionFormacionId, etapa, asesorId, departamentoSepId],
+    [convenioId, accionFormacionId, grupoId, etapa, asesorId, departamentoSepId],
   );
 
   const cargar = useCallback(async () => {
@@ -264,12 +263,13 @@ export function PanelProceso({
   const metaComparable = !asesorId && !departamentoSepId && !etapa;
 
   const hayFiltro = Boolean(
-    convenioId || accionFormacionId || etapa || asesorId || departamentoSepId,
+    convenioId || accionFormacionId || grupoId || etapa || asesorId || departamentoSepId,
   );
 
   function quitarFiltros() {
     setConvenioId("");
     setAccionFormacionId("");
+    setGrupoId("");
     setEtapa("");
     setAsesorId("");
     setDepartamentoSepId("");
@@ -383,6 +383,10 @@ export function PanelProceso({
       .filter((x) => x.clave?.startsWith(codigo))
       .sort((a, b) => b.total - a.total);
 
+  /// Los gremios del ámbito. Con uno solo, su filtro no sale:
+  /// ofrecería elegir lo único que hay.
+  const gremios = metricas?.porGremio ?? [];
+
   return (
     <div className="space-y-4">
       {error && <Aviso tipo="error">{error}</Aviso>}
@@ -407,93 +411,125 @@ export function PanelProceso({
           )}
         </p>
 
-        {/* Los siete en UNA fila. `periodo` llega como fragmento
-            —dos `select` sueltos— para que sean celdas de esta
-            misma rejilla y no una linea aparte: mandan todos sobre
-            la misma pantalla, y en dos filas parecia que no.
+        {/* Los CINCO que recortan qué se mira. El periodo y su
+            comparación se subieron a la cabecera: enmarcan la
+            pantalla entera, y aquí abajo el «vs. anterior»
+            parecía un recorte más.
 
-            `auto-fit` con minimo de 140px: a 1440 caben los siete,
-            y al estrechar bajan a dos filas solos, sin
+            `auto-fit` con mínimo de 150px: caben los cinco en
+            una fila ancha y bajan solos al estrechar, sin
             «breakpoint» que mantener. */}
         <div
           className="grid gap-2"
-          style={{ gridTemplateColumns: "repeat(auto-fit,minmax(140px,1fr))" }}
+          style={{ gridTemplateColumns: "repeat(auto-fit,minmax(150px,1fr))" }}
         >
-          {periodo}
+            {/* El gremio solo cuando hay más de uno.
+                Con un solo gremio en el ámbito, el desplegable
+                ofrece elegir lo único que hay: ocupa sitio y no
+                recorta nada. */}
+            {gremios.length > 1 && (
+              <Desplegable
+                alto={34}
+                marcador="Gremios"
+                etiquetaAria="Gremio"
+                valor={convenioId}
+                opciones={[
+                  { valor: "", etiqueta: "Gremios" },
+                  ...gremios.map((x) => ({
+                    valor: x.convenioId,
+                    etiqueta: x.gremio,
+                    detalle: `${x.conversion.base} leads`,
+                  })),
+                ]}
+                alElegir={setConvenioId}
+              />
+            )}
 
-          <Desplegable
-            alto={34}
-            marcador="Gremios"
-            valor={convenioId}
-            opciones={[
-              { valor: "", etiqueta: "Gremios" },
-              ...(metricas?.porGremio ?? []).map((x) => ({
-                valor: x.convenioId,
-                etiqueta: x.gremio,
-                detalle: `${x.conversion.base} leads`,
-              })),
-            ]}
-            alElegir={setConvenioId}
-          />
+            {/* Desplegable y no buscador: los cinco filtros se
+                abren igual, con su segunda línea en gris. Un
+                control que se comporta distinto que sus vecinos
+                obliga a aprenderlo aparte. */}
+            <Desplegable
+              alto={34}
+              marcador="Acción de formación"
+              etiquetaAria="Acción de formación"
+              valor={accionFormacionId}
+              opciones={[
+                { valor: "", etiqueta: "Acción de formación" },
+                ...(resumen?.acciones ?? []).map((a) => ({
+                  valor: a.id,
+                  etiqueta: `${a.codigo} · ${a.nombre}`,
+                  detalle: `${a.total} ${a.total === 1 ? "lead" : "leads"}`,
+                })),
+              ]}
+              alElegir={setAccionFormacionId}
+            />
 
-          <SelectorBuscable
-            clase="w-full"
-            etiqueta="Acción de formación"
-            valor={accionFormacionId}
-            alElegir={setAccionFormacionId}
-            vacio="Formación"
-            marcador="AF8, inteligencia artificial…"
-            opciones={(resumen?.acciones ?? []).map((a) => ({
-              id: a.id,
-              etiqueta: `${a.codigo} · ${a.nombre}`,
-              detalle: `${a.total} ${a.total === 1 ? "lead" : "leads"}`,
-            }))}
-          />
+            <Desplegable
+              alto={34}
+              marcador="Grupo"
+              etiquetaAria="Grupo"
+              valor={grupoId}
+              opciones={[
+                { valor: "", etiqueta: "Grupo" },
+                ...(resumen?.grupos ?? []).map((g) => ({
+                  valor: g.id,
+                  /// Con el código de su acción delante: «Grupo 1»
+                  /// existe en las quince acciones.
+                  etiqueta: `${g.accion} · Grupo ${g.numero}`,
+                  detalle: `${g.total} ${g.total === 1 ? "lead" : "leads"}`,
+                })),
+              ]}
+              alElegir={setGrupoId}
+            />
 
-          <Desplegable
-            alto={34}
-            marcador="Etapas"
-            valor={etapa}
-            opciones={[
-              { valor: "", etiqueta: "Etapas" },
-              ...(resumen?.etapas ?? []).map((e) => ({
-                valor: e.etapa,
-                etiqueta: ETIQUETA_ETAPA[e.etapa],
-                detalle: `${e.total}`,
-              })),
-            ]}
-            alElegir={setEtapa}
-          />
+            <Desplegable
+              alto={34}
+              marcador="Etapas"
+              etiquetaAria="Etapa"
+              valor={etapa}
+              opciones={[
+                { valor: "", etiqueta: "Etapas" },
+                ...(resumen?.etapas ?? []).map((e) => ({
+                  valor: e.etapa,
+                  etiqueta: ETIQUETA_ETAPA[e.etapa],
+                  detalle: `${e.total} ${e.total === 1 ? "lead" : "leads"}`,
+                })),
+              ]}
+              alElegir={setEtapa}
+            />
 
-          <Desplegable
-            alto={34}
-            marcador="Asesores"
-            valor={asesorId}
-            opciones={[
-              { valor: "", etiqueta: "Asesores" },
-              ...(resumen?.asesores ?? []).map((a) => ({
-                valor: a.id,
-                etiqueta: a.nombre,
-                detalle: `${a.total}`,
-              })),
-            ]}
-            alElegir={setAsesorId}
-          />
+            <Desplegable
+              alto={34}
+              marcador="Asesores"
+              etiquetaAria="Asesor"
+              valor={asesorId}
+              opciones={[
+                { valor: "", etiqueta: "Asesores" },
+                ...(resumen?.asesores ?? []).map((a) => ({
+                  valor: a.id,
+                  etiqueta: a.nombre,
+                  detalle: `${a.total} ${a.total === 1 ? "lead" : "leads"}`,
+                })),
+              ]}
+              alElegir={setAsesorId}
+            />
 
-          <Desplegable
-            alto={34}
-            marcador="Departamentos"
-            valor={departamentoSepId}
-            opciones={[
-              { valor: "", etiqueta: "Departamentos" },
-              ...(resumen?.departamentos ?? []).map((d) => ({
-                valor: String(d.id),
-                etiqueta: d.nombre,
-                detalle: `${d.total}`,
-              })),
-            ]}
-            alElegir={setDepartamentoSepId}
-          />
+            <Desplegable
+              alto={34}
+              marcador="Departamentos"
+              etiquetaAria="Departamento"
+              valor={departamentoSepId}
+              opciones={[
+                { valor: "", etiqueta: "Departamentos" },
+                ...(resumen?.departamentos ?? []).map((d) => ({
+                  valor: String(d.id),
+                  etiqueta: d.nombre,
+                  detalle: `${d.total} ${d.total === 1 ? "lead" : "leads"}`,
+                })),
+              ]}
+              alElegir={setDepartamentoSepId}
+            />
         </div>
       </div>
 

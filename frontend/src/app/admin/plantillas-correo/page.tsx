@@ -222,11 +222,21 @@ function Lista({
     /// el resto del panel. El botón sube a la barra, que es
     /// donde el resto de pantallas pone el suyo.
     <div className="flex min-h-0 grow flex-col gap-4 px-4 pt-4">
-      <AccionesDePagina>
-        <BotonDeCabecera onClick={() => alEditar("nueva")}>
-          <span className="text-base leading-none">+</span> Nueva plantilla
-        </BotonDeCabecera>
-      </AccionesDePagina>
+      {/* Solo cuando YA hay plantillas.
+
+          Con la lista vacía salían dos botones que hacen lo
+          mismo: este, de blanco sobre el verde de la barra, y el
+          de la invitación de abajo. El de abajo es el que
+          corresponde --está donde se está mirando y explica para
+          qué sirve--; el de arriba es para volver cuando la
+          lista ya existe y la invitación ya no se pinta. */}
+      {plantillas.length > 0 && (
+        <AccionesDePagina>
+          <BotonDeCabecera onClick={() => alEditar("nueva")}>
+            <span className="text-base leading-none">+</span> Nueva plantilla
+          </BotonDeCabecera>
+        </AccionesDePagina>
+      )}
 
       <div>
         {plantillas.length === 0 ? (

@@ -77,8 +77,16 @@ export function EmbudoProceso({
     primero > 0 ? Math.max(2, Math.round((v / primero) * 100)) : 2;
 
   return (
+    /// A LO ANCHO ENTERO, pero BAJO.
+    ///
+    /// Un intento anterior lo acotó a `max-w-3xl` y quedó peor:
+    /// el embudo se apretaba en la mitad izquierda y la tarjeta
+    /// dejaba la otra mitad vacía. Lo que sobraba no era ancho,
+    /// era ALTO: barras de 150px, cifras de 26px y las notas
+    /// debajo hacían un bloque de media pantalla para cuatro
+    /// números. Se recorta el alto y el ancho se respeta.
     <div>
-      <div className="flex items-end gap-1.5">
+      <div className="flex items-end gap-3">
         {hitos.map((h, i) => {
           const previo = i > 0 ? hitos[i - 1].total : null;
           const caida = previo !== null ? previo - h.total : 0;
@@ -104,15 +112,15 @@ export function EmbudoProceso({
             >
               {/* La caída, encima y en rojo. Es el dato que se
                   viene a buscar, así que va antes que la cifra. */}
-              <div className="h-5 text-[0.6875rem] font-bold text-error tabular-nums">
+              <div className="h-4 text-[0.6875rem] font-bold text-error tabular-nums">
                 {caida > 0 ? `▼ −${n(caida)}` : ""}
               </div>
 
-              <div className="text-[1.625rem] leading-none font-bold text-titulo tabular-nums">
+              <div className="text-[1.375rem] leading-none font-bold text-titulo tabular-nums">
                 {n(h.total)}
               </div>
 
-              <div className="mt-2 flex h-[150px] w-full items-end justify-center">
+              <div className="mt-1.5 flex h-[88px] w-full items-end justify-center">
                 <div
                   className="w-2/3 rounded-t-[7px] transition-[height] duration-500"
                   style={{
@@ -144,11 +152,11 @@ export function EmbudoProceso({
       </div>
 
       {notas.length > 0 && (
-        <div className="mt-4 grid gap-2.5 border-t border-hairline pt-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="mt-3 grid gap-2.5 border-t border-hairline pt-3 sm:grid-cols-2 lg:grid-cols-4">
           {notas.map((nt, i) => (
             <div
               key={`${nt.etiqueta}#${i}`}
-              className="rounded-[11px] border border-hairline px-3.5 py-3"
+              className="rounded-[11px] border border-hairline px-3.5 py-2"
               title={nt.detalle}
             >
               <span

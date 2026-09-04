@@ -3,9 +3,10 @@
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 
-import { Aviso, Boton, CLASE_CONTROL, Tarjeta } from "@/components/admin/marco-admin";
-import { Kpis } from "@/components/admin/secciones";
-import { BotonSuave } from "@/components/admin/piezas";
+import { Aviso, Boton } from "@/components/admin/marco-admin";
+import { Desplegable } from "@/components/admin/desplegable";
+import { n } from "@/components/admin/graficos";
+import { Bloque, BotonSuave, TarjetaCifra } from "@/components/admin/piezas";
 import { adminApi } from "@/lib/admin-api";
 import { ErrorApi } from "@/lib/api";
 import {
@@ -59,47 +60,70 @@ export default function PaginaSep() {
   }, [cargar]);
 
   return (
-    <div>
-      <header className="border-b border-borde bg-superficie px-7 pt-[26px] pb-[22px]">
-        <h1 className="text-[1.3125rem] font-bold tracking-[-0.02em] text-titulo">Reportes al SENA</h1>
-        <p className="mt-1 text-texto-suave">
-          Quién entra en el archivo y quién no, antes de generarlo.
-        </p>
+    /// La misma cáscara que el resto del panel.
+    ///
+    /// Esta pantalla se había quedado con una cabecera de banda
+    /// propia --con borde, fondo y `px-7`-- y el cuerpo pegado a
+    /// los bordes sin separación entre piezas: al lado de
+    /// Resumen o Control se veía de otra aplicación. Ahora usa
+    /// la cabecera plana, el mismo margen y bloques con tarjeta,
+    /// que es como se leen las demás hojas.
+    <div className="flex flex-col gap-3 px-4 pt-3 pb-6">
+      <header className="flex flex-wrap items-start justify-between gap-4">
+        <div className="min-w-0">
+          <h1 className="text-[1.125rem] font-bold tracking-[-0.02em] text-titulo">
+            Reportes al SENA
+          </h1>
+          <p className="mt-0.5 text-[0.78125rem] text-texto-suave">
+            Quién entra en el archivo y quién no, antes de generarlo.
+          </p>
+        </div>
+
+        {/* El convenio, en la cabecera: enmarca la pantalla
+            entera --un archivo por convenio-- y no es un filtro
+            que se cambie mientras se lee. */}
+        <div className="min-w-0">
+          <p className="mb-1.5 text-[0.625rem] font-bold tracking-[0.08em] uppercase text-texto-suave">
+            Convenio
+          </p>
+          <div className="min-w-[13rem]">
+            <Desplegable
+              alto={34}
+              etiquetaAria="Convenio"
+              valor={convenioId}
+              opciones={(convenios ?? []).map((c) => ({
+                valor: c.id,
+                etiqueta: c.sigla ?? c.nombre,
+              }))}
+              alElegir={setConvenioId}
+            />
+          </div>
+          <p className="mt-1.5 max-w-xs text-[0.71875rem] text-texto-suave">
+            Un archivo por convenio: el SEP nunca ha visto uno con los dos.
+          </p>
+        </div>
       </header>
 
       {error && <Aviso tipo="error">{error}</Aviso>}
 
-      <div className="flex flex-wrap items-center gap-3">
-        <select
-          className={`${CLASE_CONTROL} max-w-sm`}
-          value={convenioId}
-          onChange={(e) => setConvenioId(e.target.value)}
-          aria-label="Convenio"
-        >
-          {(convenios ?? []).map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.sigla ?? c.nombre}
-            </option>
-          ))}
-        </select>
-        <span className="text-sm text-texto-suave">
-          Un archivo por convenio: el SEP nunca ha visto uno con los dos.
-        </span>
-      </div>
-
       {datos && (
         <>
-          {/* Dos indicadores, no dos avisos: son cifras. Van
-              como la franja del resto del panel, y el color se
-              queda en la cifra y en el rotulo. */}
-          <Kpis
-            items={[
-              { rotulo: "Entran en el archivo", valor: datos.listos },
-              { rotulo: "Se quedan fuera", valor: datos.noListos },
-            ]}
-          />
+          {/* Las dos cifras, en la misma tira que usa Resumen. */}
+          <div className="imprimible-bloque grid gap-px overflow-hidden rounded-lg border border-borde bg-hairline sm:grid-cols-2">
+            <TarjetaCifra
+              compacta
+              etiqueta="Entran en el archivo"
+              valor={n(datos.listos)}
+            />
+            <TarjetaCifra
+              compacta
+              etiqueta="Se quedan fuera"
+              valor={n(datos.noListos)}
+              tono={datos.noListos > 0 ? "aviso" : "neutro"}
+            />
+          </div>
 
-          <Tarjeta
+          <Bloque
             titulo="Descargar"
             descripcion="El de control es para revisar y pasar; el del SEP es el que se sube. Las filas que no están listas no salen con huecos: van en una segunda hoja, con su motivo."
           >
@@ -151,10 +175,10 @@ export default function PaginaSep() {
                     }`}
               </p>
             )}
-          </Tarjeta>
+          </Bloque>
 
           {datos.motivos.length > 0 && (
-            <Tarjeta
+            <Bloque
               titulo="Por qué no entran"
               descripcion="Ordenado por cuánta gente arregla cada cosa."
             >
@@ -169,10 +193,21 @@ export default function PaginaSep() {
                   </div>
                 ))}
               </div>
-            </Tarjeta>
+            </Bloque>
           )}
 
+          {/* La lista, en su bloque y partible: era una tabla
+              suelta al pie de la página, sin título y sin caja,
+              y se leía como el pie de la tarjeta de arriba en
+              vez de como lo que es --quiénes son los que se
+              quedan fuera--. */}
           {datos.personas.length > 0 && (
+            <Bloque
+              partible
+              sinRelleno
+              titulo={`Quiénes se quedan fuera (${n(datos.personas.length)})`}
+              descripcion="Una fila por participación: quien está en dos acciones sale dos veces."
+            >
             <div className="caja-scroll overflow-x-auto">
               <table className="tabla-datos">
                 <thead>
@@ -204,7 +239,7 @@ export default function PaginaSep() {
                   ))}
                 </tbody>
               </table>
-              <p className="mt-3 text-sm text-texto-suave">
+              <p className="px-7 py-3 text-[0.78125rem] text-texto-suave">
                 Se arreglan desde el lead de cada persona, en{" "}
                 <Link href="/admin/inscritos" className="underline">
                   Inscritos
@@ -212,6 +247,7 @@ export default function PaginaSep() {
                 .
               </p>
             </div>
+            </Bloque>
           )}
         </>
       )}

@@ -100,7 +100,12 @@ export default function PaginaCampanas() {
     /// Colombia-- no se pierde: está entero y mejor contado en
     /// «Cómo sale, y por qué así», que va justo debajo.
     <div className="flex min-h-0 grow flex-col gap-4 px-4 pt-4">
-      {!creando && convenioId && (
+      {/* Solo cuando YA hay campañas: con la lista vacía, el
+          botón lo pone la invitación de abajo, que además dice
+          para qué sirve. Dos botones iguales, uno de blanco
+          sobre el verde de la barra, se veían mal y no añadían
+          nada. */}
+      {!creando && convenioId && campanas.length > 0 && (
         <AccionesDePagina>
           <BotonDeCabecera onClick={() => setCreando(true)}>Nueva campaña</BotonDeCabecera>
         </AccionesDePagina>
@@ -131,9 +136,17 @@ export default function PaginaCampanas() {
       {campanas.length === 0 && !creando && (
         <Tarjeta titulo="Todavía no hay campañas">
           <p className="text-sm text-texto-suave">
-            Con «Nueva campaña» se escoge a quiénes, se escribe el mensaje y se
-            mira cómo queda antes de lanzarlo.
+            Se escoge a quiénes, se escribe el mensaje y se mira cómo queda
+            antes de lanzarlo.
           </p>
+          {/* El botón, aquí y no solo en la barra: la invitación
+              decía «con Nueva campaña...» señalando a un botón
+              que estaba en otra parte de la pantalla. */}
+          {convenioId && (
+            <div className="mt-4">
+              <Boton onClick={() => setCreando(true)}>Nueva campaña</Boton>
+            </div>
+          )}
         </Tarjeta>
       )}
 

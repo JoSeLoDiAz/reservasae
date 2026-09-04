@@ -271,6 +271,8 @@ export type FilaParticipante = {
   municipio: string | null;
   /** Solo el código: en una columna no cabe el nombre. */
   accionCodigo: string | null;
+  /** El número de su grupo. Nulo mientras no se le asigne uno. */
+  grupo: number | null;
   gremio: string;
   /** De dónde llegó, en los tres que le sirven al asesor. */
   origenLead: "ORGANICO" | "PAUTA" | "IMPORTACION";
@@ -314,6 +316,10 @@ export type Resumen = {
   /** Para los filtros: salen de la base, no de la página. */
   asesores: Array<{ id: string; nombre: string; total: number }>;
   acciones: Array<{ id: string; codigo: string; nombre: string; total: number }>;
+  /// Para el filtro de grupo. `accion` es el codigo de su acción
+  /// de formación: «Grupo 1» existe en las quince y sin él no se
+  /// distinguen.
+  grupos: Array<{ id: string; numero: number; accion: string; total: number }>;
   sinAsesor: number;
   /// Por donde vive la persona, no por donde se dicta.
   departamentos: Array<{ id: number | null; nombre: string; total: number }>;

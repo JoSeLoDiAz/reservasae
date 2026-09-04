@@ -59,6 +59,26 @@ export const ETAPAS_DEL_AULA: EtapaParticipante[] = [
   'RETIRADO',
 ];
 
+/**
+ * Los leads que todavia se pueden trabajar para llenar un cupo.
+ *
+ * No ocupan silla --no estan inscritos-- pero tampoco estan
+ * muertos: son a quienes se puede llamar cuando a un grupo le
+ * faltan cupos y la ventana sigue abierta. Contesta la pregunta
+ * que se hace de verdad delante del tablero: «faltan 27, ¿tengo
+ * con quien llenarlos?».
+ *
+ * Las perdidas y las salidas NO estan. A un PERDIDO o a un
+ * DESERTO no se le depura: se le vuelve a captar, que es otra
+ * cosa, con otro esfuerzo y otro presupuesto. Meterlos aqui
+ * daria una bolsa gorda y falsa.
+ */
+export const POR_DEPURAR: EtapaParticipante[] = [
+  'INTERESADO',
+  'CONTACTADO',
+  'DATOS_COMPLETOS',
+];
+
 /** Si esa etapa consume una silla del aforo. */
 export function ocupaSilla(etapa: EtapaParticipante): boolean {
   return OCUPAN_SILLA.includes(etapa);

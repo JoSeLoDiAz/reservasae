@@ -916,6 +916,77 @@ select[size]:not([size='1']) {
     break-before: page;
   }
 
+  /*
+   * El mapa a tamano de lamina, no de pared.
+   *
+   * Se dibuja con `w-full h-auto`, que en pantalla lo ajusta a
+   * su media columna. En papel las rejillas pasan a flujo, asi
+   * que esa columna es la hoja entera: el mapa sale de 26 cm de
+   * ancho y se lleva una pagina el solo, con el ranking que iba
+   * a su lado empujado a la siguiente.
+   */
+  .mapa-en-papel {
+    max-width: 72mm;
+  }
+
+  /*
+   * EL RESUMEN EN PAPEL.
+   *
+   * El primer PDF salio con la hoja 1 casi en blanco, una banda
+   * gris huerfana al pie de la 2, las seis cifras en dos
+   * columnas gigantes y el mapa solo en una hoja entera. Todo
+   * es el mismo defecto: bloques altos que no caben, se mudan
+   * ENTEROS y dejan atras el hueco. Se arregla dejandolos
+   * fluir y quitandoles el aire que solo sirve en pantalla.
+   */
+
+  /* las franjas del veredicto: en pantalla el tinte y el
+     carril de 1px las separan; en papel son bandas de color
+     que se parten entre hojas y dejan el fondo sin contenido */
+  .imprimible-franja,
+  .imprimible-franja > * {
+    background: transparent !important;
+    gap: 0 !important;
+  }
+  .imprimible-franja > * {
+    padding-top: 5px !important;
+    padding-bottom: 5px !important;
+  }
+
+  /*
+   * Las seis cifras, en dos filas de tres.
+   *
+   * La rejilla es `sm:2 lg:3 xl:6` y el papel cae en el tramo
+   * `sm`: seis tarjetas en dos columnas es media hoja para seis
+   * numeros. No pasa por la regla que aplana rejillas porque no
+   * cuelga de un `section`, asi que se dice aqui.
+   */
+  .imprimible-cifras {
+    display: grid !important;
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  }
+  .imprimible-cifras > * {
+    padding: 6px 10px !important;
+  }
+
+  /* la tabla de acciones reparte por contenido: con anchos
+     fijos y menos ancho de hoja, «Ritmo/día» y «Tendencia» se
+     tocaban */
+  .resumen-impreso table {
+    table-layout: auto !important;
+  }
+  .resumen-impreso th,
+  .resumen-impreso td {
+    padding-top: 4px !important;
+    padding-bottom: 4px !important;
+  }
+
+  /* y en el resumen ningun bloque se muda entero: todos parten
+     por fila antes que dejar una hoja a medias */
+  .resumen-impreso .bloque-entero {
+    break-inside: auto;
+  }
+
   /* expandir los contenedores con scroll */
   /*
    * Y CUALQUIER recorte, no solo `.caja-scroll`. Un ancestro con

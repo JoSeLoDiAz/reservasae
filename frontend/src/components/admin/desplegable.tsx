@@ -221,7 +221,18 @@ export function Desplegable({
           tabIndex={-1}
           onKeyDown={teclas}
           className={
-            "caja-scroll absolute top-[calc(100%+4px)] right-0 left-0 z-50 max-h-72 overflow-auto " +
+            /// Nunca MÁS ESTRECHO que el disparador, y tan
+            /// ancho como su opción más larga.
+            ///
+            /// Estaba clavado a `left-0 right-0`, o sea al ancho
+            /// exacto del botón: en un filtro angosto --«vs.
+            /// anterior»-- la lista salía apretada y opciones
+            /// como «vs. desde el principio» se cortaban. Ahora
+            /// arranca en el borde izquierdo y crece lo que
+            /// necesite, con tope para que no se vaya de la
+            /// pantalla.
+            "caja-scroll absolute top-[calc(100%+4px)] left-0 z-50 max-h-72 w-max min-w-full " +
+            "max-w-[24rem] overflow-auto " +
             "rounded-lg border border-borde bg-superficie py-1 " +
             "shadow-[0_10px_30px_-10px_rgba(15,23,42,0.28)]"
           }
