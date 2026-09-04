@@ -13,7 +13,7 @@ export const ROL_EN_PALABRAS: Record<RolConvenio, string> = {
   GESTOR_INSCRIPCION: 'Gestor(a) de inscripciones',
   LIDER_ACADEMICO: 'Líder de seguimiento académico',
   GESTOR_ACADEMICO: 'Gestor(a) de seguimiento académico',
-  COORDINACION_ADMINISTRATIVA: 'Coordinadora Administrativa',
+  COUNTRY_MANAGER: 'Country Manager',
   CONSULTA: 'Consulta',
 };
 

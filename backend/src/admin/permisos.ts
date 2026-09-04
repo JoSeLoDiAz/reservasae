@@ -73,7 +73,7 @@ export const PERMISOS: Record<RolConvenio, Record<Area, Nivel>> = {
   /// no trabaja casos: no crea, no mueve de etapa, no
   /// certifica. Configura, que es de donde sale la
   /// apariencia.
-  COORDINACION_ADMINISTRATIVA: {
+  COUNTRY_MANAGER: {
     reserva: V,
     inscripciones: V,
     inscritos: V,

@@ -31,7 +31,7 @@ describe('la matriz de permisos', () => {
   /// Cambió a propósito el 4 sep 2026: la dirección pidió
   /// poder cambiar la apariencia, y esa cuelga de aquí.
   it('configuran sistemas y la coordinación administrativa', () => {
-    const CONFIGURAN = ['LIDER_SISTEMAS', 'COORDINACION_ADMINISTRATIVA'];
+    const CONFIGURAN = ['LIDER_SISTEMAS', 'COUNTRY_MANAGER'];
     for (const rol of ROLES) {
       const puede = alcanza(PERMISOS[rol].configuracion, 'ESCRIBIR');
       expect(puede).toBe(CONFIGURAN.includes(rol));
@@ -39,7 +39,7 @@ describe('la matriz de permisos', () => {
   });
 
   it('quien dirige mira el proceso, no lo trabaja', () => {
-    const suyo = PERMISOS.COORDINACION_ADMINISTRATIVA;
+    const suyo = PERMISOS.COUNTRY_MANAGER;
     expect(suyo.reserva).toBe('VER');
     expect(suyo.inscripciones).toBe('VER');
     expect(suyo.inscritos).toBe('VER');
@@ -50,7 +50,7 @@ describe('la matriz de permisos', () => {
 
   /// Quien dirige no entra en el reparto del trabajo.
   it('quien dirige no lleva fichas, ni las reparte, ni deshace una inscripción', () => {
-    const rol = RolConvenio.COORDINACION_ADMINISTRATIVA;
+    const rol = RolConvenio.COUNTRY_MANAGER;
     expect(PUEDEN_LLEVAR_FICHAS).not.toContain(rol);
     expect(REPARTEN_FICHAS).not.toContain(rol);
     expect(MUEVEN_INSCRITO).not.toContain(rol);

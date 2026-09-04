@@ -114,7 +114,7 @@ const CARGO_DEL_ROL: Record<RolConvenio, string> = {
   GESTOR_INSCRIPCION: 'Gestora de inscripciones',
   LIDER_ACADEMICO: 'Líder de seguimiento académico',
   GESTOR_ACADEMICO: 'Gestor de seguimiento académico',
-  COORDINACION_ADMINISTRATIVA: 'Coordinadora Administrativa',
+  COUNTRY_MANAGER: 'Country Manager',
   CONSULTA: 'Consulta',
 };
 

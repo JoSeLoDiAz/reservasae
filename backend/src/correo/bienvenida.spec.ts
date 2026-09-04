@@ -19,7 +19,7 @@ const carta = (extra: Record<string, unknown> = {}) =>
     nombre: 'Catalina Hernandez',
     correo: 'catalina@grupo-ae.com.co',
     claveTemporal: 'Xk4m-92pQ',
-    papel: 'Coordinadora Administrativa',
+    papel: 'Country Manager',
     gremios: ['ADECOPRIA', 'BRITCHAM ADEE'],
     puertas: [{ etiqueta: 'ADECOPRIA', url: 'https://adecopria.reservasae.com/admin' }],
     colores: { marca: '#9900b6', texto: '#17121b' },
@@ -99,7 +99,7 @@ describe('lo que dice el correo', () => {
     for (const texto of [c.texto, c.html]) {
       expect(texto).toContain('catalina@grupo-ae.com.co');
       expect(texto).toContain('Xk4m-92pQ');
-      expect(texto).toContain('Coordinadora Administrativa');
+      expect(texto).toContain('Country Manager');
     }
   });
 
