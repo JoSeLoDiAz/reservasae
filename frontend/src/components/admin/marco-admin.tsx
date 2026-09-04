@@ -4,7 +4,6 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
   createContext,
-  Fragment,
   useCallback,
   useContext,
   useEffect,
@@ -38,11 +37,6 @@ import { ICONO_DE_MODULO, IconoResumen,
   IconoMenu,
   IconoSalir,
 } from "./iconos";
-import {
-  PanelDelModulo,
-  useIntencion,
-  usePuedeApuntar,
-} from "./menu-al-pasar";
 import { enlacesVisibles, estaActivo, MODULOS } from "./navegacion";
 import { Cargando } from "./piezas";
 import { Desplegable } from "./desplegable";
@@ -771,15 +765,7 @@ function Grupos({
       enlacesVisibles(m, permisos, esSuperadmin).some((e) => estaActivo(e, ruta)),
     )?.clave ?? null;
 
-  const [fijado, setAbierto] = useState<string | null>(delaRuta);
-
-  // pasar por encima previsualiza; el clic fija
-  const apunta = usePuedeApuntar();
-  const { mirando, abrir, cerrar, cerrarYa, mantener } = useIntencion();
-  const abierto = mirando ?? fijado;
-
-  // el icono al que se ancla el panel, plegada
-  const [ancla, setAncla] = useState<HTMLElement | null>(null);
+  const [abierto, setAbierto] = useState<string | null>(delaRuta);
 
   /// Al desplegar por el icono, se abre ESE grupo.
   /// Ajustar el estado durante el render y no en un efecto:
@@ -803,15 +789,11 @@ function Grupos({
   /// la vez son la lista completa otra vez, que es de lo que
   /// se trataba salir.
   function alternar(clave: string) {
-    cerrarYa();
     setAbierto((actual) => (actual === clave ? null : clave));
   }
 
   return (
-    <div
-      onPointerLeave={apunta ? cerrar : undefined}
-      className="flex min-h-0 flex-col"
-    >
+    <>
       {plegado && (
         <FilaResumen
           ruta={ruta}
@@ -828,26 +810,20 @@ function Grupos({
         // enlace. Quince iconos en fila no distinguen nada
         if (plegado) {
           const activo = enlaces.some((e) => estaActivo(e, ruta));
-          // pulsar despliega; pasar por encima solo asoma
-          const icono = (
+          return (
+            /// Pulsar el icono ABRE el menú, no navega.
+            ///
+            /// Antes llevaba derecho a la primera vista del
+            /// módulo, y eso es adivinar: uno pulsa el icono
+            /// justamente porque no se acuerda de qué hay
+            /// dentro ni en cuál está parado. Se despliega, se
+            /// ve, y entonces se elige.
             <button
               key={modulo.clave}
               type="button"
-              onClick={() => {
-                cerrarYa();
-                alDesplegar?.(modulo.clave);
-              }}
-              onPointerEnter={(e) => {
-                if (!apunta) return;
-                setAncla(e.currentTarget);
-                abrir(modulo.clave);
-              }}
-              onFocus={(e) => {
-                setAncla(e.currentTarget);
-                abrir(modulo.clave);
-              }}
+              onClick={() => alDesplegar?.(modulo.clave)}
               title={modulo.etiqueta}
-              aria-expanded={mirando === modulo.clave}
+              aria-expanded={false}
               /// Circulo de 34 con borde de 1px, no un cuadro
               /// relleno: el rail sin etiquetas ya es bastante
               /// acertijo, y un circulo con borde se lee como
@@ -871,47 +847,6 @@ function Grupos({
               })()}
             </button>
           );
-
-          if (mirando !== modulo.clave) return icono;
-
-          return (
-            <Fragment key={modulo.clave}>
-              {icono}
-              <PanelDelModulo
-                ancla={ancla}
-                etiqueta={modulo.etiqueta}
-                descripcion={modulo.descripcion}
-                alEntrar={mantener}
-                alSalir={cerrar}
-                alCerrar={cerrarYa}
-              >
-                <ul className="space-y-0.5">
-                  {enlaces.map((enlace) => {
-                    const suya = estaActivo(enlace, ruta);
-                    return (
-                      <li key={enlace.href}>
-                        <Link
-                          href={enlace.href}
-                          onClick={() => {
-                            cerrarYa();
-                            alNavegar?.();
-                          }}
-                          aria-current={suya ? "page" : undefined}
-                          className={`block truncate rounded-lg px-2.5 py-2 text-sm transition ${
-                            suya
-                              ? "bg-current/15 font-semibold"
-                              : "opacity-85 hover:bg-current/10 hover:opacity-100"
-                          }`}
-                        >
-                          {enlace.etiqueta}
-                        </Link>
-                      </li>
-                    );
-                  })}
-                </ul>
-              </PanelDelModulo>
-            </Fragment>
-          );
         }
 
         const desplegado = abierto === modulo.clave;
@@ -922,10 +857,6 @@ function Grupos({
               <button
                 type="button"
                 onClick={() => alternar(modulo.clave)}
-                onPointerEnter={
-                  apunta ? () => abrir(modulo.clave) : undefined
-                }
-                onFocus={() => abrir(modulo.clave)}
                 aria-expanded={desplegado}
                 title={modulo.etiqueta}
                 /// 13px y peso 600, que es la medida del
@@ -1001,7 +932,7 @@ function Grupos({
           </section>
         );
       })}
-    </div>
+    </>
   );
 }
 

@@ -1135,34 +1135,6 @@ que pasan las cosas: **1 Pre-reserva de cupos · 2 Inscripciones · 3 Inscritos 
   componente**: desde un módulo `"use client"` el layout recibiría una
   referencia y no el texto, y se emitiría vacío sin avisar.
 
-### El menú se abre al pasar por encima (4 sep 2026)
-
-Lo pidió el cliente. Dos comportamientos, y son distintos:
-
-- **Barra desplegada**: pasar el puntero **previsualiza** un módulo y el clic lo
-  **fija**. Al salir de la barra vuelve al grupo de la ruta actual, no se queda
-  donde el puntero lo dejó — perder el sitio es peor que un clic de más.
-- **Barra plegada**: sale un **panel flotante** al lado del icono con sus
-  enlaces. Antes había que pulsar, y eso desplegaba la barra entera, que es
-  justo lo contrario de tenerla plegada.
-
-Lo que sostiene que no moleste:
-
-- **Retardo de intención**: 110 ms para abrir y 240 ms para cerrar. Sin el
-  segundo, el hueco entre el icono y su panel cierra el menú al cruzarlo.
-- **Solo donde hay puntero de verdad** (`(hover: hover) and (pointer: fine)`).
-  En táctil el navegador dispara `enter` con el toque, así que sin ese guardia
-  un dedo abriría el panel y pulsaría el botón a la vez.
-- **El foco hace lo mismo que el puntero**: con teclado no hay hover, y sin
-  `onFocus` el menú sería inalcanzable sin ratón.
-- **El panel va en un portal, en `fixed`**. La barra tiene `overflow-y: auto`,
-  así que un hijo en `absolute` saldría recortado.
-- **Se ajusta a la pantalla**: si no cabe a la derecha se voltea a la
-  izquierda, se sube si no cabe abajo, y el ancho se recorta en pantallas
-  estrechas. Se recoloca al cambiar el tamaño y al hacer scroll.
-- El retardo es de reloj y no de animación, así que `data-sin-movimiento` no lo
-  toca — y está bien: quien pide menos movimiento quiere menos parpadeo.
-
 ### El seguimiento académico
 
 `/admin/participantes/academico`, desde `GET /admin/participantes/academico`, `GET /admin/participantes/catalogos`
