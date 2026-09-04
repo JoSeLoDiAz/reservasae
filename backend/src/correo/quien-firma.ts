@@ -10,7 +10,7 @@ export type GremioQueFirma =
 
 /// Acaba DENTRO de una cabecera y la sigla la teclea un
 /// admin: un salto de línea ahí mete otra cabecera.
-const PROHIBIDOS = /["\\r\n\u0000-\u001f\u007f]/g;
+const PROHIBIDOS = /["\\\u0000-\u001f\u007f]/g;
 
 /** Lo deja en algo que cabe en una cabecera. */
 export function limpiarNombre(nombre: string): string {

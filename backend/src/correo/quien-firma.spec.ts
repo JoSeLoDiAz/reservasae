@@ -67,6 +67,20 @@ describe('con qué nombre firma cada gremio', () => {
     expect(firma).toBe('ADECOPRIA Bcc: fuga@ajeno.test');
   });
 
+  /// Se comio la `r` de «Proyectos» en pruebas: la clase
+  /// llevaba una `r` literal.
+  it('un nombre corriente sale entero, letra por letra', () => {
+    for (const n of [
+      'Convoca CRM - Proyectos SENA (PRUEBAS)',
+      'ADECOPRIA',
+      'BRITCHAM ADEE',
+      'Direccion Academica',
+    ]) {
+      expect(limpiarNombre(n)).toBe(n);
+      expect(quienFirma({ sigla: n, nombre: 'X' })).toBe(n);
+    }
+  });
+
   it('una comilla no rompe el nombre entre comillas', () => {
     const raro = quienFirma({ sigla: 'A"B\\C', nombre: 'X' });
     expect(raro).toBe('A B C');
