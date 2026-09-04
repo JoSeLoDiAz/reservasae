@@ -134,9 +134,26 @@ describe('lo que dice el correo', () => {
 
   it('con logos van todos', () => {
     const c = carta({
-      logos: ['https://reservasae.com/api/marca/logos/a?v=1', 'https://reservasae.com/api/marca/logos/b?v=2'],
+      logos: [
+        { url: 'https://reservasae.com/api/marca/logos/a?v=1', alt: 'BritCham' },
+        { url: 'https://reservasae.com/api/marca/logos/b?v=2', alt: 'ADEE' },
+      ],
     });
     expect((c.html.match(/<img/g) ?? []).length).toBe(2);
+  });
+
+  /// Tres logos con el mismo `alt` dejan la cabecera
+  /// inservible con lector de pantalla.
+  it('cada logo se nombra: la etiqueta es su texto alternativo', () => {
+    const c = carta({
+      logos: [
+        { url: 'https://x.test/a', alt: 'BritCham Colombia' },
+        { url: 'https://x.test/b', alt: 'ADEE' },
+      ],
+    });
+    expect(c.html).toContain('alt="BritCham Colombia"');
+    expect(c.html).toContain('alt="ADEE"');
+    expect(c.html).not.toContain('alt=""');
   });
 
   /// Un color inventado acaba dentro de un `style`.

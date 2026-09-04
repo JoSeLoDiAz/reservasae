@@ -20,9 +20,10 @@ export type DatosDeBienvenida = {
   puertas: PuertaDelPanel[];
   /// Del tema CLARO. Se cae a un neutro si falta alguno.
   colores: Record<string, string | undefined>;
-  /// Absolutas y públicas, o ninguna: una imagen rota arriba
-  /// del todo es peor que no poner nada.
-  logos: string[];
+  /// Absolutos y públicos, o ninguno: una imagen rota arriba
+  /// del todo es peor que no poner nada. La `alt` es el
+  /// nombre de la entidad, que es para lo que existe.
+  logos: Array<{ url: string; alt: string }>;
   nombreApp: string;
   eslogan: string;
 };
@@ -112,8 +113,8 @@ export function armarBienvenida(d: DatosDeBienvenida): {
   const logos = d.logos.length
     ? `<tr><td align="center" style="padding:0 0 18px">${d.logos
         .map(
-          (u) =>
-            `<img src="${escaparHtml(u)}" alt="" height="38" ` +
+          (l) =>
+            `<img src="${escaparHtml(l.url)}" alt="${escaparHtml(l.alt)}" height="38" ` +
             `style="height:38px;width:auto;margin:0 9px;vertical-align:middle;border:0">`,
         )
         .join('')}</td></tr>`

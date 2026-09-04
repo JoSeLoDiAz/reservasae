@@ -200,9 +200,26 @@ export class AdminController {
   @Roles(RolAdmin.SUPERADMIN)
   async crearUsuario(@Body() dto: CrearAdminDto) {
     const creada = await this.admin.crearAdmin(dto);
+
+    /// El logo y los colores salen DE SU GREMIO cuando la
+    /// cuenta es de uno solo. En los dos —o en ninguno— va la
+    /// marca general, que es la de Grupo AE.
+    ///
+    /// Se resuelve con las mismas dos funciones que pintan el
+    /// panel por Host: una tercera forma de elegir la marca
+    /// acabaria enseñando el logo de un gremio con los
+    /// colores del otro.
+    const suyos = await this.admin.gremiosDe(
+      dto.concesiones.map((c) => c.convenioId),
+    );
+    const marca =
+      suyos.length === 1
+        ? await this.admin.obtenerMarcaDeGremio(suyos[0].slug)
+        : await this.admin.obtenerMarca();
+
     /// Avisar va DESPUES y no puede tumbar la creacion: la
     /// clave temporal se sigue viendo en pantalla.
-    await this.bienvenida.enviar(creada.admin, creada.claveTemporal);
+    await this.bienvenida.enviar(creada.admin, creada.claveTemporal, marca);
     return creada;
   }
 

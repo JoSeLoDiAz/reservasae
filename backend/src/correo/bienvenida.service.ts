@@ -25,6 +25,21 @@ export type CuentaNueva = {
   rol: RolAdmin;
 };
 
+/**
+ * De dónde salen el logo y los colores.
+ *
+ * La resuelve quien llama, con `obtenerMarcaDeGremio` o con
+ * `obtenerMarca` — las MISMAS que pintan el panel por Host.
+ * Aquí solo se consume: una segunda forma de resolver la
+ * marca acabaría discrepando de la del panel, que es el
+ * defecto que este proyecto lleva rondas documentando.
+ */
+export type MarcaDelCorreo = {
+  nombreApp: string;
+  logos: Array<{ id: string; etiqueta: string; version: number }>;
+  temas: Record<string, Record<string, string> | undefined>;
+};
+
 @Injectable()
 export class BienvenidaService {
   private readonly log = new Logger('Bienvenida');
@@ -35,29 +50,19 @@ export class BienvenidaService {
   ) {}
 
   /** Lo que se le manda, sin mandarlo. Para poder probarlo. */
-  async armar(admin: CuentaNueva, claveTemporal: string) {
-    const [tema, marca, logos, concesiones] = await Promise.all([
-      this.prisma.tema.findUnique({ where: { esquema: 'CLARO' } }),
-      this.prisma.marca.findFirst(),
-      this.prisma.logo.findMany({
-        where: { formularioId: null },
-        orderBy: { orden: 'asc' },
-        select: { id: true, version: true },
-      }),
-      this.prisma.adminConvenio.findMany({
-        where: { adminId: admin.id },
-        select: {
-          rol: true,
-          convenio: { select: { slug: true, sigla: true, nombre: true } },
-        },
-      }),
-    ]);
+  async armar(admin: CuentaNueva, claveTemporal: string, marca: MarcaDelCorreo) {
+    const concesiones = await this.prisma.adminConvenio.findMany({
+      where: { adminId: admin.id },
+      select: {
+        rol: true,
+        convenio: { select: { slug: true, sigla: true, nombre: true } },
+      },
+    });
 
     /// Sin `URL_PUBLICA` no hay logos, y es deliberado: una
     /// imagen rota arriba del todo es peor que ninguna.
     const api = urlPublicaDeLaApi();
     const sitio = urlPublica();
-
     const host = sitio ? new URL(sitio).host : 'reservasae.com';
 
     const gremios = concesiones.map((c) => ({
@@ -79,19 +84,26 @@ export class BienvenidaService {
         gremios,
         hostDeGremio: (slug) => hostDelGremio(host, slug),
       }),
-      colores: (tema?.colores ?? {}) as Record<string, string | undefined>,
+      colores: marca.temas.CLARO ?? {},
       logos: api
-        ? logos.map((l) => `${api}/marca/logos/${l.id}?v=${l.version}`)
+        ? marca.logos.map((l) => ({
+            url: `${api}/marca/logos/${l.id}?v=${l.version}`,
+            alt: l.etiqueta,
+          }))
         : [],
-      nombreApp: marca?.nombreApp ?? 'Convoca CRM',
+      nombreApp: marca.nombreApp,
       eslogan: 'Relaciones que generan resultados',
     });
   }
 
   /** Se lo manda a la persona. Nunca lanza. */
-  async enviar(admin: CuentaNueva, claveTemporal: string): Promise<void> {
+  async enviar(
+    admin: CuentaNueva,
+    claveTemporal: string,
+    marca: MarcaDelCorreo,
+  ): Promise<void> {
     try {
-      const carta = await this.armar(admin, claveTemporal);
+      const carta = await this.armar(admin, claveTemporal, marca);
       const r = await this.correo.enviar({
         /// Firma el nombre general y no un gremio: la cuenta
         /// es del SISTEMA, y puede alcanzar a los dos.
