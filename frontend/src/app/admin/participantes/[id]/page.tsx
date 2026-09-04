@@ -1429,10 +1429,18 @@ function Asignacion({
 
   if (!opciones) return null;
 
-  const guardada = lead.oferta
-    ? (opciones.acciones.find((a) => a.ofertaId === lead.oferta!.id)
-        ?.accionFormacionId ?? "")
-    : "";
+  /// El curso se lee del curso, no de la sede.
+  ///
+  /// Solo miraba `lead.oferta`, y quien tiene curso pero no sede
+  /// —porque su departamento no lo dicta— salia con «Sin
+  /// asignar» teniendo el curso guardado.
+  const guardada =
+    (lead.oferta
+      ? opciones.acciones.find((a) => a.ofertaId === lead.oferta!.id)
+          ?.accionFormacionId
+      : null) ??
+    lead.accionFormacion?.id ??
+    "";
   const accionId = elegida ?? guardada;
   const setAccionId = setElegida;
 
