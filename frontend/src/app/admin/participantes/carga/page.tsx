@@ -13,6 +13,7 @@ import {
 } from "@/components/admin/marco-admin";
 import { adminApi } from "@/lib/admin-api";
 import { ErrorApi } from "@/lib/api";
+import { pedir } from "@/lib/pedir";
 import {
   crmApi,
   historicoDeCargas,
@@ -135,12 +136,10 @@ export default function PaginaCarga() {
     await conError(async () => {
       const cuerpo = new FormData();
       cuerpo.append("archivo", f);
-      const r = await fetch("/api/admin/participantes/carga/archivo", {
-        method: "POST",
-        body: cuerpo,
-      });
-      const d = (await r.json()) as { texto?: string; filas?: number; message?: string };
-      if (!r.ok) throw new Error(d.message ?? "No se pudo leer el archivo.");
+      const d = await pedir<{ texto?: string; filas?: number }>(
+        "/admin/participantes/carga/archivo",
+        { method: "POST", body: cuerpo },
+      );
       setTexto(d.texto ?? "");
       setNombreArchivo(f.name);
       setDeArchivo(`${f.name} · ${d.filas} ${d.filas === 1 ? "fila" : "filas"}`);
@@ -350,17 +349,17 @@ export default function PaginaCarga() {
               onClick={() =>
                 conError(async () => {
                   setPrevia(
-                    (await (
-                      await fetch("/api/admin/participantes/carga/previsualizar", {
+                    await pedir<Previa>(
+                      "/admin/participantes/carga/previsualizar",
+                      {
                         method: "POST",
-                        headers: { "content-type": "application/json" },
                         body: JSON.stringify({
                           convenioId,
                           ofertaId: ofertaId || undefined,
                           texto,
                         }),
-                      })
-                    ).json()) as Previa,
+                      },
+                    ),
                   );
                 })
               }
@@ -426,9 +425,11 @@ export default function PaginaCarga() {
                 disabled={ocupado}
                 onClick={() =>
                   conError(async () => {
-                    const r = await fetch("/api/admin/participantes/carga/confirmar", {
+                    const res = await pedir<{
+                      creados: number;
+                      fallos: Array<{ linea: number; motivo: string }>;
+                    }>("/admin/participantes/carga/confirmar", {
                       method: "POST",
-                      headers: { "content-type": "application/json" },
                       body: JSON.stringify({
                         convenioId,
                         ofertaId: ofertaId || undefined,
@@ -437,10 +438,6 @@ export default function PaginaCarga() {
                         nombreArchivo: nombreArchivo ?? undefined,
                       }),
                     });
-                    const res = (await r.json()) as {
-                      creados: number;
-                      fallos: Array<{ linea: number; motivo: string }>;
-                    };
                     verHistorico();
                     if (res.fallos?.length) {
                       setError(
