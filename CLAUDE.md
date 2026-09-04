@@ -2774,6 +2774,51 @@ las credenciales de verdad en un entorno que no lo es.
 - La decisión vive en `desvio.ts` como función pura y `desvio.spec.ts` la fija.
   Es la barrera entera, así que se prueba sin levantar nada.
 
+### Cada gremio firma con su sigla (4 sep 2026)
+
+**El buzón no cambia y no puede cambiar.** Es
+`proyectosena@grupo-ae.com.co` y lleva la verificación
+institucional del dominio; moverlo tira SPF, DKIM y el
+certificado. Lo que cambia es **el nombre que se lee delante**.
+
+Lo pidió la dirección en la reunión del 3 sep 2026: *«hay que
+minimizar la sensación de no entender de dónde los están
+contactando»*. Alguien que se preinscribió en
+`adecopria.reservasae.com` no reconoce «Convoca CRM».
+
+- **Sale de `Convenio.sigla`** —ADECOPRIA y BRITCHAM ADEE—, que ya
+  existía y ya dice exactamente lo que hay que leer. Sin columna
+  nueva y sin migración: si mañana quieren otro texto, se edita el
+  dato. `nombre` es el respaldo (la razón social) y `SMTP_NOMBRE`
+  el último, **solo para lo que no sale de ningún gremio**.
+- **Cada emisor lo resuelve por donde ya resuelve el gremio**: la
+  preinscripción por el slug de su enlace, la ficha por el convenio
+  del participante, la campaña por el suyo, y la prueba del panel
+  **por el subdominio**. Esa última es además donde se comprueba:
+  «Sale como», en Configuración → Correo, ya lo pinta.
+- **La sigla la teclea un administrador y acaba dentro de una
+  cabecera**, así que se sanea antes. Un salto de línea ahí mete
+  otra cabecera en todos los correos que salgan.
+- **El spec recorre la SUPERFICIE**: busca todo `correo.enviar({`
+  del árbol y exige que diga con qué firma. Un emisor nuevo que se
+  olvide firmaría mal **sin que nada fallara** — el defecto de
+  siempre. Probado por mutación: ignorar el gremio mata 5, no
+  sanear 2, y quitarle el `deParte` a campañas 1.
+
+> **El saneador se comió una `r`, y lo cazó la comprobación en
+> vivo, no los tests.** La clase quedó `/["\r
+…]/`: una barra
+> se perdió al escribir el archivo y la `r` quedó suelta **dentro**
+> de la clase, o sea prohibida. En pruebas el remitente general
+> salió «Convoca CRM - P oyectos SENA».
+>
+> El spec probaba `
+` —que el rango ` -` ya
+> cubre—, así que **pasaba por el motivo equivocado**, y ningún
+> caso comprobaba que un nombre corriente saliera entero. Ese es el
+> test que hacía falta. CR y LF no se nombran aparte: sobran, y
+> nombrarlas fue lo que coló la `r`.
+
 ### Que no caiga en spam
 
 **El dominio que firma es `grupo-ae.com.co`, no `reservasae.com`**, y ese **no
