@@ -65,6 +65,7 @@ model Convenio {
   formularioMarca Formulario? @relation("MarcaDelGremio", fields: [formularioMarcaId], references: [id], onDelete: SetNull)
 
   cargasDeParticipantes CargaDeParticipantes[]
+  oportunidades         Oportunidad[]
 
   @@index([formularioMarcaId])
   @@map("convenios")
@@ -245,6 +246,7 @@ model Empresa {
   reservas      Reserva[]
   /// Quien dice trabajar aqui, con o sin reserva.
   participantes Participante[]
+  oportunidades Oportunidad[]
 
   // un NIT, una organizacion
   @@unique([nit])
@@ -764,7 +766,7 @@ model LeadEntrante {
 
   /// Lo que llego. Todo opcional: un anuncio pregunta lo que
   /// quiere, y lo que no venga no se inventa.
-  nombreCompleto     String?
+  nombreCompleto String?
 
   /// El nombre en piezas, si el emisor lo mando asi.
   ///
@@ -793,8 +795,8 @@ model LeadEntrante {
   /// piden lo mismo escrito distinto sin relacionar. Nulo cuando
   /// no nombra ninguna, que NO es lo mismo que nombrar una que
   /// no tenemos: las dos quedan en null y el asesor pregunta.
-  accionFormacionId  String?
-  accionFormacion    AccionFormacion? @relation(fields: [accionFormacionId], references: [id], onDelete: SetNull)
+  accionFormacionId String?
+  accionFormacion   AccionFormacion? @relation(fields: [accionFormacionId], references: [id], onDelete: SetNull)
 
   /// Donde vive, para poder resolver la SEDE.
   ///
@@ -802,11 +804,11 @@ model LeadEntrante {
   /// que quiere y no donde lo va a tomar, y sin eso la ficha
   /// nace sin poder matricularse. El formulario publico lo
   /// pregunta antes que nada, y el de la pauta tambien.
-  departamentoSepId  Int?
-  municipioSepId     Int?
-  generoSepId        Int?
+  departamentoSepId Int?
+  municipioSepId    Int?
+  generoSepId       Int?
   /// Que marco la casilla al registrarse. Null: no lo dijo.
-  aceptaHabeasData   Boolean?
+  aceptaHabeasData  Boolean?
 
   /// DONDE quiere tomarlo, tal como lo escribio.
   ///
@@ -815,7 +817,7 @@ model LeadEntrante {
   /// cambiar despues --el asesor lo corrige desde la mesa--. Con
   /// un id resuelto contra el curso viejo, cambiar el curso
   /// dejaria una sede que ya no significa nada.
-  sedePedida         String?
+  sedePedida String?
 
   /// El cuerpo entero, tal cual. Es lo que deja depurar,
   /// reprocesar y demostrar que llego de verdad.
@@ -855,9 +857,9 @@ model LeadEntrante {
   /// pauta la cola ES el producto.
   ultimaGestionEn DateTime?
 
-  convenio     Convenio      @relation(fields: [convenioId], references: [id], onDelete: Restrict)
-  participante Participante? @relation(fields: [participanteId], references: [id], onDelete: SetNull)
-  asesor       Admin?        @relation("LeadsDelAsesor", fields: [asesorId], references: [id], onDelete: SetNull)
+  convenio     Convenio        @relation(fields: [convenioId], references: [id], onDelete: Restrict)
+  participante Participante?   @relation(fields: [participanteId], references: [id], onDelete: SetNull)
+  asesor       Admin?          @relation("LeadsDelAsesor", fields: [asesorId], references: [id], onDelete: SetNull)
   notas        NotaDeGestion[]
 
   @@unique([origenSistema, externoId])
@@ -932,6 +934,7 @@ model Persona {
   autorizaciones    AutorizacionDatos[]
   caracterizaciones CaracterizacionPersona[]
   consultasRui      ConsultaRui[]
+  oportunidades     Oportunidad[]
 
   // el duplicado se vuelve imposible de crear
   @@unique([tipoDocumentoSepId, numeroDocumento])
@@ -1273,7 +1276,7 @@ model Admin {
   /// Los leads que lleva. Nombrada porque Admin y LeadEntrante
   /// no se relacionan por ningun otro sitio, pero un dia lo
   /// haran y sin nombre Prisma no sabria cual es cual.
-  leadsQueLleva            LeadEntrante[]  @relation("LeadsDelAsesor")
+  leadsQueLleva            LeadEntrante[]           @relation("LeadsDelAsesor")
   plantillasCorreo         PlantillaCorreo[]
   campanas                 Campana[]
   enlacesEmitidos          EnlaceCompletado[]       @relation("EnlacesEmitidos")
@@ -1283,6 +1286,9 @@ model Admin {
   propuestasInstitucion    PropuestaInstitucion[]
 
   cargasDeParticipantes CargaDeParticipantes[] @relation("CargasDelAdmin")
+
+  oportunidadesAsignadas Oportunidad[]           @relation("OportunidadesDelAsesor")
+  movimientosOportunidad MovimientoOportunidad[] @relation("MovimientosDeOportunidad")
 
   @@map("administradores")
 }
@@ -2053,4 +2059,202 @@ model ValorAnterior {
   @@index([participanteId, creadoEn])
   @@index([creadoEn])
   @@map("valores_anteriores")
+}
+
+// ─────────────────────────────────────────────────────────────
+// CAPTACIÓN Y VENTAS
+//
+// El negocio como objeto propio. Hasta aquí el sistema seguía
+// personas hacia un aula; de aquí en adelante sigue dinero que
+// todavía no existe, que es otra pregunta y necesita otra tabla.
+//
+// La ficha de la persona NO se toca: una misma persona puede
+// tener varias oportunidades a lo largo del tiempo, y meter el
+// valor y la etapa de venta dentro de `personas` haría que la
+// segunda pisara a la primera. Es el error que convierte un CRM
+// en una lista de contactos.
+// ─────────────────────────────────────────────────────────────
+
+/// A quién se le vende. Decide qué etapas tiene el embudo.
+enum TipoEmbudo {
+  /// NIT, alguien que decide y una propuesta por escrito.
+  EMPRESA
+  /// Ciclo de días y volumen alto.
+  PERSONA
+}
+
+/**
+ * Las etapas, en pasado.
+ * En pasado a proposito: «PROPUESTA_ENVIADA» solo se puede
+ * marcar cuando la propuesta salio, y «ENVIANDO_PROPUESTA» se
+ * puede marcar con la intencion de enviarla algun dia. Un nombre
+ * en presente convierte el embudo en una lista de deseos, y el
+ * pronostico que sale de ahi no vale nada.
+ * Es UN catalogo para los DOS embudos: cada uno declara cuales
+ * usa en `embudos.ts`. Asi un informe suma los dos sin traducir
+ * y un tercer embudo no toca el modelo.
+ */
+enum EtapaOportunidad {
+  /// Entro por un canal. Todavia no ha hablado con nadie.
+  CAPTADO
+  /// Hubo contacto efectivo: contesto, no que se le marco.
+  CONTACTADO
+  /// Hay necesidad, hay con que pagarla y se sabe quien decide.
+  CALIFICADO
+  /// Solo en el embudo de empresas.
+  PROPUESTA_ENVIADA
+  /// Solo en el embudo de empresas: hay contrapropuesta.
+  EN_NEGOCIACION
+  GANADO
+  PERDIDO
+}
+
+/// Por que se cerro. Sin esto no se aprende nada del año pasado.
+enum MotivoCierre {
+  /// Ganadas
+  PRECIO_ACEPTADO
+  UNICA_OPCION
+  RECOMENDACION
+
+  /// Perdidas
+  PRECIO_ALTO
+  SIN_PRESUPUESTO
+  SE_FUE_CON_OTRO
+  FUERA_DE_TIEMPO
+  NO_ERA_QUIEN_DECIDE
+  NUNCA_RESPONDIO
+  NO_LE_INTERESA
+  DATOS_ERRADOS
+  OTRO
+}
+
+/**
+ * Un negocio que se persigue.
+ * `valor` es Decimal y no Float: en plata, un centavo perdido al
+ * redondear se multiplica por cada suma del pronostico. Decimal
+ * (14,2) llega a 999.999.999.999,99 — de sobra en pesos.
+ */
+model Oportunidad {
+  id String @id @default(cuid())
+
+  /// Legible para humanos: se dice por telefono y se busca.
+  /// Lo pone la aplicacion, no la base: la secuencia lleva el
+  /// año dentro y eso no cabe en un `autoincrement`.
+  codigo String @unique
+
+  /// El ambito de la cuenta, igual que en todo el panel.
+  convenioId String
+  convenio   Convenio @relation(fields: [convenioId], references: [id])
+
+  embudo TipoEmbudo
+  etapa  EtapaOportunidad @default(CAPTADO)
+
+  /// Que se le esta vendiendo, en una linea.
+  titulo String
+
+  /// En pesos salvo que se diga otra cosa.
+  valor  Decimal @default(0) @db.Decimal(14, 2)
+  moneda String  @default("COP")
+
+  /**
+   * De 0 a 100.
+   * Nace de la etapa y se puede pisar a mano: el asesor que sabe
+   * que ese negocio esta muerto tiene que poder decirlo sin
+   * moverlo de etapa. `probabilidadPropia` recuerda si la
+   * pisaron, para que al cambiar de etapa no se le borre en
+   * silencio lo que alguien escribio a proposito.
+   */
+  probabilidad       Int     @default(5)
+  probabilidadPropia Boolean @default(false)
+
+  /// Cuando se espera que cierre. Es lo que ordena el pronostico.
+  cierreEsperado DateTime?
+
+  /// Quien responde por ella. Sin dueño, una oportunidad es de
+  /// nadie y no la trabaja nadie.
+  asesorId String?
+  asesor   Admin?  @relation("OportunidadesDelAsesor", fields: [asesorId], references: [id], onDelete: SetNull)
+
+  /// Una de las dos, segun el embudo. La regla la impone el
+  /// servicio, no la base: los dos embudos comparten tabla y una
+  /// restriccion de columna aqui obligaria a dos tablas.
+  personaId String?
+  persona   Persona? @relation(fields: [personaId], references: [id], onDelete: SetNull)
+  empresaId String?
+  empresa   Empresa? @relation(fields: [empresaId], references: [id], onDelete: SetNull)
+
+  /// De donde salio. Mismo catalogo que la ficha, para que los
+  /// informes de origen sumen las dos cosas.
+  origen  OrigenParticipante @default(ASESOR)
+  /// De que campaña, cuando se sabe. El detalle multi-toque vive
+  /// en `toques_de_origen`, colgado de la ficha.
+  campana String?
+
+  /// El lead que la origino, si vino de la mesa de entrada.
+  leadId String?
+
+  /**
+   * El reloj.
+   * `primeraRespuestaEn` es el instante en que alguien de verdad
+   * contesto. Se escribe UNA vez y no se vuelve a tocar: es la
+   * medicion contra la que se juzga el equipo, y una medicion que
+   * se puede reescribir no mide.
+   */
+  creadoEn                DateTime  @default(now())
+  primeraRespuestaEn      DateTime?
+  /// Minutos entre `creadoEn` y la primera respuesta, ya
+  /// calculados. Se guardan para poder ordenar y promediar sin
+  /// recorrer la tabla entera en cada consulta.
+  minutosPrimeraRespuesta Int?
+
+  /// Cualquier cosa que la mueva. Sirve para «lleva N dias sin
+  /// que nadie la toque», que es la pregunta de la fase 2.
+  ultimoToqueEn DateTime @default(now())
+
+  cerradaEn    DateTime?
+  motivoCierre MotivoCierre?
+  /// Lo que no cabe en el motivo. Obligatorio al perder: el
+  /// motivo dice la categoria y esto dice el caso.
+  notaCierre   String?
+
+  actualizadoEn DateTime @updatedAt
+
+  movimientos MovimientoOportunidad[]
+
+  @@index([convenioId, etapa])
+  @@index([convenioId, asesorId, etapa])
+  @@index([convenioId, cierreEsperado])
+  @@index([personaId])
+  @@index([empresaId])
+  @@map("oportunidades")
+}
+
+/**
+ * Todo lo que le paso a una oportunidad, en orden.
+ * Existe por la misma razon que `movimientos_participante`: sin
+ * historial, «esta en negociacion» es una afirmacion sin fecha ni
+ * autor, y cuando el negocio se cae nadie puede reconstruir
+ * donde se enfrio. Se escribe SIEMPRE que cambia la etapa, y no
+ * se borra nunca: corregir un error es otra fila, no un `delete`.
+ */
+model MovimientoOportunidad {
+  id String @id @default(cuid())
+
+  oportunidadId String
+  oportunidad   Oportunidad @relation(fields: [oportunidadId], references: [id], onDelete: Cascade)
+
+  de   EtapaOportunidad?
+  a    EtapaOportunidad
+  nota String?
+
+  /// Se guarda el nombre ademas del id: la cuenta puede
+  /// desactivarse o cambiar de dueño, y la huella no.
+  adminId     String?
+  admin       Admin?  @relation("MovimientosDeOportunidad", fields: [adminId], references: [id], onDelete: SetNull)
+  actorNombre String
+
+  creadoEn DateTime @default(now())
+
+  @@index([oportunidadId, creadoEn])
+  @@map("movimientos_oportunidad")
 }

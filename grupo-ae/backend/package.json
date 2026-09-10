@@ -38,7 +38,8 @@
     "db:probar-buscador-web": "ts-node prisma/probar-buscador-web.ts",
     "db:probar-navegador-web": "ts-node prisma/probar-navegador-web.ts",
     "db:borrar-reservas": "ts-node prisma/borrar-reservas.ts",
-    "db:guardia": "ts-node prisma/guardia-de-base-cli.ts"
+    "db:guardia": "ts-node prisma/guardia-de-base-cli.ts",
+    "db:sembrar-oportunidades": "ts-node prisma/seed/oportunidades-demo.ts"
   },
   "prisma": {
     "seed": "ts-node prisma/seed/index.ts"

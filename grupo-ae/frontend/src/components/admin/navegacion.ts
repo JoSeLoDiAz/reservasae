@@ -44,13 +44,22 @@ export const MODULOS: Modulo[] = [
     clave: 'inscripciones',
     emoji: '📝',
     etiqueta: 'Gestión de leads',
-    descripcion: 'Del lead que entra a la persona con nombre.',
+    descripcion: 'Del lead que entra al negocio que se cierra.',
     enlaces: [
       {
-        /// Va PRIMERO porque es el orden del proceso: el lead
-        /// llega por el webhook y despues se gestiona. Ponerla
-        /// despues de la lista sugeriria que es un detalle de
-        /// ella, y es su origen.
+        /// Va PRIMERO porque es donde se trabaja.
+        ///
+        /// La mesa de entrada es de donde SALEN los leads y el
+        /// embudo es donde VIVEN: quien abre el panel por la
+        /// mañana viene a ver sus negocios, no a ver qué llegó de
+        /// madrugada. Poner la mesa primero sugeriria que el
+        /// trabajo es despachar la bandeja, y el trabajo es cerrar.
+        href: '/admin/embudo',
+        etiqueta: 'Embudo de ventas',
+        exacto: true,
+        area: 'inscripciones',
+      },
+      {
         href: '/admin/mesa',
         etiqueta: 'Mesa de entrada',
         exacto: true,

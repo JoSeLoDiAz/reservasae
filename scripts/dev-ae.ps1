@@ -60,6 +60,26 @@ function PararUno([string]$nombre, [int]$puerto) {
     Escribir "  $nombre  :$puerto  parado (PID $procId)"
 }
 
+# Los huerfanos que el puerto no ve.
+#
+# `nest start --watch` no es el que escucha: arranca un hijo, y cuando el
+# hijo muere el vigilante levanta otro. Matar por puerto deja vivo al
+# vigilante, que a los pocos segundos vuelve a ocupar el puerto -- o peor,
+# se queda con el motor de Prisma abierto y `prisma generate` falla con
+# EPERM sin decir por que.
+#
+# Pasaron NUEVE en una sola tarde de reinicios. Se filtran por la ruta de
+# `grupo-ae` en su linea de ordenes: los de Convoca no se tocan.
+function LimpiarHuerfanos() {
+    $mios = @(Get-CimInstance Win32_Process -Filter "Name='node.exe'" -ErrorAction SilentlyContinue |
+              Where-Object { $_.CommandLine -match 'grupo-ae|grupoae' })
+    if ($mios.Count -eq 0) { return }
+    foreach ($p in $mios) {
+        try { Stop-Process -Id $p.ProcessId -Force -ErrorAction Stop } catch {}
+    }
+    Escribir "  huerfanos  $($mios.Count) proceso(s) de grupo-ae terminados"
+}
+
 function ArrancarUno([string]$nombre, [string]$guion, [int]$puerto) {
     $procId = QuienEscucha $puerto
     if ($procId) {
@@ -135,6 +155,7 @@ if ($Parar) {
     Escribir "Parando Grupo AE:"
     PararUno 'frontend' $PuertoFrontend
     PararUno 'backend'  $PuertoBackend
+    LimpiarHuerfanos
     return
 }
 
@@ -142,6 +163,7 @@ if ($Reiniciar) {
     Escribir "Reiniciando Grupo AE:"
     PararUno 'frontend' $PuertoFrontend
     PararUno 'backend'  $PuertoBackend
+    LimpiarHuerfanos
     Start-Sleep -Seconds 2
 }
 
