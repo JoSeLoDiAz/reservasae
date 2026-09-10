@@ -1,0 +1,2056 @@
+// Modelo de datos de Convoca.
+generator client {
+  provider      = "prisma-client-js"
+  output        = "../generated/prisma"
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x"] // los contenedores son alpine
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// catálogo
+
+/// Modalidad. HIBRIDA solo la llevan acción y grupo.
+enum Modalidad {
+  PRESENCIAL
+  VIRTUAL
+  HIBRIDA
+}
+
+enum TipoUbicacion {
+  CIUDAD
+  DEPARTAMENTO
+}
+
+/// Convenio bajo el que se oferta.
+model Convenio {
+  id                 String  @id @default(cuid())
+  slug               String  @unique /// ruta pública: /britcham-adee, /adecopria
+  nombre             String /// razón social de la entidad proponente
+  sigla              String?
+  nit                String
+  digitoVerificacion String?
+  correo             String?
+  telefono           String?
+  direccion          String?
+  ciudad             String?
+  departamento       String?
+  paginaWeb          String?
+  activo             Boolean @default(true)
+  orden              Int     @default(0)
+
+  // los ids con los que el SEP conoce este convenio
+  sepProyectoId        Int?
+  sepNombreConviniente String?
+  creadoEn             DateTime @default(now())
+  actualizadoEn        DateTime @updatedAt
+
+  /// el formulario que da la marca
+  formularioMarcaId String?
+
+  acciones         AccionFormacion[]
+  politicas        PoliticaDatos[]
+  formularios      Formulario[]
+  leads            LeadEntrante[]
+  plantillasCorreo PlantillaCorreo[]
+  campanas         Campana[]
+  participantes    Participante[]
+  admins           AdminConvenio[]
+
+  /// Nombrada porque Convenio y Formulario ya se relacionan
+  /// por `Formulario.convenioId`, y sin nombre Prisma no
+  /// sabria cual de las dos es cual.
+  formularioMarca Formulario? @relation("MarcaDelGremio", fields: [formularioMarcaId], references: [id], onDelete: SetNull)
+
+  cargasDeParticipantes CargaDeParticipantes[]
+
+  @@index([formularioMarcaId])
+  @@map("convenios")
+}
+
+/// Un curso del proyecto (AF1, AF2...).
+model AccionFormacion {
+  id          String    @id @default(cuid())
+  convenioId  String
+  codigo      String /// "AF1", el código del proyecto
+  nombre      String
+  modalidad   Modalidad
+  evento      String? /// CURSO, SEMINARIO...
+  enfoque     String?
+  metodologia String?
+  horas       Int?
+  objetivo    String?
+  ambiente    String?
+
+  /// Dos lineas para la tarjeta publica: que se lleva quien
+  /// haga el curso. El `objetivo` no sirve para eso -- esta
+  /// redactado para el convenio, en mayusculas y de 120
+  /// palabras. Se edita desde Formularios.
+  resumenPublico String?
+
+  visible       Boolean  @default(false) /// arranca oculta: se publica cuando tiene fechas
+  orden         Int      @default(0)
+  sepAfId       Int? /// como la conoce el SEP
+  creadoEn      DateTime @default(now())
+  actualizadoEn DateTime @updatedAt
+
+  convenio      Convenio       @relation(fields: [convenioId], references: [id], onDelete: Cascade)
+  grupos        Grupo[]
+  ofertas       Oferta[]
+  participantes Participante[]
+  actividades   Actividad[]
+  leads         LeadEntrante[]
+
+  // el codigo solo es unico por convenio
+  @@unique([convenioId, codigo])
+  @@index([convenioId, visible, orden])
+  @@map("acciones_formacion")
+}
+
+/// Ciudad o departamento, normalizado.
+model Ubicacion {
+  id           String        @id @default(cuid())
+  nombre       String
+  tipo         TipoUbicacion
+  departamento String? /// para las ciudades: a qué departamento pertenecen
+
+  coberturas GrupoCobertura[]
+  ofertas    Oferta[]
+  sedeDe     Grupo[]
+
+  @@unique([nombre, tipo])
+  @@map("ubicaciones")
+}
+
+/// Cohorte comprometida con el SENA. Sin contador.
+model Grupo {
+  id                String    @id @default(cuid())
+  accionFormacionId String
+  numero            Int
+  modalidad         Modalidad
+  sedeUbicacionId   String? /// solo si el grupo tiene componente presencial
+
+  sepGrupoId Int? /// como lo conoce el SEP
+
+  // los proyectos no traen fechas
+  fechaInicio DateTime?
+  fechaFin    DateTime?
+  horario     String?
+
+  creadoEn      DateTime @default(now())
+  actualizadoEn DateTime @updatedAt
+
+  accionFormacion AccionFormacion  @relation(fields: [accionFormacionId], references: [id], onDelete: Cascade)
+  sede            Ubicacion?       @relation(fields: [sedeUbicacionId], references: [id])
+  coberturas      GrupoCobertura[]
+
+  @@unique([accionFormacionId, numero])
+  @@map("grupos")
+}
+
+/// Beneficiarios de un grupo en una ubicación.
+model GrupoCobertura {
+  id           String    @id @default(cuid())
+  grupoId      String
+  ubicacionId  String
+  modalidad    Modalidad
+  cuposBase    Int /// lo comprometido en el proyecto, sin sobrecupo
+  cuposMaximos Int /// cuposBase + 30 %, truncado
+
+  grupo     Grupo     @relation(fields: [grupoId], references: [id], onDelete: Cascade)
+  ubicacion Ubicacion @relation(fields: [ubicacionId], references: [id])
+
+  participantes Participante[]
+  avisos        AvisoDeCupos[]
+
+  @@unique([grupoId, ubicacionId, modalidad])
+  @@map("grupos_cobertura")
+}
+
+// oferta: lo que tiene cupos
+
+/// (acción × ubicación). Lo único con contador.
+model Oferta {
+  id                String    @id @default(cuid())
+  accionFormacionId String
+  ubicacionId       String
+  modalidad         Modalidad
+
+  cuposMaximos  Int
+  cuposOcupados Int @default(0)
+
+  /// Cerrar impide reservas nuevas.
+  abierta       Boolean  @default(true)
+  creadoEn      DateTime @default(now())
+  actualizadoEn DateTime @updatedAt
+
+  accionFormacion AccionFormacion @relation(fields: [accionFormacionId], references: [id], onDelete: Cascade)
+  ubicacion       Ubicacion       @relation(fields: [ubicacionId], references: [id])
+  reservas        Reserva[]
+  participantes   Participante[]
+
+  cargasDeParticipantes CargaDeParticipantes[]
+
+  @@unique([accionFormacionId, ubicacionId])
+  @@index([accionFormacionId])
+  @@map("ofertas")
+}
+
+// empresas y reservas
+
+/// La organización que reserva, por su NIT.
+model Empresa {
+  id                  String  @id @default(cuid())
+  nit                 String /// solo dígitos, sin puntos ni guion
+  digitoVerificacion  String?
+  razonSocial         String
+  numeroColaboradores Int?
+  redAsociada         String? /// BRITCHAM / ADEE / Ambos / Otro / Ninguno
+  /// Cuál, cuando `redAsociada` es "Otro".
+  redAsociadaOtra     String?
+
+  // el SEP clasifica por ingresos y sector, no por gente
+  tamanoSepId        Int?
+  /// Puede ser una persona con RUT, no solo un NIT.
+  tipoDocumentoSepId Int?
+
+  // lo que pide el F7 y nadie capturaba
+  direccion          String?
+  telefono           String?
+  /// Codigos DANE, como todo lo del SEP.
+  departamentoSepId  Int?
+  municipioSepId     Int?
+  sectorEconomico    String?
+  /// Todos los que trabajan, no solo los que se forman.
+  numeroTrabajadores Int?
+  /// Conviniente, beneficiaria o de la cadena productiva.
+  papelEnConvenio    String?
+  /// Publica, privada o mixta. Va en el F7.
+  clasificacion      String?
+  contactoNombre     String?
+  contactoCargo      String?
+  contactoCorreo     String?
+
+  /// Su ficha en el maestro. Null mientras nadie la haya
+  /// emparejado: se puede reservar con un NIT que todavía
+  /// no está en el directorio.
+  institucionId String?
+
+  creadoEn      DateTime @default(now())
+  actualizadoEn DateTime @updatedAt
+
+  institucion   Institucion?   @relation(fields: [institucionId], references: [id], onDelete: SetNull)
+  reservas      Reserva[]
+  /// Quien dice trabajar aqui, con o sin reserva.
+  participantes Participante[]
+
+  // un NIT, una organizacion
+  @@unique([nit])
+  // no tenia ninguno: se recorre por NIT al guardar cada
+  // ficha y por razon social en el listado
+  @@index([institucionId])
+  @@index([razonSocial])
+  @@map("empresas")
+}
+
+enum EstadoReserva {
+  CONFIRMADA /// tiene al menos un cupo confirmado
+  LISTA_ESPERA /// no cabía ninguno; espera a que alguien cancele
+  CANCELADA
+}
+
+/// N cupos de una empresa en una oferta.
+model Reserva {
+  id        String @id @default(cuid())
+  empresaId String
+  ofertaId  String
+
+  /// De qué formulario salió.
+  formularioId String?
+
+  cuposSolicitados Int
+  cuposConfirmados Int @default(0)
+  cuposEnEspera    Int @default(0)
+
+  estado EstadoReserva @default(CONFIRMADA)
+
+  // quien diligencia, distinto en cada curso
+  contactoNombre  String
+  contactoCorreo  String
+  contactoCelular String?
+  contactoCargo   String?
+
+  aceptaTerminos      Boolean @default(false)
+  aceptaPoliticaDatos Boolean @default(false)
+  politicaDatosId     String? /// qué versión exacta del texto aceptó
+
+  ipOrigen String? /// llega en CF-Connecting-IP, no en el socket
+
+  creadoEn      DateTime  @default(now())
+  actualizadoEn DateTime  @updatedAt
+  canceladaEn   DateTime?
+
+  empresa       Empresa             @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  oferta        Oferta              @relation(fields: [ofertaId], references: [id], onDelete: Cascade)
+  politicaDatos PoliticaDatos?      @relation(fields: [politicaDatosId], references: [id])
+  formulario    Formulario?         @relation(fields: [formularioId], references: [id], onDelete: SetNull)
+  movimientos   MovimientoReserva[]
+  respuestas    Respuesta[]
+  participantes Participante[]
+
+  // contra el doble clic: una reserva por oferta
+  @@unique([empresaId, ofertaId])
+  @@index([ofertaId, estado])
+  @@index([contactoCorreo])
+  @@index([formularioId])
+  @@map("reservas")
+}
+
+enum AccionMovimiento {
+  CREACION
+  EDICION
+  CANCELACION
+  PROMOCION_LISTA_ESPERA
+  AJUSTE_ADMIN
+}
+
+/// Auditoría de cada cambio de cupos.
+model MovimientoReserva {
+  id        String           @id @default(cuid())
+  reservaId String
+  accion    AccionMovimiento
+
+  confirmadosAntes   Int
+  confirmadosDespues Int
+  enEsperaAntes      Int
+  enEsperaDespues    Int
+
+  ip        String?
+  userAgent String?
+  adminId   String?
+  nota      String?
+  creadoEn  DateTime @default(now())
+
+  reserva Reserva @relation(fields: [reservaId], references: [id], onDelete: Cascade)
+  admin   Admin?  @relation(fields: [adminId], references: [id])
+
+  @@index([reservaId, creadoEn])
+  /// Índice para el ritmo diario.
+  @@index([creadoEn])
+  @@map("movimientos_reserva")
+}
+
+// formularios administrables
+
+enum TipoPregunta {
+  TEXTO_CORTO
+  TEXTO_LARGO
+  NUMERO
+  CORREO
+  TELEFONO
+  FECHA
+  SELECCION_UNICA
+  SELECCION_MULTIPLE
+  CASILLA
+  /// No pide nada: solo muestra un texto.
+  PARRAFO
+}
+
+/// Un formulario público, editable desde el panel.
+model Formulario {
+  id          String  @id @default(cuid())
+  convenioId  String
+  slug        String  @unique
+  titulo      String
+  descripcion String?
+  publicado   Boolean @default(false)
+
+  /// Lo que se lee tras reservar.
+  mensajeExito String?
+
+  /// Solo las claves propias; el resto hereda.
+  coloresClaro  Json?
+  coloresOscuro Json?
+
+  creadoEn      DateTime @default(now())
+  actualizadoEn DateTime @updatedAt
+
+  convenio  Convenio   @relation(fields: [convenioId], references: [id], onDelete: Cascade)
+  esMarcaDe Convenio[] @relation("MarcaDelGremio")
+  secciones Seccion[]
+  preguntas Pregunta[]
+  reservas  Reserva[]
+  logos     Logo[]
+
+  @@map("formularios")
+}
+
+/// Bloque visual del formulario.
+model Seccion {
+  id           String  @id @default(cuid())
+  formularioId String
+  titulo       String
+  descripcion  String?
+  orden        Int     @default(0)
+
+  formulario Formulario @relation(fields: [formularioId], references: [id], onDelete: Cascade)
+  preguntas  Pregunta[]
+
+  @@index([formularioId, orden])
+  @@map("secciones")
+}
+
+/// Campos sin los que no se puede crear una reserva.
+enum CampoNucleo {
+  EMPRESA_NIT
+  EMPRESA_RAZON_SOCIAL
+  EMPRESA_COLABORADORES
+  EMPRESA_RED_ASOCIADA
+  EMPRESA_RED_ASOCIADA_OTRA
+  CONTACTO_NOMBRE
+  CONTACTO_CORREO
+  CONTACTO_CELULAR
+  CONTACTO_CARGO
+  ACCION_FORMACION
+  OFERTA
+  CUPOS_SOLICITADOS
+  ACEPTA_TERMINOS
+  ACEPTA_POLITICA_DATOS
+}
+
+model Pregunta {
+  id           String       @id @default(cuid())
+  formularioId String
+  seccionId    String?
+  etiqueta     String
+  ayuda        String?
+  marcador     String? /// texto gris dentro del campo vacío
+  tipo         TipoPregunta
+  obligatoria  Boolean      @default(false)
+  orden        Int          @default(0)
+  campoNucleo  CampoNucleo?
+
+  /// Reglas de validación, repetidas en el servidor.
+  minimo      Int? /// valor mínimo, para NUMERO
+  maximo      Int?
+  largoMinimo Int? /// caracteres, para los tipos de texto
+  largoMaximo Int?
+
+  /// Mostrarla solo si otra tiene cierto valor.
+  dependeDePreguntaId String?
+  dependeDeValor      String?
+
+  /// Las preguntas se archivan, no se borran.
+  archivada Boolean @default(false)
+
+  creadoEn      DateTime @default(now())
+  actualizadoEn DateTime @updatedAt
+
+  formulario Formulario  @relation(fields: [formularioId], references: [id], onDelete: Cascade)
+  seccion    Seccion?    @relation(fields: [seccionId], references: [id], onDelete: SetNull)
+  opciones   Opcion[]
+  respuestas Respuesta[]
+
+  // ni depender de si misma ni arrastrar a la madre
+  dependeDe    Pregunta?  @relation("Dependencia", fields: [dependeDePreguntaId], references: [id], onDelete: SetNull)
+  dependientes Pregunta[] @relation("Dependencia")
+
+  // un campo del nucleo, una sola vez
+  @@unique([formularioId, campoNucleo])
+  @@index([formularioId, orden])
+  @@index([seccionId, orden])
+  @@map("preguntas")
+}
+
+model Opcion {
+  id         String  @id @default(cuid())
+  preguntaId String
+  etiqueta   String
+  /// Lo que se guarda, aparte de la etiqueta.
+  valor      String
+  orden      Int     @default(0)
+  archivada  Boolean @default(false)
+
+  pregunta Pregunta @relation(fields: [preguntaId], references: [id], onDelete: Cascade)
+
+  @@unique([preguntaId, valor])
+  @@index([preguntaId, orden])
+  @@map("opciones")
+}
+
+/// Una respuesta y su etiqueta congelada.
+model Respuesta {
+  id         String @id @default(cuid())
+  reservaId  String
+  preguntaId String
+
+  etiquetaPregunta   String
+  valorTexto         String?
+  valorNumero        Int?
+  valorBooleano      Boolean?
+  valoresSeleccion   String[] @default([])
+  /// Etiquetas elegidas, congeladas al enviar.
+  etiquetasSeleccion String[] @default([])
+
+  creadoEn DateTime @default(now())
+
+  reserva  Reserva  @relation(fields: [reservaId], references: [id], onDelete: Cascade)
+  pregunta Pregunta @relation(fields: [preguntaId], references: [id])
+
+  @@unique([reservaId, preguntaId])
+  @@map("respuestas")
+}
+
+// política de datos y administración
+
+// lms: el contenido y el avance de cada persona
+
+/// Qué es cada paso del curso.
+enum TipoActividad {
+  LECCION
+  RECURSO
+  TAREA
+  QUIZ
+  FORO
+  ENCUESTA
+  EVALUACION
+}
+
+/// Cómo va una persona en una actividad.
+enum EstadoAvance {
+  EN_CURSO
+  ENTREGADA
+  APROBADA
+  NO_APROBADA
+}
+
+/// Un paso del curso. Cuelga de la accion, no del grupo:
+/// el contenido es el mismo para todos sus grupos.
+model Actividad {
+  id                String        @id @default(cuid())
+  accionFormacionId String
+  orden             Int
+  titulo            String
+  descripcion       String?
+  tipo              TipoActividad @default(LECCION)
+
+  /// Cuenta para el porcentaje de avance.
+  obligatoria Boolean  @default(true)
+  /// Peso en la nota final, si la lleva.
+  ponderacion Decimal? @db.Decimal(5, 2)
+  /// Minutos estimados, para el ritmo esperado.
+  duracion    Int?
+
+  publicada     Boolean  @default(false)
+  creadoEn      DateTime @default(now())
+  actualizadoEn DateTime @updatedAt
+
+  accionFormacion AccionFormacion   @relation(fields: [accionFormacionId], references: [id], onDelete: Cascade)
+  avances         AvanceActividad[]
+
+  @@unique([accionFormacionId, orden])
+  @@index([accionFormacionId, publicada, orden])
+  @@map("actividades")
+}
+
+/// Lo que una persona hizo en una actividad. Solo existe
+/// la fila si empezo: la ausencia es "no iniciada".
+model AvanceActividad {
+  id             String       @id @default(cuid())
+  participanteId String
+  actividadId    String
+  estado         EstadoAvance @default(EN_CURSO)
+
+  calificacion Decimal? @db.Decimal(5, 2)
+  intentos     Int      @default(0)
+
+  iniciadaEn   DateTime  @default(now())
+  completadaEn DateTime?
+
+  actualizadoEn DateTime @updatedAt
+
+  participante Participante @relation(fields: [participanteId], references: [id], onDelete: Cascade)
+  actividad    Actividad    @relation(fields: [actividadId], references: [id], onDelete: Cascade)
+
+  // una fila por persona y actividad
+  @@unique([participanteId, actividadId])
+  @@index([participanteId, estado])
+  @@index([actividadId, estado])
+  @@map("avances_actividad")
+}
+
+// crm: la persona y su paso por la formacion
+
+/// De donde salio la persona. Las redes van por
+/// separado: "REDES" no dice cual pauta funciono.
+/// Si el lead se pagó o llegó solo.
+///
+/// Aparte de `OrigenParticipante` a propósito: aquel dice POR
+/// QUÉ CANAL llegó —Facebook, WhatsApp, un evento— y viaja al
+/// SEP. Este dice QUIÉN LO TRAJO, y es lo que permite medir
+/// cuánto cuesta un inscrito.
+///
+/// Meterlo en el otro enum ensuciaría un catálogo que sale en
+/// el reporte al Estado con una categoría que es nuestra.
+enum OrigenLead {
+  /// Llegó por una pauta que se pagó.
+  PAUTA
+  /// Llegó solo: el formulario público, un referido, una
+  /// llamada.
+  ORGANICO
+  /// Lo cargó el equipo: empresa, asesor, referido o feria.
+  ///
+  /// Faltaba, y `origenDeLead()` ya lo devolvía: es su caso por
+  /// omisión. La migración de `toques_de_origen` lo escribía y
+  /// moría con «invalid input value for enum».
+  IMPORTACION
+}
+
+/// Por donde entraron los datos de una importacion.
+enum OrigenDeCarga {
+  ARCHIVO
+  PEGADO
+}
+
+/// Quien importo, que, cuando y como salio.
+///
+/// La fila se crea ANTES de empezar a crear gente, no despues:
+/// una importacion que se caiga a la mitad tiene que dejar
+/// rastro igual. Un historico que solo guarda lo que salio bien
+/// no sirve para lo unico que se le pide, que es saber que paso.
+model CargaDeParticipantes {
+  id String @id @default(cuid())
+
+  convenioId String
+  ofertaId   String?
+
+  /// Puede quedar en nulo si se desactiva la cuenta, por eso
+  /// `autor` va congelado al lado -- mismo criterio que las
+  /// notas: el historico tiene que poder decir quien fue
+  /// aunque la cuenta ya no exista.
+  adminId String?
+  autor   String
+
+  origen        OrigenDeCarga
+  nombreArchivo String?
+
+  /// El recuento de la previsualizacion, tal como se le
+  /// enseño a quien confirmo.
+  filas       Int
+  creados     Int @default(0)
+  yaExistian  Int @default(0)
+  duplicados  Int @default(0)
+  descartados Int @default(0)
+  fallidos    Int @default(0)
+
+  ip       String?
+  creadoEn DateTime @default(now())
+
+  convenio      Convenio       @relation(fields: [convenioId], references: [id], onDelete: Restrict)
+  oferta        Oferta?        @relation(fields: [ofertaId], references: [id], onDelete: SetNull)
+  admin         Admin?         @relation("CargasDelAdmin", fields: [adminId], references: [id], onDelete: SetNull)
+  participantes Participante[]
+
+  @@index([convenioId, creadoEn])
+  @@map("cargas_de_participantes")
+}
+
+/// Cada canal por el que ESTA persona ha llegado alguna vez.
+///
+/// `Participante.origen` guarda uno solo, y una persona puede
+/// entrar dos veces: la sube el community manager en una lista
+/// y meses despues cae por una pauta pagada. Pisando la columna,
+/// la pauta se lleva un lead que ya era de alguien; dejandola
+/// quieta, la pauta no consta en ningun sitio. Las dos cosas son
+/// falsas, y por eso los toques van aparte.
+///
+/// La FILA no se pisa: se cuenta. Una persona que vuelve por el
+/// mismo anuncio suma `veces`, no crea otro toque.
+model ToqueDeOrigen {
+  id String @id @default(cuid())
+
+  participanteId String
+  participante   Participante @relation(fields: [participanteId], references: [id], onDelete: Cascade)
+
+  /// El canal, del mismo catalogo que la ficha.
+  origen OrigenParticipante
+
+  /// Pagado u organico, ya resuelto al registrarlo.
+  clase OrigenLead
+
+  primeraVez DateTime @default(now())
+  ultimaVez  DateTime @default(now())
+  veces      Int      @default(1)
+
+  /// De que anuncio vino, cuando se sabe.
+  campana String?
+
+  @@unique([participanteId, origen])
+  @@index([participanteId])
+  @@map("toques_de_origen")
+}
+
+enum OrigenParticipante {
+  EMPRESA
+  ASESOR
+  AUTOGESTION
+  REFERIDO
+  REDES
+  INSTAGRAM
+  FACEBOOK
+  LINKEDIN
+  WHATSAPP
+  CORREO
+  EVENTO
+  OTRO
+}
+
+/// El embudo. Las cuatro primeras son Inscripciones;
+/// de EN_FORMACION en adelante manda el academico.
+enum EtapaParticipante {
+  INTERESADO
+  CONTACTADO
+  DATOS_COMPLETOS
+  INSCRITO
+  EN_FORMACION
+  CERTIFICADO
+  PERDIDO
+  RETIRADO
+  NO_APROBO
+  /// Aviso: la persona dijo que se iba.
+  DESERTO
+  /// Sin aviso: dejo de entrar al aula.
+  ABANDONO
+}
+
+/// Por donde autorizo el tratamiento de sus datos.
+enum CanalAutorizacion {
+  FORMULARIO_WEB
+  CARGA_EMPRESA
+  VERBAL_ASESOR
+  CORREO
+  PRESENCIAL
+}
+
+/// La identidad. Unica en todo el sistema, sin convenio.
+/// Como llego un lead y en que estado esta.
+enum EstadoLeadEntrante {
+  /// Le falta algo para poder ser una ficha.
+  PENDIENTE
+  /// Ya es un Participante.
+  CONVERTIDO
+  /// No servia, y se dijo por que.
+  DESCARTADO
+}
+
+/**
+ * La mesa de entrada: un lead tal como llego, antes de ser ficha.
+ */
+model LeadEntrante {
+  id String @id @default(cuid())
+
+  /// De quien es. Explicito y obligatorio: son dos gremios.
+  convenioId String
+
+  /// Quien lo mando y con que id suyo. La pareja es unica y es
+  /// lo que hace que un reintento no cree dos fichas.
+  origenSistema String
+  externoId     String
+
+  /// De donde salio, en el vocabulario del CRM.
+  origen OrigenParticipante @default(OTRO)
+
+  /// Lo que llego. Todo opcional: un anuncio pregunta lo que
+  /// quiere, y lo que no venga no se inventa.
+  nombreCompleto     String?
+
+  /// El nombre en piezas, si el emisor lo mando asi.
+  ///
+  /// Partir una frase es adivinar: «Ana Maria Ruiz Gomez» pueden
+  /// ser dos nombres y dos apellidos, o uno y tres. Y estas
+  /// cuatro son columnas del reporte al SENA, asi que adivinar
+  /// mal se le reporta al Estado.
+  ///
+  /// Quien lleno el formulario si lo sabia: si las manda
+  /// separadas, se guardan separadas y nadie vuelve a adivinar.
+  primerNombre       String?
+  segundoNombre      String?
+  primerApellido     String?
+  segundoApellido    String?
+  correo             String?
+  celular            String?
+  tipoDocumentoSepId Int?
+  numeroDocumento    String?
+  /// Que dijo que le interesa, en sus palabras.
+  interes            String?
+
+  /// La accion que nombra ese texto, ya resuelta.
+  ///
+  /// Se resuelve AL ENTRAR y no al convertir, como el celular:
+  /// guardar la frase cruda y leerla despues deja dos leads que
+  /// piden lo mismo escrito distinto sin relacionar. Nulo cuando
+  /// no nombra ninguna, que NO es lo mismo que nombrar una que
+  /// no tenemos: las dos quedan en null y el asesor pregunta.
+  accionFormacionId  String?
+  accionFormacion    AccionFormacion? @relation(fields: [accionFormacionId], references: [id], onDelete: SetNull)
+
+  /// Donde vive, para poder resolver la SEDE.
+  ///
+  /// `Oferta` es accion x ubicacion: con el curso solo se sabe
+  /// que quiere y no donde lo va a tomar, y sin eso la ficha
+  /// nace sin poder matricularse. El formulario publico lo
+  /// pregunta antes que nada, y el de la pauta tambien.
+  departamentoSepId  Int?
+  municipioSepId     Int?
+  generoSepId        Int?
+  /// Que marco la casilla al registrarse. Null: no lo dijo.
+  aceptaHabeasData   Boolean?
+
+  /// DONDE quiere tomarlo, tal como lo escribio.
+  ///
+  /// Se guarda el TEXTO y no un id resuelto, y es deliberado: las
+  /// sedes de un curso dependen del curso, y el curso puede
+  /// cambiar despues --el asesor lo corrige desde la mesa--. Con
+  /// un id resuelto contra el curso viejo, cambiar el curso
+  /// dejaria una sede que ya no significa nada.
+  sedePedida         String?
+
+  /// El cuerpo entero, tal cual. Es lo que deja depurar,
+  /// reprocesar y demostrar que llego de verdad.
+  carga Json
+
+  estado EstadoLeadEntrante @default(PENDIENTE)
+  /// Por que no se pudo convertir sola, o por que se descarto.
+  motivo String?
+
+  /// La ficha que salio de aqui, si salio.
+  /// SIN @unique, y no es un descuido.
+  ///
+  /// Decia «un participante, como mucho un lead», y el dominio
+  /// dice lo contrario: que la misma persona llene el formulario
+  /// dos veces es lo normal. El SEGUNDO lead de alguien que ya
+  /// tiene ficha reventaba el indice, salia 500 crudo, y se
+  /// autoocultaba -- el reintento entraba por la guarda de
+  /// idempotencia y devolvia 200 con `repetido: true`.
+  /// Comprobado en vivo antes de quitarlo.
+  ///
+  /// La idempotencia NUNCA la dio este indice: la da
+  /// @@unique([origenSistema, externoId]), que no se toca.
+  participanteId String?
+
+  recibidoEn  DateTime  @default(now())
+  procesadoEn DateTime?
+
+  /// De quien es este lead. Sin dueno, cientos de leads son un
+  /// monton compartido donde todos llaman a los mismos tres. Es
+  /// la misma razon por la que la brecha de nombres se ordena
+  /// por quien debe mas: no es un informe, es a quien llamar hoy.
+  asesorId String?
+
+  /// Cuando se gestiono por ultima vez. Se escribe en la MISMA
+  /// transaccion que la nota: es lo unico que permite ordenar la
+  /// cola por «al que hace mas que no se llama», y con volumen de
+  /// pauta la cola ES el producto.
+  ultimaGestionEn DateTime?
+
+  convenio     Convenio      @relation(fields: [convenioId], references: [id], onDelete: Restrict)
+  participante Participante? @relation(fields: [participanteId], references: [id], onDelete: SetNull)
+  asesor       Admin?        @relation("LeadsDelAsesor", fields: [asesorId], references: [id], onDelete: SetNull)
+  notas        NotaDeGestion[]
+
+  @@unique([origenSistema, externoId])
+  @@index([convenioId, estado, recibidoEn])
+  /// La cola del asesor, ordenada por lo que lleva sin tocarse.
+  @@index([convenioId, asesorId, ultimaGestionEn])
+  /// Declarado aqui a proposito: un indice que existe en SQL y
+  /// no en el schema lo borra la siguiente migracion sin que
+  /// nadie lo note. Ya paso con el de origenLead.
+  @@index([accionFormacionId])
+  /// El que sustituye al @unique que se quito: se sigue
+  /// buscando por ficha, pero ya pueden ser varios leads.
+  @@index([participanteId])
+  @@map("leads_entrantes")
+}
+
+model Persona {
+  id String @id @default(cuid())
+
+  /// El id del catalogo del SEP, que es lo que viaja al
+  /// cargue. Sin enum propio: dos verdades se separan.
+  tipoDocumentoSepId Int
+  numeroDocumento    String /// normalizado, solo alfanumerico
+
+  primerNombre    String
+  segundoNombre   String?
+  primerApellido  String
+  segundoApellido String?
+
+  fechaNacimiento DateTime?
+  sexo            String?
+  correo          String?
+  celular         String?
+
+  /// Lo que escribió cuando el género es "Otro". Se
+  /// muestra tal cual, pero al SEP viaja NO BINARIO:
+  /// su catálogo solo admite tres valores.
+  generoOtroTexto String?
+
+  /// Null mientras no se ha mirado. El detector es
+  /// aproximado, así que esto orienta al asesor, no decide.
+  tieneWhatsapp      Boolean?
+  whatsappRevisadoEn DateTime?
+
+  // lo que pide el SEP, por su id de catalogo
+  generoSepId       Int?
+  estrato           Int? /// de 1 a 6
+  departamentoSepId Int? /// domicilio, no sede del curso
+  municipioSepId    Int?
+  barrio            String?
+  direccion         String?
+
+  /// Se preguntó por la caracterización y dijo que no.
+  caracterizacionRechazada  Boolean   @default(false)
+  caracterizacionPreguntada DateTime?
+
+  /// Inventada por la siembra de prueba: no es una persona.
+  ///
+  /// Existe por un daño concreto. La siembra reparte cédulas
+  /// desde 1.010.200.000, que es rango real de colombianos
+  /// nacidos hacia 1990: cada una de esas cédulas inventadas
+  /// le pertenece a alguien. Consultar el RUI con ellas le
+  /// pide al Estado la identidad de un ciudadano que no pidió
+  /// nada, y la guarda aquí. Con esta marca, el RUI no las
+  /// consulta nunca.
+  esDePrueba Boolean @default(false)
+
+  creadoEn      DateTime @default(now())
+  actualizadoEn DateTime @updatedAt
+
+  participaciones   Participante[]
+  autorizaciones    AutorizacionDatos[]
+  caracterizaciones CaracterizacionPersona[]
+  consultasRui      ConsultaRui[]
+
+  // el duplicado se vuelve imposible de crear
+  @@unique([tipoDocumentoSepId, numeroDocumento])
+  @@index([primerApellido, primerNombre])
+  @@index([correo])
+  @@map("personas")
+}
+
+/// La persona en una formacion concreta.
+model Participante {
+  id         String @id @default(cuid())
+  personaId  String
+  convenioId String
+
+  // sin reserva si la persona llego por su cuenta
+  reservaId         String?
+  // donde trabaja. Va aparte de la reserva porque quien se
+  // inscribe solo tambien tiene empresa, y sin esto sus
+  // datos no tenian donde guardarse ni salian en el F7
+  empresaId         String?
+  ofertaId          String?
+  accionFormacionId String?
+  coberturaId       String?
+
+  etapa  EtapaParticipante  @default(INTERESADO)
+  origen OrigenParticipante @default(ASESOR)
+
+  /// Pagado u orgánico. Null en los que ya existían: no se
+  /// puede saber hacia atrás, y ponerles ORGANICO a todos
+  /// sería inventarse una métrica.
+  origenLead OrigenLead?
+
+  /// Todos los canales por los que ha llegado, no solo el
+  /// primero. Ver `ToqueDeOrigen`.
+  toquesDeOrigen ToqueDeOrigen[]
+
+  /// Cuando un asesor toco los datos de esta ficha. A
+  /// partir de ahi, lo que mande el interesado no pisa: se
+  /// guarda como propuesta y alguien decide.
+  datosTocadosPorAsesorEn DateTime?
+
+  /// El documento tecleado tiene pinta de NIT de empresa.
+  /// No se le dice a quien llena el formulario: aparece
+  /// aquí, para que el asesor lo mire cuando llega el dato.
+  revisarDocumento Boolean @default(false)
+
+  asesorId String?
+
+  /// De que importacion salio, si salio de una.
+  cargaId String?
+
+  cargoEnEmpresa   String?
+  nivelEducativo   String?
+  nivelOcupacional String?
+
+  // el catalogo del SEP, aparte del texto libre de antes
+  nivelOcupacionalSepId Int?
+  /// Sí o no, declarado por la persona.
+  beneficiarioPrevio    Boolean?
+
+  porcentajeAsistencia Int?
+  notaFinal            Decimal? @db.Decimal(5, 2)
+
+  fechaMatricula     DateTime?
+  fechaRetiro        DateTime?
+  motivoSalida       String?
+  fechaCertificacion DateTime?
+  cargadoEnSepEn     DateTime?
+
+  /// Ultima vez que entro al aula.
+  ultimoAcceso DateTime?
+
+  // sobrecupo: quien lo autorizo y por que
+  sobrecupoPorId  String?
+  sobrecupoMotivo String?
+
+  creadoEn      DateTime @default(now())
+  actualizadoEn DateTime @updatedAt
+
+  persona           Persona                  @relation(fields: [personaId], references: [id], onDelete: Restrict)
+  convenio          Convenio                 @relation(fields: [convenioId], references: [id], onDelete: Restrict)
+  reserva           Reserva?                 @relation(fields: [reservaId], references: [id], onDelete: Restrict)
+  empresa           Empresa?                 @relation(fields: [empresaId], references: [id], onDelete: SetNull)
+  oferta            Oferta?                  @relation(fields: [ofertaId], references: [id], onDelete: Restrict)
+  accionFormacion   AccionFormacion?         @relation(fields: [accionFormacionId], references: [id], onDelete: Restrict)
+  cobertura         GrupoCobertura?          @relation(fields: [coberturaId], references: [id], onDelete: SetNull)
+  asesor            Admin?                   @relation("ParticipantesDelAsesor", fields: [asesorId], references: [id], onDelete: SetNull)
+  sobrecupoPor      Admin?                   @relation("SobrecuposAutorizados", fields: [sobrecupoPorId], references: [id], onDelete: SetNull)
+  carga             CargaDeParticipantes?    @relation(fields: [cargaId], references: [id], onDelete: SetNull)
+  valoresAnteriores ValorAnterior[]
+  movimientos       MovimientoParticipante[]
+  notas             NotaDeGestion[]
+  avances           AvanceActividad[]
+  enlaces           EnlaceCompletado[]
+  propuestas        PropuestaDeDatos[]
+
+  // nadie cuenta dos veces en la misma accion
+  /// De que lead salio, si salio de uno.
+  leads      LeadEntrante[]
+  enCampanas DestinatarioCampana[]
+
+  @@unique([accionFormacionId, personaId])
+  @@index([convenioId, etapa])
+  @@index([ofertaId, etapa])
+  @@index([coberturaId, etapa])
+  @@index([asesorId, etapa])
+  @@index([reservaId])
+  /// Para poder abrir una importacion y ver a quien metio.
+  @@index([cargaId])
+  /// El F7 y el borrado de empresas buscan por aqui.
+  @@index([empresaId])
+  /// Se filtra por persona en 21 sitios y no habia indice: el
+  /// @@unique de arriba no sirve, porque alli personaId va
+  /// segundo y Postgres solo aprovecha la primera columna.
+  /// Ademas la relacion es Restrict, asi que tocar una Persona
+  /// recorria participantes entera.
+  @@index([personaId])
+  /// Lo creo su migracion y no estaba aqui: sin declararlo,
+  /// la siguiente migracion lo borra sola.
+  @@index([convenioId, origenLead])
+  @@map("participantes")
+}
+
+/// Cada cambio de etapa. El embudo sale de aqui.
+model MovimientoParticipante {
+  id             String             @id @default(cuid())
+  participanteId String
+  etapaAntes     EtapaParticipante?
+  etapaDespues   EtapaParticipante
+  motivo         String?
+  adminId        String?
+  nota           String?
+  ip             String?
+  creadoEn       DateTime           @default(now())
+
+  participante Participante @relation(fields: [participanteId], references: [id], onDelete: Cascade)
+  admin        Admin?       @relation(fields: [adminId], references: [id], onDelete: SetNull)
+
+  @@index([participanteId, creadoEn])
+  @@index([creadoEn])
+  @@map("movimientos_participante")
+}
+
+/// Seguimiento. Solo se crea: corregir es otra nota.
+/// Por dónde se contactó. Varios a la vez: una gestión
+/// puede ser correo y llamada, y la observación las cubre.
+enum CanalContacto {
+  CORREO
+  WHATSAPP
+  TEXTO
+  LLAMADA
+}
+
+/// Cómo salió la gestión. Sin esto no se distingue
+/// "lo intenté" de "hablé con ella".
+enum ResultadoGestion {
+  CONTACTO
+  SIN_RESPUESTA
+  DATO_MALO
+}
+
+/// La gestion: una llamada, un correo, una nota. De un LEAD o de
+/// una ficha, y despues de convertir, de los dos.
+///
+/// Se llamaba `NotaParticipante` y la tabla SIGUE llamandose asi:
+/// renombrarla arrastraria la PK, dos indices y dos FK a mano, y
+/// un indice mal reconciliado desaparece sin que nada falle. El
+/// MODELO si se renombra, porque una nota que solo cuelga de un
+/// lead no es «de participante», y dejarle el nombre viejo es
+/// invitar a que alguien cree `NotaLead` -- que es justo el fork
+/// que esto existe para evitar. Ya se rechazo una tabla `Llamada`
+/// aparte por lo mismo: daria dos verdades sobre cuantas veces se
+/// contacto a esta persona.
+model NotaDeGestion {
+  id String @id @default(cuid())
+
+  /// Nulo mientras la gestion es de un LEAD que todavia no tiene
+  /// ficha. Al convertir se rellena SIN borrar `leadId`: asi las
+  /// llamadas que costo conseguir la cedula siguen contando en la
+  /// ficha, y `gestionDe()` funciona sin tocarla.
+  participanteId String?
+  /// Nulo en las notas escritas ya sobre la ficha.
+  leadId         String?
+
+  autorId     String?
+  autorNombre String /// congelado al escribir
+  texto       String
+  /// Vacío solo en las notas de antes del canal.
+  canales     CanalContacto[]
+  /// Nulo en las de antes y en las que escribe el sistema.
+  resultado   ResultadoGestion?
+  creadoEn    DateTime          @default(now())
+
+  /// SET NULL y no CASCADE: borrar una ficha no puede llevarse el
+  /// historial del lead, que sigue existiendo.
+  participante Participante? @relation(fields: [participanteId], references: [id], onDelete: SetNull)
+  lead         LeadEntrante? @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  autor        Admin?        @relation(fields: [autorId], references: [id], onDelete: SetNull)
+
+  @@index([participanteId, creadoEn])
+  @@index([participanteId, resultado])
+  @@index([leadId, creadoEn])
+  @@index([leadId, resultado])
+  @@map("notas_participante")
+}
+
+/// Dato sensible (Ley 1581 art. 5). Vive aparte para poder
+/// suprimirlo sin tocar la identidad, y cuelga de la
+/// autorizacion exacta que lo ampara.
+model CaracterizacionPersona {
+  id                   String   @id @default(cuid())
+  personaId            String
+  caracterizacionSepId Int
+  autorizacionId       String
+  creadoEn             DateTime @default(now())
+
+  persona      Persona           @relation(fields: [personaId], references: [id], onDelete: Cascade)
+  autorizacion AutorizacionDatos @relation(fields: [autorizacionId], references: [id], onDelete: Cascade)
+
+  // una marca, una vez
+  @@unique([personaId, caracterizacionSepId])
+  @@index([autorizacionId])
+  @@map("caracterizaciones_persona")
+}
+
+/// La prueba de que autorizo. No es un booleano.
+model AutorizacionDatos {
+  id              String            @id @default(cuid())
+  personaId       String
+  politicaDatosId String
+  canal           CanalAutorizacion
+  otorgadaEn      DateTime          @default(now())
+  ip              String?
+  userAgent       String?
+  evidencia       String?
+  revocadaEn      DateTime?
+
+  persona           Persona                  @relation(fields: [personaId], references: [id], onDelete: Cascade)
+  politica          PoliticaDatos            @relation(fields: [politicaDatosId], references: [id], onDelete: Restrict)
+  caracterizaciones CaracterizacionPersona[]
+
+  @@index([personaId, revocadaEn])
+  @@map("autorizaciones_datos")
+}
+
+/// A quien se le pide la autorizacion.
+enum DestinatarioPolitica {
+  RESERVA
+  PARTICIPANTE
+}
+
+/// El texto legal, versionado.
+model PoliticaDatos {
+  id           String               @id @default(cuid())
+  convenioId   String
+  destinatario DestinatarioPolitica @default(RESERVA)
+  version      Int
+  titulo       String
+  contenido    String /// texto completo en markdown
+  vigenteDesde DateTime             @default(now())
+  vigenteHasta DateTime?
+
+  creadoEn      DateTime @default(now())
+  actualizadoEn DateTime @updatedAt
+
+  convenio       Convenio            @relation(fields: [convenioId], references: [id], onDelete: Cascade)
+  reservas       Reserva[]
+  autorizaciones AutorizacionDatos[]
+
+  // la version se numera por destinatario
+  @@unique([convenioId, destinatario, version])
+  @@index([convenioId, destinatario, vigenteHasta])
+  @@map("politicas_datos")
+}
+
+enum EsquemaColor {
+  CLARO
+  OSCURO
+}
+
+enum ModoPorDefecto {
+  SISTEMA
+  CLARO
+  OSCURO
+}
+
+/// Una paleta completa por esquema: CLARO y OSCURO.
+model Tema {
+  id      String       @id @default(cuid())
+  esquema EsquemaColor @unique
+
+  /// Colores por clave. En JSON: añadir uno no migra.
+  colores Json
+
+  actualizadoEn    DateTime @updatedAt
+  actualizadoPorId String?
+
+  actualizadoPor Admin? @relation(fields: [actualizadoPorId], references: [id])
+
+  @@map("temas")
+}
+
+enum RolAdmin {
+  SUPERADMIN
+  GESTOR
+  CONSULTA
+}
+
+model Admin {
+  id        String   @id @default(cuid())
+  correo    String   @unique
+  nombre    String
+  hashClave String
+  rol       RolAdmin @default(GESTOR)
+  activo    Boolean  @default(true)
+
+  /// Toda cuenta nueva nace obligada a cambiarla.
+  debeCambiarClave Boolean @default(true)
+
+  // los completa la persona en "Mi perfil"
+  cargo        String?
+  celular      String?
+  organizacion String?
+
+  ultimoAcceso  DateTime?
+  creadoEn      DateTime  @default(now())
+  actualizadoEn DateTime  @updatedAt
+
+  movimientos              MovimientoReserva[]
+  marcaEditada             Marca[]
+  temasEditados            Tema[]
+  convenios                AdminConvenio[]
+  participantesAsignados   Participante[]           @relation("ParticipantesDelAsesor")
+  sobrecuposAutorizados    Participante[]           @relation("SobrecuposAutorizados")
+  movimientosParticipante  MovimientoParticipante[]
+  valoresAnteriores        ValorAnterior[]          @relation("ValoresAnteriores")
+  valoresRestaurados       ValorAnterior[]          @relation("ValoresRestaurados")
+  notasParticipante        NotaDeGestion[]
+  /// Los leads que lleva. Nombrada porque Admin y LeadEntrante
+  /// no se relacionan por ningun otro sitio, pero un dia lo
+  /// haran y sin nombre Prisma no sabria cual es cual.
+  leadsQueLleva            LeadEntrante[]  @relation("LeadsDelAsesor")
+  plantillasCorreo         PlantillaCorreo[]
+  campanas                 Campana[]
+  enlacesEmitidos          EnlaceCompletado[]       @relation("EnlacesEmitidos")
+  registrosAuditoria       RegistroAuditoria[]
+  propuestasResueltas      PropuestaDeDatos[]
+  institucionesVerificadas Institucion[]
+  propuestasInstitucion    PropuestaInstitucion[]
+
+  cargasDeParticipantes CargaDeParticipantes[] @relation("CargasDelAdmin")
+
+  @@map("administradores")
+}
+
+/// Rol dentro de un convenio, por area y por nivel.
+enum RolConvenio {
+  LIDER_INSCRIPCION
+  GESTOR_INSCRIPCION
+  LIDER_ACADEMICO
+  GESTOR_ACADEMICO
+  LIDER_SISTEMAS
+  CONSULTA
+}
+
+/**
+ * Un enlace para que la persona complete sus propios
+ * datos. De un solo uso: se cierra al guardar, y el
+ * asesor puede emitir otro.
+ */
+model EnlaceCompletado {
+  id             String @id @default(cuid())
+  /// Lo que viaja en la URL. Largo y aleatorio.
+  token          String @unique
+  participanteId String
+
+  creadoEn     DateTime  @default(now())
+  expiraEn     DateTime
+  /// La primera vez que alguien lo abrió.
+  ///
+  /// Sin esto, el aviso «si aún no lo ha abierto, no genere
+  /// otro» le pedía al asesor una respuesta que el sistema no
+  /// tenía. Ahora la tiene.
+  abiertoEn    DateTime?
+  /// Cuando se cerró: a partir de ahí no vale.
+  usadoEn      DateTime?
+  /// Lo anuló un enlace nuevo, no la persona.
+  anuladoEn    DateTime?
+  /// Quién lo emitió. Null si lo generó el propio registro.
+  emitidoPorId String?
+
+  participante Participante @relation(fields: [participanteId], references: [id], onDelete: Cascade)
+  emitidoPor   Admin?       @relation("EnlacesEmitidos", fields: [emitidoPorId], references: [id], onDelete: SetNull)
+
+  @@index([participanteId])
+  @@map("enlaces_completado")
+}
+
+/// Concesion explicita: sin fila, no hay acceso.
+model AdminConvenio {
+  id         String      @id @default(cuid())
+  adminId    String
+  convenioId String
+  rol        RolConvenio
+
+  otorgadoPorId String?
+  creadoEn      DateTime @default(now())
+
+  admin    Admin    @relation(fields: [adminId], references: [id], onDelete: Cascade)
+  convenio Convenio @relation(fields: [convenioId], references: [id], onDelete: Cascade)
+
+  // la misma persona puede llevar varias areas
+  @@unique([adminId, convenioId, rol])
+  @@index([convenioId, rol])
+  @@map("admin_convenio")
+}
+
+/// Los logos de la cabecera. Hasta tres por ámbito.
+model Logo {
+  id String @id @default(cuid())
+
+  /// null = marca general; si no, el formulario dueño.
+  formularioId String?
+  orden        Int     @default(0)
+
+  /// Nombre de la entidad. Es su texto alternativo.
+  etiqueta String
+
+  datos    Bytes
+  tipoMime String
+  nombre   String
+  /// Va en la URL: permite cachear para siempre.
+  version  Int    @default(1)
+
+  creadoEn      DateTime @default(now())
+  actualizadoEn DateTime @updatedAt
+
+  formulario Formulario? @relation(fields: [formularioId], references: [id], onDelete: Cascade)
+
+  @@index([formularioId, orden])
+  @@map("logos")
+}
+
+/// Apariencia general. Una sola fila, id = "unica".
+model Marca {
+  id String @id @default("unica")
+
+  nombreApp         String  @default("Convoca CRM")
+  tituloPublico     String  @default("Reserve sus cupos de formación")
+  subtituloPublico  String  @default("La formación es gratuita y los cupos son limitados.")
+  /// Aviso libre bajo el encabezado de las publicas.
+  mensajeEncabezado String?
+  piePagina         String?
+
+  /// Qué esquema ve quien entra por primera vez.
+  modoPorDefecto       ModoPorDefecto @default(SISTEMA)
+  /// Si se apaga, no se ve el conmutador.
+  permitirCambioDeModo Boolean        @default(true)
+
+  actualizadoEn    DateTime @updatedAt
+  actualizadoPorId String?
+
+  actualizadoPor Admin? @relation(fields: [actualizadoPorId], references: [id])
+
+  @@map("marca")
+}
+
+// directorio de nit, cola del rui y auditoria
+
+/// El tamaño, como lo clasifica la ley 590 de 2000 por
+/// número de trabajadores. No es el `tamanoSepId`, que el
+/// SEP calcula por ingresos y sector.
+enum TamanoEmpresa {
+  MICROEMPRESA
+  PEQUENA
+  MEDIANA
+  GRANDE
+}
+
+/// Qué clase de organización es. Va en el F7.
+enum ClasificacionEmpresa {
+  ASOCIACION
+  CENTRO_DESARROLLO_TECNOLOGICO
+  EMPRESA_ASOCIATIVA_DE_TRABAJO
+  EMPRESA_PRIVADA
+  EMPRESA_PUBLICA
+  ENTIDAD_ECONOMIA_SOLIDARIA
+  ENTIDAD_SIN_ANIMO_DE_LUCRO
+  ENTIDAD_TERRITORIAL
+  GREMIO
+  MIXTA
+}
+
+/// De dónde salió un dato.
+///
+/// Es lo que separa un dato reportable al SENA de uno que
+/// no. RUES es fuente oficial. WEB es lo que encontró un
+/// buscador y nadie ha mirado: no sale de aquí hasta que
+/// alguien lo confirme.
+enum FuenteDato {
+  CARGA
+  RUES
+  WEB
+  HUMANO
+}
+
+/// El maestro de organizaciones.
+///
+/// Antes era `DirectorioNit` y solo guardaba NIT y razón
+/// social: bastaba para autocompletar el formulario, pero
+/// no había dónde dejar lo que devuelve el RUES. Ahora es
+/// el maestro, y `Empresa` -- la que reserva cupos -- cuelga
+/// de él.
+///
+/// Un mismo NIT puede tener varias: el de un municipio
+/// ampara a sus colegios, y hay que dejar elegir.
+model Institucion {
+  id String @id @default(cuid())
+
+  /// Solo dígitos, sin puntos ni DV.
+  nit             String
+  razonSocial     String
+  /// Con el que se le conoce, si no es la razón social.
+  nombreComercial String?
+  /// El declarado en la fuente. El que vale se calcula.
+  digitoDeclarado String?
+
+  /// Lo que el RUES publica de la matrícula mercantil.
+  fechaFundacion DateTime?
+  /// Completa: centro comercial, corregimiento, todo.
+  direccion      String?
+  telefono       String?
+  correo         String?
+  paginaWeb      String?
+
+  /// En texto, como lo devuelve la fuente. Los ids del DANE
+  /// se resuelven aparte: el RUES no los usa.
+  ciudadNombre       String?
+  departamentoNombre String?
+  departamentoSepId  Int?
+  municipioSepId     Int?
+
+  tamano          TamanoEmpresa?
+  /// Un número, no un rango. Vacío antes que inventado: el
+  /// RUES lo publica para unas sociedades y para el resto
+  /// no hay de dónde sacarlo.
+  numeroEmpleados Int?
+  clasificacion   ClasificacionEmpresa?
+  sectorEconomico String?
+  /// Código CIIU, si la fuente lo trae.
+  codigoCiiu      String?
+
+  /// Campo → FuenteDato. Sin esto no se puede marcar nada
+  /// como «sugerido, sin verificar», que es lo que impide
+  /// que un dato inventado llegue al SENA.
+  fuentePorCampo Json?
+
+  /// De dónde salió la fila.
+  fuente FuenteDato @default(CARGA)
+
+  /// Quién la confirmó. Sin esto no se reporta al SENA.
+  verificadaPorId String?
+  verificadaEn    DateTime?
+
+  /// Se oculta sin borrarla, para no perder la traza.
+  activo Boolean @default(true)
+
+  creadoEn      DateTime @default(now())
+  actualizadoEn DateTime @updatedAt
+
+  verificadaPor Admin?                 @relation(fields: [verificadaPorId], references: [id], onDelete: SetNull)
+  empresas      Empresa[]
+  propuestas    PropuestaInstitucion[]
+  consultas     ConsultaRues[]
+
+  /// UN NIT, UNA ORGANIZACION. Orden del cliente, 3 sep 2026.
+  ///
+  /// Era `[nit, razonSocial]`, asi que el mismo NIT admitia
+  /// varias filas y el formulario publico preguntaba «ese NIT
+  /// ampara a 2 organizaciones, elija la suya».
+  ///
+  /// `Empresa` --la tabla que va al F7-- YA era unica por nit, o
+  /// sea que un NIT ya era una organizacion donde importa. El
+  /// directorio era el unico sitio que decia otra cosa.
+  ///
+  /// Lo que la persona corrige no es cual de varias: es EL
+  /// nombre. Y se guarda, que para eso es un directorio.
+  @@unique([nit])
+  @@index([nit, activo])
+  @@index([razonSocial])
+  @@map("instituciones")
+}
+
+/// Lo que un robot averiguó de una institución, antes de
+/// que nadie lo mire.
+///
+/// El mismo trato que `PropuestaDeDatos` le da a los datos
+/// del participante: el robot NUNCA escribe en el maestro.
+/// Deja aquí lo que encontró y un humano acepta campo por
+/// campo. Es lo que hace posible «sugerido, sin verificar».
+model PropuestaInstitucion {
+  id            String @id @default(cuid())
+  institucionId String
+
+  /// Campo → valor, tal como lo devolvió la fuente.
+  campos Json
+  /// De dónde salió esta propuesta.
+  fuente FuenteDato
+
+  estado EstadoPropuesta @default(PENDIENTE)
+
+  /// Los que el asesor dejó entrar. Vacío si descartó todo.
+  camposAceptados String[]
+  resueltoPorId   String?
+  resueltoEn      DateTime?
+
+  creadoEn DateTime @default(now())
+
+  institucion Institucion @relation(fields: [institucionId], references: [id], onDelete: Cascade)
+  resueltoPor Admin?      @relation(fields: [resueltoPorId], references: [id], onDelete: SetNull)
+
+  @@index([institucionId, estado])
+  @@index([estado, creadoEn])
+  @@map("propuestas_institucion")
+}
+
+/// En qué va una consulta al RUES.
+enum EstadoConsultaRues {
+  PENDIENTE
+  EN_CURSO
+  LISTA
+  SIN_RESULTADO
+  FALLIDA
+}
+
+/// La cola de consultas al RUES, igual que la del RUI.
+///
+/// Aparte de `ConsultaRui` a propósito: aquella consulta
+/// personas por cédula y esta organizaciones por NIT.
+/// Comparten la forma, no los datos, y unificarlas obligaría
+/// a que las columnas de resultado fueran todas opcionales
+/// -- que es como se pierde la garantía de que una consulta
+/// LISTA trajo algo.
+model ConsultaRues {
+  id            String @id @default(cuid())
+  institucionId String
+
+  /// Copiado al encolar: si luego editan la ficha, se sabe
+  /// contra qué NIT se consultó.
+  nit String
+
+  estado    EstadoConsultaRues @default(PENDIENTE)
+  /// Sube cuando un asesor está esperando.
+  prioridad Int                @default(0)
+
+  /// Lo que devolvió la fuente, sin tocar.
+  respuesta    Json?
+  /// Cuántos campos nuevos trajo respecto a lo que había.
+  camposNuevos Int?
+
+  intentos    Int     @default(0)
+  ultimoError String?
+
+  tomadaEn   DateTime?
+  resueltaEn DateTime?
+
+  creadoEn DateTime @default(now())
+
+  institucion Institucion @relation(fields: [institucionId], references: [id], onDelete: Cascade)
+
+  @@index([estado, prioridad, creadoEn])
+  @@index([institucionId])
+  // el dedup por NIT (banco de empresas unicas) consulta por esta
+  // columna: sin indice, cada encolar() hace scan de tabla
+  @@index([nit])
+  @@index([nit, estado])
+  @@map("consultas_rues")
+}
+
+/// En qué va una consulta al RUI.
+enum EstadoConsultaRui {
+  PENDIENTE
+  EN_CURSO
+  LISTA
+  SIN_RESULTADO
+  FALLIDA
+}
+
+/// La cola de consultas al RUI. Vive en Postgres y no en
+/// memoria para que sobreviva a un reinicio y para que el
+/// worker la tome con FOR UPDATE SKIP LOCKED sin pisarse
+/// con otro. Guardar nunca espera a esto.
+model ConsultaRui {
+  id String @id @default(cuid())
+
+  personaId String
+
+  /// Copiados al encolar: si la ficha cambia, se sabe
+  /// contra qué documento se consultó de verdad.
+  tipoDocumentoSepId Int
+  numeroDocumento    String
+
+  estado    EstadoConsultaRui @default(PENDIENTE)
+  /// Sube cuando un asesor está esperando esa ficha.
+  prioridad Int               @default(0)
+
+  /// Lo que devolvió el RUI, sin tocar.
+  nombreEncontrado String?
+  /// Lo que había tecleado la persona, para comparar.
+  nombreTecleado   String?
+  /// Falso si los dos nombres no se parecen.
+  nombreCoincide   Boolean?
+
+  /// Si esta respuesta la dio el simulador y no el RUI.
+  ///
+  /// Va en la fila y no en una variable de entorno: la
+  /// variable dice con que esta corriendo el servidor HOY, y
+  /// eso no cambia lo que ya se respondio. Sin esto, apagar
+  /// el simulador haria pasar sus nombres inventados por
+  /// respuestas del Estado.
+  simulado Boolean @default(false)
+
+  intentos    Int       @default(0)
+  ultimoError String?
+  tomadaEn    DateTime?
+  resueltaEn  DateTime?
+
+  creadoEn DateTime @default(now())
+
+  persona Persona @relation(fields: [personaId], references: [id], onDelete: Cascade)
+
+  @@index([estado, prioridad, creadoEn])
+  @@index([personaId])
+  @@map("consultas_rui")
+}
+
+/// Quién tocó qué. Sin datos personales dentro: para los
+/// cambios en PII se guarda qué campos cambiaron, no los
+/// valores, o la auditoría acaba siendo una segunda copia
+/// de los datos que nadie recuerda proteger.
+model RegistroAuditoria {
+  id String @id @default(cuid())
+
+  adminId     String?
+  /// Congelado: la cuenta puede desaparecer.
+  actorNombre String
+
+  /// Validado contra un catálogo en código, no enum de PG.
+  accion    String
+  entidad   String
+  entidadId String
+
+  convenioId    String?
+  resumen       String?
+  /// Solo nombres de campo cuando el cambio es en PII.
+  camposTocados String[]
+
+  ip        String?
+  userAgent String?
+  creadoEn  DateTime @default(now())
+
+  admin Admin? @relation(fields: [adminId], references: [id], onDelete: SetNull)
+
+  @@index([entidad, entidadId, creadoEn])
+  @@index([creadoEn])
+  @@map("registros_auditoria")
+}
+
+// lo que manda el interesado cuando el asesor ya toco
+
+/// En qué va lo que propuso el interesado.
+enum EstadoPropuesta {
+  PENDIENTE
+  ACEPTADA
+  DESCARTADA
+}
+
+/**
+ * Lo que el interesado escribió cuando el asesor ya había
+ * tocado su ficha.
+ * Sin esto, o se pierde lo que escribió la persona, o se
+ * pisa el trabajo del asesor: los dos desenlaces son malos.
+ * Aquí espera hasta que alguien decida campo por campo, y
+ * las dos versiones quedan con su autor.
+ * Guarda valores y no solo nombres de campo, al revés que
+ * la auditoría: sin los valores no hay nada que aceptar.
+ * Por eso se borra al resolverse.
+ */
+model PropuestaDeDatos {
+  id             String @id @default(cuid())
+  participanteId String
+
+  /// Campo → valor, tal como llegó del formulario.
+  campos Json
+
+  estado EstadoPropuesta @default(PENDIENTE)
+
+  /// Los que el asesor dejó entrar. Vacío si descartó todo.
+  camposAceptados String[]
+  resueltoPorId   String?
+  resueltoEn      DateTime?
+
+  creadoEn DateTime @default(now())
+
+  participante Participante @relation(fields: [participanteId], references: [id], onDelete: Cascade)
+  resueltoPor  Admin?       @relation(fields: [resueltoPorId], references: [id], onDelete: SetNull)
+
+  @@index([participanteId, estado])
+  @@index([estado, creadoEn])
+  @@map("propuestas_de_datos")
+}
+
+/// Un aviso de que a un grupo le faltan cupos por completar.
+///
+/// No se espera al cierre para descubrirlo: para entonces ya
+/// no hay a quien llamar. El aviso sale tres dias habiles
+/// antes del cierre, que a su vez es una semana habil antes
+/// de que arranque el grupo.
+///
+/// Se guarda como fila y no se manda en el acto porque el
+/// canal puede fallar y porque todavia no hay canal. La fila
+/// queda; quien la mande la marca.
+model AvisoDeCupos {
+  id          String @id @default(cuid())
+  coberturaId String
+
+  /// La fecha de arranque contra la que se calculo. Si el
+  /// cronograma se mueve, el aviso viejo deja de valer y
+  /// nace otro: por eso entra en la clave unica.
+  fechaInicioGrupo DateTime
+  /// Cuando toca avisar, ya calculado.
+  avisarEn         DateTime
+  /// Y hasta cuando se puede inscribir.
+  cierreEn         DateTime
+
+  cuposMaximos Int
+  inscritos    Int
+  faltan       Int
+
+  creadoEn   DateTime  @default(now())
+  /// Cuando salio de verdad. Null mientras no ha salido.
+  enviadoEn  DateTime?
+  /// Por donde salio: CORREO, WHATSAPP, PANEL.
+  canal      String?
+  /// Quien lo vio y dijo que ya lo atendio.
+  atendidoEn DateTime?
+
+  cobertura GrupoCobertura @relation(fields: [coberturaId], references: [id], onDelete: Cascade)
+
+  // uno por grupo y por cronograma: si se corre la fecha,
+  // es un aviso nuevo y no un duplicado
+  @@unique([coberturaId, fechaInicioGrupo])
+  @@index([enviadoEn, avisarEn])
+  @@map("avisos_de_cupos")
+}
+
+/// Un texto que se escribe una vez y se manda muchas.
+///
+/// Lo que cambia de una persona a otra va entre llaves --
+/// {{saludo}}, {{fechaInicio}} -- y lo resuelve
+/// correo/plantillas/variables.ts. Aqui solo se guarda el
+/// texto: quien decide que se manda y a quien es una persona,
+/// desde la ficha, mirando antes como quedo.
+model PlantillaCorreo {
+  id String @id @default(cuid())
+
+  /// De que gremio es. Null: sirve para todos.
+  convenioId String?
+
+  nombre String /// como la reconoce quien la va a usar
+  asunto String
+  cuerpo String
+
+  /// Se apaga sin borrarla: una plantilla que ya se uso es
+  /// parte de lo que se le dijo a alguien.
+  activa Boolean @default(true)
+
+  /// En que etapas tiene sentido mandarla. Vacio: en
+  /// cualquiera.
+  ///
+  /// Una «confirmacion de inscripcion» a quien todavia no
+  /// esta inscrito es una mentira firmada por el gremio, y de
+  /// las que no se recogen: la persona se queda esperando un
+  /// cupo que nadie le dio. El desplegable no puede ofrecer
+  /// una plantilla que contradice la ficha que tiene al lado.
+  etapasPermitidas EtapaParticipante[]
+
+  /// El cabezote: la franja que va de primeras, arriba del
+  /// texto. Igual que el de una campana y por el mismo
+  /// motivo: tiene que poder servirse por una URL publica,
+  /// porque quien lo carga es el cliente de correo de otra
+  /// persona, no el panel.
+  ///
+  /// La version sube en cada cambio para que el cache de
+  /// Gmail no siga sirviendo el viejo.
+  bannerDatos   Bytes?
+  bannerMime    String?
+  bannerNombre  String?
+  bannerVersion Int     @default(1)
+
+  creadoPorId   String?
+  creadoEn      DateTime @default(now())
+  actualizadoEn DateTime @updatedAt
+
+  convenio  Convenio? @relation(fields: [convenioId], references: [id], onDelete: Cascade)
+  creadoPor Admin?    @relation(fields: [creadoPorId], references: [id], onDelete: SetNull)
+
+  @@index([convenioId, activa])
+  @@map("plantillas_correo")
+}
+
+/// En que va una campana.
+enum OrigenCampana {
+  SEGMENTO
+  CARGUE
+}
+
+enum EstadoCampana {
+  BORRADOR
+  ENVIANDO
+  PAUSADA
+  TERMINADA
+}
+
+/// En que va UN destinatario dentro de la campana.
+enum EstadoDestinatario {
+  PENDIENTE
+  ENVIADO
+  FALLIDO
+  /// No se le mando y se dice por que: sin correo, ya
+  /// recibio dos hoy, se dio de baja.
+  OMITIDO
+}
+
+/// Un correo que sale a muchos, de a uno.
+///
+/// No hay presupuesto para un proveedor de campanas, asi que
+/// esto sale por la cuenta de Gmail de la oficina. Por eso la
+/// campana NO es un envio: es una COLA que un trabajador va
+/// vaciando despacio, respetando el horario de Colombia y los
+/// topes de `correo/campanas/ritmo.ts`. Lanzar no manda nada;
+/// lanzar arma la lista y abre la llave.
+model Campana {
+  id         String @id @default(cuid())
+  convenioId String
+
+  nombre String
+  asunto String
+  cuerpo String
+
+  /// El banner del encabezado. Va en la base como los logos:
+  /// tiene que poder servirse por una URL publica, porque
+  /// quien lo carga es el cliente de correo de otra persona.
+  bannerDatos   Bytes?
+  bannerMime    String?
+  bannerNombre  String?
+  bannerVersion Int     @default(1)
+
+  /// A quienes: las reglas, no la lista. La lista se congela
+  /// al lanzar, en DestinatarioCampana.
+  segmento Json
+
+  /// De donde salen los destinatarios.
+  ///
+  /// SEGMENTO: de la base propia, con las reglas de `segmento`.
+  /// CARGUE:   de un archivo que alguien subio, y entonces la
+  ///           lista existe desde antes de lanzar.
+  ///
+  /// Cambia lo que se puede escribir en el correo: de un
+  /// cargue solo se conocen el correo y el primer nombre, asi
+  /// que una plantilla que use {{grupo}} no tiene con que
+  /// llenarlo.
+  origen OrigenCampana @default(SEGMENTO)
+
+  estado EstadoCampana @default(BORRADOR)
+
+  creadoPorId String?
+  lanzadaEn   DateTime?
+  terminadaEn DateTime?
+
+  creadoEn      DateTime @default(now())
+  actualizadoEn DateTime @updatedAt
+
+  convenio      Convenio              @relation(fields: [convenioId], references: [id], onDelete: Cascade)
+  creadoPor     Admin?                @relation(fields: [creadoPorId], references: [id], onDelete: SetNull)
+  destinatarios DestinatarioCampana[]
+
+  @@index([convenioId, estado])
+  @@map("campanas")
+}
+
+/// Una persona dentro de una campana, y que le paso.
+model DestinatarioCampana {
+  id        String @id @default(cuid())
+  campanaId String
+
+  /// Null cuando vino de un archivo subido: es un correo, no
+  /// una ficha del CRM. Sin esto habria que inventarle un
+  /// participante a cada linea del Excel, y eso llena la base
+  /// de leads falsos que nadie pidio.
+  participanteId String?
+
+  /// El primer nombre que traia el archivo. Los del segmento
+  /// no lo llevan: lo sacan de su ficha, que esta mas al dia
+  /// que una columna de Excel.
+  nombre String?
+
+  /// Congelado al armar la lista: si manana cambia su correo,
+  /// hay que poder saber a donde se mando.
+  correo String
+
+  estado EstadoDestinatario @default(PENDIENTE)
+  /// Por que se omitio o por que fallo. En palabras.
+  motivo String?
+
+  intentos  Int       @default(0)
+  enviadoEn DateTime?
+
+  /// La PRIMERA apertura. El numero de aperturas es
+  /// aproximado a proposito: Gmail descarga la imagen el
+  /// mismo y Apple marca abierto a todos, asi que esto se
+  /// ensena como estimado y nunca como un hecho.
+  abiertoEn DateTime?
+  aperturas Int       @default(0)
+
+  /// Los clics SI son firmes: pasan por nuestro servidor.
+  clicEn DateTime?
+  clics  Int       @default(0)
+
+  creadoEn DateTime @default(now())
+
+  campana      Campana       @relation(fields: [campanaId], references: [id], onDelete: Cascade)
+  participante Participante? @relation(fields: [participanteId], references: [id], onDelete: Cascade)
+
+  /// Un BUZON, una vez por campana. Antes era por
+  /// participante, y eso dejaba pasar el caso comun: una
+  /// misma persona con dos fichas -- inscrita en dos cosas --
+  /// recibia el correo dos veces. El tope de dos al dia
+  /// tampoco lo frenaba, porque contaba por participante.
+  /// Quien lo recibe es el buzon, no la ficha.
+  @@unique([campanaId, correo])
+  @@index([campanaId, estado])
+  @@index([participanteId, enviadoEn])
+  @@map("destinatarios_campana")
+}
+
+/// Con qué regla se trata cada dato.
+///
+/// No es una etiqueta: decide si el valor viejo se guarda y
+/// quién lo puede ver.
+enum ClaseDeDato {
+  /// Cambia de verdad con el tiempo: celular, dirección,
+  /// barrio. Se guarda el valor anterior.
+  CONTACTO
+
+  /// Casi siempre es corregir un tecleo. Se guarda el valor
+  /// AUNQUE sea dato personal, por una razón concreta:
+  /// corregir «Perez → Pérez» y sustituirle la identidad a un
+  /// lead se ven IGUAL en una lista de nombres de campo. Sin
+  /// el valor de antes, el histórico deja pasar justo el
+  /// fraude para el que existe.
+  IDENTIDAD
+
+  /// De la ficha del curso, no de la persona: cargo, nivel
+  /// ocupacional, grupo. Se enseña sin tapar.
+  FORMACION
+
+  /// Población vulnerable. NUNCA se guarda el valor: ni
+  /// tapado, ni para un superadmin. Que alguien fue víctima
+  /// del conflicto y lo desmarcó no puede quedar escrito en
+  /// una segunda tabla — es el dato del artículo 5 de la Ley
+  /// 1581, y en Colombia divulgarlo pone a alguien en riesgo.
+  /// Del cambio queda la constancia, no el valor.
+  SENSIBLE
+}
+
+/// Qué decía antes. El «Historial Logs».
+///
+/// El otro historial —MovimientoParticipante— cuenta QUÉ HIZO
+/// alguien. Este cuenta QUÉ DECÍA EL DATO. Son dos preguntas
+/// distintas y por eso son dos tablas: «Ana cambió el correo
+/// el martes» no sirve para restablecerlo, y «decía
+/// maria@ferreteria.com» no dice quién lo tocó.
+///
+/// Existe para poder DESHACER. Sin el valor viejo, una
+/// corrección equivocada es definitiva.
+model ValorAnterior {
+  id             String @id @default(cuid())
+  participanteId String
+
+  /// El campo, con el nombre que usa el código.
+  campo String
+  clase ClaseDeDato
+
+  /// Lo que decía. NULL cuando la clase es SENSIBLE —ahí se
+  /// guarda que cambió, nunca qué decía— y también cuando el
+  /// campo estaba vacío, que es distinto de no haberlo
+  /// guardado. `habiaValor` desempata.
+  valorAnterior String?
+  habiaValor    Boolean @default(true)
+
+  /// Quién y desde dónde. `actorNombre` congelado: la cuenta
+  /// puede desaparecer y la huella no.
+  adminId     String?
+  actorNombre String
+  ip          String?
+
+  /// Se restableció desde aquí. No se borra la fila: deshacer
+  /// también es un cambio, y se tiene que poder ver.
+  restauradoEn    DateTime?
+  restauradoPorId String?
+
+  creadoEn DateTime @default(now())
+
+  participante  Participante @relation(fields: [participanteId], references: [id], onDelete: Cascade)
+  admin         Admin?       @relation("ValoresAnteriores", fields: [adminId], references: [id], onDelete: SetNull)
+  restauradoPor Admin?       @relation("ValoresRestaurados", fields: [restauradoPorId], references: [id], onDelete: SetNull)
+
+  @@index([participanteId, creadoEn])
+  @@index([creadoEn])
+  @@map("valores_anteriores")
+}

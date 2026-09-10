@@ -1,0 +1,25 @@
+# ingress del tunel de pruebas
+# solo prueba.reservasae.com, solo en Bogota
+# el UUID va como argumento de run
+credentials-file: /etc/cloudflared/credenciales.json
+protocol: http2
+ingress:
+  - hostname: prueba.reservasae.com
+    service: http://nginx-prueba:80
+
+  # los gremios en PRUEBAS llevan el prefijo pre-
+  #
+  # El comodin de Cloudflare cubre un solo nivel, asi que
+  # adecopria.prueba.reservasae.com daria error de TLS. Por eso
+  # el prefijo va delante y no detras: pre-adecopria sigue
+  # siendo un solo nivel y el certificado lo cubre.
+  #
+  # Sirven datos INVENTADOS. La franja lo grita en cada
+  # pantalla, y los nombres sin prefijo son los de verdad.
+  - hostname: pre-adecopria.reservasae.com
+    service: http://nginx-prueba:80
+  - hostname: pre-britcham-adee.reservasae.com
+    service: http://nginx-prueba:80
+
+  # todo lo demas no es de este tunel
+  - service: http_status:404

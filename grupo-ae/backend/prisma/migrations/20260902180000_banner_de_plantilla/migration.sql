@@ -1,0 +1,14 @@
+-- VACIA A PROPOSITO. La sustituye
+-- `20260902100000_plantilla_con_cabezote`, que hace lo mismo y
+-- llego antes.
+--
+-- Se escribieron las dos el mismo dia: al mezclar la rama de
+-- Mauricio Andres por la manana, su codigo del banner venia sin
+-- schema ni migracion, asi que se anadio aqui. Su rama la traia
+-- de verdad y llego con la mezcla de la tarde.
+--
+-- NO SE BORRA EL FICHERO. Esta migracion ya esta APLICADA y
+-- registrada en produccion y en pruebas; quitarla dejaria una
+-- fila en `_prisma_migrations` sin fichero, que es deriva. Vacia
+-- es un no-op en una base nueva y sigue cuadrando en las que ya
+-- la corrieron.

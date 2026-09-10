@@ -1,6 +1,9 @@
 packages:
   - 'frontend'
   - 'backend'
+  # segunda instancia: el CRM de Grupo AE
+  - 'grupo-ae/frontend'
+  - 'grupo-ae/backend'
 onlyBuiltDependencies:
   - '@prisma/client'
   - '@prisma/engines'

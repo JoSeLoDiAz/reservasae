@@ -1,0 +1,1350 @@
+@import "tailwindcss";
+
+/* Paletas base de color de la aplicacion. */
+
+:root,
+:root[data-tema="claro"] {
+  color-scheme: light;
+
+  --marca: #1d4ed8;
+  --marca-fuerte: #1e3a8a;
+  --marca-suave: #eff6ff;
+  --marca-texto: #ffffff;
+
+  --fondo: #f6f7f9;
+  --superficie: #ffffff;
+  --superficie-alterna: #f4f6f9;
+  --borde: #e2e8f0;
+  /* El separador de dentro de un bloque, mas tenue que el
+     borde que lo delimita. Sin esto las filas de una tabla se
+     leian con la misma fuerza que el marco de la tabla, y
+     todo pesaba igual. */
+  --hairline: color-mix(in oklab, var(--borde) 62%, #fff);
+
+  --titulo: #0f172a;
+  --texto: #1e293b;
+  --texto-suave: #64748b;
+
+  --encabezado-fondo: #ffffff;
+  --encabezado-texto: #0f172a;
+  --encabezado-borde: #e2e8f0;
+
+  --tabla-cabecera-fondo: #f1f5f9;
+  --tabla-cabecera-texto: #475569;
+  --tabla-fila-alterna: #f8fafc;
+  --tabla-fila-resaltada: #eff6ff;
+  --tabla-borde: #e2e8f0;
+
+  --campo-fondo: #ffffff;
+  --campo-borde: #cbd5e1;
+  --campo-foco: #1d4ed8;
+
+  --exito: #047857;
+  --exito-suave: #ecfdf5;
+  --aviso: #a16207;
+  --aviso-suave: #fffbeb;
+  --error: #be123c;
+  --error-suave: #fff1f2;
+
+  /* La paleta del handoff del redisenio de la ficha, tal
+     cual. Va en tokens y no en clases fijas por una razon
+     practica: en modo oscuro una barra #0f172a se pierde
+     contra el fondo, y asi el bloque de abajo la reajusta sin
+     tocar una sola clase. */
+  --acento: #16a06a;
+  --acento-texto: #0f7a52;
+  --acento-suave: #eef7f2;
+
+  --gestion-fondo: #0f172a;
+  --gestion-texto: #e2e8f0;
+  --gestion-rotulo: #7c89a0;
+  --gestion-campo: #1c2738;
+  --gestion-campo-borde: #2c394d;
+
+  /* etapas del crm */
+  --etapa-interesado: #5b6472;
+  --etapa-contactado: #1f4e85;
+  --etapa-datos-completos: #4c3a8c;
+  --etapa-inscrito: #1a6e58;
+  --etapa-en-formacion: #8a5a12;
+  --etapa-certificado: #2c6b1f;
+  --etapa-perdido: #9c3126;
+  --etapa-retirado: #7a2e72;
+  --etapa-no-aprobo: #c22a1e;
+  --etapa-deserto: #0f7f94;
+  --etapa-abandono: #2f3a8e;
+
+  /* El alto de una fila de tabla, en un solo sitio. Es token
+     y no un numero suelto porque la densidad es una decision
+     de producto: quien mira 400 filas al dia la quiere
+     apretada, y cambiarla es cambiar una linea.
+
+     En px y no en rem, al reves que los tamanios de letra:
+     una MEDIDA DE CAJA no debe crecer con el ajuste de texto.
+     Si creciera, subir el texto al 150 % separaria las filas
+     el doble y la tabla perderia justo la densidad que la
+     hace util. El texto crece; el relleno se queda. */
+  --pad-fila: 9px;
+
+  /* series de los graficos */
+  --serie-1: #2a78d6;
+  --serie-2: #eb6834;
+  --serie-3: #1baf7a;
+}
+
+:root[data-tema="oscuro"] {
+  color-scheme: dark;
+
+  --marca: #60a5fa;
+  --marca-fuerte: #93c5fd;
+  --marca-suave: #172554;
+  --marca-texto: #0b1220;
+
+  --fondo: #0b1220;
+  --superficie: #131c2e;
+  --superficie-alterna: #1a2439;
+  --borde: #26324a;
+  --hairline: color-mix(in oklab, var(--borde) 74%, #0b1220);
+
+  --titulo: #f2f6ff;
+  --texto: #e8edf7;
+  --texto-suave: #9aa8c0;
+
+  --encabezado-fondo: #131c2e;
+  --encabezado-texto: #e8edf7;
+  --encabezado-borde: #26324a;
+
+  --tabla-cabecera-fondo: #1a2439;
+  --tabla-cabecera-texto: #c3cee0;
+  --tabla-fila-alterna: #101a2b;
+  --tabla-fila-resaltada: #172554;
+  --tabla-borde: #26324a;
+
+  --campo-fondo: #0f1829;
+  --campo-borde: #33405c;
+  --campo-foco: #60a5fa;
+
+  /* estados aclarados para fondo oscuro */
+  --exito: #34d399;
+  --exito-suave: #053225;
+  --aviso: #fbbf24;
+  --aviso-suave: #2e1f03;
+  --error: #fb7185;
+  --error-suave: #3f0d16;
+
+  /* En oscuro la barra NO puede ser mas oscura que el fondo:
+     desapareceria. Se sube un escalon sobre `--superficie`. */
+  /* El verde del handoff, aclarado para fondo oscuro: el
+     #16a06a sobre #0b1220 no llega al contraste minimo. */
+  --acento: #34d399;
+  --acento-texto: #5ee0ad;
+  --acento-suave: #0d2b21;
+
+  --gestion-fondo: #1e2a41;
+  --gestion-texto: #e8edf7;
+  --gestion-rotulo: #9aa8c0;
+  --gestion-campo: #131c2e;
+  --gestion-campo-borde: #33405c;
+
+  /* etapas aclaradas para fondo oscuro */
+  --etapa-interesado: #a3aec0;
+  --etapa-contactado: #7cb2f0;
+  --etapa-datos-completos: #b3a4f0;
+  --etapa-inscrito: #5ec6a8;
+  --etapa-en-formacion: #e0b155;
+  --etapa-certificado: #86cf72;
+  --etapa-perdido: #f2938a;
+  --etapa-retirado: #dfa0d8;
+  --etapa-no-aprobo: #f77a5c;
+  --etapa-deserto: #4fd6ea;
+  --etapa-abandono: #8d9bf2;
+
+  /* series reescalonadas para fondo oscuro */
+  --serie-1: #3987e5;
+  --serie-2: #d95926;
+  --serie-3: #199e70;
+}
+
+@theme inline {
+  /* ── El radio, en un solo sitio ──────────────────────────
+     Esto es una decisión de ESTILO y no un ajuste suelto: el
+     panel es una herramienta de trabajo institucional, no una
+     app. El redondeo generoso —`rounded-2xl` en cada tarjeta,
+     píldoras de 999px— la hacía parecer lo segundo.
+
+     Se corrige aquí y no en las 361 clases repartidas por el
+     código: en Tailwind v4 el radio es un token, así que
+     `rounded-xl` en cualquier archivo pasa a medir esto. Quien
+     escriba `rounded-2xl` mañana sigue saliendo en el estilo
+     de la casa sin tener que acordarse.
+
+     Los cinco escalones se aplastan a dos —3px y 4px— a
+     propósito: con una diferencia de un píxel entre «lg» y
+     «2xl» ya no hay jerarquía de redondeo que mantener, y esa
+     jerarquía era justo lo que hacía que unas cajas se vieran
+     más blandas que otras sin ningún motivo. */
+  /* Los radios del handoff del redisenio: tarjetas 16px,
+     sub-tarjetas y fichas 12px, inputs y botones 9-10px.
+     Estuvieron aplastados a 3px durante un rato y eso es lo
+     que hacia que la pantalla no se pareciera al diseno. */
+  --radius-xs: 7px;
+  --radius-sm: 8px;
+  --radius-md: 10px;
+  --radius-lg: 10px;
+  --radius-xl: 14px;
+  --radius-2xl: 14px;
+  --radius-3xl: 14px;
+  --radius-4xl: 14px;
+
+  --color-marca: var(--marca);
+  --color-marca-fuerte: var(--marca-fuerte);
+  --color-marca-suave: var(--marca-suave);
+  --color-marca-texto: var(--marca-texto);
+
+  --color-fondo: var(--fondo);
+  --color-superficie: var(--superficie);
+  --color-superficie-alterna: var(--superficie-alterna);
+  --color-borde: var(--borde);
+  --color-hairline: var(--hairline);
+
+  --color-texto: var(--texto);
+  --color-texto-suave: var(--texto-suave);
+  --color-titulo: var(--titulo);
+
+  --color-encabezado-fondo: var(--encabezado-fondo);
+  --color-encabezado-texto: var(--encabezado-texto);
+  --color-encabezado-borde: var(--encabezado-borde);
+
+  --color-tabla-cabecera-fondo: var(--tabla-cabecera-fondo);
+  --color-tabla-cabecera-texto: var(--tabla-cabecera-texto);
+  --color-tabla-fila-alterna: var(--tabla-fila-alterna);
+  --color-tabla-fila-resaltada: var(--tabla-fila-resaltada);
+  --color-tabla-borde: var(--tabla-borde);
+
+  --color-campo-fondo: var(--campo-fondo);
+  --color-campo-borde: var(--campo-borde);
+  --color-campo-foco: var(--campo-foco);
+
+  --color-acento: var(--acento);
+  --color-acento-texto: var(--acento-texto);
+  --color-acento-suave: var(--acento-suave);
+
+  --color-gestion-fondo: var(--gestion-fondo);
+  --color-gestion-texto: var(--gestion-texto);
+  --color-gestion-rotulo: var(--gestion-rotulo);
+  --color-gestion-campo: var(--gestion-campo);
+  --color-gestion-campo-borde: var(--gestion-campo-borde);
+
+  --color-exito: var(--exito);
+  --color-exito-suave: var(--exito-suave);
+  --color-aviso: var(--aviso);
+  --color-aviso-suave: var(--aviso-suave);
+  --color-error: var(--error);
+  --color-error-suave: var(--error-suave);
+
+  /* SOLO Raleway. Es la unica autorizada por la marca.
+     `--font-mono` apunta tambien a ella para que las 40
+     clases `font-mono` repartidas por el codigo dejen de
+     sacar otra tipografia sin tener que tocarlas una a una.
+     Lo que daba la mono -- que las cifras cuadren en columna
+     -- se conserva con `tabular-nums`, que Raleway trae. */
+  /* Raleway y nada mas: es la unica que autoriza la marca.
+     El handoff pedia Sora y Public Sans y se llegaron a
+     cargar, pero la tipografia no es una decision de pantalla.
+     Del diseno se conservan los tamanos, los pesos y los
+     espaciados; la letra es esta. */
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-sans);
+}
+
+body {
+  background: var(--fondo);
+  color: var(--texto);
+  /* 13,5px del redisenio, en rem para que el ajuste de texto
+     del panel (80 %-150 %) lo siga escalando. */
+  font-size: 0.84375rem;
+  line-height: 1.45;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* `font-mono` ya no cambia de tipografia -- solo Raleway esta
+   autorizada -- pero lo que se marcaba asi son documentos,
+   telefonos y fechas, que TIENEN que cuadrar en columna. Las
+   cifras tabulares lo dan sin salirse de la marca. */
+.font-mono {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.01em;
+}
+
+h1,
+h2,
+h3 {
+  color: var(--titulo);
+  letter-spacing: -0.01em;
+}
+
+/*
+ * Dentro de la barra y de la cabecera manda el color de ELLAS.
+ *
+ * `--titulo` es el color de un titulo sobre el CONTENIDO. La
+ * barra lateral se pinta con los tokens de encabezado, y con
+ * «Barra superior del color de la marca» ese fondo es oscuro:
+ * un `h2` con `--titulo` quedaba casi negro sobre verde y el
+ * nombre del modulo no se leia. Se hereda, y punto.
+ */
+[class*="text-encabezado-texto"] h1,
+[class*="text-encabezado-texto"] h2,
+[class*="text-encabezado-texto"] h3 {
+  color: inherit;
+}
+
+/* LA FIRMA SE ESCRIBE.
+
+   El componente se llama `FirmaConvoca` y eso es lo que gobierna
+   la animacion entera: todo entra de izquierda a derecha y
+   encadenado, como se escribe una firma. El signo se dibuja, el
+   nombre se descubre, la raya se traza y la frase se posa.
+
+   Nada aparece de golpe y nada se mueve mucho: son 880 ms de
+   punta a punta y ningun desplazamiento pasa de 4 px. Una
+   animacion que se ve cincuenta veces al dia tiene que poder
+   verse cincuenta veces al dia.
+
+   TODAS terminan en el estado de reposo. No es un detalle de
+   estilo: las dos reglas de mas abajo dejan la animacion en
+   0,01 ms, o sea que saltan a su ULTIMO fotograma. Una que
+   acabara en `opacity: 0` dejaria la firma invisible a quien
+   pidio menos movimiento. */
+
+/* el signo LLEGA, y despues se dibuja por dentro.
+
+   Sin esto el arco se traza sobre un hueco vacio y la firma
+   empieza en la nada. Con un 8 % de escala basta: lo que se
+   quiere es que el sitio del signo exista antes que el trazo, no
+   un efecto de entrada. */
+/**
+ * La barra fina de «estoy trayendo el dato nuevo».
+ *
+ * Un trozo que cruza y vuelve, no una barra que se llena: no se
+ * sabe cuánto va a tardar la consulta, y una barra de progreso
+ * que miente sobre lo que falta es peor que ninguna.
+ *
+ * Quien pide menos movimiento en el sistema no la ve moverse;
+ * la franja se queda quieta, que sigue diciendo que algo está
+ * pasando.
+ */
+@keyframes recorrer {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(400%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-\[recorrer_1\.1s_ease-in-out_infinite\] {
+    animation: none;
+  }
+}
+
+@keyframes signo-llega {
+  from {
+    opacity: 0;
+    transform: scale(0.92);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes signo-arco-dibuja {
+  from {
+    stroke-dashoffset: 1;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes signo-disco-asienta {
+  from {
+    transform: scale(0);
+  }
+  60% {
+    transform: scale(1.18);
+  }
+  to {
+    transform: scale(1);
+  }
+}
+
+/* el nombre se descubre, no se desvanece: la mascara avanza como
+   avanzaria la mano al escribirlo */
+@keyframes firma-nombre-descubre {
+  from {
+    clip-path: inset(0 100% 0 0);
+    opacity: 0.35;
+  }
+  to {
+    clip-path: inset(0 0 0 0);
+    opacity: 1;
+  }
+}
+
+/* la raya se traza desde su borde izquierdo */
+@keyframes firma-linea-traza {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+/* la frase se posa: sube 4px y aparece */
+@keyframes firma-frase-posa {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 0.65;
+    transform: translateY(0);
+  }
+}
+
+.signo-llega {
+  animation: signo-llega 420ms cubic-bezier(0.33, 1, 0.68, 1) both;
+}
+
+.signo-arco {
+  stroke-dasharray: 1;
+  animation: signo-arco-dibuja 560ms cubic-bezier(0.33, 1, 0.68, 1) both;
+}
+
+.signo-disco {
+  /* el origen es el centro del disco, no el del lienzo: sin esto
+     escala desde la esquina y sale disparado */
+  transform-origin: 16px 25.75px;
+  animation: signo-disco-asienta 340ms cubic-bezier(0.34, 1.4, 0.64, 1) 400ms
+    both;
+}
+
+.firma-nombre {
+  animation: firma-nombre-descubre 460ms cubic-bezier(0.33, 1, 0.68, 1) 160ms
+    both;
+}
+
+.firma-linea {
+  transform-origin: left center;
+  animation: firma-linea-traza 320ms cubic-bezier(0.33, 1, 0.68, 1) 440ms both;
+}
+
+/* apilada la raya va corta y centrada: trazarla desde un borde
+   la descuadra del eje */
+.firma-linea-centro {
+  transform-origin: center;
+}
+
+.firma-frase {
+  animation: firma-frase-posa 320ms cubic-bezier(0.33, 1, 0.68, 1) 560ms both;
+}
+
+/* EL LOGIN ENTRA DETRAS DE LA FIRMA.
+
+   La firma ya se escribia sola y lo demas aparecia de golpe al
+   lado, que es peor que no animar nada: una mitad viva y la otra
+   muerta. Estos tiempos arrancan donde acaba aquella --880 ms--
+   asi que se lee como una sola entrada y no como dos.
+
+   Es la pantalla que se ve antes de trabajar, no una que se ve
+   cincuenta veces al dia, asi que aqui puede durar un poco mas.
+   Aun asi ningun desplazamiento pasa de 10 px.
+
+   Todas terminan en el estado de reposo, como el resto: las dos
+   reglas de mas abajo saltan al ultimo fotograma. */
+
+@keyframes login-sube {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* la placa del gremio se posa, con un punto de escala: es una
+   tarjeta blanca sobre color y merece leerse como objeto */
+@keyframes login-placa {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.login-placa {
+  animation: login-placa 480ms cubic-bezier(0.33, 1, 0.68, 1) 700ms both;
+}
+
+/* el formulario, campo a campo. La variable la pone cada uno en
+   linea: son cuatro y un escalonado a mano seria cuatro clases
+   que dicen lo mismo con un numero distinto. */
+.login-entra {
+  animation: login-sube 420ms cubic-bezier(0.33, 1, 0.68, 1)
+    var(--retraso, 0ms) both;
+}
+
+/* respetar menos animacion */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    /* la espera tambien: sin esto, una animacion con delay se
+    queda en su PRIMER fotograma ese rato y despues salta al
+    ultimo, que es un parpadeo justo para quien pidio no
+    tenerlos. La duracion sola no basta. */
+    animation-delay: 0s !important;
+    transition-delay: 0s !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* o porque lo pidio aqui, aunque el sistema no lo pida */
+:root[data-sin-movimiento="si"] *,
+:root[data-sin-movimiento="si"] *::before,
+:root[data-sin-movimiento="si"] *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  /* la espera tambien: sin esto, una animacion con delay se
+  queda en su PRIMER fotograma ese rato y despues salta al
+  ultimo, que es un parpadeo justo para quien pidio no
+  tenerlos. La duracion sola no basta. */
+  animation-delay: 0s !important;
+  transition-delay: 0s !important;
+  transition-duration: 0.01ms !important;
+  scroll-behavior: auto !important;
+}
+
+/* no depender del color para ver un enlace */
+:root[data-enlaces-subrayados="si"] a {
+  text-decoration: underline;
+}
+
+/* aro de foco con su propio color */
+:focus-visible {
+  outline: 2px solid var(--campo-foco);
+  outline-offset: 2px;
+}
+
+/* lo que baja todo lo pegado si hay franja de pruebas */
+:root {
+  --franja-alto: 0px;
+}
+:root:has(.franja-entorno) {
+  --franja-alto: 2.25rem;
+}
+
+/* la barra tiene que verse sin pasar el raton por encima */
+.barra-visible {
+  scrollbar-width: thin;
+  /* tenida con el propio texto: se ve en claro y oscuro */
+  scrollbar-color: color-mix(in oklab, currentColor 25%, transparent) transparent;
+}
+.barra-visible::-webkit-scrollbar {
+  height: 10px;
+  width: 8px;
+}
+.barra-visible::-webkit-scrollbar-track {
+  background: transparent;
+}
+.barra-visible::-webkit-scrollbar-thumb {
+  background: color-mix(in oklab, currentColor 22%, transparent);
+  border-radius: 999px;
+}
+.barra-visible:hover::-webkit-scrollbar-thumb {
+  background: color-mix(in oklab, currentColor 38%, transparent);
+}
+
+/* el foco se ve igual en todo, sin heredar el del navegador */
+:where(a, button, input, select, textarea, [tabindex]):focus-visible {
+  outline: 2px solid var(--campo-foco);
+  outline-offset: 2px;
+  border-radius: 10px;
+}
+
+/* la barra de desplazamiento, discreta en todas partes */
+/*
+ * Las dos propiedades se HEREDAN, asi que puestas en la raiz
+ * cubren la pagina y cualquier caja con scroll. Antes solo la
+ * pedian `.caja-scroll` y `.barra-visible`, y la de la pagina
+ * salia con la del sistema: una franja gris ancha al lado de
+ * una interfaz de trazos de 1px.
+ */
+html {
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in oklab, var(--texto-suave) 40%, transparent) transparent;
+}
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  /* mezclada con el texto y no con el borde: el borde a 1px se
+     ve, pero de barra queda demasiado claro para encontrarla */
+  background: color-mix(in oklab, var(--texto-suave) 40%, transparent);
+  border: 2px solid transparent;
+  background-clip: padding-box;
+  border-radius: 999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in oklab, var(--texto-suave) 62%, transparent);
+  background-clip: padding-box;
+}
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+/* el desplegable, con la curva y el color del resto */
+/*
+ * El control nativo de Windows se pinta con el gris del sistema
+ * y su propia flecha en un cuadro: al lado de un campo con radio
+ * 10 se ve cuadrado y ajeno. Se apaga y se dibuja la flecha con
+ * dos degradados, que toman `currentColor` y por eso valen en
+ * claro y en oscuro -- un SVG en data: no puede.
+ */
+select {
+  appearance: none;
+  -webkit-appearance: none;
+  background-image:
+    linear-gradient(45deg, transparent 50%, currentColor 50%),
+    linear-gradient(135deg, currentColor 50%, transparent 50%);
+  background-position:
+    right 15px top calc(50% - 1px),
+    right 10px top calc(50% - 1px);
+  background-size: 5px 5px, 5px 5px;
+  background-repeat: no-repeat;
+  padding-right: 32px;
+}
+/* sin flecha si el navegador ya no la pinta (multiple, size) */
+select[multiple],
+select[size]:not([size='1']) {
+  background-image: none;
+  padding-right: 12px;
+}
+
+/* la cabecera se queda al desplazar la tabla */
+/*
+ * En una caja con scroll, la cabecera se va arriba y quedan
+ * columnas de numeros sin decir de que son. Es el mismo problema
+ * que en papel resuelve `display: table-header-group`.
+ */
+.tabla-fija thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--tabla-cabecera-fondo);
+}
+
+/* botones que no llevan aro */
+.sin-aro:focus,
+.sin-aro:focus-visible {
+  outline: none;
+}
+
+/* con el teclado, saltarse el menu */
+.salto-al-contenido {
+  position: absolute;
+  left: -9999px;
+}
+.salto-al-contenido:focus {
+  left: 0.75rem;
+  top: 0.75rem;
+  z-index: 60;
+  background: var(--marca);
+  color: var(--marca-texto);
+  padding: 0.5rem 1rem;
+  border-radius: 0.75rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+::selection {
+  background: color-mix(in oklab, var(--marca) 25%, transparent);
+}
+
+/* la fila entera reacciona, no solo el enlace */
+.tabla-datos tbody tr {
+  transition: background-color 120ms ease;
+}
+
+/* que un ancla no aterrice pegada al borde */
+:target {
+  scroll-margin-top: 5rem;
+}
+
+/* La etapa NO es una caja: es texto del color de su etapa.
+
+   Paso por pildora redondeada con punto, luego por rectangulo
+   con borde y fondo tenido, y las dos estaban de mas. Con el
+   color puesto en la LETRA ya se distingue una etapa de otra
+   de un vistazo, y la caja solo anadia peso: en una tabla de
+   400 filas, 400 rectangulos de colores compiten con los
+   datos en vez de ordenarlos.
+
+   Esta es la regla de la casa y vale para todo lo que tenga
+   estado -- etapas, completo/parcial, activo/cerrado: el
+   color va en el tipo de letra, sin mas. */
+.pildora-etapa {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4375rem;
+  color: var(--etapa);
+  font-size: inherit;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* El punto de color que acompana a la etapa. Vuelve porque el
+   handoff lo pide: circulo 8x8 delante del texto. */
+.punto-etapa {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 999px;
+  background: var(--etapa);
+  flex: none;
+}
+
+/* impresion / pdf */
+@media print {
+  /* :root:root gana a la paleta inyectada en el head */
+  :root:root,
+  :root:root[data-tema="oscuro"],
+  :root:root[data-tema="claro"] {
+    --fondo: #ffffff;
+    --superficie: #ffffff;
+    --superficie-alterna: #f4f6f9;
+    --borde: #cbd5e1;
+    --titulo: #000000;
+    --texto: #111827;
+    --texto-suave: #4b5563;
+    --tabla-cabecera-fondo: #f1f5f9;
+    --tabla-cabecera-texto: #1f2937;
+    --tabla-fila-alterna: #fafbfc;
+    --tabla-fila-resaltada: transparent;
+    /* las del oscuro no se leen sobre papel blanco */
+    --etapa-interesado: #5b6472;
+    --etapa-contactado: #1f4e85;
+    --etapa-datos-completos: #4c3a8c;
+    --etapa-inscrito: #1a6e58;
+    --etapa-en-formacion: #8a5a12;
+    --etapa-certificado: #2c6b1f;
+    --etapa-perdido: #9c3126;
+    --etapa-retirado: #7a2e72;
+    --etapa-no-aprobo: #c22a1e;
+    --etapa-deserto: #0f7f94;
+    --etapa-abandono: #2f3a8e;
+    color-scheme: light;
+  }
+
+  /* el resto del oscuro tampoco se lee en papel */
+  :root:root[data-tema="oscuro"] {
+    --marca: #1d4ed8;
+    --marca-fuerte: #1e3a8a;
+    --marca-suave: #eff6ff;
+    --marca-texto: #ffffff;
+    --encabezado-fondo: #ffffff;
+    --encabezado-texto: #0f172a;
+    --encabezado-borde: #e2e8f0;
+    --tabla-borde: #e2e8f0;
+    --campo-fondo: #ffffff;
+    --campo-borde: #cbd5e1;
+    --campo-foco: #1d4ed8;
+    --exito: #047857;
+    --exito-suave: #ecfdf5;
+    --aviso: #a16207;
+    --aviso-suave: #fffbeb;
+    --error: #be123c;
+    --error-suave: #fff1f2;
+  }
+
+  @page {
+    /* horizontal: la tabla lleva siete columnas y en vertical el
+       horario y las sedes se envuelven */
+    size: A4 landscape;
+    margin: 8mm;
+  }
+
+  /* conservar fondos al imprimir */
+  * {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  body {
+    background: #ffffff;
+    font-size: 10.5pt;
+  }
+
+  /* ocultar controles en papel */
+  /*
+   * `button` a secas escondia tambien los botones que NO son un
+   * control sino CONTENIDO: la fila de una accion del cronograma
+   * es un boton, y con la regla anterior el cronograma impreso
+   * salia en blanco. Lo que se marque `.imprimible` se imprime.
+   */
+  .no-imprimir,
+  header nav,
+  button:not(.imprimible) {
+    display: none !important;
+  }
+  /* sin apariencia de control: en papel es texto. La sangria
+     SI se conserva, o la fila se desalinea de todo lo demas */
+  button.imprimible {
+    background: transparent !important;
+    border: 0 !important;
+  }
+
+  /* no partir una tarjeta entre paginas */
+  /*
+   * `break-inside: avoid` en un bloque ALTO no lo protege: lo
+   * empuja entero a la hoja siguiente y deja media pagina en
+   * blanco. Se pide solo que no se parta si CABE, que es lo que
+   * hace `avoid-page` sobre bloques cortos; los largos fluyen.
+   */
+  .imprimible-bloque {
+    box-shadow: none;
+  }
+  /* lo que si tiene que ir junto: una fila, una tarjeta */
+  .imprimible-bloque tr,
+  .imprimible-bloque li {
+    break-inside: avoid;
+  }
+
+  /*
+   * En papel la cabecera de bloque va SIN teñir. En pantalla
+   * `marca-suave` separa unos bloques de otros; impreso, una
+   * franja de color cada cinco centimetros se come la tinta y
+   * compite con el texto, que es lo que se viene a leer. La raya
+   * de abajo ya separa.
+   */
+  /*
+   * En papel, las rejillas de la pantalla pasan a flujo.
+   *
+   * Una rejilla de dos columnas al paginar no reparte: empuja la
+   * fila entera a la hoja siguiente y deja el hueco abierto bajo
+   * la cabecera. En pantalla la rejilla gana espacio; en papel
+   * las hojas son gratis y lo que importa es que no haya huecos.
+   *
+   * Se deja fuera lo que se dibuja CON rejilla -- la grafica de
+   * barras -- que en flujo se desarma.
+   */
+  section [class*="grid-cols"]:not([class*="flex"]) {
+    display: block !important;
+  }
+  section [class*="grid-cols"] > * {
+    break-inside: avoid;
+  }
+  /* los divisores verticales no significan nada en una columna */
+  section [class*="divide-x"] > * {
+    border-left: 0 !important;
+  }
+
+  /*
+   * Un bloque, o cabe entero o se parte. No hay termino medio y
+   * no lo puede decidir el CSS, que no sabe cuanto mide: lo dice
+   * quien escribe la pantalla con `partible`.
+   *
+   * `bloque-entero` se muda completo a la hoja siguiente si no
+   * cabe -- bien para los cortos. `bloque-partible` fluye y
+   * parte por fila, que es lo unico razonable en una tabla de
+   * catorce.
+   */
+  /*
+   * `estirado` existe para que dos bloques de una fila midan lo
+   * mismo EN PANTALLA. En papel no hay fila -- las rejillas ya
+   * fluyen -- y ese `h-full` deja una caja con borde y sin nada
+   * dentro al final de la hoja.
+   */
+  .bloque-estirado {
+    display: block !important;
+    height: auto !important;
+  }
+  .bloque-estirado > div {
+    min-height: 0 !important;
+    flex: none !important;
+  }
+
+  .bloque-entero {
+    break-inside: avoid;
+  }
+  .bloque-partible {
+    break-inside: auto;
+  }
+  /* una cabecera nunca cierra una hoja */
+  .cabecera-de-bloque,
+  .solo-impresion .titulo-de-accion {
+    break-after: avoid;
+  }
+  /* y dentro de un partible, la fila no se corta por la mitad */
+  .bloque-partible tr,
+  .bloque-partible li,
+  .bloque-partible [class*="grid-cols"] > * {
+    break-inside: avoid;
+  }
+
+  .cabecera-de-bloque {
+    background: transparent !important;
+    padding-top: 7px !important;
+    padding-bottom: 7px !important;
+  }
+
+  .imprimible-salto {
+    break-before: page;
+  }
+
+  /*
+   * El mapa a tamano de lamina, no de pared.
+   *
+   * Se dibuja con `w-full h-auto`, que en pantalla lo ajusta a
+   * su media columna. En papel las rejillas pasan a flujo, asi
+   * que esa columna es la hoja entera: el mapa sale de 26 cm de
+   * ancho y se lleva una pagina el solo, con el ranking que iba
+   * a su lado empujado a la siguiente.
+   */
+  .mapa-en-papel {
+    max-width: 72mm;
+  }
+
+  /*
+   * EL RESUMEN EN PAPEL.
+   *
+   * El primer PDF salio con la hoja 1 casi en blanco, una banda
+   * gris huerfana al pie de la 2, las seis cifras en dos
+   * columnas gigantes y el mapa solo en una hoja entera. Todo
+   * es el mismo defecto: bloques altos que no caben, se mudan
+   * ENTEROS y dejan atras el hueco. Se arregla dejandolos
+   * fluir y quitandoles el aire que solo sirve en pantalla.
+   */
+
+  /* las franjas del veredicto: en pantalla el tinte y el
+     carril de 1px las separan; en papel son bandas de color
+     que se parten entre hojas y dejan el fondo sin contenido */
+  .imprimible-franja,
+  .imprimible-franja > * {
+    background: transparent !important;
+    gap: 0 !important;
+  }
+  .imprimible-franja > * {
+    padding-top: 5px !important;
+    padding-bottom: 5px !important;
+  }
+
+  /*
+   * Las seis cifras, en dos filas de tres.
+   *
+   * La rejilla es `sm:2 lg:3 xl:6` y el papel cae en el tramo
+   * `sm`: seis tarjetas en dos columnas es media hoja para seis
+   * numeros. No pasa por la regla que aplana rejillas porque no
+   * cuelga de un `section`, asi que se dice aqui.
+   */
+  .imprimible-cifras {
+    display: grid !important;
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  }
+  .imprimible-cifras > * {
+    padding: 6px 10px !important;
+  }
+
+  /* la tabla de acciones reparte por contenido: con anchos
+     fijos y menos ancho de hoja, «Ritmo/día» y «Tendencia» se
+     tocaban */
+  .resumen-impreso table {
+    table-layout: auto !important;
+  }
+  .resumen-impreso th,
+  .resumen-impreso td {
+    padding-top: 4px !important;
+    padding-bottom: 4px !important;
+  }
+
+  /* y en el resumen ningun bloque se muda entero: todos parten
+     por fila antes que dejar una hoja a medias */
+  .resumen-impreso .bloque-entero {
+    break-inside: auto;
+  }
+
+  /* expandir los contenedores con scroll */
+  /*
+   * Y CUALQUIER recorte, no solo `.caja-scroll`. Un ancestro con
+   * `overflow: hidden` no recorta un poco al imprimir: se lleva
+   * el documento entero a una sola pagina. El acordeon del
+   * cronograma lo llevaba, y el PDF salia con una hoja.
+   */
+  /*
+   * En papel NADA recorta. Se pone en todo y no en una lista de
+   * clases: ya se intento con `overflow-hidden` y `overflow-auto`
+   * y se escapo `overflow-clip`, que es otra palabra para lo
+   * mismo. Enumerar recortes es una lista que siempre esta
+   * incompleta.
+   */
+  html,
+  body,
+  body * {
+    overflow: visible !important;
+  }
+
+  /*
+   * Y la cascara del panel es una columna flex a la altura de la
+   * VENTANA -- `h-screen` arriba y `min-h-0 grow` bajando --, asi
+   * que sin esto el documento mide una pantalla y el PDF sale de
+   * una sola hoja aunque nada recorte.
+   */
+  html,
+  body,
+  main,
+  main > *,
+  [class*="h-screen"],
+  [class*="h-dvh"],
+  [class*="min-h-0"],
+  [class*="max-h-"],
+  .caja-scroll {
+    height: auto !important;
+    max-height: none !important;
+    min-height: 0 !important;
+  }
+
+  thead {
+    display: table-header-group;
+  }
+  tr {
+    break-inside: avoid;
+  }
+
+  a[href]::after {
+    content: "";
+  }
+}
+
+/* bloque visible solo al imprimir */
+.solo-impresion {
+  display: none;
+}
+@media print {
+  .solo-impresion {
+    display: block;
+  }
+  /* la tabla del PDF: la de leads, apretada para que quepa */
+  .solo-impresion .tabla-datos {
+    width: 100%;
+    border-collapse: collapse;
+  }
+  .solo-impresion .tabla-datos th,
+  .solo-impresion .tabla-datos td {
+    padding: 3px 8px;
+    font-size: 8pt;
+    line-height: 1.3;
+    vertical-align: top;
+  }
+  .solo-impresion .tabla-datos th {
+    font-size: 6.5pt;
+  }
+
+  /*
+   * SOLO las sedes envuelven. El horario tambien lo hacia y con
+   * 40px de ancho «Martes y jueves, 7:00 a. m. a 11:00 a. m.»
+   * salia en cinco lineas: cada fila medía cinco veces lo que
+   * debe y el PDF pasaba de tres hojas a trece.
+   */
+  .solo-impresion .tabla-datos th,
+  .solo-impresion .tabla-datos td {
+    white-space: nowrap;
+  }
+  /* la columna larga de cada tabla: la que se marque envuelve
+     y se lleva el ancho sobrante. Las demas van en una linea. */
+  .solo-impresion .tabla-datos td.envuelve {
+    white-space: normal;
+    width: 100%;
+  }
+
+  /*
+   * Una tabla corta no tiene por que salir apretada. El tamaño
+   * de arriba esta pensado para los 67 grupos del cronograma;
+   * las 15 acciones de Formacion caben de sobra y dejaban media
+   * hoja en blanco. `.holgada` reparte ese espacio.
+   */
+  .solo-impresion.holgada .tabla-datos th,
+  .solo-impresion.holgada .tabla-datos td {
+    padding: 5px 9px;
+    font-size: 9pt;
+    line-height: 1.35;
+  }
+  .solo-impresion.holgada .tabla-datos th {
+    font-size: 7.5pt;
+  }
+  .solo-impresion.holgada .titulo-de-accion {
+    margin: 12px 0 4px;
+    font-size: 10pt;
+  }
+  .solo-impresion.holgada .titulo-impreso {
+    margin-bottom: 10px;
+    font-size: 12pt;
+  }
+
+  /* el titulo de cada accion, y sus grupos con el */
+  .solo-impresion .titulo-de-accion {
+    margin: 10px 0 3px;
+    font-size: 8.5pt;
+    font-weight: 700;
+    color: var(--titulo);
+    white-space: normal;
+  }
+  .solo-impresion section.bloque-de-accion {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .solo-impresion .titulo-impreso {
+    margin: 0 0 4px;
+    font-size: 9.5pt;
+    font-weight: 700;
+    color: var(--titulo);
+  }
+
+  /*
+   * El envoltorio de la pantalla lleva relleno arriba y abajo
+   * para separarse de la barra lateral. En papel no hay barra
+   * lateral, y esos 40px son los que empujaban el catalogo de
+   * Formacion a una segunda hoja por un pixel.
+   */
+  .solo-impresion {
+    margin: 0;
+  }
+  body [class*="pt-4"],
+  body [class*="pb-6"],
+  body [class*="px-4"] {
+    padding: 0 !important;
+  }
+
+  /* ninguna fila se parte */
+  tr,
+  thead {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+  .solo-impresion thead {
+    display: table-header-group;
+  }
+}
+
+/* La barra de desplazamiento de la tabla, discreta.
+
+   La de siempre es una franja gris de 15px pegada al borde
+   derecho, y dentro de un marco con radio queda como un parche.
+
+   No se quita: sin ella nadie sabe que hay mas filas debajo, y
+   arrastrarla es la forma rapida de recorrer cuatrocientas. Se
+   adelgaza a 8px, se le quita el carril, y el tirador va en el
+   color del borde -- se ve cuando se busca y no compite con los
+   datos cuando no. Al pasar por encima se marca. */
+.caja-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: var(--borde) transparent;
+}
+.caja-scroll::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+.caja-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+.caja-scroll::-webkit-scrollbar-thumb {
+  background: var(--borde);
+  border-radius: 999px;
+}
+.caja-scroll:hover::-webkit-scrollbar-thumb {
+  background: var(--campo-borde);
+}
+/* la esquina donde se cruzan las dos barras */
+.caja-scroll::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+/* estilo comun de tablas de datos */
+.tabla-datos {
+  width: 100%;
+  border-collapse: collapse;
+}
+.tabla-datos thead th {
+  background: var(--tabla-cabecera-fondo);
+  color: var(--tabla-cabecera-texto);
+  text-align: left;
+  font-weight: 600;
+  /* 10,5px del redisenio, en rem para que siga creciendo con
+     el ajuste de texto del panel. Antes iba al mismo cuerpo
+     que las filas; ahora la cabecera es rotulo y la fila es
+     dato, y se distinguen por tamano ademas de por peso. */
+  font-size: 0.65625rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 0.625rem 0.875rem;
+  border-bottom: 1px solid var(--borde);
+  /* El título se acomoda al ancho de su columna.
+
+     Con `nowrap` se salía de la celda y la de al lado le
+     pintaba encima: «Número de teléfono» se leía «Número de
+     te». Ahora parte la línea y la cabecera crece lo que
+     haga falta, como al angostar una columna en Word.
+
+     `vertical-align: bottom` para que, con títulos de una y
+     de dos líneas en la misma fila, todos se apoyen abajo y
+     no queden flotando a distintas alturas. */
+  vertical-align: bottom;
+  /* `break-word` y NO `anywhere`, que es lo que las aplastaba.
+
+     Los dos parten la línea, pero `anywhere` permite partir
+     DENTRO de una palabra, y al permitirlo le dice al
+     navegador que el ancho mínimo de la celda es una letra.
+     Con veinte columnas repartiéndose el ancho de la ventana,
+     cada una caía a unos 45 px y el título salía en vertical:
+     «Fecha de creación» ocupaba diecisiete renglones.
+
+     `break-word` parte igual cuando hace falta, pero conserva
+     el suelo: la palabra más larga. «Número de teléfono» se
+     parte entre palabras, nunca entre letras. */
+  overflow-wrap: break-word;
+}
+.tabla-datos tbody td {
+  /* 12,5px */
+  font-size: 0.78125rem;
+  padding: var(--pad-fila) 0.875rem;
+  border-bottom: 1px solid var(--hairline);
+}
+/* la ultima no lleva raya: ya la pone la tarjeta */
+.tabla-datos tbody tr:last-child td {
+  border-bottom: 0;
+}
+/* Sin cebra.
+   La fila se separa por su raya de `--hairline`, no por un
+   fondo alterno. Eran las dos cosas a la vez, y con eso una
+   tabla ya iba por el tercer fondo de la pantalla. */
+.tabla-datos tbody tr:hover {
+  background: var(--tabla-fila-resaltada);
+}
+
+/* rayas entre columnas: que se lea como una tabla de datos y
+   no como una lista con renglones. Con veinte columnas y el
+   ojo saltando de una a otra, la raya horizontal sola no
+   basta para saber en cuál va uno.
+
+   La raya va a la DERECHA de cada celda y se le quita a la
+   última: así no se dibuja una línea pegada al borde de la
+   tarjeta, que se ve como un error de alineación. */
+.tabla-datos.con-carriles thead th:not(:last-child),
+.tabla-datos.con-carriles tbody td:not(:last-child) {
+  /* En `--hairline`, y solo si la tabla pasa de ocho columnas
+     -- de ahi la clase `con-carriles`.
+     Con 22 el ojo salta en horizontal y necesita el carril
+     para saber en cual va. En una de cinco o seis sobran:
+     son rayas que no separan nada que no separara ya el
+     espacio, y ensucian el dato. */
+  border-right: 1px solid var(--hairline);
+}
+
+/* Lo que no cabe se queda dentro.
+
+   Con el ancho ajustado a mano la tabla pasa a `fixed`, y una
+   celda estrecha derramaba su texto sobre la columna de al
+   lado: se leian dos datos superpuestos, sin saber cual era
+   cual. Ahora parte la linea dentro de su columna y, si es
+   una cadena sin espacios -- un correo, un NIT largo --, la
+   parte igual antes que salirse. */
+.tabla-datos tbody td {
+  overflow: hidden;
+  overflow-wrap: anywhere;
+}
+
+/* La CABECERA no se toca, y es a proposito.
+
+   De ella cuelga la linea de ajustar el ancho, que baja por
+   toda la tabla: con `overflow: hidden` aqui, esa linea se
+   corta a la altura del titulo y solo se puede agarrar
+   arriba.
+
+   Y recortar el titulo tampoco vale: un boton con
+   `text-overflow` pierde su ancho minimo, el navegador se
+   queda sin de que medir y reparte todas las columnas al
+   minimo. Se probo, y la tabla entera quedo en ochenta
+   pixeles por columna. */
+
+/* el fondo de las pantallas públicas */
+/*
+   Tres capas a distinta velocidad: lo que está «más lejos» se
+   mueve menos, que es lo que da la sensación de profundidad. El
+   desplazamiento lo escribe `fondo-publico.tsx` en --px/--py, y
+   aquí cada capa se lleva su fracción.
+
+   La deriva es lenta a propósito -- 28 a 46 s por vuelta. Un
+   fondo que se nota en un formulario donde alguien teclea su
+   cédula es un fondo mal hecho.
+*/
+.fondo-publico {
+  --px: 0px;
+  --py: 0px;
+}
+.fondo-capa-1 {
+  transform: translate3d(calc(var(--px) * 0.25), calc(var(--py) * 0.25), 0);
+  animation: fondo-deriva-a 46s ease-in-out infinite;
+}
+.fondo-capa-2 {
+  transform: translate3d(calc(var(--px) * 0.55), calc(var(--py) * 0.55), 0);
+  animation: fondo-deriva-b 34s ease-in-out infinite;
+}
+.fondo-capa-3 {
+  transform: translate3d(calc(var(--px) * 1), calc(var(--py) * 1), 0);
+  animation: fondo-deriva-a 28s ease-in-out infinite reverse;
+}
+@keyframes fondo-deriva-a {
+  0%, 100% { translate: 0 0; }
+  50%      { translate: 0 -14px; }
+}
+@keyframes fondo-deriva-b {
+  0%, 100% { translate: 0 0; }
+  50%      { translate: 8px 10px; }
+}
+
+/* el modal, al abrirse */
+/*
+   Sube un pelo y aparece. Las dos reglas de «menos movimiento»
+   lo dejan en 0,01 ms, o sea en su ultimo fotograma -- que es el
+   estado de reposo, asi que quien pide no moverse ve el modal
+   quieto y entero, no invisible.
+*/
+.modal-entra {
+  animation: modal-entra 220ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+@keyframes modal-entra {
+  from {
+    opacity: 0;
+    translate: 0 10px;
+    scale: 0.98;
+  }
+  to {
+    opacity: 1;
+    translate: 0 0;
+    scale: 1;
+  }
+}

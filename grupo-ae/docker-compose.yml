@@ -1,0 +1,105 @@
+services:
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+    container_name: grupoae_frontend
+    restart: unless-stopped
+    environment:
+      # el SSR llama al backend sin pasar por nginx
+      API_INTERNA: http://backend:4000
+    networks:
+      - grupoae-internal
+
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    container_name: grupoae_backend
+    restart: unless-stopped
+    env_file:
+      - backend/.env
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - grupoae-internal
+
+  db:
+    image: postgres:17-alpine
+    container_name: grupoae_db
+    restart: unless-stopped
+    env_file:
+      - backend/.env
+    environment:
+      # subcarpeta: evita chocar con lost+found
+      PGDATA: /var/lib/postgresql/data/pgdata
+    # local, o la ip de tailscale en el primario
+    ports:
+      - "${PG_BIND:-127.0.0.1}:5533:5432"
+    volumes:
+      - grupoae-pgdata:/var/lib/postgresql/data
+    # tuning para este servidor
+    command:
+      - postgres
+      - -c
+      - max_connections=200
+      - -c
+      - shared_buffers=1GB
+      - -c
+      - effective_cache_size=3GB
+      - -c
+      - work_mem=8MB
+      - -c
+      - maintenance_work_mem=256MB
+      - -c
+      - max_parallel_workers=16
+      - -c
+      - random_page_cost=1.1
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    networks:
+      - grupoae-internal
+
+  nginx:
+    image: nginx:stable-alpine
+    container_name: grupoae_nginx
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_started
+      frontend:
+        condition: service_started
+    # solo localhost: aqui llega cloudflared
+    ports:
+      - "127.0.0.1:4700:80"
+    volumes:
+      - ./docker/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+    networks:
+      - grupoae-internal
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: grupoae_cloudflared
+    # a proposito: el demonio no entiende de perfiles y
+    # revivria el tunel de una sede ya relevada. Lo
+    # levanta scripts/arrancar-tunel.sh, que comprueba
+    restart: "no"
+    profiles: ["tunel"]
+    command: tunnel --no-autoupdate run --token ${TUNEL_TOKEN:-}
+    depends_on:
+      nginx:
+        condition: service_started
+    networks:
+      - grupoae-internal
+
+volumes:
+  grupoae-pgdata:
+
+networks:
+  grupoae-internal:
+    driver: bridge

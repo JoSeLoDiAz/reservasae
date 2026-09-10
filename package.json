@@ -6,6 +6,9 @@
   "scripts": {
     "dev:frontend": "pnpm --filter frontend dev",
     "dev:backend": "pnpm --filter backend start:dev",
+    "ae:frontend": "pnpm --filter grupoae-frontend dev",
+    "ae:backend": "pnpm --filter grupoae-backend start:dev",
+    "ae:build": "pnpm --filter grupoae-backend build && pnpm --filter grupoae-frontend build",
     "build:frontend": "pnpm --filter frontend build",
     "build:backend": "pnpm --filter backend build",
     "build": "pnpm -r build",

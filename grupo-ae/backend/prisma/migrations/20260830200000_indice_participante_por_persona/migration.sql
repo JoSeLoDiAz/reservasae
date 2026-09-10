@@ -1,0 +1,15 @@
+-- Buscar los participantes de una persona no tenia indice.
+--
+-- El unico indice donde aparecia personaId es el @@unique
+-- (accionFormacionId, personaId), y ahi va en segunda posicion:
+-- Postgres no lo usa cuando solo se filtra por persona. Con la
+-- relacion en Restrict, ademas, cada borrado de Persona tenia
+-- que recorrer participantes entera para comprobar que no queda
+-- nadie colgando.
+--
+-- CREATE INDEX toma un lock que frena las escrituras de esta
+-- tabla mientras lo construye. En participantes es cosa de
+-- milisegundos; si algun dia creciera mucho, la version sin
+-- lock es CONCURRENTLY, que hay que correr fuera de la
+-- migracion porque Prisma las envuelve en una transaccion.
+CREATE INDEX "participantes_personaId_idx" ON "participantes"("personaId");

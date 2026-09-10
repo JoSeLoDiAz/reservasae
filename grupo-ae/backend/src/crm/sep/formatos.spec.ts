@@ -1,0 +1,234 @@
+import { COLUMNAS as CARGUE } from './formato-cargue-sep';
+import { COLUMNAS as F7, fila as filaF7, type FilaF7 } from './formato-f7';
+import { COLUMNAS as USO } from './formato-uso-directo';
+
+/// Copiadas del fichero real que entregó el cliente. El
+/// título y el orden SON el contrato: si alguien reordena
+/// o corrige una tilde, el cargue se rompe en silencio.
+const TITULOS_USO = [
+  'AF',
+  'Nombre AF',
+  'Grupo',
+  'Tipo de identificación del Beneficiario',
+  'Número de identificación',
+  'Nombres',
+  '1 Apellidos',
+  '2 Apellidos',
+  'Género',
+  'Estrato socio-económico ',
+  'Fecha de nacimiento',
+  'Número de Celular',
+  'Departamento',
+  'Ciudad',
+  'Correo',
+  'Barrio / Vereda',
+  'Dirección',
+  'Se ha beneficiado anteriormente',
+  'NIT de la empresa',
+  'Dígito de verificación',
+  'Nombre de la empresa',
+  'Tamaño empresa',
+  'Marca de caracterización de población a la que pertenece',
+  'Nivel ocupacional',
+  'Cargo',
+  'Transferencia',
+  'Perfil de Transferencia',
+];
+
+const TITULOS_CARGUE = [
+  'NO.',
+  'NOMBRE CONVINIENTE',
+  'PROYECTO ID',
+  'AF ID',
+  'ACCION DE FORMACION',
+  'ID GRUPO',
+  'GRUPO',
+  'TOTAL DE HORAS EVENTO',
+  'PERSONA ID',
+  'POSTULACION 2025',
+  'TIPO IDENTIFICACION',
+  'ID TIPO DOCUMENTO',
+  'NUMERODEIDENTIFICACION',
+  'NOMBRES',
+  'PRIMER APELLIDO',
+  'SEGUNDO APELLIDO',
+  'GENERO',
+  'ID GENERO',
+  'ESTRATO SOCIO-ECONOMICO',
+  'FECHA DE NACIMIENTO',
+  'EDAD',
+  'ID RANGO',
+  'RANGO DE EDAD',
+  'NUMERODECELULAR',
+  'CORREO',
+  'CÓDIGO DEPARTAMENTO DE DOMICILIO',
+  'DEPARTAMENTO DE DOMICILIO',
+  'CÓDIGO MUNICIPIO DOMICILIO',
+  'MUNICIPIO DOMICILIO',
+  'BARRIO/VEREDA',
+  'DIRECCION DOMICILIO',
+  'CÓDIGO CARACTERIZACION',
+  'CARACTERIZACION',
+  'TRANSFERENCIA',
+  'PERFIL DE TRANSFERENCIA',
+  'PERFIL ID',
+  'EMPRESA ID',
+  'NÚMERO DE DOCUMENTO EMPRESA DONDE LABORA',
+  'DV',
+  'NOMBRE EMPRESA DONDE LABORA',
+  'TAMAÑO EMPRESA DONDE LABORA',
+  'TAMAÑO EMP ID',
+  'NIVEL OCUPACIONAL',
+  'NV ID',
+  'SE HA BENEFICIADO ANTERIORMENTE',
+  'CERTIFICA',
+  'ESTADO INTERVENTORIA',
+  'HORAS PRESENCIALES',
+  'HORAS PAT',
+  'HORAS VIRTUALES',
+  'HORAS HIBRIDAS',
+  'PORCENTAJE DE CUMPLIMIENTO',
+  'OBSERVACIONES',
+  'ESTADO',
+];
+
+describe('formato de uso directo', () => {
+  it('tiene las 27 columnas del cliente, en su orden y con su título', () => {
+    expect(USO.map((c) => c.titulo)).toEqual(TITULOS_USO);
+  });
+
+  it('conserva el espacio final de «Estrato socio-económico »', () => {
+    const estrato = USO.find((c) => c.clave === 'estrato');
+    expect(estrato?.titulo).toBe('Estrato socio-económico ');
+  });
+
+  it('no repite una clave', () => {
+    expect(new Set(USO.map((c) => c.clave)).size).toBe(USO.length);
+  });
+});
+
+describe('formato de cargue al SEP', () => {
+  it('tiene las 54 columnas del cliente, en su orden y con su título', () => {
+    expect(CARGUE.map((c) => c.titulo)).toEqual(TITULOS_CARGUE);
+  });
+
+  it('no repite una clave', () => {
+    expect(new Set(CARGUE.map((c) => c.clave)).size).toBe(CARGUE.length);
+  });
+
+  it('escribe los documentos sin separador de miles', () => {
+    // con #,##0 una cedula sale 1.019.456.782
+    for (const clave of ['documento', 'nitEmpresa', 'celular']) {
+      expect(CARGUE.find((c) => c.clave === clave)?.formato).toBe('entero');
+    }
+  });
+});
+
+/// Copiadas del "F7 - SENA.XLSX" que entregó el cliente.
+/// La J lleva un espacio DELANTE y la P un salto de línea
+/// dentro: los dos van tal cual, no son erratas nuestras.
+const TITULOS_F7 = [
+  '#',
+  'NOMBRE DE LA ACCIÓN DE FORMACIÓN',
+  'NOMBRE EMPRESA',
+  'NIT',
+  'DV',
+  'DEPARTAMENTO SEDE DE LA EMPRESA',
+  'MUNICIPIO SEDE DE LA EMPRESA',
+  'DIRECCIÓN',
+  'TELÉFONO',
+  ' NOMBRE PERSONA DE CONTACTO',
+  'CARGO PERSONA DE CONTACTO',
+  'CORREO ELECTRÓNICO',
+  'TAMAÑO DE LA EMPRESA',
+  'NÚMERO DE TRABAJADORES TOTALES DE LA EMPRESA',
+  'NÚMERO DE BENEFICIARIOS DEL PFCE DE LA  EMPRESA',
+  'EMPRESA/GREMIO\n(Conviniente/Beneficiaria/Perteneciente a la Cadena Productiva',
+  'SECTOR ECONÓMICO AL QUE PERTENECE',
+  'CLASIFICACIÓN DE LA EMPRESA',
+];
+
+describe('el F7 de empresas', () => {
+  it('tiene las 18 columnas, en su orden', () => {
+    expect(F7.map((c) => c.titulo)).toEqual(TITULOS_F7);
+  });
+
+  it('conserva el espacio delante de la persona de contacto', () => {
+    expect(F7[9].titulo.startsWith(' ')).toBe(true);
+  });
+
+  it('conserva el doble espacio de "DE LA  EMPRESA"', () => {
+    expect(F7[14].titulo).toContain('DE LA  EMPRESA');
+  });
+
+  it('no repite ninguna clave', () => {
+    const claves = F7.map((c) => c.clave);
+    expect(new Set(claves).size).toBe(claves.length);
+  });
+
+  /// Ninguna celda puede llevar un objeto dentro.
+  ///
+  /// «TAMAÑO DE LA EMPRESA» llevaba el objeto entero del
+  /// catalogo en vez de su etiqueta, asi que las 18 filas
+  /// salian con `[object Object]`. Compilaba porque el retorno
+  /// de `fila()` era inferido; ahora esta tipado Y probado,
+  /// porque el cliente arma sus INSERT concatenando celdas.
+  it('ninguna celda es un objeto, y el tamaño sale como texto', () => {
+    const f: FilaF7 = {
+      accion: 'AF01 · Analítica de datos',
+      beneficiarios: 4,
+      empresa: {
+        razonSocial: 'Textiles del Norte SAS',
+        nit: '900123456',
+        digitoVerificacion: '7',
+        departamento: 'ANTIOQUIA',
+        municipio: 'MEDELLÍN',
+        direccion: 'Calle 10 # 4-20',
+        telefono: '6041234567',
+        contactoNombre: 'Marta Oquendo',
+        contactoCargo: 'Jefa de talento',
+        contactoCorreo: 'marta@ejemplo.test',
+        // 1 = GRANDE - COMERCIO
+        tamanoSepId: 1,
+        numeroTrabajadores: 320,
+        papelEnConvenio: 'Beneficiaria',
+        sectorEconomico: 'Manufactura',
+        clasificacion: 'Privada',
+      },
+    };
+
+    const celdas = filaF7(f, 0);
+
+    for (const [clave, valor] of Object.entries(celdas)) {
+      expect(typeof valor).not.toBe('object');
+      expect(String(valor)).not.toContain('[object');
+      expect(clave).toBeTruthy();
+    }
+    expect(celdas.tamano).toBe('GRANDE - COMERCIO (SUPERIOR A $104.600.300.908)');
+  });
+
+  it('sin tamaño la celda va vacía, nunca con un id suelto', () => {
+    const base: FilaF7 = {
+      accion: 'AF01',
+      beneficiarios: 1,
+      empresa: {
+        razonSocial: 'X',
+        nit: '900000000',
+        digitoVerificacion: null,
+        departamento: null,
+        municipio: null,
+        direccion: null,
+        telefono: null,
+        contactoNombre: null,
+        contactoCargo: null,
+        contactoCorreo: null,
+        tamanoSepId: null,
+        numeroTrabajadores: null,
+        papelEnConvenio: null,
+        sectorEconomico: null,
+        clasificacion: null,
+      },
+    };
+    expect(filaF7(base, 0).tamano).toBe('');
+  });
+});
