@@ -39,7 +39,6 @@ import { ICONO_DE_MODULO, IconoResumen,
 } from "./iconos";
 import { enlacesVisibles, estaActivo, MODULOS } from "./navegacion";
 import { Cargando } from "./piezas";
-import { Desplegable } from "./desplegable";
 
 type Contexto = {
   admin: AdminActual;
@@ -304,9 +303,6 @@ export function MarcoAdmin({ children }: { children: React.ReactNode }) {
             setPlegado(false);
             setModuloAAbrir(clave);
           }}
-          gremios={gremios}
-          gremio={gremioActivo}
-          alElegir={elegirGremio}
         />
 
         <CajonMovil
@@ -315,9 +311,6 @@ export function MarcoAdmin({ children }: { children: React.ReactNode }) {
           ruta={ruta}
           esSuperadmin={esSuperadmin}
           permisos={admin.permisos}
-          gremios={gremios}
-          gremio={gremioActivo}
-          alElegir={elegirGremio}
         />
 
         <div className="flex min-w-0 grow flex-col">
@@ -484,58 +477,19 @@ function Marca({ plegado }: { plegado?: boolean }) {
 }
 
 /**
- * De qué gremio se está hablando.
+ * Aquí vivía «Seleccione Gremio».
  *
- * Va arriba del todo y no dentro de cada pantalla porque
- * acota el panel entero: mirar leads de un gremio y cupos de
- * otro es exactamente lo que hacía que los números no
- * cuadraran.
+ * En Convoca hace falta: el panel sirve a varios gremios y
+ * mirar leads de uno con cupos de otro es lo que hacía que los
+ * números no cuadraran. Este CRM es de Grupo AE y de nadie
+ * más, así que el control no elegía nada.
  *
- * Con un solo gremio no se ofrece desplegable: elegir entre
- * una cosa no es elegir, y un control muerto solo estorba.
+ * Lo que se fue es el desplegable, NO el ámbito: `gremioActivo`
+ * y `elegirGremio` siguen en el contexto porque las pantallas
+ * de dentro los leen, y sin selector se quedan en null, que es
+ * «todo lo que alcanza esta cuenta». Si algún día este panel
+ * atiende a dos marcas, se vuelve a poner aquí.
  */
-function SelectorGremio({
-  gremios,
-  gremio,
-  alElegir,
-}: {
-  gremios: Array<{ convenioId: string; sigla: string }>;
-  gremio: string | null;
-  alElegir: (id: string | null) => void;
-}) {
-  if (gremios.length === 0) return null;
-
-  if (gremios.length === 1) {
-    return (
-      <div className="rounded-lg border border-encabezado-borde/60 px-2.5 py-1.5">
-        <span className={ROTULO + " block"}>
-          Gremio
-        </span>
-        <span className="block truncate text-sm font-medium">{gremios[0].sigla}</span>
-      </div>
-    );
-  }
-
-  return (
-    <label className="block">
-      <span className={ROTULO + " mb-1.5 block"}>Seleccione Gremio</span>
-      <Desplegable
-        enBarra
-        alto={34}
-        marcador="Todos los gremios"
-        valor={gremio ?? ""}
-        opciones={[
-          { valor: "", etiqueta: "Todos los gremios" },
-          ...gremios.map((g) => ({
-            valor: g.convenioId,
-            etiqueta: g.sigla ?? g.convenioId,
-          })),
-        ]}
-        alElegir={(v) => alElegir(v || null)}
-      />
-    </label>
-  );
-}
 
 /**
  * El rótulo de lo que viene abajo.
@@ -945,9 +899,6 @@ function BarraLateral({
   alPlegar,
   alDesplegarModulo,
   abrirEste,
-  gremios,
-  gremio,
-  alElegir,
 }: {
   ruta: string;
   esSuperadmin: boolean;
@@ -956,9 +907,6 @@ function BarraLateral({
   alPlegar: () => void;
   alDesplegarModulo: (clave: string) => void;
   abrirEste: string | null;
-  gremios: Array<{ convenioId: string; sigla: string }>;
-  gremio: string | null;
-  alElegir: (id: string | null) => void;
 }) {
   return (
     <nav
@@ -998,11 +946,9 @@ function BarraLateral({
           /// Bien separado del logo.
           ///
           /// Arriba está la marca -- qué panel es esto -- y
-          /// aquí abajo empieza el trabajo. Pegados, el
-          /// desplegable de gremio parecía parte del logo y
-          /// todo el menú nacía encaramado en el borde.
+          /// aquí abajo empieza el trabajo. Pegados, el menú
+          /// nacía encaramado en el borde.
           <div className="mt-8">
-            <SelectorGremio gremios={gremios} gremio={gremio} alElegir={alElegir} />
             <FilaResumen ruta={ruta} />
             <RotuloDelPanel />
           </div>
@@ -1049,18 +995,12 @@ function CajonMovil({
   ruta,
   esSuperadmin,
   permisos,
-  gremios,
-  gremio,
-  alElegir,
 }: {
   abierto: boolean;
   alCerrar: () => void;
   ruta: string;
   esSuperadmin: boolean;
   permisos: Permisos;
-  gremios: Array<{ convenioId: string; sigla: string }>;
-  gremio: string | null;
-  alElegir: (id: string | null) => void;
 }) {
   // abierto, Escape lo cierra
   useEffect(() => {
@@ -1100,7 +1040,6 @@ function CajonMovil({
             </button>
           </div>
           <div className="mt-8">
-            <SelectorGremio gremios={gremios} gremio={gremio} alElegir={alElegir} />
             <RotuloDelPanel />
           </div>
         </div>

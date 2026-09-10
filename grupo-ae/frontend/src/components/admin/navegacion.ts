@@ -26,52 +26,25 @@ export type Modulo = {
   enlaces: Enlace[];
 };
 
-/// El panel, agrupado por quién trabaja en cada cosa.
+/// El panel de Grupo AE: leads, formularios y correo.
 ///
-/// Antes estaba agrupado por etapa del proceso -- Pre-reserva,
-/// Inscripciones, Inscritos --, y eso repartía una misma
-/// pantalla entre dos grupos según en qué punto la mirara
-/// uno. Ahora manda el área: inscripciones, sistemas de
-/// información, académica. Cada quien encuentra lo suyo en un
-/// solo sitio.
+/// En Convoca esto está agrupado por área —inscripciones,
+/// sistemas de información, académica— porque ahí trabajan
+/// tres equipos distintos sobre el mismo convenio. Aquí no:
+/// este CRM lleva UNA operación, la de captar y gestionar
+/// leads, así que se quedaron los cuatro módulos que la
+/// sostienen y se fueron los otros tres.
+///
+/// Lo que se quitó —Calendario, Sistemas de Información y
+/// Gestión Académica— no se borró del backend: las rutas y sus
+/// permisos siguen existiendo, y volver a ofrecerlas es añadir
+/// aquí su módulo. Se fue la puerta, no la habitación.
 export const MODULOS: Modulo[] = [
-  {
-    /// Va primero porque manda sobre todo lo demás: sin
-    /// fechas no se matricula, no se cierra inscripción y no
-    /// sale ningún aviso.
-    clave: 'cronograma',
-    emoji: '📅',
-    etiqueta: 'Calendario',
-    descripcion: 'Las fechas de la formación. De aquí cuelga el resto.',
-    enlaces: [
-      {
-        /// Una sola entrada, con dos pestañas dentro.
-        ///
-        /// Eran «Acciones de Formación» y «Cronograma», y
-        /// debajo tenían LA MISMA lista: agrupada igual por
-        /// convenio y con el mismo buscador. El código del
-        /// cronograma ya lo decía —«son las dos caras de la
-        /// misma lista»—. Lo que cambia es el zoom: en
-        /// «Catálogo» cada acción es una fila con su
-        /// interruptor de publicar; en «Cronograma» se abre y
-        /// da sus grupos con sus fechas.
-        ///
-        /// Pide `reserva` y no `configuracion:ESCRIBIR`: es el
-        /// permiso con el que se MIRA, que es lo que tenía el
-        /// cronograma. Mover una fecha o publicar una acción
-        /// sigue exigiendo `configuracion:ESCRIBIR`, y lo
-        /// exige el backend, no el menú.
-        href: '/admin/acciones',
-        etiqueta: 'Acciones de Formación',
-        area: 'reserva',
-      },
-    ],
-  },
   {
     clave: 'inscripciones',
     emoji: '📝',
-    etiqueta: 'Gestión de Inscripciones',
-    descripcion: 'Convertir cupos en personas con nombre.',
+    etiqueta: 'Gestión de leads',
+    descripcion: 'Del lead que entra a la persona con nombre.',
     enlaces: [
       {
         /// Va PRIMERO porque es el orden del proceso: el lead
@@ -84,8 +57,12 @@ export const MODULOS: Modulo[] = [
         area: 'inscripciones',
       },
       {
+        /// «Lista» y no «Gestión de leads», que es como se
+        /// llama en Convoca: al pasar el módulo entero a
+        /// llamarse así, el enlace repetía el nombre de su
+        /// propia pestaña y no se sabía cuál era cuál.
         href: '/admin/participantes',
-        etiqueta: 'Gestión de leads',
+        etiqueta: 'Lista de leads',
         exacto: true,
         area: 'inscripciones',
       },
@@ -121,51 +98,6 @@ export const MODULOS: Modulo[] = [
         href: '/admin/control',
         etiqueta: 'Control de Inscritos',
         area: 'inscritos',
-      },
-    ],
-  },
-  {
-    clave: 'sistemas',
-    emoji: '🗂️',
-    etiqueta: 'Sistemas de Información',
-    descripcion: 'Los datos que sostienen el reporte al SENA.',
-    enlaces: [
-      {
-        href: '/admin/reservas',
-        etiqueta: 'Reservas',
-        area: 'reserva',
-      },
-      {
-        href: '/admin/instituciones',
-        etiqueta: 'Empresas registradas',
-        exacto: true,
-        area: 'reserva',
-      },
-      {
-        href: '/admin/empresas',
-        etiqueta: 'Empresas aliadas - afiliadas',
-        area: 'reserva',
-      },
-      { href: '/admin/sep', etiqueta: 'Reportes SENA', area: 'reportes' },
-    ],
-  },
-  {
-    clave: 'academico',
-    emoji: '📈',
-    etiqueta: 'Gestión Académica',
-    descripcion: 'Quién va al día y quién no.',
-    enlaces: [
-      {
-        /// Una sola entrada, con dos pestañas dentro.
-        ///
-        /// Eran dos: «Tablero académico» --por acción, grupo y
-        /// asesor-- y «Avance» --persona a persona--. La misma
-        /// pregunta con distinto zoom, y cada una enlazaba a la
-        /// otra en su propio subtítulo: la señal de que nunca
-        /// debieron ser dos. La ruta del tablero redirige.
-        href: '/admin/participantes/academico',
-        etiqueta: 'Seguimiento académico',
-        area: 'academico',
       },
     ],
   },
