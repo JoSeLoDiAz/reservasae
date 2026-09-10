@@ -87,6 +87,6 @@ export const politicasApi = {
 };
 
 export const ETIQUETA_DESTINATARIO: Record<Destinatario, string> = {
-  RESERVA: "Preinscripción — la empresa",
-  PARTICIPANTE: "Inscripción — la persona",
+  RESERVA: "Tratamiento de datos — la empresa",
+  PARTICIPANTE: "Tratamiento de datos — la persona",
 };

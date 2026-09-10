@@ -102,7 +102,7 @@ export class Matricula implements OnModuleInit {
             participanteId: p.id,
             etapaAntes: 'INSCRITO',
             etapaDespues: 'EN_FORMACION',
-            nota: 'Automático: su grupo ya empezó',
+            nota: 'Automático: la propuesta entró en negociación',
           },
         }),
       ]);

@@ -618,7 +618,7 @@ async function main() {
           politicaDatosId: politicaId,
           canal: CanalAutorizacion.FORMULARIO_WEB,
           otorgadaEn: hace(f.dias),
-          evidencia: 'Casilla marcada en el formulario de preinscripción (dato de prueba)',
+          evidencia: 'Casilla marcada en el formulario de contacto (dato de prueba)',
         },
       });
 
@@ -626,7 +626,7 @@ async function main() {
         data: {
           participanteId: ficha.id,
           etapaDespues: EtapaParticipante.INTERESADO,
-          nota: 'Preinscripción registrada',
+          nota: 'Lead registrado',
           creadoEn: hace(f.dias),
         },
       });

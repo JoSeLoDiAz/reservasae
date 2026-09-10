@@ -85,7 +85,7 @@ export async function cerrarLeadsQueEsperaban(
       participanteId: datos.participanteId,
       estado: 'CONVERTIDO',
       procesadoEn: new Date(),
-      motivo: 'La persona se inscribió por el formulario público.',
+      motivo: 'La persona se registró por el formulario público.',
     },
   });
 

@@ -105,7 +105,7 @@ export function porQueNoCuadraLaCelda(
   if (oferta.modalidad !== celda.modalidad) {
     return (
       `El grupo ${celda.numero} de ${celda.sede} es ${celda.modalidad} y la oferta ` +
-      `de esa sede es ${oferta.modalidad}. Nadie se inscribió a esa modalidad ahí: ` +
+      `de esa ciudad es ${oferta.modalidad}. Nadie pidió esa modalidad ahí: ` +
       'cuadre el catálogo antes de asignar la cohorte.'
     );
   }

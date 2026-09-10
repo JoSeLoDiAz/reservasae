@@ -37,7 +37,7 @@ export const GRUPOS_DE_VARIABLE: Array<{ titulo: string; claves: string[] }> = [
   },
   { titulo: "Cómo contactarlo", claves: ["correo", "celular", "empresa"] },
   {
-    titulo: "Su formación",
+    titulo: "Su oportunidad",
     claves: [
       "accionFormacion",
       "grupo",

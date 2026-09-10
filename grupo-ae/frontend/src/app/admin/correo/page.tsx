@@ -3,7 +3,7 @@
 /** Correo saliente: si sale y a dónde. */
 
 /// Esta pantalla existe para contestar una sola pregunta:
-/// «¿los correos que manda Convoca están saliendo?». Antes
+/// «¿los correos que manda el CRM están saliendo?». Antes
 /// había que abrir una consola para saberlo, y una alerta que
 /// no sale se pierde en silencio -- que es la peor forma de
 /// perderse.

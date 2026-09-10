@@ -132,7 +132,7 @@ function PanelDeGremio({
         {g.faltan.length > 0 && (
           <div>
             <p className="text-texto-suave">
-              Mientras falte cualquiera de estas, este gremio no recibe leads.
+              Mientras falte cualquiera de estas, esta línea de negocio no recibe leads.
               Las dos son <strong>suyas</strong>: cada app de Meta tiene su
               propio secreto y su propio token.
             </p>
@@ -244,7 +244,7 @@ function PanelDeGremio({
               «Tres de golpe» es la prueba que de verdad importa: Meta agrupa
               varios avisos en un mismo envío, y quedarse con el primero es un
               fallo que nadie nota hasta que faltan leads. Se firman con el
-              secreto <strong>de este gremio</strong>.
+              secreto <strong>de esta línea de negocio</strong>.
             </p>
           )}
 
@@ -311,7 +311,7 @@ export default function PaginaMeta() {
         <h1 className="text-[1.3125rem] font-bold tracking-[-0.02em] text-titulo">Webhook de Meta</h1>
         <p className="mt-1 max-w-3xl text-texto-suave">
           Por aquí entran los leads que se pagan en Facebook e Instagram. Hay{" "}
-          <strong>una app de Meta por gremio</strong>, así que cada uno tiene su
+          <strong>una app de Meta por línea de negocio</strong>, así que cada una tiene su
           propia URL, su propio secreto y su propio token: lo que esté bien en
           uno no dice nada del otro.
         </p>
@@ -323,7 +323,7 @@ export default function PaginaMeta() {
         <>
           {estado.listo && (
             <Aviso tipo="exito">
-              Los {estado.gremios.length} gremios están configurados.
+              Las {estado.gremios.length} líneas de negocio están configuradas.
             </Aviso>
           )}
 

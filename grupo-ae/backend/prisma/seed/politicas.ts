@@ -8,15 +8,15 @@ exigirBaseSegura('La siembra de politicas');
 
 const prisma = new PrismaClient();
 
-// El texto que autoriza al SENA. Lo acepta la persona,
+// El texto que autoriza a Grupo AE. Lo acepta la persona,
 // no la empresa: el titular del dato es el empleado.
-const PARTICIPANTE = `De conformidad con lo dispuesto en la Ley 1581 de 2012, su Decreto Reglamentario 1377 de 2013 y el Acuerdo No. 009 de 2016, AUTORIZO de manera libre, previa, expresa, voluntaria y debidamente informada, a que el Servicio Nacional de Aprendizaje – SENA recolecte, recaude, almacene, use, circule, suprima, procese, compile, intercambie, dé tratamiento, actualice y disponga de los datos que han sido suministrados y que se han incorporado en distintas bases o bancos de datos de todo tipo en el marco de las convocatorias que adelanta el Grupo de Gestión para la Productividad y la Competitividad.
+const PARTICIPANTE = `De conformidad con lo dispuesto en la Ley 1581 de 2012 y su Decreto Reglamentario 1377 de 2013, AUTORIZO de manera libre, previa, expresa, voluntaria y debidamente informada, a que GRUPO AE recolecte, almacene, use, circule, suprima, procese, compile, dé tratamiento, actualice y disponga de los datos que he suministrado y que se han incorporado en sus bases de datos, con el fin de atender mi solicitud, contactarme y presentarme propuestas comerciales de sus servicios.
 
-En este sentido, el SENA queda autorizado de manera expresa e inequívoca para mantener y manejar toda mi información personal y profesional para los fines que se encuentra legal y reglamentariamente facultado; para darlos a conocer a los gremios, empresas, personas naturales, entre otros que suscriban Convenios Especiales de Cooperación en el marco de las Convocatorias que adelanta el Grupo de Gestión para la Productividad y la Competitividad.
+En este sentido, GRUPO AE queda autorizado de manera expresa e inequívoca para mantener y manejar mi información personal y de contacto con fines comerciales, de atención de solicitudes y de gestión de la relación con clientes y prospectos; y para compartirla con sus aliados y proveedores únicamente cuando ello sea necesario para prestar el servicio contratado.
 
-Sin perjuicio de lo anterior, los referidos datos no podrán ser distribuidos, comercializados, compartidos, suministrados o intercambiados con terceros, y en general, realizar actividades en las cuales se vea comprometida la confidencialidad y protección de la información recolectada, y podré en cualquier momento solicitar que la información sea modificada, actualizada o retirada de las bases de datos del SENA.
+Sin perjuicio de lo anterior, los referidos datos no podrán ser distribuidos, comercializados, compartidos, suministrados o intercambiados con terceros, y en general, realizar actividades en las cuales se vea comprometida la confidencialidad y protección de la información recolectada, y podré en cualquier momento conocer, actualizar, rectificar o solicitar la supresión de mi información en las bases de datos de GRUPO AE.
 
-Así mismo, se me indicó que para mayor información podré consultar en cualquier momento el Acuerdo 009 del 2016 – Tratamiento de Datos Personales – SENA, la Ley 1581 de 2012 y el Decreto 1377 de 2013.`;
+Así mismo, se me indicó que para mayor información podré consultar en cualquier momento la Política de Tratamiento de Datos Personales de GRUPO AE, la Ley 1581 de 2012 y el Decreto 1377 de 2013.`;
 
 type Semilla = {
   destinatario: DestinatarioPolitica;

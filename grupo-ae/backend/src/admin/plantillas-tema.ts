@@ -50,7 +50,7 @@ export const PLANTILLAS: PlantillaTema[] = [
   {
     clave: 'naranja-calido',
     nombre: 'Naranja cálido',
-    descripcion: 'Cercano, para convocatorias abiertas.',
+    descripcion: 'Cercano, para campañas de captación.',
     principal: '#c2410c',
     encabezadoDeColor: true,
   },
@@ -99,7 +99,7 @@ export const PLANTILLAS: PlantillaTema[] = [
   {
     clave: 'magenta',
     nombre: 'Magenta',
-    descripcion: 'Para convocatorias que quieren destacar.',
+    descripcion: 'Para campañas que quieren destacar.',
     principal: '#a21caf',
     encabezadoDeColor: false,
   },

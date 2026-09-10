@@ -326,7 +326,7 @@ function DatosGenerales({
         </Campo>
         <Campo
           etiqueta="Mensaje al terminar"
-          ayuda="Lo que lee la persona tras reservar. Si lo deja vacío se usa el texto por defecto."
+          ayuda="Lo que lee la persona tras enviar el formulario. Si lo deja vacío se usa el texto por defecto."
         >
           <textarea
             rows={2}
@@ -546,7 +546,7 @@ function NuevaPregunta({
         etiqueta="¿Es un campo que el sistema necesita?"
         ayuda={
           definicion?.descripcion ??
-          "Los campos del sistema alimentan la reserva (NIT, cupos, curso...). El resto son preguntas libres."
+          "Los campos del sistema alimentan el lead (NIT, servicio de interés...). El resto son preguntas libres."
         }
       >
         <select

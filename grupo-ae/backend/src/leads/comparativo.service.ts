@@ -112,7 +112,7 @@ export class Comparativo {
         },
       },
     });
-    if (!p) throw new NotFoundException('Esa ficha no existe.');
+    if (!p) throw new NotFoundException('Esa oportunidad no existe.');
 
     /// Los leads de esta PERSONA, no solo los de esta ficha.
     ///

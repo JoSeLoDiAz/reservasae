@@ -148,7 +148,7 @@ export default function PaginaMarca() {
         <h1 className="text-[1.3125rem] font-bold tracking-[-0.02em] text-titulo">Apariencia</h1>
         <p className="mt-1 text-texto-suave">
           {gremio?.fijo
-            ? "Esta es la marca GENERAL, la que comparten los dos gremios. La de este gremio se edita en su formulario."
+            ? "Esta es la marca GENERAL, la que comparten todas las líneas de negocio. La de esta línea se edita en su formulario."
             : "Colores, textos y logo. Al guardar se aplican en todo el sistema, también en este panel."}
         </p>
       </header>
@@ -172,12 +172,12 @@ export default function PaginaMarca() {
             formularioId={gremio.formularioId}
             general={marca}
             iniciales={gremio.propios}
-            tituloLogos={`Logos de ${gremio.sigla ?? "este gremio"}`}
-            tituloColores={`Colores de ${gremio.sigla ?? "este gremio"}`}
-            descripcionLogos="Hasta tres, uno por entidad: las del convenio más la capacitadora. Sin ninguno propio se muestran los generales. SVG, PNG o WebP con fondo transparente, máximo 1 MB cada uno; se ven a 80 px de alto."
+            tituloLogos={`Logos de ${gremio.sigla ?? "esta línea de negocio"}`}
+            tituloColores={`Colores de ${gremio.sigla ?? "esta línea de negocio"}`}
+            descripcionLogos="Hasta tres, uno por entidad. Sin ninguno propio se muestran los generales. SVG, PNG o WebP con fondo transparente, máximo 1 MB cada uno; se ven a 80 px de alto."
           />
         ) : (
-          <Bloque titulo="La apariencia de este gremio">
+          <Bloque titulo="La apariencia de esta línea de negocio">
             <AvisoDeGremio gremio={gremio} que="los logos y los colores" />
           </Bloque>
         )
@@ -412,8 +412,8 @@ function MarcaDeCadaGremio() {
 
   return (
     <Bloque
-      titulo="La cara de cada gremio"
-      descripcion="Cada gremio entra por su propia dirección, y allí el sitio sale con los colores y los logos de uno de sus formularios. Aquí se elige cuál. Sin elegir ninguno, ese gremio usa la marca general de abajo."
+      titulo="La cara de cada línea de negocio"
+      descripcion="Cada línea de negocio entra por su propia dirección, y allí el sitio sale con los colores y los logos de uno de sus formularios. Aquí se elige cuál. Sin elegir ninguna, esa línea usa la marca general de abajo."
     >
       <div className="space-y-4">
         {error && <Aviso tipo="error">{error}</Aviso>}
@@ -430,7 +430,7 @@ function MarcaDeCadaGremio() {
 
             {g.formularios.length === 0 ? (
               <p className="text-sm text-texto-suave">
-                Este gremio todavía no tiene formularios, así que usa la marca
+                Esta línea de negocio todavía no tiene formularios, así que usa la marca
                 general.
               </p>
             ) : (
@@ -474,7 +474,7 @@ function MarcaDeCadaGremio() {
  * `formularioId = null` -- así que editarla desde la dirección
  * de un gremio se la cambiaría a los dos. Eso es exactamente
  * el fallo que reportó el cliente: un logo subido entrando por
- * ADECOPRIA salía también en BRITCHAM.
+ * una línea de negocio salía también en la otra.
  *
  * No lleva enlace a ninguna parte: la apariencia del gremio ya
  * está en esta misma pantalla, arriba. Un enlace que se va a
@@ -488,7 +488,7 @@ function AvisoDeGremio({
   gremio: { sigla: string | null; formularioId: string | null };
   que: string;
 }) {
-  const nombre = gremio.sigla ?? "este gremio";
+  const nombre = gremio.sigla ?? "esta línea de negocio";
 
   if (!gremio.formularioId) {
     return (
@@ -496,7 +496,7 @@ function AvisoDeGremio({
         <p className="font-medium">{nombre} todavía no tiene una cara propia.</p>
         <p className="mt-1">
           Elija arriba de qué formulario sale su marca. Hasta entonces usa la
-          general, y lo que se cambie aquí lo verían los dos gremios.
+          general, y lo que se cambie aquí lo verían todas las líneas de negocio.
         </p>
       </div>
     );
@@ -505,7 +505,7 @@ function AvisoDeGremio({
   return (
     <div className="rounded-xl border border-linea bg-superficie-alt p-4 text-sm">
       <p>
-        Esto es lo <strong>general</strong>, lo que comparten los dos gremios, y
+        Esto es lo <strong>general</strong>, lo que comparten todas las líneas de negocio, y
         por eso no se edita desde aquí. Lo de {nombre} está arriba.
       </p>
     </div>

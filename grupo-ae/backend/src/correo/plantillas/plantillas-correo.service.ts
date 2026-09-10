@@ -116,7 +116,7 @@ export class PlantillasCorreoService {
     /// plantilla colgada del otro gremio, que despues aparece
     /// en SU desplegable.
     if (datos.convenioId && !ambito.includes(datos.convenioId)) {
-      throw new NotFoundException('Ese convenio no existe.');
+      throw new NotFoundException('Esa unidad de negocio no existe.');
     }
     this.revisar(datos.asunto, datos.cuerpo);
     return this.prisma.plantillaCorreo.create({
@@ -345,7 +345,7 @@ export class PlantillasCorreoService {
 
     if (!vista.para) {
       throw new BadRequestException(
-        `${vista.nombre} no tiene correo en la ficha. Sin correo no hay a dónde mandarlo.`,
+        `${vista.nombre} no tiene correo en su registro. Sin correo no hay a dónde mandarlo.`,
       );
     }
 
@@ -358,7 +358,7 @@ export class PlantillasCorreoService {
       throw new BadRequestException(
         'Faltan datos de esta persona para llenar la plantilla: ' +
           `${vista.faltantes.map((f) => `{{${f}}}`).join(', ')}. ` +
-          'Complételos en la ficha, o use otra plantilla.',
+          'Complételos en el registro del contacto, o use otra plantilla.',
       );
     }
 

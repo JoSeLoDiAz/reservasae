@@ -835,7 +835,7 @@ export class CrmService {
       },
     });
 
-    if (!p) throw new NotFoundException('Ese participante no existe.');
+    if (!p) throw new NotFoundException('Ese contacto no existe.');
 
     return {
       ...p,
@@ -1107,7 +1107,7 @@ export class CrmService {
         : null;
 
     if (dto.accionFormacionId && !oferta && !accionSuelta) {
-      throw new NotFoundException('Esa accion de formacion no existe.');
+      throw new NotFoundException('Ese producto o servicio no existe.');
     }
     if (accionSuelta && accionSuelta.convenioId !== dto.convenioId) {
       throw new BadRequestException(
@@ -1131,7 +1131,7 @@ export class CrmService {
           },
         },
       });
-      if (!reserva) throw new NotFoundException('Esa reserva no existe.');
+      if (!reserva) throw new NotFoundException('Esa solicitud no existe.');
       if (reserva.oferta.accionFormacion.convenioId !== dto.convenioId) {
         throw new BadRequestException(
           'Esa reserva no pertenece al convenio indicado.',
@@ -1139,7 +1139,7 @@ export class CrmService {
       }
       if (oferta && reserva.ofertaId !== oferta.id) {
         throw new BadRequestException(
-          'Esa reserva no es de la formación que se le asigna.',
+          'Esa solicitud no es del producto que se le asigna.',
         );
       }
     }
@@ -1155,13 +1155,13 @@ export class CrmService {
         if (!dto.sobrecupoMotivo) {
           throw new ConflictException(
             `«${oferta.accionFormacion.nombre}» ya tiene sus ${oferta.cuposMaximos} ` +
-              'cupos ocupados. Para inscribir por encima del cupo hay que indicar el motivo.',
+              'posiciones ocupadas. Para ir por encima de lo acordado hay que indicar el motivo.',
           );
         }
         /// El sobrecupo lo firma alguien, siempre.
         if (!admin) {
           throw new BadRequestException(
-            'Un sobrecupo tiene que autorizarlo una persona.',
+            'Una excepción sobre lo acordado tiene que autorizarla una persona.',
           );
         }
         sobrecupo = { porId: admin.id, motivo: dto.sobrecupoMotivo };
@@ -1295,7 +1295,7 @@ export class CrmService {
       convenioId: dto.convenioId,
       resumen: sobrecupo
         ? `Ficha creada con sobrecupo autorizado: ${sobrecupo.motivo}`
-        : 'Ficha creada.',
+        : 'Oportunidad creada.',
       ip: ip ?? null,
     });
 
@@ -1355,7 +1355,7 @@ export class CrmService {
         },
       },
     });
-    if (!p) throw new NotFoundException('Ese participante no existe.');
+    if (!p) throw new NotFoundException('Ese contacto no existe.');
 
     /// La MISMA regla que las rutas públicas, no una copia.
     ///
@@ -1851,7 +1851,7 @@ export class CrmService {
       throw new BadRequestException(
         'No se puede registrar la caracterización sin autorización de datos ' +
           'vigente: son datos sensibles y tienen que colgar de un ' +
-          'consentimiento. Regístrela primero en esta misma ficha.',
+          'consentimiento. Regístrela primero en este mismo contacto.',
       );
     }
 
@@ -2000,7 +2000,7 @@ export class CrmService {
     });
     if (!concesion) {
       throw new BadRequestException(
-        `${asesor.nombre} no trabaja en este convenio, así que no vería esta ficha. ` +
+        `${asesor.nombre} no trabaja en esta unidad de negocio, así que no vería esta oportunidad. ` +
           'Déle acceso primero, o elija a otra persona.',
       );
     }
@@ -2035,7 +2035,7 @@ export class CrmService {
     );
     if (ajenos.length > 0) {
       throw new ForbiddenException(
-        'Repartir fichas entre asesores lo hace un lider: es organizar el ' +
+        'Repartir oportunidades entre asesores lo hace un lider: es organizar el ' +
           'trabajo del equipo, no atender un lead.',
       );
     }
@@ -2119,7 +2119,7 @@ export class CrmService {
         _count: { select: { avances: true, notas: true } },
       },
     });
-    if (!p) throw new NotFoundException('Ese participante no existe.');
+    if (!p) throw new NotFoundException('Ese contacto no existe.');
 
     /// El orden vive en `borrarParticipaciones`, no aqui.
     ///
@@ -2234,16 +2234,16 @@ export class CrmService {
     if (faltaEmpresa.length > 0) {
       throw new BadRequestException(
         empresa
-          ? `Antes de inscribir hay que completar su organización: ${faltaEmpresa.join(', ')}. ` +
-              'Sin eso no entra en el F7.'
-          : 'Esta persona no tiene organización. Sin ella no se puede reportar al ' +
-              'SENA, así que no se puede inscribir. Mándele el enlace para que la complete.',
+          ? `Antes de avanzar hay que completar su organización: ${faltaEmpresa.join(', ')}. ` +
+              'Sin eso no se puede facturar.'
+          : 'Esta persona no tiene organización. Sin ella no se puede reportar a ' +
+              'nadie, así que no se puede avanzar. Mándele el enlace para que la complete.',
       );
     }
 
     if (!p.ofertaId) {
       throw new BadRequestException(
-        'Este lead no tiene una oferta (acción y ciudad). Asígnesela antes de inscribirlo.',
+        'Este lead no tiene producto ni ciudad. Asígneselos antes de convertirlo.',
       );
     }
 
@@ -2274,7 +2274,7 @@ export class CrmService {
     /// nueva.
     if (!panel.admiteInscripciones) {
       throw new BadRequestException(
-        panel.porQueNo ?? 'No se puede inscribir en esta oferta.',
+        panel.porQueNo ?? 'No se puede avanzar con este producto.',
       );
     }
 
@@ -2297,14 +2297,14 @@ export class CrmService {
     const suyo = panel.grupos.find((g) => g.coberturaId === p.coberturaId);
     if (!suyo) {
       throw new BadRequestException(
-        'Ese grupo no es de esta acción de formación.',
+        'Esa campaña no es de este producto o servicio.',
       );
     }
 
     /// El cupo del grupo SI bloquea: es un contador, no una fecha.
     if (suyo.inscritos >= suyo.cuposMaximos) {
       throw new BadRequestException(
-        `El grupo ${suyo.numero} ya está lleno (${suyo.inscritos} de ${suyo.cuposMaximos}).`,
+        `La campaña ${suyo.numero} ya está completa (${suyo.inscritos} de ${suyo.cuposMaximos}).`,
       );
     }
   }
@@ -2342,7 +2342,7 @@ export class CrmService {
       where: { id },
       select: { id: true, personaId: true, convenioId: true, etapa: true },
     });
-    if (!p) throw new NotFoundException('Ese participante no existe.');
+    if (!p) throw new NotFoundException('Ese contacto no existe.');
 
     const vivas = await this.prisma.autorizacionDatos.findMany({
       where: {
@@ -2432,7 +2432,7 @@ export class CrmService {
         fechaCertificacion: true,
       },
     });
-    if (!p) throw new NotFoundException('Ese participante no existe.');
+    if (!p) throw new NotFoundException('Ese contacto no existe.');
 
     /// Poner la etapa que ya tiene no es una transicion.
     ///
@@ -2463,8 +2463,8 @@ export class CrmService {
       !muevenInscrito.includes(p.convenioId)
     ) {
       throw new ForbiddenException(
-        'Esta persona ya esta inscrita. Sacarla de ahi la quita del cupo y ' +
-          'del reporte al SENA, asi que lo hace un lider. Pidalo con el ' +
+        'Esta oportunidad ya tiene propuesta enviada. Devolverla la saca del pronóstico y ' +
+          'del informe del mes, asi que lo hace un lider. Pidalo con el ' +
           'motivo y queda registrado.',
       );
     }
@@ -2518,7 +2518,7 @@ export class CrmService {
 
       if (obligatorias === 0) {
         throw new BadRequestException(
-          'Esta acción de formación no tiene actividades obligatorias cargadas: ' +
+          'Este producto no tiene hitos obligatorios definidos: ' +
             'no hay contra qué medir si terminó.',
         );
       }
@@ -2526,7 +2526,7 @@ export class CrmService {
       if (logrado < MINIMO_PARA_CERTIFICAR) {
         throw new BadRequestException(
           `Lleva ${aprobadas} de ${obligatorias} actividades obligatorias ` +
-            `(${Math.round(logrado * 100)} %). Para certificar hacen falta ` +
+            `(${Math.round(logrado * 100)} %). Para dar por ganada hacen falta ` +
             `${Math.round(MINIMO_PARA_CERTIFICAR * 100)} %.`,
         );
       }
@@ -2539,8 +2539,8 @@ export class CrmService {
       !cierran.includes(p.convenioId)
     ) {
       throw new ForbiddenException(
-        'Cerrar una formación (certificar o dar por no aprobado) es del líder ' +
-          'del área académica.',
+        'Cerrar una oportunidad (darla por ganada o perdida) es del líder ' +
+          'del área comercial.',
       );
     }
     // datos_completos es estado calculado, no etapa: ponerlo
@@ -2573,7 +2573,7 @@ export class CrmService {
       const { bloquean } = await this.faltantesParaMatricular(id);
       if (bloquean.length > 0) {
         throw new ConflictException(
-          `No se puede matricular todavía: ${bloquean.join('; ')}.`,
+          `No se puede cerrar todavía: ${bloquean.join('; ')}.`,
         );
       }
     }
@@ -2712,7 +2712,7 @@ export class CrmService {
     await this.exigirParticipante(id, ambito);
 
     const existe = await this.prisma.participante.count({ where: { id } });
-    if (!existe) throw new NotFoundException('Ese participante no existe.');
+    if (!existe) throw new NotFoundException('Ese contacto no existe.');
 
     // el nombre se congela: si el autor cambia el suyo,
     // la nota sigue diciendo quien la escribio
@@ -2770,7 +2770,7 @@ export class CrmService {
         },
       },
     });
-    if (!p) throw new NotFoundException('Ese participante no existe.');
+    if (!p) throw new NotFoundException('Ese contacto no existe.');
 
     const falta = faltaDeLaPersona({
       persona: p.persona,
@@ -2796,7 +2796,7 @@ export class CrmService {
       where: { id },
       select: { persona: true },
     });
-    if (!p) throw new NotFoundException('Ese participante no existe.');
+    if (!p) throw new NotFoundException('Ese contacto no existe.');
 
     const actual = p.persona as unknown as Record<string, unknown>;
     const campos = propuesta.campos as Record<string, unknown>;
@@ -2848,7 +2848,7 @@ export class CrmService {
       where: { id },
       select: { personaId: true, convenioId: true },
     });
-    if (!p) throw new NotFoundException('Ese participante no existe.');
+    if (!p) throw new NotFoundException('Ese contacto no existe.');
 
     if (aceptados.length > 0) {
       const data: Record<string, unknown> = {};
@@ -2900,7 +2900,7 @@ export class CrmService {
       where: { id },
       select: { personaId: true },
     });
-    if (!p) throw new NotFoundException('Ese participante no existe.');
+    if (!p) throw new NotFoundException('Ese contacto no existe.');
 
     return p.personaId;
   }
@@ -2990,7 +2990,7 @@ export class CrmService {
     // el SENA cuando puede
     const avisan: string[] = [];
     if (!p.coberturaId) {
-      avisan.push('sin grupo asignado no entra en el reporte al SENA');
+      avisan.push('sin campaña asignada no entra en el informe del mes');
     } else if (!p.cobertura?.grupo.fechaInicio) {
       avisan.push('su grupo no tiene fechas: no se puede saber si va al día');
     }
@@ -3750,7 +3750,7 @@ export class CrmService {
         coberturaId: true,
       },
     });
-    if (!p) throw new NotFoundException('Ese participante no existe.');
+    if (!p) throw new NotFoundException('Ese contacto no existe.');
 
     const oferta = await this.prisma.oferta.findUnique({
       where: { id: dto.ofertaId },
@@ -3783,8 +3783,8 @@ export class CrmService {
      */
     if (!oferta.abierta) {
       throw new BadRequestException(
-        `«${oferta.accionFormacion.codigo}» está cerrada en ${oferta.ubicacion.nombre}. ` +
-          'Para inscribir aquí hay que volver a abrirla.',
+        `«${oferta.accionFormacion.codigo}» ya no se ofrece en ${oferta.ubicacion.nombre}. ` +
+          'Para venderlo aquí hay que volver a habilitarlo.',
       );
     }
 
@@ -3867,7 +3867,7 @@ export class CrmService {
 
     if (oferta.id !== p.ofertaId) {
       partes.push(
-        `Formación: ${oferta.accionFormacion.codigo} · ` +
+        `Producto: ${oferta.accionFormacion.codigo} · ` +
           `${oferta.accionFormacion.nombre} — ${oferta.ubicacion.nombre}`,
       );
     }
@@ -3927,7 +3927,7 @@ export class CrmService {
       where: { id },
       select: { personaId: true, convenioId: true, etapa: true },
     });
-    if (!p) throw new NotFoundException('Ese participante no existe.');
+    if (!p) throw new NotFoundException('Ese contacto no existe.');
 
     const politica = await this.prisma.politicaDatos.findFirst({
       where: {
@@ -3940,7 +3940,7 @@ export class CrmService {
 
     if (!politica) {
       throw new ConflictException(
-        'Este convenio no tiene una política de participantes vigente. ' +
+        'Esta unidad de negocio no tiene una política de contactos vigente. ' +
           'Publíquela antes de registrar autorizaciones.',
       );
     }
@@ -4013,7 +4013,7 @@ export class CrmService {
       select: { convenioId: true },
     });
     if (!p || !ambito.includes(p.convenioId)) {
-      throw new NotFoundException('Ese participante no existe.');
+      throw new NotFoundException('Ese contacto no existe.');
     }
     /// Devuelve el convenio: quien audita después necesita
     /// saber de qué gremio era, y volver a consultarlo sería

@@ -43,8 +43,8 @@ const CORTO: BloqueDePreguntas[] = [
     ],
   },
   {
-    titulo: "Qué quiere estudiar",
-    campos: [{ etiqueta: "Acción de formación", obligatorio: true }],
+    titulo: "Qué necesita",
+    campos: [{ etiqueta: "Servicio de interés", obligatorio: true }],
   },
   {
     titulo: "Permiso",
@@ -82,9 +82,9 @@ const LARGO: BloqueDePreguntas[] = [
       { etiqueta: "Departamento y municipio donde vive" },
       { etiqueta: "Nivel educativo" },
       { etiqueta: "Cargo en la empresa" },
-      { etiqueta: "Nivel ocupacional" },
-      { etiqueta: "Si ya fue beneficiario antes" },
-      { etiqueta: "Población vulnerable, una sola y opcional" },
+      { etiqueta: "Área de la empresa" },
+      { etiqueta: "Si ya fue cliente antes" },
+      { etiqueta: "Presupuesto estimado, opcional" },
     ],
   },
 ];
@@ -198,7 +198,7 @@ export default function FormulariosActivos() {
             descripcion="Personal y de un solo uso. No es público."
           >
             <p className="text-sm text-texto-suave">
-              Lo que falta para poder reportar a la persona al SENA. Se le manda
+              Lo que falta para poder cerrar el negocio con la persona. Se le manda
               después de que llene el corto.
             </p>
           </Bloque>

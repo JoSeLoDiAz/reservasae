@@ -67,7 +67,7 @@ export class PreinscripcionService {
       select: { id: true, slug: true, nombre: true, sigla: true },
     });
     if (!convenio)
-      throw new NotFoundException('No hay una convocatoria con ese nombre.');
+      throw new NotFoundException('No hay un formulario con ese nombre.');
 
     const acciones = await this.prisma.accionFormacion.findMany({
       where: { convenioId: convenio.id, visible: true },
@@ -197,7 +197,7 @@ export class PreinscripcionService {
       select: { id: true, nombre: true },
     });
     if (!convenio)
-      throw new NotFoundException('No hay una convocatoria con ese nombre.');
+      throw new NotFoundException('No hay un formulario con ese nombre.');
 
     const oferta = await this.prisma.oferta.findFirst({
       where: {
@@ -357,7 +357,7 @@ export class PreinscripcionService {
           movimientos: {
             create: {
               etapaDespues: 'INTERESADO',
-              motivo: 'Se inscribió por su cuenta',
+              motivo: 'Se registró por su cuenta',
             },
           },
         },
@@ -474,7 +474,7 @@ export class PreinscripcionService {
     if (suCorreo) {
       const r = await this.correo.enviar({
         para: suCorreo,
-        asunto: `Su preinscripción en ${convenio.nombre}`,
+        asunto: `Su solicitud en ${convenio.nombre}`,
         /// SIN ENLACE, y es una decision del cliente del 3 sep
         /// 2026: «el correo debe llegar solamente si el asesor lo
         /// envia».
@@ -497,12 +497,12 @@ export class PreinscripcionService {
           `Buen día:
 
 ` +
-          `Recibimos su preinscripción en ${convenio.nombre}.
+          `Recibimos su solicitud en ${convenio.nombre}.
 
 ` +
           `Ya teníamos un registro con su documento, así que no hace falta que ` +
           `haga nada más: uno de nuestros asesores se comunicará con usted para ` +
-          `confirmar su inscripción y los pasos a seguir.
+          `confirmar su solicitud y los pasos a seguir.
 
 ` +
           `Si NO fue usted quien se registró, avísenos respondiendo este correo.
@@ -592,7 +592,7 @@ export class PreinscripcionService {
       personaId,
       convenioId,
       canal: 'FORMULARIO_WEB',
-      evidencia: `Formulario de preinscripción, participante ${participanteId}`,
+      evidencia: `Formulario público de solicitud, contacto ${participanteId}`,
       ip,
     });
   }
@@ -790,7 +790,7 @@ export class PreinscripcionService {
       const edad = edadCumplida(new Date(dto.fechaNacimiento));
       if (edad < EDAD_MINIMA) {
         throw new BadRequestException(
-          `Esta formación es para mayores de ${EDAD_MINIMA} años.`,
+          `Este servicio es para mayores de ${EDAD_MINIMA} años.`,
         );
       }
     }

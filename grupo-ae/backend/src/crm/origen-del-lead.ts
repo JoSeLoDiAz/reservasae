@@ -28,7 +28,7 @@ export const ETIQUETA_ORIGEN_DE_LEAD: Record<OrigenDeLead, string> = {
 /// para lo mismo, que es justo lo que no se entiende.
 export const CANALES_DE_ORIGEN_DE_LEAD: Record<OrigenDeLead, string> = {
   PAUTA: 'redes sociales',
-  ORGANICO: 'se inscribió solo',
+  ORGANICO: 'llegó por el formulario público',
   IMPORTACION: 'empresa, asesor, referido o feria',
 };
 

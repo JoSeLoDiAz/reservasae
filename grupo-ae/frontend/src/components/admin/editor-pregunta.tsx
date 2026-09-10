@@ -376,7 +376,7 @@ function Detalle({
           )}
           {obligatorioFijo && (
             <span className="text-xs text-texto-suave">
-              Sin este campo no se puede crear la reserva, así que no se archiva.
+              Sin este campo no se puede registrar el lead, así que no se archiva.
             </span>
           )}
         </div>

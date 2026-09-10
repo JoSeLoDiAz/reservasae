@@ -100,7 +100,7 @@ export class CrearReservaDto {
   /// nuestra, asi que el tipo del JSON no se puede dar por bueno.
   @Transform(({ obj, key }) => booleanoDeVerdad((obj as Record<string, unknown>)[key]))
   @IsBoolean()
-  @Equals(true, { message: 'Debe aceptar los términos de participación.' })
+  @Equals(true, { message: 'Debe aceptar los términos y condiciones.' })
   aceptaTerminos!: boolean;
 
   /// El valor CRUDO, igual que en `leads/dto.ts`.

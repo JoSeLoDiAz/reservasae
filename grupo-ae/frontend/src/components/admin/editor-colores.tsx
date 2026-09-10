@@ -391,7 +391,7 @@ export function VistaPrevia({ colores }: { colores: ColoresTema }) {
 
       <div className="space-y-4 p-5">
         <h4 className="text-xl font-semibold" style={{ color: c("titulo") }}>
-          Reserve sus cupos de formación
+          Solicite información de nuestros servicios
         </h4>
         <p style={{ color: c("texto") }}>Texto normal de un párrafo del formulario.</p>
         <p className="text-sm" style={{ color: c("textoSuave") }}>
@@ -447,7 +447,7 @@ export function VistaPrevia({ colores }: { colores: ColoresTema }) {
           <table className="w-full border-collapse text-sm">
             <thead>
               <tr>
-                {["Curso", "Ubicación", "Cupos"].map((h) => (
+                {["Servicio", "Ubicación", "Disponibilidad"].map((h) => (
                   <th
                     key={h}
                     className="px-3 py-2 text-left font-semibold"
@@ -464,9 +464,9 @@ export function VistaPrevia({ colores }: { colores: ColoresTema }) {
             </thead>
             <tbody>
               {[
-                ["AF01", "Amazonas", "13"],
-                ["AF08", "Medellín", "78"],
-                ["AF04", "Cartagena", "39"],
+                ["SV01", "Amazonas", "13"],
+                ["SV02", "Medellín", "78"],
+                ["SV04", "Cartagena", "39"],
               ].map((fila, i) => (
                 <tr
                   key={fila[0]}
@@ -499,7 +499,7 @@ export function VistaPrevia({ colores }: { colores: ColoresTema }) {
               className="rounded-lg px-4 py-2 text-sm font-medium"
               style={{ background: c("marca"), color: c("marcaTexto") }}
             >
-              Reservar cupos
+              Solicitar información
             </span>
             <span
               className="rounded-lg px-4 py-2 text-sm font-medium"

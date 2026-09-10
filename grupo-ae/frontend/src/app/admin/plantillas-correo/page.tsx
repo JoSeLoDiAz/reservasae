@@ -77,8 +77,8 @@ const GRUPOS: Array<{
       ["INTERESADO", "Interesado"],
       ["CONTACTADO", "Contactado"],
       ["DATOS_COMPLETOS", "Con datos completos"],
-      ["INSCRITO", "Inscrito"],
-      ["EN_FORMACION", "En formación"],
+      ["INSCRITO", "Propuesta enviada"],
+      ["EN_FORMACION", "En negociación"],
     ],
   },
   {
@@ -86,15 +86,15 @@ const GRUPOS: Array<{
     /// bueno que hay. Repartirla en otro grupo para que las
     /// tres columnas midan igual sería mentir sobre el
     /// proceso.
-    titulo: "Terminó bien",
-    etapas: [["CERTIFICADO", "Certificado"]],
+    titulo: "Cerró bien",
+    etapas: [["CERTIFICADO", "Ganado"]],
   },
   {
     titulo: "No siguió",
     etapas: [
-      ["NO_APROBO", "No aprobó"],
-      ["DESERTO", "Desertó", "avisó que se iba"],
-      ["ABANDONO", "Abandonó", "dejó de entrar, sin avisar"],
+      ["NO_APROBO", "No calificó"],
+      ["DESERTO", "Desistió", "avisó que se retiraba"],
+      ["ABANDONO", "Dejó de responder", "sin avisar"],
       ["RETIRADO", "Retirado"],
       ["PERDIDO", "Perdido", "no se logró contactar"],
     ],
@@ -247,7 +247,7 @@ function Lista({
             <p className="font-semibold text-titulo">Todavía no hay ninguna</p>
             <p className="mx-auto mt-1.5 mb-5 max-w-sm text-[13px] text-texto-suave">
               Se escriben una vez y se mandan muchas. Cree la primera para empezar
-              a escribir correos desde una ficha o una campaña.
+              a escribir correos desde una oportunidad o una campaña.
             </p>
             <Boton onClick={() => alEditar("nueva")}>
               <span className="text-base leading-none">+</span> Nueva plantilla
@@ -345,7 +345,7 @@ function Fila({
     ? "Apagada · no aparece al escribir un correo"
     : p.convenio
       ? `Solo para ${p.convenio.sigla ?? p.convenio.nombre}`
-      : "Sirve para todos los gremios";
+      : "Sirve para todas las unidades de negocio";
 
   const etapas =
     p.etapasPermitidas.length > 0
@@ -606,13 +606,13 @@ function Editor({
                 opciones={[
                   {
                     valor: "",
-                    etiqueta: "Sirve para todos los gremios",
+                    etiqueta: "Sirve para todas las unidades de negocio",
                     detalle: "La ven todos, y cualquiera puede usarla",
                   },
                   ...gremios.map((g) => ({
                     valor: g.convenioId,
                     etiqueta: `Solo para ${g.sigla}`,
-                    detalle: "No aparece en los otros gremios",
+                    detalle: "No aparece en las otras unidades de negocio",
                   })),
                 ]}
               />
@@ -933,7 +933,7 @@ function Cabezote({
       <span className="min-w-0">
         <span className="block text-[12.5px] font-semibold">Suba el cabezote</span>
         <span className="block text-[11px] text-texto-suave">
-          PNG, JPG o WebP, hasta 2 MB (logo o franja del gremio).
+          PNG, JPG o WebP, hasta 2 MB (logo o franja de la marca).
         </span>
       </span>
       <input

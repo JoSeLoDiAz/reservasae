@@ -141,7 +141,7 @@ export class FormulariosService {
       where: { id, convenioId: { in: ambito } },
       select: { id: true },
     });
-    if (!suya) throw new NotFoundException('No existe esa acción de formación.');
+    if (!suya) throw new NotFoundException('No existe ese producto o servicio.');
   }
 
   /**
@@ -284,7 +284,7 @@ export class FormulariosService {
   async crear(ambito: string[], dto: CrearFormularioDto) {
     // crear en el convenio ajeno es publicar en su nombre
     if (!ambito.includes(dto.convenioId)) {
-      throw new NotFoundException('Ese convenio no existe.');
+      throw new NotFoundException('Esa unidad de negocio no existe.');
     }
     if (esRutaReservada(dto.slug)) {
       throw new BadRequestException(
@@ -654,7 +654,7 @@ export class FormulariosService {
       // solo los imprescindibles
       if (dto.archivada === true && definicion?.obligatorioParaPublicar) {
         throw new BadRequestException(
-          'Este campo lo necesita el sistema para crear la reserva; no se puede archivar.',
+          'Este campo lo necesita el sistema para crear la oportunidad; no se puede archivar.',
         );
       }
       if (dto.tipo && dto.tipo !== pregunta.tipo) {
@@ -1015,7 +1015,7 @@ export class FormulariosService {
   async guardarResumenPublico(ambito: string[], accionId: string, texto: string | null) {
     await this.exigirAccion(ambito, accionId);
     const existe = await this.prisma.accionFormacion.count({ where: { id: accionId } });
-    if (!existe) throw new NotFoundException('Esa acción de formación no existe.');
+    if (!existe) throw new NotFoundException('Ese producto o servicio no existe.');
 
     const limpio = texto?.trim() ?? '';
     return this.prisma.accionFormacion.update({

@@ -77,7 +77,7 @@ export default function PaginaCampanas() {
 
   /// El gremio de la campaña: el elegido arriba, o el único
   /// que tenga la cuenta. Una campaña SIEMPRE es de un gremio:
-  /// una de BRITCHAM no le escribe a gente de ADECOPRIA.
+  /// una de una línea de negocio no le escribe a la gente de otra.
   const convenioId = gremio ?? (gremios.length === 1 ? gremios[0].convenioId : null);
 
   if (!campanas) {
@@ -113,8 +113,8 @@ export default function PaginaCampanas() {
 
       {!convenioId && (
         <AvisoDeSeccion color="var(--aviso)">
-          Elija un gremio arriba para poder crear una campaña. Una campaña es
-          siempre de un gremio: la de uno no le escribe a la gente del otro.
+          Elija una línea de negocio arriba para poder crear una campaña. Una campaña es
+          siempre de una línea de negocio: la de una no le escribe a la gente de la otra.
         </AvisoDeSeccion>
       )}
 

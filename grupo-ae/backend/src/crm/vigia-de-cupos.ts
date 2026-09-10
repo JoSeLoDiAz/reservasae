@@ -94,7 +94,7 @@ export class VigiaDeCupos implements OnModuleInit {
 
     if (nuevos > 0) {
       this.log.warn(
-        `${nuevos} grupo(s) con cupos sin completar y la inscripción por cerrar. ` +
+        `${nuevos} oportunidad(es) sin avanzar y con fecha de cierre encima. ` +
           'Están en la cola de avisos.',
       );
     }

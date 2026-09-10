@@ -156,7 +156,7 @@ describe('esRegresoAlAula exime de la ventana, no del cupo', () => {
   });
 });
 
-describe('no se cierra una formación que no ocurrió', () => {
+describe('no se cierra una oportunidad que nunca se negoció', () => {
   it('la matriz entera: a CERTIFICADO y NO_APROBO solo desde el aula o INSCRITO', () => {
     cadaPar((antes, despues) => {
       const esCierre = despues === 'CERTIFICADO' || despues === 'NO_APROBO';
@@ -171,11 +171,17 @@ describe('no se cierra una formación que no ocurrió', () => {
   });
 
   it('RETIRADO → CERTIFICADO no, y dice cómo hacerlo bien', () => {
-    expect(motivoDeTransicionImposible('RETIRADO', 'CERTIFICADO')).toMatch(/En formación/);
+    expect(motivoDeTransicionImposible('RETIRADO', 'CERTIFICADO')).toMatch(/En negociación/);
   });
 
   it('INTERESADO → CERTIFICADO tampoco', () => {
-    expect(motivoDeTransicionImposible('INTERESADO', 'CERTIFICADO')).toMatch(/matricula/i);
+    const no = motivoDeTransicionImposible('INTERESADO', 'CERTIFICADO');
+    /// Dos cosas, como antes: la exigencia que no se cumple y el
+    /// paso que falta. Ese paso era «primero se matricula» y hoy
+    /// es enviar la propuesta; sin fijarlo, el mensaje podria
+    /// negar sin decir que hacer, que es justo lo que no sirve.
+    expect(no).toMatch(/haber estado en negociación/i);
+    expect(no).toMatch(/primero se envía la propuesta/i);
   });
 
   it('desde INSCRITO sí: hay grupos sin fechas', () => {
@@ -184,8 +190,8 @@ describe('no se cierra una formación que no ocurrió', () => {
 
   it('la cadena del regreso es transitable de punta a punta', () => {
     /// Esto es lo que ata las tres reglas: si `exigeCupo` o la
-    /// ventana bloquearan el paso por «En formación», la regla
-    /// de arriba —«páselo primero a En formación»— se estaría
+    /// ventana bloquearan el paso por «En negociación», la regla
+    /// de arriba —«pásela primero a En negociación»— se estaría
     /// bloqueando a sí misma y certificar a quien volvió sería
     /// imposible, no difícil.
     expect(motivoDeTransicionImposible('RETIRADO', 'EN_FORMACION')).toBeNull();

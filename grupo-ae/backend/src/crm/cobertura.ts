@@ -147,7 +147,7 @@ export async function exigirCoberturaDeLaOferta(
   if (!cobertura) throw new NotFoundException('Ese grupo no existe.');
 
   if (cobertura.grupo.accionFormacionId !== destino.accionFormacionId) {
-    throw new BadRequestException('Ese grupo es de otra acción de formación.');
+    throw new BadRequestException('Esa campaña es de otro producto o servicio.');
   }
 
   if (destino.ubicacionId && cobertura.ubicacionId !== destino.ubicacionId) {

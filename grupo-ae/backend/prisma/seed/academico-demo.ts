@@ -1,5 +1,5 @@
 /**
- * Datos de aula para poder VER la pestaña «Proceso».
+ * Datos de seguimiento posventa para poder VER la pestaña «Proceso».
  *
  * Solo para desarrollo. Reparte a la gente que ya está en el
  * aula entre los seis estados académicos, para que los

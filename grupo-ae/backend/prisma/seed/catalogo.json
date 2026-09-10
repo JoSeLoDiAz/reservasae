@@ -1,28 +1,28 @@
 {
   "sobrecupo": 0.3,
-  "nota": "Generado por scripts/extraer-catalogo.py desde docs/proyectos/. cuposMaximos ya incluye el 30% de sobrecupo por deserción.",
+  "nota": "Portafolio de servicios de Grupo AE. Se mantiene a mano; no se regenera desde los anexos de proyectos.",
   "convenios": [
     {
       "slug": "britcham-adee",
       "entidad": {
-        "nombre": "UNION TEMPORAL BRITCHAM ADEE",
-        "sigla": "BRITCHAM ADEE",
+        "nombre": "GRUPO AE S.A.S.",
+        "sigla": "Grupo AE",
         "nit": "860505081",
         "digitoVerificacion": "5",
-        "correo": "comercial2@britcham.com.co",
+        "correo": "proyectos@grupo-ae.com.co",
         "telefono": "3268305",
         "departamento": "BOGOTÁ D.C",
         "ciudad": "BOGOTÁ",
         "direccion": "CARRERA 9 NO. 76-49",
-        "paginaWeb": "https://britcham.com.co/"
+        "paginaWeb": "https://grupo-ae.com.co/"
       },
-      "archivoOrigen": "06 - BRITCHAM - ADEE.xlsx",
+      "archivoOrigen": "portafolio-grupo-ae.xlsx",
       "acciones": [
         {
           "codigo": "AF1",
           "consecutivo": 1,
           "orden": 1,
-          "nombre": "DESPLIEGUE DE AGENTES AUTÓNOMOS CON IA PARA LA MAXIMIZACIÓN DEL RENDIMIENTO ORGANIZACIONAL",
+          "nombre": "Automatización de procesos con agentes de inteligencia artificial",
           "modalidad": "VIRTUAL",
           "evento": "CURSO",
           "enfoque": "FORMACIÓN EN EL TRABAJO",
@@ -1760,8 +1760,8 @@
     {
       "slug": "adecopria",
       "entidad": {
-        "nombre": "ASOCIACION DE EDUCACION PRIVADA",
-        "sigla": "ADECOPRIA",
+        "nombre": "GRUPO AE S.A.S.",
+        "sigla": "Grupo AE",
         "nit": "890982432",
         "digitoVerificacion": "0",
         "correo": "direccionejecutiva@adecopria.com",
@@ -1769,9 +1769,9 @@
         "departamento": "ANTIOQUIA",
         "ciudad": "MEDELLÍN",
         "direccion": "CARRERA 84 F 3 D 150. BQ 6 APTO 726",
-        "paginaWeb": "adecopria.com"
+        "paginaWeb": "https://grupo-ae.com.co/"
       },
-      "archivoOrigen": "01 - ADECOPRIA.xlsx",
+      "archivoOrigen": "portafolio-grupo-ae.xlsx",
       "acciones": [
         {
           "codigo": "AF1",

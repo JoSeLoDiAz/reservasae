@@ -80,7 +80,7 @@ export function loQueLeFaltaAlLead(lead: LeadJuzgable): string[] {
   /// cliente pidió y, sobre todo, es lo que hace morder al unique
   /// (accionFormacionId, personaId). Sin curso, dos leads de la
   /// misma persona darían dos fichas y nada lo pararía.
-  if (!lead.accionFormacionId) falta.push('el curso (no se reconoció cuál pidió)');
+  if (!lead.accionFormacionId) falta.push('el producto de interés (no se reconoció cuál pidió)');
 
   return falta;
 }

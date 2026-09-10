@@ -93,11 +93,11 @@ export default function PaginaAcceso() {
 
         <div className="login-entra relative max-w-md" style={{ "--retraso": "980ms" } as React.CSSProperties}>
           <h2 className="text-3xl leading-tight font-bold">
-            De los cupos apartados a las personas formadas.
+            Del primer contacto al negocio cerrado.
           </h2>
           <p className="mt-4 text-sm leading-relaxed opacity-80">
-            Aquí se sigue cada organización que reservó, cada persona inscrita y
-            cómo avanza su formación.
+            Aquí se sigue cada organización que consultó, cada persona interesada y
+            cómo avanza su negocio.
           </p>
         </div>
 

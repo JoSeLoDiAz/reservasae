@@ -95,8 +95,8 @@ describe('la suya sí se toca', () => {
   });
 });
 
-describe('crear no acepta el gremio que le manden', () => {
-  it('con un convenio ajeno en el cuerpo, se niega', async () => {
+describe('crear no acepta la unidad de negocio que le manden', () => {
+  it('con una unidad de negocio ajena en el cuerpo, se niega', async () => {
     // el convenioId venía del CUERPO validado solo con
     // @IsString(): con el id del otro se creaba una campaña
     // sobre sus participantes
@@ -107,12 +107,12 @@ describe('crear no acepta el gremio que le manden', () => {
         { nombre: 'x', asunto: 'x', cuerpo: 'x', segmento: {} },
         'admin1',
       ),
-    ).rejects.toThrow(/acceso a ese convenio/i);
+    ).rejects.toThrow(/acceso a esa unidad de negocio/i);
   });
 
   it('y contar a cuántos va, tampoco', async () => {
     await expect(
       servicio().aCuantos('conv-adecopria', {}, DE_ELLOS),
-    ).rejects.toThrow(/acceso a ese convenio/i);
+    ).rejects.toThrow(/acceso a esa unidad de negocio/i);
   });
 });

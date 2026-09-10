@@ -288,12 +288,12 @@ export function EncabezadoPublico({
       </div>
 
       <h1 className="mt-6 text-3xl font-semibold tracking-tight">
-        {titulo ?? marca?.tituloPublico ?? "Reserve sus cupos de formación"}
+        {titulo ?? marca?.tituloPublico ?? "Solicite información sobre nuestros servicios"}
       </h1>
       <p className="mt-3 text-texto-suave">
         {subtitulo ??
           marca?.subtituloPublico ??
-          "La formación es gratuita y los cupos son limitados."}
+          "Un asesor comercial lo contactará para atender su solicitud."}
       </p>
 
       {marca?.mensajeEncabezado && (
@@ -329,7 +329,7 @@ export function PiePublico() {
       {marca?.piePagina && <p className="mb-6">{marca.piePagina}</p>}
       {/* La FIRMA arriba y la línea legal debajo.
 
-          Estaba al revés. La firma es el logo con «Convoca» y
+          Estaba al revés. La firma es el logo con «Grupo AE» y
           su lema, y la línea legal es la letra pequeña: quien
           gestiona, el año y la versión. Poner la letra pequeña
           encima del logo dejaba el pie leyéndose de mayor a

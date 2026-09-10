@@ -170,7 +170,7 @@ export function bonito(texto: string): string {
 /// escriben igual de cortas, y adivinar cual es sigla se
 /// equivoca en las dos direcciones.
 const SIGLAS = [
-  "SENA", "BRITCHAM", "ADEE", "ADECOPRIA", "SEP", "RUES", "NIT",
+  "RUES", "NIT",
   "IA", "DEI", "TIC", "TICS", "LMS", "PDF", "ONG", "MIPYME", "MIPYMES",
   "PYME", "PYMES", "DANE", "DNP", "RUI", "CRM", "AF",
 ];

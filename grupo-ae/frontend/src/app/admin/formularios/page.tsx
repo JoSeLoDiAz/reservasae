@@ -167,12 +167,12 @@ function NuevoFormulario({
   return (
     <Bloque
       titulo="Nuevo formulario"
-      descripcion="Nace en borrador. No se puede publicar hasta que tenga los campos que el sistema necesita para crear una reserva."
+      descripcion="Nace en borrador. No se puede publicar hasta que tenga los campos que el sistema necesita para crear un lead."
     >
       {/* Con aire entre los campos: pegados, las dos columnas
           se leían como una sola caja partida. */}
       <form onSubmit={enviar} className="grid gap-4 sm:grid-cols-2">
-        <Campo etiqueta="Convenio">
+        <Campo etiqueta="Línea de negocio">
           {/* El desplegable de la casa, no el del sistema
               operativo: el nativo se pinta distinto en cada
               navegador y en tema oscuro abre una lista blanca. */}

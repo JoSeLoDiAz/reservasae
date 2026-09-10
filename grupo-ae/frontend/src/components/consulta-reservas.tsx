@@ -59,7 +59,7 @@ export function ConsultaReservas() {
 
       {datos && !datos.empresa && (
         <p className="rounded-xl border border-borde bg-superficie p-6 text-texto-suave">
-          No hay reservas registradas con ese NIT.
+          No hay solicitudes registradas con ese NIT.
         </p>
       )}
 
@@ -86,7 +86,7 @@ export function ConsultaReservas() {
           </ul>
 
           {datos.reservas.length === 0 && (
-            <p className="mt-4 text-texto-suave">Esta organización no tiene reservas.</p>
+            <p className="mt-4 text-texto-suave">Esta organización no tiene solicitudes.</p>
           )}
         </section>
       )}
@@ -96,7 +96,7 @@ export function ConsultaReservas() {
 
 const ESTADOS = {
   CONFIRMADA: { texto: "Confirmada", clase: "text-exito" },
-  LISTA_ESPERA: { texto: "En lista de espera", clase: "text-aviso" },
+  LISTA_ESPERA: { texto: "En revisión", clase: "text-aviso" },
   CANCELADA: { texto: "Cancelada", clase: "text-error" },
 } as const;
 
@@ -135,8 +135,8 @@ function TarjetaReserva({
     // confirmación explícita antes de cancelar
     if (
       !window.confirm(
-        "Al cancelar, los cupos se liberan de inmediato y pueden ser tomados por " +
-          "otra organización. ¿Desea continuar?",
+        "Al cancelar, la solicitud se cierra y un asesor dejará de hacerle " +
+          "seguimiento. ¿Desea continuar?",
       )
     ) {
       return;
@@ -171,9 +171,9 @@ function TarjetaReserva({
 
       {!cancelada && (
         <p className="mt-3 text-sm">
-          <strong>{reserva.cuposConfirmados}</strong> cupos confirmados
+          <strong>{reserva.cuposConfirmados}</strong> personas registradas
           {reserva.cuposEnEspera > 0 && (
-            <> y {reserva.cuposEnEspera} en lista de espera</>
+            <> y {reserva.cuposEnEspera} en revisión</>
           )}
         </p>
       )}
@@ -212,10 +212,10 @@ function TarjetaReserva({
               onClick={() => setEditando(true)}
               className="font-medium text-marca underline"
             >
-              Cambiar cantidad de cupos
+              Cambiar la cantidad
             </button>
             <button onClick={cancelar} disabled={ocupado} className="text-error underline">
-              Cancelar la reserva
+              Cancelar la solicitud
             </button>
           </div>
         )

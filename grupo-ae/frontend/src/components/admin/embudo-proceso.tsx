@@ -141,7 +141,7 @@ export function EmbudoProceso({
               {esUltimo && meta !== null && meta > 0 && (
                 <div
                   className="mt-1 text-[0.65625rem] font-bold text-marca tabular-nums"
-                  title={`Meta comprometida con el SENA: ${n(meta)} beneficiarios`}
+                  title={`Meta comercial del periodo: ${n(meta)} cierres`}
                 >
                   meta {n(meta)} · {porcentaje(h.total, meta)}
                 </div>

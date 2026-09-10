@@ -111,9 +111,9 @@ export const CAMPO_EN_PALABRAS: Record<string, string> = {
   generoSepId: 'Género',
   cargoEnEmpresa: 'Cargo en la empresa',
   nivelOcupacionalSepId: 'Nivel ocupacional',
-  beneficiarioPrevio: 'Se benefició antes',
+  beneficiarioPrevio: 'Ya fue cliente',
   estrato: 'Estrato',
-  caracterizaciones: 'Población vulnerable',
+  caracterizaciones: 'Datos sensibles declarados',
   caracterizacionRechazada: 'Prefirió no responder',
 };
 

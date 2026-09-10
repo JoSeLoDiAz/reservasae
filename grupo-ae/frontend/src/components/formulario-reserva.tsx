@@ -30,7 +30,7 @@ const MODALIDAD: Record<Modalidad, string> = {
 
 const ETIQUETA_SEMAFORO = {
   DISPONIBLE: { texto: "Disponible", clase: "bg-exito-suave text-exito" },
-  ULTIMOS_CUPOS: { texto: "Últimos cupos", clase: "bg-aviso-suave text-aviso" },
+  ULTIMOS_CUPOS: { texto: "Disponibilidad limitada", clase: "bg-aviso-suave text-aviso" },
   COMPLETO: { texto: "Completo", clase: "bg-error-suave text-error" },
 } as const;
 
@@ -133,7 +133,7 @@ export function FormularioReserva({ slug }: { slug: string }) {
     setYaReservado(false);
 
     if (!oferta) {
-      setError("Elija el curso y la ubicación.");
+      setError("Elija el servicio y la ciudad.");
       return;
     }
 
@@ -209,7 +209,7 @@ export function FormularioReserva({ slug }: { slug: string }) {
   if (estado === "no-disponible") {
     return (
       <div className="rounded-2xl border border-borde bg-superficie p-6">
-        <h2 className="font-medium">No hay formación disponible en este momento</h2>
+        <h2 className="font-medium">No hay servicios disponibles en este momento</h2>
         <p className="mt-2 text-sm text-texto-suave">
           {error ?? "Vuelva a intentarlo más tarde."}
         </p>
@@ -261,7 +261,7 @@ export function FormularioReserva({ slug }: { slug: string }) {
           {yaReservado && (
             <p className="mt-2">
               <Link href="/consulta" className="font-medium underline">
-                Consultar y modificar mi reserva
+                Consultar y modificar mi solicitud
               </Link>
             </p>
           )}
@@ -274,10 +274,10 @@ export function FormularioReserva({ slug }: { slug: string }) {
           disabled={estado === "enviando"}
           className="rounded-xl bg-marca px-6 py-3 font-medium text-marca-texto transition hover:bg-marca-fuerte disabled:opacity-50"
         >
-          {estado === "enviando" ? "Enviando…" : "Reservar cupos"}
+          {estado === "enviando" ? "Enviando…" : "Enviar solicitud"}
         </button>
         <Link href="/consulta" className="text-sm text-marca underline">
-          Ya reservé antes: consultar o modificar
+          Ya envié una solicitud: consultarla o modificarla
         </Link>
       </div>
     </form>
@@ -352,8 +352,8 @@ function ControlPregunta({
             <option key={o.id} value={o.id}>
               {bonito(o.ubicacion)} — {MODALIDAD[o.modalidad]} —{" "}
               {o.estado === "COMPLETO"
-                ? "sin cupos, entraría en lista de espera"
-                : `${o.cuposDisponibles} cupos disponibles`}
+                ? "sin disponibilidad, quedaría en revisión"
+                : `${o.cuposDisponibles} disponibles`}
             </option>
           ))}
         </select>
@@ -368,8 +368,8 @@ function ControlPregunta({
         pregunta={pregunta}
         ayuda={
           oferta
-            ? `Quedan ${oferta.cuposDisponibles} disponibles. Si pide más, la diferencia queda en lista de espera.`
-            : (pregunta.ayuda ?? "Elija primero el curso y la ubicación.")
+            ? `Quedan ${oferta.cuposDisponibles} disponibles. Si solicita más, un asesor revisará la diferencia con usted.`
+            : (pregunta.ayuda ?? "Elija primero el servicio y la ciudad.")
         }
       >
         <input
@@ -571,10 +571,10 @@ function ayudaUbicacion(accion: Accion): string {
   const presencial = accion.ofertas.some((o) => o.modalidad === "PRESENCIAL");
   const virtual = accion.ofertas.some((o) => o.modalidad === "VIRTUAL");
   if (presencial && virtual) {
-    return "Este curso tiene sedes presenciales y cobertura virtual: cada opción indica cuál le corresponde.";
+    return "Este servicio se presta de forma presencial y virtual: cada opción indica cuál le corresponde.";
   }
-  if (presencial) return "Asistirá presencialmente en la ciudad que elija.";
-  return "Las sesiones son en vivo; el departamento define su grupo.";
+  if (presencial) return "La atención es presencial en la ciudad que elija.";
+  return "La atención es virtual; el departamento define el asesor asignado.";
 }
 
 /** "2 ciudades y 12 departamentos". */
@@ -634,7 +634,7 @@ function TarjetaCurso({
       <p className="pr-8 font-medium leading-snug">{bonito(accion.nombre)}</p>
 
       <span className="mt-3 self-start rounded-md bg-marca/10 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-marca">
-        {accion.evento ?? "Formación"}
+        {accion.evento ?? "Servicio"}
       </span>
 
       <p className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-texto-suave">
@@ -657,13 +657,13 @@ function TarjetaCurso({
       <p className="mt-4 grow content-end text-sm">
         {disponibles > 0 ? (
           <span className="font-medium text-exito">
-            {disponibles} cupos disponibles
+            {disponibles} disponibles
             {llenas > 0 && (
-              <span className="font-normal text-texto-suave"> · {llenas} sin cupo</span>
+              <span className="font-normal text-texto-suave"> · {llenas} sin disponibilidad</span>
             )}
           </span>
         ) : (
-          <span className="font-medium text-aviso">Sin cupos — entraría en lista de espera</span>
+          <span className="font-medium text-aviso">Sin disponibilidad — su solicitud quedaría en revisión</span>
         )}
       </p>
     </label>
@@ -680,7 +680,7 @@ function ResumenOferta({ oferta }: { oferta: Oferta }) {
       <span>
         {MODALIDAD[oferta.modalidad]} · <strong>{bonito(oferta.ubicacion)}</strong>
       </span>
-      <span className="text-texto-suave">{oferta.cuposDisponibles} cupos disponibles</span>
+      <span className="text-texto-suave">{oferta.cuposDisponibles} disponibles</span>
     </div>
   );
 }
@@ -696,7 +696,7 @@ function Confirmacion({ reserva, mensaje }: { reserva: Reserva; mensaje?: string
             : "bg-aviso-suave text-aviso"
         }`}
       >
-        {reserva.cuposConfirmados > 0 ? "Reserva registrada" : "En lista de espera"}
+        {reserva.cuposConfirmados > 0 ? "Solicitud registrada" : "En revisión"}
       </span>
 
       <h2 className="mt-4 text-xl font-medium">{bonito(reserva.oferta.accion.nombre)}</h2>
@@ -708,22 +708,21 @@ function Confirmacion({ reserva, mensaje }: { reserva: Reserva; mensaje?: string
       {mensaje && <p className="mt-4 text-texto-suave">{mensaje}</p>}
 
       <dl className="mt-6 grid gap-3 border-t border-borde pt-6 sm:grid-cols-3">
-        <Dato titulo="Cupos solicitados" valor={reserva.cuposSolicitados} />
-        <Dato titulo="Confirmados" valor={reserva.cuposConfirmados} destacado />
-        <Dato titulo="En lista de espera" valor={reserva.cuposEnEspera} />
+        <Dato titulo="Personas solicitadas" valor={reserva.cuposSolicitados} />
+        <Dato titulo="Confirmadas" valor={reserva.cuposConfirmados} destacado />
+        <Dato titulo="En revisión" valor={reserva.cuposEnEspera} />
       </dl>
 
       {enEspera && (
         <p className="mt-4 rounded-lg bg-aviso-suave p-4 text-sm text-aviso">
-          No había cupo para los {reserva.cuposEnEspera} restantes. Quedan en lista
-          de espera y pasarán a confirmados automáticamente, por orden de llegada,
-          si alguien cancela.
+          Quedan {reserva.cuposEnEspera} pendientes de revisión. Un asesor comercial
+          se comunicará con usted para confirmarlos.
         </p>
       )}
 
       <p className="mt-6 text-sm text-texto-suave">
         Guarde el NIT <strong className="text-texto">{reserva.empresa.nit}</strong>: es
-        lo único que necesita para consultar o modificar esta reserva.
+        lo único que necesita para consultar o modificar esta solicitud.
       </p>
 
       <div className="mt-6 flex flex-wrap gap-4">
@@ -731,14 +730,14 @@ function Confirmacion({ reserva, mensaje }: { reserva: Reserva; mensaje?: string
           href="/consulta"
           className="rounded-xl bg-marca px-5 py-2.5 text-sm font-medium text-marca-texto transition hover:bg-marca-fuerte"
         >
-          Ver mis reservas
+          Ver mis solicitudes
         </Link>
         <button
           type="button"
           onClick={() => window.location.reload()}
           className="rounded-xl border border-borde px-5 py-2.5 text-sm font-medium transition hover:bg-fondo"
         >
-          Reservar otro curso
+          Solicitar otro servicio
         </button>
       </div>
     </div>

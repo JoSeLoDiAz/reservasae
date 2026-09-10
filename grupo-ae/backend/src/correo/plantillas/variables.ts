@@ -68,19 +68,19 @@ export const VARIABLES: Variable[] = [
   },
   {
     clave: 'accionFormacion',
-    titulo: 'Acción de formación',
-    ejemplo: 'AF1 · Gestión de la atención',
+    titulo: 'Producto o servicio',
+    ejemplo: 'Consultoría comercial B2B',
   },
-  { clave: 'grupo', titulo: 'Número de grupo', ejemplo: '3' },
+  { clave: 'grupo', titulo: 'Número de la oportunidad', ejemplo: '3' },
   {
     clave: 'fechaInicio',
     titulo: 'Cuándo arranca',
     ejemplo: '7 de septiembre de 2026',
   },
-  { clave: 'ubicacion', titulo: 'Dónde se dicta', ejemplo: 'Medellín' },
+  { clave: 'ubicacion', titulo: 'Ciudad', ejemplo: 'Medellín' },
   { clave: 'modalidad', titulo: 'Modalidad', ejemplo: 'Virtual' },
-  { clave: 'asesor', titulo: 'Quién lo acompaña', ejemplo: 'Ana Jaramillo' },
-  { clave: 'gremio', titulo: 'Gremio', ejemplo: 'ADECOPRIA' },
+  { clave: 'asesor', titulo: 'Asesor comercial', ejemplo: 'Ana Jaramillo' },
+  { clave: 'gremio', titulo: 'Unidad de negocio', ejemplo: 'Grupo AE' },
 ];
 
 const MESES = [

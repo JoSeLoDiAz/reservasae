@@ -41,7 +41,7 @@ const ROLES: Array<{ valor: RolAdmin; etiqueta: string; descripcion: string }> =
   {
     valor: "GESTOR",
     etiqueta: "No, solo su trabajo",
-    descripcion: "Lo que ve y hace lo deciden los convenios y roles de abajo.",
+    descripcion: "Lo que ve y hace lo deciden las unidades de negocio y roles de abajo.",
   },
 ];
 
@@ -65,7 +65,7 @@ function MatrizDePermisos() {
   return (
     <Bloque
       titulo="Qué ve y qué toca cada rol"
-      descripcion="El rol se elige por convenio. Esta tabla dice lo que trae cada uno; la aplica el servidor y no se puede editar aquí."
+      descripcion="El rol se elige por unidad de negocio. Esta tabla dice lo que trae cada uno; la aplica el servidor y no se puede editar aquí."
     >
       <div className="caja-scroll overflow-x-auto">
         <table className="w-full min-w-[720px] border-collapse text-sm">
@@ -274,7 +274,7 @@ export default function PaginaUsuarios() {
                     ))
                   ) : u.rol === "SUPERADMIN" ? null : (
                     <Pildora tono="error">
-                      Sin rol en ningún gremio: no ve ninguna pantalla
+                      Sin rol en ninguna unidad de negocio: no ve ninguna pantalla
                     </Pildora>
                   )}
                 </div>
@@ -316,7 +316,7 @@ export default function PaginaUsuarios() {
                   onClick={() => setEditando(editando === u.id ? null : u.id)}
                   className="text-marca underline"
                 >
-                  {editando === u.id ? "Cerrar" : "Convenios"}
+                  {editando === u.id ? "Cerrar" : "Unidades de negocio"}
                 </button>
                 <button
                   onClick={() =>
@@ -471,7 +471,7 @@ function FormularioNuevoUsuario({
           <p className="mb-1.5 text-sm font-medium">A qué unidades de negocio entra</p>
           <p className="mb-3 text-xs text-texto-suave">
             Sin marcar ninguno, la cuenta entra al panel y no ve una sola
-            pantalla. El rol se elige por convenio: se puede llevar un área en
+            pantalla. El rol se elige por unidad de negocio: se puede llevar un área en
             uno y otra en el otro.
           </p>
 
@@ -550,7 +550,7 @@ function EditorConcesiones({
             setGuardando(false);
           }}
         >
-          {guardando ? "Guardando…" : "Guardar convenios"}
+          {guardando ? "Guardando…" : "Guardar unidades de negocio"}
         </Boton>
         {concesiones.length === 0 && (
           <span className="text-xs text-error">

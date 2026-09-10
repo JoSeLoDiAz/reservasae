@@ -101,9 +101,9 @@ describe('qué le falta a un lead para poder ser ficha', () => {
     );
   });
 
-  it('sin curso, falta el curso', () => {
+  it('sin producto de interés, eso es lo que falta', () => {
     expect(loQueLeFaltaAlLead({ ...listo, accionFormacionId: null })).toEqual([
-      expect.stringMatching(/curso/i),
+      expect.stringMatching(/producto de inter/i),
     ]);
   });
 

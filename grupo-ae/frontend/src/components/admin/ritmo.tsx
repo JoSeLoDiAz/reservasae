@@ -43,7 +43,7 @@ export function textoDeEstado(p: Proyeccion): string {
 
   switch (p.cronograma) {
     case "CERRADA":
-      return `Inscripción cerrada el ${fechaLarga(p.cierre!)}. Quedaron ${n(
+      return `Cerrado el ${fechaLarga(p.cierre!)}. Quedaron ${n(
         p.faltan,
       )} cupos sin llenar.`;
 
@@ -114,7 +114,7 @@ export function BloqueRitmo({ informe }: { informe: InformeProyeccion }) {
         <TarjetaCifra
           titulo={`Ritmo (${informe.dias} días)`}
           valor={ritmo(t.ritmoDiario)}
-          sufijo="cupos/día"
+          sufijo="cierres/día"
           detalle={[
             t.ritmo7 !== null && `7 días: ${ritmo(t.ritmo7)}`,
             t.ritmo14 !== null && `14 días: ${ritmo(t.ritmo14)}`,
@@ -126,7 +126,7 @@ export function BloqueRitmo({ informe }: { informe: InformeProyeccion }) {
         <TarjetaCifra
           titulo="Faltan para la meta"
           valor={t.faltan}
-          sufijo="cupos"
+          sufijo="cierres"
           detalle={`Meta comprometida: ${n(t.meta)}`}
         />
         <TarjetaCifra
@@ -172,14 +172,14 @@ export function TablaRitmo({ acciones }: { acciones: InformeProyeccion["acciones
   return (
     <Tarjeta
       titulo="Qué va más lento"
-      descripcion="Ordenado por cupos que entran al día. Sin fecha límite: solo dice cuándo se llenaría al ritmo actual."
+      descripcion="Ordenado por cierres que entran al día. Sin fecha límite: solo dice cuándo se alcanzaría la meta al ritmo actual."
     >
       <div className="caja-scroll overflow-x-auto">
         <table className="w-full min-w-[46rem] text-sm">
           <thead>
             <tr className="border-b border-tabla-borde bg-tabla-cabecera-fondo text-tabla-cabecera-texto">
               <th className="px-3 py-2 text-left font-semibold">Acción</th>
-              <th className="px-3 py-2 text-right font-semibold">Cupos/día</th>
+              <th className="px-3 py-2 text-right font-semibold">Cierres/día</th>
               <th className="px-3 py-2 text-right font-semibold">Faltan</th>
               <th className="px-3 py-2 text-left font-semibold">A este ritmo</th>
               <th className="px-3 py-2 text-left font-semibold">Tendencia</th>

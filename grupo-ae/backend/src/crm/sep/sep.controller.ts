@@ -64,7 +64,7 @@ export class SepController {
     try {
       if (formato === 'f7') {
         const { libro } = await this.sep.exportarF7(convenioId, ambito.convenios);
-        enviarLibro(res, libro, 'f7-empresas');
+        enviarLibro(res, libro, 'organizaciones');
         return;
       }
 
@@ -75,7 +75,7 @@ export class SepController {
         Number(ano) || new Date().getFullYear(),
         ambito.convenios,
       );
-      enviarLibro(res, libro, cual === 'cargue-sep' ? 'reporte-sep' : 'reporte-control');
+      enviarLibro(res, libro, cual === 'cargue-sep' ? 'exportacion-masiva' : 'informe-control');
     } catch (error) {
       if (error instanceof BadRequestException) {
         paginaDeError(res, mensajeDe(error));

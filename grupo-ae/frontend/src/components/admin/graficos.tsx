@@ -330,7 +330,7 @@ const ESTADOS: Record<
     clase: "text-exito",
   },
   ULTIMOS_CUPOS: {
-    texto: "Últimos cupos",
+    texto: "Última disponibilidad",
     clase: "text-aviso",
   },
   COMPLETO: { texto: "Completo", clase: "text-error" },
@@ -370,8 +370,8 @@ type Punto = { dia: string; cupos: number; reservas?: number };
 /** Barras por día; la unidad se puede renombrar. */
 export function BarrasPorDia({
   datos,
-  unidad = "cupos",
-  vacio = "Todavía no hay reservas que mostrar.",
+  unidad = "oportunidades",
+  vacio = "Todavía no hay movimiento que mostrar.",
 }: {
   datos: Punto[];
   unidad?: string;
@@ -436,7 +436,7 @@ export function BarrasPorDia({
             {" "}
             · {n(punto.cupos)} {unidad}
             {punto.reservas !== undefined &&
-              ` en ${n(punto.reservas)} ${punto.reservas === 1 ? "reserva" : "reservas"}`}
+              ` en ${n(punto.reservas)} ${punto.reservas === 1 ? "operación" : "operaciones"}`}
           </span>
         </div>
       )}

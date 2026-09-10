@@ -381,7 +381,7 @@ export class MesaDeEntrada {
     /// que corregir se corrige en la ficha.
     if (lead.participanteId || lead.estado !== 'PENDIENTE') {
       throw new BadRequestException(
-        'Este lead ya se atendió. Corrija los datos en su ficha, que es la ' +
+        'Este lead ya se atendió. Corrija los datos en su oportunidad, que es la ' +
           'que vale.',
       );
     }
@@ -398,7 +398,7 @@ export class MesaDeEntrada {
       });
       if (!suya) {
         throw new BadRequestException(
-          'Esa acción de formación no es de este convenio.',
+          'Ese producto o servicio no es de esta unidad de negocio.',
         );
       }
     }

@@ -1,4 +1,4 @@
-/** Carga el banco de instituciones asociadas. */
+/** Carga el banco de empresas para el buscador por NIT. */
 
 import { PrismaClient } from '../../generated/prisma';
 import { calcularDigitoVerificacion } from '../../src/comun/nit';

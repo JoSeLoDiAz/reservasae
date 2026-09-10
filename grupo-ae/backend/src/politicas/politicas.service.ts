@@ -99,14 +99,14 @@ export class PoliticasService {
     // publicar la politica del otro convenio es cambiarle a
     // su gente el texto que aceptan
     if (!ambito.includes(dto.convenioId)) {
-      throw new NotFoundException('Ese convenio no existe.');
+      throw new NotFoundException('Esa marca no existe.');
     }
 
     const convenio = await this.prisma.convenio.findUnique({
       where: { id: dto.convenioId },
       select: { id: true },
     });
-    if (!convenio) throw new NotFoundException('Ese convenio no existe.');
+    if (!convenio) throw new NotFoundException('Esa marca no existe.');
 
     return this.prisma.$transaction(async (tx) => {
       const anterior = await tx.politicaDatos.findFirst({

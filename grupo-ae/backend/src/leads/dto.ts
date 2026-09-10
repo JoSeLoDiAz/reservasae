@@ -24,8 +24,20 @@ import { CanalAutorizacion, OrigenParticipante } from '../../generated/prisma';
 const recortar = ({ value }: { value: unknown }) =>
   typeof value === 'string' ? value.trim() : value;
 
-/// Los dos gremios, y nada mas.
-const CONVENIOS = ['adecopria', 'britcham-adee'];
+/**
+ * Aqui habia una lista fija de slugs: `['adecopria', 'britcham-adee']`.
+ *
+ * Se quito porque era una segunda fuente de verdad y se desincronizo
+ * en cuanto las unidades de negocio se renombraron en la base: el DTO
+ * rechazaba con 400 un slug que SI existia, y el lead se perdia antes
+ * de que nadie pudiera mirarlo. Un lead perdido en la puerta no deja
+ * rastro en ninguna pantalla.
+ *
+ * La validacion de verdad ya estaba en `leads.service.ts`, que busca
+ * el convenio activo en la base y contesta con los slugs que existen
+ * DE VERDAD en ese momento. Una lista escrita a mano solo podia
+ * discrepar de esa, nunca mejorarla.
+ */
 
 export class EntraLeadDto {
   /**
@@ -39,9 +51,6 @@ export class EntraLeadDto {
   @IsOptional()
   @Transform(recortar)
   @IsString()
-  @IsIn(CONVENIOS, {
-    message: `El convenio tiene que ser uno de: ${CONVENIOS.join(', ')}.`,
-  })
   convenio?: string;
 
   /**

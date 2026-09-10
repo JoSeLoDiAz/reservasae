@@ -1,9 +1,9 @@
 import { enPalabras, porQueNo, TODAS_LAS_ETAPAS } from './etapas-de-plantilla';
 
-/// Lo que cuida esto: que no salga una «confirmación de
-/// inscripción» a quien todavía no está inscrito. Ese correo
-/// no se recoge, y la persona se queda esperando un cupo que
-/// nadie le dio.
+/// Lo que cuida esto: que no salga un «cerramos el negocio»
+/// a quien apenas está en negociación. Ese correo no se
+/// recoge, y el cliente se queda esperando un cierre que
+/// nadie firmó.
 
 describe('cuándo se puede mandar una plantilla', () => {
   it('sin etapas puestas, sirve para cualquiera', () => {
@@ -25,10 +25,10 @@ describe('cuándo se puede mandar una plantilla', () => {
     const no = porQueNo(['INSCRITO'], 'INTERESADO');
     // sin las dos, quien lo lee no sabe qué corregir
     expect(no).toContain('interesado');
-    expect(no).toContain('inscrito');
+    expect(no).toContain('con propuesta enviada');
   });
 
-  it('una ficha sin etapa tampoco pasa si la plantilla exige una', () => {
+  it('una oportunidad sin etapa tampoco pasa si la plantilla exige una', () => {
     expect(porQueNo(['INSCRITO'], null)).toContain('no tiene etapa');
   });
 });
@@ -39,7 +39,7 @@ describe('las etapas se dicen en cristiano', () => {
   });
 
   it('EN_FORMACION tampoco', () => {
-    expect(enPalabras('EN_FORMACION')).toBe('en formación');
+    expect(enPalabras('EN_FORMACION')).toBe('en negociación');
   });
 
   it('una que no esté en la tabla sale en minúscula, no en bruto', () => {
@@ -48,18 +48,18 @@ describe('las etapas se dicen en cristiano', () => {
 });
 
 describe('las etapas de salida también cuentan', () => {
-  it('se le puede escribir a quien NO quedó', () => {
+  it('se le puede escribir a quien NO cerró', () => {
     // el primer intento las dejó fuera y eso hacía que el
     // sistema solo supiera felicitar: no había forma de
-    // mandar «no quedó seleccionado esta vez»
+    // mandar «esta vez no se dio»
     expect(porQueNo(['PERDIDO'], 'PERDIDO')).toBeNull();
     expect(porQueNo(['NO_APROBO'], 'NO_APROBO')).toBeNull();
     expect(porQueNo(['DESERTO', 'ABANDONO'], 'ABANDONO')).toBeNull();
   });
 
-  it('y una plantilla de «no quedó» NO le sale a quien sí quedó', () => {
+  it('y una plantilla de «se perdió» NO le sale a quien sigue vivo', () => {
     const no = porQueNo(['PERDIDO'], 'INSCRITO');
-    expect(no).toContain('inscrito');
+    expect(no).toContain('con propuesta enviada');
     expect(no).toContain('perdido');
   });
 

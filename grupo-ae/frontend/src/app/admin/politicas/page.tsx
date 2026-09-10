@@ -23,7 +23,7 @@ const DESTINATARIOS: Array<{ valor: Destinatario; ayuda: string }> = [
     valor: "RESERVA",
     ayuda:
       "La acepta quien diligencia el formulario en nombre de su organización. " +
-      "Sin este texto vigente no se puede publicar ninguna acción de formación.",
+      "Sin este texto vigente no se puede publicar ningún formulario de empresas.",
   },
   {
     valor: "PARTICIPANTE",
@@ -97,13 +97,13 @@ export default function PaginaPoliticas() {
         <Aviso tipo="error">
           <p className="font-medium">
             {sinTexto.length === 1
-              ? "Un convenio no puede publicar formación"
-              : `${sinTexto.length} convenios no pueden publicar formación`}
+              ? "Una unidad de negocio no puede publicar formularios"
+              : `${sinTexto.length} unidades de negocio no pueden publicar formularios`}
           </p>
           <p className="mt-1">
-            Falta la política de preinscripción en{" "}
+            Falta la política de datos de personas en{" "}
             {sinTexto.map((c) => c.convenio.sigla ?? c.convenio.nombre).join(" y ")}.
-            Mientras no exista, publicar una acción de formación se rechaza.
+            Mientras no exista, publicar un formulario público se rechaza.
           </p>
         </Aviso>
       )}

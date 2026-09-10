@@ -39,8 +39,8 @@ import { politicaVigente, type Destinatario, type PoliticaPublica } from "@/lib/
  */
 export const TEXTO_DE_RESPALDO =
   "Autorizo de manera libre, previa, expresa e informada el tratamiento de mis datos " +
-  "personales para gestionar mi preinscripción, confirmar mi cupo y adelantar el " +
-  "proceso de matrícula en la formación seleccionada, así como para contactarme por " +
+  "personales para atender mi solicitud, elaborar la cotización correspondiente y " +
+  "adelantar el proceso comercial del servicio seleccionado, así como para contactarme por " +
   "los medios que registré. Podré conocer, actualizar, rectificar y suprimir mis " +
   "datos, y revocar esta autorización, en los términos de la Ley 1581 de 2012 y el " +
   "Decreto 1377 de 2013.";

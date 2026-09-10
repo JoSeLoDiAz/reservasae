@@ -52,14 +52,14 @@ export const GRUPOS: Array<{ clave: GrupoToken; etiqueta: string; descripcion: s
     clave: 'ESTADOS',
     etiqueta: 'Estados',
     descripcion:
-      'Confirmado, lista de espera y completo. También los mensajes de error. ' +
+      'Ganado, en riesgo y perdido. También los mensajes de error. ' +
       'Cámbielos con cuidado: si pierden contraste, un aviso importante pasa desapercibido.',
   },
   {
     clave: 'ETAPAS',
     etiqueta: 'Etapas del CRM',
     descripcion:
-      'Una por columna del tablero de inscripciones. La etiqueta siempre se lee, ' +
+      'Una por columna del tablero del embudo. La etiqueta siempre se lee, ' +
       'así que el color acompaña pero nunca es lo único que distingue una etapa.',
   },
 ];
@@ -102,23 +102,23 @@ export const TOKENS: DefinicionToken[] = [
   // Estados
   { clave: 'exito', variableCss: '--exito', grupo: 'ESTADOS', etiqueta: 'Disponible / confirmado' },
   { clave: 'exitoSuave', variableCss: '--exito-suave', grupo: 'ESTADOS', etiqueta: 'Fondo de disponible' },
-  { clave: 'aviso', variableCss: '--aviso', grupo: 'ESTADOS', etiqueta: 'Últimos cupos / en espera' },
-  { clave: 'avisoSuave', variableCss: '--aviso-suave', grupo: 'ESTADOS', etiqueta: 'Fondo de últimos cupos' },
-  { clave: 'error', variableCss: '--error', grupo: 'ESTADOS', etiqueta: 'Completo / error' },
+  { clave: 'aviso', variableCss: '--aviso', grupo: 'ESTADOS', etiqueta: 'En riesgo / pendiente' },
+  { clave: 'avisoSuave', variableCss: '--aviso-suave', grupo: 'ESTADOS', etiqueta: 'Fondo de en riesgo' },
+  { clave: 'error', variableCss: '--error', grupo: 'ESTADOS', etiqueta: 'Perdido / error' },
   { clave: 'errorSuave', variableCss: '--error-suave', grupo: 'ESTADOS', etiqueta: 'Fondo de error' },
 
   // Etapas del CRM
   { clave: 'etapaInteresado', variableCss: '--etapa-interesado', grupo: 'ETAPAS', etiqueta: 'Interesado' },
   { clave: 'etapaContactado', variableCss: '--etapa-contactado', grupo: 'ETAPAS', etiqueta: 'Contactado' },
   { clave: 'etapaDatosCompletos', variableCss: '--etapa-datos-completos', grupo: 'ETAPAS', etiqueta: 'Datos completos' },
-  { clave: 'etapaInscrito', variableCss: '--etapa-inscrito', grupo: 'ETAPAS', etiqueta: 'Inscrito' },
-  { clave: 'etapaEnFormacion', variableCss: '--etapa-en-formacion', grupo: 'ETAPAS', etiqueta: 'En formación' },
-  { clave: 'etapaCertificado', variableCss: '--etapa-certificado', grupo: 'ETAPAS', etiqueta: 'Certificado' },
+  { clave: 'etapaInscrito', variableCss: '--etapa-inscrito', grupo: 'ETAPAS', etiqueta: 'Propuesta enviada' },
+  { clave: 'etapaEnFormacion', variableCss: '--etapa-en-formacion', grupo: 'ETAPAS', etiqueta: 'En negociación' },
+  { clave: 'etapaCertificado', variableCss: '--etapa-certificado', grupo: 'ETAPAS', etiqueta: 'Ganado' },
   { clave: 'etapaPerdido', variableCss: '--etapa-perdido', grupo: 'ETAPAS', etiqueta: 'No interesado' },
   { clave: 'etapaRetirado', variableCss: '--etapa-retirado', grupo: 'ETAPAS', etiqueta: 'Retirado' },
-  { clave: 'etapaNoAprobo', variableCss: '--etapa-no-aprobo', grupo: 'ETAPAS', etiqueta: 'No aprobó' },
-  { clave: 'etapaDeserto', variableCss: '--etapa-deserto', grupo: 'ETAPAS', etiqueta: 'Desertó' },
-  { clave: 'etapaAbandono', variableCss: '--etapa-abandono', grupo: 'ETAPAS', etiqueta: 'Abandonó' },
+  { clave: 'etapaNoAprobo', variableCss: '--etapa-no-aprobo', grupo: 'ETAPAS', etiqueta: 'No cerró' },
+  { clave: 'etapaDeserto', variableCss: '--etapa-deserto', grupo: 'ETAPAS', etiqueta: 'Desistió' },
+  { clave: 'etapaAbandono', variableCss: '--etapa-abandono', grupo: 'ETAPAS', etiqueta: 'Dejó de responder' },
 ];
 
 /** Los tokens de etapa, en el orden del embudo. */
@@ -156,7 +156,7 @@ export const COMPROBACIONES_CONTRASTE: Array<{
   /// verde que se lee sobre su propio fondo claro y no sobre el
   /// blanco de la tabla, que es donde de verdad está.
   { frente: 'exito', fondo: 'superficie', descripcion: 'Estado «disponible» en una tabla' },
-  { frente: 'aviso', fondo: 'superficie', descripcion: 'Estado «últimos cupos» en una tabla' },
+  { frente: 'aviso', fondo: 'superficie', descripcion: 'Estado «en riesgo» en una tabla' },
   { frente: 'error', fondo: 'superficie', descripcion: 'Estado «completo» o error' },
 
   /// Y DISTINGUIBLES ENTRE SÍ.
@@ -175,7 +175,7 @@ export const COMPROBACIONES_CONTRASTE: Array<{
   {
     frente: 'exito',
     fondo: 'aviso',
-    descripcion: 'Distinguir «disponible» de «últimos cupos»',
+    descripcion: 'Distinguir «al día» de «en riesgo»',
     entreEstados: true,
   },
   {
@@ -196,9 +196,9 @@ export const COMPROBACIONES_CONTRASTE: Array<{
   { frente: 'etapaInteresado', fondo: 'superficie', descripcion: 'Etiqueta de Interesado' },
   { frente: 'etapaContactado', fondo: 'superficie', descripcion: 'Etiqueta de Contactado' },
   { frente: 'etapaDatosCompletos', fondo: 'superficie', descripcion: 'Etiqueta de Datos completos' },
-  { frente: 'etapaInscrito', fondo: 'superficie', descripcion: 'Etiqueta de Inscrito' },
-  { frente: 'etapaEnFormacion', fondo: 'superficie', descripcion: 'Etiqueta de En formación' },
-  { frente: 'etapaCertificado', fondo: 'superficie', descripcion: 'Etiqueta de Certificado' },
+  { frente: 'etapaInscrito', fondo: 'superficie', descripcion: 'Etiqueta de Propuesta enviada' },
+  { frente: 'etapaEnFormacion', fondo: 'superficie', descripcion: 'Etiqueta de En negociación' },
+  { frente: 'etapaCertificado', fondo: 'superficie', descripcion: 'Etiqueta de Ganado' },
   { frente: 'etapaPerdido', fondo: 'superficie', descripcion: 'Etiqueta de Perdido' },
   { frente: 'etapaRetirado', fondo: 'superficie', descripcion: 'Etiqueta de Retirado' },
   { frente: 'etapaNoAprobo', fondo: 'superficie', descripcion: 'Etiqueta de No aprobó' },

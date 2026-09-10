@@ -164,7 +164,7 @@ describe('un lead del otro gremio ni se convierte ni se menciona', () => {
 });
 
 describe('la regla de «listo» se comprueba en el SERVIDOR', () => {
-  it('sin curso no se convierte, aunque lo pidan por la API', async () => {
+  it('sin producto de interes no se convierte, aunque lo pidan por la API', async () => {
     /// Es lo que hace morder al unique (accionFormacionId,
     /// personaId): sin curso, dos leads de la misma persona
     /// darían dos fichas y nada lo pararía.
@@ -175,7 +175,7 @@ describe('la regla de «listo» se comprueba en el SERVIDOR', () => {
     const r = await s.convertir(['sin-curso'], 'ana', admin as never, AMBITO, REPARTE);
 
     expect(convertidos).toEqual([]);
-    expect(r.problemas[0].porque).toMatch(/curso/i);
+    expect(r.problemas[0].porque).toMatch(/producto de inter/i);
   });
 
   it('sin documento tampoco', async () => {

@@ -80,7 +80,7 @@ export const COLUMNAS_DE_CARGA = [
 /** La plantilla vacia que se descarga, con una fila de ejemplo. */
 export async function libroDePlantilla(): Promise<Buffer> {
   const libro = new ExcelJS.Workbook();
-  const hoja = libro.addWorksheet('Participantes');
+  const hoja = libro.addWorksheet('Contactos');
 
   hoja.addRow([...COLUMNAS_DE_CARGA]);
   hoja.getRow(1).font = { bold: true };

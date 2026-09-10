@@ -27,7 +27,7 @@ const VERSION = versionDelPaquete();
 export class AppService {
   getEstado(): Estado {
     return {
-      servicio: 'reservasae-backend',
+      servicio: 'crm-grupo-ae-backend',
       estado: 'ok',
       version: process.env.APP_VERSION ?? VERSION,
       hora: new Date().toISOString(),

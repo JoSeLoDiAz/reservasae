@@ -1385,9 +1385,9 @@ model Logo {
 model Marca {
   id String @id @default("unica")
 
-  nombreApp         String  @default("Convoca CRM")
-  tituloPublico     String  @default("Reserve sus cupos de formación")
-  subtituloPublico  String  @default("La formación es gratuita y los cupos son limitados.")
+  nombreApp         String  @default("Grupo AE")
+  tituloPublico     String  @default("Cuéntenos qué necesita")
+  subtituloPublico  String  @default("Déjenos sus datos y un asesor lo contacta.")
   /// Aviso libre bajo el encabezado de las publicas.
   mensajeEncabezado String?
   piePagina         String?

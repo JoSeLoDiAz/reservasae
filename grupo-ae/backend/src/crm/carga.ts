@@ -125,7 +125,7 @@ export function analizar(texto: string): FilaAnalizada[] {
     }
 
     if (!correo && !celularUtil(celular)) {
-      problemas.push('sin correo ni celular no se podrá matricular');
+      problemas.push('sin correo ni celular no se podrá gestionar');
     }
 
     return {

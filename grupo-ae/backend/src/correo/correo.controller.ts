@@ -46,7 +46,7 @@ export class CorreoController {
       puerto: Number(process.env.SMTP_PUERTO ?? 587),
       usuario: process.env.SMTP_USUARIO ?? null,
       remitente: process.env.SMTP_DESDE ?? process.env.SMTP_USUARIO ?? null,
-      nombre: process.env.SMTP_NOMBRE ?? 'Convoca CRM',
+      nombre: process.env.SMTP_NOMBRE ?? 'CRM Grupo AE',
       tieneClave: Boolean(process.env.SMTP_CLAVE),
       /// Si todo se desvía, hay que verlo aquí: si no, la
       /// pantalla diría que el correo sale y nadie sabría
@@ -71,12 +71,12 @@ export class CorreoController {
 
     const r = await this.correo.enviar({
       para: dto.para,
-      asunto: 'Convoca CRM · prueba de correo',
+      asunto: 'CRM Grupo AE · prueba de correo',
       texto:
-        `Si está leyendo esto, el correo de Convoca CRM quedó funcionando.\n\n` +
+        `Si está leyendo esto, el correo del CRM de Grupo AE quedó funcionando.\n\n` +
         `Lo mandó ${admin.nombre} desde el panel. No hay que contestarlo.\n`,
       html:
-        '<p>Si está leyendo esto, el correo de <strong>Convoca CRM</strong> quedó ' +
+        '<p>Si está leyendo esto, el correo del <strong>CRM de Grupo AE</strong> quedó ' +
         'funcionando.</p>' +
         `<p style="color:#666;font-size:13px">Lo mandó ${escaparHtml(admin.nombre)} desde el ` +
         'panel. No hay que contestarlo.</p>',

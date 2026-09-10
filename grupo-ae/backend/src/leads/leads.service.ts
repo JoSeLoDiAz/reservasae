@@ -48,6 +48,38 @@ export class LeadsService {
   ) {}
 
   /**
+   * Los slugs que de verdad existen, para decírselos a quien falla.
+   *
+   * Se leen de la base y no de una constante. Aquí había una lista
+   * escrita a mano y se quedó vieja el día que las unidades de
+   * negocio se renombraron: el webhook contestaba «mande adecopria o
+   * britcham-adee», dos slugs que ya no existían, y el integrador no
+   * tenía forma de adivinar los buenos.
+   *
+   * Un mensaje de error que nombra opciones tiene que leerlas del
+   * mismo sitio que la validación, o antes o después miente.
+   */
+  private async slugsActivos(): Promise<string> {
+    /// En try/catch a propósito: esto solo se llama para ARMAR un
+    /// mensaje de error. Si la consulta falla y esto lanza, el
+    /// integrador recibe un 500 en vez del 400 que explica qué
+    /// mandó mal — el camino del error se traga al error de
+    /// verdad. Cuando no se puede saber, se dice que no se sabe.
+    try {
+      const activos = await this.prisma.convenio.findMany({
+        where: { activo: true },
+        select: { slug: true },
+        orderBy: { slug: 'asc' },
+      });
+      const slugs = activos.map((c) => c.slug).filter(Boolean);
+      if (slugs.length > 0) return slugs.join(', ');
+    } catch {
+      // se sigue: el mensaje vale sin la lista
+    }
+    return 'consúltelas en el panel, en Configuración';
+  }
+
+  /**
    * Entra un lead. Es idempotente y no lanza por datos flojos.
    *
    * Un webhook que contesta 400 porque al lead le falta el
@@ -86,8 +118,8 @@ export class LeadsService {
     }
     if (!slug) {
       throw new BadRequestException(
-        'Falta el convenio. Mandelo en el cuerpo, o llame al subdominio del ' +
-          'gremio: adecopria.reservasae.com o britcham-adee.reservasae.com.',
+        'Falta la unidad de negocio. Mándela en el cuerpo como «convenio», o ' +
+          `llame al subdominio que le corresponda. Las activas: ${await this.slugsActivos()}.`,
       );
     }
 
@@ -108,7 +140,7 @@ export class LeadsService {
     /// ADECOPRIA en BRITCHAM, que es peor que perder el lead.
     if (!convenio) {
       throw new BadRequestException(
-        `«${slug}» no es una convocatoria activa. Mande el slug: adecopria o britcham-adee.`,
+        `«${slug}» no es una unidad de negocio activa. Las que hay: ${await this.slugsActivos()}.`,
       );
     }
 
@@ -418,7 +450,7 @@ export class LeadsService {
           (slug
             ? ` por el subdominio «${slug}», que no es una convocatoria activa.`
             : ' por la direccion general, que no dice de que gremio son. ' +
-              'Meta tiene que llamar al subdominio del gremio.') +
+              'Meta tiene que llamar al subdominio de la unidad de negocio.') +
           ' NO se guardaron. Corrijalo y pidale a Meta que los reenvie.',
       );
       return { recibidos: avisos.length, guardados: 0, sinConvenio: true };

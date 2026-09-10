@@ -57,7 +57,7 @@ export default function PaginaRespuestas({
           </Link>
           <h1 className="mt-2 text-2xl font-semibold">Respuestas</h1>
           <p className="mt-1 text-texto-suave">
-            Qué contestó la gente, agregado. Sin nombres: la reserva es de la
+            Qué contestó la gente, agregado. Sin nombres: el lead es de la
             organización.
           </p>
           <div className="mt-3">
@@ -73,7 +73,7 @@ export default function PaginaRespuestas({
       </header>
 
       <div className="imprimible-bloque grid gap-px border-t border-b border-hairline bg-hairline sm:grid-cols-3">
-        <TarjetaCifra titulo="Reservas del formulario" valor={totalReservas} />
+        <TarjetaCifra titulo="Leads del formulario" valor={totalReservas} />
         <TarjetaCifra titulo="Preguntas propias" valor={preguntas.length} />
         <TarjetaCifra
           titulo="Preguntas archivadas"
@@ -85,8 +85,8 @@ export default function PaginaRespuestas({
       {preguntas.length === 0 ? (
         <Tarjeta titulo="Sin preguntas propias">
           <p className="text-sm text-texto-suave">
-            Este formulario solo tiene campos del sistema (NIT, curso, cupos…),
-            que ya salen en el informe de reservas. Cuando añada preguntas
+            Este formulario solo tiene campos del sistema (NIT, servicio de interés…),
+            que ya salen en el informe de leads. Cuando añada preguntas
             propias, sus respuestas se agregan aquí.
           </p>
         </Tarjeta>

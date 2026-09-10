@@ -46,7 +46,7 @@ export class ReservasService {
       throw new NotFoundException('La oferta no existe.');
     }
     if (!oferta.abierta || !oferta.accionFormacion.visible) {
-      throw new ConflictException('Esta oferta no está abierta para reservas.');
+      throw new ConflictException('Este producto no está abierto para solicitudes.');
     }
     if (dto.cuposSolicitados > oferta.cuposMaximos) {
       throw new BadRequestException(
@@ -165,7 +165,7 @@ export class ReservasService {
 
         if (reserva.estado === EstadoReserva.CANCELADA) {
           throw new ConflictException(
-            'Esta reserva está cancelada. Haga una reserva nueva.',
+            'Esta solicitud está cancelada. Haga una solicitud nueva.',
           );
         }
 
@@ -375,7 +375,7 @@ export class ReservasService {
 
     if (filas === 0) {
       throw new ConflictException(
-        'Los cupos cambiaron mientras se procesaba la solicitud. Vuelva a intentarlo.',
+        'La disponibilidad cambió mientras se procesaba la solicitud. Vuelva a intentarlo.',
       );
     }
   }
@@ -425,7 +425,7 @@ export class ReservasService {
           enEsperaDespues: reserva.cuposEnEspera - mueve,
           ip: contexto.ip,
           userAgent: contexto.userAgent ?? null,
-          nota: 'Promoción automática al liberarse cupos.',
+          nota: 'Promoción automática al liberarse disponibilidad.',
         },
       });
 
@@ -450,7 +450,7 @@ export class ReservasService {
 
     // mismo error que "no existe"
     if (!reserva || reserva.empresa.nit !== nit) {
-      throw new NotFoundException('No se encontró una reserva con ese identificador y NIT.');
+      throw new NotFoundException('No se encontró una solicitud con ese identificador y NIT.');
     }
     return reserva;
   }
@@ -537,7 +537,7 @@ export class ReservasService {
 
     if (!politica) {
       throw new ConflictException(
-        'Este convenio no tiene publicada una política de tratamiento de datos. ' +
+        'Esta unidad de negocio no tiene publicada una política de tratamiento de datos. ' +
           'No se pueden recibir registros hasta que exista.',
       );
     }

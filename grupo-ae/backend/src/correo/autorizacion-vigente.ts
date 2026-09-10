@@ -77,6 +77,6 @@ export function noSeLePuedeEscribir(estado: EstadoAutorizacion): boolean {
 /// que explicárselo a otro -- y por eso tiene que ser verdad.
 export function porQueNoSeLeMando(estado: EstadoAutorizacion): string {
   return estado === 'REVOCADA'
-    ? 'Revocó la autorización de tratamiento de datos en este convenio.'
-    : 'No ha autorizado el tratamiento de sus datos en este convenio.';
+    ? 'Revocó la autorización de tratamiento de datos en esta unidad de negocio.'
+    : 'No ha autorizado el tratamiento de sus datos en esta unidad de negocio.';
 }

@@ -79,14 +79,14 @@ const PLANTILLAS: Array<{
   etapas?: string[];
 }> = [
   {
-    nombre: 'Bienvenida a la formación',
+    nombre: 'Bienvenida al servicio contratado',
     etapas: ['INSCRITO', 'EN_FORMACION'],
-    asunto: '{{tratamiento}} {{primerApellido}}, quedó inscrito en {{accionFormacion}}',
+    asunto: '{{tratamiento}} {{primerApellido}}, confirmamos su solicitud de {{accionFormacion}}',
     cuerpo: `{{saludo}}:
 
-Confirmamos su inscripción en {{accionFormacion}}.
+Confirmamos que recibimos su solicitud de {{accionFormacion}}.
 
-Su grupo es el {{grupo}} y arranca el {{fechaInicio}} en {{ubicacion}}, en modalidad {{modalidad}}.
+Un asesor se comunicará con usted en las próximas horas para revisar el alcance y enviarle la propuesta.
 
 Si algo no le cuadra, respóndanos este correo.
 
@@ -98,19 +98,19 @@ Si algo no le cuadra, respóndanos este correo.
     asunto: '{{primerNombre}}, nos falta un dato suyo',
     cuerpo: `{{saludo}}:
 
-Para poder formalizar su inscripción en {{accionFormacion}} nos hace falta completar su ficha.
+Para poder preparar su propuesta de {{accionFormacion}} nos hace falta completar algunos datos.
 
 Es cosa de tres minutos. Si prefiere, llámenos y lo hacemos por teléfono.
 
 {{gremio}}`,
   },
   {
-    nombre: 'Recordatorio: arranca su curso',
+    nombre: 'Recordatorio: propuesta pendiente de respuesta',
     etapas: ['INSCRITO'],
-    asunto: 'Su formación arranca el {{fechaInicio}}',
+    asunto: 'Su propuesta vence el {{fechaInicio}}',
     cuerpo: `{{saludo}}:
 
-Le recordamos que {{accionFormacion}} arranca el {{fechaInicio}}.
+Le recordamos que la propuesta de {{accionFormacion}} está pendiente de su respuesta.
 
 Lugar: {{ubicacion}}
 Modalidad: {{modalidad}}
@@ -126,7 +126,7 @@ Lo esperamos.
     asunto: '{{primerNombre}}, soy {{asesor}} y lo acompaño en su proceso',
     cuerpo: `{{saludo}}:
 
-Mi nombre es {{asesor}} y voy a acompañarlo durante su formación con {{gremio}}.
+Mi nombre es {{asesor}} y voy a acompañarlo durante este proceso con {{gremio}}.
 
 Cualquier duda que le surja, escríbame a este correo.
 
@@ -137,44 +137,44 @@ Cualquier duda que le surja, escríbame a este correo.
     /// Las tres de abajo son las que faltaban: escribirle a
     /// quien NO siguió. Sin ellas el sistema solo sabe
     /// felicitar, y quien no quedó se entera por el silencio.
-    nombre: 'No quedó seleccionado esta vez',
+    nombre: 'Cierre de la oportunidad sin acuerdo',
     etapas: ['PERDIDO', 'RETIRADO'],
-    asunto: '{{primerNombre}}, sobre su solicitud de cupo',
+    asunto: '{{primerNombre}}, sobre su solicitud',
     cuerpo: `{{saludo}}:
 
-Le escribimos sobre su solicitud de cupo en {{accionFormacion}}.
+Le escribimos sobre su solicitud de {{accionFormacion}}.
 
-En esta convocatoria los cupos se asignaron y no alcanzamos a incluirlo. Le pedimos disculpas por la espera.
+En esta ocasión no logramos llegar a un acuerdo. Le agradecemos el tiempo que nos dedicó.
 
-Su registro queda con nosotros: cuando abramos la siguiente cohorte le avisamos antes que a nadie. No tiene que volver a inscribirse.
+Su registro queda con nosotros: cuando tengamos una alternativa que se ajuste a lo que busca, se lo haremos saber. No tiene que volver a escribirnos.
 
 Gracias por su interés.
 
 {{gremio}}`,
   },
   {
-    nombre: 'Dejó el curso: qué pasó',
+    nombre: 'Oportunidad sin movimiento: qué pasó',
     etapas: ['DESERTO', 'ABANDONO'],
     asunto: '{{primerNombre}}, ¿podemos ayudarle a retomar?',
     cuerpo: `{{saludo}}:
 
-Vimos que dejó de avanzar en {{accionFormacion}} y queremos saber si podemos ayudarle.
+Vimos que la conversación sobre {{accionFormacion}} quedó detenida y queremos saber si podemos ayudarle.
 
-Si fue por tiempo, por conexión o porque el horario no le sirvió, díganoslo respondiendo este correo: en la próxima cohorte podemos acomodarlo mejor.
+Si fue por tiempo, por presupuesto o porque la propuesta no se ajustó a lo que necesitaba, díganoslo respondiendo este correo: podemos revisarla con usted.
 
-Y si simplemente ya no le interesa, también está bien. Con saberlo nos ayuda a darle el cupo a alguien más.
+Y si simplemente ya no le interesa, también está bien. Con saberlo nos ayuda a no insistir.
 
 {{gremio}}`,
   },
   {
-    nombre: 'No aprobó: puede repetirlo',
+    nombre: 'Propuesta no aceptada: alternativas',
     etapas: ['NO_APROBO'],
     asunto: 'Sobre su resultado en {{accionFormacion}}',
     cuerpo: `{{saludo}}:
 
-Le contamos que no alcanzó los requisitos para certificarse en {{accionFormacion}}.
+Le contamos que por ahora no avanzamos con la propuesta de {{accionFormacion}}.
 
-Esto no lo deja por fuera: puede presentarse a la siguiente cohorte y lo que ya vio le va a servir. Si quiere que le contemos qué le faltó, respóndanos y lo revisamos con usted.
+Esto no lo deja por fuera: podemos revisar alternativas cuando lo necesite. Si quiere que le contemos qué se puede ajustar, respóndanos y lo revisamos con usted.
 
 {{gremio}}`,
   },
@@ -183,10 +183,10 @@ Esto no lo deja por fuera: puede presentarse a la siguiente cohorte y lo que ya 
     /// puede no llevar ninguna, y esa le sirve a todo el
     /// mundo aunque su ficha esté a medias.
     nombre: 'Aviso general (sin datos personales)',
-    asunto: 'Cambio de fecha en la jornada de inducción',
+    asunto: 'Cambio de fecha en la sesión de presentación',
     cuerpo: `Buen día:
 
-La jornada de inducción se corre para la próxima semana. Les confirmamos día y hora en los próximos días.
+La sesión de presentación se corre para la próxima semana. Les confirmamos día y hora en los próximos días.
 
 Gracias por su paciencia.`,
   },
@@ -216,10 +216,10 @@ type Guion = {
 
 const GUIONES: Guion[] = [
   {
-    nombre: `${MARCA} Bienvenida grupo 1`,
-    asunto: 'Quedó inscrito en su formación',
+    nombre: `${MARCA} Bienvenida a nuevos clientes`,
+    asunto: 'Confirmamos el inicio de su servicio',
     cuerpo:
-      'Buen día:\n\nConfirmamos su inscripción. En los próximos días le llega la citación con el sitio y la hora.\n\nGracias por inscribirse.',
+      'Buen día:\n\nConfirmamos el inicio de su servicio. En los próximos días le llega el cronograma acordado.\n\nGracias por inscribirse.',
     estado: EstadoCampana.TERMINADA,
     cuantos: 42,
     hace: 21,
@@ -229,9 +229,9 @@ const GUIONES: Guion[] = [
   },
   {
     nombre: `${MARCA} Recordatorio de inicio`,
-    asunto: 'Su curso arranca la próxima semana',
+    asunto: 'Su propuesta vence la próxima semana',
     cuerpo:
-      'Buen día:\n\nLe recordamos que su formación arranca la próxima semana.\n\nSi ya no puede asistir, avísenos para liberar el cupo.',
+      'Buen día:\n\nLe recordamos que su propuesta vence la próxima semana.\n\nSi ya no le interesa, avísenos para cerrarla.',
     estado: EstadoCampana.TERMINADA,
     cuantos: 35,
     hace: 12,
@@ -241,9 +241,9 @@ const GUIONES: Guion[] = [
   },
   {
     nombre: `${MARCA} Encuesta de satisfacción`,
-    asunto: '¿Cómo le pareció la formación?',
+    asunto: '¿Cómo le pareció el servicio?',
     cuerpo:
-      'Buen día:\n\nNos ayudaría mucho saber qué le pareció la formación. Son dos preguntas.\n\nGracias.',
+      'Buen día:\n\nNos ayudaría mucho saber qué le pareció el servicio. Son dos preguntas.\n\nGracias.',
     estado: EstadoCampana.TERMINADA,
     cuantos: 28,
     hace: 5,
@@ -255,10 +255,10 @@ const GUIONES: Guion[] = [
     /// Una pausada, para que se vea el estado. Sus
     /// destinatarios están TODOS resueltos: ni uno pendiente,
     /// o al reanudarla saldrían correos de verdad.
-    nombre: `${MARCA} Jornada de inducción`,
-    asunto: 'Jornada de inducción: confirme su asistencia',
+    nombre: `${MARCA} Sesión de presentación`,
+    asunto: 'Sesión de presentación: confirme su asistencia',
     cuerpo:
-      'Buen día:\n\nLa jornada de inducción es el próximo jueves. Confírmenos si puede asistir.',
+      'Buen día:\n\nLa sesión de presentación es el próximo jueves. Confírmenos si puede asistir.',
     estado: EstadoCampana.PAUSADA,
     cuantos: 18,
     hace: 2,
@@ -268,10 +268,10 @@ const GUIONES: Guion[] = [
   {
     /// En borrador no lleva destinatarios: la lista se
     /// congela al lanzar, y esta no se ha lanzado.
-    nombre: `${MARCA} Convocatoria segundo semestre`,
-    asunto: 'Abrimos inscripciones para el segundo semestre',
+    nombre: `${MARCA} Reactivación segundo semestre`,
+    asunto: 'Agenda comercial del segundo semestre',
     cuerpo:
-      'Buen día:\n\nAbrimos inscripciones para la siguiente cohorte.\n\nEscríbanos si le interesa.',
+      'Buen día:\n\nEstamos agendando los proyectos del próximo semestre.\n\nEscríbanos si le interesa.',
     estado: EstadoCampana.BORRADOR,
     cuantos: 0,
     hace: 0,
@@ -282,7 +282,7 @@ const GUIONES: Guion[] = [
 
 const MOTIVOS_OMITIDO = [
   'Ya había recibido dos correos hoy.',
-  'Le faltan datos que la plantilla necesita: grupo.',
+  'Le faltan datos que la plantilla necesita: empresa.',
   'Se dio de baja de los envíos.',
 ];
 

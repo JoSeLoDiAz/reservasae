@@ -17,7 +17,7 @@ describe('AppController', () => {
   describe('estado', () => {
     it('reporta el servicio en ok', () => {
       const estado = appController.getEstado();
-      expect(estado.servicio).toBe('reservasae-backend');
+      expect(estado.servicio).toBe('crm-grupo-ae-backend');
       expect(estado.estado).toBe('ok');
     });
   });

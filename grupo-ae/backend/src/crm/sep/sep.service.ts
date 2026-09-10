@@ -60,8 +60,8 @@ function exigirQueHayaFilas(listos: number, fuera: number, que: string) {
   const cola =
     fuera > 0
       ? `Hay ${fuera} que no ${fuera === 1 ? 'entra' : 'entran'} todavia: mire ` +
-        'el alistamiento para saber que les falta.'
-      : 'Todavia no hay a quien reportar.';
+        'el detalle para saber que les falta.'
+      : 'Todavia no hay nada que exportar.';
   throw new BadRequestException(
     `Ninguna ${que} esta lista, asi que el archivo saldria vacio. ${cola}`,
   );
@@ -118,7 +118,7 @@ export class SepService {
 
     const hojas: Hoja[] = [
       {
-        nombre: formato === 'cargue-sep' ? 'SEP MASIVO' : 'SEP',
+        nombre: formato === 'cargue-sep' ? 'EXPORTACION MASIVA' : 'EXPORTACION',
         columnas: definicion.COLUMNAS,
         filas,
         // se pega dentro de la plantilla del cliente
@@ -138,7 +138,7 @@ export class SepService {
           /// formaciones sale dos veces en la hoja y parece un
           /// duplicado. No lo es: son dos participaciones con
           /// dos cosas distintas por arreglar.
-          { titulo: 'Formación', clave: 'accion', ancho: 34 },
+          { titulo: 'Producto o servicio', clave: 'accion', ancho: 34 },
           { titulo: 'Etapa', clave: 'etapa' },
           { titulo: 'Por qué no entró', clave: 'motivo', ancho: 60 },
         ],
@@ -301,7 +301,7 @@ export class SepService {
         columnas: [
           { titulo: 'Organización', clave: 'empresa', ancho: 40 },
           { titulo: 'NIT', clave: 'nit' },
-          { titulo: 'Acción de formación', clave: 'accion', ancho: 50 },
+          { titulo: 'Producto o servicio', clave: 'accion', ancho: 50 },
           { titulo: 'Qué le falta', clave: 'motivo', ancho: 40 },
         ],
         filas: incompletas,
@@ -499,7 +499,7 @@ export class SepService {
       // el mundo salia «sin empresa», incluidos los que si
       // tenian una propia
       const empresa = p.empresa ?? p.reserva?.empresa ?? null;
-      if (!empresa) reporte.push('no tiene empresa donde labora');
+      if (!empresa) reporte.push('no tiene organización asociada');
 
       // el grupo tiene que ser de su misma acción, o el
       // archivo manda un AF y un grupo que se contradicen
@@ -507,7 +507,7 @@ export class SepService {
         p.cobertura &&
         p.cobertura.grupo.accionFormacionId !== p.accionFormacionId
       ) {
-        reporte.push('su grupo es de otra acción de formación');
+        reporte.push('su campaña es de otro producto o servicio');
       }
 
       if (reporte.length > 0) {

@@ -37,11 +37,11 @@ const SECCIONES_COMUNES = (
   gremios: string[],
 ): SeccionSemilla[] => [
   {
-    titulo: '¿Qué formación desea reservar?',
-    descripcion: 'Elija el curso y después el lugar desde el que participará.',
+    titulo: '¿Qué servicio necesita?',
+    descripcion: 'Elija el servicio que le interesa y la ciudad desde la que nos escribe.',
     preguntas: [
       {
-        etiqueta: 'Curso',
+        etiqueta: 'Servicio de interés',
         tipo: TipoPregunta.SELECCION_UNICA,
         campoNucleo: CampoNucleo.ACCION_FORMACION,
       },
@@ -62,7 +62,7 @@ const SECCIONES_COMUNES = (
         marcador: '860505081',
         ayuda:
           'Sin puntos. Con o sin dígito de verificación. Es lo que le permitirá ' +
-          'volver a consultar o modificar su reserva.',
+          'volver a consultar el estado de su solicitud.',
       },
       {
         etiqueta: etiquetaOrganizacion,
@@ -102,10 +102,10 @@ const SECCIONES_COMUNES = (
     ],
   },
   {
-    titulo: 'Datos de quien hace la reserva',
+    titulo: 'Datos de contacto',
     descripcion:
-      'No tiene que ser quien asista a la formación. Usaremos estos datos para ' +
-      'contactarla sobre los cupos reservados.',
+      'Usaremos estos datos para comunicarnos con usted ' +
+      'sobre su solicitud.',
     preguntas: [
       {
         etiqueta: 'Nombre completo',
@@ -130,13 +130,13 @@ const SECCIONES_COMUNES = (
     ],
   },
   {
-    titulo: 'Cupos',
+    titulo: 'Alcance del requerimiento',
     preguntas: [
       {
-        etiqueta: '¿Cuántos cupos desea reservar?',
+        etiqueta: '¿Para cuántas personas necesita el servicio?',
         tipo: TipoPregunta.NUMERO,
         campoNucleo: CampoNucleo.CUPOS_SOLICITADOS,
-        ayuda: 'Si pide más de los disponibles, la diferencia queda en lista de espera.',
+        ayuda: 'Un estimado es suficiente. El alcance final se define en la propuesta.',
       },
     ],
   },
@@ -145,8 +145,8 @@ const SECCIONES_COMUNES = (
     preguntas: [
       {
         etiqueta:
-          'Acepto los términos de participación y me comprometo a garantizar la ' +
-          'asistencia de las personas inscritas con estos cupos.',
+          'Acepto los términos y condiciones y autorizo que Grupo AE me contacte ' +
+          'para atender esta solicitud.',
         tipo: TipoPregunta.CASILLA,
         campoNucleo: CampoNucleo.ACEPTA_TERMINOS,
       },
@@ -170,26 +170,25 @@ const FORMULARIOS: Array<{
 }> = [
   {
     convenioSlug: 'britcham-adee',
-    slug: 'britcham-adee',
-    titulo: 'Reserva de cupos — BRITCHAM y ADEE',
+    slug: 'empresas',
+    titulo: 'Solicitud de información — Empresas',
     descripcion:
-      'La formación es gratuita y los cupos son limitados. Una organización ' +
-      'puede reservar varios cupos; quien diligencia este formulario no tiene ' +
-      'que ser quien asista.',
+      'Cuéntenos qué necesita su organización. Un asesor comercial se ' +
+      'comunicará con usted para entender el requerimiento y preparar ' +
+      'una propuesta.',
     secciones: SECCIONES_COMUNES(
       'Nombre de la empresa',
       'Razón social como aparece en el RUT.',
-      ['BRITCHAM', 'ADEE'],
+      [],
     ),
   },
   {
     convenioSlug: 'adecopria',
-    slug: 'adecopria',
-    titulo: 'Reserva de cupos — ADECOPRIA',
+    slug: 'personas',
+    titulo: 'Solicitud de información — Personas',
     descripcion:
-      'La formación es gratuita y los cupos son limitados. Una institución ' +
-      'puede reservar varios cupos; quien diligencia este formulario no tiene ' +
-      'que ser quien asista.',
+      'Déjenos sus datos y el servicio que le interesa. Un asesor se ' +
+      'comunicará con usted.',
     // ADECOPRIA no tiene gremios
     secciones: SECCIONES_COMUNES(
       'Institución educativa',

@@ -73,7 +73,7 @@ const RUTAS_PUBLICAS = [
 
 /// Las de Next y los archivos sueltos. Sin esto no carga ni
 /// el CSS ni el logo.
-const INFRAESTRUCTURA = ["/_next", "/favicon.ico", "/logo-convoca.png"];
+const INFRAESTRUCTURA = ["/_next", "/favicon.ico", "/logo-grupo-ae.png"];
 
 export function middleware(peticion: NextRequest) {
   /// La raíz de un gremio sirve SU formulario corto.

@@ -21,7 +21,7 @@ export const CAMPOS_NUCLEO: DefinicionCampoNucleo[] = [
     obligatorioParaPublicar: true,
     descripcion:
       'Identifica a la organización y es lo único que le permitirá volver a ' +
-      'consultar o modificar su reserva.',
+      'consultar o modificar su solicitud.',
   },
   {
     campo: CampoNucleo.EMPRESA_RAZON_SOCIAL,
@@ -39,10 +39,10 @@ export const CAMPOS_NUCLEO: DefinicionCampoNucleo[] = [
   },
   {
     campo: CampoNucleo.EMPRESA_RED_ASOCIADA,
-    etiquetaSugerida: '¿Es afiliado o aliado a alguno de estos gremios?',
+    etiquetaSugerida: '¿Cómo se enteró de nosotros?',
     tipo: TipoPregunta.SELECCION_UNICA,
     obligatorioParaPublicar: false,
-    descripcion: 'Gremio al que pertenece. Añada una opción por gremio.',
+    descripcion: 'Canal por el que llegó. Añada una opción por canal.',
   },
   {
     campo: CampoNucleo.EMPRESA_RED_ASOCIADA_OTRA,
@@ -54,7 +54,7 @@ export const CAMPOS_NUCLEO: DefinicionCampoNucleo[] = [
   },
   {
     campo: CampoNucleo.CONTACTO_NOMBRE,
-    etiquetaSugerida: 'Nombre completo de quien reserva',
+    etiquetaSugerida: 'Nombre completo de quien solicita',
     tipo: TipoPregunta.TEXTO_CORTO,
     obligatorioParaPublicar: true,
     descripcion: 'No tiene que ser quien asista.',
@@ -64,7 +64,7 @@ export const CAMPOS_NUCLEO: DefinicionCampoNucleo[] = [
     etiquetaSugerida: 'Correo electrónico',
     tipo: TipoPregunta.CORREO,
     obligatorioParaPublicar: true,
-    descripcion: 'Por donde se le contactará sobre los cupos.',
+    descripcion: 'Por donde se le contactará sobre su solicitud.',
   },
   {
     campo: CampoNucleo.CONTACTO_CELULAR,
@@ -82,7 +82,7 @@ export const CAMPOS_NUCLEO: DefinicionCampoNucleo[] = [
   },
   {
     campo: CampoNucleo.ACCION_FORMACION,
-    etiquetaSugerida: 'Curso',
+    etiquetaSugerida: 'Producto o servicio de interés',
     tipo: TipoPregunta.SELECCION_UNICA,
     obligatorioParaPublicar: true,
     controlEspecial: 'ACCION',
@@ -97,23 +97,23 @@ export const CAMPOS_NUCLEO: DefinicionCampoNucleo[] = [
     obligatorioParaPublicar: true,
     controlEspecial: 'OFERTA',
     descripcion:
-      'Depende del curso elegido y muestra los cupos disponibles. Es lo que ' +
-      'determina contra qué oferta se descuenta el cupo.',
+      'Depende del producto elegido y muestra dónde se atiende. Es lo que ' +
+      'determina a qué ciudad se asigna la oportunidad.',
   },
   {
     campo: CampoNucleo.CUPOS_SOLICITADOS,
-    etiquetaSugerida: '¿Cuántos cupos desea reservar?',
+    etiquetaSugerida: '¿Cuántas personas participarían?',
     tipo: TipoPregunta.NUMERO,
     obligatorioParaPublicar: true,
     controlEspecial: 'CUPOS',
-    descripcion: 'El tope real lo pone la oferta elegida.',
+    descripcion: 'Es un dato estimado: no compromete nada.',
   },
   {
     campo: CampoNucleo.ACEPTA_TERMINOS,
-    etiquetaSugerida: 'Acepto los términos de participación',
+    etiquetaSugerida: 'Acepto los términos y condiciones',
     tipo: TipoPregunta.CASILLA,
     obligatorioParaPublicar: true,
-    descripcion: 'Sin marcarla no se puede reservar.',
+    descripcion: 'Sin marcarla no se puede enviar la solicitud.',
   },
   {
     campo: CampoNucleo.ACEPTA_POLITICA_DATOS,
@@ -121,8 +121,8 @@ export const CAMPOS_NUCLEO: DefinicionCampoNucleo[] = [
     tipo: TipoPregunta.CASILLA,
     obligatorioParaPublicar: true,
     descripcion:
-      'Sin marcarla no se puede reservar: guardar los datos sin autorización ' +
-      'es justo lo que la Ley 1581 no permite.',
+      'Sin marcarla no se puede enviar la solicitud: guardar los datos sin ' +
+      'autorización es justo lo que la Ley 1581 no permite.',
   },
 ];
 

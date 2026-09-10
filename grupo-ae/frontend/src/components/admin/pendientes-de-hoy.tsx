@@ -20,8 +20,8 @@
  * consulta nueva: es la misma información dicha como una tarea.
  *
  * El orden no es casual. Primero lo que ya está pagado y sin
- * nombre —un cupo apartado que no se llena es una plaza perdida
- * para el SENA—, luego lo que se enfría, luego lo que nadie está
+ * nombre —un compromiso que no se concreta es dinero que no entra—,
+ * luego lo que se enfría, luego lo que nadie está
  * trabajando, y al final la única que no es una queja: por dónde
  * conviene empujar.
  */
@@ -72,13 +72,13 @@ export function PendientesDeHoy({ control }: { control: Control | null }) {
     pendientes.push({
       tono: cobertura >= 0.8 ? "bueno" : cobertura >= 0.4 ? "normal" : "aviso",
       cifra: sinNombre,
-      accion: "Cobrar nombres",
-      que: `de los ${n(d.cuposConfirmados)} cupos apartados no tienen todavía un nombre detrás.`,
+      accion: "Concretar",
+      que: `de las ${n(d.cuposConfirmados)} oportunidades comprometidas no tienen todavía un contacto detrás.`,
       hacer: empresaFloja
         ? `La que más debe es ${empresaFloja.razonSocial}, con ${n(
             empresaFloja.cupos - empresaFloja.inscritos,
           )} pendientes. Pídale los nombres.`
-        : "Pida los nombres a las organizaciones que apartaron cupos.",
+        : "Pida los contactos a las empresas que se comprometieron.",
     });
 
   if (frios > 0)
@@ -87,7 +87,7 @@ export function PendientesDeHoy({ control }: { control: Control | null }) {
       cifra: frios,
       accion: "Llamar",
       que: `de los ${n(esperando)} leads que esperan una primera llamada llevan más de una semana.`,
-      hacer: "Llámelos hoy: cuanto más se enfría un lead, menos se inscribe.",
+      hacer: "Llámelos hoy: cuanto más se enfría un lead, menos se cierra.",
     });
 
   if (d.sinAsignar > 0)
@@ -104,7 +104,7 @@ export function PendientesDeHoy({ control }: { control: Control | null }) {
       tono: "bueno",
       cifra: Math.round(mejorCanal.conversion * 100),
       accion: "Ver canal",
-      que: `% inscribe «${
+      que: `% cierra «${
         ETIQUETA_ORIGEN[mejorCanal.etiqueta as Origen] ?? mejorCanal.etiqueta
       }», el canal que mejor rinde.`,
       hacer: "Es por donde conviene meter esfuerzo antes que por el que más volumen trae.",
@@ -119,7 +119,7 @@ export function PendientesDeHoy({ control }: { control: Control | null }) {
         /* El caso bueno se dice, no se deja en blanco: una
            tarjeta vacía se lee como que no cargó. */
         <p className="text-[0.84375rem] text-texto-suave">
-          No hay nada pendiente: los cupos tienen nombre y no queda nadie sin llamar.
+          No hay nada pendiente: las oportunidades tienen contacto y no queda nadie sin llamar.
         </p>
       ) : (
         <ul className="divide-y divide-hairline">

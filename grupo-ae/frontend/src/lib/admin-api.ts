@@ -21,11 +21,11 @@ export type Nivel = "NADA" | "VER" | "ESCRIBIR";
 /// Cómo se llama cada área en pantalla. Las claves son las del
 /// backend; esto es lo que lee una persona.
 export const ETIQUETA_AREA: Record<Area, string> = {
-  reserva: "Reservas y cronograma",
-  inscripciones: "Gestión de inscripciones",
-  inscritos: "Datos de los inscritos",
-  reportes: "Reportes al SENA",
-  academico: "Seguimiento académico",
+  reserva: "Oportunidades y agenda",
+  inscripciones: "Gestión de oportunidades",
+  inscritos: "Datos de los clientes",
+  reportes: "Informes de gestión",
+  academico: "Seguimiento posventa",
   configuracion: "Configuración",
 };
 
@@ -117,28 +117,28 @@ export const ROLES_DE_CONVENIO: Array<{
 }> = [
   {
     valor: "LIDER_SISTEMAS",
-    etiqueta: "Líder de sistemas de información",
-    descripcion: "Configura la formación, el cronograma y los formularios.",
+    etiqueta: "Líder de configuración",
+    descripcion: "Configura los embudos, la agenda y los formularios.",
   },
   {
     valor: "LIDER_INSCRIPCION",
-    etiqueta: "Líder de inscripciones",
-    descripcion: "Todo lo del gestor, y descarga los reportes al SENA.",
+    etiqueta: "Líder comercial",
+    descripcion: "Todo lo del asesor, y descarga los informes de gestión.",
   },
   {
     valor: "GESTOR_INSCRIPCION",
-    etiqueta: "Gestor(a) de inscripciones",
-    descripcion: "Inscribe personas y completa sus datos. No descarga el archivo.",
+    etiqueta: "Asesor(a) comercial",
+    descripcion: "Registra oportunidades y completa sus datos. No descarga el archivo.",
   },
   {
     valor: "LIDER_ACADEMICO",
-    etiqueta: "Líder de seguimiento académico",
-    descripcion: "Registra avance y es quien certifica o da por no aprobado.",
+    etiqueta: "Líder de posventa",
+    descripcion: "Registra el avance de la entrega y es quien la da por cerrada o por incumplida.",
   },
   {
     valor: "GESTOR_ACADEMICO",
-    etiqueta: "Gestor(a) de seguimiento académico",
-    descripcion: "Registra el avance en el aula. No certifica.",
+    etiqueta: "Gestor(a) de posventa",
+    descripcion: "Registra el avance de la entrega. No la cierra.",
   },
   {
     valor: "CONSULTA",

@@ -70,7 +70,7 @@ export function ModalPolitica({
           <div className="min-w-0 flex-1">
             <h2 className="text-lg leading-snug font-semibold">{titulo}</h2>
             <p className="mt-0.5 text-sm text-texto-suave">
-              Versión {version} · usted la aceptó al reservar su cupo
+              Versión {version} · usted la aceptó al enviar su solicitud
             </p>
           </div>
           <button

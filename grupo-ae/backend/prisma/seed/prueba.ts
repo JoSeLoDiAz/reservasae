@@ -110,10 +110,10 @@ const CONCESIONES: Record<string, Record<string, RolConvenio>> = {
 
 const CARGO_DEL_ROL: Record<RolConvenio, string> = {
   LIDER_SISTEMAS: 'Líder de sistemas de información',
-  LIDER_INSCRIPCION: 'Líder de inscripciones',
-  GESTOR_INSCRIPCION: 'Gestora de inscripciones',
-  LIDER_ACADEMICO: 'Líder de seguimiento académico',
-  GESTOR_ACADEMICO: 'Gestor de seguimiento académico',
+  LIDER_INSCRIPCION: 'Líder comercial',
+  GESTOR_INSCRIPCION: 'Asesora comercial',
+  LIDER_ACADEMICO: 'Líder de servicio al cliente',
+  GESTOR_ACADEMICO: 'Gestor de servicio al cliente',
   CONSULTA: 'Consulta',
 };
 
@@ -154,7 +154,7 @@ const NOTAS: Array<{
     canales: ['LLAMADA'],
   },
   {
-    texto: 'Se le explica que la formación es gratuita y no exige pago alguno.',
+    texto: 'Se le explica el alcance del servicio y se acuerda enviar la cotización.',
     resultado: 'CONTACTO',
     canales: ['LLAMADA', 'CORREO'],
   },
@@ -207,16 +207,16 @@ const CALLES = ['Calle', 'Carrera', 'Diagonal', 'Transversal', 'Avenida'];
 
 const MOTIVOS_SALIDA = [
   'No contesta después de cinco intentos en dos semanas.',
-  'La empresa retiró el cupo: reasignó al colaborador a otra sede.',
+  'La empresa aplazó la contratación para el próximo presupuesto.',
   'Cambió de trabajo y ya no pertenece a la empresa que lo nominó.',
   'Cruce de horario con su turno de producción.',
-  'No alcanzó el porcentaje mínimo de asistencia.',
+  'No hubo acuerdo en el precio.',
 ];
 
 /** Los pasos de un curso, iguales para todos sus grupos. */
 const ACTIVIDADES: Array<[string, TipoActividad, boolean]> = [
-  ['Bienvenida y acuerdos de la formación', TipoActividad.LECCION, false],
-  ['Encuesta de caracterización', TipoActividad.ENCUESTA, true],
+  ['Reunión de arranque y acuerdos del servicio', TipoActividad.LECCION, false],
+  ['Levantamiento de la necesidad', TipoActividad.ENCUESTA, true],
   ['Unidad 1 — Conceptos fundamentales', TipoActividad.LECCION, true],
   ['Material de apoyo de la unidad 1', TipoActividad.RECURSO, false],
   ['Taller práctico 1', TipoActividad.TAREA, true],
@@ -418,8 +418,8 @@ async function sembrarPoliticas(convenios: Array<{ id: string; nombre: string }>
           version: 1,
           titulo:
             destinatario === DestinatarioPolitica.RESERVA
-              ? 'Tratamiento de datos — quien reserva'
-              : 'Tratamiento de datos — participante',
+              ? 'Tratamiento de datos — quien solicita'
+              : 'Tratamiento de datos — contacto',
           contenido:
             'TEXTO DE PRUEBA, SIN VALOR LEGAL. Sirve para que el sistema tenga ' +
             'una versión vigente a la que apuntar mientras se redacta la política real.',
@@ -548,10 +548,10 @@ async function aparienciaPorFormulario() {
 /** Preguntas que no son del núcleo: lo que se agrega. */
 const PROPIAS = [
   {
-    etiqueta: '¿Cómo se enteró de esta convocatoria?',
+    etiqueta: '¿Cómo se enteró de nosotros?',
     tipo: TipoPregunta.SELECCION_UNICA,
     opciones: [
-      ['Correo del gremio', 'gremio'],
+      ['Correo de Grupo AE', 'correo'],
       ['Redes sociales', 'redes'],
       ['Un colega me la compartió', 'referido'],
       ['Feria o evento', 'evento'],
@@ -559,7 +559,7 @@ const PROPIAS = [
     ] as Array<[string, string]>,
   },
   {
-    etiqueta: '¿Qué espera resolver su empresa con esta formación?',
+    etiqueta: '¿Qué necesidad quiere resolver su empresa?',
     tipo: TipoPregunta.TEXTO_LARGO,
     opciones: [] as Array<[string, string]>,
   },

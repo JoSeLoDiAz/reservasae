@@ -69,7 +69,7 @@ export class LoteDeLeads {
     const puedeRepartir = reparten.length > 0;
     if (puedeRepartir && !pedido) {
       throw new BadRequestException(
-        'Elija a qué asesor se le asignan: usted reparte fichas, no las atiende.',
+        'Elija a qué asesor se le asignan: usted reparte oportunidades, no las atiende.',
       );
     }
     const asesorId = puedeRepartir ? pedido! : admin.id;

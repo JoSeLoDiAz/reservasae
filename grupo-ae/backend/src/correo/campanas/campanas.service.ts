@@ -809,7 +809,7 @@ export class CampanasService {
   /// ella. Mismo criterio que el resto del CRM.
   private exigirConvenio(convenioId: string, ambito: string[]) {
     if (!ambito.includes(convenioId)) {
-      throw new ForbiddenException('No tiene acceso a ese convenio.');
+      throw new ForbiddenException('No tiene acceso a esa unidad de negocio.');
     }
   }
 

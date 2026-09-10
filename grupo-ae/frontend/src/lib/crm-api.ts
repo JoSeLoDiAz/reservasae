@@ -207,10 +207,10 @@ export const ETIQUETA_ETAPA: Record<Etapa, string> = {
   INTERESADO: "Interesado",
   CONTACTADO: "Contactado",
   DATOS_COMPLETOS: "Datos completos",
-  INSCRITO: "Inscrito",
-  EN_FORMACION: "En formación",
-  CERTIFICADO: "Certificado",
-  PERDIDO: "No interesado",
+  INSCRITO: "Ganado",
+  EN_FORMACION: "En ejecución",
+  CERTIFICADO: "Entregado",
+  PERDIDO: "Perdido",
   RETIRADO: "Retirado",
   NO_APROBO: "No aprobó",
   DESERTO: "Desertó",
@@ -220,15 +220,15 @@ export const ETIQUETA_ETAPA: Record<Etapa, string> = {
 /// Qué separa a los que se parecen.
 export const AYUDA_ETAPA: Partial<Record<Etapa, string>> = {
   DESERTO: "Avisó que se retiraba.",
-  ABANDONO: "Dejó de entrar al aula sin decir nada.",
-  RETIRADO: "Se retiró antes de empezar la formación.",
+  ABANDONO: "Dejó de responder sin decir nada.",
+  RETIRADO: "Se retiró antes de empezar el servicio.",
   PERDIDO: "Se le contactó y no quiso seguir.",
 };
 
 export const ETIQUETA_ORIGEN: Record<Origen, string> = {
-  EMPRESA: "La empresa lo nominó",
+  EMPRESA: "La empresa lo remitió",
   ASESOR: "Lo capturó un asesor",
-  AUTOGESTION: "Se inscribió solo",
+  AUTOGESTION: "Llegó por su cuenta",
   REFERIDO: "Referido",
   REDES: "Redes sociales",
   INSTAGRAM: "Instagram",
@@ -499,18 +499,18 @@ export const ETIQUETA_ACADEMICA: Record<EstadoAcademico, string> = {
   SIN_EMPEZAR: "Sin empezar",
   ATRASADO: "Atrasado",
   AL_DIA: "Al día",
-  COMPLETADO: "Listo para certificar",
+  COMPLETADO: "Listo para cerrar",
   CERTIFICADO: "Certificado",
 };
 
 /// Qué significa cada uno, para no tener que adivinarlo.
 export const AYUDA_ACADEMICA: Record<EstadoAcademico, string> = {
-  SIN_INGRESO: "Su grupo ya empezó y nunca ha entrado al aula.",
+  SIN_INGRESO: "El servicio ya arrancó y la persona nunca ha respondido.",
   SIN_EMPEZAR: "Su grupo todavía no arranca: no se juzga.",
   ATRASADO: "Va dos actividades o más por debajo de lo que tocaría.",
   AL_DIA: "Avanza al ritmo que marca el calendario de su grupo.",
-  COMPLETADO: "Aprobó el 80 % o más de lo obligatorio.",
-  CERTIFICADO: "Terminó y se le certificó.",
+  COMPLETADO: "Cumplió el 80 % o más de lo comprometido.",
+  CERTIFICADO: "Terminó y se cerró el servicio.",
 };
 
 export type FilaAcademica = {

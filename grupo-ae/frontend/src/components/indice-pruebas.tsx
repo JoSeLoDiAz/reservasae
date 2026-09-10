@@ -7,18 +7,18 @@ type Destino = { href: string; titulo: string; descripcion: string };
 const PUBLICO: Destino[] = [
   {
     href: "/britcham-adee",
-    titulo: "Formulario · BRITCHAM ADEE",
-    descripcion: "Lo que ve una empresa: elige curso y ubicación y aparta cupos.",
+    titulo: "Formulario · Empresas",
+    descripcion: "Lo que ve una empresa: elige el servicio de interés y deja sus datos.",
   },
   {
     href: "/adecopria",
-    titulo: "Formulario · ADECOPRIA",
-    descripcion: "El otro convenio, con su propia apariencia y sus preguntas.",
+    titulo: "Formulario · Personas",
+    descripcion: "El otro embudo, con su propia apariencia y sus preguntas.",
   },
   {
     href: "/consulta",
-    titulo: "Consulta por NIT",
-    descripcion: "Una empresa vuelve con su NIT a ver o cambiar lo que pidió.",
+    titulo: "Seguimiento por NIT",
+    descripcion: "Una empresa vuelve con su NIT a ver el estado de su solicitud.",
   },
 ];
 
@@ -30,13 +30,13 @@ const PANEL: Destino[] = [
   },
   {
     href: "/admin/participantes",
-    titulo: "Inscripciones",
+    titulo: "Oportunidades",
     descripcion: "El CRM: tablero por etapas, lista y métricas.",
   },
   {
     href: "/admin/participantes/academico",
-    titulo: "Seguimiento académico",
-    descripcion: "Quién va al día y quién no, contra el calendario del grupo.",
+    titulo: "Seguimiento comercial",
+    descripcion: "Qué oportunidades avanzan y cuáles se quedaron quietas.",
   },
   {
     href: "/admin/marca",
@@ -71,7 +71,7 @@ function Lista({ titulo, destinos }: { titulo: string; destinos: Destino[] }) {
 export function IndicePruebas() {
   return (
     <main className="mx-auto w-full max-w-3xl grow px-6 py-12">
-      <h1 className="text-2xl font-semibold">Convoca CRM — entorno de pruebas</h1>
+      <h1 className="text-2xl font-semibold">Grupo AE CRM — entorno de pruebas</h1>
       <p className="mt-2 text-texto-suave">
         Una copia completa del sistema con datos inventados. El sitio real no tiene
         esta portada: su raíz responde 404 a propósito, y aquí existe solo para no

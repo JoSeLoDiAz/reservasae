@@ -54,12 +54,12 @@ async function main() {
 
   const r = await correo.enviar({
     para: PARA,
-    asunto: 'Convoca · prueba de correo',
+    asunto: 'Grupo AE · prueba de correo',
     texto:
-      'Si está leyendo esto, el correo saliente de Convoca quedó funcionando.\n\n' +
+      'Si está leyendo esto, el correo saliente de Grupo AE quedó funcionando.\n\n' +
       'Este mensaje lo generó `pnpm db:probar-correo`. No hay que contestarlo.\n',
     html:
-      '<p>Si está leyendo esto, el correo saliente de <strong>Convoca</strong> ' +
+      '<p>Si está leyendo esto, el correo saliente de <strong>Grupo AE</strong> ' +
       'quedó funcionando.</p><p style="color:#666;font-size:13px">Este mensaje lo ' +
       'generó <code>pnpm db:probar-correo</code>. No hay que contestarlo.</p>',
   });

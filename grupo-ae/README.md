@@ -1,13 +1,16 @@
-# grupo-ae — el segundo CRM
+# grupo-ae — CRM de captación y ventas
 
-Copia completa de Convoca (`backend/` + `frontend/` de la raíz) para armar
-sobre ella el CRM de **Grupo AE**, sin tocar el que ya está en producción.
+CRM de captación y ventas de **Grupo AE**: los leads entran por formularios
+públicos, anuncios de Meta, LinkedIn, WhatsApp y referidos, se vuelven
+oportunidades con valor en pesos y se persiguen por dos embudos —empresas y
+personas— hasta ganado o perdido. Nació como copia de Convoca (`backend/` +
+`frontend/` de la raíz), que sigue en producción y no se toca.
 
 Las dos instancias corren a la vez en el mismo portátil. Todo lo que podía
 chocar está cambiado, y nada más: el código de dentro sigue siendo el
 mismo, incluidas las referencias a «reservasae» de marcas, hosts y
-pruebas. Eso se cambia cuando se decidan los ajustes, uno por uno; un
-reemplazo masivo rompería las pruebas de host y de gremio.
+pruebas. Eso se cambia junto con el resto del vocabulario del SENA, uno por
+uno; un reemplazo masivo rompería las pruebas de host y de dominio.
 
 ## Lo que se cambió respecto a la raíz
 
@@ -61,5 +64,7 @@ contraseña temporal que se cambia al primer inicio de sesión.
 
 ## Lo que falta
 
-Los ajustes que separan este CRM del de Convoca. Todavía sin definir: hoy
-esto es una réplica exacta corriendo en su propio puerto y su propia base.
+Reemplazar el mundo del SENA por el de ventas: donde hoy se lee cupo,
+convocatoria, gremio o preinscripción debe leerse lead, oportunidad, embudo
+y cierre. Mientras eso no termine, la interfaz sigue siendo la de Convoca
+aunque la base y los puertos ya sean propios.

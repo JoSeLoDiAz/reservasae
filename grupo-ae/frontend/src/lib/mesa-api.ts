@@ -103,7 +103,7 @@ export type ListadoDeLaMesa = {
 
 export const ETIQUETA_ESTADO_LEAD: Record<EstadoLead, string> = {
   PENDIENTE: "Sin atender",
-  CONVERTIDO: "Ya es ficha",
+  CONVERTIDO: "Ya es oportunidad",
   DESCARTADO: "Descartado",
 };
 

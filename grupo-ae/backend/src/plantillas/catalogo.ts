@@ -119,18 +119,18 @@ export const CATALOGO: Record<Entidad, Definicion> = {
       'quien la diligenció.',
     admiteNuevas: false,
     plantilla: {
-      nombre: 'Reservas',
+      nombre: 'Oportunidades',
       columnas: [
         {
-          titulo: 'Id de la reserva',
+          titulo: 'Id de la oportunidad',
           clave: 'id',
           llave: true,
           ancho: 28,
-          ayuda: 'No lo cambie. Es lo que identifica la reserva.',
+          ayuda: 'No lo cambie. Es lo que identifica la oportunidad.',
         },
         { titulo: 'NIT', clave: 'nit', soloLectura: true, ancho: 16 },
         { titulo: 'Organización', clave: 'organizacion', soloLectura: true, ancho: 40 },
-        { titulo: 'Formación', clave: 'formacion', soloLectura: true, ancho: 40 },
+        { titulo: 'Producto o servicio', clave: 'formacion', soloLectura: true, ancho: 40 },
         {
           titulo: 'Cupos solicitados',
           clave: 'cuposSolicitados',

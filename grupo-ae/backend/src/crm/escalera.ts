@@ -159,17 +159,17 @@ export function motivoDeTransicionImposible(
 ): string | null {
   if (CIERRES.includes(despues) && !PUEDE_CERRAR_DESDE.includes(antes)) {
     const que =
-      despues === 'CERTIFICADO' ? 'Certificar' : 'Dar por no aprobado';
+      despues === 'CERTIFICADO' ? 'Dar por ganada' : 'Dar por perdida';
     if (EN_EL_AULA.includes(antes)) {
       return (
-        `${que} a alguien que ya salió del aula no se hace de un paso. ` +
-        'Si volvió, páselo primero a «En formación»: así queda dicho en el ' +
+        `${que} una oportunidad ya cerrada no se hace de un paso. ` +
+        'Si se reactivó, pásela primero a «En negociación»: así queda dicho en el ' +
         'historial cuándo y quién lo devolvió.'
       );
     }
     return (
-      `${que} exige haber estado en el aula. Esta persona está en «${antes}»: ` +
-      'primero se matricula.'
+      `${que} exige haber estado en negociación. Esta oportunidad está en «${antes}»: ` +
+      'primero se envía la propuesta.'
     );
   }
   return null;

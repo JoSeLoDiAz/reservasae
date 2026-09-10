@@ -49,20 +49,20 @@ export const SEGMENTOS_LISTOS: Array<{
   },
   {
     clave: 'inscritos-inicio',
-    titulo: 'Inscritos con grupo',
-    para: 'Avisarles cuándo y dónde arranca.',
+    titulo: 'Con propuesta enviada',
+    para: 'Hacer seguimiento a la propuesta enviada.',
     segmento: { etapas: ['INSCRITO'], soloConGrupo: true },
   },
   {
     clave: 'inscritos-todos',
-    titulo: 'Todos los inscritos',
-    para: 'Un aviso general a quien ya tiene su silla.',
+    titulo: 'Todas las oportunidades abiertas',
+    para: 'Un aviso general a quien ya tiene propuesta en curso.',
     segmento: { etapas: ['INSCRITO'] },
   },
   {
     clave: 'en-formacion',
-    titulo: 'En formación',
-    para: 'Cambios de fecha, de aula o de horario.',
+    titulo: 'En negociación',
+    para: 'Cambios en las condiciones de la propuesta.',
     segmento: { etapas: ['EN_FORMACION'] },
   },
   {
@@ -179,8 +179,8 @@ export function enPalabras(s: Segmento): string {
   if (s.soloDatosIncompletos) partes.push('a quienes les falten datos');
   if (s.soloConGrupo) partes.push('con grupo y fecha');
   if (s.soloSinAsesor) partes.push('sin asesor');
-  if (s.accionFormacionId) partes.push('de una acción de formación');
-  if (s.coberturaId) partes.push('de un grupo');
+  if (s.accionFormacionId) partes.push('de un producto o servicio');
+  if (s.coberturaId) partes.push('de una campaña');
 
   return `Personas ${partes.join(', ')}, que tengan correo.`;
 }
@@ -190,9 +190,9 @@ function enBonito(e: string): string {
     INTERESADO: 'Interesado',
     CONTACTADO: 'Contactado',
     DATOS_COMPLETOS: 'Datos completos',
-    INSCRITO: 'Inscrito',
-    EN_FORMACION: 'En formación',
-    CERTIFICADO: 'Certificado',
+    INSCRITO: 'Propuesta enviada',
+    EN_FORMACION: 'En negociación',
+    CERTIFICADO: 'Ganado',
   };
   return m[e] ?? e;
 }

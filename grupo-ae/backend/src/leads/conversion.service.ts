@@ -128,7 +128,7 @@ export class ConversionDeLeads {
 
     if (lead.participanteId) {
       throw new ConflictException(
-        'Este lead ya tiene ficha. Ábrala desde Gestión de leads.',
+        'Este lead ya tiene oportunidad. Ábrala desde Gestión de leads.',
       );
     }
 
@@ -143,7 +143,7 @@ export class ConversionDeLeads {
 
     if (tipo === null || tipo === undefined || !numero) {
       throw new BadRequestException(
-        'Falta el documento. Sin él no se puede crear la ficha: es la llave ' +
+        'Falta el documento. Sin él no se puede crear la oportunidad: es la llave ' +
           'con la que la misma persona es la misma en todo el sistema.',
       );
     }
@@ -168,7 +168,7 @@ export class ConversionDeLeads {
       : await politicaVigente(this.prisma, lead.convenioId);
     if (!opciones?.sinConstancia && !politica) {
       throw new BadRequestException(
-        'Este convenio no tiene política de tratamiento de datos publicada, ' +
+        'Esta unidad de negocio no tiene política de tratamiento de datos publicada, ' +
           'así que no hay contra qué dejar la constancia. Publíquela en ' +
           'Configuración → Políticas y vuelva a intentarlo.',
       );

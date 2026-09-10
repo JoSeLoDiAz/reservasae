@@ -444,10 +444,9 @@ export function CompletarFicha({ token }: { token: string }) {
             Y no se habla de «quien le atendio»: puede que nadie
             lo haya llamado y lo haya hecho todo por su cuenta. */}
         <p className="mt-3 text-texto-suave">
-          Su registro de preinscripción ha sido completado
-          satisfactoriamente. Pronto uno de nuestros asesores se
-          comunicará con usted para confirmar su inscripción y los pasos a
-          seguir.
+          Sus datos han sido registrados satisfactoriamente. Pronto uno de
+          nuestros asesores comerciales se comunicará con usted para confirmar
+          su solicitud y los pasos a seguir.
         </p>
         </main>
         <FondoPublico />
@@ -469,8 +468,8 @@ export function CompletarFicha({ token }: { token: string }) {
       <header className="mt-8">
         <h1 className="text-2xl font-bold tracking-tight">
           {paso === "PERSONA"
-            ? "Formalización de la preinscripción"
-            : "Información Laboral"}
+            ? "Complete sus datos"
+            : "Información laboral"}
         </h1>
         <p className="mt-2 text-sm text-texto-suave">
           {paso === "PERSONA"
@@ -494,9 +493,9 @@ export function CompletarFicha({ token }: { token: string }) {
       <div className="mt-6 rounded-2xl border border-borde bg-superficie px-5 py-4">
         <div className="flex flex-wrap items-center gap-y-2">
           {[
-            { n: 1, texto: "Reserva de cupo", estado: "hecho" },
-            { n: 2, texto: "Datos de preinscripción", estado: "ahora" },
-            { n: 3, texto: "Preinscripción confirmada", estado: "falta" },
+            { n: 1, texto: "Solicitud recibida", estado: "hecho" },
+            { n: 2, texto: "Datos de contacto", estado: "ahora" },
+            { n: 3, texto: "Solicitud confirmada", estado: "falta" },
           ].map((x, i, todos) => (
             <div key={x.n} className="flex flex-1 items-center gap-2">
               <span
@@ -590,7 +589,7 @@ export function CompletarFicha({ token }: { token: string }) {
                   {ficha.politica.titulo}
                 </span>
                 <span className="text-sm text-texto-suave">
-                  — la aceptó al reservar su cupo
+                  — la aceptó al enviar su solicitud
                 </span>
                 <button
                   type="button"
@@ -629,7 +628,7 @@ export function CompletarFicha({ token }: { token: string }) {
               <p className="mt-2 rounded-lg border border-borde px-3 py-2 text-sm text-aviso">
                 Falta también <strong>{faltaQueNadiePide.join(", ")}</strong>, y
                 eso no se pregunta en este enlace. Escríbanos para completarlo:
-                sin ese dato su inscripción queda incompleta.
+                sin ese dato su solicitud queda incompleta.
               </p>
             )}
 
@@ -666,8 +665,8 @@ export function CompletarFicha({ token }: { token: string }) {
                   className={CAMPO}
                 />
                 <span className="mt-1 block text-xs text-texto-suave">
-                  Puede escribirla o elegirla del calendario. La formación
-                  admite personas mayores de 18 años.
+                  Puede escribirla o elegirla del calendario. Atendemos
+                  personas mayores de 18 años.
                 </span>
               </label>
               )}
@@ -749,7 +748,7 @@ export function CompletarFicha({ token }: { token: string }) {
                     ))}
                   </select>
                   <span className="mt-1 block text-xs text-texto-suave">
-                    Su domicilio, no la sede donde se dicta.
+                    Su domicilio, no la ciudad donde lo atendemos.
                   </span>
                 </label>
 
@@ -819,8 +818,7 @@ export function CompletarFicha({ token }: { token: string }) {
               {pide("beneficiarioPrevio") && (
               <div className="sm:col-span-2">
                 <span className="mb-1.5 block text-sm font-medium">
-                  ¿Se ha beneficiado antes del programa de formación continua
-                  especializada?
+                  ¿Ha contratado antes servicios con nosotros?
                 </span>
                 <div className="flex gap-2">
                   {[
@@ -887,7 +885,7 @@ export function CompletarFicha({ token }: { token: string }) {
               Si alguna de estas condiciones es la suya, escríbala y
               elíjala; es <strong>una sola</strong>, la que mejor lo describa.
               Y si no es ninguna, escriba «ninguna»: no cambia en nada su
-              preinscripción ni su cupo.
+              solicitud.
             </p>
 
             <BuscadorDeCaracterizacion
@@ -939,7 +937,7 @@ export function CompletarFicha({ token }: { token: string }) {
             {loNominoUnaEmpresa ? (
               <div className="rounded-xl border border-borde bg-superficie-alterna p-4">
                 <p className="text-sm">
-                  Lo inscribió <strong>{ficha.empresa}</strong>.
+                  Lo registró <strong>{ficha.empresa}</strong>.
                 </p>
                 <p className="mt-1 text-sm text-texto-suave">
                   {faltaDeSuEmpresa.length === 0
@@ -1017,7 +1015,7 @@ export function CompletarFicha({ token }: { token: string }) {
                 </p>
                 <p className="mt-2 text-sm leading-relaxed">
                   No tenemos que preguntarle nada más de trabajo. Puede
-                  confirmar su inscripción con el botón de abajo.
+                  confirmar su solicitud con el botón de abajo.
                 </p>
               </div>
             )}
@@ -1064,7 +1062,7 @@ export function CompletarFicha({ token }: { token: string }) {
                 {ficha.empresaFijada ? (
                   <>
                     Son los datos de <strong>{ficha.empresa}</strong>, la organización
-                    que lo inscribió. Hacen falta para formalizar su registro.
+                    que lo registró. Hacen falta para completar su solicitud.
                   </>
                 ) : (
                   <>Diligencie los datos de su empresa para proceder con el registro</>
@@ -1211,7 +1209,7 @@ export function CompletarFicha({ token }: { token: string }) {
                   disabled={guardando}
                   className="rounded-xl bg-marca px-7 py-3.5 font-medium text-marca-texto transition hover:bg-marca-fuerte disabled:opacity-50"
                 >
-                  {guardando ? "Enviando…" : "Está correcto, confirmar preinscripción"}
+                  {guardando ? "Enviando…" : "Está correcto, confirmar mi solicitud"}
                 </button>
                 <button
                   type="button"
@@ -1225,7 +1223,7 @@ export function CompletarFicha({ token }: { token: string }) {
           )}
 
           <p className="text-xs text-texto-suave">
-            Finalice su registro de preinscripción presionando el botón de confirmación.
+            Finalice su solicitud presionando el botón de confirmación.
           </p>
         </form>
       )}
@@ -1544,7 +1542,7 @@ function BuscadorDeCaracterizacion({
           setAbierto(true);
         }}
         onFocus={() => setAbierto(true)}
-        placeholder="Escriba para buscar: madre, desplazado, discapacidad…"
+        placeholder="Escriba para buscar…"
         className={CAMPO}
       />
 

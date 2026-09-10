@@ -49,7 +49,7 @@ type LlaveTexto = (typeof TEXTO)[number];
 /// internos.
 const CORTO: Record<LlaveTexto, string> = {
   asesorId: "asesor",
-  accionFormacionId: "curso",
+  accionFormacionId: "servicio",
   grupoId: "grupo",
   buscar: "q",
 };

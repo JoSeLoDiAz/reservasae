@@ -142,12 +142,12 @@ export class PanelDeCupos {
     let porQueNo: string | null = null;
     if (!oferta.abierta) {
       motivo = 'OFERTA_CERRADA';
-      porQueNo = 'La oferta está cerrada.';
+      porQueNo = 'Este producto ya no está disponible.';
     } else if (cupos.lleno) {
       motivo = 'LLENO';
       porQueNo =
-        `No quedan cupos: los ${cupos.total} están tomados. ` +
-        'Para inscribir a alguien más hay que ampliar la oferta o abrir otro grupo.';
+        `No quedan posiciones: las ${cupos.total} están tomadas. ` +
+        'Para incluir a alguien más hay que ampliar el alcance del contrato.';
     }
 
     /// EL CRONOGRAMA NO BLOQUEA LA INSCRIPCION. Orden del cliente,

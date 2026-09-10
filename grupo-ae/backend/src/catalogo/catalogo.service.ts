@@ -45,7 +45,7 @@ export class CatalogoService {
     });
 
     if (!convenio || !convenio.activo) {
-      throw new NotFoundException('No existe ese convenio.');
+      throw new NotFoundException('No existe esa página pública.');
     }
 
     return {

@@ -170,7 +170,7 @@ export class AdminGuard implements CanActivate {
     if (delHost && !concedidos.includes(delHost.id)) {
       throw new ForbiddenException(
         `Su cuenta no trabaja en ${delHost.slug}. Entre por la dirección ` +
-          'del gremio que le corresponde.',
+          'de la unidad de negocio que le corresponde.',
       );
     }
 
@@ -184,7 +184,7 @@ export class AdminGuard implements CanActivate {
     ) {
       throw new ForbiddenException(
         'Esta dirección es solo para administración general. Entre por la ' +
-          'dirección de su gremio.',
+          'dirección de su unidad de negocio.',
       );
     }
 

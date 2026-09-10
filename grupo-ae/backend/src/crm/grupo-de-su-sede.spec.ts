@@ -92,6 +92,6 @@ describe('el grupo tiene que ser de la sede de la oferta', () => {
         accionFormacionId: 'af-2',
         ubicacionId: null,
       }),
-    ).rejects.toThrow(/otra acción/);
+    ).rejects.toThrow(/otro producto o servicio/);
   });
 });

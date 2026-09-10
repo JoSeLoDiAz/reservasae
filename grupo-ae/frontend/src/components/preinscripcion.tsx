@@ -82,7 +82,7 @@ export function PreinscripcionPublica({ slug }: { slug: string }) {
   // notFound() solo sirve durante el render
   if (noExiste) notFound();
   if (!catalogo) {
-    return <p className="p-10 text-texto-suave">Cargando la convocatoria…</p>;
+    return <p className="p-10 text-texto-suave">Cargando el portafolio…</p>;
   }
 
   function cambiar(campo: keyof typeof datos, valor: string) {
@@ -185,8 +185,8 @@ export function PreinscripcionPublica({ slug }: { slug: string }) {
     <>
       <main className="mx-auto w-full max-w-2xl px-6 py-10 lg:max-w-4xl">
       <EncabezadoPublico
-        titulo="Preinscripción a la formación"
-        subtitulo="Formación gratuita y certificada con cupos limitados."
+        titulo="Solicitud de información"
+        subtitulo="Déjenos sus datos y un asesor comercial se comunicará con usted."
       />
 
       <form
@@ -221,11 +221,11 @@ export function PreinscripcionPublica({ slug }: { slug: string }) {
               Santander. El domicilio de verdad se pregunta en el
               enlace de completado, aparte. */}
           <h2 className="text-lg font-semibold">
-            Ubicación de interés de la formación
+            Ciudad de interés
           </h2>
           <p className="mt-1 text-sm text-texto-suave">
             Seleccione el departamento y la ciudad de su interés para consultar
-            las acciones de formación disponibles.
+            los servicios disponibles.
           </p>
 
           <div className="mt-5 grid gap-4 sm:grid-cols-2">
@@ -269,7 +269,7 @@ export function PreinscripcionPublica({ slug }: { slug: string }) {
                 className={CAMPO + (departamento ? "" : " opacity-50")}
               >
                 <option value="">
-                  {ciudadesDelDepto.length === 0 ? "Sin sedes presenciales" : "Elija…"}
+                  {ciudadesDelDepto.length === 0 ? "Sin atención presencial" : "Elija…"}
                 </option>
                 {ciudadesDelDepto.map((c) => (
                   <option key={c} value={c}>
@@ -286,28 +286,28 @@ export function PreinscripcionPublica({ slug }: { slug: string }) {
           <section>
             <div className="flex flex-wrap items-baseline justify-between gap-3">
               <h2 className="text-xl font-bold tracking-tight">
-                Acciones de formación disponibles
+                Servicios disponibles
               </h2>
               <span className="text-sm text-texto-suave">
-                {conCobertura.length} con cobertura en {departamento}
+                {conCobertura.length} con atención en {departamento}
                 {ciudad ? ` · ${ciudad}` : ""}
               </span>
             </div>
 
             <p className="mt-1 text-sm text-texto-suave">
-              A continuación, las acciones de formación disponibles para su preinscripción:
+              A continuación, los servicios disponibles para su solicitud:
             </p>
 
             {conCobertura.length > 0 && (
               <p className="mt-3 rounded-xl bg-marca-suave px-4 py-3 text-sm text-marca">
-                Seleccione la que sea de su mayor interés, considerando que solo puede
-                preinscribirse en una.
+                Seleccione el que sea de su mayor interés, considerando que solo puede
+                solicitar uno a la vez.
               </p>
             )}
 
             {conCobertura.length === 0 && (
               <p className="mt-3 rounded-xl border border-borde bg-superficie px-4 py-3 text-sm text-texto-suave">
-                No hay acciones con cobertura en esa ubicación. Pruebe con otra ciudad del
+                No hay servicios con atención en esa ubicación. Pruebe con otra ciudad del
                 mismo departamento.
               </p>
             )}
@@ -348,14 +348,14 @@ export function PreinscripcionPublica({ slug }: { slug: string }) {
         <section className="rounded-2xl border border-borde bg-superficie p-6">
           <h2 className="text-lg font-semibold">Datos Personales</h2>
           <p className="mt-1 text-sm text-texto-suave">
-            Para formalizar su preinscripción, complete la siguiente información:
+            Para atender su solicitud, complete la siguiente información:
           </p>
           {/* Se dice ARRIBA que todos hacen falta, no solo abajo
               cuales faltan. Enterarse campo a campo de que otro
               era obligatorio es como se abandona un formulario. */}
           <p className="mt-2 text-sm font-medium text-texto">
             Recuerde que todos los campos son obligatorios para completar su
-            preinscripción.
+            solicitud.
           </p>
 
           {/* dos columnas desde tablet, tres en escritorio: en
@@ -498,7 +498,7 @@ export function PreinscripcionPublica({ slug }: { slug: string }) {
         )}
 
         <BotonesDePaso
-          atras="Volver a las acciones"
+          atras="Volver a los servicios"
           alVolver={() => setPantalla("eleccion")}
           adelante="Continuar"
           bloqueado={faltaEnDatos.length > 0}
@@ -538,7 +538,7 @@ export function PreinscripcionPublica({ slug }: { slug: string }) {
           </div>
 
           <p className="mt-5 rounded-xl border border-borde bg-superficie-alterna px-4 py-3 text-sm leading-relaxed text-texto-suave">
-            Necesitamos su autorización para continuar con su preinscripción: sin
+            Necesitamos su autorización para continuar con su solicitud: sin
             ella no podemos usar sus datos para comunicarnos con usted.
           </p>
 
@@ -573,7 +573,7 @@ export function PreinscripcionPublica({ slug }: { slug: string }) {
             </h2>
 
             <dl className="mt-4 grid gap-4 sm:grid-cols-2">
-              <Resumen etiqueta="Acción de formación" valor={nombreAccion} />
+              <Resumen etiqueta="Servicio de interés" valor={nombreAccion} />
               <Resumen
                 etiqueta="Ubicación"
                 valor={ciudad ? `${departamento} · ${ciudad}` : departamento}
@@ -591,7 +591,7 @@ export function PreinscripcionPublica({ slug }: { slug: string }) {
                 disabled={enviando}
                 className="rounded-xl bg-marca px-7 py-3.5 font-medium text-marca-texto transition hover:bg-marca-fuerte disabled:opacity-50"
               >
-                {enviando ? "Registrando…" : "Está correcto, confirmar mi preinscripción"}
+                {enviando ? "Registrando…" : "Está correcto, enviar mi solicitud"}
               </button>
               <button
                 type="button"
@@ -633,7 +633,7 @@ function LoElegido({
     <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-marca/30 bg-marca-suave px-5 py-4">
       <div className="min-w-0">
         <p className="text-xs font-semibold uppercase tracking-wide text-marca">
-          Formación seleccionada
+          Servicio seleccionado
         </p>
         <p className="mt-1 font-semibold leading-snug text-balance">
           {codigo && (
@@ -701,9 +701,9 @@ function BotonesDePaso({
 /// que hay que evitar desde el primer clic.
 function BandaDeEstado({ paso }: { paso: 1 | 2 | 3 }) {
   const pasos = [
-    { n: 1, texto: "Reserva de cupo" },
-    { n: 2, texto: "Datos de preinscripción" },
-    { n: 3, texto: "Preinscripción confirmada" },
+    { n: 1, texto: "Solicitud recibida" },
+    { n: 2, texto: "Datos de contacto" },
+    { n: 3, texto: "Solicitud confirmada" },
   ];
 
   return (
@@ -801,11 +801,11 @@ function TarjetaAccion({
 
       <div className="mt-auto flex flex-wrap items-center gap-x-4 gap-y-1 pt-1 text-sm">
         {oferta.tipo === "CIUDAD" && (
-          <span className="text-texto-suave">Sede {oferta.ubicacion}</span>
+          <span className="text-texto-suave">Ciudad {oferta.ubicacion}</span>
         )}
         {oferta.libres <= 10 && (
           <span className="font-medium text-error">
-            Disponibilidad: {oferta.libres} cupos
+            Disponibilidad limitada
           </span>
         )}
         {elegida && <span className="ml-auto font-semibold text-marca">Seleccionada</span>}
@@ -924,17 +924,17 @@ function Registrada({ token, nombre }: { token: string; nombre: string }) {
           tres canales estan en el CRM. Prometer una llamada es
           prometer de mas. */}
       <p className="mt-3 text-texto-suave">
-        Su preinscripción ha sido registrada correctamente y está pendiente de
-        confirmación. Un asesor se pondrá en contacto con usted para continuar
-        el proceso. Si lo desea, puede completar ahora sus datos o esperar a que
-        nos comuniquemos.
+        Su solicitud ha sido registrada correctamente y está pendiente de
+        confirmación. Un asesor comercial se pondrá en contacto con usted para
+        continuar el proceso. Si lo desea, puede completar ahora sus datos o
+        esperar a que nos comuniquemos.
       </p>
 
       <a
         href={`/completar/${token}`}
         className="mt-8 inline-block rounded-xl bg-marca px-6 py-3 font-medium text-marca-texto transition hover:bg-marca-fuerte"
       >
-        Continuar con mi registro de preinscripción
+        Completar mis datos de contacto
       </a>
       </main>
       <FondoPublico />

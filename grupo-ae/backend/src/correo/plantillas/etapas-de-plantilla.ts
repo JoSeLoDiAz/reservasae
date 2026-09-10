@@ -48,14 +48,14 @@ export const ETAPA_EN_PALABRAS: Record<string, string> = {
   INTERESADO: 'interesado',
   CONTACTADO: 'contactado',
   DATOS_COMPLETOS: 'con datos completos',
-  INSCRITO: 'inscrito',
-  EN_FORMACION: 'en formación',
-  CERTIFICADO: 'certificado',
+  INSCRITO: 'con propuesta enviada',
+  EN_FORMACION: 'en negociación',
+  CERTIFICADO: 'ganado',
   PERDIDO: 'perdido',
   RETIRADO: 'retirado',
-  NO_APROBO: 'no aprobó',
-  DESERTO: 'desertó',
-  ABANDONO: 'abandonó',
+  NO_APROBO: 'no cerró',
+  DESERTO: 'desistió',
+  ABANDONO: 'dejó de responder',
 };
 
 export function enPalabras(e: string): string {
@@ -79,7 +79,7 @@ export function porQueNo(
   const donde = etapasPermitidas.map(enPalabras).join(', ');
 
   if (!etapaActual) {
-    return `Esta plantilla es para quien esté ${donde}, y esta ficha no tiene etapa.`;
+    return `Esta plantilla es para quien esté ${donde}, y esta oportunidad no tiene etapa.`;
   }
 
   return (

@@ -116,7 +116,7 @@ export class DisparadorInscripcion {
     const empresa = participante.empresa;
     if (!empresa) {
       throw new BadRequestException(
-        'Para inscribir hay que decir en qué empresa trabaja la persona.',
+        'Para cerrar hay que decir en qué empresa trabaja la persona.',
       );
     }
 
@@ -126,7 +126,7 @@ export class DisparadorInscripcion {
       !empresa.contactoCorreo?.trim()
     ) {
       throw new BadRequestException(
-        'Para inscribir se requieren persona de contacto, cargo y correo de la empresa.',
+        'Para cerrar se requieren persona de contacto, cargo y correo de la empresa.',
       );
     }
 

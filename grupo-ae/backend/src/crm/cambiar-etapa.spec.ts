@@ -243,7 +243,7 @@ describe('el cupo y la oferta SIGUEN bloqueando: no son cronograma', () => {
       'EN_FORMACION',
     );
     expect(r.ok).toBe(false);
-    expect(r.mensaje).toMatch(/lleno/i);
+    expect(r.mensaje).toMatch(/completa/i);
   });
 });
 
@@ -288,7 +288,7 @@ describe('el paso imposible se juzga ANTES que el cupo', () => {
     const r = await pasarA({ etapa: 'RETIRADO', motivo: 'LLENO' }, 'CERTIFICADO');
 
     expect(r.ok).toBe(false);
-    expect(r.mensaje).toMatch(/En formación/);
+    expect(r.mensaje).toMatch(/En negociación/);
     expect(r.mensaje).not.toMatch(/LLENO/);
   });
 
@@ -298,13 +298,13 @@ describe('el paso imposible se juzga ANTES que el cupo', () => {
     /// `exigirQueQuepa` ni se llama. La prueba de mutación lo
     /// dijo — invirtiendo el orden, este test seguía pasando.
     ///
-    /// Se queda porque fija otra cosa que sí importa: dar por no
-    /// aprobado a quien nunca entró al aula tampoco se puede, y
+    /// Se queda porque fija otra cosa que sí importa: dar por
+    /// perdida una oportunidad que nunca se negoció tampoco se puede, y
     /// el mensaje es el mismo que guía.
     const r = await pasarA({ etapa: 'DESERTO', motivo: 'LLENO' }, 'NO_APROBO');
 
     expect(r.ok).toBe(false);
-    expect(r.mensaje).toMatch(/En formación/);
+    expect(r.mensaje).toMatch(/En negociación/);
   });
 });
 

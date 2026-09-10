@@ -93,7 +93,7 @@ export class AdminService {
       if (tiene === 0) {
         return (
           `Su cuenta no trabaja en ${delHost.slug}. Entre por la dirección ` +
-          'del gremio que le corresponde.'
+          'de la unidad de negocio que le corresponde.'
         );
       }
       return null;
@@ -105,7 +105,7 @@ export class AdminService {
     ) {
       return (
         'Esta dirección es solo para administración general. Entre por la ' +
-        'dirección de su gremio.'
+        'dirección de su unidad de negocio.'
       );
     }
 
@@ -211,7 +211,7 @@ export class AdminService {
       where: { id: { in: ids }, activo: true },
     });
     if (existen !== ids.length) {
-      throw new BadRequestException('Alguno de los convenios indicados no existe.');
+      throw new BadRequestException('Alguna de las unidades de negocio indicadas no existe.');
     }
   }
 
@@ -266,7 +266,7 @@ export class AdminService {
       // quedarse sin ninguna es quedarse sin panel
       if (dto.concesiones.length === 0) {
         throw new BadRequestException(
-          'Una cuenta sin ningún convenio no vería nada. Desactívela en vez de dejarla sin acceso.',
+          'Una cuenta sin ninguna unidad de negocio no vería nada. Desactívela en vez de dejarla sin acceso.',
         );
       }
       await this.exigirConveniosReales(dto.concesiones);
@@ -469,7 +469,7 @@ export class AdminService {
       });
       if (!suyo) {
         throw new BadRequestException(
-          'Ese formulario no es de este convenio, así que no puede darle su marca.',
+          'Ese formulario no es de esta unidad de negocio, así que no puede darle su marca.',
         );
       }
     }
@@ -779,7 +779,7 @@ export class AdminService {
     // fuera del ambito no existe: publicar u ocultar la
     // accion del otro gremio la saca del sitio publico
     if (!accion || !ambito.includes(accion.convenioId)) {
-      throw new NotFoundException('No existe esa acción de formación.');
+      throw new NotFoundException('No existe ese producto o servicio.');
     }
 
     // publicar sin texto legal seria pedir que acepten
@@ -796,8 +796,8 @@ export class AdminService {
 
       if (!politica) {
         throw new ConflictException(
-          'Este convenio no tiene una política de tratamiento de datos vigente. ' +
-            'Publique la política antes de abrir la acción al público.',
+          'Esta unidad de negocio no tiene una política de tratamiento de datos vigente. ' +
+            'Publique la política antes de abrir el producto al público.',
         );
       }
     }
