@@ -45,68 +45,42 @@ export const MODULOS: Modulo[] = [
     emoji: '📝',
     etiqueta: 'Gestión de leads',
     descripcion: 'Del lead que entra al negocio que se cierra.',
+    /**
+     * Tres entradas y ni una más.
+     *
+     * Aquí había seis: mesa de entrada, lista de leads, asignar
+     * grupo por lote, inscritos por acción y control de inscritos.
+     * Las tres últimas son del mundo del aula —cohortes, cupos,
+     * reporte— y no tienen nada que hacer en un CRM de ventas.
+     *
+     * Y las dos primeras eran la misma pregunta contada dos veces:
+     * si TODO entra por formulario, «lo que llegó» y «lo que hay»
+     * son la misma lista mirada con distinto filtro. Dos pantallas
+     * para eso obligan a decidir a cuál entrar, que es el impuesto
+     * que cobran los CRMs con cuarenta menús.
+     *
+     * Queda el tablero —dónde va cada negocio— y las dos listas,
+     * partidas como los formularios: empresas y personas, que son
+     * los dos embudos y se trabajan distinto.
+     */
     enlaces: [
       {
-        /// Va PRIMERO porque es donde se trabaja.
-        ///
-        /// La mesa de entrada es de donde SALEN los leads y el
-        /// embudo es donde VIVEN: quien abre el panel por la
-        /// mañana viene a ver sus negocios, no a ver qué llegó de
-        /// madrugada. Poner la mesa primero sugeriria que el
-        /// trabajo es despachar la bandeja, y el trabajo es cerrar.
         href: '/admin/embudo',
         etiqueta: 'Embudo de ventas',
         exacto: true,
         area: 'inscripciones',
       },
       {
-        href: '/admin/mesa',
-        etiqueta: 'Mesa de entrada',
+        href: '/admin/leads/empresas',
+        etiqueta: 'Leads Empresas',
         exacto: true,
         area: 'inscripciones',
       },
       {
-        /// «Lista» y no «Gestión de leads», que es como se
-        /// llama en Convoca: al pasar el módulo entero a
-        /// llamarse así, el enlace repetía el nombre de su
-        /// propia pestaña y no se sabía cuál era cuál.
-        href: '/admin/participantes',
-        etiqueta: 'Lista de leads',
+        href: '/admin/leads/personas',
+        etiqueta: 'Leads Personas',
         exacto: true,
         area: 'inscripciones',
-      },
-      {
-        /// Detras de la lista de leads a proposito: se llega
-        /// aqui DESPUES de ver que hay gente sin grupo, no
-        /// antes. Y es «inscripciones» y no «inscritos» porque
-        /// escribe sobre la ficha: poner la cohorte es atender
-        /// la inscripcion, no mirarla.
-        href: '/admin/participantes/grupos',
-        etiqueta: 'Asignar grupo por lote',
-        exacto: true,
-        area: 'inscripciones',
-      },
-      {
-        /// Los mismos participantes, cortados por accion de
-        /// formacion. Vive aqui y no en «Sistemas de
-        /// informacion» porque es una vista de la gente que se
-        /// esta inscribiendo, no un dato que sostenga el
-        /// reporte: quien la busca viene de la lista de leads.
-        href: '/admin/inscritos',
-        etiqueta: 'Inscritos por acción',
-        exacto: true,
-        area: 'inscritos',
-      },
-      {
-        /// Una sola entrada, con dos pestañas dentro.
-        ///
-        /// Eran dos: «Panel Control de Inscritos» y «Control de
-        /// inscritos». Contaban lo mismo por caminos distintos
-        /// y nadie sabía a cuál entrar. La primera es hoy la
-        /// pestaña «Metas y avance», y su ruta vieja redirige.
-        href: '/admin/control',
-        etiqueta: 'Control de Inscritos',
-        area: 'inscritos',
       },
     ],
   },

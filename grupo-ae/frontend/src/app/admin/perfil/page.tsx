@@ -145,7 +145,7 @@ function SobreConvoca() {
   const enPruebas = (estado?.version ?? "").includes("prueba");
 
   return (
-    <Bloque titulo="Sobre Convoca CRM">
+    <Bloque titulo="Sobre el CRM">
       <div className="space-y-5">
         <FirmaConvoca tamano={40} />
 

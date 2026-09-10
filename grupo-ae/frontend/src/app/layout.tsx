@@ -23,7 +23,7 @@ const raleway = Raleway({
 
 
 export const metadata: Metadata = {
-  title: "Convoca CRM",
+  title: "Grupo AE",
   // sin descripcion: saldria hasta en el 404
 
   // noindex: Cloudflare pisa el robots.txt

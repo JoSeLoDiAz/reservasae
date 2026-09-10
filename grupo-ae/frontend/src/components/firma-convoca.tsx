@@ -25,8 +25,8 @@ import { SignoConvoca } from "@/components/admin/signo-convoca";
 /// el `<title>`, en los correos y en una columna de la base. Una
 /// constante no arregla eso sola, pero al menos aqui no se
 /// escribe dos veces.
-const NOMBRE = "Convoca CRM";
-const FRASE = "Relaciones que generan resultados";
+const NOMBRE = "Grupo AE";
+const FRASE = "Captación y ventas";
 
 type Estado = { version: string; hora: string };
 

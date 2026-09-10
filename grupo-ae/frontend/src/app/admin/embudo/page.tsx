@@ -15,7 +15,7 @@
 import { useCallback, useEffect, useState } from "react";
 
 import { Bloque, Cargando, Pildora, Vacio } from "@/components/admin/piezas";
-import { Aviso, Tarjeta } from "@/components/admin/marco-admin";
+import { Aviso } from "@/components/admin/marco-admin";
 import { ErrorApi } from "@/lib/api";
 import {
   enPesos,
@@ -38,6 +38,13 @@ export default function PaginaEmbudo() {
   const [tablero, setTablero] = useState<Tablero | null>(null);
   const [esperando, setEsperando] = useState<SinRespuesta[]>([]);
   const [cargando, setCargando] = useState(true);
+  /// El instante con el que se miden los dias quietos.
+  ///
+  /// Se fija al traer los datos y no se calcula dentro de cada
+  /// ficha: `Date.now()` durante el render es impuro -- React lo
+  /// senala -- y ademas daria un instante distinto por tarjeta, de
+  /// modo que dos fichas iguales podrian salir con dias distintos.
+  const [ahora, setAhora] = useState(() => Date.now());
   const [error, setError] = useState<string | null>(null);
 
   const cargar = useCallback(async (cual: TipoEmbudo) => {
@@ -50,6 +57,7 @@ export default function PaginaEmbudo() {
       ]);
       setTablero(t);
       setEsperando(s);
+      setAhora(Date.now());
     } catch (e) {
       setError(
         e instanceof ErrorApi
@@ -66,8 +74,20 @@ export default function PaginaEmbudo() {
   }, [cargar, embudo]);
 
   return (
-    <div className="flex flex-col gap-5">
-      <div className="flex flex-wrap items-center justify-between gap-3">
+    /*
+      `px-4 pt-4 pb-6` como el resto del panel. Sin esto el contenido
+      arranca pegado al borde de la ventana y todo se lee apretado
+      por mucho aire que tenga por dentro.
+    */
+    <div className="flex flex-col gap-6 px-4 pt-4 pb-6">
+      {/*
+        Una sola franja arriba, no tres tarjetas.
+        Aquí había un selector, un bloque de reloj y TRES tarjetas de
+        cifra, cada una con su borde: seis objetos con seis marcos
+        para tres datos. La regla de esta casa es contar bloques
+        antes de tocar tamaños, y seis era el problema.
+      */}
+      <header className="flex flex-wrap items-end justify-between gap-x-10 gap-y-4">
         <div className="flex gap-2">
           {EMBUDOS.map((e) => (
             <button
@@ -75,18 +95,20 @@ export default function PaginaEmbudo() {
               type="button"
               onClick={() => setEmbudo(e.valor)}
               aria-pressed={embudo === e.valor}
-              className={`rounded-lg border px-3.5 py-2 text-left transition ${
+              className={`rounded-lg px-3.5 py-2 text-left transition ${
                 embudo === e.valor
-                  ? "border-marca bg-marca/10"
-                  : "border-borde hover:bg-current/5"
+                  ? "bg-marca text-white"
+                  : "opacity-60 hover:bg-current/5 hover:opacity-100"
               }`}
             >
               <span className="block text-sm font-semibold">{e.rotulo}</span>
-              <span className="block text-xs opacity-60">{e.abajo}</span>
+              <span className="block text-xs opacity-80">{e.abajo}</span>
             </button>
           ))}
         </div>
-      </div>
+
+        {tablero && <Cifras tablero={tablero} />}
+      </header>
 
       {error && <Aviso tipo="error">{error}</Aviso>}
 
@@ -95,10 +117,7 @@ export default function PaginaEmbudo() {
       {cargando && !tablero ? (
         <Cargando que="Armando el embudo…" />
       ) : tablero ? (
-        <>
-          <Pronostico tablero={tablero} />
-          <Columnas tablero={tablero} />
-        </>
+        <Columnas tablero={tablero} ahora={ahora} />
       ) : null}
     </div>
   );
@@ -163,44 +182,47 @@ function RelojDeRespuesta({ esperando }: { esperando: SinRespuesta[] }) {
   );
 }
 
-function Pronostico({ tablero }: { tablero: Tablero }) {
+/**
+ * Las dos cifras, en línea y sin marco.
+ *
+ * Las dos y nunca una: «sobre la mesa» es el tamaño del embudo y
+ * «esperado» es lo que un adulto cuenta con cobrar. Enseñar solo la
+ * primera es como los CRMs cuentan historias bonitas; enseñar solo
+ * la segunda esconde cuánto trabajo hay encima.
+ */
+function Cifras({ tablero }: { tablero: Tablero }) {
   const { pronostico } = tablero;
   return (
-    <div className="grid gap-3 sm:grid-cols-3">
-      <Tarjeta
-        titulo="Sobre la mesa"
-        descripcion={`${pronostico.cuantas} oportunidades abiertas`}
-      >
-        <span className="block text-2xl font-semibold tabular-nums">
+    <div className="flex flex-wrap items-end gap-x-8 gap-y-2">
+      <div>
+        <span className="block text-[11px] uppercase tracking-wide opacity-55">
+          Sobre la mesa
+        </span>
+        <span className="block text-2xl font-semibold tabular-nums leading-tight">
           {enPesos(pronostico.total)}
         </span>
-      </Tarjeta>
-      <Tarjeta
-        titulo="Esperado"
-        descripcion="Valor por probabilidad de cada etapa"
-      >
-        <span className="block text-2xl font-semibold tabular-nums">
+        <span className="block text-xs opacity-60">
+          {pronostico.cuantas} abiertas
+        </span>
+      </div>
+      <div>
+        <span className="block text-[11px] uppercase tracking-wide opacity-55">
+          Esperado
+        </span>
+        <span className="block text-2xl font-semibold tabular-nums leading-tight">
           {enPesos(pronostico.ponderado)}
         </span>
-      </Tarjeta>
-      <Tarjeta titulo="Las probabilidades">
-        <span className="block text-sm leading-snug">
-          {pronostico.probabilidadesEstimadas ? (
-            <>
-              Son <strong>estimadas</strong>: salen de la forma del embudo, no
-              de nuestro histórico. Se recalculan con los primeros cierres
-              propios.
-            </>
-          ) : (
-            <>Calculadas con cierres propios.</>
-          )}
+        <span className="block text-xs opacity-60">
+          {pronostico.probabilidadesEstimadas
+            ? "con probabilidades estimadas"
+            : "con probabilidades propias"}
         </span>
-      </Tarjeta>
+      </div>
     </div>
   );
 }
 
-function Columnas({ tablero }: { tablero: Tablero }) {
+function Columnas({ tablero, ahora }: { tablero: Tablero; ahora: number }) {
   const conAlgo = tablero.columnas.some((c) => c.cuantas > 0);
 
   if (!conAlgo) {
@@ -211,31 +233,90 @@ function Columnas({ tablero }: { tablero: Tablero }) {
     );
   }
 
+  /**
+   * Los cerrados NO son columnas.
+   *
+   * Aquí estaban las siete etapas en fila, y siete columnas de ancho
+   * fijo no caben en ninguna pantalla: «Ganado» quedaba cortado a la
+   * derecha y para ver el embudo entero había que arrastrar. Un
+   * tablero que no se ve entero no es un tablero.
+   *
+   * Y el arreglo no era estrechar las columnas, era quitar las que
+   * sobran: lo ganado y lo perdido ya no se trabaja. Van abajo, en
+   * una línea, que es todo el sitio que merecen en la pantalla donde
+   * se decide a qué dedicar la semana.
+   *
+   * Las abiertas se reparten el ancho disponible en vez de medir lo
+   * mismo pase lo que pase: cinco en empresas, tres en personas, y
+   * en una ventana estrecha se envuelven solas.
+   */
+  const abiertas = tablero.columnas.filter(
+    (c) => c.etapa !== "GANADO" && c.etapa !== "PERDIDO",
+  );
+  const cerradas = tablero.columnas.filter(
+    (c) => c.etapa === "GANADO" || c.etapa === "PERDIDO",
+  );
+
   return (
-    <div className="overflow-x-auto pb-2">
-      <div className="flex min-w-max gap-3">
-        {tablero.columnas.map((c) => (
-          <Columna key={c.etapa} columna={c} />
+    <div className="flex flex-col gap-5">
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(14rem,1fr))] gap-5">
+        {abiertas.map((c) => (
+          <Columna key={c.etapa} columna={c} ahora={ahora} />
         ))}
       </div>
+
+      <Cerradas columnas={cerradas} />
+
+      {tablero.pronostico.probabilidadesEstimadas && (
+        <p className="max-w-prose text-xs opacity-55">
+          Los porcentajes de cada columna son <strong>estimados</strong>: salen
+          de la forma del embudo, no de nuestro histórico. Se recalculan con los
+          primeros cierres propios, y por embudo separado.
+        </p>
+      )}
     </div>
   );
 }
 
-function Columna({ columna }: { columna: ColumnaDelEmbudo }) {
-  const esCierre = columna.etapa === "GANADO" || columna.etapa === "PERDIDO";
+/** Lo ya cerrado, en una línea. No se trabaja: se cuenta. */
+function Cerradas({ columnas }: { columnas: ColumnaDelEmbudo[] }) {
+  const hayAlgo = columnas.some((c) => c.cuantas > 0);
+  if (!hayAlgo) return null;
 
   return (
-    <section className="flex w-[17rem] shrink-0 flex-col gap-2">
-      <header className="rounded-lg border border-borde px-3 py-2">
+    <div className="flex flex-wrap items-baseline gap-x-8 gap-y-2 border-t border-borde pt-4 text-sm">
+      {columnas.map((c) => (
+        <span key={c.etapa} className="flex items-baseline gap-2">
+          <span className="opacity-55">{c.rotulo}</span>
+          <span className="font-medium">
+            {c.cuantas === 1 ? "1 negocio" : `${c.cuantas} negocios`}
+          </span>
+          <span className="tabular-nums opacity-70">{enPesos(c.total)}</span>
+        </span>
+      ))}
+    </div>
+  );
+}
+
+/**
+ * Una columna sin caja.
+ *
+ * El encabezado era una tarjeta con borde encima de tarjetas con
+ * borde: un marco alrededor de cada marco. Ahora es un rótulo con
+ * una regla debajo, que separa igual y no compite con las fichas.
+ */
+function Columna({ columna, ahora }: { columna: ColumnaDelEmbudo; ahora: number }) {
+  return (
+    <section className="flex min-w-0 flex-col gap-3">
+      <header className="border-b-2 border-borde pb-2">
         <div className="flex items-baseline justify-between gap-2">
-          <h3 className="text-sm font-semibold">{columna.rotulo}</h3>
-          <span className="text-xs opacity-60 tabular-nums">
-            {esCierre ? "" : `${columna.probabilidad} %`}
+          <h3 className="truncate text-sm font-semibold">{columna.rotulo}</h3>
+          <span className="shrink-0 text-xs tabular-nums opacity-55">
+            {columna.probabilidad} %
           </span>
         </div>
-        <div className="flex items-baseline justify-between gap-2">
-          <span className="text-xs opacity-60">
+        <div className="flex items-baseline justify-between gap-2 pt-0.5">
+          <span className="text-xs opacity-55">
             {columna.cuantas === 1 ? "1 negocio" : `${columna.cuantas} negocios`}
           </span>
           <span className="text-xs font-medium tabular-nums">
@@ -244,50 +325,50 @@ function Columna({ columna }: { columna: ColumnaDelEmbudo }) {
         </div>
       </header>
 
-      <div className="flex flex-col gap-2">
+      <div className="flex flex-col gap-3">
         {columna.oportunidades.length === 0 ? (
-          <p className="rounded-lg border border-dashed border-borde px-3 py-4 text-center text-xs opacity-50">
-            Vacía
-          </p>
+          <p className="py-6 text-center text-xs opacity-35">Vacía</p>
         ) : (
-          columna.oportunidades.map((o) => <Ficha key={o.id} o={o} />)
+          columna.oportunidades.map((o) => <Ficha key={o.id} o={o} ahora={ahora} />)
         )}
       </div>
     </section>
   );
 }
 
-function Ficha({ o }: { o: OportunidadEnTablero }) {
+function Ficha({ o, ahora }: { o: OportunidadEnTablero; ahora: number }) {
   /// Los días quieta se calculan aquí y no en el servidor porque
   /// dependen de cuándo se MIRA la pantalla, no de cuándo se pidió
   /// el dato. Con el tablero abierto media hora, un cálculo del
   /// servidor se queda viejo sin avisar.
   const diasQuieta = Math.floor(
-    (Date.now() - new Date(o.ultimoToqueEn).getTime()) / 86_400_000,
+    (ahora - new Date(o.ultimoToqueEn).getTime()) / 86_400_000,
   );
 
   return (
-    <article className="flex flex-col gap-1.5 rounded-lg border border-borde px-3 py-2.5">
+    <article className="flex flex-col gap-2 rounded-lg border border-borde px-4 py-3.5">
       <div className="flex items-baseline justify-between gap-2">
-        <span className="font-mono text-[0.7rem] opacity-50">{o.codigo}</span>
+        <span className="font-mono text-[0.7rem] opacity-45">{o.codigo}</span>
         {diasQuieta >= 7 && <Pildora tono="aviso">{diasQuieta} d quieta</Pildora>}
       </div>
 
       <p className="text-sm font-medium leading-snug">{o.titulo}</p>
 
-      {o.deQuien && <p className="text-xs opacity-70">{o.deQuien}</p>}
+      {o.deQuien && <p className="text-xs opacity-65">{o.deQuien}</p>}
 
-      <div className="flex items-baseline justify-between gap-2 pt-0.5">
-        <span className="text-sm font-semibold tabular-nums">
-          {enPesos(o.valor)}
+      <div className="flex items-baseline justify-between gap-2 border-t border-borde/50 pt-2.5">
+        <span className="text-base font-semibold tabular-nums">
+          {o.valor > 0 ? enPesos(o.valor) : "Sin valor"}
         </span>
-        <span className="text-xs opacity-60">
+        <span
+          className={`text-xs ${o.asesor ? "opacity-60" : "font-medium text-error"}`}
+        >
           {o.asesor?.nombre ?? "Sin dueño"}
         </span>
       </div>
 
       {o.campana && (
-        <span className="text-[0.7rem] opacity-55">Campaña: {o.campana}</span>
+        <span className="text-[0.7rem] opacity-50">{o.campana}</span>
       )}
     </article>
   );

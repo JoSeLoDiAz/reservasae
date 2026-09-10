@@ -450,7 +450,7 @@ function Marca({ plegado }: { plegado?: boolean }) {
       <Link
         href="/admin"
         // plegado no hay texto que lo nombre
-        aria-label={plegado ? "Convoca CRM" : undefined}
+        aria-label={plegado ? "Grupo AE" : undefined}
         className="flex max-w-full items-center justify-center gap-2.5 no-underline"
       >
         {/* La MISMA firma que el login, el pie publico y la

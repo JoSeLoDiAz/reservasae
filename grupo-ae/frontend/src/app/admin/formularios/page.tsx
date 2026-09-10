@@ -38,11 +38,12 @@ export default function PaginaFormularios() {
           salia cortado como «Formularios de reserva (...». */}
       <header>
         <h1 className="text-[1.3125rem] font-bold tracking-[-0.02em] text-titulo">
-          Formularios de reserva (empresas)
+          Formularios de empresas
         </h1>
         <p className="mt-1 max-w-3xl text-texto-suave">
-          Lo que ve quien entra a reservar. Puede crear preguntas, agruparlas en
-          secciones y publicarlas sin tocar el código.
+          Por donde entra un lead de empresa. Cada formulario publicado es una
+          puerta: lo que se pregunte aquí es lo que llega a la ficha, y de qué
+          campaña vino se sabe por el enlace con el que se comparte.
         </p>
       </header>
 
