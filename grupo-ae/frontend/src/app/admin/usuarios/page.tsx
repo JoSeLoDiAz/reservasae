@@ -468,7 +468,7 @@ function FormularioNuevoUsuario({
         </Campo>
 
         <div className="sm:col-span-2">
-          <p className="mb-1.5 text-sm font-medium">A qué convenios entra</p>
+          <p className="mb-1.5 text-sm font-medium">A qué unidades de negocio entra</p>
           <p className="mb-3 text-xs text-texto-suave">
             Sin marcar ninguno, la cuenta entra al panel y no ve una sola
             pantalla. El rol se elige por convenio: se puede llevar un área en
@@ -526,7 +526,7 @@ function EditorConcesiones({
   return (
     <div className="mt-3 rounded-xl border border-borde bg-superficie-alterna p-4">
       <p className="mb-3 text-sm font-medium">
-        A qué convenios entra {usuario.nombre.split(" ")[0]}
+        A qué unidades de negocio entra {usuario.nombre.split(" ")[0]}
       </p>
 
       <div className="space-y-2">

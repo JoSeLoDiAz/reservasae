@@ -1,335 +1,373 @@
 "use client";
 
-/** La primera pantalla: cómo va la ocupación de los cupos. */
+/** La portada: qué hay que hacer hoy y cómo va el mes. */
 
-/**
- * SEIS bloques con una narrativa, y antes eran doce apilados
- * sin jerarquía.
- *
- * Esta pantalla se abre al entrar, se proyecta en reunión y se
- * exporta a PDF, y contesta UNA pregunta: ¿cómo va la ocupación
- * de los cupos comprometidos con el SENA? La cifra que la
- * contesta salía con el mismo peso que «tasa de cancelación»,
- * doce bloques más abajo.
- *
- * El orden es la respuesta: veredicto, cifras, dónde empujar,
- * territorio, quién concentra.
- *
- * Lo que se quitó y por qué está en el comentario de cada
- * pieza; en corto: dos medidores que se contradecían (ahora un
- * termómetro), dos tablas de las mismas quince acciones (ahora
- * una), y la lista de «ubicaciones sin una sola reserva», que
- * es una cifra de la tira.
- *
- * En la revisión de Mauricio se cayeron dos bloques más:
- *
- *   - «De qué está hecha la demanda» entero. De sus tres
- *     piezas solo se miraba «Por modalidad», que subió al
- *     veredicto; «Por gremio» y «Tamaño de la organización» no
- *     se usaban para decidir nada desde aquí.
- *   - «Detalle por acción y ubicación». Era una tabla de 106
- *     filas que repetía lo que ya vive dentro de cada acción
- *     --«Grupos programados» y «Detalle por ubicación», en
- *     `/admin/acciones/[id]`--. El camino es pulsar la acción,
- *     no arrastrar la tabla entera hasta aquí.
- *
- * Y «Concentración» salió de «Territorio» a bloque propio con
- * el nombre que usa el equipo: son las reservas de aliados y
- * afiliados, no una nota al pie del mapa.
- */
-
-import Link from "next/link";
-import { useCallback } from "react";
-
-import { AccionesOcupacionRitmo } from "@/components/admin/acciones-ocupacion-ritmo";
-import { BotonPdf, EncabezadoImpresion } from "@/components/admin/boton-pdf";
-import { ListaBarras, n } from "@/components/admin/graficos";
-import {
-  IndicadorActualizacion,
-  SelloDeDatos,
-} from "@/components/admin/indicador-actualizacion";
-import { MapaColombia } from "@/components/admin/mapa-colombia";
-import { Aviso, useAdmin } from "@/components/admin/marco-admin";
-import { Bloque, Cargando, TarjetaCifra } from "@/components/admin/piezas";
-
-import { VeredictoOcupacion } from "@/components/admin/veredicto-ocupacion";
-import { bonito } from "@/lib/api";
-import { useDatosVivos } from "@/lib/datos-vivos";
-import { tablerosApi, type Analisis } from "@/lib/tableros-api";
-
-/// Las ciudades suman a su departamento para pintar el mapa.
+/// Aquí vivía el resumen de ocupación de Convoca: cupos
+/// comprometidos con el SENA, cobertura territorial en un mapa y
+/// reservas de aliados. Nada de eso existe en un CRM de ventas, así
+/// que la pantalla se rehizo entera en vez de traducirle los
+/// rótulos.
 ///
-/// `territorio` mezcla filas de departamento y de ciudad —así
-/// las manda el catálogo del SEP—, y el mapa solo sabe de
-/// departamentos: sin esto, los 45 cupos de Santa Marta no
-/// pintan el Magdalena y el departamento se queda gris con
-/// gente dentro.
-const DEPARTAMENTO_DE: Record<string, string> = {
-  "SANTA MARTA": "MAGDALENA",
-  BOGOTÁ: "BOGOTA",
-  CALI: "VALLE DEL CAUCA",
-  POPAYÁN: "CAUCA",
-  MEDELLÍN: "ANTIOQUIA",
-  APARTADÓ: "ANTIOQUIA",
-  CARTAGENA: "BOLÍVAR",
-  CHÍA: "CUNDINAMARCA",
-  LETICIA: "AMAZONAS",
-  PEREIRA: "RISARALDA",
-};
+/// **Cinco bloques y en este orden**, que no es decorativo:
+///
+///  1. Lo que exige una acción HOY —quién está esperando respuesta—.
+///  2. El dinero: lo abierto y lo esperado.
+///  3. Cómo va el mes cerrado.
+///  4. Dónde está atascado el embudo.
+///  5. Qué campaña trae negocio, y qué se está enfriando.
+///
+/// El orden es de urgencia, no de importancia. Lo de arriba se mira
+/// ahora; lo de abajo, una vez al día.
 
-export default function Tablero() {
-  const { admin } = useAdmin();
+import { useCallback, useEffect, useState } from "react";
 
-  const vivos = useDatosVivos(
-    useCallback(async () => {
-      /// `ubicaciones()` ya no se pide: era la fuente del
-      /// «Detalle por acción y ubicación», que se quitó. Una
-      /// consulta menos cada treinta segundos.
-      const [resumen, acciones, analisis, serie, proyeccion] = await Promise.all([
-        tablerosApi.resumen(),
-        tablerosApi.acciones(),
-        tablerosApi.analisis(),
-        tablerosApi.serie(30),
-        tablerosApi.proyeccion(14),
-      ]);
-      return { resumen, acciones, analisis, serie, proyeccion };
-    }, []),
-  );
+import { Aviso } from "@/components/admin/marco-admin";
+import { Bloque, Cargando, Pildora } from "@/components/admin/piezas";
+import { ErrorApi } from "@/lib/api";
+import {
+  enPesos,
+  haceCuanto,
+  oportunidadesApi,
+  type ResumenDeVentas,
+} from "@/lib/oportunidades-api";
 
-  if (vivos.error) return <Aviso tipo="error">{vivos.error}</Aviso>;
-  if (!vivos.datos) return <Cargando que="Cargando el tablero…" />;
+export default function Portada() {
+  const [datos, setDatos] = useState<ResumenDeVentas | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
-  const { resumen, acciones, analisis, serie, proyeccion } = vivos.datos;
+  const cargar = useCallback(async () => {
+    setError(null);
+    try {
+      setDatos(await oportunidadesApi.resumen());
+    } catch (e) {
+      setError(
+        e instanceof ErrorApi
+          ? e.message
+          : "No pudimos traer el resumen. Vuelva a intentarlo.",
+      );
+    }
+  }, []);
 
-  /// En el refresco de cada 30 s NO se vacía el layout: se
-  /// atenúa lo que hay. Vaciarlo da un salto de media pantalla
-  /// cada medio minuto y se pierde de vista lo que uno estaba
-  /// mirando —y esta pantalla se proyecta en reunión—.
-  const atenuado = vivos.refrescando ? "opacity-45 pointer-events-none" : "";
+  useEffect(() => {
+    void cargar();
+  }, [cargar]);
+
+  if (error) {
+    return (
+      <div className="px-4 pt-4 pb-6">
+        <Aviso tipo="error">{error}</Aviso>
+      </div>
+    );
+  }
+
+  if (!datos) {
+    return (
+      <div className="px-4 pt-4 pb-6">
+        <Cargando que="Trayendo el resumen…" />
+      </div>
+    );
+  }
 
   return (
-    <div className="resumen-impreso flex flex-col gap-3 px-4 pt-3 pb-6">
-      <EncabezadoImpresion
-        titulo="Resumen de ocupación"
-        subtitulo="Cupos comprometidos con el SENA"
-      />
-      <SelloDeDatos actualizadoEn={vivos.actualizadoEn} />
-
-      {/* 1 - Cabecera */}
-      <header className="no-imprimir flex flex-wrap items-start justify-between gap-4">
-        <div className="min-w-0">
-          <h1 className="text-[1.125rem] font-bold tracking-[-0.02em] text-titulo">
-            Hola, {admin.nombre.split(" ")[0]}
-          </h1>
-          <p className="mt-0.5 text-[0.78125rem] text-texto-suave">
-            Resumen de ocupación de los cupos comprometidos
-          </p>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-3">
-          <IndicadorActualizacion
-            actualizadoEn={vivos.actualizadoEn}
-            refrescando={vivos.refrescando}
-            desactualizado={vivos.desactualizado}
-            alRefrescar={vivos.refrescar}
-          />
-          {/* Sin «Descargar Excel».
-
-              Esta pantalla es el informe: se proyecta en
-              reunión y se lleva en PDF. El Excel era la
-              tercera forma de sacar lo mismo --y la que nadie
-              usaba-- al lado de la que sí. La exportación de
-              ocupación sigue viva en la API por si hace falta
-              devolverla. */}
-          <BotonPdf etiqueta="PDF para reunión" />
-          <Link
-            href="/admin/reservas"
-            className="inline-flex h-[34px] items-center rounded-lg border border-marca bg-marca px-3.5 text-[0.78125rem] font-semibold text-marca-texto transition hover:bg-marca-fuerte"
-          >
-            Ver reservas
-          </Link>
-        </div>
-      </header>
-
-      {/* La franja fina mientras llega el dato nuevo: la
-          opacidad sola casi no se nota en una pantalla clara. */}
-      {vivos.refrescando && (
-        <div
-          className="h-0.5 overflow-hidden rounded-full bg-superficie-alterna"
-          aria-hidden
-        >
-          <div className="h-full w-1/3 animate-[recorrer_1.1s_ease-in-out_infinite] rounded-full bg-marca" />
-        </div>
-      )}
-
-      <div
-        className={`flex flex-col gap-3 transition-opacity ${atenuado}`}
-        aria-busy={vivos.refrescando}
-      >
-        {/* 2 - El veredicto */}
-        <VeredictoOcupacion
-          resumen={resumen}
-          serie={serie}
-          proyeccion={proyeccion}
-          analisis={analisis}
-        />
-
-        {/* 3 - Las cifras clave.
-            Seis, y fusionan dos tiras que estaban separadas.
-            «Ubicaciones completas» se cayó: como cifra suelta
-            era ruido. */}
-        <div className="imprimible-bloque imprimible-cifras grid gap-px overflow-hidden rounded-lg border border-borde bg-hairline sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
-          <TarjetaCifra
-            compacta
-            etiqueta="Cupos con dueño"
-            valor={n(resumen.ocupados)}
-            pie={`de ${n(resumen.cupos)} ofertados`}
-          />
-          <TarjetaCifra
-            compacta
-            etiqueta="Cupos libres"
-            valor={n(resumen.disponibles)}
-            tono="neutro"
-          />
-          <TarjetaCifra
-            compacta
-            etiqueta="Organizaciones"
-            valor={n(resumen.empresas)}
-            pie={`${resumen.cuposPorReserva.toFixed(1)} cupos por reserva`}
-            tono="neutro"
-          />
-          <TarjetaCifra
-            compacta
-            etiqueta="En lista de espera"
-            valor={n(resumen.enEspera)}
-            tono={resumen.enEspera > 0 ? "aviso" : "neutro"}
-          />
-          <TarjetaCifra
-            compacta
-            etiqueta="Tasa de cancelación"
-            valor={`${resumen.tasaCancelacion.toFixed(1)} %`}
-            pie={`${n(resumen.canceladas)} de ${n(resumen.reservas)} reservas`}
-            tono={resumen.tasaCancelacion > 10 ? "aviso" : "neutro"}
-          />
-          {/* La lista de «ubicaciones sin una sola reserva» era
-              un bloque entero al final. Como cifra dice lo mismo. */}
-          <TarjetaCifra
-            compacta
-            etiqueta="Sin ninguna reserva"
-            valor={n(resumen.ofertasSinReservas)}
-            pie="ubicaciones"
-            tono={resumen.ofertasSinReservas > 0 ? "aviso" : "neutro"}
-          />
-        </div>
-
-        {/* 4 - Dónde empujar */}
-        <AccionesOcupacionRitmo acciones={acciones} proyeccion={proyeccion} />
-
-        {/* 5 - Territorio */}
-        <Territorio analisis={analisis} />
-
-        {/* 6 - Quién concentra los cupos */}
-        <ReservasDeAliados analisis={analisis} />
+    <div className="flex flex-col gap-6 px-4 pt-4 pb-6">
+      <Reloj reloj={datos.reloj} />
+      <Dinero datos={datos} />
+      <Embudo porEtapa={datos.porEtapa} />
+      <div className="grid gap-6 lg:grid-cols-2">
+        <Campanas filas={datos.porCampana} />
+        <Frias frias={datos.frias} cuantas={datos.cuantasFrias} />
       </div>
     </div>
   );
 }
 
-// territorio
+/**
+ * Arriba del dinero, siempre.
+ *
+ * Contestar dentro de los primeros cinco minutos multiplica por 21 la
+ * probabilidad de calificar frente a esperar media hora, y el
+ * promedio del mercado son 42 horas. Es la única cifra de esta
+ * pantalla que se puede arreglar en el minuto siguiente a leerla.
+ */
+function Reloj({ reloj }: { reloj: ResumenDeVentas["reloj"] }) {
+  const hayUrgentes = reloj.pasadosDeCinco > 0;
 
-function Territorio({ analisis }: { analisis: Analisis }) {
-  /// El mapa suma las ciudades a su departamento; el ranking de
-  /// al lado NO, porque ahí la sede es la unidad con la que
-  /// trabaja el equipo --«Santa Marta» es una sede, no medio
-  /// Magdalena--.
-  const porDepartamento = new Map<string, number>();
-  for (const t of analisis.territorio) {
-    const clave =
-      t.tipo === "CIUDAD"
-        ? (DEPARTAMENTO_DE[t.nombre.toUpperCase()] ?? t.nombre)
-        : t.nombre;
-    porDepartamento.set(clave, (porDepartamento.get(clave) ?? 0) + t.ocupados);
+  if (reloj.esperando === 0) {
+    return (
+      <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1 rounded-lg border border-exito/40 bg-exito-suave px-4 py-3">
+        <span className="font-semibold text-exito">Nadie esperando.</span>
+        <span className="text-sm opacity-75">
+          Todo lo que entró tiene una primera respuesta.
+        </span>
+        {reloj.medianaRespuesta !== null && (
+          <span className="ml-auto text-sm opacity-75">
+            Mediana de respuesta:{" "}
+            <strong className="tabular-nums">
+              {haceCuanto(reloj.medianaRespuesta).replace("hace ", "")}
+            </strong>
+          </span>
+        )}
+      </div>
+    );
   }
 
-  const mapa = [...porDepartamento.entries()].map(([nombre, total]) => ({
-    nombre,
-    total,
-  }));
+  return (
+    <section
+      className={`rounded-lg border px-4 py-4 ${
+        hayUrgentes ? "border-error/40 bg-error-suave" : "border-borde"
+      }`}
+    >
+      <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2">
+        <div className="flex items-baseline gap-3">
+          <span
+            className={`text-3xl font-bold tabular-nums ${hayUrgentes ? "text-error" : ""}`}
+          >
+            {reloj.esperando}
+          </span>
+          <span className="text-sm">
+            <strong className="block">sin primera respuesta</strong>
+            <span className="opacity-70">
+              {hayUrgentes
+                ? `${reloj.pasadosDeCinco} pasan de cinco minutos`
+                : "todavía dentro de los cinco minutos"}
+            </span>
+          </span>
+        </div>
+        {reloj.medianaRespuesta !== null && (
+          <span className="text-sm opacity-75">
+            Mediana de respuesta:{" "}
+            <strong className="tabular-nums">
+              {haceCuanto(reloj.medianaRespuesta).replace("hace ", "")}
+            </strong>
+          </span>
+        )}
+      </div>
 
-  const ranking = [...analisis.territorio]
-    .sort((a, b) => b.ocupados - a.ocupados)
-    .map((t) => ({
-      clave: t.nombre,
-      etiqueta: bonito(t.nombre),
-      valor: t.ocupados,
-      detalle: `de ${n(t.cupos)}`,
-    }));
+      <ul className="mt-3 flex flex-col gap-1.5 border-t border-current/10 pt-3">
+        {reloj.lista.map((e) => (
+          <li
+            key={e.id}
+            className="flex flex-wrap items-baseline justify-between gap-2 text-sm"
+          >
+            <span className="min-w-0">
+              <span className="font-mono text-xs opacity-50">{e.codigo}</span>{" "}
+              {e.titulo}
+              {e.campana && (
+                <span className="ml-2 text-xs opacity-55">· {e.campana}</span>
+              )}
+            </span>
+            <span
+              className={`shrink-0 tabular-nums ${e.minutosEsperando >= 5 ? "font-medium text-error" : "opacity-70"}`}
+            >
+              {haceCuanto(e.minutosEsperando)}
+            </span>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+/// Las dos cifras del embudo y las dos del mes, en una franja.
+/// Cuatro números sin cuatro marcos: la separación la hacen los
+/// espacios, no los bordes.
+function Dinero({ datos }: { datos: ResumenDeVentas }) {
+  const { pronostico, mes } = datos;
+  return (
+    <section className="grid gap-x-10 gap-y-5 border-y border-borde py-5 sm:grid-cols-2 lg:grid-cols-4">
+      <Cifra
+        rotulo="Sobre la mesa"
+        valor={enPesos(pronostico.total)}
+        pie={`${pronostico.cuantas} negocios abiertos`}
+      />
+      <Cifra
+        rotulo="Esperado"
+        valor={enPesos(pronostico.ponderado)}
+        pie="con probabilidades estimadas"
+      />
+      <Cifra
+        rotulo="Ganado este mes"
+        valor={enPesos(mes.ganado)}
+        pie={mes.ganadas === 1 ? "1 negocio" : `${mes.ganadas} negocios`}
+        tono="exito"
+      />
+      <Cifra
+        rotulo="Efectividad del mes"
+        valor={mes.tasa === null ? "—" : `${mes.tasa} %`}
+        pie={
+          mes.tasa === null
+            ? "todavía no se cierra nada este mes"
+            : `${mes.ganadas} ganados de ${mes.ganadas + mes.perdidas} cerrados`
+        }
+      />
+    </section>
+  );
+}
+
+function Cifra({
+  rotulo,
+  valor,
+  pie,
+  tono,
+}: {
+  rotulo: string;
+  valor: string;
+  pie: string;
+  tono?: "exito";
+}) {
+  return (
+    <div>
+      <span className="block text-[11px] uppercase tracking-wide opacity-55">
+        {rotulo}
+      </span>
+      <span
+        className={`block text-2xl font-semibold leading-tight tabular-nums ${tono === "exito" ? "text-exito" : ""}`}
+      >
+        {valor}
+      </span>
+      <span className="block text-xs opacity-60">{pie}</span>
+    </div>
+  );
+}
+
+/**
+ * Dónde está atascado el embudo.
+ *
+ * Barras y no un donut: esto es un ranking de etapas por dinero, y
+ * lo que se pregunta mirándolo es «¿cuál pesa más?», no «¿qué
+ * porción del todo es cada una?». La forma del dato manda sobre la
+ * uniformidad.
+ */
+function Embudo({ porEtapa }: { porEtapa: ResumenDeVentas["porEtapa"] }) {
+  const mayor = Math.max(1, ...porEtapa.map((e) => e.total));
 
   return (
-    <Bloque partible titulo="Territorio" descripcion="Dónde están los cupos con dueño.">
-      <div className="grid gap-6 lg:grid-cols-2">
-        <Bloque plano titulo="En el mapa" descripcion="Por departamento">
-          <div className="mapa-en-papel">
-            <MapaColombia datos={mapa} />
-          </div>
-        </Bloque>
-
-        <Bloque
-          plano
-          titulo="Cobertura territorial"
-          descripcion="Departamento o sede, sumando todas las acciones"
-        >
-          <ListaBarras
-            datos={ranking}
-            maximoFilas={12}
-            vacio="Todavía no hay reservas en ningún territorio."
-          />
-        </Bloque>
-      </div>
+    <Bloque
+      titulo="Dónde está el dinero"
+      descripcion="Lo abierto, por etapa. Los dos embudos sumados."
+    >
+      <ul className="flex flex-col gap-3">
+        {porEtapa.map((e) => (
+          <li key={e.etapa} className="flex flex-col gap-1">
+            <div className="flex items-baseline justify-between gap-3 text-sm">
+              <span>
+                {e.rotulo}{" "}
+                <span className="opacity-55">
+                  ({e.cuantas === 1 ? "1" : e.cuantas})
+                </span>
+              </span>
+              <span className="tabular-nums">
+                {e.total > 0 ? enPesos(e.total) : "—"}
+              </span>
+            </div>
+            <div
+              className="h-2 rounded-full bg-current/10"
+              role="presentation"
+            >
+              <div
+                className="h-full rounded-full bg-marca"
+                style={{ width: `${Math.round((e.total / mayor) * 100)}%` }}
+              />
+            </div>
+          </li>
+        ))}
+      </ul>
     </Bloque>
   );
 }
 
-// aliados y afiliados
-
 /**
- * En cuántas manos están los cupos.
+ * Qué campaña trae negocio.
  *
- * Era «Concentración», un sub-bloque colgado del final de
- * «Territorio», y ahí se leía como una nota al pie del mapa
- * cuando es otra pregunta: no DÓNDE están los cupos, sino
- * QUIÉN los tiene. Aparte, y con el nombre que usa el equipo.
+ * Es la pregunta que justifica el gasto en pauta, y la que casi
+ * ningún CRM contesta bien: para contestarla hay que saber de qué
+ * anuncio vino cada ficha, y eso solo se sabe si el lead entra solo,
+ * con su origen puesto. Aquí entra así.
  */
-function ReservasDeAliados({ analisis }: { analisis: Analisis }) {
-  const conc = analisis.concentracion;
-
+function Campanas({ filas }: { filas: ResumenDeVentas["porCampana"] }) {
   return (
     <Bloque
-      partible
-      titulo="Reservas de Aliados y Afiliados"
-      descripcion={
-        conc.organizaciones > 0
-          ? `Las 10 organizaciones con más cupos suman el ${conc.porcentajeDiezMayores
-              .toFixed(1)
-              .replace(".", ",")} % del total.`
-          : "Cuánto se reparte la oferta entre organizaciones."
-      }
+      titulo="De dónde vienen"
+      descripcion="Por campaña: cuántos trae y cuánto dinero mueve."
     >
-      <ListaBarras
-        datos={conc.diezMayores.map((e) => ({
-          clave: e.razonSocial,
-          etiqueta: bonito(e.razonSocial),
-          valor: e.cupos,
-          detalle: `${e.porcentaje.toFixed(1).replace(".", ",")} %`,
-        }))}
-        vacio="Todavía no hay organizaciones con cupos."
-      />
+      {filas.length === 0 ? (
+        <p className="text-sm opacity-60">Todavía no hay leads con campaña.</p>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-borde text-left text-xs uppercase tracking-wide opacity-55">
+                <th className="pb-2 pr-3 font-medium">Campaña</th>
+                <th className="pb-2 pr-3 text-right font-medium">Leads</th>
+                <th className="pb-2 pr-3 text-right font-medium">Abierto</th>
+                <th className="pb-2 text-right font-medium">Ganado</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filas.map((f) => (
+                <tr key={f.campana} className="border-b border-borde/50">
+                  <td className="py-2 pr-3">{f.campana}</td>
+                  <td className="py-2 pr-3 text-right tabular-nums">{f.cuantas}</td>
+                  <td className="py-2 pr-3 text-right tabular-nums">
+                    {f.abierto > 0 ? enPesos(f.abierto) : "—"}
+                  </td>
+                  <td className="py-2 text-right tabular-nums">
+                    {f.ganado > 0 ? (
+                      <span className="text-exito">{enPesos(f.ganado)}</span>
+                    ) : (
+                      "—"
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </Bloque>
+  );
+}
 
-      {conc.porcentajeDiezMayores > 60 && conc.organizaciones > 10 && (
-        <p className="mt-4 text-[0.78125rem] text-aviso">
-          Diez organizaciones concentran más del 60 % de los cupos. Puede valer
-          la pena revisar si la convocatoria está llegando lo bastante ancha.
+/// Una oportunidad sin próximo paso es una oportunidad abandonada, y
+/// el sistema tiene que poder decirlo antes de que se muera sola.
+function Frias({
+  frias,
+  cuantas,
+}: {
+  frias: ResumenDeVentas["frias"];
+  cuantas: number;
+}) {
+  return (
+    <Bloque
+      titulo="Se están enfriando"
+      descripcion="Abiertas que llevan más de una semana sin que nadie las toque."
+    >
+      {frias.length === 0 ? (
+        <p className="text-sm opacity-60">
+          Ninguna. Todo lo abierto se ha movido esta semana.
         </p>
+      ) : (
+        <ul className="flex flex-col gap-2.5">
+          {frias.map((f) => (
+            <li
+              key={f.id}
+              className="flex flex-wrap items-baseline justify-between gap-2 border-b border-borde/50 pb-2 text-sm last:border-0 last:pb-0"
+            >
+              <span className="min-w-0">
+                {f.titulo}
+                <span className="block text-xs opacity-55">
+                  {f.asesor?.nombre ?? "Sin dueño"} · {enPesos(f.valor)}
+                </span>
+              </span>
+              <Pildora tono="aviso">{f.dias} días</Pildora>
+            </li>
+          ))}
+          {cuantas > frias.length && (
+            <li className="text-xs opacity-55">
+              y {cuantas - frias.length} más.
+            </li>
+          )}
+        </ul>
       )}
     </Bloque>
   );

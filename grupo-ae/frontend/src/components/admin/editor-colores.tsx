@@ -418,7 +418,7 @@ export function VistaPrevia({ colores }: { colores: ColoresTema }) {
           <div className="flex flex-wrap gap-4">
             {[
               { texto: "Disponible", frente: "exito" },
-              { texto: "Últimos cupos", frente: "aviso" },
+              { texto: "Últimos lugares", frente: "aviso" },
               { texto: "Completo", frente: "error" },
             ].map((e) => (
               <span

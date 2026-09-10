@@ -28,7 +28,7 @@ const DESTINATARIOS: Array<{ valor: Destinatario; ayuda: string }> = [
   {
     valor: "PARTICIPANTE",
     ayuda:
-      "La acepta cada persona al inscribirse. Es la que autoriza el tratamiento " +
+      "La acepta cada persona al dejar sus datos. Es la que autoriza el tratamiento " +
       "de sus datos: una empresa no puede autorizarlo por sus empleados.",
   },
 ];

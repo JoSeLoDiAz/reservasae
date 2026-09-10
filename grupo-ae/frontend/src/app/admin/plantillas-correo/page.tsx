@@ -584,7 +584,7 @@ function Editor({
                 className={CLASE_CONTROL}
                 value={b.nombre}
                 onChange={(e) => setB({ ...b, nombre: e.target.value })}
-                placeholder="Ej. Confirmación de inscripción"
+                placeholder="Ej. Confirmación de solicitud"
               />
             </label>
 

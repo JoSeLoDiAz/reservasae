@@ -481,7 +481,7 @@ function NuevaCampana({
             <div className="grid gap-3 sm:grid-cols-2">
               {(
                 [
-                  ["SEGMENTO", "De su base", "Con reglas sobre los inscritos"],
+                  ["SEGMENTO", "De su base", "Con reglas sobre los leads"],
                   ["CARGUE", "De un archivo", "Correo y primer nombre, en .xlsx"],
                 ] as Array<["SEGMENTO" | "CARGUE", string, string]>
               ).map(([valor, titulo, pie]) => (
@@ -593,7 +593,7 @@ function NuevaCampana({
               className={`${CLASE_CONTROL} font-mono text-[13px] leading-relaxed`}
               value={cuerpo}
               onChange={(e) => setCuerpo(e.target.value)}
-              placeholder={"{{saludo}}:\n\nPara terminar su inscripción nos faltan unos datos suyos."}
+              placeholder={"{{saludo}}:\n\nPara avanzar con su solicitud nos faltan unos datos suyos."}
             />
             <p className="mt-1.5 text-xs text-texto-suave">
               Si escribe un enlace, se cuenta quién le da clic.

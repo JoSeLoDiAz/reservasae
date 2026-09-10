@@ -76,7 +76,66 @@ export type SinRespuesta = {
   minutosEsperando: number;
 };
 
+export type ResumenDeVentas = {
+  pronostico: {
+    cuantas: number;
+    total: number;
+    ponderado: number;
+    probabilidadesEstimadas: boolean;
+  };
+  mes: {
+    ganadas: number;
+    ganado: number;
+    perdidas: number;
+    perdido: number;
+    /// Null cuando no se ha cerrado nada: un 0 % con cero cierres
+    /// afirma algo que no es verdad.
+    tasa: number | null;
+  };
+  reloj: {
+    esperando: number;
+    pasadosDeCinco: number;
+    /// La mediana, no el promedio: un lead olvidado tres días
+    /// dispara la media y esconde que el resto se contesta en
+    /// minutos.
+    medianaRespuesta: number | null;
+    lista: Array<{
+      id: string;
+      codigo: string;
+      titulo: string;
+      embudo: TipoEmbudo;
+      campana: string | null;
+      asesor: { id: string; nombre: string } | null;
+      minutosEsperando: number;
+    }>;
+  };
+  porEtapa: Array<{
+    etapa: EtapaOportunidad;
+    rotulo: string;
+    cuantas: number;
+    total: number;
+  }>;
+  porCampana: Array<{
+    campana: string;
+    cuantas: number;
+    abierto: number;
+    ganado: number;
+  }>;
+  frias: Array<{
+    id: string;
+    codigo: string;
+    titulo: string;
+    etapa: EtapaOportunidad;
+    valor: number;
+    asesor: { id: string; nombre: string } | null;
+    dias: number;
+  }>;
+  cuantasFrias: number;
+};
+
 export const oportunidadesApi = {
+  resumen: () => pedir<ResumenDeVentas>("/admin/oportunidades/resumen"),
+
   tablero: (embudo: TipoEmbudo, asesorId?: string) =>
     pedir<Tablero>(
       `/admin/oportunidades/tablero?embudo=${embudo}` +

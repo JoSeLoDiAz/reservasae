@@ -58,6 +58,12 @@ export class OportunidadesController {
     return this.oportunidades.sinRespuesta(ambito);
   }
 
+  /** La portada: todo lo que hay que saber al entrar. */
+  @Get('resumen')
+  resumen(@AmbitoActual() ambito: Ambito) {
+    return this.oportunidades.resumen(ambito);
+  }
+
   /** Las que llevan días quietas. */
   @Get('frias')
   frias(@AmbitoActual() ambito: Ambito, @Query('dias') dias?: string) {
