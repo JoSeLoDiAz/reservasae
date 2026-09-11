@@ -23,6 +23,7 @@ import type SMTPPool from 'nodemailer/lib/smtp-pool';
 
 import { desvioConfigurado, etiquetaDeReales, resolverDestino } from './desvio';
 import { escaparHtml } from './escapar';
+import { limpiarNombre, nombreGeneral } from './quien-firma';
 
 /// Sin decir de qué tipo es lo que devuelve, `sendMail` da
 /// `any` y el id del mensaje se pierde en una comprobación
@@ -41,6 +42,8 @@ export type Comunicacion = {
   html?: string;
   /// A quién le contesta quien lo reciba, si no es el remitente.
   responderA?: string;
+  /// Con qué nombre firma. Sin esto, el nombre general.
+  deParte?: string;
 };
 
 export type Envio =
@@ -139,8 +142,8 @@ export class CorreoService implements OnModuleInit, OnModuleDestroy {
 
   /// De quién sale. Con nombre, porque un correo que llega de
   /// una dirección suelta parece robado.
-  private get remitente(): string {
-    const nombre = process.env.SMTP_NOMBRE ?? 'Convoca CRM';
+  private remitente(deParte?: string): string {
+    const nombre = limpiarNombre(deParte ?? '') || nombreGeneral();
     const buzon = process.env.SMTP_DESDE ?? process.env.SMTP_USUARIO ?? '';
     return `"${nombre}" <${buzon}>`;
   }
@@ -191,7 +194,7 @@ export class CorreoService implements OnModuleInit, OnModuleDestroy {
 
     try {
       const r = await this.abrir().sendMail({
-        from: this.remitente,
+        from: this.remitente(c.deParte),
         to: destino.para.join(', '),
         replyTo: c.responderA,
         subject: m.asunto,

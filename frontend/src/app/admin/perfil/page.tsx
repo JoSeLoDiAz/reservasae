@@ -12,14 +12,8 @@ import {
   useAdmin,
 } from "@/components/admin/marco-admin";
 import { FirmaConvoca, useEstado } from "@/components/firma-convoca";
-import { adminApi } from "@/lib/admin-api";
+import { adminApi, comoSePresenta } from "@/lib/admin-api";
 import { ErrorApi } from "@/lib/api";
-
-const ROLES: Record<string, string> = {
-  SUPERADMIN: "Superadministrador",
-  GESTOR: "Gestor",
-  CONSULTA: "Consulta",
-};
 
 export default function PaginaPerfil() {
   const { admin, refrescar } = useAdmin();
@@ -59,7 +53,7 @@ export default function PaginaPerfil() {
       <header>
         <h1 className="text-[1.3125rem] font-bold tracking-[-0.02em] text-titulo">Mi perfil</h1>
         <p className="mt-1 text-texto-suave">
-          {admin.correo} · {ROLES[admin.rol] ?? admin.rol}
+          {admin.correo} · {comoSePresenta(admin)}
         </p>
       </header>
 

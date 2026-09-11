@@ -19,6 +19,7 @@ import { FirmaConvoca, PieDeConvoca } from "@/components/firma-convoca";
 import { SignoConvoca } from "./signo-convoca";
 import {
   adminApi,
+  comoSePresenta,
   MAXIMO_LOGOS,
   urlLogo,
   type AdminActual,
@@ -639,8 +640,11 @@ function ChipUsuario({
     <div className="flex shrink-0 items-center gap-3">
       <span className="hidden min-w-0 flex-col items-end leading-tight sm:flex">
         <span className="truncate text-sm font-semibold">{admin.nombre}</span>
-        <span className="truncate text-xs text-texto-suave">
-          {admin.cargo ?? admin.rol}
+        <span
+          className="truncate text-xs text-texto-suave"
+          title={comoSePresenta(admin)}
+        >
+          {comoSePresenta(admin)}
         </span>
       </span>
       {/* Un separador fino en vez del cuadrito: dice «esto de

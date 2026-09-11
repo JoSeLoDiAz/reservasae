@@ -30,6 +30,8 @@
     "db:sembrar-politicas": "ts-node prisma/seed/politicas.ts",
     "db:sembrar-prueba": "ts-node prisma/seed/prueba.ts",
     "db:sembrar-interesados": "ts-node prisma/seed/interesados-demo.ts",
+    "db:sembrar-volumen": "ts-node prisma/seed/volumen.ts",
+    "db:borrar-volumen": "ts-node prisma/seed/volumen-fuera.ts",
     "db:sembrar-directorio": "ts-node prisma/seed/directorio-nit.ts",
     "db:sembrar-resumenes": "ts-node prisma/seed/resumenes-publicos.ts",
     "db:sembrar-campanas": "ts-node prisma/seed/campanas-demo.ts",

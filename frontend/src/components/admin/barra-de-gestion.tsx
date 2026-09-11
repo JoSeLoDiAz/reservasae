@@ -142,10 +142,19 @@ export function BarraDeGestion({
   /// lead, no se copia en un efecto: así, cuando las opciones
   /// llegan tarde, el desplegable ya sale con su valor puesto
   /// en vez de en blanco.
-  const guardada = lead.oferta
-    ? (opciones.acciones.find((a) => a.ofertaId === lead.oferta!.id)
-        ?.accionFormacionId ?? "")
-    : "";
+  /// El curso se lee del CURSO; la oferta solo confirma cuál.
+  ///
+  /// Salia «Sin asignar» por dos caminos: sin sede --quien pidio
+  /// algo que su departamento no dicta-- y con sede guardada
+  /// distinta de la que `opciones` resuelve hoy, que es la de mas
+  /// cupo libre y no la suya.
+  const guardada =
+    (lead.oferta
+      ? opciones.acciones.find((a) => a.ofertaId === lead.oferta!.id)
+          ?.accionFormacionId
+      : null) ??
+    lead.accionFormacion?.id ??
+    "";
   const accionElegida = accionId ?? guardada;
   const accion = opciones.acciones.find(
     (a) => a.accionFormacionId === accionElegida,

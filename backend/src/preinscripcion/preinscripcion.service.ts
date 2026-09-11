@@ -11,6 +11,7 @@ import { randomBytes } from 'node:crypto';
 import { Prisma } from '../../generated/prisma';
 import { ENTIDADES, AuditoriaService } from '../comun/auditoria.service';
 import { CorreoService } from '../correo/correo.service';
+import { quienFirma } from '../correo/quien-firma';
 import { PrismaService } from '../prisma/prisma.service';
 import {
   dejarConstancia,
@@ -193,8 +194,8 @@ export class PreinscripcionService {
   async registrar(slug: string, dto: CrearPreinscripcionDto, ip?: string) {
     const convenio = await this.prisma.convenio.findFirst({
       where: { slug, activo: true },
-      // el nombre, para poder decir de quien es el correo
-      select: { id: true, nombre: true },
+      // el nombre y la sigla: con que firma su correo
+      select: { id: true, nombre: true, sigla: true },
     });
     if (!convenio)
       throw new NotFoundException('No hay una convocatoria con ese nombre.');
@@ -474,6 +475,7 @@ export class PreinscripcionService {
     if (suCorreo) {
       const r = await this.correo.enviar({
         para: suCorreo,
+        deParte: quienFirma(convenio),
         asunto: `Su preinscripción en ${convenio.nombre}`,
         /// SIN ENLACE, y es una decision del cliente del 3 sep
         /// 2026: «el correo debe llegar solamente si el asesor lo

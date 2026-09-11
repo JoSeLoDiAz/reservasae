@@ -29,6 +29,8 @@ import {
   TIPOS_LOGO,
 } from '../comun/logo';
 import { AdminActual, AmbitoActual } from './admin-actual.decorator';
+import { rolQueSeEnsena } from './rol-que-se-ensena';
+import { BienvenidaService } from '../correo/bienvenida.service';
 import {
   AdminGuard,
   COOKIE_SESION,
@@ -68,6 +70,7 @@ export class AdminController {
   constructor(
     private readonly admin: AdminService,
     private readonly jwt: JwtService,
+    private readonly bienvenida: BienvenidaService,
   ) {}
 
   // sesión
@@ -163,6 +166,13 @@ export class AdminController {
       ),
       gremioElegido: ambito.gremioElegido,
       gremioFijo: ambito.gremioFijo,
+
+      /// Su concesion, que es lo que de verdad gobierna.
+      ///
+      /// La cabecera pintaba `RolAdmin`, y ese solo dice si es
+      /// superadmin: una cuenta de CONSULTA salia como
+      /// «GESTOR», que es falso y ademas asusta.
+      rolEnGremio: rolQueSeEnsena(admin.rol, ambito),
     };
   }
 
@@ -188,8 +198,17 @@ export class AdminController {
 
   @Post('usuarios')
   @Roles(RolAdmin.SUPERADMIN)
-  crearUsuario(@Body() dto: CrearAdminDto) {
-    return this.admin.crearAdmin(dto);
+  async crearUsuario(@Body() dto: CrearAdminDto) {
+    const creada = await this.admin.crearAdmin(dto);
+
+    /// Avisar va DESPUES y no puede tumbar la creacion: la
+    /// clave temporal se sigue viendo en pantalla.
+    await this.bienvenida.enviar(
+      creada.admin,
+      creada.claveTemporal,
+      await this.marcaDe(creada.admin.id),
+    );
+    return creada;
   }
 
   @Patch('usuarios/:id')
@@ -205,8 +224,29 @@ export class AdminController {
   @Post('usuarios/:id/clave')
   @Roles(RolAdmin.SUPERADMIN)
   @HttpCode(200)
-  reiniciarClave(@AdminActual() admin: Admin, @Param('id') id: string) {
-    return this.admin.reiniciarClave(admin, id);
+  async reiniciarClave(@AdminActual() admin: Admin, @Param('id') id: string) {
+    const nueva = await this.admin.reiniciarClave(admin, id);
+
+    /// Le llega igual que el alta, con su banda y su logo. Lo
+    /// unico que cambia es que dice por que: se pidio.
+    await this.bienvenida.enviar(
+      nueva.admin,
+      nueva.claveTemporal,
+      await this.marcaDe(nueva.admin.id),
+      'RECUPERACION',
+    );
+    return nueva;
+  }
+
+  /// De donde salen el logo y los colores de esa cuenta: de SU
+  /// gremio si es de uno solo, y si no, la general.
+  ///
+  /// Con las mismas dos funciones que pintan el panel por Host.
+  private async marcaDe(adminId: string) {
+    const suyos = await this.admin.conveniosDe(adminId);
+    return suyos.length === 1
+      ? this.admin.obtenerMarcaDeGremio(suyos[0].slug)
+      : this.admin.obtenerMarca();
   }
 
   // marca
