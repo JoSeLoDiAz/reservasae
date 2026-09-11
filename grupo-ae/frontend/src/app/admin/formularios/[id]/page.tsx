@@ -5,16 +5,16 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { use, useCallback, useEffect, useState } from "react";
 
+import { ANCHO_FORMULARIO, BloqueDeBanda, Rotulo } from "@/components/admin/bloques";
 import { EditorPregunta } from "@/components/admin/editor-pregunta";
-import {
-  Aviso,
-  Boton,
-  Campo,
-  CLASE_CONTROL,
-  Tarjeta,
-} from "@/components/admin/marco-admin";
+import { EnlaceConCampana } from "@/components/admin/enlace-con-campana";
+import { LoQueHaTraido } from "@/components/admin/leads-de-la-puerta";
+import { Boton, Campo, CLASE_CONTROL } from "@/components/admin/marco-admin";
 import { Esqueleto } from "@/components/admin/piezas";
+import { AvisoDeSeccion, Seccion } from "@/components/admin/secciones";
 import { ErrorApi } from "@/lib/api";
+import { campanasApi } from "@/lib/campanas-api";
+import { oportunidadesApi, type ResumenDeVentas } from "@/lib/oportunidades-api";
 import {
   formulariosApi,
   TIPOS,
@@ -36,6 +36,13 @@ export default function PaginaConstructor({
   const [error, setError] = useState<string | null>(null);
   const [ocupado, setOcupado] = useState(false);
 
+  /// El embudo y las campañas de correo, para la tarjeta de la
+  /// puerta. Si fallan no se dice nada: se viene aquí a armar el
+  /// formulario, y un error rojo por una cifra de apoyo tapa lo
+  /// que sí importa.
+  const [resumen, setResumen] = useState<ResumenDeVentas | null>(null);
+  const [campanas, setCampanas] = useState<string[]>([]);
+
   const cargar = useCallback(async () => {
     setFormulario(await formulariosApi.obtener(id));
   }, [id]);
@@ -43,6 +50,11 @@ export default function PaginaConstructor({
   useEffect(() => {
     void cargar();
     void formulariosApi.camposNucleo().then(setCampos);
+    void oportunidadesApi.resumen().then(setResumen).catch(() => undefined);
+    void campanasApi
+      .listar()
+      .then((cs) => setCampanas([...new Set(cs.map((c) => c.nombre))]))
+      .catch(() => undefined);
   }, [cargar]);
 
   /** Ejecuta una acción y reemplaza el formulario. */
@@ -69,32 +81,63 @@ export default function PaginaConstructor({
 
   return (
     <div>
-      <header className="border-b border-borde bg-superficie px-7 pt-[26px] pb-[22px] flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <Link href="/admin/formularios" className="text-sm text-marca hover:underline">
+      {/* La cabecera de la pantalla, con el mismo relleno y el
+          mismo tamaño de título que las otras catorce: 21/700 y
+          el enlace de vuelta encima. Iba a 24 px en semibold,
+          que es un décimo tamaño de letra. */}
+      <header className="flex flex-wrap items-start justify-between gap-4 border-b border-borde bg-superficie px-6 pt-3.5 pb-[22px]">
+        <div className="min-w-0">
+          <Link
+            href="/admin/formularios"
+            className="text-marca"
+            style={{ fontSize: "0.8125rem" }}
+          >
             ← Formularios
           </Link>
-          <h1 className="mt-2 text-2xl font-semibold">{formulario.titulo}</h1>
-          <p className="mt-1 font-mono text-sm text-texto-suave">/{formulario.slug}</p>
+          <h1
+            className="mt-2 font-bold text-titulo"
+            style={{ fontSize: "1.3125rem", letterSpacing: "-0.02em" }}
+          >
+            {formulario.titulo}
+          </h1>
+          {/* El identificador es una LLAVE para buscar y pegar,
+              no un dato: va en micro y apagado, y nunca compite
+              con el nombre del formulario. */}
+          <p
+            className="mt-1 text-texto-suave tabular-nums"
+            style={{ fontSize: "0.65625rem", letterSpacing: "0.02em" }}
+          >
+            /{formulario.slug}
+          </p>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
+          {/* Navegar no es ejecutar: «Respuestas» y «Apariencia»
+              llevan a otro sitio y van en la letra. Dos cajas
+              con borde al lado del botón principal lo dejaban
+              en empate con él. */}
           <Link
             href={`/admin/formularios/${id}/respuestas`}
-            className="rounded-xl border border-borde px-4 py-2 text-sm transition hover:bg-fondo"
+            className="text-marca"
+            style={{ fontSize: "0.71875rem" }}
           >
             Respuestas
           </Link>
           <Link
             href={`/admin/formularios/${id}/apariencia`}
-            className="rounded-xl border border-borde px-4 py-2 text-sm transition hover:bg-fondo"
+            className="text-marca"
+            style={{ fontSize: "0.71875rem" }}
           >
             Apariencia
           </Link>
+          {/* El color va en la letra: sin caja, sin fondo y sin
+              radio. Era la última píldora que quedaba de este
+              par —la lista de formularios ya la había quitado—
+              y dos pantallas del mismo objeto pintaban el mismo
+              estado de dos maneras. */}
           <span
-            className={`rounded-full px-3 py-1 text-sm font-medium ${
-              formulario.publicado ? "bg-exito-suave text-exito" : "bg-fondo text-texto-suave"
-            }`}
+            className={formulario.publicado ? "text-exito" : "text-texto-suave"}
+            style={{ fontSize: "0.8125rem", fontWeight: 600 }}
           >
             {formulario.publicado ? "Publicado" : "Borrador"}
           </span>
@@ -148,7 +191,8 @@ export default function PaginaConstructor({
                   }
                 })();
               }}
-              className="rounded-xl px-3 py-2 text-sm text-error underline disabled:opacity-50"
+              className="text-texto-suave disabled:opacity-50"
+              style={{ fontSize: "0.71875rem" }}
             >
               Borrar
             </button>
@@ -156,7 +200,84 @@ export default function PaginaConstructor({
         </div>
       </header>
 
-      {error && <Aviso tipo="error">{error}</Aviso>}
+      {error && <AvisoDeSeccion color="var(--texto-suave)">{error}</AvisoDeSeccion>}
+
+      {/* LA PUERTA, ANTES QUE EL CONSTRUCTOR.
+
+          Un formulario es dos cosas y hasta ahora esta pantalla
+          solo enseñaba una: qué preguntas tiene. La otra —por
+          dónde se reparte y cuántos negocios ha traído— es la
+          que se mira para decidir si se sigue pagando el
+          anuncio, y por eso va arriba del todo. */}
+      <Seccion>
+        <div className="@container px-6 pt-5 pb-6">
+          <BloqueDeBanda
+            rotulo="Por esta puerta"
+            /* Sin nota cuando está publicado: el bloque enseña
+               la cuenta y el enlace, y decir «lo que ha entrado
+               y la dirección con la que se reparte» es ponerle
+               nombre a lo que ya se está viendo. Cuando NO lo
+               está sí hace falta, porque lo que se nota es una
+               ausencia y no se puede adivinar por qué. */
+            nota={
+              formulario.publicado
+                ? undefined
+                : "Sin publicar no tiene dirección pública. Lo que ya entró se sigue contando."
+            }
+          >
+            {/* EL ENLACE Y SU QR, AL LADO Y NO DEBAJO.
+
+                Aquí el ancho sobrante SÍ tiene dueño. La cuenta
+                de lo que entró es una tabla de cuatro columnas
+                que se lee de arriba abajo; el enlace es un
+                formulario de dos campos con un QR de 190 px al
+                canto. Uno debajo del otro, a 1920 los dos
+                estiraban lo suyo hasta el borde —el campo del
+                anuncio medía 1190 px para escribir
+                «meta-octubre» y el QR quedaba a 1400 px de su
+                propia etiqueta— y la ficha se iba a dos
+                pantallas de alto.
+
+                Al lado, cada región mide lo que mide su
+                contenido: 760 px es el enlace con su QR
+                —540 + 28 + 190— y lo que quede es de la tabla,
+                que es la que crece con cada anuncio nuevo.
+
+                A partir de 1400 px de ESTA caja, no de la
+                ventana: la barra lateral se pliega y la banda
+                gana 180 px sin que la ventana cambie. Por
+                debajo vuelven a apilarse, que con 640 px de
+                ancho es lo correcto. */}
+            <div
+              className={`grid gap-x-8 gap-y-6 ${
+                formulario.publicado
+                  ? "@[1400px]:grid-cols-[minmax(0,1fr)_760px]"
+                  : ""
+              }`}
+            >
+              <div className="min-w-0">
+                <LoQueHaTraido slug={formulario.slug} resumen={resumen} />
+              </div>
+
+              {formulario.publicado && (
+                <div className="min-w-0 border-t border-hairline pt-5 @[1400px]:border-t-0 @[1400px]:border-l @[1400px]:border-l-hairline @[1400px]:pt-0 @[1400px]:pl-8">
+                  {/* Su propio rótulo, que es lo que separa un
+                      bloque del de al lado: sin él, los campos
+                      del anuncio se leerían como una columna más
+                      de la tabla de la izquierda. */}
+                  <Rotulo className="mb-3">El enlace que se reparte</Rotulo>
+                  <EnlaceConCampana
+                    slug={formulario.slug}
+                    ruta={`/${formulario.slug}`}
+                    titulo={formulario.titulo}
+                    campanas={campanas}
+                  />
+                </div>
+              )}
+            </div>
+          </BloqueDeBanda>
+        </div>
+      </Seccion>
 
       {/* Recién creado, esto NO es una advertencia: es la lista
           de lo que hay que armar.
@@ -168,36 +289,53 @@ export default function PaginaConstructor({
           es que todavía no ha empezado.
 
           Con preguntas dentro sí es un aviso: ahí sí se
-          intentó y quedó algo por fuera. */}
-      {formulario.problemas.length > 0 &&
-        (formulario.preguntas.length === 0 ? (
-          <div className="rounded-xl border border-borde bg-superficie-alterna p-4 text-sm">
-            <p className="font-medium">
-              Este formulario todavía está vacío. Esto es lo que hay que
-              ponerle:
-            </p>
-            <ul className="mt-2 list-disc space-y-1 pl-5 text-texto-suave">
-              {formulario.problemas.map((p) => (
-                <li key={p}>{p}</li>
-              ))}
-            </ul>
-            <p className="mt-3 text-texto-suave">
-              Se añaden abajo, con «Añadir pregunta» dentro de una sección. Lo
-              que escriba se guarda solo; publicar es aparte.
-            </p>
+          intentó y quedó algo por fuera.
+
+          Y SIN CAJA TEÑIDA, ni gris ni ámbar.
+
+          `--aviso-suave` se usa en un solo sitio del panel —la
+          franja de entorno de pruebas— y el ámbar significa una
+          sola cosa: que alguien lleva esperando respuesta. Lo
+          que falta para publicar no es una espera; es una lista,
+          y se lee como una lista. */}
+      {formulario.problemas.length > 0 && (
+        <Seccion>
+          <div
+            className="max-w-[68ch] px-6 py-4"
+            style={{ fontSize: "0.8125rem", lineHeight: 1.5 }}
+          >
+            {formulario.preguntas.length === 0 ? (
+              <>
+                <p className="text-titulo" style={{ fontWeight: 700 }}>
+                  Este formulario todavía está vacío. Esto es lo que hay que
+                  ponerle:
+                </p>
+                <ul className="mt-2 list-disc space-y-1 pl-5 text-texto-suave">
+                  {formulario.problemas.map((p) => (
+                    <li key={p}>{p}</li>
+                  ))}
+                </ul>
+                <p className="mt-3 text-texto-suave">
+                  Se añaden abajo, con «Añadir pregunta» dentro de una sección. Lo
+                  que escriba se guarda solo; publicar es aparte.
+                </p>
+              </>
+            ) : (
+              <>
+                <p className="text-titulo" style={{ fontWeight: 700 }}>
+                  Falta esto para poder publicar ({formulario.problemas.length}):
+                </p>
+                <ul className="mt-2 list-disc space-y-1 pl-5 text-texto-suave">
+                  {formulario.problemas.map((p) => (
+                    <li key={p}>{p}</li>
+                  ))}
+                </ul>
+              </>
+            )}
           </div>
-        ) : (
-          <div className="rounded-lg border border-aviso/30 bg-aviso-suave p-4 text-sm text-aviso">
-            <p className="font-medium">
-              Falta esto para poder publicar ({formulario.problemas.length}):
-            </p>
-            <ul className="mt-2 list-disc space-y-1 pl-5">
-              {formulario.problemas.map((p) => (
-                <li key={p}>{p}</li>
-              ))}
-            </ul>
-          </div>
-        ))}
+        </Seccion>
+      )}
+
 
       <DatosGenerales formulario={formulario} accion={accion} ocupado={ocupado} />
 
@@ -218,10 +356,12 @@ export default function PaginaConstructor({
 
       {/* preguntas sin sección */}
       {activas.some((p) => !p.seccionId) && (
-        <Tarjeta
-          titulo="Sin sección"
-          descripcion="Estas preguntas se muestran al final del formulario. Asígneles una sección para ordenarlas."
-        >
+        <Seccion>
+          <div className="px-6 pt-5 pb-6">
+          <BloqueDeBanda
+            rotulo="Sin sección"
+            nota="Estas preguntas se muestran al final del formulario. Asígneles una sección para ordenarlas."
+          >
           <div className="space-y-3">
             {activas
               .filter((p) => !p.seccionId)
@@ -236,32 +376,38 @@ export default function PaginaConstructor({
                 />
               ))}
           </div>
-        </Tarjeta>
+          </BloqueDeBanda>
+          </div>
+        </Seccion>
       )}
 
       <NuevaSeccion id={id} accion={accion} ocupado={ocupado} />
 
       {archivadas.length > 0 && (
-        <Tarjeta
-          titulo={`Archivadas (${archivadas.length})`}
-          descripcion="No se muestran en el formulario, pero sus respuestas siguen guardadas."
-        >
-          <ul className="divide-y divide-borde text-sm">
+        <Seccion>
+          <div className="px-6 pt-5 pb-6">
+          <BloqueDeBanda
+            rotulo={`Archivadas (${archivadas.length})`}
+            nota="No se muestran en el formulario, pero sus respuestas siguen guardadas."
+          >
+          <ul className="max-w-[720px] divide-y divide-hairline" style={{ fontSize: "0.8125rem" }}>
             {archivadas.map((p) => (
-              <li key={p.id} className="flex items-center justify-between gap-4 py-3">
+              <li key={p.id} className="flex items-center justify-between gap-4 py-[7px]">
                 <span className="text-texto-suave">{p.etiqueta}</span>
                 <button
                   onClick={() =>
                     accion(() => formulariosApi.actualizarPregunta(p.id, { archivada: false }))
                   }
-                  className="text-marca underline"
+                  className="text-marca"
                 >
                   Restaurar
                 </button>
               </li>
             ))}
           </ul>
-        </Tarjeta>
+          </BloqueDeBanda>
+          </div>
+        </Seccion>
       )}
     </div>
   );
@@ -283,15 +429,17 @@ function DatosGenerales({
   const [mensajeExito, setMensajeExito] = useState(formulario.mensajeExito ?? "");
 
   return (
-    <Tarjeta
-      titulo="Textos del formulario"
-      descripcion={
+    <Seccion>
+      <div className="px-6 pt-5 pb-6">
+      <BloqueDeBanda
+        rotulo="Textos del formulario"
+        nota={
         <>
           Son los que se leen en{" "}
           <Link
             href={`/${formulario.slug}`}
             target="_blank"
-            className="font-mono text-marca hover:underline"
+            className="text-marca tabular-nums"
           >
             /{formulario.slug}
           </Link>
@@ -306,7 +454,7 @@ function DatosGenerales({
             formulariosApi.actualizar(formulario.id, { titulo, descripcion, mensajeExito }),
           );
         }}
-        className="space-y-4"
+        className={`${ANCHO_FORMULARIO} space-y-4`}
       >
         <Campo etiqueta="Título" ayuda="El titular de la página pública.">
           <input
@@ -339,7 +487,9 @@ function DatosGenerales({
           Guardar textos
         </Boton>
       </form>
-    </Tarjeta>
+      </BloqueDeBanda>
+      </div>
+    </Seccion>
   );
 }
 
@@ -380,7 +530,7 @@ function BloqueSeccion({
   }
 
   return (
-    <section className="border-b border-borde bg-superficie px-7 py-5">
+    <section className="border-b border-borde bg-superficie px-6 py-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
         {editando ? (
           <form
@@ -411,7 +561,8 @@ function BloqueSeccion({
               <button
                 type="button"
                 onClick={() => setEditando(false)}
-                className="text-sm text-texto-suave underline"
+                className="text-texto-suave"
+                style={{ fontSize: "0.71875rem" }}
               >
                 Cancelar
               </button>
@@ -420,17 +571,21 @@ function BloqueSeccion({
         ) : (
           <>
             <div>
-              <h2 className="text-lg font-semibold">{seccion.titulo}</h2>
+              <h2 className="font-bold uppercase text-texto-suave" style={{ fontSize: "0.625rem", letterSpacing: "0.11em", lineHeight: 1.2 }}>
+                {seccion.titulo}
+              </h2>
               {seccion.descripcion && (
-                <p className="mt-1 text-sm text-texto-suave">{seccion.descripcion}</p>
+                <p className="mt-2 max-w-[68ch] text-texto-suave" style={{ fontSize: "0.71875rem" }}>
+                  {seccion.descripcion}
+                </p>
               )}
             </div>
-            <div className="flex items-center gap-2 text-sm">
+            <div className="flex items-center gap-x-4" style={{ fontSize: "0.71875rem" }}>
               <button
                 onClick={() => mover(-1)}
                 disabled={esPrimera || ocupado}
                 title="Subir sección"
-                className="rounded border border-borde px-2 py-1 disabled:opacity-30"
+                className="rounded-[6px] border border-borde px-2 py-[3px] text-texto-suave disabled:opacity-40"
               >
                 ↑
               </button>
@@ -438,11 +593,11 @@ function BloqueSeccion({
                 onClick={() => mover(1)}
                 disabled={esUltima || ocupado}
                 title="Bajar sección"
-                className="rounded border border-borde px-2 py-1 disabled:opacity-30"
+                className="rounded-[6px] border border-borde px-2 py-[3px] text-texto-suave disabled:opacity-40"
               >
                 ↓
               </button>
-              <button onClick={() => setEditando(true)} className="text-marca underline">
+              <button onClick={() => setEditando(true)} className="text-marca">
                 Editar
               </button>
               <button
@@ -455,7 +610,7 @@ function BloqueSeccion({
                     return;
                   void accion(() => formulariosApi.eliminarSeccion(seccion.id));
                 }}
-                className="text-error underline"
+                className="text-texto-suave"
               >
                 Borrar
               </button>
@@ -476,7 +631,9 @@ function BloqueSeccion({
           />
         ))}
         {preguntas.length === 0 && (
-          <p className="text-sm text-texto-suave">Esta sección no tiene preguntas todavía.</p>
+          <p className="text-texto-suave" style={{ fontSize: "0.71875rem" }}>
+            Esta sección no tiene preguntas todavía.
+          </p>
         )}
       </div>
 
@@ -515,7 +672,8 @@ function NuevaPregunta({
     return (
       <button
         onClick={() => setAbierto(true)}
-        className="mt-4 w-full rounded-lg border border-dashed border-borde py-3 text-sm text-texto-suave transition hover:border-marca hover:text-marca"
+        className="mt-4 w-full max-w-[720px] rounded-[6px] border border-dashed border-campo-borde py-2.5 text-texto-suave transition hover:border-marca hover:text-marca"
+        style={{ fontSize: "0.71875rem" }}
       >
         + Añadir pregunta
       </button>
@@ -540,7 +698,7 @@ function NuevaPregunta({
           setTipo("TEXTO_CORTO");
         });
       }}
-      className="mt-4 space-y-4 rounded-lg border border-borde bg-fondo p-4"
+      className="mt-4 max-w-[720px] space-y-4 rounded-[6px] border border-borde p-4"
     >
       <Campo
         etiqueta="¿Es un campo que el sistema necesita?"
@@ -609,7 +767,8 @@ function NuevaPregunta({
         <button
           type="button"
           onClick={() => setAbierto(false)}
-          className="text-sm text-texto-suave underline"
+          className="text-texto-suave"
+                style={{ fontSize: "0.71875rem" }}
         >
           Cancelar
         </button>
@@ -630,25 +789,29 @@ function NuevaSeccion({
   const [titulo, setTitulo] = useState("");
 
   return (
-    <form
-      onSubmit={(e) => {
-        e.preventDefault();
-        void accion(() => formulariosApi.crearSeccion(id, { titulo })).then(() =>
-          setTitulo(""),
-        );
-      }}
-      className="flex flex-wrap gap-3 rounded-xl border border-dashed border-borde p-4"
-    >
-      <input
-        required
-        value={titulo}
-        onChange={(e) => setTitulo(e.target.value)}
-        placeholder="Título de una sección nueva"
-        className={`${CLASE_CONTROL} sm:max-w-md`}
-      />
-      <Boton type="submit" disabled={ocupado}>
-        Añadir sección
-      </Boton>
-    </form>
+    /// Una banda más, no una caja punteada flotando. La raya de
+    /// abajo la separa de lo que sigue igual que a las demás.
+    <Seccion>
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          void accion(() => formulariosApi.crearSeccion(id, { titulo })).then(() =>
+            setTitulo(""),
+          );
+        }}
+        className={`${ANCHO_FORMULARIO} flex flex-wrap items-end gap-3 px-6 py-4`}
+      >
+        <input
+          required
+          value={titulo}
+          onChange={(e) => setTitulo(e.target.value)}
+          placeholder="Título de una sección nueva"
+          className={`${CLASE_CONTROL} sm:max-w-[320px]`}
+        />
+        <Boton type="submit" disabled={ocupado}>
+          Añadir sección
+        </Boton>
+      </form>
+    </Seccion>
   );
 }

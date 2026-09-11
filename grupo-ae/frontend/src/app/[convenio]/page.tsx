@@ -12,9 +12,15 @@ export default async function PaginaConvenio({
 
   return (
     <>
-      <main className="mx-auto w-full max-w-3xl px-6 py-10">
+      {/* 720 px y no 768: es el mismo tope que el formulario
+          del panel, y el mismo que la preinscripción y el pie.
+          El aire de la pública se da en vertical, no
+          ensanchando la columna. */}
+      <main className="mx-auto w-full max-w-[720px] px-6 py-12">
         <EncabezadoPublico />
-        <FormularioReserva slug={convenio} />
+        <div className="mt-8">
+          <FormularioReserva slug={convenio} />
+        </div>
       </main>
       <FondoPublico />
       <PiePublico />

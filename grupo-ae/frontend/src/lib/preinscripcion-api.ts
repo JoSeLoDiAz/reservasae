@@ -125,11 +125,20 @@ export const preinscripcionApi = {
 
   catalogo: (slug: string) => pedir<CatalogoPreinscripcion>(`/preinscripcion/${slug}`),
 
+  /// El token viene NULL cuando el documento ya estaba: desde
+  /// el 3 sep 2026 el enlace de completado solo lo emite el
+  /// asesor, y el servicio devuelve en su lugar un `mensaje`
+  /// que ya explica qué pasó. Estaba tipado `string` y la
+  /// pantalla pintaba un enlace a `/completar/null`.
   registrar: (slug: string, datos: DatosBasicos) =>
-    pedir<{ registrado: boolean; yaEstaba: boolean; token: string; expiraEn: string }>(
-      `/preinscripcion/${slug}`,
-      { method: "POST", body: JSON.stringify(datos) },
-    ),
+    pedir<{
+      registrado: boolean;
+      yaEstaba: boolean;
+      token: string | null;
+      expiraEn: string | null;
+      enlaceEnviado?: boolean;
+      mensaje?: string;
+    }>(`/preinscripcion/${slug}`, { method: "POST", body: JSON.stringify(datos) }),
 
   abrir: (token: string) => pedir<FichaAbierta>(`/completar/${token}`),
 

@@ -39,7 +39,7 @@ export function CuandoVaASalir({ cuantos }: { cuantos: number }) {
     /// formulario, y ahi dentro competia con los campos en vez
     /// de acompaniarlos. El color se queda -- dice si sale ya o
     /// si espera -- pero en el punto y en la letra.
-    <div className="flex items-baseline gap-2.5 py-1 text-[0.78125rem]">
+    <div className="flex items-baseline gap-2 py-1 dato">
       <span
         aria-hidden
         className="mt-[1px] h-[7px] w-[7px] shrink-0 rounded-full"

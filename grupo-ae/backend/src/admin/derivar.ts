@@ -34,7 +34,19 @@ const NEUTROS: Record<EsquemaColor, Record<string, Receta>> = {
     texto: { l: 0.25, c: 0.02 },
     textoSuave: { l: 0.55, c: 0.015 },
 
-    tablaCabeceraFondo: { l: 0.958, c: 0.03 },
+    /// La cabecera de tabla SE IGUALA a la superficie.
+    ///
+    /// Iba en { l: 0.958, c: 0.03 }, o sea una franja tenida del
+    /// tono de la marca. Da igual que la paleta de fabrica la
+    /// ponga en blanco: en cuanto un gremio elige su color, la
+    /// receta le devuelve la franja -- y la franja tenida de
+    /// cabecera es justo lo que el dueno llamo anticuado.
+    ///
+    /// La cabecera pasa a ser rotulo en versalita sobre la
+    /// superficie con una regla de 1px debajo. El token sigue
+    /// siendo editable desde Apariencia: quien la quiera tenida
+    /// la tiene a un clic. Pero no es lo que se DERIVA.
+    tablaCabeceraFondo: { l: 1.0, c: 0 },
     tablaCabeceraTexto: { l: 0.4, c: 0.015 },
     tablaFilaAlterna: { l: 0.978, c: 0.006 },
     tablaFilaResaltada: { l: 0.955, c: 0.025 },
@@ -53,7 +65,8 @@ const NEUTROS: Record<EsquemaColor, Record<string, Receta>> = {
     texto: { l: 0.94, c: 0.012 },
     textoSuave: { l: 0.715, c: 0.02 },
 
-    tablaCabeceraFondo: { l: 0.275, c: 0.06 },
+    /// Igual que en claro: la cabecera es la superficie.
+    tablaCabeceraFondo: { l: 0.235, c: 0.022 },
     tablaCabeceraTexto: { l: 0.845, c: 0.016 },
     tablaFilaAlterna: { l: 0.155, c: 0.022 },
     tablaFilaResaltada: { l: 0.29, c: 0.055 },

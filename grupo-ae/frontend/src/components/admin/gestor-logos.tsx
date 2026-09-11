@@ -39,7 +39,7 @@ export function GestorLogos({ formularioId, heredados, alCambiar }: Props) {
     }
   }
 
-  if (!logos) return <p className="text-sm text-texto-suave">Cargando…</p>;
+  if (!logos) return <p className="dato text-texto-suave">Cargando…</p>;
 
   const hereda = Boolean(formularioId) && logos.length === 0;
   const mostrados = hereda ? (heredados ?? []) : logos;
@@ -47,13 +47,13 @@ export function GestorLogos({ formularioId, heredados, alCambiar }: Props) {
   return (
     <div className="space-y-4">
       {error && (
-        <p className="rounded-lg border border-error/30 bg-error-suave p-3 text-sm text-error">
+        <p className="dato text-titulo">
           {error}
         </p>
       )}
 
       {hereda && (
-        <p className="text-sm text-texto-suave">
+        <p className="dato text-texto-suave">
           {mostrados.length
             ? "Ahora mismo usa los logos de la apariencia general. En cuanto suba uno aquí, este formulario deja de heredarlos."
             : "No hay logos. En la cabecera se muestra el nombre de la aplicación."}
@@ -61,8 +61,8 @@ export function GestorLogos({ formularioId, heredados, alCambiar }: Props) {
       )}
 
       {mostrados.length > 0 && (
-        <div className="rounded-lg border border-borde bg-fondo p-4">
-          <p className="mb-3 text-xs font-medium uppercase tracking-wide text-texto-suave">
+        <div className="border-borde border p-4">
+          <p className="rotulo-bloque mb-3">
             Así se ve la cabecera
           </p>
           {/* al tamano real: lo que se ve aqui es lo que se publica */}
@@ -94,7 +94,7 @@ export function GestorLogos({ formularioId, heredados, alCambiar }: Props) {
               </span>
 
               <label className="min-w-48 flex-1">
-                <span className="mb-1 block text-xs text-texto-suave">
+                <span className="micro mb-1 block">
                   Nombre de la entidad
                 </span>
                 <input
@@ -119,7 +119,7 @@ export function GestorLogos({ formularioId, heredados, alCambiar }: Props) {
                   onClick={() =>
                     accion(() => adminApi.actualizarLogo(logo.id, { direccion: "IZQUIERDA" }))
                   }
-                  className="rounded-lg border border-borde px-3 py-2 text-sm transition hover:bg-fondo disabled:opacity-30"
+                  className="dato rounded-plano border-borde hover:bg-superficie-alterna disabled:text-hairline inline-flex h-[32px] items-center border px-3 transition"
                 >
                   ←
                 </button>
@@ -131,7 +131,7 @@ export function GestorLogos({ formularioId, heredados, alCambiar }: Props) {
                   onClick={() =>
                     accion(() => adminApi.actualizarLogo(logo.id, { direccion: "DERECHA" }))
                   }
-                  className="rounded-lg border border-borde px-3 py-2 text-sm transition hover:bg-fondo disabled:opacity-30"
+                  className="dato rounded-plano border-borde hover:bg-superficie-alterna disabled:text-hairline inline-flex h-[32px] items-center border px-3 transition"
                 >
                   →
                 </button>
@@ -139,13 +139,13 @@ export function GestorLogos({ formularioId, heredados, alCambiar }: Props) {
                   type="button"
                   disabled={ocupado}
                   onClick={() => accion(() => adminApi.borrarLogo(logo.id))}
-                  className="ml-2 rounded-lg border border-borde px-3 py-2 text-sm text-error transition hover:bg-error-suave disabled:opacity-50"
+                  className="dato rounded-plano border-borde hover:bg-superficie-alterna disabled:text-hairline ml-2 inline-flex h-[32px] items-center border px-3 transition"
                 >
                   Quitar
                 </button>
               </div>
 
-              <p className="w-full text-xs text-texto-suave">{logo.nombre}</p>
+              <p className="micro w-full">{logo.nombre}</p>
             </li>
           ))}
         </ul>
@@ -176,7 +176,7 @@ export function GestorLogos({ formularioId, heredados, alCambiar }: Props) {
         >
           Añadir logo
         </Boton>
-        <span className="text-sm text-texto-suave">
+        <span className="dato text-texto-suave">
           {logos.length} de {MAXIMO_LOGOS}
           {logos.length >= MAXIMO_LOGOS && " · quite uno para añadir otro"}
         </span>

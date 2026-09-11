@@ -233,8 +233,19 @@ export const TEMAS_POR_DEFECTO: Record<EsquemaColor, ColoresTema> = {
     encabezadoTexto: '#0f172a',
     encabezadoBorde: '#e2e8f0',
 
-    tablaCabeceraFondo: '#eef4fe',
-    tablaCabeceraTexto: '#475569',
+    /// La cabecera de tabla se IGUALA a la superficie.
+    ///
+    /// Pasa a ser rotulo en versalita sobre blanco con una
+    /// regla de 1px debajo. La franja tenida de cabecera estaba
+    /// en nueve de las quince pantallas y a veces cinco veces en
+    /// la misma: con cinco franjas azules ninguna es la
+    /// importante.
+    ///
+    /// El token sigue aqui y sigue siendo editable desde
+    /// Apariencia: quien quiera la cabecera tenida la tiene a un
+    /// clic. Pero no es lo que sale de fabrica.
+    tablaCabeceraFondo: '#ffffff',
+    tablaCabeceraTexto: '#64748b',
     tablaFilaAlterna: '#f8fafc',
     tablaFilaResaltada: '#eff6ff',
     tablaBorde: '#e2e8f0',
@@ -251,19 +262,51 @@ export const TEMAS_POR_DEFECTO: Record<EsquemaColor, ColoresTema> = {
     error: '#be123c',
     errorSuave: '#fff1f2',
 
-    etapaInteresado: '#5b6472',
-    etapaContactado: '#1f4e85',
-    etapaDatosCompletos: '#4c3a8c',
-    etapaInscrito: '#1a6e58',
-    etapaEnFormacion: '#8a5a12',
-    etapaCertificado: '#2c6b1f',
-    etapaPerdido: '#9c3126',
+    /// Las etapas no son un arcoiris: son una RAMPA.
+    ///
+    /// Una etapa no es «otra cosa» que la anterior, es «mas
+    /// adelante» que la anterior. De gris a azul profundo:
+    /// cuanto mas oscuro, mas cerca del dinero. Una columna de
+    /// cuarenta filas se lee de un vistazo aunque no se sepan
+    /// los nombres, y quien no distingue colores ve igual la
+    /// rampa de claro a oscuro.
+    ///
+    /// Ganado es el UNICO verde de la pantalla. Y Perdido se
+    /// apaga en vez de gritar en rojo: en un embudo sano se
+    /// pierden dos de cada tres negocios, y cuarenta filas rojas
+    /// dicen que todo esta mal cuando todo esta normal.
+    etapaInteresado: '#64748b',
+    etapaContactado: '#5977a5',
+    etapaDatosCompletos: '#3b6cc4',
+    etapaInscrito: '#1d4ed8',
+    etapaEnFormacion: '#1e3a8a',
+    etapaCertificado: '#047857',
+    /// Perdido se apaga: es la unica etapa SIN color.
+    ///
+    /// La direccion pide #94a3b8 y la intencion es correcta --
+    /// en un embudo sano se pierden dos de cada tres negocios,
+    /// y cuarenta filas rojas dicen que todo esta mal cuando
+    /// todo esta normal --, pero ese gris da 2,56 sobre blanco
+    /// y la casa exige 4,5 a toda etiqueta de etapa (lo prueba
+    /// derivar.spec.ts, y lo rompia).
+    ///
+    /// «Apagado» se consigue igual sin bajar del suelo: se le
+    /// quita el CROMA en vez de la luz. Captado es gris AZUL
+    /// (#64748b); Perdido es gris a secas, la unica etapa a la
+    /// que no le queda nada de color.
+    etapaPerdido: '#6b7280',
+    /// Las cuatro de abajo son vocabulario muerto de Convoca y
+    /// el CRM no las usa: se dejan quietas y no se les inventa
+    /// un uso. Pero SI se apartan del camino de la rampa nueva.
+    /// «En negociacion» pasa a ser azul profundo y «Abandono»
+    /// estaba en el mismo indigo (2,1 de distancia en OKLab:
+    /// el mismo color); «Ganado» pasa a verde y «Desertó»
+    /// estaba a 9,4 de él. Dos series de diez píxeles a esa
+    /// distancia no son dos series, son una mancha.
     etapaRetirado: '#7a2e72',
     etapaNoAprobo: '#c22a1e',
-    // aviso y sin aviso: dos tonos distintos, no dos
-    // variantes del mismo rojo de salida
-    etapaDeserto: '#0f7f94',
-    etapaAbandono: '#2f3a8e',
+    etapaDeserto: '#0f78a5',
+    etapaAbandono: '#6d28d9',
   },
   OSCURO: {
     marca: '#60a5fa',
@@ -284,8 +327,8 @@ export const TEMAS_POR_DEFECTO: Record<EsquemaColor, ColoresTema> = {
     encabezadoTexto: '#e8edf7',
     encabezadoBorde: '#26324a',
 
-    tablaCabeceraFondo: '#16213c',
-    tablaCabeceraTexto: '#c3cee0',
+    tablaCabeceraFondo: '#131c2e',
+    tablaCabeceraTexto: '#9aa8c0',
     tablaFilaAlterna: '#101a2b',
     tablaFilaResaltada: '#172554',
     tablaBorde: '#26324a',
@@ -301,17 +344,20 @@ export const TEMAS_POR_DEFECTO: Record<EsquemaColor, ColoresTema> = {
     error: '#fb7185',
     errorSuave: '#3f0d16',
 
-    // aclaradas: las del claro no llegan al minimo
-    etapaInteresado: '#a3aec0',
-    etapaContactado: '#7cb2f0',
-    etapaDatosCompletos: '#b3a4f0',
-    etapaInscrito: '#5ec6a8',
-    etapaEnFormacion: '#e0b155',
-    etapaCertificado: '#86cf72',
-    etapaPerdido: '#f2938a',
+    // La misma rampa, GIRADA. En un fondo oscuro «mas cerca del
+    // dinero» no puede ser mas oscuro -- se perderia contra el
+    // fondo --, asi que la etapa se aclara segun avanza. El
+    // orden que ve el ojo es el mismo.
+    etapaInteresado: '#94a3b8',
+    etapaContactado: '#93b4d8',
+    etapaDatosCompletos: '#7ba3ea',
+    etapaInscrito: '#60a5fa',
+    etapaEnFormacion: '#bfdbfe',
+    etapaCertificado: '#34d399',
+    etapaPerdido: '#8b8f99',
     etapaRetirado: '#dfa0d8',
     etapaNoAprobo: '#f77a5c',
-    etapaDeserto: '#4fd6ea',
+    etapaDeserto: '#22b8d8',
     etapaAbandono: '#8d9bf2',
   },
 };

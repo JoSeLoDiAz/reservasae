@@ -10,6 +10,9 @@ import { AppService } from './app.service';
 import { CatalogoModule } from './catalogo/catalogo.module';
 import { CrmModule } from './crm/crm.module';
 import { OportunidadesModule } from './oportunidades/oportunidades.module';
+import { GestionesModule } from './gestiones/gestiones.module';
+import { MetasModule } from './metas/metas.module';
+import { CaptacionModule } from './captacion/captacion.module';
 import { ThrottlerIpGuard } from './comun/throttler-ip.guard';
 import { FormulariosModule } from './formularios/formularios.module';
 import { PoliticasModule } from './politicas/politicas.module';
@@ -43,6 +46,14 @@ import { TablerosModule } from './tableros/tableros.module';
     InstitucionesModule,
     CrmModule,
     OportunidadesModule,
+    // El embudo entero: la gestion que lo empuja y la meta contra la
+    // que se mide. Cada uno registra su propio JwtModule porque el
+    // AdminGuard se resuelve en el modulo del controlador.
+    GestionesModule,
+    MetasModule,
+    // Publico a proposito: su controlador no lleva guard, asi que no
+    // necesita JwtModule.
+    CaptacionModule,
   ],
   controllers: [AppController],
   providers: [

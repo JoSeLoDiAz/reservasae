@@ -47,7 +47,7 @@ export default function PaginaRespuestas({
       />
       <SelloDeDatos actualizadoEn={vivos.actualizadoEn} />
 
-      <header className="border-b border-borde bg-superficie px-7 pt-[26px] pb-[22px] no-imprimir flex flex-wrap items-start justify-between gap-4">
+      <header className="border-b border-borde bg-superficie px-6 pt-[26px] pb-[22px] no-imprimir flex flex-wrap items-start justify-between gap-4">
         <div>
           <Link
             href={`/admin/formularios/${id}`}

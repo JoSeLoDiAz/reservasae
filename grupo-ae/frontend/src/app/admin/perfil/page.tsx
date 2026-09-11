@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 
-import { Bloque } from "@/components/admin/piezas";
+import { Bloque, Encabezado } from "@/components/admin/piezas";
 import { FormularioCambioClave } from "@/components/admin/cambio-clave";
 import {
   Aviso,
@@ -55,76 +55,108 @@ export default function PaginaPerfil() {
   }
 
   return (
-    <div className="flex min-h-0 grow flex-col gap-4 px-4 pt-4 pb-6">
-      <header>
-        <h1 className="text-[1.3125rem] font-bold tracking-[-0.02em] text-titulo">Mi perfil</h1>
-        <p className="mt-1 text-texto-suave">
-          {admin.correo} · {ROLES[admin.rol] ?? admin.rol}
-        </p>
-      </header>
+    /// Sin `gap` y sin relleno: las bandas SE TOCAN y las
+    /// separa una regla de 1 px. El aire se gana quitando alto
+    /// muerto, no metiendo bloques ni margen entre cajas.
+    <div className="flex min-h-0 grow flex-col">
+      <Encabezado
+        titulo="Mi perfil"
+        descripcion={`${admin.correo} · ${ROLES[admin.rol] ?? admin.rol}`}
+      />
 
-      <Bloque titulo="Mis datos">
-        {/* `space-y-5` y no 4: entre el pie de un campo y el
-            rótulo del siguiente había menos aire que entre el
-            rótulo y su propia caja, así que cada etiqueta se
-            leía pegada al campo de ARRIBA en vez de al suyo. */}
-        <form onSubmit={guardar} className="space-y-5">
-          <Campo etiqueta="Nombre completo">
-            <input
-              required
-              value={datos.nombre}
-              onChange={(e) => cambiar("nombre", e.target.value)}
-              className={CLASE_CONTROL}
-            />
-          </Campo>
+      {/* LOS DOS FORMULARIOS, UNO AL LADO DEL OTRO.
 
-          {/* Sin `gap`, «Cargo» y «Celular» se tocaban: las dos
-              cajas quedaban pegadas por el costado. */}
-          <div className="grid gap-x-6 gap-y-5 sm:grid-cols-2">
-            <Campo etiqueta="Cargo">
-              <input
-                value={datos.cargo}
-                onChange={(e) => cambiar("cargo", e.target.value)}
-                className={CLASE_CONTROL}
-              />
-            </Campo>
-            <Campo etiqueta="Celular">
-              <input
-                value={datos.celular}
-                onChange={(e) => cambiar("celular", e.target.value)}
-                inputMode="tel"
-                className={CLASE_CONTROL}
-              />
-            </Campo>
-          </div>
+          Cada uno topa en 720 px, que está bien —un campo de
+          correo no mide 1350 px nunca—, pero apilados dejaban
+          novecientos píxeles en blanco a la derecha de los dos:
+          a 1920 esta pantalla usaba el 44 % del ancho. Eso no es
+          la regla del formulario, es el hueco otra vez. Es la
+          respuesta b) de la regla de lista: el sobrante se dedica
+          a una segunda región útil, y aquí la segunda región ya
+          existía, estaba debajo.
 
-          <Campo etiqueta="Organización">
-            <input
-              value={datos.organizacion}
-              onChange={(e) => cambiar("organizacion", e.target.value)}
-              className={CLASE_CONTROL}
-            />
-          </Campo>
+          UNA banda con dos bloques dentro, y no dos bandas: los
+          bloques dentro de una banda no llevan borde ni fondo, se
+          separan por su rótulo en versalita y por el aire.
 
-          {error && <Aviso tipo="error">{error}</Aviso>}
-          {guardado && !error && <Aviso tipo="exito">Datos guardados.</Aviso>}
+          1480 px es 720 + 40 + 720. Por debajo no caben los dos
+          sin recortar un campo, y se apilan como antes. Y es
+          consulta de CONTENEDOR: la barra lateral se pliega y la
+          banda gana 180 px sin que la ventana cambie. */}
+      <section className="banda @container">
+        <div className="grid gap-x-10 gap-y-8 @[1480px]:grid-cols-2">
+          <Bloque plano titulo="Mis datos">
+            {/* Cada campo mide lo que mide su dato.
 
-          {/* Separado por la raya: es el final del formulario y
-              nacía contra la caja de «Organización». */}
-          <div className="border-t border-hairline pt-5">
-            <Boton type="submit" disabled={guardando}>
-              {guardando ? "Guardando…" : "Guardar cambios"}
-            </Boton>
-          </div>
-        </form>
-      </Bloque>
+                Median 1530 px de ancho para escribir un nombre y un
+                celular: no sobraba aire, sobraba ANCHO. Celular 180,
+                nombre 320, porque una caja de mil pixeles para diez
+                digitos dice que ahi caben mil caracteres. */}
+            <form onSubmit={guardar} className="formulario">
+              <div className="formulario-doble">
+                <Campo etiqueta="Nombre completo">
+                  <input
+                    required
+                    value={datos.nombre}
+                    onChange={(e) => cambiar("nombre", e.target.value)}
+                    className={CLASE_CONTROL + " ancho-nombre"}
+                  />
+                </Campo>
 
-      <Bloque
-        titulo="Cambiar mi contraseña"
-        descripcion="El correo no se puede cambiar desde aquí: es el identificador de la cuenta."
-      >
-        <FormularioCambioClave alTerminar={refrescar} />
-      </Bloque>
+                <Campo etiqueta="Cargo">
+                  <input
+                    value={datos.cargo}
+                    onChange={(e) => cambiar("cargo", e.target.value)}
+                    className={CLASE_CONTROL + " ancho-nombre"}
+                  />
+                </Campo>
+
+                <Campo etiqueta="Celular">
+                  <input
+                    value={datos.celular}
+                    onChange={(e) => cambiar("celular", e.target.value)}
+                    inputMode="tel"
+                    className={CLASE_CONTROL + " ancho-celular"}
+                  />
+                </Campo>
+
+                <Campo etiqueta="Organización">
+                  <input
+                    value={datos.organizacion}
+                    onChange={(e) => cambiar("organizacion", e.target.value)}
+                    className={CLASE_CONTROL + " ancho-nombre"}
+                  />
+                </Campo>
+              </div>
+
+              {(error || (guardado && !error)) && (
+                <div className="mt-4">
+                  {error && <Aviso tipo="error">{error}</Aviso>}
+                  {guardado && !error && <Aviso tipo="exito">Datos guardados.</Aviso>}
+                </div>
+              )}
+
+              {/* Separado por la raya: es el final del formulario y
+                  nacía contra la caja de «Organización». */}
+              <div className="border-hairline mt-6 border-t pt-4">
+                <Boton type="submit" disabled={guardando}>
+                  {guardando ? "Guardando…" : "Guardar cambios"}
+                </Boton>
+              </div>
+            </form>
+          </Bloque>
+
+          <Bloque
+            plano
+            titulo="Cambiar mi contraseña"
+            descripcion="El correo no se puede cambiar desde aquí: es el identificador de la cuenta."
+          >
+            <div className="formulario">
+              <FormularioCambioClave alTerminar={refrescar} />
+            </div>
+          </Bloque>
+        </div>
+      </section>
 
       <SobreConvoca />
     </div>
@@ -146,34 +178,39 @@ function SobreConvoca() {
 
   return (
     <Bloque titulo="Sobre el CRM">
-      <div className="space-y-5">
-        <FirmaConvoca tamano={40} />
+      <FirmaConvoca tamano={40} />
 
-        <dl className="grid gap-x-8 gap-y-3 text-sm sm:grid-cols-2">
-          <Dato titulo="Versión" valor={estado?.version ?? "…"} mono />
-          <Dato
-            titulo="Entorno"
-            valor={
-              !estado
-                ? "…"
-                : enPruebas
-                  ? "Pruebas · los datos son inventados"
-                  : "Producción · datos reales"
-            }
-          />
-          <Dato titulo="Gestionado por" valor="Grupo AE" />
-          <Dato
-            titulo="Derechos"
-            valor={ano ? `© ${ano}, todos los derechos reservados` : "…"}
-          />
-        </dl>
+      {/* LOS CUATRO DATOS SALEN DE LA PROSA.
 
-        <p className="text-sm text-texto-suave">
-          La versión sale del propio servidor, no de una constante escrita a
-          mano: es la que de verdad está corriendo. Si va a reportar algo, es el
-          dato que conviene copiar.
-        </p>
-      </div>
+          Estaban dentro del tope de 68 caracteres, así que cuatro
+          rótulos de una palabra se apretaban en dos columnas de
+          240 px con mil de blanco al lado. No son prosa: son
+          datos, y los datos van en columna. El tope de 68 ch se
+          queda donde manda, que es el párrafo de abajo. */}
+      <dl className="mt-6 grid grid-cols-[repeat(auto-fit,minmax(200px,1fr))] gap-x-8 gap-y-4">
+        <Dato titulo="Versión" valor={estado?.version ?? "…"} mono />
+        <Dato
+          titulo="Entorno"
+          valor={
+            !estado
+              ? "…"
+              : enPruebas
+                ? "Pruebas · los datos son inventados"
+                : "Producción · datos reales"
+          }
+        />
+        <Dato titulo="Gestionado por" valor="Grupo AE" />
+        <Dato
+          titulo="Derechos"
+          valor={ano ? `© ${ano}, todos los derechos reservados` : "…"}
+        />
+      </dl>
+
+      <p className="secundario prosa mt-6">
+        La versión sale del propio servidor, no de una constante escrita a mano:
+        es la que de verdad está corriendo. Si va a reportar algo, es el dato que
+        conviene copiar.
+      </p>
     </Bloque>
   );
 }
@@ -190,12 +227,8 @@ function Dato({
 }) {
   return (
     <div>
-      <dt className="text-xs font-semibold tracking-wide text-texto-suave uppercase">
-        {titulo}
-      </dt>
-      <dd className={`mt-0.5 ${mono ? "font-mono text-[0.95rem]" : ""}`}>
-        {valor}
-      </dd>
+      <dt className="rotulo-bloque">{titulo}</dt>
+      <dd className={`dato mt-1 ${mono ? "tabular-nums" : ""}`}>{valor}</dd>
     </div>
   );
 }

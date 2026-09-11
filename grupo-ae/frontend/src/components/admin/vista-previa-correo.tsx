@@ -192,7 +192,7 @@ export function VistaPreviaCorreo({
       /// quien mira: son tres medidas concretas, no un juego
       /// de puntos de corte.
       style={carta ? { width: "100%", maxWidth: ancho.px } : undefined}
-      className={`overflow-hidden rounded-xl border bg-superficie ${
+      className={`overflow-hidden rounded-plano border bg-superficie ${
         carta ? "mx-auto border-campo-borde" : "border-borde"
       }`}
     >
@@ -201,17 +201,17 @@ export function VistaPreviaCorreo({
           carta ? "px-[18px] py-3.5" : "px-4 py-3"
         }`}
       >
-        <div className="flex items-baseline gap-2 text-xs text-texto-suave">
+        <div className="flex items-baseline gap-2 micro">
           <span className="w-12 shrink-0">De</span>
           <span className="truncate text-texto">{remitente ?? "Grupo AE"}</span>
         </div>
-        <div className="flex items-baseline gap-2 text-xs text-texto-suave">
+        <div className="flex items-baseline gap-2 micro">
           <span className="w-12 shrink-0">Para</span>
           <span className="truncate">{paraEjemplo ?? "camila.gomez@ejemplo.com"}</span>
         </div>
         <div className="flex items-baseline gap-2 pt-1">
-          <span className="w-12 shrink-0 text-xs text-texto-suave">Asunto</span>
-          <p className="min-w-0 font-medium break-words">
+          <span className="w-12 shrink-0 micro">Asunto</span>
+          <p className="dato min-w-0 break-words">
             {carta ? <Trozos trozos={asuntoR.trozos} /> : asuntoLleno}
           </p>
         </div>
@@ -240,11 +240,11 @@ export function VistaPreviaCorreo({
           }
         >
           {cuerpoVacio ? (
-            <p className="text-sm text-texto-suave italic">
+            <p className="secundario italic">
               Escriba el mensaje y aquí se va viendo.
             </p>
           ) : (
-            <p className="text-sm leading-relaxed whitespace-pre-wrap">
+            <p className="dato leading-relaxed whitespace-pre-wrap">
               {carta ? <Trozos trozos={cuerpoR.trozos} /> : cuerpoR.trozos.map((t) => t.t).join("")}
             </p>
           )}
@@ -258,7 +258,7 @@ export function VistaPreviaCorreo({
   /// mensaje no ocupa mil píxeles de ancho en ninguna bandeja.
   if (carta) {
     return (
-      <div className="rounded-xl border border-borde bg-superficie-alterna px-6 pt-4 pb-6">
+      <div className="rounded-plano border border-borde bg-superficie-alterna px-6 pt-4 pb-6">
         {/* El conmutador va DENTRO del gris y encima del
             correo, alineado con él: es el marco de la pantalla
             en la que se está mirando, no un ajuste del panel. */}
@@ -302,8 +302,8 @@ export function VistaPreviaCorreo({
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="text-sm font-medium">Así va a salir</p>
-        <span className="rounded-full bg-superficie-alterna px-2.5 py-1 text-xs text-texto-suave">
+        <p className="dato">Así va a salir</p>
+        <span className="micro">
           Con datos de ejemplo
         </span>
       </div>
@@ -311,7 +311,7 @@ export function VistaPreviaCorreo({
       {ventana}
 
       {rotas.length > 0 && (
-        <p className="rounded-lg border border-error/30 bg-error-suave p-3 text-xs text-error">
+        <p className="micro text-titulo">
           <strong>Estas variables no existen:</strong>{" "}
           {rotas.map((f) => `{{${f}}}`).join(", ")}. Van a salir tal cual en el
           correo, así que no se puede guardar así.
@@ -323,7 +323,7 @@ export function VistaPreviaCorreo({
           siempre. Decirlo evita la sorpresa de que la campaña
           omita a media lista. */}
       {puestas.length > 0 && (
-        <p className="text-xs text-texto-suave">
+        <p className="micro">
           Usa {puestas.length} {puestas.length === 1 ? "variable" : "variables"}.
           A quien le falte alguna de esas en su lead, no se le manda: sale en la
           lista de omitidos con el motivo.

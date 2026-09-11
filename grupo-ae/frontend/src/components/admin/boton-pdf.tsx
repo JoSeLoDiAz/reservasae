@@ -6,7 +6,7 @@ export function BotonPdf({ etiqueta = "Exportar a PDF" }: { etiqueta?: string })
     <button
       type="button"
       onClick={() => window.print()}
-      className="no-imprimir inline-flex items-center gap-2 rounded-xl border border-borde px-4 py-2 text-sm font-medium transition hover:bg-superficie-alterna"
+      className="no-imprimir inline-flex items-center gap-2 rounded-plano border border-borde px-4 py-2 dato transition hover:bg-superficie-alterna"
     >
       <svg
         viewBox="0 0 24 24"
@@ -40,7 +40,7 @@ export function EncabezadoImpresion({
         Grupo AE CRM · Captación y ventas
       </p>
       <h1 className="mt-1 text-xl font-semibold">{titulo}</h1>
-      <p className="mt-0.5 text-xs text-texto-suave">
+      <p className="mt-0.5 micro">
         {subtitulo ? `${subtitulo} · ` : ""}
         Generado el{" "}
         {new Date().toLocaleString("es-CO", {

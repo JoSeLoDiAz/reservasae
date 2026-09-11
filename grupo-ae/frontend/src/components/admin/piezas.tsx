@@ -15,25 +15,17 @@ const VARIABLE: Record<Tono, string> = {
 };
 
 /**
- * Un indicador, como una CELDA de la franja.
+ * Una cifra suelta dentro de un bloque.
  *
- * Era una tarjeta con borde, radio y su icono en un cuadro
- * tenido. Ahora es una celda de la banda de indicadores: la
- * separacion la pone la raya de la izquierda, no una caja.
+ * Era una tarjeta con borde, radio y sombra al pasar por
+ * encima -- la unica cosa del panel que flotaba --. Ahora no
+ * es una caja: es un rotulo en versalita con su cifra debajo,
+ * separada de la siguiente por aire y nada mas.
  *
- * El icono se fue. El prototipo no lo tiene, y con ocho
- * indicadores en fila ocho cuadros de color pesaban mas que
- * las propias cifras. La prop se sigue aceptando para no
- * tocar las 27 llamadas, pero no se pinta.
- *
- * Rotulo de 10px en versalita, cifra de 32 y pie de 11,5: los
- * tres en rem, que es lo que deja que el ajuste de texto del
- * panel los siga escalando.
- */
-/**
- * La tarjeta de cifra de Gestión de leads, tal cual: suelta, con
- * su borde y su curva, y sombra solo al pasar por encima — que es
- * lo único que puede flotar en el contenido.
+ * De las tres «Cifra» que convivian --esta, `TarjetaCifra` y
+ * una local en el Resumen-- solo pueden quedar las dos formas
+ * de la direccion: la cifra de portada (34) y la cifra de
+ * columna (20).
  */
 export function Cifra({
   etiqueta,
@@ -47,38 +39,38 @@ export function Cifra({
   color?: string;
 }) {
   return (
-    <div
-      className={
-        "min-w-[150px] flex-1 rounded-lg border border-borde bg-superficie px-3.5 py-2 transition " +
-        "hover:border-marca/40 hover:shadow-[0_2px_14px_-6px_rgba(15,23,42,0.28)]"
-      }
-    >
-      <div className="truncate leading-none text-texto-suave" style={{ fontSize: "0.6875rem" }} title={etiqueta}>
+    <div className="min-w-[140px] flex-1">
+      <p className="rotulo-bloque truncate" title={etiqueta}>
         {etiqueta}
-      </div>
-      <div className="mt-1 font-bold leading-none tabular-nums" style={{ fontSize: "1.0625rem", color }}>
+      </p>
+      <p className="cifra-columna mt-1" style={{ color }}>
         {valor}
-      </div>
-      {pie && (
-        <div className="mt-1 truncate leading-none text-texto-suave" style={{ fontSize: "0.6875rem" }}>
-          {pie}
-        </div>
-      )}
+      </p>
+      {pie && <p className="secundario mt-1 truncate">{pie}</p>}
     </div>
   );
 }
 
 /**
- * Una sección en su propia caja, sobre el fondo de la página.
+ * Un bloque de contenido: una BANDA.
  *
- * Es la contraria de `Tarjeta`: aquella es una franja a sangre
- * con raya abajo, y sirve cuando la pantalla entera es una
- * columna de franjas. Esta es para pantallas al estilo de
- * Gestión de leads, donde el contenido va sobre el fondo con
- * margen y cada bloque se despega con su borde.
+ * Convivian tres sistemas de contenedor -- bandas a sangre con
+ * regla, cajas con borde y cabecera tenida de `--marca-suave`,
+ * y contenido suelto sobre el fondo -- y el marco cambiaba
+ * segun en que pantalla se estuviera. Eso solo puede leerse
+ * como dos productos pegados.
  *
- * El relleno lateral es de 28px y NO se cambia: hay listas que
- * lo compensan con `-mx-7` para llegar de borde a borde.
+ * Queda uno. Fondo de superficie, sin borde alrededor, sin
+ * radio, y una regla de 1 px abajo que lo separa del
+ * siguiente. Las bandas SE TOCAN: el aire se gana quitando
+ * alto muerto, no metiendo bloques.
+ *
+ * Y el titulo va en versalita, no en una franja azul clara. La
+ * franja estaba en nueve de las quince pantallas y a veces
+ * cinco veces en la misma, y con cinco franjas azules ninguna
+ * es la importante. `--marca-suave` vuelve a sus dos unicos
+ * sitios: la entrada activa de la barra lateral y la fila de
+ * tabla bajo el raton.
  */
 export function Bloque({
   titulo,
@@ -110,12 +102,12 @@ export function Bloque({
    */
   partible?: boolean;
   /**
-   * Sin borde ni franja: un corte DENTRO de otro bloque.
+   * Sin banda: un corte DENTRO de otra banda.
    *
-   * Veinte cortes son veinte bordes y veinte franjas de color,
+   * Veinte cortes eran veinte bordes y veinte franjas de color,
    * y eso se lee como veinte pantallas pegadas en vez de como
    * un informe. Los que responden a la misma pregunta van
-   * dentro de un solo bloque, cada uno con su rótulo.
+   * dentro de una sola banda, cada uno con su rótulo.
    */
   plano?: boolean;
   /**
@@ -129,24 +121,24 @@ export function Bloque({
   plegable?: boolean;
   children: React.ReactNode;
 }) {
+  const conCabecera = Boolean(titulo || acciones);
+
   if (plegable) {
     return (
-      <details className="group bloque-entero rounded-lg border border-borde bg-superficie">
-        <summary className="sin-aro cabecera-de-bloque flex cursor-pointer list-none items-start justify-between gap-3 rounded-t-[7px] bg-marca-suave px-7 py-3 select-none group-open:border-b group-open:border-borde">
+      <details className="banda bloque-entero group">
+        <summary className="sin-aro cabecera-de-bloque flex cursor-pointer list-none items-start justify-between gap-4 select-none">
           <div className="min-w-0">
-            {titulo && (
-              <h2 className="text-[0.875rem] font-semibold text-titulo">{titulo}</h2>
-            )}
+            {titulo && <h2 className="rotulo-bloque">{titulo}</h2>}
             {descripcion && (
-              <p className="mt-0.5 text-[0.75rem] text-texto-suave">{descripcion}</p>
+              <p className="secundario prosa mt-1">{descripcion}</p>
             )}
           </div>
-          <span className="shrink-0 text-[0.75rem] font-medium text-marca">
+          <span className="dato shrink-0 text-marca">
             <span className="group-open:hidden">Ver</span>
             <span className="hidden group-open:inline">Ocultar</span>
           </span>
         </summary>
-        <div className="px-7 py-4">{children}</div>
+        <div className="mt-3">{children}</div>
       </details>
     );
   }
@@ -154,14 +146,8 @@ export function Bloque({
   if (plano) {
     return (
       <section className={estirado ? "flex h-full flex-col" : undefined}>
-        {titulo && (
-          <h3 className="text-[0.625rem] font-semibold tracking-[0.1em] text-marca uppercase">
-            {titulo}
-          </h3>
-        )}
-        {descripcion && (
-          <p className="mt-1 text-[0.71875rem] text-texto-suave">{descripcion}</p>
-        )}
+        {titulo && <h3 className="rotulo-bloque">{titulo}</h3>}
+        {descripcion && <p className="secundario prosa mt-1">{descripcion}</p>}
         <div className={estirado ? "mt-3 min-h-0 grow" : "mt-3"}>{children}</div>
       </section>
     );
@@ -170,29 +156,23 @@ export function Bloque({
   return (
     <section
       className={
-        "rounded-lg border border-borde bg-superficie " +
+        (sinRelleno ? "banda banda-sin-relleno " : "banda ") +
         (partible ? "bloque-partible " : "bloque-entero ") +
         (estirado ? "bloque-estirado flex h-full flex-col" : "")
       }
     >
-      {(titulo || acciones) && (
-        <div className="cabecera-de-bloque flex flex-wrap items-start justify-between gap-3 rounded-t-[7px] border-b border-borde bg-marca-suave px-7 py-3">
+      {conCabecera && (
+        <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-1">
           <div className="min-w-0">
-            {titulo && (
-              <h2 className="text-[0.875rem] font-semibold text-titulo">{titulo}</h2>
-            )}
+            {titulo && <h2 className="rotulo-bloque">{titulo}</h2>}
             {descripcion && (
-              <p className="mt-0.5 text-[0.75rem] text-texto-suave">{descripcion}</p>
+              <p className="secundario prosa mt-1">{descripcion}</p>
             )}
           </div>
           {acciones}
         </div>
       )}
-      <div
-        className={
-          (sinRelleno ? "" : "px-7 py-4") + (estirado ? " min-h-0 grow" : "")
-        }
-      >
+      <div className={(conCabecera ? "mt-3" : "") + (estirado ? " min-h-0 grow" : "")}>
         {children}
       </div>
     </section>
@@ -210,7 +190,8 @@ export function TarjetaCifra({
   etiqueta: string;
   valor: React.ReactNode;
   pie?: React.ReactNode;
-  /// Se acepta y NO se pinta: ver el comentario de arriba.
+  /// Se acepta y NO se pinta: con ocho indicadores en fila,
+  /// ocho cuadros de color pesaban mas que las propias cifras.
   icono?: Icono;
   tono?: Tono;
   href?: string;
@@ -220,33 +201,20 @@ export function TarjetaCifra({
 }) {
   const cuerpo = (
     <>
+      <p className="rotulo-bloque">{etiqueta}</p>
       <p
-        className="font-semibold uppercase text-texto-suave"
-        style={{ fontSize: "0.625rem", letterSpacing: "0.1em" }}
-      >
-        {etiqueta}
-      </p>
-      <p
-        className={(compacta ? "mt-1" : "mt-2") + " font-bold tabular-nums"}
-        style={{
-          fontSize: compacta ? "1.5rem" : "2rem",
-          letterSpacing: "-0.03em",
-          color: tono === "marca" ? "var(--titulo)" : VARIABLE[tono],
-        }}
+        className={compacta ? "cifra-columna mt-1" : "cifra-portada mt-2"}
+        style={tono === "marca" ? undefined : { color: VARIABLE[tono] }}
       >
         {valor}
       </p>
-      {pie && (
-        <p className="mt-[3px] text-texto-suave" style={{ fontSize: "0.71875rem" }}>
-          {pie}
-        </p>
-      )}
+      {pie && <p className="secundario mt-1">{pie}</p>}
     </>
   );
 
   const clase =
-    (compacta ? "bg-superficie px-7 pt-3 pb-[13px] transition" : "bg-superficie px-7 pt-[18px] pb-5 transition") +
-    (href ? " block no-underline hover:bg-tabla-fila-resaltada" : "");
+    (compacta ? "bg-superficie px-6 pt-3 pb-4" : "bg-superficie px-6 pt-4 pb-6") +
+    (href ? " block no-underline transition hover:bg-tabla-fila-resaltada" : "");
 
   return href ? (
     <Link href={href} className={clase}>
@@ -258,8 +226,17 @@ export function TarjetaCifra({
 }
 
 /**
- * Estado en una píldora. Lleva SIEMPRE texto: el color
- * acompaña, nunca es lo único que distingue.
+ * Estado: el color va en la LETRA y el peso es 600.
+ *
+ * Era una pildora con fondo tenido y radio completo. En una
+ * tabla de cuarenta filas, cuarenta rectangulos de color
+ * compiten con los datos en vez de ordenarlos.
+ *
+ * El 600 esta RESERVADO para esto y para nada mas: ver un 600
+ * en cualquier pantalla significa «esto es la etapa o el
+ * resultado de algo». Y lleva SIEMPRE texto: el color
+ * acompana, nunca es lo unico que distingue -- en papel y en
+ * daltonismo el color no llega.
  */
 export function Pildora({
   tono = "neutro",
@@ -268,17 +245,6 @@ export function Pildora({
   tono?: Tono;
   children: React.ReactNode;
 }) {
-  /// El color va en la LETRA, no en una caja.
-  ///
-  /// Era una pildora con fondo tenido y radio completo. En una
-  /// tabla de 400 filas, 400 rectangulos de color compiten con
-  /// los datos en vez de ordenarlos: uno acaba viendo la
-  /// alfombra de colores y no la fila que buscaba.
-  ///
-  /// Se conserva el peso 600, que es lo que sigue haciendo que
-  /// el estado destaque sin fondo. Y se conserva el texto: el
-  /// color acompania, nunca es lo unico que distingue -- en
-  /// papel y en daltonismo el color no llega.
   const clases: Record<Tono, string> = {
     marca: "text-marca",
     exito: "text-exito",
@@ -289,15 +255,22 @@ export function Pildora({
 
   return (
     <span
-      className={`inline-flex items-center gap-1.5 font-semibold whitespace-nowrap ${clases[tono]}`}
-      style={{ fontSize: "0.75rem" }}
+      className={`estado inline-flex items-center gap-1.5 whitespace-nowrap ${clases[tono]}`}
     >
       {children}
     </span>
   );
 }
 
-/** Encabezado de pantalla: título, apoyo y acciones. */
+/**
+ * Encabezado de pantalla: título, apoyo y acciones.
+ *
+ * Es la primera banda de la pantalla y la unica que lleva
+ * regla de 2 px: 2 px significa «aqui empieza algo» y 1 px
+ * «aqui se separan dos cosas». No hay un tercer grosor, y esa
+ * es la regla que sale del signo de la casa -- un arco que
+ * empieza y termina.
+ */
 export function Encabezado({
   titulo,
   descripcion,
@@ -308,49 +281,45 @@ export function Encabezado({
   children?: React.ReactNode;
 }) {
   return (
-    /// Una banda mas, con su relleno propio.
-    ///
-    /// Llevaba `mb-6` y ningun relleno lateral: eso funcionaba
-    /// cuando el contenedor de la pagina ponia el margen. Ahora
-    /// las secciones van a sangre y el relleno lo pone cada una,
-    /// asi que sin esto el titulo quedaba pegado al canto.
-    <header className="flex flex-wrap items-start justify-between gap-4 border-b border-borde bg-superficie px-7 pt-[26px] pb-[22px]">
+    <header className="banda banda-titulo flex flex-wrap items-start justify-between gap-4">
       <div className="min-w-0">
-        <h1 className="text-[1.3125rem] font-bold tracking-[-0.02em] text-titulo">
-          {titulo}
-        </h1>
-        {descripcion && (
-          <p className="mt-1.5 max-w-[760px] text-[0.78125rem] leading-relaxed text-texto-suave">
-            {descripcion}
-          </p>
-        )}
+        <h1 className="titulo-pantalla">{titulo}</h1>
+        {descripcion && <p className="secundario prosa mt-1.5">{descripcion}</p>}
       </div>
       {children && <div className="flex shrink-0 flex-wrap gap-2">{children}</div>}
     </header>
   );
 }
 
-/** Cuando no hay nada que mostrar, decir por qué. */
+/**
+ * Cuando no hay nada que mostrar, decir por qué.
+ *
+ * Sin caja de rayas, sin circulo de icono y sin 500 px de alto
+ * reservados para escribir «Vacia». El vacio se escribe con
+ * una raya y una linea de apoyo, y no pesa mas que los datos
+ * que si estan.
+ */
 export function Vacio({
   titulo,
   children,
-  icono: Icono,
+  icono,
 }: {
   titulo: string;
   children?: React.ReactNode;
+  /// Se acepta y NO se pinta: un icono existe solo si es el
+  /// unico contenido de un boton.
   icono?: Icono;
 }) {
+  void icono;
   return (
-    <div className="rounded-2xl border border-dashed border-borde px-6 py-12 text-center">
-      {Icono && (
-        <span className="mx-auto mb-3 grid h-11 w-11 place-items-center rounded-2xl bg-superficie-alterna text-texto-suave">
-          <Icono tamano={22} />
+    <div className="py-8">
+      <p className="dato">
+        <span aria-hidden className="mr-2 text-texto-suave">
+          —
         </span>
-      )}
-      <p className="font-medium">{titulo}</p>
-      {children && (
-        <p className="mx-auto mt-1 max-w-md text-sm text-texto-suave">{children}</p>
-      )}
+        {titulo}
+      </p>
+      {children && <p className="secundario prosa mt-1">{children}</p>}
     </div>
   );
 }
@@ -363,18 +332,16 @@ export function BotonSuave({
   return (
     <button
       {...resto}
-      className={`inline-flex items-center justify-center gap-2 rounded-xl border border-borde bg-superficie px-4 py-2.5 text-sm font-medium transition hover:bg-superficie-alterna disabled:opacity-50 ${resto.className ?? ""}`}
+      /// Apagado se dice con los tokens, no con `opacity`: el
+      /// gris no se improvisa con opacidad, que es literalmente
+      /// la causa de que todo se viera lavado.
+      className={`dato rounded-plano border-borde bg-superficie hover:bg-superficie-alterna disabled:border-hairline disabled:text-texto-suave inline-flex h-[32px] items-center justify-center gap-2 border px-[13px] transition disabled:cursor-not-allowed disabled:hover:bg-superficie ${resto.className ?? ""}`}
     >
       {children}
     </button>
   );
 }
 
-/**
- * Lo que se ve mientras llega la respuesta. Un bloque
- * gris con la forma de lo que va a venir orienta más que
- * la palabra "cargando", y evita el salto cuando entra.
- */
 /**
  * La pantalla entera mientras llegan los datos.
  *
@@ -384,27 +351,31 @@ export function BotonSuave({
  * el hueco que va a ocupar el contenido dice lo que pasa, y de
  * paso el ojo ya está donde va a aparecer la cosa.
  *
- * Va donde la pantalla NO tiene todavía forma. Cuando sí la
- * tiene --se sabe que van filas de una tabla-- es mejor
- * `Esqueleto`, que enseña la forma en vez de anunciarla.
- *
  * El círculo que gira es de las poquísimas cosas que llevan
- * `rounded-full` con permiso: es de verdad redondo.
+ * `rounded-full` con permiso: es de verdad redondo. Y es una
+ * de las dos animaciones del producto.
  */
 export function Cargando({ que = "Cargando…" }: { que?: string }) {
   return (
-    <div className="flex min-h-0 grow flex-col items-center justify-center gap-3 px-4 py-20 text-texto-suave">
+    <div className="flex min-h-0 grow flex-col items-center justify-center gap-3 px-4 py-20">
       <span
         aria-hidden
-        className="h-6 w-6 animate-spin rounded-full border-2 border-current/25 border-t-current"
+        className="border-borde border-t-texto-suave h-6 w-6 animate-spin rounded-full border-2"
       />
-      <p role="status" className="text-sm">
+      <p role="status" className="secundario">
         {que}
       </p>
     </div>
   );
 }
 
+/**
+ * La forma de lo que va a venir, en gris.
+ *
+ * El gris es `--superficie-alterna` y no `bg-current/10`: el
+ * gris no se improvisa con opacidad, que es literalmente la
+ * causa de que todo se viera lavado.
+ */
 export function Esqueleto({
   filas = 3,
   conCifras = false,
@@ -413,33 +384,32 @@ export function Esqueleto({
   conCifras?: boolean;
 }) {
   return (
-    <div className="space-y-4" aria-hidden>
+    <div aria-hidden>
       <span className="sr-only" aria-live="polite">
         Cargando la información
       </span>
 
       {conCifras && (
-        <div className="grid sm:grid-cols-2 lg:grid-cols-4">
+        <div className="banda grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
           {Array.from({ length: 4 }, (_, i) => (
-            <div
-              key={i}
-              className="rounded-2xl border border-borde bg-superficie p-5"
-            >
-              <div className="h-3.5 w-24 animate-pulse rounded-full bg-current/10" />
-              <div className="mt-4 h-8 w-16 animate-pulse rounded-lg bg-current/10" />
+            <div key={i}>
+              <div className="bg-superficie-alterna h-3 w-24 animate-pulse" />
+              <div className="bg-superficie-alterna mt-3 h-8 w-28 animate-pulse" />
             </div>
           ))}
         </div>
       )}
 
-      <div className="rounded-2xl border border-borde bg-superficie p-5">
-        <div className="h-4 w-40 animate-pulse rounded-full bg-current/10" />
-        <div className="mt-5 space-y-3">
+      <div className="banda">
+        <div className="bg-superficie-alterna h-3 w-40 animate-pulse" />
+        <div className="mt-4">
           {Array.from({ length: filas }, (_, i) => (
-            <div key={i} className="flex items-center gap-3">
-              <div className="h-9 w-9 shrink-0 animate-pulse rounded-xl bg-current/10" />
-              <div className="h-3.5 grow animate-pulse rounded-full bg-current/10" />
-              <div className="h-3.5 w-16 shrink-0 animate-pulse rounded-full bg-current/10" />
+            <div
+              key={i}
+              className="border-hairline flex items-center gap-3 border-b py-[var(--pad-fila)]"
+            >
+              <div className="bg-superficie-alterna h-3 grow animate-pulse" />
+              <div className="bg-superficie-alterna h-3 w-16 shrink-0 animate-pulse" />
             </div>
           ))}
         </div>

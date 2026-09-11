@@ -36,10 +36,23 @@ const MAXIMO = 3;
 // el error dura mas: hay que poder leerlo
 const DURACION: Record<Tipo, number> = { exito: 4000, aviso: 4000, error: 8000 };
 
+/// EL COLOR VA EN LA LETRA, tambien en el aviso flotante.
+///
+/// Eran tres cuadros tenidos -- verde, amarillo y rosa -- y los
+/// tres tonos suaves se usan en UN sitio, la franja de entorno
+/// de pruebas, y en ninguno mas. Ademas el ambar y el rosa estan
+/// reservados al tiempo que alguien lleva esperando: gastarlos
+/// en un «guardado» deja al panel sin la senal que de verdad
+/// importa.
+///
+/// Y el que falla no va en rojo: el toast sale justo donde uno
+/// acaba de pulsar y nadie lo busca por el color. Basta el color
+/// del titulo -- y el `role`, que dice lo que el color ya no
+/// dice, para quien usa lector de pantalla.
 const TINTE: Record<Tipo, string> = {
-  exito: "bg-exito-suave text-exito",
-  aviso: "bg-aviso-suave text-aviso",
-  error: "bg-error-suave text-error",
+  exito: "text-exito",
+  aviso: "text-texto-suave",
+  error: "text-titulo",
 };
 
 /** Los avisos flotantes del panel. */
@@ -121,27 +134,27 @@ function Tarjeta({ aviso, alCerrar }: { aviso: Aviso; alCerrar: (id: number) => 
       onMouseLeave={() => setPausado(false)}
       onFocus={() => setPausado(true)}
       onBlur={() => setPausado(false)}
-      className={`pointer-events-auto flex items-start gap-3 rounded-2xl border border-borde bg-superficie p-3.5 shadow-lg ${
+      className={`pointer-events-auto flex items-start gap-3 rounded-plano border border-borde bg-superficie p-3 shadow-lg ${
         animar ? "transition duration-200" : ""
       } ${visible ? "translate-y-0 opacity-100" : "translate-y-2 opacity-0"}`}
     >
       <span
         aria-hidden
-        className={`grid h-7 w-7 shrink-0 place-items-center rounded-lg ${TINTE[aviso.tipo]}`}
+        className={`grid h-5 w-5 shrink-0 place-items-center ${TINTE[aviso.tipo]}`}
       >
         {aviso.tipo === "exito" ? (
           <IconoCheck tamano={15} />
         ) : (
-          <span className="text-sm font-bold">!</span>
+          <span className="dato font-bold">!</span>
         )}
       </span>
 
-      <p className="min-w-0 grow text-sm break-words text-texto">{aviso.texto}</p>
+      <p className="dato min-w-0 grow break-words">{aviso.texto}</p>
 
       <button
         onClick={() => alCerrar(aviso.id)}
         aria-label="Cerrar el aviso"
-        className="shrink-0 rounded-lg p-1 text-texto-suave transition hover:bg-current/10 hover:text-texto"
+        className="shrink-0 rounded-plano p-1 text-texto-suave transition hover:bg-superficie-alterna hover:text-texto"
       >
         <IconoCerrar tamano={14} />
       </button>

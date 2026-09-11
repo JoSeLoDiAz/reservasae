@@ -20,18 +20,41 @@
 
 import type React from "react";
 
-/// La escala del prototipo, traducida una sola vez.
-/// Sobre una raíz de 16px: 10px = .625rem, y así.
+/// LA ESCALA SE APLASTA SOBRE LOS NUEVE PAPELES.
+///
+/// Aquí vivían NUEVE tamaños propios —10, 10,5, 11,5, 12, 12,5,
+/// 13, 13,5, 14,5 y 32— y este archivo lo usan ocho pantallas.
+/// Cinco de esos nueve son de los que la dirección retira, y
+/// entre el más grande de los de texto (14,5) y el más pequeño
+/// (10) había un factor de 1,45: por eso en estas pantallas
+/// nada pesa más que nada.
+///
+/// Se conservan las nueve LLAVES, para no tocar los cuarenta
+/// sitios que las nombran, y se apuntan a los papeles de
+/// `globals.css`. Cinco de ellas dejan de ser un tamaño
+/// distinto y pasan a ser un sinónimo: `menudo`, `cuerpo` y
+/// `fila` son el dato de 13; `titulo` es el título de bloque, y
+/// `cifra` es la cifra de portada, que son 34 y no 32 porque
+/// solo hay un escalón ahí arriba.
+///
+/// Si a alguien le hace falta un décimo, el caso está mal
+/// resuelto: se arregla el caso.
 const T = {
+  /** Rótulo en versalita. */
   rotulo: "0.625rem", // 10px
+  /** Código, y lo que acompaña sin competir. */
   codigo: "0.65625rem", // 10,5px
+  /** Secundario. */
   pie: "0.71875rem", // 11,5px
-  menudo: "0.75rem", // 12px
-  cuerpo: "0.78125rem", // 12,5px
+  menudo: "0.71875rem", // era 12px
+  /** Dato. */
+  cuerpo: "0.8125rem", // era 12,5px
   parrafo: "0.8125rem", // 13px
-  fila: "0.84375rem", // 13,5px
-  titulo: "0.90625rem", // 14,5px
-  cifra: "2rem", // 32px
+  fila: "0.8125rem", // era 13,5px
+  /** Título de bloque: manda el peso 700, no el tamaño. */
+  titulo: "0.8125rem", // era 14,5px
+  /** La cifra de portada, el único escalón de arriba. */
+  cifra: "2.125rem", // era 32px
 } as const;
 
 /**
@@ -64,14 +87,14 @@ export function Seccion({
 function Encabezado({ titulo, nota }: { titulo?: string; nota?: string }) {
   if (!titulo && !nota) return null;
   return (
-    <div className="px-7 pt-5 pb-1">
+    <div className="px-6 pt-5 pb-1">
       {titulo && (
-        <div className="font-semibold text-titulo" style={{ fontSize: T.titulo }}>
+        <div className="font-bold text-titulo" style={{ fontSize: T.titulo }}>
           {titulo}
         </div>
       )}
       {nota && (
-        <div className="mt-0.5 text-texto-suave" style={{ fontSize: T.menudo }}>
+        <div className="mt-1 text-texto-suave" style={{ fontSize: T.menudo }}>
           {nota}
         </div>
       )}
@@ -106,10 +129,10 @@ export function CabeceraDePantalla({
   return (
     <Seccion>
       {volver && (
-        <div className="px-7 pt-3.5">
+        <div className="px-6 pt-4">
           <a
             href={volver.href}
-            className="font-semibold text-marca no-underline hover:underline"
+            className="text-marca no-underline hover:underline"
             style={{ fontSize: T.cuerpo }}
           >
             ← Volver a {volver.texto}
@@ -117,20 +140,20 @@ export function CabeceraDePantalla({
         </div>
       )}
       <div
-        className={`flex flex-wrap items-start justify-between gap-4 px-7 pb-[22px] ${
-          volver ? "pt-4" : "pt-[26px]"
+        className={`flex flex-wrap items-start justify-between gap-4 px-6 pb-4 ${
+          volver ? "pt-4" : "pt-6"
         }`}
       >
         <div className="min-w-0">
           <h1
             className="font-bold text-titulo"
-            style={{ fontSize: "1.3125rem", letterSpacing: "-0.02em" }}
+            style={{ fontSize: "1.1875rem", letterSpacing: "-0.02em" }}
           >
             {titulo}
           </h1>
           {nota && (
             <div
-              className="mt-1.5 max-w-[760px] text-texto-suave"
+              className="mt-1 max-w-[760px] text-texto-suave"
               style={{ fontSize: T.cuerpo, lineHeight: 1.6 }}
             >
               {nota}
@@ -178,9 +201,9 @@ export function Kpis({ items }: { items: Indicador[] }) {
         style={{ gridTemplateColumns: columnas }}
       >
         {items.map((k, i) => (
-          <div key={`${k.rotulo}-${i}`} className="bg-superficie px-7 pt-[18px] pb-5">
+          <div key={`${k.rotulo}-${i}`} className="bg-superficie px-6 pt-4 pb-5">
             <div
-              className="font-semibold uppercase text-texto-suave"
+              className="font-bold uppercase text-texto-suave"
               style={{ fontSize: T.rotulo, letterSpacing: "0.1em" }}
             >
               {k.rotulo}
@@ -192,7 +215,7 @@ export function Kpis({ items }: { items: Indicador[] }) {
               {k.valor}
             </div>
             {k.pie && (
-              <div className="mt-[3px] text-texto-suave" style={{ fontSize: T.pie }}>
+              <div className="mt-1 text-texto-suave" style={{ fontSize: T.pie }}>
                 {k.pie}
               </div>
             )}
@@ -269,7 +292,7 @@ export function Lista({
       <div className="grid pt-3 pb-1" style={{ gridTemplateColumns: rejilla }}>
         {items.length === 0 ? (
           <div
-            className="px-7 py-[22px] text-center text-texto-suave"
+            className="px-6 py-6 text-center text-texto-suave"
             style={{ fontSize: T.cuerpo }}
           >
             {vacio ?? "No hay nada aquí todavía."}
@@ -280,7 +303,7 @@ export function Lista({
               <>
                 {it.codigo && (
                   <div
-                    className="shrink-0 basis-[30px] font-semibold text-texto-suave"
+                    className="shrink-0 basis-[30px] text-texto-suave"
                     style={{ fontSize: T.codigo, letterSpacing: "0.05em" }}
                   >
                     {it.codigo}
@@ -288,13 +311,13 @@ export function Lista({
                 )}
                 <div className="min-w-0 flex-[1_1_320px]">
                   <div
-                    className="font-semibold text-titulo [overflow-wrap:anywhere]"
+                    className="text-titulo [overflow-wrap:anywhere]"
                     style={{ fontSize: T.fila }}
                   >
                     {it.titulo}
                   </div>
                   {it.sub && (
-                    <div className="mt-0.5 text-texto-suave" style={{ fontSize: T.pie }}>
+                    <div className="mt-1 text-texto-suave" style={{ fontSize: T.pie }}>
                       {it.sub}
                     </div>
                   )}
@@ -331,7 +354,7 @@ export function Lista({
             );
 
             const clases =
-              "flex flex-wrap items-center gap-4 border-t border-hairline px-7 py-3";
+              "flex flex-wrap items-center gap-4 border-t border-hairline px-6 py-3";
 
             if (it.href) {
               return (
@@ -386,9 +409,9 @@ export function BarraDeAcciones({
 }) {
   return (
     <Seccion>
-      <div className="flex flex-wrap items-center gap-2 px-7 pt-3.5 pb-3">
+      <div className="flex flex-wrap items-center gap-2 px-6 pt-4 pb-3">
         {buscador !== false && (
-          <div className="flex h-[34px] min-w-[190px] max-w-[400px] flex-[1_1_240px] items-center gap-2 rounded-lg border border-campo-borde bg-campo-fondo px-3">
+          <div className="flex h-[34px] min-w-[190px] max-w-[400px] flex-[1_1_240px] items-center gap-2 rounded-plano border border-campo-borde bg-campo-fondo px-3">
             <svg viewBox="0 0 16 16" className="h-[13px] w-[13px] shrink-0 opacity-50" aria-hidden>
               <circle cx="7" cy="7" r="5" fill="none" stroke="currentColor" strokeWidth={1.6} />
               <line x1="10.8" y1="10.8" x2="14" y2="14" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" />
@@ -419,7 +442,7 @@ export function BotonDeBarra({
   return (
     <button
       {...resto}
-      className={`inline-flex h-[34px] shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-lg border px-3.5 font-semibold transition ${
+      className={`inline-flex h-[32px] shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-plano border px-3 font-semibold transition ${
         primario
           ? "border-marca bg-marca text-marca-texto hover:border-marca-fuerte hover:bg-marca-fuerte"
           : "border-borde bg-superficie text-titulo hover:bg-superficie-alterna"
@@ -445,7 +468,7 @@ export function Filtros({ children }: { children: React.ReactNode }) {
   return (
     <Seccion>
       <div
-        className="grid gap-2 px-7 py-3.5"
+        className="grid gap-2 px-6 py-3"
         style={{ gridTemplateColumns: "repeat(auto-fit,minmax(150px,1fr))" }}
       >
         {children}
@@ -463,7 +486,7 @@ export function SelectorDeFiltro({
   return (
     <select
       {...resto}
-      className={`h-[34px] w-full min-w-0 rounded-lg border border-campo-borde bg-campo-fondo px-2 font-medium text-texto ${resto.className ?? ""}`}
+      className={`h-[34px] w-full min-w-0 rounded-plano border border-campo-borde bg-campo-fondo px-2 text-texto ${resto.className ?? ""}`}
       style={{ fontSize: T.cuerpo, ...resto.style }}
     >
       {children}
@@ -490,7 +513,7 @@ export function AvisoDeSeccion({
 }) {
   return (
     <Seccion>
-      <div className="flex items-baseline gap-2.5 px-7 py-3.5">
+      <div className="flex items-baseline gap-2 px-6 py-3">
         <span
           aria-hidden
           className="h-[7px] w-[7px] shrink-0 -translate-y-px rounded-full"
@@ -530,15 +553,15 @@ export function TextoDeSeccion({
 }) {
   return (
     <Seccion>
-      <div className="px-7 pt-5 pb-[22px]">
+      <div className="px-6 pt-5 pb-4">
         {titulo && (
-          <div className="font-semibold text-titulo" style={{ fontSize: T.titulo }}>
+          <div className="font-bold text-titulo" style={{ fontSize: T.titulo }}>
             {titulo}
           </div>
         )}
         {nota && (
           <div
-            className="mt-1.5 max-w-[760px] text-texto-suave"
+            className="mt-1 max-w-[760px] text-texto-suave"
             style={{ fontSize: T.cuerpo, lineHeight: 1.6 }}
           >
             {nota}
@@ -614,7 +637,7 @@ export function Dona({
   return (
     <Seccion>
       <Encabezado titulo={titulo} nota={nota} />
-      <div className="flex flex-wrap items-center gap-8 px-7 pt-5 pb-6">
+      <div className="flex flex-wrap items-center gap-8 px-6 pt-5 pb-6">
         <div className="relative h-[188px] w-[188px] shrink-0">
           <svg
             viewBox="0 0 132 132"
@@ -638,7 +661,7 @@ export function Dona({
           <div className="absolute inset-0 flex flex-col items-center justify-center">
             <div
               className="font-bold tabular-nums text-titulo"
-              style={{ fontSize: "2.375rem", letterSpacing: "-0.03em" }}
+              style={{ fontSize: "2.125rem", letterSpacing: "-0.03em" }}
             >
               {total}
             </div>
@@ -654,7 +677,7 @@ export function Dona({
           {porciones.map((p, i) => (
             <li
               key={`${p.etiqueta}-${i}`}
-              className="flex items-center gap-2.5"
+              className="flex items-center gap-2"
               style={{ fontSize: T.fila }}
             >
               <span
@@ -736,7 +759,7 @@ export function Embudo({
   }) => (
     <div
       className={
-        "flex-1 min-w-[112px] rounded-lg border border-borde bg-superficie px-3.5 py-2 transition " +
+        "flex-1 min-w-[112px] rounded-plano border border-borde bg-superficie px-3 py-2 transition " +
         /// La sombra al pasar por encima: suave y hacia fuera,
         /// para que la tarjeta se despegue un punto sin
         /// moverse. Es lo unico que flota aqui, y solo mientras
@@ -757,7 +780,7 @@ export function Embudo({
       </div>
       <div
         className="mt-1 font-bold leading-none tabular-nums"
-        style={{ fontSize: "1.0625rem", color }}
+        style={{ fontSize: "1.25rem", letterSpacing: "-0.02em", color }}
       >
         {valor}
       </div>
@@ -782,6 +805,131 @@ export function Embudo({
           <Tarjeta etiqueta="Sin asesor" valor={sinAsesor} color="var(--aviso)" />
         </div>
       )}
+    </div>
+  );
+}
+
+/* ── la lista en columnas ────────────────────────────────── */
+
+/**
+ * UNA LISTA DEL CRM SE LEE EN COLUMNAS, Y ESTA ES LA PIEZA.
+ *
+ * Vivía dentro de `app/admin/campanas/page.tsx`. Sube aquí en
+ * cuanto la usa la segunda pantalla —Plantillas—, con la regla
+ * 15 de la dirección: lo que se decide se aplica en la pieza
+ * compartida y las pantallas cambian solas. Dos copias de una
+ * maqueta divergen el día que alguien toque una.
+ *
+ * Lo que la pieza garantiza, y por eso no se escribe a mano en
+ * ninguna pantalla:
+ *
+ * - La fila llega al canto derecho. Una fila que apila sus
+ *   datos en el 25 % izquierdo se lee de a un renglón, y una
+ *   lista de cuarenta filas no se lee de a un renglón: se baja
+ *   la vista por una columna y se comparan las cuarenta.
+ * - El rótulo y su dato comparten la MISMA rejilla. Escritas
+ *   por separado se desalinean el día que alguien toque un
+ *   ancho.
+ * - Por debajo de `anchoMinimo` se desplaza LA BANDA, nunca la
+ *   página.
+ * - Es consulta de CONTENEDOR y no de ventana: la barra lateral
+ *   se pliega y la banda gana 180 px sin que la ventana cambie
+ *   de tamaño. Lo que decide cuántas columnas caben es el ancho
+ *   de la lista, que es lo que mide el ojo.
+ *
+ * Lo que NO decide la pieza son los anchos: los pone cada
+ * pantalla, porque el ancho de una columna lo fija su DATO
+ * —`$ 999.999.999` a 13 px tabular son 104 px— y eso cambia de
+ * una lista a otra. Van como clase literal para que Tailwind
+ * las vea al compilar; una plantilla armada en tiempo de
+ * ejecución no genera CSS.
+ */
+export const SOLO_ANCHA = "hidden @[1600px]:block";
+
+export type ColumnaDeLista = {
+  /** El rótulo en versalita. Vacío en la de acciones. */
+  texto: string;
+  /** `text-right` en lo que se compara como cifra. */
+  alineado?: string;
+  /** Lo que la columna gobierna y no cabe en el rótulo. */
+  ayuda?: string;
+  /** Solo con la banda ancha. En estrecho DESAPARECE. */
+  soloAncha?: boolean;
+};
+
+export function ListaEnColumnas({
+  rejilla,
+  anchoMinimo,
+  columnas,
+  children,
+}: {
+  /// `grid grid-cols-[...] @[1600px]:grid-cols-[...]`, escrita
+  /// literal en la pantalla. La misma para la cabecera y para
+  /// cada fila.
+  rejilla: string;
+  /// La suma de los anchos base. Por debajo, la banda se
+  /// desplaza por dentro.
+  anchoMinimo: number;
+  columnas: ColumnaDeLista[];
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="@container min-h-0 grow overflow-x-auto border-b border-borde bg-superficie">
+      <div style={{ minWidth: anchoMinimo }}>
+        <div className={`${rejilla} border-b border-borde`}>
+          {columnas.map((h, i) => (
+            <div
+              key={i}
+              title={h.ayuda}
+              className={`rotulo-bloque px-3 py-2 ${h.alineado ?? ""} ${
+                h.soloAncha ? SOLO_ANCHA : ""
+              } ${i === 0 ? "pl-6" : ""} ${
+                i === columnas.length - 1 ? "pr-6" : ""
+              }`}
+            >
+              {h.texto}
+            </div>
+          ))}
+        </div>
+        {children}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Una celda: 13 px y `--pad-fila` arriba y abajo.
+ *
+ * La fila mide 33 px y ninguna celda pasa de un renglón. Un
+ * segundo renglón multiplica por 1,6 el alto de la lista entera
+ * para ganar cinco palabras que se leen mejor al abrir la fila,
+ * y una lista con dos alturas de fila deja de escanearse: el
+ * ojo necesita un paso constante para bajar por una columna.
+ */
+export function Celda({
+  children,
+  className = "",
+  primera,
+  ultima,
+  titulo,
+}: {
+  children: React.ReactNode;
+  className?: string;
+  /// Lleva la sangría de 24 px de la izquierda del panel.
+  primera?: boolean;
+  ultima?: boolean;
+  /// El texto entero, para lo que se recorta.
+  titulo?: string;
+}) {
+  return (
+    <div
+      title={titulo}
+      className={`min-w-0 truncate px-3 ${primera ? "pl-6" : ""} ${
+        ultima ? "pr-6" : ""
+      } ${className}`}
+      style={{ paddingTop: "var(--pad-fila)", paddingBottom: "var(--pad-fila)" }}
+    >
+      {children}
     </div>
   );
 }

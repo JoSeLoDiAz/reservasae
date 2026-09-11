@@ -56,7 +56,42 @@ export type Columna<T> = {
   /** si faltan, las opciones salen de los datos */
   opciones?: string[];
   numerica?: boolean;
+  /**
+   * Lo que mide su DATO, no lo que mide su rótulo.
+   *
+   * `$ 999.999.999` a 13 px tabular son 104 px; con los 12 de
+   * relleno a cada lado, 128. `29 ago 2026` son 78: la columna
+   * de fecha mide 100. Un ancho puesto a ojo es el que luego
+   * deja una columna de aire en mitad de la fila.
+   */
   ancho?: string;
+  /**
+   * LA QUE SE QUEDA CON EL SOBRANTE. Una sola por tabla.
+   *
+   * Sin ella, el ancho que sobra se reparte entre TODAS las
+   * columnas —es lo que hace el navegador con `table-layout:
+   * auto`— y eso es el mismo hueco de antes con otro disfraz:
+   * a 1920 la etapa se iba a 199 px para escribir «Calificado»,
+   * la plata a 157 para doce dígitos y el código a 131 para
+   * once caracteres. Cada dato flotando en su propio charco de
+   * aire y ninguna columna donde el ojo pueda bajar.
+   *
+   * Con una que absorbe, las demás miden su dato y el sobrante
+   * va entero a la única columna que de verdad crece con él:
+   * la de texto largo. Su `ancho` pasa a ser su MÍNIMO.
+   */
+  absorbe?: boolean;
+  /**
+   * No entra hasta que la LISTA mide esto de ancho.
+   *
+   * El sobrante se gasta abriendo columna, no ensanchando la
+   * que hay: cuando repartirlo dejaría una columna de texto más
+   * ancha que su dato, entra en su lugar una que en estrecho no
+   * cabía. Y es el ancho de la LISTA y no el de la ventana,
+   * porque la barra lateral se pliega y la banda gana 180 px
+   * sin que la ventana cambie de tamaño.
+   */
+  desde?: number;
   /** no se puede quitar: identifica la fila */
   fija?: boolean;
   /** existe pero no sale hasta que la pidan */
@@ -370,6 +405,33 @@ export function Tabla<T>({
     observador.current.observe(el);
   }, []);
 
+  /**
+   * El ancho de LA LISTA, que es el que decide cuántas columnas
+   * caben.
+   *
+   * No el de la ventana: la barra lateral de este panel se
+   * pliega y la banda gana 180 px sin que la ventana cambie de
+   * tamaño. Lo que mide el ojo es lo ancha que es la lista.
+   *
+   * Se engancha con un ref de función, igual que el alto: la
+   * caja no existe hasta que hay filas, y un efecto con lista
+   * de dependencias vacía correría antes de tiempo y no
+   * volvería a mirar.
+   */
+  const observadorDeCaja = useRef<ResizeObserver | null>(null);
+  const [anchoDeLaLista, setAnchoDeLaLista] = useState(0);
+
+  const cajaRef = useCallback((el: HTMLDivElement | null) => {
+    observadorDeCaja.current?.disconnect();
+    observadorDeCaja.current = null;
+    if (!el || typeof ResizeObserver === "undefined") return;
+    setAnchoDeLaLista(el.clientWidth);
+    observadorDeCaja.current = new ResizeObserver(() =>
+      setAnchoDeLaLista(el.clientWidth),
+    );
+    observadorDeCaja.current.observe(el);
+  }, []);
+
   // localStorage no existe en el servidor: leerlo en el
   // estado inicial rompe la hidratacion
   /* eslint-disable react-hooks/set-state-in-effect */
@@ -426,12 +488,25 @@ export function Tabla<T>({
   /// dos renglones. Menos que esto y vuelve el problema.
   const ANCHO_COMODO = 150;
 
+  /// Las que se pintan: las elegidas, menos las que piden más
+  /// ancho del que tiene la lista.
+  ///
+  /// La que no cabe no se encoge: DESAPARECE. Diez columnas
+  /// espichadas para que quepan es lo mismo que ninguna, porque
+  /// entonces no cabe el dato de ninguna.
   const enPantalla = useMemo(
     () =>
       visibles
         .map((c) => columnas.find((x) => x.clave === c))
-        .filter((c): c is Columna<T> => !!c),
-    [visibles, columnas],
+        .filter((c): c is Columna<T> => !!c)
+        .filter((c) => !c.desde || anchoDeLaLista >= c.desde),
+    [visibles, columnas, anchoDeLaLista],
+  );
+
+  /// La que absorbe, si la hay y está a la vista.
+  const absorbente = useMemo(
+    () => enPantalla.find((c) => c.absorbe) ?? null,
+    [enPantalla],
   );
 
   /// La suma de lo que piden las columnas visibles.
@@ -684,19 +759,28 @@ export function Tabla<T>({
             const def = columnas.find((c) => c.clave === col);
             const fuera = !visibles.includes(col);
             return (
+              /// Un filtro puesto se dice con la LETRA.
+              ///
+              /// Era una píldora de radio completo con borde de
+              /// `--marca/30` y fondo de `--marca-suave`. Con
+              /// cuatro filtros puestos son cuatro rectángulos
+              /// de color encima de la tabla que compiten con
+              /// ella; y `--marca-suave` vuelve a sus dos únicos
+              /// sitios. El nombre de la columna en el acento y
+              /// el valor en gris dicen lo mismo sin caja.
               <span
                 key={col}
-                className="inline-flex items-center gap-1.5 rounded-full border border-marca/30 bg-marca-suave px-2.5 py-1 text-xs"
+                className="secundario inline-flex items-center gap-1.5"
                 title={fuera ? "Su columna está oculta y el filtro sigue puesto" : undefined}
               >
-                <strong className="font-medium">{def?.titulo ?? col}</strong>
-                <span className="text-texto-suave">{valor}</span>
-                {fuera && <span className="text-texto-suave">· oculta</span>}
+                <span className="text-marca">{def?.titulo ?? col}</span>
+                <span className="text-texto">{valor}</span>
+                {fuera && <span>· oculta</span>}
                 <button
                   type="button"
                   onClick={() => setFiltros((f) => ({ ...f, [col]: "" }))}
                   aria-label={"Quitar el filtro de " + (def?.titulo ?? col)}
-                  className="opacity-60 transition hover:opacity-100"
+                  className="text-texto-suave transition hover:text-texto"
                 >
                   <IconoCerrar tamano={12} />
                 </button>
@@ -706,7 +790,7 @@ export function Tabla<T>({
           <button
             type="button"
             onClick={limpiar}
-            className="text-xs text-texto-suave underline hover:text-texto"
+            className="secundario underline hover:text-texto"
           >
             Quitar todos
           </button>
@@ -717,6 +801,7 @@ export function Tabla<T>({
         <PanelColumnas
           columnas={columnas}
           visibles={visibles}
+          anchoDeLaLista={anchoDeLaLista}
           alternar={alternar}
           mover={mover}
           restablecer={() => setVisibles(porDefecto)}
@@ -740,11 +825,17 @@ export function Tabla<T>({
       )}
 
       {seleccion && vigentes.length > 0 && accionesLote && (
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-xl border border-marca/30 bg-marca-suave px-4 py-2.5">
-          <span className="text-sm font-medium">
+        /// Sin caja teñida: una regla de 1 px y el aire.
+        ///
+        /// `--marca-suave` es el fondo de la entrada activa de
+        /// la barra lateral y de la fila bajo el ratón, y de
+        /// nada más. Que haya filas marcadas se dice con la
+        /// cifra, no con un rectángulo azul de 44 px.
+        <div className="dato flex flex-wrap items-center gap-x-4 gap-y-2 border-y border-borde px-4 py-2">
+          <span>
             {vigentes.length.toLocaleString("es-CO")}{" "}
             {vigentes.length === 1 ? "seleccionada" : "seleccionadas"}
-            <span className="font-normal text-texto-suave">
+            <span className="text-texto-suave">
               {" · "}
               {todasLasQueCoinciden
                 ? hayFiltro
@@ -759,7 +850,7 @@ export function Tabla<T>({
             <button
               type="button"
               onClick={() => setMarcadas(new Set((filtradas ?? []).map((r) => r.id)))}
-              className="text-sm font-medium text-marca underline"
+              className="text-marca underline"
             >
               Seleccionar {hayFiltro ? "las" : ""} {nFiltradas.toLocaleString("es-CO")}{" "}
               {hayFiltro ? cuales : "leads"}
@@ -770,14 +861,24 @@ export function Tabla<T>({
             <button
               type="button"
               onClick={() => setMarcadas(new Set(enPagina.map((r) => r.id)))}
-              className="text-sm text-texto-suave underline hover:text-texto"
+              className="text-texto-suave underline hover:text-texto"
             >
               Solo las {enPagina.length} de esta página
             </button>
           )}
 
           {todasLasQueCoinciden && totalServidor !== null && (
-            <span className="whitespace-nowrap font-semibold text-xs text-aviso">
+            /// En gris, no en ámbar.
+            ///
+            /// `--aviso` y `--error` están prohibidos en todo el
+            /// panel salvo para UNA cosa: el tiempo que alguien
+            /// lleva esperando respuesta. Un asesor abre el panel
+            /// y, sin leer una palabra, sabe si hay alguien
+            /// esperando; eso solo funciona si lo cálido no
+            /// significa ninguna otra cosa. Que la selección
+            /// alcance hasta lo cargado es una advertencia de
+            /// alcance, no un reloj.
+            <span className="secundario whitespace-nowrap">
               Sobre las {(filas?.length ?? 0).toLocaleString("es-CO")} cargadas de{" "}
               {totalServidor.toLocaleString("es-CO")}
             </span>
@@ -787,7 +888,7 @@ export function Tabla<T>({
           <button
             type="button"
             onClick={() => setMarcadas(new Set())}
-            className="ml-auto text-xs text-texto-suave underline"
+            className="secundario ml-auto underline"
           >
             Quitar la selección
           </button>
@@ -817,7 +918,18 @@ export function Tabla<T>({
           `grow:0 shrink:1` -- con pocas filas mide lo que miden
           las filas, y con cincuenta se encoge a lo que hay y
           scrollea por dentro, que es lo que ya hacia. */}
-      <div className="mb-5 flex min-h-0 flex-initial flex-col overflow-hidden rounded-lg border border-borde bg-superficie">
+      {/* La tabla NO es una tarjeta.
+
+          Llevaba borde completo, radio y 20 px de margen abajo:
+          una caja flotando dentro de otra caja. La regla de la
+          casa es que el borde completo lo llevan tres objetos y
+          ninguno es este -- el campo de formulario, el cajón y
+          la ficha del tablero --. Aquí basta la regla de 1 px
+          que ya pone la cabecera bajo sus rótulos y el hairline
+          entre filas: «aquí se separan dos cosas» y «aquí sigue
+          lo mismo», que es todo lo que una tabla necesita
+          decir. */}
+      <div className="flex min-h-0 flex-initial flex-col overflow-hidden bg-superficie">
         {/* Se estira con su contenedor en vez de llevar un tope
             fijo: con `max-h` quedaba media pantalla en blanco
             debajo cuando la ventana era alta. */}
@@ -826,7 +938,10 @@ export function Tabla<T>({
             uno terminaba de bajar las filas y de un tirón se iba
             toda la pantalla, dejando media ventana en blanco y los
             filtros arriba fuera de alcance. */}
-        <div className="caja-scroll min-h-0 flex-1 overflow-auto overscroll-contain">
+        <div
+          ref={cajaRef}
+          className="caja-scroll min-h-0 flex-1 overflow-auto overscroll-contain"
+        >
             <table
               ref={tablaRef}
               /// Los carriles verticales solo cuando hay muchas
@@ -836,7 +951,7 @@ export function Tabla<T>({
               /// carril para saber en cual va. Con cinco o seis
               /// no aporta nada y ensucia: son rayas que no
               /// separan nada que no separara ya el espacio.
-              className={`tabla-datos w-full text-sm${
+              className={`tabla-datos w-full${
                 enPantalla.length > 8 ? " con-carriles" : ""
               }`}
               style={{
@@ -855,7 +970,16 @@ export function Tabla<T>({
                 /// la tarjeta, gana `w-full` y sigue
                 /// llenándola como hasta ahora.
                 minWidth: anchoMinimoTabla,
-                ...(Object.keys(anchos).length > 0
+                /// `fixed` en cuanto una columna absorbe.
+                ///
+                /// Con `auto` el navegador reparte el sobrante
+                /// entre TODAS: es él quien decide, y decide
+                /// mal, porque no sabe que `$ 46.500.000` no
+                /// necesita 157 px ni «4 min» 147. Con `fixed`
+                /// manda el ancho declarado, que es el que mide
+                /// el dato, y lo que sobra va entero a la única
+                /// columna sin ancho: la que absorbe.
+                ...(Object.keys(anchos).length > 0 || absorbente
                   ? { tableLayout: "fixed" as const }
                   : null),
               }}
@@ -892,12 +1016,19 @@ export function Tabla<T>({
                   <th
                     key={c.clave}
                     data-columna={c.clave}
+                    /// La que absorbe va SIN ancho: en `fixed`,
+                    /// la única columna sin ancho se queda con
+                    /// todo lo que sobra. Su `ancho` declarado
+                    /// es su mínimo y lo aporta al mínimo de la
+                    /// tabla, no a su `width`.
                     style={
                       anchos[c.clave]
                         ? { width: anchos[c.clave] }
-                        : c.ancho
-                          ? { width: c.ancho }
-                          : undefined
+                        : c.absorbe
+                          ? undefined
+                          : c.ancho
+                            ? { width: c.ancho }
+                            : undefined
                     }
                     /// Arrastrable para reordenar.
                     ///
@@ -974,7 +1105,7 @@ export function Tabla<T>({
                       /// el cursor de mano: hay que decirlo.
                       title={`Ordenar por ${c.titulo} · arrastre para mover la columna`}
                       className={
-                        "inline-flex cursor-grab items-center gap-1 hover:opacity-70 " +
+                        "inline-flex cursor-grab items-center gap-1 transition hover:text-titulo " +
                         (c.numerica ? "flex-row-reverse" : "")
                       }
                     >
@@ -1061,7 +1192,27 @@ export function Tabla<T>({
                       key={c.clave}
                       className={c.numerica ? "text-right tabular-nums" : undefined}
                     >
-                      {c.pinta ? c.pinta(f) : texto(v[c.clave])}
+                      {/* NINGUNA CELDA PASA DE DOS RENGLONES.
+
+                          Una fila medía tres renglones porque
+                          «Qué se vende» y «Campaña» envolvían
+                          libremente: ocho filas llenaban la
+                          pantalla y la octava salía cortada. Un
+                          tercer renglón multiplica el alto de la
+                          tabla por 1,5 para ganar cinco palabras
+                          que además se leen mejor en el cajón.
+
+                          El recorte va solo donde la celda es
+                          TEXTO PLANO. Las que traen su propio
+                          pintor pueden llevar dos botones o una
+                          etapa con su punto, y `-webkit-box` con
+                          orientación vertical los apilaría uno
+                          debajo del otro. */}
+                      {c.pinta ? (
+                        c.pinta(f)
+                      ) : (
+                        <span className="hasta-dos-lineas">{texto(v[c.clave])}</span>
+                      )}
                     </td>
                   ))}
                 </tr>
@@ -1071,7 +1222,7 @@ export function Tabla<T>({
         </div>
 
         {filtradas !== null && filtradas.length === 0 && (
-          <div className="p-10 text-center text-sm text-texto-suave">
+          <div className="secundario p-8 text-center">
             {hayFiltro ? (
               <>
                 Nada coincide con lo que buscó.{" "}
@@ -1086,7 +1237,7 @@ export function Tabla<T>({
         )}
 
         {filtradas === null && (
-          <div className="p-10 text-center text-sm text-texto-suave">Cargando…</div>
+          <div className="secundario p-8 text-center">Cargando…</div>
         )}
       </div>
 
@@ -1137,10 +1288,20 @@ function Barra({
   acciones?: ReactNode;
   alDescargar?: () => void;
 }) {
+  /// Sin relleno teñido cuando está activo.
+  ///
+  /// `--marca-suave` vuelve a sus dos únicos sitios -- la
+  /// entrada activa de la barra lateral y la fila de tabla bajo
+  /// el ratón --, así que «lo que está puesto ahora mismo» se
+  /// dice con `--marca` en la letra y en el borde, que es uno
+  /// de los cuatro usos que tiene el acento.
+  ///
+  /// Y sin `font-semibold`: el 600 está reservado para el
+  /// estado. Un botón destaca por su borde, no por su peso.
   const boton = (activo: boolean) =>
-    "inline-flex h-[34px] items-center gap-1.5 rounded-lg border px-3.5 text-[0.78125rem] font-semibold transition " +
+    "dato inline-flex h-[32px] items-center gap-1.5 rounded-md border px-3 transition " +
     (activo
-      ? "border-marca bg-marca-suave text-marca"
+      ? "border-marca text-marca"
       : "border-borde bg-superficie hover:bg-superficie-alterna");
 
   return (
@@ -1155,7 +1316,11 @@ function Barra({
           value={buscar}
           onChange={(e) => setBuscar(e.target.value)}
           placeholder="Buscar en lo que está a la vista…"
-          className="h-[34px] w-full rounded-lg border border-campo-borde bg-campo-fondo py-0 pl-9 pr-3 text-[0.78125rem] outline-none transition focus:border-campo-foco focus:ring-2 focus:ring-campo-foco/25"
+          /// Sin el aro de `/25`: el foco del panel es uno solo
+          /// -- 2 px de `--campo-foco` a 2 px de separación --,
+          /// lo pone `:focus-visible` en `globals.css` y es lo
+          /// único que crece al interactuar con ello.
+          className="dato h-[32px] w-full rounded-md border border-campo-borde bg-campo-fondo py-0 pr-3 pl-9 transition focus:border-campo-foco"
         />
       </label>
 
@@ -1166,11 +1331,10 @@ function Barra({
       >
         <IconoFiltro tamano={15} />
         Filtros
-        {nFiltros > 0 && (
-          <span className="rounded-full bg-marca px-1.5 text-xs text-marca-texto">
-            {nFiltros}
-          </span>
-        )}
+        {/* El conteo va en la LETRA. Era una píldora azul
+            rellena, y las píldoras no vuelven: ni chips, ni
+            distintivos, ni fondos teñidos por estado. */}
+        {nFiltros > 0 && <span className="text-marca">{nFiltros}</span>}
       </button>
 
       <button
@@ -1203,7 +1367,7 @@ function Barra({
           /// mas que la tabla que hay debajo, y ademas dejan de
           /// decir cual es la accion principal: si todo destaca,
           /// no destaca nada.
-          className="inline-flex h-[32px] items-center rounded-[9px] bg-marca px-[13px] text-[0.78125rem] font-semibold text-marca-texto transition hover:bg-marca-fuerte sin-aro"
+          className="dato sin-aro inline-flex h-[32px] items-center rounded-md bg-marca px-3 text-marca-texto transition hover:bg-marca-fuerte"
         >
           Descargar en Excel
         </button>
@@ -1277,7 +1441,7 @@ function CampoFiltro<T>({
   alCambiar: (v: string) => void;
 }) {
   const clases =
-    "w-full min-w-[6rem] rounded-lg border border-campo-borde bg-campo-fondo px-2 py-1 text-xs font-normal text-texto outline-none focus:border-campo-foco";
+    "secundario w-full min-w-[6rem] rounded-md border border-campo-borde bg-campo-fondo px-2 py-1 text-texto focus:border-campo-foco";
 
   if (columna.filtro === "opciones") {
     return (
@@ -1311,6 +1475,7 @@ function CampoFiltro<T>({
 function PanelColumnas<T>({
   columnas,
   visibles,
+  anchoDeLaLista,
   alternar,
   mover,
   restablecer,
@@ -1318,6 +1483,8 @@ function PanelColumnas<T>({
 }: {
   columnas: Columna<T>[];
   visibles: string[];
+  /// Para poder decir cuál de las elegidas no cabe ahora.
+  anchoDeLaLista: number;
   alternar: (c: Columna<T>) => void;
   mover: (clave: string, paso: number) => void;
   restablecer: () => void;
@@ -1329,14 +1496,14 @@ function PanelColumnas<T>({
   const fuera = columnas.filter((c) => !visibles.includes(c.clave));
 
   return (
-    <div className="rounded-2xl border border-borde bg-superficie p-4">
+    <div className="rounded-plano border border-borde bg-superficie p-4">
       <div className="mb-3 flex items-center justify-between">
-        <h3 className="text-sm font-semibold">Qué columnas se ven</h3>
+        <h3 className="titulo-bloque">Qué columnas se ven</h3>
         <div className="flex items-center gap-3">
           <button
             type="button"
             onClick={restablecer}
-            className="text-xs text-texto-suave underline"
+            className="micro text-texto-suave underline"
           >
             Como venía
           </button>
@@ -1348,22 +1515,35 @@ function PanelColumnas<T>({
 
       <div className="grid gap-4 sm:grid-cols-2">
         <div>
-          <p className="mb-2 text-xs font-medium uppercase tracking-wide text-texto-suave">
+          <p className="rotulo-bloque mb-2">
             A la vista · en este orden
           </p>
           <ul className="space-y-1">
             {puestas.map((c, i) => (
               <li
                 key={c.clave}
-                className="flex h-[34px] items-center gap-2 rounded-lg border border-borde px-3.5 text-[0.78125rem]"
+                className="dato flex h-[32px] items-center gap-2 rounded-plano border border-borde px-3"
               >
-                <span className="flex-1 truncate">{c.titulo}</span>
+                {/* Elegida pero sin sitio: la lista no da para
+                    su ancho. Se dice en el `title`, no en un
+                    renglón de aviso: el rótulo que falta en la
+                    tabla ya se ve. */}
+                <span
+                  className="flex-1 truncate"
+                  title={
+                    c.desde && anchoDeLaLista && anchoDeLaLista < c.desde
+                      ? `Entra cuando la lista mida ${c.desde} px. Ahora mide ${anchoDeLaLista}.`
+                      : undefined
+                  }
+                >
+                  {c.titulo}
+                </span>
                 <button
                   type="button"
                   onClick={() => mover(c.clave, -1)}
                   disabled={i === 0}
                   aria-label={"Subir " + c.titulo}
-                  className="opacity-60 transition hover:opacity-100 disabled:opacity-20"
+                  className="text-texto-suave hover:text-texto disabled:text-hairline transition"
                 >
                   <IconoArriba tamano={14} />
                 </button>
@@ -1372,7 +1552,7 @@ function PanelColumnas<T>({
                   onClick={() => mover(c.clave, 1)}
                   disabled={i === puestas.length - 1}
                   aria-label={"Bajar " + c.titulo}
-                  className="opacity-60 transition hover:opacity-100 disabled:opacity-20"
+                  className="text-texto-suave hover:text-texto disabled:text-hairline transition"
                 >
                   <IconoAbajo tamano={14} />
                 </button>
@@ -1382,7 +1562,7 @@ function PanelColumnas<T>({
                   disabled={c.fija}
                   aria-label={c.fija ? c.titulo + " no se puede quitar" : "Quitar " + c.titulo}
                   title={c.fija ? "Sin ella no se sabe de quién es la fila" : undefined}
-                  className="opacity-60 transition hover:opacity-100 disabled:opacity-20"
+                  className="text-texto-suave hover:text-texto disabled:text-hairline transition"
                 >
                   <IconoCerrar tamano={14} />
                 </button>
@@ -1392,11 +1572,11 @@ function PanelColumnas<T>({
         </div>
 
         <div>
-          <p className="mb-2 text-xs font-medium uppercase tracking-wide text-texto-suave">
+          <p className="rotulo-bloque mb-2">
             Disponibles · {fuera.length}
           </p>
           {fuera.length === 0 ? (
-            <p className="text-sm text-texto-suave">Están todas puestas.</p>
+            <p className="secundario">Están todas puestas.</p>
           ) : (
             <ul className="flex flex-wrap gap-1.5">
               {fuera.map((c) => (
@@ -1404,7 +1584,7 @@ function PanelColumnas<T>({
                   <button
                     type="button"
                     onClick={() => alternar(c)}
-                    className="h-[34px] rounded-lg border border-borde px-3.5 text-[0.78125rem] font-semibold transition hover:border-marca hover:bg-marca-suave"
+                    className="dato h-[32px] rounded-md border border-borde px-3 transition hover:border-marca"
                   >
                     + {c.titulo}
                   </button>
@@ -1444,15 +1624,15 @@ function PanelVistas({
   }
 
   return (
-    <div className="rounded-2xl border border-borde bg-superficie p-4">
+    <div className="rounded-plano border border-borde bg-superficie p-4">
       <div className="mb-3 flex items-center justify-between">
-        <h3 className="text-sm font-semibold">Vistas guardadas</h3>
+        <h3 className="titulo-bloque">Vistas guardadas</h3>
         <button type="button" onClick={cerrar} aria-label="Cerrar">
           <IconoCerrar tamano={16} />
         </button>
       </div>
 
-      <p className="mb-3 text-xs text-texto-suave">
+      <p className="secundario mb-3">
         Una vista guarda las columnas, su orden y los filtros. Queda en este
         navegador: es su forma de mirar, no la de todos.
       </p>
@@ -1466,11 +1646,11 @@ function PanelVistas({
                 <button
                   type="button"
                   onClick={() => aplicar(v)}
-                  className="flex flex-1 items-center gap-2 rounded-lg border border-borde px-2.5 py-1.5 text-left text-sm transition hover:border-marca hover:bg-marca-suave"
+                  className="dato flex flex-1 items-center gap-2 rounded-md border border-borde px-3 py-1.5 text-left transition hover:border-marca"
                 >
                   <IconoCheck tamano={14} className="text-texto-suave" />
                   <span className="flex-1 truncate">{v.nombre}</span>
-                  <span className="text-xs text-texto-suave">
+                  <span className="micro">
                     {v.visibles.length} columnas
                     {n > 0 && " · " + n + (n === 1 ? " filtro" : " filtros")}
                   </span>
@@ -1479,7 +1659,7 @@ function PanelVistas({
                   type="button"
                   onClick={() => setVistas(vistas.filter((x) => x.nombre !== v.nombre))}
                   aria-label={"Borrar la vista " + v.nombre}
-                  className="opacity-60 transition hover:opacity-100"
+                  className="text-texto-suave hover:text-texto transition"
                 >
                   <IconoPapelera tamano={15} />
                 </button>
@@ -1495,12 +1675,12 @@ function PanelVistas({
           value={nombre}
           onChange={(e) => setNombre(e.target.value)}
           placeholder="Guardar como… (p. ej. «Mis leads sin contactar»)"
-          className="flex-1 rounded-lg border border-campo-borde bg-campo-fondo px-2.5 py-1.5 text-sm outline-none focus:border-campo-foco"
+          className="dato flex-1 rounded-md border border-campo-borde bg-campo-fondo px-3 py-1.5 focus:border-campo-foco"
         />
         <button
           type="submit"
           disabled={!nombre.trim()}
-          className="inline-flex items-center gap-1.5 rounded-lg bg-marca px-3 py-1.5 text-sm text-marca-texto disabled:opacity-40"
+          className="dato inline-flex items-center gap-1.5 rounded-md bg-marca px-3 py-1.5 text-marca-texto disabled:opacity-40"
         >
           <IconoGuardar tamano={15} />
           Guardar
@@ -1566,7 +1746,7 @@ function Pie({
   const desde = (pagina - 1) * tamano;
 
   return (
-    <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-texto-suave">
+    <div className="secundario flex flex-wrap items-center gap-x-4 gap-y-2">
       {/* Corto: «26–50 / 175».
 
           Decía «Mostrando 26–50 de 175», que es la misma
@@ -1577,10 +1757,10 @@ function Pie({
       <span className="tabular-nums">
         {mostradas > 0 && (
           <>
-            <strong className="font-medium text-texto">
+            <span className="text-texto">
               {(desde + 1).toLocaleString("es-CO")}–
               {(desde + mostradas).toLocaleString("es-CO")}
-            </strong>
+            </span>
             {" / "}
             {/* El total, pulsable: enseña TODAS en una tabla.
                 Para ver las 79 de una habia que abrir «Por
@@ -1592,14 +1772,14 @@ function Pie({
                 type="button"
                 onClick={() => setTamano(filtradas)}
                 title={`Ver las ${filtradas.toLocaleString("es-CO")} en una sola tabla`}
-                className="font-semibold text-marca underline decoration-dotted underline-offset-2 hover:decoration-solid"
+                className="text-marca underline decoration-dotted underline-offset-2 hover:decoration-solid"
               >
                 {filtradas.toLocaleString("es-CO")}
               </button>
             ) : (
-              <strong className="font-medium text-texto">
+              <span className="text-texto">
                 {filtradas.toLocaleString("es-CO")}
-              </strong>
+              </span>
             )}
             {filtradas !== cargadas &&
               ` (de ${cargadas.toLocaleString("es-CO")})`}
@@ -1608,7 +1788,11 @@ function Pie({
       </span>
 
       {faltan && (
-        <span className="whitespace-nowrap font-semibold text-aviso">
+        /// En gris, no en ámbar: lo cálido del panel significa
+        /// «alguien está esperando respuesta» y nada más. Que el
+        /// filtro corra sobre lo cargado es una advertencia de
+        /// alcance, no un reloj.
+        <span className="whitespace-nowrap text-texto">
           Filtrando sobre {cargadas.toLocaleString("es-CO")} de{" "}
           {total.toLocaleString("es-CO")}
           {alCargarTodo && (
@@ -1630,7 +1814,7 @@ function Pie({
             value={tamano}
             onChange={(e) => setTamano(Number(e.target.value))}
             aria-label="Cuántas filas por página"
-            className="rounded-lg border border-borde bg-superficie px-2 py-1 text-xs"
+            className="secundario rounded-md border border-campo-borde bg-campo-fondo px-2 py-1"
           >
             {TAMANOS.map((n) => (
               <option key={n} value={n}>
@@ -1659,7 +1843,7 @@ function Pie({
           </BotonPagina>
 
           <span className="px-1 tabular-nums">
-            <strong className="font-medium text-texto">{pagina}</strong> de{" "}
+            <span className="text-texto">{pagina}</span> de{" "}
             {paginas.toLocaleString("es-CO")}
           </span>
 

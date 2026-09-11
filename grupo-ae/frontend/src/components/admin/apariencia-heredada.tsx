@@ -182,13 +182,13 @@ export function AparienciaHeredada({
                       void guardar(VACIO);
                     }
                   }}
-                  className="text-sm font-medium text-marca underline disabled:opacity-50"
+                  className="dato text-marca underline disabled:opacity-50"
                 >
                   Volver a la apariencia general
                 </button>
               )}
 
-              <span className="text-sm text-texto-suave">
+              <span className="secundario">
                 {cuantos === 0
                   ? "Todo heredado de la general."
                   : `${cuantos} ${cuantos === 1 ? "color propio" : "colores propios"}.`}

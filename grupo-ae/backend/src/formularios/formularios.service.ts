@@ -63,7 +63,16 @@ export class FormulariosService {
       orderBy: [{ convenio: { orden: 'asc' } }, { titulo: 'asc' }],
       include: {
         convenio: { select: { slug: true, sigla: true } },
-        _count: { select: { preguntas: true, secciones: true } },
+        /// Sin `archivada: false` esta cuenta miente, y miente MÁS
+        /// cuanto mejor se hace el trabajo: como aquí nada se borra
+        /// —lo que se deja de preguntar se archiva—, cada limpieza
+        /// del formulario le SUMA a la cifra. Al resembrar las
+        /// preguntas, «Contacto de empresas» pasó a anunciar 23
+        /// preguntas en el panel mientras la pantalla pública
+        /// enseñaba 15: las 8 archivadas seguían contando.
+        _count: {
+          select: { preguntas: { where: { archivada: false } }, secciones: true },
+        },
       },
     });
 

@@ -1207,7 +1207,7 @@ export function CompletarFicha({ token }: { token: string }) {
                 <button
                   type="submit"
                   disabled={guardando}
-                  className="rounded-xl bg-marca px-7 py-3.5 font-medium text-marca-texto transition hover:bg-marca-fuerte disabled:opacity-50"
+                  className="rounded-xl bg-marca px-6 py-3.5 font-medium text-marca-texto transition hover:bg-marca-fuerte disabled:opacity-50"
                 >
                   {guardando ? "Enviando…" : "Está correcto, confirmar mi solicitud"}
                 </button>

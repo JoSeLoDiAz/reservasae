@@ -44,10 +44,10 @@ export function CargarBase({
   }
 
   return (
-    <div className="space-y-4 rounded-xl border border-borde bg-superficie-alterna p-4">
+    <div className="space-y-4 rounded-plano border border-borde bg-superficie-alterna p-4">
       <div>
-        <p className="text-sm font-medium">La lista de correos</p>
-        <p className="mt-1 text-xs text-texto-suave">
+        <p className="dato">La lista de correos</p>
+        <p className="mt-1 micro">
           Dos columnas: el correo y el primer nombre. Descargue el formato y no
           le cambie los títulos de la primera fila — es por ahí que se reconoce
           cada columna.
@@ -58,12 +58,12 @@ export function CargarBase({
         {/* Enlace normal y no fetch: es una descarga. */}
         <a
           href={campanasApi.urlFormatoBase()}
-          className="rounded-xl border border-campo-borde bg-superficie px-4 py-2 text-sm transition hover:bg-superficie-alterna"
+          className="rounded-plano border border-campo-borde bg-superficie px-4 py-2 dato transition hover:bg-superficie-alterna"
         >
           Descargar el formato
         </a>
 
-        <label className="cursor-pointer rounded-xl border border-campo-borde bg-superficie px-4 py-2 text-sm transition hover:bg-superficie-alterna">
+        <label className="cursor-pointer rounded-plano border border-campo-borde bg-superficie px-4 py-2 dato transition hover:bg-superficie-alterna">
           {subiendo ? "Revisando…" : "Subir la base llena"}
           <input
             type="file"
@@ -86,7 +86,7 @@ export function CargarBase({
       </div>
 
       {error && (
-        <p className="rounded-lg border border-error/30 bg-error-suave p-3 text-sm text-error">
+        <p className="dato text-titulo">
           {error}
         </p>
       )}
@@ -110,12 +110,12 @@ function Informe({ r }: { r: RevisionDeBase }) {
       </div>
 
       {r.listos === 0 ? (
-        <p className="rounded-lg border border-error/30 bg-error-suave p-3 text-sm text-error">
+        <p className="dato text-titulo">
           No quedó ni un correo bueno. Revise el archivo: si la primera fila no
           dice «Correo», no se reconoce la columna.
         </p>
       ) : (
-        <p className="text-xs text-texto-suave">
+        <p className="micro">
           {r.repetidos > 0 && (
             <>
               Los repetidos salen <strong>una sola vez</strong>: mandarle dos
@@ -134,8 +134,8 @@ function Informe({ r }: { r: RevisionDeBase }) {
       )}
 
       {r.sospechosos.length > 0 && (
-        <details className="rounded-lg border border-aviso/30 bg-aviso-suave p-3 text-xs">
-          <summary className="cursor-pointer font-medium text-aviso">
+        <details className="micro border-borde border p-3">
+          <summary className="cursor-pointer text-titulo">
             {r.sospechosos.length} parecen errores de dedo. Entran igual —
             mírelos
           </summary>
@@ -155,8 +155,8 @@ function Informe({ r }: { r: RevisionDeBase }) {
       )}
 
       {r.descartados.length > 0 && (
-        <details className="rounded-lg border border-borde bg-superficie p-3 text-xs">
-          <summary className="cursor-pointer font-medium">
+        <details className="rounded-plano border border-borde bg-superficie p-3 micro">
+          <summary className="cursor-pointer ">
             Los {r.descartados.length} que se cayeron, con su fila
           </summary>
           <ul className="mt-2 max-h-56 space-y-1 overflow-y-auto">
@@ -175,7 +175,7 @@ function Informe({ r }: { r: RevisionDeBase }) {
       )}
 
       {!hayLios && r.listos > 0 && (
-        <p className="text-sm text-exito">
+        <p className="dato text-exito">
           Todo el archivo sirve. Ya puede lanzar.
         </p>
       )}
@@ -193,7 +193,7 @@ function Cifra({
   bien?: boolean;
 }) {
   return (
-    <span className="text-sm">
+    <span className="dato">
       <strong
         className={`text-lg ${bien ? "text-exito" : "text-texto"}`}
       >

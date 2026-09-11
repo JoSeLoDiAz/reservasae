@@ -1,9 +1,8 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useState } from "react";
 
-import { Bloque, Cargando } from "@/components/admin/piezas";
+import { Bloque, BotonSuave, Cargando, Encabezado } from "@/components/admin/piezas";
 import { Desplegable } from "@/components/admin/desplegable";
 import { EditorColores } from "@/components/admin/editor-colores";
 import {
@@ -143,18 +142,22 @@ export default function PaginaMarca() {
   }
 
   return (
-    <div className="flex min-h-0 grow flex-col gap-4 px-4 pt-4 pb-6">
-      <header>
-        <h1 className="text-[1.3125rem] font-bold tracking-[-0.02em] text-titulo">Apariencia</h1>
-        <p className="mt-1 text-texto-suave">
-          {gremio?.fijo
+    <div className="flex min-h-0 grow flex-col">
+      <Encabezado
+        titulo="Apariencia"
+        descripcion={
+          gremio?.fijo
             ? "Esta es la marca GENERAL, la que comparten todas las líneas de negocio. La de esta línea se edita en su formulario."
-            : "Colores, textos y logo. Al guardar se aplican en todo el sistema, también en este panel."}
-        </p>
-      </header>
+            : "Colores, textos y logo. Al guardar se aplican en todo el sistema, también en este panel."
+        }
+      />
 
-      {error && <Aviso tipo="error">{error}</Aviso>}
-      {guardado && !error && <Aviso tipo="exito">Cambios guardados.</Aviso>}
+      {(error || (guardado && !error)) && (
+        <div className="banda">
+          {error && <Aviso tipo="error">{error}</Aviso>}
+          {guardado && !error && <Aviso tipo="exito">Cambios guardados.</Aviso>}
+        </div>
+      )}
 
       <MarcaDeCadaGremio />
 
@@ -178,7 +181,7 @@ export default function PaginaMarca() {
           />
         ) : (
           <Bloque titulo="La apariencia de esta línea de negocio">
-            <AvisoDeGremio gremio={gremio} que="los logos y los colores" />
+            <AvisoDeGremio gremio={gremio} />
           </Bloque>
         )
       ) : (
@@ -192,10 +195,9 @@ export default function PaginaMarca() {
 
       {gremio?.fijo ? (
         <Bloque titulo="Textos y colores del sitio">
-          <AvisoDeGremio gremio={gremio} que="los textos y los colores" />
+          <AvisoDeGremio gremio={gremio} />
         </Bloque>
       ) : (
-        <>
         <form
           onSubmit={(e) => {
             e.preventDefault();
@@ -211,59 +213,69 @@ export default function PaginaMarca() {
               }),
             );
           }}
-          className="space-y-6"
         >
           <Bloque titulo="Textos del sitio público">
-            <div className="space-y-4">
-              <Campo etiqueta="Nombre de la aplicación" ayuda="Pestaña del navegador y encabezado.">
-                <input
-                  required
-                  value={marca.nombreApp}
-                  onChange={(e) => cambiarCampo("nombreApp", e.target.value)}
-                  className={CLASE_CONTROL}
-                />
-              </Campo>
+            {/* Cinco campos de 1350 px de ancho para escribir
+                el nombre de una aplicación. El formulario topa
+                en 720 y cada caja mide lo que mide su dato. */}
+            <div className="formulario">
+              <div className="formulario-doble">
+                <Campo etiqueta="Nombre de la aplicación" ayuda="Pestaña del navegador y encabezado.">
+                  <input
+                    required
+                    value={marca.nombreApp}
+                    onChange={(e) => cambiarCampo("nombreApp", e.target.value)}
+                    className={CLASE_CONTROL + " ancho-nombre"}
+                  />
+                </Campo>
 
-              <Campo etiqueta="Título principal">
-                <input
-                  required
-                  value={marca.tituloPublico}
-                  onChange={(e) => cambiarCampo("tituloPublico", e.target.value)}
-                  className={CLASE_CONTROL}
-                />
-              </Campo>
+                <Campo etiqueta="Título principal">
+                  <input
+                    required
+                    value={marca.tituloPublico}
+                    onChange={(e) => cambiarCampo("tituloPublico", e.target.value)}
+                    className={CLASE_CONTROL}
+                  />
+                </Campo>
 
-              <Campo etiqueta="Texto de introducción">
-                <textarea
-                  rows={3}
-                  value={marca.subtituloPublico}
-                  onChange={(e) => cambiarCampo("subtituloPublico", e.target.value)}
-                  className={CLASE_CONTROL}
-                />
-              </Campo>
+                <div className="a-lo-ancho">
+                  <Campo etiqueta="Texto de introducción">
+                    <textarea
+                      rows={3}
+                      value={marca.subtituloPublico}
+                      onChange={(e) => cambiarCampo("subtituloPublico", e.target.value)}
+                      className={CLASE_CONTROL}
+                    />
+                  </Campo>
+                </div>
 
-              {/* Se enviaba en el submit y no tenía campo, así
-                  que no había forma de ponerlo ni de quitarlo:
-                  cada Guardar lo dejaba en cadena vacía. */}
-              <Campo
-                etiqueta="Aviso destacado"
-                ayuda="Opcional. Sale en un recuadro sobre el formulario. Vacío, no sale nada."
-              >
-                <textarea
-                  rows={2}
-                  value={marca.mensajeEncabezado ?? ""}
-                  onChange={(e) => cambiarCampo("mensajeEncabezado", e.target.value)}
-                  className={CLASE_CONTROL}
-                />
-              </Campo>
+                {/* Se enviaba en el submit y no tenía campo, así
+                    que no había forma de ponerlo ni de quitarlo:
+                    cada Guardar lo dejaba en cadena vacía. */}
+                <div className="a-lo-ancho">
+                  <Campo
+                    etiqueta="Aviso destacado"
+                    ayuda="Opcional. Sale en un recuadro sobre el formulario. Vacío, no sale nada."
+                  >
+                    <textarea
+                      rows={2}
+                      value={marca.mensajeEncabezado ?? ""}
+                      onChange={(e) => cambiarCampo("mensajeEncabezado", e.target.value)}
+                      className={CLASE_CONTROL}
+                    />
+                  </Campo>
+                </div>
 
-              <Campo etiqueta="Pie de página" ayuda="Opcional.">
-                <input
-                  value={marca.piePagina ?? ""}
-                  onChange={(e) => cambiarCampo("piePagina", e.target.value)}
-                  className={CLASE_CONTROL}
-                />
-              </Campo>
+                <div className="a-lo-ancho">
+                  <Campo etiqueta="Pie de página" ayuda="Opcional.">
+                    <input
+                      value={marca.piePagina ?? ""}
+                      onChange={(e) => cambiarCampo("piePagina", e.target.value)}
+                      className={CLASE_CONTROL}
+                    />
+                  </Campo>
+                </div>
+              </div>
             </div>
           </Bloque>
 
@@ -271,98 +283,107 @@ export default function PaginaMarca() {
             titulo="Modo claro y oscuro"
             descripcion="Qué ve quien entra por primera vez, y si puede cambiarlo."
           >
-            <div className="space-y-4">
-              <div className="grid sm:grid-cols-3">
-                {MODOS.map((m) => (
-                  <label
-                    key={m.valor}
-                    className={`cursor-pointer rounded-lg border p-4 transition ${
-                      marca.modoPorDefecto === m.valor
-                        ? "border-marca bg-marca-suave"
-                        : "border-borde hover:border-marca/50"
-                    }`}
-                  >
-                    <input
-                      type="radio"
-                      name="modo"
-                      className="sr-only"
-                      checked={marca.modoPorDefecto === m.valor}
-                      onChange={() => cambiarCampo("modoPorDefecto", m.valor)}
-                    />
-                    <p className="font-medium">{m.etiqueta}</p>
-                    <p className="mt-1 text-sm text-texto-suave">{m.ayuda}</p>
-                  </label>
-                ))}
+            <div className="formulario">
+              {/* Sin el fondo azul claro en la opción elegida.
+                  `--marca-suave` tiene dos sitios y solo dos: la
+                  entrada activa de la barra lateral y la fila de
+                  tabla bajo el ratón. Lo seleccionado se dice
+                  con el borde y con la letra, que es donde va el
+                  color en este panel. */}
+              <div className="grid gap-3 sm:grid-cols-3">
+                {MODOS.map((m) => {
+                  const elegido = marca.modoPorDefecto === m.valor;
+                  return (
+                    <label
+                      key={m.valor}
+                      className={`rounded-plano cursor-pointer border p-3 transition ${
+                        elegido ? "border-marca" : "border-borde hover:border-campo-borde"
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        name="modo"
+                        className="sr-only"
+                        checked={elegido}
+                        onChange={() => cambiarCampo("modoPorDefecto", m.valor)}
+                      />
+                      <p className={elegido ? "estado text-marca" : "dato"}>
+                        {m.etiqueta}
+                      </p>
+                      <p className="secundario mt-1">{m.ayuda}</p>
+                    </label>
+                  );
+                })}
               </div>
 
-              <label className="flex gap-3 text-sm">
+              <label className="dato mt-4 flex gap-3">
                 <input
                   type="checkbox"
                   checked={marca.permitirCambioDeModo}
                   onChange={(e) => cambiarCampo("permitirCambioDeModo", e.target.checked)}
-                  className="mt-0.5 size-4 shrink-0 accent-[var(--marca)]"
+                  className="accent-[var(--marca)] mt-0.5 size-4 shrink-0"
                 />
                 <span>
                   Permitir que el visitante cambie entre claro y oscuro.
-                  <span className="mt-0.5 block text-texto-suave">
+                  <span className="secundario mt-0.5 block">
                     Si lo desactiva desaparece el conmutador. Quítelo solo si hace
                     falta: para bastante gente el modo oscuro no es un gusto sino
                     una necesidad.
                   </span>
                 </span>
               </label>
+
+              <div className="border-hairline mt-6 border-t pt-4">
+                <Boton type="submit" disabled={guardando}>
+                  {guardando ? "Guardando…" : "Guardar textos y modo"}
+                </Boton>
+              </div>
             </div>
           </Bloque>
 
-          <Boton type="submit" disabled={guardando}>
-            {guardando ? "Guardando…" : "Guardar textos y modo"}
-          </Boton>
+          <Bloque
+            titulo="Colores"
+            descripcion="Cada modo tiene su paleta completa. No basta con aclarar u oscurecer la otra: en modo oscuro un color de marca muy saturado deslumbra y hace vibrar los bordes del texto."
+          >
+            <EditorColores
+              temas={marca.temas}
+              catalogo={catalogo}
+              esquema={pestana}
+              alCambiarEsquema={setPestana}
+              alCambiarColor={cambiarColor}
+              alReemplazarTemas={reemplazarTemas}
+              acciones={
+                <div className="flex flex-wrap gap-3">
+                  {/* los dos modos juntos: una plantilla cambia ambos */}
+                  <Boton
+                    type="button"
+                    disabled={guardando}
+                    onClick={() =>
+                      conError(async () => {
+                        await adminApi.actualizarTema("CLARO", marca.temas.CLARO);
+                        return adminApi.actualizarTema("OSCURO", marca.temas.OSCURO);
+                      })
+                    }
+                  >
+                    {guardando ? "Guardando…" : "Guardar colores"}
+                  </Boton>
+                  <BotonSuave
+                    type="button"
+                    disabled={guardando}
+                    onClick={() =>
+                      conError(async () => {
+                        await adminApi.restablecerTema("CLARO");
+                        return adminApi.restablecerTema("OSCURO");
+                      })
+                    }
+                  >
+                    Restablecer los colores
+                  </BotonSuave>
+                </div>
+              }
+            />
+          </Bloque>
         </form>
-
-        <Bloque
-          titulo="Colores"
-          descripcion="Cada modo tiene su paleta completa. No basta con aclarar u oscurecer la otra: en modo oscuro un color de marca muy saturado deslumbra y hace vibrar los bordes del texto."
-        >
-          <EditorColores
-            temas={marca.temas}
-            catalogo={catalogo}
-            esquema={pestana}
-            alCambiarEsquema={setPestana}
-            alCambiarColor={cambiarColor}
-            alReemplazarTemas={reemplazarTemas}
-            acciones={
-              <div className="flex flex-wrap gap-3">
-                {/* los dos modos juntos: una plantilla cambia ambos */}
-                <Boton
-                  type="button"
-                  disabled={guardando}
-                  onClick={() =>
-                    conError(async () => {
-                      await adminApi.actualizarTema("CLARO", marca.temas.CLARO);
-                      return adminApi.actualizarTema("OSCURO", marca.temas.OSCURO);
-                    })
-                  }
-                >
-                  {guardando ? "Guardando…" : "Guardar colores"}
-                </Boton>
-                <button
-                  type="button"
-                  disabled={guardando}
-                  onClick={() =>
-                    conError(async () => {
-                      await adminApi.restablecerTema("CLARO");
-                      return adminApi.restablecerTema("OSCURO");
-                    })
-                  }
-                  className="rounded-xl border border-borde px-5 py-2 text-sm transition hover:bg-fondo disabled:opacity-50"
-                >
-                  Restablecer los colores
-                </button>
-              </div>
-            }
-          />
-        </Bloque>
-        </>
       )}
     </div>
   );
@@ -411,60 +432,120 @@ function MarcaDeCadaGremio() {
   }
 
   return (
-    <Bloque
-      titulo="La cara de cada línea de negocio"
-      descripcion="Cada línea de negocio entra por su propia dirección, y allí el sitio sale con los colores y los logos de uno de sus formularios. Aquí se elige cuál. Sin elegir ninguna, esa línea usa la marca general de abajo."
-    >
-      <div className="space-y-4">
-        {error && <Aviso tipo="error">{error}</Aviso>}
+    <Bloque titulo="La cara de cada línea de negocio">
+      {error && (
+        <div className="mb-4">
+          <Aviso tipo="error">{error}</Aviso>
+        </div>
+      )}
 
-        {gremios.map((g) => (
-          <div
-            key={g.id}
-            className="rounded-xl border border-linea bg-superficie-alt p-4"
-          >
-            <div className="mb-3 flex flex-wrap items-baseline gap-x-3 gap-y-1">
-              <span className="font-semibold">{g.sigla ?? g.nombre}</span>
-              <code className="text-xs text-texto-suave">{g.direccion}</code>
+      {/* LA BAJADA VA AL LADO DE LA TABLA, NO ENCIMA.
+
+          Era la `descripcion` del bloque: cinco renglones de
+          prosa topados en 68 ch, encima de una tabla de 888 px,
+          y a la derecha de las dos, setecientos píxeles de papel.
+          Sin desplazar, esta pantalla usaba el 46 % del ancho a
+          1920 —y el 98 % contando lo de abajo, que es justo la
+          cifra que escondía el fallo: el hueco estaba donde el
+          dueño mira primero.
+
+          La prosa sigue topando en 68 ch, que es lo correcto. Lo
+          que cambia es dónde vive: al lado de lo que explica, que
+          es la respuesta b) de la regla de lista. Y de paso la
+          tabla —que es lo que se viene a mirar— sube ochenta
+          píxeles.
+
+          480 px es el tope de la prosa; 360 en la banda de 1440,
+          que son unos 48 caracteres y sigue siendo una columna que
+          se lee. Por debajo de 1100 se apila como antes: ahí ya no
+          es una columna, es un renglón partido. */}
+      <div className="@container">
+        <div className="grid gap-x-10 gap-y-4 @[1100px]:grid-cols-[minmax(0,1fr)_360px] @[1400px]:grid-cols-[minmax(0,1fr)_480px]">
+          {/* EN COLUMNAS, no apilado.
+
+              Cada línea apilaba cinco renglones --sigla, dirección,
+              rótulo del campo, desplegable y una ayuda idéntica a la
+              de la otra-- dentro de los 720 px de un formulario, con
+              mil de blanco al lado. Y esto no es un formulario: es
+              una lista de dos filas con un ajuste cada una, y lo que
+              se viene a mirar es CUÁL está puesto en cada línea, que
+              es una comparación entre filas.
+
+              Con tres columnas, la sigla, la dirección y el
+              formulario quedan una debajo de otra, el rótulo se
+              escribe UNA vez arriba y la ayuda --que era la misma
+              palabra por palabra en las dos-- se dice una vez en
+              la bajada del bloque. */}
+          <div className="max-w-[960px]">
+            <div className={`${REJILLA_LINEAS} border-borde border-b pb-2`}>
+              <div className="rotulo-bloque">Línea de negocio</div>
+              <div className="rotulo-bloque">Entra por</div>
+              <div className="rotulo-bloque">Formulario que le da la marca</div>
             </div>
 
-            {g.formularios.length === 0 ? (
-              <p className="text-sm text-texto-suave">
-                Esta línea de negocio todavía no tiene formularios, así que usa la marca
-                general.
-              </p>
-            ) : (
-              <Campo
-                etiqueta="Formulario que le da la marca"
-                ayuda="Vale también uno en borrador: publicar al público y elegir la paleta del panel son dos decisiones distintas."
+            {gremios.map((g) => (
+              <div
+                key={g.id}
+                className={`${REJILLA_LINEAS} border-hairline items-center border-b py-3 last:border-b-0`}
               >
-                {/* El desplegable de la casa, no el del sistema
-                    operativo: el nativo se pinta distinto en
-                    cada navegador y en tema oscuro abre una
-                    lista blanca. Y aquí gana además que el
-                    «(borrador)» quepa como segunda línea en vez
-                    de arrastrarse detrás del título. */}
-                <Desplegable
-                  valor={g.formularioMarcaId ?? ""}
-                  desactivado={ocupado === g.id}
-                  alElegir={(v) => void elegir(g.id, v)}
-                  opciones={[
-                    { valor: "", etiqueta: "La marca general" },
-                    ...g.formularios.map((f) => ({
-                      valor: f.id,
-                      etiqueta: f.titulo,
-                      detalle: f.publicado ? undefined : "En borrador",
-                    })),
-                  ]}
-                />
-              </Campo>
-            )}
+                <div className="dato min-w-0 truncate" title={g.nombre}>
+                  {g.sigla ?? g.nombre}
+                </div>
+
+                <div className="micro min-w-0 truncate" title={g.direccion}>
+                  {g.direccion}
+                </div>
+
+                {g.formularios.length === 0 ? (
+                  <p className="secundario">
+                    Todavía no tiene formularios, así que usa la marca general.
+                  </p>
+                ) : (
+                  /* El desplegable de la casa, no el del sistema
+                     operativo: el nativo se pinta distinto en cada
+                     navegador y en tema oscuro abre una lista
+                     blanca. Y aquí gana además que el «(borrador)»
+                     quepa como segunda línea en vez de arrastrarse
+                     detrás del título. */
+                  <Desplegable
+                    valor={g.formularioMarcaId ?? ""}
+                    desactivado={ocupado === g.id}
+                    etiquetaAria={`Formulario que le da la marca a ${g.sigla ?? g.nombre}`}
+                    alElegir={(v) => void elegir(g.id, v)}
+                    opciones={[
+                      { valor: "", etiqueta: "La marca general" },
+                      ...g.formularios.map((f) => ({
+                        valor: f.id,
+                        etiqueta: f.titulo,
+                        detalle: f.publicado ? undefined : "En borrador",
+                      })),
+                    ]}
+                  />
+                )}
+              </div>
+            ))}
           </div>
-        ))}
+
+          <p className="secundario prosa">
+            Cada línea de negocio entra por su propia dirección, y allí el sitio
+            sale con los colores y los logos de uno de sus formularios. Aquí se
+            elige cuál. Sin elegir ninguna, esa línea usa la marca general de
+            abajo. Vale también uno en borrador: publicar al público y elegir la
+            paleta del panel son dos decisiones distintas.
+          </p>
+        </div>
       </div>
     </Bloque>
   );
 }
+
+/// La sigla mide lo que mide una sigla, la dirección lo que mide
+/// un subdominio y el desplegable los 360 de `ancho-correo`, que
+/// es lo que mide el título de un formulario. Ninguna de las
+/// tres se estira hasta el canto: esto es un ajuste, no una
+/// tabla de trabajo.
+const REJILLA_LINEAS =
+  "grid grid-cols-[minmax(120px,200px)_minmax(160px,280px)_minmax(240px,360px)] items-baseline gap-x-6 gap-y-2";
 
 /**
  * Por la puerta de un gremio, esto no se edita aquí.
@@ -480,21 +561,24 @@ function MarcaDeCadaGremio() {
  * está en esta misma pantalla, arriba. Un enlace que se va a
  * otro sitio para hacer lo que se puede hacer aquí es peor que
  * ninguno.
+ *
+ * Sin la tarjeta teñida de amarillo ni la gris: el color va en
+ * la letra, y el ámbar es el reloj de quien espera respuesta.
  */
 function AvisoDeGremio({
   gremio,
-  que,
 }: {
   gremio: { sigla: string | null; formularioId: string | null };
-  que: string;
 }) {
   const nombre = gremio.sigla ?? "esta línea de negocio";
 
   if (!gremio.formularioId) {
     return (
-      <div className="rounded-xl border border-aviso/30 bg-aviso-suave p-4 text-sm text-aviso">
-        <p className="font-medium">{nombre} todavía no tiene una cara propia.</p>
-        <p className="mt-1">
+      <div className="prosa">
+        <p className="estado text-titulo">
+          {nombre} todavía no tiene una cara propia.
+        </p>
+        <p className="dato mt-1">
           Elija arriba de qué formulario sale su marca. Hasta entonces usa la
           general, y lo que se cambie aquí lo verían todas las líneas de negocio.
         </p>
@@ -503,11 +587,9 @@ function AvisoDeGremio({
   }
 
   return (
-    <div className="rounded-xl border border-linea bg-superficie-alt p-4 text-sm">
-      <p>
-        Esto es lo <strong>general</strong>, lo que comparten todas las líneas de negocio, y
-        por eso no se edita desde aquí. Lo de {nombre} está arriba.
-      </p>
-    </div>
+    <p className="dato prosa">
+      Esto es lo general, lo que comparten todas las líneas de negocio, y por eso
+      no se edita desde aquí. Lo de {nombre} está arriba.
+    </p>
   );
 }

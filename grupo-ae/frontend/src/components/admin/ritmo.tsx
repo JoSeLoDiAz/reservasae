@@ -154,7 +154,7 @@ export function BloqueRitmo({ informe }: { informe: InformeProyeccion }) {
       </div>
 
       {(t.confianza === "BAJA" || t.origen === "APROXIMADO") && (
-        <p className="text-sm text-texto-suave">
+        <p className="secundario">
           {t.confianza === "BAJA" && "Menos de una semana de historia: la estimación es floja. "}
           {t.origen === "APROXIMADO" &&
             "Sin registro de movimientos en la ventana; el ritmo sale de la fecha de alta y no descuenta cancelaciones."}
@@ -175,7 +175,7 @@ export function TablaRitmo({ acciones }: { acciones: InformeProyeccion["acciones
       descripcion="Ordenado por cierres que entran al día. Sin fecha límite: solo dice cuándo se alcanzaría la meta al ritmo actual."
     >
       <div className="caja-scroll overflow-x-auto">
-        <table className="w-full min-w-[46rem] text-sm">
+        <table className="w-full min-w-[46rem] dato">
           <thead>
             <tr className="border-b border-tabla-borde bg-tabla-cabecera-fondo text-tabla-cabecera-texto">
               <th className="px-3 py-2 text-left font-semibold">Acción</th>
@@ -194,13 +194,13 @@ export function TablaRitmo({ acciones }: { acciones: InformeProyeccion["acciones
                 <td className="px-3 py-2">
                   <Link
                     href={`/admin/acciones/${a.id}`}
-                    className="font-medium text-marca hover:underline"
+                    className=" text-marca hover:underline"
                   >
                     {a.codigo}
                   </Link>
                   <span className="ml-2 text-texto-suave">{bonito(a.nombre)}</span>
                   {!a.publicada && (
-                    <span className="ml-2 rounded-full bg-superficie-alterna px-2 py-0.5 text-xs text-texto-suave">
+                    <span className="micro ml-2">
                       sin publicar
                     </span>
                   )}

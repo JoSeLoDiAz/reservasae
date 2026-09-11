@@ -51,17 +51,17 @@ export function EditorPregunta({
   }
 
   return (
-    <div className="rounded-lg border border-borde">
+    <div className="rounded-plano border border-borde">
       <div className="flex flex-wrap items-start gap-3 p-4">
         <div className="min-w-0 grow">
-          <p className="font-medium leading-snug">
+          <p className=" leading-snug">
             {pregunta.etiqueta}
             {pregunta.obligatoria && <span className="text-error"> *</span>}
           </p>
-          <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-texto-suave">
+          <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 micro">
             <span>{ETIQUETA_TIPO.get(pregunta.tipo) ?? pregunta.tipo}</span>
             {esNucleo && (
-              <span className="rounded bg-marca/10 px-1.5 py-0.5 font-medium text-marca">
+              <span className="text-marca">
                 campo del sistema
               </span>
             )}
@@ -73,7 +73,7 @@ export function EditorPregunta({
           </p>
         </div>
 
-        <div className="flex items-center gap-1.5 text-sm">
+        <div className="flex items-center gap-1.5 dato">
           <button
             onClick={() => mover(-1)}
             disabled={ocupado}
@@ -251,7 +251,7 @@ function Detalle({
           </Campo>
         </div>
 
-        <label className="flex gap-3 text-sm">
+        <label className="flex gap-3 dato">
           <input
             type="checkbox"
             checked={obligatorioFijo || datos.obligatoria}
@@ -313,9 +313,9 @@ function Detalle({
           </div>
         )}
 
-        <div className="rounded-lg border border-borde bg-superficie p-4">
-          <p className="text-sm font-medium">Mostrar solo si…</p>
-          <p className="mt-1 text-xs text-texto-suave">
+        <div className="rounded-plano border border-borde bg-superficie p-4">
+          <p className="dato">Mostrar solo si…</p>
+          <p className="mt-1 micro">
             Deja la pregunta oculta hasta que otra tenga cierto valor. Es lo que
             permite el clásico «Otro → ¿cuál?».
           </p>
@@ -353,7 +353,7 @@ function Detalle({
             </select>
           </div>
           {madres.length === 0 && (
-            <p className="mt-2 text-xs text-texto-suave">
+            <p className="mt-2 micro">
               No hay ninguna pregunta de opciones antes de esta.
             </p>
           )}
@@ -369,13 +369,13 @@ function Detalle({
               onClick={() =>
                 accion(() => formulariosApi.actualizarPregunta(pregunta.id, { archivada: true }))
               }
-              className="text-sm text-error underline"
+              className="dato text-error underline"
             >
               Archivar
             </button>
           )}
           {obligatorioFijo && (
-            <span className="text-xs text-texto-suave">
+            <span className="micro">
               Sin este campo no se puede registrar el lead, así que no se archiva.
             </span>
           )}
@@ -387,7 +387,7 @@ function Detalle({
       )}
 
       {controlEspecial && (
-        <p className="rounded-lg border border-borde bg-superficie p-3 text-xs text-texto-suave">
+        <p className="rounded-plano border border-borde bg-superficie p-3 micro">
           Las opciones de este campo salen del catálogo publicado y se calculan
           solas; aquí solo se cambian la etiqueta y la ayuda.
         </p>
@@ -418,12 +418,12 @@ function Opciones({
   }
 
   return (
-    <div className="rounded-lg border border-borde bg-superficie p-4">
-      <p className="text-sm font-medium">Opciones</p>
+    <div className="rounded-plano border border-borde bg-superficie p-4">
+      <p className="dato">Opciones</p>
 
       <ul className="mt-3 divide-y divide-borde">
         {activas.map((opcion, indice) => (
-          <li key={opcion.id} className="flex items-center gap-2 py-2 text-sm">
+          <li key={opcion.id} className="flex items-center gap-2 py-2 dato">
             <span className="grow">{opcion.etiqueta}</span>
             <button
               onClick={() => mover(indice, -1)}
@@ -448,7 +448,7 @@ function Opciones({
           </li>
         ))}
         {activas.length === 0 && (
-          <li className="py-2 text-sm text-aviso">
+          <li className="py-2 dato text-aviso">
             Sin opciones el desplegable sale vacío y bloquea el envío.
           </li>
         )}
@@ -476,7 +476,7 @@ function Opciones({
       </form>
 
       {archivadas.length > 0 && (
-        <div className="mt-3 text-xs text-texto-suave">
+        <div className="mt-3 micro">
           <p>
             {archivadas.length} opciones archivadas: ya alguien las eligió, así que
             no se borran para no dejar sus respuestas apuntando a la nada.

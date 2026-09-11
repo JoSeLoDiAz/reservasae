@@ -118,7 +118,7 @@ export function PendientesDeHoy({ control }: { control: Control | null }) {
       {pendientes.length === 0 ? (
         /* El caso bueno se dice, no se deja en blanco: una
            tarjeta vacía se lee como que no cargó. */
-        <p className="text-[0.84375rem] text-texto-suave">
+        <p className="dato text-texto-suave">
           No hay nada pendiente: las oportunidades tienen contacto y no queda nadie sin llamar.
         </p>
       ) : (
@@ -136,7 +136,7 @@ export function PendientesDeHoy({ control }: { control: Control | null }) {
               >
                 {n(p.cifra)}
               </span>
-              <p className="min-w-0 grow text-[0.84375rem] leading-snug">
+              <p className="dato min-w-0 grow">
                 <span className="text-titulo">{p.que}</span>{" "}
                 <span className="text-texto-suave">{p.hacer}</span>
               </p>

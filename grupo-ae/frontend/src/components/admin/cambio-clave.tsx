@@ -11,8 +11,8 @@ const LARGO_MINIMO = 10;
 export function CambioDeClaveObligatorio({ alTerminar }: { alTerminar: () => Promise<void> }) {
   return (
     <div className="mx-auto w-full max-w-md px-6 py-16">
-      <h1 className="text-2xl font-semibold">Cambie su contraseña</h1>
-      <p className="mt-2 text-texto-suave">
+      <h1 className="titulo-pantalla">Cambie su contraseña</h1>
+      <p className="secundario prosa mt-2">
         Su cuenta se creó con una contraseña temporal que conoce quien se la
         entregó. Elija una nueva para continuar.
       </p>
@@ -66,70 +66,88 @@ export function FormularioCambioClave({
     }
   }
 
+  /// La misma medida que `CLASE_CONTROL`, escrita aquí.
+  ///
+  /// No se importa de `marco-admin` porque aquel importa
+  /// `CambioDeClaveObligatorio` de este archivo, y traerse la
+  /// clase cerraría el círculo entre los dos módulos.
   const clase =
-    "w-full rounded-lg border border-borde bg-superficie px-3 py-2 outline-none " +
-    "transition focus:border-marca focus:ring-2 focus:ring-marca/20";
+    "w-full rounded-plano border border-campo-borde bg-campo-fondo px-3 py-[7px] dato " +
+    "outline-none transition focus:border-campo-foco focus:ring-2 focus:ring-campo-foco";
 
   return (
-    <form onSubmit={enviar} className="space-y-4">
-      <label className="block">
-        <span className="mb-1.5 block text-sm font-medium">Contraseña actual</span>
-        <input
-          required
-          type="password"
-          autoComplete="current-password"
-          value={actual}
-          onChange={(e) => setActual(e.target.value)}
-          className={clase}
-        />
-      </label>
+    /// Tres campos de contraseña, cada uno en su celda: dentro
+    /// del formulario de 720 px eso da 348 de ancho, que es lo
+    /// que mide un campo de escribir. A lo ancho medían 1350.
+    <form onSubmit={enviar} className="formulario">
+      <div className="formulario-doble">
+        <label className="block">
+          <span className="rotulo-bloque mb-1.5 block">Contraseña actual</span>
+          <input
+            required
+            type="password"
+            autoComplete="current-password"
+            value={actual}
+            onChange={(e) => setActual(e.target.value)}
+            className={clase}
+          />
+        </label>
 
-      <label className="block">
-        <span className="mb-1.5 block text-sm font-medium">Contraseña nueva</span>
-        <input
-          required
-          type="password"
-          autoComplete="new-password"
-          minLength={LARGO_MINIMO}
-          value={nueva}
-          onChange={(e) => setNueva(e.target.value)}
-          className={clase}
-        />
-        <span className="mt-1.5 block text-xs text-texto-suave">
-          Mínimo {LARGO_MINIMO} caracteres.
-        </span>
-      </label>
+        <label className="block">
+          <span className="rotulo-bloque mb-1.5 block">Contraseña nueva</span>
+          <input
+            required
+            type="password"
+            autoComplete="new-password"
+            minLength={LARGO_MINIMO}
+            value={nueva}
+            onChange={(e) => setNueva(e.target.value)}
+            className={clase}
+          />
+          <span className="secundario mt-1.5 block">
+            Mínimo {LARGO_MINIMO} caracteres.
+          </span>
+        </label>
 
-      <label className="block">
-        <span className="mb-1.5 block text-sm font-medium">Repita la contraseña nueva</span>
-        <input
-          required
-          type="password"
-          autoComplete="new-password"
-          value={repetida}
-          onChange={(e) => setRepetida(e.target.value)}
-          className={clase}
-        />
-      </label>
+        <label className="block">
+          <span className="rotulo-bloque mb-1.5 block">
+            Repita la contraseña nueva
+          </span>
+          <input
+            required
+            type="password"
+            autoComplete="new-password"
+            value={repetida}
+            onChange={(e) => setRepetida(e.target.value)}
+            className={clase}
+          />
+        </label>
+      </div>
 
+      {/* El color va en la LETRA. Y el que falla no va en rojo:
+          `--error` está reservado para el tiempo que alguien
+          lleva esperando respuesta, que es la única señal
+          cálida que existe en el panel. */}
       {error && (
-        <p className="rounded-lg border border-error/30 bg-error-suave p-3 text-sm text-error">
+        <p role="alert" className="aviso-en-linea text-titulo mt-4">
           {error}
         </p>
       )}
       {listo && !error && (
-        <p className="rounded-lg border border-exito/30 bg-exito-suave p-3 text-sm text-exito">
+        <p role="status" className="aviso-en-linea text-exito mt-4">
           Contraseña actualizada.
         </p>
       )}
 
-      <button
-        type="submit"
-        disabled={enviando}
-        className="rounded-xl bg-marca px-5 py-2 font-medium text-marca-texto transition hover:bg-marca-fuerte disabled:opacity-50"
-      >
-        {enviando ? "Guardando…" : textoBoton}
-      </button>
+      <div className="border-hairline mt-6 border-t pt-4">
+        <button
+          type="submit"
+          disabled={enviando}
+          className="estado rounded-plano sin-aro inline-flex h-[32px] items-center justify-center bg-marca px-[13px] text-marca-texto transition hover:bg-marca-fuerte disabled:cursor-not-allowed disabled:bg-campo-borde disabled:text-texto-suave"
+        >
+          {enviando ? "Guardando…" : textoBoton}
+        </button>
+      </div>
     </form>
   );
 }

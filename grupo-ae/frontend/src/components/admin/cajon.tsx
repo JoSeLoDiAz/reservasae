@@ -82,8 +82,8 @@ export function Cajon({
       >
         <header className="flex items-start gap-3 border-b border-borde px-6 py-4">
           <div className="min-w-0 flex-1">
-            <h2 className="truncate text-lg font-semibold">{titulo}</h2>
-            {subtitulo && <p className="mt-0.5 text-sm text-texto-suave">{subtitulo}</p>}
+            <h2 className="titulo-bloque truncate">{titulo}</h2>
+            {subtitulo && <p className="secundario mt-1">{subtitulo}</p>}
           </div>
           <button
             type="button"
@@ -108,7 +108,7 @@ export function Dato({ titulo, valor }: { titulo: string; valor: ReactNode }) {
   if (valor === null || valor === undefined || valor === "") return null;
   return (
     <div>
-      <dt className="text-xs uppercase tracking-wide text-texto-suave">{titulo}</dt>
+      <dt className="rotulo-bloque">{titulo}</dt>
       <dd className="mt-0.5">{valor}</dd>
     </div>
   );

@@ -133,8 +133,119 @@ export type ResumenDeVentas = {
   cuantasFrias: number;
 };
 
+/** Un movimiento de la bitácora: qué le pasó y quién lo hizo. */
+export type MovimientoDeOportunidad = {
+  id: string;
+  de: EtapaOportunidad | null;
+  a: EtapaOportunidad;
+  nota: string | null;
+  actorNombre: string;
+  creadoEn: string;
+};
+
+/**
+ * La oportunidad entera, para su ficha.
+ *
+ * Trae la bitácora dentro y no en una llamada aparte: el historial
+ * es la mitad de la ficha —lo que dice POR QUÉ está donde está— y
+ * pedirlo por separado deja media pantalla en blanco mientras carga
+ * lo que más se lee.
+ */
+export type FichaDeOportunidad = {
+  id: string;
+  codigo: string;
+  convenioId: string;
+  embudo: TipoEmbudo;
+  etapa: EtapaOportunidad;
+  titulo: string;
+  valor: number;
+  moneda: string;
+  probabilidad: number;
+  probabilidadPropia: boolean;
+  cierreEsperado: string | null;
+  campana: string | null;
+  creadoEn: string;
+  ultimoToqueEn: string;
+  primeraRespuestaEn: string | null;
+  minutosPrimeraRespuesta: number | null;
+  cerradaEn: string | null;
+  motivoCierre: MotivoCierre | null;
+  notaCierre: string | null;
+  asesor: { id: string; nombre: string } | null;
+  empresa: { id: string; razonSocial: string; nit: string } | null;
+  persona: {
+    id: string;
+    primerNombre: string;
+    primerApellido: string;
+    correo: string | null;
+    celular: string | null;
+  } | null;
+  movimientos: MovimientoDeOportunidad[];
+};
+
 export const oportunidadesApi = {
   resumen: () => pedir<ResumenDeVentas>("/admin/oportunidades/resumen"),
+
+  /// La ficha entera de una oportunidad, con su historial.
+  ficha: (id: string) => pedir<FichaDeOportunidad>(`/admin/oportunidades/${id}`),
+
+  actualizar: (
+    id: string,
+    cambios: {
+      titulo?: string;
+      valor?: number;
+      cierreEsperado?: string | null;
+      campana?: string | null;
+    },
+  ) =>
+    pedir<FichaDeOportunidad>(`/admin/oportunidades/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(cambios),
+    }),
+
+  /// `null` la suelta. Se manda escrito, nunca omitido: un
+  /// `undefined` que se cuela dejaría sin dueño un negocio que
+  /// alguien estaba trabajando, y en silencio.
+  asignarAsesor: (id: string, asesorId: string | null, nota?: string) =>
+    pedir(`/admin/oportunidades/${id}/asesor`, {
+      method: "PATCH",
+      body: JSON.stringify({ asesorId, nota }),
+    }),
+
+  /// `null` la devuelve a la probabilidad de su etapa.
+  pisarProbabilidad: (id: string, probabilidad: number | null, nota?: string) =>
+    pedir(`/admin/oportunidades/${id}/probabilidad`, {
+      method: "PATCH",
+      body: JSON.stringify({ probabilidad, nota }),
+    }),
+
+  atarCliente: (id: string, quien: { empresaId?: string; personaId?: string }) =>
+    pedir(`/admin/oportunidades/${id}/cliente`, {
+      method: "PATCH",
+      body: JSON.stringify(quien),
+    }),
+
+  anotar: (id: string, nota: string) =>
+    pedir(`/admin/oportunidades/${id}/notas`, {
+      method: "POST",
+      body: JSON.stringify({ nota }),
+    }),
+
+  crear: (datos: {
+    embudo: TipoEmbudo;
+    titulo: string;
+    convenioId: string;
+    valor?: number;
+    cierreEsperado?: string;
+    asesorId?: string;
+    empresaId?: string;
+    personaId?: string;
+    campana?: string;
+  }) =>
+    pedir<{ id: string; codigo: string }>("/admin/oportunidades", {
+      method: "POST",
+      body: JSON.stringify(datos),
+    }),
 
   tablero: (embudo: TipoEmbudo, asesorId?: string) =>
     pedir<Tablero>(

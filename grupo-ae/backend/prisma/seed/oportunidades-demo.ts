@@ -174,6 +174,33 @@ const PROBABILIDAD: Record<TipoEmbudo, Partial<Record<EtapaOportunidad, number>>
   PERSONA: { CAPTADO: 10, CONTACTADO: 30, CALIFICADO: 55, GANADO: 100, PERDIDO: 0 },
 };
 
+/**
+ * POR QUÉ PUERTA ENTRÓ CADA NEGOCIO.
+ *
+ * `Oportunidad` no tiene `formularioId`: guarda `campana`, una
+ * cadena libre, y la única forma de saber por qué formulario
+ * entró un negocio es la convención de
+ * `frontend/src/lib/enlace-de-campana.ts` — el enlace que se
+ * reparte se marca `<slug de la puerta>/<anuncio>`.
+ *
+ * La siembra escribía «Meta · Seguridad industrial» a secas, sin
+ * puerta delante, y entonces la pantalla de Formularios contaba
+ * cero: la cuenta era correcta y el dato no la ejercitaba. Con la
+ * puerta puesta, la frase que pidió el dueño —«esta puerta ha
+ * traído N negocios que valen X»— se ve en la demo.
+ *
+ * Los dos slugs son los de los formularios publicados que siembra
+ * `formularios.ts`, y son los mismos dos embudos: el de empresas
+ * y el de personas.
+ */
+const PUERTA: Record<TipoEmbudo, string> = {
+  [TipoEmbudo.EMPRESA]: 'empresas',
+  [TipoEmbudo.PERSONA]: 'personas',
+};
+
+const marcaDe = (s: Semilla) =>
+  s.campana ? `${PUERTA[s.embudo]}/${s.campana}` : PUERTA[s.embudo];
+
 async function main() {
   const convenio = await prisma.convenio.findFirst({ where: { activo: true } });
   if (!convenio) {
@@ -221,7 +248,7 @@ async function main() {
         asesorId: asesor?.id ?? null,
         empresaId: esEmpresa ? (empresas[n % Math.max(1, empresas.length)]?.id ?? null) : null,
         personaId: !esEmpresa ? (personas[n % Math.max(1, personas.length)]?.id ?? null) : null,
-        campana: s.campana ?? null,
+        campana: marcaDe(s),
         creadoEn,
         primeraRespuestaEn: s.respondida === null ? null : haceMinutos(s.edad - s.respondida),
         minutosPrimeraRespuesta: s.respondida,

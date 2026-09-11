@@ -66,6 +66,7 @@ model Convenio {
 
   cargasDeParticipantes CargaDeParticipantes[]
   oportunidades         Oportunidad[]
+  metas                 MetaComercial[]
 
   @@index([formularioMarcaId])
   @@map("convenios")
@@ -1289,6 +1290,9 @@ model Admin {
 
   oportunidadesAsignadas Oportunidad[]           @relation("OportunidadesDelAsesor")
   movimientosOportunidad MovimientoOportunidad[] @relation("MovimientosDeOportunidad")
+  gestionesAsignadas     Gestion[]               @relation("GestionesDelAsesor")
+  gestionesCreadas       Gestion[]               @relation("GestionesCreadas")
+  metas                  MetaComercial[]         @relation("MetasDelAsesor")
 
   @@map("administradores")
 }
@@ -2220,6 +2224,7 @@ model Oportunidad {
   actualizadoEn DateTime @updatedAt
 
   movimientos MovimientoOportunidad[]
+  gestiones   Gestion[]
 
   @@index([convenioId, etapa])
   @@index([convenioId, asesorId, etapa])
@@ -2257,4 +2262,127 @@ model MovimientoOportunidad {
 
   @@index([oportunidadId, creadoEn])
   @@map("movimientos_oportunidad")
+}
+
+// ─────────────────────────────────────────────────────────────
+// LA GESTIÓN COMERCIAL
+//
+// Una oportunidad sin próximo paso es una oportunidad abandonada,
+// y hasta aquí el sistema no podía decirlo: sabía en qué etapa
+// estaba cada negocio, pero no si alguien iba a hacer algo con él
+// mañana. Ese hueco es el que mata los embudos.
+// ─────────────────────────────────────────────────────────────
+
+/// Qué se hizo, o qué se va a hacer.
+///
+/// `TAREA` es el cajón para lo que no es una conversación:
+/// preparar la propuesta, pedir los documentos, recordar el
+/// seguimiento.
+enum TipoGestion {
+  LLAMADA
+  REUNION
+  CORREO
+  WHATSAPP
+  VISITA
+  TAREA
+}
+
+/**
+ * Una gestión: lo que un asesor hizo o hará por un negocio.
+ *
+ * Se llama `Gestion` y no `Actividad` porque ese nombre ya lo
+ * ocupa el aula heredada del SENA, en la línea 533. Renombrar
+ * aquella es una migración destructiva que va al final; hasta
+ * entonces, dos nombres distintos para dos cosas distintas es más
+ * honesto que un `Actividad2`.
+ *
+ * Sirve para las dos mitades del trabajo comercial y por eso
+ * `venceEn` y `hechaEn` son las dos opcionales:
+ *
+ *  - lo YA hecho: `hechaEn` puesta, `venceEn` normalmente vacía.
+ *    Es el registro de la llamada de ayer.
+ *  - lo POR hacer: `venceEn` puesta, `hechaEn` vacía. Es lo que
+ *    sale en la agenda y lo que hace que un negocio no se enfríe.
+ *
+ * Una fila con las dos puestas es una tarea que se cumplió, y es
+ * el caso normal: se agenda y luego se marca. Una con ninguna es
+ * una nota suelta con fecha de creación, que también vale.
+ */
+model Gestion {
+  id String @id @default(cuid())
+
+  oportunidadId String
+  oportunidad   Oportunidad @relation(fields: [oportunidadId], references: [id], onDelete: Cascade)
+
+  tipo   TipoGestion
+  titulo String
+  /// Lo que se dijo. En un CRM esto es la mitad del valor: la
+  /// etapa dice dónde está el negocio, la nota dice por qué.
+  nota   String?
+
+  /// Cuándo hay que hacerla. Null: no es un compromiso, es un
+  /// registro de algo que ya pasó.
+  venceEn DateTime?
+  /// Cuándo se hizo. Null mientras esté pendiente.
+  hechaEn DateTime?
+
+  /// Quién responde. Puede no ser el dueño de la oportunidad: el
+  /// líder agenda una visita y la hace el asesor.
+  asesorId String?
+  asesor   Admin?  @relation("GestionesDelAsesor", fields: [asesorId], references: [id], onDelete: SetNull)
+
+  /// Quién la creó, que no siempre es quien la hace.
+  creadaPorId String?
+  creadaPor   Admin?  @relation("GestionesCreadas", fields: [creadaPorId], references: [id], onDelete: SetNull)
+
+  creadoEn      DateTime @default(now())
+  actualizadoEn DateTime @updatedAt
+
+  /// Para «lo que vence hoy», que es la consulta de la agenda y la
+  /// que se hace cada vez que alguien abre el panel.
+  @@index([asesorId, venceEn, hechaEn])
+  @@index([oportunidadId, creadoEn])
+  @@map("gestiones")
+}
+
+/**
+ * Cuánto tiene que vender alguien, y en qué mes.
+ *
+ * Sin meta el tablero informa; con meta, dirige. Es la diferencia
+ * entre «llevamos 40 millones» y «llevamos 40 de 60 y quedan seis
+ * días».
+ *
+ * `asesorId` en null es la meta del EQUIPO, no la de nadie: así el
+ * mismo modelo sirve para el objetivo de la empresa y para el de
+ * cada persona sin inventar una segunda tabla. La clave única
+ * incluye el nulo, de modo que hay una meta de equipo por mes y
+ * una por asesor y mes, y ni una más.
+ */
+model MetaComercial {
+  id String @id @default(cuid())
+
+  convenioId String
+  convenio   Convenio @relation(fields: [convenioId], references: [id])
+
+  asesorId String?
+  asesor   Admin?  @relation("MetasDelAsesor", fields: [asesorId], references: [id], onDelete: Cascade)
+
+  anio Int
+  /// De 1 a 12. Se valida en el servicio: la base no sabe de meses.
+  mes  Int
+
+  /// En pesos. Decimal por la misma razón que el valor de la
+  /// oportunidad: un centavo de redondeo se multiplica por cada
+  /// comparación contra el avance.
+  valor Decimal @db.Decimal(14, 2)
+
+  /// Null: la meta cubre los dos embudos sumados.
+  embudo TipoEmbudo?
+
+  creadoEn      DateTime @default(now())
+  actualizadoEn DateTime @updatedAt
+
+  @@unique([convenioId, asesorId, anio, mes, embudo])
+  @@index([convenioId, anio, mes])
+  @@map("metas_comerciales")
 }

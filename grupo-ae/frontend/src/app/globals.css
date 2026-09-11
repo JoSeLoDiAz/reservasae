@@ -29,8 +29,42 @@
   --encabezado-texto: #0f172a;
   --encabezado-borde: #e2e8f0;
 
-  --tabla-cabecera-fondo: #f1f5f9;
-  --tabla-cabecera-texto: #475569;
+  /* EL GRIS DEL MARCO, que hasta ahora era `opacity`.
+
+     La barra lateral y la cabecera apagaban su letra con
+     `opacity-85`, `opacity-70`, `opacity-55` y `opacity-30`, y
+     los fondos suaves con `bg-current/5` y `bg-current/10`. Son
+     seis grises distintos para decir una sola cosa, y por
+     debajo del minimo legible: `opacity-55` sobre 13 px da unos
+     3:1. Ahi esta la mitad del aspecto lavado, y esta en las
+     quince pantallas porque el marco esta en las quince.
+
+     No se puede usar `--texto-suave` a secas: el fondo del
+     marco lo edita el administrador desde Apariencia y puede
+     ser oscuro, y entonces un gris de fondo claro desaparece.
+     Se derivan de los DOS tokens de la propia cabecera --que
+     por definicion contrastan entre si, porque si no la
+     cabecera no se leeria--, igual que `--hairline` se deriva
+     de `--borde`. Asi el marco sigue el tema que sea sin saber
+     de que color es ninguno, y sin una sola opacidad. */
+  --encabezado-suave: color-mix(
+    in oklab,
+    var(--encabezado-texto) 62%,
+    var(--encabezado-fondo)
+  );
+  --encabezado-alterna: color-mix(
+    in oklab,
+    var(--encabezado-texto) 8%,
+    var(--encabezado-fondo)
+  );
+
+  /* La cabecera de tabla se IGUALA a la superficie: pasa a ser
+     rotulo en versalita sobre blanco con una regla de 1px
+     debajo. El token sigue ahi y sigue siendo editable desde
+     Apariencia -- quien quiera la cabecera tenida la tiene a un
+     clic --, pero no es lo que sale de fabrica. */
+  --tabla-cabecera-fondo: #ffffff;
+  --tabla-cabecera-texto: #64748b;
   --tabla-fila-alterna: #f8fafc;
   --tabla-fila-resaltada: #eff6ff;
   --tabla-borde: #e2e8f0;
@@ -61,18 +95,36 @@
   --gestion-campo: #1c2738;
   --gestion-campo-borde: #2c394d;
 
-  /* etapas del crm */
-  --etapa-interesado: #5b6472;
-  --etapa-contactado: #1f4e85;
-  --etapa-datos-completos: #4c3a8c;
-  --etapa-inscrito: #1a6e58;
-  --etapa-en-formacion: #8a5a12;
-  --etapa-certificado: #2c6b1f;
-  --etapa-perdido: #9c3126;
+  /* Las etapas no son un arcoiris: son una RAMPA.
+
+     Una etapa no es «otra cosa» que la anterior, es «mas
+     adelante» que la anterior. De gris a azul profundo: cuanto
+     mas oscuro, mas cerca del dinero. Una columna de cuarenta
+     filas se lee de un vistazo aunque no se sepan los nombres,
+     y quien no distingue colores ve igual la rampa de claro a
+     oscuro.
+
+     Ganado es el UNICO verde de la pantalla. Y Perdido se apaga
+     en vez de gritar en rojo: en un embudo sano se pierden dos
+     de cada tres negocios, y cuarenta filas rojas dicen que
+     todo esta mal cuando todo esta normal. */
+  --etapa-interesado: #64748b;
+  --etapa-contactado: #5977a5;
+  --etapa-datos-completos: #3b6cc4;
+  --etapa-inscrito: #1d4ed8;
+  --etapa-en-formacion: #1e3a8a;
+  --etapa-certificado: #047857;
+  /* Perdido se apaga: es la unica etapa SIN color. La
+     direccion pide #94a3b8 y la intencion es la correcta, pero
+     ese gris da 2,56 sobre blanco y la casa exige 4,5 a toda
+     etiqueta de etapa. «Apagado» se consigue igual quitandole
+     el CROMA en vez de la luz: Captado es gris AZUL, Perdido es
+     gris a secas. */
+  --etapa-perdido: #6b7280;
   --etapa-retirado: #7a2e72;
   --etapa-no-aprobo: #c22a1e;
-  --etapa-deserto: #0f7f94;
-  --etapa-abandono: #2f3a8e;
+  --etapa-deserto: #0f78a5;
+  --etapa-abandono: #6d28d9;
 
   /* El alto de una fila de tabla, en un solo sitio. Es token
      y no un numero suelto porque la densidad es una decision
@@ -84,7 +136,7 @@
      Si creciera, subir el texto al 150 % separaria las filas
      el doble y la tabla perderia justo la densidad que la
      hace util. El texto crece; el relleno se queda. */
-  --pad-fila: 9px;
+  --pad-fila: 7px;
 
   /* series de los graficos */
   --serie-1: #2a78d6;
@@ -114,8 +166,8 @@
   --encabezado-texto: #e8edf7;
   --encabezado-borde: #26324a;
 
-  --tabla-cabecera-fondo: #1a2439;
-  --tabla-cabecera-texto: #c3cee0;
+  --tabla-cabecera-fondo: #131c2e;
+  --tabla-cabecera-texto: #9aa8c0;
   --tabla-fila-alterna: #101a2b;
   --tabla-fila-resaltada: #172554;
   --tabla-borde: #26324a;
@@ -146,17 +198,20 @@
   --gestion-campo: #131c2e;
   --gestion-campo-borde: #33405c;
 
-  /* etapas aclaradas para fondo oscuro */
-  --etapa-interesado: #a3aec0;
-  --etapa-contactado: #7cb2f0;
-  --etapa-datos-completos: #b3a4f0;
-  --etapa-inscrito: #5ec6a8;
-  --etapa-en-formacion: #e0b155;
-  --etapa-certificado: #86cf72;
-  --etapa-perdido: #f2938a;
+  /* La misma RAMPA, girada. En un fondo oscuro «mas cerca del
+     dinero» no puede ser mas oscuro -- se perderia contra el
+     fondo --, asi que la etapa se ACLARA segun avanza. El orden
+     que ve el ojo es el mismo. */
+  --etapa-interesado: #94a3b8;
+  --etapa-contactado: #93b4d8;
+  --etapa-datos-completos: #7ba3ea;
+  --etapa-inscrito: #60a5fa;
+  --etapa-en-formacion: #bfdbfe;
+  --etapa-certificado: #34d399;
+  --etapa-perdido: #8b8f99;
   --etapa-retirado: #dfa0d8;
   --etapa-no-aprobo: #f77a5c;
-  --etapa-deserto: #4fd6ea;
+  --etapa-deserto: #22b8d8;
   --etapa-abandono: #8d9bf2;
 
   /* series reescalonadas para fondo oscuro */
@@ -183,18 +238,55 @@
      «2xl» ya no hay jerarquía de redondeo que mantener, y esa
      jerarquía era justo lo que hacía que unas cajas se vieran
      más blandas que otras sin ningún motivo. */
-  /* Los radios del handoff del redisenio: tarjetas 16px,
-     sub-tarjetas y fichas 12px, inputs y botones 9-10px.
-     Estuvieron aplastados a 3px durante un rato y eso es lo
-     que hacia que la pantalla no se pareciera al diseno. */
-  --radius-xs: 7px;
-  --radius-sm: 8px;
-  --radius-md: 10px;
-  --radius-lg: 10px;
-  --radius-xl: 14px;
-  --radius-2xl: 14px;
-  --radius-3xl: 14px;
-  --radius-4xl: 14px;
+  /* DOS radios, y aqui solo cabe uno.
+
+     6px para lo que se PULSA o se ESCRIBE -- boton, campo,
+     desplegable, ficha del tablero, chip de pestania -- y 0px
+     para todo lo demas: bandas, tablas, reglas, bloques.
+
+     Los siete escalones se aplastan al mismo numero a
+     proposito. Habia cuatro curvas distintas en una sola
+     pantalla (7, 8, 10 y 14) y ninguna significaba nada: el
+     radio no estaba diciendo «esto se toca», solo estaba
+     diciendo «alguien escribio otra clase». Ahora rounded-lg
+     y rounded-2xl miden lo mismo, que es el unico radio que
+     el panel reconoce, y el cero se pide con rounded-none en
+     las cuatro piezas que son contenedor.
+
+     rounded-full sigue intacto y no sale de aqui: lo usan
+     dos cosas de verdad redondas -- el punto de 6px de la
+     etapa y el circulo que gira al cargar. */
+  --radius-xs: 6px;
+  --radius-sm: 6px;
+  --radius-md: 6px;
+  --radius-lg: 6px;
+  --radius-xl: 6px;
+  --radius-2xl: 6px;
+  --radius-3xl: 6px;
+  --radius-4xl: 6px;
+
+  /* El radio de la PUERTA: `rounded-plano`, 4px.
+     ────────────────────────────────────────────────────────
+     La regla 1 de `docs/estilo-del-panel.md` pide 3-4px y los
+     escalones de arriba están en 10-14px por el handoff del
+     rediseño. No se tocan: son del panel y esa decisión es
+     posterior al documento.
+
+     Pero las pantallas públicas son las únicas que ve alguien
+     de fuera, y con 14px se leen como una app de teléfono
+     —que fue la queja literal—. Así que el formulario público
+     usa este token y el panel conserva los suyos.
+
+     Va aquí y no como `rounded-[4px]` en el componente a
+     propósito: el radio es un token, no una clase. Si mañana
+     el panel se aplana también, se cambia un número. */
+  /* Sube de 4 a 6 px y deja de ser «el radio de la puerta»:
+     es el radio del sistema entero. La direccion deja DOS
+     valores -- 6 px para lo que se pulsa o se escribe (boton,
+     campo, desplegable, ficha del tablero, chip de pestana) y
+     0 px para todo lo demas: bandas, tablas, reglas, bloques,
+     que se consigue no poniendo ninguna clase. */
+  --radius-plano: 6px;
 
   --color-marca: var(--marca);
   --color-marca-fuerte: var(--marca-fuerte);
@@ -214,6 +306,8 @@
   --color-encabezado-fondo: var(--encabezado-fondo);
   --color-encabezado-texto: var(--encabezado-texto);
   --color-encabezado-borde: var(--encabezado-borde);
+  --color-encabezado-suave: var(--encabezado-suave);
+  --color-encabezado-alterna: var(--encabezado-alterna);
 
   --color-tabla-cabecera-fondo: var(--tabla-cabecera-fondo);
   --color-tabla-cabecera-texto: var(--tabla-cabecera-texto);
@@ -260,10 +354,13 @@
 body {
   background: var(--fondo);
   color: var(--texto);
-  /* 13,5px del redisenio, en rem para que el ajuste de texto
-     del panel (80 %-150 %) lo siga escalando. */
-  font-size: 0.84375rem;
-  line-height: 1.45;
+  /* 13px, en rem para que el ajuste de texto del panel
+     (80 %-150 %) lo siga escalando. Las CAJAS y los RELLENOS
+     van en px, que no deben crecer con el: el texto crece, el
+     relleno se queda, y asi subir el texto al 150 % no separa
+     las filas el doble. */
+  font-size: 0.8125rem;
+  line-height: 1.4;
   -webkit-font-smoothing: antialiased;
 }
 
@@ -552,7 +649,11 @@ h3 {
   --franja-alto: 0px;
 }
 :root:has(.franja-entorno) {
-  --franja-alto: 2.25rem;
+  /* 28px. Era lo mas ruidoso de las quince pantallas -- 44px de
+     ladrillo con letra de 15 -- y es lo unico que no es del
+     producto. Sigue siendo imposible de ignorar; ya no es lo
+     primero que ve el ojo. */
+  --franja-alto: 1.75rem;
 }
 
 /* la barra tiene que verse sin pasar el raton por encima */
@@ -580,7 +681,7 @@ h3 {
 :where(a, button, input, select, textarea, [tabindex]):focus-visible {
   outline: 2px solid var(--campo-foco);
   outline-offset: 2px;
-  border-radius: 10px;
+  border-radius: 6px;
 }
 
 /* la barra de desplazamiento, discreta en todas partes */
@@ -711,9 +812,13 @@ select[size]:not([size='1']) {
 .pildora-etapa {
   display: inline-flex;
   align-items: center;
-  gap: 0.4375rem;
+  /* 6px de separacion entre el punto y el rotulo */
+  gap: 6px;
   color: var(--etapa);
-  font-size: inherit;
+  /* 13px peso 600: el 600 es EL PESO DEL ESTADO y de nada mas
+     en todo el panel. Ver un 600 en cualquier pantalla
+     significa «esto es la etapa o el resultado de algo». */
+  font-size: 0.8125rem;
   font-weight: 600;
   white-space: nowrap;
 }
@@ -721,8 +826,10 @@ select[size]:not([size='1']) {
 /* El punto de color que acompana a la etapa. Vuelve porque el
    handoff lo pide: circulo 8x8 delante del texto. */
 .punto-etapa {
-  width: 0.5rem;
-  height: 0.5rem;
+  /* 6px en px y no en rem: es una CAJA, no letra, y no crece
+     con el ajuste de texto. */
+  width: 6px;
+  height: 6px;
   border-radius: 999px;
   background: var(--etapa);
   flex: none;
@@ -741,22 +848,23 @@ select[size]:not([size='1']) {
     --titulo: #000000;
     --texto: #111827;
     --texto-suave: #4b5563;
-    --tabla-cabecera-fondo: #f1f5f9;
-    --tabla-cabecera-texto: #1f2937;
+    --tabla-cabecera-fondo: #ffffff;
+    --tabla-cabecera-texto: #4b5563;
     --tabla-fila-alterna: #fafbfc;
     --tabla-fila-resaltada: transparent;
     /* las del oscuro no se leen sobre papel blanco */
-    --etapa-interesado: #5b6472;
-    --etapa-contactado: #1f4e85;
-    --etapa-datos-completos: #4c3a8c;
-    --etapa-inscrito: #1a6e58;
-    --etapa-en-formacion: #8a5a12;
-    --etapa-certificado: #2c6b1f;
-    --etapa-perdido: #9c3126;
+    --etapa-interesado: #64748b;
+    --etapa-contactado: #5977a5;
+    --etapa-datos-completos: #3b6cc4;
+    --etapa-inscrito: #1d4ed8;
+    --etapa-en-formacion: #1e3a8a;
+    --etapa-certificado: #047857;
+    /* en papel «apagado» no puede ser invisible */
+    --etapa-perdido: #6b7280;
     --etapa-retirado: #7a2e72;
     --etapa-no-aprobo: #c22a1e;
-    --etapa-deserto: #0f7f94;
-    --etapa-abandono: #2f3a8e;
+    --etapa-deserto: #0f78a5;
+    --etapa-abandono: #6d28d9;
     color-scheme: light;
   }
 
@@ -1192,15 +1300,15 @@ select[size]:not([size='1']) {
   background: var(--tabla-cabecera-fondo);
   color: var(--tabla-cabecera-texto);
   text-align: left;
-  font-weight: 600;
-  /* 10,5px del redisenio, en rem para que siga creciendo con
-     el ajuste de texto del panel. Antes iba al mismo cuerpo
-     que las filas; ahora la cabecera es rotulo y la fila es
-     dato, y se distinguen por tamano ademas de por peso. */
-  font-size: 0.65625rem;
-  letter-spacing: 0.06em;
+  /* El ROTULO de la seccion 4: 10px, peso 700, +0.11em. No es
+     un titulo pequenio, es otro papel -- y por eso ya no
+     necesita fondo tenido para separarse de las filas: le
+     basta la regla de 1px de abajo. */
+  font-weight: 700;
+  font-size: 0.625rem;
+  letter-spacing: 0.11em;
   text-transform: uppercase;
-  padding: 0.625rem 0.875rem;
+  padding: 8px 12px;
   border-bottom: 1px solid var(--borde);
   /* El título se acomoda al ancho de su columna.
 
@@ -1227,10 +1335,31 @@ select[size]:not([size='1']) {
      parte entre palabras, nunca entre letras. */
   overflow-wrap: break-word;
 }
+
+/* La cabecera de una columna de numeros va DONDE VA SU DATO.
+
+   `text-align: left` de arriba es un selector de dos elementos
+   (0,1,2) y le ganaba a la utilidad `text-right` que la tabla
+   ya le pone al `th` de toda columna `numerica` (0,1,0). El
+   resultado se veia en Leads: «Valor» y «1.ª respuesta»
+   pegados a la izquierda de su columna y las cifras alineadas
+   a la derecha, a 130 px de su propio rotulo.
+
+   El contrato de la seccion 7 dice que el dinero, el
+   porcentaje y el reloj van SIEMPRE a la derecha. Un rotulo
+   que no cae sobre su columna rompe justo la lectura vertical
+   por la que se alinean. */
+.tabla-datos thead th.text-right {
+  text-align: right;
+}
+
 .tabla-datos tbody td {
-  /* 12,5px */
-  font-size: 0.78125rem;
-  padding: var(--pad-fila) 0.875rem;
+  /* El DATO: 13px, peso 400. Con --pad-fila en 7px la fila
+     mide 33, y en los 792px de trabajo que quedan bajo la
+     cabecera entran veintitres filas sin desplazar. Antes
+     entraban ocho, y la octava salia cortada. */
+  font-size: 0.8125rem;
+  padding: var(--pad-fila) 12px;
   border-bottom: 1px solid var(--hairline);
 }
 /* la ultima no lleva raya: ya la pone la tarjeta */
@@ -1347,4 +1476,277 @@ select[size]:not([size='1']) {
     translate: 0 0;
     scale: 1;
   }
+}
+
+/* ════════════════════════════════════════════════════════════
+   LA DIRECCIÓN VISUAL, EN CLASES
+   ════════════════════════════════════════════════════════════
+
+   Va aquí abajo y no repartida por las pantallas a propósito:
+   la regla 15 de la dirección dice que esto se aplica en
+   `globals.css`, `piezas.tsx`, `marco-admin.tsx` y `tabla.tsx`,
+   y que una pantalla que necesite una clase suelta para verse
+   bien delata que la pieza compartida está mal.
+
+   Los tamaños en `rem` —que es lo que deja funcionar el ajuste
+   de texto del panel— y las cajas y los rellenos en `px`, que
+   no deben crecer con él.
+   ──────────────────────────────────────────────────────────── */
+
+/* 13 px / 1,4. Antes 13,5 / 1,45. */
+body {
+  font-size: 0.8125rem;
+  line-height: 1.4;
+}
+
+/* LOS NUEVE PAPELES VAN EN `@layer components`, Y NO ES UN
+   DETALLE DE ORDEN.
+
+   Sin capa, estas nueve clases quedan FUERA de las capas de
+   Tailwind, y en la cascada lo que no está en ninguna capa gana
+   a lo que sí. O sea que `.dato { color: var(--texto) }` le
+   ganaba a `text-marca`, a `text-marca-texto` y a
+   `text-texto-suave` escritos en el mismo elemento: los enlaces
+   del panel salían del color del texto en vez de azules, y la
+   letra del botón principal salía oscura sobre su propio azul.
+
+   Dentro de `components` —que Tailwind declara antes que
+   `utilities`— el papel pone el tamaño, el peso y un color POR
+   OMISIÓN, y cualquier utilidad de color escrita al lado lo
+   corrige. Que es justo el contrato con el que ya están escritas
+   las llamadas de las quince pantallas: `dato text-marca`,
+   `estado text-titulo`, `secundario text-texto`. */
+@layer components {
+
+/* ── Los nueve papeles. Ni uno más. ─────────────────────────
+   Si un caso no encaja en estos nueve, el caso está mal
+   resuelto: se arregla el caso, no se inventa un décimo. */
+
+/* Una sola cifra por pantalla puede ir aquí, y siempre es
+   dinero. Nunca un conteo, nunca un porcentaje, nunca una
+   fecha. */
+.cifra-portada {
+  font-size: 2.125rem;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1.05;
+  color: var(--titulo);
+  font-variant-numeric: tabular-nums;
+}
+
+.cifra-columna {
+  font-size: 1.25rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+  color: var(--titulo);
+  font-variant-numeric: tabular-nums;
+}
+
+.titulo-pantalla {
+  font-size: 1.1875rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+  color: var(--titulo);
+}
+
+.titulo-bloque {
+  font-size: 0.8125rem;
+  font-weight: 700;
+  letter-spacing: 0;
+  line-height: 1.3;
+  color: var(--titulo);
+}
+
+/* El rótulo en versalita: lo que separa un bloque del
+   siguiente ahora que los bloques no llevan ni borde ni
+   franja de color. */
+.rotulo-bloque {
+  font-size: 0.625rem;
+  font-weight: 700;
+  letter-spacing: 0.11em;
+  line-height: 1.2;
+  text-transform: uppercase;
+  color: var(--texto-suave);
+}
+
+.dato {
+  font-size: 0.8125rem;
+  font-weight: 400;
+  line-height: 1.4;
+  color: var(--texto);
+}
+
+/* El 600 está RESERVADO: es el peso del estado y de nada más.
+   Ver un 600 en cualquier pantalla significa «esto es la etapa
+   o el resultado de algo». */
+.estado {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.secundario {
+  font-size: 0.71875rem;
+  font-weight: 400;
+  line-height: 1.45;
+  color: var(--texto-suave);
+}
+
+.micro {
+  font-size: 0.65625rem;
+  font-weight: 400;
+  letter-spacing: 0.02em;
+  line-height: 1.3;
+  color: var(--texto-suave);
+}
+
+} /* ── fin de @layer components ───────────────────────────── */
+
+/* ── La banda: el ÚNICO contenedor del panel ────────────────
+   Antes convivían tres —bandas a sangre con regla, cajas con
+   borde y cabecera teñida, y contenido suelto sobre el fondo—
+   y el marco cambiaba según en qué pantalla se estuviera.
+
+   Las bandas se TOCAN: no hay separación entre ellas, las
+   separa una regla de 1 px. El aire se gana quitando alto
+   muerto, no metiendo bloques. */
+.banda {
+  background: var(--superficie);
+  border-bottom: 1px solid var(--borde);
+  padding: 16px 24px 24px;
+}
+
+@media (max-width: 1023px) {
+  .banda {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+}
+
+/* La banda del título de pantalla, con su regla de 2 px.
+   2 px significa «aquí empieza algo»; 1 px, «aquí se separan
+   dos cosas». No hay un tercer grosor: es la gramática que
+   sale del signo de la casa, un arco que empieza y termina. */
+.banda-titulo {
+  border-bottom: 2px solid var(--titulo);
+  padding-top: 20px;
+  padding-bottom: 16px;
+}
+
+/* ── Anchos ─────────────────────────────────────────────────
+   El contenido de trabajo —tablas, tablero— va a sangre y sin
+   tope. Lo demás, no. */
+
+/* La prosa topa en 68 ch: descripciones, textos legales,
+   ayudas. */
+.prosa {
+  max-width: 68ch;
+}
+
+/* Un campo de correo no mide 1350 px de ancho nunca. */
+.formulario {
+  max-width: 720px;
+}
+
+.formulario-doble {
+  display: grid;
+  gap: 16px 24px;
+}
+
+@media (min-width: 1100px) {
+  .formulario-doble {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.formulario-doble > .a-lo-ancho {
+  grid-column: 1 / -1;
+}
+
+/* Un campo mide lo que mide su dato. Se declaran CINCO anchos
+   y no hay un sexto. */
+.ancho-documento { max-width: 160px; }
+.ancho-celular   { max-width: 180px; }
+.ancho-fecha     { max-width: 140px; }
+.ancho-nombre    { max-width: 320px; }
+.ancho-correo    { max-width: 360px; }
+
+/* ── Las públicas ───────────────────────────────────────────
+   Misma tipografía, mismo acento y las mismas piezas de datos
+   que el panel, pero MÁS AIRE: no es una cabina de trabajo,
+   es la cara del producto ante alguien que está comparando
+   proveedores. El aire se le da aquí, en un sitio, y no a
+   base de rellenos sueltos en cada componente. */
+.banda-publica {
+  padding-top: 40px;
+  padding-bottom: 40px;
+  border-bottom: 1px solid var(--borde);
+}
+
+.banda-publica:last-of-type {
+  border-bottom: 0;
+}
+
+/* ── Ninguna celda pasa de dos renglones ────────────────────
+   Una fila de la lista medía tres renglones porque «Qué se
+   vende» y «Campaña» envolvían libremente: ocho filas llenaban
+   la pantalla y la octava salía cortada por la mitad. Un tercer
+   renglón multiplica el alto de la tabla por 1,5 para ganar
+   cinco palabras que además se leen mejor en el cajón. */
+.hasta-dos-lineas {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+}
+
+
+/* El aviso: el color va en la LETRA.
+   Se acabaron las tarjetas teñidas de rosa y de amarillo.
+   `--exito-suave`, `--aviso-suave` y `--error-suave` se usan
+   en UN sitio, la franja de entorno de pruebas, y en ninguno
+   más. */
+.aviso-en-linea {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+/* El título de una pantalla pública.
+   NO es un décimo tamaño: son los mismos 34 px / 700 / −0.03em
+   que la cifra de portada, que es el escalón más alto que
+   declara la dirección. En el panel esos 34 px son siempre
+   dinero; en la pública no hay dinero que enseñar y lo más
+   grande es la pregunta que se le hace a quien llega. */
+.titulo-publico {
+  font-size: 2.125rem;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1.1;
+  color: var(--titulo);
+}
+
+/* El texto legal dentro del formulario público: el único
+   sub-bloque que retrocede, y por eso el único sitio del
+   producto donde `--superficie-alterna` es un fondo. */
+.texto-legal {
+  background: var(--superficie-alterna);
+  padding: 16px;
+  max-height: 288px;
+  overflow-y: auto;
+  white-space: pre-line;
+}
+
+/* La franja de pruebas es la única excepción de color del
+   producto —va en ladrillo fijo porque la paleta la edita el
+   administrador y esto no puede volverse invisible—, así que
+   los papeles tipográficos que use ahí dentro heredan su
+   blanco en vez de traerse `--texto-suave`. */
+.franja-entorno .rotulo-bloque,
+.franja-entorno .micro,
+.franja-entorno .secundario {
+  color: inherit;
 }

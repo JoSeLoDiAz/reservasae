@@ -12,16 +12,22 @@ export function FranjaEntorno() {
       // no puede volverse invisible. Ver CLAUDE.md.
       // alto fijo: la cabecera se pega justo debajo y con
       // dos lineas la taparia. Ver --franja-alto
-      className="franja-entorno no-imprimir sticky top-0 z-50 flex h-9 items-center justify-center gap-x-3 overflow-hidden border-b-2 border-[#7c2d12] bg-[#9a3412] px-4 text-center text-sm whitespace-nowrap text-white"
+      // 28px, que es lo que dice `--franja-alto` en
+      // `globals.css`. El elemento medía 36 más 2 de borde: la
+      // franja tapaba dos píxeles de lo que se le pegaba
+      // debajo, porque el token y la caja decían cosas
+      // distintas. Y sin el borde de 2px: 2px significa «aquí
+      // empieza algo» y esto no empieza nada del producto.
+      className="franja-entorno no-imprimir sticky top-0 z-50 flex h-7 items-center justify-center gap-x-3 overflow-hidden bg-[#9a3412] px-4 text-center whitespace-nowrap text-white"
     >
-      <span className="font-semibold tracking-wide uppercase">Entorno de pruebas</span>
-      <span className="hidden text-white/85 sm:inline">
+      <span className="rotulo-bloque">Entorno de pruebas</span>
+      <span className="micro hidden sm:inline">
         Los datos son inventados. Nada de lo que haga aquí llega a producción.
       </span>
       <a
         // a /consulta y no a la raiz: alli el 404 es adrede
         href="https://reservasae.com/consulta"
-        className="underline underline-offset-2 hover:no-underline"
+        className="micro underline underline-offset-2 hover:no-underline"
       >
         Ir al sitio real
       </a>

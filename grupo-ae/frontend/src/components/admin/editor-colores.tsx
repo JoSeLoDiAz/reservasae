@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 
-import { Campo, CLASE_CONTROL } from "@/components/admin/marco-admin";
+import { CLASE_CONTROL } from "@/components/admin/marco-admin";
 import { adminApi, type PlantillaTema } from "@/lib/admin-api";
 import {
   contraste,
@@ -75,16 +75,20 @@ export function EditorColores({
       <Plantillas alElegir={alReemplazarTemas} />
       <ColorPrincipal actual={colores.marca} alDerivar={alReemplazarTemas} />
 
-      <div className="inline-flex rounded-lg border border-borde p-0.5">
+      {/* Lo elegido se dice con la LETRA y la regla de 2 px, no
+          con un fondo teñido: `--marca-suave` tiene dos sitios y
+          solo dos --la entrada activa de la barra lateral y la
+          fila de tabla bajo el ratón--, y esta era un tercero. */}
+      <div className="border-borde inline-flex gap-6 border-b">
         {ESQUEMAS.map((valor) => (
           <button
             key={valor}
             type="button"
             onClick={() => alCambiarEsquema(valor)}
-            className={`rounded-md px-4 py-1.5 text-sm transition ${
+            className={`dato -mb-px border-b-2 pb-2 transition ${
               esquema === valor
-                ? "bg-marca-suave font-medium text-marca"
-                : "text-texto-suave hover:text-texto"
+                ? "border-marca text-marca"
+                : "hover:text-texto border-transparent text-texto-suave"
             }`}
           >
             {valor === "CLARO" ? "Modo claro" : "Modo oscuro"}
@@ -92,10 +96,16 @@ export function EditorColores({
         ))}
       </div>
 
-      <div className="grid lg:grid-cols-[1fr_minmax(0,26rem)] lg:items-start">
+      {/* LA SEGUNDA REGIÓN ÚTIL: la vista previa al LADO, no
+          debajo. Es la respuesta correcta al ancho sobrante de
+          esta pantalla, y ya estaba: se conserva tal cual.
+
+          Con `gap-8` --antes cero-- porque las dos columnas se
+          tocaban y solo las separaba el borde del desplegable. */}
+      <div className="grid gap-8 lg:grid-cols-[1fr_minmax(0,26rem)] lg:items-start">
         <div className="space-y-8">
-          <details className="rounded-lg border border-borde">
-            <summary className="cursor-pointer select-none px-4 py-3 font-medium">
+          <details className="rounded-plano border border-borde">
+            <summary className="dato cursor-pointer px-4 py-3 select-none">
               Ajustar los {catalogo.tokens.length} colores uno a uno
             </summary>
             <div className="space-y-7 border-t border-borde p-4">
@@ -104,39 +114,75 @@ export function EditorColores({
                 if (!tokens.length) return null;
                 return (
                   <div key={grupo.clave}>
-                    <h3 className="text-sm font-semibold uppercase tracking-wide text-texto-suave">
+                    <h3 className="rotulo-bloque">
                       {grupo.etiqueta}
                     </h3>
-                    <p className="mt-1 text-sm text-texto-suave">{grupo.descripcion}</p>
-                    <div className="mt-3 grid gap-4 sm:grid-cols-2">
+                    <p className="secundario prosa mt-1">{grupo.descripcion}</p>
+
+                    {/* LOS COLORES, EN REJILLA DENSA.
+
+                        Iban a DOS columnas fijas, así que a 1920
+                        cada casilla medía 570 px para escribir
+                        `#2052dc`: siete caracteres, unos 62 px de
+                        letra. Nueve veces su dato, treinta y nueve
+                        veces seguidas, y la paleta entera no cabía
+                        en tres pantallas.
+
+                        `auto-fill` con un mínimo de 196: la
+                        casilla mide lo que mide su dato y el
+                        ancho decide cuántas caben --dos a 640,
+                        seis a 1920--. Y las muestras quedan en
+                        cuadrícula, que es lo que hace falta para
+                        juzgar una paleta: un color no se aprueba
+                        solo, se aprueba al lado de los otros. */}
+                    <div className="mt-3 grid grid-cols-[repeat(auto-fill,minmax(196px,1fr))] gap-x-6 gap-y-4">
                       {tokens.map((token) => (
-                        <Campo
-                          key={token.clave}
-                          etiqueta={token.etiqueta}
-                          ayuda={token.ayuda}
-                        >
-                          <div className="flex items-center gap-3">
+                        <div key={token.clave}>
+                          {/* Ni el rótulo ni la ayuda pasan de un
+                              renglón: el texto entero vive en el
+                              `title`. Un segundo renglón en una
+                              casilla lo es en las treinta y nueve. */}
+                          <label
+                            className="rotulo-bloque block truncate"
+                            title={token.ayuda ? `${token.etiqueta} — ${token.ayuda}` : token.etiqueta}
+                            htmlFor={`color-${esquema}-${token.clave}`}
+                          >
+                            {token.etiqueta}
+                          </label>
+
+                          <div className="mt-1.5 flex items-center gap-2">
                             <input
                               type="color"
                               value={colores[token.clave] ?? "#000000"}
                               onChange={(e) => alCambiarColor(token.clave, e.target.value)}
-                              className="size-10 shrink-0 cursor-pointer rounded border border-borde"
+                              className="rounded-plano border-borde size-8 shrink-0 cursor-pointer border"
                               aria-label={token.etiqueta}
                             />
+                            {/* Sin `font-mono`: una sola tipografía
+                                en el producto, y `tabular-nums` ya
+                                alinea los dígitos en columna. */}
                             <input
+                              id={`color-${esquema}-${token.clave}`}
                               value={colores[token.clave] ?? ""}
                               onChange={(e) => alCambiarColor(token.clave, e.target.value)}
                               pattern="#[0-9a-fA-F]{6}"
-                              className={`${CLASE_CONTROL} font-mono`}
+                              className={`${CLASE_CONTROL} min-w-0 tabular-nums`}
                             />
                           </div>
+
+                          {token.ayuda && (
+                            <p className="micro mt-1 truncate" title={token.ayuda}>
+                              {token.ayuda}
+                            </p>
+                          )}
+
                           {herencia && (
                             <InsigniaHerencia
                               propio={propios.has(token.clave)}
                               alHeredar={() => herencia.alHeredarClave(esquema, token.clave)}
                             />
                           )}
-                        </Campo>
+                        </div>
                       ))}
                     </div>
                   </div>
@@ -174,14 +220,14 @@ function InsigniaHerencia({
 }) {
   if (!propio) {
     return (
-      <span className="mt-1 inline-block text-xs text-texto-suave">
+      <span className="micro mt-1 inline-block">
         Heredado de la apariencia general
       </span>
     );
   }
   return (
-    <span className="mt-1 inline-flex items-center gap-2 text-xs">
-      <span className="whitespace-nowrap font-semibold text-marca">
+    <span className="micro mt-1 inline-flex items-center gap-2">
+      <span className="whitespace-nowrap text-marca">
         Propio
       </span>
       <button type="button" onClick={alHeredar} className="underline text-texto-suave">
@@ -208,24 +254,29 @@ function Plantillas({
 
   return (
     <div>
-      <h3 className="text-sm font-semibold uppercase tracking-wide text-texto-suave">
+      <h3 className="rotulo-bloque">
         Empiece por una combinación
       </h3>
-      <p className="mt-1 text-sm text-texto-suave">
+      <p className="secundario prosa mt-1">
         Todas están comprobadas: ningún texto queda por debajo del contraste
         mínimo. Después puede retocar lo que quiera.
       </p>
-      <div className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+      {/* Cinco combinaciones a dos columnas dejaban una sola en
+          el último renglón, con 1100 px de blanco al lado. Con
+          `auto-fill` las cinco caben en una fila a 1920 y se
+          comparan de un vistazo, que es para lo que están: se
+          elige UNA, y elegir es comparar. */}
+      <div className="mt-3 grid grid-cols-[repeat(auto-fill,minmax(232px,1fr))] gap-3">
         {plantillas.map((p) => (
           <button
             key={p.clave}
             type="button"
             onClick={() => alElegir(p.temas)}
-            className="rounded-lg border border-borde p-3 text-left transition hover:border-marca"
+            className="rounded-plano border border-borde p-3 text-left transition hover:border-marca"
           >
             <MuestraPlantilla colores={p.temas.CLARO} />
-            <p className="mt-2 font-medium">{p.nombre}</p>
-            <p className="text-sm text-texto-suave">{p.descripcion}</p>
+            <p className="dato mt-2">{p.nombre}</p>
+            <p className="secundario">{p.descripcion}</p>
           </button>
         ))}
       </div>
@@ -317,10 +368,10 @@ function ColorPrincipal({
 
   return (
     <div>
-      <h3 className="text-sm font-semibold uppercase tracking-wide text-texto-suave">
+      <h3 className="rotulo-bloque">
         O elija un solo color
       </h3>
-      <p className="mt-1 text-sm text-texto-suave">
+      <p className="secundario prosa mt-1">
         El resto de la paleta se calcula a partir de él, en claro y en oscuro, y
         se corrige lo que no se lea.
       </p>
@@ -336,10 +387,10 @@ function ColorPrincipal({
           value={color}
           onChange={(e) => setColor(e.target.value)}
           pattern="#[0-9a-fA-F]{6}"
-          className={`${CLASE_CONTROL} max-w-[10rem] font-mono`}
+          className={`${CLASE_CONTROL} max-w-[10rem] tabular-nums`}
           aria-label="Color principal en hexadecimal"
         />
-        <label className="flex items-center gap-2 text-sm">
+        <label className="dato flex items-center gap-2">
           <input
             type="checkbox"
             checked={conColor}
@@ -351,13 +402,13 @@ function ColorPrincipal({
       </div>
 
       {ajustado && (
-        <p className="mt-2 flex items-center gap-2 text-sm text-texto-suave">
+        <p className="secundario mt-2 flex items-center gap-2">
           <span
             aria-hidden
             className="inline-block size-4 shrink-0 rounded border border-borde"
             style={{ background: ajustado }}
           />
-          Se ajustó a <span className="font-mono">{ajustado}</span>: el color
+          Se ajustó a <span className="tabular-nums">{ajustado}</span>: el color
           elegido no llega al contraste mínimo para un enlace sobre fondo claro.
           Los amarillos y los verdes claros salen bastante más oscuros.
         </p>
@@ -562,19 +613,19 @@ export function RevisionContraste({
 
   return (
     <div>
-      <h3 className="text-sm font-semibold uppercase tracking-wide text-texto-suave">
+      <h3 className="rotulo-bloque">
         Legibilidad
       </h3>
-      <p className="mt-1 text-sm text-texto-suave">
+      <p className="secundario prosa mt-1">
         Contraste según la WCAG: mínimo 4,5 para texto normal y 3 para títulos
         grandes. Los tres colores de estado se comprueban además{" "}
-        <strong className="font-semibold text-texto">entre sí</strong>: si se
+        <strong className="text-texto">entre sí</strong>: si se
         parecen demasiado, un dato verificado y uno sin verificar acaban del
         mismo color.
       </p>
 
       {fallos.length > 0 && (
-        <div className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-aviso/30 bg-aviso-suave p-3 text-sm text-aviso">
+        <div className="dato border-borde mt-3 flex flex-wrap items-center justify-between gap-3 border-t pt-3">
           <span>
             {fallos.length === 1
               ? "Hay 1 combinación que no se lee bien."
@@ -593,7 +644,7 @@ export function RevisionContraste({
                   setCorrigiendo(false);
                 }
               }}
-              className="shrink-0 rounded-lg border border-aviso/40 px-3 py-1.5 font-medium transition hover:bg-superficie disabled:opacity-50"
+              className="dato rounded-plano border-borde hover:bg-superficie-alterna disabled:text-texto-suave inline-flex h-[32px] shrink-0 items-center border px-3 transition"
             >
               {corrigiendo
                 ? "Corrigiendo…"
@@ -603,7 +654,7 @@ export function RevisionContraste({
         </div>
       )}
 
-      <ul className="mt-3 divide-y divide-borde text-sm">
+      <ul className="dato mt-3 divide-y divide-hairline">
         {resultados.map((r) => (
           <li key={r.descripcion} className="flex items-center justify-between gap-4 py-2">
             <span className="flex items-center gap-2">
@@ -617,7 +668,7 @@ export function RevisionContraste({
               {r.descripcion}
             </span>
             <span className="flex items-center gap-2">
-              <span className="font-mono text-texto-suave">
+              <span className="tabular-nums text-texto-suave">
                 {/* «:1» solo en las razones de contraste. En las
                     filas de distincion el numero es una DISTANCIA
                     entre dos colores, no una razon, y ponerle
@@ -640,10 +691,18 @@ export function RevisionContraste({
 
 function EtiquetaNivel({ nivel }: { nivel: string | null }) {
   const estilos: Record<string, string> = {
-    AAA: "bg-exito-suave text-exito",
-    AA: "bg-exito-suave text-exito",
-    "AA-GRANDE": "bg-aviso-suave text-aviso",
-    INSUFICIENTE: "bg-error-suave text-error",
+    /// EL COLOR VA EN LA LETRA, también aquí.
+    ///
+    /// Eran cuatro píldoras teñidas —verde, ámbar y rosa— en una
+    /// tabla de treinta y siete filas: treinta y siete
+    /// rectángulos de color compitiendo con los colores que se
+    /// están revisando, que es lo único que esta pantalla existe
+    /// para mirar. Y el ámbar y el rosa están reservados al
+    /// tiempo que alguien lleva esperando.
+    AAA: "text-exito",
+    AA: "text-exito",
+    "AA-GRANDE": "text-texto-suave",
+    INSUFICIENTE: "text-titulo",
   };
   const textos: Record<string, string> = {
     AAA: "Excelente",
@@ -653,7 +712,7 @@ function EtiquetaNivel({ nivel }: { nivel: string | null }) {
   };
   if (!nivel) return <span className="text-texto-suave">color inválido</span>;
   return (
-    <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${estilos[nivel]}`}>
+    <span className={`estado ${estilos[nivel]}`}>
       {textos[nivel]}
     </span>
   );

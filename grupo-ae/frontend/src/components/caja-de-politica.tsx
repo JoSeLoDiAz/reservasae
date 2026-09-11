@@ -102,24 +102,48 @@ export function CajaDePolitica({
   titulo?: string;
 }) {
   return (
-    <div className="space-y-2">
-      <p className="text-sm font-medium">
+    /// Sin caja con borde y sin radio 14.
+    ///
+    /// El texto legal es el unico sub-bloque del producto que
+    /// retrocede sobre `--superficie-alterna`, y esta nombrado
+    /// asi en la direccion. El borde completo se reserva para
+    /// tres objetos --campo, modal y ficha del tablero-- y esto
+    /// no es ninguno.
+    ///
+    /// Y la fecha va como TODAS las fechas del producto:
+    /// «9 sep 2026», mes en tres letras, minuscula, sin punto y
+    /// sin coma. Convivian tres formatos en tres pantallas.
+    <div>
+      <p className="rotulo-bloque">
         {titulo ?? politica?.titulo ?? "Política de tratamiento de datos personales"}
       </p>
-      <div className="max-h-64 overflow-y-auto rounded-xl border border-campo-borde bg-campo-fondo p-4 text-sm leading-relaxed whitespace-pre-line text-texto">
+      <div className="texto-legal dato prosa mt-2">
         {politica?.contenido ?? TEXTO_DE_RESPALDO}
       </div>
       {politica && (
-        <p className="text-xs text-texto-suave">
-          Versión {politica.version}, vigente desde el{" "}
-          {new Date(politica.vigenteDesde).toLocaleDateString("es-CO", {
-            day: "numeric",
-            month: "long",
-            year: "numeric",
-          })}
-          .
+        <p className="micro mt-2">
+          Versión {politica.version}, vigente desde el {fecha(politica.vigenteDesde)}.
         </p>
       )}
     </div>
   );
+}
+
+/**
+ * La fecha del producto: «9 sep 2026».
+ *
+ * Mes en tres letras, en minúscula, sin punto y sin coma.
+ * `toLocaleDateString` con `month: "short"` devuelve «sept» en
+ * es-CO y a veces con punto, así que se recorta a tres y se le
+ * quita el punto: el formato es el contrato, no lo que decida
+ * la tabla del navegador.
+ */
+function fecha(valor: string): string {
+  const d = new Date(valor);
+  const mes = d
+    .toLocaleDateString("es-CO", { month: "short" })
+    .replace(".", "")
+    .slice(0, 3)
+    .toLowerCase();
+  return `${d.getDate()} ${mes} ${d.getFullYear()}`;
 }

@@ -169,7 +169,7 @@ export function ConmutadorTema({ compacto = false }: { compacto?: boolean }) {
     <div
       role="group"
       aria-label="Tema de la interfaz"
-      className="inline-flex rounded-lg border border-borde bg-superficie p-0.5"
+      className="rounded-plano border-borde bg-superficie inline-flex border p-0.5"
     >
       {OPCIONES.map((opcion) => {
         const activa = modo === opcion.valor;
@@ -206,10 +206,12 @@ export function ConmutadorTema({ compacto = false }: { compacto?: boolean }) {
             onMouseDown={(e) => e.preventDefault()}
             aria-pressed={activa}
             title={opcion.etiqueta}
-            className={`inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm transition ${
-              activa
-                ? "bg-marca-suave font-medium text-marca"
-                : "text-texto-suave hover:text-texto"
+            /// Lo elegido se dice con la LETRA, no con un fondo
+            /// azul claro: `--marca-suave` tiene dos sitios y
+            /// solo dos, la entrada activa de la barra lateral
+            /// y la fila de tabla bajo el ratón.
+            className={`dato rounded-plano inline-flex items-center gap-1.5 px-2.5 py-1 transition ${
+              activa ? "text-marca" : "text-texto-suave hover:text-texto"
             }`}
           >
             {opcion.icono}
@@ -287,17 +289,27 @@ export function EncabezadoPublico({
         <ConmutadorTema compacto />
       </div>
 
-      <h1 className="mt-6 text-3xl font-semibold tracking-tight">
+      {/* 34 px en peso 700, que es el escalón más alto que
+          declara la dirección, y no 30 en peso 600: el 600 está
+          reservado para el estado. Es lo más grande de la
+          pantalla, y en la pública lo más grande es la pregunta
+          que se le hace a quien llega. */}
+      <h1 className="titulo-publico mt-8 text-balance">
         {titulo ?? marca?.tituloPublico ?? "Solicite información sobre nuestros servicios"}
       </h1>
-      <p className="mt-3 text-texto-suave">
+      <p className="dato prosa text-texto-suave mt-4">
         {subtitulo ??
           marca?.subtituloPublico ??
           "Un asesor comercial lo contactará para atender su solicitud."}
       </p>
 
+      {/* Sin el recuadro azul claro: `--marca-suave` tiene dos
+          sitios y solo dos —la entrada activa de la barra y la
+          fila de tabla bajo el ratón—, y `--marca` no se usa
+          para dar énfasis. El aviso destaca por la regla de
+          2 px, que es la que dice «aquí empieza algo». */}
       {marca?.mensajeEncabezado && (
-        <p className="mt-4 rounded-xl border border-marca/25 bg-marca-suave px-4 py-3 text-sm">
+        <p className="dato border-titulo mt-6 border-t-2 pt-3">
           {marca.mensajeEncabezado}
         </p>
       )}
@@ -325,8 +337,11 @@ export function PiePublico() {
     /// franja en blanco que parecía que faltaba algo por
     /// cargar. Nada lo empujaba —ningún `grow`—, era margen
     /// puesto a mano.
-    <footer className="mx-auto mt-8 w-full max-w-3xl px-6 pb-10 text-sm text-texto-suave">
-      {marca?.piePagina && <p className="mb-6">{marca.piePagina}</p>}
+    /// 720 px, la misma columna que el formulario. Iba a 768 y
+    /// el pie no cuadraba con lo de arriba por ocho pixeles a
+    /// cada lado, que es de esas cosas que no se ven y se notan.
+    <footer className="secundario mx-auto mt-8 w-full max-w-[720px] px-6 pb-10">
+      {marca?.piePagina && <p className="prosa mb-6">{marca.piePagina}</p>}
       {/* La FIRMA arriba y la línea legal debajo.
 
           Estaba al revés. La firma es el logo con «Grupo AE» y

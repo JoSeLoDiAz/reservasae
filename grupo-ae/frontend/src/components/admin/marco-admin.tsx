@@ -64,7 +64,7 @@ export function useAdmin(): Contexto {
 /// que viene debajo -- y se ven igual. Uno de ellos llevaba
 /// otro peso y otro espaciado, y por eso no se leian como
 /// hermanos.
-const ROTULO = "text-[10px] tracking-wide uppercase opacity-55";
+const ROTULO = "rotulo-bloque text-encabezado-suave";
 
 const LLAVE_PLEGADO = "convoca:menu-plegado";
 /// El gremio elegido sobrevive al refresco: cambiarlo en cada
@@ -206,15 +206,15 @@ export function MarcoAdmin({ children }: { children: React.ReactNode }) {
 
   if (bloqueo) {
     return (
-      <div className="mx-auto max-w-lg p-10">
-        <div className="rounded-xl border border-aviso/30 bg-aviso-suave p-5 text-aviso">
-          <p className="font-medium">Por aquí no puede entrar</p>
-          <p className="mt-1 text-sm">{bloqueo}</p>
-        </div>
+      <div className="mx-auto max-w-lg p-8">
+        {/* Sin la tarjeta tenida de amarillo: el ambar es el
+            reloj de quien espera respuesta y de nada mas. */}
+        <p className="titulo-pantalla">Por aquí no puede entrar</p>
+        <p className="dato prosa mt-2">{bloqueo}</p>
         <button
           type="button"
           onClick={() => void salir()}
-          className="mt-4 text-sm font-medium text-marca underline"
+          className="dato text-marca mt-4 underline"
         >
           Cerrar sesión y entrar por otra dirección
         </button>
@@ -364,7 +364,7 @@ export function MarcoAdmin({ children }: { children: React.ReactNode }) {
 
               No lleva `.no-imprimir`: en papel es justo donde
               tiene sentido decir de quien es el documento. */}
-          <footer className="shrink-0 border-t border-borde bg-superficie px-7 py-2">
+          <footer className="border-borde bg-superficie flex h-7 shrink-0 items-center border-t px-4 lg:px-6">
             <PieDeConvoca />
           </footer>
         </div>
@@ -392,8 +392,6 @@ function migas(ruta: string): string[] {
 /// su frase. En el panel de un gremio manda el gremio, y
 /// Convoca firma abajo.
 function Marca({ plegado }: { plegado?: boolean }) {
-  /// La ruta, solo para remontar el signo al navegar.
-  const ruta = usePathname();
   /// Se guarda CUALES fuentes fallaron, no un booleano.
   ///
   /// Con tres logos, uno roto se llevaria a los otros dos por
@@ -428,7 +426,7 @@ function Marca({ plegado }: { plegado?: boolean }) {
         /// elige el administrador, así que sin la placa el logo
         /// desaparece en modo oscuro — y también en claro si
         /// alguien pone el encabezado en un color fuerte.
-        <div className="mx-auto flex w-fit max-w-full flex-wrap items-center justify-center gap-x-2.5 gap-y-1.5 rounded-xl bg-white px-2.5 py-2">
+        <div className="mx-auto flex w-fit max-w-full flex-wrap items-center justify-center gap-2 rounded-plano bg-white px-3 py-2">
           {logos.map((l) => (
             // eslint-disable-next-line @next/next/no-img-element
             <img
@@ -451,25 +449,38 @@ function Marca({ plegado }: { plegado?: boolean }) {
         href="/admin"
         // plegado no hay texto que lo nombre
         aria-label={plegado ? "Grupo AE" : undefined}
-        className="flex max-w-full items-center justify-center gap-2.5 no-underline"
+        className="flex max-w-full items-center justify-center gap-2 no-underline"
       >
         {/* La MISMA firma que el login, el pie publico y la
             ficha del perfil, no una copia con los mismos
             estilos: cuatro copias acaban diciendo cuatro
             cosas. Plegada solo cabe el signo. */}
-        {/* `key` con la ruta: al navegar el nodo se remonta y la
-            animacion vuelve a correr. Sin la key, React reusa el
-            mismo elemento y solo se dibujaria una vez, al entrar
-            al panel. */}
+        {/* SIN `key` con la ruta, y eso es el arreglo de las
+            capturas 11 y 12.
+
+            Llevaba `key={ruta}`: al navegar, el nodo se
+            remontaba y la firma se volvia a escribir. La firma
+            tarda 900 ms en dibujarse —el arco 560, el disco
+            340 mas 400 de espera, el nombre bajo su mascara
+            460— y durante ese casi segundo la barra no tiene
+            logotipo: en Apariencia y en Usuarios lo que se
+            fotografio fue un trazo de tres pixeles donde
+            deberia decir «Grupo AE». Dos pantallas del panel
+            sin identidad.
+
+            Y no es solo la foto: son ochenta navegaciones al
+            dia, cada una con la marca desapareciendo y
+            volviendo. Una firma se escribe UNA vez, al llegar;
+            despues se queda quieta. React reusa el nodo entre
+            rutas, asi que se dibuja al entrar al panel y no se
+            vuelve a mover.
+
+            No se toca el logotipo ni el signo ni la firma: era
+            un fallo de render, no una decision de diseno. */}
         {plegado ? (
-          <SignoConvoca
-            key={ruta}
-            tamano={34}
-            animado
-            className="shrink-0"
-          />
+          <SignoConvoca tamano={34} animado className="shrink-0" />
         ) : (
-          <FirmaConvoca key={ruta} tamano={42} animado />
+          <FirmaConvoca tamano={42} animado />
         )}
       </Link>
     </div>
@@ -503,7 +514,7 @@ function Marca({ plegado }: { plegado?: boolean }) {
  * en el borde de arriba.
  */
 function RotuloDelPanel() {
-  return <p className={ROTULO + " mt-7 mb-3"}>Panel de gestión</p>;
+  return <p className={ROTULO + " mt-6 mb-3"}>Panel de gestión</p>;
 }
 
 /**
@@ -543,7 +554,7 @@ function FilaResumen({
         className={`mb-2 flex h-[34px] w-[34px] items-center justify-center self-center rounded-full border transition ${
           activo
             ? "border-encabezado-texto bg-encabezado-texto text-encabezado-fondo"
-            : "border-current/35 opacity-85 hover:border-current/70 hover:opacity-100"
+            : "border-encabezado-suave text-encabezado-suave hover:border-encabezado-texto hover:text-encabezado-texto"
         }`}
       >
         <IconoResumen tamano={17} />
@@ -555,10 +566,10 @@ function FilaResumen({
     <Link
       href="/admin"
       onClick={alNavegar}
-      className={`mt-3 flex items-center gap-2.5 rounded-lg px-3 py-2 text-[13px] font-semibold transition ${
+      className={`dato mt-3 flex items-center gap-2 rounded-plano px-3 py-2 transition ${
         activo
           ? "bg-marca-suave text-marca"
-          : "opacity-85 hover:bg-current/10 hover:opacity-100"
+          : "text-encabezado-suave hover:bg-encabezado-alterna hover:text-encabezado-texto"
       }`}
     >
       <span className="shrink-0 leading-none">
@@ -592,8 +603,8 @@ function ChipUsuario({
     /// cargo, alineados a la derecha, y una salida que se ve.
     <div className="flex shrink-0 items-center gap-3">
       <span className="hidden min-w-0 flex-col items-end leading-tight sm:flex">
-        <span className="truncate text-sm font-semibold">{admin.nombre}</span>
-        <span className="truncate text-xs text-texto-suave">
+        <span className="dato text-encabezado-texto truncate">{admin.nombre}</span>
+        <span className="micro text-encabezado-suave truncate">
           {admin.cargo ?? admin.rol}
         </span>
       </span>
@@ -607,7 +618,7 @@ function ChipUsuario({
         /// Más grande, y con su palabra al lado en pantalla
         /// ancha. Un icono de 15px sin texto se busca; la
         /// salida no se debería buscar.
-        className="flex shrink-0 items-center gap-2 rounded-xl px-3 py-2 text-sm text-texto-suave transition hover:bg-error-suave hover:text-error"
+        className="dato text-encabezado-suave hover:bg-encabezado-alterna hover:text-encabezado-texto flex shrink-0 items-center gap-2 rounded-plano px-3 py-2 transition"
       >
         <IconoSalir tamano={20} />
         <span className="hidden lg:inline">Salir</span>
@@ -649,18 +660,22 @@ function Ajustes({
         /// de la columna que se desplaza, así que cuando NO lo
         /// hay se llega a ella bajando, en vez de salirse por
         /// el borde y arrastrar el marco entero.
-        className="mt-auto flex h-10 w-full shrink-0 items-center justify-center rounded-xl border border-current/10 bg-current/5 opacity-70 transition hover:opacity-100"
+        className="border-encabezado-borde bg-encabezado-alterna text-encabezado-suave hover:text-encabezado-texto mt-auto flex h-8 w-full shrink-0 items-center justify-center rounded-plano border transition"
       >
-        <span aria-hidden className="text-base leading-none">
-          🎛️
-        </span>
+        {/* SIN EMOJI. Un emoji lo pinta el sistema operativo:
+            no toma el color del tema, cambia de dibujo entre
+            Windows y el móvil y no es de la casa. Aquí va el
+            mismo icono de trazo que la barra abierta —el que
+            abre este mismo panel—, así que plegar deja de
+            cambiar el signo de lo que se va a pulsar. */}
+        <IconoAccesibilidad tamano={17} />
         <span className="sr-only">Ajustes</span>
       </button>
     );
   }
 
   return (
-    <div className="mt-auto flex shrink-0 items-center justify-between gap-1 rounded-xl border border-current/10 bg-current/5 p-1.5 pl-2.5">
+    <div className="border-encabezado-borde bg-encabezado-alterna mt-auto flex shrink-0 items-center justify-between gap-1 rounded-plano border p-1 pl-3">
       <span className={ROTULO}>Ajustes</span>
 
       <div className="flex items-center gap-1">
@@ -675,8 +690,10 @@ function Ajustes({
             // lo lee el panel para no tomar este clic por un
             // «pinchó fuera»
             data-abre-panel
-            className={`grid h-8 w-8 place-items-center rounded-lg transition hover:bg-current/10 hover:opacity-100 ${
-              abierto ? "bg-current/10 opacity-100" : "opacity-70"
+            className={`grid h-8 w-8 place-items-center rounded-plano transition ${
+              abierto
+                ? "bg-marca-suave text-marca"
+                : "text-encabezado-suave hover:text-encabezado-texto"
             }`}
             title="Accesibilidad"
           >
@@ -792,7 +809,7 @@ function Grupos({
               className={`mb-2 flex h-[34px] w-[34px] items-center justify-center self-center rounded-full border transition ${
                 activo
                   ? "border-encabezado-texto bg-encabezado-texto text-encabezado-fondo"
-                  : "border-current/35 opacity-85 hover:border-current/70 hover:opacity-100"
+                  : "border-encabezado-suave text-encabezado-suave hover:border-encabezado-texto hover:text-encabezado-texto"
               }`}
             >
               {(() => {
@@ -806,7 +823,7 @@ function Grupos({
         const desplegado = abierto === modulo.clave;
 
         return (
-          <section key={modulo.clave} className="mb-1.5">
+          <section key={modulo.clave} className="mb-1">
             <h2>
               <button
                 type="button"
@@ -818,10 +835,10 @@ function Grupos({
                 /// a 14px «Gestion de Inscripciones» y
                 /// «Sistemas de Informacion» se cortaban con
                 /// puntos suspensivos en la barra de 250.
-                className={`flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-[13px] font-semibold transition ${
+                className={`dato flex w-full items-center gap-2 rounded-plano px-3 py-2 text-left transition ${
                   desplegado
-                    ? "opacity-100"
-                    : "opacity-80 hover:bg-current/10 hover:opacity-100"
+                    ? "text-encabezado-texto"
+                    : "text-encabezado-suave hover:bg-encabezado-alterna hover:text-encabezado-texto"
                 }`}
               >
                 {(() => {
@@ -845,7 +862,7 @@ function Grupos({
                   strokeWidth={2.5}
                   strokeLinecap="round"
                   strokeLinejoin="round"
-                  className={`ml-auto shrink-0 opacity-70 transition-transform ${
+                  className={`text-encabezado-suave ml-auto shrink-0 transition-transform ${
                     desplegado ? "rotate-90" : ""
                   }`}
                 >
@@ -855,7 +872,7 @@ function Grupos({
             </h2>
 
             {desplegado && (
-            <ul className="mt-0.5 mb-2 ml-4 space-y-0.5 border-l border-current/15 pl-2">
+            <ul className="mt-1 mb-2 ml-4 border-l border-encabezado-borde pl-2">
               {enlaces.map((enlace) => {
                 const activo = estaActivo(enlace, ruta);
                 return (
@@ -864,16 +881,16 @@ function Grupos({
                       href={enlace.href}
                       onClick={alNavegar}
                       aria-current={activo ? "page" : undefined}
-                      className={`relative flex items-center gap-2.5 rounded-xl px-3 py-2 text-sm transition ${
+                      className={`dato relative flex items-center gap-2 rounded-plano px-3 py-2 transition ${
                         activo
-                          ? "bg-current/15 font-semibold"
-                          : "opacity-80 hover:bg-current/10 hover:opacity-100"
+                          ? "bg-marca-suave text-marca"
+                          : "text-encabezado-suave hover:bg-encabezado-alterna hover:text-encabezado-texto"
                       }`}
                     >
                       {activo && (
                         <span
                           aria-hidden
-                          className="absolute top-1.5 bottom-1.5 -left-1 w-[3px] rounded-full bg-current"
+                          className="bg-marca absolute top-1 bottom-1 -left-1 w-[2px]"
                         />
                       )}
                       <span className="truncate">{enlace.etiqueta}</span>
@@ -913,7 +930,7 @@ function BarraLateral({
       aria-label="Secciones del panel"
       // el alto lo pone el contenedor, que ya resta la franja
       className={`no-imprimir z-20 hidden h-full shrink-0 flex-col border-r border-encabezado-borde bg-encabezado-fondo text-encabezado-texto transition-[width] duration-200 md:flex ${
-        plegado ? "w-[62px] px-3 py-4" : "w-[250px] px-4 py-4"
+        plegado ? "w-[56px] px-2 py-4" : "w-[236px] px-4 py-4"
       }`}
     >
       {/* `mb-4` también plegada: sin él, el logo y el primer
@@ -1034,7 +1051,7 @@ function CajonMovil({
             <button
               onClick={alCerrar}
               aria-label="Cerrar menú"
-              className="ml-auto rounded-lg p-1.5 opacity-60 transition hover:bg-current/10 hover:opacity-100"
+              className="text-encabezado-suave hover:bg-encabezado-alterna hover:text-encabezado-texto ml-auto rounded-plano p-1 transition"
             >
               <IconoCerrar tamano={18} />
             </button>
@@ -1105,27 +1122,39 @@ function Cabecera({
       /// no puede irse: no hace falta pegarla.
       ///
       /// La franja se descuenta UNA vez, en el contenedor.
-      className="no-imprimir z-30 flex h-14 shrink-0 items-center gap-3 border-b border-encabezado-borde bg-encabezado-fondo px-4 text-encabezado-texto lg:px-8"
+      /// 52 px, y el relleno de la banda: 24, y 16 por debajo
+      /// de 1024. Medía 56 y sangraba 16 o 32 según el ancho,
+      /// así que el título de la pantalla no arrancaba en la
+      /// misma vertical que la miga de encima de él. El
+      /// presupuesto de 900 px sale de aquí: 28 de franja + 52
+      /// de cabecera + 28 de pie dejan 792 px de trabajo.
+      className="no-imprimir z-30 flex h-[52px] shrink-0 items-center gap-3 border-b border-encabezado-borde bg-encabezado-fondo px-4 text-encabezado-texto lg:px-6"
     >
       <button
         onClick={alAbrirMenu}
         aria-label="Abrir menú"
-        className="-ml-1 rounded-lg p-2 opacity-70 transition hover:bg-current/10 hover:opacity-100 md:hidden"
+        className="text-encabezado-suave hover:bg-encabezado-alterna hover:text-encabezado-texto -ml-1 rounded-plano p-2 transition md:hidden"
       >
         <IconoMenu tamano={20} />
       </button>
 
-      <nav aria-label="Dónde está" className="flex min-w-0 items-center gap-1.5 text-sm">
+      {/* La miga: los pasos de atrás apagados y el de ahora
+          entero. Destaca por COLOR, no por peso —el 600 es del
+          estado y de nada más—, y el gris sale del token del
+          propio marco en vez de una opacidad. */}
+      <nav aria-label="Dónde está" className="dato flex min-w-0 items-center gap-1.5">
         {migas(ruta).map((paso, i, todas) => (
           <span key={paso} className="flex min-w-0 items-center gap-1.5">
             {i > 0 && (
-              <span aria-hidden className="opacity-30">
+              <span aria-hidden className="text-encabezado-suave">
                 /
               </span>
             )}
             <span
               className={`truncate ${
-                i === todas.length - 1 ? "font-semibold" : "opacity-55"
+                i === todas.length - 1
+                  ? "text-encabezado-texto"
+                  : "text-encabezado-suave"
               }`}
             >
               {paso}
@@ -1153,7 +1182,7 @@ function Cabecera({
 // piezas compartidas del panel
 
 /**
- * La medida de un campo: alto 34, radio 10, letra 12,5.
+ * La medida de un campo: alto 34, radio 6, letra 13.
  *
  * Son las del redisenio, y se ponen aqui porque esta clase la
  * usan 174 controles en treinta archivos: cambiarla una vez es
@@ -1167,8 +1196,8 @@ function Cabecera({
  * 7px arriba y abajo + 18 de linea + 2 de borde = 34.
  */
 export const CLASE_CONTROL =
-  "w-full rounded-lg border border-campo-borde bg-campo-fondo px-3 py-[7px] text-[0.78125rem] text-texto " +
-  "outline-none transition focus:border-campo-foco focus:ring-2 focus:ring-campo-foco/25";
+  "w-full rounded-plano border border-campo-borde bg-campo-fondo px-3 py-[7px] dato " +
+  "outline-none transition focus:border-campo-foco focus:ring-2 focus:ring-campo-foco focus:ring-offset-2 focus:ring-offset-superficie";
 
 export function Tarjeta({
   titulo,
@@ -1218,10 +1247,17 @@ export function Tarjeta({
     /// Ahora ocupa el ancho, no tiene radio y solo lleva raya
     /// abajo. Se cambia aqui y no en las 150 llamadas
     /// repartidas por el codigo.
+    /// Y con el relleno de `banda`, no con el suyo.
+    ///
+    /// Tenía `px-7` —28 px— y `py-4`/`py-5`, tres medidas fuera
+    /// de la escala de 4. Una pantalla que mezcla `Tarjeta` con
+    /// `Bloque` sangraba dos anchos distintos y las reglas de
+    /// una y otra no llegaban a la misma vertical: es la mitad
+    /// de por qué la baraja de quince capturas se lee como dos
+    /// productos. El relleno de la banda está en un sitio,
+    /// `globals.css`, y aquí se hereda.
     <section
-      className={`border-b border-borde bg-superficie ${
-        centrado ? "flex h-full flex-col" : ""
-      } ${plegable && !abierta ? "px-7 py-4" : "px-7 py-5"}`}
+      className={`banda ${centrado ? "flex h-full flex-col" : ""}`}
     >
       {encabezado ? (
         <>
@@ -1236,19 +1272,22 @@ export function Tarjeta({
           className="flex w-full items-center gap-3 text-left"
         >
           <span className="min-w-0 flex-1">
-            <span className="block text-lg font-semibold">{titulo}</span>
+            <span className="rotulo-bloque block">{titulo}</span>
             {descripcion && !abierta && (
-              <span className="mt-0.5 block truncate text-sm text-texto-suave">
+              <span className="secundario mt-1 block truncate">
                 {descripcion}
               </span>
             )}
           </span>
           {/* La insignia se ve cerrada: plegar no puede
-              esconder que hay algo dentro. */}
+              esconder que hay algo dentro.
+
+              Sin la píldora gris: era un rectángulo de fondo
+              alrededor de dos caracteres, y no vuelven las
+              píldoras a este panel. Un número apagado en micro
+              dice lo mismo y no le quita el sitio al título. */}
           {insignia && (
-            <span className="shrink-0 rounded-full bg-superficie-alterna px-2.5 py-1 text-xs text-texto-suave">
-              {insignia}
-            </span>
+            <span className="micro shrink-0">{insignia}</span>
           )}
           <svg
             viewBox="0 0 24 24"
@@ -1260,7 +1299,12 @@ export function Tarjeta({
             strokeLinecap="round"
             strokeLinejoin="round"
             aria-hidden
-            className={`shrink-0 opacity-50 transition-transform ${
+            /// Apagado se dice con el token, no con `opacity`:
+            /// el gris no se improvisa: `opacity-50` sobre
+            /// texto de 13 px da unos 3:1 de contraste y el
+            /// token da 4,76:1. Ahí está media pantalla del
+            /// aspecto lavado.
+            className={`text-texto-suave shrink-0 transition-transform ${
               abierta ? "rotate-180" : ""
             }`}
           >
@@ -1269,10 +1313,8 @@ export function Tarjeta({
         </button>
       ) : (
         <>
-          <h2 className="text-lg font-semibold">{titulo}</h2>
-          {descripcion && (
-            <p className="mt-1 text-sm text-texto-suave">{descripcion}</p>
-          )}
+          <h2 className="rotulo-bloque">{titulo}</h2>
+          {descripcion && <p className="secundario prosa mt-1">{descripcion}</p>}
         </>
       )}
 
@@ -1282,10 +1324,10 @@ export function Tarjeta({
       {!encabezado && mostrar && (
         <>
           {plegable && descripcion && (
-            <p className="mt-1 text-sm text-texto-suave">{descripcion}</p>
+            <p className="secundario prosa mt-1">{descripcion}</p>
           )}
           <div
-            className={`mt-5 ${centrado ? "flex grow flex-col justify-center" : ""}`}
+            className={`mt-3 ${centrado ? "flex grow flex-col justify-center" : ""}`}
           >
             {children}
           </div>
@@ -1305,10 +1347,19 @@ export function Campo({
   children: React.ReactNode;
 }) {
   return (
+    /// El rotulo del campo va en versalita.
+    ///
+    /// Era `12,5px font-medium`, o sea un cuarto papel
+    /// tipografico entre el dato y el secundario, y con
+    /// `font-medium` -- un peso que la direccion retira: solo
+    /// quedan 400, 600 y 700, y el 600 esta reservado para el
+    /// estado. En versalita el rotulo se distingue del dato sin
+    /// competir con el, que es justo lo que hace falta en un
+    /// formulario de doce campos.
     <label className="block">
-      <span className="mb-1.5 block text-[12.5px] font-medium">{etiqueta}</span>
+      <span className="rotulo-bloque mb-1.5 block">{etiqueta}</span>
       {children}
-      {ayuda && <span className="mt-1.5 block text-xs text-texto-suave">{ayuda}</span>}
+      {ayuda && <span className="secundario mt-1.5 block">{ayuda}</span>}
     </label>
   );
 }
@@ -1330,7 +1381,7 @@ export function Boton({
       ///
       /// Alto 34, radio 10 y sin sombra: la separacion de este
       /// redisenio es por borde de 1px, nunca por sombra.
-      className={`inline-flex h-[32px] items-center justify-center gap-2 rounded-[9px] bg-marca px-[13px] text-[12.5px] font-semibold text-marca-texto transition hover:bg-marca-fuerte disabled:cursor-not-allowed disabled:bg-campo-borde disabled:text-texto-suave sin-aro ${resto.className ?? ""}`}
+      className={`estado rounded-plano sin-aro inline-flex h-[32px] items-center justify-center gap-2 bg-marca px-[13px] text-marca-texto transition hover:bg-marca-fuerte disabled:cursor-not-allowed disabled:bg-campo-borde disabled:text-texto-suave ${resto.className ?? ""}`}
     >
       {children}
     </button>
@@ -1366,7 +1417,7 @@ export function BotonDeCabecera({
   return (
     <button
       {...resto}
-      className={`sin-aro inline-flex h-[32px] items-center justify-center gap-1.5 rounded-[9px] bg-encabezado-texto px-[13px] text-[12.5px] font-semibold text-encabezado-fondo transition hover:opacity-85 disabled:cursor-not-allowed disabled:opacity-45 ${
+      className={`estado rounded-plano sin-aro inline-flex h-[32px] items-center justify-center gap-1.5 bg-encabezado-texto px-[13px] text-encabezado-fondo transition hover:opacity-85 disabled:cursor-not-allowed disabled:opacity-45 ${
         resto.className ?? ""
       }`}
     >
@@ -1423,14 +1474,8 @@ export function EncabezadoSeccion({
   return (
     <div className="flex items-center justify-between gap-4">
       <div className="min-w-0">
-        <p className="truncate text-[0.90625rem] font-semibold text-titulo">
-          {titulo}
-        </p>
-        {descripcion && (
-          <p className="mt-1 text-[0.78125rem] leading-relaxed text-texto-suave">
-            {descripcion}
-          </p>
-        )}
+        <p className="titulo-bloque truncate">{titulo}</p>
+        {descripcion && <p className="secundario prosa mt-1">{descripcion}</p>}
       </div>
       {accion}
     </div>
@@ -1451,11 +1496,14 @@ export function EncabezadoSeccion({
  * cada gremio edita.
  */
 export function RotuloDeGrupo({ children }: { children: React.ReactNode }) {
-  return (
-    <p className="text-[0.625rem] font-semibold tracking-[0.1em] text-marca uppercase">
-      {children}
-    </p>
-  );
+  /// Y en gris, no en el azul de marca.
+  ///
+  /// `--marca` tiene cuatro usos y ningun otro: el boton
+  /// principal, los enlaces, el aro de foco y lo que esta
+  /// seleccionado ahora mismo. No se usa para dar enfasis ni
+  /// para pintar un rotulo -- si el acento lo lleva todo, deja
+  /// de senalar nada.
+  return <p className="rotulo-bloque">{children}</p>;
 }
 
 export function EscogerArchivo({
@@ -1490,15 +1538,21 @@ export function EscogerArchivo({
           input de archivo el navegador abre el diálogo solo, sin
           que haya que llamar a `.click()`. Y con `htmlFor` el
           lector de pantalla los sigue leyendo como una cosa. */}
+      {/* La misma geometría que `BotonSuave`: alto 32, radio 6,
+          letra de dato. Era `rounded-xl … py-2 text-sm
+          font-medium`, o sea otro alto, otro tamaño y un peso
+          que la dirección retira —quedan 400, 600 y 700, y el
+          600 es del estado—. Dos botones secundarios de la
+          misma pantalla no pueden medir distinto. */}
       <label
         htmlFor={id}
-        className="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-borde bg-superficie px-4 py-2 text-sm font-medium transition hover:border-marca hover:bg-superficie-alterna"
+        className="dato rounded-plano border-borde bg-superficie hover:bg-superficie-alterna inline-flex h-[32px] cursor-pointer items-center gap-2 border px-[13px] transition"
       >
         {etiqueta}
       </label>
 
       <span
-        className={`min-w-0 flex-1 truncate text-sm ${
+        className={`dato min-w-0 flex-1 truncate ${
           archivo ? "" : "text-texto-suave"
         }`}
         title={archivo?.name}
@@ -1509,7 +1563,7 @@ export function EscogerArchivo({
       {archivo && (
         <button
           type="button"
-          className="shrink-0 text-sm text-texto-suave underline"
+          className="dato text-texto-suave shrink-0 underline"
           onClick={() => {
             alElegir(null);
             /// Vaciar el input además del estado. Sin esto,
@@ -1526,10 +1580,35 @@ export function EscogerArchivo({
   );
 }
 
+/**
+ * Un aviso: el color va en la LETRA, sin caja.
+ *
+ * Era una tarjeta tenida entera -- rosa la de error, verde la
+ * de exito -- con borde de color y radio 14, para decir una
+ * frase que cabe en un renglon. Los tres tonos suaves
+ * (`--error-suave`, `--aviso-suave`, `--exito-suave`) se usan
+ * en UN sitio, la franja de entorno de pruebas, y en ninguno
+ * mas.
+ *
+ * Y el que falla NO va en rojo. En este panel `--aviso` y
+ * `--error` estan reservados para una sola cosa: el tiempo que
+ * alguien lleva esperando respuesta. Un asesor abre el panel
+ * y, sin leer una palabra, sabe si hay alguien esperando; si
+ * el rojo lo gastan tambien las validaciones, esa senal deja
+ * de existir. Aqui bastan el peso 600 y el color de titulo: el
+ * aviso sale justo donde se acaba de pulsar, y nadie lo busca
+ * por el color.
+ *
+ * El `role` dice todo lo que el color ya no dice, asi que
+ * quien usa lector de pantalla se entera del fallo igual.
+ */
 export function Aviso({ tipo, children }: { tipo: "error" | "exito"; children: React.ReactNode }) {
-  const clases =
-    tipo === "error"
-      ? "border-error/30 bg-error-suave text-error"
-      : "border-exito/30 bg-exito-suave text-exito";
-  return <div className={`rounded-xl border p-4 text-sm ${clases}`}>{children}</div>;
+  return (
+    <div
+      role={tipo === "error" ? "alert" : "status"}
+      className={`aviso-en-linea prosa ${tipo === "error" ? "text-titulo" : "text-exito"}`}
+    >
+      {children}
+    </div>
+  );
 }

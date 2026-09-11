@@ -45,7 +45,7 @@ export function IndicadorActualizacion({
   if (!desactualizado) return null;
 
   return (
-    <div className="no-imprimir flex flex-wrap items-center gap-3 text-sm text-texto-suave">
+    <div className="no-imprimir flex flex-wrap items-center gap-3 secundario">
       {/* Callado mientras todo va bien.
           
           La pantalla se refresca sola cada treinta segundos:
@@ -60,7 +60,7 @@ export function IndicadorActualizacion({
           de fiar. Eso sí no se puede adivinar mirando. */}
       <span
         aria-live="polite"
-        className="whitespace-nowrap text-xs font-semibold text-aviso"
+        className="whitespace-nowrap micro font-semibold text-aviso"
       >
         Sin conexión · lo que ve es de{" "}
         {actualizadoEn ? hace(actualizadoEn, ahora) : "antes"}
@@ -74,7 +74,7 @@ export function IndicadorActualizacion({
         type="button"
         onClick={alRefrescar}
         disabled={refrescando}
-        className="rounded-lg border border-borde px-3 py-1 transition hover:bg-fondo disabled:opacity-50"
+        className="rounded-plano border border-borde px-3 py-1 transition hover:bg-fondo disabled:opacity-50"
       >
         {refrescando ? "Reintentando…" : "Reintentar"}
       </button>
@@ -86,7 +86,7 @@ export function IndicadorActualizacion({
 export function SelloDeDatos({ actualizadoEn }: { actualizadoEn: Date | null }) {
   if (!actualizadoEn) return null;
   return (
-    <p className="solo-impresion text-sm text-texto-suave">
+    <p className="solo-impresion secundario">
       Datos a{" "}
       {actualizadoEn.toLocaleString("es-CO", {
         dateStyle: "long",

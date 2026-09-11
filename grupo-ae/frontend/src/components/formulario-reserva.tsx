@@ -1,19 +1,35 @@
 "use client";
 
-import Link from "next/link";
+/** El formulario público de un convenio: quien quiere que lo contacten. */
+
+/**
+ * Las preguntas NO están en este archivo, y esa es la pieza que
+ * no se puede perder.
+ *
+ * Salen de `GET /formularios/:slug` —secciones, preguntas,
+ * opciones, obligatoriedad y dependencias— y se editan en el
+ * panel, en Formularios. Este componente solo sabe pintar cada
+ * tipo de pregunta. Escribir aquí un campo «Nombre» sería
+ * arrancarle al panel la única razón por la que existe.
+ *
+ * Lo que se quitó, que es lo que el dueño seguía viendo: las
+ * tarjetas de «Servicios disponibles» con su código, sus horas,
+ * su modalidad y su «Disponibilidad limitada»; el desplegable de
+ * ciudad con los cupos que quedan; y la pregunta de cuántas
+ * personas participarían. Eso es un catálogo de formación, y
+ * esto no vende cupos: recoge a quien quiere que lo llamen.
+ *
+ * Esas tres preguntas siguen EXISTIENDO en la base —son campos
+ * núcleo obligatorios para publicar, el panel no deja
+ * archivarlas— y por eso no se borran: se dejan de pintar. Ver
+ * `ofertaDeRespaldo` más abajo, que es lo que sostiene el envío
+ * mientras tanto.
+ */
+
 import { notFound } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 
-import {
-  api,
-  bonito,
-  ErrorApi,
-  type Accion,
-  type Catalogo,
-  type Modalidad,
-  type Oferta,
-  type Reserva,
-} from "@/lib/api";
+import { api, ErrorApi, type Catalogo, type Reserva } from "@/lib/api";
 import { CajaDePolitica, usePolitica } from "@/components/caja-de-politica";
 import {
   formularioPublico,
@@ -22,22 +38,46 @@ import {
 } from "@/lib/formularios-api";
 import type { PoliticaPublica } from "@/lib/politicas-api";
 
-const MODALIDAD: Record<Modalidad, string> = {
-  PRESENCIAL: "Presencial",
-  VIRTUAL: "Virtual",
-  HIBRIDA: "Híbrido",
-};
-
-const ETIQUETA_SEMAFORO = {
-  DISPONIBLE: { texto: "Disponible", clase: "bg-exito-suave text-exito" },
-  ULTIMOS_CUPOS: { texto: "Disponibilidad limitada", clase: "bg-aviso-suave text-aviso" },
-  COMPLETO: { texto: "Completo", clase: "bg-error-suave text-error" },
-} as const;
-
 /** Valor de un campo del formulario. */
 type Valor = string | string[] | boolean | number | undefined;
 
 type Estado = "cargando" | "listo" | "enviando" | "hecho" | "no-disponible";
+
+/// Las secciones YA NO son cajas.
+///
+/// Iban en tarjetas con borde y relleno de 24, y el borde
+/// completo se reserva para tres objetos --el campo, el modal
+/// y la ficha del tablero-- de los que una seccion no es
+/// ninguno. Ahora se separan por 40 px de aire y por una regla
+/// de 1 px, y de paso se ve el fondo de trazos: era la unica
+/// personalidad que tenia el producto y estaba tapada por dos
+/// rectangulos blancos.
+const SECCION = "banda-publica";
+
+/// La misma medida de campo que el panel: radio 6, alto 34,
+/// letra 13. «Las mismas piezas de datos» no es una frase: un
+/// campo que aqui midiera otra cosa haria que las dos mitades
+/// del producto no se parezcan.
+const CLASE_CONTROL =
+  "w-full rounded-plano border border-campo-borde bg-campo-fondo px-3 py-[7px] dato " +
+  "outline-none transition focus:border-campo-foco focus:ring-2 focus:ring-campo-foco";
+
+/**
+ * A qué oferta se cuelga la solicitud, sin preguntárselo.
+ *
+ * `POST /reservas` todavía exige `ofertaId` y `cuposSolicitados`:
+ * nació para apartar cupos. Quitar las preguntas sin resolver
+ * los datos rompía el envío, así que la oferta se resuelve aquí
+ * —la primera que no esté completa— y no se enseña.
+ *
+ * **Es un puente, no un diseño.** El día que
+ * `backend/src/captacion/` reciba este formulario, la
+ * oportunidad nace sin oferta y esta función se borra entera.
+ */
+function ofertaDeRespaldo(catalogo: Catalogo | null): string | null {
+  const ofertas = catalogo?.acciones.flatMap((a) => a.ofertas) ?? [];
+  return (ofertas.find((o) => o.estado !== "COMPLETO") ?? ofertas[0])?.id ?? null;
+}
 
 export function FormularioReserva({ slug }: { slug: string }) {
   const [formulario, setFormulario] = useState<FormularioPublico | null>(null);
@@ -45,7 +85,6 @@ export function FormularioReserva({ slug }: { slug: string }) {
   const [estado, setEstado] = useState<Estado>("cargando");
   const [error, setError] = useState<string | null>(null);
   const [noExiste, setNoExiste] = useState(false);
-  const [yaReservado, setYaReservado] = useState(false);
   const [resultado, setResultado] = useState<Reserva | null>(null);
 
   const [valores, setValores] = useState<Record<string, Valor>>({});
@@ -64,10 +103,18 @@ export function FormularioReserva({ slug }: { slug: string }) {
       .then(async (definicion) => {
         if (!vigente) return;
         setFormulario(definicion);
-        const cat = await api.catalogo(definicion.convenio.slug);
-        if (!vigente) return;
-        setCatalogo(cat);
-        setEstado(cat.acciones.length ? "listo" : "no-disponible");
+        setEstado("listo");
+
+        /// El catálogo YA NO decide si el formulario se pinta.
+        ///
+        /// Antes sí: sin acciones publicadas la pantalla decía
+        /// «no hay servicios disponibles» y no dejaba escribir
+        /// una línea. Eso tenía sentido cuando esto vendía
+        /// cupos; hoy recoge a quien quiere que lo contacten, y
+        /// un catálogo vacío no es motivo para cerrarle la
+        /// puerta a un interesado.
+        const cat = await api.catalogo(definicion.convenio.slug).catch(() => null);
+        if (vigente) setCatalogo(cat);
       })
       .catch((e: ErrorApi) => {
         if (!vigente) return;
@@ -82,6 +129,23 @@ export function FormularioReserva({ slug }: { slug: string }) {
     };
   }, [slug]);
 
+  /// TODAS las preguntas, incluidas las que no se pintan.
+  ///
+  /// Las de catálogo se esconden, pero siguen siendo el destino
+  /// de un `dependeDePreguntaId` y siguen mandando su campo
+  /// núcleo: si desaparecieran de aquí, una pregunta que
+  /// dependa de ellas dejaría de resolverse.
+  const todas = useMemo(() => {
+    if (!formulario) return [];
+    return [...formulario.secciones.flatMap((s) => s.preguntas), ...formulario.sueltas];
+  }, [formulario]);
+
+  const porCampo = useMemo(() => {
+    const mapa = new Map<string, PreguntaPublica>();
+    for (const p of todas) if (p.campoNucleo) mapa.set(p.campoNucleo, p);
+    return mapa;
+  }, [todas]);
+
   // secciones, con las sueltas al final
   const bloques = useMemo(() => {
     if (!formulario) return [];
@@ -91,29 +155,12 @@ export function FormularioReserva({ slug }: { slug: string }) {
           { id: "__sueltas", titulo: "Otros datos", descripcion: null, preguntas: formulario.sueltas },
         ]
       : formulario.secciones;
-    return conSueltas.filter((s) => s.preguntas.length > 0);
+    return conSueltas
+      // las tres del catálogo —producto, ciudad y cuántas
+      // personas— son justo las que llevan `controlEspecial`
+      .map((s) => ({ ...s, preguntas: s.preguntas.filter((p) => !p.controlEspecial) }))
+      .filter((s) => s.preguntas.length > 0);
   }, [formulario]);
-
-  const todas = useMemo(() => bloques.flatMap((b) => b.preguntas), [bloques]);
-
-  const porCampo = useMemo(() => {
-    const mapa = new Map<string, PreguntaPublica>();
-    for (const p of todas) if (p.campoNucleo) mapa.set(p.campoNucleo, p);
-    return mapa;
-  }, [todas]);
-
-  // el curso elegido
-  const accion: Accion | undefined = useMemo(() => {
-    const pregunta = porCampo.get("ACCION_FORMACION");
-    const id = pregunta ? (valores[pregunta.id] as string | undefined) : undefined;
-    return catalogo?.acciones.find((a) => a.id === id);
-  }, [catalogo, porCampo, valores]);
-
-  const oferta: Oferta | undefined = useMemo(() => {
-    const pregunta = porCampo.get("OFERTA");
-    const id = pregunta ? (valores[pregunta.id] as string | undefined) : undefined;
-    return accion?.ofertas.find((o) => o.id === id);
-  }, [accion, porCampo, valores]);
 
   function poner(preguntaId: string, valor: Valor) {
     setValores((previos) => ({ ...previos, [preguntaId]: valor }));
@@ -130,10 +177,13 @@ export function FormularioReserva({ slug }: { slug: string }) {
   async function enviar(evento: React.FormEvent) {
     evento.preventDefault();
     setError(null);
-    setYaReservado(false);
 
-    if (!oferta) {
-      setError("Elija el servicio y la ciudad.");
+    const ofertaId = ofertaDeRespaldo(catalogo);
+    if (!ofertaId) {
+      setError(
+        "No fue posible registrar su solicitud en este momento. " +
+          "Escríbanos al correo del pie de página y lo atendemos.",
+      );
       return;
     }
 
@@ -171,7 +221,7 @@ export function FormularioReserva({ slug }: { slug: string }) {
     setEstado("enviando");
     try {
       const reserva = await api.crearReserva({
-        ofertaId: oferta.id,
+        ofertaId,
         nit: texto("EMPRESA_NIT"),
         razonSocial: texto("EMPRESA_RAZON_SOCIAL"),
         numeroColaboradores: nucleo("EMPRESA_COLABORADORES")
@@ -183,7 +233,12 @@ export function FormularioReserva({ slug }: { slug: string }) {
         contactoCorreo: texto("CONTACTO_CORREO"),
         contactoCelular: texto("CONTACTO_CELULAR"),
         contactoCargo: texto("CONTACTO_CARGO"),
-        cuposSolicitados: Number(nucleo("CUPOS_SOLICITADOS") ?? 1),
+        /// UNO, siempre, y ya no se pregunta.
+        ///
+        /// El DTO exige `cuposSolicitados >= 1`. Cuántas
+        /// personas participarían es una conversación del
+        /// asesor, no un campo de la puerta de entrada.
+        cuposSolicitados: 1,
         aceptaTerminos: nucleo("ACEPTA_TERMINOS") === true,
         aceptaPoliticaDatos: nucleo("ACEPTA_POLITICA_DATOS") === true,
         formularioSlug: formulario!.slug,
@@ -193,9 +248,16 @@ export function FormularioReserva({ slug }: { slug: string }) {
       setEstado("hecho");
     } catch (e) {
       const fallo = e as ErrorApi;
-      setError(fallo.message);
-      // 409: ya reservo con otra cantidad, mandar a editar
-      setYaReservado(fallo.estado === 409);
+      /// El 409 del backend habla de cupos —«ya tiene una
+      /// reserva de N cupos en esta oferta»— y esa frase no
+      /// puede salir en una pantalla que ya no vende cupos. Se
+      /// traduce a lo que de verdad significa para quien
+      /// escribe: sus datos ya están, no hace falta insistir.
+      setError(
+        fallo.estado === 409
+          ? "Ya tenemos una solicitud registrada con esos datos. Un asesor comercial se comunicará con usted."
+          : fallo.message,
+      );
       setEstado("listo");
     }
   }
@@ -204,13 +266,13 @@ export function FormularioReserva({ slug }: { slug: string }) {
   // catch se pierde y la pagina se queda cargando
   if (noExiste) notFound();
 
-  if (estado === "cargando") return <p className="text-texto-suave">Cargando la oferta…</p>;
+  if (estado === "cargando") return <p className="secundario">Cargando el formulario…</p>;
 
   if (estado === "no-disponible") {
     return (
-      <div className="rounded-2xl border border-borde bg-superficie p-6">
-        <h2 className="font-medium">No hay servicios disponibles en este momento</h2>
-        <p className="mt-2 text-sm text-texto-suave">
+      <div>
+        <h2 className="titulo-bloque">El formulario no está disponible</h2>
+        <p className="secundario prosa mt-2">
           {error ?? "Vuelva a intentarlo más tarde."}
         </p>
       </div>
@@ -218,36 +280,31 @@ export function FormularioReserva({ slug }: { slug: string }) {
   }
 
   if (estado === "hecho" && resultado) {
-    return <Confirmacion reserva={resultado} mensaje={formulario?.mensajeExito} />;
+    return <Gracias reserva={resultado} mensaje={formulario?.mensajeExito} />;
   }
 
   return (
-    <form onSubmit={enviar} className="space-y-8">
+    <form onSubmit={enviar}>
       {bloques.map((bloque) => {
         const visibles = bloque.preguntas.filter(visible);
         if (!visibles.length) return null;
         return (
-          <section key={bloque.id} className="rounded-2xl border border-borde bg-superficie p-6">
-            <h2 className="text-lg font-medium">{bloque.titulo}</h2>
+          <section key={bloque.id} className={SECCION}>
+            {/* El rótulo en versalita, igual que en el panel.
+                Iba a 18 px en peso 600, y el 600 está reservado
+                para el estado. */}
+            <h2 className="rotulo-bloque">{bloque.titulo}</h2>
             {bloque.descripcion && (
-              <p className="mt-1 text-sm text-texto-suave">{bloque.descripcion}</p>
+              <p className="secundario prosa mt-1">{bloque.descripcion}</p>
             )}
-            <div className="mt-5 space-y-4">
+            <div className="formulario-doble mt-4">
               {visibles.map((pregunta) => (
                 <ControlPregunta
                   key={pregunta.id}
                   pregunta={pregunta}
                   valor={valores[pregunta.id]}
                   poner={(v) => poner(pregunta.id, v)}
-                  catalogo={catalogo}
-                  accion={accion}
-                  oferta={oferta}
                   politica={politica}
-                  alCambiarAccion={() => {
-                    // al cambiar de curso, la ubicacion ya no vale
-                    const preguntaOferta = porCampo.get("OFERTA");
-                    if (preguntaOferta) poner(preguntaOferta.id, undefined);
-                  }}
                 />
               ))}
             </div>
@@ -255,142 +312,48 @@ export function FormularioReserva({ slug }: { slug: string }) {
         );
       })}
 
+      {/* El color va en la LETRA: sin caja, sin borde, sin
+          fondo. Un rectángulo rojo compite con el formulario en
+          vez de señalar el fallo. */}
       {error && (
-        <div className="rounded-xl border border-error/30 bg-error-suave p-4 text-sm text-error">
-          <p>{error}</p>
-          {yaReservado && (
-            <p className="mt-2">
-              <Link href="/consulta" className="font-medium underline">
-                Consultar y modificar mi solicitud
-              </Link>
-            </p>
-          )}
-        </div>
+        <p role="alert" className="aviso-en-linea text-error mt-8">
+          {error}
+        </p>
       )}
 
-      <div className="flex flex-wrap items-center gap-4">
-        <button
-          type="submit"
-          disabled={estado === "enviando"}
-          className="rounded-xl bg-marca px-6 py-3 font-medium text-marca-texto transition hover:bg-marca-fuerte disabled:opacity-50"
-        >
-          {estado === "enviando" ? "Enviando…" : "Enviar solicitud"}
-        </button>
-        <Link href="/consulta" className="text-sm text-marca underline">
-          Ya envié una solicitud: consultarla o modificarla
-        </Link>
-      </div>
+      {/* Sin `opacity-50` al deshabilitarse: el gris no se
+          improvisa con opacidad. */}
+      <button
+        type="submit"
+        disabled={estado === "enviando"}
+        className="estado rounded-plano sin-aro mt-10 inline-flex h-[40px] items-center justify-center bg-marca px-6 text-marca-texto transition hover:bg-marca-fuerte disabled:cursor-not-allowed disabled:bg-campo-borde disabled:text-texto-suave"
+      >
+        {estado === "enviando" ? "Enviando…" : "Enviar mis datos"}
+      </button>
     </form>
   );
 }
 
 // un control por pregunta
 
-const CLASE_CONTROL =
-  "w-full rounded-xl border border-campo-borde bg-campo-fondo px-3 py-2.5 text-texto " +
-  "outline-none transition focus:border-campo-foco focus:ring-2 focus:ring-campo-foco/25";
-
 function ControlPregunta({
   pregunta,
   valor,
   poner,
-  catalogo,
-  accion,
-  oferta,
   politica,
-  alCambiarAccion,
 }: {
   pregunta: PreguntaPublica;
   valor: Valor;
   poner: (valor: Valor) => void;
-  catalogo: Catalogo | null;
-  accion?: Accion;
-  oferta?: Oferta;
   politica: PoliticaPublica | null;
-  alCambiarAccion: () => void;
 }) {
-  // sus opciones salen del catalogo y se encadenan
-  if (pregunta.controlEspecial === "ACCION") {
-    return (
-      <fieldset>
-        <legend className="mb-3 text-sm font-medium">
-          {pregunta.etiqueta}
-          {pregunta.obligatoria && <span className="text-error"> *</span>}
-        </legend>
-        {pregunta.ayuda && (
-          <p className="mb-3 text-xs text-texto-suave">{pregunta.ayuda}</p>
-        )}
-        <div className="grid gap-3 md:grid-cols-2">
-          {catalogo?.acciones.map((a) => (
-            <TarjetaCurso
-              key={a.id}
-              accion={a}
-              elegida={a.id === valor}
-              elegir={() => {
-                poner(a.id);
-                alCambiarAccion();
-              }}
-            />
-          ))}
-        </div>
-      </fieldset>
-    );
-  }
-
-  if (pregunta.controlEspecial === "OFERTA") {
-    if (!accion) return null;
-    return (
-      <Campo pregunta={pregunta} ayuda={pregunta.ayuda ?? ayudaUbicacion(accion)}>
-        <select
-          required={pregunta.obligatoria}
-          value={(valor as string) ?? ""}
-          onChange={(e) => poner(e.target.value)}
-          className={CLASE_CONTROL}
-        >
-          <option value="">Seleccione…</option>
-          {accion.ofertas.map((o) => (
-            <option key={o.id} value={o.id}>
-              {bonito(o.ubicacion)} — {MODALIDAD[o.modalidad]} —{" "}
-              {o.estado === "COMPLETO"
-                ? "sin disponibilidad, quedaría en revisión"
-                : `${o.cuposDisponibles} disponibles`}
-            </option>
-          ))}
-        </select>
-        {oferta && <ResumenOferta oferta={oferta} />}
-      </Campo>
-    );
-  }
-
-  if (pregunta.controlEspecial === "CUPOS") {
-    return (
-      <Campo
-        pregunta={pregunta}
-        ayuda={
-          oferta
-            ? `Quedan ${oferta.cuposDisponibles} disponibles. Si solicita más, un asesor revisará la diferencia con usted.`
-            : (pregunta.ayuda ?? "Elija primero el servicio y la ciudad.")
-        }
-      >
-        <input
-          required={pregunta.obligatoria}
-          type="number"
-          min={1}
-          max={oferta?.cuposMaximos ?? 500}
-          value={(valor as string) ?? "1"}
-          onChange={(e) => poner(e.target.value)}
-          className={`${CLASE_CONTROL} sm:max-w-32`}
-        />
-      </Campo>
-    );
-  }
-
+  /// Un párrafo del panel, sin caja.
+  ///
+  /// Iba dentro de un recuadro gris y se leía como un aviso del
+  /// sistema. Es texto que escribió alguien en Formularios: va
+  /// como texto.
   if (pregunta.tipo === "PARRAFO") {
-    return (
-      <p className="rounded-xl bg-superficie-alterna p-4 text-sm text-texto-suave">
-        {pregunta.etiqueta}
-      </p>
-    );
+    return <p className="secundario prosa a-lo-ancho">{pregunta.etiqueta}</p>;
   }
 
   /// La casilla de la politica va DEBAJO de su texto.
@@ -406,20 +369,27 @@ function ControlPregunta({
   /// Va el texto y no un enlace, por la misma razon que en la
   /// preinscripcion: casi nadie abre el enlace.
   if (pregunta.tipo === "CASILLA" && pregunta.campoNucleo === "ACEPTA_POLITICA_DATOS") {
+    /// Sin la caja dentro de la caja dentro de la caja.
+    ///
+    /// Eran tres marcos anidados: el bloque gris con borde, el
+    /// texto legal con el suyo y la casilla con el suyo. El
+    /// texto legal ya retrocede con su fondo, y la casilla es
+    /// una casilla: no necesita un rectangulo alrededor para
+    /// que se vea que se pulsa.
     return (
-      <div className="space-y-3 rounded-xl border border-borde bg-superficie-alterna p-4">
+      <div className="a-lo-ancho">
         <CajaDePolitica politica={politica} />
-        <label className="flex cursor-pointer gap-3 rounded-xl border border-campo-borde bg-campo-fondo p-3 text-sm">
+        <label className="dato mt-4 flex cursor-pointer gap-3">
           <input
             type="checkbox"
             required={pregunta.obligatoria}
             checked={valor === true}
             onChange={(e) => poner(e.target.checked)}
-            className="mt-0.5 size-4 shrink-0 accent-[var(--marca)]"
+            className="accent-[var(--marca)] mt-0.5 size-4 shrink-0"
           />
           <span>
             He leído y acepto lo anterior.
-            <span className="mt-0.5 block text-xs text-texto-suave">
+            <span className="secundario mt-0.5 block">
               {pregunta.ayuda ?? pregunta.etiqueta}
             </span>
           </span>
@@ -430,18 +400,18 @@ function ControlPregunta({
 
   if (pregunta.tipo === "CASILLA") {
     return (
-      <label className="flex gap-3 text-sm">
+      <label className="dato a-lo-ancho flex gap-3">
         <input
           type="checkbox"
           required={pregunta.obligatoria}
           checked={valor === true}
           onChange={(e) => poner(e.target.checked)}
-          className="mt-0.5 size-4 shrink-0 accent-[var(--marca)]"
+          className="accent-[var(--marca)] mt-0.5 size-4 shrink-0"
         />
         <span>
           {pregunta.etiqueta}
           {pregunta.ayuda && (
-            <span className="mt-0.5 block text-xs text-texto-suave">{pregunta.ayuda}</span>
+            <span className="secundario mt-0.5 block">{pregunta.ayuda}</span>
           )}
         </span>
       </label>
@@ -471,15 +441,15 @@ function ControlPregunta({
   if (pregunta.tipo === "SELECCION_MULTIPLE") {
     const marcadas = (valor as string[]) ?? [];
     return (
-      <fieldset>
-        <legend className="mb-2 text-sm font-medium">
+      <fieldset className="a-lo-ancho">
+        <legend className="rotulo-bloque mb-2">
           {pregunta.etiqueta}
-          {pregunta.obligatoria && <span className="text-error"> *</span>}
+          {pregunta.obligatoria && <span className="text-texto-suave"> *</span>}
         </legend>
-        {pregunta.ayuda && <p className="mb-2 text-xs text-texto-suave">{pregunta.ayuda}</p>}
+        {pregunta.ayuda && <p className="secundario prosa mb-2">{pregunta.ayuda}</p>}
         <div className="space-y-2">
           {pregunta.opciones.map((o) => (
-            <label key={o.id} className="flex gap-3 text-sm">
+            <label key={o.id} className="dato flex gap-3">
               <input
                 type="checkbox"
                 checked={marcadas.includes(o.valor)}
@@ -490,7 +460,7 @@ function ControlPregunta({
                       : marcadas.filter((v) => v !== o.valor),
                   )
                 }
-                className="mt-0.5 size-4 shrink-0 accent-[var(--marca)]"
+                className="accent-[var(--marca)] mt-0.5 size-4 shrink-0"
               />
               <span>{o.etiqueta}</span>
             </label>
@@ -502,7 +472,7 @@ function ControlPregunta({
 
   if (pregunta.tipo === "TEXTO_LARGO") {
     return (
-      <Campo pregunta={pregunta}>
+      <Campo pregunta={pregunta} aLoAncho>
         <textarea
           required={pregunta.obligatoria}
           rows={4}
@@ -539,284 +509,87 @@ function ControlPregunta({
         placeholder={pregunta.marcador ?? undefined}
         value={(valor as string) ?? ""}
         onChange={(e) => poner(e.target.value)}
-        className={CLASE_CONTROL}
+        className={`${CLASE_CONTROL} ${ANCHO_NUCLEO[pregunta.campoNucleo ?? ""] ?? ANCHO[pregunta.tipo] ?? ""}`}
       />
     </Campo>
   );
 }
 
+/**
+ * Un campo mide lo que mide su dato.
+ *
+ * Se declaran CINCO anchos y no hay un sexto. Iban todos al
+ * ancho de la columna, asi que la caja de un NIT y la de un
+ * correo median lo mismo y ninguna de las dos decia cuanto se
+ * espera que uno escriba.
+ */
+const ANCHO: Partial<Record<PreguntaPublica["tipo"], string>> = {
+  CORREO: "ancho-correo",
+  TELEFONO: "ancho-celular",
+  FECHA: "ancho-fecha",
+  NUMERO: "ancho-documento",
+};
+
+/// El NIT es un documento aunque el panel lo declare como
+/// texto: quien lo escribe teclea nueve digitos, no una frase.
+/// Manda sobre el ancho del tipo.
+const ANCHO_NUCLEO: Record<string, string> = {
+  EMPRESA_NIT: "ancho-documento",
+};
+
 function Campo({
   pregunta,
-  ayuda,
   children,
+  aLoAncho,
 }: {
   pregunta: PreguntaPublica;
-  ayuda?: string | null;
   children: React.ReactNode;
+  /// Ocupa las dos columnas de la rejilla. Para el texto
+  /// largo, que partido en media columna no deja escribir.
+  aLoAncho?: boolean;
 }) {
-  const texto = ayuda ?? pregunta.ayuda;
   return (
-    <label className="block">
-      <span className="mb-1.5 block text-sm font-medium">
+    /// El rotulo en versalita y el asterisco en gris.
+    ///
+    /// Iba en rojo, y `--error` esta reservado para el tiempo
+    /// vencido de quien espera respuesta: un campo obligatorio
+    /// que todavia no se ha tocado no es un error de nadie.
+    <label className={`block ${aLoAncho ? "a-lo-ancho" : ""}`}>
+      <span className="rotulo-bloque mb-1.5 block">
         {pregunta.etiqueta}
-        {pregunta.obligatoria && <span className="text-error"> *</span>}
+        {pregunta.obligatoria && <span className="text-texto-suave"> *</span>}
       </span>
       {children}
-      {texto && <span className="mt-1.5 block text-xs text-texto-suave">{texto}</span>}
+      {pregunta.ayuda && <span className="secundario mt-1.5 block">{pregunta.ayuda}</span>}
     </label>
   );
 }
 
-function ayudaUbicacion(accion: Accion): string {
-  const presencial = accion.ofertas.some((o) => o.modalidad === "PRESENCIAL");
-  const virtual = accion.ofertas.some((o) => o.modalidad === "VIRTUAL");
-  if (presencial && virtual) {
-    return "Este servicio se presta de forma presencial y virtual: cada opción indica cuál le corresponde.";
-  }
-  if (presencial) return "La atención es presencial en la ciudad que elija.";
-  return "La atención es virtual; el departamento define el asesor asignado.";
-}
-
-/** "2 ciudades y 12 departamentos". */
-function desgloseUbicaciones(accion: Accion): string {
-  const ciudades = accion.ofertas.filter((o) => o.tipoUbicacion === "CIUDAD").length;
-  const departamentos = accion.ofertas.filter((o) => o.tipoUbicacion === "DEPARTAMENTO").length;
-
-  const partes: string[] = [];
-  if (ciudades) {
-    partes.push(`${ciudades} ${ciudades === 1 ? "ciudad presencial" : "ciudades presenciales"}`);
-  }
-  if (departamentos) {
-    partes.push(
-      `${departamentos} ${departamentos === 1 ? "departamento virtual" : "departamentos virtuales"}`,
-    );
-  }
-  return partes.join(" y ");
-}
-
-function TarjetaCurso({
-  accion,
-  elegida,
-  elegir,
-}: {
-  accion: Accion;
-  elegida: boolean;
-  elegir: () => void;
-}) {
-  const disponibles = accion.ofertas.reduce((s, o) => s + o.cuposDisponibles, 0);
-  const llenas = accion.ofertas.filter((o) => o.estado === "COMPLETO").length;
+/**
+ * Quedó registrada, y se dice CUÁNDO la contactan.
+ *
+ * Aquí salían los cupos solicitados, los confirmados, los que
+ * quedaban en revisión y el NIT «que es lo único que necesita
+ * para consultar o modificar esta solicitud». Eso es la
+ * confirmación de una reserva de cupos. Quien acaba de dejar
+ * sus datos no reservó nada: espera una llamada.
+ *
+ * El texto lo puede escribir el panel (`mensajeExito`); lo de
+ * abajo es lo que se dice mientras nadie lo escriba.
+ */
+function Gracias({ reserva, mensaje }: { reserva: Reserva; mensaje?: string | null }) {
+  const nombre = reserva.contacto.nombre.trim().split(" ")[0] ?? "";
 
   return (
-    <label
-      className={`relative flex h-full cursor-pointer flex-col rounded-xl border p-5 transition ${
-        elegida
-          ? "border-marca bg-marca-suave ring-2 ring-marca/20"
-          : "border-borde bg-superficie hover:border-marca/50 hover:"
-      }`}
-    >
-      {/* radio oculto pero accesible */}
-      <input
-        type="radio"
-        name="curso"
-        checked={elegida}
-        onChange={elegir}
-        className="peer sr-only"
-      />
-      <span
-        aria-hidden
-        className={`absolute right-4 top-4 grid size-5 place-items-center rounded-full border transition peer-focus-visible:ring-2 peer-focus-visible:ring-marca/40 ${
-          elegida ? "border-marca bg-marca text-marca-texto" : "border-borde"
-        }`}
-      >
-        {elegida && <IconoCheck />}
-      </span>
-
-      <p className="pr-8 font-medium leading-snug">{bonito(accion.nombre)}</p>
-
-      <span className="mt-3 self-start rounded-md bg-marca/10 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-marca">
-        {accion.evento ?? "Servicio"}
-      </span>
-
-      <p className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-texto-suave">
-        <span className="inline-flex items-center gap-1.5">
-          <IconoModalidad modalidad={accion.modalidad} />
-          {MODALIDAD[accion.modalidad]}
-        </span>
-        {accion.horas && (
-          <span className="inline-flex items-center gap-1.5">
-            <IconoReloj />
-            {accion.horas} horas
-          </span>
-        )}
-        <span className="inline-flex items-center gap-1.5">
-          <IconoMapa />
-          {desgloseUbicaciones(accion)}
-        </span>
+    <div className="py-8">
+      <h2 className="titulo-publico text-balance">
+        Gracias{nombre ? `, ${nombre}` : ""}. Recibimos su solicitud.
+      </h2>
+      <p className="dato prosa text-texto-suave mt-4">
+        {mensaje ??
+          "Un asesor comercial se comunicará con usted dentro del siguiente día " +
+            "hábil, por el correo o el celular que registró."}
       </p>
-
-      <p className="mt-4 grow content-end text-sm">
-        {disponibles > 0 ? (
-          <span className="font-medium text-exito">
-            {disponibles} disponibles
-            {llenas > 0 && (
-              <span className="font-normal text-texto-suave"> · {llenas} sin disponibilidad</span>
-            )}
-          </span>
-        ) : (
-          <span className="font-medium text-aviso">Sin disponibilidad — su solicitud quedaría en revisión</span>
-        )}
-      </p>
-    </label>
-  );
-}
-
-function ResumenOferta({ oferta }: { oferta: Oferta }) {
-  const etiqueta = ETIQUETA_SEMAFORO[oferta.estado];
-  return (
-    <div className="mt-3 flex flex-wrap items-center gap-3 rounded-lg bg-marca-suave px-4 py-3 text-sm">
-      <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${etiqueta.clase}`}>
-        {etiqueta.texto}
-      </span>
-      <span>
-        {MODALIDAD[oferta.modalidad]} · <strong>{bonito(oferta.ubicacion)}</strong>
-      </span>
-      <span className="text-texto-suave">{oferta.cuposDisponibles} disponibles</span>
     </div>
-  );
-}
-
-function Confirmacion({ reserva, mensaje }: { reserva: Reserva; mensaje?: string | null }) {
-  const enEspera = reserva.cuposEnEspera > 0;
-  return (
-    <div className="rounded-2xl border border-borde bg-superficie p-6">
-      <span
-        className={`inline-block rounded-full px-3 py-1 text-sm font-medium ${
-          reserva.cuposConfirmados > 0
-            ? "bg-exito-suave text-exito"
-            : "bg-aviso-suave text-aviso"
-        }`}
-      >
-        {reserva.cuposConfirmados > 0 ? "Solicitud registrada" : "En revisión"}
-      </span>
-
-      <h2 className="mt-4 text-xl font-medium">{bonito(reserva.oferta.accion.nombre)}</h2>
-      <p className="text-texto-suave">
-        {bonito(reserva.oferta.ubicacion)} · {MODALIDAD[reserva.oferta.modalidad]}
-        {reserva.oferta.accion.horas ? ` · ${reserva.oferta.accion.horas} horas` : ""}
-      </p>
-
-      {mensaje && <p className="mt-4 text-texto-suave">{mensaje}</p>}
-
-      <dl className="mt-6 grid gap-3 border-t border-borde pt-6 sm:grid-cols-3">
-        <Dato titulo="Personas solicitadas" valor={reserva.cuposSolicitados} />
-        <Dato titulo="Confirmadas" valor={reserva.cuposConfirmados} destacado />
-        <Dato titulo="En revisión" valor={reserva.cuposEnEspera} />
-      </dl>
-
-      {enEspera && (
-        <p className="mt-4 rounded-lg bg-aviso-suave p-4 text-sm text-aviso">
-          Quedan {reserva.cuposEnEspera} pendientes de revisión. Un asesor comercial
-          se comunicará con usted para confirmarlos.
-        </p>
-      )}
-
-      <p className="mt-6 text-sm text-texto-suave">
-        Guarde el NIT <strong className="text-texto">{reserva.empresa.nit}</strong>: es
-        lo único que necesita para consultar o modificar esta solicitud.
-      </p>
-
-      <div className="mt-6 flex flex-wrap gap-4">
-        <Link
-          href="/consulta"
-          className="rounded-xl bg-marca px-5 py-2.5 text-sm font-medium text-marca-texto transition hover:bg-marca-fuerte"
-        >
-          Ver mis solicitudes
-        </Link>
-        <button
-          type="button"
-          onClick={() => window.location.reload()}
-          className="rounded-xl border border-borde px-5 py-2.5 text-sm font-medium transition hover:bg-fondo"
-        >
-          Solicitar otro servicio
-        </button>
-      </div>
-    </div>
-  );
-}
-
-function Dato({
-  titulo,
-  valor,
-  destacado,
-}: {
-  titulo: string;
-  valor: number;
-  destacado?: boolean;
-}) {
-  return (
-    <div>
-      <dt className="text-xs text-texto-suave">{titulo}</dt>
-      <dd className={`text-2xl ${destacado ? "font-semibold text-exito" : ""}`}>{valor}</dd>
-    </div>
-  );
-}
-
-// iconos en línea
-const TRAZO = {
-  fill: "none",
-  stroke: "currentColor",
-  strokeWidth: 1.75,
-  strokeLinecap: "round",
-  strokeLinejoin: "round",
-} as const;
-
-function IconoCheck() {
-  return (
-    <svg viewBox="0 0 24 24" className="size-3.5" {...TRAZO}>
-      <path d="M20 6 9 17l-5-5" />
-    </svg>
-  );
-}
-
-function IconoReloj() {
-  return (
-    <svg viewBox="0 0 24 24" className="size-4 shrink-0" {...TRAZO}>
-      <circle cx="12" cy="12" r="9" />
-      <path d="M12 7v5l3 2" />
-    </svg>
-  );
-}
-
-function IconoMapa() {
-  return (
-    <svg viewBox="0 0 24 24" className="size-4 shrink-0" {...TRAZO}>
-      <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z" />
-      <circle cx="12" cy="10" r="3" />
-    </svg>
-  );
-}
-
-function IconoModalidad({ modalidad }: { modalidad: Modalidad }) {
-  if (modalidad === "VIRTUAL") {
-    return (
-      <svg viewBox="0 0 24 24" className="size-4 shrink-0" {...TRAZO}>
-        <rect x="2" y="4" width="20" height="13" rx="2" />
-        <path d="M8 21h8M12 17v4" />
-      </svg>
-    );
-  }
-  if (modalidad === "HIBRIDA") {
-    return (
-      <svg viewBox="0 0 24 24" className="size-4 shrink-0" {...TRAZO}>
-        <rect x="2" y="5" width="11" height="8" rx="1.5" />
-        <path d="M17 21v-9a2 2 0 0 1 2-2h1a2 2 0 0 1 2 2v9M17 21h5M6 17h4" />
-      </svg>
-    );
-  }
-  return (
-    <svg viewBox="0 0 24 24" className="size-4 shrink-0" {...TRAZO}>
-      <path d="M4 21V6a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v15M4 21h16M16 21V10h2a2 2 0 0 1 2 2v9" />
-      <path d="M8 8h2M8 12h2M8 16h2" />
-    </svg>
   );
 }

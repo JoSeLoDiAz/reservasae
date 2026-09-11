@@ -1,12 +1,12 @@
 "use client";
 
-/** El fondo de las pantallas públicas: el signo y unas señas de estudio. */
+/** El fondo de las pantallas públicas: el signo y unas señas del oficio. */
 
 /**
  * El fondo era plano, y las pantallas públicas son las únicas
  * del sistema que alguien de fuera ve. Aquí se pone lo mismo que
  * en el inicio de sesión —el signo de Convoca, gigante y casi
- * invisible— más unas cuantas señas de que esto va de formarse.
+ * invisible— más unas cuantas señas de a qué se dedica la casa.
  *
  * Las reglas del rediseño se respetan, y son las que dan la
  * forma:
@@ -166,21 +166,41 @@ export function FondoPublico() {
   );
 }
 
-/// Señas de que esto va de formarse. Trazo, `currentColor` y
-/// repartidas para que ninguna caiga detrás de la columna del
-/// formulario, que en escritorio va centrada y estrecha.
+/// Señas del oficio: una casa que vende servicios a empresas y a
+/// personas. Trazo, `currentColor` y repartidas para que ninguna
+/// caiga detrás de la columna del formulario, que en escritorio va
+/// centrada y estrecha.
+/// Y ahora AL DESCUBIERTO, que es lo que cambió.
+///
+/// El formulario iba en dos tarjetas blancas de borde a borde
+/// de la columna, así que de este fondo no se veía nada salvo
+/// los márgenes: la única pantalla del producto con
+/// personalidad la tapaban dos rectángulos. Quitadas las
+/// tarjetas, las señas se leen detrás del formulario entero.
+///
+/// Por eso el reparto importa más que antes. La columna mide
+/// 720 px centrados: en 1440 va de 360 a 1080, o sea del 25 %
+/// al 75 %. Ninguna seña puede caer ahí, y `right-[20%]`
+/// —que terminaba en 1152 y empezaba en 1056— se metía
+/// veinticuatro píxeles dentro. Se corre a `right-[14%]`.
 const SENAS = [
-  { donde: "left-[6%] top-[14%]", deriva: "fondo-capa-2", opacidad: 0.07, icono: <Birrete /> },
-  { donde: "right-[9%] top-[26%]", deriva: "fondo-capa-3", opacidad: 0.06, icono: <Libro /> },
-  { donde: "left-[11%] top-[58%]", deriva: "fondo-capa-3", opacidad: 0.05, icono: <Lapiz /> },
-  { donde: "right-[7%] bottom-[18%]", deriva: "fondo-capa-2", opacidad: 0.06, icono: <Diploma /> },
-  { donde: "left-[18%] bottom-[8%]", deriva: "fondo-capa-1", opacidad: 0.05, icono: <Bombilla /> },
-  { donde: "right-[20%] top-[6%]", deriva: "fondo-capa-1", opacidad: 0.05, icono: <Portatil /> },
+  { donde: "left-[6%] top-[14%]", deriva: "fondo-capa-2", opacidad: 0.07, icono: <Grafica /> },
+  { donde: "right-[9%] top-[26%]", deriva: "fondo-capa-3", opacidad: 0.06, icono: <Maletin /> },
+  { donde: "left-[11%] top-[58%]", deriva: "fondo-capa-3", opacidad: 0.05, icono: <Auricular /> },
+  { donde: "right-[7%] bottom-[18%]", deriva: "fondo-capa-2", opacidad: 0.06, icono: <Contrato /> },
+  { donde: "left-[18%] bottom-[8%]", deriva: "fondo-capa-1", opacidad: 0.05, icono: <Edificio /> },
+  { donde: "right-[14%] top-[6%]", deriva: "fondo-capa-1", opacidad: 0.05, icono: <Portatil /> },
 ];
 
 /// Los dibujos. Uno por concepto y ninguno importado: son seis,
 /// y traerse un paquete de mil por seis engorda el bundle de la
 /// pantalla mas publica que hay.
+///
+/// Los seis cuentan una sola cosa por partes: qué busca quien
+/// escribe (crecer), con quién trata (una empresa), a quién llama
+/// (un asesor), en qué termina (un documento firmado) y desde
+/// dónde se le atiende. Aquí no vuelve a entrar un birrete: la
+/// casa vende servicios, no cursos.
 const TRAZO = {
   width: 96,
   height: 96,
@@ -192,53 +212,70 @@ const TRAZO = {
   strokeLinejoin: "round" as const,
 };
 
-function Birrete() {
+/// Resultado: ejes y una línea que sube. La punta va aparte
+/// porque cerrarla sobre la propia línea deja un pico grueso
+/// justo donde el trazo se dobla.
+function Grafica() {
   return (
     <svg {...TRAZO}>
-      <path d="M12 4 2 9l10 5 10-5-10-5Z" />
-      <path d="M6 11.5V17c0 1.1 2.7 2.5 6 2.5s6-1.4 6-2.5v-5.5" />
-      <path d="M22 9v5" />
+      <path d="M4 3.5v16a1 1 0 0 0 1 1h15.5" />
+      <path d="M7.5 16.5 11 12.5l3 2.5 5.5-7.5" />
+      <path d="M16 7.5h3.5V11" />
     </svg>
   );
 }
 
-function Libro() {
+/// Negocio.
+function Maletin() {
   return (
     <svg {...TRAZO}>
-      <path d="M4 4.5A1.5 1.5 0 0 1 5.5 3H19v16H5.5A1.5 1.5 0 0 0 4 20.5Z" />
-      <path d="M4 17.5A1.5 1.5 0 0 1 5.5 16H19" />
+      <rect x="2.5" y="7" width="19" height="13" rx="1.5" />
+      <path d="M8.5 7V5.5A1.5 1.5 0 0 1 10 4h4a1.5 1.5 0 0 1 1.5 1.5V7" />
+      <path d="M2.5 13h19" />
     </svg>
   );
 }
 
-function Lapiz() {
+/// El cliente: una empresa. El suelo cierra por abajo la torre y
+/// el cuerpo bajo, así que ninguno de los dos necesita su propia
+/// base.
+function Edificio() {
   return (
     <svg {...TRAZO}>
-      <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L8 18l-4 1 1-4Z" />
-      <path d="M14.5 5.5l3 3" />
+      <path d="M3.5 20.5V4.5A1.5 1.5 0 0 1 5 3h7.5A1.5 1.5 0 0 1 14 4.5v16" />
+      <path d="M14 10.5h5A1.5 1.5 0 0 1 20.5 12v8.5" />
+      <path d="M2 20.5h20" />
+      <path d="M6.5 7h4.5M6.5 11h4.5M6.5 15h4.5M16.5 14.5h2M16.5 17.5h2" />
     </svg>
   );
 }
 
-function Diploma() {
+/// Quien contesta. Con la varilla del micrófono, que es lo que
+/// separa a un asesor de unos audífonos.
+function Auricular() {
   return (
     <svg {...TRAZO}>
-      <circle cx="12" cy="9" r="5" />
-      <path d="M9 13.5 8 21l4-2 4 2-1-7.5" />
+      <path d="M4.5 13v-2a7.5 7.5 0 0 1 15 0v2" />
+      <rect x="2.5" y="12.5" width="4" height="6" rx="1" />
+      <rect x="17.5" y="12.5" width="4" height="6" rx="1" />
+      <path d="M19.5 18.5v.5a3 3 0 0 1-3 3H13" />
     </svg>
   );
 }
 
-function Bombilla() {
+/// En qué termina: un documento firmado.
+function Contrato() {
   return (
     <svg {...TRAZO}>
-      <path d="M9 17h6" />
-      <path d="M10 20h4" />
-      <path d="M12 2a6 6 0 0 0-3.5 10.9c.4.3.5.7.5 1.1v.5h6v-.5c0-.4.1-.8.5-1.1A6 6 0 0 0 12 2Z" />
+      <path d="M6 3h7l5 5v13H6Z" />
+      <path d="M13 3v5h5" />
+      <path d="M8.5 19c1.2-2.6 2.3-2.5 2.9-.6c.5 1.6 1.6 1.6 3.1-1.2" />
+      <path d="M8.5 19.5h7" />
     </svg>
   );
 }
 
+/// Desde dónde se atiende.
 function Portatil() {
   return (
     <svg {...TRAZO}>

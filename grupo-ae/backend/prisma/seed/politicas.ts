@@ -18,6 +18,17 @@ Sin perjuicio de lo anterior, los referidos datos no podrán ser distribuidos, c
 
 Así mismo, se me indicó que para mayor información podré consultar en cualquier momento la Política de Tratamiento de Datos Personales de GRUPO AE, la Ley 1581 de 2012 y el Decreto 1377 de 2013.`;
 
+/**
+ * Cómo se reconoce una política de la época de la convocatoria.
+ *
+ * La vieja autorizaba al «Servicio Nacional de Aprendizaje – SENA»
+ * a tratar los datos «en el marco de las convocatorias». Ninguna
+ * redacción de GRUPO AE nombra al SENA, así que el nombre basta
+ * para distinguirlas y no hay que comparar párrafos enteros —que
+ * es lo que fallaría en cuanto alguien corrija una tilde.
+ */
+const CADUCA = /Servicio Nacional de Aprendizaje|SENA\b/;
+
 type Semilla = {
   destinatario: DestinatarioPolitica;
   titulo: string;
@@ -54,12 +65,38 @@ async function main() {
           destinatario: semilla.destinatario,
           vigenteHasta: null,
         },
-        select: { version: true },
+        select: { id: true, version: true, contenido: true },
       });
 
-      if (vigente) {
+      /// El texto de arriba se reescribió entero —autorizaba al SENA
+      /// a tratar los datos «en el marco de las convocatorias»— y este
+      /// guion no lo cambiaba: se plantaba con «ya tiene la v1» y la
+      /// pantalla pública seguía enseñando el de la convocatoria. Que
+      /// no pise lo que el panel haya escrito es correcto; que no
+      /// pueda relevar un texto caduco no lo era.
+      ///
+      /// Se reconoce por el marcador, no por el texto entero: si la
+      /// política vigente todavía nombra al SENA es la de antes,
+      /// venga tal cual de la semilla vieja o retocada a mano.
+      /// Cualquier texto que ya no lo nombre se respeta.
+      ///
+      /// Y se RELEVA, no se pisa: la v1 se cierra con `vigenteHasta` y
+      /// nace la siguiente. `AutorizacionDatos` apunta a la versión
+      /// que la persona leyó, así que lo ya autorizado se sigue
+      /// pudiendo demostrar contra el texto que estaba delante.
+      if (vigente && !CADUCA.test(vigente.contenido)) {
         console.log(`= ${nombre} · ${semilla.destinatario}: ya tiene la v${vigente.version}`);
         continue;
+      }
+
+      if (vigente) {
+        await prisma.politicaDatos.update({
+          where: { id: vigente.id },
+          data: { vigenteHasta: new Date() },
+        });
+        console.log(
+          `~ ${nombre} · ${semilla.destinatario}: la v${vigente.version} nombraba al SENA, cerrada`,
+        );
       }
 
       const ultima = await prisma.politicaDatos.findFirst({

@@ -76,23 +76,23 @@ export function PanelAccesibilidad({ alCerrar }: { alCerrar: () => void }) {
       /// `left-0` y no `right-0`: la barra es angosta, y
       /// alineado a la derecha el panel de 18rem se salia por
       /// el otro lado.
-      className="absolute bottom-full left-0 z-50 mb-2 w-72 rounded-xl border border-borde bg-superficie p-4 shadow-lg"
+      className="absolute bottom-full left-0 z-50 mb-2 w-72 rounded-plano border border-borde bg-superficie p-4"
     >
       <div className="flex items-start justify-between gap-3">
-        <h2 className="text-sm font-semibold">Accesibilidad</h2>
+        <h2 className="titulo-bloque">Accesibilidad</h2>
         <button
           onClick={alCerrar}
           aria-label="Cerrar"
-          className="-mt-1 -mr-1 rounded-lg px-2 py-1 text-lg leading-none text-texto-suave transition hover:bg-superficie-alterna"
+          className="-mt-1 -mr-1 rounded-plano px-2 py-1 leading-none text-texto-suave transition hover:bg-superficie-alterna"
         >
           ✕
         </button>
       </div>
 
-      <label className="mt-4 block text-sm">
+      <label className="dato mt-4 block">
         <span className="flex items-center justify-between">
           Tamaño del texto
-          <span className="font-mono text-xs text-texto-suave">{ajustes.texto} %</span>
+          <span className="micro tabular-nums">{ajustes.texto} %</span>
         </span>
         <input
           type="range"
@@ -105,7 +105,7 @@ export function PanelAccesibilidad({ alCerrar }: { alCerrar: () => void }) {
         />
       </label>
 
-      <label className="mt-4 flex items-start gap-2 text-sm">
+      <label className="dato mt-4 flex items-start gap-2">
         <input
           type="checkbox"
           checked={ajustes.sinMovimiento}
@@ -114,13 +114,13 @@ export function PanelAccesibilidad({ alCerrar }: { alCerrar: () => void }) {
         />
         <span>
           Quitar animaciones
-          <span className="block text-xs text-texto-suave">
+          <span className="micro block">
             Si su sistema ya lo pide, se respeta sin tocar esto.
           </span>
         </span>
       </label>
 
-      <label className="mt-3 flex items-start gap-2 text-sm">
+      <label className="dato mt-3 flex items-start gap-2">
         <input
           type="checkbox"
           checked={ajustes.enlacesSubrayados}
@@ -129,7 +129,7 @@ export function PanelAccesibilidad({ alCerrar }: { alCerrar: () => void }) {
         />
         <span>
           Subrayar todos los enlaces
-          <span className="block text-xs text-texto-suave">
+          <span className="micro block">
             Para no depender del color al distinguirlos.
           </span>
         </span>
@@ -137,7 +137,7 @@ export function PanelAccesibilidad({ alCerrar }: { alCerrar: () => void }) {
 
       <button
         onClick={() => cambiar(AJUSTES_POR_DEFECTO)}
-        className="mt-4 text-sm text-marca underline"
+        className="dato text-marca mt-4 underline"
       >
         Restablecer
       </button>

@@ -181,10 +181,10 @@ export function Desplegable({
         className={
           subrayado
             ? "flex w-full items-center gap-2 rounded-none border-0 border-b bg-transparent px-0 " +
-              "text-left text-[0.84375rem] transition disabled:cursor-not-allowed disabled:opacity-60 " +
+              "dato text-left transition disabled:cursor-not-allowed disabled:text-texto-suave " +
               (abierto ? "border-marca" : "border-campo-borde hover:border-marca/60")
-            : "flex w-full items-center gap-2 rounded-lg border px-3 " +
-          "text-left text-[0.78125rem] transition disabled:cursor-not-allowed disabled:opacity-60 " +
+            : "flex w-full items-center gap-2 rounded-plano border px-3 " +
+          "dato text-left transition disabled:cursor-not-allowed disabled:text-texto-suave " +
           (enBarra
             ? "bg-transparent " +
               (abierto ? "border-current" : "border-encabezado-borde/60 hover:border-current/60")
@@ -233,12 +233,12 @@ export function Desplegable({
             /// pantalla.
             "caja-scroll absolute top-[calc(100%+4px)] left-0 z-50 max-h-72 w-max min-w-full " +
             "max-w-[24rem] overflow-auto " +
-            "rounded-lg border border-borde bg-superficie py-1 " +
+            "rounded-plano border border-borde bg-superficie py-1 " +
             "shadow-[0_10px_30px_-10px_rgba(15,23,42,0.28)]"
           }
         >
           {opciones.length === 0 && (
-            <li className="px-3 py-2 text-[0.78125rem] text-texto-suave">
+            <li className="dato px-3 py-2 text-texto-suave">
               No hay opciones disponibles.
             </li>
           )}
@@ -255,15 +255,15 @@ export function Desplegable({
                   onClick={() => elegir(i)}
                   className={
                     "sin-aro flex w-full items-start gap-2 px-3 py-[7px] text-left " +
-                    "text-[0.78125rem] transition disabled:opacity-50 " +
+                    "dato transition disabled:text-texto-suave " +
                     (i === marcada ? "bg-marca-suave " : "") +
-                    (esta ? "font-semibold text-marca" : "text-texto")
+                    (esta ? "text-marca" : "text-texto")
                   }
                 >
                   <span className="min-w-0 flex-1">
                     <span className="block leading-snug">{o.etiqueta}</span>
                     {o.detalle && (
-                      <span className="mt-0.5 block text-[0.71875rem] font-normal text-texto-suave">
+                      <span className="secundario mt-1 block">
                         {o.detalle}
                       </span>
                     )}

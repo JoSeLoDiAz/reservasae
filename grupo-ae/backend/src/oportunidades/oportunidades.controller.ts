@@ -2,6 +2,7 @@ import {
   BadRequestException,
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   Patch,
@@ -13,7 +14,15 @@ import {
 import { RolAdmin, TipoEmbudo, type Admin } from '../../generated/prisma';
 import { AdminActual, AmbitoActual } from '../admin/admin-actual.decorator';
 import { AdminGuard, Requiere, Roles, type Ambito } from '../admin/admin.guard';
-import { CambiarEtapaDto, CrearOportunidadDto } from './dto';
+import {
+  ActualizarOportunidadDto,
+  AsignarAsesorDto,
+  AtarClienteDto,
+  CambiarEtapaDto,
+  CrearOportunidadDto,
+  NotaDto,
+  PisarProbabilidadDto,
+} from './dto';
 import { OportunidadesService } from './oportunidades.service';
 
 /**
@@ -104,5 +113,94 @@ export class OportunidadesController {
     @AmbitoActual() ambito: Ambito,
   ) {
     return this.oportunidades.cambiarEtapa(id, dto, admin, ambito);
+  }
+
+  /**
+   * Pasarle el negocio a otra persona, o soltarlo.
+   *
+   * Ruta aparte y no un campo más de la edición: quién responde por
+   * un negocio no es un dato de la ficha como el título. Se pide
+   * solo, deja su propio movimiento en la bitácora y se le puede
+   * dar o quitar el permiso por separado el día que el traspaso lo
+   * autorice un líder y la corrección del título no.
+   */
+  @Patch(':id/asesor')
+  @Requiere('inscripciones', 'ESCRIBIR')
+  asignarAsesor(
+    @Param('id') id: string,
+    @Body() dto: AsignarAsesorDto,
+    @AdminActual() admin: Admin,
+    @AmbitoActual() ambito: Ambito,
+  ) {
+    return this.oportunidades.asignarAsesor(id, dto, admin, ambito);
+  }
+
+  /** Pisar la probabilidad a mano, o devolverla a la de su etapa. */
+  @Patch(':id/probabilidad')
+  @Requiere('inscripciones', 'ESCRIBIR')
+  pisarProbabilidad(
+    @Param('id') id: string,
+    @Body() dto: PisarProbabilidadDto,
+    @AdminActual() admin: Admin,
+    @AmbitoActual() ambito: Ambito,
+  ) {
+    return this.oportunidades.pisarProbabilidad(id, dto, admin, ambito);
+  }
+
+  /** Atarle la empresa o la persona a la que se le vende. */
+  @Patch(':id/cliente')
+  @Requiere('inscripciones', 'ESCRIBIR')
+  atarCliente(
+    @Param('id') id: string,
+    @Body() dto: AtarClienteDto,
+    @AdminActual() admin: Admin,
+    @AmbitoActual() ambito: Ambito,
+  ) {
+    return this.oportunidades.atarCliente(id, dto, admin, ambito);
+  }
+
+  /** Una nota suelta en la bitácora, sin agendar nada. */
+  @Post(':id/notas')
+  @Requiere('inscripciones', 'ESCRIBIR')
+  dejarNota(
+    @Param('id') id: string,
+    @Body() dto: NotaDto,
+    @AdminActual() admin: Admin,
+    @AmbitoActual() ambito: Ambito,
+  ) {
+    return this.oportunidades.dejarNota(id, dto.nota, admin, ambito);
+  }
+
+  /**
+   * Corregir la ficha.
+   *
+   * Va la última de las `PATCH` porque es la más general: las de
+   * arriba llevan un segundo segmento en la ruta y esta no, así que
+   * leerlas en este orden es leerlas de la más específica a la que
+   * recoge el resto.
+   */
+  @Patch(':id')
+  @Requiere('inscripciones', 'ESCRIBIR')
+  actualizar(
+    @Param('id') id: string,
+    @Body() dto: ActualizarOportunidadDto,
+    @AdminActual() admin: Admin,
+    @AmbitoActual() ambito: Ambito,
+  ) {
+    return this.oportunidades.actualizar(id, dto, admin, ambito);
+  }
+
+  /**
+   * Borrar, que solo vale para lo que entró por error.
+   *
+   * Todo lo demás se cierra como PERDIDO con su motivo. La regla
+   * entera está explicada en `puedeBorrarse`, y el mensaje de error
+   * la dice también, porque quien la va a encontrar es el asesor que
+   * le dio al botón.
+   */
+  @Delete(':id')
+  @Requiere('inscripciones', 'ESCRIBIR')
+  borrar(@Param('id') id: string, @AmbitoActual() ambito: Ambito) {
+    return this.oportunidades.borrar(id, ambito);
   }
 }

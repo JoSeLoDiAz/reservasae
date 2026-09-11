@@ -31,7 +31,7 @@ export default function PaginaAparienciaFormulario({
 
   return (
     <div>
-      <header className="border-b border-borde bg-superficie px-7 pt-[26px] pb-[22px]">
+      <header className="border-b border-borde bg-superficie px-6 pt-[26px] pb-[22px]">
         <Link
           href={`/admin/formularios/${id}`}
           className="text-sm text-marca hover:underline"

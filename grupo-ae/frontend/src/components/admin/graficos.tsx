@@ -39,7 +39,7 @@ export function TarjetaCifra({
     tono === "exito" ? "var(--exito)" : tono === "aviso" ? "var(--aviso)" : "var(--marca)";
 
   return (
-    <div className="border-b border-borde bg-superficie px-7 py-5">
+    <div className="border-b border-borde bg-superficie px-6 py-5">
       <p className="text-sm text-texto-suave">{titulo}</p>
       <div className="mt-1 flex items-end justify-between gap-3">
         <p className={`text-3xl font-semibold tabular-nums ${color}`}>
