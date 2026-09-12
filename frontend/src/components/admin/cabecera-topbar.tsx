@@ -349,6 +349,7 @@ export function FilaDeModulos({
   alElegirGremio,
   alSalir,
   alAbrirMenu,
+  alMedir,
   migas,
   ranura,
 }: {
@@ -363,12 +364,111 @@ export function FilaDeModulos({
   /// Abre el cajón. Solo por debajo de `xl`, que es donde la
   /// navegación horizontal no se pinta.
   alAbrirMenu: () => void;
-  /// Dónde está uno. Se pinta SOLO por debajo de `xl`, ver abajo.
+  /// Dónde está uno. Se pinta solo cuando la fila NO cabe.
   migas?: React.ReactNode;
   ranura?: React.ReactNode;
+  /// Se avisa hacia arriba de si la fila cabe, para que el cajón
+  /// aparezca exactamente cuando ella no está.
+  alMedir?: (cabe: boolean) => void;
 }) {
   const [abierto, setAbierto] = useState<Abierto>(null);
   const caja = useRef<HTMLDivElement>(null);
+  const barra = useRef<HTMLElement>(null);
+  const derecha = useRef<HTMLDivElement>(null);
+
+  /// SE MIDE, NO SE ADIVINA.
+  ///
+  /// Aquí había un umbral a mano --`xl`, 1280 px-- y estaba mal
+  /// por construcción: el ancho que importa es el de la fila
+  /// menos el bloque de usuario, y ninguno de los dos es fijo. El
+  /// de la nav depende de los nombres de los módulos de ESE
+  /// gremio y de los permisos de ESA cuenta --con menos permisos
+  /// salen menos módulos--, del tamaño de letra que haya elegido
+  /// en Accesibilidad (90-140 %) y del zoom del navegador, que es
+  /// justo lo que destapó el fallo: trabajando con zoom, el ancho
+  /// CSS se hunde y el umbral dejaba la fila escondida en una
+  /// pantalla de sobra ancha.
+  ///
+  /// Así que se mide lo que mide y se decide con eso. Se
+  /// autocorrige con cualquier zoom, cualquier letra y cualquier
+  /// gremio, sin que nadie tenga que volver a acertar un número.
+  /// SE ENCOGE LA FILA; NO SE CAMBIA DE DISPOSICIÓN.
+  ///
+  /// Aquí hubo dos intentos malos míos. El primero fue un umbral a
+  /// mano (`xl`, 1280 px): con zoom en el navegador el ancho CSS
+  /// se hunde por debajo y la fila desaparecía en una pantalla de
+  /// sobra ancha. El segundo fue medir para decidir «fila o
+  /// cajón», y el cliente lo cortó en seco: «no es sacar la vista
+  /// lateral, es tenerla donde ya la tenemos». Tenía razón: en un
+  /// portátil no quiere OTRA navegación, quiere LA MISMA más
+  /// pequeña.
+  ///
+  /// Así que lo que se calcula es un FACTOR. Se mide lo que la
+  /// fila pide y lo que hay, y se ajusta el cuerpo de letra hasta
+  /// que entre. El ancho de la fila es proporcional al cuerpo, así
+  /// que `factor * hueco / pedido` converge en una pasada.
+  ///
+  /// Se autocorrige con cualquier zoom, con el ajuste de texto del
+  /// 90-140 %, con un gremio de nombres más largos y con una
+  /// cuenta de menos permisos --que ve menos módulos y por tanto
+  /// necesita menos--. Nadie tiene que volver a acertar un número.
+  const [escala, setEscala] = useState(1);
+  /// El suelo. Por debajo de esto la letra deja de leerse, y
+  /// entonces --y solo entonces-- manda el cajón. A 0,8 el cuerpo
+  /// de 12,5 px queda en 10, que es el mínimo de la casa para una
+  /// versalita y se sigue leyendo de un vistazo.
+  const SUELO = 0.8;
+  const [cabe, setCabe] = useState(true);
+
+  useEffect(() => {
+    const fila = caja.current;
+    const nav = barra.current;
+    if (!fila || !nav) return;
+
+    /// `requestAnimationFrame` y no una llamada directa: medir en
+    /// el cuerpo del efecto es medir antes de que el navegador
+    /// haya colocado nada, y además dispara un render en cascada.
+    let pedido = 0;
+    let ultima = 1;
+    const medir = () => {
+      pedido = 0;
+      const est = getComputedStyle(fila);
+      const relleno = parseFloat(est.paddingLeft) + parseFloat(est.paddingRight);
+      const usuario = derecha.current?.offsetWidth ?? 0;
+      /// 16 px de aire: pegada al bloque de usuario no cabe, se
+      /// toca.
+      const hueco = fila.clientWidth - relleno - usuario - 16;
+      const pide = nav.scrollWidth;
+      if (hueco <= 0 || pide <= 0) return;
+
+      /// Lo que pide AHORA está medido con la escala de ahora, así
+      /// que el factor nuevo se compone sobre ella.
+      const bruto = (ultima * hueco) / pide;
+      const nueva = Math.min(1, Math.max(SUELO, bruto));
+      ultima = nueva;
+      setEscala(nueva);
+      /// Solo se rinde si ni al suelo entra.
+      setCabe(bruto >= SUELO);
+    };
+    const encolar = () => {
+      if (!pedido) pedido = requestAnimationFrame(medir);
+    };
+
+    encolar();
+    const ojo = new ResizeObserver(encolar);
+    ojo.observe(fila);
+    return () => {
+      ojo.disconnect();
+      if (pedido) cancelAnimationFrame(pedido);
+    };
+    /// Se vuelve a medir cuando cambian los módulos visibles: el
+    /// observador mira el ancho de la fila, y eso no cambia porque
+    /// cambie el contenido.
+  }, [esSuperadmin, permisos, ruta]);
+
+  useEffect(() => {
+    alMedir?.(cabe);
+  }, [cabe, alMedir]);
 
   /// SE CIERRA AL NAVEGAR. Sin esto, pulsar un enlace del
   /// desplegable deja el menú abierto sobre la pantalla nueva.
@@ -443,20 +543,20 @@ export function FilaDeModulos({
       }}
       className="relative z-30 flex shrink-0 items-center justify-between gap-3 border-b border-encabezado-borde bg-encabezado-fondo text-encabezado-texto"
     >
-      {/* LA HAMBURGUESA Y LAS MIGAS, solo por debajo de xl.
+      {/* LA HAMBURGUESA Y LAS MIGAS, exactamente cuando la fila no
+          cabe. No por un umbral: por la medida.
 
-          Por debajo de xl no hay navegación horizontal --no cabe,
-          ver el cálculo de abajo--, así que manda el cajón y hace
-          falta el botón que lo abre. Y ahí las migas siguen
-          siendo lo único que dice en qué pantalla está uno.
+          Donde no hay fila manda el cajón, y hace falta el botón
+          que lo abre. Ahí las migas son lo único que dice en qué
+          pantalla está uno. Donde sí hay fila se esconden las dos
+          cosas: el módulo lo dice la píldora activa y el nombre de
+          la pantalla, su propio `h1`.
 
-          A partir de xl se esconden: el módulo lo dice la píldora
-          activa de la fila, y el nombre de la pantalla lo dice su
-          propio `h1`. Queda una decisión abierta del cliente --si
-          quiere la ruta completa también a pantalla ancha-- y
-          hasta que la conteste esto no pierde nada, porque hoy
-          tampoco se lee la miga en el sitio donde se trabaja. */}
-      <div className="flex min-w-0 items-center gap-2 xl:hidden">
+          Queda una decisión abierta del cliente --si quiere la
+          ruta completa también con la fila puesta-- y hasta que la
+          conteste esto no pierde nada. */}
+      {!cabe && (
+      <div className="flex min-w-0 items-center gap-2">
         <button
           onClick={alAbrirMenu}
           aria-label="Abrir el menú"
@@ -466,6 +566,7 @@ export function FilaDeModulos({
         </button>
         {migas}
       </div>
+      )}
 
       {/* LA NAVEGACIÓN DESDE xl, APRETANDO EL RELLENO ANTES DE
           RENDIRSE. Y esto es una corrección de un error mío.
@@ -495,9 +596,51 @@ export function FilaDeModulos({
           escala la letra hasta el 140 % desde Accesibilidad, y a
           ese tamaño no hay corte que salve la cuenta. Antes que
           pisar al usuario, la nav se desplaza por dentro. */}
+      {/* CUANDO NO CABE NO SE DESMONTA: se saca de flujo y se
+          vuelve invisible. Desmontándola no habría nada que medir
+          y la decisión se quedaría pegada para siempre en «no
+          cabe»; así se sigue pudiendo preguntar cuánto pediría, y
+          en cuanto quepa --el usuario quita el zoom, agranda la
+          ventana, baja la letra-- vuelve sola.
+          `aria-hidden` y sin tabulación mientras no se ve: si no,
+          un lector de pantalla leería siete módulos que no están,
+          y el tabulador se metería en ellos. */}
+      {/* EL CUERPO DE LETRA SALE DE LA MEDIDA, y los rellenos y
+          los huecos van en `em` para que sigan al cuerpo: así la
+          fila entera se encoge en proporción en vez de apretarse
+          por un lado.
+
+          SIN `overflow-x-auto`, Y ESTO ES IMPORTANTE. Se lo puse
+          como red --antes que pisar al bloque de usuario, que se
+          desplace por dentro-- y rompió los siete desplegables de
+          golpe: un menú posicionado en absoluto NO PUEDE SALIR de
+          un contenedor con scroll, así que el caret giraba y no
+          aparecía nada. «No salen las listas desplegables»
+          (cliente, 12 sep 2026).
+
+          Y la red ya no hacía falta: con los nombres cortos de
+          `navegacion.ts` la fila pide 764 px medidos, que entran
+          hasta en 900. Lo que impide que pise al usuario es el
+          factor que se mide, no un desplazamiento.
+
+          Cuando ni al suelo entra, la fila no se desmonta: se saca
+          de flujo y se vuelve invisible. Desmontándola no habría
+          nada que medir y la decisión quedaría pegada para
+          siempre; así se puede seguir preguntando cuánto pediría,
+          y en cuanto quepa --se quita el zoom, se agranda la
+          ventana, baja la letra-- vuelve sola.
+          `aria-hidden` e `inert` mientras no se ve: si no, un
+          lector de pantalla leería siete módulos que no están y el
+          tabulador se metería en ellos. */}
       <nav
+        ref={barra}
         aria-label="Módulos del panel"
-        className="caja-scroll hidden min-w-0 items-center gap-0.5 overflow-x-auto xl:flex 2xl:gap-1"
+        aria-hidden={!cabe}
+        inert={!cabe ? true : undefined}
+        style={{ fontSize: `calc(0.78125rem * ${escala})` }}
+        className={`min-w-0 items-center gap-[0.05em] ${
+          cabe ? "flex" : "invisible pointer-events-none absolute -z-10 flex"
+        }`}
       >
         <EnlaceDeFila href="/admin" activo={ruta === "/admin"}>
           Resumen
@@ -524,8 +667,11 @@ export function FilaDeModulos({
                 key={modulo.clave}
                 href={enlaces[0].href}
                 activo={activo}
+                /// El nombre largo en el `title`: la fila dice
+                /// «Académica» y quien dude lo confirma sin entrar.
+                titulo={modulo.etiqueta}
               >
-                {modulo.etiqueta}
+                {modulo.corto ?? modulo.etiqueta}
               </EnlaceDeFila>
             );
           }
@@ -533,7 +679,8 @@ export function FilaDeModulos({
           return (
             <MenuDeModulo
               key={modulo.clave}
-              etiqueta={modulo.etiqueta}
+              etiqueta={modulo.corto ?? modulo.etiqueta}
+              titulo={modulo.etiqueta}
               enlaces={enlaces}
               ruta={ruta}
               activo={activo}
@@ -576,17 +723,28 @@ export function FilaDeModulos({
 function EnlaceDeFila({
   href,
   activo,
+  titulo,
   children,
 }: {
   href: string;
   activo: boolean;
+  /// El nombre LARGO del módulo. La fila muestra el corto para
+  /// caber; esto lo deja a un paso del puntero, y de paso es lo
+  /// que oye un lector de pantalla.
+  titulo?: string;
   children: React.ReactNode;
 }) {
   return (
     <Link
       href={href}
+      title={titulo}
+      aria-label={titulo}
       aria-current={activo ? "page" : undefined}
-      className={`rounded-lg px-2 py-[5px] text-[0.78125rem] whitespace-nowrap no-underline transition 2xl:px-2.5 ${
+      /// El cuerpo lo HEREDA de la fila, que es quien lo calcula
+      /// midiendo. Con un `text-[...]` propio se anulaba el
+      /// escalado y no encogía nada. Y los rellenos en `em`, para
+      /// que sigan al cuerpo en vez de quedarse fijos.
+      className={`rounded-lg px-[0.85em] py-[0.4em] text-[1em] whitespace-nowrap no-underline transition ${
         activo
           ? "bg-encabezado-texto font-semibold text-encabezado-fondo"
           : "font-medium opacity-80 hover:bg-current/10 hover:opacity-100"
@@ -608,6 +766,7 @@ function EnlaceDeFila({
  */
 function MenuDeModulo({
   etiqueta,
+  titulo,
   enlaces,
   ruta,
   activo,
@@ -615,6 +774,9 @@ function MenuDeModulo({
   alAlternar,
 }: {
   etiqueta: string;
+  /// El nombre largo, igual que en `EnlaceDeFila`: la fila dice
+  /// «Inscripciones» y esto dice «Gestión de Inscripciones».
+  titulo?: string;
   enlaces: Array<{ href: string; etiqueta: string }>;
   ruta: string;
   activo: boolean;
@@ -626,8 +788,12 @@ function MenuDeModulo({
       <button
         type="button"
         onClick={alAlternar}
+        title={titulo}
+        aria-label={titulo}
         aria-expanded={desplegado}
-        className={`flex items-center gap-1 rounded-lg px-2 py-[5px] text-[0.78125rem] whitespace-nowrap transition 2xl:gap-1.5 2xl:px-2.5 ${
+        /// Igual que `EnlaceDeFila`: el cuerpo se hereda de la
+        /// fila y los rellenos van en `em`.
+        className={`flex items-center gap-[0.35em] rounded-lg px-[0.85em] py-[0.4em] text-[1em] whitespace-nowrap transition ${
           activo
             ? "bg-encabezado-texto font-semibold text-encabezado-fondo"
             : "font-medium opacity-80 hover:bg-current/10 hover:opacity-100"

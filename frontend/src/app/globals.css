@@ -792,6 +792,30 @@ html {
   height: 0;
 }
 
+/* LA FILA DE MODULOS NO ENSENA BARRA. Nunca.
+
+   La fila lleva `overflow-x-auto` como ULTIMO RECURSO: antes de
+   pisar el bloque de usuario o de desbordar la cabecera, se
+   desplaza por dentro. Pero eso es una red, no una forma de
+   navegar, y con una barra gris debajo del menu se veia como lo
+   que no es -- «pero que es esto tan asco» (cliente, 12 sep
+   2026), y tenia razon: en su captura salia la barra con sus dos
+   flechas partiendo la cabecera en dos.
+
+   Lo que de verdad quita la barra es que la fila QUEPA, y para eso
+   estan los nombres cortos de `navegacion.ts` y el factor que se
+   mide. Esto solo se asegura de que el ultimo recurso no se
+   anuncie. */
+.fila-modulos {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.fila-modulos::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+  display: none;
+}
+
 /* el desplegable, con la curva y el color del resto */
 /*
  * El control nativo de Windows se pinta con el gris del sistema

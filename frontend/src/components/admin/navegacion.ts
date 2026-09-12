@@ -22,6 +22,21 @@ export type Modulo = {
   /// dentro se quedan en texto para no competir con el.
   emoji: string;
   etiqueta: string;
+  /// El nombre CORTO, para la fila horizontal de la cabecera.
+  ///
+  /// Vive aquí y no en la cabecera para que los dos nombres no se
+  /// separen: si mañana un módulo se renombra, se renombra en un
+  /// solo sitio. El largo sigue mandando en el cajón, en las migas
+  /// y en el título de cada pantalla, que es donde hay sitio y
+  /// donde se lee una vez.
+  ///
+  /// Lo pidió el cliente el 12 sep 2026 al ver la fila con una
+  /// barra de desplazamiento debajo: «Gestión de Inscripciones
+  /// pasa a ser Inscripciones». Y es lo que su montaje de diseño
+  /// ya hacía; yo lo había rechazado por no separar los nombres de
+  /// su fuente, y la respuesta correcta no era dejarlos largos,
+  /// era poner el corto EN la fuente.
+  corto?: string;
   descripcion: string;
   enlaces: Enlace[];
 };
@@ -71,6 +86,7 @@ export const MODULOS: Modulo[] = [
     clave: 'inscripciones',
     emoji: '📝',
     etiqueta: 'Gestión de Inscripciones',
+    corto: 'Inscripciones',
     descripcion: 'Convertir cupos en personas con nombre.',
     enlaces: [
       {
@@ -128,6 +144,7 @@ export const MODULOS: Modulo[] = [
     clave: 'sistemas',
     emoji: '🗂️',
     etiqueta: 'Sistemas de Información',
+    corto: 'Sistemas',
     descripcion: 'Los datos que sostienen el reporte al SENA.',
     enlaces: [
       {
@@ -153,6 +170,7 @@ export const MODULOS: Modulo[] = [
     clave: 'academico',
     emoji: '📈',
     etiqueta: 'Gestión Académica',
+    corto: 'Académica',
     descripcion: 'Quién va al día y quién no.',
     enlaces: [
       {
@@ -237,6 +255,7 @@ export const MODULOS: Modulo[] = [
     clave: 'campanas',
     emoji: '✉️',
     etiqueta: 'Campaña Mailing',
+    corto: 'Mailing',
     descripcion: 'Lo que se le escribe a la gente, y a quiénes.',
     enlaces: [
       {

@@ -83,6 +83,11 @@ export function MarcoAdmin({ children }: { children: React.ReactNode }) {
   const [cargando, setCargando] = useState(true);
   const [bloqueo, setBloqueo] = useState<string | null>(null);
   const [cajon, setCajon] = useState(false);
+  /// Si la fila de módulos entra en pantalla. Lo dice ella, que es
+  /// quien se mide; aquí solo se usa para saber si hace falta el
+  /// cajón. NO es un umbral de ancho: con zoom, o con la letra al
+  /// 140 %, una pantalla anchísima puede no tener sitio.
+  const [filaCabe, setFilaCabe] = useState(true);
   const [gremio, setGremioEstado] = useState<string | null>(null);
 
   /// Aquí vivía un «cinturón encima de los tirantes»: un
@@ -307,6 +312,7 @@ export function MarcoAdmin({ children }: { children: React.ReactNode }) {
             alElegirGremio={elegirGremio}
             alSalir={salir}
             alAbrirMenu={() => setCajon(true)}
+            alMedir={setFilaCabe}
             migas={<Migas ruta={ruta} />}
             /* LA RANURA TIENE QUE EXISTIR SIEMPRE, con su id.
                `AccionesDePagina` la resuelve UNA vez en un efecto
@@ -324,16 +330,24 @@ export function MarcoAdmin({ children }: { children: React.ReactNode }) {
           />
         </div>
 
-        <CajonMovil
-          abierto={cajon}
-          alCerrar={() => setCajon(false)}
-          ruta={ruta}
-          esSuperadmin={esSuperadmin}
-          permisos={admin.permisos}
-          gremios={gremios}
-          gremio={gremioActivo}
-          alElegir={elegirGremio}
-        />
+        {/* El cajón existe SOLO cuando la fila no entra, y eso lo
+            decide la medida, no un ancho. Montado siempre y
+            escondido por CSS volvía a ser el fallo de antes: dos
+            cortes distintos que dejaban una franja con la fila
+            escondida por estrecha y el cajón escondido por ancho,
+            o sea una hamburguesa que no hacía nada. */}
+        {!filaCabe && (
+          <CajonMovil
+            abierto={cajon}
+            alCerrar={() => setCajon(false)}
+            ruta={ruta}
+            esSuperadmin={esSuperadmin}
+            permisos={admin.permisos}
+            gremios={gremios}
+            gremio={gremioActivo}
+            alElegir={elegirGremio}
+          />
+        )}
 
         <div className="flex min-h-0 min-w-0 grow flex-col">
           <main
@@ -660,17 +674,20 @@ function FilaResumen({
  * Son ajustes: se tocan una vez y se dejan. Estuvieron arriba,
  * donde competían con las migas y con las acciones de cada
  * pantalla; luego al pie de la barra lateral; y desde el 12 sep
- * 2026 abajo a la izquierda, flotando, que es donde las puso el
- * cliente en su montaje. La razón de fondo no ha cambiado en las
- * tres mudanzas: no tienen que estar en el camino.
+ * 2026 abajo a la DERECHA, flotando y pequeña. La razón de fondo
+ * no ha cambiado en las cuatro mudanzas: no tienen que estar en el
+ * camino.
  */
 function Ajustes() {
   const [abierto, setAbierto] = useState(false);
 
   return (
-    /// UNA PÍLDORA FLOTANTE ABAJO A LA IZQUIERDA, como la dibujó
-    /// el cliente el 12 sep 2026. Antes era una caja al pie de la
-    /// barra lateral, y la barra ya no existe.
+    /// UNA PÍLDORA FLOTANTE ABAJO A LA DERECHA. El montaje del
+    /// cliente la dibujaba a la izquierda y él la movió al verla
+    /// en su sitio: en desarrollo, el distintivo de Next se planta
+    /// en esa misma esquina y se le monta encima. Antes de todo
+    /// esto era una caja al pie de la barra lateral, y la barra ya
+    /// no existe.
     ///
     /// Se murió con ella la variante plegada, y con la variante el
     /// 🎛️: era el ÚNICO emoji que quedaba en el marco, y el
@@ -703,7 +720,27 @@ function Ajustes() {
     /// clara: sus rótulos salían en blanco sobre blanco. Lo que
     /// necesita el color de encabezado es lo que se pinta SOBRE
     /// este fondo, y eso son los dos botones.
-    <div className="no-imprimir fixed right-5 bottom-5 z-40 flex items-center gap-2 rounded-full border border-encabezado-borde bg-encabezado-fondo p-2 shadow-lg shadow-black/20">
+    /// MÁS PEQUEÑA, Y PROPORCIONAL A LA PANTALLA.
+    ///
+    /// Estuvo con relleno y distancia fijos, y en un portátil se
+    /// comía la esquina: «el campo donde está modo oscuro claro y
+    /// accesibilidad más pequeño», «las proporciones de acuerdo al
+    /// tamaño de pantalla» (cliente, 12 sep 2026).
+    ///
+    /// El relleno, el hueco y la distancia al borde salen de la
+    /// ventana, igual que las dos filas de la cabecera. Y el cuerpo
+    /// de letra baja a 13 px: es lo que encoge los dos botones del
+    /// conmutador SIN tocar el componente, que es compartido y vive
+    /// también en las seis pantallas públicas.
+    <div
+      style={{
+        padding: "clamp(3px, 0.25vw, 6px)",
+        gap: "clamp(2px, 0.2vw, 6px)",
+        right: "clamp(0.75rem, 1vw, 1.25rem)",
+        bottom: "clamp(0.75rem, 1vw, 1.25rem)",
+      }}
+      className="no-imprimir fixed z-40 flex items-center rounded-full border border-encabezado-borde bg-encabezado-fondo text-[0.8125rem] shadow-lg shadow-black/20"
+    >
       <ConmutadorTema compacto />
 
       {/* el relative abraza solo al boton: si abraza el
@@ -990,14 +1027,47 @@ function CajonMovil({
       <div
         onClick={alCerrar}
         aria-hidden
-        className={`no-imprimir fixed inset-0 z-40 bg-black/50 transition-opacity duration-200 md:hidden ${
+        className={`no-imprimir fixed inset-0 z-40 bg-black/50 transition-opacity duration-200 ${
           abierto ? "opacity-100" : "pointer-events-none opacity-0"
         }`}
       />
       <nav
         aria-label="Secciones del panel"
         aria-hidden={!abierto}
-        className={`no-imprimir fixed inset-y-0 left-0 z-50 flex w-[270px] flex-col border-r border-encabezado-borde bg-encabezado-fondo px-4 py-4 text-encabezado-texto transition-transform duration-200 md:hidden ${
+        /// `xl:hidden` Y NO `md:hidden`, y esto era un boton
+        /// muerto.
+        ///
+        /// El cajon nacio cuando la barra lateral se ocultaba en
+        /// `md`: por debajo de 768 no habia barra, y el cajon la
+        /// sustituia. El 12 sep 2026 la barra se volvio una fila
+        /// horizontal que se oculta en `xl`, y yo movi ese corte
+        /// sin mover este: entre 768 y 1280 quedaba una franja sin
+        /// NADA -- la fila escondida por estrecha y el cajon
+        /// escondido por ancho --, asi que la hamburguesa se
+        /// pulsaba y no pasaba nada. El cliente lo vio enseguida,
+        /// trabajando con zoom en el portatil: ahi el ancho CSS
+        /// cae justo dentro de esa franja.
+        ///
+        /// Los dos cortes tienen que ser EL MISMO: donde no hay
+        /// fila, hay cajon.
+        /// SIN corte de ancho, y esta vez a propósito.
+        ///
+        /// Aquí hubo dos fallos encadenados. Primero `md:hidden`,
+        /// heredado de cuando existía una barra lateral que se
+        /// ocultaba en 768: al volverse la barra una fila que se
+        /// escondía en 1280, quedó una franja de 768 a 1280 sin
+        /// fila y sin cajón, con una hamburguesa que se pulsaba y
+        /// no hacía nada. Lo vio el cliente trabajando con zoom,
+        /// que es lo que mete el ancho CSS en esa franja. Después
+        /// lo cambié a `xl:hidden`, que era el mismo error movido
+        /// de sitio.
+        ///
+        /// Ahora quien decide es la MEDIDA: el marco monta este
+        /// cajón solo cuando la fila no entra ni encogida al
+        /// suelo. Un corte de ancho aquí volvería a contradecirla,
+        /// porque con zoom o con la letra al 140 % una pantalla
+        /// anchísima puede no tener sitio.
+        className={`no-imprimir fixed inset-y-0 left-0 z-50 flex w-[270px] flex-col border-r border-encabezado-borde bg-encabezado-fondo px-4 py-4 text-encabezado-texto transition-transform duration-200 ${
           abierto ? "translate-x-0" : "-translate-x-full"
         }`}
       >
