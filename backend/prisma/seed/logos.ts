@@ -73,6 +73,24 @@ async function main() {
     });
     console.log(`  actualizado ${s.etiqueta} (${s.esquema}) ${datos.length} bytes`);
   }
+
+  // Las etiquetas que siembra el repo quedan EXACTAS. Los logos
+  // subidos antes del 11 sep 2026 quedaron todos como AMBOS, y AMBOS
+  // se muestra sobre cualquier fondo: si se deja, la cabecera oscura
+  // ensena DOS veces el logo, una de ellas con la letra ilegible.
+  // Se borra y no se oculta porque `Logo` no tiene ese estado, y el
+  // archivo se recupera de aqui mismo.
+  const mias = SEMILLAS.map((s) => `${s.etiqueta}|${s.esquema}`);
+  const delGremio = await prisma.logo.findMany({
+    where: { formularioId: null, etiqueta: { in: SEMILLAS.map((s) => s.etiqueta) } },
+    select: { id: true, etiqueta: true, esquema: true },
+  });
+
+  for (const f of delGremio) {
+    if (mias.includes(`${f.etiqueta}|${f.esquema}`)) continue;
+    await prisma.logo.delete({ where: { id: f.id } });
+    console.log(`  retirado    ${f.etiqueta} (${f.esquema}) sobraba`);
+  }
 }
 
 main()

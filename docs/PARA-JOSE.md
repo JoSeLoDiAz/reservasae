@@ -26,9 +26,23 @@ Son 38 ficheros y **todos están bajo `frontend/src`**. Comprobado con
 
 ```bash
 git checkout arq/crm-hardening && git pull
-docker compose build frontend
-docker compose up -d frontend
+docker compose build backend frontend
+docker compose up -d backend frontend
+
+# Y esto, que es lo que arregla el logo de ADECOPRIA:
+docker compose exec backend pnpm db:sembrar-logos
 ```
+
+> **Corrección:** esta parte decía «solo frontend» y ya no es exacta. Sigue sin
+> haber migraciones ni cambios de API —el orden de despliegue da igual—, pero la
+> siembra de logos vive en `backend/`, así que el backend hay que reconstruirlo
+> para poder correrla.
+
+**Sin ese `db:sembrar-logos` el logo de ADECOPRIA se queda con la letra oscura
+sobre la cabecera verde, donde no se lee.** Los logos viven en la base de cada
+entorno y el de pruebas nunca tuvo las dos variantes; ahora los archivos están en
+el repo y ese comando los deja puestos. Es idempotente y retira la fila vieja
+marcada `AMBOS`, que si se queda hace que salgan dos logos, uno ilegible.
 
 ### 2 · Lo que va a notar el equipo el primer día
 
