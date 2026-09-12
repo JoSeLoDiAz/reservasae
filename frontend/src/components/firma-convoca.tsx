@@ -208,8 +208,25 @@ export function FirmaConvoca({
 export function PieDeConvoca({
   className,
   apilado = false,
+  menudo = false,
 }: {
   className?: string;
+  /// Más pequeño y más discreto, para el pie del panel.
+  ///
+  /// Ahí esta línea le come alto a la tabla, que es lo que la
+  /// gente mira: «esto sobra, o quizás hacerlo mucho más pequeño y
+  /// discreto para ganar más a lo largo a la tabla» (cliente, 12
+  /// sep 2026).
+  ///
+  /// Es una variante y no un tamaño nuevo para todos porque el
+  /// mismo pie cierra las seis pantallas públicas y el acceso,
+  /// donde el tamaño de ahora está aprobado.
+  ///
+  /// Y NO SE BORRA, que era la otra opción que él daba: este pie
+  /// es lo único que dice de quién es el documento en el PDF --por
+  /// eso no lleva `.no-imprimir`-- y el panel se exporta y se
+  /// proyecta en reunión.
+  menudo?: boolean;
   /// En tres renglones en vez de uno, para el pie del acceso.
   ///
   /// Ahí la columna es estrecha y centrada, y el renglón único
@@ -268,7 +285,11 @@ export function PieDeConvoca({
     /// 4,19:1 en el acceso. El minimo es 4,5 y al 65 % da 4,93.
     /// Subir solo el cuerpo no arreglaba nada: el fallo era toda
     /// la opacidad.
-    <p className={`text-[0.78125rem] leading-relaxed opacity-65 ${className ?? ""}`}>
+    <p
+      className={`${
+        menudo ? "text-[0.625rem] leading-tight opacity-55" : "text-[0.78125rem] leading-relaxed opacity-65"
+      } ${className ?? ""}`}
+    >
       Gestionado por <strong className="font-semibold">Grupo AE</strong>
       {ano ? ` · © ${ano}, todos los derechos reservados` : ""}
       {estado ? (

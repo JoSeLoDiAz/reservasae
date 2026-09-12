@@ -315,7 +315,14 @@ export function Encabezado({
     /// cuando el contenedor de la pagina ponia el margen. Ahora
     /// las secciones van a sangre y el relleno lo pone cada una,
     /// asi que sin esto el titulo quedaba pegado al canto.
-    <header className="flex flex-wrap items-start justify-between gap-4 border-b border-borde bg-superficie px-7 pt-[26px] pb-[22px]">
+    /// SIN ESQUINAS EN PICO.
+    ///
+    /// «A esto le falta bordes, recuerda que no tenemos nada con
+    /// cuadrados o puntas» / «No cuadrado» (cliente, 12 sep
+    /// 2026). Las bandas iban a sangre y con raya abajo; ahora
+    /// llevan las cuatro esquinas redondeadas, y para eso tienen
+    /// que separarse del canto: de ahí el `mx-3`.
+    <header className="mx-3 mb-3 flex flex-wrap items-start justify-between gap-4 rounded-2xl border border-borde bg-superficie px-7 pt-[26px] pb-[22px]">
       <div className="min-w-0">
         <h1 className="text-[1.3125rem] font-bold tracking-[-0.02em] text-titulo">
           {titulo}

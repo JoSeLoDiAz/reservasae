@@ -823,7 +823,16 @@ function MenuDeModulo({
         /// animaciones» puesto las transiciones se quedan en su
         /// último fotograma, así que un menú que se oculta con
         /// opacidad se quedaría visible y comiéndose los clics.
-        <div className="absolute top-[calc(100%+6px)] left-0 z-40 w-max max-w-[22rem] min-w-[13rem] rounded-xl border border-encabezado-borde bg-encabezado-fondo p-1.5 shadow-lg shadow-black/25">
+        /// LAS MEDIDAS DE `Desplegable`, no unas propias.
+        ///
+        /// Tenía opciones de 13 px con relleno de 10/14 en un
+        /// panel de 208 de ancho: al lado de los desplegables del
+        /// propio panel --12,5 px con relleno de 7/12-- se veía
+        /// de otro tamaño. «Revisa las proporciones de los
+        /// desplegables porque se ve raro» (cliente, 12 sep
+        /// 2026). Ahora las dos listas del panel tienen el mismo
+        /// ritmo.
+        <div className="absolute top-[calc(100%+6px)] left-0 z-40 w-max max-w-[22rem] min-w-[11.5rem] rounded-xl border border-encabezado-borde bg-encabezado-fondo p-1 shadow-lg shadow-black/25">
           <ul>
             {enlaces.map((enlace) => {
               const suyo = estaActivo(enlace, ruta);
@@ -832,7 +841,7 @@ function MenuDeModulo({
                   <Link
                     href={enlace.href}
                     aria-current={suyo ? "page" : undefined}
-                    className={`block rounded-lg px-3.5 py-2.5 text-[0.8125rem] no-underline transition ${
+                    className={`block rounded-[9px] px-3 py-[7px] text-[0.78125rem] no-underline transition ${
                       suyo
                         ? "bg-current/15 font-semibold"
                         : "opacity-85 hover:bg-current/10 hover:opacity-100"

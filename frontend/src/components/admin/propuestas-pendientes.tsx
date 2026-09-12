@@ -144,7 +144,7 @@ export function PropuestasPendientes() {
 
   return (
     <div>
-      <header className="border-b border-borde bg-superficie px-7 pt-[26px] pb-[22px]">
+      <header className="mx-3 mb-3 rounded-2xl border border-borde bg-superficie px-7 pt-[26px] pb-[22px]">
         <p className="mt-1 max-w-3xl text-texto-suave">
           Ninguna consulta automática escribe en la ficha de una organización: deja aquí
           una propuesta. Hasta que una persona no la acepte campo por campo, ese dato no

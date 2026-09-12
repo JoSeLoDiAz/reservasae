@@ -4,8 +4,8 @@
 
 /// Los dos botones viven en la barra de la tabla, junto a
 /// «Descargar en Excel», porque son de la misma familia: sacar
-/// y meter datos. Van con otro color para que no se confundan
-/// -- uno baja un informe, los otros dos cambian la base.
+/// y meter datos. Y con la misma pinta que él: los tres rellenos
+/// y de la misma medida.
 ///
 /// La confirmación no cabe en una barra, así que sale en un
 /// recuadro sobre la pantalla: es una decisión, y una decisión
@@ -18,13 +18,26 @@ import { plantillasApi, type ResultadoCargue } from "@/lib/plantillas-api";
 
 import { Boton } from "./marco-admin";
 
-/// Ni relleno como «Descargar en Excel» ni gris como los
-/// demás: borde y letra en el color de la marca. Se leen como
-/// un grupo aparte sin gritar.
+/// LOS TRES RELLENOS, y con la misma caja.
+///
+/// Estaban de contorno y al lado de «Descargar en Excel», que va
+/// relleno: «estos botones todos con relleno, no uno con relleno
+/// y dos no, se ve feo» (cliente, 12 sep 2026).
+///
+/// El contorno era para decir cuál es la acción principal. Aquí
+/// no hay principal: bajar los datos, bajar la plantilla y subir
+/// el archivo son tres hermanos del mismo trabajo, y en esa fila
+/// nadie manda sobre los otros. Donde sí hay una acción que
+/// manda --un formulario con su «Guardar»-- el contorno sigue
+/// significando algo, y por eso no se toca en todas partes.
+///
+/// Las medidas son las de la barra de la tabla (32 de alto, radio
+/// 9, relleno 13): así los tres miden lo mismo, que era la otra
+/// mitad de lo que se veía feo.
 const CLASE =
-  "rounded-xl border border-marca px-4 py-2 text-sm font-medium " +
-  "whitespace-nowrap text-marca no-underline transition hover:bg-marca-suave " +
-  "disabled:opacity-50";
+  "inline-flex h-[32px] items-center justify-center rounded-[9px] bg-marca px-[13px] " +
+  "text-[0.78125rem] font-semibold whitespace-nowrap text-marca-texto no-underline " +
+  "transition hover:bg-marca-fuerte disabled:opacity-50 sin-aro";
 
 export function CarguePlantilla({
   entidad,

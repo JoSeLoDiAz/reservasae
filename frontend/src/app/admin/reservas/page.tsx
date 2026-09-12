@@ -253,7 +253,10 @@ export default function PaginaReservas() {
           <>
             <button
               onClick={() => descargar("reservas", {})}
-              className="inline-flex h-[34px] items-center rounded-lg border border-marca bg-marca px-3.5 text-[0.78125rem] font-semibold text-marca-texto transition hover:bg-marca-fuerte"
+              /// La medida de la barra de la tabla, la misma que
+              /// los dos de `CarguePlantilla` que vienen detrás:
+              /// 32 de alto, radio 9, relleno 13.
+              className="inline-flex h-[32px] items-center rounded-[9px] bg-marca px-[13px] text-[0.78125rem] font-semibold text-marca-texto transition hover:bg-marca-fuerte sin-aro"
             >
               Descargar en Excel
             </button>

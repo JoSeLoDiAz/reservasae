@@ -8,7 +8,6 @@ import { IndicadorActualizacion } from "@/components/admin/indicador-actualizaci
 import { Aviso, CLASE_CONTROL, Tarjeta } from "@/components/admin/marco-admin";
 import { Esqueleto } from "@/components/admin/piezas";
 import { PanelAcademico } from "@/components/admin/panel-academico";
-import { TableroAcademico } from "@/components/admin/tablero-academico";
 import { Desplegable } from "@/components/admin/desplegable";
 import { SelectorBuscable } from "@/components/admin/selector-buscable";
 import { useDatosVivos } from "@/lib/datos-vivos";
@@ -77,58 +76,22 @@ function fecha(iso: string | null) {
  * numerador con un denominador que no le corresponde.
  */
 /**
- * Las DOS hojas de Gestión Académica, con sus pestañas.
+ * Seguimiento: el aula persona a persona.
  *
- * «Tablero académico» era una pantalla del menú y se fusionó
- * aquí; su ruta quedó redirigiendo. Pero el tablero contesta
- * otra cosa --cómo va cada acción, cada grupo y cada asesor,
- * con sus cortes y su aviso de medibles-- y esa lectura se
- * perdió: el componente seguía escrito y no lo pintaba nadie.
+ * Su hermana --«Tablero académico», que mira por acción, grupo y
+ * asesor-- fue una pestaña de aquí y volvió a ser una pantalla,
+ * en `academico/tablero`. Las dos se eligen desde el menú de
+ * Académica en la cabecera: «estas dos opciones que queden en
+ * Académica en lista desplegable» (cliente, 12 sep 2026).
  *
- * Vuelve como pestaña y no como pantalla aparte, que es el
- * mismo patrón de Control de Inscritos: dos vistas de la misma
- * cosa comparten cabecera, y así no hay dos entradas de menú
- * que compitan. «Seguimiento» sigue siendo la primera, que es
- * la que se abre a diario.
+ * Con las pestañas se fue lo que las montaba y desmontaba para no
+ * doblar las consultas: ahora son dos rutas, y cada una pide lo
+ * suyo cuando se entra.
  */
-const HOJAS = [
-  { clave: "seguimiento", etiqueta: "Seguimiento" },
-  { clave: "tablero", etiqueta: "Tablero académico" },
-] as const;
-
-type Hoja = (typeof HOJAS)[number]["clave"];
-
 export default function PaginaAcademica() {
-  const [hoja, setHoja] = useState<Hoja>("seguimiento");
-
   return (
     <div className="flex flex-col gap-3 px-4 pt-3">
-      <div
-        role="tablist"
-        aria-label="Qué mirar"
-        className="flex gap-1 self-start rounded-lg border border-borde bg-superficie p-1"
-      >
-        {HOJAS.map((h) => (
-          <button
-            key={h.clave}
-            role="tab"
-            aria-selected={hoja === h.clave}
-            onClick={() => setHoja(h.clave)}
-            className={`sin-aro rounded-md px-4 py-1.5 text-[0.78125rem] font-semibold transition ${
-              hoja === h.clave
-                ? "bg-marca-suave text-marca"
-                : "text-texto-suave hover:text-texto"
-            }`}
-          >
-            {h.etiqueta}
-          </button>
-        ))}
-      </div>
-
-      {/* Montado y desmontado, no escondido: cada hoja pide sus
-          propios datos cada treinta segundos, y dejarlas las dos
-          vivas dobla las consultas para enseñar una. */}
-      {hoja === "seguimiento" ? <Seguimiento /> : <TableroAcademico />}
+      <Seguimiento />
     </div>
   );
 }

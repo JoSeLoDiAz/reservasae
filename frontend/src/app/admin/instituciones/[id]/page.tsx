@@ -361,7 +361,7 @@ export default function PaginaInstitucion({
         </Link>
       </div>
 
-      <header className="border-b border-borde bg-superficie px-7 pt-[26px] pb-[22px] flex flex-wrap items-start justify-between gap-4">
+      <header className="mx-3 mb-3 flex flex-wrap items-start justify-between gap-4 rounded-2xl border border-borde bg-superficie px-7 pt-[26px] pb-[22px]">
         <div className="min-w-0">
           <h1 className="text-[1.3125rem] font-bold tracking-[-0.02em] text-titulo">
             {bonito(ficha.razonSocial)}

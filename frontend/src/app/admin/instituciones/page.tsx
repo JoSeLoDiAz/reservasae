@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
 import { IconoOrganizaciones } from "@/components/admin/iconos";
+import { Desplegable } from "@/components/admin/desplegable";
 import { Aviso } from "@/components/admin/marco-admin";
 import { Pildora, Vacio } from "@/components/admin/piezas";
 import { PropuestasPendientes } from "@/components/admin/propuestas-pendientes";
@@ -68,24 +69,26 @@ export default function PaginaBancoDeEmpresas() {
 
   return (
     <div className="flex min-h-0 grow flex-col">
-      <div
-        role="tablist"
-        aria-label="Qué mirar"
-        className="m-4 flex w-fit gap-1 self-start rounded-lg border border-borde bg-superficie p-1"
-      >
-        {(["banco", "pendientes"] as const).map((v) => (
-          <button
-            key={v}
-            role="tab"
-            aria-selected={vista === v}
-            onClick={() => cambiar(v)}
-            className={`sin-aro rounded-md px-4 py-1.5 text-[0.78125rem] font-semibold transition ${
-              vista === v ? "bg-marca-suave text-marca" : "text-texto-suave hover:text-texto"
-            }`}
-          >
-            {v === "banco" ? "Empresas registradas" : "Por revisar"}
-          </button>
-        ))}
+      {/* Desplegable y no pestañas, como el resto del panel. */}
+      <div className="no-imprimir m-4 w-[210px]">
+        <Desplegable
+          alto={34}
+          marcador="Qué mirar"
+          valor={vista}
+          opciones={[
+            {
+              valor: "banco",
+              etiqueta: "Empresas registradas",
+              detalle: "las que ya están en el banco",
+            },
+            {
+              valor: "pendientes",
+              etiqueta: "Por revisar",
+              detalle: "propuestas del buscador web",
+            },
+          ]}
+          alElegir={(v) => cambiar(v as Vista)}
+        />
       </div>
 
       {vista === "banco" ? <Banco /> : <PropuestasPendientes />}
@@ -303,7 +306,11 @@ function Banco() {
   /// busqueda y la paginacion quedaban pegadas al canto.
   return (
     <div className="flex min-h-0 grow flex-col">
-      <header className="border-b border-borde bg-superficie px-7 pt-[26px] pb-[22px]">
+      {/* Sin esquinas en pico, como el resto de las bandas
+          (cliente, 12 sep 2026). Estas clases están copiadas a
+          mano en siete sitios en vez de usar `Encabezado`, así que
+          el redondeo hay que ponerlo aquí también. */}
+      <header className="mx-3 mb-3 rounded-2xl border border-borde bg-superficie px-7 pt-[26px] pb-[22px]">
         {/* sin título: lo dice la miga. La cifra se fue al
             lado del buscador, que es donde se mira cuando uno
             está filtrando */}

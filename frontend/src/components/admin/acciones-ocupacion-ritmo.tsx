@@ -82,18 +82,41 @@ export function AccionesOcupacionRitmo({
   /// por código: el código se repite entre convenios.
   const ritmoDe = new Map(proyeccion.acciones.map((p) => [p.id, p]));
 
+  /// El número de «AF7», para poder ordenar. Sin dígitos se va
+  /// al final en vez de romper el orden de las que sí lo tienen.
+  const numeroDeAccion = (codigo: string) => {
+    const hallado = /(\d+)/.exec(codigo);
+    return hallado ? Number(hallado[1]) : Number.MAX_SAFE_INTEGER;
+  };
+
   const porConvenio = new Map<string, FilaAccion[]>();
   for (const a of acciones) {
     const k = a.convenioSigla ?? a.convenio;
     porConvenio.set(k, [...(porConvenio.get(k) ?? []), a]);
   }
 
+  /// AF1, AF2, AF3... y no de la más lenta a la más rápida.
+  ///
+  /// Ordenaba por ritmo diario ascendente. Era una regla
+  /// defendible --lo que peor va, primero-- pero invisible: la
+  /// lista quedaba en un orden que solo se entiende si alguien te
+  /// cuenta que existe. «Acá es en orden AF1 AF2 AF3... no sé por
+  /// qué no está de esta manera» (cliente, 12 sep 2026).
+  ///
+  /// Y tiene razón: el código es el nombre con el que se habla de
+  /// cada acción en las reuniones y en los formatos del SENA, así
+  /// que a esta lista se viene a BUSCAR una, no a comparar
+  /// ritmos. Lo lento ya tiene su propia lista --«Qué va más
+  /// lento»-- donde ese orden sí es el mensaje.
+  ///
+  /// Natural y no alfabético: ordenando por texto, AF10 se cuela
+  /// entre AF1 y AF2.
   for (const lista of porConvenio.values()) {
-    lista.sort((x, y) => {
-      const rx = ritmoDe.get(x.id)?.ritmoDiario ?? 0;
-      const ry = ritmoDe.get(y.id)?.ritmoDiario ?? 0;
-      return rx - ry;
-    });
+    lista.sort(
+      (x, y) =>
+        numeroDeAccion(x.codigo) - numeroDeAccion(y.codigo) ||
+        x.codigo.localeCompare(y.codigo, "es"),
+    );
   }
 
   return (

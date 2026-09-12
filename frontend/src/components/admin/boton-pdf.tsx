@@ -1,26 +1,33 @@
 "use client";
 
-/** Botón de exportar a PDF. */
+/**
+ * Botón de exportar a PDF.
+ *
+ * ROJO Y SIN ICONO, desde el 12 sep 2026: «quita el emoji, deja
+ * solo el texto, y todos los botones que son para dar PDF color
+ * rojo como el color del logo del PDF para que quede más chusco»
+ * (cliente).
+ *
+ * El icono era una impresora dibujada, y al lado de un texto que
+ * ya dice «PDF» no añadía nada: en una barra con tres botones,
+ * el único con dibujo se lee como si fuera de otra familia.
+ *
+ * El rojo es un token --`--pdf`, en `globals.css`-- y no un hex
+ * escrito aquí: este botón sale en cinco pantallas y el color de
+ * una acción no se decide en un componente.
+ *
+ * Es el ÚNICO sitio del panel donde el rojo no significa
+ * «peligro». Se lo puede permitir porque no compite con nada: los
+ * avisos de error son texto y fondo tenue, nunca un botón
+ * relleno.
+ */
 export function BotonPdf({ etiqueta = "Exportar a PDF" }: { etiqueta?: string }) {
   return (
     <button
       type="button"
       onClick={() => window.print()}
-      className="no-imprimir inline-flex items-center gap-2 rounded-xl border border-borde px-4 py-2 text-sm font-medium transition hover:bg-superficie-alterna"
+      className="no-imprimir sin-aro inline-flex h-[34px] items-center rounded-lg bg-pdf px-4 text-[0.8125rem] font-semibold whitespace-nowrap text-pdf-texto transition hover:bg-pdf-fuerte"
     >
-      <svg
-        viewBox="0 0 24 24"
-        className="size-4"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.75"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        aria-hidden
-      >
-        <path d="M6 9V3h12v6M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />
-        <path d="M6 14h12v7H6z" />
-      </svg>
       {etiqueta}
     </button>
   );

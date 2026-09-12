@@ -817,7 +817,13 @@ export function Tabla<T>({
           `grow:0 shrink:1` -- con pocas filas mide lo que miden
           las filas, y con cincuenta se encoge a lo que hay y
           scrollea por dentro, que es lo que ya hacia. */}
-      <div className="mb-5 flex min-h-0 flex-initial flex-col overflow-hidden rounded-lg border border-borde bg-superficie">
+      {/* 8 px por debajo y no 20: la tabla baja hasta casi el
+          pie. «Baja más la tabla, esto en todas las vistas que
+          sean de tabla, obviamente conservando un margen»
+          (cliente, 12 sep 2026). Se toca AQUÍ y no en cada
+          pantalla porque este contenedor es el de las diecinueve
+          tablas del panel. */}
+      <div className="mb-2 flex min-h-0 flex-initial flex-col overflow-hidden rounded-xl border border-borde bg-superficie">
         {/* Se estira con su contenedor en vez de llevar un tope
             fijo: con `max-h` quedaba media pantalla en blanco
             debajo cuando la ventana era alta. */}

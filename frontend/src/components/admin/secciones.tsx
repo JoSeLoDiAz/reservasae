@@ -54,7 +54,9 @@ export function Seccion({
   className?: string;
 }) {
   return (
-    <div className={`border-b border-borde bg-superficie ${className}`}>
+    <div
+      className={`mx-3 mb-3 rounded-2xl border border-borde bg-superficie ${className}`}
+    >
       {children}
     </div>
   );

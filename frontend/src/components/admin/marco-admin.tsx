@@ -394,8 +394,14 @@ export function MarcoAdmin({ children }: { children: React.ReactNode }) {
 
               No lleva `.no-imprimir`: en papel es justo donde
               tiene sentido decir de quien es el documento. */}
-          <footer className="shrink-0 border-t border-borde bg-superficie px-7 py-2">
-            <PieDeConvoca />
+          {/* MENUDO, para devolverle alto a la tabla.
+              De 36 px a ~20: el pie baja a 10 px con interlineado
+              apretado y el relleno de 8 a 3. Lo que se gana se lo
+              queda `<main>`, que es donde está la tabla.
+              Sigue SIN `.no-imprimir` a propósito: en papel es lo
+              único que dice de quién es el documento. */}
+          <footer className="shrink-0 border-t border-borde bg-superficie px-7 py-px">
+            <PieDeConvoca menudo />
           </footer>
         </div>
 
@@ -417,6 +423,27 @@ function migas(ruta: string): string[] {
       }
     }
   }
+
+  /// SEGUNDA PASADA, POR PARENTESCO.
+  ///
+  /// La miga no se pierde nunca --es regla escrita del panel--, y
+  /// sin esto se perdía en las pantallas que cuelgan de una
+  /// entrada marcada como `exacto`: la ficha de una acción
+  /// (`/admin/acciones/abc`) se quedaba en «Panel» desde que
+  /// «Catálogo» pasó a ser exacto para no quedarse encendido
+  /// estando en el cronograma.
+  ///
+  /// `exacto` es cosa de QUÉ SE ENCIENDE en el menú --ahí no
+  /// puede haber dos-- y no de dónde está uno. Aquí manda el
+  /// parentesco de la ruta, que es lo que contesta la miga.
+  for (const modulo of MODULOS) {
+    for (const enlace of modulo.enlaces) {
+      if (ruta.startsWith(`${enlace.href}/`)) {
+        return [modulo.etiqueta, enlace.etiqueta];
+      }
+    }
+  }
+
   return ["Panel"];
 }
 
@@ -1245,7 +1272,7 @@ export function Tarjeta({
     /// abajo. Se cambia aqui y no en las 150 llamadas
     /// repartidas por el codigo.
     <section
-      className={`border-b border-borde bg-superficie ${
+      className={`mx-3 mb-3 rounded-2xl border border-borde bg-superficie ${
         centrado ? "flex h-full flex-col" : ""
       } ${plegable && !abierta ? "px-7 py-4" : "px-7 py-5"}`}
     >

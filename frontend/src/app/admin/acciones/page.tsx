@@ -36,54 +36,18 @@ type Vista = "catalogo" | "cronograma";
  * Los permisos no cambian: el backend exige configuracion:ESCRIBIR para
  * mover una fecha, y la vista mira lo mismo antes de dejar editar.
  */
+/// SOLO EL CATÁLOGO. El cronograma vive en
+/// `/admin/acciones/cronograma`, y las dos se eligen desde el
+/// menú de Calendario en la cabecera: «esto va es arriba, en
+/// lista desplegable en Calendario, no así» (cliente, 12 sep
+/// 2026).
+///
+/// Aquí había un selector con las dos vistas y su recuerdo en
+/// `localStorage`. Se va entero: con una ruta por vista, lo que
+/// recuerda cuál mirabas es el propio enlace, y encima se puede
+/// marcar y compartir.
 export default function PaginaFormacion() {
-  const [vista, setVista] = useState<Vista>("catalogo");
-
-  useEffect(() => {
-    try {
-      const guardada = window.localStorage.getItem("formacion:vista");
-      if (guardada === "catalogo" || guardada === "cronograma") setVista(guardada);
-    } catch {
-      // navegador sin almacenamiento: se queda con la de por defecto
-    }
-  }, []);
-
-  function cambiar(a: Vista) {
-    setVista(a);
-    try {
-      window.localStorage.setItem("formacion:vista", a);
-    } catch {
-      // no poder recordarlo no es motivo para no cambiar
-    }
-  }
-
-  return (
-    <div>
-      <div className="no-imprimir px-4 pt-4">
-        <div
-          role="tablist"
-          aria-label="Qué mirar"
-          className="mt-3 flex w-fit gap-1 rounded-lg border border-borde bg-superficie p-1"
-        >
-          {(["catalogo", "cronograma"] as const).map((v) => (
-            <button
-              key={v}
-              role="tab"
-              aria-selected={vista === v}
-              onClick={() => cambiar(v)}
-              className={`sin-aro rounded-md px-4 py-1.5 text-[0.78125rem] font-semibold transition ${
-                vista === v ? "bg-marca-suave text-marca" : "text-texto-suave hover:text-texto"
-              }`}
-            >
-              {v === "catalogo" ? "Catálogo" : "Cronograma"}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {vista === "catalogo" ? <Catalogo /> : <CronogramaVista />}
-    </div>
-  );
+  return <Catalogo />;
 }
 
 function Catalogo() {
@@ -163,7 +127,19 @@ function Catalogo() {
   }
 
   return (
-    <div className="flex flex-col gap-3 px-4 pt-4 pb-6">
+    /// `min-h-0 grow`, que es lo que pide la tabla.
+    ///
+    /// Era un bloque normal, y medido daba la tabla 340 px POR
+    /// DEBAJO del pie: sin altura que repartir, la tabla crece
+    /// suelta y lo que scrollea es la página entera --con los
+    /// filtros yéndose hacia arriba--. Lo dice el comentario de
+    /// `Tabla`: «la pantalla que la use tiene que ser `flex
+    /// min-h-0 grow flex-col`».
+    ///
+    /// Y el relleno de abajo baja de 24 a 8 px: es el margen que
+    /// pidió conservar («baja más la tabla, obviamente conservando
+    /// un margen», 12 sep 2026), no un hueco.
+    <div className="flex min-h-0 grow flex-col gap-3 px-4 pt-4 pb-2">
       <div className="no-imprimir">
         {/* La pestaña es para VER el catálogo; publicar es una acción
             que se hace desde aquí, no lo que la pestaña es. Antes la
@@ -220,13 +196,16 @@ function Catalogo() {
 
           <div className="no-imprimir flex flex-wrap items-center gap-2.5">
             <input
-              className="h-[34px] min-w-[170px] flex-1 rounded-lg border border-campo-borde bg-campo-fondo px-3 text-[0.78125rem] outline-none transition focus:border-campo-foco"
+              className="h-[34px] min-w-[8rem] flex-[2] rounded-lg border border-campo-borde bg-campo-fondo px-3 text-[0.78125rem] outline-none transition focus:border-campo-foco"
               placeholder="Buscar por código, curso o convenio…"
               value={buscar}
               onChange={(e) => setBuscar(e.target.value)}
             />
 
-            <div className="w-[190px]">
+            {/* Elásticos, igual que en el cronograma: esta barra
+                está duplicada en los dos ficheros y arreglar solo
+                uno dejaría la mitad del problema. */}
+            <div className="min-w-0 flex-1">
               <Desplegable
                 alto={34}
                 marcador="Convenios"
@@ -243,7 +222,7 @@ function Catalogo() {
               />
             </div>
 
-            <div className="w-[180px]">
+            <div className="min-w-0 flex-1">
               <Desplegable
                 alto={34}
                 marcador="Publicación"
@@ -265,7 +244,7 @@ function Catalogo() {
               />
             </div>
 
-            <div className="w-[180px]">
+            <div className="min-w-0 flex-1">
               <Desplegable
                 alto={34}
                 marcador="Modalidad"
@@ -295,7 +274,9 @@ function Catalogo() {
             <button
               type="button"
               onClick={() => window.print()}
-              className="sin-aro inline-flex h-[34px] items-center rounded-lg border border-borde bg-superficie px-3.5 text-[0.78125rem] font-semibold whitespace-nowrap text-titulo transition hover:border-marca"
+              /// Rojo de PDF, como los demás botones de exportar
+              /// (12 sep 2026). Ver `BotonPdf`.
+              className="sin-aro inline-flex h-[34px] shrink-0 items-center rounded-lg bg-pdf px-3.5 text-[0.78125rem] font-semibold whitespace-nowrap text-pdf-texto transition hover:bg-pdf-fuerte"
             >
               Exportar a PDF
             </button>

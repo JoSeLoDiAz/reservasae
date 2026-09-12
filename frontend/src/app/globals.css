@@ -46,6 +46,27 @@
   --error: #be123c;
   --error-suave: #fff1f2;
 
+  /* EL ROJO DEL PDF, y solo para eso.
+     «Todos los botones que son para dar PDF color rojo como el
+     color del logo del PDF para que quede mas chusco» (cliente,
+     12 sep 2026).
+
+     Es el unico rojo del panel que NO significa peligro, y por eso
+     es un token aparte y no `--error` reaprovechado: si manana el
+     rojo de los errores cambia, el de exportar no tiene por que
+     moverse, y al contrario.
+
+     No es el #ec1c24 exacto del logotipo: con letra blanca encima
+     da 3,9:1 y el minimo es 4,5. Este es el mismo rojo un escalon
+     mas oscuro y da 5,9:1 medido. El color de una marca ajena se
+     respeta hasta donde deja leer.
+
+     El par lo completa `--pdf-texto`: el blanco tambien es token
+     para que la comprobacion de contraste tenga las dos mitades. */
+  --pdf: #c8102e;
+  --pdf-fuerte: #a50d25;
+  --pdf-texto: #ffffff;
+
   /* La paleta del handoff del redisenio de la ficha, tal
      cual. Va en tokens y no en clases fijas por una razon
      practica: en modo oscuro una barra #0f172a se pierde
@@ -131,6 +152,13 @@
   --aviso-suave: #2e1f03;
   --error: #fb7185;
   --error-suave: #3f0d16;
+
+  /* En oscuro el rojo del PDF se sube un escalon: el boton es un
+     bloque relleno y el #c8102e sobre un fondo casi negro se
+     apagaba. La letra sigue siendo blanca y sigue dando 5,3:1. */
+  --pdf: #d6162f;
+  --pdf-fuerte: #b81026;
+  --pdf-texto: #ffffff;
 
   /* En oscuro la barra NO puede ser mas oscura que el fondo:
      desapareceria. Se sube un escalon sobre `--superficie`. */
@@ -241,6 +269,10 @@
   --color-aviso-suave: var(--aviso-suave);
   --color-error: var(--error);
   --color-error-suave: var(--error-suave);
+
+  --color-pdf: var(--pdf);
+  --color-pdf-fuerte: var(--pdf-fuerte);
+  --color-pdf-texto: var(--pdf-texto);
 
   /* SOLO Raleway. Es la unica autorizada por la marca.
      `--font-mono` apunta tambien a ella para que las 40
@@ -977,6 +1009,14 @@ select[size]:not([size='1']) {
     --aviso-suave: #fffbeb;
     --error: #be123c;
     --error-suave: #fff1f2;
+    /* Los botones de PDF llevan `.no-imprimir`, asi que este par
+       no llega a pintarse en papel. Se declara igual para que la
+       paleta de impresion este completa: si manana algo rojo de
+       exportar si sale impreso, sale en el rojo de la casa y no
+       heredado del tema oscuro. */
+    --pdf: #c8102e;
+    --pdf-fuerte: #a50d25;
+    --pdf-texto: #ffffff;
   }
 
   @page {

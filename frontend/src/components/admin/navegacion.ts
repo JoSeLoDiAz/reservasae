@@ -58,26 +58,42 @@ export const MODULOS: Modulo[] = [
     emoji: '📅',
     etiqueta: 'Calendario',
     descripcion: 'Las fechas de la formación. De aquí cuelga el resto.',
+    /// DOS ENTRADAS EN EL MENÚ, no un selector dentro.
+    ///
+    /// Fueron dos entradas, luego una con dos pestañas, luego una
+    /// con un desplegable en el cuerpo de la pantalla. Y ahí el
+    /// cliente lo zanjó: «esto va es arriba, en lista desplegable
+    /// en Calendario, no así» (12 sep 2026).
+    ///
+    /// Tiene razón y es lo que ya dice el resto del panel: el
+    /// desplegable de la cabecera es para IR a un sitio, y los del
+    /// cuerpo son para FILTRAR lo que hay. Con el selector dentro
+    /// había dos controles con la misma pinta y dos significados,
+    /// y encima la vista elegida no se podía enlazar ni marcar.
+    ///
+    /// Siguen siendo dos caras de la misma lista --lo dice el
+    /// comentario de `acciones/page.tsx`--, pero ahora cada una
+    /// tiene su ruta, su miga y su sitio en el menú.
+    ///
+    /// Piden `reserva` y no `configuracion:ESCRIBIR`: es el
+    /// permiso con el que se MIRA. Mover una fecha o publicar una
+    /// acción sigue exigiendo `configuracion:ESCRIBIR`, y lo exige
+    /// el backend, no el menú.
     enlaces: [
       {
-        /// Una sola entrada, con dos pestañas dentro.
-        ///
-        /// Eran «Acciones de Formación» y «Cronograma», y
-        /// debajo tenían LA MISMA lista: agrupada igual por
-        /// convenio y con el mismo buscador. El código del
-        /// cronograma ya lo decía —«son las dos caras de la
-        /// misma lista»—. Lo que cambia es el zoom: en
-        /// «Catálogo» cada acción es una fila con su
-        /// interruptor de publicar; en «Cronograma» se abre y
-        /// da sus grupos con sus fechas.
-        ///
-        /// Pide `reserva` y no `configuracion:ESCRIBIR`: es el
-        /// permiso con el que se MIRA, que es lo que tenía el
-        /// cronograma. Mover una fecha o publicar una acción
-        /// sigue exigiendo `configuracion:ESCRIBIR`, y lo
-        /// exige el backend, no el menú.
+        /// `exacto` porque debajo cuelga `/admin/acciones/[id]` y
+        /// `/admin/acciones/cronograma`: sin él, el catálogo se
+        /// quedaba marcado estando en el cronograma. La ficha de
+        /// una acción no pierde su miga --`migas()` la resuelve
+        /// por parentesco--.
         href: '/admin/acciones',
-        etiqueta: 'Acciones de Formación',
+        etiqueta: 'Catálogo',
+        exacto: true,
+        area: 'reserva',
+      },
+      {
+        href: '/admin/acciones/cronograma',
+        etiqueta: 'Cronograma',
         area: 'reserva',
       },
     ],
@@ -172,17 +188,30 @@ export const MODULOS: Modulo[] = [
     etiqueta: 'Gestión Académica',
     corto: 'Académica',
     descripcion: 'Quién va al día y quién no.',
+    /// Dos entradas en el menú, igual que Calendario y por lo
+    /// mismo: «estas dos opciones que queden en Académica en lista
+    /// desplegable» (cliente, 12 sep 2026).
+    ///
+    /// Son la misma pregunta con distinto zoom --una persona a
+    /// persona, la otra por acción, grupo y asesor--, y por eso
+    /// estuvieron fundidas en una pantalla con pestañas. Lo que no
+    /// funcionaba era el control: dos vistas que se eligen desde
+    /// dentro no se pueden enlazar ni salen en el menú, así que
+    /// nadie sabía que el tablero seguía existiendo.
+    ///
+    /// La ruta del tablero es la MISMA que llevaba un año
+    /// redirigiendo aquí: quien la tenga guardada aterriza donde
+    /// esperaba.
     enlaces: [
       {
-        /// Una sola entrada, con dos pestañas dentro.
-        ///
-        /// Eran dos: «Tablero académico» --por acción, grupo y
-        /// asesor-- y «Avance» --persona a persona--. La misma
-        /// pregunta con distinto zoom, y cada una enlazaba a la
-        /// otra en su propio subtítulo: la señal de que nunca
-        /// debieron ser dos. La ruta del tablero redirige.
         href: '/admin/participantes/academico',
-        etiqueta: 'Seguimiento académico',
+        etiqueta: 'Seguimiento',
+        exacto: true,
+        area: 'academico',
+      },
+      {
+        href: '/admin/participantes/academico/tablero',
+        etiqueta: 'Tablero académico',
         area: 'academico',
       },
     ],

@@ -242,26 +242,20 @@ export default function PaginaControl() {
         )}
       </header>
 
-      <div
-        role="tablist"
-        aria-label="Qué mirar"
-        className="flex gap-1 self-start rounded-lg border border-borde bg-superficie p-1"
-      >
-        {PESTANAS.map((p) => (
-          <button
-            key={p.clave}
-            role="tab"
-            aria-selected={pestana === p.clave}
-            onClick={() => cambiar(p.clave)}
-            className={`sin-aro rounded-md px-4 py-1.5 text-[0.78125rem] font-semibold transition ${
-              pestana === p.clave
-                ? "bg-marca-suave text-marca"
-                : "text-texto-suave hover:text-texto"
-            }`}
-          >
-            {p.etiqueta}
-          </button>
-        ))}
+      {/* Desplegable y no pestañas, como en Calendario y en
+          Académica: «ya no más así, no me gusta» (cliente, 12 sep
+          2026). */}
+      <div className="no-imprimir w-[210px]">
+        <Desplegable
+          alto={34}
+          marcador="Qué mirar"
+          valor={pestana}
+          opciones={PESTANAS.map((p) => ({
+            valor: p.clave,
+            etiqueta: p.etiqueta,
+          }))}
+          alElegir={(v) => cambiar(v as typeof pestana)}
+        />
       </div>
 
       {pestana === "comite" && <ComiteMarketing />}

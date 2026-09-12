@@ -196,7 +196,15 @@ export function CronogramaVista() {
           lo que hace que las tarjetas blancas se vean: sobre
           `superficie` eran blanco sobre blanco. Igual que en
           Gestion de leads. */}
-      <div className="flex flex-col gap-3 px-4 pt-4 pb-6">
+      {/* 8 px abajo y no 24: el margen que pidió conservar, no un
+          hueco («baja más la tabla, obviamente conservando un
+          margen», 12 sep 2026).
+
+          Aquí NO va el `min-h-0 grow` que se le puso al catálogo:
+          esto no es una tabla con scroll propio, es una lista de
+          acordeones que se abren. Que scrollee la página es lo
+          correcto cuando el contenido crece al abrirlo. */}
+      <div className="flex flex-col gap-3 px-4 pt-4 pb-2">
         <div className="no-imprimir">
           <p className="mt-0.5 text-[0.78125rem] text-texto-suave">
             Aquí se ponen las fechas de cada grupo: cuándo empieza y cuándo termina. Un
@@ -249,14 +257,30 @@ export function CronogramaVista() {
         {/* Crece con lo que sobre: asi no queda hueco muerto
             entre el ultimo filtro y el boton de la derecha. */}
         <input
-          className="h-[34px] min-w-[170px] flex-1 rounded-lg border border-campo-borde bg-campo-fondo px-3 text-[0.78125rem] outline-none transition focus:border-campo-foco"
+          /// `min-w-[8rem]` y no 170: con el mínimo alto era el
+          /// buscador el que empujaba al resto fuera de la fila.
+          className="h-[34px] min-w-[8rem] flex-[2] rounded-lg border border-campo-borde bg-campo-fondo px-3 text-[0.78125rem] outline-none transition focus:border-campo-foco"
           placeholder="Buscar por código, curso o ciudad…"
           value={buscar}
           onChange={(e) => setBuscar(e.target.value)}
         />
 
-        {/* Todo lo que se puede filtrar sin teclear nada. */}
-        <div className="w-[430px]">
+        {/* TODOS ELÁSTICOS, PARA QUE QUEPAN EN UNA FILA.
+
+            Estaban en anchos fijos --430 + 160 + 170 + 170, más el
+            buscador y dos botones-- y eso pasa de 1.300 px: en un
+            portátil «Estados» y «Exportar a PDF» se caían al
+            segundo renglón. «Debes dejarlo en una sola fila, no
+            como está» (cliente, 12 sep 2026).
+
+            Con `flex-1 min-w-0` cada uno pide cero y se reparte lo
+            que hay, así que la fila se adapta en vez de partirse.
+            Y se puede hacer porque el disparador de `Desplegable`
+            lleva `w-full` y su etiqueta va en `truncate`: al
+            encogerlo recorta el texto, no lo desborda. El de las
+            acciones se lleva doble ración porque su etiqueta es la
+            más larga de las cuatro. */}
+        <div className="min-w-0 flex-[2]">
           <Desplegable
             alto={34}
             marcador="Acciones de formación"
@@ -273,7 +297,7 @@ export function CronogramaVista() {
           />
         </div>
 
-        <div className="w-[160px]">
+        <div className="min-w-0 flex-1">
           <Desplegable
             alto={34}
             marcador="Grupos"
@@ -290,7 +314,7 @@ export function CronogramaVista() {
           />
         </div>
 
-        <div className="w-[170px]">
+        <div className="min-w-0 flex-1">
           <Desplegable
             alto={34}
             marcador="Convenios"
@@ -307,7 +331,7 @@ export function CronogramaVista() {
           />
         </div>
 
-        <div className="w-[170px]">
+        <div className="min-w-0 flex-1">
           <Desplegable
             alto={34}
             marcador="Estados"
@@ -336,10 +360,14 @@ export function CronogramaVista() {
           </button>
         )}
 
+        {/* `shrink-0`: los botones no se encogen. Lo que cede es
+            lo que tiene texto que se puede recortar, no la acción. */}
         <button
           type="button"
           onClick={exportarPdf}
-          className="sin-aro inline-flex h-[34px] items-center rounded-lg border border-borde bg-superficie px-3.5 text-[0.78125rem] font-semibold whitespace-nowrap text-titulo transition hover:border-marca"
+          /// Rojo de PDF, como los demás botones de exportar
+          /// (12 sep 2026). Ver `BotonPdf`.
+          className="sin-aro inline-flex h-[34px] shrink-0 items-center rounded-lg bg-pdf px-3.5 text-[0.78125rem] font-semibold whitespace-nowrap text-pdf-texto transition hover:bg-pdf-fuerte"
         >
           Exportar a PDF
         </button>

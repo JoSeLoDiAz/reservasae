@@ -116,27 +116,32 @@ export function VeredictoOcupacion({
           desalineado. Que las dos franjas partan por el mismo
           sitio es lo que le da proporción. */}
       <div className="imprimible-franja grid gap-px border-b border-hairline bg-hairline lg:grid-cols-2">
-        <div className="bg-superficie-alterna/45 px-7 py-5">
+        {/* MÁS BAJO: «redúcele el largo» (cliente, 12 sep 2026).
+            El bloque medía 168 px de alto para decir una cifra y
+            una frase. La cifra baja de 42 a 34 px --sigue siendo
+            lo más grande de la pantalla--, el relleno de 20 a 14,
+            y la línea de abajo deja de partirse en dos con un
+            `<br>` que no hacía falta: cabe de sobra en media
+            pantalla. */}
+        <div className="bg-superficie-alterna/45 px-7 py-3.5">
           <Rotulo>Avance sobre la meta</Rotulo>
 
-          <p className="mt-2 text-[2.625rem] leading-none font-bold tracking-[-0.03em] tabular-nums text-titulo">
+          <p className="mt-1.5 text-[2.125rem] leading-none font-bold tracking-[-0.03em] tabular-nums text-titulo">
             {dec(resumen.avanceMeta)}
-            <span className="ml-1 align-top text-xl font-semibold text-texto-suave">
+            <span className="ml-1 align-top text-lg font-semibold text-texto-suave">
               %
             </span>
           </p>
 
-          <p className="mt-2 text-[0.8125rem] leading-snug text-texto-suave">
+          <p className="mt-1.5 text-[0.8125rem] leading-snug text-texto-suave">
             <strong className="font-semibold text-texto tabular-nums">
               {n(resumen.ocupados)}
             </strong>{" "}
-            de {n(resumen.metaBase)} cupos
-            <br />
-            comprometidos con el SENA
+            de {n(resumen.metaBase)} cupos comprometidos con el SENA
           </p>
         </div>
 
-        <div className="bg-superficie-alterna/45 px-7 py-5">
+        <div className="bg-superficie-alterna/45 px-7 py-3.5">
           <Diagnostico p={total} />
         </div>
       </div>
@@ -164,7 +169,41 @@ export function VeredictoOcupacion({
           tope={resumen.cupos}
         />
 
-        <p className="mt-3 max-w-4xl text-[0.8125rem] leading-relaxed text-texto-suave">
+        {/* SIN TOPE DE ANCHO: una sola fila.
+
+            Iba a `max-w-4xl` (896 px) y ahí esta frase ocupa dos
+            renglones dejando tres palabras solas en el segundo.
+            `text-pretty` no lo arregló --medido: seguía partiendo--
+            y el cliente lo volvió a señalar: «te dije esto y no
+            quedó, porque dejas un espacio feo acá sabiendo que lo
+            puedes dejar en una sola fila» (12 sep 2026).
+
+            Sin tope, en un monitor de 24" cabe entera en un
+            renglón. Queda escrito lo que se pierde: en una
+            pantalla muy ancha son ~170 caracteres de línea, más de
+            lo que se lee cómodo. Es una frase de apoyo de trece
+            palabras que se lee una vez, no prosa: el renglón
+            suelto molestaba más.
+
+            El comentario de antes decía justo lo contrario --que
+            el tope no se quitaba-- y se queda como aviso de que ya
+            se probó lo otro. */}
+        {/* `text-pretty` Y NO un tope más ancho.
+
+            El cliente preguntó por qué se parte (12 sep 2026), y
+            se partía dejando «final de la barra.» sola en el
+            segundo renglón. El tope de ancho no es el problema y
+            no se quita: sin él, en un monitor de 24" esta frase
+            sería una línea de casi 200 caracteres, que es de las
+            cosas que más cuesta leer. Lo que estaba mal era DÓNDE
+            caía el corte.
+
+            `text-wrap: pretty` reparte los últimos renglones para
+            que no quede una palabra o cuatro solas. Es la misma
+            familia que el `text-balance` del titular del acceso, y
+            aquí es `pretty` y no `balance` porque son varias
+            líneas de prosa y no un titular de dos. */}
+        <p className="mt-3 text-[0.8125rem] leading-relaxed text-pretty text-texto-suave">
           El tope de {n(resumen.cupos)} son los {n(resumen.metaBase)}{" "}
           comprometidos más el 30 % de sobrecupo que autoriza el SENA para
           cubrir deserción.{" "}
