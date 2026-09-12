@@ -187,7 +187,28 @@ type Abierto = string | null;
  */
 export function FilaDeMarca() {
   return (
-    <div className="flex h-[66px] shrink-0 items-center justify-between gap-4 border-b border-encabezado-borde bg-encabezado-fondo px-4 text-encabezado-texto lg:px-7">
+    /// EL ALTO ESCALA CON LA PANTALLA, no salta por escalones.
+    ///
+    /// Lo pidió el cliente el 12 sep 2026: «que se adapte al tipo
+    /// de pantalla, que se mantenga la proporción». En su monitor
+    /// de 24" la fila de 66 px está bien; en un portátil de 1366
+    /// se comía un alto que ahí es escaso.
+    ///
+    /// `clamp(52px, 3.4vw, 66px)`: 52 hasta 1530, y de ahí sube
+    /// hasta los 66 de su monitor. El relleno lateral acompaña.
+    ///
+    /// EN PÍXELES Y NO EN REM, a propósito: una medida de CAJA no
+    /// debe crecer con el ajuste de texto del 90-140 % de
+    /// Accesibilidad. Si creciera, subir el texto separaría las
+    /// filas el doble y la cabecera se comería el contenido. El
+    /// texto crece; la caja se queda.
+    <div
+      style={{
+        height: "clamp(52px, 3.4vw, 66px)",
+        paddingInline: "clamp(1rem, 1.4vw, 1.75rem)",
+      }}
+      className="flex shrink-0 items-center justify-between gap-4 border-b border-encabezado-borde bg-encabezado-fondo text-encabezado-texto"
+    >
       {/* La MISMA firma que el acceso, el pie público y la ficha
           del perfil, no una copia con los mismos estilos: cuatro
           copias acaban diciendo cuatro cosas.
@@ -243,12 +264,27 @@ function CreditoDeAliados() {
     /// Lo que la placa resolvía sigue existiendo, y se resuelve de
     /// otra forma: eligiendo la VARIANTE del logo que se ve sobre
     /// este fondo. Ver `variantesParaElFondo`.
-    <div className="hidden shrink-0 items-center gap-4 md:flex">
+    /// Los logos escalan con la fila: si el alto de la banda baja
+    /// de 66 a 52 en un portátil, un logo fijo de 32 px se queda
+    /// desproporcionado dentro de ella. El `gap` también.
+    <div
+      style={{ gap: "clamp(0.75rem, 1vw, 1.25rem)" }}
+      className="hidden shrink-0 items-center md:flex"
+    >
       <Rotulo>Gestionado por</Rotulo>
-      <PiezaDeLogo logo={gestor} alFallar={setFallidas} alto="h-8" />
+      <PiezaDeLogo
+        logo={gestor}
+        alFallar={setFallidas}
+        alto="clamp(24px, 1.7vw, 32px)"
+      />
       {para.length > 0 && <Rotulo>para</Rotulo>}
       {para.map((l) => (
-        <PiezaDeLogo key={l.id} logo={l} alFallar={setFallidas} alto="h-7" />
+        <PiezaDeLogo
+          key={l.id}
+          logo={l}
+          alFallar={setFallidas}
+          alto="clamp(21px, 1.5vw, 28px)"
+        />
       ))}
     </div>
   );
@@ -266,6 +302,10 @@ function PiezaDeLogo({
   alFallar,
 }: {
   logo: { id: string; etiqueta: string; url: string };
+  /// El alto como VALOR CSS, no como clase de Tailwind: es un
+  /// `clamp()` que escala con la ventana, y eso no se puede
+  /// escribir como utilidad. Pasado como clase, el navegador la
+  /// ignora y el logo se queda sin alto.
   alto: string;
   alFallar: (f: (antes: string[]) => string[]) => void;
 }) {
@@ -280,7 +320,8 @@ function PiezaDeLogo({
           antes.includes(logo.url) ? antes : [...antes, logo.url],
         )
       }
-      className={`w-auto max-w-[9rem] shrink object-contain ${alto}`}
+      style={{ height: alto }}
+      className="w-auto max-w-[9rem] shrink object-contain"
     />
   );
 }
@@ -391,26 +432,31 @@ export function FilaDeModulos({
       /// `/^#[0-9a-fA-F]{6}$/` y lo descartaría en silencio--,
       /// pero como fondo de un elemento es CSS normal. La clase
       /// se queda debajo como respaldo.
+      /// El alto y el relleno escalan igual que la fila de arriba,
+      /// y por lo mismo: 40 px en un portátil, 46 en el monitor
+      /// de 24". En píxeles, que es una medida de caja.
       style={{
         backgroundColor:
           "color-mix(in oklab, var(--encabezado-fondo) 88%, var(--encabezado-texto))",
+        height: "clamp(40px, 2.4vw, 46px)",
+        paddingInline: "clamp(0.75rem, 1.2vw, 1.5rem)",
       }}
-      className="relative z-30 flex h-[46px] shrink-0 items-center justify-between gap-3 border-b border-encabezado-borde bg-encabezado-fondo px-4 text-encabezado-texto lg:px-6"
+      className="relative z-30 flex shrink-0 items-center justify-between gap-3 border-b border-encabezado-borde bg-encabezado-fondo text-encabezado-texto"
     >
-      {/* LA HAMBURGUESA Y LAS MIGAS, solo por debajo de 2xl.
+      {/* LA HAMBURGUESA Y LAS MIGAS, solo por debajo de xl.
 
-          Por debajo de 2xl no hay navegación horizontal --no cabe,
+          Por debajo de xl no hay navegación horizontal --no cabe,
           ver el cálculo de abajo--, así que manda el cajón y hace
           falta el botón que lo abre. Y ahí las migas siguen
           siendo lo único que dice en qué pantalla está uno.
 
-          A partir de 2xl se esconden: el módulo lo dice la píldora
+          A partir de xl se esconden: el módulo lo dice la píldora
           activa de la fila, y el nombre de la pantalla lo dice su
           propio `h1`. Queda una decisión abierta del cliente --si
           quiere la ruta completa también a pantalla ancha-- y
           hasta que la conteste esto no pierde nada, porque hoy
           tampoco se lee la miga en el sitio donde se trabaja. */}
-      <div className="flex min-w-0 items-center gap-2 2xl:hidden">
+      <div className="flex min-w-0 items-center gap-2 xl:hidden">
         <button
           onClick={alAbrirMenu}
           aria-label="Abrir el menú"
@@ -421,29 +467,37 @@ export function FilaDeModulos({
         {migas}
       </div>
 
-      {/* LA NAVEGACIÓN SOLO DESDE 2xl, y con desplazamiento
-          propio. Las dos cosas salen de medirla, no de elegirla.
+      {/* LA NAVEGACIÓN DESDE xl, APRETANDO EL RELLENO ANTES DE
+          RENDIRSE. Y esto es una corrección de un error mío.
 
-          Montada, la fila de los siete módulos mide **1.050 px**
-          --más que los 966 que medí en el prototipo, porque los
-          carets y el relleno de la píldora activa engordan cada
-          ítem-- y el bloque de usuario 220. Con el corte en `xl`
-          (1280) quedaba una caja de 988 y la nav PISABA al
-          usuario; a 1366 con la letra al 140 % pedía 1.446 en 969
-          y desbordaba la fila. Medido, las dos cosas.
+          La fila de los siete módulos mide **1.050 px** montada
+          --más que los 966 del prototipo, porque los carets y el
+          relleno de la píldora activa engordan cada ítem-- y el
+          bloque de usuario 220. Medido: cabía de sobra a 1440
+          (caja de 1.172) y a 1366 (1.098), y solo fallaba a 1280,
+          donde la caja da 988 y se quedaba corta por 62 px.
 
-          En `2xl` (1536) la caja da 1.268 contra 1.050, que entra.
-          Y el `overflow-x-auto` es el cinturón: el panel escala la
-          letra hasta el 140 % desde Accesibilidad, así que hay
-          anchos en los que no hay corte que salve la cuenta. Antes
-          que pisar al usuario o desbordar la fila, la nav se
-          desplaza por dentro.
+          Yo corregí de más: subí el corte a `2xl` y con eso mandé
+          al cajón a 1440 y 1366, o sea justo los portátiles, donde
+          la fila entraba perfectamente. El cliente lo vio
+          enseguida --«las de portátil se ve eso apeñuzcado, que se
+          mantenga la proporción»-- y tenía razón: en esos anchos
+          no estaba viendo una versión más apretada del panel, sino
+          otro panel peor.
 
-          Por debajo de 2xl manda el cajón, que ya existe, ya está
-          probado y no depende del alto de esta cabecera. */}
+          Así que el corte vuelve a `xl` (1280) y lo que se ajusta
+          es el RELLENO: por debajo de `2xl` cada ítem va a `px-2`
+          y el hueco a 2 px, que ahorra los ~78 px que faltaban;
+          desde `2xl` se respira. La proporción se mantiene porque
+          lo que cambia es el aire, no lo que se ve.
+
+          El `overflow-x-auto` se queda como cinturón: el panel
+          escala la letra hasta el 140 % desde Accesibilidad, y a
+          ese tamaño no hay corte que salve la cuenta. Antes que
+          pisar al usuario, la nav se desplaza por dentro. */}
       <nav
         aria-label="Módulos del panel"
-        className="caja-scroll hidden min-w-0 items-center gap-1 overflow-x-auto 2xl:flex"
+        className="caja-scroll hidden min-w-0 items-center gap-0.5 overflow-x-auto xl:flex 2xl:gap-1"
       >
         <EnlaceDeFila href="/admin" activo={ruta === "/admin"}>
           Resumen
@@ -532,7 +586,7 @@ function EnlaceDeFila({
     <Link
       href={href}
       aria-current={activo ? "page" : undefined}
-      className={`rounded-lg px-2.5 py-[5px] text-[0.78125rem] whitespace-nowrap no-underline transition ${
+      className={`rounded-lg px-2 py-[5px] text-[0.78125rem] whitespace-nowrap no-underline transition 2xl:px-2.5 ${
         activo
           ? "bg-encabezado-texto font-semibold text-encabezado-fondo"
           : "font-medium opacity-80 hover:bg-current/10 hover:opacity-100"
@@ -573,7 +627,7 @@ function MenuDeModulo({
         type="button"
         onClick={alAlternar}
         aria-expanded={desplegado}
-        className={`flex items-center gap-1.5 rounded-lg px-2.5 py-[5px] text-[0.78125rem] whitespace-nowrap transition ${
+        className={`flex items-center gap-1 rounded-lg px-2 py-[5px] text-[0.78125rem] whitespace-nowrap transition 2xl:gap-1.5 2xl:px-2.5 ${
           activo
             ? "bg-encabezado-texto font-semibold text-encabezado-fondo"
             : "font-medium opacity-80 hover:bg-current/10 hover:opacity-100"
@@ -673,7 +727,8 @@ function MenuDeUsuario({
         onClick={alAlternar}
         aria-expanded={desplegado}
         aria-label={`Cuenta de ${admin.nombre}`}
-        className="flex items-center gap-2.5 rounded-xl px-1.5 py-1 transition hover:bg-current/10"
+        style={{ gap: "clamp(0.5rem, 0.6vw, 0.625rem)" }}
+        className="flex items-center rounded-xl px-1.5 py-1 transition hover:bg-current/10"
       >
         <span className="hidden min-w-0 flex-col items-end text-right leading-tight sm:flex">
           <span className="truncate text-[0.75rem] font-semibold">
@@ -750,9 +805,16 @@ function Avatar({ nombre }: { nombre: string }) {
     .toUpperCase();
 
   return (
+    /// El diámetro escala con la fila --26 px en un portátil, 34
+    /// en el monitor de 24"-- porque un círculo de tamaño fijo
+    /// dentro de una banda que se encoge acaba tocando los dos
+    /// bordes. El CUERPO de las iniciales no: se queda en rem,
+    /// para que el ajuste de texto de Accesibilidad lo siga
+    /// escalando.
     <span
       aria-hidden
-      className="flex size-[30px] shrink-0 items-center justify-center rounded-full bg-encabezado-texto text-[0.75rem] font-bold tracking-[0.03em] text-encabezado-fondo"
+      style={{ width: "clamp(26px, 1.8vw, 34px)", height: "clamp(26px, 1.8vw, 34px)" }}
+      className="flex shrink-0 items-center justify-center rounded-full bg-encabezado-texto text-[0.75rem] font-bold tracking-[0.03em] text-encabezado-fondo"
     >
       {iniciales}
     </span>
