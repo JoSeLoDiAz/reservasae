@@ -17,7 +17,21 @@ const nextConfig: NextConfig = {
   ///
   /// Solo afecta a `next dev`; en producción esta lista no se
   /// mira. Ver `scripts/tunel-convoca.ps1`.
-  allowedDevOrigins: ["*.trycloudflare.com", "*.ngrok-free.app"],
+  /// La red local va en la lista TAMBIEN, y por la misma razon:
+  /// entrar por `http://192.168.0.5:3100` desde el telefono o
+  /// desde otro equipo es un Host que no es `localhost`, asi que
+  /// sin esto la pagina se sirve y NO hidrata. El sintoma es el
+  /// descrito arriba y cuesta media hora de sospechar del cable.
+  ///
+  /// Van los tres rangos privados y no solo el 192.168 de hoy: la
+  /// IP la reparte el router por DHCP y cambia de red en red.
+  allowedDevOrigins: [
+    "*.trycloudflare.com",
+    "*.ngrok-free.app",
+    "192.168.*.*",
+    "10.*.*.*",
+    "172.16.*.*",
+  ],
   // la raiz del monorepo
   outputFileTracingRoot: path.join(__dirname, ".."),
 

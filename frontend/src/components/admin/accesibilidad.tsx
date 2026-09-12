@@ -68,15 +68,34 @@ export function PanelAccesibilidad({ alCerrar }: { alCerrar: () => void }) {
       aria-label="Accesibilidad"
       /// Hacia ARRIBA, no hacia abajo.
       ///
-      /// El boton vive al pie de la barra lateral: colgando
-      /// hacia abajo, el panel salia de la pantalla y no se
-      /// leia ni la mitad. `bottom-full` lo apoya sobre el
-      /// boton y crece hacia el espacio que si hay.
+      /// El boton vive abajo: colgando hacia abajo, el panel
+      /// salia de la pantalla y no se leia ni la mitad.
+      /// `bottom-full` lo apoya sobre el boton y crece hacia el
+      /// espacio que si hay. Eso no ha cambiado en ninguna de las
+      /// tres mudanzas del boton.
       ///
-      /// `left-0` y no `right-0`: la barra es angosta, y
-      /// alineado a la derecha el panel de 18rem se salia por
-      /// el otro lado.
-      className="absolute bottom-full left-0 z-50 mb-2 w-72 rounded-xl border border-borde bg-superficie p-4 shadow-lg"
+      /// `right-0` Y NO `left-0`, y esto sí cambió el 12 sep 2026.
+      /// Aquí decía lo contrario, y con razón mientras el botón
+      /// vivía al pie de una barra angosta pegada a la izquierda:
+      /// anclado a la derecha, el panel de 18rem se salía por el
+      /// otro lado. Ahora el botón está en una píldora flotante en
+      /// el borde DERECHO de la ventana, así que la advertencia se
+      /// invirtió: anclado a la izquierda, la tarjeta se salía de
+      /// la pantalla y se veía cortada.
+      /// `text-texto` NO es decorativo: es lo que impide que esta
+      /// tarjeta se quede ilegible según desde dónde se abra.
+      ///
+      /// El 12 sep 2026 el botón se fue a una píldora flotante que
+      /// lleva el color del encabezado --blanco sobre el verde--, y
+      /// todo lo de aquí que no declaraba color lo heredó: el
+      /// título, «Tamaño del texto», «Quitar animaciones» y
+      /// «Restablecer» salieron en blanco sobre `--superficie`, o
+      /// sea invisibles. Los textos de ayuda sí se leían, porque
+      /// usan `text-texto-suave` explícito -- y eso era la pista.
+      ///
+      /// Una tarjeta que pone su propio FONDO tiene que poner su
+      /// propio TEXTO. Así da igual desde qué contexto se monte.
+      className="absolute right-0 bottom-full z-50 mb-2 w-72 rounded-xl border border-borde bg-superficie p-4 text-texto shadow-lg"
     >
       <div className="flex items-start justify-between gap-3">
         <h2 className="text-sm font-semibold">Accesibilidad</h2>

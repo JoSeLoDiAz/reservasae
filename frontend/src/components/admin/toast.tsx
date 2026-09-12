@@ -70,7 +70,19 @@ export function ProveedorToast({ children }: { children: React.ReactNode }) {
   return (
     <ContextoToast.Provider value={api}>
       {children}
-      <div className="no-imprimir pointer-events-none fixed right-4 bottom-4 z-[60] flex w-[min(22rem,calc(100vw-2rem))] flex-col gap-2">
+      {/* POR ENCIMA DE LA PÍLDORA DE AJUSTES.
+
+          Desde el 12 sep 2026 la píldora de tema y accesibilidad
+          vive flotando abajo a la derecha, que es justo donde
+          estaban los avisos. Con `bottom-4` se pisaban: el aviso
+          gana por `z-[60]` y tapaba los dos únicos controles que
+          no viven en ninguna pantalla, así que dejaban de existir
+          cada vez que algo se guardaba.
+
+          Se sube el arranque de la columna lo que mide la píldora
+          más su aire, y los avisos siguen apilándose hacia arriba
+          desde ahí. */}
+      <div className="no-imprimir pointer-events-none fixed right-4 bottom-[4.75rem] z-[60] flex w-[min(22rem,calc(100vw-2rem))] flex-col gap-2">
         {avisos.map((aviso) => (
           <Tarjeta key={aviso.id} aviso={aviso} alCerrar={cerrar} />
         ))}
