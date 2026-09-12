@@ -15,6 +15,7 @@ import {
 
 import { FondoPublico } from "./fondo-publico";
 import { BannerLogos, EncabezadoPublico, PiePublico } from "./marca-publica";
+import { PantallaDeCarga, useEsperaCompleta } from "./pantalla-de-carga";
 
 /// Los dos ids del catalogo del SEP que cambian el
 /// comportamiento del formulario. Aqui y no en el backend
@@ -38,7 +39,11 @@ export function PreinscripcionPublica({ slug }: { slug: string }) {
   const [noExiste, setNoExiste] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
-  const [hecho, setHecho] = useState<{ token: string; nombre: string } | null>(null);
+  const [hecho, setHecho] = useState<{
+    token: string | null;
+    nombre: string;
+    mensaje: string | null;
+  } | null>(null);
 
   const [accionId, setAccionId] = useState("");
   const [ofertaId, setOfertaId] = useState("");
@@ -63,6 +68,9 @@ export function PreinscripcionPublica({ slug }: { slug: string }) {
     correo: "",
   });
 
+  /// La pantalla de carga, hasta que complete su vuelta.
+  const esperando = useEsperaCompleta(catalogo === null);
+
   /// Cambiar de pantalla sin subir deja a la persona
   /// mirando el pie de pagina.
   useEffect(() => {
@@ -81,9 +89,8 @@ export function PreinscripcionPublica({ slug }: { slug: string }) {
 
   // notFound() solo sirve durante el render
   if (noExiste) notFound();
-  if (!catalogo) {
-    return <p className="p-10 text-texto-suave">Cargando la convocatoria…</p>;
-  }
+  if (esperando || !catalogo)
+    return <PantallaDeCarga que="Cargando la convocatoria" />;
 
   function cambiar(campo: keyof typeof datos, valor: string) {
     setDatos((d) => ({ ...d, [campo]: valor }));
@@ -120,14 +127,22 @@ export function PreinscripcionPublica({ slug }: { slug: string }) {
         // nada, que es justo lo que hay que poder demostrar
         aceptaPolitica: datos.aceptaPolitica === "si",
       });
-      setHecho({ token: r.token, nombre: nombreCompleto });
+      setHecho({
+        // sin token cuando el documento ya estaba: ver `Registrada`
+        token: r.yaEstaba ? null : r.token,
+        nombre: nombreCompleto,
+        mensaje: r.mensaje ?? null,
+      });
     } catch (err) {
       setError((err as ErrorApi).message);
       setEnviando(false);
     }
   }
 
-  if (hecho) return <Registrada token={hecho.token} nombre={hecho.nombre} />;
+  if (hecho)
+    return (
+      <Registrada token={hecho.token} nombre={hecho.nombre} mensaje={hecho.mensaje} />
+    );
 
   const ciudadesDelDepto =
     catalogo.ubicaciones.find((u) => u.departamento === departamento)?.ciudades ?? [];
@@ -183,10 +198,18 @@ export function PreinscripcionPublica({ slug }: { slug: string }) {
 
   return (
     <>
-      <main className="mx-auto w-full max-w-2xl px-6 py-10 lg:max-w-4xl">
+      {/* `pb-6` y no `py-10`: el relleno de ABAJO es lo que
+          separa el contenido de la línea del pie, y con 40px la
+          línea quedaba flotando lejos. El de arriba se queda en
+          40: ese es el aire del encabezado (cliente, 11 sep 2026). */}
+      <main className="mx-auto w-full max-w-2xl px-6 pt-10 pb-6 lg:max-w-4xl">
+      {/* Los textos de esta pantalla los redacta el cliente. Lo
+          de «en el marco de la Convocatoria … 2026» y lo de
+          «incluyentes» no es adorno: es como el SENA nombra la
+          convocatoria y hay que decirlo entero (11 sep 2026). */}
       <EncabezadoPublico
-        titulo="Preinscripción a la formación"
-        subtitulo="Formación gratuita y certificada con cupos limitados."
+        titulo="Preinscripción a la oferta de formación"
+        subtitulo="Estas acciones de formación se desarrollan en el marco de la Convocatoria de Formación Continua Especializada 2026, por lo tanto, son gratuitas, incluyentes y cuentan con certificación, con cupos limitados."
       />
 
       <form
@@ -221,11 +244,12 @@ export function PreinscripcionPublica({ slug }: { slug: string }) {
               Santander. El domicilio de verdad se pregunta en el
               enlace de completado, aparte. */}
           <h2 className="text-lg font-semibold">
-            Ubicación de interés de la formación
+            Consulte la oferta de formación según su ubicación de interés
           </h2>
           <p className="mt-1 text-sm text-texto-suave">
-            Seleccione el departamento y la ciudad de su interés para consultar
-            las acciones de formación disponibles.
+            Seleccione el departamento y la ciudad de su preferencia para
+            consultar las acciones de formación disponibles en la zona
+            seleccionada.
           </p>
 
           <div className="mt-5 grid gap-4 sm:grid-cols-2">
@@ -284,15 +308,16 @@ export function PreinscripcionPublica({ slug }: { slug: string }) {
         {/* las acciones salen aqui mismo, no en otra pantalla */}
         {departamento && (
           <section>
-            <div className="flex flex-wrap items-baseline justify-between gap-3">
-              <h2 className="text-xl font-bold tracking-tight">
-                Acciones de formación disponibles
-              </h2>
-              <span className="text-sm text-texto-suave">
-                {conCobertura.length} con cobertura en {departamento}
-                {ciudad ? ` · ${ciudad}` : ""}
-              </span>
-            </div>
+            {/* SIN el contador de «N con cobertura en X».
+
+                Lo quitó el cliente el 11 sep 2026 —«suena muy
+                pobre»— y tenía razón: decirle a alguien que en su
+                ciudad hay tres cosas es enseñarle lo que NO hay.
+                Las tarjetas ya dicen cuántas son, y cuando no hay
+                ninguna el aviso de abajo lo explica con palabras. */}
+            <h2 className="text-xl font-bold tracking-tight">
+              Acciones de formación disponibles
+            </h2>
 
             <p className="mt-1 text-sm text-texto-suave">
               A continuación, las acciones de formación disponibles para su preinscripción:
@@ -346,16 +371,22 @@ export function PreinscripcionPublica({ slug }: { slug: string }) {
         />
 
         <section className="rounded-2xl border border-borde bg-superficie p-6">
-          <h2 className="text-lg font-semibold">Datos Personales</h2>
+          <h2 className="text-lg font-semibold">Datos personales</h2>
+          {/* UN SOLO PÁRRAFO, y lo dice el cliente el 11 sep 2026.
+
+              Eran dos renglones seguidos —uno pidiendo los datos y
+              otro avisando de que todos hacen falta— y decían lo
+              mismo dos veces con distinto peso. Lo que importa se
+              conserva: que se enteren ARRIBA de que no hay campos
+              opcionales, y no campo a campo, que es como se
+              abandona un formulario. */}
+          {/* Con COMA y «recuerde» en minúscula: el cliente lo
+              corrigió así el 11 sep 2026 —«el punto seguido queda
+              más profesional y no tan IA»—. Es su redacción. */}
           <p className="mt-1 text-sm text-texto-suave">
-            Para formalizar su preinscripción, complete la siguiente información:
-          </p>
-          {/* Se dice ARRIBA que todos hacen falta, no solo abajo
-              cuales faltan. Enterarse campo a campo de que otro
-              era obligatorio es como se abandona un formulario. */}
-          <p className="mt-2 text-sm font-medium text-texto">
-            Recuerde que todos los campos son obligatorios para completar su
-            preinscripción.
+            Para formalizar su preinscripción, complete la siguiente
+            información, recuerde que todos los campos son obligatorios para
+            avanzar en el proceso.
           </p>
 
           {/* dos columnas desde tablet, tres en escritorio: en
@@ -527,19 +558,39 @@ export function PreinscripcionPublica({ slug }: { slug: string }) {
           <>
         <section className="rounded-2xl border border-borde bg-superficie p-6">
           <h2 className="text-lg font-semibold">
-            {catalogo.politica?.titulo ?? "Política y Tratamiento de Datos Personales"}
+            {/* El título sale de la base: lo pone el administrador
+                en Habeas Data y se versiona con el texto legal. El
+                respaldo es el mismo que se publicó el 11 sep 2026,
+                para que una base sin política no enseñe otro
+                nombre. */}
+            {catalogo.politica?.titulo ??
+              "Términos y Condiciones y Autorización para el Tratamiento de Datos Personales"}
           </h2>
           <p className="mt-1 text-sm text-texto-suave">
-            Por favor, confirme haber leído y aceptado lo siguiente antes de continuar.
+            Antes de continuar, por favor confirme que ha leído y aceptado la
+            siguiente información.
           </p>
 
           <div className="mt-5 max-h-80 overflow-y-auto whitespace-pre-line rounded-xl border border-campo-borde bg-campo-fondo p-5 text-sm leading-relaxed text-texto">
             {catalogo.politica?.contenido ?? TEXTO_DE_RESPALDO}
           </div>
 
-          <p className="mt-5 rounded-xl border border-borde bg-superficie-alterna px-4 py-3 text-sm leading-relaxed text-texto-suave">
-            Necesitamos su autorización para continuar con su preinscripción: sin
-            ella no podemos usar sus datos para comunicarnos con usted.
+          {/* ESTE PÁRRAFO NO VA EN COLOR SUAVE, y es el único de
+              la pantalla del que se puede decir eso sin discutir:
+              es el que PIDE la autorización de datos personales.
+
+              Iba en `--texto-suave` sobre `--superficie-alterna`
+              y daba 4,26:1 medido, por debajo del 4,5 que pide un
+              texto de 14 px. El fallo era el par, no el token:
+              el mismo `--texto-suave` sobre `--superficie` da
+              4,79:1 y cumple. Pero aquí la salida no es buscar un
+              fondo que lo salve: un consentimiento no es texto
+              secundario. Va en `--texto`, que es el color de lo
+              que hay que leer. */}
+          <p className="mt-5 rounded-xl border border-borde bg-superficie-alterna px-4 py-3 text-sm leading-relaxed text-texto">
+            Para continuar con su proceso de preinscripción, requerimos su
+            autorización para el tratamiento de sus datos personales y así poder
+            comunicarnos con usted durante las diferentes etapas del proceso.
           </p>
 
           <label className="mt-4 flex cursor-pointer items-start gap-3 rounded-xl border border-campo-borde bg-campo-fondo p-4 text-sm">
@@ -569,7 +620,8 @@ export function PreinscripcionPublica({ slug }: { slug: string }) {
         {pantalla === "revision" && (
           <section className="rounded-2xl border-2 border-marca bg-marca-suave p-6">
             <h2 className="text-lg font-semibold text-marca">
-              Verifique la información antes de enviar
+              Antes de enviar, revise que la información sea correcta y esté
+              completa.
             </h2>
 
             <dl className="mt-4 grid gap-4 sm:grid-cols-2">
@@ -897,11 +949,32 @@ function Texto({
 /// esta en sus manos: por muchos datos que llene, la
 /// inscripcion no es efectiva hasta que un asesor la
 /// contacte. Prometer lo contrario es prometer un cupo.
-function Registrada({ token, nombre }: { token: string; nombre: string }) {
+/// SIN TOKEN NO HAY BOTÓN, y ese era el defecto.
+///
+/// Cuando el documento ya estaba registrado el servidor no emite
+/// enlace —lo explica `preinscripcion.service.ts`: ese enlace abre
+/// la ficha entera y quien llena el formulario solo ha demostrado
+/// saberse una cédula—, pero esta pantalla pintaba el botón igual
+/// con el token en `null`. La persona llegaba a
+/// `/completar/null`, o sea a «Este enlace ya no sirve», después
+/// de haber hecho todo bien. Visto en producción el 11 sep 2026.
+///
+/// Lo que se le dice en ese caso lo redacta el servidor
+/// (`mensaje`), que es el único que sabe si el aviso salió al
+/// correo que ya teníamos guardado.
+function Registrada({
+  token,
+  nombre,
+  mensaje,
+}: {
+  token: string | null;
+  nombre: string;
+  mensaje: string | null;
+}) {
   return (
     <>
-      <main className="mx-auto w-full max-w-xl px-6 py-16 text-center">
-      <BannerLogos />
+      <main className="mx-auto w-full max-w-xl px-6 pt-16 pb-8 text-center">
+      <BannerLogos centrado />
 
       <h1 className="mt-8 text-2xl font-bold text-balance">
         {/* El titular saluda y ya: el parrafo de abajo cuenta
@@ -923,19 +996,43 @@ function Registrada({ token, nombre }: { token: string; nombre: string }) {
           asesor tambien escribe por WhatsApp o por correo, y los
           tres canales estan en el CRM. Prometer una llamada es
           prometer de mas. */}
-      <p className="mt-3 text-texto-suave">
-        Su preinscripción ha sido registrada correctamente y está pendiente de
-        confirmación. Un asesor se pondrá en contacto con usted para continuar
-        el proceso. Si lo desea, puede completar ahora sus datos o esperar a que
-        nos comuniquemos.
-      </p>
+      {token ? (
+        /* Dos párrafos, y el segundo es el que lleva al botón:
+           así lo redactó el cliente el 11 sep 2026. */
+        <>
+          <p className="mt-3 text-texto-suave">
+            Su preinscripción ha sido registrada correctamente y está pendiente
+            de confirmación. Un asesor se pondrá en contacto con usted para
+            continuar el proceso.
+          </p>
+          <p className="mt-3 text-texto-suave">
+            Puede completar sus datos desde ahora para avanzar en su registro o
+            esperar nuestra comunicación.
+          </p>
+        </>
+      ) : (
+        /* El servidor redacta este: es el único que sabe si el
+           aviso salió al correo que ya teníamos guardado. El de
+           aquí es el respaldo, por si un día deja de mandarlo. */
+        <p className="mt-3 text-texto-suave">
+          {mensaje ?? (
+            <>
+              Ya contamos con un registro asociado a este documento y uno de
+              nuestros asesores se pondrá en contacto con usted para continuar el
+              proceso.
+            </>
+          )}
+        </p>
+      )}
 
-      <a
-        href={`/completar/${token}`}
-        className="mt-8 inline-block rounded-xl bg-marca px-6 py-3 font-medium text-marca-texto transition hover:bg-marca-fuerte"
-      >
-        Continuar con mi registro de preinscripción
-      </a>
+      {token && (
+        <a
+          href={`/completar/${token}`}
+          className="mt-8 inline-block rounded-xl bg-marca px-6 py-3 font-medium text-marca-texto transition hover:bg-marca-fuerte"
+        >
+          Continuar con mi registro de preinscripción
+        </a>
+      )}
       </main>
       <FondoPublico />
       <PiePublico />

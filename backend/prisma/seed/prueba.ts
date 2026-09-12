@@ -15,6 +15,7 @@ import {
   TipoPregunta,
 } from '../../generated/prisma';
 import { hashearClave } from '../../src/admin/claves';
+import { calcularDigitoVerificacion } from '../../src/comun/nit';
 import {
   CARACTERIZACIONES_SEP,
   DEPARTAMENTOS_SEP,
@@ -662,7 +663,11 @@ async function sembrarEmpresasYReservas(ofertas: OfertaViva[]) {
     const empresa = await prisma.empresa.create({
       data: {
         nit,
-        digitoVerificacion: String(i % 10),
+        // el de la DIAN, no uno inventado: los datos sembrados se ven
+        // igual que los de verdad --salen en el panel y en los formatos
+        // del SEP-- y con un DV falso nadie podía notar que el guardado
+        // no cuadraba con el NIT
+        digitoVerificacion: calcularDigitoVerificacion(nit),
         razonSocial,
         numeroColaboradores: entre(8, 480),
         redAsociada: red,

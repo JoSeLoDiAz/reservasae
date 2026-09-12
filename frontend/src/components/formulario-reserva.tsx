@@ -15,6 +15,7 @@ import {
   type Reserva,
 } from "@/lib/api";
 import { CajaDePolitica, usePolitica } from "@/components/caja-de-politica";
+import { PantallaDeCarga, useEsperaCompleta } from "@/components/pantalla-de-carga";
 import {
   formularioPublico,
   type FormularioPublico,
@@ -204,7 +205,11 @@ export function FormularioReserva({ slug }: { slug: string }) {
   // catch se pierde y la pagina se queda cargando
   if (noExiste) notFound();
 
-  if (estado === "cargando") return <p className="text-texto-suave">Cargando la oferta…</p>;
+  /// La pantalla de carga, hasta que complete su vuelta.
+  const esperando = useEsperaCompleta(estado === "cargando");
+
+  if (esperando || estado === "cargando")
+    return <PantallaDeCarga que="Cargando la oferta" />;
 
   if (estado === "no-disponible") {
     return (

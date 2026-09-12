@@ -3,7 +3,15 @@
 import { useEffect, useRef, useState } from "react";
 
 import { Boton, CLASE_CONTROL } from "@/components/admin/marco-admin";
-import { adminApi, MAXIMO_LOGOS, urlLogo, type Logo } from "@/lib/admin-api";
+import {
+  adminApi,
+  ESQUEMAS_DE_LOGO,
+  MAXIMO_LOGOS,
+  NOMBRE_DEL_ESQUEMA,
+  urlLogo,
+  type EsquemaDeLogo,
+  type Logo,
+} from "@/lib/admin-api";
 import { ErrorApi } from "@/lib/api";
 
 type Props = {
@@ -65,18 +73,54 @@ export function GestorLogos({ formularioId, heredados, alCambiar }: Props) {
           <p className="mb-3 text-xs font-medium uppercase tracking-wide text-texto-suave">
             Así se ve la cabecera
           </p>
-          {/* al tamano real: lo que se ve aqui es lo que se publica */}
-          <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
-            {mostrados.map((logo) => (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                key={logo.id}
-                src={urlLogo(logo)}
-                alt={logo.etiqueta}
-                className="h-20 w-auto max-w-[14rem] object-contain"
-              />
-            ))}
-          </div>
+          {/* LOS DOS TEMAS, uno al lado del otro.
+
+              Antes se veía una sola fila, la del tema en que
+              estuviera el panel, y con logos marcados por tema eso
+              esconde justo lo que hay que revisar: si el archivo de
+              oscuro se lee sobre el fondo oscuro. La placa de la
+              derecha va con el fondo del tema contrario a mano
+              —`#0d1614` es el `--fondo` oscuro— porque una
+              previsualización que dependa del tema del panel no
+              sirve para comprobar el otro. */}
+          {(
+            [
+              ["CLARO", "En tema claro", "#f4f7f5", "#14231f"],
+              ["OSCURO", "En tema oscuro", "#0d1614", "#e7efec"],
+            ] as const
+          ).map(([tema, rotulo, fondo, texto]) => {
+            const deEsteTema = mostrados.filter(
+              (l) => l.esquema === "AMBOS" || l.esquema === tema,
+            );
+            return (
+              <div key={tema} className="mb-3 last:mb-0">
+                <p className="mb-1 text-xs text-texto-suave">{rotulo}</p>
+                <div
+                  className="flex flex-wrap items-center gap-x-6 gap-y-3 rounded-lg px-4 py-3"
+                  style={{ background: fondo, color: texto }}
+                >
+                  {deEsteTema.length === 0 ? (
+                    <span className="text-sm opacity-70">
+                      Ningún logo sale en este tema.
+                    </span>
+                  ) : (
+                    deEsteTema.map((logo) => (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        key={logo.id}
+                        src={urlLogo(logo)}
+                        alt={logo.etiqueta}
+                        /// La misma altura que en la cabecera de
+                        /// verdad (`LogosDelGremio`): lo que se ve
+                        /// aquí es lo que se publica.
+                        className="h-16 w-auto max-w-[14rem] object-contain"
+                      />
+                    ))
+                  )}
+                </div>
+              </div>
+            );
+          })}
         </div>
       )}
 
@@ -108,6 +152,40 @@ export function GestorLogos({ formularioId, heredados, alCambiar }: Props) {
                   }}
                   className={CLASE_CONTROL}
                 />
+              </label>
+
+              {/* EN QUÉ TEMA SALE.
+
+                  Un logo institucional es un archivo cerrado: el de
+                  ADECOPRIA lleva el nombre en negro y sobre el
+                  fondo oscuro no se lee. Aquí se sube la versión
+                  de texto oscuro marcada «Solo en claro» y la de
+                  texto blanco marcada «Solo en oscuro», y cada una
+                  sale cuando le toca. Lo normal es dejarlo en «Los
+                  dos temas»: un logo sin texto aguanta los dos
+                  fondos y no hay que subir nada dos veces. */}
+              <label className="min-w-40">
+                <span className="mb-1 block text-xs text-texto-suave">
+                  ¿En qué tema sale?
+                </span>
+                <select
+                  value={logo.esquema}
+                  disabled={ocupado}
+                  onChange={(e) =>
+                    accion(() =>
+                      adminApi.actualizarLogo(logo.id, {
+                        esquema: e.target.value as EsquemaDeLogo,
+                      }),
+                    )
+                  }
+                  className={CLASE_CONTROL}
+                >
+                  {ESQUEMAS_DE_LOGO.map((valor) => (
+                    <option key={valor} value={valor}>
+                      {NOMBRE_DEL_ESQUEMA[valor]}
+                    </option>
+                  ))}
+                </select>
               </label>
 
               <div className="flex items-center gap-1">

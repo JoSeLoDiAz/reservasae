@@ -276,6 +276,23 @@ body {
   letter-spacing: 0.01em;
 }
 
+/* EL TEXTO DE SUGERENCIA DE LOS CAMPOS, al 65 % y no al 50 %.
+
+   Tailwind pone `::placeholder` al 50 % del color del texto y ahi
+   se queda en 3,18:1 sobre el blanco del campo -- medido con el
+   color MEZCLADO, que es el unico que vale: `getComputedStyle`
+   devuelve el token puro y da 15,9:1, asi que este fallo es
+   invisible si se mira mal. El minimo para 13,5-16 px es 4,5 y la
+   alfa mas baja que lo cruza es 0,62; se deja en 0,65 (4,93:1)
+   para que sobre margen cuando un gremio aclare su paleta.
+
+   Va aqui y no campo por campo: son todos los campos del CRM y de
+   los formularios publicos con una regla. */
+input::placeholder,
+textarea::placeholder {
+  color: color-mix(in oklab, var(--texto) 65%, transparent);
+}
+
 h1,
 h2,
 h3 {
@@ -294,7 +311,15 @@ h3 {
  */
 [class*="text-encabezado-texto"] h1,
 [class*="text-encabezado-texto"] h2,
-[class*="text-encabezado-texto"] h3 {
+[class*="text-encabezado-texto"] h3,
+/* Y lo mismo sobre el COLOR DE LA MARCA, que es el panel del
+   acceso. Ahi el titular «De los cupos apartados a las personas
+   formadas» salia en #0f1e1c sobre #06736b --3,0:1, medido-- y
+   justo al lado su propio parrafo salia blanco: la misma frase
+   con dos colores. Se veia como un error porque lo era. */
+[class*="text-marca-texto"] h1,
+[class*="text-marca-texto"] h2,
+[class*="text-marca-texto"] h3 {
   color: inherit;
 }
 
@@ -403,14 +428,23 @@ h3 {
   }
 }
 
-/* la frase se posa: sube 4px y aparece */
+/* la frase se posa: sube 4px y aparece.
+
+   TERMINA AL 85 % Y NO AL 65 %. La animacion va con `both`, asi
+   que este ultimo fotograma es el que MANDA sobre la clase del
+   componente: subir la clase a `opacity-80` no servia de nada
+   mientras esto dijera 0.65 --y eso pasaba--.
+   El 85 % es contraste medido: la firma se pinta sobre el color
+   de la marca en el acceso y en la barra, y ahi el 65 % dejaba
+   la frase en 3,36:1 compuesto sobre el verde del gremio, por
+   debajo del 4,5 que pide un texto de 13-15 px. */
 @keyframes firma-frase-posa {
   from {
     opacity: 0;
     transform: translateY(4px);
   }
   to {
-    opacity: 0.65;
+    opacity: 0.85;
     transform: translateY(0);
   }
 }
@@ -450,6 +484,119 @@ h3 {
 
 .firma-frase {
   animation: firma-frase-posa 320ms cubic-bezier(0.33, 1, 0.68, 1) 560ms both;
+}
+
+/* EL SIGNO SE LLENA. `SignoQueSeLlena`, en `PantallaDeCarga` y
+   en el `Cargando` del panel.
+
+   Un nivel que sube -- el recorte del signo de arriba se
+   desplaza-- y NO un aro que gira: el signo tiene prohibido
+   rotar. Se llena en poco mas de un segundo, se queda lleno un
+   momento y se apaga para volver a empezar; se APAGA y no se
+   vacia, porque verlo bajar se lee como que algo se deshizo.
+
+   2,4 s la vuelta. Es lo que se mira mientras se espera, asi que
+   no puede ser nerviosa.
+
+   Es la unica animacion de la casa que NO termina en reposo,
+   porque es un bucle y la vuelta acaba apagada. Por eso no se fia
+   de las dos reglas generales de menos movimiento --saltarian al
+   ultimo fotograma, o sea al signo apagado-- y trae las suyas mas
+   abajo, que le quitan la animacion y lo dejan quieto y lleno. */
+
+/* el nivel: la caja crece de alto, y con ella asoma el signo
+   entero que lleva pegado al borde de abajo.
+
+   `height` y no `transform`: esto empezo siendo un `<rect>`
+   animado dentro de un `<clipPath>` --se veia en las capturas y
+   NO se veia en el navegador del cliente, porque animar los hijos
+   de un clipPath no repinta en todos los motores--. Una caja con
+   `overflow` es CSS de toda la vida. Cuesta un calculo de
+   disposicion por fotograma, pero es un elemento absoluto de
+   96px: no reflota la pagina. */
+@keyframes carga-nivel {
+  0% {
+    height: 0%;
+    opacity: 1;
+  }
+  /* SUBIENDO casi dos tercios de la vuelta. Antes se llenaba en
+     la mitad y se quedaba quieto la otra mitad, y quien miraba de
+     pasada pillaba el rato quieto: «¿donde se rellena?». Cuanto
+     mas tiempo esta subiendo, mas dificil es verlo parado. */
+  62% {
+    height: 100%;
+    opacity: 1;
+  }
+  78% {
+    height: 100%;
+    opacity: 1;
+  }
+  /* se apaga lleno, y bajo ese apagado la caja vuelve a cero sin
+     que se vea: verlo bajar se leeria como que algo se deshizo */
+  92%,
+  100% {
+    height: 100%;
+    opacity: 0;
+  }
+}
+
+/* La pantalla de carga NO tiene entrada, y es a proposito.
+
+   Tenia un desvanecido con 180 ms de espera, y al hidratar la
+   pagina el componente se monta otra vez: el desvanecido corria
+   dos veces y se veia un DOBLE PARPADEO al recargar (cliente, 11
+   sep 2026). Ahora aparece de una, y quien decide si aparece es
+   `useEsperaCompleta`, en JavaScript: si el dato llega antes de
+   180 ms no se monta nunca. */
+
+/* el signo vacio: contorno tenue que sostiene la forma, para que
+   a medio llenar no se lea como medio signo.
+
+   0,22 y no 0,16: en el instante del reinicio --el lleno ya
+   apagado y el nivel abajo-- esto es lo UNICO que queda en
+   pantalla, y al 16 % casi desaparecia. Se leia como un
+   parpadeo. */
+.carga-vacio {
+  opacity: 0.28;
+}
+
+.carga-nivel {
+  height: 0;
+  animation: carga-nivel 2.4s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+}
+
+
+/* quieto y lleno: el nivel arriba, el signo entero y la franja
+   parada */
+/* CON MENOS MOVIMIENTO DEL SISTEMA, MAS DESPACIO, NO QUIETO.
+
+   Este es el unico sitio donde no se apaga la animacion, y la
+   razon es que aqui el movimiento ES la informacion: es lo unico
+   que dice que el sistema esta trabajando y no colgado. Lo que
+   pide `prefers-reduced-motion` es quitar lo que marea
+   --desplazamientos grandes, zoom, parallax-- y esto es un
+   relleno de 96 px que no mueve nada de sitio.
+
+   Aun asi se le baja el pulso: 4,5 s por vuelta en vez de 2,4, y
+   la franja que cruza --esa si es decoracion-- se para. El
+   `!important` hace falta para ganarle a la regla general de mas
+   abajo, que pone toda animacion en 0,01 ms.
+
+   El boton de accesibilidad del propio sitio SI la apaga del
+   todo: ahi el usuario no expreso una preferencia del sistema,
+   sino una orden en esta pantalla. */
+@media (prefers-reduced-motion: reduce) {
+  .carga-nivel {
+    animation: carga-nivel 4.5s ease-in-out infinite !important;
+  }
+}
+
+:root[data-sin-movimiento="si"] .carga-nivel {
+  animation: none !important;
+}
+
+:root[data-sin-movimiento="si"] .carga-nivel {
+  height: 100% !important;
 }
 
 /* EL LOGIN ENTRA DETRAS DE LA FIRMA.
@@ -616,6 +763,33 @@ html {
 }
 ::-webkit-scrollbar-corner {
   background: transparent;
+}
+
+/* FUERA LAS FLECHAS DE LOS EXTREMOS.
+ *
+ * Y esto es lo que faltaba. Chrome en Windows, EN CUANTO alguien
+ * estiliza la barra, pinta sus dos botones de flecha con el gris
+ * del sistema: dos cuadros en una interfaz de trazos de 1px. La
+ * barra se veia fina en el medio y gorda en las puntas -- lo que
+ * senalo el cliente el 11 sep 2026: «no oculta, pero super
+ * delgada, super profesional».
+ *
+ * Con los botones apagados queda lo unico que hace falta: la
+ * pastilla. Se sigue viendo y se sigue arrastrando; nadie
+ * desplaza a clic de flecha.
+ *
+ * `display: none` no basta en todas las versiones: hay que dejar
+ * tambien el tamano en cero, o Chrome reserva el hueco y la
+ * pastilla no llega a los extremos.
+ *
+ * Cubre las tres barras de la casa: la de la pagina, `.caja-scroll`
+ * y `.barra-visible`. */
+::-webkit-scrollbar-button,
+.caja-scroll::-webkit-scrollbar-button,
+.barra-visible::-webkit-scrollbar-button {
+  display: none;
+  width: 0;
+  height: 0;
 }
 
 /* el desplegable, con la curva y el color del resto */

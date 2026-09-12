@@ -12,6 +12,7 @@ import {
 import { Cargando } from "@/components/admin/piezas";
 import { useToast } from "@/components/admin/toast";
 import { bonito, ErrorApi } from "@/lib/api";
+import { SECTORES } from "@/lib/sectores";
 import {
   ETIQUETA_CAMPO,
   ETIQUETA_CLASIFICACION,
@@ -555,16 +556,33 @@ export default function PaginaInstitucion({
               />
             </CampoConFuente>
 
+            {/* SUGERENCIAS, no lista cerrada.
+
+                Los quince sectores del formulario público
+                (`lib/sectores.ts`) salen como sugerencias, para que
+                lo que se escriba aquí y lo que elige la gente allá
+                coincidan y el F7 no lleve dos vocabularios. Pero
+                sigue siendo texto libre: este campo también se
+                rellena con lo que contesta el RUES, y con sus
+                propias palabras. */}
             <CampoConFuente
               clave="sectorEconomico"
               fuente={fuentes.sectorEconomico}
               cambiado={tocado("sectorEconomico")}
             >
-              <input
-                className={CLASE_CONTROL}
-                value={borrador.sectorEconomico}
-                onChange={(e) => escribir("sectorEconomico")(e.target.value)}
-              />
+              <>
+                <input
+                  className={CLASE_CONTROL}
+                  list="sectores-sugeridos"
+                  value={borrador.sectorEconomico}
+                  onChange={(e) => escribir("sectorEconomico")(e.target.value)}
+                />
+                <datalist id="sectores-sugeridos">
+                  {SECTORES.map((s) => (
+                    <option key={s} value={s} />
+                  ))}
+                </datalist>
+              </>
             </CampoConFuente>
 
             <CampoConFuente

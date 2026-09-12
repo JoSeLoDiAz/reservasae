@@ -4,6 +4,20 @@ import path from "path";
 const nextConfig: NextConfig = {
   // empaqueta solo lo necesario
   output: "standalone",
+
+  /// Los dominios desde los que `next dev` se deja usar.
+  ///
+  /// Next 16 bloquea las peticiones de desarrollo que llegan con
+  /// un Host que no es `localhost`, y lo hace en silencio: la
+  /// página se sirve, pero el navegador no recibe el bundle del
+  /// cliente. Lo que se ve entonces es el HTML del servidor
+  /// —«Cargando la convocatoria…», con la paleta por defecto— y
+  /// nada más: no hidrata, no pide el catálogo y no responde a
+  /// nada. Pasa media hora antes de sospechar del túnel.
+  ///
+  /// Solo afecta a `next dev`; en producción esta lista no se
+  /// mira. Ver `scripts/tunel-convoca.ps1`.
+  allowedDevOrigins: ["*.trycloudflare.com", "*.ngrok-free.app"],
   // la raiz del monorepo
   outputFileTracingRoot: path.join(__dirname, ".."),
 

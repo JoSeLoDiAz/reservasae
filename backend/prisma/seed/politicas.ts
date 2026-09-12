@@ -27,7 +27,10 @@ type Semilla = {
 const SEMILLAS: Semilla[] = [
   {
     destinatario: DestinatarioPolitica.PARTICIPANTE,
-    titulo: 'Términos y Condiciones — Habeas Data',
+    // el que pidió el cliente el 11 sep 2026; las bases que ya
+    // tenían el anterior lo cambian por migración, con versión nueva
+    titulo:
+      'Términos y Condiciones y Autorización para el Tratamiento de Datos Personales',
     contenido: PARTICIPANTE,
   },
 ];

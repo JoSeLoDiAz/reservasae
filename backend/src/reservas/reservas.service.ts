@@ -11,7 +11,11 @@ import {
   Prisma,
   type Empresa,
 } from '../../generated/prisma';
-import { normalizarNit, type NitNormalizado } from '../comun/nit';
+import {
+  calcularDigitoVerificacion,
+  normalizarNit,
+  type NitNormalizado,
+} from '../comun/nit';
 import { FormulariosService } from '../formularios/formularios.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { CrearReservaDto } from './dto/crear-reserva.dto';
@@ -462,7 +466,11 @@ export class ReservasService {
       redAsociada: dto.redAsociada ?? null,
       // se limpia si ya no es "Otro"
       redAsociadaOtra: dto.redAsociada === 'Otro' ? (dto.redAsociadaOtra ?? null) : null,
-      digitoVerificacion: nit.digitoVerificacion,
+      /// El de la DIAN, aunque el NIT viniera con otro detrás del
+      /// guion: `normalizarNit` se quedaba con el tecleado, y un
+      /// «900123456-7» dejaba el 7 aunque a ese NIT le toque otro.
+      /// Para cada NIT hay un solo DV (cliente, 11 sep 2026).
+      digitoVerificacion: calcularDigitoVerificacion(nit.nit),
     };
 
     /// Si la empresa YA EXISTE, lo guardado manda.
@@ -503,8 +511,10 @@ export class ReservasService {
             yaExiste.numeroColaboradores ?? datos.numeroColaboradores,
           redAsociada: yaExiste.redAsociada ?? datos.redAsociada,
           redAsociadaOtra: yaExiste.redAsociadaOtra ?? datos.redAsociadaOtra,
-          digitoVerificacion:
-            yaExiste.digitoVerificacion ?? datos.digitoVerificacion,
+          /// Este SÍ se pisa, y no rompe la regla de arriba: no lo
+          /// dice quien llena el formulario, sale del NIT. Si lo
+          /// guardado era otro, lo guardado estaba mal.
+          digitoVerificacion: datos.digitoVerificacion,
         }
       : datos;
 

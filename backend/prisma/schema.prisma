@@ -1351,7 +1351,14 @@ model AdminConvenio {
   @@map("admin_convenio")
 }
 
-/// Los logos de la cabecera. Hasta tres por ámbito.
+/// En qué tema sale un logo. `AMBOS` es lo normal.
+enum EsquemaDeLogo {
+  AMBOS
+  CLARO
+  OSCURO
+}
+
+/// Los logos de la cabecera. Hasta tres por ámbito y tema.
 model Logo {
   id String @id @default(cuid())
 
@@ -1361,6 +1368,12 @@ model Logo {
 
   /// Nombre de la entidad. Es su texto alternativo.
   etiqueta String
+
+  /// En qué tema sale. Un logo institucional no se puede
+  /// recolorear —es un archivo hecho para papel—, así que la
+  /// entidad manda su versión de texto oscuro y su versión de
+  /// texto blanco, y cada fila dice cuándo le toca.
+  esquema EsquemaDeLogo @default(AMBOS)
 
   datos    Bytes
   tipoMime String

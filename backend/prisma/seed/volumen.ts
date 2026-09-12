@@ -14,6 +14,7 @@ import {
   OrigenParticipante,
   PrismaClient,
 } from '../../generated/prisma';
+import { calcularDigitoVerificacion } from '../../src/comun/nit';
 import { exigirBaseSegura } from '../guardia-de-base';
 import { soloEnPruebas } from './solo-pruebas';
 
@@ -114,7 +115,8 @@ async function main() {
         const n = i + j;
         return {
           nit: String(920_000_000 + n),
-          digitoVerificacion: String(n % 10),
+          // el de la DIAN; ver el comentario de `prueba.ts`
+          digitoVerificacion: calcularDigitoVerificacion(String(920_000_000 + n)),
           razonSocial: `Colegio de Volumen ${n + 1} S.A.S.`,
           tipoDocumentoSepId: 6,
           tamanoSepId: unoDe([43, 44, 45, 46, 47, 48]),

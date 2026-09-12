@@ -12,7 +12,7 @@ export default async function PaginaConvenio({
 
   return (
     <>
-      <main className="mx-auto w-full max-w-3xl px-6 py-10">
+      <main className="mx-auto w-full max-w-3xl px-6 pt-10 pb-6">
         <EncabezadoPublico />
         <FormularioReserva slug={convenio} />
       </main>

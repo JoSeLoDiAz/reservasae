@@ -29,6 +29,7 @@ import {
 } from '../crm/catalogos-sep';
 import { faltaDeLaPersona } from '../crm/completitud';
 import { normalizarDocumento } from '../comun/documento';
+import { calcularDigitoVerificacion } from '../comun/nit';
 import { DirectorioService } from '../crm/directorio.service';
 import { aQueOrganizacionSeAta } from './organizacion-de-la-ficha';
 import { entraAlDirectorio } from './entra-al-directorio';
@@ -523,9 +524,13 @@ export class PreinscripcionService {
       /// Se dice a dónde fue SIN enseñar la dirección: «se lo
       /// mandamos a su correo registrado» le sirve a la dueña
       /// y no le dice nada a un desconocido.
+      /// Redacción del cliente, 11 sep 2026. Dos variantes porque
+      /// hay dos situaciones distintas: con correo guardado se
+      /// avisa de que salió el mensaje; sin correo no se puede
+      /// prometer lo que no se mandó.
       mensaje: enviado
-        ? 'Ya tenía un registro con ese documento. Le mandamos un correo a la dirección que tiene registrada, y un asesor se comunicará con usted.'
-        : 'Ya tenía un registro con ese documento. Un asesor se comunicará con usted.',
+        ? 'Ya contamos con un registro asociado a este documento, hemos enviado un correo a la dirección registrada y uno de nuestros asesores se pondrá en contacto con usted para continuar el proceso.'
+        : 'Ya contamos con un registro asociado a este documento y uno de nuestros asesores se pondrá en contacto con usted para continuar el proceso.',
     };
   }
 
@@ -646,7 +651,12 @@ export class PreinscripcionService {
       where: { id: enlace.participanteId },
       select: {
         id: true,
-        convenio: { select: { nombre: true, sigla: true } },
+        /// El teléfono va a la pantalla, y no de adorno: el
+        /// domicilio se enseña de solo lectura y la única salida
+        /// para corregirlo es llamar (cliente, 11 sep 2026). Un
+        /// aviso que dice «comuníquese con un asesor» sin número
+        /// es un callejón sin salida con buenos modales.
+        convenio: { select: { nombre: true, sigla: true, telefono: true } },
         accionFormacion: {
           select: { codigo: true, nombre: true, horas: true, modalidad: true },
         },
@@ -1298,20 +1308,37 @@ export class PreinscripcionService {
       if (!nit)
         throw new BadRequestException('Ese NIT no tiene ningún dígito.');
 
+      /// El DV lo pone la DIAN, no la persona.
+      ///
+      /// Se guardaba el que venía tecleado --y la pantalla lo dejaba
+      /// cambiar «si discrepa del de su papel»--, así que una ficha
+      /// podía salir al F7 con un NIT y el dígito de otro. El DV es
+      /// la suma de control del NIT: para cada NIT hay uno solo, y
+      /// es este. Pedido por el cliente el 11 sep 2026. Lo que
+      /// venga en `dto.digitoVerificacion` se ignora.
+      ///
+      /// Va también en el `update`: una organización que entró con
+      /// el dígito mal queda corregida la próxima vez que alguien
+      /// la toca.
+      const digitoVerificacion = calcularDigitoVerificacion(nit);
+
       const empresa = await this.prisma.empresa.upsert({
         where: { nit },
         create: {
           nit,
-          digitoVerificacion: dto.digitoVerificacion ?? null,
+          digitoVerificacion,
           razonSocial: dto.razonSocial ?? `Organización ${nit}`,
           ...datos,
         },
         // lo que ya se sabía no se pisa con un hueco
-        update: Object.fromEntries(
-          Object.entries(datos).filter(
-            ([, v]) => v !== undefined && v !== null,
+        update: {
+          ...Object.fromEntries(
+            Object.entries(datos).filter(
+              ([, v]) => v !== undefined && v !== null,
+            ),
           ),
-        ),
+          digitoVerificacion,
+        },
         select: { id: true },
       });
 

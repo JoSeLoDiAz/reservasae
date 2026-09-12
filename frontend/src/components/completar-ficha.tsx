@@ -1,14 +1,17 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useState } from "react";
 
 import { ErrorApi } from "@/lib/api";
+import { digitoVerificacion } from "@/lib/nit";
 import { juntar, primero, resto } from "@/lib/nombres";
+import { sectoresConElActual } from "@/lib/sectores";
 import { preinscripcionApi, type FichaAbierta } from "@/lib/preinscripcion-api";
 
 import { ModalPolitica } from "./modal-politica";
 import { FondoPublico } from "./fondo-publico";
-import { BannerLogos, ConmutadorTema, PiePublico } from "./marca-publica";
+import { BannerLogos, FilaDeMarca, PiePublico } from "./marca-publica";
+import { PantallaDeCarga, useEsperaCompleta } from "./pantalla-de-carga";
 
 /// Las etiquetas del SEP vienen en mayuscula sostenida --
 /// «MUJER CABEZA DE FAMILIA» -- y a una persona no se le
@@ -198,6 +201,28 @@ export function CompletarFicha({ token }: { token: string }) {
   }, [token]);
 
   // los del departamento elegido, y solo esos
+  /// La pantalla de carga, hasta que complete su vuelta.
+  const esperando = useEsperaCompleta(ficha === null && fallo === null);
+
+  /// EL DOMICILIO QUE YA VENÍA, EN PALABRAS.
+  ///
+  /// Se enseña de solo lectura cuando los dos códigos están
+  /// puestos —ver el bloque del paso 1—, así que hay que traducir
+  /// los ids del SEP a sus nombres: en la base son números.
+  const yaTieneDomicilio = Boolean(
+    persona.departamentoSepId && persona.municipioSepId,
+  );
+
+  const nombreDepartamento =
+    (ficha?.departamentos ?? []).find(
+      (d) => String(d.id) === String(persona.departamentoSepId),
+    )?.etiqueta ?? "";
+
+  const nombreMunicipio =
+    (ficha?.municipios ?? []).find(
+      (m) => String(m[0]) === String(persona.municipioSepId),
+    )?.[2] ?? "";
+
   const municipios = useMemo(() => {
     const dep = Number(persona.departamentoSepId);
     if (!ficha || !dep) return [];
@@ -214,15 +239,22 @@ export function CompletarFicha({ token }: { token: string }) {
 
     return (
       <>
-        <main className="mx-auto w-full max-w-lg px-6 py-20 text-center">
-          <BannerLogos />
+        <main className="mx-auto w-full max-w-lg px-6 pt-20 pb-8 text-center">
+          <BannerLogos centrado />
           {enlaceMuerto ? (
             <>
               <h1 className="mt-8 text-2xl font-bold">Este enlace ya no sirve</h1>
               <p className="mt-3 text-texto-suave">{fallo.mensaje}</p>
-              <p className="mt-4 text-sm text-texto-suave">
-                Pídale uno nuevo a la persona que lo está acompañando.
-              </p>
+              {/* Solo si el servidor no lo dijo ya. El mensaje del
+                  enlace vencido termina en «Pida uno nuevo a quien
+                  lo atendió», y debajo salía esta línea diciendo lo
+                  mismo con otras palabras: dos renglones seguidos
+                  con la misma instrucción. */}
+              {!/pida uno nuevo/i.test(fallo.mensaje) && (
+                <p className="mt-4 text-sm text-texto-suave">
+                  Pídale uno nuevo a la persona que lo está acompañando.
+                </p>
+              )}
             </>
           ) : (
             <>
@@ -249,7 +281,7 @@ export function CompletarFicha({ token }: { token: string }) {
     );
   }
 
-  if (!ficha) return <p className="p-10 text-texto-suave">Abriendo su registro…</p>;
+  if (esperando || !ficha) return <PantallaDeCarga que="Abriendo su registro" />;
 
   const nombre = `${primero(persona.nombres ?? "")} ${persona.primerApellido ?? ""}`.trim();
 
@@ -430,8 +462,8 @@ export function CompletarFicha({ token }: { token: string }) {
   if (paso === "HECHO") {
     return (
       <>
-        <main className="mx-auto w-full max-w-lg px-6 py-20 text-center">
-        <BannerLogos />
+        <main className="mx-auto w-full max-w-lg px-6 pt-20 pb-8 text-center">
+        <BannerLogos centrado />
         <h1 className="mt-8 text-2xl font-bold">¡Gracias, {nombre}!</h1>
         {/* NO se prometen horarios ni plataforma, y ya no se
             distingue presencial de virtual.
@@ -458,15 +490,16 @@ export function CompletarFicha({ token }: { token: string }) {
 
   return (
     <>
-      <main className="mx-auto w-full max-w-2xl px-6 py-10 lg:max-w-4xl">
+      {/* pt-10/pb-6 como el formulario corto: ver el comentario
+          de `preinscripcion.tsx` */}
+      <main className="mx-auto w-full max-w-2xl px-6 pt-10 pb-6 lg:max-w-4xl">
       {/* el mismo encabezado del formulario corto: mismo ancho,
-          mismo banner y el conmutador de tema */}
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <BannerLogos />
-        <ConmutadorTema compacto />
-      </div>
+          la marca en una fila y el conmutador al lado del título */}
+      <FilaDeMarca />
 
-      <header className="mt-8">
+      {/* centrado como el del formulario corto: los dos
+          encabezados públicos comparten eje con la marca */}
+      <header className="mt-7 text-center">
         <h1 className="text-2xl font-bold tracking-tight">
           {paso === "PERSONA"
             ? "Formalización de la preinscripción"
@@ -586,11 +619,15 @@ export function CompletarFicha({ token }: { token: string }) {
                     <path d="m8.5 12 2.5 2.5 4.5-5" />
                   </svg>
                 </span>
+                {/* SOLO EL TÍTULO, y el botón al lado.
+
+                    Llevaba detrás «- la aceptó al reservar su
+                    cupo» y el cliente lo quitó el 11 sep 2026. No
+                    se pierde nada: la palomita verde de la
+                    izquierda ya dice que está aceptada, y el
+                    renglón entero solo aparece cuando lo está. */}
                 <span className="text-sm font-medium">
                   {ficha.politica.titulo}
-                </span>
-                <span className="text-sm text-texto-suave">
-                  — la aceptó al reservar su cupo
                 </span>
                 <button
                   type="button"
@@ -725,58 +762,102 @@ export function CompletarFicha({ token }: { token: string }) {
                   Asi que se pregunta y se ofrece relleno: si
                   coincide, un clic; si no, lo corrige. Es la
                   diferencia entre suponer y preguntar. */}
-                <label className="block">
-                  <span className="mb-1.5 block text-sm font-medium">
-                    Departamento de residencia
-                  </span>
-                  <select
-                    value={persona.departamentoSepId ?? ""}
-                    onChange={(e) =>
-                      // cambiar de departamento invalida el municipio
-                      setPersona((p) => ({
-                        ...p,
-                        departamentoSepId: e.target.value,
-                        municipioSepId: "",
-                      }))
-                    }
-                    className={CAMPO}
-                  >
-                    <option value="">Seleccione…</option>
-                    {(ficha?.departamentos ?? []).map((d) => (
-                      <option key={d.id} value={d.id}>
-                        {d.etiqueta}
-                      </option>
-                    ))}
-                  </select>
-                  <span className="mt-1 block text-xs text-texto-suave">
-                    Su domicilio, no la sede donde se dicta.
-                  </span>
-                </label>
+                {yaTieneDomicilio ? (
+                  /// LO QUE YA SE SABE NO SE VUELVE A PREGUNTAR, Y
+                  /// NO SE TOCA AQUÍ.
+                  ///
+                  /// Lo pidió el cliente el 11 sep 2026: dos
+                  /// desplegables abiertos sobre un dato que ya
+                  /// venía puesto invitan a cambiarlo sin querer, y
+                  /// cambiar el domicilio mueve la cobertura de la
+                  /// sede que ya tiene reservada. Se enseña y se
+                  /// deja el cambio en manos de un asesor, que sí
+                  /// puede mirar qué se arrastra.
+                  ///
+                  /// Ocupa las dos columnas: es un aviso, no un
+                  /// campo, y partido a la mitad se leía como uno.
+                  <div className="sm:col-span-2 rounded-xl border border-borde bg-superficie-alterna px-4 py-3">
+                    <p className="text-sm font-medium">
+                      Su departamento y municipio de residencia
+                    </p>
+                    <p className="mt-1 text-sm text-texto">
+                      {nombreDepartamento} · {nombreMunicipio}
+                    </p>
+                    <p className="mt-2 text-xs leading-relaxed text-texto-suave">
+                      Este fue el departamento y el municipio que quedaron
+                      registrados. Si desea cambiarlos, comuníquese con un asesor
+                      {ficha?.convenio.telefono
+                        ? ` en la línea ${ficha.convenio.telefono}.`
+                        : "."}
+                    </p>
+                  </div>
+                ) : (
+                  /// Y SI NO SE SABE, SE PREGUNTA.
+                  ///
+                  /// Sin esta rama el enlace volvería a ser el
+                  /// callejón sin salida que ya fue una vez: el
+                  /// panel dice «le falta el municipio», ofrece el
+                  /// enlace para arreglarlo, y el enlace no lo
+                  /// pide. Pasa con quien entró sin elegir
+                  /// ubicación.
+                  <>
+                    <label className="block">
+                      <span className="mb-1.5 block text-sm font-medium">
+                        Departamento de residencia
+                      </span>
+                      <select
+                        value={persona.departamentoSepId ?? ""}
+                        onChange={(e) =>
+                          // cambiar de departamento invalida el municipio
+                          setPersona((p) => ({
+                            ...p,
+                            departamentoSepId: e.target.value,
+                            municipioSepId: "",
+                          }))
+                        }
+                        className={CAMPO}
+                      >
+                        <option value="">Seleccione…</option>
+                        {(ficha?.departamentos ?? []).map((d) => (
+                          <option key={d.id} value={d.id}>
+                            {d.etiqueta}
+                          </option>
+                        ))}
+                      </select>
+                      <span className="mt-1 block text-xs text-texto-suave">
+                        Su domicilio, no la sede donde se dicta.
+                      </span>
+                    </label>
 
-                <label className="block">
-                  <span className="mb-1.5 block text-sm font-medium">
-                    Municipio de residencia
-                  </span>
-                  <select
-                    value={persona.municipioSepId ?? ""}
-                    onChange={(e) =>
-                      setPersona((p) => ({ ...p, municipioSepId: e.target.value }))
-                    }
-                    disabled={!persona.departamentoSepId}
-                    className={CAMPO}
-                  >
-                    <option value="">
-                      {persona.departamentoSepId
-                        ? "Seleccione…"
-                        : "Elija primero el departamento"}
-                    </option>
-                    {municipios.map((m) => (
-                      <option key={m[0]} value={m[0]}>
-                        {m[2]}
-                      </option>
-                    ))}
-                  </select>
-                </label>
+                    <label className="block">
+                      <span className="mb-1.5 block text-sm font-medium">
+                        Municipio de residencia
+                      </span>
+                      <select
+                        value={persona.municipioSepId ?? ""}
+                        onChange={(e) =>
+                          setPersona((p) => ({
+                            ...p,
+                            municipioSepId: e.target.value,
+                          }))
+                        }
+                        disabled={!persona.departamentoSepId}
+                        className={CAMPO}
+                      >
+                        <option value="">
+                          {persona.departamentoSepId
+                            ? "Seleccione…"
+                            : "Elija primero el departamento"}
+                        </option>
+                        {municipios.map((m) => (
+                          <option key={m[0]} value={m[0]}>
+                            {m[2]}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  </>
+                )}
 
               {pide("barrio") && (
                 <Campo etiqueta="Barrio o vereda" campo="barrio" valores={persona} set={setPersona} />
@@ -883,11 +964,13 @@ export function CompletarFicha({ token }: { token: string }) {
                 para que quien lo lea dentro de un año sepa que fue
                 una decisión y no un descuido, y para que sepa que
                 deshacerlo es devolver este bloque. */}
+            {/* El texto, como lo redactó el cliente el 11 sep 2026.
+                Ya no hace falta explicar dónde está «Ninguna»:
+                sale de primeras en la lista. */}
             <p className="mt-1 text-sm leading-relaxed text-texto-suave">
-              Si alguna de estas condiciones es la suya, escríbala y
-              elíjala; es <strong>una sola</strong>, la que mejor lo describa.
-              Y si no es ninguna, escriba «ninguna»: no cambia en nada su
-              preinscripción ni su cupo.
+              Seleccione <strong>una sola opción</strong> que corresponda a su
+              situación, esta información es de carácter informativo y no afecta
+              su preinscripción ni la asignación de su cupo.
             </p>
 
             <BuscadorDeCaracterizacion
@@ -1085,12 +1168,8 @@ export function CompletarFicha({ token }: { token: string }) {
                 {!ficha.empresaFijada && (
                   <BuscadorDeNit
                     nit={empresa.nit}
-                    digito={empresa.digitoVerificacion ?? ""}
                     razonSocial={empresa.razonSocial}
                     esRut={vinculo === "INDEPENDIENTE"}
-                    alCambiarDigito={(digitoVerificacion) =>
-                      setEmpresa((e) => ({ ...e, digitoVerificacion }))
-                    }
                     alCambiar={(nit, razonSocial) =>
                       setEmpresa((e) => ({ ...e, nit, razonSocial }))
                     }
@@ -1313,15 +1392,20 @@ function SelectorDeSector({
   return (
     <label className="block">
       <span className="mb-1.5 block text-sm font-medium">Sector económico</span>
+      {/* Los quince del cliente (11 sep 2026), en `lib/sectores.ts`.
+          Se guarda el texto tal cual porque es lo que sale en el
+          F7 que recibe el SENA. */}
       <select
         value={empresa.sectorEconomico ?? ""}
         onChange={(e) => set((x) => ({ ...x, sectorEconomico: e.target.value }))}
         className={CAMPO}
       >
         <option value="">Elija…</option>
-        <option value="COMERCIO">Comercio</option>
-        <option value="SERVICIOS">Servicios</option>
-        <option value="MANUFACTURA">Manufactura</option>
+        {sectoresConElActual(empresa.sectorEconomico).map((s) => (
+          <option key={s} value={s}>
+            {s}
+          </option>
+        ))}
       </select>
     </label>
   );
@@ -1329,28 +1413,26 @@ function SelectorDeSector({
 
 function BuscadorDeNit({
   nit,
-  digito,
   razonSocial,
   alCambiar,
-  alCambiarDigito,
   esRut,
 }: {
   nit: string;
-  /// El dígito de verificación, APARTE.
-  ///
-  /// Iba dentro del mismo campo y no se guardaba: el modelo tiene
-  /// `digitoVerificacion` en su propia columna y el DTO ya lo
-  /// admitía, así que se perdía en la pantalla y en ningún otro
-  /// sitio. Y no es cosmético: en el F7 el NIT va sin dígito, y
-  /// un `899999034-1` metido en la columna del NIT no cuadra con
-  /// ningún registro del SENA.
-  digito: string;
   razonSocial: string;
   alCambiar: (nit: string, razonSocial: string) => void;
-  alCambiarDigito: (digito: string) => void;
   /// El independiente no tiene NIT de empresa: tiene RUT.
   esRut?: boolean;
 }) {
+  /// El dígito de verificación, APARTE y CALCULADO.
+  ///
+  /// Iba dentro del mismo campo y no se guardaba; después tuvo su
+  /// casilla y se tecleaba, y entonces se guardaba lo que la
+  /// persona escribiera aunque no fuera el de ese NIT. Desde el 11
+  /// sep 2026 no se pide: sale del NIT con la fórmula de la DIAN,
+  /// y el servidor lo vuelve a calcular al guardar. Aquí se
+  /// enseña para que la persona lo compare con su RUT.
+  const digito = digitoVerificacion(nit);
+  const idAyuda = useId();
   const [buscando, setBuscando] = useState(false);
   const [encontradas, setEncontradas] = useState<string[] | null>(null);
 
@@ -1365,11 +1447,6 @@ function BuscadorDeNit({
     setBuscando(true);
     try {
       const r = await preinscripcionApi.buscarNit(limpio);
-      /// El RUES lo calcula, así que se rellena solo y la persona
-      /// no tiene que saberse el suyo. Queda editable: si el
-      /// nuestro discrepa del que tiene en su papel, manda el
-      /// suyo.
-      if (r.digitoVerificacion) alCambiarDigito(r.digitoVerificacion);
       const nombres = r.instituciones.map((i) => i.razonSocial);
       setEncontradas(nombres);
       /// UN NIT, UNA ORGANIZACION. Desde el 3 sep 2026 el
@@ -1401,29 +1478,40 @@ function BuscadorDeNit({
             onBlur={(e) => void buscar(e.target.value)}
             className={CAMPO}
           />
-          <span className="mt-1 block text-xs text-texto-suave">
-            {buscando ? "Buscando…" : "Sin puntos ni guion, y sin el dígito."}
+          {/* La ayuda del DV va AQUÍ, bajo el NIT, y no bajo la
+              casilla del dígito: aquella mide 6rem y cualquier
+              frase se partía en cuatro renglones. Y lo que dice es
+              sobre el NIT: si el dígito no cuadra con el del RUT,
+              lo que está mal es lo que se tecleó aquí. */}
+          <span id={idAyuda} className="mt-1 block text-xs text-texto-suave">
+            {buscando
+              ? "Buscando…"
+              : digito
+                ? "El DV se calcula solo con la fórmula de la DIAN. Si no coincide con el de su RUT, revise el NIT."
+                : "Sin puntos ni guion, y sin el dígito de verificación."}
           </span>
         </label>
 
-        {/* Su propio campo, estrecho porque es UN dígito.
+        {/* Estrecho porque es UN dígito, y de SOLO LECTURA.
 
-            Antes no existía: el NIT y el dígito iban juntos en una
-            sola casilla y el dígito se perdía. */}
+            Se ve como casilla y no como texto suelto para que se
+            lea en su sitio, al lado del NIT y como en el RUT; pero
+            no se puede escribir en ella. `readOnly` y no
+            `disabled`: el lector de pantalla la sigue anunciando y
+            el valor se puede seleccionar y copiar. */}
         <label className="block w-24 shrink-0">
           {/* «DV» y no «Dígito»: es como lo llama todo el mundo en
               Colombia y es lo que dice el RUT. */}
           <span className="mb-1.5 block text-sm font-medium">DV</span>
           <input
             value={digito}
-            inputMode="numeric"
-            maxLength={1}
-            onChange={(e) => alCambiarDigito(e.target.value.replace(/\D/g, ""))}
-            className={CAMPO}
+            readOnly
+            tabIndex={-1}
+            aria-describedby={idAyuda}
+            placeholder="—"
+            className={`${CAMPO} cursor-default bg-superficie-alterna text-center font-semibold`}
           />
-          <span className="mt-1 block text-xs text-texto-suave">
-            Dígito de verificación, el de después del guion.
-          </span>
+          <span className="mt-1 block text-xs text-texto-suave">Calculado</span>
         </label>
       </div>
 
@@ -1509,9 +1597,23 @@ function BuscadorDeCaracterizacion({
       .normalize("NFD")
       .replace(/[̀-ͯ]/g, "");
 
+  /// «NINGUNA» DE PRIMERAS.
+  ///
+  /// Lo pidió el cliente el 11 sep 2026, y es la opción que más
+  /// gente necesita: el catálogo del SEP la trae en el puesto 35,
+  /// entre condiciones como «víctima del conflicto» o
+  /// «discapacidad», así que quien no pertenece a ninguna tenía
+  /// que recorrer la lista entera para decirlo. El orden del resto
+  /// no se toca: es el del catálogo.
+  const enOrden = useMemo(() => {
+    const ninguna = opciones.filter((o) => pelado(o.etiqueta) === "ninguna");
+    const resto = opciones.filter((o) => pelado(o.etiqueta) !== "ninguna");
+    return [...ninguna, ...resto];
+  }, [opciones]);
+
   const filtradas = busca.trim()
-    ? opciones.filter((o) => pelado(o.etiqueta).includes(pelado(busca)))
-    : opciones;
+    ? enOrden.filter((o) => pelado(o.etiqueta).includes(pelado(busca)))
+    : enOrden;
 
   if (laElegida) {
     return (

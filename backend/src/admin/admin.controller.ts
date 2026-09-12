@@ -25,8 +25,10 @@ import { RolAdmin, type Admin, type EsquemaColor } from '../../generated/prisma'
 import {
   ERROR_TAMANO_LOGO,
   ERROR_TIPO_LOGO,
+  ESQUEMAS_DE_LOGO,
   MAXIMO_LOGO,
   TIPOS_LOGO,
+  type EsquemaDeLogo,
 } from '../comun/logo';
 import { AdminActual, AmbitoActual } from './admin-actual.decorator';
 import { rolQueSeEnsena } from './rol-que-se-ensena';
@@ -350,7 +352,8 @@ export class AdminController {
   @UseInterceptors(FileInterceptor('logo', { limits: { fileSize: MAXIMO_LOGO } }))
   subirLogo(
     @AmbitoActual() ambito: Ambito,
-    @Body() cuerpo: { formularioId?: string; etiqueta?: string },
+    @Body()
+    cuerpo: { formularioId?: string; etiqueta?: string; esquema?: EsquemaDeLogo },
     @UploadedFile() archivo?: Express.Multer.File,
   ) {
     if (!archivo) throw new BadRequestException('No llegó ningún archivo.');
@@ -364,6 +367,11 @@ export class AdminController {
       archivo.mimetype,
       archivo.originalname,
       cuerpo.etiqueta,
+      /// Viene de un `multipart`, o sea texto: si no es uno de los
+      /// tres, se ignora y queda `AMBOS`.
+      ESQUEMAS_DE_LOGO.includes(cuerpo.esquema as EsquemaDeLogo)
+        ? cuerpo.esquema
+        : undefined,
     );
   }
 

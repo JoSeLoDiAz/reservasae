@@ -5,6 +5,7 @@ import {
   IsBoolean,
   IsEmail,
   IsEnum,
+  IsIn,
   IsNotEmpty,
   IsOptional,
   IsString,
@@ -18,6 +19,7 @@ import {
 } from 'class-validator';
 
 import { ModoPorDefecto, RolAdmin, RolConvenio } from '../../generated/prisma';
+import { ESQUEMAS_DE_LOGO, type EsquemaDeLogo } from '../comun/logo';
 import { CLAVE_LARGO_MINIMO } from './claves';
 import { CLAVES_TOKEN } from './temas';
 
@@ -217,6 +219,11 @@ export class ActualizarLogoDto {
   @IsOptional()
   @IsEnum(['IZQUIERDA', 'DERECHA'])
   direccion?: 'IZQUIERDA' | 'DERECHA';
+
+  /// En qué tema sale este archivo. Ver `comun/logo.ts`.
+  @IsOptional()
+  @IsIn(ESQUEMAS_DE_LOGO)
+  esquema?: EsquemaDeLogo;
 }
 
 /** Genera las dos paletas a partir de un color. */

@@ -58,6 +58,25 @@ const RUTAS_PUBLICAS = [
 /// el CSS ni el logo.
 const INFRAESTRUCTURA = ["/_next", "/favicon.ico", "/logo-convoca.png"];
 
+/// EL INTERRUPTOR QUE ABRE EL PANEL POR EL TÚNEL.
+///
+/// Apagado por defecto, y en el repositorio se queda apagado:
+/// hay que ponerlo a mano en un `.env.local`, que no se
+/// versiona. Es el mismo que la copia de Grupo AE lleva desde
+/// el 9 sep 2026.
+///
+/// Lo pidió Mauricio el 11 sep 2026 para poder revisar el CRM
+/// desde otro equipo mientras trabajamos. Vale mientras la base
+/// sea la de PRUEBAS, con gente inventada —`@ejemplo.test`,
+/// grupos del SEP con id negativo—. **El día que el túnel apunte
+/// a una base con inscritos de verdad, esta línea se apaga**: el
+/// panel lleva nombres, documentos, correos y celulares, y un
+/// enlace así se reenvía solo.
+///
+/// Entrar sigue pidiendo cuenta y contraseña; esto solo levanta
+/// el 404 de más abajo, que es una segunda puerta, no la única.
+const PANEL_POR_TUNEL = process.env.PANEL_POR_TUNEL === 'si';
+
 export function middleware(peticion: NextRequest) {
   /// La raíz de un gremio sirve SU formulario corto.
   ///
@@ -80,6 +99,9 @@ export function middleware(peticion: NextRequest) {
   }
 
   if (!esTunel(peticion)) return NextResponse.next();
+
+  // con el interruptor puesto, el tunel se comporta como localhost
+  if (PANEL_POR_TUNEL) return NextResponse.next();
 
   const ruta = peticion.nextUrl.pathname;
 

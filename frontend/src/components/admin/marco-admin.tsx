@@ -15,11 +15,13 @@ import { createPortal } from "react-dom";
 import { ConmutadorTema, useMarca } from "@/components/marca-publica";
 
 import { FirmaConvoca, PieDeConvoca } from "@/components/firma-convoca";
+import { PantallaDeCarga, useEsperaCompleta } from "@/components/pantalla-de-carga";
 
 import { SignoConvoca } from "./signo-convoca";
 import {
   adminApi,
   comoSePresenta,
+  logosSobrePlaca,
   MAXIMO_LOGOS,
   urlLogo,
   type AdminActual,
@@ -39,7 +41,6 @@ import { ICONO_DE_MODULO, IconoResumen,
   IconoSalir,
 } from "./iconos";
 import { enlacesVisibles, estaActivo, MODULOS } from "./navegacion";
-import { Cargando } from "./piezas";
 import { Desplegable } from "./desplegable";
 
 type Contexto = {
@@ -66,7 +67,22 @@ export function useAdmin(): Contexto {
 /// que viene debajo -- y se ven igual. Uno de ellos llevaba
 /// otro peso y otro espaciado, y por eso no se leian como
 /// hermanos.
-const ROTULO = "text-[10px] tracking-wide uppercase opacity-55";
+/// El 10 px es el del criterio y NO se toca: lo que estaba mal
+/// era la opacidad. Blanco al 55 % mezclado con el verde del
+/// encabezado da 3,62:1 y el minimo es 4,5; al 70 % da 4,85:1.
+/// Sin mezclar la opacidad la cuenta daria 14,3:1 y el fallo
+/// pasaria por bueno.
+/// El peso y el espaciado suben con ella --600 y .1em-- porque
+/// a 10 px lo que hace legible un rotulo en versalitas es el
+/// trazo, no el tamanio.
+///
+/// OJO AL MARGEN: 4,85:1 esta medido con el #025a53 de
+/// ADECOPRIA, y cada gremio edita `--encabezado-fondo` desde
+/// Apariencia. Con un encabezado mas claro vuelve a caer, asi
+/// que el arreglo de fondo es meter el par en
+/// `COMPROBACIONES_CONTRASTE` del backend.
+const ROTULO =
+  "text-[0.625rem] font-semibold tracking-[0.1em] uppercase opacity-70";
 
 const LLAVE_PLEGADO = "convoca:menu-plegado";
 /// El gremio elegido sobrevive al refresco: cambiarlo en cada
@@ -194,16 +210,18 @@ export function MarcoAdmin({ children }: { children: React.ReactNode }) {
     void cargar();
   }, [cargar]);
 
-  if (cargando) {
+  /// La pantalla de carga, hasta que complete su vuelta.
+  const esperando = useEsperaCompleta(cargando);
+
+  if (esperando || cargando) {
     /// Esta es la pantalla ENTERA, antes de que exista el
     /// marco: no hay barra, ni miga, ni nada. Un renglón en la
     /// esquina de arriba no se lee como «espere», se lee como
     /// que la aplicación se rompió al abrirla.
-    return (
-      <div className="flex min-h-screen items-center justify-center">
-        <Cargando que="Entrando…" />
-      </div>
-    );
+    /// Y desde el 11 sep 2026 es la misma que ven las pantallas
+    /// públicas: el signo que se llena. El «Entrando…» con el aro
+    /// girando era justo el indicador del que la marca se separa.
+    return <PantallaDeCarga que="Entrando" />;
   }
 
   if (bloqueo) {
@@ -410,8 +428,9 @@ function Marca({ plegado }: { plegado?: boolean }) {
   const [fallidas, setFallidas] = useState<string[]>([]);
   const { marca } = useMarca();
 
-  /// Hasta tres, los del gremio de la direccion.
-  const logos = (marca?.logos ?? [])
+  /// Los del gremio de la direccion, los que valen sobre placa
+  /// blanca: la variante de texto blanco no se ve ahi.
+  const logos = logosSobrePlaca(marca?.logos ?? [])
     .slice(0, MAXIMO_LOGOS)
     .map((l) => ({ ...l, url: urlLogo(l) }))
     .filter((l) => !fallidas.includes(l.url));
@@ -436,7 +455,23 @@ function Marca({ plegado }: { plegado?: boolean }) {
         /// elige el administrador, así que sin la placa el logo
         /// desaparece en modo oscuro — y también en claro si
         /// alguien pone el encabezado en un color fuerte.
-        <div className="mx-auto flex w-fit max-w-full flex-wrap items-center justify-center gap-x-2.5 gap-y-1.5 rounded-xl bg-white px-2.5 py-2">
+        /// Con aro y sombra tenue, no un rectángulo pegado.
+        ///
+        /// La placa se ve sobre el color que elige el
+        /// administrador —puede ser un verde fuerte— y sin nada
+        /// que la remate parecía un parche de papel. El aro de
+        /// negro al 5 % y la sombra suave la vuelven una tarjeta:
+        /// la misma pieza que en las pantallas públicas
+        /// (cliente, 11 sep 2026: «adapta el CRM para que no se
+        /// vea feo sino profesional»).
+        /// EN UNA FILA, no apilados.
+        ///
+        /// Con `flex-wrap` y el alto de antes (44 px) los dos
+        /// logos no cabían en los 204 px útiles de la placa y
+        /// ADECOPRIA bajaba a un segundo renglón: la barra
+        /// arrancaba con un bloque blanco de 160 px de alto. A 36
+        /// de alto miden 141 juntos y entran de sobra.
+        <div className="mx-auto flex w-fit max-w-full flex-nowrap items-center justify-center gap-3 rounded-2xl bg-white px-3 py-2.5 ring-1 shadow-sm ring-black/5">
           {logos.map((l) => (
             // eslint-disable-next-line @next/next/no-img-element
             <img
@@ -449,7 +484,7 @@ function Marca({ plegado }: { plegado?: boolean }) {
                 )
               }
               style={{ maxWidth: anchoMaximo }}
-              className="h-11 w-auto shrink object-contain"
+              className="h-9 w-auto shrink object-contain"
             />
           ))}
         </div>
@@ -640,8 +675,20 @@ function ChipUsuario({
     <div className="flex shrink-0 items-center gap-3">
       <span className="hidden min-w-0 flex-col items-end leading-tight sm:flex">
         <span className="truncate text-sm font-semibold">{admin.nombre}</span>
+        {/* EL COLOR SALE DEL ENCABEZADO, no de `--texto-suave`.
+
+            Aqui habia el peor contraste del sistema: 1,69:1
+            medido, o sea texto practicamente invisible, y en las
+            38 pantallas. La causa no es el token, que esta bien
+            donde vive (4,79:1 sobre blanco): es que estaba usado
+            SOBRE EL FONDO DE LA CABECERA, que es verde oscuro.
+            `--encabezado-texto` al 78 % da 5,62:1. En el tema
+            oscuro el token daba 5,71:1 y cumplia por casualidad,
+            que es como estos fallos sobreviven.
+
+            Y 12,5 px en vez de 12: era el unico 12 px del marco. */}
         <span
-          className="truncate text-xs text-texto-suave"
+          className="truncate text-[0.78125rem] text-encabezado-texto/78"
           title={comoSePresenta(admin)}
         >
           {comoSePresenta(admin)}
@@ -657,7 +704,10 @@ function ChipUsuario({
         /// Más grande, y con su palabra al lado en pantalla
         /// ancha. Un icono de 15px sin texto se busca; la
         /// salida no se debería buscar.
-        className="flex shrink-0 items-center gap-2 rounded-xl px-3 py-2 text-sm text-texto-suave transition hover:bg-error-suave hover:text-error"
+        /// Mismo arreglo que el cargo: `--texto-suave` sobre el
+        /// verde de la cabecera daba 1,69:1, y esta es la UNICA
+        /// salida de sesion del panel.
+        className="flex shrink-0 items-center gap-2 rounded-xl px-3 py-2 text-sm text-encabezado-texto/78 transition hover:bg-error-suave hover:text-error"
       >
         <IconoSalir tamano={20} />
         <span className="hidden lg:inline">Salir</span>

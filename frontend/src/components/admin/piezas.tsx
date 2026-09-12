@@ -3,6 +3,7 @@
 import Link from "next/link";
 
 import type { Icono } from "./iconos";
+import { SignoQueSeLlena } from "./signo-convoca";
 
 export type Tono = "marca" | "exito" | "aviso" | "error" | "neutro";
 
@@ -388,16 +389,19 @@ export function BotonSuave({
  * tiene --se sabe que van filas de una tabla-- es mejor
  * `Esqueleto`, que enseña la forma en vez de anunciarla.
  *
- * El círculo que gira es de las poquísimas cosas que llevan
- * `rounded-full` con permiso: es de verdad redondo.
+ * EL SIGNO QUE SE LLENA, y no el aro que giraba.
+ *
+ * Era un borde con `animate-spin`, o sea justo el indicador de
+ * carga de cualquier sitio --y justo lo que el signo de Convoca
+ * tiene prohibido hacer: girar--. Desde el 11 sep 2026 el panel
+ * espera con la misma animación que las pantallas públicas, en
+ * pequeño: el signo se llena. Una sola forma de esperar en todo
+ * el sistema.
  */
 export function Cargando({ que = "Cargando…" }: { que?: string }) {
   return (
     <div className="flex min-h-0 grow flex-col items-center justify-center gap-3 px-4 py-20 text-texto-suave">
-      <span
-        aria-hidden
-        className="h-6 w-6 animate-spin rounded-full border-2 border-current/25 border-t-current"
-      />
+      <SignoQueSeLlena tamano={34} className="text-marca" />
       <p role="status" className="text-sm">
         {que}
       </p>

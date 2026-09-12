@@ -4,7 +4,7 @@ export const metadata = { title: "Consultar mis reservas · Convoca CRM" };
 
 export default function PaginaConsulta() {
   return (
-    <main className="mx-auto w-full max-w-3xl px-6 py-10">
+    <main className="mx-auto w-full max-w-3xl px-6 pt-10 pb-6">
       <header className="mb-8">
         {/* sin enlace a la raíz */}
         <span className="text-sm font-medium text-marca">Convoca CRM</span>

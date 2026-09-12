@@ -73,7 +73,10 @@ export type DatosBasicos = {
 
 export type FichaAbierta = {
   expiraEn: string;
-  convenio: { nombre: string; sigla: string | null };
+  /// `telefono` es el del gremio, y se usa en el aviso del
+  /// domicilio: sin número, «comuníquese con un asesor» no lleva
+  /// a ninguna parte.
+  convenio: { nombre: string; sigla: string | null; telefono: string | null };
   formacion: {
     codigo: string;
     nombre: string;
@@ -126,7 +129,19 @@ export const preinscripcionApi = {
   catalogo: (slug: string) => pedir<CatalogoPreinscripcion>(`/preinscripcion/${slug}`),
 
   registrar: (slug: string, datos: DatosBasicos) =>
-    pedir<{ registrado: boolean; yaEstaba: boolean; token: string; expiraEn: string }>(
+    /// `token` es NULL cuando el documento ya estaba registrado: el
+    /// enlace abre la ficha entera de esa persona y quien llena el
+    /// formulario puede ser cualquiera que se sepa una cédula. En
+    /// ese caso llega `mensaje` con lo que hay que decirle. El tipo
+    /// decía `string` y la pantalla lo creyó: armaba
+    /// `/completar/null` (visto en producción el 11 sep 2026).
+    pedir<{
+      registrado: boolean;
+      yaEstaba: boolean;
+      token: string | null;
+      expiraEn: string | null;
+      mensaje?: string;
+    }>(
       `/preinscripcion/${slug}`,
       { method: "POST", body: JSON.stringify(datos) },
     ),

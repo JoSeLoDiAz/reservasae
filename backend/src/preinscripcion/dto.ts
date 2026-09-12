@@ -247,6 +247,10 @@ export class DatosEmpresaDto {
   // solo de quien no vino por una reserva: la suya ya la
   // fijo la empresa que lo nomino y no la cambia el
   @IsOptional() @Transform(recortar) @IsString() @MaxLength(20) nit?: string;
+  /// Se admite y SE IGNORA: el DV lo calcula el servidor con la
+  /// fórmula de la DIAN (11 sep 2026). Sigue aquí para que un
+  /// formulario abierto antes del cambio, que todavía lo manda,
+  /// no se estrelle contra un 400 por un campo de más.
   @IsOptional()
   @Transform(aTexto)
   @IsString()

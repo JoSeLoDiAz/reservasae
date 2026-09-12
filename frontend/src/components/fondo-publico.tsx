@@ -154,6 +154,37 @@ export function FondoPublico() {
         </div>
       </div>
 
+      <SenasDeEstudio />
+    </div>
+  );
+}
+
+/**
+ * SOLO LAS SEÑAS, sin los signos ni el desplazamiento.
+ *
+ * Existe aparte porque el panel del acceso las pide —el cliente
+ * las dibujó en su montaje del 12 sep 2026— y allí `FondoPublico`
+ * entero no sirve: va `fixed inset-0`, así que se saldría del
+ * panel y taparía también el formulario; pinta en `text-marca`,
+ * que sobre el propio color de la marca no se ve; y trae dos
+ * signos gigantes que pelearían con el que ese panel ya tiene.
+ *
+ * Las seis figuras viven en un solo sitio y las usan las dos
+ * pantallas: copiarlas era garantizar que en seis meses fueran
+ * siete aquí y seis allá.
+ *
+ * TOMA EL COLOR DE QUIEN LA MONTA (`currentColor`), así que en el
+ * panel del acceso salen del color del texto —blanco sobre el
+ * verde— y en las públicas, del color de la marca.
+ *
+ * Quien la monte tiene que ponerle la clase `fondo-publico` al
+ * envoltorio: ahí es donde `globals.css` declara `--px` y `--py`
+ * en cero. Sin eso, el `calc()` de las capas queda inválido y el
+ * navegador tira el `transform` entero.
+ */
+export function SenasDeEstudio() {
+  return (
+    <>
       {/* Fuera va la POSICION y dentro el movimiento. Juntos, el
           `translate` de Tailwind y el de la animacion se pelean
           por la misma propiedad y la seña salta al empezar. */}
@@ -162,7 +193,7 @@ export function FondoPublico() {
           <div className={s.deriva}>{s.icono}</div>
         </div>
       ))}
-    </div>
+    </>
   );
 }
 

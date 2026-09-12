@@ -219,8 +219,44 @@ export type ModoPorDefecto = "SISTEMA" | "CLARO" | "OSCURO";
 
 export type OrigenLogos = "GENERAL" | "FORMULARIO";
 
-/** Tres caben en la cabecera; una cuarta no. */
-export const MAXIMO_LOGOS = 3;
+/** Tres caben en la cabecera; el resto son variantes por tema. */
+///
+/// Seis y no tres desde el 11 sep 2026: un logo con su versión
+/// clara y su versión oscura son DOS filas que nunca salen juntas,
+/// así que con tres entidades el tope viejo se llenaba a la mitad.
+export const MAXIMO_LOGOS = 6;
+
+/// En qué tema sale un logo. `AMBOS` es lo normal; las otras dos
+/// son para un archivo que solo funciona sobre fondo claro o solo
+/// sobre fondo oscuro —un logo institucional con el nombre en
+/// negro, por ejemplo—.
+export const ESQUEMAS_DE_LOGO = ["AMBOS", "CLARO", "OSCURO"] as const;
+export type EsquemaDeLogo = (typeof ESQUEMAS_DE_LOGO)[number];
+
+export const NOMBRE_DEL_ESQUEMA: Record<EsquemaDeLogo, string> = {
+  AMBOS: "Los dos temas",
+  CLARO: "Solo en claro",
+  OSCURO: "Solo en oscuro",
+};
+
+/**
+ * Los logos que se pueden poner sobre PLACA BLANCA.
+ *
+ * La barra del panel y el login no pintan el logo sobre el fondo
+ * del tema, sino sobre una placa blanca: el fondo de esas dos
+ * pantallas lo elige el administrador y puede ser un verde
+ * fuerte, así que la placa es lo que garantiza que un logo hecho
+ * para papel se lea. Ahí la variante de TEXTO BLANCO no sirve —
+ * blanco sobre blanco no se ve—, y por eso se descarta.
+ *
+ * Hace falta desde el 11 sep 2026, cuando los logos empezaron a
+ * tener variante por tema: sin este filtro esas dos pantallas
+ * pintaban las DOS versiones de la misma entidad, una de ellas
+ * invisible, y el logo salía repetido.
+ */
+export function logosSobrePlaca(logos: Logo[]): Logo[] {
+  return logos.filter((l) => l.esquema !== "OSCURO");
+}
 
 export type Logo = {
   id: string;
@@ -229,6 +265,7 @@ export type Logo = {
   nombre: string;
   version: number;
   orden: number;
+  esquema: EsquemaDeLogo;
 };
 
 export type Marca = {
@@ -369,18 +406,28 @@ export const adminApi = {
   logos: (formularioId?: string) =>
     pedir<Logo[]>(`/admin/logos${formularioId ? `?formularioId=${formularioId}` : ""}`),
 
-  subirLogo: (archivo: File, etiqueta: string, formularioId?: string) => {
+  subirLogo: (
+    archivo: File,
+    etiqueta: string,
+    formularioId?: string,
+    esquema?: EsquemaDeLogo,
+  ) => {
     const cuerpo = new FormData();
     cuerpo.append("logo", archivo);
     cuerpo.append("etiqueta", etiqueta);
     if (formularioId) cuerpo.append("formularioId", formularioId);
+    if (esquema) cuerpo.append("esquema", esquema);
     // sin content-type: el navegador pone el boundary
     return pedir<Logo[]>("/admin/logos", { method: "POST", body: cuerpo });
   },
 
   actualizarLogo: (
     id: string,
-    datos: { etiqueta?: string; direccion?: "IZQUIERDA" | "DERECHA" },
+    datos: {
+      etiqueta?: string;
+      direccion?: "IZQUIERDA" | "DERECHA";
+      esquema?: EsquemaDeLogo;
+    },
   ) => pedir<Logo[]>(`/admin/logos/${id}`, { method: "PATCH", body: JSON.stringify(datos) }),
 
   borrarLogo: (id: string) => pedir<Logo[]>(`/admin/logos/${id}`, { method: "DELETE" }),

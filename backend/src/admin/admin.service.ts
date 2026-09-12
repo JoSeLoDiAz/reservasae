@@ -16,6 +16,7 @@ import {
 import {
   MAXIMO_LOGOS,
   sinExtension,
+  type EsquemaDeLogo,
   type LogoPublico,
   type OrigenLogos,
 } from '../comun/logo';
@@ -629,6 +630,7 @@ export class AdminService {
         nombre: true,
         version: true,
         orden: true,
+        esquema: true,
       },
     });
     return filas;
@@ -642,6 +644,7 @@ export class AdminService {
     tipoMime: string,
     nombre: string,
     etiqueta?: string,
+    esquema?: EsquemaDeLogo,
   ) {
     await this.exigirLogoDelAmbito(a, formularioId);
 
@@ -657,6 +660,7 @@ export class AdminService {
         formularioId,
         orden: cuantos,
         etiqueta: (etiqueta?.trim() || sinExtension(nombre)).slice(0, 60),
+        esquema: esquema ?? 'AMBOS',
         // copia: multer puede dar un SharedArrayBuffer
         datos: new Uint8Array(datos),
         tipoMime,
@@ -680,6 +684,13 @@ export class AdminService {
       await this.prisma.logo.update({
         where: { id },
         data: { etiqueta: dto.etiqueta.trim().slice(0, 60) },
+      });
+    }
+
+    if (dto.esquema !== undefined) {
+      await this.prisma.logo.update({
+        where: { id },
+        data: { esquema: dto.esquema },
       });
     }
 

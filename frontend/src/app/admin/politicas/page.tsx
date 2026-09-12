@@ -244,7 +244,7 @@ function Redactor({
           className={CLASE_CONTROL}
           value={titulo}
           onChange={(e) => setTitulo(e.target.value)}
-          placeholder="Términos y Condiciones — Habeas Data"
+          placeholder="Términos y Condiciones y Autorización para el Tratamiento de Datos Personales"
         />
       </Campo>
 

@@ -46,7 +46,17 @@
  * accesibilidad— dejan la animación en 0,01 ms, o sea que salta
  * a su último fotograma. Si terminara en `opacity: 0`, a quien
  * pide menos movimiento le desaparecería el signo.
+ *
+ * Para la espera hay una segunda forma, `SignoQueSeLlena`, más
+ * abajo.
  */
+
+/// La geometría, en un solo sitio: los dos modos tienen que
+/// dibujar EL MISMO signo, y con el arco copiado a mano ya se
+/// habían separado una vez.
+const ARCO = "M7.88 21.96A10.6 10.6 0 1 1 24.12 21.96";
+const DISCO = { cx: 16, cy: 25.75, r: 3.1 };
+
 export function SignoConvoca({
   className,
   tamano = 32,
@@ -78,19 +88,99 @@ export function SignoConvoca({
           medir el arco. Si mañana cambia el radio, sigue
           valiendo. */}
       <path
-        d="M7.88 21.96A10.6 10.6 0 1 1 24.12 21.96"
+        d={ARCO}
         pathLength={animado ? 1 : undefined}
         className={animado ? "signo-arco" : undefined}
       />
       {/* la persona formada, sobre el radio exacto (10,6) */}
       <circle
-        cx="16"
-        cy="25.75"
-        r="3.1"
+        cx={DISCO.cx}
+        cy={DISCO.cy}
+        r={DISCO.r}
         fill="currentColor"
         stroke="none"
         className={animado ? "signo-disco" : undefined}
       />
     </svg>
+  );
+}
+
+/**
+ * El signo LLENÁNDOSE, para la espera.
+ *
+ * Lo pidió el cliente el 11 sep 2026 —«que se rellene»— y es
+ * mejor que lo que había: el signo se dibujaba, y dibujarse dice
+ * «te estoy escribiendo la firma», no «falta un rato». Un nivel
+ * que sube dice lo segundo, y lo dice sin girar: el signo tiene
+ * prohibido rotar, porque un aro que da vueltas es el indicador
+ * de carga de cualquiera y de ese hay que separarse.
+ *
+ * El signo va DOS VECES, uno encima del otro: el de abajo es el
+ * vacío —contorno tenue que sostiene la forma, para que a medio
+ * llenar no se lea como medio signo— y el de arriba es el mismo,
+ * entero, dentro de una caja que crece desde abajo.
+ *
+ * Y es una CAJA CON `overflow`, no un recorte de SVG. El primer
+ * intento animaba un `<rect>` dentro de un `<clipPath>`: se veía
+ * en las capturas y no se veía en el navegador del cliente —«¿dónde
+ * se rellena?»—, porque animar los hijos de un `clipPath` no
+ * repinta en todos los motores. Una caja que crece de alto es CSS
+ * de toda la vida y se comporta igual en todas partes. Además ya
+ * no hace falta un `id` único por instancia, así que esto vuelve a
+ * ser un componente sin estado ni hooks.
+ *
+ * Se llena, se queda un momento lleno y se apaga para volver a
+ * empezar. Se APAGA y no se vacía a propósito: verlo bajar se lee
+ * como que algo se deshizo.
+ */
+export function SignoQueSeLlena({
+  className,
+  tamano = 88,
+}: {
+  className?: string;
+  tamano?: number;
+}) {
+  const signo = (vacio: boolean) => (
+    <svg
+      width={tamano}
+      height={tamano}
+      viewBox="0 0 32 32"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2.75}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={vacio ? "carga-vacio block" : "block"}
+      aria-hidden="true"
+    >
+      <path d={ARCO} />
+      <circle
+        cx={DISCO.cx}
+        cy={DISCO.cy}
+        r={DISCO.r}
+        fill="currentColor"
+        stroke="none"
+      />
+    </svg>
+  );
+
+  return (
+    <span
+      aria-hidden="true"
+      className={`relative block shrink-0 ${className ?? ""}`}
+      style={{ width: tamano, height: tamano }}
+    >
+      {signo(true)}
+      {/* el nivel. La caja crece y el signo de dentro está pegado
+          a SU borde de abajo, así que lo que se descubre sube. */}
+      <span className="carga-nivel absolute inset-x-0 bottom-0 block overflow-hidden">
+        <span
+          className="absolute bottom-0 left-0 block"
+          style={{ width: tamano, height: tamano }}
+        >
+          {signo(false)}
+        </span>
+      </span>
+    </span>
   );
 }
