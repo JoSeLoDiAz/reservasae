@@ -306,7 +306,12 @@ export default function PaginaMeta() {
   if (!estado && !error) return <Cargando />;
 
   return (
-    <div className="flex min-h-0 grow flex-col gap-4 px-4 pt-4 pb-6">
+    /// Sin `min-h-0 grow`: aquí no scrollea nada de dentro, y con
+    /// él la última banda tocaba el pie sin margen -- «¿por qué
+    /// abajo no tiene margen como en la tabla de Gestión de leads?»
+    /// (cliente, 12 sep 2026). La explicación larga está en
+    /// `usuarios/page.tsx`.
+    <div className="flex flex-col gap-4 px-4 pt-4 pb-6">
       <header>
         <h1 className="text-[1.3125rem] font-bold tracking-[-0.02em] text-titulo">Webhook de Meta</h1>
         <p className="mt-1 max-w-3xl text-texto-suave">

@@ -67,6 +67,14 @@
   --pdf-fuerte: #a50d25;
   --pdf-texto: #ffffff;
 
+  /* Aqui vivio un rato `--error-relleno`, para un boton de revocar
+     con relleno rojo fuerte y letra blanca. Duro media hora: el
+     cliente lo prefirio en tono suave, como el resto de la columna,
+     y con eso el par que hacia falta ya existia --`--error` sobre
+     `--error-suave`, 5,8:1 medido--. Se quita en vez de dejarlo sin
+     usar: un token que nadie llama es una trampa para el siguiente
+     que pase por aqui. */
+
   /* La paleta del handoff del redisenio de la ficha, tal
      cual. Va en tokens y no en clases fijas por una razon
      practica: en modo oscuro una barra #0f172a se pierde
@@ -273,6 +281,7 @@
   --color-pdf: var(--pdf);
   --color-pdf-fuerte: var(--pdf-fuerte);
   --color-pdf-texto: var(--pdf-texto);
+
 
   /* SOLO Raleway. Es la unica autorizada por la marca.
      `--font-mono` apunta tambien a ella para que las 40
@@ -770,6 +779,56 @@ h3 {
  * salia con la del sistema: una franja gris ancha al lado de
  * una interfaz de trazos de 1px.
  */
+/* EL PANEL NO SCROLLEA EL DOCUMENTO. NUNCA.
+ *
+ * El panel es una caja de altura fija --`calc(100vh - franja)`--
+ * con la cabecera arriba, el pie abajo y `<main>` scrolleando
+ * entre los dos. Si el DOCUMENTO puede desplazarse, esa caja
+ * entera se sube: la cabecera sale de la pantalla, el pie queda a
+ * media pagina y debajo queda un blanco. Y como la columna va en
+ * `overflow-clip` no hay barra con la que volver.
+ *
+ * Paso el 12 sep 2026 en Usuarios y en Apariencia, y el cliente lo
+ * vio tres veces. Medido: el documento sobraba 213 px en Usuarios y
+ * 1.279 en Apariencia, y solo a ventanas BAJAS --a 1080 de alto no
+ * aparecia, que es por lo que yo no lo veia y el si: su ventana
+ * real mide unos 830--.
+ *
+ * Persegui la causa dos veces y las dos me equivoque: no era la
+ * raiz de la pantalla ni el envoltorio del marco --los arregle y el
+ * numero no se movio ni un pixel--. Buscandolo por eliminacion
+ * --ocultar, medir, restaurar-- resulto que el documento cuenta el
+ * contenido que se desborda dentro de la columna aunque la columna
+ * lo recorte.
+ *
+ * Asi que esto no tapa un sintoma: dice lo que el panel ES. Una
+ * aplicacion de caja fija no tiene scroll de documento, y quitarselo
+ * hace IMPOSIBLE toda esta familia de fallos, venga de donde venga
+ * el alto de mas. Lo que hay que mirar en su lugar es que ninguna
+ * pantalla quede recortada sin salida, y eso se mide en
+ * `barrer-marco.js`.
+ *
+ * En papel se devuelve: ahi el documento tiene que crecer para que
+ * el PDF no salga de una hoja.
+ */
+/* EL `body` TAMBIÉN, y no es redundante.
+ *
+ * Con la regla solo en `html` el documento SEGUIA moviendose: medido
+ * con `scrollTo`, 213 px en Usuarios y 1.279 en Apariencia, con
+ * `getComputedStyle(html).overflowY` devolviendo «hidden». O sea que
+ * el que scrollea es el `body`, no la raiz. Cuesta poco y cierra la
+ * unica puerta que quedaba. */
+html:has(.marco-panel),
+html:has(.marco-panel) body {
+  overflow: hidden;
+}
+@media print {
+  html:has(.marco-panel),
+  html:has(.marco-panel) body {
+    overflow: visible !important;
+  }
+}
+
 html {
   scrollbar-width: thin;
   scrollbar-color: color-mix(in oklab, var(--texto-suave) 40%, transparent) transparent;

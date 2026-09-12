@@ -1232,33 +1232,70 @@ const E = {
   /// Los tres botones del rail, tal cual el diseno.
   /// Azul de marca (DECISIONES 10), y por token: un hex a
   /// mano no sabe que existe el modo oscuro.
+  /// LA MEDIDA DE «REGISTRAR CARACTERIZACIÓN», para los cuatro.
+  ///
+  /// «Los botones de esa vista lateral derecha al mismo tamaño como
+  /// el de Registrar caracterización, y con color de fondo, no
+  /// simple» (cliente, 12 sep 2026).
+  ///
+  /// Ese botón vive en `caracterizacion.tsx` con clases de Tailwind
+  /// --`px-3 py-2 text-[0.78125rem] rounded-lg`--, así que la medida
+  /// de referencia es 8 px arriba y abajo, 12 a los lados, cuerpo de
+  /// 12,5 y radio 10. Estos tres iban tres puntos más grandes y con
+  /// radio 11, y en una columna estrecha esa diferencia se ve.
   botonVerde: {
     background: "var(--marca)",
     color: "var(--marca-texto)",
-    border: "none",
-    borderRadius: 11,
-    padding: 13,
-    fontWeight: 600, fontSize: 14,
+    border: "1px solid var(--marca)",
+    borderRadius: 10,
+    padding: "8px 12px",
+    fontWeight: 600, fontSize: 12.5,
     cursor: "pointer",
     width: "100%",
   },
+  /// CON FONDO, no de contorno pelado.
+  ///
+  /// «Con color de fondo, no simple». Era blanco con borde gris, o
+  /// sea invisible sobre la tarjeta blanca de la columna. Ahora lleva
+  /// el verde suave de la marca con la letra de marca encima: es el
+  /// par que ya usa el panel para lo secundario --el mismo de las
+  /// pestañas activas-- así que no entra un color nuevo.
+  ///
+  /// Sigue siendo el SECUNDARIO: el relleno fuerte lo tiene el
+  /// principal («Escribir un correo») y el rojo lo destructivo. Si
+  /// los tres llevaran relleno fuerte, ninguno mandaría.
   botonContorno: {
-    background: "var(--superficie)",
-    color: "var(--titulo)",
-    border: "1.5px solid var(--campo-borde)",
-    borderRadius: 11,
-    padding: 13,
-    fontWeight: 600, fontSize: 14,
+    background: "var(--marca-suave)",
+    color: "var(--marca)",
+    border: "1px solid var(--marca-suave)",
+    borderRadius: 10,
+    padding: "8px 12px",
+    fontWeight: 600, fontSize: 12.5,
     cursor: "pointer",
     width: "100%",
   },
+  /// ROJO, PERO EN TONO SUAVE.
+  ///
+  /// Fue de contorno, luego relleno fuerte con letra blanca, y el
+  /// cliente lo cerró ahí: «este más clarito, o sea rojo pero la
+  /// tonalidad clarita como el de Registrar caracterización» (12 sep
+  /// 2026). Los cuatro botones de la columna comparten tono suave y
+  /// letra de color; lo que distingue a este es el ROJO, no el peso.
+  ///
+  /// `--error` sobre `--error-suave` da 5,8:1 medido, por encima del
+  /// 4,5 que pide un cuerpo de 12,5. Y funciona en los dos temas: en
+  /// oscuro el par se invierte solo --letra clara sobre fondo
+  /// vinoso-- porque los dos son tokens del tema.
+  ///
+  /// El borde va del color del fondo: la caja mide lo mismo que sus
+  /// hermanos y los cuatro quedan alineados.
   botonRojo: {
-    background: "var(--superficie)",
+    background: "var(--error-suave)",
     color: "var(--error)",
-    border: "1.5px solid var(--error)",
-    borderRadius: 11,
-    padding: 12,
-    fontWeight: 600, fontSize: 13.5,
+    border: "1px solid var(--error-suave)",
+    borderRadius: 10,
+    padding: "8px 12px",
+    fontWeight: 600, fontSize: 12.5,
     cursor: "pointer",
     width: "100%",
   },
@@ -1441,7 +1478,16 @@ function Revocar({
         de revocación, que es lo que hay que poder demostrar.
       </Aviso>
 
-      <div className="grid sm:grid-cols-2">
+      {/* UNA COLUMNA, y no `sm:grid-cols-2`.
+          «No veo esto ajustado» (cliente, 12 sep 2026): salían dos
+          campos donde no caben, con el selector cortado en «Lo
+          autorizó de viva…» y la ayuda partida en dos renglones.
+
+          La causa: `sm:` mira el ancho de la VENTANA --1920-- y no
+          el de la columna donde esto vive, que son unos 250 px. Un
+          punto de corte de ventana no sabe nada del hueco real, y
+          este bloque solo se abre dentro del raíl estrecho. */}
+      <div className="grid grid-cols-1 gap-3">
         <Campo etiqueta="Por dónde lo pidió">
           <select
             className={CLASE_CONTROL}
@@ -1466,7 +1512,10 @@ function Revocar({
         </Campo>
       </div>
 
-      <div className="flex flex-wrap items-center gap-3">
+      {/* EN DOS FILAS, apilados. «Si debes dejarlo en dos filas
+          hazlo, pero se ve fatal» (cliente, 12 sep 2026): en 250 px
+          el botón y el «Cancelar» se apretaban uno contra otro. */}
+      <div className="flex flex-col items-stretch gap-2 [&_button]:justify-center">
         <Boton
           disabled={motivo.trim().length === 0}
           onClick={() =>
@@ -1637,7 +1686,16 @@ function ValidacionRui({
           </Aviso>
         )}
 
-        <div className="flex flex-wrap items-center gap-2">
+        {/* CENTRADOS. «Estos centrados para una mejor estética»
+            (cliente, 12 sep 2026): la pastilla del estado y el botón
+            de reconsultar quedaban pegados al canto izquierdo de un
+            bloque ancho, y con el rótulo encima se leían como dos
+            cosas sueltas en vez de un par.
+
+            `justify-center` y no `text-center`: lo que hay que
+            centrar son las CAJAS dentro de la fila, no el texto
+            dentro de cada caja. */}
+        <div className="flex flex-wrap items-center justify-center gap-2">
           <span
             className={`rounded-lg px-2.5 py-1 text-sm font-medium ${
               rui.simulado

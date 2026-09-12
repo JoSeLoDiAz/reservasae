@@ -298,7 +298,12 @@ export function MarcoAdmin({ children }: { children: React.ReactNode }) {
           solo de aquí, y la franja se resta UNA vez. */}
       <div
         style={{ height: "calc(100vh - var(--franja-alto, 0px))" }}
-        className="flex flex-col overflow-clip"
+        /// `marco-panel` es la señal para `globals.css`: mientras
+        /// este marco esté montado, el DOCUMENTO no scrollea. Sin
+        /// eso, esta columna de altura fija se sube entera y la
+        /// cabecera desaparece --ver el comentario largo de la regla
+        /// `html:has(.marco-panel)`--.
+        className="marco-panel flex flex-col overflow-clip"
       >
         <div className="no-imprimir shrink-0">
           <FilaDeMarca />
@@ -371,7 +376,36 @@ export function MarcoAdmin({ children }: { children: React.ReactNode }) {
                 monitor ancho `max-w-6xl` las dejaba espichadas.
                 Cada pantalla decide que bloques suyos se quedan
                 cortos, que es donde de verdad importa. */}
-            <div className="flex min-h-0 w-full grow flex-col">{children}</div>
+            {/* `contents`, NO un flex item más.
+
+                Esto era `flex min-h-0 w-full grow flex-col`, y ahí
+                estaba el fallo que el cliente vio en Usuarios: la
+                cabecera desaparecía y el pie quedaba a media página
+                con un blanco debajo (12 sep 2026).
+
+                Medido: este envoltorio quedaba clavado en el alto
+                del hueco --688 px-- mientras el contenido de la
+                pantalla medía 1.894 en Usuarios y 5.335 en
+                Apariencia. El hijo se escapaba de su padre con
+                `overflow: visible`, y ese escape estiraba el
+                DOCUMENTO (+213 px y +1.279). Con el documento
+                scrolleable, se sube la columna de 100vh ENTERA y la
+                cabecera se va de la pantalla; y como `overflow-clip`
+                no deja barra, no hay forma de devolverla.
+
+                Era un nivel de flex de sobra. Con `contents`, la
+                raíz de cada pantalla es hija directa de `<main>`, y
+                eso sirve a los DOS casos que hay en el panel:
+
+                  - un formulario o prosa (raíz sin `grow`) crece a
+                    lo que mida y lo scrollea `<main>`;
+                  - una tabla (raíz con `min-h-0 grow`) resuelve su
+                    alto contra `<main>`, que sí tiene altura
+                    definida, y scrollea por dentro como siempre.
+
+                El `w-full` se va con él y no hace falta: `<main>` ya
+                es `w-full`. */}
+            {children}
 
           </main>
 

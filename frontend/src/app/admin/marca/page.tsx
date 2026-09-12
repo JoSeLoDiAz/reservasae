@@ -143,7 +143,12 @@ export default function PaginaMarca() {
   }
 
   return (
-    <div className="flex min-h-0 grow flex-col gap-4 px-4 pt-4 pb-6">
+    /// Sin `min-h-0 grow`: aquí no scrollea nada de dentro, y con
+    /// él el documento ganaba 1.029 px y se subía el marco entero.
+    /// La explicación larga está en `usuarios/page.tsx` (12 sep
+    /// 2026). Era la peor de las ocho: 3.121 px de contenido en una
+    /// raíz de 938.
+    <div className="flex flex-col gap-4 px-4 pt-4 pb-6">
       <header>
         <h1 className="text-[1.3125rem] font-bold tracking-[-0.02em] text-titulo">Apariencia</h1>
         <p className="mt-1 text-texto-suave">

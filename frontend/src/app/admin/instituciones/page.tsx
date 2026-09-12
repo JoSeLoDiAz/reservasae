@@ -69,26 +69,53 @@ export default function PaginaBancoDeEmpresas() {
 
   return (
     <div className="flex min-h-0 grow flex-col">
-      {/* Desplegable y no pestañas, como el resto del panel. */}
-      <div className="no-imprimir m-4 w-[210px]">
-        <Desplegable
-          alto={34}
-          marcador="Qué mirar"
-          valor={vista}
-          opciones={[
-            {
-              valor: "banco",
-              etiqueta: "Empresas registradas",
-              detalle: "las que ya están en el banco",
-            },
-            {
-              valor: "pendientes",
-              etiqueta: "Por revisar",
-              detalle: "propuestas del buscador web",
-            },
-          ]}
-          alElegir={(v) => cambiar(v as Vista)}
-        />
+      {/* EL AVISO A LA DERECHA DEL DESPLEGABLE, EN LA MISMA FILA.
+          «A la parte derecha de esa lista desplegable de la
+          izquierda para ganar espacio» (cliente, 12 sep 2026).
+
+          Estaba en una banda propia debajo, y esa banda costaba
+          unos 90 px de alto para decir una frase. Al lado del
+          desplegable no cuesta nada: la fila ya existía y el hueco
+          a la derecha estaba vacío.
+
+          Solo con «Empresas registradas» elegido: el texto habla de
+          las sugerencias del banco, así que sobre «Por revisar»
+          describiría otra pantalla. */}
+      <div className="no-imprimir m-4 flex flex-wrap items-center gap-x-6 gap-y-2">
+        <div className="w-[210px] shrink-0">
+          <Desplegable
+            alto={34}
+            marcador="Qué mirar"
+            valor={vista}
+            opciones={[
+              {
+                valor: "banco",
+                etiqueta: "Empresas registradas",
+                detalle: "las que ya están en el banco",
+              },
+              {
+                valor: "pendientes",
+                etiqueta: "Por revisar",
+                detalle: "propuestas del buscador web",
+              },
+            ]}
+            alElegir={(v) => cambiar(v as Vista)}
+          />
+        </div>
+
+        {vista === "banco" && (
+          /// Sin tope de ancho a propósito: el tope de 760 px que
+          /// usa la prosa del panel lo dejaría en tres renglones, y
+          /// aquí lo que se persigue es justo lo contrario. Es un
+          /// aviso de una frase que se lee una vez.
+          <p className="min-w-0 flex-1 text-[0.78125rem] leading-relaxed text-texto-suave">
+            El sistema proporciona estos datos como{" "}
+            <span className={CLASE_SUGERIDO}>sugerencia automática</span> de empresas
+            registradas, revise cuidadosamente cada campo del proceso de verificación
+            y apruebe si son correctos o realice las correcciones que considere
+            necesarias.
+          </p>
+        )}
       </div>
 
       {vista === "banco" ? <Banco /> : <PropuestasPendientes />}
@@ -306,23 +333,11 @@ function Banco() {
   /// busqueda y la paginacion quedaban pegadas al canto.
   return (
     <div className="flex min-h-0 grow flex-col">
-      {/* Sin esquinas en pico, como el resto de las bandas
-          (cliente, 12 sep 2026). Estas clases están copiadas a
-          mano en siete sitios en vez de usar `Encabezado`, así que
-          el redondeo hay que ponerlo aquí también. */}
-      <header className="mx-3 mb-3 rounded-2xl border border-borde bg-superficie px-7 pt-[26px] pb-[22px]">
-        {/* sin título: lo dice la miga. La cifra se fue al
-            lado del buscador, que es donde se mira cuando uno
-            está filtrando */}
-        <p className="text-sm text-texto-suave">
-          El sistema proporciona estos datos como{" "}
-          <span className={CLASE_SUGERIDO}>sugerencia automática</span> de empresas
-          registradas, revise cuidadosamente cada campo del proceso de verificación
-          y apruebe si son correctos o realice las correcciones que considere
-          necesarias.
-        </p>
-      </header>
-
+      {/* AQUÍ HABÍA UNA BANDA con el aviso de las sugerencias.
+          Subió a la fila del desplegable, a su derecha: unos 90 px
+          de alto que se le devuelven a la tabla (cliente, 12 sep
+          2026). El título ya no estaba --lo dice la miga-- y la
+          cifra vive al lado del buscador. */}
       <div className="flex min-h-0 grow flex-col gap-4 px-7 pt-4">
       {error && <Aviso tipo="error">{error}</Aviso>}
 

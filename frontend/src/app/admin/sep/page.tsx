@@ -74,8 +74,15 @@ export default function PaginaSep() {
           <h1 className="text-[1.125rem] font-bold tracking-[-0.02em] text-titulo">
             Reportes al SENA
           </h1>
+          {/* LAS DOS FRASES JUNTAS, a la izquierda.
+              «Más orden a esto» (cliente, 12 sep 2026): la columna
+              de la derecha apilaba rótulo, desplegable y una nota de
+              dos renglones, y esa nota es lo que la dejaba ragged.
+              Aquí hay ancho y cabe en un renglón; allí queda solo el
+              control, que es lo que se va a usar. */}
           <p className="mt-0.5 text-[0.78125rem] text-texto-suave">
-            Quién entra en el archivo y quién no, antes de generarlo.
+            Quién entra en el archivo y quién no, antes de generarlo. Un archivo
+            por convenio: el SEP nunca ha visto uno con los dos.
           </p>
         </div>
 
@@ -98,9 +105,6 @@ export default function PaginaSep() {
               alElegir={setConvenioId}
             />
           </div>
-          <p className="mt-1.5 max-w-xs text-[0.71875rem] text-texto-suave">
-            Un archivo por convenio: el SEP nunca ha visto uno con los dos.
-          </p>
         </div>
       </header>
 

@@ -74,7 +74,10 @@ export default function PaginaPoliticas() {
   const sinTexto = cobertura.filter((c) => !c.reserva);
 
   return (
-    <div className="flex min-h-0 grow flex-col gap-4 px-4 pt-4 pb-6">
+    /// Sin `min-h-0 grow`: aquí no scrollea nada de dentro. Con él,
+    /// la cola del texto vigente quedaba 171 px POR DEBAJO del pie.
+    /// La explicación larga está en `usuarios/page.tsx`.
+    <div className="flex flex-col gap-4 px-4 pt-4 pb-6">
       {/* «Habeas Data» y no «Políticas de datos».
           El menú y la miga dicen una cosa y el título decía
           otra, que es justo el lío que se acaba de arreglar en

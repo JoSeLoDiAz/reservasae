@@ -224,10 +224,8 @@ function Seguimiento() {
           <h1 className="text-[1.125rem] font-bold tracking-[-0.02em] text-titulo">
             Seguimiento académico
           </h1>
-          <p className="mt-0.5 text-[0.78125rem] text-texto-suave">
-            Todo el paso por el aula, de matriculado a certificado — quién va al
-            día y quién no, contra el calendario de su grupo.
-          </p>
+          {/* Sin bajada (cliente, 12 sep 2026). El título ya dice
+              qué es, y la miga de arriba de dónde cuelga. */}
         </div>
         <div className="flex flex-wrap items-center gap-4">
           <IndicadorActualizacion

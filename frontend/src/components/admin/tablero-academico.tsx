@@ -248,12 +248,11 @@ export function TableroAcademico() {
   return (
     <div>
       <header className="mx-3 mb-3 flex flex-wrap items-start justify-between gap-4 rounded-2xl border border-borde bg-superficie px-7 pt-[26px] pb-[22px]">
-        <div>
-          <p className="max-w-3xl text-texto-suave">
-            Cómo va cada acción de formación, cada grupo y cada asesor, con la cola de
-            trabajo delante. Persona a persona está en la pestaña «Avance».
-          </p>
-        </div>
+        {/* SIN BAJADA. La quitó el cliente el 12 sep 2026, y hacía
+            falta: mandaba a «la pestaña Avance», que ya no existe
+            --Seguimiento y Tablero son dos entradas del menú desde
+            hoy--, así que señalaba a un sitio que no está. Lo que
+            es esta pantalla lo dice la miga de arriba. */}
         <IndicadorActualizacion
           actualizadoEn={vivos.actualizadoEn}
           refrescando={vivos.refrescando}
@@ -691,7 +690,11 @@ function ColaDeTrabajo({
   return (
     <section className="space-y-4">
       <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-        <h2 className="text-lg font-semibold">La cola de trabajo</h2>
+        {/* Sin el título «La cola de trabajo» (cliente, 12 sep
+            2026). Los dos bloques que vienen debajo ya dicen cada
+            uno lo que es --«Sin entrar al aula», «Grupos
+            vencidos»--, y el título solo repetía en grande lo que
+            la nota de al lado explica mejor. */}
         <p className="text-sm text-texto-suave">
           No depende del periodo: es la foto de hoy, con todas las cohortes dentro.
         </p>

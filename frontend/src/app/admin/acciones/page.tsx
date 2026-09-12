@@ -127,19 +127,21 @@ function Catalogo() {
   }
 
   return (
-    /// `min-h-0 grow`, que es lo que pide la tabla.
+    /// UN BLOQUE NORMAL, sin `min-h-0 grow`. Y queda escrito por
+    /// qué, para que no vuelva a entrar.
     ///
-    /// Era un bloque normal, y medido daba la tabla 340 px POR
-    /// DEBAJO del pie: sin altura que repartir, la tabla crece
-    /// suelta y lo que scrollea es la página entera --con los
-    /// filtros yéndose hacia arriba--. Lo dice el comentario de
-    /// `Tabla`: «la pantalla que la use tiene que ser `flex
-    /// min-h-0 grow flex-col`».
+    /// Se lo puse hoy mismo porque medí la lista 340 px por debajo
+    /// del pie y creí que le faltaba el contrato de altura que pide
+    /// `Tabla`. Estaba mal: esta lista NO es la `Tabla` compartida
+    /// --no tiene scroll propio--, así que fijarle la altura dejó
+    /// el contenido recortado y con CERO scroll disponible.
+    /// «¿Por qué en Calendario en Catálogo no me deja bajar?»
+    /// (cliente, veinte minutos después; medido: 0 px de scroll).
     ///
-    /// Y el relleno de abajo baja de 24 a 8 px: es el margen que
-    /// pidió conservar («baja más la tabla, obviamente conservando
-    /// un margen», 12 sep 2026), no un hueco.
-    <div className="flex min-h-0 grow flex-col gap-3 px-4 pt-4 pb-2">
+    /// `min-h-0 grow` solo sirve donde algo de DENTRO scrollea.
+    /// Aquí manda el scroll de `<main>`, y poder bajar vale más que
+    /// pegar la lista al pie.
+    <div className="flex flex-col gap-3 px-4 pt-4 pb-3">
       <div className="no-imprimir">
         {/* La pestaña es para VER el catálogo; publicar es una acción
             que se hace desde aquí, no lo que la pestaña es. Antes la

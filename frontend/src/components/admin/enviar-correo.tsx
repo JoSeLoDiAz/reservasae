@@ -90,12 +90,26 @@ export function EnviarCorreo({ participanteId }: { participanteId: string }) {
         type="button"
         onClick={() => setAbierto(true)}
         style={{
-          background: "var(--marca)",
-          color: "var(--marca-texto)",
-          border: "none",
-          borderRadius: 11,
-          padding: 13,
-          fontWeight: 600, fontSize: 14,
+          /// LA MEDIDA DE «REGISTRAR CARACTERIZACIÓN».
+          ///
+          /// «Los botones de esa vista lateral derecha al mismo
+          /// tamaño como el de Registrar caracterización» (cliente,
+          /// 12 sep 2026), y este no cambió a la primera porque sus
+          /// estilos viven AQUÍ y no en el objeto `E` de la ficha:
+          /// cuatro botones de la misma columna con las medidas
+          /// escritas en tres sitios distintos.
+          ///
+          /// Referencia: relleno 8/12, cuerpo 12,5, radio 10.
+          /// Fondo SUAVE, no relleno fuerte: «este color no, que
+          /// quede como el de Registrar caracterización» (cliente,
+          /// 12 sep 2026). Los cuatro botones de la columna van con
+          /// el mismo tono suave y la letra de color; ninguno grita.
+          background: "var(--marca-suave)",
+          color: "var(--marca)",
+          border: "1px solid var(--marca-suave)",
+          borderRadius: 10,
+          padding: "8px 12px",
+          fontWeight: 600, fontSize: 12.5,
           cursor: "pointer",
           width: "100%",
         }}

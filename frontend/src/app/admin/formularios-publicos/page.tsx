@@ -113,7 +113,10 @@ export default function FormulariosActivos() {
     : gremios;
 
   return (
-    <div className="flex min-h-0 grow flex-col gap-4 px-4 pt-4 pb-6">
+    /// Sin `min-h-0 grow`: aquí no scrollea nada de dentro, y con
+    /// él el botón de imprimir el código quedaba pegado al pie.
+    /// La explicación larga está en `usuarios/page.tsx`.
+    <div className="flex flex-col gap-4 px-4 pt-4 pb-6">
       {/* El nombre entero va AQUI. En el menu se llama
           «Formularios Personas», hermano de «Formularios
           Empresas»: los dos juntos se leen como los dos que

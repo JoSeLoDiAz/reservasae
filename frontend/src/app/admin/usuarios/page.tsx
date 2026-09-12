@@ -194,7 +194,27 @@ export default function PaginaUsuarios() {
   }
 
   return (
-    <div className="flex min-h-0 grow flex-col gap-4 px-4 pt-4 pb-6">
+    /// SIN `min-h-0 grow`. Esto era un fallo de marco, no de esta
+    /// pantalla, y estaba en ocho.
+    ///
+    /// Con `min-h-0 grow` esta raíz medía el hueco visible --687,8
+    /// px en una ventana de 830-- mientras su contenido medía 862.
+    /// El contenido se desbordaba de su propia raíz, el DOCUMENTO
+    /// ganaba scroll (+213 px, medido) y al bajar se subía el marco
+    /// entero: la cabecera desaparecía y el pie quedaba a media
+    /// página con un blanco debajo. «¿Por qué cuando paso a
+    /// Usuarios se pierde el menú y queda en la parte de abajo todo
+    /// raro?» (cliente, 12 sep 2026).
+    ///
+    /// Y de paso se llevaba la margen de abajo: el `pb-6` se pintaba
+    /// en el borde de la raíz --o sea a mitad del contenido-- y no
+    /// al final, así que la cola tocaba el pie. Medido: 0 px de
+    /// margen aquí, -171 en Habeas Data, -555 en Apariencia.
+    ///
+    /// Solo lo llevan las pantallas donde algo de DENTRO scrollea
+    /// --las de `Tabla`, que se queda con el alto que sobra--. En un
+    /// formulario manda el scroll de `<main>`.
+    <div className="flex flex-col gap-4 px-4 pt-4 pb-6">
       <header>
         <h1 className="text-[1.3125rem] font-bold tracking-[-0.02em] text-titulo">Usuarios</h1>
         <p className="mt-1 text-texto-suave">

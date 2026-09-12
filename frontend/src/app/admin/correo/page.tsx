@@ -74,7 +74,9 @@ export default function PaginaCorreo() {
     /// Lo que decía la bajada --si esto no está en verde no
     /// sale ningún aviso-- lo dice el propio semáforo de la
     /// primera tarjeta, que es donde se mira.
-    <div className="flex min-h-0 grow flex-col gap-4 px-4 pt-4 pb-6">
+    /// Sin `min-h-0 grow`: aquí no scrollea nada de dentro.
+    /// La explicación larga está en `usuarios/page.tsx`.
+    <div className="flex flex-col gap-4 px-4 pt-4 pb-6">
       {error && <Aviso tipo="error">{error}</Aviso>}
       {exito && <Aviso tipo="exito">{exito}</Aviso>}
 

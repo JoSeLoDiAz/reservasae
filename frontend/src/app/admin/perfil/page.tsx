@@ -49,7 +49,9 @@ export default function PaginaPerfil() {
   }
 
   return (
-    <div className="flex min-h-0 grow flex-col gap-4 px-4 pt-4 pb-6">
+    /// Sin `min-h-0 grow`: aquí no scrollea nada de dentro.
+    /// La explicación larga está en `usuarios/page.tsx`.
+    <div className="flex flex-col gap-4 px-4 pt-4 pb-6">
       <header>
         <h1 className="text-[1.3125rem] font-bold tracking-[-0.02em] text-titulo">Mi perfil</h1>
         <p className="mt-1 text-texto-suave">

@@ -75,7 +75,12 @@ function resumen(elegidas: number[], rechazada: boolean, preguntadaEn: string | 
     };
   if (preguntadaEn)
     return { texto: "Se le preguntó y no marcó ninguna", tono: "suave" as const };
-  return { texto: "Todavía no se le ha preguntado", tono: "aviso" as const };
+  /// «Sin registro de caracterización» y no «Todavía no se le ha
+  /// preguntado» (cliente, 12 sep 2026). Dice lo que el sistema
+  /// SABE --que no hay registro-- y no lo que supone que pasó: bien
+  /// puede habérsele preguntado sin que nadie lo anotara, y en un
+  /// dato que va al SENA esa diferencia importa.
+  return { texto: "Sin registro de caracterización", tono: "aviso" as const };
 }
 
 export function Caracterizacion(props: Props) {
@@ -117,7 +122,15 @@ export function Caracterizacion(props: Props) {
       <button
         type="button"
         onClick={() => setAbierto(true)}
-        className="sin-aro w-full rounded-lg border border-borde px-3 py-2 text-[0.78125rem] font-semibold transition hover:bg-superficie-alterna"
+        /// CON FONDO. «Ponle color de fondo a este botón» (cliente,
+        /// 12 sep 2026): con solo el borde gris quedaba invisible
+        /// sobre la tarjeta blanca. El verde suave de la marca con
+        /// la letra de marca es el par que el panel ya usa para lo
+        /// secundario.
+        ///
+        /// La MEDIDA no se toca: este botón es la referencia a la que
+        /// se ajustaron los tres del rail de la derecha.
+        className="sin-aro w-full rounded-lg border border-marca-suave bg-marca-suave px-3 py-2 text-[0.78125rem] font-semibold text-marca transition hover:bg-marca-suave/70"
       >
         {props.puedeEscribir ? "Registrar caracterización" : "Ver caracterización"}
       </button>
