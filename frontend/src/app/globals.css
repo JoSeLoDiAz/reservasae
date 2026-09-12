@@ -313,8 +313,8 @@ h3 {
 [class*="text-encabezado-texto"] h2,
 [class*="text-encabezado-texto"] h3,
 /* Y lo mismo sobre el COLOR DE LA MARCA, que es el panel del
-   acceso. Ahi el titular «De los cupos apartados a las personas
-   formadas» salia en #0f1e1c sobre #06736b --3,0:1, medido-- y
+   acceso. Ahi el titular --hoy «Del cupo reservado al resultado
+   alcanzado»-- salia en #0f1e1c sobre #06736b --3,0:1, medido-- y
    justo al lado su propio parrafo salia blanco: la misma frase
    con dos colores. Se veia como un error porque lo era. */
 [class*="text-marca-texto"] h1,

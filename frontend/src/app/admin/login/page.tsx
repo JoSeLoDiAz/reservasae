@@ -237,16 +237,24 @@ export default function PaginaAcceso() {
             {/* EL ANCHO EN CARACTERES Y EL CORTE EQUILIBRADO.
                 `max-w-[24ch]` en vez de un ancho en rem para que
                 el titular parta siempre en dos renglones sea cual
-                sea el cuerpo de letra; y `text-balance`, que es
-                lo que evita el corte feo: a 20ch partía en «De
-                los cupos apartados a / las personas formadas» y
-                dejaba la preposición huérfana al final del
-                renglón. Equilibrado parte por donde se lee.
+                sea el cuerpo de letra; y `text-balance`, que
+                reparte los dos renglones en vez de llenar el
+                primero y dejar tres palabras huérfanas en el
+                segundo.
                 A 2rem hasta xl: en un portátil de 1280 el panel
                 mide 640 y a 2,5rem el titular se iba a tres
-                renglones. */}
+                renglones.
+
+                EL TEXTO lo fijó el cliente el 12 sep 2026. Antes
+                decía «De los cupos apartados a las personas
+                formadas», que es la frase con la que se dibujó el
+                signo --el arco es el cupo apartado, contorno y
+                hueco; el disco macizo, la persona formada--. La
+                nueva dice lo mismo en corto y con las palabras que
+                usa el equipo: del cupo reservado al resultado
+                alcanzado. El signo sigue significando eso. */}
             <h2 className="mt-9 max-w-[24ch] text-[2rem] leading-[1.15] font-bold text-balance xl:text-[2.5rem]">
-              De los cupos apartados a las personas formadas.
+              Del cupo reservado al resultado alcanzado.
             </h2>
             {/* El 85 % no es decorativo: es el mínimo medido.
                 Blanco al 85 % MEZCLADO con el verde del gremio da
@@ -255,8 +263,8 @@ export default function PaginaAcceso() {
                 con el color compuesto: `getComputedStyle` sigue
                 devolviendo blanco puro y engaña. */}
             <p className="mx-auto mt-5 max-w-[46ch] text-[1rem] leading-relaxed opacity-85">
-              Aquí se sigue cada organización que reservó, cada persona inscrita
-              y cómo avanza su formación.
+              Visualiza cada organización, cada persona inscrita y el avance de
+              su formación.
             </p>
           </div>
         </div>

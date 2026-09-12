@@ -7,8 +7,14 @@
  * contorno, hueco, todavía nadie— y en la abertura por donde
  * se entra el trazo se ha vuelto materia: un disco macizo
  * asentado sobre el propio radio del círculo, la persona ya
- * formada. «De los cupos apartados a las personas formadas»
- * dicho en el cambio de línea a mancha, sin flechas.
+ * formada. «Del cupo reservado al resultado alcanzado» dicho en
+ * el cambio de línea a mancha, sin flechas.
+ *
+ * El signo se dibujó con esa frase en su versión larga —«de los
+ * cupos apartados a las personas formadas»—, que es la que
+ * explica por qué el arco es contorno y el disco es materia. El
+ * cliente la acortó el 12 sep 2026 y en el acceso ya sale la
+ * corta; el dibujo no cambia, porque dice lo mismo.
  *
  * La puerta va ABAJO y en el eje, y no es indiferente: al
  * nordeste, un aro con un disco arriba a la derecha es la
