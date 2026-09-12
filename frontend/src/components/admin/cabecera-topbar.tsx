@@ -538,7 +538,17 @@ export function FilaDeModulos({
       style={{
         backgroundColor:
           "color-mix(in oklab, var(--encabezado-fondo) 88%, var(--encabezado-texto))",
-        height: "clamp(40px, 2.4vw, 46px)",
+        /// AIRE, no letra más grande.
+        ///
+        /// Estuvo en 40-46 px y las pastillas miden 25: quedaban 7
+        /// px arriba y abajo y la banda se leía apretada --«por qué
+        /// tan apeñuzcado arriba» (cliente, 12 sep 2026)--. A
+        /// 48-56 quedan 11-15 px por lado.
+        ///
+        /// Lo que NO se toca es el cuerpo de letra: el mismo
+        /// cliente había pedido antes que la fila fuera más
+        /// reducida, así que lo que falta es hueco, no tamaño.
+        height: "clamp(56px, 3.2vw, 64px)",
         paddingInline: "clamp(0.75rem, 1.2vw, 1.5rem)",
       }}
       className="relative z-30 flex shrink-0 items-center justify-between gap-3 border-b border-encabezado-borde bg-encabezado-fondo text-encabezado-texto"
@@ -638,7 +648,12 @@ export function FilaDeModulos({
         aria-hidden={!cabe}
         inert={!cabe ? true : undefined}
         style={{ fontSize: `calc(0.78125rem * ${escala})` }}
-        className={`min-w-0 items-center gap-[0.05em] ${
+        /// El hueco entre ítems estaba en `0.05em`, o sea medio
+        /// píxel: se tocaban unos con otros y toda la separación
+        /// la hacía el relleno de cada uno. A `0.4em` hay aire de
+        /// verdad, y la fila sigue cabiendo de sobra con los
+        /// nombres cortos.
+        className={`min-w-0 items-center gap-[0.4em] ${
           cabe ? "flex" : "invisible pointer-events-none absolute -z-10 flex"
         }`}
       >

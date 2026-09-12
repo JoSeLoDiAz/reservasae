@@ -224,12 +224,40 @@ export function ProveedorMarca({ children }: { children: React.ReactNode }) {
 /// Lo que se pierde, dicho para que no sorprenda: después de
 /// elegir uno, ya no hay botón para volver a «que siga a mi
 /// sistema». Se vuelve borrando los datos del sitio.
-const OPCIONES: Array<{ valor: ModoElegido; etiqueta: string; icono: React.ReactNode }> = [
-  { valor: "claro", etiqueta: "Claro", icono: <IconoSol /> },
-  { valor: "oscuro", etiqueta: "Oscuro", icono: <IconoLuna /> },
+/// Los iconos se pintan SIN tamaño y por eso mandan: son `size-4`
+/// por dentro, o sea 16 px, y con el relleno del botón dan los 28
+/// que fijaban el alto de la píldora del panel.
+///
+/// En la variante menuda bajan a 14, no a 12: a 12 con el relleno
+/// apretado la cápsula se quedó en un botón blanco sin iconos
+/// reconocibles --«tampoco así, no se pase» (cliente, 12 sep
+/// 2026)--. A 14 con `px-2 py-1` el botón mide 22 y la píldora 34,
+/// que es más pequeña que los 46 de antes sin volverse un punto.
+const OPCIONES: Array<{
+  valor: ModoElegido;
+  etiqueta: string;
+  icono: (menudo: boolean) => React.ReactNode;
+}> = [
+  { valor: "claro", etiqueta: "Claro", icono: (m) => <IconoSol menudo={m} /> },
+  { valor: "oscuro", etiqueta: "Oscuro", icono: (m) => <IconoLuna menudo={m} /> },
 ];
 
-export function ConmutadorTema({ compacto = false }: { compacto?: boolean }) {
+export function ConmutadorTema({
+  compacto = false,
+  menudo = false,
+}: {
+  compacto?: boolean;
+  /// Aún más pequeño que `compacto`, para la píldora flotante del
+  /// panel.
+  ///
+  /// Es una variante APARTE y no un `compacto` más chico porque
+  /// `compacto` lo usan también el acceso y el pie de las seis
+  /// pantallas públicas, donde el tamaño de ahora está aprobado.
+  /// El cliente pidió TRES VECES que la píldora del panel fuera
+  /// más pequeña, y las dos primeras encogí el contenedor sin
+  /// tocar estos botones, que son los que de verdad fijan el alto.
+  menudo?: boolean;
+}) {
   const { marca, esquema, cambiarModo } = useMarca();
 
   // el admin puede apagar el conmutador
@@ -246,7 +274,9 @@ export function ConmutadorTema({ compacto = false }: { compacto?: boolean }) {
       /// mismo en el acceso y en las seis públicas, y dos formas
       /// distintas del mismo control es justo lo que hace que una
       /// interfaz se vea cosida a mano.
-      className="inline-flex rounded-full border border-borde bg-superficie p-0.5"
+      className={`inline-flex rounded-full border border-borde bg-superficie ${
+        menudo ? "p-[1px]" : "p-0.5"
+      }`}
     >
       {OPCIONES.map((opcion) => {
         /// Se marca el que SE ESTÁ VIENDO, no el que se eligió.
@@ -295,13 +325,23 @@ export function ConmutadorTema({ compacto = false }: { compacto?: boolean }) {
             /// contiene: con las esquinas a medio redondear, el
             /// botón marcado dibujaba un rectángulo dentro de una
             /// pastilla y se veían las dos formas peleando.
-            className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1.5 text-sm transition ${
+            /// AQUÍ ESTABA EL TAMAÑO, y no en el contenedor.
+            ///
+            /// `px-2.5 py-1.5` con un icono de 16 da 28 px de
+            /// botón: eso, más el relleno del grupo, son los 32 px
+            /// que fijaban el alto de la píldora del panel. Encoger
+            /// la cápsula de fuera no movía esto ni un píxel, que
+            /// es por lo que el cliente tuvo que pedirlo tres
+            /// veces. Menudo: 18 px.
+            className={`inline-flex items-center gap-1.5 rounded-full transition ${
+              menudo ? "px-2 py-1 text-xs" : "px-2.5 py-1.5 text-sm"
+            } ${
               activa
                 ? "bg-marca-suave font-medium text-marca"
                 : "text-texto-suave hover:text-texto"
             }`}
           >
-            {opcion.icono}
+            {opcion.icono(menudo)}
             {!compacto && <span>{opcion.etiqueta}</span>}
           </button>
         );
@@ -704,18 +744,28 @@ const TRAZO = {
   strokeLinejoin: "round",
 } as const;
 
-function IconoSol() {
+function IconoSol({ menudo = false }: { menudo?: boolean }) {
   return (
-    <svg viewBox="0 0 24 24" className="size-4 shrink-0" aria-hidden {...TRAZO}>
+    <svg
+      viewBox="0 0 24 24"
+      className={`shrink-0 ${menudo ? "size-3.5" : "size-4"}`}
+      aria-hidden
+      {...TRAZO}
+    >
       <circle cx="12" cy="12" r="4" />
       <path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" />
     </svg>
   );
 }
 
-function IconoLuna() {
+function IconoLuna({ menudo = false }: { menudo?: boolean }) {
   return (
-    <svg viewBox="0 0 24 24" className="size-4 shrink-0" aria-hidden {...TRAZO}>
+    <svg
+      viewBox="0 0 24 24"
+      className={`shrink-0 ${menudo ? "size-3.5" : "size-4"}`}
+      aria-hidden
+      {...TRAZO}
+    >
       <path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z" />
     </svg>
   );

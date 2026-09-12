@@ -741,7 +741,7 @@ function Ajustes() {
       }}
       className="no-imprimir fixed z-40 flex items-center rounded-full border border-encabezado-borde bg-encabezado-fondo text-[0.8125rem] shadow-lg shadow-black/20"
     >
-      <ConmutadorTema compacto />
+      <ConmutadorTema compacto menudo />
 
       {/* el relative abraza solo al boton: si abraza el
           grupo, el panel nace pegado al borde y se corta */}
@@ -756,12 +756,16 @@ function Ajustes() {
           // lo lee el panel para no tomar este clic por un
           // «pinchó fuera»
           data-abre-panel
-          className={`grid h-8 w-8 place-items-center rounded-full text-encabezado-texto transition hover:bg-current/10 hover:opacity-100 ${
+          /// 26 px y icono de 14, no 32 y 17: es la tercera vez
+          /// que el cliente pide esta píldora más pequeña, y las
+          /// dos anteriores encogí el contenedor sin tocar los
+          /// controles de dentro, que son los que mandan el alto.
+          className={`grid h-[26px] w-[26px] place-items-center rounded-full text-encabezado-texto transition hover:bg-current/10 hover:opacity-100 ${
             abierto ? "bg-current/10 opacity-100" : "opacity-70"
           }`}
           title="Accesibilidad"
         >
-          <IconoAccesibilidad tamano={17} />
+          <IconoAccesibilidad tamano={14} />
           <span className="sr-only">Accesibilidad</span>
         </button>
         {abierto && <PanelAccesibilidad alCerrar={() => setAbierto(false)} />}
