@@ -17,6 +17,21 @@ const RETRASO = 180;
 /// `carga-nivel` en `globals.css`, o la pantalla se iría a mitad
 /// de la animación.
 const UNA_VUELTA = 2400;
+/// EL TOPE. Pase lo que pase, la pantalla se destapa a los 6 s.
+///
+/// Es una red, no un tiempo de espera: quien llama decide cuándo
+/// ha terminado de cargar, y este número solo existe para que un
+/// fallo suyo no deje la pantalla cubierta. El 12 sep 2026 el
+/// acceso quedó tapado diez segundos por el túnel esperando la
+/// marca, y con la llamada fallando se habría quedado así para
+/// siempre: el velo es `fixed inset-0`, así que se come los clics
+/// y nadie puede ni escribir la contraseña.
+///
+/// Seis segundos y no dos: por un enlace lento la espera legítima
+/// puede pasar de cinco, y cortarla antes devuelve el parpadeo que
+/// esta pantalla existe para quitar. Destapar de más es un salto
+/// feo; no destapar es una pantalla muerta.
+const TOPE = 6000;
 
 type Fase = "nada" | "viendo";
 
@@ -82,6 +97,20 @@ export function useEsperaCompleta(cargando: boolean): boolean {
     const reloj = setTimeout(() => setFase("nada"), falta);
     return () => clearTimeout(reloj);
   }, [cargando, fase]);
+
+  /// LA RED, aparte y a propósito.
+  ///
+  /// Va en su propio efecto y no dentro del de arriba porque aquel
+  /// depende de `cargando`: mientras quien llama siga diciendo que
+  /// carga, su rama vuelve a armarse y nunca llega al desenlace.
+  /// Este mira solo la fase, así que cuenta desde que el velo se
+  /// vio y lo quita a los 6 s pase lo que pase.
+  useEffect(() => {
+    if (fase !== "viendo") return;
+    const falta = TOPE - (Date.now() - (desde.current ?? Date.now()));
+    const reloj = setTimeout(() => setFase("nada"), Math.max(falta, 0));
+    return () => clearTimeout(reloj);
+  }, [fase]);
 
   return fase === "viendo";
 }

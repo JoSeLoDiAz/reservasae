@@ -27,8 +27,14 @@ export default function PaginaAcceso() {
   /// `useEsperaCompleta` garantiza la vuelta entera: si el dato
   /// llega en 200 ms no se ve un logo a medio llenar que
   /// desaparece.
-  const { marca } = useMarca();
-  const esperando = useEsperaCompleta(!marca);
+  /// SE ESPERA A QUE LA PETICIÓN TERMINE, no a que llegue la
+  /// marca. Con `!marca` el velo se iba solo si la marca LLEGABA,
+  /// así que por el túnel tapó el acceso diez segundos --lo que
+  /// tarda la vuelta por Cloudflare-- y con la llamada fallando lo
+  /// habría tapado para siempre: `leerMarca` devuelve `null` en el
+  /// fallo y no reintenta. Se veía «caído» sin estarlo.
+  const { listo } = useMarca();
+  const esperando = useEsperaCompleta(!listo);
 
   const [correo, setCorreo] = useState("");
   const [clave, setClave] = useState("");

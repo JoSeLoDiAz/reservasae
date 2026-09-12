@@ -30,6 +30,17 @@ import {
 
 type ValorContexto = {
   marca: Marca | null;
+  /**
+   * Si la petición de la marca ya TERMINÓ, con éxito o con fallo.
+   *
+   * No es lo mismo que `marca !== null` y la diferencia importa:
+   * `leerMarca` devuelve `null` cuando la llamada falla, así que
+   * con `marca` a secas no hay forma de distinguir «todavía no ha
+   * llegado» de «no va a llegar». Quien tape la pantalla mientras
+   * carga tiene que mirar ESTO, o se queda tapada para siempre el
+   * día que la marca no conteste.
+   */
+  listo: boolean;
   modo: ModoElegido;
   esquema: Esquema;
   cambiarModo: (modo: ModoElegido) => void;
@@ -66,6 +77,10 @@ function leerModoGuardado(): ModoElegido {
 /** Aplica colores y textos de la marca del ambito. */
 export function ProveedorMarca({ children }: { children: React.ReactNode }) {
   const [marca, setMarca] = useState<Marca | null>(null);
+  /// Se pone a `true` en cuanto la primera petición TERMINA, y no
+  /// vuelve a `false`: una vez que la pantalla es usable, no se
+  /// vuelve a cubrir porque alguien recargue la marca.
+  const [listo, setListo] = useState(false);
   const [modo, setModo] = useState<ModoElegido>("sistema");
   const [esquema, setEsquema] = useState<Esquema>("CLARO");
 
@@ -102,7 +117,17 @@ export function ProveedorMarca({ children }: { children: React.ReactNode }) {
     let vigente = true;
     void (async () => {
       const datos = await leerMarca(ambito);
-      if (!vigente || !datos) return;
+      if (!vigente) return;
+      /// `listo` SE MARCA AUNQUE NO HAYA DATOS, y esa es la línea
+      /// que importa. Antes se salía con `if (!datos) return` y
+      /// quien esperaba la marca para destapar la pantalla no se
+      /// enteraba nunca: el 12 sep 2026 el acceso por el túnel
+      /// quedó cubierto diez segundos --el tiempo que tardaba la
+      /// vuelta por Cloudflare-- y con la llamada fallando habría
+      /// quedado cubierto para siempre. La marca es decoración; la
+      /// pantalla tiene que funcionar sin ella.
+      setListo(true);
+      if (!datos) return;
       setMarca(datos);
       recordarPaleta(ambito, datos);
     })();
@@ -172,7 +197,9 @@ export function ProveedorMarca({ children }: { children: React.ReactNode }) {
   }, []);
 
   return (
-    <ContextoMarca.Provider value={{ marca, modo, esquema, cambiarModo, recargar }}>
+    <ContextoMarca.Provider
+      value={{ marca, listo, modo, esquema, cambiarModo, recargar }}
+    >
       {estilos && <style dangerouslySetInnerHTML={{ __html: estilos }} />}
       {children}
     </ContextoMarca.Provider>
