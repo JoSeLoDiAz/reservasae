@@ -971,6 +971,60 @@ A partir de ahí, **todo lo demás es idéntico**: `prisma migrate deploy`, `db 
 > se arregla parando el servicio de Windows («Servicios» →
 > `postgresql-x64-17` → Detener) antes de levantar el compose.
 
+### En el portátil de Mauricio NO está así, y arrancarla tiene un truco (12 sep 2026)
+
+Lo de arriba describe una instalación limpia con el instalador puesto en 5544. En
+ese portátil la realidad es otra, y conviene saberla antes de perder una tarde:
+
+- el servicio `postgresql-x64-17` corre y escucha en el **5432**, y esa es **otra
+  base**: rechaza al usuario `reservasae`;
+- la base del proyecto —`reservasae_prueba`, 44 tablas— es un **segundo
+  directorio de datos** en `%USERPROFILE%\pgdata-reservasae`, y **no corre como
+  servicio**: hay que arrancarlo a mano y se cae al reiniciar el equipo;
+- su `postgresql.conf` tiene el puerto **comentado** (`#port = 5432`), así que el
+  5544 se lo pasa quien lo arranca.
+
+Arrancarla:
+
+```powershell
+& "$env:ProgramFiles\PostgreSQL\17\bin\pg_ctl.exe" `
+  -D "$env:USERPROFILE\pgdata-reservasae" `
+  -l "$env:USERPROFILE\pgdata-reservasae\arranque.log" `
+  -o "-p 5544" start
+```
+
+**El `-o "-p 5544"` no es opcional.** Sin él intenta el 5432, choca con el
+servicio, y Windows lo reporta como
+
+```
+could not bind IPv4 address "127.0.0.1": Permission denied
+FATAL:  could not create any TCP/IP sockets
+```
+
+que se lee como un problema de permisos y no lo es. Ni hay rangos de puertos
+reservados ni falta ningún privilegio: es el puerto ocupado, contado mal.
+
+La cadena de síntomas, para reconocerla desde el otro extremo: el frontend sube
+en el 3100 y **el backend no**, con `PrismaClientInitializationError ... P1001,
+Can't reach database server at localhost:5544` en
+`%LOCALAPPDATA%\convoca-dev\backend.err.log`. En el navegador se ve como
+`ERR_CONNECTION_REFUSED` o como un panel que se queda en «Entrando…». Después de
+levantar la base hay que **reiniciar el backend** (`dev-local.ps1 -Reiniciar`):
+el proceso ya murió y nadie lo vuelve a arrancar solo.
+
+### Los «500» de un barrido con navegador son 429 (12 sep 2026)
+
+Si se recorre el panel entero con Playwright y salen errores 500 en pantallas
+distintas en cada corrida, **no es el panel**: es el limitador.
+`ThrottlerModule` está en **60 peticiones por minuto** (`app.module.ts`), y cada
+pantalla dispara varias llamadas. Un barrido de 60 cargas seguidas se lo salta y
+devuelve `ThrottlerException`, que el frontend enseña como «No se pudo completar
+la operación».
+
+Se reconoce en que **cambia de pantalla en cada corrida** y **nunca se reproduce
+en una recarga sola**. La cura es pausar el arnés: ~7 s por ruta y un minuto
+entero entre pasadas, para que la ventana del limitador se vacíe.
+
 **La otra opción es Postgres dentro de WSL 2**, que ya está instalado. Es más
 parecido a producción —el mismo Postgres de Linux— pero tiene una trampa: el
 servicio no arranca solo al encender, hay que hacer `sudo service postgresql start`
