@@ -23,6 +23,30 @@
 
   --titulo: #0f172a;
   --texto: #1e293b;
+  /* OJO: EN EL PANEL ESTE VALOR NO SE USA, y cuesta un rato
+     descubrirlo. Lo pisa la paleta del gremio, que se inyecta en el
+     `<head>` y viene GUARDADA en la base: en ADECOPRIA vale #687573,
+     que no es ni este gris ni nada parecido --es un gris verdoso,
+     derivado del color de la marca en OKLCH--.
+
+     Lo comprobado el 12 sep 2026, por si vuelve a aparecer: hay un
+     fallo de contraste real de 4,39:1 en once pantallas --el texto
+     secundario de 12 px sobre las bandas tintadas, que piden 4,5--.
+     Lo INTENTE arreglar aqui y no cambio ni una decima, porque el
+     color no sale de aqui.
+
+     Donde sale de verdad: `backend/src/admin/derivar.ts`, receta
+     `textoSuave: { l: 0.55, c: 0.015 }`. Y en
+     `backend/src/admin/temas.ts` hay comprobacion de contraste para
+     ese token pero SOLO contra `superficie` (blanco), donde si pasa
+     con 4,76:1; el par que falla --contra la banda tintada-- no esta
+     en la lista.
+
+     El arreglo son dos cosas y las dos son de backend: bajar la
+     `l` de la receta, y anadir el par que falta a las
+     comprobaciones. Y ademas hay que RE-DERIVAR la paleta de cada
+     gremio, porque la que hay esta guardada. Queda anotado en
+     `docs/PARA-JOSE.md` como decision, no como tarea. */
   --texto-suave: #64748b;
 
   --encabezado-fondo: #ffffff;

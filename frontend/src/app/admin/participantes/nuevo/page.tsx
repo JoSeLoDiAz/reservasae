@@ -92,7 +92,9 @@ export default function PaginaNuevoParticipante() {
   }
 
   return (
-    <div className="flex min-h-0 grow flex-col">
+    /// Sin `min-h-0 grow`: es un formulario, no scrollea nada de
+    /// dentro. Ver `usuarios/page.tsx`.
+    <div className="flex flex-col pb-3">
       <header className="border-b border-borde bg-superficie px-7 pt-[18px] pb-[22px]">
         <Link
           href="/admin/participantes"

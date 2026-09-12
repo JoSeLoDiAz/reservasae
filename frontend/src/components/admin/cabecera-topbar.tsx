@@ -194,8 +194,33 @@ export function FilaDeMarca() {
     /// de 24" la fila de 66 px está bien; en un portátil de 1366
     /// se comía un alto que ahí es escaso.
     ///
-    /// `clamp(52px, 3.4vw, 66px)`: 52 hasta 1530, y de ahí sube
-    /// hasta los 66 de su monitor. El relleno lateral acompaña.
+    /// `clamp(40px, 2.2vw, 46px)`: 40 hasta 1820, y de ahí sube
+    /// hasta los 46 de su monitor. El relleno lateral acompaña.
+    ///
+    /// LOS 4 PX QUE SE DEVUELVEN SON POR ADECOPRIA. Llegó a estar en
+    /// 36-40, y ahí su logo quedaba en 22 px: «más grande ADECOPRIA,
+    /// se ve perdido» (cliente, 12 sep 2026). No es capricho suyo --
+    /// ese archivo lleva «Asociación de Educación Privada» escrito
+    /// DENTRO en letra pequeña, así que por debajo de unos 28 px de
+    /// alto el nombre deja de leerse y el logo se vuelve una mancha.
+    /// El de Grupo AE aguanta más pequeño porque es un signo, sin
+    /// texto dentro.
+    ///
+    /// BAJÓ DE 52-66 A 36-40 el 12 sep 2026, en dos pasos y en la
+    /// misma tarde: «¿no se puede reducir, o sea no tan larga? Y
+    /// también en la parte de los logos», y al ver el primer
+    /// recorte, «¿se tendría que dejar más pequeño no?».
+    ///
+    /// LO QUE MANDABA EL ALTO ERA EL LEMA, y conviene tenerlo
+    /// medido: el bloque de texto de la firma mide 37 px --17 el
+    /// nombre y 20 el lema con su margen--, así que con el lema
+    /// puesto esta fila no baja de ~45 px por física. Por eso aquí
+    /// va `conFrase={false}`: el lema sigue donde se lee de verdad
+    /// --el acceso y el pie público-- y en una cabecera de trabajo
+    /// que se ve cuarenta veces al día no aportaba.
+    ///
+    /// Aquí se puede apretar más que en la fila de abajo porque no
+    /// hay NADA que pulsar: un logo no necesita área de clic.
     ///
     /// EN PÍXELES Y NO EN REM, a propósito: una medida de CAJA no
     /// debe crecer con el ajuste de texto del 90-140 % de
@@ -204,7 +229,7 @@ export function FilaDeMarca() {
     /// texto crece; la caja se queda.
     <div
       style={{
-        height: "clamp(52px, 3.4vw, 66px)",
+        height: "clamp(40px, 2.2vw, 46px)",
         paddingInline: "clamp(1rem, 1.4vw, 1.75rem)",
       }}
       className="flex shrink-0 items-center justify-between gap-4 border-b border-encabezado-borde bg-encabezado-fondo text-encabezado-texto"
@@ -213,15 +238,16 @@ export function FilaDeMarca() {
           del perfil, no una copia con los mismos estilos: cuatro
           copias acaban diciendo cuatro cosas.
 
-          A 34 y no a 42 como en la barra: en una fila de 66 px, la
-          firma a 42 pide 64 px de alto y no deja aire. El umbral
-          `grande` de `FirmaConvoca` son 44, así que a 34 el nombre
-          baja a 1,05rem, que es justo lo que quiere una cabecera. */}
+          A 30 y no a 42 como en la barra: en una fila de 50 px, la
+          firma a 42 pide 64 px de alto y no cabe. El umbral
+          `grande` de `FirmaConvoca` son 44, así que a 30 --igual
+          que a 34-- el nombre se queda en 1,05rem: la fila baja de
+          alto y la letra no cambia. */}
       <Link
         href="/admin"
         className="flex min-w-0 items-center gap-2.5 no-underline"
       >
-        <FirmaConvoca tamano={34} />
+        <FirmaConvoca tamano={26} conFrase={false} />
       </Link>
 
       <CreditoDeAliados />
@@ -275,7 +301,7 @@ function CreditoDeAliados() {
       <PiezaDeLogo
         logo={gestor}
         alFallar={setFallidas}
-        alto="clamp(24px, 1.7vw, 32px)"
+        alto="clamp(20px, 1.35vw, 26px)"
       />
       {para.length > 0 && <Rotulo>para</Rotulo>}
       {para.map((l) => (
@@ -283,7 +309,7 @@ function CreditoDeAliados() {
           key={l.id}
           logo={l}
           alFallar={setFallidas}
-          alto="clamp(21px, 1.5vw, 28px)"
+          alto="clamp(24px, 1.6vw, 32px)"
         />
       ))}
     </div>
@@ -538,17 +564,27 @@ export function FilaDeModulos({
       style={{
         backgroundColor:
           "color-mix(in oklab, var(--encabezado-fondo) 88%, var(--encabezado-texto))",
-        /// AIRE, no letra más grande.
+        /// EL PUNTO MEDIO, y está peleado por las dos puntas.
         ///
-        /// Estuvo en 40-46 px y las pastillas miden 25: quedaban 7
-        /// px arriba y abajo y la banda se leía apretada --«por qué
-        /// tan apeñuzcado arriba» (cliente, 12 sep 2026)--. A
-        /// 48-56 quedan 11-15 px por lado.
+        /// Esta fila ha ido y venido en un solo día, así que queda
+        /// escrito para no volver a recorrerlo:
         ///
-        /// Lo que NO se toca es el cuerpo de letra: el mismo
-        /// cliente había pedido antes que la fila fuera más
-        /// reducida, así que lo que falta es hueco, no tamaño.
-        height: "clamp(56px, 3.2vw, 64px)",
+        ///   - estuvo en 40-46 px y el cliente la rechazó: las
+        ///     pastillas miden 28 y quedaban 7 px por lado, «por qué
+        ///     tan apeñuzcado arriba» (12 sep 2026);
+        ///   - subió a 56-64, con 14-18 px por lado;
+        ///   - y por la tarde pidió bajarla dos veces: «¿no se puede
+        ///     reducir, o sea no tan larga?» y «¿dónde van ya las
+        ///     vistas, no le redujiste nada?».
+        ///
+        /// 44-48 deja 8-10 px por lado. NO se baja de ahí: a 40-46
+        /// quedaban 7 y eso es exactamente lo que ya dijo que no.
+        /// El suelo lo pone la pastilla de 28 px, que es el área de
+        /// clic de cada módulo.
+        ///
+        /// Y lo que sigue sin tocarse es el cuerpo de letra: lo que
+        /// se le quita es hueco, no tamaño.
+        height: "clamp(44px, 2.4vw, 48px)",
         paddingInline: "clamp(0.75rem, 1.2vw, 1.5rem)",
       }}
       className="relative z-30 flex shrink-0 items-center justify-between gap-3 border-b border-encabezado-borde bg-encabezado-fondo text-encabezado-texto"

@@ -52,6 +52,14 @@ el cursor. Nada más. (Criterio 3 del README: máximo dos fondos por pantalla.)
 
 ## 5. Fila "Resumen" y rail plegado de 62px
 
+> **REVOCADO el 12 sep 2026: no hay rail, porque no hay barra lateral.** El cliente
+> entregó su montaje con la navegación en dos filas arriba, y con la barra se fueron el
+> rail de 62 px y el plegado entero. Lo que sí sobrevivió es el argumento de abajo: «llegar
+> al tablero por el logotipo no es descubrible». Por eso **«Resumen» es el primer enlace de
+> la fila de módulos**, con su nombre escrito, y el logotipo además lleva a `/admin`.
+>
+> El razonamiento original se queda tal cual, porque explica por qué existe ese enlace.
+
 **Se implementan los dos.** No es solo decoración:
 
 - Llegar al tablero por el logotipo **no es descubrible**. Nadie hace clic en un logotipo
@@ -63,7 +71,17 @@ Un panel que se oculta solo sirve si plegado sigue significando algo.
 
 ## 6. Llave de `localStorage`
 
-**Se mantiene la del código:** `convoca:plegado` con `"si"` / `"no"`.
+> **SIN EFECTO desde el 12 sep 2026: la llave ya no se escribe ni se lee.** Con el plegado
+> desapareció lo que guardaba. Si queda el valor viejo en el navegador de alguien, no hace
+> nada: nadie lo consulta.
+>
+> Queda escrita la decisión porque su motivo sigue siendo bueno para la próxima: **no se
+> renombra una llave en uso**, porque cambiarla borra la preferencia de todos a cambio de
+> nada. Eso aplicó también al quitar los selectores de vista de Calendario y Académica: sus
+> llaves (`formacion:vista`, `instituciones:vista`) se fueron con ellos, y lo que recuerda
+> ahora qué vista mirabas es la propia URL, que además se puede marcar y compartir.
+
+**Se mantenía la del código:** `convoca:plegado` con `"si"` / `"no"`.
 Ignore lo que dice el README (`convoca-panel` / `"abierto"` / `"cerrado"`).
 Cambiarla borraría la preferencia de todos los usuarios a cambio de nada.
 

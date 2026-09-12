@@ -99,7 +99,12 @@ export default function PaginaCampanas() {
     /// Lo que decía la bajada --de a uno, en horario de
     /// Colombia-- no se pierde: está entero y mejor contado en
     /// «Cómo sale, y por qué así», que va justo debajo.
-    <div className="flex min-h-0 grow flex-col gap-4 px-4 pt-4">
+    /// Sin `min-h-0 grow`: aquí no scrollea nada de dentro, y con él
+    /// la raíz se clava al alto del hueco y su contenido se le escapa,
+    /// así que el relleno de abajo se pinta a mitad de la pantalla y
+    /// los botones quedan pegados al pie. Pasó en ocho pantallas más;
+    /// la explicación larga está en `usuarios/page.tsx`.
+    <div className="flex flex-col gap-4 px-4 pt-4 pb-3">
       {/* Solo cuando YA hay campañas: con la lista vacía, el
           botón lo pone la invitación de abajo, que además dice
           para qué sirve. Dos botones iguales, uno de blanco

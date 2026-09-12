@@ -6,6 +6,25 @@
 > documento y manda sobre él en los puntos donde se contradigan (llave de `localStorage`,
 > unidades en rem, sombras en elementos flotantes, paleta guardada por gremio).
 
+> ### ⚠ EL ARMAZÓN DE ESTE DOCUMENTO YA NO ES EL DEL PANEL (12 sep 2026)
+>
+> **La barra lateral se fue.** El cliente entregó su propio montaje de diseño y el panel
+> pasó a tener **dos filas de cabecera arriba** —marca con aliados, y módulos en
+> horizontal— más una píldora flotante de tema y accesibilidad abajo a la derecha.
+>
+> Con ella se fueron el `aside` de 250 px, el rail plegado de 62 px, el plegado entero y
+> su llave de `localStorage`. Así que **todo lo que este documento dice del panel lateral
+> es historia**: las secciones «Panel lateral (aside)», el estado plegado, el clic en los
+> círculos del rail y la captura `12-panel-plegado.png` describen algo que no existe.
+>
+> Lo que SÍ sigue valiendo de aquí: la paleta, la escala tipográfica, los radios, las
+> medidas de campo y botón, las tablas, y el lenguaje de líneas en vez de cajas.
+>
+> **La fuente de verdad del armazón es el código**, que lleva las medidas y el por qué de
+> cada una: `frontend/src/components/admin/cabecera-topbar.tsx` y
+> `frontend/src/components/admin/marco-admin.tsx`. No se reescribe aquí a mano porque esas
+> medidas se han movido cuatro veces en un día y un documento que va por detrás miente.
+
 Rediseño visual completo del CRM Convoca (gestión de gremios, acciones de formación,
 leads, inscritos y reservas para reportes al SENA). El objetivo del rediseño fue eliminar
 el lenguaje de "tarjetas cuadradas apiladas" del sistema actual y sustituirlo por un
@@ -158,27 +177,45 @@ Todas las cifras en tablas y KPIs usan `font-variant-numeric: tabular-nums`.
 - Relleno de fila de tabla: **var(--pad-fila) 14px** (9px vertical)
 - Relleno de cabecera de pantalla: **26px 28px 22px** (16px arriba si hay enlace "Volver")
 - Separación entre secciones: **20px**
-- Ancho del panel lateral: **250px** abierto / **62px** plegado
-- Alto de la cabecera superior: **56px**
+- ~~Ancho del panel lateral: 250px abierto / 62px plegado~~ — **ya no hay panel lateral**
+- Alto de las dos filas de cabecera (12 sep 2026): **fila de marca** `clamp(40px, 2.2vw,
+  46px)` · **fila de módulos** `clamp(44px, 2.4vw, 48px)`. En un monitor de 1920 suman
+  88 px; en un portátil de 1366, 84. El suelo de la fila de módulos lo pone la pastilla
+  de 28 px de cada enlace, que es su área de clic
 - Alto de campo y botón: **34px**
 
 ---
 
 ## Estructura general (shell)
 
+Desde el 12 sep 2026 (antes era un `aside` de 250 px a la izquierda):
+
 ```
-┌──────────┬────────────────────────────────────────────┐
-│ aside    │ header  (56px)                             │
-│ 250px /  ├────────────────────────────────────────────┤
-│ 62px     │ cabecera de pantalla                       │
-│          ├────────────────────────────────────────────┤
-│          │ contenido (scroll vertical)                │
-└──────────┴────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────┐
+│ marca de Convoca          GESTIONADO POR [AE] PARA [AD] │  fila 1
+├─────────────────────────────────────────────────────────┤
+│ Resumen  Calendario ⌄  Inscripciones ⌄ …   Ana Jaramillo│  fila 2
+├─────────────────────────────────────────────────────────┤
+│                                                         │
+│ contenido (es lo único que scrollea)                    │
+│                                                         │
+├─────────────────────────────────────────────────────────┤
+│ pie: gestionado por, año, versión          [tema] [acc] │
+└─────────────────────────────────────────────────────────┘
 ```
 
-- Raíz: `display:flex; height:100vh; min-height:640px; overflow:hidden`.
-- La columna derecha es `flex:1; display:flex; flex-direction:column; min-width:0`.
-- Solo el bloque de contenido tiene scroll (`flex:1; min-height:0; overflow-y:auto`).
+- Raíz: `height: calc(100vh - var(--franja-alto, 0px)); display:flex;
+  flex-direction:column; overflow:clip`, con la clase `marco-panel`.
+- Las dos filas y el pie son `shrink-0`; `<main>` es `flex:1; min-height:0;
+  overflow-y:auto` y es **lo único que scrollea**.
+- **El DOCUMENTO no scrollea nunca** mientras el panel esté montado: lo impide la regla
+  `html:has(.marco-panel), html:has(.marco-panel) body { overflow: hidden }` de
+  `globals.css`, con su excepción para impresión. Sin eso, en ventanas bajas la columna
+  entera se desplazaba y la cabecera salía de la pantalla sin forma de volver.
+- Una pantalla solo lleva `min-h-0 grow` en su raíz **si algo de dentro scrollea** —las de
+  tabla—. En un formulario clava la raíz al alto del hueco, el contenido se le escapa y el
+  relleno de abajo se pinta a media pantalla.
+- La píldora de tema y accesibilidad va `fixed` abajo a la derecha, fuera de la columna.
 
 ### Panel lateral (aside)
 

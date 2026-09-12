@@ -221,7 +221,12 @@ function Lista({
     /// decirlo dos veces y dejaba este módulo con otra cara que
     /// el resto del panel. El botón sube a la barra, que es
     /// donde el resto de pantallas pone el suyo.
-    <div className="flex min-h-0 grow flex-col gap-4 px-4 pt-4">
+    /// Sin `min-h-0 grow`: aquí no scrollea nada de dentro, y con él
+    /// la raíz se clava al alto del hueco y su contenido se le escapa,
+    /// así que el relleno de abajo se pinta a mitad de la pantalla y
+    /// los botones quedan pegados al pie. Pasó en ocho pantallas más;
+    /// la explicación larga está en `usuarios/page.tsx`.
+    <div className="flex flex-col gap-4 px-4 pt-4 pb-3">
       {/* Solo cuando YA hay plantillas.
 
           Con la lista vacía salían dos botones que hacen lo
@@ -551,7 +556,12 @@ function Editor({
       : "Cualquier etapa (sin restricción)";
 
   return (
-    <div className="flex min-h-0 grow flex-col gap-4 px-4 pt-4">
+    /// Sin `min-h-0 grow`: aquí no scrollea nada de dentro, y con él
+    /// la raíz se clava al alto del hueco y su contenido se le escapa,
+    /// así que el relleno de abajo se pinta a mitad de la pantalla y
+    /// los botones quedan pegados al pie. Pasó en ocho pantallas más;
+    /// la explicación larga está en `usuarios/page.tsx`.
+    <div className="flex flex-col gap-4 px-4 pt-4 pb-3">
       {/* El editor SÍ lleva título, igual que la ficha de una
           acción de formación: es una subvista y la miga de
           arriba no sabe de ella. Mismo patrón que allí —el

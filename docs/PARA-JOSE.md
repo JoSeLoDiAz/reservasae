@@ -4,11 +4,112 @@
 decisiones o datos que solo tú tienes. Todo lo demás ya está hecho y commiteado.
 
 Rama: `arq/crm-hardening`.
-Estado hoy: **`tsc` limpio en backend y frontend · 1322 pruebas en 121 suites, verde.**
+Estado hoy: **`tsc` limpio en backend y frontend · 1490 pruebas en 127 suites, verde.**
 
 ---
 
-## Parte 0 · Desplegar la entrega del 4 de septiembre de 2026
+## Parte 0 · Desplegar la entrega del 12 de septiembre de 2026
+
+**Es la más fácil de todas: solo frontend.**
+
+### 1 · No hay migraciones y no hay que tocar el backend
+
+Son 38 ficheros y **todos están bajo `frontend/src`**. Comprobado con
+`git diff --name-only 7b80c82..HEAD`: no aparece `schema.prisma`, ni
+`backend/prisma/migrations/`, ni un solo fichero de `backend/`. Por tanto:
+
+- **no** se corre `prisma migrate deploy`,
+- **no** hace falta reconstruir el backend,
+- y el orden no importa: este frontend contra el backend que ya está corriendo
+  funciona igual. Es justo lo contrario de la entrega del 4 de septiembre, que sí
+  exigía backend primero.
+
+```bash
+git checkout arq/crm-hardening && git pull
+docker compose build frontend
+docker compose up -d frontend
+```
+
+### 2 · Lo que va a notar el equipo el primer día
+
+| Qué cambió | Dónde se ve |
+|---|---|
+| La cabecera bajó de 127 px a 88 | En todas: la tabla gana 38 px de alto |
+| El lema «Relaciones que generan resultados» **ya no sale en el panel** | Cabecera. Sigue en el acceso y en el pie público |
+| Catálogo y Cronograma son **dos entradas del menú Calendario**, cada una con su URL | Antes eran pestañas dentro de una pantalla |
+| Seguimiento y Tablero académico, igual, en el menú Académica | El tablero volvió a ser una pantalla |
+| Los botones de exportar a PDF son **rojos y sin icono** | Resumen, Calendario, Cronograma, fichas, respuestas |
+| «Todavía no se le ha preguntado» ahora dice **«Sin registro de caracterización»** | Ficha de un lead. Dice lo que el sistema sabe, no lo que supone |
+| El panel ya no desplaza el documento | Antes, en ventanas bajas, la cabecera se iba de la pantalla y no volvía |
+
+### 3 · Dos rutas nuevas, y una que dejó de redirigir
+
+- `/admin/acciones/cronograma` — nueva.
+- `/admin/participantes/academico/tablero` — **llevaba un año redirigiendo** a su
+  padre y ahora pinta el tablero. Quien tenga ese enlace guardado va a ver lo que
+  esperaba cuando lo guardó.
+
+No hay rutas eliminadas, así que ningún enlace antiguo se rompe.
+
+### 4 · Antes de cargar personas de verdad
+
+`PANEL_POR_TUNEL=si` sigue activo en `frontend/.env.local` (ese fichero está
+fuera de git, es local de cada máquina). Con eso el panel queda **abierto a
+cualquiera que tenga el enlace**, y la cookie de sesión viaja sin `Secure`. Es
+cómodo para revisar por túnel y es inaceptable con datos de personas dentro:
+hay que quitarlo antes de la primera carga real.
+
+### 5 · Lo que está pendiente de DECISIÓN, no de trabajo
+
+Tres cosas que Mauricio pidió y que no se hicieron porque tocan cifras que se
+reportan al SENA o porque el arreglo obvio empeora otra cosa:
+
+- **«Cupos con dueño»** sigue llamándose así en el Resumen. El cambio de rótulo
+  es trivial; lo que hay que confirmar es que nadie dependa del nombre.
+- **El avance grande va sobre la META** (14,6 %) y él lo quiere **sobre el TOPE**
+  (11,2 %). Son dos denominadores distintos, no un redondeo: hay que decidir cuál
+  es el número oficial antes de tocarlo.
+- **Las tarjetas de cifra en un renglón** (rótulo izquierda, cifra derecha).
+  Medido: 14 de las 16 llevan un pie, así que se ganan ~7 px por tarjeta y no la
+  mitad; y subir el ancho mínimo para que quepan las dos cosas **parte la fila de
+  cinco del cronograma en un portátil de 1280**, con lo que el bloque queda más
+  alto. Hace falta decidir qué pasa con el pie.
+
+### 6 · Un fallo de contraste real, y su arreglo toca backend y datos
+
+Medido con canvas sobre el color compuesto, en las 30 pantallas y en los dos
+temas: **el texto secundario de 12 px da 4,39:1 sobre las bandas tintadas** y el
+mínimo es 4,5. Sale en once pantallas (Apariencia, Control, Cuenta de correo,
+Seguimiento, Habeas Data, Reportes al SENA, el tablero académico y las cabeceras
+de grupo de las dos listas de acciones). **El tema oscuro está limpio: cero
+fallos.**
+
+Lo que hay que saber antes de tocarlo, porque yo me equivoqué primero:
+
+- **No se arregla en `globals.css`.** Lo intenté y no cambió ni una décima. Ese
+  token lo pisa la **paleta del gremio**, que se inyecta en el `<head>` y viene
+  **guardada en la base**: en ADECOPRIA `--texto-suave` vale `#687573`.
+- El valor nace en `backend/src/admin/derivar.ts`, en la receta
+  `textoSuave: { l: 0.55, c: 0.015 }` — se deriva del color de marca en OKLCH, de
+  ahí que sea un gris verdoso y no un gris.
+- En `backend/src/admin/temas.ts` **sí** hay comprobación de contraste para ese
+  token, pero solo contra `superficie` (blanco), donde pasa con 4,76:1. El par que
+  falla —contra la banda tintada— **no está en la lista**, y por eso nadie lo vio.
+
+Así que el arreglo son tres pasos, y el tercero es el que pide tu decisión:
+
+1. bajar la `l` de la receta (backend),
+2. añadir el par que falta a las comprobaciones para que no se repita (backend),
+3. **re-derivar la paleta de cada gremio**, porque la actual está guardada. Eso
+   recolorea el texto secundario de todos los convenios a la vez.
+
+Lo dejé sin hacer a propósito: son 0,11 de contraste en un texto de apoyo, y el
+paso 3 cambia el aspecto de dieciséis plantillas de tema. Prefiero que lo decidas
+tú antes de mover la paleta de nadie.
+
+---
+
+## Parte 0 bis · Desplegar la entrega del 4 de septiembre de 2026 (si aún no se hizo)
 
 **Rama `arq/crm-hardening`. Ya trae `origin/dev` fusionado** (fusión limpia, sin
 conflictos) y verificado después de fusionar: `tsc` limpio en los dos lados,
