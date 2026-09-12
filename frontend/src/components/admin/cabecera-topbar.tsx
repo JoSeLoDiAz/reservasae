@@ -46,6 +46,7 @@
  */
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
 import { FirmaConvoca } from "@/components/firma-convoca";
@@ -186,6 +187,9 @@ type Abierto = string | null;
  * los módulos-- y por eso es la fila que el cliente señaló.
  */
 export function FilaDeMarca() {
+  /// la ruta redibuja la firma al cambiar de pantalla
+  const ruta = usePathname();
+
   return (
     /// EL ALTO ESCALA CON LA PANTALLA, no salta por escalones.
     ///
@@ -214,10 +218,9 @@ export function FilaDeMarca() {
     /// LO QUE MANDABA EL ALTO ERA EL LEMA, y conviene tenerlo
     /// medido: el bloque de texto de la firma mide 37 px --17 el
     /// nombre y 20 el lema con su margen--, así que con el lema
-    /// puesto esta fila no baja de ~45 px por física. Por eso aquí
-    /// va `conFrase={false}`: el lema sigue donde se lee de verdad
-    /// --el acceso y el pie público-- y en una cabecera de trabajo
-    /// que se ve cuarenta veces al día no aportaba.
+    /// puesto esta fila no baja de ~45 px por física. El cliente
+    /// lo pidió de vuelta el 12 sep 2026, con la animación que
+    /// tenía en la barra, así que la fila sube a 52-60.
     ///
     /// Aquí se puede apretar más que en la fila de abajo porque no
     /// hay NADA que pulsar: un logo no necesita área de clic.
@@ -227,9 +230,10 @@ export function FilaDeMarca() {
     /// Accesibilidad. Si creciera, subir el texto separaría las
     /// filas el doble y la cabecera se comería el contenido. El
     /// texto crece; la caja se queda.
+    /// mas alta: vuelve el eslogan bajo el nombre.
     <div
       style={{
-        height: "clamp(40px, 2.2vw, 46px)",
+        height: "clamp(52px, 2.8vw, 60px)",
         paddingInline: "clamp(1rem, 1.4vw, 1.75rem)",
       }}
       className="flex shrink-0 items-center justify-between gap-4 border-b border-encabezado-borde bg-encabezado-fondo text-encabezado-texto"
@@ -247,7 +251,8 @@ export function FilaDeMarca() {
         href="/admin"
         className="flex min-w-0 items-center gap-2.5 no-underline"
       >
-        <FirmaConvoca tamano={26} conFrase={false} />
+        {/* con eslogan y animada, como en la barra */}
+        <FirmaConvoca key={ruta} tamano={34} animado />
       </Link>
 
       <CreditoDeAliados />
@@ -293,23 +298,37 @@ function CreditoDeAliados() {
     /// Los logos escalan con la fila: si el alto de la banda baja
     /// de 66 a 52 en un portátil, un logo fijo de 32 px se queda
     /// desproporcionado dentro de ella. El `gap` también.
+    /// En movil solo el logo del gremio.
     <div
       style={{ gap: "clamp(0.75rem, 1vw, 1.25rem)" }}
-      className="hidden shrink-0 items-center md:flex"
+      className="flex shrink-0 items-center"
     >
-      <Rotulo>Gestionado por</Rotulo>
-      <PiezaDeLogo
-        logo={gestor}
-        alFallar={setFallidas}
-        alto="clamp(20px, 1.35vw, 26px)"
-      />
-      {para.length > 0 && <Rotulo>para</Rotulo>}
+      <span className="hidden items-center md:inline-flex">
+        <Rotulo>Gestionado por</Rotulo>
+      </span>
+      {/* sin gremio --puerta general-- el gestor se queda */}
+      <span
+        className={
+          para.length > 0 ? "hidden items-center md:inline-flex" : "inline-flex"
+        }
+      >
+        <PiezaDeLogo
+          logo={gestor}
+          alFallar={setFallidas}
+          alto="clamp(20px, 1.35vw, 26px)"
+        />
+      </span>
+      {para.length > 0 && (
+        <span className="hidden items-center md:inline-flex">
+          <Rotulo>para</Rotulo>
+        </span>
+      )}
       {para.map((l) => (
         <PiezaDeLogo
           key={l.id}
           logo={l}
           alFallar={setFallidas}
-          alto="clamp(24px, 1.6vw, 32px)"
+          alto="clamp(28px, 2vw, 38px)"
         />
       ))}
     </div>
@@ -347,7 +366,7 @@ function PiezaDeLogo({
         )
       }
       style={{ height: alto }}
-      className="w-auto max-w-[9rem] shrink object-contain"
+      className="w-auto max-w-[6rem] shrink object-contain md:max-w-[9rem]"
     />
   );
 }
