@@ -2,12 +2,13 @@ import { Logger, Module, OnModuleInit } from '@nestjs/common';
 
 import { LucyController } from './lucy.controller';
 import { LucyService } from './lucy.service';
+import { OlvidadorDeConversaciones } from './olvidador';
 import { hayLlaveDeLucy } from './secreto-de-lucy';
 
 /// PrismaModule es @Global: no hay que importarlo.
 @Module({
   controllers: [LucyController],
-  providers: [LucyService],
+  providers: [LucyService, OlvidadorDeConversaciones],
 })
 export class LucyModule implements OnModuleInit {
   private readonly log = new Logger('Lucy');

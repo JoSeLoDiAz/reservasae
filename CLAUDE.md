@@ -2903,6 +2903,75 @@ siguiente paso, y ninguna cambia lo de arriba.
 
 ---
 
+## Lucy: la gestión de WhatsApp (13 sep 2026)
+
+Lucy es un chatbot de WhatsApp de un tercero (lucidbot.co). **No hace
+gestión de leads** — esos siguen entrando por Meta y ese webhook no se
+toca. Lo acordado con Mauricio, su integrador, son dos piezas y solo una
+está construida.
+
+### Lo que está hecho: `POST /api/webhooks/lucy/notas`
+
+Una etapa del flujo de Lucy resume la conversación y nos la manda.
+Nosotros la colgamos como **nota** de la persona, cruzando **por el
+teléfono**, que llega con `+57`. `backend/src/lucy/`.
+
+- **La llave NO tumba el arranque, y es deliberado.** `LUCY_WEBHOOK_SECRET`
+  en la cabecera `x-clave-lucy`. Sin ella `claveCorrecta` devuelve `false`
+  y la ruta contesta 401 a todo: **la seguridad es idéntica** a la de
+  leads, que también falla cerrado — lo que aquella añade es tumbar el
+  arranque, y eso es ruido, no seguridad. Lo que cambia es el radio de
+  daño: una llave de chatbot no puede tirar el formulario público ni, con
+  **tres sedes**, impedir que El Socorro se promueva en mitad de una caída
+  — el `.env` se pone a mano en cada máquina y allí quien levanta la
+  aplicación es `autopromover.sh`, solo y sin nadie mirando.
+- **El precio se paga con ruido, y hay que mantenerlo.** Apagada se dice a
+  gritos en `onModuleInit`, y el guard **cuenta los RECHAZOS**. Las notas
+  no tienen contador natural —nadie sabe cuántas debería haber hoy—, así
+  que el fallo se hace **más** visible cuanto más insista Lucy. Sin eso,
+  esta decisión sería la contraria.
+- **A quién se le pega: se cuentan PERSONAS, no filas.** Una persona con
+  dos fichas va en la más reciente; el error se queda dentro de la misma
+  persona. Dos personas distintas con el mismo número **no se eligen**:
+  meter el resumen de un chat en el expediente de un extraño no se
+  deshace, porque las notas no se borran. Por eso **no** se reusa el
+  desempate de `elegirFicha`: allí elegir mal deja una propuesta que un
+  asesor revisa; aquí elegir mal escribe historia.
+- **Lo que no se puede pegar NO se descarta:** queda en
+  `conversaciones_entrantes`. Un 200 sin fila no es verificable el día que
+  ellos digan «yo les mandé esa conversación»; el número sin dueño de hoy
+  es el dueño de mañana; y sin la fila no hay forma de medir qué
+  porcentaje no toca a nadie, que es el número que dice si la puerta
+  sirve.
+- **La nota va SIN resultado.** `gestionDe()` cuenta los intentos con
+  `resultado: { not: null }`: marcar `CONTACTO` vaciaría sola la lista de
+  a quién insistirle hoy, que es el producto. La regla ya estaba escrita
+  — «las notas del sistema no son intentos».
+- **60 días para las que no son de nadie** (decisión del cliente, 13 sep
+  2026). Solo `SIN_DUENO`: una `PEGADA` sostiene la idempotencia y su
+  texto ya vive en la nota; una `AMBIGUA` **sí** es de alguien, y
+  caducarla tira la conversación de una persona que está en el CRM.
+- El techo son 300/min por IP real, comprobado con 220 llamadas seguidas:
+  220 en 200, ni un 429. Mauricio pidió 200.
+
+### Lo que falta: disparar plantillas
+
+Ellos darán una API para que **desde el CRM** se mande un WhatsApp. Y hay
+un límite que no es de ellos sino de Meta: para escribir primero a quien
+no ha escrito en 24 h **hay que usar plantilla aprobada**. Textual de la
+llamada: «solo disparadores de plantillas, no conversación; las
+conversaciones las manejamos con Lucy».
+
+Encaja en la máquina de campañas —mismo segmento, misma lista congelada,
+mismo ritmo y horario, mismo candado de autorización— como **otro canal**,
+no como un segundo motor. Y `vigia-de-cupos.ts` ya deja el aviso escrito
+con un comentario que dice «hoy no hay correo ni WhatsApp montados»: ese
+es el enganche.
+
+**Falta preguntarle a Mauricio** qué plantillas va a registrar y qué
+variables lleva cada una. De eso depende qué se ve en la pantalla del
+envío masivo.
+
 ## El correo (26 ago 2026)
 
 Sale por **SMTP de Google Workspace** con el buzón
