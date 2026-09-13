@@ -107,6 +107,11 @@ export default function Tablero() {
   /// mirando —y esta pantalla se proyecta en reunión—.
   const atenuado = vivos.refrescando ? "opacity-45 pointer-events-none" : "";
 
+  /// Libres contra lo COMPROMETIDO, no contra lo reservado:
+  /// una silla apartada sigue libre hasta que hay alguien
+  /// inscrito encima. En negativo, esta sobre ejecutado.
+  const libres = resumen.cupos - resumen.inscritos;
+
   return (
     <div className="resumen-impreso flex flex-col gap-3 px-4 pt-3 pb-6">
       <EncabezadoImpresion
@@ -188,8 +193,13 @@ export default function Tablero() {
           <TarjetaCifra
             compacta
             etiqueta="Cupos libres"
-            valor={n(resumen.disponibles)}
-            tono="neutro"
+            valor={libres > 0 ? n(libres) : "0"}
+            pie={
+              libres > 0
+                ? `de ${n(resumen.cupos)} ofertados`
+                : `sobre ejecutado en ${n(-libres)}`
+            }
+            tono={libres > 0 ? "neutro" : "aviso"}
           />
           <TarjetaCifra
             compacta
