@@ -663,9 +663,10 @@ export async function controlDeInscritos(
 
     prisma.$queryRaw<Array<{ etiqueta: string; total: bigint }>>`
       ${CON_ANCLA}
-      SELECT o."modalidad"::text AS etiqueta, COUNT(*) AS total
+      SELECT a."modalidad"::text AS etiqueta, COUNT(*) AS total
         FROM "participantes" p
         JOIN "ofertas" o ON o."id" = p."ofertaId"
+        JOIN "acciones_formacion" a ON a."id" = o."accionFormacionId"
         ${UNIR_ANCLA}
        WHERE ${inscritos}
        GROUP BY 1 ORDER BY COUNT(*) DESC

@@ -260,7 +260,7 @@ export default function DetalleDeAccion({ params }: { params: Promise<{ id: stri
           pie={`de ${n(datos.metaBase)} beneficiarios · ${datos.avanceMeta.toLocaleString("es-CO", { maximumFractionDigits: 1 })} %`}
         />
         <Cifra
-          etiqueta="Cupos libres"
+          etiqueta="Cupos sin reservar"
           valor={datos.disponibles}
           pie={`de ${n(datos.cupos)} del tope · ${datos.avance.toLocaleString("es-CO", { maximumFractionDigits: 1 })} % ocupado`}
         />

@@ -856,6 +856,62 @@ export class TablerosService {
     }));
   }
 
+  /// Personas que ENTRAN a ocupar silla, por dia.
+  ///
+  /// Hermana de `netoPorDia`, pero sobre fichas y no sobre
+  /// reservas: la meta se cumple con gente formada, no con
+  /// sillas apartadas. Suma al entrar a OCUPAN_SILLA y resta
+  /// al salir, asi que un retiro devuelve la silla igual que
+  /// una cancelacion devuelve el cupo.
+  private async netoDeCompromisosPorDia(
+    ambito: string[],
+    dias: number,
+    accionId?: string,
+  ): Promise<PuntoNeto[]> {
+    if (ambito.length === 0) return [];
+
+    const condicionAccion = accionId
+      ? Prisma.sql`AND p."accionFormacionId" = ${accionId}`
+      : Prisma.empty;
+    const ocupan = Prisma.join(OCUPAN_SILLA);
+
+    const filas = await this.prisma.$queryRaw<Array<{ dia: string; neto: bigint }>>`
+      SELECT ${diaBogota(Prisma.sql`m."creadoEn"`)} AS dia,
+             COALESCE(SUM(
+               CASE
+                 WHEN m."etapaDespues"::text IN (${ocupan})
+                  AND (m."etapaAntes" IS NULL
+                       OR m."etapaAntes"::text NOT IN (${ocupan})) THEN 1
+                 WHEN m."etapaAntes"::text IN (${ocupan})
+                  AND m."etapaDespues"::text NOT IN (${ocupan}) THEN -1
+                 ELSE 0
+               END
+             ), 0) AS neto
+        FROM "movimientos_participante" m
+        JOIN "participantes" p ON p.id = m."participanteId"
+       WHERE m."creadoEn" >= NOW() - (${dias} || ' days')::interval
+         AND p."convenioId" IN (${Prisma.join(ambito)})
+         ${condicionAccion}
+       GROUP BY 1
+       ORDER BY 1`;
+
+    return filas.map((f) => ({ dia: f.dia, neto: Number(f.neto) }));
+  }
+
+  /** Dias de historia de movimientos de ficha. */
+  private async diasDeHistoriaDeFichas(ambito: string[]): Promise<number> {
+    const primero = await this.prisma.movimientoParticipante.findFirst({
+      where: { participante: deConvenio(ambito) },
+      orderBy: { creadoEn: 'asc' },
+      select: { creadoEn: true },
+    });
+    if (!primero) return 0;
+    return Math.max(
+      1,
+      Math.ceil((Date.now() - primero.creadoEn.getTime()) / (24 * 60 * 60 * 1000)),
+    );
+  }
+
   private async serieNeta(ambito: string[], dias: number, accionId?: string) {
     const movimientos = await this.netoPorDia(ambito, dias, accionId);
     if (movimientos.length) {
@@ -886,16 +942,22 @@ export class TablerosService {
   /** Ritmo global y por acción, con fecha estimada. */
   async proyeccion(ambito: string[], dias = 14) {
     const hoy = new Date();
-    const [{ serie, origen }, historia, base, ofertas, acciones] = await Promise.all([
-      this.serieNeta(ambito, dias),
-      this.diasDeHistoria(ambito),
+    const [serie, historia, base, comprometidos, porAccion, acciones] = await Promise.all([
+      /// Contra COMPROMISOS y no contra reservas: si no, el
+      /// panel dice «no alcanza» al lado de «sobre ejecutado».
+      this.netoDeCompromisosPorDia(ambito, dias),
+      this.diasDeHistoriaDeFichas(ambito),
       this.prisma.grupoCobertura.aggregate({
         where: coberturaDeConvenio(ambito),
         _sum: { cuposBase: true },
       }),
-      this.prisma.oferta.aggregate({
-        where: ofertaDeConvenio(ambito),
-        _sum: { cuposOcupados: true },
+      this.prisma.participante.count({
+        where: { ...deConvenio(ambito), etapa: { in: OCUPAN_SILLA } },
+      }),
+      this.prisma.participante.groupBy({
+        by: ['accionFormacionId'],
+        where: { ...deConvenio(ambito), etapa: { in: OCUPAN_SILLA } },
+        _count: { _all: true },
       }),
       this.prisma.accionFormacion.findMany({
         where: deConvenio(ambito),
@@ -912,23 +974,27 @@ export class TablerosService {
       }),
     ]);
 
+    const comprometidosDe = new Map(
+      porAccion.map((f) => [f.accionFormacionId ?? '', f._count._all]),
+    );
+
     const total = calcularProyeccion({
       serie,
-      ocupados: ofertas._sum.cuposOcupados ?? 0,
+      ocupados: comprometidos,
       meta: base._sum.cuposBase ?? 0,
       dias,
       hoy,
-      origen,
+      origen: 'MOVIMIENTOS',
       diasDeHistoria: historia,
       // el plazo del cronograma: el ultimo grupo que cierra
       cierre: cierreDeLaAccion(acciones.flatMap((a) => a.grupos.map((g) => g.fechaInicio))),
     });
 
     // la serie de cada acción
-    const porAccion = await Promise.all(
+    const series = await Promise.all(
       acciones.map(async (accion) => {
-        const suyo = await this.serieNeta(ambito, dias, accion.id);
-        const ocupados = accion.ofertas.reduce((s, o) => s + o.cuposOcupados, 0);
+        const suyo = await this.netoDeCompromisosPorDia(ambito, dias, accion.id);
+        const ocupados = comprometidosDe.get(accion.id) ?? 0;
         const meta = accion.grupos.reduce(
           (s, g) => s + g.coberturas.reduce((t, c) => t + c.cuposBase, 0),
           0,
@@ -940,12 +1006,12 @@ export class TablerosService {
           publicada: accion.visible,
           convenio: accion.convenio.sigla ?? accion.convenio.slug,
           ...calcularProyeccion({
-            serie: suyo.serie,
+            serie: suyo,
             ocupados,
             meta,
             dias,
             hoy,
-            origen: suyo.origen,
+            origen: 'MOVIMIENTOS',
             diasDeHistoria: historia,
             cierre: cierreDeLaAccion(accion.grupos.map((g) => g.fechaInicio)),
           }),
@@ -957,7 +1023,7 @@ export class TablerosService {
       dias,
       total,
       // las más lentas primero
-      acciones: porAccion.sort((a, b) => a.ritmoDiario - b.ritmoDiario),
+      acciones: series.sort((a, b) => a.ritmoDiario - b.ritmoDiario),
     };
   }
 

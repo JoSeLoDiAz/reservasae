@@ -193,13 +193,13 @@ export default function Tablero() {
           <TarjetaCifra
             compacta
             etiqueta="Cupos libres"
-            valor={libres > 0 ? n(libres) : "0"}
+            valor={libres >= 0 ? n(libres) : "0"}
             pie={
-              libres > 0
-                ? `de ${n(resumen.cupos)} ofertados`
+              libres >= 0
+                ? `de ${n(resumen.cupos)} · sin nombre encima`
                 : `sobre ejecutado en ${n(-libres)}`
             }
-            tono={libres > 0 ? "neutro" : "aviso"}
+            tono={libres >= 0 ? "neutro" : "aviso"}
           />
           <TarjetaCifra
             compacta
