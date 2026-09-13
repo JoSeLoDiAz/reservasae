@@ -489,6 +489,8 @@ export type GrupoCronograma = {
   dias: string | null;
   horaInicio: string | null;
   horaFin: string | null;
+  /// El dia del encuentro en vivo, dentro del grupo.
+  sesionDia: string | null;
   /// La frase ya armada por el servidor. Solo para pintar.
   horario: string | null;
   sepGrupoId: number | null;
@@ -538,6 +540,7 @@ export const cronogramaApi = {
       dias?: string;
       horaInicio?: string | null;
       horaFin?: string | null;
+      sesionDia?: string | null;
       sepGrupoId?: number | null;
     },
   ) =>

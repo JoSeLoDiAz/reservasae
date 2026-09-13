@@ -56,6 +56,16 @@ const TONO: Record<EstadoGrupo, "marca" | "exito" | "aviso" | "error" | "neutro"
 
 const fecha = (f: string | null) => fechaDeCalendario(f);
 
+/// Las horas de la sesion. La frase entera la arma el servidor
+/// --`fraseDeHorario`--; aqui hace falta solo el tramo, porque
+/// los dias ya van arriba con las fechas del grupo.
+const tramoDeHoras = (g: { horaInicio: string | null; horaFin: string | null }) =>
+  g.horaInicio && g.horaFin
+    ? `de ${g.horaInicio} a ${g.horaFin}`
+    : g.horaInicio
+      ? `desde las ${g.horaInicio}`
+      : "";
+
 /// Para el <input type="date">, que quiere aaaa-mm-dd.
 const paraCampo = (f: string | null) => (f ? f.slice(0, 10) : "");
 
@@ -201,10 +211,9 @@ export function CronogramaVista() {
       <div className="flex flex-col gap-3 px-4 pt-4 pb-2">
         <div className="no-imprimir">
           <p className="mt-0.5 text-[0.78125rem] text-texto-suave">
-            Aquí se ponen las sesiones sincrónicas de cada grupo: de cuándo a cuándo
-            va, y en qué días y horas se reúne. Un grupo sin fechas no se puede
-            matricular, y de sus participantes no se puede saber si van al día. Las
-            horas no bloquean nada.
+            Aquí se ponen las fechas de cada grupo: cuándo empieza, cuándo termina y
+            qué día cae su sesión sincrónica. Un grupo sin fechas no se puede
+            matricular, y de sus participantes no se puede saber si van al día.
           </p>
         </div>
 
@@ -222,7 +231,7 @@ export function CronogramaVista() {
         <Cifra
           etiqueta="Grupos"
           valor={gruposVisibles.length}
-          pie={deTotal(grupos.length) ?? "con sus fechas y sus horas"}
+          pie={deTotal(grupos.length) ?? "con su fecha y su sesión"}
         />
         <Cifra
           etiqueta="En curso"
@@ -400,7 +409,7 @@ export function CronogramaVista() {
                     <th>Estado</th>
                     <th>Inicio</th>
                     <th>Fin</th>
-                    <th>Sesiones</th>
+                    <th>Sesión sincrónica</th>
                     <th>Sedes</th>
                     <th>Inscritos</th>
                   </tr>
@@ -412,7 +421,10 @@ export function CronogramaVista() {
                       <td>{ETIQUETA_ESTADO_GRUPO[g.estado]}</td>
                       <td className="tabular-nums">{fecha(g.fechaInicio)}</td>
                       <td className="tabular-nums">{fecha(g.fechaFin)}</td>
-                      <td>{g.horario ?? "—"}</td>
+                      <td>
+                        {g.sesionDia ? fecha(g.sesionDia) : "—"}
+                        {tramoDeHoras(g) && `, ${tramoDeHoras(g)}`}
+                      </td>
                       <td className="envuelve">
                         {g.ubicaciones.map((u) => bonito(u.nombre)).join(", ") || "—"}
                       </td>
@@ -605,6 +617,7 @@ function Grupo({
   const [dias, setDias] = useState(grupo.dias ?? "");
   const [horaInicio, setHoraInicio] = useState(grupo.horaInicio ?? "");
   const [horaFin, setHoraFin] = useState(grupo.horaFin ?? "");
+  const [sesionDia, setSesionDia] = useState(paraCampo(grupo.sesionDia));
   const [guardando, setGuardando] = useState(false);
   const [editandoCupos, setEditandoCupos] = useState(false);
 
@@ -617,6 +630,7 @@ function Grupo({
         dias,
         horaInicio: horaInicio || null,
         horaFin: horaFin || null,
+        sesionDia: sesionDia || null,
       });
       await alGuardar();
       setEditando(false);
@@ -648,14 +662,16 @@ function Grupo({
         </span>
       </div>
 
-      {/* El rotulo lo pidio el cliente, y con el las horas
-          dejan de ser texto libre pegado a la fecha. */}
-      <p className="mt-1.5 text-[0.6875rem] font-semibold tracking-[0.08em] text-texto-suave uppercase">
-        Sesiones sincrónicas
-      </p>
-      <p className="text-[0.78125rem] text-texto-suave">
+      <p className="mt-1.5 text-[0.78125rem] text-texto-suave">
         {fecha(grupo.fechaInicio)} → {fecha(grupo.fechaFin)}
-        {grupo.horario && ` · ${grupo.horario}`}
+        {grupo.dias && ` · ${grupo.dias}`}
+      </p>
+
+      {/* El encuentro en vivo, dentro de esas fechas. */}
+      <p className="mt-1 text-[0.78125rem] text-texto-suave">
+        <span className="font-semibold text-titulo">Sesión sincrónica:</span>{" "}
+        {grupo.sesionDia ? fecha(grupo.sesionDia) : "sin día"}
+        {tramoDeHoras(grupo) && `, ${tramoDeHoras(grupo)}`}
       </p>
 
       {/* dónde se dictará y con cuántos cupos */}
@@ -675,7 +691,7 @@ function Grupo({
             onClick={() => setEditando(!editando)}
             className="sin-aro text-[0.78125rem] font-semibold text-marca underline-offset-2 transition hover:underline"
           >
-            {editando ? "Cerrar" : "Editar sesiones"}
+            {editando ? "Cerrar" : "Editar fechas"}
           </button>
           <button
             onClick={() => setEditandoCupos(!editandoCupos)}
@@ -709,13 +725,6 @@ function Grupo({
 
       {editando && (
         <div className="mt-4 border-t border-borde pt-4">
-          <p className="text-[0.8125rem] font-semibold text-titulo">
-            Sesiones sincrónicas
-          </p>
-          <p className="mt-0.5 mb-3 text-xs text-texto-suave">
-            De cuándo a cuándo va el grupo, y en qué días y horas se reúne.
-          </p>
-
           <div className="grid gap-3 sm:grid-cols-3">
             <label className="block">
               <span className="mb-1 block text-xs font-medium">Empieza</span>
@@ -744,35 +753,62 @@ function Grupo({
                 className={CLASE_CONTROL}
               />
             </label>
-            <label className="block">
-              <span className="mb-1 block text-xs font-medium">Hora de inicio</span>
-              <input
-                type="time"
-                value={horaInicio}
-                onChange={(e) => setHoraInicio(e.target.value)}
-                className={CLASE_CONTROL}
-              />
-            </label>
-            <label className="block">
-              <span className="mb-1 block text-xs font-medium">Hora de fin</span>
-              <input
-                type="time"
-                value={horaFin}
-                onChange={(e) => setHoraFin(e.target.value)}
-                className={CLASE_CONTROL}
-              />
-            </label>
+          </div>
 
-            <div className="sm:col-span-3">
-              <Boton type="button" onClick={guardar} disabled={guardando}>
-                {guardando ? "Guardando…" : "Guardar"}
-              </Boton>
-              <p className="mt-2 text-xs text-texto-suave">
-                Cambiar estas fechas mueve el «va al día» de todo el grupo en el
-                seguimiento académico. Las horas no bloquean nada: salen en el
-                cronograma y en el seguimiento.
-              </p>
+          {/* El encuentro en vivo va DENTRO de esas fechas, asi
+              que se edita debajo y no al lado: el orden de la
+              pantalla dice de que depende que. */}
+          <div className="mt-4 border-t border-borde pt-3">
+            <p className="text-[0.8125rem] font-semibold text-titulo">
+              Sesión sincrónica
+            </p>
+            <p className="mt-0.5 mb-3 text-xs text-texto-suave">
+              El encuentro en vivo del grupo. Su día tiene que caer dentro de las
+              fechas de arriba.
+            </p>
+
+            <div className="grid gap-3 sm:grid-cols-3">
+              <label className="block">
+                <span className="mb-1 block text-xs font-medium">Día</span>
+                <input
+                  type="date"
+                  value={sesionDia}
+                  min={inicio || undefined}
+                  max={fin || undefined}
+                  onChange={(e) => setSesionDia(e.target.value)}
+                  className={CLASE_CONTROL}
+                />
+              </label>
+              <label className="block">
+                <span className="mb-1 block text-xs font-medium">Hora de inicio</span>
+                <input
+                  type="time"
+                  value={horaInicio}
+                  onChange={(e) => setHoraInicio(e.target.value)}
+                  className={CLASE_CONTROL}
+                />
+              </label>
+              <label className="block">
+                <span className="mb-1 block text-xs font-medium">Hora de fin</span>
+                <input
+                  type="time"
+                  value={horaFin}
+                  onChange={(e) => setHoraFin(e.target.value)}
+                  className={CLASE_CONTROL}
+                />
+              </label>
             </div>
+          </div>
+
+          <div className="mt-4">
+            <Boton type="button" onClick={guardar} disabled={guardando}>
+              {guardando ? "Guardando…" : "Guardar"}
+            </Boton>
+            <p className="mt-2 text-xs text-texto-suave">
+              Cambiar estas fechas mueve el «va al día» de todo el grupo en el
+              seguimiento académico. La sesión no bloquea nada: sale en el
+              cronograma y en el seguimiento.
+            </p>
           </div>
         </div>
       )}

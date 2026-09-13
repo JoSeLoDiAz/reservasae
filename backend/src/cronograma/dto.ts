@@ -49,6 +49,13 @@ export class ActualizarGrupoDto {
   @Matches(HORA, { message: 'La hora de fin va como HH:MM, de 00:00 a 23:59.' })
   horaFin?: string | null;
 
+  /// El dia del encuentro en vivo. Dentro del grupo.
+  @IsOptional()
+  @Transform(aNuloOTexto)
+  @ValidateIf((_o: unknown, v: unknown) => v !== null)
+  @IsISO8601()
+  sesionDia?: string | null;
+
   // el que le asigna el SENA, para el reporte
   @IsOptional()
   @Transform(({ value }) => (value === '' || value === null ? null : Number(value)))

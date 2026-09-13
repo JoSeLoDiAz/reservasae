@@ -57,6 +57,7 @@ export class CronogramaService {
             dias: true,
             horaInicio: true,
             horaFin: true,
+            sesionDia: true,
             sepGrupoId: true,
             sede: { select: { nombre: true } },
             coberturas: {
@@ -91,6 +92,7 @@ export class CronogramaService {
           dias: g.dias,
           horaInicio: g.horaInicio,
           horaFin: g.horaFin,
+          sesionDia: g.sesionDia,
           /// La frase, para quien solo la pinta.
           horario: fraseDeHorario(g),
           sepGrupoId: g.sepGrupoId,
@@ -138,6 +140,7 @@ export class CronogramaService {
         fechaFin: true,
         horaInicio: true,
         horaFin: true,
+        sesionDia: true,
       },
     });
     if (!grupo) throw new NotFoundException('Ese grupo no existe.');
@@ -190,11 +193,33 @@ export class CronogramaService {
       );
     }
 
+    // el encuentro en vivo cae DENTRO del grupo. Se
+    // juzga con las fechas que quedaran al terminar, no
+    // con las que habia: mover el rango tambien lo saca
+    const sesion =
+      dto.sesionDia === null
+        ? null
+        : dto.sesionDia
+          ? new Date(dto.sesionDia)
+          : grupo.sesionDia;
+
+    if (sesion && !inicio) {
+      throw new BadRequestException(
+        'Ponga primero las fechas del grupo: la sesión va dentro de ellas.',
+      );
+    }
+    if (sesion && inicio && (sesion < inicio || (fin && sesion > fin))) {
+      throw new BadRequestException(
+        'El día de la sesión tiene que caer dentro de las fechas del grupo.',
+      );
+    }
+
     await this.prisma.grupo.update({
       where: { id },
       data: {
         fechaInicio: inicio,
         fechaFin: fin,
+        sesionDia: sesion,
         dias: dto.dias === undefined ? undefined : dto.dias || null,
         horaInicio: dto.horaInicio === undefined ? undefined : horaInicio,
         horaFin: dto.horaFin === undefined ? undefined : horaFin,

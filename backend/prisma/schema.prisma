@@ -144,6 +144,9 @@ model Grupo {
   horaInicio String?
   horaFin    String?
 
+  /// el dia del encuentro en vivo, dentro del grupo
+  sesionDia DateTime?
+
   creadoEn      DateTime @default(now())
   actualizadoEn DateTime @updatedAt
 
