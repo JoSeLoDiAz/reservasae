@@ -275,7 +275,7 @@ export default function DetalleDeAccion({ params }: { params: Promise<{ id: stri
           }
         />
         <Cifra
-          etiqueta="Ritmo"
+          etiqueta="Ritmo (14 días)"
           valor={dec(datos.proyeccion.ritmoDiario)}
           pie={`cupos al día · faltan ${n(datos.proyeccion.faltan)} para la meta`}
         />
@@ -450,7 +450,7 @@ export default function DetalleDeAccion({ params }: { params: Promise<{ id: stri
                 <span className="font-semibold text-titulo tabular-nums">
                   {mediaSerie.toLocaleString("es-CO", { maximumFractionDigits: 1 })}
                 </span>{" "}
-                cupos al día de media
+                cupos al día de media en lo dibujado
                 <span className="text-texto-suave"> (la línea de puntos)</span>
               </p>
               <p>
