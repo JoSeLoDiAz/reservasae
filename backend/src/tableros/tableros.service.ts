@@ -132,7 +132,13 @@ export class TablerosService {
         include: {
           ubicacion: true,
           accionFormacion: {
-            select: { codigo: true, nombre: true, convenioId: true, visible: true },
+            select: {
+              codigo: true,
+              nombre: true,
+              convenioId: true,
+              visible: true,
+              modalidad: true,
+            },
           },
         },
       }),
@@ -170,14 +176,15 @@ export class TablerosService {
       territorio.set(clave, fila);
     }
 
-    // modalidad
+    // modalidad, la de la ACCION: la celda nunca es hibrida
     const modalidad = new Map<string, { cupos: number; ocupados: number; ofertas: number }>();
     for (const o of ofertas) {
-      const fila = modalidad.get(o.modalidad) ?? { cupos: 0, ocupados: 0, ofertas: 0 };
+      const cual = o.accionFormacion.modalidad;
+      const fila = modalidad.get(cual) ?? { cupos: 0, ocupados: 0, ofertas: 0 };
       fila.cupos += o.cuposMaximos;
       fila.ocupados += o.cuposOcupados;
       fila.ofertas += 1;
-      modalidad.set(o.modalidad, fila);
+      modalidad.set(cual, fila);
     }
 
     // gremio y tamaño

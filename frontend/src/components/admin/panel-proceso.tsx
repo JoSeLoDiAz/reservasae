@@ -665,7 +665,7 @@ export function PanelProceso({
               />
             </Bloque>
           )}
-          <Bloque titulo="Por modalidad" descripcion="Presencial frente a virtual.">
+          <Bloque titulo="Por modalidad" descripcion="Virtual, presencial e híbrida.">
             <Donut datos={donutModalidad} detalleCentro="personas" vacio="Sin modalidad registrada." />
           </Bloque>
         </div>

@@ -181,7 +181,7 @@ export default function Tablero() {
         <div className="imprimible-bloque imprimible-cifras grid gap-px overflow-hidden rounded-lg border border-borde bg-hairline sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
           <TarjetaCifra
             compacta
-            etiqueta="Cupos con dueño"
+            etiqueta="Cupos con reserva"
             valor={n(resumen.ocupados)}
             pie={`de ${n(resumen.cupos)} ofertados`}
           />
@@ -266,7 +266,7 @@ function Territorio({ analisis }: { analisis: Analisis }) {
     }));
 
   return (
-    <Bloque partible titulo="Territorio" descripcion="Dónde están los cupos con dueño.">
+    <Bloque partible titulo="Territorio" descripcion="Dónde están los cupos con reserva.">
       <div className="grid gap-6 lg:grid-cols-2">
         <Bloque plano titulo="En el mapa" descripcion="Por departamento">
           <div className="mapa-en-papel">

@@ -55,7 +55,7 @@ import type {
 const MODALIDAD: Record<string, string> = {
   PRESENCIAL: "Presencial",
   VIRTUAL: "Virtual",
-  HIBRIDA: "Híbrido",
+  HIBRIDA: "Híbrida",
 };
 
 const FECHA_LARGA = new Intl.DateTimeFormat("es-CO", {
