@@ -374,7 +374,12 @@ function veredicto(p: Proyeccion): Veredicto {
   if (p.estado === "CUMPLIDA") {
     return {
       titulo: "Meta cumplida",
-      cuerpo: <>Los {n(p.meta)} cupos comprometidos están reservados.</>,
+      cuerpo: (
+        <>
+          Los {n(p.meta)} cupos comprometidos ya tienen a alguien inscrito
+          encima.
+        </>
+      ),
       color: "text-exito",
       fondo: "bg-exito-suave",
       flecha: "sube",
