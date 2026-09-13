@@ -584,7 +584,6 @@ export class TablerosService {
         modalidad: g.modalidad,
         sede: g.sede?.nombre ?? null,
         fechaInicio: g.fechaInicio,
-        horario: g.horario,
         cuposBase: g.coberturas.reduce((s, c) => s + c.cuposBase, 0),
         cuposMaximos: g.coberturas.reduce((s, c) => s + c.cuposMaximos, 0),
         coberturas: g.coberturas.map((c) => ({

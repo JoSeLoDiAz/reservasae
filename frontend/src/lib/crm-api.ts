@@ -407,7 +407,6 @@ export type Ficha = {
       numero: number;
       fechaInicio: string | null;
       fechaFin: string | null;
-      horario: string | null;
     };
   } | null;
   reserva: { id: string; empresa: { nit: string; razonSocial: string } } | null;
@@ -954,7 +953,6 @@ export type OpcionGrupo = {
   caben: number;
   fechaInicio: string | null;
   fechaFin: string | null;
-  horario: string | null;
 };
 
 export type Asesor = { id: string; nombre: string; correo: string };

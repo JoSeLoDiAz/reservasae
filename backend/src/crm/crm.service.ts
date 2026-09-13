@@ -67,6 +67,7 @@ import {
   TAMANOS_EMPRESA_SEP,
 } from './catalogos-sep';
 import { OCUPAN_SILLA, RETIENEN_ASIENTO } from './etapas';
+import { fraseDeHorario } from '../comun/horario-de-grupo';
 import { PrismaService } from '../prisma/prisma.service';
 import {
   ActualizarParticipanteDto,
@@ -788,7 +789,6 @@ export class CrmService {
                 numero: true,
                 fechaInicio: true,
                 fechaFin: true,
-                horario: true,
               },
             },
           },
@@ -3274,7 +3274,9 @@ export class CrmService {
                 numero: true,
                 fechaInicio: true,
                 fechaFin: true,
-                horario: true,
+                dias: true,
+                horaInicio: true,
+                horaFin: true,
               },
             },
           },
@@ -3377,7 +3379,7 @@ export class CrmService {
         grupo: grupo ? grupo.numero : null,
         fechaInicio: grupo?.fechaInicio ?? null,
         fechaFin: grupo?.fechaFin ?? null,
-        horario: grupo?.horario ?? null,
+        horario: grupo ? fraseDeHorario(grupo) : null,
         asesor: p.asesor,
         total,
         hechas,
@@ -3570,7 +3572,6 @@ export class CrmService {
             numero: true,
             fechaInicio: true,
             fechaFin: true,
-            horario: true,
             accionFormacionId: true,
           },
         },
@@ -3723,7 +3724,6 @@ export class CrmService {
         ),
         fechaInicio: g.grupo.fechaInicio,
         fechaFin: g.grupo.fechaFin,
-        horario: g.grupo.horario,
       })),
     };
   }

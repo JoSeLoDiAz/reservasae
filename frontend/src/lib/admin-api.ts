@@ -486,6 +486,10 @@ export type GrupoCronograma = {
   modalidad: string;
   fechaInicio: string | null;
   fechaFin: string | null;
+  dias: string | null;
+  horaInicio: string | null;
+  horaFin: string | null;
+  /// La frase ya armada por el servidor. Solo para pintar.
   horario: string | null;
   sepGrupoId: number | null;
   sede: string | null;
@@ -531,7 +535,9 @@ export const cronogramaApi = {
     datos: {
       fechaInicio?: string | null;
       fechaFin?: string | null;
-      horario?: string;
+      dias?: string;
+      horaInicio?: string | null;
+      horaFin?: string | null;
       sepGrupoId?: number | null;
     },
   ) =>

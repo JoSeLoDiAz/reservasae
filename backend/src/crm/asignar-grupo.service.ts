@@ -27,6 +27,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 
+import { fraseDeHorario } from '../comun/horario-de-grupo';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditoriaService, ENTIDADES } from '../comun/auditoria.service';
 import { OCUPAN_SILLA, RETIENEN_ASIENTO } from './etapas';
@@ -111,7 +112,9 @@ export class AsignarGrupo {
           select: {
             numero: true,
             fechaInicio: true,
-            horario: true,
+            dias: true,
+            horaInicio: true,
+            horaFin: true,
             accionFormacionId: true,
           },
         },
@@ -162,7 +165,7 @@ export class AsignarGrupo {
             coberturaId: c.id,
             numero: c.grupo.numero,
             fechaInicio: c.grupo.fechaInicio,
-            horario: c.grupo.horario,
+            horario: fraseDeHorario(c.grupo),
             /// El TOPE, con el 30 % de sobrecupo ya dentro. Enseñar
             /// `cuposBase` haría que la pantalla midiera con una
             /// columna y el candado con otra.

@@ -399,7 +399,7 @@ export function CronogramaVista() {
                     <th>Estado</th>
                     <th>Inicio</th>
                     <th>Fin</th>
-                    <th>Horario</th>
+                    <th>Sesiones</th>
                     <th>Sedes</th>
                     <th>Inscritos</th>
                   </tr>
@@ -601,7 +601,9 @@ function Grupo({
   const [editando, setEditando] = useState(false);
   const [inicio, setInicio] = useState(paraCampo(grupo.fechaInicio));
   const [fin, setFin] = useState(paraCampo(grupo.fechaFin));
-  const [horario, setHorario] = useState(grupo.horario ?? "");
+  const [dias, setDias] = useState(grupo.dias ?? "");
+  const [horaInicio, setHoraInicio] = useState(grupo.horaInicio ?? "");
+  const [horaFin, setHoraFin] = useState(grupo.horaFin ?? "");
   const [guardando, setGuardando] = useState(false);
   const [editandoCupos, setEditandoCupos] = useState(false);
 
@@ -611,7 +613,9 @@ function Grupo({
       await cronogramaApi.actualizarGrupo(grupo.id, {
         fechaInicio: inicio || null,
         fechaFin: fin || null,
-        horario,
+        dias,
+        horaInicio: horaInicio || null,
+        horaFin: horaFin || null,
       });
       await alGuardar();
       setEditando(false);
@@ -643,7 +647,12 @@ function Grupo({
         </span>
       </div>
 
-      <p className="mt-1.5 text-[0.78125rem] text-texto-suave">
+      {/* El rotulo lo pidio el cliente, y con el las horas
+          dejan de ser texto libre pegado a la fecha. */}
+      <p className="mt-1.5 text-[0.6875rem] font-semibold tracking-[0.08em] text-texto-suave uppercase">
+        Sesiones sincrónicas
+      </p>
+      <p className="text-[0.78125rem] text-texto-suave">
         {fecha(grupo.fechaInicio)} → {fecha(grupo.fechaFin)}
         {grupo.horario && ` · ${grupo.horario}`}
       </p>
@@ -665,7 +674,7 @@ function Grupo({
             onClick={() => setEditando(!editando)}
             className="sin-aro text-[0.78125rem] font-semibold text-marca underline-offset-2 transition hover:underline"
           >
-            {editando ? "Cerrar" : "Editar fechas"}
+            {editando ? "Cerrar" : "Editar sesiones"}
           </button>
           <button
             onClick={() => setEditandoCupos(!editandoCupos)}
@@ -698,43 +707,71 @@ function Grupo({
       )}
 
       {editando && (
-        <div className="mt-4 grid gap-3 border-t border-borde pt-4 sm:grid-cols-3">
-          <label className="block">
-            <span className="mb-1 block text-xs font-medium">Empieza</span>
-            <input
-              type="date"
-              value={inicio}
-              onChange={(e) => setInicio(e.target.value)}
-              className={CLASE_CONTROL}
-            />
-          </label>
-          <label className="block">
-            <span className="mb-1 block text-xs font-medium">Termina</span>
-            <input
-              type="date"
-              value={fin}
-              onChange={(e) => setFin(e.target.value)}
-              className={CLASE_CONTROL}
-            />
-          </label>
-          <label className="block">
-            <span className="mb-1 block text-xs font-medium">Horario</span>
-            <input
-              value={horario}
-              onChange={(e) => setHorario(e.target.value)}
-              placeholder="Lunes a viernes, 2 a 5 p. m."
-              className={CLASE_CONTROL}
-            />
-          </label>
+        <div className="mt-4 border-t border-borde pt-4">
+          <p className="text-[0.8125rem] font-semibold text-titulo">
+            Sesiones sincrónicas
+          </p>
+          <p className="mt-0.5 mb-3 text-xs text-texto-suave">
+            De cuándo a cuándo va el grupo, y en qué días y horas se reúne.
+          </p>
 
-          <div className="sm:col-span-3">
-            <Boton type="button" onClick={guardar} disabled={guardando}>
-              {guardando ? "Guardando…" : "Guardar fechas"}
-            </Boton>
-            <p className="mt-2 text-xs text-texto-suave">
-              Cambiar estas fechas mueve el «va al día» de todo el grupo en el
-              seguimiento académico.
-            </p>
+          <div className="grid gap-3 sm:grid-cols-3">
+            <label className="block">
+              <span className="mb-1 block text-xs font-medium">Empieza</span>
+              <input
+                type="date"
+                value={inicio}
+                onChange={(e) => setInicio(e.target.value)}
+                className={CLASE_CONTROL}
+              />
+            </label>
+            <label className="block">
+              <span className="mb-1 block text-xs font-medium">Termina</span>
+              <input
+                type="date"
+                value={fin}
+                onChange={(e) => setFin(e.target.value)}
+                className={CLASE_CONTROL}
+              />
+            </label>
+            <label className="block">
+              <span className="mb-1 block text-xs font-medium">Días</span>
+              <input
+                value={dias}
+                onChange={(e) => setDias(e.target.value)}
+                placeholder="lunes a sábado"
+                className={CLASE_CONTROL}
+              />
+            </label>
+            <label className="block">
+              <span className="mb-1 block text-xs font-medium">Hora de inicio</span>
+              <input
+                type="time"
+                value={horaInicio}
+                onChange={(e) => setHoraInicio(e.target.value)}
+                className={CLASE_CONTROL}
+              />
+            </label>
+            <label className="block">
+              <span className="mb-1 block text-xs font-medium">Hora de fin</span>
+              <input
+                type="time"
+                value={horaFin}
+                onChange={(e) => setHoraFin(e.target.value)}
+                className={CLASE_CONTROL}
+              />
+            </label>
+
+            <div className="sm:col-span-3">
+              <Boton type="button" onClick={guardar} disabled={guardando}>
+                {guardando ? "Guardando…" : "Guardar"}
+              </Boton>
+              <p className="mt-2 text-xs text-texto-suave">
+                Cambiar estas fechas mueve el «va al día» de todo el grupo en el
+                seguimiento académico. Las horas no bloquean nada: salen en el
+                cronograma y en el seguimiento.
+              </p>
+            </div>
           </div>
         </div>
       )}

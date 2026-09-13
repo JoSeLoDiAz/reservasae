@@ -137,7 +137,12 @@ model Grupo {
   // los proyectos no traen fechas
   fechaInicio DateTime?
   fechaFin    DateTime?
-  horario     String?
+
+  /// los dias, tal como se leen: "lunes a sabado"
+  dias       String?
+  /// hora de Bogota, "HH:MM" de 24 h
+  horaInicio String?
+  horaFin    String?
 
   creadoEn      DateTime @default(now())
   actualizadoEn DateTime @updatedAt

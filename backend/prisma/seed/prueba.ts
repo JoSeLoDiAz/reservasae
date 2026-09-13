@@ -355,11 +355,11 @@ async function ponerFechasYPublicar() {
       data: {
         fechaInicio: inicio,
         fechaFin: fin,
-        horario: unoDe([
-          'Lunes a jueves, 6:00 p. m. a 9:00 p. m.',
-          'Martes y jueves, 7:00 a. m. a 11:00 a. m.',
-          'Sábados, 8:00 a. m. a 4:00 p. m.',
-          'Lunes a viernes, 2:00 p. m. a 5:00 p. m.',
+        ...unoDe([
+          { dias: 'Lunes a jueves', horaInicio: '18:00', horaFin: '21:00' },
+          { dias: 'Martes y jueves', horaInicio: '07:00', horaFin: '11:00' },
+          { dias: 'Sábados', horaInicio: '08:00', horaFin: '16:00' },
+          { dias: 'Lunes a viernes', horaInicio: '14:00', horaFin: '17:00' },
         ]),
       },
     });

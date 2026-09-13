@@ -2,6 +2,7 @@
 
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 
+import { fraseDeHorario } from '../comun/horario-de-grupo';
 import { ETAPAS_VIVAS } from '../crm/crm.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { ActualizarCuposDto, ActualizarGrupoDto } from './dto';
@@ -53,7 +54,9 @@ export class CronogramaService {
             modalidad: true,
             fechaInicio: true,
             fechaFin: true,
-            horario: true,
+            dias: true,
+            horaInicio: true,
+            horaFin: true,
             sepGrupoId: true,
             sede: { select: { nombre: true } },
             coberturas: {
@@ -85,7 +88,11 @@ export class CronogramaService {
           modalidad: g.modalidad,
           fechaInicio: g.fechaInicio,
           fechaFin: g.fechaFin,
-          horario: g.horario,
+          dias: g.dias,
+          horaInicio: g.horaInicio,
+          horaFin: g.horaFin,
+          /// La frase, para quien solo la pinta.
+          horario: fraseDeHorario(g),
           sepGrupoId: g.sepGrupoId,
           sede: g.sede?.nombre ?? null,
           estado: estadoDeGrupo(g.fechaInicio, g.fechaFin, hoy),
@@ -125,7 +132,13 @@ export class CronogramaService {
   async actualizarGrupo(id: string, dto: ActualizarGrupoDto, ambito: string[]) {
     const grupo = await this.prisma.grupo.findFirst({
       where: { id, accionFormacion: { convenioId: { in: ambito } } },
-      select: { id: true, fechaInicio: true, fechaFin: true },
+      select: {
+        id: true,
+        fechaInicio: true,
+        fechaFin: true,
+        horaInicio: true,
+        horaFin: true,
+      },
     });
     if (!grupo) throw new NotFoundException('Ese grupo no existe.');
 
@@ -157,12 +170,34 @@ export class CronogramaService {
       );
     }
 
+    // las horas de la sesion, con las MISMAS dos reglas
+    // que las fechas: no hay fin sin inicio, y el fin no
+    // puede caer antes. Son un tramo del mismo dia
+    const horaInicio =
+      dto.horaInicio === undefined ? grupo.horaInicio : dto.horaInicio;
+    const horaFin = dto.horaFin === undefined ? grupo.horaFin : dto.horaFin;
+
+    if (!horaInicio && horaFin) {
+      throw new BadRequestException(
+        'Ponga primero la hora de inicio: una hora de fin sola no dice cuándo se reúnen.',
+      );
+    }
+
+    /// "HH:MM" con cero delante se ordena como se lee.
+    if (horaInicio && horaFin && horaFin <= horaInicio) {
+      throw new BadRequestException(
+        'La hora de fin tiene que ser posterior a la de inicio.',
+      );
+    }
+
     await this.prisma.grupo.update({
       where: { id },
       data: {
         fechaInicio: inicio,
         fechaFin: fin,
-        horario: dto.horario === undefined ? undefined : dto.horario || null,
+        dias: dto.dias === undefined ? undefined : dto.dias || null,
+        horaInicio: dto.horaInicio === undefined ? undefined : horaInicio,
+        horaFin: dto.horaFin === undefined ? undefined : horaFin,
         sepGrupoId: dto.sepGrupoId === undefined ? undefined : dto.sepGrupoId,
       },
     });

@@ -4,10 +4,14 @@ import {
   IsISO8601,
   IsOptional,
   IsString,
+  Matches,
   MaxLength,
   Min,
   ValidateIf,
 } from 'class-validator';
+
+/// La misma que el CHECK de la base, para no discrepar.
+const HORA = /^([01][0-9]|2[0-3]):[0-5][0-9]$/;
 
 /// "" del formulario y null del botón de quitar valen lo mismo.
 const aNuloOTexto = ({ value }: { value: unknown }) =>
@@ -26,11 +30,24 @@ export class ActualizarGrupoDto {
   @IsISO8601()
   fechaFin?: string | null;
 
+  /// Solo los dias: las horas viven en sus dos campos.
   @IsOptional()
   @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
   @IsString()
   @MaxLength(120)
-  horario?: string;
+  dias?: string;
+
+  @IsOptional()
+  @Transform(aNuloOTexto)
+  @ValidateIf((_o: unknown, v: unknown) => v !== null)
+  @Matches(HORA, { message: 'La hora de inicio va como HH:MM, de 00:00 a 23:59.' })
+  horaInicio?: string | null;
+
+  @IsOptional()
+  @Transform(aNuloOTexto)
+  @ValidateIf((_o: unknown, v: unknown) => v !== null)
+  @Matches(HORA, { message: 'La hora de fin va como HH:MM, de 00:00 a 23:59.' })
+  horaFin?: string | null;
 
   // el que le asigna el SENA, para el reporte
   @IsOptional()

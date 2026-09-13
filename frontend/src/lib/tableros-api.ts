@@ -367,7 +367,6 @@ export type DetalleAccion = {
     modalidad: Modalidad;
     sede: string | null;
     fechaInicio: string | null;
-    horario: string | null;
     cuposBase: number;
     cuposMaximos: number;
     coberturas: Array<{
