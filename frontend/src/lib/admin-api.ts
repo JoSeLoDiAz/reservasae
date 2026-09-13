@@ -496,7 +496,10 @@ export type GrupoCronograma = {
   sepGrupoId: number | null;
   sede: string | null;
   estado: EstadoGrupo;
+  /// Lo comprometido con el SENA, sin sobrecupo.
   cupos: number;
+  /// El tope, con el 30 % dentro. Es el denominador.
+  tope: number;
   inscritos: number;
   ubicaciones: Array<{
     id: string;
@@ -518,6 +521,7 @@ export type AccionCronograma = {
   convenio: string;
   grupos: GrupoCronograma[];
   cupos: number;
+  tope: number;
   inscritos: number;
   sinFechas: number;
 };

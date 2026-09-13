@@ -401,7 +401,7 @@ export function CronogramaVista() {
             <section key={a.id} className="bloque-de-accion">
               <h2 className="titulo-de-accion">
                 {a.convenio} · {a.codigo} · {bonito(a.nombre)} · {a.horas} horas ·{" "}
-                {a.inscritos} de {a.cupos} cupos
+                {a.inscritos} de {a.tope} cupos
               </h2>
               <table className="tabla-datos w-full">
                 <thead>
@@ -430,7 +430,7 @@ export function CronogramaVista() {
                         {g.ubicaciones.map((u) => bonito(u.nombre)).join(", ") || "—"}
                       </td>
                       <td className="tabular-nums">
-                        {g.inscritos} de {g.cupos}
+                        {g.inscritos} de {g.tope}
                       </td>
                     </tr>
                   ))}
@@ -541,7 +541,7 @@ function Accion({
           <span className="mt-0.5 block text-[0.71875rem] text-texto-suave">
             {accion.horas} horas · {accion.grupos.length}{" "}
             {accion.grupos.length === 1 ? "grupo" : "grupos"} · {accion.inscritos} de{" "}
-            {accion.cupos} cupos
+            {accion.tope} cupos
           </span>
         </span>
 
@@ -621,9 +621,14 @@ function Grupo({
   const [sesionDia, setSesionDia] = useState(paraCampo(grupo.sesionDia));
   const [guardando, setGuardando] = useState(false);
   const [editandoCupos, setEditandoCupos] = useState(false);
+  /// El fallo se pinta DENTRO del editor. Mandarlo arriba del
+  /// todo deja el boton pareciendo que no hace nada: le paso a
+  /// quien carga el cronograma con un fin anterior al inicio.
+  const [falla, setFalla] = useState<string | null>(null);
 
   async function guardar() {
     setGuardando(true);
+    setFalla(null);
     try {
       await cronogramaApi.actualizarGrupo(grupo.id, {
         fechaInicio: inicio || null,
@@ -636,7 +641,7 @@ function Grupo({
       await alGuardar();
       setEditando(false);
     } catch (e) {
-      alFallar((e as ErrorApi).message);
+      setFalla((e as ErrorApi).message);
     } finally {
       setGuardando(false);
     }
@@ -659,7 +664,7 @@ function Grupo({
           )}
         </p>
         <span className="shrink-0 text-[0.78125rem] text-texto-suave tabular-nums">
-          {grupo.inscritos} de {grupo.cupos}
+          {grupo.inscritos} de {grupo.tope}
         </span>
       </div>
 
@@ -679,7 +684,7 @@ function Grupo({
       <div className="mt-2.5 flex flex-wrap gap-1.5">
         {grupo.ubicaciones.map((u) => (
           <Pildora key={u.id} tono="neutro">
-            {bonito(u.nombre)} · {u.inscritos}/{u.cupos}
+            {bonito(u.nombre)} · {u.inscritos}/{u.tope}
           </Pildora>
         ))}
       </div>
@@ -689,7 +694,10 @@ function Grupo({
         /// cifra de cupos y en columna estrecha las partian.
         <div className="no-imprimir mt-2.5 flex flex-wrap gap-4">
           <button
-            onClick={() => setEditando(!editando)}
+            onClick={() => {
+              setFalla(null);
+              setEditando(!editando);
+            }}
             className="sin-aro text-[0.78125rem] font-semibold text-marca underline-offset-2 transition hover:underline"
           >
             {editando ? "Cerrar" : "Editar fechas"}
@@ -805,6 +813,11 @@ function Grupo({
             <Boton type="button" onClick={guardar} disabled={guardando}>
               {guardando ? "Guardando…" : "Guardar"}
             </Boton>
+            {falla && (
+              <p className="mt-2 rounded-lg border border-error/30 bg-error-suave p-3 text-sm text-error">
+                {falla}
+              </p>
+            )}
             <p className="mt-2 text-xs text-texto-suave">
               Cambiar estas fechas mueve el «va al día» de todo el grupo en el
               seguimiento académico. La sesión no bloquea nada: sale en el

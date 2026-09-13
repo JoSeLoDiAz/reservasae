@@ -82,6 +82,9 @@ export class CronogramaService {
     return acciones.map((a) => {
       const grupos = a.grupos.map((g) => {
         const cupos = g.coberturas.reduce((s, c) => s + c.cuposBase, 0);
+        /// El TOPE, con el 30 % dentro: es contra lo que se
+        /// mide la ocupacion en todo el panel.
+        const tope = g.coberturas.reduce((s, c) => s + c.cuposMaximos, 0);
         const inscritos = g.coberturas.reduce((s, c) => s + c._count.participantes, 0);
         return {
           id: g.id,
@@ -99,6 +102,7 @@ export class CronogramaService {
           sede: g.sede?.nombre ?? null,
           estado: estadoDeGrupo(g.fechaInicio, g.fechaFin, hoy),
           cupos,
+          tope,
           inscritos,
           ubicaciones: g.coberturas.map((c) => ({
             id: c.id,
@@ -124,6 +128,7 @@ export class CronogramaService {
         grupos,
         // lo que se mira de un vistazo por acción
         cupos: grupos.reduce((s, g) => s + g.cupos, 0),
+        tope: grupos.reduce((s, g) => s + g.tope, 0),
         inscritos: grupos.reduce((s, g) => s + g.inscritos, 0),
         sinFechas: grupos.filter((g) => g.estado === 'SIN_FECHAS').length,
       };
