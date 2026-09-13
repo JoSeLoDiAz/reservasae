@@ -16,6 +16,13 @@ fi
 
 # sin GitHub tambien se despliega: se construye HEAD y
 # las replicas lo traen de aqui por ssh
+# mientras sube codigo esta sede NO es una caida: subir deja
+# el sitio abajo mas de un minuto y el relevo esta en 60 s.
+# La marca la miran los autopromover, el de aqui y los de las
+# otras sedes por ssh; una marca vieja se ignora sola
+touch .desplegando
+trap 'rm -f .desplegando' EXIT
+
 git pull --ff-only || echo "! no pude traer de origin, sigo con lo local"
 
 docker compose up -d --build

@@ -66,6 +66,28 @@ linea_temporal_de_sede() {
     2>/dev/null | tr -d '\r' | tr -cd '0-9'
 }
 
+# un despliegue deja el sitio caido MAS de un minuto: sin
+# esto, relevar a los 60 s promueve a mitad de cada subida.
+# Una marca vieja se ignora, o un despliegue que murio
+# dejaria el relevo apagado para siempre
+MAXIMA_MARCA_DESPLIEGUE=${MAXIMA_MARCA_DESPLIEGUE:-900}
+
+hay_despliegue_local() {
+  local marca=.desplegando ahora edad
+  [ -f "$marca" ] || return 1
+  ahora=$(date +%s)
+  edad=$((ahora - $(stat -c %Y "$marca" 2>/dev/null || echo 0)))
+  [ "$edad" -lt "$MAXIMA_MARCA_DESPLIEGUE" ]
+}
+
+hay_despliegue_en() {
+  local respuesta
+  respuesta=$(ssh -n -o BatchMode=yes -o ConnectTimeout=10 "sepadmin@$1" \
+    "cd /opt/sep/reservasae && find .desplegando -mmin -15 2>/dev/null | head -1" \
+    2>/dev/null | tr -d '\r')
+  [ -n "$respuesta" ]
+}
+
 es_replica_local() {
   local r
   r=$(docker compose exec -T db sh -c \

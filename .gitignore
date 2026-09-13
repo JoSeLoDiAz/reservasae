@@ -55,6 +55,9 @@ Thumbs.db
 # El cliente se genera en cada build (backend/Dockerfile lo hace antes de
 # compilar). Versionarlo solo trae conflictos y binarios en el repo.
 backend/generated/
+# la marca de «estoy subiendo codigo», de sede
+.desplegando
+.sano-desde
 # la copia de Grupo AE, que esta un nivel mas adentro: la regla de
 # arriba esta anclada a la raiz y no la cubre
 grupo-ae/backend/generated/

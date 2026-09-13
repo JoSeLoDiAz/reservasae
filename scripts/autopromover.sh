@@ -22,6 +22,13 @@ olvidar() { rm -f "$MARCA"; }
 
 es_replica_local || { olvidar; echo "esta sede ya es principal"; exit 0; }
 
+# subir codigo no es una caida
+if hay_despliegue_local; then
+  olvidar
+  echo "hay un despliegue en curso aqui: no relevo"
+  exit 0
+fi
+
 estado=$(estado_de_sede "$sede_principal")
 if [ "$estado" = SIRVE ]; then
   olvidar
@@ -41,6 +48,13 @@ fi
 transcurrido=$((ahora - desde))
 if [ "$transcurrido" -lt "$ESPERA" ]; then
   echo "$sede_principal lleva ${transcurrido}s $estado, espero a ${ESPERA}s"
+  exit 0
+fi
+
+# lo mismo desde fuera: si el principal esta subiendo
+# codigo, esto no es una caida
+if hay_despliegue_en "$sede_principal"; then
+  echo "$sede_principal esta desplegando: no relevo"
   exit 0
 fi
 
