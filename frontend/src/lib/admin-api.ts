@@ -536,6 +536,27 @@ export const ETIQUETA_ESTADO_GRUPO: Record<EstadoGrupo, string> = {
 export const cronogramaApi = {
   listar: () => pedir<AccionCronograma[]>("/admin/cronograma"),
 
+  /// Los tres textos de «Información Acción de Formación». Lo que no
+  /// se manda no se toca, así que se puede guardar uno solo.
+  guardarInformacion: (
+    id: string,
+    datos: {
+      objetivo?: string | null;
+      contenido?: string | null;
+      competencia?: string | null;
+    },
+  ) =>
+    pedir<{
+      id: string;
+      codigo: string;
+      objetivo: string | null;
+      contenido: string | null;
+      competencia: string | null;
+    }>(`/admin/cronograma/acciones/${id}/informacion`, {
+      method: "PATCH",
+      body: JSON.stringify(datos),
+    }),
+
   actualizarGrupo: (
     id: string,
     datos: {

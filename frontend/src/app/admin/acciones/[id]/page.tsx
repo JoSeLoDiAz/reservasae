@@ -15,12 +15,12 @@ import {
   IndicadorActualizacion,
   SelloDeDatos,
 } from "@/components/admin/indicador-actualizacion";
-import { ResumenPublico } from "@/components/admin/resumen-publico";
+import { InformacionDeLaAccion } from "@/components/admin/informacion-de-la-accion";
 import { Aviso, useAdmin } from "@/components/admin/marco-admin";
 import { textoDeEstado } from "@/components/admin/ritmo";
 import { Bloque, Cifra, Esqueleto } from "@/components/admin/piezas";
 import { adminApi, alcanza } from "@/lib/admin-api";
-import { bonito, comoParrafo, ErrorApi } from "@/lib/api";
+import { bonito, ErrorApi } from "@/lib/api";
 import { useDatosVivos } from "@/lib/datos-vivos";
 import { tablerosApi, type DetalleAccion } from "@/lib/tableros-api";
 
@@ -285,33 +285,27 @@ export default function DetalleDeAccion({ params }: { params: Promise<{ id: stri
           para que sirve el curso, como va, donde esta el cupo,
           quien reservo, y al final el plan del proyecto -- que no
           cambia y se consulta una vez. */}
-      {/* LO QUE VE QUIEN SE PREINSCRIBE, y se edita aquí.
+      {/* LOS TRES TEXTOS DEL PROYECTO, y se editan aquí.
 
-          La ruta que guarda este texto existía desde hace tiempo
-          y no la llamaba NADIE: una API sin pantalla. Así que en
-          el formulario público salía lo que hubiera dejado la
-          siembra, y en producción eso es texto inventado.
+          Aquí había dos apartados y el cliente los fundió en uno el
+          13 sep 2026: «Lo que lee quien se preinscribe» --que se va-- y
+          «Objetivo de la acción», que solo se leía y decía «texto del
+          proyecto, sin modificar». Ahora el objetivo SÍ se modifica, y
+          lo acompañan el contenido y la competencia.
 
-          Va encima del objetivo a propósito: el objetivo es del
-          proyecto y no se toca; esto es lo que de verdad lee la
-          persona antes de elegir. */}
-      <div className="no-imprimir">
-        <ResumenPublico
+          Se pinta siempre, aunque los tres estén vacíos: es donde se
+          escriben, así que esconderlo cuando no hay texto lo haría
+          inalcanzable justo cuando hace falta. */}
+      <div className="imprimible-bloque">
+        <InformacionDeLaAccion
           accionId={datos.id}
-          valor={datos.resumenPublico}
+          objetivo={datos.objetivo}
+          contenido={datos.contenido}
+          competencia={datos.competencia}
+          puedeEditar={puedePublicar}
           alGuardado={vivos.refrescar}
         />
       </div>
-
-      {datos.objetivo && (
-        <div className="imprimible-bloque">
-          <Bloque titulo="Objetivo de la acción" descripcion="Texto del proyecto, sin modificar.">
-            <p className="text-[0.84375rem] leading-relaxed text-texto">
-              {comoParrafo(datos.objetivo)}
-            </p>
-          </Bloque>
-        </div>
-      )}
 
       <div className="imprimible-bloque">
           <Bloque

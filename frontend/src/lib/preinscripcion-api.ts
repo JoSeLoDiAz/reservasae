@@ -23,7 +23,18 @@ export type AccionPublica = {
   modalidad: string;
   /// Lo que se lleva quien haga el curso. Se edita en
   /// el panel, en Formularios. Null mientras nadie lo escriba.
+  ///
+  /// YA NO SE PINTA en la tarjeta: lo sustituyen los tres textos de
+  /// abajo, detrás de «Más información» (cliente, 13 sep 2026). El
+  /// campo se conserva porque el texto guardado sigue en la base.
   resumen: string | null;
+  /// «Información Acción de Formación»: lo que se abre con «Más
+  /// información». Los tres pueden venir vacíos —hay quince acciones
+  /// y estos textos se escriben a mano—, y si los tres faltan el
+  /// botón no se pinta.
+  objetivo: string | null;
+  contenido: string | null;
+  competencia: string | null;
   ofertas: OfertaPublica[];
 };
 

@@ -81,6 +81,8 @@ export class PreinscripcionService {
         horas: true,
         modalidad: true,
         objetivo: true,
+        contenido: true,
+        competencia: true,
         resumenPublico: true,
         ofertas: {
           where: { abierta: true },
@@ -130,6 +132,14 @@ export class PreinscripcionService {
           /// sirve aqui: solo se usa si nadie ha escrito el
           /// resumen todavia.
           resumen: a.resumenPublico,
+          /// Los tres textos del proyecto, para la ventana de «Mas
+          /// informacion» (cliente, 13 sep 2026). Van en el catalogo
+          /// y no en una llamada aparte: son tres campos de texto y
+          /// pedirlos al abrir la ventana anadiria una espera a algo
+          /// que ya esta cargado.
+          objetivo: a.objetivo,
+          contenido: a.contenido,
+          competencia: a.competencia,
           ofertas: a.ofertas.map((o) => ({
             id: o.id,
             ubicacion: o.ubicacion.nombre,
