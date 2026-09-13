@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useState } from "react";
 
 import { Bloque, Cargando } from "@/components/admin/piezas";
+import { conEnlaces } from "@/components/caja-de-politica";
+
 import {
   Aviso,
   Boton,
@@ -160,7 +162,7 @@ export default function PaginaPoliticas() {
                           ` · lo han aceptado ${vigente.aceptaciones}`}
                       </summary>
                       <p className="mt-2 whitespace-pre-wrap rounded-md bg-superficie-alterna p-4 text-sm">
-                        {vigente.contenido}
+                        {conEnlaces(vigente.contenido)}
                       </p>
                     </details>
                   )}

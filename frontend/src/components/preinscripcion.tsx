@@ -3,7 +3,7 @@
 import { notFound } from "next/navigation";
 import { useEffect, useState } from "react";
 
-import { TEXTO_DE_RESPALDO } from "@/components/caja-de-politica";
+import { conEnlaces, TEXTO_DE_RESPALDO } from "@/components/caja-de-politica";
 import { ErrorApi } from "@/lib/api";
 import { primero, resto } from "@/lib/nombres";
 import {
@@ -573,7 +573,7 @@ export function PreinscripcionPublica({ slug }: { slug: string }) {
           </p>
 
           <div className="mt-5 max-h-80 overflow-y-auto whitespace-pre-line rounded-xl border border-campo-borde bg-campo-fondo p-5 text-sm leading-relaxed text-texto">
-            {catalogo.politica?.contenido ?? TEXTO_DE_RESPALDO}
+            {conEnlaces(catalogo.politica?.contenido ?? TEXTO_DE_RESPALDO)}
           </div>
 
           {/* ESTE PÁRRAFO NO VA EN COLOR SUAVE, y es el único de

@@ -102,3 +102,6 @@ frontend/src/**/zz*.spec.ts
 
 # salida de colores-de-marca
 paletas.json
+
+# volcados del navegador de Playwright MCP
+.playwright-mcp/
