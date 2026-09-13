@@ -201,9 +201,10 @@ export function CronogramaVista() {
       <div className="flex flex-col gap-3 px-4 pt-4 pb-2">
         <div className="no-imprimir">
           <p className="mt-0.5 text-[0.78125rem] text-texto-suave">
-            Aquí se ponen las fechas de cada grupo: cuándo empieza y cuándo termina. Un
-            grupo sin fechas no se puede matricular, y de sus participantes no se puede
-            saber si van al día.
+            Aquí se ponen las sesiones sincrónicas de cada grupo: de cuándo a cuándo
+            va, y en qué días y horas se reúne. Un grupo sin fechas no se puede
+            matricular, y de sus participantes no se puede saber si van al día. Las
+            horas no bloquean nada.
           </p>
         </div>
 
@@ -221,7 +222,7 @@ export function CronogramaVista() {
         <Cifra
           etiqueta="Grupos"
           valor={gruposVisibles.length}
-          pie={deTotal(grupos.length) ?? "con su fecha y su horario"}
+          pie={deTotal(grupos.length) ?? "con sus fechas y sus horas"}
         />
         <Cifra
           etiqueta="En curso"
