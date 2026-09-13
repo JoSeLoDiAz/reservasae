@@ -12,6 +12,14 @@ export function n(valor: number): string {
   return numero.format(valor);
 }
 
+/** Un decimal y con coma, que es el separador de aqui. */
+export function dec(valor: number): string {
+  return valor.toLocaleString("es-CO", {
+    minimumFractionDigits: 1,
+    maximumFractionDigits: 1,
+  });
+}
+
 // cifras
 
 export function TarjetaCifra({

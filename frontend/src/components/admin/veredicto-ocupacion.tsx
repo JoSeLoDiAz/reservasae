@@ -42,7 +42,7 @@
  * dato no dice.
  */
 
-import { AreaDeSerie, n } from "./graficos";
+import { AreaDeSerie, dec, n } from "./graficos";
 import { Bloque } from "./piezas";
 import type {
   Analisis,
@@ -67,14 +67,6 @@ const FECHA_LARGA = new Intl.DateTimeFormat("es-CO", {
 
 function fechaLarga(iso: string): string {
   return FECHA_LARGA.format(new Date(`${iso}T00:00:00Z`));
-}
-
-/** Un decimal y con coma, que es el separador de aquí. */
-function dec(valor: number): string {
-  return valor.toLocaleString("es-CO", {
-    minimumFractionDigits: 1,
-    maximumFractionDigits: 1,
-  });
 }
 
 function Rotulo({ children }: { children: React.ReactNode }) {

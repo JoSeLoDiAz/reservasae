@@ -6,6 +6,7 @@ import { use, useCallback, useState } from "react";
 import { BotonPdf, EncabezadoImpresion } from "@/components/admin/boton-pdf";
 
 import {
+  dec,
   EtiquetaEstado,
   ListaBarras,
   n,
@@ -255,14 +256,14 @@ export default function DetalleDeAccion({ params }: { params: Promise<{ id: stri
       {/* Las tarjetas de Gestion de leads, sobre el fondo. */}
       <div className="no-imprimir flex flex-wrap gap-2.5">
         <Cifra
-          etiqueta="Avance sobre la meta"
+          etiqueta="Avance sobre el tope"
           valor={datos.ocupados}
-          pie={`de ${n(datos.metaBase)} beneficiarios · ${datos.avanceMeta.toLocaleString("es-CO", { maximumFractionDigits: 1 })} %`}
+          pie={`de ${n(datos.cupos)} (meta ${n(datos.metaBase)} + 30 %) · ${dec(datos.avance)} %`}
         />
         <Cifra
           etiqueta="Cupos sin reservar"
           valor={datos.disponibles}
-          pie={`de ${n(datos.cupos)} del tope · ${datos.avance.toLocaleString("es-CO", { maximumFractionDigits: 1 })} % ocupado`}
+          pie={`del tope de ${n(datos.cupos)} · meta ${dec(datos.avanceMeta)} %`}
         />
         <Cifra
           etiqueta="Organizaciones"
@@ -275,7 +276,7 @@ export default function DetalleDeAccion({ params }: { params: Promise<{ id: stri
         />
         <Cifra
           etiqueta="Ritmo"
-          valor={datos.proyeccion.ritmoDiario}
+          valor={dec(datos.proyeccion.ritmoDiario)}
           pie={`cupos al día · faltan ${n(datos.proyeccion.faltan)} para la meta`}
         />
       </div>
