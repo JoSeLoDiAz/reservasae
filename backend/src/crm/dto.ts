@@ -274,6 +274,21 @@ export class ActualizarEmpresaSepDto {
   @IsOptional() @Transform(aNumero) @IsInt() tipoDocumentoSepId?: number | null;
 }
 
+/**
+ * Las fichas que se van a borrar de una vez.
+ *
+ * El mismo tope de 500 que el lote de asesor: es lo que cabe en una
+ * pantalla de tabla con todo seleccionado, y pone un techo a lo que
+ * un clic puede destruir.
+ */
+export class BorrarEnLoteDto {
+  @IsArray()
+  @ArrayNotEmpty()
+  @ArrayMaxSize(500)
+  @IsString({ each: true })
+  ids!: string[];
+}
+
 export class AsignarAsesorEnLoteDto {
   @IsArray()
   @ArrayNotEmpty()

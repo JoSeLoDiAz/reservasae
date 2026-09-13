@@ -71,6 +71,7 @@ import { fraseDeHorario } from '../comun/horario-de-grupo';
 import { PrismaService } from '../prisma/prisma.service';
 import {
   ActualizarParticipanteDto,
+  BorrarEnLoteDto,
   AsignarAsesorEnLoteDto,
   AsignarFormacionDto,
   CargaDto,
@@ -2169,6 +2170,79 @@ export class CrmService {
       avancesBorrados: p._count.avances,
       notasBorradas: p._count.notas,
     };
+  }
+
+  /**
+   * Borra varias fichas de una vez.
+   *
+   * Reusa `borrarParticipaciones`, que es donde vive el ORDEN de
+   * borrado --y el paso sutil de que las notas compartidas con el lead
+   * sobreviven--. Copiarlo aqui habria dado dos ordenes que discrepan
+   * justo en el paso que menos se usa.
+   *
+   * DOS COSAS QUE NO SE NEGOCIAN, y las dos por lo mismo --que esto no
+   * tiene vuelta--:
+   *
+   * 1. Solo se borra lo del AMBITO de quien pide. Un id de otro gremio
+   *    no se borra en silencio: se ignora, y la respuesta dice cuantas
+   *    se pidieron y cuantas cayeron, para que la pantalla pueda
+   *    contarlo en vez de mentir con un «listo».
+   * 2. Una huella POR FICHA, no una del lote. Quien pregunta «¿y donde
+   *    esta Fulano?» busca a Fulano, no un apunte que diga «se
+   *    borraron cincuenta». Con nombre y documento tapado, que es la
+   *    excepcion escrita de la regla de PII: sin eso no queda NADA.
+   */
+  async borrarEnLote(
+    dto: BorrarEnLoteDto,
+    actor: Actor,
+    ambito: string[],
+    ip?: string,
+  ) {
+    const suyas = await this.prisma.participante.findMany({
+      where: { id: { in: dto.ids }, convenioId: { in: ambito } },
+      select: {
+        id: true,
+        etapa: true,
+        convenioId: true,
+        persona: {
+          select: {
+            primerNombre: true,
+            primerApellido: true,
+            numeroDocumento: true,
+          },
+        },
+        _count: { select: { avances: true, notas: true } },
+      },
+    });
+
+    if (suyas.length === 0) {
+      throw new NotFoundException('Ninguna de esas fichas existe en su ámbito.');
+    }
+
+    await this.prisma.$transaction(async (tx) => {
+      await borrarParticipaciones(tx, { id: { in: suyas.map((s) => s.id) } });
+    });
+
+    /// Fuera de la transaccion, igual que en el borrado de una:
+    /// auditar no puede tumbar un borrado que ya ocurrio.
+    for (const p of suyas) {
+      await this.auditoria.registrar({
+        actor,
+        accion: 'PARTICIPANTE_BORRADO',
+        entidad: ENTIDADES.PARTICIPANTE,
+        entidadId: p.id,
+        convenioId: p.convenioId,
+        resumen:
+          `Se borró la participación de ${p.persona.primerNombre} ` +
+          `${p.persona.primerApellido} (doc. ${taparDocumento(p.persona.numeroDocumento)}), ` +
+          `que estaba en etapa ${p.etapa}. Con ella se fueron ` +
+          `${p._count.avances} avances y ${p._count.notas} notas. ` +
+          `Iba en un lote de ${suyas.length}.`,
+        ip,
+      });
+    }
+
+    return { borradas: suyas.length, pedidas: dto.ids.length };
   }
 
   /**

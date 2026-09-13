@@ -4,9 +4,10 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import {
-  Aviso, CLASE_CONTROL, Tarjeta } from "@/components/admin/marco-admin";
+  Aviso, CLASE_CONTROL, Tarjeta, useAdmin } from "@/components/admin/marco-admin";
 import { Cargando } from "@/components/admin/piezas";
 import { CajonLead } from "@/components/admin/cajon-lead";
+import { ConfirmarBorrado } from "@/components/admin/confirmar-borrado";
 import { IconoCerrar } from "@/components/admin/iconos";
 import { Embudo } from "@/components/admin/secciones";
 import { colorEtapa } from "@/components/admin/etapa";
@@ -338,6 +339,10 @@ function ListaParticipantes({
   alCambiar: () => Promise<void>;
   alCargarTodo?: () => void;
 }) {
+  /// El rol, para el borrado en lote: solo SUPERADMIN, que es lo mismo
+  /// que exige el backend. Aquí para no ofrecer un botón que va a
+  /// fallar, no como candado: el candado está en el servidor.
+  const { admin } = useAdmin();
   const [aviso, setAviso] = useState<string | null>(null);
   /// El lead abierto en el panel lateral. Se guarda la fila
   /// entera y no el id: el panel pinta al instante con lo que
@@ -389,15 +394,34 @@ function ListaParticipantes({
         }
         seleccion
         accionesLote={(ids, limpiar) => (
-          <AsignarLote
-            ids={ids}
-            asesores={asesores}
-            alTerminar={async (n) => {
-              limpiar();
-              setAviso(`${n} ${n === 1 ? "lead" : "leads"} con asesor nuevo.`);
-              await alCambiar();
-            }}
-          />
+          <>
+            <AsignarLote
+              ids={ids}
+              asesores={asesores}
+              alTerminar={async (n) => {
+                limpiar();
+                setAviso(`${n} ${n === 1 ? "lead" : "leads"} con asesor nuevo.`);
+                await alCambiar();
+              }}
+            />
+            {/* Borrar va aparte y solo para SUPERADMIN, que es lo que
+                exige el backend. Es lo único de esta barra que no
+                tiene vuelta. */}
+            {admin.rol === "SUPERADMIN" && (
+              <BorrarLote
+                ids={ids}
+                alTerminar={async (borradas, pedidas) => {
+                  limpiar();
+                  setAviso(
+                    borradas === pedidas
+                      ? `${borradas} ${borradas === 1 ? "lead borrado" : "leads borrados"}.`
+                      : `${borradas} de ${pedidas} borrados. El resto era de otro gremio.`,
+                  );
+                  await alCambiar();
+                }}
+              />
+            )}
+          </>
         )}
       />
     </div>
@@ -405,6 +429,62 @@ function ListaParticipantes({
 }
 
 /** El desplegable de asesor sobre la selección. */
+/**
+ * Borrar varias fichas de una vez. Solo SUPERADMIN.
+ *
+ * Lo pidió el cliente el 13 sep 2026: «que el Administrador pueda
+ * seleccionar masivo o individual y eliminar los leads».
+ *
+ * LA CONFIRMACIÓN PIDE ESCRIBIR EL NÚMERO, y no es capricho: esto
+ * borra la ficha con sus avances, sus notas y su historial de etapas,
+ * y no tiene vuelta. Es el mismo `ConfirmarBorrado` que ya usa el
+ * borrado de una, que es la forma que esta casa le da a lo
+ * irreversible. Si se quiere un sí/no pelado, es cambiar una línea.
+ */
+function BorrarLote({
+  ids,
+  alTerminar,
+}: {
+  ids: string[];
+  alTerminar: (borradas: number, pedidas: number) => Promise<void>;
+}) {
+  const [preguntando, setPreguntando] = useState(false);
+
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => setPreguntando(true)}
+        className="sin-aro inline-flex h-[32px] items-center rounded-[9px] border border-error/40 bg-error-suave px-[13px] text-[0.78125rem] font-semibold whitespace-nowrap text-error transition hover:border-error"
+      >
+        Eliminar {ids.length === 1 ? "el lead" : `los ${ids.length} leads`}
+      </button>
+
+      {preguntando && (
+        <ConfirmarBorrado
+          titulo={`Va a eliminar ${ids.length} ${ids.length === 1 ? "lead" : "leads"}`}
+          descripcion={
+            <>
+              Se borran las fichas con sus <strong>avances, sus notas y su
+              historial de etapas</strong>. No se puede deshacer.
+              <br />
+              Queda una huella por cada una en la auditoría, con quién lo hizo.
+            </>
+          }
+          palabra={String(ids.length)}
+          etiquetaPalabra={`Escriba ${ids.length} para confirmar`}
+          alConfirmar={async () => {
+            const r = await crmApi.borrarEnLote(ids);
+            setPreguntando(false);
+            await alTerminar(r.borradas, r.pedidas);
+          }}
+          alCerrar={() => setPreguntando(false)}
+        />
+      )}
+    </>
+  );
+}
+
 function AsignarLote({
   ids,
   asesores,

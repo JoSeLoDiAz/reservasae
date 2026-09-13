@@ -41,6 +41,7 @@ import {
   ActualizarParticipanteDto,
   AgregarNitDto,
   ResolverPropuestaDto,
+  BorrarEnLoteDto,
   AsignarAsesorEnLoteDto,
   AsignarGrupoEnLoteDto,
   AsignarFormacionDto,
@@ -409,6 +410,30 @@ export class CrmController {
       ip,
       conveniosQueReparten(ambito.roles),
     );
+  }
+
+  /**
+   * Borra varias fichas de una vez.
+   *
+   * MISMO CANDADO que el borrado de una: SUPERADMIN y
+   * `inscripciones:ESCRIBIR`. Lo pidio el cliente el 13 sep 2026 --«que
+   * el Administrador pueda seleccionar masivo o individual y eliminar
+   * los leads»-- y el candado es el que ya habia, no uno mas flojo por
+   * ser en lote: si algo, borrar cincuenta pesa mas que borrar una.
+   *
+   * `Post` y no `Delete`: la lista va en el cuerpo, y un `Delete` con
+   * cuerpo lo tratan distinto los proxys y los clientes.
+   */
+  @Post('lote/borrar')
+  @Roles(RolAdmin.SUPERADMIN)
+  @Requiere('inscripciones', 'ESCRIBIR')
+  borrarEnLote(
+    @Body() dto: BorrarEnLoteDto,
+    @AdminActual() admin: Admin,
+    @AmbitoActual() ambito: Ambito,
+    @IpReal() ip: string,
+  ) {
+    return this.crm.borrarEnLote(dto, admin, ambito.convenios, ip);
   }
 
   /**

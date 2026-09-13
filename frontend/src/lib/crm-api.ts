@@ -1145,6 +1145,17 @@ export const crmApi = {
       body: JSON.stringify({ coberturaId, ids }),
     }),
 
+  /// Borra varias fichas. Solo SUPERADMIN, igual que borrar una.
+  ///
+  /// Devuelve las dos cifras a propósito: `pedidas` puede ser mayor que
+  /// `borradas` si en la selección iba algo de otro gremio, y la
+  /// pantalla tiene que poder decirlo en vez de dar un «listo».
+  borrarEnLote: (ids: string[]) =>
+    pedir<{ borradas: number; pedidas: number }>(
+      "/admin/participantes/lote/borrar",
+      { method: "POST", body: JSON.stringify({ ids }) },
+    ),
+
   asignarAsesorEnLote: (ids: string[], asesorId: string | null) =>
     pedir<{ cambiadas: number; fuera: number; sinCambio: number }>(
       "/admin/participantes/lote/asesor",
