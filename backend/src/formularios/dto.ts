@@ -205,10 +205,14 @@ export class RespuestasDto {
   respuestas?: RespuestaDto[];
 }
 
-/// Dos lineas para la tarjeta publica. Vacio lo borra.
+/// El texto de la tarjeta publica. Vacio lo borra.
+///
+/// 1.200 y no 400: a 400 el texto que escribio el cliente se
+/// cortaba a mitad de palabra. El limite que importa no es este
+/// sino el ancho de la tarjeta, y de eso avisa la pantalla.
 export class ResumenPublicoDto {
   @IsOptional()
   @IsString()
-  @MaxLength(400)
+  @MaxLength(1200)
   resumen?: string;
 }

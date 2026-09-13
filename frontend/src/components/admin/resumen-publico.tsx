@@ -24,8 +24,9 @@ import { formulariosApi } from "@/lib/formularios-api";
 import { Aviso, Boton } from "./marco-admin";
 import { Bloque } from "./piezas";
 
-/// Lo que cabe en la tarjeta sin romperla. No es un límite del
-/// servidor: es el ancho de la caja donde se lee.
+/// Lo que cabe en la tarjeta sin romperla. No es un límite: es
+/// el ancho de la caja donde se lee, y por eso AVISA en vez de
+/// cortar. El tope duro son 1.200, tres veces lo que había.
 const HOLGADO = 240;
 
 export function ResumenPublico({
@@ -76,9 +77,9 @@ export function ResumenPublico({
       )}
 
       <textarea
-        rows={3}
+        rows={6}
         value={texto}
-        maxLength={400}
+        maxLength={1200}
         onChange={(e) => {
           setTexto(e.target.value);
           setListo(false);
