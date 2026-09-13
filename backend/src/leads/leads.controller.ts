@@ -13,6 +13,7 @@ import {
   UnauthorizedException,
   UseGuards,
 } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 /// `import type` y no un import normal, en los dos casos.
 ///
 /// Con `emitDecoratorMetadata` TypeScript escribe el tipo de
@@ -52,6 +53,9 @@ import { configDeMeta } from './meta-por-gremio';
  * autenticaciones, y una de las dos siempre sobra: quien tenga
  * la más débil entra por ahí.
  */
+/// 300/min y no los 60 del resto: por aqui entra la pauta y
+/// un chatbot, y lo que el limitador corta se PIERDE.
+@Throttle({ default: { limit: 300, ttl: 60_000 } })
 @Controller('webhooks/leads')
 export class LeadsController {
   constructor(private readonly leads: LeadsService) {}

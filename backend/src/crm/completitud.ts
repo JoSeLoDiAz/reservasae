@@ -1,6 +1,7 @@
 /** Qué le falta a una ficha, y para qué le falta. */
 
 import { celularUtil } from '../comun/celular';
+import { correoUtil } from '../comun/correo';
 import { EDAD_MINIMA, edadCumplida } from './catalogos-sep';
 
 /// Lo mínimo para existir en el CRM lo impone el modelo.
@@ -52,7 +53,7 @@ export function faltaDeLaPersona(p: {
   const falta: string[] = [];
   const persona = p.persona;
 
-  if (!persona.correo) falta.push('correo');
+  if (!correoUtil(persona.correo)) falta.push('correo');
   /// `celularUtil` y no `!celular`, igual que abajo.
   ///
   /// Con `!celular`, un «no tiene» escrito en la casilla hacía
@@ -110,7 +111,7 @@ export function revisar(p: ParaRevisar): Revision {
   /// la casilla pasaba la compuerta y dejaba matriculado a
   /// alguien a quien nadie puede llamar, que es justo lo que
   /// esta compuerta existe para evitar.
-  if (!persona.correo && !celularUtil(persona.celular)) {
+  if (!correoUtil(persona.correo) && !celularUtil(persona.celular)) {
     matricula.push('no hay forma de contactarla: falta correo o celular');
   }
   if (!p.tieneAutorizacion) {
@@ -121,7 +122,7 @@ export function revisar(p: ParaRevisar): Revision {
   // lo de matricular también lo exige el reporte
   reporte.push(...matricula);
 
-  if (!persona.correo) reporte.push('falta el correo');
+  if (!correoUtil(persona.correo)) reporte.push('falta el correo');
   /// Y aquí es donde de verdad importaba.
   ///
   /// Esta lista decide quién ENTRA en el archivo del SEP, y el

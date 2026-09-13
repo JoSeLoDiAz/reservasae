@@ -11,6 +11,7 @@ import {
 } from './cruzar-con-el-crm';
 import { Prisma } from '../../generated/prisma';
 import { celularValido, normalizarCelular } from '../comun/celular';
+import { correoValido, normalizarCorreo } from '../comun/correo';
 import { documentoValido, normalizarDocumento } from '../comun/documento';
 import { DOCUMENTOS_DE_PERSONA } from '../crm/catalogos-sep';
 import { ColaRui } from '../crm/rui/cola-rui';
@@ -665,7 +666,8 @@ export class LeadsService {
             };
           })()
         : null,
-      correo: dto.correo?.trim().toLowerCase() || null,
+      /// Vacio si no es un correo, igual que el celular.
+      correo: correoValido(dto.correo) ? normalizarCorreo(dto.correo) || null : null,
       /// Vacio si no es un celular: guardar «no tiene» seria
       /// guardar algo que no sirve para llamar a nadie.
       celular: celular && celularValido(celular) ? celular : null,
@@ -677,6 +679,9 @@ export class LeadsService {
       /// se arreglan de formas distintas: lo primero es pedirlo,
       /// lo segundo es que el dato esta mal en el origen.
       trajoDocumento: Boolean(dto.numeroDocumento?.trim()),
+      /// Mandaron algo y no servia: se dice, no se calla.
+      trajoCorreo: Boolean(dto.correo?.trim()),
+      trajoCelular: Boolean(dto.celular?.trim()),
     };
   }
 
@@ -693,6 +698,8 @@ export class LeadsService {
 
     if (!d.nombreCompleto) falta.push('nombre');
     if (!d.correo && !d.celular) falta.push('correo o celular');
+    if (d.trajoCorreo && !d.correo) falta.push('un correo con formato válido');
+    if (d.trajoCelular && !d.celular) falta.push('un celular válido');
 
     if (!d.numeroDocumento || d.tipoDocumentoSepId === null) {
       falta.push(
