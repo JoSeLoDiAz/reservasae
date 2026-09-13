@@ -1830,24 +1830,37 @@ function ValidacionRui({
           </p>
         )}
 
-        {/* RUI caido: los dos enlaces para verificar a mano
-            (cliente, 13 sep 2026). No reemplazan la validacion
-            --ninguno devuelve el nombre del RUI-- pero ADRES da
-            el nombre con el que la persona esta afiliada y la
-            Policia el de los antecedentes, y con eso el asesor
-            sigue hoy en vez de esperar a que el RUI vuelva.
+        {/* SIN RUI: los dos enlaces para verificar a mano
+            (cliente, 13 sep 2026).
 
-            Solo en FALLIDA. En SIN_RESULTADO el RUI SI contesto
-            --dijo que ese documento no existe-- y ahi el paso es
-            preguntarle a la persona, no buscar por otro lado.
+            Salen en los DOS casos en que no hay respuesta del
+            RUI de verdad, y eso fue una correccion: primero se
+            pusieron solo en FALLIDA --«si el RUI esta caido»,
+            literal-- y en pruebas no aparecian NUNCA. Ahi el
+            RUI no esta conectado, asi que todo documento que no
+            este en RUI_SOLO_ESTOS_DOCUMENTOS cae al simulador y
+            el estado que sale es «Simulacion», no «FALLIDA».
+            Para quien mira la pantalla las dos cosas son lo
+            mismo: no tiene un nombre en que confiar.
 
-            `noopener noreferrer`: son sitios del Estado, pero no
-            tienen por que enterarse de la URL del panel. */}
-        {rui.estado === "FALLIDA" && (
+            No reemplazan la validacion --ninguno devuelve el
+            nombre del RUI-- pero ADRES da el nombre con el que
+            la persona esta afiliada y la Policia el de los
+            antecedentes, y con eso el asesor sigue hoy.
+
+            En SIN_RESULTADO no salen: ahi el RUI SI contesto
+            --dijo que ese documento no existe-- y el paso
+            siguiente es preguntarle a la persona, no buscar por
+            otro lado.
+
+            `noopener noreferrer`: son sitios del Estado, pero
+            no tienen por que enterarse de la URL del panel. */}
+        {(rui.simulado || rui.estado === "FALLIDA") && (
           <div className="rounded-xl border border-borde bg-superficie-alterna p-4">
             <p className="text-sm text-texto-suave">
-              El RUI no respondió. Mientras vuelve, el nombre se puede
-              verificar en:
+              {rui.simulado
+                ? "El RUI no está conectado. El nombre se puede verificar en:"
+                : "El RUI no respondió. Mientras vuelve, el nombre se puede verificar en:"}
             </p>
             <div className="mt-2 flex flex-wrap gap-x-5 gap-y-1 text-sm">
               <a
