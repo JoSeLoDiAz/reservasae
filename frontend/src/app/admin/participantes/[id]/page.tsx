@@ -1735,6 +1735,16 @@ function ValidacionRui({
           </button>
         </div>
 
+        {/* POR QUE no se pudo. Sin esto la ficha decia «No se
+            pudo consultar» y ahi lo dejaba, que es como el
+            cliente acabo reportando «el RUI da error»: casi
+            siempre es el portal del DNP, no la cedula. */}
+        {rui.motivoFallo && (
+          <p className="rounded-xl border border-borde bg-superficie-alterna p-3 text-sm text-texto-suave">
+            {rui.motivoFallo}
+          </p>
+        )}
+
         {delRui && (
           <dl className="grid sm:grid-cols-2">
             <div>

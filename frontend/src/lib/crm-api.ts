@@ -168,6 +168,8 @@ export type ConsultaRui = {
   /// Por qué salió del simulador. Lo dice el servidor, que es
   /// quien conoce la regla.
   motivoSimulado: string | null;
+  /// Por que no se pudo, en una frase. Solo si FALLIDA.
+  motivoFallo: string | null;
 };
 
 export const ETIQUETA_RUI: Record<EstadoRui, string> = {

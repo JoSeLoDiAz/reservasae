@@ -15,6 +15,7 @@ import { ColaRui } from './cola-rui';
 import { partirNombre } from './partir-nombre';
 import { nombreCoincide } from './comparar-nombres';
 import { permisoDeRui } from './permiso-rui';
+import { porQueFallo } from './por-que-fallo';
 import { taparDocumento } from '../../comun/tapar';
 import {
   PROVEEDOR_RUI,
@@ -41,6 +42,10 @@ export type EstadoRuiDeLaFicha = {
   simulado: boolean;
   /// La persona es inventada: no se consulta y se dice.
   esDePrueba: boolean;
+  /// POR QUE no se pudo, en una frase que sirva. El rastro
+  /// crudo del navegador no se enseña: no dice nada y parece
+  /// que el sistema se rompio.
+  motivoFallo: string | null;
   /// POR QUE salio del simulador y no del RUI.
   ///
   /// Antes la ficha traia el motivo escrito a mano -- «se
@@ -244,6 +249,7 @@ export class RuiService {
         simulado: ruiEsSimulado(),
         esDePrueba,
         motivoSimulado: motivo(ruiEsSimulado()),
+        motivoFallo: null,
       };
     }
 
@@ -265,6 +271,11 @@ export class RuiService {
       simulado: esperando ? ruiEsSimulado() : c.simulado,
       esDePrueba,
       motivoSimulado: motivo(esperando ? ruiEsSimulado() : c.simulado),
+      /// Solo de la que se rindio: una que sigue en cola
+      /// puede traer el error del intento anterior y decirlo
+      /// seria dar por perdida una consulta que sigue viva.
+      motivoFallo:
+        c.estado === EstadoConsultaRui.FALLIDA ? porQueFallo(c.ultimoError) : null,
     };
   }
 
