@@ -19,34 +19,54 @@ ALTER TABLE "grupos"
   ADD CONSTRAINT "grupos_hora_fin_con_inicio"
   CHECK ("horaFin" IS NULL OR "horaInicio" IS NOT NULL);
 
--- la frase vieja se parte; lo que no casa queda igual
+-- una sesion no termina antes de empezar
+ALTER TABLE "grupos"
+  ADD CONSTRAINT "grupos_hora_fin_despues_del_inicio"
+  CHECK ("horaFin" IS NULL OR "horaInicio" IS NULL OR "horaFin" > "horaInicio");
+
+-- el reloj de 24 h: "lunes a sabado, de 18:00 a 20:00"
 UPDATE "grupos" g
    SET "dias"       = btrim(s.m[1]),
-       "horaInicio" = lpad((CASE
-                              WHEN s.m[4] IS NULL      THEN s.m[2]::int
-                              WHEN lower(s.m[4]) = 'a' THEN s.m[2]::int % 12
-                              ELSE (s.m[2]::int % 12) + 12
-                            END)::text, 2, '0') || ':' || s.m[3],
-       "horaFin"    = lpad((CASE
-                              WHEN s.m[7] IS NULL      THEN s.m[5]::int
-                              WHEN lower(s.m[7]) = 'a' THEN s.m[5]::int % 12
-                              ELSE (s.m[5]::int % 12) + 12
-                            END)::text, 2, '0') || ':' || s.m[6]
+       "horaInicio" = lpad(s.m[2], 2, '0') || ':' || s.m[3],
+       "horaFin"    = lpad(s.m[4], 2, '0') || ':' || s.m[5]
   FROM (
     SELECT "id",
            regexp_match(
              "dias",
-             '^\s*([^,]+)\s*,\s*(?:[dD][eE]\s+)?(\d{1,2}):(\d{2})(?:\s*([apAP])\.?\s*[mM]\.?)?\s+a\s+(\d{1,2}):(\d{2})(?:\s*([apAP])\.?\s*[mM]\.?)?\s*$'
+             '^\s*([^,]+)\s*,\s*(?:[dD][eE]\s+)?(\d{1,2}):(\d{2})\s+a\s+(\d{1,2}):(\d{2})\s*$'
            ) AS m
       FROM "grupos"
      WHERE "dias" IS NOT NULL
   ) s
  WHERE g."id" = s."id"
    AND s.m IS NOT NULL
-   -- 25:00 casa el patron y no es hora
+   AND s.m[2]::int BETWEEN 0 AND 23
    AND s.m[3]::int < 60
-   AND s.m[6]::int < 60
-   AND (CASE WHEN s.m[4] IS NULL THEN s.m[2]::int BETWEEN 0 AND 23
-                                 ELSE s.m[2]::int BETWEEN 1 AND 12 END)
-   AND (CASE WHEN s.m[7] IS NULL THEN s.m[5]::int BETWEEN 0 AND 23
-                                 ELSE s.m[5]::int BETWEEN 1 AND 12 END);
+   AND s.m[4]::int BETWEEN 0 AND 23
+   AND s.m[5]::int < 60;
+
+-- el de 12 h, y EXIGE el meridiano en los dos extremos:
+-- con uno solo no se sabe si las 2 son de la tarde, asi
+-- que esa frase se queda entera y alguien la corrige
+UPDATE "grupos" g
+   SET "dias"       = btrim(s.m[1]),
+       "horaInicio" = lpad(((s.m[2]::int % 12) + CASE WHEN lower(s.m[4]) = 'p' THEN 12 ELSE 0 END)::text, 2, '0')
+                      || ':' || s.m[3],
+       "horaFin"    = lpad(((s.m[5]::int % 12) + CASE WHEN lower(s.m[7]) = 'p' THEN 12 ELSE 0 END)::text, 2, '0')
+                      || ':' || s.m[6]
+  FROM (
+    SELECT "id",
+           regexp_match(
+             "dias",
+             '^\s*([^,]+)\s*,\s*(?:[dD][eE]\s+)?(\d{1,2}):(\d{2})\s*([apAP])\.?\s*[mM]\.?\s+a\s+(\d{1,2}):(\d{2})\s*([apAP])\.?\s*[mM]\.?\s*$'
+           ) AS m
+      FROM "grupos"
+     WHERE "dias" IS NOT NULL
+       AND "horaInicio" IS NULL
+  ) s
+ WHERE g."id" = s."id"
+   AND s.m IS NOT NULL
+   AND s.m[2]::int BETWEEN 1 AND 12
+   AND s.m[3]::int < 60
+   AND s.m[5]::int BETWEEN 1 AND 12
+   AND s.m[6]::int < 60;
