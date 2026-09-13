@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { fechaDeCalendario } from "@/lib/dia-de-calendario";
 import { useCallback, useState } from "react";
 
 import { colorEtapa, estiloEtapa } from "@/components/admin/etapa";
@@ -42,6 +43,11 @@ const ORDEN: EstadoAcademico[] = [
   "CERTIFICADO",
   "SIN_EMPEZAR",
 ];
+
+/// Las fechas del GRUPO se teclean; `fecha` es para instantes
+/// --el ultimo acceso-- y en Bogota adelanta un dia a las otras.
+const dia = (iso: string | null) =>
+  fechaDeCalendario(iso, { day: "2-digit", month: "short", year: "2-digit" });
 
 function fecha(iso: string | null) {
   if (!iso) return "—";
@@ -576,7 +582,8 @@ function GrupoAcordeon({
           </span>
           <span className="ml-2 text-sm text-texto-suave">
             {personas.length} {personas.length === 1 ? "persona" : "personas"}
-            {uno.fechaInicio && ` · ${fecha(uno.fechaInicio)} → ${fecha(uno.fechaFin)}`}
+            {uno.fechaInicio &&
+              ` · ${dia(uno.fechaInicio)} → ${dia(uno.fechaFin)}`}
             {uno.horario && ` · ${uno.horario}`}
           </span>
           {alerta > 0 && (

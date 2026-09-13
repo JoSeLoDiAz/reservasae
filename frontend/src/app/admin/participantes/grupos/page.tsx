@@ -21,6 +21,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { fechaDeCalendario } from "@/lib/dia-de-calendario";
 import Link from "next/link";
 
 import { ErrorApi } from "@/lib/api";
@@ -376,7 +377,7 @@ function FilaDeCelda({
       <span className="font-medium">Grupo {celda.numero}</span>
       <span className="text-xs text-texto-suave">
         {celda.fechaInicio
-          ? `arranca el ${new Date(celda.fechaInicio).toLocaleDateString("es-CO")}`
+          ? `arranca el ${fechaDeCalendario(celda.fechaInicio, { dateStyle: "short" })}`
           : "sin fechas todavía"}
         {celda.horario ? ` · ${celda.horario}` : ""}
       </span>

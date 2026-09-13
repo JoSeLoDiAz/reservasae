@@ -1,6 +1,7 @@
 "use client";
 
 import { Fragment, useCallback, useEffect, useState } from "react";
+import { comoDia, fechaDeCalendario } from "@/lib/dia-de-calendario";
 
 import { IconoFormacion } from "@/components/admin/iconos";
 import {
@@ -36,14 +37,8 @@ function ventanaDe(grupos: GrupoCronograma[]) {
   return { desde, hasta };
 }
 
-/// Las fechas del cronograma se TECLEAN (2026-09-01), asi que se
-/// leen por sus tres numeros y no con `new Date`, que las
-/// interpreta en UTC y en Bogota devuelve el dia anterior. Es la
-/// misma distincion instante/calendario del backend.
-function comoDia(iso: string) {
-  const [a, m, d] = iso.slice(0, 10).split("-").map(Number);
-  return new Date(a, m - 1, d);
-}
+/// Vive en `lib/dia-de-calendario`, no aquí: estaba resuelto
+/// en esta función y olvidado en `fecha`, dos líneas abajo.
 
 const rango = (v: { desde: string | null; hasta: string | null }) =>
   v.desde && v.hasta
@@ -59,8 +54,7 @@ const TONO: Record<EstadoGrupo, "marca" | "exito" | "aviso" | "error" | "neutro"
   TERMINADO: "marca",
 };
 
-const fecha = (f: string | null) =>
-  f ? new Date(f).toLocaleDateString("es-CO", { day: "2-digit", month: "short", year: "numeric" }) : "—";
+const fecha = (f: string | null) => fechaDeCalendario(f);
 
 /// Para el <input type="date">, que quiere aaaa-mm-dd.
 const paraCampo = (f: string | null) => (f ? f.slice(0, 10) : "");
