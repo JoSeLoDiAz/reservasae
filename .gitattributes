@@ -1,2 +1,7 @@
 # los .sh corren en linux: nunca CRLF
 *.sh text eol=lf
+
+# Los logos sembrados: bytes exactos, sin convertir saltos de linea.
+# Si git los normaliza, la siembra los ve distintos en Windows y en el
+# servidor y deja de ser idempotente.
+backend/prisma/seed/logos/** -text
