@@ -59,7 +59,7 @@ export class TablerosService {
   // resumen
 
   async resumen(ambito: string[]) {
-    const [ofertas, reservas, empresas, base] = await Promise.all([
+    const [ofertas, reservas, empresas, base, inscritos] = await Promise.all([
       this.prisma.oferta.aggregate({
         where: ofertaDeConvenio(ambito),
         _sum: { cuposMaximos: true, cuposOcupados: true },
@@ -78,6 +78,10 @@ export class TablerosService {
       this.prisma.grupoCobertura.aggregate({
         where: coberturaDeConvenio(ambito),
         _sum: { cuposBase: true },
+      }),
+      /// Sillas CON alguien encima, no solo apartadas.
+      this.prisma.participante.count({
+        where: { ...deConvenio(ambito), etapa: { in: OCUPAN_SILLA } },
       }),
     ]);
 
@@ -109,6 +113,12 @@ export class TablerosService {
       // avance contra la meta
       metaBase,
       avanceMeta: pct(ocupados, metaBase),
+
+      /// Lo RESERVADO no es lo usado: una silla se usa cuando
+      /// hay alguien inscrito encima. Ver `OCUPAN_SILLA`.
+      inscritos,
+      avanceInscritos: pct(inscritos, cupos),
+      avanceInscritosMeta: pct(inscritos, metaBase),
 
       enEspera: reservas._sum.cuposEnEspera ?? 0,
       reservas: reservas._count,

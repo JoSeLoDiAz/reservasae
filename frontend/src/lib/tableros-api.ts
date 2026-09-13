@@ -13,6 +13,10 @@ export type Resumen = {
   /** La meta comprometida, sin sobrecupo. */
   metaBase: number;
   avanceMeta: number;
+  /** Personas inscritas en adelante: la silla usada de verdad. */
+  inscritos: number;
+  avanceInscritos: number;
+  avanceInscritosMeta: number;
   enEspera: number;
   reservas: number;
   canceladas: number;

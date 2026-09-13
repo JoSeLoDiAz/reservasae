@@ -103,6 +103,10 @@ export function VeredictoOcupacion({
   const marca = resumen.cupos > 0 ? (resumen.metaBase / resumen.cupos) * 100 : 0;
   const relleno = resumen.cupos > 0 ? (resumen.ocupados / resumen.cupos) * 100 : 0;
 
+  /// Sillas apartadas sin nadie encima. En negativo quiere
+  /// decir que entro gente por su cuenta.
+  const brecha = resumen.ocupados - resumen.inscritos;
+
   /// De mayor a menor oferta: la modalidad que más pesa manda
   /// la lectura.
   const modalidades = [...analisis.modalidad].sort((a, b) => b.cupos - a.cupos);
@@ -124,21 +128,50 @@ export function VeredictoOcupacion({
             `<br>` que no hacía falta: cabe de sobra en media
             pantalla. */}
         <div className="bg-superficie-alterna/45 px-7 py-3.5">
-          <Rotulo>Avance sobre la meta</Rotulo>
+          {/* DOS avances y no uno: una silla apartada por una
+              empresa no esta usada. Se usa cuando hay alguien
+              inscrito encima (cliente, 13 sep 2026). */}
+          <div className="grid gap-x-6 gap-y-3 sm:grid-cols-2">
+            <div>
+              <Rotulo>Reservado</Rotulo>
+              <p className="mt-1.5 text-[1.75rem] leading-none font-bold tracking-[-0.03em] tabular-nums text-titulo">
+                {dec(resumen.avanceMeta)}
+                <span className="ml-1 align-top text-base font-semibold text-texto-suave">
+                  %
+                </span>
+              </p>
+              <p className="mt-1.5 text-[0.8125rem] leading-snug text-texto-suave">
+                <strong className="font-semibold text-texto tabular-nums">
+                  {n(resumen.ocupados)}
+                </strong>{" "}
+                de {n(resumen.metaBase)} sillas apartadas
+              </p>
+            </div>
 
-          <p className="mt-1.5 text-[2.125rem] leading-none font-bold tracking-[-0.03em] tabular-nums text-titulo">
-            {dec(resumen.avanceMeta)}
-            <span className="ml-1 align-top text-lg font-semibold text-texto-suave">
-              %
-            </span>
-          </p>
+            <div>
+              <Rotulo>Inscrito de verdad</Rotulo>
+              <p className="mt-1.5 text-[1.75rem] leading-none font-bold tracking-[-0.03em] tabular-nums text-titulo">
+                {dec(resumen.avanceInscritosMeta)}
+                <span className="ml-1 align-top text-base font-semibold text-texto-suave">
+                  %
+                </span>
+              </p>
+              <p className="mt-1.5 text-[0.8125rem] leading-snug text-texto-suave">
+                <strong className="font-semibold text-texto tabular-nums">
+                  {n(resumen.inscritos)}
+                </strong>{" "}
+                de {n(resumen.metaBase)} personas inscritas
+              </p>
+            </div>
+          </div>
 
-          <p className="mt-1.5 text-[0.8125rem] leading-snug text-texto-suave">
-            <strong className="font-semibold text-texto tabular-nums">
-              {n(resumen.ocupados)}
-            </strong>{" "}
-            de {n(resumen.metaBase)} cupos comprometidos con el SENA
-          </p>
+          {brecha !== 0 && (
+            <p className="mt-3 text-[0.78125rem] leading-snug text-texto-suave">
+              {brecha > 0
+                ? `Faltan ${n(brecha)} nombres para llenar las sillas apartadas.`
+                : `${n(-brecha)} se inscribieron por su cuenta, sin silla apartada detrás.`}
+            </p>
+          )}
         </div>
 
         <div className="bg-superficie-alterna/45 px-7 py-3.5">
