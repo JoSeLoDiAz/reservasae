@@ -149,7 +149,7 @@ export function VeredictoOcupacion({
             </div>
 
             <div>
-              <Rotulo>Inscrito de verdad</Rotulo>
+              <Rotulo>Cupos ya comprometidos</Rotulo>
               <p className="mt-1.5 text-[1.75rem] leading-none font-bold tracking-[-0.03em] tabular-nums text-titulo">
                 {dec(resumen.avanceInscritosMeta)}
                 <span className="ml-1 align-top text-base font-semibold text-texto-suave">
@@ -160,7 +160,8 @@ export function VeredictoOcupacion({
                 <strong className="font-semibold text-texto tabular-nums">
                   {n(resumen.inscritos)}
                 </strong>{" "}
-                de {n(resumen.metaBase)} personas inscritas
+                de {n(resumen.metaBase)} · inscritos, en formación o
+                certificados
               </p>
             </div>
           </div>
