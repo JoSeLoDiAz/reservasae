@@ -3,6 +3,8 @@
 import { useEffect, useId, useMemo, useState } from "react";
 
 import { ErrorApi } from "@/lib/api";
+import { conEnlaces } from "@/components/caja-de-politica";
+
 import { digitoVerificacion } from "@/lib/nit";
 import { juntar, primero, resto } from "@/lib/nombres";
 import { sectoresConElActual } from "@/lib/sectores";
@@ -641,7 +643,7 @@ export function CompletarFicha({ token }: { token: string }) {
               <section className="rounded-2xl border border-borde bg-superficie p-6">
                 <h2 className="text-lg font-semibold">{ficha.politica.titulo}</h2>
                 <div className="mt-4 max-h-64 overflow-y-auto rounded-xl border border-borde bg-superficie-alterna p-4 text-sm leading-relaxed whitespace-pre-wrap">
-                  {ficha.politica.contenido}
+                  {conEnlaces(ficha.politica.contenido)}
                 </div>
                 <p className="mt-3 text-xs text-texto-suave">
                   Versión {ficha.politica.version}
