@@ -54,6 +54,7 @@ model Convenio {
   politicas        PoliticaDatos[]
   formularios      Formulario[]
   leads            LeadEntrante[]
+  conversaciones   ConversacionEntrante[]
   plantillasCorreo PlantillaCorreo[]
   campanas         Campana[]
   participantes    Participante[]
@@ -1113,6 +1114,61 @@ enum ResultadoGestion {
 /// que esto existe para evitar. Ya se rechazo una tabla `Llamada`
 /// aparte por lo mismo: daria dos verdades sobre cuantas veces se
 /// contacto a esta persona.
+/// Como aterrizo una conversacion de Lucy.
+enum EstadoConversacion {
+  PEGADA /// quedo como nota en su ficha o en su lead
+  SIN_DUENO /// ese numero no es de nadie del CRM
+  AMBIGUA /// toca a mas de una persona: no se elige
+}
+
+/// Lo que Lucy (WhatsApp) nos manda de cada conversacion.
+///
+/// NO es la mesa de entrada de leads y no se le parece: no tiene
+/// etapa, ni asesor, ni se convierte en nadie. Lucid no hace
+/// gestion de leads --los leads siguen entrando por Meta--; esto
+/// solo deja notas.
+///
+/// Existe la fila aunque la nota no se pueda pegar, por tres
+/// razones: un 200 sin fila no es verificable el dia que ellos
+/// digan «yo les mande esa conversacion»; el numero sin dueno de
+/// hoy es el dueno de manana, cuando esa persona se preinscriba;
+/// y sin la fila no hay forma de medir que porcentaje de lo que
+/// manda Lucy no toca a nadie, que es el numero que dice si la
+/// puerta sirve.
+model ConversacionEntrante {
+  id         String @id @default(cuid())
+  convenioId String
+
+  /// Quien la manda. Hoy solo "lucy".
+  origenSistema String
+  /// Su id de conversacion. Con el par de arriba es la
+  /// idempotencia: un reintento no deja dos notas.
+  externoId     String
+
+  /// Normalizado a diez digitos cuando es un movil.
+  celular    String
+  ocurridoEn DateTime?
+  resumen    String
+
+  /// El cuerpo entero, como en el webhook de leads: es lo que
+  /// deja depurar y demostrar que llego de verdad.
+  carga Json?
+
+  estado EstadoConversacion
+  notaId String?
+  /// A quienes tocaba, cuando toca a mas de uno.
+  candidatos Json?
+
+  recibidoEn DateTime @default(now())
+
+  convenio Convenio @relation(fields: [convenioId], references: [id])
+
+  @@unique([origenSistema, externoId])
+  @@index([convenioId, estado, recibidoEn])
+  @@index([celular])
+  @@map("conversaciones_entrantes")
+}
+
 model NotaDeGestion {
   id String @id @default(cuid())
 

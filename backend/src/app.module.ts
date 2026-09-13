@@ -4,6 +4,7 @@ import { APP_GUARD } from '@nestjs/core';
 import { ThrottlerModule } from '@nestjs/throttler';
 
 import { LeadsModule } from './leads/leads.module';
+import { LucyModule } from './lucy/lucy.module';
 import { AdminModule } from './admin/admin.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
@@ -24,6 +25,7 @@ import { TablerosModule } from './tableros/tableros.module';
 @Module({
   imports: [
     LeadsModule,
+    LucyModule,
     // sin esto backend/.env no se lee fuera de Docker
     ConfigModule.forRoot({ isGlobal: true }),
     // límite general de peticiones
