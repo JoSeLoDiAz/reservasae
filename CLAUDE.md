@@ -2903,21 +2903,21 @@ siguiente paso, y ninguna cambia lo de arriba.
 
 ---
 
-## Lucy: la gestión de WhatsApp (13 sep 2026)
+## Lucid: la gestión de WhatsApp (13 sep 2026)
 
-Lucy es un chatbot de WhatsApp de un tercero (lucidbot.co). **No hace
+Lucid es un chatbot de WhatsApp de un tercero (lucidbot.co). **No hace
 gestión de leads** — esos siguen entrando por Meta y ese webhook no se
 toca. Lo acordado con Mauricio, su integrador, son dos piezas y solo una
 está construida.
 
-### Lo que está hecho: `POST /api/webhooks/lucy/notas`
+### Lo que está hecho: `POST /api/webhooks/lucid/notas`
 
-Una etapa del flujo de Lucy resume la conversación y nos la manda.
+Una etapa del flujo de Lucid resume la conversación y nos la manda.
 Nosotros la colgamos como **nota** de la persona, cruzando **por el
-teléfono**, que llega con `+57`. `backend/src/lucy/`.
+teléfono**, que llega con `+57`. `backend/src/lucid/`.
 
-- **La llave NO tumba el arranque, y es deliberado.** `LUCY_WEBHOOK_SECRET`
-  en la cabecera `x-clave-lucy`. Sin ella `claveCorrecta` devuelve `false`
+- **La llave NO tumba el arranque, y es deliberado.** `LUCID_WEBHOOK_SECRET`
+  en la cabecera `x-clave-lucid`. Sin ella `claveCorrecta` devuelve `false`
   y la ruta contesta 401 a todo: **la seguridad es idéntica** a la de
   leads, que también falla cerrado — lo que aquella añade es tumbar el
   arranque, y eso es ruido, no seguridad. Lo que cambia es el radio de
@@ -2928,7 +2928,7 @@ teléfono**, que llega con `+57`. `backend/src/lucy/`.
 - **El precio se paga con ruido, y hay que mantenerlo.** Apagada se dice a
   gritos en `onModuleInit`, y el guard **cuenta los RECHAZOS**. Las notas
   no tienen contador natural —nadie sabe cuántas debería haber hoy—, así
-  que el fallo se hace **más** visible cuanto más insista Lucy. Sin eso,
+  que el fallo se hace **más** visible cuanto más insista Lucid. Sin eso,
   esta decisión sería la contraria.
 - **A quién se le pega: se cuentan PERSONAS, no filas.** Una persona con
   dos fichas va en la más reciente; el error se queda dentro de la misma
@@ -2960,7 +2960,7 @@ Ellos darán una API para que **desde el CRM** se mande un WhatsApp. Y hay
 un límite que no es de ellos sino de Meta: para escribir primero a quien
 no ha escrito en 24 h **hay que usar plantilla aprobada**. Textual de la
 llamada: «solo disparadores de plantillas, no conversación; las
-conversaciones las manejamos con Lucy».
+conversaciones las manejamos con Lucid».
 
 Encaja en la máquina de campañas —mismo segmento, misma lista congelada,
 mismo ritmo y horario, mismo candado de autorización— como **otro canal**,

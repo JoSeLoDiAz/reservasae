@@ -12,8 +12,8 @@ import {
 const recortar = ({ value }: { value: unknown }) =>
   typeof value === 'string' ? value.trim() : value;
 
-/// El resumen de una conversacion de Lucy.
-export class NotaDeLucyDto {
+/// El resumen de una conversacion de Lucid.
+export class NotaDeLucidDto {
   /// Su id de conversacion. Con el origen forma la llave que
   /// impide que un reintento deje la nota dos veces.
   @Transform(recortar)
@@ -29,7 +29,7 @@ export class NotaDeLucyDto {
   @MaxLength(40)
   telefono!: string;
 
-  /// Lo que la persona hablo con Lucy. Es lo que se lee.
+  /// Lo que la persona hablo con Lucid. Es lo que se lee.
   @Transform(recortar)
   @IsString()
   @MinLength(1)

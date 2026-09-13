@@ -35,7 +35,7 @@ import { timingSafeEqual } from 'node:crypto';
 /// La cabecera que trae la llave. Se nombra por QUIEN llama,
 /// como `x-clave-leads`. Nada de «-signature»: eso anuncia un
 /// HMAC sobre el cuerpo crudo y aqui no lo hay.
-export const CABECERA = 'x-clave-lucy';
+export const CABECERA = 'x-clave-lucid';
 
 const LARGO_MINIMO = 32;
 
@@ -45,11 +45,11 @@ const DE_EJEMPLO = [
   'cambiar-por-otro-secreto-largo-y-aleatorio-solo-de-pruebas',
 ];
 
-type Entorno = { LUCY_WEBHOOK_SECRET?: string };
+type Entorno = { LUCID_WEBHOOK_SECRET?: string };
 
 /** Si hay llave utilizable. Lo mira el aviso del arranque. */
-export function hayLlaveDeLucy(env: Entorno = process.env): boolean {
-  const s = env.LUCY_WEBHOOK_SECRET;
+export function hayLlaveDeLucid(env: Entorno = process.env): boolean {
+  const s = env.LUCID_WEBHOOK_SECRET;
   return !!s && s.length >= LARGO_MINIMO && !DE_EJEMPLO.includes(s);
 }
 
@@ -58,10 +58,10 @@ export function claveCorrecta(
   recibida: string | undefined,
   env: Entorno = process.env,
 ): boolean {
-  if (!hayLlaveDeLucy(env)) return false;
+  if (!hayLlaveDeLucid(env)) return false;
   if (!recibida) return false;
 
-  const buena = env.LUCY_WEBHOOK_SECRET as string;
+  const buena = env.LUCID_WEBHOOK_SECRET as string;
   const a = Buffer.from(recibida);
   const b = Buffer.from(buena);
   if (a.length !== b.length) {

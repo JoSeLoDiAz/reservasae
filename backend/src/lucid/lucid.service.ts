@@ -1,4 +1,4 @@
-/** Las conversaciones de Lucy, colgadas de quien corresponde. */
+/** Las conversaciones de Lucid, colgadas de quien corresponde. */
 
 import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 
@@ -6,18 +6,18 @@ import { CanalContacto } from '../../generated/prisma';
 import { normalizarCelular } from '../comun/celular';
 import { PrismaService } from '../prisma/prisma.service';
 import { aQuienSePega, type Candidato } from './a-quien-se-pega';
-import type { NotaDeLucyDto } from './dto';
+import type { NotaDeLucidDto } from './dto';
 
 /// Quien firma la nota. Se congela como cualquier otra.
-const AUTOR = 'Lucy (WhatsApp)';
+const AUTOR = 'Lucid (WhatsApp)';
 
 @Injectable()
-export class LucyService {
-  private readonly log = new Logger('Lucy');
+export class LucidService {
+  private readonly log = new Logger('Lucid');
 
   constructor(private readonly prisma: PrismaService) {}
 
-  async entra(dto: NotaDeLucyDto, sistema: string, delHost: string | null) {
+  async entra(dto: NotaDeLucidDto, sistema: string, delHost: string | null) {
     /// El gremio lo AFIRMA la direccion. Si vienen los dos y no
     /// coinciden se rechaza: resolverlo en silencio es como una
     /// conversacion acaba en el historial del otro gremio, que

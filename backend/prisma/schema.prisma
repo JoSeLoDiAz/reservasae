@@ -1114,14 +1114,14 @@ enum ResultadoGestion {
 /// que esto existe para evitar. Ya se rechazo una tabla `Llamada`
 /// aparte por lo mismo: daria dos verdades sobre cuantas veces se
 /// contacto a esta persona.
-/// Como aterrizo una conversacion de Lucy.
+/// Como aterrizo una conversacion de Lucid.
 enum EstadoConversacion {
   PEGADA /// quedo como nota en su ficha o en su lead
   SIN_DUENO /// ese numero no es de nadie del CRM
   AMBIGUA /// toca a mas de una persona: no se elige
 }
 
-/// Lo que Lucy (WhatsApp) nos manda de cada conversacion.
+/// Lo que Lucid (WhatsApp) nos manda de cada conversacion.
 ///
 /// NO es la mesa de entrada de leads y no se le parece: no tiene
 /// etapa, ni asesor, ni se convierte en nadie. Lucid no hace
@@ -1133,13 +1133,13 @@ enum EstadoConversacion {
 /// digan «yo les mande esa conversacion»; el numero sin dueno de
 /// hoy es el dueno de manana, cuando esa persona se preinscriba;
 /// y sin la fila no hay forma de medir que porcentaje de lo que
-/// manda Lucy no toca a nadie, que es el numero que dice si la
+/// manda Lucid no toca a nadie, que es el numero que dice si la
 /// puerta sirve.
 model ConversacionEntrante {
   id         String @id @default(cuid())
   convenioId String
 
-  /// Quien la manda. Hoy solo "lucy".
+  /// Quien la manda. Hoy solo "lucid".
   origenSistema String
   /// Su id de conversacion. Con el par de arriba es la
   /// idempotencia: un reintento no deja dos notas.

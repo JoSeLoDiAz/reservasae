@@ -14,11 +14,11 @@ import {
 } from '@nestjs/common';
 import type { Request } from 'express';
 
-import { CABECERA, claveCorrecta, hayLlaveDeLucy } from './secreto-de-lucy';
+import { CABECERA, claveCorrecta, hayLlaveDeLucid } from './secreto-de-lucid';
 
 @Injectable()
-export class LlaveDeLucyGuard implements CanActivate {
-  private readonly log = new Logger('Lucy');
+export class LlaveDeLucidGuard implements CanActivate {
+  private readonly log = new Logger('Lucid');
   /// Cuantas se rechazaron y cuando se conto la ultima vez.
   private rechazadas = 0;
   private ultimoAviso = 0;
@@ -35,7 +35,7 @@ export class LlaveDeLucyGuard implements CanActivate {
     throw new UnauthorizedException('Llave de webhook inválida.');
   }
 
-  /// Las notas de Lucy no tienen contador natural: nadie sabe
+  /// Las notas de Lucid no tienen contador natural: nadie sabe
   /// cuantas deberia haber hoy. Asi que lo que se cuenta son
   /// los RECHAZOS, y el aviso se hace mas fuerte cuanto mas
   /// insista ella -- al reves de un fallo silencioso.
@@ -45,11 +45,11 @@ export class LlaveDeLucyGuard implements CanActivate {
     if (ahora - this.ultimoAviso < 60_000) return;
     this.ultimoAviso = ahora;
 
-    const porque = hayLlaveDeLucy()
+    const porque = hayLlaveDeLucid()
       ? 'la llave que llega no es la buena'
-      : 'NO hay LUCY_WEBHOOK_SECRET configurada';
+      : 'NO hay LUCID_WEBHOOK_SECRET configurada';
     this.log.warn(
-      `Rechazadas ${this.rechazadas} llamadas de Lucy: ${porque}. ` +
+      `Rechazadas ${this.rechazadas} llamadas de Lucid: ${porque}. ` +
         'Esas conversaciones no quedan como nota en ninguna ficha.',
     );
   }

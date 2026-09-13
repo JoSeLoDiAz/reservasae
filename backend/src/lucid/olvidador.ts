@@ -13,7 +13,7 @@ const AL_ARRANCAR = 45_000;
 
 @Injectable()
 export class OlvidadorDeConversaciones implements OnModuleInit, OnModuleDestroy {
-  private readonly log = new Logger('Lucy');
+  private readonly log = new Logger('Lucid');
   private reloj: NodeJS.Timeout | null = null;
 
   constructor(private readonly prisma: PrismaService) {}

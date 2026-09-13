@@ -1,4 +1,4 @@
-/** La puerta de Lucy, llamada de verdad. */
+/** La puerta de Lucid, llamada de verdad. */
 
 /// Llama a `entra()`, no a `aQuienSePega`. La regla del cruce ya
 /// tiene su spec; lo que aqui se prueba es COMO el metodo la usa
@@ -8,7 +8,7 @@
 
 import { BadRequestException } from '@nestjs/common';
 
-import { LucyService } from './lucy.service';
+import { LucidService } from './lucid.service';
 
 const CONVENIO = { id: 'cv-1' };
 
@@ -46,7 +46,7 @@ function armar(mundo: {
     },
     participante: { findMany: () => Promise.resolve(mundo.fichas ?? []) },
   };
-  return { servicio: new LucyService(prisma as never), escrito };
+  return { servicio: new LucidService(prisma as never), escrito };
 }
 
 const CUERPO = {
@@ -55,32 +55,32 @@ const CUERPO = {
   resumen: 'Preguntó por el curso. Sigue interesada.',
 };
 
-describe('entra una conversación de Lucy', () => {
+describe('entra una conversación de Lucid', () => {
   it('la cuelga de la ficha y con canal WhatsApp', async () => {
     const { servicio, escrito } = armar({
       fichas: [{ id: 'f1', personaId: 'p1', creadoEn: new Date(2026, 8, 1) }],
     });
 
-    const r = await servicio.entra(CUERPO as never, 'lucy', 'adecopria');
+    const r = await servicio.entra(CUERPO as never, 'lucid', 'adecopria');
 
     expect(r.estado).toBe('PEGADA');
     expect(escrito.nota).toMatchObject({
       participanteId: 'f1',
       leadId: null,
       canales: ['WHATSAPP'],
-      autorNombre: 'Lucy (WhatsApp)',
+      autorNombre: 'Lucid (WhatsApp)',
       autorId: null,
     });
   });
 
   /// Si esto se rompe, la lista de «a quien insistirle hoy» se
-  /// vacia sola en cuanto Lucy toque a alguien.
+  /// vacia sola en cuanto Lucid toque a alguien.
   it('la nota NO lleva resultado: no es un intento de contacto', async () => {
     const { servicio, escrito } = armar({
       fichas: [{ id: 'f1', personaId: 'p1', creadoEn: new Date(2026, 8, 1) }],
     });
 
-    await servicio.entra(CUERPO as never, 'lucy', 'adecopria');
+    await servicio.entra(CUERPO as never, 'lucid', 'adecopria');
 
     expect((escrito.nota as { resultado: unknown }).resultado).toBeNull();
   });
@@ -88,7 +88,7 @@ describe('entra una conversación de Lucy', () => {
   it('el número se guarda normalizado, sin el +57', async () => {
     const { servicio, escrito } = armar();
 
-    await servicio.entra(CUERPO as never, 'lucy', 'adecopria');
+    await servicio.entra(CUERPO as never, 'lucid', 'adecopria');
 
     expect((escrito.conversacion as { celular: string }).celular).toBe('3004128876');
   });
@@ -97,7 +97,7 @@ describe('entra una conversación de Lucy', () => {
   it('un número de nadie queda guardado, sin nota', async () => {
     const { servicio, escrito } = armar();
 
-    const r = await servicio.entra(CUERPO as never, 'lucy', 'adecopria');
+    const r = await servicio.entra(CUERPO as never, 'lucid', 'adecopria');
 
     expect(r.estado).toBe('SIN_DUENO');
     expect(r.notaId).toBeNull();
@@ -113,7 +113,7 @@ describe('entra una conversación de Lucy', () => {
       ],
     });
 
-    const r = await servicio.entra(CUERPO as never, 'lucy', 'adecopria');
+    const r = await servicio.entra(CUERPO as never, 'lucid', 'adecopria');
 
     expect(r.estado).toBe('AMBIGUA');
     expect(escrito.nota).toBeUndefined();
@@ -126,7 +126,7 @@ describe('entra una conversación de Lucy', () => {
       fichas: [{ id: 'f1', personaId: 'p1', creadoEn: new Date(2026, 8, 1) }],
     });
 
-    const r = await servicio.entra(CUERPO as never, 'lucy', 'adecopria');
+    const r = await servicio.entra(CUERPO as never, 'lucid', 'adecopria');
 
     expect(r.repetido).toBe(true);
     expect(r.notaId).toBe('nota-1');
@@ -139,14 +139,14 @@ describe('entra una conversación de Lucy', () => {
     const { servicio } = armar();
 
     await expect(
-      servicio.entra({ ...CUERPO, convenio: 'britcham-adee' } as never, 'lucy', 'adecopria'),
+      servicio.entra({ ...CUERPO, convenio: 'britcham-adee' } as never, 'lucid', 'adecopria'),
     ).rejects.toThrow(BadRequestException);
   });
 
   it('sin gremio por ningún lado, se rechaza', async () => {
     const { servicio } = armar();
 
-    await expect(servicio.entra(CUERPO as never, 'lucy', null)).rejects.toThrow(
+    await expect(servicio.entra(CUERPO as never, 'lucid', null)).rejects.toThrow(
       /Falta el convenio/,
     );
   });
@@ -156,7 +156,7 @@ describe('entra una conversación de Lucy', () => {
       leads: [{ id: 'l1', recibidoEn: new Date(2026, 8, 1) }],
     });
 
-    const r = await servicio.entra(CUERPO as never, 'lucy', 'adecopria');
+    const r = await servicio.entra(CUERPO as never, 'lucid', 'adecopria');
 
     expect(r.estado).toBe('PEGADA');
     expect(escrito.nota).toMatchObject({ leadId: 'l1', participanteId: null });

@@ -1,4 +1,4 @@
--- lo que Lucy manda de cada conversacion
+-- lo que Lucid manda de cada conversacion
 
 CREATE TYPE "EstadoConversacion" AS ENUM ('PEGADA', 'SIN_DUENO', 'AMBIGUA');
 
