@@ -60,6 +60,7 @@ import {
   GRUPOS_DE_CARACTERIZACION,
   GENEROS_SEP,
   motivoDeIdInvalido,
+  municipioCuadra,
   MUNICIPIOS_SEP,
   NIVELES_OCUPACIONALES_SEP,
   SECTORES_ECONOMICOS,
@@ -1693,27 +1694,35 @@ export class CrmService {
   }
 
   /**
-   * Los tres datos del jefe directo, desde la ficha del lead.
+   * Los datos de la empresa, corregidos DESDE LA FICHA.
    *
-   * Una puerta ESTRECHA a propósito. El asesor llama a la
-   * persona y consigue el nombre, el cargo y el correo de su
-   * jefe: son los mismos tres que pide el enlace de completar
-   * datos, y son los únicos que se le sabe un empleado.
+   * Empezó con tres —nombre, cargo y correo del jefe directo—
+   * porque el resto se corregía en «Empresas registradas», que
+   * un gestor de inscripciones no tiene. El cliente pidió
+   * (13 sep 2026) que también se corrija lo demás desde aquí:
+   * el asesor que llama, el analista que revisa y el
+   * administrador trabajan sobre la ficha, no sobre el maestro.
    *
-   * Lo demás de la empresa —dirección, teléfono, número de
-   * trabajadores, tamaño— lo trae la consulta al RUES por el
-   * NIT o lo llena el analista de información. Y la RAZÓN
-   * SOCIAL no se toca por aquí de ninguna manera: la valida el
-   * código contra el registro, y dejar que se escriba a mano
-   * es volver a abrir lo que ya se cerró en la ruta pública.
+   * Lo que se corrige es de la EMPRESA, no de la ficha: la fila
+   * la comparten todas las fichas de ese NIT, así que arreglar
+   * la dirección la arregla para todas. Es lo correcto —la
+   * dirección es de la empresa— pero hay que saberlo al leer.
    *
-   * Antes esto obligaba a ir a «Empresas registradas», que un
-   * gestor de inscripciones no tiene, así que el dato se
-   * quedaba sin poner.
+   * `undefined` es «no lo toque», que es lo que entiende
+   * Prisma: la pantalla manda solo lo que cambió y un campo
+   * ausente no borra nada.
    */
-  async guardarContactoDeLaEmpresa(
+  async guardarDatosDeLaEmpresa(
     id: string,
     datos: {
+      razonSocial?: string;
+      digitoVerificacion?: string;
+      direccion?: string;
+      telefono?: string;
+      departamentoSepId?: number | null;
+      municipioSepId?: number | null;
+      sectorEconomico?: string;
+      numeroTrabajadores?: number | null;
       contactoNombre?: string;
       contactoCargo?: string;
       contactoCorreo?: string;
@@ -1742,12 +1751,30 @@ export class CrmService {
       );
     }
 
-    /// Solo lo que venga, y solo estos tres. Un campo ausente
-    /// no borra: `undefined` en Prisma es «no lo toque».
+    /// Texto en blanco es «no lo sé», no «bórralo».
+    ///
+    /// Quien deja un campo vacío en la pantalla casi siempre es
+    /// que no consiguió el dato, no que quiera quitar el que
+    /// había. Para borrar de verdad está Empresas registradas,
+    /// donde el dato se ve con todas las fichas que dependen
+    /// de él.
+    const texto = (v?: string) => (v?.trim() ? v.trim() : undefined);
+
     const limpio = {
-      contactoNombre: datos.contactoNombre?.trim() || undefined,
-      contactoCargo: datos.contactoCargo?.trim() || undefined,
-      contactoCorreo: datos.contactoCorreo?.trim() || undefined,
+      razonSocial: texto(datos.razonSocial),
+      digitoVerificacion: texto(datos.digitoVerificacion),
+      direccion: texto(datos.direccion),
+      telefono: texto(datos.telefono),
+      sectorEconomico: texto(datos.sectorEconomico),
+      contactoNombre: texto(datos.contactoNombre),
+      contactoCargo: texto(datos.contactoCargo),
+      contactoCorreo: texto(datos.contactoCorreo),
+      /// Los tres números SÍ aceptan null: en un desplegable
+      /// elegir «—» es una respuesta, y sin null no habría
+      /// manera de deshacer un municipio puesto por error.
+      departamentoSepId: datos.departamentoSepId,
+      municipioSepId: datos.municipioSepId,
+      numeroTrabajadores: datos.numeroTrabajadores,
     };
 
     const tocados = Object.entries(limpio)
@@ -1756,6 +1783,55 @@ export class CrmService {
 
     if (tocados.length === 0) {
       throw new BadRequestException('No llegó ningún dato que guardar.');
+    }
+
+    /// El sector va al F7 como texto, pero solo valen los tres
+    /// del Decreto 957. Se valida aquí y no solo en la
+    /// pantalla: un «servicios» en minúscula o un sector
+    /// inventado se lo traga la columna y el SENA devuelve el
+    /// archivo COMPLETO, no esa fila.
+    if (limpio.sectorEconomico !== undefined) {
+      const valido = SECTORES_ECONOMICOS.some(
+        (s) => s.etiqueta === limpio.sectorEconomico,
+      );
+      if (!valido) {
+        throw new BadRequestException(
+          `El sector económico tiene que ser uno de: ${SECTORES_ECONOMICOS.map(
+            (s) => s.etiqueta,
+          ).join(', ')}.`,
+        );
+      }
+    }
+
+    /// El municipio tiene que ser del departamento que queda
+    /// guardado, no del que venga en la petición: se puede
+    /// cambiar uno sin el otro. Mismo motivo que el sector —un
+    /// municipio que no cuadra tumba el cargue entero— y misma
+    /// función que ya usa la ficha de la persona, para que no
+    /// haya dos reglas distintas.
+    if (limpio.municipioSepId !== undefined || limpio.departamentoSepId !== undefined) {
+      const actual = await this.prisma.empresa.findUnique({
+        where: { id: empresaId },
+        select: { departamentoSepId: true, municipioSepId: true },
+      });
+
+      const departamento =
+        limpio.departamentoSepId !== undefined
+          ? limpio.departamentoSepId
+          : (actual?.departamentoSepId ?? null);
+      const municipio =
+        limpio.municipioSepId !== undefined
+          ? limpio.municipioSepId
+          : (actual?.municipioSepId ?? null);
+
+      if (!municipioCuadra(departamento, municipio)) {
+        throw new BadRequestException(
+          limpio.municipioSepId === undefined
+            ? 'El municipio que ya tiene no es de ese departamento. Cambie ' +
+              'también el municipio.'
+            : 'Ese municipio no pertenece a ese departamento.',
+        );
+      }
     }
 
     await this.prisma.empresa.update({
@@ -1771,7 +1847,7 @@ export class CrmService {
       entidad: ENTIDADES.EMPRESA,
       entidadId: empresaId,
       convenioId: suyo?.convenioId ?? null,
-      resumen: `Desde la ficha de un lead, por su asesor.`,
+      resumen: 'Desde la ficha de un lead.',
       camposTocados: tocados,
       ip,
     });

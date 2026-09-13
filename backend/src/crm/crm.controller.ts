@@ -37,7 +37,7 @@ import { DirectorioService } from './directorio.service';
 import { PlantillasCorreoService } from '../correo/plantillas/plantillas-correo.service';
 import { RuiService } from './rui/rui.service';
 import {
-  ContactoDeLaEmpresaDto,
+  DatosDeLaEmpresaDto,
   ActualizarParticipanteDto,
   AgregarNitDto,
   ResolverPropuestaDto,
@@ -638,22 +638,27 @@ export class CrmController {
     return this.crm.restablecerValor(id, valorId, ambito.convenios, admin, ip);
   }
 
-  /// Los tres del jefe directo, desde la ficha.
+  /// Los datos de la empresa, desde la ficha.
   ///
-  /// Antes había que ir a «Empresas registradas», que un
-  /// gestor de inscripciones no tiene: el dato se quedaba sin
-  /// poner. La razón social NO entra por aquí — la valida el
-  /// código contra el registro.
-  @Patch(':id/empresa-contacto')
-  @Requiere('inscripciones', 'ESCRIBIR')
-  contactoDeLaEmpresa(
+  /// Tres areas y no una: el cliente pidio que corrijan el
+  /// ASESOR, el ANALISTA y el ADMINISTRADOR (13 sep 2026), y
+  /// esos tres viven en areas distintas del panel. Con varias
+  /// areas basta alcanzar el nivel en UNA --lo dice el guard--
+  /// y el ambito se recorta a los convenios donde de verdad
+  /// alcanza, convenio por convenio.
+  ///
+  /// El NIT no entra por aqui: es la llave de la fila, y la
+  /// fila la comparten todas las fichas de esa empresa.
+  @Patch(':id/empresa')
+  @Requiere(['inscripciones', 'academico', 'configuracion'], 'ESCRIBIR')
+  datosDeLaEmpresa(
     @Param('id') id: string,
-    @Body() dto: ContactoDeLaEmpresaDto,
+    @Body() dto: DatosDeLaEmpresaDto,
     @AmbitoActual() ambito: Ambito,
     @AdminActual() admin: Admin,
     @IpReal() ip: string,
   ) {
-    return this.crm.guardarContactoDeLaEmpresa(
+    return this.crm.guardarDatosDeLaEmpresa(
       id,
       dto,
       ambito.convenios,

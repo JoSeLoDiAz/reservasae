@@ -836,6 +836,10 @@ export type CatalogosSep = {
   departamentos: Array<{ id: number; etiqueta: string }>;
   /** [id, departamentoId, nombre] */
   municipios: Array<[number, number, string]>;
+  /// Los TRES del Decreto 957, no las 21 del CIIU: el tamaño
+  /// del SEP ya viene cruzado con el sector, y con la lista
+  /// larga los dos datos no cuadrarían.
+  sectoresEconomicos: Array<{ id: number; etiqueta: string }>;
   estrato: { minimo: number; maximo: number };
   edadMinima: number;
 };
@@ -1073,17 +1077,32 @@ export type CandidatosDeGrupo = {
 };
 
 export const crmApi = {
-  /// Los tres del jefe directo, desde la ficha del lead.
-  /// La razón social NO va aquí: la valida el código.
-  guardarContactoEmpresa: (
+  /// Los datos de la empresa, desde la ficha del lead.
+  ///
+  /// Se manda SOLO lo que cambió: una clave ausente es «no lo
+  /// toque» y una en null es «quítalo». El servidor depende de
+  /// esa diferencia, así que no se rellena el objeto con los
+  /// valores que ya estaban.
+  ///
+  /// El NIT no va: es la llave de la fila y la fila la
+  /// comparten todas las fichas de esa empresa.
+  guardarDatosEmpresa: (
     id: string,
     datos: {
+      razonSocial?: string;
+      digitoVerificacion?: string;
+      direccion?: string;
+      telefono?: string;
+      departamentoSepId?: number | null;
+      municipioSepId?: number | null;
+      sectorEconomico?: string;
+      numeroTrabajadores?: number | null;
       contactoNombre?: string;
       contactoCargo?: string;
       contactoCorreo?: string;
     },
   ) =>
-    pedir<unknown>(`/admin/participantes/${id}/empresa-contacto`, {
+    pedir<unknown>(`/admin/participantes/${id}/empresa`, {
       method: "PATCH",
       body: JSON.stringify(datos),
     }),

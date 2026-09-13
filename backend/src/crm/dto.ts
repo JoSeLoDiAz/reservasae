@@ -486,15 +486,75 @@ export class ResolverPropuestaDto {
 }
 
 /**
- * Los tres del jefe directo, y solo esos.
+ * Los datos de la empresa que se corrigen DESDE LA FICHA.
  *
- * La RAZÓN SOCIAL no está aquí a propósito: la valida el
- * código contra el registro, y dejar que se escriba a mano por
- * esta puerta es volver a abrir lo que se cerró en la ruta
- * pública de reservas, donde cualquiera con un NIT le cambiaba
- * el nombre a una empresa.
+ * Empezo con tres —los del jefe directo— porque el resto se
+ * corregia en «Empresas registradas». El cliente pidio que los
+ * pueda corregir tambien quien esta en la ficha (13 sep 2026):
+ * el asesor que llama, el analista que revisa y el
+ * administrador. La ruta abre para las tres areas y el ambito
+ * lo recorta el guard, convenio por convenio.
+ *
+ * LA RAZON SOCIAL ENTRA, y antes no. El motivo de tenerla
+ * fuera era la ruta PUBLICA de reservas, donde cualquiera con
+ * un NIT le cambiaba el nombre a una empresa; esa sigue
+ * cerrada. Por esta puerta hay sesion, rol, huella en la
+ * auditoria y el enlace al RUES al lado para comprobar el
+ * nombre antes de escribirlo.
+ *
+ * EL NIT NO ENTRA, y no por olvido: es la llave unica de la
+ * fila, y la fila la comparten todas las fichas de esa
+ * empresa. Cambiarlo aqui no seria «corregir el NIT» sino
+ * mudar de empresa a mucha gente de una vez, y eso es otra
+ * operacion. El digito de verificacion si, que es lo que de
+ * verdad se teclea mal.
  */
-export class ContactoDeLaEmpresaDto {
+export class DatosDeLaEmpresaDto {
+  @IsOptional()
+  @Transform(recortar)
+  @IsString()
+  @MaxLength(200)
+  razonSocial?: string;
+
+  /// Un digito. Se valida como texto porque «0» es valido y
+  /// como numero se perderia.
+  @IsOptional()
+  @Transform(recortar)
+  @IsString()
+  @MaxLength(1)
+  digitoVerificacion?: string;
+
+  @IsOptional()
+  @Transform(recortar)
+  @IsString()
+  @MaxLength(200)
+  direccion?: string;
+
+  @IsOptional()
+  @Transform(recortar)
+  @IsString()
+  @MaxLength(60)
+  telefono?: string;
+
+  @IsOptional() @Transform(aNumero) @IsInt() departamentoSepId?: number | null;
+  @IsOptional() @Transform(aNumero) @IsInt() municipioSepId?: number | null;
+
+  @IsOptional()
+  @Transform(recortar)
+  @IsString()
+  @MaxLength(120)
+  sectorEconomico?: string;
+
+  /// Todos los que trabajan alli, no solo los que se forman.
+  /// El tope no es decorativo: al F7 no le entra un numero de
+  /// siete cifras y es mas probable que sea un dedo pegado.
+  @IsOptional()
+  @Transform(aNumero)
+  @IsInt()
+  @Min(0)
+  @Max(999999)
+  numeroTrabajadores?: number | null;
+
   @IsOptional()
   @Transform(recortar)
   @IsString()

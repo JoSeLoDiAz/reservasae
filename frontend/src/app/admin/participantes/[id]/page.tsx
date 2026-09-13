@@ -20,6 +20,7 @@ import {
 import { SelectorBuscable } from "@/components/admin/selector-buscable";
 import { Caracterizacion } from "@/components/admin/caracterizacion";
 import { DatosSena } from "@/components/admin/datos-sena";
+import { EditorDeEmpresa } from "@/components/admin/editor-de-empresa";
 import { colorEtapa, PildoraEtapa } from "@/components/admin/etapa";
 import {
   Aviso,
@@ -178,6 +179,18 @@ export default function PaginaFicha() {
   // sin permisos aun no se esconde nada
   const puedeEscribir =
     !admin.permisos || alcanza(admin.permisos.inscripciones, "ESCRIBIR");
+  /// La empresa la corrige quien esté en la ficha, y eso son
+  /// TRES áreas del panel: el asesor la trabaja (inscripciones),
+  /// el analista revisa lo que va al F7 (académico) y el
+  /// administrador arregla lo que los dos no pudieron
+  /// (configuración). El cliente pidió los tres nombrados
+  /// (13 sep 2026), y la ruta del servidor exige lo mismo:
+  /// cualquiera de las tres, no las tres.
+  const puedeEditarEmpresa =
+    !admin.permisos ||
+    alcanza(admin.permisos.inscripciones, "ESCRIBIR") ||
+    alcanza(admin.permisos.academico, "ESCRIBIR") ||
+    alcanza(admin.permisos.configuracion, "ESCRIBIR");
 
   const cargar = useCallback(async () => {
     const lead = await crmApi.obtener(id);
@@ -445,7 +458,11 @@ export default function PaginaFicha() {
             {pestana === "datos" && <DatosSena lead={f} alGuardar={conError} />}
 
             {pestana === "empresa" && (
-              <DatosDeLaEmpresa lead={f} puedeEscribir={puedeEscribir} />
+              <DatosDeLaEmpresa
+                lead={f}
+                puedeEscribir={puedeEditarEmpresa}
+                alGuardar={conError}
+              />
             )}
 
             {pestana === "notas" && (
@@ -1812,6 +1829,46 @@ function ValidacionRui({
             El documento no aparece en el RUI. Verifiquelo con la persona.
           </p>
         )}
+
+        {/* RUI caido: los dos enlaces para verificar a mano
+            (cliente, 13 sep 2026). No reemplazan la validacion
+            --ninguno devuelve el nombre del RUI-- pero ADRES da
+            el nombre con el que la persona esta afiliada y la
+            Policia el de los antecedentes, y con eso el asesor
+            sigue hoy en vez de esperar a que el RUI vuelva.
+
+            Solo en FALLIDA. En SIN_RESULTADO el RUI SI contesto
+            --dijo que ese documento no existe-- y ahi el paso es
+            preguntarle a la persona, no buscar por otro lado.
+
+            `noopener noreferrer`: son sitios del Estado, pero no
+            tienen por que enterarse de la URL del panel. */}
+        {rui.estado === "FALLIDA" && (
+          <div className="rounded-xl border border-borde bg-superficie-alterna p-4">
+            <p className="text-sm text-texto-suave">
+              El RUI no respondió. Mientras vuelve, el nombre se puede
+              verificar en:
+            </p>
+            <div className="mt-2 flex flex-wrap gap-x-5 gap-y-1 text-sm">
+              <a
+                href="https://www.adres.gov.co/consulte-su-eps"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-marca hover:underline"
+              >
+                ADRES · consulte su EPS
+              </a>
+              <a
+                href="https://antecedentes.policia.gov.co:7005/WebJudicial/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-marca hover:underline"
+              >
+                Policía · antecedentes judiciales
+              </a>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -1970,16 +2027,27 @@ function Asesor({
  * incluidos los que llegan vacíos -- ver el hueco es la mitad
  * del trabajo.
  *
- * Solo de lectura. Se corrigen desde Empresas registradas,
- * que es donde vive el dato: editarlos en dos sitios es
- * garantizar que un día no coincidan.
+ * Decía «solo de lectura, se corrigen desde Empresas
+ * registradas, que es donde vive el dato». La razón era buena
+ * --editar en dos sitios es garantizar que un día no
+ * coincidan-- pero el remedio era peor: quien trabaja el lead
+ * no tiene esa pantalla en el menú, así que el dato no se
+ * corregía en ninguno de los dos. Ahora se corrige aquí y
+ * escribe en la MISMA fila, que es lo que de verdad evita las
+ * dos verdades.
  */
 function DatosDeLaEmpresa({
   lead,
   puedeEscribir,
+  alGuardar,
 }: {
   lead: Ficha;
+  /// Aquí alcanza el ASESOR, el ANALISTA o el ADMINISTRADOR:
+  /// son tres áreas distintas del panel y el cliente pidió las
+  /// tres. Lo decide la página, que es la que tiene los
+  /// permisos.
   puedeEscribir: boolean;
+  alGuardar: (accion: () => Promise<void>, exito?: string) => Promise<void>;
 }) {
   const e = lead.empresa;
   const fichaId = lead.id;
@@ -2113,35 +2181,62 @@ function DatosDeLaEmpresa({
               Persona de contacto en la empresa
             </span>
           </p>
-          {/* EDITABLES desde aquí.
+          {/* EN LECTURA, y editables con el boton de abajo.
 
-              Antes había que ir a «Empresas registradas» —que
-              un gestor de inscripciones no tiene—, así que el
-              asesor llamaba, conseguía el dato, y no tenía
-              dónde ponerlo. Se quedaba en un papel. */}
-          <ContactoDeLaEmpresa
-            participanteId={fichaId}
-            valores={{
-              contactoNombre: (e.contactoNombre ?? "") as string,
-              contactoCargo: (e.contactoCargo ?? "") as string,
-              contactoCorreo: (e.contactoCorreo ?? "") as string,
-            }}
-            puedeEscribir={puedeEscribir}
-          />
+              Fueron cajas de texto siempre desde que se abrio
+              esta puerta --antes habia que ir a «Empresas
+              registradas», que un gestor de inscripciones no
+              tiene--. Ahora que se corrige toda la empresa y no
+              solo estos tres, dejarlos como formulario
+              permanente dejaba la tarjeta con ocho cajas
+              vacias: se leen como dato y se corrigen donde se
+              corrige lo demas. */}
+          <Campos campos={DEL_ASESOR} />
         </div>
       )}
 
       {/* Aquí iban los seis campos del analista, plegados, y
           debajo una nota de cuatro renglones sobre el F7.
 
-          Los dos fuera. Quien inscribe se encarga de tres
-          datos —contacto, cargo, correo— y ya lo sabe; el
-          resto le llenaba la tarjeta de cosas que no persigue
-          y la dejaba mucho más alta que «Datos del
+          Los dos fuera de la LECTURA. Quien inscribe se
+          encarga de tres datos —contacto, cargo, correo— y ya
+          lo sabe; el resto le llenaba la tarjeta de cosas que
+          no persigue y la dejaba mucho más alta que «Datos del
           interesado», que es con la que tiene que emparejar.
 
-          No se pierde nada: esos campos se ven y se corrigen
-          en Empresas registradas, que es de quien son. */}
+          Pero corregirlos ya no obliga a salir de aquí: el
+          botón de abajo los abre todos. Antes decía «se ven y
+          se corrigen en Empresas registradas», que es una
+          pantalla que el asesor no tiene en el menú. */}
+
+      {/* El RUES, donde se comprueba la razón social y el NIT
+          antes de escribirlos (cliente, 13 sep 2026). No se
+          consulta por API —no hay convenio para eso— así que
+          es un enlace: se abre aparte, se mira y se vuelve.
+
+          `noopener noreferrer` como todos los de fuera: es un
+          sitio público, pero no tiene por qué enterarse de la
+          dirección del panel. */}
+      <p className="mt-4 text-[0.78125rem] text-texto-suave">
+        Para comprobar el NIT o la razón social:{" "}
+        <a
+          href="https://www.rues.org.co/"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-marca hover:underline"
+        >
+          consultar en el RUES
+        </a>
+        .
+      </p>
+
+      <EditorDeEmpresa
+        participanteId={fichaId}
+        empresa={e}
+        porSuCuenta={porSuCuenta}
+        puedeEscribir={puedeEscribir}
+        alGuardar={alGuardar}
+      />
     </Tarjeta>
   );
 }
@@ -2456,90 +2551,5 @@ function Campos({ campos }: { campos: Array<[string, unknown]> }) {
         </div>
       ))}
     </dl>
-  );
-}
-
-/**
- * Los tres del jefe directo, escribibles desde el lead.
- *
- * Antes esta tarjeta era de solo lectura y decía «se corrigen
- * en Empresas registradas». Pero un gestor de inscripciones no
- * tiene esa pantalla: llamaba, conseguía el dato, y no tenía
- * dónde ponerlo.
- *
- * Solo estos tres. La razón social no está aquí a propósito:
- * la valida el código contra el registro, y escribirla a mano
- * es volver a abrir lo que se cerró en la ruta pública, donde
- * cualquiera con un NIT le cambiaba el nombre a una empresa.
- */
-function ContactoDeLaEmpresa({
-  participanteId,
-  valores,
-  puedeEscribir,
-}: {
-  participanteId: string;
-  valores: {
-    contactoNombre: string;
-    contactoCargo: string;
-    contactoCorreo: string;
-  };
-  puedeEscribir: boolean;
-}) {
-  const toast = useToast();
-  const [v, setV] = useState(valores);
-  const [guardando, setGuardando] = useState(false);
-
-  const cambiado =
-    v.contactoNombre !== valores.contactoNombre ||
-    v.contactoCargo !== valores.contactoCargo ||
-    v.contactoCorreo !== valores.contactoCorreo;
-
-  if (!puedeEscribir) return <Campos campos={Object.entries(valores)} />;
-
-  const CAMPOS: Array<[keyof typeof v, string]> = [
-    ["contactoNombre", "Persona de contacto"],
-    ["contactoCargo", "Su cargo"],
-    ["contactoCorreo", "Su correo"],
-  ];
-
-  return (
-    <div className="space-y-3">
-      <div className="grid sm:grid-cols-3">
-        {CAMPOS.map(([clave, etiqueta]) => (
-          <label key={clave} className="block">
-            <span className="mb-1 block text-[0.71875rem] text-texto-suave">
-              {etiqueta}
-            </span>
-            <input
-              className={CLASE_CONTROL}
-              value={v[clave]}
-              onChange={(ev) => setV({ ...v, [clave]: ev.target.value })}
-              type={clave === "contactoCorreo" ? "email" : "text"}
-            />
-          </label>
-        ))}
-      </div>
-
-      {cambiado && (
-        <Boton
-          disabled={guardando}
-          onClick={() => {
-            setGuardando(true);
-            void crmApi
-              .guardarContactoEmpresa(participanteId, v)
-              .then(() => {
-                toast.exito("Guardado. Queda registrado quién lo puso.");
-                window.location.reload();
-              })
-              .catch((e) => {
-                toast.error((e as ErrorApi).message);
-                setGuardando(false);
-              });
-          }}
-        >
-          {guardando ? "Guardando…" : "Guardar los tres"}
-        </Boton>
-      )}
-    </div>
   );
 }
