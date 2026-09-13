@@ -1,6 +1,6 @@
 /** Analiza lo que el asesor pega desde Excel. */
 
-import { celularUtil, celularValido } from '../comun/celular';
+import { aCelularGuardable, celularUtil, celularValido } from '../comun/celular';
 import { documentoValido, normalizarDocumento } from '../comun/documento';
 import {
   DOCUMENTOS_DE_PERSONA,
@@ -116,7 +116,7 @@ export function analizar(texto: string): FilaAnalizada[] {
       problemas.push(`«${correo}» no parece un correo`);
     }
 
-    const celular = (c[7] ?? '').replace(/[\s()-]/g, '').trim();
+    const celular = aCelularGuardable(c[7] ?? '') as string;
     /// Aviso y no insalvable, igual que el correo: la fila se
     /// crea y el asesor lo corrige. Lo que no puede es contar
     /// como forma de contactar a nadie.

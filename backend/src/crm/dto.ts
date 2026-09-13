@@ -27,6 +27,7 @@ import {
   EtapaParticipante,
   OrigenParticipante,
 } from '../../generated/prisma';
+import { aCelularGuardable } from '../comun/celular';
 import { aNumeroONulo as aNumero } from '../comun/campo-vacio';
 
 const recortar = ({ value }: { value: unknown }) =>
@@ -82,7 +83,7 @@ export class CrearParticipanteDto {
   correo?: string;
 
   @IsOptional()
-  @Transform(recortar)
+  @Transform(({ value }) => aCelularGuardable(value))
   @IsString()
   @MaxLength(30)
   celular?: string;
@@ -191,7 +192,7 @@ export class ActualizarParticipanteDto {
   correo?: string;
 
   @IsOptional()
-  @Transform(recortar)
+  @Transform(({ value }) => aCelularGuardable(value))
   @IsString()
   @MaxLength(30)
   celular?: string;

@@ -1,5 +1,6 @@
 import { Transform } from 'class-transformer';
 import { booleanoDeVerdad } from '../comun/booleano-de-verdad';
+import { aCelularGuardable } from '../comun/celular';
 import {
   IsArray,
   IsBoolean,
@@ -71,7 +72,7 @@ export class CrearPreinscripcionDto {
   generoSepId?: number;
 
   @IsOptional()
-  @Transform(aTexto)
+  @Transform(({ value }) => aCelularGuardable(value))
   @IsString()
   @MaxLength(30)
   celular?: string;
@@ -140,7 +141,11 @@ export class DatosPersonaDto {
   @IsString()
   @MaxLength(60)
   segundoApellido?: string;
-  @IsOptional() @Transform(aTexto) @IsString() @MaxLength(30) celular?: string;
+  @IsOptional()
+  @Transform(({ value }) => aCelularGuardable(value))
+  @IsString()
+  @MaxLength(30)
+  celular?: string;
 
   @IsOptional()
   @Transform(aTexto)

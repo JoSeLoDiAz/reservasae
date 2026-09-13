@@ -38,3 +38,24 @@ export function celularValido(valor: string | null | undefined): boolean {
 export function celularUtil(valor: string | null | undefined): boolean {
   return !!valor && MOVIL.test(normalizarCelular(valor));
 }
+
+/// Para los DTO: deja el numero en los diez digitos SI de
+/// verdad es un movil, y si no devuelve lo que vino.
+///
+/// Existe porque `Persona.celular` se guardaba CRUDA por sus
+/// seis puertas de escritura, asi que en la misma columna
+/// convivian `+57 300 111 2222`, `+573001112222` y
+/// `3001112222`. Los tres son la misma persona y ninguno se
+/// encuentra buscando por otro -- y buscar por numero es
+/// justo lo que hace falta para cruzar un chat de WhatsApp
+/// contra su ficha.
+///
+/// No se toca lo que NO es un movil: un «no tiene» tecleado
+/// se queda como esta. Perderlo seria decidir por el asesor
+/// que ahi no habia nada, y la regla de la casa es que el
+/// celular avisa y no bloquea.
+export function aCelularGuardable(valor: unknown): unknown {
+  if (typeof valor !== 'string') return valor;
+  const limpio = normalizarCelular(valor);
+  return celularUtil(limpio) ? limpio : valor.trim();
+}
