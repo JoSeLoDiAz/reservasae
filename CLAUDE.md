@@ -1540,6 +1540,42 @@ la dejaría fuera de su propia pantalla. Dice en pantalla que las cifras son un
 > Lo mismo pasó con el tipo `Corte`, que ya existía en `crm-api.ts`: el nuevo es
 > `CorteDeVisitas`, y lo cazó el compilador.
 
+#### De qué canal llegó cada visita (14 sep 2026)
+
+*«Ingresé directamente desde Facebook y no me sale en el sistema si entraron por
+Facebook»*. El dato estaba —la visita traía `navegador = APP_META` y
+`referente = m.facebook.com`—; lo que faltaba era la tarjeta. «Por dónde
+entraron» dice por qué puerta de **nuestro** sitio, no de dónde venían.
+
+`backend/src/embudo/canal.ts`, nueve canales, y **el orden de la cadena ES el
+diseño**: los hechos del navegador van antes que las etiquetas, salvo donde el
+hecho no existiría. Un correo abierto en Outlook de escritorio y un QR no dejan
+ninguna señal, así que ahí manda lo que nosotros escribamos en el enlace.
+
+- **`SIN_REFERENCIA` se llama «No dejó rastro» y NUNCA «Directa».** Lo cierto es
+  la ausencia de referencia, no que la persona tecleara la dirección. Ahí cae
+  casi todo el correo y casi todo WhatsApp, y llamarlo «directa» convertiría un
+  agujero de medición en una conclusión sobre el canal.
+- **Comprobado contra los datos reales de producción**: de diez llegadas, nueve
+  salen META y las dos señales funcionan por separado — una entró con el
+  referente de Facebook y el navegador normal, y otra con la app de Meta sin
+  `utm` ni `fbclid`.
+
+> **NO reusa `origenDeLead`, y el motivo destapó un defecto que cuesta dinero.**
+> `preinscripcion.service.ts` escribe `origen: 'AUTOGESTION'` a fuego para toda
+> persona que se registra por el formulario público, y
+> `origenDeLead('AUTOGESTION')` devuelve `ORGANICO`. **O sea que quien pulsó un
+> anuncio pagado consta como orgánico en su ficha, para siempre.** El informe de
+> orígenes por acción —donde se justifica la inversión en pauta— le da el mérito
+> a «llegó por su cuenta». Reusar aquella regla para el canal habría dejado la
+> pauta en CERO, que es literalmente el defecto que el docblock de
+> `origen-del-lead.ts` cuenta que ya pasó una vez.
+>
+> **Está sin arreglar a propósito**: cambiar de quién es un lead es una decisión
+> de atribución, no un arreglo. Ahora que la visita sí sabe de dónde vino, el
+> camino existe —pasarle el canal a `registrar()` y dejar constancia con
+> `registrarToqueDeOrigen`, que para eso se escribió—, pero lo decide el cliente.
+
 ### El permiso va al FINAL, y ayer aquí decía lo contrario (14 sep 2026)
 
 El 14 sep por la mañana se movió el habeas data al principio y se escribió en
