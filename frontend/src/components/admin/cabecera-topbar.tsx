@@ -418,6 +418,9 @@ export function FilaDeModulos({
 }) {
   const [abierto, setAbierto] = useState<Abierto>(null);
   const caja = useRef<HTMLDivElement>(null);
+  /// El cierre por hover va con retraso: al salir del boton hay
+  /// que dar tiempo a llegar al panel, o se cierra en el camino.
+  const relojDeCierre = useRef<ReturnType<typeof setTimeout> | null>(null);
   const barra = useRef<HTMLElement>(null);
   const derecha = useRef<HTMLDivElement>(null);
 
@@ -553,6 +556,32 @@ export function FilaDeModulos({
       window.removeEventListener("scroll", cerrar, true);
     };
   }, [abierto]);
+
+  /// SOLO CON RATON DE VERDAD.
+  ///
+  /// En una pantalla tactil no hay hover: el navegador se lo
+  /// inventa al tocar, y entonces el toque abre el menu y el
+  /// clic que viene detras lo cierra en el mismo gesto. Se
+  /// pregunta por el puntero antes de hacer nada.
+  ///
+  /// Se mira en cada uso y no una vez al montar: un portatil con
+  /// pantalla tactil cambia de puntero segun se use el dedo o el
+  /// trackpad, y una foto tomada al arrancar se quedaria vieja.
+  const hayRaton = () =>
+    typeof window !== 'undefined' &&
+    window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+
+  const abrirConRaton = (cual: Abierto) => {
+    if (!hayRaton()) return;
+    if (relojDeCierre.current) clearTimeout(relojDeCierre.current);
+    setAbierto(cual);
+  };
+
+  const cerrarConRaton = () => {
+    if (!hayRaton()) return;
+    if (relojDeCierre.current) clearTimeout(relojDeCierre.current);
+    relojDeCierre.current = setTimeout(() => setAbierto(null), 160);
+  };
 
   return (
     <div
@@ -758,6 +787,8 @@ export function FilaDeModulos({
               alAlternar={() =>
                 setAbierto((a) => (a === modulo.clave ? null : modulo.clave))
               }
+              alEntrar={() => abrirConRaton(modulo.clave)}
+              alSalir={cerrarConRaton}
             />
           );
         })}
@@ -842,6 +873,8 @@ function MenuDeModulo({
   activo,
   desplegado,
   alAlternar,
+  alEntrar,
+  alSalir,
 }: {
   etiqueta: string;
   /// El nombre largo, igual que en `EnlaceDeFila`: la fila dice
@@ -852,9 +885,13 @@ function MenuDeModulo({
   activo: boolean;
   desplegado: boolean;
   alAlternar: () => void;
+  /// Con el raton encima se abre solo. El CLIC SIGUE VALIENDO y
+  /// es el unico camino en tactil y con teclado.
+  alEntrar: () => void;
+  alSalir: () => void;
 }) {
   return (
-    <div className="relative">
+    <div className="relative" onMouseEnter={alEntrar} onMouseLeave={alSalir}>
       <button
         type="button"
         onClick={alAlternar}
@@ -887,27 +924,38 @@ function MenuDeModulo({
         /// desplegables porque se ve raro» (cliente, 12 sep
         /// 2026). Ahora las dos listas del panel tienen el mismo
         /// ritmo.
-        <div className="absolute top-[calc(100%+6px)] left-0 z-40 w-max max-w-[22rem] min-w-[11.5rem] rounded-xl border border-encabezado-borde bg-encabezado-fondo p-1 shadow-lg shadow-black/25">
-          <ul>
-            {enlaces.map((enlace) => {
-              const suyo = estaActivo(enlace, ruta);
-              return (
-                <li key={enlace.href}>
-                  <Link
-                    href={enlace.href}
-                    aria-current={suyo ? "page" : undefined}
-                    className={`block rounded-[9px] px-3 py-[7px] text-[0.78125rem] no-underline transition ${
-                      suyo
-                        ? "bg-current/15 font-semibold"
-                        : "opacity-85 hover:bg-current/10 hover:opacity-100"
-                    }`}
-                  >
-                    {enlace.etiqueta}
-                  </Link>
-                </li>
-              );
-            })}
-          </ul>
+        ///
+        /// EL HUECO VA DENTRO, como relleno transparente.
+        ///
+        /// Antes el panel empezaba 6 px mas abajo y esos 6 px
+        /// eran tierra de nadie: al bajar el raton del boton al
+        /// panel se salia del elemento y el menu se cerraba en el
+        /// camino. Ahora el contenedor pega al boton y la
+        /// separacion la pone su `pt`, asi que el recorrido nunca
+        /// abandona la zona sensible.
+        <div className="absolute top-full left-0 z-40 pt-[6px]">
+          <div className="w-max max-w-[22rem] min-w-[11.5rem] rounded-xl border border-encabezado-borde bg-encabezado-fondo p-1 shadow-lg shadow-black/25">
+            <ul>
+              {enlaces.map((enlace) => {
+                const suyo = estaActivo(enlace, ruta);
+                return (
+                  <li key={enlace.href}>
+                    <Link
+                      href={enlace.href}
+                      aria-current={suyo ? "page" : undefined}
+                      className={`block rounded-[9px] px-3 py-[7px] text-[0.78125rem] no-underline transition ${
+                        suyo
+                          ? "bg-current/15 font-semibold"
+                          : "opacity-85 hover:bg-current/10 hover:opacity-100"
+                      }`}
+                    >
+                      {enlace.etiqueta}
+                    </Link>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
         </div>
       )}
     </div>
