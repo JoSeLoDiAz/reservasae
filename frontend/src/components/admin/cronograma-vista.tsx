@@ -68,7 +68,8 @@ const fecha = (f: string | null) => fechaDeCalendario(f);
 /// dias salvo los que tienen uno propio.
 function comoSeLee(s: SesionDeGrupo): string {
   const cuando = s.dia ? `${fecha(s.dia)}, ` : "";
-  return `${ETIQUETA_SESION[s.tipo]}: ${cuando}de ${s.horaInicio} a ${s.horaFin}`;
+  const donde = s.ubicacion ? ` · ${bonito(s.ubicacion.nombre)}` : "";
+  return `${ETIQUETA_SESION[s.tipo]}: ${cuando}de ${s.horaInicio} a ${s.horaFin}${donde}`;
 }
 
 /// Lo que se teclea. El dia va como texto del `<input date>`.
@@ -709,11 +710,17 @@ function Grupo({
       {grupo.sesiones.length === 0 ? (
         <p className="mt-1 text-[0.78125rem] text-texto-suave">Sin sesiones</p>
       ) : (
-        grupo.sesiones.map((x) => (
+        grupo.sesiones.map((x, i) => (
           <p key={x.id} className="mt-1 text-[0.78125rem] text-texto-suave">
-            <span className="font-semibold text-titulo">{ETIQUETA_SESION[x.tipo]}:</span>{" "}
+            <span className="font-semibold text-titulo">
+              {ETIQUETA_SESION[x.tipo]}
+              {/* «dia 1 / dia 2» solo cuando hay varias: en un
+                  bootcamp las dos presenciales se leian iguales. */}
+              {grupo.sesiones.length > 1 && ` · día ${i + 1}`}:
+            </span>{" "}
             {x.dia ? `${fecha(x.dia)}, ` : ""}
             de {x.horaInicio} a {x.horaFin}
+            {x.ubicacion && ` · ${bonito(x.ubicacion.nombre)}`}
           </p>
         ))
       )}
@@ -839,9 +846,11 @@ function Grupo({
             )}
 
             {sesiones.map((x, i) => (
-              <div key={i} className="mb-3 grid gap-3 sm:grid-cols-4">
+              <div key={i} className="mb-3 grid gap-3 sm:grid-cols-5">
                 <label className="block">
-                  <span className="mb-1 block text-xs font-medium">Tipo</span>
+                  <span className="mb-1 block text-xs font-medium">
+                    Tipo{sesiones.length > 1 && ` · día ${i + 1}`}
+                  </span>
                   <select
                     value={x.tipo}
                     onChange={(e) =>
