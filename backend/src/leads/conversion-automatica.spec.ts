@@ -43,6 +43,13 @@ function montar(leads: Lead[], fallan: string[] = []) {
         );
       },
     },
+    /// El cruce de «una sola accion». Por defecto la persona no
+    /// esta en ninguna otra: cada prueba que quiera lo contrario
+    /// se lo monta.
+    accionFormacion: {
+      findUnique: () => Promise.resolve({ id: 'af1', evento: 'CURSO' }),
+    },
+    persona: { findUnique: () => Promise.resolve(null) },
   };
 
   const conversion = {

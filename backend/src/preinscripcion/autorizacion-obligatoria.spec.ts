@@ -34,7 +34,12 @@ function prismaFalso(conPolitica: boolean) {
       findFirst: () => Promise.resolve({ id: 'c1', nombre: 'ADECOPRIA' }),
     },
     oferta: {
-      findFirst: () => Promise.resolve({ id: 'o1', accionFormacionId: 'af1' }),
+      findFirst: () =>
+        Promise.resolve({
+          id: 'o1',
+          accionFormacionId: 'af1',
+          accionFormacion: { evento: 'CURSO' },
+        }),
     },
     politicaDatos: {
       findFirst: () => Promise.resolve(conPolitica ? { id: 'p1' } : null),
@@ -48,6 +53,9 @@ function prismaFalso(conPolitica: boolean) {
     },
     participante: {
       findFirst: () => Promise.resolve(null),
+      /// Lo que esa persona ya tiene, para «una sola accion».
+      /// Vacio: aqui se prueba la autorizacion, no esa regla.
+      findMany: () => Promise.resolve([]),
       create: anota('participante', 'create', { id: 'par1' }),
     },
     autorizacionDatos: {

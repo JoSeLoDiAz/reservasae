@@ -6,6 +6,7 @@ import type { OrigenParticipante } from '../../generated/prisma';
 import { PrismaService } from '../prisma/prisma.service';
 
 import { ConversionDeLeads } from './conversion.service';
+import { motivoParaNoInscribir } from '../crm/una-sola-accion';
 import { autorizoAlRegistrarse, loQueLeFaltaAlLead } from './listo-para-ficha';
 
 /** Qué pasó con un lead al intentar pasarlo. */
@@ -92,6 +93,60 @@ export class ConversionAutomatica implements OnModuleInit, OnModuleDestroy {
     return this.conEsteLead(lead);
   }
 
+  /**
+   * Si esa persona ya esta en otra accion que no sea el foro.
+   *
+   * Se cruza por DOCUMENTO, que es la identidad del sistema. Sin
+   * documento no hay con que cruzar y el lead ya se queda en la
+   * mesa por otra razon, asi que no hace falta adivinar por
+   * nombre.
+   */
+  private async yaEstaEnOtra(lead: LeadParaPasar): Promise<string | null> {
+    if (!lead.accionFormacionId) return null;
+    if (!lead.tipoDocumentoSepId || !lead.numeroDocumento) return null;
+
+    const pedida = await this.prisma.accionFormacion.findUnique({
+      where: { id: lead.accionFormacionId },
+      select: { id: true, evento: true },
+    });
+    if (!pedida) return null;
+
+    const persona = await this.prisma.persona.findUnique({
+      where: {
+        tipoDocumentoSepId_numeroDocumento: {
+          tipoDocumentoSepId: lead.tipoDocumentoSepId,
+          numeroDocumento: lead.numeroDocumento,
+        },
+      },
+      select: {
+        participaciones: {
+          where: { accionFormacionId: { not: null } },
+          select: {
+            accionFormacionId: true,
+            accionFormacion: { select: { codigo: true, nombre: true, evento: true } },
+          },
+        },
+      },
+    });
+    if (!persona) return null;
+
+    return motivoParaNoInscribir(
+      pedida,
+      persona.participaciones.flatMap((x) =>
+        x.accionFormacionId && x.accionFormacion
+          ? [
+              {
+                accionFormacionId: x.accionFormacionId,
+                codigo: x.accionFormacion.codigo,
+                nombre: x.accionFormacion.nombre,
+                evento: x.accionFormacion.evento,
+              },
+            ]
+          : [],
+      ),
+    );
+  }
+
   private async conEsteLead(lead: LeadParaPasar): Promise<Intento> {
     // la MISMA regla que enciende la casilla en la mesa
     const falta = loQueLeFaltaAlLead(lead);
@@ -101,6 +156,17 @@ export class ConversionAutomatica implements OnModuleInit, OnModuleDestroy {
         porque: `Se queda en la mesa de entrada: le falta ${falta.join(', ')}.`,
         falta,
       };
+    }
+
+    /// UNA SOLA ACCION, y el foro no cuenta.
+    ///
+    /// Se queda en la MESA y no se rechaza: «mesa de entrada
+    /// para que no se pierda nada y no estarle devolviendo»
+    /// (cliente, 14 sep 2026). El asesor lo ve, lo llama y le
+    /// cambia la accion si quiere.
+    const repetida = await this.yaEstaEnOtra(lead);
+    if (repetida) {
+      return { paso: false, porque: repetida, falta: [] };
     }
 
     // sin autorización NO se convierte solo: ver CLAUDE.md

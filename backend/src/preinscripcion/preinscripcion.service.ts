@@ -12,6 +12,7 @@ import { Prisma } from '../../generated/prisma';
 import { ENTIDADES, AuditoriaService } from '../comun/auditoria.service';
 import { CorreoService } from '../correo/correo.service';
 import { quienFirma } from '../correo/quien-firma';
+import { motivoParaNoInscribir } from '../crm/una-sola-accion';
 import { PrismaService } from '../prisma/prisma.service';
 import {
   dejarConstancia,
@@ -217,7 +218,11 @@ export class PreinscripcionService {
         abierta: true,
         accionFormacion: { convenioId: convenio.id, visible: true },
       },
-      select: { id: true, accionFormacionId: true },
+      select: {
+        id: true,
+        accionFormacionId: true,
+        accionFormacion: { select: { evento: true } },
+      },
     });
     if (!oferta) {
       throw new BadRequestException('Esa opción ya no está disponible.');
@@ -355,6 +360,38 @@ export class PreinscripcionService {
       },
       select: { id: true },
     });
+
+    /// UNA SOLA ACCION, y el foro no cuenta.
+    ///
+    /// Va DESPUES de buscar `yaEsta` a proposito: volver a la
+    /// misma no es una segunda inscripcion y se le devuelve su
+    /// enlace, que es lo que ya se hacia. Lo que se corta es
+    /// elegir OTRA.
+    if (!yaEsta) {
+      const suyas = await this.prisma.participante.findMany({
+        where: { personaId: persona.id, accionFormacionId: { not: null } },
+        select: {
+          accionFormacionId: true,
+          accionFormacion: { select: { codigo: true, nombre: true, evento: true } },
+        },
+      });
+      const motivo = motivoParaNoInscribir(
+        { id: oferta.accionFormacionId, evento: oferta.accionFormacion.evento },
+        suyas.flatMap((x) =>
+          x.accionFormacionId && x.accionFormacion
+            ? [
+                {
+                  accionFormacionId: x.accionFormacionId,
+                  codigo: x.accionFormacion.codigo,
+                  nombre: x.accionFormacion.nombre,
+                  evento: x.accionFormacion.evento,
+                },
+              ]
+            : [],
+        ),
+      );
+      if (motivo) throw new BadRequestException(motivo);
+    }
 
     const participante =
       yaEsta ??
