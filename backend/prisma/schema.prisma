@@ -146,13 +146,7 @@ model Grupo {
   fechaFin    DateTime?
 
   /// los dias, tal como se leen: "lunes a sabado"
-  dias       String?
-  /// hora de Bogota, "HH:MM" de 24 h
-  horaInicio String?
-  horaFin    String?
-
-  /// el dia del encuentro en vivo, dentro del grupo
-  sesionDia DateTime?
+  dias String?
 
   creadoEn      DateTime @default(now())
   actualizadoEn DateTime @updatedAt
@@ -160,9 +154,58 @@ model Grupo {
   accionFormacion AccionFormacion  @relation(fields: [accionFormacionId], references: [id], onDelete: Cascade)
   sede            Ubicacion?       @relation(fields: [sedeUbicacionId], references: [id])
   coberturas      GrupoCobertura[]
+  sesiones        SesionDeGrupo[]
 
   @@unique([accionFormacionId, numero])
   @@map("grupos")
+}
+
+/// Como se encuentra el grupo.
+enum TipoDeSesion {
+  PRESENCIAL /// en sede, con la gente ahi
+  SINCRONICA /// en vivo por red, un dia concreto
+  PAT /// presencial asistida por tecnologia: hora de conexion
+}
+
+/// Cuando se reune un grupo. Una fila por sesion.
+///
+/// NO es un campo del grupo, y esa fue la correccion del cliente
+/// (13 sep 2026). Un campo unico solo sirve al caso simple:
+///
+///   presencial  una sesion, sin dia -- el grupo YA es de un dia
+///   virtual     una sesion sincronica, en su dia
+///   AF6         es un BOOTCAMP: dos sesiones, cada una su dia
+///   AF7         hibrida: una presencial en su dia, y PAT con una
+///               hora de conexion para todos los demas dias
+///
+/// AF6 esta guardada como PRESENCIAL, asi que la modalidad NO
+/// puede decidir esto: tiene que ser un dato de cada grupo. Con
+/// la lista, el codigo no pregunta nunca «¿es la AF6?» y un
+/// bootcamp de tres sesiones entra sin tocar una linea.
+model SesionDeGrupo {
+  id      String @id @default(cuid())
+  grupoId String
+  /// En que orden se leen. 1, 2, 3...
+  orden   Int
+
+  tipo TipoDeSesion
+
+  /// El dia, cuando lo tiene. Nulo en dos casos distintos y los
+  /// dos legitimos: la PAT --que vale para todos los dias del
+  /// grupo salvo los que tienen dia propio-- y la presencial de
+  /// un grupo que dura un solo dia, donde repetirlo seria decir
+  /// dos veces lo mismo.
+  dia DateTime?
+
+  /// Hora de Bogota, "HH:MM" de 24 h.
+  horaInicio String
+  horaFin    String
+
+  grupo Grupo @relation(fields: [grupoId], references: [id], onDelete: Cascade)
+
+  @@unique([grupoId, orden])
+  @@index([grupoId])
+  @@map("sesiones_de_grupo")
 }
 
 /// Beneficiarios de un grupo en una ubicación.

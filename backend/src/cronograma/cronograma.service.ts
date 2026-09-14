@@ -10,6 +10,7 @@ import {
   ActualizarGrupoDto,
   ActualizarInformacionDto,
 } from './dto';
+import { loQueEstaMal } from './sesiones';
 
 /// `ETAPAS_VIVAS` se importa del CRM. Aqui habia una copia
 /// tecleada aparte que decia lo mismo con otras etapas, y
@@ -59,9 +60,17 @@ export class CronogramaService {
             fechaInicio: true,
             fechaFin: true,
             dias: true,
-            horaInicio: true,
-            horaFin: true,
-            sesionDia: true,
+            sesiones: {
+              orderBy: { orden: 'asc' },
+              select: {
+                id: true,
+                orden: true,
+                tipo: true,
+                dia: true,
+                horaInicio: true,
+                horaFin: true,
+              },
+            },
             sepGrupoId: true,
             sede: { select: { nombre: true } },
             coberturas: {
@@ -97,9 +106,7 @@ export class CronogramaService {
           fechaInicio: g.fechaInicio,
           fechaFin: g.fechaFin,
           dias: g.dias,
-          horaInicio: g.horaInicio,
-          horaFin: g.horaFin,
-          sesionDia: g.sesionDia,
+          sesiones: g.sesiones,
           /// La frase, para quien solo la pinta.
           horario: fraseDeHorario(g),
           sepGrupoId: g.sepGrupoId,
@@ -180,14 +187,7 @@ export class CronogramaService {
   async actualizarGrupo(id: string, dto: ActualizarGrupoDto, ambito: string[]) {
     const grupo = await this.prisma.grupo.findFirst({
       where: { id, accionFormacion: { convenioId: { in: ambito } } },
-      select: {
-        id: true,
-        fechaInicio: true,
-        fechaFin: true,
-        horaInicio: true,
-        horaFin: true,
-        sesionDia: true,
-      },
+      select: { id: true, fechaInicio: true, fechaFin: true },
     });
     if (!grupo) throw new NotFoundException('Ese grupo no existe.');
 
@@ -219,45 +219,17 @@ export class CronogramaService {
       );
     }
 
-    // las horas de la sesion, con las MISMAS dos reglas
-    // que las fechas: no hay fin sin inicio, y el fin no
-    // puede caer antes. Son un tramo del mismo dia
-    const horaInicio =
-      dto.horaInicio === undefined ? grupo.horaInicio : dto.horaInicio;
-    const horaFin = dto.horaFin === undefined ? grupo.horaFin : dto.horaFin;
-
-    if (!horaInicio && horaFin) {
-      throw new BadRequestException(
-        'Ponga primero la hora de inicio: una hora de fin sola no dice cuándo se reúnen.',
+    /// LAS SESIONES, si vienen. `undefined` es «no las mandes
+    /// y no las toques»; una lista vacia SI las borra todas.
+    ///
+    /// Se juzgan contra las fechas que QUEDARAN, no contra las
+    /// que habia: mover el rango tambien saca una sesion que
+    /// estaba bien.
+    if (dto.sesiones) {
+      const mal = dto.sesiones.flatMap((ses, i) =>
+        loQueEstaMal(ses, { inicio, fin }).map((m) => `Sesión ${i + 1}: ${m}`),
       );
-    }
-
-    /// "HH:MM" con cero delante se ordena como se lee.
-    if (horaInicio && horaFin && horaFin <= horaInicio) {
-      throw new BadRequestException(
-        'La hora de fin tiene que ser posterior a la de inicio.',
-      );
-    }
-
-    // el encuentro en vivo cae DENTRO del grupo. Se
-    // juzga con las fechas que quedaran al terminar, no
-    // con las que habia: mover el rango tambien lo saca
-    const sesion =
-      dto.sesionDia === null
-        ? null
-        : dto.sesionDia
-          ? new Date(dto.sesionDia)
-          : grupo.sesionDia;
-
-    if (sesion && !inicio) {
-      throw new BadRequestException(
-        'Ponga primero las fechas del grupo: la sesión va dentro de ellas.',
-      );
-    }
-    if (sesion && inicio && (sesion < inicio || (fin && sesion > fin))) {
-      throw new BadRequestException(
-        'El día de la sesión tiene que caer dentro de las fechas del grupo.',
-      );
+      if (mal.length) throw new BadRequestException(mal.join(' '));
     }
 
     await this.prisma.grupo.update({
@@ -265,11 +237,26 @@ export class CronogramaService {
       data: {
         fechaInicio: inicio,
         fechaFin: fin,
-        sesionDia: sesion,
         dias: dto.dias === undefined ? undefined : dto.dias || null,
-        horaInicio: dto.horaInicio === undefined ? undefined : horaInicio,
-        horaFin: dto.horaFin === undefined ? undefined : horaFin,
         sepGrupoId: dto.sepGrupoId === undefined ? undefined : dto.sepGrupoId,
+        /// Se reescriben enteras y no se parchean una a una: la
+        /// pantalla manda la lista que quedo, y casar filas por
+        /// id para saber cual se borro es mas codigo y mas
+        /// formas de equivocarse que volver a escribirlas.
+        ...(dto.sesiones
+          ? {
+              sesiones: {
+                deleteMany: {},
+                create: dto.sesiones.map((ses, i) => ({
+                  orden: i + 1,
+                  tipo: ses.tipo,
+                  dia: ses.dia ? new Date(ses.dia) : null,
+                  horaInicio: ses.horaInicio,
+                  horaFin: ses.horaFin,
+                })),
+              },
+            }
+          : {}),
       },
     });
 

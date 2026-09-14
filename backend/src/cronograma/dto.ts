@@ -1,5 +1,8 @@
-import { Transform } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import {
+  ArrayMaxSize,
+  IsArray,
+  IsIn,
   IsInt,
   IsISO8601,
   IsOptional,
@@ -8,6 +11,7 @@ import {
   MaxLength,
   Min,
   ValidateIf,
+  ValidateNested,
 } from 'class-validator';
 
 /// La misma que el CHECK de la base, para no discrepar.
@@ -16,6 +20,25 @@ const HORA = /^([01][0-9]|2[0-3]):[0-5][0-9]$/;
 /// "" del formulario y null del botón de quitar valen lo mismo.
 const aNuloOTexto = ({ value }: { value: unknown }) =>
   value === '' || value === null ? null : value;
+
+/// Una sesion del grupo. Las reglas de verdad viven en
+/// `sesiones.ts` y las aplica el servicio: aqui solo la forma.
+export class SesionDto {
+  @IsIn(['PRESENCIAL', 'SINCRONICA', 'PAT'])
+  tipo!: 'PRESENCIAL' | 'SINCRONICA' | 'PAT';
+
+  @IsOptional()
+  @Transform(aNuloOTexto)
+  @ValidateIf((_o: unknown, v: unknown) => v !== null)
+  @IsISO8601()
+  dia?: string | null;
+
+  @Matches(HORA, { message: 'La hora de inicio va como HH:MM, de 00:00 a 23:59.' })
+  horaInicio!: string;
+
+  @Matches(HORA, { message: 'La hora de fin va como HH:MM, de 00:00 a 23:59.' })
+  horaFin!: string;
+}
 
 export class ActualizarGrupoDto {
   @IsOptional()
@@ -37,24 +60,14 @@ export class ActualizarGrupoDto {
   @MaxLength(120)
   dias?: string;
 
+  /// Las sesiones que QUEDAN. No mandarlas es no tocarlas;
+  /// mandar una lista vacia las borra todas.
   @IsOptional()
-  @Transform(aNuloOTexto)
-  @ValidateIf((_o: unknown, v: unknown) => v !== null)
-  @Matches(HORA, { message: 'La hora de inicio va como HH:MM, de 00:00 a 23:59.' })
-  horaInicio?: string | null;
-
-  @IsOptional()
-  @Transform(aNuloOTexto)
-  @ValidateIf((_o: unknown, v: unknown) => v !== null)
-  @Matches(HORA, { message: 'La hora de fin va como HH:MM, de 00:00 a 23:59.' })
-  horaFin?: string | null;
-
-  /// El dia del encuentro en vivo. Dentro del grupo.
-  @IsOptional()
-  @Transform(aNuloOTexto)
-  @ValidateIf((_o: unknown, v: unknown) => v !== null)
-  @IsISO8601()
-  sesionDia?: string | null;
+  @IsArray()
+  @ArrayMaxSize(20)
+  @ValidateNested({ each: true })
+  @Type(() => SesionDto)
+  sesiones?: SesionDto[];
 
   // el que le asigna el SENA, para el reporte
   @IsOptional()

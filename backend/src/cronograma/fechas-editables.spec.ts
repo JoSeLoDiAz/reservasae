@@ -1,14 +1,11 @@
-/** Las fechas de un grupo y su sesion sincronica. */
+/** Las fechas de un grupo y sus sesiones. */
 
 /**
- * Llama a `actualizarGrupo`, no a un predicado suyo, y esa es toda la
- * razon de que exista. CLAUDE.md ya cuenta como se fallo en esto: los
- * specs probaban las funciones PURAS de la escalera de etapas y las
- * tres salian bien, porque el defecto nunca estuvo en los predicados
- * sino en COMO `cambiarEtapa` los usaba. Ningun spec la llamaba.
- *
- * Aqui las reglas nuevas --las dos horas y el dia de la sesion-- viven
- * dentro del metodo, asi que el metodo es lo que hay que ejercer.
+ * Llama a `actualizarGrupo`, no a `loQueEstaMal`. Las reglas
+ * puras ya tienen su spec; aqui se prueba COMO el metodo las
+ * usa -- que es donde este repositorio se llevo el susto con
+ * `cambiarEtapa`: los predicados salian bien y el defecto vivia
+ * en quien los llamaba.
  */
 
 import { BadRequestException } from '@nestjs/common';
@@ -16,18 +13,14 @@ import { BadRequestException } from '@nestjs/common';
 import { CronogramaService } from './cronograma.service';
 
 const AMBITO = ['convenio-1'];
-
 const DIA = (t: string) => new Date(`${t}T00:00:00.000Z`);
 
-/// Un grupo del 1 al 30 de sept, de 08:00 a 12:00, sin sesion.
+/// Un grupo del 1 al 30 de septiembre.
 function armar(sobre: Record<string, unknown> = {}) {
   const grupo = {
     id: 'gru-1',
     fechaInicio: DIA('2026-09-01'),
     fechaFin: DIA('2026-09-30'),
-    horaInicio: '08:00',
-    horaFin: '12:00',
-    sesionDia: null,
     ...sobre,
   };
 
@@ -45,102 +38,152 @@ function armar(sobre: Record<string, unknown> = {}) {
   return { servicio: new CronogramaService(prisma as never), escrito };
 }
 
-describe('las horas del grupo', () => {
-  it('una hora de fin sin inicio no llega a la base', async () => {
-    const { servicio, escrito } = armar({ horaInicio: null, horaFin: null });
+const PRESENCIAL = { tipo: 'PRESENCIAL' as const, horaInicio: '08:00', horaFin: '17:00' };
 
-    await expect(
-      servicio.actualizarGrupo('gru-1', { horaFin: '20:00' }, AMBITO),
-    ).rejects.toThrow(BadRequestException);
-    expect(escrito.data).toBeUndefined();
-  });
-
+describe('las fechas del grupo', () => {
   it('el fin no puede caer antes que el inicio', async () => {
     const { servicio, escrito } = armar();
 
     await expect(
-      servicio.actualizarGrupo('gru-1', { horaInicio: '18:00', horaFin: '09:00' }, AMBITO),
-    ).rejects.toThrow(/posterior a la de inicio/);
+      servicio.actualizarGrupo(
+        'gru-1',
+        { fechaInicio: '2026-09-10', fechaFin: '2026-09-01' },
+        AMBITO,
+      ),
+    ).rejects.toThrow(BadRequestException);
     expect(escrito.data).toBeUndefined();
-  });
-
-  /// Ni iguales: una sesion de cero minutos no es una sesion.
-  it('tampoco valen dos horas iguales', async () => {
-    const { servicio } = armar();
-
-    await expect(
-      servicio.actualizarGrupo('gru-1', { horaInicio: '18:00', horaFin: '18:00' }, AMBITO),
-    ).rejects.toThrow(/posterior a la de inicio/);
-  });
-
-  /// El fin se juzga contra el inicio QUE QUEDARA, no el guardado.
-  it('mover solo el inicio por delante del fin guardado se detiene', async () => {
-    const { servicio } = armar();
-
-    await expect(
-      servicio.actualizarGrupo('gru-1', { horaInicio: '13:00' }, AMBITO),
-    ).rejects.toThrow(/posterior a la de inicio/);
-  });
-
-  it('borrar la hora de inicio borrando tambien el fin si pasa', async () => {
-    const { servicio, escrito } = armar();
-
-    await servicio.actualizarGrupo('gru-1', { horaInicio: null, horaFin: null }, AMBITO);
-
-    expect(escrito.data).toMatchObject({ horaInicio: null, horaFin: null });
   });
 });
 
-describe('el dia de la sesion sincronica', () => {
-  it('cae dentro de las fechas del grupo', async () => {
+describe('las sesiones del grupo', () => {
+  /// LO QUE PIDIO EL CLIENTE: la presencial no lleva dia, porque
+  /// el grupo ya dice cuando es.
+  it('una presencial sin dia se guarda', async () => {
     const { servicio, escrito } = armar();
 
-    await servicio.actualizarGrupo('gru-1', { sesionDia: '2026-09-15' }, AMBITO);
+    await servicio.actualizarGrupo('gru-1', { sesiones: [PRESENCIAL] }, AMBITO);
 
-    expect(escrito.data).toMatchObject({ sesionDia: new Date('2026-09-15') });
+    expect(escrito.data).toMatchObject({
+      sesiones: {
+        deleteMany: {},
+        create: [{ orden: 1, tipo: 'PRESENCIAL', dia: null, horaInicio: '08:00' }],
+      },
+    });
   });
 
-  it('antes de que empiece el grupo se rechaza', async () => {
+  /// EL BOOTCAMP (AF6): dos sesiones, cada una con su dia.
+  it('dos sesiones se guardan en orden', async () => {
+    const { servicio, escrito } = armar();
+
+    await servicio.actualizarGrupo(
+      'gru-1',
+      {
+        sesiones: [
+          { tipo: 'PRESENCIAL', dia: '2026-09-10', horaInicio: '08:00', horaFin: '12:00' },
+          { tipo: 'PRESENCIAL', dia: '2026-09-11', horaInicio: '14:00', horaFin: '18:00' },
+        ],
+      },
+      AMBITO,
+    );
+
+    const create = (escrito.data as { sesiones: { create: Array<{ orden: number }> } })
+      .sesiones.create;
+    expect(create.map((c) => c.orden)).toEqual([1, 2]);
+  });
+
+  /// LA HIBRIDA (AF7): una presencial con dia, y la PAT sin el.
+  it('la PAT convive con la presencial', async () => {
+    const { servicio, escrito } = armar();
+
+    await servicio.actualizarGrupo(
+      'gru-1',
+      {
+        sesiones: [
+          { tipo: 'PRESENCIAL', dia: '2026-09-10', horaInicio: '08:00', horaFin: '17:00' },
+          { tipo: 'PAT', horaInicio: '18:00', horaFin: '20:00' },
+        ],
+      },
+      AMBITO,
+    );
+
+    expect(escrito.data).toBeDefined();
+  });
+
+  it('una PAT con dia se rechaza: vale para todos los del grupo', async () => {
     const { servicio, escrito } = armar();
 
     await expect(
-      servicio.actualizarGrupo('gru-1', { sesionDia: '2026-08-31' }, AMBITO),
-    ).rejects.toThrow(/dentro de las fechas del grupo/);
+      servicio.actualizarGrupo(
+        'gru-1',
+        { sesiones: [{ tipo: 'PAT', dia: '2026-09-10', horaInicio: '18:00', horaFin: '20:00' }] },
+        AMBITO,
+      ),
+    ).rejects.toThrow(/no lleva día/);
     expect(escrito.data).toBeUndefined();
   });
 
-  it('despues de que termine tambien', async () => {
+  it('un dia fuera de las fechas del grupo se rechaza, y dice cual', async () => {
+    const { servicio, escrito } = armar();
+
+    await expect(
+      servicio.actualizarGrupo(
+        'gru-1',
+        {
+          sesiones: [
+            PRESENCIAL,
+            { tipo: 'SINCRONICA', dia: '2026-10-05', horaInicio: '18:00', horaFin: '20:00' },
+          ],
+        },
+        AMBITO,
+      ),
+    ).rejects.toThrow(/Sesión 2/);
+    expect(escrito.data).toBeUndefined();
+  });
+
+  it('el fin antes que el inicio se rechaza', async () => {
     const { servicio } = armar();
 
     await expect(
-      servicio.actualizarGrupo('gru-1', { sesionDia: '2026-10-01' }, AMBITO),
-    ).rejects.toThrow(/dentro de las fechas del grupo/);
-  });
-
-  it('sin fechas de grupo no hay donde ponerla', async () => {
-    const { servicio } = armar({ fechaInicio: null, fechaFin: null });
-
-    await expect(
-      servicio.actualizarGrupo('gru-1', { sesionDia: '2026-09-15' }, AMBITO),
-    ).rejects.toThrow(/Ponga primero las fechas del grupo/);
+      servicio.actualizarGrupo(
+        'gru-1',
+        { sesiones: [{ tipo: 'PRESENCIAL', horaInicio: '18:00', horaFin: '09:00' }] },
+        AMBITO,
+      ),
+    ).rejects.toThrow(/posterior a la de inicio/);
   });
 
   /// EL CASO QUE NADIE MIRA: la sesion estaba bien y el grupo se
-  /// mueve por debajo. Se juzga contra las fechas que QUEDARAN.
-  it('mover el grupo dejando fuera una sesion guardada se detiene', async () => {
-    const { servicio, escrito } = armar({ sesionDia: DIA('2026-09-05') });
+  /// mueve por debajo.
+  it('mover el grupo dejando fuera una sesion que se manda se detiene', async () => {
+    const { servicio, escrito } = armar();
 
     await expect(
-      servicio.actualizarGrupo('gru-1', { fechaInicio: '2026-09-10' }, AMBITO),
+      servicio.actualizarGrupo(
+        'gru-1',
+        {
+          fechaInicio: '2026-09-20',
+          sesiones: [{ tipo: 'SINCRONICA', dia: '2026-09-05', horaInicio: '08:00', horaFin: '12:00' }],
+        },
+        AMBITO,
+      ),
     ).rejects.toThrow(/dentro de las fechas del grupo/);
     expect(escrito.data).toBeUndefined();
   });
 
-  it('quitar la sesion siempre se puede', async () => {
-    const { servicio, escrito } = armar({ sesionDia: DIA('2026-09-05') });
+  /// `undefined` es «no las toques»; la lista vacia SI las borra.
+  it('no mandarlas no las toca', async () => {
+    const { servicio, escrito } = armar();
 
-    await servicio.actualizarGrupo('gru-1', { sesionDia: null }, AMBITO);
+    await servicio.actualizarGrupo('gru-1', { dias: 'lunes a viernes' }, AMBITO);
 
-    expect(escrito.data).toMatchObject({ sesionDia: null });
+    expect(escrito.data).not.toHaveProperty('sesiones');
+  });
+
+  it('una lista vacía las borra todas', async () => {
+    const { servicio, escrito } = armar();
+
+    await servicio.actualizarGrupo('gru-1', { sesiones: [] }, AMBITO);
+
+    expect(escrito.data).toMatchObject({ sesiones: { deleteMany: {}, create: [] } });
   });
 });

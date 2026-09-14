@@ -113,8 +113,10 @@ export class AsignarGrupo {
             numero: true,
             fechaInicio: true,
             dias: true,
-            horaInicio: true,
-            horaFin: true,
+            sesiones: {
+              orderBy: { orden: 'asc' },
+              select: { horaInicio: true, horaFin: true },
+            },
             accionFormacionId: true,
           },
         },

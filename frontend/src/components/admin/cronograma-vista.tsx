@@ -16,6 +16,10 @@ import { Desplegable } from "@/components/admin/desplegable";
 import {
   alcanza,
   cronogramaApi,
+  ETIQUETA_SESION,
+  LLEVA_DIA,
+  type SesionDeGrupo,
+  type TipoDeSesion,
   ETIQUETA_ESTADO_GRUPO,
   type AccionCronograma,
   type EstadoGrupo,
@@ -56,15 +60,28 @@ const TONO: Record<EstadoGrupo, "marca" | "exito" | "aviso" | "error" | "neutro"
 
 const fecha = (f: string | null) => fechaDeCalendario(f);
 
-/// Las horas de la sesion. La frase entera la arma el servidor
-/// --`fraseDeHorario`--; aqui hace falta solo el tramo, porque
-/// los dias ya van arriba con las fechas del grupo.
-const tramoDeHoras = (g: { horaInicio: string | null; horaFin: string | null }) =>
-  g.horaInicio && g.horaFin
-    ? `de ${g.horaInicio} a ${g.horaFin}`
-    : g.horaInicio
-      ? `desde las ${g.horaInicio}`
-      : "";
+/// Como se lee una sesion en la tarjeta.
+///
+/// El dia solo se pinta cuando la sesion lo tiene, y eso es lo
+/// que pidio el cliente: la presencial no lo lleva --el grupo ya
+/// dice cuando es-- y la PAT tampoco, porque vale para todos los
+/// dias salvo los que tienen uno propio.
+function comoSeLee(s: SesionDeGrupo): string {
+  const cuando = s.dia ? `${fecha(s.dia)}, ` : "";
+  return `${ETIQUETA_SESION[s.tipo]}: ${cuando}de ${s.horaInicio} a ${s.horaFin}`;
+}
+
+/// Lo que se teclea. El dia va como texto del `<input date>`.
+type SesionEnEdicion = {
+  tipo: TipoDeSesion;
+  dia: string;
+  horaInicio: string;
+  horaFin: string;
+};
+
+/// Lo que sale en la celda del PDF.
+const sesionesEnUnaLinea = (ses: SesionDeGrupo[]) =>
+  ses.length ? ses.map(comoSeLee).join(" · ") : "—";
 
 /// Para el <input type="date">, que quiere aaaa-mm-dd.
 const paraCampo = (f: string | null) => (f ? f.slice(0, 10) : "");
@@ -422,10 +439,7 @@ export function CronogramaVista() {
                       <td>{ETIQUETA_ESTADO_GRUPO[g.estado]}</td>
                       <td className="tabular-nums">{fecha(g.fechaInicio)}</td>
                       <td className="tabular-nums">{fecha(g.fechaFin)}</td>
-                      <td>
-                        {g.sesionDia ? fecha(g.sesionDia) : "—"}
-                        {tramoDeHoras(g) && `, ${tramoDeHoras(g)}`}
-                      </td>
+                      <td className="envuelve">{sesionesEnUnaLinea(g.sesiones)}</td>
                       <td className="envuelve">
                         {g.ubicaciones.map((u) => bonito(u.nombre)).join(", ") || "—"}
                       </td>
@@ -616,15 +630,24 @@ function Grupo({
   const [inicio, setInicio] = useState(paraCampo(grupo.fechaInicio));
   const [fin, setFin] = useState(paraCampo(grupo.fechaFin));
   const [dias, setDias] = useState(grupo.dias ?? "");
-  const [horaInicio, setHoraInicio] = useState(grupo.horaInicio ?? "");
-  const [horaFin, setHoraFin] = useState(grupo.horaFin ?? "");
-  const [sesionDia, setSesionDia] = useState(paraCampo(grupo.sesionDia));
+  const [sesiones, setSesiones] = useState<SesionEnEdicion[]>(() =>
+    grupo.sesiones.map((x) => ({
+      tipo: x.tipo,
+      dia: paraCampo(x.dia),
+      horaInicio: x.horaInicio,
+      horaFin: x.horaFin,
+    })),
+  );
   const [guardando, setGuardando] = useState(false);
   const [editandoCupos, setEditandoCupos] = useState(false);
   /// El fallo se pinta DENTRO del editor. Mandarlo arriba del
   /// todo deja el boton pareciendo que no hace nada: le paso a
   /// quien carga el cronograma con un fin anterior al inicio.
   const [falla, setFalla] = useState<string | null>(null);
+
+  function cambiar(i: number, parte: Partial<SesionEnEdicion>) {
+    setSesiones(sesiones.map((x, j) => (j === i ? { ...x, ...parte } : x)));
+  }
 
   async function guardar() {
     setGuardando(true);
@@ -634,9 +657,14 @@ function Grupo({
         fechaInicio: inicio || null,
         fechaFin: fin || null,
         dias,
-        horaInicio: horaInicio || null,
-        horaFin: horaFin || null,
-        sesionDia: sesionDia || null,
+        sesiones: sesiones.map((x) => ({
+          tipo: x.tipo,
+          /// La que no lleva dia lo manda nulo aunque haya
+          /// quedado algo escrito al cambiar de tipo.
+          dia: LLEVA_DIA[x.tipo] ? x.dia || null : null,
+          horaInicio: x.horaInicio,
+          horaFin: x.horaFin,
+        })),
       });
       await alGuardar();
       setEditando(false);
@@ -673,12 +701,19 @@ function Grupo({
         {grupo.dias && ` · ${grupo.dias}`}
       </p>
 
-      {/* El encuentro en vivo, dentro de esas fechas. */}
-      <p className="mt-1 text-[0.78125rem] text-texto-suave">
-        <span className="font-semibold text-titulo">Sesión sincrónica:</span>{" "}
-        {grupo.sesionDia ? fecha(grupo.sesionDia) : "sin día"}
-        {tramoDeHoras(grupo) && `, ${tramoDeHoras(grupo)}`}
-      </p>
+      {/* Las sesiones, una por linea: un bootcamp lleva dos y
+          una hibrida lleva la presencial mas la conexion. */}
+      {grupo.sesiones.length === 0 ? (
+        <p className="mt-1 text-[0.78125rem] text-texto-suave">Sin sesiones</p>
+      ) : (
+        grupo.sesiones.map((x) => (
+          <p key={x.id} className="mt-1 text-[0.78125rem] text-texto-suave">
+            <span className="font-semibold text-titulo">{ETIQUETA_SESION[x.tipo]}:</span>{" "}
+            {x.dia ? `${fecha(x.dia)}, ` : ""}
+            de {x.horaInicio} a {x.horaFin}
+          </p>
+        ))
+      )}
 
       {/* dónde se dictará y con cuántos cupos */}
       <div className="mt-2.5 flex flex-wrap gap-1.5">
@@ -764,49 +799,107 @@ function Grupo({
             </label>
           </div>
 
-          {/* El encuentro en vivo va DENTRO de esas fechas, asi
-              que se edita debajo y no al lado: el orden de la
-              pantalla dice de que depende que. */}
           <div className="mt-4 border-t border-borde pt-3">
-            <p className="text-[0.8125rem] font-semibold text-titulo">
-              Sesión sincrónica
-            </p>
+            <div className="flex flex-wrap items-baseline justify-between gap-2">
+              <p className="text-[0.8125rem] font-semibold text-titulo">
+                Sesiones del grupo
+              </p>
+              <button
+                type="button"
+                onClick={() =>
+                  setSesiones([
+                    ...sesiones,
+                    { tipo: "PRESENCIAL", dia: "", horaInicio: "", horaFin: "" },
+                  ])
+                }
+                className="sin-aro text-[0.78125rem] font-semibold text-marca underline-offset-2 transition hover:underline"
+              >
+                Agregar sesión
+              </button>
+            </div>
             <p className="mt-0.5 mb-3 text-xs text-texto-suave">
-              El encuentro en vivo del grupo. Su día tiene que caer dentro de las
-              fechas de arriba.
+              Un bootcamp lleva dos; una híbrida, la presencial más la conexión
+              PAT. El día va solo en las que lo llevan, y cae dentro de las fechas
+              de arriba.
             </p>
 
-            <div className="grid gap-3 sm:grid-cols-3">
-              <label className="block">
-                <span className="mb-1 block text-xs font-medium">Día</span>
-                <input
-                  type="date"
-                  value={sesionDia}
-                  min={inicio || undefined}
-                  max={fin || undefined}
-                  onChange={(e) => setSesionDia(e.target.value)}
-                  className={CLASE_CONTROL}
-                />
-              </label>
-              <label className="block">
-                <span className="mb-1 block text-xs font-medium">Hora de inicio</span>
-                <input
-                  type="time"
-                  value={horaInicio}
-                  onChange={(e) => setHoraInicio(e.target.value)}
-                  className={CLASE_CONTROL}
-                />
-              </label>
-              <label className="block">
-                <span className="mb-1 block text-xs font-medium">Hora de fin</span>
-                <input
-                  type="time"
-                  value={horaFin}
-                  onChange={(e) => setHoraFin(e.target.value)}
-                  className={CLASE_CONTROL}
-                />
-              </label>
-            </div>
+            {sesiones.length === 0 && (
+              <p className="mb-3 text-xs text-texto-suave">
+                Este grupo todavía no tiene sesiones.
+              </p>
+            )}
+
+            {sesiones.map((x, i) => (
+              <div key={i} className="mb-3 grid gap-3 sm:grid-cols-4">
+                <label className="block">
+                  <span className="mb-1 block text-xs font-medium">Tipo</span>
+                  <select
+                    value={x.tipo}
+                    onChange={(e) =>
+                      cambiar(i, { tipo: e.target.value as TipoDeSesion })
+                    }
+                    className={CLASE_CONTROL}
+                  >
+                    <option value="PRESENCIAL">Sesión presencial</option>
+                    <option value="SINCRONICA">Sesión sincrónica</option>
+                    <option value="PAT">Conexión PAT</option>
+                  </select>
+                </label>
+
+                {/* El dia solo donde lo lleva. Pintarlo apagado
+                    invitaria a llenarlo para nada. */}
+                {LLEVA_DIA[x.tipo] ? (
+                  <label className="block">
+                    <span className="mb-1 block text-xs font-medium">Día</span>
+                    <input
+                      type="date"
+                      value={x.dia}
+                      min={inicio || undefined}
+                      max={fin || undefined}
+                      onChange={(e) => cambiar(i, { dia: e.target.value })}
+                      className={CLASE_CONTROL}
+                    />
+                  </label>
+                ) : (
+                  <p className="self-end pb-2 text-xs text-texto-suave">
+                    {x.tipo === "PAT"
+                      ? "Todos los días del grupo, salvo los que tengan día propio."
+                      : "En las fechas del grupo."}
+                  </p>
+                )}
+
+                <label className="block">
+                  <span className="mb-1 block text-xs font-medium">
+                    Hora de inicio
+                  </span>
+                  <input
+                    type="time"
+                    value={x.horaInicio}
+                    onChange={(e) => cambiar(i, { horaInicio: e.target.value })}
+                    className={CLASE_CONTROL}
+                  />
+                </label>
+
+                <div className="flex items-end gap-2">
+                  <label className="block grow">
+                    <span className="mb-1 block text-xs font-medium">Hora de fin</span>
+                    <input
+                      type="time"
+                      value={x.horaFin}
+                      onChange={(e) => cambiar(i, { horaFin: e.target.value })}
+                      className={CLASE_CONTROL}
+                    />
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => setSesiones(sesiones.filter((_, j) => j !== i))}
+                    className="sin-aro pb-2 text-[0.78125rem] font-semibold text-error underline-offset-2 transition hover:underline"
+                  >
+                    Quitar
+                  </button>
+                </div>
+              </div>
+            ))}
           </div>
 
           <div className="mt-4">

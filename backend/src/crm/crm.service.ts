@@ -3425,8 +3425,10 @@ export class CrmService {
                 fechaInicio: true,
                 fechaFin: true,
                 dias: true,
-                horaInicio: true,
-                horaFin: true,
+                sesiones: {
+                  orderBy: { orden: 'asc' },
+                  select: { horaInicio: true, horaFin: true },
+                },
               },
             },
           },

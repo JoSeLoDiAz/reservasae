@@ -1,36 +1,42 @@
 /** Los dias y las horas de un grupo, en una sola frase. */
 
-/// La frase NO se guarda, se arma. Hasta el 13 sep 2026
-/// `Grupo.horario` era texto libre y ahi dentro vivian los dias
-/// Y las horas: «Lunes a viernes, 2:00 p. m. a 5:00 p. m.». Con
-/// las horas en sus propias columnas, dejar ademas la frase
-/// guardada serian dos verdades sobre el mismo hecho, que es el
-/// defecto que este repositorio lleva cinco rondas documentando.
+/// La frase NO se guarda, se arma. `Grupo.horario` era texto
+/// libre y ahi dentro vivian los dias Y las horas: «Lunes a
+/// viernes, 2:00 p. m. a 5:00 p. m.». Con las horas en sus
+/// propias filas, dejar ademas la frase guardada serian dos
+/// verdades sobre el mismo hecho.
 ///
-/// Asi que la columna se quedo con los DIAS --lo unico que de
-/// verdad es libre-- y la frase se compone aqui, una sola vez,
-/// para las cuatro pantallas que hoy la pintan: el cronograma
-/// (tarjeta y tabla), el seguimiento academico y la asignacion
-/// por lote. Ninguna de ellas cambia: reciben la misma clave
-/// `horario` con el mismo texto de siempre.
+/// Las horas ya no son del grupo sino de sus SESIONES (13 sep
+/// 2026): un bootcamp tiene dos y una hibrida tiene una
+/// presencial mas la hora de conexion. Esta frase es la de las
+/// cuatro pantallas que solo la PINTAN --el academico, la
+/// asignacion por lote y el cronograma--, y ahi lo que se
+/// necesita es el tramo, no el detalle.
+
+export type SesionParaLaFrase = {
+  horaInicio: string;
+  horaFin: string;
+};
 
 export type HorarioDeGrupo = {
   dias: string | null;
-  horaInicio: string | null;
-  horaFin: string | null;
+  sesiones: SesionParaLaFrase[];
 };
 
 /** "lunes a sabado, de 18:00 a 20:00", o lo que haya. */
 export function fraseDeHorario(g: HorarioDeGrupo): string | null {
   const dias = g.dias?.trim() || null;
-  const horas = tramo(g.horaInicio, g.horaFin);
+  const horas = tramos(g.sesiones);
   if (dias && horas) return `${dias}, ${horas}`;
   return dias ?? horas;
 }
 
-/// «desde las» sin fin es legitimo; al reves lo prohibe la base.
-function tramo(inicio: string | null, fin: string | null): string | null {
-  if (inicio && fin) return `de ${inicio} a ${fin}`;
-  if (inicio) return `desde las ${inicio}`;
-  return null;
+/// Con varias sesiones se enumeran: dos tramos distintos no se
+/// pueden resumir en uno sin mentir sobre alguno.
+function tramos(sesiones: SesionParaLaFrase[]): string | null {
+  const buenas = sesiones.filter((s) => s.horaInicio && s.horaFin);
+  if (!buenas.length) return null;
+  const partes = buenas.map((s) => `de ${s.horaInicio} a ${s.horaFin}`);
+  if (partes.length === 1) return partes[0];
+  return `${partes.slice(0, -1).join(', ')} y ${partes.at(-1)}`;
 }

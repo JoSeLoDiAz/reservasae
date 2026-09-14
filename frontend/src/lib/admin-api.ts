@@ -487,10 +487,7 @@ export type GrupoCronograma = {
   fechaInicio: string | null;
   fechaFin: string | null;
   dias: string | null;
-  horaInicio: string | null;
-  horaFin: string | null;
-  /// El dia del encuentro en vivo, dentro del grupo.
-  sesionDia: string | null;
+  sesiones: SesionDeGrupo[];
   /// La frase ya armada por el servidor. Solo para pintar.
   horario: string | null;
   sepGrupoId: number | null;
@@ -510,6 +507,34 @@ export type GrupoCronograma = {
     tope: number;
     inscritos: number;
   }>;
+};
+
+/// Como se reune un grupo. Una fila por sesion: un bootcamp
+/// lleva dos y una hibrida una presencial mas la conexion PAT.
+export type TipoDeSesion = "PRESENCIAL" | "SINCRONICA" | "PAT";
+
+export const ETIQUETA_SESION: Record<TipoDeSesion, string> = {
+  PRESENCIAL: "Sesión presencial",
+  SINCRONICA: "Sesión sincrónica",
+  PAT: "Conexión PAT",
+};
+
+/// La PAT no lleva dia: vale para todos los del grupo salvo los
+/// que tienen uno propio. La presencial tampoco, porque el
+/// grupo ya dice cuando es.
+export const LLEVA_DIA: Record<TipoDeSesion, boolean> = {
+  PRESENCIAL: false,
+  SINCRONICA: true,
+  PAT: false,
+};
+
+export type SesionDeGrupo = {
+  id: string;
+  orden: number;
+  tipo: TipoDeSesion;
+  dia: string | null;
+  horaInicio: string;
+  horaFin: string;
 };
 
 export type AccionCronograma = {
@@ -563,9 +588,12 @@ export const cronogramaApi = {
       fechaInicio?: string | null;
       fechaFin?: string | null;
       dias?: string;
-      horaInicio?: string | null;
-      horaFin?: string | null;
-      sesionDia?: string | null;
+      sesiones?: Array<{
+        tipo: TipoDeSesion;
+        dia?: string | null;
+        horaInicio: string;
+        horaFin: string;
+      }>;
       sepGrupoId?: number | null;
     },
   ) =>
