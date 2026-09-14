@@ -63,6 +63,18 @@ const NOMBRE_ANCHO: Record<string, string> = {
   ESCRITORIO: "Computador",
 };
 
+/// Desde cuándo hay contador. Sin esta frase, «1 visita en todo»
+/// se lee como «solo ha llegado una persona en toda la campaña»,
+/// que es falso y es la peor clase de cifra.
+function cuando(iso: string): string {
+  return new Date(iso).toLocaleString("es-CO", {
+    day: "numeric",
+    month: "long",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
 function tasa(parte: number, total: number): string {
   if (total <= 0) return "—";
   const pct = (parte / total) * 100;
@@ -121,7 +133,22 @@ export default function PaginaTrafico() {
     <div className="space-y-6">
       <Encabezado
         titulo="Tráfico del formulario"
-        descripcion="Qué pasa entre el anuncio y la preinscripción. Cuenta visitas, no personas."
+        descripcion={
+          <>
+            Qué pasa entre el anuncio y la preinscripción. Cuenta visitas, no
+            personas.
+            {datos?.contandoDesde && (
+              <>
+                {" "}
+                <strong className="text-texto">
+                  El contador empezó el {cuando(datos.contandoDesde)}
+                </strong>
+                : lo anterior a esa hora no se contó, aunque sí hubiera llegado
+                gente.
+              </>
+            )}
+          </>
+        }
       >
         <div className="flex flex-wrap gap-1">
           {RANGOS.map((r) => (
@@ -210,6 +237,11 @@ export default function PaginaTrafico() {
           <li>
             Son un <strong>suelo, no un total</strong>: no cuentan a quien se va antes
             de que la página termine de cargar, ni a quien usa bloqueador.
+          </li>
+          <li>
+            <strong>Y no cuentan nada anterior al contador.</strong> Quien se
+            preinscribió antes de que esto existiera no aparece aquí, aunque sí
+            esté en Gestión de leads.
           </li>
           <li>
             La unidad es la <strong>visita</strong>, no la persona. Quien vuelve otro
