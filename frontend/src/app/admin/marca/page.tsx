@@ -191,7 +191,7 @@ export default function PaginaMarca() {
           titulo="Logos de la cabecera"
           descripcion="Hasta tres, uno por entidad. SVG, PNG o WebP con fondo transparente, máximo 1 MB cada uno. Se muestran a 80 px de alto, así que conviene entregarlos a 960 × 288 px o mayor, o en SVG. JPG no sirve: no tiene transparencia y deja un recuadro blanco."
         >
-          <GestorLogos />
+          <GestorLogos temas={marca.temas} />
         </Bloque>
       )}
 

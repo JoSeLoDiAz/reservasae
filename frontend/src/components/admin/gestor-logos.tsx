@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 
 import { Boton, CLASE_CONTROL } from "@/components/admin/marco-admin";
+import { useMarca } from "@/components/marca-publica";
 import {
   adminApi,
   ESQUEMAS_DE_LOGO,
@@ -13,17 +14,22 @@ import {
   type Logo,
 } from "@/lib/admin-api";
 import { ErrorApi } from "@/lib/api";
+import { esFondoOscuro, variantesParaElFondo } from "@/lib/logos-por-fondo";
+import type { ColoresTema, Esquema } from "@/lib/tema";
 
 type Props = {
   /** Sin él, los de la marca general. */
   formularioId?: string;
   /** Los generales, para poder enseñar qué se hereda. */
   heredados?: Logo[];
+  /** La paleta con la que se previsualiza. */
+  temas?: Record<Esquema, ColoresTema>;
   alCambiar?: (logos: Logo[]) => void;
 };
 
 /** Hasta tres logos, en orden de cabecera. */
-export function GestorLogos({ formularioId, heredados, alCambiar }: Props) {
+export function GestorLogos({ formularioId, heredados, temas, alCambiar }: Props) {
+  const { marca } = useMarca();
   const [logos, setLogos] = useState<Logo[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [ocupado, setOcupado] = useState(false);
@@ -54,6 +60,8 @@ export function GestorLogos({ formularioId, heredados, alCambiar }: Props) {
 
   const hereda = Boolean(formularioId) && logos.length === 0;
   const mostrados = hereda ? (heredados ?? []) : logos;
+  /// La del ámbito que se edita; la general de respaldo.
+  const paleta = temas ?? marca?.temas ?? null;
 
   return (
     <div className="space-y-4">
@@ -71,55 +79,94 @@ export function GestorLogos({ formularioId, heredados, alCambiar }: Props) {
         </p>
       )}
 
-      {mostrados.length > 0 && (
+      {mostrados.length > 0 && paleta && (
         <div className="rounded-lg border border-borde bg-fondo p-4">
-          <p className="mb-3 text-xs font-medium uppercase tracking-wide text-texto-suave">
-            Así se ve la cabecera
+          <p className="mb-1 text-xs font-medium uppercase tracking-wide text-texto-suave">
+            Así se ven, sobre los fondos de verdad
           </p>
-          {/* LOS DOS TEMAS, uno al lado del otro.
+          {/* LOS DOS SITIOS DONDE SALEN, Y NO SON EL MISMO FONDO.
 
-              Antes se veía una sola fila, la del tema en que
-              estuviera el panel, y con logos marcados por tema eso
-              esconde justo lo que hay que revisar: si el archivo de
-              oscuro se lee sobre el fondo oscuro. La placa de la
-              derecha va con el fondo del tema contrario a mano
-              —`#0d1614` es el `--fondo` oscuro— porque una
-              previsualización que dependa del tema del panel no
-              sirve para comprobar el otro. */}
-          {(
-            [
-              ["CLARO", "En tema claro", "#f4f7f5", "#14231f"],
-              ["OSCURO", "En tema oscuro", "#0d1614", "#e7efec"],
-            ] as const
-          ).map(([tema, rotulo, fondo, texto]) => {
-            const deEsteTema = mostrados.filter(
-              (l) => l.esquema === "AMBOS" || l.esquema === tema,
-            );
+              Antes esta placa se pintaba sobre el `--fondo` de
+              cada tema --casi blanco y casi negro--, y ahí el
+              logo se elegía por el TEMA. La cabecera del panel
+              no funciona así: se pinta sobre `encabezadoFondo`,
+              que el gremio elige, y la variante sale de la
+              CLARIDAD DE ESA FRANJA. Con las dos franjas
+              oscuras --el caso de esta casa: #702482 en claro y
+              #3b1644 en oscuro-- la previsualización enseñaba
+              el logo de texto negro sobre blanco en «tema
+              claro» y la cabecera de verdad enseñaba el blanco.
+              O sea que decía lo contrario de lo que pasaba.
+
+              Va la misma regla que la cabecera --el módulo es
+              uno-- y va el color de verdad, sacado de la paleta
+              que se está editando. */}
+          <p className="mb-3 text-xs text-texto-suave">
+            El panel elige la versión por la claridad de la franja, no por el
+            tema. El sitio público sí va por el tema.
+          </p>
+          {(["CLARO", "OSCURO"] as const).map((tema) => {
+            const c = paleta[tema] ?? {};
+            const franja = c.encabezadoFondo ?? "#ffffff";
+            const placas = [
+              {
+                clave: "panel",
+                rotulo: "Panel · franja del encabezado",
+                fondo: franja,
+                texto: c.encabezadoTexto ?? "#0f172a",
+                logos: variantesParaElFondo(mostrados, esFondoOscuro(franja)),
+                placaBlanca: false,
+              },
+              {
+                clave: "publico",
+                rotulo: "Sitio público · tarjeta",
+                fondo: c.superficie ?? "#ffffff",
+                texto: c.texto ?? "#0f172a",
+                logos: mostrados.filter(
+                  (l) => l.esquema === "AMBOS" || l.esquema === tema,
+                ),
+                /// Lo mismo que hace la cabecera pública.
+                placaBlanca:
+                  tema === "OSCURO" &&
+                  !mostrados.some((l) => l.esquema === "OSCURO"),
+              },
+            ];
             return (
-              <div key={tema} className="mb-3 last:mb-0">
-                <p className="mb-1 text-xs text-texto-suave">{rotulo}</p>
-                <div
-                  className="flex flex-wrap items-center gap-x-6 gap-y-3 rounded-lg px-4 py-3"
-                  style={{ background: fondo, color: texto }}
-                >
-                  {deEsteTema.length === 0 ? (
-                    <span className="text-sm opacity-70">
-                      Ningún logo sale en este tema.
-                    </span>
-                  ) : (
-                    deEsteTema.map((logo) => (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        key={logo.id}
-                        src={urlLogo(logo)}
-                        alt={logo.etiqueta}
-                        /// La misma altura que en la cabecera de
-                        /// verdad (`LogosDelGremio`): lo que se ve
-                        /// aquí es lo que se publica.
-                        className="h-16 w-auto max-w-[14rem] object-contain"
-                      />
-                    ))
-                  )}
+              <div key={tema} className="mb-4 last:mb-0">
+                <p className="mb-2 text-xs font-medium uppercase tracking-wide text-texto-suave">
+                  {tema === "CLARO" ? "Tema claro" : "Tema oscuro"}
+                </p>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {placas.map((placa) => (
+                    <div key={placa.clave}>
+                      <p className="mb-1 text-xs text-texto-suave">{placa.rotulo}</p>
+                      <div
+                        className="flex flex-wrap items-center gap-x-6 gap-y-3 rounded-lg px-4 py-3"
+                        style={{ background: placa.fondo, color: placa.texto }}
+                      >
+                        {placa.logos.length === 0 ? (
+                          <span className="text-sm opacity-70">
+                            Ningún logo sale aquí.
+                          </span>
+                        ) : (
+                          placa.logos.map((logo) => (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img
+                              key={logo.id}
+                              src={urlLogo(logo)}
+                              alt={logo.etiqueta}
+                              /// La altura de la cabecera de verdad.
+                              className={`h-16 w-auto max-w-[14rem] object-contain ${
+                                placa.placaBlanca
+                                  ? "rounded bg-white px-2 py-1"
+                                  : ""
+                              }`}
+                            />
+                          ))
+                        )}
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
             );

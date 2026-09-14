@@ -59,6 +59,7 @@ import {
   type Nivel,
 } from "@/lib/admin-api";
 import { useMarca } from "@/components/marca-publica";
+import { esFondoOscuro, variantesParaElFondo } from "@/lib/logos-por-fondo";
 
 import { IconoMenu, IconoSalir } from "./iconos";
 import { enlacesVisibles, estaActivo, MODULOS } from "./navegacion";
@@ -124,45 +125,12 @@ function useFondoDelEncabezadoOscuro(): boolean {
     const css = getComputedStyle(document.documentElement)
       .getPropertyValue("--encabezado-fondo")
       .trim();
-    const n = css.replace("#", "");
-    if (n.length < 6) return;
-    const [r, g, b] = [0, 2, 4].map((i) => parseInt(n.slice(i, i + 2), 16) / 255);
-    const lineal = (c: number) =>
-      c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
-    const luz = 0.2126 * lineal(r) + 0.7152 * lineal(g) + 0.0722 * lineal(b);
-    /// 0,35 y no 0,5: el umbral de «sobre esto se lee mejor en
-    /// blanco» cae por debajo del medio, porque el ojo no reparte
-    /// el contraste a partes iguales.
-    setOscuro(luz < 0.35);
+    if (css.replace("#", "").length < 6) return;
+    /// La misma regla que la previsualizacion.
+    setOscuro(esFondoOscuro(css));
   }, [esquema, marca]);
 
   return oscuro;
-}
-
-/**
- * La variante de cada logo que se ve SOBRE ESTE FONDO.
- *
- * Cada logo dice en qué tema sale (`AMBOS`, `CLARO`, `OSCURO`):
- * son archivos cerrados hechos para papel, y el de ADECOPRIA
- * viene con el nombre en negro y otro con el nombre en blanco. No
- * se pueden recolorear como el signo de Convoca, que va en
- * `currentColor`.
- *
- * `OSCURO` quiere decir «la versión para fondo oscuro», así que
- * sobre un encabezado oscuro va esa, y sobre uno claro la `CLARO`.
- * `AMBOS` sale siempre: es un logo sin texto, o con un texto de un
- * color que aguanta los dos fondos.
- */
-/// Genérica a propósito: filtra sin tocar el tipo que le pasan.
-/// Declarada como `Array<{esquema: string}>` devolvía un tipo que
-/// había perdido `id` y `version`, y justo después hay un
-/// `urlLogo(l)` que los necesita.
-function variantesParaElFondo<T extends { esquema: string }>(
-  logos: T[],
-  fondoOscuro: boolean,
-): T[] {
-  const cual = fondoOscuro ? "OSCURO" : "CLARO";
-  return logos.filter((l) => l.esquema === "AMBOS" || l.esquema === cual);
 }
 
 /// Qué menú está abierto. NO es `null | 'ins' | 'user'` como en el

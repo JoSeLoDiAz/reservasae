@@ -115,6 +115,8 @@ export function AparienciaHeredada({
         <GestorLogos
           formularioId={formularioId}
           heredados={general.logos as Logo[]}
+          /// La paleta que se ve = general + lo propio.
+          temas={temas}
           alCambiar={() => void recargar()}
         />
       </Tarjeta>

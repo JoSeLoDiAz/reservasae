@@ -486,6 +486,50 @@ tabla `logos`, con `formularioId = null` para la marca general.
 - **Mismas rutas para los dos ámbitos**: `/admin/logos?formularioId=`. Una
   sola API en vez de dos juegos de rutas casi iguales.
 
+#### El logo NO se elige por el tema, y la previsualización mentía (14 sep 2026)
+
+Lo reportó el cliente: «en modo oscuro sale el logo de oscuro y en modo claro no
+cambia». **El sistema estaba acertando y la previsualización estaba mintiendo.**
+
+Cada logo declara en qué tema sale (`AMBOS`, `CLARO`, `OSCURO`), pero en la
+cabecera del panel la variante **no sale del tema**: sale de la **claridad de la
+franja**, que es `--encabezado-fondo` y la elige cada gremio. Y en esta casa las
+seis franjas son oscuras, en los dos temas:
+
+| Ámbito | Franja en claro | Franja en oscuro |
+|---|---|---|
+| general | `#702482` | `#3b1644` |
+| ADECOPRIA | `#315a00` | `#193002` |
+| BRITCHAM ADEE | `#2f40a2` | `#192354` |
+
+O sea que la variante de fondo oscuro es la correcta **en los dos temas**, y el
+logo no cambia porque no tiene por qué cambiar.
+
+- **La previsualización pintaba las placas sobre `--fondo`** —casi blanco y casi
+  negro— **y filtraba por el TEMA.** Así que enseñaba en «tema claro» un logo
+  que la cabecera de verdad nunca pone ahí: decía exactamente lo contrario de lo
+  que pasa. Ahora pinta la **franja de verdad** de la paleta que se está
+  editando, y filtra con la **misma función** que la cabecera.
+- **Son dos sitios y dos fondos, así que son dos placas por tema**: el panel
+  (franja, se decide por luminancia) y el sitio público (tarjeta, sí va por el
+  tema, con la placa blanca cuando no hay versión de oscuro). Enseñar solo uno
+  deja el otro sin comprobar, que es como se llegó aquí.
+- **La regla vive en `lib/logos-por-fondo.ts`**, una sola vez. Estaba escrita
+  dentro de `cabecera-topbar.tsx` y la previsualización tenía otra: dos verdades
+  sobre la misma decisión, el patrón de siempre.
+- **El login se queda con la suya**, y es correcto: allí el fondo es `--marca` y
+  la cuenta se invierte respecto del tema. Está documentado en su sitio.
+
+> **Lo que sí está mal es un dato, no el código:** los dos logos del formulario
+> `adecopria` son **arte blanco** —medido: 100 % de los píxeles opacos por
+> encima de 250 de luz— y están marcados **`AMBOS`**. Sobre la franja del panel
+> se leen; sobre la **tarjeta del sitio público en tema claro**, que es
+> `#ffffff`, son invisibles. Hay que subir las versiones de texto oscuro como
+> **«Solo en claro»** y **después** marcar las blancas como **«Solo en
+> oscuro»** — en ese orden, porque al revés el tema claro del sitio público se
+> queda sin ningún logo. La marca general ya está bien puesta:
+> `aelogo_horizW` OSCURO + `aelogo_horizG` CLARO.
+
 ### Apariencia por formulario
 
 Cada formulario puede tener **su paleta, sus logos y sus textos**, distintos de
