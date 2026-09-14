@@ -81,6 +81,17 @@ type SesionEnEdicion = {
   ubicacionId: string;
 };
 
+/// Cual de los dias es esta sesion, o nada.
+///
+/// Se cuenta SOLO entre las que llevan dia. Una PAT numerada
+/// diria que es el dia 2, y no es ningun dia: es la hora de
+/// conexion de todos los demas.
+function numeroDeDia(todas: SesionDeGrupo[], una: SesionDeGrupo): number | null {
+  const conDia = todas.filter((s) => s.dia);
+  if (conDia.length < 2 || !una.dia) return null;
+  return conDia.findIndex((s) => s.id === una.id) + 1;
+}
+
 /// Lo que sale en la celda del PDF.
 const sesionesEnUnaLinea = (ses: SesionDeGrupo[]) =>
   ses.length ? ses.map(comoSeLee).join(" · ") : "—";
@@ -710,13 +721,15 @@ function Grupo({
       {grupo.sesiones.length === 0 ? (
         <p className="mt-1 text-[0.78125rem] text-texto-suave">Sin sesiones</p>
       ) : (
-        grupo.sesiones.map((x, i) => (
+        grupo.sesiones.map((x) => (
           <p key={x.id} className="mt-1 text-[0.78125rem] text-texto-suave">
             <span className="font-semibold text-titulo">
               {ETIQUETA_SESION[x.tipo]}
-              {/* «dia 1 / dia 2» solo cuando hay varias: en un
-                  bootcamp las dos presenciales se leian iguales. */}
-              {grupo.sesiones.length > 1 && ` · día ${i + 1}`}:
+              {/* «dia 1 / dia 2» solo en las que TIENEN dia y solo
+                  si hay varias: en un bootcamp las dos presenciales
+                  se leian iguales. Numerar la PAT seria mentir --no
+                  es un dia, es la hora de todos los demas. */}
+              {numeroDeDia(grupo.sesiones, x) && ` · día ${numeroDeDia(grupo.sesiones, x)}`}:
             </span>{" "}
             {x.dia ? `${fecha(x.dia)}, ` : ""}
             de {x.horaInicio} a {x.horaFin}
@@ -849,7 +862,10 @@ function Grupo({
               <div key={i} className="mb-3 grid gap-3 sm:grid-cols-5">
                 <label className="block">
                   <span className="mb-1 block text-xs font-medium">
-                    Tipo{sesiones.length > 1 && ` · día ${i + 1}`}
+                    Tipo
+                    {LLEVA_DIA[x.tipo] &&
+                      sesiones.filter((o) => LLEVA_DIA[o.tipo]).length > 1 &&
+                      ` · día ${sesiones.filter((o) => LLEVA_DIA[o.tipo]).indexOf(x) + 1}`}
                   </span>
                   <select
                     value={x.tipo}
