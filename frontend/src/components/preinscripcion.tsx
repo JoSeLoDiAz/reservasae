@@ -55,6 +55,8 @@ export function PreinscripcionPublica({ slug }: { slug: string }) {
   /// ademas pide 8 datos personales antes de saber si hay
   /// algo con cobertura donde vive.
   const [pantalla, setPantalla] = useState<Pantalla>("habeas");
+  /// La caja del texto legal empieza corta y se abre a peticion.
+  const [textoEntero, setTextoEntero] = useState(false);
   const [datos, setDatos] = useState({
     tipoDocumentoSepId: "",
     documentoOtroCual: "",
@@ -209,7 +211,14 @@ export function PreinscripcionPublica({ slug }: { slug: string }) {
           «incluyentes» no es adorno: es como el SENA nombra la
           convocatoria y hay que decirlo entero (11 sep 2026). */}
       <EncabezadoPublico
-        titulo="Preinscripción a la oferta de formación"
+        /// «GRATUITA» EN EL TITULO, no solo en la bajada.
+        ///
+        /// «Que la persona le dio me gusta en Meta y de una vez
+        /// le estamos diciendo te estamos preinscribiendo: puede
+        /// generar reserva si no está segura de si tiene que
+        /// pagar» (cliente, 14 sep 2026). Estaba dicho en la
+        /// bajada, entre otras seis cosas, que es donde no se lee.
+        titulo="Preinscripción a la oferta de formación gratuita"
         subtitulo="Estas acciones de formación se desarrollan en el marco de la Convocatoria de Formación Continua Especializada 2026, por lo tanto, son gratuitas, incluyentes y cuentan con certificación, con cupos limitados."
       />
 
@@ -228,11 +237,113 @@ export function PreinscripcionPublica({ slug }: { slug: string }) {
         {/* el estado del proceso: reservar no es estar inscrito */}
         <BandaDeEstado paso={1} />
 
+        {/* PRIMERO EL PERMISO, Y TODO LO DEMAS SE DESPLIEGA
+            DEBAJO.
+            
+            Eran dos pantallas con un boton en medio, y el cliente
+            lo zanjo el 14 sep 2026: «tan pronto le check en el
+            autorizo que me despliegue automaticamente mas abajo».
+            La queja era de fricción -- «la gente ya ve muchos
+            pasos previos a meter la informacion»-- y con pauta
+            pagada cada paso de mas cuesta dinero.
+            
+            Lo que NO cambia es el orden: el permiso sigue siendo
+            lo primero y no se captura un solo dato antes. Moverlo
+            al final, como se propuso en esa misma reunion, seria
+            pedir el permiso cuando los datos ya estan tomados. */}
+        {pantalla === "habeas" && (
+          <>
+        <section className="rounded-2xl border border-borde bg-superficie p-6">
+          <h2 className="text-lg font-semibold">
+            {/* El título sale de la base: lo pone el administrador
+                en Habeas Data y se versiona con el texto legal. El
+                respaldo es el mismo que se publicó el 11 sep 2026,
+                para que una base sin política no enseñe otro
+                nombre. */}
+            {catalogo.politica?.titulo ??
+              "Términos y Condiciones y Autorización para el Tratamiento de Datos Personales"}
+          </h2>
+          <p className="mt-1 text-sm text-texto-suave">
+            Antes de continuar, por favor confirme que ha leído y aceptado la
+            siguiente información.
+          </p>
+
+          {/* LA CASILLA VA ARRIBA, ANTES DEL TEXTO.
+
+              «¿La podemos subir? Y reduce un poquito el espacio
+              de la ventana para que la gente no sienta que los
+              tiene que leer todos» (cliente, 14 sep 2026).
+
+              El texto NO se quita ni se esconde detrás de un
+              enlace --eso ya se decidió aquí: «casi nadie abría
+              el enlace, y eso no alcanza para sostener que la
+              persona leyó lo que autorizó»--. Lo que cambia es
+              cuánto ocupa de entrada: se ve el principio, y quien
+              quiera lo abre entero. Está a un clic, que es
+              distinto de estar en otra página. */}
+          <p className="mt-4 rounded-xl border border-borde bg-superficie-alterna px-4 py-3 text-sm leading-relaxed text-texto">
+            Para continuar con su proceso de preinscripción, requerimos su
+            autorización para el tratamiento de sus datos personales y así poder
+            comunicarnos con usted durante las diferentes etapas del proceso.
+          </p>
+
+          <label className="mt-4 flex cursor-pointer items-start gap-3 rounded-xl border border-campo-borde bg-campo-fondo p-4 text-sm">
+            <input
+              type="checkbox"
+              checked={datos.aceptaPolitica === "si"}
+              onChange={(e) => cambiar("aceptaPolitica", e.target.checked ? "si" : "")}
+              className="mt-0.5 h-4 w-4 shrink-0"
+            />
+            <span>
+              He leído y <strong>autorizo</strong> el tratamiento de mis datos personales
+              en los términos anteriores.
+            </span>
+          </label>
+
+          <div
+            className={`mt-4 overflow-y-auto whitespace-pre-line rounded-xl border border-campo-borde bg-campo-fondo p-4 text-sm leading-relaxed text-texto ${
+              textoEntero ? "max-h-96" : "max-h-32"
+            }`}
+          >
+            {conEnlaces(catalogo.politica?.contenido ?? TEXTO_DE_RESPALDO)}
+          </div>
+
+          <button
+            type="button"
+            onClick={() => setTextoEntero((v) => !v)}
+            className="mt-2 text-sm font-medium text-marca underline underline-offset-2"
+          >
+            {textoEntero ? "Ver menos" : "Ver el texto completo"}
+          </button>
+
+          {/* ESTE PÁRRAFO NO VA EN COLOR SUAVE, y es el único de
+              la pantalla del que se puede decir eso sin discutir:
+              es el que PIDE la autorización de datos personales.
+
+              Iba en `--texto-suave` sobre `--superficie-alterna`
+              y daba 4,26:1 medido, por debajo del 4,5 que pide un
+              texto de 14 px. El fallo era el par, no el token:
+              el mismo `--texto-suave` sobre `--superficie` da
+              4,79:1 y cumple. Pero aquí la salida no es buscar un
+              fondo que lo salve: un consentimiento no es texto
+              secundario. Va en `--texto`, que es el color de lo
+              que hay que leer. */}
+
+
+        </section>
+          </>
+        )}
+
         {/* Pantalla 2. Donde vive y que le interesa, nada
             mas. Pedirle ocho datos personales antes de
             saber si hay algo con cobertura donde vive es
-            pedirle trabajo a cambio de nada */}
-        {pantalla === "eleccion" && (
+            pedirle trabajo a cambio de nada.
+
+            Sale en la misma pantalla del permiso en cuanto se
+            marca la casilla, y tambien sola cuando se vuelve
+            aqui desde los datos. */}
+        {(pantalla === "eleccion" ||
+          (pantalla === "habeas" && datos.aceptaPolitica === "si")) && (
           <>
         <section className="rounded-2xl border border-borde bg-superficie p-6">
           {/* NO es donde vive: es donde quiere estudiar.
@@ -555,67 +666,6 @@ export function PreinscripcionPublica({ slug }: { slug: string }) {
             estrato y AL FINAL pedirle permiso para tratar
             sus datos es pedir el permiso cuando ya se
             tomaron. */}
-        {pantalla === "habeas" && (
-          <>
-        <section className="rounded-2xl border border-borde bg-superficie p-6">
-          <h2 className="text-lg font-semibold">
-            {/* El título sale de la base: lo pone el administrador
-                en Habeas Data y se versiona con el texto legal. El
-                respaldo es el mismo que se publicó el 11 sep 2026,
-                para que una base sin política no enseñe otro
-                nombre. */}
-            {catalogo.politica?.titulo ??
-              "Términos y Condiciones y Autorización para el Tratamiento de Datos Personales"}
-          </h2>
-          <p className="mt-1 text-sm text-texto-suave">
-            Antes de continuar, por favor confirme que ha leído y aceptado la
-            siguiente información.
-          </p>
-
-          <div className="mt-5 max-h-80 overflow-y-auto whitespace-pre-line rounded-xl border border-campo-borde bg-campo-fondo p-5 text-sm leading-relaxed text-texto">
-            {conEnlaces(catalogo.politica?.contenido ?? TEXTO_DE_RESPALDO)}
-          </div>
-
-          {/* ESTE PÁRRAFO NO VA EN COLOR SUAVE, y es el único de
-              la pantalla del que se puede decir eso sin discutir:
-              es el que PIDE la autorización de datos personales.
-
-              Iba en `--texto-suave` sobre `--superficie-alterna`
-              y daba 4,26:1 medido, por debajo del 4,5 que pide un
-              texto de 14 px. El fallo era el par, no el token:
-              el mismo `--texto-suave` sobre `--superficie` da
-              4,79:1 y cumple. Pero aquí la salida no es buscar un
-              fondo que lo salve: un consentimiento no es texto
-              secundario. Va en `--texto`, que es el color de lo
-              que hay que leer. */}
-          <p className="mt-5 rounded-xl border border-borde bg-superficie-alterna px-4 py-3 text-sm leading-relaxed text-texto">
-            Para continuar con su proceso de preinscripción, requerimos su
-            autorización para el tratamiento de sus datos personales y así poder
-            comunicarnos con usted durante las diferentes etapas del proceso.
-          </p>
-
-          <label className="mt-4 flex cursor-pointer items-start gap-3 rounded-xl border border-campo-borde bg-campo-fondo p-4 text-sm">
-            <input
-              type="checkbox"
-              checked={datos.aceptaPolitica === "si"}
-              onChange={(e) => cambiar("aceptaPolitica", e.target.checked ? "si" : "")}
-              className="mt-0.5 h-4 w-4 shrink-0"
-            />
-            <span>
-              He leído y <strong>autorizo</strong> el tratamiento de mis datos personales
-              en los términos anteriores.
-            </span>
-          </label>
-
-        </section>
-
-        <BotonesDePaso
-          adelante="Aceptar y continuar"
-          bloqueado={datos.aceptaPolitica !== "si"}
-          alSeguir={() => setPantalla("eleccion")}
-        />
-          </>
-        )}
 
         {/* Pantalla 4. Nada se manda sin pasar por aqui */}
         {pantalla === "revision" && (
@@ -624,6 +674,15 @@ export function PreinscripcionPublica({ slug }: { slug: string }) {
               Antes de enviar, revise que la información sea correcta y esté
               completa.
             </h2>
+
+            {/* EL RECORDATORIO, JUSTO ANTES DE ENVIAR. Lo pidio el
+                cliente: quien llega de una pauta no sabe todavia
+                si esto le va a costar, y la duda se resuelve
+                donde esta a punto de decidir, no en la bajada de
+                la primera pantalla. */}
+            <p className="mt-3 text-sm font-medium text-marca">
+              Recuerde: esta formación es gratuita. No se le va a cobrar nada.
+            </p>
 
             <dl className="mt-4 grid gap-4 sm:grid-cols-2">
               <Resumen etiqueta="Acción de formación" valor={nombreAccion} />
