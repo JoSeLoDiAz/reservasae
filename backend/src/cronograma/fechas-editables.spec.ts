@@ -21,6 +21,7 @@ function armar(sobre: Record<string, unknown> = {}) {
     id: 'gru-1',
     fechaInicio: DIA('2026-09-01'),
     fechaFin: DIA('2026-09-30'),
+    coberturas: [{ ubicacionId: 'ubi-medellin' }, { ubicacionId: 'ubi-huila' }],
     ...sobre,
   };
 
@@ -177,6 +178,56 @@ describe('las sesiones del grupo', () => {
     await servicio.actualizarGrupo('gru-1', { dias: 'lunes a viernes' }, AMBITO);
 
     expect(escrito.data).not.toHaveProperty('sesiones');
+  });
+
+  /// UN FORO HIBRIDO se dicta en UNA sede, aunque la accion
+  /// alcance seis departamentos.
+  it('el lugar tiene que ser de los que cubre el grupo', async () => {
+    const { servicio, escrito } = armar();
+
+    await expect(
+      servicio.actualizarGrupo(
+        'gru-1',
+        { sesiones: [{ ...PRESENCIAL, ubicacionId: 'ubi-de-otro-grupo' }] },
+        AMBITO,
+      ),
+    ).rejects.toThrow(/no es de los que cubre el grupo/);
+    expect(escrito.data).toBeUndefined();
+  });
+
+  it('y uno de los suyos se guarda', async () => {
+    const { servicio, escrito } = armar();
+
+    await servicio.actualizarGrupo(
+      'gru-1',
+      { sesiones: [{ ...PRESENCIAL, ubicacionId: 'ubi-medellin' }] },
+      AMBITO,
+    );
+
+    expect(escrito.data).toMatchObject({
+      sesiones: { create: [{ ubicacionId: 'ubi-medellin' }] },
+    });
+  });
+
+  /// EL BOOTCAMP otra vez: dos presenciales sin fecha se leen
+  /// identicas. Ahora la presencial SI puede llevar dia.
+  it('dos presenciales con su dia cada una', async () => {
+    const { servicio, escrito } = armar();
+
+    await servicio.actualizarGrupo(
+      'gru-1',
+      {
+        sesiones: [
+          { tipo: 'PRESENCIAL', dia: '2026-09-09', horaInicio: '08:00', horaFin: '17:00' },
+          { tipo: 'PRESENCIAL', dia: '2026-09-10', horaInicio: '08:00', horaFin: '17:00' },
+        ],
+      },
+      AMBITO,
+    );
+
+    const create = (escrito.data as { sesiones: { create: Array<{ dia: Date | null }> } })
+      .sesiones.create;
+    expect(create.map((c) => c.dia)).not.toContain(null);
   });
 
   it('una lista vacía las borra todas', async () => {

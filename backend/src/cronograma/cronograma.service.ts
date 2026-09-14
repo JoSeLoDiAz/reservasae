@@ -69,6 +69,8 @@ export class CronogramaService {
                 dia: true,
                 horaInicio: true,
                 horaFin: true,
+                ubicacionId: true,
+                ubicacion: { select: { nombre: true, tipo: true } },
               },
             },
             sepGrupoId: true,
@@ -79,6 +81,7 @@ export class CronogramaService {
                 id: true,
                 cuposBase: true,
                 cuposMaximos: true,
+                ubicacionId: true,
                 ubicacion: { select: { nombre: true, tipo: true } },
                 _count: {
                   select: { participantes: { where: { etapa: { in: [...ETAPAS_VIVAS] } } } },
@@ -117,6 +120,7 @@ export class CronogramaService {
           inscritos,
           ubicaciones: g.coberturas.map((c) => ({
             id: c.id,
+            ubicacionId: c.ubicacionId,
             nombre: c.ubicacion.nombre,
             tipo: c.ubicacion.tipo,
             cupos: c.cuposBase,
@@ -187,7 +191,12 @@ export class CronogramaService {
   async actualizarGrupo(id: string, dto: ActualizarGrupoDto, ambito: string[]) {
     const grupo = await this.prisma.grupo.findFirst({
       where: { id, accionFormacion: { convenioId: { in: ambito } } },
-      select: { id: true, fechaInicio: true, fechaFin: true },
+      select: {
+        id: true,
+        fechaInicio: true,
+        fechaFin: true,
+        coberturas: { select: { ubicacionId: true } },
+      },
     });
     if (!grupo) throw new NotFoundException('Ese grupo no existe.');
 
@@ -226,8 +235,11 @@ export class CronogramaService {
     /// que habia: mover el rango tambien saca una sesion que
     /// estaba bien.
     if (dto.sesiones) {
+      const ubicaciones = grupo.coberturas.map((c) => c.ubicacionId);
       const mal = dto.sesiones.flatMap((ses, i) =>
-        loQueEstaMal(ses, { inicio, fin }).map((m) => `Sesión ${i + 1}: ${m}`),
+        loQueEstaMal(ses, { inicio, fin, ubicaciones }).map(
+          (m) => `Sesión ${i + 1}: ${m}`,
+        ),
       );
       if (mal.length) throw new BadRequestException(mal.join(' '));
     }
@@ -253,6 +265,7 @@ export class CronogramaService {
                   dia: ses.dia ? new Date(ses.dia) : null,
                   horaInicio: ses.horaInicio,
                   horaFin: ses.horaFin,
+                  ubicacionId: ses.ubicacionId ?? null,
                 })),
               },
             }

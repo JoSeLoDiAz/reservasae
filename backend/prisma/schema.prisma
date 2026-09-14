@@ -129,6 +129,7 @@ model Ubicacion {
 
   @@unique([nombre, tipo])
   @@map("ubicaciones")
+  sesiones SesionDeGrupo[]
 }
 
 /// Cohorte comprometida con el SENA. Sin contador.
@@ -201,7 +202,14 @@ model SesionDeGrupo {
   horaInicio String
   horaFin    String
 
-  grupo Grupo @relation(fields: [grupoId], references: [id], onDelete: Cascade)
+  /// DONDE se hace. La presencial lleva ciudad y la PAT
+  /// departamento, y las dos salen de lo que ese grupo cubre:
+  /// un foro hibrido se dicta en una sede concreta aunque la
+  /// accion alcance seis departamentos.
+  ubicacionId String?
+
+  grupo     Grupo      @relation(fields: [grupoId], references: [id], onDelete: Cascade)
+  ubicacion Ubicacion? @relation(fields: [ubicacionId], references: [id])
 
   @@unique([grupoId, orden])
   @@index([grupoId])

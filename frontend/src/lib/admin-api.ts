@@ -499,7 +499,9 @@ export type GrupoCronograma = {
   tope: number;
   inscritos: number;
   ubicaciones: Array<{
+    /// El id de la COBERTURA, no el del lugar.
     id: string;
+    ubicacionId: string;
     nombre: string;
     tipo: string;
     cupos: number;
@@ -519,11 +521,16 @@ export const ETIQUETA_SESION: Record<TipoDeSesion, string> = {
   PAT: "Conexión PAT",
 };
 
-/// La PAT no lleva dia: vale para todos los del grupo salvo los
-/// que tienen uno propio. La presencial tampoco, porque el
-/// grupo ya dice cuando es.
+/// La PAT es la UNICA sin dia: vale para todos los del grupo
+/// salvo los que tienen uno propio.
+///
+/// La presencial SI lo lleva, y esa fue una correccion del
+/// cliente: un bootcamp tiene dos presenciales y sin fecha se
+/// leen identicas --«de 08:00 a 17:00» dos veces-- sin forma de
+/// saber cual es cual. Se puede dejar vacia cuando el grupo dura
+/// un solo dia, que es donde repetirla no aniade nada.
 export const LLEVA_DIA: Record<TipoDeSesion, boolean> = {
-  PRESENCIAL: false,
+  PRESENCIAL: true,
   SINCRONICA: true,
   PAT: false,
 };
@@ -535,6 +542,9 @@ export type SesionDeGrupo = {
   dia: string | null;
   horaInicio: string;
   horaFin: string;
+  /// Donde se hace, de lo que cubre el grupo.
+  ubicacionId: string | null;
+  ubicacion: { nombre: string; tipo: string } | null;
 };
 
 export type AccionCronograma = {
@@ -593,6 +603,7 @@ export const cronogramaApi = {
         dia?: string | null;
         horaInicio: string;
         horaFin: string;
+        ubicacionId?: string | null;
       }>;
       sepGrupoId?: number | null;
     },

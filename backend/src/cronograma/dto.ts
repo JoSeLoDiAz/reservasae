@@ -38,6 +38,12 @@ export class SesionDto {
 
   @Matches(HORA, { message: 'La hora de fin va como HH:MM, de 00:00 a 23:59.' })
   horaFin!: string;
+
+  @IsOptional()
+  @Transform(aNuloOTexto)
+  @ValidateIf((_o: unknown, v: unknown) => v !== null)
+  @IsString()
+  ubicacionId?: string | null;
 }
 
 export class ActualizarGrupoDto {

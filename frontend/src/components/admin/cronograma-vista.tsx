@@ -77,6 +77,7 @@ type SesionEnEdicion = {
   dia: string;
   horaInicio: string;
   horaFin: string;
+  ubicacionId: string;
 };
 
 /// Lo que sale en la celda del PDF.
@@ -636,6 +637,7 @@ function Grupo({
       dia: paraCampo(x.dia),
       horaInicio: x.horaInicio,
       horaFin: x.horaFin,
+      ubicacionId: x.ubicacionId ?? "",
     })),
   );
   const [guardando, setGuardando] = useState(false);
@@ -664,6 +666,7 @@ function Grupo({
           dia: LLEVA_DIA[x.tipo] ? x.dia || null : null,
           horaInicio: x.horaInicio,
           horaFin: x.horaFin,
+          ubicacionId: x.ubicacionId || null,
         })),
       });
       await alGuardar();
@@ -809,7 +812,13 @@ function Grupo({
                 onClick={() =>
                   setSesiones([
                     ...sesiones,
-                    { tipo: "PRESENCIAL", dia: "", horaInicio: "", horaFin: "" },
+                    {
+                      tipo: "PRESENCIAL",
+                      dia: "",
+                      horaInicio: "",
+                      horaFin: "",
+                      ubicacionId: "",
+                    },
                   ])
                 }
                 className="sin-aro text-[0.78125rem] font-semibold text-marca underline-offset-2 transition hover:underline"
@@ -867,6 +876,25 @@ function Grupo({
                       : "En las fechas del grupo."}
                   </p>
                 )}
+
+                {/* DONDE. Solo lo que cubre el grupo: un foro
+                    hibrido se dicta en una sede aunque la accion
+                    alcance seis departamentos. */}
+                <label className="block">
+                  <span className="mb-1 block text-xs font-medium">Dónde</span>
+                  <select
+                    value={x.ubicacionId}
+                    onChange={(e) => cambiar(i, { ubicacionId: e.target.value })}
+                    className={CLASE_CONTROL}
+                  >
+                    <option value="">Sin definir</option>
+                    {grupo.ubicaciones.map((u) => (
+                      <option key={u.ubicacionId} value={u.ubicacionId}>
+                        {bonito(u.nombre)}
+                      </option>
+                    ))}
+                  </select>
+                </label>
 
                 <label className="block">
                   <span className="mb-1 block text-xs font-medium">

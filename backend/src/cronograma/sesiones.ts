@@ -13,6 +13,8 @@ export type SesionPedida = {
   dia?: string | null;
   horaInicio: string;
   horaFin: string;
+  /// Donde se hace. Una de las que cubre el grupo.
+  ubicacionId?: string | null;
 };
 
 const HORA = /^([01][0-9]|2[0-3]):[0-5][0-9]$/;
@@ -32,7 +34,7 @@ const soloDia = (d: Date) => d.toISOString().slice(0, 10);
  */
 export function loQueEstaMal(
   s: SesionPedida,
-  grupo: { inicio: Date | null; fin: Date | null },
+  grupo: { inicio: Date | null; fin: Date | null; ubicaciones?: string[] },
 ): string[] {
   const mal: string[] = [];
 
@@ -64,6 +66,13 @@ export function loQueEstaMal(
         mal.push('El día de la sesión tiene que caer dentro de las fechas del grupo.');
       }
     }
+  }
+
+  /// Un foro hibrido se dicta en UNA sede, aunque la accion
+  /// alcance seis departamentos. Ofrecer cualquiera dejaria
+  /// poner la presencial donde ese grupo no llega.
+  if (s.ubicacionId && grupo.ubicaciones && !grupo.ubicaciones.includes(s.ubicacionId)) {
+    mal.push('Ese lugar no es de los que cubre el grupo.');
   }
 
   return mal;
