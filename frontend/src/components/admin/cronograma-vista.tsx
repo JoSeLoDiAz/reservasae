@@ -228,10 +228,10 @@ export function CronogramaVista() {
       <div className="flex flex-col gap-3 px-4 pt-4 pb-2">
         <div className="no-imprimir">
           <p className="mt-0.5 text-[0.78125rem] text-texto-suave">
-            Aquí se ponen las fechas de cada grupo: cuándo empieza, cuándo termina y
-            qué día cae su sesión sincrónica. Sin fechas no se puede saber si sus
-            participantes van al día. Matricular sí se puede: las fechas avisan, no
-            bloquean.
+            Aquí se ponen las fechas de cada grupo —cuándo empieza y cuándo
+            termina— y sus sesiones: la presencial, la sincrónica o la conexión
+            PAT. Sin fechas no se puede saber si sus participantes van al día.
+            Matricular sí se puede: las fechas avisan, no bloquean.
           </p>
         </div>
 
