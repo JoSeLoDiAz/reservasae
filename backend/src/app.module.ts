@@ -4,6 +4,7 @@ import { APP_GUARD } from '@nestjs/core';
 import { ThrottlerModule } from '@nestjs/throttler';
 
 import { LeadsModule } from './leads/leads.module';
+import { EmbudoModule } from './embudo/embudo.module';
 import { LucidModule } from './lucid/lucid.module';
 import { AdminModule } from './admin/admin.module';
 import { AppController } from './app.controller';
@@ -25,6 +26,7 @@ import { TablerosModule } from './tableros/tableros.module';
 @Module({
   imports: [
     LeadsModule,
+    EmbudoModule,
     LucidModule,
     // sin esto backend/.env no se lee fuera de Docker
     ConfigModule.forRoot({ isGlobal: true }),

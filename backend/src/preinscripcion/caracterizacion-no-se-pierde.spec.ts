@@ -20,6 +20,7 @@
  */
 
 import { PreinscripcionService } from './preinscripcion.service';
+import { dobleDeEmbudo } from '../embudo/doble';
 
 type Escritura = { tabla: string; metodo: string; datos?: unknown };
 
@@ -99,6 +100,7 @@ function servicio(prisma: ReturnType<typeof prismaFalso>) {
     { registrar: () => Promise.resolve() } as never,
     {} as never,
     {} as never,
+      dobleDeEmbudo(),
   );
 }
 

@@ -80,6 +80,8 @@ export type DatosBasicos = {
   /// Lo que autorizo en la pantalla de habeas data. Se
   /// guarda contra la version que leyo, no como un si suelto.
   aceptaPolitica?: boolean;
+  /// La visita que mide el embudo. Opaca, sin datos de nadie.
+  visita?: string;
 };
 
 export type FichaAbierta = {

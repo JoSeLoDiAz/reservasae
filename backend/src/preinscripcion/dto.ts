@@ -117,6 +117,12 @@ export class CrearPreinscripcionDto {
   /// nuestra, asi que el tipo del JSON no se puede dar por bueno.
   @Transform(({ obj, key }) => booleanoDeVerdad((obj as Record<string, unknown>)[key]))
   @IsOptional() @IsBoolean() aceptaPolitica?: boolean;
+
+  /// La visita que viene midiendo el embudo. Opaca y sin
+  /// datos de nadie: sirve para cerrar el embudo del lado
+  /// del servidor, que es el unico paso que no se puede
+  /// permitir perder.
+  @IsOptional() @IsString() @MaxLength(64) visita?: string;
 }
 
 /** El resto de sus datos, todos opcionales. */

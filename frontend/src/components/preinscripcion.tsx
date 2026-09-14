@@ -16,6 +16,8 @@ import {
 import { FondoPublico } from "./fondo-publico";
 import { BannerLogos, EncabezadoPublico, PiePublico } from "./marca-publica";
 import { ModalInformacionAccion } from "./modal-informacion-accion";
+import { idDeVisita, marcar, type Paso } from "@/lib/visita";
+
 import { BandaDePasos } from "./banda-de-pasos";
 import { PantallaDeCarga, useEsperaCorta } from "./pantalla-de-carga";
 
@@ -82,10 +84,16 @@ export function PreinscripcionPublica({ slug }: { slug: string }) {
   }, [pantalla]);
 
   useEffect(() => {
+    marcar(slug, "LLEGO");
     preinscripcionApi
       .catalogo(slug)
-      .then(setCatalogo)
+      .then((c) => {
+        setCatalogo(c);
+        marcar(slug, "CATALOGO_LISTO");
+      })
       .catch((e: ErrorApi) => {
+        // antes del 404: una pauta con el slug malo se ve aqui
+        marcar(slug, "CATALOGO_FALLO", String(e.estado));
         if (e.estado === 404) return setNoExiste(true);
         setError(e.message);
       });
@@ -104,6 +112,8 @@ export function PreinscripcionPublica({ slug }: { slug: string }) {
     e.preventDefault();
     setError(null);
     setEnviando(true);
+    // antes del await: un envio que no vuelve sigue contando
+    marcar(slug, "ENVIO");
     try {
       const r = await preinscripcionApi.registrar(slug, {
         ofertaId,
@@ -130,6 +140,8 @@ export function PreinscripcionPublica({ slug }: { slug: string }) {
         // se marcaba la casilla y no quedaba constancia de
         // nada, que es justo lo que hay que poder demostrar
         aceptaPolitica: datos.aceptaPolitica === "si",
+        // para que el servidor cierre el embudo
+        visita: idDeVisita()?.id,
       });
       setHecho({
         // sin token cuando el documento ya estaba: ver `Registrada`
@@ -138,6 +150,8 @@ export function PreinscripcionPublica({ slug }: { slug: string }) {
         mensaje: r.mensaje ?? null,
       });
     } catch (err) {
+      // el codigo, NUNCA el mensaje: puede citar datos
+      marcar(slug, "ENVIO_FALLO", String((err as ErrorApi).estado));
       setError((err as ErrorApi).message);
       setEnviando(false);
     }
@@ -283,6 +297,7 @@ export function PreinscripcionPublica({ slug }: { slug: string }) {
                 value={departamento}
                 onChange={(e) => {
                   setDepartamento(e.target.value);
+                  if (e.target.value) marcar(slug, "ELIGIO_UBICACION", e.target.value);
                   setCiudad("");
                   setAccionId("");
                   setOfertaId("");
@@ -347,12 +362,18 @@ export function PreinscripcionPublica({ slug }: { slug: string }) {
             </p>
 
             {conCobertura.length > 0 && (
+              <MarcaDePaso slug={slug} paso="VIO_ACCIONES" detalle={String(conCobertura.length)} />
+            )}
+            {conCobertura.length > 0 && (
               <p className="mt-3 rounded-xl bg-marca-suave px-4 py-3 text-sm text-marca">
                 Seleccione la que sea de su mayor interés, considerando que solo puede
                 preinscribirse en una.
               </p>
             )}
 
+            {conCobertura.length === 0 && departamento && (
+              <MarcaDePaso slug={slug} paso="SIN_COBERTURA" detalle={departamento} />
+            )}
             {conCobertura.length === 0 && (
               <p className="mt-3 rounded-xl border border-borde bg-superficie px-4 py-3 text-sm text-texto-suave">
                 No hay acciones con cobertura en esa ubicación. Pruebe con otra ciudad del
@@ -373,6 +394,7 @@ export function PreinscripcionPublica({ slug }: { slug: string }) {
                     setAccionId(accion.id);
                     setOfertaId(oferta!.id);
                     setPantalla("datos");
+                    marcar(slug, "ELIGIO_ACCION", accion.codigo);
                   }}
                 />
               ))}
@@ -582,7 +604,11 @@ export function PreinscripcionPublica({ slug }: { slug: string }) {
             <input
               type="checkbox"
               checked={datos.aceptaPolitica === "si"}
-              onChange={(e) => cambiar("aceptaPolitica", e.target.checked ? "si" : "")}
+              onChange={(e) => {
+                cambiar("aceptaPolitica", e.target.checked ? "si" : "");
+                // solo al marcarla: desmarcar no es un peldano
+                if (e.target.checked) marcar(slug, "AUTORIZO");
+              }}
               className="mt-0.5 h-4 w-4 shrink-0"
             />
             <span>
@@ -623,6 +649,8 @@ export function PreinscripcionPublica({ slug }: { slug: string }) {
 
         </section>
 
+        {faltaEnDatos.length === 0 && <MarcaDePaso slug={slug} paso="DATOS_COMPLETOS" />}
+
         {faltaEnDatos.length > 0 && (
           <p className="rounded-xl border border-borde bg-superficie-alterna px-4 py-3 text-sm text-texto-suave">
             Para continuar falta: <strong>{faltaEnDatos.join(", ")}</strong>.
@@ -634,7 +662,10 @@ export function PreinscripcionPublica({ slug }: { slug: string }) {
           alVolver={() => setPantalla("eleccion")}
           adelante="Continuar"
           bloqueado={faltaEnDatos.length > 0}
-          alSeguir={() => setPantalla("revision")}
+          alSeguir={() => {
+            setPantalla("revision");
+            marcar(slug, "LLEGO_A_REVISION");
+          }}
         />
           </>
         )}
@@ -703,6 +734,22 @@ export function PreinscripcionPublica({ slug }: { slug: string }) {
       <PiePublico />
     </>
   );
+}
+
+/// Marca un paso al montarse. No pinta nada.
+///
+/// Es un componente y no un efecto porque `conCobertura` y
+/// `faltaEnDatos` se calculan DESPUES de los retornos tempranos:
+/// un hook que dependiera de ellos seria condicional. Colgado de
+/// la rama JSX, el disparador es la condicion que ya decide lo
+/// que la persona ve.
+function MarcaDePaso({ slug, paso, detalle }: { slug: string; paso: Paso; detalle?: string }) {
+  useEffect(() => {
+    marcar(slug, paso, detalle);
+    // a proposito: no se repite si cambia el detalle
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  return null;
 }
 
 /// Lo que eligio, en una linea, mientras llena el resto.

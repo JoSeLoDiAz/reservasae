@@ -1,6 +1,26 @@
 import { ErrorApi } from "./api";
 import { pedir } from "./pedir";
 
+/** Lo que devuelve el embudo del formulario publico. */
+export type EmbudoPublico = {
+  etiqueta: string;
+  /// Desde cuando hay contador. Antes de esto no es que no
+  /// hubiera gente: es que no se contaba.
+  contandoDesde: string | null;
+  hitos: Array<{ paso: string; visitas: number }>;
+  caidaMayor: { de: string; a: string; sePerdieron: number } | null;
+  dispositivo: CorteDeVisitas[];
+  origen: CorteDeVisitas[];
+  campana: CorteDeVisitas[];
+};
+
+/// `Corte` ya existe en este archivo y significa otra cosa.
+export type CorteDeVisitas = {
+  valor: string | null;
+  visitas: number;
+  envios: number;
+};
+
 export type Etapa =
   | "INTERESADO"
   | "CONTACTADO"
@@ -1202,6 +1222,10 @@ export const crmApi = {
 
   metricas: (filtros: Filtros = {}) =>
     pedir<MetricasInscripciones>(`/admin/participantes/metricas${consulta(filtros)}`),
+
+  /// El embudo del formulario publico. Una sola llamada.
+  embudoPublico: (rango = "SEMANA") =>
+    pedir<EmbudoPublico>(`/admin/embudo-publico?rango=${encodeURIComponent(rango)}`),
 
   planeacionDePauta: (accionFormacionId?: string, coberturaId?: string) =>
     pedir<PlaneacionDePauta>(

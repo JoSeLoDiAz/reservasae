@@ -1461,6 +1461,85 @@ además llega con `fbclid` y con los `utm_*` puestos por Mauricio.
   «Términos y Condiciones y Autorización para el Tratamiento de Datos
   Personales». **Ni el nombre de un curso.**
 
+### La medición del embudo del formulario público (14 sep 2026)
+
+Lo pidió Mauricio en la reunión: *«ustedes solo tienen conversión al final… hasta
+que alguien no le dé enviado no nos va a llegar nadie»*. Sin peldaños intermedios,
+«300 clics y cero leads» no se puede diagnosticar.
+
+`backend/src/embudo/` · `frontend/src/lib/visita.ts` · `/admin/trafico`.
+
+- **Una fila por `(visitaId, paso)`, y gana la primera.** Ir a los datos y volver a
+  la oferta cuenta **una** vez. Si contara dos, un peldaño posterior podría superar
+  a uno anterior, y **un embudo que sube no se puede leer** — la primera persona que
+  lo vea deja de creerse el tablero. El informe se calcula por **peldaño máximo**,
+  así que un beacon perdido a mitad no cuesta nada y las barras salen monótonas por
+  construcción.
+- **`AUTORIZO` va ANTES que `DATOS_COMPLETOS`**, y eso solo es cierto desde que el
+  permiso bajó al pie de la pantalla de datos: la autorización es uno de los
+  requisitos que `faltaEnDatos` exige, así que no se puede estar completo sin
+  haberla marcado. Si el formulario se reordena, se sube `VERSION_EMBUDO`.
+- **`REGISTRADO` lo escribe el SERVIDOR**, dentro de `registrar()`. Beaconeado se
+  perdería justo cuando la pestaña muere entre el envío y la respuesta — un caso
+  real en el que la ficha **sí** se creó. Así `ENVIO − REGISTRADO` significa de
+  verdad «el servidor rechazó o nunca llegó», que es el diagnóstico por el que
+  existe todo esto. Por eso la puerta pública **no acepta** ese paso.
+- **No entra un solo dato personal, y el momento es la razón**: la baliza se dispara
+  **antes** de que la persona autorice nada. No viaja la IP (dato personal en
+  Colombia, y hashearla no la salva: una IPv4 se revierte por fuerza bruta), ni el
+  user-agent crudo, ni el municipio —(Puerto Nariño, 14:32, AF08) señala a alguien;
+  (Amazonas, 14:32, AF08) no—, ni el valor de `fbclid`, que identifica un clic
+  concreto y se podría volver a unir a una persona: va **el bit**. `detalle` es una
+  lista cerrada validada **también en el servidor**, porque un control que solo está
+  en el navegador no es un control.
+- **`sendBeacon` y no `fetch`**: sobrevive a que la pestaña se cierre, que es
+  exactamente el caso que hay que medir. `marcar()` no lanza nunca, no devuelve
+  promesa, no lee la respuesta y no toca estado de React: **medir no puede romper el
+  formulario**.
+- **El id vive en `sessionStorage` y se lee solo dentro de efectos y manejadores**,
+  nunca en el render. Así el HTML del servidor y el primer pintado del cliente son
+  idénticos por construcción — más fuerte que la regla que ya había («se lee en un
+  efecto y no en el estado inicial»).
+- **`MarcaDePaso` es un componente y no un hook.** `conCobertura` y `faltaEnDatos` se
+  calculan **después** de los retornos tempranos: un hook que dependiera de ellos
+  sería condicional y React lanzaría «Rendered fewer hooks than expected». Colgado de
+  la rama JSX, el disparador es la condición que ya decide lo que la persona ve.
+- **300/min y no 60.** El cubo del limitador es **por manejador** (comprobado en
+  `@nestjs/throttler` 6.5.0: `generateKey` es `sha256(Clase-handler-nombre-tracker)`),
+  así que los beacons no pueden comerse la cuota de `registrar` — que era el riesgo
+  de que la medición se volviera la enfermedad. Sube porque la pauta llega tras el
+  CGNAT de los operadores móviles, donde muchos abonados comparten IP de salida.
+- **Un slug desconocido contesta 204 y no escribe.** Ni 404 ni 500: no puede ser un
+  oráculo de qué convenios existen.
+- **La escalera vive dos veces y hay un test que las ata.**
+  `la-escalera-no-se-separa.spec.ts` lee el archivo del panel y compara peldaños,
+  marcas y versión. Probado por mutación: invirtiendo dos peldaños en el navegador
+  cae 1 de 4.
+- **90 días y un olvidador**, calcado del de Lucid.
+- **Lo que NO se instrumenta, y por qué**: «Ver el texto completo» —un contador así
+  *parece* prueba de lectura sin serlo, y alguien lo citaría como constancia—, cada
+  tecla del bloque de datos, y un `SE_FUE` en `pagehide`, que en móvil se dispara
+  cada vez que la pestaña se oculta. **No se mide nada que la base ya responda.**
+- **Nada de terceros en esta página.** Cuando alguien llega a la pantalla de datos el
+  DOM tiene una cédula, un nombre, un celular y un correo: un script ajeno ahí mete
+  un encargado del tratamiento que nadie declaró. Y en lo práctico, los bloqueadores
+  y el navegador de Meta se comen los tags a una tasa que nadie puede medir,
+  sesgando el denominador justo en la dirección que importa.
+
+**La pantalla es `/admin/trafico`**, primera entrada de Inscripciones —antes que la
+Mesa, porque el tráfico ocurre antes de que exista el lead—. Va con
+`@Requiere('inscripciones')` en VER y **sin `@Roles`**: quien la mira es la cuenta de
+la pauta, que es `CONSULTA` por concesión y `RolAdmin.GESTOR` por enum, y un `@Roles`
+la dejaría fuera de su propia pantalla. Dice en pantalla que las cifras son un
+**suelo y no un total**, y que la unidad es la **visita y no la persona**.
+
+> **El nombre «embudo» ya estaba tomado**: `ETAPAS_DEL_EMBUDO` en
+> `crm/metricas-inscripciones.ts` y el campo `embudo` de `GET /admin/control` cuentan
+> el embudo de **etapas del CRM**, que es otra cosa sobre la misma gente. Por eso la
+> ruta es `/admin/trafico` y la pantalla habla de «tráfico», no de un segundo embudo.
+> Lo mismo pasó con el tipo `Corte`, que ya existía en `crm-api.ts`: el nuevo es
+> `CorteDeVisitas`, y lo cazó el compilador.
+
 ### El permiso va al FINAL, y ayer aquí decía lo contrario (14 sep 2026)
 
 El 14 sep por la mañana se movió el habeas data al principio y se escribió en

@@ -13,6 +13,7 @@ import { ENTIDADES, AuditoriaService } from '../comun/auditoria.service';
 import { CorreoService } from '../correo/correo.service';
 import { quienFirma } from '../correo/quien-firma';
 import { motivoParaNoInscribir } from '../crm/una-sola-accion';
+import { EmbudoService } from '../embudo/embudo.service';
 import { PrismaService } from '../prisma/prisma.service';
 import {
   dejarConstancia,
@@ -61,6 +62,7 @@ export class PreinscripcionService {
     private readonly auditoria: AuditoriaService,
     private readonly correo: CorreoService,
     private readonly directorio: DirectorioService,
+    private readonly embudo: EmbudoService,
   ) {}
 
   /** Lo que el formulario necesita para dibujarse. */
@@ -492,6 +494,14 @@ export class PreinscripcionService {
     ///
     /// Cuando la cédula es nueva sí se devuelve: la ficha solo
     /// contiene lo que él mismo acaba de escribir.
+    /// EL EMBUDO SE CIERRA AQUI, no en el navegador.
+    ///
+    /// Beaconeado se pierde justo cuando la pestana muere entre
+    /// el envio y la respuesta, que es un caso real en el que la
+    /// ficha SI se creo. Asi `ENVIO - REGISTRADO` significa de
+    /// verdad «el servidor rechazo o nunca llego».
+    if (dto.visita) await this.embudo.registrado(dto.visita, slug, convenio.id);
+
     if (!yaHabiaPersona) {
       /// SOLO AQUI SE EMITE, y el sitio importa.
       ///

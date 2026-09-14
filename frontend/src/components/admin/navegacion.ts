@@ -106,6 +106,16 @@ export const MODULOS: Modulo[] = [
     descripcion: 'Convertir cupos en personas con nombre.',
     enlaces: [
       {
+        /// ANTES QUE LA MESA, y por el mismo criterio que puso
+        /// la mesa antes que la lista: es el orden del proceso.
+        /// El trafico a la pagina de destino ocurre antes de
+        /// que exista el lead.
+        href: '/admin/trafico',
+        etiqueta: 'Tráfico del formulario',
+        exacto: true,
+        area: 'inscripciones',
+      },
+      {
         /// Va PRIMERO porque es el orden del proceso: el lead
         /// llega por el webhook y despues se gestiona. Ponerla
         /// despues de la lista sugeriria que es un detalle de

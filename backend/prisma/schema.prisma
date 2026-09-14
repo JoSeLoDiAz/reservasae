@@ -55,6 +55,7 @@ model Convenio {
   formularios      Formulario[]
   leads            LeadEntrante[]
   conversaciones   ConversacionEntrante[]
+  pasosDeVisita    PasoDeVisita[]
   plantillasCorreo PlantillaCorreo[]
   campanas         Campana[]
   participantes    Participante[]
@@ -1223,6 +1224,49 @@ model ConversacionEntrante {
   @@index([convenioId, estado, recibidoEn])
   @@index([celular])
   @@map("conversaciones_entrantes")
+}
+
+/// Un peldano de una visita al formulario publico.
+///
+/// NO identifica a nadie: el id lo acuna el navegador, vive en
+/// sessionStorage y aqui no entra ni IP ni lo que se teclea.
+model PasoDeVisita {
+  id       String @id @default(cuid())
+  /// El que acuna el navegador.
+  visitaId String
+  /// Un valor de `ESCALERA` o de `MARCAS`.
+  paso     String
+  /// Sube cuando cambia el orden de la escalera.
+  version  Int    @default(1)
+  /// Desde que llego, en milisegundos.
+  ms       Int?
+  /// De una lista cerrada. Nunca lo que la persona escribe.
+  detalle  String?
+
+  convenioId String?
+  /// El slug por el que entro, tal cual.
+  slug       String
+
+  /// De aqui abajo, solo en el paso LLEGO.
+  puerta        String?
+  utmFuente     String?
+  utmCampana    String?
+  utmContenido  String?
+  huboFbclid    Boolean?
+  /// Solo el host del referente, nunca la ruta.
+  referente     String?
+  ancho         String?
+  navegador     String?
+
+  creadoEn DateTime @default(now())
+
+  convenio Convenio? @relation(fields: [convenioId], references: [id])
+
+  /// Gana la primera: ir y volver no cuenta dos veces.
+  @@unique([visitaId, paso])
+  @@index([creadoEn])
+  @@index([convenioId, creadoEn])
+  @@map("pasos_de_visita")
 }
 
 model NotaDeGestion {
