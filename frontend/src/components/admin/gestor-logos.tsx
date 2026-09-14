@@ -27,6 +27,9 @@ export function GestorLogos({ formularioId, heredados, alCambiar }: Props) {
   const [logos, setLogos] = useState<Logo[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [ocupado, setOcupado] = useState(false);
+  /// Con que tema entra el proximo. `AMBOS` de salida: es lo que
+  /// aguanta un logo sin texto, que es el caso normal.
+  const [esquemaNuevo, setEsquemaNuevo] = useState<EsquemaDeLogo>("AMBOS");
   const entradaArchivo = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -229,7 +232,30 @@ export function GestorLogos({ formularioId, heredados, alCambiar }: Props) {
         </ul>
       )}
 
-      <div className="flex flex-wrap items-center gap-3">
+      <div className="flex flex-wrap items-end gap-3">
+        {/* EL TEMA SE ELIGE ANTES DE SUBIR, no despues.
+            Subiendo primero y corrigiendo en la lista, un logo de
+            texto blanco sale un rato en el tema claro -- donde es
+            justo invisible--, que es el problema que este campo
+            existe para quitar. */}
+        <label className="min-w-44">
+          <span className="mb-1 block text-xs text-texto-suave">
+            El que suba, ¿en qué tema sale?
+          </span>
+          <select
+            value={esquemaNuevo}
+            disabled={ocupado}
+            onChange={(e) => setEsquemaNuevo(e.target.value as EsquemaDeLogo)}
+            className={CLASE_CONTROL}
+          >
+            {ESQUEMAS_DE_LOGO.map((valor) => (
+              <option key={valor} value={valor}>
+                {NOMBRE_DEL_ESQUEMA[valor]}
+              </option>
+            ))}
+          </select>
+        </label>
+
         <input
           ref={entradaArchivo}
           type="file"
@@ -242,7 +268,9 @@ export function GestorLogos({ formularioId, heredados, alCambiar }: Props) {
             const archivo = e.target.files?.[0];
             if (archivo) {
               const etiqueta = archivo.name.replace(/\.[^.]+$/, "");
-              void accion(() => adminApi.subirLogo(archivo, etiqueta, formularioId));
+              void accion(() =>
+                adminApi.subirLogo(archivo, etiqueta, formularioId, esquemaNuevo),
+              );
             }
             e.target.value = "";
           }}
