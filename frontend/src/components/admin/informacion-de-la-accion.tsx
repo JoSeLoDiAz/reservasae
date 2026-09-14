@@ -40,7 +40,10 @@ const CAMPOS = [
   },
   {
     clave: "competencia" as const,
-    etiqueta: "Competencia",
+    /// Lo pidio el cliente el 14 sep 2026. La COLUMNA se sigue
+    /// llamando `competencia` --renombrarla seria una migracion
+    /// para cambiar un rotulo-- y lo que ve la gente es esto.
+    etiqueta: "Resultado de aprendizaje",
     ayuda: "Qué sabrá hacer quien lo termine.",
     ejemplo: "Ej.: Diseñar e implementar estrategias de autorregulación en su grupo.",
   },

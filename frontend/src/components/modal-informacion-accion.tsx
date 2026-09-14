@@ -22,7 +22,9 @@ import { useEffect, useRef } from "react";
 const CAMPOS = [
   { clave: "objetivo", etiqueta: "Objetivo" },
   { clave: "contenido", etiqueta: "Contenido" },
-  { clave: "competencia", etiqueta: "Competencia" },
+  /// «Resultado de aprendizaje» y no «Competencia» (cliente, 14
+  /// sep 2026). La columna se sigue llamando `competencia`.
+  { clave: "competencia", etiqueta: "Resultado de aprendizaje" },
 ] as const;
 
 export function ModalInformacionAccion({

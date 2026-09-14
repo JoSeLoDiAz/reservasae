@@ -1129,6 +1129,16 @@ function Registrada({
             Puede completar sus datos desde ahora para avanzar en su registro o
             esperar nuestra comunicación.
           </p>
+          {/* LO ULTIMO QUE LEE, y es lo que le quita la duda con
+              la que llego: «puede generar reserva si la persona no
+              esta segura de si tiene que pagar» (cliente, 14 sep
+              2026). Va aqui ademas de en el titulo porque esta
+              pantalla es la que se queda abierta, y a veces la
+              unica que alguien enseña a otro. */}
+          <p className="mt-4 text-sm font-medium text-marca">
+            Recuerde: las acciones de formación son gratuitas para todas las
+            personas participantes.
+          </p>
         </>
       ) : (
         /* El servidor redacta este: es el único que sabe si el
