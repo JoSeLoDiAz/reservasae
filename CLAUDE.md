@@ -1601,6 +1601,62 @@ código y la base:
   entran los rastreadores —que no ejecutan JavaScript— ni quien se va antes de
   que la página cargue. Para contrastar con Ads Manager sirve el `access_log`.
 
+**Facebook e Instagram van SEPARADOS.** Se juntaban en `META` y así no se podía
+saber cuál de las dos campañas funciona, que es la decisión que se toma con esto.
+El navegador incrustado los distingue —medido en producción: 111 visitas con
+`FBAV` y 2 con `Instagram`—, y también el referente y el `utm_source`.
+**Instagram se comprueba primero**: su navegador manda a veces también las marcas
+de Facebook, y al revés no pasa. Cuando solo se sabe que fue Meta y no cuál —un
+`fbclid` suelto, o el valor viejo `APP_META`— sale `META` y se dice en pantalla
+«sin precisar cuál»: no se inventa.
+
+#### Por qué la atribución a pauta NO se hizo (14 sep 2026)
+
+El cliente lo pidió —«sí, poner como pauta esos»— y llegó a estar escrito: el
+formulario público iba a dejar de escribir `AUTOGESTION` a fuego y a poner
+`FACEBOOK` / `INSTAGRAM` según de dónde viniera la visita. **Una revisión
+adversarial lo paró antes de desplegarlo, y conviene dejar escrito por qué para
+que nadie lo vuelva a intentar igual.**
+
+- **Llegar DESDE la app de Meta no es llegar POR una pauta pagada.** Las dos
+  primeras ramas del `CASE` son el navegador incrustado, y ése se abre con
+  **cualquier** enlace tocado dentro de Instagram, Facebook o Messenger: un post
+  orgánico, un mensaje del community manager, un enlace reenviado. Y
+  `ORIGENES_DE_PAUTA` clasifica `FACEBOOK`/`INSTAGRAM`/`REDES` como `PAUTA`, que
+  la pantalla rotula **«Pauta pagada»**. Con 111 visitas de app y **una sola**
+  preinscripción real de la pauta, el cambio habría marcado como pagado casi todo
+  el tráfico social orgánico — justo en el informe que justifica la inversión.
+- **Y la decisión pasaría a tomarla el cliente.** `leads.service.ts` lo tiene
+  prohibido por escrito: *«Pagado u orgánico, y lo decide QUIÉN LO MANDA, no el
+  cuerpo. Si viniera en el JSON, quien llama podría marcarse sus propios leads
+  como pauta y la métrica de cuánto cuesta un inscrito dejaría de valer»*. El
+  `navegador`, el `utmFuente` y el `referente` llegan en el cuerpo de una puerta
+  **pública y sin firma**. Dos peticiones de `curl` acuñan una ficha de pauta.
+
+**Lo que tendría que ser cierto para hacerlo bien**, cuando se retome:
+
+1. **Exigir prueba de lo pagado**, no de la red: atribuir solo si la fila de
+   `LLEGO` trae `utmCampana` —el id de campaña que pone Ads Manager— o `fbclid`.
+   Con solo la app o el referente, se queda en `AUTOGESTION` y se deja el toque.
+2. **El toque se registra SIEMPRE**, exista ya la ficha o no. Los otros dos
+   escritores lo hacen así (`leads.service.ts`, `leads-que-esperaban.ts`), y el
+   `upsert` es idempotente. Condicionarlo a `yaEsta` deja la barra de «Pauta
+   pagada» contando y la frase «la pauta impactó a N leads» sin salir.
+3. **Decidir el origen DESPUÉS de `cerrarLeadsQueEsperaban`**, no antes: si ya
+   había un lead esperando, el primero en el tiempo manda y lo de hoy es un toque.
+4. **Escribir también `origenLead`**, porque `origenDeLeadSql` le da prioridad
+   sobre `origen`: sin eso, el primer lead orgánico que cruce degrada la ficha a
+   `ORGANICO` sin que nada falle.
+5. **`registrarToqueDeOrigen` va en `try/catch` y DESPUÉS de
+   `embudo.registrado`.** Una escritura de métrica no puede devolver un 500 a
+   quien ya completó su inscripción — el bloque de leads de dos pantallas más
+   arriba ya lleva ese `catch` con ese mismo porqué escrito.
+
+> **La lección de la jornada, y va por duplicado:** el corte por procedencia se
+> subió antes de que terminara su revisión y llevaba cuatro defectos; la
+> atribución esperó a la suya y no se subió ninguno. **Cuando se lanza una
+> revisión adversarial, se espera.**
+
 > **NO reusa `origenDeLead`, y el motivo destapó un defecto que cuesta dinero.**
 > `preinscripcion.service.ts` escribe `origen: 'AUTOGESTION'` a fuego para toda
 > persona que se registra por el formulario público, y

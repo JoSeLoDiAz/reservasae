@@ -96,6 +96,28 @@ export class EmbudoService {
   }
 
   /**
+   * De dónde venía esta visita, para atribuir la ficha.
+   *
+   * Sale del MISMO `CASE` que pinta la pantalla: dos reglas para
+   * «vino de pauta» acabarían discrepando, y este repositorio ya
+   * pagó una vez por eso.
+   */
+  async procedenciaDe(visitaId: string): Promise<string | null> {
+    try {
+      const filas = await this.prisma.$queryRaw<Array<{ procedencia: string }>>`
+        SELECT ${procedenciaSql()} AS procedencia
+          FROM "pasos_de_visita"
+         WHERE "visitaId" = ${visitaId} AND "paso" = 'LLEGO'
+         LIMIT 1
+      `;
+      return filas[0]?.procedencia ?? null;
+    } catch {
+      // saber de dónde vino no puede tumbar un registro
+      return null;
+    }
+  }
+
+  /**
    * El embudo, contado por VISITA y acumulado.
    *
    * Cada visita aporta a su peldaño máximo y a todos los

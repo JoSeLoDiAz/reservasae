@@ -21,6 +21,8 @@
 import { Prisma } from '../../generated/prisma';
 
 export const PROCEDENCIAS = [
+  'FACEBOOK',
+  'INSTAGRAM',
   'META',
   'CORREO',
   'WHATSAPP',
@@ -34,7 +36,10 @@ export const PROCEDENCIAS = [
 
 export type Procedencia = (typeof PROCEDENCIAS)[number];
 
-const DE_META = ['facebook.com', 'instagram.com', 'messenger.com', 'fb.me', 'fb.watch'];
+/// Separadas: no son el mismo anuncio ni el mismo publico, y la
+/// pregunta que se hace con esto es cual de las dos funciona.
+const DE_FACEBOOK = ['facebook.com', 'messenger.com', 'fb.me', 'fb.watch'];
+const DE_INSTAGRAM = ['instagram.com'];
 const WEBMAIL = [
   'mail.google.com',
   'outlook.live.com',
@@ -56,7 +61,10 @@ const BUSCADORES = [
 /// y valen porque el enlace lo armamos aquí.
 const DICE_CORREO = ['correo', 'email', 'mail'];
 const DICE_WHATSAPP = ['whatsapp', 'wa'];
-const DICE_META = ['fb', 'facebook', 'ig', 'instagram', 'meta', 'messenger'];
+const DICE_FACEBOOK = ['fb', 'facebook', 'messenger'];
+const DICE_INSTAGRAM = ['ig', 'instagram'];
+/// Sabemos que es Meta pero no cual: no se inventa.
+const DICE_META = ['meta', 'redes'];
 
 /**
  * El host ES el dominio, o cuelga de él.
@@ -94,15 +102,20 @@ export function procedenciaSql(): Prisma.Sql {
   const utm = `lower(coalesce("utmFuente",''))`;
   return Prisma.sql`
     CASE
-      WHEN "navegador" = 'APP_META' THEN 'META'
-      WHEN ${alguno(ref, DE_META)} THEN 'META'
+      WHEN "navegador" = 'APP_INSTAGRAM' THEN 'INSTAGRAM'
+      WHEN "navegador" = 'APP_FACEBOOK' THEN 'FACEBOOK'
+      WHEN ${alguno(ref, DE_INSTAGRAM)} THEN 'INSTAGRAM'
+      WHEN ${alguno(ref, DE_FACEBOOK)} THEN 'FACEBOOK'
       WHEN ${Prisma.raw(utm)} IN (${Prisma.join(DICE_CORREO)}) THEN 'CORREO'
       WHEN ${Prisma.raw(utm)} IN (${Prisma.join(DICE_WHATSAPP)}) THEN 'WHATSAPP'
       WHEN ${Prisma.raw(utm)} = 'qr' THEN 'QR'
       WHEN ${esDominio(ref, 'reservasae.com')} THEN 'INTERNO'
       WHEN ${alguno(ref, WEBMAIL)} THEN 'CORREO'
-      WHEN "huboFbclid" IS TRUE THEN 'META'
+      WHEN ${Prisma.raw(utm)} IN (${Prisma.join(DICE_INSTAGRAM)}) THEN 'INSTAGRAM'
+      WHEN ${Prisma.raw(utm)} IN (${Prisma.join(DICE_FACEBOOK)}) THEN 'FACEBOOK'
       WHEN ${Prisma.raw(utm)} IN (${Prisma.join(DICE_META)}) THEN 'META'
+      -- fbclid dice que es Meta, no cual de las dos
+      WHEN "navegador" = 'APP_META' OR "huboFbclid" IS TRUE THEN 'META'
       WHEN ${alguno(ref, BUSCADORES)} THEN 'BUSQUEDA'
       WHEN ${Prisma.raw(utm)} <> '' THEN 'OTRO_DECLARADO'
       WHEN ${Prisma.raw(ref)} <> '' THEN 'OTRA_WEB'

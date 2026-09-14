@@ -70,7 +70,10 @@ const NOMBRE_ANCHO: Record<string, string> = {
 /// copia en el servidor que nadie importaba: dos diccionarios sin
 /// nada que los ate es el defecto que este cambio vino a evitar.
 const NOMBRE_PROCEDENCIA: Record<string, string> = {
-  META: "Facebook o Instagram",
+  FACEBOOK: "Facebook",
+  INSTAGRAM: "Instagram",
+  /// Sabemos que fue Meta y no cuál de las dos: no se inventa.
+  META: "Meta (sin precisar cuál)",
   CORREO: "Correo",
   WHATSAPP: "WhatsApp",
   BUSQUEDA: "Buscador",

@@ -78,6 +78,18 @@ export function idDeVisita(): { id: string; t0: number } | null {
 const UTM = ["utm_source", "utm_campaign", "utm_content"] as const;
 const LIMPIO = /[^A-Za-z0-9._-]/g;
 
+/// Cual de las dos apps de Meta, que no son el mismo anuncio.
+///
+/// Medido en produccion: 111 visitas con `FBAV` y 2 con
+/// `Instagram`. Juntarlas en un solo valor impedia saber cual de
+/// las dos campanas funciona, que es lo que hay que decidir.
+function appDeLlegada(): "APP_INSTAGRAM" | "APP_FACEBOOK" | "OTRO" {
+  const ua = navigator.userAgent;
+  if (/Instagram/i.test(ua)) return "APP_INSTAGRAM";
+  if (/FBAN|FBAV|FB_IAB/i.test(ua)) return "APP_FACEBOOK";
+  return "OTRO";
+}
+
 function anchoDePantalla(): "MOVIL" | "TABLET" | "ESCRITORIO" {
   const w = window.innerWidth;
   if (w < 640) return "MOVIL";
@@ -110,10 +122,10 @@ export function contextoDeLlegada(slug: string) {
     huboFbclid: url.searchParams.has("fbclid"),
     referente,
     ancho: anchoDePantalla(),
-    /// El navegador por el que llega la pauta, en un bit.
-    navegador: /FBAN|FBAV|FB_IAB|Instagram/i.test(navigator.userAgent)
-      ? "APP_META"
-      : "OTRO",
+    /// Por que app llega. Instagram PRIMERO: su navegador manda
+    /// tambien las marcas de Facebook en algunas versiones, y al
+    /// reves no pasa.
+    navegador: appDeLlegada(),
   };
 }
 

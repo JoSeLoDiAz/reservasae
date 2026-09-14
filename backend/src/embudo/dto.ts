@@ -97,7 +97,9 @@ export class MarcarPasoDto {
   @IsIn(['MOVIL', 'TABLET', 'ESCRITORIO'])
   ancho?: string;
 
+  /// `APP_META` sigue admitiendose: es lo que mandaron las
+  /// visitas de antes del 14 sep 2026 y sus filas ya estan.
   @IsOptional()
-  @IsIn(['APP_META', 'OTRO'])
+  @IsIn(['APP_INSTAGRAM', 'APP_FACEBOOK', 'APP_META', 'OTRO'])
   navegador?: string;
 }
