@@ -388,7 +388,18 @@ export function BannerLogos({ centrado = false }: { centrado?: boolean }) {
     <div
       className={`flex flex-col gap-5 ${centrado ? "items-center" : "items-start"}`}
     >
-      <FirmaConvoca tamano={40} animado />
+      {/* 48 Y NO 40, que es el escalon de CABECERA.
+          
+          «El logo de Convoca debería verse más grande» (cliente,
+          14 sep 2026). Con 40 caia por debajo del corte de 44 que
+          ya tiene `FirmaConvoca`, asi que el nombre se quedaba en
+          1,05rem y al lado de los logos del gremio se leia como un
+          pie de foto. Subiendo al escalon siguiente sube tambien
+          el nombre a 1,75rem, que es lo que de verdad se nota.
+          
+          No se va a 60 --el de PORTADA-- porque ese esta medido
+          para el panel del acceso, que ocupa media pantalla. */}
+      <FirmaConvoca tamano={48} animado />
       <LogosDelGremio className={centrado ? "justify-center" : ""} />
     </div>
   );
