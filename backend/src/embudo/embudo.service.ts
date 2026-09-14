@@ -5,7 +5,7 @@ import { Prisma } from '../../generated/prisma';
 
 import { resolverVentana, type Rango } from '../crm/ventana';
 import { PrismaService } from '../prisma/prisma.service';
-import { canalSql } from './canal';
+import { procedenciaSql } from './procedencia';
 import { MarcarPasoDto } from './dto';
 import { altura, ESCALERA, VERSION_EMBUDO } from './escalera';
 
@@ -65,11 +65,30 @@ export class EmbudoService {
     }
   }
 
-  /** El que escribe el servidor al crear la ficha. */
-  async registrado(visitaId: string, slug: string, convenioId: string): Promise<void> {
+  /**
+   * El que escribe el servidor al aceptar el envío.
+   *
+   * `yaEstaba` no es cosmético: `registrar()` contesta 201 también
+   * cuando el documento ya estaba inscrito, y contar eso como
+   * conversión infla justo los canales por los que se reescribe a
+   * gente que YA es ficha —el correo y WhatsApp—. Va en `detalle`
+   * para no gastar una columna en un booleano.
+   */
+  async registrado(
+    visitaId: string,
+    slug: string,
+    convenioId: string,
+    yaEstaba = false,
+  ): Promise<void> {
     try {
       await this.prisma.pasoDeVisita.create({
-        data: { visitaId, paso: 'REGISTRADO', slug, convenioId },
+        data: {
+          visitaId,
+          paso: 'REGISTRADO',
+          slug,
+          convenioId,
+          detalle: yaEstaba ? 'REPETIDA' : 'NUEVA',
+        },
       });
     } catch {
       // repetido o visita inventada: no puede tumbar un registro
@@ -117,14 +136,18 @@ export class EmbudoService {
     const porPaso = new Map(filas.map((f) => [f.paso, Number(f.visitas)]));
     const hitos = ESCALERA.map((paso) => ({ paso, visitas: porPaso.get(paso) ?? 0 }));
 
-    const [canal, dispositivo, origen, campana] = await Promise.all([
-      this.corte(ambito, desde, hasta, canalSql()),
+    const [procedencia, dispositivo, entrada, campana] = await Promise.all([
+      this.corte(ambito, desde, hasta, procedenciaSql()),
       this.corte(ambito, desde, hasta, Prisma.raw('"ancho"')),
       this.corte(ambito, desde, hasta, Prisma.raw('"puerta"')),
       this.corte(ambito, desde, hasta, Prisma.raw('"utmCampana"')),
     ]);
 
+    /// CON AMBITO. Sin el, un gremio leia en negrita la fecha
+    /// del primer paso del OTRO: el filtro se interseca, nunca
+    /// se omite.
     const primero = await this.prisma.pasoDeVisita.findFirst({
+      where: { convenioId: { in: ambito } },
       orderBy: { creadoEn: 'asc' },
       select: { creadoEn: true },
     });
@@ -134,9 +157,9 @@ export class EmbudoService {
       contandoDesde: primero?.creadoEn ?? null,
       hitos,
       caidaMayor: caidaMayor(hitos),
-      canal,
+      procedencia,
       dispositivo,
-      origen,
+      entrada,
       campana,
     };
   }
@@ -144,7 +167,7 @@ export class EmbudoService {
   /// Un corte del paso de LLEGADA, con su conversión.
   ///
   /// La expresión sale SIEMPRE del código —un nombre de columna o
-  /// el `CASE` del canal—, nunca de lo que mande el cliente.
+  /// el `CASE` de la procedencia—, nunca del cliente.
   private async corte(
     ambito: string[],
     desde: Date,
@@ -164,7 +187,10 @@ export class EmbudoService {
              COUNT(*) FILTER (
                WHERE EXISTS (
                  SELECT 1 FROM "pasos_de_visita" p
-                  WHERE p."visitaId" = l."visitaId" AND p."paso" = 'REGISTRADO'
+                  WHERE p."visitaId" = l."visitaId"
+                    AND p."paso" = 'REGISTRADO'
+                    -- las repetidas no son conversion
+                    AND coalesce(p."detalle", 'NUEVA') <> 'REPETIDA'
                )
              )::bigint AS envios
         FROM llegadas l
@@ -185,9 +211,9 @@ export class EmbudoService {
       contandoDesde: null,
       hitos: ESCALERA.map((paso) => ({ paso, visitas: 0 })),
       caidaMayor: null,
-      canal: [],
+      procedencia: [],
       dispositivo: [],
-      origen: [],
+      entrada: [],
       campana: [],
     };
   }

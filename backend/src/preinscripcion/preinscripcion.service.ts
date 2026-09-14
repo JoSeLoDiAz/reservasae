@@ -500,7 +500,8 @@ export class PreinscripcionService {
     /// el envio y la respuesta, que es un caso real en el que la
     /// ficha SI se creo. Asi `ENVIO - REGISTRADO` significa de
     /// verdad «el servidor rechazo o nunca llego».
-    if (dto.visita) await this.embudo.registrado(dto.visita, slug, convenio.id);
+    if (dto.visita)
+      await this.embudo.registrado(dto.visita, slug, convenio.id, Boolean(yaHabiaPersona));
 
     if (!yaHabiaPersona) {
       /// SOLO AQUI SE EMITE, y el sitio importa.

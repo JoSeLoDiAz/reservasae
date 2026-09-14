@@ -65,7 +65,11 @@ const NOMBRE_ANCHO: Record<string, string> = {
 
 /// De dónde venían. «No dejó rastro» y no «Directa»: lo cierto
 /// es la ausencia de referencia, no que tecleara la dirección.
-const NOMBRE_CANAL: Record<string, string> = {
+///
+/// Este diccionario vive AQUÍ y en ningún otro sitio. Hubo una
+/// copia en el servidor que nadie importaba: dos diccionarios sin
+/// nada que los ate es el defecto que este cambio vino a evitar.
+const NOMBRE_PROCEDENCIA: Record<string, string> = {
   META: "Facebook o Instagram",
   CORREO: "Correo",
   WHATSAPP: "WhatsApp",
@@ -89,8 +93,16 @@ function cuando(iso: string): string {
   });
 }
 
+/// Por debajo de esto no se imprime porcentaje.
+///
+/// Una tasa con dos visitas se lee igual que una con tres mil, y
+/// con nueve procedencias el primer día hay filas de un dígito.
+/// Es la misma regla que el resto del panel: mejor ningún número
+/// que uno que parece exacto.
+const MINIMO_PARA_TASA = 30;
+
 function tasa(parte: number, total: number): string {
-  if (total <= 0) return "—";
+  if (total < MINIMO_PARA_TASA) return "—";
   const pct = (parte / total) * 100;
   return pct > 0 && pct < 10 ? `${pct.toFixed(1)} %` : `${Math.round(pct)} %`;
 }
@@ -226,9 +238,9 @@ export default function PaginaTrafico() {
           </div>
 
           <Corte
-            titulo="De dónde llegaron"
-            filas={datos?.canal ?? []}
-            nombre={(v) => NOMBRE_CANAL[v ?? ""] ?? "Sin dato"}
+            titulo="De dónde venían"
+            filas={datos?.procedencia ?? []}
+            nombre={(v) => NOMBRE_PROCEDENCIA[v ?? ""] ?? "Sin dato"}
           />
 
           <div className="grid gap-4 lg:grid-cols-3">
@@ -238,8 +250,8 @@ export default function PaginaTrafico() {
               nombre={(v) => NOMBRE_ANCHO[v ?? ""] ?? "Sin dato"}
             />
             <Corte
-              titulo="Por dónde entraron"
-              filas={datos?.origen ?? []}
+              titulo="Por qué dirección entraron"
+              filas={datos?.entrada ?? []}
               nombre={(v) => NOMBRE_PUERTA[v ?? ""] ?? "Sin dato"}
             />
             <Corte
@@ -274,6 +286,17 @@ export default function PaginaTrafico() {
           <li>
             El registro del servidor cuenta lo mismo sin depender del navegador. Si
             las dos cifras se separan mucho, la diferencia son bloqueadores.
+          </li>
+          <li>
+            <strong>El porcentaje no sale con menos de {MINIMO_PARA_TASA} visitas.</strong>{" "}
+            Una tasa hecha de dos visitas no dice nada, y con nueve procedencias
+            las primeras semanas hay filas de un dígito.
+          </li>
+          <li>
+            <strong>Esta cifra será MENOR que los clics que reporta Meta</strong>, y
+            no es un error: aquí no entran los rastreadores —que no ejecutan
+            JavaScript— ni quien se va antes de que la página cargue. Para
+            contrastar con Meta sirve el registro del servidor, no esta pantalla.
           </li>
           <li>
             <strong>«No dejó rastro» no quiere decir que escribieran la dirección.</strong>{" "}

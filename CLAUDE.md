@@ -1540,15 +1540,15 @@ la dejaría fuera de su propia pantalla. Dice en pantalla que las cifras son un
 > Lo mismo pasó con el tipo `Corte`, que ya existía en `crm-api.ts`: el nuevo es
 > `CorteDeVisitas`, y lo cazó el compilador.
 
-#### De qué canal llegó cada visita (14 sep 2026)
+#### De dónde venía cada visita (14 sep 2026)
 
 *«Ingresé directamente desde Facebook y no me sale en el sistema si entraron por
 Facebook»*. El dato estaba —la visita traía `navegador = APP_META` y
 `referente = m.facebook.com`—; lo que faltaba era la tarjeta. «Por dónde
 entraron» dice por qué puerta de **nuestro** sitio, no de dónde venían.
 
-`backend/src/embudo/canal.ts`, nueve canales, y **el orden de la cadena ES el
-diseño**: los hechos del navegador van antes que las etiquetas, salvo donde el
+`backend/src/embudo/procedencia.ts`, nueve procedencias, y **el orden de la
+cadena ES el diseño**: los hechos del navegador van antes que las etiquetas, salvo donde el
 hecho no existiría. Un correo abierto en Outlook de escritorio y un QR no dejan
 ninguna señal, así que ahí manda lo que nosotros escribamos en el enlace.
 
@@ -1560,6 +1560,46 @@ ninguna señal, así que ahí manda lo que nosotros escribamos en el enlace.
   salen META y las dos señales funcionan por separado — una entró con el
   referente de Facebook y el navegador normal, y otra con la app de Meta sin
   `utm` ni `fbclid`.
+
+**SE LLAMA PROCEDENCIA Y NO CANAL, y costó una revisión aprenderlo.**
+`/admin/control` ya tiene un bloque «De dónde vienen · Volumen por canal» con
+filas «Correo», «WhatsApp», «Facebook» e «Instagram» — sobre **personas** y con
+otra regla. Y `Canal`, `CANALES` y `ETIQUETA_CANAL` ya existen en `crm-api.ts`
+con otro significado. Repetir esas palabras habría dejado dos pantallas del
+mismo panel contando cosas distintas con el mismo nombre. Por lo mismo, el corte
+de `puerta` se llama **`entrada`** en la respuesta: `porPuerta` ya es
+`OrigenDeLead` en `tablero-af.ts`.
+
+**Lo que se subió a producción con defectos, y qué los encontró.** La primera
+versión salió con el diseño a medias y una revisión adversarial posterior
+confirmó siete hallazgos graves. Cuatro eran ciertos y comprobados contra el
+código y la base:
+
+| | |
+|---|---|
+| `LIKE 'google.%'` | comparaba por **prefijo**: `www.google.com` nunca entraba en BUSQUEDA |
+| `LIKE '%facebook.com'` | sin la frontera de punto casaba `notfacebook.com` |
+| `registrado()` | se llamaba **antes** de la rama `yaHabiaPersona`, así que un reenvío de alguien ya inscrito contaba como conversión — y eso infla justo los canales por los que se reescribe a gente que ya es ficha |
+| `contandoDesde` | un `findFirst` **sin ámbito**: un gremio leía en negrita la fecha del primer paso del otro |
+
+- **La frontera de punto vive en `esDominio()` y en ningún otro sitio.** Las dos
+  formas cortas estuvieron escritas y las dos estaban mal, cada una en un
+  sentido, así que no queda ninguna. `procedencia.spec.ts` lo fija inspeccionando
+  los **parámetros** del SQL generado —no su texto—: ningún patrón acaba en `.%`,
+  todo comodín de sufijo empieza por `%.`, y cada dominio se compara exacto y
+  como sufijo. Probado por mutación: quitando la frontera caen 2 de 5.
+- **`REGISTRADO` lleva `detalle: 'NUEVA' | 'REPETIDA'`** y la conversión solo
+  cuenta las nuevas. Va en `detalle` para no gastar una columna en un booleano.
+- **La tasa no se imprime por debajo de 30 visitas.** Con nueve procedencias, el
+  primer día hay filas de un dígito, y una tasa hecha de dos visitas se lee igual
+  que una de tres mil.
+- **El diccionario de etiquetas vive SOLO en el panel.** Hubo una copia en el
+  servidor que nadie importaba — dos diccionarios sin nada que los ate, que es
+  exactamente el defecto que este cambio vino a evitar, cometido dentro del
+  propio cambio.
+- **La pantalla dice que su cifra será MENOR que la de Meta**, y por qué: aquí no
+  entran los rastreadores —que no ejecutan JavaScript— ni quien se va antes de
+  que la página cargue. Para contrastar con Ads Manager sirve el `access_log`.
 
 > **NO reusa `origenDeLead`, y el motivo destapó un defecto que cuesta dinero.**
 > `preinscripcion.service.ts` escribe `origen: 'AUTOGESTION'` a fuego para toda
