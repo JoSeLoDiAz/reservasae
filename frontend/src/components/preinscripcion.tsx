@@ -219,7 +219,14 @@ export function PreinscripcionPublica({ slug }: { slug: string }) {
         /// pagar» (cliente, 14 sep 2026). Estaba dicho en la
         /// bajada, entre otras seis cosas, que es donde no se lee.
         titulo="Preinscripción a la oferta de formación gratuita"
-        subtitulo="Estas acciones de formación se desarrollan en el marco de la Convocatoria de Formación Continua Especializada 2026, por lo tanto, son gratuitas, incluyentes y cuentan con certificación, con cupos limitados."
+        /// SIN NOMBRAR LA CONVOCATORIA, y no es solo estilo:
+        /// la regla del proyecto es que en el sitio publico no se
+        /// menciona al SENA ni el tipo de formacion. Nombrar la
+        /// convocatoria es nombrarlo con otras palabras.
+        ///
+        /// Lo que si tiene que quedar dicho es lo unico que a
+        /// quien llega le hace dudar: que no le van a cobrar.
+        subtitulo="Todas las acciones de formación son gratuitas para las personas participantes, son incluyentes y cuentan con certificación. Los cupos son limitados."
       />
 
       <form
