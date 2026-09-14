@@ -539,6 +539,10 @@ export class TablerosService {
       enfoque: accion.enfoque,
       horas: accion.horas,
       objetivo: accion.objetivo,
+      /// Los otros dos de «Informacion Accion de Formacion», que se
+      /// editan en esta misma pantalla (cliente, 13 sep 2026).
+      contenido: accion.contenido,
+      competencia: accion.competencia,
       ambiente: accion.ambiente,
       /// El texto de la tarjeta publica, que se edita aqui mismo.
       ///

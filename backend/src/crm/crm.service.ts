@@ -60,6 +60,7 @@ import {
   GRUPOS_DE_CARACTERIZACION,
   GENEROS_SEP,
   motivoDeIdInvalido,
+  municipioCuadra,
   MUNICIPIOS_SEP,
   NIVELES_OCUPACIONALES_SEP,
   SECTORES_ECONOMICOS,
@@ -71,6 +72,7 @@ import { fraseDeHorario } from '../comun/horario-de-grupo';
 import { PrismaService } from '../prisma/prisma.service';
 import {
   ActualizarParticipanteDto,
+  BorrarEnLoteDto,
   AsignarAsesorEnLoteDto,
   AsignarFormacionDto,
   CargaDto,
@@ -1692,27 +1694,35 @@ export class CrmService {
   }
 
   /**
-   * Los tres datos del jefe directo, desde la ficha del lead.
+   * Los datos de la empresa, corregidos DESDE LA FICHA.
    *
-   * Una puerta ESTRECHA a propósito. El asesor llama a la
-   * persona y consigue el nombre, el cargo y el correo de su
-   * jefe: son los mismos tres que pide el enlace de completar
-   * datos, y son los únicos que se le sabe un empleado.
+   * Empezó con tres —nombre, cargo y correo del jefe directo—
+   * porque el resto se corregía en «Empresas registradas», que
+   * un gestor de inscripciones no tiene. El cliente pidió
+   * (13 sep 2026) que también se corrija lo demás desde aquí:
+   * el asesor que llama, el analista que revisa y el
+   * administrador trabajan sobre la ficha, no sobre el maestro.
    *
-   * Lo demás de la empresa —dirección, teléfono, número de
-   * trabajadores, tamaño— lo trae la consulta al RUES por el
-   * NIT o lo llena el analista de información. Y la RAZÓN
-   * SOCIAL no se toca por aquí de ninguna manera: la valida el
-   * código contra el registro, y dejar que se escriba a mano
-   * es volver a abrir lo que ya se cerró en la ruta pública.
+   * Lo que se corrige es de la EMPRESA, no de la ficha: la fila
+   * la comparten todas las fichas de ese NIT, así que arreglar
+   * la dirección la arregla para todas. Es lo correcto —la
+   * dirección es de la empresa— pero hay que saberlo al leer.
    *
-   * Antes esto obligaba a ir a «Empresas registradas», que un
-   * gestor de inscripciones no tiene, así que el dato se
-   * quedaba sin poner.
+   * `undefined` es «no lo toque», que es lo que entiende
+   * Prisma: la pantalla manda solo lo que cambió y un campo
+   * ausente no borra nada.
    */
-  async guardarContactoDeLaEmpresa(
+  async guardarDatosDeLaEmpresa(
     id: string,
     datos: {
+      razonSocial?: string;
+      digitoVerificacion?: string;
+      direccion?: string;
+      telefono?: string;
+      departamentoSepId?: number | null;
+      municipioSepId?: number | null;
+      sectorEconomico?: string;
+      numeroTrabajadores?: number | null;
       contactoNombre?: string;
       contactoCargo?: string;
       contactoCorreo?: string;
@@ -1741,12 +1751,30 @@ export class CrmService {
       );
     }
 
-    /// Solo lo que venga, y solo estos tres. Un campo ausente
-    /// no borra: `undefined` en Prisma es «no lo toque».
+    /// Texto en blanco es «no lo sé», no «bórralo».
+    ///
+    /// Quien deja un campo vacío en la pantalla casi siempre es
+    /// que no consiguió el dato, no que quiera quitar el que
+    /// había. Para borrar de verdad está Empresas registradas,
+    /// donde el dato se ve con todas las fichas que dependen
+    /// de él.
+    const texto = (v?: string) => (v?.trim() ? v.trim() : undefined);
+
     const limpio = {
-      contactoNombre: datos.contactoNombre?.trim() || undefined,
-      contactoCargo: datos.contactoCargo?.trim() || undefined,
-      contactoCorreo: datos.contactoCorreo?.trim() || undefined,
+      razonSocial: texto(datos.razonSocial),
+      digitoVerificacion: texto(datos.digitoVerificacion),
+      direccion: texto(datos.direccion),
+      telefono: texto(datos.telefono),
+      sectorEconomico: texto(datos.sectorEconomico),
+      contactoNombre: texto(datos.contactoNombre),
+      contactoCargo: texto(datos.contactoCargo),
+      contactoCorreo: texto(datos.contactoCorreo),
+      /// Los tres números SÍ aceptan null: en un desplegable
+      /// elegir «—» es una respuesta, y sin null no habría
+      /// manera de deshacer un municipio puesto por error.
+      departamentoSepId: datos.departamentoSepId,
+      municipioSepId: datos.municipioSepId,
+      numeroTrabajadores: datos.numeroTrabajadores,
     };
 
     const tocados = Object.entries(limpio)
@@ -1755,6 +1783,55 @@ export class CrmService {
 
     if (tocados.length === 0) {
       throw new BadRequestException('No llegó ningún dato que guardar.');
+    }
+
+    /// El sector va al F7 como texto, pero solo valen los tres
+    /// del Decreto 957. Se valida aquí y no solo en la
+    /// pantalla: un «servicios» en minúscula o un sector
+    /// inventado se lo traga la columna y el SENA devuelve el
+    /// archivo COMPLETO, no esa fila.
+    if (limpio.sectorEconomico !== undefined) {
+      const valido = SECTORES_ECONOMICOS.some(
+        (s) => s.etiqueta === limpio.sectorEconomico,
+      );
+      if (!valido) {
+        throw new BadRequestException(
+          `El sector económico tiene que ser uno de: ${SECTORES_ECONOMICOS.map(
+            (s) => s.etiqueta,
+          ).join(', ')}.`,
+        );
+      }
+    }
+
+    /// El municipio tiene que ser del departamento que queda
+    /// guardado, no del que venga en la petición: se puede
+    /// cambiar uno sin el otro. Mismo motivo que el sector —un
+    /// municipio que no cuadra tumba el cargue entero— y misma
+    /// función que ya usa la ficha de la persona, para que no
+    /// haya dos reglas distintas.
+    if (limpio.municipioSepId !== undefined || limpio.departamentoSepId !== undefined) {
+      const actual = await this.prisma.empresa.findUnique({
+        where: { id: empresaId },
+        select: { departamentoSepId: true, municipioSepId: true },
+      });
+
+      const departamento =
+        limpio.departamentoSepId !== undefined
+          ? limpio.departamentoSepId
+          : (actual?.departamentoSepId ?? null);
+      const municipio =
+        limpio.municipioSepId !== undefined
+          ? limpio.municipioSepId
+          : (actual?.municipioSepId ?? null);
+
+      if (!municipioCuadra(departamento, municipio)) {
+        throw new BadRequestException(
+          limpio.municipioSepId === undefined
+            ? 'El municipio que ya tiene no es de ese departamento. Cambie ' +
+              'también el municipio.'
+            : 'Ese municipio no pertenece a ese departamento.',
+        );
+      }
     }
 
     await this.prisma.empresa.update({
@@ -1770,7 +1847,7 @@ export class CrmService {
       entidad: ENTIDADES.EMPRESA,
       entidadId: empresaId,
       convenioId: suyo?.convenioId ?? null,
-      resumen: `Desde la ficha de un lead, por su asesor.`,
+      resumen: 'Desde la ficha de un lead.',
       camposTocados: tocados,
       ip,
     });
@@ -2169,6 +2246,79 @@ export class CrmService {
       avancesBorrados: p._count.avances,
       notasBorradas: p._count.notas,
     };
+  }
+
+  /**
+   * Borra varias fichas de una vez.
+   *
+   * Reusa `borrarParticipaciones`, que es donde vive el ORDEN de
+   * borrado --y el paso sutil de que las notas compartidas con el lead
+   * sobreviven--. Copiarlo aqui habria dado dos ordenes que discrepan
+   * justo en el paso que menos se usa.
+   *
+   * DOS COSAS QUE NO SE NEGOCIAN, y las dos por lo mismo --que esto no
+   * tiene vuelta--:
+   *
+   * 1. Solo se borra lo del AMBITO de quien pide. Un id de otro gremio
+   *    no se borra en silencio: se ignora, y la respuesta dice cuantas
+   *    se pidieron y cuantas cayeron, para que la pantalla pueda
+   *    contarlo en vez de mentir con un «listo».
+   * 2. Una huella POR FICHA, no una del lote. Quien pregunta «¿y donde
+   *    esta Fulano?» busca a Fulano, no un apunte que diga «se
+   *    borraron cincuenta». Con nombre y documento tapado, que es la
+   *    excepcion escrita de la regla de PII: sin eso no queda NADA.
+   */
+  async borrarEnLote(
+    dto: BorrarEnLoteDto,
+    actor: Actor,
+    ambito: string[],
+    ip?: string,
+  ) {
+    const suyas = await this.prisma.participante.findMany({
+      where: { id: { in: dto.ids }, convenioId: { in: ambito } },
+      select: {
+        id: true,
+        etapa: true,
+        convenioId: true,
+        persona: {
+          select: {
+            primerNombre: true,
+            primerApellido: true,
+            numeroDocumento: true,
+          },
+        },
+        _count: { select: { avances: true, notas: true } },
+      },
+    });
+
+    if (suyas.length === 0) {
+      throw new NotFoundException('Ninguna de esas fichas existe en su ámbito.');
+    }
+
+    await this.prisma.$transaction(async (tx) => {
+      await borrarParticipaciones(tx, { id: { in: suyas.map((s) => s.id) } });
+    });
+
+    /// Fuera de la transaccion, igual que en el borrado de una:
+    /// auditar no puede tumbar un borrado que ya ocurrio.
+    for (const p of suyas) {
+      await this.auditoria.registrar({
+        actor,
+        accion: 'PARTICIPANTE_BORRADO',
+        entidad: ENTIDADES.PARTICIPANTE,
+        entidadId: p.id,
+        convenioId: p.convenioId,
+        resumen:
+          `Se borró la participación de ${p.persona.primerNombre} ` +
+          `${p.persona.primerApellido} (doc. ${taparDocumento(p.persona.numeroDocumento)}), ` +
+          `que estaba en etapa ${p.etapa}. Con ella se fueron ` +
+          `${p._count.avances} avances y ${p._count.notas} notas. ` +
+          `Iba en un lote de ${suyas.length}.`,
+        ip,
+      });
+    }
+
+    return { borradas: suyas.length, pedidas: dto.ids.length };
   }
 
   /**

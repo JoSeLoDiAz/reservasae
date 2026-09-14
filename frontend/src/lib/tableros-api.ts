@@ -334,6 +334,10 @@ export type DetalleAccion = {
   enfoque: string | null;
   horas: number | null;
   objetivo: string | null;
+  /// Con el objetivo forman «Información Acción de Formación», el
+  /// apartado editable del Catálogo (cliente, 13 sep 2026).
+  contenido: string | null;
+  competencia: string | null;
   ambiente: string | null;
   /// Las dos líneas que ve quien se preinscribe.
   resumenPublico: string | null;

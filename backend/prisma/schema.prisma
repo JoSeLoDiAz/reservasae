@@ -83,6 +83,12 @@ model AccionFormacion {
   metodologia String?
   horas       Int?
   objetivo    String?
+  /// Los otros dos textos del proyecto. Se editan junto al objetivo
+  /// --el apartado se llama «Información Acción de Formación»-- y los
+  /// tres salen en el formulario público detrás de «Más información»
+  /// (cliente, 13 sep 2026).
+  contenido   String?
+  competencia String?
   ambiente    String?
 
   /// Dos lineas para la tarjeta publica: que se lleva quien

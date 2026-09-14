@@ -15,6 +15,7 @@ import {
 
 import { FondoPublico } from "./fondo-publico";
 import { BannerLogos, EncabezadoPublico, PiePublico } from "./marca-publica";
+import { ModalInformacionAccion } from "./modal-informacion-accion";
 import { PantallaDeCarga, useEsperaCompleta } from "./pantalla-de-carga";
 
 /// Los dos ids del catalogo del SEP que cambian el
@@ -803,8 +804,15 @@ const ETIQUETA_MODALIDAD: Record<string, string> = {
   HIBRIDA: "Híbrida",
 };
 
-/// Una accion con cobertura. Boton y no tarjeta con radio:
-/// el area de toque es toda la tarjeta, que en movil importa.
+/// Una accion con cobertura. El area de toque es toda la tarjeta,
+/// que en movil importa.
+///
+/// ENVOLTORIO CON EL BOTON DENTRO, y no la tarjeta entera como
+/// boton, desde el 13 sep 2026: el cliente pidio un «Mas
+/// informacion» en la fila del codigo, y un boton dentro de otro
+/// boton es HTML invalido --y el clic seleccionaria la tarjeta
+/// ademas de abrir la ventana--. Asi son dos botones hermanos: el
+/// grande elige, el pequenio abre.
 function TarjetaAccion({
   accion,
   oferta,
@@ -816,18 +824,54 @@ function TarjetaAccion({
   elegida: boolean;
   alElegir: () => void;
 }) {
+  const [verInfo, setVerInfo] = useState(false);
+
+  /// Sin ninguno de los tres no hay ventana que abrir, asi que no se
+  /// ofrece: son quince acciones y estos textos se escriben a mano.
+  const hayInfo = Boolean(
+    accion.objetivo?.trim() || accion.contenido?.trim() || accion.competencia?.trim(),
+  );
+
   return (
-    <button
-      type="button"
-      onClick={alElegir}
-      aria-pressed={elegida}
-      className={`flex flex-col gap-3 rounded-2xl border p-5 text-left transition ${
+    <div
+      className={`relative flex flex-col rounded-2xl border transition ${
         elegida
           ? "border-2 border-marca bg-superficie"
           : "border-borde bg-superficie hover:border-campo-borde"
       }`}
     >
-      <div className="flex flex-wrap items-center gap-2">
+      {hayInfo && (
+        <button
+          type="button"
+          onClick={() => setVerInfo(true)}
+          className="absolute top-4 right-4 z-10 rounded-md px-2 py-0.5 text-xs font-semibold text-marca underline decoration-marca/40 underline-offset-2 transition hover:bg-marca-suave"
+        >
+          Más información
+        </button>
+      )}
+
+      {verInfo && (
+        <ModalInformacionAccion
+          codigo={accion.codigo}
+          nombre={accion.nombre}
+          objetivo={accion.objetivo}
+          contenido={accion.contenido}
+          competencia={accion.competencia}
+          alCerrar={() => setVerInfo(false)}
+        />
+      )}
+
+      <button
+        type="button"
+        onClick={alElegir}
+        aria-pressed={elegida}
+        className="flex flex-1 flex-col gap-3 p-5 text-left"
+      >
+        {/* `pr-28` cuando hay boton: sin eso los chips se le meten
+            debajo al envolver. */}
+        <div
+          className={`flex flex-wrap items-center gap-2 ${hayInfo ? "pr-28" : ""}`}
+        >
         <span className="rounded-md bg-marca-suave px-2 py-0.5 font-mono text-xs font-semibold tracking-wide text-marca">
           {accion.codigo}
         </span>
@@ -845,24 +889,31 @@ function TarjetaAccion({
         )}
       </div>
 
-      <h3 className="text-base font-semibold leading-snug text-balance">{accion.nombre}</h3>
+        <h3 className="text-base font-semibold leading-snug text-balance">
+          {accion.nombre}
+        </h3>
 
-      {accion.resumen && (
-        <p className="text-sm leading-relaxed text-texto-suave">{accion.resumen}</p>
-      )}
+        {/* AQUI IBA `accion.resumen`, las dos lineas de la tarjeta.
+            Se va con su editor: el cliente quito «Lo que lee quien se
+            preinscribe» el 13 sep 2026 y su sitio lo ocupan los tres
+            textos de «Mas informacion». El campo sigue en la base y en
+            el tipo, con el texto que hubiera guardado. */}
 
-      <div className="mt-auto flex flex-wrap items-center gap-x-4 gap-y-1 pt-1 text-sm">
-        {oferta.tipo === "CIUDAD" && (
-          <span className="text-texto-suave">Sede {oferta.ubicacion}</span>
-        )}
-        {oferta.libres <= 10 && (
-          <span className="font-medium text-error">
-            Disponibilidad: {oferta.libres} cupos
-          </span>
-        )}
-        {elegida && <span className="ml-auto font-semibold text-marca">Seleccionada</span>}
-      </div>
-    </button>
+        <div className="mt-auto flex flex-wrap items-center gap-x-4 gap-y-1 pt-1 text-sm">
+          {oferta.tipo === "CIUDAD" && (
+            <span className="text-texto-suave">Sede {oferta.ubicacion}</span>
+          )}
+          {oferta.libres <= 10 && (
+            <span className="font-medium text-error">
+              Disponibilidad: {oferta.libres} cupos
+            </span>
+          )}
+          {elegida && (
+            <span className="ml-auto font-semibold text-marca">Seleccionada</span>
+          )}
+        </div>
+      </button>
+    </div>
   );
 }
 

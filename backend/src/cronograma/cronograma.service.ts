@@ -5,7 +5,11 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import { fraseDeHorario } from '../comun/horario-de-grupo';
 import { ETAPAS_VIVAS } from '../crm/crm.service';
 import { PrismaService } from '../prisma/prisma.service';
-import { ActualizarCuposDto, ActualizarGrupoDto } from './dto';
+import {
+  ActualizarCuposDto,
+  ActualizarGrupoDto,
+  ActualizarInformacionDto,
+} from './dto';
 
 /// `ETAPAS_VIVAS` se importa del CRM. Aqui habia una copia
 /// tecleada aparte que decia lo mismo con otras etapas, y
@@ -132,6 +136,43 @@ export class CronogramaService {
         inscritos: grupos.reduce((s, g) => s + g.inscritos, 0),
         sinFechas: grupos.filter((g) => g.estado === 'SIN_FECHAS').length,
       };
+    });
+  }
+
+  /**
+   * Los tres textos de la accion. Un vacio los borra.
+   *
+   * Lo que NO se manda no se toca: Prisma trata `undefined` como «deja
+   * lo que hay», y asi guardar solo el contenido no borra el objetivo.
+   */
+  async actualizarInformacion(
+    id: string,
+    dto: ActualizarInformacionDto,
+    ambito: string[],
+  ) {
+    const accion = await this.prisma.accionFormacion.findFirst({
+      where: { id, convenioId: { in: ambito } },
+      select: { id: true },
+    });
+    if (!accion) throw new NotFoundException('Esa acción de formación no existe.');
+
+    const limpio = (v?: string | null) =>
+      v === undefined ? undefined : v === null || v.trim() === '' ? null : v.trim();
+
+    return this.prisma.accionFormacion.update({
+      where: { id },
+      data: {
+        objetivo: limpio(dto.objetivo),
+        contenido: limpio(dto.contenido),
+        competencia: limpio(dto.competencia),
+      },
+      select: {
+        id: true,
+        codigo: true,
+        objetivo: true,
+        contenido: true,
+        competencia: true,
+      },
     });
   }
 

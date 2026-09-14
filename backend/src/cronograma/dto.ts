@@ -72,6 +72,39 @@ export class ActualizarGrupoDto {
  * oferta sale de sumar los de todas sus coberturas. Al revés no se
  * puede repartir sin inventarse a quién le toca cada silla.
  */
+/**
+ * Los tres textos de «Información Acción de Formación».
+ *
+ * Se editan en el Catálogo y se leen en el formulario público detrás
+ * de «Más información» (cliente, 13 sep 2026). Van juntos porque se
+ * escriben de una sentada y salen en la misma ventana.
+ *
+ * 4.000 y no 1.200 como el resumen público: estos vienen del proyecto
+ * y el objetivo de AF1 ya son 120 palabras.
+ */
+export class ActualizarInformacionDto {
+  @IsOptional()
+  @Transform(aNuloOTexto)
+  @ValidateIf((_o: unknown, v: unknown) => v !== null)
+  @IsString()
+  @MaxLength(4000)
+  objetivo?: string | null;
+
+  @IsOptional()
+  @Transform(aNuloOTexto)
+  @ValidateIf((_o: unknown, v: unknown) => v !== null)
+  @IsString()
+  @MaxLength(4000)
+  contenido?: string | null;
+
+  @IsOptional()
+  @Transform(aNuloOTexto)
+  @ValidateIf((_o: unknown, v: unknown) => v !== null)
+  @IsString()
+  @MaxLength(4000)
+  competencia?: string | null;
+}
+
 export class ActualizarCuposDto {
   /// Lo comprometido en el proyecto, sin sobrecupo.
   @IsOptional()
