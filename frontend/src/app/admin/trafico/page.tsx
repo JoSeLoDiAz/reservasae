@@ -63,6 +63,20 @@ const NOMBRE_ANCHO: Record<string, string> = {
   ESCRITORIO: "Computador",
 };
 
+/// De dónde venían. «No dejó rastro» y no «Directa»: lo cierto
+/// es la ausencia de referencia, no que tecleara la dirección.
+const NOMBRE_CANAL: Record<string, string> = {
+  META: "Facebook o Instagram",
+  CORREO: "Correo",
+  WHATSAPP: "WhatsApp",
+  BUSQUEDA: "Buscador",
+  QR: "Código QR",
+  INTERNO: "Otra página nuestra",
+  OTRA_WEB: "Otra página web",
+  OTRO_DECLARADO: "Otro canal etiquetado",
+  SIN_REFERENCIA: "No dejó rastro",
+};
+
 /// Desde cuándo hay contador. Sin esta frase, «1 visita en todo»
 /// se lee como «solo ha llegado una persona en toda la campaña»,
 /// que es falso y es la peor clase de cifra.
@@ -211,6 +225,12 @@ export default function PaginaTrafico() {
             <EmbudoProceso hitos={hitos} notas={notas} />
           </div>
 
+          <Corte
+            titulo="De dónde llegaron"
+            filas={datos?.canal ?? []}
+            nombre={(v) => NOMBRE_CANAL[v ?? ""] ?? "Sin dato"}
+          />
+
           <div className="grid gap-4 lg:grid-cols-3">
             <Corte
               titulo="Por dispositivo"
@@ -254,6 +274,12 @@ export default function PaginaTrafico() {
           <li>
             El registro del servidor cuenta lo mismo sin depender del navegador. Si
             las dos cifras se separan mucho, la diferencia son bloqueadores.
+          </li>
+          <li>
+            <strong>«No dejó rastro» no quiere decir que escribieran la dirección.</strong>{" "}
+            Quiere decir que no llegó ninguna señal — y así entra casi todo el
+            correo y casi todo WhatsApp, que no dejan referencia. Para que esos
+            dos canales se vean, sus enlaces tienen que salir etiquetados.
           </li>
         </ul>
       </div>

@@ -9,6 +9,8 @@ export type EmbudoPublico = {
   contandoDesde: string | null;
   hitos: Array<{ paso: string; visitas: number }>;
   caidaMayor: { de: string; a: string; sePerdieron: number } | null;
+  /// De donde venian. Ver `backend/src/embudo/canal.ts`.
+  canal: CorteDeVisitas[];
   dispositivo: CorteDeVisitas[];
   origen: CorteDeVisitas[];
   campana: CorteDeVisitas[];

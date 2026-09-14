@@ -5,6 +5,7 @@ import { Prisma } from '../../generated/prisma';
 
 import { resolverVentana, type Rango } from '../crm/ventana';
 import { PrismaService } from '../prisma/prisma.service';
+import { canalSql } from './canal';
 import { MarcarPasoDto } from './dto';
 import { altura, ESCALERA, VERSION_EMBUDO } from './escalera';
 
@@ -116,10 +117,11 @@ export class EmbudoService {
     const porPaso = new Map(filas.map((f) => [f.paso, Number(f.visitas)]));
     const hitos = ESCALERA.map((paso) => ({ paso, visitas: porPaso.get(paso) ?? 0 }));
 
-    const [dispositivo, origen, campana] = await Promise.all([
-      this.corte(ambito, desde, hasta, 'ancho'),
-      this.corte(ambito, desde, hasta, 'puerta'),
-      this.corte(ambito, desde, hasta, 'utmCampana'),
+    const [canal, dispositivo, origen, campana] = await Promise.all([
+      this.corte(ambito, desde, hasta, canalSql()),
+      this.corte(ambito, desde, hasta, Prisma.raw('"ancho"')),
+      this.corte(ambito, desde, hasta, Prisma.raw('"puerta"')),
+      this.corte(ambito, desde, hasta, Prisma.raw('"utmCampana"')),
     ]);
 
     const primero = await this.prisma.pasoDeVisita.findFirst({
@@ -132,22 +134,23 @@ export class EmbudoService {
       contandoDesde: primero?.creadoEn ?? null,
       hitos,
       caidaMayor: caidaMayor(hitos),
+      canal,
       dispositivo,
       origen,
       campana,
     };
   }
 
-  /// Un corte por una columna del paso de LLEGADA, con su
-  /// conversión. La columna es literal del código, nunca del
-  /// cliente: aquí no entra texto de nadie.
+  /// Un corte del paso de LLEGADA, con su conversión.
+  ///
+  /// La expresión sale SIEMPRE del código —un nombre de columna o
+  /// el `CASE` del canal—, nunca de lo que mande el cliente.
   private async corte(
     ambito: string[],
     desde: Date,
     hasta: Date,
-    columna: 'ancho' | 'puerta' | 'utmCampana',
+    col: Prisma.Sql,
   ): Promise<Array<{ valor: string | null; visitas: number; envios: number }>> {
-    const col = Prisma.raw(`"${columna}"`);
     const filas = await this.prisma.$queryRaw<FilaCorte[]>`
       WITH llegadas AS (
         SELECT "visitaId", ${col} AS valor, "creadoEn"
@@ -182,6 +185,7 @@ export class EmbudoService {
       contandoDesde: null,
       hitos: ESCALERA.map((paso) => ({ paso, visitas: 0 })),
       caidaMayor: null,
+      canal: [],
       dispositivo: [],
       origen: [],
       campana: [],
