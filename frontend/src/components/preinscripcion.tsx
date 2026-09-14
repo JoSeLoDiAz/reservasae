@@ -854,6 +854,9 @@ function TarjetaAccion({
         <ModalInformacionAccion
           codigo={accion.codigo}
           nombre={accion.nombre}
+          modalidad={accion.modalidad}
+          horas={accion.horas ?? null}
+          ubicacion={oferta.ubicacion}
           objetivo={accion.objetivo}
           contenido={accion.contenido}
           competencia={accion.competencia}

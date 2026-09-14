@@ -28,6 +28,9 @@ const CAMPOS = [
 export function ModalInformacionAccion({
   codigo,
   nombre,
+  modalidad,
+  horas,
+  ubicacion,
   objetivo,
   contenido,
   competencia,
@@ -35,6 +38,10 @@ export function ModalInformacionAccion({
 }: {
   codigo: string;
   nombre: string;
+  modalidad: string;
+  horas: number | null;
+  /// La sede de esta oferta. En una virtual no hay.
+  ubicacion: string | null;
   objetivo: string | null;
   contenido: string | null;
   competencia: string | null;
@@ -86,6 +93,21 @@ export function ModalInformacionAccion({
           </button>
         </header>
 
+        {/* COMO SE CURSA, antes de los parrafos. Es lo primero
+            que pregunta quien elige --«¿esto es presencial?»-- y
+            hasta hoy solo estaba en una pildora de la tarjeta,
+            que se pierde al abrir la ventana.
+
+            Sin fondo de color: la regla de la casa es que el
+            color va en el texto y las marcas pequenias, no en
+            cajas. Lo que separa esta franja es una raya de 1px,
+            como el resto del modal. */}
+        <dl className="grid gap-4 border-b border-borde px-6 py-4 sm:grid-cols-3">
+          <Dato etiqueta="Modalidad" valor={ETIQUETA_MODALIDAD[modalidad] ?? modalidad} />
+          <Dato etiqueta="Intensidad" valor={horas != null ? `${horas} horas` : null} />
+          <Dato etiqueta="Dónde se cursa" valor={donde(modalidad, ubicacion)} />
+        </dl>
+
         <div className="caja-scroll flex-1 space-y-5 overflow-y-auto px-6 py-5">
           {CAMPOS.map((c) => {
             const valor = textos[c.clave];
@@ -116,6 +138,34 @@ export function ModalInformacionAccion({
           </button>
         </footer>
       </div>
+    </div>
+  );
+}
+
+const ETIQUETA_MODALIDAD: Record<string, string> = {
+  VIRTUAL: "Virtual",
+  PRESENCIAL: "Presencial",
+  HIBRIDA: "Híbrida",
+};
+
+/// En la virtual no hay sede que nombrar, y decir «—» seria
+/// peor que no decir nada: parece un dato que falta.
+function donde(modalidad: string, ubicacion: string | null): string | null {
+  if (modalidad === "VIRTUAL") return "En línea";
+  if (!ubicacion) return null;
+  if (modalidad === "HIBRIDA") return `${ubicacion} y en línea`;
+  return ubicacion;
+}
+
+/// Una etiqueta con su valor. Sin valor no se pinta.
+function Dato({ etiqueta, valor }: { etiqueta: string; valor: string | null }) {
+  if (!valor) return null;
+  return (
+    <div>
+      <dt className="text-xs font-semibold tracking-wide text-texto-suave uppercase">
+        {etiqueta}
+      </dt>
+      <dd className="mt-0.5 text-sm font-medium text-titulo">{valor}</dd>
     </div>
   );
 }
