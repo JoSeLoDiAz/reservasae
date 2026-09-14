@@ -110,17 +110,40 @@ describe('las sesiones del grupo', () => {
     expect(escrito.data).toBeDefined();
   });
 
-  it('una PAT con dia se rechaza: vale para todos los del grupo', async () => {
+  /// EL FORO HIBRIDO: un solo dia, unos en la sede y otros
+  /// conectados desde su departamento. Se prohibia el dia a la
+  /// PAT pensando solo en el curso largo, y con eso AF7 no se
+  /// podia describir.
+  it('una PAT CON día se guarda: es un foro, no un curso', async () => {
     const { servicio, escrito } = armar();
 
-    await expect(
-      servicio.actualizarGrupo(
-        'gru-1',
-        { sesiones: [{ tipo: 'PAT', dia: '2026-09-10', horaInicio: '18:00', horaFin: '20:00' }] },
-        AMBITO,
-      ),
-    ).rejects.toThrow(/no lleva día/);
-    expect(escrito.data).toBeUndefined();
+    await servicio.actualizarGrupo(
+      'gru-1',
+      {
+        sesiones: [
+          { tipo: 'PRESENCIAL', dia: '2026-09-10', horaInicio: '10:00', horaFin: '12:00', ubicacionId: 'ubi-medellin' },
+          { tipo: 'PAT', dia: '2026-09-10', horaInicio: '10:00', horaFin: '12:00', ubicacionId: 'ubi-huila' },
+        ],
+      },
+      AMBITO,
+    );
+
+    const create = (escrito.data as { sesiones: { create: Array<{ dia: Date | null }> } })
+      .sesiones.create;
+    expect(create).toHaveLength(2);
+    expect(create.map((c) => c.dia)).not.toContain(null);
+  });
+
+  it('y una PAT sin día sigue valiendo: es el curso largo', async () => {
+    const { servicio, escrito } = armar();
+
+    await servicio.actualizarGrupo(
+      'gru-1',
+      { sesiones: [{ tipo: 'PAT', horaInicio: '18:00', horaFin: '20:00' }] },
+      AMBITO,
+    );
+
+    expect(escrito.data).toMatchObject({ sesiones: { create: [{ dia: null }] } });
   });
 
   it('un dia fuera de las fechas del grupo se rechaza, y dice cual', async () => {

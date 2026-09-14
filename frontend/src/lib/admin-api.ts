@@ -521,18 +521,20 @@ export const ETIQUETA_SESION: Record<TipoDeSesion, string> = {
   PAT: "Conexión PAT",
 };
 
-/// La PAT es la UNICA sin dia: vale para todos los del grupo
-/// salvo los que tienen uno propio.
+/// LAS TRES pueden llevar dia, y ninguna esta obligada.
 ///
-/// La presencial SI lo lleva, y esa fue una correccion del
-/// cliente: un bootcamp tiene dos presenciales y sin fecha se
-/// leen identicas --«de 08:00 a 17:00» dos veces-- sin forma de
-/// saber cual es cual. Se puede dejar vacia cuando el grupo dura
-/// un solo dia, que es donde repetirla no aniade nada.
+/// Se llego aqui por dos correcciones del cliente. La presencial
+/// lo necesita porque un bootcamp tiene DOS y sin fecha se leen
+/// identicas. Y la PAT tambien, porque un FORO hibrido es un
+/// solo dia --unos en la sede y otros conectados desde su
+/// departamento-- y ese dia ya lo tenia la presencial.
+///
+/// Sin dia sigue significando algo: en un curso largo, la hora
+/// de conexion de todos los demas dias del cronograma.
 export const LLEVA_DIA: Record<TipoDeSesion, boolean> = {
   PRESENCIAL: true,
   SINCRONICA: true,
-  PAT: false,
+  PAT: true,
 };
 
 export type SesionDeGrupo = {

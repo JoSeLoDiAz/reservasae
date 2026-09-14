@@ -191,11 +191,10 @@ model SesionDeGrupo {
 
   tipo TipoDeSesion
 
-  /// El dia, cuando lo tiene. Nulo en dos casos distintos y los
-  /// dos legitimos: la PAT --que vale para todos los dias del
-  /// grupo salvo los que tienen dia propio-- y la presencial de
-  /// un grupo que dura un solo dia, donde repetirlo seria decir
-  /// dos veces lo mismo.
+  /// El dia, cuando lo tiene. Nulo es legitimo: una PAT sin dia
+  /// es la hora de conexion de todos los demas dias del grupo
+  /// --un curso largo--, y con dia es un FORO, donde unos estan
+  /// en la sede y otros conectados el mismo dia.
   dia DateTime?
 
   /// Hora de Bogota, "HH:MM" de 24 h.

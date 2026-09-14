@@ -87,9 +87,13 @@ type SesionEnEdicion = {
 /// diria que es el dia 2, y no es ningun dia: es la hora de
 /// conexion de todos los demas.
 function numeroDeDia(todas: SesionDeGrupo[], una: SesionDeGrupo): number | null {
-  const conDia = todas.filter((s) => s.dia);
-  if (conDia.length < 2 || !una.dia) return null;
-  return conDia.findIndex((s) => s.id === una.id) + 1;
+  if (!una.dia) return null;
+  /// Por DIA DISTINTO y no por posicion: en un foro hibrido las
+  /// tres sesiones comparten fecha --unos en la sede y otros
+  /// conectados-- y numerarlas «1, 2, 3» diria que son tres dias.
+  const dias = [...new Set(todas.map((s) => s.dia?.slice(0, 10)).filter(Boolean))].sort();
+  if (dias.length < 2) return null;
+  return dias.indexOf(una.dia.slice(0, 10)) + 1;
 }
 
 /// Lo que sale en la celda del PDF.
@@ -847,9 +851,9 @@ function Grupo({
               </button>
             </div>
             <p className="mt-0.5 mb-3 text-xs text-texto-suave">
-              Un bootcamp lleva dos; una híbrida, la presencial más la conexión
-              PAT. El día va solo en las que lo llevan, y cae dentro de las fechas
-              de arriba.
+              Un bootcamp lleva dos presenciales en días distintos; un foro
+              híbrido, la presencial y las conexiones PAT el mismo día. Una PAT
+              sin día es la hora de conexión de los demás días del cronograma.
             </p>
 
             {sesiones.length === 0 && (
@@ -896,9 +900,7 @@ function Grupo({
                   </label>
                 ) : (
                   <p className="self-end pb-2 text-xs text-texto-suave">
-                    {x.tipo === "PAT"
-                      ? "Todos los días del grupo, salvo los que tengan día propio."
-                      : "En las fechas del grupo."}
+                    En las fechas del grupo.
                   </p>
                 )}
 

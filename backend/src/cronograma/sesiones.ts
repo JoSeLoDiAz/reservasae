@@ -44,12 +44,16 @@ export function loQueEstaMal(
     mal.push('La hora de fin tiene que ser posterior a la de inicio.');
   }
 
-  /// La PAT es la hora de conexion de TODOS los dias del grupo
-  /// salvo los que tienen dia propio. Ponerle uno la convierte
-  /// en otra cosa y deja sin cubrir el resto.
-  if (s.tipo === 'PAT' && s.dia) {
-    mal.push('La sesión PAT no lleva día: vale para todos los del grupo.');
-  }
+  /// LA PAT PUEDE LLEVAR DIA, y no siempre lo lleva:
+  ///
+  ///   con dia  un FORO hibrido -- un solo evento, unos en la
+  ///            sede y otros conectados desde su departamento
+  ///   sin dia  un curso largo -- la hora de conexion de todos
+  ///            los demas dias del cronograma
+  ///
+  /// Se prohibia el dia pensando solo en el segundo, y con eso
+  /// el foro de AF7 no se podia describir: su grupo dura un dia
+  /// y ese dia ya lo tenia la presencial.
 
   /// La presencial tampoco, y es lo que pidio el cliente: el
   /// grupo ya dice cuando es. Repetirlo es decirlo dos veces.
