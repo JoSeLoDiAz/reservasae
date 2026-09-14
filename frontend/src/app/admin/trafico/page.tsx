@@ -168,8 +168,10 @@ export default function PaginaTrafico() {
                 Donde más gente se va
               </p>
               <p className="mt-1 text-lg font-semibold text-texto">
-                {n(datos.caidaMayor.sePerdieron)} se fueron entre «
-                {COMO_SE_LEE[datos.caidaMayor.de] ?? datos.caidaMayor.de}» y «
+                {datos.caidaMayor.sePerdieron === 1
+                  ? "1 persona se fue"
+                  : `${n(datos.caidaMayor.sePerdieron)} personas se fueron`}{" "}
+                entre «{COMO_SE_LEE[datos.caidaMayor.de] ?? datos.caidaMayor.de}» y «
                 {COMO_SE_LEE[datos.caidaMayor.a] ?? datos.caidaMayor.a}».
               </p>
             </div>
