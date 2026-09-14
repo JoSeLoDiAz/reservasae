@@ -56,7 +56,24 @@ type Fase = "nada" | "viendo";
  * O sea que como mucho añade lo que falte para completar una
  * vuelta, y solo cuando de verdad se está viendo.
  */
+/// SIN RETENER NADA: el velo se va en cuanto llega el dato.
+///
+/// Para las pantallas que reciben trafico PAGADO. Ahi la vuelta
+/// completa no es un detalle de marca, es dinero: ver
+/// «Preinscripcion» arriba del anuncio y despues dos segundos de
+/// pantalla tapada es donde se cae la gente. Ver CLAUDE.md.
+export function useEsperaCorta(cargando: boolean): boolean {
+  return useEspera(cargando, 0);
+}
+
 export function useEsperaCompleta(cargando: boolean): boolean {
+  return useEspera(cargando, UNA_VUELTA);
+}
+
+/// Son DOS funciones exportadas y no una con bandera: el nombre
+/// de la que se llama dice cual se eligio, y una bandera se
+/// olvida en la llamada.
+function useEspera(cargando: boolean, retener: number): boolean {
   /// Si al primer render ya se está cargando —o sea, al abrir o
   /// al recargar la página—, la pantalla cuenta como VISTA desde
   /// el principio: sale en el HTML del servidor, sin desvanecido y
@@ -89,14 +106,14 @@ export function useEsperaCompleta(cargando: boolean): boolean {
     // ya llegó el dato
     if (fase === "nada") return;
 
-    const falta = UNA_VUELTA - (Date.now() - (desde.current ?? Date.now()));
+    const falta = retener - (Date.now() - (desde.current ?? Date.now()));
     if (falta <= 0) {
       setFase("nada");
       return;
     }
     const reloj = setTimeout(() => setFase("nada"), falta);
     return () => clearTimeout(reloj);
-  }, [cargando, fase]);
+  }, [cargando, fase, retener]);
 
   /// LA RED, aparte y a propósito.
   ///

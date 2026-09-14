@@ -10,6 +10,7 @@ import { juntar, primero, resto } from "@/lib/nombres";
 import { sectoresConElActual } from "@/lib/sectores";
 import { preinscripcionApi, type FichaAbierta } from "@/lib/preinscripcion-api";
 
+import { BandaDePasos } from "./banda-de-pasos";
 import { ModalPolitica } from "./modal-politica";
 import { FondoPublico } from "./fondo-publico";
 import { BannerLogos, FilaDeMarca, PiePublico } from "./marca-publica";
@@ -520,44 +521,9 @@ export function CompletarFicha({ token }: { token: string }) {
         )}
       </header>
 
-      {/* Reservar no es estar inscrito, y hay que decirlo.
-          
-          El paso 2 llevaba palomita de «hecho» siendo justo el
-          que la persona está haciendo en esa pantalla: la
-          dejaba creyendo que ya había terminado. Solo lleva
-          palomita lo que de verdad quedó atrás. */}
-      <div className="mt-6 rounded-2xl border border-borde bg-superficie px-5 py-4">
-        <div className="flex flex-wrap items-center gap-y-2">
-          {[
-            { n: 1, texto: "Reserva de cupo", estado: "hecho" },
-            { n: 2, texto: "Datos de preinscripción", estado: "ahora" },
-            { n: 3, texto: "Preinscripción confirmada", estado: "falta" },
-          ].map((x, i, todos) => (
-            <div key={x.n} className="flex flex-1 items-center gap-2">
-              <span
-                className={`grid h-6 w-6 shrink-0 place-items-center rounded-full text-xs font-semibold ${
-                  x.estado === "hecho"
-                    ? "bg-exito text-white"
-                    : x.estado === "ahora"
-                      ? "bg-marca text-marca-texto"
-                      : "border border-borde text-texto-suave"
-                }`}
-              >
-                {x.estado === "hecho" ? "✓" : x.n}
-              </span>
-              <span
-                className={`whitespace-nowrap text-sm ${
-                  x.estado === "ahora" ? "font-semibold text-marca" : "text-texto-suave"
-                }`}
-              >
-                {x.texto}
-              </span>
-              {i < todos.length - 1 && (
-                <span className="mx-2 hidden h-px flex-1 bg-borde sm:block" />
-              )}
-            </div>
-          ))}
-        </div>
+      {/* La MISMA banda que la preinscripcion, no una copia */}
+      <div className="mt-6">
+        <BandaDePasos paso={2} />
       </div>
 
       {error && (

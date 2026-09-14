@@ -1419,6 +1419,87 @@ información» abre el resto en `/completar/<token>`.
   (`POST /admin/participantes/:id/enlace`).
 
 
+### 382 clics, cero preinscritos: lo que veía quien llegaba (14 sep 2026)
+
+La pauta de Meta llevaba 35.000 pesos gastados y no había entrado un solo
+lead. **El formulario funcionaba**: el problema era la página.
+
+**Se midió con el `access_log` de nginx, que ya lo tenía todo y nadie había
+mirado.** `docker/nginx/default.conf` pone `real_ip_header CF-Connecting-IP`,
+el formato es `combined` —o sea referer y user-agent— y `docker-compose.yml`
+no declara rotación, así que el log guarda la campaña entera. El anuncio
+además llega con `fbclid` y con los `utm_*` puestos por Mauricio.
+
+| | |
+|---|---|
+| Clics de la pauta (IPs distintas con `fbclid`) | **382** |
+| De esas, el navegador llegó a pedir el catálogo | **295** (77 %) |
+| Envíos (`POST /api/preinscripcion/`) | **6 en total**, 4 de ellos pruebas internas |
+
+- **Las «758 visitas» brutas engañan: 665 son `facebookexternalhit`**, el
+  rastreador de Meta. Contar peticiones al HTML como personas infla el
+  denominador a casi el doble.
+- **El denominador bueno NO es el HTML, es `GET /api/preinscripcion/:slug`**:
+  lleva el slug en la ruta, así que es inequívoco venga por la puerta que
+  venga — el rewrite de la raíz del subdominio (`middleware.ts`) es interno y
+  nginx registra `GET /`, que no dice de qué gremio es.
+
+**Lo que se encontró en la página, medido y no opinado:**
+
+- **La pantalla de carga tapaba 2.400 ms garantizados** mientras el catálogo
+  llegaba a los **407 ms**. `useEsperaCompleta` retiene el velo hasta
+  completar la vuelta de la animación, y al abrir la página la fase arranca
+  en `viendo`, así que la vuelta se garantiza siempre. Sobre el arranque del
+  webview de Instagram, el TLS, 159 kB de JS y la hidratación, son dos
+  segundos regalados justo donde se paga por el clic.
+- **393 kB de logos, el 88 % del peso de la página** (el HTML son 20 kB), y
+  **los dos de ADECOPRIA son arte blanco marcado `AMBOS`**: sobre el fondo
+  claro no se ven. Se descargan para no enseñar nada. Ver la sección de los
+  logos.
+- **El primer control estaba a 999 px** en un iPhone 14 Pro Max. Lo que se
+  veía al llegar era: marca con dos huecos, título, banda de pasos y
+  «Términos y Condiciones y Autorización para el Tratamiento de Datos
+  Personales». **Ni el nombre de un curso.**
+
+### El permiso va al FINAL, y ayer aquí decía lo contrario (14 sep 2026)
+
+El 14 sep por la mañana se movió el habeas data al principio y se escribió en
+`preinscripcion.tsx` que moverlo al final «sería pedir el permiso cuando los
+datos ya están tomados». **Es falso, y lo corrigió el cliente esa misma
+tarde**: *«¿por qué me estás pidiendo que acepte algo que no sé qué quiero
+aceptar? Quienes colocan los términos de primeras es el gobierno… nosotros
+tenemos que actuar más como ventas»*.
+
+- **Escribir en un campo del propio navegador no es tratamiento por nuestra
+  parte.** Nada sale hacia el servidor hasta el envío final, y `registrar()`
+  rechaza con `!== true` **antes de crear a la `Persona`**. Ese candado —que
+  es el que de verdad importa— no se toca: el orden en pantalla es una
+  decisión de venta, no de ley.
+- **El permiso no es una pantalla nueva: es el último requisito de la de
+  datos.** Catalina lo dijo así —«después de que haya diligenciado el tipo de
+  documento, antes de darle continuar»— y una pantalla más sería otra vez
+  fricción. Entra en `faltaEnDatos` y se nombra como los demás: el botón
+  apagado dice qué falta.
+- **Lo que NO cambia**: el texto legal a la vista y no un enlace, la casilla
+  encima del texto, el «Ver el texto completo», y que el resumen siga
+  diciendo «Tratamiento de datos: Autorizado».
+- Las pantallas quedan en **tres**: la oferta, sus datos con el permiso al
+  pie, y la revisión. `Pantalla` ya no tiene el valor `"habeas"`.
+
+**La banda de pasos avanza, y estaba copiada a mano en dos sitios.** Iba
+escrita a fuego en `paso={1}` —«he pasado por mis pantallas y siempre estoy en
+el paso 1»— y las mismas tres cadenas estaban repetidas en
+`completar-ficha.tsx`. Ahora vive una vez en `components/banda-de-pasos.tsx`;
+arreglar solo una copia habría dejado dos pantallas públicas diciendo cosas
+distintas. **El paso 3 no se alcanzaba nunca**: se añadió a la pantalla de
+gracias, que es donde de verdad ocurre.
+
+**El velo se corta solo donde se paga por el clic.** `useEsperaCorta` para la
+preinscripción y `useEsperaCompleta` para el panel — **dos funciones
+exportadas y no una con bandera**, porque la bandera se olvida en la llamada.
+La animación completa la pidió el cliente el 11 sep 2026 y ahí sigue en el
+acceso al panel, donde nadie paga por entrar.
+
 ### Un campo vacío no es un cero (29 ago 2026)
 
 `main.ts` monta el `ValidationPipe` con **`enableImplicitConversion: true`**,
