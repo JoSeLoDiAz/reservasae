@@ -11,6 +11,12 @@ import {
   CLASE_CONTROL,
   Tarjeta,
 } from "@/components/admin/marco-admin";
+import {
+  aCuerpo,
+  CamposDeLaPersona,
+  personaEnBlanco,
+  type DatosDeLaPersona,
+} from "@/components/admin/campos-de-la-persona";
 import { adminApi } from "@/lib/admin-api";
 import { ErrorApi } from "@/lib/api";
 import {
@@ -29,16 +35,17 @@ export default function PaginaNuevoParticipante() {
   const [error, setError] = useState<string | null>(null);
   const [guardando, setGuardando] = useState(false);
 
+  /// Los datos de la persona son los MISMOS que los de su
+  /// ficha: mismo tipo, mismos campos, mismo componente. Aquí
+  /// estaban escritos aparte y eran diez de diecisiete, así
+  /// que para dejar una ficha completa había que guardarla,
+  /// abrirla y volver a editarla.
+  const [p, setP] = useState<DatosDeLaPersona>(personaEnBlanco);
+
   const [f, setF] = useState({
     // 1 = cedula de ciudadania en el catalogo del SEP
     tipoDocumentoSepId: 1,
     numeroDocumento: "",
-    primerNombre: "",
-    segundoNombre: "",
-    primerApellido: "",
-    segundoApellido: "",
-    correo: "",
-    celular: "",
     convenioId: "",
     origen: "ASESOR" as Origen,
   });
@@ -62,10 +69,14 @@ export default function PaginaNuevoParticipante() {
       .catch((e) => setError((e as ErrorApi).message));
   }, []);
 
+  /// Lo mínimo sigue siendo lo mínimo: documento, nombre,
+  /// apellido y convenio. Lo demás se puede llenar aquí o
+  /// después, y exigirlo sería hacer el sistema más rígido
+  /// que el proceso.
   const listo =
     f.numeroDocumento.trim().length >= 4 &&
-    f.primerNombre.trim() &&
-    f.primerApellido.trim() &&
+    p.primerNombre.trim() &&
+    p.primerApellido.trim() &&
     f.convenioId;
 
   async function guardar() {
@@ -75,14 +86,15 @@ export default function PaginaNuevoParticipante() {
       const creado = await crmApi.crear({
         tipoDocumentoSepId: f.tipoDocumentoSepId,
         numeroDocumento: f.numeroDocumento.trim(),
-        primerNombre: f.primerNombre.trim(),
-        segundoNombre: f.segundoNombre.trim() || undefined,
-        primerApellido: f.primerApellido.trim(),
-        segundoApellido: f.segundoApellido.trim() || undefined,
-        correo: f.correo.trim() || undefined,
-        celular: f.celular.trim() || undefined,
         convenioId: f.convenioId,
         origen: f.origen,
+        ...aCuerpo(p),
+        /// `aCuerpo` los deja opcionales porque al EDITAR una
+        /// ficha un campo vacío quiere decir «no lo toques».
+        /// Al crear son obligatorios y el DTO los exige, así
+        /// que se mandan explícitos.
+        primerNombre: p.primerNombre.trim(),
+        primerApellido: p.primerApellido.trim(),
       });
       router.push(`/admin/participantes/${creado.id}`);
     } catch (e) {
@@ -106,8 +118,9 @@ export default function PaginaNuevoParticipante() {
           Inscribir a alguien
         </h1>
         <p className="mt-1 text-texto-suave">
-          Con el documento y el nombre basta para empezar. La acción de formación y el
-          grupo se asignan después, desde su lead.
+          Con el documento y el nombre basta para empezar, pero aquí caben todos
+          sus datos. La acción de formación y el grupo se asignan después, desde
+          su lead.
         </p>
       </header>
 
@@ -119,95 +132,59 @@ export default function PaginaNuevoParticipante() {
 
       <Tarjeta
         titulo="Quién es"
-        descripcion="El documento identifica a la persona en todo el sistema: si ya está en otro curso, se reconoce sola."
+        descripcion="El documento identifica a la persona en todo el sistema: si ya está en otro curso, se reconoce sola. Lo que quede en blanco se puede completar después desde su ficha."
       >
         <div className="space-y-4">
-          <div className="grid grid-cols-[repeat(auto-fit,minmax(220px,1fr))] gap-x-7 gap-y-4">
-            <Campo etiqueta="Tipo de documento">
-              <select
-                className={CLASE_CONTROL}
-                value={f.tipoDocumentoSepId}
-                onChange={(e) =>
-                  setF({ ...f, tipoDocumentoSepId: Number(e.target.value) })
-                }
-              >
-                {(catalogos?.documentosPersona ?? []).map((t) => (
-                  <option key={t.id} value={t.id}>
-                    {t.etiqueta}
-                  </option>
-                ))}
-              </select>
-            </Campo>
+          <CamposDeLaPersona
+            c={p}
+            setC={setP}
+            catalogos={catalogos}
+            identidad={
+              <>
+                <Campo etiqueta="Tipo de documento">
+                  <select
+                    className={CLASE_CONTROL}
+                    value={f.tipoDocumentoSepId}
+                    onChange={(e) =>
+                      setF({ ...f, tipoDocumentoSepId: Number(e.target.value) })
+                    }
+                  >
+                    {(catalogos?.documentosPersona ?? []).map((t) => (
+                      <option key={t.id} value={t.id}>
+                        {t.etiqueta}
+                      </option>
+                    ))}
+                  </select>
+                </Campo>
 
-            <Campo etiqueta="Número">
-              <input
-                className={CLASE_CONTROL}
-                value={f.numeroDocumento}
-                onChange={(e) => setF({ ...f, numeroDocumento: e.target.value })}
-                placeholder="1019456782"
-                inputMode="numeric"
-              />
-            </Campo>
-
-            <Campo etiqueta="Primer nombre">
-              <input
-                className={CLASE_CONTROL}
-                value={f.primerNombre}
-                onChange={(e) => setF({ ...f, primerNombre: e.target.value })}
-              />
-            </Campo>
-            <Campo etiqueta="Segundo nombre">
-              <input
-                className={CLASE_CONTROL}
-                value={f.segundoNombre}
-                onChange={(e) => setF({ ...f, segundoNombre: e.target.value })}
-              />
-            </Campo>
-            <Campo etiqueta="Primer apellido">
-              <input
-                className={CLASE_CONTROL}
-                value={f.primerApellido}
-                onChange={(e) => setF({ ...f, primerApellido: e.target.value })}
-              />
-            </Campo>
-            <Campo etiqueta="Segundo apellido">
-              <input
-                className={CLASE_CONTROL}
-                value={f.segundoApellido}
-                onChange={(e) => setF({ ...f, segundoApellido: e.target.value })}
-              />
-            </Campo>
-          </div>
+                <Campo etiqueta="Número de documento">
+                  <input
+                    className={CLASE_CONTROL}
+                    value={f.numeroDocumento}
+                    onChange={(e) =>
+                      setF({ ...f, numeroDocumento: e.target.value })
+                    }
+                    placeholder="1019456782"
+                    inputMode="numeric"
+                  />
+                </Campo>
+              </>
+            }
+          />
 
           <p className="text-xs text-texto-suave">
-            Van en cuatro casillas porque el cargue al SENA los pide separados, y partir
-            «María del Carmen de la Hoz» por espacios se equivoca siempre.
+            Los nombres van en cuatro casillas porque el cargue al SENA los pide
+            separados, y partir «María del Carmen de la Hoz» por espacios se
+            equivoca siempre.
           </p>
         </div>
       </Tarjeta>
 
       <Tarjeta
-        titulo="Cómo contactarla, y de dónde viene"
-        descripcion="Hace falta al menos una de las dos formas de contacto para poder matricularla."
+        titulo="De dónde viene"
+        descripcion="El convenio decide quién la ve y a qué catálogo pertenece. No se cambia después."
       >
         <div className="grid grid-cols-[repeat(auto-fit,minmax(220px,1fr))] gap-x-7 gap-y-4">
-          <Campo etiqueta="Correo">
-            <input
-              className={CLASE_CONTROL}
-              value={f.correo}
-              onChange={(e) => setF({ ...f, correo: e.target.value })}
-              inputMode="email"
-            />
-          </Campo>
-          <Campo etiqueta="Celular">
-            <input
-              className={CLASE_CONTROL}
-              value={f.celular}
-              onChange={(e) => setF({ ...f, celular: e.target.value })}
-              inputMode="tel"
-            />
-          </Campo>
-
           <Campo etiqueta="Convenio">
             <select
               className={CLASE_CONTROL}

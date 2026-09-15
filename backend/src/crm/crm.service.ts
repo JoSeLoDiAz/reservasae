@@ -1073,6 +1073,21 @@ export class CrmService {
       }
     }
 
+    /// LA MISMA REGLA QUE LAS OTRAS TRES PUERTAS, y aquí
+    /// faltaba.
+    ///
+    /// `actualizar` la llama, la preinscripción pública la
+    /// llama y la mesa de leads la llama; crear NO. O sea que
+    /// la ruta del ASESOR era la más permisiva de las cuatro,
+    /// que es el mismo defecto que este archivo documenta al
+    /// revés. No se notaba porque la pantalla no mandaba esos
+    /// campos — y ahora los manda todos.
+    ///
+    /// Sin `guardado`: al crear no hay nada guardado contra lo
+    /// que resolver el par departamento/municipio.
+    const idMalo = motivoDeIdInvalido(dto);
+    if (idMalo) throw new BadRequestException(idMalo);
+
     const oferta = dto.ofertaId
       ? await this.prisma.oferta.findUnique({
           where: { id: dto.ofertaId },
@@ -1197,6 +1212,9 @@ export class CrmService {
           generoSepId: dto.generoSepId ?? null,
           departamentoSepId: dto.departamentoSepId ?? null,
           municipioSepId: dto.municipioSepId ?? null,
+          estrato: dto.estrato ?? null,
+          barrio: dto.barrio ?? null,
+          direccion: dto.direccion ?? null,
         },
         // no se pisa lo que ya hay con lo que llega vacio
         update: {
@@ -1205,6 +1223,9 @@ export class CrmService {
           generoSepId: dto.generoSepId ?? undefined,
           departamentoSepId: dto.departamentoSepId ?? undefined,
           municipioSepId: dto.municipioSepId ?? undefined,
+          estrato: dto.estrato ?? undefined,
+          barrio: dto.barrio ?? undefined,
+          direccion: dto.direccion ?? undefined,
           fechaNacimiento: dto.fechaNacimiento
             ? new Date(dto.fechaNacimiento)
             : undefined,
@@ -1241,6 +1262,8 @@ export class CrmService {
           origen: dto.origen ?? 'ASESOR',
           asesorId: dto.asesorId ?? admin?.id ?? null,
           cargoEnEmpresa: dto.cargoEnEmpresa ?? null,
+          nivelOcupacionalSepId: dto.nivelOcupacionalSepId ?? null,
+          beneficiarioPrevio: dto.beneficiarioPrevio ?? null,
           sobrecupoPorId: sobrecupo?.porId ?? null,
           sobrecupoMotivo: sobrecupo?.motivo ?? null,
         },

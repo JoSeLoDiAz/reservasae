@@ -150,6 +150,31 @@ export class CrearParticipanteDto {
   departamentoSepId?: number | null;
   @IsOptional() @Transform(aNumero) @IsInt() municipioSepId?: number | null;
 
+  /// LO QUE FALTABA PARA PODER DEJAR LA FICHA COMPLETA.
+  ///
+  /// Lo pidio el cliente: «cuando se va a inscribir a una
+  /// persona desde el CRM deberia poderse dejar todos los
+  /// datos». La pantalla mandaba diez campos y el DTO
+  /// aceptaba diecisiete, asi que cinco de los que
+  /// `completitud.faltaDeLaPersona` exige para entrar al
+  /// reporte no habia forma de escribirlos al crear: habia
+  /// que guardar, abrir la ficha y volver a editar.
+  @IsOptional() @Transform(aNumero) @IsInt() @Min(1) @Max(6) estrato?: number | null;
+
+  @IsOptional()
+  @Transform(aNumero)
+  @IsInt()
+  nivelOcupacionalSepId?: number | null;
+
+  @IsOptional() @Transform(recortar) @IsString() @MaxLength(120) barrio?: string;
+
+  @IsOptional()
+  @Transform(recortar)
+  @IsString()
+  @MaxLength(200)
+  direccion?: string;
+
+  @IsOptional() @IsBoolean() beneficiarioPrevio?: boolean;
 }
 
 export class ActualizarParticipanteDto {
