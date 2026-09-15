@@ -603,15 +603,17 @@ export class PreinscripcionService {
       /// SOLO AQUI SE EMITE, y el sitio importa.
       ///
       /// Estaba antes del `if`, asi que se emitia SIEMPRE -- y
-      /// `emitirEnlace` ANULA el anterior. Mientras el correo
-      /// automatico llevaba el enlace daba igual: se emitia uno y
-      /// se mandaba.
+      /// `emitirEnlace` ANULA el anterior. Quien se vuelve a
+      /// registrar por su cuenta anularia el token que el asesor
+      /// ya le mando, y el enlace que tenia en su bandeja
+      /// dejaria de abrir sin que nadie sepa por que.
       ///
-      /// Desde que ese correo no lleva enlace (3 sep 2026) y solo
-      /// lo manda el asesor, emitirlo aqui seria romperle el suyo:
-      /// la persona se vuelve a registrar por su cuenta, se anula
-      /// el token que el asesor mando, y el enlace que ella tenia
-      /// en su bandeja deja de abrir sin que nadie sepa por que.
+      /// Aqui dentro la cedula es NUEVA, asi que no hay ninguno
+      /// vivo que romper. Y va ANTES de que el trabajador vacie
+      /// la cola: el acuse llama a `emitirOReusar`, encuentra
+      /// este y manda EL MISMO token que el boton de la pantalla
+      /// de gracias. Dos tokens serian dos enlaces vivos a la
+      /// misma ficha.
       const enlace = await this.emitirEnlace(participante.id, null);
       return {
         registrado: true,

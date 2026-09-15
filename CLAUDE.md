@@ -3646,11 +3646,31 @@ vive en `backend/src/correo/carta/`.
   banda con el color del gremio, **placa BLANCA** para los logos --estan
   hechos para papel y Gmail invierte en modo oscuro--, tarjeta clara,
   bordes de 1px y el color en marcas pequenas, nunca en fondos.
-- **La banda lleva LOS LOGOS DEL GREMIO**, no la firma de Convoca. Lo
-  pidio el cliente con esas palabras. Salen de `obtenerMarcaDeGremio`,
-  la MISMA que pinta el panel por Host: una segunda forma de resolver la
-  marca acabaria ensenando el logo de un gremio con los colores del
-  otro, y eso ya paso una vez.
+- **En la banda va PRIMERO la firma de Convoca y DESPUES los logos del
+  gremio.** Lo corrigio el cliente el 15 sep 2026 --«va primero el logo
+  de Convoca CRM, despues los otros logos de Grupo AE y ADECOPRIA»--,
+  y la firma es la misma forma de la barra del panel: el signo al lado
+  del nombre, la linea debajo del nombre y el eslogan bajo la linea. El
+  pie repite esa firma y cierra con «gestionado por Grupo AE para
+  {gremio}».
+- **Los logos salen de `obtenerMarcaDeGremio`**, la MISMA que pinta el
+  panel por Host: una segunda forma de resolver la marca acabaria
+  ensenando el logo de un gremio con los colores del otro, y eso ya
+  paso una vez. **Se filtran a `AMBOS|CLARO`**, porque la placa es
+  blanca: un logo de arte blanco ahi no se ve.
+- **LOS COLORES SE LEEN EN VIVO DE LA APARIENCIA.** Lo pidio el cliente
+  con esas palabras: «si yo cambio el color en la apariencia, el color
+  tambien en el correo me cambia automaticamente». No hay ni un hex
+  escrito en la carta. `color()` valida `#rrggbb` antes de meterlo en un
+  `style`, igual que el editor de temas — acaban dentro de una etiqueta,
+  y aceptar texto libre seria dejar que un administrador inyecte CSS en
+  el correo de todo el mundo.
+- **EL COLOR DEL TEXTO DE LA BANDA SE CALCULA, no se lee.**
+  `encabezadoTexto` lo elige un administrador y en produccion vale
+  `#1d222b` --casi negro-- sobre la banda verde oscura de ADECOPRIA:
+  ilegible. Es la misma pregunta que en el panel resuelve `bg-current`
+  sin preguntar, y aqui se responde por luminancia. El signo se elige
+  igual, blanco u oscuro, por la misma cuenta.
 - **Si la plantilla tiene cabezote, MANDA el cabezote.** Alguien subio
   esa imagen a proposito; pintar las dos cosas serian los mismos logos
   dos veces.
@@ -3771,6 +3791,77 @@ instalarle el correo que se le manda a sus ciudadanos.
 > sin DKIM y sin DMARC. Este cambio multiplica lo que sale del buzon
 > institucional, asi que la reputacion del dominio pasa a importar mas que
 > antes — y de ese buzon dependen tambien los correos de acceso al panel.
+
+### El enlace vuelve a viajar en el correo (15 sep 2026)
+
+**Esto DESHACE la decision del 3 sep 2026**, y hay que leerlo junto a ella: aquel
+dia el cliente dijo «el correo debe llegar solamente si el asesor lo envia» y se
+le quito el token al acuse. Ahora pidio lo contrario con el mismo detalle: «y si
+desea llenar tus datos, entonces da clic en el siguiente link».
+
+Lo que hace que las dos cosas quepan es **DONDE** se emite y **CUAL** se manda:
+
+- **Se manda con `emitirOReusar`, nunca con `emitir`.** Emitir uno nuevo ANULA el
+  anterior, y ese anterior es el MISMO token del boton de la pantalla de gracias:
+  la persona lo tendria abierto en una pestana y dejaria de abrir sin que nadie
+  se entere. Emitir es una decision --la toma el asesor desde la ficha, y el
+  panel le avisa de que el anterior deja de servir--, no un efecto secundario de
+  mandar un correo. Comprobado en vivo: preinscripcion real, el acuse automatico
+  sale un minuto despues, y el token de la pantalla de gracias **sigue
+  abriendo**.
+- **La rama de «ya teniamos un registro con su documento» SIGUE SIN ENLACE**, y
+  eso no cambia. Ahi la cedula puede ser de cualquiera --esta en cualquier
+  fotocopia-- y mandar un enlace de un solo uso porque alguien la tecleo es otra
+  cosa. Esa rama escribe al correo QUE YA ESTA EN LA BASE y solo avisa.
+- **`EnlaceDeCompletado` vive en su propio modulo**, como `ColaRui`. El modulo de
+  correo no puede importar el de preinscripcion --que importa al de correo-- y
+  ese circulo no deja arrancar a Nest.
+- **`{{enlace}}` solo se resuelve si la plantilla lo usa.** En la previa es un
+  `…` de mentira; solo al mandar DE VERDAD se toca la base. Una previa que emite
+  un token es una previa que cambia lo que mira.
+
+**«Ya lo completo» dejo de ser un error.** Las tres causas --no existe, caduco,
+ya se uso-- daban el mismo mensaje a proposito, para no ser un oraculo de que
+tokens existen. Pero desde que el enlace viaja en el correo el caso normal es
+terminar por el boton de la pantalla de gracias y **despues** abrir el correo, y
+a quien acaba de terminar no se le dice «este enlace ya no sirve». El usado se
+separa; los otros dos siguen juntos, que es donde estaba el oraculo.
+
+### `{{donde}}`: la sede solo cuando aplica
+
+*«Cuando es una accion de formacion virtual no hay necesidad de poner la
+ubicacion; en la hibrida que va presencial si va a decir municipio o ciudad o
+sede»*. La variable devuelve `En linea` si la modalidad es VIRTUAL y la
+`ubicacion` en cualquier otro caso.
+
+> **Se descarto dejar `ubicacion` en nulo para lo virtual, y el motivo es la
+> regla 1 de `variables.ts`:** un hueco que no se puede llenar DETIENE el envio.
+> De las 106 ofertas, **80 son virtuales** — o sea que una plantilla con
+> `{{ubicacion}}` no se le podria mandar a casi nadie. La variable nueva no tiene
+> ese problema porque nunca es nula.
+
+### Las cuatro plantillas, y lo que cada una puede decir
+
+Son DATOS en `plantillas_correo`, no codigo. Hoy viven en pruebas colgadas de
+ADECOPRIA; publicarlas en produccion es crearlas alli.
+
+| Plantilla | Cuando | SENA / convocatoria |
+|---|---|---|
+| Acuse de preinscripcion | disparador `PREINSCRIPCION`, sola | **NO se nombran** |
+| Nos faltan tus datos | la manda el asesor | no hace falta |
+| Inscripcion confirmada | al pasar a `INSCRITO` | **si** |
+| Bienvenida al curso | la manda el asesor | **si** |
+
+- **Todas tutean.** Lo corrigio el cliente: «¿Sr. Cardona? No, asi no». Por eso
+  llevan `{{primerNombre}}` y no `{{saludo}}`, que construye «Estimado Sr.».
+- **El acuse NO nombra al SENA ni la convocatoria**, y es la misma regla de
+  producto que gobierna el sitio publico: a esa altura la persona solo dejo su
+  interes. El marco se nombra cuando la inscripcion ya es un hecho.
+- **Lo que sigue pendiente y no es codigo:** el sitio publico y el panel tratan
+  de USTED en todas sus pantallas, asi que quien termina por el enlace lee «Ya
+  completo sus datos» justo despues de un correo que lo tutea. Cambiar la voz del
+  sitio entero es una decision del cliente, no un efecto secundario de las
+  plantillas.
 
 ### Que no caiga en spam
 
