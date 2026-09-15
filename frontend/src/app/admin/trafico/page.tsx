@@ -5,21 +5,34 @@
  *
  * Existe porque la pauta gastaba dinero, la gente llegaba al
  * formulario y no se preinscribía nadie — y no había forma de
- * saber dónde se iba. La conversión solo se contaba al final.
+ * saber dónde se iba.
  *
- * Las cifras son un SUELO, no un total: no ven a quien se va
- * antes de que la página termine de pintar ni a quien usa
- * bloqueador. Eso se dice en pantalla, no en un tooltip.
+ * MANDA LA SERIE, no el embudo. El cliente lo pidió así: «un
+ * comparativo entre fechas desde que inició y de ahí en
+ * adelante». Comparar contra el periodo anterior daría un −100 %
+ * que solo diría que antes no había contador; la curva desde el
+ * día uno sí dice algo.
+ *
+ * Las cifras son un SUELO, no un total, y eso se dice en
+ * pantalla: no ven a quien se va antes de que la página termine
+ * de pintar ni a quien usa bloqueador.
  */
 
-import { useCallback, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 
 import {
   EmbudoProceso,
   type Hito,
   type NotaDelEmbudo,
 } from "@/components/admin/embudo-proceso";
-import { n } from "@/components/admin/graficos";
+import {
+  Chispa,
+  Donut,
+  DosSeriesPorDia,
+  ListaBarras,
+  n,
+  type PorcionDonut,
+} from "@/components/admin/graficos";
 import { Aviso } from "@/components/admin/marco-admin";
 import { Encabezado, Vacio } from "@/components/admin/piezas";
 import { ErrorApi } from "@/lib/api";
@@ -48,20 +61,8 @@ const RANGOS = [
   { valor: "HOY", etiqueta: "Hoy" },
   { valor: "SEMANA", etiqueta: "7 días" },
   { valor: "MES", etiqueta: "30 días" },
-  { valor: "TODO", etiqueta: "Todo" },
+  { valor: "TODO", etiqueta: "Desde el inicio" },
 ];
-
-const NOMBRE_PUERTA: Record<string, string> = {
-  SUBDOMINIO: "Por el subdominio del gremio",
-  RUTA: "Por la dirección general",
-  CRUZADA: "Cruzada: el gremio no coincide",
-};
-
-const NOMBRE_ANCHO: Record<string, string> = {
-  MOVIL: "Celular",
-  TABLET: "Tableta",
-  ESCRITORIO: "Computador",
-};
 
 /// De dónde venían. «No dejó rastro» y no «Directa»: lo cierto
 /// es la ausencia de referencia, no que tecleara la dirección.
@@ -84,9 +85,22 @@ const NOMBRE_PROCEDENCIA: Record<string, string> = {
   SIN_REFERENCIA: "No dejó rastro",
 };
 
-/// Desde cuándo hay contador. Sin esta frase, «1 visita en todo»
-/// se lee como «solo ha llegado una persona en toda la campaña»,
-/// que es falso y es la peor clase de cifra.
+const NOMBRE_ANCHO: Record<string, string> = {
+  MOVIL: "Celular",
+  TABLET: "Tableta",
+  ESCRITORIO: "Computador",
+};
+
+const NOMBRE_ENTRADA: Record<string, string> = {
+  SUBDOMINIO: "Por el subdominio del gremio",
+  RUTA: "Por la dirección general",
+  CRUZADA: "Cruzada: el gremio no coincide",
+};
+
+/// Por debajo de esto no se imprime porcentaje: una tasa con dos
+/// visitas se lee igual que una con tres mil.
+const MINIMO_PARA_TASA = 30;
+
 function cuando(iso: string): string {
   return new Date(iso).toLocaleString("es-CO", {
     day: "numeric",
@@ -96,22 +110,15 @@ function cuando(iso: string): string {
   });
 }
 
-/// Por debajo de esto no se imprime porcentaje.
-///
-/// Una tasa con dos visitas se lee igual que una con tres mil, y
-/// con nueve procedencias el primer día hay filas de un dígito.
-/// Es la misma regla que el resto del panel: mejor ningún número
-/// que uno que parece exacto.
-const MINIMO_PARA_TASA = 30;
-
-function tasa(parte: number, total: number): string {
-  if (total < MINIMO_PARA_TASA) return "—";
-  const pct = (parte / total) * 100;
-  return pct > 0 && pct < 10 ? `${pct.toFixed(1)} %` : `${Math.round(pct)} %`;
+function diaCorto(iso: string): string {
+  return new Date(`${iso}T12:00:00Z`).toLocaleDateString("es-CO", {
+    day: "numeric",
+    month: "short",
+  });
 }
 
 export default function PaginaTrafico() {
-  const [rango, setRango] = useState("SEMANA");
+  const [rango, setRango] = useState("TODO");
   const [datos, setDatos] = useState<EmbudoPublico | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -126,10 +133,16 @@ export default function PaginaTrafico() {
 
   useDatosVivos(cargar, { intervaloMs: 30_000 });
 
-  const porPaso = new Map((datos?.hitos ?? []).map((h) => [h.paso, h.visitas]));
+  const porPaso = useMemo(
+    () => new Map((datos?.hitos ?? []).map((h) => [h.paso, h.visitas])),
+    [datos],
+  );
   const llegaron = porPaso.get("LLEGO") ?? 0;
   const vieron = porPaso.get("CATALOGO_LISTO") ?? 0;
+  const eligieron = porPaso.get("ELIGIO_ACCION") ?? 0;
   const quedaron = porPaso.get("REGISTRADO") ?? 0;
+
+  const dias = datos?.porDia ?? [];
 
   const hitos: Hito[] = PELDANOS.map((p) => ({
     etapa: p.etapa,
@@ -139,27 +152,34 @@ export default function PaginaTrafico() {
 
   const notas: NotaDelEmbudo[] = [
     {
-      cifra: llegaron,
-      etiqueta: "Abrieron la página",
-      detalle: "Cada visita cuenta una vez, no cada recarga.",
-      tono: "marca",
+      cifra: Math.max(llegaron - vieron, 0),
+      etiqueta: "Se fueron cargando",
+      detalle: "Cerraron antes de que el formulario apareciera.",
+      tono: "aviso",
+    },
+    {
+      cifra: Math.max(vieron - eligieron, 0),
+      etiqueta: "Miraron y no eligieron",
+      detalle: "Vieron la oferta y no tocaron ninguna tarjeta.",
+      tono: "error",
     },
     {
       cifra: quedaron,
       etiqueta: "Se preinscribieron",
-      detalle: `${tasa(quedaron, llegaron)} de quienes llegaron.`,
-      tono: quedaron > 0 ? "exito" : "error",
-    },
-    {
-      cifra: Math.max(llegaron - vieron, 0),
-      etiqueta: "Se fueron antes de ver nada",
-      detalle: "Cerraron mientras la página todavía cargaba.",
-      tono: "aviso",
+      detalle: "Ficha creada de verdad, escrita por el servidor.",
+      tono: quedaron > 0 ? "exito" : "neutro",
     },
   ];
 
+  const porcionesProcedencia: PorcionDonut[] = (datos?.procedencia ?? []).map((f) => ({
+    etiqueta: NOMBRE_PROCEDENCIA[f.valor ?? ""] ?? "Sin dato",
+    valor: f.visitas,
+  }));
+
+  const hayDatos = llegaron > 0;
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       <Encabezado
         titulo="Tráfico del formulario"
         descripcion={
@@ -199,68 +219,145 @@ export default function PaginaTrafico() {
 
       {error && <Aviso tipo="error">{error}</Aviso>}
 
-      {datos && llegaron === 0 ? (
+      {datos && !hayDatos ? (
         <Vacio titulo="Todavía no hay visitas contadas">
           {datos.contandoDesde ? (
             <>
               El contador funciona desde el{" "}
               {new Date(datos.contandoDesde).toLocaleDateString("es-CO")}, pero en{" "}
-              {datos.etiqueta.toLowerCase()} no llegó nadie. Si la pauta está activa,
-              revise que el enlace del anuncio apunte a esta dirección.
+              {datos.etiqueta.toLowerCase()} no llegó nadie. Si la pauta está
+              activa, revise que el enlace del anuncio apunte a esta dirección.
             </>
           ) : (
             <>
-              No se ha registrado ni una visita desde que existe esta pantalla. Si la
-              página sí está recibiendo gente, lo que falla es la medición y no la
-              pauta.
+              No se ha registrado ni una visita desde que existe esta pantalla. Si
+              la página sí está recibiendo gente, lo que falla es la medición y no
+              la pauta.
             </>
           )}
         </Vacio>
       ) : (
         <>
+          {/* Las tres cifras que deciden, con su tendencia al
+              lado. Quien abre esto quiere saber si la plata esta
+              trayendo inscritos. */}
+          <div className="grid gap-4 sm:grid-cols-3">
+            <Resumen
+              etiqueta="Abrieron la página"
+              valor={llegaron}
+              serie={dias.map((d) => d.llegaron)}
+              color="var(--serie-1)"
+            />
+            <Resumen
+              etiqueta="Eligieron un curso"
+              valor={eligieron}
+              serie={dias.map((d) => d.preinscritos)}
+              color="var(--serie-2)"
+              pie={
+                llegaron >= MINIMO_PARA_TASA
+                  ? `${Math.round((eligieron / llegaron) * 100)} % de quienes llegaron`
+                  : "Aún son pocas visitas para un porcentaje"
+              }
+            />
+            <Resumen
+              etiqueta="Se preinscribieron"
+              valor={quedaron}
+              serie={dias.map((d) => d.preinscritos)}
+              color="var(--exito)"
+              pie={
+                quedaron === 0
+                  ? "Ninguna todavía en este periodo"
+                  : `${n(quedaron)} ficha${quedaron === 1 ? "" : "s"} creada${
+                      quedaron === 1 ? "" : "s"
+                    }`
+              }
+            />
+          </div>
+
+          {/* LA SERIE ES LA PROTAGONISTA: es el comparativo entre
+              fechas que pidio el cliente, desde el arranque. */}
+          <div className="rounded-2xl border border-borde bg-superficie p-5">
+            <div className="mb-1 flex flex-wrap items-baseline justify-between gap-2">
+              <h2 className="text-sm font-semibold tracking-wide text-texto-suave uppercase">
+                Día a día, desde que arrancó el contador
+              </h2>
+              {dias.length > 0 && (
+                <span className="text-xs text-texto-suave tabular-nums">
+                  {diaCorto(dias[0].dia)} → {diaCorto(dias[dias.length - 1].dia)}
+                </span>
+              )}
+            </div>
+            <p className="mb-4 text-sm text-texto-suave">
+              Se compara contra los días anteriores, no contra un periodo en el que
+              no había contador.
+            </p>
+            <DosSeriesPorDia
+              a={{
+                nombre: "Abrieron la página",
+                datos: dias.map((d) => ({ dia: d.dia, total: d.llegaron })),
+                color: "var(--serie-1)",
+              }}
+              b={{
+                nombre: "Se preinscribieron",
+                datos: dias.map((d) => ({ dia: d.dia, total: d.preinscritos })),
+                color: "var(--exito)",
+              }}
+              vacio="Todavía no hay ningún día con datos."
+            />
+          </div>
+
           {datos?.caidaMayor && (
-            <div className="rounded-2xl border border-aviso/40 bg-aviso-suave p-5">
-              <p className="text-xs font-semibold tracking-wide text-aviso uppercase">
-                Donde más gente se va
-              </p>
-              <p className="mt-1 text-lg font-semibold text-texto">
+            <p className="rounded-xl border border-aviso/40 bg-aviso-suave px-4 py-3 text-sm">
+              <span className="font-semibold text-aviso">Donde más gente se va: </span>
+              <span className="text-texto">
                 {datos.caidaMayor.sePerdieron === 1
                   ? "1 persona se fue"
                   : `${n(datos.caidaMayor.sePerdieron)} personas se fueron`}{" "}
                 entre «{COMO_SE_LEE[datos.caidaMayor.de] ?? datos.caidaMayor.de}» y «
                 {COMO_SE_LEE[datos.caidaMayor.a] ?? datos.caidaMayor.a}».
-              </p>
-            </div>
+              </span>
+            </p>
           )}
 
-          <div className="rounded-2xl border border-borde bg-superficie p-5">
-            <h2 className="mb-4 text-sm font-semibold tracking-wide text-texto-suave uppercase">
-              De la pauta a la preinscripción · {datos?.etiqueta ?? ""}
-            </h2>
-            <EmbudoProceso hitos={hitos} notas={notas} />
-          </div>
+          <div className="grid gap-4 lg:grid-cols-[3fr_2fr]">
+            <div className="rounded-2xl border border-borde bg-superficie p-5">
+              <h2 className="mb-4 text-sm font-semibold tracking-wide text-texto-suave uppercase">
+                Paso a paso · {datos?.etiqueta ?? ""}
+              </h2>
+              <EmbudoProceso hitos={hitos} notas={notas} />
+            </div>
 
-          <Corte
-            titulo="De dónde venían"
-            filas={datos?.procedencia ?? []}
-            nombre={(v) => NOMBRE_PROCEDENCIA[v ?? ""] ?? "Sin dato"}
-          />
+            <div className="rounded-2xl border border-borde bg-superficie p-5">
+              <h2 className="mb-4 text-sm font-semibold tracking-wide text-texto-suave uppercase">
+                De dónde venían
+              </h2>
+              <Donut
+                datos={porcionesProcedencia}
+                centro={n(llegaron)}
+                detalleCentro="visitas"
+                vacio="Sin visitas en este periodo."
+              />
+            </div>
+          </div>
 
           <div className="grid gap-4 lg:grid-cols-3">
             <Corte
               titulo="Por dispositivo"
               filas={datos?.dispositivo ?? []}
               nombre={(v) => NOMBRE_ANCHO[v ?? ""] ?? "Sin dato"}
+              total={llegaron}
             />
             <Corte
               titulo="Por qué dirección entraron"
               filas={datos?.entrada ?? []}
-              nombre={(v) => NOMBRE_PUERTA[v ?? ""] ?? "Sin dato"}
+              nombre={(v) => NOMBRE_ENTRADA[v ?? ""] ?? "Sin dato"}
+              total={llegaron}
             />
             <Corte
               titulo="Por campaña"
               filas={datos?.campana ?? []}
               nombre={(v) => v ?? "Sin campaña: entrada directa"}
+              total={llegaron}
             />
           </div>
         </>
@@ -270,42 +367,34 @@ export default function PaginaTrafico() {
         <p className="font-medium text-texto">Cómo leer estas cifras</p>
         <ul className="mt-2 list-disc space-y-1.5 pl-5">
           <li>
-            Son un <strong>suelo, no un total</strong>: no cuentan a quien se va antes
-            de que la página termine de cargar, ni a quien usa bloqueador.
+            Son un <strong>suelo, no un total</strong>: no cuentan a quien se va
+            antes de que la página termine de cargar, ni a quien usa bloqueador.
           </li>
           <li>
-            <strong>Y no cuentan nada anterior al contador.</strong> Quien se
-            preinscribió antes de que esto existiera no aparece aquí, aunque sí
-            esté en Gestión de leads.
+            <strong>No cuentan nada anterior al contador.</strong> Quien se
+            preinscribió antes no aparece aquí, aunque sí esté en Gestión de leads.
           </li>
           <li>
-            La unidad es la <strong>visita</strong>, no la persona. Quien vuelve otro
-            día cuenta dos veces; quien va y viene entre pantallas cuenta una.
-          </li>
-          <li>
-            «Quedaron preinscritos» lo escribe el servidor, no el navegador: es la
-            única cifra que no se pierde aunque se cierre la pestaña.
-          </li>
-          <li>
-            El registro del servidor cuenta lo mismo sin depender del navegador. Si
-            las dos cifras se separan mucho, la diferencia son bloqueadores.
-          </li>
-          <li>
-            <strong>El porcentaje no sale con menos de {MINIMO_PARA_TASA} visitas.</strong>{" "}
-            Una tasa hecha de dos visitas no dice nada, y con nueve procedencias
-            las primeras semanas hay filas de un dígito.
+            <strong>
+              El porcentaje no sale con menos de {MINIMO_PARA_TASA} visitas.
+            </strong>{" "}
+            Una tasa hecha de dos visitas no dice nada.
           </li>
           <li>
             <strong>Esta cifra será MENOR que los clics que reporta Meta</strong>, y
             no es un error: aquí no entran los rastreadores —que no ejecutan
-            JavaScript— ni quien se va antes de que la página cargue. Para
-            contrastar con Meta sirve el registro del servidor, no esta pantalla.
+            JavaScript— ni quien se va antes de que la página cargue.
           </li>
           <li>
-            <strong>«No dejó rastro» no quiere decir que escribieran la dirección.</strong>{" "}
+            <strong>
+              «No dejó rastro» no quiere decir que escribieran la dirección.
+            </strong>{" "}
             Quiere decir que no llegó ninguna señal — y así entra casi todo el
-            correo y casi todo WhatsApp, que no dejan referencia. Para que esos
-            dos canales se vean, sus enlaces tienen que salir etiquetados.
+            correo y casi todo WhatsApp, que no dejan referencia.
+          </li>
+          <li>
+            La unidad es la <strong>visita</strong>, no la persona. Quien vuelve
+            otro día cuenta dos veces.
           </li>
         </ul>
       </div>
@@ -313,40 +402,78 @@ export default function PaginaTrafico() {
   );
 }
 
-/// Un corte con su conversión. La misma forma para los tres.
+/// Una cifra grande con su tendencia. La chispa solo sale con dos
+/// días o más: con uno sería una raya, y una raya se lee como un
+/// fallo de dibujo, no como «todavía no hay historia».
+function Resumen({
+  etiqueta,
+  valor,
+  serie,
+  color,
+  pie,
+}: {
+  etiqueta: string;
+  valor: number;
+  serie: number[];
+  color: string;
+  pie?: string;
+}) {
+  return (
+    <div className="rounded-2xl border border-borde bg-superficie p-5">
+      <p className="text-xs font-medium tracking-wide text-texto-suave uppercase">
+        {etiqueta}
+      </p>
+      <p className="mt-1 text-3xl font-semibold tabular-nums" style={{ color }}>
+        {n(valor)}
+      </p>
+      {serie.length > 1 && (
+        <Chispa
+          datos={serie}
+          color={color}
+          clase="mt-2 h-8 w-full"
+          etiqueta={`${etiqueta}, día a día`}
+        />
+      )}
+      {pie && <p className="mt-2 text-xs text-texto-suave">{pie}</p>}
+    </div>
+  );
+}
+
+/// Un corte con barras, no una lista de números sueltos: con dos
+/// filas, una lista parece una caja vacía con texto dentro.
 function Corte({
   titulo,
   filas,
   nombre,
+  total,
 }: {
   titulo: string;
   filas: CorteDeVisitas[];
   nombre: (valor: string | null) => string;
+  total: number;
 }) {
   return (
     <div className="rounded-2xl border border-borde bg-superficie p-5">
       <h3 className="mb-3 text-sm font-semibold tracking-wide text-texto-suave uppercase">
         {titulo}
       </h3>
-      {filas.length === 0 ? (
-        <p className="text-sm text-texto-suave">Sin visitas en este periodo.</p>
-      ) : (
-        <ul className="space-y-2.5">
-          {filas.map((f) => (
-            <li
-              key={f.valor ?? "sin"}
-              className="flex items-baseline justify-between gap-3"
-            >
-              <span className="min-w-0 flex-1 truncate text-sm text-texto">
-                {nombre(f.valor)}
-              </span>
-              <span className="shrink-0 text-sm text-texto-suave tabular-nums">
-                {n(f.visitas)} ·{" "}
-                <strong className="text-texto">{tasa(f.envios, f.visitas)}</strong>
-              </span>
-            </li>
-          ))}
-        </ul>
+      <ListaBarras
+        datos={filas.map((f) => ({
+          clave: f.valor ?? "sin",
+          etiqueta: nombre(f.valor),
+          valor: f.visitas,
+          detalle:
+            f.visitas >= MINIMO_PARA_TASA
+              ? `${Math.round((f.envios / f.visitas) * 100)} % se preinscribió`
+              : undefined,
+        }))}
+        vacio="Sin visitas en este periodo."
+        maximoFilas={6}
+      />
+      {total > 0 && filas.length > 0 && (
+        <p className="mt-3 text-xs text-texto-suave">
+          Sobre {n(total)} visita{total === 1 ? "" : "s"} del periodo.
+        </p>
       )}
     </div>
   );

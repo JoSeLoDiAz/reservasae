@@ -8,6 +8,8 @@ export type EmbudoPublico = {
   /// hubiera gente: es que no se contaba.
   contandoDesde: string | null;
   hitos: Array<{ paso: string; visitas: number }>;
+  /// Dia a dia desde que arranco el contador: el comparativo.
+  porDia: Array<{ dia: string; llegaron: number; preinscritos: number }>;
   caidaMayor: { de: string; a: string; sePerdieron: number } | null;
   /// De donde venian. Ver `backend/src/embudo/procedencia.ts`.
   /// NO se llama «canal»: esa palabra ya la usa /admin/control

@@ -5,6 +5,7 @@ import { Prisma } from '../../generated/prisma';
 
 import { resolverVentana, type Rango } from '../crm/ventana';
 import { PrismaService } from '../prisma/prisma.service';
+import { diaBogota } from '../comun/dia-bogota';
 import { procedenciaSql } from './procedencia';
 import { MarcarPasoDto } from './dto';
 import { altura, ESCALERA, VERSION_EMBUDO } from './escalera';
@@ -14,6 +15,7 @@ const SOLO_AL_LLEGAR = 'LLEGO';
 
 type FilaEmbudo = { paso: string; visitas: bigint };
 type FilaCorte = { valor: string | null; visitas: bigint; envios: bigint };
+type FilaDia = { dia: string; llegaron: bigint; preinscritos: bigint };
 
 @Injectable()
 export class EmbudoService {
@@ -158,7 +160,8 @@ export class EmbudoService {
     const porPaso = new Map(filas.map((f) => [f.paso, Number(f.visitas)]));
     const hitos = ESCALERA.map((paso) => ({ paso, visitas: porPaso.get(paso) ?? 0 }));
 
-    const [procedencia, dispositivo, entrada, campana] = await Promise.all([
+    const [porDia, procedencia, dispositivo, entrada, campana] = await Promise.all([
+      this.porDia(ambito, desde, hasta),
       this.corte(ambito, desde, hasta, procedenciaSql()),
       this.corte(ambito, desde, hasta, Prisma.raw('"ancho"')),
       this.corte(ambito, desde, hasta, Prisma.raw('"puerta"')),
@@ -179,11 +182,68 @@ export class EmbudoService {
       contandoDesde: primero?.creadoEn ?? null,
       hitos,
       caidaMayor: caidaMayor(hitos),
+      porDia,
       procedencia,
       dispositivo,
       entrada,
       campana,
     };
+  }
+
+  /**
+   * Cuántos llegan y cuántos se preinscriben, DÍA A DÍA.
+   *
+   * Es el comparativo que pidió el cliente: desde que arrancó el
+   * contador y hacia adelante, en vez de contra un periodo en el
+   * que no se medía —que daría un −100 % que solo dice que antes
+   * no había contador.
+   *
+   * Los días sin nada salen en CERO y no faltan: una serie con
+   * huecos se lee como si esos días no existieran.
+   */
+  private async porDia(
+    ambito: string[],
+    desde: Date,
+    hasta: Date,
+  ): Promise<Array<{ dia: string; llegaron: number; preinscritos: number }>> {
+    const filas = await this.prisma.$queryRaw<FilaDia[]>`
+      WITH visitas AS (
+        SELECT "visitaId",
+               MIN("creadoEn") AS empezo,
+               bool_or("paso" = 'REGISTRADO'
+                       AND coalesce("detalle", 'NUEVA') <> 'REPETIDA') AS se_inscribio
+          FROM "pasos_de_visita"
+         WHERE "convenioId" IN (${Prisma.join(ambito)})
+         GROUP BY "visitaId"
+      ),
+      dentro AS (
+        SELECT * FROM visitas WHERE empezo >= ${desde} AND empezo < ${hasta}
+      ),
+      /// Los dias del rango, para que los ceros existan.
+      calendario AS (
+        SELECT to_char(d, 'YYYY-MM-DD') AS dia
+          FROM generate_series(
+                 (SELECT MIN(empezo) FROM dentro) AT TIME ZONE 'UTC' AT TIME ZONE 'America/Bogota',
+                 NOW() AT TIME ZONE 'America/Bogota',
+                 interval '1 day') AS d
+      ),
+      contadas AS (
+        SELECT ${diaBogota(Prisma.sql`empezo`)} AS dia,
+               COUNT(*)::bigint AS llegaron,
+               COUNT(*) FILTER (WHERE se_inscribio)::bigint AS preinscritos
+          FROM dentro GROUP BY 1
+      )
+      SELECT c.dia,
+             coalesce(x.llegaron, 0)::bigint AS llegaron,
+             coalesce(x.preinscritos, 0)::bigint AS preinscritos
+        FROM calendario c LEFT JOIN contadas x USING (dia)
+       ORDER BY c.dia
+    `;
+    return filas.map((f) => ({
+      dia: f.dia,
+      llegaron: Number(f.llegaron),
+      preinscritos: Number(f.preinscritos),
+    }));
   }
 
   /// Un corte del paso de LLEGADA, con su conversión.
@@ -233,6 +293,7 @@ export class EmbudoService {
       contandoDesde: null,
       hitos: ESCALERA.map((paso) => ({ paso, visitas: 0 })),
       caidaMayor: null,
+      porDia: [],
       procedencia: [],
       dispositivo: [],
       entrada: [],
