@@ -1,5 +1,6 @@
 /** La ficha arma sus datos con el MISMO armador de campañas. */
 
+import { dobleDeMarcaDeCarta } from '../carta/doble';
 import { PlantillasCorreoService } from './plantillas-correo.service';
 
 /// Un inscrito NO tiene cobertura: por regla del cliente,
@@ -56,6 +57,7 @@ function servicio(ficha: unknown = FICHA) {
   const s = new PlantillasCorreoService(
     prisma as never,
     { enviar: jest.fn() } as never,
+    dobleDeMarcaDeCarta(),
   );
   return { s, visto };
 }

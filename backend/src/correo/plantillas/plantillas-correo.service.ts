@@ -21,6 +21,9 @@ import {
 import { escaparAtributo, escaparHtml } from '../escapar';
 import { urlPublicaDeLaApi } from '../url-publica';
 import { datosParaPlantilla } from '../campanas/datos-plantilla';
+import { cartaHtml } from '../carta/carta';
+import { bloquesDe, comoTexto, resolverBloques } from '../carta/formato';
+import { MarcaDeCarta } from '../carta/marca-de-la-carta';
 import { porQueNo } from './etapas-de-plantilla';
 import {
   resolver,
@@ -40,6 +43,8 @@ export class PlantillasCorreoService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly correo: CorreoService,
+    /// Al final: hay specs que construyen este servicio a mano.
+    private readonly marcaDeCarta: MarcaDeCarta,
   ) {}
 
   /** El catálogo de variables, para quien escribe. */
@@ -348,25 +353,63 @@ export class PlantillasCorreoService {
 
     const valores = valoresDe(datos.datos);
     const asunto = resolver(plantilla.asunto, valores);
-    const cuerpo = resolver(plantilla.cuerpo, valores);
+
+    /// EL FORMATO SE APLICA SOBRE EL TEXTO DE LA PLANTILLA y
+    /// las variables se ponen DENTRO de cada bloque. Al revés,
+    /// una razón social como «# 1 LOGISTICA S.A.S» se
+    /// convertiría en el título del correo.
+    const puestos = resolverBloques(bloquesDe(plantilla.cuerpo), (t) =>
+      resolver(t, valores),
+    );
 
     /// Los faltantes de los dos, juntos y sin repetir: a quien
     /// manda le da igual si el hueco estaba en el asunto o en
     /// el cuerpo, lo que necesita saber es qué le falta.
-    const faltantes = [...new Set([...asunto.faltantes, ...cuerpo.faltantes])];
+    const faltantes = [...new Set([...asunto.faltantes, ...puestos.faltantes])];
+    const desconocidas = [
+      ...new Set([...asunto.desconocidas, ...puestos.desconocidas]),
+    ];
+
+    const marca = await this.marcaDeCarta.delConvenio(datos.convenioId);
+    const cabezote = plantilla.bannerMime
+      ? urlDelCabezote(plantilla.id, plantilla.bannerVersion)
+      : null;
 
     return {
       para: datos.correo,
       nombre: datos.nombre,
       asunto: asunto.texto,
-      cuerpo: cuerpo.texto,
+      cuerpo: comoTexto(puestos.bloques),
+      /// EL HTML DE VERDAD, el mismo que va a salir.
+      ///
+      /// La previa pintaba el texto plano mientras el correo
+      /// salía con diseño: enseñaba algo que no es. Es
+      /// exactamente el defecto de la previsualización de los
+      /// logos, que decía lo contrario de lo que hacía la
+      /// cabecera. La cura es la misma: un solo renderizador,
+      /// llamado por los dos.
+      html: cartaHtml({
+        asunto: asunto.texto,
+        bloques: puestos.bloques,
+        marca,
+        cabezote,
+      }),
       faltantes,
-      desconocidas: [
-        ...new Set([...asunto.desconocidas, ...cuerpo.desconocidas]),
-      ],
-      /// Se puede mandar si hay a dónde y no quedó ningún
-      /// hueco sin llenar.
-      sePuede: Boolean(datos.correo) && faltantes.length === 0,
+      desconocidas,
+      /// Se puede mandar si hay a dónde, no quedó ningún hueco
+      /// sin llenar Y no hay ninguna variable inventada.
+      ///
+      /// Lo último faltaba, y no era teórico: las plantillas
+      /// que trae el cliente vienen en MAYUSCULA_CON_GUIONES,
+      /// que no existen en el catálogo. Una clave desconocida
+      /// no entra en `faltantes` —entra en `desconocidas`— así
+      /// que la compuerta la dejaba pasar y el correo salía con
+      /// «Estimado {{NOMBRE_PARTICIPANTE}}» impreso, firmado
+      /// por el gremio, sin que nada fallara.
+      sePuede:
+        Boolean(datos.correo) &&
+        faltantes.length === 0 &&
+        desconocidas.length === 0,
     };
   }
 
@@ -436,6 +479,20 @@ export class PlantillasCorreoService {
       );
     }
 
+    /// Y TAMPOCO SALE CON VARIABLES QUE NO EXISTEN.
+    ///
+    /// `revisar()` las rechaza al guardar, pero una plantilla
+    /// puede haberse guardado antes de que existiera esa
+    /// comprobación, o haber perdido una variable que se
+    /// quitó del catálogo. Sin esto salía con la llave impresa.
+    if (vista.desconocidas.length > 0) {
+      throw new BadRequestException(
+        'Esta plantilla usa variables que no existen: ' +
+          `${vista.desconocidas.map((f) => `{{${f}}}`).join(', ')}. ` +
+          'Corríjala antes de mandarla: saldrían literales en el correo.',
+      );
+    }
+
     /// El cabezote va por URL y no adjunto: quien lo descarga
     /// es el cliente de correo de la otra persona. La versión
     /// viaja en la dirección porque la respuesta se cachea una
@@ -457,16 +514,14 @@ export class PlantillasCorreoService {
     /// que algo falló; una imagen rota se pinta sola, arriba
     /// del todo, en el sitio donde va el logo del gremio. Mejor
     /// que no salga a que salga el icono de imagen partida.
-    const cabezote = plantilla?.bannerMime
-      ? urlDelCabezote(plantillaId, plantilla.bannerVersion)
-      : null;
-
     const r = await this.correo.enviar({
       deParte: quienFirma(ficha?.convenio),
       para: vista.para,
       asunto: vista.asunto,
       texto: vista.cuerpo,
-      html: aHtml(vista.cuerpo, cabezote),
+      /// El MISMO html que enseñó la vista previa. Armarlo
+      /// otra vez aquí sería la segunda verdad de siempre.
+      html: vista.html,
     });
 
     if (r.estado === 'FALLO') throw new BadRequestException(r.error);
@@ -526,44 +581,26 @@ export class PlantillasCorreoService {
       [datos.primerNombre, datos.primerApellido].filter(Boolean).join(' ') ||
       'Este lead';
 
-    return { datos, correo: datos.correo, nombre };
+    /// De que gremio es, para sus logos y sus colores. Va
+    /// aparte porque `DatosDelParticipante` es el contrato de
+    /// las VARIABLES --lo que se puede escribir entre llaves--
+    /// y el id de un convenio no es una variable de plantilla.
+    /// CON EL AMBITO TAMBIEN, aunque `datosParaPlantilla` ya
+    /// lo comprobo: una consulta sin acotar en este archivo es
+    /// la que alguien copia manana para otra cosa. Lo cazo su
+    /// propio spec al anadirla.
+    const suyo = await this.prisma.participante.findUnique({
+      where: { id: participanteId, convenioId: { in: ambito } },
+      select: { convenioId: true },
+    });
+
+    return {
+      datos,
+      correo: datos.correo,
+      nombre,
+      convenioId: suyo?.convenioId ?? null,
+    };
   }
-}
-
-/**
- * El mismo texto, servible como HTML.
- *
- * Se escapa TODO antes de tocar nada: el cuerpo lo escribe
- * una persona y puede llevar `<`, `&` o comillas sin querer
- * decir nada de HTML. Después los saltos de línea se vuelven
- * párrafos, que es lo que quien escribió esperaba ver.
- */
-export function aHtml(texto: string, cabezote?: string | null): string {
-  /// El escapado vive en un solo sitio: habia tres copias en
-  /// el modulo y no coincidian entre si.
-  const escapado = escaparHtml(texto);
-
-  const parrafos = escapado
-    .split(/\n{2,}/)
-    .map((p) => `<p>${p.replace(/\n/g, '<br>')}</p>`)
-    .join('\n');
-
-  /// Ancho tope 600 y `display:block`: es lo que aguantan
-  /// Gmail y Outlook sin meter un hueco blanco debajo. El
-  /// `alt` va vacio a proposito -- es decoracion, y con texto
-  /// alternativo quien tenga las imagenes apagadas empieza el
-  /// correo leyendo el nombre de un archivo.
-  const franja = cabezote
-    ? `<img src="${escaparAtributo(cabezote)}" alt="" style="display:block;width:100%;max-width:600px;height:auto;border:0">`
-    : '';
-
-  return (
-    '<div style="font-family:system-ui,-apple-system,Segoe UI,sans-serif;' +
-    'font-size:15px;line-height:1.55;color:#161a26">' +
-    franja +
-    parrafos +
-    '</div>'
-  );
 }
 
 /**

@@ -40,6 +40,9 @@ export type DatosDelParticipante = {
   modalidad: string | null;
   asesor: string | null;
   gremio: string | null;
+  /// Lo que le falta a ESTA ficha para entrar al reporte, en
+  /// palabras. Sale de `faltaDeLaPersona`, la unica regla.
+  faltan: string[];
 };
 
 export type Variable = {
@@ -86,7 +89,18 @@ export const VARIABLES: Variable[] = [
   { clave: 'modalidad', titulo: 'Modalidad', ejemplo: 'Virtual' },
   { clave: 'asesor', titulo: 'Quién lo acompaña', ejemplo: 'Ana Jaramillo' },
   { clave: 'gremio', titulo: 'Gremio', ejemplo: 'ADECOPRIA' },
+  {
+    clave: 'faltan',
+    titulo: 'Qué datos le faltan',
+    ejemplo: 'estrato, barrio o vereda y nivel ocupacional',
+  },
 ];
+
+/// «a», «a y b», «a, b y c». La misma de `bienvenida.ts`.
+function enPalabras(cosas: string[]): string {
+  if (cosas.length === 1) return cosas[0];
+  return `${cosas.slice(0, -1).join(', ')} y ${cosas[cosas.length - 1]}`;
+}
 
 const MESES = [
   'enero',
@@ -210,6 +224,16 @@ export function valoresDe(
     modalidad: d.modalidad,
     asesor: d.asesor,
     gremio: d.gremio,
+    /**
+     * NULO CUANDO NO LE FALTA NADA, y eso es la compuerta.
+     *
+     * Una plantilla que dice «nos faltan sus datos» no se le
+     * puede mandar a quien los tiene todos: seria pedirle algo
+     * que ya dio. Como un hueco sin llenar detiene el envio, la
+     * propia variable hace de candado y no hace falta ninguna
+     * regla aparte.
+     */
+    faltan: d.faltan.length > 0 ? enPalabras(d.faltan) : null,
   };
 }
 

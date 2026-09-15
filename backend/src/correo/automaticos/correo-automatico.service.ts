@@ -16,7 +16,10 @@ import {
 import { datosParaPlantilla } from '../campanas/datos-plantilla';
 import { CorreoService } from '../correo.service';
 import { porQueNo } from '../plantillas/etapas-de-plantilla';
-import { aHtml, urlDelCabezote } from '../plantillas/plantillas-correo.service';
+import { cartaHtml } from '../carta/carta';
+import { bloquesDe, comoTexto, resolverBloques } from '../carta/formato';
+import { MarcaDeCarta } from '../carta/marca-de-la-carta';
+import { urlDelCabezote } from '../plantillas/plantillas-correo.service';
 import { quienFirma } from '../quien-firma';
 import { resolver, valoresDe } from '../plantillas/variables';
 
@@ -46,6 +49,8 @@ export class CorreoAutomaticoService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly correo: CorreoService,
+    /// Al final: hay un spec que lo construye a mano.
+    private readonly marcaDeCarta: MarcaDeCarta,
   ) {}
 
   /**
@@ -182,8 +187,17 @@ export class CorreoAutomaticoService {
 
     const valores = valoresDe(datos);
     const asunto = resolver(plantilla.asunto, valores);
-    const cuerpo = resolver(plantilla.cuerpo, valores);
-    const faltantes = [...new Set([...asunto.faltantes, ...cuerpo.faltantes])];
+
+    /// El formato va sobre el texto de la PLANTILLA y las
+    /// variables se ponen dentro de cada bloque: al revés, un
+    /// valor que empiece por `#` se volvería el título.
+    const puestos = resolverBloques(bloquesDe(plantilla.cuerpo), (t) =>
+      resolver(t, valores),
+    );
+    const faltantes = [...new Set([...asunto.faltantes, ...puestos.faltantes])];
+    const desconocidas = [
+      ...new Set([...asunto.desconocidas, ...puestos.desconocidas]),
+    ];
 
     /// La regla 1 de `variables.ts` vale igual cuando no hay
     /// nadie mirando: un hueco sin llenar no se manda. Aqui
@@ -200,6 +214,20 @@ export class CorreoAutomaticoService {
       return true;
     }
 
+    /// Una variable que no existe tampoco sale: saldría la
+    /// llave impresa en la bandeja de alguien, firmada por el
+    /// gremio y sin que nada fallara.
+    if (desconocidas.length > 0) {
+      await this.cerrar(
+        fila.id,
+        EstadoCorreoAutomatico.OMITIDO,
+        `La plantilla usa variables que no existen: ${desconocidas
+          .map((f) => `{{${f}}}`)
+          .join(', ')}.`,
+      );
+      return true;
+    }
+
     const cabezote = plantilla.bannerMime
       ? urlDelCabezote(plantilla.id, plantilla.bannerVersion)
       : null;
@@ -208,8 +236,13 @@ export class CorreoAutomaticoService {
       deParte: quienFirma(ficha.convenio),
       para: datos.correo,
       asunto: asunto.texto,
-      texto: cuerpo.texto,
-      html: aHtml(cuerpo.texto, cabezote),
+      texto: comoTexto(puestos.bloques),
+      html: cartaHtml({
+        asunto: asunto.texto,
+        bloques: puestos.bloques,
+        marca: await this.marcaDeCarta.delConvenio(fila.convenioId),
+        cabezote,
+      }),
     });
 
     if (r.estado === 'APAGADO') {

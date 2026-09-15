@@ -3629,6 +3629,87 @@ la API.
 > es una línea en `variables.ts`, pero se lleva por delante las siglas
 > —`TIC` quedaría `Tic`—, así que no se hace por cuenta propia.
 
+### La carta: un correo del sistema se ve como un correo (15 sep 2026)
+
+El cliente mando tres plantillas HTML hechas fuera --confirmacion de
+inscripcion, bienvenida al curso y solicitud de datos-- con una frase:
+«la plantilla no gusta». Tenia razon: los correos de plantilla salian
+como parrafos pelados sobre blanco, sin cabecera, sin logos y sin pie.
+
+**Habia TRES envoltorios y ahora hay UNO.** `aHtml` (plantillas),
+`armarHtml` (campanas) y `armarBienvenida` hacian lo mismo de tres
+maneras; los dos primeros eran el mismo `<div>` con parrafos. Arreglar
+uno dejaba los otros atras en silencio — el patron de siempre. La carta
+vive en `backend/src/correo/carta/`.
+
+- **La forma sale del correo de acceso, que el cliente ya aprobo**:
+  banda con el color del gremio, **placa BLANCA** para los logos --estan
+  hechos para papel y Gmail invierte en modo oscuro--, tarjeta clara,
+  bordes de 1px y el color en marcas pequenas, nunca en fondos.
+- **La banda lleva LOS LOGOS DEL GREMIO**, no la firma de Convoca. Lo
+  pidio el cliente con esas palabras. Salen de `obtenerMarcaDeGremio`,
+  la MISMA que pinta el panel por Host: una segunda forma de resolver la
+  marca acabaria ensenando el logo de un gremio con los colores del
+  otro, y eso ya paso una vez.
+- **Si la plantilla tiene cabezote, MANDA el cabezote.** Alguien subio
+  esa imagen a proposito; pintar las dos cosas serian los mismos logos
+  dos veces.
+
+#### El formato: cuatro marcas que ya se escriben a mano
+
+El cuerpo sigue siendo texto --es lo que va en la parte `text/plain`,
+que es lo que recibe quien tiene el HTML apagado-- y se trocea con
+cuatro marcas: `# Titulo`, `## Seccion`, `Etiqueta: valor` y `• punto`,
+mas `> nota`.
+
+- **El panel de datos pide DOS filas seguidas, nunca una.** «Nota: si no
+  puede asistir, avisenos» es una frase corriente y tiene que seguir
+  siendo un parrafo; dos lineas asi seguidas ya son una tabla.
+- **Un simbolo delante del titulo va dentro del circulo**: `# ✓ Su
+  inscripcion quedo confirmada`. En texto plano se sigue leyendo igual.
+- **Se trocea el texto de la PLANTILLA y las variables se ponen DESPUES,
+  dentro de cada bloque.** Al reves, una razon social como
+  `# 1 LOGISTICA S.A.S` se convertiria en el titulo del correo de todo
+  el mundo.
+- **El texto plano no lleva ni una marca**: un `#` ahi es marcado crudo
+  en la bandeja de alguien. Las vinetas si se quedan.
+
+#### La previa pinta el HTML DE VERDAD, en un iframe
+
+La ficha ensenaba el texto plano mientras el correo salia con diseno: la
+previa decia algo que no es. Es el mismo defecto que tuvo la
+previsualizacion de los logos, y la cura es la misma — **un solo
+renderizador, llamado por los dos**. Va en un `<iframe srcDoc>` y no en
+un `<div>`: dentro del panel heredaria los estilos de Tailwind y
+volveria a ensenar otra cosa.
+
+#### Lo que se arreglo de paso, y era grave
+
+**Una variable que NO EXISTE ya no deja mandar el correo.** `resolver()`
+separa `faltantes` (clave conocida, valor nulo) de `desconocidas` (clave
+inventada), y la compuerta de los TRES caminos de envio miraba solo
+`faltantes`. O sea que una plantilla con `{{NOMBRE_PARTICIPANTE}}` --que
+es como vienen las que manda el cliente, en MAYUSCULA_CON_GUIONES--
+salia con la llave impresa en el cuerpo, firmada por el gremio, sin que
+nada fallara. Es justo lo que la regla 1 de `variables.ts` existe para
+impedir, colandose por la puerta de al lado.
+
+**Y una variable nueva que es su propia compuerta: `{{faltan}}`.** Dice
+que le falta a ESA ficha para entrar al reporte, en palabras, y sale de
+`faltaDeLaPersona` — la misma regla del panel. Cuando no falta nada
+queda NULA, asi que una plantilla que dice «nos faltan sus datos» no se
+le puede mandar a quien los tiene todos: el candado es la variable.
+
+> **Lo que las tres plantillas del cliente NO pueden decir hoy, y no es
+> codigo:** la fecha de inicio y el horario cuelgan del grupo, y por su
+> propia regla nada de lo inscrito cuelga del cronograma --en pruebas,
+> 6.600 inscritos con oferta y cero con cobertura--; el enlace, el
+> usuario y la contrasena de la plataforma no existen porque no hay LMS
+> y se decidio que la matricula viva alla; y el resumen de cada accion
+> esta vacio en produccion. Prometer cualquiera de esos datos en una
+> plantilla no la hace mas bonita: la hace immandable, porque un hueco
+> sin llenar detiene el envio.
+
 ### El acuse de la preinscripcion sale solo (15 sep 2026)
 
 Lo pidio el cliente: «gestionar correo automatico cuando la persona se

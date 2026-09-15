@@ -216,15 +216,44 @@ export function EnviarCorreo({ participanteId }: { participanteId: string }) {
             </div>
           )}
 
+          {vista.desconocidas.length > 0 && (
+            <div className="rounded-xl border border-error/30 bg-error-suave p-3 text-sm text-error">
+              <p className="font-medium">
+                Esta plantilla usa variables que no existen
+              </p>
+              <p className="mt-1">
+                {vista.desconocidas.map((f) => `{{${f}}}`).join(", ")}. Saldrían
+                literales en el correo, así que no se puede mandar. Corríjala en
+                Mailing.
+              </p>
+            </div>
+          )}
+
           <div className="rounded-xl border border-borde bg-superficie p-4">
             <p className="text-xs text-texto-suave">
               Para: <span className="font-mono">{vista.para ?? "—"}</span>
             </p>
             <p className="mt-1 font-medium">{vista.asunto}</p>
             <hr className="my-3 border-borde" />
-            <p className="whitespace-pre-wrap text-sm leading-relaxed">
-              {vista.cuerpo}
-            </p>
+            {/* EL HTML DE VERDAD, el mismo que va a salir.
+
+                Aquí se pintaba el texto plano mientras el correo
+                salía con su diseño: la previa enseñaba algo que
+                no es. Es el mismo defecto que tuvo la
+                previsualización de los logos, y la cura es la
+                misma — un solo renderizador, y que la pantalla
+                pinte lo que él devuelve.
+
+                Va en un iframe y no en un div: dentro del panel
+                heredaría los estilos de Tailwind y volvería a
+                enseñar otra cosa. `sandbox` vacío: es HTML
+                nuestro, pero no tiene nada que ejecutar. */}
+            <iframe
+              title="Así le va a llegar"
+              sandbox=""
+              srcDoc={vista.html}
+              className="h-[520px] w-full rounded-lg border border-borde bg-white"
+            />
           </div>
 
           <div className="flex flex-wrap items-center gap-3">

@@ -1,11 +1,16 @@
 /** El cabezote del correo: por dónde sale y cuándo no sale. */
 
+/// Lo que este spec probaba del HTML se mudó a
+/// `carta/carta.spec.ts` cuando el envoltorio de párrafos se
+/// convirtió en una carta de verdad. Aquí se queda lo que
+/// sigue siendo suyo: la DIRECCIÓN de la imagen.
+
 /// Esto se rompe en silencio y no se nota hasta que a alguien
 /// le llega el correo con un hueco arriba: nadie prueba una
 /// imagen que la descarga Gmail desde fuera. Por eso las tres
 /// reglas están fijadas aquí.
 
-import { aHtml, urlDelCabezote } from './plantillas-correo.service';
+import { urlDelCabezote } from './plantillas-correo.service';
 
 describe('la dirección del cabezote', () => {
   const antes = process.env.URL_PUBLICA;
@@ -57,38 +62,5 @@ describe('la dirección del cabezote', () => {
 
     process.env.URL_PUBLICA = '   ';
     expect(urlDelCabezote('pl-001', 1)).toBeNull();
-  });
-});
-
-describe('el HTML del correo', () => {
-  it('sin cabezote sale igual que siempre', () => {
-    const html = aHtml('Hola.');
-    expect(html).not.toContain('<img');
-    expect(html).toContain('<p>Hola.</p>');
-  });
-
-  it('con cabezote lo pone de primeras, antes del texto', () => {
-    const html = aHtml('Hola.', 'https://x.co/api/plantillas-correo/a/banner?v=1');
-
-    expect(html.indexOf('<img')).toBeLessThan(html.indexOf('<p>Hola.</p>'));
-    /// 600 px y `display:block`: es lo que aguantan Gmail y
-    /// Outlook sin meter un hueco blanco debajo.
-    expect(html).toContain('max-width:600px');
-    expect(html).toContain('display:block');
-  });
-
-  /// El `alt` vacío es a propósito: es decoración. Con texto
-  /// alternativo, quien tenga las imágenes apagadas empieza el
-  /// correo leyendo el nombre de un archivo.
-  it('el cabezote no lleva texto alternativo', () => {
-    const html = aHtml('Hola.', 'https://x.co/api/plantillas-correo/a/banner?v=1');
-    expect(html).toContain('alt=""');
-  });
-
-  /// La dirección entra en un atributo. Si trae un `&`, tiene
-  /// que salir escapado o el atributo se corta ahí.
-  it('escapa la dirección al meterla en el atributo', () => {
-    const html = aHtml('Hola.', 'https://x.co/b?v=1&t=2');
-    expect(html).toContain('v=1&amp;t=2');
   });
 });

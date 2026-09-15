@@ -27,6 +27,7 @@ const CAMILA: DatosDelParticipante = {
   modalidad: 'Virtual',
   asesor: 'Ana Jaramillo',
   gremio: 'ADECOPRIA',
+  faltan: ['estrato', 'barrio o vereda'],
 };
 
 const vacio: DatosDelParticipante = {
@@ -48,9 +49,23 @@ const vacio: DatosDelParticipante = {
   modalidad: null,
   asesor: null,
   gremio: null,
+  faltan: [],
 };
 
 const de = (d: DatosDelParticipante) => valoresDe(d);
+
+describe('lo que le falta a la ficha', () => {
+  it('se escribe como una frase, no como un array', () => {
+    expect(valoresDe(CAMILA).faltan).toBe('estrato y barrio o vereda');
+  });
+
+  it('a quien no le falta nada, la variable queda VACIA', () => {
+    /// Y eso es la compuerta: un hueco sin llenar detiene el
+    /// envio, asi que una plantilla que dice «nos faltan sus
+    /// datos» no se le puede mandar a quien los tiene todos.
+    expect(valoresDe({ ...CAMILA, faltan: [] }).faltan).toBeNull();
+  });
+});
 
 describe('el saludo, que es lo que se lee primero', () => {
   it('con género femenino trata de Sra. y por el apellido', () => {

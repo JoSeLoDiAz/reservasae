@@ -6,6 +6,7 @@
 /// Caro» y el de campaña «Hola, CAMILA», y nadie sabría cuál
 /// de los dos está mal.
 
+import { faltaDeLaPersona } from '../../crm/completitud';
 import type { PrismaService } from '../../prisma/prisma.service';
 import type { DatosDelParticipante } from '../plantillas/variables';
 
@@ -46,8 +47,18 @@ export async function datosParaPlantilla(
           numeroDocumento: true,
           correo: true,
           celular: true,
+          /// Los que mira `faltaDeLaPersona`: es la unica regla
+          /// de que le falta a una ficha, y la comparte con el
+          /// panel. Copiar aqui la lista seria la segunda.
+          fechaNacimiento: true,
+          estrato: true,
+          departamentoSepId: true,
+          municipioSepId: true,
+          direccion: true,
+          barrio: true,
         },
       },
+      nivelOcupacionalSepId: true,
       empresa: { select: { razonSocial: true } },
       reserva: { select: { empresa: { select: { razonSocial: true } } } },
       accionFormacion: {
@@ -123,6 +134,10 @@ export async function datosParaPlantilla(
     modalidad: enBonito(p.cobertura?.modalidad ?? p.oferta?.modalidad),
     asesor: p.asesor?.nombre ?? null,
     gremio: p.convenio?.sigla ?? p.convenio?.nombre ?? null,
+    faltan: faltaDeLaPersona({
+      persona: per,
+      nivelOcupacionalSepId: p.nivelOcupacionalSepId,
+    }),
   };
 }
 
@@ -162,5 +177,8 @@ export function deLaListaSubida(
     modalidad: null,
     asesor: null,
     gremio: null,
+    /// Vacio a proposito: de un cargue no se sabe que le
+    /// falta a nadie, asi que no se afirma.
+    faltan: [],
   };
 }

@@ -10,6 +10,7 @@
 
 import { BadRequestException } from '@nestjs/common';
 
+import { dobleDeMarcaDeCarta } from '../carta/doble';
 import { PlantillasCorreoService } from './plantillas-correo.service';
 
 function armar(ocupada: { nombre: string } | null) {
@@ -27,7 +28,11 @@ function armar(ocupada: { nombre: string } | null) {
       },
     },
   };
-  const s = new PlantillasCorreoService(prisma as never, {} as never);
+  const s = new PlantillasCorreoService(
+    prisma as never,
+    {} as never,
+    dobleDeMarcaDeCarta(),
+  );
   return { s, buscadas, creadas };
 }
 

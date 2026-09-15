@@ -49,7 +49,12 @@ export type VistaPrevia = {
   para: string | null;
   nombre: string;
   asunto: string;
+  /// El texto plano, que es la otra mitad del correo.
   cuerpo: string;
+  /// EL HTML DE VERDAD, el mismo que va a salir. La previa lo
+  /// pinta tal cual: armar aquí una imitación sería enseñar
+  /// algo que no es.
+  html: string;
   /// Variables que la plantilla usa y esta persona no tiene.
   /// Mientras haya una, no se manda.
   faltantes: string[];

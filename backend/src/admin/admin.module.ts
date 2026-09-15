@@ -14,5 +14,9 @@ import { AdminService } from './admin.service';
   ],
   controllers: [AdminController, MarcaPublicaController],
   providers: [AdminService],
+  /// Lo exporta para que el correo resuelva la marca con la
+  /// MISMA funcion que pinta el panel por Host, y no con una
+  /// segunda que acabe discrepando.
+  exports: [AdminService],
 })
 export class AdminModule {}

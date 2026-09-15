@@ -7,6 +7,8 @@ import {
 } from './campanas/campanas.controller';
 import { CampanasService } from './campanas/campanas.service';
 import { CampanasWorker } from './campanas/campanas.worker';
+import { AdminModule } from '../admin/admin.module';
+import { MarcaDeCarta } from './carta/marca-de-la-carta';
 import { ColaDeCorreo } from './automaticos/cola-de-correo';
 import { CorreoAutomaticoService } from './automaticos/correo-automatico.service';
 import { CorreoAutomaticoWorker } from './automaticos/correo-automatico.worker';
@@ -26,6 +28,9 @@ import { PlantillasCorreoService } from './plantillas/plantillas-correo.service'
 @Module({
   // AdminGuard necesita JwtService
   imports: [
+    /// Por `AdminService.obtenerMarcaDeGremio`: los logos y los
+    /// colores del correo salen de donde salen los del panel.
+    AdminModule,
     JwtModule.register({
       secret: process.env.ADMIN_JWT_SECRET,
       signOptions: { expiresIn: '8h' },
@@ -41,6 +46,7 @@ import { PlantillasCorreoService } from './plantillas/plantillas-correo.service'
   providers: [
     BienvenidaService,
     ColaDeCorreo,
+    MarcaDeCarta,
     CorreoAutomaticoService,
     CorreoAutomaticoWorker,
     CorreoService,
@@ -55,6 +61,7 @@ import { PlantillasCorreoService } from './plantillas/plantillas-correo.service'
   exports: [
     BienvenidaService,
     ColaDeCorreo,
+    MarcaDeCarta,
     CorreoAutomaticoService,
     CorreoService,
     PlantillasCorreoService,

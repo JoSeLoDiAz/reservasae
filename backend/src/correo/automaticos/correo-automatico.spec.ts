@@ -12,6 +12,7 @@
  * es un defecto que este proyecto ya pago cuatro veces.
  */
 
+import { dobleDeMarcaDeCarta } from '../carta/doble';
 import { CorreoAutomaticoService } from './correo-automatico.service';
 
 type Escritura = { id: string; datos: Record<string, unknown> };
@@ -154,7 +155,11 @@ function armar(opciones: {
     },
   };
 
-  const s = new CorreoAutomaticoService(prisma as never, correo as never);
+  const s = new CorreoAutomaticoService(
+    prisma as never,
+    correo as never,
+    dobleDeMarcaDeCarta(),
+  );
   return { s, escrituras, enviados, reclamos, caducados };
 }
 
