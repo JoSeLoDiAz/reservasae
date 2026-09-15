@@ -219,7 +219,7 @@ export class EmbudoService {
       dentro AS (
         SELECT * FROM visitas WHERE empezo >= ${desde} AND empezo < ${hasta}
       ),
-      /// Los dias del rango, para que los ceros existan.
+      -- los dias del rango, para que los ceros existan
       calendario AS (
         SELECT to_char(d, 'YYYY-MM-DD') AS dia
           FROM generate_series(
