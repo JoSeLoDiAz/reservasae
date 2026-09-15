@@ -159,7 +159,28 @@ juntos; el del frontend **no**, que sería una tercera verdad.
 Si la duda es funcional y no visual —qué hace un botón, qué datos trae una
 pantalla, si se sobrescribe algo que un administrador guardó— **pregunte**.
 
-## Estado actual (1 sep 2026 · v0.4.0-JD)
+## Estado actual (15 sep 2026 · v0.5.0-JD)
+
+> **v0.5.0-JD esta en PRODUCCION** (15 sep 2026, commit `53db1e4`, etiqueta
+> `v0.5.0`). Entraron once commits: la carta --un solo renderizador para todo el
+> correo del sistema--, el acuse automatico de la preinscripcion, el enlace de
+> completado viajando otra vez en el correo, el historico de trafico de antes del
+> contador, y los campos completos al inscribir desde el panel. Dos migraciones
+> (`correo_automatico` y `visitas_reconstruidas`) corrieron solas al arrancar.
+> Copia previa en `~/reservasae-antes-de-v0.5.0-*.sql.gz`.
+>
+> **Las cuatro plantillas de correo ya son datos de produccion**, colgadas de
+> ADECOPRIA. Se crearon con un INSERT y se comprobo que quedaron **identicas byte
+> a byte** a las que el cliente aprobo en pruebas — el archivo SQL salio de
+> Windows con CRLF y hubo que normalizarlo despues: `bloquesDe` lo habria
+> absorbido, pero la base no tiene por que guardar algo distinto de lo aprobado.
+>
+> **Y a partir de aqui sale correo de verdad a ciudadanos sin que nadie pulse
+> nada**: quien se preinscriba en ADECOPRIA recibe su acuse. `grupo-ae.com.co`
+> **sigue sin SPF, sin DKIM y sin DMARC** --recomprobado ese dia contra 8.8.8.8,
+> los tres TXT vacios--, asi que la reputacion del dominio pasa a importar de
+> verdad. Es lo primero que hay que cerrar.
+
 
 > **El CRM entero ya está en PRODUCCIÓN** (29 ago 2026). Hasta hoy `main`
 > iba 137 commits por detrás y producción servía la versión del 20 de
