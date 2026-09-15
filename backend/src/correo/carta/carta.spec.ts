@@ -28,6 +28,9 @@ const MARCA: MarcaDeLaCarta = {
   gremio: 'ADECOPRIA',
   correoDeContacto: 'proyectosena@grupo-ae.com.co',
   porQueLoRecibe: 'Recibe este correo porque se registró.',
+  signo: 'https://x.co/signo-convoca.png',
+  nombreApp: 'Convoca CRM',
+  eslogan: 'Relaciones que generan resultados',
 };
 
 const carta = (cuerpo: string, extra: Partial<Parameters<typeof cartaHtml>[0]> = {}) =>
@@ -67,15 +70,42 @@ describe('la cabecera', () => {
     expect(html).not.toContain('alt="ADECOPRIA"');
   });
 
-  it('sin logos y sin cabezote no queda un hueco: queda el nombre', () => {
+  it('la firma de Convoca va PRIMERO y los logos después', () => {
+    /// Lo pidió el cliente con ese orden. Se mide por posición
+    /// en el HTML, no de vista.
+    const html = carta('Hola.');
+    const firma = html.indexOf('Relaciones que generan resultados');
+    const logo = html.indexOf('alt="Grupo AE"');
+
+    expect(firma).toBeGreaterThan(-1);
+    expect(logo).toBeGreaterThan(firma);
+  });
+
+  it('sin logos del gremio queda la firma de Convoca, no un hueco', () => {
     const html = cartaHtml({
       asunto: 'x',
       bloques: bloquesDe('Hola.'),
       marca: { ...MARCA, logos: [] },
     });
 
-    expect(html).toContain('ADECOPRIA');
-    expect(html).not.toContain('<img');
+    expect(html).toContain('Convoca CRM');
+    expect(html).not.toContain('alt="ADECOPRIA"');
+  });
+
+  it('el texto de la banda se calcula, no sale del token', () => {
+    /// En producción `encabezadoTexto` es casi negro sobre una
+    /// banda verde oscura: ilegible. Sobre banda oscura va
+    /// blanco, diga lo que diga el tema.
+    const html = cartaHtml({
+      asunto: 'x',
+      bloques: bloquesDe('Hola.'),
+      marca: {
+        ...MARCA,
+        colores: { ...MARCA.colores, encabezadoTexto: '#1d222b' },
+      },
+    });
+
+    expect(html).toContain('color:#ffffff;letter-spacing:-.02em');
   });
 });
 

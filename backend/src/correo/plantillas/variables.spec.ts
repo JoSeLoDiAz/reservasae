@@ -27,6 +27,7 @@ const CAMILA: DatosDelParticipante = {
   modalidad: 'Virtual',
   asesor: 'Ana Jaramillo',
   gremio: 'ADECOPRIA',
+  donde: 'En línea',
   faltan: ['estrato', 'barrio o vereda'],
 };
 
@@ -49,6 +50,7 @@ const vacio: DatosDelParticipante = {
   modalidad: null,
   asesor: null,
   gremio: null,
+  donde: null,
   faltan: [],
 };
 
@@ -190,8 +192,18 @@ describe('el catálogo', () => {
   });
 
   it('con la ficha llena, ninguna del catálogo falta', () => {
-    const usadas = VARIABLES.map((v) => `{{${v.clave}}}`).join(' ');
+    /// `enlace` es la excepción, y es a propósito: no es un
+    /// dato de la ficha sino un token de un solo uso que
+    /// ACUÑA quien manda. Resolverlo aquí sería emitir uno en
+    /// cada previsualización, y emitir anula el anterior — le
+    /// rompería a la persona el enlace que ya tiene.
+    const delaFicha = VARIABLES.filter((v) => v.clave !== 'enlace');
+    const usadas = delaFicha.map((v) => `{{${v.clave}}}`).join(' ');
     expect(resolver(usadas, de(CAMILA)).faltantes).toHaveLength(0);
+  });
+
+  it('el enlace queda vacío hasta que alguien lo ponga', () => {
+    expect(de(CAMILA).enlace).toBeNull();
   });
 
   it('dice qué variables usa un texto', () => {

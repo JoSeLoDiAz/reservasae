@@ -10,6 +10,16 @@ import { faltaDeLaPersona } from '../../crm/completitud';
 import type { PrismaService } from '../../prisma/prisma.service';
 import type { DatosDelParticipante } from '../plantillas/variables';
 
+/// Donde se toma, en palabras. Nunca «—»: un guion en un
+/// correo parece un dato que falta.
+function donde(
+  modalidad: string | null,
+  ubicacion: string | null,
+): string | null {
+  if (modalidad === 'VIRTUAL') return 'En línea';
+  return ubicacion;
+}
+
 /// PRESENCIAL -> Presencial. En un correo no se le grita a
 /// nadie.
 function enBonito(m: string | null | undefined): string | null {
@@ -132,6 +142,29 @@ export async function datosParaPlantilla(
      * virtual: no estaba vacia, estaba MAL.
      */
     modalidad: enBonito(p.cobertura?.modalidad ?? p.oferta?.modalidad),
+    /**
+     * DONDE SE TOMA, que no es lo mismo que la ubicacion.
+     *
+     * Lo pidio el cliente: «cuando es una accion virtual no
+     * hay necesidad de poner de que ubicacion se va a hacer».
+     * Y no vale con anular `ubicacion`: un hueco sin llenar
+     * detiene el envio, y 80 de las 106 ofertas son virtuales
+     * --o sea que anularla no daria un correo sin sede, daria
+     * CERO correos--.
+     *
+     * En una virtual la ubicacion es el ALCANCE TERRITORIAL
+     * --«SANTANDER», «BOGOTA D.C»--, no una sede a la que ir:
+     * imprimirla es peor que callarla. Es la misma regla que
+     * ya usa el sitio publico en `modal-informacion-accion`.
+     *
+     * Para una HIBRIDA no hace falta nada mas: la sede ES la
+     * modalidad, y la oferta de esta persona ya es PRESENCIAL
+     * o VIRTUAL, nunca hibrida.
+     */
+    donde: donde(
+      p.cobertura?.modalidad ?? p.oferta?.modalidad ?? null,
+      p.cobertura?.ubicacion.nombre ?? p.oferta?.ubicacion.nombre ?? null,
+    ),
     asesor: p.asesor?.nombre ?? null,
     gremio: p.convenio?.sigla ?? p.convenio?.nombre ?? null,
     faltan: faltaDeLaPersona({
@@ -177,6 +210,7 @@ export function deLaListaSubida(
     modalidad: null,
     asesor: null,
     gremio: null,
+    donde: null,
     /// Vacio a proposito: de un cargue no se sabe que le
     /// falta a nadie, asi que no se afirma.
     faltan: [],

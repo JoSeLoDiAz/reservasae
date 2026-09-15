@@ -21,6 +21,8 @@ import {
 import { escaparAtributo, escaparHtml } from '../escapar';
 import { urlPublicaDeLaApi } from '../url-publica';
 import { datosParaPlantilla } from '../campanas/datos-plantilla';
+import { EnlaceDeCompletado } from '../../preinscripcion/enlace-de-completado';
+import { urlPublica } from '../url-publica';
 import { cartaHtml } from '../carta/carta';
 import { bloquesDe, comoTexto, resolverBloques } from '../carta/formato';
 import { MarcaDeCarta } from '../carta/marca-de-la-carta';
@@ -45,6 +47,7 @@ export class PlantillasCorreoService {
     private readonly correo: CorreoService,
     /// Al final: hay specs que construyen este servicio a mano.
     private readonly marcaDeCarta: MarcaDeCarta,
+    private readonly enlaces: EnlaceDeCompletado,
   ) {}
 
   /** El catálogo de variables, para quien escribe. */
@@ -268,6 +271,40 @@ export class PlantillasCorreoService {
   }
 
   /**
+   * El enlace de completado, SOLO si la plantilla lo pide.
+   *
+   * Sin esto, cada previsualización acuñaría un token: el
+   * enlace es de un solo uso y emitir uno anula el anterior,
+   * así que abrir el desplegable del correo le rompería a la
+   * persona el enlace que ya tiene en su bandeja.
+   *
+   * Y cuando sí se manda se usa `emitirOReusar`: si la persona
+   * ya tiene uno vivo --el del botón de la pantalla de
+   * gracias, o el que le pasó el asesor-- se manda ESE.
+   */
+  private async enlaceSiLoPide(
+    plantilla: { asunto: string; cuerpo: string },
+    participanteId: string,
+    deVerdad: boolean,
+    emitidoPorId: string | null,
+  ): Promise<{ enlace?: string | null }> {
+    const usadas = variablesUsadas(`${plantilla.asunto} ${plantilla.cuerpo}`);
+    if (!usadas.includes('enlace')) return {};
+
+    const sitio = urlPublica();
+    /// Sin `URL_PUBLICA` no hay enlace que mandar. Un
+    /// `localhost` en el correo de otra persona no lleva a
+    /// ninguna parte, y aquí callar detiene el envío, que es
+    /// lo correcto: la plantilla existe PARA mandar el enlace.
+    if (!sitio) return { enlace: null };
+
+    if (!deVerdad) return { enlace: `${sitio}/completar/…` };
+
+    const e = await this.enlaces.emitirOReusar(participanteId, emitidoPorId);
+    return { enlace: `${sitio}/completar/${e.token}` };
+  }
+
+  /**
    * Solo UNA plantilla activa dispara sola en cada gremio.
    *
    * Con dos, cual de las dos sale lo decidiria el orden de la
@@ -343,6 +380,14 @@ export class PlantillasCorreoService {
     participanteId: string,
     plantillaId: string,
     ambito: string[],
+    /// `true` solo cuando esto va a salir de verdad. Es lo que
+    /// decide si `{{enlace}}` acuña un token o enseña una
+    /// muestra: la previa la puede pedir cualquiera que VEA la
+    /// ficha, y un enlace de un solo uso no puede viajar al
+    /// panel solo porque alguien abrió un desplegable.
+    deVerdad = false,
+    /// Quién lo manda, para que conste quién emitió el enlace.
+    emitidoPorId: string | null = null,
   ) {
     const [plantilla, datos] = await Promise.all([
       this.prisma.plantillaCorreo.findUnique({ where: { id: plantillaId } }),
@@ -351,7 +396,15 @@ export class PlantillasCorreoService {
 
     if (!plantilla) throw new NotFoundException('Esa plantilla ya no existe.');
 
-    const valores = valoresDe(datos.datos);
+    const valores = {
+      ...valoresDe(datos.datos),
+      ...(await this.enlaceSiLoPide(
+        plantilla,
+        participanteId,
+        deVerdad,
+        emitidoPorId,
+      )),
+    };
     const asunto = resolver(plantilla.asunto, valores);
 
     /// EL FORMATO SE APLICA SOBRE EL TEXTO DE LA PLANTILLA y
@@ -413,7 +466,12 @@ export class PlantillasCorreoService {
     };
   }
 
-  async enviar(participanteId: string, plantillaId: string, ambito: string[]) {
+  async enviar(
+    participanteId: string,
+    plantillaId: string,
+    ambito: string[],
+    emitidoPorId: string | null = null,
+  ) {
     /// La compuerta va en el SERVIDOR, no en el desplegable.
     ///
     /// El desplegable ya las apaga, pero apagar un <option> es
@@ -458,7 +516,14 @@ export class PlantillasCorreoService {
       );
     }
 
-    const vista = await this.vistaPrevia(participanteId, plantillaId, ambito);
+    /// DE VERDAD: aquí sí se acuña el enlace si hace falta.
+    const vista = await this.vistaPrevia(
+      participanteId,
+      plantillaId,
+      ambito,
+      true,
+      emitidoPorId,
+    );
 
     if (!vista.para) {
       throw new BadRequestException(

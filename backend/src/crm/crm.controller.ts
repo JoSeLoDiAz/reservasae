@@ -610,8 +610,16 @@ export class CrmController {
     @Param('id') id: string,
     @Param('plantillaId') plantillaId: string,
     @AmbitoActual() ambito: Ambito,
+    @AdminActual() admin: Admin,
   ) {
-    return this.plantillasCorreo.enviar(id, plantillaId, ambito.convenios);
+    /// Quien lo manda queda en el enlace que se emita, igual
+    /// que cuando lo genera a mano desde la ficha.
+    return this.plantillasCorreo.enviar(
+      id,
+      plantillaId,
+      ambito.convenios,
+      admin.id,
+    );
   }
 
   /// El «Historial Logs»: qué decía antes cada dato.

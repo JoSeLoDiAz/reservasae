@@ -19,6 +19,7 @@
 
 import { PreinscripcionService } from './preinscripcion.service';
 import { dobleDeColaDeCorreo } from '../correo/automaticos/doble';
+import { dobleDeEnlace } from './doble-enlace';
 import { dobleDeEmbudo } from '../embudo/doble';
 
 /// Dos interruptores y no uno: «la cedula ya estaba» y «ya
@@ -97,6 +98,7 @@ function servicio(yaHabiaPersona = false, yaEstaEnLaAccion = yaHabiaPersona) {
     { agregarManual: () => Promise.resolve(null) } as never,
     dobleDeEmbudo(),
     cola,
+    dobleDeEnlace(),
   );
   return { s, cola };
 }

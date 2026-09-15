@@ -30,6 +30,11 @@
 /// detras. Lo que no cumple sigue siendo un parrafo.
 const FILA = /^([^:]{2,32}):[ \t]+(\S.*)$/;
 const VINETA = /^[•*-][ \t]+(\S.*)$/;
+/// `[Completar mis datos]({{enlace}})`: un boton. Se escribe
+/// como un enlace de markdown porque es lo que todo el mundo
+/// reconoce, y en texto plano se degrada a «Texto: url», que
+/// se lee igual de bien.
+const BOTON = /^\[([^\]]{2,60})\]\((\S+)\)$/;
 
 export type Bloque =
   | { tipo: 'TITULO'; texto: string; marca: string | null }
@@ -37,6 +42,7 @@ export type Bloque =
   | { tipo: 'PANEL'; filas: Array<{ etiqueta: string; valor: string }> }
   | { tipo: 'LISTA'; puntos: string[] }
   | { tipo: 'NOTA'; texto: string }
+  | { tipo: 'BOTON'; texto: string; url: string }
   | { tipo: 'PARRAFO'; texto: string };
 
 /** El cuerpo de la plantilla, troceado. */
@@ -76,6 +82,13 @@ export function bloquesDe(cuerpo: string): Bloque[] {
     if (limpia.startsWith('> ')) {
       cerrarParrafo();
       bloques.push({ tipo: 'NOTA', texto: limpia.slice(2).trim() });
+      continue;
+    }
+
+    const boton = BOTON.exec(limpia);
+    if (boton) {
+      cerrarParrafo();
+      bloques.push({ tipo: 'BOTON', texto: boton[1].trim(), url: boton[2] });
       continue;
     }
 
@@ -184,6 +197,8 @@ export function resolverBloques(
         };
       case 'LISTA':
         return { tipo: 'LISTA', puntos: b.puntos.map(r) };
+      case 'BOTON':
+        return { tipo: 'BOTON', texto: r(b.texto), url: r(b.url) };
       case 'TITULO':
         return { tipo: 'TITULO', texto: r(b.texto), marca: b.marca };
       default:
@@ -217,6 +232,10 @@ export function comoTexto(bloques: Bloque[]): string {
         return b.filas.map((f) => `${f.etiqueta}: ${f.valor}`).join('\n');
       case 'LISTA':
         return b.puntos.map((p) => `• ${p}`).join('\n');
+      case 'BOTON':
+        /// En texto plano la direccion tiene que verse entera:
+        /// ahi no hay nada que pulsar.
+        return `${b.texto}:\n${b.url}`;
       default:
         return b.texto;
     }

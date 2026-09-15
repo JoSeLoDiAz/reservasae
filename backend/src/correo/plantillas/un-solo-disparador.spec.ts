@@ -10,6 +10,7 @@
 
 import { BadRequestException } from '@nestjs/common';
 
+import { dobleDeEnlace } from '../../preinscripcion/doble-enlace';
 import { dobleDeMarcaDeCarta } from '../carta/doble';
 import { PlantillasCorreoService } from './plantillas-correo.service';
 
@@ -32,6 +33,7 @@ function armar(ocupada: { nombre: string } | null) {
     prisma as never,
     {} as never,
     dobleDeMarcaDeCarta(),
+    dobleDeEnlace(),
   );
   return { s, buscadas, creadas };
 }

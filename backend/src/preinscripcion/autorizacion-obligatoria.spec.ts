@@ -16,6 +16,7 @@
 import { BadRequestException } from '@nestjs/common';
 
 import { PreinscripcionService } from './preinscripcion.service';
+import { dobleDeEnlace } from './doble-enlace';
 import { dobleDeColaDeCorreo } from '../correo/automaticos/doble';
 import { dobleDeEmbudo } from '../embudo/doble';
 
@@ -108,6 +109,9 @@ function servicio(conPolitica = true) {
     { agregarManual: () => Promise.resolve(null) } as never,
       dobleDeEmbudo(),
     dobleDeColaDeCorreo(),
+    /// Con el token centinela: el spec comprueba que sale
+    /// para una cedula nueva y que NO sale para una ajena.
+    dobleDeEnlace('ESTE-TOKEN-NO-PUEDE-SALIR'),
   );
   return { s, prisma };
 }
@@ -204,6 +208,9 @@ describe('el enlace no se le entrega a quien solo sabe una cédula', () => {
     { agregarManual: () => Promise.resolve(null) } as never,
       dobleDeEmbudo(),
     dobleDeColaDeCorreo(),
+    /// Con el token centinela: el spec comprueba que sale
+    /// para una cedula nueva y que NO sale para una ajena.
+    dobleDeEnlace('ESTE-TOKEN-NO-PUEDE-SALIR'),
     );
 
     const r = (await s.registrar('adecopria', {
@@ -240,6 +247,9 @@ describe('el enlace no se le entrega a quien solo sabe una cédula', () => {
         { agregarManual: () => Promise.resolve(null) } as never,
       dobleDeEmbudo(),
     dobleDeColaDeCorreo(),
+    /// Con el token centinela: el spec comprueba que sale
+    /// para una cedula nueva y que NO sale para una ajena.
+    dobleDeEnlace('ESTE-TOKEN-NO-PUEDE-SALIR'),
     );
 
     await s.registrar('adecopria', {
@@ -291,6 +301,9 @@ describe('la misma cédula que vuelve con otro correo', () => {
         { agregarManual: () => Promise.resolve(null) } as never,
       dobleDeEmbudo(),
     dobleDeColaDeCorreo(),
+    /// Con el token centinela: el spec comprueba que sale
+    /// para una cedula nueva y que NO sale para una ajena.
+    dobleDeEnlace('ESTE-TOKEN-NO-PUEDE-SALIR'),
     );
     return { s, prisma };
   }

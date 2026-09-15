@@ -1,5 +1,6 @@
 /** La ficha arma sus datos con el MISMO armador de campañas. */
 
+import { dobleDeEnlace } from '../../preinscripcion/doble-enlace';
 import { dobleDeMarcaDeCarta } from '../carta/doble';
 import { PlantillasCorreoService } from './plantillas-correo.service';
 
@@ -58,6 +59,7 @@ function servicio(ficha: unknown = FICHA) {
     prisma as never,
     { enviar: jest.fn() } as never,
     dobleDeMarcaDeCarta(),
+    dobleDeEnlace(),
   );
   return { s, visto };
 }

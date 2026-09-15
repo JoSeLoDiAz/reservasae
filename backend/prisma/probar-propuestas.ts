@@ -11,6 +11,7 @@ import { DirectorioService } from '../src/crm/directorio.service';
 import { PrismaService } from '../src/prisma/prisma.service';
 import { ColaRui } from '../src/crm/rui/cola-rui';
 import { PreinscripcionService } from '../src/preinscripcion/preinscripcion.service';
+import { dobleDeEnlace } from '../src/preinscripcion/doble-enlace';
 import { dobleDeColaDeCorreo } from '../src/correo/automaticos/doble';
 import { dobleDeEmbudo } from '../src/embudo/doble';
 
@@ -54,6 +55,7 @@ async function main() {
     new DirectorioService(prisma as unknown as PrismaService),
       dobleDeEmbudo(),
     dobleDeColaDeCorreo(),
+    dobleDeEnlace(),
   );
 
   const p = await prisma.participante.findFirst({

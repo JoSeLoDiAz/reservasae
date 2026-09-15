@@ -21,7 +21,9 @@ import { bloquesDe, comoTexto, resolverBloques } from '../carta/formato';
 import { MarcaDeCarta } from '../carta/marca-de-la-carta';
 import { urlDelCabezote } from '../plantillas/plantillas-correo.service';
 import { quienFirma } from '../quien-firma';
-import { resolver, valoresDe } from '../plantillas/variables';
+import { resolver, valoresDe, variablesUsadas } from '../plantillas/variables';
+import { EnlaceDeCompletado } from '../../preinscripcion/enlace-de-completado';
+import { urlPublica } from '../url-publica';
 
 /// Cuantas veces se reintenta un fallo de SMTP antes de darlo
 /// por perdido, y cuanto se espera entre intentos. Cinco
@@ -51,6 +53,7 @@ export class CorreoAutomaticoService {
     private readonly correo: CorreoService,
     /// Al final: hay un spec que lo construye a mano.
     private readonly marcaDeCarta: MarcaDeCarta,
+    private readonly enlaces: EnlaceDeCompletado,
   ) {}
 
   /**
@@ -185,7 +188,20 @@ export class CorreoAutomaticoService {
       return true;
     }
 
-    const valores = valoresDe(datos);
+    /**
+     * EL ENLACE, si la plantilla lo pide.
+     *
+     * Con `emitirOReusar` y no `emitir`: el registro publico
+     * ya emitio uno para el boton de la pantalla de gracias, y
+     * es EL MISMO token. Acunar otro aqui mataria el que la
+     * persona puede tener abierto en una pestana.
+     *
+     * `null` como emisor: lo manda el sistema, no una persona.
+     */
+    const valores = {
+      ...valoresDe(datos),
+      ...(await this.enlaceSiLoPide(plantilla, fila.participanteId)),
+    };
     const asunto = resolver(plantilla.asunto, valores);
 
     /// El formato va sobre el texto de la PLANTILLA y las
@@ -290,6 +306,21 @@ export class CorreoAutomaticoService {
       },
     });
     return true;
+  }
+
+  /// El enlace de completado, solo si la plantilla lo pide.
+  private async enlaceSiLoPide(
+    plantilla: { asunto: string; cuerpo: string },
+    participanteId: string,
+  ): Promise<{ enlace?: string | null }> {
+    const usadas = variablesUsadas(`${plantilla.asunto} ${plantilla.cuerpo}`);
+    if (!usadas.includes('enlace')) return {};
+
+    const sitio = urlPublica();
+    if (!sitio) return { enlace: null };
+
+    const e = await this.enlaces.emitirOReusar(participanteId, null);
+    return { enlace: `${sitio}/completar/${e.token}` };
   }
 
   /// Las que salen solas, activas, de cualquier gremio.

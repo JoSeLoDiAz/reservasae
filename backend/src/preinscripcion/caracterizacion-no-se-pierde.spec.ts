@@ -20,6 +20,7 @@
  */
 
 import { PreinscripcionService } from './preinscripcion.service';
+import { dobleDeEnlace } from './doble-enlace';
 import { dobleDeColaDeCorreo } from '../correo/automaticos/doble';
 import { dobleDeEmbudo } from '../embudo/doble';
 
@@ -103,6 +104,7 @@ function servicio(prisma: ReturnType<typeof prismaFalso>) {
     {} as never,
       dobleDeEmbudo(),
     dobleDeColaDeCorreo(),
+    dobleDeEnlace(),
   );
 }
 

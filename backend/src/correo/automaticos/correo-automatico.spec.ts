@@ -12,6 +12,7 @@
  * es un defecto que este proyecto ya pago cuatro veces.
  */
 
+import { dobleDeEnlace } from '../../preinscripcion/doble-enlace';
 import { dobleDeMarcaDeCarta } from '../carta/doble';
 import { CorreoAutomaticoService } from './correo-automatico.service';
 
@@ -159,6 +160,7 @@ function armar(opciones: {
     prisma as never,
     correo as never,
     dobleDeMarcaDeCarta(),
+    dobleDeEnlace(),
   );
   return { s, escrituras, enviados, reclamos, caducados };
 }

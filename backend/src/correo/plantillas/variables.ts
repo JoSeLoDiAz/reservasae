@@ -40,6 +40,10 @@ export type DatosDelParticipante = {
   modalidad: string | null;
   asesor: string | null;
   gremio: string | null;
+  /// Donde se toma, ya en palabras: «En linea» para las
+  /// virtuales y la sede para las presenciales. NUNCA nula si
+  /// hay oferta, que es lo que la distingue de `ubicacion`.
+  donde: string | null;
   /// Lo que le falta a ESTA ficha para entrar al reporte, en
   /// palabras. Sale de `faltaDeLaPersona`, la unica regla.
   faltan: string[];
@@ -89,6 +93,16 @@ export const VARIABLES: Variable[] = [
   { clave: 'modalidad', titulo: 'Modalidad', ejemplo: 'Virtual' },
   { clave: 'asesor', titulo: 'Quién lo acompaña', ejemplo: 'Ana Jaramillo' },
   { clave: 'gremio', titulo: 'Gremio', ejemplo: 'ADECOPRIA' },
+  {
+    clave: 'donde',
+    titulo: 'Dónde se toma',
+    ejemplo: 'En línea · Medellín',
+  },
+  {
+    clave: 'enlace',
+    titulo: 'Enlace para completar sus datos',
+    ejemplo: 'https://reservasae.com/completar/…',
+  },
   {
     clave: 'faltan',
     titulo: 'Qué datos le faltan',
@@ -224,6 +238,19 @@ export function valoresDe(
     modalidad: d.modalidad,
     asesor: d.asesor,
     gremio: d.gremio,
+    donde: d.donde,
+    /**
+     * LO PONE QUIEN MANDA, y por eso aqui es nulo.
+     *
+     * El enlace es un secreto de un solo uso: acunarlo no es
+     * resolver una variable, es una escritura. Solo los dos
+     * caminos que mandan UNA ficha lo rellenan --y con
+     * `emitirOReusar`, para no matar el que la persona ya
+     * tenga--. En una campana se queda nulo, asi que una
+     * plantilla con `{{enlace}}` omite a esa persona en vez de
+     * acunar mil tokens de golpe.
+     */
+    enlace: null,
     /**
      * NULO CUANDO NO LE FALTA NADA, y eso es la compuerta.
      *

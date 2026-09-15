@@ -31,6 +31,23 @@ const F = "system-ui,-apple-system,'Segoe UI',Roboto,Arial,sans-serif";
 
 /// Los de respaldo, por si a un gremio le falta un token. Son
 /// los mismos que usa el correo de acceso.
+/**
+ * Si ese color es claro.
+ *
+ * Decide de que color va el texto de la banda. Es la misma
+ * cuenta que hace `bienvenida.ts` para elegir el signo, y la
+ * misma pregunta que en el panel resuelve `currentColor`.
+ */
+export function esClaro(hex: string | undefined): boolean {
+  if (!/^#[0-9a-fA-F]{6}$/.test(hex ?? '')) return true;
+  const n = parseInt((hex as string).slice(1), 16);
+  const [r, g, b] = [(n >> 16) & 255, (n >> 8) & 255, n & 255].map((v) => {
+    const s = v / 255;
+    return s <= 0.03928 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
+  });
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b > 0.4;
+}
+
 const NEUTRO: Record<string, string> = {
   marca: '#4b3f52',
   texto: '#1c1720',
@@ -54,6 +71,12 @@ export type MarcaDeLaCarta = {
   correoDeContacto: string | null;
   /// Por que le llega este correo a esta persona.
   porQueLoRecibe: string;
+  /// El signo de Convoca, ya elegido claro u oscuro. Null sin
+  /// `URL_PUBLICA`: una imagen rota arriba del todo es peor
+  /// que ninguna.
+  signo: string | null;
+  nombreApp: string;
+  eslogan: string;
 };
 
 export type PiezasDeLaCarta = {
@@ -78,27 +101,64 @@ export function cartaHtml(p: PiezasDeLaCarta): string {
   const c = (k: string) => color(p.marca.colores, k);
   const anio = new Date().getFullYear();
 
-  /// LA CABECERA: o la imagen que subieron, o los logos sobre
-  /// su placa blanca. Nunca las dos: serian los mismos logos
-  /// dos veces, que es lo que pasaba con el cabezote puesto.
-  const cabecera = p.cabezote
+  /**
+   * EL COLOR DEL TEXTO DE LA BANDA SE CALCULA, no se lee.
+   *
+   * `encabezadoTexto` lo elige un administrador y en
+   * produccion vale `#1d222b` --casi negro-- sobre una banda
+   * verde oscura: ilegible. Es la misma pregunta que en el
+   * panel resuelve `bg-current` sin preguntar, y aqui se
+   * responde por luminancia: sobre banda oscura, blanco.
+   */
+  const sobreLaBanda = esClaro(c('encabezadoFondo')) ? '#16181d' : '#ffffff';
+
+  /**
+   * LA FIRMA DE CONVOCA VA PRIMERO, y despues los logos.
+   *
+   * Lo pidio el cliente con ese orden: «va primero el logo de
+   * Convoca CRM, despues los otros logos de Grupo AE y
+   * ADECOPRIA». Es la misma forma de la barra del panel --el
+   * signo al lado del nombre, la linea debajo del nombre y el
+   * eslogan bajo la linea-- que ya lleva el correo de acceso.
+   */
+  const firma = `<table role="presentation" cellpadding="0" cellspacing="0" align="center"><tr>
+      ${
+        p.marca.signo
+          ? `<td valign="middle" style="padding:0 14px 0 0">
+               <img src="${escaparHtml(p.marca.signo)}" alt="" width="44" height="44" style="display:block;width:44px;height:44px;border:0">
+             </td>`
+          : ''
+      }
+      <td valign="middle">
+        <div style="font:800 20px/1.2 ${F};color:${sobreLaBanda};letter-spacing:-.02em">${escaparHtml(p.marca.nombreApp)}</div>
+        <div style="height:1px;background:${sobreLaBanda};opacity:.35;font-size:0;line-height:0;margin:6px 0 5px">&nbsp;</div>
+        <div style="font:400 11.5px/1.4 ${F};color:${sobreLaBanda};opacity:.85">${escaparHtml(p.marca.eslogan)}</div>
+      </td>
+    </tr></table>`;
+
+  /// Y DESPUES los del gremio, sobre su placa blanca: estan
+  /// hechos para papel y Gmail en modo oscuro invierte el
+  /// correo. Si hay cabezote MANDA el cabezote: alguien subio
+  /// esa imagen a proposito.
+  const deLaEntidad = p.cabezote
     ? `<tr><td style="padding:0;font-size:0;line-height:0">
          <img src="${escaparHtml(p.cabezote)}" alt="" width="600" style="display:block;width:100%;max-width:600px;height:auto;border:0">
        </td></tr>`
     : p.marca.logos.length
-      ? `<tr><td class="aire" align="center" style="background:${c('encabezadoFondo')};padding:26px 32px">
+      ? `<tr><td class="aire" align="center" style="background:${c('encabezadoFondo')};padding:0 32px 24px">
            <table role="presentation" cellpadding="0" cellspacing="0" align="center">
-             <tr><td class="placa" bgcolor="#ffffff" style="background:#ffffff;border-radius:10px;padding:14px 22px">${p.marca.logos
+             <tr><td class="placa" bgcolor="#ffffff" style="background:#ffffff;border-radius:10px;padding:13px 20px">${p.marca.logos
                .map(
                  (l) =>
-                   `<img src="${escaparHtml(l.url)}" alt="${escaparHtml(l.alt)}" height="42" style="height:42px;width:auto;margin:0 9px;vertical-align:middle;border:0">`,
+                   `<img src="${escaparHtml(l.url)}" alt="${escaparHtml(l.alt)}" height="32" style="height:32px;width:auto;margin:0 9px;vertical-align:middle;border:0">`,
                )
                .join('')}</td></tr>
            </table>
          </td></tr>`
-      : `<tr><td class="aire" align="center" style="background:${c('encabezadoFondo')};padding:22px 32px">
-           <div style="font:800 19px/1.2 ${F};color:${c('encabezadoTexto')};letter-spacing:-.01em">${escaparHtml(p.marca.gremio)}</div>
-         </td></tr>`;
+      : '';
+
+  const cabecera = `<tr><td class="aire" align="center" style="background:${c('encabezadoFondo')};padding:28px 32px ${deLaEntidad ? '20px' : '28px'}">${firma}</td></tr>
+      ${deLaEntidad}`;
 
   /// La franja de acento: 4px del color del gremio. Es todo el
   /// color que lleva la carta fuera de la banda.
@@ -137,11 +197,13 @@ export function cartaHtml(p: PiezasDeLaCarta): string {
       ${cabecera}
       ${franja}
       ${cuerpo}
-      <tr><td class="aire" style="background:${c('encabezadoFondo')};padding:22px 32px">
-        <div style="font:700 13px/1.5 ${F};color:${c('encabezadoTexto')}">${escaparHtml(p.marca.gremio)}</div>
-        <div style="padding:4px 0 0;font:400 11.5px/1.6 ${F};color:${c('encabezadoTexto')};opacity:.8">
-          ${p.marca.correoDeContacto ? `${escaparHtml(p.marca.correoDeContacto)}<br>` : ''}
-          &copy; ${anio} ${escaparHtml(p.marca.gremio)}.<br>
+      <tr><td class="aire" align="center" style="background:${c('encabezadoFondo')};padding:24px 32px 26px">
+        <div style="font:700 13.5px/1.4 ${F};color:${sobreLaBanda};letter-spacing:-.01em">${escaparHtml(p.marca.nombreApp)}</div>
+        <div style="padding:3px 0 0;font:400 11.5px/1.5 ${F};color:${sobreLaBanda};opacity:.85">${escaparHtml(p.marca.eslogan)}</div>
+        <div style="width:54px;height:1px;background:${sobreLaBanda};opacity:.3;margin:13px auto;font-size:0;line-height:0">&nbsp;</div>
+        <div style="font:400 11px/1.7 ${F};color:${sobreLaBanda};opacity:.75">
+          ${escaparHtml(p.marca.nombreApp)}, gestionado por Grupo AE para ${escaparHtml(p.marca.gremio)}.<br>
+          ${p.marca.correoDeContacto ? `${escaparHtml(p.marca.correoDeContacto)} &middot; ` : ''}&copy; ${anio}<br>
           ${escaparHtml(p.marca.porQueLoRecibe)}
         </div>
       </td></tr>
@@ -200,6 +262,20 @@ function bloque(b: Bloque, c: (k: string) => string): string {
             )
             .join('')}
         </table>
+      </td></tr>`;
+
+    case 'BOTON':
+      /// Boton «a prueba de balas»: una tabla con fondo, que es
+      /// lo unico que pinta igual en Gmail y en Outlook. El
+      /// enlace va tambien debajo en texto porque un boton que
+      /// no se pinta deja a la persona sin forma de entrar.
+      return `<tr><td class="aire" align="center" style="padding:22px 32px 4px">
+        <table role="presentation" cellpadding="0" cellspacing="0" align="center"><tr>
+          <td align="center" bgcolor="${c('marca')}" style="background:${c('marca')};border-radius:9px">
+            <a href="${escaparHtml(b.url)}" style="display:inline-block;padding:13px 30px;font:700 15px/1.2 ${F};color:#ffffff;text-decoration:none;border-radius:9px">${escaparHtml(b.texto)}</a>
+          </td>
+        </tr></table>
+        <div style="padding:12px 0 0;font:400 11.5px/1.5 ${F};color:${c('textoSuave')};word-break:break-all">${escaparHtml(b.url)}</div>
       </td></tr>`;
 
     case 'NOTA':

@@ -8,6 +8,7 @@ import {
 import { CampanasService } from './campanas/campanas.service';
 import { CampanasWorker } from './campanas/campanas.worker';
 import { AdminModule } from '../admin/admin.module';
+import { EnlaceDeCompletadoModule } from '../preinscripcion/enlace-de-completado';
 import { MarcaDeCarta } from './carta/marca-de-la-carta';
 import { ColaDeCorreo } from './automaticos/cola-de-correo';
 import { CorreoAutomaticoService } from './automaticos/correo-automatico.service';
@@ -31,6 +32,10 @@ import { PlantillasCorreoService } from './plantillas/plantillas-correo.service'
     /// Por `AdminService.obtenerMarcaDeGremio`: los logos y los
     /// colores del correo salen de donde salen los del panel.
     AdminModule,
+    /// Para poder MANDAR el enlace de completado sin emitir
+    /// uno nuevo. Es solo la fila, no el modulo de
+    /// preinscripcion --que importa a este y haria un circulo.
+    EnlaceDeCompletadoModule,
     JwtModule.register({
       secret: process.env.ADMIN_JWT_SECRET,
       signOptions: { expiresIn: '8h' },

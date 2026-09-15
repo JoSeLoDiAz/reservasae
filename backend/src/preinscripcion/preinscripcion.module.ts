@@ -5,6 +5,7 @@ import { CorreoModule } from '../correo/correo.module';
 import { DirectorioService } from '../crm/directorio.service';
 import { EmbudoModule } from '../embudo/embudo.module';
 import { ColaRuiModule } from '../crm/rui/cola-rui';
+import { EnlaceDeCompletadoModule } from './enlace-de-completado';
 import {
   CompletarController,
   DirectorioPublicoController,
@@ -16,7 +17,12 @@ import { PreinscripcionService } from './preinscripcion.service';
 @Module({
   // solo la cola del RUI, no el CRM entero: el CRM importa
   // a este modulo y el circulo no dejaria arrancar a Nest
-  imports: [ColaRuiModule, CorreoModule, EmbudoModule],
+  imports: [
+    ColaRuiModule,
+    CorreoModule,
+    EmbudoModule,
+    EnlaceDeCompletadoModule,
+  ],
   controllers: [
     PreinscripcionController,
     CompletarController,

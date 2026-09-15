@@ -69,6 +69,23 @@ describe('trocear el cuerpo', () => {
     });
   });
 
+  it('un enlace de markdown en su línea es un botón', () => {
+    const b = bloquesDe('[Completar mis datos](https://x.co/completar/abc)');
+
+    expect(b[0]).toEqual({
+      tipo: 'BOTON',
+      texto: 'Completar mis datos',
+      url: 'https://x.co/completar/abc',
+    });
+  });
+
+  it('el botón se degrada a texto legible', () => {
+    /// Quien lee en texto plano no tiene nada que pulsar: la
+    /// dirección tiene que verse entera.
+    const t = comoTexto(bloquesDe('[Entrar](https://x.co/a)'));
+    expect(t).toBe('Entrar:\nhttps://x.co/a');
+  });
+
   it('secciones y notas se reconocen', () => {
     const b = bloquesDe('## Antes de empezar\n\n> Esto es importante.');
 

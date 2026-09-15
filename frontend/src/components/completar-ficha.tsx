@@ -239,6 +239,10 @@ export function CompletarFicha({ token }: { token: string }) {
     /// el servidor está caído, un 500— es un problema nuestro,
     /// y el enlace sigue bueno.
     const enlaceMuerto = [400, 404, 410].includes(fallo.estado);
+    /// Se reconoce por el mensaje del servidor, que es quien
+    /// sabe la diferencia. La pantalla no consulta nada: el
+    /// token muerto no tiene nada mas que contar.
+    const yaCompleto = /ya complet/i.test(fallo.mensaje);
 
     return (
       <>
@@ -246,14 +250,23 @@ export function CompletarFicha({ token }: { token: string }) {
           <BannerLogos centrado />
           {enlaceMuerto ? (
             <>
-              <h1 className="mt-8 text-2xl font-bold">Este enlace ya no sirve</h1>
+              {/* «YA LO COMPLETÓ» NO ES UN ERROR, y desde que el
+                  enlace viaja en el correo de preinscripción es
+                  el caso normal: la persona termina con el botón
+                  de la pantalla de gracias --que usa el mismo
+                  token-- y después abre el correo. Decirle «este
+                  enlace ya no sirve» a quien acaba de terminar la
+                  manda a pedir algo que no necesita. */}
+              <h1 className="mt-8 text-2xl font-bold">
+                {yaCompleto ? "Ya completó sus datos" : "Este enlace ya no sirve"}
+              </h1>
               <p className="mt-3 text-texto-suave">{fallo.mensaje}</p>
               {/* Solo si el servidor no lo dijo ya. El mensaje del
                   enlace vencido termina en «Pida uno nuevo a quien
                   lo atendió», y debajo salía esta línea diciendo lo
                   mismo con otras palabras: dos renglones seguidos
                   con la misma instrucción. */}
-              {!/pida uno nuevo/i.test(fallo.mensaje) && (
+              {!yaCompleto && !/pida uno nuevo/i.test(fallo.mensaje) && (
                 <p className="mt-4 text-sm text-texto-suave">
                   Pídale uno nuevo a la persona que lo está acompañando.
                 </p>

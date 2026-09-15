@@ -11,6 +11,7 @@ import { randomBytes } from 'node:crypto';
 import { MotivoDeCorreoAutomatico, Prisma } from '../../generated/prisma';
 import { ENTIDADES, AuditoriaService } from '../comun/auditoria.service';
 import { ColaDeCorreo } from '../correo/automaticos/cola-de-correo';
+import { EnlaceDeCompletado } from './enlace-de-completado';
 import { CorreoService } from '../correo/correo.service';
 import { quienFirma } from '../correo/quien-firma';
 import { motivoParaNoInscribir } from '../crm/una-sola-accion';
@@ -70,6 +71,7 @@ export class PreinscripcionService {
     /// servicio a mano y un parametro nuevo en medio los
     /// rompe a todos.
     private readonly colaDeCorreo: ColaDeCorreo,
+    private readonly enlaces: EnlaceDeCompletado,
   ) {}
 
   /** Lo que el formulario necesita para dibujarse. */
@@ -757,27 +759,16 @@ export class PreinscripcionService {
   }
 
   /** Un enlace nuevo. Los anteriores dejan de valer. */
-  async emitirEnlace(participanteId: string, emitidoPorId: string | null) {
-    const ahora = new Date();
-    // «anulado», no «usado»: los dos lo dejan sin valor, pero
-    // dicen cosas distintas. Marcar como usado un enlace que
-    // nadie abrio hacia creer que la persona lo completo.
-    await this.prisma.enlaceCompletado.updateMany({
-      where: { participanteId, usadoEn: null, anuladoEn: null },
-      data: { anuladoEn: ahora },
-    });
-
-    const expiraEn = new Date(ahora.getTime() + DIAS_DE_VIDA * 86_400_000);
-    return this.prisma.enlaceCompletado.create({
-      data: {
-        // 32 bytes: no se adivina probando
-        token: randomBytes(32).toString('base64url'),
-        participanteId,
-        expiraEn,
-        emitidoPorId,
-      },
-      select: { token: true, expiraEn: true },
-    });
+  /**
+   * Un enlace nuevo para esa ficha. El anterior deja de servir.
+   *
+   * La implementacion vive en `EnlaceDeCompletado`, aparte,
+   * porque el CORREO tambien lo necesita y no puede importar
+   * este modulo: el circulo no deja arrancar a Nest. Aqui se
+   * queda la firma porque el controlador del CRM la llama.
+   */
+  emitirEnlace(participanteId: string, emitidoPorId: string | null) {
+    return this.enlaces.emitir(participanteId, emitidoPorId);
   }
 
   /** Lo que ve quien abre el enlace. */
@@ -1693,14 +1684,34 @@ export class PreinscripcionService {
         abiertoEn: true,
       },
     });
-    // el mismo mensaje para todos los casos: decir "ya se
-    // usó" confirma que existió, y eso es un oráculo
-    if (
-      !enlace ||
-      enlace.usadoEn ||
-      enlace.anuladoEn ||
-      enlace.expiraEn < new Date()
-    ) {
+    /**
+     * «YA LO COMPLETÓ» SE DICE; LO DEMÁS NO SE DISTINGUE.
+     *
+     * Los otros tres casos comparten mensaje a propósito: un
+     * texto distinto para «no existe» confirmaría qué tokens
+     * existen, y eso es un oráculo.
+     *
+     * El de «ya se usó» se separó el 15 sep 2026, a petición
+     * del cliente, porque desde que el enlace viaja en el
+     * correo de preinscripción es el caso NORMAL: la persona
+     * completa sus datos con el botón de la pantalla de
+     * gracias --que usa el mismo token-- y después abre el
+     * correo. Decirle «este enlace ya no sirve, pida uno
+     * nuevo» a quien acaba de terminar es mandarla a pedir
+     * algo que no necesita.
+     *
+     * Y el oráculo que se abre es minúsculo: un token son 32
+     * bytes al azar, así que para llegar a este mensaje hay
+     * que tener el token, y quien lo tiene ya sabía que
+     * existía.
+     */
+    if (enlace?.usadoEn) {
+      throw new NotFoundException(
+        'Ya completó sus datos con este enlace: no hace falta nada más.',
+      );
+    }
+
+    if (!enlace || enlace.anuladoEn || enlace.expiraEn < new Date()) {
       throw new NotFoundException(
         'Este enlace ya no está disponible. Pida uno nuevo a quien lo atendió.',
       );

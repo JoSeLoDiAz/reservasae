@@ -15,6 +15,9 @@ export function dobleDeMarcaDeCarta(
       gremio: 'ADECOPRIA',
       correoDeContacto: 'proyectosena@grupo-ae.com.co',
       porQueLoRecibe: 'Recibe este correo porque se registró.',
+      signo: null,
+      nombreApp: 'Convoca CRM',
+      eslogan: 'Relaciones que generan resultados',
     }),
   } as unknown as MarcaDeCarta;
 }
