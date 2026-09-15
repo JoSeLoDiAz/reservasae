@@ -16,6 +16,8 @@ export type PlantillaCorreo = {
   activa: boolean;
   /// En qué etapas tiene sentido. Vacío: en cualquiera.
   etapasPermitidas: string[];
+  /// Qué la dispara sola. `NINGUNO`: la manda una persona.
+  disparador: "NINGUNO" | "PREINSCRIPCION";
   convenioId: string | null;
   actualizadoEn: string;
   /// El cabezote. El mime dice si lo hay; la versión rompe el
@@ -68,6 +70,8 @@ export const plantillasCorreoApi = {
     convenioId?: string | null;
     /// Vacío o ausente: sirve en cualquier etapa.
     etapasPermitidas?: string[];
+    /// Ausente: NINGUNO, o sea que la manda una persona.
+    disparador?: string;
   }) =>
     pedir<PlantillaCorreo>("/admin/plantillas-correo", {
       method: "POST",

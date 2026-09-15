@@ -8,8 +8,9 @@ import {
 } from '@nestjs/common';
 import { randomBytes } from 'node:crypto';
 
-import { Prisma } from '../../generated/prisma';
+import { MotivoDeCorreoAutomatico, Prisma } from '../../generated/prisma';
 import { ENTIDADES, AuditoriaService } from '../comun/auditoria.service';
+import { ColaDeCorreo } from '../correo/automaticos/cola-de-correo';
 import { CorreoService } from '../correo/correo.service';
 import { quienFirma } from '../correo/quien-firma';
 import { motivoParaNoInscribir } from '../crm/una-sola-accion';
@@ -65,6 +66,10 @@ export class PreinscripcionService {
     private readonly correo: CorreoService,
     private readonly directorio: DirectorioService,
     private readonly embudo: EmbudoService,
+    /// Va al final: tres dobles de prueba construyen este
+    /// servicio a mano y un parametro nuevo en medio los
+    /// rompe a todos.
+    private readonly colaDeCorreo: ColaDeCorreo,
   ) {}
 
   /** Lo que el formulario necesita para dibujarse. */
@@ -551,6 +556,48 @@ export class PreinscripcionService {
     }
 
     if (!yaHabiaPersona) {
+      /**
+       * EL ACUSE, y va ENCOLADO y no enviado.
+       *
+       * Lo pidio el cliente: quien se preinscribe recibe un
+       * correo diciendo que ya quedo registrado y que un
+       * asesor lo va a llamar. El texto no esta aqui: sale de
+       * la plantilla con el disparador PREINSCRIPCION, para
+       * que se edite desde el panel y no desplegando.
+       *
+       * Se ENCOLA a proposito. Un SMTP tarda segundos y falla
+       * a veces: esperarlo aqui se lo cobra a quien acaba de
+       * pulsar «enviar» --en la misma pagina de la que se
+       * quitaron 2.400 ms de velo-- y un fallo se perderia sin
+       * dejar rastro. Encolar es escribir una fila.
+       *
+       * VA DENTRO DE ESTE `if`, Y AHI ESTA TODO.
+       *
+       * Estuvo fuera, colgado de `!yaEsta` --que es «no tenia
+       * ficha en ESTA accion»--, y eso no es lo contrario de
+       * `yaHabiaPersona`, que es «la cedula no estaba». Quien
+       * ya existia y se apuntaba a un curso nuevo caia en los
+       * dos y recibia DOS correos que se contradicen.
+       *
+       * Y lo peor no era ese: el acuse lee el correo de la
+       * base DESPUES del upsert, o sea el que acaba de teclear
+       * quien llene el formulario. Con una cedula ajena --que
+       * esta en cualquier fotocopia-- el acuse habria salido
+       * al buzon del desconocido con el nombre y el curso de
+       * la dueña. La rama de abajo evita eso mandando al
+       * correo que YA estaba; aqui se evita de raiz, porque
+       * dentro de este `if` la cedula es nueva y lo que hay en
+       * la ficha lo acaba de escribir su dueño.
+       *
+       * Dentro del `if` no pueden separarse: es el mismo
+       * bloque que devuelve el token.
+       */
+      await this.colaDeCorreo.encolar(
+        participante.id,
+        convenio.id,
+        MotivoDeCorreoAutomatico.PREINSCRIPCION,
+      );
+
       /// SOLO AQUI SE EMITE, y el sitio importa.
       ///
       /// Estaba antes del `if`, asi que se emitia SIEMPRE -- y

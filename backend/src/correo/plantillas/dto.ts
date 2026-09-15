@@ -8,7 +8,10 @@ import {
   MaxLength,
 } from 'class-validator';
 
-import type { EtapaParticipante } from '../../../generated/prisma';
+import {
+  DisparadorDePlantilla,
+  type EtapaParticipante,
+} from '../../../generated/prisma';
 import { TODAS_LAS_ETAPAS } from './etapas-de-plantilla';
 
 /// Las etapas en las que se puede escribir a alguien. Las de
@@ -20,6 +23,8 @@ import { TODAS_LAS_ETAPAS } from './etapas-de-plantilla';
 /// «buenas», y eso impedia escribirle a quien NO quedo
 /// inscrito -- que es a quien mas falta le hace un correo.
 const ETAPAS = [...TODAS_LAS_ETAPAS] as string[];
+
+const DISPARADORES = Object.values(DisparadorDePlantilla) as string[];
 
 export class CrearPlantillaDto {
   @IsString() @Length(2, 80) nombre!: string;
@@ -33,6 +38,11 @@ export class CrearPlantillaDto {
   @IsArray()
   @IsIn(ETAPAS, { each: true })
   etapasPermitidas?: EtapaParticipante[];
+
+  /// Ausente: NINGUNO, o sea que la manda una persona.
+  @IsOptional()
+  @IsIn(DISPARADORES)
+  disparador?: DisparadorDePlantilla;
 }
 
 export class EditarPlantillaDto {
@@ -46,4 +56,8 @@ export class EditarPlantillaDto {
   @IsArray()
   @IsIn(ETAPAS, { each: true })
   etapasPermitidas?: EtapaParticipante[];
+
+  @IsOptional()
+  @IsIn(DISPARADORES)
+  disparador?: DisparadorDePlantilla;
 }

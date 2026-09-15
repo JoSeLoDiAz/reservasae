@@ -377,6 +377,15 @@ function Fila({
               }`}
             >
               {p.nombre}
+              {p.disparador !== "NINGUNO" && (
+                /// Que se vea en la lista y no solo dentro:
+                /// una plantilla que sale sola no la manda
+                /// nadie, y quien la edita tiene que saberlo
+                /// antes de tocarle el texto.
+                <span className="ml-2 rounded-full border border-borde px-1.5 py-px align-middle text-[10px] font-bold tracking-wide text-marca uppercase">
+                  sale sola
+                </span>
+              )}
             </p>
             <p className="truncate text-[11.5px] font-medium text-texto-suave">
               {linea}
@@ -453,7 +462,20 @@ type Borrador = {
   cuerpo: string;
   convenioId: string | null;
   etapasPermitidas: string[];
+  disparador: PlantillaCorreo["disparador"];
 };
+
+/// Las que salen solas, en palabras. El valor es el del
+/// enum del servidor; el texto dice CUANDO sale, que es lo
+/// que quien la escribe necesita saber.
+const DISPARADORES: Array<[PlantillaCorreo["disparador"], string, string]> = [
+  ["NINGUNO", "No sale sola", "La manda un asesor desde una ficha."],
+  [
+    "PREINSCRIPCION",
+    "Al preinscribirse",
+    "Sale sola en cuanto alguien se registra en el formulario público. Solo una plantilla activa por gremio puede tenerlo.",
+  ],
+];
 
 function Editor({
   origen,
@@ -476,6 +498,7 @@ function Editor({
     cuerpo: origen?.cuerpo ?? "",
     convenioId: origen?.convenioId ?? null,
     etapasPermitidas: origen?.etapasPermitidas ?? [],
+    disparador: origen?.disparador ?? "NINGUNO",
   }));
 
   /// El cabezote se sube por su propia ruta y necesita el id
@@ -656,6 +679,35 @@ function Editor({
               de texto juntos, y son lo que menos se toca.
               Cerradas dicen a quién le sirve; abiertas se
               cambia. */}
+          {/* ── Cuándo sale ── */}
+          <div className="border-t border-borde pt-4">
+            <p className="text-[12px] font-semibold text-texto-suave">
+              ¿Cuándo sale?
+            </p>
+            <div className="mt-2.5 flex flex-col gap-2.5">
+              {DISPARADORES.map(([valor, texto, nota]) => (
+                <label
+                  key={valor}
+                  className="flex cursor-pointer items-start gap-2 text-[12px] leading-tight"
+                >
+                  <input
+                    type="radio"
+                    name="disparador"
+                    className="mt-0.5"
+                    checked={b.disparador === valor}
+                    onChange={() => setB((v) => ({ ...v, disparador: valor }))}
+                  />
+                  <span className="min-w-0 flex-1">
+                    <span className="block">{texto}</span>
+                    <span className="mt-px block text-[11px] text-texto-suave opacity-80">
+                      {nota}
+                    </span>
+                  </span>
+                </label>
+              ))}
+            </div>
+          </div>
+
           <div className="border-t border-borde pt-4">
             <button
               type="button"

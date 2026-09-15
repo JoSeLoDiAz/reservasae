@@ -116,6 +116,61 @@ export default function PaginaCorreo() {
             )}
           </Nota>
 
+          {/* LOS QUE SALEN SOLOS.
+
+              Un correo automatico no tiene a nadie mirando:
+              si se calla cuando no sale, la pregunta «¿por
+              que no le llego?» solo se contesta entrando a la
+              base. Aqui se cuentan los cuatro estados y se
+              dice el ultimo problema con sus palabras. */}
+          <Nota
+            color={
+              estado.automaticosApagados || estado.automaticos.fallidos > 0
+                ? "var(--error)"
+                : estado.automaticos.omitidos > 0
+                  ? "var(--aviso)"
+                  : "var(--exito)"
+            }
+          >
+            <p className="font-semibold text-texto">
+              {estado.automaticosApagados
+                ? "El acuse de preinscripción está APAGADO en el servidor."
+                : "Acuse de preinscripción"}
+            </p>
+            {estado.automaticosApagados ? (
+              <p className="mt-0.5 text-texto-suave">
+                Nadie recibe el correo al registrarse. Se enciende quitando{" "}
+                <code>CORREO_AUTOMATICO=no</code> del servidor.
+              </p>
+            ) : (
+              <p className="mt-0.5 text-texto-suave tabular-nums">
+                {estado.automaticos.enviados} enviado
+                {estado.automaticos.enviados === 1 ? "" : "s"} ·{" "}
+                {estado.automaticos.pendientes} en cola ·{" "}
+                {estado.automaticos.omitidos} sin mandar ·{" "}
+                {estado.automaticos.fallidos} con fallo
+              </p>
+            )}
+            {estado.automaticos.ultimoProblema?.detalle && (
+              <p className="mt-0.5 text-texto-suave">
+                El último que no salió:{" "}
+                <strong className="text-texto">
+                  {estado.automaticos.ultimoProblema.detalle}
+                </strong>
+              </p>
+            )}
+            {!estado.automaticosApagados &&
+              estado.automaticos.enviados === 0 &&
+              estado.automaticos.pendientes === 0 &&
+              estado.automaticos.omitidos === 0 && (
+                <p className="mt-0.5 text-texto-suave">
+                  Todavía no ha salido ninguno. Sale solo cuando alguien se
+                  preinscribe, y hace falta una plantilla marcada «al
+                  preinscribirse».
+                </p>
+              )}
+          </Nota>
+
           {estado.desviadoA.length > 0 && (
             <Nota color="var(--aviso)">
               <p className="font-semibold text-aviso">

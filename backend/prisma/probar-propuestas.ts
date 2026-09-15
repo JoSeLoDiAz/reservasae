@@ -11,6 +11,7 @@ import { DirectorioService } from '../src/crm/directorio.service';
 import { PrismaService } from '../src/prisma/prisma.service';
 import { ColaRui } from '../src/crm/rui/cola-rui';
 import { PreinscripcionService } from '../src/preinscripcion/preinscripcion.service';
+import { dobleDeColaDeCorreo } from '../src/correo/automaticos/doble';
 import { dobleDeEmbudo } from '../src/embudo/doble';
 
 const prisma = new PrismaClient();
@@ -52,6 +53,7 @@ async function main() {
     { enviar: () => Promise.resolve({ estado: 'APAGADO' }) } as never,
     new DirectorioService(prisma as unknown as PrismaService),
       dobleDeEmbudo(),
+    dobleDeColaDeCorreo(),
   );
 
   const p = await prisma.participante.findFirst({

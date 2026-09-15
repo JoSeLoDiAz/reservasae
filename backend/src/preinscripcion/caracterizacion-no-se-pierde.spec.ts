@@ -20,6 +20,7 @@
  */
 
 import { PreinscripcionService } from './preinscripcion.service';
+import { dobleDeColaDeCorreo } from '../correo/automaticos/doble';
 import { dobleDeEmbudo } from '../embudo/doble';
 
 type Escritura = { tabla: string; metodo: string; datos?: unknown };
@@ -101,6 +102,7 @@ function servicio(prisma: ReturnType<typeof prismaFalso>) {
     {} as never,
     {} as never,
       dobleDeEmbudo(),
+    dobleDeColaDeCorreo(),
   );
 }
 

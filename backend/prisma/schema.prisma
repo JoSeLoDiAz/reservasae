@@ -50,16 +50,17 @@ model Convenio {
   /// el formulario que da la marca
   formularioMarcaId String?
 
-  acciones         AccionFormacion[]
-  politicas        PoliticaDatos[]
-  formularios      Formulario[]
-  leads            LeadEntrante[]
-  conversaciones   ConversacionEntrante[]
-  pasosDeVisita    PasoDeVisita[]
-  plantillasCorreo PlantillaCorreo[]
-  campanas         Campana[]
-  participantes    Participante[]
-  admins           AdminConvenio[]
+  acciones             AccionFormacion[]
+  politicas            PoliticaDatos[]
+  formularios          Formulario[]
+  leads                LeadEntrante[]
+  conversaciones       ConversacionEntrante[]
+  pasosDeVisita        PasoDeVisita[]
+  plantillasCorreo     PlantillaCorreo[]
+  campanas             Campana[]
+  correosAutomaticos   CorreoAutomatico[]
+  participantes        Participante[]
+  admins               AdminConvenio[]
 
   /// Nombrada porque Convenio y Formulario ya se relacionan
   /// por `Formulario.convenioId`, y sin nombre Prisma no
@@ -127,10 +128,10 @@ model Ubicacion {
   coberturas GrupoCobertura[]
   ofertas    Oferta[]
   sedeDe     Grupo[]
+  sesiones   SesionDeGrupo[]
 
   @@unique([nombre, tipo])
   @@map("ubicaciones")
-  sesiones SesionDeGrupo[]
 }
 
 /// Cohorte comprometida con el SENA. Sin contador.
@@ -830,7 +831,7 @@ model LeadEntrante {
 
   /// Lo que llego. Todo opcional: un anuncio pregunta lo que
   /// quiere, y lo que no venga no se inventa.
-  nombreCompleto     String?
+  nombreCompleto String?
 
   /// El nombre en piezas, si el emisor lo mando asi.
   ///
@@ -859,8 +860,8 @@ model LeadEntrante {
   /// piden lo mismo escrito distinto sin relacionar. Nulo cuando
   /// no nombra ninguna, que NO es lo mismo que nombrar una que
   /// no tenemos: las dos quedan en null y el asesor pregunta.
-  accionFormacionId  String?
-  accionFormacion    AccionFormacion? @relation(fields: [accionFormacionId], references: [id], onDelete: SetNull)
+  accionFormacionId String?
+  accionFormacion   AccionFormacion? @relation(fields: [accionFormacionId], references: [id], onDelete: SetNull)
 
   /// Donde vive, para poder resolver la SEDE.
   ///
@@ -868,11 +869,11 @@ model LeadEntrante {
   /// que quiere y no donde lo va a tomar, y sin eso la ficha
   /// nace sin poder matricularse. El formulario publico lo
   /// pregunta antes que nada, y el de la pauta tambien.
-  departamentoSepId  Int?
-  municipioSepId     Int?
-  generoSepId        Int?
+  departamentoSepId Int?
+  municipioSepId    Int?
+  generoSepId       Int?
   /// Que marco la casilla al registrarse. Null: no lo dijo.
-  aceptaHabeasData   Boolean?
+  aceptaHabeasData  Boolean?
 
   /// DONDE quiere tomarlo, tal como lo escribio.
   ///
@@ -881,7 +882,7 @@ model LeadEntrante {
   /// cambiar despues --el asesor lo corrige desde la mesa--. Con
   /// un id resuelto contra el curso viejo, cambiar el curso
   /// dejaria una sede que ya no significa nada.
-  sedePedida         String?
+  sedePedida String?
 
   /// El cuerpo entero, tal cual. Es lo que deja depurar,
   /// reprocesar y demostrar que llego de verdad.
@@ -921,9 +922,9 @@ model LeadEntrante {
   /// pauta la cola ES el producto.
   ultimaGestionEn DateTime?
 
-  convenio     Convenio      @relation(fields: [convenioId], references: [id], onDelete: Restrict)
-  participante Participante? @relation(fields: [participanteId], references: [id], onDelete: SetNull)
-  asesor       Admin?        @relation("LeadsDelAsesor", fields: [asesorId], references: [id], onDelete: SetNull)
+  convenio     Convenio        @relation(fields: [convenioId], references: [id], onDelete: Restrict)
+  participante Participante?   @relation(fields: [participanteId], references: [id], onDelete: SetNull)
+  asesor       Admin?          @relation("LeadsDelAsesor", fields: [asesorId], references: [id], onDelete: SetNull)
   notas        NotaDeGestion[]
 
   @@unique([origenSistema, externoId])
@@ -1032,7 +1033,8 @@ model Participante {
 
   /// Todos los canales por los que ha llegado, no solo el
   /// primero. Ver `ToqueDeOrigen`.
-  toquesDeOrigen ToqueDeOrigen[]
+  toquesDeOrigen     ToqueDeOrigen[]
+  correosAutomaticos CorreoAutomatico[]
 
   /// Cuando un asesor toco los datos de esta ficha. A
   /// partir de ahi, lo que mande el interesado no pisa: se
@@ -1211,8 +1213,8 @@ model ConversacionEntrante {
   /// deja depurar y demostrar que llego de verdad.
   carga Json?
 
-  estado EstadoConversacion
-  notaId String?
+  estado     EstadoConversacion
+  notaId     String?
   /// A quienes tocaba, cuando toca a mas de uno.
   candidatos Json?
 
@@ -1231,13 +1233,13 @@ model ConversacionEntrante {
 /// NO identifica a nadie: el id lo acuna el navegador, vive en
 /// sessionStorage y aqui no entra ni IP ni lo que se teclea.
 model PasoDeVisita {
-  id       String @id @default(cuid())
+  id       String  @id @default(cuid())
   /// El que acuna el navegador.
   visitaId String
   /// Un valor de `ESCALERA` o de `MARCAS`.
   paso     String
   /// Sube cuando cambia el orden de la escalera.
-  version  Int    @default(1)
+  version  Int     @default(1)
   /// Desde que llego, en milisegundos.
   ms       Int?
   /// De una lista cerrada. Nunca lo que la persona escribe.
@@ -1248,15 +1250,15 @@ model PasoDeVisita {
   slug       String
 
   /// De aqui abajo, solo en el paso LLEGO.
-  puerta        String?
-  utmFuente     String?
-  utmCampana    String?
-  utmContenido  String?
-  huboFbclid    Boolean?
+  puerta       String?
+  utmFuente    String?
+  utmCampana   String?
+  utmContenido String?
+  huboFbclid   Boolean?
   /// Solo el host del referente, nunca la ruta.
-  referente     String?
-  ancho         String?
-  navegador     String?
+  referente    String?
+  ancho        String?
+  navegador    String?
 
   creadoEn DateTime @default(now())
 
@@ -1437,7 +1439,7 @@ model Admin {
   /// Los leads que lleva. Nombrada porque Admin y LeadEntrante
   /// no se relacionan por ningun otro sitio, pero un dia lo
   /// haran y sin nombre Prisma no sabria cual es cual.
-  leadsQueLleva            LeadEntrante[]  @relation("LeadsDelAsesor")
+  leadsQueLleva            LeadEntrante[]           @relation("LeadsDelAsesor")
   plantillasCorreo         PlantillaCorreo[]
   campanas                 Campana[]
   enlacesEmitidos          EnlaceCompletado[]       @relation("EnlacesEmitidos")
@@ -1988,6 +1990,14 @@ model PlantillaCorreo {
   /// parte de lo que se le dijo a alguien.
   activa Boolean @default(true)
 
+  /// Que la dispara sola, sin que nadie pulse nada.
+  ///
+  /// `NINGUNO` es lo normal: la manda un asesor desde una
+  /// ficha. `PREINSCRIPCION` es el acuse que sale cuando
+  /// alguien se registra en el formulario publico, y solo
+  /// puede tenerlo UNA plantilla activa por gremio.
+  disparador DisparadorDePlantilla @default(NINGUNO)
+
   /// En que etapas tiene sentido mandarla. Vacio: en
   /// cualquiera.
   ///
@@ -2019,7 +2029,74 @@ model PlantillaCorreo {
   creadoPor Admin?    @relation(fields: [creadoPorId], references: [id], onDelete: SetNull)
 
   @@index([convenioId, activa])
+  @@index([disparador, activa])
   @@map("plantillas_correo")
+}
+
+
+/// Que dispara sola una plantilla.
+enum DisparadorDePlantilla {
+  NINGUNO
+  PREINSCRIPCION
+}
+
+enum MotivoDeCorreoAutomatico {
+  PREINSCRIPCION
+}
+
+enum EstadoCorreoAutomatico {
+  PENDIENTE
+  ENVIADO
+  /// No se mando, y se sabe por que: sin plantilla, sin
+  /// correo, sin autorizacion, o con un hueco sin llenar.
+  OMITIDO
+  FALLO
+}
+
+/// Un correo que sale solo, encolado para no hacer esperar
+/// a quien acaba de darle a enviar.
+///
+/// Es una COLA y no un `await` en mitad de la peticion. Un
+/// SMTP tarda segundos y falla a veces: dentro de la
+/// respuesta eso son segundos que paga quien se esta
+/// preinscribiendo --en la misma pagina de la que se
+/// quitaron 2.400 ms de velo-- y un correo que se pierde
+/// sin que quede rastro.
+model CorreoAutomatico {
+  id String @id @default(cuid())
+
+  motivo         MotivoDeCorreoAutomatico
+  participanteId String
+  convenioId     String
+
+  estado   EstadoCorreoAutomatico @default(PENDIENTE)
+  intentos Int                    @default(0)
+
+  /// Por que se omitio o que fallo. Es lo que se contesta
+  /// cuando alguien pregunta «a esta persona le llego?».
+  detalle String?
+
+  /// A donde fue de verdad, que con el desvio de pruebas no
+  /// es a donde iba.
+  entregadoA String?
+
+  creadoEn        DateTime  @default(now())
+  /// Cuando se INTENTO por ultima vez, que no es lo mismo que
+  /// cuando se cerro: los reintentos se espacian con esto. Sin
+  /// el, los tres intentos caben en cuatro segundos y un corte
+  /// de SMTP de un minuto deja el acuse en FALLO para siempre.
+  ultimoIntentoEn DateTime?
+  procesadoEn     DateTime?
+
+  participante Participante @relation(fields: [participanteId], references: [id], onDelete: Cascade)
+  convenio     Convenio     @relation(fields: [convenioId], references: [id], onDelete: Cascade)
+
+  /// UNO por ficha y motivo, para siempre. Registrarse dos
+  /// veces no puede mandar dos acuses, y un reintento del
+  /// POST tampoco.
+  @@unique([participanteId, motivo])
+  @@index([estado, creadoEn])
+  @@map("correos_automaticos")
 }
 
 /// En que va una campana.

@@ -16,6 +16,7 @@
 import { BadRequestException } from '@nestjs/common';
 
 import { PreinscripcionService } from './preinscripcion.service';
+import { dobleDeColaDeCorreo } from '../correo/automaticos/doble';
 import { dobleDeEmbudo } from '../embudo/doble';
 
 type Llamada = { tabla: string; metodo: string };
@@ -106,6 +107,7 @@ function servicio(conPolitica = true) {
     correo as never,
     { agregarManual: () => Promise.resolve(null) } as never,
       dobleDeEmbudo(),
+    dobleDeColaDeCorreo(),
   );
   return { s, prisma };
 }
@@ -201,6 +203,7 @@ describe('el enlace no se le entrega a quien solo sabe una cédula', () => {
       correo as never,
     { agregarManual: () => Promise.resolve(null) } as never,
       dobleDeEmbudo(),
+    dobleDeColaDeCorreo(),
     );
 
     const r = (await s.registrar('adecopria', {
@@ -236,6 +239,7 @@ describe('el enlace no se le entrega a quien solo sabe una cédula', () => {
       { enviar: () => Promise.resolve({ estado: 'ENVIADO' }) } as never,
         { agregarManual: () => Promise.resolve(null) } as never,
       dobleDeEmbudo(),
+    dobleDeColaDeCorreo(),
     );
 
     await s.registrar('adecopria', {
@@ -286,6 +290,7 @@ describe('la misma cédula que vuelve con otro correo', () => {
       { enviar: () => Promise.resolve({ estado: 'ENVIADO' }) } as never,
         { agregarManual: () => Promise.resolve(null) } as never,
       dobleDeEmbudo(),
+    dobleDeColaDeCorreo(),
     );
     return { s, prisma };
   }

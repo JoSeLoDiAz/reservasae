@@ -9,7 +9,10 @@ import {
 import { PrismaService } from '../../prisma/prisma.service';
 import { CorreoService } from '../correo.service';
 import { quienFirma } from '../quien-firma';
-import type { EtapaParticipante } from '../../../generated/prisma';
+import {
+  DisparadorDePlantilla,
+  type EtapaParticipante,
+} from '../../../generated/prisma';
 import {
   estadoDeAutorizacion,
   noSeLePuedeEscribir,
@@ -64,6 +67,7 @@ export class PlantillasCorreoService {
         asunto: true,
         cuerpo: true,
         activa: true,
+        disparador: true,
         etapasPermitidas: true,
         convenioId: true,
         actualizadoEn: true,
@@ -110,6 +114,7 @@ export class PlantillasCorreoService {
       cuerpo: string;
       convenioId?: string | null;
       etapasPermitidas?: EtapaParticipante[];
+      disparador?: DisparadorDePlantilla;
     },
     adminId: string,
     ambito: string[],
@@ -121,6 +126,12 @@ export class PlantillasCorreoService {
       throw new NotFoundException('Ese convenio no existe.');
     }
     this.revisar(datos.asunto, datos.cuerpo);
+    await this.exigirDisparadorLibre(
+      datos.disparador ?? DisparadorDePlantilla.NINGUNO,
+      datos.convenioId ?? null,
+      true,
+      null,
+    );
     return this.prisma.plantillaCorreo.create({
       data: {
         nombre: datos.nombre.trim(),
@@ -128,6 +139,7 @@ export class PlantillasCorreoService {
         cuerpo: datos.cuerpo,
         convenioId: datos.convenioId ?? null,
         etapasPermitidas: datos.etapasPermitidas ?? [],
+        disparador: datos.disparador ?? DisparadorDePlantilla.NINGUNO,
         creadoPorId: adminId,
       },
     });
@@ -143,11 +155,31 @@ export class PlantillasCorreoService {
       convenioId: string | null;
       activa: boolean;
       etapasPermitidas: EtapaParticipante[];
+      disparador: DisparadorDePlantilla;
     }>,
   ) {
     const antes = await this.exigir(id, ambito);
 
+    /// El convenio de DESTINO tambien se acota, y no solo el de
+    /// origen. `exigir` dice de quien es hoy; sin esto, un
+    /// gremio podia MUDARLE una plantilla al otro --y desde que
+    /// una plantilla puede salir sola, mudarsela es instalarle
+    /// el correo que se le manda a sus ciudadanos--. `crear` ya
+    /// lo comprobaba; `editar` no.
+    if (datos.convenioId && !ambito.includes(datos.convenioId)) {
+      throw new NotFoundException('Ese convenio no existe.');
+    }
+
     this.revisar(datos.asunto ?? antes.asunto, datos.cuerpo ?? antes.cuerpo);
+
+    /// Se juzga como QUEDARIA, no como llega: apagarla libera
+    /// el disparador, y volver a encenderla lo vuelve a pedir.
+    await this.exigirDisparadorLibre(
+      datos.disparador ?? antes.disparador,
+      datos.convenioId !== undefined ? datos.convenioId : antes.convenioId,
+      datos.activa ?? antes.activa,
+      id,
+    );
 
     return this.prisma.plantillaCorreo.update({ where: { id }, data: datos });
   }
@@ -228,6 +260,43 @@ export class PlantillasCorreoService {
       throw new NotFoundException('Esa plantilla ya no existe.');
     }
     return p;
+  }
+
+  /**
+   * Solo UNA plantilla activa dispara sola en cada gremio.
+   *
+   * Con dos, cual de las dos sale lo decidiria el orden de la
+   * consulta --o sea el azar-- y el sintoma seria que a unos
+   * les llega un texto y a otros otro, sin que nada falle.
+   *
+   * La general (sin gremio) NO estorba a la de un gremio: ahi
+   * la regla es la de siempre, la propia gana a la heredada.
+   * Lo que no puede haber es dos con el MISMO gremio.
+   */
+  private async exigirDisparadorLibre(
+    disparador: DisparadorDePlantilla,
+    convenioId: string | null,
+    activa: boolean,
+    exceptoId: string | null,
+  ): Promise<void> {
+    if (disparador === DisparadorDePlantilla.NINGUNO || !activa) return;
+
+    const otra = await this.prisma.plantillaCorreo.findFirst({
+      where: {
+        disparador,
+        activa: true,
+        convenioId,
+        ...(exceptoId ? { id: { not: exceptoId } } : {}),
+      },
+      select: { nombre: true },
+    });
+
+    if (otra) {
+      throw new BadRequestException(
+        `«${otra.nombre}» ya sale sola en ese momento para este gremio. ` +
+          'Apague esa primero, o quitele el disparador.',
+      );
+    }
   }
 
   /// Que no se guarde una plantilla con una variable que no

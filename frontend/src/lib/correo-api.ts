@@ -19,6 +19,21 @@ export type EstadoCorreo = {
   /// destinatario, que es lo normal en producción.
   desviadoA: string[];
   esPrueba: boolean;
+  /// Los que salen solos: el acuse de la preinscripción.
+  /// Sin esta cifra, «¿por qué no le llegó?» no se puede
+  /// contestar sin entrar a la base.
+  automaticos: {
+    pendientes: number;
+    enviados: number;
+    omitidos: number;
+    fallidos: number;
+    ultimoProblema: {
+      estado: string;
+      detalle: string | null;
+      procesadoEn: string | null;
+    } | null;
+  };
+  automaticosApagados: boolean;
 };
 
 export const correoApi = {

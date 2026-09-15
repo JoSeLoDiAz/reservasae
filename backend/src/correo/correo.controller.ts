@@ -18,6 +18,7 @@ import type { Admin } from '../../generated/prisma';
 import { AdminActual, AmbitoActual } from '../admin/admin-actual.decorator';
 import { AdminGuard, Requiere, type Ambito } from '../admin/admin.guard';
 import { PrismaService } from '../prisma/prisma.service';
+import { CorreoAutomaticoService } from './automaticos/correo-automatico.service';
 import { CorreoService, correoConectado } from './correo.service';
 import { desvioConfigurado } from './desvio';
 import { escaparHtml } from './escapar';
@@ -31,6 +32,7 @@ export class CorreoController {
   constructor(
     private readonly correo: CorreoService,
     private readonly prisma: PrismaService,
+    private readonly automaticos: CorreoAutomaticoService,
   ) {}
 
   /// El gremio que fija la DIRECCION, si la fija.
@@ -71,6 +73,10 @@ export class CorreoController {
       /// se configuró: una clave revocada se ve aquí.
       acepta: prueba?.estado === 'ENVIADO',
       error: prueba?.estado === 'FALLO' ? prueba.error : null,
+      /// Los que salen solos. Sin esta cifra, «no le llegó el
+      /// correo» no se puede contestar sin entrar a la base.
+      automaticos: await this.automaticos.resumen(ambito.convenios),
+      automaticosApagados: process.env.CORREO_AUTOMATICO === 'no',
     };
   }
 
