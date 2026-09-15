@@ -1859,6 +1859,37 @@ organización nueva no llegaba a crearse.
   cuenta en otra empresa. Mismo criterio que la contradicción de situación
   laboral, que sí se apuntaba.
 
+### La ocupación son PERSONAS, no sillas apartadas (15 sep 2026)
+
+*«Debe estar en 0. No podemos descontar lo que son reservas: las reservas son
+solo reserva hasta que lleguen y se coloquen las personas»*. Y después, más
+corto: *«lo importante es que la ocupación entera, no haya interesados, esté en
+0»*.
+
+`/admin/acciones` enseñaba `Oferta.cuposOcupados`, que es el contador de la
+**pre-reserva**: cupos que una empresa aparta. Con 91 apartados y nadie inscrito,
+la barra decía 91 y no había nadie dentro. **Es la brecha de nombres contada al
+revés** — la cifra que el CRM existe para enseñar, disfrazada de avance.
+
+- **La ocupación sale de `OCUPAN_SILLA`**, la lista única: `INSCRITO`,
+  `EN_FORMACION`, `CERTIFICADO`. **Un interesado no ocupa nada**, y eso lo pidió
+  el cliente con esas palabras.
+- **Lo apartado por empresas va aparte**, con su propio rótulo, y **no se
+  descuenta de nada**. Son dos cosas y ahora se llaman distinto.
+- Tocado en tres sitios: la lista de acciones, su tarjeta de resumen y el detalle
+  de cada acción. **El tablero principal ya estaba bien** — enseña «Reservado» y
+  «Cupos ya comprometidos» por separado, con la brecha explicada debajo.
+
+> **LO QUE NO CAMBIA, Y ES DELIBERADO.** Los **cupos disponibles** y el
+> **semáforo** siguen descontando las reservas, porque ahí sí hay que restarlas:
+> son los cupos que quedan **por vender**, y si no se restara lo apartado el
+> sitio público ofrecería sillas que ya tienen dueño. Y el contador
+> `cuposOcupados` **no se toca**: es el `UPDATE` condicional atómico contra la
+> sobreventa, con sus `CHECK` en la base. Lo único que cambió es que **deja de
+> llamarse ocupación**.
+>
+> O sea: una reserva ya no cuenta como ocupación, pero sigue reservando.
+
 ### La brecha de nombres
 
 `cuposConfirmados − participantes vivos`. Es la cifra que abre el CRM y mide el
