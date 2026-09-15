@@ -27,9 +27,23 @@ export type EmbudoPublico = {
   /// Por que direccion de NUESTRO sitio entraron.
   entrada: CorteDeVisitas[];
   campana: CorteDeVisitas[];
+  /// Lo de antes del contador, o null si no se importo nada.
+  historico: HistoricoDeTrafico | null;
 };
 
 /// `Corte` ya existe en este archivo y significa otra cosa.
+/// El trafico de ANTES del contador, sacado del registro del
+/// servidor. Va aparte y NO se suma a nada de arriba: alli las
+/// cifras son medidas y estas son reconstruidas.
+export type HistoricoDeTrafico = {
+  desde: string;
+  hasta: string;
+  visitas: number;
+  envios: number;
+  porDia: Array<{ dia: string; llegaron: number; preinscritos: number }>;
+  procedencia: CorteDeVisitas[];
+};
+
 export type CorteDeVisitas = {
   valor: string | null;
   visitas: number;

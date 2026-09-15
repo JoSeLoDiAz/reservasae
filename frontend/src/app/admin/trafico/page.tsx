@@ -37,7 +37,12 @@ import {
 import { Aviso } from "@/components/admin/marco-admin";
 import { Encabezado, Vacio } from "@/components/admin/piezas";
 import { ErrorApi } from "@/lib/api";
-import { crmApi, type CorteDeVisitas, type EmbudoPublico } from "@/lib/crm-api";
+import {
+  crmApi,
+  type CorteDeVisitas,
+  type EmbudoPublico,
+  type HistoricoDeTrafico,
+} from "@/lib/crm-api";
 import { useDatosVivos } from "@/lib/datos-vivos";
 
 /// Cómo se lee cada peldaño, y de qué color. El color sale de
@@ -406,6 +411,19 @@ export default function PaginaTrafico() {
         </>
       )}
 
+      {/* ── ANTES DEL CONTADOR ──
+
+          Va FUERA de la rama de arriba a proposito: esa solo
+          se pinta cuando hay visitas medidas en el periodo, y
+          este bloque es justo lo que hay que poder mirar
+          cuando no las hay.
+
+          Y va aparte, con su propio titulo y su propio
+          rotulo, porque son cifras RECONSTRUIDAS del registro
+          del servidor: sumarlas a las de arriba convertiria
+          un agujero de medicion en una conclusion. */}
+      {datos?.historico && <Historico h={datos.historico} />}
+
       <div className="rounded-2xl border border-borde bg-superficie-alterna p-5 text-sm text-texto-suave">
         <p className="font-medium text-texto">Cómo leer estas cifras</p>
         <ul className="mt-2 list-disc space-y-1.5 pl-5">
@@ -689,4 +707,90 @@ function Periodo({
       </div>
     </div>
   );
+}
+
+/**
+ * Lo de antes del contador, reconstruido del registro del
+ * servidor.
+ *
+ * Tres cosas que el bloque dice en voz alta porque no se
+ * pueden saber del registro, y callarlas seria dar por medido
+ * lo que no lo esta:
+ *
+ *   1. NO hay peldanos intermedios. Se sabe quien pidio el
+ *      formulario y quien mando el envio; nada de en medio.
+ *   2. Un envio pudo ser de alguien que YA estaba: el
+ *      servidor contesta 201 en los dos casos.
+ *   3. La unidad es una IP en un dia, no una persona.
+ */
+function Historico({ h }: { h: HistoricoDeTrafico }) {
+  const dias = h.porDia.map((d) => ({ dia: d.dia, total: d.llegaron }));
+  const envios = h.porDia.map((d) => ({ dia: d.dia, total: d.preinscritos }));
+
+  return (
+    <div className="rounded-2xl border border-borde bg-superficie p-5">
+      <div className="flex flex-wrap items-baseline justify-between gap-3">
+        <div>
+          <h2 className="text-[0.9375rem] font-semibold text-titulo">
+            Antes del contador
+          </h2>
+          <p className="mt-0.5 text-[0.8125rem] text-texto-suave">
+            Reconstruido del <strong>registro del servidor</strong>, no del
+            contador. Del {fechaCorta(h.desde)} al {fechaCorta(h.hasta)}.
+          </p>
+        </div>
+        <p className="text-[0.8125rem] text-texto-suave tabular-nums">
+          <strong className="text-titulo">{n(h.visitas)}</strong> visitas ·{" "}
+          <strong className="text-titulo">{n(h.envios)}</strong> envíos
+        </p>
+      </div>
+
+      <div className="mt-4">
+        <DosSeriesPorDia
+          a={{ nombre: "Abrieron la página", datos: dias }}
+          b={{
+            nombre: "Enviaron el formulario",
+            datos: envios,
+            color: "var(--exito)",
+          }}
+          vacio="No hay nada reconstruido todavía."
+        />
+      </div>
+
+      {h.procedencia.length > 0 && (
+        <div className="mt-5 border-t border-borde pt-4">
+          <p className="text-[0.75rem] font-semibold tracking-[0.04em] text-texto-suave uppercase">
+            De dónde venían
+          </p>
+          <div className="mt-2.5">
+            <ListaBarras
+              datos={h.procedencia.map((c) => ({
+                etiqueta: NOMBRE_PROCEDENCIA[c.valor ?? ""] ?? c.valor ?? "Sin dato",
+                valor: c.visitas,
+                detalle: c.envios > 0 ? `${n(c.envios)} envíos` : undefined,
+              }))}
+              maximoFilas={6}
+            />
+          </div>
+        </div>
+      )}
+
+      <p className="mt-4 text-[0.75rem] leading-relaxed text-texto-suave">
+        El registro sabe quién pidió el formulario y quién lo envió, y{" "}
+        <strong>nada de lo que pasa en medio</strong>: los peldaños del embudo
+        empiezan con el contador. Un envío de aquí pudo ser de alguien que ya
+        estaba registrado —el servidor contesta lo mismo en los dos casos— y la
+        unidad es una dirección de internet en un día, no una persona.
+      </p>
+    </div>
+  );
+}
+
+/// «2026-09-13» -> «13 de sept». Sin el año: el bloque ya dice
+/// el rango entero arriba.
+function fechaCorta(dia: string): string {
+  return new Date(`${dia}T12:00:00`).toLocaleDateString("es-CO", {
+    day: "numeric",
+    month: "short",
+  });
 }

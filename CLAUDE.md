@@ -1540,6 +1540,56 @@ la dejaría fuera de su propia pantalla. Dice en pantalla que las cifras son un
 > Lo mismo pasó con el tipo `Corte`, que ya existía en `crm-api.ts`: el nuevo es
 > `CorteDeVisitas`, y lo cazó el compilador.
 
+#### El historico de ANTES del contador (15 sep 2026)
+
+Lo pregunto el cliente: «¿se puede agregar un historico de como fue el
+comportamiento de trafico de la pagina antes de iniciar el contador?». Se puede,
+y son **398 visitas y 9 envios entre el 4 y el 14 de septiembre** — la campana
+entera, que el contador no vio porque arranco el 14 a las 18:02.
+
+Sale del `access_log` de nginx, que el contenedor guarda desde que se creo (4 sep
+2026). `backend/src/embudo/reconstruir/leer-registro.ts` lo lee y
+`pnpm --filter backend db:reconstruir-trafico <registro> --hasta <ISO> --salida
+<archivo.sql>` escribe el SQL.
+
+- **Vive en su PROPIA tabla** (`visitas_reconstruidas`) y en su propio campo de
+  la respuesta, y eso es la mitad del diseno. Metido en `pasos_de_visita`:
+  `contandoDesde` es la fila mas vieja de esa tabla, asi que **una sola fila
+  reconstruida haria que la pantalla afirmara haber medido lo que no midio**; y
+  `hitos` acredita a cada visita todos los peldanos por debajo de su maximo —es
+  lo que garantiza que el embudo no suba—, asi que una llegada reconstruida
+  contaria como que esa persona eligio ciudad, eligio curso y **autorizo sus
+  datos**. Seria una afirmacion sobre el consentimiento salida de una linea de
+  registro.
+- **La REGLA si se comparte.** La procedencia la clasifica `procedenciaSql()`,
+  la misma funcion, sobre las mismas cuatro columnas —`referente`, `utmFuente`,
+  `huboFbclid`, `navegador`—, que por eso se guardan crudas. Con dos
+  clasificadores, la misma visita saldria de dos maneras segun de que fuente
+  venga. Lo unico duplicado es como se lee el user-agent, y
+  `el-registro-lee-como-la-baliza.spec.ts` ata las dos copias.
+- **La IP no sale del lector.** Se usa para agrupar «una direccion en un dia» y
+  muere ahi: de la funcion solo salen conteos. Es un dato personal en Colombia y
+  hashearla no la salva.
+- **La unidad es una IP en un dia**, no una persona, y el bloque lo dice.
+- **El denominador es el CATALOGO** (`GET /api/preinscripcion/:slug`), no el
+  HTML: aquel lo pide el formulario ya dibujado, y el HTML lo piden tambien los
+  rastreadores que no ejecutan JavaScript — 665 de 758 peticiones eran
+  `facebookexternalhit`.
+- **`--hasta` no tiene valor por defecto.** Es el instante en que arranco el
+  contador: sin el, el mismo dia se contaria dos veces por dos caminos.
+- **Lo que NO se puede saber, y el bloque lo dice en voz alta:** no hay peldanos
+  intermedios; un envio pudo ser de alguien que ya estaba —el servidor contesta
+  201 en los dos casos—; y la raiz de un subdominio no se atribuye, porque nginx
+  registra `GET /` y el formato `combined` no guarda el Host.
+- **El bloque de la pantalla va FUERA de la rama de «hay datos»**, que solo se
+  pinta cuando hay visitas medidas en el periodo — y el historico es justo lo
+  que hay que poder mirar cuando no las hay.
+
+> **El log vive en un contenedor y se va con el.** `docker logs` lee el
+> `json.log` de ese contenedor: un `docker compose up -d --build` que recree
+> nginx se lo lleva. Lo importado ya esta a salvo en la base; lo que no se haya
+> importado, no.
+
 #### De dónde venía cada visita (14 sep 2026)
 
 *«Ingresé directamente desde Facebook y no me sale en el sistema si entraron por
@@ -3578,6 +3628,68 @@ la API.
 > salen en mayúscula sostenida dentro del correo. Bajarlos a mayúscula inicial
 > es una línea en `variables.ts`, pero se lleva por delante las siglas
 > —`TIC` quedaría `Tic`—, así que no se hace por cuenta propia.
+
+### El acuse de la preinscripcion sale solo (15 sep 2026)
+
+Lo pidio el cliente: «gestionar correo automatico cuando la persona se
+preinscriba». Hasta ese dia el **unico** correo que salia por la puerta publica
+era el de «ya teniamos un registro con su documento» — o sea que a quien se
+registraba bien y por primera vez no le llegaba nada.
+
+- **El texto es un DATO, no codigo.** Sale de la plantilla que tenga el
+  disparador «al preinscribirse», que se marca desde `/admin/plantillas-correo`.
+  Publicarlo en produccion es crear el dato alli, no desplegar.
+- **Solo UNA plantilla activa lo tiene por gremio.** Con dos, cual sale lo
+  decidiria el orden de la consulta, y el sintoma seria que a unos les llega un
+  texto y a otros otro sin que nada falle. La general no estorba a la de un
+  gremio: ahi manda la regla de siempre, la propia gana a la heredada.
+- **Va ENCOLADO y no enviado.** `correos_automaticos` es la cola y
+  `CorreoAutomaticoWorker` la vacia. Un SMTP tarda segundos y falla a veces:
+  esperarlo dentro de la peticion se lo cobra a quien acaba de pulsar «enviar»
+  —en la misma pagina de la que se quitaron 2.400 ms de velo— y un fallo se
+  perderia sin dejar rastro.
+- **El trabajador va ENCENDIDO por omision**, al reves que el del RUI y el de
+  campanas. Aquellos salen a un portal del Estado y a listas de cientos; este
+  manda un acuse a quien acaba de dejar su correo. Se apaga con
+  `CORREO_AUTOMATICO=no`, y la pantalla de Configuracion → Correo lo dice en
+  rojo cuando esta apagado.
+- **Un acuse por ficha y para siempre**, por el `@@unique([participanteId,
+  motivo])`: registrarse dos veces, o un reintento del POST, no mandan dos.
+
+#### Lo que paro la revision adversarial, y por que importa
+
+Diecisiete hallazgos de diecinueve sobrevivieron a los escepticos. Los dos
+peores no se ven leyendo el codigo:
+
+- **`!yaEsta` NO es lo contrario de `yaHabiaPersona`.** El acuse colgaba de la
+  primera —«no tenia ficha en ESTA accion»— y el otro correo de la segunda
+  —«la cedula no estaba»—. Quien ya existia y se apuntaba a un curso nuevo caia
+  en las dos y recibia dos correos que se contradicen. Y lo caro no era el
+  duplicado: **el acuse lee el correo de la base DESPUES del upsert**, o sea el
+  que acaba de teclear quien llene el formulario. Con una cedula ajena habria
+  salido al buzon del desconocido con el nombre y el curso de la dueña. Ahora
+  el encolado vive DENTRO del `if (!yaHabiaPersona)`, en el mismo bloque que
+  devuelve el token, donde no se pueden separar.
+- **Sin plantilla, la fila se cerraba en OMITIDO, que es terminal.** Al
+  desplegar esto **ninguna** plantilla lleva disparador —la columna nace en
+  `NINGUNO`—, asi que se habria quemado el acuse de todo el que entrara antes
+  de que alguien la creara. Ahora espera, y solo se toma la fila de un gremio
+  que YA tiene plantilla: si no, esa fila taparia la cola entera cada segundo y
+  medio. A los tres dias caduca, porque «recibimos su preinscripcion» una
+  semana tarde confunde mas de lo que ayuda.
+
+Y cinco mas del mismo tipo: no miraba `etapasPermitidas` —que el envio manual
+si comprueba en el servidor—, firmaba con el gremio de la PLANTILLA en vez del
+de quien lo recibe, no reclamaba la fila antes de mandar (dos contenedores
+solapados en un despliegue mandaban el mismo acuse dos veces), los tres
+reintentos cabian en cuatro segundos, y `editar` no acotaba el convenio de
+DESTINO — desde que una plantilla puede salir sola, mudarsela al otro gremio es
+instalarle el correo que se le manda a sus ciudadanos.
+
+> **Lo que sigue pendiente y no es codigo:** `grupo-ae.com.co` sigue sin SPF,
+> sin DKIM y sin DMARC. Este cambio multiplica lo que sale del buzon
+> institucional, asi que la reputacion del dominio pasa a importar mas que
+> antes — y de ese buzon dependen tambien los correos de acceso al panel.
 
 ### Que no caiga en spam
 

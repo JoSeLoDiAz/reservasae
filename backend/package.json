@@ -23,6 +23,7 @@
     "db:verificar": "ts-node prisma/verificar-invariantes.ts",
     "db:prueba-carga": "ts-node prisma/prueba-carga.ts",
     "db:estado": "ts-node prisma/estado.ts",
+    "db:reconstruir-trafico": "ts-node prisma/reconstruir-trafico.ts",
     "db:publicar": "ts-node prisma/publicar.ts",
     "db:reiniciar-reservas": "ts-node prisma/reiniciar-reservas.ts",
     "db:crear-admin": "ts-node prisma/crear-admin.ts",

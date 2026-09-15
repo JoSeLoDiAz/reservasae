@@ -59,6 +59,7 @@ model Convenio {
   plantillasCorreo     PlantillaCorreo[]
   campanas             Campana[]
   correosAutomaticos   CorreoAutomatico[]
+  visitasReconstruidas VisitaReconstruida[]
   participantes        Participante[]
   admins               AdminConvenio[]
 
@@ -2033,6 +2034,55 @@ model PlantillaCorreo {
   @@map("plantillas_correo")
 }
 
+/// El trafico de ANTES del contador, reconstruido del
+/// registro del servidor.
+///
+/// Vive en su propia tabla y NO en `pasos_de_visita`, y es la
+/// decision que sostiene todo lo demas: alla el embudo acredita
+/// a cada visita todos los peldanos por debajo de su maximo,
+/// asi que una fila reconstruida de REGISTRADO le inventaria a
+/// esa visita seis peldanos intermedios --incluido «autorizaron
+/// sus datos»-- y el embudo saldria sano, monotono y falso.
+/// Ademas `contandoDesde` es la fila mas vieja de esa tabla:
+/// una sola fila reconstruida haria que la pantalla afirmara
+/// haber medido lo que no midio.
+///
+/// Se guardan CONTEOS, no visitas. La IP se usa para agrupar
+/// dentro del lector y muere alli: es un dato personal en
+/// Colombia. Las cuatro columnas de senal son las MISMAS que
+/// las de la baliza para que las clasifique `procedenciaSql()`,
+/// la misma funcion, y no un segundo clasificador que acabaria
+/// discrepando.
+model VisitaReconstruida {
+  id String @id @default(cuid())
+
+  /// Dia de Bogota.
+  dia        DateTime @db.Date
+  slug       String
+  convenioId String?
+
+  /// Vacias y no nulas: el CASE hace `coalesce(...,'')`, asi
+  /// que se comportan igual, y con NOT NULL la llave unica
+  /// muerde (en Postgres dos NULL son distintos).
+  referente  String  @default("")
+  utmFuente  String  @default("")
+  huboFbclid Boolean @default(false)
+  navegador  String  @default("OTRO")
+
+  /// Una IP distinta que pidio el formulario, ese dia.
+  visitas Int
+  /// POST que contestaron 201. NO se sabe si crearon ficha o
+  /// devolvieron una que ya existia: el estado es el mismo.
+  envios  Int @default(0)
+
+  importadoEn DateTime @default(now())
+
+  convenio Convenio? @relation(fields: [convenioId], references: [id], onDelete: SetNull)
+
+  @@unique([dia, slug, referente, utmFuente, huboFbclid, navegador])
+  @@index([convenioId, dia])
+  @@map("visitas_reconstruidas")
+}
 
 /// Que dispara sola una plantilla.
 enum DisparadorDePlantilla {

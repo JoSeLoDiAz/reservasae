@@ -231,6 +231,8 @@ export class EmbudoService {
       etiquetaAnterior: ventana.etiquetaAnterior ?? null,
       comparado,
       contandoDesde: primero?.creadoEn ?? null,
+      /// APARTE, y no sumado a nada. Ver `historico()`.
+      historico: await this.historico(ambito),
       hitos,
       caidaMayor: caidaMayor(hitos),
       porDia,
@@ -238,6 +240,79 @@ export class EmbudoService {
       dispositivo,
       entrada,
       campana,
+    };
+  }
+
+  /**
+   * El trafico de ANTES del contador, reconstruido del
+   * registro del servidor.
+   *
+   * Va en su propio campo y NO se suma a ninguna cifra de
+   * arriba, y eso es la mitad del diseno. Si se mezclara:
+   *
+   * - `contandoDesde` es la fila mas vieja de `pasos_de_visita`
+   *   y la pantalla la presenta como «el contador empezo el
+   *   ...»: una sola fila reconstruida haria que afirmara
+   *   haber medido lo que no midio.
+   * - `hitos` acredita a cada visita TODOS los peldanos por
+   *   debajo de su maximo --es lo que garantiza que el embudo
+   *   no suba--, asi que una llegada reconstruida contaria
+   *   como que esa persona eligio ciudad, eligio curso y
+   *   AUTORIZO SUS DATOS. Seria una afirmacion sobre el
+   *   consentimiento salida de una linea de registro.
+   * - `caidaMayor` diria «N personas se fueron cargando» sobre
+   *   gente de la que no se sabe nada.
+   *
+   * Lo que si se comparte es la REGLA: la procedencia sale de
+   * `procedenciaSql()`, la misma funcion sobre las mismas
+   * cuatro columnas. Con dos clasificadores, la misma visita
+   * saldria de dos maneras segun de que fuente venga.
+   */
+  private async historico(ambito: string[]) {
+    if (ambito.length === 0) return null;
+
+    const [porDia, procedencia] = await Promise.all([
+      this.prisma.$queryRaw<
+        Array<{ dia: string; llegaron: bigint; preinscritos: bigint }>
+      >`
+        SELECT to_char(dia, 'YYYY-MM-DD') AS dia,
+               SUM(visitas)::bigint AS llegaron,
+               SUM(envios)::bigint  AS preinscritos
+          FROM visitas_reconstruidas
+         WHERE "convenioId" IN (${Prisma.join(ambito)})
+         GROUP BY dia
+         ORDER BY dia`,
+      this.prisma.$queryRaw<
+        Array<{ valor: string; visitas: bigint; envios: bigint }>
+      >`
+        SELECT ${procedenciaSql()} AS valor,
+               SUM(visitas)::bigint AS visitas,
+               SUM(envios)::bigint  AS envios
+          FROM visitas_reconstruidas
+         WHERE "convenioId" IN (${Prisma.join(ambito)})
+         GROUP BY 1
+         ORDER BY 2 DESC`,
+    ]);
+
+    if (porDia.length === 0) return null;
+
+    const dias = porDia.map((f) => ({
+      dia: f.dia,
+      llegaron: Number(f.llegaron),
+      preinscritos: Number(f.preinscritos),
+    }));
+
+    return {
+      desde: dias[0].dia,
+      hasta: dias[dias.length - 1].dia,
+      visitas: dias.reduce((t, d) => t + d.llegaron, 0),
+      envios: dias.reduce((t, d) => t + d.preinscritos, 0),
+      porDia: dias,
+      procedencia: procedencia.map((f) => ({
+        valor: f.valor,
+        visitas: Number(f.visitas),
+        envios: Number(f.envios),
+      })),
     };
   }
 
@@ -396,6 +471,8 @@ export class EmbudoService {
       dispositivo: [],
       entrada: [],
       campana: [],
+      /// Sin ambito no hay nada que ensenar, tampoco de antes.
+      historico: null,
     };
   }
 }
