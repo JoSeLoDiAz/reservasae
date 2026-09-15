@@ -40,6 +40,14 @@ export async function datosParaPlantilla(
       accionFormacion: {
         select: { codigo: true, nombre: true, modalidad: true },
       },
+      /// La sede y la modalidad de la OFERTA, que es lo que la
+      /// persona eligio de verdad. Ver el respaldo de abajo.
+      oferta: {
+        select: {
+          modalidad: true,
+          ubicacion: { select: { nombre: true } },
+        },
+      },
       cobertura: {
         select: {
           modalidad: true,
@@ -77,8 +85,27 @@ export async function datosParaPlantilla(
       : null,
     grupo: p.cobertura?.grupo.numero ?? null,
     fechaInicio: p.cobertura?.grupo.fechaInicio ?? null,
-    ubicacion: p.cobertura?.ubicacion.nombre ?? null,
-    modalidad: enBonito(p.cobertura?.modalidad ?? p.accionFormacion?.modalidad),
+    /**
+     * LA SEDE, con respaldo en la oferta.
+     *
+     * Solo salia de la cobertura, y la preinscripcion publica
+     * NO asigna cobertura --escribe `ofertaId` y nada mas--, asi
+     * que era NULA para el 100 % de los preinscritos. Con la
+     * regla 1 de `variables.ts`, una plantilla que la usara no
+     * se le mandaba a nadie. Es el mismo respaldo de dos
+     * niveles que ya hace `empresa` tres lineas arriba.
+     */
+    ubicacion: p.cobertura?.ubicacion.nombre ?? p.oferta?.ubicacion.nombre ?? null,
+    /**
+     * LA MODALIDAD SALE DE LA OFERTA, nunca de la accion.
+     *
+     * «La modalidad es de la celda, no del curso» --lo dice
+     * CLAUDE.md-- y AF7 y AF8 figuran HIBRIDA mientras sus
+     * ofertas son PRESENCIAL o VIRTUAL. Cayendo a la accion, el
+     * correo le decia «Hibrida» a quien se inscribio a la celda
+     * virtual: no estaba vacia, estaba MAL.
+     */
+    modalidad: enBonito(p.cobertura?.modalidad ?? p.oferta?.modalidad),
     asesor: p.asesor?.nombre ?? null,
     gremio: p.convenio?.sigla ?? p.convenio?.nombre ?? null,
   };

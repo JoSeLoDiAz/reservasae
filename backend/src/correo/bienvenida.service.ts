@@ -41,7 +41,9 @@ export type CuentaNueva = {
  */
 export type MarcaDelCorreo = {
   nombreApp: string;
-  logos: Array<{ id: string; etiqueta: string; version: number }>;
+  /// Con su `esquema`: sin el, el correo pintaba tambien las
+  /// versiones de fondo oscuro sobre la placa blanca.
+  logos: Array<{ id: string; etiqueta: string; version: number; esquema: string }>;
   temas: Record<string, Record<string, string> | undefined>;
 };
 
@@ -104,11 +106,26 @@ export class BienvenidaService {
       signo: sitio
         ? `${sitio}/signo-convoca${esClaro(claro.encabezadoTexto) ? '' : '-oscuro'}.png`
         : null,
+      /**
+       * SOLO LOS QUE SE VEN SOBRE LA PLACA BLANCA.
+       *
+       * Se pintaban todos, incluidas las versiones de fondo
+       * oscuro: en ADECOPRIA eso son dos logos de arte blanco
+       * sobre blanco, o sea dos huecos en la cabecera del correo
+       * de acceso. Llevaba asi desde que existen las variantes.
+       *
+       * NO es la regla de luminancia del panel --esa mira el
+       * color de la franja y aqui la franja es siempre blanca,
+       * por la decision de la placa--. Es la respuesta fija a
+       * ese caso: sobre blanco va la version clara.
+       */
       logos: api
-        ? marca.logos.map((l) => ({
-            url: `${api}/marca/logos/${l.id}?v=${l.version}`,
-            alt: l.etiqueta,
-          }))
+        ? marca.logos
+            .filter((l) => l.esquema === 'AMBOS' || l.esquema === 'CLARO')
+            .map((l) => ({
+              url: `${api}/marca/logos/${l.id}?v=${l.version}`,
+              alt: l.etiqueta,
+            }))
         : [],
       nombreApp: marca.nombreApp,
       eslogan: 'Relaciones que generan resultados',
