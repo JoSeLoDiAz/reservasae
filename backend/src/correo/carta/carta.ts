@@ -18,10 +18,12 @@
  * invierte el correo--, tarjeta clara, bordes de 1px y el
  * color en marcas pequenas y no en fondos.
  *
- * Lo que cambia respecto de aquel: aqui la banda lleva LOS
- * LOGOS DEL GREMIO y no la firma de Convoca. Lo pidio el
- * cliente con esas palabras — «los logos de ADECOPRIA y Grupo
- * AE en vez de CRM Convoca y su eslogan».
+ * EL ORDEN DE LA BANDA lo fijo el cliente el 15 sep 2026, y
+ * es al reves de como salio la primera version: «va primero el
+ * logo de Convoca CRM, despues los otros logos de Grupo AE y
+ * ADECOPRIA». Asi que arriba va la firma --signo, nombre,
+ * linea y eslogan, la misma forma de la barra del panel-- y
+ * debajo la placa con los del gremio.
  */
 
 import { escaparHtml } from '../escapar';
@@ -299,8 +301,50 @@ function mezcla(hex: string): string {
 /// Una direccion escrita a mano se vuelve enlace. Va DESPUES
 /// de escapar, asi que lo que se enlaza ya es texto seguro.
 function enlazar(escapado: string, c: (k: string) => string): string {
-  return escapado.replace(
-    /https?:\/\/[^\s<]+/g,
-    (u) => `<a href="${u}" style="color:${c('marca')}">${u}</a>`,
-  );
+  return escapado.replace(/https?:\/\/[^\s<]+/g, (bruto) => {
+    const u = sinLaCola(bruto);
+    const cola = bruto.slice(u.length);
+    return `<a href="${u}" style="color:${c('marca')}">${u}</a>${cola}`;
+  });
+}
+
+/**
+ * Lo que cierra la frase NO es parte de la direccion.
+ *
+ * «Entra en {{enlace}}.» dejaba el punto DENTRO del href, y el
+ * token de completado es de un solo uso: con el punto pegado
+ * no lo encuentra nadie y la persona lee «este enlace ya no
+ * sirve» --el mismo mensaje que caducado y que no existe, que
+ * es deliberado--, o sea que ni ella ni quien la atiende puede
+ * saber que el enlace estaba bien.
+ *
+ * Un parentesis solo se quita si SOBRA: hay direcciones que lo
+ * llevan dentro. Y el punto y coma no se toca nunca, que es el
+ * que cierra `&amp;`.
+ */
+function sinLaCola(u: string): string {
+  let fin = u.length;
+  for (;;) {
+    const trozo = u.slice(0, fin);
+    const entidad = /&(?:[a-zA-Z]+|#\d+);$/.exec(trozo);
+    if (entidad) {
+      fin -= entidad[0].length;
+      continue;
+    }
+    const ch = trozo[fin - 1];
+    if (ch && '.,:!?'.includes(ch)) {
+      fin--;
+      continue;
+    }
+    if (ch && ')]}'.includes(ch)) {
+      const abre = ch === ')' ? '(' : ch === ']' ? '[' : '{';
+      const cierra = trozo.split(ch).length - 1;
+      const abre_ = trozo.split(abre).length - 1;
+      if (cierra > abre_) {
+        fin--;
+        continue;
+      }
+    }
+    return trozo;
+  }
 }

@@ -176,3 +176,52 @@ describe('los colores', () => {
     expect(html).toContain('#2b2333');
   });
 });
+
+describe('el punto final NO es parte de la direccion', () => {
+  /// El token de completado es de un solo uso: con un punto
+  /// pegado no lo encuentra nadie, y la persona lee el MISMO
+  /// mensaje que si el enlace no existiera. «Entra en
+  /// {{enlace}}.» es como se escribe una frase.
+  const href = (html: string) =>
+    [...html.matchAll(/href="([^"]*completar[^"]*)"/g)].map((m) => m[1]);
+
+  it('el punto se queda fuera, y visible', () => {
+    const html = carta('Entra en https://x.co/completar/AbC-_9.');
+
+    expect(href(html)).toEqual(['https://x.co/completar/AbC-_9']);
+    /// y no se pierde: sigue cerrando la frase
+    expect(html).toContain('</a>.');
+  });
+
+  it('la coma, los dos puntos y el cierre de admiracion tambien', () => {
+    expect(href(carta('Aqui: https://x.co/completar/AAA, y ya'))).toEqual([
+      'https://x.co/completar/AAA',
+    ]);
+    expect(href(carta('Es https://x.co/completar/BBB!'))).toEqual([
+      'https://x.co/completar/BBB',
+    ]);
+  });
+
+  it('un parentesis que SOBRA se quita; uno que cierra el suyo se queda', () => {
+    expect(href(carta('Mira (https://x.co/completar/CCC) y listo.'))).toEqual([
+      'https://x.co/completar/CCC',
+    ]);
+    /// aqui el parentesis es de la direccion, no de la frase
+    expect(href(carta('Ver https://x.co/completar/D(1)'))).toEqual([
+      'https://x.co/completar/D(1)',
+    ]);
+  });
+
+  it('no se come el punto y coma de una entidad', () => {
+    /// `&` se escapa a `&amp;`: recortar el `;` dejaria `&amp`
+    const html = carta('Ver https://x.co/completar/E?a=1&b=2');
+
+    expect(href(html)).toEqual(['https://x.co/completar/E?a=1&amp;b=2']);
+  });
+
+  it('el boton sigue saliendo limpio', () => {
+    const html = carta('[Completar mis datos](https://x.co/completar/FFF)');
+
+    expect(href(html)).toEqual(['https://x.co/completar/FFF']);
+  });
+});

@@ -189,3 +189,83 @@ describe('el texto plano', () => {
     expect(comoTexto(bloquesDe('• Uno\n• Dos'))).toBe('• Uno\n• Dos');
   });
 });
+
+describe('lo que el troceado NO se puede tragar', () => {
+  /// Los dos son la misma lección con dos caras: una regla de
+  /// más peso que ya decidió, deshecha por la de al lado.
+
+  /// El de arriba vive dentro de su describe; este es el mismo
+  /// con un solo hueco, que es lo que hace falta aquí.
+  const resolver = (t: string) => {
+    const faltantes: string[] = [];
+    const texto = t.replace(/\{\{\s*(\w+)\s*\}\}/g, (entero, clave: string) => {
+      faltantes.push(clave);
+      return entero;
+    });
+    return { texto, faltantes, desconocidas: [] };
+  };
+
+  it('una llave NO es el simbolo del circulo', () => {
+    /// `# {{ nombre }}, bienvenido` partia por el `{{` y dejaba
+    /// el titulo SIN las llaves, asi que el resolutor no veia
+    /// ningun hueco y el correo salia con la variable impresa.
+    const b = bloquesDe('# {{ primerNombre }}, bienvenido');
+
+    expect(b[0]).toEqual({
+      tipo: 'TITULO',
+      texto: '{{ primerNombre }}, bienvenido',
+      marca: null,
+    });
+  });
+
+  it('y por eso el hueco del titulo SI detiene el envio', () => {
+    const r = resolverBloques(bloquesDe('# {{ vacia }}, hola'), resolver);
+
+    expect(r.faltantes).toEqual(['vacia']);
+    expect(comoTexto(r.bloques)).toContain('{{ vacia }}');
+  });
+
+  it('el simbolo de verdad sigue yendo al circulo', () => {
+    expect(bloquesDe('# ✓ Confirmada')[0]).toEqual({
+      tipo: 'TITULO',
+      texto: 'Confirmada',
+      marca: '✓',
+    });
+  });
+
+  it('una NOTA pegada a un panel no se vuelve una fila del panel', () => {
+    /// «> Nota: si no puede asistir» casa tambien FILA, y el
+    /// corrido se la tragaba: el `>` acababa de etiqueta y
+    /// viajaba crudo al texto plano.
+    const b = bloquesDe('Curso: AF1\nModalidad: Virtual\n> Nota: avísenos');
+
+    expect(b.map((x) => x.tipo)).toEqual(['PANEL', 'NOTA']);
+    expect(comoTexto(b)).not.toContain('>');
+  });
+
+  it('una SECCION pegada a un panel tampoco', () => {
+    const b = bloquesDe('Curso: AF1\nModalidad: Virtual\n## Antes: lea esto');
+
+    expect(b.map((x) => x.tipo)).toEqual(['PANEL', 'SECCION']);
+    expect(comoTexto(b)).not.toContain('#');
+  });
+
+  it('una VIÑETA pegada a un panel tampoco', () => {
+    const b = bloquesDe('Curso: AF1\nModalidad: Virtual\n• Duración: 40 horas');
+
+    expect(b.map((x) => x.tipo)).toEqual(['PANEL', 'LISTA']);
+    expect(b[1]).toEqual({ tipo: 'LISTA', puntos: ['Duración: 40 horas'] });
+  });
+
+  it('un BOTON pegado a una lista no se vuelve una viñeta', () => {
+    const b = bloquesDe('• Uno\n[Entrar](https://x.co/a)');
+
+    expect(b.map((x) => x.tipo)).toEqual(['LISTA', 'BOTON']);
+  });
+
+  it('el panel de dos filas seguidas sigue siendo un panel', () => {
+    expect(bloquesDe('Curso: AF1\nModalidad: Virtual')[0]).toMatchObject({
+      tipo: 'PANEL',
+    });
+  });
+});

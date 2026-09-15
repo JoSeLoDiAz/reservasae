@@ -16,6 +16,7 @@ import {
   resolver,
   valoresDe,
   VARIABLES,
+  VARIABLES_DE_CAMPANA,
   variablesUsadas,
 } from '../plantillas/variables';
 import { escaparHtml } from '../escapar';
@@ -54,8 +55,9 @@ export class CampanasService {
     return SEGMENTOS_LISTOS;
   }
 
+  /// Las de una campana, que NO son todas las del catalogo.
   variables() {
-    return VARIABLES;
+    return VARIABLES_DE_CAMPANA;
   }
 
   async listar(convenios: string[]) {
@@ -841,13 +843,33 @@ export class CampanasService {
     if (!cuerpo.trim())
       throw new BadRequestException('El mensaje no puede ir vacío.');
 
+    const usadas = variablesUsadas(`${asunto} ${cuerpo}`);
+
     const conocidas = new Set(VARIABLES.map((v) => v.clave));
-    const malas = variablesUsadas(`${asunto} ${cuerpo}`).filter(
-      (v) => !conocidas.has(v),
-    );
+    const malas = usadas.filter((v) => !conocidas.has(v));
     if (malas.length > 0) {
       throw new BadRequestException(
         `Estas variables no existen: ${malas.map((v) => `{{${v}}}`).join(', ')}.`,
+      );
+    }
+
+    /// Y las que existen pero AQUI no se pueden llenar.
+    ///
+    /// Se rechaza al ESCRIBIR y no al mandar. Dejandola pasar,
+    /// la campana sale, se omite al cien por cien de la lista
+    /// --regla 1-- y en cada fila queda escrito «le faltan
+    /// datos», que manda a buscar el defecto a fichas que estan
+    /// completas. Una campana que no sale no se descubre hasta
+    /// que alguien pregunta por que nadie contesto.
+    const deUnaFicha = new Set(
+      VARIABLES.filter((v) => v.soloUnaFicha).map((v) => v.clave),
+    );
+    const suyas = usadas.filter((v) => deUnaFicha.has(v));
+    if (suyas.length > 0) {
+      throw new BadRequestException(
+        `${suyas.map((v) => `{{${v}}}`).join(', ')} solo se puede llenar ` +
+          'escribiéndole a una persona desde su ficha, no en una campaña: ' +
+          'aquí quedaría vacío y no saldría ni un correo.',
       );
     }
   }

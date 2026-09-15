@@ -54,6 +54,8 @@ export type Variable = {
   /// Cómo se le explica a quien escribe la plantilla.
   titulo: string;
   ejemplo: string;
+  /// Solo se puede llenar escribiéndole a UNA ficha.
+  soloUnaFicha?: true;
 };
 
 /// El catálogo, que es también lo que se le enseña a quien
@@ -102,6 +104,13 @@ export const VARIABLES: Variable[] = [
     clave: 'enlace',
     titulo: 'Enlace para completar sus datos',
     ejemplo: 'https://reservasae.com/completar/…',
+    /// Es un token de un solo uso por persona, y solo lo
+    /// acuñan los dos caminos que escriben a UNA ficha. En una
+    /// campaña vale null siempre, así que --regla 1-- omitiría
+    /// al cien por cien de la lista y dejaría escrito en cada
+    /// fila que a esa persona le faltan datos. Sería mandar a
+    /// buscar el defecto a las fichas, que están completas.
+    soloUnaFicha: true,
   },
   {
     clave: 'faltan',
@@ -317,3 +326,10 @@ export function variablesUsadas(texto: string): string[] {
   for (const m of texto.matchAll(HUECO)) vistas.add(m[1]);
   return [...vistas];
 }
+
+/// Las que SÍ se pueden llenar en una campaña. Ver
+/// `soloUnaFicha`: el catálogo es uno solo, pero los dos
+/// escritores no pueden llenar lo mismo.
+export const VARIABLES_DE_CAMPANA: Variable[] = VARIABLES.filter(
+  (v) => !v.soloUnaFicha,
+);

@@ -3857,11 +3857,72 @@ ADECOPRIA; publicarlas en produccion es crearlas alli.
 - **El acuse NO nombra al SENA ni la convocatoria**, y es la misma regla de
   producto que gobierna el sitio publico: a esa altura la persona solo dejo su
   interes. El marco se nombra cuando la inscripcion ya es un hecho.
+- **Las cuatro dicen que la formacion es GRATUITA**, y lo pidio el cliente: «que
+  esta formacion es completamente gratuita». Va tambien en la de solicitud de
+  datos, que es justo la que puede hacer temer que vayan a cobrar algo.
+- **Cuelgan de ADECOPRIA y NO son generales.** Llegaron a estar generales --con
+  los logos saliendo del gremio de quien recibe, una sola fila sirve a los dos, y
+  se comprobo que la carta sale bien con la marca de BRITCHAM--, y se deshizo
+  porque **BRITCHAM ADEE queda en stand-by** (decision del cliente, 15 sep 2026):
+  «va para afuera, no lo necesitamos aqui». Colgadas de ADECOPRIA, a nadie de
+  BRITCHAM le sale nada solo. Si algun dia vuelve, es cambiar el convenio de la
+  fila — no hay nada que programar.
 - **Lo que sigue pendiente y no es codigo:** el sitio publico y el panel tratan
   de USTED en todas sus pantallas, asi que quien termina por el enlace lee «Ya
   completo sus datos» justo despues de un correo que lo tutea. Cambiar la voz del
   sitio entero es una decision del cliente, no un efecto secundario de las
   plantillas.
+
+#### Lo que paro la revision antes de subir a produccion (15 sep 2026)
+
+Seis lentes sobre los once commits, dos escepticos por hallazgo, prompteados
+para REFUTAR. **De 27 candidatos sobrevivieron 4**, y los cuatro se arreglaron
+antes de desplegar. Los tres primeros son del troceador y del renderizador, o
+sea de codigo que nunca habia pasado por una revision.
+
+- **El punto final entraba DENTRO del href.** `enlazar()` casaba
+  `https?:\/\/[^\s<]+`, asi que «Entra en {{enlace}}.» dejaba
+  `href="…/completar/Ab3-_xYz."`. El token de completado es **de un solo uso**:
+  con el punto pegado no lo encuentra nadie y la persona lee «este enlace ya no
+  sirve» — el mismo mensaje que caducado y que no existe, que es deliberado, o
+  sea que ni ella ni quien la atiende puede saber que el enlace estaba bien. Y
+  «da clic en el siguiente enlace: {{enlace}}.» es literalmente la frase que
+  pidio el cliente. `sinLaCola()` recorta `.,:!?`, los cierres que SOBRAN --uno
+  que cierra el suyo se queda, hay direcciones que lo llevan dentro-- y las
+  entidades; **el punto y coma no se toca nunca**, que es el que cierra `&amp;`.
+- **`# {{ nombre }}, bienvenido` se comia las llaves.** El regex del simbolo del
+  circulo casaba `{{` como «simbolo suelto» y partia el titulo, asi que el texto
+  que llegaba al resolutor ya no tenia llaves: `faltantes` vacio, `sePuede` en
+  true, y el correo salia con «{{ nombre }}» impreso y firmado por el gremio.
+  **Es la regla 1 derrotada por la puerta de al lado**, que es exactamente el
+  defecto que este mismo cambio vino a arreglar en la compuerta. Las llaves
+  salieron de la clase del simbolo.
+- **El panel se tragaba la nota, la seccion y la vineta de debajo.** `corrido()`
+  solo comprobaba su patron, y el bucle salta lineas con `i += n - 1`, asi que
+  las comprobaciones de mas peso no volvian a correr: «> Nota: avisenos» pegada a
+  un panel casa tambien FILA y acababa de fila con etiqueta «> Nota» — con el
+  marcador viajando crudo al texto plano, que es lo que este archivo prohibe.
+  `laReclamaOtra()` corta el corrido donde ya decidio otra regla.
+- **`{{enlace}}` se ofrecia en el compositor de CAMPANAS, donde no se puede
+  llenar nunca.** El catalogo es uno solo para los dos escritores y la previa lo
+  pintaba con su ejemplo, asi que en pantalla se veia funcionando; al lanzar,
+  `valoresDe` lo devuelve nulo a fuego y --regla 1-- la campana **omite al cien
+  por cien de la lista**, dejando escrito en cada fila «le faltan datos», que
+  manda a buscar el defecto a fichas que estan completas. Ahora la variable lleva
+  `soloUnaFicha` y **se rechaza al ESCRIBIR la campana, no al mandarla**: una
+  campana que no sale no se descubre hasta que alguien pregunta por que nadie
+  contesto.
+
+> **Los cuatro arreglos se probaron por mutacion, y los cuatro matan tests**: el
+> recorte del href en no-op (caen 3), las llaves de vuelta en el simbolo (2), la
+> precedencia apagada (3) y la campana aceptando la variable otra vez (2).
+>
+> Y de los 23 descartados, el que mas vale: dos lentes reportaron que **los logos
+> de ADECOPRIA son arte blanco y quedarian invisibles sobre la placa**, citando
+> este mismo archivo. **Ya no es cierto** — se midieron los cinco de produccion,
+> ninguno pasa del 2 % de pixeles claros, y sus `esquema` estan bien puestos
+> (blancos OSCURO, oscuros CLARO). El aviso de la seccion de los logos describia
+> un estado que alguien ya arreglo en los datos.
 
 ### Que no caiga en spam
 

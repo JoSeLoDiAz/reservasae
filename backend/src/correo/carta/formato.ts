@@ -130,11 +130,31 @@ function corrido(
 ): RegExpExecArray[] {
   const casan: RegExpExecArray[] = [];
   for (let i = desde; i < lineas.length; i++) {
-    const m = patron.exec(lineas[i].trim());
+    const linea = lineas[i].trim();
+    if (laReclamaOtra(linea, patron)) break;
+    const m = patron.exec(linea);
     if (!m) break;
     casan.push(m);
   }
   return casan;
+}
+
+/**
+ * Si una regla de MAS peso ya reclamo esa linea.
+ *
+ * El bucle comprueba la seccion y la nota antes del corrido,
+ * pero el corrido salta lineas con `i += n - 1` y esas
+ * comprobaciones no vuelven a correr. Sin esto, «> Nota: si no
+ * puede asistir, avisenos» pegada a un panel casa tambien FILA
+ * y el panel se la traga: el `>` acaba de etiqueta y viaja
+ * crudo al texto plano, que es justo lo que este archivo
+ * prohibe.
+ */
+function laReclamaOtra(linea: string, patron: RegExp): boolean {
+  if (linea.startsWith('## ') || linea.startsWith('> ')) return true;
+  if (BOTON.test(linea)) return true;
+  /// la vinetas gana a la fila, nunca al reves
+  return patron === FILA && VINETA.test(linea);
 }
 
 /**
@@ -146,8 +166,12 @@ function corrido(
  * un vistazo, y en texto plano se sigue leyendo igual de bien.
  */
 function titulo(texto: string): Bloque {
-  /// Un simbolo suelto: ni letra, ni numero, ni espacio.
-  const m = /^([^\p{L}\p{N}\s]+)\s+(\S.*)$/u.exec(texto);
+  /// Un simbolo suelto: ni letra, ni numero, ni espacio -- y
+  /// NUNCA una llave. `# {{ nombre }}, bienvenido` partia por
+  /// el `{{` y dejaba el titulo sin las llaves, asi que el
+  /// resolutor no veia ningun hueco: el correo salia con
+  /// «{{ nombre }}» impreso y la regla 1 no se enteraba.
+  const m = /^([^\p{L}\p{N}\s{}]+)\s+(\S.*)$/u.exec(texto);
   if (m) {
     return { tipo: 'TITULO', texto: m[2].trim(), marca: m[1].trim() };
   }
