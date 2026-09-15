@@ -3541,6 +3541,44 @@ sistema, y tiene razón: es la firma del panel, no una versión parecida.
   leyendo el HTML: en el móvil el correo se partía a mitad de palabra, así que
   la etiqueta y el valor se apilan por debajo de 620.
 
+### La plantilla de «Inscripción confirmada» (14 sep 2026)
+
+La primera plantilla de verdad, y la pidió el cliente con un HTML de
+muestra. **Se manda cuando la etapa cambia a INSCRITO** —decisión suya—, así
+que vive con `etapasPermitidas: INSCRITO, EN_FORMACION, CERTIFICADO`: el
+desplegable la apaga antes y el servidor la rechaza igual si alguien llama a
+la API.
+
+- **La plantilla es un DATO, no código.** Está en `plantillas_correo` de
+  pruebas (`Inscripción confirmada`, colgada del convenio de ADECOPRIA).
+  Publicarla en producción es crearla allá, no desplegar nada.
+- **Va colgada de ADECOPRIA a propósito**, porque su cabezote son los logos
+  de ADECOPRIA y Grupo AE. Sin convenio saldría con esos logos firmada por
+  BRITCHAM.
+- **Los logos entran por el CABEZOTE, que es el mecanismo que ya existía**
+  para eso. Placa blanca —los dos son arte oscuro: el verde y negro de
+  ADECOPRIA y el magenta de Grupo AE— y una regla de 8 px en `#315a00`, que
+  es la banda del gremio. El color en una marca pequeña y no en el fondo, que
+  es la regla del handoff. Se compone con PIL desde los PNG de la base, como
+  el signo.
+- **NO lleva fecha de inicio ni grupo, y esto es lo importante.** Por la regla
+  del cliente nada de lo inscrito cuelga del cronograma: en pruebas son 6.600
+  inscritos con oferta y **cero** con cobertura. Y un hueco que no se puede
+  llenar **detiene el envío**, así que una plantilla con `{{fechaInicio}}` no
+  se le podría mandar a ningún inscrito. Dice que las fechas se confirman
+  después, que además es la verdad.
+- **Tampoco lleva `{{asesor}}`**: una ficha puede no tener dueño todavía, y
+  eso bastaría para que el correo no salga.
+- **El asunto no lleva el nombre del curso.** Los del catálogo vienen en
+  mayúscula sostenida y dan un asunto de 120 caracteres gritando, que Gmail
+  corta y los filtros castigan — sobre un dominio que todavía no tiene SPF ni
+  DKIM. El curso va en la primera línea del cuerpo, donde se lee entero.
+
+> **Queda pendiente y es del cliente decidirlo:** los nombres de las acciones
+> salen en mayúscula sostenida dentro del correo. Bajarlos a mayúscula inicial
+> es una línea en `variables.ts`, pero se lleva por delante las siglas
+> —`TIC` quedaría `Tic`—, así que no se hace por cuenta propia.
+
 ### Que no caiga en spam
 
 **El dominio que firma es `grupo-ae.com.co`, no `reservasae.com`**, y ese **no
