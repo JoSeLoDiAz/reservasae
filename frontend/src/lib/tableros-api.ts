@@ -344,7 +344,10 @@ export type DetalleAccion = {
   visible: boolean;
   convenio: { slug: string; sigla: string | null; nombre: string };
   cupos: number;
+  /// PERSONAS inscritas. No las sillas apartadas.
   ocupados: number;
+  /// Apartadas por empresas, sin nombre todavia.
+  reservados: number;
   disponibles: number;
   metaBase: number;
   proyeccion: Proyeccion;

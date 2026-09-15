@@ -255,15 +255,18 @@ export default function DetalleDeAccion({ params }: { params: Promise<{ id: stri
 
       {/* Las tarjetas de Gestion de leads, sobre el fondo. */}
       <div className="no-imprimir flex flex-wrap gap-2.5">
+        {/* PERSONAS, no sillas apartadas: una reserva es solo
+            reserva hasta que llega la persona (cliente, 15 sep
+            2026). El tope sigue siendo meta + 30 %. */}
         <Cifra
-          etiqueta="Avance sobre el tope"
+          etiqueta="Personas inscritas"
           valor={datos.ocupados}
           pie={`de ${n(datos.cupos)} (meta ${n(datos.metaBase)} + 30 %) · ${dec(datos.avance)} %`}
         />
         <Cifra
-          etiqueta="Cupos sin reservar"
-          valor={datos.disponibles}
-          pie={`del tope de ${n(datos.cupos)} · meta ${dec(datos.avanceMeta)} %`}
+          etiqueta="Apartados por empresas"
+          valor={datos.reservados}
+          pie={`sin nombre todavía · quedan ${n(datos.disponibles)} por reservar`}
         />
         <Cifra
           etiqueta="Organizaciones"

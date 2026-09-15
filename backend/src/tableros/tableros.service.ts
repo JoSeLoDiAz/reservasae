@@ -462,6 +462,14 @@ export class TablerosService {
   }
 
   /** Todo lo de una acción, para su pantalla. */
+  /// Cuántas personas ocupan silla en una acción. `OCUPAN_SILLA`
+  /// es la lista única: interesados y contactados NO cuentan.
+  private async personasDeAccion(accionFormacionId: string): Promise<number> {
+    return this.prisma.participante.count({
+      where: { accionFormacionId, etapa: { in: OCUPAN_SILLA } },
+    });
+  }
+
   async accion(id: string, ambito: string[]) {
     const accion = await this.prisma.accionFormacion.findFirst({
       // findFirst con el ambito dentro: con findUnique por
@@ -512,6 +520,7 @@ export class TablerosService {
 
     const cupos = accion.ofertas.reduce((s, o) => s + o.cuposMaximos, 0);
     const ocupados = accion.ofertas.reduce((s, o) => s + o.cuposOcupados, 0);
+    const personas = await this.personasDeAccion(accion.id);
     const base = accion.grupos.reduce(
       (s, g) => s + g.coberturas.reduce((t, c) => t + c.cuposBase, 0),
       0,
@@ -554,12 +563,28 @@ export class TablerosService {
       convenio: accion.convenio,
 
       cupos,
-      ocupados,
+      /**
+       * LA OCUPACIÓN SON PERSONAS, no sillas apartadas.
+       *
+       * «Las reservas son solo reserva hasta que lleguen y se
+       * coloquen las personas» (cliente, 15 sep 2026). Con 91
+       * apartadas y nadie inscrito, esta cifra decía 91.
+       */
+      ocupados: personas,
+      /// Lo que las empresas tienen apartado, aparte.
+      reservados: ocupados,
+      /**
+       * Y esto SÍ descuenta las reservas, a propósito.
+       *
+       * Son los cupos que quedan por vender. Si aquí no se
+       * restara lo apartado, el sitio público ofrecería sillas
+       * que ya tienen dueño.
+       */
       disponibles: cupos - ocupados,
       metaBase: base,
       proyeccion,
-      avance: pct(ocupados, cupos),
-      avanceMeta: pct(ocupados, base),
+      avance: pct(personas, cupos),
+      avanceMeta: pct(personas, base),
       enEspera: accion.ofertas.reduce(
         (s, o) => s + o.reservas.reduce((t, r) => t + r.cuposEnEspera, 0),
         0,
