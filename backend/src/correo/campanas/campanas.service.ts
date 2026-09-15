@@ -461,7 +461,8 @@ export class CampanasService {
     ///   motivo, igual que se omite a quien le falta el dato
     ///   en su ficha.
     const datos = siguiente.participanteId
-      ? await datosParaPlantilla(this.prisma, siguiente.participanteId)
+      // el segmento ya se armo dentro de un gremio
+      ? await datosParaPlantilla(this.prisma, siguiente.participanteId, null)
       : deLaListaSubida(siguiente.nombre, siguiente.correo);
 
     if (!datos) {

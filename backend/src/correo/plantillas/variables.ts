@@ -31,6 +31,9 @@ export type DatosDelParticipante = {
   celular: string | null;
   empresa: string | null;
   accionFormacion: string | null;
+  /// CURSO / TALLER / TALLER-BOOTCAMP / FORO.
+  evento: string | null;
+  horas: number | null;
   grupo: number | null;
   fechaInicio: Date | null;
   ubicacion: string | null;
@@ -71,6 +74,8 @@ export const VARIABLES: Variable[] = [
     titulo: 'Acción de formación',
     ejemplo: 'AF1 · Gestión de la atención',
   },
+  { clave: 'evento', titulo: 'Tipo de evento', ejemplo: 'Curso' },
+  { clave: 'horas', titulo: 'Duración', ejemplo: '40 horas' },
   { clave: 'grupo', titulo: 'Número de grupo', ejemplo: '3' },
   {
     clave: 'fechaInicio',
@@ -156,6 +161,17 @@ function bonito(t: string): string {
     .join(' ');
 }
 
+/// «TALLER-BOOTCAMP» se lee como un grito. Se parte tambien por
+/// guion: `bonito()` solo parte por espacios y daria
+/// «Taller-bootcamp».
+function enPalabra(t: string): string {
+  return t
+    .toLocaleLowerCase('es-CO')
+    .split('-')
+    .map((p) => (p ? p[0].toLocaleUpperCase('es-CO') + p.slice(1) : p))
+    .join('-');
+}
+
 function nombreCompletoDe(d: DatosDelParticipante): string | null {
   const partes = [
     d.primerNombre,
@@ -183,6 +199,11 @@ export function valoresDe(
     celular: d.celular,
     empresa: d.empresa,
     accionFormacion: d.accionFormacion,
+    evento: d.evento ? enPalabra(d.evento) : null,
+    /// Con la palabra dentro: si devolviera el numero pelado,
+    /// quien escriba pondria «{{horas}} horas» y el dia que
+    /// alguien ponga «2» saldria «2 horas» para un foro de dos.
+    horas: d.horas === null ? null : `${d.horas} horas`,
     grupo: d.grupo === null ? null : String(d.grupo),
     fechaInicio: d.fechaInicio ? enLetras(d.fechaInicio) : null,
     ubicacion: d.ubicacion,

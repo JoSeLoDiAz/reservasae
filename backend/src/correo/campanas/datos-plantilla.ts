@@ -16,12 +16,25 @@ function enBonito(m: string | null | undefined): string | null {
   return m[0] + m.slice(1).toLocaleLowerCase('es-CO');
 }
 
+/**
+ * El ambito va en la firma y no admite omitirse.
+ *
+ * `null` es «ya viene acotado», que es el caso de una campana
+ * --su segmento se armo dentro de un gremio--. Con un valor,
+ * la ficha de otro gremio no existe. Dejarlo opcional seria
+ * dejar que se olvide, y lo que se olvida aqui es que un
+ * gremio lea el nombre y la cedula de los ciudadanos del otro.
+ */
 export async function datosParaPlantilla(
   prisma: PrismaService,
   participanteId: string,
+  ambito: string[] | null,
 ): Promise<DatosDelParticipante | null> {
   const p = await prisma.participante.findUnique({
-    where: { id: participanteId },
+    where: {
+      id: participanteId,
+      ...(ambito ? { convenioId: { in: ambito } } : {}),
+    },
     select: {
       persona: {
         select: {
@@ -38,7 +51,7 @@ export async function datosParaPlantilla(
       empresa: { select: { razonSocial: true } },
       reserva: { select: { empresa: { select: { razonSocial: true } } } },
       accionFormacion: {
-        select: { codigo: true, nombre: true, modalidad: true },
+        select: { codigo: true, nombre: true, modalidad: true, evento: true, horas: true },
       },
       /// La sede y la modalidad de la OFERTA, que es lo que la
       /// persona eligio de verdad. Ver el respaldo de abajo.
@@ -83,6 +96,8 @@ export async function datosParaPlantilla(
     accionFormacion: p.accionFormacion
       ? `${p.accionFormacion.codigo} · ${p.accionFormacion.nombre}`
       : null,
+    evento: p.accionFormacion?.evento ?? null,
+    horas: p.accionFormacion?.horas ?? null,
     grupo: p.cobertura?.grupo.numero ?? null,
     fechaInicio: p.cobertura?.grupo.fechaInicio ?? null,
     /**
@@ -139,6 +154,8 @@ export function deLaListaSubida(
     celular: null,
     empresa: null,
     accionFormacion: null,
+    evento: null,
+    horas: null,
     grupo: null,
     fechaInicio: null,
     ubicacion: null,

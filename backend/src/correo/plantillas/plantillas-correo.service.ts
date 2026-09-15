@@ -17,6 +17,7 @@ import {
 } from '../autorizacion-vigente';
 import { escaparAtributo, escaparHtml } from '../escapar';
 import { urlPublicaDeLaApi } from '../url-publica';
+import { datosParaPlantilla } from '../campanas/datos-plantilla';
 import { porQueNo } from './etapas-de-plantilla';
 import {
   resolver,
@@ -425,15 +426,16 @@ export class PlantillasCorreoService {
   }
 
   /**
-   * Todo lo que una plantilla puede necesitar de un lead.
-   *
-   * Una sola consulta: la vista previa se pide cada vez que
-   * alguien cambia de plantilla en el desplegable, y no vale
-   * la pena ir cinco veces a la base por cada clic.
-   */
-  /**
    * Los datos de la ficha, SI es de un gremio que esta cuenta
    * alcanza.
+   *
+   * Los arma `datosParaPlantilla`, la MISMA funcion de las
+   * campanas. Habia una copia aqui, y las dos ya discrepaban:
+   * esta sacaba la modalidad de la accion --que en AF7 y AF8
+   * dice «Hibrida» mientras la celda es virtual-- y la sede
+   * solo de la cobertura, que un inscrito sin grupo no tiene.
+   * Con la regla 1 de `variables.ts`, eso no era un correo
+   * feo: era un correo que no salia.
    *
    * El ambito es obligatorio y va en la firma a proposito.
    * Antes esto buscaba por id y ya, y las dos rutas de correo
@@ -443,84 +445,20 @@ export class PlantillasCorreoService {
    * correo DE VERDAD a un ciudadano del otro gremio.
    */
   private async datosDe(participanteId: string, ambito: string[]) {
-    const p = await this.prisma.participante.findUnique({
-      where: { id: participanteId, convenioId: { in: ambito } },
-      select: {
-        persona: {
-          select: {
-            primerNombre: true,
-            segundoNombre: true,
-            primerApellido: true,
-            segundoApellido: true,
-            generoSepId: true,
-            numeroDocumento: true,
-            correo: true,
-            celular: true,
-          },
-        },
-        empresa: { select: { razonSocial: true } },
-        reserva: { select: { empresa: { select: { razonSocial: true } } } },
-        accionFormacion: {
-          select: { codigo: true, nombre: true, modalidad: true },
-        },
-        cobertura: {
-          select: {
-            modalidad: true,
-            ubicacion: { select: { nombre: true } },
-            grupo: { select: { numero: true, fechaInicio: true } },
-          },
-        },
-        asesor: { select: { nombre: true } },
-        convenio: { select: { sigla: true, nombre: true } },
-      },
-    });
+    const datos = await datosParaPlantilla(
+      this.prisma,
+      participanteId,
+      ambito,
+    );
 
-    if (!p) throw new NotFoundException('Ese lead ya no existe.');
-
-    const persona = p.persona;
-    /// La empresa propia y si no la de la reserva: `empresaId`
-    /// se llena en el formulario largo, pero quien llegó por
-    /// una reserva la tiene colgando de ahí.
-    const empresa =
-      p.empresa?.razonSocial ?? p.reserva?.empresa?.razonSocial ?? null;
-
-    const datos: DatosDelParticipante = {
-      primerNombre: persona.primerNombre,
-      segundoNombre: persona.segundoNombre,
-      primerApellido: persona.primerApellido,
-      segundoApellido: persona.segundoApellido,
-      generoSepId: persona.generoSepId,
-      numeroDocumento: persona.numeroDocumento,
-      correo: persona.correo,
-      celular: persona.celular,
-      empresa,
-      accionFormacion: p.accionFormacion
-        ? `${p.accionFormacion.codigo} · ${p.accionFormacion.nombre}`
-        : null,
-      grupo: p.cobertura?.grupo.numero ?? null,
-      fechaInicio: p.cobertura?.grupo.fechaInicio ?? null,
-      ubicacion: p.cobertura?.ubicacion.nombre ?? null,
-      modalidad: enBonito(
-        p.cobertura?.modalidad ?? p.accionFormacion?.modalidad,
-      ),
-      asesor: p.asesor?.nombre ?? null,
-      gremio: p.convenio?.sigla ?? p.convenio?.nombre ?? null,
-    };
+    if (!datos) throw new NotFoundException('Ese lead ya no existe.');
 
     const nombre =
-      [persona.primerNombre, persona.primerApellido]
-        .filter(Boolean)
-        .join(' ') || 'Este lead';
+      [datos.primerNombre, datos.primerApellido].filter(Boolean).join(' ') ||
+      'Este lead';
 
-    return { datos, correo: persona.correo, nombre };
+    return { datos, correo: datos.correo, nombre };
   }
-}
-
-/// PRESENCIAL -> Presencial. En un correo no se le grita a
-/// nadie.
-function enBonito(m: string | null | undefined): string | null {
-  if (!m) return null;
-  return m[0] + m.slice(1).toLocaleLowerCase('es-CO');
 }
 
 /**
