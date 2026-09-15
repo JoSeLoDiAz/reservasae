@@ -3,7 +3,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Prisma } from '../../generated/prisma';
 
-import { resolverVentana, type Rango } from '../crm/ventana';
+import { compararDos, resolverVentana, type Rango } from '../crm/ventana';
 import { PrismaService } from '../prisma/prisma.service';
 import { diaBogota } from '../comun/dia-bogota';
 import { procedenciaSql } from './procedencia';
@@ -16,6 +16,16 @@ const SOLO_AL_LLEGAR = 'LLEGO';
 type FilaEmbudo = { paso: string; visitas: bigint };
 type FilaCorte = { valor: string | null; visitas: bigint; envios: bigint };
 type FilaDia = { dia: string; llegaron: bigint; preinscritos: bigint };
+
+/** Lo que puede pedir la pantalla. Las fechas son ISO. */
+export type PedidoDeEmbudo = {
+  rango?: Rango;
+  desde?: string;
+  hasta?: string;
+  /// Con estos dos, se comparan DOS periodos elegidos.
+  contraDesde?: string;
+  contraHasta?: string;
+};
 
 @Injectable()
 export class EmbudoService {
@@ -126,14 +136,36 @@ export class EmbudoService {
    * anteriores, así que las barras salen monótonas por
    * construcción: un embudo que sube no se puede leer.
    */
-  async embudo(ambito: string[], rango: Rango = 'SEMANA') {
+  async embudo(ambito: string[], pedido: PedidoDeEmbudo = {}) {
+    const rango = pedido.rango ?? 'SEMANA';
     if (ambito.length === 0) return this.vacio(rango);
 
-    const ventana = resolverVentana(rango);
+    /**
+     * DOS PERIODOS ELEGIDOS, no uno contra su previo.
+     *
+     * Lo pidió el cliente: «de tal fecha a tal fecha, hoy contra
+     * ayer, un día contra otro del calendario». `compararDos` ya
+     * existe para esto y su docblock lo dice: no exige que duren
+     * igual, así que la pantalla tiene que enseñar los DOS
+     * rótulos y no un genérico «el periodo anterior».
+     */
+    const comparando = Boolean(pedido.contraDesde && pedido.contraHasta);
+    const marco = comparando
+      ? compararDos(
+          'PERSONALIZADO',
+          'PERSONALIZADO',
+          pedido.desde,
+          pedido.hasta,
+          pedido.contraDesde,
+          pedido.contraHasta,
+        )
+      : resolverVentana(rango, pedido.desde, pedido.hasta);
+
     /// `TODO` no acota, y aquí sí hace falta un par de fechas:
     /// la consulta filtra por cuándo EMPEZÓ la visita.
-    const desde = ventana.actual?.desde ?? new Date(0);
-    const hasta = ventana.actual?.hasta ?? new Date(Date.now() + 86_400_000);
+    const desde = marco.actual?.desde ?? new Date(0);
+    const hasta = marco.actual?.hasta ?? new Date(Date.now() + 86_400_000);
+    const ventana = marco;
 
     /// La visita se fecha por su PRIMER paso, no paso a paso:
     /// una que empieza a las 23:58 y envía a las 00:02 saldría
@@ -177,8 +209,18 @@ export class EmbudoService {
       select: { creadoEn: true },
     });
 
+    /// El segundo periodo, solo si se pidió. Una consulta más y
+    /// no seis: del bloque comparado interesa el embudo y de
+    /// dónde venían, no los tres cortes menores.
+    const comparado =
+      comparando && marco.anterior
+        ? await this.bloqueCorto(ambito, marco.anterior.desde, marco.anterior.hasta)
+        : null;
+
     return {
       etiqueta: ventana.etiqueta,
+      etiquetaAnterior: ventana.etiquetaAnterior ?? null,
+      comparado,
       contandoDesde: primero?.creadoEn ?? null,
       hitos,
       caidaMayor: caidaMayor(hitos),
@@ -188,6 +230,51 @@ export class EmbudoService {
       entrada,
       campana,
     };
+  }
+
+  /**
+   * El segundo periodo, en corto.
+   *
+   * Solo el embudo y de dónde venían: comparar dos fechas es
+   * responder «¿mejoró o empeoró?», y para eso no hacen falta
+   * los cortes por dispositivo ni por campaña, que son para
+   * mirar UN periodo por dentro.
+   */
+  private async bloqueCorto(ambito: string[], desde: Date, hasta: Date) {
+    const [hitos, procedencia] = await Promise.all([
+      this.hitos(ambito, desde, hasta),
+      this.corte(ambito, desde, hasta, procedenciaSql()),
+    ]);
+    return { hitos, procedencia };
+  }
+
+  /// Los peldaños de una ventana. Sale del `embudo()` para poder
+  /// pedirlo dos veces sin repetir la consulta escrita.
+  private async hitos(
+    ambito: string[],
+    desde: Date,
+    hasta: Date,
+  ): Promise<Array<{ paso: string; visitas: number }>> {
+    const filas = await this.prisma.$queryRaw<FilaEmbudo[]>`
+      WITH visitas AS (
+        SELECT "visitaId",
+               MIN("creadoEn") AS empezo,
+               MAX(CASE WHEN "paso" = ANY(${ESCALERA as unknown as string[]}::text[])
+                        THEN array_position(${ESCALERA as unknown as string[]}::text[], "paso")
+                        ELSE 0 END) AS tope
+          FROM "pasos_de_visita"
+         WHERE "convenioId" IN (${Prisma.join(ambito)})
+         GROUP BY "visitaId"
+      )
+      SELECT e.paso, COUNT(*)::bigint AS visitas
+        FROM visitas v
+        JOIN LATERAL unnest(${ESCALERA as unknown as string[]}::text[])
+               WITH ORDINALITY AS e(paso, n) ON e.n <= v.tope
+       WHERE v.empezo >= ${desde} AND v.empezo < ${hasta}
+       GROUP BY e.paso
+    `;
+    const porPaso = new Map(filas.map((f) => [f.paso, Number(f.visitas)]));
+    return ESCALERA.map((paso) => ({ paso, visitas: porPaso.get(paso) ?? 0 }));
   }
 
   /**
@@ -290,6 +377,8 @@ export class EmbudoService {
   private vacio(rango: Rango) {
     return {
       etiqueta: resolverVentana(rango).etiqueta,
+      etiquetaAnterior: null,
+      comparado: null,
       contandoDesde: null,
       hitos: ESCALERA.map((paso) => ({ paso, visitas: 0 })),
       caidaMayor: null,

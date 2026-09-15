@@ -4,6 +4,14 @@ import { pedir } from "./pedir";
 /** Lo que devuelve el embudo del formulario publico. */
 export type EmbudoPublico = {
   etiqueta: string;
+  /// El rotulo del segundo periodo, cuando se comparan dos.
+  etiquetaAnterior: string | null;
+  /// Solo el embudo y de donde venian: comparar es responder
+  /// «mejoro o empeoro», no mirar un periodo por dentro.
+  comparado: {
+    hitos: Array<{ paso: string; visitas: number }>;
+    procedencia: CorteDeVisitas[];
+  } | null;
   /// Desde cuando hay contador. Antes de esto no es que no
   /// hubiera gente: es que no se contaba.
   contandoDesde: string | null;
@@ -1231,8 +1239,19 @@ export const crmApi = {
     pedir<MetricasInscripciones>(`/admin/participantes/metricas${consulta(filtros)}`),
 
   /// El embudo del formulario publico. Una sola llamada.
-  embudoPublico: (rango = "SEMANA") =>
-    pedir<EmbudoPublico>(`/admin/embudo-publico?rango=${encodeURIComponent(rango)}`),
+  /// Con `contraDesde` y `contraHasta` compara dos periodos
+  /// elegidos del calendario, no uno contra su previo.
+  embudoPublico: (p: {
+    rango?: string;
+    desde?: string;
+    hasta?: string;
+    contraDesde?: string;
+    contraHasta?: string;
+  }) => {
+    const q = new URLSearchParams();
+    for (const [k, v] of Object.entries(p)) if (v) q.set(k, v);
+    return pedir<EmbudoPublico>(`/admin/embudo-publico?${q.toString()}`);
+  },
 
   planeacionDePauta: (accionFormacionId?: string, coberturaId?: string) =>
     pedir<PlaneacionDePauta>(

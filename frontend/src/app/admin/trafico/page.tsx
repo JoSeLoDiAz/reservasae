@@ -29,6 +29,7 @@ import {
   Chispa,
   Donut,
   DosSeriesPorDia,
+  Delta,
   ListaBarras,
   n,
   type PorcionDonut,
@@ -119,17 +120,34 @@ function diaCorto(iso: string): string {
 
 export default function PaginaTrafico() {
   const [rango, setRango] = useState("TODO");
+  /// Los dos periodos del calendario. Vacios = no se compara.
+  const [a, setA] = useState({ desde: "", hasta: "" });
+  const [b, setB] = useState({ desde: "", hasta: "" });
   const [datos, setDatos] = useState<EmbudoPublico | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  const comparando = Boolean(a.desde && a.hasta && b.desde && b.hasta);
+
   const cargar = useCallback(async () => {
     try {
-      setDatos(await crmApi.embudoPublico(rango));
+      setDatos(
+        await crmApi.embudoPublico(
+          comparando
+            ? {
+                rango: "PERSONALIZADO",
+                desde: a.desde,
+                hasta: a.hasta,
+                contraDesde: b.desde,
+                contraHasta: b.hasta,
+              }
+            : { rango },
+        ),
+      );
       setError(null);
     } catch (e) {
       setError((e as ErrorApi).message);
     }
-  }, [rango]);
+  }, [rango, comparando, a.desde, a.hasta, b.desde, b.hasta]);
 
   useDatosVivos(cargar, { intervaloMs: 30_000 });
 
@@ -143,6 +161,11 @@ export default function PaginaTrafico() {
   const quedaron = porPaso.get("REGISTRADO") ?? 0;
 
   const dias = datos?.porDia ?? [];
+  const antes = useMemo(
+    () => new Map((datos?.comparado?.hitos ?? []).map((h) => [h.paso, h.visitas])),
+    [datos],
+  );
+  const contra = (paso: string) => (datos?.comparado ? (antes.get(paso) ?? 0) : null);
 
   const hitos: Hito[] = PELDANOS.map((p) => ({
     etapa: p.etapa,
@@ -217,6 +240,14 @@ export default function PaginaTrafico() {
         </div>
       </Encabezado>
 
+      <ComparadorDeFechas
+        a={a}
+        b={b}
+        alCambiarA={setA}
+        alCambiarB={setB}
+        comparando={comparando}
+      />
+
       {error && <Aviso tipo="error">{error}</Aviso>}
 
       {datos && !hayDatos ? (
@@ -245,12 +276,16 @@ export default function PaginaTrafico() {
             <Resumen
               etiqueta="Abrieron la página"
               valor={llegaron}
+              antes={contra("LLEGO")}
+              etiquetaAntes={datos?.etiquetaAnterior ?? null}
               serie={dias.map((d) => d.llegaron)}
               color="var(--serie-1)"
             />
             <Resumen
               etiqueta="Eligieron un curso"
               valor={eligieron}
+              antes={contra("ELIGIO_ACCION")}
+              etiquetaAntes={datos?.etiquetaAnterior ?? null}
               serie={dias.map((d) => d.preinscritos)}
               color="var(--serie-2)"
               pie={
@@ -262,6 +297,8 @@ export default function PaginaTrafico() {
             <Resumen
               etiqueta="Se preinscribieron"
               valor={quedaron}
+              antes={contra("REGISTRADO")}
+              etiquetaAntes={datos?.etiquetaAnterior ?? null}
               serie={dias.map((d) => d.preinscritos)}
               color="var(--exito)"
               pie={
@@ -411,21 +448,36 @@ function Resumen({
   serie,
   color,
   pie,
+  antes = null,
+  etiquetaAntes = null,
 }: {
   etiqueta: string;
   valor: number;
   serie: number[];
   color: string;
   pie?: string;
+  /// Null cuando no se esta comparando: 0 es «hubo cero».
+  antes?: number | null;
+  etiquetaAntes?: string | null;
 }) {
   return (
     <div className="rounded-2xl border border-borde bg-superficie p-5">
       <p className="text-xs font-medium tracking-wide text-texto-suave uppercase">
         {etiqueta}
       </p>
-      <p className="mt-1 text-3xl font-semibold tabular-nums" style={{ color }}>
-        {n(valor)}
-      </p>
+      <div className="mt-1 flex flex-wrap items-baseline gap-x-3">
+        <p className="text-3xl font-semibold tabular-nums" style={{ color }}>
+          {n(valor)}
+        </p>
+        {antes !== null && (
+          <Delta valor={variacion(valor, antes)} contra={etiquetaAntes ?? undefined} />
+        )}
+      </div>
+      {antes !== null && (
+        <p className="mt-0.5 text-xs text-texto-suave tabular-nums">
+          {n(antes)} en {etiquetaAntes ?? "el otro periodo"}
+        </p>
+      )}
       {serie.length > 1 && (
         <Chispa
           datos={serie}
@@ -475,6 +527,153 @@ function Corte({
           Sobre {n(total)} visita{total === 1 ? "" : "s"} del periodo.
         </p>
       )}
+    </div>
+  );
+}
+
+/// Cuánto cambió, de -1 a +∞. Null si antes no había nada.
+function variacion(actual: number, antes: number): number | null {
+  if (antes === 0) return actual === 0 ? 0 : null;
+  return (actual - antes) / antes;
+}
+
+/// El día de hoy en Bogotá, en `YYYY-MM-DD`.
+function hoyISO(dias = 0): string {
+  const ahora = new Date(Date.now() - 5 * 60 * 60 * 1000 - dias * 86_400_000);
+  return ahora.toISOString().slice(0, 10);
+}
+
+/**
+ * Dos periodos del calendario, uno contra otro.
+ *
+ * Lo pidió el cliente así: «de tal fecha a tal fecha, hoy contra
+ * ayer, un día contra otro en específico». No es un periodo
+ * contra su previo — eso ya lo da la serie por día.
+ *
+ * No se exige que duren igual: «¿esta semana llevamos ya lo de
+ * todo el mes pasado?» es una pregunta legítima, y por eso la
+ * pantalla enseña los DOS rótulos y nunca «el periodo anterior».
+ */
+function ComparadorDeFechas({
+  a,
+  b,
+  alCambiarA,
+  alCambiarB,
+  comparando,
+}: {
+  a: { desde: string; hasta: string };
+  b: { desde: string; hasta: string };
+  alCambiarA: (v: { desde: string; hasta: string }) => void;
+  alCambiarB: (v: { desde: string; hasta: string }) => void;
+  comparando: boolean;
+}) {
+  const [abierto, setAbierto] = useState(false);
+
+  function limpiar() {
+    alCambiarA({ desde: "", hasta: "" });
+    alCambiarB({ desde: "", hasta: "" });
+  }
+
+  function hoyContraAyer() {
+    alCambiarA({ desde: hoyISO(0), hasta: hoyISO(0) });
+    alCambiarB({ desde: hoyISO(1), hasta: hoyISO(1) });
+    setAbierto(true);
+  }
+
+  function semanaContraSemana() {
+    alCambiarA({ desde: hoyISO(6), hasta: hoyISO(0) });
+    alCambiarB({ desde: hoyISO(13), hasta: hoyISO(7) });
+    setAbierto(true);
+  }
+
+  return (
+    <div className="rounded-2xl border border-borde bg-superficie p-4">
+      <div className="flex flex-wrap items-center gap-2">
+        <button
+          type="button"
+          onClick={() => setAbierto((v) => !v)}
+          className="rounded-lg border border-campo-borde px-3 py-1.5 text-sm text-texto transition hover:bg-superficie-alterna"
+        >
+          {abierto ? "Ocultar la comparación" : "Comparar dos fechas"}
+        </button>
+        <button
+          type="button"
+          onClick={hoyContraAyer}
+          className="rounded-lg px-3 py-1.5 text-sm text-marca underline underline-offset-2"
+        >
+          Hoy contra ayer
+        </button>
+        <button
+          type="button"
+          onClick={semanaContraSemana}
+          className="rounded-lg px-3 py-1.5 text-sm text-marca underline underline-offset-2"
+        >
+          Últimos 7 días contra los 7 anteriores
+        </button>
+        {comparando && (
+          <button
+            type="button"
+            onClick={limpiar}
+            className="ml-auto rounded-lg px-3 py-1.5 text-sm text-texto-suave underline underline-offset-2"
+          >
+            Quitar la comparación
+          </button>
+        )}
+      </div>
+
+      {abierto && (
+        <div className="mt-4 grid gap-4 sm:grid-cols-2">
+          <Periodo titulo="Periodo A" valor={a} alCambiar={alCambiarA} />
+          <Periodo titulo="Contra el periodo B" valor={b} alCambiar={alCambiarB} />
+        </div>
+      )}
+
+      {abierto && !comparando && (
+        <p className="mt-3 text-xs text-texto-suave">
+          Hacen falta las cuatro fechas para comparar. Mientras tanto se muestra el
+          rango de arriba.
+        </p>
+      )}
+    </div>
+  );
+}
+
+function Periodo({
+  titulo,
+  valor,
+  alCambiar,
+}: {
+  titulo: string;
+  valor: { desde: string; hasta: string };
+  alCambiar: (v: { desde: string; hasta: string }) => void;
+}) {
+  const clase =
+    "rounded-lg border border-campo-borde bg-campo-fondo px-3 py-1.5 text-sm " +
+    "outline-none focus:ring-2 focus:ring-campo-foco";
+  return (
+    <div>
+      <p className="mb-1.5 text-xs font-medium tracking-wide text-texto-suave uppercase">
+        {titulo}
+      </p>
+      <div className="flex flex-wrap items-center gap-2">
+        <input
+          type="date"
+          value={valor.desde}
+          max={valor.hasta || undefined}
+          onChange={(e) => alCambiar({ ...valor, desde: e.target.value })}
+          className={clase}
+          aria-label={`${titulo}, desde`}
+        />
+        <span className="text-sm text-texto-suave">a</span>
+        <input
+          type="date"
+          value={valor.hasta}
+          min={valor.desde || undefined}
+          onChange={(e) => alCambiar({ ...valor, hasta: e.target.value })}
+          className={clase}
+          aria-label={`${titulo}, hasta`}
+        />
+      </div>
     </div>
   );
 }

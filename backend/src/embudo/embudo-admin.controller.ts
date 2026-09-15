@@ -16,8 +16,23 @@ import { EmbudoService } from './embudo.service';
 export class EmbudoAdminController {
   constructor(private readonly embudo: EmbudoService) {}
 
+  /// Con `contraDesde` y `contraHasta` compara DOS periodos
+  /// elegidos del calendario, no uno contra su previo.
   @Get()
-  ver(@AmbitoActual() ambito: Ambito, @Query('rango') rango?: Rango) {
-    return this.embudo.embudo(ambito.convenios, rango ?? 'SEMANA');
+  ver(
+    @AmbitoActual() ambito: Ambito,
+    @Query('rango') rango?: Rango,
+    @Query('desde') desde?: string,
+    @Query('hasta') hasta?: string,
+    @Query('contraDesde') contraDesde?: string,
+    @Query('contraHasta') contraHasta?: string,
+  ) {
+    return this.embudo.embudo(ambito.convenios, {
+      rango: rango ?? 'SEMANA',
+      desde,
+      hasta,
+      contraDesde,
+      contraHasta,
+    });
   }
 }
