@@ -312,7 +312,11 @@ export type AccionAdmin = {
   convenioSigla: string | null;
   ofertas: number;
   cuposMaximos: number;
+  /// PERSONAS inscritas. No es lo que las empresas apartaron.
   cuposOcupados: number;
+  /// Cupos que una empresa aparto. No se descuentan de nada:
+  /// una reserva es solo reserva hasta que llega la persona.
+  cuposReservados: number;
 };
 
 

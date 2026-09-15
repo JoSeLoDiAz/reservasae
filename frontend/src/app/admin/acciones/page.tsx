@@ -116,6 +116,7 @@ function Catalogo() {
   /// tarjeta contarian cosas distintas.
   const publicadas = visibles.filter((a) => a.visible).length;
   const ocupados = visibles.reduce((n, a) => n + a.cuposOcupados, 0);
+  const reservados = visibles.reduce((n, a) => n + a.cuposReservados, 0);
   const tope = visibles.reduce((n, a) => n + a.cuposMaximos, 0);
   const deTotal = (n: number) => (hayFiltro ? `de ${n} en total` : null);
 
@@ -187,12 +188,22 @@ function Catalogo() {
                   : "ninguna está retirada"
               }
             />
-            {/* Contra el TOPE de inscripcion, no contra la meta:
-                son dos avances distintos y este es el del cupo. */}
+            {/* PERSONAS, no cupos apartados.
+            
+                «Las reservas son solo reserva hasta que lleguen y
+                se coloquen las personas» (cliente, 15 sep 2026).
+                Contar lo apartado como ocupacion decia 91 donde no
+                habia nadie. Contra el TOPE de inscripcion, no
+                contra la meta: son dos avances distintos. */}
             <Cifra
-              etiqueta="Cupos ocupados"
+              etiqueta="Personas inscritas"
               valor={ocupados}
-              pie={`de ${tope.toLocaleString("es-CO")} disponibles`}
+              pie={`de ${tope.toLocaleString("es-CO")} cupos`}
+            />
+            <Cifra
+              etiqueta="Apartados por empresas"
+              valor={reservados}
+              pie="reservas, todavía sin nombre"
             />
           </div>
 
@@ -365,7 +376,7 @@ function Catalogo() {
           <div className="flex flex-wrap items-center gap-x-4 border-b border-hairline py-2 text-[0.65625rem] font-bold tracking-[0.06em] text-texto-suave uppercase">
             <div className="w-[30px] shrink-0">AF</div>
             <div className="min-w-64 grow">Acción de formación</div>
-            <div className="w-[130px] shrink-0">Ocupación</div>
+            <div className="w-[130px] shrink-0">Inscritos</div>
             <div className="w-[132px] shrink-0">Cupos</div>
             <div className="flex items-center gap-3">
               <span className="w-[68px]">Estado</span>
@@ -404,6 +415,11 @@ function Catalogo() {
                 </div>
                 <div className="w-[132px] shrink-0 text-[0.75rem] tabular-nums text-texto">
                   {a.cuposOcupados} de {a.cuposMaximos} cupos
+                  {a.cuposReservados > 0 && (
+                    <span className="block text-xs text-texto-suave">
+                      {a.cuposReservados} apartados por empresas
+                    </span>
+                  )}
                 </div>
 
                 <div className="flex items-center gap-3">

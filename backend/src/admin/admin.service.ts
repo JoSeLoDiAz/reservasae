@@ -40,6 +40,7 @@ import {
   type ColoresTema,
 } from './temas';
 import { gremioDelHost } from './gremio-del-host';
+import { OCUPAN_SILLA } from '../crm/etapas';
 
 const ID_MARCA = 'unica';
 
@@ -773,6 +774,20 @@ export class AdminService {
     });
   }
 
+  /**
+   * Las acciones con su ocupación REAL, que son personas.
+   *
+   * Antes esta lista enseñaba `cuposOcupados`, que es el contador
+   * de la pre-reserva: cupos que una empresa aparta. Y eso no es
+   * ocupación — lo dijo el cliente el 15 sep 2026: «las reservas
+   * son solo reserva hasta que lleguen y se coloquen las
+   * personas, no se debe descontar». Con 91 cupos reservados y
+   * cero inscritos, la barra decía 91 y no había nadie.
+   *
+   * El contador de reservas NO se toca: sigue siendo el candado
+   * atómico contra la sobreventa. Lo que cambia es qué se
+   * enseña, y ahora van las dos cifras por separado.
+   */
   async listarAcciones(ambito: string[]) {
     const acciones = await this.prisma.accionFormacion.findMany({
       where: { convenioId: { in: ambito } },
@@ -782,6 +797,20 @@ export class AdminService {
         ofertas: { select: { cuposMaximos: true, cuposOcupados: true } },
       },
     });
+
+    /// Quién ocupa silla sale de `OCUPAN_SILLA`, la lista única.
+    const personas = await this.prisma.participante.groupBy({
+      by: ['accionFormacionId'],
+      where: {
+        convenioId: { in: ambito },
+        etapa: { in: OCUPAN_SILLA },
+        accionFormacionId: { not: null },
+      },
+      _count: { _all: true },
+    });
+    const porAccion = new Map(
+      personas.map((f) => [f.accionFormacionId as string, f._count._all]),
+    );
 
     return acciones.map((a) => ({
       id: a.id,
@@ -795,7 +824,11 @@ export class AdminService {
       convenioSigla: a.convenio.sigla,
       ofertas: a.ofertas.length,
       cuposMaximos: a.ofertas.reduce((s, o) => s + o.cuposMaximos, 0),
-      cuposOcupados: a.ofertas.reduce((s, o) => s + o.cuposOcupados, 0),
+      /// PERSONAS inscritas, que es la ocupación de verdad.
+      cuposOcupados: porAccion.get(a.id) ?? 0,
+      /// Y aparte, lo que las empresas tienen apartado. No se
+      /// descuenta de nada: es otra cosa.
+      cuposReservados: a.ofertas.reduce((s, o) => s + o.cuposOcupados, 0),
     }));
   }
 
