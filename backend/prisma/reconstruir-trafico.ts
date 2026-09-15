@@ -12,7 +12,7 @@
  *
  *   ssh sep-vm 'docker logs reservasae_nginx' > registro.txt
  *   pnpm --filter backend db:reconstruir-trafico registro.txt \
- *     --hasta 2026-09-14T23:02:00Z > historico.sql
+ *     historico.sql --hasta 2026-09-14T23:02:00Z
  *   # se mira el archivo, y solo entonces:
  *   ssh sep-vm 'docker compose exec -T db psql -U ... ' < historico.sql
  *
@@ -31,13 +31,17 @@ function texto(v: string): string {
 }
 
 async function main(): Promise<void> {
-  const [archivo, ...resto] = process.argv.slice(2);
+  /// Los DOS archivos van POSICIONALES y no en banderas.
+  /// `pnpm run` se come algunas antes de pasarlas al guion, y
+  /// el sintoma es un .sql con el encabezado de pnpm dentro
+  /// que psql rechaza en la primera linea.
+  const [archivo, salidaEn, ...resto] = process.argv.slice(2);
   const i = resto.indexOf('--hasta');
   const hasta = i >= 0 ? Date.parse(resto[i + 1] ?? '') : NaN;
 
-  if (!archivo || Number.isNaN(hasta)) {
+  if (!archivo || !salidaEn || Number.isNaN(hasta)) {
     console.error(
-      'Uso: db:reconstruir-trafico <registro.txt> --hasta <ISO>\n' +
+      'Uso: db:reconstruir-trafico <registro.txt> <salida.sql> --hasta <ISO>\n' +
         '  <ISO> es cuando arrancó el contador, p. ej. 2026-09-14T23:02:00Z.\n' +
         '  Lo posterior a esa hora ya está medido y no se reconstruye.',
     );
@@ -87,8 +91,8 @@ async function main(): Promise<void> {
     );
   });
 
-  salida.push('COMMIT;');
-  console.log(salida.join('\n'));
+  salida.push('COMMIT;', '');
+  writeFileSync(salidaEn, salida.join('\n'), 'utf8');
 
   const visitas = filas.reduce((t, f) => t + f.visitas, 0);
   const envios = filas.reduce((t, f) => t + f.envios, 0);

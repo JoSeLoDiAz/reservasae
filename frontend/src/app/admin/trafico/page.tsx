@@ -432,8 +432,18 @@ export default function PaginaTrafico() {
             antes de que la página termine de cargar, ni a quien usa bloqueador.
           </li>
           <li>
-            <strong>No cuentan nada anterior al contador.</strong> Quien se
-            preinscribió antes no aparece aquí, aunque sí esté en Gestión de leads.
+            <strong>No cuentan nada anterior al contador.</strong>{" "}
+            {datos?.historico ? (
+              <>
+                Lo de antes está en el bloque de arriba, aparte, y viene del
+                registro del servidor: no son las mismas cifras y no se suman.
+              </>
+            ) : (
+              <>
+                Quien se preinscribió antes no aparece aquí, aunque sí esté en
+                Gestión de leads.
+              </>
+            )}
           </li>
           <li>
             <strong>
