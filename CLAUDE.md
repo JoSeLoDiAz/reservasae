@@ -1610,6 +1610,50 @@ de Facebook, y al revés no pasa. Cuando solo se sabe que fue Meta y no cuál �
 `fbclid` suelto, o el valor viejo `APP_META`— sale `META` y se dice en pantalla
 «sin precisar cuál»: no se inventa.
 
+#### La pantalla de tráfico: la serie manda, y dos fechas se comparan (15 sep 2026)
+
+*«Pero esta interfaz no me gusta, y quiero un comparativo entre fechas»*. Tenía
+razón: nueve barras donde siete eran rayas planas (17, 17, 2, 2, 2, 1, 1, 0, 0),
+los porcentajes en «—» por el suelo de 30 visitas, y cajas del ancho completo con
+dos filas dentro.
+
+**Son DOS preguntas distintas y tienen dos respuestas distintas en la pantalla:**
+
+| | |
+|---|---|
+| «¿Cómo viene la cosa?» | la **serie por día**, desde que arrancó el contador |
+| «¿Este día contra este otro?» | el **comparador de dos fechas del calendario** |
+
+- **La serie va desde el arranque y hacia adelante**, y eso lo pidió el cliente
+  con esas palabras. Comparar «los últimos 7 días» contra «los 7 anteriores»
+  cuando el contador llevaba un día daría un **−100 % que solo dice que antes no
+  se medía** — la lección de la cifra que parece exacta, otra vez.
+- **El comparador usa `compararDos`**, que existía sin usarse y cuyo docblock ya
+  decía lo que hacía falta: no exige que los dos periodos duren igual, así que la
+  pantalla enseña **los dos rótulos** y nunca un genérico «el periodo anterior».
+- **Los rótulos los escribe la PANTALLA, no el servidor.** Para un rango
+  personalizado `resolverVentana` devuelve «entre dos fechas», y comparar «entre
+  dos fechas» contra «entre dos fechas» no distingue nada. La pantalla sí sabe qué
+  eligió el usuario: «12 de sept» o «8 al 14 de sept».
+- **Del periodo comparado se traen solo el embudo y las procedencias.** Comparar
+  es responder «¿mejoró o empeoró?»; los cortes por dispositivo y por campaña son
+  para mirar UN periodo por dentro.
+
+**La serie comparte escala a propósito.** Con 18 preinscritos contra 379 visitas,
+la línea de conversiones queda casi plana. Un segundo eje la haría grande y
+**mentiría**: parecería que crece igual que las visitas cuando es el 5 %. La forma
+de esa curva sí se ve, sola, en la chispa de su propia tarjeta.
+
+> **Tres jueces puntuaron tres propuestas y ganó la tabla densa. Se descartó.** El
+> cliente había pedido lo contrario —«más gráficas»— y su palabra manda sobre el
+> fallo; de la ganadora se injertó lo que sí sirve con pocos datos (los deltas
+> pegados a cada peldaño y el porcentaje sobre el total).
+
+> **Un `///` dentro de un `$queryRaw` se manda tal cual a Postgres** y da
+> `42601: syntax error at or near "///"`. La convención de comentarios de este
+> proyecto es de TypeScript y NO cruza al SQL, donde son `--`. Costó un 500 en
+> pruebas.
+
 #### Por qué la atribución a pauta NO se hizo (14 sep 2026)
 
 El cliente lo pidió —«sí, poner como pauta esos»— y llegó a estar escrito: el
