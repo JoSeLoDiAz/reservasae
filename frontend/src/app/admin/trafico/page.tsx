@@ -167,6 +167,12 @@ export default function PaginaTrafico() {
   );
   const contra = (paso: string) => (datos?.comparado ? (antes.get(paso) ?? 0) : null);
 
+  /// El rótulo lo escribe la pantalla y no el servidor: allí sale
+  /// «entre dos fechas», que comparado contra «entre dos fechas»
+  /// no dice cuál es cuál.
+  const rotuloA = comparando ? rotulo(a) : (datos?.etiqueta ?? "");
+  const rotuloB = comparando ? rotulo(b) : (datos?.etiquetaAnterior ?? null);
+
   const hitos: Hito[] = PELDANOS.map((p) => ({
     etapa: p.etapa,
     etiqueta: p.etiqueta,
@@ -277,7 +283,7 @@ export default function PaginaTrafico() {
               etiqueta="Abrieron la página"
               valor={llegaron}
               antes={contra("LLEGO")}
-              etiquetaAntes={datos?.etiquetaAnterior ?? null}
+              etiquetaAntes={rotuloB}
               serie={dias.map((d) => d.llegaron)}
               color="var(--serie-1)"
             />
@@ -285,7 +291,7 @@ export default function PaginaTrafico() {
               etiqueta="Eligieron un curso"
               valor={eligieron}
               antes={contra("ELIGIO_ACCION")}
-              etiquetaAntes={datos?.etiquetaAnterior ?? null}
+              etiquetaAntes={rotuloB}
               serie={dias.map((d) => d.preinscritos)}
               color="var(--serie-2)"
               pie={
@@ -298,7 +304,7 @@ export default function PaginaTrafico() {
               etiqueta="Se preinscribieron"
               valor={quedaron}
               antes={contra("REGISTRADO")}
-              etiquetaAntes={datos?.etiquetaAnterior ?? null}
+              etiquetaAntes={rotuloB}
               serie={dias.map((d) => d.preinscritos)}
               color="var(--exito)"
               pie={
@@ -359,7 +365,7 @@ export default function PaginaTrafico() {
           <div className="grid gap-4 lg:grid-cols-[3fr_2fr]">
             <div className="rounded-2xl border border-borde bg-superficie p-5">
               <h2 className="mb-4 text-sm font-semibold tracking-wide text-texto-suave uppercase">
-                Paso a paso · {datos?.etiqueta ?? ""}
+                Paso a paso · {rotuloA}
               </h2>
               <EmbudoProceso hitos={hitos} notas={notas} />
             </div>
@@ -535,6 +541,13 @@ function Corte({
 function variacion(actual: number, antes: number): number | null {
   if (antes === 0) return actual === 0 ? 0 : null;
   return (actual - antes) / antes;
+}
+
+/// «12 de sept» o «8 al 14 de sept», que es lo que hay que leer
+/// arriba de una cifra para saber de qué día habla.
+function rotulo({ desde, hasta }: { desde: string; hasta: string }): string {
+  if (!desde || !hasta) return "";
+  return desde === hasta ? diaCorto(desde) : `${diaCorto(desde)} al ${diaCorto(hasta)}`;
 }
 
 /// El día de hoy en Bogotá, en `YYYY-MM-DD`.
