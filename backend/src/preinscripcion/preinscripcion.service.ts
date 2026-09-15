@@ -14,6 +14,8 @@ import { CorreoService } from '../correo/correo.service';
 import { quienFirma } from '../correo/quien-firma';
 import { motivoParaNoInscribir } from '../crm/una-sola-accion';
 import { EmbudoService } from '../embudo/embudo.service';
+import { origenDeLaVisita, redDeLaVisita } from '../embudo/origen-de-la-visita';
+import { registrarToqueDeOrigen } from '../crm/origen-del-lead';
 import { PrismaService } from '../prisma/prisma.service';
 import {
   dejarConstancia,
@@ -426,8 +428,9 @@ export class PreinscripcionService {
     /// falle no puede tumbar una inscripción que la persona ya
     /// completó. Un lead sin cerrar se arregla desde la mesa; una
     /// inscripción perdida, no.
+    let cerrados = 0;
     try {
-      await cerrarLeadsQueEsperaban(this.prisma as never, {
+      cerrados = await cerrarLeadsQueEsperaban(this.prisma as never, {
         participanteId: participante.id,
         convenioId: convenio.id,
         tipoDocumentoSepId: dto.tipoDocumentoSepId,
@@ -439,6 +442,7 @@ export class PreinscripcionService {
           (e instanceof Error ? e.message : String(e)),
       );
     }
+
 
     /// Si trajo datos DISTINTOS de los que ya teníamos, se
     /// deja como PROPUESTA para que un asesor decida.
@@ -502,6 +506,49 @@ export class PreinscripcionService {
     /// verdad «el servidor rechazo o nunca llego».
     if (dto.visita)
       await this.embudo.registrado(dto.visita, slug, convenio.id, Boolean(yaHabiaPersona));
+
+    /**
+     * DE DÓNDE VINO, y va DESPUÉS de cerrar los leads.
+     *
+     * El orden es la regla: si ya había un lead esperando, ese
+     * origen es más viejo y manda. Decidirlo antes le quitaría
+     * el lead a quien lo consiguió — que es justo lo que este
+     * proyecto documenta como el defecto a evitar.
+     *
+     * Todo en try/catch y después de que la ficha exista: una
+     * escritura de métrica no puede devolver un 500 a quien ya
+     * completó su inscripción.
+     */
+    try {
+      const llegada = dto.visita ? await this.embudo.procedenciaDe(dto.visita) : null;
+      const pagada = origenDeLaVisita(llegada);
+      const red = redDeLaVisita(llegada);
+
+      /// El ORIGEN solo cambia con prueba de que se pagó, para
+      /// una ficha NUEVA y si no había ningún lead esperando.
+      if (pagada && !yaEsta && cerrados === 0) {
+        await this.prisma.participante.update({
+          where: { id: participante.id },
+          data: {
+            origen: pagada,
+            /// `origenDeLeadSql` le da prioridad a esta columna
+            /// sobre `origen`: sin escribirla, el primer lead
+            /// orgánico que cruce degrada la ficha en silencio.
+            origenLead: 'PAUTA',
+          },
+        });
+      }
+
+      /// El TOQUE se deja siempre que se sepa de qué red vino,
+      /// pagada o no, y exista ya la ficha o no. Es cierto y no
+      /// le quita el lead a nadie. Los otros dos escritores lo
+      /// hacen igual.
+      if (red) await registrarToqueDeOrigen(this.prisma, participante.id, red);
+    } catch (e) {
+      this.log.warn(
+        'No se pudo atribuir la llegada: ' + (e instanceof Error ? e.message : String(e)),
+      );
+    }
 
     if (!yaHabiaPersona) {
       /// SOLO AQUI SE EMITE, y el sitio importa.

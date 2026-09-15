@@ -6,6 +6,7 @@ import { Prisma } from '../../generated/prisma';
 import { compararDos, resolverVentana, type Rango } from '../crm/ventana';
 import { PrismaService } from '../prisma/prisma.service';
 import { diaBogota } from '../comun/dia-bogota';
+import type { LlegadaDeLaVisita } from './origen-de-la-visita';
 import { procedenciaSql } from './procedencia';
 import { MarcarPasoDto } from './dto';
 import { altura, ESCALERA, VERSION_EMBUDO } from './escalera';
@@ -114,17 +115,25 @@ export class EmbudoService {
    * «vino de pauta» acabarían discrepando, y este repositorio ya
    * pagó una vez por eso.
    */
-  async procedenciaDe(visitaId: string): Promise<string | null> {
+  async procedenciaDe(visitaId: string): Promise<LlegadaDeLaVisita | null> {
     try {
-      const filas = await this.prisma.$queryRaw<Array<{ procedencia: string }>>`
-        SELECT ${procedenciaSql()} AS procedencia
+      const filas = await this.prisma.$queryRaw<
+        Array<{ procedencia: string; pagada: boolean }>
+      >`
+        SELECT ${procedenciaSql()} AS procedencia,
+               -- la etiqueta de Ads Manager, o el clic de Meta
+               (coalesce("utmCampana", '') <> '' OR "huboFbclid" IS TRUE) AS pagada
           FROM "pasos_de_visita"
          WHERE "visitaId" = ${visitaId} AND "paso" = 'LLEGO'
          LIMIT 1
       `;
-      return filas[0]?.procedencia ?? null;
-    } catch {
-      // saber de dónde vino no puede tumbar un registro
+      const f = filas[0];
+      return f ? { procedencia: f.procedencia, pagada: f.pagada } : null;
+    } catch (e) {
+      /// Se dice. Si esto falla en silencio, el sintoma es que
+      /// todo vuelve a ser AUTOGESTION -- o sea, indistinguible
+      /// del defecto que este arreglo vino a cerrar.
+      this.log.warn(`No se pudo leer la procedencia de una visita: ${String(e)}`);
       return null;
     }
   }
