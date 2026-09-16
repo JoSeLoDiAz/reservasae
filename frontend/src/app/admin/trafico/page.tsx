@@ -48,7 +48,7 @@ import { useDatosVivos } from "@/lib/datos-vivos";
 /// Cómo se lee cada peldaño, y de qué color. El color sale de
 /// las etapas del CRM para no inventar una segunda paleta.
 const PELDANOS: Array<{ paso: string; etiqueta: string; etapa: Hito["etapa"] }> = [
-  { paso: "LLEGO", etiqueta: "Abrieron la página", etapa: "INTERESADO" },
+  { paso: "LLEGO", etiqueta: "Abrieron el enlace", etapa: "INTERESADO" },
   { paso: "CATALOGO_LISTO", etiqueta: "Vieron el formulario", etapa: "INTERESADO" },
   { paso: "ELIGIO_UBICACION", etiqueta: "Eligieron su ciudad", etapa: "CONTACTADO" },
   { paso: "VIO_ACCIONES", etiqueta: "Vieron los cursos", etapa: "CONTACTADO" },
@@ -221,7 +221,7 @@ export default function PaginaTrafico() {
         titulo="Tráfico del formulario"
         descripcion={
           <>
-            Qué pasa entre el anuncio y la preinscripción. Cuenta visitas, no
+            Qué pasa entre el anuncio y la preinscripción. Cuenta aperturas, no
             personas.
             {datos?.contandoDesde && (
               <>
@@ -360,7 +360,7 @@ export default function PaginaTrafico() {
             </p>
             <DosSeriesPorDia
               a={{
-                nombre: "Abrieron la página",
+                nombre: "Abrieron el enlace",
                 datos: dias.map((d) => ({ dia: d.dia, total: d.llegaron })),
                 color: "var(--serie-1)",
               }}
@@ -401,7 +401,7 @@ export default function PaginaTrafico() {
               <Donut
                 datos={porcionesProcedencia}
                 centro={n(llegaron)}
-                detalleCentro="visitas"
+                detalleCentro="aperturas"
                 vacio="Sin visitas en este periodo."
               />
             </div>
@@ -793,7 +793,7 @@ function Historico({ h }: { h: HistoricoDeTrafico }) {
 
       <div className="mt-4">
         <DosSeriesPorDia
-          a={{ nombre: "Abrieron la página", datos: dias }}
+          a={{ nombre: "Abrieron el enlace", datos: dias }}
           b={{
             nombre: "Enviaron el formulario",
             datos: envios,
