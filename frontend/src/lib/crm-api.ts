@@ -41,12 +41,26 @@ export type HistoricoDeTrafico = {
   visitas: number;
   envios: number;
   porDia: Array<{ dia: string; llegaron: number; preinscritos: number }>;
-  procedencia: CorteDeVisitas[];
+  /// SIN `tocaron`, y no es un olvido: esto sale del registro
+  /// del servidor, que guarda peticiones y no peldanos. Alli no
+  /// hay forma de saber quien toco el formulario, y un campo que
+  /// hubiera que inventar seria la segunda verdad de siempre.
+  procedencia: FilaDelHistorico[];
 };
+
+/// Una fila del historico. Es `CorteDeVisitas` menos lo que el
+/// registro no puede saber.
+export type FilaDelHistorico = Omit<CorteDeVisitas, "tocaron">;
 
 export type CorteDeVisitas = {
   valor: string | null;
+  /// Aperturas. Incluye maquinas: el escaner de enlaces de un
+  /// proveedor de correo abre cada enlace del envio.
   visitas: number;
+  /// Las que pasaron del primer peldano que exige un gesto.
+  /// Es un SUELO de las personas, no una cuenta: quien abre,
+  /// mira y se va escribe lo mismo que un escaner.
+  tocaron: number;
   envios: number;
 };
 

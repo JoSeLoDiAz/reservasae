@@ -164,6 +164,9 @@ export default function PaginaTrafico() {
   const vieron = porPaso.get("CATALOGO_LISTO") ?? 0;
   const eligieron = porPaso.get("ELIGIO_ACCION") ?? 0;
   const quedaron = porPaso.get("REGISTRADO") ?? 0;
+  /// El primer peldaño que no se alcanza sin mover algo. Un
+  /// escáner de enlaces escribe LLEGO y CATALOGO_LISTO y ya.
+  const tocaron = porPaso.get("ELIGIO_UBICACION") ?? 0;
 
   const dias = datos?.porDia ?? [];
   const antes = useMemo(
@@ -280,17 +283,33 @@ export default function PaginaTrafico() {
         </Vacio>
       ) : (
         <>
-          {/* Las tres cifras que deciden, con su tendencia al
-              lado. Quien abre esto quiere saber si la plata esta
-              trayendo inscritos. */}
-          <div className="grid gap-4 sm:grid-cols-3">
+          {/* LAS DOS CIFRAS VAN JUNTAS Y NO SE SUSTITUYEN.
+              «Abrieron» incluye maquinas --el escaner de enlaces
+              de un proveedor de correo abre cada enlace del
+              envio: el 16 sep 2026 eso fueron 565 de 599--, asi
+              que dividir por ella da una tasa que parece exacta y
+              no lo es. «Tocaron» es el denominador. Pero
+              «Abrieron» NO se esconde: la diferencia entre las
+              dos es cuanta gente llego y se fue, que en la pauta
+              de Meta son decenas al dia y es informacion real. */}
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
             <Resumen
-              etiqueta="Abrieron la página"
+              etiqueta="Abrieron el enlace"
               valor={llegaron}
               antes={contra("LLEGO")}
               etiquetaAntes={rotuloB}
               serie={dias.map((d) => d.llegaron)}
               color="var(--serie-1)"
+              pie="Incluye máquinas: un escáner de correo abre cada enlace"
+            />
+            <Resumen
+              etiqueta="Tocaron el formulario"
+              valor={tocaron}
+              antes={contra("ELIGIO_UBICACION")}
+              etiquetaAntes={rotuloB}
+              serie={dias.map((d) => d.llegaron)}
+              color="var(--serie-3)"
+              pie="Nadie toca sin ser persona. Es un suelo, no una cuenta"
             />
             <Resumen
               etiqueta="Eligieron un curso"
@@ -300,9 +319,9 @@ export default function PaginaTrafico() {
               serie={dias.map((d) => d.preinscritos)}
               color="var(--serie-2)"
               pie={
-                llegaron >= MINIMO_PARA_TASA
-                  ? `${Math.round((eligieron / llegaron) * 100)} % de quienes llegaron`
-                  : "Aún son pocas visitas para un porcentaje"
+                tocaron >= MINIMO_PARA_TASA
+                  ? `${Math.round((eligieron / tocaron) * 100)} % de quienes tocaron`
+                  : "Aún son pocas para un porcentaje"
               }
             />
             <Resumen
@@ -527,6 +546,20 @@ function Resumen({
 
 /// Un corte con barras, no una lista de números sueltos: con dos
 /// filas, una lista parece una caja vacía con texto dentro.
+/// Lo que se lee debajo de cada barra.
+///
+/// El porcentaje va sobre `tocaron` y NUNCA sobre las aperturas:
+/// un escaner de enlaces infla las aperturas y no puede tocar
+/// nada, asi que dividir por aquellas da una tasa que parece
+/// exacta y no lo es. Con pocas no se imprime ninguna: una tasa
+/// hecha de dos se lee igual que una de tres mil.
+function detalleDeFila(f: CorteDeVisitas): string | undefined {
+  if (f.visitas === 0) return undefined;
+  const tocaron = `${n(f.tocaron)} tocaron`;
+  if (f.tocaron < MINIMO_PARA_TASA) return tocaron;
+  return `${tocaron} · ${Math.round((f.envios / f.tocaron) * 100)} % se preinscribió`;
+}
+
 function Corte({
   titulo,
   filas,
@@ -543,22 +576,25 @@ function Corte({
       <h3 className="mb-3 text-sm font-semibold tracking-wide text-texto-suave uppercase">
         {titulo}
       </h3>
+      {/* La barra es la APERTURA --el volumen que de verdad
+          llego-- y el detalle lleva las que tocaron, que es el
+          denominador del porcentaje. Un canal que abre mil veces
+          y no toca ninguna tiene que verse: esa diferencia es el
+          dato, no un estorbo. */}
       <ListaBarras
         datos={filas.map((f) => ({
           clave: f.valor ?? "sin",
           etiqueta: nombre(f.valor),
           valor: f.visitas,
-          detalle:
-            f.visitas >= MINIMO_PARA_TASA
-              ? `${Math.round((f.envios / f.visitas) * 100)} % se preinscribió`
-              : undefined,
+          detalle: detalleDeFila(f),
         }))}
         vacio="Sin visitas en este periodo."
         maximoFilas={6}
       />
       {total > 0 && filas.length > 0 && (
         <p className="mt-3 text-xs text-texto-suave">
-          Sobre {n(total)} visita{total === 1 ? "" : "s"} del periodo.
+          Sobre {n(total)} apertura{total === 1 ? "" : "s"} del periodo. El
+          porcentaje va sobre las que tocaron el formulario.
         </p>
       )}
     </div>

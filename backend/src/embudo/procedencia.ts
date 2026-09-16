@@ -47,6 +47,30 @@ const WEBMAIL = [
   'outlook.office365.com',
   'mail.yahoo.com',
 ];
+/**
+ * El redirector de un envio masivo de correo.
+ *
+ * NO es webmail: nadie lo abre a mano. Es el host por el que el
+ * proveedor pasa cada enlace del correo para poder contarlos, y
+ * llega como referente. Sin esta lista cae en OTRA_WEB, que es
+ * donde el 16 sep 2026 aterrizaron 565 de las 599 visitas del
+ * dia -- un mailing entero contado como «otra pagina web».
+ *
+ * ESTA LISTA ES EL PARCHE, NO LA SOLUCION, y conviene no
+ * confundirlas: lo que escala es que el enlace del correo lleve
+ * `utm_source=correo`, que la rama de abajo ya resuelve y que no
+ * necesita desplegar nada. La lista solo cubre lo que ya salio
+ * sin etiqueta y el dia que a alguien se le olvide ponerla.
+ *
+ * Va el subdominio del redirector y NO el dominio de la casa:
+ * `campusadecopria.com` es tambien el sitio del gremio, y un
+ * enlace de verdad desde su web es OTRA_WEB, no correo.
+ */
+const REDIRECTORES_DE_CORREO = [
+  /// ADECOPRIA, medido el 16 sep 2026
+  'in.campusadecopria.com',
+];
+
 const BUSCADORES = [
   'google.com',
   'google.com.co',
@@ -111,6 +135,7 @@ export function procedenciaSql(): Prisma.Sql {
       WHEN ${Prisma.raw(utm)} = 'qr' THEN 'QR'
       WHEN ${esDominio(ref, 'reservasae.com')} THEN 'INTERNO'
       WHEN ${alguno(ref, WEBMAIL)} THEN 'CORREO'
+      WHEN ${alguno(ref, REDIRECTORES_DE_CORREO)} THEN 'CORREO'
       WHEN ${Prisma.raw(utm)} IN (${Prisma.join(DICE_INSTAGRAM)}) THEN 'INSTAGRAM'
       WHEN ${Prisma.raw(utm)} IN (${Prisma.join(DICE_FACEBOOK)}) THEN 'FACEBOOK'
       WHEN ${Prisma.raw(utm)} IN (${Prisma.join(DICE_META)}) THEN 'META'

@@ -9,13 +9,18 @@ import { diaBogota } from '../comun/dia-bogota';
 import type { LlegadaDeLaVisita } from './origen-de-la-visita';
 import { procedenciaSql } from './procedencia';
 import { MarcarPasoDto } from './dto';
-import { altura, ESCALERA, VERSION_EMBUDO } from './escalera';
+import { altura, ESCALERA, PRIMER_GESTO, VERSION_EMBUDO } from './escalera';
 
 /// Solo el paso de llegada trae el contexto.
 const SOLO_AL_LLEGAR = 'LLEGO';
 
 type FilaEmbudo = { paso: string; visitas: bigint };
-type FilaCorte = { valor: string | null; visitas: bigint; envios: bigint };
+type FilaCorte = {
+  valor: string | null;
+  visitas: bigint;
+  tocaron: bigint;
+  envios: bigint;
+};
 type FilaDia = { dia: string; llegaron: bigint; preinscritos: bigint };
 
 /** Lo que puede pedir la pantalla. Las fechas son ISO. */
@@ -426,7 +431,14 @@ export class EmbudoService {
     desde: Date,
     hasta: Date,
     col: Prisma.Sql,
-  ): Promise<Array<{ valor: string | null; visitas: number; envios: number }>> {
+  ): Promise<
+    Array<{
+      valor: string | null;
+      visitas: number;
+      tocaron: number;
+      envios: number;
+    }>
+  > {
     const filas = await this.prisma.$queryRaw<FilaCorte[]>`
       WITH llegadas AS (
         SELECT "visitaId", ${col} AS valor, "creadoEn"
@@ -437,6 +449,19 @@ export class EmbudoService {
       )
       SELECT l.valor,
              COUNT(*)::bigint AS visitas,
+             -- Por PELDANO y no por el paso exacto: asi
+             -- tocaron nunca puede salir menor que envios
+             -- --REGISTRADO esta por encima-- y la fila sale
+             -- monotona aunque se pierda el beacon de en medio.
+             COUNT(*) FILTER (
+               WHERE EXISTS (
+                 SELECT 1 FROM "pasos_de_visita" g
+                  WHERE g."visitaId" = l."visitaId"
+                    AND array_position(
+                          ${ESCALERA as unknown as string[]}::text[], g."paso"
+                        ) >= ${altura(PRIMER_GESTO) + 1}
+               )
+             )::bigint AS tocaron,
              COUNT(*) FILTER (
                WHERE EXISTS (
                  SELECT 1 FROM "pasos_de_visita" p
@@ -454,6 +479,7 @@ export class EmbudoService {
     return filas.map((f) => ({
       valor: f.valor,
       visitas: Number(f.visitas),
+      tocaron: Number(f.tocaron),
       envios: Number(f.envios),
     }));
   }

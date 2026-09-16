@@ -1618,6 +1618,93 @@ Sale del `access_log` de nginx, que el contenedor guarda desde que se creo (4 se
 > nginx se lo lleva. Lo importado ya esta a salvo en la base; lo que no se haya
 > importado, no.
 
+#### El mailing, y las dos cifras que lo cuentan (16 sep 2026)
+
+*«Resulta que enviar un mail masivo a una base de datos necesito medir esos
+también»*. Se podia, y lo que salio al mirar cambia la conclusion de negocio.
+
+ADECOPRIA mando un envio a su base. El enlace pasa por el redirector de su
+proveedor, asi que llega con `referente = r.in.campusadecopria.com` y **sin un
+solo `utm_`** — comprobado sobre las peticiones de nginx, todas a
+`/adecopria/preinscripcion` peladas. Con eso caia en **OTRA_WEB**: un mailing
+entero contado como «otra pagina web».
+
+**Y el 94 % de lo que trajo no eran personas.** Medido contra produccion:
+
+| | del mailing | de Meta |
+|---|---:|---:|
+| Windows | 763 | 0 |
+| Mac | 196 | 0 |
+| Android | **0** | 882 |
+| iPhone | 2 | 8 |
+
+Cero Android en un envio a una base colombiana no existe. Son los escaneres de
+enlaces --el del proveedor y los antivirus de los buzones corporativos--: 70 IPs,
+960 peticiones, la punta entre las 08:07 y las 08:12 con 232 en un solo minuto, y
+`ancho` en ESCRITORIO 573 de 574 **sin una sola TABLETA**, que es la firma de una
+flota de navegadores iguales y no de un publico.
+
+**El ancho NO los separa, y ese fue el hallazgo que decidio el diseño.** Las dos
+personas de verdad de aquella mañana tambien eran ESCRITORIO: gente leyendo el
+correo en el computador. Lo unico que los separa es **lo que hicieron**.
+
+##### `PRIMER_GESTO`: la linea, y por que esta donde esta
+
+Un cliente que ejecuta JavaScript y no es una persona escribe **exactamente**
+`LLEGO` y despues `CATALOGO_LISTO` o `CATALOGO_FALLO`. Nada mas, y no por suerte:
+de ahi arriba **todo cuelga de un gesto** --`ELIGIO_UBICACION` sale del `onChange`
+del desplegable, `ELIGIO_ACCION` de un clic, `AUTORIZO` de marcar la casilla--.
+Asi que la separacion **ya estaba medida desde el primer dia**: no hizo falta ni
+baliza nueva, ni columna, ni migracion.
+
+`escalera.ts` declara `PRIMER_GESTO = 'ELIGIO_UBICACION'` y `pideGesto()` se
+DERIVA de la escalera, para que no haya dos verdades sobre la misma linea.
+
+- **`tocaron` se cuenta por PELDANO y no por el paso exacto.** Con `EXISTS
+  paso = 'ELIGIO_UBICACION'` una visita que perdio ese beacon pero llego a
+  `REGISTRADO` saldria con `tocaron < envios`, y **un embudo que sube no se
+  puede leer**. Con `array_position(ESCALERA, paso) >= n` la fila sale monotona
+  por construccion, porque REGISTRADO esta por encima.
+- **NO es un detector de robots, y la pantalla no lo vende como tal.** Una
+  persona que abre, mira y se va escribe lo mismo que un escaner. `tocaron` es un
+  **suelo**, no una cuenta, y el pie de la tarjeta lo dice.
+- **Las dos cifras van juntas y ninguna sustituye a la otra** (lo eligio el
+  cliente). La diferencia entre «abrieron» y «tocaron» es cuanta gente llego y se
+  fue, que en la pauta de Meta son decenas al dia y es informacion real.
+
+##### Lo que cambia la conclusion
+
+| | regla vieja | regla nueva |
+|---|---|---|
+| Correo, 16 sep | 10.432 visitas → 9 preinscripciones = **0,09 %** | 10.432 abrieron · **18 tocaron** · 9 = **50 %** |
+
+El mailing parecia un fracaso y esta convirtiendo a la mitad de quien lo toca. El
+denominador estaba lleno de maquinas — la misma leccion de las «758 visitas» que
+eran 665 `facebookexternalhit`, en un canal nuevo.
+
+##### El redirector es el PARCHE; el `utm_source` es la solucion
+
+`REDIRECTORES_DE_CORREO` en `procedencia.ts` cubre lo que **ya salio** sin
+etiqueta y el dia que a alguien se le olvide. Lo que escala es que el enlace del
+correo lleve **`utm_source=correo`**: la rama ya existe, la baliza ya lo captura y
+el DTO ya lo valida — **es un cambio en el enlace, no en el codigo**.
+
+> Va el subdominio del redirector (`in.campusadecopria.com`) y **no** el dominio
+> de la casa: `campusadecopria.com` es tambien el sitio del gremio, y un enlace de
+> verdad desde su web es OTRA_WEB, no correo.
+
+> **El historico NO lleva `tocaron`, y es deliberado.** Sale del registro del
+> servidor, que guarda peticiones y no peldanos: alli no hay forma de saber quien
+> toco. Por eso tiene su propio tipo (`FilaDelHistorico = Omit<CorteDeVisitas,
+> 'tocaron'>`) en vez de un campo que habria que inventar. El tipo compartido
+> compilaba y mentia: `tsc` no comprueba el tipo contra lo que el backend manda.
+
+> **Probado por mutacion**: mover `PRIMER_GESTO` a `LLEGO` mata 1, y poner el
+> dominio de la casa en vez del redirector mata 2. Una tercera mutacion --quitar
+> el `n >= 0` de `pideGesto`-- **no mato nada, y eso fue el hallazgo**: era codigo
+> muerto, porque `altura()` ya devuelve -1. Se quito en vez de dejar una linea que
+> un test finge cubrir.
+
 #### De dónde venía cada visita (14 sep 2026)
 
 *«Ingresé directamente desde Facebook y no me sale en el sistema si entraron por

@@ -57,3 +57,36 @@ export const DEL_NAVEGADOR: readonly string[] = PASOS.filter(
 export function altura(paso: string): number {
   return (ESCALERA as readonly string[]).indexOf(paso);
 }
+
+/**
+ * El primer peldaño que NO se alcanza sin mover algo.
+ *
+ * Un escáner de enlaces --el del proveedor de correo masivo, el
+ * antivirus de un buzón corporativo-- ejecuta JavaScript y
+ * escribe exactamente `LLEGO` y después `CATALOGO_LISTO` o
+ * `CATALOGO_FALLO`. Nada más: de aquí arriba todo cuelga de un
+ * gesto. `ELIGIO_UBICACION` sale del `onChange` del desplegable
+ * de departamento, y los de encima de un clic o del envío.
+ *
+ * Medido en producción el 16 sep 2026: un mailing trajo 565
+ * llegadas en cinco minutos, 573 de 574 en escritorio y CERO en
+ * tableta --la firma de una flota de navegadores iguales, no de
+ * un público--, y solo DOS pasaron de aquí. Esas dos se
+ * preinscribieron.
+ *
+ * NO es un detector de robots y no hay que venderlo como tal:
+ * una persona que abre, mira y se va escribe lo mismo que un
+ * escáner. Por eso la cifra que sale de aquí es un SUELO, y la
+ * pantalla lo dice.
+ */
+export const PRIMER_GESTO = 'ELIGIO_UBICACION';
+
+/// Si ese peldaño exige un gesto de la persona. Se deriva de la
+/// escalera para que no haya dos verdades sobre la misma línea.
+///
+/// Una MARCA queda fuera sola: `altura()` le devuelve -1, que no
+/// alcanza ningún peldaño. Llevaba un `n >= 0` delante y era
+/// código muerto -- la prueba de mutación no pudo matarlo.
+export function pideGesto(paso: string): boolean {
+  return altura(paso) >= altura(PRIMER_GESTO);
+}
