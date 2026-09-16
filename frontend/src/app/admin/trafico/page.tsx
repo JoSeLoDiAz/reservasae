@@ -221,8 +221,8 @@ export default function PaginaTrafico() {
         titulo="Tráfico del formulario"
         descripcion={
           <>
-            Qué pasa entre el anuncio y la preinscripción. Cuenta aperturas, no
-            personas.
+            Qué pasa entre el anuncio y la preinscripción. Se abre más de lo
+            que se mira: las máquinas también abren, y «Personas» las descuenta.
             {datos?.contandoDesde && (
               <>
                 {" "}
@@ -374,11 +374,11 @@ export default function PaginaTrafico() {
 
           {datos?.caidaMayor && (
             <p className="rounded-xl border border-aviso/40 bg-aviso-suave px-4 py-3 text-sm">
-              <span className="font-semibold text-aviso">Donde más gente se va: </span>
+              <span className="font-semibold text-aviso">Donde más se cae: </span>
               <span className="text-texto">
                 {datos.caidaMayor.sePerdieron === 1
-                  ? "1 persona se fue"
-                  : `${n(datos.caidaMayor.sePerdieron)} personas se fueron`}{" "}
+                  ? "1 apertura se perdió"
+                  : `${n(datos.caidaMayor.sePerdieron)} aperturas se perdieron`}{" "}
                 entre «{COMO_SE_LEE[datos.caidaMayor.de] ?? datos.caidaMayor.de}» y «
                 {COMO_SE_LEE[datos.caidaMayor.a] ?? datos.caidaMayor.a}».
               </span>
