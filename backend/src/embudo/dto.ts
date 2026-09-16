@@ -15,8 +15,15 @@ import {
 
 import { DEL_NAVEGADOR } from './escalera';
 
-/// Lista cerrada, no texto libre. Es lo que impide que un
-/// cliente manipulado meta una cédula dentro de `detalle`.
+/// CHARSET, no lista de valores -- y la diferencia importa.
+/// Corta un correo, una comilla y cualquier CSS, pero una
+/// cedula, un nombre y un celular PASAN: son letras y digitos.
+/// La lista cerrada de verdad esta en `paso`, ahi al lado.
+/// Cerrar tambien esta es trabajo aparte: hoy ELIGIO_UBICACION
+/// manda el NOMBRE del departamento, asi que una gramatica
+/// estrecha tumbaria ese peldano -- y con
+/// `forbidNonWhitelisted` lo tumbaria EN SILENCIO, porque
+/// `marcar()` no lee la respuesta.
 const LIMPIO = /^[A-Za-zÁÉÍÓÚÜÑáéíóúüñ0-9 ._\-:]*$/;
 
 const recorta = (n: number) =>

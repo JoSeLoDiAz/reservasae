@@ -1243,7 +1243,7 @@ model PasoDeVisita {
   version  Int     @default(1)
   /// Desde que llego, en milisegundos.
   ms       Int?
-  /// De una lista cerrada. Nunca lo que la persona escribe.
+  /// Nunca lo que la persona escribe. Filtrado por charset.
   detalle  String?
 
   convenioId String?

@@ -1510,9 +1510,16 @@ que alguien no le dé enviado no nos va a llegar nadie»*. Sin peldaños interme
   Colombia, y hashearla no la salva: una IPv4 se revierte por fuerza bruta), ni el
   user-agent crudo, ni el municipio —(Puerto Nariño, 14:32, AF08) señala a alguien;
   (Amazonas, 14:32, AF08) no—, ni el valor de `fbclid`, que identifica un clic
-  concreto y se podría volver a unir a una persona: va **el bit**. `detalle` es una
-  lista cerrada validada **también en el servidor**, porque un control que solo está
-  en el navegador no es un control.
+  concreto y se podría volver a unir a una persona: va **el bit**. `detalle` NO es una lista
+  cerrada, aunque este archivo lo dijo hasta el 16 sep 2026 y el comentario del DTO
+  lo decía con el ejemplo que justamente no cubre: es un **charset** (`LIMPIO`), y
+  una cédula, un nombre y un celular lo pasan limpios — solo caen el correo, las
+  comillas y el CSS. La lista cerrada de verdad es la de `paso` (`@IsIn`).
+  **Cerrar `detalle` es trabajo aparte y más grande de lo que parece**: hoy
+  `ELIGIO_UBICACION` manda el NOMBRE del departamento, así que una gramática
+  estrecha tumbaría ese peldaño — y con `forbidNonWhitelisted` lo tumbaría **en
+  silencio**, porque `marcar()` no lee la respuesta. Primero los emisores mandan
+  códigos, después se cierra.
 - **`sendBeacon` y no `fetch`**: sobrevive a que la pestaña se cierre, que es
   exactamente el caso que hay que medir. `marcar()` no lanza nunca, no devuelve
   promesa, no lee la respuesta y no toca estado de React: **medir no puede romper el
