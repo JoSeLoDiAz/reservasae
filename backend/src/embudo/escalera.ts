@@ -31,9 +31,31 @@ export const ESCALERA = [
   'REGISTRADO',
 ] as const;
 
-/// Fuera de la escalera: dicen por qué se paró, no hasta dónde
-/// llegó. Meterlas en el orden haría un embudo que sube.
-export const MARCAS = ['CATALOGO_FALLO', 'SIN_COBERTURA', 'ENVIO_FALLO'] as const;
+/// Fuera de la escalera: dicen por qué se paró --o que quien
+/// llegó era alguien--, no hasta dónde llegó. Meterlas en el
+/// orden haría un embudo que sube.
+///
+/// `SE_QUEDO` es la única que no habla de un fallo: la escribe
+/// un temporizador, no un suceso de la página, y por eso tampoco
+/// sube `VERSION_EMBUDO` — el ORDEN de la escalera no cambia.
+export const MARCAS = [
+  'CATALOGO_FALLO',
+  'SIN_COBERTURA',
+  'ENVIO_FALLO',
+  'SE_QUEDO',
+] as const;
+
+/// Cuanto hay que seguir ahi para contar como persona.
+///
+/// Un escaner de enlaces carga la pagina y cierra el navegador;
+/// una persona sigue ahi. Tres segundos es del cliente (16 sep
+/// 2026): «quitar los que nunca estuvieron ni tres segundos».
+///
+/// NO se puede calcular hacia atras, y se comprobo: el `ms` que
+/// ya guarda cada paso mide lo que TARDO EN CARGAR, no lo que la
+/// persona se quedo. De 8.309 visitas con un paso pasados los
+/// 3 s, 8.254 lo eran solo por un catalogo lento.
+export const SEGUNDOS_PARA_CONTAR = 3;
 
 export type Peldano = (typeof ESCALERA)[number];
 export type Marca = (typeof MARCAS)[number];

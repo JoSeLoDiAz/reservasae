@@ -1776,6 +1776,54 @@ escribe **el nombre del envio**, y la direccion --y el QR-- se actualizan solos.
 > entrando a `/adecopria/preinscripcion?utm_source=correo&utm_campaign=envio-de-prueba`
 > la fila `LLEGO` queda con `utmFuente = correo` y `utmCampana = envio-de-prueba`.
 
+##### `SE_QUEDO`: la cifra que de verdad son personas (16 sep 2026)
+
+*«Quitar los que nunca estuvieron ni tres segundos ahi»*. Un escaner de enlaces
+carga la pagina, dispara las balizas de carga y cierra el navegador; una persona
+sigue ahi. `contarSiSeQueda()` marca `SE_QUEDO` con un **temporizador** a los tres
+segundos, y `personas` pasa a ser la cifra y el denominador de la pantalla.
+
+**Quienes son, con nombre y medido:** los rangos `74.179.x`, `72.152-153.x`,
+`135.232.x` y `128.85.x`, **sin un solo DNS inverso** — Microsoft. Es el Safe
+Links de Defender for Office 365 abriendo cada enlace antes de entregar el correo.
+**Una sola de esas IP abrio el formulario 310 veces.** Y la separacion es total:
+de 187 direcciones, **70 hacen mas de 100 peticiones cada una**, y las **32 que de
+verdad enviaron el formulario** vienen todas de operadores colombianos
+(`181.x`, `186.x`, `190.x`, `2800:`…). **Cero solapamiento.**
+
+- **NO se puede calcular hacia atras, y se comprobo antes de prometerlo.** El `ms`
+  que ya viaja en cada paso mide **lo que tardo en cargar**, no lo que la persona
+  se quedo: de 8.309 visitas con un paso pasados los 3 s, **8.254 lo eran solo por
+  un catalogo lento**. La cifra limpia empieza el dia que esto se despliega; para
+  lo anterior solo hay «tocaron».
+- **Va por TEMPORIZADOR y no colgada de un suceso de la pagina**, que es toda la
+  diferencia, y **se cancela al salir**: sin eso, irse antes de los tres segundos
+  marcaria igual — justo lo contrario de lo que cuenta.
+- **`personas` es «se quedo O toco el formulario»**, y ese `OR` no es adorno: sin
+  el, una visita que perdiera el beacon del temporizador pero llegara a
+  inscribirse saldria con menos personas que envios, y un embudo que sube no se
+  puede leer.
+- **Es una MARCA y no un peldaño**, asi que no entra en el embudo ni sube
+  `VERSION_EMBUDO`: el ORDEN de la escalera no cambia. Un peldaño seria un paso
+  que la persona no da.
+- **La pantalla NO explica el mecanismo**, y lo pidio el cliente asi: la tarjeta
+  dice «Personas» y «Descontando lo que abren solas las maquinas». Los tres
+  segundos son de quien lo lee, no de quien lo mira.
+- **`SEGUNDOS_PARA_CONTAR` vive dos veces** --el navegador lo dispara y el
+  servidor lo interpreta-- y `la-escalera-no-se-separa.spec.ts` ata las dos.
+  Probado por mutacion: nueve segundos en un lado mata 1, y un corte de cero
+  --que contaria a todo el mundo-- mata 2.
+
+> **Lo que NO se hizo, y por que.** Filtrar por user-agent no sirve: esos
+> escaneres se presentan como Chrome normal --11.209 peticiones con el UA de
+> Windows Chrome y ni una marca de robot--. Y limitar por IP en nginx **tira**
+> peticiones en vez de marcarlas: detras del NAT de una empresa o de un operador
+> movil se llevaria por delante a personas de verdad, que es por lo que el
+> limitador de la baliza ya esta en 300/min. Marcar por rango de nube si
+> funcionaria --en estos datos separa perfecto-- pero obliga a mantener la lista
+> que Microsoft publica cada semana, y el dia que una empresa cliente use Safe
+> Links su gente se veria igual que un escaner.
+
 ##### El redirector es el PARCHE; el `utm_source` es la solucion
 
 `REDIRECTORES_DE_CORREO` en `procedencia.ts` cubre lo que **ya salio** sin

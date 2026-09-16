@@ -31,7 +31,17 @@ export const ESCALERA = [
 ] as const;
 
 /// Fuera de la escalera: dicen por qué se paró.
-export const MARCAS = ["CATALOGO_FALLO", "SIN_COBERTURA", "ENVIO_FALLO"] as const;
+export const MARCAS = [
+  "CATALOGO_FALLO",
+  "SIN_COBERTURA",
+  "ENVIO_FALLO",
+  "SE_QUEDO",
+] as const;
+
+/// Cuanto hay que seguir ahi para contar como persona. Vive
+/// tambien en `backend/src/embudo/escalera.ts`, y hay un test
+/// que ata los dos archivos.
+export const SEGUNDOS_PARA_CONTAR = 3;
 
 export type Paso = (typeof ESCALERA)[number] | (typeof MARCAS)[number];
 
@@ -168,4 +178,37 @@ export function marcar(slug: string, paso: Paso, detalle?: string): void {
   } catch {
     // medir no puede romper el formulario
   }
+}
+
+/**
+ * Cuenta a quien de verdad se quedo.
+ *
+ * Un escaner de enlaces --el del proveedor de correo masivo, el
+ * Safe Links de un buzon corporativo-- carga la pagina, dispara
+ * las balizas de carga y cierra el navegador. Medido en
+ * produccion el 16 sep 2026: setenta direcciones de Microsoft
+ * abrieron el formulario 14.801 veces, una sola de ellas 310.
+ * Una persona sigue ahi tres segundos despues.
+ *
+ * Va por TEMPORIZADOR y no colgada de un suceso de la pagina, y
+ * esa es toda la diferencia: el `ms` que ya viaja en cada paso
+ * mide lo que TARDO EN CARGAR, y por eso no sirve --de 8.309
+ * visitas con un paso pasados los 3 s, 8.254 lo eran solo por un
+ * catalogo lento.
+ *
+ * Devuelve como cancelarlo. Sin eso, salir de la pagina antes de
+ * los tres segundos marcaria igual: justo lo contrario.
+ */
+export function contarSiSeQueda(slug: string): () => void {
+  let reloj: ReturnType<typeof setTimeout> | null = null;
+  try {
+    reloj = setTimeout(() => {
+      marcar(slug, "SE_QUEDO");
+    }, SEGUNDOS_PARA_CONTAR * 1000);
+  } catch {
+    // medir no puede romper el formulario
+  }
+  return () => {
+    if (reloj) clearTimeout(reloj);
+  };
 }

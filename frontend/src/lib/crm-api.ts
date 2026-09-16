@@ -16,6 +16,10 @@ export type EmbudoPublico = {
   /// hubiera gente: es que no se contaba.
   contandoDesde: string | null;
   hitos: Array<{ paso: string; visitas: number }>;
+  /// Las llegadas que hizo alguien. Fuera de `hitos` porque NO es
+  /// un peldano de la escalera: meterlo alli lo pondria en el
+  /// embudo, y esto no es un paso que la persona da.
+  personas: number;
   /// Dia a dia desde que arranco el contador: el comparativo.
   porDia: Array<{ dia: string; llegaron: number; preinscritos: number }>;
   caidaMayor: { de: string; a: string; sePerdieron: number } | null;
@@ -57,6 +61,9 @@ export type CorteDeVisitas = {
   /// Aperturas. Incluye maquinas: el escaner de enlaces de un
   /// proveedor de correo abre cada enlace del envio.
   visitas: number;
+  /// Las que hizo alguien: seguia ahi pasados unos segundos, o
+  /// toco el formulario.
+  personas: number;
   /// Las que pasaron del primer peldano que exige un gesto.
   /// Es un SUELO de las personas, no una cuenta: quien abre,
   /// mira y se va escribe lo mismo que un escaner.

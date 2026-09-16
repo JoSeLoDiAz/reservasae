@@ -10,7 +10,12 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-import { ESCALERA, MARCAS, VERSION_EMBUDO } from './escalera';
+import {
+  ESCALERA,
+  MARCAS,
+  SEGUNDOS_PARA_CONTAR,
+  VERSION_EMBUDO,
+} from './escalera';
 
 const ARCHIVO = join(__dirname, '..', '..', '..', 'frontend', 'src', 'lib', 'visita.ts');
 
@@ -33,6 +38,15 @@ describe('la escalera del embudo', () => {
 
   it('tiene las mismas marcas fuera de la escalera', () => {
     expect(arregloDelPanel(texto, 'MARCAS')).toEqual([...MARCAS]);
+  });
+
+  /// El temporizador lo dispara el navegador y lo interpreta el
+  /// servidor. Con dos números distintos, la pantalla diria
+  /// «personas» de un corte que nadie aplicó.
+  it('cuenta los mismos segundos en los dos lados', () => {
+    const m = texto.match(/export const SEGUNDOS_PARA_CONTAR = (\d+);/);
+    expect(m).not.toBeNull();
+    expect(Number(m![1])).toBe(SEGUNDOS_PARA_CONTAR);
   });
 
   /// Si el orden cambia y la versión no, el informe mezcla dos

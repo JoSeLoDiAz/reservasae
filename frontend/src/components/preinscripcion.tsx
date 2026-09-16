@@ -16,7 +16,7 @@ import {
 import { FondoPublico } from "./fondo-publico";
 import { BannerLogos, EncabezadoPublico, PiePublico } from "./marca-publica";
 import { ModalInformacionAccion } from "./modal-informacion-accion";
-import { idDeVisita, marcar, type Paso } from "@/lib/visita";
+import { idDeVisita, marcar, type Paso, contarSiSeQueda } from "@/lib/visita";
 
 import { BandaDePasos } from "./banda-de-pasos";
 import { PantallaDeCarga, useEsperaCorta } from "./pantalla-de-carga";
@@ -82,6 +82,11 @@ export function PreinscripcionPublica({ slug }: { slug: string }) {
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: "smooth" });
   }, [pantalla]);
+
+  /// Quien sigue aqui a los tres segundos es una persona. Se
+  /// cancela al salir: marcar a quien ya se fue seria justo lo
+  /// contrario de lo que esto cuenta.
+  useEffect(() => contarSiSeQueda(slug), [slug]);
 
   useEffect(() => {
     marcar(slug, "LLEGO");

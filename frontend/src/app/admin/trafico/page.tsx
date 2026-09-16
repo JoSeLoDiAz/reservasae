@@ -164,9 +164,9 @@ export default function PaginaTrafico() {
   const vieron = porPaso.get("CATALOGO_LISTO") ?? 0;
   const eligieron = porPaso.get("ELIGIO_ACCION") ?? 0;
   const quedaron = porPaso.get("REGISTRADO") ?? 0;
-  /// El primer peldaño que no se alcanza sin mover algo. Un
-  /// escáner de enlaces escribe LLEGO y CATALOGO_LISTO y ya.
-  const tocaron = porPaso.get("ELIGIO_UBICACION") ?? 0;
+  /// Las que hizo alguien. NO sale de `hitos`: no es un peldaño
+  /// de la escalera, así que no entra en el embudo.
+  const personas = datos?.personas ?? 0;
 
   const dias = datos?.porDia ?? [];
   const antes = useMemo(
@@ -303,13 +303,12 @@ export default function PaginaTrafico() {
               pie="Incluye máquinas: un escáner de correo abre cada enlace"
             />
             <Resumen
-              etiqueta="Tocaron el formulario"
-              valor={tocaron}
-              antes={contra("ELIGIO_UBICACION")}
+              etiqueta="Personas"
+              valor={personas}
               etiquetaAntes={rotuloB}
               serie={dias.map((d) => d.llegaron)}
               color="var(--serie-3)"
-              pie="Nadie toca sin ser persona. Es un suelo, no una cuenta"
+              pie="Descontando lo que abren solas las máquinas"
             />
             <Resumen
               etiqueta="Eligieron un curso"
@@ -319,8 +318,8 @@ export default function PaginaTrafico() {
               serie={dias.map((d) => d.preinscritos)}
               color="var(--serie-2)"
               pie={
-                tocaron >= MINIMO_PARA_TASA
-                  ? `${Math.round((eligieron / tocaron) * 100)} % de quienes tocaron`
+                personas >= MINIMO_PARA_TASA
+                  ? `${Math.round((eligieron / personas) * 100)} % de las personas`
                   : "Aún son pocas para un porcentaje"
               }
             />
@@ -553,16 +552,16 @@ function Resumen({
 /// filas, una lista parece una caja vacía con texto dentro.
 /// Lo que se lee debajo de cada barra.
 ///
-/// El porcentaje va sobre `tocaron` y NUNCA sobre las aperturas:
-/// un escaner de enlaces infla las aperturas y no puede tocar
-/// nada, asi que dividir por aquellas da una tasa que parece
-/// exacta y no lo es. Con pocas no se imprime ninguna: una tasa
-/// hecha de dos se lee igual que una de tres mil.
+/// El porcentaje va sobre las PERSONAS y NUNCA sobre las
+/// aperturas: un escaner de enlaces infla aquellas, asi que
+/// dividir por ellas da una tasa que parece exacta y no lo es.
+/// Con pocas no se imprime ninguna: una tasa hecha de dos se lee
+/// igual que una de tres mil.
 function detalleDeFila(f: CorteDeVisitas): string | undefined {
   if (f.visitas === 0) return undefined;
-  const tocaron = `${n(f.tocaron)} tocaron`;
-  if (f.tocaron < MINIMO_PARA_TASA) return tocaron;
-  return `${tocaron} · ${Math.round((f.envios / f.tocaron) * 100)} % se preinscribió`;
+  const gente = `${n(f.personas)} personas`;
+  if (f.personas < MINIMO_PARA_TASA) return gente;
+  return `${gente} · ${Math.round((f.envios / f.personas) * 100)} % se preinscribió`;
 }
 
 function Corte({
@@ -603,7 +602,7 @@ function Corte({
       {total > 0 && filas.length > 0 && (
         <p className="mt-3 text-xs text-texto-suave">
           Sobre {n(total)} apertura{total === 1 ? "" : "s"} del periodo. El
-          porcentaje va sobre las que tocaron el formulario.
+          porcentaje va sobre las personas.
         </p>
       )}
       {pie && <p className="mt-2 text-xs text-texto-suave">{pie}</p>}

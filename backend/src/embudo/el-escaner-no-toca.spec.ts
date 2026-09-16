@@ -12,7 +12,14 @@
 /// fija aquí es que la línea se DERIVE de la escalera y que la
 /// cifra salga monótona.
 
-import { ESCALERA, PRIMER_GESTO, altura, pideGesto } from './escalera';
+import {
+  ESCALERA,
+  MARCAS,
+  PRIMER_GESTO,
+  SEGUNDOS_PARA_CONTAR,
+  altura,
+  pideGesto,
+} from './escalera';
 import { procedenciaSql } from './procedencia';
 
 describe('la línea del primer gesto', () => {
@@ -88,5 +95,24 @@ describe('el correo que llega por un redirector', () => {
   /// ella, no el mecanismo.
   it('`utm_source=correo` sigue resolviendo por su cuenta', () => {
     for (const d of ['correo', 'email', 'mail']) expect(valores).toContain(d);
+  });
+});
+
+describe('la marca de quien se queda', () => {
+  /// La escribe un temporizador, no un suceso de la pagina. Va
+  /// FUERA de la escalera: metida dentro seria un peldaño que la
+  /// persona no da, y el embudo contaria un paso inventado.
+  it('es una marca y nunca un peldaño', () => {
+    expect(MARCAS as readonly string[]).toContain('SE_QUEDO');
+    expect(ESCALERA as readonly string[]).not.toContain('SE_QUEDO');
+    expect(pideGesto('SE_QUEDO')).toBe(false);
+  });
+
+  /// El cliente lo dijo asi: «quitar los que nunca estuvieron ni
+  /// tres segundos». Con cero la marca saldria a la vez que
+  /// LLEGO y contaria a todo el mundo, escaneres incluidos.
+  it('el corte son tres segundos, y no cero', () => {
+    expect(SEGUNDOS_PARA_CONTAR).toBe(3);
+    expect(SEGUNDOS_PARA_CONTAR).toBeGreaterThan(0);
   });
 });

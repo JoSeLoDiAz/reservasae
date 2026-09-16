@@ -18,6 +18,7 @@ type FilaEmbudo = { paso: string; visitas: bigint };
 type FilaCorte = {
   valor: string | null;
   visitas: bigint;
+  personas: bigint;
   tocaron: bigint;
   envios: bigint;
 };
@@ -206,7 +207,9 @@ export class EmbudoService {
     const porPaso = new Map(filas.map((f) => [f.paso, Number(f.visitas)]));
     const hitos = ESCALERA.map((paso) => ({ paso, visitas: porPaso.get(paso) ?? 0 }));
 
-    const [porDia, procedencia, dispositivo, entrada, campana] = await Promise.all([
+    const [personas, porDia, procedencia, dispositivo, entrada, campana] =
+      await Promise.all([
+      this.personas(ambito, desde, hasta),
       this.porDia(ambito, desde, hasta),
       this.corte(ambito, desde, hasta, procedenciaSql()),
       this.corte(ambito, desde, hasta, Prisma.raw('"ancho"')),
@@ -239,6 +242,9 @@ export class EmbudoService {
       /// APARTE, y no sumado a nada. Ver `historico()`.
       historico: await this.historico(ambito),
       hitos,
+      /// Fuera de `hitos` a proposito: no es un peldaño de la
+      /// escalera, asi que meterlo alli lo pondria en el embudo.
+      personas,
       caidaMayor: caidaMayor(hitos),
       porDia,
       procedencia,
@@ -422,6 +428,46 @@ export class EmbudoService {
     }));
   }
 
+  /**
+   * Si esa visita la hizo alguien.
+   *
+   * `SE_QUEDO` la escribe un temporizador a los tres segundos:
+   * un escaner de enlaces carga y cierra, una persona sigue ahi.
+   *
+   * O TOCO EL FORMULARIO, y ese `OR` no es un adorno: sin el, una
+   * visita que perdiera el beacon del temporizador pero llegara a
+   * inscribirse saldria con menos personas que envios, y un
+   * embudo que sube no se puede leer. Asi sale monotono por
+   * construccion.
+   */
+  /// Cuantas de las llegadas del periodo las hizo alguien.
+  private async personas(
+    ambito: string[],
+    desde: Date,
+    hasta: Date,
+  ): Promise<number> {
+    const filas = await this.prisma.$queryRaw<Array<{ n: bigint }>>`
+      SELECT COUNT(*)::bigint AS n
+        FROM "pasos_de_visita" l
+       WHERE l."paso" = 'LLEGO'
+         AND l."convenioId" IN (${Prisma.join(ambito)})
+         AND l."creadoEn" >= ${desde} AND l."creadoEn" < ${hasta}
+         AND ${this.esDePersona()}
+    `;
+    return Number(filas[0]?.n ?? 0);
+  }
+
+  private esDePersona(): Prisma.Sql {
+    return Prisma.sql`EXISTS (
+      SELECT 1 FROM "pasos_de_visita" q
+       WHERE q."visitaId" = l."visitaId"
+         AND (q."paso" = 'SE_QUEDO'
+              OR array_position(
+                   ${ESCALERA as unknown as string[]}::text[], q."paso"
+                 ) >= ${altura(PRIMER_GESTO) + 1})
+    )`;
+  }
+
   /// Un corte del paso de LLEGADA, con su conversión.
   ///
   /// La expresión sale SIEMPRE del código —un nombre de columna o
@@ -435,6 +481,7 @@ export class EmbudoService {
     Array<{
       valor: string | null;
       visitas: number;
+      personas: number;
       tocaron: number;
       envios: number;
     }>
@@ -449,6 +496,8 @@ export class EmbudoService {
       )
       SELECT l.valor,
              COUNT(*)::bigint AS visitas,
+             COUNT(*) FILTER (WHERE ${this.esDePersona()}
+             )::bigint AS personas,
              -- Por PELDANO y no por el paso exacto: asi
              -- tocaron nunca puede salir menor que envios
              -- --REGISTRADO esta por encima-- y la fila sale
@@ -479,6 +528,7 @@ export class EmbudoService {
     return filas.map((f) => ({
       valor: f.valor,
       visitas: Number(f.visitas),
+      personas: Number(f.personas),
       tocaron: Number(f.tocaron),
       envios: Number(f.envios),
     }));
@@ -491,6 +541,7 @@ export class EmbudoService {
       comparado: null,
       contandoDesde: null,
       hitos: ESCALERA.map((paso) => ({ paso, visitas: 0 })),
+      personas: 0,
       caidaMayor: null,
       porDia: [],
       procedencia: [],
