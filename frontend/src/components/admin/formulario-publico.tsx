@@ -18,6 +18,55 @@ import QRCode from "qrcode";
 
 import { Tarjeta } from "./marco-admin";
 
+/**
+ * Los canales que la pantalla de tráfico SABE reconocer.
+ *
+ * Los valores NO son inventados: son los que `procedenciaSql()`
+ * clasifica en el servidor (`DICE_CORREO`, `DICE_WHATSAPP`, y el
+ * `qr` a secas). Ofrecer aquí uno que allá no exista dejaría el
+ * envío en «Otro declarado», que es no haberlo marcado.
+ *
+ * NO se ofrecen Facebook ni Instagram, y es deliberado: esas las
+ * pone Ads Manager en su propio enlace, y un desplegable que las
+ * ofreciera dejaría marcar a mano como pauta un tráfico que no lo
+ * es — justo lo que la atribución a pauta se paró para evitar.
+ */
+export const CANALES_DEL_ENLACE = [
+  { utm: "", etiqueta: "Sin marcar" },
+  { utm: "correo", etiqueta: "Correo" },
+  { utm: "whatsapp", etiqueta: "WhatsApp" },
+  { utm: "qr", etiqueta: "QR impreso" },
+] as const;
+
+/**
+ * El nombre del envío, como sobrevive al viaje.
+ *
+ * La baliza QUITA todo lo que no sea `[A-Za-z0-9._-]` en vez de
+ * traducirlo, así que «envío de prueba» llegaría como
+ * «enviodeprueba» y «campaña» como «campaa»: lo que alguien
+ * teclea y lo que después lee en la pantalla no serían lo mismo,
+ * y nadie lo sabría. Aquí se traduce antes, a la vista.
+ */
+export function comoViaja(texto: string): string {
+  return texto
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 60);
+}
+
+/// La dirección ya marcada. Sin canal ni nombre, la de siempre.
+export function urlMarcada(base: string, utm: string, envio: string): string {
+  const p = new URLSearchParams();
+  if (utm) p.set("utm_source", utm);
+  const nombre = comoViaja(envio);
+  if (nombre) p.set("utm_campaign", nombre);
+  const cola = p.toString();
+  return cola ? `${base}?${cola}` : base;
+}
+
 export type Campo = { etiqueta: string; obligatorio?: boolean };
 export type Bloque = { titulo: string; campos: Campo[] };
 
@@ -160,6 +209,17 @@ export function EnlacePublico({
   sigla: string;
   url: string;
 }) {
+  /// El canal y el nombre del envío arman la dirección. Se
+  /// quedan aquí y no en la URL del panel: es una herramienta
+  /// para copiar algo, no un estado que haya que compartir.
+  const [canal, setCanal] = useState("");
+  const [envio, setEnvio] = useState("");
+
+  const marcada = urlMarcada(url, canal, envio);
+  const nombre = comoViaja(envio);
+  /// Se avisa solo cuando lo tecleado y lo que viaja DIFIEREN.
+  const seTransformo = envio.trim() !== "" && nombre !== envio.trim();
+
   return (
     <Tarjeta titulo={sigla}>
       <div className="grid sm:grid-cols-[1fr_auto] sm:items-start">
@@ -167,17 +227,68 @@ export function EnlacePublico({
           <p className="text-sm text-texto-suave">
             Esta es la dirección que se reparte. La misma para todo el mundo.
           </p>
-          <Direccion url={url} />
+          <Direccion url={marcada} />
           <a
-            href={url}
+            href={marcada}
             target="_blank"
             rel="noreferrer"
             className="inline-block text-sm underline underline-offset-2"
           >
             Abrirlo como lo ve la persona
           </a>
+
+          {/* MARCAR EL ENLACE, y por que vive aqui.
+              El tráfico se separa por lo que nosotros escribamos
+              en el enlace --un correo abierto en Outlook y un QR
+              no dejan ninguna señal--, así que la etiqueta tiene
+              que ponerse donde se copia la dirección. Armada a
+              mano, un día sale mal escrita y ese envío se cuenta
+              en otro sitio sin que nada falle. */}
+          <div className="border-t border-borde pt-3">
+            <h3 className="mb-2 text-xs tracking-wide text-texto-suave uppercase">
+              Marcar de dónde va a llegar
+            </h3>
+            <div className="flex flex-wrap items-end gap-3">
+              <label className="text-sm">
+                <span className="mb-1 block text-texto-suave">Se reparte por</span>
+                <select
+                  value={canal}
+                  onChange={(e) => setCanal(e.target.value)}
+                  className="rounded-lg border border-borde bg-superficie px-3 py-2 text-sm"
+                >
+                  {CANALES_DEL_ENLACE.map((c) => (
+                    <option key={c.utm} value={c.utm}>
+                      {c.etiqueta}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="min-w-0 grow text-sm">
+                <span className="mb-1 block text-texto-suave">
+                  Nombre de este envío
+                </span>
+                <input
+                  value={envio}
+                  onChange={(e) => setEnvio(e.target.value)}
+                  placeholder="envío del 16 de septiembre"
+                  className="w-full rounded-lg border border-borde bg-superficie px-3 py-2 text-sm"
+                />
+              </label>
+            </div>
+            <p className="mt-2 text-xs text-texto-suave">
+              {canal === "" && nombre === ""
+                ? "Sin marcar, este tráfico se mezcla con el de todos los demás en Tráfico del formulario."
+                : "Así este envío sale con su propio nombre en Tráfico del formulario, separado del resto."}
+            </p>
+            {seTransformo && (
+              <p className="mt-1 text-xs text-aviso">
+                Viaja como «{nombre}»: la medición solo guarda letras sin tilde,
+                números y guiones.
+              </p>
+            )}
+          </div>
         </div>
-        <CodigoQR url={url} titulo={sigla} />
+        <CodigoQR url={marcada} titulo={sigla} />
       </div>
     </Tarjeta>
   );

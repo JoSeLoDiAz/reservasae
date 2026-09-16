@@ -1715,6 +1715,38 @@ El mailing parecia un fracaso y esta convirtiendo a la mitad de quien lo toca. E
 denominador estaba lleno de maquinas — la misma leccion de las «758 visitas» que
 eran 665 `facebookexternalhit`, en un canal nuevo.
 
+##### El enlace se marca DESDE LA PANTALLA que lo reparte (16 sep 2026)
+
+*«Pero yo digo es en este, porque aqui es donde sale el trafico. ¿Entonces como
+le coloco a este `utm_source=correo`?»*. Tenia razon en donde: la etiqueta hay
+que ponerla donde se copia la direccion, no en un instructivo.
+
+`/admin/formularios-publicos` arma el enlace: se elige **como se reparte** y se
+escribe **el nombre del envio**, y la direccion --y el QR-- se actualizan solos.
+
+- **Los canales NO son inventados.** `CANALES_DEL_ENLACE` lleva los valores que
+  `procedenciaSql()` sabe clasificar; ofrecer uno que alla no exista dejaria el
+  envio en «Otro declarado», o sea marcado y sin separar — lo mismo que no
+  marcarlo, y sin que nada falle.
+  `lo-que-el-panel-ofrece-se-clasifica.spec.ts` lee el archivo del panel y lo
+  ata, como `la-escalera-no-se-separa`.
+- **NO se ofrecen Facebook ni Instagram**, y es deliberado: esas las pone Ads
+  Manager en su propio enlace. Un desplegable que las ofreciera dejaria marcar a
+  mano como pauta un trafico que no lo es, que es justo lo que la atribucion a
+  pauta se paro para evitar. El spec lo fija.
+- **El nombre se traduce a la vista, y por eso existe `comoViaja()`.** La baliza
+  QUITA todo lo que no sea `[A-Za-z0-9._-]` en vez de traducirlo, asi que «envio
+  de prueba» llegaria como «enviodeprueba» y «campaña» como «campaa»: lo
+  tecleado y lo que se lee despues en la pantalla no serian lo mismo y nadie lo
+  sabria. El armador lo convierte antes y **avisa cuando difiere**.
+- **De paso, `'qr'` estaba escrito como literal dentro del SQL** mientras todos
+  los demas van como parametro — por eso no salia en `.values` y el spec nuevo lo
+  encontro. Ahora tiene su `DICE_QR` como los otros.
+
+> **Comprobado en vivo contra pruebas**, que es lo unico que lo demuestra:
+> entrando a `/adecopria/preinscripcion?utm_source=correo&utm_campaign=envio-de-prueba`
+> la fila `LLEGO` queda con `utmFuente = correo` y `utmCampana = envio-de-prueba`.
+
 ##### El redirector es el PARCHE; el `utm_source` es la solucion
 
 `REDIRECTORES_DE_CORREO` en `procedencia.ts` cubre lo que **ya salio** sin

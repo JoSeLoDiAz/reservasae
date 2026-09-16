@@ -85,6 +85,10 @@ const BUSCADORES = [
 /// y valen porque el enlace lo armamos aquí.
 const DICE_CORREO = ['correo', 'email', 'mail'];
 const DICE_WHATSAPP = ['whatsapp', 'wa'];
+/// Con su lista, como los demas: estaba escrito como literal
+/// dentro del SQL y por eso no salia en los parametros, que es
+/// donde el spec del panel mira lo que el servidor reconoce.
+const DICE_QR = ['qr'];
 const DICE_FACEBOOK = ['fb', 'facebook', 'messenger'];
 const DICE_INSTAGRAM = ['ig', 'instagram'];
 /// Sabemos que es Meta pero no cual: no se inventa.
@@ -132,7 +136,7 @@ export function procedenciaSql(): Prisma.Sql {
       WHEN ${alguno(ref, DE_FACEBOOK)} THEN 'FACEBOOK'
       WHEN ${Prisma.raw(utm)} IN (${Prisma.join(DICE_CORREO)}) THEN 'CORREO'
       WHEN ${Prisma.raw(utm)} IN (${Prisma.join(DICE_WHATSAPP)}) THEN 'WHATSAPP'
-      WHEN ${Prisma.raw(utm)} = 'qr' THEN 'QR'
+      WHEN ${Prisma.raw(utm)} IN (${Prisma.join(DICE_QR)}) THEN 'QR'
       WHEN ${esDominio(ref, 'reservasae.com')} THEN 'INTERNO'
       WHEN ${alguno(ref, WEBMAIL)} THEN 'CORREO'
       WHEN ${alguno(ref, REDIRECTORES_DE_CORREO)} THEN 'CORREO'
