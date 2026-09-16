@@ -69,3 +69,20 @@ export async function pedir<T>(ruta: string, opciones?: RequestInit): Promise<T>
 
   return cuerpo as T;
 }
+
+/**
+ * El codigo con el que se marca un fallo en el embudo.
+ *
+ * `String(e.estado)` dejaba la cadena «undefined» cuando el
+ * `fetch` ni llegaba a contestar --se cae la red, el movil
+ * pierde senal, la pestana se va--, porque ahi lo que se lanza
+ * es un `TypeError` sin `estado`. En produccion eso fueron 252
+ * filas de `CATALOGO_FALLO` con «undefined» dentro: el peldano
+ * decia que algo fallo y no decia que.
+ *
+ * `RED` y un numero HTTP se arreglan de formas distintas: uno
+ * es nuestro y el otro es de quien mira.
+ */
+export function codigoDelFallo(e: unknown): string {
+  return e instanceof ErrorApi ? String(e.estado) : "RED";
+}

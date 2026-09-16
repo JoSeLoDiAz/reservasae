@@ -1,6 +1,6 @@
 import { pedir } from "./pedir";
 
-export { ErrorApi } from "./pedir";
+export { ErrorApi, codigoDelFallo } from "./pedir";
 /** Cliente de la API. Rutas relativas. */
 
 export type Semaforo = "DISPONIBLE" | "ULTIMOS_CUPOS" | "COMPLETO";

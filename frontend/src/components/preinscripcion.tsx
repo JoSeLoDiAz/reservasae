@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import { useEffect, useState } from "react";
 
 import { conEnlaces, TEXTO_DE_RESPALDO } from "@/components/caja-de-politica";
-import { ErrorApi } from "@/lib/api";
+import { ErrorApi, codigoDelFallo } from "@/lib/api";
 import { primero, resto } from "@/lib/nombres";
 import {
   preinscripcionApi,
@@ -91,11 +91,13 @@ export function PreinscripcionPublica({ slug }: { slug: string }) {
         setCatalogo(c);
         marcar(slug, "CATALOGO_LISTO");
       })
-      .catch((e: ErrorApi) => {
+      .catch((e: unknown) => {
         // antes del 404: una pauta con el slug malo se ve aqui
-        marcar(slug, "CATALOGO_FALLO", String(e.estado));
-        if (e.estado === 404) return setNoExiste(true);
-        setError(e.message);
+        marcar(slug, "CATALOGO_FALLO", codigoDelFallo(e));
+        if (e instanceof ErrorApi && e.estado === 404) return setNoExiste(true);
+        setError(
+          e instanceof Error ? e.message : "No se pudo cargar la información.",
+        );
       });
   }, [slug]);
 
@@ -151,8 +153,12 @@ export function PreinscripcionPublica({ slug }: { slug: string }) {
       });
     } catch (err) {
       // el codigo, NUNCA el mensaje: puede citar datos
-      marcar(slug, "ENVIO_FALLO", String((err as ErrorApi).estado));
-      setError((err as ErrorApi).message);
+      marcar(slug, "ENVIO_FALLO", codigoDelFallo(err));
+      setError(
+        err instanceof Error
+          ? err.message
+          : "No se pudo completar la operación.",
+      );
       setEnviando(false);
     }
   }
