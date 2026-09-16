@@ -59,6 +59,12 @@ const NEUTRO: Record<string, string> = {
   borde: '#e2dce6',
   encabezadoFondo: '#2b2333',
   encabezadoTexto: '#ffffff',
+  /// Los dos tonos del circulo del titulo. Estan MEDIDOS contra
+  /// deuteranopia, no derivados de la marca: si a un gremio le
+  /// falta el token, el respaldo tiene que ser uno bueno y no
+  /// `undefined` dentro de un `style`.
+  aviso: '#8a5a00',
+  exito: '#1f6b3a',
 };
 
 export type MarcaDeLaCarta = {
@@ -217,21 +223,32 @@ export function cartaHtml(p: PiezasDeLaCarta): string {
 
 function bloque(b: Bloque, c: (k: string) => string): string {
   switch (b.tipo) {
-    case 'TITULO':
+    case 'TITULO': {
+      /// EL TONO SALE DEL SIMBOLO QUE ESCRIBIO QUIEN REDACTA.
+      /// Lo pidio Catalina el 16 sep 2026: el «!» de «nos faltan
+      /// tus datos» salia en el mismo circulo verde palido que
+      /// el «✓» de «quedo confirmada», o sea que un correo que
+      /// pide algo se leia como uno que celebra algo.
+      const tono = tonoDeLaMarca(b.marca);
       return `<tr><td class="aire" align="center" style="padding:30px 32px 6px">
         ${
           b.marca
-            ? `<table role="presentation" cellpadding="0" cellspacing="0" align="center" style="margin:0 auto 14px"><tr>
-                 <td width="54" height="54" align="center" valign="middle" style="background:${mezcla(c('marca'))};border-radius:27px;font:400 26px/54px ${F};color:${c('marca')}">${escaparHtml(b.marca)}</td>
+            ? `<table role="presentation" cellpadding="0" cellspacing="0" align="center" style="margin:0 auto 16px"><tr>
+                 <td width="60" height="60" align="center" valign="middle" style="background:${mezcla(c(tono))};border-radius:30px;font:700 30px/60px ${F};color:${c(tono)}">${escaparHtml(b.marca)}</td>
                </tr></table>`
             : ''
         }
-        <div style="font:800 22px/1.3 ${F};color:${c('texto')};letter-spacing:-.01em">${escaparHtml(b.texto)}</div>
+        <div style="font:800 24px/1.3 ${F};color:${c('texto')};letter-spacing:-.015em">${escaparHtml(b.texto)}</div>
       </td></tr>`;
+    }
 
     case 'SECCION':
-      return `<tr><td class="aire" style="padding:24px 32px 0">
-        <div style="font:700 11px/1.4 ${F};color:${c('textoSuave')};text-transform:uppercase;letter-spacing:.1em">${escaparHtml(b.texto)}</div>
+      /// Mas grande y mas oscuro que antes, tambien de la misma
+      /// reunion: «lo que nos falta puede ser mas grandecito».
+      /// A 11px y en `textoSuave` el rotulo se perdia entre los
+      /// parrafos en vez de partir el correo en bloques.
+      return `<tr><td class="aire" style="padding:26px 32px 0">
+        <div style="font:700 13px/1.4 ${F};color:${c('texto')};text-transform:uppercase;letter-spacing:.08em">${escaparHtml(b.texto)}</div>
       </td></tr>`;
 
     case 'PANEL':
@@ -292,8 +309,28 @@ function bloque(b: Bloque, c: (k: string) => string): string {
   }
 }
 
-/// El fondo del circulo: el mismo color de marca, muy
-/// diluido. Un solo color da los dos, igual que en el panel.
+/**
+ * Que token tiñe el circulo del titulo.
+ *
+ * Lo decide el SIMBOLO que escribio quien redacta la plantilla,
+ * no una bandera aparte: `# ! Nos faltan tus datos` sale en
+ * aviso y `# ✓ Tu inscripcion quedo confirmada` en exito. Asi
+ * el tono no se puede olvidar --va pegado al texto-- y sigue
+ * saliendo de la apariencia del gremio, que es la regla.
+ *
+ * `aviso` y `exito` estan MEDIDOS contra deuteranopia y no se
+ * derivan del color de marca. Por eso el simbolo acompaña y no
+ * es lo unico que distingue: el titulo lo dice con palabras.
+ */
+function tonoDeLaMarca(marca: string | null): string {
+  if (!marca) return 'marca';
+  if (marca.includes('!')) return 'aviso';
+  if (marca.includes('✓') || marca.includes('✔')) return 'exito';
+  return 'marca';
+}
+
+/// El fondo del circulo: el mismo color, muy diluido. Un solo
+/// color da los dos, igual que en el panel.
 function mezcla(hex: string): string {
   return `${hex}1f`;
 }

@@ -20,6 +20,8 @@ const MARCA: MarcaDeLaCarta = {
     superficie: '#ffffff',
     fondo: '#f6f3f7',
     borde: '#e2dce6',
+    aviso: '#8a5a00',
+    exito: '#1f6b3a',
   },
   logos: [
     { url: 'https://x.co/api/marca/logos/a?v=1', alt: 'Grupo AE' },
@@ -125,8 +127,45 @@ describe('el cuerpo', () => {
     const html = carta('# ✓ Confirmada');
 
     expect(html).toContain('✓');
-    expect(html).toContain('border-radius:27px');
+    expect(html).toContain('border-radius:');
     expect(html).toContain('Confirmada');
+  });
+
+  /// EL TONO SALE DEL SIMBOLO, y lo pidio Catalina el 16 sep
+  /// 2026: el «!» de «nos faltan tus datos» salia en el mismo
+  /// circulo verde palido que el «✓» de «quedo confirmada», asi
+  /// que un correo que PIDE algo se leia como uno que celebra.
+  describe('el tono del círculo', () => {
+    it('un «!» tiñe de aviso y nunca de éxito', () => {
+      const html = carta('# ! Nos faltan tus datos');
+
+      expect(html).toContain(MARCA.colores.aviso as string);
+      expect(html).not.toContain(MARCA.colores.exito as string);
+    });
+
+    it('un «✓» tiñe de éxito y nunca de aviso', () => {
+      const html = carta('# ✓ Tu inscripción quedó confirmada');
+
+      expect(html).toContain(MARCA.colores.exito as string);
+      expect(html).not.toContain(MARCA.colores.aviso as string);
+    });
+
+    /// Una estrella no es ni lo uno ni lo otro: se queda con la
+    /// marca del gremio en vez de inventarle un significado.
+    it('cualquier otro símbolo se queda con el color del gremio', () => {
+      const html = carta('# ★ Te damos la bienvenida');
+
+      expect(html).not.toContain(MARCA.colores.aviso as string);
+      expect(html).not.toContain(MARCA.colores.exito as string);
+    });
+
+    /// Sin simbolo no hay circulo, asi que no hay nada que tenir.
+    it('sin símbolo no se pinta ningún círculo', () => {
+      const html = carta('# Recibimos tu preinscripción');
+
+      expect(html).not.toContain(MARCA.colores.aviso as string);
+      expect(html).not.toContain(MARCA.colores.exito as string);
+    });
   });
 
   it('escapa lo que escribió una persona', () => {

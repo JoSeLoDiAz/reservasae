@@ -3818,6 +3818,34 @@ vive en `backend/src/correo/carta/`.
   esa imagen a proposito; pintar las dos cosas serian los mismos logos
   dos veces.
 
+#### El tono del circulo sale del SIMBOLO (16 sep 2026)
+
+*«El simbolo de exclamacion... no se si quieres que sea como un triangulito
+amarillo, como mas visible»*, y *«lo que nos falta puede ser mas grandecito»*.
+Las dos de Catalina, en la reunion del 16 sep.
+
+Tenia razon en lo de fondo: el `!` de «Nos faltan tus datos» salia en **el mismo
+circulo verde palido** que el `✓` de «Tu inscripcion quedo confirmada», o sea que
+un correo que PIDE algo se leia como uno que celebra algo.
+
+- **Lo decide el simbolo que escribio quien redacta, no una bandera aparte.**
+  `# ! …` sale en `aviso` y `# ✓ …` en `exito`; cualquier otro se queda con la
+  marca del gremio en vez de inventarle un significado. Asi el tono va pegado al
+  texto y no se puede olvidar, y sigue saliendo de la apariencia.
+- **`aviso` y `exito` NO se derivan del color de marca** — estan medidos contra
+  deuteranopia, como en el panel. Por eso el simbolo acompaña y no es lo unico
+  que distingue: el titulo lo dice con palabras.
+- **`NEUTRO` lleva respaldo de los dos.** Sin el, un gremio al que le faltara el
+  token dejaria `background:undefined` dentro de un `style`.
+- El rotulo de seccion sube de 11 a 13 px y de `textoSuave` a `texto`: a aquel
+  tamaño se perdia entre los parrafos en vez de partir el correo en bloques. Y el
+  circulo pasa de 54 a 60 px.
+
+> **El spec dejo de fijar el radio en pixeles y pasa a fijar el TONO.** Aquel
+> fallaba al cambiar una medida que nadie habia decidido, y no fallaba al perder
+> la distincion que si importa. Probado por mutacion: que el `!` deje de teñir de
+> aviso mata 1.
+
 #### El formato: cuatro marcas que ya se escriben a mano
 
 El cuerpo sigue siendo texto --es lo que va en la parte `text/plain`,
