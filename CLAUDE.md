@@ -3324,6 +3324,34 @@ Por eso los toques van **aparte**, en `ToqueDeOrigen`, y no encima.
 - `origen-del-lead.spec.ts` se probó por mutación: pisar el contador en vez de
   sumarlo y sacar la autogestión de «orgánico» matan un test cada uno.
 
+### La lista de leads va por lo ULTIMO que paso (16 sep 2026)
+
+*«Ella se inscribio ayer 4:39 p. m., se le envio el correo de actualizacion, y
+actualiza hoy: deberia aparecer de nuevo de primeras»*. Tenia razon y era el caso
+exacto: la ficha completada esa mañana seguia hundida donde entro el dia antes.
+
+**Sustituye al orden del 3 sep 2026**, que era por fecha de creacion y que el
+mismo cliente habia pedido. Lo que cambio no es el criterio sino el trabajo: con
+el correo pidiendo los datos, una ficha vieja se mueve sola, y lo que acaba de
+moverse es justo lo que hay que atender.
+
+- **Va por `actualizadoEn` y NO por una columna propia.** Es `@updatedAt`, o sea
+  que la pone Prisma sola. Hay **once** sitios que escriben un movimiento, y una
+  columna que hubiera que acordarse de tocar en los once se olvida en uno y nadie
+  se entera — el control en pie y vacio de efecto de siempre.
+- **La columna enseña el MAYOR de la ficha y su ultimo movimiento**
+  (`masReciente`). Hay un caso que las separa: el RUI corrige un nombre y escribe
+  movimiento **sin tocar la ficha**. Enseñando solo el movimiento la columna iria
+  por delante de su propia fila; enseñando solo `actualizadoEn`, por detras. Una
+  tabla cuya columna de orden no cuadra con el orden se lee como una tabla rota.
+- **Lo que se pierde, y hay que decirlo:** un guion que toque muchas fichas de
+  golpe las sube todas arriba. Es visible y pasajero. Y una ficha a la que solo le
+  pasa algo por el RUI no sube.
+- **El spec usa el caso del cliente tal cual** —la que entro antes y se movio
+  despues contra la que entro despues y no se ha movido— y comprueba ademas que
+  **con el orden viejo se quedaba debajo**, que es el defecto. Probado por
+  mutacion: devolver siempre la fecha de la ficha mata 1.
+
 ### La mesa de entrada: el webhook de leads (27 ago 2026)
 
 `POST /api/webhooks/leads`. Lo llama el **orquestador de correos

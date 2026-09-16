@@ -26,6 +26,7 @@ import {
   seGuardaElValor,
   seHistoria,
 } from './clase-de-dato';
+import { masReciente } from './ultima-actividad';
 import { documentoValido, normalizarDocumento } from '../comun/documento';
 import { borrarParticipaciones } from './borrar-participaciones';
 import { llevanFichasEn } from './quien-lleva-fichas';
@@ -344,25 +345,35 @@ export class CrmService {
       this.prisma.participante.count({ where: donde }),
       this.prisma.participante.findMany({
         where: donde,
-        /// POR ORDEN DE LLEGADA, del mas reciente al mas viejo.
-        /// Orden del cliente, 3 sep 2026.
+        /// POR LO ULTIMO QUE PASO, no por cuando llego.
         ///
-        /// Antes iban primero TODOS los que venian de una reserva
-        /// de empresa y solo dentro de cada grupo por fecha, con
-        /// este argumento: una empresa que aparto cuarenta cupos
-        /// tiene cuarenta turnos con vencimiento, asi que ponerlos
-        /// arriba hacia que se atendiera primero lo que caduca.
+        /// Orden del cliente, 16 sep 2026, y SUSTITUYE al suyo
+        /// del 3 sep --que era por fecha de creacion-- con este
+        /// caso suyo: alguien se preinscribe a las 4:39 p. m., se
+        /// le manda el correo pidiendole los datos, los completa
+        /// al dia siguiente... y seguia hundida donde entro. Lo
+        /// que acaba de moverse es lo que hay que atender.
         ///
-        /// El efecto es que la lista NO se leia como una bandeja:
-        /// un lead que acaba de entrar aparecia debajo de fichas
-        /// de hace semanas, y quien abre esta pantalla lo que
-        /// quiere saber es que ha llegado.
+        /// Va por `actualizadoEn` y NO por una columna propia a
+        /// proposito: es `@updatedAt`, o sea que la pone Prisma
+        /// sola. Hay ONCE sitios que escriben un movimiento, y
+        /// una columna que hubiera que acordarse de tocar en los
+        /// once se olvida en uno y nadie se entera -- el control
+        /// en pie y vacio de efecto de siempre.
         ///
-        /// Lo que se pierde y hay que decirlo: los cupos de
-        /// empresa dejan de flotar solos. Se siguen pudiendo ver
-        /// primero -- la tabla ordena por columna y guarda vistas
-        /// con nombre --, pero ya no salen arriba por omision.
-        orderBy: { creadoEn: 'desc' },
+        /// Lo que se pierde, y hay que decirlo: un guion que
+        /// toque muchas fichas de golpe las sube todas. Es
+        /// visible y pasajero. Y al reves, un movimiento que NO
+        /// toca la ficha --el RUI corrigiendo un nombre-- no la
+        /// sube, asi que la columna puede ir por delante de la
+        /// posicion. Por eso enseña el MAYOR de los dos: nunca
+        /// dice algo mas viejo de lo que de verdad paso.
+        ///
+        /// Lo de antes del 3 sep --los de reserva de empresa
+        /// arriba-- no vuelve: se ven primero ordenando por su
+        /// columna, que la tabla ordena y guarda vistas.
+        ///
+        orderBy: { actualizadoEn: 'desc' },
         skip: (pagina - 1) * porPagina,
         take: porPagina,
         include: {
@@ -4444,7 +4455,15 @@ export class CrmService {
       reservaDe: p.reserva?.empresa.razonSocial ?? null,
       /// Lo ultimo que se le hizo, sea un cambio de etapa o
       /// una edicion de la ficha.
-      ultimaActividad: p.movimientos[0]?.creadoEn ?? p.actualizadoEn,
+      ///
+      /// El MAYOR de los dos y no solo el movimiento: la lista se
+      /// ordena por `actualizadoEn`, y una columna que enseñara
+      /// algo mas viejo que la posicion de su propia fila se lee
+      /// como una tabla mal ordenada.
+      ultimaActividad: masReciente(
+        p.movimientos[0]?.creadoEn ?? null,
+        p.actualizadoEn,
+      ),
       /// De donde viene: el movimiento anterior al de ahora.
       etapaAnterior: p.movimientos[0]?.etapaAntes ?? null,
       /// Solo ediciones de campos. Los cambios de etapa no

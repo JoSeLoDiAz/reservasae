@@ -420,11 +420,16 @@ export default function PaginaTrafico() {
               nombre={(v) => NOMBRE_ENTRADA[v ?? ""] ?? "Sin dato"}
               total={llegaron}
             />
+            {/* «Entrada directa» era FALSO y se veia: el 16 sep
+                2026, 10.450 de estas venian de un envio de correo
+                y el rotulo decia que habian entrado solas. Lo
+                cierto es que el enlace no traia etiqueta. */}
             <Corte
               titulo="Por campaña"
               filas={datos?.campana ?? []}
-              nombre={(v) => v ?? "Sin campaña: entrada directa"}
+              nombre={(v) => v ?? "El enlace no traía etiqueta"}
               total={llegaron}
+              pie="Para que un envío salga aquí con su nombre, su enlace tiene que llevar «utm_campaign». Un correo masivo lleva además «utm_source=correo»."
             />
           </div>
         </>
@@ -565,11 +570,15 @@ function Corte({
   filas,
   nombre,
   total,
+  pie,
 }: {
   titulo: string;
   filas: CorteDeVisitas[];
   nombre: (valor: string | null) => string;
   total: number;
+  /// Lo que hay que hacer para que este corte diga algo. Va
+  /// donde se lee la cifra, no en un manual que nadie abre.
+  pie?: string;
 }) {
   return (
     <div className="rounded-2xl border border-borde bg-superficie p-5">
@@ -597,6 +606,7 @@ function Corte({
           porcentaje va sobre las que tocaron el formulario.
         </p>
       )}
+      {pie && <p className="mt-2 text-xs text-texto-suave">{pie}</p>}
     </div>
   );
 }
