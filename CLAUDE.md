@@ -159,7 +159,29 @@ juntos; el del frontend **no**, que sería una tercera verdad.
 Si la duda es funcional y no visual —qué hace un botón, qué datos trae una
 pantalla, si se sobrescribe algo que un administrador guardó— **pregunte**.
 
-## Estado actual (15 sep 2026 · v0.5.0-JD)
+## Estado actual (16 sep 2026 · v0.6.0-JD)
+
+> **v0.6.0-JD esta en PRODUCCION** (16 sep 2026, commit `ff21fab`, etiqueta
+> `v0.6.0`). Cuatro commits, **sin migraciones, sin cambios de schema y sin
+> variables nuevas**: el conteo de personas por quien sigue ahi, el marcador de
+> canal del enlace, y las dos notas de como devolver el panel a su color. Copia
+> previa en `~/reservasae-antes-de-personas-20260916-1627.sql.gz`, y las filas
+> comprobadas antes y despues --38 fichas, 45 personas, 36 reservas, 4
+> plantillas-- salieron identicas.
+>
+> **La cifra limpia empieza a contar el 16 sep 2026 a las 16:29 de Bogota**, que
+> es la hora del despliegue. Lo anterior se queda como «abrieron», con las
+> maquinas dentro; **no se puede reconstruir hacia atras** y esta medido por que
+> --ver `SE_QUEDO` mas abajo.
+>
+> **Comprobado en produccion con UNA sola visita**, que demuestra las dos cosas a
+> la vez: `LLEGO` a las 16:31:27,099 con `utmFuente = correo` y `utmCampana =
+> prueba-despliegue` --el marcador del enlace--, `CATALOGO_LISTO` 152 ms despues,
+> y `SE_QUEDO` a las 16:31:30,100, o sea **3,001 s exactos**. Las tres filas se
+> borraron despues para no ensuciar la cifra, y a los minutos ya habia **dos
+> `SE_QUEDO` de personas de verdad**.
+
+## De antes (15 sep 2026 · v0.5.0-JD)
 
 > **v0.5.0-JD esta en PRODUCCION** (15 sep 2026, commit `53db1e4`, etiqueta
 > `v0.5.0`). Entraron once commits: la carta --un solo renderizador para todo el
@@ -1809,6 +1831,14 @@ verdad enviaron el formulario** vienen todas de operadores colombianos
 - **La pantalla NO explica el mecanismo**, y lo pidio el cliente asi: la tarjeta
   dice «Personas» y «Descontando lo que abren solas las maquinas». Los tres
   segundos son de quien lo lee, no de quien lo mira.
+- **En la pantalla hubo que arreglar DOS frases que sobrevivieron al cambio**, y
+  las dos decian lo contrario de la tarjeta nueva: el subtitulo rezaba «cuenta
+  aperturas, **no personas**» --escrito cuando la visita era la unica unidad--
+  justo encima de una tarjeta que dice «Personas», y el aviso de la mayor caida
+  contaba en PERSONAS una cifra que sale de los peldaños, o sea de aperturas.
+  Esa era la peor de las dos: **la caida mas grande es exactamente donde se van
+  los escaneres**, asi que era la frase que mas se equivocaba. Añadir la cifra
+  buena no basta; hay que ir a buscar donde el texto viejo la contradice.
 - **`SEGUNDOS_PARA_CONTAR` vive dos veces** --el navegador lo dispara y el
   servidor lo interpreta-- y `la-escalera-no-se-separa.spec.ts` ata las dos.
   Probado por mutacion: nueve segundos en un lado mata 1, y un corte de cero
