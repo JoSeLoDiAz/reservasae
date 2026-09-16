@@ -577,6 +577,35 @@ los del otro. `/admin/formularios/:id/apariencia`.
   `/consulta` y `/completar/<token>` del subdominio también. **No vuelva a
   inyectarla por ruta.**
 
+#### Devolver el panel a su color, cuando alguien lo cambia (16 sep 2026)
+
+*«¿Por que cambio del violeta bonito que teniamos a azul? Volver al violeta, y el
+encabezado tambien»*. El tema GENERAL de produccion habia pasado a azul con la
+franja blanca — `temas.actualizadoEn` decia **15 sep 2026, 12:00 de Bogota**, o
+sea alguien aplicando una plantilla desde Apariencia. No fue ningun despliegue.
+
+**Se restaura DERIVANDO, nunca escribiendo los hex a mano** — es la misma regla
+que ya gobierna las dieciseis plantillas y la siembra:
+
+```bash
+pnpm --filter backend exec ts-node prisma/seed/colores-de-marca.ts   # escribe paletas.json
+```
+
+Sale de `#C615EA`, el medio del gradiente de Grupo AE, y da `marca #9900b6` con
+`encabezadoFondo #702482` en claro y `#3b1644` en oscuro. Escribirlos a mano
+daria una paleta bonita e ilegible: `marca` se usa como texto de enlace y tiene
+que llegar a 4,5:1.
+
+- **ANTES de aplicar, se comparan los 39 tokens uno a uno.** Aqui se hizo y las
+  19 diferencias en claro y 22 en oscuro eran **todas el tono** mas la pareja del
+  encabezado: los estados, las nueve etapas del CRM y las `--serie-*` estaban
+  identicas, asi que no se perdia nada. Si alguna hubiera diferido, habria sido
+  un ajuste deliberado de alguien y pisarlo seria decidir por el.
+- **Solo se toca `temas`, que es el general.** Los dos gremios sobreescriben 18
+  tokens en su formulario de marca y siguen con su verde y su azul; lo que
+  heredan son los neutros, que vuelven a tener el tinte morado.
+- Copia previa en `~/temas-antes-del-morado-*.sql.gz`.
+
 #### El fondo y el texto del encabezado son UNA PAREJA (16 sep 2026)
 
 Lo vio el cliente en produccion: *«los colores que tenia antes bien no estan, se
