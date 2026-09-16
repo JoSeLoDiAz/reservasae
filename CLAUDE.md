@@ -577,6 +577,39 @@ los del otro. `/admin/formularios/:id/apariencia`.
   `/consulta` y `/completar/<token>` del subdominio también. **No vuelva a
   inyectarla por ruta.**
 
+#### El fondo y el texto del encabezado son UNA PAREJA (16 sep 2026)
+
+Lo vio el cliente en produccion: *«los colores que tenia antes bien no estan, se
+puso la letra en negro»*. La franja de ADECOPRIA salia verde oscura con el texto
+del menu **casi negro**. Medido: **1,97:1** en claro y **1,11:1** en oscuro,
+contra un minimo de 4,5.
+
+**No era el codigo: era la herencia por token, rota por la mitad.** El tema
+GENERAL tenia la franja en blanco con texto `#1d222b`, que para la puerta general
+es correcto --15,96:1--. Pero los dos gremios sobreescriben en su formulario de
+marca **solo `encabezadoFondo`**, asi que heredaban aquel texto casi negro y se lo
+ponian encima de su propio verde.
+
+> **La regla, y hay que escribirla porque el sistema no la impone:**
+> `encabezadoFondo` y `encabezadoTexto` son una pareja. Pisar uno sin el otro
+> deja una franja con el texto del fondo anterior. Lo mismo vale para cualquier
+> par fondo/texto --`superficie`/`texto`, `marca`/su contraste--, y es el reverso
+> exacto de la regla que ya estaba escrita: guardar los 39 tokens mata la
+> herencia, pero guardar **medio par** la rompe al reves.
+
+- **Se arreglo en el DATO**, añadiendo `encabezadoTexto: #ffffff` a los dos
+  gremios en los dos esquemas. Queda en 8,10:1. Desde el panel es
+  `/admin/formularios/<el de marca>/apariencia` → Encabezado → texto.
+- **El aviso de contraste existe y no lo caza**: avisa sobre la paleta que se
+  esta editando, y aqui el cambio se hizo en la general mientras el fondo roto
+  vivia en otra. Un control que solo mira lo que tiene delante.
+- **La carta del correo NO tenia este problema** porque ahi el color del texto de
+  la banda **se calcula por luminancia** y no se lee del token. Es la misma
+  respuesta que el panel ya da para elegir la variante del logo
+  (`logos-por-fondo.ts`, «sale de la claridad de la franja»). Si algun dia el
+  panel quiere dejar de depender de que alguien acierte el par, ese es el camino
+  — pero es una decision aparte: hoy el administrador elige ese color.
+
 ### Elegir colores sin saber de color
 
 Tres niveles en `frontend/src/components/admin/editor-colores.tsx`, que lo
