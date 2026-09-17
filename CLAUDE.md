@@ -1942,6 +1942,48 @@ eran dos verdades bajo el mismo titulo, de antes de este cambio.
 > quitar la compuerta de pago de la pauta mata 1, y meter `CORREO` tambien en
 > `DE_RED` --romper la disjuncion-- mata 2.
 
+##### Las 63 del mailing, corregidas hacia atras (17 sep 2026)
+
+*«No creo que se inscribiera solo; la campaña anterior se fue sin nada»*. Tenia
+razon: el cambio del canal subio a produccion a las 16:37 y esas fichas entraron
+entre las 8:44 y las 11:12, asi que ninguna paso por el codigo nuevo.
+
+**Se pudo, y salio limpio.** No hay vinculo entre `Participante` y la visita
+--y no se añadio, porque desharia la separacion que mantiene anonimo al
+embudo--, pero el paso `REGISTRADO` lo escribe el SERVIDOR dentro de la misma
+peticion que crea la ficha, asi que los dos instantes caen a milisegundos.
+
+| | |
+|---|---|
+| Fichas | 80 |
+| Con **una sola** pareja en `REGISTRADO`, ventana de 1 s | 75 |
+| **Ambiguas** | **cero**, en los dos sentidos |
+| De esas, procedencia CORREO | **63**, todas por `r.in.campusadecopria.com` |
+
+- **La procedencia la decidio `procedenciaSql()`, la funcion REAL compilada**,
+  ejecutada dentro del contenedor de produccion. Reescribir el CASE en SQL para
+  el guion habria sido una quinta copia de la regla.
+- **Se corrigio con SQL CRUDO a proposito.** `actualizadoEn` es `@updatedAt`: por
+  Prisma, las 63 habrian subido de golpe al principio de la lista --que va por lo
+  ultimo que paso-- y le habria descolocado la tabla a quien la mira. Comprobado
+  despues: la cima sigue siendo 16:20, 15:56, 15:53, las horas de cada persona.
+- **Dos candados**: solo filas con **una** pareja (un empate no se toca) y solo
+  las que seguian en `AUTOGESTION`, asi que es idempotente y nunca pisa un valor
+  que alguien haya puesto a mano.
+- **Se escribio `origenLead: 'ORGANICO'` tambien**, por lo de siempre: sin ella
+  `CORREO` se deduce IMPORTACION y la ficha diria «lo cargo el equipo».
+- **Las 16 que se quedan en AUTOGESTION no son un fallo**: 12 llegaron sin
+  referente --«no dejo rastro», que NO es «llego por su cuenta»--, 1 por Google y
+  5 no tienen pareja. Inventarles un canal seria convertir un agujero de medicion
+  en una afirmacion.
+- Copia previa: `~/reservasae-antes-del-canal-20260917-1635.sql.gz`.
+
+> **Lo que NO se pudo poner, y el cliente lo pidio: el NOMBRE de la campaña.** Ese
+> mailing salio sin `utm_campaign`, asi que no existe en ningun dato; y una
+> campaña no se pinta en la ficha en ningun sitio --solo en `/admin/trafico`, que
+> va por visitas--. De aqui en adelante lo da el marcador de enlaces de
+> `/admin/formularios-publicos`, que para eso se construyo.
+
 ##### El redirector es el PARCHE; el `utm_source` es la solucion
 
 `REDIRECTORES_DE_CORREO` en `procedencia.ts` cubre lo que **ya salio** sin
