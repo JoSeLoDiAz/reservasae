@@ -159,7 +159,26 @@ juntos; el del frontend **no**, que sería una tercera verdad.
 Si la duda es funcional y no visual —qué hace un botón, qué datos trae una
 pantalla, si se sobrescribe algo que un administrador guardó— **pregunte**.
 
-## Estado actual (16 sep 2026 · v0.6.0-JD)
+## Estado actual (17 sep 2026 · v0.7.0-JD)
+
+> **v0.7.0-JD esta en PRODUCCION** (17 sep 2026, commit `f0647ad`, etiqueta
+> `v0.7.0`). Dos commits, **sin migraciones, sin cambios de schema y sin
+> variables nuevas**: la lista de leads pasa a decir POR DONDE llego cada quien
+> --«Canal de entrada»-- y la regla del origen del lead vuelve a vivir una sola
+> vez. Copia previa en `~/reservasae-antes-del-canal-20260917-1635.sql.gz`, y las
+> filas comprobadas antes y despues --80 fichas, 87 personas, 36 reservas--
+> salieron identicas.
+>
+> **Marca de aqui en adelante.** Las 79 fichas que ya existen siguen en
+> `AUTOGESTION`: no hay vinculo entre `Participante` y la visita que lo creo, asi
+> que no se pueden corregir por codigo --ver el bloque del canal mas abajo--.
+>
+> Comprobado en produccion sin crear ninguna ficha de mentira: una baliza con
+> `utm_source=correo` queda clasificada como CORREO. El camino de escritura es el
+> mismo codigo que se probo de punta a punta en pruebas, donde una preinscripcion
+> real salio con `origen=CORREO` y `origenLead=ORGANICO`.
+
+## De antes (16 sep 2026 · v0.6.0-JD)
 
 > **v0.6.0-JD esta en PRODUCCION** (16 sep 2026, commit `ff21fab`, etiqueta
 > `v0.6.0`). Cuatro commits, **sin migraciones, sin cambios de schema y sin
