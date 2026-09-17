@@ -9,6 +9,7 @@ import {
 
 import {
   EtapaParticipante,
+  type OrigenLead,
   type OrigenParticipante,
   Prisma,
   type Admin,
@@ -27,6 +28,7 @@ import {
   seHistoria,
 } from './clase-de-dato';
 import { masReciente } from './ultima-actividad';
+import { origenDeLead } from './origen-del-lead';
 import { documentoValido, normalizarDocumento } from '../comun/documento';
 import { borrarParticipaciones } from './borrar-participaciones';
 import { llevanFichasEn } from './quien-lleva-fichas';
@@ -4300,16 +4302,6 @@ export class CrmService {
     return y.length ? { AND: y } : {};
   }
 
-  /// Los doce origenes de la base, en los tres que le sirven
-  /// al asesor. «Pauta» son las redes de Meta: lo que se paga.
-  /// «Organico» es quien llego solo por el formulario.
-  private static readonly PAUTA = new Set<OrigenParticipante>([
-    'REDES',
-    'INSTAGRAM',
-    'FACEBOOK',
-    'LINKEDIN',
-  ]);
-
   /// Cuanto se sabe de la empresa donde trabaja. Es lo que
   /// decide si su ficha puede salir en el F7.
   private estadoDeEmpresa(
@@ -4357,6 +4349,10 @@ export class CrmService {
     };
     actualizadoEn: Date;
     convenio: { sigla: string | null; slug: string };
+    /// La escribe quien sí sabe de dónde vino --el webhook de
+    /// Meta, o la preinscripción cuando la visita lo prueba--.
+    /// Nula = se deduce del origen.
+    origenLead: OrigenLead | null;
     accionFormacion: { codigo: string; nombre: string } | null;
     oferta: { ubicacion: { nombre: string } } | null;
     /// Opcional: no todas las consultas que arman una fila lo
@@ -4444,11 +4440,10 @@ export class CrmService {
       /// que ya dice de cual es.
       grupo: p.cobertura ? p.cobertura.grupo.numero : null,
       gremio: p.convenio.sigla ?? p.convenio.slug,
-      origenLead: CrmService.PAUTA.has(p.origen)
-        ? ('PAUTA' as const)
-        : p.origen === 'AUTOGESTION'
-          ? ('ORGANICO' as const)
-          : ('IMPORTACION' as const),
+      /// La columna MANDA cuando está --la escribe quien sí
+      /// sabe de dónde vino-- y si no, se deduce. Es la regla
+      /// de `origenDeLeadSql`, LLAMADA y no copiada.
+      origenLead: p.origenLead ?? origenDeLead(p.origen),
       /// Viene de una empresa que aparto cupos. Ese turno
       /// caduca en el cierre, y por eso va primero.
       dePreReserva: p.reservaId !== null,
