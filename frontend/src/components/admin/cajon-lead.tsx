@@ -7,7 +7,7 @@ import {
   crmApi,
   ETIQUETA_DATOS_EMPRESA,
   ETIQUETA_ETAPA,
-  ETIQUETA_ORIGEN_LEAD,
+  ETIQUETA_ORIGEN,
   type CatalogosSep,
   type Ficha,
   type FilaParticipante,
@@ -407,10 +407,10 @@ export function CajonLead({
 
           <div className="min-w-0">
             <dt className="text-[0.625rem] font-semibold tracking-[0.1em] text-texto-suave uppercase">
-              Origen
+              Canal de entrada
             </dt>
             <dd className="mt-0.5 truncate text-sm text-texto-suave">
-              {ETIQUETA_ORIGEN_LEAD[fila.origenLead]}
+              {ETIQUETA_ORIGEN[fila.origen]}
             </dd>
           </div>
 

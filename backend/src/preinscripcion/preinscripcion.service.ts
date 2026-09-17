@@ -16,7 +16,11 @@ import { CorreoService } from '../correo/correo.service';
 import { quienFirma } from '../correo/quien-firma';
 import { motivoParaNoInscribir } from '../crm/una-sola-accion';
 import { EmbudoService } from '../embudo/embudo.service';
-import { origenDeLaVisita, redDeLaVisita } from '../embudo/origen-de-la-visita';
+import {
+  canalDeLaVisita,
+  origenDeLaVisita,
+  redDeLaVisita,
+} from '../embudo/origen-de-la-visita';
 import { registrarToqueDeOrigen } from '../crm/origen-del-lead';
 import { PrismaService } from '../prisma/prisma.service';
 import {
@@ -543,6 +547,22 @@ export class PreinscripcionService {
             /// orgánico que cruce degrada la ficha en silencio.
             origenLead: 'PAUTA',
           },
+        });
+      }
+
+      /// El CANAL va con las MISMAS tres condiciones, pero sin
+      /// pedir prueba de pago: un correo no se paga.
+      ///
+      /// `origenLead` se escribe y NO es adorno. Sin ella,
+      /// `origenDeLeadSql` deduce del origen, `CORREO` no está
+      /// en ninguna de sus dos listas y cae en IMPORTACION: la
+      /// ficha pasaría a «Lo cargó el equipo» y la planeación
+      /// de pauta la contaría como importada.
+      const canal = canalDeLaVisita(llegada);
+      if (canal && !pagada && !yaEsta && cerrados === 0) {
+        await this.prisma.participante.update({
+          where: { id: participante.id },
+          data: { origen: canal, origenLead: 'ORGANICO' },
         });
       }
 

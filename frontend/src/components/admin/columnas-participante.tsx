@@ -3,7 +3,7 @@ import Link from "next/link";
 import {
   ETIQUETA_DATOS_EMPRESA,
   ETIQUETA_ETAPA,
-  ETIQUETA_ORIGEN_LEAD,
+  ETIQUETA_ORIGEN,
   type FilaParticipante,
 } from "@/lib/crm-api";
 
@@ -232,10 +232,13 @@ export function columnasDeParticipante(): Columna<FilaParticipante>[] {
       filtro: "opciones",
     },
     {
+      /// La clave NO cambia: es lo que guarda el selector de
+      /// columnas, y renombrarla borra la columna de la vista
+      /// de quien ya eligió las suyas.
       clave: "origenLead",
       ancho: "104px",
-      titulo: "Origen lead",
-      valor: (f) => ETIQUETA_ORIGEN_LEAD[f.origenLead],
+      titulo: "Canal de entrada",
+      valor: (f) => ETIQUETA_ORIGEN[f.origen],
       filtro: "opciones",
     },
     {

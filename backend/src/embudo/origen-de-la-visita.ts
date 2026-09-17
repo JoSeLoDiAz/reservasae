@@ -22,12 +22,27 @@ import { OrigenParticipante } from '../../generated/prisma';
 
 /// Qué procedencia corresponde a qué origen de ficha. Solo las
 /// redes: el resto no cambia nada.
-const DE_RED: Partial<Record<string, OrigenParticipante>> = {
+export const DE_RED: Partial<Record<string, OrigenParticipante>> = {
   FACEBOOK: OrigenParticipante.FACEBOOK,
   INSTAGRAM: OrigenParticipante.INSTAGRAM,
   /// Sabemos que fue Meta y no cuál. `REDES` también cuenta como
   /// pauta en `origenDeLead`, así que la atribución no se pierde.
   META: OrigenParticipante.REDES,
+};
+
+/// Donde el canal ES el origen, sin pauta que probar.
+///
+/// Tiene que ser DISJUNTO de `DE_RED`: si una procedencia
+/// cayera en los dos, cual gana lo decidiria el orden de dos
+/// `??` y la compuerta de pago dejaria de ser una compuerta.
+/// `origen-de-la-visita.spec.ts` lo ata.
+///
+/// QR se queda fuera a proposito: `OrigenParticipante` no
+/// tiene esa palabra, y mapearlo a `OTRO` --que significa «no
+/// sabemos»-- destruiria justo lo que se sabe. Se mide como
+/// trafico igual; lo que no se puede es sellarlo en la ficha.
+export const DE_CANAL: Partial<Record<string, OrigenParticipante>> = {
+  CORREO: OrigenParticipante.CORREO,
 };
 
 export type LlegadaDeLaVisita = {
@@ -60,4 +75,23 @@ export function origenDeLaVisita(llegada: LlegadaDeLaVisita | null): OrigenParti
 export function redDeLaVisita(llegada: LlegadaDeLaVisita | null): OrigenParticipante | null {
   if (!llegada?.procedencia) return null;
   return DE_RED[llegada.procedencia] ?? null;
+}
+
+/**
+ * El canal por el que llegó, y aquí NO se exige `pagada`.
+ *
+ * Un correo no se paga, así que pedirle prueba de pago sería
+ * pedirle algo que nunca va a poder dar. Lo que sí hay es la
+ * etiqueta que ponemos nosotros en el enlace (`utm_source`) y
+ * dos hechos del navegador: el referente de un webmail y el del
+ * redirector del proveedor de envíos.
+ *
+ * Es una afirmación más débil que la de pauta, y puede serlo:
+ * marcar «Correo electrónico» de más no le quita el lead a
+ * nadie ni infla la cifra con la que se justifica un gasto, que
+ * es lo que la compuerta de pago existe para proteger.
+ */
+export function canalDeLaVisita(llegada: LlegadaDeLaVisita | null): OrigenParticipante | null {
+  if (!llegada?.procedencia) return null;
+  return DE_CANAL[llegada.procedencia] ?? null;
 }

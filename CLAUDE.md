@@ -1854,6 +1854,75 @@ verdad enviaron el formulario** vienen todas de operadores colombianos
 > que Microsoft publica cada semana, y el dia que una empresa cliente use Safe
 > Links su gente se veria igual que un escaner.
 
+##### La lista dice POR DONDE llego, no en que cajon cae (16 sep 2026)
+
+*«Aqui me sigue llegando que Organico y debe decir correo electronico»*, mirando
+los 52 leads que entraron ese dia por el mailing. Y despues, preguntado: *«si,
+deberia decir por donde llego: si por correo, por Facebook, por utm (proximo)»*.
+
+**El dato ya viajaba y no se pintaba en ningun sitio.** `FilaParticipante.origen`
+llegaba al panel y `ETIQUETA_ORIGEN` ya tenia los doce valores; lo que la columna
+«Origen lead» mostraba era la TRICOTOMIA --PAUTA / ORGANICO / IMPORTACION--, que
+es una clasificacion para informes, no el canal. La ficha, mientras tanto,
+**lleva meses rotulando el canal con ese mismo nombre** (`[id]/page.tsx:705`):
+eran dos verdades bajo el mismo titulo, de antes de este cambio.
+
+- **La CLAVE de la columna no se toca, y esa es la trampa.** `tabla.tsx` restaura
+  la seleccion guardada **reemplazando** la lista por defecto, asi que una clave
+  nueva --o una columna nueva al lado-- **desaparece de la vista de quien ya
+  eligio sus columnas**. Se cambia el `titulo` y el `valor`; `clave` se queda en
+  `origenLead` aunque ya no muestre eso, porque es un identificador de
+  `localStorage` y no una ruta al dato.
+- **`DE_CANAL` es un mapa APARTE de `DE_RED`, y tienen que ser DISJUNTOS.** Son
+  dos preguntas: «¿esto prueba que se PAGO?» --que exige `utm_campaign` o
+  `fbclid`-- y «¿esto prueba POR DONDE llego?», que un correo si puede contestar.
+  Ampliar `DE_RED` habria metido al correo detras de una compuerta que nunca
+  puede pasar; y si una procedencia cayera en los dos mapas, cual gana lo
+  decidiria el orden de dos `??` y la compuerta de pago dejaria de serlo.
+- **`origenLead: 'ORGANICO'` se escribe, y NO es adorno.** Sin ella,
+  `origenDeLeadSql` deduce del origen, `CORREO` no esta en ninguna de sus dos
+  listas y cae en IMPORTACION: la ficha pasaria de «Organico» a **«Lo cargo el
+  equipo»**, que es peor y es falso. Y `planeacion-de-pauta.ts` cuenta
+  `organicos` como «todo lo que no es IMPORTACION», asi que los 52 se le habrian
+  movido de columna.
+- **`origenDeLead()` NO se toca, y ese es el candado que importa.**
+  `autorizoAlRegistrarse()` deduce de la tricotomia **si a la persona se le
+  enseño un formulario con la politica**. Meter `CORREO` en «organico» le
+  fabricaria constancia de autorizacion a un lead del webhook que nunca vio un
+  formulario --el unico dato que hay que poder demostrar ante la ley--, y su
+  propio docblock cuenta que eso ya paso una vez con Facebook. Por eso la columna
+  la escribe EXPLICITAMENTE el unico camino que si verifica la autorizacion.
+- **QR se queda fuera a proposito.** `OrigenParticipante` no tiene esa palabra, y
+  mapearlo a `OTRO` --que significa «no sabemos»-- destruiria justo lo que si se
+  sabe. Se sigue midiendo como trafico; lo que no se puede es sellarlo en la
+  ficha. Anadir el valor al enum son los siete sitios de siempre y no cabe aqui.
+  WHATSAPP tampoco entra: existe en el enum, pero nadie lo pidio y aqui se
+  pregunta antes de anticipar.
+- **De regalo, `/admin/control` empieza a servir.** Su bloque «Volumen por canal»
+  agrupa por ese mismo campo y pintaba todo como «Se inscribio solo», porque el
+  origen estaba escrito a fuego. Ahora dice cuanto convierte el correo frente a
+  Facebook.
+- **La regla vuelve a vivir una sola vez.** `crm.service.ts` tenia una CUARTA
+  copia --un `static readonly PAUTA` propio y la tricotomia en un ternario a
+  mano-- y encima **ignoraba la columna `origenLead`**, o sea que era la que
+  producia el «Organico» de la queja. Ahora llama a `origenDeLead()` y respeta la
+  columna, igual que el SQL.
+
+> **Lo que NO se pudo hacer: los 52 de ese dia.** No hay ningun vinculo entre
+> `Participante` y el `visitaId` que lo creo --y anadirlo desharia la separacion
+> que mantiene anonimo al embudo, que es deliberada--. Se puede correlacionar por
+> tiempo, y sale limpio: las fichas casan con su paso `REGISTRADO` **en menos de
+> un segundo, 53 parejas y cero ambiguas en los dos sentidos**, y 43 de esas
+> visitas traian el referente del redirector. Pero es correlacion, no vinculo, y
+> corregir datos existentes con un criterio inferido se decide, no se hace solo.
+> La prueba ademas **caduca**: el olvidador borra `pasos_de_visita` a los 90 dias.
+
+> **Probado por mutacion**, y las tres primeras no aplicaron al primer intento
+> --el fallo que este archivo documenta como indistinguible de un test que no
+> sujeta nada--; repetidas por numero de linea: meter `QR` en `DE_CANAL` mata 3,
+> quitar la compuerta de pago de la pauta mata 1, y meter `CORREO` tambien en
+> `DE_RED` --romper la disjuncion-- mata 2.
+
 ##### El redirector es el PARCHE; el `utm_source` es la solucion
 
 `REDIRECTORES_DE_CORREO` en `procedencia.ts` cubre lo que **ya salio** sin

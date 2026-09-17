@@ -307,7 +307,7 @@ export const ETIQUETA_ORIGEN: Record<Origen, string> = {
   FACEBOOK: "Facebook",
   LINKEDIN: "LinkedIn",
   WHATSAPP: "WhatsApp",
-  CORREO: "Correo",
+  CORREO: "Correo electrónico",
   EVENTO: "Feria o evento",
   OTRO: "Otro",
 };
