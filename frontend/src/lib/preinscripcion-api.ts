@@ -44,7 +44,14 @@ export type CatalogoPreinscripcion = {
   convenio: { id: string; slug: string; nombre: string; sigla: string | null };
   acciones: AccionPublica[];
   /// Solo lo que tiene alguna oferta abierta.
-  ubicaciones: Array<{ departamento: string; ciudades: string[] }>;
+  /// `ciudades` son TODOS los municipios del departamento --ahi
+  /// se dice donde se vive-- y `sedes` las que ademas tienen
+  /// clase presencial.
+  ubicaciones: Array<{
+    departamento: string;
+    ciudades: string[];
+    sedes: string[];
+  }>;
   documentos: ValorSep[];
   generos: ValorSep[];
   /// El habeas data que hay que aceptar, entero. Null si el

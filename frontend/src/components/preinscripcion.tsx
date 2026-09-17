@@ -173,8 +173,13 @@ export function PreinscripcionPublica({ slug }: { slug: string }) {
       <Registrada token={hecho.token} nombre={hecho.nombre} mensaje={hecho.mensaje} />
     );
 
-  const ciudadesDelDepto =
-    catalogo.ubicaciones.find((u) => u.departamento === departamento)?.ciudades ?? [];
+  const deptoElegido = catalogo.ubicaciones.find(
+    (u) => u.departamento === departamento,
+  );
+  /// Todos los municipios: aqui se dice donde se VIVE.
+  const ciudadesDelDepto = deptoElegido?.ciudades ?? [];
+  /// Las que ademas tienen sede presencial, para marcarlas.
+  const sedes = new Set(deptoElegido?.sedes ?? []);
 
   /// Una oferta de DEPARTAMENTO cubre a todo el que viva ahi.
   /// Una de CIUDAD cubre solo esa ciudad: por eso quien vive
@@ -295,9 +300,9 @@ export function PreinscripcionPublica({ slug }: { slug: string }) {
             Consulte la oferta de formación según su ubicación de interés
           </h2>
           <p className="mt-1 text-sm text-texto-suave">
-            Seleccione el departamento y la ciudad de su preferencia para
-            consultar las acciones de formación disponibles en la zona
-            seleccionada.
+            Indique dónde vive y le mostramos las acciones de formación
+            disponibles en su zona. Las que se dictan en aula aparecen solo
+            para quien vive en el municipio donde se dictan.
           </p>
 
           <div className="mt-5 grid gap-4 sm:grid-cols-2">
@@ -326,14 +331,11 @@ export function PreinscripcionPublica({ slug }: { slug: string }) {
 
             <label className="block">
               <span className="mb-1.5 block text-sm font-medium">
-                Ciudad
-                {ciudadesDelDepto.length === 0 && departamento && (
-                  <span className="font-normal text-texto-suave"> (no aplica)</span>
-                )}
+                Municipio donde vive
               </span>
               <select
                 value={ciudad}
-                disabled={!departamento || ciudadesDelDepto.length === 0}
+                disabled={!departamento}
                 onChange={(e) => {
                   setCiudad(e.target.value);
                   setAccionId("");
@@ -341,12 +343,10 @@ export function PreinscripcionPublica({ slug }: { slug: string }) {
                 }}
                 className={CAMPO + (departamento ? "" : " opacity-50")}
               >
-                <option value="">
-                  {ciudadesDelDepto.length === 0 ? "Sin sedes presenciales" : "Elija…"}
-                </option>
+                <option value="">Elija…</option>
                 {ciudadesDelDepto.map((c) => (
                   <option key={c} value={c}>
-                    {c}
+                    {sedes.has(c) ? `${c} · con sede presencial` : c}
                   </option>
                 ))}
               </select>

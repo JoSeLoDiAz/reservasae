@@ -205,11 +205,30 @@ export class PreinscripcionService {
       }
     }
 
+    /// El DEPARTAMENTO sigue saliendo solo si tiene oferta: uno
+    /// sin nada solo sirve para decepcionar despues. Pero el
+    /// MUNICIPIO son todos, porque ahi la persona dice donde
+    /// VIVE, y eso es lo que viaja al reporte del SENA. Con
+    /// solo las sedes, quien vive en Bello tenia que declararse
+    /// de Medellin.
     return [...ciudades.entries()]
-      .map(([departamento, cs]) => ({
-        departamento,
-        ciudades: [...cs].sort((x, y) => x.localeCompare(y, 'es')),
-      }))
+      .map(([departamento, sedes]) => {
+        const id = DEPARTAMENTOS_SEP.find(
+          (d) =>
+            PreinscripcionService.clave(d.etiqueta) ===
+            PreinscripcionService.clave(departamento),
+        )?.id;
+        const todos = MUNICIPIOS_SEP.filter((m) => m[1] === id && m[3]).map(
+          (m) => m[2],
+        );
+        return {
+          departamento,
+          /// Todos los del departamento, para el domicilio.
+          ciudades: todos.sort((x, y) => x.localeCompare(y, 'es')),
+          /// Las que ademas tienen sede presencial.
+          sedes: [...sedes].sort((x, y) => x.localeCompare(y, 'es')),
+        };
+      })
       .sort((x, y) => x.departamento.localeCompare(y.departamento, 'es'));
   }
 
@@ -1744,9 +1763,18 @@ export class PreinscripcionService {
   /// Del nombre que eligio a los ids del SEP. El formulario
   /// trabaja con nombres porque es lo que tiene la ubicacion
   /// de la oferta; el cargue al SENA exige ids del DANE.
+  /// Sin tildes y en mayusculas: el catalogo del SEP y lo que
+  /// llega del formulario no siempre se escriben igual.
+  private static clave(t: string): string {
+    return t
+      .normalize('NFD')
+      .replace(/[̀-ͯ]/g, '')
+      .toUpperCase()
+      .trim();
+  }
+
   private domicilioSep(departamento?: string, ciudad?: string) {
-    const clave = (t: string) =>
-      t.normalize('NFD').replace(/[̀-ͯ]/g, '').toUpperCase().trim();
+    const clave = PreinscripcionService.clave;
 
     const depto = departamento
       ? DEPARTAMENTOS_SEP.find((d) => clave(d.etiqueta) === clave(departamento))
