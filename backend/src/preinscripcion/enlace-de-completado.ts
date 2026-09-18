@@ -66,6 +66,19 @@ export class EnlaceDeCompletado {
 
   /** Uno nuevo, y el anterior deja de servir. */
   async emitir(participanteId: string, emitidoPorId: string | null) {
+    return this.crear(participanteId, emitidoPorId, false);
+  }
+
+  /** El que da el registro público. */
+  async emitirAlRegistrarse(participanteId: string) {
+    return this.crear(participanteId, null, true);
+  }
+
+  private async crear(
+    participanteId: string,
+    emitidoPorId: string | null,
+    delRegistro: boolean,
+  ) {
     const ahora = new Date();
     // «anulado», no «usado»: los dos lo dejan sin valor, pero
     // dicen cosas distintas. Marcar como usado un enlace que
@@ -83,6 +96,7 @@ export class EnlaceDeCompletado {
         participanteId,
         expiraEn,
         emitidoPorId,
+        delRegistro,
       },
       select: { token: true, expiraEn: true },
     });

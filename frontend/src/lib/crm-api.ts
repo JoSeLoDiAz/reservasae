@@ -23,6 +23,8 @@ export type EmbudoPublico = {
   /// Dia a dia desde que arranco el contador: el comparativo.
   porDia: Array<{ dia: string; llegaron: number; preinscritos: number }>;
   caidaMayor: { de: string; a: string; sePerdieron: number } | null;
+  /// Fichas del registro que terminaron.
+  despues: { recibieron: number; terminaron: number };
   /// De donde venian. Ver `backend/src/embudo/procedencia.ts`.
   /// NO se llama «canal»: esa palabra ya la usa /admin/control
   /// para otra cosa sobre las mismas personas.

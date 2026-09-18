@@ -1622,7 +1622,8 @@ que alguien no le dé enviado no nos va a llegar nadie»*. Sin peldaños interme
   `ELIGIO_UBICACION` manda el NOMBRE del departamento, así que una gramática
   estrecha tumbaría ese peldaño — y con `forbidNonWhitelisted` lo tumbaría **en
   silencio**, porque `marcar()` no lee la respuesta. Primero los emisores mandan
-  códigos, después se cierra.
+  códigos, después se cierra. **Y para quien SE REGISTRA la visita sí se une a su
+  ficha por la hora**: ver «Después de preinscribirse».
 - **`sendBeacon` y no `fetch`**: sobrevive a que la pestaña se cierre, que es
   exactamente el caso que hay que medir. `marcar()` no lanza nunca, no devuelve
   promesa, no lee la respuesta y no toca estado de React: **medir no puede romper el
@@ -2026,6 +2027,63 @@ el DTO ya lo valida — **es un cambio en el enlace, no en el codigo**.
 > el `n >= 0` de `pideGesto`-- **no mato nada, y eso fue el hallazgo**: era codigo
 > muerto, porque `altura()` ya devuelve -1. Se quito en vez de dejar una linea que
 > un test finge cubrir.
+
+#### Después de preinscribirse: el segundo formulario, por ficha (18 sep 2026)
+
+*«Hay que vincular los 2 formularios en tráfico de la página para tener el
+control desde el primer momento»*. El cliente eligió **contar por ficha**.
+
+`backend/src/embudo/despues-del-registro.ts` y el bloque «Después de
+preinscribirse» de `/admin/trafico`.
+
+- **La unidad es la FICHA, no la visita**, y por eso no entra en
+  `pasos_de_visita`. `hitos` acredita a cada visita todos los peldaños por debajo
+  de su máximo y `porDia` cuenta como «llegó» cualquier `visitaId`: una fila del
+  segundo formulario ahí inflaría la serie y haría subir el embudo.
+- **Denominador: fichas con un enlace `delRegistro`**, creadas en el periodo y
+  **nunca antes del arranque del contador** (`max(desde, contandoDesde)`), el
+  mismo tramo que el embudo de arriba. Sin ese corte, «Desde el inicio» contaría
+  fichas que «Cómo leer» dice que no salen aquí.
+- **Numerador: las de esas con CUALQUIER enlace usado** —el del registro, el del
+  acuse o uno que reemitió el asesor—. `usadoEn` nunca se limpia, así que solo
+  crece y **no puede superar al denominador**: es un subconjunto por
+  construcción. Se cuenta «a hoy»: quien se preinscribió la semana pasada y
+  terminó ayer cuenta en la semana pasada.
+- **`delRegistro` va ESCRITO, no deducido.** `emitidoPorId` nulo parecía bastar,
+  pero borrar un admin lo pone nulo (`onDelete: SetNull`) y el acuse que no
+  encuentra enlace vivo también emite con nulo. Lo pone `emitirAlRegistrarse()`
+  —una función aparte y no una bandera— y solo se llama dentro del
+  `if (!yaHabiaPersona)`. Quien ya tenía cédula no recibe enlace y queda fuera,
+  con razón.
+- **Los viejos se marcaron por la hora**: la migración pone `true` a los de
+  `emitidoPorId` nulo nacidos a menos de 5 s de su ficha. Medido en producción
+  antes de escribirla: 100 enlaces, los 100 casan, ninguno después; 69 terminados.
+- **No lleva «abrieron»**: `abiertoEn` lo escribe la página al montarse, y el Safe
+  Links ejecuta JavaScript. Sería el «10.432 abrieron» otra vez. Solo
+  «terminaron» es cifra limpia.
+- **No lleva corte por canal**: esta pantalla habla de procedencia; el origen de
+  la ficha es otra regla y vive en `/admin/control`.
+- **El comparador de fechas no lo compara**, y la pantalla lo dice.
+- **pg-mem ejecuta la consulta DE VERDAD** (`despues-del-registro.spec.ts`), como
+  `el-case-de-verdad`. Probado por mutación, y las diez mueren: sin `delRegistro`
+  (2), sin el `usadoEn` del numerador (5), sin `DISTINCT` (1), sin el corte del
+  arranque (1), sin ámbito (1), fin inclusivo (1), `JOIN` opcional (2), el
+  registro sin marca (1), el asesor marcado (2) y `registrar()` llamando al
+  emisor del asesor (1).
+
+> **La garantía de privacidad era más fuerte en este archivo que en la base.**
+> «No entra un solo dato personal» sigue siendo cierto de `pasos_de_visita`, pero
+> para quien SE REGISTRA la visita ya se une a su ficha: `REGISTRADO` y la ficha
+> nacen en la misma petición y casan por la hora sin ambigüedad —así se
+> corrigieron las 63 del mailing—. Este bloque no lo empeora: no guarda
+> `visitaId` en la ficha ni nada de la tabla anónima. Lo que ya no se puede decir
+> es que el embudo sea anónimo para quien se preinscribió.
+
+> **Queda un defecto que ya existía, y lo decide el cliente**: la tarjeta «Se
+> preinscribieron» sale de `hitos`, que no filtra el `detalle` de `REGISTRADO`,
+> así que cuenta también las REPETIDA —quien ya tenía ficha— mientras su chispa
+> las excluye. Por eso puede salir mayor que «recibieron su enlace». Arreglarlo
+> cambia una cifra que el cliente ya mira.
 
 #### De dónde venía cada visita (14 sep 2026)
 

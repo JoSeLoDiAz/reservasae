@@ -88,7 +88,11 @@ const BASE = {
   aceptaPolitica: true,
 };
 
-function servicio(yaHabiaPersona = false, yaEstaEnLaAccion = yaHabiaPersona) {
+function servicio(
+  yaHabiaPersona = false,
+  yaEstaEnLaAccion = yaHabiaPersona,
+  enlace = dobleDeEnlace(),
+) {
   const cola = dobleDeColaDeCorreo();
   const s = new PreinscripcionService(
     prismaFalso(yaHabiaPersona, yaEstaEnLaAccion) as never,
@@ -98,7 +102,7 @@ function servicio(yaHabiaPersona = false, yaEstaEnLaAccion = yaHabiaPersona) {
     { agregarManual: () => Promise.resolve(null) } as never,
     dobleDeEmbudo(),
     cola,
-    dobleDeEnlace(),
+    enlace,
   );
   return { s, cola };
 }
@@ -147,5 +151,38 @@ describe('el acuse de la preinscripción', () => {
     await s.registrar('adecopria', BASE as never, '1.2.3.4');
 
     expect(cola.encolados).toHaveLength(0);
+  });
+});
+
+/// anota qué emisor se llamó
+function enlaceQueAnota() {
+  const llamadas: string[] = [];
+  const e = { token: 't', expiraEn: new Date('2026-12-31T00:00:00Z') };
+  const anota = (quien: string) => () => {
+    llamadas.push(quien);
+    return Promise.resolve(e);
+  };
+  const doble = {
+    vivo: () => Promise.resolve(null),
+    emitir: anota('emitir'),
+    emitirAlRegistrarse: anota('emitirAlRegistrarse'),
+    emitirOReusar: anota('emitirOReusar'),
+  };
+  return { doble: doble as never, llamadas };
+}
+
+describe('el enlace que da el registro', () => {
+  it('la ficha nueva lo recibe marcado', async () => {
+    const { doble, llamadas } = enlaceQueAnota();
+    const { s } = servicio(false, false, doble);
+    await s.registrar('adecopria', BASE as never, '1.2.3.4');
+    expect(llamadas).toEqual(['emitirAlRegistrarse']);
+  });
+
+  it('quien ya tenía la cédula no recibe ninguno', async () => {
+    const { doble, llamadas } = enlaceQueAnota();
+    const { s } = servicio(true, false, doble);
+    await s.registrar('adecopria', BASE as never, '1.2.3.4');
+    expect(llamadas).toEqual([]);
   });
 });

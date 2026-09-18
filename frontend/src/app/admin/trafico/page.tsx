@@ -418,6 +418,14 @@ export default function PaginaTrafico() {
             </div>
           </div>
 
+          {datos && (
+            <DespuesDePreinscribirse
+              {...datos.despues}
+              rotulo={rotuloA}
+              comparando={comparando}
+            />
+          )}
+
           <div className="grid gap-4 lg:grid-cols-3">
             <Corte
               titulo="Por dispositivo"
@@ -513,6 +521,72 @@ function AvisoSinMarcar({
           Formularios públicos
         </Link>
         , eligiendo por dónde se reparte, y cámbielo donde se haya publicado.
+      </p>
+    </section>
+  );
+}
+
+/** Las fichas del periodo, seguidas. */
+function DespuesDePreinscribirse({
+  recibieron,
+  terminaron,
+  rotulo,
+  comparando,
+}: {
+  recibieron: number;
+  terminaron: number;
+  rotulo: string;
+  comparando: boolean;
+}) {
+  const hayTasa = recibieron >= MINIMO_PARA_TASA;
+  const parte = recibieron > 0 ? Math.min(terminaron / recibieron, 1) : 0;
+
+  return (
+    <section className="rounded-2xl border border-borde bg-superficie p-5">
+      <h2 className="text-sm font-semibold tracking-wide text-texto-suave uppercase">
+        Después de preinscribirse · {rotulo}
+      </h2>
+      <p className="mt-1 text-sm text-texto-suave">
+        Cada ficha nueva recibe su enlace para completar datos. Se cuenta a
+        hoy: quien se preinscribió en el periodo y terminó después, cuenta.
+      </p>
+
+      <div className="mt-4 grid gap-4 sm:grid-cols-2">
+        <div>
+          <p className="text-3xl font-semibold text-titulo tabular-nums">
+            {n(recibieron)}
+          </p>
+          <p className="text-sm text-texto-suave">
+            recibieron su enlace al preinscribirse
+          </p>
+        </div>
+        <div>
+          <p className="text-3xl font-semibold text-exito tabular-nums">
+            {n(terminaron)}
+          </p>
+          <p className="text-sm text-texto-suave">
+            terminaron el formulario de completar
+            {recibieron > 0 &&
+              (hayTasa
+                ? ` · ${Math.round(parte * 100)} %`
+                : " · aún son pocas para un porcentaje")}
+          </p>
+        </div>
+      </div>
+
+      {recibieron > 0 && (
+        <div
+          className="mt-4 h-2 overflow-hidden rounded-full bg-superficie-alterna"
+          role="img"
+          aria-label={`${n(terminaron)} de ${n(recibieron)} terminaron`}
+        >
+          <div className="h-full rounded-full bg-exito" style={{ width: `${parte * 100}%` }} />
+        </div>
+      )}
+
+      <p className="mt-3 text-xs text-texto-suave">
+        Quien ya tenía ficha no recibe enlace y no entra aquí.
+        {comparando && " El comparador de fechas no compara este bloque."}
       </p>
     </section>
   );

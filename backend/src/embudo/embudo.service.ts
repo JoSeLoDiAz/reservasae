@@ -7,6 +7,7 @@ import { compararDos, resolverVentana, type Rango } from '../crm/ventana';
 import { PrismaService } from '../prisma/prisma.service';
 import { diaBogota } from '../comun/dia-bogota';
 import type { LlegadaDeLaVisita } from './origen-de-la-visita';
+import { despuesDelRegistro } from './despues-del-registro';
 import { pagadaSql, procedenciaSql } from './procedencia';
 import { MarcarPasoDto } from './dto';
 import { altura, ESCALERA, PRIMER_GESTO, VERSION_EMBUDO } from './escalera';
@@ -256,6 +257,15 @@ export class EmbudoService {
         ? await this.bloqueCorto(ambito, marco.anterior.desde, marco.anterior.hasta)
         : null;
 
+    // solo el periodo principal
+    const despues = await despuesDelRegistro(
+      this.prisma,
+      ambito,
+      desde,
+      hasta,
+      primero?.creadoEn ?? null,
+    );
+
     return {
       etiqueta: ventana.etiqueta,
       etiquetaAnterior: ventana.etiquetaAnterior ?? null,
@@ -268,6 +278,7 @@ export class EmbudoService {
       /// escalera, asi que meterlo alli lo pondria en el embudo.
       personas,
       caidaMayor: caidaMayor(hitos),
+      despues,
       porDia,
       procedencia,
       dispositivo,
@@ -611,6 +622,7 @@ export class EmbudoService {
       hitos: ESCALERA.map((paso) => ({ paso, visitas: 0 })),
       personas: 0,
       caidaMayor: null,
+      despues: { recibieron: 0, terminaron: 0 },
       porDia: [],
       procedencia: [],
       dispositivo: [],

@@ -671,7 +671,7 @@ export class PreinscripcionService {
       /// este y manda EL MISMO token que el boton de la pantalla
       /// de gracias. Dos tokens serian dos enlaces vivos a la
       /// misma ficha.
-      const enlace = await this.emitirEnlace(participante.id, null);
+      const enlace = await this.enlaces.emitirAlRegistrarse(participante.id);
       return {
         registrado: true,
         yaEstaba: false,

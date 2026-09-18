@@ -1499,6 +1499,8 @@ model EnlaceCompletado {
   anuladoEn    DateTime?
   /// Quién lo emitió. Null si lo generó el propio registro.
   emitidoPorId String?
+  /// Lo emitió el registro público.
+  delRegistro  Boolean   @default(false)
 
   participante Participante @relation(fields: [participanteId], references: [id], onDelete: Cascade)
   emitidoPor   Admin?       @relation("EnlacesEmitidos", fields: [emitidoPorId], references: [id], onDelete: SetNull)

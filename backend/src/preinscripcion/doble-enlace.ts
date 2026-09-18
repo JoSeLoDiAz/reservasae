@@ -9,6 +9,7 @@ export function dobleDeEnlace(token = 'TOKEN-DE-PRUEBA'): EnlaceDeCompletado {
   return {
     vivo: async () => enlace,
     emitir: async () => enlace,
+    emitirAlRegistrarse: async () => enlace,
     emitirOReusar: async () => enlace,
   } as unknown as EnlaceDeCompletado;
 }
