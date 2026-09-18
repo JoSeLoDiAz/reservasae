@@ -7,7 +7,7 @@ import { compararDos, resolverVentana, type Rango } from '../crm/ventana';
 import { PrismaService } from '../prisma/prisma.service';
 import { diaBogota } from '../comun/dia-bogota';
 import type { LlegadaDeLaVisita } from './origen-de-la-visita';
-import { procedenciaSql } from './procedencia';
+import { pagadaSql, procedenciaSql } from './procedencia';
 import { MarcarPasoDto } from './dto';
 import { altura, ESCALERA, PRIMER_GESTO, VERSION_EMBUDO } from './escalera';
 
@@ -145,8 +145,9 @@ export class EmbudoService {
       >`
         SELECT ${procedenciaSql()} AS procedencia,
                nullif("utmCampana", '') AS campana,
-               -- la etiqueta de Ads Manager, o el clic de Meta
-               (coalesce("utmCampana", '') <> '' OR "huboFbclid" IS TRUE) AS pagada
+               -- la etiqueta de Ads Manager, o el clic de Meta;
+               -- nunca un enlace sacado de nuestro panel
+               ${pagadaSql()} AS pagada
           FROM "pasos_de_visita"
          WHERE "visitaId" = ${visitaId} AND "paso" = 'LLEGO'
          LIMIT 1

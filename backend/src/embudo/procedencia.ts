@@ -106,6 +106,19 @@ const DICE_QR = ['qr'];
 /// gente (18 sep 2026). El nombre de la empresa va en la
 /// campana: `?reserva-transportes-el-condor`.
 const DICE_RESERVA = ['reserva'];
+/**
+ * Las fuentes que escribimos NOSOTROS en el enlace del panel.
+ *
+ * Ninguna prueba pago, y eso vale aunque la visita llegue desde la
+ * app de Instagram o Facebook: un `?mailing…` reenviado por un DM
+ * sale procedencia INSTAGRAM --el navegador de la app se evalúa
+ * antes que la etiqueta, y es correcto: llegó por ahí--, pero su
+ * `utm_campaign` es el nombre de un envío nuestro, no una
+ * campaña de Ads Manager. Lo cazó José el 18 sep 2026: con la
+ * regla de antes, ese mailing contaba como pauta pagada.
+ */
+const DE_LOS_NUESTROS = [...DICE_CORREO, ...DICE_WHATSAPP, ...DICE_QR, ...DICE_RESERVA];
+
 const DICE_FACEBOOK = ['fb', 'facebook', 'messenger'];
 const DICE_INSTAGRAM = ['ig', 'instagram'];
 /// Sabemos que es Meta pero no cual: no se inventa.
@@ -142,6 +155,23 @@ const alguno = (col: string, dominios: string[]) =>
  * hoy, y así siguen siéndolo el día que alguien escriba el patrón
  * de Google de una forma más laxa.
  */
+/**
+ * Si la visita PRUEBA que se pagó: la etiqueta de campaña de Ads
+ * Manager, o el `fbclid` que cuelga el redirector de Meta.
+ *
+ * Vive aquí, al lado del `CASE`, y no escrita en la consulta de
+ * quien la usa: las dos preguntan por las mismas columnas y el
+ * spec las ejecuta juntas contra un Postgres en memoria.
+ */
+export function pagadaSql(): Prisma.Sql {
+  const utm = `lower(coalesce("utmFuente",''))`;
+  return Prisma.sql`
+    CASE
+      WHEN ${Prisma.raw(utm)} IN (${Prisma.join(DE_LOS_NUESTROS)}) THEN FALSE
+      ELSE (coalesce("utmCampana", '') <> '' OR "huboFbclid" IS TRUE)
+    END`;
+}
+
 export function procedenciaSql(): Prisma.Sql {
   const ref = `lower(coalesce("referente",''))`;
   const utm = `lower(coalesce("utmFuente",''))`;
