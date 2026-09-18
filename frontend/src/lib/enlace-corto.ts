@@ -11,17 +11,10 @@
  * toda visita que traiga nombre de campana, y sin canal una
  * visita abierta desde la app de Facebook caeria en META: un
  * mailing reenviado por Messenger se contaria como pauta. Por eso
- * no hay corto sin prefijo.
- *
- * `pauta` SI existe desde el 18 sep 2026, y cambia una regla de
- * José: antes la pauta solo la marcaba Ads Manager. Mauricio: «el
- * CRM debe saber sí o sí de dónde viene cada cosa». Con los
- * parámetros de Ads Manager sin poner, la pauta caía en orgánico,
- * y eso era peor que el riesgo que la regla evitaba. Ese riesgo
- * sigue ahí y se acepta a sabiendas: si el enlace del anuncio se
- * reenvía por WhatsApp, quien entre por él cuenta como pauta.
- * Va a `meta` y no a `facebook` o `instagram`: el enlace no
- * sabe en cuál de las dos se vio el anuncio.
+ * el corto solo existe para canales NUESTROS, y ninguno es de
+ * Meta: la pauta la marca Ads Manager con sus `utm_`, y un
+ * prefijo `pauta` dejaria marcar a mano como pagado un trafico
+ * que no lo es.
  *
  * Sin importaciones a proposito: lo leen la baliza, el panel y un
  * spec del backend, que lo compila desde aqui.
@@ -36,7 +29,6 @@ export const PREFIJOS: Readonly<Record<string, string>> = {
   whatsapp: "whatsapp",
   qr: "qr",
   reserva: "reserva",
-  pauta: "meta",
 };
 
 /// Lo que va delante segun el canal elegido en el panel.
@@ -45,7 +37,6 @@ export const PREFIJO_DEL_CANAL: Readonly<Record<string, string>> = {
   whatsapp: "whatsapp",
   qr: "qr",
   reserva: "reserva",
-  meta: "pauta",
 };
 
 /// El mas largo primero: `correo` no se puede comer a nadie,
