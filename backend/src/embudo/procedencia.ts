@@ -117,6 +117,17 @@ const DICE_RESERVA = ['reserva'];
  * campaña de Ads Manager. Lo cazó José el 18 sep 2026: con la
  * regla de antes, ese mailing contaba como pauta pagada.
  */
+/**
+ * El enlace del ANUNCIO sacado del panel: `?pauta0305202255`.
+ *
+ * Dice que el enlace es de Meta y trae el nombre de la campaña,
+ * pero NO prueba pago por sí solo --José, 18 sep 2026--: pagada
+ * solo cuando la visita ya lo prueba, con el `fbclid` o abierta
+ * dentro de la app. Sin prueba cuenta como META y su nombre se
+ * guarda igual; lo que no hace es volver pagada la ficha.
+ */
+const DICE_PAUTA = ['pauta'];
+
 const DE_LOS_NUESTROS = [...DICE_CORREO, ...DICE_WHATSAPP, ...DICE_QR, ...DICE_RESERVA];
 
 const DICE_FACEBOOK = ['fb', 'facebook', 'messenger'];
@@ -168,6 +179,9 @@ export function pagadaSql(): Prisma.Sql {
   return Prisma.sql`
     CASE
       WHEN ${Prisma.raw(utm)} IN (${Prisma.join(DE_LOS_NUESTROS)}) THEN FALSE
+      WHEN ${Prisma.raw(utm)} IN (${Prisma.join(DICE_PAUTA)})
+        THEN ("huboFbclid" IS TRUE
+              OR "navegador" IN ('APP_INSTAGRAM', 'APP_FACEBOOK', 'APP_META'))
       ELSE (coalesce("utmCampana", '') <> '' OR "huboFbclid" IS TRUE)
     END`;
 }
@@ -194,6 +208,7 @@ export function procedenciaSql(): Prisma.Sql {
       WHEN ${Prisma.raw(utm)} IN (${Prisma.join(DICE_META)}) THEN 'META'
       -- fbclid dice que es Meta, no cual de las dos
       WHEN "navegador" = 'APP_META' OR "huboFbclid" IS TRUE THEN 'META'
+      WHEN ${Prisma.raw(utm)} IN (${Prisma.join(DICE_PAUTA)}) THEN 'META'
       WHEN ${alguno(ref, BUSCADORES)} THEN 'BUSQUEDA'
       WHEN ${Prisma.raw(utm)} <> '' THEN 'OTRO_DECLARADO'
       WHEN ${Prisma.raw(ref)} <> '' THEN 'OTRA_WEB'

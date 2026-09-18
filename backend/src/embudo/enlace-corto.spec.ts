@@ -26,12 +26,23 @@ describe('el enlace corto', () => {
     }
   });
 
-  /// La compuerta de pago: sin esto, `?pauta123` abierto desde la
-  /// app de Facebook se contaria como pauta pagada.
-  it('ningun prefijo es de Meta ni dice pauta', () => {
-    const prohibidos = ['fb', 'facebook', 'ig', 'instagram', 'meta', 'redes', 'pauta'];
-    for (const p of Object.keys(PREFIJOS)) expect(prohibidos).not.toContain(p);
-    for (const f of Object.values(PREFIJOS)) expect(prohibidos).not.toContain(f);
+  /// Ningun prefijo dice una red concreta: el enlace no sabe en
+  /// cual se vio. `pauta` si existe, y lleva a la fuente `pauta`,
+  /// cuya prueba de pago la pide `pagadaSql` --ver
+  /// `el-case-de-verdad.spec.ts`--, no la palabra del enlace.
+  it('ningun prefijo nombra una red, y pauta va a su propia fuente', () => {
+    const redes = ['fb', 'facebook', 'ig', 'instagram', 'meta', 'redes'];
+    for (const p of Object.keys(PREFIJOS)) expect(redes).not.toContain(p);
+    for (const f of Object.values(PREFIJOS)) expect(redes).not.toContain(f);
+    expect(PREFIJOS.pauta).toBe('pauta');
+  });
+
+  it('?pauta0305202255 trae el nombre de la campaña', () => {
+    expect(leerEnlaceCorto('?pauta0305202255')).toEqual({
+      fuente: 'pauta',
+      campana: 'pauta0305202255',
+    });
+    expect(palabraCorta('pauta', '0305202255')).toBe('pauta0305202255');
   });
 
   it('lo que pidio Mauricio: ?mailing18092026', () => {
@@ -64,7 +75,6 @@ describe('el enlace corto', () => {
   it('una clave con valor, o sin prefijo conocido, no es un enlace corto', () => {
     expect(leerEnlaceCorto('?qr=1')).toBeNull();
     expect(leerEnlaceCorto('?fbclid=abc')).toBeNull();
-    expect(leerEnlaceCorto('?pauta0305202255')).toBeNull();
     expect(leerEnlaceCorto('')).toBeNull();
   });
 

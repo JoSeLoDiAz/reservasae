@@ -110,6 +110,23 @@ describe('el CASE, ejecutado', () => {
     expect(evaluar({ referente: 'nowhatsapp.com' }).procedencia).toBe('OTRA_WEB');
   });
 
+  /// `?pauta…` del panel: el nombre sí, el pago solo con prueba.
+  it('?pauta… sin fbclid ni app NO es pagada, aunque diga Meta', () => {
+    const f = evaluar({ utmFuente: 'pauta', utmCampana: 'pauta0305202255' });
+    expect(f).toEqual({ procedencia: 'META', pagada: false });
+    expect(origenDeLaVisita(f)).toBeNull();
+  });
+
+  it('?pauta… con fbclid, o dentro de la app, SÍ', () => {
+    expect(evaluar({ utmFuente: 'pauta', utmCampana: 'pauta1', huboFbclid: true })).toEqual({
+      procedencia: 'META',
+      pagada: true,
+    });
+    const app = evaluar({ utmFuente: 'pauta', utmCampana: 'pauta1', navegador: 'APP_INSTAGRAM' });
+    expect(app).toEqual({ procedencia: 'INSTAGRAM', pagada: true });
+    expect(origenDeLaVisita(app)).toBe('INSTAGRAM');
+  });
+
   it('sin ninguna señal, no dejó rastro', () => {
     expect(evaluar({})).toEqual({ procedencia: 'SIN_REFERENCIA', pagada: false });
   });

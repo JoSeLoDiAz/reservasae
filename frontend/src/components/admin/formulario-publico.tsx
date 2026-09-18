@@ -41,6 +41,10 @@ export const CANALES_DEL_ENLACE = [
   /// El enlace que reparte una empresa con cupos apartados. En
   /// el nombre va la EMPRESA, no una fecha (18 sep 2026).
   { utm: "reserva", etiqueta: "Reserva de empresa" },
+  /// Para pegar como «URL del sitio web» del anuncio. Trae el
+  /// nombre de la campaña; el servidor solo la da por pagada si la
+  /// visita lo prueba (`fbclid` o la app de Meta).
+  { utm: "pauta", etiqueta: "Pauta (anuncio de Meta)" },
 ] as const;
 
 /**
@@ -278,12 +282,22 @@ export function EnlacePublico({
               </label>
               <label className="min-w-0 grow text-sm">
                 <span className="mb-1 block text-texto-suave">
-                  {canal === "reserva" ? "Empresa que reservó" : "Nombre de este envío"}
+                  {canal === "reserva"
+                    ? "Empresa que reservó"
+                    : canal === "pauta"
+                      ? "Nombre o número de la campaña"
+                      : "Nombre de este envío"}
                 </span>
                 <input
                   value={envio}
                   onChange={(e) => setEnvio(e.target.value)}
-                  placeholder={canal === "reserva" ? "Transportes El Cóndor" : "18092026"}
+                  placeholder={
+                    canal === "reserva"
+                      ? "Transportes El Cóndor"
+                      : canal === "pauta"
+                        ? "0305202255"
+                        : "18092026"
+                  }
                   className="w-full rounded-lg border border-borde bg-superficie px-3 py-2 text-sm"
                 />
               </label>

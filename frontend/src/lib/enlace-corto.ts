@@ -29,6 +29,10 @@ export const PREFIJOS: Readonly<Record<string, string>> = {
   whatsapp: "whatsapp",
   qr: "qr",
   reserva: "reserva",
+  /// El enlace del anuncio. Trae el NOMBRE de la campaña; que
+  /// cuente como pagada lo decide el servidor con su prueba
+  /// (`pagadaSql`), no esta palabra.
+  pauta: "pauta",
 };
 
 /// Lo que va delante segun el canal elegido en el panel.
@@ -37,6 +41,7 @@ export const PREFIJO_DEL_CANAL: Readonly<Record<string, string>> = {
   whatsapp: "whatsapp",
   qr: "qr",
   reserva: "reserva",
+  pauta: "pauta",
 };
 
 /// El mas largo primero: `correo` no se puede comer a nadie,
