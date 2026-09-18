@@ -49,6 +49,18 @@ const WEBMAIL = [
   'mail.yahoo.com',
 ];
 /**
+ * WhatsApp en el computador, y su acortador.
+ *
+ * La app del celular no manda referente --por eso casi todo
+ * WhatsApp llega sin rastro--, pero WhatsApp Web sí: llega como
+ * `web.whatsapp.com`. Sin esta lista caía en «Otra página web»,
+ * y el aviso de enlaces sin marcar lo contaba como un enlace
+ * suelto cuando se sabía perfectamente de dónde venía (18 sep
+ * 2026). `whatsapp.com` cubre `web.whatsapp.com` por el sufijo.
+ */
+const DE_WHATSAPP = ['whatsapp.com', 'wa.me'];
+
+/**
  * El redirector de un envio masivo de correo.
  *
  * NO es webmail: nadie lo abre a mano. Es el host por el que el
@@ -146,6 +158,7 @@ export function procedenciaSql(): Prisma.Sql {
       WHEN ${esDominio(ref, 'reservasae.com')} THEN 'INTERNO'
       WHEN ${alguno(ref, WEBMAIL)} THEN 'CORREO'
       WHEN ${alguno(ref, REDIRECTORES_DE_CORREO)} THEN 'CORREO'
+      WHEN ${alguno(ref, DE_WHATSAPP)} THEN 'WHATSAPP'
       WHEN ${Prisma.raw(utm)} IN (${Prisma.join(DICE_INSTAGRAM)}) THEN 'INSTAGRAM'
       WHEN ${Prisma.raw(utm)} IN (${Prisma.join(DICE_FACEBOOK)}) THEN 'FACEBOOK'
       WHEN ${Prisma.raw(utm)} IN (${Prisma.join(DICE_META)}) THEN 'META'

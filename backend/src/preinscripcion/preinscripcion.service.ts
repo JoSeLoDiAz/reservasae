@@ -592,6 +592,17 @@ export class PreinscripcionService {
         });
       }
 
+      /// El NOMBRE del envío aunque su canal no tenga palabra en
+      /// la ficha: el QR no la tiene --ver `DE_CANAL`-- y sin esto
+      /// `?qr-feria` llegaba marcado y la ficha no lo decía. El
+      /// origen no se toca; mismas tres condiciones.
+      if (!canal && !pagada && llegada?.campana && !yaEsta && cerrados === 0) {
+        await this.prisma.participante.update({
+          where: { id: participante.id },
+          data: { campanaDeEntrada: llegada.campana },
+        });
+      }
+
       /// El TOQUE se deja siempre que se sepa de qué red vino,
       /// pagada o no, y exista ya la ficha o no. Es cierto y no
       /// le quita el lead a nadie. Los otros dos escritores lo

@@ -47,6 +47,12 @@ describe('cómo se comparan los dominios', () => {
     }
   });
 
+  /// WhatsApp Web si deja referente, y se estaba contando como
+  /// «otra pagina web» (18 sep 2026).
+  it('reconoce WhatsApp Web por su referente', () => {
+    expect(valores).toContain('whatsapp.com');
+  });
+
   it('el CASE nombra todas las procedencias declaradas', () => {
     const texto = procedenciaSql().strings.join(' ');
     for (const p of PROCEDENCIAS) expect(texto).toContain(`'${p}'`);

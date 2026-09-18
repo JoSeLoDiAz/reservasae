@@ -51,6 +51,12 @@ export const DE_CANAL: Partial<Record<string, OrigenParticipante>> = {
   /// `autorizoAlRegistrarse` es de los leads del webhook, y quien
   /// se preinscribe deja la suya al aceptar la política.
   RESERVA: OrigenParticipante.EMPRESA,
+  /// Entró el 18 sep 2026 con «Se reparte por → WhatsApp»: el
+  /// enlace ya llegaba marcado y la ficha se quedaba en «Se
+  /// inscribió solo». La palabra existe en el enum, y marcar
+  /// WhatsApp de más no infla ninguna cifra de pago. Incluye el
+  /// referente de WhatsApp Web: también es cierto.
+  WHATSAPP: OrigenParticipante.WHATSAPP,
 };
 
 export type LlegadaDeLaVisita = {

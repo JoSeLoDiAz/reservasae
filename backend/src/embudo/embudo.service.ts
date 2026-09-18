@@ -11,6 +11,23 @@ import { procedenciaSql } from './procedencia';
 import { MarcarPasoDto } from './dto';
 import { altura, ESCALERA, PRIMER_GESTO, VERSION_EMBUDO } from './escalera';
 
+/**
+ * Cuántas personas en UN DÍA ya son un enlace suelto por ahí.
+ *
+ * Por debajo es ruido: alguien que escribió la dirección, un
+ * favorito, el equipo probando. Por encima, alguien repartió la
+ * dirección sin sacarla del panel. Veinte es un supuesto del 18 sep
+ * 2026, sin datos detrás: se ajusta cuando haya semanas medidas.
+ */
+export const UMBRAL_SIN_MARCAR = 20;
+
+/// Lo que cuenta como «sin marcar». Sale del MISMO `CASE` que la
+/// pantalla pinta como «No dejó rastro» y «Otra página web»: una
+/// segunda definición acabaría discrepando de la dona de al lado.
+/// Buscador, Meta y nuestras páginas NO: ahí sí hay señal, y no
+/// son un enlace que alguien repartió.
+const SIN_MARCAR = ['SIN_REFERENCIA', 'OTRA_WEB'];
+
 /// Solo el paso de llegada trae el contexto.
 const SOLO_AL_LLEGAR = 'LLEGO';
 
@@ -210,7 +227,7 @@ export class EmbudoService {
     const porPaso = new Map(filas.map((f) => [f.paso, Number(f.visitas)]));
     const hitos = ESCALERA.map((paso) => ({ paso, visitas: porPaso.get(paso) ?? 0 }));
 
-    const [personas, porDia, procedencia, dispositivo, entrada, campana] =
+    const [personas, porDia, procedencia, dispositivo, entrada, campana, sinMarcarHoy] =
       await Promise.all([
       this.personas(ambito, desde, hasta),
       this.porDia(ambito, desde, hasta),
@@ -218,6 +235,7 @@ export class EmbudoService {
       this.corte(ambito, desde, hasta, Prisma.raw('"ancho"')),
       this.corte(ambito, desde, hasta, Prisma.raw('"puerta"')),
       this.corte(ambito, desde, hasta, Prisma.raw('"utmCampana"')),
+      this.sinMarcarHoy(ambito),
     ]);
 
     /// CON AMBITO. Sin el, un gremio leia en negrita la fecha
@@ -254,6 +272,52 @@ export class EmbudoService {
       dispositivo,
       entrada,
       campana,
+      /// SIEMPRE de hoy, elija el periodo que elija la pantalla:
+      /// es un aviso para actuar hoy, no una cifra del informe.
+      sinMarcarHoy,
+    };
+  }
+
+  /**
+   * Personas de HOY que entraron por un enlace sin marcar.
+   *
+   * Lo pidió Mauricio el 18 sep 2026 para «blindar» la atribución
+   * sin tocar el formulario: si alguien reparte la dirección
+   * pelada, que se sepa ese mismo día y no en el informe del mes.
+   *
+   * PERSONAS y no visitas: un escáner de correo abre cada enlace
+   * de un envío --565 de 599 el 16 sep--, y contando visitas el
+   * aviso saltaría con cada mailing bien marcado.
+   *
+   * Y DESDE DÓNDE, cuando hay referente: «web.whatsapp.com» dice
+   * por dónde se escapó el enlace, que es lo que hace falta para
+   * corregirlo. Solo el host: la ruta nunca se guarda.
+   */
+  private async sinMarcarHoy(ambito: string[]) {
+    const hoy = resolverVentana('HOY').actual;
+    if (!hoy) return { personas: 0, umbral: UMBRAL_SIN_MARCAR, desde: [] };
+
+    const filas = await this.prisma.$queryRaw<
+      Array<{ referente: string | null; n: bigint }>
+    >`
+      SELECT nullif(lower(l."referente"), '') AS referente, COUNT(*)::bigint AS n
+        FROM "pasos_de_visita" l
+       WHERE l."paso" = 'LLEGO'
+         AND l."convenioId" IN (${Prisma.join(ambito)})
+         AND l."creadoEn" >= ${hoy.desde} AND l."creadoEn" < ${hoy.hasta}
+         AND (${procedenciaSql()}) IN (${Prisma.join(SIN_MARCAR)})
+         AND ${this.esDePersona()}
+       GROUP BY 1
+       ORDER BY 2 DESC
+    `;
+
+    return {
+      personas: filas.reduce((t, f) => t + Number(f.n), 0),
+      umbral: UMBRAL_SIN_MARCAR,
+      desde: filas
+        .filter((f) => f.referente)
+        .slice(0, 3)
+        .map((f) => ({ sitio: f.referente as string, personas: Number(f.n) })),
     };
   }
 

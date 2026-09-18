@@ -18,6 +18,7 @@
  * de pintar ni a quien usa bloqueador.
  */
 
+import Link from "next/link";
 import { useCallback, useMemo, useState } from "react";
 
 import {
@@ -261,6 +262,8 @@ export default function PaginaTrafico() {
           pantalla y no lo traian: el encabezado quedaba separado
           del canto y todo lo de abajo pegado a él. */}
       <div className="mx-3 space-y-5">
+      {datos?.sinMarcarHoy && <AvisoSinMarcar {...datos.sinMarcarHoy} />}
+
       <ComoLeer hayHistorico={!!datos?.historico} />
 
       <ComparadorDeFechas
@@ -457,6 +460,61 @@ export default function PaginaTrafico() {
       {datos?.historico && <Historico h={datos.historico} />}
       </div>
     </div>
+  );
+}
+
+/**
+ * «Hoy entraron 35 personas por un enlace sin marcar.»
+ *
+ * Lo pidió Mauricio el 18 sep 2026 para blindar la atribución
+ * SIN tocar el formulario: quien entra por la dirección pelada no
+ * deja señal, y sin este aviso se descubría en el informe del
+ * mes, con cientos de fichas ya en «Sin etiqueta». Va ARRIBA de
+ * todo porque pide hacer algo hoy, y sale solo desde el umbral:
+ * un aviso que está siempre encendido deja de leerse.
+ */
+function AvisoSinMarcar({
+  personas,
+  umbral,
+  desde,
+}: {
+  personas: number;
+  umbral: number;
+  desde: Array<{ sitio: string; personas: number }>;
+}) {
+  if (personas < umbral) return null;
+  return (
+    <section
+      role="status"
+      className="rounded-2xl border border-aviso/40 bg-aviso-suave px-6 py-4 text-sm"
+    >
+      <p className="text-texto">
+        <strong className="font-semibold text-aviso">
+          Hoy entraron {n(personas)} personas por un enlace sin marcar.
+        </strong>{" "}
+        Alguien repartió la dirección del formulario sin sacarla del panel, y
+        esas personas quedan como «Sin etiqueta» en Gestión de leads.
+      </p>
+      {desde.length > 0 && (
+        <p className="mt-1.5 text-texto-suave">
+          Llegaron sobre todo desde{" "}
+          {desde.map((d, i) => (
+            <span key={d.sitio}>
+              {i > 0 && (i === desde.length - 1 ? " y " : ", ")}
+              <strong className="font-mono text-texto">{d.sitio}</strong> ({n(d.personas)})
+            </span>
+          ))}
+          .
+        </p>
+      )}
+      <p className="mt-1.5 text-texto-suave">
+        Saque el enlace desde{" "}
+        <Link href="/admin/formularios-publicos" className="font-medium text-marca underline">
+          Formularios públicos
+        </Link>
+        , eligiendo por dónde se reparte, y cámbielo donde se haya publicado.
+      </p>
+    </section>
   );
 }
 

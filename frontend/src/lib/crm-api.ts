@@ -33,6 +33,14 @@ export type EmbudoPublico = {
   campana: CorteDeVisitas[];
   /// Lo de antes del contador, o null si no se importo nada.
   historico: HistoricoDeTrafico | null;
+  /// Personas de HOY por un enlace sin marcar, sea cual sea el
+  /// periodo elegido. Opcional: la respuesta vacia no lo trae.
+  sinMarcarHoy?: {
+    personas: number;
+    umbral: number;
+    /// Los sitios desde donde llegaron, cuando hay referente.
+    desde: Array<{ sitio: string; personas: number }>;
+  };
 };
 
 /// `Corte` ya existe en este archivo y significa otra cosa.
@@ -388,6 +396,8 @@ export function fuenteDelFormulario(f: FilaParticipante): string {
   /// mailing, un anuncio sin parámetros-- o antes del 17 sep. Decir
   /// «Orgánico» ahí hacía creer que la pauta no traía a nadie.
   if (f.origen === "AUTOGESTION" && !f.campanaDeEntrada) return "Sin etiqueta";
+  /// El QR no tiene palabra en la ficha: se sabe por su enlace.
+  if (f.origen === "AUTOGESTION" && f.campanaDeEntrada?.startsWith("qr")) return "QR impreso";
   return ETIQUETA_ORIGEN_LEAD[f.origenLead];
 }
 

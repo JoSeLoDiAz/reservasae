@@ -29,7 +29,6 @@ const SIN_CANAL = [
   'FACEBOOK',
   'INSTAGRAM',
   'META',
-  'WHATSAPP',
   'BUSQUEDA',
   'QR',
   'INTERNO',
@@ -41,8 +40,10 @@ const SIN_CANAL = [
 describe('qué procedencia sella el canal de la ficha', () => {
   /// RESERVA entro el 18 sep 2026: el enlace que reparte una
   /// empresa con cupos, y sella EMPRESA. Ver `DE_CANAL`.
-  it('hoy son CORREO y RESERVA, y solo esos dos', () => {
-    expect(Object.keys(DE_CANAL).sort()).toEqual(['CORREO', 'RESERVA']);
+  /// WHATSAPP entro el mismo dia: el panel ya lo ofrecia y la
+  /// ficha no lo guardaba.
+  it('hoy son CORREO, RESERVA y WHATSAPP, y solo esos tres', () => {
+    expect(Object.keys(DE_CANAL).sort()).toEqual(['CORREO', 'RESERVA', 'WHATSAPP']);
   });
 
   it('la reserva sella «La empresa lo nominó»', () => {
