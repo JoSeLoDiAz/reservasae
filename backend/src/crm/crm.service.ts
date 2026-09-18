@@ -41,6 +41,7 @@ import {
 } from './escalera';
 import { cubreA, exigirCoberturaDeLaOferta, repartirPorCobertura } from './cobertura';
 import { faltaDeLaPersona, revisar } from './completitud';
+import { pasarSiNoLeFaltaNada } from './datos-completos';
 import { PanelDeCupos } from './panel-de-cupos';
 import { ColaRui } from './rui/cola-rui';
 import {
@@ -1337,6 +1338,23 @@ export class CrmService {
       ip: ip ?? null,
     });
 
+    /// Entra por aquí el panel, el cargue y la conversión de un
+    /// lead: si ya trae todo, no nace en «Interesado» con «Sin
+    /// pendientes» al lado. Ver `datos-completos.ts`.
+    try {
+      await pasarSiNoLeFaltaNada(
+        this.prisma,
+        creado.id,
+        'Entró con todos sus datos',
+        admin?.id ?? null,
+      );
+    } catch (e) {
+      this.log.warn(
+        'No se pudo calcular si quedó completa: ' +
+          (e instanceof Error ? e.message : String(e)),
+      );
+    }
+
     return creado;
   }
 
@@ -1606,6 +1624,17 @@ export class CrmService {
     /// se borran y se reescriben en bloque -- no se «actualizan».
     await this.guardarCaracterizacion(id, dto, admin, ip);
 
+    /// El asesor que le completa los datos por teléfono la pasa a
+    /// «Datos completos» igual que si la persona los hubiera
+    /// llenado sola. Antes solo lo hacía el enlace del correo.
+    if (tocados.length > 0) {
+      await pasarSiNoLeFaltaNada(
+        this.prisma,
+        id,
+        'Un asesor completó sus datos en la ficha',
+        admin.id,
+      );
+    }
 
     return this.obtener(id, ambito);
   }
