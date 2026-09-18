@@ -38,6 +38,7 @@ import {
   NIVELES_OCUPACIONALES_SEP,
 } from '../crm/catalogos-sep';
 import { faltaDeLaPersona } from '../crm/completitud';
+import { pasarSiNoLeFaltaNada } from '../crm/datos-completos';
 import { normalizarDocumento } from '../comun/documento';
 import { calcularDigitoVerificacion } from '../comun/nit';
 import { DirectorioService } from '../crm/directorio.service';
@@ -611,6 +612,22 @@ export class PreinscripcionService {
     } catch (e) {
       this.log.warn(
         'No se pudo atribuir la llegada: ' + (e instanceof Error ? e.message : String(e)),
+      );
+    }
+
+    /// Quien ya trae todo desde el formulario no se queda en
+    /// «Interesado» con «Sin pendientes» al lado. No puede tumbar
+    /// la preinscripción: si falla, se dice y ya.
+    try {
+      await pasarSiNoLeFaltaNada(
+        this.prisma,
+        participante.id,
+        'Se preinscribió con todos sus datos',
+      );
+    } catch (e) {
+      this.log.warn(
+        'No se pudo calcular si quedó completa: ' +
+          (e instanceof Error ? e.message : String(e)),
       );
     }
 
@@ -1669,56 +1686,13 @@ export class PreinscripcionService {
    * lider lo inscriba.
    */
   private async inscribirSiEstaCompleto(participanteId: string) {
-    const p = await this.prisma.participante.findUnique({
-      where: { id: participanteId },
-      select: {
-        etapa: true,
-        nivelOcupacionalSepId: true,
-        persona: {
-          select: {
-            correo: true,
-            celular: true,
-            fechaNacimiento: true,
-            generoSepId: true,
-            estrato: true,
-            departamentoSepId: true,
-            municipioSepId: true,
-            barrio: true,
-            direccion: true,
-          },
-        },
-      },
-    });
-    if (!p) return null;
-
-    // solo desde el embudo del asesor: si ya esta en el aula
-    // no se le toca la etapa por completar unos datos
-    const enElEmbudo = p.etapa === 'INTERESADO' || p.etapa === 'CONTACTADO';
-    if (!enElEmbudo) return p.etapa;
-
-    const falta = faltaDeLaPersona({
-      persona: p.persona,
-      nivelOcupacionalSepId: p.nivelOcupacionalSepId,
-    });
-    if (falta.length > 0) return p.etapa;
-
-    await this.prisma.$transaction([
-      this.prisma.participante.update({
-        where: { id: participanteId },
-        // sin fechaMatricula: no se ha matriculado en nada
-        data: { etapa: 'DATOS_COMPLETOS' },
-      }),
-      this.prisma.movimientoParticipante.create({
-        data: {
-          participanteId,
-          etapaAntes: p.etapa,
-          etapaDespues: 'DATOS_COMPLETOS',
-          motivo: 'Completó su ficha por su cuenta desde el enlace',
-        },
-      }),
-    ]);
-
-    return 'DATOS_COMPLETOS' as const;
+    /// La regla vive en `crm/datos-completos.ts`: la usan también
+    /// el panel, el cargue y la conversión de leads.
+    return pasarSiNoLeFaltaNada(
+      this.prisma,
+      participanteId,
+      'Completó su ficha por su cuenta desde el enlace',
+    );
   }
 
   /** Termina sin llenar lo de la empresa. */
