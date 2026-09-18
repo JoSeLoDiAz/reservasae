@@ -180,6 +180,11 @@ export function PreinscripcionPublica({ slug }: { slug: string }) {
   const ciudadesDelDepto = deptoElegido?.ciudades ?? [];
   /// Las que ademas tienen sede presencial, para marcarlas.
   const sedes = new Set(deptoElegido?.sedes ?? []);
+  /// Arriba las de aula y debajo el resto, sin repetirlas: en
+  /// una lista de 125 municipios, lo que abre cursos distintos
+  /// no puede quedar sepultado en la letra M.
+  const conSede = ciudadesDelDepto.filter((c) => sedes.has(c));
+  const elResto = ciudadesDelDepto.filter((c) => !sedes.has(c));
 
   /// Una oferta de DEPARTAMENTO cubre a todo el que viva ahi.
   /// Una de CIUDAD cubre solo esa ciudad: por eso quien vive
@@ -344,11 +349,24 @@ export function PreinscripcionPublica({ slug }: { slug: string }) {
                 className={CAMPO + (departamento ? "" : " opacity-50")}
               >
                 <option value="">Elija…</option>
-                {ciudadesDelDepto.map((c) => (
-                  <option key={c} value={c}>
-                    {sedes.has(c) ? `${c} · con sede presencial` : c}
-                  </option>
-                ))}
+                {/* Las que tienen aula van PRIMERO: son las que
+                    abren cursos que el resto no ve. */}
+                {conSede.length > 0 && (
+                  <optgroup label="Con formación presencial">
+                    {conSede.map((c) => (
+                      <option key={c} value={c}>
+                        {c} (con formación presencial)
+                      </option>
+                    ))}
+                  </optgroup>
+                )}
+                <optgroup label="Todos los municipios">
+                  {elResto.map((c) => (
+                    <option key={c} value={c}>
+                      {c}
+                    </option>
+                  ))}
+                </optgroup>
               </select>
             </label>
           </div>
