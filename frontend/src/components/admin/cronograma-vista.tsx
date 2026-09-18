@@ -851,9 +851,11 @@ function Grupo({
               </button>
             </div>
             <p className="mt-0.5 mb-3 text-xs text-texto-suave">
-              Un bootcamp lleva dos presenciales en días distintos; un foro
-              híbrido, la presencial y las conexiones PAT el mismo día. Una PAT
-              sin día es la hora de conexión de los demás días del cronograma.
+              Casi todas llevan una sola sesión. Si la acción es un foro
+              híbrido, van la presencial y las conexiones PAT el mismo día; y
+              solo un bootcamp lleva dos presenciales en días distintos. Una
+              PAT sin día es la hora de conexión de los demás días del
+              cronograma.
             </p>
 
             {sesiones.length === 0 && (
