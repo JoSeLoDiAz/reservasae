@@ -63,11 +63,12 @@ describe('los canales que ofrece el panel', () => {
     expect(canales).toContain('correo');
   });
 
-  /// NO se ofrecen las de Meta, y es deliberado: esas las pone
-  /// Ads Manager. Un desplegable que las ofreciera dejaría marcar
-  /// a mano como pauta un tráfico que no lo es.
-  it('no se puede marcar tráfico como si fuera pauta', () => {
-    for (const prohibido of ['fb', 'facebook', 'ig', 'instagram', 'meta']) {
+  /// La pauta SI se ofrece desde el 18 sep 2026, y solo como
+  /// `meta`: el enlace del anuncio no sabe si se vio en Facebook o
+  /// en Instagram, y ofrecer una de las dos seria inventarlo.
+  it('la pauta se marca como Meta, nunca como una red concreta', () => {
+    expect(canales).toContain('meta');
+    for (const prohibido of ['fb', 'facebook', 'ig', 'instagram']) {
       expect(canales).not.toContain(prohibido);
     }
   });

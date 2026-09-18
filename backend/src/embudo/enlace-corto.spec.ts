@@ -26,12 +26,25 @@ describe('el enlace corto', () => {
     }
   });
 
-  /// La compuerta de pago: sin esto, `?pauta123` abierto desde la
-  /// app de Facebook se contaria como pauta pagada.
-  it('ningun prefijo es de Meta ni dice pauta', () => {
-    const prohibidos = ['fb', 'facebook', 'ig', 'instagram', 'meta', 'redes', 'pauta'];
-    for (const p of Object.keys(PREFIJOS)) expect(prohibidos).not.toContain(p);
-    for (const f of Object.values(PREFIJOS)) expect(prohibidos).not.toContain(f);
+  /// La compuerta de pago. `pauta` entro el 18 sep 2026 y va a
+  /// `meta`, que es lo unico cierto: el enlace no sabe si el
+  /// anuncio se vio en Facebook o en Instagram. Ningun OTRO prefijo
+  /// puede llevar a Meta, o un mailing se contaria como pagado.
+  it('solo «pauta» lleva a Meta, y a ninguna red en concreto', () => {
+    const deMeta = ['fb', 'facebook', 'ig', 'instagram', 'meta', 'redes'];
+    for (const [p, f] of Object.entries(PREFIJOS)) {
+      if (p === 'pauta') expect(f).toBe('meta');
+      else expect(deMeta).not.toContain(f);
+    }
+    for (const p of Object.keys(PREFIJOS)) expect(deMeta).not.toContain(p);
+  });
+
+  it('?pauta0305202255 es pauta de Meta con su campana', () => {
+    expect(leerEnlaceCorto('?pauta0305202255')).toEqual({
+      fuente: 'meta',
+      campana: 'pauta0305202255',
+    });
+    expect(palabraCorta('meta', '0305202255')).toBe('pauta0305202255');
   });
 
   it('lo que pidio Mauricio: ?mailing18092026', () => {
@@ -64,7 +77,6 @@ describe('el enlace corto', () => {
   it('una clave con valor, o sin prefijo conocido, no es un enlace corto', () => {
     expect(leerEnlaceCorto('?qr=1')).toBeNull();
     expect(leerEnlaceCorto('?fbclid=abc')).toBeNull();
-    expect(leerEnlaceCorto('?pauta0305202255')).toBeNull();
     expect(leerEnlaceCorto('')).toBeNull();
   });
 

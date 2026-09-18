@@ -383,6 +383,11 @@ export function fuenteDelFormulario(f: FilaParticipante): string {
   /// porque la empresa mandó su nombre. Las dos son la reserva.
   if (f.origen === "EMPRESA") return "Reserva";
   if (f.origen === "WHATSAPP") return "WhatsApp";
+  /// «Se inscribió solo» sin ninguna etiqueta NO es un dato de
+  /// orgánico: es no saber. Llegó por un enlace sin marcar --un
+  /// mailing, un anuncio sin parámetros-- o antes del 17 sep. Decir
+  /// «Orgánico» ahí hacía creer que la pauta no traía a nadie.
+  if (f.origen === "AUTOGESTION" && !f.campanaDeEntrada) return "Sin etiqueta";
   return ETIQUETA_ORIGEN_LEAD[f.origenLead];
 }
 

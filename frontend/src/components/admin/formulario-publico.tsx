@@ -28,10 +28,12 @@ import { Tarjeta } from "./marco-admin";
  * `qr` a secas). Ofrecer aquí uno que allá no exista dejaría el
  * envío en «Otro declarado», que es no haberlo marcado.
  *
- * NO se ofrecen Facebook ni Instagram, y es deliberado: esas las
- * pone Ads Manager en su propio enlace, y un desplegable que las
- * ofreciera dejaría marcar a mano como pauta un tráfico que no lo
- * es — justo lo que la atribución a pauta se paró para evitar.
+ * La PAUTA sí se ofrece desde el 18 sep 2026, como `meta`: el
+ * enlace se pega como «URL del sitio web» del anuncio. Antes solo
+ * la marcaba Ads Manager, y con sus parámetros sin poner la pauta
+ * caía en orgánico. NO se ofrecen Facebook ni Instagram sueltos:
+ * el enlace no sabe en cuál de las dos se vio el anuncio. Ver
+ * `enlace-corto.ts` por el riesgo que se acepta.
  */
 export const CANALES_DEL_ENLACE = [
   { utm: "", etiqueta: "Sin marcar" },
@@ -41,6 +43,7 @@ export const CANALES_DEL_ENLACE = [
   /// El enlace que reparte una empresa con cupos apartados. En
   /// el nombre va la EMPRESA, no una fecha (18 sep 2026).
   { utm: "reserva", etiqueta: "Reserva de empresa" },
+  { utm: "meta", etiqueta: "Pauta (anuncio de Meta)" },
 ] as const;
 
 /**
@@ -278,12 +281,22 @@ export function EnlacePublico({
               </label>
               <label className="min-w-0 grow text-sm">
                 <span className="mb-1 block text-texto-suave">
-                  {canal === "reserva" ? "Empresa que reservó" : "Nombre de este envío"}
+                  {canal === "reserva"
+                    ? "Empresa que reservó"
+                    : canal === "meta"
+                      ? "Nombre o número de la campaña"
+                      : "Nombre de este envío"}
                 </span>
                 <input
                   value={envio}
                   onChange={(e) => setEnvio(e.target.value)}
-                  placeholder={canal === "reserva" ? "Transportes El Cóndor" : "18092026"}
+                  placeholder={
+                    canal === "reserva"
+                      ? "Transportes El Cóndor"
+                      : canal === "meta"
+                        ? "0305202255"
+                        : "18092026"
+                  }
                   className="w-full rounded-lg border border-borde bg-superficie px-3 py-2 text-sm"
                 />
               </label>
