@@ -247,6 +247,8 @@ export function columnasDeParticipante(): Columna<FilaParticipante>[] {
       /// cada mailing un nombre nuevo, filtrar por nombre daria
       /// una opcion por envio y ninguna por «Mailing».
       clave: "fuenteFormulario",
+      /// Llegó el 18 sep 2026, con selecciones ya guardadas.
+      nueva: true,
       ancho: "150px",
       titulo: "Fuente formulario",
       valor: (f) => fuenteDelFormulario(f),

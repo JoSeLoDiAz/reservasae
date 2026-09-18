@@ -61,6 +61,15 @@ export type Columna<T> = {
   fija?: boolean;
   /** existe pero no sale hasta que la pidan */
   aparte?: boolean;
+  /**
+   * Llegó DESPUÉS de que la gente guardara su selección.
+   *
+   * Solo hace falta para las selecciones guardadas antes de que la
+   * tabla recordara qué columnas existían (`conocidas`, 18 sep
+   * 2026): en esas no hay forma de distinguir «la quitó» de «no
+   * existía». Las de después ya no lo necesitan.
+   */
+  nueva?: boolean;
 };
 
 type Orden = { clave: string; asc: boolean } | null;
@@ -238,6 +247,10 @@ type Guardado = {
   vistas?: Vista[];
   /// Clave de columna -> ancho en px, el que dejo el usuario.
   anchos?: Record<string, number>;
+  /// Las columnas que EXISTÍAN al guardar. Sin esto, una columna
+  /// nueva no le salía a nadie que ya hubiera elegido las suyas:
+  /// la selección guardada reemplaza la de por defecto.
+  conocidas?: string[];
 };
 
 const sinTildes = (t: string) =>
@@ -394,10 +407,18 @@ export function Tabla<T>({
     const validas = (g.visibles ?? []).filter((c) =>
       columnas.some((x) => x.clave === c),
     );
-    if (validas.length) setVisibles(validas);
+    /// Lo que se agregó a la tabla DESPUÉS de guardar sale una
+    /// vez, al final; si la persona la quita, desde ahí es
+    /// conocida y no vuelve. Lo vio José con «Fuente formulario».
+    const conocidas =
+      g.conocidas ?? columnas.filter((c) => !c.nueva).map((c) => c.clave);
+    const nuevas = porDefecto.filter(
+      (c) => !conocidas.includes(c) && !validas.includes(c),
+    );
+    if (validas.length) setVisibles([...validas, ...nuevas]);
     setVistas(g.vistas ?? []);
     setListo(true);
-  }, [id, columnas]);
+  }, [id, columnas, porDefecto]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
   /// `anchos` va en las dependencias, y esa es la corrección.
@@ -409,8 +430,14 @@ export function Tabla<T>({
   /// que sí disparan. Por eso parecía que a veces se acordaba
   /// y a veces no.
   useEffect(() => {
-    if (listo) escribir(id, { visibles, vistas, anchos });
-  }, [id, visibles, vistas, anchos, listo]);
+    if (listo)
+      escribir(id, {
+        visibles,
+        vistas,
+        anchos,
+        conocidas: columnas.map((c) => c.clave),
+      });
+  }, [id, visibles, vistas, anchos, listo, columnas]);
 
   // al cambiar el filtro se vuelve a la primera pagina.
   // Ajustar el estado durante el render, no en un efecto:
