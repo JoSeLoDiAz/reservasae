@@ -164,6 +164,8 @@ export function PanelProceso({
   /// Solo manda la ultima respuesta: cambiar de periodo dos
   /// veces seguidas no puede dejar pintada la primera.
   const turno = useRef(0);
+  /// Qué se pidió la última vez, SIN el fin de la ventana.
+  const ultimaClave = useRef<string | null>(null);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [accionAbierta, setAccionAbierta] = useState<string | null>(null);
@@ -198,9 +200,22 @@ export function PanelProceso({
    * llegó el lead--, que es la fecha con la que `control` corta
    * su propio embudo.
    */
+  /**
+   * EN SILENCIO cuando solo avanzó el reloj (18 sep 2026).
+   *
+   * Con «Hoy», «7 días» o «30 días» el fin de la ventana es AHORA,
+   * y la página refresca cada 30 s: el fin cambiaba en cada vuelta,
+   * esto recargaba con `cargando` y el panel se atenuaba y dejaba
+   * de responder cada medio minuto. Lo vio José. Solo se atenúa
+   * cuando cambia lo que la persona ELIGIÓ --filtros o el inicio de
+   * un periodo--; lo demás es el mismo periodo, más reciente.
+   */
   const cargar = useCallback(async () => {
     const mio = ++turno.current;
-    setCargando(true);
+    const clave = JSON.stringify([filtros, aDesde ?? null, bDesde ?? null]);
+    const mismaEleccion = clave === ultimaClave.current;
+    ultimaClave.current = clave;
+    if (!mismaEleccion) setCargando(true);
     try {
       const [met, res, per, ant] = await Promise.all([
         crmApi.metricas(filtros),
@@ -241,8 +256,15 @@ export function PanelProceso({
   const hitos = useMemo(() => hitosDe(delPeriodo ?? resumen), [delPeriodo, resumen]);
   /// Null cuando no hay con qué comparar: «Desde el principio»
   /// no tiene periodo anterior.
+  /// SOLO LA ENTRADA se compara, y es a propósito.
+  ///
+  /// Los que llegaron en el periodo anterior tuvieron más tiempo
+  /// para ser contactados e inscribirse: comparar esos pasos es
+  /// comparar cohortes de distinta madurez, y con «Hoy vs. ayer»
+  /// pintaba rojo cada mañana sin que nada fuera mal (José, 18 sep
+  /// 2026). Cuántos ENTRARON sí es la misma pregunta en los dos.
   const hitosAntes = useMemo(
-    () => (delAnterior ? hitosDe(delAnterior).map((h) => h.total) : null),
+    () => (delAnterior ? [hitosDe(delAnterior)[0]?.total ?? 0] : null),
     [delAnterior],
   );
 

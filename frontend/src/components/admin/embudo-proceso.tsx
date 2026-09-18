@@ -205,8 +205,10 @@ export function EmbudoProceso({
 
       {antes && (
         <p className="mt-2 text-center text-[0.6875rem] text-texto-suave">
-          «Antes» es {etiquetaAntes ?? "el periodo con el que se compara"}. «No
-          pasaron» es otra cosa: la gente que se quedó entre un paso y el
+          «Antes» es {etiquetaAntes ?? "el periodo con el que se compara"}, y
+          solo se compara la entrada: los de antes tuvieron más tiempo para
+          avanzar, así que sus pasos siguientes no se comparan con los de
+          ahora. «No pasaron» es la gente que se quedó entre un paso y el
           siguiente dentro del periodo elegido.
         </p>
       )}
