@@ -4,6 +4,7 @@ import {
   ETIQUETA_DATOS_EMPRESA,
   ETIQUETA_ETAPA,
   ETIQUETA_ORIGEN,
+  fuenteDelFormulario,
   type FilaParticipante,
 } from "@/lib/crm-api";
 
@@ -239,6 +240,26 @@ export function columnasDeParticipante(): Columna<FilaParticipante>[] {
       ancho: "104px",
       titulo: "Canal de entrada",
       valor: (f) => ETIQUETA_ORIGEN[f.origen],
+      filtro: "opciones",
+    },
+    {
+      /// El filtro va por la fuente y no por la campaña: con
+      /// cada mailing un nombre nuevo, filtrar por nombre daria
+      /// una opcion por envio y ninguna por «Mailing».
+      clave: "fuenteFormulario",
+      ancho: "150px",
+      titulo: "Fuente formulario",
+      valor: (f) => fuenteDelFormulario(f),
+      pinta: (f) => (
+        <span className="block leading-tight">
+          <span className="block">{fuenteDelFormulario(f)}</span>
+          {f.campanaDeEntrada && (
+            <span className="block truncate font-mono text-xs text-texto-suave">
+              {f.campanaDeEntrada}
+            </span>
+          )}
+        </span>
+      ),
       filtro: "opciones",
     },
     {

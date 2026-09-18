@@ -4353,6 +4353,7 @@ export class CrmService {
     /// Meta, o la preinscripción cuando la visita lo prueba--.
     /// Nula = se deduce del origen.
     origenLead: OrigenLead | null;
+    campanaDeEntrada: string | null;
     accionFormacion: { codigo: string; nombre: string } | null;
     oferta: { ubicacion: { nombre: string } } | null;
     /// Opcional: no todas las consultas que arman una fila lo
@@ -4444,6 +4445,8 @@ export class CrmService {
       /// sabe de dónde vino-- y si no, se deduce. Es la regla
       /// de `origenDeLeadSql`, LLAMADA y no copiada.
       origenLead: p.origenLead ?? origenDeLead(p.origen),
+      /// El envio con el que entro, si su enlace lo traia.
+      campanaDeEntrada: p.campanaDeEntrada,
       /// Viene de una empresa que aparto cupos. Ese turno
       /// caduca en el cierre, y por eso va primero.
       dePreReserva: p.reservaId !== null,

@@ -49,6 +49,9 @@ export type LlegadaDeLaVisita = {
   procedencia: string | null;
   /// Trae la etiqueta de campaña o el `fbclid`: se pagó.
   pagada: boolean;
+  /// El nombre del envio (`utm_campaign`, o el del enlace
+  /// corto). Opcional: quien no lo necesita no lo pide.
+  campana?: string | null;
 };
 
 /**

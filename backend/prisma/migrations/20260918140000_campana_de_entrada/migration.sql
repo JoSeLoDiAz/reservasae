@@ -1,0 +1,13 @@
+-- El nombre del envio con el que entro cada ficha.
+--
+-- Lo pidio Mauricio el 18 sep 2026: la lista de leads tiene que
+-- decir si alguien vino del mailing, de la pauta o solo, Y DE
+-- CUAL. El canal ya se guardaba en `origen`; el nombre del envio
+-- se perdia en `pasos_de_visita`, que no tiene vinculo con la
+-- ficha.
+--
+-- Nula y sin relleno a proposito: para las fichas que ya existen
+-- no hay forma de saber por que enlace entraron, y rellenarla
+-- seria inventarse el dato. Una columna nula no reescribe la
+-- tabla, asi que no bloquea nada en produccion.
+ALTER TABLE "participantes" ADD COLUMN "campanaDeEntrada" TEXT;

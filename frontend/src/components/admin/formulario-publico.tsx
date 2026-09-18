@@ -16,6 +16,8 @@
 import { useEffect, useRef, useState } from "react";
 import QRCode from "qrcode";
 
+import { palabraCorta } from "@/lib/enlace-corto";
+
 import { Tarjeta } from "./marco-admin";
 
 /**
@@ -58,7 +60,15 @@ export function comoViaja(texto: string): string {
 }
 
 /// La dirección ya marcada. Sin canal ni nombre, la de siempre.
+///
+/// Con canal sale CORTA --`?mailing18092026`--, que es lo que se
+/// le puede mandar a un ciudadano sin que parezca un rastreador.
+/// Solo sin canal quedan los `utm_`, porque el corto no existe sin
+/// prefijo: ver `enlace-corto.ts`.
 export function urlMarcada(base: string, utm: string, envio: string): string {
+  const corta = palabraCorta(utm, comoViaja(envio));
+  if (corta) return `${base}?${corta}`;
+
   const p = new URLSearchParams();
   if (utm) p.set("utm_source", utm);
   const nombre = comoViaja(envio);
@@ -270,7 +280,7 @@ export function EnlacePublico({
                 <input
                   value={envio}
                   onChange={(e) => setEnvio(e.target.value)}
-                  placeholder="envío del 16 de septiembre"
+                  placeholder="18092026"
                   className="w-full rounded-lg border border-borde bg-superficie px-3 py-2 text-sm"
                 />
               </label>

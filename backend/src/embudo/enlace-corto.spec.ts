@@ -1,0 +1,84 @@
+/** El enlace corto que arma el panel, y el que lee la baliza. */
+
+/// Vive en el frontend y se prueba aqui, como el armador de
+/// `lo-que-el-panel-ofrece-se-clasifica.spec.ts`: es el servidor
+/// quien sabe que canales existen, y un prefijo que no clasifique
+/// dejaria el envio en «Otro declarado» sin que nada falle.
+
+import {
+  leerEnlaceCorto,
+  palabraCorta,
+  PREFIJO_DEL_CANAL,
+  PREFIJOS,
+} from '../../../frontend/src/lib/enlace-corto';
+import { procedenciaSql } from './procedencia';
+
+const RECONOCIDOS = new Set(
+  (procedenciaSql().values as unknown[]).filter(
+    (v): v is string => typeof v === 'string',
+  ),
+);
+
+describe('el enlace corto', () => {
+  it('cada prefijo lleva a un canal que el servidor clasifica', () => {
+    for (const fuente of Object.values(PREFIJOS)) {
+      expect(RECONOCIDOS.has(fuente)).toBe(true);
+    }
+  });
+
+  /// La compuerta de pago: sin esto, `?pauta123` abierto desde la
+  /// app de Facebook se contaria como pauta pagada.
+  it('ningun prefijo es de Meta ni dice pauta', () => {
+    const prohibidos = ['fb', 'facebook', 'ig', 'instagram', 'meta', 'redes', 'pauta'];
+    for (const p of Object.keys(PREFIJOS)) expect(prohibidos).not.toContain(p);
+    for (const f of Object.values(PREFIJOS)) expect(prohibidos).not.toContain(f);
+  });
+
+  it('lo que pidio Mauricio: ?mailing18092026', () => {
+    expect(leerEnlaceCorto('?mailing18092026')).toEqual({
+      fuente: 'correo',
+      campana: 'mailing18092026',
+    });
+  });
+
+  it('el canal a secas no inventa nombre de envio', () => {
+    expect(leerEnlaceCorto('?mailing')).toEqual({ fuente: 'correo', campana: undefined });
+  });
+
+  it('los utm_ mandan sobre el corto', () => {
+    expect(leerEnlaceCorto('?mailing1&utm_source=correo')).toBeNull();
+    expect(leerEnlaceCorto('?mailing1&utm_campaign=otra')).toBeNull();
+  });
+
+  it('una clave con valor, o sin prefijo conocido, no es un enlace corto', () => {
+    expect(leerEnlaceCorto('?qr=1')).toBeNull();
+    expect(leerEnlaceCorto('?fbclid=abc')).toBeNull();
+    expect(leerEnlaceCorto('?pauta0305202255')).toBeNull();
+    expect(leerEnlaceCorto('')).toBeNull();
+  });
+
+  it('mayusculas en el enlace no cambian el canal', () => {
+    expect(leerEnlaceCorto('?Mailing18092026')?.fuente).toBe('correo');
+  });
+
+  it('el panel arma la palabra como se pidio', () => {
+    expect(palabraCorta('correo', '18092026')).toBe('mailing18092026');
+    expect(palabraCorta('correo', 'mailing18092026')).toBe('mailing18092026');
+    expect(palabraCorta('correo', 'septiembre')).toBe('mailing-septiembre');
+    expect(palabraCorta('correo', '')).toBe('mailing');
+    expect(palabraCorta('whatsapp', '0305')).toBe('whatsapp0305');
+    // un nombre que empieza como OTRO canal no se cuela en ese canal
+    expect(palabraCorta('correo', 'qr-feria')).toBe('mailing-qr-feria');
+    expect(palabraCorta('', '18092026')).toBeNull();
+  });
+
+  /// Lo que arma el panel, la baliza lo lee al mismo canal.
+  it('ida y vuelta para cada canal del panel', () => {
+    for (const [canal] of Object.entries(PREFIJO_DEL_CANAL)) {
+      for (const nombre of ['', '18092026', 'feria-bogota']) {
+        const palabra = palabraCorta(canal, nombre)!;
+        expect(leerEnlaceCorto(`?${palabra}`)?.fuente).toBe(canal);
+      }
+    }
+  });
+});

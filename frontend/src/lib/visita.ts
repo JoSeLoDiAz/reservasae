@@ -8,6 +8,7 @@
  * El porqué de cada decisión está en CLAUDE.md.
  */
 
+import { leerEnlaceCorto } from "@/lib/enlace-corto";
 import { etiquetaDelHost } from "@/lib/gremio-del-host";
 
 const LLAVE = "convoca:visita";
@@ -112,6 +113,8 @@ export function contextoDeLlegada(slug: string) {
   const lee = (n: string) =>
     (url.searchParams.get(n) ?? "").replace(LIMPIO, "").slice(0, 60) || undefined;
 
+  const corto = leerEnlaceCorto(url.search);
+
   const etiqueta = etiquetaDelHost(window.location.host);
   const puerta = etiqueta === null ? "RUTA" : etiqueta === slug ? "SUBDOMINIO" : "CRUZADA";
 
@@ -124,8 +127,10 @@ export function contextoDeLlegada(slug: string) {
 
   return {
     puerta,
-    utmFuente: lee(UTM[0]),
-    utmCampana: lee(UTM[1]),
+    /// El enlace corto (`?mailing18092026`) dice lo mismo que los
+    /// dos `utm_`, y solo cuenta cuando ellos no estan.
+    utmFuente: lee(UTM[0]) ?? corto?.fuente,
+    utmCampana: lee(UTM[1]) ?? corto?.campana,
     utmContenido: lee(UTM[2]),
     /// El BIT, nunca el valor: `fbclid` identifica un clic y se
     /// puede volver a unir a una persona.

@@ -348,6 +348,8 @@ export type FilaParticipante = {
   gremio: string;
   /** De dónde llegó, en los tres que le sirven al asesor. */
   origenLead: "ORGANICO" | "PAUTA" | "IMPORTACION";
+  /** El envío con el que entró (`mailing18092026`). Nulo si su enlace no traía etiqueta. */
+  campanaDeEntrada: string | null;
   ultimaActividad: string;
   /** De qué etapa viene. */
   etapaAnterior: Etapa | null;
@@ -365,6 +367,21 @@ export const ETIQUETA_ORIGEN_LEAD: Record<
   PAUTA: "Pauta",
   IMPORTACION: "Importación",
 };
+
+/**
+ * Mailing, pauta u orgánico: la pregunta de «Fuente formulario».
+ *
+ * La pauta va PRIMERO porque es la única con prueba de pago. El
+ * correo se saca de su canal, no de la tricotomía, porque allí
+ * un mailing es «orgánico» --no se pagó-- y eso es justo lo que
+ * esta columna existe para separar.
+ */
+export function fuenteDelFormulario(f: FilaParticipante): string {
+  if (f.origenLead === "PAUTA") return "Pauta";
+  if (f.origen === "CORREO") return "Mailing";
+  if (f.origen === "WHATSAPP") return "WhatsApp";
+  return ETIQUETA_ORIGEN_LEAD[f.origenLead];
+}
 
 export const ETIQUETA_DATOS_EMPRESA: Record<
   FilaParticipante["datosEmpresa"],

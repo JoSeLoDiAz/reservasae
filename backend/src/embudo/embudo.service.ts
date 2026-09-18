@@ -124,9 +124,10 @@ export class EmbudoService {
   async procedenciaDe(visitaId: string): Promise<LlegadaDeLaVisita | null> {
     try {
       const filas = await this.prisma.$queryRaw<
-        Array<{ procedencia: string; pagada: boolean }>
+        Array<{ procedencia: string; pagada: boolean; campana: string | null }>
       >`
         SELECT ${procedenciaSql()} AS procedencia,
+               nullif("utmCampana", '') AS campana,
                -- la etiqueta de Ads Manager, o el clic de Meta
                (coalesce("utmCampana", '') <> '' OR "huboFbclid" IS TRUE) AS pagada
           FROM "pasos_de_visita"
@@ -134,7 +135,9 @@ export class EmbudoService {
          LIMIT 1
       `;
       const f = filas[0];
-      return f ? { procedencia: f.procedencia, pagada: f.pagada } : null;
+      return f
+        ? { procedencia: f.procedencia, pagada: f.pagada, campana: f.campana }
+        : null;
     } catch (e) {
       /// Se dice. Si esto falla en silencio, el sintoma es que
       /// todo vuelve a ser AUTOGESTION -- o sea, indistinguible

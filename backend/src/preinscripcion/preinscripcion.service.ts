@@ -565,6 +565,9 @@ export class PreinscripcionService {
             /// sobre `origen`: sin escribirla, el primer lead
             /// orgánico que cruce degrada la ficha en silencio.
             origenLead: 'PAUTA',
+            /// Con las MISMAS condiciones que el origen: el
+            /// nombre del envio acompaña al canal, nunca va solo.
+            campanaDeEntrada: llegada?.campana ?? null,
           },
         });
       }
@@ -581,7 +584,11 @@ export class PreinscripcionService {
       if (canal && !pagada && !yaEsta && cerrados === 0) {
         await this.prisma.participante.update({
           where: { id: participante.id },
-          data: { origen: canal, origenLead: 'ORGANICO' },
+          data: {
+            origen: canal,
+            origenLead: 'ORGANICO',
+            campanaDeEntrada: llegada?.campana ?? null,
+          },
         });
       }
 

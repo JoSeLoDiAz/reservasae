@@ -1032,6 +1032,14 @@ model Participante {
   /// sería inventarse una métrica.
   origenLead OrigenLead?
 
+  /// El nombre del envio con el que ENTRO: `mailing18092026`, o
+  /// la campana de Ads Manager. Se escribe una vez, con las
+  /// mismas condiciones que `origen`, y no se pisa: volver por
+  /// otro mailing es un toque, no un origen nuevo. Null en los
+  /// de antes --no hay vinculo con su visita-- y en los enlaces
+  /// sin etiqueta.
+  campanaDeEntrada String?
+
   /// Todos los canales por los que ha llegado, no solo el
   /// primero. Ver `ToqueDeOrigen`.
   toquesDeOrigen     ToqueDeOrigen[]
