@@ -22,11 +22,14 @@
 import { PrismaClient } from '../generated/prisma';
 import { faltaDeLaPersona } from '../src/crm/completitud';
 import { pasarSiNoLeFaltaNada } from '../src/crm/datos-completos';
+import { exigirBaseSegura } from './guardia-de-base';
 
 const MOTIVO = 'Puesta al día del 18 sep 2026: ya tenía todos sus datos';
 
 async function main() {
   const aplicar = process.argv.includes('--aplicar');
+  // en producción, solo a mano
+  if (aplicar) exigirBaseSegura('Poner al día datos completos');
   const prisma = new PrismaClient();
 
   try {
