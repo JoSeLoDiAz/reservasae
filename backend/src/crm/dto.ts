@@ -426,6 +426,14 @@ export class FiltrosParticipantesDto {
   @IsInt()
   departamentoSepId?: number;
 
+  /// Cuando LLEGO el lead (`creadoEn`), como instantes ISO: el
+  /// borde exacto que ya resolvio `control` para su periodo, y
+  /// no un dia suelto que habria que volver a pasar a Bogota.
+  /// `hasta` va FUERA. Lo pidio el embudo de Control de
+  /// Inscritos, que ignoraba «Hoy» y «vs. ayer» (18 sep 2026).
+  @IsOptional() @IsDateString() llegoDesde?: string;
+  @IsOptional() @IsDateString() llegoHasta?: string;
+
   @IsOptional()
   @Transform(({ value }) => Number(value))
   @IsInt()

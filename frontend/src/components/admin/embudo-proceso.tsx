@@ -56,10 +56,43 @@ function porcentaje(parte: number, total: number): string {
   return `${Math.round((parte / total) * 100)} %`;
 }
 
+/// «antes: 58 +4». La diferencia en verde si sube y en rojo si
+/// baja: en los cuatro hitos más es mejor. Dice «antes» y no el
+/// nombre del periodo porque ese nombre puede ser largo --«el
+/// mismo tramo del periodo anterior»-- y repetido cuatro veces
+/// tapaba las barras; va UNA vez, al pie.
+function ContraAntes({
+  ahora,
+  antes,
+  etiqueta,
+}: {
+  ahora: number;
+  antes: number;
+  etiqueta: string | null;
+}) {
+  const d = ahora - antes;
+  return (
+    <div
+      className="mt-1 text-center text-[0.6875rem] leading-tight text-texto-suave tabular-nums"
+      title={`${etiqueta ?? "Antes"}: ${n(antes)}`}
+    >
+      antes: {n(antes)}
+      {d !== 0 && (
+        <span className={`ml-1 font-semibold ${d > 0 ? "text-exito" : "text-error"}`}>
+          {d > 0 ? "+" : "−"}
+          {n(Math.abs(d))}
+        </span>
+      )}
+    </div>
+  );
+}
+
 export function EmbudoProceso({
   hitos,
   notas = [],
   meta = null,
+  antes = null,
+  etiquetaAntes = null,
 }: {
   hitos: Hito[];
   notas?: NotaDelEmbudo[];
@@ -68,6 +101,15 @@ export function EmbudoProceso({
   /// Va aquí y no en un tablero aparte: el número solo significa
   /// algo al lado de los que ya entraron.
   meta?: number | null;
+  /// La cifra de cada hito en el periodo con el que se compara,
+  /// en el mismo orden. Null = no se compara.
+  ///
+  /// Va DEBAJO y en palabras --«ayer: 58»-- y no con otra flecha:
+  /// arriba ya hay una, la de la caída entre pasos, y dos flechas
+  /// rojas que miden cosas distintas fue justo lo que no se
+  /// entendía (18 sep 2026).
+  antes?: number[] | null;
+  etiquetaAntes?: string | null;
 }) {
   const primero = hitos[0]?.total ?? 0;
   /// La altura se mide contra el PRIMER hito, no contra el mayor:
@@ -107,13 +149,19 @@ export function EmbudoProceso({
               key={`${h.etiqueta}#${i}`}
               className="flex min-w-0 flex-1 flex-col items-center"
               title={`${h.etiqueta}: ${n(h.total)} de ${n(primero)} (${porcentaje(h.total, primero)})${
-                caida > 0 ? ` · se quedaron ${n(caida)} en el paso anterior` : ""
+                caida > 0 ? ` · ${n(caida)} no pasaron del paso anterior` : ""
               }`}
             >
               {/* La caída, encima y en rojo. Es el dato que se
-                  viene a buscar, así que va antes que la cifra. */}
-              <div className="h-4 text-[0.6875rem] font-bold text-error tabular-nums">
-                {caida > 0 ? `▼ −${n(caida)}` : ""}
+                  viene a buscar, así que va antes que la cifra.
+
+                  EN PALABRAS y no «▼ −30»: una flecha con un
+                  menos se lee como «bajó frente a ayer», y con el
+                  selector de comparación al lado eso es lo que
+                  se leía. Esto es otra cosa: gente que no pasó al
+                  paso siguiente dentro del MISMO periodo. */}
+              <div className="h-4 text-[0.6875rem] font-semibold text-error tabular-nums">
+                {caida > 0 ? `${n(caida)} no pasaron` : ""}
               </div>
 
               <div className="text-[1.375rem] leading-none font-bold text-titulo tabular-nums">
@@ -137,6 +185,10 @@ export function EmbudoProceso({
                 {porcentaje(h.total, primero)}
               </div>
 
+              {antes && antes[i] !== undefined && (
+                <ContraAntes ahora={h.total} antes={antes[i]} etiqueta={etiquetaAntes} />
+              )}
+
               {/* La meta del SENA, colgada del último hito. */}
               {esUltimo && meta !== null && meta > 0 && (
                 <div
@@ -150,6 +202,14 @@ export function EmbudoProceso({
           );
         })}
       </div>
+
+      {antes && (
+        <p className="mt-2 text-center text-[0.6875rem] text-texto-suave">
+          «Antes» es {etiquetaAntes ?? "el periodo con el que se compara"}. «No
+          pasaron» es otra cosa: la gente que se quedó entre un paso y el
+          siguiente dentro del periodo elegido.
+        </p>
+      )}
 
       {notas.length > 0 && (
         <div className="mt-3 grid gap-2.5 border-t border-hairline pt-3 sm:grid-cols-2 lg:grid-cols-4">

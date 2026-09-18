@@ -4236,6 +4236,9 @@ export class CrmService {
     // el grupo cuelga de la cobertura, no del participante
     if (f.grupoId) y.push({ cobertura: { grupoId: f.grupoId } });
     if (f.asesorId) y.push({ asesorId: f.asesorId });
+    // la misma fecha que corta el embudo de `control`
+    if (f.llegoDesde) y.push({ creadoEn: { gte: new Date(f.llegoDesde) } });
+    if (f.llegoHasta) y.push({ creadoEn: { lt: new Date(f.llegoHasta) } });
     if (f.departamentoSepId) {
       y.push({ persona: { departamentoSepId: f.departamentoSepId } });
     }

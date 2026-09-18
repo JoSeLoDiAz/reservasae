@@ -21,7 +21,7 @@
  * hito «Inscritos», que es el único sitio donde significa algo.
  */
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { Desplegable } from "./desplegable";
 import { EmbudoProceso, type Hito } from "./embudo-proceso";
@@ -88,6 +88,45 @@ function pct(parte: number, total: number): string {
   return `${Math.round((parte / total) * 100)} %`;
 }
 
+/**
+ * El embudo, ACUMULADO: quién llegó a cada hito.
+ *
+ * Desde `resumen.etapas` y no desde `control.embudo`: aquel va
+ * recortado a las cinco de inscripción —con razón, ver
+ * `control.ts:46`— y quien pasó al aula desaparecería, así que
+ * los veintitrés en formación contarían como «no inscritos».
+ *
+ * Función suelta y no `useMemo` en línea: ahora se calcula dos
+ * veces, para el periodo y para el de comparación, y tienen que
+ * salir por la MISMA regla.
+ */
+function hitosDe(res: Resumen | null): Hito[] {
+  if (!res) return [];
+  const en = new Map(res.etapas.map((e) => [e.etapa, e.total]));
+  const g = (...es: Etapa[]) => es.reduce((t, e) => t + (en.get(e) ?? 0), 0);
+  const trasInscribir = g(
+    "EN_FORMACION",
+    "CERTIFICADO",
+    "RETIRADO",
+    "NO_APROBO",
+    "DESERTO",
+    "ABANDONO",
+  );
+  const inscritos = g("INSCRITO") + trasInscribir;
+  const conDatos = inscritos + g("DATOS_COMPLETOS");
+  /// SUPUESTO: a quien se marcó PERDIDO se le cuenta como
+  /// contactado. No sabemos en qué punto se perdió, y darlo
+  /// por no contactado inflaría la caída del primer paso.
+  const contactados = conDatos + g("CONTACTADO") + g("PERDIDO");
+  const entraron = contactados + g("INTERESADO");
+  return [
+    { etapa: "INTERESADO", etiqueta: "Entraron", total: entraron },
+    { etapa: "CONTACTADO", etiqueta: "Contactados", total: contactados },
+    { etapa: "DATOS_COMPLETOS", etiqueta: "Con datos", total: conDatos },
+    { etapa: "INSCRITO", etiqueta: "Inscritos", total: inscritos },
+  ];
+}
+
 export function PanelProceso({
   control,
   alCambiarFiltros,
@@ -116,6 +155,15 @@ export function PanelProceso({
 
   const [metricas, setMetricas] = useState<MetricasInscripciones | null>(null);
   const [resumen, setResumen] = useState<Resumen | null>(null);
+  /// El mismo resumen, recortado al PERIODO de la cabecera y al
+  /// de comparación. `resumen` se queda sin fechas porque de él
+  /// salen las opciones de los filtros: con «Hoy» elegido, el
+  /// desplegable de acciones se quedaría vacío.
+  const [delPeriodo, setDelPeriodo] = useState<Resumen | null>(null);
+  const [delAnterior, setDelAnterior] = useState<Resumen | null>(null);
+  /// Solo manda la ultima respuesta: cambiar de periodo dos
+  /// veces seguidas no puede dejar pintada la primera.
+  const turno = useRef(0);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [accionAbierta, setAccionAbierta] = useState<string | null>(null);
@@ -132,20 +180,48 @@ export function PanelProceso({
     [convenioId, accionFormacionId, grupoId, etapa, asesorId, departamentoSepId],
   );
 
+  /// La ventana que la cabecera YA resolvió. Se usa tal cual:
+  /// recalcular «hoy» aquí sería una segunda idea de dónde
+  /// empieza el día en Bogotá.
+  const actual = control?.ventana.instantes?.actual ?? null;
+  const anterior = control?.ventana.instantes?.anterior ?? null;
+  const [aDesde, aHasta] = [actual?.desde, actual?.hasta];
+  const [bDesde, bHasta] = [anterior?.desde, anterior?.hasta];
+
+  /**
+   * EL EMBUDO NO OBEDECÍA AL PERIODO (18 sep 2026).
+   *
+   * Pedía `resumen` solo con los cinco filtros de abajo: con
+   * «Hoy» y «vs. ayer» arriba seguía pintando todo el histórico,
+   * mientras los bloques de al lado sí se vaciaban. «Seleccioné y
+   * no sirvió», con razón. Ahora corta por `creadoEn` --cuándo
+   * llegó el lead--, que es la fecha con la que `control` corta
+   * su propio embudo.
+   */
   const cargar = useCallback(async () => {
+    const mio = ++turno.current;
     setCargando(true);
     try {
-      const [met, res] = await Promise.all([
+      const [met, res, per, ant] = await Promise.all([
         crmApi.metricas(filtros),
         crmApi.resumen(filtros),
+        aDesde && aHasta
+          ? crmApi.resumen({ ...filtros, llegoDesde: aDesde, llegoHasta: aHasta })
+          : Promise.resolve(null),
+        bDesde && bHasta
+          ? crmApi.resumen({ ...filtros, llegoDesde: bDesde, llegoHasta: bHasta })
+          : Promise.resolve(null),
       ]);
+      if (mio !== turno.current) return;
       setMetricas(met);
       setResumen(res);
+      setDelPeriodo(per);
+      setDelAnterior(ant);
       setError(null);
     } finally {
-      setCargando(false);
+      if (mio === turno.current) setCargando(false);
     }
-  }, [filtros]);
+  }, [filtros, aDesde, aHasta, bDesde, bHasta]);
 
   useEffect(() => {
     void cargar().catch((e) => setError((e as ErrorApi).message));
@@ -156,43 +232,19 @@ export function PanelProceso({
   }, [filtros, alCambiarFiltros]);
 
   const enEtapa = useMemo(
-    () => new Map((resumen?.etapas ?? []).map((e) => [e.etapa, e.total])),
-    [resumen],
+    () =>
+      new Map(((delPeriodo ?? resumen)?.etapas ?? []).map((e) => [e.etapa, e.total])),
+    [delPeriodo, resumen],
   );
   const g = useCallback((...es: Etapa[]) => es.reduce((s, e) => s + (enEtapa.get(e) ?? 0), 0), [enEtapa]);
 
-  /**
-   * El embudo, ACUMULADO: quién llegó a cada hito.
-   *
-   * Desde `resumen.etapas` y no desde `control.embudo`: aquel va
-   * recortado a las cinco de inscripción —con razón, ver
-   * `control.ts:46`— y quien pasó al aula desaparecería, así que
-   * los veintitrés en formación contarían como «no inscritos».
-   */
-  const hitos = useMemo<Hito[]>(() => {
-    if (!resumen) return [];
-    const trasInscribir = g(
-      "EN_FORMACION",
-      "CERTIFICADO",
-      "RETIRADO",
-      "NO_APROBO",
-      "DESERTO",
-      "ABANDONO",
-    );
-    const inscritos = g("INSCRITO") + trasInscribir;
-    const conDatos = inscritos + g("DATOS_COMPLETOS");
-    /// SUPUESTO: a quien se marcó PERDIDO se le cuenta como
-    /// contactado. No sabemos en qué punto se perdió, y darlo
-    /// por no contactado inflaría la caída del primer paso.
-    const contactados = conDatos + g("CONTACTADO") + g("PERDIDO");
-    const entraron = contactados + g("INTERESADO");
-    return [
-      { etapa: "INTERESADO", etiqueta: "Entraron", total: entraron },
-      { etapa: "CONTACTADO", etiqueta: "Contactados", total: contactados },
-      { etapa: "DATOS_COMPLETOS", etiqueta: "Con datos", total: conDatos },
-      { etapa: "INSCRITO", etiqueta: "Inscritos", total: inscritos },
-    ];
-  }, [resumen, g]);
+  const hitos = useMemo(() => hitosDe(delPeriodo ?? resumen), [delPeriodo, resumen]);
+  /// Null cuando no hay con qué comparar: «Desde el principio»
+  /// no tiene periodo anterior.
+  const hitosAntes = useMemo(
+    () => (delAnterior ? hitosDe(delAnterior).map((h) => h.total) : null),
+    [delAnterior],
+  );
 
   const entraron = hitos[0]?.total ?? 0;
   const contactados = hitos[1]?.total ?? 0;
@@ -557,6 +609,8 @@ export function PanelProceso({
         >
           <EmbudoProceso
             hitos={hitos}
+            antes={hitosAntes}
+            etiquetaAntes={control?.ventana.etiquetaAnterior ?? null}
             notas={notas}
             /* La meta solo cuando se puede comparar de verdad.
                El backend ya la acota por gremio y por acción,
@@ -786,7 +840,7 @@ export function PanelProceso({
             descripcion="Dónde vive la gente. Pase el cursor para la cantidad."
           >
             <MapaColombia
-              datos={(resumen?.departamentos ?? []).map((d) => ({
+              datos={((delPeriodo ?? resumen)?.departamentos ?? []).map((d) => ({
                 nombre: d.nombre,
                 total: d.total,
               }))}

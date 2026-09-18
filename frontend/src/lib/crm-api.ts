@@ -695,6 +695,14 @@ export type Ventana = {
   /** ISO yyyy-mm-dd, o null cuando no hay corte. */
   desde: string | null;
   hasta: string | null;
+  /**
+   * Los bordes exactos (ISO con hora), `hasta` fuera. Para que
+   * otra consulta corte por la MISMA ventana sin recalcularla.
+   */
+  instantes?: {
+    actual: { desde: string; hasta: string } | null;
+    anterior: { desde: string; hasta: string } | null;
+  };
 };
 
 /** Fracción: 0.25 es un 25 % más. Null si antes no había. */
@@ -948,6 +956,9 @@ export type Filtros = {
   estado?: "COMPLETO" | "PARCIAL";
   /** Por donde vive la persona, no por donde se dicta. */
   departamentoSepId?: number;
+  /** Cuándo llegó el lead: instantes ISO, `llegoHasta` fuera. */
+  llegoDesde?: string;
+  llegoHasta?: string;
   buscar?: string;
   pagina?: number;
   /** Cuántas filas por carga; el servidor lo topa. */

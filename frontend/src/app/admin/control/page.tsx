@@ -209,7 +209,7 @@ export default function PaginaControl() {
           <div className="flex flex-wrap items-end gap-4">
             <div>
               <p className="mb-1.5 text-[0.625rem] font-bold tracking-[0.08em] uppercase text-texto-suave">
-                Comparación
+                Periodo y comparación
               </p>
               {/* Anchos de verdad: son dos frases --«Desde el
                   principio», «vs. el mes pasado»--, no dos

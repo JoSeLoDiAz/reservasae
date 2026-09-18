@@ -165,6 +165,10 @@ export type Control = Cabecera & {
     etiquetaAnterior: string | null;
     desde: string | null;
     hasta: string | null;
+    instantes: {
+      actual: { desde: string; hasta: string } | null;
+      anterior: { desde: string; hasta: string } | null;
+    };
   };
   anterior: Cabecera | null;
   variacion: Record<string, number | null>;
@@ -271,7 +275,22 @@ export function rotuloDelPeriodo(comparacion: Comparacion) {
     hasta: comparacion.actual
       ? dia(new Date(comparacion.actual.hasta.getTime() - 1))
       : null,
+    /// Los bordes EXACTOS, para que otra consulta corte igual.
+    ///
+    /// El embudo de la pantalla sale de `resumen` y no de aqui, y
+    /// pedia sin fechas: con «Hoy» y «vs. ayer» seguia pintando
+    /// todo el historico. Con esto se le pasa la misma ventana en
+    /// vez de recalcularla --dos calculos de «hoy» en Bogota ya
+    /// discreparon una vez en este archivo--.
+    instantes: {
+      actual: comparacion.actual ? aIso(comparacion.actual) : null,
+      anterior: comparacion.anterior ? aIso(comparacion.anterior) : null,
+    },
   };
+}
+
+function aIso(v: { desde: Date; hasta: Date }) {
+  return { desde: v.desde.toISOString(), hasta: v.hasta.toISOString() };
 }
 
 /** Los cortes que la pantalla puede pedir además de la ventana. */
