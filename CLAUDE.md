@@ -1804,6 +1804,14 @@ escribe **el nombre del envio**, y la direccion --y el QR-- se actualizan solos.
   Manager en su propio enlace. Un desplegable que las ofreciera dejaria marcar a
   mano como pauta un trafico que no lo es, que es justo lo que la atribucion a
   pauta se paro para evitar. El spec lo fija.
+- **Desde el 18 sep 2026 el enlace sale CORTO** --`?mailing18092026`,
+  `?reserva-transportes-el-condor`, `?pauta0305202255`-- y no con dos `utm_`.
+  El prefijo es el canal y la palabra entera el envio (`frontend/src/lib/enlace-corto.ts`);
+  los `utm_` mandan si estan. «Reserva de empresa» y «Pauta (anuncio de Meta)»
+  entran en el desplegable. **La pauta del panel NO prueba pago por su palabra**:
+  trae el nombre de la campaña, y `pagadaSql` solo la da por pagada con
+  `fbclid` o dentro de la app de Meta. Ninguna red concreta se ofrece: el enlace
+  no sabe en cual se vio el anuncio.
 - **El nombre se traduce a la vista, y por eso existe `comoViaja()`.** La baliza
   QUITA todo lo que no sea `[A-Za-z0-9._-]` en vez de traducirlo, asi que «envio
   de prueba» llegaria como «enviodeprueba» y «campaña» como «campaa»: lo
@@ -1915,8 +1923,20 @@ eran dos verdades bajo el mismo titulo, de antes de este cambio.
   mapearlo a `OTRO` --que significa «no sabemos»-- destruiria justo lo que si se
   sabe. Se sigue midiendo como trafico; lo que no se puede es sellarlo en la
   ficha. Anadir el valor al enum son los siete sitios de siempre y no cabe aqui.
-  WHATSAPP tampoco entra: existe en el enum, pero nadie lo pidio y aqui se
-  pregunta antes de anticipar.
+  **Desde el 18 sep 2026 su campaña si se guarda** (`campanaDeEntrada`, ver
+  abajo) y la lista dice «QR impreso».
+- **WHATSAPP y RESERVA entraron en `DE_CANAL` el 18 sep 2026**, cuando el panel
+  empezo a ofrecerlos: el enlace llegaba marcado y la ficha se quedaba en «Se
+  inscribio solo». RESERVA sella `EMPRESA` («La empresa lo nomino»). Los dos van
+  con `origenLead: ORGANICO`, como el correo, y no tocan la constancia de
+  autorizacion: `autorizoAlRegistrarse` es de los leads del webhook. WhatsApp
+  Web (`web.whatsapp.com`, `wa.me`) tambien es WHATSAPP por referente.
+- **La campaña con la que entro cada ficha** vive en `participantes.campanaDeEntrada`
+  (migracion `20260918140000`), con las mismas tres condiciones que el origen y
+  sin pisarse. La columna «Fuente formulario» de Gestion de leads la ensena
+  debajo de Pauta / Mailing / Reserva / WhatsApp / QR impreso, y dice **«Sin
+  etiqueta»** y no «Organico» para `AUTOGESTION` sin campaña: eso no es un dato
+  de organico, es no saber. `origenLead` no cambia: la tricotomia sigue igual.
 - **De regalo, `/admin/control` empieza a servir.** Su bloque «Volumen por canal»
   agrupa por ese mismo campo y pintaba todo como «Se inscribio solo», porque el
   origen estaba escrito a fuego. Ahora dice cuanto convierte el correo frente a
@@ -2149,6 +2169,11 @@ que nadie lo vuelva a intentar igual.**
 1. **Exigir prueba de lo pagado**, no de la red: atribuir solo si la fila de
    `LLEGO` trae `utmCampana` —el id de campaña que pone Ads Manager— o `fbclid`.
    Con solo la app o el referente, se queda en `AUTOGESTION` y se deja el toque.
+   **Desde el 18 sep 2026 la regla vive en `pagadaSql()`** (procedencia.ts) y
+   tiene dos excepciones: una fuente NUESTRA --correo, WhatsApp, QR, reserva--
+   nunca es pagada, aunque llegue desde la app de Meta o con `fbclid` (un
+   `?mailing…` reenviado por DM salia pauta); y la del panel, `pauta`, solo con
+   `fbclid` o la app. `el-case-de-verdad.spec.ts` ejecuta el CASE en pg-mem.
 2. **El toque se registra SIEMPRE**, exista ya la ficha o no. Los otros dos
    escritores lo hacen así (`leads.service.ts`, `leads-que-esperaban.ts`), y el
    `upsert` es idempotente. Condicionarlo a `yaEsta` deja la barra de «Pauta
