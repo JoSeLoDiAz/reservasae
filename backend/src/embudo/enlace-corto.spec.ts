@@ -41,6 +41,17 @@ describe('el enlace corto', () => {
     });
   });
 
+  /// La reserva lleva la EMPRESA en el nombre (18 sep 2026).
+  it('?reserva-transportes-el-condor dice reserva y la empresa', () => {
+    expect(leerEnlaceCorto('?reserva-transportes-el-condor')).toEqual({
+      fuente: 'reserva',
+      campana: 'reserva-transportes-el-condor',
+    });
+    expect(palabraCorta('reserva', 'transportes-el-condor')).toBe(
+      'reserva-transportes-el-condor',
+    );
+  });
+
   it('el canal a secas no inventa nombre de envio', () => {
     expect(leerEnlaceCorto('?mailing')).toEqual({ fuente: 'correo', campana: undefined });
   });

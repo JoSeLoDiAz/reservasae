@@ -39,14 +39,20 @@ const SIN_CANAL = [
 ];
 
 describe('qué procedencia sella el canal de la ficha', () => {
-  it('hoy es CORREO, y solo CORREO', () => {
-    expect(Object.keys(DE_CANAL).sort()).toEqual(['CORREO']);
+  /// RESERVA entro el 18 sep 2026: el enlace que reparte una
+  /// empresa con cupos, y sella EMPRESA. Ver `DE_CANAL`.
+  it('hoy son CORREO y RESERVA, y solo esos dos', () => {
+    expect(Object.keys(DE_CANAL).sort()).toEqual(['CORREO', 'RESERVA']);
+  });
+
+  it('la reserva sella «La empresa lo nominó»', () => {
+    expect(canalDeLaVisita({ procedencia: 'RESERVA', pagada: false })).toBe('EMPRESA');
   });
 
   /// Si alguien añade una procedencia nueva, esto falla y le
   /// obliga a decidir si sella canal o no. Es el criterio de
   /// las pruebas de ámbito: recorrer la superficie, no el caso.
-  it('las once procedencias están todas clasificadas', () => {
+  it('las doce procedencias están todas clasificadas', () => {
     expect([...SIN_CANAL, ...Object.keys(DE_CANAL)].sort()).toEqual(
       [...PROCEDENCIAS].sort(),
     );

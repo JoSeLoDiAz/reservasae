@@ -379,6 +379,9 @@ export const ETIQUETA_ORIGEN_LEAD: Record<
 export function fuenteDelFormulario(f: FilaParticipante): string {
   if (f.origenLead === "PAUTA") return "Pauta";
   if (f.origen === "CORREO") return "Mailing";
+  /// «La empresa lo nominó»: por el enlace de su reserva, o
+  /// porque la empresa mandó su nombre. Las dos son la reserva.
+  if (f.origen === "EMPRESA") return "Reserva";
   if (f.origen === "WHATSAPP") return "WhatsApp";
   return ETIQUETA_ORIGEN_LEAD[f.origenLead];
 }

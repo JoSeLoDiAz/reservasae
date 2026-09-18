@@ -85,6 +85,7 @@ const NOMBRE_PROCEDENCIA: Record<string, string> = {
   WHATSAPP: "WhatsApp",
   BUSQUEDA: "Buscador",
   QR: "Código QR",
+  RESERVA: "Reserva de empresa",
   INTERNO: "Otra página nuestra",
   OTRA_WEB: "Otra página web",
   OTRO_DECLARADO: "Otro canal etiquetado",

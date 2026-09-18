@@ -28,6 +28,7 @@ export const PREFIJOS: Readonly<Record<string, string>> = {
   correo: "correo",
   whatsapp: "whatsapp",
   qr: "qr",
+  reserva: "reserva",
 };
 
 /// Lo que va delante segun el canal elegido en el panel.
@@ -35,6 +36,7 @@ export const PREFIJO_DEL_CANAL: Readonly<Record<string, string>> = {
   correo: "mailing",
   whatsapp: "whatsapp",
   qr: "qr",
+  reserva: "reserva",
 };
 
 /// El mas largo primero: `correo` no se puede comer a nadie,

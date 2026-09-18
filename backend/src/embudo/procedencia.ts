@@ -28,6 +28,7 @@ export const PROCEDENCIAS = [
   'WHATSAPP',
   'BUSQUEDA',
   'QR',
+  'RESERVA',
   'INTERNO',
   'OTRA_WEB',
   'OTRO_DECLARADO',
@@ -89,6 +90,10 @@ const DICE_WHATSAPP = ['whatsapp', 'wa'];
 /// dentro del SQL y por eso no salia en los parametros, que es
 /// donde el spec del panel mira lo que el servidor reconoce.
 const DICE_QR = ['qr'];
+/// El enlace que una empresa con cupos apartados reparte a su
+/// gente (18 sep 2026). El nombre de la empresa va en la
+/// campana: `?reserva-transportes-el-condor`.
+const DICE_RESERVA = ['reserva'];
 const DICE_FACEBOOK = ['fb', 'facebook', 'messenger'];
 const DICE_INSTAGRAM = ['ig', 'instagram'];
 /// Sabemos que es Meta pero no cual: no se inventa.
@@ -137,6 +142,7 @@ export function procedenciaSql(): Prisma.Sql {
       WHEN ${Prisma.raw(utm)} IN (${Prisma.join(DICE_CORREO)}) THEN 'CORREO'
       WHEN ${Prisma.raw(utm)} IN (${Prisma.join(DICE_WHATSAPP)}) THEN 'WHATSAPP'
       WHEN ${Prisma.raw(utm)} IN (${Prisma.join(DICE_QR)}) THEN 'QR'
+      WHEN ${Prisma.raw(utm)} IN (${Prisma.join(DICE_RESERVA)}) THEN 'RESERVA'
       WHEN ${esDominio(ref, 'reservasae.com')} THEN 'INTERNO'
       WHEN ${alguno(ref, WEBMAIL)} THEN 'CORREO'
       WHEN ${alguno(ref, REDIRECTORES_DE_CORREO)} THEN 'CORREO'

@@ -38,6 +38,9 @@ export const CANALES_DEL_ENLACE = [
   { utm: "correo", etiqueta: "Correo" },
   { utm: "whatsapp", etiqueta: "WhatsApp" },
   { utm: "qr", etiqueta: "QR impreso" },
+  /// El enlace que reparte una empresa con cupos apartados. En
+  /// el nombre va la EMPRESA, no una fecha (18 sep 2026).
+  { utm: "reserva", etiqueta: "Reserva de empresa" },
 ] as const;
 
 /**
@@ -275,12 +278,12 @@ export function EnlacePublico({
               </label>
               <label className="min-w-0 grow text-sm">
                 <span className="mb-1 block text-texto-suave">
-                  Nombre de este envío
+                  {canal === "reserva" ? "Empresa que reservó" : "Nombre de este envío"}
                 </span>
                 <input
                   value={envio}
                   onChange={(e) => setEnvio(e.target.value)}
-                  placeholder="18092026"
+                  placeholder={canal === "reserva" ? "Transportes El Cóndor" : "18092026"}
                   className="w-full rounded-lg border border-borde bg-superficie px-3 py-2 text-sm"
                 />
               </label>

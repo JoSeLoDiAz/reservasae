@@ -43,6 +43,14 @@ export const DE_RED: Partial<Record<string, OrigenParticipante>> = {
 /// trafico igual; lo que no se puede es sellarlo en la ficha.
 export const DE_CANAL: Partial<Record<string, OrigenParticipante>> = {
   CORREO: OrigenParticipante.CORREO,
+  /// Quien entra por el enlace que repartió su empresa. Aquí SÍ
+  /// hay palabra en el enum --«La empresa lo nominó»--, así que
+  /// no pasa lo del QR. Va con `origenLead: ORGANICO` como el
+  /// correo: llenó el formulario ella misma y nadie pagó por
+  /// traerla. Y no toca la constancia de autorización:
+  /// `autorizoAlRegistrarse` es de los leads del webhook, y quien
+  /// se preinscribe deja la suya al aceptar la política.
+  RESERVA: OrigenParticipante.EMPRESA,
 };
 
 export type LlegadaDeLaVisita = {
