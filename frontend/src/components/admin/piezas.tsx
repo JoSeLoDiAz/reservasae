@@ -322,13 +322,19 @@ export function Encabezado({
     /// 2026). Las bandas iban a sangre y con raya abajo; ahora
     /// llevan las cuatro esquinas redondeadas, y para eso tienen
     /// que separarse del canto: de ahí el `mx-3`.
-    <header className="mx-3 mb-3 flex flex-wrap items-start justify-between gap-4 rounded-2xl border border-borde bg-superficie px-7 pt-[26px] pb-[22px]">
-      <div className="min-w-0">
+    /// EL TEXTO VA A LO ANCHO. Tenia `max-w-[760px]` y en una
+    /// pantalla de 1.920 px la descripcion se partia en tres
+    /// renglones cortos con un hueco enorme a la derecha: «se ve
+    /// feo» (cliente, 18 sep 2026). Ahora el bloque de texto toma
+    /// lo que dejan los botones (`flex-1`) y los botones no se
+    /// caen debajo en escritorio (`lg:flex-nowrap`).
+    <header className="mx-3 mb-3 flex flex-wrap items-start justify-between gap-4 rounded-2xl border border-borde bg-superficie px-7 pt-[26px] pb-[22px] lg:flex-nowrap">
+      <div className="min-w-0 flex-1">
         <h1 className="text-[1.3125rem] font-bold tracking-[-0.02em] text-titulo">
           {titulo}
         </h1>
         {descripcion && (
-          <p className="mt-1.5 max-w-[760px] text-[0.78125rem] leading-relaxed text-texto-suave">
+          <p className="mt-1.5 text-[0.78125rem] leading-relaxed text-texto-suave">
             {descripcion}
           </p>
         )}

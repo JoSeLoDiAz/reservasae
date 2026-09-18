@@ -254,6 +254,14 @@ export default function PaginaTrafico() {
         </div>
       </Encabezado>
 
+      {/* El MISMO margen que el encabezado y que `Tarjeta`
+          (`mx-3`). Desde el redisenio del 12 sep las bandas del
+          panel ponen su propio margen, y estas cajas son de esta
+          pantalla y no lo traian: el encabezado quedaba separado
+          del canto y todo lo de abajo pegado a él. */}
+      <div className="mx-3 space-y-5">
+      <ComoLeer hayHistorico={!!datos?.historico} />
+
       <ComparadorDeFechas
         a={a}
         b={b}
@@ -446,53 +454,66 @@ export default function PaginaTrafico() {
           del servidor: sumarlas a las de arriba convertiria
           un agujero de medicion en una conclusion. */}
       {datos?.historico && <Historico h={datos.historico} />}
-
-      <div className="rounded-2xl border border-borde bg-superficie-alterna p-5 text-sm text-texto-suave">
-        <p className="font-medium text-texto">Cómo leer estas cifras</p>
-        <ul className="mt-2 list-disc space-y-1.5 pl-5">
-          <li>
-            Son un <strong>suelo, no un total</strong>: no cuentan a quien se va
-            antes de que la página termine de cargar, ni a quien usa bloqueador.
-          </li>
-          <li>
-            <strong>No cuentan nada anterior al contador.</strong>{" "}
-            {datos?.historico ? (
-              <>
-                Lo de antes está en el bloque de arriba, aparte, y viene del
-                registro del servidor: no son las mismas cifras y no se suman.
-              </>
-            ) : (
-              <>
-                Quien se preinscribió antes no aparece aquí, aunque sí esté en
-                Gestión de leads.
-              </>
-            )}
-          </li>
-          <li>
-            <strong>
-              El porcentaje no sale con menos de {MINIMO_PARA_TASA} visitas.
-            </strong>{" "}
-            Una tasa hecha de dos visitas no dice nada.
-          </li>
-          <li>
-            <strong>Esta cifra será MENOR que los clics que reporta Meta</strong>, y
-            no es un error: aquí no entran los rastreadores —que no ejecutan
-            JavaScript— ni quien se va antes de que la página cargue.
-          </li>
-          <li>
-            <strong>
-              «No dejó rastro» no quiere decir que escribieran la dirección.
-            </strong>{" "}
-            Quiere decir que no llegó ninguna señal — y así entra casi todo el
-            correo y casi todo WhatsApp, que no dejan referencia.
-          </li>
-          <li>
-            La unidad es la <strong>visita</strong>, no la persona. Quien vuelve
-            otro día cuenta dos veces.
-          </li>
-        </ul>
       </div>
     </div>
+  );
+}
+
+/**
+ * Cómo leer estas cifras, ARRIBA y en frases cortas.
+ *
+ * Estaba al final, como lista de seis párrafos, y el cliente lo
+ * dijo: «esto debería ser visible arriba, y más fácil de
+ * interpretar» (18 sep 2026). Quien mira la pantalla compara
+ * con Meta ANTES de bajar, y ahí es donde hace falta saber que
+ * la cifra de aquí sale menor a propósito. Cada idea es un
+ * titular de pocas palabras y una frase: lo mismo que decía,
+ * sin la explicación técnica de por qué.
+ */
+function ComoLeer({ hayHistorico }: { hayHistorico: boolean }) {
+  const ideas: Array<[string, string]> = [
+    [
+      "Es un mínimo, no el total",
+      "No cuenta a quien se va antes de que cargue la página ni a quien usa bloqueador.",
+    ],
+    [
+      "Saldrá menos que en Meta, y está bien",
+      "Meta cuenta clics, incluidos los de robots. Aquí solo cuentan las visitas que sí cargaron la página.",
+    ],
+    [
+      "Una visita no es una persona",
+      "Quien vuelve otro día cuenta dos veces. «Personas» quita además lo que abren las máquinas.",
+    ],
+    [
+      "Solo desde que arrancó el contador",
+      hayHistorico
+        ? "Lo de antes va en su bloque aparte, más abajo. Son otras cifras y no se suman."
+        : "Quien se preinscribió antes no sale aquí, aunque sí esté en Gestión de leads.",
+    ],
+    [
+      `Porcentajes desde ${MINIMO_PARA_TASA} visitas`,
+      "Con menos, un porcentaje no dice nada, así que no se muestra.",
+    ],
+    [
+      "«No dejó rastro» casi siempre es correo o WhatsApp",
+      "Esos enlaces no dejan señal si no van marcados. Márquelos en Formularios públicos.",
+    ],
+  ];
+
+  return (
+    <section className="rounded-2xl border border-borde bg-superficie-alterna px-6 py-4">
+      <h2 className="text-xs font-medium tracking-wide text-texto-suave uppercase">
+        Cómo leer estas cifras
+      </h2>
+      <dl className="mt-3 grid gap-x-8 gap-y-3 sm:grid-cols-2 xl:grid-cols-3">
+        {ideas.map(([titular, frase]) => (
+          <div key={titular}>
+            <dt className="text-sm font-semibold text-texto">{titular}</dt>
+            <dd className="mt-0.5 text-sm leading-snug text-texto-suave">{frase}</dd>
+          </div>
+        ))}
+      </dl>
+    </section>
   );
 }
 
