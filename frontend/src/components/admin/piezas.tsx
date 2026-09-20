@@ -302,10 +302,22 @@ export function Pildora({
 export function Encabezado({
   titulo,
   descripcion,
+  descripcionAncha,
   children,
 }: {
   titulo: string;
   descripcion?: React.ReactNode;
+  /**
+   * Que la descripción use todo el ancho, sin el tope de 760 px.
+   *
+   * El tope es del handoff y se queda por omisión: una línea de
+   * texto muy larga se lee peor. Pero en Tráfico son tres frases
+   * seguidas --qué mide, qué no, y desde cuándo-- y en 1.920 px
+   * quedaban apretadas en una esquina con media pantalla vacía al
+   * lado: «sigue estando apeñuscado» (cliente, 20 sep 2026). Se
+   * pide pantalla por pantalla, no se cambia para todas.
+   */
+  descripcionAncha?: boolean;
   children?: React.ReactNode;
 }) {
   return (
@@ -328,7 +340,12 @@ export function Encabezado({
           {titulo}
         </h1>
         {descripcion && (
-          <p className="mt-1.5 max-w-[760px] text-[0.78125rem] leading-relaxed text-texto-suave">
+          <p
+            className={
+              "mt-1.5 text-[0.78125rem] leading-relaxed text-texto-suave " +
+              (descripcionAncha ? "" : "max-w-[760px]")
+            }
+          >
             {descripcion}
           </p>
         )}

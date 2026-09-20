@@ -221,6 +221,7 @@ export default function PaginaTrafico() {
     <div className="space-y-5">
       <Encabezado
         titulo="Tráfico del formulario"
+        descripcionAncha
         descripcion={
           <>
             Qué pasa entre el anuncio y la preinscripción. Se abre más de lo
@@ -237,24 +238,7 @@ export default function PaginaTrafico() {
             )}
           </>
         }
-      >
-        <div className="flex flex-wrap gap-1">
-          {RANGOS.map((r) => (
-            <button
-              key={r.valor}
-              type="button"
-              onClick={() => setRango(r.valor)}
-              className={`rounded-lg px-3 py-1.5 text-sm transition ${
-                rango === r.valor
-                  ? "bg-marca font-medium text-marca-texto"
-                  : "border border-borde bg-superficie text-texto-suave hover:bg-superficie-alterna"
-              }`}
-            >
-              {r.etiqueta}
-            </button>
-          ))}
-        </div>
-      </Encabezado>
+      />
 
       {/* El MISMO margen que el encabezado y que `Tarjeta`
           (`mx-3`). Desde el redisenio del 12 sep las bandas del
@@ -266,12 +250,19 @@ export default function PaginaTrafico() {
 
       <ComoLeer hayHistorico={!!datos?.historico} />
 
+      {/* TODOS LOS CONTROLES DEL PERIODO EN UNA FILA.
+          Los cuatro rangos vivían arriba, en el encabezado, y la
+          comparación en su propia caja debajo: «tengo filtros
+          regados» (cliente, 20 sep 2026). Son la misma decisión
+          --qué periodo se mira-- y ahora se leen juntos. */}
       <ComparadorDeFechas
         a={a}
         b={b}
         alCambiarA={setA}
         alCambiarB={setB}
         comparando={comparando}
+        rango={rango}
+        alCambiarRango={setRango}
       />
 
       {error && <Aviso tipo="error">{error}</Aviso>}
@@ -397,14 +388,19 @@ export default function PaginaTrafico() {
             </p>
           )}
 
-          <div className="grid gap-4 lg:grid-cols-[3fr_2fr]">
-            <div className="rounded-2xl border border-borde bg-superficie p-5">
-              <h2 className="mb-4 text-sm font-semibold tracking-wide text-texto-suave uppercase">
-                Paso a paso · {rotuloA}
-              </h2>
-              <EmbudoProceso hitos={hitos} notas={notas} />
-            </div>
+          {/* DE LADO A LADO: son nueve peldaños con su cifra, su
+              rótulo y su porcentaje. En dos quintos de pantalla se
+              apretaban contra la dona de al lado. */}
+          <div className="rounded-2xl border border-borde bg-superficie p-5">
+            <h2 className="mb-4 text-sm font-semibold tracking-wide text-texto-suave uppercase">
+              Paso a paso · {rotuloA}
+            </h2>
+            <EmbudoProceso hitos={hitos} notas={notas} />
+          </div>
 
+          {/* Y los dos que responden «por dónde llegó y qué hizo
+              después», EN UNA FILA. */}
+          <div className="grid gap-4 lg:grid-cols-2">
             <div className="rounded-2xl border border-borde bg-superficie p-5">
               <h2 className="mb-4 text-sm font-semibold tracking-wide text-texto-suave uppercase">
                 De dónde venían
@@ -416,15 +412,15 @@ export default function PaginaTrafico() {
                 vacio="Sin visitas en este periodo."
               />
             </div>
-          </div>
 
-          {datos && (
-            <DespuesDePreinscribirse
-              {...datos.despues}
-              rotulo={rotuloA}
-              comparando={comparando}
-            />
-          )}
+            {datos && (
+              <DespuesDePreinscribirse
+                {...datos.despues}
+                rotulo={rotuloA}
+                comparando={comparando}
+              />
+            )}
+          </div>
 
           <div className="grid gap-4 lg:grid-cols-3">
             <Corte
@@ -800,12 +796,18 @@ function ComparadorDeFechas({
   alCambiarA,
   alCambiarB,
   comparando,
+  rango,
+  alCambiarRango,
 }: {
   a: { desde: string; hasta: string };
   b: { desde: string; hasta: string };
   alCambiarA: (v: { desde: string; hasta: string }) => void;
   alCambiarB: (v: { desde: string; hasta: string }) => void;
   comparando: boolean;
+  /// Los cuatro rangos viven aquí desde el 20 sep 2026: estaban
+  /// arriba, en el encabezado, y la comparación abajo.
+  rango: string;
+  alCambiarRango: (r: string) => void;
 }) {
   const [abierto, setAbierto] = useState(false);
 
@@ -829,6 +831,30 @@ function ComparadorDeFechas({
   return (
     <div className="rounded-2xl border border-borde bg-superficie p-4">
       <div className="flex flex-wrap items-center gap-2">
+        <div className="mr-1 flex flex-wrap gap-1">
+          {RANGOS.map((r) => (
+            <button
+              key={r.valor}
+              type="button"
+              onClick={() => {
+                /// Elegir un rango QUITA la comparación de dos
+                /// fechas: si no, se pulsa «30 días» y la pantalla
+                /// sigue enseñando las dos fechas de antes sin
+                /// decir por qué.
+                if (comparando) limpiar();
+                alCambiarRango(r.valor);
+              }}
+              className={`rounded-lg px-3 py-1.5 text-sm transition ${
+                rango === r.valor && !comparando
+                  ? "bg-marca font-medium text-marca-texto"
+                  : "border border-borde bg-superficie text-texto-suave hover:bg-superficie-alterna"
+              }`}
+            >
+              {r.etiqueta}
+            </button>
+          ))}
+        </div>
+        <span className="mx-1 hidden h-5 w-px bg-borde sm:block" aria-hidden />
         <button
           type="button"
           onClick={() => setAbierto((v) => !v)}
