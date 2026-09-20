@@ -56,11 +56,15 @@ function porcentaje(parte: number, total: number): string {
   return `${Math.round((parte / total) * 100)} %`;
 }
 
-/// «antes: 58 +4». La diferencia en verde si sube y en rojo si
-/// baja: en los cuatro hitos más es mejor. Dice «antes» y no el
-/// nombre del periodo porque ese nombre puede ser largo --«el
-/// mismo tramo del periodo anterior»-- y repetido cuatro veces
-/// tapaba las barras; va UNA vez, al pie.
+/// «antes: 58 · +4», en gris.
+///
+/// SIN verde ni rojo: los del periodo anterior tuvieron más tiempo
+/// para avanzar, así que un «menos» en los pasos de abajo no es
+/// que vaya peor (José, 18 sep 2026). El color afirmaría eso; el
+/// número solo lo cuenta. Dice «antes» y no el nombre del periodo
+/// porque ese nombre puede ser largo --«el mismo tramo del periodo
+/// anterior»-- y repetido cuatro veces tapaba las barras; va UNA
+/// vez, al pie.
 function ContraAntes({
   ahora,
   antes,
@@ -78,7 +82,7 @@ function ContraAntes({
     >
       antes: {n(antes)}
       {d !== 0 && (
-        <span className={`ml-1 font-semibold ${d > 0 ? "text-exito" : "text-error"}`}>
+        <span className="ml-1 font-semibold">
           {d > 0 ? "+" : "−"}
           {n(Math.abs(d))}
         </span>
@@ -93,6 +97,7 @@ export function EmbudoProceso({
   meta = null,
   antes = null,
   etiquetaAntes = null,
+  resumen = null,
 }: {
   hitos: Hito[];
   notas?: NotaDelEmbudo[];
@@ -110,13 +115,30 @@ export function EmbudoProceso({
   /// entendía (18 sep 2026).
   antes?: number[] | null;
   etiquetaAntes?: string | null;
+  /**
+   * La misma historia EN UNA FRASE, encima de las barras.
+   *
+   * «No lo entiendo de ninguna manera... necesito que ese reporte
+   * se entienda» (Mauricio, 20 sep 2026). Cuatro barras con
+   * porcentajes son un dibujo; la frase dice qué preguntan.
+   */
+  resumen?: React.ReactNode;
 }) {
   const primero = hitos[0]?.total ?? 0;
-  /// La altura se mide contra el PRIMER hito, no contra el mayor:
-  /// así la caída se ve como caída y no como una escalera
-  /// renormalizada que siempre llega arriba.
+  /**
+   * La altura se mide contra el PRIMER hito, no contra el mayor:
+   * así la caída se ve como caída y no como una escalera
+   * renormalizada que siempre llega arriba.
+   *
+   * CON COMPARACIÓN, la escala la manda el mayor de los dos
+   * primeros: si antes entraron 75 y ahora 41, la barra gris
+   * medía 183 % y se salía del recuadro tapando la cifra de
+   * arriba. Las dos comparten escala, que es lo que deja
+   * compararlas de un vistazo.
+   */
+  const tope = Math.max(primero, antes?.[0] ?? 0);
   const alto = (v: number) =>
-    primero > 0 ? Math.max(2, Math.round((v / primero) * 100)) : 2;
+    tope > 0 ? Math.min(100, Math.max(2, Math.round((v / tope) * 100))) : 2;
 
   return (
     /// A LO ANCHO ENTERO, pero BAJO.
@@ -128,6 +150,10 @@ export function EmbudoProceso({
     /// debajo hacían un bloque de media pantalla para cuatro
     /// números. Se recorta el alto y el ancho se respeta.
     <div>
+      {resumen && (
+        <p className="mb-4 text-[0.8125rem] leading-relaxed text-texto">{resumen}</p>
+      )}
+
       <div className="flex items-end gap-3">
         {hitos.map((h, i) => {
           const previo = i > 0 ? hitos[i - 1].total : null;
@@ -168,9 +194,25 @@ export function EmbudoProceso({
                 {n(h.total)}
               </div>
 
-              <div className="mt-1.5 flex h-[88px] w-full items-end justify-center">
+              {/* LA BARRA DEL PERIODO ANTERIOR, DETRAS Y EN GRIS.
+                  Se ve de un vistazo si hay más o menos que antes,
+                  sin una segunda cifra de colores compitiendo con
+                  la de arriba. La escala es la MISMA --el primer
+                  hito de ahora--, que es lo que deja compararlas;
+                  si antes hubo más, la gris asoma por encima. */}
+              <div className="relative mt-1.5 flex h-[112px] w-full items-end justify-center">
+                {antes && antes[i] !== undefined && (
+                  <div
+                    className="absolute bottom-0 w-2/3 rounded-t-[7px] border border-borde bg-superficie-alterna"
+                    style={{ height: `${alto(antes[i])}%` }}
+                    aria-hidden
+                  />
+                )}
+                {/* La de AHORA va delante y del mismo ancho: si
+                    antes hubo más, la gris asoma por encima como
+                    una marca de agua; si hay más ahora, la tapa. */}
                 <div
-                  className="w-2/3 rounded-t-[7px] transition-[height] duration-500"
+                  className="relative w-2/3 rounded-t-[7px] transition-[height] duration-500"
                   style={{
                     height: `${alto(h.total)}%`,
                     background: colorEtapa(h.etapa),
@@ -204,12 +246,51 @@ export function EmbudoProceso({
       </div>
 
       {antes && (
+        <div className="mt-4 overflow-x-auto border-t border-hairline pt-3">
+          {/* Angosta y a la izquierda: estirada a 1.600 px quedaban
+              cuatro cifras con medio metro de vacío en medio. */}
+          <table className="w-full max-w-[520px] text-[0.75rem] tabular-nums">
+            <thead>
+              <tr className="text-texto-suave">
+                <th className="py-1 text-left font-medium">Paso</th>
+                <th className="py-1 text-right font-medium">Ahora</th>
+                <th className="py-1 text-right font-medium" title={etiquetaAntes ?? "Antes"}>
+                  Antes
+                </th>
+                <th className="py-1 text-right font-medium">Diferencia</th>
+              </tr>
+            </thead>
+            <tbody>
+              {hitos.map((h, i) => {
+                const b = antes[i];
+                const d = b === undefined ? null : h.total - b;
+                return (
+                  <tr key={`fila-${h.etiqueta}#${i}`} className="border-t border-hairline">
+                    <td className="py-1 text-left text-titulo">{h.etiqueta}</td>
+                    <td className="py-1 text-right font-semibold text-titulo">
+                      {n(h.total)}
+                    </td>
+                    <td className="py-1 text-right text-texto-suave">
+                      {b === undefined ? "—" : n(b)}
+                    </td>
+                    <td className="py-1 text-right text-texto-suave">
+                      {d === null ? "—" : d === 0 ? "igual" : `${d > 0 ? "+" : "−"}${n(Math.abs(d))}`}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {antes && (
         <p className="mt-2 text-center text-[0.6875rem] text-texto-suave">
           «Antes» es {etiquetaAntes ?? "el periodo con el que se compara"}, y
-          solo se compara la entrada: los de antes tuvieron más tiempo para
-          avanzar, así que sus pasos siguientes no se comparan con los de
-          ahora. «No pasaron» es la gente que se quedó entre un paso y el
-          siguiente dentro del periodo elegido.
+          va sin color a propósito: los de antes tuvieron más tiempo para
+          avanzar, así que menos contactados hoy no quiere decir que se esté
+          trabajando peor. «No pasaron» es otra cosa: la gente que se quedó
+          entre un paso y el siguiente dentro del periodo elegido.
         </p>
       )}
 

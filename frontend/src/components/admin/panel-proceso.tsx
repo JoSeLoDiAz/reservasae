@@ -256,17 +256,40 @@ export function PanelProceso({
   const hitos = useMemo(() => hitosDe(delPeriodo ?? resumen), [delPeriodo, resumen]);
   /// Null cuando no hay con qué comparar: «Desde el principio»
   /// no tiene periodo anterior.
-  /// SOLO LA ENTRADA se compara, y es a propósito.
+  /// LOS CUATRO PASOS se comparan, pero SIN color.
   ///
-  /// Los que llegaron en el periodo anterior tuvieron más tiempo
-  /// para ser contactados e inscribirse: comparar esos pasos es
-  /// comparar cohortes de distinta madurez, y con «Hoy vs. ayer»
-  /// pintaba rojo cada mañana sin que nada fuera mal (José, 18 sep
-  /// 2026). Cuántos ENTRARON sí es la misma pregunta en los dos.
+  /// Estuvo solo la entrada, porque los del periodo anterior
+  /// tuvieron más tiempo para avanzar y un «menos» en los pasos de
+  /// abajo se leía como que iba peor (José, 18 sep 2026). Pero
+  /// entonces al comparar «no se veía nada» (Mauricio, 20 sep):
+  /// tres de las cuatro barras no decían nada del otro periodo.
+  /// Ahora se enseñan las cuatro --barra gris detrás y tabla
+  /// debajo-- y lo que se quita es el COLOR: el número cuenta, no
+  /// afirma que vaya mejor o peor. La nota del pie lo dice.
   const hitosAntes = useMemo(
-    () => (delAnterior ? [hitosDe(delAnterior)[0]?.total ?? 0] : null),
+    () => (delAnterior ? hitosDe(delAnterior).map((h) => h.total) : null),
     [delAnterior],
   );
+
+  /// La misma historia en una frase. Va encima de las barras.
+  const resumenDelEmbudo = useMemo(() => {
+    if (hitos.length === 0) return null;
+    const [entro, cont, datos, insc] = hitos.map((h) => h.total);
+    /// «Entre dos fechas» no es un complemento de lugar: con el
+    /// «en» delante salía «No entró nadie en entre dos fechas».
+    const cuando = (control?.ventana.etiqueta ?? "el periodo").toLowerCase();
+    const en = cuando.startsWith("entre") ? cuando : `en ${cuando}`;
+    if (entro === 0) return `No entró nadie ${en}.`;
+    const gente = entro === 1 ? "1 persona que entró" : `${n(entro)} personas que entraron`;
+    const trozo = (v: number, hizo: string, ninguna: string) =>
+      v === 0 ? ninguna : v === 1 ? `1 ${hizo}` : `${n(v)} ${hizo}`;
+    return (
+      `De las ${gente} ${en}: ` +
+      `${trozo(cont, "ya fueron contactadas", "ninguna ha sido contactada")}, ` +
+      `${trozo(datos, "tienen sus datos completos", "ninguna tiene sus datos completos")} y ` +
+      `${trozo(insc, "quedaron inscritas", "ninguna se ha inscrito todavía")}.`
+    );
+  }, [hitos, control]);
 
   const entraron = hitos[0]?.total ?? 0;
   const contactados = hitos[1]?.total ?? 0;
@@ -633,6 +656,7 @@ export function PanelProceso({
             hitos={hitos}
             antes={hitosAntes}
             etiquetaAntes={control?.ventana.etiquetaAnterior ?? null}
+            resumen={resumenDelEmbudo}
             notas={notas}
             /* La meta solo cuando se puede comparar de verdad.
                El backend ya la acota por gremio y por acción,
