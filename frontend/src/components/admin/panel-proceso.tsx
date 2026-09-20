@@ -271,16 +271,21 @@ export function PanelProceso({
     [delAnterior],
   );
 
+  /// «en los últimos 30 días», «entre dos fechas»: el periodo
+  /// dicho como se lee dentro de una frase.
+  const cuandoEnFrase = useMemo(() => {
+    const cuando = (control?.ventana.etiqueta ?? "el periodo").toLowerCase();
+    if (/^(hoy|ayer)$/.test(cuando)) return cuando;
+    if (/^(entre|desde|hasta)/.test(cuando)) return cuando;
+    if (/^últimos?/.test(cuando)) return `en los ${cuando}`;
+    return `en ${cuando}`;
+  }, [control]);
+
   /// La misma historia en una frase. Va encima de las barras.
   const resumenDelEmbudo = useMemo(() => {
     if (hitos.length === 0) return null;
     const [entro, cont, datos, insc] = hitos.map((h) => h.total);
-    /// Los rótulos que YA traen su preposición no llevan otra
-    /// delante: salía «en entre dos fechas» y «en desde el
-    /// principio» (cliente, 20 sep 2026).
-    const cuando = (control?.ventana.etiqueta ?? "el periodo").toLowerCase();
-    const traeLaSuya = /^(entre|desde|hasta)/.test(cuando);
-    const en = traeLaSuya ? cuando : `en ${cuando}`;
+    const en = cuandoEnFrase;
     if (entro === 0) return `No entró nadie ${en}.`;
     const gente = entro === 1 ? "1 persona que entró" : `${n(entro)} personas que entraron`;
     const trozo = (v: number, hizo: string, ninguna: string) =>
@@ -291,7 +296,7 @@ export function PanelProceso({
       `${trozo(datos, "tienen sus datos completos", "ninguna tiene sus datos completos")} y ` +
       `${trozo(insc, "quedaron inscritas", "ninguna se ha inscrito todavía")}.`
     );
-  }, [hitos, control]);
+  }, [hitos, control, cuandoEnFrase]);
 
   const entraron = hitos[0]?.total ?? 0;
   const contactados = hitos[1]?.total ?? 0;
@@ -494,10 +499,14 @@ export function PanelProceso({
       <div className="rounded-xl border border-borde bg-superficie px-4 py-3.5">
         <p className="mb-2.5 text-[0.6875rem] font-bold tracking-[0.08em] text-texto-suave uppercase">
           Filtros
+          {/* «20 personas de qué putas» (cliente, 20 sep 2026):
+              decía «en el proceso», que no dice ni de cuándo ni de
+              dónde salen. Son las que ENTRARON en el periodo de
+              arriba, ya recortadas por estos filtros. */}
           {entraron > 0 && (
             <span className="ml-2.5 font-normal tracking-normal text-marca normal-case">
-              <strong className="font-semibold tabular-nums">{n(entraron)}</strong> personas
-              en el proceso
+              <strong className="font-semibold tabular-nums">{n(entraron)}</strong>{" "}
+              {entraron === 1 ? "persona entró" : "personas entraron"} {cuandoEnFrase}
             </span>
           )}
           {hayFiltro && (
@@ -655,6 +664,7 @@ export function PanelProceso({
           descripcion="Cuántas personas avanzan de una etapa a la siguiente, y en cuál se detiene el proceso."
         >
           <EmbudoProceso
+            sobrio
             hitos={hitos}
             antes={hitosAntes}
             etiquetaAntes={control?.ventana.etiquetaAnterior ?? null}

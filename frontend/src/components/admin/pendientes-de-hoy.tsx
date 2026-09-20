@@ -113,7 +113,14 @@ export function PendientesDeHoy({ control }: { control: Control | null }) {
   return (
     <Bloque
       titulo="Qué atender primero"
-      descripcion="Lo que estas cifras piden hacer hoy, en orden."
+      /// DICE SU ALCANCE. «¿Esas 131 a qué hacen referencia, si
+      /// abajo me encuentro con otros datos?» (cliente, 20 sep
+      /// 2026): arriba se cuenta a quien ENTRÓ en el periodo
+      /// elegido, y esto es una lista de pendientes de ahora mismo
+      /// --cupos sin nombre, leads sin asesor-- que no depende de
+      /// ese periodo. Sin decirlo, parecen la misma cifra mal
+      /// calculada.
+      descripcion="Pendientes de ahora mismo, en orden. No dependen del periodo elegido arriba."
     >
       {pendientes.length === 0 ? (
         /* El caso bueno se dice, no se deja en blanco: una

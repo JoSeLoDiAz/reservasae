@@ -98,6 +98,7 @@ export function EmbudoProceso({
   antes = null,
   etiquetaAntes = null,
   resumen = null,
+  sobrio = false,
 }: {
   hitos: Hito[];
   notas?: NotaDelEmbudo[];
@@ -123,6 +124,19 @@ export function EmbudoProceso({
    * porcentajes son un dibujo; la frase dice qué preguntan.
    */
   resumen?: React.ReactNode;
+  /**
+   * Sin los adornos: solo la cifra y el nombre de cada paso.
+   *
+   * «No entiendo una mierda» (cliente, 20 sep 2026). Cada barra
+   * llevaba CUATRO cifras --los que no pasaron, el total, el
+   * porcentaje y el periodo anterior-- y debajo una tabla con las
+   * mismas cifras otra vez. Lo que se quita de la barra no se
+   * pierde: la caída se lee restando dos cifras seguidas, y la
+   * comparación está en la tabla, que es donde se lee de corrido.
+   * Tráfico del formulario sigue con todo: allí son nueve pasos y
+   * el porcentaje es lo que se viene a mirar.
+   */
+  sobrio?: boolean;
 }) {
   const primero = hitos[0]?.total ?? 0;
   /**
@@ -186,9 +200,11 @@ export function EmbudoProceso({
                   selector de comparación al lado eso es lo que
                   se leía. Esto es otra cosa: gente que no pasó al
                   paso siguiente dentro del MISMO periodo. */}
-              <div className="h-4 text-[0.6875rem] font-semibold text-error tabular-nums">
-                {caida > 0 ? `${n(caida)} no pasaron` : ""}
-              </div>
+              {!sobrio && (
+                <div className="h-4 text-[0.6875rem] font-semibold text-error tabular-nums">
+                  {caida > 0 ? `${n(caida)} no pasaron` : ""}
+                </div>
+              )}
 
               <div className="text-[1.375rem] leading-none font-bold text-titulo tabular-nums">
                 {n(h.total)}
@@ -223,11 +239,13 @@ export function EmbudoProceso({
               <div className="mt-2 text-center text-[0.75rem] leading-[1.15] font-semibold text-titulo">
                 {h.etiqueta}
               </div>
-              <div className="mt-0.5 text-[0.6875rem] text-texto-suave tabular-nums">
-                {porcentaje(h.total, primero)}
-              </div>
+              {!sobrio && (
+                <div className="mt-0.5 text-[0.6875rem] text-texto-suave tabular-nums">
+                  {porcentaje(h.total, primero)}
+                </div>
+              )}
 
-              {antes && antes[i] !== undefined && (
+              {!sobrio && antes && antes[i] !== undefined && (
                 <ContraAntes ahora={h.total} antes={antes[i]} etiqueta={etiquetaAntes} />
               )}
 
@@ -286,11 +304,8 @@ export function EmbudoProceso({
 
       {antes && (
         <p className="mt-2 text-center text-[0.6875rem] text-texto-suave">
-          «Antes» es {etiquetaAntes ?? "el periodo con el que se compara"}, y
-          va sin color a propósito: los de antes tuvieron más tiempo para
-          avanzar, así que menos contactados hoy no quiere decir que se esté
-          trabajando peor. «No pasaron» es otra cosa: la gente que se quedó
-          entre un paso y el siguiente dentro del periodo elegido.
+          «Antes» es {etiquetaAntes ?? "el periodo con el que se compara"}. Va
+          sin color porque los de antes tuvieron más tiempo para avanzar.
         </p>
       )}
 
