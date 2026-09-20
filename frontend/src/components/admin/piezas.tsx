@@ -334,7 +334,7 @@ export function Encabezado({
     /// 2026). Las bandas iban a sangre y con raya abajo; ahora
     /// llevan las cuatro esquinas redondeadas, y para eso tienen
     /// que separarse del canto: de ahí el `mx-3`.
-    <header className="mx-3 mb-3 flex flex-wrap items-start justify-between gap-4 rounded-2xl border border-borde bg-superficie px-7 pt-[26px] pb-[22px]">
+    <header className="mx-4 mb-3 flex flex-wrap items-start justify-between gap-4 rounded-2xl border border-borde bg-superficie px-7 pt-[26px] pb-[22px]">
       <div className="min-w-0">
         <h1 className="text-[1.3125rem] font-bold tracking-[-0.02em] text-titulo">
           {titulo}

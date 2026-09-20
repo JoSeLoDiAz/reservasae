@@ -275,10 +275,12 @@ export function PanelProceso({
   const resumenDelEmbudo = useMemo(() => {
     if (hitos.length === 0) return null;
     const [entro, cont, datos, insc] = hitos.map((h) => h.total);
-    /// «Entre dos fechas» no es un complemento de lugar: con el
-    /// «en» delante salía «No entró nadie en entre dos fechas».
+    /// Los rótulos que YA traen su preposición no llevan otra
+    /// delante: salía «en entre dos fechas» y «en desde el
+    /// principio» (cliente, 20 sep 2026).
     const cuando = (control?.ventana.etiqueta ?? "el periodo").toLowerCase();
-    const en = cuando.startsWith("entre") ? cuando : `en ${cuando}`;
+    const traeLaSuya = /^(entre|desde|hasta)/.test(cuando);
+    const en = traeLaSuya ? cuando : `en ${cuando}`;
     if (entro === 0) return `No entró nadie ${en}.`;
     const gente = entro === 1 ? "1 persona que entró" : `${n(entro)} personas que entraron`;
     const trozo = (v: number, hizo: string, ninguna: string) =>
@@ -649,8 +651,8 @@ export function PanelProceso({
         {/* ── 2 · El embudo ── */}
         <Bloque
           estirado
-          titulo="El proceso de inscripción, paso a paso"
-          descripcion="Cuántos llegan a cada hito y cuántos se caen entre uno y otro."
+          titulo="Embudo de inscripción"
+          descripcion="Cuántas personas avanzan de una etapa a la siguiente, y en cuál se detiene el proceso."
         >
           <EmbudoProceso
             hitos={hitos}
@@ -883,14 +885,29 @@ export function PanelProceso({
         <div className="grid gap-4 min-[1000px]:grid-cols-[0.9fr_1.1fr]">
           <Bloque
             titulo="Por departamento"
-            descripcion="Dónde vive la gente. Pase el cursor para la cantidad."
+            descripcion="Dónde vive la gente inscrita en el periodo."
           >
-            <MapaColombia
-              datos={((delPeriodo ?? resumen)?.departamentos ?? []).map((d) => ({
-                nombre: d.nombre,
-                total: d.total,
-              }))}
-            />
+            {/* EL MAPA CON SUS CIFRAS AL LADO.
+                Las cantidades estaban solo en el globo del cursor
+                --un `<title>` de SVG--, que tarda en salir y no se
+                ve de un vistazo: «¿que no filtre pero sí que
+                muestre cantidades, qué pasa?» (cliente, 20 sep
+                2026). La lista dice lo mismo sin tener que buscar
+                el departamento en el mapa. */}
+            <div className="grid gap-4 sm:grid-cols-[1fr_auto]">
+              <MapaColombia
+                datos={((delPeriodo ?? resumen)?.departamentos ?? []).map((d) => ({
+                  nombre: d.nombre,
+                  total: d.total,
+                }))}
+              />
+              <ListaDepartamentos
+                filas={((delPeriodo ?? resumen)?.departamentos ?? []).map((d) => ({
+                  nombre: d.nombre,
+                  total: d.total,
+                }))}
+              />
+            </div>
           </Bloque>
 
           <Bloque
@@ -918,6 +935,58 @@ export function PanelProceso({
 
       </div>
     </div>
+  );
+}
+
+/**
+ * Los departamentos con su cifra, al lado del mapa.
+ *
+ * El mapa dice DÓNDE de un vistazo y la lista dice CUÁNTOS: el
+ * color de un departamento pequeño no se distingue, y buscar
+ * Arauca en el mapa para saber si son 3 o 30 no es leer un dato.
+ */
+function ListaDepartamentos({
+  filas,
+}: {
+  filas: Array<{ nombre: string; total: number }>;
+}) {
+  const ordenadas = [...filas].sort((a, b) => b.total - a.total);
+  const total = ordenadas.reduce((t, f) => t + f.total, 0);
+  if (total === 0) {
+    return (
+      <p className="self-center text-[0.84375rem] text-texto-suave">
+        Sin personas en el periodo.
+      </p>
+    );
+  }
+  /// Las diez primeras, y el resto sumado: con treinta y dos la
+  /// lista es más alta que el mapa y deja de acompañarlo.
+  const primeras = ordenadas.slice(0, 10);
+  const resto = ordenadas.slice(10);
+  const sumaResto = resto.reduce((t, f) => t + f.total, 0);
+
+  return (
+    <ul className="min-w-[190px] space-y-1 self-start text-[0.78125rem]">
+      {primeras.map((f) => (
+        <li key={f.nombre} className="flex items-baseline justify-between gap-3">
+          <span className="truncate text-texto" title={f.nombre}>
+            {f.nombre}
+          </span>
+          <span className="shrink-0 tabular-nums">
+            <strong className="font-semibold text-titulo">{n(f.total)}</strong>{" "}
+            <span className="text-texto-suave">
+              {Math.round((f.total / total) * 100)} %
+            </span>
+          </span>
+        </li>
+      ))}
+      {resto.length > 0 && (
+        <li className="flex items-baseline justify-between gap-3 border-t border-hairline pt-1 text-texto-suave">
+          <span>Otros {resto.length}</span>
+          <span className="shrink-0 tabular-nums">{n(sumaResto)}</span>
+        </li>
+      )}
+    </ul>
   );
 }
 

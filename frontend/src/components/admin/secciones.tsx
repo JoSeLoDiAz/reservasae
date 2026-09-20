@@ -55,7 +55,7 @@ export function Seccion({
 }) {
   return (
     <div
-      className={`mx-3 mb-3 rounded-2xl border border-borde bg-superficie ${className}`}
+      className={`mx-4 mb-3 rounded-2xl border border-borde bg-superficie ${className}`}
     >
       {children}
     </div>

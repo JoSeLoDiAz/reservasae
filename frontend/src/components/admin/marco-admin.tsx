@@ -1306,7 +1306,7 @@ export function Tarjeta({
     /// abajo. Se cambia aqui y no en las 150 llamadas
     /// repartidas por el codigo.
     <section
-      className={`mx-3 mb-3 rounded-2xl border border-borde bg-superficie ${
+      className={`mx-4 mb-3 rounded-2xl border border-borde bg-superficie ${
         centrado ? "flex h-full flex-col" : ""
       } ${plegable && !abierta ? "px-7 py-4" : "px-7 py-5"}`}
     >

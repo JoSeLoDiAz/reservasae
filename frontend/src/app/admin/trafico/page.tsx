@@ -245,7 +245,7 @@ export default function PaginaTrafico() {
           panel ponen su propio margen, y estas cajas son de esta
           pantalla y no lo traian: el encabezado quedaba separado
           del canto y todo lo de abajo pegado a él. */}
-      <div className="mx-3 space-y-5">
+      <div className="mx-4 space-y-5">
       {datos?.sinMarcarHoy && <AvisoSinMarcar {...datos.sinMarcarHoy} />}
 
       <ComoLeer hayHistorico={!!datos?.historico} />

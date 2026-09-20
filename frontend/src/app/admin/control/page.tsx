@@ -26,8 +26,15 @@ import { useDatosVivos } from "@/lib/datos-vivos";
  * de marca, y el texto en negrita: se leen antes que los demas
  * sin sacarlos de la fila.
  */
+/// Las dos cajas de fecha, marcadas como los periodos.
+///
+/// SIN el `w-full` de `CLASE_CONTROL`: en la fila de la cabecera
+/// se estiraban hasta el canto derecho --687 px para «20/09/2026»--
+/// y la fila entera se descuadraba (cliente, 20 sep 2026). Una
+/// fecha ocupa lo que ocupa una fecha.
 const CLASE_PERIODO =
-  CLASE_CONTROL.replace("border-campo-borde", "border-marca/45")
+  CLASE_CONTROL.replace("w-full ", "")
+    .replace("border-campo-borde", "border-marca/45")
     .replace("bg-campo-fondo", "bg-marca-suave")
     .replace("text-texto", "font-semibold text-marca");
 
@@ -190,9 +197,12 @@ export default function PaginaControl() {
           <h1 className="text-[1.125rem] font-bold tracking-[-0.02em] text-titulo">
             Control de Inscritos
           </h1>
+          {/* Corto. Dos intentos anteriores explicaban la
+              pantalla en tres renglones y el cliente los paró los
+              dos: «algo profesional, como: seguimiento y control
+              de leads» (20 sep 2026). */}
           <p className="mt-0.5 text-[0.78125rem] text-texto-suave">
-            Todo el proceso de inscripción, de interesado a inscrito — dónde
-            avanza y dónde se cae.
+            Seguimiento y control de leads, de la primera entrada a la inscripción.
           </p>
         </div>
         {/* LA COMPARACIÓN, AL FRENTE DEL TÍTULO.
@@ -205,8 +215,31 @@ export default function PaginaControl() {
 
             El indicador va con ellos, y solo en «Proceso»: en la
             otra pestaña diría una hora que no le corresponde. */}
-        {pestana === "metas" && (
-          <div className="flex flex-wrap items-end gap-4">
+        <div className="flex flex-wrap items-end gap-4">
+          {/* «Qué mirar» estaba suelto en su propio renglón debajo
+              del título; va con el periodo, que es la otra decisión
+              que enmarca la pantalla entera (cliente, 20 sep
+              2026), y a su izquierda. */}
+          <div className="no-imprimir">
+            <p className="mb-1.5 text-[0.625rem] font-bold tracking-[0.08em] text-texto-suave uppercase">
+              Qué mirar
+            </p>
+            <div className="w-[210px]">
+              <Desplegable
+                alto={34}
+                marcador="Qué mirar"
+                valor={pestana}
+                opciones={PESTANAS.map((p) => ({
+                  valor: p.clave,
+                  etiqueta: p.etiqueta,
+                }))}
+                alElegir={(v) => cambiar(v as typeof pestana)}
+              />
+            </div>
+          </div>
+
+          {pestana === "metas" && (
+            <>
             <div>
               <p className="mb-1.5 text-[0.625rem] font-bold tracking-[0.08em] uppercase text-texto-suave">
                 Periodo y comparación
@@ -214,7 +247,11 @@ export default function PaginaControl() {
               {/* Anchos de verdad: son dos frases --«Desde el
                   principio», «vs. el mes pasado»--, no dos
                   palabras, y apretados se leen cortados. */}
-              <div className="flex flex-wrap items-center gap-2 [&>*]:min-w-[11.5rem]">
+              {/* El mínimo es para los DOS desplegables --«Desde el
+                  principio», «vs. el mes pasado» no caben en menos--;
+                  las cajas de fecha traen el suyo y con este se
+                  estiraban a media pantalla (cliente, 20 sep 2026). */}
+              <div className="flex flex-wrap items-center gap-2 [&>button]:min-w-[11.5rem] [&>div]:min-w-[11.5rem]">
                 <ControlesDePeriodo
                   rango={rango}
                   alCambiarRango={setRango}
@@ -238,25 +275,10 @@ export default function PaginaControl() {
               desactualizado={vivos.desactualizado}
               alRefrescar={vivos.refrescar}
             />
-          </div>
-        )}
+            </>
+          )}
+        </div>
       </header>
-
-      {/* Desplegable y no pestañas, como en Calendario y en
-          Académica: «ya no más así, no me gusta» (cliente, 12 sep
-          2026). */}
-      <div className="no-imprimir w-[210px]">
-        <Desplegable
-          alto={34}
-          marcador="Qué mirar"
-          valor={pestana}
-          opciones={PESTANAS.map((p) => ({
-            valor: p.clave,
-            etiqueta: p.etiqueta,
-          }))}
-          alElegir={(v) => cambiar(v as typeof pestana)}
-        />
-      </div>
 
       {pestana === "comite" && <ComiteMarketing />}
 
@@ -358,7 +380,7 @@ function ControlesDePeriodo({
         <>
           <input
             type="date"
-            className={`${CLASE_PERIODO} w-full`}
+            className={`${CLASE_PERIODO} w-[9.5rem]`}
             value={desde}
             max={hasta || undefined}
             onChange={(e) => alCambiarDesde(e.target.value)}
@@ -367,7 +389,7 @@ function ControlesDePeriodo({
           />
           <input
             type="date"
-            className={`${CLASE_PERIODO} w-full`}
+            className={`${CLASE_PERIODO} w-[9.5rem]`}
             value={hasta}
             min={desde || undefined}
             onChange={(e) => alCambiarHasta(e.target.value)}
@@ -399,7 +421,7 @@ function ControlesDePeriodo({
         <>
           <input
             type="date"
-            className={`${CLASE_PERIODO} w-full`}
+            className={`${CLASE_PERIODO} w-[9.5rem]`}
             value={contraDesde}
             max={contraHasta || undefined}
             onChange={(e) => alCambiarContraDesde(e.target.value)}
@@ -408,7 +430,7 @@ function ControlesDePeriodo({
           />
           <input
             type="date"
-            className={`${CLASE_PERIODO} w-full`}
+            className={`${CLASE_PERIODO} w-[9.5rem]`}
             value={contraHasta}
             min={contraDesde || undefined}
             onChange={(e) => alCambiarContraHasta(e.target.value)}

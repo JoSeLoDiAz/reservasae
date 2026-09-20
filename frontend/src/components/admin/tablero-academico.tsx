@@ -247,7 +247,7 @@ export function TableroAcademico() {
 
   return (
     <div>
-      <header className="mx-3 mb-3 flex flex-wrap items-start justify-between gap-4 rounded-2xl border border-borde bg-superficie px-7 pt-[26px] pb-[22px]">
+      <header className="mx-4 mb-3 flex flex-wrap items-start justify-between gap-4 rounded-2xl border border-borde bg-superficie px-7 pt-[26px] pb-[22px]">
         {/* SIN BAJADA. La quitó el cliente el 12 sep 2026, y hacía
             falta: mandaba a «la pestaña Avance», que ya no existe
             --Seguimiento y Tablero son dos entradas del menú desde
