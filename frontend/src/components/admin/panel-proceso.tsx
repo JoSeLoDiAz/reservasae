@@ -29,6 +29,7 @@ import { MapaColombia } from "./mapa-colombia";
 import { Aviso } from "./marco-admin";
 import {
   Donut,
+  ListaBarras,
   Medidor,
   n,
   SERIE,
@@ -911,12 +912,23 @@ export function PanelProceso({
                   total: d.total,
                 }))}
               />
-              <ListaDepartamentos
-                filas={((delPeriodo ?? resumen)?.departamentos ?? []).map((d) => ({
-                  nombre: d.nombre,
-                  total: d.total,
-                }))}
-              />
+              {/* EL MISMO componente de barras que usa Tráfico, y
+                  no una lista a mano: dos maneras de pintar la
+                  misma clase de dato se separan a la primera. */}
+              <div className="min-w-[230px]">
+                <ListaBarras
+                  datos={[...((delPeriodo ?? resumen)?.departamentos ?? [])]
+                    .sort((a, b) => b.total - a.total)
+                    .map((d) => ({
+                      clave: String(d.id ?? d.nombre),
+                      etiqueta: d.nombre,
+                      valor: d.total,
+                    }))}
+                  sufijo=" personas"
+                  maximoFilas={6}
+                  vacio="Sin personas en el periodo."
+                />
+              </div>
             </div>
           </Bloque>
 
@@ -945,58 +957,6 @@ export function PanelProceso({
 
       </div>
     </div>
-  );
-}
-
-/**
- * Los departamentos con su cifra, al lado del mapa.
- *
- * El mapa dice DÓNDE de un vistazo y la lista dice CUÁNTOS: el
- * color de un departamento pequeño no se distingue, y buscar
- * Arauca en el mapa para saber si son 3 o 30 no es leer un dato.
- */
-function ListaDepartamentos({
-  filas,
-}: {
-  filas: Array<{ nombre: string; total: number }>;
-}) {
-  const ordenadas = [...filas].sort((a, b) => b.total - a.total);
-  const total = ordenadas.reduce((t, f) => t + f.total, 0);
-  if (total === 0) {
-    return (
-      <p className="self-center text-[0.84375rem] text-texto-suave">
-        Sin personas en el periodo.
-      </p>
-    );
-  }
-  /// Las diez primeras, y el resto sumado: con treinta y dos la
-  /// lista es más alta que el mapa y deja de acompañarlo.
-  const primeras = ordenadas.slice(0, 10);
-  const resto = ordenadas.slice(10);
-  const sumaResto = resto.reduce((t, f) => t + f.total, 0);
-
-  return (
-    <ul className="min-w-[190px] space-y-1 self-start text-[0.78125rem]">
-      {primeras.map((f) => (
-        <li key={f.nombre} className="flex items-baseline justify-between gap-3">
-          <span className="truncate text-texto" title={f.nombre}>
-            {f.nombre}
-          </span>
-          <span className="shrink-0 tabular-nums">
-            <strong className="font-semibold text-titulo">{n(f.total)}</strong>{" "}
-            <span className="text-texto-suave">
-              {Math.round((f.total / total) * 100)} %
-            </span>
-          </span>
-        </li>
-      ))}
-      {resto.length > 0 && (
-        <li className="flex items-baseline justify-between gap-3 border-t border-hairline pt-1 text-texto-suave">
-          <span>Otros {resto.length}</span>
-          <span className="shrink-0 tabular-nums">{n(sumaResto)}</span>
-        </li>
-      )}
-    </ul>
   );
 }
 

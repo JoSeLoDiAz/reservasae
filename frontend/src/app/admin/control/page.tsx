@@ -241,8 +241,17 @@ export default function PaginaControl() {
           {pestana === "metas" && (
             <>
             <div>
+              {/* DOS PREGUNTAS, DOS RÓTULOS.
+
+                  Iban bajo un solo «Periodo y comparación», y el
+                  segundo desplegable decía «vs. anterior» sin
+                  decir nunca contra qué: con dos fechas elegidas
+                  parecía que sobraba --«¿por qué cuando selecciono
+                  fechas me sale vs. lo anterior?», cliente, 20 sep
+                  2026--. Ahora se leen como lo que son: QUÉ
+                  PERIODO se mira, y CONTRA QUÉ se compara. */}
               <p className="mb-1.5 text-[0.625rem] font-bold tracking-[0.08em] uppercase text-texto-suave">
-                Periodo y comparación
+                Periodo
               </p>
               {/* Anchos de verdad: son dos frases --«Desde el
                   principio», «vs. el mes pasado»--, no dos
@@ -253,6 +262,30 @@ export default function PaginaControl() {
                   estiraban a media pantalla (cliente, 20 sep 2026). */}
               <div className="flex flex-wrap items-center gap-2 [&>button]:min-w-[11.5rem] [&>div]:min-w-[11.5rem]">
                 <ControlesDePeriodo
+                  parte="periodo"
+                  rango={rango}
+                  alCambiarRango={setRango}
+                  desde={desde}
+                  alCambiarDesde={setDesde}
+                  hasta={hasta}
+                  alCambiarHasta={setHasta}
+                  contra={contra}
+                  alCambiarContra={setContra}
+                  contraDesde={contraDesde}
+                  alCambiarContraDesde={setContraDesde}
+                  contraHasta={contraHasta}
+                  alCambiarContraHasta={setContraHasta}
+                />
+              </div>
+            </div>
+
+            <div>
+              <p className="mb-1.5 text-[0.625rem] font-bold tracking-[0.08em] uppercase text-texto-suave">
+                Comparar con
+              </p>
+              <div className="flex flex-wrap items-center gap-2 [&>button]:min-w-[11.5rem] [&>div]:min-w-[11.5rem]">
+                <ControlesDePeriodo
+                  parte="comparacion"
                   rango={rango}
                   alCambiarRango={setRango}
                   desde={desde}
@@ -347,6 +380,7 @@ function ControlesDePeriodo({
   alCambiarContraDesde,
   contraHasta,
   alCambiarContraHasta,
+  parte,
 }: {
   rango: Rango;
   alCambiarRango: (r: Rango) => void;
@@ -359,10 +393,14 @@ function ControlesDePeriodo({
   contraDesde: string;
   alCambiarContraDesde: (v: string) => void;
   contraHasta: string;
+  /// «periodo» son el rango y sus fechas; «comparacion», contra
+  /// qué. Se pintan en grupos distintos y cada uno con su rótulo.
+  parte: "periodo" | "comparacion";
   alCambiarContraHasta: (v: string) => void;
 }) {
-  return (
-    <>
+  if (parte === "periodo") {
+    return (
+      <>
       {/* `Desplegable` y no `<select>`: la lista de un select
           la dibuja el sistema operativo, con su cuadro cuadrado
           y su azul, y al lado de los cinco filtros --que sí se
@@ -399,19 +437,26 @@ function ControlesDePeriodo({
         </>
       )}
 
-      {/* El «vs.» va en el texto de cada opción y no en un
-          rótulo aparte: el grupo ya se llama «Comparación», pero
-          la opción tiene que seguir diciendo que lo es cuando se
-          lee cerrada. */}
+      </>
+    );
+  }
+
+  return (
+    <>
+      {/* SIN EL «vs.»: ahora el grupo se llama «Comparar con», así
+          que cada opción dice CONTRA QUÉ, en limpio. «vs. anterior»
+          no decía anterior a qué --y con dos fechas elegidas parecía
+          que sobraba-- : es el mismo número de días justo antes del
+          periodo que se está mirando. */}
       <Desplegable
         alto={34}
         etiquetaAria="Comparar con"
         valor={contra}
         opciones={[
-          { valor: "AUTO", etiqueta: "vs. anterior" },
+          { valor: "AUTO", etiqueta: "El periodo anterior" },
           ...RANGOS.map((r) => ({
             valor: r,
-            etiqueta: `vs. ${ETIQUETA_RANGO[r].toLowerCase()}`,
+            etiqueta: ETIQUETA_RANGO[r],
           })),
         ]}
         alElegir={(v) => alCambiarContra(v as Rango | "AUTO")}

@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+
 /** Lo que estas cifras piden hacer hoy, en orden. */
 
 /**
@@ -66,13 +68,19 @@ export function PendientesDeHoy({ control }: { control: Control | null }) {
     que: string;
     hacer: string;
     accion: string;
+    /// A DÓNDE LLEVA. Era un `<span>` suelto: «¿qué significa
+    /// Cobrar nombres, y no tiene hipervínculo ni nada?» (cliente,
+    /// 20 sep 2026). Un rótulo que parece botón y no hace nada es
+    /// peor que no ponerlo.
+    a: string;
   }> = [];
 
   if (sinNombre > 0)
     pendientes.push({
       tono: cobertura >= 0.8 ? "bueno" : cobertura >= 0.4 ? "normal" : "aviso",
       cifra: sinNombre,
-      accion: "Cobrar nombres",
+      accion: "Ver reservas",
+      a: "/admin/reservas",
       que: `de los ${n(d.cuposConfirmados)} cupos apartados no tienen todavía un nombre detrás.`,
       hacer: empresaFloja
         ? `La que más debe es ${empresaFloja.razonSocial}, con ${n(
@@ -85,7 +93,8 @@ export function PendientesDeHoy({ control }: { control: Control | null }) {
     pendientes.push({
       tono: "aviso",
       cifra: frios,
-      accion: "Llamar",
+      accion: "Ver esos leads",
+      a: "/admin/participantes",
       que: `de los ${n(esperando)} leads que esperan una primera llamada llevan más de una semana.`,
       hacer: "Llámelos hoy: cuanto más se enfría un lead, menos se inscribe.",
     });
@@ -94,7 +103,8 @@ export function PendientesDeHoy({ control }: { control: Control | null }) {
     pendientes.push({
       tono: "normal",
       cifra: d.sinAsignar,
-      accion: "Asignar",
+      accion: "Repartir leads",
+      a: "/admin/participantes",
       que: "leads no tienen asesor asignado.",
       hacer: "Repártalos, porque hoy no los está llamando nadie.",
     });
@@ -103,7 +113,8 @@ export function PendientesDeHoy({ control }: { control: Control | null }) {
     pendientes.push({
       tono: "bueno",
       cifra: Math.round(mejorCanal.conversion * 100),
-      accion: "Ver canal",
+      accion: "Ver el tráfico",
+      a: "/admin/trafico",
       que: `% inscribe «${
         ETIQUETA_ORIGEN[mejorCanal.etiqueta as Origen] ?? mejorCanal.etiqueta
       }», el canal que mejor rinde.`,
@@ -147,9 +158,12 @@ export function PendientesDeHoy({ control }: { control: Control | null }) {
                 <span className="text-titulo">{p.que}</span>{" "}
                 <span className="text-texto-suave">{p.hacer}</span>
               </p>
-              <span className="shrink-0 text-[0.6875rem] font-semibold tracking-[0.06em] text-marca uppercase">
+              <Link
+                href={p.a}
+                className="shrink-0 rounded-lg border border-marca/30 px-2.5 py-1 text-[0.75rem] font-semibold text-marca transition hover:bg-marca-suave"
+              >
                 {p.accion}
-              </span>
+              </Link>
             </li>
           ))}
         </ul>

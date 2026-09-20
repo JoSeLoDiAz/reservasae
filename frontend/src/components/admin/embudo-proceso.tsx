@@ -97,6 +97,7 @@ export function EmbudoProceso({
   meta = null,
   antes = null,
   etiquetaAntes = null,
+  etiquetaAhora = null,
   resumen = null,
   sobrio = false,
 }: {
@@ -116,6 +117,8 @@ export function EmbudoProceso({
   /// entendía (18 sep 2026).
   antes?: number[] | null;
   etiquetaAntes?: string | null;
+  /// El nombre del periodo que se está mirando, para la leyenda.
+  etiquetaAhora?: string | null;
   /**
    * La misma historia EN UNA FRASE, encima de las barras.
    *
@@ -165,11 +168,30 @@ export function EmbudoProceso({
     /// números. Se recorta el alto y el ancho se respeta.
     <div>
       {resumen && (
-        <p className="mb-4 text-[0.8125rem] leading-relaxed text-texto">{resumen}</p>
+        <p className="mb-3 text-[0.8125rem] leading-relaxed text-texto">{resumen}</p>
+      )}
+
+      {/* LA LEYENDA, y sin ella las dos barras no dicen nada. */}
+      {antes && (
+        <p className="mb-3 flex flex-wrap items-center gap-4 text-[0.75rem] text-texto-suave">
+          <span className="inline-flex items-center gap-1.5">
+            <span className="h-2.5 w-2.5 rounded-[3px] bg-marca-fuerte" aria-hidden />
+            {etiquetaAhora ?? "El periodo elegido"}
+          </span>
+          <span className="inline-flex items-center gap-1.5">
+            <span
+              className="h-2.5 w-2.5 rounded-[3px] border border-borde bg-superficie-alterna"
+              aria-hidden
+            />
+            {etiquetaAntes ?? "El periodo anterior"}
+          </span>
+        </p>
       )}
 
       <div className="flex items-end gap-3">
         {hitos.map((h, i) => {
+          const antesDe = antes?.[i];
+          const hayAntes = antesDe !== undefined;
           const previo = i > 0 ? hitos[i - 1].total : null;
           const caida = previo !== null ? previo - h.total : 0;
           const esUltimo = i === hitos.length - 1;
@@ -206,34 +228,46 @@ export function EmbudoProceso({
                 </div>
               )}
 
-              <div className="text-[1.375rem] leading-none font-bold text-titulo tabular-nums">
-                {n(h.total)}
-              </div>
+              {!hayAntes && (
+                <div className="text-[1.375rem] leading-none font-bold text-titulo tabular-nums">
+                  {n(h.total)}
+                </div>
+              )}
 
-              {/* LA BARRA DEL PERIODO ANTERIOR, DETRAS Y EN GRIS.
-                  Se ve de un vistazo si hay más o menos que antes,
-                  sin una segunda cifra de colores compitiendo con
-                  la de arriba. La escala es la MISMA --el primer
-                  hito de ahora--, que es lo que deja compararlas;
-                  si antes hubo más, la gris asoma por encima. */}
-              <div className="relative mt-1.5 flex h-[112px] w-full items-end justify-center">
-                {antes && antes[i] !== undefined && (
+              {/* DOS BARRAS, UNA POR PERIODO.
+
+                  Estuvo la del periodo anterior DETRÁS, en gris, y
+                  no se entendía: «cuando compara no deben ser 2
+                  filas, o sea el de x día y el otro de x día»
+                  (cliente, 20 sep 2026). Ahora son dos barras una
+                  al lado de la otra, cada una con su cifra encima y
+                  su color en la leyenda de arriba. Sin comparación
+                  queda una sola, como siempre. */}
+              <div className="mt-1.5 flex h-[112px] w-full items-end justify-center gap-1.5">
+                <div className="flex h-full w-1/2 flex-col justify-end">
+                  <span className="mb-1 text-center text-[0.8125rem] font-bold text-titulo tabular-nums">
+                    {hayAntes ? n(h.total) : ""}
+                  </span>
                   <div
-                    className="absolute bottom-0 w-2/3 rounded-t-[7px] border border-borde bg-superficie-alterna"
-                    style={{ height: `${alto(antes[i])}%` }}
-                    aria-hidden
+                    className="w-full rounded-t-[7px] transition-[height] duration-500"
+                    style={{
+                      height: `${alto(h.total)}%`,
+                      background: colorEtapa(h.etapa),
+                    }}
                   />
+                </div>
+
+                {hayAntes && (
+                  <div className="flex h-full w-1/2 flex-col justify-end">
+                    <span className="mb-1 text-center text-[0.8125rem] font-semibold text-texto-suave tabular-nums">
+                      {n(antesDe)}
+                    </span>
+                    <div
+                      className="w-full rounded-t-[7px] border border-borde bg-superficie-alterna"
+                      style={{ height: `${alto(antesDe)}%` }}
+                    />
+                  </div>
                 )}
-                {/* La de AHORA va delante y del mismo ancho: si
-                    antes hubo más, la gris asoma por encima como
-                    una marca de agua; si hay más ahora, la tapa. */}
-                <div
-                  className="relative w-2/3 rounded-t-[7px] transition-[height] duration-500"
-                  style={{
-                    height: `${alto(h.total)}%`,
-                    background: colorEtapa(h.etapa),
-                  }}
-                />
               </div>
 
               <div className="mt-2 text-center text-[0.75rem] leading-[1.15] font-semibold text-titulo">
@@ -262,45 +296,6 @@ export function EmbudoProceso({
           );
         })}
       </div>
-
-      {antes && (
-        <div className="mt-4 overflow-x-auto border-t border-hairline pt-3">
-          {/* Angosta y a la izquierda: estirada a 1.600 px quedaban
-              cuatro cifras con medio metro de vacío en medio. */}
-          <table className="w-full max-w-[520px] text-[0.75rem] tabular-nums">
-            <thead>
-              <tr className="text-texto-suave">
-                <th className="py-1 text-left font-medium">Paso</th>
-                <th className="py-1 text-right font-medium">Ahora</th>
-                <th className="py-1 text-right font-medium" title={etiquetaAntes ?? "Antes"}>
-                  Antes
-                </th>
-                <th className="py-1 text-right font-medium">Diferencia</th>
-              </tr>
-            </thead>
-            <tbody>
-              {hitos.map((h, i) => {
-                const b = antes[i];
-                const d = b === undefined ? null : h.total - b;
-                return (
-                  <tr key={`fila-${h.etiqueta}#${i}`} className="border-t border-hairline">
-                    <td className="py-1 text-left text-titulo">{h.etiqueta}</td>
-                    <td className="py-1 text-right font-semibold text-titulo">
-                      {n(h.total)}
-                    </td>
-                    <td className="py-1 text-right text-texto-suave">
-                      {b === undefined ? "—" : n(b)}
-                    </td>
-                    <td className="py-1 text-right text-texto-suave">
-                      {d === null ? "—" : d === 0 ? "igual" : `${d > 0 ? "+" : "−"}${n(Math.abs(d))}`}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      )}
 
       {antes && (
         <p className="mt-2 text-center text-[0.6875rem] text-texto-suave">
