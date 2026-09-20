@@ -1151,7 +1151,18 @@ export class PreinscripcionService {
     });
     await this.guardarCaracterizaciones(p.personaId, dto, enlace.participanteId);
 
-    return { guardado: true, enEspera: false };
+    /// AQUI, y no solo al terminar el paso de la empresa.
+    ///
+    /// La etapa se movia en `guardarEmpresa`, asi que quien
+    /// llenaba SUS datos y cerraba ahi --sin llegar al paso de la
+    /// organizacion-- quedaba «Interesado» con «Sin pendientes»
+    /// al lado, para siempre: nadie vuelve a tocar esa ficha. Lo
+    /// vio Mauricio el 20 sep 2026, con fichas del MISMO dia en
+    /// los dos estados. Lo que falta de la empresa no es de la
+    /// persona y no entra en `faltaDeLaPersona`.
+    const etapa = await this.inscribirSiEstaCompleto(enlace.participanteId);
+
+    return { guardado: true, enEspera: false, etapa };
   }
 
   /**
@@ -1702,7 +1713,10 @@ export class PreinscripcionService {
       where: { id: enlace.id },
       data: { usadoEn: new Date() },
     });
-    return { cerrado: true };
+    /// Cerrar sin llenar lo de la empresa tampoco puede dejarla en
+    /// «Interesado» si ya no le falta nada suyo.
+    const etapa = await this.inscribirSiEstaCompleto(enlace.participanteId);
+    return { cerrado: true, etapa };
   }
 
   private async exigirEnlaceVivo(token: string) {
