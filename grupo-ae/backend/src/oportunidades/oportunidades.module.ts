@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
 
+import { ParametrosModule } from '../parametros/parametros.module';
 import { PrismaModule } from '../prisma/prisma.module';
 import { OportunidadesController } from './oportunidades.controller';
 import { OportunidadesService } from './oportunidades.service';
@@ -24,6 +25,10 @@ import { OportunidadesService } from './oportunidades.service';
       signOptions: { expiresIn: '8h' },
     }),
     PrismaModule,
+    /// El tablero se arma con los parámetros de Configuración: el
+    /// compromiso de respuesta, el umbral de bananeo, los días para
+    /// fría y la probabilidad de cada etapa.
+    ParametrosModule,
   ],
   controllers: [OportunidadesController],
   providers: [OportunidadesService],

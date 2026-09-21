@@ -23,7 +23,13 @@
 import type { CSSProperties, ReactNode } from "react";
 
 import { enMomento } from "@/lib/en-fecha";
-import type { EtapaOportunidad, TipoEmbudo } from "@/lib/oportunidades-api";
+import {
+  PORQUE_SENAL,
+  ROTULO_SENAL,
+  type EtapaOportunidad,
+  type Senal,
+  type TipoEmbudo,
+} from "@/lib/oportunidades-api";
 
 /* ─── Los papeles tipográficos ────────────────────────────────
  *
@@ -218,6 +224,14 @@ export function Fecha({ iso }: { iso: string | null | undefined }) {
  * respuesta en cinco minutos ya se matriculó en otro instituto;
  * una propuesta de 46 millones aguanta el día.
  */
+/// EL MISMO NÚMERO QUE `COMPROMISO_EN_MINUTOS` del backend, en
+/// `oportunidades/ans.ts`, que es donde está escrito el porqué y
+/// desde donde se CUENTAN los incumplimientos. Aquí solo sirve
+/// para pintar; si cambia allá, cambia aquí.
+///
+/// Durante un tiempo este número vivió solo aquí, y esa fue la
+/// causa de que la portada contara los incumplidos con un 5
+/// escrito a mano para los dos embudos.
 const UMBRAL_EN_MINUTOS: Record<TipoEmbudo, number> = {
   PERSONA: 5,
   EMPRESA: 24 * 60,
@@ -286,6 +300,51 @@ export function Reloj({
     >
       {relojEnTexto(minutos)}
     </span>
+  );
+}
+
+/* ─── Señales ─────────────────────────────────────────────── */
+
+/**
+ * Muerto viviente y bananeo, en la tarjeta y en la lista.
+ *
+ * SIN FONDO Y SIN CAJA. El criterio de la casa es que el color va
+ * en el texto y en marcas pequeñas, no en fondos, y aquí importa
+ * más que en otros sitios: estas marcas salen DENTRO de una
+ * tarjeta que ya tiene borde, y una etiqueta con fondo dentro de
+ * una caja con borde son dos cajas anidadas por un dato de dos
+ * palabras.
+ *
+ * LOS COLORES SON LOS QUE YA SIGNIFICAN ESO en el panel, no unos
+ * nuevos: `--aviso` es lo que va tarde —el mismo del reloj cuando
+ * se pasa— y `--error` es la alarma, el mismo de «Sin contestar».
+ * Un muerto viviente es alarma porque está mintiendo en el
+ * pronóstico; un bananeo va tarde.
+ *
+ * EL PORQUÉ VIAJA EN EL `title`, y no es un adorno. Una etiqueta
+ * que dice «Bananeo» y no dice por qué es una etiqueta de la que
+ * nadie se fía; a las dos semanas la gente la ignora y la señal se
+ * muere. Con el motivo encima, la marca dice además qué hacer.
+ */
+export function Senales({ senales }: { senales: Senal[] }) {
+  /// Un negocio sano no pinta nada, ni un hueco reservado: el
+  /// espacio vacío en la tarjeta ya es información.
+  if (senales.length === 0) return null;
+
+  return (
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+      {senales.map((s) => (
+        <span
+          key={s}
+          title={PORQUE_SENAL[s]}
+          className={`estado whitespace-nowrap ${
+            s === "MUERTO_VIVIENTE" ? "text-error" : "text-aviso"
+          }`}
+        >
+          {ROTULO_SENAL[s]}
+        </span>
+      ))}
+    </div>
   );
 }
 

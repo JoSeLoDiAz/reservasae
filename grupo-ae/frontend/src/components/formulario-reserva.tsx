@@ -29,7 +29,12 @@
 import { notFound } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 
-import { api, ErrorApi, type Catalogo, type Reserva } from "@/lib/api";
+import { api, ErrorApi, type Catalogo } from "@/lib/api";
+import {
+  LARGO_MAXIMO_CAMPANA,
+  PARAMETRO_CAMPANA,
+  PARAMETRO_ORIGEN,
+} from "@/lib/enlace-de-campana";
 import { CajaDePolitica, usePolitica } from "@/components/caja-de-politica";
 import {
   formularioPublico,
@@ -70,9 +75,10 @@ const CLASE_CONTROL =
  * los datos rompía el envío, así que la oferta se resuelve aquí
  * —la primera que no esté completa— y no se enseña.
  *
- * **Es un puente, no un diseño.** El día que
- * `backend/src/captacion/` reciba este formulario, la
- * oportunidad nace sin oferta y esta función se borra entera.
+ * **Ya no sostiene el envío.** Desde el 18 sep 2026 el formulario
+ * entra por `POST /captacion/:slug`, que crea el negocio sin oferta
+ * ni cupos. Se conserva —no se borra— porque `/reservas` sigue vivo
+ * para Convoca y esta es la regla con la que se colgaban ahí.
  */
 function ofertaDeRespaldo(catalogo: Catalogo | null): string | null {
   const ofertas = catalogo?.acciones.flatMap((a) => a.ofertas) ?? [];
@@ -85,7 +91,7 @@ export function FormularioReserva({ slug }: { slug: string }) {
   const [estado, setEstado] = useState<Estado>("cargando");
   const [error, setError] = useState<string | null>(null);
   const [noExiste, setNoExiste] = useState(false);
-  const [resultado, setResultado] = useState<Reserva | null>(null);
+  const [resultado, setResultado] = useState<Recibido | null>(null);
 
   const [valores, setValores] = useState<Record<string, Valor>>({});
 
@@ -178,14 +184,9 @@ export function FormularioReserva({ slug }: { slug: string }) {
     evento.preventDefault();
     setError(null);
 
-    const ofertaId = ofertaDeRespaldo(catalogo);
-    if (!ofertaId) {
-      setError(
-        "No fue posible registrar su solicitud en este momento. " +
-          "Escríbanos al correo del pie de página y lo atendemos.",
-      );
-      return;
-    }
+    /// Ya no hace falta una oferta: el negocio nace sin ella.
+    void ofertaDeRespaldo;
+    void catalogo;
 
     const nucleo = (campo: string): Valor => {
       const pregunta = porCampo.get(campo);
@@ -218,33 +219,39 @@ export function FormularioReserva({ slug }: { slug: string }) {
       return typeof v === "string" && v ? v : undefined;
     };
 
+    /// Datos de la empresa que el formulario pregunta sin campo
+    /// propio en la captación: van a la primera gestión como
+    /// respuestas, donde el asesor los lee. Así no se pierde nada.
+    void seleccionUnica;
+
     setEstado("enviando");
     try {
-      const reserva = await api.crearReserva({
-        ofertaId,
+      /**
+       * POR LA PUERTA DE CAPTACIÓN, NO POR LA DE RESERVAS.
+       *
+       * Iba a `POST /reservas`, que nació para apartar cupos del SENA:
+       * no creaba ningún negocio, y además exigía «términos» con una
+       * casilla que el formulario no tiene, así que NINGÚN envío
+       * pasaba (auditoría del 18 sep 2026). La captación crea el
+       * negocio en «Solicitud de negocio» del embudo que corresponde
+       * —empresas si el formulario pide NIT, personas si no—, con su
+       * campaña, y reconoce a quien ya había escrito.
+       *
+       * La única casilla es la de la política de datos, y es la que
+       * la captación exige (Ley 1581).
+       */
+      const recibido = await api.captar(formulario!.slug, {
+        nombre: texto("CONTACTO_NOMBRE"),
+        correo: texto("CONTACTO_CORREO"),
+        celular: texto("CONTACTO_CELULAR"),
+        cargo: texto("CONTACTO_CARGO"),
         nit: texto("EMPRESA_NIT"),
         razonSocial: texto("EMPRESA_RAZON_SOCIAL"),
-        numeroColaboradores: nucleo("EMPRESA_COLABORADORES")
-          ? Number(nucleo("EMPRESA_COLABORADORES"))
-          : undefined,
-        redAsociada: seleccionUnica("EMPRESA_RED_ASOCIADA"),
-        redAsociadaOtra: texto("EMPRESA_RED_ASOCIADA_OTRA"),
-        contactoNombre: texto("CONTACTO_NOMBRE"),
-        contactoCorreo: texto("CONTACTO_CORREO"),
-        contactoCelular: texto("CONTACTO_CELULAR"),
-        contactoCargo: texto("CONTACTO_CARGO"),
-        /// UNO, siempre, y ya no se pregunta.
-        ///
-        /// El DTO exige `cuposSolicitados >= 1`. Cuántas
-        /// personas participarían es una conversación del
-        /// asesor, no un campo de la puerta de entrada.
-        cuposSolicitados: 1,
-        aceptaTerminos: nucleo("ACEPTA_TERMINOS") === true,
-        aceptaPoliticaDatos: nucleo("ACEPTA_POLITICA_DATOS") === true,
-        formularioSlug: formulario!.slug,
+        aceptaPolitica: nucleo("ACEPTA_POLITICA_DATOS") === true,
+        ...origenDelEnlace(),
         respuestas,
       });
-      setResultado(reserva);
+      setResultado({ ...recibido, nombre: texto("CONTACTO_NOMBRE") ?? "" });
       setEstado("hecho");
     } catch (e) {
       const fallo = e as ErrorApi;
@@ -256,7 +263,9 @@ export function FormularioReserva({ slug }: { slug: string }) {
       setError(
         fallo.estado === 409
           ? "Ya tenemos una solicitud registrada con esos datos. Un asesor comercial se comunicará con usted."
-          : fallo.message,
+          : fallo.estado === 429
+            ? "Recibimos muchos envíos seguidos desde su conexión. Espere un minuto y vuelva a intentarlo."
+            : fallo.message,
       );
       setEstado("listo");
     }
@@ -280,7 +289,7 @@ export function FormularioReserva({ slug }: { slug: string }) {
   }
 
   if (estado === "hecho" && resultado) {
-    return <Gracias reserva={resultado} mensaje={formulario?.mensajeExito} />;
+    return <Gracias recibido={resultado} mensaje={formulario?.mensajeExito} />;
   }
 
   return (
@@ -577,8 +586,46 @@ function Campo({
  * El texto lo puede escribir el panel (`mensajeExito`); lo de
  * abajo es lo que se dice mientras nadie lo escriba.
  */
-function Gracias({ reserva, mensaje }: { reserva: Reserva; mensaje?: string | null }) {
-  const nombre = reserva.contacto.nombre.trim().split(" ")[0] ?? "";
+/// Lo que devuelve la captación, más el nombre que escribió: la
+/// respuesta es siempre la misma, se haya creado el negocio o se haya
+/// reconocido uno anterior, y por eso no trae datos de nadie.
+type Recibido = { recibido: boolean; referencia: string; mensaje: string; nombre: string };
+
+/**
+ * De dónde vino, leído del enlace.
+ *
+ * `campana` y `origen` son los que arma el panel en «Enlace con
+ * campaña» (lib/enlace-de-campana.ts). Los `utm_*` y el `fbclid`
+ * son los que ponen Meta y Google solos: sin leerlos, un lead pagado
+ * de Instagram entraba como si hubiera llegado por su cuenta, que es
+ * el error que José corrigió en su rama (f5b79f6).
+ */
+function origenDelEnlace(): { campana?: string; origen?: string } {
+  if (typeof window === "undefined") return {};
+  const q = new URLSearchParams(window.location.search);
+  const marca = q.get(PARAMETRO_CAMPANA)?.trim();
+  const utmCampana = q.get("utm_campaign")?.trim();
+  const fuente = (q.get(PARAMETRO_ORIGEN) ?? q.get("utm_source") ?? "").trim().toLowerCase();
+
+  const ORIGENES: Record<string, string> = {
+    instagram: "INSTAGRAM", ig: "INSTAGRAM",
+    facebook: "FACEBOOK", fb: "FACEBOOK", meta: "FACEBOOK",
+    linkedin: "LINKEDIN",
+    whatsapp: "WHATSAPP", wa: "WHATSAPP",
+    correo: "CORREO", email: "CORREO", mail: "CORREO",
+    evento: "EVENTO", referido: "REFERIDO", redes: "REDES",
+  };
+  const origen = ORIGENES[fuente] ?? (q.get("fbclid") ? "FACEBOOK" : undefined);
+
+  const campana = marca || (utmCampana ? `${fuente || "anuncio"} · ${utmCampana}` : undefined);
+  return {
+    ...(campana ? { campana: campana.slice(0, LARGO_MAXIMO_CAMPANA) } : {}),
+    ...(origen ? { origen } : {}),
+  };
+}
+
+function Gracias({ recibido, mensaje }: { recibido: Recibido; mensaje?: string | null }) {
+  const nombre = recibido.nombre.trim().split(" ")[0] ?? "";
 
   return (
     <div className="py-8">
@@ -590,6 +637,13 @@ function Gracias({ reserva, mensaje }: { reserva: Reserva; mensaje?: string | nu
           "Un asesor comercial se comunicará con usted dentro del siguiente día " +
             "hábil, por el correo o el celular que registró."}
       </p>
+      {/* El número se dice por teléfono y se busca en el panel: es
+          lo único que la persona necesita guardar. */}
+      {recibido.referencia && (
+        <p className="dato text-texto-suave mt-3">
+          Número de su solicitud: <b className="text-texto">{recibido.referencia}</b>
+        </p>
+      )}
     </div>
   );
 }

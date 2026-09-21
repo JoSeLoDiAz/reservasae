@@ -37,7 +37,7 @@ export function EncabezadoImpresion({
   return (
     <div className="solo-impresion mb-6 border-b border-borde pb-3">
       <p className="text-[10px] font-semibold uppercase tracking-widest text-texto-suave">
-        Grupo AE CRM · Captación y ventas
+        Convoca CRM · Relaciones que generan resultados
       </p>
       <h1 className="mt-1 text-xl font-semibold">{titulo}</h1>
       <p className="mt-0.5 micro">

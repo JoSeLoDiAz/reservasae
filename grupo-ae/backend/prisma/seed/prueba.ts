@@ -109,11 +109,11 @@ const CONCESIONES: Record<string, Record<string, RolConvenio>> = {
 };
 
 const CARGO_DEL_ROL: Record<RolConvenio, string> = {
-  LIDER_SISTEMAS: 'Líder de sistemas de información',
+  LIDER_SISTEMAS: 'Líder de configuración',
   LIDER_INSCRIPCION: 'Líder comercial',
   GESTOR_INSCRIPCION: 'Asesora comercial',
-  LIDER_ACADEMICO: 'Líder de servicio al cliente',
-  GESTOR_ACADEMICO: 'Gestor de servicio al cliente',
+  LIDER_ACADEMICO: 'Líder de posventa',
+  GESTOR_ACADEMICO: 'Gestor(a) de posventa',
   CONSULTA: 'Consulta',
 };
 

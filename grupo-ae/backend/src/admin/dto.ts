@@ -104,7 +104,7 @@ export class CrearAdminDto {
   // sin una sola concesion la cuenta no ve nada: se
   // exige al crearla, no despues
   @IsArray()
-  @ArrayMinSize(1, { message: 'Indique al menos una unidad de negocio y su rol.' })
+  @ArrayMinSize(1, { message: 'Indique al menos una línea de negocio y su rol.' })
   @ValidateNested({ each: true })
   @Type(() => ConcesionDto)
   concesiones!: ConcesionDto[];

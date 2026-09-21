@@ -11,6 +11,36 @@
 const ENLACE = /(https?:\/\/[^\s<]+)/g;
 
 /**
+ * Separa la dirección de la puntuación que la sigue en la frase.
+ *
+ * «Visite https://ejemplo.co/formulario.» se llevaba el punto dentro
+ * del enlace, y el clic aterrizaba en «…/formulario.»: un 404. Pasaba
+ * con el punto, la coma, los dos puntos y el paréntesis de cierre. Lo
+ * encontró José en Convoca (commit 378c1b3) y aquí estaba igual.
+ *
+ * El paréntesis de cierre solo se quita si la dirección no abrió uno:
+ * hay URLs de verdad con paréntesis dentro.
+ *
+ * TIENE QUE USARSE EN LOS DOS SITIOS a la vez —al reescribir y al
+ * listar—: si solo se recortara en uno, el destino que llega en el
+ * clic no estaría entre los de la campaña y se rechazaría.
+ */
+export function partir(url: string): { enlace: string; cola: string } {
+  let enlace = url;
+  let cola = '';
+  for (;;) {
+    const ultimo = enlace.slice(-1);
+    const cierraSinAbrir = ultimo === ')' && !enlace.includes('(');
+    if (/[.,;:!?]/.test(ultimo) || cierraSinAbrir) {
+      cola = ultimo + cola;
+      enlace = enlace.slice(0, -1);
+      continue;
+    }
+    return { enlace, cola };
+  }
+}
+
+/**
  * Reescribe los enlaces de un texto YA ESCAPADO.
  *
  * Importa que llegue escapado: así se sabe que lo que hay no
@@ -23,7 +53,8 @@ export function reescribirEnlaces(
   campanaId: string,
   destinatarioId: string,
 ): string {
-  return escapado.replace(ENLACE, (url) => {
+  return escapado.replace(ENLACE, (completa) => {
+    const { enlace: url, cola } = partir(completa);
     /// El «&» ya viene escapado, y una URL con parámetros
     /// lleva «&» de verdad.
     ///
@@ -41,7 +72,7 @@ export function reescribirEnlaces(
     /// se cambia es a dónde lleva, no lo que la persona lee:
     /// si en el correo pone una dirección y al pasar el ratón
     /// sale otra, eso es lo que hace un correo de phishing.
-    return `<a href="${destino}">${url}</a>`;
+    return `<a href="${destino}">${url}</a>${cola}`;
   });
 }
 
@@ -52,7 +83,7 @@ export function reescribirEnlaces(
  * en la URL es uno de los que la campaña escribió.
  */
 export function enlacesDe(texto: string): string[] {
-  return [...new Set(texto.match(ENLACE) ?? [])];
+  return [...new Set((texto.match(ENLACE) ?? []).map((u) => partir(u).enlace))];
 }
 
 /**

@@ -7,7 +7,7 @@ export default function PaginaLeadsPersonas() {
     <ListaDeOportunidades
       embudo="PERSONA"
       titulo="Leads de personas"
-      descripcion="Venta directa: ciclo de días y volumen alto. Aquí la primera respuesta pesa más que la etapa."
+      descripcion="Venta directa a personas: ciclo corto y alto volumen. Responder rápido es la prioridad."
     />
   );
 }

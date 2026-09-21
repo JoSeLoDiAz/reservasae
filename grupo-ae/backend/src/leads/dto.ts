@@ -19,6 +19,7 @@ import {
 
 import { booleanoDeVerdad } from '../comun/booleano-de-verdad';
 import { aNumeroONulo } from '../comun/campo-vacio';
+import { aCelularGuardable } from '../comun/celular';
 import { CanalAutorizacion, OrigenParticipante } from '../../generated/prisma';
 
 const recortar = ({ value }: { value: unknown }) =>
@@ -28,7 +29,7 @@ const recortar = ({ value }: { value: unknown }) =>
  * Aqui habia una lista fija de slugs: `['adecopria', 'britcham-adee']`.
  *
  * Se quito porque era una segunda fuente de verdad y se desincronizo
- * en cuanto las unidades de negocio se renombraron en la base: el DTO
+ * en cuanto las líneas de negocio se renombraron en la base: el DTO
  * rechazaba con 400 un slug que SI existia, y el lead se perdia antes
  * de que nadie pudiera mirarlo. Un lead perdido en la puerta no deja
  * rastro en ninguna pantalla.
@@ -384,7 +385,23 @@ export class ArreglarLeadDto {
   @IsOptional() @Transform(recortar) @IsString() @MaxLength(120) primerApellido?: string | null;
   @IsOptional() @Transform(recortar) @IsString() @MaxLength(120) segundoApellido?: string | null;
   @IsOptional() @Transform(recortar) @IsString() @MaxLength(160) correo?: string | null;
-  @IsOptional() @Transform(recortar) @IsString() @MaxLength(40) celular?: string | null;
+
+  /// Normalizado como en la ficha, y por la misma razón.
+  ///
+  /// El lead que ENTRA ya llega limpio —`leads.service` lo pasa
+  /// a diez dígitos antes de guardarlo—, pero esta puerta lo
+  /// escribía crudo: el asesor corregía `+57 300 111 2222` en la
+  /// mesa y el lead quedaba con otra grafía que su ficha. Y lo
+  /// que se guarda aquí es lo que la conversión copia después a
+  /// `Persona.celular`, sin pasar por ningún otro DTO.
+  ///
+  /// `null` sigue borrando y ausente sigue sin tocar:
+  /// `aCelularGuardable` solo mira el texto.
+  @IsOptional()
+  @Transform(({ value }) => aCelularGuardable(value))
+  @IsString()
+  @MaxLength(40)
+  celular?: string | null;
 }
 
 /**

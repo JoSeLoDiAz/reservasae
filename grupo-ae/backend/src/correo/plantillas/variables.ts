@@ -63,13 +63,13 @@ export const VARIABLES: Variable[] = [
   { clave: 'celular', titulo: 'Su celular', ejemplo: '300 000 0000' },
   {
     clave: 'empresa',
-    titulo: 'Dónde trabaja',
+    titulo: 'Organización',
     ejemplo: 'ABC LABORATORIOS S.A.S',
   },
   {
     clave: 'accionFormacion',
     titulo: 'Producto o servicio',
-    ejemplo: 'Consultoría comercial B2B',
+    ejemplo: 'Google Workspace Business Standard',
   },
   { clave: 'grupo', titulo: 'Número de la oportunidad', ejemplo: '3' },
   {
@@ -80,7 +80,7 @@ export const VARIABLES: Variable[] = [
   { clave: 'ubicacion', titulo: 'Ciudad', ejemplo: 'Medellín' },
   { clave: 'modalidad', titulo: 'Modalidad', ejemplo: 'Virtual' },
   { clave: 'asesor', titulo: 'Asesor comercial', ejemplo: 'Ana Jaramillo' },
-  { clave: 'gremio', titulo: 'Unidad de negocio', ejemplo: 'Grupo AE' },
+  { clave: 'gremio', titulo: 'Línea de negocio', ejemplo: 'Grupo AE' },
 ];
 
 const MESES = [

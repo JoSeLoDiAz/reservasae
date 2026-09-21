@@ -2,6 +2,7 @@
 
 import { celularUtil } from '../comun/celular';
 import { EDAD_MINIMA, edadCumplida } from './catalogos-sep';
+import { seLePregunta } from './lo-que-no-se-pregunta';
 
 /// Lo mínimo para existir en el CRM lo impone el modelo.
 /// Aquí va lo que exige cada cosa que se quiere hacer.
@@ -62,9 +63,20 @@ export function faltaDeLaPersona(p: {
   if (!celularUtil(persona.celular)) {
     falta.push(persona.celular ? 'un celular que sea un número' : 'celular');
   }
-  if (!persona.fechaNacimiento) falta.push('fecha de nacimiento');
+  /// Lo que esta instalación NO pregunta tampoco se exige.
+  ///
+  /// El enlace de completar datos ya no pide la fecha de
+  /// nacimiento ni el estrato en Grupo AE. Si esta regla los
+  /// siguiera contando, cada contacto saldría «parcial» para
+  /// siempre, el panel ofrecería el enlace para arreglarlo y el
+  /// enlace no los pediría: el mismo callejón del municipio. La
+  /// lista vive en `lo-que-no-se-pregunta.ts` para que pantalla
+  /// y regla no puedan decir cosas distintas.
+  if (!persona.fechaNacimiento && seLePregunta('fechaNacimiento')) {
+    falta.push('fecha de nacimiento');
+  }
   if (persona.generoSepId === null) falta.push('género');
-  if (persona.estrato === null) falta.push('estrato');
+  if (persona.estrato === null && seLePregunta('estrato')) falta.push('estrato');
   if (persona.departamentoSepId === null) falta.push('departamento');
   if (persona.municipioSepId === null) falta.push('municipio');
   if (!persona.direccion?.trim()) falta.push('dirección');
@@ -114,7 +126,7 @@ export function revisar(p: ParaRevisar): Revision {
     matricula.push('no hay forma de contactarla: falta correo o celular');
   }
   if (!p.tieneAutorizacion) {
-    matricula.push('no ha autorizado el tratamiento de sus datos para esta unidad de negocio');
+    matricula.push('no ha autorizado el tratamiento de sus datos para esta línea de negocio');
   }
 
   // ── reporte al SENA ──

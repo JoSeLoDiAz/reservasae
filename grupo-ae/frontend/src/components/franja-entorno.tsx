@@ -24,13 +24,17 @@ export function FranjaEntorno() {
       <span className="micro hidden sm:inline">
         Los datos son inventados. Nada de lo que haga aquí llega a producción.
       </span>
-      <a
-        // a /consulta y no a la raiz: alli el 404 es adrede
-        href="https://reservasae.com/consulta"
-        className="micro underline underline-offset-2 hover:no-underline"
-      >
-        Ir al sitio real
-      </a>
+      {/* Llevaba a reservasae.com/consulta, que es la consulta de
+          Convoca, no el CRM de Grupo AE. Ahora sale de SITIO_REAL_URL;
+          sin ella no se pinta, en vez de mandar a otro producto. */}
+      {process.env.SITIO_REAL_URL && (
+        <a
+          href={process.env.SITIO_REAL_URL}
+          className="micro underline underline-offset-2 hover:no-underline"
+        >
+          Ir al sitio real
+        </a>
+      )}
     </div>
   );
 }

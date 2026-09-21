@@ -1,0 +1,1189 @@
+"use client";
+
+/** La cabecera del panel en dos filas: marca arriba, navegación debajo. */
+
+/**
+ * EL ARMAZÓN QUE PIDIÓ EL CLIENTE el 12 sep 2026, con su montaje
+ * de diseño: «quiero dejarlo de esta manera, se ve mil veces más
+ * profesional». Sustituye la barra lateral por dos filas:
+ *
+ *   Fila 1 — la marca de Convoca a la izquierda y el crédito de
+ *            aliados a la derecha: «GESTIONADO POR [AE] PARA
+ *            [ADECOPRIA]».
+ *   Fila 2 — los módulos en horizontal, con desplegable el que
+ *            tiene más de una pantalla, y a la derecha quién está
+ *            dentro, con su menú.
+ *
+ * CABE, y está medido antes de escribir una línea: con nuestros
+ * nombres reales de módulo y NUESTRA letra (Raleway), la fila de
+ * navegación mide 966 px. Sobran 775 px a 1920, 221 a 1366 y 135
+ * a 1280. El mock acortaba los nombres --«Inscripciones» por
+ * «Gestión de Inscripciones»-- y así medía 733; con los de verdad
+ * son 966 y siguen entrando.
+ *
+ * DE SU DISEÑO SE CONSERVA LA ESTRUCTURA Y NO LA PIEL, y conviene
+ * dejar dicho por qué, porque son cuatro decisiones que ya están
+ * escritas en esta casa y que el handoff revoca sin saberlo:
+ *
+ * - **La letra.** Pide Poppins y Inter. `globals.css` guarda el
+ *   acta de que un handoff anterior pidió Sora y Public Sans, se
+ *   llegaron a cargar, y la decisión fue que «la tipografía no es
+ *   una decisión de pantalla». Se conservan sus tamaños, pesos y
+ *   espaciados; la letra es la nuestra.
+ * - **El color.** Clava `#0f766e`, `#0b5c53`, `#0a4f47`. Aquí no
+ *   hay un hexadecimal: van los tokens del encabezado, que cada
+ *   gremio edita en Apariencia y que el backend valida. Un
+ *   hexadecimal a mano rompe las dieciséis plantillas.
+ * - **El contraste.** Usa blanco al .42, .55, .6 y .62 sobre el
+ *   teal, a 9 y 10 px. Cuatro de esas cinco incumplen: medido
+ *   sobre el color MEZCLADO, el 55 % da 3,62:1 y el 70 % da
+ *   4,85:1. Nada de este fichero baja del 70 %.
+ * - **El punto verde de «en línea».** No se porta. `AdminActual`
+ *   trae `ultimoAcceso` y `activo`, pero nada de presencia: un
+ *   punto verde fijo afirmaría «está conectada» también cuando el
+ *   sistema no lo sabe. Dentro del menú se dice el último acceso,
+ *   que sí es un dato.
+ */
+
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
+
+import { FirmaConvoca } from "@/components/firma-convoca";
+import {
+  comoSePresenta,
+  MAXIMO_LOGOS,
+  urlLogo,
+  type AdminActual,
+  type Area,
+  type Nivel,
+} from "@/lib/admin-api";
+import { useMarca } from "@/components/marca-publica";
+import { esFondoOscuro, variantesParaElFondo } from "@/lib/logos-por-fondo";
+
+import { IconoMenu, IconoSalir } from "./iconos";
+import { enlacesVisibles, estaActivo, MODULOS } from "./navegacion";
+
+type Permisos = Record<Area, Nivel> | undefined;
+
+/**
+ * Los rotulitos en versalitas: «Gestionado por», «para»,
+ * «Gremio», y los del cajón móvil.
+ *
+ * VIVE AQUÍ Y NO EN `marco-admin`, y no es capricho de orden: el
+ * marco importa esta cabecera, así que si la constante viviera
+ * allí tendríamos un ciclo de importación entre los dos ficheros.
+ * Un ciclo con una constante de módulo no suele estallar, hace
+ * algo peor: según cuál se inicialice primero, uno de los dos lee
+ * `undefined` y los rótulos salen sin clase. La dependencia va en
+ * un solo sentido.
+ *
+ * EL 10 px ES EL DEL CRITERIO Y NO SE TOCA: lo que estaba mal era
+ * la opacidad. Blanco al 55 % mezclado con el verde del
+ * encabezado da 3,62:1 y el mínimo es 4,5; al 70 % da 4,85:1. Sin
+ * mezclar la opacidad la cuenta daría 14,3:1 y el fallo pasaría
+ * por bueno. El peso y el espaciado suben con ella —600 y .1em—
+ * porque a 10 px lo que hace legible una versalita es el trazo.
+ *
+ * El handoff los especifica al .62 y al .42; no llegan, y se usa
+ * esta cuenta y no la del diseño.
+ *
+ * OJO AL MARGEN: 4,85:1 está medido con el #025a53 de ADECOPRIA,
+ * y cada gremio edita `--encabezado-fondo` desde Apariencia. El
+ * arreglo de fondo es meter el par en `COMPROBACIONES_CONTRASTE`
+ * del backend.
+ */
+export const ROTULO =
+  "text-[0.625rem] font-semibold tracking-[0.1em] uppercase opacity-70";
+
+/**
+ * ¿El encabezado es OSCURO ahora mismo?
+ *
+ * Hace falta para elegir la variante de cada logo, y no se puede
+ * deducir del tema. En el acceso sí: allí el fondo es `--marca` y
+ * basta invertir --claro pide la variante de fondo oscuro--. Aquí
+ * no, porque `--encabezado-fondo` vale **blanco por defecto** y
+ * el backend lo iguala a la superficie cuando el gremio no pide
+ * cabecera de color. O sea que en tema CLARO este fondo puede ser
+ * blanco o verde oscuro según lo que haya elegido cada gremio, y
+ * la variante de letra blanca desaparecería en el primer caso.
+ * Eso es justo lo que la placa blanca tapaba.
+ *
+ * Se mide la luminancia del color resuelto. Se hace en un efecto
+ * y no al pintar porque en el servidor no hay `getComputedStyle`;
+ * hasta que llega se supone claro, que es el valor por defecto del
+ * token y el caso en que equivocarse cuesta menos --sobre blanco,
+ * la variante de letra oscura se ve igual--.
+ */
+export function useFondoDelEncabezadoOscuro(): boolean {
+  const [oscuro, setOscuro] = useState(false);
+  /// El tema entra en las dependencias porque al conmutarlo
+  /// cambia el valor del token, no la clase de este nodo.
+  const { esquema, marca } = useMarca();
+
+  useEffect(() => {
+    const css = getComputedStyle(document.documentElement)
+      .getPropertyValue("--encabezado-fondo")
+      .trim();
+    if (css.replace("#", "").length < 6) return;
+    /// La misma regla que la previsualizacion.
+    setOscuro(esFondoOscuro(css));
+  }, [esquema, marca]);
+
+  return oscuro;
+}
+
+/// Qué menú está abierto. NO es `null | 'ins' | 'user'` como en el
+/// prototipo: allí solo un módulo tenía desplegable, y aquí cinco
+/// de los siete tienen más de una pantalla. Así que es la clave
+/// del módulo, o `'usuario'`.
+///
+/// Y ARRANCA CERRADO. El acordeón de la barra lateral arrancaba
+/// abierto en el módulo de la ruta, que allí era correcto --era
+/// una columna--; portado aquí abriría un menú flotante encima
+/// del contenido en cada carga de página.
+type Abierto = string | null;
+
+// ---------------------------------------------------------------
+// fila 1: la marca y los aliados
+
+/**
+ * Fila 1: quién es el producto y para quién se gestiona.
+ *
+ * Es lo único que el rediseño AÑADE de verdad --antes el crédito
+ * de aliados vivía dentro de la barra lateral, donde competía con
+ * los módulos-- y por eso es la fila que el cliente señaló.
+ */
+export function FilaDeMarca() {
+  /// la ruta redibuja la firma al cambiar de pantalla
+  const ruta = usePathname();
+
+  return (
+    /// EL ALTO ESCALA CON LA PANTALLA, no salta por escalones.
+    ///
+    /// Lo pidió el cliente el 12 sep 2026: «que se adapte al tipo
+    /// de pantalla, que se mantenga la proporción». En su monitor
+    /// de 24" la fila de 66 px está bien; en un portátil de 1366
+    /// se comía un alto que ahí es escaso.
+    ///
+    /// `clamp(40px, 2.2vw, 46px)`: 40 hasta 1820, y de ahí sube
+    /// hasta los 46 de su monitor. El relleno lateral acompaña.
+    ///
+    /// LOS 4 PX QUE SE DEVUELVEN SON POR ADECOPRIA. Llegó a estar en
+    /// 36-40, y ahí su logo quedaba en 22 px: «más grande ADECOPRIA,
+    /// se ve perdido» (cliente, 12 sep 2026). No es capricho suyo --
+    /// ese archivo lleva «Asociación de Educación Privada» escrito
+    /// DENTRO en letra pequeña, así que por debajo de unos 28 px de
+    /// alto el nombre deja de leerse y el logo se vuelve una mancha.
+    /// El de Grupo AE aguanta más pequeño porque es un signo, sin
+    /// texto dentro.
+    ///
+    /// BAJÓ DE 52-66 A 36-40 el 12 sep 2026, en dos pasos y en la
+    /// misma tarde: «¿no se puede reducir, o sea no tan larga? Y
+    /// también en la parte de los logos», y al ver el primer
+    /// recorte, «¿se tendría que dejar más pequeño no?».
+    ///
+    /// LO QUE MANDABA EL ALTO ERA EL LEMA, y conviene tenerlo
+    /// medido: el bloque de texto de la firma mide 37 px --17 el
+    /// nombre y 20 el lema con su margen--, así que con el lema
+    /// puesto esta fila no baja de ~45 px por física. El cliente
+    /// lo pidió de vuelta el 12 sep 2026, con la animación que
+    /// tenía en la barra, así que la fila sube a 52-60.
+    ///
+    /// Aquí se puede apretar más que en la fila de abajo porque no
+    /// hay NADA que pulsar: un logo no necesita área de clic.
+    ///
+    /// EN PÍXELES Y NO EN REM, a propósito: una medida de CAJA no
+    /// debe crecer con el ajuste de texto del 90-140 % de
+    /// Accesibilidad. Si creciera, subir el texto separaría las
+    /// filas el doble y la cabecera se comería el contenido. El
+    /// texto crece; la caja se queda.
+    /// mas alta: vuelve el eslogan bajo el nombre.
+    <div
+      style={{
+        height: "clamp(52px, 2.8vw, 60px)",
+        paddingInline: "clamp(1rem, 1.4vw, 1.75rem)",
+      }}
+      className="flex shrink-0 items-center justify-between gap-4 border-b border-encabezado-borde bg-encabezado-fondo text-encabezado-texto"
+    >
+      {/* La MISMA firma que el acceso, el pie público y la ficha
+          del perfil, no una copia con los mismos estilos: cuatro
+          copias acaban diciendo cuatro cosas.
+
+          A 30 y no a 42 como en la barra: en una fila de 50 px, la
+          firma a 42 pide 64 px de alto y no cabe. El umbral
+          `grande` de `FirmaConvoca` son 44, así que a 30 --igual
+          que a 34-- el nombre se queda en 1,05rem: la fila baja de
+          alto y la letra no cambia. */}
+      <Link
+        href="/admin"
+        className="flex min-w-0 items-center gap-2.5 no-underline"
+      >
+        {/* con eslogan y animada, como en la barra */}
+        <FirmaConvoca key={ruta} tamano={34} animado />
+      </Link>
+
+      <CreditoDeAliados />
+    </div>
+  );
+}
+
+/**
+ * «GESTIONADO POR [AE] PARA [ADECOPRIA]».
+ *
+ * La misma frase que la tarjeta de los formularios públicos, y por
+ * la misma razón: tres logos en fila obligan a adivinar qué pinta
+ * cada uno, y con dos rótulos de ocho letras se lee la relación
+ * completa. El ORDEN lo manda el administrador desde Apariencia;
+ * el primero es el gestor.
+ */
+function CreditoDeAliados() {
+  /// Se guarda CUÁLES fuentes fallaron, no un booleano: con tres
+  /// logos, uno roto se llevaría a los otros dos por delante.
+  const [fallidas, setFallidas] = useState<string[]>([]);
+  const { marca } = useMarca();
+
+  const fondoOscuro = useFondoDelEncabezadoOscuro();
+
+  const logos = variantesParaElFondo(marca?.logos ?? [], fondoOscuro)
+    .slice(0, MAXIMO_LOGOS)
+    .map((l) => ({ ...l, url: urlLogo(l) }))
+    .filter((l) => !fallidas.includes(l.url));
+
+  if (logos.length === 0) return null;
+
+  const [gestor, ...para] = logos;
+
+  return (
+    /// SIN PLACA BLANCA: los logos van directos sobre la fila.
+    /// Lo pidió el cliente el 12 sep 2026 --«esto sin fondo
+    /// blanco»-- y tiene razón: un ladrillo blanco en medio de una
+    /// cabecera de color se ve como lo que era, un parche.
+    ///
+    /// Lo que la placa resolvía sigue existiendo, y se resuelve de
+    /// otra forma: eligiendo la VARIANTE del logo que se ve sobre
+    /// este fondo. Ver `variantesParaElFondo`.
+    /// Los logos escalan con la fila: si el alto de la banda baja
+    /// de 66 a 52 en un portátil, un logo fijo de 32 px se queda
+    /// desproporcionado dentro de ella. El `gap` también.
+    /// En movil solo el logo del gremio.
+    <div
+      style={{ gap: "clamp(0.75rem, 1vw, 1.25rem)" }}
+      className="flex shrink-0 items-center"
+    >
+      <span className="hidden items-center md:inline-flex">
+        <Rotulo>Gestionado para</Rotulo>
+      </span>
+      {/* sin gremio --puerta general-- el gestor se queda */}
+      <span
+        className={
+          para.length > 0 ? "hidden items-center md:inline-flex" : "inline-flex"
+        }
+      >
+        <PiezaDeLogo
+          logo={gestor}
+          alFallar={setFallidas}
+          alto="clamp(20px, 1.35vw, 26px)"
+        />
+      </span>
+      {para.length > 0 && (
+        <span className="hidden items-center md:inline-flex">
+          <Rotulo>para</Rotulo>
+        </span>
+      )}
+      {para.map((l) => (
+        <PiezaDeLogo
+          key={l.id}
+          logo={l}
+          alFallar={setFallidas}
+          alto="clamp(28px, 2vw, 38px)"
+        />
+      ))}
+    </div>
+  );
+}
+
+/// El rótulo, en el color del texto del encabezado: ahora está
+/// sobre la fila y no sobre una placa.
+function Rotulo({ children }: { children: React.ReactNode }) {
+  return <span className={`${ROTULO} whitespace-nowrap`}>{children}</span>;
+}
+
+function PiezaDeLogo({
+  logo,
+  alto,
+  alFallar,
+}: {
+  logo: { id: string; etiqueta: string; url: string };
+  /// El alto como VALOR CSS, no como clase de Tailwind: es un
+  /// `clamp()` que escala con la ventana, y eso no se puede
+  /// escribir como utilidad. Pasado como clase, el navegador la
+  /// ignora y el logo se queda sin alto.
+  alto: string;
+  alFallar: (f: (antes: string[]) => string[]) => void;
+}) {
+  return (
+    // <img>: tamaño desconocido y ya viene cacheado
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={logo.url}
+      alt={logo.etiqueta}
+      onError={() =>
+        alFallar((antes) =>
+          antes.includes(logo.url) ? antes : [...antes, logo.url],
+        )
+      }
+      style={{ height: alto }}
+      className="w-auto max-w-[6rem] shrink object-contain md:max-w-[9rem]"
+    />
+  );
+}
+
+// ---------------------------------------------------------------
+// fila 2: los módulos y quién está dentro
+
+/**
+ * Fila 2: los módulos en horizontal y el bloque de usuario.
+ *
+ * `ranura` es el hueco donde cada pantalla cuelga sus botones. Lo
+ * recibe como nodo y no lo pinta ella para que el marco siga
+ * siendo el dueño de `RANURA_ACCIONES`: `AccionesDePagina` la
+ * resuelve UNA vez en un efecto de dependencias vacías y devuelve
+ * `null` sin avisar si no la encuentra, así que ese div tiene que
+ * existir siempre y con su id.
+ */
+export function FilaDeModulos({
+  ruta,
+  esSuperadmin,
+  permisos,
+  admin,
+  gremios,
+  gremio,
+  alElegirGremio,
+  alSalir,
+  alAbrirMenu,
+  alMedir,
+  migas,
+  ranura,
+}: {
+  ruta: string;
+  esSuperadmin: boolean;
+  permisos: Permisos;
+  admin: AdminActual;
+  gremios: Array<{ convenioId: string; sigla: string }>;
+  gremio: string | null;
+  alElegirGremio: (id: string | null) => void;
+  alSalir: () => void;
+  /// Abre el cajón. Solo por debajo de `xl`, que es donde la
+  /// navegación horizontal no se pinta.
+  alAbrirMenu: () => void;
+  /// Dónde está uno. Se pinta solo cuando la fila NO cabe.
+  migas?: React.ReactNode;
+  ranura?: React.ReactNode;
+  /// Se avisa hacia arriba de si la fila cabe, para que el cajón
+  /// aparezca exactamente cuando ella no está.
+  alMedir?: (cabe: boolean) => void;
+}) {
+  const [abierto, setAbierto] = useState<Abierto>(null);
+  const caja = useRef<HTMLDivElement>(null);
+  /// El cierre por hover va con retraso: al salir del boton hay
+  /// que dar tiempo a llegar al panel, o se cierra en el camino.
+  const relojDeCierre = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const barra = useRef<HTMLElement>(null);
+  const derecha = useRef<HTMLDivElement>(null);
+
+  /// SE MIDE, NO SE ADIVINA.
+  ///
+  /// Aquí había un umbral a mano --`xl`, 1280 px-- y estaba mal
+  /// por construcción: el ancho que importa es el de la fila
+  /// menos el bloque de usuario, y ninguno de los dos es fijo. El
+  /// de la nav depende de los nombres de los módulos de ESE
+  /// gremio y de los permisos de ESA cuenta --con menos permisos
+  /// salen menos módulos--, del tamaño de letra que haya elegido
+  /// en Accesibilidad (90-140 %) y del zoom del navegador, que es
+  /// justo lo que destapó el fallo: trabajando con zoom, el ancho
+  /// CSS se hunde y el umbral dejaba la fila escondida en una
+  /// pantalla de sobra ancha.
+  ///
+  /// Así que se mide lo que mide y se decide con eso. Se
+  /// autocorrige con cualquier zoom, cualquier letra y cualquier
+  /// gremio, sin que nadie tenga que volver a acertar un número.
+  /// SE ENCOGE LA FILA; NO SE CAMBIA DE DISPOSICIÓN.
+  ///
+  /// Aquí hubo dos intentos malos míos. El primero fue un umbral a
+  /// mano (`xl`, 1280 px): con zoom en el navegador el ancho CSS
+  /// se hunde por debajo y la fila desaparecía en una pantalla de
+  /// sobra ancha. El segundo fue medir para decidir «fila o
+  /// cajón», y el cliente lo cortó en seco: «no es sacar la vista
+  /// lateral, es tenerla donde ya la tenemos». Tenía razón: en un
+  /// portátil no quiere OTRA navegación, quiere LA MISMA más
+  /// pequeña.
+  ///
+  /// Así que lo que se calcula es un FACTOR. Se mide lo que la
+  /// fila pide y lo que hay, y se ajusta el cuerpo de letra hasta
+  /// que entre. El ancho de la fila es proporcional al cuerpo, así
+  /// que `factor * hueco / pedido` converge en una pasada.
+  ///
+  /// Se autocorrige con cualquier zoom, con el ajuste de texto del
+  /// 90-140 %, con un gremio de nombres más largos y con una
+  /// cuenta de menos permisos --que ve menos módulos y por tanto
+  /// necesita menos--. Nadie tiene que volver a acertar un número.
+  const [escala, setEscala] = useState(1);
+  /// El suelo. Por debajo de esto la letra deja de leerse, y
+  /// entonces --y solo entonces-- manda el cajón. A 0,8 el cuerpo
+  /// de 12,5 px queda en 10, que es el mínimo de la casa para una
+  /// versalita y se sigue leyendo de un vistazo.
+  const SUELO = 0.8;
+  const [cabe, setCabe] = useState(true);
+
+  useEffect(() => {
+    const fila = caja.current;
+    const nav = barra.current;
+    if (!fila || !nav) return;
+
+    /// `requestAnimationFrame` y no una llamada directa: medir en
+    /// el cuerpo del efecto es medir antes de que el navegador
+    /// haya colocado nada, y además dispara un render en cascada.
+    let pedido = 0;
+    let ultima = 1;
+    const medir = () => {
+      pedido = 0;
+      const est = getComputedStyle(fila);
+      const relleno = parseFloat(est.paddingLeft) + parseFloat(est.paddingRight);
+      const usuario = derecha.current?.offsetWidth ?? 0;
+      /// 16 px de aire: pegada al bloque de usuario no cabe, se
+      /// toca.
+      const hueco = fila.clientWidth - relleno - usuario - 16;
+      const pide = nav.scrollWidth;
+      if (hueco <= 0 || pide <= 0) return;
+
+      /// Lo que pide AHORA está medido con la escala de ahora, así
+      /// que el factor nuevo se compone sobre ella.
+      const bruto = (ultima * hueco) / pide;
+      const nueva = Math.min(1, Math.max(SUELO, bruto));
+      ultima = nueva;
+      setEscala(nueva);
+      /// Solo se rinde si ni al suelo entra.
+      setCabe(bruto >= SUELO);
+    };
+    const encolar = () => {
+      if (!pedido) pedido = requestAnimationFrame(medir);
+    };
+
+    encolar();
+    const ojo = new ResizeObserver(encolar);
+    ojo.observe(fila);
+    return () => {
+      ojo.disconnect();
+      if (pedido) cancelAnimationFrame(pedido);
+    };
+    /// Se vuelve a medir cuando cambian los módulos visibles: el
+    /// observador mira el ancho de la fila, y eso no cambia porque
+    /// cambie el contenido.
+  }, [esSuperadmin, permisos, ruta]);
+
+  useEffect(() => {
+    alMedir?.(cabe);
+  }, [cabe, alMedir]);
+
+  /// SE CIERRA AL NAVEGAR. Sin esto, pulsar un enlace del
+  /// desplegable deja el menú abierto sobre la pantalla nueva.
+  const [ultimaRuta, setUltimaRuta] = useState(ruta);
+  if (ultimaRuta !== ruta) {
+    setUltimaRuta(ruta);
+    if (abierto) setAbierto(null);
+  }
+
+  /// Clic fuera, Escape, cambio de tamaño Y DESPLAZAMIENTO.
+  ///
+  /// Lo del scroll es la pieza que le falta a nuestro
+  /// `Desplegable`: su comentario promete que «en scroll y en
+  /// cambio de tamaño se cierra» pero solo escucha `mousedown` y
+  /// `resize`. Colgando de esta fila, con el contenido
+  /// desplazándose por debajo, un menú abierto se quedaría
+  /// flotando en el aire.
+  useEffect(() => {
+    if (!abierto) return;
+    const fuera = (e: MouseEvent) => {
+      if (!caja.current?.contains(e.target as Node)) setAbierto(null);
+    };
+    const conTecla = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setAbierto(null);
+    };
+    const cerrar = () => setAbierto(null);
+    document.addEventListener("mousedown", fuera);
+    window.addEventListener("keydown", conTecla);
+    window.addEventListener("resize", cerrar);
+    /// En captura: el que se desplaza es `<main>`, no la ventana,
+    /// y un `scroll` de un hijo no burbujea.
+    window.addEventListener("scroll", cerrar, true);
+    return () => {
+      document.removeEventListener("mousedown", fuera);
+      window.removeEventListener("keydown", conTecla);
+      window.removeEventListener("resize", cerrar);
+      window.removeEventListener("scroll", cerrar, true);
+    };
+  }, [abierto]);
+
+  /// SOLO CON RATON DE VERDAD.
+  ///
+  /// En una pantalla tactil no hay hover: el navegador se lo
+  /// inventa al tocar, y entonces el toque abre el menu y el
+  /// clic que viene detras lo cierra en el mismo gesto. Se
+  /// pregunta por el puntero antes de hacer nada.
+  ///
+  /// Se mira en cada uso y no una vez al montar: un portatil con
+  /// pantalla tactil cambia de puntero segun se use el dedo o el
+  /// trackpad, y una foto tomada al arrancar se quedaria vieja.
+  const hayRaton = () =>
+    typeof window !== 'undefined' &&
+    window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+
+  const abrirConRaton = (cual: Abierto) => {
+    if (!hayRaton()) return;
+    if (relojDeCierre.current) clearTimeout(relojDeCierre.current);
+    setAbierto(cual);
+  };
+
+  const cerrarConRaton = () => {
+    if (!hayRaton()) return;
+    if (relojDeCierre.current) clearTimeout(relojDeCierre.current);
+    relojDeCierre.current = setTimeout(() => setAbierto(null), 160);
+  };
+
+  return (
+    <div
+      ref={caja}
+      /// EL MISMO COLOR, MÁS CLARO, y sin token nuevo.
+      ///
+      /// Lo pidió el cliente el 12 sep 2026: «el mismo color pero
+      /// más claro». El montaje de diseño la quería en un segundo
+      /// teal FIJO, y eso aquí costaría un cuarto token de
+      /// encabezado --dieciséis plantillas por dos esquemas, con
+      /// el catálogo cerrado--, así que no se hace así.
+      ///
+      /// Se mezcla un 12 % del color del TEXTO dentro del fondo.
+      /// En ADECOPRIA --verde oscuro con texto blanco-- eso
+      /// aclara, que es lo que se pide; y en un gremio con
+      /// encabezado blanco y texto oscuro, oscurece un punto. Las
+      /// dos direcciones son la correcta: la fila se separa de la
+      /// de arriba sin inventar un color que nadie eligió.
+      ///
+      /// Va en `style` y no como token: `color-mix` no puede ser
+      /// el VALOR de un token --el backend filtra por
+      /// `/^#[0-9a-fA-F]{6}$/` y lo descartaría en silencio--,
+      /// pero como fondo de un elemento es CSS normal. La clase
+      /// se queda debajo como respaldo.
+      /// El alto y el relleno escalan igual que la fila de arriba,
+      /// y por lo mismo: 40 px en un portátil, 46 en el monitor
+      /// de 24". En píxeles, que es una medida de caja.
+      style={{
+        backgroundColor:
+          "color-mix(in oklab, var(--encabezado-fondo) 88%, var(--encabezado-texto))",
+        /// EL PUNTO MEDIO, y está peleado por las dos puntas.
+        ///
+        /// Esta fila ha ido y venido en un solo día, así que queda
+        /// escrito para no volver a recorrerlo:
+        ///
+        ///   - estuvo en 40-46 px y el cliente la rechazó: las
+        ///     pastillas miden 28 y quedaban 7 px por lado, «por qué
+        ///     tan apeñuzcado arriba» (12 sep 2026);
+        ///   - subió a 56-64, con 14-18 px por lado;
+        ///   - y por la tarde pidió bajarla dos veces: «¿no se puede
+        ///     reducir, o sea no tan larga?» y «¿dónde van ya las
+        ///     vistas, no le redujiste nada?».
+        ///
+        /// 44-48 deja 8-10 px por lado. NO se baja de ahí: a 40-46
+        /// quedaban 7 y eso es exactamente lo que ya dijo que no.
+        /// El suelo lo pone la pastilla de 28 px, que es el área de
+        /// clic de cada módulo.
+        ///
+        /// Y lo que sigue sin tocarse es el cuerpo de letra: lo que
+        /// se le quita es hueco, no tamaño.
+        height: "clamp(44px, 2.4vw, 48px)",
+        paddingInline: "clamp(0.75rem, 1.2vw, 1.5rem)",
+      }}
+      className="relative z-30 flex shrink-0 items-center justify-between gap-3 border-b border-encabezado-borde bg-encabezado-fondo text-encabezado-texto"
+    >
+      {/* LA HAMBURGUESA Y LAS MIGAS, exactamente cuando la fila no
+          cabe. No por un umbral: por la medida.
+
+          Donde no hay fila manda el cajón, y hace falta el botón
+          que lo abre. Ahí las migas son lo único que dice en qué
+          pantalla está uno. Donde sí hay fila se esconden las dos
+          cosas: el módulo lo dice la píldora activa y el nombre de
+          la pantalla, su propio `h1`.
+
+          Queda una decisión abierta del cliente --si quiere la
+          ruta completa también con la fila puesta-- y hasta que la
+          conteste esto no pierde nada. */}
+      {!cabe && (
+      <div className="flex min-w-0 items-center gap-2">
+        <button
+          onClick={alAbrirMenu}
+          aria-label="Abrir el menú"
+          className="grid size-9 shrink-0 place-items-center rounded-lg transition hover:bg-current/10"
+        >
+          <IconoMenu tamano={20} />
+        </button>
+        {migas}
+      </div>
+      )}
+
+      {/* LA NAVEGACIÓN DESDE xl, APRETANDO EL RELLENO ANTES DE
+          RENDIRSE. Y esto es una corrección de un error mío.
+
+          La fila de los siete módulos mide **1.050 px** montada
+          --más que los 966 del prototipo, porque los carets y el
+          relleno de la píldora activa engordan cada ítem-- y el
+          bloque de usuario 220. Medido: cabía de sobra a 1440
+          (caja de 1.172) y a 1366 (1.098), y solo fallaba a 1280,
+          donde la caja da 988 y se quedaba corta por 62 px.
+
+          Yo corregí de más: subí el corte a `2xl` y con eso mandé
+          al cajón a 1440 y 1366, o sea justo los portátiles, donde
+          la fila entraba perfectamente. El cliente lo vio
+          enseguida --«las de portátil se ve eso apeñuzcado, que se
+          mantenga la proporción»-- y tenía razón: en esos anchos
+          no estaba viendo una versión más apretada del panel, sino
+          otro panel peor.
+
+          Así que el corte vuelve a `xl` (1280) y lo que se ajusta
+          es el RELLENO: por debajo de `2xl` cada ítem va a `px-2`
+          y el hueco a 2 px, que ahorra los ~78 px que faltaban;
+          desde `2xl` se respira. La proporción se mantiene porque
+          lo que cambia es el aire, no lo que se ve.
+
+          El `overflow-x-auto` se queda como cinturón: el panel
+          escala la letra hasta el 140 % desde Accesibilidad, y a
+          ese tamaño no hay corte que salve la cuenta. Antes que
+          pisar al usuario, la nav se desplaza por dentro. */}
+      {/* CUANDO NO CABE NO SE DESMONTA: se saca de flujo y se
+          vuelve invisible. Desmontándola no habría nada que medir
+          y la decisión se quedaría pegada para siempre en «no
+          cabe»; así se sigue pudiendo preguntar cuánto pediría, y
+          en cuanto quepa --el usuario quita el zoom, agranda la
+          ventana, baja la letra-- vuelve sola.
+          `aria-hidden` y sin tabulación mientras no se ve: si no,
+          un lector de pantalla leería siete módulos que no están,
+          y el tabulador se metería en ellos. */}
+      {/* EL CUERPO DE LETRA SALE DE LA MEDIDA, y los rellenos y
+          los huecos van en `em` para que sigan al cuerpo: así la
+          fila entera se encoge en proporción en vez de apretarse
+          por un lado.
+
+          SIN `overflow-x-auto`, Y ESTO ES IMPORTANTE. Se lo puse
+          como red --antes que pisar al bloque de usuario, que se
+          desplace por dentro-- y rompió los siete desplegables de
+          golpe: un menú posicionado en absoluto NO PUEDE SALIR de
+          un contenedor con scroll, así que el caret giraba y no
+          aparecía nada. «No salen las listas desplegables»
+          (cliente, 12 sep 2026).
+
+          Y la red ya no hacía falta: con los nombres cortos de
+          `navegacion.ts` la fila pide 764 px medidos, que entran
+          hasta en 900. Lo que impide que pise al usuario es el
+          factor que se mide, no un desplazamiento.
+
+          Cuando ni al suelo entra, la fila no se desmonta: se saca
+          de flujo y se vuelve invisible. Desmontándola no habría
+          nada que medir y la decisión quedaría pegada para
+          siempre; así se puede seguir preguntando cuánto pediría,
+          y en cuanto quepa --se quita el zoom, se agranda la
+          ventana, baja la letra-- vuelve sola.
+          `aria-hidden` e `inert` mientras no se ve: si no, un
+          lector de pantalla leería siete módulos que no están y el
+          tabulador se metería en ellos. */}
+      <nav
+        ref={barra}
+        aria-label="Módulos del panel"
+        aria-hidden={!cabe}
+        inert={!cabe ? true : undefined}
+        style={{ fontSize: `calc(0.78125rem * ${escala})` }}
+        /// El hueco entre ítems estaba en `0.05em`, o sea medio
+        /// píxel: se tocaban unos con otros y toda la separación
+        /// la hacía el relleno de cada uno. A `0.4em` hay aire de
+        /// verdad, y la fila sigue cabiendo de sobra con los
+        /// nombres cortos.
+        className={`min-w-0 items-center gap-[0.4em] ${
+          cabe ? "flex" : "invisible pointer-events-none absolute -z-10 flex"
+        }`}
+      >
+        <EnlaceDeFila href="/admin" activo={ruta === "/admin"}>
+          Resumen
+        </EnlaceDeFila>
+
+        {MODULOS.map((modulo) => {
+          const enlaces = enlacesVisibles(modulo, permisos, esSuperadmin);
+          if (enlaces.length === 0) return null;
+
+          const activo = enlaces.some((e) => estaActivo(e, ruta));
+
+          /// CARET SOLO SI HAY ALGO QUE ELEGIR.
+          ///
+          /// El mock pone desplegable en uno. Aquí cinco módulos
+          /// tienen varias pantallas y dos tienen una sola
+          /// --Calendario y Gestión Académica--, y esos NAVEGAN
+          /// DIRECTO: un desplegable de un solo elemento repite el
+          /// error que el propio panel ya razonó para el selector
+          /// de gremio, «elegir entre una cosa no es elegir, y un
+          /// control muerto solo estorba».
+          if (enlaces.length === 1) {
+            return (
+              <EnlaceDeFila
+                key={modulo.clave}
+                href={enlaces[0].href}
+                activo={activo}
+                /// El nombre largo en el `title`: la fila dice
+                /// «Académica» y quien dude lo confirma sin entrar.
+                titulo={modulo.etiqueta}
+              >
+                {modulo.corto ?? modulo.etiqueta}
+              </EnlaceDeFila>
+            );
+          }
+
+          return (
+            <MenuDeModulo
+              key={modulo.clave}
+              etiqueta={modulo.corto ?? modulo.etiqueta}
+              titulo={modulo.etiqueta}
+              enlaces={enlaces}
+              ruta={ruta}
+              activo={activo}
+              desplegado={abierto === modulo.clave}
+              /// CON RATÓN EL CLIC ABRE, NO ALTERNA. El paso del ratón
+              /// ya lo abrió, así que alternar lo cerraba justo cuando
+              /// la persona hacía clic para abrirlo: se veía abrirse y
+              /// cerrarse solo (QA, 17 sep 2026; en Convoca pasa igual).
+              /// Con ratón se cierra al salir, con Escape o fuera; con
+              /// teclado o dedo el clic sigue alternando.
+              alAlternar={() =>
+                setAbierto((a) =>
+                  hayRaton() ? modulo.clave : a === modulo.clave ? null : modulo.clave,
+                )
+              }
+              alEntrar={() => abrirConRaton(modulo.clave)}
+              alSalir={cerrarConRaton}
+            />
+          );
+        })}
+      </nav>
+
+      {/* el hueco de los botones de cada pantalla */}
+      {ranura}
+
+      <MenuDeUsuario
+        admin={admin}
+        gremios={gremios}
+        gremio={gremio}
+        alElegirGremio={alElegirGremio}
+        alSalir={alSalir}
+        desplegado={abierto === "usuario"}
+        alAlternar={() =>
+          setAbierto((a) => (hayRaton() ? "usuario" : a === "usuario" ? null : "usuario"))
+        }
+      />
+    </div>
+  );
+}
+
+/**
+ * Un módulo de una sola pantalla, o el Resumen.
+ *
+ * EL ACTIVO VA CON EL PAR INVERTIDO DEL ENCABEZADO --fondo de
+ * texto, texto de fondo--, que es el truco que el panel ya usa en
+ * el rail plegado y en `BotonDeCabecera`: «esos dos tienen que
+ * contrastar por definición, porque si no la cabecera no se
+ * leería». El `bg-marca-suave` del mock NO sirve aquí: sobre un
+ * encabezado oscuro se vuelve invisible, y ADECOPRIA tiene la
+ * marca verde y el encabezado verde.
+ */
+function EnlaceDeFila({
+  href,
+  activo,
+  titulo,
+  children,
+}: {
+  href: string;
+  activo: boolean;
+  /// El nombre LARGO del módulo. La fila muestra el corto para
+  /// caber; esto lo deja a un paso del puntero, y de paso es lo
+  /// que oye un lector de pantalla.
+  titulo?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <Link
+      href={href}
+      title={titulo}
+      aria-label={titulo}
+      aria-current={activo ? "page" : undefined}
+      /// El cuerpo lo HEREDA de la fila, que es quien lo calcula
+      /// midiendo. Con un `text-[...]` propio se anulaba el
+      /// escalado y no encogía nada. Y los rellenos en `em`, para
+      /// que sigan al cuerpo en vez de quedarse fijos.
+      className={`rounded-lg px-[0.85em] py-[0.4em] text-[1em] whitespace-nowrap no-underline transition ${
+        activo
+          ? "bg-encabezado-texto font-semibold text-encabezado-fondo"
+          : "font-medium opacity-80 hover:bg-current/10 hover:opacity-100"
+      }`}
+    >
+      {children}
+    </Link>
+  );
+}
+
+/**
+ * Un módulo con sus pantallas colgando.
+ *
+ * NO se usa nuestro `Desplegable` aunque tenga la mecánica
+ * resuelta: declara `role="combobox"`, `role="listbox"` y
+ * `role="option"`, y eso le anuncia a un lector de pantalla que
+ * son las opciones de un CAMPO. Aquí son enlaces. Se copia su
+ * posicionamiento y se descartan sus roles.
+ */
+function MenuDeModulo({
+  etiqueta,
+  titulo,
+  enlaces,
+  ruta,
+  activo,
+  desplegado,
+  alAlternar,
+  alEntrar,
+  alSalir,
+}: {
+  etiqueta: string;
+  /// El nombre largo, igual que en `EnlaceDeFila`: la fila dice
+  /// «Inscripciones» y esto dice «Gestión de Inscripciones».
+  titulo?: string;
+  enlaces: Array<{ href: string; etiqueta: string }>;
+  ruta: string;
+  activo: boolean;
+  desplegado: boolean;
+  alAlternar: () => void;
+  /// Con el raton encima se abre solo. El CLIC SIGUE VALIENDO y
+  /// es el unico camino en tactil y con teclado.
+  alEntrar: () => void;
+  alSalir: () => void;
+}) {
+  return (
+    <div className="relative" onMouseEnter={alEntrar} onMouseLeave={alSalir}>
+      <button
+        type="button"
+        onClick={alAlternar}
+        title={titulo}
+        aria-label={titulo}
+        aria-expanded={desplegado}
+        /// Igual que `EnlaceDeFila`: el cuerpo se hereda de la
+        /// fila y los rellenos van en `em`.
+        className={`flex items-center gap-[0.35em] rounded-lg px-[0.85em] py-[0.4em] text-[1em] whitespace-nowrap transition ${
+          activo
+            ? "bg-encabezado-texto font-semibold text-encabezado-fondo"
+            : "font-medium opacity-80 hover:bg-current/10 hover:opacity-100"
+        }`}
+      >
+        {etiqueta}
+        <Caret abierto={desplegado} />
+      </button>
+
+      {desplegado && (
+        /// Monta y desmonta, no se desvanece: con «Quitar
+        /// animaciones» puesto las transiciones se quedan en su
+        /// último fotograma, así que un menú que se oculta con
+        /// opacidad se quedaría visible y comiéndose los clics.
+        /// LAS MEDIDAS DE `Desplegable`, no unas propias.
+        ///
+        /// Tenía opciones de 13 px con relleno de 10/14 en un
+        /// panel de 208 de ancho: al lado de los desplegables del
+        /// propio panel --12,5 px con relleno de 7/12-- se veía
+        /// de otro tamaño. «Revisa las proporciones de los
+        /// desplegables porque se ve raro» (cliente, 12 sep
+        /// 2026). Ahora las dos listas del panel tienen el mismo
+        /// ritmo.
+        ///
+        /// EL HUECO VA DENTRO, como relleno transparente.
+        ///
+        /// Antes el panel empezaba 6 px mas abajo y esos 6 px
+        /// eran tierra de nadie: al bajar el raton del boton al
+        /// panel se salia del elemento y el menu se cerraba en el
+        /// camino. Ahora el contenedor pega al boton y la
+        /// separacion la pone su `pt`, asi que el recorrido nunca
+        /// abandona la zona sensible.
+        <div className="absolute top-full left-0 z-40 pt-[6px]">
+          <div className="w-max max-w-[22rem] min-w-[11.5rem] rounded-xl border border-encabezado-borde bg-encabezado-fondo p-1 shadow-lg shadow-black/25">
+            <ul>
+              {enlaces.map((enlace) => {
+                const suyo = estaActivo(enlace, ruta);
+                return (
+                  <li key={enlace.href}>
+                    <Link
+                      href={enlace.href}
+                      aria-current={suyo ? "page" : undefined}
+                      className={`block rounded-[9px] px-3 py-[7px] text-[0.78125rem] no-underline transition ${
+                        suyo
+                          ? "bg-current/15 font-semibold"
+                          : "opacity-85 hover:bg-current/10 hover:opacity-100"
+                      }`}
+                    >
+                      {enlace.etiqueta}
+                    </Link>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function Caret({ abierto }: { abierto: boolean }) {
+  return (
+    <svg
+      aria-hidden
+      viewBox="0 0 24 24"
+      width={12}
+      height={12}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2.4}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={`shrink-0 transition-transform ${abierto ? "rotate-180" : ""}`}
+    >
+      <path d="m6 9 6 6 6-6" />
+    </svg>
+  );
+}
+
+/**
+ * Quién está dentro, y su menú.
+ *
+ * El avatar con iniciales lo pide el handoff, y aquí hay que
+ * reconocer que contradice algo que este panel había quitado a
+ * propósito: «esa placa de una letra no identificaba a nadie
+ * —quien está adentro sabe quién es— y le quitaba sitio al
+ * nombre». La diferencia es que ahora el avatar ES EL DISPARADOR
+ * del menú, o sea que hace un trabajo: antes solo decoraba. Y el
+ * nombre no pierde sitio, sigue a su izquierda.
+ *
+ * El cargo va al 78 % del texto del encabezado: son 5,62:1
+ * medidos. Estuvo en `--texto-suave` y daba **1,69:1** en las 38
+ * pantallas, que es texto invisible.
+ */
+function MenuDeUsuario({
+  admin,
+  gremios,
+  gremio,
+  alElegirGremio,
+  alSalir,
+  desplegado,
+  alAlternar,
+}: {
+  admin: AdminActual;
+  gremios: Array<{ convenioId: string; sigla: string }>;
+  gremio: string | null;
+  alElegirGremio: (id: string | null) => void;
+  alSalir: () => void;
+  desplegado: boolean;
+  alAlternar: () => void;
+}) {
+  return (
+    <div className="relative shrink-0">
+      <button
+        type="button"
+        onClick={alAlternar}
+        aria-expanded={desplegado}
+        aria-label={`Cuenta de ${admin.nombre}`}
+        style={{ gap: "clamp(0.5rem, 0.6vw, 0.625rem)" }}
+        className="flex items-center rounded-xl px-1.5 py-1 transition hover:bg-current/10"
+      >
+        <span className="hidden min-w-0 flex-col items-end text-right leading-tight sm:flex">
+          <span className="truncate text-[0.75rem] font-semibold">
+            {admin.nombre}
+          </span>
+          <span className="truncate text-[0.6875rem] text-encabezado-texto/78">
+            {comoSePresenta(admin)}
+          </span>
+        </span>
+        <Avatar nombre={admin.nombre} />
+      </button>
+
+      {desplegado && (
+        <div className="absolute top-[calc(100%+6px)] right-0 z-40 w-[15rem] rounded-xl border border-encabezado-borde bg-encabezado-fondo p-1.5 shadow-lg shadow-black/25">
+          <div className="px-3 pt-2 pb-2.5">
+            <p className="truncate text-[0.8125rem] font-semibold">
+              {admin.nombre}
+            </p>
+            <p className="mt-0.5 truncate text-[0.6875rem] text-encabezado-texto/78">
+              {admin.correo}
+            </p>
+          </div>
+
+          <Raya />
+
+          <SeccionGremio
+            gremios={gremios}
+            gremio={gremio}
+            alElegir={alElegirGremio}
+          />
+
+          <Raya />
+
+          {/* «Esta es la ÚNICA salida de sesión del panel», dice
+              el comentario que la puso arriba. Baja un clic dentro
+              del menú porque el diseño lo pide, y por eso lleva su
+              icono y el rojo al pasar por encima: dentro de una
+              lista de tres filas, la que cierra sesión tiene que
+              distinguirse de las otras dos. */}
+          <button
+            type="button"
+            onClick={alSalir}
+            className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2.5 text-left text-[0.8125rem] font-semibold transition hover:bg-error-suave hover:text-error"
+          >
+            <IconoSalir tamano={16} />
+            Salir
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Las iniciales, sobre la inversa del encabezado.
+ *
+ * SIN el punto verde de «en línea» del handoff: no tenemos dato de
+ * presencia, y un punto fijo afirmaría que está conectada también
+ * cuando el sistema no lo sabe. De paso evita un parecido que el
+ * propio signo de Convoca esquiva a propósito --«abajo a la
+ * derecha es el punto de presencia de un avatar»--.
+ *
+ * Y sin sombra: el criterio de la casa es «sin sombras, la
+ * separación es siempre por borde de 1px», y la excepción escrita
+ * es solo para lo que FLOTA. Un avatar no flota.
+ */
+function Avatar({ nombre }: { nombre: string }) {
+  const iniciales = nombre
+    .trim()
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((p) => p[0] ?? "")
+    .join("")
+    .toUpperCase();
+
+  return (
+    /// El diámetro escala con la fila --26 px en un portátil, 34
+    /// en el monitor de 24"-- porque un círculo de tamaño fijo
+    /// dentro de una banda que se encoge acaba tocando los dos
+    /// bordes. El CUERPO de las iniciales no: se queda en rem,
+    /// para que el ajuste de texto de Accesibilidad lo siga
+    /// escalando.
+    <span
+      aria-hidden
+      style={{ width: "clamp(26px, 1.8vw, 34px)", height: "clamp(26px, 1.8vw, 34px)" }}
+      className="flex shrink-0 items-center justify-center rounded-full bg-encabezado-texto text-[0.75rem] font-bold tracking-[0.03em] text-encabezado-fondo"
+    >
+      {iniciales}
+    </span>
+  );
+}
+
+function Raya() {
+  return <div aria-hidden className="my-1.5 h-px bg-current/15" />;
+}
+
+/**
+ * De qué gremio se está hablando, dentro del menú.
+ *
+ * Se REHACE y no se mete aquí nuestro `Desplegable`: su lista es
+ * una tarjeta con tokens de CUERPO que se abriría dentro de una
+ * tarjeta con tokens de ENCABEZADO, se cierra sola al cambiar el
+ * tamaño y llega a 24rem frente a los 15 de este menú.
+ *
+ * Los tres casos del selector viejo se conservan tal cual: con
+ * cero gremios no se pinta nada, con uno es una línea de lectura
+ * --«elegir entre una cosa no es elegir»-- y con varios se elige.
+ */
+function SeccionGremio({
+  gremios,
+  gremio,
+  alElegir,
+}: {
+  gremios: Array<{ convenioId: string; sigla: string }>;
+  gremio: string | null;
+  alElegir: (id: string | null) => void;
+}) {
+  if (gremios.length === 0) return null;
+
+  if (gremios.length === 1) {
+    return (
+      <div className="px-3 py-2">
+        <span className={`${ROTULO} block`}>Línea de negocio</span>
+        <span className="mt-0.5 block truncate text-[0.8125rem] font-medium">
+          {gremios[0].sigla}
+        </span>
+      </div>
+    );
+  }
+
+  const opciones = [
+    { valor: "", etiqueta: "Todas las líneas" },
+    ...gremios.map((g) => ({
+      valor: g.convenioId,
+      etiqueta: g.sigla ?? g.convenioId,
+    })),
+  ];
+
+  return (
+    <div className="px-1.5 pt-1.5 pb-1">
+      <span className={`${ROTULO} mb-1 block px-1.5`}>Línea de negocio</span>
+      {/* Con muchos gremios la lista se desplaza por dentro en vez
+          de estirar el menú hasta salirse de la pantalla. */}
+      <ul className="caja-scroll max-h-[11rem] overflow-y-auto">
+        {opciones.map((o) => {
+          const elegido = (gremio ?? "") === o.valor;
+          return (
+            <li key={o.valor || "todos"}>
+              <button
+                type="button"
+                onClick={() => alElegir(o.valor || null)}
+                aria-current={elegido ? "true" : undefined}
+                className={`flex w-full items-center justify-between gap-2 rounded-lg px-3 py-2 text-left text-[0.8125rem] transition ${
+                  elegido
+                    ? "bg-current/15 font-semibold"
+                    : "opacity-85 hover:bg-current/10 hover:opacity-100"
+                }`}
+              >
+                <span className="truncate">{o.etiqueta}</span>
+                {elegido && <Visto />}
+              </button>
+            </li>
+          );
+        })}
+      </ul>
+    </div>
+  );
+}
+
+function Visto() {
+  return (
+    <svg
+      aria-hidden
+      viewBox="0 0 24 24"
+      width={14}
+      height={14}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2.6}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="shrink-0"
+    >
+      <path d="m5 13 4 4L19 7" />
+    </svg>
+  );
+}

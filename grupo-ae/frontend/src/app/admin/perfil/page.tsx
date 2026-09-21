@@ -174,7 +174,10 @@ export default function PaginaPerfil() {
 function SobreConvoca() {
   const estado = useEstado();
   const ano = estado ? new Date(estado.hora).getFullYear() : null;
-  const enPruebas = (estado?.version ?? "").includes("prueba");
+  /// La misma fuente que la franja naranja (ENTORNO). La versión
+  /// queda como respaldo por si el backend es anterior.
+  const enPruebas =
+    estado?.entorno === "prueba" || (estado?.version ?? "").includes("prueba");
 
   return (
     <Bloque titulo="Sobre el CRM">
@@ -199,7 +202,7 @@ function SobreConvoca() {
                 : "Producción · datos reales"
           }
         />
-        <Dato titulo="Gestionado por" valor="Grupo AE" />
+        <Dato titulo="Gestionado para" valor="Grupo AE" />
         <Dato
           titulo="Derechos"
           valor={ano ? `© ${ano}, todos los derechos reservados` : "…"}

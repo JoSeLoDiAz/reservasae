@@ -42,14 +42,28 @@ export type TipoFiltro = "texto" | "opciones" | "numero";
 
 /// Los tamaños de página que se ofrecen. Sin 200 ni 500: a
 /// partir de ahí la tabla pesa más de lo que ayuda, y para
-/// llevarse todo está «Descargar en Excel».
+/// llevarse todo está «Descargar CSV (abre en Excel)».
 const TAMANOS = [10, 25, 50, 100];
 
 export type Columna<T> = {
   clave: string;
   titulo: string;
-  /** el valor plano: ordena, filtra y se busca */
+  /** el valor plano: ordena, filtra, se busca y es lo que se descarga */
   valor: (f: T) => string | number | null;
+  /**
+   * Con qué se ORDENA, cuando no es el valor. Si falta, el valor.
+   *
+   * Casi siempre son lo mismo, y por eso es opcional. Pero hay
+   * datos cuyo sitio en la fila no es su cifra: un lead sin
+   * contestar no tiene tiempo de primera respuesta —en el archivo
+   * va vacío, porque no lo hay—, y sin embargo ordenado por
+   * lentitud es el PEOR de todos, no el que va al final. Con un
+   * solo número para las dos cosas había que elegir entre mentir
+   * en el archivo o mentir en el orden; se estuvo mintiendo en
+   * los dos con un `-1`, que lo ponía de primero entre los más
+   * rápidos y lo bajaba a Excel como «-1 minutos».
+   */
+  orden?: (f: T) => string | number | null;
   /** cómo se pinta; si falta, se pinta el valor */
   pinta?: (f: T) => ReactNode;
   filtro?: TipoFiltro;
@@ -96,6 +110,42 @@ export type Columna<T> = {
   fija?: boolean;
   /** existe pero no sale hasta que la pidan */
   aparte?: boolean;
+  /**
+   * Llegó DESPUÉS de que la gente guardara su forma de mirar.
+   *
+   * La tabla recuerda en el navegador qué columnas tiene puestas
+   * cada quien, y durante un tiempo recordó SOLO eso: no qué
+   * columnas existían cuando se guardó. Así que una columna nueva
+   * nacía escondida para todo el que ya hubiera abierto la lista
+   * una vez —no estaba en su lista guardada y no había forma de
+   * saber si la había quitado él o si no existía—, y el que la
+   * pidió abría la pantalla y no la encontraba.
+   *
+   * Ahora se guarda también cuáles se conocían, y la que no se
+   * conocía sale a la vista, en su sitio. Esta marca es solo para
+   * lo guardado ANTES de eso: ahí no hay lista de conocidas, se
+   * suponen conocidas todas las que existen, y las marcadas como
+   * nuevas salen una vez. Quitarla después no rompe nada.
+   */
+  nueva?: boolean;
+  /**
+   * La lista todavía no trae este dato. La columna EXISTE —se
+   * recuerda, guarda su sitio y su ancho—, pero no se pinta, no
+   * se busca en ella y no va en el archivo.
+   *
+   * No es lo mismo que pintarla vacía. Una columna entera de
+   * rayas AFIRMA algo: «Facturado» con una raya en cada negocio
+   * ganado dice que no se ha facturado nada, y en la ficha el
+   * mismo negocio dice lo contrario. Dos cifras distintas para
+   * lo mismo es como se pierde la confianza en un panel.
+   *
+   * Y no es lo mismo que quitarla del arreglo de columnas: lo
+   * guardado se poda contra las columnas que existen, así que una
+   * columna que falta un día se borraba de la lista de puestas y
+   * ya no volvía cuando el dato llegaba. Esta se queda, callada,
+   * igual que la que pide `desde` y no cabe.
+   */
+  sinDato?: boolean;
 };
 
 type Orden = { clave: string; asc: boolean } | null;
@@ -273,6 +323,10 @@ type Guardado = {
   vistas?: Vista[];
   /// Clave de columna -> ancho en px, el que dejo el usuario.
   anchos?: Record<string, number>;
+  /// Las columnas que existían cuando se guardó, puestas o no.
+  /// Es lo que distingue «esta la quitó él» de «esta no existía»:
+  /// sin ello, una columna nueva nacía escondida para siempre.
+  conocidas?: string[];
 };
 
 const sinTildes = (t: string) =>
@@ -295,6 +349,34 @@ function escribir(id: string, g: Guardado) {
   } catch {
     // sin localStorage la tabla sigue sirviendo
   }
+}
+
+/**
+ * Las columnas puestas, más las que nacieron después de guardarlas.
+ *
+ * Cada nueva entra DETRÁS DE SU VECINA de la declaración —la de
+ * antes que esté puesta—, no al final: «Facturado» se lee al lado
+ * de «Valor cotizado», y a doce columnas de ella no se compara con
+ * nada. Si ninguna de las de antes está puesta, va de primera.
+ *
+ * Las `aparte` no entran: esas no salen hasta que las pidan, y una
+ * columna nueva no tiene por qué saltarse esa regla.
+ */
+function conLasNuevas<T>(
+  puestas: string[],
+  columnas: Columna<T>[],
+  conocidas: Set<string>,
+): string[] {
+  const r = [...puestas];
+  columnas.forEach((c, i) => {
+    if (c.aparte || conocidas.has(c.clave) || r.includes(c.clave)) return;
+    let donde = -1;
+    for (let j = i - 1; j >= 0 && donde < 0; j--) {
+      donde = r.indexOf(columnas[j].clave);
+    }
+    r.splice(donde + 1, 0, c.clave);
+  });
+  return r;
 }
 
 export function Tabla<T>({
@@ -343,6 +425,8 @@ export function Tabla<T>({
   /// decida la tabla sola.
   const [anchos, setAnchos] = useState<Record<string, number>>({});
   const [vistas, setVistas] = useState<Vista[]>([]);
+  /// Las que ya se conocían. Ver `Guardado.conocidas`.
+  const [conocidas, setConocidas] = useState<string[]>([]);
   const [listo, setListo] = useState(false);
 
   const [buscar, setBuscar] = useState("");
@@ -456,7 +540,21 @@ export function Tabla<T>({
     const validas = (g.visibles ?? []).filter((c) =>
       columnas.some((x) => x.clave === c),
     );
-    if (validas.length) setVisibles(validas);
+    /// Lo guardado antes de que existiera la lista de conocidas
+    /// no sabe cuáles había: se suponen todas las de hoy menos
+    /// las que se declaran `nueva`, que es la mejor apuesta y la
+    /// única que no le devuelve a nadie una columna que quitó.
+    const sabidas = new Set(
+      g.conocidas ??
+        columnas.filter((c) => !c.nueva).map((c) => c.clave),
+    );
+    if (validas.length) setVisibles(conLasNuevas(validas, columnas, sabidas));
+    /// Y se guardan SUMADAS, nunca reemplazadas: una columna que
+    /// hoy no llega —la de lo facturado, en una lista que todavía
+    /// no lo trae— no deja de ser conocida por eso, y si se
+    /// olvidara volvería a salir cada vez que alguien la quita.
+    for (const c of columnas) sabidas.add(c.clave);
+    setConocidas([...sabidas]);
     setVistas(g.vistas ?? []);
     setListo(true);
   }, [id, columnas]);
@@ -471,8 +569,8 @@ export function Tabla<T>({
   /// que sí disparan. Por eso parecía que a veces se acordaba
   /// y a veces no.
   useEffect(() => {
-    if (listo) escribir(id, { visibles, vistas, anchos });
-  }, [id, visibles, vistas, anchos, listo]);
+    if (listo) escribir(id, { visibles, vistas, anchos, conocidas });
+  }, [id, visibles, vistas, anchos, conocidas, listo]);
 
   // al cambiar el filtro se vuelve a la primera pagina.
   // Ajustar el estado durante el render, no en un efecto:
@@ -494,13 +592,24 @@ export function Tabla<T>({
   /// La que no cabe no se encoge: DESAPARECE. Diez columnas
   /// espichadas para que quepan es lo mismo que ninguna, porque
   /// entonces no cabe el dato de ninguna.
-  const enPantalla = useMemo(
+  ///
+  /// Van en dos pasos porque hay dos preguntas. `elegidas` es
+  /// lo que el usuario dejó puesto, quepa o no, y es lo que se
+  /// DESCARGA: el ancho de la ventana no puede decidir qué va en
+  /// el archivo, o el mismo filtro bajaría con «Campaña» en el
+  /// monitor de la oficina y sin ella en el portátil. `enPantalla`
+  /// es lo que además cabe, y es lo que se PINTA.
+  const elegidas = useMemo(
     () =>
       visibles
         .map((c) => columnas.find((x) => x.clave === c))
-        .filter((c): c is Columna<T> => !!c)
-        .filter((c) => !c.desde || anchoDeLaLista >= c.desde),
-    [visibles, columnas, anchoDeLaLista],
+        .filter((c): c is Columna<T> => !!c && !c.sinDato),
+    [visibles, columnas],
+  );
+
+  const enPantalla = useMemo(
+    () => elegidas.filter((c) => !c.desde || anchoDeLaLista >= c.desde),
+    [elegidas, anchoDeLaLista],
   );
 
   /// La que absorbe, si la hay y está a la vista.
@@ -537,13 +646,19 @@ export function Tabla<T>({
     [enPantalla, anchos, seleccion],
   );
 
-  // los valores de cada fila, calculados una vez
+  // los valores de cada fila, calculados una vez. `o` es la
+  // llave de orden: el valor, salvo en la columna que declara
+  // la suya (ver `Columna.orden`)
   const conValores = useMemo(() => {
     if (!filas) return null;
     return filas.map((f) => {
       const v: Record<string, string | number | null> = {};
-      for (const c of columnas) v[c.clave] = c.valor(f);
-      return { f, v, id: clave(f) };
+      const o: Record<string, string | number | null> = {};
+      for (const c of columnas) {
+        v[c.clave] = c.valor(f);
+        o[c.clave] = c.orden ? c.orden(f) : v[c.clave];
+      }
+      return { f, v, o, id: clave(f) };
     });
   }, [filas, columnas, clave]);
 
@@ -590,11 +705,15 @@ export function Tabla<T>({
       const signo = orden.asc ? 1 : -1;
       const o = orden;
       r = [...r].sort((a, b) => {
-        const x = a.v[o.clave];
-        const y = b.v[o.clave];
-        // los vacios al final, se ordene como se ordene
-        if (x === null || x === "") return 1;
-        if (y === null || y === "") return -1;
+        const x = a.o[o.clave];
+        const y = b.o[o.clave];
+        // los vacios al final, se ordene como se ordene. Y dos
+        // vacios son EMPATE: devolver 1 a los dos lados le dice
+        // al navegador que cada uno va detras del otro, y con
+        // eso el orden de los vacios cambiaba en cada pulsacion
+        const xVacio = x === null || x === "";
+        const yVacio = y === null || y === "";
+        if (xVacio || yVacio) return xVacio === yVacio ? 0 : xVacio ? 1 : -1;
         if (def?.numerica) return (Number(x) - Number(y)) * signo;
         return String(x).localeCompare(String(y), "es", { numeric: true }) * signo;
       });
@@ -731,7 +850,7 @@ export function Tabla<T>({
         alDescargar={
           sinDescarga || !filtradas || filtradas.length === 0
             ? undefined
-            : () => bajarCsv(id, enPantalla, filtradas)
+            : () => bajarCsv(id, elegidas, filtradas)
         }
       />
 
@@ -1367,9 +1486,17 @@ function Barra({
           /// mas que la tabla que hay debajo, y ademas dejan de
           /// decir cual es la accion principal: si todo destaca,
           /// no destaca nada.
+          ///
+          /// Y dice lo que baja: un CSV. Decía «en Excel» y bajaba
+          /// un `.csv`, que es otra cosa —no guarda formato ni
+          /// hojas, y fuera de Excel se abre como texto—; quien
+          /// esperaba un libro y recibía eso creía que la descarga
+          /// había salido mal. Que Excel lo abre también es verdad,
+          /// y por eso va entre paréntesis.
+          title="Baja las filas que pasaron el filtro con todas las columnas que tiene puestas, también las que no caben en pantalla."
           className="dato sin-aro inline-flex h-[32px] items-center rounded-md bg-marca px-3 text-marca-texto transition hover:bg-marca-fuerte"
         >
-          Descargar en Excel
+          Descargar CSV (abre en Excel)
         </button>
       )}
 
@@ -1379,13 +1506,18 @@ function Barra({
 }
 
 /**
- * Baja a Excel lo que se está viendo.
+ * Baja en CSV lo que se está mirando.
  *
- * Lo que se está viendo, literalmente: las filas que pasaron
- * el filtro y las columnas que están puestas, en el orden en
- * que se ven. Bajar «todo» cuando la pantalla enseña un
- * recorte obliga a filtrar otra vez en Excel, que es de donde
- * uno venía huyendo.
+ * Las filas que pasaron el filtro, en el orden en que se ven, y
+ * las columnas que están PUESTAS —todas, quepan o no—. Bajar
+ * «todo» cuando la pantalla enseña un recorte obliga a filtrar
+ * otra vez en Excel, que es de donde uno venía huyendo.
+ *
+ * Las puestas y no solo las que caben: bajaba `enPantalla`, y
+ * «Campaña» y «Cierre esperado» —que solo entran con la lista
+ * ancha— salían o no en el archivo según el monitor. El mismo
+ * filtro daba dos archivos distintos en la oficina y en el
+ * portátil, y el del portátil no decía que le faltaba nada.
  *
  * Va con punto y coma y con BOM porque el Excel en español
  * abre la coma como separador decimal: con comas, «1,5» se
@@ -1400,7 +1532,26 @@ function bajarCsv<T>(
   filas: Array<{ v: Record<string, string | number | null> }>,
 ) {
   const escapar = (v: string | number | null) => {
-    const t = v === null || v === undefined ? "" : String(v);
+    let t = v === null || v === undefined ? "" : String(v);
+    /// Un texto que empieza por `=`, `+`, `-` o `@` Excel lo
+    /// abre como FÓRMULA, y aquí casi todo el texto lo escribió
+    /// alguien de fuera: el nombre del formulario público, la
+    /// razón social, la campaña que viene en el enlace del
+    /// anuncio. Un `=HYPERLINK(...)` metido en un formulario
+    /// saldría como enlace vivo en el Excel del gerente. El
+    /// apóstrofo delante lo deja en texto.
+    ///
+    /// Solo a los TEXTOS, y no a los que son pura cifra: un
+    /// teléfono «+57 300…» o un «-5» no pueden llamar a nada, y
+    /// ensuciarlos con un apóstrofo sería arreglar lo que no
+    /// estaba roto.
+    if (
+      typeof v === "string" &&
+      /^[=+\-@\t\r]/.test(t) &&
+      !/^[+-]?[\d\s.,()+-]*$/.test(t)
+    ) {
+      t = "'" + t;
+    }
     // comilla doble dentro se duplica, que es como lo lee Excel
     return `"${t.replace(/"/g, '""')}"`;
   };
@@ -1426,7 +1577,12 @@ function bajarCsv<T>(
   a.href = url;
   a.download = `${nombre}.csv`;
   a.click();
-  URL.revokeObjectURL(url);
+  // se suelta medio minuto despues y no en el acto: el clic
+  // solo PIDE la descarga, y soltar la direccion en la misma
+  // linea deja a algunos navegadores (Firefox, sobre todo) sin
+  // archivo que bajar. Lo que cuesta esperar es un archivo de
+  // texto en memoria durante treinta segundos
+  setTimeout(() => URL.revokeObjectURL(url), 30_000);
 }
 
 function CampoFiltro<T>({
@@ -1471,6 +1627,12 @@ function CampoFiltro<T>({
     />
   );
 }
+
+/// Lo que dice el panel de una columna `sinDato`, puesta o no:
+/// que se la pida no la hace aparecer, y sin esto parecería que
+/// el botón no funciona.
+const SIN_DATO =
+  "La lista todavía no trae este dato. La columna sale sola cuando lo traiga.";
 
 function PanelColumnas<T>({
   columnas,
@@ -1531,9 +1693,11 @@ function PanelColumnas<T>({
                 <span
                   className="flex-1 truncate"
                   title={
-                    c.desde && anchoDeLaLista && anchoDeLaLista < c.desde
-                      ? `Entra cuando la lista mida ${c.desde} px. Ahora mide ${anchoDeLaLista}.`
-                      : undefined
+                    c.sinDato
+                      ? SIN_DATO
+                      : c.desde && anchoDeLaLista && anchoDeLaLista < c.desde
+                        ? `Entra cuando la lista mida ${c.desde} px. Ahora mide ${anchoDeLaLista}.`
+                        : undefined
                   }
                 >
                   {c.titulo}
@@ -1584,6 +1748,7 @@ function PanelColumnas<T>({
                   <button
                     type="button"
                     onClick={() => alternar(c)}
+                    title={c.sinDato ? SIN_DATO : undefined}
                     className="dato h-[32px] rounded-md border border-borde px-3 transition hover:border-marca"
                   >
                     + {c.titulo}

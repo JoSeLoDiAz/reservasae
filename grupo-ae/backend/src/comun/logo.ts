@@ -1,3 +1,5 @@
+import type { EsquemaDeLogo } from '../../generated/prisma';
+
 // SVG escala; JPG no tiene transparencia
 export const TIPOS_LOGO = ['image/svg+xml', 'image/png', 'image/webp'];
 export const MAXIMO_LOGO = 1024 * 1024;
@@ -19,6 +21,7 @@ export type LogoPublico = {
   nombre: string;
   version: number;
   orden: number;
+  esquema: EsquemaDeLogo;
 };
 
 export type OrigenLogos = 'GENERAL' | 'FORMULARIO';

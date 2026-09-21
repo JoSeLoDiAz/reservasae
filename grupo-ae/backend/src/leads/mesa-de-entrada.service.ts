@@ -398,7 +398,7 @@ export class MesaDeEntrada {
       });
       if (!suya) {
         throw new BadRequestException(
-          'Ese producto o servicio no es de esta unidad de negocio.',
+          'Ese producto o servicio no es de esta línea de negocio.',
         );
       }
     }

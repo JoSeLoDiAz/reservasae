@@ -151,7 +151,7 @@ export class GestionDelLead {
       });
       if (!suyos.length) {
         throw new ForbiddenException(
-          'Ese asesor no tiene permisos en esta unidad de negocio, así que no vería los ' +
+          'Ese asesor no tiene permisos en esta línea de negocio, así que no vería los ' +
             'leads que se le asignen.',
         );
       }

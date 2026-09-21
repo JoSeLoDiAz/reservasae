@@ -11,6 +11,7 @@
 /// en su momento.
 
 import { Prisma, type EtapaParticipante } from '../../../generated/prisma';
+import { seLePregunta } from '../../crm/lo-que-no-se-pregunta';
 
 export type Segmento = {
   /// En qué etapas está. Vacío = cualquiera.
@@ -32,6 +33,19 @@ export type Segmento = {
 /// Los que se ofrecen hechos, porque son los que se piden.
 /// Tener que armar el filtro a mano cada vez es como se manda
 /// una campaña al segmento equivocado.
+///
+/// LOS TÍTULOS NOMBRAN LA ETAPA CON LA PALABRA DEL EMBUDO. Decían
+/// «Con propuesta enviada» mientras el embudo, dos pantallas más
+/// allá, llamaba a la misma gente «Cotización enviada»: en la
+/// demostración nadie supo decir si eran el mismo grupo. Ahora el
+/// título empieza por el nombre de la columna del embudo y sigue
+/// con lo que lo acota, para que se lea de un vistazo QUÉ columna
+/// y QUÉ parte de ella.
+///
+/// La `clave` NO cambia aunque diga `inscritos`: es el valor de la
+/// opción en el desplegable, no un texto que lea nadie. Lo que se
+/// guarda con la campaña son las REGLAS del segmento, no la clave,
+/// así que renombrarla no le aclararía nada a quien usa el panel.
 export const SEGMENTOS_LISTOS: Array<{
   clave: string;
   titulo: string;
@@ -40,8 +54,8 @@ export const SEGMENTOS_LISTOS: Array<{
 }> = [
   {
     clave: 'datos-pendientes',
-    titulo: 'Les faltan datos',
-    para: 'Recordarles que completen el formulario.',
+    titulo: 'Por calificar: les faltan datos',
+    para: 'Recordarles que completen el formulario: sin sus datos no pasan a Calificado.',
     segmento: {
       etapas: ['INTERESADO', 'CONTACTADO'],
       soloDatosIncompletos: true,
@@ -49,25 +63,25 @@ export const SEGMENTOS_LISTOS: Array<{
   },
   {
     clave: 'inscritos-inicio',
-    titulo: 'Con propuesta enviada',
-    para: 'Hacer seguimiento a la propuesta enviada.',
+    titulo: 'Cotización enviada, con fecha de inicio',
+    para: 'Hacer seguimiento a quien ya tiene cotización y fecha de inicio.',
     segmento: { etapas: ['INSCRITO'], soloConGrupo: true },
   },
   {
     clave: 'inscritos-todos',
-    titulo: 'Todas las oportunidades abiertas',
-    para: 'Un aviso general a quien ya tiene propuesta en curso.',
+    titulo: 'Cotización enviada, todos',
+    para: 'Un aviso general a quien ya tiene una cotización en curso.',
     segmento: { etapas: ['INSCRITO'] },
   },
   {
     clave: 'en-formacion',
     titulo: 'En negociación',
-    para: 'Cambios en las condiciones de la propuesta.',
+    para: 'Cambios en las condiciones de la cotización.',
     segmento: { etapas: ['EN_FORMACION'] },
   },
   {
     clave: 'sin-asesor',
-    titulo: 'Sin asesor',
+    titulo: 'Solicitud de negocio, sin asesor',
     para: 'Nadie los está llamando todavía.',
     segmento: { etapas: ['INTERESADO'], soloSinAsesor: true },
   },
@@ -152,9 +166,14 @@ export function leFaltaAlgo(p: {
   beneficiarioPrevio: boolean | null;
 }): boolean {
   const per = p.persona;
+  /// Lo que esta instalación no pregunta no puede faltar. En Grupo
+  /// AE la fecha de nacimiento y el estrato no se piden, y exigirlos
+  /// aquí metía a TODA la base en «les faltan datos»: la campaña les
+  /// mandaba el enlace de completar a gente a la que el enlace ya no
+  /// le pregunta nada (auditoría del 18 sep 2026).
   return (
-    per.fechaNacimiento === null ||
-    per.estrato === null ||
+    (seLePregunta('fechaNacimiento') && per.fechaNacimiento === null) ||
+    (seLePregunta('estrato') && per.estrato === null) ||
     !per.barrio ||
     !per.direccion ||
     per.generoSepId === null ||
@@ -171,13 +190,21 @@ export function enPalabras(s: Segmento): string {
   const partes: string[] = [];
 
   if (s.etapas?.length) {
-    partes.push(`en ${s.etapas.map(enBonito).join(' o ')}`);
+    /// Con «la etapa» y comillas: los rótulos de venta son verbos
+    /// («Canceló», «Dejó de responder») y a secas la frase salía
+    /// «Personas en Canceló», que no se entiende.
+    partes.push(
+      `en la etapa ${s.etapas.map((e) => `«${enBonito(e)}»`).join(' o ')}`,
+    );
   } else {
     partes.push('en cualquier etapa');
   }
 
   if (s.soloDatosIncompletos) partes.push('a quienes les falten datos');
-  if (s.soloConGrupo) partes.push('con grupo y fecha');
+  /// «Con fecha de inicio» y no «con grupo y fecha»: es como lo
+  /// dice el título del segmento, y el grupo es un detalle de cómo
+  /// se guarda, no algo que quien lanza la campaña tenga que saber.
+  if (s.soloConGrupo) partes.push('con fecha de inicio');
   if (s.soloSinAsesor) partes.push('sin asesor');
   if (s.accionFormacionId) partes.push('de un producto o servicio');
   if (s.coberturaId) partes.push('de una campaña');
@@ -185,14 +212,49 @@ export function enPalabras(s: Segmento): string {
   return `Personas ${partes.join(', ')}, que tengan correo.`;
 }
 
+/**
+ * El nombre de la etapa dentro de la frase que describe a quién
+ * le va a llegar el correo.
+ *
+ * ES EL MISMO VOCABULARIO que `ETIQUETA_ETAPA` del panel
+ * (`frontend/src/lib/crm-api.ts`), que el selector de plantillas
+ * y que los tokens de `admin/temas.ts` —y que el aviso de
+ * `correo/plantillas/etapas-de-plantilla.ts`, en minúscula—. Se
+ * cambian juntos, y `una-etapa-un-nombre.spec.ts` los compara a
+ * todos, los del panel incluidos, leyéndolos como texto. El 15
+ * sep 2026 estos discrepaban y la frase que decía
+ * «Ganado» describía un segmento que la lista llamaba de otra
+ * forma, así que una campaña se podía mandar a la gente
+ * equivocada creyendo lo contrario.
+ *
+ * ESTABAN LAS SEIS PRIMERAS Y NADA MÁS, y el `?? e` de abajo
+ * tapaba el hueco: una campaña acotada a los perdidos se
+ * describía como «en PERDIDO», con el valor crudo de la base en
+ * mitad de una frase en español. Ahora están las once.
+ *
+ * EL 18 SEP 2026 SE PASARON AL VOCABULARIO DEL EMBUDO. Las siete
+ * que tienen pareja en `EtapaOportunidad` se llaman exactamente
+ * como ella —`rotulo()` de `oportunidades/escalera.ts`—, y las
+ * cuatro que no la tienen hablan de venta y no de aula. Es la
+ * misma gente vista desde el contacto en vez de desde el negocio,
+ * y con dos vocabularios una demostración del Mailing se iba en
+ * explicar que «Propuesta enviada» era «Cotización enviada». El
+ * porqué de cada palabra está junto a `ETIQUETA_ETAPA` del panel.
+ * El enum no se tocó: solo lo que se lee.
+ */
 function enBonito(e: string): string {
   const m: Record<string, string> = {
-    INTERESADO: 'Interesado',
+    INTERESADO: 'Solicitud de negocio',
     CONTACTADO: 'Contactado',
-    DATOS_COMPLETOS: 'Datos completos',
-    INSCRITO: 'Propuesta enviada',
+    DATOS_COMPLETOS: 'Calificado',
+    INSCRITO: 'Cotización enviada',
     EN_FORMACION: 'En negociación',
-    CERTIFICADO: 'Ganado',
+    CERTIFICADO: 'Cerrado ganado',
+    PERDIDO: 'Cerrado perdido',
+    RETIRADO: 'Canceló',
+    NO_APROBO: 'No aprobó la compra',
+    DESERTO: 'Desistió',
+    ABANDONO: 'Dejó de responder',
   };
   return m[e] ?? e;
 }

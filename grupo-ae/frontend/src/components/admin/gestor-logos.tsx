@@ -95,7 +95,7 @@ export function GestorLogos({ formularioId, heredados, alCambiar }: Props) {
 
               <label className="min-w-48 flex-1">
                 <span className="micro mb-1 block">
-                  Nombre de la entidad
+                  Nombre de la empresa
                 </span>
                 <input
                   defaultValue={logo.etiqueta}

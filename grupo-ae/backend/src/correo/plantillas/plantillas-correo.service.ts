@@ -116,7 +116,7 @@ export class PlantillasCorreoService {
     /// plantilla colgada del otro gremio, que despues aparece
     /// en SU desplegable.
     if (datos.convenioId && !ambito.includes(datos.convenioId)) {
-      throw new NotFoundException('Esa unidad de negocio no existe.');
+      throw new NotFoundException('Esa línea de negocio no existe.');
     }
     this.revisar(datos.asunto, datos.cuerpo);
     return this.prisma.plantillaCorreo.create({
@@ -283,6 +283,7 @@ export class PlantillasCorreoService {
     /// manda le da igual si el hueco estaba en el asunto o en
     /// el cuerpo, lo que necesita saber es qué le falta.
     const faltantes = [...new Set([...asunto.faltantes, ...cuerpo.faltantes])];
+    const desconocidas = [...new Set([...asunto.desconocidas, ...cuerpo.desconocidas])];
 
     return {
       para: datos.correo,
@@ -290,12 +291,15 @@ export class PlantillasCorreoService {
       asunto: asunto.texto,
       cuerpo: cuerpo.texto,
       faltantes,
-      desconocidas: [
-        ...new Set([...asunto.desconocidas, ...cuerpo.desconocidas]),
-      ],
-      /// Se puede mandar si hay a dónde y no quedó ningún
-      /// hueco sin llenar.
-      sePuede: Boolean(datos.correo) && faltantes.length === 0,
+      desconocidas,
+      /// Se puede mandar si hay a dónde, no quedó ningún hueco
+      /// sin llenar Y la plantilla no usa variables que no
+      /// existen. Esto último faltaba: una plantilla guardada
+      /// antes de que se validaran al guardar salía con la llave
+      /// impresa —«Hola {{NOMBRE_PARTICIPANTE}}»— y firmada.
+      /// Arreglo traído de Convoca (commit 1b8e274, José).
+      sePuede:
+        Boolean(datos.correo) && faltantes.length === 0 && desconocidas.length === 0,
     };
   }
 
@@ -362,6 +366,14 @@ export class PlantillasCorreoService {
       );
     }
 
+    if (vista.desconocidas.length > 0) {
+      throw new BadRequestException(
+        'Esta plantilla usa variables que no existen: ' +
+          `${vista.desconocidas.map((f) => `{{${f}}}`).join(', ')}. ` +
+          'Corríjala antes de enviarla: saldrían tal cual en el correo.',
+      );
+    }
+
     /// El cabezote va por URL y no adjunto: quien lo descarga
     /// es el cliente de correo de la otra persona. La versión
     /// viaja en la dirección porque la respuesta se cachea una
@@ -404,7 +416,7 @@ export class PlantillasCorreoService {
     /// Se devuelve a dónde fue DE VERDAD, no a dónde iba.
     ///
     /// En pruebas todo se desvía a un buzón nuestro. Decirle
-    /// al asesor «se envió a camilapruebas@gmail.com» cuando
+    /// al asesor «se envió a camila.pruebas@ejemplo.test» cuando
     /// eso no pasó es peor que no decir nada: se queda creyendo
     /// que la persona ya está avisada, y no lo está.
     return {

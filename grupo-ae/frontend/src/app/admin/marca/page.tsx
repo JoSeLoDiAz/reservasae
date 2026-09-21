@@ -177,7 +177,7 @@ export default function PaginaMarca() {
             iniciales={gremio.propios}
             tituloLogos={`Logos de ${gremio.sigla ?? "esta línea de negocio"}`}
             tituloColores={`Colores de ${gremio.sigla ?? "esta línea de negocio"}`}
-            descripcionLogos="Hasta tres, uno por entidad. Sin ninguno propio se muestran los generales. SVG, PNG o WebP con fondo transparente, máximo 1 MB cada uno; se ven a 80 px de alto."
+            descripcionLogos="Hasta tres, uno por marca. Sin ninguno propio se muestran los generales. SVG, PNG o WebP con fondo transparente, máximo 1 MB cada uno; se ven a 80 px de alto."
           />
         ) : (
           <Bloque titulo="La apariencia de esta línea de negocio">
@@ -187,7 +187,7 @@ export default function PaginaMarca() {
       ) : (
         <Bloque
           titulo="Logos de la cabecera"
-          descripcion="Hasta tres, uno por entidad. SVG, PNG o WebP con fondo transparente, máximo 1 MB cada uno. Se muestran a 80 px de alto, así que conviene entregarlos a 960 × 288 px o mayor, o en SVG. JPG no sirve: no tiene transparencia y deja un recuadro blanco."
+          descripcion="Hasta tres, uno por marca. SVG, PNG o WebP con fondo transparente, máximo 1 MB cada uno. Se muestran a 80 px de alto, así que conviene entregarlos a 960 × 288 px o mayor, o en SVG. JPG no sirve: no tiene transparencia y deja un recuadro blanco."
         >
           <GestorLogos />
         </Bloque>

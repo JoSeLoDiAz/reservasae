@@ -138,7 +138,11 @@ export class CrmController {
   }
 
   /** Alta manual cuando el NIT no está o trae otro nombre. */
+  /// Escribe en el directorio: pide escritura. Heredaba el VER de la
+  /// clase, así que una cuenta de solo consulta podía dar de alta
+  /// NITs (el mismo defecto que José corrigió en f4cf93b).
   @Post('nit')
+  @Requiere('inscripciones', 'ESCRIBIR')
   agregarNit(@Body() dto: AgregarNitDto) {
     return this.directorio.agregarManual(dto.nit, dto.razonSocial);
   }

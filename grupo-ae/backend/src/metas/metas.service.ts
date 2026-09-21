@@ -55,7 +55,7 @@ export class MetasService {
     /// que mande el cliente: fijarle la meta a otra cuenta es
     /// escribir en los informes de otro gremio.
     if (!ambito.convenios.includes(datos.convenioId)) {
-      throw new BadRequestException('No trabaja en esa cuenta.');
+      throw new BadRequestException('No tiene acceso a esa línea de negocio.');
     }
 
     const asesorId = datos.asesorId ?? null;
@@ -264,7 +264,7 @@ export class MetasService {
   private conveniosDe(ambito: Ambito, pedido?: string | null): string[] {
     if (!pedido) return ambito.convenios;
     if (!ambito.convenios.includes(pedido)) {
-      throw new BadRequestException('No trabaja en esa cuenta.');
+      throw new BadRequestException('No tiene acceso a esa línea de negocio.');
     }
     return [pedido];
   }

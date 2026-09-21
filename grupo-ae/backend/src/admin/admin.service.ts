@@ -93,7 +93,7 @@ export class AdminService {
       if (tiene === 0) {
         return (
           `Su cuenta no trabaja en ${delHost.slug}. Entre por la dirección ` +
-          'de la unidad de negocio que le corresponde.'
+          'de la línea de negocio que le corresponde.'
         );
       }
       return null;
@@ -105,7 +105,7 @@ export class AdminService {
     ) {
       return (
         'Esta dirección es solo para administración general. Entre por la ' +
-        'dirección de su unidad de negocio.'
+        'dirección de su línea de negocio.'
       );
     }
 
@@ -211,7 +211,7 @@ export class AdminService {
       where: { id: { in: ids }, activo: true },
     });
     if (existen !== ids.length) {
-      throw new BadRequestException('Alguna de las unidades de negocio indicadas no existe.');
+      throw new BadRequestException('Alguna de las líneas de negocio indicadas no existe.');
     }
   }
 
@@ -266,7 +266,7 @@ export class AdminService {
       // quedarse sin ninguna es quedarse sin panel
       if (dto.concesiones.length === 0) {
         throw new BadRequestException(
-          'Una cuenta sin ninguna unidad de negocio no vería nada. Desactívela en vez de dejarla sin acceso.',
+          'Una cuenta sin ninguna línea de negocio no vería nada. Desactívela en vez de dejarla sin acceso.',
         );
       }
       await this.exigirConveniosReales(dto.concesiones);
@@ -469,7 +469,7 @@ export class AdminService {
       });
       if (!suyo) {
         throw new BadRequestException(
-          'Ese formulario no es de esta unidad de negocio, así que no puede darle su marca.',
+          'Ese formulario no es de esta línea de negocio, así que no puede darle su marca.',
         );
       }
     }
@@ -615,6 +615,10 @@ export class AdminService {
         nombre: true,
         version: true,
         orden: true,
+        /// Sin esto el panel no puede elegir la versión de letra
+        /// blanca para el encabezado verde y la de color para una
+        /// tarjeta clara: las dos saldrían a la vez.
+        esquema: true,
       },
     });
     return filas;
@@ -796,7 +800,7 @@ export class AdminService {
 
       if (!politica) {
         throw new ConflictException(
-          'Esta unidad de negocio no tiene una política de tratamiento de datos vigente. ' +
+          'Esta línea de negocio no tiene una política de tratamiento de datos vigente. ' +
             'Publique la política antes de abrir el producto al público.',
         );
       }

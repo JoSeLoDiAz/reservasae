@@ -79,16 +79,20 @@ const PLANTILLAS: Array<{
   etapas?: string[];
 }> = [
   {
-    nombre: 'Bienvenida al servicio contratado',
+    /// SIN {{accionFormacion}}, a propósito (17 sep 2026): esa variable
+    /// saca el nombre de la acción de formación de la persona —«AF1 ·
+    /// DESPLIEGUE DE AGENTES…»—, y un correo comercial de licencias no
+    /// puede llegar con eso dentro. Lo que se vende lo dice el asesor.
+    nombre: 'Confirmación de su solicitud',
     etapas: ['INSCRITO', 'EN_FORMACION'],
-    asunto: '{{tratamiento}} {{primerApellido}}, confirmamos su solicitud de {{accionFormacion}}',
+    asunto: '{{tratamiento}} {{primerApellido}}, recibimos su solicitud',
     cuerpo: `{{saludo}}:
 
-Confirmamos que recibimos su solicitud de {{accionFormacion}}.
+Confirmamos que recibimos su solicitud.
 
-Un asesor se comunicará con usted en las próximas horas para revisar el alcance y enviarle la propuesta.
+Un asesor comercial se comunicará con usted en las próximas horas para entender lo que necesita y enviarle la cotización.
 
-Si algo no le cuadra, respóndanos este correo.
+Si tiene alguna pregunta, responda este correo.
 
 {{gremio}}`,
   },
@@ -98,35 +102,31 @@ Si algo no le cuadra, respóndanos este correo.
     asunto: '{{primerNombre}}, nos falta un dato suyo',
     cuerpo: `{{saludo}}:
 
-Para poder preparar su propuesta de {{accionFormacion}} nos hace falta completar algunos datos.
+Para preparar su cotización nos hace falta completar algunos datos de su organización.
 
-Es cosa de tres minutos. Si prefiere, llámenos y lo hacemos por teléfono.
+Le toma pocos minutos. Si prefiere, llámenos y lo hacemos por teléfono.
 
 {{gremio}}`,
   },
   {
-    nombre: 'Recordatorio: propuesta pendiente de respuesta',
+    nombre: 'Recordatorio: cotización pendiente',
     etapas: ['INSCRITO'],
-    asunto: 'Su propuesta vence el {{fechaInicio}}',
+    asunto: '{{primerNombre}}, su cotización está pendiente',
     cuerpo: `{{saludo}}:
 
-Le recordamos que la propuesta de {{accionFormacion}} está pendiente de su respuesta.
+Le recordamos que la cotización que le enviamos está pendiente de su respuesta.
 
-Lugar: {{ubicacion}}
-Modalidad: {{modalidad}}
-Grupo: {{grupo}}
-
-Lo esperamos.
+Si quiere revisarla con su asesor o ajustar el número de licencias, responda este correo.
 
 {{gremio}}`,
   },
   {
     nombre: 'Su asesor se presenta',
     etapas: ['CONTACTADO', 'DATOS_COMPLETOS', 'INSCRITO'],
-    asunto: '{{primerNombre}}, soy {{asesor}} y lo acompaño en su proceso',
+    asunto: '{{primerNombre}}, soy {{asesor}}, su asesor comercial',
     cuerpo: `{{saludo}}:
 
-Mi nombre es {{asesor}} y voy a acompañarlo durante este proceso con {{gremio}}.
+Mi nombre es {{asesor}} y voy a acompañarlo en este proceso con {{gremio}}.
 
 Cualquier duda que le surja, escríbame a este correo.
 
@@ -142,11 +142,11 @@ Cualquier duda que le surja, escríbame a este correo.
     asunto: '{{primerNombre}}, sobre su solicitud',
     cuerpo: `{{saludo}}:
 
-Le escribimos sobre su solicitud de {{accionFormacion}}.
+Le escribimos sobre su solicitud.
 
 En esta ocasión no logramos llegar a un acuerdo. Le agradecemos el tiempo que nos dedicó.
 
-Su registro queda con nosotros: cuando tengamos una alternativa que se ajuste a lo que busca, se lo haremos saber. No tiene que volver a escribirnos.
+Sus datos quedan con nosotros: cuando tengamos una alternativa que se ajuste a lo que busca, se lo haremos saber.
 
 Gracias por su interés.
 
@@ -158,23 +158,23 @@ Gracias por su interés.
     asunto: '{{primerNombre}}, ¿podemos ayudarle a retomar?',
     cuerpo: `{{saludo}}:
 
-Vimos que la conversación sobre {{accionFormacion}} quedó detenida y queremos saber si podemos ayudarle.
+Vimos que nuestra conversación quedó detenida y queremos saber si podemos ayudarle.
 
-Si fue por tiempo, por presupuesto o porque la propuesta no se ajustó a lo que necesitaba, díganoslo respondiendo este correo: podemos revisarla con usted.
+Si fue por tiempo, por presupuesto o porque la cotización no se ajustó a lo que necesitaba, díganoslo respondiendo este correo: podemos revisarla con usted.
 
-Y si simplemente ya no le interesa, también está bien. Con saberlo nos ayuda a no insistir.
+Y si ya no le interesa, también está bien. Con saberlo nos ayuda a no insistir.
 
 {{gremio}}`,
   },
   {
-    nombre: 'Propuesta no aceptada: alternativas',
+    nombre: 'Cotización no aceptada: alternativas',
     etapas: ['NO_APROBO'],
-    asunto: 'Sobre su resultado en {{accionFormacion}}',
+    asunto: '{{primerNombre}}, sobre su cotización',
     cuerpo: `{{saludo}}:
 
-Le contamos que por ahora no avanzamos con la propuesta de {{accionFormacion}}.
+Le contamos que por ahora no avanzamos con la cotización.
 
-Esto no lo deja por fuera: podemos revisar alternativas cuando lo necesite. Si quiere que le contemos qué se puede ajustar, respóndanos y lo revisamos con usted.
+Podemos revisar otras alternativas, como otra edición de Google Workspace o un número distinto de licencias. Si quiere, respóndanos y lo revisamos con usted.
 
 {{gremio}}`,
   },
@@ -183,10 +183,10 @@ Esto no lo deja por fuera: podemos revisar alternativas cuando lo necesite. Si q
     /// puede no llevar ninguna, y esa le sirve a todo el
     /// mundo aunque su ficha esté a medias.
     nombre: 'Aviso general (sin datos personales)',
-    asunto: 'Cambio de fecha en la sesión de presentación',
+    asunto: 'Cambio de fecha de nuestra reunión',
     cuerpo: `Buen día:
 
-La sesión de presentación se corre para la próxima semana. Les confirmamos día y hora en los próximos días.
+La reunión de presentación se corre para la próxima semana. Les confirmamos día y hora en los próximos días.
 
 Gracias por su paciencia.`,
   },

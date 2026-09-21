@@ -436,7 +436,7 @@ export function VistaPrevia({ colores }: { colores: ColoresTema }) {
           borderBottom: `1px solid ${c("encabezadoBorde")}`,
         }}
       >
-        <span className="font-semibold">Grupo AE</span>
+        <span className="font-semibold">Convoca CRM</span>
         <span className="text-sm opacity-70">Encabezado</span>
       </div>
 
@@ -453,7 +453,7 @@ export function VistaPrevia({ colores }: { colores: ColoresTema }) {
           className="rounded-lg p-4"
           style={{ background: c("marcaSuave"), color: c("marca") }}
         >
-          Zona resaltada, como el resumen de una oferta.
+          Zona resaltada, como el resumen de un negocio.
         </div>
 
         <div
@@ -468,9 +468,9 @@ export function VistaPrevia({ colores }: { colores: ColoresTema }) {
               que va a tener delante. */}
           <div className="flex flex-wrap gap-4">
             {[
-              { texto: "Disponible", frente: "exito" },
-              { texto: "Últimos lugares", frente: "aviso" },
-              { texto: "Completo", frente: "error" },
+              { texto: "Al día", frente: "exito" },
+              { texto: "En riesgo", frente: "aviso" },
+              { texto: "Vencido", frente: "error" },
             ].map((e) => (
               <span
                 key={e.texto}
@@ -498,7 +498,7 @@ export function VistaPrevia({ colores }: { colores: ColoresTema }) {
           <table className="w-full border-collapse text-sm">
             <thead>
               <tr>
-                {["Servicio", "Ubicación", "Disponibilidad"].map((h) => (
+                {["Negocio", "Cliente", "Valor"].map((h) => (
                   <th
                     key={h}
                     className="px-3 py-2 text-left font-semibold"

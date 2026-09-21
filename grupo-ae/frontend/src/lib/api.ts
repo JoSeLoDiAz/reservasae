@@ -113,6 +113,18 @@ function gremioElegido(): string | null {
 export const api = {
   catalogo: (slug: string) => pedir<Catalogo>(`/catalogo/${slug}`),
 
+  /**
+   * La puerta de entrada de un lead: crea (o reconoce) el NEGOCIO en
+   * el embudo, en «Solicitud de negocio», con su campaña de origen.
+   * Es la que usan los formularios públicos desde el 18 sep 2026; la
+   * de reservas nació para apartar cupos y no creaba ningún negocio.
+   */
+  captar: (slug: string, datos: Record<string, unknown>) =>
+    pedir<{ recibido: boolean; referencia: string; mensaje: string }>(
+      `/captacion/${encodeURIComponent(slug)}`,
+      { method: "POST", body: JSON.stringify(datos) },
+    ),
+
   crearReserva: (datos: Record<string, unknown>) =>
     pedir<Reserva>("/reservas", { method: "POST", body: JSON.stringify(datos) }),
 

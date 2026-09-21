@@ -83,6 +83,12 @@ export class OportunidadesController {
     );
   }
 
+  /** A quién se le puede pasar este negocio, para el desplegable. */
+  @Get(':id/asesores')
+  asesoresPosibles(@Param('id') id: string, @AmbitoActual() ambito: Ambito) {
+    return this.oportunidades.asesoresPosibles(id, ambito);
+  }
+
   @Get(':id')
   unaSola(@Param('id') id: string, @AmbitoActual() ambito: Ambito) {
     return this.oportunidades.unaSola(id, ambito);
@@ -99,7 +105,7 @@ export class OportunidadesController {
     /// mande el cliente: mandar el de otro sería crear una
     /// oportunidad en una cuenta ajena.
     if (!ambito.convenios.includes(dto.convenioId)) {
-      throw new BadRequestException('No trabaja en esa cuenta.');
+      throw new BadRequestException('No tiene acceso a esa línea de negocio.');
     }
     return this.oportunidades.crear(dto, admin);
   }

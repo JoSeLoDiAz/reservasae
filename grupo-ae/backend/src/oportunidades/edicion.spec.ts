@@ -2,6 +2,7 @@ import { EtapaOportunidad, TipoEmbudo } from '../../generated/prisma';
 import { probabilidadDe } from './embudos';
 import {
   enDinero,
+  enFacturado,
   fechaCorta,
   narrarAsesor,
   narrarCliente,
@@ -10,6 +11,7 @@ import {
   normalizarMoneda,
   puedeAtarse,
   puedeBorrarse,
+  puedeFacturarse,
   puedePisarProbabilidad,
   resolverProbabilidad,
   revisarMoneda,
@@ -151,6 +153,102 @@ describe('editar una oportunidad sin romperla', () => {
       expect(normalizarMoneda(' usd ')).toBe('USD');
       expect(normalizarMoneda('COL$')).toBeNull();
     });
+
+    /// Lo facturado va en la misma moneda que el valor, así que
+    /// cambiarla sin convertirlo lo metería en el informe del mes
+    /// como otra plata.
+    describe('lo facturado también se convierte', () => {
+      it('con el valor convertido pero lo facturado no, se bloquea', () => {
+        const v = revisarMoneda(
+          { moneda: 'COP', valor: 12_000_000, valorFacturado: 11_900_000 },
+          { moneda: 'USD', valor: 3_000 },
+        );
+        expect(v.puede).toBe(false);
+        expect(v.porque).toContain('facturado');
+        expect(v.porque).toContain('11.900.000 COP');
+        expect(v.moneda).toBe('COP');
+      });
+
+      it('con los dos convertidos, pasa', () => {
+        const v = revisarMoneda(
+          { moneda: 'COP', valor: 12_000_000, valorFacturado: 11_900_000 },
+          { moneda: 'USD', valor: 3_000, valorFacturado: 2_975 },
+        );
+        expect(v.puede).toBe(true);
+        expect(v.moneda).toBe('USD');
+      });
+
+      it('quitarlo a la vez también vale: ya no hay cifra que leer mal', () => {
+        const v = revisarMoneda(
+          { moneda: 'COP', valor: 12_000_000, valorFacturado: 11_900_000 },
+          { moneda: 'USD', valor: 3_000, valorFacturado: null },
+        );
+        expect(v.puede).toBe(true);
+      });
+
+      it('sin facturar, o facturado en cero, no estorba', () => {
+        expect(
+          revisarMoneda(
+            { moneda: 'COP', valor: 12_000_000, valorFacturado: null },
+            { moneda: 'USD', valor: 3_000 },
+          ).puede,
+        ).toBe(true);
+        expect(
+          revisarMoneda(
+            { moneda: 'COP', valor: 12_000_000, valorFacturado: 0 },
+            { moneda: 'USD', valor: 3_000 },
+          ).puede,
+        ).toBe(true);
+      });
+
+      /// El valor sigue mandando primero: si falta, el mensaje es el
+      /// de siempre y no uno nuevo que hable de facturas.
+      it('si falta el valor, el no es el de siempre', () => {
+        const v = revisarMoneda(
+          { moneda: 'COP', valor: 12_000_000, valorFacturado: 11_900_000 },
+          { moneda: 'USD' },
+        );
+        expect(v.puede).toBe(false);
+        expect(v.porque).toContain('pronóstico');
+      });
+    });
+  });
+
+  describe('solo se factura lo ganado', () => {
+    it('a una ganada se le anota lo facturado', () => {
+      expect(puedeFacturarse(EtapaOportunidad.GANADO, 11_900_000).puede).toBe(
+        true,
+      );
+    });
+
+    /// El cero es un dato —se facturó en cero— y en una ganada vale.
+    it('facturado en cero también, si está ganada', () => {
+      expect(puedeFacturarse(EtapaOportunidad.GANADO, 0).puede).toBe(true);
+    });
+
+    it('a una abierta no, y el no dice que hay que ganarla primero', () => {
+      const v = puedeFacturarse(EtapaOportunidad.EN_NEGOCIACION, 5_000_000);
+      expect(v.puede).toBe(false);
+      expect(v.porque).toContain('Cerrado ganado');
+    });
+
+    it('a una recién captada tampoco', () => {
+      expect(puedeFacturarse(EtapaOportunidad.CAPTADO, 1).puede).toBe(false);
+    });
+
+    it('a una perdida no, y la salida es reabrirla', () => {
+      const v = puedeFacturarse(EtapaOportunidad.PERDIDO, 5_000_000);
+      expect(v.puede).toBe(false);
+      expect(v.porque).toContain('reábrala');
+    });
+
+    /// Quitarlo es corregir un error: bloquearlo dejaría pegada a la
+    /// ficha justo la cifra equivocada.
+    it('quitarlo se puede en cualquier etapa', () => {
+      for (const etapa of Object.values(EtapaOportunidad)) {
+        expect(puedeFacturarse(etapa, null).puede).toBe(true);
+      }
+    });
   });
 
   describe('el embudo decide a quién se le ata', () => {
@@ -262,9 +360,13 @@ describe('editar una oportunidad sin romperla', () => {
       expect(narrarEdicion(ficha(), ficha())).toEqual([]);
     });
 
+    /// «Valor cotizado» y no «Valor»: desde que existe lo facturado,
+    /// «Valor» a secas no dice cuál de las dos cifras cambió.
     it('el valor se narra con el antes y el después', () => {
       const lineas = narrarEdicion(ficha(), ficha({ valor: 18_000_000 }));
-      expect(lineas).toEqual(['Valor: 12.000.000 COP → 18.000.000 COP']);
+      expect(lineas).toEqual([
+        'Valor cotizado: 12.000.000 COP → 18.000.000 COP',
+      ]);
     });
 
     it('valor y moneda van en una sola línea, porque se mueven juntos', () => {
@@ -272,12 +374,115 @@ describe('editar una oportunidad sin romperla', () => {
         ficha(),
         ficha({ valor: 3_000, moneda: 'USD' }),
       );
-      expect(lineas).toEqual(['Valor: 12.000.000 COP → 3.000 USD']);
+      expect(lineas).toEqual(['Valor cotizado: 12.000.000 COP → 3.000 USD']);
+    });
+
+    it('facturar por primera vez queda escrito', () => {
+      const lineas = narrarEdicion(
+        ficha(),
+        ficha({ valorFacturado: 11_900_000 }),
+      );
+      expect(lineas).toEqual([
+        'Valor facturado: sin facturar → 11.900.000 COP',
+      ]);
+    });
+
+    it('corregir lo facturado dice el antes y el después', () => {
+      const lineas = narrarEdicion(
+        ficha({ valorFacturado: 11_900_000 }),
+        ficha({ valorFacturado: 10_000_000 }),
+      );
+      expect(lineas).toEqual([
+        'Valor facturado: 11.900.000 COP → 10.000.000 COP',
+      ]);
+    });
+
+    it('quitarlo lo devuelve a «sin facturar», y se dice', () => {
+      const lineas = narrarEdicion(
+        ficha({ valorFacturado: 11_900_000 }),
+        ficha({ valorFacturado: null }),
+      );
+      expect(lineas).toEqual([
+        'Valor facturado: 11.900.000 COP → sin facturar',
+      ]);
+    });
+
+    /// Sin facturar y facturado en cero son dos hechos, y en la
+    /// bitácora tienen que leerse distinto.
+    it('facturar en cero no se confunde con no haber facturado', () => {
+      const lineas = narrarEdicion(ficha(), ficha({ valorFacturado: 0 }));
+      expect(lineas).toEqual(['Valor facturado: sin facturar → 0 COP']);
+    });
+
+    it('lo facturado va en su propia línea, aparte de lo cotizado', () => {
+      const lineas = narrarEdicion(
+        ficha(),
+        ficha({ valor: 12_500_000, valorFacturado: 11_900_000 }),
+      );
+      expect(lineas).toEqual([
+        'Valor cotizado: 12.000.000 COP → 12.500.000 COP',
+        'Valor facturado: sin facturar → 11.900.000 COP',
+      ]);
+    });
+
+    it('guardar lo facturado sin cambiarlo no escribe nada', () => {
+      expect(
+        narrarEdicion(
+          ficha({ valorFacturado: 11_900_000 }),
+          ficha({ valorFacturado: 11_900_000 }),
+        ),
+      ).toEqual([]);
+    });
+
+    /// Las fichas de antes no traen la clave: no es un cambio de
+    /// «nada» a «sin facturar».
+    it('una ficha vieja sin lo facturado no inventa un cambio', () => {
+      expect(narrarEdicion(ficha(), ficha({ valorFacturado: null }))).toEqual(
+        [],
+      );
+    });
+
+    /// La misma cifra en otra moneda es otra plata: se narra aunque
+    /// el número no se haya movido.
+    it('si cambia la moneda, lo facturado se narra aunque la cifra sea igual', () => {
+      const lineas = narrarEdicion(
+        ficha({ valor: 0, valorFacturado: 0 }),
+        ficha({ valor: 0, valorFacturado: 0, moneda: 'USD' }),
+      );
+      expect(lineas).toEqual([
+        'Valor cotizado: 0 COP → 0 USD',
+        'Valor facturado: 0 COP → 0 USD',
+      ]);
     });
 
     it('la campaña vacía se dice, no se calla', () => {
       const lineas = narrarEdicion(ficha(), ficha({ campana: 'Feria 2026' }));
       expect(lineas).toEqual(['Campaña: sin campaña → Feria 2026']);
+    });
+
+    it('elegir el servicio del portafolio queda escrito, con su familia', () => {
+      const lineas = narrarEdicion(
+        ficha(),
+        ficha({ servicio: 'Google Workspace Business Plus (Empresas)' }),
+      );
+      expect(lineas).toEqual([
+        'Servicio: sin servicio → Google Workspace Business Plus (Empresas)',
+      ]);
+    });
+
+    it('la cantidad se narra, y borrarla también', () => {
+      expect(narrarEdicion(ficha(), ficha({ cantidad: 40 }))).toEqual([
+        'Cantidad: sin cantidad → 40',
+      ]);
+      expect(narrarEdicion(ficha({ cantidad: 40 }), ficha({ cantidad: null }))).toEqual([
+        'Cantidad: 40 → sin cantidad',
+      ]);
+    });
+
+    it('una ficha vieja sin servicio no inventa un cambio', () => {
+      /// Las fichas de antes del portafolio no traen la clave: no es
+      /// un cambio de «nada» a «null».
+      expect(narrarEdicion(ficha(), ficha({ servicio: null, cantidad: null }))).toEqual([]);
     });
 
     it('quitar la fecha de cierre queda escrito', () => {
@@ -312,7 +517,7 @@ describe('editar una oportunidad sin romperla', () => {
     });
 
     it('la probabilidad dice si se puso a mano o si se soltó', () => {
-      expect(narrarProbabilidad(50, 10, true)).toContain('a mano');
+      expect(narrarProbabilidad(50, 10, true)).toContain('manualmente');
       expect(narrarProbabilidad(10, 50, false)).toContain('su etapa');
     });
 
@@ -331,6 +536,12 @@ describe('editar una oportunidad sin romperla', () => {
       expect(enDinero(12_000_000, 'COP')).toBe('12.000.000 COP');
       expect(enDinero(999, 'COP')).toBe('999 COP');
       expect(enDinero(0, 'USD')).toBe('0 USD');
+    });
+
+    it('lo facturado vacío se dice con palabras, no como cero', () => {
+      expect(enFacturado(null, 'COP')).toBe('sin facturar');
+      expect(enFacturado(0, 'COP')).toBe('0 COP');
+      expect(enFacturado(11_900_000, 'COP')).toBe('11.900.000 COP');
     });
 
     /// En UTC: leer el cierre en hora de Bogotá lo enseñaría siempre

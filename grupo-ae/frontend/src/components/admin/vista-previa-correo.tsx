@@ -203,7 +203,7 @@ export function VistaPreviaCorreo({
       >
         <div className="flex items-baseline gap-2 micro">
           <span className="w-12 shrink-0">De</span>
-          <span className="truncate text-texto">{remitente ?? "Grupo AE"}</span>
+          <span className="truncate text-texto">{remitente ?? "Convoca CRM"}</span>
         </div>
         <div className="flex items-baseline gap-2 micro">
           <span className="w-12 shrink-0">Para</span>

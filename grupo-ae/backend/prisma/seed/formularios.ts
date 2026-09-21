@@ -83,7 +83,7 @@ const COMO_SE_ENTERO: OpcionSemilla[] = [
   ['Redes sociales', 'redes'],
   ['Correo de Grupo AE', 'correo'],
   ['Alguien nos recomendó', 'referido'],
-  ['Feria, gremio o evento', 'evento'],
+  ['Feria o evento', 'evento'],
   ['Un asesor me contactó', 'asesor'],
   ['Otro medio', 'otro'],
 ];
@@ -183,8 +183,8 @@ const SECCIONES_EMPRESAS: SeccionSemilla[] = [
         tipo: TipoPregunta.TEXTO_LARGO,
         obligatoria: true,
         marcador:
-          'Por ejemplo: formar a los supervisores de planta antes de la ' +
-          'auditoría de noviembre.',
+          'Por ejemplo: migrar 80 cuentas de correo a Google Workspace antes ' +
+          'de fin de año.',
       },
       {
         etiqueta: '¿Para cuántas personas?',
@@ -279,7 +279,7 @@ const SECCIONES_PERSONAS: SeccionSemilla[] = [
         tipo: TipoPregunta.TEXTO_LARGO,
         obligatoria: true,
         marcador:
-          'Por ejemplo: un diplomado en gestión de calidad, los fines de semana.',
+          'Por ejemplo: un curso de Google Workspace o un Chromebook para estudiar.',
       },
       {
         etiqueta: '¿Para cuándo lo necesita?',

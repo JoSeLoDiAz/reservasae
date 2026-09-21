@@ -7,7 +7,7 @@
  * rechazan el resto—, así que lo que NO está aquí es tan importante
  * como lo que sí:
  *
- *  - **No hay `convenioId`.** La unidad de negocio sale del slug,
+ *  - **No hay `convenioId`.** La línea de negocio sale del slug,
  *    resuelto contra la base. Aceptarlo aquí sería dejar que
  *    cualquiera meta oportunidades en la cuenta del otro gremio.
  *  - **No hay `valor`.** El dinero lo pone el asesor al calificar.
@@ -164,7 +164,7 @@ export class CaptarDto {
    * autorización que NO dio.
    *
    * No lleva `@Equals(true)` a propósito: lo exige el servicio, que
-   * es quien sabe si esta unidad de negocio tiene texto publicado y
+   * es quien sabe si esta línea de negocio tiene texto publicado y
    * puede decir contra QUÉ versión se aceptó.
    */
   @IsOptional()
@@ -197,7 +197,7 @@ export class CaptarDto {
 
   /// El lead de la mesa de entrada que trajo a esta persona, si la
   /// página lo sabe. El servicio comprueba que sea de esta misma
-  /// unidad de negocio antes de creérselo.
+  /// línea de negocio antes de creérselo.
   @IsOptional()
   @Transform(recortar)
   @IsString()

@@ -290,18 +290,27 @@ describe('la captación por el formulario público', () => {
       expect(creadas[0].datos.empresaId).toBe('emp-1');
     });
 
-    it('el que no lo pide exige el documento, y sin él no escribe nada', async () => {
-      const { s, escrituras } = armar();
-      await expect(
-        s.captar(
-          'diplomado-gerencia',
-          completa({
-            tipoDocumentoSepId: undefined,
-            numeroDocumento: undefined,
-          }),
-        ),
-      ).rejects.toThrow(/documento/);
-      expect(escrituras()).toHaveLength(0);
+    /// Antes exigía el documento y el formulario público de personas
+    /// no lo pregunta: no entraba ningún lead de personas (auditoría
+    /// del 18 sep 2026). La persona se exige al calificar, como dice
+    /// la escalera; al entrar basta con saber cómo responderle.
+    it('sin documento, el negocio nace igual: sin persona y con el nombre en el título', async () => {
+      const { s, creadas, busca } = armar();
+      await s.captar(
+        'diplomado-gerencia',
+        completa({
+          tipoDocumentoSepId: undefined,
+          numeroDocumento: undefined,
+        }),
+      );
+
+      expect(creadas).toHaveLength(1);
+      const datos = creadas[0].datos as { personaId: unknown; titulo: string };
+      expect(datos.personaId).toBeNull();
+      expect(datos.titulo).toContain('·');
+      /// Y NO busca negocios anteriores con un filtro vacío: eso
+      /// devolvería los de cualquiera.
+      expect(busca('oportunidad', 'findMany')).toBeUndefined();
     });
 
     /// La misma cédula es la misma persona, venga por donde venga:

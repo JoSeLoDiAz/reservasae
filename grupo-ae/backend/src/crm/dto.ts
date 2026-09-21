@@ -27,6 +27,7 @@ import {
   EtapaParticipante,
   OrigenParticipante,
 } from '../../generated/prisma';
+import { aCelularGuardable } from '../comun/celular';
 import { aNumeroONulo as aNumero } from '../comun/campo-vacio';
 
 const recortar = ({ value }: { value: unknown }) =>
@@ -81,8 +82,20 @@ export class CrearParticipanteDto {
   @IsEmail({}, { message: 'El correo no tiene un formato válido.' })
   correo?: string;
 
+  /// Normalizado AQUÍ, en la transformación, y no en el
+  /// servicio: el `create` y el `update` del upsert de la
+  /// persona leen los dos `dto.celular`, así que un solo sitio
+  /// los cubre y ninguno se puede olvidar. Ver
+  /// `aCelularGuardable`.
+  ///
+  /// OJO: dos puertas llaman a `crear()` con un objeto suelto,
+  /// sin pasar por este DTO, y por eso normalizan antes: el
+  /// pegado desde Excel en `carga.ts`, y la conversión de un
+  /// lead, que copia `lead.celular` —ya normalizado al entrar
+  /// por `leads.service` o al arreglarlo en la mesa por
+  /// `ArreglarLeadDto`—.
   @IsOptional()
-  @Transform(recortar)
+  @Transform(({ value }) => aCelularGuardable(value))
   @IsString()
   @MaxLength(30)
   celular?: string;
@@ -190,8 +203,11 @@ export class ActualizarParticipanteDto {
   @IsEmail({}, { message: 'El correo no tiene un formato válido.' })
   correo?: string;
 
+  /// La misma regla que al crear: si editar la ficha guardara
+  /// el celular crudo, el primer asesor que lo corrigiera a mano
+  /// devolvería la columna a tener tres grafías del mismo número.
   @IsOptional()
-  @Transform(recortar)
+  @Transform(({ value }) => aCelularGuardable(value))
   @IsString()
   @MaxLength(30)
   celular?: string;

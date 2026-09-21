@@ -25,7 +25,7 @@ export const GRUPOS: Array<{ clave: GrupoToken; etiqueta: string; descripcion: s
   {
     clave: 'MARCA',
     etiqueta: 'Marca',
-    descripcion: 'Botones, enlaces y todo lo que identifica a la entidad.',
+    descripcion: 'Botones, enlaces y todo lo que identifica a la marca.',
   },
   {
     clave: 'SUPERFICIES',
@@ -52,7 +52,7 @@ export const GRUPOS: Array<{ clave: GrupoToken; etiqueta: string; descripcion: s
     clave: 'ESTADOS',
     etiqueta: 'Estados',
     descripcion:
-      'Ganado, en riesgo y perdido. También los mensajes de error. ' +
+      'Cerrado ganado, en riesgo y cerrado perdido. También los mensajes de error. ' +
       'Cámbielos con cuidado: si pierden contraste, un aviso importante pasa desapercibido.',
   },
   {
@@ -108,15 +108,26 @@ export const TOKENS: DefinicionToken[] = [
   { clave: 'errorSuave', variableCss: '--error-suave', grupo: 'ESTADOS', etiqueta: 'Fondo de error' },
 
   // Etapas del CRM
-  { clave: 'etapaInteresado', variableCss: '--etapa-interesado', grupo: 'ETAPAS', etiqueta: 'Interesado' },
+  //
+  // Las siete primeras se llaman como la etapa del NEGOCIO que
+  // pintan, y desde el 18 sep 2026 la persona usa esas mismas
+  // palabras, así que el nombre sirve para los dos lados. Las
+  // cuatro últimas solo existen en la persona y se llaman como en
+  // el Mailing: «Canceló» y «No aprobó la compra», no «Retirado» y
+  // «No calificó», que eran palabras de aula. La CLAVE sigue
+  // diciendo `etapaRetirado` y `etapaNoAprobo`: es la llave con la
+  // que el color ya está guardado en el JSON de `Tema` (claro y
+  // oscuro), y renombrarla dejaría sin su color a quien lo
+  // personalizó.
+  { clave: 'etapaInteresado', variableCss: '--etapa-interesado', grupo: 'ETAPAS', etiqueta: 'Solicitud de negocio' },
   { clave: 'etapaContactado', variableCss: '--etapa-contactado', grupo: 'ETAPAS', etiqueta: 'Contactado' },
-  { clave: 'etapaDatosCompletos', variableCss: '--etapa-datos-completos', grupo: 'ETAPAS', etiqueta: 'Datos completos' },
-  { clave: 'etapaInscrito', variableCss: '--etapa-inscrito', grupo: 'ETAPAS', etiqueta: 'Propuesta enviada' },
+  { clave: 'etapaDatosCompletos', variableCss: '--etapa-datos-completos', grupo: 'ETAPAS', etiqueta: 'Calificado' },
+  { clave: 'etapaInscrito', variableCss: '--etapa-inscrito', grupo: 'ETAPAS', etiqueta: 'Cotización enviada' },
   { clave: 'etapaEnFormacion', variableCss: '--etapa-en-formacion', grupo: 'ETAPAS', etiqueta: 'En negociación' },
-  { clave: 'etapaCertificado', variableCss: '--etapa-certificado', grupo: 'ETAPAS', etiqueta: 'Ganado' },
-  { clave: 'etapaPerdido', variableCss: '--etapa-perdido', grupo: 'ETAPAS', etiqueta: 'No interesado' },
-  { clave: 'etapaRetirado', variableCss: '--etapa-retirado', grupo: 'ETAPAS', etiqueta: 'Retirado' },
-  { clave: 'etapaNoAprobo', variableCss: '--etapa-no-aprobo', grupo: 'ETAPAS', etiqueta: 'No cerró' },
+  { clave: 'etapaCertificado', variableCss: '--etapa-certificado', grupo: 'ETAPAS', etiqueta: 'Cerrado ganado' },
+  { clave: 'etapaPerdido', variableCss: '--etapa-perdido', grupo: 'ETAPAS', etiqueta: 'Cerrado perdido' },
+  { clave: 'etapaRetirado', variableCss: '--etapa-retirado', grupo: 'ETAPAS', etiqueta: 'Canceló' },
+  { clave: 'etapaNoAprobo', variableCss: '--etapa-no-aprobo', grupo: 'ETAPAS', etiqueta: 'No aprobó la compra' },
   { clave: 'etapaDeserto', variableCss: '--etapa-deserto', grupo: 'ETAPAS', etiqueta: 'Desistió' },
   { clave: 'etapaAbandono', variableCss: '--etapa-abandono', grupo: 'ETAPAS', etiqueta: 'Dejó de responder' },
 ];
@@ -181,7 +192,7 @@ export const COMPROBACIONES_CONTRASTE: Array<{
   {
     frente: 'aviso',
     fondo: 'error',
-    descripcion: 'Distinguir «últimos cupos» de «completo»',
+    descripcion: 'Distinguir «en riesgo» de «vencido»',
     entreEstados: true,
   },
   {
@@ -193,17 +204,17 @@ export const COMPROBACIONES_CONTRASTE: Array<{
 
   // la pildora tiñe la superficie con su propio color,
   // asi que el par que hay que medir es contra ella
-  { frente: 'etapaInteresado', fondo: 'superficie', descripcion: 'Etiqueta de Interesado' },
+  { frente: 'etapaInteresado', fondo: 'superficie', descripcion: 'Etiqueta de Solicitud de negocio' },
   { frente: 'etapaContactado', fondo: 'superficie', descripcion: 'Etiqueta de Contactado' },
-  { frente: 'etapaDatosCompletos', fondo: 'superficie', descripcion: 'Etiqueta de Datos completos' },
-  { frente: 'etapaInscrito', fondo: 'superficie', descripcion: 'Etiqueta de Propuesta enviada' },
+  { frente: 'etapaDatosCompletos', fondo: 'superficie', descripcion: 'Etiqueta de Calificado' },
+  { frente: 'etapaInscrito', fondo: 'superficie', descripcion: 'Etiqueta de Cotización enviada' },
   { frente: 'etapaEnFormacion', fondo: 'superficie', descripcion: 'Etiqueta de En negociación' },
-  { frente: 'etapaCertificado', fondo: 'superficie', descripcion: 'Etiqueta de Ganado' },
-  { frente: 'etapaPerdido', fondo: 'superficie', descripcion: 'Etiqueta de Perdido' },
-  { frente: 'etapaRetirado', fondo: 'superficie', descripcion: 'Etiqueta de Retirado' },
-  { frente: 'etapaNoAprobo', fondo: 'superficie', descripcion: 'Etiqueta de No aprobó' },
-  { frente: 'etapaDeserto', fondo: 'superficie', descripcion: 'Etiqueta de Desertó' },
-  { frente: 'etapaAbandono', fondo: 'superficie', descripcion: 'Etiqueta de Abandonó' },
+  { frente: 'etapaCertificado', fondo: 'superficie', descripcion: 'Etiqueta de Cerrado ganado' },
+  { frente: 'etapaPerdido', fondo: 'superficie', descripcion: 'Etiqueta de Cerrado perdido' },
+  { frente: 'etapaRetirado', fondo: 'superficie', descripcion: 'Etiqueta de Canceló' },
+  { frente: 'etapaNoAprobo', fondo: 'superficie', descripcion: 'Etiqueta de No aprobó la compra' },
+  { frente: 'etapaDeserto', fondo: 'superficie', descripcion: 'Etiqueta de Desistió' },
+  { frente: 'etapaAbandono', fondo: 'superficie', descripcion: 'Etiqueta de Dejó de responder' },
 ];
 
 export type ColoresTema = Record<string, string>;

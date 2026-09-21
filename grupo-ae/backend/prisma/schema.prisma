@@ -1360,12 +1360,29 @@ model AdminConvenio {
 }
 
 /// Los logos de la cabecera. Hasta tres por ámbito.
+/// En qué tema sale un logo. `AMBOS` es lo normal.
+///
+/// Traído de Convoca el 17 sep 2026: el logo con nombre de Advanced
+/// Education existe en versión de letra blanca y de letra de color,
+/// y sin esta columna no había forma de decir cuál va sobre el verde
+/// del encabezado y cuál sobre una tarjeta clara.
+enum EsquemaDeLogo {
+  AMBOS
+  CLARO
+  OSCURO
+}
+
 model Logo {
   id String @id @default(cuid())
 
   /// null = marca general; si no, el formulario dueño.
   formularioId String?
   orden        Int     @default(0)
+
+  /// En qué tema sale. Un logo institucional no se puede recolorear
+  /// —es un archivo hecho para papel—, así que se carga su versión de
+  /// letra oscura y la de letra blanca, y cada fila dice cuándo le toca.
+  esquema EsquemaDeLogo @default(AMBOS)
 
   /// Nombre de la entidad. Es su texto alternativo.
   etiqueta String
@@ -2156,9 +2173,32 @@ model Oportunidad {
   /// Que se le esta vendiendo, en una linea.
   titulo String
 
-  /// En pesos salvo que se diga otra cosa.
+  /// En pesos salvo que se diga otra cosa. Es lo COTIZADO: en
+  /// pantalla se llama «Valor cotizado». La columna conserva el
+  /// nombre `valor` porque renombrarla rompería todo lo que ya la
+  /// lee —tablero, pronóstico, informes y la API del panel—.
   valor  Decimal @default(0) @db.Decimal(14, 2)
   moneda String  @default("COP")
+
+  /**
+   * Lo FACTURADO de verdad, en la misma `moneda` que `valor`.
+   *
+   * Null es «sin facturar», y a propósito no es cero: un cero diría
+   * que se facturó y salió en cero, que es otra cosa. Por eso la
+   * columna no lleva `@default(0)` como `valor`: los negocios que ya
+   * existían nacen todos sin facturar, que es la verdad.
+   *
+   * Existe porque cotizado y facturado se separan en la vida real:
+   * se gana al cerrar y se factura después, a veces por menos —un
+   * descuento de último minuto, diez licencias en vez de doce—. Con
+   * una sola cifra el informe del mes enseñaba lo prometido como si
+   * fuera plata que ya entró.
+   *
+   * Solo se anota en una GANADA; la regla vive en `edicion.ts`
+   * (`puedeFacturarse`) y no aquí, igual que las compuertas de la
+   * escalera. Mismo Decimal(14,2) que `valor`, por lo mismo.
+   */
+  valorFacturado Decimal? @db.Decimal(14, 2)
 
   /**
    * De 0 a 100.
@@ -2198,6 +2238,29 @@ model Oportunidad {
   leadId String?
 
   /**
+   * QUÉ se vende, del portafolio. Opcional a propósito.
+   *
+   * Hasta el 17 sep 2026 lo único que decía qué se vendía era
+   * `titulo`, texto libre escrito a mano, y por eso el CRM no podía
+   * contestar «qué servicio vende más». Ahora el negocio apunta a
+   * una fila de `servicios`.
+   *
+   * No es obligatorio porque hay doce negocios que nacieron antes,
+   * sin servicio, y obligarlo los dejaría imposibles de editar hasta
+   * que alguien adivinara qué vendían. `titulo` se queda: dice el
+   * caso concreto —«Business Plus para 40 personas de Textiles La
+   * Sabana»— y el servicio dice la familia.
+   *
+   * El VALOR lo sigue poniendo el asesor en `valor` (decisión de la
+   * dirección, 17 sep 2026): el portafolio no trae precio.
+   */
+  servicioId String?
+  servicio   Servicio? @relation(fields: [servicioId], references: [id], onDelete: SetNull)
+  /// Cuántas: licencias, equipos, cursos. Null si no aplica o no se
+  /// sabe todavía; no es cero, que diría «ninguna».
+  cantidad   Int?
+
+  /**
    * El reloj.
    * `primeraRespuestaEn` es el instante en que alguien de verdad
    * contesto. Se escribe UNA vez y no se vuelve a tocar: es la
@@ -2231,7 +2294,79 @@ model Oportunidad {
   @@index([convenioId, cierreEsperado])
   @@index([personaId])
   @@index([empresaId])
+  /// Para «qué se vende», que es la pregunta que el portafolio vino
+  /// a poder contestar.
+  @@index([servicioId])
   @@map("oportunidades")
+}
+
+/// Las dos familias en que Grupo AE oferta su portafolio al público.
+/// Salen tal cual de la lista de la dirección (17 sep 2026).
+enum FamiliaServicio {
+  EDUCACION
+  EMPRESAS
+}
+
+/// Qué clase de cosa es, que no es lo mismo que su familia: una
+/// licencia, un equipo y un curso se cuentan y se venden distinto.
+enum TipoServicio {
+  LICENCIA
+  IMPLEMENTACION
+  SOPORTE
+  FORMACION
+  EQUIPO
+}
+
+/**
+ * El portafolio: lo que Grupo AE oferta al público.
+ *
+ * NO ES `AccionFormacion`, y la razón hay que dejarla escrita porque
+ * es lo primero que alguien va a proponer. Esa tabla ya se llama
+ * «producto o servicio» en campañas, así que reciclarla parecía lo
+ * natural. Pero en esta base tiene las quince acciones de formación
+ * traídas de Convoca, con participantes y grupos colgando, y está
+ * atada a cupos, SEP y matrícula en más de veinte ficheros. Meter ahí
+ * «Google Workspace Business Plus» obligaría a darle modalidad,
+ * cupos y grupos a una licencia, y mezclaría el portafolio con cursos
+ * que ya tienen gente inscrita.
+ *
+ * Lo que SÍ se recicla de Convoca es la forma del catálogo: código,
+ * orden, y visible/oculto en vez de borrar.
+ *
+ * NO VA POR CONVENIO. Las demás tablas del panel se acotan por
+ * gremio, pero el portafolio es de la empresa: GRUPO AE y GRUPO AE ·
+ * Personas venden de la misma lista.
+ *
+ * Soporte, Cursos y Chromebooks están DOS veces, una por familia, y
+ * no es un duplicado: así se ofertan, cada uno en su lista. Por eso la
+ * unicidad es (familia, nombre) y no el nombre solo.
+ */
+model Servicio {
+  id String @id @default(cuid())
+
+  familia FamiliaServicio
+  tipo    TipoServicio
+  /// Tal cual la lista de la dirección. «CEU» se deja escrito como
+  /// venía: no se interpreta.
+  nombre  String
+  /// En qué se cuenta la cantidad del negocio: «licencia», «equipo»,
+  /// «curso», «proyecto», «servicio». Texto y no enum: es lo que se
+  /// lee al lado del número, y cambiarlo no debería pedir migración.
+  unidad  String
+
+  orden   Int     @default(0)
+  /// Oculto y no borrado: un servicio que se deja de ofertar sigue
+  /// siendo lo que se vendió en los negocios que lo llevan.
+  visible Boolean @default(true)
+
+  creadoEn      DateTime @default(now())
+  actualizadoEn DateTime @updatedAt
+
+  oportunidades Oportunidad[]
+
+  @@unique([familia, nombre])
+  @@index([familia, visible, orden])
+  @@map("servicios")
 }
 
 /**
@@ -2385,4 +2520,71 @@ model MetaComercial {
   @@unique([convenioId, asesorId, anio, mes, embudo])
   @@index([convenioId, anio, mes])
   @@map("metas_comerciales")
+}
+
+/**
+ * LOS PARÁMETROS DEL TABLERO: lo que antes estaba escrito en el código.
+ *
+ * El compromiso de respuesta, cuántas gestiones son un bananeo y a los
+ * cuántos días una oportunidad se considera fría vivían en
+ * `src/oportunidades/ans.ts` y `senales.ts`, con el argumento de que un
+ * compromiso que cada quien se ajusta deja de ser un compromiso. El
+ * argumento sigue en pie y por eso esto NO es libre: son una fila única,
+ * se cambian desde Configuración —que pide escritura— y queda escrito
+ * quién y cuándo. Lo que se buscaba era que no hiciera falta un
+ * despliegue para mover un umbral, no que cada asesor tenga el suyo.
+ *
+ * Una sola fila, con id fijo. No va por convenio: el compromiso de
+ * respuesta es de la casa, no del gremio que lo pida.
+ *
+ * Los valores por defecto son EXACTAMENTE los que tenía el código, así
+ * que una base sin esta fila se comporta como antes.
+ */
+model ParametrosDelTablero {
+  id String @id @default("unico")
+
+  /// Minutos para la primera respuesta, por embudo. Cinco en personas
+  /// y un día en empresas, como estaba.
+  ansPersonaMinutos Int @default(5)
+  ansEmpresaMinutos Int @default(1440)
+
+  /// Cuántas gestiones hechas en la misma etapa son un bananeo.
+  bananeoPersona Int @default(3)
+  bananeoEmpresa Int @default(3)
+
+  /// Días sin que nadie la toque para que salga como fría.
+  diasParaFria Int @default(7)
+
+  actualizadoEn    DateTime @updatedAt
+  creadoEn         DateTime @default(now())
+  /// Quién lo cambió la última vez. Sin relación: si esa cuenta se
+  /// desactiva, el rastro tiene que quedar igual.
+  actualizadoPorId String?
+
+  @@map("parametros_del_tablero")
+}
+
+/**
+ * La probabilidad de cada etapa, que alimenta el pronóstico.
+ *
+ * Estaba en la tabla `PROBABILIDAD` de `embudos.ts`, marcada como
+ * estimada hasta que hubiera cierres suficientes para calcularla. Aquí
+ * se puede corregir sin desplegar, y cuando haya histórico propio el
+ * cálculo escribirá estas mismas filas.
+ *
+ * Por embudo y etapa, porque mezclar empresa y persona en un solo
+ * promedio empeora los dos.
+ */
+model ProbabilidadDeEtapa {
+  id String @id @default(cuid())
+
+  embudo TipoEmbudo
+  etapa  EtapaOportunidad
+  /// De 0 a 100. Se valida en el servicio.
+  porcentaje Int
+
+  actualizadoEn DateTime @updatedAt
+
+  @@unique([embudo, etapa])
+  @@map("probabilidades_de_etapa")
 }

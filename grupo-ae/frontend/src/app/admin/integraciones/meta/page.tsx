@@ -164,9 +164,8 @@ function PanelDeGremio({
         {g.sinTabla && (
           <div className="mt-4">
             <Aviso tipo="error">
-              La tabla de leads no existe todavía. Falta aplicar la migración
-              «20260828090000_mesa_de_entrada_de_leads». Los avisos de Meta
-              llegarían bien, pero no habría dónde guardarlos.
+              La base de datos necesita una actualización para guardar los
+              leads de Meta. Avise a soporte técnico.
             </Aviso>
           </div>
         )}
@@ -216,7 +215,7 @@ function PanelDeGremio({
                 })
               }
             >
-              {ocupado === "verificacion" ? "Probando…" : "Probar el apretón"}
+              {ocupado === "verificacion" ? "Probando…" : "Probar la verificación"}
             </Boton>
 
             {puedeSimular && (
@@ -229,7 +228,7 @@ function PanelDeGremio({
                     })
                   }
                 >
-                  {ocupado === "aviso" ? "Mandando…" : "Mandar tres leads de mentira"}
+                  {ocupado === "aviso" ? "Mandando…" : "Enviar tres leads de prueba"}
                 </BotonSuave>
                 <button
                   type="button"
@@ -372,7 +371,7 @@ export default function PaginaMeta() {
               correcta cuando la barra lateral se pliega. */}
           <Bloque
             titulo="Cada línea de negocio, con su app"
-            descripcion="El apretón de manos es lo que enciende el webhook: Meta llama una vez y espera que le devolvamos su palabra clave tal cual; si falla no avisa, simplemente no llegan leads. La prueba hace esa misma llamada contra nosotros mismos y no escribe nada. «Tres de golpe» es la que de verdad importa: Meta agrupa varios avisos en un mismo envío, y quedarse con el primero es un fallo que nadie nota hasta que faltan leads."
+            descripcion="La verificación es lo que activa el webhook: Meta llama una vez y espera que le devolvamos su palabra clave tal cual; si falla no avisa, simplemente no llegan leads. La prueba hace esa misma llamada contra nosotros mismos y no escribe nada. «Tres de golpe» es la que de verdad importa: Meta agrupa varios avisos en un mismo envío, y quedarse con el primero es un fallo que nadie nota hasta que faltan leads."
           >
             <div className="grid grid-cols-[repeat(auto-fill,minmax(480px,1fr))] gap-x-12 gap-y-10">
               {estado.gremios.map((g) => (

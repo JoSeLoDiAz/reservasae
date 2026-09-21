@@ -1,5 +1,6 @@
 import { Transform } from 'class-transformer';
 import { booleanoDeVerdad } from '../comun/booleano-de-verdad';
+import { aCelularGuardable } from '../comun/celular';
 import {
   IsArray,
   IsBoolean,
@@ -24,6 +25,26 @@ const aTexto = ({ value }: { value: unknown }) =>
   typeof value === 'string' && value.trim() === ''
     ? undefined
     : recortar({ value });
+
+/// El celular, en los diez dígitos si es un móvil, y ENCIMA de
+/// `aTexto`, no en su lugar.
+///
+/// Se guardaba crudo, así que quien se preinscribía con `+57 300
+/// 111 2222` quedaba con otra grafía que la misma persona cargada
+/// por el panel, y ninguna búsqueda por número las juntaba. Ver
+/// `aCelularGuardable`.
+///
+/// Por qué compuesto y no sustituido: el CRM de la raíz cambió
+/// `aTexto` por `aCelularGuardable` a secas, y con eso una casilla
+/// vacía deja de llegar como AUSENTE y llega como `''`. En
+/// `DatosPersonaDto` eso importa: `guardarPersona` pasa
+/// `celular: dto.celular` tal cual a `persona.update`, donde
+/// `undefined` no toca la columna pero `''` la escribe, así que
+/// el enlace de completado BORRARÍA un celular bueno si la
+/// persona dejaba la casilla en blanco. Vacío sigue siendo «no
+/// toca».
+const aCelular = ({ value }: { value: unknown }) =>
+  aCelularGuardable(aTexto({ value }));
 
 /** Lo mínimo para quedar registrado. */
 export class CrearPreinscripcionDto {
@@ -71,7 +92,7 @@ export class CrearPreinscripcionDto {
   generoSepId?: number;
 
   @IsOptional()
-  @Transform(aTexto)
+  @Transform(aCelular)
   @IsString()
   @MaxLength(30)
   celular?: string;
@@ -140,7 +161,7 @@ export class DatosPersonaDto {
   @IsString()
   @MaxLength(60)
   segundoApellido?: string;
-  @IsOptional() @Transform(aTexto) @IsString() @MaxLength(30) celular?: string;
+  @IsOptional() @Transform(aCelular) @IsString() @MaxLength(30) celular?: string;
 
   @IsOptional()
   @Transform(aTexto)

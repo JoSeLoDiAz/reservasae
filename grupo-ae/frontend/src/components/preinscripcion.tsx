@@ -45,7 +45,7 @@
 import { notFound } from "next/navigation";
 import { useEffect, useState } from "react";
 
-import { TEXTO_DE_RESPALDO } from "@/components/caja-de-politica";
+import { conEnlaces, TEXTO_DE_RESPALDO } from "@/components/caja-de-politica";
 import { ErrorApi } from "@/lib/api";
 import { primero, resto } from "@/lib/nombres";
 import {
@@ -165,7 +165,7 @@ export function PreinscripcionPublica({ slug }: { slug: string }) {
     if (!ofertaId) {
       setError(
         "No fue posible registrar su solicitud en este momento. " +
-          "Escríbanos al correo del pie de página y lo atendemos.",
+          "Vuelva a intentarlo en unos minutos.",
       );
       return;
     }
@@ -298,7 +298,7 @@ export function PreinscripcionPublica({ slug }: { slug: string }) {
                 formulario público. Sin borde: el fondo ya dice
                 que es otra cosa. */}
             <div className="texto-legal dato prosa mt-4">
-              {catalogo.politica?.contenido ?? TEXTO_DE_RESPALDO}
+              {conEnlaces(catalogo.politica?.contenido ?? TEXTO_DE_RESPALDO)}
             </div>
 
             <label className="dato mt-4 flex cursor-pointer items-start gap-3">

@@ -4,9 +4,9 @@
  * La otra mitad del embudo.
  *
  * `escalera.ts` decide de qué etapa a qué etapa se puede ir. Esto
- * decide lo demás: si un cambio de valor, de moneda, de asesor o de
- * cliente se puede guardar, si una oportunidad se puede borrar, y
- * qué frase queda en la bitácora cuando algo de eso pasa.
+ * decide lo demás: si un cambio de valor, de lo facturado, de moneda,
+ * de asesor o de cliente se puede guardar, si una oportunidad se puede
+ * borrar, y qué frase queda en la bitácora cuando algo de eso pasa.
  *
  * Está aparte y sin Nest ni Prisma por la misma razón que la
  * escalera: son las reglas que hay que poder probar sin levantar
@@ -100,14 +100,22 @@ export function normalizarMoneda(texto: string): Moneda | null {
  * en ella. La única excepción es la que no puede hacer daño: si vale
  * cero, no hay cifra que malinterpretar.
  *
+ * Lo mismo vale para lo FACTURADO, que va en la misma moneda que el
+ * valor: pasar a USD una ganada facturada en 11.900.000 COP sin
+ * convertir esa cifra la metería en el informe del mes como once
+ * millones de dólares cobrados. Se exige que venga convertida o
+ * quitada; si no hay nada facturado —o se facturó cero— no hay cifra
+ * que malinterpretar. Los dos campos de lo facturado son opcionales
+ * para que quien no los conoce siga llamando igual que antes.
+ *
  * Devuelve además la moneda que QUEDA —la nueva ya normalizada, o
  * la de antes si no se pidió cambio— para que el servicio no tenga
  * que volver a normalizar lo que aquí ya se miró. Normalizar dos
  * veces es la forma habitual de que una de las dos se quede vieja.
  */
 export function revisarMoneda(
-  actual: { moneda: string; valor: number },
-  pedido: { moneda?: string; valor?: number },
+  actual: { moneda: string; valor: number; valorFacturado?: number | null },
+  pedido: { moneda?: string; valor?: number; valorFacturado?: number | null },
 ): Veredicto & { moneda: string } {
   const igual = { ...PASA, moneda: actual.moneda };
   if (pedido.moneda === undefined) return igual;
@@ -122,16 +130,67 @@ export function revisarMoneda(
     };
   }
   if (nueva === actual.moneda) return igual;
-  if (actual.valor === 0 || pedido.valor !== undefined) {
-    return { ...PASA, moneda: nueva };
+  if (actual.valor !== 0 && pedido.valor === undefined) {
+    return {
+      ...no(
+        `El tablero suma los valores sin convertir de moneda, así que pasarla a ${nueva} dejando la cifra en ${enDinero(actual.valor, actual.moneda)} multiplicaría el pronóstico. Mande el valor ya expresado en ${nueva}.`,
+      ),
+      moneda: actual.moneda,
+    };
   }
 
-  return {
-    ...no(
-      `El tablero suma los valores sin convertir de moneda, así que pasarla a ${nueva} dejando la cifra en ${enDinero(actual.valor, actual.moneda)} multiplicaría el pronóstico. Mande el valor ya expresado en ${nueva}.`,
-    ),
-    moneda: actual.moneda,
-  };
+  const facturado = actual.valorFacturado ?? 0;
+  if (facturado !== 0 && pedido.valorFacturado === undefined) {
+    return {
+      ...no(
+        `Lo facturado también está en ${actual.moneda}: pasarla a ${nueva} dejando ${enDinero(facturado, actual.moneda)} lo sumaría en el informe del mes como si fuera ${nueva}. Mande también el valor facturado ya expresado en ${nueva}, o quítelo.`,
+      ),
+      moneda: actual.moneda,
+    };
+  }
+
+  return { ...PASA, moneda: nueva };
+}
+
+/**
+ * Si se le puede anotar lo facturado en la etapa en la que está.
+ *
+ * Solo a una GANADA. Facturar es lo que pasa DESPUÉS de ganar, y
+ * dejar anotarlo antes produce fichas que dicen dos cosas a la vez:
+ *
+ *  - Una ABIERTA con factura dice que el negocio todavía se puede
+ *    perder y que ya se cobró. Si de verdad ya se le facturó al
+ *    cliente es que se ganó, y lo que falta es moverla: mientras siga
+ *    abierta cuenta en el pronóstico como apuesta, con su
+ *    probabilidad, y lo facturado no aparece en el informe del mes
+ *    —que solo suma las ganadas—. La cifra quedaría escrita en un
+ *    sitio donde nadie la cuenta.
+ *  - Una PERDIDA con factura es una contradicción, y es justo la
+ *    fila que desbarata la tasa de cierre el día que alguien la mire.
+ *
+ * Quitarlo (null) se puede SIEMPRE: es corregir un error, y
+ * bloquearlo dejaría la cifra equivocada pegada a la ficha.
+ *
+ * El servicio solo pregunta esto cuando la cifra CAMBIA. Una ganada
+ * que se reabre conserva lo que se le facturó —es historia, y aquí
+ * nada se borra— y no por eso tiene que dejar de poder renombrarse:
+ * el panel manda la ficha entera en cada guardado.
+ */
+export function puedeFacturarse(
+  etapa: EtapaOportunidad,
+  valorFacturado: number | null,
+): Veredicto {
+  if (valorFacturado === null) return PASA;
+  if (etapa === EtapaOportunidad.GANADO) return PASA;
+
+  if (etapa === EtapaOportunidad.PERDIDO) {
+    return no(
+      'Una oportunidad perdida no se factura. Si el negocio volvió, reábrala, llévela hasta ganada y anote ahí lo facturado.',
+    );
+  }
+  return no(
+    `Solo se factura lo ganado, y esta va en «${rotulo(etapa)}». Si ya se le facturó al cliente es que el negocio se ganó: muévala a «${rotulo(EtapaOportunidad.GANADO)}» y después anote lo facturado.`,
+  );
 }
 
 /**
@@ -206,10 +265,11 @@ export function resolverProbabilidad(
   embudo: TipoEmbudo,
   etapa: EtapaOportunidad,
   pisada: number | null,
+  tabla?: Record<TipoEmbudo, Record<EtapaOportunidad, number>>,
 ): { probabilidad: number; probabilidadPropia: boolean } {
   if (pisada === null) {
     return {
-      probabilidad: probabilidadDe(embudo, etapa),
+      probabilidad: probabilidadDe(embudo, etapa, tabla),
       probabilidadPropia: false,
     };
   }
@@ -292,6 +352,15 @@ export type Campos = {
   moneda: string;
   cierreEsperado: Date | null;
   campana: string | null;
+  /// El servicio del portafolio, ya en palabras: «Google Workspace
+  /// Business Plus (Empresas)». Opcional para que las fichas que
+  /// nacieron antes del portafolio se sigan pudiendo narrar.
+  servicio?: string | null;
+  cantidad?: number | null;
+  /// Lo facturado, en la misma `moneda` que `valor`. Null es «sin
+  /// facturar». Opcional por lo mismo que el servicio: quien narra
+  /// sin conocerlo no se inventa un cambio.
+  valorFacturado?: number | null;
 };
 
 /**
@@ -320,9 +389,33 @@ export function narrarEdicion(antes: Campos, despues: Campos): string[] {
 
   /// Valor y moneda en una sola línea: se mueven juntos, y leerlos
   /// en líneas separadas invita a comparar cifras de dos monedas.
+  ///
+  /// «Valor cotizado» y no «Valor» a secas desde que existe lo
+  /// facturado: con las dos cifras en la misma bitácora, «Valor» ya
+  /// no dice cuál de las dos cambió. Es además como se llama el campo
+  /// en la ficha. Las líneas viejas conservan su «Valor:», que es como
+  /// se escribieron; nada lee ese texto para decidir.
   if (antes.valor !== despues.valor || antes.moneda !== despues.moneda) {
     lineas.push(
-      `Valor: ${enDinero(antes.valor, antes.moneda)} → ${enDinero(despues.valor, despues.moneda)}`,
+      `Valor cotizado: ${enDinero(antes.valor, antes.moneda)} → ${enDinero(despues.valor, despues.moneda)}`,
+    );
+  }
+
+  /// Lo facturado va en SU línea y no pegado al valor: son dos cifras
+  /// distintas —lo prometido y lo cobrado— y en una sola línea se
+  /// leerían como si la una corrigiera a la otra.
+  ///
+  /// Se narra también cuando la cifra es la misma pero cambió la
+  /// moneda: 3.000 COP y 3.000 USD no son la misma plata, y una
+  /// bitácora que calla eso deja el informe sin explicación.
+  const facturadoAntes = antes.valorFacturado ?? null;
+  const facturadoDespues = despues.valorFacturado ?? null;
+  if (
+    facturadoAntes !== facturadoDespues ||
+    (facturadoAntes !== null && antes.moneda !== despues.moneda)
+  ) {
+    lineas.push(
+      `Valor facturado: ${enFacturado(facturadoAntes, antes.moneda)} → ${enFacturado(facturadoDespues, despues.moneda)}`,
     );
   }
 
@@ -338,6 +431,18 @@ export function narrarEdicion(antes: Campos, despues: Campos): string[] {
   if ((antes.campana ?? null) !== (despues.campana ?? null)) {
     lineas.push(
       `Campaña: ${antes.campana ?? 'sin campaña'} → ${despues.campana ?? 'sin campaña'}`,
+    );
+  }
+
+  if ((antes.servicio ?? null) !== (despues.servicio ?? null)) {
+    lineas.push(
+      `Servicio: ${antes.servicio ?? 'sin servicio'} → ${despues.servicio ?? 'sin servicio'}`,
+    );
+  }
+
+  if ((antes.cantidad ?? null) !== (despues.cantidad ?? null)) {
+    lineas.push(
+      `Cantidad: ${antes.cantidad ?? 'sin cantidad'} → ${despues.cantidad ?? 'sin cantidad'}`,
     );
   }
 
@@ -365,7 +470,7 @@ export function narrarProbabilidad(
   pisada: boolean,
 ): string {
   return pisada
-    ? `Probabilidad puesta a mano: ${antes} % → ${despues} %`
+    ? `Probabilidad ajustada manualmente: ${antes} % → ${despues} %`
     : `Probabilidad devuelta a la de su etapa: ${antes} % → ${despues} %`;
 }
 
@@ -393,6 +498,17 @@ export function narrarCliente(
 export function enDinero(valor: number, moneda: string): string {
   const entero = Math.round(valor).toString();
   return `${entero.replace(/\B(?=(\d{3})+(?!\d))/g, '.')} ${moneda}`;
+}
+
+/**
+ * Lo facturado en palabras: la cifra, o «sin facturar».
+ *
+ * Null se dice con palabras y no como «0 COP»: sin facturar y
+ * facturado en cero son dos hechos distintos, y en la bitácora tienen
+ * que leerse distinto.
+ */
+export function enFacturado(valor: number | null, moneda: string): string {
+  return valor === null ? 'sin facturar' : enDinero(valor, moneda);
 }
 
 /**

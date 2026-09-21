@@ -169,7 +169,7 @@ export default function PaginaCampanas() {
           validación no es una espera. */}
       {!convenioId && (
         <AvisoDeSeccion color="var(--texto-suave)">
-          Elija una línea de negocio arriba para poder crear una campaña. Una campaña es
+          Elija una línea de negocio en el menú de su usuario, arriba a la derecha, para poder crear una campaña. Una campaña es
           siempre de una línea de negocio: la de una no le escribe a la gente de la otra.
         </AvisoDeSeccion>
       )}
@@ -976,6 +976,18 @@ function NuevaCampana({
             <label htmlFor="c-seg" className="mb-1.5 block" style={{ fontSize: "0.8125rem" }}>
               A quiénes
             </label>
+            {/* A QUIÉN LE LLEGA, DICHO ANTES DE ELEGIR. Los
+                segmentos nombran etapas del embudo —«Cotización
+                enviada», «En negociación»— y en la demostración
+                se leyó como que la campaña le escribía al NEGOCIO.
+                No: le escribe a la persona, y la etapa que la
+                filtra es la de su ficha (`segmento.ts` consulta
+                fichas, no oportunidades). Va encima del desplegable y no debajo porque
+                debajo ya está el «para qué» del segmento elegido,
+                y son dos preguntas distintas. */}
+            <p className="mb-2 max-w-[68ch] text-texto-suave" style={{ fontSize: "0.71875rem" }}>
+              Las campañas se envían a los contactos; la etapa es la de su ficha.
+            </p>
             {/* El desplegable de la casa, no el del sistema
                 operativo: el nativo se pinta distinto en cada
                 navegador y no obedece al tema --en oscuro salía

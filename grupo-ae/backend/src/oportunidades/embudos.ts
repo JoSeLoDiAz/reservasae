@@ -119,8 +119,11 @@ export const PROBABILIDAD: Record<
 export function probabilidadDe(
   embudo: TipoEmbudo,
   etapa: EtapaOportunidad,
+  /// La tabla de Configuración cuando la hay. Sin argumento, la
+  /// estimada de aquí.
+  tabla: Record<TipoEmbudo, Record<EtapaOportunidad, number>> = PROBABILIDAD,
 ): number {
-  return PROBABILIDAD[embudo][etapa];
+  return tabla[embudo][etapa];
 }
 
 /**

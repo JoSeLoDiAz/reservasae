@@ -1,6 +1,6 @@
 /** Analiza lo que el asesor pega desde Excel. */
 
-import { celularUtil, celularValido } from '../comun/celular';
+import { aCelularGuardable, celularUtil, celularValido } from '../comun/celular';
 import { documentoValido, normalizarDocumento } from '../comun/documento';
 import {
   DOCUMENTOS_DE_PERSONA,
@@ -116,7 +116,19 @@ export function analizar(texto: string): FilaAnalizada[] {
       problemas.push(`«${correo}» no parece un correo`);
     }
 
-    const celular = (c[7] ?? '').replace(/[\s()-]/g, '').trim();
+    /// La misma regla que la ficha del panel, y no una propia.
+    /// Aquí solo se quitaban espacios, guiones y paréntesis, así
+    /// que `+573001112222` y `573001112222` entraban con el
+    /// indicativo pegado y quedaban como otra persona para
+    /// cualquier búsqueda por número. Y esta puerta llama a
+    /// `crear()` con un objeto suelto, sin pasar por el DTO que
+    /// ya normaliza: si no se hace aquí, no se hace.
+    ///
+    /// Lo que no es un móvil se queda como lo escribió quien
+    /// armó la hoja —«no tiene» sigue diciendo «no tiene» en el
+    /// aviso de abajo, en vez del «notiene» que dejaba el
+    /// recorte de antes—.
+    const celular = aCelularGuardable(c[7] ?? '') as string;
     /// Aviso y no insalvable, igual que el correo: la fila se
     /// crea y el asesor lo corrige. Lo que no puede es contar
     /// como forma de contactar a nadie.

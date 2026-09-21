@@ -118,7 +118,7 @@ export class LeadsService {
     }
     if (!slug) {
       throw new BadRequestException(
-        'Falta la unidad de negocio. Mándela en el cuerpo como «convenio», o ' +
+        'Falta la línea de negocio. Mándela en el cuerpo como «convenio», o ' +
           `llame al subdominio que le corresponda. Las activas: ${await this.slugsActivos()}.`,
       );
     }
@@ -140,7 +140,7 @@ export class LeadsService {
     /// ADECOPRIA en BRITCHAM, que es peor que perder el lead.
     if (!convenio) {
       throw new BadRequestException(
-        `«${slug}» no es una unidad de negocio activa. Las que hay: ${await this.slugsActivos()}.`,
+        `«${slug}» no es una línea de negocio activa. Las que hay: ${await this.slugsActivos()}.`,
       );
     }
 
@@ -450,7 +450,7 @@ export class LeadsService {
           (slug
             ? ` por el subdominio «${slug}», que no es una convocatoria activa.`
             : ' por la direccion general, que no dice de que gremio son. ' +
-              'Meta tiene que llamar al subdominio de la unidad de negocio.') +
+              'Meta tiene que llamar al subdominio de la línea de negocio.') +
           ' NO se guardaron. Corrijalo y pidale a Meta que los reenvie.',
       );
       return { recibidos: avisos.length, guardados: 0, sinConvenio: true };

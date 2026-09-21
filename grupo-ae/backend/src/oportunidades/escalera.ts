@@ -173,16 +173,34 @@ export function avanza(
 }
 
 /// Los rótulos que ve la gente. Viven aquí y no en el panel porque
-/// los usan los mensajes de error del backend, y dos listas de
-/// nombres para lo mismo acaban discrepando.
+/// los usan los mensajes de error del backend.
+///
+/// HAY UNA SEGUNDA COPIA, en `cajon-oportunidad.tsx`, y es
+/// inevitable: son dos paquetes y el panel no puede importar del
+/// backend. Las dos se cambian juntas. Lo que NO se puede es dejar
+/// que discrepen: en `EtapaParticipante` pasó justo eso y acabó
+/// mandando campañas a la gente equivocada.
+///
+/// EL NOMBRE DEL ENUM NO CAMBIA, SOLO EL RÓTULO. La dirección
+/// llamó a estas etapas «solicitud de negocio», «cotización» y
+/// «cerrado ganado / perdido» (notas del 15 sep 2026), y eso es lo
+/// que tiene que leerse en pantalla. Renombrar el enum obligaría a
+/// una migración sobre una columna que ya tiene historial en
+/// `movimientos_oportunidad`, y a cambio de nada: el valor de la
+/// base no lo lee nadie más que el código.
+///
+/// SIGUEN EN PASADO, que es la regla del enum: «Cotización
+/// enviada» y no «Cotización», porque «cotización» a secas se
+/// puede marcar con la intención de cotizar algún día, y un
+/// pronóstico hecho de intenciones no vale nada.
 const ROTULOS: Record<EtapaOportunidad, string> = {
-  CAPTADO: 'Captado',
+  CAPTADO: 'Solicitud de negocio',
   CONTACTADO: 'Contactado',
   CALIFICADO: 'Calificado',
-  PROPUESTA_ENVIADA: 'Propuesta enviada',
+  PROPUESTA_ENVIADA: 'Cotización enviada',
   EN_NEGOCIACION: 'En negociación',
-  GANADO: 'Ganado',
-  PERDIDO: 'Perdido',
+  GANADO: 'Cerrado ganado',
+  PERDIDO: 'Cerrado perdido',
 };
 
 export function rotulo(etapa: EtapaOportunidad): string {
@@ -200,7 +218,7 @@ const ROTULOS_MOTIVO: Record<MotivoCierre, string> = {
   NO_ERA_QUIEN_DECIDE: 'No era quien decide',
   NUNCA_RESPONDIO: 'Nunca respondió',
   NO_LE_INTERESA: 'No le interesa',
-  DATOS_ERRADOS: 'Los datos estaban malos',
+  DATOS_ERRADOS: 'Datos errados',
   OTRO: 'Otro',
 };
 

@@ -22,6 +22,8 @@
 
 import { useEffect, useRef } from "react";
 
+import { conEnlaces } from "@/components/caja-de-politica";
+
 export function ModalPolitica({
   titulo,
   contenido,
@@ -84,7 +86,7 @@ export function ModalPolitica({
         </header>
 
         <div className="caja-scroll flex-1 overflow-y-auto px-6 py-5 text-sm leading-relaxed whitespace-pre-wrap">
-          {contenido}
+          {conEnlaces(contenido)}
         </div>
 
         <footer className="border-t border-borde px-6 py-4 text-right">

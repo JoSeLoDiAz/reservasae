@@ -25,10 +25,10 @@ import { SignoConvoca } from "@/components/admin/signo-convoca";
 /// el `<title>`, en los correos y en una columna de la base. Una
 /// constante no arregla eso sola, pero al menos aqui no se
 /// escribe dos veces.
-const NOMBRE = "Grupo AE";
-const FRASE = "Captación y ventas";
+export const NOMBRE = "Convoca CRM";
+export const FRASE = "Relaciones que generan resultados";
 
-type Estado = { version: string; hora: string };
+type Estado = { version: string; hora: string; entorno?: "prueba" | "produccion" };
 
 /** La versión y el año, del servidor. */
 export function useEstado(): Estado | null {
@@ -40,7 +40,7 @@ export function useEstado(): Estado | null {
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => {
         // si no responde, la firma sale sin version
-        if (vivo && d?.version) setEstado({ version: d.version, hora: d.hora });
+        if (vivo && d?.version) setEstado({ version: d.version, hora: d.hora, entorno: d.entorno });
       })
       .catch(() => undefined);
     return () => {
@@ -69,6 +69,7 @@ export function FirmaConvoca({
   conFrase = true,
   apilado = false,
   animado = false,
+  filete = false,
   className,
 }: {
   tamano?: number;
@@ -80,14 +81,35 @@ export function FirmaConvoca({
   apilado?: boolean;
   /// El signo se dibuja al montarse.
   animado?: boolean;
+  /// UNA RAYA DEBAJO DE LA FRASE, AL ANCHO DE LA FRASE.
+  ///
+  /// Solo apilada, y solo donde la firma hace de portada: hoy el
+  /// panel del acceso. Ahí separa dos cosas distintas --quién
+  /// firma y qué promete-- y el cliente la pidió midiendo lo
+  /// mismo que el lema: «la línea a la par de: relaciones que
+  /// generan resultados» (12 sep 2026).
+  ///
+  /// No es la raya que se quitó el 11 sep. Aquella iba ENTRE el
+  /// nombre y el lema, partiendo la firma en tres piezas donde
+  /// solo hacen falta dos. Esta va DEBAJO de la firma entera y
+  /// cierra el bloque.
+  filete?: boolean;
   className?: string;
 }) {
   /// El texto crece con el signo, no aparte.
   ///
   /// Un nombre de 1,05rem al lado de un signo de 56 px se lee
-  /// como un pie de foto. El umbral son 44: por debajo es
-  /// firma, por encima es cabecera.
+  /// como un pie de foto. Tres escalones:
+  ///
+  ///   - hasta 43: FIRMA. Va al pie o dentro de una fila.
+  ///   - de 44 a 59: CABECERA.
+  ///   - 60 y más: PORTADA, y hace falta para el panel del
+  ///     acceso. Ahí el panel mide media pantalla --960 px en un
+  ///     monitor de 1920-- y un nombre de 1,75rem centrado en
+  ///     ese ancho se ve diminuto: «se ve la letra pequeña en un
+  ///     panel con tanto espacio, ¿no?» (cliente, 12 sep 2026).
   const grande = tamano >= 44;
+  const portada = tamano >= 60;
 
   return (
     <span
@@ -105,44 +127,69 @@ export function FirmaConvoca({
       >
         <span
           className={`font-bold tracking-tight ${
-            grande ? "text-[1.75rem]" : "text-[1.05rem]"
+            portada
+              ? "text-[2.375rem]"
+              : grande
+                ? "text-[1.75rem]"
+                : "text-[1.05rem]"
           } ${animado ? "firma-nombre" : ""}`}
         >
           {NOMBRE}
         </span>
         {conFrase && (
-          <>
-            {/* La línea, y no es del prototipo.
+          /// EL LEMA Y SU FILETE, EN SU PROPIA CAJA.
+          ///
+          /// La caja existe para UNA cosa: que el filete mida
+          /// exactamente lo que mide el lema. En una columna flex
+          /// centrada, esta caja se encoge hasta su hijo más ancho
+          /// --el lema--, así que el `w-full` del filete resuelve
+          /// contra esa anchura y los dos quedan iguales solos, a
+          /// cualquier tamaño de letra y de ventana. Colgando el
+          /// filete de la columna de la firma habría medido lo que
+          /// mide el NOMBRE, que es otra cosa.
+          <span className={apilado ? "flex flex-col items-center" : "contents"}>
+            {/* NUNCA UNA RAYA ENTRE EL NOMBRE Y LA FRASE.
 
-                Allá la cabecera de marca es una sola fila SIN
-                separador; la única `hairline` del panel está
-                debajo del selector de gremio. Esta forma —nombre,
-                línea, frase— la pidió el cliente el 1 sep 2026, y
-                se monta con el MISMO grosor y el mismo token que
-                aquella para no inventar un segundo separador.
+                Esa la pidió el cliente el 1 sep 2026 y la quitó
+                el 11: «eliminar esas líneas». Con ella la firma
+                eran tres piezas apiladas en un sitio donde solo
+                hacen falta dos. El hueco que daba lo hace el `mt`
+                de la frase, sin dibujar nada.
 
-                `currentColor` al 22 % y no `--hairline`: la firma
-                se pinta sobre el encabezado, cuyo color elige el
-                administrador, y un token de superficie
-                desaparecería sobre un fondo oscuro. Con el color
-                del texto sobrevive a las dieciséis plantillas,
-                igual que el signo. */}
+                EL 85 % Y NO EL 65 %, por contraste medido. La
+                firma se pinta sobre el color de la marca en dos
+                sitios --el panel del acceso y la barra-- y ahí el
+                65 % dejaba la frase en 3,36:1 compuesto sobre el
+                verde del gremio, por debajo del 4,5 que pide un
+                texto de 13-16 px. Al 85 % da 4,6:1. Ojo: la
+                clase sola no basta, porque el último fotograma de
+                `firma-frase-posa` es el que manda. */}
             <span
-              aria-hidden="true"
-              className={`${apilado ? "w-10" : "w-full"} ${
-                grande ? "my-2" : "my-1.5"
-              } h-px shrink-0 bg-current opacity-[0.22] ${
-                animado ? `firma-linea ${apilado ? "firma-linea-centro" : ""}` : ""
-              }`}
-            />
-            <span
-              className={`leading-snug font-medium opacity-65 ${
-                grande ? "text-[13px]" : "text-[10.5px]"
+              className={`leading-snug font-medium opacity-85 ${
+                portada
+                  ? "mt-2.5 text-[1rem]"
+                  : grande
+                    ? "mt-2 text-[13px]"
+                    : "mt-1.5 text-[10.5px]"
               } ${animado ? "firma-frase" : ""}`}
             >
               {FRASE}
             </span>
-          </>
+
+            {/* Se traza desde el centro, que es lo que ya hacen
+                `firma-linea` y `firma-linea-centro` en
+                `globals.css`: estaban escritas desde la primera
+                firma y llevaban sin usarse desde que se quitó la
+                raya de arriba. */}
+            {filete && apilado && (
+              <span
+                aria-hidden
+                className={`mt-9 h-px w-full bg-current opacity-35 ${
+                  animado ? "firma-linea firma-linea-centro" : ""
+                }`}
+              />
+            )}
+          </span>
         )}
       </span>
     </span>
@@ -158,13 +205,92 @@ export function FirmaConvoca({
  * escribir. Y en pruebas trae el sufijo, así que la pantalla
  * dice sola en qué entorno está.
  */
-export function PieDeConvoca({ className }: { className?: string }) {
+export function PieDeConvoca({
+  className,
+  apilado = false,
+  menudo = false,
+}: {
+  className?: string;
+  /// Más pequeño y más discreto, para el pie del panel.
+  ///
+  /// Ahí esta línea le come alto a la tabla, que es lo que la
+  /// gente mira: «esto sobra, o quizás hacerlo mucho más pequeño y
+  /// discreto para ganar más a lo largo a la tabla» (cliente, 12
+  /// sep 2026).
+  ///
+  /// Es una variante y no un tamaño nuevo para todos porque el
+  /// mismo pie cierra las seis pantallas públicas y el acceso,
+  /// donde el tamaño de ahora está aprobado.
+  ///
+  /// Y NO SE BORRA, que era la otra opción que él daba: este pie
+  /// es lo único que dice de quién es el documento en el PDF --por
+  /// eso no lleva `.no-imprimir`-- y el panel se exporta y se
+  /// proyecta en reunión.
+  menudo?: boolean;
+  /// En tres renglones en vez de uno, para el pie del acceso.
+  ///
+  /// Ahí la columna es estrecha y centrada, y el renglón único
+  /// —«Gestionado por Grupo AE · © 2026, todos los derechos
+  /// reservados · Convoca CRM 0.3.0»— partía por donde cabía,
+  /// dejando la versión sola en una segunda línea. Además en esa
+  /// pantalla el «gestionado por» ya lo dice el panel de al lado
+  /// CON LOS LOGOS, así que aquí sobra y queda el año, la nota
+  /// legal y la versión, cada uno en su renglón.
+  apilado?: boolean;
+}) {
   const estado = useEstado();
   const ano = estado ? new Date(estado.hora).getFullYear() : null;
 
+  if (apilado) {
+    return (
+      /// 12,5 px y no 11: apilado, este pie solo se usa en el
+      /// acceso, donde todo subió de escala. A 11 px quedaba como
+      /// una nota al pie de una tabla.
+      <div
+        className={`flex flex-col gap-0.5 text-[0.78125rem] leading-relaxed opacity-65 ${
+          className ?? ""
+        }`}
+      >
+        {/* DOS FILAS Y NO TRES.
+            Tres renglones cortos y centrados se leen como una
+            columna de restos: «queda como todo apeñuzcado»
+            (cliente, 12 sep 2026). Con el año arriba y la nota
+            legal junto a la versión, separadas por un punto
+            medio, son dos renglones que se leen de un golpe. */}
+        <p>
+          {ano ? `© ${ano} ` : ""}
+          <strong className="font-semibold">Grupo AE</strong>
+        </p>
+        <p>
+          Todos los derechos reservados
+          {estado && (
+            <>
+              {" · "}
+              <span className="font-mono">
+                {NOMBRE} {estado.version}
+              </span>
+            </>
+          )}
+        </p>
+      </div>
+    );
+  }
+
   return (
-    <p className={`text-[11px] leading-relaxed opacity-60 ${className ?? ""}`}>
-      Gestionado por <strong className="font-semibold">Grupo AE</strong>
+    /// 12,5 px al 65 %, y las dos cosas por contraste medido.
+    ///
+    /// A 11 px y al 60 % esta linea daba 2,25:1 MEZCLADA sobre la
+    /// tarjeta de las pantallas publicas --2,25, no 15,9 como
+    /// dice `getComputedStyle`, que devuelve el token puro-- y
+    /// 4,19:1 en el acceso. El minimo es 4,5 y al 65 % da 4,93.
+    /// Subir solo el cuerpo no arreglaba nada: el fallo era toda
+    /// la opacidad.
+    <p
+      className={`${
+        menudo ? "text-[0.625rem] leading-tight opacity-55" : "text-[0.78125rem] leading-relaxed opacity-65"
+      } ${className ?? ""}`}
+    >
+      Gestionado para <strong className="font-semibold">Grupo AE</strong>
       {ano ? ` · © ${ano}, todos los derechos reservados` : ""}
       {estado ? (
         <>

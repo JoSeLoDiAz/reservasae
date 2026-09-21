@@ -21,11 +21,11 @@ export type Nivel = "NADA" | "VER" | "ESCRIBIR";
 /// Cómo se llama cada área en pantalla. Las claves son las del
 /// backend; esto es lo que lee una persona.
 export const ETIQUETA_AREA: Record<Area, string> = {
-  reserva: "Oportunidades y agenda",
+  reserva: "Agenda y tablero",
   inscripciones: "Gestión de oportunidades",
   inscritos: "Datos de los clientes",
   reportes: "Informes de gestión",
-  academico: "Seguimiento posventa",
+  academico: "Implementación y soporte",
   configuracion: "Configuración",
 };
 
@@ -133,12 +133,12 @@ export const ROLES_DE_CONVENIO: Array<{
   {
     valor: "LIDER_ACADEMICO",
     etiqueta: "Líder de posventa",
-    descripcion: "Registra el avance de la entrega y es quien la da por cerrada o por incumplida.",
+    descripcion: "Hace seguimiento a la implementación y la activación de licencias, y da la entrega por cerrada.",
   },
   {
     valor: "GESTOR_ACADEMICO",
     etiqueta: "Gestor(a) de posventa",
-    descripcion: "Registra el avance de la entrega. No la cierra.",
+    descripcion: "Registra el avance de la implementación. No la da por cerrada.",
   },
   {
     valor: "CONSULTA",
@@ -180,6 +180,19 @@ export type AdminActual = {
   gremioFijo?: boolean;
 };
 
+/** Cómo se presenta la cuenta, que no es su `rol`. */
+///
+/// En Convoca esta función mira además `rolEnGremio`, que aquí
+/// no existe todavía: el backend de Grupo AE no lo manda. Hasta
+/// que lo haga, manda el cargo y el rol es el respaldo — que es
+/// exactamente lo que enseñaba la cabecera vieja (`admin.cargo
+/// ?? admin.rol`). Cuando el backend traiga `rolEnGremio`, esto
+/// se iguala a Convoca y no hay que tocar la cabecera.
+export function comoSePresenta(admin: AdminActual): string {
+  if (admin.cargo) return admin.cargo;
+  return admin.rol === "SUPERADMIN" ? "Administrador general" : "Varios roles";
+}
+
 const ESCALA: Nivel[] = ["NADA", "VER", "ESCRIBIR"];
 
 /** Si lo que tiene cubre lo que se le pide. */
@@ -201,6 +214,9 @@ export type Logo = {
   nombre: string;
   version: number;
   orden: number;
+  /// En qué tema sale: la versión de letra blanca va sobre el verde
+  /// del encabezado y la de color sobre fondo claro.
+  esquema: "AMBOS" | "CLARO" | "OSCURO";
 };
 
 export type Marca = {

@@ -6,6 +6,12 @@ import { api, bonito, ErrorApi, type ConsultaPorNit } from "@/lib/api";
 
 type Fila = ConsultaPorNit["reservas"][number];
 
+
+/// Cambiar o cancelar sin sesión quedó apagado en el servidor (solo con
+/// el NIT, que es público, cualquiera podía cancelar lo de otra
+/// empresa). Los botones se conservan detrás de la misma bandera y se
+/// vuelven a ver el día que se encienda RESERVAS_EDICION_PUBLICA.
+const EDICION_PUBLICA = process.env.NEXT_PUBLIC_RESERVAS_EDICION_PUBLICA === "si";
 export function ConsultaReservas() {
   const [nit, setNit] = useState("");
   const [datos, setDatos] = useState<ConsultaPorNit | null>(null);
@@ -25,6 +31,11 @@ export function ConsultaReservas() {
       setBuscando(false);
     }
   }
+
+  /// Las que llevan «Confirmada» en su tarjeta. Ver abajo por qué
+  /// no es `totalCupos`.
+  const confirmadas =
+    datos?.reservas.filter((r) => r.estado === "CONFIRMADA").length ?? 0;
 
   return (
     <div className="space-y-8">
@@ -71,7 +82,22 @@ export function ConsultaReservas() {
             {datos.empresa.digitoVerificacion
               ? `-${datos.empresa.digitoVerificacion}`
               : ""}{" "}
-            · {datos.totalCupos} cupos confirmados en total
+            {/* SOLICITUDES, no cupos, y contadas como solicitudes.
+
+                Decía «N cupos confirmados en total», que es el
+                idioma de la convocatoria: sillas apartadas en un
+                curso. Grupo AE no aparta sillas; recibe
+                solicitudes de una organización. Y no basta con
+                cambiar la palabra: `totalCupos` suma PERSONAS, así
+                que «40 solicitudes confirmadas» de quien hizo una
+                sola habría sido falso. Se cuentan las tarjetas que
+                dicen «Confirmada» justo debajo, que es lo que la
+                persona puede comprobar con los ojos. */}
+            · {confirmadas}{" "}
+            {confirmadas === 1
+              ? "solicitud confirmada"
+              : "solicitudes confirmadas"}{" "}
+            en total
           </p>
 
           <ul className="mt-6 space-y-4">
@@ -158,11 +184,9 @@ function TarjetaReserva({
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <p className="font-medium">{bonito(reserva.oferta.accion.nombre)}</p>
-          <p className="text-sm text-texto-suave">
-            {bonito(reserva.oferta.ubicacion)} ·{" "}
-            {reserva.oferta.modalidad === "PRESENCIAL" ? "Presencial" : "Virtual"}
-            {reserva.oferta.accion.horas ? ` · ${reserva.oferta.accion.horas} h` : ""}
-          </p>
+          {/* Solo la ciudad. «Presencial · Virtual · 40 h» describía un
+              curso, y aquí lo que hay es una solicitud de servicio. */}
+          <p className="text-sm text-texto-suave">{bonito(reserva.oferta.ubicacion)}</p>
         </div>
         <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${estado.clase}`}>
           {estado.texto}
@@ -171,7 +195,11 @@ function TarjetaReserva({
 
       {!cancelada && (
         <p className="mt-3 text-sm">
-          <strong>{reserva.cuposConfirmados}</strong> personas registradas
+          {/* «Contactos» y no «personas registradas»: lo que
+              tiene la organización con Grupo AE son personas de
+              contacto en una solicitud, no inscritos en un curso. */}
+          <strong>{reserva.cuposConfirmados}</strong>{" "}
+          {reserva.cuposConfirmados === 1 ? "contacto registrado" : "contactos registrados"}
           {reserva.cuposEnEspera > 0 && (
             <> y {reserva.cuposEnEspera} en revisión</>
           )}
@@ -205,7 +233,7 @@ function TarjetaReserva({
             Cancelar cambio
           </button>
         </div>
-      ) : (
+      ) : EDICION_PUBLICA ? (
         !cancelada && (
           <div className="mt-4 flex flex-wrap gap-4 text-sm">
             <button
@@ -218,6 +246,12 @@ function TarjetaReserva({
               Cancelar la solicitud
             </button>
           </div>
+        )
+      ) : (
+        !cancelada && (
+          <p className="mt-4 text-sm text-texto-suave">
+            Para cambiar o cancelar esta solicitud, escríbale a su asesor comercial.
+          </p>
         )
       )}
 

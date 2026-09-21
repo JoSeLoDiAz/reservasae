@@ -44,16 +44,29 @@ export const TODAS_LAS_ETAPAS = [
 /// Cómo se llama cada etapa cuando hay que decírselo a una
 /// persona. Las del enum están en mayúscula sostenida y con
 /// guion bajo.
+///
+/// SON LAS MISMAS PALABRAS DEL PANEL, EN MINÚSCULA. Este mapa se
+/// había quedado fuera de la regla de «una etapa, un nombre»: el
+/// panel decía «No calificó» y este aviso «no cerró» para el mismo
+/// `NO_APROBO`, así que quien leía el bloqueo buscaba en el
+/// selector una casilla que no existía. Desde el 18 sep 2026 dice
+/// lo mismo que `ETIQUETA_ETAPA` (`frontend/src/lib/crm-api.ts`) y
+/// que el embudo, y `correo/campanas/una-etapa-un-nombre.spec.ts`
+/// lo compara con los otros cuatro sitios.
+///
+/// Se quitó el «con» de «con datos completos» y «con propuesta
+/// enviada»: el aviso de abajo pone cada nombre entre comillas,
+/// como una etiqueta, y una etiqueta no lleva preposición.
 export const ETAPA_EN_PALABRAS: Record<string, string> = {
-  INTERESADO: 'interesado',
+  INTERESADO: 'solicitud de negocio',
   CONTACTADO: 'contactado',
-  DATOS_COMPLETOS: 'con datos completos',
-  INSCRITO: 'con propuesta enviada',
+  DATOS_COMPLETOS: 'calificado',
+  INSCRITO: 'cotización enviada',
   EN_FORMACION: 'en negociación',
-  CERTIFICADO: 'ganado',
-  PERDIDO: 'perdido',
-  RETIRADO: 'retirado',
-  NO_APROBO: 'no cerró',
+  CERTIFICADO: 'cerrado ganado',
+  PERDIDO: 'cerrado perdido',
+  RETIRADO: 'canceló',
+  NO_APROBO: 'no aprobó la compra',
   DESERTO: 'desistió',
   ABANDONO: 'dejó de responder',
 };
@@ -76,14 +89,22 @@ export function porQueNo(
   if (etapasPermitidas.length === 0) return null;
   if (etapaActual && etapasPermitidas.includes(etapaActual)) return null;
 
-  const donde = etapasPermitidas.map(enPalabras).join(', ');
+  /// Cada nombre entre comillas, como en la etapa actual. Sin
+  /// ellas la frase se partía: «para quien esté en canceló, dejó
+  /// de responder» no se lee como dos etapas sino como una
+  /// oración rota. Con comillas se lee como lo que es, una lista
+  /// de casillas del selector.
+  const donde = etapasPermitidas.map((e) => `«${enPalabras(e)}»`).join(', ');
 
+  /// «Ficha» y no «oportunidad»: la etapa que se mira es la del
+  /// contacto, no la del negocio, y es lo mismo que dice la
+  /// pantalla de campañas —«la etapa es la de su ficha»—.
   if (!etapaActual) {
-    return `Esta plantilla es para quien esté ${donde}, y esta oportunidad no tiene etapa.`;
+    return `Esta plantilla es solo para ${donde}, y esta ficha no tiene etapa.`;
   }
 
   return (
-    `Esta persona está ${enPalabras(etapaActual)} y esta plantilla es ` +
-    `para quien esté ${donde}.`
+    `Esta persona está en la etapa «${enPalabras(etapaActual)}» y esta plantilla es ` +
+    `solo para ${donde}.`
   );
 }

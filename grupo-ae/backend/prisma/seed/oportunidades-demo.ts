@@ -41,24 +41,28 @@ type Semilla = {
   conAsesor?: boolean;
 };
 
+/// Los títulos dicen QUÉ se vende y no a quién: la empresa o la
+/// persona se la reparte la siembra por turno, y un título con
+/// «· Hoteles Costa» colgado de otra empresa era una demo que se
+/// contradecía sola (QA, 17 sep 2026).
 const SEMILLAS: Semilla[] = [
   // ── esperando respuesta: lo que el reloj vigila ──────────────
   {
-    titulo: 'Formación en seguridad industrial · 40 personas',
+    titulo: 'Google Workspace Business Standard · 40 usuarios',
     embudo: TipoEmbudo.EMPRESA,
     etapa: EtapaOportunidad.CAPTADO,
     valor: 0,
-    campana: 'Meta · Seguridad industrial',
+    campana: 'Meta · Workspace pymes',
     edad: 47,
     respondida: null,
     conAsesor: false,
   },
   {
-    titulo: 'Curso de manipulación de alimentos',
+    titulo: 'Curso de Gemini en el día a día',
     embudo: TipoEmbudo.PERSONA,
     etapa: EtapaOportunidad.CAPTADO,
     valor: 0,
-    campana: 'Instagram · Manipulación',
+    campana: 'Instagram · Cursos Google',
     edad: 3,
     respondida: null,
     conAsesor: false,
@@ -66,7 +70,7 @@ const SEMILLAS: Semilla[] = [
 
   // ── el embudo de empresas, con peso ─────────────────────────
   {
-    titulo: 'Diplomado en logística para Transportes del Norte',
+    titulo: 'Migración a Google Workspace',
     embudo: TipoEmbudo.EMPRESA,
     etapa: EtapaOportunidad.CONTACTADO,
     valor: 8_400_000,
@@ -76,27 +80,27 @@ const SEMILLAS: Semilla[] = [
     cierre: 45,
   },
   {
-    titulo: 'Plan anual de capacitación · Alimentos del Valle',
+    titulo: 'Renovación anual Workspace Business Plus',
     embudo: TipoEmbudo.EMPRESA,
     etapa: EtapaOportunidad.CALIFICADO,
     valor: 22_000_000,
-    campana: 'LinkedIn · Plan anual',
+    campana: 'LinkedIn · Workspace',
     edad: 60 * 24 * 6,
     respondida: 12,
     cierre: 30,
   },
   {
-    titulo: 'Certificación de competencias · 120 operarios',
+    titulo: 'Chromebooks para el aula',
     embudo: TipoEmbudo.EMPRESA,
     etapa: EtapaOportunidad.PROPUESTA_ENVIADA,
     valor: 46_500_000,
-    campana: 'Evento Andi',
+    campana: 'Evento educación',
     edad: 60 * 24 * 12,
     respondida: 7,
     cierre: 21,
   },
   {
-    titulo: 'Escuela de liderazgo · Grupo Ferretero Andino',
+    titulo: 'Gemini Enterprise para el equipo directivo',
     embudo: TipoEmbudo.EMPRESA,
     etapa: EtapaOportunidad.EN_NEGOCIACION,
     valor: 31_800_000,
@@ -106,7 +110,7 @@ const SEMILLAS: Semilla[] = [
     cierre: 10,
   },
   {
-    titulo: 'Actualización normativa · Constructora Miramar',
+    titulo: 'Workspace Enterprise Standard con soporte',
     embudo: TipoEmbudo.EMPRESA,
     etapa: EtapaOportunidad.CALIFICADO,
     valor: 14_200_000,
@@ -117,47 +121,47 @@ const SEMILLAS: Semilla[] = [
     cierre: 60,
   },
   {
-    titulo: 'Formación en atención al cliente · Hoteles Costa',
+    titulo: 'Soporte y administración de Workspace',
     embudo: TipoEmbudo.EMPRESA,
     etapa: EtapaOportunidad.GANADO,
     valor: 18_900_000,
-    campana: 'Meta · Servicio',
+    campana: 'Meta · Soporte',
     edad: 60 * 24 * 40,
     respondida: 3,
   },
   {
-    titulo: 'Capacitación SST · Metalmecánica del Sur',
+    titulo: 'Google Workspace Starter',
     embudo: TipoEmbudo.EMPRESA,
     etapa: EtapaOportunidad.PERDIDO,
     valor: 9_600_000,
-    campana: 'LinkedIn · SST',
+    campana: 'LinkedIn · Workspace pymes',
     edad: 60 * 24 * 55,
     respondida: 180,
   },
 
   // ── el de personas: más corto y más rápido ──────────────────
   {
-    titulo: 'Excel avanzado · Laura Restrepo',
+    titulo: 'Curso de Google Workspace',
     embudo: TipoEmbudo.PERSONA,
     etapa: EtapaOportunidad.CONTACTADO,
     valor: 780_000,
-    campana: 'Instagram · Excel',
+    campana: 'Instagram · Cursos Google',
     edad: 60 * 20,
     respondida: 2,
     cierre: 7,
   },
   {
-    titulo: 'Inglés para el trabajo · Andrés Villamil',
+    titulo: 'Chromebook para estudiar',
     embudo: TipoEmbudo.PERSONA,
     etapa: EtapaOportunidad.CALIFICADO,
     valor: 1_450_000,
-    campana: 'Meta · Inglés',
+    campana: 'Meta · Chromebooks',
     edad: 60 * 24 * 3,
     respondida: 6,
     cierre: 5,
   },
   {
-    titulo: 'Manipulación de alimentos · Sandra Ocampo',
+    titulo: 'Curso de Gemini',
     embudo: TipoEmbudo.PERSONA,
     etapa: EtapaOportunidad.GANADO,
     valor: 320_000,

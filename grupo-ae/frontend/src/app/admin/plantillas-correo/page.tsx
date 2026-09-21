@@ -69,10 +69,40 @@ import {
 /// suene y se sigue.
 ///
 /// El tercer elemento es la aclaración, y va DEBAJO del
-/// nombre y no pegada a él: «Desertó» y «Abandonó» suenan
-/// igual y no lo son, pero con la aclaración en la misma
+/// nombre y no pegada a él: «Desistió» y «Dejó de responder»
+/// suenan igual y no lo son, pero con la aclaración en la misma
 /// línea la casilla mide tres renglones y el grupo se
 /// desarma.
+/// LAS PALABRAS SON LAS DE `ETIQUETA_ETAPA` (`lib/crm-api.ts`), y
+/// tienen que seguir siéndolo. Aquí se escriben a mano y no se
+/// importan porque estas casillas llevan además una aclaración, y
+/// el orden y los grupos son de esta pantalla.
+///
+/// Hasta el 18 sep 2026 una casilla decía «Con datos completos»
+/// donde el chip decía «Datos completos», con el argumento de que
+/// cabía distinto. Ya no: desde que las etapas de la persona se
+/// llaman como las del embudo —«Calificado», «Cotización
+/// enviada», «Cerrado ganado»— la casilla dice EXACTAMENTE lo que
+/// dice el chip, porque `una-etapa-un-nombre.spec.ts` del backend
+/// lee este arreglo como texto y lo compara. Una variante «que
+/// cabe mejor» es justo por donde vuelven a separarse.
+///
+/// Lo que NO puede pasar es que un valor se llame distinto en los
+/// dos sitios: hasta el 15 sep 2026 `INSCRITO` era «Propuesta
+/// enviada» aquí y «Ganado» en las listas, y `CERTIFICADO` al
+/// revés. Quien armaba una campaña para «Ganado» le escribía a
+/// otra gente. Si cambia una palabra, se cambia en los cinco
+/// sitios: este, `crm-api.ts`, `admin/temas.ts`,
+/// `correo/campanas/segmento.ts` y
+/// `correo/plantillas/etapas-de-plantilla.ts`.
+///
+/// LA ACLARACIÓN VA DONDE DOS SE CONFUNDEN. Las cinco salidas son
+/// las que se parecen, y la diferencia decide qué correo le sirve
+/// a cada una. Dicen lo mismo que `AYUDA_ETAPA`, más cortas
+/// porque van debajo de una casilla. La de «Cerrado perdido»
+/// decía «no se logró contactar», y `AYUDA_ETAPA` dice lo
+/// contrario —se le contactó y no quiso seguir—: con las dos a
+/// la vista, una de las dos mentía, y la que manda es la ficha.
 const GRUPOS: Array<{
   titulo: string;
   /// valor · lo que dice la casilla · la aclaración, si la
@@ -82,10 +112,10 @@ const GRUPOS: Array<{
   {
     titulo: "Mientras avanza",
     etapas: [
-      ["INTERESADO", "Interesado"],
+      ["INTERESADO", "Solicitud de negocio"],
       ["CONTACTADO", "Contactado"],
-      ["DATOS_COMPLETOS", "Con datos completos"],
-      ["INSCRITO", "Propuesta enviada"],
+      ["DATOS_COMPLETOS", "Calificado", "con sus datos completos"],
+      ["INSCRITO", "Cotización enviada"],
       ["EN_FORMACION", "En negociación"],
     ],
   },
@@ -95,22 +125,22 @@ const GRUPOS: Array<{
     /// tres columnas midan igual sería mentir sobre el
     /// proceso.
     titulo: "Cerró bien",
-    etapas: [["CERTIFICADO", "Ganado"]],
+    etapas: [["CERTIFICADO", "Cerrado ganado"]],
   },
   {
     titulo: "No siguió",
     etapas: [
-      ["NO_APROBO", "No calificó"],
-      ["DESERTO", "Desistió", "avisó que se retiraba"],
+      ["NO_APROBO", "No aprobó la compra", "negoció, pero no se aprobó"],
+      ["DESERTO", "Desistió", "avisó que no seguía"],
       ["ABANDONO", "Dejó de responder", "sin avisar"],
-      ["RETIRADO", "Retirado"],
-      ["PERDIDO", "Perdido", "no se logró contactar"],
+      ["RETIRADO", "Canceló", "antes de empezar el servicio"],
+      ["PERDIDO", "Cerrado perdido", "se le contactó y no quiso seguir"],
     ],
   },
 ];
 
 /// Cómo se nombra cada etapa cuando se cuenta en una frase:
-/// «solo para quien esté inscrito, en formación». Sale del
+/// «solo para cotización enviada, en negociación». Sale del
 /// mismo sitio que las casillas para que no se separen.
 const EN_PALABRAS: Record<string, string> = Object.fromEntries(
   GRUPOS.flatMap((g) =>
@@ -757,13 +787,13 @@ function Editor({
                 opciones={[
                   {
                     valor: "",
-                    etiqueta: "Sirve para todas las unidades de negocio",
+                    etiqueta: "Sirve para todas las líneas de negocio",
                     detalle: "La ven todos, y cualquiera puede usarla",
                   },
                   ...gremios.map((g) => ({
                     valor: g.convenioId,
                     etiqueta: `Solo para ${g.sigla}`,
-                    detalle: "No aparece en las otras unidades de negocio",
+                    detalle: "No aparece en las otras líneas de negocio",
                   })),
                 ]}
               />
@@ -829,8 +859,9 @@ function Editor({
                 <p className="max-w-[68ch] pt-3 text-texto-suave" style={{ fontSize: "0.71875rem", lineHeight: 1.55 }}>
                   Si no marca ninguna, sirve para cualquiera. Marque solo si esta
                   plantilla dice algo que no es cierto en otra etapa —una
-                  «confirmación» no le sirve a quien no quedó, y un «no quedó
-                  seleccionado» no le sirve a quien sí.
+                  «confirmación de compra» no le sirve a quien no cerró, y un
+                  «esta vez no se dio» no le sirve a quien sí—. La etapa es la
+                  de la ficha del contacto, con los mismos nombres del embudo.
                 </p>
                 <div className="mt-2.5 grid gap-6 sm:grid-cols-3">
                   {GRUPOS.map((g) => (

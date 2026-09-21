@@ -22,6 +22,14 @@ export type Modulo = {
   /// dentro se quedan en texto para no competir con el.
   emoji: string;
   etiqueta: string;
+  /// El nombre CORTO, para la fila horizontal de la cabecera.
+  ///
+  /// Vive aquí y no en la cabecera para que los dos nombres no se
+  /// separen: si mañana un módulo se renombra, se renombra en un
+  /// solo sitio. El largo sigue mandando en el cajón, en las migas
+  /// y en el título de cada pantalla, que es donde hay sitio y
+  /// donde se lee una vez.
+  corto?: string;
   descripcion: string;
   enlaces: Enlace[];
 };
@@ -44,6 +52,7 @@ export const MODULOS: Modulo[] = [
     clave: 'inscripciones',
     emoji: '📝',
     etiqueta: 'Gestión de leads',
+    corto: 'Leads',
     descripcion: 'Del lead que entra al negocio que se cierra.',
     /**
      * Tres entradas y ni una más.
@@ -62,6 +71,11 @@ export const MODULOS: Modulo[] = [
      * Queda el tablero —dónde va cada negocio— y las dos listas,
      * partidas como los formularios: empresas y personas, que son
      * los dos embudos y se trabajan distinto.
+     *
+     * Con una excepción que no es para consultar sino para crear:
+     * «Nuevo contacto». La premisa de arriba —TODO entra por
+     * formulario— no se cumple con el contacto de una feria o de una
+     * llamada, y sin una puerta para él ese lead no entraba nunca.
      */
     enlaces: [
       {
@@ -72,13 +86,45 @@ export const MODULOS: Modulo[] = [
       },
       {
         href: '/admin/leads/empresas',
-        etiqueta: 'Leads Empresas',
+        etiqueta: 'Leads de empresas',
         exacto: true,
         area: 'inscripciones',
       },
       {
+        /// Cada empresa una vez, con su gente y sus negocios. «Leads de
+        /// empresas» lista negocios: una empresa con tres cotizaciones
+        /// sale tres veces.
+        href: '/admin/cuentas',
+        etiqueta: 'Empresas',
+        area: 'inscripciones',
+      },
+      {
         href: '/admin/leads/personas',
-        etiqueta: 'Leads Personas',
+        etiqueta: 'Leads de personas',
+        exacto: true,
+        area: 'inscripciones',
+      },
+      {
+        /// La puerta para lo que NO entra por formulario: el contacto
+        /// de una feria, la llamada, el referido. Sin ella, un lead
+        /// así no tenía cómo entrar al CRM y se quedaba en la libreta
+        /// del asesor.
+        ///
+        /// La misma área que las listas, pero con ESCRIBIR: esto no es
+        /// consulta, y una cuenta de solo lectura vería un formulario
+        /// que el servidor le rechaza al guardar.
+        href: '/admin/leads/personas/nueva',
+        etiqueta: 'Nuevo contacto',
+        exacto: true,
+        area: 'inscripciones',
+        nivel: 'ESCRIBIR',
+      },
+      {
+        /// Lo que se oferta al público y cuántos negocios lleva cada
+        /// servicio. Va con los leads y no en Configuración porque el
+        /// asesor lo consulta a diario; editarlo sí pide configuración.
+        href: '/admin/portafolio',
+        etiqueta: 'Portafolio de servicios',
         exacto: true,
         area: 'inscripciones',
       },
@@ -152,6 +198,7 @@ export const MODULOS: Modulo[] = [
     clave: 'campanas',
     emoji: '✉️',
     etiqueta: 'Campaña Mailing',
+    corto: 'Mailing',
     descripcion: 'Lo que se le escribe a la gente, y a quiénes.',
     enlaces: [
       {
@@ -182,6 +229,16 @@ export const MODULOS: Modulo[] = [
     descripcion: 'Lo que no es del día a día.',
     enlaces: [
       { href: '/admin/marca', etiqueta: 'Apariencia', soloSuperadmin: true, area: 'configuracion', nivel: 'ESCRIBIR' },
+      {
+        /// Las reglas con las que se arma el Resumen. Se VE con
+        /// permiso de leads —el asesor tiene derecho a saber de
+        /// dónde sale la alerta que le salta— y se cambia con
+        /// configuración con escritura, que es lo que valida el
+        /// backend.
+        href: '/admin/parametros',
+        etiqueta: 'Parámetros del tablero',
+        area: 'inscripciones',
+      },
       {
         /// Aquí y no en Gestión de leads: esto no es mirar
         /// leads, es conectar una tubería. Quien inscribe no

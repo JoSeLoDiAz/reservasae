@@ -6,6 +6,11 @@ export interface Estado {
   servicio: string;
   estado: string;
   version: string;
+  /// De la misma variable que la franja naranja del panel. «Mi
+  /// perfil» adivinaba el entorno por si la versión decía «prueba»,
+  /// y como no lo dice, en pruebas afirmaba «Producción · datos
+  /// reales» debajo de una franja que dice lo contrario.
+  entorno: 'prueba' | 'produccion';
   hora: string;
 }
 
@@ -30,6 +35,7 @@ export class AppService {
       servicio: 'crm-grupo-ae-backend',
       estado: 'ok',
       version: process.env.APP_VERSION ?? VERSION,
+      entorno: process.env.ENTORNO === 'prueba' ? 'prueba' : 'produccion',
       hora: new Date().toISOString(),
     };
   }

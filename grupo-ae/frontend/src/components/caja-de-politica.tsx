@@ -23,7 +23,7 @@
  * distintos y se guardan contra políticas distintas.
  */
 
-import { useEffect, useState } from "react";
+import { Fragment, useEffect, useState, type ReactNode } from "react";
 
 import { ErrorApi } from "@/lib/pedir";
 import { politicaVigente, type Destinatario, type PoliticaPublica } from "@/lib/politicas-api";
@@ -44,6 +44,47 @@ export const TEXTO_DE_RESPALDO =
   "los medios que registré. Podré conocer, actualizar, rectificar y suprimir mis " +
   "datos, y revocar esta autorización, en los términos de la Ley 1581 de 2012 y el " +
   "Decreto 1377 de 2013.";
+
+/// Las direcciones del texto, pulsables, y NADA MAS.
+///
+/// El texto lo redacta un administrador y acaba en el
+/// formulario publico, asi que pintarlo como HTML seria dejarle
+/// inyectar lo que quiera --la misma razon por la que los
+/// colores se validan clave por clave antes de entrar en una
+/// etiqueta `<style>`--. Se parte por la expresion y solo los
+/// trozos que SON una direccion se vuelven `<a>`; el resto
+/// sigue siendo texto.
+///
+/// Vive aqui y lo usan los cuatro sitios que pintan una politica:
+/// la preinscripcion, el enlace de completado, el modal y el
+/// panel. En uno solo, el enlace funcionaria en una pantalla y en
+/// las otras tres no.
+const ENLACE = /https?:\/\/[^\s<>"')\]]*[^\s<>"')\].,;:!?]/g;
+
+export function conEnlaces(texto: string): ReactNode[] {
+  const trozos: ReactNode[] = [];
+  let desde = 0;
+
+  for (const hallado of texto.matchAll(ENLACE)) {
+    const i = hallado.index;
+    if (i > desde) trozos.push(<Fragment key={`t${desde}`}>{texto.slice(desde, i)}</Fragment>);
+    trozos.push(
+      <a
+        key={`e${i}`}
+        href={hallado[0]}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="font-medium break-words text-marca underline underline-offset-2"
+      >
+        {hallado[0]}
+      </a>,
+    );
+    desde = i + hallado[0].length;
+  }
+
+  if (desde < texto.length) trozos.push(<Fragment key={`t${desde}`}>{texto.slice(desde)}</Fragment>);
+  return trozos;
+}
 
 /**
  * La política vigente de ese convenio, o null.
@@ -118,7 +159,7 @@ export function CajaDePolitica({
         {titulo ?? politica?.titulo ?? "Política de tratamiento de datos personales"}
       </p>
       <div className="texto-legal dato prosa mt-2">
-        {politica?.contenido ?? TEXTO_DE_RESPALDO}
+        {conEnlaces(politica?.contenido ?? TEXTO_DE_RESPALDO)}
       </div>
       {politica && (
         <p className="micro mt-2">

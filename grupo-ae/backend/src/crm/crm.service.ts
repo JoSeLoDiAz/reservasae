@@ -9,6 +9,7 @@ import {
 
 import {
   EtapaParticipante,
+  type OrigenLead,
   type OrigenParticipante,
   Prisma,
   type Admin,
@@ -27,6 +28,7 @@ import {
   seHistoria,
 } from './clase-de-dato';
 import { documentoValido, normalizarDocumento } from '../comun/documento';
+import { ORIGENES_DE_PAUTA, origenDeLead } from './origen-del-lead';
 import { borrarParticipaciones } from './borrar-participaciones';
 import { llevanFichasEn } from './quien-lleva-fichas';
 import { analizar, esInsalvable, repetidosEnElPegado } from './carga';
@@ -80,6 +82,7 @@ import {
   FiltrosParticipantesDto,
   RegistrarAutorizacionDto,
 } from './dto';
+import { seLePregunta } from './lo-que-no-se-pregunta';
 
 /**
  * El ámbito NO va en el DTO: declararlo ahí lo vuelve una
@@ -887,9 +890,12 @@ export class CrmService {
   /// El motivo por el que esta oferta no admite inscripciones,
   /// listo para la pantalla. Null en `porQueNo` cuando si admite.
   private async puedeInscribirse(ofertaId: string | null) {
-    if (!ofertaId) return { admite: false, porQueNo: 'No tiene oferta asignada.', motivo: 'SIN_OFERTA' as const };
+    /// En idioma de venta: lo que falta es escoger QUÉ se le vende
+    /// del portafolio, no «una oferta» de formación. El código
+    /// `SIN_OFERTA` se queda: es contrato con el frontend.
+    if (!ofertaId) return { admite: false, porQueNo: 'Falta elegir el servicio del portafolio.', motivo: 'SIN_OFERTA' as const };
     const panel = await this.cupos.deLaOferta(ofertaId);
-    if (!panel) return { admite: false, porQueNo: 'No se encontró su oferta.', motivo: 'SIN_OFERTA' as const };
+    if (!panel) return { admite: false, porQueNo: 'Falta elegir el servicio del portafolio: el que tenía ya no aparece.', motivo: 'SIN_OFERTA' as const };
     return {
       admite: panel.admiteInscripciones,
       porQueNo: panel.porQueNo,
@@ -2000,7 +2006,7 @@ export class CrmService {
     });
     if (!concesion) {
       throw new BadRequestException(
-        `${asesor.nombre} no trabaja en esta unidad de negocio, así que no vería esta oportunidad. ` +
+        `${asesor.nombre} no trabaja en esta línea de negocio, así que no vería esta oportunidad. ` +
           'Déle acceso primero, o elija a otra persona.',
       );
     }
@@ -2035,7 +2041,7 @@ export class CrmService {
     );
     if (ajenos.length > 0) {
       throw new ForbiddenException(
-        'Repartir oportunidades entre asesores lo hace un lider: es organizar el ' +
+        'Repartir oportunidades entre asesores lo hace un líder: es organizar el ' +
           'trabajo del equipo, no atender un lead.',
       );
     }
@@ -2464,7 +2470,7 @@ export class CrmService {
     ) {
       throw new ForbiddenException(
         'Esta oportunidad ya tiene propuesta enviada. Devolverla la saca del pronóstico y ' +
-          'del informe del mes, asi que lo hace un lider. Pidalo con el ' +
+          'del informe del mes, así que lo hace un líder. Pídalo con el ' +
           'motivo y queda registrado.',
       );
     }
@@ -3940,7 +3946,7 @@ export class CrmService {
 
     if (!politica) {
       throw new ConflictException(
-        'Esta unidad de negocio no tiene una política de contactos vigente. ' +
+        'Esta línea de negocio no tiene una política de contactos vigente. ' +
           'Publíquela antes de registrar autorizaciones.',
       );
     }
@@ -4064,9 +4070,13 @@ export class CrmService {
             persona: {
               correo: { not: null },
               celular: { not: null },
-              fechaNacimiento: { not: null },
+              /// Solo si en esta instalación se preguntan. En Grupo AE
+              /// no: exigirlos aquí dejaba toda ficha en «Parcial»
+              /// aunque la lista la pintara «Completa», porque
+              /// `faltaDeLaPersona` ya los salta (auditoría 18 sep).
+              ...(seLePregunta('fechaNacimiento') ? { fechaNacimiento: { not: null } } : {}),
               generoSepId: { not: null },
-              estrato: { not: null },
+              ...(seLePregunta('estrato') ? { estrato: { not: null } } : {}),
               departamentoSepId: { not: null },
               municipioSepId: { not: null },
               direccion: { not: null },
@@ -4117,12 +4127,30 @@ export class CrmService {
   /// Los doce origenes de la base, en los tres que le sirven
   /// al asesor. «Pauta» son las redes de Meta: lo que se paga.
   /// «Organico» es quien llego solo por el formulario.
-  private static readonly PAUTA = new Set<OrigenParticipante>([
-    'REDES',
-    'INSTAGRAM',
-    'FACEBOOK',
-    'LINKEDIN',
-  ]);
+  ///
+  /// YA NO SE USA para clasificar, y se deja a propósito.
+  ///
+  /// Era una copia propia de la regla —estas cuatro redes, a
+  /// mano, y el PAUTA/ORGANICO/IMPORTACION en un ternario de
+  /// `aFila`—, y además ignoraba la columna `origenLead`, que es
+  /// justo la que escribe quien sí sabe de dónde vino la persona:
+  /// la entrada de leads (`leads.service`), cuando un lead de la
+  /// pauta o del formulario cae con documento sobre una ficha que
+  /// ya existía. Los informes sí la leen —`origenDeLeadSql` la
+  /// hace mandar—, así que la lista de leads, la única que el
+  /// cliente mira, era la única que no respetaba el dato: esa
+  /// ficha salía «Pauta» en el informe e «Importación» en la
+  /// lista. José lo corrigió así en el CRM de la raíz (commit
+  /// eee0f42) y aquí va igual.
+  ///
+  /// Se conserva, pero SALIENDO de la regla única y no escrita a
+  /// mano: si alguien la vuelve a usar, por lo menos dice lo
+  /// mismo que `origen-del-lead.ts`. Para clasificar un lead se
+  /// llama a `origenDeLead()` —o `origenDeLeadSql()` en SQL—,
+  /// nunca a esto.
+  private static readonly PAUTA = new Set<OrigenParticipante>(
+    ORIGENES_DE_PAUTA,
+  );
 
   /// Cuanto se sabe de la empresa donde trabaja. Es lo que
   /// decide si su ficha puede salir en el F7.
@@ -4171,6 +4199,10 @@ export class CrmService {
     };
     actualizadoEn: Date;
     convenio: { sigla: string | null; slug: string };
+    /// La escribe quien sí sabe de dónde vino —la entrada de
+    /// leads, cuando el lead cae con documento sobre esta
+    /// ficha—. Nula = se deduce del origen.
+    origenLead: OrigenLead | null;
     accionFormacion: { codigo: string; nombre: string } | null;
     oferta: { ubicacion: { nombre: string } } | null;
     /// Opcional: no todas las consultas que arman una fila lo
@@ -4258,11 +4290,11 @@ export class CrmService {
       /// que ya dice de cual es.
       grupo: p.cobertura ? p.cobertura.grupo.numero : null,
       gremio: p.convenio.sigla ?? p.convenio.slug,
-      origenLead: CrmService.PAUTA.has(p.origen)
-        ? ('PAUTA' as const)
-        : p.origen === 'AUTOGESTION'
-          ? ('ORGANICO' as const)
-          : ('IMPORTACION' as const),
+      /// La columna MANDA cuando está —la escribe quien sí
+      /// sabe de dónde vino— y si no, se deduce. Es la regla
+      /// de `origenDeLeadSql`, LLAMADA y no copiada: así la
+      /// lista y los informes no pueden volver a discrepar.
+      origenLead: p.origenLead ?? origenDeLead(p.origen),
       /// Viene de una empresa que aparto cupos. Ese turno
       /// caduca en el cierre, y por eso va primero.
       dePreReserva: p.reservaId !== null,

@@ -5,10 +5,18 @@ import {
   Injectable,
   Logger,
   NotFoundException,
+  Optional,
 } from '@nestjs/common';
 import { randomBytes } from 'node:crypto';
 
-import { Prisma } from '../../generated/prisma';
+import {
+  EtapaOportunidad,
+  OrigenParticipante,
+  Prisma,
+  TipoEmbudo,
+  type Admin,
+} from '../../generated/prisma';
+import { OportunidadesService } from '../oportunidades/oportunidades.service';
 import { ENTIDADES, AuditoriaService } from '../comun/auditoria.service';
 import { CorreoService } from '../correo/correo.service';
 import { PrismaService } from '../prisma/prisma.service';
@@ -27,6 +35,11 @@ import {
   NIVELES_OCUPACIONALES_SEP,
 } from '../crm/catalogos-sep';
 import { faltaDeLaPersona } from '../crm/completitud';
+import {
+  NO_SE_PREGUNTAN,
+  PREGUNTA_DEL_VINCULO,
+  seLePregunta,
+} from '../crm/lo-que-no-se-pregunta';
 import { normalizarDocumento } from '../comun/documento';
 import { DirectorioService } from '../crm/directorio.service';
 import { aQueOrganizacionSeAta } from './organizacion-de-la-ficha';
@@ -58,7 +71,60 @@ export class PreinscripcionService {
     private readonly auditoria: AuditoriaService,
     private readonly correo: CorreoService,
     private readonly directorio: DirectorioService,
+    /// Opcional: las pruebas que arman este servicio a mano no lo
+    /// pasan, y sin él solo se omite abrir el negocio.
+    @Optional() private readonly oportunidades?: OportunidadesService,
   ) {}
+
+  /**
+   * EL NEGOCIO, PARA QUE EL LEAD SE VEA EN EL PANEL.
+   *
+   * La preinscripción guardaba a la persona y su ficha de
+   * participante, y ahí se quedaba: no nacía ninguna oportunidad,
+   * así que quien se registraba por su cuenta no salía ni en Leads
+   * de personas, ni en el Embudo, ni en «sin primera respuesta». La
+   * auditoría del 18 sep 2026 lo encontró enviando un registro y
+   * buscándolo en todas las pantallas.
+   *
+   * Se abre en «Solicitud de negocio» del embudo de personas, con
+   * origen AUTOGESTION, igual que la captación. Si esa persona ya
+   * tiene un negocio ABIERTO en esta línea no se abre otro: volver
+   * a registrarse es la misma solicitud.
+   *
+   * Y si falla, NO tumba el registro: la persona ya quedó guardada y
+   * con su constancia, que es lo que no se puede perder. Se deja en
+   * el registro para que alguien lo abra a mano.
+   */
+  private async abrirNegocio(personaId: string, convenioId: string) {
+    if (!this.oportunidades) return;
+    try {
+      const abierto = await this.prisma.oportunidad.findFirst({
+        where: {
+          personaId,
+          convenioId,
+          embudo: TipoEmbudo.PERSONA,
+          etapa: { notIn: [EtapaOportunidad.GANADO, EtapaOportunidad.PERDIDO] },
+        },
+        select: { codigo: true },
+      });
+      if (abierto) return;
+      await this.oportunidades.crear(
+        {
+          embudo: TipoEmbudo.PERSONA,
+          titulo: 'Solicitud desde la preinscripción',
+          convenioId,
+          personaId,
+          origen: OrigenParticipante.AUTOGESTION,
+        },
+        { id: null, nombre: 'Formulario de preinscripción' } as unknown as Admin,
+      );
+    } catch (e) {
+      this.log.warn(
+        `No se abrió el negocio de la preinscripción de ${personaId}: ` +
+          (e instanceof Error ? e.message : String(e)),
+      );
+    }
+  }
 
   /** Lo que el formulario necesita para dibujarse. */
   async catalogo(slug: string) {
@@ -423,6 +489,8 @@ export class PreinscripcionService {
 
     await this.pedirElRui(persona.id);
 
+    await this.abrirNegocio(persona.id, convenio.id);
+
     /// EL TOKEN NO SALE SI LA CÉDULA YA ESTABA.
     ///
     /// Este enlace abre la ficha ENTERA de la persona: su
@@ -474,7 +542,7 @@ export class PreinscripcionService {
     if (suCorreo) {
       const r = await this.correo.enviar({
         para: suCorreo,
-        asunto: `Su solicitud en ${convenio.nombre}`,
+        asunto: 'Recibimos su solicitud · Grupo AE',
         /// SIN ENLACE, y es una decision del cliente del 3 sep
         /// 2026: «el correo debe llegar solamente si el asesor lo
         /// envia».
@@ -762,14 +830,33 @@ export class PreinscripcionService {
       politica,
       documentos: DOCUMENTOS_DEL_FORMULARIO,
       generos: GENEROS_SEP,
+      /// Lo que esta instalación NO pregunta, y cómo pregunta el
+      /// vínculo. La pantalla no lleva su propia lista: la lee de
+      /// aquí, que es la misma que usa `faltaDeLaPersona`. Así el
+      /// enlace no puede dejar de pedir algo que el panel sigue
+      /// dando por faltante.
+      camposOcultos: [...NO_SE_PREGUNTAN],
+      preguntaDelVinculo: PREGUNTA_DEL_VINCULO,
       /// Las 43 del SEP, que es lo que el F7 admite. Se manda
       /// la lista entera: filtrarla seria decidir por la
       /// persona cual de sus condiciones cuenta.
-      caracterizaciones: CARACTERIZACIONES_SEP,
+      ///
+      /// Salvo si la población vulnerable no se pregunta: entonces
+      /// no viaja ni el catálogo ni LO QUE YA MARCÓ. Es un dato
+      /// sensible de la ley 1581, y mandarlo a una pantalla que
+      /// no lo va a enseñar es exponerlo sin ninguna finalidad. Se
+      /// queda guardado donde está; solo deja de salir por aquí.
+      caracterizaciones: seLePregunta('poblacionVulnerable')
+        ? CARACTERIZACIONES_SEP
+        : [],
       /// Lo que ya marco, para no volver a preguntarselo en
       /// blanco si vuelve al enlace.
-      caracterizacionesElegidas: caracterizacionesElegidas,
-      caracterizacionRechazada: persona.caracterizacionRechazada,
+      caracterizacionesElegidas: seLePregunta('poblacionVulnerable')
+        ? caracterizacionesElegidas
+        : [],
+      caracterizacionRechazada: seLePregunta('poblacionVulnerable')
+        ? persona.caracterizacionRechazada
+        : false,
       nivelesOcupacionales: NIVELES_OCUPACIONALES_SEP,
       departamentos: DEPARTAMENTOS_SEP.filter((d) => d.seleccionable),
       // [id, departamentoId, nombre]: el navegador filtra
@@ -1521,7 +1608,7 @@ export class PreinscripcionService {
       enlace.expiraEn < new Date()
     ) {
       throw new NotFoundException(
-        'Este enlace ya no está disponible. Pida uno nuevo a quien lo atendió.',
+        'Este enlace ya no está disponible. Pida uno nuevo a su asesor comercial.',
       );
     }
     return enlace;

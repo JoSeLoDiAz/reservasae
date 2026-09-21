@@ -74,7 +74,7 @@ export const MINUTOS_DEL_MISMO_ENVIO = 15;
 export const DIAS_DEL_MISMO_NEGOCIO = 90;
 
 /// Una oportunidad que ya existe del mismo cliente, en la misma
-/// unidad de negocio y el mismo embudo. Quien llama la busca; esto
+/// línea de negocio y el mismo embudo. Quien llama la busca; esto
 /// solo juzga.
 export type Anterior = {
   id: string;

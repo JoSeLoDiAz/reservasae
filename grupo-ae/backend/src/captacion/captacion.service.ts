@@ -23,7 +23,7 @@
  *    no se puede mandar no hay que comprobarlo.
  * 2. **El slug se resuelve contra la base, siempre.** Una lista de
  *    slugs escrita en el código ya dejó mudo al webhook de leads:
- *    se desincronizó al renombrar las unidades de negocio y empezó
+ *    se desincronizó al renombrar las líneas de negocio y empezó
  *    a rechazar con 400 slugs que SÍ existían. Ver `leads/dto.ts`.
  * 3. **Antes de escribir nada se comprueba todo.** Rechazar después
  *    de guardar deja los datos dentro de todas formas, que es el
@@ -163,7 +163,7 @@ export class CaptacionService {
         })
       : null;
 
-    /// La unidad de negocio no se añade aparte: ya viaja en
+    /// La línea de negocio no se añade aparte: ya viaja en
     /// `vista.convenio`. Mandarla dos veces con dos nombres es
     /// invitar a que la página lea una y el panel escriba la otra.
     return {
@@ -251,9 +251,15 @@ export class CaptacionService {
      */
     const suyo = titular.empresaId
       ? { empresaId: titular.empresaId }
-      : { personaId: titular.personaId as string };
+      : titular.personaId
+        ? { personaId: titular.personaId }
+        : null;
 
-    const anteriores = await this.prisma.oportunidad.findMany({
+    /// Sin persona ni empresa no hay contra qué reconocer un envío
+    /// anterior: se crea. Buscar con un filtro vacío devolvería los
+    /// negocios de cualquiera, que es justo lo que el comentario de
+    /// arriba prohíbe.
+    const anteriores = !suyo ? [] : await this.prisma.oportunidad.findMany({
       where: { convenioId: formulario.convenioId, embudo, ...suyo },
       orderBy: { creadoEn: 'desc' },
       take: 20,
@@ -299,7 +305,12 @@ export class CaptacionService {
     const creada = await this.oportunidades.crear(
       {
         embudo,
-        titulo: formulario.titulo.slice(0, 160),
+        /// Sin ficha que lo diga, el nombre va en el título: es lo
+        /// primero que el asesor lee en el embudo y en la lista.
+        titulo: (titular.personaId || titular.empresaId
+          ? formulario.titulo
+          : `${formulario.titulo} · ${titular.comoSeLlama}`
+        ).slice(0, 160),
         convenioId: formulario.convenioId,
         personaId: titular.personaId,
         empresaId: titular.empresaId,
@@ -343,7 +354,7 @@ export class CaptacionService {
     const politica = await politicaVigente(this.prisma, convenioId);
     if (!politica) {
       throw new BadRequestException(
-        'Esta unidad de negocio todavía no tiene publicada una política de ' +
+        'Esta línea de negocio todavía no tiene publicada una política de ' +
           'tratamiento de datos, así que no hay contra qué dejar su ' +
           'autorización. Publíquela en Configuración → Políticas y el ' +
           'formulario vuelve a recibir solicitudes.',
@@ -395,25 +406,30 @@ export class CaptacionService {
     dto: CaptarDto,
     contacto: ComoResponder,
   ): Promise<Titular> {
-    /// En el embudo de personas el documento no es opcional: es la
-    /// identidad con la que esta persona ya existe —o no— en el CRM,
-    /// y lo único contra lo que se puede dejar la constancia a su
-    /// nombre.
-    const persona = await this.personaDe(
-      dto,
-      contacto,
-      embudo === TipoEmbudo.PERSONA,
-    );
+    /**
+     * EL DOCUMENTO YA NO SE EXIGE AL ENTRAR, TAMPOCO EN PERSONAS.
+     *
+     * Se exigía, y el formulario público de personas NO lo pregunta:
+     * todo envío terminaba en «Escriba su tipo y su número de
+     * documento» y ningún lead de personas entraba nunca (auditoría
+     * del 18 sep 2026). La escalera ya lo decía: la persona se pide
+     * AL CALIFICAR y no al crear, «porque un lead entra muchas veces
+     * sin más que un celular».
+     *
+     * Si trae documento, se identifica y se deja la constancia a su
+     * nombre, como siempre. Si no, el negocio nace sin persona, con
+     * su nombre en el título y sus datos de contacto en la primera
+     * gestión, y el asesor la ata a la ficha cuando tenga el
+     * documento. La autorización de datos se exigió igual arriba.
+     */
+    const persona = await this.personaDe(dto, contacto, false);
 
     if (embudo === TipoEmbudo.PERSONA) {
-      /// No puede ser nula: `personaDe` con `exigida` en cierto o
-      /// devuelve persona o lanza.
-      const suya = persona as NonNullable<typeof persona>;
       return {
-        personaId: suya.id,
+        personaId: persona?.id ?? null,
         empresaId: null,
-        comoSeLlama: suya.comoSeLlama,
-        loQueNoSePiso: suya.loQueNoSePiso,
+        comoSeLlama: persona?.comoSeLlama ?? dto.nombre ?? 'Sin nombre',
+        loQueNoSePiso: persona?.loQueNoSePiso ?? [],
       };
     }
 
@@ -557,9 +573,9 @@ export class CaptacionService {
    * La empresa, por su NIT.
    *
    * Un NIT, una organización: la empresa es única en toda la base y
-   * no por unidad de negocio, porque la misma empresa le compra a
+   * no por línea de negocio, porque la misma empresa le compra a
    * los dos gremios y partirla en dos fichas rompería el
-   * directorio. Lo que sí se acota por unidad de negocio es la
+   * directorio. Lo que sí se acota por línea de negocio es la
    * OPORTUNIDAD, que es lo que hay que separar.
    *
    * El `update` es el de una reserva: solo huecos. Quien escribe es
@@ -626,7 +642,7 @@ export class CaptacionService {
    *
    * `Oportunidad.leadId` es una columna suelta, sin llave foránea,
    * así que nada impide apuntar al lead del otro gremio. Se
-   * comprueba contra la unidad de negocio del formulario: es el
+   * comprueba contra la línea de negocio del formulario: es el
    * mismo criterio del ámbito del panel, con el slug haciendo de
    * ámbito.
    *

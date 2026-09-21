@@ -142,11 +142,21 @@ export class PanelDeCupos {
     let porQueNo: string | null = null;
     if (!oferta.abierta) {
       motivo = 'OFERTA_CERRADA';
-      porQueNo = 'Este producto ya no está disponible.';
+      /// LOS TEXTOS HABLAN DE VENTA, no de cupos de formacion.
+      ///
+      /// Esto se heredo del CRM de formacion, donde «la oferta esta
+      /// cerrada» y «no quedan cupos» eran el idioma del SENA. Grupo
+      /// AE vende licencias y servicios de Google a organizaciones:
+      /// al mover de etapa, el asesor tiene que leer que el servicio
+      /// ya no se vende o que no hay disponibilidad, no que un curso
+      /// se lleno. El CODIGO (`motivo`) NO cambia: lo leen el
+      /// frontend y las pruebas, y renombrarlo seria romper el
+      /// contrato por un texto.
+      porQueNo = 'El servicio ya no se oferta.';
     } else if (cupos.lleno) {
       motivo = 'LLENO';
       porQueNo =
-        `No quedan posiciones: las ${cupos.total} están tomadas. ` +
+        `Sin disponibilidad del servicio: las ${cupos.total} posiciones contratadas ya están tomadas. ` +
         'Para incluir a alguien más hay que ampliar el alcance del contrato.';
     }
 

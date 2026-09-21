@@ -3,7 +3,10 @@ import { JwtModule } from '@nestjs/jwt';
 
 import { AuditoriaService } from '../comun/auditoria.service';
 import { InstitucionesModule } from '../instituciones/instituciones.module';
+import { OportunidadesModule } from '../oportunidades/oportunidades.module';
 import { PreinscripcionModule } from '../preinscripcion/preinscripcion.module';
+import { ContactosController } from './contactos.controller';
+import { ContactosService } from './contactos.service';
 import { CrmController } from './crm.controller';
 import { CrmService } from './crm.service';
 import { Matricula } from './matricula';
@@ -35,10 +38,15 @@ import { SepService } from './sep/sep.service';
     ColaRuiModule,
     // el cambio a INSCRITO dispara la validacion de la empresa
     InstitucionesModule,
+    // «Nuevo contacto» abre el negocio por la puerta de siempre:
+    // la numeración y la escalera viven allí. No hay ciclo, porque
+    // OportunidadesModule no importa nada de aquí.
+    OportunidadesModule,
   ],
-  controllers: [CrmController, SepController],
+  controllers: [CrmController, SepController, ContactosController],
   providers: [
     CrmService,
+    ContactosService,
     Matricula,
     PanelDeCupos,
     VigiaDeCupos,

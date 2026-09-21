@@ -203,25 +203,86 @@ export const SALIDAS_DEL_AULA: Etapa[] = [
   "ABANDONO",
 ];
 
+/**
+ * Cómo se lee cada etapa de la PERSONA. No confundir con las del
+ * NEGOCIO, que son otro enum y viven en `oportunidades-api.ts`.
+ *
+ * TRES VALORES SE CORRIGIERON el 15 sep 2026, y no era cosmético.
+ * Este mapa decía `INSCRITO: "Ganado"`, `EN_FORMACION: "En
+ * ejecución"` y `CERTIFICADO: "Entregado"`, mientras el selector
+ * de plantillas de correo, los segmentos de campaña y los tokens
+ * de Apariencia decían, para los mismos tres valores, «Propuesta
+ * enviada», «En negociación» y «Ganado».
+ *
+ * O sea: quien armaba una campaña para «Ganado» le escribía a
+ * `CERTIFICADO`, y la lista que decía «Ganado» le estaba
+ * enseñando `INSCRITO`. Le escribía a la gente equivocada, y por
+ * eso esto no se dejó para después.
+ *
+ * Gana la palabra de los otros tres —tres ficheros contra uno, y
+ * los títulos de grupo del selector («Mientras avanza», «Cerró
+ * bien») solo cuadran con ella—. Los cuatro sitios están anotados
+ * unos a otros: si cambia uno, cambian los cuatro. Y hay un quinto
+ * que se había quedado fuera, el aviso de «esta plantilla no es
+ * para esta etapa» (`correo/plantillas/etapas-de-plantilla.ts`),
+ * que decía «no cerró» donde todos los demás decían otra cosa.
+ *
+ * NO BASTA CON ANOTARLO. `correo/campanas/una-etapa-un-nombre.spec.ts`
+ * del backend lee ESTE archivo y el selector de plantillas como
+ * texto y los compara, etapa por etapa, con la frase del segmento,
+ * los tokens de Apariencia y el aviso de plantillas. Si se cambia
+ * una palabra aquí y no allá, la prueba falla; si se cambia la
+ * forma de este mapa, también, y eso es a propósito.
+ *
+ * LA PREGUNTA QUE QUEDÓ ABIERTA ESE DÍA SE CERRÓ EL 18 SEP 2026, y
+ * se cerró hacia el EMBUDO. El negocio decía «Cotización enviada /
+ * Cerrado ganado» y la persona «Propuesta enviada / Ganado»: dos
+ * vocabularios para la misma venta, y en la demostración del
+ * Mailing nadie supo decir si «Propuesta enviada» era la columna
+ * «Cotización enviada» del embudo o otra cosa. Se parecían
+ * demasiado para ser distintas y no lo bastante para ser iguales,
+ * que es la peor combinación posible.
+ *
+ * Ahora las siete que tienen pareja en el embudo se llaman COMO
+ * SU PAREJA, que es además la etapa cuyo color comparten en
+ * Apariencia (`etapaInscrito` pinta «Cotización enviada» en los
+ * dos lados). Las cuatro que no tienen pareja hablan de venta y no
+ * de aula: «Canceló» en vez de «Retirado», y «No aprobó la compra»
+ * en vez de «No calificó», porque «No calificó» al lado de
+ * «Calificado» se leía como su contrario y no lo es —es un cierre
+ * después de negociar, no un lead descartado al entrar—.
+ *
+ * EL ENUM NO CAMBIA, SOLO EL RÓTULO. Lo que se guarda en la base,
+ * lo que filtra la URL y lo que segmenta una campaña sigue siendo
+ * `INSCRITO`, `CERTIFICADO`, etc. Ni una regla se movió.
+ *
+ * Y la idea de la ENTREGA —vinculado, en ejecución, entregado—
+ * no se pierde: si algún día la persona necesita contar lo que
+ * pasa DESPUÉS del cierre, esas son las palabras; hoy el Mailing
+ * habla de venta y tiene que decir lo mismo que el embudo.
+ */
 export const ETIQUETA_ETAPA: Record<Etapa, string> = {
-  INTERESADO: "Interesado",
+  INTERESADO: "Solicitud de negocio",
   CONTACTADO: "Contactado",
-  DATOS_COMPLETOS: "Datos completos",
-  INSCRITO: "Ganado",
-  EN_FORMACION: "En ejecución",
-  CERTIFICADO: "Entregado",
-  PERDIDO: "Perdido",
-  RETIRADO: "Retirado",
-  NO_APROBO: "No aprobó",
-  DESERTO: "Desertó",
-  ABANDONO: "Abandonó",
+  DATOS_COMPLETOS: "Calificado",
+  INSCRITO: "Cotización enviada",
+  EN_FORMACION: "En negociación",
+  CERTIFICADO: "Cerrado ganado",
+  PERDIDO: "Cerrado perdido",
+  RETIRADO: "Canceló",
+  NO_APROBO: "No aprobó la compra",
+  DESERTO: "Desistió",
+  ABANDONO: "Dejó de responder",
 };
 
-/// Qué separa a los que se parecen.
+/// Qué separa a los que se parecen. Las cinco salidas se
+/// confunden entre sí con facilidad, y la diferencia es la que
+/// decide qué correo le sirve a cada una.
 export const AYUDA_ETAPA: Partial<Record<Etapa, string>> = {
-  DESERTO: "Avisó que se retiraba.",
+  DESERTO: "Avisó que no seguía.",
   ABANDONO: "Dejó de responder sin decir nada.",
-  RETIRADO: "Se retiró antes de empezar el servicio.",
+  RETIRADO: "Canceló antes de empezar el servicio.",
+  NO_APROBO: "Negoció, pero la compra no se aprobó.",
   PERDIDO: "Se le contactó y no quiso seguir.",
 };
 

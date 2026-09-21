@@ -63,6 +63,7 @@ const LARGO: BloqueDePreguntas[] = [
   {
     titulo: "Primero, su organización",
     campos: [
+      { etiqueta: "¿A nombre de quién es la compra?" },
       { etiqueta: "NIT y dígito de verificación" },
       { etiqueta: "Razón social" },
       { etiqueta: "Dirección" },
@@ -70,7 +71,7 @@ const LARGO: BloqueDePreguntas[] = [
       { etiqueta: "Departamento y municipio" },
       { etiqueta: "Sector económico" },
       { etiqueta: "Número de trabajadores" },
-      { etiqueta: "Persona de contacto, su cargo y correo" },
+      { etiqueta: "Quién aprueba la compra: nombre, cargo y correo" },
       { etiqueta: "O bien: «trabajo por mi cuenta», y su cédula es su RUT" },
       { etiqueta: "O bien: «no estoy trabajando», y ahí se le agradece" },
     ],
@@ -90,6 +91,30 @@ const LARGO: BloqueDePreguntas[] = [
     ],
   },
 ];
+
+/// Lo que el Formulario 2 YA NO PREGUNTA en Grupo AE.
+///
+/// La fecha de nacimiento, el estrato y el «no estoy
+/// trabajando» eran de la convocatoria del SENA; a quien viene a
+/// cotizar licencias no se le piden. El enlace los oculta según
+/// `NO_SE_PREGUNTAN` y `PREGUNTA_DEL_VINCULO`, en
+/// `backend/src/crm/lo-que-no-se-pregunta.ts`, y esta lista tiene
+/// que decir lo mismo que el enlace: una pantalla que le cuenta al
+/// asesor que se pregunta el estrato, cuando no se pregunta, le
+/// hace prometer un dato que nunca va a llegar.
+///
+/// Ocultos, no borrados: siguen en `LARGO`, y si el servidor los
+/// vuelve a preguntar basta con sacarlos de aquí.
+const OCULTOS_EN_EL_LARGO = new Set([
+  "Fecha de nacimiento",
+  "Estrato",
+  "O bien: «no estoy trabajando», y ahí se le agradece",
+]);
+
+const LARGO_VISIBLE: BloqueDePreguntas[] = LARGO.map((b) => ({
+  ...b,
+  campos: b.campos.filter((c) => !OCULTOS_EN_EL_LARGO.has(c.etiqueta)),
+}));
 
 type Cual = "CORTO" | "LARGO";
 
@@ -276,24 +301,23 @@ export default function FormulariosActivos() {
                     <strong className="font-normal text-titulo">
                       personal y de un solo uso
                     </strong>
-                    : se emite desde la lead del lead, caduca, y el siguiente anula
+                    : se emite desde la ficha del lead, caduca, y el siguiente anula
                     al anterior.
                   </p>
                   <p className="text-texto-suave">
                     Un QR pegado en una pared solo puede llevar a un sitio, y esta
-                    dirección cambia por persona. Para mandárselo a alguien, abra su
-                    lead en{" "}
-                    <strong className="font-normal text-texto">
-                      Gestión de leads
-                    </strong>{" "}
-                    y use «Enlace para que complete sus datos».
+                    dirección cambia por persona. {/* Mandaba a un botón «Enlace
+                    para que complete sus datos» que en Grupo AE no existe: la
+                    frase ya no promete lo que la pantalla no tiene. */}
+                    Por ahora este enlace lo emite soporte a pedido; escríbale con
+                    el nombre de la persona y se lo enviamos.
                   </p>
                 </div>
               </BloqueDeBanda>
             </div>
 
             <BloqueDeBanda rotulo="Lo que le pregunta">
-              <LoQuePregunta bloques={LARGO} />
+              <LoQuePregunta bloques={LARGO_VISIBLE} />
               <p
                 className="mt-4 max-w-[68ch] text-texto-suave"
                 style={{ fontSize: "0.71875rem" }}

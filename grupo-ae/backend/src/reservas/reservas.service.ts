@@ -537,7 +537,7 @@ export class ReservasService {
 
     if (!politica) {
       throw new ConflictException(
-        'Esta unidad de negocio no tiene publicada una política de tratamiento de datos. ' +
+        'Esta línea de negocio no tiene publicada una política de tratamiento de datos. ' +
           'No se pueden recibir registros hasta que exista.',
       );
     }

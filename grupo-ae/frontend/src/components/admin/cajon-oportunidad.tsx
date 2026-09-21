@@ -39,11 +39,14 @@
  * clase, y ni un párrafo que explique lo que ya se ve.
  */
 
+import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 
-import { Boton, CLASE_CONTROL } from "@/components/admin/marco-admin";
+import { Boton, Campo, CLASE_CONTROL } from "@/components/admin/marco-admin";
+import { FAMILIAS, serviciosApi, type Servicio } from "@/lib/servicios-api";
 import { Cargando } from "@/components/admin/piezas";
 import { IconoCerrar } from "@/components/admin/iconos";
+import { ProximoPaso } from "@/components/admin/proximo-paso";
 import {
   Cliente,
   Codigo,
@@ -61,23 +64,31 @@ import {
 } from "@/components/admin/datos-del-negocio";
 import { ErrorApi } from "@/lib/api";
 import {
+  enPesos,
   oportunidadesApi,
   type EtapaOportunidad,
   type FichaDeOportunidad,
   type MotivoCierre,
 } from "@/lib/oportunidades-api";
 
-/// Los mismos rótulos que usa el backend. Una segunda lista de
-/// nombres para lo mismo acaba discrepando: si un día se renombra
-/// una etapa, esto se cambia en un solo sitio.
-const ROTULO_ETAPA: Record<EtapaOportunidad, string> = {
-  CAPTADO: "Captado",
+/// Los mismos rótulos que usa el backend, en
+/// `oportunidades/escalera.ts`. Son dos paquetes y el panel no
+/// puede importar de allá, así que la copia es inevitable: lo que
+/// no puede es discrepar. Si cambia una, cambia la otra —en
+/// `EtapaParticipante` se dejaron discrepar y acabó mandando
+/// campañas a la gente equivocada—.
+///
+/// Las palabras son las de la dirección (notas del 15 sep 2026):
+/// «solicitud de negocio», «cotización», «cerrado ganado /
+/// perdido». El ENUM no cambia, solo lo que se lee.
+export const ROTULO_ETAPA: Record<EtapaOportunidad, string> = {
+  CAPTADO: "Solicitud de negocio",
   CONTACTADO: "Contactado",
   CALIFICADO: "Calificado",
-  PROPUESTA_ENVIADA: "Propuesta enviada",
+  PROPUESTA_ENVIADA: "Cotización enviada",
   EN_NEGOCIACION: "En negociación",
-  GANADO: "Ganado",
-  PERDIDO: "Perdido",
+  GANADO: "Cerrado ganado",
+  PERDIDO: "Cerrado perdido",
 };
 
 const ETAPAS_POR_EMBUDO: Record<string, EtapaOportunidad[]> = {
@@ -107,7 +118,7 @@ const MOTIVOS_PERDER: Array<{ valor: MotivoCierre; rotulo: string }> = [
   { valor: "NO_ERA_QUIEN_DECIDE", rotulo: "No era quien decide" },
   { valor: "NUNCA_RESPONDIO", rotulo: "Nunca respondió" },
   { valor: "NO_LE_INTERESA", rotulo: "No le interesa" },
-  { valor: "DATOS_ERRADOS", rotulo: "Los datos estaban malos" },
+  { valor: "DATOS_ERRADOS", rotulo: "Datos errados" },
   { valor: "OTRO", rotulo: "Otro" },
 ];
 
@@ -125,6 +136,102 @@ const MOTIVOS_PERDER: Array<{ valor: MotivoCierre; rotulo: string }> = [
  */
 function Falla({ children }: { children: React.ReactNode }) {
   return <p className="estado mb-3">{children}</p>;
+}
+
+/**
+ * Lo facturado, bajo lo cotizado.
+ *
+ * Son dos cifras distintas a propósito: se gana al cerrar y se
+ * factura después, y la diferencia entre las dos es plata que todavía
+ * no ha entrado. Por eso va aquí, pegada a la de portada, y no en
+ * otro bloque: lo que se quiere ver de un vistazo es la distancia.
+ *
+ * «Sin facturar» va con palabras y en gris, y no con la raya de
+ * `Vacio`. La raya dice «aquí no hay nada que ver», y esta ausencia sí
+ * dice algo: que falta la factura. Tampoco en verde cuando lo hay: el
+ * verde de `Dinero` es lo que ya se cobró, y facturar no es cobrar.
+ *
+ * Mira `typeof` y no `=== null` porque el campo es nuevo: si el
+ * servidor todavía no lo manda, llega `undefined`, y eso también es
+ * «sin facturar» y no un «$ undefined».
+ */
+function Facturado({ valor }: { valor: number | null | undefined }) {
+  if (typeof valor !== "number") {
+    return <span className="secundario mt-1.5 block">Sin facturar</span>;
+  }
+  return (
+    <span className="mt-1.5 flex items-baseline justify-end gap-2">
+      <span className="rotulo-bloque">Facturado</span>
+      {/* `Dinero` pinta la raya para el cero, que es lo correcto en
+          una lista de cotizaciones. Aquí un cero no es ausencia —la
+          ausencia es null—, así que se escribe tal cual. */}
+      {valor > 0 ? (
+        <Dinero valor={valor} />
+      ) : (
+        <span className="tabular-nums whitespace-nowrap">{enPesos(0)}</span>
+      )}
+    </span>
+  );
+}
+
+/// El techo de una cifra en pesos. La columna es `Decimal(14, 2)` en
+/// la base: doce cifras enteras. Pasarse no lo ataja el validador
+/// del servidor sino Postgres, y lo que le llega a la pantalla es un
+/// 500 sin explicación. Un cero de más al teclear es justo como se
+/// llega ahí, así que se dice aquí, antes de mandar nada.
+const TOPE_PESOS = 999_999_999_999;
+
+type CambiosDelNegocio = Parameters<typeof oportunidadesApi.actualizar>[1];
+
+/// Cómo se nombra cada dato cuando hay que decir qué se guardó.
+///
+/// Un `Record` sobre las claves del contrato y no una lista suelta:
+/// si mañana `actualizar` acepta un campo más, esto deja de compilar
+/// hasta que alguien le ponga nombre, en vez de decirle al asesor
+/// «se guardó undefined».
+const NOMBRE_DEL_CAMBIO: Record<keyof CambiosDelNegocio, string> = {
+  titulo: "el título",
+  valor: "el valor cotizado",
+  valorFacturado: "el valor facturado",
+  cierreEsperado: "la fecha de cierre",
+  campana: "la campaña",
+  servicioId: "el servicio",
+  cantidad: "la cantidad",
+};
+
+/// «el título, la cantidad y el valor cotizado».
+function enLista(cosas: string[]): string {
+  if (cosas.length <= 1) return cosas[0] ?? "";
+  return `${cosas.slice(0, -1).join(", ")} y ${cosas[cosas.length - 1]}`;
+}
+
+/**
+ * Cómo va cada lista de un desplegable.
+ *
+ * Tres estados y no un «ya cargó». Mientras la lista viene en camino,
+ * y sobre todo cuando no llegó, lo que el negocio YA tiene no se
+ * puede juzgar contra ella: si el servicio no aparece en una lista
+ * vacía no es porque se dejara de ofertar, y si el asesor no aparece
+ * no es porque perdiera el rol. Poner esas coletillas sin haberlo
+ * comprobado era afirmar algo falso.
+ */
+type EstadoDeLista = "trayendo" | "lista" | "fallo";
+
+/**
+ * Bajo el desplegable cuya lista no llegó.
+ *
+ * Antes el fallo se tragaba con un `catch` vacío y el desplegable
+ * salía con «Sin servicio» y nada más, que se lee como «el portafolio
+ * está vacío» o «no hay asesores». Quien lo ve así se va a buscar el
+ * problema al sitio equivocado. Va en el peso del estado, como
+ * `Falla`, porque es el resultado de algo que se intentó.
+ */
+function ListaQueNoLlego() {
+  return (
+    <span className="estado mt-1.5 block">
+      No pudimos traer la lista; recargue la página.
+    </span>
+  );
 }
 
 export function CajonOportunidad({
@@ -240,13 +347,20 @@ export function CajonOportunidad({
             )}
           </div>
 
-          {/* Lo más grande del cajón, siempre. */}
+          {/* Lo más grande del cajón, siempre. Es lo COTIZADO, y el
+              rótulo lo dice: desde que el negocio guarda también lo
+              facturado, «Valor» a secas ya no aclara cuál de las dos
+              platas es, y la que se lleva a una reunión no es la
+              misma. La columna se sigue llamando `valor` en la base;
+              solo cambia lo que se lee. Lo facturado va debajo, a
+              tamaño de dato: la portada es una sola cifra. */}
           {ficha && (
             <div className="shrink-0 text-right">
-              <Rotulo>Valor</Rotulo>
+              <Rotulo>Valor cotizado</Rotulo>
               <span className="mt-1 block">
                 <Dinero valor={ficha.valor} portada />
               </span>
+              <Facturado valor={ficha.valorFacturado} />
             </div>
           )}
 
@@ -266,6 +380,13 @@ export function CajonOportunidad({
           {ficha && (
             <div className="flex flex-col gap-6">
               <Cifras ficha={ficha} />
+              <DatosDelNegocio
+                ficha={ficha}
+                alHecho={() => {
+                  void cargar();
+                  alCambiar?.();
+                }}
+              />
               <MoverEtapa
                 ficha={ficha}
                 alHecho={() => {
@@ -274,6 +395,15 @@ export function CajonOportunidad({
                 }}
               />
               <Contacto ficha={ficha} />
+              {/* Lo que sigue, con fecha: es lo que alimenta la agenda
+                  y lo que enciende el bananeo al marcarse hecho. */}
+              <ProximoPaso
+                oportunidadId={ficha.id}
+                alCambiar={() => {
+                  void cargar();
+                  alCambiar?.();
+                }}
+              />
               <Anotar
                 ficha={ficha}
                 alHecho={() => {
@@ -309,13 +439,13 @@ function Cifras({ ficha }: { ficha: FichaDeOportunidad }) {
             pusiera una persona no es una alarma, es una nota al
             pie — y el gris de la propia cifra ya lo cuenta. */}
         {ficha.probabilidadPropia && (
-          <span className="micro mt-0.5 block">puesta a mano</span>
+          <span className="micro mt-0.5 block">ajustada manualmente</span>
         )}
       </Dato>
       <Dato rotulo="Cierre esperado">
         <Fecha iso={ficha.cierreEsperado} />
       </Dato>
-      <Dato rotulo="Dueño">
+      <Dato rotulo="Asesor">
         <Persona nombre={ficha.asesor?.nombre} />
       </Dato>
     </section>
@@ -334,6 +464,392 @@ function Dato({
       <Rotulo>{rotulo}</Rotulo>
       <div className="mt-1">{children}</div>
     </div>
+  );
+}
+
+/**
+ * Datos del negocio: qué se vende, cuánto, por cuánto y quién lo lleva.
+ *
+ * NO EXISTÍA, y no era un detalle. El servidor ya sabía corregir el
+ * título, el valor y la fecha de cierre, y pasarle el negocio a otro
+ * asesor, pero ninguna pantalla lo llamaba: el cajón solo enseñaba. Y
+ * la escalera, al mover de etapa, pide «asígnele un asesor» — un
+ * mensaje que dejaba al usuario sin salida (17 sep 2026).
+ *
+ * Aquí se elige también el SERVICIO DEL PORTAFOLIO, que es lo que
+ * deja contestar «qué se vende más». El título se queda como el caso
+ * concreto; el servicio dice la familia.
+ *
+ * Se guarda TODO con un solo botón y solo lo que cambió: el servidor
+ * no escribe nada en la bitácora si no hay cambio, pero mandar el
+ * asesor sin tocarlo dejaría un «traspaso» de alguien a sí mismo.
+ *
+ * Aquí se escribe también el VALOR FACTURADO, junto al cotizado. Son
+ * dos cifras y no una: se cotiza para ganar y se factura después, y
+ * el resumen del mes compara las dos. Vacío es «sin facturar» y viaja
+ * como null. El cero SÍ vale y es otra cosa —una licencia regalada
+ * para cerrar se facturó en cero—; así lo decide `dto.ts` en el
+ * servidor, y por eso la ayuda del campo dice que vacío es «no hay
+ * factura»: un 0 puesto queriendo decir «todavía no» contaría el
+ * negocio entre las facturadas del mes. Solo se factura lo ganado
+ * (`puedeFacturarse`, en `edicion.ts`); eso lo decide el servidor, y
+ * aquí solo se avisa en la ayuda para no mandar a probar.
+ *
+ * Y el botón es uno, pero las llamadas son DOS —los datos y el
+ * traspaso son rutas distintas del servidor—, así que puede salir
+ * bien la primera y mal la segunda. Entonces se dice qué quedó
+ * guardado y qué no, y se recarga igual: lo primero ya está en la
+ * base, y un formulario que lo sigue enseñando como pendiente invita
+ * a guardarlo dos veces.
+ */
+function DatosDelNegocio({
+  ficha,
+  alHecho,
+}: {
+  ficha: FichaDeOportunidad;
+  alHecho: () => void;
+}) {
+  const [servicios, setServicios] = useState<Servicio[]>([]);
+  const [estadoServicios, setEstadoServicios] = useState<EstadoDeLista>("trayendo");
+  const [asesores, setAsesores] = useState<Array<{ id: string; nombre: string }>>([]);
+  const [estadoAsesores, setEstadoAsesores] = useState<EstadoDeLista>("trayendo");
+
+  const inicial = {
+    servicioId: ficha.servicio?.id ?? "",
+    cantidad: ficha.cantidad === null ? "" : String(ficha.cantidad),
+    titulo: ficha.titulo,
+    valor: String(ficha.valor),
+    /// `typeof` y no `=== null`: si el servidor aún no manda el
+    /// campo, llega `undefined`, y `String(undefined)` metería la
+    /// palabra «undefined» en el campo.
+    valorFacturado:
+      typeof ficha.valorFacturado === "number" ? String(ficha.valorFacturado) : "",
+    cierre: ficha.cierreEsperado ? ficha.cierreEsperado.slice(0, 10) : "",
+    asesorId: ficha.asesor?.id ?? "",
+  };
+  const [datos, setDatos] = useState(inicial);
+  const [yendo, setYendo] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [hecho, setHecho] = useState(false);
+  /// Cuando se guardaron los datos pero no el traspaso. Va aparte de
+  /// `error` porque sobrevive a la recarga: al recargar, el efecto
+  /// de abajo limpia `error` —con razón: el formulario vuelve a lo
+  /// guardado y un error de validación ya no señala nada—, y este
+  /// aviso es justo sobre lo que acaba de recargarse. Se limpia al
+  /// volver a guardar; al abrir otro negocio el cajón monta el
+  /// formulario de nuevo y se va solo.
+  const [parcial, setParcial] = useState<string | null>(null);
+
+  /// Al abrir otro negocio o recargar éste, el formulario vuelve a lo
+  /// guardado: no se arrastra lo que se escribió en el anterior.
+  useEffect(() => {
+    setDatos(inicial);
+    setError(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ficha.id, ficha.titulo, ficha.valor, ficha.valorFacturado, ficha.cierreEsperado, ficha.servicio?.id, ficha.cantidad, ficha.asesor?.id]);
+
+  useEffect(() => {
+    let vivo = true;
+    void serviciosApi
+      .visibles()
+      .then((s) => {
+        if (!vivo) return;
+        setServicios(s);
+        setEstadoServicios("lista");
+      })
+      .catch(() => {
+        if (vivo) setEstadoServicios("fallo");
+      });
+    void oportunidadesApi
+      .asesores(ficha.id)
+      .then((a) => {
+        if (!vivo) return;
+        setAsesores(a);
+        setEstadoAsesores("lista");
+      })
+      .catch(() => {
+        if (vivo) setEstadoAsesores("fallo");
+      });
+    return () => {
+      vivo = false;
+    };
+  }, [ficha.id]);
+
+  const cambiar = (clave: keyof typeof datos, valor: string) => {
+    setHecho(false);
+    setDatos((d) => ({ ...d, [clave]: valor }));
+  };
+
+  const servicioElegido = servicios.find((s) => s.id === datos.servicioId);
+  /// Si el servicio que ya lleva se ocultó del portafolio, sigue
+  /// saliendo en su desplegable: ocultar no le cambia lo que se vendió.
+  /// Y sale también cuando la lista no llegó o no ha llegado, para
+  /// que el desplegable no enseñe «Sin servicio» sobre un negocio que
+  /// sí lo tiene; lo que cambia es la coletilla, que solo se pone
+  /// cuando la lista llegó y de verdad no está.
+  const servicioFueraDeLista =
+    ficha.servicio && !servicios.some((s) => s.id === ficha.servicio?.id)
+      ? ficha.servicio
+      : null;
+  const unidad = servicioElegido?.unidad ?? servicioFueraDeLista?.unidad ?? null;
+
+  const hayCambios = JSON.stringify(datos) !== JSON.stringify(inicial);
+
+  async function guardar(evento: React.FormEvent) {
+    evento.preventDefault();
+    setError(null);
+    setParcial(null);
+
+    const cantidad = datos.cantidad.trim() === "" ? null : Number(datos.cantidad);
+    if (cantidad !== null && (!Number.isInteger(cantidad) || cantidad < 1)) {
+      setError("La cantidad va en números enteros, desde 1.");
+      return;
+    }
+
+    /// Las dos platas se revisan solo si se tocaron: una cifra que ya
+    /// venía de la base con algo que hoy no se aceptaría —unos
+    /// centavos de una importación, por ejemplo— no puede impedir que
+    /// se corrija el título.
+    ///
+    /// Y vacío NO es cero. `Number("")` da 0, y así era como borrar el
+    /// campo para reescribirlo, y darle a guardar a medio camino,
+    /// dejaba el negocio cotizado en $ 0 sin que nadie lo pidiera. El
+    /// cero se puede poner, pero escrito.
+    const cambiaValor = datos.valor !== inicial.valor;
+    const textoValor = datos.valor.trim();
+    const valor = Number(textoValor);
+    if (cambiaValor) {
+      if (textoValor === "") {
+        setError(
+          "Falta el valor cotizado. Escríbalo en pesos; si todavía no hay cifra, ponga 0.",
+        );
+        return;
+      }
+      if (!Number.isInteger(valor) || valor < 0) {
+        setError("El valor cotizado va en pesos, sin decimales.");
+        return;
+      }
+      if (valor > TOPE_PESOS) {
+        setError("El valor cotizado pasa del billón de pesos: revise que no le sobre un cero.");
+        return;
+      }
+    }
+
+    /// En lo facturado, en cambio, vacío es una respuesta: «sin
+    /// facturar», que viaja como null.
+    const textoFacturado = datos.valorFacturado.trim();
+    const valorFacturado = textoFacturado === "" ? null : Number(textoFacturado);
+    if (datos.valorFacturado !== inicial.valorFacturado && valorFacturado !== null) {
+      if (!Number.isInteger(valorFacturado) || valorFacturado < 0) {
+        setError("El valor facturado va en pesos, sin decimales.");
+        return;
+      }
+      if (valorFacturado > TOPE_PESOS) {
+        setError("El valor facturado pasa del billón de pesos: revise que no le sobre un cero.");
+        return;
+      }
+    }
+
+    const cambios: CambiosDelNegocio = {};
+    if (datos.servicioId !== inicial.servicioId) cambios.servicioId = datos.servicioId || null;
+    if (datos.cantidad !== inicial.cantidad) cambios.cantidad = cantidad;
+    if (datos.titulo !== inicial.titulo) cambios.titulo = datos.titulo;
+    if (cambiaValor) cambios.valor = valor;
+    if (datos.valorFacturado !== inicial.valorFacturado) cambios.valorFacturado = valorFacturado;
+    if (datos.cierre !== inicial.cierre) cambios.cierreEsperado = datos.cierre || null;
+
+    const claves = Object.keys(cambios) as Array<keyof CambiosDelNegocio>;
+    const cambiaAsesor = datos.asesorId !== inicial.asesorId;
+
+    setYendo(true);
+    try {
+      if (claves.length > 0) {
+        try {
+          await oportunidadesApi.actualizar(ficha.id, cambios);
+        } catch (e) {
+          /// El servidor dice QUÉ falta; se enseña tal cual. Aquí no
+          /// se guardó nada —ni el traspaso, que ni se intenta—, y el
+          /// formulario se queda como estaba para corregir y volver.
+          setError(e instanceof ErrorApi ? e.message : "No pudimos guardar los cambios.");
+          return;
+        }
+      }
+      if (cambiaAsesor) {
+        try {
+          await oportunidadesApi.asignarAsesor(ficha.id, datos.asesorId || null);
+        } catch (e) {
+          if (claves.length === 0) {
+            setError(e instanceof ErrorApi ? e.message : "No pudimos cambiar el asesor.");
+            return;
+          }
+          const nombres = claves.map((c) => NOMBRE_DEL_CAMBIO[c]);
+          const porque =
+            e instanceof ErrorApi
+              ? e.message
+              : "no pudimos hablar con el servidor. Elíjalo otra vez y guarde.";
+          setParcial(
+            `Se ${nombres.length === 1 ? "guardó" : "guardaron"} ${enLista(nombres)}. ` +
+              `El asesor no cambió: ${porque}`,
+          );
+          /// Se recarga igual: lo primero ya está en la base.
+          alHecho();
+          return;
+        }
+      }
+      setHecho(true);
+      alHecho();
+    } finally {
+      setYendo(false);
+    }
+  }
+
+  return (
+    <form onSubmit={guardar}>
+      <Rotulo>Datos del negocio</Rotulo>
+      {(error || parcial) && (
+        <div className="mt-2">
+          {error && <Falla>{error}</Falla>}
+          {parcial && <Falla>{parcial}</Falla>}
+        </div>
+      )}
+      <div className="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-6">
+        <div className="sm:col-span-4">
+          <Campo etiqueta="Servicio del portafolio">
+            <select
+              value={datos.servicioId}
+              onChange={(e) => cambiar("servicioId", e.target.value)}
+              className={CLASE_CONTROL}
+            >
+              <option value="">Sin servicio</option>
+              {servicioFueraDeLista && (
+                <option value={servicioFueraDeLista.id}>
+                  {estadoServicios === "lista"
+                    ? `${servicioFueraDeLista.nombre} (ya no se oferta)`
+                    : servicioFueraDeLista.nombre}
+                </option>
+              )}
+              {FAMILIAS.map((f) => (
+                <optgroup key={f.valor} label={f.rotulo}>
+                  {servicios
+                    .filter((s) => s.familia === f.valor)
+                    .map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {s.nombre}
+                      </option>
+                    ))}
+                </optgroup>
+              ))}
+            </select>
+            {estadoServicios === "fallo" && <ListaQueNoLlego />}
+          </Campo>
+        </div>
+        <div className="sm:col-span-2">
+          <Campo etiqueta={unidad ? `Cantidad (${unidad})` : "Cantidad"}>
+            <input
+              type="number"
+              step={1}
+              inputMode="numeric"
+              value={datos.cantidad}
+              onChange={(e) => cambiar("cantidad", e.target.value)}
+              className={CLASE_CONTROL}
+            />
+          </Campo>
+        </div>
+        <div className="sm:col-span-6">
+          <Campo etiqueta="Título">
+            <input
+              value={datos.titulo}
+              onChange={(e) => cambiar("titulo", e.target.value)}
+              maxLength={160}
+              className={CLASE_CONTROL}
+            />
+          </Campo>
+        </div>
+        {/* Eran tres campos de a tercio —valor, cierre, asesor— y
+            con lo facturado son cuatro, que no se reparten parejo en
+            seis columnas. Van en dos parejas: las dos platas juntas,
+            que es lo que se compara, y cierre y asesor debajo. */}
+        <div className="sm:col-span-3">
+          <Campo etiqueta="Valor cotizado (COP)">
+            <input
+              type="number"
+              step={1}
+              inputMode="numeric"
+              value={datos.valor}
+              onChange={(e) => cambiar("valor", e.target.value)}
+              className={CLASE_CONTROL}
+            />
+          </Campo>
+        </div>
+        <div className="sm:col-span-3">
+          {/* La ayuda cambia con la etapa y el campo no se apaga:
+              quitar lo facturado se puede siempre —es corregir un
+              error—, y una ganada que se reabre lo conserva. Quien
+              decide si se puede anotar es el servidor; esto solo
+              evita la vuelta de probar y leer el rechazo. */}
+          <Campo
+            etiqueta="Valor facturado (COP)"
+            ayuda={
+              ficha.etapa === "GANADO"
+                ? "Vacío mientras no haya factura."
+                : `Se anota cuando esté en «${ROTULO_ETAPA.GANADO}».`
+            }
+          >
+            <input
+              type="number"
+              step={1}
+              inputMode="numeric"
+              value={datos.valorFacturado}
+              onChange={(e) => cambiar("valorFacturado", e.target.value)}
+              className={CLASE_CONTROL}
+            />
+          </Campo>
+        </div>
+        <div className="sm:col-span-3">
+          <Campo etiqueta="Cierre esperado">
+            <input
+              type="date"
+              value={datos.cierre}
+              onChange={(e) => cambiar("cierre", e.target.value)}
+              className={CLASE_CONTROL}
+            />
+          </Campo>
+        </div>
+        <div className="sm:col-span-3">
+          <Campo etiqueta="Asesor">
+            <select
+              value={datos.asesorId}
+              onChange={(e) => cambiar("asesorId", e.target.value)}
+              className={CLASE_CONTROL}
+            >
+              <option value="">Sin asesor</option>
+              {/* La coletilla solo cuando la lista llegó y de verdad
+                  no está en ella: con la lista caída, cualquier
+                  asesor «perdería el rol», y no es verdad. */}
+              {ficha.asesor && !asesores.some((a) => a.id === ficha.asesor?.id) && (
+                <option value={ficha.asesor.id}>
+                  {estadoAsesores === "lista"
+                    ? `${ficha.asesor.nombre} (sin rol comercial en esta línea)`
+                    : ficha.asesor.nombre}
+                </option>
+              )}
+              {asesores.map((a) => (
+                <option key={a.id} value={a.id}>
+                  {a.nombre}
+                </option>
+              ))}
+            </select>
+            {estadoAsesores === "fallo" && <ListaQueNoLlego />}
+          </Campo>
+        </div>
+      </div>
+      <div className="mt-3 flex items-center gap-3">
+        <Boton type="submit" disabled={yendo || !hayCambios}>
+          {yendo ? "Guardando…" : "Guardar cambios"}
+        </Boton>
+        {hecho && !hayCambios && <span className="secundario">Cambios guardados.</span>}
+      </div>
+    </form>
   );
 }
 
@@ -485,6 +1001,15 @@ function Contacto({ ficha }: { ficha: FichaDeOportunidad }) {
           gris, y una lista así no tiene jerarquía, tiene renglones. */}
       <dl className="mt-2 grid gap-1.5">
         {e && (
+          <Renglon rotulo="Empresa">
+            {/* A su ficha: los demás negocios de la empresa y a quién
+                más se puede llamar allí. */}
+            <Link href={`/admin/cuentas/${e.id}`} className="text-marca underline">
+              {e.razonSocial}
+            </Link>
+          </Renglon>
+        )}
+        {e && (
           <Renglon rotulo="NIT">
             <span className="tabular-nums">{e.nit}</span>
           </Renglon>
@@ -559,15 +1084,31 @@ function Anotar({
 }) {
   const [nota, setNota] = useState("");
   const [yendo, setYendo] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
+  /// Si no se guarda, se DICE. Antes el `try` no tenía `catch`: el
+  /// botón volvía a «Guardar nota», el texto seguía en la caja y
+  /// nada más, y eso se lee igual que «ya quedó» —hasta que alguien
+  /// busca la nota en el historial antes de llamar y no está—. El
+  /// texto no se borra al fallar, para no hacerlo escribir dos veces.
   async function guardar(evento: React.FormEvent) {
     evento.preventDefault();
     if (nota.trim().length < 2) return;
     setYendo(true);
+    setError(null);
     try {
       await oportunidadesApi.anotar(ficha.id, nota.trim());
       setNota("");
       alHecho();
+    } catch (e) {
+      /// Un 4xx trae el porqué en español, y sirve; un 5xx o una
+      /// red caída traen, como mucho, «Internal server error», que
+      /// no le dice nada a un asesor.
+      setError(
+        e instanceof ErrorApi && e.estado < 500
+          ? `No pudimos guardar la nota. ${e.message}`
+          : "No pudimos guardar la nota. Lo que escribió sigue aquí; inténtelo otra vez.",
+      );
     } finally {
       setYendo(false);
     }
@@ -575,11 +1116,19 @@ function Anotar({
 
   return (
     <form onSubmit={guardar}>
-      <Rotulo>Anotar</Rotulo>
+      <Rotulo>Nota</Rotulo>
+      {error && (
+        <div className="mt-2">
+          <Falla>{error}</Falla>
+        </div>
+      )}
+      {/* El mismo tope que `NotaDto` en el servidor. Sin él, pasarse
+          se enteraba al guardar, y en el inglés del validador. */}
       <textarea
         value={nota}
         onChange={(e) => setNota(e.target.value)}
         rows={2}
+        maxLength={1000}
         placeholder="Qué se habló"
         className={`mt-2 ${CLASE_CONTROL}`}
       />

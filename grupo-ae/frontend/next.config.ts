@@ -4,6 +4,13 @@ import path from "path";
 const nextConfig: NextConfig = {
   // empaqueta solo lo necesario
   output: "standalone",
+  // Sin el botón «N» del indicador de desarrollo. Vive fijo en
+  // la esquina inferior y, en el panel, tapaba la última fila de
+  // las tablas y parte de la píldora de tema y accesibilidad. Solo
+  // existe en `next dev`, así que apagarlo no cambia nada en el
+  // build que se despliega; los errores siguen saliendo en la
+  // consola y en la superposición de errores de Next.
+  devIndicators: false,
   // la raiz del monorepo. Dos niveles: esta copia vive en
   // `grupo-ae/frontend`, no en `frontend`, y ahi arriba estan el
   // pnpm-workspace.yaml y el node_modules de verdad.

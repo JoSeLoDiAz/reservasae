@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 
 import { ANCHO_FORMULARIO, BloqueDeBanda, Rotulo } from "@/components/admin/bloques";
+import { conEnlaces } from "@/components/caja-de-politica";
 import { Cargando } from "@/components/admin/piezas";
 import { Estado } from "@/components/admin/datos-del-negocio";
 import { Boton, Campo, CLASE_CONTROL } from "@/components/admin/marco-admin";
@@ -99,11 +100,11 @@ export default function PaginaPoliticas() {
         <AvisoDeSeccion color="var(--texto-suave)">
           <p className="text-titulo" style={{ fontWeight: 700 }}>
             {sinTexto.length === 1
-              ? "Una unidad de negocio no puede publicar formularios"
-              : `${sinTexto.length} unidades de negocio no pueden publicar formularios`}
+              ? "Una línea de negocio no puede publicar formularios"
+              : `${sinTexto.length} líneas de negocio no pueden publicar formularios`}
           </p>
           <p className="mt-1 max-w-[68ch] text-texto-suave">
-            Falta la política de datos de personas en{" "}
+            Falta la política de datos de empresas en{" "}
             {sinTexto.map((c) => c.convenio.sigla ?? c.convenio.nombre).join(" y ")}.
             Mientras no exista, publicar un formulario público se rechaza.
           </p>
@@ -113,7 +114,7 @@ export default function PaginaPoliticas() {
       {cobertura.map((c) => (
         <Seccion key={c.convenio.id}>
           <div className="@container px-6 pt-5 pb-6">
-            {/* La unidad de negocio es el rótulo de la banda, no
+            {/* La línea de negocio es el rótulo de la banda, no
                 una franja azul con su caja: cinco bandas azules
                 apiladas se leían como cinco pantallas pegadas. */}
             <div className="flex flex-wrap items-baseline gap-x-3">
@@ -207,7 +208,7 @@ export default function PaginaPoliticas() {
                           className="mt-2 max-w-[68ch] rounded-[6px] bg-superficie-alterna p-4 whitespace-pre-wrap"
                           style={{ fontSize: "0.8125rem", lineHeight: 1.55 }}
                         >
-                          {vigente.contenido}
+                          {conEnlaces(vigente.contenido)}
                         </p>
                       </details>
                     )}

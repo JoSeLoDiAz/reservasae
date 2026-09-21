@@ -19,7 +19,7 @@
 /// cajón. Una fecha escrita de otra manera en esta pantalla haría
 /// que pareciera de otro producto.
 ///
-/// EL ANCHO, que sí se decide aquí: ocho columnas fijas y UNA que
+/// EL ANCHO, que sí se decide aquí: columnas fijas y UNA que
 /// absorbe. Las fijas miden lo que mide su DATO —`$ 999.999.999`
 /// a 13 px tabular son 104 px, y con el relleno 128—, nunca lo
 /// que mide su rótulo. La lista llegaba al canto derecho, sí,
@@ -34,9 +34,9 @@
 /// 1440 no caben. El sobrante se gasta abriendo columna, no
 /// ensanchando la que hay.
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import { Cargando, Encabezado } from "@/components/admin/piezas";
+import { BotonSuave, Cargando, Encabezado } from "@/components/admin/piezas";
 import { CajonOportunidad } from "@/components/admin/cajon-oportunidad";
 import { Columna, Tabla } from "@/components/admin/tabla";
 import {
@@ -49,6 +49,7 @@ import {
   Puerta,
   Reloj,
   Rotulo,
+  Vacio,
 } from "@/components/admin/datos-del-negocio";
 import { ErrorApi } from "@/lib/api";
 import {
@@ -57,12 +58,61 @@ import {
   type TipoEmbudo,
 } from "@/lib/oportunidades-api";
 
-type Fila = OportunidadEnTablero & { etapaRotulo: string };
+/// `valorFacturado` va aquí, OPCIONAL, y no en el tipo del tablero.
+///
+/// Lo facturado está en la ficha (`FichaDeOportunidad`), pero el
+/// tablero —que es de donde come esta lista— todavía no lo manda.
+/// Opcional distingue las dos ausencias que importan: `undefined`
+/// es «la lista no trae el dato» y `null` es «lo trae, y no se ha
+/// facturado». Confundirlas pintaría «sin facturar» en negocios que
+/// sí lo están. Con `Omit` compila igual el día que el tablero lo
+/// declare.
+type Fila = Omit<OportunidadEnTablero, "valorFacturado"> & {
+  etapaRotulo: string;
+  valorFacturado?: number | null;
+};
+
+/// La llave de cada fila, fuera del componente: una función nueva
+/// en cada pintada obliga a la tabla a recalcular todos los valores
+/// de todas las filas cada vez que se abre el cajón.
+const claveDeFila = (f: Fila) => f.id;
+
+/// El dinero llega como número… o como texto: un `Decimal` de
+/// Prisma viaja en el JSON como cadena si el servidor no lo
+/// convierte, y `"4500000" > 0` compara letras. Se normaliza aquí,
+/// una vez, para no tener que desconfiar en cada celda.
+function aPesos(crudo: unknown): number | null | undefined {
+  if (crudo === undefined) return undefined;
+  if (crudo === null) return null;
+  const n = Number(crudo);
+  return Number.isFinite(n) ? n : null;
+}
 
 /// Una semana quieta es el umbral de «esto lleva parado», el
 /// mismo del Resumen y el de la ficha del tablero. El reloj mide
 /// minutos: aquí se traduce una sola vez.
 const UMBRAL_QUIETA = 7 * 24 * 60;
+
+/// Por encima de esto, un lead SIN CONTESTAR, en la llave de orden
+/// de «1.ª respuesta».
+///
+/// Mil millones de minutos son diecinueve siglos: ningún tiempo de
+/// respuesta real llega ahí, así que ordenando de lento a rápido
+/// los que nadie ha contestado van PRIMERO —son lo más lento que
+/// hay: todavía no terminan— y, entre ellos, primero el que más
+/// lleva esperando. Es la lista de a quién llamar, en orden.
+const SIN_CONTESTAR = 1_000_000_000;
+
+/// Minutos desde una fecha hasta ahora. Cero si la fecha no se
+/// entiende: un `NaN` en una llave de orden desordena la columna
+/// entera, no solo su fila.
+function minutosDesde(iso: string): number {
+  const t = new Date(iso).getTime();
+  return Number.isFinite(t) ? Math.max(0, Math.floor((Date.now() - t) / 60_000)) : 0;
+}
+
+/// Ganado o perdido: ya pasó lo que tenía que pasar.
+const cerrado = (f: Fila) => f.etapa === "GANADO" || f.etapa === "PERDIDO";
 
 export function ListaDeOportunidades({
   embudo,
@@ -79,13 +129,26 @@ export function ListaDeOportunidades({
   /// Cual esta abierta de lado. Null: ninguna.
   const [abierta, setAbierta] = useState<string | null>(null);
 
+  /// Cuál es la última carga pedida. El cajón pide recargar cada
+  /// vez que algo cambia, y dos cambios seguidos son dos viajes
+  /// al servidor que pueden volver en cualquier orden: sin esto,
+  /// la respuesta vieja que llega tarde pisaba a la nueva y la
+  /// lista enseñaba el negocio como estaba ANTES del cambio.
+  const vuelta = useRef(0);
+
   const cargar = useCallback(async () => {
+    const esta = ++vuelta.current;
     setError(null);
     try {
       const t = await oportunidadesApi.tablero(embudo);
+      if (esta !== vuelta.current) return;
       setFilas(
         t.columnas.flatMap((c) =>
-          c.oportunidades.map((o) => ({ ...o, etapaRotulo: c.rotulo })),
+          c.oportunidades.map((o) => ({
+            ...o,
+            etapaRotulo: c.rotulo,
+            valorFacturado: aPesos((o as Record<string, unknown>).valorFacturado),
+          })),
         ),
       );
       setResumen({
@@ -94,6 +157,7 @@ export function ListaDeOportunidades({
         abiertas: t.pronostico.cuantas,
       });
     } catch (e) {
+      if (esta !== vuelta.current) return;
       setError(
         e instanceof ErrorApi
           ? e.message
@@ -102,11 +166,23 @@ export function ListaDeOportunidades({
     }
   }, [embudo]);
 
+  /// Si la lista trae lo facturado. Basta con que lo traiga UNA
+  /// fila: el servidor lo manda en todas o en ninguna, y en las
+  /// que no se ha facturado viene `null`, no ausente.
+  const traeFacturado = useMemo(
+    () => (filas ?? []).some((f) => f.valorFacturado !== undefined),
+    [filas],
+  );
+
   useEffect(() => {
     void cargar();
   }, [cargar]);
 
-  const columnas: Columna<Fila>[] = [
+  /// Memorizadas: la tabla relee lo guardado en el navegador cada
+  /// vez que le llegan columnas NUEVAS, y un arreglo recién hecho
+  /// en cada pintada era, para ella, un juego de columnas nuevo
+  /// cada vez que alguien abría o cerraba el cajón.
+  const columnas = useMemo<Columna<Fila>[]>(() => [
     {
       clave: "codigo",
       titulo: "Código",
@@ -149,6 +225,29 @@ export function ListaDeOportunidades({
       ancho: "240px",
     },
     {
+      /// Del portafolio. Es lo que deja filtrar «todo lo de Workspace
+      /// Business Plus», que con el título escrito a mano no se podía.
+      /// Una raya en los negocios que nacieron antes del portafolio.
+      clave: "servicio",
+      titulo: "Servicio",
+      valor: (f) => f.servicio?.nombre ?? "",
+      filtro: "opciones",
+      /// Llegó cuando ya había listas guardadas en los navegadores,
+      /// y sin esto no le salía a nadie que ya hubiera abierto la
+      /// pantalla. Ver `Columna.nueva`.
+      nueva: true,
+      pinta: (f) =>
+        f.servicio ? (
+          <span className="block truncate" title={f.servicio.nombre}>
+            {f.servicio.nombre}
+            {f.cantidad ? <span className="text-texto-suave"> · {f.cantidad}</span> : null}
+          </span>
+        ) : (
+          <span className="text-texto-suave">—</span>
+        ),
+      ancho: "220px",
+    },
+    {
       clave: "deQuien",
       titulo: embudo === "EMPRESA" ? "Empresa" : "Persona",
       valor: (f) => f.deQuien ?? "",
@@ -174,11 +273,19 @@ export function ListaDeOportunidades({
       /// color deja de leerse en vertical y vuelve a ser un
       /// arcoíris.
       pinta: (f) => <Etapa etapa={f.etapa} rotulo={f.etapaRotulo} />,
-      ancho: "144px",
+      /// 168 y no 144: «Solicitud de negocio» y «Cotización enviada»
+      /// son más largos que los rótulos de antes y se cortaban.
+      ancho: "168px",
     },
     {
+      /// La clave sigue siendo `valor` —como la columna en la base
+      /// y en la API— para que las vistas guardadas y los anchos
+      /// estirados a mano no se pierdan con el cambio de nombre.
       clave: "valor",
-      titulo: "Valor",
+      /// «Cotizado» y no «Valor» a secas: desde que existe lo
+      /// facturado hay dos cifras de plata por negocio, y un «Valor» suelto
+      /// al lado de «Facturado» deja adivinar cuál es cuál.
+      titulo: "Valor cotizado",
       valor: (f) => f.valor,
       numerica: true,
       /// `$ 999.999.999` a 13 px tabular son 104 px; con el
@@ -188,8 +295,39 @@ export function ListaDeOportunidades({
       ancho: "128px",
     },
     {
+      clave: "facturado",
+      titulo: "Facturado",
+      /// Null —vacío en el archivo— cuando no se ha facturado: un
+      /// cero diría que se facturó cero, que es otra cosa.
+      valor: (f) => f.valorFacturado ?? null,
+      numerica: true,
+      /// Pegada a lo cotizado, que es con lo que se compara.
+      nueva: true,
+      /// Hasta que el tablero lo mande, la columna existe pero no
+      /// se pinta: una columna de rayas diría «no se ha facturado
+      /// nada» mientras la ficha del mismo negocio dice que sí.
+      sinDato: !traeFacturado,
+      /// En un negocio GANADO sin factura dice «Por facturar», en
+      /// gris: se gana al cerrar y se factura después, y ese hueco
+      /// es plata que todavía no ha entrado. En uno abierto o
+      /// perdido no hay nada que facturar y va la raya de siempre.
+      ///
+      /// Sin el verde de `ganado`: ese es de lo que ya se cobró, y
+      /// facturar no es cobrar.
+      pinta: (f) =>
+        f.valorFacturado !== null && f.valorFacturado !== undefined ? (
+          <Dinero valor={f.valorFacturado} />
+        ) : f.etapa === "GANADO" ? (
+          <span className="whitespace-nowrap text-texto-suave">Por facturar</span>
+        ) : (
+          <Vacio />
+        ),
+      /// El mismo dato que su vecina y el mismo ancho.
+      ancho: "128px",
+    },
+    {
       clave: "asesor",
-      titulo: "Dueño",
+      titulo: "Asesor",
       valor: (f) => f.asesor?.nombre ?? "",
       filtro: "opciones",
       /// Una raya, y no «Sin dueño» en rojo.
@@ -223,7 +361,19 @@ export function ListaDeOportunidades({
     {
       clave: "respuesta",
       titulo: "1.ª respuesta",
-      valor: (f) => f.minutosPrimeraRespuesta ?? -1,
+      /// Sin contestar es NULL, no `-1`.
+      ///
+      /// Con `-1` el lead que nadie había atendido se ordenaba como
+      /// el MÁS RÁPIDO de todos —arriba, entre los de dos minutos—,
+      /// salía en el archivo como «-1» y un buscar «1» lo
+      /// encontraba. Null es vacío en el archivo y en la búsqueda.
+      valor: (f) => f.minutosPrimeraRespuesta,
+      /// Y para ordenar, lo que lleva esperando, por encima de
+      /// cualquier respuesta real: de lento a rápido salen primero
+      /// los que siguen sin contestar, el más antiguo arriba. Ver
+      /// `SIN_CONTESTAR`.
+      orden: (f) =>
+        f.minutosPrimeraRespuesta ?? SIN_CONTESTAR + minutosDesde(f.creadoEn),
       numerica: true,
       /// El único color caliente de la pantalla. Cinco minutos en
       /// personas, veinticuatro horas en empresas: el umbral lo
@@ -234,9 +384,15 @@ export function ListaDeOportunidades({
     },
     {
       clave: "quieta",
-      titulo: "Sin tocar",
+      titulo: "Sin gestión",
+      /// Null en los cerrados, igual que la pintura: la raya de la
+      /// pantalla era vacío y el archivo decía «7», así que el
+      /// cerrado seguía contando como abandonado en Excel y
+      /// ordenaba entre los quietos de verdad.
       valor: (f) =>
-        Math.floor((Date.now() - new Date(f.ultimoToqueEn).getTime()) / 86_400_000),
+        cerrado(f)
+          ? null
+          : Math.floor((Date.now() - new Date(f.ultimoToqueEn).getTime()) / 86_400_000),
       numerica: true,
       /// Un negocio que lleva días sin que lo toquen también es
       /// alguien esperando, así que se pinta con el mismo reloj.
@@ -254,14 +410,19 @@ export function ListaDeOportunidades({
       /// producto pierde no es por precio, es por silencio. Las
       /// dos leídas en vertical son la lista de lo que lleva
       /// quieto, que es la pregunta con la que se arma el día.
-      pinta: (f) => (
-        <Reloj
-          minutos={Math.floor(
-            (Date.now() - new Date(f.ultimoToqueEn).getTime()) / 60_000,
-          )}
-          umbral={UMBRAL_QUIETA}
-        />
-      ),
+      /// Un negocio CERRADO no lleva tiempo sin gestión: ya pasó lo
+      /// que tenía que pasar, y un «7 d» ahí se leía como abandono.
+      pinta: (f) =>
+        cerrado(f) ? (
+          <span className="text-texto-suave">—</span>
+        ) : (
+          <Reloj
+            minutos={Math.floor(
+              (Date.now() - new Date(f.ultimoToqueEn).getTime()) / 60_000,
+            )}
+            umbral={UMBRAL_QUIETA}
+          />
+        ),
       ancho: "96px",
     },
     {
@@ -276,7 +437,7 @@ export function ListaDeOportunidades({
       pinta: (f) => <Fecha iso={f.cierreEsperado} />,
       ancho: "100px",
     },
-  ];
+  ], [embudo, traeFacturado]);
 
   return (
     <div className="flex min-h-0 grow flex-col">
@@ -295,7 +456,7 @@ export function ListaDeOportunidades({
             dato: es una afirmación, y es falsa. */}
         {filas !== null && (
           <div className="text-right">
-            <Rotulo>Sobre la mesa</Rotulo>
+            <Rotulo>Valor cotizado en curso</Rotulo>
             <span className="mt-1 block">
               <Dinero valor={resumen.total} portada />
             </span>
@@ -318,16 +479,49 @@ export function ListaDeOportunidades({
             servidor no es eso. Peso 600, que es el peso del
             resultado de algo, y el mensaje tal cual lo manda el
             servidor: dice QUÉ falta, que es lo que sirve. */}
-        {error && <p className="estado mb-3">{error}</p>}
+        {/* Con la lista ya en pantalla, el fallo de una RECARGA va
+            encima de la tabla y la tabla se queda: lo que se ve es
+            de hace un momento, no basura, y quitarlo no arregla
+            nada. Con el botón al lado, que es lo que uno hace
+            después de leer el aviso. */}
+        {error && filas !== null && (
+          <p className="estado mb-3 flex flex-wrap items-center gap-x-3 gap-y-1">
+            <span>{error}</span>
+            <button
+              type="button"
+              onClick={() => void cargar()}
+              className="secundario underline hover:text-texto"
+            >
+              Reintentar
+            </button>
+          </p>
+        )}
 
         {filas === null ? (
-          <Cargando que="Trayendo los leads…" />
+          error ? (
+            /* Si falla la PRIMERA carga no hay tabla que conservar.
+               Antes salía el error arriba y debajo «Trayendo los
+               leads…» girando para siempre: dos mensajes que se
+               contradicen, y el que giraba decía que había que
+               esperar cuando ya no venía nada. Ahora el error ocupa
+               el sitio del giro, con la única salida que tiene. */
+            <div className="flex min-h-0 grow flex-col items-center justify-center gap-3 px-4 py-20 text-center">
+              <p role="alert" className="estado">
+                {error}
+              </p>
+              <BotonSuave type="button" onClick={() => void cargar()}>
+                Reintentar
+              </BotonSuave>
+            </div>
+          ) : (
+            <Cargando que="Trayendo los leads…" />
+          )
         ) : (
           <Tabla
             id={`leads-${embudo.toLowerCase()}`}
             columnas={columnas}
             filas={filas}
-            clave={(f) => f.id}
+            clave={claveDeFila}
             alClic={(f) => setAbierta(f.id)}
             vacio={
               <p>

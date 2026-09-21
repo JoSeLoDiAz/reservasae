@@ -16,7 +16,7 @@ import {
   type OrigenParticipante,
 } from '../../generated/prisma';
 import type { Ambito } from '../admin/admin.guard';
-import { PUEDEN_LLEVAR_FICHAS } from '../crm/quien-lleva-fichas';
+import { llevanFichasEn, PUEDEN_LLEVAR_FICHAS } from '../crm/quien-lleva-fichas';
 import { PrismaService } from '../prisma/prisma.service';
 import {
   ETAPAS_ABIERTAS,
@@ -32,6 +32,7 @@ import {
   narrarProbabilidad,
   puedeAtarse,
   puedeBorrarse,
+  puedeFacturarse,
   puedePisarProbabilidad,
   resolverProbabilidad,
   revisarMoneda,
@@ -39,7 +40,10 @@ import {
   type Campos,
 } from './edicion';
 import { limitesDeAgenda } from '../gestiones/agenda';
+import { incumple } from './ans';
 import { frialdadDe, semaforoDe } from './semaforo';
+import { ParametrosService } from '../parametros/parametros.service';
+import { senalesDe } from './senales';
 import { puedeIr, rotulo, type Hechos } from './escalera';
 
 /// Lo que llega del panel al crear.
@@ -78,7 +82,45 @@ export type EdicionDeFicha = {
   moneda?: string;
   cierreEsperado?: string | null;
   campana?: string | null;
+  /// Del portafolio. Null lo quita.
+  servicioId?: string | null;
+  /// Null la borra; nunca cero, que diría «ninguna».
+  cantidad?: number | null;
+  /// Lo facturado. Null lo devuelve a «sin facturar»; el cero sí
+  /// vale, y dice que se facturó en cero.
+  valorFacturado?: number | null;
 };
+
+/**
+ * Las dos cifras de plata en números, para el panel.
+ *
+ * Prisma devuelve las columnas Decimal como objetos, y al pasar a
+ * JSON salen como texto: «11900000». El panel las suma, y un texto
+ * sumado con `+` se concatena en vez de sumarse, sin error y con una
+ * cifra absurda en pantalla.
+ *
+ * Una sola función para todas las respuestas, y no el
+ * `valor: Number(o.valor)` que cada método escribía a mano: al llegar
+ * `valorFacturado`, cada una de esas copias lo habría dejado salir
+ * como texto, y bastaba olvidar una para que la ficha recibiera un
+ * número al abrirla y una cadena al guardarla. Null se queda en null:
+ * es «sin facturar», no cero.
+ */
+function enNumeros<
+  T extends { valor: Prisma.Decimal; valorFacturado: Prisma.Decimal | null },
+>(
+  o: T,
+): Omit<T, 'valor' | 'valorFacturado'> & {
+  valor: number;
+  valorFacturado: number | null;
+} {
+  return {
+    ...o,
+    valor: Number(o.valor),
+    valorFacturado:
+      o.valorFacturado === null ? null : Number(o.valorFacturado),
+  };
+}
 
 export type TraspasoDeAsesor = {
   /// Null la suelta. Se pide escrito, nunca omitido.
@@ -99,7 +141,10 @@ export type AtaduraDeCliente = {
 
 @Injectable()
 export class OportunidadesService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly parametros: ParametrosService,
+  ) {}
 
   /**
    * El código legible.
@@ -116,10 +161,29 @@ export class OportunidadesService {
   private async siguienteCodigo(tx: Prisma.TransactionClient): Promise<string> {
     const anio = new Date().getFullYear();
     const desde = new Date(anio, 0, 1);
-    const cuantas = await tx.oportunidad.count({
-      where: { creadoEn: { gte: desde } },
+    /**
+     * DEL CÓDIGO MÁS ALTO, NO DEL CONTEO.
+     *
+     * Contaba las creadas en el año y sumaba uno. En cuanto se
+     * borraba una que no fuera la última, el conteo bajaba y el
+     * siguiente código ya existía: la creación chocaba con el índice
+     * único y daba un 500 para siempre, porque el conteo nunca volvía
+     * a subir por encima del hueco (auditoría del 18 sep 2026).
+     *
+     * Se toma el más alto del año por el propio texto: el prefijo es
+     * fijo y el número va con ceros a la izquierda, así que el orden
+     * alfabético es el numérico mientras no pase de 9.999 en un año.
+     * `desde` se conserva para no contar códigos de otro año.
+     */
+    void desde;
+    const prefijo = `OP-${anio}-`;
+    const ultima = await tx.oportunidad.findFirst({
+      where: { codigo: { startsWith: prefijo } },
+      orderBy: { codigo: 'desc' },
+      select: { codigo: true },
     });
-    return `OP-${anio}-${String(cuantas + 1).padStart(4, '0')}`;
+    const n = ultima ? Number(ultima.codigo.slice(prefijo.length)) || 0 : 0;
+    return `${prefijo}${String(n + 1).padStart(4, '0')}`;
   }
 
   /** Los hechos que la escalera necesita para juzgar. */
@@ -276,8 +340,8 @@ export class OportunidadesService {
     });
     if (!concesion) {
       throw new BadRequestException(
-        `${asesor.nombre} no lleva captación en esta unidad de negocio, así que ` +
-          'no vería esta oportunidad. Déle ese rol ahí, o elija a otra persona.',
+        `${asesor.nombre} no tiene rol comercial en esta línea de negocio. ` +
+          'Asígnele el rol en Usuarios o elija otro asesor.',
       );
     }
     return asesor;
@@ -289,6 +353,9 @@ export class OportunidadesService {
   }
 
   async crear(datos: NuevaOportunidad, admin: Admin) {
+    /// La probabilidad de arranque sale de Configuración, no del
+    /// código: es el mismo número que enseña el tablero.
+    const { probabilidad: tabla } = await this.parametros.vigentes();
     const etapa = datos.etapa ?? EtapaOportunidad.CAPTADO;
     const valor = datos.valor ?? 0;
 
@@ -301,6 +368,14 @@ export class OportunidadesService {
     });
     if (!veredicto.puede) throw new BadRequestException(veredicto.porque);
 
+    /// La MISMA regla que `asignarAsesor`: rol comercial en esta
+    /// línea, o superadmin, y cuenta activa. Crear no la aplicaba, así
+    /// que una petición armada a mano podía dejar un negocio a nombre
+    /// de cualquiera (auditoría del 18 sep 2026).
+    if (datos.asesorId) {
+      await this.exigirAsesorDelConvenio(datos.asesorId, datos.convenioId);
+    }
+
     return this.prisma.$transaction(async (tx) => {
       const codigo = await this.siguienteCodigo(tx);
       const creada = await tx.oportunidad.create({
@@ -311,7 +386,7 @@ export class OportunidadesService {
           etapa,
           titulo: datos.titulo.trim(),
           valor: new Prisma.Decimal(valor),
-          probabilidad: probabilidadDe(datos.embudo, etapa),
+          probabilidad: probabilidadDe(datos.embudo, etapa, tabla),
           cierreEsperado: datos.cierreEsperado
             ? new Date(datos.cierreEsperado)
             : null,
@@ -365,6 +440,7 @@ export class OportunidadesService {
     ambito: Ambito,
   ) {
     const o = await this.exigirOportunidad(id, ambito);
+    const { probabilidad: tabla } = await this.parametros.vigentes();
 
     const veredicto = puedeIr(o.etapa, cambio.a, this.hechosDe(o, cambio));
     if (!veredicto.puede) throw new BadRequestException(veredicto.porque);
@@ -381,8 +457,17 @@ export class OportunidadesService {
      * se puede reescribir no mide: sin este `??`, volver a pasar
      * por CONTACTADO tras reabrir borraría el retraso original.
      */
+    ///
+    /// Y se para en la PRIMERA SALIDA de «Solicitud de negocio», sea a
+    /// la etapa que sea. Solo se paraba al pasar a CONTACTADO, y la
+    /// escalera deja saltar etapas: un negocio que iba de Solicitud a
+    /// Calificado o a Perdido salía de la lista de espera sin dejar
+    /// medición, y el incumplimiento del ANS se borraba (auditoría del
+    /// 18 sep 2026).
     const marcaRespuesta =
-      cambio.a === EtapaOportunidad.CONTACTADO && o.primeraRespuestaEn === null;
+      o.etapa === EtapaOportunidad.CAPTADO &&
+      cambio.a !== EtapaOportunidad.CAPTADO &&
+      o.primeraRespuestaEn === null;
     const minutos = marcaRespuesta
       ? Math.max(0, Math.round((ahora.getTime() - o.creadoEn.getTime()) / 60_000))
       : null;
@@ -397,7 +482,7 @@ export class OportunidadesService {
           /// se pisó.
           ...(o.probabilidadPropia
             ? {}
-            : { probabilidad: probabilidadDe(o.embudo, cambio.a) }),
+            : { probabilidad: probabilidadDe(o.embudo, cambio.a, tabla) }),
           ultimoToqueEn: ahora,
           ...(marcaRespuesta
             ? { primeraRespuestaEn: ahora, minutosPrimeraRespuesta: minutos }
@@ -442,6 +527,7 @@ export class OportunidadesService {
    * embudo.
    */
   async tablero(embudo: TipoEmbudo, ambito: Ambito, asesorId?: string) {
+    const parametros = await this.parametros.vigentes();
     const donde: Prisma.OportunidadWhereInput = {
       convenioId: { in: ambito.convenios },
       embudo,
@@ -458,35 +544,79 @@ export class OportunidadesService {
         etapa: true,
         valor: true,
         probabilidad: true,
+        probabilidadPropia: true,
         cierreEsperado: true,
         creadoEn: true,
         ultimoToqueEn: true,
         primeraRespuestaEn: true,
         minutosPrimeraRespuesta: true,
         campana: true,
+        cantidad: true,
+        /// Qué se vende, del portafolio. Solo el nombre: es lo que
+        /// se lee en la lista, y la ficha entera trae el resto.
+        servicio: { select: { nombre: true, unidad: true } },
+        /// Lo facturado, para la columna de la lista y los cerrados.
+        valorFacturado: true,
         asesor: { select: { id: true, nombre: true } },
         empresa: { select: { id: true, razonSocial: true } },
         persona: {
           select: { id: true, primerNombre: true, primerApellido: true },
         },
         /**
-         * Las gestiones SIN HACER, para el semáforo de cada tarjeta.
+         * Las gestiones de cada tarjeta: el semáforo y el bananeo.
          *
          * Vienen DENTRO de esta consulta y no en una segunda: el
          * tablero se abre ochenta veces al día, y preguntar por cada
          * tarjeta sería una tormenta de N+1 sobre la pantalla más
          * usada del producto.
          *
-         * Solo `venceEn` y `hechaEn`, que es lo único que el semáforo
-         * mira. Traerse la nota entera de cada gestión para no leerla
-         * engorda la respuesta sin que nadie lo note.
+         * Solo `venceEn` y `hechaEn`. Traerse la nota entera de cada
+         * gestión para no leerla engorda la respuesta sin que nadie
+         * lo note.
+         *
+         * SE QUITÓ EL `where: { hechaEn: null }`, y conviene decir
+         * por qué: el semáforo solo mira las pendientes, pero el
+         * bananeo cuenta justo las CONTRARIAS —las hechas—, así que
+         * con el filtro puesto la señal habría contado siempre cero
+         * y no se habría encendido nunca. Prisma no deja pedir la
+         * misma relación dos veces con dos filtros, y dos consultas
+         * sobre esta pantalla es exactamente lo que el párrafo de
+         * arriba vino a evitar. El semáforo sigue viendo lo mismo:
+         * ahora filtra en memoria.
          */
         gestiones: {
-          where: { hechaEn: null },
           select: { venceEn: true, hechaEn: true },
+        },
+        /**
+         * Cuándo entró a la etapa en la que está.
+         *
+         * El último movimiento, y uno solo: es lo que fija desde
+         * cuándo se cuentan las gestiones del bananeo. Sin esto, un
+         * negocio que lleva ocho meses y cuatro etapas sumaría las
+         * gestiones de todas y saldría bananeado por haber avanzado
+         * mucho, que es lo contrario de lo que la señal dice.
+         */
+        movimientos: {
+          orderBy: { creadoEn: 'desc' },
+          take: 1,
+          select: { creadoEn: true },
         },
       },
     });
+
+    /**
+     * LA PROBABILIDAD VIGENTE, NO LA QUE QUEDÓ ESCRITA.
+     *
+     * Cada negocio guarda la probabilidad del día en que entró a su
+     * etapa. Si después se cambia en Parámetros, la cabecera de la
+     * columna ya decía el número nuevo pero el ponderado seguía
+     * sumando el viejo: la pantalla de Parámetros prometía «el
+     * Resumen cambia en la siguiente carga» y no era cierto
+     * (auditoría del 18 sep 2026). Las pisadas a mano se respetan.
+     */
+    for (const f of filas) {
+      if (!f.probabilidadPropia) f.probabilidad = parametros.probabilidad[embudo][f.etapa];
+    }
 
     /**
      * El instante y los límites del día se fijan UNA vez.
@@ -510,17 +640,44 @@ export class OportunidadesService {
         return {
           etapa,
           rotulo: rotulo(etapa),
-          probabilidad: probabilidadDe(embudo, etapa),
+          probabilidad: probabilidadDe(embudo, etapa, parametros.probabilidad),
           cuantas: suyas.length,
           total,
           ponderado,
-          oportunidades: suyas.map(({ gestiones, ...f }) => ({
+          oportunidades: suyas.map(({ gestiones, movimientos, ...f }) => ({
             ...f,
             valor: Number(f.valor),
             /// El punto de color: si alguien va a hacer algo con
             /// este negocio. Es lo que hace legible el tablero de un
             /// vistazo, sin leer una tarjeta.
-            semaforo: semaforoDe(gestiones, limites),
+            ///
+            /// El filtro de pendientes lo hacía antes la consulta;
+            /// ahora se hace aquí porque la relación trae también
+            /// las hechas, que son las que cuenta el bananeo.
+            semaforo: semaforoDe(
+              gestiones.filter((g) => g.hechaEn === null),
+              limites,
+            ),
+            /// Muerto viviente y bananeo. Se calculan, no se
+            /// declaran: ver el encabezado de `senales.ts`.
+            senales: senalesDe(
+              {
+                embudo,
+                etapa: f.etapa,
+                cierreEsperado: f.cierreEsperado,
+                /// Sin movimientos, la etapa es la de siempre y se
+                /// cuenta desde que nació.
+                enLaEtapaDesde: movimientos[0]?.creadoEn ?? f.creadoEn,
+                gestionesHechasEnLaEtapa: gestiones.filter(
+                  (g) =>
+                    g.hechaEn !== null &&
+                    g.hechaEn.getTime() >=
+                      (movimientos[0]?.creadoEn ?? f.creadoEn).getTime(),
+                ).length,
+              },
+              ahora,
+              parametros.bananeo,
+            ),
             /// De 0 a 1. El panel decide como se apaga; aqui solo se
             /// dice cuanto frio tiene.
             frialdad: frialdadDe(f.ultimoToqueEn, ahora),
@@ -625,6 +782,7 @@ export class OportunidadesService {
    * agregados de SQL y se nota aquí, no en las pantallas.
    */
   async resumen(ambito: Ambito) {
+    const parametros = await this.parametros.vigentes();
     const todas = await this.prisma.oportunidad.findMany({
       where: { convenioId: { in: ambito.convenios } },
       select: {
@@ -634,7 +792,11 @@ export class OportunidadesService {
         embudo: true,
         etapa: true,
         valor: true,
+        /// Para lo facturado del mes. Solo se lee en las ganadas; el
+        /// pronóstico sigue saliendo de `valor`, que es lo cotizado.
+        valorFacturado: true,
         probabilidad: true,
+        probabilidadPropia: true,
         campana: true,
         creadoEn: true,
         cerradaEn: true,
@@ -642,8 +804,19 @@ export class OportunidadesService {
         primeraRespuestaEn: true,
         minutosPrimeraRespuesta: true,
         asesor: { select: { id: true, nombre: true } },
+        /// La línea de negocio sale del servicio que se vendió:
+        /// EDUCACION o EMPRESAS. No del embudo, que es otra cosa
+        /// —empresa o persona— y se venía confundiendo con esta.
+        servicio: { select: { id: true, nombre: true, familia: true } },
       },
     });
+
+    /// La probabilidad vigente de Parámetros, salvo las pisadas a
+    /// mano: la misma regla que el tablero, para que el pronóstico
+    /// de la portada y el del embudo digan lo mismo.
+    for (const o of todas) {
+      if (!o.probabilidadPropia) o.probabilidad = parametros.probabilidad[o.embudo][o.etapa];
+    }
 
     const ahora = Date.now();
     const abiertas = todas.filter((o) => estaAbierta(o.etapa));
@@ -722,11 +895,16 @@ export class OportunidadesService {
       porCampana.set(clave, fila);
     }
 
-    /// Las que se estan enfriando. Siete dias es el umbral de
-    /// arranque y sale de la nada; se ajusta cuando se sepa cuanto
-    /// dura de verdad una venta aqui.
+    /// Las que se estan enfriando. Siete dias era el umbral de
+    /// arranque y salia de la nada; ahora se ajusta en Configuracion
+    /// sin desplegar, que es lo que hacia falta para poder afinarlo
+    /// cuando se sepa cuanto dura de verdad una venta aqui.
     const frias = abiertas
-      .filter((o) => ahora - o.ultimoToqueEn.getTime() > 7 * 86_400_000)
+      .filter(
+        (o) =>
+          ahora - o.ultimoToqueEn.getTime() >
+          parametros.diasParaFria * 86_400_000,
+      )
       .map((o) => ({
         id: o.id,
         codigo: o.codigo,
@@ -753,8 +931,93 @@ export class OportunidadesService {
         };
       });
 
+    /**
+     * EL DINERO POR LÍNEA DE NEGOCIO: Educación y Empresas.
+     *
+     * Es la pregunta con la que se abre el tablero —«¿qué aporta
+     * cada línea?»— y hasta hoy no se podía contestar: la portada
+     * partía por EMBUDO (empresa o persona), que es por dónde entra
+     * el negocio y no qué se vende. Un colegio que compra licencias
+     * y una empresa que compra Workspace entraban los dos por
+     * «empresas» y se sumaban en la misma cifra.
+     *
+     * La línea sale del servicio del portafolio. Los negocios sin
+     * servicio elegido NO se reparten a ojo: se cuentan aparte y con
+     * su nombre, porque son justo los que hay que completar para que
+     * esta cifra valga.
+     */
+    const LINEAS = [
+      { clave: 'EDUCACION' as const, rotulo: 'Educación' },
+      { clave: 'EMPRESAS' as const, rotulo: 'Empresas' },
+      { clave: 'SIN_LINEA' as const, rotulo: 'Sin servicio elegido' },
+    ];
+    const lineaDe = (o: (typeof todas)[number]) =>
+      o.servicio?.familia ?? 'SIN_LINEA';
+    const porLinea = LINEAS.map(({ clave, rotulo: nombre }) => {
+      const suyas = abiertas.filter((o) => lineaDe(o) === clave);
+      const ganadasDeLaLinea = delMes.filter(
+        (o) => lineaDe(o) === clave && o.etapa === EtapaOportunidad.GANADO,
+      );
+      return {
+        linea: clave,
+        rotulo: nombre,
+        cuantas: suyas.length,
+        total: sumar(suyas),
+        ponderado: ponderar(suyas),
+        ganadoDelMes: sumar(ganadasDeLaLinea),
+      };
+    }).filter((l) => l.cuantas > 0 || l.ganadoDelMes > 0);
+
+    /**
+     * QUÉ SE ESTÁ VENDIENDO: el mix de productos.
+     *
+     * Lo abierto por servicio del portafolio, de mayor a menor. Sin
+     * los que no llevan servicio: ahí la respuesta no es un producto
+     * sino un dato que falta, y eso ya lo dice `porLinea`.
+     */
+    const porServicio = new Map<
+      string,
+      { id: string; nombre: string; linea: string; cuantas: number; total: number }
+    >();
+    for (const o of abiertas) {
+      if (!o.servicio) continue;
+      const fila = porServicio.get(o.servicio.id) ?? {
+        id: o.servicio.id,
+        nombre: o.servicio.nombre,
+        linea: o.servicio.familia === 'EDUCACION' ? 'Educación' : 'Empresas',
+        cuantas: 0,
+        total: 0,
+      };
+      fila.cuantas += 1;
+      fila.total += Number(o.valor);
+      porServicio.set(o.servicio.id, fila);
+    }
+    const mixDeProductos = [...porServicio.values()]
+      .sort((a, b) => b.total - a.total)
+      .slice(0, 8);
+
     const ganadas = delMes.filter((o) => o.etapa === EtapaOportunidad.GANADO);
     const perdidas = delMes.filter((o) => o.etapa === EtapaOportunidad.PERDIDO);
+
+    /**
+     * Lo FACTURADO de las ganadas del mes, y cuántas ya tienen factura.
+     *
+     * Las mismas ganadas que `ganado`, a propósito: las dos cifras se
+     * leen una al lado de la otra y la diferencia —lo ganado que
+     * todavía no se ha cobrado— solo significa algo si salen del
+     * mismo grupo. Contar aquí por fecha de factura sacaría del mes
+     * negocios que sí se ganaron en él, y la resta dejaría de cuadrar.
+     *
+     * Las que no tienen factura NO suman cero: se quedan fuera y se
+     * dice cuántas SÍ entraron. «Facturado 8 millones» con 2 de 5
+     * facturadas y con 5 de 5 son dos meses muy distintos, y sin el
+     * conteo el panel no podría decir cuál de los dos es.
+     */
+    const conFactura = ganadas.filter((o) => o.valorFacturado !== null);
+    const facturado = conFactura.reduce(
+      (s, o) => s + Number(o.valorFacturado),
+      0,
+    );
 
     return {
       pronostico: {
@@ -765,7 +1028,11 @@ export class OportunidadesService {
       },
       mes: {
         ganadas: ganadas.length,
+        /// Lo COTIZADO de las ganadas del mes.
         ganado: sumar(ganadas),
+        /// Lo FACTURADO de esas mismas ganadas, y cuántas lo tienen.
+        facturado,
+        facturadas: conFactura.length,
         perdidas: perdidas.length,
         perdido: sumar(perdidas),
         /// De cada cien cerrados este mes, cuantos se ganaron.
@@ -778,15 +1045,71 @@ export class OportunidadesService {
       },
       reloj: {
         esperando: esperando.length,
-        pasadosDeCinco: esperando.filter((e) => e.minutosEsperando >= 5).length,
+        /**
+         * Las que YA INCUMPLIERON el compromiso, cada una contra
+         * el suyo.
+         *
+         * Esto decía `minutosEsperando >= 5` para los dos embudos,
+         * y ahí había un fallo de bulto: el compromiso de empresas
+         * son veinticuatro horas, así que un negocio de empresa
+         * salía como incumplido a los seis minutos. La cifra con
+         * la que se juzga al equipo venía inflada por un factor de
+         * casi trescientos en todo lo que fuera de empresas.
+         *
+         * El umbral existía —en el panel, para pintar el reloj de
+         * color— pero el backend no lo conocía, así que aquí se
+         * había escrito un 5 a mano. Ahora sale de `ans.ts`, que
+         * es de donde sale también el color.
+         */
+        incumplidos: esperando.filter((e) =>
+          incumple(e.minutosEsperando, e.embudo, parametros.ans),
+        ).length,
+        /// El nombre viejo, mientras el panel se actualiza. Es el
+        /// MISMO número que `incumplidos`, no el de antes: dejar
+        /// vivo el cálculo equivocado para no tocar una clave
+        /// sería conservar el fallo por comodidad.
+        pasadosDeCinco: esperando.filter((e) =>
+          incumple(e.minutosEsperando, e.embudo, parametros.ans),
+        ).length,
         medianaRespuesta,
         lista: esperando.slice(0, 6),
       },
       porEtapa,
+      porLinea,
+      mixDeProductos,
+      /// Los umbrales con los que se calculó esto. El panel los
+      /// enseña al pie: una alerta que no dice contra qué
+      /// compromiso salta es una alerta que nadie defiende en una
+      /// reunión.
+      parametros: {
+        ans: parametros.ans,
+        diasParaFria: parametros.diasParaFria,
+      },
       porCampana: [...porCampana.values()].sort((a, b) => b.abierto - a.abierto),
       frias: frias.slice(0, 6),
       cuantasFrias: frias.length,
     };
+  }
+
+  /**
+   * A quién se le puede pasar este negocio.
+   *
+   * La MISMA regla que `exigirAsesorDelConvenio` aplica al guardar
+   * —rol que lleva fichas en su línea de negocio, o superadmin, y
+   * cuenta activa—, así que el desplegable no ofrece a nadie que
+   * luego el servidor rechace. Estaba la regla y faltaba la lista:
+   * el mensaje de error pedía «asígnele un asesor» y en todo el panel
+   * no había dónde hacerlo.
+   */
+  async asesoresPosibles(id: string, ambito: Ambito) {
+    const o = await this.exigirOportunidad(id, ambito);
+    return this.prisma.admin.findMany({
+      where: {
+        OR: [llevanFichasEn(o.convenioId), { rol: RolAdmin.SUPERADMIN, activo: true }],
+      },
+      select: { id: true, nombre: true },
+      orderBy: { nombre: 'asc' },
+    });
   }
 
   async unaSola(id: string, ambito: Ambito) {
@@ -805,10 +1128,13 @@ export class OportunidadesService {
           },
         },
         movimientos: { orderBy: { creadoEn: 'desc' } },
+        servicio: { select: { id: true, nombre: true, familia: true, unidad: true } },
       },
     });
     if (!o) throw new NotFoundException('No encontramos esa oportunidad.');
-    return { ...o, valor: Number(o.valor) };
+    /// Lo cotizado y lo facturado en números; lo facturado sigue en
+    /// null si no se ha facturado. Ver `enNumeros`.
+    return enNumeros(o);
   }
 
   // ───────────────────────────────────────────────────────────
@@ -826,13 +1152,20 @@ export class OportunidadesService {
   // ───────────────────────────────────────────────────────────
 
   /**
-   * Corregir la ficha: título, valor, moneda, cierre y campaña.
+   * Corregir la ficha: título, valor cotizado, lo facturado, moneda,
+   * cierre, campaña, servicio y cantidad.
    *
    * La etapa NO se toca aquí —para eso está `cambiarEtapa`—, pero
    * el valor sí, y ahí está lo delicado: la escalera vigila la
    * entrada de cada etapa y el valor se puede editar después. Por
    * eso, antes de guardar, se le vuelve a preguntar si la etapa en
    * la que está se sostiene con los datos nuevos.
+   *
+   * Lo facturado tiene su propia pregunta, `puedeFacturarse`: solo
+   * una ganada lo lleva. No pasa por la escalera porque no mueve
+   * ninguna de sus compuertas —el pronóstico y la etapa salen de lo
+   * cotizado—, y mezclarlo ahí sería pedirle a la escalera que opine
+   * de algo que no mira.
    */
   async actualizar(
     id: string,
@@ -842,14 +1175,49 @@ export class OportunidadesService {
   ) {
     const o = await this.exigirOportunidad(id, ambito);
 
+    /// Lo facturado de antes, ya en número o null. Se saca una vez:
+    /// lo usan la moneda, la bitácora y la regla de facturar, y
+    /// convertirlo en cada sitio es como una de las tres acaba
+    /// comparando un Decimal con un número.
+    const facturadoAntes =
+      o.valorFacturado === null ? null : Number(o.valorFacturado);
+
     /// La moneda va primero porque su regla mira el valor de antes:
     /// cambiarla sin mandar el valor convertido multiplicaría el
-    /// pronóstico, que suma sin convertir.
+    /// pronóstico, que suma sin convertir. Y lo mismo lo facturado,
+    /// que va en la misma moneda.
     const moneda = revisarMoneda(
-      { moneda: o.moneda, valor: Number(o.valor) },
-      { moneda: cambios.moneda, valor: cambios.valor },
+      {
+        moneda: o.moneda,
+        valor: Number(o.valor),
+        valorFacturado: facturadoAntes,
+      },
+      {
+        moneda: cambios.moneda,
+        valor: cambios.valor,
+        valorFacturado: cambios.valorFacturado,
+      },
     );
     if (!moneda.puede) throw new BadRequestException(moneda.porque);
+
+    /// El servicio se resuelve a su nombre para la bitácora: dentro
+    /// de un año «cmu1…» no le dice nada a nadie.
+    const nombreDeServicio = (s: { nombre: string; familia: string } | null) =>
+      s ? `${s.nombre} (${s.familia === 'EDUCACION' ? 'Educación' : 'Empresas'})` : null;
+    const buscarServicio = (idServicio: string) =>
+      this.prisma.servicio.findUnique({
+        where: { id: idServicio },
+        select: { id: true, nombre: true, familia: true },
+      });
+    const servicioAntes = o.servicioId ? await buscarServicio(o.servicioId) : null;
+    let servicioDespues = servicioAntes;
+    if (cambios.servicioId !== undefined) {
+      servicioDespues =
+        cambios.servicioId === null ? null : await buscarServicio(cambios.servicioId);
+      if (cambios.servicioId !== null && !servicioDespues) {
+        throw new BadRequestException('Ese servicio no está en el portafolio.');
+      }
+    }
 
     const antes: Campos = {
       titulo: o.titulo,
@@ -857,6 +1225,9 @@ export class OportunidadesService {
       moneda: o.moneda,
       cierreEsperado: o.cierreEsperado,
       campana: o.campana,
+      servicio: nombreDeServicio(servicioAntes),
+      cantidad: o.cantidad,
+      valorFacturado: facturadoAntes,
     };
     const despues: Campos = {
       titulo:
@@ -878,6 +1249,14 @@ export class OportunidadesService {
         cambios.campana === undefined
           ? antes.campana
           : cambios.campana?.trim() || null,
+      servicio: nombreDeServicio(servicioDespues),
+      cantidad: cambios.cantidad === undefined ? o.cantidad : cambios.cantidad,
+      /// Las mismas tres ramas que el cierre: no lo mandó, lo quitó
+      /// —vuelve a «sin facturar»— o lo cambió.
+      valorFacturado:
+        cambios.valorFacturado === undefined
+          ? facturadoAntes
+          : cambios.valorFacturado,
     };
 
     /// El DTO mide el título antes de recortarlo, así que «   ab   »
@@ -902,12 +1281,22 @@ export class OportunidadesService {
       if (!enPie.puede) throw new BadRequestException(enPie.porque);
     }
 
+    /// Lo facturado solo se pregunta cuando CAMBIA, por lo mismo que
+    /// el valor: el panel manda la ficha entera, y una ganada que se
+    /// reabrió conserva lo que se le facturó. Preguntar siempre la
+    /// dejaría sin poder corregirle ni el título.
+    const facturadoDespues = despues.valorFacturado ?? null;
+    if (facturadoDespues !== facturadoAntes) {
+      const factura = puedeFacturarse(o.etapa, facturadoDespues);
+      if (!factura.puede) throw new BadRequestException(factura.porque);
+    }
+
     const lineas = narrarEdicion(antes, despues);
     /// Un guardado que no cambia nada no escribe nada. El panel
     /// manda la ficha entera cada vez, así que sin esto abrir y
     /// cerrar el formulario dejaría un movimiento, y cien de esos
     /// esconden el que dice que el valor se dobló.
-    if (lineas.length === 0) return { ...o, valor: Number(o.valor) };
+    if (lineas.length === 0) return enNumeros(o);
 
     const ahora = new Date();
     return this.prisma.$transaction(async (tx) => {
@@ -923,6 +1312,15 @@ export class OportunidadesService {
           moneda: despues.moneda,
           cierreEsperado: despues.cierreEsperado,
           campana: despues.campana,
+          servicioId: servicioDespues?.id ?? null,
+          cantidad: despues.cantidad ?? null,
+          /// Del entero al Decimal sin pasar por un Float, como el
+          /// valor. Null se escribe null: «sin facturar» es un estado
+          /// que hay que poder volver a poner.
+          valorFacturado:
+            facturadoDespues === null
+              ? null
+              : new Prisma.Decimal(facturadoDespues),
           /// Editarla cuenta como tocarla, así que sale de la lista
           /// de frías. Corregir una tilde no es trabajarla, pero
           /// distinguir qué edición cuenta y cuál no daría una regla
@@ -932,7 +1330,7 @@ export class OportunidadesService {
       });
 
       await this.anotar(tx, o, lineas.join('. '), admin);
-      return { ...actualizada, valor: Number(actualizada.valor) };
+      return enNumeros(actualizada);
     });
   }
 
@@ -956,7 +1354,7 @@ export class OportunidadesService {
     const nuevo = traspaso.asesorId;
 
     /// Asignársela a quien ya la tiene no es un traspaso.
-    if (nuevo === o.asesorId) return { ...o, valor: Number(o.valor) };
+    if (nuevo === o.asesorId) return enNumeros(o);
 
     const entrante =
       nuevo === null
@@ -987,7 +1385,7 @@ export class OportunidadesService {
       });
 
       await this.anotar(tx, o, porque ? `${cambio}. ${porque}` : cambio, admin);
-      return { ...actualizada, valor: Number(actualizada.valor) };
+      return enNumeros(actualizada);
     });
   }
 
@@ -1020,7 +1418,7 @@ export class OportunidadesService {
       queda.probabilidad === o.probabilidad &&
       queda.probabilidadPropia === o.probabilidadPropia
     ) {
-      return { ...o, valor: Number(o.valor) };
+      return enNumeros(o);
     }
 
     const cambio = narrarProbabilidad(
@@ -1038,7 +1436,7 @@ export class OportunidadesService {
       });
 
       await this.anotar(tx, o, porque ? `${cambio}. ${porque}` : cambio, admin);
-      return { ...actualizada, valor: Number(actualizada.valor) };
+      return enNumeros(actualizada);
     });
   }
 
@@ -1120,7 +1518,7 @@ export class OportunidadesService {
     /// a la escalera: ninguna compuerta empeora porque un dato que
     /// estaba vacío deje de estarlo.
     const yaEra = cliente.que === 'empresa' ? o.empresaId : o.personaId;
-    if (yaEra === cliente.id) return { ...o, valor: Number(o.valor) };
+    if (yaEra === cliente.id) return enNumeros(o);
 
     const ahora = new Date();
     return this.prisma.$transaction(async (tx) => {
@@ -1138,7 +1536,7 @@ export class OportunidadesService {
         narrarCliente(cliente.que, antes, nombre),
         admin,
       );
-      return { ...actualizada, valor: Number(actualizada.valor) };
+      return enNumeros(actualizada);
     });
   }
 

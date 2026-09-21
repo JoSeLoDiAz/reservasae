@@ -4,7 +4,11 @@ import { useEffect, useMemo, useState } from "react";
 
 import { ErrorApi } from "@/lib/api";
 import { juntar, primero, resto } from "@/lib/nombres";
-import { preinscripcionApi, type FichaAbierta } from "@/lib/preinscripcion-api";
+import {
+  preinscripcionApi,
+  type CampoOcultable,
+  type FichaAbierta,
+} from "@/lib/preinscripcion-api";
 
 import { ModalPolitica } from "./modal-politica";
 import { FondoPublico } from "./fondo-publico";
@@ -48,6 +52,32 @@ const SITUACION_EN_PALABRAS: Record<string, string> = {
   INDEPENDIENTE: "Trabajador independiente",
   EMPRESA: "Trabajador con vínculo laboral",
   DESEMPLEADO: "No está trabajando en este momento",
+};
+
+/// La misma pregunta, dicha como lo que es en Grupo AE: una
+/// compra.
+///
+/// Grupo AE vende licencias a organizaciones. Lo que hace falta
+/// saber no es dónde trabaja la persona sino a nombre de quién se
+/// cotiza y se factura, y ahí solo caben dos respuestas: su
+/// organización, con NIT, o ella misma como independiente, con
+/// RUT. «No estoy trabajando» no es una respuesta a esa pregunta.
+///
+/// Los VALORES son los mismos —EMPRESA e INDEPENDIENTE— a
+/// propósito: el servidor, el rastro de lo que dijo y las ramas
+/// del NIT y del RUT no se enteran del cambio. Solo cambian las
+/// palabras. `[botón, detalle del botón, resumen]`.
+const COMPRA_EN_PALABRAS: Record<string, [string, string, string]> = {
+  EMPRESA: [
+    "Mi organización, con NIT",
+    "Empresa, colegio, universidad o entidad pública.",
+    "Su organización, con NIT",
+  ],
+  INDEPENDIENTE: [
+    "Yo, como independiente, con RUT",
+    "Persona natural que factura con su propio RUT.",
+    "Usted, como independiente, con RUT",
+  ],
 };
 
 export function CompletarFicha({ token }: { token: string }) {
@@ -121,6 +151,14 @@ export function CompletarFicha({ token }: { token: string }) {
           const x = p[k];
           return x !== null && x !== undefined && String(x).trim() !== "";
         };
+        /// Lo que esta instalación no pregunta cuenta como que
+        /// ya está: no es algo que le falte a la persona, es algo
+        /// que aquí no se le pide. Sin esto, a quien solo le
+        /// «faltara» el estrato se le abriría el paso 1 para no
+        /// enseñarle nada.
+        const ocultosAlAbrir = new Set<string>(f.camposOcultos ?? []);
+        const loTiene = (k: string) => ocultosAlAbrir.has(k) || tiene(k);
+
         // lo que ya marco, para no preguntarselo en blanco
         setCaracterizaciones(f.caracterizacionesElegidas);
         setRechazaCaracterizacion(f.caracterizacionRechazada);
@@ -150,8 +188,8 @@ export function CompletarFicha({ token }: { token: string }) {
         /// un clic para no hacer nada. Se salta al paso que sí
         /// le falta.
         const nadaSuyo =
-          tiene("fechaNacimiento") &&
-          tiene("estrato") &&
+          loTiene("fechaNacimiento") &&
+          loTiene("estrato") &&
           tiene("barrio") &&
           tiene("direccion") &&
           f.cargoEnEmpresa !== null &&
@@ -221,7 +259,7 @@ export function CompletarFicha({ token }: { token: string }) {
               <h1 className="mt-8 text-2xl font-bold">Este enlace ya no sirve</h1>
               <p className="mt-3 text-texto-suave">{fallo.mensaje}</p>
               <p className="mt-4 text-sm text-texto-suave">
-                Pídale uno nuevo a la persona que lo está acompañando.
+                Pida uno nuevo a su asesor comercial.
               </p>
             </>
           ) : (
@@ -253,6 +291,20 @@ export function CompletarFicha({ token }: { token: string }) {
 
   const nombre = `${primero(persona.nombres ?? "")} ${persona.primerApellido ?? ""}`.trim();
 
+  /// Lo que esta instalación no pregunta. Lo dice el servidor.
+  ///
+  /// En Grupo AE son la fecha de nacimiento, el estrato y la
+  /// población vulnerable: datos que el F7 del SENA exigía y que
+  /// a quien viene a cotizar licencias no se le piden. OCULTOS, no
+  /// quitados: el código de cada campo sigue abajo, y volver a
+  /// preguntarlo es cosa de la lista del servidor, no de esta
+  /// pantalla.
+  const ocultos = new Set<string>(ficha.camposOcultos ?? []);
+  const oculta = (campo: CampoOcultable) => ocultos.has(campo);
+
+  /// Cómo se pregunta el vínculo. Sin el dato, la de siempre.
+  const laCompra = ficha.preguntaDelVinculo === "COMPRA";
+
   async function guardarPersona(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
@@ -274,8 +326,17 @@ export function CompletarFicha({ token }: { token: string }) {
         // ya la acepto al reservar el cupo
         aceptaPolitica: true,
         // poblacion vulnerable: la lista, o el rechazo
-        caracterizaciones: rechazaCaracterizacion ? [] : caracterizaciones,
-        caracterizacionRechazada: rechazaCaracterizacion,
+        //
+        // Y NADA si no se pregunta. Mandar una lista vacía no es
+        // neutro: el servidor la lee como «contestó que ninguna»,
+        // borra lo que hubiera marcado antes y anota la fecha en
+        // que se le preguntó — de algo que nadie le preguntó.
+        ...(oculta("poblacionVulnerable")
+          ? {}
+          : {
+              caracterizaciones: rechazaCaracterizacion ? [] : caracterizaciones,
+              caracterizacionRechazada: rechazaCaracterizacion,
+            }),
       });
       setPaso("EMPRESA");
     } catch (err) {
@@ -316,9 +377,13 @@ export function CompletarFicha({ token }: { token: string }) {
   /// guardar con el municipio vacío — y volver al callejón sin
   /// salida que el campo existe para cerrar. Quien ya lo tenga
   /// lo trae en el estado, así que no le estorba.
+  ///
+  /// Lo oculto no cuenta: si se exigiera sin pintarse, el botón
+  /// quedaría gris para siempre y la persona sin forma de saber
+  /// por qué.
   const listoPersona = Boolean(
-    persona.fechaNacimiento &&
-      persona.estrato &&
+    (persona.fechaNacimiento || oculta("fechaNacimiento")) &&
+      (persona.estrato || oculta("estrato")) &&
       persona.departamentoSepId &&
       persona.municipioSepId &&
       persona.barrio?.trim() &&
@@ -329,7 +394,10 @@ export function CompletarFicha({ token }: { token: string }) {
   );
 
   /// Solo se pregunta lo que falta. Si ya lo tiene, no sale.
-  const pide = (campo: string) => !yaEstaba?.[campo];
+  /// Y lo que esta instalación oculta tampoco sale, lo tenga o
+  /// no: es el mismo mecanismo, con una razón más.
+  const pide = (campo: string) =>
+    !ocultos.has(campo) && !yaEstaba?.[campo];
 
   /// Esta lista es VIVA: cambia según se escribe, y por eso no
   /// puede ser la del servidor, que es una foto al abrir.
@@ -339,8 +407,8 @@ export function CompletarFicha({ token }: { token: string }) {
   /// están completos» mientras el panel decía «le falta un
   /// dato» — y el que faltaba era justo uno de esos dos.
   const faltaEnPersona = [
-    !persona.fechaNacimiento && "fecha de nacimiento",
-    !persona.estrato && "estrato",
+    !persona.fechaNacimiento && !oculta("fechaNacimiento") && "fecha de nacimiento",
+    !persona.estrato && !oculta("estrato") && "estrato",
     !persona.departamentoSepId && "departamento",
     !persona.municipioSepId && "municipio",
     !persona.barrio?.trim() && "barrio o vereda",
@@ -427,6 +495,43 @@ export function CompletarFicha({ token }: { token: string }) {
         Boolean(empresa.contactoCargo?.trim()) &&
         Boolean(empresa.contactoCorreo?.trim()))));
 
+  /// Una de las dos respuestas con organización o RUT.
+  ///
+  /// Eran dos botones escritos a mano, y está bien mientras el
+  /// orden sea uno solo. En la compra la organización va primero,
+  /// y dos copias del mismo botón en dos órdenes son dos botones
+  /// que se desincronizan en cuanto alguien toque uno. La tercera
+  /// —«no estoy trabajando»— sigue aparte: solo existe en la
+  /// convocatoria y ocupa el ancho entero.
+  const opcionDelVinculo = (valor: "INDEPENDIENTE" | "EMPRESA") => (
+    <button
+      key={valor}
+      type="button"
+      onClick={() => {
+        setVinculo(valor);
+        setRutPropio("");
+      }}
+      className={`rounded-xl border p-4 text-left font-semibold transition ${
+        vinculo === valor
+          ? "border-2 border-marca bg-marca-suave text-marca"
+          : "border-campo-borde bg-superficie hover:bg-superficie-alterna"
+      }`}
+    >
+      {laCompra ? (
+        <>
+          {COMPRA_EN_PALABRAS[valor][0]}
+          <span className="mt-1 block text-sm font-normal text-texto-suave">
+            {COMPRA_EN_PALABRAS[valor][1]}
+          </span>
+        </>
+      ) : valor === "EMPRESA" ? (
+        "Trabajador con vínculo laboral"
+      ) : (
+        "Trabajador independiente"
+      )}
+    </button>
+  );
+
   if (paso === "HECHO") {
     return (
       <>
@@ -444,9 +549,8 @@ export function CompletarFicha({ token }: { token: string }) {
             Y no se habla de «quien le atendio»: puede que nadie
             lo haya llamado y lo haya hecho todo por su cuenta. */}
         <p className="mt-3 text-texto-suave">
-          Sus datos han sido registrados satisfactoriamente. Pronto uno de
-          nuestros asesores comerciales se comunicará con usted para confirmar
-          su solicitud y los pasos a seguir.
+          Recibimos sus datos. Un asesor comercial se comunicará con usted para
+          confirmar su solicitud y los siguientes pasos.
         </p>
         </main>
         <FondoPublico />
@@ -469,12 +573,16 @@ export function CompletarFicha({ token }: { token: string }) {
         <h1 className="text-2xl font-bold tracking-tight">
           {paso === "PERSONA"
             ? "Complete sus datos"
-            : "Información laboral"}
+            : laCompra
+              ? "Datos de la compra"
+              : "Información laboral"}
         </h1>
         <p className="mt-2 text-sm text-texto-suave">
           {paso === "PERSONA"
             ? "Información requerida para avanzar."
-            : "Completar según su vínculo laboral."}
+            : laCompra
+              ? "Con esto sabemos a nombre de quién preparar su cotización."
+              : "Completar según su vínculo laboral."}
         </p>
         {ficha.formacion && (
           <p className="mt-2 text-sm text-texto-suave">
@@ -620,7 +728,9 @@ export function CompletarFicha({ token }: { token: string }) {
             </h2>
             <p className="mt-1 text-sm text-texto-suave">
               {faltaEnPersona.length === 0
-                ? "No falta nada suyo. Continúe con los datos laborales."
+                ? laCompra
+                  ? "No falta nada suyo. Continúe con los datos de la compra."
+                  : "No falta nada suyo. Continúe con los datos laborales."
                 : `Falta: ${faltaEnPersona.join(", ")}.`}
             </p>
 
@@ -864,6 +974,12 @@ export function CompletarFicha({ token }: { token: string }) {
               Y es OPCIONAL de verdad: hay un botón para no
               decirlo, porque un dato sensible que no se puede
               rehusar no está consentido. */}
+          {/* Y SOLO DONDE SE PREGUNTA. En Grupo AE no: vender
+              licencias no tiene nada que ver con ser víctima del
+              conflicto, y un dato sensible sin finalidad no se
+              recoge, por opcional que sea. Oculto, no quitado:
+              el bloque entero sigue aquí. */}
+          {!oculta("poblacionVulnerable") && (
           <section className="rounded-2xl border border-borde bg-superficie p-6">
             <h2 className="text-lg font-semibold">Población vulnerable</h2>
             {/* SIN «prefiero no responder». Decisión del cliente,
@@ -894,6 +1010,7 @@ export function CompletarFicha({ token }: { token: string }) {
               alElegir={(id) => setCaracterizaciones(id === null ? [] : [id])}
             />
           </section>
+          )}
 
           {/* Por qué está gris, AL LADO del botón.
 
@@ -949,45 +1066,35 @@ export function CompletarFicha({ token }: { token: string }) {
               <>
             {/* la pregunta va primero: decide todo lo que sigue */}
             <p className="text-base font-semibold">
-              ¿Cuál es su situación laboral actual?
+              {laCompra
+                ? "¿A nombre de quién es la compra?"
+                : "¿Cuál es su situación laboral actual?"}
             </p>
 
             <div className="mb-5 mt-3 grid gap-4 sm:grid-cols-2">
-              <button
-                type="button"
-                onClick={() => {
-                  setVinculo("INDEPENDIENTE");
-                  setRutPropio("");
-                }}
-                className={`rounded-xl border p-4 text-left font-semibold transition ${
-                  vinculo === "INDEPENDIENTE"
-                    ? "border-2 border-marca bg-marca-suave text-marca"
-                    : "border-campo-borde bg-superficie hover:bg-superficie-alterna"
-                }`}
-              >
-                Trabajador independiente
-              </button>
-
-              <button
-                type="button"
-                onClick={() => {
-                  setVinculo("EMPRESA");
-                  setRutPropio("");
-                }}
-                className={`rounded-xl border p-4 text-left font-semibold transition ${
-                  vinculo === "EMPRESA"
-                    ? "border-2 border-marca bg-marca-suave text-marca"
-                    : "border-campo-borde bg-superficie hover:bg-superficie-alterna"
-                }`}
-              >
-                Trabajador con vínculo laboral
-              </button>
+              {/* En la compra, la organización va PRIMERO: es a
+                  quien le vende Grupo AE, y el independiente es la
+                  excepción. Primero en el DOCUMENTO, no solo en
+                  pantalla: con `order-first` se veía arriba pero el
+                  tabulador y el lector de pantalla seguían
+                  empezando por el independiente. En la
+                  convocatoria, el orden de siempre. */}
+              {(laCompra
+                ? (["EMPRESA", "INDEPENDIENTE"] as const)
+                : (["INDEPENDIENTE", "EMPRESA"] as const)
+              ).map(opcionDelVinculo)}
 
               {/* La tercera. Va con las otras dos y no
                   escondida en un «ninguna de las
                   anteriores»: quien no tiene trabajo no es
                   un caso raro del formulario, y el SENA
-                  forma sobre todo a quien no lo tiene. */}
+                  forma sobre todo a quien no lo tiene.
+
+                  En la COMPRA no sale: «¿a nombre de quién es la
+                  compra?» no se contesta con «no estoy
+                  trabajando». Oculta, no quitada — la
+                  convocatoria la sigue teniendo. */}
+              {!laCompra && (
               <button
                 type="button"
                 onClick={() => {
@@ -1002,6 +1109,7 @@ export function CompletarFicha({ token }: { token: string }) {
               >
                 No estoy trabajando en este momento
               </button>
+              )}
             </div>
 
             {/* Se le agradece y se acaba: no hay empresa que
@@ -1065,7 +1173,13 @@ export function CompletarFicha({ token }: { token: string }) {
                     que lo registró. Hacen falta para completar su solicitud.
                   </>
                 ) : (
-                  <>Diligencie los datos de su empresa para proceder con el registro</>
+                  <>
+                    {laCompra
+                      ? vinculo === "INDEPENDIENTE"
+                        ? "Diligencie los datos del RUT a cuyo nombre va la compra."
+                        : "Diligencie los datos de la organización a cuyo nombre va la compra."
+                      : "Diligencie los datos de su empresa para proceder con el registro"}
+                  </>
                 )}
               </p>
             )}
@@ -1094,9 +1208,28 @@ export function CompletarFicha({ token }: { token: string }) {
                     }
                   />
                 )}
+                {/* EN LA COMPRA NO HAY «JEFE DIRECTO».
+
+                    El jefe lo pedía la convocatoria para certificar
+                    al trabajador ante su empresa. En una venta de
+                    licencias lo que hace falta es quién APRUEBA la
+                    compra: es a quien va la cotización. Son los
+                    mismos tres campos de contacto de la
+                    organización, con otra pregunta encima; y como
+                    muchas veces quien llena es quien aprueba, se le
+                    dice que puede poner sus propios datos. */}
                 <div className="sm:col-span-2">
                   <Campo
-                    etiqueta="Nombre del jefe directo o persona de contacto en su empresa"
+                    etiqueta={
+                      laCompra
+                        ? "Nombre de quien aprueba la compra"
+                        : "Nombre del jefe directo o persona de contacto en su empresa"
+                    }
+                    ayuda={
+                      laCompra
+                        ? "Si la aprueba usted, escriba sus propios datos."
+                        : undefined
+                    }
                     campo="contactoNombre"
                     valores={empresa}
                     set={setEmpresa}
@@ -1104,14 +1237,22 @@ export function CompletarFicha({ token }: { token: string }) {
                   />
                 </div>
                 <Campo
-                  etiqueta="Cargo del jefe directo o persona de contacto"
+                  etiqueta={
+                    laCompra
+                      ? "Cargo de quien aprueba la compra"
+                      : "Cargo del jefe directo o persona de contacto"
+                  }
                   campo="contactoCargo"
                   valores={empresa}
                   set={setEmpresa}
                   requerido={exigeJefe}
                 />
                 <Campo
-                  etiqueta="Correo electrónico del jefe directo o contacto"
+                  etiqueta={
+                    laCompra
+                      ? "Correo de quien aprueba la compra"
+                      : "Correo electrónico del jefe directo o contacto"
+                  }
                   campo="contactoCorreo"
                   valores={empresa}
                   set={setEmpresa}
@@ -1173,9 +1314,16 @@ export function CompletarFicha({ token }: { token: string }) {
                     para que la persona confirme lo que dijo:
                     si le enseña otra cosa, la hace confirmar
                     algo que no eligió. */}
+                {/* Y con las MISMAS palabras de la pregunta que se
+                    le hizo: si eligió «Mi organización», no se le
+                    hace confirmar una «situación laboral». */}
                 <FilaResumen
-                  etiqueta="Situación laboral"
-                  valor={SITUACION_EN_PALABRAS[vinculo] ?? null}
+                  etiqueta={laCompra ? "La compra va a nombre de" : "Situación laboral"}
+                  valor={
+                    (laCompra
+                      ? COMPRA_EN_PALABRAS[vinculo]?.[2]
+                      : SITUACION_EN_PALABRAS[vinculo]) ?? null
+                  }
                 />
                 {soloSector && (
                   <FilaResumen etiqueta="RUT" valor="El mismo de su documento" />
@@ -1252,6 +1400,7 @@ function Campo({
   set,
   tipo = "text",
   requerido,
+  ayuda,
 }: {
   etiqueta: string;
   campo: string;
@@ -1259,6 +1408,8 @@ function Campo({
   set: (f: (v: Record<string, string>) => Record<string, string>) => void;
   tipo?: string;
   requerido?: boolean;
+  /// Una línea gris debajo, como la de la fecha o el NIT.
+  ayuda?: string;
 }) {
   return (
     <label className="block">
@@ -1270,6 +1421,9 @@ function Campo({
         onChange={(e) => set((v) => ({ ...v, [campo]: e.target.value }))}
         className={CAMPO}
       />
+      {ayuda && (
+        <span className="mt-1 block text-xs text-texto-suave">{ayuda}</span>
+      )}
     </label>
   );
 }

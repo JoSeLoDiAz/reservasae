@@ -293,7 +293,7 @@ export class FormulariosService {
   async crear(ambito: string[], dto: CrearFormularioDto) {
     // crear en el convenio ajeno es publicar en su nombre
     if (!ambito.includes(dto.convenioId)) {
-      throw new NotFoundException('Esa unidad de negocio no existe.');
+      throw new NotFoundException('Esa línea de negocio no existe.');
     }
     if (esRutaReservada(dto.slug)) {
       throw new BadRequestException(
@@ -356,7 +356,7 @@ export class FormulariosService {
     const logos = await this.prisma.logo.findMany({
       where: { formularioId: id },
       orderBy: { orden: 'asc' },
-      select: { orden: true, etiqueta: true, datos: true, tipoMime: true, nombre: true },
+      select: { orden: true, etiqueta: true, datos: true, tipoMime: true, nombre: true, esquema: true },
     });
 
     try {

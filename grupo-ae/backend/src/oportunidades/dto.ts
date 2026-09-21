@@ -1,5 +1,6 @@
 /** Lo que el panel puede mandar, y nada más. */
 
+import { Transform } from 'class-transformer';
 import {
   IsEnum,
   IsInt,
@@ -18,6 +19,7 @@ import {
   MotivoCierre,
   TipoEmbudo,
 } from '../../generated/prisma';
+import { aNumeroONulo } from '../comun/campo-vacio';
 
 export class CrearOportunidadDto {
   @IsEnum(TipoEmbudo)
@@ -41,6 +43,11 @@ export class CrearOportunidadDto {
   @IsOptional()
   @IsInt({ message: 'El valor va en pesos enteros.' })
   @Min(0)
+  /// La columna es Decimal(14,2): sin tope, un cero de más llegaba a
+  /// la base y volvía como un 500 sin explicación.
+  @Max(999_999_999_999, {
+    message: 'Ese valor pasa de 999.999.999.999 pesos: revise que no le sobren ceros.',
+  })
   valor?: number;
 
   @IsOptional()
@@ -100,6 +107,11 @@ export class ActualizarOportunidadDto {
   @IsOptional()
   @IsInt({ message: 'El valor va en pesos enteros.' })
   @Min(0)
+  /// La columna es Decimal(14,2): sin tope, un cero de más llegaba a
+  /// la base y volvía como un 500 sin explicación.
+  @Max(999_999_999_999, {
+    message: 'Ese valor pasa de 999.999.999.999 pesos: revise que no le sobren ceros.',
+  })
   valor?: number;
 
   /// El servicio comprueba cuál es contra la lista de `edicion.ts`,
@@ -117,6 +129,55 @@ export class ActualizarOportunidadDto {
   @IsString()
   @MaxLength(120)
   campana?: string | null;
+
+  /// Del portafolio. Null lo quita; omitirlo lo deja como estaba.
+  @IsOptional()
+  @ValidateIf((_o: unknown, v: unknown) => v !== null)
+  @IsString({ message: 'Elija un servicio del portafolio.' })
+  servicioId?: string | null;
+
+  /// Cuántas licencias, equipos o cursos. Null la borra.
+  @IsOptional()
+  @ValidateIf((_o: unknown, v: unknown) => v !== null)
+  @IsInt({ message: 'La cantidad va en números enteros.' })
+  @Min(1, { message: 'La cantidad tiene que ser al menos 1.' })
+  cantidad?: number | null;
+
+  /**
+   * Lo que de verdad se facturó. Null lo devuelve a «sin facturar»;
+   * omitirlo lo deja como estaba.
+   *
+   * Entero, por lo mismo que `valor`: aquí no se factura en centavos,
+   * y el panel y la bitácora enseñan pesos sin decimales, así que un
+   * centavo guardado sería una diferencia que nadie ve y que descuadra
+   * la suma del mes contra la de las fichas.
+   *
+   * El cero SÍ se admite, y es distinto de null: una licencia que se
+   * regaló para cerrar el negocio se facturó en cero, y eso es un dato.
+   *
+   * Y por eso mismo lleva `aNumeroONulo`: `main.ts` convierte según el
+   * tipo declarado ANTES de validar, y la casilla vaciada en el panel
+   * —`''`— llegaría aquí como `0`. Sin el transform, borrar lo
+   * facturado lo guardaría como «facturado en cero», en silencio y
+   * con la frase equivocada en la bitácora. Vacío es «quítelo»; el
+   * porqué largo está en `comun/campo-vacio.ts`.
+   *
+   * El tope es el de la columna, Decimal(14,2). Sin él, una cifra
+   * mal tecleada con dos ceros de más la rechaza la base con un error
+   * de desbordamiento que llega al panel como un 500 sin explicación.
+   *
+   * Si la oportunidad está en una etapa donde se puede facturar lo
+   * decide `puedeFacturarse`, en `edicion.ts`: esto solo mira la forma.
+   */
+  @IsOptional()
+  @Transform(aNumeroONulo)
+  @ValidateIf((_o: unknown, v: unknown) => v !== null)
+  @IsInt({ message: 'El valor facturado va en pesos enteros, sin centavos.' })
+  @Min(0, { message: 'El valor facturado no puede ser negativo.' })
+  @Max(999_999_999_999, {
+    message: 'Ese valor facturado es demasiado grande. Revise que no le sobren ceros.',
+  })
+  valorFacturado?: number | null;
 }
 
 /**
@@ -129,7 +190,7 @@ export class ActualizarOportunidadDto {
  */
 export class AsignarAsesorDto {
   @ValidateIf((_o: unknown, valor: unknown) => valor !== null)
-  @IsString({ message: 'Diga a quién se la pasa, o mande null para soltarla.' })
+  @IsString({ message: 'Elija el asesor o déjela sin asignar.' })
   asesorId!: string | null;
 
   /// Por qué se la pasa. Va a la bitácora junto al traspaso.

@@ -50,7 +50,7 @@ const ROLES: Array<{ valor: RolAdmin; etiqueta: string; descripcion: string }> =
   {
     valor: "GESTOR",
     etiqueta: "No, solo su trabajo",
-    descripcion: "Lo que ve y hace lo deciden las unidades de negocio y roles de abajo.",
+    descripcion: "Lo que ve y hace lo deciden las líneas de negocio y roles de abajo.",
   },
 ];
 
@@ -83,7 +83,7 @@ function MatrizDePermisos() {
     <Bloque
       plegable
       titulo="Qué ve y qué toca cada rol"
-      descripcion="El rol se elige por unidad de negocio. Esta tabla dice lo que trae cada uno; la aplica el servidor y no se puede editar aquí."
+      descripcion="El rol se elige por línea de negocio. Esta tabla dice lo que trae cada uno; la aplica el servidor y no se puede editar aquí."
     >
       {/* La tabla va a sangre y se desplaza en horizontal: es
           contenido de trabajo, no prosa. */}
@@ -438,7 +438,7 @@ function cabeceras(convenios: Convenio[]): ColumnaDeLista[] {
       texto: "Administra",
       alineado: "text-center",
       ayuda:
-        "Quien administra el sistema ve y toca TODO, sin importar sus unidades de negocio: crea cuentas, publica formularios y puede borrar datos.",
+        "Quien administra el sistema ve y toca TODO, sin importar sus líneas de negocio: crea cuentas, publica formularios y puede borrar datos.",
     },
     ...convenios.map((c) => ({ texto: c.sigla ?? c.slug })),
     {
@@ -680,7 +680,7 @@ function FilaUsuario({
               {sinNada && (
                 <p className="dato mt-5">
                   <span className="estado text-titulo">
-                    Sin rol en ninguna unidad de negocio:
+                    Sin rol en ninguna línea de negocio:
                   </span>{" "}
                   esta cuenta entra al panel y no ve una sola pantalla.
                 </p>
@@ -746,7 +746,7 @@ function FilaUsuario({
  * Las dos decisiones de permiso, juntas.
  *
  * Estaban separadas --el desplegable de «¿administra?» en la
- * fila, las unidades de negocio detrás de un botón-- y son la
+ * fila, las líneas de negocio detrás de un botón-- y son la
  * misma pregunta: qué puede hacer esta persona. Una cuenta que
  * administra el sistema ve y toca todo aunque no tenga ninguna
  * unidad marcada, así que decidir lo segundo sin ver lo primero
@@ -799,7 +799,7 @@ function PermisosDe({
         </Campo>
       </div>
 
-      <p className="rotulo-bloque mt-6">A qué unidades de negocio entra</p>
+      <p className="rotulo-bloque mt-6">A qué líneas de negocio entra</p>
 
       <div className="mt-2">
         {convenios.map((c) => (
@@ -825,7 +825,7 @@ function PermisosDe({
             alCerrar();
           }}
         >
-          {guardando ? "Guardando…" : "Guardar unidades de negocio"}
+          {guardando ? "Guardando…" : "Guardar líneas de negocio"}
         </Boton>
         {concesiones.length === 0 && (
           <span className="secundario">
@@ -865,7 +865,7 @@ function FormularioNuevoUsuario({
   async function enviar(evento: React.FormEvent) {
     evento.preventDefault();
     if (!concesiones.length) {
-      alFallar("Marque al menos un convenio: sin ninguno, la cuenta no vería nada.");
+      alFallar("Marque al menos una línea de negocio: sin ninguna, la cuenta no vería nada.");
       return;
     }
     setCreando(true);
@@ -939,10 +939,10 @@ function FormularioNuevoUsuario({
           </Campo>
 
           <div className="a-lo-ancho">
-            <p className="rotulo-bloque">A qué unidades de negocio entra</p>
+            <p className="rotulo-bloque">A qué líneas de negocio entra</p>
             <p className="secundario prosa mt-1">
               Sin marcar ninguno, la cuenta entra al panel y no ve una sola
-              pantalla. El rol se elige por unidad de negocio: se puede llevar un área en
+              pantalla. El rol se elige por línea de negocio: se puede llevar un área en
               uno y otra en el otro.
             </p>
 

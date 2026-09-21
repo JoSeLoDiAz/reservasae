@@ -7,7 +7,7 @@ export default function PaginaLeadsEmpresas() {
     <ListaDeOportunidades
       embudo="EMPRESA"
       titulo="Leads de empresas"
-      descripcion="Negocios con NIT detrás: ciclo de semanas, propuesta por escrito y alguien que decide."
+      descripcion="Oportunidades con empresas e instituciones: ciclo de semanas y cotización formal."
     />
   );
 }

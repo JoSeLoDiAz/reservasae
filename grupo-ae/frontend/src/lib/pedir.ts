@@ -42,17 +42,26 @@ export async function pedir<T>(ruta: string, opciones?: RequestInit): Promise<T>
   // que poner el suyo con la frontera del multipart
   const esFormData = opciones?.body instanceof FormData;
 
-  const respuesta = await fetch(`/api${ruta}`, {
-    ...opciones,
-    headers: {
-      ...(esFormData ? {} : { "content-type": "application/json" }),
-      // el backend la usa para recortar el ámbito. NUNCA
-      // amplía: si pide un gremio que su cuenta no le
-      // concede, se ignora y se queda con lo suyo
-      ...(gremio ? { "x-gremio": gremio } : {}),
-      ...opciones?.headers,
-    },
-  });
+  /// Sin conexión, `fetch` no responde: LANZA un TypeError con
+  /// «Failed to fetch», en inglés, y las pantallas lo pintaban tal
+  /// cual. Se convierte aquí, una vez, en un ErrorApi con estado 0 y
+  /// un mensaje que dice qué hacer (José lo trató en 77279fd).
+  let respuesta: Response;
+  try {
+    respuesta = await fetch(`/api${ruta}`, {
+      ...opciones,
+      headers: {
+        ...(esFormData ? {} : { "content-type": "application/json" }),
+        // el backend la usa para recortar el ámbito. NUNCA
+        // amplía: si pide un gremio que su cuenta no le
+        // concede, se ignora y se queda con lo suyo
+        ...(gremio ? { "x-gremio": gremio } : {}),
+        ...opciones?.headers,
+      },
+    });
+  } catch {
+    throw new ErrorApi(0, "No hay conexión con el servidor. Revise su internet e inténtelo de nuevo.", null);
+  }
 
   const cuerpo = await respuesta.json().catch(() => null);
 

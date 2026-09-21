@@ -29,16 +29,24 @@ import { ErrorApi } from "@/lib/api";
 
 import { PanelAccesibilidad } from "./accesibilidad";
 import { CambioDeClaveObligatorio } from "./cambio-clave";
+/// `IconoDerecha`, `IconoIzquierda`, `IconoMenu` y `IconoSalir`
+/// se fueron con la barra lateral y la cabecera de una fila: los
+/// dos primeros eran el botón de plegar, y la hamburguesa y la
+/// salida viven ahora en `cabecera-topbar.tsx`, que es quien
+/// decide cuándo hacen falta.
 import { ICONO_DE_MODULO, IconoResumen,
   IconoAccesibilidad,
   IconoCerrar,
-  IconoDerecha,
-  IconoIzquierda,
-  IconoMenu,
-  IconoSalir,
 } from "./iconos";
 import { enlacesVisibles, estaActivo, MODULOS } from "./navegacion";
 import { Cargando } from "./piezas";
+import {
+  FilaDeMarca,
+  FilaDeModulos,
+  ROTULO,
+  useFondoDelEncabezadoOscuro,
+} from "./cabecera-topbar";
+import { variantesParaElFondo } from "@/lib/logos-por-fondo";
 
 type Contexto = {
   admin: AdminActual;
@@ -64,9 +72,14 @@ export function useAdmin(): Contexto {
 /// que viene debajo -- y se ven igual. Uno de ellos llevaba
 /// otro peso y otro espaciado, y por eso no se leian como
 /// hermanos.
-const ROTULO = "rotulo-bloque text-encabezado-suave";
+/// `ROTULO` se fue a `cabecera-topbar.tsx`, con su cuenta de
+/// contraste y el por qué. Se mudó para que la dependencia entre
+/// los dos ficheros vaya en un solo sentido: este importa la
+/// cabecera, así que la constante no puede vivir aquí sin cerrar
+/// un ciclo.
 
-const LLAVE_PLEGADO = "convoca:menu-plegado";
+/// `LLAVE_PLEGADO` se fue con la barra lateral: no hay nada que
+/// plegar en una cabecera de dos filas.
 /// El gremio elegido sobrevive al refresco: cambiarlo en cada
 /// carga obligaria a re-elegirlo diez veces al dia.
 const LLAVE_GREMIO = "convoca:gremio";
@@ -80,14 +93,13 @@ export function MarcoAdmin({ children }: { children: React.ReactNode }) {
   const [admin, setAdmin] = useState<AdminActual | null>(null);
   const [cargando, setCargando] = useState(true);
   const [bloqueo, setBloqueo] = useState<string | null>(null);
-  const [plegado, setPlegadoEstado] = useState(false);
   const [cajon, setCajon] = useState(false);
+  /// Si la fila de módulos entra en pantalla. Lo dice ella, que es
+  /// quien se mide; aquí solo se usa para saber si hace falta el
+  /// cajón. NO es un umbral de ancho: con zoom, o con la letra al
+  /// 140 %, una pantalla anchísima puede no tener sitio.
+  const [filaCabe, setFilaCabe] = useState(true);
   const [gremio, setGremioEstado] = useState<string | null>(null);
-  /// Qué grupo abrir al desplegar la barra. Lo pide el icono
-  /// de un módulo cuando la barra está plegada: uno lo pulsa
-  /// porque no se acuerda de qué hay dentro, así que hay que
-  /// enseñárselo abierto.
-  const [moduloAAbrir, setModuloAAbrir] = useState<string | null>(null);
 
   /// Aquí vivía un «cinturón encima de los tirantes»: un
   /// listener que devolvía a cero el `scrollTop` del marco en
@@ -106,8 +118,11 @@ export function MarcoAdmin({ children }: { children: React.ReactNode }) {
   /// cuando la ventana es baja. Devolverlo a cero rompería lo
   /// que se arregló al meter Ajustes dentro de esa columna.
 
+  /// Ya no se lee el plegado de la barra: la barra no existe.
+  /// `LLAVE_GREMIO` sí se queda, y con su nombre exacto: la leen
+  /// por su cuenta varios ficheros de `lib/`, así que es un
+  /// contrato, no un detalle de este componente.
   useEffect(() => {
-    setPlegadoEstado(window.localStorage.getItem(LLAVE_PLEGADO) === "si");
     try {
       setGremioEstado(window.localStorage.getItem(LLAVE_GREMIO));
     } catch {
@@ -151,15 +166,6 @@ export function MarcoAdmin({ children }: { children: React.ReactNode }) {
     },
     [],
   );
-
-  const setPlegado = useCallback((valor: boolean) => {
-    setPlegadoEstado(valor);
-    try {
-      window.localStorage.setItem(LLAVE_PLEGADO, valor ? "si" : "no");
-    } catch {
-      // en privado localStorage puede fallar
-    }
-  }, []);
 
   const cargar = useCallback(async () => {
     try {
@@ -209,14 +215,14 @@ export function MarcoAdmin({ children }: { children: React.ReactNode }) {
       <div className="mx-auto max-w-lg p-8">
         {/* Sin la tarjeta tenida de amarillo: el ambar es el
             reloj de quien espera respuesta y de nada mas. */}
-        <p className="titulo-pantalla">Por aquí no puede entrar</p>
+        <p className="titulo-pantalla">No tiene acceso a este panel</p>
         <p className="dato prosa mt-2">{bloqueo}</p>
         <button
           type="button"
           onClick={() => void salir()}
           className="dato text-marca mt-4 underline"
         >
-          Cerrar sesión y entrar por otra dirección
+          Cerrar sesión
         </button>
       </div>
     );
@@ -288,38 +294,73 @@ export function MarcoAdmin({ children }: { children: React.ReactNode }) {
 
           Con `clip` no hay nada que desplazar, así que da igual
           dónde caiga el control. */}
+      {/* EN COLUMNA, no en fila, desde el 12 sep 2026.
+
+          Aquí había una fila: [barra lateral][cajón][columna con
+          cabecera, main y pie]. Ahora son dos bandas de cabecera
+          --66 y 54 px-- y `<main>` debajo, que es el armazón que
+          mandó el cliente con su montaje de diseño.
+
+          Lo que cuesta y hay que tener presente: `<main>` pierde
+          64 px de alto útil (56 → 120), y en `prueba.` hay además
+          36 px de franja. La contabilidad vertical sigue siendo
+          solo de aquí, y la franja se resta UNA vez. */}
       <div
         style={{ height: "calc(100vh - var(--franja-alto, 0px))" }}
-        className="flex overflow-clip"
+        /// `marco-panel` es la señal para `globals.css`: mientras
+        /// este marco esté montado, el DOCUMENTO no scrollea. Sin
+        /// eso, esta columna de altura fija se sube entera y la
+        /// cabecera desaparece --ver el comentario largo de la regla
+        /// `html:has(.marco-panel)`--.
+        className="marco-panel flex flex-col overflow-clip"
       >
-        <BarraLateral
-          ruta={ruta}
-          esSuperadmin={esSuperadmin}
-          permisos={admin.permisos}
-          plegado={plegado}
-          alPlegar={() => setPlegado(!plegado)}
-          abrirEste={moduloAAbrir}
-          alDesplegarModulo={(clave) => {
-            setPlegado(false);
-            setModuloAAbrir(clave);
-          }}
-        />
-
-        <CajonMovil
-          abierto={cajon}
-          alCerrar={() => setCajon(false)}
-          ruta={ruta}
-          esSuperadmin={esSuperadmin}
-          permisos={admin.permisos}
-        />
-
-        <div className="flex min-w-0 grow flex-col">
-          <Cabecera
+        <div className="no-imprimir shrink-0">
+          <FilaDeMarca />
+          <FilaDeModulos
             ruta={ruta}
-            alAbrirMenu={() => setCajon(true)}
+            esSuperadmin={esSuperadmin}
+            permisos={admin.permisos}
             admin={admin}
+            gremios={gremios}
+            gremio={gremioActivo}
+            alElegirGremio={elegirGremio}
             alSalir={salir}
+            alAbrirMenu={() => setCajon(true)}
+            alMedir={setFilaCabe}
+            migas={<Migas ruta={ruta} />}
+            /* LA RANURA TIENE QUE EXISTIR SIEMPRE, con su id.
+               `AccionesDePagina` la resuelve UNA vez en un efecto
+               de dependencias vacías y devuelve `null` sin avisar
+               si no la encuentra; y sus consumidores son ellos
+               mismos condicionales, así que un fallo aquí se
+               vería como «esta pantalla perdió sus botones» en
+               Campañas, Plantillas y Leads. */
+            ranura={
+              <div
+                id={RANURA_ACCIONES}
+                className="flex min-w-0 shrink-0 items-center gap-2"
+              />
+            }
           />
+        </div>
+
+        {/* El cajón existe SOLO cuando la fila no entra, y eso lo
+            decide la medida, no un ancho. Montado siempre y
+            escondido por CSS volvía a ser el fallo de antes: dos
+            cortes distintos que dejaban una franja con la fila
+            escondida por estrecha y el cajón escondido por ancho,
+            o sea una hamburguesa que no hacía nada. */}
+        {!filaCabe && (
+          <CajonMovil
+            abierto={cajon}
+            alCerrar={() => setCajon(false)}
+            ruta={ruta}
+            esSuperadmin={esSuperadmin}
+            permisos={admin.permisos}
+          />
+        )}
+
+        <div className="flex min-h-0 min-w-0 grow flex-col">
           <main
             id="contenido"
             tabIndex={-1}
@@ -335,13 +376,48 @@ export function MarcoAdmin({ children }: { children: React.ReactNode }) {
             /// banda por dentro (28px), no el contenedor: si lo
             /// pusiera el contenedor, las rayas se quedarian
             /// cortas y flotando en vez de cruzar la pantalla.
-            className="flex w-full min-h-0 grow flex-col overflow-y-auto overscroll-contain"
+            ///
+            /// El relleno de ABAJO sí lo pone el contenedor: es el
+            /// hueco de la píldora flotante de tema y accesibilidad,
+            /// que la mide y lo publica en `--alto-pildora` (ver
+            /// `Ajustes`). Sin él tapaba la última fila. Los 3.5rem
+            /// son el respaldo mientras no se ha medido.
+            className="flex w-full min-h-0 grow flex-col overflow-y-auto overscroll-contain pb-[var(--alto-pildora,3.5rem)] print:pb-0"
           >
             {/* Sin tope de ancho: son tablas de trabajo y en un
                 monitor ancho `max-w-6xl` las dejaba espichadas.
                 Cada pantalla decide que bloques suyos se quedan
                 cortos, que es donde de verdad importa. */}
-            <div className="flex min-h-0 w-full grow flex-col">{children}</div>
+            {/* `contents`, NO un flex item más.
+
+                Esto era `flex min-h-0 w-full grow flex-col`, y ahí
+                estaba el fallo que el cliente vio en Usuarios: la
+                cabecera desaparecía y el pie quedaba a media página
+                con un blanco debajo (12 sep 2026).
+
+                Medido: este envoltorio quedaba clavado en el alto
+                del hueco --688 px-- mientras el contenido de la
+                pantalla medía 1.894 en Usuarios y 5.335 en
+                Apariencia. El hijo se escapaba de su padre con
+                `overflow: visible`, y ese escape estiraba el
+                DOCUMENTO (+213 px y +1.279). Con el documento
+                scrolleable, se sube la columna de 100vh ENTERA y la
+                cabecera se va de la pantalla; y como `overflow-clip`
+                no deja barra, no hay forma de devolverla.
+
+                Era un nivel de flex de sobra. Con `contents`, la
+                raíz de cada pantalla es hija directa de `<main>`, y
+                eso sirve a los DOS casos que hay en el panel:
+
+                  - un formulario o prosa (raíz sin `grow`) crece a
+                    lo que mida y lo scrollea `<main>`;
+                  - una tabla (raíz con `min-h-0 grow`) resuelve su
+                    alto contra `<main>`, que sí tiene altura
+                    definida, y scrollea por dentro como siempre.
+
+                El `w-full` se va con él y no hace falta: `<main>` ya
+                es `w-full`. */}
+            {children}
 
           </main>
 
@@ -364,10 +440,21 @@ export function MarcoAdmin({ children }: { children: React.ReactNode }) {
 
               No lleva `.no-imprimir`: en papel es justo donde
               tiene sentido decir de quien es el documento. */}
-          <footer className="border-borde bg-superficie flex h-7 shrink-0 items-center border-t px-4 lg:px-6">
-            <PieDeConvoca />
+          {/* MENUDO, para devolverle alto a la tabla.
+              De 36 px a ~20: el pie baja a 10 px con interlineado
+              apretado y el relleno de 8 a 3. Lo que se gana se lo
+              queda `<main>`, que es donde está la tabla.
+              Sigue SIN `.no-imprimir` a propósito: en papel es lo
+              único que dice de quién es el documento. */}
+          <footer className="shrink-0 border-t border-borde bg-superficie px-7 py-px">
+            <PieDeConvoca menudo />
           </footer>
         </div>
+
+        {/* Apariencia y accesibilidad, flotando. Fuera de la
+            columna a propósito: es del MARCO, no del contenido, y
+            desde aquí no la empuja el scroll de `<main>`. */}
+        <Ajustes reservaSitio />
       </div>
     </ContextoAdmin.Provider>
   );
@@ -400,8 +487,11 @@ function Marca({ plegado }: { plegado?: boolean }) {
   const [fallidas, setFallidas] = useState<string[]>([]);
   const { marca } = useMarca();
 
-  /// Hasta tres, los del gremio de la direccion.
-  const logos = (marca?.logos ?? [])
+  const fondoOscuro = useFondoDelEncabezadoOscuro();
+
+  /// Hasta tres, y SOLO la variante que se ve sobre este fondo —la de
+  /// letra blanca sobre el verde—, igual que la cabecera de escritorio.
+  const logos = variantesParaElFondo(marca?.logos ?? [], fondoOscuro)
     .slice(0, MAXIMO_LOGOS)
     .map((l) => ({ ...l, url: urlLogo(l) }))
     .filter((l) => !fallidas.includes(l.url));
@@ -426,7 +516,10 @@ function Marca({ plegado }: { plegado?: boolean }) {
         /// elige el administrador, así que sin la placa el logo
         /// desaparece en modo oscuro — y también en claro si
         /// alguien pone el encabezado en un color fuerte.
-        <div className="mx-auto flex w-fit max-w-full flex-wrap items-center justify-center gap-2 rounded-plano bg-white px-3 py-2">
+        /// YA SIN PLACA BLANCA (17 sep 2026): hay variante del logo
+        /// para fondo oscuro, que es lo que la placa suplía, y la
+        /// cabecera de escritorio ya va sin ella.
+        <div className="mx-auto flex w-fit max-w-full flex-wrap items-center justify-center gap-2">
           {logos.map((l) => (
             // eslint-disable-next-line @next/next/no-img-element
             <img
@@ -448,7 +541,7 @@ function Marca({ plegado }: { plegado?: boolean }) {
       <Link
         href="/admin"
         // plegado no hay texto que lo nombre
-        aria-label={plegado ? "Grupo AE" : undefined}
+        aria-label={plegado ? "Convoca CRM" : undefined}
         className="flex max-w-full items-center justify-center gap-2 no-underline"
       >
         {/* La MISMA firma que el login, el pie publico y la
@@ -546,7 +639,7 @@ function FilaResumen({
     return (
       <Link
         href="/admin"
-        title="Resumen — el tablero"
+        title="Resumen"
         onClick={() => {
           alNavegar?.();
           alDesplegar?.();
@@ -581,127 +674,147 @@ function FilaResumen({
 }
 
 /**
- * Quien esta dentro.
+ * Apariencia y accesibilidad, en una píldora flotante.
  *
- * Vive arriba a la derecha, que es donde se busca: es lo
- * primero que uno mira al llegar a un panel prestado, y en el
- * pie de la barra quedaba fuera del recorrido de la vista.
- */
-function ChipUsuario({
-  admin,
-  alSalir,
-}: {
-  admin: AdminActual;
-  alSalir: () => void;
-}) {
-  return (
-    /// Sin la inicial en un cuadrito.
-    ///
-    /// Esa placa de una letra no identificaba a nadie —quien
-    /// está adentro sabe quién es— y le quitaba sitio al
-    /// nombre, que sí sirve. Lo que queda es el nombre con su
-    /// cargo, alineados a la derecha, y una salida que se ve.
-    <div className="flex shrink-0 items-center gap-3">
-      <span className="hidden min-w-0 flex-col items-end leading-tight sm:flex">
-        <span className="dato text-encabezado-texto truncate">{admin.nombre}</span>
-        <span className="micro text-encabezado-suave truncate">
-          {admin.cargo ?? admin.rol}
-        </span>
-      </span>
-      {/* Un separador fino en vez del cuadrito: dice «esto de
-          aquí es suyo» sin gritar una inicial. */}
-      <span aria-hidden className="hidden h-8 w-px bg-borde sm:block" />
-      <button
-        onClick={alSalir}
-        title="Cerrar sesión"
-        aria-label="Cerrar sesión"
-        /// Más grande, y con su palabra al lado en pantalla
-        /// ancha. Un icono de 15px sin texto se busca; la
-        /// salida no se debería buscar.
-        className="dato text-encabezado-suave hover:bg-encabezado-alterna hover:text-encabezado-texto flex shrink-0 items-center gap-2 rounded-plano px-3 py-2 transition"
-      >
-        <IconoSalir tamano={20} />
-        <span className="hidden lg:inline">Salir</span>
-      </button>
-    </div>
-  );
-}
-
-/**
- * Apariencia y accesibilidad, juntas al pie de la barra.
- *
- * Son ajustes: se tocan una vez y se dejan. Arriba competian
- * con las migas y con las acciones de cada pantalla, que son
- * lo que uno usa todo el dia.
+ * Son ajustes: se tocan una vez y se dejan. Estuvieron arriba,
+ * donde competían con las migas y con las acciones de cada
+ * pantalla; luego al pie de la barra lateral; y desde el 12 sep
+ * 2026 abajo a la DERECHA, flotando y pequeña. La razón de fondo
+ * no ha cambiado en las cuatro mudanzas: no tienen que estar en el
+ * camino.
  */
 function Ajustes({
-  plegado,
-  alDesplegar,
+  reservaSitio = false,
 }: {
-  plegado?: boolean;
-  alDesplegar?: () => void;
+  /// Solo la del marco mide y escribe `--alto-pildora`. La del
+  /// cajón móvil vive dentro de un `<nav>` con `transform`, así que
+  /// su `fixed` se ubica respecto al nav: su medida era falsa, y al
+  /// desmontarse BORRABA la variable que la otra acababa de poner.
+  reservaSitio?: boolean;
 }) {
   const [abierto, setAbierto] = useState(false);
 
-  /// Plegada: un solo botón que despliega.
+  /// LA PÍLDORA RESERVA SU SITIO, Y LO MIDE ELLA.
   ///
-  /// El conmutador de tema son TRES botones de 36 px en fila:
-  /// 108 px que no caben en una barra de 72, así que se salían
-  /// por la izquierda -- uno empezaba en x = -18 -- y se veían
-  /// montados unos sobre otros. Aquí no se meten a la fuerza:
-  /// se pide la barra abierta, que es donde caben.
-  if (plegado) {
-    return (
-      <button
-        type="button"
-        onClick={alDesplegar}
-        title="Ajustes: apariencia y accesibilidad"
-        /// `mt-auto`: pegada abajo cuando hay sitio. Y dentro
-        /// de la columna que se desplaza, así que cuando NO lo
-        /// hay se llega a ella bajando, en vez de salirse por
-        /// el borde y arrastrar el marco entero.
-        className="border-encabezado-borde bg-encabezado-alterna text-encabezado-suave hover:text-encabezado-texto mt-auto flex h-8 w-full shrink-0 items-center justify-center rounded-plano border transition"
-      >
-        {/* SIN EMOJI. Un emoji lo pinta el sistema operativo:
-            no toma el color del tema, cambia de dibujo entre
-            Windows y el móvil y no es de la casa. Aquí va el
-            mismo icono de trazo que la barra abierta —el que
-            abre este mismo panel—, así que plegar deja de
-            cambiar el signo de lo que se va a pulsar. */}
-        <IconoAccesibilidad tamano={17} />
-        <span className="sr-only">Ajustes</span>
-      </button>
-    );
-  }
+  /// Flota `fixed` sobre la esquina inferior derecha, y en las
+  /// pantallas de tabla se sentaba encima de la última fila: la
+  /// fila existía pero no se podía leer ni pulsar. `<main>` deja
+  /// debajo un margen igual a lo que la píldora ocupa desde el
+  /// borde inferior de la ventana (su alto más la distancia al
+  /// borde), leído de `--alto-pildora`.
+  ///
+  /// Se MIDE y no se calcula a mano porque su alto no es fijo: el
+  /// relleno y la distancia salen de `clamp()` con `vw`, y el
+  /// conmutador de tema va en `rem`, que escala con el ajuste de
+  /// texto de Accesibilidad (90-140 %). Una cifra escrita aquí se
+  /// quedaba corta en cuanto alguien subía la letra.
+  ///
+  /// El `ResizeObserver` cubre los cambios de tamaño de la
+  /// píldora; el `resize` de la ventana, los de la distancia al
+  /// borde, que cambian con el ancho sin cambiar el tamaño.
+  const pildora = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = pildora.current;
+    if (!el || !reservaSitio) return;
+    const raiz = document.documentElement;
+    const medir = () => {
+      const alto = Math.max(0, Math.ceil(window.innerHeight - el.getBoundingClientRect().top));
+      raiz.style.setProperty("--alto-pildora", `${alto}px`);
+    };
+    medir();
+    const observador = new ResizeObserver(medir);
+    observador.observe(el);
+    window.addEventListener("resize", medir);
+    return () => {
+      observador.disconnect();
+      window.removeEventListener("resize", medir);
+      raiz.style.removeProperty("--alto-pildora");
+    };
+  }, [reservaSitio]);
 
   return (
-    <div className="border-encabezado-borde bg-encabezado-alterna mt-auto flex shrink-0 items-center justify-between gap-1 rounded-plano border p-1 pl-3">
-      <span className={ROTULO}>Ajustes</span>
+    /// UNA PÍLDORA FLOTANTE ABAJO A LA DERECHA. El montaje del
+    /// cliente la dibujaba a la izquierda y él la movió al verla
+    /// en su sitio: en desarrollo, el distintivo de Next se planta
+    /// en esa misma esquina y se le monta encima. Antes de todo
+    /// esto era una caja al pie de la barra lateral, y la barra ya
+    /// no existe.
+    ///
+    /// Se murió con ella la variante plegada, y con la variante el
+    /// 🎛️: era el ÚNICO emoji que quedaba en el marco, y el
+    /// criterio de la casa dice que no hay emoji. No se echa de
+    /// menos.
+    ///
+    /// `.no-imprimir` NO es opcional: en papel los botones se van
+    /// por la hoja de impresión pero el div se queda, y como esa
+    /// hoja fuerza que los fondos se pinten, quedaría una cápsula
+    /// vacía de color en mitad del PDF.
+    ///
+    /// `z-40`: por encima del contenido y de los desplegables de
+    /// la cabecera (z-40 también, pero nunca coinciden en
+    /// pantalla), y por debajo del cajón móvil (z-50), que tiene
+    /// que poder taparla.
+    ///
+    /// `p-2` y no `p-1.5`: con más relleno la cápsula se lee
+    /// redonda de verdad --«más redondito como el demo»-- en vez
+    /// de como un rectángulo con las esquinas limadas.
+    /// EL COLOR DEL ENCABEZADO VA EN LOS BOTONES, no aquí.
+    ///
+    /// Puesto en este contenedor lo heredaba también el panel de
+    /// accesibilidad, que cuelga de dentro y es una tarjeta
+    /// clara: sus rótulos salían en blanco sobre blanco. Lo que
+    /// necesita el color de encabezado es lo que se pinta SOBRE
+    /// este fondo, y eso son los dos botones.
+    /// MÁS PEQUEÑA, Y PROPORCIONAL A LA PANTALLA.
+    ///
+    /// Estuvo con relleno y distancia fijos, y en un portátil se
+    /// comía la esquina: «el campo donde está modo oscuro claro y
+    /// accesibilidad más pequeño», «las proporciones de acuerdo al
+    /// tamaño de pantalla» (cliente, 12 sep 2026).
+    ///
+    /// El relleno, el hueco y la distancia al borde salen de la
+    /// ventana, igual que las dos filas de la cabecera. Y el cuerpo
+    /// de letra baja a 13 px: es lo que encoge los dos botones del
+    /// conmutador SIN tocar el componente, que es compartido y vive
+    /// también en las pantallas públicas.
+    <div
+      ref={pildora}
+      style={{
+        padding: "clamp(3px, 0.25vw, 6px)",
+        gap: "clamp(2px, 0.2vw, 6px)",
+        right: "clamp(0.75rem, 1vw, 1.25rem)",
+        bottom: "clamp(0.75rem, 1vw, 1.25rem)",
+      }}
+      className="no-imprimir fixed z-40 flex items-center rounded-full border border-encabezado-borde bg-encabezado-fondo text-[0.8125rem] shadow-lg shadow-black/20"
+    >
+      <ConmutadorTema compacto menudo />
 
-      <div className="flex items-center gap-1">
-        <ConmutadorTema compacto />
-
-        {/* el relative abraza solo al boton: si abraza el
-            grupo, el panel nace pegado al borde y se corta */}
-        <div className="relative">
-          <button
-            onClick={() => setAbierto(!abierto)}
-            aria-expanded={abierto}
-            // lo lee el panel para no tomar este clic por un
-            // «pinchó fuera»
-            data-abre-panel
-            className={`grid h-8 w-8 place-items-center rounded-plano transition ${
-              abierto
-                ? "bg-marca-suave text-marca"
-                : "text-encabezado-suave hover:text-encabezado-texto"
-            }`}
-            title="Accesibilidad"
-          >
-            <IconoAccesibilidad tamano={17} />
-            <span className="sr-only">Accesibilidad</span>
-          </button>
-          {abierto && <PanelAccesibilidad alCerrar={() => setAbierto(false)} />}
-        </div>
+      {/* el relative abraza solo al boton: si abraza el
+          grupo, el panel nace pegado al borde y se corta */}
+      {/* Y sigue abriendo HACIA ARRIBA sin tocar una línea: el
+          panel es `absolute bottom-full`, que se escribió cuando
+          este botón estaba al pie de la barra. En una píldora
+          abajo a la derecha las dos razones siguen valiendo. */}
+      <div className="relative">
+        <button
+          onClick={() => setAbierto(!abierto)}
+          aria-expanded={abierto}
+          // lo lee el panel para no tomar este clic por un
+          // «pinchó fuera»
+          data-abre-panel
+          /// 26 px y icono de 14, no 32 y 17: es la tercera vez
+          /// que el cliente pide esta píldora más pequeña, y las
+          /// dos anteriores encogí el contenedor sin tocar los
+          /// controles de dentro, que son los que mandan el alto.
+          className={`grid h-[26px] w-[26px] place-items-center rounded-full text-encabezado-texto transition hover:bg-current/10 hover:opacity-100 ${
+            abierto ? "bg-current/10 opacity-100" : "opacity-70"
+          }`}
+          title="Accesibilidad"
+        >
+          <IconoAccesibilidad tamano={14} />
+          <span className="sr-only">Accesibilidad</span>
+        </button>
+        {abierto && <PanelAccesibilidad alCerrar={() => setAbierto(false)} />}
       </div>
     </div>
   );
@@ -907,105 +1020,16 @@ function Grupos({
   );
 }
 
-/** Fija: la página hace scroll y esto no se mueve. */
-function BarraLateral({
-  ruta,
-  esSuperadmin,
-  permisos,
-  plegado,
-  alPlegar,
-  alDesplegarModulo,
-  abrirEste,
-}: {
-  ruta: string;
-  esSuperadmin: boolean;
-  permisos: Permisos;
-  plegado: boolean;
-  alPlegar: () => void;
-  alDesplegarModulo: (clave: string) => void;
-  abrirEste: string | null;
-}) {
-  return (
-    <nav
-      aria-label="Secciones del panel"
-      // el alto lo pone el contenedor, que ya resta la franja
-      className={`no-imprimir z-20 hidden h-full shrink-0 flex-col border-r border-encabezado-borde bg-encabezado-fondo text-encabezado-texto transition-[width] duration-200 md:flex ${
-        plegado ? "w-[56px] px-2 py-4" : "w-[236px] px-4 py-4"
-      }`}
-    >
-      {/* `mb-4` también plegada: sin él, el logo y el primer
-          icono se tocan y se leen como uno solo */}
-      {/* El botón de plegar va AL LADO del logo, dentro de la
-          barra.
-
-          Estaba flotando medio afuera del borde —24 píxeles,
-          `-right-3`, a una altura fija— encimado al contenido.
-          Ahí ni se veía ni se acertaba: 24 px es la mitad de lo
-          que un dedo necesita, y quedaba pisando la tabla.
-
-          Aquí es un botón normal, del tamaño de los demás,
-          donde uno lo busca. */}
-      <div className="mb-4 shrink-0">
-        <div
-          className={`flex items-center gap-2 ${plegado ? "flex-col" : "justify-between"}`}
-        >
-          <Marca plegado={plegado} />
-          <button
-            onClick={alPlegar}
-            className="grid size-9 shrink-0 place-items-center rounded-lg border border-transparent text-encabezado-texto/70 transition hover:border-encabezado-borde hover:bg-black/5 hover:text-encabezado-texto"
-            aria-label={plegado ? "Desplegar el menú" : "Plegar el menú"}
-            title={plegado ? "Desplegar el menú" : "Plegar el menú"}
-          >
-            {plegado ? <IconoDerecha tamano={18} /> : <IconoIzquierda tamano={18} />}
-          </button>
-        </div>
-        {!plegado && (
-          /// Bien separado del logo.
-          ///
-          /// Arriba está la marca -- qué panel es esto -- y
-          /// aquí abajo empieza el trabajo. Pegados, el menú
-          /// nacía encaramado en el borde.
-          <div className="mt-8">
-            <FilaResumen ruta={ruta} />
-            <RotuloDelPanel />
-          </div>
-        )}
-      </div>
-
-      {/* Ajustes va DENTRO del bloque que se desplaza.
-
-          Estaba fuera, con `shrink-0`, igual que el bloque de
-          la marca de arriba. Dos bloques rígidos y uno
-          elástico en medio: cuando los rígidos no caben —una
-          ventana baja, zoom, o el texto por encima del 100 %—
-          el de en medio ya está a cero y no queda holgura, así
-          que la caja de Ajustes se salía por debajo del borde.
-
-          Desde ahí, pulsar el conmutador de tema arrastraba el
-          marco entero. Se arregló también con `overflow-clip`
-          arriba, pero eso solo quita el síntoma: esto quita la
-          causa. Ahora, si no cabe, se llega a ella bajando por
-          la misma barra que ya se usa para los módulos.
-
-          El scroll es de aquí dentro, no de la página. */}
-      <div className="barra-visible flex min-h-0 grow flex-col overflow-y-auto">
-        <Grupos
-          ruta={ruta}
-          esSuperadmin={esSuperadmin}
-          permisos={permisos}
-          plegado={plegado}
-          alDesplegar={alDesplegarModulo}
-          abrirEste={abrirEste}
-        />
-
-        <Ajustes plegado={plegado} alDesplegar={() => alDesplegarModulo("")} />
-      </div>
-
-    </nav>
-  );
-}
-
-/** En móvil no cabe la lateral: un cajón que se desliza. */
+/**
+ * Cuando la fila de módulos no entra: un cajón que se desliza.
+ *
+ * Antes decía «en móvil no cabe la lateral» y se escondía con
+ * `md:hidden`. Ya no: quien monta este cajón lo hace SOLO cuando
+ * la fila se ha medido y no cabe, así que un corte por ancho aquí
+ * dentro sería un segundo criterio peleando con el primero —y la
+ * hamburguesa quedaría sin nada que abrir en la franja donde los
+ * dos no coinciden.
+ */
 function CajonMovil({
   abierto,
   alCerrar,
@@ -1034,14 +1058,14 @@ function CajonMovil({
       <div
         onClick={alCerrar}
         aria-hidden
-        className={`no-imprimir fixed inset-0 z-40 bg-black/50 transition-opacity duration-200 md:hidden ${
+        className={`no-imprimir fixed inset-0 z-40 bg-black/50 transition-opacity duration-200 ${
           abierto ? "opacity-100" : "pointer-events-none opacity-0"
         }`}
       />
       <nav
         aria-label="Secciones del panel"
         aria-hidden={!abierto}
-        className={`no-imprimir fixed inset-y-0 left-0 z-50 flex w-[270px] flex-col border-r border-encabezado-borde bg-encabezado-fondo px-4 py-4 text-encabezado-texto transition-transform duration-200 md:hidden ${
+        className={`no-imprimir fixed inset-y-0 left-0 z-50 flex w-[270px] flex-col border-r border-encabezado-borde bg-encabezado-fondo px-4 py-4 text-encabezado-texto transition-transform duration-200 ${
           abierto ? "translate-x-0" : "-translate-x-full"
         }`}
       >
@@ -1098,84 +1122,44 @@ export function AccionesDePagina({ children }: { children: React.ReactNode }) {
   return createPortal(children, ranura);
 }
 
-function Cabecera({
-  ruta,
-  alAbrirMenu,
-  admin,
-  alSalir,
-}: {
-  ruta: string;
-  alAbrirMenu: () => void;
-  admin: AdminActual;
-  alSalir: () => void;
-}) {
+/**
+ * Dónde está uno, para la fila 2.
+ *
+ * Era el `<nav>` de la cabecera vieja y se levanta TAL CUAL: el
+ * marcado es el mismo, solo cambia de casa. La cabecera de una
+ * fila con hamburguesa, migas, ranura y `ChipUsuario` se fue
+ * entera al portar el armazón de dos filas; su navegación, su
+ * ranura y su bloque de usuario viven ahora en
+ * `cabecera-topbar.tsx`.
+ *
+ * Se pinta solo por debajo de `xl` --lo decide quien la monta--
+ * porque a partir de ahí el módulo lo dice la píldora activa de
+ * la fila. Que la RUTA COMPLETA vuelva o no a pantalla ancha es
+ * una decisión del cliente todavía abierta: dos documentos de la
+ * casa dicen que la ruta de navegación nunca se pierde, y el
+ * montaje que él mandó simplemente no la dibuja. Hasta que
+ * conteste, esto no se borra.
+ */
+function Migas({ ruta }: { ruta: string }) {
   return (
-    <header
-      /// Ni pegada ni con `top`, y es lo correcto ahora.
-      ///
-      /// El contenedor del panel tiene altura fija y
-      /// `overflow-hidden`, asi que ES el scroll container de
-      /// lo pegado. Con `top: var(--franja-alto)` -- pensado
-      /// para pegarse a la VENTANA -- sticky la empujaba 36 px
-      /// hacia abajo dentro de ese contenedor y tapaba el
-      /// arranque del contenido. Aqui es un hermano flex que
-      /// no puede irse: no hace falta pegarla.
-      ///
-      /// La franja se descuenta UNA vez, en el contenedor.
-      /// 52 px, y el relleno de la banda: 24, y 16 por debajo
-      /// de 1024. Medía 56 y sangraba 16 o 32 según el ancho,
-      /// así que el título de la pantalla no arrancaba en la
-      /// misma vertical que la miga de encima de él. El
-      /// presupuesto de 900 px sale de aquí: 28 de franja + 52
-      /// de cabecera + 28 de pie dejan 792 px de trabajo.
-      className="no-imprimir z-30 flex h-[52px] shrink-0 items-center gap-3 border-b border-encabezado-borde bg-encabezado-fondo px-4 text-encabezado-texto lg:px-6"
-    >
-      <button
-        onClick={alAbrirMenu}
-        aria-label="Abrir menú"
-        className="text-encabezado-suave hover:bg-encabezado-alterna hover:text-encabezado-texto -ml-1 rounded-plano p-2 transition md:hidden"
-      >
-        <IconoMenu tamano={20} />
-      </button>
-
-      {/* La miga: los pasos de atrás apagados y el de ahora
-          entero. Destaca por COLOR, no por peso —el 600 es del
-          estado y de nada más—, y el gris sale del token del
-          propio marco en vez de una opacidad. */}
-      <nav aria-label="Dónde está" className="dato flex min-w-0 items-center gap-1.5">
-        {migas(ruta).map((paso, i, todas) => (
-          <span key={paso} className="flex min-w-0 items-center gap-1.5">
-            {i > 0 && (
-              <span aria-hidden className="text-encabezado-suave">
-                /
-              </span>
-            )}
-            <span
-              className={`truncate ${
-                i === todas.length - 1
-                  ? "text-encabezado-texto"
-                  : "text-encabezado-suave"
-              }`}
-            >
-              {paso}
+    <nav aria-label="Dónde está" className="flex min-w-0 items-center gap-1.5 text-sm">
+      {migas(ruta).map((paso, i, todas) => (
+        <span key={paso} className="flex min-w-0 items-center gap-1.5">
+          {i > 0 && (
+            <span aria-hidden className="opacity-30">
+              /
             </span>
+          )}
+          <span
+            className={`truncate ${
+              i === todas.length - 1 ? "font-semibold" : "opacity-55"
+            }`}
+          >
+            {paso}
           </span>
-        ))}
-      </nav>
-
-      {/* Donde cada pantalla cuelga sus acciones. Vive aqui y
-          no en el cuerpo para que no se muevan al hacer scroll
-          ni empujen el titulo hacia abajo. */}
-      <div
-        id={RANURA_ACCIONES}
-        className="ml-auto flex flex-wrap items-center justify-end gap-3"
-      />
-
-      {/* Arriba se queda quien esta dentro, y nada mas. Los
-          ajustes -- apariencia y accesibilidad -- bajaron al
-          pie de la barra: se tocan una vez y se dejan. */}
-      <ChipUsuario admin={admin} alSalir={alSalir} />
-    </header>
+        </span>
+      ))}
+    </nav>
   );
 }
 

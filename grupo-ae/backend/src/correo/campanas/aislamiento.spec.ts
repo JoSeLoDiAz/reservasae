@@ -107,12 +107,12 @@ describe('crear no acepta la unidad de negocio que le manden', () => {
         { nombre: 'x', asunto: 'x', cuerpo: 'x', segmento: {} },
         'admin1',
       ),
-    ).rejects.toThrow(/acceso a esa unidad de negocio/i);
+    ).rejects.toThrow(/acceso a esa línea de negocio/i);
   });
 
   it('y contar a cuántos va, tampoco', async () => {
     await expect(
       servicio().aCuantos('conv-adecopria', {}, DE_ELLOS),
-    ).rejects.toThrow(/acceso a esa unidad de negocio/i);
+    ).rejects.toThrow(/acceso a esa línea de negocio/i);
   });
 });

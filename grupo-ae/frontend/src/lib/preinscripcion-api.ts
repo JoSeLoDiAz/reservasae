@@ -116,7 +116,22 @@ export type FichaAbierta = {
   departamentos: ValorSep[];
   /** [id, departamentoId, nombre]: se filtra sin pedir nada. */
   municipios: Array<[number, number, string]>;
+  /// Lo que esta instalación NO pregunta. Lo decide el servidor
+  /// (`crm/lo-que-no-se-pregunta.ts`), que es quien también
+  /// decide qué «falta»: si la pantalla llevara su propia lista,
+  /// podría dejar de pedir algo que el panel sigue exigiendo.
+  ///
+  /// Opcional porque un servidor anterior no lo manda; entonces
+  /// se pregunta todo, como antes.
+  camposOcultos?: CampoOcultable[];
+  /// «COMPRA» es la de Grupo AE: «¿A nombre de quién es la
+  /// compra?». «LABORAL» es la de la convocatoria: «¿Cuál es su
+  /// situación laboral actual?». Sin el dato, la de antes.
+  preguntaDelVinculo?: "COMPRA" | "LABORAL";
 };
+
+/// Los datos que el servidor puede ocultar del enlace.
+export type CampoOcultable = "fechaNacimiento" | "estrato" | "poblacionVulnerable";
 
 
 export const preinscripcionApi = {

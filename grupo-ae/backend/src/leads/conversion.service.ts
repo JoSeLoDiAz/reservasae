@@ -168,7 +168,7 @@ export class ConversionDeLeads {
       : await politicaVigente(this.prisma, lead.convenioId);
     if (!opciones?.sinConstancia && !politica) {
       throw new BadRequestException(
-        'Esta unidad de negocio no tiene política de tratamiento de datos publicada, ' +
+        'Esta línea de negocio no tiene política de tratamiento de datos publicada, ' +
           'así que no hay contra qué dejar la constancia. Publíquela en ' +
           'Configuración → Políticas y vuelva a intentarlo.',
       );

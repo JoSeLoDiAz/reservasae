@@ -12,6 +12,9 @@ import { CrmModule } from './crm/crm.module';
 import { OportunidadesModule } from './oportunidades/oportunidades.module';
 import { GestionesModule } from './gestiones/gestiones.module';
 import { MetasModule } from './metas/metas.module';
+import { CuentasModule } from './cuentas/cuentas.module';
+import { ParametrosModule } from './parametros/parametros.module';
+import { ServiciosModule } from './servicios/servicios.module';
 import { CaptacionModule } from './captacion/captacion.module';
 import { ThrottlerIpGuard } from './comun/throttler-ip.guard';
 import { FormulariosModule } from './formularios/formularios.module';
@@ -51,6 +54,9 @@ import { TablerosModule } from './tableros/tableros.module';
     // AdminGuard se resuelve en el modulo del controlador.
     GestionesModule,
     MetasModule,
+    CuentasModule,
+    ParametrosModule,
+    ServiciosModule,
     // Publico a proposito: su controlador no lleva guard, asi que no
     // necesita JwtModule.
     CaptacionModule,

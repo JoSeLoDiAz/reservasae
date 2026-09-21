@@ -22,6 +22,11 @@
  */
 
 import { faltaDeLaPersona } from './completitud';
+import {
+  NO_SE_PREGUNTAN,
+  seLePregunta,
+  type CampoOcultable,
+} from './lo-que-no-se-pregunta';
 
 /// Lo que la regla puede pedir, y dónde se pregunta cada uno.
 ///
@@ -42,6 +47,22 @@ const DONDE_SE_PIDE: Record<string, 'RESERVA' | 'ENLACE'> = {
   dirección: 'ENLACE',
   'barrio o vereda': 'ENLACE',
   'nivel ocupacional': 'ENLACE',
+};
+
+/// Lo de la tabla que una instalación puede dejar de preguntar.
+///
+/// Siguen en `DONDE_SE_PIDE` porque el enlace SÍ sabe
+/// preguntarlos —el código está, oculto por configuración—. Lo
+/// que cambia es que, ocultos, la regla tampoco los exige: si los
+/// exigiera, sería otra vez el callejón del municipio.
+const OCULTABLE_POR_TEXTO: Record<string, CampoOcultable> = {
+  'fecha de nacimiento': 'fechaNacimiento',
+  estrato: 'estrato',
+};
+
+const estaOculto = (texto: string) => {
+  const campo = OCULTABLE_POR_TEXTO[texto];
+  return campo !== undefined && !seLePregunta(campo);
 };
 
 /** Una persona sin absolutamente nada: lo pide todo. */
@@ -98,12 +119,51 @@ describe('lo que la regla exige está en la tabla', () => {
       } as never),
     ]);
 
+    /// Lo oculto por configuración es la única excepción: la
+    /// tabla sabe dónde se pregunta, pero esta instalación no lo
+    /// pregunta, y entonces la regla tampoco lo emite.
     for (const declarado of Object.keys(DONDE_SE_PIDE)) {
       expect({ declarado, loEmite: emitidos.has(declarado) }).toEqual({
         declarado,
-        loEmite: true,
+        loEmite: !estaOculto(declarado),
       });
     }
+  });
+});
+
+describe('lo que no se pregunta, no se exige', () => {
+  it('una ficha vacía no reclama nada de lo que el enlace oculta', () => {
+    /// El caso concreto: Grupo AE no pregunta la fecha de
+    /// nacimiento ni el estrato. Si la regla los siguiera
+    /// pidiendo, cada contacto saldría «parcial» para siempre y
+    /// el enlace que se le manda para completarlo no se los
+    /// preguntaría.
+    const falta = faltaDeLaPersona(VACIA as never);
+    for (const [texto, campo] of Object.entries(OCULTABLE_POR_TEXTO)) {
+      if (!NO_SE_PREGUNTAN.has(campo)) continue;
+      expect({ texto, loExige: falta.includes(texto) }).toEqual({
+        texto,
+        loExige: false,
+      });
+    }
+  });
+
+  it('en Grupo AE la fecha de nacimiento y el estrato están ocultos', () => {
+    /// Fijado a propósito. Si alguien los vuelve a preguntar, que
+    /// sea una decisión y no un descuido: este test le obliga a
+    /// venir aquí y decirlo.
+    expect(seLePregunta('fechaNacimiento')).toBe(false);
+    expect(seLePregunta('estrato')).toBe(false);
+    expect(seLePregunta('poblacionVulnerable')).toBe(false);
+  });
+
+  it('lo que sí se pregunta se sigue exigiendo', () => {
+    /// Ocultar dos datos no puede apagar la regla entera: el
+    /// domicilio y el nivel ocupacional se siguen pidiendo.
+    const falta = faltaDeLaPersona(VACIA as never);
+    expect(falta).toEqual(
+      expect.arrayContaining(['departamento', 'municipio', 'nivel ocupacional']),
+    );
   });
 });
 

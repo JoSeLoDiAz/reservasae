@@ -29,6 +29,11 @@ import {
 
 type ValorContexto = {
   marca: Marca | null;
+  /// La primera lectura de la marca TERMINÓ, haya traído datos o no.
+  /// El acceso espera esto para quitar su pantalla de carga; si solo
+  /// se marcara con datos, una marca que falla dejaría la pantalla
+  /// cubierta para siempre (traído de Convoca, 17 sep 2026).
+  listo: boolean;
   modo: ModoElegido;
   esquema: Esquema;
   cambiarModo: (modo: ModoElegido) => void;
@@ -53,6 +58,7 @@ function leerModoGuardado(): ModoElegido {
 /** Aplica colores y textos de la marca del ambito. */
 export function ProveedorMarca({ children }: { children: React.ReactNode }) {
   const [marca, setMarca] = useState<Marca | null>(null);
+  const [listo, setListo] = useState(false);
   const [modo, setModo] = useState<ModoElegido>("sistema");
   const [esquema, setEsquema] = useState<Esquema>("CLARO");
 
@@ -80,7 +86,9 @@ export function ProveedorMarca({ children }: { children: React.ReactNode }) {
   }, [ambito]);
 
   useEffect(() => {
-    void recargar();
+    /// `recargar` se traga sus errores, así que el `finally` corre
+    /// siempre: la pantalla se destapa aunque la marca no llegue.
+    void recargar().finally(() => setListo(true));
   }, [recargar]);
 
   // el defecto del admin solo manda si nadie eligio
@@ -144,7 +152,7 @@ export function ProveedorMarca({ children }: { children: React.ReactNode }) {
   }, []);
 
   return (
-    <ContextoMarca.Provider value={{ marca, modo, esquema, cambiarModo, recargar }}>
+    <ContextoMarca.Provider value={{ marca, listo, modo, esquema, cambiarModo, recargar }}>
       {estilos && <style dangerouslySetInnerHTML={{ __html: estilos }} />}
       {children}
     </ContextoMarca.Provider>
@@ -153,13 +161,35 @@ export function ProveedorMarca({ children }: { children: React.ReactNode }) {
 
 // conmutador de tema
 
-const OPCIONES: Array<{ valor: ModoElegido; etiqueta: string; icono: React.ReactNode }> = [
-  { valor: "claro", etiqueta: "Claro", icono: <IconoSol /> },
-  { valor: "oscuro", etiqueta: "Oscuro", icono: <IconoLuna /> },
-  { valor: "sistema", etiqueta: "Automático", icono: <IconoSistema /> },
+/// El icono es una FUNCIÓN y no un nodo: necesita saber si se
+/// está pintando menudo, y un nodo ya construido no admite que se
+/// lo digan después.
+const OPCIONES: Array<{
+  valor: ModoElegido;
+  etiqueta: string;
+  icono: (menudo: boolean) => React.ReactNode;
+}> = [
+  { valor: "claro", etiqueta: "Claro", icono: (m) => <IconoSol menudo={m} /> },
+  { valor: "oscuro", etiqueta: "Oscuro", icono: (m) => <IconoLuna menudo={m} /> },
+  { valor: "sistema", etiqueta: "Automático", icono: (m) => <IconoSistema menudo={m} /> },
 ];
 
-export function ConmutadorTema({ compacto = false }: { compacto?: boolean }) {
+export function ConmutadorTema({
+  compacto = false,
+  menudo = false,
+}: {
+  compacto?: boolean;
+  /// Aún más pequeño que `compacto`, para la píldora flotante del
+  /// panel.
+  ///
+  /// Es una variante APARTE y no un `compacto` más chico porque
+  /// `compacto` lo usan también el acceso y el pie de las pantallas
+  /// públicas, donde el tamaño de ahora está aprobado. El cliente
+  /// pidió tres veces que la píldora del panel fuera más pequeña, y
+  /// encoger la cápsula de fuera no movía nada: el alto lo fijan
+  /// estos botones.
+  menudo?: boolean;
+}) {
   const { marca, modo, cambiarModo } = useMarca();
 
   // el admin puede apagar el conmutador
@@ -169,7 +199,16 @@ export function ConmutadorTema({ compacto = false }: { compacto?: boolean }) {
     <div
       role="group"
       aria-label="Tema de la interfaz"
-      className="rounded-plano border-borde bg-superficie inline-flex border p-0.5"
+      /// EN PASTILLA, no en caja de esquinas suaves. Lo pidió el
+      /// cliente el 12 sep 2026 con su montaje del acceso: «en
+      /// donde están los modos, más redondito». Va en el
+      /// componente y no en la pantalla porque el conmutador es el
+      /// mismo en el acceso y en las públicas, y dos formas
+      /// distintas del mismo control es justo lo que hace que una
+      /// interfaz se vea cosida a mano.
+      className={`inline-flex rounded-full border border-borde bg-superficie ${
+        menudo ? "p-[1px]" : "p-0.5"
+      }`}
     >
       {OPCIONES.map((opcion) => {
         const activa = modo === opcion.valor;
@@ -206,15 +245,26 @@ export function ConmutadorTema({ compacto = false }: { compacto?: boolean }) {
             onMouseDown={(e) => e.preventDefault()}
             aria-pressed={activa}
             title={opcion.etiqueta}
-            /// Lo elegido se dice con la LETRA, no con un fondo
-            /// azul claro: `--marca-suave` tiene dos sitios y
-            /// solo dos, la entrada activa de la barra lateral
-            /// y la fila de tabla bajo el ratón.
-            className={`dato rounded-plano inline-flex items-center gap-1.5 px-2.5 py-1 transition ${
-              activa ? "text-marca" : "text-texto-suave hover:text-texto"
+            /// Redondos del todo, como la pastilla que los
+            /// contiene: con las esquinas a medio redondear, el
+            /// botón marcado dibujaba un rectángulo dentro de una
+            /// pastilla y se veían las dos formas peleando.
+            /// AQUÍ ESTÁ EL TAMAÑO, y no en el contenedor.
+            ///
+            /// `px-2.5 py-1.5` con un icono de 16 da 28 px de
+            /// botón: eso, más el relleno del grupo, son los 32 px
+            /// que fijaban el alto de la píldora del panel. Encoger
+            /// la cápsula de fuera no movía esto ni un píxel.
+            /// Menudo: 18 px.
+            className={`inline-flex items-center gap-1.5 rounded-full transition ${
+              menudo ? "px-2 py-1 text-xs" : "px-2.5 py-1.5 text-sm"
+            } ${
+              activa
+                ? "bg-marca-suave font-medium text-marca"
+                : "text-texto-suave hover:text-texto"
             }`}
           >
-            {opcion.icono}
+            {opcion.icono(menudo)}
             {!compacto && <span>{opcion.etiqueta}</span>}
           </button>
         );
@@ -233,7 +283,10 @@ export function ConmutadorTema({ compacto = false }: { compacto?: boolean }) {
 /// puede olvidarla al escribir la septima.
 export function BannerLogos() {
   const { marca } = useMarca();
-  const logos = marca?.logos ?? [];
+  /// La tarjeta pública es CLARA: fuera la variante de letra blanca.
+  /// Sin este filtro salían las dos versiones del mismo logo lado a
+  /// lado, y la blanca no se veía (QA, 17 sep 2026).
+  const logos = (marca?.logos ?? []).filter((l) => l.esquema !== "OSCURO");
 
   return (
     <div className="flex flex-col items-start gap-5">
@@ -367,26 +420,44 @@ const TRAZO = {
   strokeLinejoin: "round",
 } as const;
 
-function IconoSol() {
+/// `menudo` encoge el icono, y es lo que de verdad encoge el
+/// conmutador: el alto del botón lo fija su contenido, no la
+/// cápsula que lo rodea.
+function IconoSol({ menudo = false }: { menudo?: boolean }) {
   return (
-    <svg viewBox="0 0 24 24" className="size-4 shrink-0" aria-hidden {...TRAZO}>
+    <svg
+      viewBox="0 0 24 24"
+      className={`shrink-0 ${menudo ? "size-3.5" : "size-4"}`}
+      aria-hidden
+      {...TRAZO}
+    >
       <circle cx="12" cy="12" r="4" />
       <path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" />
     </svg>
   );
 }
 
-function IconoLuna() {
+function IconoLuna({ menudo = false }: { menudo?: boolean }) {
   return (
-    <svg viewBox="0 0 24 24" className="size-4 shrink-0" aria-hidden {...TRAZO}>
+    <svg
+      viewBox="0 0 24 24"
+      className={`shrink-0 ${menudo ? "size-3.5" : "size-4"}`}
+      aria-hidden
+      {...TRAZO}
+    >
       <path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z" />
     </svg>
   );
 }
 
-function IconoSistema() {
+function IconoSistema({ menudo = false }: { menudo?: boolean }) {
   return (
-    <svg viewBox="0 0 24 24" className="size-4 shrink-0" aria-hidden {...TRAZO}>
+    <svg
+      viewBox="0 0 24 24"
+      className={`shrink-0 ${menudo ? "size-3.5" : "size-4"}`}
+      aria-hidden
+      {...TRAZO}
+    >
       <rect x="2" y="4" width="20" height="13" rx="2" />
       <path d="M8 21h8M12 17v4" />
     </svg>

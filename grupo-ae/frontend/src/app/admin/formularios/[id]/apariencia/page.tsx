@@ -61,7 +61,7 @@ export default function PaginaAparienciaFormulario({
         }}
         tituloLogos="Logos del formulario"
         tituloColores="Colores"
-        descripcionLogos="Hasta tres, uno por entidad. Sin ninguno propio se muestran los de la apariencia general. SVG, PNG o WebP con fondo transparente, máximo 1 MB cada uno; se ven a 80 px de alto."
+        descripcionLogos="Hasta tres, uno por marca. Sin ninguno propio se muestran los de la apariencia general. SVG, PNG o WebP con fondo transparente, máximo 1 MB cada uno; se ven a 80 px de alto."
       />
     </div>
   );

@@ -5,6 +5,8 @@ import type { NestExpressApplication } from '@nestjs/platform-express';
 import cookieParser from 'cookie-parser';
 
 import { AppModule } from './app.module';
+import { ErroresDeBaseFilter } from './comun/errores-de-base.filter';
+import { errorDeValidacionEnEspanol } from './comun/validacion-en-espanol';
 
 /// Los valores de los .env.example. Que alguien arranque con
 /// uno de estos puestos es lo mismo que no tener secreto: son
@@ -129,8 +131,27 @@ async function bootstrap() {
       forbidNonWhitelisted: true,
       transform: true,
       transformOptions: { enableImplicitConversion: true },
+      /// Los mensajes de fábrica de class-validator salen en inglés
+      /// («correo must be an email») y el panel los pinta tal cual.
+      /// Se traducen solo esos; los propios de cada DTO no se tocan.
+      exceptionFactory: errorDeValidacionEnEspanol,
     }),
   );
+
+  /// Los choques con la base, dichos como se entienden.
+  ///
+  /// Sin esto, un duplicado o una carrera entre dos asesores
+  /// salia como 500 «Internal server error», en ingles, y la
+  /// persona concluia que el sistema se habia caido. Ahora un
+  /// P2002 es 409, un P2025 es 404, un P2003 es 409, y el resto
+  /// es un 500 en español que no cuenta nada de adentro. El
+  /// porque de cada uno esta en el filtro.
+  ///
+  /// Se le pasa el adaptador HTTP porque contesta a traves de
+  /// `BaseExceptionFilter`, y ese, creado con `new` por fuera
+  /// del contenedor, no lo recibe solo: sin el, el primer error
+  /// tumbaria la respuesta en vez de contestarla.
+  app.useGlobalFilters(new ErroresDeBaseFilter(app.getHttpAdapter()));
 
   // 0.0.0.0: nginx vive en otro contenedor
   await app.listen(process.env.PORT ?? 4000, '0.0.0.0');

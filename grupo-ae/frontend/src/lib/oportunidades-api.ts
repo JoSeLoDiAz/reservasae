@@ -27,6 +27,19 @@ export type MotivoCierre =
   | "DATOS_ERRADOS"
   | "OTRO";
 
+/**
+ * Las dos señales de que un negocio se está pudriendo.
+ *
+ * NO son etapas y no van en `EtapaOportunidad`: cruzan el embudo.
+ * El porqué largo está en el backend, en `oportunidades/senales.ts`,
+ * y ahí es donde hay que leerlo antes de cambiar nada de esto.
+ *
+ * Llegan como código y no como texto para no mandar la misma frase
+ * repetida en cada una de las tarjetas del tablero. Las palabras
+ * están en `ROTULO_SENAL` y `PORQUE_SENAL`, abajo.
+ */
+export type Senal = "MUERTO_VIVIENTE" | "BANANEO";
+
 export type OportunidadEnTablero = {
   id: string;
   codigo: string;
@@ -42,6 +55,32 @@ export type OportunidadEnTablero = {
   campana: string | null;
   asesor: { id: string; nombre: string } | null;
   deQuien: string | null;
+  /// Qué se vende, del portafolio. Null en los que nacieron antes.
+  /// La unidad («licencia», «equipo») es la que se lee al lado de la
+  /// cantidad en la tarjeta: «40 licencias».
+  servicio: { nombre: string; unidad: string } | null;
+  cantidad: number | null;
+  /// Lo facturado. Null mientras no se haya facturado.
+  valorFacturado: number | null;
+  /// Vacío es lo normal: un negocio sano no lleva ninguna.
+  senales: Senal[];
+};
+
+/// Las mismas palabras que `senales.ts` en el backend. Son dos
+/// paquetes y el panel no puede importar de allá; si cambia una,
+/// cambia la otra.
+export const ROTULO_SENAL: Record<Senal, string> = {
+  MUERTO_VIVIENTE: "Muerto viviente",
+  BANANEO: "Bananeo",
+};
+
+/// Por qué está marcada. Sin esto la marca no se la cree nadie y
+/// en dos semanas todo el mundo la ignora.
+export const PORQUE_SENAL: Record<Senal, string> = {
+  MUERTO_VIVIENTE:
+    "La fecha de cierre que tiene puesta ya pasó y sigue abierta. Cámbiele la fecha o ciérrela.",
+  BANANEO:
+    "Ya se le hicieron varias gestiones y no se ha movido de etapa. O no es quien decide, o no hay presupuesto.",
 };
 
 export type ColumnaDelEmbudo = {
@@ -85,7 +124,14 @@ export type ResumenDeVentas = {
   };
   mes: {
     ganadas: number;
+    /// Lo cotizado de los negocios ganados en el mes.
     ganado: number;
+    /// Lo FACTURADO de los negocios ganados en el mes, y cuántos de
+    /// ellos ya tienen factura. No es lo mismo que `ganado`: se gana
+    /// al cerrar y se factura después, y la diferencia es plata que
+    /// todavía no ha entrado.
+    facturado: number;
+    facturadas: number;
     perdidas: number;
     perdido: number;
     /// Null cuando no se ha cerrado nada: un 0 % con cero cierres
@@ -94,6 +140,14 @@ export type ResumenDeVentas = {
   };
   reloj: {
     esperando: number;
+    /// Las que pasaron de SU compromiso: cinco minutos en
+    /// personas, un día en empresas. El número sale de
+    /// `oportunidades/ans.ts`, en el backend.
+    incumplidos: number;
+    /// El nombre viejo, con el MISMO número que `incumplidos`.
+    /// Contaba cinco minutos para los dos embudos, que era el
+    /// fallo. Se queda mientras haya algo que lo lea.
+    /// @deprecated use `incumplidos`
     pasadosDeCinco: number;
     /// La mediana, no el promedio: un lead olvidado tres días
     /// dispara la media y esconde que el resto se contesta en
@@ -115,6 +169,41 @@ export type ResumenDeVentas = {
     cuantas: number;
     total: number;
   }>;
+  /**
+   * El dinero por LÍNEA DE NEGOCIO: Educación y Empresas.
+   *
+   * No es lo mismo que el embudo. El embudo dice por dónde entró
+   * el negocio —una organización o una persona—; la línea dice qué
+   * se le está vendiendo, y sale del servicio del portafolio.
+   *
+   * «Sin servicio elegido» es una línea más a propósito: son los
+   * negocios que faltan por completar, y esconderlos haría que las
+   * dos cifras de arriba no cuadraran con el total.
+   */
+  porLinea: Array<{
+    linea: "EDUCACION" | "EMPRESAS" | "SIN_LINEA";
+    rotulo: string;
+    cuantas: number;
+    total: number;
+    ponderado: number;
+    ganadoDelMes: number;
+  }>;
+  /// Qué se está vendiendo: lo abierto por servicio, de mayor a
+  /// menor. Los ocho primeros.
+  mixDeProductos: Array<{
+    id: string;
+    nombre: string;
+    linea: string;
+    cuantas: number;
+    total: number;
+  }>;
+  /// Con qué umbrales se calculó esto. Se enseñan al pie del reloj:
+  /// una alerta que no dice contra qué compromiso salta no se puede
+  /// defender en una reunión.
+  parametros: {
+    ans: Record<TipoEmbudo, number>;
+    diasParaFria: number;
+  };
   porCampana: Array<{
     campana: string;
     cuantas: number;
@@ -158,12 +247,20 @@ export type FichaDeOportunidad = {
   embudo: TipoEmbudo;
   etapa: EtapaOportunidad;
   titulo: string;
+  /// Lo COTIZADO. La columna se sigue llamando `valor` en la base y
+  /// en la API: renombrarla rompería todo lo que ya la lee. En
+  /// pantalla se dice «Valor cotizado».
   valor: number;
+  /// Lo FACTURADO de verdad. Null mientras no se haya facturado: un
+  /// cero diría que se facturó cero, que es otra cosa.
+  valorFacturado: number | null;
   moneda: string;
   probabilidad: number;
   probabilidadPropia: boolean;
   cierreEsperado: string | null;
   campana: string | null;
+  servicio: { id: string; nombre: string; familia: "EDUCACION" | "EMPRESAS"; unidad: string } | null;
+  cantidad: number | null;
   creadoEn: string;
   ultimoToqueEn: string;
   primeraRespuestaEn: string | null;
@@ -194,14 +291,23 @@ export const oportunidadesApi = {
     cambios: {
       titulo?: string;
       valor?: number;
+      /// Null lo devuelve a «sin facturar».
+      valorFacturado?: number | null;
       cierreEsperado?: string | null;
       campana?: string | null;
+      servicioId?: string | null;
+      cantidad?: number | null;
     },
   ) =>
     pedir<FichaDeOportunidad>(`/admin/oportunidades/${id}`, {
       method: "PATCH",
       body: JSON.stringify(cambios),
     }),
+
+  /// A quién se le puede pasar: la misma regla que aplica el servidor
+  /// al guardar, así el desplegable no ofrece a quien luego rechaza.
+  asesores: (id: string) =>
+    pedir<Array<{ id: string; nombre: string }>>(`/admin/oportunidades/${id}/asesores`),
 
   /// `null` la suelta. Se manda escrito, nunca omitido: un
   /// `undefined` que se cuela dejaría sin dueño un negocio que

@@ -24,18 +24,29 @@ describe('cuándo se puede mandar una plantilla', () => {
   it('si no coincide, dice las DOS cosas: dónde está y dónde debería', () => {
     const no = porQueNo(['INSCRITO'], 'INTERESADO');
     // sin las dos, quien lo lee no sabe qué corregir
-    expect(no).toContain('interesado');
-    expect(no).toContain('con propuesta enviada');
+    expect(no).toContain('«solicitud de negocio»');
+    expect(no).toContain('«cotización enviada»');
   });
 
-  it('una oportunidad sin etapa tampoco pasa si la plantilla exige una', () => {
+  it('con varias etapas, cada una va entre comillas', () => {
+    // sin comillas, «para quien esté en canceló, dejó de
+    // responder» se leía como una oración rota y no como dos
+    // casillas del selector
+    const no = porQueNo(['RETIRADO', 'ABANDONO'], 'CERTIFICADO');
+    expect(no).toContain('solo para «canceló», «dejó de responder»');
+    expect(no).toContain('«cerrado ganado»');
+  });
+
+  it('una ficha sin etapa tampoco pasa si la plantilla exige una', () => {
     expect(porQueNo(['INSCRITO'], null)).toContain('no tiene etapa');
   });
 });
 
 describe('las etapas se dicen en cristiano', () => {
   it('DATOS_COMPLETOS no se le enseña así a nadie', () => {
-    expect(enPalabras('DATOS_COMPLETOS')).toBe('con datos completos');
+    // es la columna «Calificado» del embudo: lo calcula el
+    // sistema cuando la ficha está completa
+    expect(enPalabras('DATOS_COMPLETOS')).toBe('calificado');
   });
 
   it('EN_FORMACION tampoco', () => {
@@ -59,8 +70,8 @@ describe('las etapas de salida también cuentan', () => {
 
   it('y una plantilla de «se perdió» NO le sale a quien sigue vivo', () => {
     const no = porQueNo(['PERDIDO'], 'INSCRITO');
-    expect(no).toContain('con propuesta enviada');
-    expect(no).toContain('perdido');
+    expect(no).toContain('«cotización enviada»');
+    expect(no).toContain('«cerrado perdido»');
   });
 
   it('las once tienen nombre en cristiano', () => {

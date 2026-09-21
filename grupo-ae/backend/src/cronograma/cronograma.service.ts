@@ -217,7 +217,7 @@ export class CronogramaService {
     if (tope < dentro) {
       throw new BadRequestException(
         `El grupo ${cobertura.grupo.numero} de ${cobertura.ubicacion.nombre} ya tiene ` +
-          `${dentro} personas dentro: el tope no puede bajar de ahi. Muevalas primero.`,
+          `${dentro} personas dentro: el tope no puede bajar de ahí. Muévalas primero.`,
       );
     }
 
@@ -236,7 +236,7 @@ export class CronogramaService {
       });
       if (!oferta) {
         throw new BadRequestException(
-          'Esa sede no tiene oferta de esta accion: no hay donde sumar los cupos.',
+          'Esa sede no tiene oferta de esta acción: no hay dónde sumar los cupos.',
         );
       }
       await tx.$queryRaw`SELECT "id" FROM "ofertas" WHERE "id" = ${oferta.id} FOR UPDATE`;
