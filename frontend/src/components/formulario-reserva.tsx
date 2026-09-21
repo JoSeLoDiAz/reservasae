@@ -531,8 +531,16 @@ function ControlPregunta({
           ? "date"
           : "text";
 
+  /// El celular colombiano son DIEZ digitos. Sin este tope se
+  /// tecleaban de once y doce --paso en produccion-- y el
+  /// numero no sirve ni para llamar ni para el reporte.
+  const esCelular = pregunta.campoNucleo === "CONTACTO_CELULAR";
+
   return (
-    <Campo pregunta={pregunta}>
+    <Campo
+      pregunta={pregunta}
+      ayuda={pregunta.ayuda ?? (esCelular ? "Diez dígitos, sin el +57." : undefined)}
+    >
       <input
         required={pregunta.obligatoria}
         type={tipoHtml}
@@ -540,14 +548,23 @@ function ControlPregunta({
         min={pregunta.minimo ?? undefined}
         max={pregunta.maximo ?? undefined}
         minLength={pregunta.largoMinimo ?? undefined}
-        maxLength={pregunta.largoMaximo ?? undefined}
-        placeholder={pregunta.marcador ?? undefined}
+        maxLength={esCelular ? 10 : (pregunta.largoMaximo ?? undefined)}
+        placeholder={pregunta.marcador ?? (esCelular ? "3001234567" : undefined)}
         value={(valor as string) ?? ""}
-        onChange={(e) => poner(e.target.value)}
+        onChange={(e) => poner(esCelular ? soloCelular(e.target.value) : e.target.value)}
         className={CLASE_CONTROL}
       />
     </Campo>
   );
+}
+
+/// Solo dígitos, sin indicativo y con tope de diez: lo mismo
+/// que guarda el servidor.
+function soloCelular(valor: string): string {
+  return valor
+    .replace(/\D/g, "")
+    .replace(/^57(?=\d)/, "")
+    .slice(0, 10);
 }
 
 function Campo({

@@ -1,4 +1,5 @@
 import { Transform, Type } from 'class-transformer';
+import { aCelularGuardable } from '../../comun/celular';
 import { booleanoDeVerdad } from '../../comun/booleano-de-verdad';
 import {
   ArrayMaxSize,
@@ -9,6 +10,7 @@ import {
   IsInt,
   IsOptional,
   IsString,
+  Matches,
   Max,
   MaxLength,
   Min,
@@ -20,6 +22,13 @@ import { RespuestaDto } from '../../formularios/dto';
 
 const recortar = ({ value }: { value: unknown }) =>
   typeof value === 'string' ? value.trim() : value;
+
+/// Vacío es «no lo mandé»: el celular es opcional y una
+/// cadena vacía no puede morir contra el patrón.
+const aCelular = ({ value }: { value: unknown }) => {
+  const limpio = aCelularGuardable(value);
+  return limpio === '' ? undefined : limpio;
+};
 
 export class CrearReservaDto {
   @IsString()
@@ -69,10 +78,16 @@ export class CrearReservaDto {
   @Transform(({ value }) => (typeof value === 'string' ? value.trim().toLowerCase() : value))
   contactoCorreo!: string;
 
+  /// Diez dígitos y nada más. Sin esto entraban de once y de
+  /// doce --pasó en producción-- y ese número no sirve ni para
+  /// llamar ni para el reporte. Se normaliza como en las
+  /// fichas: el +57 se quita y quedan los diez.
   @IsOptional()
+  @Transform(aCelular)
   @IsString()
-  @MaxLength(40)
-  @Transform(recortar)
+  @Matches(/^3\d{9}$/, {
+    message: 'El celular debe tener diez dígitos y empezar por 3.',
+  })
   contactoCelular?: string;
 
   @IsOptional()
