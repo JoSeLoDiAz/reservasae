@@ -21,5 +21,14 @@ ingress:
   - hostname: pre-britcham-adee.reservasae.com
     service: http://nginx-prueba:80
 
+  # El CRM de Grupo AE, la otra instancia del repositorio.
+  #
+  # Su pila es aparte --proyecto, red, base y volumen propios--
+  # y solo su nginx se asoma a esta red, para que este tunel lo
+  # alcance por nombre. Un tunel nuevo costaria otro conector
+  # por una sola direccion.
+  - hostname: pre-grupoae.reservasae.com
+    service: http://grupoae_nginx-prueba:80
+
   # todo lo demas no es de este tunel
   - service: http_status:404
