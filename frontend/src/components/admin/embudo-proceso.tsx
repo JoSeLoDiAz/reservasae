@@ -37,6 +37,10 @@ export type Hito = {
 export type NotaDelEmbudo = {
   cifra: number;
   etiqueta: string;
+  /// La misma cifra en el periodo con el que se compara. Null =
+  /// no se compara. «¿No deberían decir la diferencia?» (cliente,
+  /// 20 sep 2026): una cifra sola no dice si va mejor o peor.
+  antes?: number | null;
   /// El porqué de la cifra, para quien no la vaya a interpretar
   /// igual que quien la puso.
   detalle: string;
@@ -50,6 +54,12 @@ const COLOR_TONO: Record<string, string> = {
   error: "var(--error)",
   neutro: "var(--texto-suave)",
 };
+
+/// «frente a el mismo tramo…» no se dice: es «frente al».
+function contraQue(etiqueta: string | null): string {
+  const e = (etiqueta ?? "antes").toLowerCase();
+  return e.startsWith("el ") ? `al ${e.slice(3)}` : `a ${e}`;
+}
 
 function porcentaje(parte: number, total: number): string {
   if (total <= 0) return "—";
@@ -188,7 +198,13 @@ export function EmbudoProceso({
         </p>
       )}
 
-      <div className="flex items-end gap-3">
+      {/* COLUMNAS ESTIRADAS Y NO ALINEADAS POR ABAJO.
+          Con `items-end`, la columna que lleva la meta debajo
+          empujaba sus barras hacia arriba y el embudo quedaba
+          escalonado: «sigue siendo inconcluso» (cliente, 20 sep
+          2026). Ahora el área de las barras mide lo mismo en
+          todas y el pie también, así que todas comparten línea. */}
+      <div className="flex items-stretch gap-3">
         {hitos.map((h, i) => {
           const antesDe = antes?.[i];
           const hayAntes = antesDe !== undefined;
@@ -209,7 +225,7 @@ export function EmbudoProceso({
               /// que quede: este embudo es una lista fija, no se
               /// reordena ni se filtra en el navegador.
               key={`${h.etiqueta}#${i}`}
-              className="flex min-w-0 flex-1 flex-col items-center"
+              className="flex min-w-0 flex-1 flex-col items-center justify-end"
               title={`${h.etiqueta}: ${n(h.total)} de ${n(primero)} (${porcentaje(h.total, primero)})${
                 caida > 0 ? ` · ${n(caida)} no pasaron del paso anterior` : ""
               }`}
@@ -270,9 +286,10 @@ export function EmbudoProceso({
                 )}
               </div>
 
-              <div className="mt-2 text-center text-[0.75rem] leading-[1.15] font-semibold text-titulo">
-                {h.etiqueta}
-              </div>
+              <div className="mt-2 flex h-[38px] flex-col items-center justify-start">
+                <div className="text-center text-[0.75rem] leading-[1.15] font-semibold text-titulo">
+                  {h.etiqueta}
+                </div>
               {!sobrio && (
                 <div className="mt-0.5 text-[0.6875rem] text-texto-suave tabular-nums">
                   {porcentaje(h.total, primero)}
@@ -283,15 +300,17 @@ export function EmbudoProceso({
                 <ContraAntes ahora={h.total} antes={antes[i]} etiqueta={etiquetaAntes} />
               )}
 
-              {/* La meta del SENA, colgada del último hito. */}
-              {esUltimo && meta !== null && meta > 0 && (
-                <div
-                  className="mt-1 text-[0.65625rem] font-bold text-marca tabular-nums"
-                  title={`Meta comprometida con el SENA: ${n(meta)} beneficiarios`}
-                >
-                  meta {n(meta)} · {porcentaje(h.total, meta)}
-                </div>
-              )}
+                {/* La meta del SENA, colgada del último hito, y
+                    dentro del pie: fuera de él descuadraba la fila. */}
+                {esUltimo && meta !== null && meta > 0 && (
+                  <div
+                    className="mt-1 text-[0.65625rem] font-bold text-marca tabular-nums"
+                    title={`Meta comprometida con el SENA: ${n(meta)} beneficiarios`}
+                  >
+                    meta {n(meta)} · {porcentaje(h.total, meta)}
+                  </div>
+                )}
+              </div>
             </div>
           );
         })}
@@ -305,7 +324,15 @@ export function EmbudoProceso({
       )}
 
       {notas.length > 0 && (
-        <div className="mt-3 grid gap-2.5 border-t border-hairline pt-3 sm:grid-cols-2 lg:grid-cols-4">
+        <div
+          className="mt-3 grid gap-2.5 border-t border-hairline pt-3 sm:grid-cols-2"
+          style={{
+            gridTemplateColumns:
+              notas.length <= 3
+                ? `repeat(${notas.length}, minmax(0, 1fr))`
+                : undefined,
+          }}
+        >
           {notas.map((nt, i) => (
             <div
               key={`${nt.etiqueta}#${i}`}
@@ -318,8 +345,23 @@ export function EmbudoProceso({
               >
                 {n(nt.cifra)}
               </span>
-              <span className="mt-1.5 block text-[0.75rem] leading-snug text-texto-suave">
+              <span className="mt-1.5 block text-[0.8125rem] leading-snug font-medium text-texto">
                 {nt.etiqueta}
+              </span>
+              {/* EL PORQUÉ, A LA VISTA. Estaba solo en el globo del
+                  cursor, y una cifra con dos palabras debajo no se
+                  interpreta sola (cliente, 20 sep 2026). */}
+              {nt.antes !== null && nt.antes !== undefined && (
+                <span className="mt-1 block text-[0.71875rem] text-texto-suave tabular-nums">
+                  {nt.antes === nt.cifra
+                    ? `igual que ${contraQue(etiquetaAntes).replace(/^a[l]? /, "")}`
+                    : `${nt.cifra > nt.antes ? "+" : "−"}${n(
+                        Math.abs(nt.cifra - nt.antes),
+                      )} frente ${contraQue(etiquetaAntes)} (${n(nt.antes)})`}
+                </span>
+              )}
+              <span className="mt-1 block text-[0.71875rem] leading-snug text-texto-suave">
+                {nt.detalle}
               </span>
             </div>
           ))}

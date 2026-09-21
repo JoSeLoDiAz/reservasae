@@ -103,6 +103,7 @@ export function MapaColombia({
   datos: Array<{ nombre: string; total: number }>;
 }) {
   const [rasgos, setRasgos] = useState<Rasgo[] | null>(null);
+  const [encima, setEncima] = useState<{ nombre: string; total: number } | null>(null);
   const [fallo, setFallo] = useState(false);
 
   useEffect(() => {
@@ -252,7 +253,15 @@ export function MapaColombia({
   }
 
   return (
-    <div className="flex justify-center">
+    /// EL DATO SE VE AL PASAR POR ENCIMA, y no en el globo del
+    /// sistema.
+    ///
+    /// El `<title>` del SVG tarda casi un segundo, no sale en
+    /// táctil y no deja rastro: «me ubico en un departamento y no
+    /// veo datos» (cliente, 20 sep 2026). Ahora el departamento
+    /// bajo el cursor se dice debajo del mapa, con su cifra, y se
+    /// resalta con un borde.
+    <div className="flex flex-col items-center">
       <svg
         viewBox={`0 0 ${dibujo.ancho} ${ALTO}`}
         className="h-auto w-full"
@@ -286,17 +295,36 @@ export function MapaColombia({
             <path
               key={c.nombre}
               d={c.d}
-              stroke="var(--superficie)"
-              strokeWidth={0.6}
+              stroke={c.nombre === encima?.nombre ? "var(--titulo)" : "var(--superficie)"}
+              strokeWidth={c.nombre === encima?.nombre ? 1.2 : 0.6}
               fill={relleno}
               fillOpacity={c.total > 0 && !mezclaOk ? mezcla / 100 : 1}
               className="transition-[fill]"
+              onMouseEnter={() => setEncima({ nombre: c.nombre, total: c.total })}
+              onMouseLeave={() => setEncima(null)}
             >
               <title>{`${c.nombre}: ${n(c.total)} ${c.total === 1 ? "persona" : "personas"}`}</title>
             </path>
           );
         })}
       </svg>
+
+      {/* Siempre ocupa su renglón: sin alto fijo, el mapa salta
+          cada vez que el cursor entra y sale. */}
+      <p className="mt-2 h-5 text-center text-[0.78125rem] text-texto">
+        {encima ? (
+          <>
+            <strong className="font-semibold text-titulo">{encima.nombre}</strong>{" "}
+            <span className="text-texto-suave">
+              · {n(encima.total)} {encima.total === 1 ? "persona" : "personas"}
+            </span>
+          </>
+        ) : (
+          <span className="text-texto-suave">
+            Pase el cursor por un departamento para ver su cifra.
+          </span>
+        )}
+      </p>
     </div>
   );
 }

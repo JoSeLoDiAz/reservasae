@@ -130,6 +130,7 @@ function hitosDe(res: Resumen | null): Hito[] {
 
 export function PanelProceso({
   control,
+  comparar = true,
   alCambiarFiltros,
 }: {
   /// El periodo ya no entra aquí: vive en la cabecera de la
@@ -145,6 +146,8 @@ export function PanelProceso({
    * histórico mientras la cabecera decía «este mes».
    */
   control?: Control | null;
+  /// Falso = no se compara con nada: ni barra gris ni leyenda.
+  comparar?: boolean;
   alCambiarFiltros?: (f: Filtros) => void;
 }) {
   const [convenioId, setConvenioId] = useState("");
@@ -187,7 +190,7 @@ export function PanelProceso({
   /// recalcular «hoy» aquí sería una segunda idea de dónde
   /// empieza el día en Bogotá.
   const actual = control?.ventana.instantes?.actual ?? null;
-  const anterior = control?.ventana.instantes?.anterior ?? null;
+  const anterior = comparar ? (control?.ventana.instantes?.anterior ?? null) : null;
   const [aDesde, aHasta] = [actual?.desde, actual?.hasta];
   const [bDesde, bHasta] = [anterior?.desde, anterior?.hasta];
 
@@ -297,7 +300,7 @@ export function PanelProceso({
       `${trozo(datos, "tienen sus datos completos", "ninguna tiene sus datos completos")} y ` +
       `${trozo(insc, "quedaron inscritas", "ninguna se ha inscrito todavía")}.`
     );
-  }, [hitos, control, cuandoEnFrase]);
+  }, [hitos, cuandoEnFrase]);
 
   const entraron = hitos[0]?.total ?? 0;
   const contactados = hitos[1]?.total ?? 0;
@@ -329,34 +332,56 @@ export function PanelProceso({
     [valorDeFase],
   );
 
+  /**
+   * En qué acabó la gente del periodo. TRES casillas y no cuatro.
+   *
+   * Eran cuatro y dos decían 46 --«aún no se inscriben» y «en
+   * captación por cerrar»--: la misma gente contada por dos
+   * caminos, uno restando y otro sumando etapas. «¿Cómo
+   * interpreto las tarjetas?» (cliente, 20 sep 2026). Ahora cada
+   * persona del periodo cae en una sola, y las tres suman lo que
+   * entró: se puede comprobar de un vistazo.
+   */
+  /// Las mismas tres cifras en el periodo con el que se compara.
+  const deAntes = useMemo(() => {
+    if (!delAnterior) return null;
+    const h = hitosDe(delAnterior);
+    const en = new Map(delAnterior.etapas.map((e) => [e.etapa, e.total]));
+    const inscritosAntes = h[3]?.total ?? 0;
+    const perdidosAntes = en.get("PERDIDO") ?? 0;
+    return {
+      enProceso: (h[0]?.total ?? 0) - inscritosAntes - perdidosAntes,
+      inscritos: inscritosAntes,
+      perdidos: perdidosAntes,
+    };
+  }, [delAnterior]);
+
   const notas = useMemo(
     () => [
       {
         cifra: entraron - inscritos - perdidos,
-        etiqueta: "aún no se inscriben",
-        detalle: "Entraron y todavía no llegaron a inscrito ni dijeron que no.",
-        tono: "error" as const,
-      },
-      {
-        cifra: g("INTERESADO", "CONTACTADO", "DATOS_COMPLETOS"),
-        etiqueta: "en captación por cerrar",
-        detalle: "Siguen en los tres peldaños de captación: se pueden trabajar hoy.",
+        antes: deAntes?.enProceso ?? null,
+        etiqueta: "siguen en proceso, sin inscribirse",
+        detalle:
+          "Entraron, no se han inscrito y tampoco han dicho que no. Son los que se pueden trabajar hoy.",
         tono: "aviso" as const,
       },
       {
-        cifra: perdidos,
-        etiqueta: "no interesados",
-        detalle: "Dijeron que no. Salen del embudo y no cuentan como pendientes.",
-        tono: "neutro" as const,
-      },
-      {
         cifra: inscritos,
-        etiqueta: "inscritos",
+        antes: deAntes?.inscritos ?? null,
+        etiqueta: "se inscribieron",
         detalle: "Llegaron a inscribirse, estén hoy en el aula o no.",
         tono: "exito" as const,
       },
+      {
+        cifra: perdidos,
+        antes: deAntes?.perdidos ?? null,
+        etiqueta: "dijeron que no",
+        detalle: "Marcados como no interesados. Salen del embudo.",
+        tono: "neutro" as const,
+      },
     ],
-    [entraron, inscritos, perdidos, g],
+    [entraron, inscritos, perdidos, deAntes],
   );
 
   /// Mientras llega el dato nuevo, lo viejo se atenúa y no se
@@ -893,43 +918,36 @@ export function PanelProceso({
         </div>
 
         {/* ── 8 · Dónde vive y quién la atiende ── */}
-        <div className="grid gap-4 min-[1000px]:grid-cols-[0.9fr_1.1fr]">
+        {/* Tres bloques y no dos: «prefiero eso como campo aparte
+            al lado del mapa... y reducirle al mapa» (cliente, 20
+            sep 2026). El mapa dice DÓNDE se concentra, la lista
+            CUÁNTOS, y el tercero quién los atiende. */}
+        <div className="grid gap-4 min-[1000px]:grid-cols-[0.75fr_0.85fr_1.1fr]">
+          <Bloque titulo="Por departamento" descripcion="Dónde vive la gente del periodo.">
+            <MapaColombia
+              datos={((delPeriodo ?? resumen)?.departamentos ?? []).map((d) => ({
+                nombre: d.nombre,
+                total: d.total,
+              }))}
+            />
+          </Bloque>
+
           <Bloque
-            titulo="Por departamento"
-            descripcion="Dónde vive la gente inscrita en el periodo."
+            titulo="Cantidad por departamento"
+            descripcion="De más a menos, con lo que pesa cada uno."
           >
-            {/* EL MAPA CON SUS CIFRAS AL LADO.
-                Las cantidades estaban solo en el globo del cursor
-                --un `<title>` de SVG--, que tarda en salir y no se
-                ve de un vistazo: «¿que no filtre pero sí que
-                muestre cantidades, qué pasa?» (cliente, 20 sep
-                2026). La lista dice lo mismo sin tener que buscar
-                el departamento en el mapa. */}
-            <div className="grid gap-4 sm:grid-cols-[1fr_auto]">
-              <MapaColombia
-                datos={((delPeriodo ?? resumen)?.departamentos ?? []).map((d) => ({
-                  nombre: d.nombre,
-                  total: d.total,
+            <ListaBarras
+              datos={[...((delPeriodo ?? resumen)?.departamentos ?? [])]
+                .sort((a, b) => b.total - a.total)
+                .map((d) => ({
+                  clave: String(d.id ?? d.nombre),
+                  etiqueta: d.nombre,
+                  valor: d.total,
                 }))}
-              />
-              {/* EL MISMO componente de barras que usa Tráfico, y
-                  no una lista a mano: dos maneras de pintar la
-                  misma clase de dato se separan a la primera. */}
-              <div className="min-w-[230px]">
-                <ListaBarras
-                  datos={[...((delPeriodo ?? resumen)?.departamentos ?? [])]
-                    .sort((a, b) => b.total - a.total)
-                    .map((d) => ({
-                      clave: String(d.id ?? d.nombre),
-                      etiqueta: d.nombre,
-                      valor: d.total,
-                    }))}
-                  sufijo=" personas"
-                  maximoFilas={6}
-                  vacio="Sin personas en el periodo."
-                />
-              </div>
-            </div>
+              sufijo=" personas"
+              maximoFilas={8}
+              vacio="Sin personas en el periodo."
+            />
           </Bloque>
 
           <Bloque

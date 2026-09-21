@@ -134,11 +134,22 @@ export default function PaginaControl() {
   const [desde, setDesde] = useState("");
   const [hasta, setHasta] = useState("");
   // AUTO: el previo de siempre
-  const [contra, setContra] = useState<Rango | "AUTO">("AUTO");
+  /**
+   * Con qué se compara. «NINGUNO» es no comparar.
+   *
+   * «Si escojo esas dos fechas, esa es la comparativa, ¿no?, ¿por
+   * qué sale comparar con?» (cliente, 20 sep 2026). Elegir dos
+   * fechas es elegir QUÉ PERIODO se mira; comparar es otra cosa y
+   * antes era obligatoria. Ahora se puede no comparar, y al elegir
+   * «Entre dos fechas» se deja de comparar sola: quien quiera la
+   * comparación la pide.
+   */
+  const [contra, setContra] = useState<Rango | "AUTO" | "NINGUNO">("AUTO");
   const [contraDesde, setContraDesde] = useState("");
   const [contraHasta, setContraHasta] = useState("");
 
-  const eligio = contra !== "AUTO";
+  const sinComparar = contra === "NINGUNO";
+  const eligio = contra !== "AUTO" && !sinComparar;
 
   /**
    * Los cortes que elige el panel de arriba, para que ESTA
@@ -167,7 +178,7 @@ export default function PaginaControl() {
           rango,
           desde: desde || undefined,
           hasta: hasta || undefined,
-          contra: contra === "AUTO" ? undefined : contra,
+          contra: eligio ? contra : undefined,
           contraDesde: contra === "AUTO" ? undefined : contraDesde || undefined,
           contraHasta: contra === "AUTO" ? undefined : contraHasta || undefined,
           convenioId: cortes.convenioId,
@@ -175,7 +186,7 @@ export default function PaginaControl() {
           asesorId: cortes.asesorId,
           departamentoSepId: cortes.departamentoSepId,
         }),
-      [rango, desde, hasta, contra, contraDesde, contraHasta, cortes],
+      [rango, desde, hasta, contra, contraDesde, contraHasta, cortes, eligio],
     ),
     {
       clave: `${rango}|${desde}|${hasta}|${contra}|${contraDesde}|${contraHasta}|${claveCortes}`,
@@ -183,12 +194,13 @@ export default function PaginaControl() {
   );
 
   const diasA = diasDeRango(rango, desde, hasta);
-  const diasB = eligio ? diasDeRango(contra, contraDesde, contraHasta) : diasA;
+  const diasB = eligio ? diasDeRango(contra as Rango, contraDesde, contraHasta) : diasA;
   // tambien en automatico: mes pasado
   const duracionDistinta =
-    (eligio && diasA !== diasB) ||
-    (!eligio &&
-      (vivos.datos?.ventana.etiquetaAnterior ?? '').includes('días contra'));
+    !sinComparar &&
+    ((eligio && diasA !== diasB) ||
+      (!eligio &&
+        (vivos.datos?.ventana.etiquetaAnterior ?? '').includes('días contra')));
 
   return (
     <div className="flex flex-col gap-3 px-4 pt-3 pb-6">
@@ -264,7 +276,12 @@ export default function PaginaControl() {
                 <ControlesDePeriodo
                   parte="periodo"
                   rango={rango}
-                  alCambiarRango={setRango}
+                  alCambiarRango={(r) => {
+                    setRango(r);
+                    /// Elegir dos fechas apaga la comparación: es
+                    /// lo que el cliente espera al ponerlas.
+                    if (r === "PERSONALIZADO") setContra("NINGUNO");
+                  }}
                   desde={desde}
                   alCambiarDesde={setDesde}
                   hasta={hasta}
@@ -338,7 +355,11 @@ export default function PaginaControl() {
           El periodo se le pasa como `periodo` y el dato de esa
           consulta como `control`: los filtros mandan sobre toda
           la pantalla y tienen que verse en una sola fila. */}
-      <PanelProceso alCambiarFiltros={setCortes} control={vivos.datos} />
+      <PanelProceso
+        alCambiarFiltros={setCortes}
+        control={vivos.datos}
+        comparar={!sinComparar}
+      />
 
       {/* El error del periodo se queda: `PanelProceso` avisa de
           los suyos, pero esta consulta es de la pagina y si se
@@ -388,8 +409,8 @@ function ControlesDePeriodo({
   alCambiarDesde: (v: string) => void;
   hasta: string;
   alCambiarHasta: (v: string) => void;
-  contra: Rango | "AUTO";
-  alCambiarContra: (r: Rango | "AUTO") => void;
+  contra: Rango | "AUTO" | "NINGUNO";
+  alCambiarContra: (r: Rango | "AUTO" | "NINGUNO") => void;
   contraDesde: string;
   alCambiarContraDesde: (v: string) => void;
   contraHasta: string;
@@ -453,13 +474,14 @@ function ControlesDePeriodo({
         etiquetaAria="Comparar con"
         valor={contra}
         opciones={[
+          { valor: "NINGUNO", etiqueta: "Sin comparación" },
           { valor: "AUTO", etiqueta: "El periodo anterior" },
           ...RANGOS.map((r) => ({
             valor: r,
             etiqueta: ETIQUETA_RANGO[r],
           })),
         ]}
-        alElegir={(v) => alCambiarContra(v as Rango | "AUTO")}
+        alElegir={(v) => alCambiarContra(v as Rango | "AUTO" | "NINGUNO")}
       />
 
       {contra === "PERSONALIZADO" && (
