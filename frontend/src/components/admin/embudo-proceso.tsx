@@ -318,8 +318,8 @@ export function EmbudoProceso({
 
       {antes && (
         <p className="mt-2 text-center text-[0.6875rem] text-texto-suave">
-          «Antes» es {etiquetaAntes ?? "el periodo con el que se compara"}. Va
-          sin color porque los de antes tuvieron más tiempo para avanzar.
+          Las barras grises son {etiquetaAntes ?? "el periodo con el que se compara"}.
+          Van sin color porque esa gente tuvo más tiempo para avanzar.
         </p>
       )}
 

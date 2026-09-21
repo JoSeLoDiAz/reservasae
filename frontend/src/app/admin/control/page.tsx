@@ -439,6 +439,7 @@ export default function PaginaControl() {
         alCambiarFiltros={setCortes}
         control={vivos.datos}
         comparar={!sinComparar}
+        etiquetaAnterior={anterior}
       />
 
       {/* El error del periodo se queda: `PanelProceso` avisa de

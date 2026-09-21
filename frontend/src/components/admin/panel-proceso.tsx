@@ -131,6 +131,7 @@ function hitosDe(res: Resumen | null): Hito[] {
 export function PanelProceso({
   control,
   comparar = true,
+  etiquetaAnterior = null,
   alCambiarFiltros,
 }: {
   /// El periodo ya no entra aquí: vive en la cabecera de la
@@ -148,6 +149,11 @@ export function PanelProceso({
   control?: Control | null;
   /// Falso = no se compara con nada: ni barra gris ni leyenda.
   comparar?: boolean;
+  /// Cómo se llama el periodo anterior: «ayer», «los 7 días
+  /// anteriores»… Lo decide la cabecera y el embudo lo repite.
+  /// Sin esto, arriba decía «los 7 días anteriores» y el gráfico
+  /// «el mismo tramo del periodo anterior» (cliente, 20 sep 2026).
+  etiquetaAnterior?: string | null;
   alCambiarFiltros?: (f: Filtros) => void;
 }) {
   const [convenioId, setConvenioId] = useState("");
@@ -280,7 +286,7 @@ export function PanelProceso({
   const cuandoEnFrase = useMemo(() => {
     const cuando = (control?.ventana.etiqueta ?? "el periodo").toLowerCase();
     if (/^(hoy|ayer)$/.test(cuando)) return cuando;
-    if (/^(entre|desde|hasta)/.test(cuando)) return cuando;
+    if (/^(entre|desde|hasta|del)/.test(cuando)) return cuando;
     if (/^últimos?/.test(cuando)) return `en los ${cuando}`;
     return `en ${cuando}`;
   }, [control]);
@@ -291,14 +297,21 @@ export function PanelProceso({
     const [entro, cont, datos, insc] = hitos.map((h) => h.total);
     const en = cuandoEnFrase;
     if (entro === 0) return `No entró nadie ${en}.`;
-    const gente = entro === 1 ? "1 persona que entró" : `${n(entro)} personas que entraron`;
-    const trozo = (v: number, hizo: string, ninguna: string) =>
-      v === 0 ? ninguna : v === 1 ? `1 ${hizo}` : `${n(v)} ${hizo}`;
+    const gente = entro === 1 ? "la persona que entró" : `las ${n(entro)} personas que entraron`;
+    /// Con UNA persona el verbo va en singular: salía «1 ya
+    /// fueron contactadas» (cliente, 20 sep 2026).
+    const trozo = (v: number, plural: string, singular: string, ninguna: string) =>
+      v === 0 ? ninguna : v === 1 ? `1 ${singular}` : `${n(v)} ${plural}`;
     return (
-      `De las ${gente} ${en}: ` +
-      `${trozo(cont, "ya fueron contactadas", "ninguna ha sido contactada")}, ` +
-      `${trozo(datos, "tienen sus datos completos", "ninguna tiene sus datos completos")} y ` +
-      `${trozo(insc, "quedaron inscritas", "ninguna se ha inscrito todavía")}.`
+      `De ${gente} ${en}: ` +
+      `${trozo(cont, "ya fueron contactadas", "ya fue contactada", "ninguna ha sido contactada")}, ` +
+      `${trozo(
+        datos,
+        "tienen sus datos completos",
+        "tiene sus datos completos",
+        "ninguna tiene sus datos completos",
+      )} y ` +
+      `${trozo(insc, "quedaron inscritas", "quedó inscrita", "ninguna se ha inscrito todavía")}.`
     );
   }, [hitos, cuandoEnFrase]);
 
@@ -693,7 +706,11 @@ export function PanelProceso({
             sobrio
             hitos={hitos}
             antes={hitosAntes}
-            etiquetaAntes={control?.ventana.etiquetaAnterior ?? null}
+            etiquetaAntes={
+              etiquetaAnterior?.toLowerCase() ??
+              control?.ventana.etiquetaAnterior ??
+              null
+            }
             resumen={resumenDelEmbudo}
             notas={notas}
             /* La meta solo cuando se puede comparar de verdad.
