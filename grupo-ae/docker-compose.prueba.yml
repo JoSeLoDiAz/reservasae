@@ -1,0 +1,115 @@
+# El CRM de Grupo AE en PRUEBAS: pre-grupoae.reservasae.com
+#
+#   cd grupo-ae
+#   docker compose -f docker-compose.prueba.yml up -d --build
+#
+# El contexto de construccion es la RAIZ del repo (..): alli
+# estan el lockfile y el workspace que necesitan los Dockerfile.
+#
+# Nombres propios en todo --proyecto, servicios, contenedores,
+# red, volumen y puertos--: comparte maquina con el pruebas de
+# Convoca, y dos servicios llamados igual en una red compartida
+# se resuelven al equivocado sin que nada falle.
+#
+# El tunel NO va aqui: lo sirve el `convoca-prueba` que ya
+# existe, que llega a este nginx por la red de pruebas.
+name: grupoae-prueba
+
+services:
+  frontend-grupoae:
+    build:
+      context: ..
+      dockerfile: grupo-ae/frontend/Dockerfile
+      args:
+        # la franja se hornea y ademas va en el entorno
+        ENTORNO: prueba
+    container_name: grupoae_frontend-prueba
+    restart: unless-stopped
+    environment:
+      ENTORNO: prueba
+      API_INTERNA: http://backend-grupoae:4000
+    networks:
+      - grupoae-prueba-internal
+
+  backend-grupoae:
+    build:
+      context: ..
+      dockerfile: grupo-ae/backend/Dockerfile
+    container_name: grupoae_backend-prueba
+    restart: unless-stopped
+    env_file:
+      - backend/.env.prueba
+    environment:
+      ENTORNO: prueba
+    depends_on:
+      db-grupoae:
+        condition: service_healthy
+    networks:
+      - grupoae-prueba-internal
+
+  db-grupoae:
+    image: postgres:17-alpine
+    container_name: grupoae_db-prueba
+    restart: unless-stopped
+    env_file:
+      - backend/.env.prueba
+    environment:
+      PGDATA: /var/lib/postgresql/data/pgdata
+    # 127.0.0.1 y un puerto propio: ni el 5433 de produccion
+    # ni el 5434 del pruebas de Convoca
+    ports:
+      - "127.0.0.1:5535:5432"
+    volumes:
+      - grupoae-prueba-datos:/var/lib/postgresql/data
+    # modesto: comparte maquina con los otros dos entornos
+    command:
+      - postgres
+      - -c
+      - max_connections=50
+      - -c
+      - shared_buffers=256MB
+      - -c
+      - effective_cache_size=768MB
+      - -c
+      - work_mem=4MB
+      - -c
+      - maintenance_work_mem=64MB
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    networks:
+      - grupoae-prueba-internal
+
+  nginx-grupoae:
+    image: nginx:stable-alpine
+    container_name: grupoae_nginx-prueba
+    restart: unless-stopped
+    depends_on:
+      backend-grupoae:
+        condition: service_started
+      frontend-grupoae:
+        condition: service_started
+    ports:
+      - "127.0.0.1:4602:80"
+    volumes:
+      - ./docker/nginx/grupoae-prueba.conf:/etc/nginx/conf.d/default.conf:ro
+    # en DOS redes, y solo este servicio: la suya, y la del
+    # pruebas de Convoca para que su tunel lo alcance por
+    # nombre. Nada mas de esta pila toca esa red.
+    networks:
+      - grupoae-prueba-internal
+      - pruebas-de-convoca
+
+volumes:
+  grupoae-prueba-datos:
+
+networks:
+  grupoae-prueba-internal:
+    driver: bridge
+  # la crea el compose de pruebas de Convoca
+  pruebas-de-convoca:
+    external: true
+    name: reservasae-prueba_prueba-internal

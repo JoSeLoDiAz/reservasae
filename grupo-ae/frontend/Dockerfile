@@ -6,16 +6,18 @@ RUN corepack enable && corepack prepare pnpm@10.33.0 --activate
 
 WORKDIR /app
 
-# Instalar dependencias del workspace (solo frontend)
+# el contexto es la RAIZ del repo: el lockfile y el
+# workspace estan alli, no en grupo-ae/
 COPY pnpm-lock.yaml pnpm-workspace.yaml package.json ./
-COPY frontend/package.json ./frontend/
-COPY backend/package.json  ./backend/
-RUN pnpm install --frozen-lockfile --filter frontend --ignore-scripts
+COPY grupo-ae/frontend/package.json ./grupo-ae/frontend/
+COPY grupo-ae/backend/package.json  ./grupo-ae/backend/
+# por NOMBRE de paquete: `frontend` seria el de Convoca
+RUN pnpm install --frozen-lockfile --filter grupoae-frontend --ignore-scripts
 
 # Copiar fuentes y compilar
-COPY frontend/ ./frontend/
+COPY grupo-ae/frontend/ ./grupo-ae/frontend/
 
-WORKDIR /app/frontend
+WORKDIR /app/grupo-ae/frontend
 ENV NEXT_TELEMETRY_DISABLED=1
 # la franja de pruebas se decide tambien al compilar:
 # las paginas estaticas se hornean aqui
@@ -41,15 +43,16 @@ ENV ENTORNO=$ENTORNO
 RUN addgroup --system --gid 1001 nodejs \
  && adduser  --system --uid 1001 nextjs
 
-# Copiar output standalone (contiene server.js + node_modules minimos)
-COPY --from=build --chown=nextjs:nodejs /app/frontend/.next/standalone ./
+# Copiar output standalone (contiene server.js + node_modules minimos).
+# `outputFileTracingRoot` es ../.. desde grupo-ae/frontend, o sea /app:
+# por eso el server.js queda un nivel mas adentro que en Convoca.
+COPY --from=build --chown=nextjs:nodejs /app/grupo-ae/frontend/.next/standalone ./
 # Copiar assets estaticos generados
-COPY --from=build --chown=nextjs:nodejs /app/frontend/.next/static ./frontend/.next/static
+COPY --from=build --chown=nextjs:nodejs /app/grupo-ae/frontend/.next/static ./grupo-ae/frontend/.next/static
 # Copiar public
-COPY --from=build --chown=nextjs:nodejs /app/frontend/public ./frontend/public
+COPY --from=build --chown=nextjs:nodejs /app/grupo-ae/frontend/public ./grupo-ae/frontend/public
 
 USER nextjs
 EXPOSE 3000
 
-# Next.js standalone genera server.js en la raiz del standalone
-CMD ["node", "frontend/server.js"]
+CMD ["node", "grupo-ae/frontend/server.js"]

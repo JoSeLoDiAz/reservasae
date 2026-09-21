@@ -8,7 +8,9 @@
 // base ni importar nada del servidor.
 
 /// Nunca son un gremio, pase lo que pase.
-const RESERVADOS = new Set(["www", "prueba", "api", "localhost", "127"]);
+/// `grupoae` es la puerta general, no un gremio. Ver el
+/// backend: las dos listas tienen que decir lo mismo.
+const RESERVADOS = new Set(["www", "prueba", "api", "localhost", "127", "grupoae"]);
 
 /// Lo que puede ser un slug, y nada mas.
 ///

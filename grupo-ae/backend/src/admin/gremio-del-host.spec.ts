@@ -62,6 +62,16 @@ describe('el gremio que nombra la dirección', () => {
       expect(gremioDelHost('pre-cualquiera.reservasae.com', CONVENIOS)).toBeNull();
     });
 
+    it('`grupoae` es la puerta general, no un gremio', () => {
+      /// `pre-grupoae.reservasae.com` es el entorno de pruebas
+      /// del CRM entero. Sin reservarlo, la etiqueta queda en
+      /// `grupoae`, la raiz reescribe a un formulario que no
+      /// existe y los webhooks rechazan todo lead que entre.
+      expect(etiquetaDelHost('pre-grupoae.reservasae.com')).toBeNull();
+      expect(etiquetaDelHost('grupoae.reservasae.com')).toBeNull();
+      expect(gremioDelHost('pre-grupoae.reservasae.com', CONVENIOS)).toBeNull();
+    });
+
     it('no se salta lo reservado poniendole el prefijo', () => {
       /// `pre-prueba` no puede volverse `prueba` y colarse: lo
       /// reservado se comprueba ANTES y DESPUES de quitarlo.

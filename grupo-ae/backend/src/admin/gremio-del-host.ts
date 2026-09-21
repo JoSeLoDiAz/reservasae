@@ -4,7 +4,10 @@
 /// de `formularios/rutas-reservadas.ts`: un nombre que el
 /// sitio ya usa no puede convertirse en la puerta de un
 /// convenio, ni aunque alguien bautice así uno.
-const RESERVADOS = new Set(['www', 'prueba', 'api', 'localhost', '127']);
+/// `grupoae` es la puerta general del CRM, no un gremio:
+/// sin esto, `pre-grupoae` se lee como el slug de una unidad
+/// que no existe y la raiz reescribe a un formulario vacio.
+const RESERVADOS = new Set(['www', 'prueba', 'api', 'localhost', '127', 'grupoae']);
 
 /// El prefijo que llevan los subdominios de PRUEBAS.
 ///
