@@ -61,6 +61,42 @@ const RANGOS: Rango[] = [
  * del periodo elegido, no las del comparado, y sin las dos
  * duraciones no hay forma de avisar de que no coinciden.
  */
+/**
+ * CON QUÉ SE COMPARA, dicho con su nombre.
+ *
+ * Decía «el periodo anterior, del mismo tamaño», y con «Hoy»
+ * elegido arriba eso no dice nada: es AYER. «Si tengo periodo y
+ * escojo hoy, ¿con qué lo comparo?» (cliente, 20 sep 2026). Cada
+ * periodo tiene su anterior y se llama de alguna manera.
+ */
+function anteriorDe(rango: Rango, desde: string, hasta: string): string {
+  switch (rango) {
+    case "HOY":
+      return "Ayer";
+    case "AYER":
+      return "Anteayer";
+    case "SEMANA":
+      return "Los 7 días anteriores";
+    case "MES":
+      return "Los 30 días anteriores";
+    case "TRIMESTRE":
+      return "Los 90 días anteriores";
+    case "MES_PASADO":
+      return "El mes de antes";
+    case "ANO":
+      return "Los 12 meses anteriores";
+    case "PERSONALIZADO": {
+      const d = diasDeRango("PERSONALIZADO", desde, hasta);
+      if (!d) return "Los días justo anteriores";
+      return d === 1 ? "El día anterior" : `Los ${d} días anteriores`;
+    }
+    default:
+      /// «Desde el principio» no tiene anterior: no hay nada antes
+      /// del primer dato. Quien lo elija no ve la comparación.
+      return "";
+  }
+}
+
 function diasDeRango(rango: Rango, desde: string, hasta: string): number | null {
   const hoy = new Date();
   const [y, m, dia] = [hoy.getFullYear(), hoy.getMonth(), hoy.getDate()];
@@ -148,7 +184,13 @@ export default function PaginaControl() {
   const [contraDesde, setContraDesde] = useState("");
   const [contraHasta, setContraHasta] = useState("");
 
-  const sinComparar = contra === "NINGUNO";
+  /// «Desde el principio» no tiene con qué compararse: no hay
+  /// nada antes del primer dato. Ahí no se ofrece la comparación
+  /// --ni el desplegable ni el enlace-- en vez de ofrecer una que
+  /// no significa nada (cliente, 20 sep 2026).
+  const anterior = anteriorDe(rango, desde, hasta);
+  const sePuedeComparar = anterior !== "";
+  const sinComparar = contra === "NINGUNO" || !sePuedeComparar;
   const eligio = contra !== "AUTO" && !sinComparar;
 
   /**
@@ -275,12 +317,13 @@ export default function PaginaControl() {
               <div className="flex flex-wrap items-center gap-2 [&>button]:min-w-[11.5rem] [&>div]:min-w-[11.5rem]">
                 <ControlesDePeriodo
                   parte="periodo"
+                  etiquetaAnterior={anterior}
                   rango={rango}
                   alCambiarRango={(r) => {
                     setRango(r);
                     /// Elegir dos fechas apaga la comparación: es
                     /// lo que el cliente espera al ponerlas.
-                    if (r === "PERSONALIZADO") setContra("NINGUNO");
+                    if (r === "PERSONALIZADO" || r === "TODO") setContra("NINGUNO");
                   }}
                   desde={desde}
                   alCambiarDesde={setDesde}
@@ -296,51 +339,43 @@ export default function PaginaControl() {
               </div>
             </div>
 
-            {/* EL GRUPO SOLO EXISTE SI SE ESTÁ COMPARANDO.
-                Con un rango propio elegido, un desplegable que dice
-                «Sin comparación» es una pregunta que nadie hizo:
-                «revise periodo, y con las opciones, si debe salir o
-                no Comparar con» (cliente, 20 sep 2026). Cuando no
-                se compara queda un enlace para pedirlo. */}
-            {sinComparar ? (
-              <button
-                type="button"
-                onClick={() => setContra("AUTO")}
-                className="mb-1 text-[0.78125rem] text-marca underline underline-offset-2"
-              >
-                Comparar con otro periodo
-              </button>
-            ) : (
-            <div>
-              <p className="mb-1.5 flex items-center gap-2 text-[0.625rem] font-bold tracking-[0.08em] uppercase text-texto-suave">
-                Comparar con
+            {/* COMPARAR ES SÍ O NO, no un desplegable.
+
+                Quedaban tres opciones y dos no se sostenían:
+                «Otras dos fechas» compara «Hoy» contra un rango de
+                tres días --«no entiendo para qué otras dos fechas,
+                sé racional», cliente, 20 sep 2026-- y «Sin
+                comparación» es no pulsar. Así que cada periodo
+                tiene UN anterior --ayer, los 7 días anteriores, el
+                mes de antes-- y esto solo lo enciende o lo apaga.
+                «Desde el principio» no lo ofrece: no hay nada
+                antes del primer dato. */}
+            {sePuedeComparar &&
+              (sinComparar ? (
                 <button
                   type="button"
-                  onClick={() => setContra("NINGUNO")}
-                  className="font-normal tracking-normal text-texto-suave normal-case underline underline-offset-2 hover:text-texto"
+                  onClick={() => setContra("AUTO")}
+                  className="mb-1 text-[0.78125rem] text-marca underline underline-offset-2"
                 >
-                  quitar
+                  Comparar con {anterior.toLowerCase()}
                 </button>
-              </p>
-              <div className="flex flex-wrap items-center gap-2 [&>button]:min-w-[11.5rem] [&>div]:min-w-[11.5rem]">
-                <ControlesDePeriodo
-                  parte="comparacion"
-                  rango={rango}
-                  alCambiarRango={setRango}
-                  desde={desde}
-                  alCambiarDesde={setDesde}
-                  hasta={hasta}
-                  alCambiarHasta={setHasta}
-                  contra={contra}
-                  alCambiarContra={setContra}
-                  contraDesde={contraDesde}
-                  alCambiarContraDesde={setContraDesde}
-                  contraHasta={contraHasta}
-                  alCambiarContraHasta={setContraHasta}
-                />
-              </div>
-            </div>
-            )}
+              ) : (
+                <p className="mb-1 flex items-center gap-2 text-[0.78125rem] text-texto">
+                  <span>
+                    Comparando con{" "}
+                    <strong className="font-semibold text-titulo">
+                      {anterior.toLowerCase()}
+                    </strong>
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setContra("NINGUNO")}
+                    className="text-texto-suave underline underline-offset-2 hover:text-texto"
+                  >
+                    quitar
+                  </button>
+                </p>
+              ))}
 
             {/* QUITAR LO ELEGIDO. «¿No veo eliminar filtro o algo
                 así?» (cliente, 20 sep 2026): los cinco filtros de
@@ -447,6 +482,7 @@ function ControlesDePeriodo({
   contraHasta,
   alCambiarContraHasta,
   parte,
+  etiquetaAnterior,
 }: {
   rango: Rango;
   alCambiarRango: (r: Rango) => void;
@@ -462,6 +498,9 @@ function ControlesDePeriodo({
   /// «periodo» son el rango y sus fechas; «comparacion», contra
   /// qué. Se pintan en grupos distintos y cada uno con su rótulo.
   parte: "periodo" | "comparacion";
+  /// Cómo se llama el periodo anterior AL ELEGIDO: «Ayer», «Los 7
+  /// días anteriores»… Vacío = el periodo no tiene anterior.
+  etiquetaAnterior: string;
   alCambiarContraHasta: (v: string) => void;
 }) {
   if (parte === "periodo") {
@@ -525,7 +564,7 @@ function ControlesDePeriodo({
         valor={contra}
         opciones={[
           { valor: "NINGUNO", etiqueta: "Sin comparación" },
-          { valor: "AUTO", etiqueta: "El periodo anterior, del mismo tamaño" },
+          { valor: "AUTO", etiqueta: etiquetaAnterior || "El periodo anterior" },
           { valor: "PERSONALIZADO", etiqueta: "Otras dos fechas" },
         ]}
         alElegir={(v) => alCambiarContra(v as Rango | "AUTO" | "NINGUNO")}
