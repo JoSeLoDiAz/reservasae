@@ -979,25 +979,55 @@ export function PanelProceso({
 }
 
 /** El ritmo, como área. */
+/**
+ * El ritmo de inscripción, con sus cifras.
+ *
+ * Era una curva sin un solo número: no decía cuántos, ni cuándo
+ * fue el mejor día, ni qué altura tenía el pico --«¿los putos
+ * datos en cada punta?»-- y encima dejaba media tarjeta en blanco
+ * porque el alto estaba clavado en 140 px mientras el bloque de
+ * al lado la estiraba (cliente, 20 sep 2026).
+ */
 function Serie({ datos }: { datos: Array<{ dia: string; total: number }> }) {
   if (datos.length === 0) {
-    return <p className="py-8 text-center text-[0.84375rem] text-texto-suave">Sin inscritos en el periodo.</p>;
+    return (
+      <p className="py-8 text-center text-[0.84375rem] text-texto-suave">
+        Sin inscritos en el periodo.
+      </p>
+    );
   }
+
+  const total = datos.reduce((t, d) => t + d.total, 0);
   const cima = Math.max(1, ...datos.map((d) => d.total));
+  const mejor = datos.reduce((a, b) => (b.total > a.total ? b : a));
   const ancho = 100;
   const alto = 100;
   const paso = datos.length > 1 ? ancho / (datos.length - 1) : 0;
-  const puntos = datos.map((d, i) => `${i * paso},${alto - (d.total / cima) * alto}`);
+  const en = (i: number, v: number) => ({ x: i * paso, y: alto - (v / cima) * alto });
+  const puntos = datos.map((d, i) => `${en(i, d.total).x},${en(i, d.total).y}`);
   const area = `0,${alto} ${puntos.join(" ")} ${(datos.length - 1) * paso},${alto}`;
+  const iMejor = datos.indexOf(mejor);
+  const pMejor = en(iMejor, mejor.total);
+  const ultimo = datos[datos.length - 1];
 
   return (
-    <div>
-      <div className="h-[140px]">
-        <svg
-          viewBox={`0 0 ${ancho} ${alto}`}
-          preserveAspectRatio="none"
-          className="h-full w-full"
-        >
+    <div className="flex h-full flex-col">
+      <p className="text-[0.84375rem] text-texto">
+        <strong className="font-semibold text-titulo">{n(total)}</strong>{" "}
+        {total === 1 ? "inscrito" : "inscritos"} en el periodo · el mejor día fue el{" "}
+        <strong className="font-semibold text-titulo">{fecha(mejor.dia)}</strong>, con{" "}
+        {n(mejor.total)}.
+      </p>
+
+      <div className="relative mt-3 min-h-[150px] grow">
+        {/* La cima, escrita: sin ella la curva no tiene escala. */}
+        <span className="absolute top-0 right-0 text-[0.625rem] text-texto-suave tabular-nums">
+          {n(cima)}
+        </span>
+        <span className="absolute right-0 bottom-0 text-[0.625rem] text-texto-suave tabular-nums">
+          0
+        </span>
+        <svg viewBox={`0 0 ${ancho} ${alto}`} preserveAspectRatio="none" className="h-full w-full">
           <polygon points={area} fill={SERIE.uno} opacity={0.14} />
           <polyline
             points={puntos.join(" ")}
@@ -1006,11 +1036,18 @@ function Serie({ datos }: { datos: Array<{ dia: string; total: number }> }) {
             strokeWidth={1.4}
             vectorEffect="non-scaling-stroke"
           />
+          {/* El pico y el último día, marcados. */}
+          <circle cx={pMejor.x} cy={pMejor.y} r={1.6} fill={SERIE.uno} vectorEffect="non-scaling-stroke" />
         </svg>
       </div>
+
       <div className="mt-1 flex justify-between text-[0.625rem] text-texto-suave tabular-nums">
-        <span>{fecha(datos[0].dia)}</span>
-        <span>{fecha(datos[datos.length - 1].dia)}</span>
+        <span>
+          {fecha(datos[0].dia)} · {n(datos[0].total)}
+        </span>
+        <span>
+          {fecha(ultimo.dia)} · {n(ultimo.total)}
+        </span>
       </div>
     </div>
   );

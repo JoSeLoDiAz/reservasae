@@ -296,9 +296,31 @@ export default function PaginaControl() {
               </div>
             </div>
 
+            {/* EL GRUPO SOLO EXISTE SI SE ESTÁ COMPARANDO.
+                Con un rango propio elegido, un desplegable que dice
+                «Sin comparación» es una pregunta que nadie hizo:
+                «revise periodo, y con las opciones, si debe salir o
+                no Comparar con» (cliente, 20 sep 2026). Cuando no
+                se compara queda un enlace para pedirlo. */}
+            {sinComparar ? (
+              <button
+                type="button"
+                onClick={() => setContra("AUTO")}
+                className="mb-1 text-[0.78125rem] text-marca underline underline-offset-2"
+              >
+                Comparar con otro periodo
+              </button>
+            ) : (
             <div>
-              <p className="mb-1.5 text-[0.625rem] font-bold tracking-[0.08em] uppercase text-texto-suave">
+              <p className="mb-1.5 flex items-center gap-2 text-[0.625rem] font-bold tracking-[0.08em] uppercase text-texto-suave">
                 Comparar con
+                <button
+                  type="button"
+                  onClick={() => setContra("NINGUNO")}
+                  className="font-normal tracking-normal text-texto-suave normal-case underline underline-offset-2 hover:text-texto"
+                >
+                  quitar
+                </button>
               </p>
               <div className="flex flex-wrap items-center gap-2 [&>button]:min-w-[11.5rem] [&>div]:min-w-[11.5rem]">
                 <ControlesDePeriodo
@@ -318,6 +340,7 @@ export default function PaginaControl() {
                 />
               </div>
             </div>
+            )}
 
             {/* QUITAR LO ELEGIDO. «¿No veo eliminar filtro o algo
                 así?» (cliente, 20 sep 2026): los cinco filtros de
@@ -486,22 +509,24 @@ function ControlesDePeriodo({
 
   return (
     <>
-      {/* SIN EL «vs.»: ahora el grupo se llama «Comparar con», así
-          que cada opción dice CONTRA QUÉ, en limpio. «vs. anterior»
-          no decía anterior a qué --y con dos fechas elegidas parecía
-          que sobraba-- : es el mismo número de días justo antes del
-          periodo que se está mirando. */}
+      {/* TRES OPCIONES Y NO DIEZ.
+
+          Ofrecía los ocho rangos: con un rango propio elegido
+          arriba, comparar contra «Hoy» o «Últimos 90 días» es
+          comparar ventanas de distinta duración, que no significa
+          nada --la más larga gana siempre, y por eso existe el
+          aviso amarillo--. «Si selecciono una fecha de inicio y
+          fin, ¿por qué me saldría todo esto?» (cliente, 20 sep
+          2026). Queda lo que sí se puede leer: nada, el tramo de
+          antes, u otras dos fechas que elija. */}
       <Desplegable
         alto={34}
         etiquetaAria="Comparar con"
         valor={contra}
         opciones={[
           { valor: "NINGUNO", etiqueta: "Sin comparación" },
-          { valor: "AUTO", etiqueta: "El periodo anterior" },
-          ...RANGOS.map((r) => ({
-            valor: r,
-            etiqueta: ETIQUETA_RANGO[r],
-          })),
+          { valor: "AUTO", etiqueta: "El periodo anterior, del mismo tamaño" },
+          { valor: "PERSONALIZADO", etiqueta: "Otras dos fechas" },
         ]}
         alElegir={(v) => alCambiarContra(v as Rango | "AUTO" | "NINGUNO")}
       />
