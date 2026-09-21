@@ -559,6 +559,9 @@ export type AccionCronograma = {
   nombre: string;
   horas: number;
   visible: boolean;
+  /// Qué es: CURSO, FORO, TALLER…
+  evento: string | null;
+  modalidad: "PRESENCIAL" | "VIRTUAL" | "HIBRIDA";
   convenio: string;
   grupos: GrupoCronograma[];
   cupos: number;

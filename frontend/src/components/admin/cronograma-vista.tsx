@@ -31,6 +31,20 @@ import { bonito, ErrorApi } from "@/lib/api";
 /// no distingue nada. En la fila abierta sí va completo.
 const CORTA = new Intl.DateTimeFormat("es-CO", { day: "numeric", month: "short" });
 
+const MODALIDAD: Record<string, string> = {
+  PRESENCIAL: "presencial",
+  VIRTUAL: "virtual",
+  HIBRIDA: "híbrida",
+};
+
+/// «Curso · virtual», como en la ficha de la acción.
+function queEs(a: AccionCronograma): string {
+  const tipo = a.evento ? a.evento.toLowerCase() : "acción de formación";
+  return `${tipo.charAt(0).toUpperCase()}${tipo.slice(1)} · ${
+    MODALIDAD[a.modalidad] ?? a.modalidad.toLowerCase()
+  }`;
+}
+
 /** De cuando a cuando va una accion, mirando todos sus grupos. */
 function ventanaDe(grupos: GrupoCronograma[]) {
   const inicios = grupos.map((g) => g.fechaInicio).filter(Boolean) as string[];
@@ -619,6 +633,7 @@ function Accion({
                 <Grupo
                   key={g.id}
                   grupo={g}
+                  queEsLaAccion={queEs(accion)}
                   puedeEditar={puedeEditar}
                   alGuardar={alGuardar}
                   alFallar={alFallar}
@@ -634,11 +649,13 @@ function Accion({
 
 function Grupo({
   grupo,
+  queEsLaAccion,
   puedeEditar,
   alGuardar,
   alFallar,
 }: {
   grupo: GrupoCronograma;
+  queEsLaAccion: string;
   puedeEditar: boolean;
   alGuardar: () => Promise<void>;
   alFallar: (m: string) => void;
@@ -851,11 +868,7 @@ function Grupo({
               </button>
             </div>
             <p className="mt-0.5 mb-3 text-xs text-texto-suave">
-              Casi todas llevan una sola sesión. Si la acción es un foro
-              híbrido, van la presencial y las conexiones PAT el mismo día; y
-              solo un bootcamp lleva dos presenciales en días distintos. Una
-              PAT sin día es la hora de conexión de los demás días del
-              cronograma.
+              {queEsLaAccion}
             </p>
 
             {sesiones.length === 0 && (

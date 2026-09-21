@@ -50,6 +50,8 @@ export class CronogramaService {
         nombre: true,
         horas: true,
         visible: true,
+        evento: true,
+        modalidad: true,
         convenio: { select: { slug: true, sigla: true } },
         grupos: {
           orderBy: { numero: 'asc' },
@@ -139,6 +141,9 @@ export class CronogramaService {
         nombre: a.nombre,
         horas: a.horas,
         visible: a.visible,
+        // qué es: CURSO, FORO, TALLER…
+        evento: a.evento,
+        modalidad: a.modalidad,
         convenio: a.convenio.sigla ?? a.convenio.slug,
         grupos,
         // lo que se mira de un vistazo por acción
