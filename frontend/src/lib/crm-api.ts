@@ -826,6 +826,17 @@ export type Control = CabeceraControl & {
   serie: Array<{ dia: string; total: number }>;
   /** Cuándo llegaron los leads, no cuándo se inscribieron. */
   leadsPorDia: Array<{ dia: string; total: number }>;
+  /**
+   * El embudo DÍA POR DÍA: de los que entraron cada día, en qué
+   * paso van hoy. Acumulado, como el del periodo.
+   */
+  embudoPorDia: Array<{
+    dia: string;
+    entraron: number;
+    contactados: number;
+    conDatos: number;
+    inscritos: number;
+  }>;
   ventana: Ventana;
   anterior: CabeceraControl | null;
   variacion: Variaciones;

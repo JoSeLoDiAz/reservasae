@@ -24,7 +24,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { Desplegable } from "./desplegable";
-import { EmbudoProceso, type Hito } from "./embudo-proceso";
+import { EmbudoPorDia } from "./embudo-por-dia";
+import { EmbudoProceso, TarjetasDelEmbudo, type Hito } from "./embudo-proceso";
 import { MapaColombia } from "./mapa-colombia";
 import { Aviso } from "./marco-admin";
 import {
@@ -35,7 +36,7 @@ import {
   SERIE,
   type PorcionDonut,
 } from "./graficos";
-import { PendientesDeHoy } from "./pendientes-de-hoy";
+import { PendientesDeHoy, ReservasSinNombre } from "./pendientes-de-hoy";
 import { Bloque } from "./piezas";
 import { colorEtapa } from "./etapa";
 import { ErrorApi } from "@/lib/api";
@@ -355,6 +356,9 @@ export function PanelProceso({
    * persona del periodo cae en una sola, y las tres suman lo que
    * entró: se puede comprobar de un vistazo.
    */
+  /// Los días del periodo, tal como los devuelve el servidor.
+  const porDia = useMemo(() => control?.embudoPorDia ?? [], [control]);
+
   /// Las mismas tres cifras en el periodo con el que se compara.
   const deAntes = useMemo(() => {
     if (!delAnterior) return null;
@@ -702,6 +706,21 @@ export function PanelProceso({
           titulo="Embudo de inscripción"
           descripcion="Cuántas personas avanzan de una etapa a la siguiente, y en cuál se detiene el proceso."
         >
+          {/* DÍA POR DÍA cuando el periodo son días contados.
+              Con «Desde el principio» o «Últimos 12 meses» serían
+              cientos de barras de un píxel, y ahí el total del
+              periodo es lo único legible. */}
+          {/* La frase, FUERA del gráfico: vale para las dos
+              vistas, la del periodo y la de día por día. */}
+          {resumenDelEmbudo && (
+            <p className="mb-4 text-[0.8125rem] leading-relaxed text-texto">
+              {resumenDelEmbudo}
+            </p>
+          )}
+
+          {porDia.length > 1 && porDia.length <= 62 ? (
+            <EmbudoPorDia dias={porDia} />
+          ) : (
           <EmbudoProceso
             sobrio
             hitos={hitos}
@@ -711,8 +730,6 @@ export function PanelProceso({
               control?.ventana.etiquetaAnterior ??
               null
             }
-            resumen={resumenDelEmbudo}
-            notas={notas}
             /* La meta solo cuando se puede comparar de verdad.
                El backend ya la acota por gremio y por acción,
                que es como se compromete con el SENA. Pero una
@@ -722,6 +739,19 @@ export function PanelProceso({
                no lo está, y el porcentaje sería mentira. Antes de
                enseñar una cifra falsa, ninguna. */
             meta={metaComparable ? control?.metaComprometida ?? null : null}
+          />
+          )}
+
+          {/* Las tres casillas y la frase van FUERA del gráfico:
+              con la vista por día desaparecían, porque vivían
+              dentro del embudo del periodo. */}
+          <TarjetasDelEmbudo
+            notas={notas}
+            etiquetaAntes={
+              etiquetaAnterior?.toLowerCase() ??
+              control?.ventana.etiquetaAnterior ??
+              null
+            }
           />
         </Bloque>
 
@@ -974,6 +1004,10 @@ export function PanelProceso({
             <TablaAsesores filas={control?.porAsesor ?? []} />
           </Bloque>
         </div>
+
+        {/* Los cupos de empresas, ABAJO y en su bloque: no son
+            leads y no se cuentan con ellos. */}
+        <ReservasSinNombre control={control ?? null} />
 
         {/* ── 9 · El detalle, con sus grupos dentro ── */}
         <Bloque

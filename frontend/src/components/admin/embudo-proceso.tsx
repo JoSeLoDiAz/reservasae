@@ -324,49 +324,65 @@ export function EmbudoProceso({
       )}
 
       {notas.length > 0 && (
-        <div
-          className="mt-3 grid gap-2.5 border-t border-hairline pt-3 sm:grid-cols-2"
-          style={{
-            gridTemplateColumns:
-              notas.length <= 3
-                ? `repeat(${notas.length}, minmax(0, 1fr))`
-                : undefined,
-          }}
-        >
-          {notas.map((nt, i) => (
-            <div
-              key={`${nt.etiqueta}#${i}`}
-              className="rounded-[11px] border border-hairline px-3.5 py-2"
-              title={nt.detalle}
-            >
-              <span
-                className="block text-[1.375rem] leading-none font-bold tabular-nums"
-                style={{ color: COLOR_TONO[nt.tono ?? "neutro"] }}
-              >
-                {n(nt.cifra)}
-              </span>
-              <span className="mt-1.5 block text-[0.8125rem] leading-snug font-medium text-texto">
-                {nt.etiqueta}
-              </span>
-              {/* EL PORQUÉ, A LA VISTA. Estaba solo en el globo del
-                  cursor, y una cifra con dos palabras debajo no se
-                  interpreta sola (cliente, 20 sep 2026). */}
-              {nt.antes !== null && nt.antes !== undefined && (
-                <span className="mt-1 block text-[0.71875rem] text-texto-suave tabular-nums">
-                  {nt.antes === nt.cifra
-                    ? `igual que ${contraQue(etiquetaAntes).replace(/^a[l]? /, "")}`
-                    : `${nt.cifra > nt.antes ? "+" : "−"}${n(
-                        Math.abs(nt.cifra - nt.antes),
-                      )} frente ${contraQue(etiquetaAntes)} (${n(nt.antes)})`}
-                </span>
-              )}
-              <span className="mt-1 block text-[0.71875rem] leading-snug text-texto-suave">
-                {nt.detalle}
-              </span>
-            </div>
-          ))}
-        </div>
+        <TarjetasDelEmbudo notas={notas} etiquetaAntes={etiquetaAntes} />
       )}
+    </div>
+  );
+}
+
+
+/**
+ * Las tres casillas de «en qué acabó la gente del periodo».
+ *
+ * SUELTO y exportado: lo usan el embudo del periodo y el de día
+ * por día, y estaba metido dentro del primero --así que al
+ * cambiar de vista desaparecía--.
+ */
+export function TarjetasDelEmbudo({
+  notas,
+  etiquetaAntes = null,
+}: {
+  notas: NotaDelEmbudo[];
+  etiquetaAntes?: string | null;
+}) {
+  if (notas.length === 0) return null;
+  return (
+    <div
+      className="mt-3 grid gap-2.5 border-t border-hairline pt-3 sm:grid-cols-2"
+      style={{
+        gridTemplateColumns:
+          notas.length <= 3 ? `repeat(${notas.length}, minmax(0, 1fr))` : undefined,
+      }}
+    >
+      {notas.map((nt, i) => (
+        <div
+          key={`${nt.etiqueta}#${i}`}
+          className="rounded-[11px] border border-hairline px-3.5 py-2"
+          title={nt.detalle}
+        >
+          <span
+            className="block text-[1.375rem] leading-none font-bold tabular-nums"
+            style={{ color: COLOR_TONO[nt.tono ?? "neutro"] }}
+          >
+            {n(nt.cifra)}
+          </span>
+          <span className="mt-1.5 block text-[0.8125rem] leading-snug font-medium text-texto">
+            {nt.etiqueta}
+          </span>
+          {nt.antes !== null && nt.antes !== undefined && (
+            <span className="mt-1 block text-[0.71875rem] text-texto-suave tabular-nums">
+              {nt.antes === nt.cifra
+                ? `igual que ${contraQue(etiquetaAntes).replace(/^a[l]? /, "")}`
+                : `${nt.cifra > nt.antes ? "+" : "−"}${n(
+                    Math.abs(nt.cifra - nt.antes),
+                  )} frente ${contraQue(etiquetaAntes)} (${n(nt.antes)})`}
+            </span>
+          )}
+          <span className="mt-1 block text-[0.71875rem] leading-snug text-texto-suave">
+            {nt.detalle}
+          </span>
+        </div>
+      ))}
     </div>
   );
 }

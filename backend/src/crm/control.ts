@@ -159,6 +159,23 @@ export type Control = Cabecera & {
   serie: Array<{ dia: string; total: number }>;
   /** Cuándo llegaron los leads, no cuándo se inscribieron. */
   leadsPorDia: Array<{ dia: string; total: number }>;
+  /**
+   * El embudo DÍA POR DÍA: de los que entraron cada día, cuántos
+   * van en cada paso hoy.
+   *
+   * Lo pidió Mauricio el 20 sep 2026: «si tengo filtrado el
+   * comparativo de una semana, debo tener 7 columnas de Entraron
+   * con sus cantidades, 7 para Contactados, y así». El embudo de
+   * cuatro barras dice el total del periodo y no deja ver qué día
+   * entró la gente ni qué día se atascó.
+   */
+  embudoPorDia: Array<{
+    dia: string;
+    entraron: number;
+    contactados: number;
+    conDatos: number;
+    inscritos: number;
+  }>;
   ventana: {
     rango: string;
     etiqueta: string;
@@ -195,6 +212,7 @@ const VACIO: Omit<Control, 'ventana' | 'anterior' | 'variacion'> = {
   topEmpresas: [],
   serie: [],
   leadsPorDia: [],
+  embudoPorDia: [],
 };
 
 /**
@@ -436,6 +454,7 @@ export async function controlDeInscritos(
     topEmpresas,
     serie,
     leadsPorDia,
+    embudoPorDia,
   ] = await Promise.all([
     cabecera(prisma, inscritos),
 
@@ -779,6 +798,64 @@ export async function controlDeInscritos(
        WHERE ${dentro} ${dosMesesLeads}
        GROUP BY 1 ORDER BY 1
     `,
+
+    /**
+     * El embudo por día, acumulado como el de arriba.
+     *
+     * Se agrupa por el día en que ENTRÓ la persona --`creadoEn`,
+     * igual que `leadsPorDia`-- y se mira en qué etapa está HOY.
+     * Las cuatro cifras son acumuladas: quien está inscrito
+     * también cuenta como contactado, o la columna subiría y
+     * bajaría y dejaría de leerse como un embudo.
+     *
+     * PERDIDO cuenta como contactado, con el mismo supuesto que
+     * el embudo del periodo: no se sabe en qué punto se perdió, y
+     * darlo por no contactado infla la caída del primer paso.
+     */
+    prisma.$queryRaw<
+      Array<{
+        dia: string;
+        entraron: bigint;
+        contactados: bigint;
+        condatos: bigint;
+        inscritos: bigint;
+      }>
+    >`
+      SELECT to_char(
+               date_trunc('day', p."creadoEn" AT TIME ZONE 'UTC' AT TIME ZONE 'America/Bogota'),
+               'YYYY-MM-DD'
+             ) AS dia,
+             COUNT(*) AS entraron,
+             COUNT(*) FILTER (
+               WHERE p."etapa" <> 'INTERESADO'::"EtapaParticipante"
+             ) AS contactados,
+             COUNT(*) FILTER (
+               WHERE p."etapa" IN (
+                 'DATOS_COMPLETOS'::"EtapaParticipante",
+                 'INSCRITO'::"EtapaParticipante",
+                 'EN_FORMACION'::"EtapaParticipante",
+                 'CERTIFICADO'::"EtapaParticipante",
+                 'RETIRADO'::"EtapaParticipante",
+                 'NO_APROBO'::"EtapaParticipante",
+                 'DESERTO'::"EtapaParticipante",
+                 'ABANDONO'::"EtapaParticipante"
+               )
+             ) AS conDatos,
+             COUNT(*) FILTER (
+               WHERE p."etapa" IN (
+                 'INSCRITO'::"EtapaParticipante",
+                 'EN_FORMACION'::"EtapaParticipante",
+                 'CERTIFICADO'::"EtapaParticipante",
+                 'RETIRADO'::"EtapaParticipante",
+                 'NO_APROBO'::"EtapaParticipante",
+                 'DESERTO'::"EtapaParticipante",
+                 'ABANDONO'::"EtapaParticipante"
+               )
+             ) AS inscritos
+        FROM "participantes" p
+       WHERE ${dentro} ${dosMesesLeads}
+       GROUP BY 1 ORDER BY 1
+    `,
   ]);
 
   const cifra = (f: { total: bigint }) => Number(f.total);
@@ -865,6 +942,13 @@ export async function controlDeInscritos(
     // ya viene como yyyy-mm-dd de Bogotá desde el SQL
     serie: serie.map((f) => ({ dia: f.dia, total: cifra(f) })),
     leadsPorDia: leadsPorDia.map((f) => ({ dia: f.dia, total: cifra(f) })),
+    embudoPorDia: embudoPorDia.map((f) => ({
+      dia: f.dia,
+      entraron: Number(f.entraron),
+      contactados: Number(f.contactados),
+      conDatos: Number(f.condatos),
+      inscritos: Number(f.inscritos),
+    })),
     ventana: marco,
     anterior,
     variacion: comparar(ahora, anterior),

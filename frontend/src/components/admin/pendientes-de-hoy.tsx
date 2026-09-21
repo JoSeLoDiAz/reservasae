@@ -38,6 +38,16 @@ type Tono = "bueno" | "normal" | "aviso";
 /// «frío»: una semana sin la primera llamada.
 const DIAS_FRIOS = [8, 15];
 
+/**
+ * Los cupos apartados salieron de aquí (20 sep 2026).
+ *
+ * «Por qué mezclas peras con manzanas: si hablas de reservas,
+ * háblalo más abajo, o que no cuente en el filtro, porque no son
+ * registros, son prospectos o gente esperada». Tenía razón: las
+ * otras tres filas son LEADS --personas que ya existen y a las que
+ * hay que llamar-- y los cupos son un compromiso de una empresa sin
+ * nombres todavía. Viven en `ReservasSinNombre`, en su bloque.
+ */
 export function PendientesDeHoy({ control }: { control: Control | null }) {
   if (!control) return null;
   const d = control;
@@ -46,21 +56,11 @@ export function PendientesDeHoy({ control }: { control: Control | null }) {
   const esperando = d.sinContactar.reduce((s, t) => s + t.total, 0);
   const frios = DIAS_FRIOS.reduce((s, x) => s + (espera.get(x) ?? 0), 0);
 
-  /// Cupos apartados por una organización que todavía no tienen
-  /// una persona detrás.
-  const sinNombre = Math.max(0, d.cuposConfirmados - d.inscritosConReserva);
-  const cobertura = d.cuposConfirmados > 0 ? d.inscritosConReserva / d.cuposConfirmados : 0;
-
   /// El canal que mejor convierte, con al menos cinco leads: con
   /// dos leads y un inscrito sale un 50 % que no significa nada.
   const mejorCanal = [...d.conversionPorOrigen]
     .filter((o) => o.leads >= 5)
     .sort((a, b) => b.conversion - a.conversion)[0];
-
-  /// La que más cupos debe, para poder decir a quién llamar.
-  const empresaFloja = [...d.topEmpresas].sort(
-    (a, b) => b.cupos - b.inscritos - (a.cupos - a.inscritos),
-  )[0];
 
   const pendientes: Array<{
     tono: Tono;
@@ -74,20 +74,6 @@ export function PendientesDeHoy({ control }: { control: Control | null }) {
     /// peor que no ponerlo.
     a: string;
   }> = [];
-
-  if (sinNombre > 0)
-    pendientes.push({
-      tono: cobertura >= 0.8 ? "bueno" : cobertura >= 0.4 ? "normal" : "aviso",
-      cifra: sinNombre,
-      accion: "Ver reservas",
-      a: "/admin/reservas",
-      que: `de los ${n(d.cuposConfirmados)} cupos apartados no tienen todavía un nombre detrás.`,
-      hacer: empresaFloja
-        ? `La que más debe es ${empresaFloja.razonSocial}, con ${n(
-            empresaFloja.cupos - empresaFloja.inscritos,
-          )} pendientes. Pídale los nombres.`
-        : "Pida los nombres a las organizaciones que apartaron cupos.",
-    });
 
   if (frios > 0)
     pendientes.push({
@@ -137,7 +123,7 @@ export function PendientesDeHoy({ control }: { control: Control | null }) {
         /* El caso bueno se dice, no se deja en blanco: una
            tarjeta vacía se lee como que no cargó. */
         <p className="text-[0.84375rem] text-texto-suave">
-          No hay nada pendiente: los cupos tienen nombre y no queda nadie sin llamar.
+          No queda ningún lead sin llamar ni sin asesor.
         </p>
       ) : (
         <ul className="divide-y divide-hairline">
@@ -168,6 +154,81 @@ export function PendientesDeHoy({ control }: { control: Control | null }) {
           ))}
         </ul>
       )}
+    </Bloque>
+  );
+}
+
+/**
+ * Los cupos que una empresa apartó y todavía no tienen nombre.
+ *
+ * VA APARTE Y MÁS ABAJO, y no entre los pendientes de leads: un
+ * cupo apartado no es una persona en el CRM, es un compromiso de
+ * una organización. Contarlo entre los leads mezclaba dos cosas
+ * que ni se cuentan igual ni las trabaja la misma persona
+ * (cliente, 20 sep 2026).
+ *
+ * Tampoco depende del periodo de arriba: una reserva de julio
+ * sigue debiendo nombres hoy.
+ */
+export function ReservasSinNombre({ control }: { control: Control | null }) {
+  if (!control) return null;
+  const d = control;
+  const sinNombre = Math.max(0, d.cuposConfirmados - d.inscritosConReserva);
+  if (d.cuposConfirmados === 0) return null;
+
+  const cobertura = d.cuposConfirmados > 0 ? d.inscritosConReserva / d.cuposConfirmados : 0;
+  const empresaFloja = [...d.topEmpresas].sort(
+    (a, b) => b.cupos - b.inscritos - (a.cupos - a.inscritos),
+  )[0];
+
+  return (
+    <Bloque
+      titulo="Cupos apartados por empresas"
+      descripcion="Cupos que una organización reservó y todavía no tienen una persona detrás. No son leads y no dependen del periodo elegido arriba."
+    >
+      <div className="flex flex-wrap items-center gap-x-8 gap-y-3">
+        <div>
+          <p className="text-[1.375rem] leading-none font-bold text-titulo tabular-nums">
+            {n(d.cuposConfirmados)}
+          </p>
+          <p className="mt-1 text-[0.78125rem] text-texto-suave">cupos apartados</p>
+        </div>
+        <div>
+          <p className="text-[1.375rem] leading-none font-bold text-exito tabular-nums">
+            {n(d.inscritosConReserva)}
+          </p>
+          <p className="mt-1 text-[0.78125rem] text-texto-suave">
+            ya tienen nombre · {Math.round(cobertura * 100)} %
+          </p>
+        </div>
+        <div>
+          <p
+            className={`text-[1.375rem] leading-none font-bold tabular-nums ${
+              sinNombre > 0 ? "text-error" : "text-texto-suave"
+            }`}
+          >
+            {n(sinNombre)}
+          </p>
+          <p className="mt-1 text-[0.78125rem] text-texto-suave">siguen sin nombre</p>
+        </div>
+
+        {sinNombre > 0 && (
+          <p className="min-w-[260px] grow text-[0.84375rem] text-texto-suave">
+            {empresaFloja
+              ? `La que más debe es ${empresaFloja.razonSocial}, con ${n(
+                  empresaFloja.cupos - empresaFloja.inscritos,
+                )} pendientes.`
+              : "Pida los nombres a las organizaciones que apartaron cupos."}
+          </p>
+        )}
+
+        <Link
+          href="/admin/reservas"
+          className="shrink-0 rounded-lg border border-marca/30 px-2.5 py-1 text-[0.75rem] font-semibold text-marca transition hover:bg-marca-suave"
+        >
+          Ver reservas
+        </Link>
+      </div>
     </Bloque>
   );
 }
