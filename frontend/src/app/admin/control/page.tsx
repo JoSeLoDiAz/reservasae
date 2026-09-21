@@ -319,6 +319,28 @@ export default function PaginaControl() {
               </div>
             </div>
 
+            {/* QUITAR LO ELEGIDO. «¿No veo eliminar filtro o algo
+                así?» (cliente, 20 sep 2026): los cinco filtros de
+                abajo tienen su «Limpiar» y el periodo no tenía
+                ninguno, así que había que acordarse de cuál era el
+                de siempre. Sale solo cuando hay algo que quitar. */}
+            {(rango !== "TODO" || contra !== "AUTO") && (
+              <button
+                type="button"
+                onClick={() => {
+                  setRango("TODO");
+                  setDesde("");
+                  setHasta("");
+                  setContra("AUTO");
+                  setContraDesde("");
+                  setContraHasta("");
+                }}
+                className="mb-1 text-[0.78125rem] text-texto-suave underline underline-offset-2 hover:text-texto"
+              >
+                Quitar el periodo
+              </button>
+            )}
+
             <IndicadorActualizacion
               actualizadoEn={vivos.actualizadoEn}
               refrescando={vivos.refrescando}

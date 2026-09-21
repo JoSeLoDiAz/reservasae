@@ -699,7 +699,10 @@ export const ETIQUETA_RANGO: Record<Rango, string> = {
   TRIMESTRE: "Últimos 90 días",
   ANO: "Últimos 12 meses",
   TODO: "Desde el principio",
-  PERSONALIZADO: "Entre dos fechas",
+  /// NO «entre dos fechas»: sonaba a comparación --«si escojo
+  /// esas dos fechas, esa es la comparativa, ¿no?» (cliente, 20
+  /// sep 2026)-- y son el principio y el fin de UN periodo.
+  PERSONALIZADO: "Un rango de fechas",
 };
 
 /**
