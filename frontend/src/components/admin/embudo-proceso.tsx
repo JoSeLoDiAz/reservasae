@@ -346,39 +346,65 @@ export function TarjetasDelEmbudo({
   etiquetaAntes?: string | null;
 }) {
   if (notas.length === 0) return null;
+  /**
+   * EL REPARTO LO MANDAN LAS CLASES, NO UN ESTILO EN LÍNEA.
+   *
+   * `style={{gridTemplateColumns: 'repeat(3, …)'}}` gana SIEMPRE
+   * a `sm:grid-cols-2`, que estaba en el mismo elemento, así que
+   * las tres casillas se quedaban en tres columnas a cualquier
+   * ancho, celular incluido: medido a 390 px, 93 px por casilla,
+   * «siguen en / proceso, / sin / inscribirse» en cuatro
+   * renglones y la fila entera de 350 px de alto contra los 120
+   * que mide a 1.600. Ninguna de las tres referencias del
+   * cliente deja una casilla de dato por debajo de ~150 px.
+   *
+   * Cadenas completas y no interpoladas: Tailwind las busca tal
+   * cual en el código y una clase armada a trozos no existiría.
+   */
+  const reparto =
+    notas.length === 1
+      ? "grid-cols-1"
+      : notas.length === 2
+        ? "grid-cols-1 min-[520px]:grid-cols-2"
+        : notas.length === 3
+          ? "grid-cols-1 min-[520px]:grid-cols-2 min-[900px]:grid-cols-3"
+          : "grid-cols-1 min-[520px]:grid-cols-2";
   return (
-    <div
-      className="mt-3 grid gap-2.5 border-t border-hairline pt-3 sm:grid-cols-2"
-      style={{
-        gridTemplateColumns:
-          notas.length <= 3 ? `repeat(${notas.length}, minmax(0, 1fr))` : undefined,
-      }}
-    >
+    <div className={`mt-3 grid gap-2.5 border-t border-hairline pt-3 ${reparto}`}>
       {notas.map((nt, i) => (
         <div
           key={`${nt.etiqueta}#${i}`}
           className="rounded-[11px] border border-hairline px-3.5 py-2"
           title={nt.detalle}
         >
+          {/* LOS MISMOS CUATRO ESCALONES QUE EL RESTO DEL BLOQUE.
+              Había nueve tamaños de letra en una sola tarjeta,
+              tres de ellos dentro de un margen de 1 px: no se
+              distinguen entre sí y solo impiden que nada case.
+              Cifra grande 20 px --la misma del embudo--, cuerpo
+              13,5 --el de la casa-- y apunte 11. */}
           <span
-            className="block text-[1.375rem] leading-none font-bold tabular-nums"
+            className="block text-[1.25rem] leading-none font-bold tabular-nums"
             style={{ color: COLOR_TONO[nt.tono ?? "neutro"] }}
           >
             {n(nt.cifra)}
           </span>
-          <span className="mt-1.5 block text-[0.8125rem] leading-snug font-medium text-texto">
+          <span className="mt-1.5 block text-[0.84375rem] leading-snug font-medium text-texto">
             {nt.etiqueta}
           </span>
           {nt.antes !== null && nt.antes !== undefined && (
-            <span className="mt-1 block text-[0.71875rem] text-texto-suave tabular-nums">
+            <span className="mt-1 block text-[0.6875rem] text-texto-suave tabular-nums">
+              {/* «igual que el mes de antes» y no «igual que mes
+                  de antes»: recortar la preposición de
+                  `contraQue` se comía también el artículo. */}
               {nt.antes === nt.cifra
-                ? `igual que ${contraQue(etiquetaAntes).replace(/^a[l]? /, "")}`
+                ? `igual que ${(etiquetaAntes ?? "antes").toLowerCase()}`
                 : `${nt.cifra > nt.antes ? "+" : "−"}${n(
                     Math.abs(nt.cifra - nt.antes),
                   )} frente ${contraQue(etiquetaAntes)} (${n(nt.antes)})`}
             </span>
           )}
-          <span className="mt-1 block text-[0.71875rem] leading-snug text-texto-suave">
+          <span className="mt-1 block text-[0.6875rem] leading-snug text-texto-suave">
             {nt.detalle}
           </span>
         </div>

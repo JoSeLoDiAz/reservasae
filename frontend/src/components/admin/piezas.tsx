@@ -138,8 +138,14 @@ export function Bloque({
             {titulo && (
               <h2 className="text-[0.875rem] font-semibold text-titulo">{titulo}</h2>
             )}
+            {/* En `--texto` y no `--texto-suave`: sobre la franja
+                tintada del encabezado, el gris daba 4,39:1 con 12 px
+                de cuerpo --medido con lienzo, componiendo el color
+                sobre el fondo heredado-- y el mínimo para texto
+                pequeño es 4,5. Era el único texto del bloque que no
+                llegaba. */}
             {descripcion && (
-              <p className="mt-0.5 text-[0.75rem] text-texto-suave">{descripcion}</p>
+              <p className="mt-0.5 text-[0.75rem] text-texto">{descripcion}</p>
             )}
           </div>
           <span className="shrink-0 text-[0.75rem] font-medium text-marca">
@@ -183,7 +189,7 @@ export function Bloque({
               <h2 className="text-[0.875rem] font-semibold text-titulo">{titulo}</h2>
             )}
             {descripcion && (
-              <p className="mt-0.5 text-[0.75rem] text-texto-suave">{descripcion}</p>
+              <p className="mt-0.5 text-[0.75rem] text-texto">{descripcion}</p>
             )}
           </div>
           {acciones}

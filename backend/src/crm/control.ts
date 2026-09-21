@@ -315,6 +315,16 @@ function aIso(v: { desde: Date; hasta: Date }) {
 export type RecorteDeControl = {
   convenioId?: string;
   accionFormacionId?: string;
+  /**
+   * El grupo, que cuelga de la COBERTURA y no del participante.
+   *
+   * Lo pide la misma barra de filtros que los demás cortes. Sin
+   * él, elegir un grupo recortaba el embudo de la pantalla --que
+   * sale de `/resumen`, y ese sí lo aplica-- y dejaba el gráfico
+   * de columnas de al lado contando a todo el mundo, con el pie
+   * afirmando que las dos mitades son la misma gente.
+   */
+  grupoId?: string;
   asesorId?: string;
   departamentoSepId?: number;
 };
@@ -385,6 +395,13 @@ export async function controlDeInscritos(
   const suyos = Prisma.sql`p."convenioId" IN (${Prisma.join(ambito)})
     ${recorte?.convenioId ? Prisma.sql`AND p."convenioId" = ${recorte.convenioId}` : Prisma.empty}
     ${recorte?.accionFormacionId ? Prisma.sql`AND p."accionFormacionId" = ${recorte.accionFormacionId}` : Prisma.empty}
+    ${
+      recorte?.grupoId
+        ? Prisma.sql`AND EXISTS (SELECT 1 FROM "grupos_cobertura" gcr
+                                  WHERE gcr."id" = p."coberturaId"
+                                    AND gcr."grupoId" = ${recorte.grupoId})`
+        : Prisma.empty
+    }
     ${recorte?.asesorId ? Prisma.sql`AND p."asesorId" = ${recorte.asesorId}` : Prisma.empty}
     ${
       recorte?.departamentoSepId

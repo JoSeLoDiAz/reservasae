@@ -79,19 +79,19 @@ export function PendientesDeHoy({ control }: { control: Control | null }) {
     pendientes.push({
       tono: "aviso",
       cifra: frios,
-      accion: "Ver esos leads",
+      accion: "Ver esas personas",
       a: "/admin/participantes",
-      que: `de los ${n(esperando)} leads que esperan una primera llamada llevan más de una semana.`,
-      hacer: "Llámelos hoy: cuanto más se enfría un lead, menos se inscribe.",
+      que: `de las ${n(esperando)} personas que esperan una primera llamada llevan más de una semana.`,
+      hacer: "Llámelos hoy: cuanto más tarda la primera llamada, menos gente se inscribe.",
     });
 
   if (d.sinAsignar > 0)
     pendientes.push({
       tono: "normal",
       cifra: d.sinAsignar,
-      accion: "Repartir leads",
+      accion: "Repartir personas",
       a: "/admin/participantes",
-      que: "leads no tienen asesor asignado.",
+      que: "personas no tienen asesor asignado.",
       hacer: "Repártalos, porque hoy no los está llamando nadie.",
     });
 
@@ -123,7 +123,7 @@ export function PendientesDeHoy({ control }: { control: Control | null }) {
         /* El caso bueno se dice, no se deja en blanco: una
            tarjeta vacía se lee como que no cargó. */
         <p className="text-[0.84375rem] text-texto-suave">
-          No queda ningún lead sin llamar ni sin asesor.
+          No queda nadie sin llamar ni sin asesor.
         </p>
       ) : (
         <ul className="divide-y divide-hairline">
@@ -184,7 +184,7 @@ export function ReservasSinNombre({ control }: { control: Control | null }) {
   return (
     <Bloque
       titulo="Cupos apartados por empresas"
-      descripcion="Cupos que una organización reservó y todavía no tienen una persona detrás. No son leads y no dependen del periodo elegido arriba."
+      descripcion="Cupos que una organización reservó y todavía no tienen una persona detrás. No son personas del embudo y no dependen del periodo elegido arriba."
     >
       <div className="flex flex-wrap items-center gap-x-8 gap-y-3">
         <div>

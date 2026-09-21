@@ -569,7 +569,23 @@ export class CrmService {
 
     // las opciones de filtro salen de la base, no de la
     // pagina cargada: si no, faltan los de la pagina 2
-    const [porAsesor, porAccion] = await Promise.all([
+    /**
+     * Y LOS GREMIOS TAMBIEN SALEN DE AQUI (21 sep 2026).
+     *
+     * El desplegable «Gremios» sacaba su cuenta de `/metricas`,
+     * que recorta `etapa: { in: ETAPAS_DEL_EMBUDO }`, mientras el
+     * bloque sale de `/resumen`, que descarta la etapa a
+     * proposito. La diferencia es la gente que ya paso al aula
+     * --EN_FORMACION, CERTIFICADO, RETIRADO, ABANDONO--: la
+     * lista ofrecia «ADECOPRIA · 98» y al elegirlo el bloque
+     * contestaba 103. Los otros cuatro desplegables salen de
+     * esta misma respuesta y cuadran al digito; este faltaba.
+     *
+     * Es un campo NUEVO: nadie que lea la respuesta de hoy se
+     * entera, y el que lo necesita ya no tiene que cruzar dos
+     * endpoints para contar lo mismo.
+     */
+    const [porAsesor, porAccion, porConvenio] = await Promise.all([
       this.prisma.participante.groupBy({
         by: ['asesorId'],
         where: donde,
@@ -577,6 +593,11 @@ export class CrmService {
       }),
       this.prisma.participante.groupBy({
         by: ['accionFormacionId'],
+        where: donde,
+        _count: { _all: true },
+      }),
+      this.prisma.participante.groupBy({
+        by: ['convenioId'],
         where: donde,
         _count: { _all: true },
       }),
@@ -589,7 +610,11 @@ export class CrmService {
       .map((f) => f.accionFormacionId)
       .filter((id): id is string => !!id);
 
-    const [asesores, acciones] = await Promise.all([
+    const idsConvenio = porConvenio
+      .map((f) => f.convenioId)
+      .filter((id): id is string => !!id);
+
+    const [asesores, acciones, convenios] = await Promise.all([
       this.prisma.admin.findMany({
         where: { id: { in: idsAsesor } },
         select: { id: true, nombre: true },
@@ -600,6 +625,11 @@ export class CrmService {
         select: { id: true, codigo: true, nombre: true },
         orderBy: { codigo: 'asc' },
       }),
+      this.prisma.convenio.findMany({
+        where: { id: { in: idsConvenio } },
+        select: { id: true, sigla: true, nombre: true },
+        orderBy: { nombre: 'asc' },
+      }),
     ]);
 
     const totalAsesor = new Map(
@@ -607,6 +637,9 @@ export class CrmService {
     );
     const totalAccion = new Map(
       porAccion.map((f) => [f.accionFormacionId, f._count._all]),
+    );
+    const totalConvenio = new Map(
+      porConvenio.map((f) => [f.convenioId, f._count._all]),
     );
 
     // por donde vive la persona, no por donde se dicta el
@@ -715,6 +748,12 @@ export class CrmService {
       acciones: acciones.map((a) => ({
         ...a,
         total: totalAccion.get(a.id) ?? 0,
+      })),
+      // la sigla es como se nombra el gremio en toda la pantalla
+      convenios: convenios.map((c) => ({
+        id: c.id,
+        nombre: c.sigla ?? c.nombre,
+        total: totalConvenio.get(c.id) ?? 0,
       })),
       sinAsesor: totalAsesor.get(null) ?? 0,
       grupos,

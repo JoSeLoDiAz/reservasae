@@ -71,8 +71,20 @@ const RANGOS: Rango[] = [
  */
 function anteriorDe(rango: Rango, desde: string, hasta: string): string {
   switch (rango) {
+    /// «AYER» A SECAS ERA FALSO.
+    ///
+    /// Con «Hoy», el backend recorta el periodo en curso en
+    /// «ahora» y compara contra el MISMO TRAMO de ayer --medido:
+    /// la ventana va de las 00:00 a la 1:37 y la de comparación
+    /// de las 00:00 de ayer a la 1:37 de ayer--, y aquí se
+    /// rotulaba como el día entero. Las tres casillas decían
+    /// «igual que ayer» cuando ayer entraron cuatro personas. La
+    /// cifra estaba bien; la palabra, mal, y es la palabra la que
+    /// se lee.
     case "HOY":
-      return "Ayer";
+      return "Ayer a esta misma hora";
+    /// «Ayer» sí es un día cerrado, así que su anterior es
+    /// anteayer entero: el backend no recorta nada (ventana.ts).
     case "AYER":
       return "Anteayer";
     case "SEMANA":
@@ -136,8 +148,11 @@ function textoDuracion(dias: number | null): string {
 
 /// Las dos pestañas. Antes eran dos entradas del menú que
 /// contaban lo mismo por caminos distintos.
+/// Con el nombre entero: «Proceso» dentro de un desplegable
+/// rotulado «Qué mirar» no dice qué se está eligiendo (cliente,
+/// 21 sep 2026).
 const PESTANAS = [
-  { clave: "metas", etiqueta: "Proceso" },
+  { clave: "metas", etiqueta: "Proceso de inscripción" },
   { clave: "comite", etiqueta: "Comité Marketing" },
 ] as const;
 
@@ -151,6 +166,14 @@ export default function PaginaControl() {
   useEffect(() => {
     try {
       const guardada = window.localStorage.getItem("control:pestana");
+      /// La regla pide no llamar a `setState` dentro de un efecto,
+      /// y aquí es a propósito: leer `localStorage` al crear el
+      /// estado se ejecutaría también en el servidor --donde no
+      /// hay ventana-- y el cliente pintaría otra pestaña que la
+      /// entregada, que es un desajuste de hidratación. La
+      /// costumbre de Next para esto es justo esta: primero la de
+      /// por defecto, y al montar se cambia a la recordada.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       if (guardada === "metas" || guardada === "comite") setPestana(guardada);
     } catch {
       // navegador sin almacenamiento: se queda con la de por defecto
@@ -206,9 +229,15 @@ export default function PaginaControl() {
 
   /// La clave del refresco lleva los cortes: sin ellos, cambiar
   /// de gremio no volvía a pedir nada y se quedaba lo anterior.
+  /// `grupoId` va con los demás: sin él, elegir un grupo recortaba
+  /// el embudo de la izquierda --que lo pide el panel-- y dejaba
+  /// el gráfico de columnas contando a otras ciento treinta
+  /// personas, con el pie afirmando que las dos mitades son la
+  /// misma gente.
   const claveCortes = [
     cortes.convenioId,
     cortes.accionFormacionId,
+    cortes.grupoId,
     cortes.asesorId,
     cortes.departamentoSepId,
   ].join("|");
@@ -225,6 +254,7 @@ export default function PaginaControl() {
           contraHasta: contra === "AUTO" ? undefined : contraHasta || undefined,
           convenioId: cortes.convenioId,
           accionFormacionId: cortes.accionFormacionId,
+          grupoId: cortes.grupoId,
           asesorId: cortes.asesorId,
           departamentoSepId: cortes.departamentoSepId,
         }),
@@ -234,6 +264,35 @@ export default function PaginaControl() {
       clave: `${rango}|${desde}|${hasta}|${contra}|${contraDesde}|${contraHasta}|${claveCortes}`,
     },
   );
+
+  /**
+   * Si el `control` que se está pintando es del periodo ELEGIDO.
+   *
+   * `useDatosVivos` conserva la respuesta anterior mientras pide
+   * la siguiente --a propósito: vaciar la pantalla en cada
+   * vuelta es peor--, así que cuando una consulta no vuelve, lo
+   * que se ve es del periodo de antes. El panel necesita saberlo
+   * para decirlo dentro del bloque en vez de dejar que se lea
+   * como el resultado de lo que se acaba de elegir.
+   *
+   * Se compara por RANGO y no por la etiqueta: con dos fechas
+   * elegidas el backend rotula «del 1 al 15 de septiembre» y el
+   * desplegable dice «Un rango de fechas», que son la misma cosa
+   * dicha de dos maneras.
+   *
+   * Se arranca por `desactualizado` --«falló el último
+   * intento»--: si la última consulta salió bien, lo que se ve
+   * es lo pedido o está a punto de serlo, y el aviso no puede
+   * asomar medio segundo en cada cambio de periodo, que es una
+   * espera normal y no un fallo.
+   */
+  const controlAlDia =
+    !vivos.desactualizado ||
+    !vivos.datos ||
+    (vivos.datos.ventana.rango === rango &&
+      (rango !== "PERSONALIZADO" ||
+        ((vivos.datos.ventana.desde ?? "") === desde &&
+          (vivos.datos.ventana.hasta ?? "") === hasta)));
 
   const diasA = diasDeRango(rango, desde, hasta);
   const diasB = eligio ? diasDeRango(contra as Rango, contraDesde, contraHasta) : diasA;
@@ -255,8 +314,14 @@ export default function PaginaControl() {
               pantalla en tres renglones y el cliente los paró los
               dos: «algo profesional, como: seguimiento y control
               de leads» (20 sep 2026). */}
+          {/* «Personas» y no «leads»: el bloque, los cinco
+              desplegables y el pie cuentan personas, y dos
+              palabras para lo mismo --una de ellas en inglés-- en
+              la misma pantalla fue lo primero que se preguntó
+              (cliente, 21 sep 2026). */}
           <p className="mt-0.5 text-[0.78125rem] text-texto-suave">
-            Seguimiento y control de leads, de la primera entrada a la inscripción.
+            Seguimiento y control de las personas que se inscriben, de la primera entrada a la
+            inscripción.
           </p>
         </div>
         {/* LA COMPARACIÓN, AL FRENTE DEL TÍTULO.
@@ -276,12 +341,12 @@ export default function PaginaControl() {
               2026), y a su izquierda. */}
           <div className="no-imprimir">
             <p className="mb-1.5 text-[0.625rem] font-bold tracking-[0.08em] text-texto-suave uppercase">
-              Qué mirar
+              Qué pantalla
             </p>
             <div className="w-[210px]">
               <Desplegable
                 alto={34}
-                marcador="Qué mirar"
+                marcador="Qué pantalla"
                 valor={pestana}
                 opciones={PESTANAS.map((p) => ({
                   valor: p.clave,
@@ -323,7 +388,19 @@ export default function PaginaControl() {
                     setRango(r);
                     /// Elegir dos fechas apaga la comparación: es
                     /// lo que el cliente espera al ponerlas.
-                    if (r === "PERSONALIZADO" || r === "TODO") setContra("NINGUNO");
+                    ///
+                    /// Y SOLO CON DOS FECHAS. Pasar por «Desde el
+                    /// principio» apagaba la comparación de todos
+                    /// los periodos siguientes sin decirlo: en
+                    /// TODO no se notaba --ese periodo no ofrece
+                    /// comparación-- pero el estado se quedaba
+                    /// puesto, y al volver a «Últimos 30 días» el
+                    /// bloque había perdido los cuatro «antes N»,
+                    /// la segunda frase de la tasa y la raya del
+                    /// promedio sin que nadie tocara nada. Con
+                    /// TODO no hace falta apagar: `sePuedeComparar`
+                    /// ya es falso porque no tiene anterior.
+                    if (r === "PERSONALIZADO") setContra("NINGUNO");
                   }}
                   desde={desde}
                   alCambiarDesde={setDesde}
@@ -440,6 +517,13 @@ export default function PaginaControl() {
         control={vivos.datos}
         comparar={!sinComparar}
         etiquetaAnterior={anterior}
+        /// Cómo se llama lo ELEGIDO aquí arriba, al instante. El
+        /// panel no rotula ninguna cifra con esto --cada cifra
+        /// lleva el nombre del periodo del que salió--: le sirve
+        /// para poder decir qué periodo se pidió cuando la
+        /// consulta falla y lo que se ve sigue siendo el anterior.
+        etiquetaPeriodo={ETIQUETA_RANGO[rango]}
+        controlAlDia={controlAlDia}
       />
 
       {/* El error del periodo se queda: `PanelProceso` avisa de

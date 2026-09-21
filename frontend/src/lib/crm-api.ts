@@ -1,4 +1,3 @@
-import { ErrorApi } from "./api";
 import { pedir } from "./pedir";
 
 /** Lo que devuelve el embudo del formulario publico. */
@@ -429,6 +428,12 @@ export type Resumen = {
   /// de formación: «Grupo 1» existe en las quince y sin él no se
   /// distinguen.
   grupos: Array<{ id: string; numero: number; accion: string; total: number }>;
+  /// Los gremios, para que su desplegable cuente la MISMA gente
+  /// que el bloque. La cuenta salía de `/metricas`, que recorta
+  /// por etapa, y ofrecía «ADECOPRIA · 98» para que el bloque
+  /// contestara 103: la diferencia era la gente que ya pasó al
+  /// aula. `nombre` es la sigla cuando la hay.
+  convenios: Array<{ id: string; nombre: string; total: number }>;
   sinAsesor: number;
   /// Por donde vive la persona, no por donde se dicta.
   departamentos: Array<{ id: number | null; nombre: string; total: number }>;

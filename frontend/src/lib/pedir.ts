@@ -62,7 +62,18 @@ export async function pedir<T>(ruta: string, opciones?: RequestInit): Promise<T>
     const mensaje = Array.isArray(bruto) ? bruto.join(". ") : bruto;
     throw new ErrorApi(
       respuesta.status,
-      mensaje ?? "No se pudo completar la operación.",
+      // El limitador de Nest contesta «ThrottlerException: Too
+      // Many Requests», en inglés y con el nombre de la clase
+      // dentro. Eso se le enseñaba tal cual a quien cambia tres
+      // filtros seguidos en un producto en español. La traducción
+      // va aquí, en la única puerta, y no en cada pantalla.
+      // «Unos segundos» no era lo medido: la ventana del
+      // limitador es de 60 s (backend/src/app.module.ts), y la
+      // banda roja tardaba 65 s en irse mientras pedía esperar
+      // unos segundos. Se dice lo que de verdad hay que esperar.
+      respuesta.status === 429
+        ? "Demasiadas consultas seguidas. Espere un minuto y vuelva a intentarlo."
+        : (mensaje ?? "No se pudo completar la operación."),
       cuerpo,
     );
   }
