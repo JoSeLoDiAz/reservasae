@@ -3940,6 +3940,100 @@ está escrita — hoy todo entra como `PENDIENTE`. Y no hay pantalla:
 la mesa de entrada se ve por la base. Las dos cosas son el
 siguiente paso, y ninguna cambia lo de arriba.
 
+### El Resumen son cinco módulos en pestañas (22 sep 2026)
+
+`/admin`. Lo pidió el cliente con un mockup en HTML y una reunión: **1
+Reservas afiliados · 2 Leads e inscripciones · 3 Seguimiento académico ·
+4 Tráfico de página · 5 Seguimiento de asesores**. El quinto lo pidió
+Catalina.
+
+- **Son módulos INDEPENDIENTES y solo uno se monta.** «Al dar clic que
+  cargue las cosas, para no sobrecargar la página». Apilados, entrar al
+  panel disparaba cuatro llamadas y pintaba cinco mil píxeles de alto.
+  Ahora la pestaña **es** el montaje: cada módulo pide lo suyo al
+  montarse y el que no se abre no cuesta ni una petición. Comprobado en
+  vivo: cambiar de pestaña hace **una** llamada y ninguna recarga.
+- **La pestaña vive en la dirección (`?modulo=`)**, no en un estado
+  suelto: así «Atrás» funciona, el enlace se comparte y recargar no
+  devuelve al primero. Por eso la página va dentro de un `Suspense` —
+  `useSearchParams` en un componente de cliente lo exige o `next build`
+  no prerenderiza.
+- **El 2 y el 5 comparten UNA sola llamada** a `/admin/participantes/control`
+  vía `ProveedorDeControl`, pero se montan por separado: sin el contexto,
+  el orden de pintado salía 2, 5, 3, 4.
+- **Lo de antes no se borró.** El Resumen anterior —veredicto, termómetro
+  de la meta dentro del tope, ritmo por acción, mapa y concentración— vive
+  entero en `/admin/ocupacion`, con su entrada de menú.
+
+#### Quién ve el quinto
+
+«El 5 solo tiene usuarios específicos, ¿no? Country manager, admin y líder
+de inscripciones». `VEN_EL_EQUIPO` en `permisos.ts`, y **no se deriva de
+`REPARTEN_FICHAS`** aunque por poco: la Sra. Catalina, que fue quien pidió
+el módulo, es `COUNTRY_MANAGER` y **no reparte fichas**; y el líder
+ACADÉMICO sí reparte y no tiene por qué ver a los asesores de
+inscripciones. Son dos preguntas distintas —repartir es ORGANIZAR el
+trabajo y esto es MIRARLO—, así que son dos listas, y
+`quien-ve-el-equipo.spec.ts` fija que sean disjuntas en los dos sentidos.
+
+- **Quien no responde por el equipo recibe SOLO su fila, y la recorta el
+  SERVIDOR**, no la pantalla: `controlDeInscritos` pide `QuienMira` y
+  filtra `porAsesor`. El título también cambia —«Su gestión»—, porque una
+  tabla de una sola fila titulada «Seguimiento de asesores» se lee como si
+  faltara gente.
+
+#### Lo que cada módulo mide, y por qué no lo obvio
+
+- **El 1 no cuenta «ocupación», cuenta cupos reservados contra personas
+  inscritas HOY**, y sus tres filtros reparten el trabajo: acción y
+  ubicación van al SERVIDOR —que es quien sabe de cupos— y la institución
+  se recorta en el navegador desde el cruce que ya viaja. **El catálogo de
+  opciones se congela en una ref** mientras no haya filtro de servidor: si
+  saliera de la respuesta filtrada, elegir una acción dejaría el
+  desplegable con una sola opción y no habría forma de volver.
+- **La curva del 2 es ACUMULADA por canal a nueve semanas**, como el
+  ejemplo. Por semanas sueltas, con dos o tres inscritos por canal, salen
+  sierras que no dicen nada. El acumulado se calcula sobre la cadena
+  `YYYY-MM-DD` con `Date.UTC`: pasando por `new Date(local)` la semana se
+  corre un día en Bogotá. Su consulta —`seriePorOrigen`— usa el **mismo
+  ancla y el mismo recorte** que la serie de al lado; con dos anclas, dos
+  cifras de la misma pantalla contarían cosas distintas.
+- **El 3 se pinta entero aunque esté en cero.** «Así esté en 0, dejarlo así
+  como se ve en el mockup». Antes se sustituía por un cartel, y la sección
+  de avance por acción colgaba además de `porAccion.length > 0`, así que
+  desaparecía justo en el estado que había que conservar. Ahora el aviso va
+  DENTRO —un cero sin explicar se lee como un dato que no cargó— y el
+  bloque vacío dice por qué lo está en vez de dibujar barras en cero
+  inventadas.
+- **El 4 lleva dos ejes y es legítimo**: aperturas y personas que
+  terminaron son dos cosas distintas y cada eje lleva su rótulo. Lo que no
+  valdría es usarlo para que una serie pequeña parezca grande.
+- **El 5 mide lo que SALE DE LA COLA, no lo inscrito.** Con decenas de
+  miles de leads y cero inscritos, una barra de inscritos sale plana en
+  todo el mundo: la gráfica no distinguía a un asesor de otro, que es lo
+  único que un seguimiento de asesores tiene que hacer. Lo cerrado sí los
+  separa —de 5.602, uno lleva 1.868 y otro va por 900—.
+
+  **Y «salió de la cola» NO es «lo contactó»**: la cola son TRES etapas
+  —interesado, contactado y datos completos, de `ETAPAS_POR_TRABAJAR`— y un
+  contactado sigue dentro porque todavía hay trabajo con él. La primera
+  versión del rótulo decía «contactado, inscrito o descartado» y era falsa.
+
+#### Dos trampas de los gráficos nuevos
+
+- **`resumen` de `LineasDeSeries` va OBLIGATORIO y sin valor por defecto.**
+  La leyenda imprimía el ÚLTIMO punto, que en una curva acumulada ES el
+  total —correcto— y en una serie por día es HOY, que suele ir en cero: el
+  módulo 4 decía «Aperturas 0» sobre una curva que llega a 107. Las dos
+  respuestas son ciertas en una gráfica y absurdas en la otra, así que con
+  un valor por defecto la siguiente gráfica hereda el resumen de la de al
+  lado. Obligándolo, el compilador caza la llamada que falta.
+- **`porAsesor.pendientes` es OPCIONAL en el contrato**, como
+  `cuposConNombre`: un backend sin reiniciar no lo manda. Sumar los
+  ausentes como cero haría decir «nada en cola», que es una afirmación
+  falsa sobre el trabajo de alguien; sin el dato, la cifra no se pinta, la
+  columna dice «—» y la gráfica cae a la de inscritos.
+
 
 ---
 
