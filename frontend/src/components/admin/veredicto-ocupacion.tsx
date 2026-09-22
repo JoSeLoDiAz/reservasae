@@ -120,8 +120,8 @@ export function VeredictoOcupacion({
             `<br>` que no hacía falta: cabe de sobra en media
             pantalla. */}
         <div className="bg-superficie-alterna/45 px-7 py-3.5">
-          {/* DOS avances y no uno: una silla apartada por una
-              empresa no esta usada. Se usa cuando hay alguien
+          {/* DOS avances y no uno: un cupo reservado por una
+              empresa no esta usado. Se usa cuando hay alguien
               inscrito encima (cliente, 13 sep 2026). */}
           <div className="grid gap-x-6 gap-y-3 sm:grid-cols-2">
             <div>
@@ -136,7 +136,7 @@ export function VeredictoOcupacion({
                 <strong className="font-semibold text-texto tabular-nums">
                   {n(resumen.ocupados)}
                 </strong>{" "}
-                de {n(resumen.metaBase)} cupos apartados
+                de {n(resumen.metaBase)} · reservados por empresas
               </p>
             </div>
 
@@ -161,9 +161,36 @@ export function VeredictoOcupacion({
           {brecha !== 0 && (
             <p className="mt-3 text-[0.78125rem] leading-snug text-texto-suave">
               {brecha > 0
-                ? `Faltan ${n(brecha)} nombres para los cupos apartados.`
-                : `${n(-brecha)} se inscribieron por su cuenta, sin cupo apartado detrás.`}
+                ? `Faltan ${n(brecha)} nombres para los cupos reservados.`
+                : `${n(-brecha)} se inscribieron por su cuenta, sin reserva detrás.`}
             </p>
+          )}
+
+          {/* LA SUMA, VISTA COMO SUMA.
+              «Tienen que hacer la suma de ambos, pero como BRITCHAM
+              aún no se ha activado siguen stand-by» (cliente, 22 sep
+              2026). Las cifras de arriba ya eran la suma; lo que
+              faltaba era poder comprobarlo. Con las dos filas, un
+              gremio en cero se explica sin que nadie tenga que
+              escribir en el código cuál está parado.
+              Solo con más de uno: con uno solo no hay nada que
+              sumar y la fila repetiría la cifra de arriba. */}
+          {resumen.porGremio.length > 1 && (
+            <dl className="mt-3 flex flex-wrap gap-x-6 gap-y-1 border-t border-hairline pt-2.5 text-[0.78125rem] text-texto-suave">
+              {resumen.porGremio.map((g) => (
+                <div key={g.slug} className="flex items-baseline gap-1.5">
+                  <dt className="font-semibold text-texto">{g.sigla}</dt>
+                  <dd className="tabular-nums">
+                    {n(g.reservado)} de {n(g.meta)}
+                    {g.reservado === 0 && g.inscritos === 0 && (
+                      /* Se DICE, no se deja en blanco: un cero sin
+                         explicar se lee como un dato que no cargó. */
+                      <span className="ml-1.5">· todavía sin reservas</span>
+                    )}
+                  </dd>
+                </div>
+              ))}
+            </dl>
           )}
         </div>
 

@@ -13,7 +13,7 @@ export type Resumen = {
   /** La meta comprometida, sin sobrecupo. */
   metaBase: number;
   avanceMeta: number;
-  /** Personas inscritas en adelante: la silla usada de verdad. */
+  /** Personas inscritas en adelante: el cupo usado de verdad. */
   inscritos: number;
   avanceInscritos: number;
   avanceInscritosMeta: number;
@@ -26,6 +26,22 @@ export type Resumen = {
   acciones: number;
   accionesPublicadas: number;
   ofertasSinReservas: number;
+  /**
+   * Lo de arriba, abierto por gremio.
+   *
+   * Para poder ver la suma COMO suma: con las dos filas al lado,
+   * un gremio parado se explica solo. Va vacío si el ámbito no
+   * tiene ninguno, y con una sola fila cuando la dirección fija
+   * el gremio —ahí no hay nada que sumar—.
+   */
+  porGremio: Array<{
+    slug: string;
+    sigla: string;
+    meta: number;
+    tope: number;
+    reservado: number;
+    inscritos: number;
+  }>;
 };
 
 export type Analisis = {

@@ -58,6 +58,27 @@ export default function PaginaAcceso() {
     setEntrando(true);
     try {
       await adminApi.iniciarSesion(correo, clave);
+      /// SE ENTRA VIENDO LOS DOS GREMIOS.
+      ///
+      /// El gremio elegido recorta el panel entero y se guardaba
+      /// para siempre, asi que una eleccion de hace semanas
+      /// seguia partiendo las cifras: la meta salia 1.600 --la de
+      /// ADECOPRIA-- donde el proyecto son 3.690, y el selector
+      /// vive dentro del menu del avatar, donde no se ve. «Tienen
+      /// que hacer la suma de ambos» (cliente, 22 sep 2026).
+      ///
+      /// Se limpia AQUI y no se cambia donde se guarda: la llave
+      /// la leen por su cuenta seis ficheros de `lib/` para
+      /// mandar la cabecera `x-gremio`, y tocar eso a medias
+      /// dejaria media aplicacion pidiendo un gremio y la otra
+      /// mitad no. Elegir uno sigue durando lo que dure la
+      /// sesion. Por el subdominio de un gremio no cambia nada:
+      /// alli manda la direccion.
+      try {
+        window.localStorage.removeItem("convoca:gremio");
+      } catch {
+        // en privado localStorage puede fallar
+      }
       // replace: no dejar el acceso en el historial
       router.replace("/admin");
     } catch (e) {

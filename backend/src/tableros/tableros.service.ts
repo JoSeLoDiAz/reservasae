@@ -99,6 +99,60 @@ export class TablerosService {
       where: { ...ofertaDeConvenio(ambito), ...UNIVERSO, cuposOcupados: 0 },
     });
 
+    /**
+     * Lo mismo, abierto por gremio.
+     *
+     * «Tienen que hacer la suma de ambos, o sea los 2080 para los
+     * 2700, pero en este caso como BRITCHAM aun no se ha activado
+     * siguen stand-by. Por favor dejar claro eso» (cliente, 22 sep
+     * 2026). Las cifras de arriba YA son la suma; lo que faltaba
+     * era poder verla COMO suma: con las dos filas al lado, que un
+     * gremio este en cero se explica solo y no hace falta escribir
+     * en el codigo cual esta parado --que ademas cambiaria sin que
+     * nadie se acordara de venir a tocarlo--.
+     *
+     * Subconsultas por convenio y no JOINs: las ofertas, las
+     * coberturas y las personas cuelgan de la accion por caminos
+     * distintos, y unirlas en una sola tabla multiplicaria las
+     * filas de unas por las de otras.
+     */
+    const porGremio =
+      ambito.length === 0
+        ? []
+        : await this.prisma.$queryRaw<
+            Array<{
+              slug: string;
+              sigla: string;
+              meta: bigint;
+              tope: bigint;
+              reservado: bigint;
+              inscritos: bigint;
+            }>
+          >`
+            SELECT c."slug"                        AS slug,
+                   COALESCE(c."sigla", c."nombre") AS sigla,
+                   (SELECT COALESCE(SUM(gc."cuposBase"), 0)
+                      FROM "grupos_cobertura" gc
+                      JOIN "grupos" g             ON g."id" = gc."grupoId"
+                      JOIN "acciones_formacion" a ON a."id" = g."accionFormacionId"
+                     WHERE a."convenioId" = c."id")       AS meta,
+                   (SELECT COALESCE(SUM(o."cuposMaximos"), 0)
+                      FROM "ofertas" o
+                      JOIN "acciones_formacion" a ON a."id" = o."accionFormacionId"
+                     WHERE a."convenioId" = c."id")       AS tope,
+                   (SELECT COALESCE(SUM(o."cuposOcupados"), 0)
+                      FROM "ofertas" o
+                      JOIN "acciones_formacion" a ON a."id" = o."accionFormacionId"
+                     WHERE a."convenioId" = c."id")       AS reservado,
+                   (SELECT COUNT(*)
+                      FROM "participantes" p
+                     WHERE p."convenioId" = c."id"
+                       AND p."etapa"::text IN (${Prisma.join(OCUPAN_SILLA)})) AS inscritos
+              FROM "convenios" c
+             WHERE c."id" IN (${Prisma.join(ambito)})
+             ORDER BY 2
+          `;
+
     const cupos = ofertas._sum.cuposMaximos ?? 0;
     const ocupados = ofertas._sum.cuposOcupados ?? 0;
     const metaBase = base._sum.cuposBase ?? 0;
@@ -132,6 +186,16 @@ export class TablerosService {
       acciones,
       accionesPublicadas: publicadas,
       ofertasSinReservas: sinNingunaReserva,
+
+      /// `bigint` no viaja en JSON: `JSON.stringify` lanza.
+      porGremio: porGremio.map((g) => ({
+        slug: g.slug,
+        sigla: g.sigla,
+        meta: Number(g.meta),
+        tope: Number(g.tope),
+        reservado: Number(g.reservado),
+        inscritos: Number(g.inscritos),
+      })),
     };
   }
 
