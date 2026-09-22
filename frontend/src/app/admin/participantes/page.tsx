@@ -343,7 +343,13 @@ function ListaParticipantes({
   /// que exige el backend. Aquí para no ofrecer un botón que va a
   /// fallar, no como candado: el candado está en el servidor.
   const { admin } = useAdmin();
+  /// Repartir fichas lo hace un líder, y es la MISMA línea que
+  /// exige el servidor. Sin esto la barra ofrecía el desplegable
+  /// a cualquiera y el 403 moría en silencio: se elegía asesor,
+  /// no pasaba nada, y parecía que el sistema estaba roto.
+  const reparte = Boolean(admin.puede?.repartirFichas);
   const [aviso, setAviso] = useState<string | null>(null);
+  const [falla, setFalla] = useState<string | null>(null);
   /// El lead abierto en el panel lateral. Se guarda la fila
   /// entera y no el id: el panel pinta al instante con lo que
   /// ya se trajo, y termina de llenarse cuando llega el lead.
@@ -354,6 +360,7 @@ function ListaParticipantes({
   return (
     <div className="flex min-h-0 grow flex-col gap-3">
       {aviso && <Aviso tipo="exito">{aviso}</Aviso>}
+      {falla && <Aviso tipo="error">{falla}</Aviso>}
 
       {abierto && (
         <CajonLead
@@ -395,15 +402,28 @@ function ListaParticipantes({
         seleccion
         accionesLote={(ids, limpiar) => (
           <>
-            <AsignarLote
-              ids={ids}
-              asesores={asesores}
-              alTerminar={async (n) => {
-                limpiar();
-                setAviso(`${n} ${n === 1 ? "lead" : "leads"} con asesor nuevo.`);
-                await alCambiar();
-              }}
-            />
+            {reparte ? (
+              <AsignarLote
+                ids={ids}
+                asesores={asesores}
+                alTerminar={async (n) => {
+                  setFalla(null);
+                  limpiar();
+                  setAviso(
+                    `${n} ${n === 1 ? "lead" : "leads"} con asesor nuevo.`,
+                  );
+                  await alCambiar();
+                }}
+                alFallar={setFalla}
+              />
+            ) : (
+              /* No se esconde a secas: quien lo busca tiene que saber
+                 por qué no está y a quién pedírselo. */
+              <span className="text-sm text-texto-suave">
+                Repartir leads entre asesores lo hace un líder de
+                inscripciones.
+              </span>
+            )}
             {/* Borrar va aparte y solo para SUPERADMIN, que es lo que
                 exige el backend. Es lo único de esta barra que no
                 tiene vuelta. */}
@@ -489,10 +509,12 @@ function AsignarLote({
   ids,
   asesores,
   alTerminar,
+  alFallar,
 }: {
   ids: string[];
   asesores: Array<{ id: string; nombre: string }>;
   alTerminar: (cambiadas: number) => Promise<void>;
+  alFallar: (motivo: string) => void;
 }) {
   const [trabajando, setTrabajando] = useState(false);
 
@@ -501,6 +523,12 @@ function AsignarLote({
     try {
       const r = await crmApi.asignarAsesorEnLote(ids, asesorId);
       await alTerminar(r.cambiadas);
+    } catch (e) {
+      /// Un fallo aquí se tragaba entero: se elegía asesor y la
+      /// pantalla no decía nada, ni bien ni mal.
+      alFallar(
+        e instanceof ErrorApi ? e.message : "No se pudo asignar el asesor.",
+      );
     } finally {
       setTrabajando(false);
     }
