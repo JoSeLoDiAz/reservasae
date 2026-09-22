@@ -25,6 +25,12 @@ const PERMITIDAS: Record<string, string> = {
   'AdminController.cerrarSesion': 'cierra la suya',
   'AdminController.cambiarClave': 'la suya, y antes de tener permisos',
   'AdminController.actualizarPerfil': 'su propio perfil',
+  /// Sus colores, solo sobre su cuenta: «cada persona puede editar
+  /// los colores y le queda solo a su CRM» (cliente, 21 sep 2026).
+  /// Pedir ESCRIBIR aquí dejaría sin colores propios justo a quien
+  /// solo consulta, que es el caso que el cliente pidió cubrir.
+  'AdminController.guardarMiTema': 'sus propios colores',
+  'AdminController.restablecerMiTema': 'sus propios colores',
   'AdminController.derivar': 'calcula una paleta, no escribe',
   'AdminController.corregir': 'calcula contrastes, no escribe',
   'MetaPruebasController.probarVerificacion': 'pregunta, no escribe',
@@ -43,6 +49,7 @@ type Ruta = {
   metodo: string;
   permiso: Perm;
   soloSuperadmin: boolean;
+  soloEditoresDeMarca: boolean;
 };
 
 function rutasDelPanel(): Ruta[] {
@@ -74,12 +81,16 @@ function rutasDelPanel(): Ruta[] {
         if (ruta === undefined) continue;
 
         const roles = (Reflect.getMetadata(ROLES, fn) ?? rolesClase) as string[];
+        const guardiasRuta = (Reflect.getMetadata('__guards__', fn) ?? []) as Array<{
+          name?: string;
+        }>;
         salida.push({
           nombre: `${clase.name}.${nombre}`,
           metodo: String(verbo),
           permiso: (Reflect.getMetadata(AREA, fn) as Perm) ?? permClase,
           soloSuperadmin:
             roles.length > 0 && roles.every((r) => r === 'SUPERADMIN'),
+          soloEditoresDeMarca: guardiasRuta.some((g) => g?.name === 'EditoresDeMarcaGuard'),
         });
       }
     }
@@ -112,6 +123,9 @@ describe('lo que escribe pide ESCRIBIR', () => {
       if (PERMITIDAS[ruta.nombre]) return;
       // el superadmin es una cerradura mas fuerte que el area
       if (ruta.soloSuperadmin) return;
+      /// Y la lista de correos de `EDITORES_DE_MARCA`, más fuerte
+      /// todavía: deja fuera incluso a un superadmin que no esté.
+      if (ruta.soloEditoresDeMarca) return;
       expect(ruta.permiso?.nivel).toBe('ESCRIBIR');
     },
   );

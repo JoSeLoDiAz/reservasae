@@ -278,10 +278,18 @@ export function columnasDeParticipante(): Columna<FilaParticipante>[] {
     {
       /// De donde viene, no donde esta: sirve para ver por
       /// que camino llego a la etapa de hoy.
+      ///
+      /// SE LLAMABA «Última etapa lead» Y CONFUNDIA (20 sep 2026):
+      /// al lado de «Etapa lead» se leia como «la etapa mas
+      /// reciente», asi que una ficha en «Datos completos» que
+      /// venia de «Interesado» parecia decir las dos cosas a la
+      /// vez. «Viene de» dice de donde, no donde esta. La clave NO
+      /// cambia: la guarda el selector de columnas, y renombrarla
+      /// borraria la columna de quien ya eligio las suyas.
       clave: "etapaAnterior",
       ancho: "124px",
-      titulo: "Última etapa lead",
-      valor: (f) => (f.etapaAnterior ? ETIQUETA_ETAPA[f.etapaAnterior] : "Sin cambios"),
+      titulo: "Viene de la etapa",
+      valor: (f) => (f.etapaAnterior ? ETIQUETA_ETAPA[f.etapaAnterior] : "No se ha movido"),
       filtro: "opciones",
     },
     {

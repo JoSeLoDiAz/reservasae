@@ -34,6 +34,15 @@ export type Rango =
 
 export type Ventana = { desde: Date; hasta: Date };
 
+/// «8 de septiembre», en la hora de Bogotá.
+function enPalabras(d: Date): string {
+  return new Intl.DateTimeFormat('es-CO', {
+    day: 'numeric',
+    month: 'long',
+    timeZone: 'America/Bogota',
+  }).format(d);
+}
+
 export type Comparacion = {
   rango: Rango;
   /** Null cuando el rango es TODO: no hay corte. */
@@ -75,7 +84,11 @@ const ETIQUETA: Record<Rango, string> = {
   TRIMESTRE: 'Últimos 90 días',
   ANO: 'Últimos 12 meses',
   TODO: 'Desde el principio',
-  PERSONALIZADO: 'Entre dos fechas',
+  /// Se sustituye por las fechas de verdad --«del 8 al 20 de
+  /// septiembre»-- en cuanto se conocen. «Entre dos fechas» sonaba
+  /// a que las dos fechas eran una comparación (cliente, 20 sep
+  /// 2026), y son el principio y el fin de UN periodo.
+  PERSONALIZADO: 'un rango de fechas',
 };
 
 /**
@@ -187,7 +200,13 @@ export function resolverVentana(
       // el «hasta» incluye ese dia entero
       const b = new Date(inicioDeDiaBogota(new Date(`${hasta}T12:00:00Z`)).getTime() + DIA);
       if (!(a < b)) return resolverVentana('TODO', undefined, undefined, ahora);
-      return construir({ desde: a, hasta: b });
+      /// Con SUS fechas: «del 8 al 20 de septiembre» dice lo que
+      /// se está mirando sin tener que volver a los desplegables.
+      const ultimo = new Date(b.getTime() - DIA);
+      return {
+        ...construir({ desde: a, hasta: b }),
+        etiqueta: `del ${enPalabras(a)} al ${enPalabras(ultimo)}`,
+      };
     }
 
     default:

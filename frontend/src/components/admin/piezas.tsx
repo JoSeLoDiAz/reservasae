@@ -138,8 +138,14 @@ export function Bloque({
             {titulo && (
               <h2 className="text-[0.875rem] font-semibold text-titulo">{titulo}</h2>
             )}
+            {/* En `--texto` y no `--texto-suave`: sobre la franja
+                tintada del encabezado, el gris daba 4,39:1 con 12 px
+                de cuerpo --medido con lienzo, componiendo el color
+                sobre el fondo heredado-- y el mínimo para texto
+                pequeño es 4,5. Era el único texto del bloque que no
+                llegaba. */}
             {descripcion && (
-              <p className="mt-0.5 text-[0.75rem] text-texto-suave">{descripcion}</p>
+              <p className="mt-0.5 text-[0.75rem] text-texto">{descripcion}</p>
             )}
           </div>
           <span className="shrink-0 text-[0.75rem] font-medium text-marca">
@@ -183,7 +189,7 @@ export function Bloque({
               <h2 className="text-[0.875rem] font-semibold text-titulo">{titulo}</h2>
             )}
             {descripcion && (
-              <p className="mt-0.5 text-[0.75rem] text-texto-suave">{descripcion}</p>
+              <p className="mt-0.5 text-[0.75rem] text-texto">{descripcion}</p>
             )}
           </div>
           {acciones}
@@ -302,10 +308,22 @@ export function Pildora({
 export function Encabezado({
   titulo,
   descripcion,
+  descripcionAncha,
   children,
 }: {
   titulo: string;
   descripcion?: React.ReactNode;
+  /**
+   * Que la descripción use todo el ancho, sin el tope de 760 px.
+   *
+   * El tope es del handoff y se queda por omisión: una línea de
+   * texto muy larga se lee peor. Pero en Tráfico son tres frases
+   * seguidas --qué mide, qué no, y desde cuándo-- y en 1.920 px
+   * quedaban apretadas en una esquina con media pantalla vacía al
+   * lado: «sigue estando apeñuscado» (cliente, 20 sep 2026). Se
+   * pide pantalla por pantalla, no se cambia para todas.
+   */
+  descripcionAncha?: boolean;
   children?: React.ReactNode;
 }) {
   return (
@@ -322,13 +340,18 @@ export function Encabezado({
     /// 2026). Las bandas iban a sangre y con raya abajo; ahora
     /// llevan las cuatro esquinas redondeadas, y para eso tienen
     /// que separarse del canto: de ahí el `mx-3`.
-    <header className="mx-3 mb-3 flex flex-wrap items-start justify-between gap-4 rounded-2xl border border-borde bg-superficie px-7 pt-[26px] pb-[22px]">
+    <header className="mx-4 mb-3 flex flex-wrap items-start justify-between gap-4 rounded-2xl border border-borde bg-superficie px-7 pt-[26px] pb-[22px]">
       <div className="min-w-0">
         <h1 className="text-[1.3125rem] font-bold tracking-[-0.02em] text-titulo">
           {titulo}
         </h1>
         {descripcion && (
-          <p className="mt-1.5 max-w-[760px] text-[0.78125rem] leading-relaxed text-texto-suave">
+          <p
+            className={
+              "mt-1.5 text-[0.78125rem] leading-relaxed text-texto-suave " +
+              (descripcionAncha ? "" : "max-w-[760px]")
+            }
+          >
             {descripcion}
           </p>
         )}

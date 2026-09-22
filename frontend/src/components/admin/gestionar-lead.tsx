@@ -119,7 +119,7 @@ export function GestionarLead({
             <Aviso tipo="error">
               {lead.puedoContactar === "REVOCO"
                 ? "Esta persona revocó la autorización de tratamiento de sus datos. No se le puede contactar por esta vía."
-                : "Este lead ya se atendió: la gestión va en su ficha."}
+                : "Este lead ya se atendió: su gestión sigue en Gestión de leads."}
             </Aviso>
           )}
 
@@ -147,7 +147,8 @@ export function GestionarLead({
                propia pantalla donde se llama. */
             <p className="rounded-lg border border-borde bg-superficie-alterna px-3 py-2 text-sm text-texto-suave">
               Este lead no trae documento. Pídaselo en la llamada y escríbalo en
-              «Arreglar»: es lo único que falta para poder convertirlo en ficha.
+              «Arreglar»: es lo único que falta para poder pasarlo a Gestión de
+              leads.
             </p>
           )}
 

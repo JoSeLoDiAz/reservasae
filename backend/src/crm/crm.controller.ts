@@ -195,6 +195,7 @@ export class CrmController {
     /// «property rango should not exist» y tumbaba la pantalla.
     @Query('convenioId') convenioId?: string,
     @Query('accionFormacionId') accionFormacionId?: string,
+    @Query('grupoId') grupoId?: string,
     @Query('asesorId') asesorId?: string,
     @Query('departamentoSepId') departamentoSepId?: string,
     @Query('rango') rango?: string,
@@ -211,6 +212,7 @@ export class CrmController {
       {
         convenioId: convenioId || undefined,
         accionFormacionId: accionFormacionId || undefined,
+        grupoId: grupoId || undefined,
         asesorId: asesorId || undefined,
         /// Llega como texto por la URL: sin convertir, el `=` de
         /// Prisma compara un número contra una cadena y no casa.

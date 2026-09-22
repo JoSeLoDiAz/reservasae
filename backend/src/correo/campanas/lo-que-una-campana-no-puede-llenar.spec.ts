@@ -46,7 +46,9 @@ describe('escribir una campaña', () => {
     expect(() => revisar('Hola', 'Entra en {{enlace}}')).toThrow(
       BadRequestException,
     );
-    expect(() => revisar('Hola', 'Entra en {{enlace}}')).toThrow(/ficha/i);
+    expect(() => revisar('Hola', 'Entra en {{enlace}}')).toThrow(
+      /desde su lead/i,
+    );
   });
 
   it('también si viene en el asunto', () => {

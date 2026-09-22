@@ -13,6 +13,7 @@ import {
 import { RolAdmin, type Admin } from '../../generated/prisma';
 import { AdminActual, AmbitoActual } from '../admin/admin-actual.decorator';
 import { AdminGuard, Requiere, Roles, type Ambito } from '../admin/admin.guard';
+import { SoloEditoresDeMarca } from '../admin/editores-de-marca';
 import {
   ActualizarAparienciaDto,
   ActualizarFormularioDto,
@@ -106,8 +107,15 @@ export class FormulariosAdminController {
 
   // apariencia
 
+  /// Los colores del formulario son la cara del GREMIO para todo su
+  /// equipo y para quien llena el formulario: marca de todos, así que
+  /// la cambian solo los correos de `EDITORES_DE_MARCA`, igual que los
+  /// logos (cliente, 21 sep 2026). `@Roles()` vacío quita el rol de la
+  /// clase: la lista sustituye al rol, no se suma. El área sí se queda,
+  /// porque el ámbito es lo que dice de qué gremio es el formulario.
   @Patch(':id/apariencia')
-  @Roles(RolAdmin.SUPERADMIN)
+  @Roles()
+  @SoloEditoresDeMarca()
   actualizarApariencia(@AmbitoActual() ambito: Ambito, @Param('id') id: string, @Body() dto: ActualizarAparienciaDto) {
     return this.formularios.actualizarApariencia(ambito.convenios, id, dto);
   }

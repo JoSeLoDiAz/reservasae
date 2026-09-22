@@ -41,13 +41,18 @@ describe('pasar a «Datos completos»', () => {
   /// pendientes» al lado.
   it('Interesado sin nada pendiente pasa, y queda dicho por qué y quién', async () => {
     const { prisma, escrito } = armar('INTERESADO');
-    const etapa = await pasarSiNoLeFaltaNada(prisma, 'p1', 'Un asesor completó sus datos en la ficha', 'adm-1');
+    const etapa = await pasarSiNoLeFaltaNada(
+      prisma,
+      'p1',
+      'Un asesor completó sus datos en el lead',
+      'adm-1',
+    );
     expect(etapa).toBe('DATOS_COMPLETOS');
     expect(escrito.etapa).toBe('DATOS_COMPLETOS');
     expect(escrito.movimiento).toMatchObject({
       etapaAntes: 'INTERESADO',
       etapaDespues: 'DATOS_COMPLETOS',
-      motivo: 'Un asesor completó sus datos en la ficha',
+      motivo: 'Un asesor completó sus datos en el lead',
       adminId: 'adm-1',
     });
   });

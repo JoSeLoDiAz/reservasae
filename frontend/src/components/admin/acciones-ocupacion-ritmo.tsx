@@ -124,7 +124,7 @@ export function AccionesOcupacionRitmo({
       sinRelleno
       partible
       titulo="Acciones de formación"
-      descripcion="Ritmo de inscripción por acción formativa. Pulse una acción para ver cómo van sus grupos."
+      descripcion="La barra de cada acción son los cupos que ya apartaron las empresas contra su tope. Pulse una acción para ver sus grupos: ahí la barra son las personas inscritas contra los cupos del grupo."
     >
       {/* La tabla scrollea dentro de su caja: cinco columnas
           apretadas en un portátil cortan el nombre del curso,
@@ -153,7 +153,11 @@ export function AccionesOcupacionRitmo({
             <tr className="border-b border-borde text-left">
               {[
                 "Acción",
-                "Avance sobre el tope",
+                /// Era «Avance sobre el tope», que no dice de QUÉ
+                /// es el avance. Son cupos que apartaron las
+                /// empresas; los inscritos salen al abrir cada
+                /// acción, grupo por grupo.
+                "Cupos apartados / tope",
                 "Ritmo/día",
                 "Tendencia",
                 /// Era «A este ritmo», y ya no dice eso: la
@@ -233,8 +237,26 @@ export function AccionesOcupacionRitmo({
                         )}
                       </td>
 
+                      {/* LA BARRA DICE QUÉ MIDE Y CUÁNTO.
+                          Era una barra delgada sola, sin cifra ni
+                          porcentaje: «no es claro qué información
+                          representan las barras de avance… incorporar
+                          el porcentaje» (Adrián Quintana, supervisor,
+                          21 sep 2026). Además no decía que aquí son
+                          cupos APARTADOS por empresas, y al abrir la
+                          acción la barra de cada grupo mide otra cosa
+                          --inscritos--: el mismo dibujo para dos
+                          medidas. Ahora cada una lleva su palabra. */}
                       <td className="px-4 py-2.5 align-top">
                         <BarraAvance valor={a.ocupados} maximo={a.cupos} compacta />
+                        <span className="mt-1 block text-[11px] leading-snug text-texto-suave tabular-nums">
+                          <strong className="font-semibold text-texto">{n(a.ocupados)}</strong>{" "}
+                          apartados de {n(a.cupos)} ·{" "}
+                          {(a.cupos > 0 ? (a.ocupados / a.cupos) * 100 : 0).toLocaleString("es-CO", {
+                            maximumFractionDigits: 1,
+                          })}{" "}
+                          %
+                        </span>
                       </td>
 
                       {/* El signo y el color, porque un ritmo
@@ -411,9 +433,12 @@ function FilaGrupo({ grupo: g }: { grupo: GrupoDeAccion }) {
             style={{ width: `${Math.min(pct, 100)}%` }}
           />
         </div>
+        {/* Con su porcentaje, que es lo que pidió el supervisor
+            (21 sep 2026). No repite la cifra: la cuenta y su parte,
+            en el mismo renglón. */}
         <span className="shrink-0 text-[0.75rem] text-texto-suave tabular-nums">
-          <strong className="font-semibold text-texto">{n(g.inscritos)}</strong> de{" "}
-          {n(g.cuposMaximos)}
+          <strong className="font-semibold text-texto">{n(g.inscritos)}</strong> inscritos de{" "}
+          {n(g.cuposMaximos)} · {Math.round(pct)} %
         </span>
       </div>
 

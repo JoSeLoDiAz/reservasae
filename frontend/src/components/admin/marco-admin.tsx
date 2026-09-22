@@ -28,6 +28,13 @@ import {
   type Nivel,
 } from "@/lib/admin-api";
 import { ErrorApi } from "@/lib/api";
+import {
+  cssDelTemaPropio,
+  EVENTO_TEMA_PROPIO,
+  llaveTemaPropio,
+  temaPropioApi,
+  type TemaPropio,
+} from "@/lib/tema-propio";
 
 import { PanelAccesibilidad } from "./accesibilidad";
 import { CambioDeClaveObligatorio } from "./cambio-clave";
@@ -246,6 +253,9 @@ export function MarcoAdmin({ children }: { children: React.ReactNode }) {
         Saltar al contenido
       </a>
 
+      {/* Sus colores, encima de los del sistema. Ver `TemaPropioDelPanel`. */}
+      <TemaPropioDelPanel adminId={admin.id} />
+
       {/* `h-screen`, no `min-h-screen`.
 
           Con el mínimo, la página crecía con el contenido: la lista de
@@ -434,18 +444,92 @@ export function MarcoAdmin({ children }: { children: React.ReactNode }) {
               queda `<main>`, que es donde está la tabla.
               Sigue SIN `.no-imprimir` a propósito: en papel es lo
               único que dice de quién es el documento. */}
-          <footer className="shrink-0 border-t border-borde bg-superficie px-7 py-px">
+          {/* LA PÍLDORA VIVE AQUÍ, NO FLOTANDO SOBRE EL CONTENIDO.
+              Estaba `fixed` en la esquina y tapaba lo que hubiera
+              debajo: medido el 21 sep 2026 a 1.366 px, cubría cinco
+              celdas de la tabla de leads --«AF3», «Sin grupo», «Sin
+              asignar»…-- y a 1.600 el rótulo «Datos completos». Un
+              control del marco no puede esconder un dato.
+              Sigue siendo del MARCO y no del contenido --esta banda
+              no scrollea, igual que la cabecera-- y se queda en la
+              misma esquina de siempre. Cuesta 24 px de alto, que
+              sale de `<main>`: es lo que vale no tapar nada.
+              `relative` para que la píldora se ancle aquí, y `z-40`
+              para que su panel de accesibilidad --que se abre hacia
+              arriba-- quede por encima del contenido. */}
+          <footer className="relative z-40 flex min-h-[40px] shrink-0 items-center border-t border-borde bg-superficie px-7">
             <PieDeConvoca menudo />
+            <Ajustes />
           </footer>
         </div>
 
-        {/* Apariencia y accesibilidad, flotando. Fuera de la
-            columna a propósito: es del MARCO, no del contenido, y
-            desde aquí no la empuja el scroll de `<main>`. */}
-        <Ajustes />
       </div>
     </ContextoAdmin.Provider>
   );
+}
+
+/**
+ * LOS COLORES DE QUIEN ENTRA, y de nadie más.
+ *
+ * La paleta general la pinta el proveedor de la marca; esta hoja va
+ * DESPUÉS en el documento y con el mismo selector, así que gana solo
+ * en las claves que esta persona eligió. Antes había una sola paleta y
+ * el que la tocaba se la cambiaba a todos: «que sea individual, porque
+ * si alguien modifica queda para todos» (cliente, 21 sep 2026).
+ *
+ * Primero pinta la copia local --sin ella cada recarga enseñaba medio
+ * segundo la paleta general-- y luego la del servidor, que manda. Y
+ * escucha el aviso de Apariencia para repintar al guardar, sin
+ * recargar la página.
+ */
+function TemaPropioDelPanel({ adminId }: { adminId: string }) {
+  const { marca } = useMarca();
+  const [tema, setTema] = useState<TemaPropio | null>(null);
+
+  useEffect(() => {
+    let vivo = true;
+    const llave = llaveTemaPropio(adminId);
+    const recordar = (t: TemaPropio) => {
+      try {
+        window.localStorage.setItem(llave, JSON.stringify(t));
+      } catch {
+        // en privado localStorage puede fallar
+      }
+    };
+    try {
+      const copia = window.localStorage.getItem(llave);
+      /// A propósito dentro del efecto: leer `localStorage` al crear
+      /// el estado correría también en el servidor, donde no existe,
+      /// y el cliente pintaría otra cosa que la entregada.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      if (copia) setTema(JSON.parse(copia) as TemaPropio);
+    } catch {
+      // una copia rota se ignora: manda la del servidor
+    }
+    void temaPropioApi
+      .leer()
+      .then((t) => {
+        if (!vivo) return;
+        setTema(t);
+        recordar(t);
+      })
+      .catch(() => {
+        // sin respuesta se queda la copia o la paleta general
+      });
+    const alCambiar = (e: Event) => {
+      const t = (e as CustomEvent<TemaPropio>).detail;
+      setTema(t);
+      recordar(t);
+    };
+    window.addEventListener(EVENTO_TEMA_PROPIO, alCambiar);
+    return () => {
+      vivo = false;
+      window.removeEventListener(EVENTO_TEMA_PROPIO, alCambiar);
+    };
+  }, [adminId]);
+
+  const css = cssDelTemaPropio(tema, marca?.catalogoColores?.tokens);
+  return css ? <style id="tema-propio" dangerouslySetInnerHTML={{ __html: css }} /> : null;
 }
 
 /** Dónde está uno: módulo y pantalla. */
@@ -794,13 +878,20 @@ function Ajustes() {
     /// conmutador SIN tocar el componente, que es compartido y vive
     /// también en las seis pantallas públicas.
     <div
+      /// ANCLADA A LA BANDA DEL PIE, NO A LA VENTANA.
+      ///
+      /// Se mudó al `<footer>` para no tapar datos, pero seguía con
+      /// `fixed` y su `bottom`, así que en la práctica flotaba igual
+      /// que antes: medido el 21 sep 2026, ocupaba de 898 a 934 px y
+      /// `<main>` acababa en 910, o sea 12 px encima del contenido.
+      /// `absolute` y centrada en el alto de la banda --que es
+      /// `relative` y mide lo que la píldora-- la deja dentro del pie.
       style={{
         padding: "clamp(3px, 0.25vw, 6px)",
         gap: "clamp(2px, 0.2vw, 6px)",
         right: "clamp(0.75rem, 1vw, 1.25rem)",
-        bottom: "clamp(0.75rem, 1vw, 1.25rem)",
       }}
-      className="no-imprimir fixed z-40 flex items-center rounded-full border border-encabezado-borde bg-encabezado-fondo text-[0.8125rem] shadow-lg shadow-black/20"
+      className="no-imprimir absolute top-1/2 z-40 flex -translate-y-1/2 items-center rounded-full border border-encabezado-borde bg-encabezado-fondo text-[0.8125rem] shadow-lg shadow-black/20"
     >
       <ConmutadorTema compacto menudo />
 
@@ -1306,7 +1397,7 @@ export function Tarjeta({
     /// abajo. Se cambia aqui y no en las 150 llamadas
     /// repartidas por el codigo.
     <section
-      className={`mx-3 mb-3 rounded-2xl border border-borde bg-superficie ${
+      className={`mx-4 mb-3 rounded-2xl border border-borde bg-superficie ${
         centrado ? "flex h-full flex-col" : ""
       } ${plegable && !abierta ? "px-7 py-4" : "px-7 py-5"}`}
     >

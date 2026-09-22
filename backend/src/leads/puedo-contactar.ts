@@ -68,5 +68,5 @@ export function porQueNoPuedoContactar(r: PuedoContactar): string | null {
       'No se le puede contactar por esta vía.'
     );
   }
-  return 'Este lead ya se atendió: la gestión va en su ficha.';
+  return 'Este lead ya se atendió: su gestión sigue en Gestión de leads.';
 }

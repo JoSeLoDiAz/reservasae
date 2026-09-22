@@ -231,6 +231,189 @@ export type PaginaReservas = {
   filas: FilaReserva[];
 };
 
+/* ═══════════════════════════════════════════════════════════════
+   INFORME DE RESERVAS  (Control › Informes › Reservas)
+
+   GET /admin/tableros/informe-reservas — espejo de
+   backend/src/tableros/informe-de-reservas.ts. Si se cambia uno,
+   se cambia el otro.
+
+   UNA sola petición, a propósito: con una por tabla, cada cambio de
+   filtro disparaba esperas distintas y durante un segundo se veía
+   media pantalla con las cifras nuevas y media con las viejas, con
+   el pie afirmando que las dos mitades son lo mismo.
+
+   Todo sale de las mismas filas en el servidor, así que la suma de
+   `porAccion`, la de `cruce`, la de `porOrganizacion` y `totales`
+   dan lo mismo en reservas, cupos, espera, conNombre, sinNombre y
+   nombresDeMas (lo fija el-informe-de-reservas-cuadra.spec.ts). Si
+   en pantalla no cuadran, el defecto está en la pantalla.
+   ═══════════════════════════════════════════════════════════════ */
+
+export type FiltrosInformeReservas = {
+  /**
+   * El gremio, por id. Es el que trae el enlace «Ver reservas» del
+   * bloque de cupos de Control: sin él se hacía clic en los 149 cupos
+   * de ADECOPRIA y el informe abría con los 539 de los dos gremios.
+   * El servidor lo interseca con el ámbito de la sesión: uno ajeno
+   * devuelve un informe vacío con `recorte.convenios` vacío.
+   */
+  convenioId?: string;
+  /** El mismo corte por slug. Si llegan los dos, manda convenioId. */
+  convenio?: string;
+  /** Una acción de otro gremio del ámbito da cero; una que no es de
+      ningún gremio suyo, 404. */
+  accionFormacionId?: string;
+  /** Dónde se dicta (Oferta.ubicacionId), no dónde vive nadie. */
+  ubicacionId?: string;
+  /**
+   * Días de calendario de BOGOTÁ, «YYYY-MM-DD», los dos inclusive.
+   * Texto y no instante ISO: convertirlo a instante en el navegador
+   * es volver a meter la zona por la puerta de atrás. Una fecha mal
+   * escrita, o desde > hasta, es un 400 y no un informe sin recorte.
+   */
+  desde?: string;
+  hasta?: string;
+  /** Por omisión false. Las canceladas se cuentan aparte SIEMPRE. */
+  incluirCanceladas?: boolean;
+};
+
+/** Lo que se reparte igual en las tres tablas. */
+export type CifrasInformeReservas = {
+  reservas: number;
+  cuposConfirmados: number;
+  cuposEnEspera: number;
+  /** Cupos con una persona matriculada detrás: quien alguna vez llegó
+      a INSCRITO, el mismo criterio del bloque «Cupos apartados». */
+  conNombre: number;
+  /**
+   * Cupos confirmados sin persona, acotado a cero RESERVA POR RESERVA
+   * y luego sumado. Por eso se puede sumar en cualquier sentido: dos
+   * personas de más en un curso no llenan las sillas de otro.
+   *
+   * OJO: con sobrantes, `sinNombre` es MAYOR que
+   * `cuposConfirmados − conNombre`. El bloque de Control resta a
+   * secas; la diferencia es exactamente `nombresDeMas`.
+   */
+  sinNombre: number;
+  /** Personas matriculadas por encima de los cupos de su reserva.
+      sinNombre = cuposConfirmados − conNombre + nombresDeMas. */
+  nombresDeMas: number;
+};
+
+/** Una fila de la Tabla 1 del PDF: RESUMEN POR ACCIÓN DE FORMACIÓN.
+    Trae TODAS las acciones del recorte, también las que no tienen
+    reservas (reservas = 0), para que el techo cuadre con el total. */
+export type FilaInformeAccion = CifrasInformeReservas & {
+  /** La llave. El código solo es único por convenio: con los dos
+      gremios hay dos «AF1» distintos. */
+  accionFormacionId: string;
+  codigo: string;
+  nombre: string;
+  convenio: string;
+  convenioSigla: string | null;
+  modalidad: Modalidad;
+  horas: number | null;
+  /** Cuántas organizaciones distintas la reservaron. */
+  organizaciones: number;
+  /** Techo de inscripción: suma de Oferta.cuposMaximos. */
+  cuposDelProyecto: number;
+  /** Lo comprometido ante el SENA, sin el 30 % de sobrecupo. */
+  metaComprometida: number;
+  /** Aparte y siempre, aunque `incluirCanceladas` sea false. */
+  reservasCanceladas: number;
+  /** Los cupos SOLICITADOS de las canceladas. */
+  cuposCancelados: number;
+};
+
+/** Una fila de la Tabla 2 del PDF: el resumen abierto por organización.
+    Viene agrupada por acción en el orden de la Tabla 1. */
+export type FilaInformeCruce = CifrasInformeReservas & {
+  accionFormacionId: string;
+  codigo: string;
+  accion: string;
+  empresaId: string;
+  /** Solo dígitos. */
+  nit: string;
+  digitoVerificacion: string | null;
+  razonSocial: string;
+  /** Puede ser mayor que 1: la misma acción en dos ubicaciones. */
+  reservas: number;
+  ubicaciones: string[];
+  /** Días de Bogotá «YYYY-MM-DD». */
+  primeraReserva: string;
+  ultimaReserva: string;
+};
+
+/** El mismo cruce visto por organización, la que más nombres debe
+    arriba. */
+export type FilaInformeOrganizacion = CifrasInformeReservas & {
+  empresaId: string;
+  nit: string;
+  razonSocial: string;
+  /** Códigos ordenados. Si reservó dos «AF1» de gremios distintos,
+      llevan el gremio pegado: «AF1 · ADECOPRIA». */
+  acciones: string[];
+};
+
+export type InformeReservas = {
+  /** Instante ISO. Va al pie del papel: un PDF sin fecha no sirve de
+      soporte. */
+  generadoEn: string;
+  /** El recorte con el que se calculó, resuelto a nombres, para el
+      encabezado de impresión. */
+  recorte: {
+    /** Los que de verdad entraron: ámbito ∩ filtro. Vacío = ninguno. */
+    convenios: Array<{ id: string; slug: string; sigla: string | null; nombre: string }>;
+    accion: { id: string; codigo: string; nombre: string } | null;
+    ubicacion: { id: string; nombre: string } | null;
+    desde: string | null;
+    hasta: string | null;
+    incluyeCanceladas: boolean;
+  };
+  totales: CifrasInformeReservas & {
+    cuposSolicitados: number;
+    reservasCanceladas: number;
+    cuposCancelados: number;
+    /** Acciones CON reservas (no las filas de porAccion). */
+    acciones: number;
+    organizaciones: number;
+    /** Filas del cruce: los pares acción-organización. Se cuenta
+        antes del tope, así que con `truncado` es mayor que
+        cruce.length. */
+    pares: number;
+    /** De TODAS las acciones del recorte, tengan o no reservas. Sin
+        fechas: el techo y la meta no son hechos fechados. */
+    cuposDelProyecto: number;
+    metaComprometida: number;
+  };
+  porAccion: FilaInformeAccion[];
+  cruce: FilaInformeCruce[];
+  porOrganizacion: FilaInformeOrganizacion[];
+  porUbicacion: Array<{
+    ubicacionId: string;
+    nombre: string;
+    tipo: "CIUDAD" | "DEPARTAMENTO";
+    reservas: number;
+    cuposConfirmados: number;
+  }>;
+  /** Siempre los tres estados, en este orden: CONFIRMADA,
+      LISTA_ESPERA, CANCELADA. Con los tres el donut suma el total de
+      verdad. */
+  porEstado: Array<{
+    estado: EstadoReserva;
+    reservas: number;
+    cuposConfirmados: number;
+    cuposEnEspera: number;
+  }>;
+  /** Solo los días con algo, ascendente. Los huecos los rellena la
+      pantalla. Recortada por el MISMO filtro que las tablas. */
+  porDia: PuntoSerie[];
+  /** true si el cruce se cortó en el tope (1.000 pares). Los totales
+      NO se cortan: son siempre los de verdad. */
+  truncado: boolean;
+};
+
 export type PuntoSerie = { dia: string; reservas: number; cupos: number };
 
 export type EstadoProyeccion =
@@ -424,6 +607,19 @@ export const tablerosApi = {
     pedir<PaginaReservas>(`/admin/tableros/reservas${consulta(filtros)}`),
 
   formularios: () => pedir<FilaFormulario[]>("/admin/tableros/formularios"),
+
+  /// El informe entero en una respuesta. `incluirCanceladas` viaja
+  /// como texto y solo cuando es true: `consulta()` descarta lo vacío,
+  /// y un «false» explícito no aporta nada porque es la omisión.
+  informeReservas: (filtros: FiltrosInformeReservas = {}) => {
+    const { incluirCanceladas, ...resto } = filtros;
+    return pedir<InformeReservas>(
+      `/admin/tableros/informe-reservas${consulta({
+        ...resto,
+        incluirCanceladas: incluirCanceladas ? "true" : undefined,
+      })}`,
+    );
+  },
 
   /// Cancelar, no borrar: borrar se llevaba el historial de cupos y,
   /// si era la ultima reserva de la empresa, la empresa entera.

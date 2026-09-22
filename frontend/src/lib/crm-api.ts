@@ -1,4 +1,3 @@
-import { ErrorApi } from "./api";
 import { pedir } from "./pedir";
 
 /** Lo que devuelve el embudo del formulario publico. */
@@ -21,7 +20,20 @@ export type EmbudoPublico = {
   /// embudo, y esto no es un paso que la persona da.
   personas: number;
   /// Dia a dia desde que arranco el contador: el comparativo.
-  porDia: Array<{ dia: string; llegaron: number; preinscritos: number }>;
+  ///
+  /// Una serie por tarjeta, cada una con la regla de su cifra, y
+  /// la suma de los dias da el total de arriba: `personas` son las
+  /// mismas llegadas que `personas`, y `eligieron` el mismo peldaño
+  /// `ELIGIO_ACCION` de `hitos`. Antes solo venian las aperturas y
+  /// las preinscripciones, y dos chispas dibujaban la serie de otra
+  /// cifra.
+  porDia: Array<{
+    dia: string;
+    llegaron: number;
+    personas: number;
+    eligieron: number;
+    preinscritos: number;
+  }>;
   caidaMayor: { de: string; a: string; sePerdieron: number } | null;
   /// Fichas del registro que terminaron.
   despues: { recibieron: number; terminaron: number };
@@ -429,6 +441,12 @@ export type Resumen = {
   /// de formación: «Grupo 1» existe en las quince y sin él no se
   /// distinguen.
   grupos: Array<{ id: string; numero: number; accion: string; total: number }>;
+  /// Los gremios, para que su desplegable cuente la MISMA gente
+  /// que el bloque. La cuenta salía de `/metricas`, que recorta
+  /// por etapa, y ofrecía «ADECOPRIA · 98» para que el bloque
+  /// contestara 103: la diferencia era la gente que ya pasó al
+  /// aula. `nombre` es la sigla cuando la hay.
+  convenios: Array<{ id: string; nombre: string; total: number }>;
   sinAsesor: number;
   /// Por donde vive la persona, no por donde se dicta.
   departamentos: Array<{ id: number | null; nombre: string; total: number }>;
@@ -699,7 +717,10 @@ export const ETIQUETA_RANGO: Record<Rango, string> = {
   TRIMESTRE: "Últimos 90 días",
   ANO: "Últimos 12 meses",
   TODO: "Desde el principio",
-  PERSONALIZADO: "Entre dos fechas",
+  /// NO «entre dos fechas»: sonaba a comparación --«si escojo
+  /// esas dos fechas, esa es la comparativa, ¿no?» (cliente, 20
+  /// sep 2026)-- y son el principio y el fin de UN periodo.
+  PERSONALIZADO: "Un rango de fechas",
 };
 
 /**
@@ -819,10 +840,30 @@ export type Control = CabeceraControl & {
   porModalidad: Corte[];
   /** Las diez con más inscritos, contra sus cupos. */
   topEmpresas: CorteEmpresa[];
+  /// Los cupos con y sin nombre, por cupo y reserva por reserva: la
+  /// cuenta del informe «Reservas» (control.ts, `cuentaDeNombres`).
+  /// Opcionales: un servidor sin reiniciar no los manda.
+  cuposConNombre?: number;
+  cuposSinNombre?: number;
+  nombresDeMas?: number;
+  empresaQueMasDebe?: { razonSocial: string; sinNombre: number; cupos: number } | null;
+  /// Las siglas de los gremios que entraron en los cupos.
+  gremios?: string[];
   /** El día ya viene yyyy-mm-dd de Bogotá. */
   serie: Array<{ dia: string; total: number }>;
   /** Cuándo llegaron los leads, no cuándo se inscribieron. */
   leadsPorDia: Array<{ dia: string; total: number }>;
+  /**
+   * El embudo DÍA POR DÍA: de los que entraron cada día, en qué
+   * paso van hoy. Acumulado, como el del periodo.
+   */
+  embudoPorDia: Array<{
+    dia: string;
+    entraron: number;
+    contactados: number;
+    conDatos: number;
+    inscritos: number;
+  }>;
   ventana: Ventana;
   anterior: CabeceraControl | null;
   variacion: Variaciones;
@@ -976,6 +1017,15 @@ export type Filtros = {
   estado?: "COMPLETO" | "PARCIAL";
   /** Por donde vive la persona, no por donde se dicta. */
   departamentoSepId?: number;
+  /**
+   * Solo lo que queda por trabajar: las tres primeras etapas.
+   *
+   * Se cruza con `tramo`, que incluye los dos desenlaces
+   * —inscrito y perdido—. Es la condición con la que `control`
+   * cuenta su cola, y hace falta para que un enlace que sale de
+   * esa cifra lleve exactamente a esa gente.
+   */
+  cola?: "POR_TRABAJAR";
   /** Cuándo llegó el lead: instantes ISO, `llegoHasta` fuera. */
   llegoDesde?: string;
   llegoHasta?: string;

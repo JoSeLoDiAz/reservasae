@@ -868,7 +868,7 @@ export class CampanasService {
     if (suyas.length > 0) {
       throw new BadRequestException(
         `${suyas.map((v) => `{{${v}}}`).join(', ')} solo se puede llenar ` +
-          'escribiéndole a una persona desde su ficha, no en una campaña: ' +
+          'escribiéndole a una persona desde su lead, no en una campaña: ' +
           'aquí quedaría vacío y no saldría ni un correo.',
       );
     }

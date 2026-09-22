@@ -561,10 +561,15 @@ export function CajonLead({
             <Dato titulo="Gremio" valor={fila.gremio} />
             <Dato titulo="Asesor" valor={fila.asesor?.nombre ?? "Sin asignar"} />
             <Dato titulo="Etapa lead" valor={ETIQUETA_ETAPA[fila.etapa]} />
+            {/* El mismo rótulo que la columna: «Viene de la
+                etapa». «Última etapa lead» al lado de «Etapa
+                lead» se leía como la etapa de ahora. */}
             <Dato
-              titulo="Última etapa lead"
+              titulo="Viene de la etapa"
               valor={
-                fila.etapaAnterior ? ETIQUETA_ETAPA[fila.etapaAnterior] : "Sin cambios"
+                fila.etapaAnterior
+                  ? ETIQUETA_ETAPA[fila.etapaAnterior]
+                  : "No se ha movido"
               }
             />
             <Dato titulo="Última actividad" valor={fechaHora(fila.ultimaActividad)} />

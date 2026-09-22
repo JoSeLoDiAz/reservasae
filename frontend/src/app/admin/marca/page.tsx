@@ -26,7 +26,9 @@ import {
 } from "@/lib/admin-api";
 import { ErrorApi } from "@/lib/api";
 import { formulariosApi } from "@/lib/formularios-api";
+import { rutaDeMarca } from "@/lib/marca";
 import type { ColoresTema, Esquema } from "@/lib/tema";
+import { avisarTemaPropio, temaPropioApi, type TemaPropio } from "@/lib/tema-propio";
 
 const MODOS: Array<{ valor: ModoPorDefecto; etiqueta: string; ayuda: string }> = [
   {
@@ -41,6 +43,15 @@ const MODOS: Array<{ valor: ModoPorDefecto; etiqueta: string; ayuda: string }> =
 export default function PaginaMarca() {
   const { recargar } = useMarca();
   const [marca, setMarca] = useState<Marca | null>(null);
+  /// Lo que llegó del servidor, antes de mezclar nada: la marca
+  /// GENERAL tal cual y los colores propios de esta persona.
+  const [leido, setLeido] = useState<{ sistema: Marca; propio: TemaPropio } | null>(null);
+  /// Si esta cuenta cambia la marca de TODOS: logos, textos, colores
+  /// del sistema y de cada gremio. Solo los correos de
+  /// `EDITORES_DE_MARCA` («ni yo puedo hacerlo», cliente, 21 sep 2026).
+  /// Arranca en `false`: mientras no se sepa, se ve solo lo de cada
+  /// uno, y nadie ve un botón que el servidor le va a rechazar.
+  const [editor, setEditor] = useState(false);
   /// Si se entro por la direccion de un gremio.
   ///
   /// Aqui manda porque lo que esta pantalla edita es la marca
@@ -59,15 +70,51 @@ export default function PaginaMarca() {
   const [error, setError] = useState<string | null>(null);
   const [guardado, setGuardado] = useState(false);
   const [guardando, setGuardando] = useState(false);
+  /// Las paletas del SISTEMA tal como llegaron, aparte de lo que se
+  /// edita. Hacen falta para saber qué eligió esta persona: se guarda
+  /// solo lo que se aparta de ellas, y así, si mañana cambian los
+  /// colores del sistema, le llegan en todo lo que ella no tocó.
+  const [generales, setGenerales] = useState<Record<Esquema, ColoresTema> | null>(null);
 
   useEffect(() => {
-    void adminApi.marca().then(setMarca);
+    /// «MIS COLORES» ARRANCA CON LO QUE ESTA PERSONA VE: la paleta que
+    /// pinta su panel con sus colores encima.
+    ///
+    /// La base es la que pinta el panel (`/api/marca`), y no la
+    /// general: el servidor la resuelve por la dirección, así que en la
+    /// de un gremio es la del gremio. Comparar contra la general
+    /// guardaba como «suyos» los colores del gremio, y el editor
+    /// arrancaba con colores que no son los de su pantalla. Esa paleta
+    /// no lleva la capa personal: la capa va aparte, en el marco.
+    void Promise.all([
+      adminApi.marca(),
+      temaPropioApi.leer().catch(() => ({}) as TemaPropio),
+      fetch(rutaDeMarca({ tipo: "GENERAL" }))
+        .then((r) => (r.ok ? (r.json() as Promise<Marca>) : null))
+        .catch(() => null),
+    ]).then(([sistema, propio, visible]) => {
+      const base = (visible?.temas ?? sistema.temas) as Record<Esquema, ColoresTema>;
+      setLeido({ sistema, propio });
+      setGenerales(base);
+      setMarca({
+        ...sistema,
+        temas: {
+          CLARO: { ...base.CLARO, ...(propio.CLARO ?? {}) },
+          OSCURO: { ...base.OSCURO, ...(propio.OSCURO ?? {}) },
+        },
+      });
+    });
     void adminApi
       .yo()
       .then(async (yo) => {
-        if (!yo.gremioFijo) {
+        const puedeEditar = yo.puede?.editarMarca === true;
+        setEditor(puedeEditar);
+        if (!yo.gremioFijo || !puedeEditar) {
+          /// Quien no edita la marca no necesita el formulario del
+          /// gremio, y el servidor tampoco se lo daría: se queda en
+          /// sus colores.
           setGremio({
-            fijo: false,
+            fijo: yo.gremioFijo === true,
             sigla: null,
             formularioId: null,
             propios: { CLARO: {}, OSCURO: {} },
@@ -103,7 +150,7 @@ export default function PaginaMarca() {
       .catch(() => setGremio(null));
   }, []);
 
-  if (!marca) return <Cargando />;
+  if (!marca || !leido) return <Cargando />;
 
   const catalogo = marca.catalogoColores;
 
@@ -127,11 +174,82 @@ export default function PaginaMarca() {
     setGuardado(false);
   }
 
+  /**
+   * GUARDAR MIS COLORES: en la cuenta de quien guarda, y de nadie más.
+   *
+   * Era el único «Guardar colores» y escribía la paleta del sistema:
+   * quien lo pulsaba se los cambiaba a todo el equipo, y así amaneció
+   * granate el panel en producción (cliente, 21 sep 2026: «que sea
+   * individual, porque si alguien modifica queda para todos»).
+   *
+   * Se guarda solo lo que se aparta del sistema: primero se borra lo
+   * que tenía y luego se escribe la diferencia. Guardar la paleta
+   * entera congelaría también los colores que no tocó.
+   */
+  async function guardarMisColores() {
+    if (!marca || !generales) return;
+    setError(null);
+    setGuardando(true);
+    try {
+      let tema: TemaPropio = {};
+      for (const esquema of ["CLARO", "OSCURO"] as const) {
+        const diferentes = Object.fromEntries(
+          Object.entries(marca.temas[esquema] ?? {}).filter(
+            ([clave, color]) => color !== generales[esquema]?.[clave],
+          ),
+        );
+        tema = await temaPropioApi.restablecer(esquema);
+        if (Object.keys(diferentes).length > 0) {
+          tema = await temaPropioApi.guardar(esquema, diferentes);
+        }
+      }
+      avisarTemaPropio(tema);
+      setGuardado(true);
+    } catch (e) {
+      setError((e as ErrorApi).message);
+    } finally {
+      setGuardando(false);
+    }
+  }
+
+  /// Vuelve a los del sistema, solo para quien lo pulsa.
+  async function volverAlSistema() {
+    if (!marca || !generales) return;
+    setError(null);
+    setGuardando(true);
+    try {
+      await temaPropioApi.restablecer("CLARO");
+      const tema = await temaPropioApi.restablecer("OSCURO");
+      setMarca({ ...marca, temas: generales });
+      avisarTemaPropio(tema);
+      setGuardado(true);
+    } catch (e) {
+      setError((e as ErrorApi).message);
+    } finally {
+      setGuardando(false);
+    }
+  }
+
+  /// CAMBIAR LOS DEL SISTEMA sigue existiendo, pero ya no es lo que
+  /// pasa al pulsar «Guardar»: es una acción aparte, con su nombre y
+  /// con una pregunta antes, porque le cambia la pantalla a todo el
+  /// equipo que no haya elegido los suyos.
+  function confirmarParaTodos(que: string): boolean {
+    return window.confirm(
+      `${que}\n\nEsto cambia los colores de TODAS las personas del panel que no hayan elegido los suyos. ¿Seguir?`,
+    );
+  }
+
   async function conError(accion: () => Promise<Marca>) {
     setError(null);
     setGuardando(true);
     try {
-      setMarca(await accion());
+      const nueva = await accion();
+      setMarca(nueva);
+      setLeido((p) => (p ? { ...p, sistema: nueva } : p));
+      /// Lo guardado es ahora la paleta del sistema: sin esto, «Guardar
+      /// mis colores» compararía contra la de antes.
+      setGenerales(nueva.temas as Record<Esquema, ColoresTema>);
       setGuardado(true);
       // repintar el panel con los colores nuevos
       await recargar();
@@ -141,6 +259,81 @@ export default function PaginaMarca() {
       setGuardando(false);
     }
   }
+
+  /// LO DE CADA UNO PRIMERO. Es lo único que puede hacer cualquiera
+  /// aquí, y lo que viene a buscar casi todo el que entra.
+  const misColores = (
+    <Bloque
+      titulo="Sus colores"
+      descripcion="Solo cambian para usted: nadie más los ve. Cada modo tiene su paleta completa. No basta con aclarar u oscurecer la otra: en modo oscuro un color de marca muy saturado deslumbra y hace vibrar los bordes del texto."
+    >
+      <EditorColores
+        temas={marca.temas}
+        catalogo={catalogo}
+        esquema={pestana}
+        alCambiarEsquema={setPestana}
+        alCambiarColor={cambiarColor}
+        alReemplazarTemas={reemplazarTemas}
+        acciones={
+          <div className="flex flex-col gap-3">
+            {/* Los dos modos juntos: una plantilla cambia ambos. */}
+            <div className="flex flex-wrap items-center gap-3">
+              <Boton type="button" disabled={guardando} onClick={guardarMisColores}>
+                {guardando ? "Guardando…" : "Guardar mis colores"}
+              </Boton>
+              <button
+                type="button"
+                disabled={guardando}
+                onClick={volverAlSistema}
+                className="rounded-xl border border-borde px-5 py-2 text-sm transition hover:bg-fondo disabled:opacity-50"
+              >
+                Volver a los colores del sistema
+              </button>
+            </div>
+
+            {/* PARA TODO EL EQUIPO, aparte y con pregunta. Solo en la
+                dirección general: por la de un gremio, los colores de
+                todos son los del gremio, y se editan más abajo. */}
+            {editor && !gremio?.fijo && (
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-hairline pt-3 text-[0.75rem] text-texto-suave">
+                <span>Para todo el equipo:</span>
+                <button
+                  type="button"
+                  disabled={guardando}
+                  onClick={() => {
+                    if (!confirmarParaTodos("Va a poner estos colores como los del sistema."))
+                      return;
+                    void conError(async () => {
+                      await adminApi.actualizarTema("CLARO", marca.temas.CLARO);
+                      return adminApi.actualizarTema("OSCURO", marca.temas.OSCURO);
+                    });
+                  }}
+                  className="font-medium text-marca underline underline-offset-2 disabled:opacity-50"
+                >
+                  Poner estos colores para todos
+                </button>
+                <button
+                  type="button"
+                  disabled={guardando}
+                  onClick={() => {
+                    if (!confirmarParaTodos("Va a devolver el sistema a sus colores de fábrica."))
+                      return;
+                    void conError(async () => {
+                      await adminApi.restablecerTema("CLARO");
+                      return adminApi.restablecerTema("OSCURO");
+                    });
+                  }}
+                  className="underline underline-offset-2 hover:text-texto disabled:opacity-50"
+                >
+                  Restablecer los colores del sistema
+                </button>
+              </div>
+            )}
+          </div>
+        }
+      />
+    </Bloque>
+  );
 
   return (
     /// Sin `min-h-0 grow`: aquí no scrollea nada de dentro, y con
@@ -152,221 +345,197 @@ export default function PaginaMarca() {
       <header>
         <h1 className="text-[1.3125rem] font-bold tracking-[-0.02em] text-titulo">Apariencia</h1>
         <p className="mt-1 text-texto-suave">
-          {gremio?.fijo
-            ? "Esta es la marca GENERAL, la que comparten los dos gremios. La de este gremio se edita en su formulario."
-            : "Colores, textos y logo. Al guardar se aplican en todo el sistema, también en este panel."}
+          {editor
+            ? "Sus colores le quedan solo a usted. Más abajo está lo que cambia para todo el equipo: logos, textos y colores."
+            : "Elija los colores de su panel: le quedan solo a usted. Los logos y la marca del sistema los cambian solo las personas autorizadas."}
         </p>
       </header>
 
       {error && <Aviso tipo="error">{error}</Aviso>}
       {guardado && !error && <Aviso tipo="exito">Cambios guardados.</Aviso>}
 
-      <MarcaDeCadaGremio />
+      {misColores}
 
-      {gremio?.fijo ? (
-        gremio.formularioId ? (
-          /// El editor del gremio, aqui mismo.
-          ///
-          /// Es el MISMO componente que usa la apariencia del
-          /// formulario, no una copia: el calculo de que se
-          /// aparta de la general vive ahi dentro, y dos
-          /// implementaciones del mismo diff acabarian
-          /// guardando las 37 claves en una de las dos.
-          <AparienciaHeredada
-            key={gremio.formularioId}
-            formularioId={gremio.formularioId}
-            general={marca}
-            iniciales={gremio.propios}
-            tituloLogos={`Logos de ${gremio.sigla ?? "este gremio"}`}
-            tituloColores={`Colores de ${gremio.sigla ?? "este gremio"}`}
-            descripcionLogos="Hasta tres, uno por entidad: las del convenio más la capacitadora. Sin ninguno propio se muestran los generales. SVG, PNG o WebP con fondo transparente, máximo 1 MB cada uno; se ven a 80 px de alto."
-          />
-        ) : (
-          <Bloque titulo="La apariencia de este gremio">
-            <AvisoDeGremio gremio={gremio} que="los logos y los colores" />
-          </Bloque>
-        )
-      ) : (
-        <Bloque
-          titulo="Logos de la cabecera"
-          descripcion="Hasta tres, uno por entidad. SVG, PNG o WebP con fondo transparente, máximo 1 MB cada uno. Se muestran a 80 px de alto, así que conviene entregarlos a 960 × 288 px o mayor, o en SVG. JPG no sirve: no tiene transparencia y deja un recuadro blanco."
-        >
-          <GestorLogos temas={marca.temas} />
-        </Bloque>
-      )}
-
-      {gremio?.fijo ? (
-        <Bloque titulo="Textos y colores del sitio">
-          <AvisoDeGremio gremio={gremio} que="los textos y los colores" />
-        </Bloque>
-      ) : (
+      {/* LA MARCA DE TODOS, solo para quien la puede cambiar. El
+          servidor la cierra igual: esto es para no enseñar botones que
+          van a contestar que no. */}
+      {editor && (
         <>
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            void conError(() =>
-              adminApi.actualizarMarca({
-                nombreApp: marca.nombreApp,
-                tituloPublico: marca.tituloPublico,
-                subtituloPublico: marca.subtituloPublico,
-                mensajeEncabezado: marca.mensajeEncabezado ?? "",
-                piePagina: marca.piePagina ?? "",
-                modoPorDefecto: marca.modoPorDefecto,
-                permitirCambioDeModo: marca.permitirCambioDeModo,
-              }),
-            );
-          }}
-          className="space-y-6"
-        >
-          <Bloque titulo="Textos del sitio público">
-            <div className="space-y-4">
-              <Campo etiqueta="Nombre de la aplicación" ayuda="Pestaña del navegador y encabezado.">
-                <input
-                  required
-                  value={marca.nombreApp}
-                  onChange={(e) => cambiarCampo("nombreApp", e.target.value)}
-                  className={CLASE_CONTROL}
-                />
-              </Campo>
+          <header className="mt-2 border-t border-hairline pt-4">
+            <h2 className="text-[1rem] font-bold text-titulo">Para todo el equipo</h2>
+            <p className="mt-1 text-texto-suave">
+              {gremio?.fijo
+                ? "La marca de este gremio: la ven todo su equipo en el panel y la gente de afuera en los formularios."
+                : "La marca de todo el sistema: la ven todo el equipo en el panel y la gente de afuera en los formularios."}
+            </p>
+          </header>
 
-              <Campo etiqueta="Título principal">
-                <input
-                  required
-                  value={marca.tituloPublico}
-                  onChange={(e) => cambiarCampo("tituloPublico", e.target.value)}
-                  className={CLASE_CONTROL}
-                />
-              </Campo>
+          <MarcaDeCadaGremio />
 
-              <Campo etiqueta="Texto de introducción">
-                <textarea
-                  rows={3}
-                  value={marca.subtituloPublico}
-                  onChange={(e) => cambiarCampo("subtituloPublico", e.target.value)}
-                  className={CLASE_CONTROL}
-                />
-              </Campo>
+          {gremio?.fijo ? (
+            gremio.formularioId ? (
+              /// El editor del gremio, aqui mismo.
+              ///
+              /// Es el MISMO componente que usa la apariencia del
+              /// formulario, no una copia: el calculo de que se
+              /// aparta de la general vive ahi dentro, y dos
+              /// implementaciones del mismo diff acabarian
+              /// guardando las 37 claves en una de las dos.
+              ///
+              /// `general` es la marca del SISTEMA tal cual llegó,
+              /// sin los colores de quien mira: contra ella se mide
+              /// qué es propio del gremio.
+              <AparienciaHeredada
+                key={gremio.formularioId}
+                formularioId={gremio.formularioId}
+                general={leido.sistema}
+                iniciales={gremio.propios}
+                tituloLogos={`Logos de ${gremio.sigla ?? "este gremio"}`}
+                tituloColores={`Colores de ${gremio.sigla ?? "este gremio"}`}
+                descripcionLogos="Hasta tres, uno por entidad: las del convenio más la capacitadora. Sin ninguno propio se muestran los generales. SVG, PNG o WebP con fondo transparente, máximo 1 MB cada uno; se ven a 80 px de alto."
+              />
+            ) : (
+              <Bloque titulo="La apariencia de este gremio">
+                <AvisoDeGremio gremio={gremio} que="los logos y los colores" />
+              </Bloque>
+            )
+          ) : (
+            <Bloque
+              titulo="Logos de la cabecera"
+              descripcion="Hasta tres, uno por entidad. SVG, PNG o WebP con fondo transparente, máximo 1 MB cada uno. Se muestran a 80 px de alto, así que conviene entregarlos a 960 × 288 px o mayor, o en SVG. JPG no sirve: no tiene transparencia y deja un recuadro blanco."
+            >
+              <GestorLogos temas={leido.sistema.temas} />
+            </Bloque>
+          )}
 
-              {/* Se enviaba en el submit y no tenía campo, así
-                  que no había forma de ponerlo ni de quitarlo:
-                  cada Guardar lo dejaba en cadena vacía. */}
-              <Campo
-                etiqueta="Aviso destacado"
-                ayuda="Opcional. Sale en un recuadro sobre el formulario. Vacío, no sale nada."
-              >
-                <textarea
-                  rows={2}
-                  value={marca.mensajeEncabezado ?? ""}
-                  onChange={(e) => cambiarCampo("mensajeEncabezado", e.target.value)}
-                  className={CLASE_CONTROL}
-                />
-              </Campo>
-
-              <Campo etiqueta="Pie de página" ayuda="Opcional.">
-                <input
-                  value={marca.piePagina ?? ""}
-                  onChange={(e) => cambiarCampo("piePagina", e.target.value)}
-                  className={CLASE_CONTROL}
-                />
-              </Campo>
-            </div>
-          </Bloque>
-
-          <Bloque
-            titulo="Modo claro y oscuro"
-            descripcion="Qué ve quien entra por primera vez, y si puede cambiarlo."
-          >
-            <div className="space-y-4">
-              <div className="grid sm:grid-cols-3">
-                {MODOS.map((m) => (
-                  <label
-                    key={m.valor}
-                    className={`cursor-pointer rounded-lg border p-4 transition ${
-                      marca.modoPorDefecto === m.valor
-                        ? "border-marca bg-marca-suave"
-                        : "border-borde hover:border-marca/50"
-                    }`}
-                  >
+          {gremio?.fijo ? (
+            <Bloque titulo="Textos del sitio">
+              <AvisoDeGremio gremio={gremio} que="los textos" />
+            </Bloque>
+          ) : (
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                void conError(() =>
+                  adminApi.actualizarMarca({
+                    nombreApp: marca.nombreApp,
+                    tituloPublico: marca.tituloPublico,
+                    subtituloPublico: marca.subtituloPublico,
+                    mensajeEncabezado: marca.mensajeEncabezado ?? "",
+                    piePagina: marca.piePagina ?? "",
+                    modoPorDefecto: marca.modoPorDefecto,
+                    permitirCambioDeModo: marca.permitirCambioDeModo,
+                  }),
+                );
+              }}
+              className="space-y-6"
+            >
+              <Bloque titulo="Textos del sitio público">
+                <div className="space-y-4">
+                  <Campo etiqueta="Nombre de la aplicación" ayuda="Pestaña del navegador y encabezado.">
                     <input
-                      type="radio"
-                      name="modo"
-                      className="sr-only"
-                      checked={marca.modoPorDefecto === m.valor}
-                      onChange={() => cambiarCampo("modoPorDefecto", m.valor)}
+                      required
+                      value={marca.nombreApp}
+                      onChange={(e) => cambiarCampo("nombreApp", e.target.value)}
+                      className={CLASE_CONTROL}
                     />
-                    <p className="font-medium">{m.etiqueta}</p>
-                    <p className="mt-1 text-sm text-texto-suave">{m.ayuda}</p>
+                  </Campo>
+
+                  <Campo etiqueta="Título principal">
+                    <input
+                      required
+                      value={marca.tituloPublico}
+                      onChange={(e) => cambiarCampo("tituloPublico", e.target.value)}
+                      className={CLASE_CONTROL}
+                    />
+                  </Campo>
+
+                  <Campo etiqueta="Texto de introducción">
+                    <textarea
+                      rows={3}
+                      value={marca.subtituloPublico}
+                      onChange={(e) => cambiarCampo("subtituloPublico", e.target.value)}
+                      className={CLASE_CONTROL}
+                    />
+                  </Campo>
+
+                  {/* Se enviaba en el submit y no tenía campo, así
+                      que no había forma de ponerlo ni de quitarlo:
+                      cada Guardar lo dejaba en cadena vacía. */}
+                  <Campo
+                    etiqueta="Aviso destacado"
+                    ayuda="Opcional. Sale en un recuadro sobre el formulario. Vacío, no sale nada."
+                  >
+                    <textarea
+                      rows={2}
+                      value={marca.mensajeEncabezado ?? ""}
+                      onChange={(e) => cambiarCampo("mensajeEncabezado", e.target.value)}
+                      className={CLASE_CONTROL}
+                    />
+                  </Campo>
+
+                  <Campo etiqueta="Pie de página" ayuda="Opcional.">
+                    <input
+                      value={marca.piePagina ?? ""}
+                      onChange={(e) => cambiarCampo("piePagina", e.target.value)}
+                      className={CLASE_CONTROL}
+                    />
+                  </Campo>
+                </div>
+              </Bloque>
+
+              <Bloque
+                titulo="Modo claro y oscuro"
+                descripcion="Qué ve quien entra por primera vez, y si puede cambiarlo."
+              >
+                <div className="space-y-4">
+                  <div className="grid sm:grid-cols-3">
+                    {MODOS.map((m) => (
+                      <label
+                        key={m.valor}
+                        className={`cursor-pointer rounded-lg border p-4 transition ${
+                          marca.modoPorDefecto === m.valor
+                            ? "border-marca bg-marca-suave"
+                            : "border-borde hover:border-marca/50"
+                        }`}
+                      >
+                        <input
+                          type="radio"
+                          name="modo"
+                          className="sr-only"
+                          checked={marca.modoPorDefecto === m.valor}
+                          onChange={() => cambiarCampo("modoPorDefecto", m.valor)}
+                        />
+                        <p className="font-medium">{m.etiqueta}</p>
+                        <p className="mt-1 text-sm text-texto-suave">{m.ayuda}</p>
+                      </label>
+                    ))}
+                  </div>
+
+                  <label className="flex gap-3 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={marca.permitirCambioDeModo}
+                      onChange={(e) => cambiarCampo("permitirCambioDeModo", e.target.checked)}
+                      className="mt-0.5 size-4 shrink-0 accent-[var(--marca)]"
+                    />
+                    <span>
+                      Permitir que el visitante cambie entre claro y oscuro.
+                      <span className="mt-0.5 block text-texto-suave">
+                        Si lo desactiva desaparece el conmutador. Quítelo solo si hace
+                        falta: para bastante gente el modo oscuro no es un gusto sino
+                        una necesidad.
+                      </span>
+                    </span>
                   </label>
-                ))}
-              </div>
+                </div>
+              </Bloque>
 
-              <label className="flex gap-3 text-sm">
-                <input
-                  type="checkbox"
-                  checked={marca.permitirCambioDeModo}
-                  onChange={(e) => cambiarCampo("permitirCambioDeModo", e.target.checked)}
-                  className="mt-0.5 size-4 shrink-0 accent-[var(--marca)]"
-                />
-                <span>
-                  Permitir que el visitante cambie entre claro y oscuro.
-                  <span className="mt-0.5 block text-texto-suave">
-                    Si lo desactiva desaparece el conmutador. Quítelo solo si hace
-                    falta: para bastante gente el modo oscuro no es un gusto sino
-                    una necesidad.
-                  </span>
-                </span>
-              </label>
-            </div>
-          </Bloque>
-
-          <Boton type="submit" disabled={guardando}>
-            {guardando ? "Guardando…" : "Guardar textos y modo"}
-          </Boton>
-        </form>
-
-        <Bloque
-          titulo="Colores"
-          descripcion="Cada modo tiene su paleta completa. No basta con aclarar u oscurecer la otra: en modo oscuro un color de marca muy saturado deslumbra y hace vibrar los bordes del texto."
-        >
-          <EditorColores
-            temas={marca.temas}
-            catalogo={catalogo}
-            esquema={pestana}
-            alCambiarEsquema={setPestana}
-            alCambiarColor={cambiarColor}
-            alReemplazarTemas={reemplazarTemas}
-            acciones={
-              <div className="flex flex-wrap gap-3">
-                {/* los dos modos juntos: una plantilla cambia ambos */}
-                <Boton
-                  type="button"
-                  disabled={guardando}
-                  onClick={() =>
-                    conError(async () => {
-                      await adminApi.actualizarTema("CLARO", marca.temas.CLARO);
-                      return adminApi.actualizarTema("OSCURO", marca.temas.OSCURO);
-                    })
-                  }
-                >
-                  {guardando ? "Guardando…" : "Guardar colores"}
-                </Boton>
-                <button
-                  type="button"
-                  disabled={guardando}
-                  onClick={() =>
-                    conError(async () => {
-                      await adminApi.restablecerTema("CLARO");
-                      return adminApi.restablecerTema("OSCURO");
-                    })
-                  }
-                  className="rounded-xl border border-borde px-5 py-2 text-sm transition hover:bg-fondo disabled:opacity-50"
-                >
-                  Restablecer los colores
-                </button>
-              </div>
-            }
-          />
-        </Bloque>
+              <Boton type="submit" disabled={guardando}>
+                {guardando ? "Guardando…" : "Guardar textos y modo"}
+              </Boton>
+            </form>
+          )}
         </>
       )}
     </div>

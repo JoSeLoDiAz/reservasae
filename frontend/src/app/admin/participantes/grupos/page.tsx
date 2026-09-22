@@ -126,7 +126,7 @@ export default function AsignarGrupoPorLote() {
 
       <Encabezado
         titulo="Asignar grupo por lote"
-        descripcion="Solo sale quien YA está inscrito y todavía no tiene cohorte: el grupo es lo último que se asigna, cuando la persona ya está dentro. Y sin él su ficha no entra al reporte del SENA."
+        descripcion="Solo sale quien YA está inscrito y todavía no tiene cohorte: el grupo es lo último que se asigna, cuando la persona ya está dentro. Y sin él su lead no entra al reporte del SENA."
       />
 
       {error && <Aviso tipo="error">{error}</Aviso>}
@@ -138,8 +138,8 @@ export default function AsignarGrupoPorLote() {
         <Vacio titulo="Nadie inscrito está esperando grupo">
           Todos los inscritos ya tienen su cohorte. Los interesados y
           contactados no salen aquí a propósito: el grupo se asigna cuando la
-          persona ya está dentro, y hasta entonces se le pone de a una desde su
-          ficha.
+          persona ya está dentro, y hasta entonces se le pone de a uno desde su
+          lead.
         </Vacio>
       ) : (
         <Bloque

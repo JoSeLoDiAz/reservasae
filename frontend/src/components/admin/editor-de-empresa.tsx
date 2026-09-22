@@ -188,7 +188,7 @@ export function EditorDeEmpresa({
     <div className="mt-4 rounded-xl border border-borde p-4">
       <div className="flex items-start justify-between gap-4">
         <p className="text-[0.78125rem] leading-relaxed text-texto-suave">
-          Lo que se corrija aquí es de la empresa, no de esta ficha: lo verán
+          Lo que se corrija aquí es de la empresa, no de este lead: lo verán
           todas las personas del mismo NIT. Queda registrado quién lo puso.
         </p>
         <button

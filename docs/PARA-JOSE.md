@@ -4,7 +4,158 @@
 decisiones o datos que solo tú tienes. Todo lo demás ya está hecho y commiteado.
 
 Rama: `arq/crm-hardening`.
-Estado hoy: **`tsc` limpio en backend y frontend · 1490 pruebas en 127 suites, verde.**
+Estado hoy (21 sep 2026): **`tsc` limpio en backend y frontend · 1871 pruebas en 167 suites, verde.**
+
+**Lo nuevo está en la Parte A, justo debajo.** Todo lo que viene después es de entregas
+anteriores y puede que ya lo hayas hecho.
+
+---
+
+## Parte A · Desplegar la entrega del 21 de septiembre de 2026
+
+Son **17 commits encima de tu `dev` (v0.8.2-JD)**, de `8d045c9` a `0538c29`. Se funden
+**sin conflictos**: comprobado con `git merge-tree --write-tree origin/dev arq/crm-hardening`
+el 21 sep. Tú no tienes ninguna migración que la rama no tenga.
+
+### A.1 · Una migración, y hay que reconstruir el backend
+
+- **`20260921190000_tema_propio_por_persona`**: añade `administradores."temaPropio" JSONB`,
+  nullable y sin relleno. No toca ninguna fila: quien no ha elegido colores sigue viendo la
+  paleta general, igual que hoy. Está en `backend/prisma/migrations/`, así que se aplica sola
+  al arrancar el contenedor. Rollback: `ALTER TABLE "administradores" DROP COLUMN "temaPropio";`.
+- **El backend cambia de API**, así que el orden importa: **backend primero, después
+  frontend**. Con el frontend nuevo contra el backend viejo, Apariencia y el informe de
+  Reservas dan 404.
+  - Nuevas: `GET /admin/perfil/tema`, `PATCH /admin/perfil/tema/:esquema`,
+    `POST /admin/perfil/tema/:esquema/restablecer` y `GET /admin/tableros/informe-reservas`.
+  - `GET /admin/yo` devuelve además `puede.editarMarca`.
+  - `porDia` de `/admin/embudo-publico` trae además `personas` y `eligieron`.
+  - La lista de participantes acepta `asesorId=NINGUNO` y `cola=POR_TRABAJAR`.
+  - Nueve rutas de marca y logos, más `PATCH /admin/formularios/:id/apariencia`, dejan de
+    pedir SUPERADMIN y piden estar en `EDITORES_DE_MARCA` (A.2).
+
+### A.2 · Una variable nueva en el backend: `EDITORES_DE_MARCA`
+
+Correos de acceso separados por comas: **el tuyo, el de Diana y el de la Sra. Catalina**.
+Según el correo de Adrián, el de Catalina es `catalina@grupo-ae.com.co`; confírmalo.
+
+- Solo esas cuentas cambian logos, textos, colores del sistema y colores de cada gremio.
+  **Ser superadmin ya no basta**: Mauricio pidió expresamente que ni él pueda.
+- **Sin la variable no los cambia nadie.** Es a propósito: un olvido de configuración no
+  puede dejar la puerta abierta.
+- Los colores de cada persona no dependen de esto: cualquiera elige los suyos en
+  Apariencia y le quedan solo a ella.
+- Para editar los colores de un gremio **entrando por su subdominio**, además de estar en
+  la lista hace falta permiso de configuración en ese gremio: el ámbito es lo que dice de
+  quién es el formulario.
+
+Está documentada en `backend/.env.example`.
+
+### A.3 · Después de desplegar, a mano
+
+1. **Devolver el panel a sus colores.** Producción amaneció granate porque el antiguo
+   «Guardar colores» escribía la paleta de todos. Uno de los tres editores entra a
+   Apariencia y pulsa **«Restablecer los colores del sistema»**.
+2. **`pnpm db:datos-completos`**, primero sin `--aplicar` para ver cuántas pasaría, y
+   después con `--aplicar` y `PERMITIR_PRODUCCION=si`. Con `cae50ad`, llenar los datos
+   propios ya mueve la etapa, pero lo que quedó mal antes no se arregla solo.
+3. **Rotar la llave de Lucid**: se pegó dos veces en el chat.
+4. La **ficha de prueba de Mauricio** que quedó en producción.
+5. Antes de cargar personas reales, sigue en pie lo de `PANEL_POR_TUNEL` (Parte 0, punto 4).
+
+### A.4 · Lo que va a notar el equipo
+
+| Qué cambió | Dónde |
+|---|---|
+| **Apariencia** sale en el menú para todos; los colores que cada quien guarda son solo suyos | Configuración → Apariencia |
+| Logos, textos y colores de todos, solo para los tres correos | Apariencia; a los demás ni se les ven esos botones |
+| **Pasar a Inscrito** solo exige que la persona tenga organización; que a la organización le falten sector o jefe ya no bloquea (la ficha sigue avisando qué falta) | Gestión de leads |
+| Llenar los datos propios ya mueve a «Datos completos», sin llegar al paso de la empresa | Formulario de completar |
+| Control de Inscritos tiene un menú **«Informes»**: Tráfico del formulario, Proceso de inscripción, Comité Marketing y **Reservas** (nuevo). Tráfico salió del menú Inscripciones y `/admin/trafico` redirige | Inscripciones → Control de Inscritos |
+| «Qué atender primero» abre la lista ya filtrada | Proceso de inscripción |
+| El embudo se dibuja como cintas; la tira de arriba da porcentajes que suman 100 | Proceso de inscripción |
+| Tráfico vuelve al diseño que conocen (tarjetas de color, Día a día, tres cortes) | Tráfico del formulario |
+| **«Ficha» pasa a «lead»** en todo el texto del panel y en los mensajes del servidor. En la Mesa, «Ya son ficha» pasa a «Convertidos». La bitácora ya escrita sigue diciendo «Ficha creada»: no se reescribió la base | Todo el panel |
+
+### A.5 · Te devuelvo la pelota: dudas para que decidas e implementes
+
+Salieron al construir esto. En cada una va qué pasa hoy, qué genera la duda, qué haría yo
+y dónde se cambia. Si no haces nada, queda como hoy.
+
+**1. ¿Un cupo sigue «con nombre» si la persona deserta?**
+- *Hoy:* en el informe de Reservas y en «Cupos apartados por empresas», un cupo tiene
+  nombre cuando una persona vinculada a esa reserva llegó **alguna vez** a inscrito,
+  deserte después o no. En los datos locales, 8 de los 46 cupos con nombre son de personas
+  que desertaron.
+- *La duda:* el informe sirve para pedirle nombres a cada empresa. Si alguien deserta, la
+  silla vuelve a estar libre y la empresa tendría que mandar a otra persona, pero el
+  informe la sigue dando por cubierta.
+- *Qué haría:* descontar a los que desertaron del «ya tienen nombre», para que vuelvan a
+  «siguen sin nombre», y decir aparte «N desertaron» para que no desaparezcan. Antes de
+  cambiarlo, confirma que el SENA no los cuenta como cupo usado.
+- *Dónde:* el `con_nombre` de `backend/src/tableros/informe-de-reservas.ts` y el de la
+  cobertura en `backend/src/crm/control.ts`, que **tienen que llevar la misma regla**: con
+  reglas distintas el informe abría con una cifra y el bloque desde el que se hizo clic
+  decía otra. Pruebas: `el-informe-de-reservas-cuadra.spec.ts` y
+  `cupos-con-nombre-por-reserva.spec.ts`.
+
+**2. ¿Cuentan como nombre las personas que siguen en proceso?**
+- *Hoy:* solo cuenta quien llegó a inscrito. En una organización hay 21 personas
+  vinculadas a su reserva y 13 inscritas; las otras 8 están en Interesado, Contactado o
+  Datos completos.
+- *La duda:* esas 8 ya tienen nombre, pero pueden no inscribirse nunca.
+- *Qué haría:* dejar la regla como está, porque contarlas inflaría la cobertura, y añadir
+  una columna **«En proceso»** para que se vea que hay nombres en camino y no se les pidan
+  otra vez.
+- *Dónde:* los mismos dos `con_nombre` y la tabla «Resumen por acción de formación» de
+  `frontend/src/components/admin/panel-reservas.tsx`.
+
+**3. ¿«Se preinscribieron» cuenta preinscripciones o leads nuevos?**
+- *Hoy:* la cifra de la tarjeta sale del hito `REGISTRADO`, que incluye los `REPETIDA`
+  (alguien que ya estaba; el servidor contesta lo mismo). La serie por día y los cortes
+  cuentan solo los nuevos. La tarjeta lo dice en su pie: «N leads nuevos · M ya estaban».
+- *La duda:* la cifra y su gráfica pequeña no suman lo mismo cuando hay repetidos.
+- *Qué haría:* dejarlo así: la cifra es lo que pasó en el formulario, y el pie dice cuánto
+  fue nuevo. Si prefieres que todo cuente solo los nuevos, cambia `hitos()`.
+- *Dónde:* `hitos()` contra `porDia()` en `backend/src/embudo/embudo.service.ts`, y la
+  tarjeta en `frontend/src/components/admin/panel-trafico.tsx`.
+
+**4. La palabra «ficha» que no es de una persona**
+- *Hoy:* Mauricio dijo «nada de nada es ficha, todo es lead», y así quedó todo lo que
+  nombra a una persona. Se dejaron dos usos que no son personas:
+  - La **ficha de una organización**: `instituciones/[id]/page.tsx` (líneas 430, 716,
+    770, 776 y 1030), `propuestas-pendientes.tsx` y
+    `backend/src/instituciones/instituciones.service.ts:407`.
+  - La **ficha del SENA**, que es un grupo o cohorte: `panel-proceso.tsx:2226`.
+- *Qué haría:* la de la organización, decir «la organización» o «el registro de la
+  organización»; la del SENA, dejarla, porque es el término oficial y los formatos SEP son
+  el contrato.
+
+**5. «De dónde salen estos datos» nunca aparece en la ficha del lead.** Esto es de código,
+no de decisión.
+- *Hoy:* `useDatosVivos(cargar, { activo: false })` también se salta la primera carga
+  (`if (!activo) return;` en `frontend/src/lib/datos-vivos.ts:73`), así que nunca se pide
+  `/admin/leads/comparativo`. Ya pasaba antes de esta entrega.
+- *Qué haría:* que `activo: false` apague solo el refresco periódico y no la primera carga.
+
+**6. Punto 3 de Adrián: fechas de inicio de las acciones.**
+- *Hoy:* Adrián reporta que las fechas de inicio del catálogo no coinciden con el
+  cronograma oficial del Drive de Grupo AE. No tengo acceso a ese Drive (el conectado es
+  de otra cuenta).
+- *Qué haría:* compararlas acción por acción y corregirlas en Calendario → Catálogo, con
+  la cuenta que tenga permiso. Es dato, no código.
+
+### A.6 · Detalles menores conocidos (no bloquean)
+
+- Embudo de cintas: a 320 px uno de los textos de caída parte en dos renglones; al
+  imprimir, las cintas se montan sobre los rótulos por la regla de `globals.css`
+  `section [class*="grid-cols"]`.
+- Día a día en el celular con 16 a 30 días de datos: las columnas quedan finas para tocar
+  una con el dedo.
+- Ficha del lead a 390 px, pestaña Empresa: el editor se sale por la derecha. Ya pasaba.
+- Cabecera a 1024 px: el chevron de «Configuración» se monta sobre el rótulo del usuario.
+- `eslint` marca `setPagina(1)` dentro de un efecto en
+  `frontend/src/app/admin/participantes/page.tsx:105`. Ya estaba.
 
 ---
 

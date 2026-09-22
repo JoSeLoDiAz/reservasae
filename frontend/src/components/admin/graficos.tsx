@@ -1,6 +1,17 @@
 "use client";
 
-import { useId, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
+
+import {
+  agruparPor,
+  granoInicial,
+  granoQueCabe,
+  rellenarDias,
+  QUE_ES_UNA_COLUMNA,
+  type Cubeta,
+  type DiaDelEmbudo,
+  type Grano,
+} from "./agrupar-dias";
 
 /** Piezas de visualización del tablero. */
 
@@ -274,6 +285,7 @@ export function BarraAvance({
 export function ListaBarras({
   datos,
   sufijo,
+  sufijoUno,
   vacio = "Sin datos todavía.",
   maximoFilas,
 }: {
@@ -283,15 +295,43 @@ export function ListaBarras({
   /// desaparece o se duplica.
   datos: Array<{ clave?: string; etiqueta: string; valor: number; detalle?: string }>;
   sufijo?: string;
+  /**
+   * El sufijo cuando la fila vale UNO.
+   *
+   * Sin esto, `sufijo=" personas"` escribía «BOGOTÁ D.C · 1
+   * personas» —lo delató una medición del 21 sep 2026—. La lista
+   * no puede saber si su sufijo se pluraliza, así que lo dice
+   * quien llama; si no lo dice, se usa el mismo y no pasa nada
+   * (con « %» o «cupos/día» no hay singular que escribir).
+   */
+  sufijoUno?: string;
   vacio?: string;
   maximoFilas?: number;
 }) {
+  /// «Y 8 MÁS» TENÍA QUE PODER ABRIRSE.
+  ///
+  /// Era un renglón de texto muerto: «y 8 más» —«pero ¿cuáles
+  /// son?» (cliente, 21 sep 2026)—. La lista se corta para que un
+  /// ranking de treinta departamentos no empuje media pantalla,
+  /// y eso sigue bien; lo que estaba mal es que el resto no
+  /// tuviera puerta. Ahora la tiene, y nace cerrada.
+  ///
+  /// El estado va aquí y no en quien llama: el corte es cosa de
+  /// esta lista, y así se abre cada una por su cuenta sin que
+  /// abrir la de departamentos abra también la de asesores.
+  const [todas, setTodas] = useState(false);
+
   if (!datos.length) {
     return <p className="py-6 text-center text-sm text-texto-suave">{vacio}</p>;
   }
 
-  const visibles = maximoFilas ? datos.slice(0, maximoFilas) : datos;
-  const tope = Math.max(...visibles.map((d) => d.valor), 1);
+  const recorta = Boolean(maximoFilas) && datos.length > (maximoFilas ?? 0);
+  const visibles = recorta && !todas ? datos.slice(0, maximoFilas) : datos;
+  /// El tope sale de TODAS las filas y no de las visibles: si
+  /// saliera de las visibles, al abrir la lista las barras se
+  /// reescalarían y la primera se encogería sin que su cifra
+  /// haya cambiado.
+  const tope = Math.max(...datos.map((d) => d.valor), 1);
 
   return (
     <ul className="space-y-2.5">
@@ -306,7 +346,7 @@ export function ListaBarras({
             </span>
             <span className="shrink-0 tabular-nums">
               {n(d.valor)}
-              {sufijo}
+              {d.valor === 1 ? (sufijoUno ?? sufijo) : sufijo}
               {d.detalle && <span className="ml-2 text-xs text-texto-suave">{d.detalle}</span>}
             </span>
           </div>
@@ -318,9 +358,20 @@ export function ListaBarras({
           </div>
         </li>
       ))}
-      {maximoFilas && datos.length > maximoFilas && (
-        <li className="pt-1 text-xs text-texto-suave">
-          y {n(datos.length - maximoFilas)} más
+      {recorta && (
+        <li className="pt-1">
+          {/* DICE CUÁNTAS Y QUÉ VA A PASAR AL PULSARLO. «Y 8 más»
+              no era ni una cifra que se pueda usar ni un camino a
+              ninguna parte. */}
+          <button
+            type="button"
+            onClick={() => setTodas((v) => !v)}
+            className="text-xs font-medium text-marca underline underline-offset-2 hover:text-marca-fuerte"
+          >
+            {todas
+              ? `Ver solo las ${n(maximoFilas ?? 0)} primeras`
+              : `Ver las otras ${n(datos.length - (maximoFilas ?? 0))}`}
+          </button>
         </li>
       )}
     </ul>
@@ -566,6 +617,20 @@ export function Donut({
   // separación entre porciones
   const hueco = dibujables.length > 1 ? 1.5 : 0;
 
+  /// EL TOTAL VA DENTRO, SIEMPRE.
+  ///
+  /// Quien llama pasaba `detalleCentro="personas"` y no `centro`,
+  /// así que el agujero del anillo decía «personas» a secas: la
+  /// palabra sin la cifra. «Adentro del personas el total, como
+  /// está en Tráfico del formulario» (cliente, 21 sep 2026) —allí
+  /// sí se pasaba, y por eso esa pantalla se veía terminada y
+  /// estas cuatro no.
+  ///
+  /// Sale de la suma de las porciones y no de un dato aparte: es
+  /// la cifra que el propio anillo reparte, así que no puede
+  /// contradecir a la leyenda de al lado.
+  const enElCentro = centro ?? n(suma);
+
   // arranca donde acabó el anterior
   const segmentos: Array<{
     etiqueta: string;
@@ -645,7 +710,7 @@ export function Donut({
             —
           </text>
         )}
-        {centro && suma > 0 && (
+        {suma > 0 && (
           /// Centrado en 66 y reescalado con el lienzo.
           ///
           /// El texto seguia en las coordenadas del lienzo de
@@ -662,7 +727,7 @@ export function Donut({
             fill="var(--titulo)"
             style={{ fontVariantNumeric: "tabular-nums", letterSpacing: "-0.03em" }}
           >
-            {centro}
+            {enElCentro}
           </text>
         )}
         {detalleCentro && (
@@ -785,38 +850,173 @@ export type SeriePorDia = {
   color?: string;
 };
 
-/** El día ISO siguiente, siempre en UTC. */
-function siguienteDia(iso: string): string {
-  return new Date(Date.parse(`${iso}T00:00:00Z`) + 86400000).toISOString().slice(0, 10);
-}
+/// EL MISMO ALTO QUE ANTES (era `h-40`): el bloque de tráfico no
+/// da un salto con este arreglo.
+const ALTO_BARRAS = 160;
+/// MEDIO RENGLÓN DE AIRE ARRIBA. La cifra del tope va centrada
+/// sobre su raya, así que la mitad de su renglón queda por encima
+/// de la raya más alta. Sin este hueco se metía en la leyenda.
+const AIRE_ARRIBA = 9;
+/// EL CANAL DEL EJE, y por qué tiene un mínimo y no un valor
+/// fijo: las cifras de tráfico no tienen techo conocido --son
+/// visitas-- y «12.500» no cabe en lo que cabe «50». El ancho de
+/// verdad se mide con lienzo en el efecto; esto es el suelo.
+const ANCHO_EJE_MINIMO = 34;
+/// Entre la cifra del eje y el principio del dibujo.
+const AIRE_DEL_EJE = 6;
+/// NINGUNA BARRA TOCA UN CANTO. El defecto que reportó el
+/// cliente: la primera barra arrancaba a 1 px del canto interior
+/// de la tarjeta y se leía como parte del borde.
+const AIRE_INTERIOR = 6;
+/// La separación entre columnas NO puede parecerse a la que hay
+/// entre las dos barras de una misma columna: si se parecen, las
+/// cuatro barras de dos días seguidos se leen como un solo
+/// bloque --«se fusiona con la barra», dijo el cliente--. Seis
+/// contra dos es lo que hace que la pareja se vea como pareja.
+const SEPARACION_MINIMA = 6;
+const SEPARACION_PAREJA = 2;
+/// LA SEPARACIÓN CRECE CON LA COLUMNA, como en el embudo por
+/// día: el 15 % del paso, con suelo y techo, y redondeada a
+/// cuatro para que no cambie con cada píxel de arrastre.
+const SEPARACION_MAXIMA = 24;
+/// Por debajo de esto la pareja de barras son dos hilos: se sube
+/// un peldaño de grano --de día a semana-- en vez de empujar la
+/// página a lo ancho. Un poco más que en el embudo porque aquí
+/// cada columna lleva DOS barras y su aire de en medio.
+const MINIMO_POR_COLUMNA = 24;
+/// Aunque quepan, más de 31 columnas no se leen.
+const MAXIMO_COLUMNAS = 31;
+/// EL TOPE DE ANCHO DE UNA COLUMNA, que es el otro defecto del
+/// reporte: con tres días en una pantalla de 1.600 px salían dos
+/// losas de 253 px pegadas a la izquierda. Con tope, pocas
+/// columnas se centran y queda aire a los lados; la pareja mide
+/// como mucho 96 px, o sea 47 px por barra.
+const MAXIMO_POR_COLUMNA = 96;
+/// El suelo de una barra con gente: por debajo de tres píxeles no
+/// se distingue del filete con el que se marca el día en cero, y
+/// eso es justo lo contrario de lo que hay que ver.
+const MINIMO_BARRA = 3;
+/// Más de siete fechas bajo el eje no se leen de un vistazo.
+const MAXIMO_ROTULOS = 7;
+/// Un cuadratín entero de aire entre dos fechas escritas: con
+/// menos se leen como un solo bloque.
+const AIRE_ENTRE_FECHAS = 10;
+/// Las fechas y las cifras del eje, en píxeles, para poder
+/// medirlas con lienzo con la misma letra con la que se pintan.
+const LETRA_EJE = 10;
+
+/// LAS DOS SERIES, METIDAS EN DOS CASILLAS DEL MÓDULO DEL EMBUDO.
+///
+/// `agrupar-dias.ts` no sabe qué son sus cuatro números: los
+/// rellena, los agrupa y los suma. Y lo que hace falta de él es
+/// justo lo que no se debe volver a escribir: el relleno de los
+/// días sin dato, el lunes como principio de semana, el ISO leído
+/// a mediodía --en UTC se corría un día en Bogotá, que es lo que
+/// hacía el `siguienteDia` que había aquí-- y los rótulos
+/// «8–14 sep». Se reusa tal cual y no se toca.
+const CASILLA_A = "entraron" as const;
+const CASILLA_B = "contactados" as const;
 
 /**
- * Une las dos series rellenando con cero los días vacíos.
+ * Une las dos series en un día por fila.
  *
- * Sin el relleno, cuatro días de actividad repartidos en
- * noventa se dibujan pegados y se leen como cuatro días
- * seguidos: el hueco es parte del dato, no ruido.
+ * Ya NO rellena los huecos: de eso se encarga `rellenarDias`, que
+ * además sabe hasta dónde llega el periodo. Aquí solo se cruzan
+ * las dos listas por día.
  */
 function unirPorDia(
   a: Array<{ dia: string; total: number }>,
   b: Array<{ dia: string; total: number }>,
-): Array<{ dia: string; a: number; b: number }> {
-  const dias = [...a.map((d) => d.dia), ...b.map((d) => d.dia)].sort();
-  if (!dias.length) return [];
-
-  const mapaA = new Map(a.map((d) => [d.dia, d.total]));
-  const mapaB = new Map(b.map((d) => [d.dia, d.total]));
-  const ultimo = dias[dias.length - 1];
-  const salida: Array<{ dia: string; a: number; b: number }> = [];
-
-  // tope de seguridad: tres años
-  for (let dia = dias[0]; dia <= ultimo && salida.length < 1100; dia = siguienteDia(dia)) {
-    salida.push({ dia, a: mapaA.get(dia) ?? 0, b: mapaB.get(dia) ?? 0 });
-  }
-  return salida;
+): DiaDelEmbudo[] {
+  const porDia = new Map<string, DiaDelEmbudo>();
+  const meter = (
+    lista: Array<{ dia: string; total: number }>,
+    casilla: typeof CASILLA_A | typeof CASILLA_B,
+  ) => {
+    for (const d of lista) {
+      const fila =
+        porDia.get(d.dia) ??
+        { dia: d.dia, entraron: 0, contactados: 0, conDatos: 0, inscritos: 0 };
+      /// Se SUMA en vez de asignar: si la respuesta trae el mismo
+      /// día dos veces --pasa cuando se cruzan dos orígenes-- lo
+      /// honrado es sumarlos, no quedarse con el último.
+      fila[casilla] += d.total;
+      porDia.set(d.dia, fila);
+    }
+  };
+  meter(a, CASILLA_A);
+  meter(b, CASILLA_B);
+  return [...porDia.values()].sort((x, y) => x.dia.localeCompare(y.dia));
 }
 
-/** Dos series diarias enfrentadas, día a día. */
+/// Los peldaños con los que se redondea el tope del eje. El tope
+/// es SIEMPRE el doble de uno de ellos, así que la raya de la
+/// mitad cae en un número entero y el eje no miente.
+///
+/// COPIADO A PROPÓSITO de `embudo-por-dia`, no importado: ese
+/// archivo ya trae `n` y `dec` de este, y traerse su `topeBonito`
+/// cerraría el círculo entre los dos módulos. Sacarlo a un tercer
+/// archivo es tocar código que hoy no es mío.
+const PASOS_DEL_EJE = [1, 1.2, 1.5, 2, 2.5, 3, 4, 5, 6, 8, 10];
+
+/** El tope del eje, redondeado hacia arriba a una cifra redonda. */
+function topeDelEje(cima: number): number {
+  const medio = Math.max(0.5, cima / 2);
+  const escala = 10 ** Math.floor(Math.log10(medio));
+  for (const p of PASOS_DEL_EJE) {
+    const paso = p * escala;
+    if (paso >= medio && Number.isInteger(paso)) return paso * 2;
+  }
+  return Math.ceil(medio) * 2;
+}
+
+/**
+ * El canal del eje SUPUESTO, mientras el lienzo no ha medido.
+ *
+ * Con el mínimo a secas, un tope de cinco cifras se salía de la
+ * tarjeta por la izquierda en el primer pintado. Seis píxeles por
+ * carácter sobra para una letra de 10 px.
+ */
+function ejeSupuesto(tope: number): number {
+  return Math.max(ANCHO_EJE_MINIMO, n(tope).length * 6 + AIRE_DEL_EJE + 2);
+}
+
+/// El mismo alto de siempre (`h-40`): el bloque no da un salto.
+const ALTO_DIA_A_DIA = 160;
+/// EL AIRE DE ENCIMA. La barra más alta llega al 86 % del alto y
+/// no a la raya de arriba: es la «línea de respeto» que pidió el
+/// cliente --tocándose, barra y raya se leían como una sola pieza--.
+const TECHO_DIA_A_DIA = 0.86;
+/// Qué parte de su casilla ocupa la pareja de barras de un día. El
+/// resto es el aire ENTRE días, y crece con la casilla: con cuatro
+/// días queda un hueco claro entre uno y otro, con noventa casi se
+/// tocan. Eran 2 px fijos, lo mismo que dentro de la pareja, y dos
+/// días seguidos se leían como un bloque de cuatro barras.
+const PAREJA_DEL_DIA = 0.8;
+/// Por debajo de esto por día las barras son hilos: se agrupa por
+/// semanas (o por meses) en vez de dibujar pelusa.
+const MINIMO_POR_DIA = 10;
+
+/**
+ * Dos series diarias enfrentadas, día a día.
+ *
+ * VUELVE AL DIBUJO DE ANTES (cliente, 21 sep 2026: «me gusta más
+ * como estaba originalmente», y del eje con cifras, «con cantidades
+ * no sé, se ve raro»). Las columnas se reparten el ancho entero,
+ * las fechas van en los dos extremos y la leyenda debajo, sin
+ * cifras: la cifra exacta de cada día sale al señalarlo, en el
+ * renglón de abajo. De la versión con eje se queda lo que el
+ * cliente sí había pedido sobre esta misma gráfica:
+ *
+ *  - aire sobre la barra más alta y antes de las fechas, para que
+ *    ninguna barra se funda con la raya de arriba ni con el rótulo
+ *    de abajo;
+ *  - tocar una columna en el celular la FIJA, no la alterna;
+ *  - un día en cero se dibuja como cero, no como un hueco;
+ *  - si no caben los días en el ancho, se agrupa por semanas.
+ *
+ * La versión con eje se queda abajo, como `DosSeriesPorDiaConEje`.
+ */
 export function DosSeriesPorDia({
   a,
   b,
@@ -827,93 +1027,652 @@ export function DosSeriesPorDia({
   vacio?: string;
 }) {
   const [encima, setEncima] = useState<number | null>(null);
-  const id = useId();
+  const caja = useRef<HTMLDivElement>(null);
+  const llenos = useMemo(
+    () => rellenarDias(unirPorDia(a.datos, b.datos)),
+    [a.datos, b.datos],
+  );
 
-  const datos = unirPorDia(a.datos, b.datos);
-  if (!datos.length) {
-    return <p className="py-8 text-center text-sm text-texto-suave">{vacio}</p>;
+  /// Solo el GRANO va en estado: es lo único del dibujo que depende
+  /// del ancho --las casillas son `flex-1`--, y así arrastrar la
+  /// ventana no repinta en cada píxel.
+  const [granoMedido, setGranoMedido] = useState<Grano | null>(null);
+  useEffect(() => {
+    const nodo = caja.current;
+    if (!nodo || llenos.length === 0) return;
+    const medir = (w: number) => {
+      /// Dentro de un plegable cerrado mide cero, y con eso no se
+      /// decide nada: saldría todo agrupado por trimestres.
+      if (w < 1) return;
+      const g = granoQueCabe(llenos, Math.max(1, Math.floor(w / MINIMO_POR_DIA)));
+      setGranoMedido((v) => (v === g ? v : g));
+    };
+    medir(nodo.getBoundingClientRect().width);
+    const observador = new ResizeObserver((e) => medir(e[0]?.contentRect.width ?? 0));
+    observador.observe(nodo);
+    return () => observador.disconnect();
+  }, [llenos]);
+
+  /// Antes de medir, por día si caben hasta en un celular: así en
+  /// escritorio no se ve un salto de semanas a días.
+  const grano: Grano =
+    granoMedido ?? (llenos.length <= 30 ? "dia" : granoInicial(llenos.length));
+  const cubetas = useMemo(() => agruparPor(llenos, grano), [llenos, grano]);
+
+  if (cubetas.length === 0) {
+    return <p className="py-8 text-center text-[0.84375rem] text-texto-suave">{vacio}</p>;
   }
 
-  const colorA = a.color ?? SERIE.uno;
-  const colorB = b.color ?? SERIE.dos;
-  const maximo = Math.max(...datos.map((d) => Math.max(d.a, d.b)), 1);
-  const punto = encima !== null ? datos[encima] : null;
-  const alto = (v: number) => `${Math.max((v / maximo) * 100, v > 0 ? 2 : 0)}%`;
+  const series = [
+    { nombre: a.nombre, color: a.color ?? SERIE.uno, casilla: CASILLA_A },
+    { nombre: b.nombre, color: b.color ?? SERIE.dos, casilla: CASILLA_B },
+  ];
+  const maximo = Math.max(
+    1,
+    ...cubetas.map((c) => Math.max(c[CASILLA_A], c[CASILLA_B])),
+  );
+  const alto = (v: number) =>
+    Math.max(MINIMO_BARRA, Math.round((v / maximo) * ALTO_DIA_A_DIA * TECHO_DIA_A_DIA));
+  /// Con `?? null`: al cambiar de grano con el puntero encima, el
+  /// índice puede quedar fuera del arreglo nuevo.
+  const detalle = encima !== null ? (cubetas[encima] ?? null) : null;
+  const hayParciales = grano !== "dia" && cubetas.some((c) => c.parcial);
+  /// Las fechas de los extremos empiezan donde empieza la primera
+  /// barra y acaban donde acaba la última, no en el canto: con
+  /// pocos días, el aire de la casilla las despegaba de su columna.
+  const sangria = `${((1 - PAREJA_DEL_DIA) / 2 / cubetas.length) * 100}%`;
 
   return (
-    <div className="relative">
-      {/* rejilla de tres referencias */}
-      <div className="pointer-events-none absolute inset-x-0 top-0 h-40">
+    /// `min-w-0`: sin él, el gráfico le pide a su columna de la
+    /// rejilla el ancho de su contenido.
+    <div ref={caja} className="min-w-0">
+      <div className="relative" style={{ height: ALTO_DIA_A_DIA }}>
+        {/* TRES RAYAS FINAS, SIN CIFRAS. La de abajo es la línea de
+            base, un punto más marcada: las barras se apoyan en ella. */}
         {[0, 0.5, 1].map((f) => (
           <div
             key={f}
-            className="absolute inset-x-0 border-t border-borde/60"
-            style={{ top: `${f * 100}%` }}
+            aria-hidden
+            className="pointer-events-none absolute inset-x-0 border-t"
+            style={{
+              top: f * ALTO_DIA_A_DIA,
+              borderTopColor:
+                f === 1
+                  ? "color-mix(in oklab, var(--texto-suave) 60%, var(--superficie))"
+                  : "var(--hairline)",
+            }}
+          />
+        ))}
+
+        <div className="absolute inset-0 flex items-end">
+          {cubetas.map((c, i) => {
+            const apagada = encima !== null && encima !== i;
+            return (
+              <button
+                key={c.clave}
+                type="button"
+                /// Botón y no `div`: en el celular no hay puntero, y
+                /// TOCAR la columna es lo que enseña sus cifras. La
+                /// casilla entera es la zona sensible, no solo la
+                /// barra: así se acierta con el dedo.
+                className="flex h-full min-w-0 flex-1 cursor-default items-end justify-center transition-opacity"
+                style={{ opacity: apagada ? 0.45 : 1 }}
+                aria-label={`${c.etiquetaLarga}: ${a.nombre} ${n(c[CASILLA_A])}, ${
+                  b.nombre
+                } ${n(c[CASILLA_B])}`}
+                onMouseEnter={() => setEncima(i)}
+                onMouseLeave={() => setEncima(null)}
+                onFocus={() => setEncima(i)}
+                onBlur={() => setEncima(null)}
+                /// Fija y no alterna: en el celular el toque dispara
+                /// `mouseenter` y `focus` antes que `click`, y al
+                /// alternar el primer toque no enseñaba nada.
+                onClick={() => setEncima(i)}
+              >
+                <span
+                  className="flex h-full items-end"
+                  style={{ width: `${PAREJA_DEL_DIA * 100}%`, gap: SEPARACION_PAREJA }}
+                >
+                  {series.map((s) => {
+                    const v = c[s.casilla];
+                    return (
+                      <span
+                        key={s.nombre}
+                        className="block min-w-0 flex-1 rounded-t-[4px]"
+                        style={{
+                          /// UN CERO ES UN DATO: un filete de 2 px del
+                          /// color del borde. Sin él, un día sin gente
+                          /// y un día que no vino se verían igual.
+                          height: v > 0 ? alto(v) : 2,
+                          background: v > 0 ? s.color : "var(--borde)",
+                        }}
+                      />
+                    );
+                  })}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* LAS FECHAS, EN LOS DOS EXTREMOS, con aire sobre ellas: la
+          línea de base no se pega al rótulo. */}
+      <div
+        className="mt-2 flex justify-between gap-3 text-[0.625rem] text-texto-suave tabular-nums"
+        style={{ paddingLeft: sangria, paddingRight: sangria }}
+      >
+        <span>{cubetas[0].etiqueta}</span>
+        {cubetas.length > 1 && <span>{cubetas[cubetas.length - 1].etiqueta}</span>}
+      </div>
+
+      {/* La leyenda, sin cifras: los totales ya están en las
+          tarjetas de arriba, y repetidos aquí eran «cantidades». */}
+      <ul className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs text-texto-suave">
+        {series.map((s) => (
+          <li key={s.nombre} className="inline-flex items-center gap-1.5">
+            <span
+              aria-hidden
+              className="block size-2.5 shrink-0 rounded-[3px]"
+              style={{ background: s.color }}
+            />
+            {s.nombre}
+          </li>
+        ))}
+      </ul>
+
+      {/* EL DETALLE DEL DÍA, debajo. El hueco se reserva para que el
+          bloque no dé un salto al señalar, y mientras nadie señala
+          DICE QUE ESTÁ AHÍ: sin eje con cifras, es el único sitio
+          donde se lee el número exacto. */}
+      <div className="mt-2 min-h-[34px]">
+        {detalle ? (
+          <p className="rounded-[9px] bg-superficie-alterna px-3 py-1.5 text-[0.8125rem] leading-snug">
+            <span className="font-semibold text-titulo">
+              {detalle.etiquetaLarga.charAt(0).toUpperCase() + detalle.etiquetaLarga.slice(1)}
+            </span>
+            <span className="text-texto-suave">
+              {" "}
+              · {a.nombre}: {n(detalle[CASILLA_A])} · {b.nombre}: {n(detalle[CASILLA_B])}
+            </span>
+          </p>
+        ) : (
+          <p className="px-3 py-1.5 text-[0.8125rem] leading-snug text-texto-suave">
+            Señale una columna —con el puntero o tocándola— para ver sus cifras.
+          </p>
+        )}
+      </div>
+
+      {grano !== "dia" && (
+        <p className="mt-1 text-[0.6875rem] leading-snug text-texto-suave">
+          {QUE_ES_UNA_COLUMNA[grano]}
+          {hayParciales &&
+            " La primera y la última pueden cubrir menos días que las demás, así que salen más bajas."}
+        </p>
+      )}
+
+      {/* Las dos series en texto, que es la costumbre de los
+          gráficos de esta casa. */}
+      <p className="sr-only">
+        {cubetas
+          .map(
+            (c) =>
+              `${c.etiquetaLarga}: ${c[CASILLA_A]} ${a.nombre}, ${c[CASILLA_B]} ${b.nombre}`,
+          )
+          .join(". ")}
+      </p>
+    </div>
+  );
+}
+
+/**
+ * Dos series diarias enfrentadas, columna a columna, CON EJE.
+ *
+ * Fue `DosSeriesPorDia` del 20 al 21 sep 2026 y el cliente pidió
+ * volver a la de antes («con cantidades no sé, se ve raro»). Se
+ * queda porque funciona y nadie la usa hoy: no se borra lo que
+ * sirve.
+ *
+ * Tiene el mismo esqueleto que el embudo por día --el que aprobó
+ * el cliente--: eje Y con su canal propio a la izquierda, tope de
+ * ancho por columna, fechas centradas bajo su columna y grano que
+ * se agrupa cuando no caben todos los días. Lo que había eran
+ * tres rayas cruzando el dibujo con su cifra `absolute right-0`
+ * encima de las barras, columnas de `flex-1` sin tope --dos losas
+ * con tres días de dato-- y dos fechas puestas con
+ * `justify-between`, ninguna debajo de su columna.
+ */
+export function DosSeriesPorDiaConEje({
+  a,
+  b,
+  vacio = "Todavía no hay movimiento que mostrar.",
+}: {
+  a: SeriePorDia;
+  b: SeriePorDia;
+  vacio?: string;
+}) {
+  const [encima, setEncima] = useState<number | null>(null);
+
+  /**
+   * El GRANO y el CANAL en estado; el ancho, en una referencia.
+   *
+   * Guardar el ancho en estado es repintar en cada píxel que se
+   * arrastra, y con un `ResizeObserver` encima eso se realimenta.
+   * Lo que de verdad cambia el dibujo son valores DISCRETOS --qué
+   * vale una columna, cuánto mide el canal del eje, cuánto aire
+   * va entre columnas, cada cuántas se escribe una fecha--, y el
+   * objeto se devuelve igual cuando ninguno se movió.
+   */
+  const caja = useRef<HTMLDivElement>(null);
+  const ancho = useRef(0);
+  const [medida, setMedida] = useState<{
+    grano: Grano;
+    anchoEje: number;
+    separacion: number;
+    cada: number;
+    sangraInicio: number;
+    sangraFin: number;
+  } | null>(null);
+
+  const llenos = useMemo(
+    () => rellenarDias(unirPorDia(a.datos, b.datos)),
+    [a.datos, b.datos],
+  );
+
+  useEffect(() => {
+    const nodo = caja.current;
+    if (!nodo || llenos.length === 0) return;
+
+    /// Un lienzo suelto para medir texto: `measureText` da el
+    /// ancho de verdad con la letra de la casa. A ojo --tantos
+    /// píxeles por carácter-- se elige mal justo en el caso
+    /// límite, que es cuando se rotulan todas las fechas.
+    const medidor = document.createElement("canvas").getContext("2d");
+    if (medidor) medidor.font = `${LETRA_EJE}px ${getComputedStyle(nodo).fontFamily}`;
+    const anchoDe = (t: string) =>
+      medidor ? medidor.measureText(t).width : t.length * 6;
+
+    const medir = (w: number) => {
+      ancho.current = w;
+      /// DOS PASADAS, y no es capricho: el canal del eje depende
+      /// de la cifra más alta, la cifra más alta depende del
+      /// grano --al agrupar por semanas cada columna suma siete
+      /// días-- y el grano depende del ancho que deja el canal.
+      /// Se empieza por el canal mínimo y se vuelve a preguntar
+      /// con el de verdad.
+      let anchoEje = ANCHO_EJE_MINIMO;
+      let grano: Grano = "dia";
+      let cubetas: Cubeta[] = [];
+      for (let pasada = 0; pasada < 2; pasada += 1) {
+        const util = w - anchoEje - 2 * AIRE_INTERIOR;
+        const maximo = Math.min(
+          MAXIMO_COLUMNAS,
+          Math.max(7, Math.floor(util / MINIMO_POR_COLUMNA)),
+        );
+        grano = granoQueCabe(llenos, maximo);
+        cubetas = agruparPor(llenos, grano);
+        const tope = topeDelEje(
+          Math.max(1, ...cubetas.map((c) => Math.max(c[CASILLA_A], c[CASILLA_B]))),
+        );
+        anchoEje = Math.max(
+          ANCHO_EJE_MINIMO,
+          Math.ceil(anchoDe(n(tope)) + AIRE_DEL_EJE + 2),
+        );
+      }
+
+      const cuantas = Math.max(1, cubetas.length);
+      const util = Math.max(1, w - anchoEje - 2 * AIRE_INTERIOR);
+      /// El paso es lo que le toca a cada columna CON su aire.
+      const bruto = Math.max(1, util / cuantas);
+      const separacion = Math.min(
+        SEPARACION_MAXIMA,
+        Math.max(SEPARACION_MINIMA, Math.round((bruto * 0.15) / 4) * 4),
+      );
+      const porColumna = Math.min(MAXIMO_POR_COLUMNA, bruto - separacion);
+      const paso = porColumna + separacion;
+
+      let anchoRotulo = 0;
+      for (const c of cubetas) anchoRotulo = Math.max(anchoRotulo, anchoDe(c.etiqueta));
+      /// Ni dos fechas más juntas de un cuadratín, ni más de
+      /// siete en total.
+      const cada = Math.max(
+        1,
+        Math.ceil(cuantas / MAXIMO_ROTULOS),
+        Math.ceil((anchoRotulo + AIRE_ENTRE_FECHAS) / Math.max(1, paso)),
+      );
+
+      /// LO QUE SE SALE DE LOS EXTREMOS, EN PÍXELES.
+      ///
+      /// Las fechas van todas centradas bajo su columna, que es lo
+      /// que hace que un eje de tiempo se lea como de paso
+      /// constante. Lo único que hay que corregir es que el rótulo
+      /// de un extremo se salga de la tarjeta, y se corre
+      /// exactamente lo que sobra. El ancho DE VERDAD de la
+      /// columna sale del reparto de `flex-1` y no del
+      /// `porColumna` redondeado.
+      const columnaReal = Math.min(
+        MAXIMO_POR_COLUMNA,
+        (util - (cuantas - 1) * separacion) / cuantas,
+      );
+      const holgura = Math.max(
+        0,
+        (util - (cuantas * columnaReal + (cuantas - 1) * separacion)) / 2,
+      );
+      const ultimoRotulado = Math.floor((cuantas - 1) / cada) * cada;
+      const sobraPrimera = (anchoDe(cubetas[0]?.etiqueta ?? "") - columnaReal) / 2;
+      const sobraUltima =
+        ultimoRotulado === cuantas - 1
+          ? (anchoDe(cubetas[cuantas - 1]?.etiqueta ?? "") - columnaReal) / 2
+          : 0;
+      /// Bajo el eje el canal está vacío --las cifras viven a la
+      /// altura del dibujo--, así que la primera fecha puede
+      /// invadirlo. A la derecha solo hay el aire interior.
+      const nueva = {
+        grano,
+        anchoEje,
+        separacion,
+        cada,
+        /// `ceil` y no `round`: quedarse a un píxel corto deja el
+        /// rótulo fuera de la tarjeta, que es el defecto.
+        sangraInicio: Math.ceil(
+          Math.max(0, sobraPrimera - holgura - AIRE_INTERIOR - anchoEje),
+        ),
+        sangraFin: Math.ceil(Math.max(0, sobraUltima - holgura - AIRE_INTERIOR)),
+      };
+      /// El MISMO objeto cuando nada cambió: así React no repinta
+      /// y el observador no se muerde la cola.
+      setMedida((v) =>
+        v &&
+        v.grano === nueva.grano &&
+        v.anchoEje === nueva.anchoEje &&
+        v.separacion === nueva.separacion &&
+        v.cada === nueva.cada &&
+        v.sangraInicio === nueva.sangraInicio &&
+        v.sangraFin === nueva.sangraFin
+          ? v
+          : nueva,
+      );
+    };
+
+    medir(nodo.getBoundingClientRect().width);
+    const observador = new ResizeObserver((entradas) => {
+      const w = entradas[0]?.contentRect.width ?? 0;
+      if (Math.abs(w - ancho.current) < 1) return;
+      medir(w);
+    });
+    observador.observe(nodo);
+    return () => observador.disconnect();
+  }, [llenos]);
+
+  /// Mientras no hay medida, el grano sale de CUÁNTOS días hay.
+  /// Suponer un ancho --el de un celular, por ejemplo-- hacía
+  /// saltar la maquetación en escritorio en cuanto llegaba la
+  /// medida de verdad.
+  const grano = medida?.grano ?? granoInicial(llenos.length);
+  const separacion = medida?.separacion ?? SEPARACION_MINIMA;
+  const cubetas = useMemo(() => agruparPor(llenos, grano), [llenos, grano]);
+
+  const colorA = a.color ?? SERIE.uno;
+  const colorB = b.color ?? SERIE.dos;
+  const totalA = cubetas.reduce((s, c) => s + c[CASILLA_A], 0);
+  const totalB = cubetas.reduce((s, c) => s + c[CASILLA_B], 0);
+
+  if (cubetas.length === 0) {
+    return <p className="py-8 text-center text-[0.84375rem] text-texto-suave">{vacio}</p>;
+  }
+
+  const tope = topeDelEje(
+    Math.max(1, ...cubetas.map((c) => Math.max(c[CASILLA_A], c[CASILLA_B]))),
+  );
+  const anchoEje = medida?.anchoEje ?? ejeSupuesto(tope);
+  const alto = (v: number) =>
+    v <= 0 ? 0 : Math.max(MINIMO_BARRA, Math.round((v / tope) * ALTO_BARRAS));
+
+  /// QUÉ COLUMNAS LLEVAN FECHA: ancladas a la primera --0, cada,
+  /// 2·cada…--, que es como el paso del eje sale parejo. La
+  /// última puede quedarse sin rótulo: esa fecha ya la dice la
+  /// cabecera del bloque.
+  const cada = medida?.cada ?? Math.max(1, Math.ceil(cubetas.length / MAXIMO_ROTULOS));
+  const hayParciales = cubetas.some((c) => c.parcial);
+  /// Con `?? null` porque al cambiar de grano --o de periodo--
+  /// mientras el puntero está encima, el índice puede quedar
+  /// fuera del arreglo nuevo.
+  const detalle = encima !== null ? (cubetas[encima] ?? null) : null;
+
+  const series = [
+    { nombre: a.nombre, color: colorA, casilla: CASILLA_A, total: totalA },
+    { nombre: b.nombre, color: colorB, casilla: CASILLA_B, total: totalB },
+  ];
+
+  return (
+    /// `min-w-0`: sin él este gráfico le pide a su columna de la
+    /// rejilla el ancho de su contenido más ancho.
+    <div ref={caja} className="min-w-0">
+      {/* LA LEYENDA, con el total del periodo de cada serie: es la
+          cifra con la que se comprueba a mano que el gráfico
+          cuadra con las tarjetas de arriba. */}
+      <ul className="mb-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-[0.75rem] text-texto">
+        {series.map((s) => (
+          <li key={s.nombre} className="inline-flex items-center gap-1.5">
+            <span
+              className="block h-2.5 w-2.5 shrink-0 rounded-[3px]"
+              style={{ background: s.color }}
+              aria-hidden
+            />
+            {s.nombre}{" "}
+            <span className="font-semibold text-titulo tabular-nums">{n(s.total)}</span>
+          </li>
+        ))}
+      </ul>
+
+      <div className="relative" style={{ height: AIRE_ARRIBA + ALTO_BARRAS }}>
+        {/* LA REJILLA: cero, la mitad y el tope, cada una con su
+            cifra EN EL CANAL DE LA IZQUIERDA. Antes la cifra iba
+            `absolute right-0`, o sea encima de las barras de la
+            derecha, y no había canal: por eso «no se veía la
+            línea». */}
+        {[1, 0.5, 0].map((f) => (
+          <div
+            key={f}
+            className="pointer-events-none absolute right-0 border-t"
+            style={{
+              left: anchoEje,
+              top: AIRE_ARRIBA + (1 - f) * ALTO_BARRAS,
+              /// LA RAYA DEL CERO NO ES UNA RAYA DE REJILLA: es la
+              /// línea de base sobre la que se apoyan las barras.
+              /// Pintada igual que las otras dos, el gráfico
+              /// parecía flotar y la barra se comía la raya.
+              borderTopColor:
+                f === 0
+                  ? "color-mix(in oklab, var(--texto-suave) 80%, var(--superficie))"
+                  : "var(--hairline)",
+            }}
           >
-            <span className="absolute -top-2 right-0 bg-superficie pl-1 text-[10px] tabular-nums text-texto-suave">
-              {n(Math.round(maximo * (1 - f)))}
+            <span
+              className="absolute -top-[7px] right-full text-[0.625rem] whitespace-nowrap text-texto-suave tabular-nums"
+              style={{ paddingRight: AIRE_DEL_EJE }}
+            >
+              {n(Math.round(tope * f))}
             </span>
           </div>
         ))}
-      </div>
 
-      <div className="flex h-40 items-end gap-[2px]" role="img" aria-describedby={id}>
-        {datos.map((d, i) => (
-          <div
-            key={d.dia}
-            className="relative flex h-full flex-1 items-end justify-center gap-[1px]"
-            onMouseEnter={() => setEncima(i)}
-            onMouseLeave={() => setEncima(null)}
-          >
-            <div
-              className="w-1/2 rounded-t-[5px] transition-opacity"
-              style={{
-                height: alto(d.a),
-                background: colorA,
-                opacity: encima === null || encima === i ? 1 : 0.45,
-              }}
-            />
-            <div
-              className="w-1/2 rounded-t-[5px] transition-opacity"
-              style={{
-                height: alto(d.b),
-                background: colorB,
-                opacity: encima === null || encima === i ? 1 : 0.45,
-              }}
-            />
-          </div>
-        ))}
-      </div>
-
-      <div className="mt-2 flex justify-between text-[10px] text-texto-suave">
-        <span>{fecha(datos[0].dia)}</span>
-        <span>{fecha(datos[datos.length - 1].dia)}</span>
-      </div>
-
-      <div className="mt-3 flex flex-wrap gap-4 text-xs text-texto-suave">
-        <span className="inline-flex items-center gap-1.5">
-          <i className="block size-2.5 rounded-sm" style={{ background: colorA }} />
-          {a.nombre}
-        </span>
-        <span className="inline-flex items-center gap-1.5">
-          <i className="block size-2.5 rounded-sm" style={{ background: colorB }} />
-          {b.nombre}
-        </span>
-      </div>
-
-      {punto && (
-        <div className="mt-3 rounded-lg bg-superficie-alterna px-3 py-2 text-sm">
-          <span className="font-medium">{fecha(punto.dia, true)}</span>
-          <span className="text-texto-suave">
-            {" "}
-            · {a.nombre}: {n(punto.a)} · {b.nombre}: {n(punto.b)}
-          </span>
+        {/* CADA COLUMNA, SU CASILLA; Y LAS CASILLAS, A TODO LO
+            ANCHO.
+            Estuvo con el grupo centrado y tope por casilla, y con
+            tres días en una tarjeta de 1.500 px eso dejaba las
+            tres barras apiñadas en el medio con 613 px de vacío a
+            cada lado --medido--. El vacío ya lo había parado el
+            cliente antes: «¿cómo se pierde todo este espacio?».
+            Ahora la casilla se reparte el ancho --`flex-1`, sin
+            tope-- y el tope se lo lleva la PAREJA DE BARRAS de
+            dentro: con pocos días quedan repartidas y esbeltas, y
+            con muchos se juntan hasta tocarse. Es lo que hace una
+            hoja de cálculo con tres categorías.
+            El área va metida `AIRE_INTERIOR` por los dos lados,
+            que es lo que hace que ninguna barra toque un canto. */}
+        <div
+          className="absolute flex items-end"
+          style={{
+            left: anchoEje + AIRE_INTERIOR,
+            right: AIRE_INTERIOR,
+            top: AIRE_ARRIBA,
+            bottom: 0,
+            gap: separacion,
+          }}
+        >
+          {cubetas.map((c, i) => {
+            const apagada = encima !== null && encima !== i;
+            return (
+              <button
+                key={c.clave}
+                type="button"
+                /// Botón y no `div`: en celular no hay puntero, y
+                /// TOCAR la columna es lo que enseña sus cifras.
+                /// De paso llega por teclado.
+                className="flex h-full min-w-0 flex-1 cursor-default items-end justify-center transition-opacity"
+                style={{ opacity: apagada ? 0.45 : 1 }}
+                aria-label={`${c.etiquetaLarga}: ${a.nombre} ${n(c[CASILLA_A])}, ${
+                  b.nombre
+                } ${n(c[CASILLA_B])}`}
+                onMouseEnter={() => setEncima(i)}
+                onMouseLeave={() => setEncima(null)}
+                onFocus={() => setEncima(i)}
+                onBlur={() => setEncima(null)}
+                /// Fija y no alterna: en el celular el toque dispara
+                /// `mouseenter` y `focus` antes que `click`, y al
+                /// alternar el primer toque no enseñaba nada. Es el
+                /// mismo defecto medido en «Cómo fue entrando la
+                /// gente» el 21 sep 2026.
+                onClick={() => setEncima(i)}
+              >
+                {/* LA PAREJA, con el tope. Va en su propia caja y
+                    no en el botón: el botón es la CASILLA --la
+                    zona que se puede señalar, que conviene ancha--
+                    y esto es el DIBUJO, que conviene esbelto. */}
+                <span
+                  className="flex h-full w-full items-end justify-center"
+                  style={{ maxWidth: MAXIMO_POR_COLUMNA, gap: SEPARACION_PAREJA }}
+                >
+                {series.map((s) => {
+                  const v = c[s.casilla];
+                  return (
+                    <span
+                      key={s.nombre}
+                      className="block min-w-0 flex-1 rounded-t-[3px]"
+                      style={{
+                        /// UN CERO ES UN DATO, no un hueco: se
+                        /// dibuja como un filete de 2 px del color
+                        /// del borde. Sin esto, un día sin gente y
+                        /// un día que no vino en la respuesta se
+                        /// verían igual.
+                        height: v > 0 ? alto(v) : 2,
+                        background: v > 0 ? s.color : "var(--borde)",
+                      }}
+                    />
+                  );
+                })}
+                </span>
+              </button>
+            );
+          })}
         </div>
-      )}
+      </div>
 
-      {/* las dos series en texto */}
-      <p id={id} className="sr-only">
-        {datos.map((d) => `${d.dia}: ${d.a} ${a.nombre}, ${d.b} ${b.nombre}`).join(". ")}
+      {/* EL EJE X. Las fechas llevan el mismo tope, el mismo aire
+          y la misma separación que las columnas, así que cada una
+          cae bajo la suya. Antes eran dos --la primera y la
+          última-- puestas con `justify-between`. */}
+      <div
+        className="mt-1.5 flex justify-center"
+        style={{
+          marginLeft: anchoEje + AIRE_INTERIOR,
+          marginRight: AIRE_INTERIOR,
+          gap: separacion,
+        }}
+      >
+        {cubetas.map((c, i) => {
+          /// Solo se corrige lo que DE VERDAD se sale de la
+          /// tarjeta, en píxeles medidos (ver `sangraInicio` y
+          /// `sangraFin`). Alinear la primera y la última a su
+          /// borde «por si acaso» es lo que hacía que el eje
+          /// pareciera de paso irregular.
+          const corrimiento =
+            i === 0
+              ? (medida?.sangraInicio ?? 0)
+              : i === cubetas.length - 1
+                ? -(medida?.sangraFin ?? 0)
+                : 0;
+          return (
+            <span
+              key={c.clave}
+              /// CENTRADA DE VERDAD sobre su columna: con `flex-1
+              /// text-center` y un rótulo más ancho que su
+              /// casilla, Chrome no desborda hacia el borde de
+              /// inicio y corre la fecha a la derecha. Con la
+              /// casilla vacía y el texto centrado por
+              /// `translateX(-50%)`, la fecha cae en el eje de su
+              /// columna y se sale por los dos lados por igual.
+              ///
+              /// NUNCA se recorta: se sale hacia las casillas de
+              /// al lado, que están vacías a propósito --`cada`
+              /// se calcula midiendo el rótulo más largo contra
+              /// el paso entre columnas--. Con `truncate` el eje
+              /// de un celular decía «31 ago – …», que no dice de
+              /// qué mes es.
+              /// SIN TOPE, igual que la casilla de arriba: la
+              /// fecha va centrada en el eje de SU casilla, y si
+              /// la casilla no midiera lo mismo que allá, la fecha
+              /// dejaría de caer bajo su columna.
+              className="relative min-w-0 flex-1 text-[0.625rem] whitespace-nowrap text-texto-suave tabular-nums"
+            >
+              <span
+                className="absolute top-0 left-1/2 whitespace-nowrap"
+                style={{ transform: `translateX(calc(-50% + ${corrimiento}px))` }}
+              >
+                {i % cada === 0 ? c.etiqueta : ""}
+              </span>
+            </span>
+          );
+        })}
+      </div>
+
+      {/* EL DETALLE, en su renglón de siempre. El hueco se reserva
+          para que el bloque no dé un salto al señalar, y mientras
+          nadie señala nada DICE QUE ESTÁ AHÍ: treinta píxeles en
+          blanco bajo un gráfico se leen como algo que no cargó. */}
+      <div className="mt-2 min-h-[34px]">
+        {detalle ? (
+          <p className="rounded-[9px] bg-superficie-alterna px-3 py-1.5 text-[0.8125rem] leading-snug">
+            <span className="font-semibold text-titulo">{detalle.etiquetaLarga}</span>
+            <span className="text-texto-suave">
+              {" "}
+              · {a.nombre}: {n(detalle[CASILLA_A])} · {b.nombre}:{" "}
+              {n(detalle[CASILLA_B])}
+            </span>
+          </p>
+        ) : (
+          <p className="px-3 py-1.5 text-[0.8125rem] leading-snug text-texto-suave">
+            Señale una columna —con el puntero o tocándola— para ver sus cifras.
+          </p>
+        )}
+      </div>
+
+      <p className="mt-1 text-[0.6875rem] leading-snug text-texto-suave">
+        {QUE_ES_UNA_COLUMNA[grano]}
+        {hayParciales &&
+          " La primera y la última pueden cubrir menos días que las demás, así que salen más bajas."}
+      </p>
+
+      {/* Las dos series en texto, que es la costumbre de los
+          gráficos de esta casa. */}
+      <p className="sr-only">
+        {cubetas
+          .map(
+            (c) =>
+              `${c.etiquetaLarga}: ${c[CASILLA_A]} ${a.nombre}, ${c[CASILLA_B]} ${b.nombre}`,
+          )
+          .join(". ")}
       </p>
     </div>
   );
@@ -1042,6 +1801,16 @@ export function Chispa({
   /// estira a lo que mida su columna: el `viewBox` ya esta
   /// puesto, asi que escala sin deformarse.
   clase = "shrink-0",
+  /// A LO ANCHO DE VERDAD, sin que el trazo engorde.
+  ///
+  /// Con `w-full` a secas el `viewBox` escala proporcional: una
+  /// chispa de 64 × 20 en una caja de 280 × 32 se pintaba de 102 px
+  /// en el centro, flotando. Estirada, el dibujo ocupa la caja
+  /// entera, el trazo guarda su grosor en píxeles de pantalla y el
+  /// punto final sigue redondo --un `circle` se volvería óvalo--.
+  /// Lo pide la tarjeta de Tráfico del formulario; por omisión
+  /// todo sigue igual.
+  estirada = false,
 }: {
   datos: number[];
   ancho?: number;
@@ -1049,6 +1818,7 @@ export function Chispa({
   color?: string;
   etiqueta?: string;
   clase?: string;
+  estirada?: boolean;
 }) {
   if (!datos.length) return null;
 
@@ -1069,6 +1839,7 @@ export function Chispa({
       width={ancho}
       height={alto}
       viewBox={`0 0 ${ancho} ${alto}`}
+      preserveAspectRatio={estirada ? "none" : undefined}
       role="img"
       aria-label={`${etiqueta ? `${etiqueta}, ` : ""}tendencia de ${n(datos[0])} a ${n(
         datos[datos.length - 1],
@@ -1080,12 +1851,25 @@ export function Chispa({
           points={puntos.map(([x, y]) => `${x},${y}`).join(" ")}
           fill="none"
           stroke={color}
-          strokeWidth="1.5"
+          strokeWidth={estirada ? 2 : 1.5}
           strokeLinecap="round"
           strokeLinejoin="round"
+          vectorEffect={estirada ? "non-scaling-stroke" : undefined}
         />
       )}
-      <circle cx={ultimo[0]} cy={ultimo[1]} r="1.75" fill={color} />
+      {estirada ? (
+        /// Un trazo de largo cero con remate redondo ES un punto,
+        /// y con `non-scaling-stroke` no se deforma al estirar.
+        <path
+          d={`M${ultimo[0]} ${ultimo[1]}h0`}
+          stroke={color}
+          strokeWidth={5}
+          strokeLinecap="round"
+          vectorEffect="non-scaling-stroke"
+        />
+      ) : (
+        <circle cx={ultimo[0]} cy={ultimo[1]} r="1.75" fill={color} />
+      )}
     </svg>
   );
 }

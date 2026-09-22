@@ -31,6 +31,7 @@ import {
   type EsquemaDeLogo,
 } from '../comun/logo';
 import { AdminActual, AmbitoActual } from './admin-actual.decorator';
+import { esEditorDeMarca, SoloEditoresDeMarca } from './editores-de-marca';
 import { rolQueSeEnsena } from './rol-que-se-ensena';
 import { BienvenidaService } from '../correo/bienvenida.service';
 import {
@@ -149,6 +150,10 @@ export class AdminController {
       puede: {
         repartirFichas: conveniosQueReparten(ambito.roles).length > 0,
         sacarDeInscrito: conveniosQueMuevenInscrito(ambito.roles).length > 0,
+        /// Logos, colores del sistema y textos: solo los correos de
+        /// `EDITORES_DE_MARCA`. Para que Apariencia no le enseñe a
+        /// nadie más un botón que el servidor va a rechazar.
+        editarMarca: esEditorDeMarca(admin.correo),
       },
       /// Los gremios de esta cuenta CON su sigla: es lo que
       /// llena el desplegable de arriba. Van los concedidos,
@@ -188,6 +193,29 @@ export class AdminController {
   @Patch('perfil')
   actualizarPerfil(@AdminActual() admin: Admin, @Body() dto: ActualizarPerfilDto) {
     return this.admin.actualizarPerfil(admin, dto);
+  }
+
+  /// LOS COLORES DE CADA PERSONA. Cualquier cuenta, sobre sí misma y
+  /// solo sobre sí misma: por eso cuelgan de `perfil` y no llevan
+  /// `@Roles` ni `@Requiere`. Ver `tema-propio.ts`.
+  @Get('perfil/tema')
+  miTema(@AdminActual() admin: Admin) {
+    return this.admin.miTema(admin);
+  }
+
+  @Patch('perfil/tema/:esquema')
+  guardarMiTema(
+    @AdminActual() admin: Admin,
+    @Param('esquema') esquema: string,
+    @Body() dto: ActualizarTemaDto,
+  ) {
+    return this.admin.guardarMiTema(admin, this.exigirEsquema(esquema), dto);
+  }
+
+  @Post('perfil/tema/:esquema/restablecer')
+  @HttpCode(200)
+  restablecerMiTema(@AdminActual() admin: Admin, @Param('esquema') esquema: string) {
+    return this.admin.restablecerMiTema(admin, this.exigirEsquema(esquema));
   }
 
   // usuarios
@@ -253,14 +281,21 @@ export class AdminController {
 
   // marca
 
+  /// LA MARCA DE TODOS LA CAMBIAN SOLO LOS EDITORES DE MARCA.
+  ///
+  /// Logos, colores del sistema, textos y la marca de cada gremio
+  /// piden estar en `EDITORES_DE_MARCA` (ver `editores-de-marca.ts`),
+  /// y ya no el rol: «que nadie pueda modificar los logos, solo con
+  /// el correo de José, Diana y la Sra. Catalina; ni yo puedo»
+  /// (cliente, un superadministrador, 21 sep 2026). Los colores de
+  /// CADA persona van por `perfil/tema` y los elige cualquiera.
   @Get('marca')
   verMarca() {
     return this.admin.obtenerMarca();
   }
 
   @Patch('marca')
-  @Requiere('configuracion', 'ESCRIBIR')
-  @Roles(RolAdmin.SUPERADMIN)
+  @SoloEditoresDeMarca()
   actualizarMarca(@AdminActual() admin: Admin, @Body() dto: ActualizarMarcaDto) {
     return this.admin.actualizarMarca(admin, dto);
   }
@@ -271,13 +306,13 @@ export class AdminController {
   /// es una decision del gremio, no del formulario: hay que
   /// poder ver los dos a la vez para saber cual esta puesto.
   @Get('marca/gremios')
-  @Roles(RolAdmin.SUPERADMIN)
+  @SoloEditoresDeMarca()
   marcaDeGremios(@AmbitoActual() ambito: Ambito) {
     return this.admin.listarMarcaDeGremios(ambito.convenios);
   }
 
   @Patch('marca/gremios/:convenioId')
-  @Roles(RolAdmin.SUPERADMIN)
+  @SoloEditoresDeMarca()
   fijarMarcaDeGremio(
     @AmbitoActual() ambito: Ambito,
     @Param('convenioId') convenioId: string,
@@ -304,8 +339,7 @@ export class AdminController {
   }
 
   @Patch('marca/tema/:esquema')
-  @Requiere('configuracion', 'ESCRIBIR')
-  @Roles(RolAdmin.SUPERADMIN)
+  @SoloEditoresDeMarca()
   actualizarTema(
     @AdminActual() admin: Admin,
     @Param('esquema') esquema: string,
@@ -315,8 +349,7 @@ export class AdminController {
   }
 
   @Post('marca/tema/:esquema/restablecer')
-  @Requiere('configuracion', 'ESCRIBIR')
-  @Roles(RolAdmin.SUPERADMIN)
+  @SoloEditoresDeMarca()
   @HttpCode(200)
   restablecerTema(@AdminActual() admin: Admin, @Param('esquema') esquema: string) {
     return this.admin.restablecerTema(admin, this.exigirEsquema(esquema));
@@ -337,8 +370,7 @@ export class AdminController {
   /// cualquier sesion de admin, y es la que entrega los ids
   /// que necesitan el PATCH y el DELETE de abajo.
   @Get('logos')
-  @Requiere('configuracion', 'VER')
-  @Roles(RolAdmin.SUPERADMIN)
+  @SoloEditoresDeMarca()
   listarLogos(
     @AmbitoActual() ambito: Ambito,
     @Query('formularioId') formularioId?: string,
@@ -347,8 +379,7 @@ export class AdminController {
   }
 
   @Post('logos')
-  @Requiere('configuracion', 'ESCRIBIR')
-  @Roles(RolAdmin.SUPERADMIN)
+  @SoloEditoresDeMarca()
   @UseInterceptors(FileInterceptor('logo', { limits: { fileSize: MAXIMO_LOGO } }))
   subirLogo(
     @AmbitoActual() ambito: Ambito,
@@ -376,8 +407,7 @@ export class AdminController {
   }
 
   @Patch('logos/:id')
-  @Requiere('configuracion', 'ESCRIBIR')
-  @Roles(RolAdmin.SUPERADMIN)
+  @SoloEditoresDeMarca()
   actualizarLogo(
     @AmbitoActual() ambito: Ambito,
     @Param('id') id: string,
@@ -387,8 +417,7 @@ export class AdminController {
   }
 
   @Delete('logos/:id')
-  @Requiere('configuracion', 'ESCRIBIR')
-  @Roles(RolAdmin.SUPERADMIN)
+  @SoloEditoresDeMarca()
   borrarLogo(@AmbitoActual() ambito: Ambito, @Param('id') id: string) {
     return this.admin.borrarLogo(ambito, id);
   }

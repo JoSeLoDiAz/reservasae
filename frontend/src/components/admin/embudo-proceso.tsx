@@ -37,6 +37,10 @@ export type Hito = {
 export type NotaDelEmbudo = {
   cifra: number;
   etiqueta: string;
+  /// La misma cifra en el periodo con el que se compara. Null =
+  /// no se compara. «¿No deberían decir la diferencia?» (cliente,
+  /// 20 sep 2026): una cifra sola no dice si va mejor o peor.
+  antes?: number | null;
   /// El porqué de la cifra, para quien no la vaya a interpretar
   /// igual que quien la puso.
   detalle: string;
@@ -51,16 +55,57 @@ const COLOR_TONO: Record<string, string> = {
   neutro: "var(--texto-suave)",
 };
 
+/// «frente a el mismo tramo…» no se dice: es «frente al».
+function contraQue(etiqueta: string | null): string {
+  const e = (etiqueta ?? "antes").toLowerCase();
+  return e.startsWith("el ") ? `al ${e.slice(3)}` : `a ${e}`;
+}
+
+/**
+ * La línea de comparación de una cifra: «+1 frente a anteayer (3)»
+ * o «igual que anteayer».
+ *
+ * SUELTA Y EXPORTADA porque la escriben dos sitios: estas casillas
+ * --que siguen en el panel académico y en Tráfico-- y la tira de
+ * Control de Inscritos, que se quedó con dos de ellas (21 sep
+ * 2026). Armada dos veces, una acabaría diciendo «frente a el mes
+ * pasado» o poniendo el signo menos de teclado y la otra no.
+ *
+ * Sin color y con la resta hecha en números: cuenta, no afirma
+ * (José, 18 sep 2026).
+ */
+export function lineaContraAntes(
+  cifra: number,
+  antes: number,
+  etiquetaAntes: string | null,
+): string {
+  /// «igual que el mes de antes» y no «igual que mes de antes»:
+  /// recortar la preposición de `contraQue` se comía también el
+  /// artículo.
+  if (antes === cifra) return `igual que ${(etiquetaAntes ?? "antes").toLowerCase()}`;
+  /// «(eran 30)» y no «(30)»: pegado a «los 30 días anteriores», el
+  /// número suelto entre paréntesis se leía como si repitiera los
+  /// días, y son las personas de entonces (revisión del 21 sep
+  /// 2026). Lo usan también el panel académico y la tira de Control.
+  return `${cifra > antes ? "+" : "−"}${n(Math.abs(cifra - antes))} frente ${contraQue(
+    etiquetaAntes,
+  )} (${antes === 1 ? "era" : "eran"} ${n(antes)})`;
+}
+
 function porcentaje(parte: number, total: number): string {
   if (total <= 0) return "—";
   return `${Math.round((parte / total) * 100)} %`;
 }
 
-/// «antes: 58 +4». La diferencia en verde si sube y en rojo si
-/// baja: en los cuatro hitos más es mejor. Dice «antes» y no el
-/// nombre del periodo porque ese nombre puede ser largo --«el
-/// mismo tramo del periodo anterior»-- y repetido cuatro veces
-/// tapaba las barras; va UNA vez, al pie.
+/// «antes: 58 · +4», en gris.
+///
+/// SIN verde ni rojo: los del periodo anterior tuvieron más tiempo
+/// para avanzar, así que un «menos» en los pasos de abajo no es
+/// que vaya peor (José, 18 sep 2026). El color afirmaría eso; el
+/// número solo lo cuenta. Dice «antes» y no el nombre del periodo
+/// porque ese nombre puede ser largo --«el mismo tramo del periodo
+/// anterior»-- y repetido cuatro veces tapaba las barras; va UNA
+/// vez, al pie.
 function ContraAntes({
   ahora,
   antes,
@@ -78,7 +123,7 @@ function ContraAntes({
     >
       antes: {n(antes)}
       {d !== 0 && (
-        <span className={`ml-1 font-semibold ${d > 0 ? "text-exito" : "text-error"}`}>
+        <span className="ml-1 font-semibold">
           {d > 0 ? "+" : "−"}
           {n(Math.abs(d))}
         </span>
@@ -93,6 +138,9 @@ export function EmbudoProceso({
   meta = null,
   antes = null,
   etiquetaAntes = null,
+  etiquetaAhora = null,
+  resumen = null,
+  sobrio = false,
 }: {
   hitos: Hito[];
   notas?: NotaDelEmbudo[];
@@ -110,13 +158,45 @@ export function EmbudoProceso({
   /// entendía (18 sep 2026).
   antes?: number[] | null;
   etiquetaAntes?: string | null;
+  /// El nombre del periodo que se está mirando, para la leyenda.
+  etiquetaAhora?: string | null;
+  /**
+   * La misma historia EN UNA FRASE, encima de las barras.
+   *
+   * «No lo entiendo de ninguna manera... necesito que ese reporte
+   * se entienda» (Mauricio, 20 sep 2026). Cuatro barras con
+   * porcentajes son un dibujo; la frase dice qué preguntan.
+   */
+  resumen?: React.ReactNode;
+  /**
+   * Sin los adornos: solo la cifra y el nombre de cada paso.
+   *
+   * «No entiendo una mierda» (cliente, 20 sep 2026). Cada barra
+   * llevaba CUATRO cifras --los que no pasaron, el total, el
+   * porcentaje y el periodo anterior-- y debajo una tabla con las
+   * mismas cifras otra vez. Lo que se quita de la barra no se
+   * pierde: la caída se lee restando dos cifras seguidas, y la
+   * comparación está en la tabla, que es donde se lee de corrido.
+   * Tráfico del formulario sigue con todo: allí son nueve pasos y
+   * el porcentaje es lo que se viene a mirar.
+   */
+  sobrio?: boolean;
 }) {
   const primero = hitos[0]?.total ?? 0;
-  /// La altura se mide contra el PRIMER hito, no contra el mayor:
-  /// así la caída se ve como caída y no como una escalera
-  /// renormalizada que siempre llega arriba.
+  /**
+   * La altura se mide contra el PRIMER hito, no contra el mayor:
+   * así la caída se ve como caída y no como una escalera
+   * renormalizada que siempre llega arriba.
+   *
+   * CON COMPARACIÓN, la escala la manda el mayor de los dos
+   * primeros: si antes entraron 75 y ahora 41, la barra gris
+   * medía 183 % y se salía del recuadro tapando la cifra de
+   * arriba. Las dos comparten escala, que es lo que deja
+   * compararlas de un vistazo.
+   */
+  const tope = Math.max(primero, antes?.[0] ?? 0);
   const alto = (v: number) =>
-    primero > 0 ? Math.max(2, Math.round((v / primero) * 100)) : 2;
+    tope > 0 ? Math.min(100, Math.max(2, Math.round((v / tope) * 100))) : 2;
 
   return (
     /// A LO ANCHO ENTERO, pero BAJO.
@@ -128,8 +208,37 @@ export function EmbudoProceso({
     /// debajo hacían un bloque de media pantalla para cuatro
     /// números. Se recorta el alto y el ancho se respeta.
     <div>
-      <div className="flex items-end gap-3">
+      {resumen && (
+        <p className="mb-3 text-[0.8125rem] leading-relaxed text-texto">{resumen}</p>
+      )}
+
+      {/* LA LEYENDA, y sin ella las dos barras no dicen nada. */}
+      {antes && (
+        <p className="mb-3 flex flex-wrap items-center gap-4 text-[0.75rem] text-texto-suave">
+          <span className="inline-flex items-center gap-1.5">
+            <span className="h-2.5 w-2.5 rounded-[3px] bg-marca-fuerte" aria-hidden />
+            {etiquetaAhora ?? "El periodo elegido"}
+          </span>
+          <span className="inline-flex items-center gap-1.5">
+            <span
+              className="h-2.5 w-2.5 rounded-[3px] border border-borde bg-superficie-alterna"
+              aria-hidden
+            />
+            {etiquetaAntes ?? "El periodo anterior"}
+          </span>
+        </p>
+      )}
+
+      {/* COLUMNAS ESTIRADAS Y NO ALINEADAS POR ABAJO.
+          Con `items-end`, la columna que lleva la meta debajo
+          empujaba sus barras hacia arriba y el embudo quedaba
+          escalonado: «sigue siendo inconcluso» (cliente, 20 sep
+          2026). Ahora el área de las barras mide lo mismo en
+          todas y el pie también, así que todas comparten línea. */}
+      <div className="flex items-stretch gap-3">
         {hitos.map((h, i) => {
+          const antesDe = antes?.[i];
+          const hayAntes = antesDe !== undefined;
           const previo = i > 0 ? hitos[i - 1].total : null;
           const caida = previo !== null ? previo - h.total : 0;
           const esUltimo = i === hitos.length - 1;
@@ -147,7 +256,7 @@ export function EmbudoProceso({
               /// que quede: este embudo es una lista fija, no se
               /// reordena ni se filtra en el navegador.
               key={`${h.etiqueta}#${i}`}
-              className="flex min-w-0 flex-1 flex-col items-center"
+              className="flex min-w-0 flex-1 flex-col items-center justify-end"
               title={`${h.etiqueta}: ${n(h.total)} de ${n(primero)} (${porcentaje(h.total, primero)})${
                 caida > 0 ? ` · ${n(caida)} no pasaron del paso anterior` : ""
               }`}
@@ -160,44 +269,97 @@ export function EmbudoProceso({
                   selector de comparación al lado eso es lo que
                   se leía. Esto es otra cosa: gente que no pasó al
                   paso siguiente dentro del MISMO periodo. */}
-              <div className="h-4 text-[0.6875rem] font-semibold text-error tabular-nums">
-                {caida > 0 ? `${n(caida)} no pasaron` : ""}
+              {/* DOS RENGLONES FIJOS, LA CIFRA ARRIBA Y LA FRASE DEBAJO.
+                  Era una caja de un renglón (`h-4`) con «5.993 no
+                  pasaron» dentro. Con cifras de miles, en una columna
+                  angosta, la frase partía en dos y el segundo renglón
+                  caía ENCIMA de la cifra grande: «5.993 no pasaron»
+                  tapando «5.679» (Adrián Quintana, supervisor, con la
+                  captura de producción, 21 sep 2026). En local no se
+                  veía porque aquí las cifras son de dos dígitos. Con
+                  el alto de los dos renglones reservado en TODAS las
+                  columnas, nada se monta y las cifras grandes siguen
+                  en la misma raya. */}
+              {!sobrio && (
+                <div className="flex h-[28px] flex-col items-center justify-end text-center leading-[13px] text-error tabular-nums">
+                  {caida > 0 && (
+                    <>
+                      <span className="text-[0.6875rem] font-bold">{n(caida)}</span>
+                      <span className="text-[0.625rem] font-semibold whitespace-nowrap">
+                        {caida === 1 ? "no pasó" : "no pasaron"}
+                      </span>
+                    </>
+                  )}
+                </div>
+              )}
+
+              {!hayAntes && (
+                <div className="text-[1.375rem] leading-none font-bold text-titulo tabular-nums">
+                  {n(h.total)}
+                </div>
+              )}
+
+              {/* DOS BARRAS, UNA POR PERIODO.
+
+                  Estuvo la del periodo anterior DETRÁS, en gris, y
+                  no se entendía: «cuando compara no deben ser 2
+                  filas, o sea el de x día y el otro de x día»
+                  (cliente, 20 sep 2026). Ahora son dos barras una
+                  al lado de la otra, cada una con su cifra encima y
+                  su color en la leyenda de arriba. Sin comparación
+                  queda una sola, como siempre. */}
+              <div className="mt-1.5 flex h-[112px] w-full items-end justify-center gap-1.5">
+                <div className="flex h-full w-1/2 flex-col justify-end">
+                  <span className="mb-1 text-center text-[0.8125rem] font-bold text-titulo tabular-nums">
+                    {hayAntes ? n(h.total) : ""}
+                  </span>
+                  <div
+                    className="w-full rounded-t-[7px] transition-[height] duration-500"
+                    style={{
+                      height: `${alto(h.total)}%`,
+                      background: colorEtapa(h.etapa),
+                    }}
+                  />
+                </div>
+
+                {hayAntes && (
+                  <div className="flex h-full w-1/2 flex-col justify-end">
+                    <span className="mb-1 text-center text-[0.8125rem] font-semibold text-texto-suave tabular-nums">
+                      {n(antesDe)}
+                    </span>
+                    <div
+                      className="w-full rounded-t-[7px] border border-borde bg-superficie-alterna"
+                      style={{ height: `${alto(antesDe)}%` }}
+                    />
+                  </div>
+                )}
               </div>
 
-              <div className="text-[1.375rem] leading-none font-bold text-titulo tabular-nums">
-                {n(h.total)}
-              </div>
+              <div className="mt-2 flex h-[38px] flex-col items-center justify-start">
+                <div className="text-center text-[0.75rem] leading-[1.15] font-semibold text-titulo">
+                  {h.etiqueta}
+                </div>
+              {!sobrio && (
+                <div className="mt-0.5 text-[0.6875rem] text-texto-suave tabular-nums">
+                  {porcentaje(h.total, primero)}
+                </div>
+              )}
 
-              <div className="mt-1.5 flex h-[88px] w-full items-end justify-center">
-                <div
-                  className="w-2/3 rounded-t-[7px] transition-[height] duration-500"
-                  style={{
-                    height: `${alto(h.total)}%`,
-                    background: colorEtapa(h.etapa),
-                  }}
-                />
-              </div>
-
-              <div className="mt-2 text-center text-[0.75rem] leading-[1.15] font-semibold text-titulo">
-                {h.etiqueta}
-              </div>
-              <div className="mt-0.5 text-[0.6875rem] text-texto-suave tabular-nums">
-                {porcentaje(h.total, primero)}
-              </div>
-
-              {antes && antes[i] !== undefined && (
+              {!sobrio && antes && antes[i] !== undefined && (
                 <ContraAntes ahora={h.total} antes={antes[i]} etiqueta={etiquetaAntes} />
               )}
 
-              {/* La meta del SENA, colgada del último hito. */}
-              {esUltimo && meta !== null && meta > 0 && (
-                <div
-                  className="mt-1 text-[0.65625rem] font-bold text-marca tabular-nums"
-                  title={`Meta comprometida con el SENA: ${n(meta)} beneficiarios`}
-                >
-                  meta {n(meta)} · {porcentaje(h.total, meta)}
-                </div>
-              )}
+                {/* La meta del SENA, colgada del último hito, y
+                    dentro del pie: fuera de él descuadraba la fila. */}
+                {esUltimo && meta !== null && meta > 0 && (
+                  <div
+                    className="mt-1 text-[0.65625rem] font-bold text-marca tabular-nums"
+                    title={`Meta comprometida con el SENA: ${n(meta)} beneficiarios`}
+                  >
+                    meta {n(meta)} · {porcentaje(h.total, meta)}
+                  </div>
+                )}
+              </div>
             </div>
           );
         })}
@@ -205,35 +367,92 @@ export function EmbudoProceso({
 
       {antes && (
         <p className="mt-2 text-center text-[0.6875rem] text-texto-suave">
-          «Antes» es {etiquetaAntes ?? "el periodo con el que se compara"}, y
-          solo se compara la entrada: los de antes tuvieron más tiempo para
-          avanzar, así que sus pasos siguientes no se comparan con los de
-          ahora. «No pasaron» es la gente que se quedó entre un paso y el
-          siguiente dentro del periodo elegido.
+          Las barras grises son {etiquetaAntes ?? "el periodo con el que se compara"}.
+          Van sin color porque esa gente tuvo más tiempo para avanzar.
         </p>
       )}
 
       {notas.length > 0 && (
-        <div className="mt-3 grid gap-2.5 border-t border-hairline pt-3 sm:grid-cols-2 lg:grid-cols-4">
-          {notas.map((nt, i) => (
-            <div
-              key={`${nt.etiqueta}#${i}`}
-              className="rounded-[11px] border border-hairline px-3.5 py-2"
-              title={nt.detalle}
-            >
-              <span
-                className="block text-[1.375rem] leading-none font-bold tabular-nums"
-                style={{ color: COLOR_TONO[nt.tono ?? "neutro"] }}
-              >
-                {n(nt.cifra)}
-              </span>
-              <span className="mt-1.5 block text-[0.75rem] leading-snug text-texto-suave">
-                {nt.etiqueta}
-              </span>
-            </div>
-          ))}
-        </div>
+        <TarjetasDelEmbudo notas={notas} etiquetaAntes={etiquetaAntes} />
       )}
+    </div>
+  );
+}
+
+
+/**
+ * Las tres casillas de «en qué acabó la gente del periodo».
+ *
+ * SUELTO y exportado: estaba metido dentro del embudo del periodo
+ * --así que al cambiar de vista desaparecía--. Control de
+ * Inscritos ya no lo usa (sus tres cifras pasaron a la tira del
+ * periodo, 21 sep 2026), pero se queda: lo pinta este embudo de
+ * barras, que es el del panel académico y el de Tráfico.
+ */
+export function TarjetasDelEmbudo({
+  notas,
+  etiquetaAntes = null,
+}: {
+  notas: NotaDelEmbudo[];
+  etiquetaAntes?: string | null;
+}) {
+  if (notas.length === 0) return null;
+  /**
+   * EL REPARTO LO MANDAN LAS CLASES, NO UN ESTILO EN LÍNEA.
+   *
+   * `style={{gridTemplateColumns: 'repeat(3, …)'}}` gana SIEMPRE
+   * a `sm:grid-cols-2`, que estaba en el mismo elemento, así que
+   * las tres casillas se quedaban en tres columnas a cualquier
+   * ancho, celular incluido: medido a 390 px, 93 px por casilla,
+   * «siguen en / proceso, / sin / inscribirse» en cuatro
+   * renglones y la fila entera de 350 px de alto contra los 120
+   * que mide a 1.600. Ninguna de las tres referencias del
+   * cliente deja una casilla de dato por debajo de ~150 px.
+   *
+   * Cadenas completas y no interpoladas: Tailwind las busca tal
+   * cual en el código y una clase armada a trozos no existiría.
+   */
+  const reparto =
+    notas.length === 1
+      ? "grid-cols-1"
+      : notas.length === 2
+        ? "grid-cols-1 min-[520px]:grid-cols-2"
+        : notas.length === 3
+          ? "grid-cols-1 min-[520px]:grid-cols-2 min-[900px]:grid-cols-3"
+          : "grid-cols-1 min-[520px]:grid-cols-2";
+  return (
+    <div className={`mt-3 grid gap-2.5 border-t border-hairline pt-3 ${reparto}`}>
+      {notas.map((nt, i) => (
+        <div
+          key={`${nt.etiqueta}#${i}`}
+          className="rounded-[11px] border border-hairline px-3.5 py-2"
+          title={nt.detalle}
+        >
+          {/* LOS MISMOS CUATRO ESCALONES QUE EL RESTO DEL BLOQUE.
+              Había nueve tamaños de letra en una sola tarjeta,
+              tres de ellos dentro de un margen de 1 px: no se
+              distinguen entre sí y solo impiden que nada case.
+              Cifra grande 20 px --la misma del embudo--, cuerpo
+              13,5 --el de la casa-- y apunte 11. */}
+          <span
+            className="block text-[1.25rem] leading-none font-bold tabular-nums"
+            style={{ color: COLOR_TONO[nt.tono ?? "neutro"] }}
+          >
+            {n(nt.cifra)}
+          </span>
+          <span className="mt-1.5 block text-[0.84375rem] leading-snug font-medium text-texto">
+            {nt.etiqueta}
+          </span>
+          {nt.antes !== null && nt.antes !== undefined && (
+            <span className="mt-1 block text-[0.6875rem] text-texto-suave tabular-nums">
+              {lineaContraAntes(nt.cifra, nt.antes, etiquetaAntes)}
+            </span>
+          )}
+          <span className="mt-1 block text-[0.6875rem] leading-snug text-texto-suave">
+            {nt.detalle}
+          </span>
+        </div>
+      ))}
     </div>
   );
 }

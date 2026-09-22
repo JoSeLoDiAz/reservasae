@@ -46,6 +46,7 @@ import { PanelDeCupos } from './panel-de-cupos';
 import { ColaRui } from './rui/cola-rui';
 import {
   ETAPAS_DEL_EMBUDO,
+  ETAPAS_POR_TRABAJAR,
   metricasDeInscripciones,
 } from './metricas-inscripciones';
 import {
@@ -569,7 +570,23 @@ export class CrmService {
 
     // las opciones de filtro salen de la base, no de la
     // pagina cargada: si no, faltan los de la pagina 2
-    const [porAsesor, porAccion] = await Promise.all([
+    /**
+     * Y LOS GREMIOS TAMBIEN SALEN DE AQUI (21 sep 2026).
+     *
+     * El desplegable «Gremios» sacaba su cuenta de `/metricas`,
+     * que recorta `etapa: { in: ETAPAS_DEL_EMBUDO }`, mientras el
+     * bloque sale de `/resumen`, que descarta la etapa a
+     * proposito. La diferencia es la gente que ya paso al aula
+     * --EN_FORMACION, CERTIFICADO, RETIRADO, ABANDONO--: la
+     * lista ofrecia «ADECOPRIA · 98» y al elegirlo el bloque
+     * contestaba 103. Los otros cuatro desplegables salen de
+     * esta misma respuesta y cuadran al digito; este faltaba.
+     *
+     * Es un campo NUEVO: nadie que lea la respuesta de hoy se
+     * entera, y el que lo necesita ya no tiene que cruzar dos
+     * endpoints para contar lo mismo.
+     */
+    const [porAsesor, porAccion, porConvenio] = await Promise.all([
       this.prisma.participante.groupBy({
         by: ['asesorId'],
         where: donde,
@@ -577,6 +594,11 @@ export class CrmService {
       }),
       this.prisma.participante.groupBy({
         by: ['accionFormacionId'],
+        where: donde,
+        _count: { _all: true },
+      }),
+      this.prisma.participante.groupBy({
+        by: ['convenioId'],
         where: donde,
         _count: { _all: true },
       }),
@@ -589,7 +611,11 @@ export class CrmService {
       .map((f) => f.accionFormacionId)
       .filter((id): id is string => !!id);
 
-    const [asesores, acciones] = await Promise.all([
+    const idsConvenio = porConvenio
+      .map((f) => f.convenioId)
+      .filter((id): id is string => !!id);
+
+    const [asesores, acciones, convenios] = await Promise.all([
       this.prisma.admin.findMany({
         where: { id: { in: idsAsesor } },
         select: { id: true, nombre: true },
@@ -600,6 +626,11 @@ export class CrmService {
         select: { id: true, codigo: true, nombre: true },
         orderBy: { codigo: 'asc' },
       }),
+      this.prisma.convenio.findMany({
+        where: { id: { in: idsConvenio } },
+        select: { id: true, sigla: true, nombre: true },
+        orderBy: { nombre: 'asc' },
+      }),
     ]);
 
     const totalAsesor = new Map(
@@ -607,6 +638,9 @@ export class CrmService {
     );
     const totalAccion = new Map(
       porAccion.map((f) => [f.accionFormacionId, f._count._all]),
+    );
+    const totalConvenio = new Map(
+      porConvenio.map((f) => [f.convenioId, f._count._all]),
     );
 
     // por donde vive la persona, no por donde se dicta el
@@ -715,6 +749,12 @@ export class CrmService {
       acciones: acciones.map((a) => ({
         ...a,
         total: totalAccion.get(a.id) ?? 0,
+      })),
+      // la sigla es como se nombra el gremio en toda la pantalla
+      convenios: convenios.map((c) => ({
+        id: c.id,
+        nombre: c.sigla ?? c.nombre,
+        total: totalConvenio.get(c.id) ?? 0,
       })),
       sinAsesor: totalAsesor.get(null) ?? 0,
       grupos,
@@ -1333,8 +1373,8 @@ export class CrmService {
       entidadId: creado.id,
       convenioId: dto.convenioId,
       resumen: sobrecupo
-        ? `Ficha creada con sobrecupo autorizado: ${sobrecupo.motivo}`
-        : 'Ficha creada.',
+        ? `Lead creado con sobrecupo autorizado: ${sobrecupo.motivo}`
+        : 'Lead creado.',
       ip: ip ?? null,
     });
 
@@ -1631,7 +1671,7 @@ export class CrmService {
       await pasarSiNoLeFaltaNada(
         this.prisma,
         id,
-        'Un asesor completó sus datos en la ficha',
+        'Un asesor completó sus datos en el lead',
         admin.id,
       );
     }
@@ -1912,7 +1952,7 @@ export class CrmService {
       entidad: ENTIDADES.EMPRESA,
       entidadId: empresaId,
       convenioId: suyo?.convenioId ?? null,
-      resumen: 'Desde la ficha de un lead.',
+      resumen: 'Desde un lead.',
       camposTocados: tocados,
       ip,
     });
@@ -1993,7 +2033,7 @@ export class CrmService {
       throw new BadRequestException(
         'No se puede registrar la caracterización sin autorización de datos ' +
           'vigente: son datos sensibles y tienen que colgar de un ' +
-          'consentimiento. Regístrela primero en esta misma ficha.',
+          'consentimiento. Regístrela primero en este mismo lead.',
       );
     }
 
@@ -2142,7 +2182,7 @@ export class CrmService {
     });
     if (!concesion) {
       throw new BadRequestException(
-        `${asesor.nombre} no trabaja en este convenio, así que no vería esta ficha. ` +
+        `${asesor.nombre} no trabaja en este convenio, así que no vería este lead. ` +
           'Déle acceso primero, o elija a otra persona.',
       );
     }
@@ -2177,7 +2217,7 @@ export class CrmService {
     );
     if (ajenos.length > 0) {
       throw new ForbiddenException(
-        'Repartir fichas entre asesores lo hace un lider: es organizar el ' +
+        'Repartir leads entre asesores lo hace un líder: es organizar el ' +
           'trabajo del equipo, no atender un lead.',
       );
     }
@@ -2357,7 +2397,7 @@ export class CrmService {
     });
 
     if (suyas.length === 0) {
-      throw new NotFoundException('Ninguna de esas fichas existe en su ámbito.');
+      throw new NotFoundException('Ninguno de esos leads existe en su ámbito.');
     }
 
     await this.prisma.$transaction(async (tx) => {
@@ -2441,18 +2481,30 @@ export class CrmService {
     // la suya manda: si dijo donde trabaja de verdad, vale eso
     const empresa = conEmpresa?.empresa ?? conEmpresa?.reserva?.empresa ?? null;
 
-    const faltaEmpresa = this.faltaDeLaEmpresa(
-      empresa,
-      conEmpresa?.persona.numeroDocumento,
-    );
-
-    if (faltaEmpresa.length > 0) {
+    /// SOLO BLOQUEA SI NO HAY ORGANIZACIÓN. Los datos que le falten
+    /// a la organización ya no detienen la inscripción.
+    ///
+    /// Bloqueaba también por cualquier dato suelto de la empresa
+    /// --sector económico, jefe directo--, y en producción dejó
+    /// atascada a gente con su ficha «Sin pendientes»: «Antes de
+    /// inscribir hay que completar su organización: sector
+    /// económico» (21 sep 2026). El cliente lo zanjó: «esto no debe
+    /// ser impedimento; desde que complete lo que pide el formulario
+    /// para el apartado de empresa, ya se puede pasar a inscrito».
+    /// Tiene razón: el sector económico es un dato DE LA EMPRESA, que
+    /// el formulario de preinscripción no le pregunta a la persona,
+    /// así que exigírselo a ella para inscribirla era pedirle algo
+    /// que no tenía cómo dar.
+    ///
+    /// Lo que falta NO se pierde de vista: la ficha lo sigue
+    /// enseñando (`faltaDeLaEmpresa` en `obtener`), y el F7 lo va a
+    /// reclamar al armarse. Se completa en la ficha de la empresa, sin
+    /// frenar a la persona. Sin organización, en cambio, no hay a
+    /// quién reportar, y eso sí se queda como candado.
+    if (!empresa) {
       throw new BadRequestException(
-        empresa
-          ? `Antes de inscribir hay que completar su organización: ${faltaEmpresa.join(', ')}. ` +
-              'Sin eso no entra en el F7.'
-          : 'Esta persona no tiene organización. Sin ella no se puede reportar al ' +
-              'SENA, así que no se puede inscribir. Mándele el enlace para que la complete.',
+        'Esta persona no tiene organización. Sin ella no se puede reportar al ' +
+          'SENA, así que no se puede inscribir. Mándele el enlace para que la complete.',
       );
     }
 
@@ -2763,7 +2815,7 @@ export class CrmService {
     if (dto.etapa === 'DATOS_COMPLETOS') {
       throw new BadRequestException(
         '«Datos completos» no se marca a mano: lo calcula el sistema con lo ' +
-          'que hay en la ficha.',
+          'que hay en el lead.',
       );
     }
 
@@ -4260,11 +4312,30 @@ export class CrmService {
     } else if (f.tramo === 'AULA') {
       y.push({ etapa: { in: ETAPAS_DEL_AULA } });
     }
+    /// Se SUMA al tramo, no lo sustituye: los dos empujan un
+    /// `etapa in`, y al cruzarse queda lo que hay en los dos.
+    /// Las tres son las mismas que cuenta `ETAPAS_POR_TRABAJAR`
+    /// en `control.ts`; si allí cambian, aquí también.
+    if (f.cola === 'POR_TRABAJAR') {
+      y.push({ etapa: { in: ETAPAS_POR_TRABAJAR } });
+    }
     if (f.accionFormacionId) y.push({ accionFormacionId: f.accionFormacionId });
     if (f.coberturaId) y.push({ coberturaId: f.coberturaId });
     // el grupo cuelga de la cobertura, no del participante
     if (f.grupoId) y.push({ cobertura: { grupoId: f.grupoId } });
-    if (f.asesorId) y.push({ asesorId: f.asesorId });
+    /// «NINGUNO» es quien no tiene asesor, y es un filtro de
+    /// verdad, no la ausencia de filtro.
+    ///
+    /// `control` reparte una cifra --`sinAsignar`-- y el panel la
+    /// enseña como un pendiente: «83 personas no tienen asesor
+    /// asignado». Al pulsar «Repartir personas» se llegaba a la
+    /// lista ENTERA y había que volver a encontrarlas a mano
+    /// («¿estas dos deberían filtrar automático lo que indica,
+    /// no?», cliente, 21 sep 2026). Sin este caso no se podía
+    /// pedir: un `asesorId` vacío se lee como «no filtres por
+    /// asesor», así que hacía falta una palabra para el hueco.
+    if (f.asesorId === 'NINGUNO') y.push({ asesorId: null });
+    else if (f.asesorId) y.push({ asesorId: f.asesorId });
     // la misma fecha que corta el embudo de `control`
     if (f.llegoDesde) y.push({ creadoEn: { gte: new Date(f.llegoDesde) } });
     if (f.llegoHasta) y.push({ creadoEn: { lt: new Date(f.llegoHasta) } });
