@@ -105,3 +105,6 @@ paletas.json
 
 # volcados del navegador de Playwright MCP
 .playwright-mcp/
+
+# capturas del navegador: se toman para mirar, no para guardar
+/*.png
