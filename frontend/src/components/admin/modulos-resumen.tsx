@@ -38,12 +38,11 @@ import { Bloque, Esqueleto, TarjetaCifra, Vacio } from "./piezas";
 import { useDatosVivos } from "@/lib/datos-vivos";
 import {
   crmApi,
-  ETIQUETA_ORIGEN,
   type Control,
-  type Origen,
   type TableroAcademico,
   type EmbudoPublico,
 } from "@/lib/crm-api";
+import { porCanal } from "@/lib/canales-del-resumen";
 import { MINIMO_PARA_TASA, porcentaje, visitasDe } from "@/lib/trafico-comun";
 
 /// Un minuto para lo que se trabaja hoy, cinco para lo que no se
@@ -227,14 +226,18 @@ export function ModuloLeads() {
 
             <div>
               <h3 className="mb-2 text-sm font-bold">Qué convierte cada canal</h3>
+              {/* LOS CUATRO CANALES DEL NEGOCIO, no los doce orígenes
+                  de la base. La agrupación vive en `canales-del-resumen`
+                  y la fuerza el compilador: un origen nuevo sin
+                  clasificar no compila. */}
               <ListaBarras
-                datos={d.conversionPorOrigen
-                  .filter((o) => o.leads >= 5)
-                  .map((o) => ({
-                    clave: o.etiqueta,
-                    etiqueta: ETIQUETA_ORIGEN[o.etiqueta as Origen] ?? o.etiqueta,
-                    valor: Math.round(o.conversion * 100),
-                    detalle: `${n(o.inscritos)} de ${n(o.leads)}`,
+                datos={porCanal(d.conversionPorOrigen)
+                  .filter((c) => c.leads >= 5)
+                  .map((c) => ({
+                    clave: c.canal,
+                    etiqueta: c.nombre,
+                    valor: Math.round((c.inscritos / c.leads) * 100),
+                    detalle: `${n(c.inscritos)} de ${n(c.leads)}`,
                   }))}
                 sufijo=" %"
                 vacio="Todavía no hay ningún canal con cinco leads."
@@ -242,7 +245,9 @@ export function ModuloLeads() {
               {/* La base, dicha: con menos de cinco leads un 50 % son
                   dos personas, y se lee igual que uno de mil. */}
               <p className="mt-1.5 text-[0.71875rem] text-texto-suave">
-                Solo los canales con cinco leads o más.
+                Solo los canales con cinco leads o más. «Se inscribió solo» es
+                quien llegó al formulario por un enlace sin etiqueta: no se sabe
+                por dónde vino.
               </p>
             </div>
 
