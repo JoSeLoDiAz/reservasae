@@ -328,7 +328,11 @@ export const MODULOS: Modulo[] = [
     etiqueta: 'Configuración',
     descripcion: 'Lo que no es del día a día.',
     enlaces: [
-      { href: '/admin/marca', etiqueta: 'Apariencia', soloSuperadmin: true, area: 'configuracion', nivel: 'ESCRIBIR' },
+      /// Para todos: cada persona elige aquí SUS colores, que le quedan
+      /// solo a ella (cliente, 21 sep 2026). Lo que cambia para todo el
+      /// equipo --logos, textos, colores del sistema-- sale dentro solo a
+      /// los correos autorizados, y el servidor lo cierra igual.
+      { href: '/admin/marca', etiqueta: 'Apariencia' },
       {
         /// Aquí y no en Gestión de leads: esto no es mirar
         /// leads, es conectar una tubería. Quien inscribe no

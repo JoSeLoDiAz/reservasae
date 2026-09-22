@@ -1431,6 +1431,19 @@ model Admin {
   celular      String?
   organizacion String?
 
+  /// SUS colores, encima de los del sistema, y solo para ella.
+  ///
+  /// `{ CLARO?: { clave: "#rrggbb" }, OSCURO?: {...} }`, con las
+  /// mismas claves que `Tema.colores`. Nulo = usa los del sistema.
+  ///
+  /// Los colores eran UNA paleta para todos (`Tema`), así que quien
+  /// los tocaba en Apariencia se los cambiaba a todo el equipo: en
+  /// producción el panel amaneció granate para todos (cliente, 21 sep
+  /// 2026: «los colores, que sea individual, porque si alguien
+  /// modifica queda para todos»). Aquí va lo que cada quien elige;
+  /// `Tema` sigue siendo lo que ve quien no ha elegido nada.
+  temaPropio Json?
+
   ultimoAcceso  DateTime?
   creadoEn      DateTime  @default(now())
   actualizadoEn DateTime  @updatedAt

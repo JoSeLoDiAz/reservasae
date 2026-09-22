@@ -30,6 +30,7 @@ import {
   CrearAdminDto,
 } from './dto';
 import { generarClaveTemporal, hashearClave, verificarClave } from './claves';
+import { conColores, leerTemaPropio, sinEsquema, type TemaPropio } from './tema-propio';
 import { fusionarColores, tokensSobreescritos } from './apariencia';
 import {
   COMPROBACIONES_CONTRASTE,
@@ -544,6 +545,46 @@ export class AdminService {
       data: { colores: fusionado, actualizadoPorId: admin.id },
     });
     return this.obtenerMarca();
+  }
+
+  // colores de cada persona
+
+  /**
+   * Los colores PROPIOS de quien pregunta, y de nadie más.
+   *
+   * Ver `tema-propio.ts`. Solo lo que esa persona eligió: lo demás lo
+   * pone la paleta general, y el panel pinta una encima de la otra.
+   */
+  async miTema(admin: Admin): Promise<TemaPropio> {
+    const fila = await this.prisma.admin.findUnique({
+      where: { id: admin.id },
+      select: { temaPropio: true },
+    });
+    return leerTemaPropio(fila?.temaPropio);
+  }
+
+  /// Guarda en SU cuenta. No toca la tabla `temas`: ese era el
+  /// defecto, un cambio de una persona que le llegaba a todas.
+  async guardarMiTema(admin: Admin, esquema: EsquemaColor, dto: ActualizarTemaDto) {
+    const nuevo = conColores(await this.miTema(admin), esquema, dto.colores);
+    await this.prisma.admin.update({
+      where: { id: admin.id },
+      data: { temaPropio: nuevo as Prisma.InputJsonValue },
+    });
+    return nuevo;
+  }
+
+  /// Quita SUS colores de ese esquema: vuelve a ver los del sistema.
+  async restablecerMiTema(admin: Admin, esquema: EsquemaColor) {
+    const nuevo = sinEsquema(await this.miTema(admin), esquema);
+    await this.prisma.admin.update({
+      where: { id: admin.id },
+      data: {
+        temaPropio:
+          Object.keys(nuevo).length > 0 ? (nuevo as Prisma.InputJsonValue) : Prisma.DbNull,
+      },
+    });
+    return nuevo;
   }
 
   /** Restablece los colores iniciales. */

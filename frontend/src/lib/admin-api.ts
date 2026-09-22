@@ -181,7 +181,9 @@ export type AdminActual = {
   /// ESCRIBIR`, así que el par área/nivel no los distingue.
   /// Esto es para no ofrecer un botón que el servidor va a
   /// rechazar — la cerradura sigue estando allá.
-  puede?: { repartirFichas: boolean; sacarDeInscrito: boolean };
+  /// `editarMarca`: logos, colores del sistema y de cada gremio, y
+  /// textos. Solo los correos de `EDITORES_DE_MARCA` en el servidor.
+  puede?: { repartirFichas: boolean; sacarDeInscrito: boolean; editarMarca?: boolean };
   concesiones?: Concesion[];
   /// Los gremios de esta cuenta, con lo que se lee de ellos.
   /// Vienen de `/admin/yo`, no de las concesiones: esas solo

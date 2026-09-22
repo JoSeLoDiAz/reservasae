@@ -17,17 +17,22 @@ export default function PaginaAparienciaFormulario({
 
   const [formulario, setFormulario] = useState<FormularioAdmin | null>(null);
   const [general, setGeneral] = useState<Marca | null>(null);
+  /// Logos y colores de un formulario son la cara del gremio para
+  /// todos: los cambian solo los correos de `EDITORES_DE_MARCA`
+  /// (cliente, 21 sep 2026). `null` mientras no se sabe.
+  const [editor, setEditor] = useState<boolean | null>(null);
 
   useEffect(() => {
-    void Promise.all([formulariosApi.obtener(id), adminApi.marca()]).then(
-      ([f, m]) => {
+    void Promise.all([formulariosApi.obtener(id), adminApi.marca(), adminApi.yo()]).then(
+      ([f, m, yo]) => {
         setFormulario(f);
         setGeneral(m);
+        setEditor(yo.puede?.editarMarca === true);
       },
     );
   }, [id]);
 
-  if (!formulario || !general) return <Cargando />;
+  if (!formulario || !general || editor === null) return <Cargando />;
 
   return (
     <div>
@@ -52,6 +57,7 @@ export default function PaginaAparienciaFormulario({
         </p>
       </header>
 
+      {editor ? (
       <AparienciaHeredada
         formularioId={id}
         general={general}
@@ -63,6 +69,16 @@ export default function PaginaAparienciaFormulario({
         tituloColores="Colores"
         descripcionLogos="Hasta tres, uno por entidad. Sin ninguno propio se muestran los de la apariencia general. SVG, PNG o WebP con fondo transparente, máximo 1 MB cada uno; se ven a 80 px de alto."
       />
+      ) : (
+        <p className="mx-3 rounded-xl border border-linea bg-superficie-alt p-4 text-sm">
+          Los logos y los colores de los formularios los cambian solo las personas
+          autorizadas. Los colores de su panel sí los puede elegir en{" "}
+          <Link href="/admin/marca" className="font-medium text-marca hover:underline">
+            Apariencia
+          </Link>
+          , y le quedan solo a usted.
+        </p>
+      )}
     </div>
   );
 }

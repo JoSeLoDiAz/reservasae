@@ -28,6 +28,13 @@ import {
   type Nivel,
 } from "@/lib/admin-api";
 import { ErrorApi } from "@/lib/api";
+import {
+  cssDelTemaPropio,
+  EVENTO_TEMA_PROPIO,
+  llaveTemaPropio,
+  temaPropioApi,
+  type TemaPropio,
+} from "@/lib/tema-propio";
 
 import { PanelAccesibilidad } from "./accesibilidad";
 import { CambioDeClaveObligatorio } from "./cambio-clave";
@@ -246,6 +253,9 @@ export function MarcoAdmin({ children }: { children: React.ReactNode }) {
         Saltar al contenido
       </a>
 
+      {/* Sus colores, encima de los del sistema. Ver `TemaPropioDelPanel`. */}
+      <TemaPropioDelPanel adminId={admin.id} />
+
       {/* `h-screen`, no `min-h-screen`.
 
           Con el mínimo, la página crecía con el contenido: la lista de
@@ -456,6 +466,70 @@ export function MarcoAdmin({ children }: { children: React.ReactNode }) {
       </div>
     </ContextoAdmin.Provider>
   );
+}
+
+/**
+ * LOS COLORES DE QUIEN ENTRA, y de nadie más.
+ *
+ * La paleta general la pinta el proveedor de la marca; esta hoja va
+ * DESPUÉS en el documento y con el mismo selector, así que gana solo
+ * en las claves que esta persona eligió. Antes había una sola paleta y
+ * el que la tocaba se la cambiaba a todos: «que sea individual, porque
+ * si alguien modifica queda para todos» (cliente, 21 sep 2026).
+ *
+ * Primero pinta la copia local --sin ella cada recarga enseñaba medio
+ * segundo la paleta general-- y luego la del servidor, que manda. Y
+ * escucha el aviso de Apariencia para repintar al guardar, sin
+ * recargar la página.
+ */
+function TemaPropioDelPanel({ adminId }: { adminId: string }) {
+  const { marca } = useMarca();
+  const [tema, setTema] = useState<TemaPropio | null>(null);
+
+  useEffect(() => {
+    let vivo = true;
+    const llave = llaveTemaPropio(adminId);
+    const recordar = (t: TemaPropio) => {
+      try {
+        window.localStorage.setItem(llave, JSON.stringify(t));
+      } catch {
+        // en privado localStorage puede fallar
+      }
+    };
+    try {
+      const copia = window.localStorage.getItem(llave);
+      /// A propósito dentro del efecto: leer `localStorage` al crear
+      /// el estado correría también en el servidor, donde no existe,
+      /// y el cliente pintaría otra cosa que la entregada.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      if (copia) setTema(JSON.parse(copia) as TemaPropio);
+    } catch {
+      // una copia rota se ignora: manda la del servidor
+    }
+    void temaPropioApi
+      .leer()
+      .then((t) => {
+        if (!vivo) return;
+        setTema(t);
+        recordar(t);
+      })
+      .catch(() => {
+        // sin respuesta se queda la copia o la paleta general
+      });
+    const alCambiar = (e: Event) => {
+      const t = (e as CustomEvent<TemaPropio>).detail;
+      setTema(t);
+      recordar(t);
+    };
+    window.addEventListener(EVENTO_TEMA_PROPIO, alCambiar);
+    return () => {
+      vivo = false;
+      window.removeEventListener(EVENTO_TEMA_PROPIO, alCambiar);
+    };
+  }, [adminId]);
+
+  const css = cssDelTemaPropio(tema, marca?.catalogoColores?.tokens);
+  return css ? <style id="tema-propio" dangerouslySetInnerHTML={{ __html: css }} /> : null;
 }
 
 /** Dónde está uno: módulo y pantalla. */
