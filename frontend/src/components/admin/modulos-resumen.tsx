@@ -271,6 +271,12 @@ export function ModuloLeads() {
  */
 export function ModuloAsesores() {
   const { datos: control, error, puede } = useContext(ContextoDeControl);
+  const { admin } = useAdmin();
+  /// Quien no responde por el equipo recibe SOLO su fila, y el
+  /// servidor ya se encargó de eso. Esto es para poder nombrar bien
+  /// lo que se está mirando: una tabla de una sola fila titulada
+  /// «Seguimiento de asesores» se lee como si faltara gente.
+  const veElEquipo = admin.puede?.verElEquipo === true;
 
   if (!puede)
     return (
@@ -297,8 +303,8 @@ export function ModuloAsesores() {
   if (!control) {
     return (
       <Bloque
-        titulo={tituloDe(5, "Seguimiento de asesores")}
-        descripcion="Cuántos leads lleva cada asesor y cuántos de ellos están inscritos."
+        titulo={tituloDe(5, veElEquipo ? "Seguimiento de asesores" : "Su gestión")}
+        descripcion="Cuántos leads lleva y cuántos de ellos están inscritos."
         partible
       >
         <Esqueleto conCifras />
@@ -316,25 +322,42 @@ export function ModuloAsesores() {
 
   return (
     <Bloque
-      titulo={tituloDe(5, "Seguimiento de asesores")}
-      descripcion="Cuántos leads lleva cada asesor y cuántos de ellos están inscritos."
+      titulo={tituloDe(5, veElEquipo ? "Seguimiento de asesores" : "Su gestión")}
+      descripcion={
+        veElEquipo
+          ? "Cuántos leads lleva cada asesor y cuántos de ellos están inscritos."
+          : "Cuántos leads lleva usted y cuántos de ellos están inscritos."
+      }
       partible
     >
       {asesores.length === 0 ? (
-        <Vacio titulo="Todavía no hay ningún lead con asesor">
-          En cuanto se reparta el primero aparece aquí, con lo que lleva y lo que
-          ha inscrito.
+        <Vacio
+          titulo={
+            veElEquipo
+              ? "Todavía no hay ningún lead con asesor"
+              : "Todavía no le han asignado ningún lead"
+          }
+        >
+          {veElEquipo
+            ? "En cuanto se reparta el primero aparece aquí, con lo que lleva y lo que ha inscrito."
+            : "En cuanto le asignen el primero aparece aquí, con lo que lleva y lo que ha inscrito."}
         </Vacio>
       ) : (
         <div className="flex flex-col gap-4">
           <div className="imprimible-cifras grid gap-px overflow-hidden rounded-lg border border-borde bg-hairline sm:grid-cols-3">
+            {/* «Asesores con leads» solo dice algo cuando se ve el
+                equipo: con una sola fila siempre valdría uno. */}
             <TarjetaCifra
               compacta
-              etiqueta="Asesores con leads"
-              valor={n(conFichas)}
-              pie={`de ${n(asesores.length)} con fichas alguna vez`}
+              etiqueta={veElEquipo ? "Asesores con leads" : "Asesores"}
+              valor={n(veElEquipo ? conFichas : 1)}
+              pie={veElEquipo ? `de ${n(asesores.length)} con fichas alguna vez` : "usted"}
             />
-            <TarjetaCifra compacta etiqueta="Leads repartidos" valor={n(repartidas)} />
+            <TarjetaCifra
+              compacta
+              etiqueta={veElEquipo ? "Leads repartidos" : "Sus leads"}
+              valor={n(repartidas)}
+            />
             <TarjetaCifra
               compacta
               etiqueta="De esos, inscritos"
@@ -389,6 +412,16 @@ export function ModuloAsesores() {
             «Suyos inscritos» son los que lleva hoy y ya están inscritos, no los
             que él inscribió: una ficha que cambia de asesor se lleva su cuenta
             consigo. La conversión no se imprime por debajo de cinco leads.
+            {/* SE DICE QUE ESTA RECORTADO. Una tabla de una fila sin
+                explicar se lee como que falta gente, no como que no
+                se puede ver. */}
+            {!veElEquipo && (
+              <>
+                {" "}
+                Aquí sale <strong className="font-semibold text-texto">solo su gestión</strong>:
+                el trabajo del resto del equipo lo ve quien responde por él.
+              </>
+            )}
           </p>
 
           <VerDetalle a="/admin/participantes?cola=por-trabajar">

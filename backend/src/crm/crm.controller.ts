@@ -22,6 +22,7 @@ import { AdminGuard, Requiere, Roles, type Ambito } from '../admin/admin.guard';
 import {
   conveniosQueCierran, conveniosQueMuevenInscrito,
   conveniosQueReparten,
+  conveniosQueVenElEquipo,
 } from '../admin/permisos';
 import { PreinscripcionService } from '../preinscripcion/preinscripcion.service';
 import { IpReal } from '../comun/ip-real';
@@ -182,6 +183,7 @@ export class CrmController {
   @Get('control')
   @Requiere('inscritos')
   control(
+    @AdminActual() admin: Admin,
     @AmbitoActual() ambito: Ambito,
     /// Los mismos cortes que aceptan `metricas` y `resumen`.
     ///
@@ -209,6 +211,11 @@ export class CrmController {
       this.prisma,
       ambito.convenios,
       ventanaPedida(rango, desde, hasta, contra, contraDesde, contraHasta),
+      /// Quien ve el trabajo de OTROS. Un gestor se ve a si mismo.
+      {
+        suId: admin.id,
+        veElEquipo: conveniosQueVenElEquipo(ambito.roles).length > 0,
+      },
       {
         convenioId: convenioId || undefined,
         accionFormacionId: accionFormacionId || undefined,

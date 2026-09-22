@@ -459,10 +459,27 @@ export function recorteDeMeta(recorte?: RecorteDeControl): Prisma.Sql {
   `;
 }
 
+/**
+ * Quién mira, para el corte por asesor.
+ *
+ * VA OBLIGATORIO y no con un valor por omisión: un parámetro
+ * opcional que por defecto abre es el control en pie y vacío de
+ * efecto que este repositorio lleva media docena de veces
+ * documentando. Así el compilador obliga a decidirlo a quien añada
+ * una segunda puerta a esta función.
+ */
+export type QuienMira = {
+  /** Su cuenta, para dejarle su propia fila. */
+  suId: string;
+  /** Si responde por el equipo: ver `VEN_EL_EQUIPO`. */
+  veElEquipo: boolean;
+};
+
 export async function controlDeInscritos(
   prisma: PrismaService,
   ambito: string[],
   comparacion: Comparacion,
+  quienMira: QuienMira,
   recorte?: RecorteDeControl,
 ): Promise<Control> {
   const marco = rotuloDelPeriodo(comparacion);
@@ -1069,7 +1086,27 @@ export async function controlDeInscritos(
       etiqueta: f.etiqueta,
       total: cifra(f),
     })),
-    porAsesor: porAsesor.map((f) => {
+    /**
+     * UN GESTOR SE VE A SÍ MISMO; quien responde por el equipo lo
+     * ve entero. «No, es la líder de inscripciones, no más» (Josse,
+     * 22 sep 2026).
+     *
+     * Se recorta AQUÍ y no en la pantalla: «un control que solo
+     * está en el navegador no es un control, la ruta se puede
+     * llamar directo».
+     *
+     * Y se recorta SOLO esto. Las demás cifras de Control --el
+     * embudo, la cola, la brecha-- las sigue viendo entera
+     * cualquiera con el área, como hasta hoy: lo que se cerró es
+     * mirar el rendimiento de OTRA persona, no el del gremio.
+     *
+     * «Sin asignar» --la fila de `asesorId` nulo-- se va con ellos:
+     * no es el trabajo de nadie, y ya se cuenta aparte en
+     * `sinAsignar`.
+     */
+    porAsesor: porAsesor
+      .filter((f) => quienMira.veElEquipo || f.asesorId === quienMira.suId)
+      .map((f) => {
       const asignados = Number(f.asignados);
       const total = cifra(f);
       return {

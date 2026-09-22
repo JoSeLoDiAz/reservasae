@@ -169,6 +169,31 @@ export const conveniosQueReparten = (roles: Record<string, RolConvenio[]>) =>
     .filter(([, suyos]) => suyos.some((r) => REPARTEN_FICHAS.includes(r)))
     .map(([convenioId]) => convenioId);
 
+/**
+ * Quién puede ver el trabajo de OTRAS personas.
+ *
+ * «No, es la líder de inscripciones, no más» (Josse, 22 sep 2026),
+ * sobre quién ve el seguimiento de asesores. Un gestor se ve a sí
+ * mismo; quien responde por el equipo lo ve entero.
+ *
+ * NO ES `REPARTEN_FICHAS`, y por poco lo es: la Sra. Catalina, que
+ * fue quien pidió ese módulo, es COUNTRY_MANAGER y NO reparte
+ * fichas --«ve todo en VER… no crea, ni mueve de etapa, ni
+ * certifica. No lleva fichas, no las reparte»--. Atarlo a quien
+ * reparte habría dejado fuera a quien lo encargó.
+ *
+ * Son dos preguntas distintas: repartir es ORGANIZAR el trabajo,
+ * y esto es MIRARLO. Se deriva de la otra lista en vez de
+ * escribirse aparte para que no se separen el día que entre un rol
+ * nuevo.
+ */
+export const VEN_EL_EQUIPO: RolConvenio[] = [...REPARTEN_FICHAS, 'COUNTRY_MANAGER'];
+
+export const conveniosQueVenElEquipo = (roles: Record<string, RolConvenio[]>) =>
+  Object.entries(roles)
+    .filter(([, suyos]) => suyos.some((r) => VEN_EL_EQUIPO.includes(r)))
+    .map(([convenioId]) => convenioId);
+
 export const AREAS: Area[] = [
   'reserva',
   'inscripciones',

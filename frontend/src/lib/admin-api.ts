@@ -183,7 +183,14 @@ export type AdminActual = {
   /// rechazar — la cerradura sigue estando allá.
   /// `editarMarca`: logos, colores del sistema y de cada gremio, y
   /// textos. Solo los correos de `EDITORES_DE_MARCA` en el servidor.
-  puede?: { repartirFichas: boolean; sacarDeInscrito: boolean; editarMarca?: boolean };
+  puede?: {
+    repartirFichas: boolean;
+    sacarDeInscrito: boolean;
+    editarMarca?: boolean;
+    /// Si ve el trabajo de OTRAS personas. No es lo mismo que
+    /// repartir fichas: hay quien supervisa y no reparte.
+    verElEquipo?: boolean;
+  };
   concesiones?: Concesion[];
   /// Los gremios de esta cuenta, con lo que se lee de ellos.
   /// Vienen de `/admin/yo`, no de las concesiones: esas solo

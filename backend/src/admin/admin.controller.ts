@@ -47,6 +47,7 @@ import {
   resumenDePermisos,
   conveniosQueReparten,
   conveniosQueMuevenInscrito,
+  conveniosQueVenElEquipo,
 } from './permisos';
 import { AdminService, vistaAdmin } from './admin.service';
 import { corregirContraste, derivarTemas } from './derivar';
@@ -154,6 +155,10 @@ export class AdminController {
         /// `EDITORES_DE_MARCA`. Para que Apariencia no le enseñe a
         /// nadie más un botón que el servidor va a rechazar.
         editarMarca: esEditorDeMarca(admin.correo),
+        /// Si ve el trabajo de OTRAS personas. No es lo mismo que
+        /// repartir fichas: la Sra. Catalina supervisa y no
+        /// reparte. Ver `VEN_EL_EQUIPO`.
+        verElEquipo: conveniosQueVenElEquipo(ambito.roles).length > 0,
       },
       /// Los gremios de esta cuenta CON su sigla: es lo que
       /// llena el desplegable de arriba. Van los concedidos,
