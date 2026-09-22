@@ -104,30 +104,31 @@ export const MODULOS: Modulo[] = [
     etiqueta: 'Gestión de Inscripciones',
     corto: 'Inscripciones',
     descripcion: 'Convertir cupos en personas con nombre.',
+    /// EL ORDEN LO DICTÓ EL CLIENTE (21 sep 2026), textual:
+    /// «el listado de Inscripciones debe ser: Gestión de leads,
+    /// Mesa de entrada, Asignar grupo por lote, Inscritos por
+    /// Acción, y Tráfico del Formulario fusionado con Control de
+    /// inscritos en (Qué pantalla)».
+    ///
+    /// No es el orden del proceso --que ponía la mesa antes de la
+    /// lista, porque el lead entra por el webhook y después se
+    /// gestiona-- sino el de la FRECUENCIA DE USO: en la lista de
+    /// leads se trabaja todos los días, y en la mesa se entra
+    /// cuando algo llegó raro. Quien usa el panel ocho horas
+    /// diarias es quien manda en este orden.
+    ///
+    /// Y «Tráfico del formulario» ya no está: vive dentro de
+    /// Control de Inscritos. Su ruta sigue redirigiendo.
     enlaces: [
-      {
-        /// ANTES QUE LA MESA, y por el mismo criterio que puso
-        /// la mesa antes que la lista: es el orden del proceso.
-        /// El trafico a la pagina de destino ocurre antes de
-        /// que exista el lead.
-        href: '/admin/trafico',
-        etiqueta: 'Tráfico del formulario',
-        exacto: true,
-        area: 'inscripciones',
-      },
-      {
-        /// Va PRIMERO porque es el orden del proceso: el lead
-        /// llega por el webhook y despues se gestiona. Ponerla
-        /// despues de la lista sugeriria que es un detalle de
-        /// ella, y es su origen.
-        href: '/admin/mesa',
-        etiqueta: 'Mesa de entrada',
-        exacto: true,
-        area: 'inscripciones',
-      },
       {
         href: '/admin/participantes',
         etiqueta: 'Gestión de leads',
+        exacto: true,
+        area: 'inscripciones',
+      },
+      {
+        href: '/admin/mesa',
+        etiqueta: 'Mesa de entrada',
         exacto: true,
         area: 'inscripciones',
       },
@@ -154,12 +155,15 @@ export const MODULOS: Modulo[] = [
         area: 'inscritos',
       },
       {
-        /// Una sola entrada, con dos pestañas dentro.
+        /// Una sola entrada, con TRES pantallas dentro.
         ///
-        /// Eran dos: «Panel Control de Inscritos» y «Control de
-        /// inscritos». Contaban lo mismo por caminos distintos
-        /// y nadie sabía a cuál entrar. La primera es hoy la
-        /// pestaña «Metas y avance», y su ruta vieja redirige.
+        /// Eran dos entradas: «Panel Control de Inscritos» y
+        /// «Control de inscritos». Contaban lo mismo por caminos
+        /// distintos y nadie sabía a cuál entrar. La primera es
+        /// hoy «Proceso de inscripción», y su ruta vieja redirige.
+        /// Desde el 21 sep 2026 también está dentro «Tráfico del
+        /// formulario», por lo mismo: era el tramo de antes del
+        /// lead contado en otra pantalla.
         href: '/admin/control',
         etiqueta: 'Control de Inscritos',
         area: 'inscritos',

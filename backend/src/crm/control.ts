@@ -2,7 +2,10 @@ import { EtapaParticipante, Prisma } from '../../generated/prisma';
 import { aDiaBogota } from '../comun/dia-bogota';
 import type { PrismaService } from '../prisma/prisma.service';
 import { enPeriodo, PRIMERA_MATRICULA } from './anclas';
-import { ETAPAS_DEL_EMBUDO } from './metricas-inscripciones';
+import {
+  ETAPAS_DEL_EMBUDO,
+  ETAPAS_POR_TRABAJAR,
+} from './metricas-inscripciones';
 import { variacion, type Comparacion, type Ventana } from './ventana';
 
 /**
@@ -62,15 +65,15 @@ const ETAPAS_INSCRIPCION = Prisma.sql`p."etapa" IN (${Prisma.join(
 /**
  * Las tres primeras: lo que todavía está por trabajar.
  *
- * No sirve `ETAPAS_INSCRIPCION`, que incluye INSCRITO y
- * PERDIDO: los dos son un desenlace, y contarlos en la cola
- * del líder la haría crecer justo al cerrar fichas.
+ * Se arma desde `ETAPAS_POR_TRABAJAR` --la lista, en
+ * `metricas-inscripciones`-- y no se teclea, por lo mismo que
+ * `ETAPAS_INSCRIPCION`: el filtro de la lista de leads pide esta
+ * MISMA cola cuando se llega por el pendiente de «sin asesor», y
+ * con dos copias la cifra y la lista dejaban de cuadrar.
  */
-const ETAPAS_POR_TRABAJAR = Prisma.sql`p."etapa" IN (
-  'INTERESADO'::"EtapaParticipante",
-  'CONTACTADO'::"EtapaParticipante",
-  'DATOS_COMPLETOS'::"EtapaParticipante"
-)`;
+const COLA_POR_TRABAJAR = Prisma.sql`p."etapa" IN (${Prisma.join(
+  ETAPAS_POR_TRABAJAR.map((e) => Prisma.sql`${e}::"EtapaParticipante"`),
+)})`;
 
 export type Corte = { etiqueta: string; total: number };
 
@@ -98,6 +101,86 @@ export type CorteEmpresa = {
   inscritos: number;
   cupos: number;
 };
+
+/** Una reserva vigente y cuántas personas matriculadas tiene detrás. */
+export type ReservaConNombres = {
+  empresaId: string;
+  razonSocial: string;
+  cupos: number;
+  personas: number;
+};
+
+/** Los cupos con y sin nombre, contados reserva por reserva. */
+export type CuentaDeNombres = {
+  cuposConNombre: number;
+  cuposSinNombre: number;
+  /** Personas por encima de los cupos de SU reserva. */
+  nombresDeMas: number;
+  empresaQueMasDebe: {
+    razonSocial: string;
+    sinNombre: number;
+    cupos: number;
+  } | null;
+};
+
+/**
+ * «Ya tienen nombre» y «siguen sin nombre» POR CUPO, reserva por
+ * reserva: la misma cuenta del informe «Reservas»
+ * (informe-de-reservas.ts).
+ *
+ * Antes el bloque restaba personas al total de cupos (539 − 46 =
+ * 493). Pero hay reservas con más personas que cupos --Logística
+ * Sur Express, 12 para 10--, y esas personas de más no llenan el
+ * cupo de ninguna otra organización: contadas reserva por reserva,
+ * las sillas llenas son 43 y las vacías 496, que es lo que suman
+ * las tablas del informe. Con la resta, el bloque decía 493 y el
+ * informe al que lleva su botón, 496.
+ *
+ * La que más debe sale de aquí y no de `topEmpresas`, que solo
+ * miraba las diez con más inscritos --una organización sin nadie
+ * inscrito no entraba nunca-- y sumaba sus cupos sin el filtro de
+ * gremio: sin filtro decía «Transportes El Cóndor, 28» cuando la
+ * que más debe es Distribuidora El Faro, con 39. El desempate es
+ * el del informe: más cupos primero, luego el nombre.
+ */
+export function cuentaDeNombres(
+  reservas: ReservaConNombres[],
+): CuentaDeNombres {
+  let cuposConNombre = 0;
+  let cuposSinNombre = 0;
+  let nombresDeMas = 0;
+  const porEmpresa = new Map<
+    string,
+    { razonSocial: string; sinNombre: number; cupos: number }
+  >();
+  for (const r of reservas) {
+    const falta = Math.max(0, r.cupos - r.personas);
+    cuposConNombre += Math.min(r.cupos, r.personas);
+    cuposSinNombre += falta;
+    nombresDeMas += Math.max(0, r.personas - r.cupos);
+    const e = porEmpresa.get(r.empresaId) ?? {
+      razonSocial: r.razonSocial,
+      sinNombre: 0,
+      cupos: 0,
+    };
+    e.sinNombre += falta;
+    e.cupos += r.cupos;
+    porEmpresa.set(r.empresaId, e);
+  }
+  const empresaQueMasDebe =
+    [...porEmpresa.values()]
+      .filter((e) => e.sinNombre > 0)
+      .sort(
+        (a, b) =>
+          b.sinNombre - a.sinNombre ||
+          b.cupos - a.cupos ||
+          a.razonSocial.localeCompare(b.razonSocial, 'es', {
+            numeric: true,
+            sensitivity: 'base',
+          }),
+      )[0] ?? null;
+  return { cuposConNombre, cuposSinNombre, nombresDeMas, empresaQueMasDebe };
+}
 
 /** Cuánto convirtió un asesor de lo que lleva. */
 export type CorteAsesor = {
@@ -156,6 +239,23 @@ export type Control = Cabecera & {
   porModalidad: Corte[];
   /** Las diez con más inscritos, contra sus cupos. */
   topEmpresas: CorteEmpresa[];
+  /**
+   * Los cupos con y sin nombre, por cupo y reserva por reserva
+   * (`cuentaDeNombres`), con el recorte de `cuposConfirmados`. Van
+   * opcionales para que un panel nuevo contra un servidor sin
+   * reiniciar no se caiga: sin ellos, el bloque usa la cifra vieja.
+   */
+  cuposConNombre?: number;
+  cuposSinNombre?: number;
+  nombresDeMas?: number;
+  empresaQueMasDebe?: CuentaDeNombres['empresaQueMasDebe'];
+  /**
+   * Los gremios que entraron en las cifras de cupos (ámbito ∩
+   * filtro), por sigla. Para que el bloque diga «De ADECOPRIA» o
+   * «De los dos gremios»: el 149 y el 539 son los dos ciertos, y
+   * sin decir de qué gremio es cada uno se leían como un error.
+   */
+  gremios?: string[];
   serie: Array<{ dia: string; total: number }>;
   /** Cuándo llegaron los leads, no cuándo se inscribieron. */
   leadsPorDia: Array<{ dia: string; total: number }>;
@@ -472,6 +572,8 @@ export async function controlDeInscritos(
     serie,
     leadsPorDia,
     embudoPorDia,
+    reservasConNombres,
+    gremios,
   ] = await Promise.all([
     cabecera(prisma, inscritos),
 
@@ -552,7 +654,7 @@ export async function controlDeInscritos(
         FROM "participantes" p
        WHERE ${suyos}
          AND p."asesorId" IS NULL
-         AND ${ETAPAS_POR_TRABAJAR}
+         AND ${COLA_POR_TRABAJAR}
     `,
 
     /**
@@ -873,6 +975,54 @@ export async function controlDeInscritos(
        WHERE ${dentro} ${dosMesesLeads}
        GROUP BY 1 ORDER BY 1
     `,
+
+    /**
+     * Cada reserva vigente con cuántas personas matriculadas tiene,
+     * para contar los cupos con nombre reserva por reserva
+     * (`cuentaDeNombres`). El recorte es el de los cupos
+     * --`acotaMeta`: gremio y acción-- y NO `suyos`: un cupo es de
+     * una organización, no de un asesor ni de un departamento, y
+     * restar a los cupos de todo el gremio las personas de un solo
+     * asesor daba «146 sin nombre» donde son 136. «Con nombre» es
+     * lo mismo que en el informe: quien alguna vez llegó a inscrito.
+     */
+    prisma.$queryRaw<
+      Array<{
+        empresaId: string;
+        razonSocial: string;
+        cupos: number;
+        personas: bigint;
+      }>
+    >`
+      ${CON_ANCLA},
+      con_nombre AS (
+        SELECT p."reservaId" AS rid, COUNT(*) AS n
+          FROM "participantes" p
+          ${UNIR_ANCLA}
+         WHERE p."reservaId" IS NOT NULL ${enPeriodo(null, null)}
+         GROUP BY 1
+      )
+      SELECT e."id"                  AS "empresaId",
+             e."razonSocial"         AS "razonSocial",
+             r."cuposConfirmados"    AS cupos,
+             COALESCE(cn.n, 0)       AS personas
+        FROM "reservas" r
+        JOIN "ofertas" o             ON o."id" = r."ofertaId"
+        JOIN "acciones_formacion" af ON af."id" = o."accionFormacionId"
+        JOIN "empresas" e            ON e."id" = r."empresaId"
+        LEFT JOIN con_nombre cn      ON cn.rid = r."id"
+       WHERE af."convenioId" IN (${Prisma.join(ambito)})
+         AND r."estado" <> 'CANCELADA'
+         ${acotaMeta}
+    `,
+
+    prisma.$queryRaw<Array<{ sigla: string }>>`
+      SELECT COALESCE(c."sigla", c."nombre") AS sigla
+        FROM "convenios" c
+       WHERE c."id" IN (${Prisma.join(ambito)})
+         ${recorte?.convenioId ? Prisma.sql`AND c."id" = ${recorte.convenioId}` : Prisma.empty}
+       ORDER BY 1
+    `,
   ]);
 
   const cifra = (f: { total: bigint }) => Number(f.total);
@@ -956,6 +1106,15 @@ export async function controlDeInscritos(
       inscritos: Number(f.inscritos),
       cupos: Number(f.cupos ?? 0),
     })),
+    ...cuentaDeNombres(
+      reservasConNombres.map((f) => ({
+        empresaId: f.empresaId,
+        razonSocial: f.razonSocial,
+        cupos: Number(f.cupos),
+        personas: Number(f.personas),
+      })),
+    ),
+    gremios: gremios.map((g) => g.sigla),
     // ya viene como yyyy-mm-dd de Bogotá desde el SQL
     serie: serie.map((f) => ({ dia: f.dia, total: cifra(f) })),
     leadsPorDia: leadsPorDia.map((f) => ({ dia: f.dia, total: cifra(f) })),

@@ -48,6 +48,8 @@ type Opciones = {
   ventana?: string;
   /// false = la empresa le viene de su reserva, no propia.
   empresaPropia?: boolean;
+  /// Ni propia ni de reserva: la persona no tiene organización.
+  sinOrganizacion?: boolean;
   /// El disparador se queja (p.ej. a la empresa le faltan los 3 datos).
   disparadorFalla?: boolean;
 };
@@ -75,8 +77,9 @@ function armar(o: Opciones) {
           /// `propia: false` = solo la tiene por su reserva, que
           /// es el camino principal: una empresa aparta cupos y
           /// despues nomina a su gente.
-          empresa: o.empresaPropia === false ? null : EMPRESA,
-          reserva: o.empresaPropia === false ? { empresa: EMPRESA } : null,
+          empresa: o.sinOrganizacion || o.empresaPropia === false ? null : EMPRESA,
+          reserva:
+            !o.sinOrganizacion && o.empresaPropia === false ? { empresa: EMPRESA } : null,
         }),
       update: () => {
         escrituras.push('participante.update');
@@ -358,14 +361,51 @@ describe('la organización sale de la suya O de la de su reserva', () => {
   });
 
   it('sin ninguna de las dos, sigue bloqueado', async () => {
-    const { s } = armar({ etapa: 'INTERESADO', motivo: null, ventana: 'ABIERTA' });
-    jest.spyOn(s as never, 'faltaDeLaEmpresa' as never).mockReturnValue([
-      'sector económico',
-    ] as never);
+    /// Sin organización no hay a quién reportar en el F7: ese
+    /// candado se queda.
+    const { s } = armar({
+      etapa: 'INTERESADO',
+      motivo: null,
+      ventana: 'ABIERTA',
+      sinOrganizacion: true,
+    });
 
     await expect(
       s.cambiarEtapa('p1', { etapa: 'INSCRITO' } as never, ADMIN as never, ['c1'], undefined, ['c1']),
-    ).rejects.toThrow(/organización/i);
+    ).rejects.toThrow(/no tiene organización/i);
+  });
+});
+
+describe('a la organización le faltan datos y la persona SÍ se inscribe', () => {
+  /**
+   * El defecto que esto fija para que no vuelva: en producción la
+   * compuerta de INSCRITO contestaba «Antes de inscribir hay que
+   * completar su organización: sector económico» a una persona con
+   * su ficha «Sin pendientes» (21 sep 2026). El sector económico es
+   * un dato de la EMPRESA que el formulario de la persona no
+   * pregunta, así que la dejaba atascada sin salida. El cliente: «esto
+   * no debe ser impedimento».
+   *
+   * Lo que falta de la empresa se sigue enseñando en la ficha y lo
+   * reclama el F7; lo que ya no hace es frenar la inscripción.
+   */
+  it.each([
+    [['sector económico']],
+    [['nombre del jefe directo', 'cargo del jefe directo', 'correo del jefe directo']],
+  ])('le falta %j a su organización y pasa a INSCRITO', async (falta) => {
+    const { s } = armar({ etapa: 'INTERESADO', motivo: null, ventana: 'ABIERTA' });
+    jest.spyOn(s as never, 'faltaDeLaEmpresa' as never).mockReturnValue(falta as never);
+
+    const r = await s.cambiarEtapa(
+      'p1',
+      { etapa: 'INSCRITO' } as never,
+      ADMIN as never,
+      ['c1'],
+      undefined,
+      ['c1'],
+    );
+
+    expect(r).toBeTruthy();
   });
 });
 

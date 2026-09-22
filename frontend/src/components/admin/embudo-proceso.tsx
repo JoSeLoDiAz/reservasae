@@ -61,6 +61,37 @@ function contraQue(etiqueta: string | null): string {
   return e.startsWith("el ") ? `al ${e.slice(3)}` : `a ${e}`;
 }
 
+/**
+ * La línea de comparación de una cifra: «+1 frente a anteayer (3)»
+ * o «igual que anteayer».
+ *
+ * SUELTA Y EXPORTADA porque la escriben dos sitios: estas casillas
+ * --que siguen en el panel académico y en Tráfico-- y la tira de
+ * Control de Inscritos, que se quedó con dos de ellas (21 sep
+ * 2026). Armada dos veces, una acabaría diciendo «frente a el mes
+ * pasado» o poniendo el signo menos de teclado y la otra no.
+ *
+ * Sin color y con la resta hecha en números: cuenta, no afirma
+ * (José, 18 sep 2026).
+ */
+export function lineaContraAntes(
+  cifra: number,
+  antes: number,
+  etiquetaAntes: string | null,
+): string {
+  /// «igual que el mes de antes» y no «igual que mes de antes»:
+  /// recortar la preposición de `contraQue` se comía también el
+  /// artículo.
+  if (antes === cifra) return `igual que ${(etiquetaAntes ?? "antes").toLowerCase()}`;
+  /// «(eran 30)» y no «(30)»: pegado a «los 30 días anteriores», el
+  /// número suelto entre paréntesis se leía como si repitiera los
+  /// días, y son las personas de entonces (revisión del 21 sep
+  /// 2026). Lo usan también el panel académico y la tira de Control.
+  return `${cifra > antes ? "+" : "−"}${n(Math.abs(cifra - antes))} frente ${contraQue(
+    etiquetaAntes,
+  )} (${antes === 1 ? "era" : "eran"} ${n(antes)})`;
+}
+
 function porcentaje(parte: number, total: number): string {
   if (total <= 0) return "—";
   return `${Math.round((parte / total) * 100)} %`;
@@ -238,9 +269,27 @@ export function EmbudoProceso({
                   selector de comparación al lado eso es lo que
                   se leía. Esto es otra cosa: gente que no pasó al
                   paso siguiente dentro del MISMO periodo. */}
+              {/* DOS RENGLONES FIJOS, LA CIFRA ARRIBA Y LA FRASE DEBAJO.
+                  Era una caja de un renglón (`h-4`) con «5.993 no
+                  pasaron» dentro. Con cifras de miles, en una columna
+                  angosta, la frase partía en dos y el segundo renglón
+                  caía ENCIMA de la cifra grande: «5.993 no pasaron»
+                  tapando «5.679» (Adrián Quintana, supervisor, con la
+                  captura de producción, 21 sep 2026). En local no se
+                  veía porque aquí las cifras son de dos dígitos. Con
+                  el alto de los dos renglones reservado en TODAS las
+                  columnas, nada se monta y las cifras grandes siguen
+                  en la misma raya. */}
               {!sobrio && (
-                <div className="h-4 text-[0.6875rem] font-semibold text-error tabular-nums">
-                  {caida > 0 ? `${n(caida)} no pasaron` : ""}
+                <div className="flex h-[28px] flex-col items-center justify-end text-center leading-[13px] text-error tabular-nums">
+                  {caida > 0 && (
+                    <>
+                      <span className="text-[0.6875rem] font-bold">{n(caida)}</span>
+                      <span className="text-[0.625rem] font-semibold whitespace-nowrap">
+                        {caida === 1 ? "no pasó" : "no pasaron"}
+                      </span>
+                    </>
+                  )}
                 </div>
               )}
 
@@ -334,9 +383,11 @@ export function EmbudoProceso({
 /**
  * Las tres casillas de «en qué acabó la gente del periodo».
  *
- * SUELTO y exportado: lo usan el embudo del periodo y el de día
- * por día, y estaba metido dentro del primero --así que al
- * cambiar de vista desaparecía--.
+ * SUELTO y exportado: estaba metido dentro del embudo del periodo
+ * --así que al cambiar de vista desaparecía--. Control de
+ * Inscritos ya no lo usa (sus tres cifras pasaron a la tira del
+ * periodo, 21 sep 2026), pero se queda: lo pinta este embudo de
+ * barras, que es el del panel académico y el de Tráfico.
  */
 export function TarjetasDelEmbudo({
   notas,
@@ -394,14 +445,7 @@ export function TarjetasDelEmbudo({
           </span>
           {nt.antes !== null && nt.antes !== undefined && (
             <span className="mt-1 block text-[0.6875rem] text-texto-suave tabular-nums">
-              {/* «igual que el mes de antes» y no «igual que mes
-                  de antes»: recortar la preposición de
-                  `contraQue` se comía también el artículo. */}
-              {nt.antes === nt.cifra
-                ? `igual que ${(etiquetaAntes ?? "antes").toLowerCase()}`
-                : `${nt.cifra > nt.antes ? "+" : "−"}${n(
-                    Math.abs(nt.cifra - nt.antes),
-                  )} frente ${contraQue(etiquetaAntes)} (${n(nt.antes)})`}
+              {lineaContraAntes(nt.cifra, nt.antes, etiquetaAntes)}
             </span>
           )}
           <span className="mt-1 block text-[0.6875rem] leading-snug text-texto-suave">

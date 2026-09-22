@@ -24,6 +24,7 @@ import {
   tallaDeOrganizacion,
 } from '../crm/catalogos-sep';
 import { calcularProyeccion, cierreDeLaAccion, type PuntoNeto } from './proyeccion';
+import { informeDeReservas, type FiltrosInformeReservas } from './informe-de-reservas';
 
 export type FiltrosReservas = {
   /// Lo pone el controlador desde el guard, no la peticion.
@@ -1276,6 +1277,17 @@ export class TablerosService {
         })),
       })),
     };
+  }
+
+  /**
+   * El informe de reservas (Control › Informes › Reservas).
+   *
+   * Vive en `informe-de-reservas.ts` y no aquí: este archivo ya pasa
+   * de mil quinientas líneas, y el informe tiene su propio contrato
+   * y su propia prueba de que las tablas cuadran.
+   */
+  informeReservas(ambito: string[], filtros: FiltrosInformeReservas) {
+    return informeDeReservas(this.prisma, ambito, filtros);
   }
 
   /** Cuántas reservas trajo cada enlace. */

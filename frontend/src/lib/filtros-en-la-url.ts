@@ -56,6 +56,30 @@ const CORTO: Record<LlaveTexto, string> = {
 
 const ESTADOS = ["COMPLETO", "PARCIAL"] as const;
 
+/// CUÁNTO LLEVA ESPERANDO, en días cumplidos.
+///
+/// Son los mismos tres tramos que reparte `control` --3, 8 y 15
+/// días sin la primera llamada--, y por eso se escriben así y no
+/// como una fecha: `?espera=8` sigue significando «lleva más de
+/// una semana» mañana, mientras que `?hasta=2026-09-13` es cierto
+/// hoy y falso el lunes. El enlace se puede pegar en un chat y
+/// sigue llevando a la misma pregunta, que es para lo que existe
+/// este módulo.
+const ESPERAS = [3, 8, 15];
+
+function esperaValida(v: string | null): number | undefined {
+  if (!v) return undefined;
+  const dias = Number(v);
+  return ESPERAS.includes(dias) ? dias : undefined;
+}
+
+/// El instante de hace N días. Es el mismo borde que usa la
+/// consulta de `control` para contar a quien lleva esperando:
+/// «entró antes de este momento» y sigue sin contactar.
+function haceDias(dias: number): string {
+  return new Date(Date.now() - dias * 86_400_000).toISOString();
+}
+
 /// Todo lo que entra por la dirección se comprueba contra lo
 /// que de verdad existe.
 ///
@@ -92,8 +116,16 @@ export type Cambio = Partial<
     | "estado"
     | "departamentoSepId"
     | "buscar"
+    | "cola"
   >
->;
+> & {
+  /// Días esperando sin contactar. NO es un campo de `Filtros`:
+  /// el servidor no entiende «días», entiende un instante. Se
+  /// traduce al salir --ver `filtros`-- y viaja en días para que
+  /// tanto la dirección como el chip de la pantalla puedan decir
+  /// «más de una semana» en vez de una fecha.
+  espera?: number;
+};
 
 export type FiltrosEnLaUrl = {
   /// Listos para mandar a la API, con los fijos de la pantalla
@@ -137,6 +169,14 @@ export function useFiltrosEnLaUrl(fijos: Filtros = {}): FiltrosEnLaUrl {
     const depto = numeroValido(parametros.get("departamento"));
     if (depto) p.departamentoSepId = depto;
 
+    const espera = esperaValida(parametros.get("espera"));
+    if (espera) p.espera = espera;
+
+    /// `?cola=por-trabajar`, en minúsculas y con guion, como el
+    /// resto de la dirección; el valor que entiende el servidor se
+    /// escribe aquí y no en el enlace.
+    if (parametros.get("cola") === "por-trabajar") p.cola = "POR_TRABAJAR";
+
     for (const llave of TEXTO) {
       const valor = parametros.get(CORTO[llave])?.trim();
       if (valor) p[llave] = valor;
@@ -149,7 +189,18 @@ export function useFiltrosEnLaUrl(fijos: Filtros = {}): FiltrosEnLaUrl {
   /// escribe `?tramo=AULA` a mano, no se sale del tramo que
   /// esta pantalla es.
   const filtros = useMemo<Filtros>(
-    () => ({ ...puestos, ...fijos }),
+    () => {
+      /// `espera` se queda fuera: son días, y el servidor pide un
+      /// instante. Se convierte aquí, una sola vez por cambio de
+      /// dirección, para que la lista no se vuelva a pedir en
+      /// cada repintado.
+      const { espera, ...resto } = puestos;
+      return {
+        ...resto,
+        ...(espera ? { llegoHasta: haceDias(espera) } : {}),
+        ...fijos,
+      };
+    },
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [puestos, JSON.stringify(fijos)],
   );
@@ -168,6 +219,10 @@ export function useFiltrosEnLaUrl(fijos: Filtros = {}): FiltrosEnLaUrl {
       if ("estado" in cambio) poner("estado", cambio.estado);
       if ("departamentoSepId" in cambio)
         poner("departamento", cambio.departamentoSepId);
+      if ("espera" in cambio) poner("espera", cambio.espera);
+      if ("cola" in cambio) {
+        poner("cola", cambio.cola === "POR_TRABAJAR" ? "por-trabajar" : "");
+      }
       for (const llave of TEXTO) {
         if (llave in cambio) poner(CORTO[llave], cambio[llave]);
       }

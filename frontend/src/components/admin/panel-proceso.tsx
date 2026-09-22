@@ -9,11 +9,13 @@
  * cosas y no contaba ninguna historia.
  *
  * El orden de aquí SÍ es una historia, y es la que trae a
- * coordinación: cuánta gente entró y dónde se cae (embudo),
- * cómo de bien va eso (tasas), de qué está hecha esa gente
- * (convenio y modalidad), dónde está hoy y si sus datos
- * sirven, a qué ritmo entra y por dónde, dónde vive y quién la
- * atiende, y por último el detalle por acción.
+ * coordinación: cuántos se inscriben de los que entran (la tira
+ * de cuatro cifras), cuándo fue entrando la gente (las columnas
+ * por semana), dónde se cae y qué hacer hoy (el embudo al lado de
+ * «Qué atender primero»), de qué está hecha esa gente (convenio y
+ * modalidad), dónde está hoy y si sus datos sirven, a qué ritmo
+ * entra y por dónde, dónde vive y quién la atiende, y por último
+ * el detalle por acción.
  *
  * Se renombra a «Proceso» porque la columna vertebral ya no es
  * la comparación meta-contra-real: es el embudo. Pero la meta
@@ -21,26 +23,27 @@
  * hito «Inscritos», que es el único sitio donde significa algo.
  */
 
+import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { Desplegable } from "./desplegable";
-import { caidaMayor, EmbudoForma } from "./embudo-forma";
-import { ALTO_CIFRA as ALTO_CIFRA_COLUMNA, EmbudoPorDia } from "./embudo-por-dia";
+import { EmbudoCono } from "./embudo-cono";
+import { caidaMayor } from "./embudo-forma";
+import { EmbudoPorDia } from "./embudo-por-dia";
 /// `EmbudoProceso` --las cuatro barras verticales-- ya no se
 /// llama desde aquí, pero NO se borra: lo siguen usando el panel
 /// académico y Tráfico del formulario, donde no hay dimensión de
-/// día y cuatro barras están bien.
-import { TarjetasDelEmbudo, type Hito } from "./embudo-proceso";
+/// día y cuatro barras están bien. Sus tres casillas
+/// (`TarjetasDelEmbudo`) tampoco: aquí las sustituye la tira del
+/// periodo, que solo se trae de allí la línea de comparación.
+import { lineaContraAntes, type Hito } from "./embudo-proceso";
 import { MapaColombia } from "./mapa-colombia";
 import { Aviso } from "./marco-admin";
-import {
-  Donut,
-  ListaBarras,
-  Medidor,
-  n,
-  SERIE,
-  type PorcionDonut,
-} from "./graficos";
+/// SIN `Medidor`: la fila de los cuatro anillos se fue (21 sep
+/// 2026). Escribía 38,8 % y 80,6 % a 24 px medio metro por debajo
+/// del 39 % y el 81 % del embudo: la misma cifra con dos
+/// redondeos. El componente se queda en `graficos`.
+import { Donut, ListaBarras, n, SERIE, type PorcionDonut } from "./graficos";
 import { PendientesDeHoy, ReservasSinNombre } from "./pendientes-de-hoy";
 import { Bloque } from "./piezas";
 import { colorEtapa } from "./etapa";
@@ -49,11 +52,13 @@ import {
   crmApi,
   ETIQUETA_ETAPA,
   ETIQUETA_ORIGEN,
+  ETIQUETA_RANGO,
   type Control,
   type Etapa,
   type Filtros,
   type MetricasInscripciones,
   type Origen,
+  type Rango,
   type Resumen,
 } from "@/lib/crm-api";
 
@@ -93,6 +98,35 @@ function frase(s: string): string {
 function pct(parte: number, total: number): string {
   if (total <= 0) return "0 %";
   return `${Math.round((parte / total) * 100)} %`;
+}
+
+/**
+ * EN CUÁNTAS COLUMNAS SE REPARTEN N TROZOS DE TEXTO.
+ *
+ * Hoy la usan las notas del embudo cuando alguien abre «Cómo se
+ * leen estos dos dibujos». Apiladas y alineadas a la izquierda,
+ * notas de 11 px en una tarjeta de 1.760 px dejaban más de 1.300
+ * px de blanco al lado --medido a 1.850--, que es el «veo
+ * desordenado los textos» del cliente (21 sep 2026). Repartidas
+ * en columnas, las mismas palabras ocupan el ancho de verdad SIN
+ * que ninguna línea pase de unos 75 caracteres, que es lo que se
+ * lee sin perder el renglón.
+ *
+ * Los cortes están donde cada columna sigue midiendo más de
+ * ~280 px, y las cuentas salen exactas para que la última fila
+ * no se quede con una celda sola y su hueco al lado: cuatro
+ * trozos van a 1, 2 y 4 columnas; tres, a 1, 2 y 3.
+ *
+ * Cadenas completas y no interpoladas: Tailwind las busca tal
+ * cual en el código y una clase armada a trozos no existiría.
+ */
+function rejillaDeCeldas(cuantas: number): string {
+  if (cuantas <= 1) return "grid-cols-1";
+  if (cuantas === 2) return "grid-cols-1 min-[560px]:grid-cols-2";
+  if (cuantas === 3) return "grid-cols-1 min-[560px]:grid-cols-2 min-[1040px]:grid-cols-3";
+  if (cuantas === 4) return "grid-cols-1 min-[560px]:grid-cols-2 min-[1240px]:grid-cols-4";
+  if (cuantas === 5) return "grid-cols-1 min-[560px]:grid-cols-2 min-[1040px]:grid-cols-3";
+  return "grid-cols-1 min-[560px]:grid-cols-2 min-[1040px]:grid-cols-3";
 }
 
 /**
@@ -172,7 +206,11 @@ function hitosDe(res: Resumen | null): Hito[] {
  */
 function HuecoDelEmbudo() {
   return (
-    <div className="mx-auto w-full max-w-[360px] py-1" aria-hidden>
+    /// Del mismo ancho y en el mismo sitio que la figura (560 px,
+    /// pegada a la izquierda, ver `ANCHO_MAXIMO` en `embudo-forma`):
+    /// si el hueco fuera de otro tamaño, al llegar el dato el
+    /// embudo daría un salto.
+    <div className="w-full max-w-[560px] py-1" aria-hidden>
       {[100, 74, 52, 34].map((ancho) => (
         <div
           key={ancho}
@@ -185,14 +223,43 @@ function HuecoDelEmbudo() {
 }
 
 /**
- * El sitio del gráfico de días cuando no hay días que repartir.
+ * El hueco de la gráfica mientras no ha llegado su dato.
+ *
+ * Mide lo mismo que la gráfica pintada --15 px de cifra, 238 de
+ * barras, 6 de aire y 14 de fechas: 273-- para que la pantalla no
+ * dé un salto de un cuarto de metro al llegar la respuesta. Y con
+ * forma de columnas por la misma razón que `HuecoDelEmbudo`: un
+ * rectángulo gris se lee como un gráfico roto; siete columnas
+ * pálidas, como uno que está llegando.
+ */
+function HuecoDeLaGrafica() {
+  return (
+    <div className="flex h-[273px] items-end justify-center gap-6 pb-5 pl-[34px]" aria-hidden>
+      {[46, 72, 58, 88, 64, 78, 50].map((alto, i) => (
+        <div
+          key={i}
+          className="w-full max-w-[148px] animate-pulse rounded-[4px] bg-superficie-alterna"
+          style={{ height: `${alto}%` }}
+        />
+      ))}
+    </div>
+  );
+}
+
+/**
+ * La frase de cuando no hay días que repartir, EN UNA LÍNEA bajo
+ * la figura del embudo.
  *
  * Con «Hoy» o «Ayer» la serie es una sola columna, que no es un
  * gráfico: repetiría los mismos cuatro números del embudo, en
- * grande. Antes eso se resolvía quitando la mitad derecha y
- * dándole la tarjeta entera al embudo, y quedaban 1.100 px de
- * blanco —el 84 % de la tarjeta— sin una palabra que dijera por
- * qué había desaparecido media pantalla.
+ * grande. Fue primero un hueco sin explicar --1.100 px de blanco,
+ * el 84 % de la tarjeta-- y después una caja punteada de 180 px a
+ * la derecha del embudo. Con la gráfica en su propia caja arriba,
+ * esa caja habría sido «una línea con media tarjeta vacía», que el
+ * cliente ya rechazó: la caja de la gráfica sencillamente no se
+ * pinta y la frase entera, con sus dos variantes, baja aquí. En la
+ * descripción del bloque no va: la cabecera, que lleva la base de
+ * los porcentajes en un renglón, pasaría a tres o cuatro.
  */
 function SinColumnas({
   cuando,
@@ -215,52 +282,267 @@ function SinColumnas({
   dia: string | null;
 }) {
   return (
-    <div className="flex h-full min-h-[180px] items-center justify-center rounded-[10px] border border-dashed border-borde px-5 py-6">
-      <p className="max-w-[380px] text-center text-[0.84375rem] leading-relaxed text-texto-suave">
-        {hayFiltro ? (
-          <>
-            <strong className="font-semibold text-titulo">
-              Con estos filtros{" "}
-              {cuantos === 1
-                ? `entró una sola persona${dia ? `, el ${dia}` : ""}`
-                : `entraron ${n(cuantos)} personas${dia ? `, todas el ${dia}` : ""}`}
-            </strong>
-            , así que no hay nada que repartir por fechas: el embudo de la izquierda ya lo
-            cuenta todo.
-          </>
-        ) : (
-          <>
-            <strong className="font-semibold text-titulo">
-              {cuando ? `«${cuando}» cabe en un solo día` : "El periodo cabe en un solo día"}
-            </strong>
-            , así que no hay nada que repartir por fechas: el embudo de la izquierda ya lo
-            cuenta todo. Elija un periodo más largo para ver por qué día fue entrando la
-            gente.
-          </>
-        )}
-      </p>
+    /// `text-pretty`: sin él, la última palabra de esta frase
+    /// --«gente.»-- se quedaba sola en su renglón. Es la misma
+    /// familia que el `text-balance` de los titulares de la casa.
+    <p className="mt-2 max-w-[58ch] text-left text-[0.6875rem] leading-snug text-pretty text-texto-suave">
+      {hayFiltro ? (
+        <>
+          <strong className="font-semibold text-titulo">
+            Con estos filtros{" "}
+            {cuantos === 1
+              ? `entró una sola persona${dia ? `, el ${dia}` : ""}`
+              : `entraron ${n(cuantos)} personas${dia ? `, todas el ${dia}` : ""}`}
+          </strong>
+          , así que no hay nada que repartir por fechas: este embudo ya lo cuenta todo.
+        </>
+      ) : (
+        <>
+          <strong className="font-semibold text-titulo">
+            {cuando ? `«${cuando}» cabe en un solo día` : "El periodo cabe en un solo día"}
+          </strong>
+          , así que no hay nada que repartir por fechas: este embudo ya lo cuenta todo. Elija
+          un periodo más largo para ver por qué día fue entrando la gente.
+        </>
+      )}
+    </p>
+  );
+}
+
+/**
+ * Cuando en el periodo no entró nadie: UNA línea, en el sitio de
+ * la tira de cifras.
+ *
+ * Fue una caja punteada de 140 px dentro del bloque del embudo, y
+ * antes de eso 302 px de blanco con ocho rótulos a cero flotando al
+ * lado, que parece una pantalla rota. Ahora no hay bloque del
+ * embudo ni caja de la gráfica --no hay nada que dibujar--, así que
+ * la frase ocupa el sitio de la tira y «Qué atender primero» sube
+ * justo debajo, a todo el ancho: con «Hoy» a las ocho de la mañana
+ * es lo único de la pantalla que sirve, porque no depende del
+ * periodo.
+ */
+function SinGente({ hayFiltro, aviso = null }: { hayFiltro: boolean; aviso?: string | null }) {
+  return (
+    <p className="rounded-lg border border-dashed border-borde px-7 py-3 text-left text-[0.8125rem] leading-relaxed text-pretty text-texto-suave">
+      {aviso && <strong className="font-semibold text-titulo">{aviso} </strong>}
+      No hay embudo que dibujar todavía.{" "}
+      {hayFiltro
+        ? "Pruebe con un periodo más largo, o quite alguno de los filtros de arriba."
+        : "Pruebe con un periodo más largo."}
+    </p>
+  );
+}
+
+/** Lo que lleva una celda de la tira del periodo. Ver `TiraDelPeriodo`. */
+type Celda = {
+  rotulo: string;
+  /// La cifra ya escrita: «39 %», «121», «7 días» o «—».
+  cifra: string;
+  colorCifra: string;
+  /// El porcentaje pequeño pegado a la cuenta. Null = no lleva.
+  porcentaje?: string | null;
+  colorPorcentaje?: string;
+  /// Los renglones del pie. Vacío mientras no hay datos.
+  pies: string[];
+  /// La explicación larga, en el `title`.
+  explicacion: string;
+  /// La que manda: 32 px y no 22.
+  manda?: boolean;
+  /// A todo lo ancho por debajo de 1.100 px (la 1 y la 4).
+  ancha?: boolean;
+  /// El atenuado de su mitad: las tres primeras salen de
+  /// `/resumen` y la cuarta de `/control`, y puede fallar una sola.
+  clase?: string;
+};
+
+/**
+ * LA TIRA DE CUATRO CIFRAS DEL PERIODO.
+ *
+ * «Los porcentajes en otra posición que impacte más» (cliente, 21
+ * sep 2026). Estaban escritos TRES veces con dos redondeos --39 %
+ * en el embudo, «el 39 %» en la frase de la tasa y 38,8 % en un
+ * anillo de 24 px medio metro más abajo; lo mismo 81 contra 80,6--
+ * y ninguno mandaba. Aquí la tasa de inscripción es la cifra más
+ * grande de la pantalla (32 px, el tamaño de `TarjetaCifra`; los
+ * centros de dona se quedan en 26,5) y lleva su base escrita
+ * debajo.
+ *
+ * ES EL ÚNICO PORCENTAJE GRANDE DE LA TIRA. Las celdas 2 y 3
+ * llevan el suyo pequeño, pegado a la cuenta, para que las tres
+ * formen un reparto que se comprueba solo --80 + 121 + 5 = 206, y
+ * 39 + 59 + 2 = 100-- sin competir con la que manda. La cuarta son
+ * días, y así se queda.
+ *
+ * SUELTA, NUNCA DENTRO DE UN `Bloque` Y NUNCA `plegable`: un
+ * porcentaje con la base dentro de un acordeón cerrado es un
+ * porcentaje sin base.
+ *
+ * CUATRO CELDAS Y NO CINCO. Una quinta vuelve a apelotonar y la
+ * tira se convierte en la fila de tarjetas iguales que se anulan
+ * entre sí. Y ninguna cifra de «ahora mismo» (cupos, gente sin
+ * asesor) entra aquí: esta tira es solo del periodo, y mezclarla
+ * trae de vuelta el «¿esas 206 a qué hacen referencia?».
+ *
+ * LAS CUATRO DEL MISMO TAMAÑO, de ancho y de cifra.
+ *
+ * Se construyó con la primera al doble de ancho (2fr 1fr 1fr 1fr) y
+ * su cifra a 32 px contra 22 de las otras, para que «Se inscribe»
+ * mandara. Al verla, el cliente lo paró: «mismos tamaños, pilas con
+ * esto» (21 sep 2026). Una celda de 750 px con «28 %» a la izquierda
+ * y el resto vacío no se lee como la que manda, se lee como un
+ * descuadre. Lo que la hace mandar ahora es el SITIO --va primera,
+ * donde empieza la lectura-- y que es la única con su base escrita
+ * entera; no el tamaño.
+ *
+ * Un solo corte, en 1.100 px, como la gráfica de debajo: por encima,
+ * cuatro columnas iguales --«Tardan en inscribirse» mide 141 px y
+ * cabe en un renglón--; por debajo, un 2 × 2, también parejo.
+ */
+function TiraDelPeriodo({ celdas }: { celdas: Celda[] }) {
+  return (
+    <dl
+      data-pieza="tira"
+      className="grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-borde bg-hairline min-[1100px]:grid-cols-4"
+    >
+      {celdas.map((c) => (
+        <CeldaDeLaTira key={c.rotulo} {...c} />
+      ))}
+    </dl>
+  );
+}
+
+/** Una celda de la tira: rótulo en versalita, cifra y su pie. */
+function CeldaDeLaTira({
+  rotulo,
+  cifra,
+  colorCifra,
+  porcentaje = null,
+  colorPorcentaje = "var(--texto-suave)",
+  pies,
+  explicacion,
+  clase = "",
+}: Celda) {
+  return (
+    <div
+      title={explicacion}
+      /// 16 px de relleno lateral por debajo de 620 y no 28: en el
+      /// 2 × 2 del celular cada celda mide unos 170 px, y con 28 a
+      /// cada lado el pie de «Siguen en proceso» se partía en
+      /// cuatro renglones.
+      /// Sin `col-span`: en el 2 × 2 del celular las cuatro miden lo
+      /// mismo, igual que en la fila de escritorio. `ancha` queda en
+      /// el tipo por si otra tira la necesita, pero aquí no se usa.
+      className={`bg-superficie px-4 pt-3 pb-[13px] min-[620px]:px-7 ${clase}`}
+    >
+      {/* EL ALTO DE LA TIRA, AJUSTADO RENGLÓN A RENGLÓN.
+          Con el interlineado por defecto medía 114 px a 1.600 sin
+          comparación --el pie de «Tardan en inscribirse» parte en
+          dos renglones en sus 257 px-- y 390 a 390 px con ella: la
+          tira empujaba la gráfica bajo el pliegue. El rótulo, que es
+          de un renglón y en versalita, va a 13 px de interlínea, y
+          los pies a 1,3 y pegados a su cifra: 108 y 371. */}
+      <dt className="text-[0.625rem] leading-[13px] font-semibold tracking-[0.1em] text-texto-suave uppercase">
+        {rotulo}
+      </dt>
+      {/* LA CIFRA, DEL MISMO TAMAÑO EN LAS CUATRO: 1,75 rem, el
+          cuerpo de cifra que ya usa el veredicto de ocupación. Va en
+          un renglón de 32 px apoyada abajo, para que los pies de las
+          cuatro arranquen en la misma raya. */}
+      <dd className="mt-1 flex h-8 items-end">
+        <span className="flex items-baseline gap-2">
+          <span
+            className="text-[1.75rem] leading-none font-bold tracking-[-0.03em] whitespace-nowrap tabular-nums"
+            style={{ color: colorCifra }}
+          >
+            {cifra}
+          </span>
+          {porcentaje && (
+            <span
+              className="text-[0.84375rem] leading-none font-semibold whitespace-nowrap tabular-nums"
+              style={{ color: colorPorcentaje }}
+            >
+              {porcentaje}
+            </span>
+          )}
+        </span>
+      </dd>
+      {pies.map((p) => (
+        <dd
+          key={p}
+          className="mt-0.5 text-[0.71875rem] leading-[1.3] text-pretty text-texto-suave tabular-nums"
+        >
+          {p}
+        </dd>
+      ))}
     </div>
   );
 }
 
 /**
- * El bloque cuando en el periodo no entró nadie.
+ * La letra pequeña de un bloque, en una revelación CERRADA.
  *
- * UNA caja y no dos: la frase de arriba ya dice «No entró nadie
- * hoy», así que aquí lo que falta no es repetirlo sino decir qué
- * hacer. Antes esto eran 302 px de blanco con ocho rótulos a
- * cero flotando al lado, que parece una pantalla rota.
+ * Son cosas que se leen UNA vez, cuando uno no entiende el dibujo;
+ * abiertas eran una pared de letra debajo de los dibujos («todo
+ * como cargado, como saturado», cliente, 21 sep 2026). Ocultar,
+ * nunca eliminar: no se recorta ni una palabra, pero sin ocupar
+ * pantalla sin que nadie la pida.
+ *
+ * Es la misma pinta que el `Bloque` con `plegable` de `piezas.tsx`:
+ * un `details` de la casa, con «Ver» y «Ocultar» en el color de la
+ * marca a la derecha. No lleva `sin-aro` --que apaga el foco--
+ * porque esto es un mando de media línea y con el teclado hay que
+ * poder verlo.
+ *
+ * UNA POR BLOQUE, al pie de cada uno. Había una sola para los dos
+ * dibujos, y con la gráfica arriba y el embudo abajo quedaría a
+ * medio metro de uno de los dos.
  */
-function SinGente({ hayFiltro }: { hayFiltro: boolean }) {
+function Revelacion({
+  titulo,
+  notas,
+  rejilla,
+}: {
+  titulo: string;
+  notas: string[];
+  /// Las clases de columnas de la lista abierta. Van por fuera
+  /// porque dependen de lo ancho que sea el bloque, y eso lo sabe
+  /// quien lo monta.
+  rejilla: string;
+}) {
   return (
-    <div className="flex min-h-[140px] items-center justify-center rounded-[10px] border border-dashed border-borde px-5 py-8">
-      <p className="max-w-[460px] text-center text-[0.8125rem] leading-relaxed text-texto-suave">
-        No hay embudo que dibujar todavía.{" "}
-        {hayFiltro
-          ? "Pruebe con un periodo más largo, o quite alguno de los filtros de arriba."
-          : "Pruebe con un periodo más largo."}
-      </p>
-    </div>
+    <details className="group border-t border-hairline pt-2">
+      {/* «Ver» PEGADO AL TÍTULO, no en la otra punta. Con
+          `justify-between` el rótulo quedaba a la izquierda y su «Ver»
+          1.490 px más allá, a 1.600 (medido el 21 sep 2026): el
+          rótulo parecía un título suelto y el mando que lo abre, otra
+          cosa. Juntos se leen como una sola puerta. */}
+      <summary className="flex cursor-pointer list-none items-center gap-3 select-none">
+        <span className="text-[0.6875rem] leading-snug font-semibold text-titulo">{titulo}</span>
+        {/* «Ver» / «Ocultar», y no un triángulo: es lo que usa el
+            bloque plegable de la casa, y una palabra se entiende sin
+            haber aprendido el icono. */}
+        <span className="shrink-0 text-[0.6875rem] font-medium text-marca underline underline-offset-2">
+          <span className="group-open:hidden">Ver</span>
+          <span className="hidden group-open:inline">Ocultar</span>
+        </span>
+      </summary>
+      <ul className={`mt-2 grid gap-x-6 gap-y-1 ${rejilla}`}>
+        {notas.map((nota) => (
+          /// `max-w-[58ch]` ADEMÁS de la rejilla: con una sola
+          /// columna ancha la frase se quedaba sola con 1.416 px de
+          /// blanco al lado (medido). El tope la deja del ancho de un
+          /// párrafo; cuando hay varias, es la rejilla la que reparte
+          /// y el tope no muerde.
+          <li
+            key={nota}
+            className="min-w-0 max-w-[58ch] text-[0.6875rem] leading-snug text-pretty text-texto-suave"
+          >
+            {nota}
+          </li>
+        ))}
+      </ul>
+    </details>
   );
 }
 
@@ -355,13 +637,59 @@ export function PanelProceso({
   controlAlDia?: boolean;
   alCambiarFiltros?: (f: Filtros) => void;
 }) {
-  const [convenioId, setConvenioId] = useState("");
-  const [accionFormacionId, setAccionFormacionId] = useState("");
-  const [grupoId, setGrupoId] = useState("");
+  /**
+   * LOS CINCO FILTROS VIVEN EN LA DIRECCIÓN, no en la memoria del
+   * panel.
+   *
+   * Vivían en `useState("")`, y como Control solo monta este panel en
+   * «Proceso de inscripción», al abrir otro informe se desmontaba y
+   * al volver renacía vacío. Fue la mitad del «149 contra 539» del
+   * cliente (21 sep 2026): con ADECOPRIA elegido el bloque de cupos
+   * decía 149, «Ver reservas» llevaba al informe de ADECOPRIA con
+   * 149, y al volver con «Atrás» el gremio se había borrado y el
+   * bloque decía 539 sin que nadie tocara nada.
+   *
+   * Se leen de la dirección al montar y se escriben en ella al
+   * cambiar, con los mismos nombres que ya usa el informe de Reservas
+   * (`convenioId`, `accionFormacionId`): así «Atrás», recargar y el
+   * desplegable «Informes» conservan el recorte, y el informe y este
+   * panel leen el mismo gremio de la misma fuente.
+   */
+  const direccion = useSearchParams();
+  const deLaDireccion = (llave: string) => direccion.get(llave) ?? "";
+  const [convenioId, setConvenioId] = useState(() => deLaDireccion("convenioId"));
+  const [accionFormacionId, setAccionFormacionId] = useState(() =>
+    deLaDireccion("accionFormacionId"),
+  );
+  const [grupoId, setGrupoId] = useState(() => deLaDireccion("grupoId"));
   /// SIN filtro de etapa, y es una decisión: ver el comentario de
   /// la fila de filtros, más abajo.
-  const [asesorId, setAsesorId] = useState("");
-  const [departamentoSepId, setDepartamentoSepId] = useState("");
+  const [asesorId, setAsesorId] = useState(() => deLaDireccion("asesorId"));
+  const [departamentoSepId, setDepartamentoSepId] = useState(() =>
+    deLaDireccion("departamentoSepId"),
+  );
+
+  /// Y se escriben con `replaceState`, sin entrada nueva en el
+  /// historial: cambiar de gremio no es navegar, y con `pushState`
+  /// «Atrás» desharía los filtros uno a uno en vez de volver a la
+  /// pantalla anterior. Se pasa `history.state` tal cual porque ahí
+  /// guarda Next su propio estado de navegación.
+  useEffect(() => {
+    const p = new URLSearchParams(window.location.search);
+    const poner = (llave: string, valor: string) => {
+      if (valor) p.set(llave, valor);
+      else p.delete(llave);
+    };
+    poner("convenioId", convenioId);
+    poner("accionFormacionId", accionFormacionId);
+    poner("grupoId", grupoId);
+    poner("asesorId", asesorId);
+    poner("departamentoSepId", departamentoSepId);
+    const nueva = `${window.location.pathname}?${p.toString()}`;
+    if (nueva !== `${window.location.pathname}${window.location.search}`) {
+      window.history.replaceState(window.history.state, "", nueva);
+    }
+  }, [convenioId, accionFormacionId, grupoId, asesorId, departamentoSepId]);
 
   /// Lo cargado, con el sello de a qué corte pertenece. Ver `Cargado`.
   const [datos, setDatos] = useState<Cargado | null>(null);
@@ -644,10 +972,23 @@ export function PanelProceso({
   /// pedida, y es la que quien acaba de elegir el filtro va a
   /// leer como respuesta. Se atenúa solo la mitad vieja, para
   /// que se vea de un golpe cuál es cuál.
+  ///
+  /// `|| !controlAlDia`: CUANDO LA CONSULTA DE LA PÁGINA FALLA, LA
+  /// DEL EMBUDO NO LLEGA A SALIR. `/resumen` espera la ventana que
+  /// trae `/control`; si `/control` vuelve en 429 o 500 al cambiar de
+  /// periodo, `/resumen` nunca se pide, `clavePedida` sigue siendo la
+  /// vieja y esta condición salía falsa. La tira pintaba entonces
+  /// las cifras del periodo ANTERIOR a plena tinta y sin aviso
+  /// --medido el 21 sep 2026 al pasar de «Desde el principio» a
+  /// «Últimos 30 días»: «39 % | 121 · 59 % | 5 · 2 %» con opacidad
+  /// 1--. `controlAlDia` falso quiere decir justo eso: el último
+  /// intento falló y lo que hay es de otro periodo. El
+  /// `clavePedida === claveActual` se queda para el caso normal, en
+  /// el que la espera es solo una espera y no un fallo.
   const embudoDesfasado =
     Boolean(datos) &&
     datos?.clave !== claveActual &&
-    clavePedida === claveActual &&
+    (clavePedida === claveActual || !controlAlDia) &&
     !cargando;
   const columnasDesfasadas = Boolean(datos) && !controlAlDia;
   const desfasado = embudoDesfasado || columnasDesfasadas;
@@ -752,13 +1093,24 @@ export function PanelProceso({
    * avanzar (José, 18 sep 2026). Lo que sí se puede comparar es
    * qué proporción de los que entran acaba inscrita. Va en
    * palabras, sin flecha y sin color: cuenta, no afirma.
+   *
+   * Vuelve PARTIDA: el porcentaje, que es la cifra grande de la
+   * tira, y la comparación, que va en su pie. La primera frase de
+   * antes --«Se inscribe el 39 % de quien entra.»-- ya no se
+   * escribe: la dice la propia celda. Lo que NO se pierde es el
+   * «pero esa gente ha tenido N días más»: sin él, la cifra más
+   * grande de la pantalla engaña hacia abajo en todo periodo corto
+   * (con «Últimos 7 días» dice 0 %).
+   *
+   * El porcentaje se redondea IGUAL que el apunte de «Inscritos»
+   * en el embudo: son la misma cifra y tienen que leerse igual.
    */
-  const fraseDeLaTasa = useMemo(() => {
+  const tasa = useMemo(() => {
     const entro = hitos[0]?.total ?? 0;
     const insc = hitos[3]?.total ?? 0;
     if (entro <= 0) return null;
-    const ahora = `Se inscribe el ${n(Math.round((insc / entro) * 100))} % de quien entra.`;
-    if (!hitosAntes || (hitosAntes[0] ?? 0) <= 0) return ahora;
+    const porcentaje = Math.round((insc / entro) * 100);
+    if (!hitosAntes || (hitosAntes[0] ?? 0) <= 0) return { porcentaje, comparacion: null };
     const antes = n(Math.round((hitosAntes[3] / hitosAntes[0]) * 100));
     /// Del sello, igual que la etiqueta del periodo: esta frase
     /// compara DOS cifras y las dos tienen que venir de la misma
@@ -785,17 +1137,30 @@ export function PanelProceso({
      * 2026); aquí faltaba.
      */
     const dias = diasDelPeriodo;
-    const media = control?.diasHastaInscribir;
-    const porque = dias
-      ? `, pero esa gente ha tenido ${n(dias)} ${dias === 1 ? "día" : "días"} más para inscribirse` +
-        (media != null
-          ? ` (desde que entra una persona hasta que se inscribe pasan ${n(
-              Math.round(media),
-            )} días de media)`
-          : "")
-      : "";
-    return `${ahora} ${dicho} el ${antes} %${porque}.`;
-  }, [hitos, hitosAntes, datos, diasDelPeriodo, control]);
+    const antesNumero = Math.round((hitosAntes[3] / hitosAntes[0]) * 100);
+    /// LA ADVERTENCIA SOLO CUANDO HAY UNA BAJADA QUE EXPLICAR.
+    /// Con «Ayer» salía «Anteayer era el 0 %, pero esa gente ha
+    /// tenido 1 día más…» junto a un 0 % de ahora: el «pero» avisaba
+    /// de una diferencia que no existe. Si antes era igual, se dice
+    /// «también»; si antes era menos, no hay nada que matizar.
+    if (antesNumero === porcentaje) {
+      return { porcentaje, comparacion: `${dicho} también el ${antes} %.` };
+    }
+    const porque =
+      dias && antesNumero > porcentaje
+        ? `, con ${n(dias)} ${dias === 1 ? "día" : "días"} más para inscribirse`
+        : "";
+    /// SIN la nota de los días de media («Desde que entra una
+    /// persona hasta que se inscribe pasan N días»), que solo salía
+    /// con comparación y guardada en la revelación: esa cifra es
+    /// ahora la cuarta celda de la tira y se ve SIEMPRE, diciendo
+    /// además de qué gente sale.
+    ///
+    /// «, con N días más» y no «, pero esa gente ha tenido N días
+    /// más»: dice lo mismo en la mitad, y con cuatro celdas iguales
+    /// cada palabra de este pie era un renglón más (ver `base`).
+    return { porcentaje, comparacion: `${dicho} el ${antes} %${porque}.` };
+  }, [hitos, hitosAntes, datos, diasDelPeriodo]);
 
   /**
    * CUANDO NO HAY CON QUÉ COMPARAR, DECIRLO.
@@ -822,8 +1187,16 @@ export function PanelProceso({
    * debajo de dos más pequeñas, así que leyendo de arriba abajo
    * y quedándose con la primera uno se lleva la respuesta
    * equivocada. Es el dato por el que se abre esta pantalla.
+   *
+   * Fue un rótulo en la marca y un titular de 16 px encima del
+   * embudo. Con el embudo en su propia caja sobraba: el 49 ya está
+   * en rojo en su cuello, dos dedos más abajo, y prosa que repite
+   * el dibujo es lo que se leía como saturación. Así que se parte
+   * sin perder una palabra: «En rojo, el paso donde más gente se
+   * queda» pasa a la descripción del bloque, y la frase entera a
+   * su letra pequeña.
    */
-  const fraseDelCuello = useMemo(() => {
+  const cuelloMayor = useMemo(() => {
     const may = caidaMayor(hitos);
     if (!may || may.cuantos <= 0) return null;
     const donde = [
@@ -832,9 +1205,7 @@ export function PanelProceso({
       "tienen sus datos completos y no se han inscrito",
     ][may.paso];
     if (!donde) return null;
-    return `Donde más gente se queda: ${n(may.cuantos)} ${
-      may.cuantos === 1 ? "persona" : "personas"
-    } ${donde}.`;
+    return `${n(may.cuantos)} ${may.cuantos === 1 ? "persona" : "personas"} ${donde}.`;
   }, [hitos]);
 
   /**
@@ -861,9 +1232,12 @@ export function PanelProceso({
   const serieRecortada = !control?.ventana.desde;
 
   const entraron = hitos[0]?.total ?? 0;
-  const contactados = hitos[1]?.total ?? 0;
   const inscritos = hitos[3]?.total ?? 0;
   const perdidos = g("PERDIDO");
+  /// Los que se pueden trabajar hoy: ni inscritos ni perdidos.
+  /// Con los inscritos y los perdidos reparte a TODOS los que
+  /// entraron, sin solaparse: 80 + 121 + 5 = 206.
+  const enProceso = entraron - inscritos - perdidos;
 
   /**
    * Lo que se pinta en «Dónde está cada persona hoy».
@@ -890,29 +1264,20 @@ export function PanelProceso({
     [valorDeFase],
   );
 
-  /**
-   * En qué acabó la gente del periodo. TRES casillas y no cuatro.
-   *
-   * Eran cuatro y dos decían 46 --«aún no se inscriben» y «en
-   * captación por cerrar»--: la misma gente contada por dos
-   * caminos, uno restando y otro sumando etapas. «¿Cómo
-   * interpreto las tarjetas?» (cliente, 20 sep 2026). Ahora cada
-   * persona del periodo cae en una sola, y las tres suman lo que
-   * entró: se puede comprobar de un vistazo.
-   */
   /// Los días del periodo, tal como los devuelve el servidor.
   const porDia = useMemo(() => control?.embudoPorDia ?? [], [control]);
 
-  /// Las mismas tres cifras en el periodo con el que se compara.
+  /// Las cifras de las celdas 2 y 3 de la tira en el periodo con
+  /// el que se compara. La de inscritos ya no hace falta: su
+  /// comparación es la de la tasa, en el pie de la celda 1, y el
+  /// «antes N» de «Inscritos» en el embudo.
   const deAntes = useMemo(() => {
     if (!delAnterior) return null;
     const h = hitosDe(delAnterior);
     const en = new Map(delAnterior.etapas.map((e) => [e.etapa, e.total]));
-    const inscritosAntes = h[3]?.total ?? 0;
     const perdidosAntes = en.get("PERDIDO") ?? 0;
     return {
-      enProceso: (h[0]?.total ?? 0) - inscritosAntes - perdidosAntes,
-      inscritos: inscritosAntes,
+      enProceso: (h[0]?.total ?? 0) - (h[3]?.total ?? 0) - perdidosAntes,
       perdidos: perdidosAntes,
     };
   }, [delAnterior]);
@@ -931,45 +1296,6 @@ export function PanelProceso({
    */
   const hayAntes = (hitosAntes?.[0] ?? 0) > 0;
 
-  const notas = useMemo(
-    () => [
-      {
-        cifra: entraron - inscritos - perdidos,
-        antes: hayAntes ? (deAntes?.enProceso ?? null) : null,
-        etiqueta: "siguen en proceso, sin inscribirse",
-        detalle:
-          "De los que entraron en el periodo: no se han inscrito y tampoco han dicho que no. Son los que se pueden trabajar hoy.",
-        tono: "aviso" as const,
-      },
-      {
-        cifra: inscritos,
-        antes: hayAntes ? (deAntes?.inscritos ?? null) : null,
-        /// DICE A QUIÉN CUENTA, en su propio renglón.
-        ///
-        /// Decía «32 se inscribieron» y 460 px más abajo «Ritmo
-        /// de inscripción» decía «72 inscritos en el periodo»:
-        /// dos respuestas para la misma pregunta y el mismo
-        /// periodo, y ninguna de las dos decía a quién contaba.
-        /// Esta cuenta a los que ENTRARON en el periodo y
-        /// acabaron inscritos; aquella, a los que SE
-        /// INSCRIBIERON en el periodo, entraran cuando entraran.
-        /// Es cambio de texto, no de consulta.
-        etiqueta: "de los que entraron ya se inscribieron",
-        detalle:
-          "Llegaron a inscribirse, estén hoy estudiando el curso o no. Quien entró antes del periodo y se inscribió en estos días no cuenta aquí: eso lo dice «Ritmo de inscripción».",
-        tono: "exito" as const,
-      },
-      {
-        cifra: perdidos,
-        antes: hayAntes ? (deAntes?.perdidos ?? null) : null,
-        etiqueta: "dijeron que no",
-        detalle: "Marcados como no interesados. Salen del embudo.",
-        tono: "neutro" as const,
-      },
-    ],
-    [entraron, inscritos, perdidos, deAntes, hayAntes],
-  );
-
   /// Mientras llega el dato nuevo, lo viejo se atenúa y no se
   /// vacía: un esqueleto hace perder la referencia de lo que se
   /// estaba mirando, y aquí se mira para comparar.
@@ -980,12 +1306,213 @@ export function PanelProceso({
   /// ahora `setCargando(false)` iba en el `finally`, así que en
   /// cuanto se rendía el intento las cifras del corte anterior
   /// volvían a plena opacidad y se leían como el resultado del
-  /// filtro nuevo. El aviso de arriba del bloque va aparte, sin
+  /// filtro nuevo. El aviso de encima de la tira va aparte, sin
   /// atenuar: es lo único que hay que leer en ese momento.
-  const claseDesfasado = desfasado ? "opacity-55" : "";
+  ///
   /// Una por mitad: ver `embudoDesfasado` / `columnasDesfasadas`.
+  /// Ya no hay una tercera para «las dos»: la letra pequeña que la
+  /// usaba se partió y cada revelación va dentro de su caja, con el
+  /// atenuado de su dibujo. La nota del cuadre no afirma nada
+  /// mientras haya desfase (`cuadran` ya es falso).
   const claseEmbudo = embudoDesfasado ? "opacity-55" : "";
   const claseColumnas = columnasDesfasadas ? "opacity-55" : "";
+
+  /**
+   * LAS CIFRAS DE LA TIRA TODAVÍA NO SON DE LO ELEGIDO.
+   *
+   * Tres casos, y en los tres la tira escribe «—» y nunca «0» ni
+   * «0 %»: (1) no ha llegado nada --primera carga, o el panel se
+   * montó de nuevo--; (2) lo pintado es de otro corte y su
+   * respuesta está en camino; (3) el desplegable de la cabecera ya
+   * dice otro periodo y la página todavía no trajo su `control`,
+   * así que ni siquiera se ha podido pedir.
+   *
+   * Sin el (1), mientras cargaba, las casillas pintaban «0» y los
+   * anillos «0 %» a 24 px (medido a los 2,5 s de elegir el
+   * periodo). Sin el (2) y el (3), al pasar de «Últimos 7 días» a
+   * «Desde el principio» la cifra más grande de la pantalla seguía
+   * diciendo «0 %» a plena tinta durante el medio segundo --o los
+   * treinta, si la página tenía otra consulta en vuelo-- que tarda
+   * en llegar lo nuevo, y se leía como la respuesta.
+   *
+   * Si la consulta FALLÓ no se esconde nada: se enseña lo viejo
+   * atenuado, con el aviso encima que dice de qué periodo es.
+   */
+  /// Todavía no ha llegado NINGUNA respuesta del embudo: primera
+  /// carga, o el panel se volvió a montar. La tira escribe «—», el
+  /// embudo pinta su hueco y la gráfica el suyo.
+  const sinDatosTodavia = hitos.length === 0;
+  /// Si hay caja del embudo: mientras carga (con su hueco) o si
+  /// entró alguien. Sin nadie no hay nada que dibujar.
+  const hayEmbudo = sinDatosTodavia || entraron > 0;
+
+  /// El caso (3) se mira por el RANGO que trae `control` --el que
+  /// la página pidió--, traducido con la misma tabla que rotula el
+  /// desplegable. Se probó a sellar las cifras con el nombre del
+  /// desplegable al pedirlas, y de «Desde el principio» a «Un rango
+  /// de fechas» sin fechas todavía la tira se quedaba en «—» para
+  /// siempre: los dos cortes son el mismo, así que no se vuelve a
+  /// pedir nada y el sello no se renovaba nunca (medido en el
+  /// barrido de los nueve periodos).
+  ///
+  /// «Un rango de fechas» sin sus dos fechas lo resuelve el servidor
+  /// como «Desde el principio» y devuelve `rango: "TODO"`
+  /// (crm/ventana.ts): sin esta excepción la tira se quedaba en «—»
+  /// mientras el desplegable dijera «Un rango de fechas» y no se
+  /// hubieran elegido las fechas (medido: 40 s sin salir de ahí).
+  const rangoDelControl = control?.ventana.rango as Rango | undefined;
+  const controlDeLoElegido =
+    !etiquetaPeriodo ||
+    !rangoDelControl ||
+    ETIQUETA_RANGO[rangoDelControl] === etiquetaPeriodo ||
+    (etiquetaPeriodo === ETIQUETA_RANGO.PERSONALIZADO && rangoDelControl === "TODO");
+  const cifrasPendientes =
+    sinDatosTodavia ||
+    (!desfasado && (datos?.clave !== claveActual || !controlDeLoElegido));
+
+  /**
+   * Las cuatro celdas de la tira, en el orden en que se leen.
+   *
+   * Cada una con su explicación larga en el `title` --son los
+   * `detalle` de las tres casillas que había-- y repetida en la
+   * letra pequeña del embudo, para quien no tiene puntero.
+   */
+  const celdas = useMemo<Celda[]>(() => {
+    const raya = "—";
+    /// El porcentaje pequeño de las celdas 2 y 3. Se omite con la
+    /// cuenta en cero: se lee «0» y no «0 0 %».
+    const parte = (v: number) =>
+      v > 0 && entraron > 0 ? `${Math.round((v / entraron) * 100)} %` : null;
+    const porcentajePerdidos = entraron > 0 ? perdidos / entraron : 0;
+    /// La línea de comparación de las celdas 2 y 3, con el mismo
+    /// formato que tenían las casillas: «+1 frente a anteayer (3)».
+    const contra = (cifra: number, antes: number | undefined) =>
+      hayAntes && antes !== undefined
+        ? lineaContraAntes(cifra, antes, datos?.etiquetaAnterior ?? null)
+        : null;
+    const media = control?.diasHastaInscribir ?? null;
+    const dias = media === null ? null : Math.round(media);
+
+    /// EL PIE DE LA QUE MANDA: su base, y la advertencia de José
+    /// en el MISMO párrafo. Partidos en dos renglones propios, a
+    /// 1.366 px la advertencia bajaba a dos líneas y la tira pasaba
+    /// de 130 px; seguidos, las dos frases llenan dos renglones y
+    /// se leen como lo que son: la cifra y por qué no es una caída.
+    ///
+    /// MÁS CORTO DESDE QUE LAS CUATRO CELDAS MIDEN LO MISMO (21 sep
+    /// 2026). Con un cuarto de ancho, «80 de las 206 personas que
+    /// entraron llegaron a inscribirse. En los 7 días anteriores era
+    /// el 14 %, pero esa gente ha tenido 7 días más…» ocupaba cuatro
+    /// renglones a 1.366 px --la tira medía 138 px contra 130-- y seis
+    /// en el celular, y empujaba «Dijeron que no» bajo el pliegue. Se
+    /// quitan las palabras que no dicen nada nuevo («personas»,
+    /// «llegaron a»); el dato y la advertencia se quedan enteros.
+    const base =
+      entraron === 1
+        ? inscritos === 1
+          ? "La persona que entró ya se inscribió."
+          : "La persona que entró no se ha inscrito todavía."
+        : `${n(inscritos)} de las ${n(entraron)} que entraron se ${
+            inscritos === 1 ? "inscribió" : "inscribieron"
+          }.`;
+    const pieDeLaTasa = tasa?.comparacion ? `${base} ${tasa.comparacion}` : base;
+
+    return [
+      {
+        rotulo: "Se inscribe",
+        /// En `--titulo` y SIN color: la tasa cuenta, no afirma
+        /// que vaya bien o mal (José, 18 sep 2026).
+        cifra: cifrasPendientes || !tasa ? raya : `${n(tasa.porcentaje)} %`,
+        colorCifra: cifrasPendientes ? "var(--texto-suave)" : "var(--titulo)",
+        pies: cifrasPendientes ? [] : [pieDeLaTasa],
+        explicacion:
+          "Llegaron a inscribirse, estén hoy estudiando el curso o no. Quien entró antes del periodo y se inscribió en estos días no cuenta aquí: eso lo dice «Ritmo de inscripción».",
+        manda: true,
+        ancha: true,
+        clase: claseEmbudo,
+      },
+      {
+        rotulo: "Siguen en proceso",
+        cifra: cifrasPendientes ? raya : n(enProceso),
+        /// En `--titulo`, como las otras. Iba en ámbar, y con las
+        /// cuatro cifras del mismo tamaño --orden del cliente-- el
+        /// único color de la fila era el suyo: «121» mandaba sobre
+        /// «39 %», que es la que tiene que mandar por el sitio.
+        colorCifra: cifrasPendientes ? "var(--texto-suave)" : "var(--titulo)",
+        porcentaje: cifrasPendientes ? null : parte(enProceso),
+        pies: cifrasPendientes
+          ? []
+          : [
+              "Ni se han inscrito ni han dicho que no.",
+              contra(enProceso, deAntes?.enProceso),
+            ].filter((p): p is string => Boolean(p)),
+        explicacion:
+          "De los que entraron en el periodo: no se han inscrito y tampoco han dicho que no. Son los que se pueden trabajar hoy.",
+        clase: claseEmbudo,
+      },
+      {
+        rotulo: "Dijeron que no",
+        cifra: cifrasPendientes ? raya : n(perdidos),
+        colorCifra: cifrasPendientes ? "var(--texto-suave)" : "var(--titulo)",
+        porcentaje: cifrasPendientes ? null : parte(perdidos),
+        /// La regla del anillo de pérdida que había: hasta el 15 %
+        /// es normal y va en gris, hasta el 30 % en ámbar y por
+        /// encima en rojo. En rojo fijo, un 2 % --que es bueno-- se
+        /// leería como una alarma.
+        colorPorcentaje:
+          porcentajePerdidos <= 0.15
+            ? "var(--texto-suave)"
+            : porcentajePerdidos <= 0.3
+              ? "var(--aviso)"
+              : "var(--error)",
+        pies: cifrasPendientes
+          ? []
+          : [
+              "Se marcaron como no interesados.",
+              contra(perdidos, deAntes?.perdidos),
+            ].filter((p): p is string => Boolean(p)),
+        explicacion: "Marcados como no interesados. Salen del embudo.",
+        clase: claseEmbudo,
+      },
+      {
+        /// DICE DE QUIÉN HABLA. Es la única cifra de la tira cuya
+        /// gente no son los que entraron: sale de quienes SE
+        /// INSCRIBIERON en el periodo, entraran cuando entraran.
+        /// Sin decirlo repite el «¿esas 131 a qué hacen
+        /// referencia?».
+        rotulo: "Tardan en inscribirse",
+        cifra:
+          cifrasPendientes || dias === null ? raya : `${n(dias)} ${dias === 1 ? "día" : "días"}`,
+        colorCifra: cifrasPendientes || dias === null ? "var(--texto-suave)" : "var(--titulo)",
+        pies: cifrasPendientes
+          ? []
+          : [
+              dias === null
+                ? "Nadie se inscribió en el periodo, así que no hay media."
+                : "de media desde que entran, entre quienes se inscribieron en el periodo.",
+            ],
+        explicacion:
+          "La media sale de quienes se inscribieron en el periodo, entraran cuando entraran; no es la misma gente de las otras tres cifras.",
+        ancha: true,
+        /// De `/control` y no de `/resumen`: se atenúa con las
+        /// columnas.
+        clase: claseColumnas,
+      },
+    ];
+  }, [
+    cifrasPendientes,
+    tasa,
+    entraron,
+    inscritos,
+    perdidos,
+    enProceso,
+    hayAntes,
+    deAntes,
+    datos,
+    control,
+    claseEmbudo,
+    claseColumnas,
+  ]);
 
   /**
    * Cuándo la meta del SENA se puede dividir entre lo de arriba.
@@ -1060,6 +1587,105 @@ export function PanelProceso({
    */
   const cuadran = !desfasado && hayColumnas && entraron > 0 && sumaPorDia === entraron;
 
+  /**
+   * LA LETRA PEQUEÑA DEL GRÁFICO DE COLUMNAS, RECOGIDA DE ABAJO.
+   *
+   * Tiene que subir hasta aquí porque la revelación va al pie de
+   * la caja, a todo el ancho --debajo del trazado Y del panel de la
+   * leyenda--, junto a la nota del cuadre, que solo se puede
+   * comprobar aquí. Y no se puede escribir aquí: si una columna es un día, una semana o un mes
+   * lo decide el ancho MEDIDO del gráfico, que aquí no se conoce.
+   *
+   * El arreglo se guarda comparando frase por frase y se devuelve
+   * el MISMO cuando no cambió ninguna: así, aunque el aviso llegue
+   * en cada pintado, no hay estado nuevo y el par de componentes
+   * no puede morderse la cola.
+   */
+  const [notasColumnas, setNotasColumnas] = useState<string[]>([]);
+  const recibirNotas = useCallback((nuevas: string[]) => {
+    setNotasColumnas((viejas) =>
+      viejas.length === nuevas.length && viejas.every((v, i) => v === nuevas[i])
+        ? viejas
+        : nuevas,
+    );
+  }, []);
+
+  /**
+   * CUANDO LA COMPARACIÓN NO SE PUEDE HACER, PEGADO A ELLA.
+   *
+   * Eran dos frases más, sueltas y del mismo tamaño que las otras
+   * tres, debajo de todo: la cuarta de las ocho de las que se
+   * quejó el cliente. Dicen por qué falta la comparación --no la
+   * hacen-- así que su sitio es la nota del pie, con las demás
+   * advertencias. No se pierde ninguna: la nota se abre desde el
+   * propio bloque y las dos siguen escritas con todas sus
+   * palabras.
+   *
+   * Son excluyentes: o no hay periodo anterior, o lo hay y está
+   * vacío.
+   */
+  const apunteDeLaComparacion =
+    entraron <= 0
+      ? null
+      : sinConQueComparar
+        ? `«${datos?.etiqueta ?? "Desde el principio"}» no se compara con nada: es todo lo que hay. Elija arriba un periodo más corto para ver si va mejor o peor.`
+        : comparar && hitosAntes && !hayAntes
+          ? `En ${datos?.etiquetaAnterior ?? "el periodo anterior"} no hay nadie con quien comparar, así que esta vez no se compara: los datos empiezan después.`
+          : null;
+
+  /**
+   * LA LETRA PEQUEÑA, PARTIDA EN DOS: UNA POR DIBUJO.
+   *
+   * Estuvo en cuatro sitios, después junta en una sola revelación
+   * cerrada --«Cómo se leen estos dos dibujos»-- al pie del bloque
+   * que tenía el embudo y las columnas lado a lado. Con la gráfica
+   * arriba y el embudo abajo (cliente, 21 sep 2026) esa revelación
+   * habría quedado a medio metro de uno de los dos, así que cada
+   * dibujo se lleva la suya al pie de su caja. Ocultar, nunca
+   * eliminar: no se pierde ninguna frase.
+   *
+   * La de «Los porcentajes del embudo son sobre las N personas que
+   * entraron» sale de aquí y pasa a la vista, en la descripción del
+   * embudo: un porcentaje con la base guardada en algo cerrado es
+   * un porcentaje sin base. Y la de los días de media, a la cuarta
+   * celda de la tira, que la enseña siempre.
+   */
+  const notasDeLaGrafica = useMemo(() => {
+    if (!hayColumnas || entraron <= 0) return [];
+    return [
+      cuadran
+        ? `Las cifras de encima de las columnas suman ${
+            entraron === 1 ? "la persona que entró" : `las ${n(entraron)} personas que entraron`
+          }: es la misma gente del embudo de abajo, repartida por el día en que entró.`
+        : "Arriba, qué día entró cada persona; abajo, en el embudo, dónde se queda. Cada persona está contada una sola vez y en un solo color.",
+      ...notasColumnas,
+    ];
+  }, [hayColumnas, entraron, cuadran, notasColumnas]);
+
+  /**
+   * Y la del embudo, en el orden de quien abre: primero lo que le
+   * falta a lo que SÍ se ve --por qué no hay comparación, en qué
+   * paso se queda la gente-- y después qué es cada paso y cada
+   * cifra de la tira. Las tres explicaciones de las casillas que
+   * había («Siguen en proceso», «Se inscribe», «Dijeron que no»)
+   * viven aquí, además de en el `title` de su celda, porque en un
+   * celular no hay puntero que lo enseñe.
+   */
+  const notasDelEmbudo = useMemo(() => {
+    if (entraron <= 0 || hitos.length === 0) return [];
+    const lista: string[] = [];
+    if (apunteDeLaComparacion) lista.push(apunteDeLaComparacion);
+    if (cuelloMayor) lista.push(`Donde más gente se queda: ${cuelloMayor}`);
+    lista.push(
+      "Los cuatro pasos del embudo: entraron, fueron contactadas, tienen sus datos completos («Con datos») y se inscribieron. Cada porcentaje es cuánta gente de la que entró llegó a ese paso.",
+      "Siguen en proceso: de los que entraron en el periodo, no se han inscrito y tampoco han dicho que no. Son los que se pueden trabajar hoy.",
+      "Se inscribe: llegaron a inscribirse, estén hoy estudiando el curso o no. Quien entró antes del periodo y se inscribió en estos días no cuenta aquí: eso lo dice «Ritmo de inscripción».",
+      "Dijeron que no: marcados como no interesados. Salen del embudo. Cuentan como contactados, así que están dentro de «contactados, sin datos».",
+      "Tardan en inscribirse: la media sale de quienes se inscribieron en el periodo, entraran cuando entraran; no es la misma gente de las otras tres cifras.",
+    );
+    return lista;
+  }, [entraron, hitos, apunteDeLaComparacion, cuelloMayor]);
+
   const hayFiltro = Boolean(
     convenioId || accionFormacionId || grupoId || asesorId || departamentoSepId,
   );
@@ -1114,13 +1740,22 @@ export function PanelProceso({
   /// Verde lo completo y ámbar lo que falta: son un estado bueno
   /// y uno por resolver, no dos categorías cualesquiera, y con
   /// los colores de serie no se distinguía cuál era cuál.
-  const donutDatos: PorcionDonut[] = [...(metricas?.porEstado ?? [])]
-    .sort((a, b) => b.valor - a.valor)
-    .map((e) => ({
-      etiqueta: e.etiqueta,
-      valor: e.valor,
-      color: /completo/i.test(e.etiqueta) ? "var(--exito)" : "var(--aviso)",
-    }));
+  ///
+  /// SIN NINGUNA FICHA, NINGUNA PORCIÓN. Con «Hoy» y nadie dentro
+  /// llegaban las dos etapas a cero y la leyenda escribía «0,0 %»
+  /// dos veces: un porcentaje sobre cero personas, justo lo que la
+  /// tira de arriba se cuida de no pintar nunca. Vacío, la dona
+  /// dice «Sin fichas todavía.».
+  const porEstado = metricas?.porEstado ?? [];
+  const donutDatos: PorcionDonut[] = porEstado.some((e) => e.valor > 0)
+    ? [...porEstado]
+        .sort((a, b) => b.valor - a.valor)
+        .map((e) => ({
+          etiqueta: e.etiqueta,
+          valor: e.valor,
+          color: /completo/i.test(e.etiqueta) ? "var(--exito)" : "var(--aviso)",
+        }))
+    : [];
 
   /// Los grupos de la acción abierta, para el desglose.
   /**
@@ -1451,174 +2086,86 @@ export function PanelProceso({
         className={`space-y-4 transition-opacity ${claseCargando}`}
         aria-busy={cargando && Boolean(control)}
       >
-        {/* ── 2 · El embudo ── */}
-        <Bloque
-          estirado
-          titulo="Embudo de inscripción"
-          /// LOS CUATRO PASOS, NOMBRADOS.
-          ///
-          /// Decía «de una etapa a la siguiente» y en la pantalla
-          /// no había ningún sitio que dijera cuáles son ni
-          /// cuántas (cliente, 21 sep 2026). Nombrarlas aquí
-          /// cuesta un renglón y deja de ser vocabulario del
-          /// oficio.
-          descripcion="Cuántas personas pasan de un paso al siguiente —entraron, contactadas, con sus datos completos, inscritas— y en cuál se detiene el proceso."
-        >
-          {/* EL AVISO, DENTRO DEL BLOQUE Y SIN ATENUAR.
-              Cuando una consulta no vuelve --el 429 del
-              limitador, o sin conexión-- lo que se ve es del
-              corte anterior. Antes el único aviso estaba en la
-              cabecera de la pantalla, hablaba de tiempo («lo que
-              ve es de hace un momento») y no de que las cifras
-              son de OTRO periodo, y quedaba a media pantalla del
-              bloque. Aquí se dice de qué son las cifras, qué es
-              lo que no se pudo traer, y se ofrece reintentar. */}
-          {desfasado && (
-            <p className="mb-4 rounded-xl border border-aviso/30 bg-aviso-suave px-3 py-2 text-[0.78125rem] leading-snug text-aviso">
-              <strong className="font-semibold">
-                {/* QUÉ MITAD ESTÁ VIEJA, y no «el bloque».
-                    Cuando lo que falla es `/resumen` y `/control`
-                    sí vuelve, la mitad derecha SÍ es la pedida
-                    --es la que quien acaba de elegir el filtro va
-                    a leer como respuesta-- y el aviso hablaba de
-                    las dos por igual. */}
-                {mitadDesfasada === "izquierda"
-                  ? "El embudo y las tres casillas no son lo que pidió."
-                  : mitadDesfasada === "derecha"
-                    ? "Las columnas por día no son lo que pidió."
-                    : "Estas cifras no son las que pidió."}
-              </strong>{" "}
-              {/* Con el nombre del periodo tal como lo dice el
-                  desplegable, entre comillas: «son de los últimos
-                  30 días» se tuerce con «Desde el principio» y con
-                  «Un rango de fechas». */}
-              {etiquetaPeriodo && datos?.etiqueta && datos.etiqueta !== etiquetaPeriodo
-                ? `Son las de «${datos.etiqueta}»; no se pudieron traer las de «${etiquetaPeriodo}».`
-                : "Son las de antes de cambiar los filtros; no se pudieron traer las nuevas."}{" "}
-              <button
-                type="button"
-                onClick={() => setIntento((i) => i + 1)}
-                className="font-semibold underline underline-offset-2"
-              >
-                Volver a intentarlo
-              </button>
-            </p>
-          )}
+        {/* ── El aviso de cifras viejas, SIN ATENUAR ──
+            Cuando una consulta no vuelve --el 429 del limitador, o
+            sin conexión-- lo que se ve es del corte anterior. Se
+            dice de qué son las cifras, qué es lo que no se pudo
+            traer, y se ofrece reintentar.
+            ENCIMA DE LA TIRA y no dentro del embudo: ahora habla de
+            tres piezas. La tira (celdas 1 a 3) y el embudo salen de
+            `/resumen`; la cuarta celda y las columnas, de
+            `/control`. */}
+        {desfasado && (
+          <p className="rounded-xl border border-aviso/30 bg-aviso-suave px-3 py-2 text-[0.78125rem] leading-snug text-aviso">
+            <strong className="font-semibold">
+              {/* QUÉ MITAD ESTÁ VIEJA, y no «todo». Cuando lo que
+                  falla es `/resumen` y `/control` sí vuelve, las
+                  columnas SÍ son las pedidas --son las que quien
+                  acaba de elegir el filtro va a leer como
+                  respuesta-- y el aviso hablaba de las dos por
+                  igual. */}
+              {mitadDesfasada === "izquierda"
+                ? "Las cifras de arriba y el embudo no son lo que pidió."
+                : mitadDesfasada === "derecha"
+                  ? "Las columnas por día no son lo que pidió."
+                  : "Estas cifras no son las que pidió."}
+            </strong>{" "}
+            {/* Con el nombre del periodo tal como lo dice el
+                desplegable, entre comillas: «son de los últimos 30
+                días» se tuerce con «Desde el principio» y con «Un
+                rango de fechas». */}
+            {etiquetaPeriodo && datos?.etiqueta && datos.etiqueta !== etiquetaPeriodo
+              ? `Son las de «${datos.etiqueta}»; no se pudieron traer las de «${etiquetaPeriodo}».`
+              : "Son las de antes de cambiar los filtros; no se pudieron traer las nuevas."}{" "}
+            <button
+              type="button"
+              onClick={() => setIntento((i) => i + 1)}
+              className="font-semibold underline underline-offset-2"
+            >
+              Volver a intentarlo
+            </button>
+          </p>
+        )}
 
-          <div>
-          {/* LAS TRES FRASES, fuera de los dos gráficos: qué
-              pasó, en qué paso se queda más gente, y si mejora o
-              empeora. Son las tres preguntas con las que se abre
-              esta pantalla, y valen aunque no se mire ningún
-              dibujo.
+        {/* ── 2 · Cuatro cifras del periodo ──
+            Sin nadie en el periodo, en su sitio va UNA línea: no
+            hay embudo ni columnas que dibujar, y cuatro ceros
+            grandes --o «0 %» sobre «0 de 0», que es lo que pintaban
+            los anillos con «Hoy»-- no son un dato. Ver `SinGente`.
+            Solo con las cifras AL DÍA: al pasar de «Hoy» a «Ayer», el
+            «No entró nadie hoy» se quedaba a plena tinta mientras
+            llegaba lo nuevo, contestando por un periodo que ya no
+            está elegido. Mientras tanto va la tira con sus «—», como
+            en cualquier otro cambio. */}
+        {hitos.length > 0 && entraron === 0 && !cifrasPendientes ? (
+          <SinGente hayFiltro={hayFiltro} aviso={resumenDelEmbudo} />
+        ) : (
+          <TiraDelPeriodo celdas={celdas} />
+        )}
 
-              `max-w-[68ch]`: sin medida, a 1.600 px estas frases
-              salían de 137 caracteres en un solo renglón, casi el
-              doble de lo que un ojo sigue sin perder la línea.
-              Ninguno de los tres tableros de referencia deja
-              correr una línea de texto a todo lo ancho. */}
-          <div className={`mb-4 space-y-1 ${claseEmbudo}`}>
-            {resumenDelEmbudo && (
-              <p className="max-w-[68ch] text-[0.84375rem] leading-relaxed text-texto">
-                {resumenDelEmbudo}
-              </p>
-            )}
-            {fraseDelCuello && (
-              <p className="max-w-[68ch] text-[0.84375rem] leading-relaxed text-texto">
-                {fraseDelCuello}
-              </p>
-            )}
-            {fraseDeLaTasa && (
-              <p className="max-w-[68ch] text-[0.84375rem] leading-relaxed text-texto">
-                {fraseDeLaTasa}
-              </p>
-            )}
-            {/* Y SI NO HAY CON QUÉ COMPARAR, EN SU SITIO.
-                Ver `sinConQueComparar`. */}
-            {sinConQueComparar && entraron > 0 && (
-              <p className="max-w-[68ch] text-[0.84375rem] leading-relaxed text-texto-suave">
-                «{datos?.etiqueta ?? "Desde el principio"}» no se compara con nada: es todo lo
-                que hay. Elija arriba un periodo más corto para ver si va mejor o peor.
-              </p>
-            )}
-            {/* Y LO MISMO CUANDO EL PERIODO ANTERIOR ESTÁ VACÍO.
-                Pasa en tres de los nueve periodos --la base
-                arranca el 7 de agosto de 2026, así que julio, los
-                90 días anteriores y los 12 meses anteriores no
-                traen a nadie--: la cabecera dice «Comparando con
-                el mes de antes» y el bloque no enseña una sola
-                comparación, sin decir por qué. */}
-            {!sinConQueComparar && comparar && hitosAntes && !hayAntes && entraron > 0 && (
-              <p className="max-w-[68ch] text-[0.84375rem] leading-relaxed text-texto-suave">
-                En {datos?.etiquetaAnterior ?? "el periodo anterior"} no hay nadie con quien
-                comparar, así que esta vez no se compara: los datos empiezan después.
-              </p>
-            )}
-          </div>
-
-          {/* DOS MITADES DEL MISMO DATO. A la izquierda, dónde se
-              queda la gente --con forma de embudo, que es la
-              figura que el cliente reconoce--; a la derecha, qué
-              día entró cada uno y hasta dónde ha llegado. Con un
-              solo día no hay columnas que pintar y el embudo se
-              queda con todo el ancho. */}
-          {/* LA MISMA REJILLA EN TODOS LOS PERIODOS.
-              Cuando no hay serie por día --«Hoy», «Ayer»-- el
-              embudo se quedaba con la tarjeta entera: la figura
-              se centraba en 1.408 px y dejaba el 84 % de la
-              tarjeta en blanco, sin decir por qué había
-              desaparecido media pantalla. Ahora la columna de la
-              derecha explica que todo el periodo cae en un solo
-              día, y el embudo mide lo mismo siempre.
-
-              `min-w-0` en los dos hijos: sin él, la columna de
-              la rejilla crece hasta el contenido más ancho del
-              gráfico de columnas y arrastra al embudo. A 390 px
-              con «Desde el principio» el bloque entero se salía
-              61 px de la tarjeta, y como la página no tiene
-              barra horizontal, eso no se podía ni alcanzar. */}
-          {/* EL CORTE DE DOS COLUMNAS, A 760 px Y NO A 1.000.
-              Entre 760 y 999 px la rejilla colapsaba a una sola
-              columna y la figura --que tiene tope de 360 px-- se
-              quedaba sola en una franja de 400 px de ancho
-              mientras todo lo demás seguía pegado al margen. A
-              760 px una figura de 280 y un gráfico de 368 ya
-              conviven sin apretarse. */}
-          {hitos.length > 0 && entraron === 0 ? (
-            <SinGente hayFiltro={hayFiltro} />
-          ) : (
-          <div className="grid gap-6 min-[760px]:grid-cols-[minmax(280px,360px)_1fr]">
-            <div className={`min-w-0 ${claseEmbudo}`}>
-              {hitos.length > 0 ? (
-                <EmbudoForma
-                  hitos={hitos}
-                  /// Lo que el gráfico de al lado reserva encima
-                  /// de sus columnas para la cifra: bajando la
-                  /// figura otro tanto, la primera banda arranca
-                  /// en la misma raya que el tope del eje y la
-                  /// punta acaba en la del cero.
-                  sangriaArriba={hayColumnas ? ALTO_CIFRA_COLUMNA : 0}
-                  /// NADA de «antes N» cuando el periodo anterior
-                  /// no trajo a nadie: con «El mes pasado» el
-                  /// embudo escribía «antes 0» en los cuatro
-                  /// pasos y se leía como que se pasó de cero a
-                  /// 136, cuando lo que ocurre es que la base
-                  /// empieza después. La frase de la tasa y la
-                  /// raya del gráfico ya se callaban en ese caso;
-                  /// esto faltaba.
-                  antes={hitosAntes && (hitosAntes[0] ?? 0) > 0 ? hitosAntes : null}
-                  /// Del sello de las cifras, no del desplegable:
-                  /// el «antes N» de cada paso tiene que llamarse
-                  /// como el periodo del que salió.
-                  etiquetaAntes={datos?.etiquetaAnterior ?? null}
-                  meta={meta}
-                />
+        {/* ── 3 · Cómo fue entrando la gente ──
+            «Dejar la gráfica arriba, el embudo abajo» (cliente, 21
+            sep 2026). Iba a la derecha del embudo, en la misma caja,
+            y eso obligaba a los dos dibujos a medir lo mismo y a
+            empezar en la misma raya: 57 px vacíos encima del embudo
+            y el trazado encajonado en media tarjeta. En su propia
+            caja tiene casi todo el ancho y el embudo no guarda aire
+            para nadie.
+            Solo existe si hay algo que repartir por fechas. Con un
+            solo día --«Hoy», «Ayer», o un filtro que deja a todos
+            en un día-- NO se pinta una caja con media tarjeta vacía
+            que lo explique: la frase va bajo la figura del embudo.
+            Mientras no hay dato, el hueco mide lo que medirá la
+            gráfica, para que la pantalla no salte. */}
+        {(sinDatosTodavia || (hayColumnas && entraron > 0)) && (
+          <Bloque
+            titulo="Cómo fue entrando la gente"
+            descripcion="Cuándo entró cada persona y hasta dónde ha llegado."
+          >
+            <div className={claseColumnas}>
+              {sinDatosTodavia ? (
+                <HuecoDeLaGrafica />
               ) : (
-                <HuecoDelEmbudo />
-              )}
-            </div>
-            <div className={`min-w-0 ${claseColumnas}`}>
-              {hayColumnas ? (
                 <EmbudoPorDia
                   dias={porDia}
                   promedioAnterior={promedioAnterior}
@@ -1632,129 +2179,178 @@ export function PanelProceso({
                   /// se queda corta y ahí sí se dice.
                   serieRecortada={serieRecortada && sumaPorDia < entraron}
                   ventana={control?.ventana.instantes?.actual ?? null}
+                  /// Su letra pequeña no se pinta dentro del
+                  /// gráfico: sube y se junta con la nota del
+                  /// cuadre en la revelación del pie de esta caja.
+                  /// Ver `recibirNotas`.
+                  alCambiarNotas={recibirNotas}
                 />
-              ) : (
-                <SinColumnas
-                  cuando={datos?.etiqueta ?? null}
-                  hayFiltro={hayFiltro}
-                  cuantos={sumaPorDia}
-                  dia={porDia[0] ? fecha(porDia[0].dia) : null}
-                />
+              )}
+              {notasDeLaGrafica.length > 0 && (
+                <div className="mt-3">
+                  <Revelacion
+                    titulo="Cómo se lee la gráfica"
+                    notas={notasDeLaGrafica}
+                    /// La caja va a todo el ancho, así que las
+                    /// notas se reparten en columnas como antes:
+                    /// apiladas dejaban 1.300 px de blanco al lado.
+                    rejilla={rejillaDeCeldas(notasDeLaGrafica.length)}
+                  />
+                </div>
               )}
             </div>
-          </div>
-          )}
-
-          {/* LA FRASE QUE AMARRA LAS DOS MITADES.
-              Es la respuesta a «que todo cuadre», dicha en
-              palabras y comprobable sumando a mano: sin ella, dos
-              maneras de contar la misma gente --cuántos llegaron
-              a cada paso y dónde se quedaron-- se leen como peras
-              y manzanas.
-
-              Pero solo se AFIRMA cuando se ha comprobado. Las dos
-              mitades vienen de dos consultas distintas, y basta
-              con que una se quede atrás para que la frase sea
-              falsa impresa: con el filtro de grupo llegó a decir
-              «suman las 5 personas» sobre unas columnas que
-              sumaban 131. Cuando no cuadra, se dice qué es cada
-              mitad, que informa sin prometer una aritmética que
-              en ese momento no se sostiene. Ver `cuadran`. */}
-          {hayColumnas && entraron > 0 && (
-            <p
-              className={`mt-3 max-w-[68ch] text-[0.6875rem] leading-snug text-texto-suave ${claseDesfasado}`}
-            >
-              {cuadran ? (
-                <>
-                  Los cuatro colores de las columnas suman{" "}
-                  {entraron === 1
-                    ? "la persona que entró"
-                    : `las ${n(entraron)} personas que entraron`}
-                  : el embudo de la izquierda es la suma de las barras de la derecha.
-                </>
-              ) : (
-                <>
-                  A la izquierda, dónde se queda la gente; a la derecha, qué día entró cada
-                  una. Cada persona está contada una sola vez y en un solo color.
-                </>
-              )}
-            </p>
-          )}
-
-          {/* Las tres casillas y la frase van FUERA del gráfico:
-              con la vista por día desaparecían, porque vivían
-              dentro del embudo del periodo. */}
-          <div className={claseEmbudo}>
-            <TarjetasDelEmbudo notas={notas} etiquetaAntes={datos?.etiquetaAnterior ?? null} />
-          </div>
-          </div>
-        </Bloque>
-
-        {/* ── 3 · Lo que hay que hacer hoy ──
-
-            Segundo puesto y no noveno: es lo unico de la
-            pantalla que se HACE. Lo de arriba y lo de abajo
-            describe —cuantos entraron, donde se caen, de donde
-            vienen— y esto dice que hacer, con el nombre de a
-            quien llamar.
-
-            Va justo debajo del embudo a proposito: el embudo
-            enseña donde se cae la gente y esto dice como
-            recogerla. Al final se leia despues de todo lo que
-            solo se mira, que es como se perdio la primera vez. */}
-        <PendientesDeHoy control={control ?? null} />
-
-        {/* ── 4 · Las tres tasas y el tiempo ── */}
-        <div className="grid gap-4 min-[620px]:grid-cols-2 min-[1120px]:grid-cols-4">
-          <Bloque estirado>
-            <Medidor
-              porcentaje={entraron > 0 ? (inscritos / entraron) * 100 : 0}
-              cifra={inscritos}
-              etiqueta="Tasa de inscripción"
-              detalle={`de ${n(entraron)} llegaron a inscribirse.`}
-            />
           </Bloque>
-          <Bloque estirado>
-            <Medidor
-              porcentaje={entraron > 0 ? (contactados / entraron) * 100 : 0}
-              cifra={contactados}
-              etiqueta="Tasa de contacto"
-              detalle={`de ${n(entraron)} ya fueron contactados.`}
-            />
-          </Bloque>
-          <Bloque estirado>
-            <Medidor
-              porcentaje={entraron > 0 ? (perdidos / entraron) * 100 : 0}
-              /* Verde hasta el 15 %, ámbar hasta el 30 y rojo por
-                 encima. En rojo fijo, un 4,7 % de pérdida —que es
-                 bueno— se leía como una alarma. */
-              color={
-                perdidos / Math.max(entraron, 1) <= 0.15
-                  ? "var(--exito)"
-                  : perdidos / Math.max(entraron, 1) <= 0.3
-                    ? "var(--aviso)"
-                    : "var(--error)"
+        )}
+
+        {/* ── 4 · El embudo, al lado de lo que hay que hacer hoy ──
+            «El embudo abajo con Qué atender primero» (cliente, 21
+            sep 2026). El embudo enseña en qué paso se queda la
+            gente y la lista dice a quién llamar para recogerla:
+            juntos se leen como pregunta y respuesta. La lista era
+            la única cosa de la pantalla que se HACE, y estaba una
+            fila entera más abajo.
+            MITAD Y MITAD, CON LA MISMA REJILLA QUE LAS FILAS DE
+            ABAJO. Fue un embudo de 420 px con la lista ocupando el
+            resto, y al verlo: «Dale más espacio al embudo, o sea a
+            lo ancho, Claude; quizás alineado como está: Por acción
+            de formación / Por modalidad» (cliente, 21 sep 2026).
+            Con la misma rejilla y el mismo corte que «Por convenio»
+            / «Por modalidad» --dos columnas iguales desde 1.000 px--
+            las columnas de las dos filas caen en el mismo sitio y la
+            pantalla se lee alineada de arriba abajo. Las dos cajas
+            miden lo mismo de alto: la rejilla estira a las dos.
+            Por debajo de 1.000 se apilan EN EL MISMO ORDEN DEL
+            MARCADO, embudo y después lista: sin `order` de CSS,
+            porque un lector de pantalla tiene que leer lo mismo que
+            se ve y el orden lo pidió él.
+            Sin embudo (nadie entró) la fila pasa a una columna y la
+            lista ocupa todo el ancho. Mientras la lista no ha
+            llegado se guarda su media fila, para que el embudo no
+            ocupe la fila entera medio segundo y luego encoja. */}
+        <div className={`grid gap-4 ${hayEmbudo ? "min-[1000px]:grid-cols-2" : ""}`}>
+          {hayEmbudo && (
+            <Bloque
+              estirado
+              titulo="Embudo de inscripción"
+              /// LA BASE DE LOS PORCENTAJES, A LA VISTA.
+              ///
+              /// «Los porcentajes del embudo son sobre las N que
+              /// entraron» estaba guardado en la revelación cerrada:
+              /// un porcentaje con la base escondida es un
+              /// porcentaje sin base. Y «En rojo, el paso donde más
+              /// gente se queda» es lo que queda del rótulo y el
+              /// titular de 16 px que iban encima: el 49 ya está
+              /// escrito en rojo en su cuello.
+              /// Los nombres de los cuatro pasos, que decía la
+              /// descripción de antes, ya están escritos en la
+              /// figura y además en la nota 3 de su letra pequeña.
+              /// SIN el tope de 58ch de otras descripciones: en
+              /// media fila la frase cabe en un renglón (unos 470
+              /// px de 718 a 1.600 y de 601 a 1.366), y con el tope
+              /// partía en dos dejando media cabecera vacía.
+              /// `text-pretty` para el celular, donde sí parte: que
+              /// no deje una palabra sola en el último renglón.
+              descripcion={
+                <span className="block text-pretty">
+                  {/* Mientras no ha llegado el dato, sin cifra: «las
+                      0 que entraron» es falso y dura medio segundo. */}
+                  {sinDatosTodavia
+                    ? "Porcentajes sobre las personas que entraron."
+                    : entraron === 1
+                      ? "Porcentajes sobre la persona que entró."
+                      : `Porcentajes sobre las ${n(entraron)} que entraron.`}
+                  {cuelloMayor && entraron > 0 ? " En rojo, el paso donde más gente se queda." : ""}
+                </span>
               }
-              cifra={perdidos}
-              etiqueta="Tasa de pérdida"
-              detalle={`de ${n(entraron)} se marcaron como no interesados.`}
-            />
-          </Bloque>
-          <Bloque estirado>
-            <div>
-              <p className="text-[0.65625rem] font-bold tracking-[0.08em] text-texto-suave uppercase">
-                De la primera entrada a la inscripción
-              </p>
-              <p className="mt-2 text-[1.5rem] font-bold leading-none tracking-[-0.025em] tabular-nums text-titulo">
-                {control?.diasHastaInscribir != null
-                  ? `${Math.round(control.diasHastaInscribir)} días`
-                  : "—"}
-              </p>
-              <p className="mt-1 text-[0.71875rem] text-texto-suave">
-                de media desde que llega una persona hasta que se inscribe.
-              </p>
+            >
+              {/* `h-full flex-col` y la revelación con `mt-auto`: si
+                  la lista de al lado fuera más alta, el aire queda
+                  entre la figura y su letra pequeña y la revelación
+                  sigue al pie de la caja, donde está la de la
+                  gráfica. */}
+              <div className={`flex h-full flex-col ${claseEmbudo}`}>
+                {hitos.length > 0 ? (
+                  /* EL CONO, NO LAS FRANJAS. «¿Un embudo no es como la
+                     captura que te envío? El que tenemos se ve raro»
+                     (cliente, 21 sep 2026, con la imagen de un embudo
+                     clásico). EmbudoForma tenía franjas claras entre
+                     paso y paso que se leían como pasos de más --cuatro
+                     pasos, siete franjas--, todo del mismo verde y el
+                     fondo plano. EmbudoCono tiene las mismas props, así
+                     que el cambio es este: cuatro piezas de color de
+                     etapa, elipse arriba, punta abajo. EmbudoForma se
+                     queda en su archivo: no se borra lo que funciona. */
+                  <EmbudoCono
+                    hitos={hitos}
+                    /// NADA de «antes N» cuando el periodo anterior
+                    /// no trajo a nadie: con «El mes pasado» el
+                    /// embudo escribía «antes 0» en los cuatro
+                    /// pasos y se leía como que se pasó de cero a
+                    /// 136, cuando lo que ocurre es que la base
+                    /// empieza después.
+                    antes={hayAntes ? hitosAntes : null}
+                    /// Del sello de las cifras, no del desplegable:
+                    /// el «antes N» de cada paso tiene que llamarse
+                    /// como el periodo del que salió.
+                    etiquetaAntes={datos?.etiquetaAnterior ?? null}
+                    /// Debajo de la figura y en letra pequeña: habla
+                    /// del último paso del embudo. Lejos del «2 %»
+                    /// de la tira y en otra caja, con su base
+                    /// escrita («3.690 inscritos… Van 80, el 2 %»).
+                    meta={meta}
+                  />
+                ) : (
+                  <HuecoDelEmbudo />
+                )}
+                {/* `!desfasado`: esta frase mezcla las DOS respuestas
+                    --el nombre del periodo sale de `/resumen` y «no hay
+                    columnas» de `/control`--. Con una de las dos atrás
+                    llegó a afirmar «“Desde el principio” cabe en un
+                    solo día» (medido el 21 sep 2026, con un 429 en
+                    `/resumen`). Si no cuadran, se calla. */}
+                {hitos.length > 0 && !hayColumnas && !desfasado && (
+                  <SinColumnas
+                    cuando={datos?.etiqueta ?? null}
+                    hayFiltro={hayFiltro}
+                    cuantos={sumaPorDia}
+                    dia={porDia[0] ? fecha(porDia[0].dia) : null}
+                  />
+                )}
+                {notasDelEmbudo.length > 0 && (
+                  <div className="mt-auto pt-3">
+                    <Revelacion
+                      titulo="Cómo se leen las cifras y el embudo"
+                      notas={notasDelEmbudo}
+                      /// La caja es media fila desde 1.000 px: entre
+                      /// 1.000 y 1.300 mide menos de 570 útiles y va
+                      /// una columna; desde 1.300, dos de unos 280.
+                      /// Apilada, por debajo de 1.000, va a todo el
+                      /// ancho y caben dos desde 620.
+                      rejilla="grid-cols-1 min-[620px]:grid-cols-2 min-[1000px]:grid-cols-1 min-[1300px]:grid-cols-2"
+                    />
+                  </div>
+                )}
+              </div>
+            </Bloque>
+          )}
+
+          {/* LA LISTA, ESTIRADA AL ALTO DEL EMBUDO.
+              Este contenedor estira a su hijo (`*:grow`) para que
+              las dos cajas de la fila midan lo mismo. Lo que falta
+              está en `pendientes-de-hoy.tsx` y no se toca aquí: que
+              su `Bloque` lleve `estirado` y que la lista reparta el
+              alto entre sus filas desde 1.000 px, que es donde esta
+              fila pasa a dos columnas.
+              Su frase de alcance --«No dependen del periodo elegido
+              arriba»-- va siempre a la vista y NO se pliega nunca:
+              con «Últimos 7 días» el 23 de la lista coincide con el
+              del embudo y sin esa frase vuelve la pregunta del 20 de
+              septiembre. */}
+          {control && (
+            <div className="flex min-w-0 flex-col *:grow">
+              <PendientesDeHoy control={control} />
             </div>
-          </Bloque>
+          )}
         </div>
 
         {/* ── 5 · De qué está hecha esa gente ── */}
@@ -1855,7 +2451,27 @@ export function PanelProceso({
 
         {/* ── 7 · A qué ritmo entra y por dónde ── */}
         <div className="grid gap-4 min-[1000px]:grid-cols-2">
+          {/* LAS DOS TARJETAS DE LA FILA MIDEN IGUAL, y el dibujo
+              de dentro NO crece con ellas.
+              Son las dos cosas a la vez, y hubo que separarlas
+              porque venían pegadas. El defecto viejo era que la
+              rejilla estiraba esta tarjeta hasta los 908 px del
+              vecino --dona de 188 px más la lista de canales-- y
+              el dibujo se comía los 718 px que le sobraban: la
+              curva salía exagerada. Se arregló fijando el alto
+              del dibujo (`ALTO_SERIE`), y de paso se dejó la
+              tarjeta suelta con `self-start`, que dejaba las dos
+              de la fila desparejas: 332 contra 366 px, medido.
+              «Estos dos al mismo tamaño, veo con menos altura
+              Ritmo de inscripción» (cliente, 21 sep 2026).
+              Así que la tarjeta SÍ se estira --`estirado`-- y lo
+              que sobra queda como aire debajo del dibujo, que es
+              lo que pidió. El dibujo sigue midiendo 160 px en
+              cualquier fila, que es lo que permite comparar la
+              misma curva de una pantalla a otra. */}
+          <div className="min-w-0">
           <Bloque
+            estirado
             titulo="Ritmo de inscripción"
             /// A QUIÉN CUENTA, y en qué se diferencia del embudo.
             ///
@@ -1871,6 +2487,7 @@ export function PanelProceso({
           >
             <Serie datos={control?.serie ?? []} cuando={cuandoEnFrase} />
           </Bloque>
+          </div>
 
           <Bloque
             titulo="De dónde vienen"
@@ -1949,6 +2566,7 @@ export function PanelProceso({
                   valor: d.total,
                 }))}
               sufijo=" personas"
+              sufijoUno=" persona"
               maximoFilas={8}
               vacio="Sin personas en el periodo."
             />
@@ -1986,7 +2604,6 @@ export function PanelProceso({
   );
 }
 
-/** El ritmo, como área. */
 /**
  * El ritmo de inscripción, con sus cifras.
  *
@@ -1995,7 +2612,114 @@ export function PanelProceso({
  * datos en cada punta?»-- y encima dejaba media tarjeta en blanco
  * porque el alto estaba clavado en 140 px mientras el bloque de
  * al lado la estiraba (cliente, 20 sep 2026).
+ *
+ * Y después se pasó al otro lado: con `min-h-[150px] grow` el
+ * dibujo se comía TODO el alto que le dejaba su vecino de fila
+ * --medido a 1.600 px: 718 px de alto para nueve puntos-- y con
+ * `preserveAspectRatio="none"` sobre un `viewBox` de 100 unidades
+ * eso estira la curva en vertical: tres días parecidos daban un
+ * techo plano de trapecio y el punto del mejor día salía ovalado.
+ * «No exageres con esa gráfica, debe ser al mismo tamaño de De
+ * dónde vienen. En las puntas, que supongo que debe haber datos,
+ * es donde te dije que colocaras los datos» (cliente, 21 sep
+ * 2026).
  */
+
+/// EL ALTO DEL DIBUJO: FIJO, EN PÍXELES Y HONESTO.
+///
+/// 160 px es lo que miden los dibujos de esta pantalla --la dona
+/// del vecino son 188, la figura del embudo 238-- y sobre todo es
+/// un alto que NO depende de lo que mida el bloque de al lado. La
+/// misma curva no puede verse de una manera en una fila y de otra
+/// en otra: eso no se puede comparar de memoria, que es para lo
+/// que se mira un tablero.
+const ALTO_SERIE = 160;
+/// Aire arriba, para que el punto del mejor día no se corte contra
+/// el canto: la cima caía en y=0 y el círculo se pintaba medio
+/// fuera del dibujo.
+const AIRE_SERIE = 12;
+/// Los puntos, en píxeles y en HTML --no dentro del `svg`--
+/// porque el dibujo sigue estirándose a lo ancho (el eje de x es
+/// tiempo y ocupa lo que haya) y ahí dentro un círculo se
+/// convertiría en un óvalo, que es lo que pasaba.
+const PUNTO_PUNTA = 7;
+const PUNTO_MEJOR = 9;
+
+/**
+ * UNA PUNTA DE LA CURVA: su punto, su fecha y su cifra.
+ *
+ * La escala eran dos cifras sueltas pegadas al canto derecho --la
+ * cima arriba y un «0» abajo-- que no decían de qué día hablaba
+ * ninguna. Lo que hacía falta es lo que se pidió dos veces: el
+ * dato EN la punta. A la izquierda el primer día, a la derecha el
+ * último, cada uno con su fecha.
+ *
+ * El rótulo va ENCIMA de su punto cuando hay sitio y debajo
+ * cuando el punto está pegado al canto de arriba. Encima es donde
+ * no hay tinta: el relleno del área queda siempre por debajo de
+ * la curva.
+ */
+function PuntaDeSerie({
+  lado,
+  x,
+  y,
+  dia,
+  valor,
+}: {
+  lado: "izquierda" | "derecha" | "centro";
+  /// En % del ancho: el eje de x es tiempo y se estira con la
+  /// tarjeta.
+  x: number;
+  /// En píxeles desde arriba, que es como se dibuja la curva.
+  y: number;
+  dia: string;
+  valor: number;
+}) {
+  const arriba = y > 26;
+  /// El rótulo se ancla al canto de su lado --que es justo donde
+  /// cae su punto, en x=0 y en x=100-- así que nunca se sale de la
+  /// tarjeta. Con un solo día el punto va centrado y el rótulo
+  /// también.
+  const anclaje =
+    lado === "centro" ? { left: "50%" } : lado === "izquierda" ? { left: 0 } : { right: 0 };
+  const corrimientos = [
+    lado === "centro" ? "translateX(-50%)" : "",
+    arriba ? "translateY(-100%)" : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
+  return (
+    <>
+      <span
+        className="pointer-events-none absolute block rounded-full"
+        style={{
+          left: `${x}%`,
+          top: y,
+          width: PUNTO_PUNTA,
+          height: PUNTO_PUNTA,
+          /// Centrado en su punto, y con un halo del color de la
+          /// tarjeta para que se lea sobre el relleno del área.
+          transform: "translate(-50%, -50%)",
+          background: SERIE.uno,
+          boxShadow: "0 0 0 2px var(--superficie)",
+        }}
+        aria-hidden
+      />
+      <span
+        className="pointer-events-none absolute text-[0.625rem] leading-tight whitespace-nowrap tabular-nums"
+        style={{
+          ...anclaje,
+          top: arriba ? y - 8 : y + 8,
+          transform: corrimientos || undefined,
+        }}
+      >
+        <span className="text-texto-suave">{dia} · </span>
+        <span className="font-semibold text-titulo">{n(valor)}</span>
+      </span>
+    </>
+  );
+}
+
 function Serie({
   datos,
   cuando,
@@ -2017,24 +2741,37 @@ function Serie({
   const total = datos.reduce((t, d) => t + d.total, 0);
   const cima = Math.max(1, ...datos.map((d) => d.total));
   const mejor = datos.reduce((a, b) => (b.total > a.total ? b : a));
-  const ancho = 100;
-  const alto = 100;
-  const paso = datos.length > 1 ? ancho / (datos.length - 1) : 0;
-  const en = (i: number, v: number) => ({ x: i * paso, y: alto - (v / cima) * alto });
-  const puntos = datos.map((d, i) => `${en(i, d.total).x},${en(i, d.total).y}`);
-  const area = `0,${alto} ${puntos.join(" ")} ${(datos.length - 1) * paso},${alto}`;
-  const iMejor = datos.indexOf(mejor);
-  const pMejor = en(iMejor, mejor.total);
+  /// Con un solo día no hay curva que trazar: el punto va al medio
+  /// y lleva UN rótulo, no dos iguales encimados.
+  const unSoloDia = datos.length === 1;
+  const paso = unSoloDia ? 0 : 100 / (datos.length - 1);
+  const en = (i: number, v: number) => ({
+    x: unSoloDia ? 50 : i * paso,
+    y: AIRE_SERIE + (1 - v / cima) * (ALTO_SERIE - AIRE_SERIE),
+  });
+  const puntos = datos.map((d, i) => {
+    const p = en(i, d.total);
+    return `${p.x},${p.y}`;
+  });
+  const area = `${en(0, 0).x},${ALTO_SERIE} ${puntos.join(" ")} ${
+    en(datos.length - 1, 0).x
+  },${ALTO_SERIE}`;
+  const pMejor = en(datos.indexOf(mejor), mejor.total);
+  const primero = datos[0];
   const ultimo = datos[datos.length - 1];
+  const pPrimero = en(0, primero.total);
+  const pUltimo = en(datos.length - 1, ultimo.total);
 
   return (
-    <div className="flex h-full flex-col">
+    <div className="flex flex-col">
       {/* DICE A QUIÉN CUENTA, en su propio renglón.
           «72 inscritos en el periodo» convivía en la misma
           pantalla con «32 se inscribieron» del embudo, y ninguna
           de las dos decía de qué gente hablaba: no había forma de
-          saber cuál llevar a la reunión. */}
-      <p className="max-w-[68ch] text-[0.84375rem] leading-relaxed text-texto">
+          saber cuál llevar a la reunión.
+          Aquí está también la ALTURA de la cima --el mejor día con
+          su cifra-- que es lo que decía el «11» suelto del canto. */}
+      <p className="max-w-[54ch] text-[0.84375rem] leading-relaxed text-pretty text-texto">
         <strong className="font-semibold text-titulo">{n(total)}</strong>{" "}
         {total === 1 ? "persona se inscribió" : "personas se inscribieron"} {cuando}, hayan
         entrado cuando hayan entrado · el mejor día fue el{" "}
@@ -2042,15 +2779,20 @@ function Serie({
         {n(mejor.total)}.
       </p>
 
-      <div className="relative mt-3 min-h-[150px] grow">
-        {/* La cima, escrita: sin ella la curva no tiene escala. */}
-        <span className="absolute top-0 right-0 text-[0.625rem] text-texto-suave tabular-nums">
-          {n(cima)}
-        </span>
-        <span className="absolute right-0 bottom-0 text-[0.625rem] text-texto-suave tabular-nums">
-          0
-        </span>
-        <svg viewBox={`0 0 ${ancho} ${alto}`} preserveAspectRatio="none" className="h-full w-full">
+      {/* EL DIBUJO, CON ALTO PROPIO.
+          Sin `grow` y sin `h-full`: lo que sobre de alto en la
+          fila, que sobre. Ver `ALTO_SERIE`. */}
+      <div className="relative mt-3" style={{ height: ALTO_SERIE }}>
+        {/* `viewBox` de 100 x ALTO_SERIE: el eje de y queda 1 a 1
+            en píxeles --así el relleno y el trazo son los que se
+            dibujaron-- y el de x se estira, que es lo que tiene
+            que hacer un eje de tiempo. */}
+        <svg
+          viewBox={`0 0 100 ${ALTO_SERIE}`}
+          preserveAspectRatio="none"
+          className="h-full w-full"
+          aria-hidden
+        >
           <polygon points={area} fill={SERIE.uno} opacity={0.14} />
           <polyline
             points={puntos.join(" ")}
@@ -2059,19 +2801,62 @@ function Serie({
             strokeWidth={1.4}
             vectorEffect="non-scaling-stroke"
           />
-          {/* El pico y el último día, marcados. */}
-          <circle cx={pMejor.x} cy={pMejor.y} r={1.6} fill={SERIE.uno} vectorEffect="non-scaling-stroke" />
         </svg>
+
+        {/* EL MEJOR DÍA, marcado y sin rótulo: su fecha y su cifra
+            están en el renglón de arriba, y repetirlas aquí eran
+            tres cifras para nueve puntos. */}
+        <span
+          className="pointer-events-none absolute block rounded-full"
+          style={{
+            left: `${pMejor.x}%`,
+            top: pMejor.y,
+            width: PUNTO_MEJOR,
+            height: PUNTO_MEJOR,
+            transform: "translate(-50%, -50%)",
+            background: SERIE.uno,
+            boxShadow: "0 0 0 2px var(--superficie)",
+          }}
+          aria-hidden
+        />
+
+        {/* LAS DOS PUNTAS, CON SU DATO. Con un solo día se queda
+            la del medio; si hubiera que sacrificar una sería la
+            izquierda, porque la derecha es «cómo vamos hoy». */}
+        {unSoloDia ? (
+          <PuntaDeSerie
+            lado="centro"
+            x={pUltimo.x}
+            y={pUltimo.y}
+            dia={fecha(ultimo.dia)}
+            valor={ultimo.total}
+          />
+        ) : (
+          <>
+            <PuntaDeSerie
+              lado="izquierda"
+              x={pPrimero.x}
+              y={pPrimero.y}
+              dia={fecha(primero.dia)}
+              valor={primero.total}
+            />
+            <PuntaDeSerie
+              lado="derecha"
+              x={pUltimo.x}
+              y={pUltimo.y}
+              dia={fecha(ultimo.dia)}
+              valor={ultimo.total}
+            />
+          </>
+        )}
       </div>
 
-      <div className="mt-1 flex justify-between text-[0.625rem] text-texto-suave tabular-nums">
-        <span>
-          {fecha(datos[0].dia)} · {n(datos[0].total)}
-        </span>
-        <span>
-          {fecha(ultimo.dia)} · {n(ultimo.total)}
-        </span>
-      </div>
+      {/* La serie entera en texto, que es la costumbre de los
+          gráficos de esta casa: el svg va `aria-hidden` y los
+          rótulos de las puntas solo dan dos de los nueve días. */}
+      <p className="sr-only">
+        {datos.map((d) => `${fecha(d.dia)}: ${d.total}`).join(". ")}
+      </p>
     </div>
   );
 }

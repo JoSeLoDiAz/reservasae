@@ -51,6 +51,11 @@ const ROTULO_FILTRO: Record<string, string> = {
   grupoId: "Grupo",
   departamentoSepId: "Departamento",
   buscar: "Busca",
+  /// Llegan desde «Qué atender primero», en Control de Inscritos:
+  /// los pendientes traen su filtro puesto, y el chip tiene que
+  /// poder quitarlo como cualquier otro.
+  espera: "Espera",
+  cola: "Cola",
 };
 
 /// El valor legible. Los ids se traducen contra el resumen,
@@ -62,7 +67,24 @@ function nombreDeFiltro(
 ): string {
   if (clave === "etapa") return ETIQUETA_ETAPA[valor as Etapa] ?? valor;
   if (clave === "estado") return valor === "COMPLETO" ? "Completos" : "Parciales";
+  /// En días y no en fechas: el enlace dice «lleva más de una
+  /// semana sin la primera llamada», y eso es lo que tiene que
+  /// leerse en el chip para saber qué se está mirando.
+  ///
+  /// Se compara con `String(valor)`: `espera` viaja como NÚMERO
+  /// --son días-- y `valor === "8"` era falso siempre, así que el
+  /// chip caía en el texto genérico.
+  if (clave === "espera") {
+    const dias = String(valor);
+    if (dias === "8") return "más de una semana";
+    if (dias === "15") return "más de dos semanas";
+    return `más de ${dias} días`;
+  }
+  /// Las tres etapas que todavía se trabajan. Dicho en palabras,
+  /// porque «POR_TRABAJAR» es cómo lo llama el servidor.
+  if (clave === "cola") return "sin cerrar todavía";
   if (clave === "asesorId") {
+    if (valor === "NINGUNO") return "Sin asignar";
     return resumen.asesores.find((a) => a.id === valor)?.nombre ?? "Sin asignar";
   }
   if (clave === "accionFormacionId") {

@@ -416,6 +416,19 @@ export class FiltrosParticipantesDto {
   @IsOptional() @IsString() asesorId?: string;
   @IsOptional() @IsString() buscar?: string;
 
+  /// LO QUE TODAVÍA HAY QUE TRABAJAR: las tres primeras etapas.
+  ///
+  /// `tramo: INSCRIPCION` incluye INSCRITO y PERDIDO, que son
+  /// desenlaces: no hay nada que hacer con ellos. `control`
+  /// reparte su cola --`sinAsignar`-- con esta misma condición, y
+  /// sin poder pedirla aquí el enlace de «83 personas no tienen
+  /// asesor» llevaba a una lista más larga que su propia cifra
+  /// (medido el 21 sep 2026: la cifra decía 84 y la lista traía
+  /// también a los inscritos sin asesor).
+  @IsOptional()
+  @IsIn(['POR_TRABAJAR'])
+  cola?: 'POR_TRABAJAR';
+
   /// Si la ficha esta completa o a medias. No es una columna:
   /// se traduce a las diez condiciones que exige el reporte.
   @IsOptional() @IsIn(['COMPLETO', 'PARCIAL']) estado?: 'COMPLETO' | 'PARCIAL';

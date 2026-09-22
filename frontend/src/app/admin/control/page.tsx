@@ -1,13 +1,22 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 
+import { BotonPdf } from "@/components/admin/boton-pdf";
 import { n } from "@/components/admin/graficos";
 import { IndicadorActualizacion } from "@/components/admin/indicador-actualizacion";
 import { Aviso, CLASE_CONTROL } from "@/components/admin/marco-admin";
 import { ComiteMarketing } from "@/components/admin/comite-marketing";
 import { Desplegable } from "@/components/admin/desplegable";
 import { PanelProceso } from "@/components/admin/panel-proceso";
+import {
+  ContextoRecorteDeControl,
+  enlaceAlInforme,
+  PanelReservas,
+} from "@/components/admin/panel-reservas";
+import { PanelTrafico } from "@/components/admin/panel-trafico";
+import { Cargando } from "@/components/admin/piezas";
 import {
   crmApi,
   ETIQUETA_RANGO,
@@ -146,47 +155,164 @@ function textoDuracion(dias: number | null): string {
   return `${n(dias)} ${dias === 1 ? "día" : "días"}`;
 }
 
-/// Las dos pestañas. Antes eran dos entradas del menú que
-/// contaban lo mismo por caminos distintos.
+/// Las TRES pantallas. Antes eran entradas del menú que contaban
+/// lo mismo por caminos distintos.
 /// Con el nombre entero: «Proceso» dentro de un desplegable
 /// rotulado «Qué mirar» no dice qué se está eligiendo (cliente,
 /// 21 sep 2026).
+///
+/// «Tráfico del formulario» entró el 21 sep 2026 por petición del
+/// cliente. Va PRIMERO porque es el orden del camino: el tráfico
+/// a la página pasa antes de que exista el lead, y el proceso de
+/// inscripción empieza cuando ya existe.
+///
+/// «Reservas» entró el mismo día, y va AL FINAL para no mover de
+/// sitio las tres que ya conocen. Es el informe que el cliente
+/// armaba a mano en una hoja de cálculo, y a él lleva el botón «Ver
+/// reservas» del bloque «Cupos apartados por empresas».
 const PESTANAS = [
+  { clave: "trafico", etiqueta: "Tráfico del formulario" },
   { clave: "metas", etiqueta: "Proceso de inscripción" },
   { clave: "comite", etiqueta: "Comité Marketing" },
+  { clave: "reservas", etiqueta: "Reservas" },
 ] as const;
 
 type Pestana = (typeof PESTANAS)[number]["clave"];
 
-export default function PaginaControl() {
-  /// Se recuerda cuál miraba: quien vive en una de las dos no
-  /// tiene por qué volver a elegirla en cada visita.
-  const [pestana, setPestana] = useState<Pestana>("metas");
+function esPestana(v: string | null): v is Pestana {
+  return PESTANAS.some((p) => p.clave === v);
+}
 
+const LLAVE_PESTANA = "control:pestana";
+
+/**
+ * La página, dentro de un `Suspense`.
+ *
+ * `useSearchParams` en una página de cliente OBLIGA a envolverla: sin
+ * el `Suspense`, `next build` no puede prerenderizarla y la
+ * compilación de producción se cae. En desarrollo no se nota, que es
+ * como se cuela. El respaldo es el mismo «Cargando» del resto del
+ * panel, sin cifras falsas: dura lo que tarda en hidratar.
+ */
+export default function PaginaControl() {
+  return (
+    <Suspense fallback={<Cargando que="Cargando Control de Inscritos…" />}>
+      <ContenidoControl />
+    </Suspense>
+  );
+}
+
+function ContenidoControl() {
+  /**
+   * LA PANTALLA LA DICE LA DIRECCIÓN, SIEMPRE.
+   *
+   * Antes se leía `?pantalla` de `window.location` UNA vez, al montar.
+   * Un enlace a `/admin/control?pantalla=reservas` pulsado DESDE
+   * Control es la misma ruta: Next no vuelve a montar la página, el
+   * parámetro cambiaba en la barra y la pantalla se quedaba en
+   * «Proceso de inscripción». Es el «ver reservas no funciona» del
+   * cliente (21 sep 2026), y la razón por la que el enlace del
+   * tráfico daba un rodeo por `/admin/trafico`. `useSearchParams` se
+   * entera de cada cambio de la dirección --un enlace, el botón
+   * Atrás, un `pushState`--, así que ya no hay nada que copiar a un
+   * estado ni que acordarse de volver a leer.
+   */
+  const direccion = useSearchParams();
+  const pedida = direccion.get("pantalla");
+  const pestana: Pestana = esPestana(pedida) ? pedida : "metas";
+
+  /**
+   * EL TÍTULO DE LA PESTAÑA DEL NAVEGADOR, TAMBIÉN.
+   *
+   * El h1 ya dice el informe elegido, pero la pestaña seguía en
+   * «Convoca CRM» en las cuatro pantallas: con dos informes abiertos
+   * en dos pestañas no había forma de saber cuál era cuál, y era lo
+   * otro que podía querer decir «¿por qué no cambia el título?»
+   * (cliente, 21 sep 2026). Se restaura al salir para no dejarle el
+   * nombre de un informe a la pantalla siguiente.
+   */
   useEffect(() => {
+    const antes = document.title;
+    const nombre = PESTANAS.find((p) => p.clave === pestana)?.etiqueta ?? "Control de Inscritos";
+    document.title = `${nombre} · Control de Inscritos · Convoca CRM`;
+    return () => {
+      document.title = antes;
+    };
+  }, [pestana]);
+
+  /**
+   * SIN `?pantalla`, MANDA LO RECORDADO: quien vive en una pantalla
+   * no tiene por qué volver a elegirla en cada visita.
+   *
+   * Se escribe EN LA DIRECCIÓN, con `replaceState`, y no en un
+   * estado aparte: si la pantalla recordada viviera solo en un
+   * estado, «Atrás» desde el informe volvía a `/admin/control` a
+   * secas y aterrizaba otra vez en el informe --lo recordado--, no
+   * en la pantalla de la que se venía. Con la pantalla siempre en la
+   * dirección, cada paso del historial sabe cuál era.
+   *
+   * Se lee en un efecto y no al crear el estado: `localStorage` no
+   * existe en el servidor, y leerlo al pintar sería un desajuste de
+   * hidratación.
+   */
+  useEffect(() => {
+    if (esPestana(pedida)) return;
+    let guardada: string | null = null;
     try {
-      const guardada = window.localStorage.getItem("control:pestana");
-      /// La regla pide no llamar a `setState` dentro de un efecto,
-      /// y aquí es a propósito: leer `localStorage` al crear el
-      /// estado se ejecutaría también en el servidor --donde no
-      /// hay ventana-- y el cliente pintaría otra pestaña que la
-      /// entregada, que es un desajuste de hidratación. La
-      /// costumbre de Next para esto es justo esta: primero la de
-      /// por defecto, y al montar se cambia a la recordada.
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      if (guardada === "metas" || guardada === "comite") setPestana(guardada);
+      guardada = window.localStorage.getItem(LLAVE_PESTANA);
     } catch {
       // navegador sin almacenamiento: se queda con la de por defecto
     }
-  }, []);
+    const p = new URLSearchParams(window.location.search);
+    p.set("pantalla", esPestana(guardada) ? guardada : "metas");
+    window.history.replaceState(null, "", `${window.location.pathname}?${p.toString()}`);
+  }, [pedida]);
 
+  /**
+   * AL CAMBIAR DE PANTALLA, ARRIBA DEL TODO.
+   *
+   * El botón «Ver reservas» está al fondo de «Proceso de
+   * inscripción». Sin esto se aterrizaba a mitad del informe --el
+   * contenedor que se desplaza es `<main>` y conserva su posición--,
+   * con la tabla de organizaciones a la vista y ni el título ni las
+   * cifras: parecía otra vez que no había pasado nada.
+   */
+  const pestanaAnterior = useRef(pestana);
+  useEffect(() => {
+    if (pestanaAnterior.current === pestana) return;
+    pestanaAnterior.current = pestana;
+    document.getElementById("contenido")?.scrollTo({ top: 0 });
+  }, [pestana]);
+
+  /// Elegir en el desplegable es navegar: se APILA en el historial
+  /// (`pushState`) para que «Atrás» vuelva a la pantalla de antes.
   function cambiar(a: Pestana) {
-    setPestana(a);
     try {
-      window.localStorage.setItem("control:pestana", a);
+      window.localStorage.setItem(LLAVE_PESTANA, a);
     } catch {
       // no poder recordarlo no es motivo para no cambiar
     }
+    /// El informe hereda el gremio y la acción que tenga puestos
+    /// «Proceso»: así el desplegable y el botón «Ver reservas»
+    /// aterrizan en el mismo recorte, y no uno en ADECOPRIA y el otro
+    /// en los dos gremios.
+    ///
+    /// Y a las demás pantallas se llevan los cinco filtros que ya
+    /// estén en la dirección. Se cambiaba a `?pantalla=X` a secas, y
+    /// al volver a «Proceso» desde Tráfico o Comité el gremio elegido
+    /// se había perdido: el mismo defecto del «149 contra 539»
+    /// (21 sep 2026), por otra puerta.
+    const actual = new URLSearchParams(window.location.search);
+    const siguientes = new URLSearchParams({ pantalla: a });
+    for (const llave of ["convenioId", "accionFormacionId", "grupoId", "asesorId", "departamentoSepId"]) {
+      const valor = actual.get(llave);
+      if (valor) siguientes.set(llave, valor);
+    }
+    const destino =
+      a === "reservas"
+        ? enlaceAlInforme(cortes)
+        : `${window.location.pathname}?${siguientes.toString()}`;
+    window.history.pushState(null, "", destino);
   }
 
   const [rango, setRango] = useState<Rango>("TODO");
@@ -225,7 +351,26 @@ export default function PaginaControl() {
    * embudo diría «BRITCHAM» y el ritmo seguiría contando los
    * dos gremios en la misma pantalla.
    */
-  const [cortes, setCortes] = useState<Filtros>({});
+  ///
+  /// ARRANCA CON LOS DE LA DIRECCIÓN, no vacío. Los cinco filtros de
+  /// «Proceso» viven en la dirección desde el 21 sep 2026, pero esta
+  /// página pedía su primer `/control` con `{}` antes de que el panel
+  /// le avisara: al recargar con `?convenioId=…` salía «De los dos
+  /// gremios», y la segunda consulta --ya con el gremio-- se
+  /// descartaba porque la primera seguía en vuelo (medido). Con la
+  /// misma forma que arma el panel en `filtros`, para que su aviso
+  /// no cambie la clave y no dispare una consulta de más.
+  const [cortes, setCortes] = useState<Filtros>(() => {
+    const leer = (llave: string) => direccion.get(llave) || undefined;
+    const departamento = leer("departamentoSepId");
+    return {
+      convenioId: leer("convenioId"),
+      accionFormacionId: leer("accionFormacionId"),
+      grupoId: leer("grupoId"),
+      asesorId: leer("asesorId"),
+      departamentoSepId: departamento ? Number(departamento) : undefined,
+    };
+  });
 
   /// La clave del refresco lleva los cortes: sin ellos, cambiar
   /// de gremio no volvía a pedir nada y se quedaba lo anterior.
@@ -304,11 +449,32 @@ export default function PaginaControl() {
         (vivos.datos?.ventana.etiquetaAnterior ?? '').includes('días contra')));
 
   return (
+    <ContextoRecorteDeControl.Provider value={cortes}>
     <div className="flex flex-col gap-3 px-4 pt-3 pb-6">
-      <header className="flex flex-wrap items-start justify-between gap-4">
+      {/* En el informe, la cabecera NO va al papel: allí la
+          reemplaza su propio encabezado de impresión («Reservas
+          ADECOPRIA» y el recorte), y el PDF empezaría por un título
+          --«Control de Inscritos»-- que no es el del informe. En las
+          otras pantallas se queda como estaba. */}
+      <header
+        className={`flex flex-wrap items-start justify-between gap-4 ${
+          pestana === "reservas" ? "no-imprimir" : ""
+        }`}
+      >
         <div className="min-w-0">
-          <h1 className="text-[1.125rem] font-bold tracking-[-0.02em] text-titulo">
+          {/* EL TÍTULO ES EL DEL INFORME ELEGIDO.
+              Decía «Control de Inscritos» en las cuatro pantallas, y
+              al elegir «Tráfico del formulario» en «Informes» la
+              cabecera seguía igual: «no entiendo por qué no cambia el
+              título» (cliente, 21 sep 2026). Lo que se está mirando es
+              el informe, así que él manda en el h1; «Control de
+              Inscritos» baja a rótulo de encima, para que no se pierda
+              en qué módulo se está. */}
+          <p className="text-[0.625rem] font-bold tracking-[0.08em] text-texto-suave uppercase">
             Control de Inscritos
+          </p>
+          <h1 className="mt-0.5 text-[1.125rem] font-bold tracking-[-0.02em] text-titulo">
+            {PESTANAS.find((p) => p.clave === pestana)?.etiqueta ?? "Control de Inscritos"}
           </h1>
           {/* Corto. Dos intentos anteriores explicaban la
               pantalla en tres renglones y el cliente los paró los
@@ -319,9 +485,22 @@ export default function PaginaControl() {
               palabras para lo mismo --una de ellas en inglés-- en
               la misma pantalla fue lo primero que se preguntó
               (cliente, 21 sep 2026). */}
+          {/* UNA DESCRIPCIÓN POR PANTALLA, no una para las tres.
+              Con «Tráfico del formulario» dentro, la frase de
+              siempre --«de la primera entrada a la inscripción»--
+              describía otra cosa que la que se estaba mirando: ahí
+              todavía no hay ninguna persona inscrita, hay visitas.
+              Y la propia pantalla no repite esta frase: dice solo
+              lo que esta no puede saber. */}
           <p className="mt-0.5 text-[0.78125rem] text-texto-suave">
-            Seguimiento y control de las personas que se inscriben, de la primera entrada a la
-            inscripción.
+            {pestana === "trafico"
+              ? "Del anuncio a la preinscripción: quién abre el formulario, quién lo termina y por dónde llegó. Aquí todavía no hay leads, hay visitas."
+              : pestana === "reservas"
+                ? /* Propia: la de Proceso hablaría de «personas que se
+                     inscriben», y aquí lo que se cuenta son cupos que
+                     apartó una organización, con o sin nombre. */
+                  "Los cupos que apartaron las organizaciones: cuántos, en qué acción de formación y cuántos ya tienen una persona detrás."
+                : "Seguimiento y control de las personas que se inscriben, de la primera entrada a la inscripción."}
           </p>
         </div>
         {/* LA COMPARACIÓN, AL FRENTE DEL TÍTULO.
@@ -340,13 +519,22 @@ export default function PaginaControl() {
               que enmarca la pantalla entera (cliente, 20 sep
               2026), y a su izquierda. */}
           <div className="no-imprimir">
+            {/* «Informes» y no «Qué pantalla»: «no que se llame que
+                Pantalla sino Informes» (cliente, 21 sep 2026). Lo que
+                se elige aquí son informes --el tráfico, el proceso, el
+                comité, las reservas--, y el rótulo lo dice. */}
             <p className="mb-1.5 text-[0.625rem] font-bold tracking-[0.08em] text-texto-suave uppercase">
-              Qué pantalla
+              Informes
             </p>
             <div className="w-[210px]">
               <Desplegable
                 alto={34}
-                marcador="Qué pantalla"
+                /// El rótulo de encima es visual; un lector de
+                /// pantalla solo oye el botón, y sin esto decía
+                /// «Tráfico del formulario» sin decir que es un
+                /// selector de informe.
+                etiquetaAria="Informes"
+                marcador="Informes"
                 valor={pestana}
                 opciones={PESTANAS.map((p) => ({
                   valor: p.clave,
@@ -356,6 +544,13 @@ export default function PaginaControl() {
               />
             </div>
           </div>
+
+          {/* El informe de reservas nació de un PDF que el cliente
+              imprimía, así que se puede llevar impreso. Va donde en
+              «Proceso» va el periodo: el informe no lleva periodo
+              --es una foto, y los cupos apartados no dependen de
+              una ventana--, y este es el hueco que queda. */}
+          {pestana === "reservas" && <BotonPdf />}
 
           {pestana === "metas" && (
             <>
@@ -487,7 +682,20 @@ export default function PaginaControl() {
         </div>
       </header>
 
+      {/* La pantalla del tráfico trae SUS PROPIOS mandos de
+          periodo --cuatro rangos y un comparador de dos fechas--
+          porque cuenta visitas, no personas, y su periodo empieza
+          el día que arrancó el contador. Por eso el periodo de
+          arriba solo sale en «Proceso de inscripción». */}
+      {pestana === "trafico" && <PanelTrafico />}
+
       {pestana === "comite" && <ComiteMarketing />}
+
+      {/* Trae sus propios filtros --gremio, acción, dónde se dicta,
+          fechas de reserva--, igual que el tráfico trae los suyos.
+          El periodo de arriba no le sirve: cuenta cupos apartados,
+          que no dependen de una ventana. */}
+      {pestana === "reservas" && <PanelReservas />}
 
       {pestana === "metas" && (
         <>
@@ -534,6 +742,7 @@ export default function PaginaControl() {
         </>
       )}
     </div>
+    </ContextoRecorteDeControl.Provider>
   );
 }
 

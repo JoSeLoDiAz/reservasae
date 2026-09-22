@@ -827,6 +827,15 @@ export type Control = CabeceraControl & {
   porModalidad: Corte[];
   /** Las diez con más inscritos, contra sus cupos. */
   topEmpresas: CorteEmpresa[];
+  /// Los cupos con y sin nombre, por cupo y reserva por reserva: la
+  /// cuenta del informe «Reservas» (control.ts, `cuentaDeNombres`).
+  /// Opcionales: un servidor sin reiniciar no los manda.
+  cuposConNombre?: number;
+  cuposSinNombre?: number;
+  nombresDeMas?: number;
+  empresaQueMasDebe?: { razonSocial: string; sinNombre: number; cupos: number } | null;
+  /// Las siglas de los gremios que entraron en los cupos.
+  gremios?: string[];
   /** El día ya viene yyyy-mm-dd de Bogotá. */
   serie: Array<{ dia: string; total: number }>;
   /** Cuándo llegaron los leads, no cuándo se inscribieron. */
@@ -995,6 +1004,15 @@ export type Filtros = {
   estado?: "COMPLETO" | "PARCIAL";
   /** Por donde vive la persona, no por donde se dicta. */
   departamentoSepId?: number;
+  /**
+   * Solo lo que queda por trabajar: las tres primeras etapas.
+   *
+   * Se cruza con `tramo`, que incluye los dos desenlaces
+   * —inscrito y perdido—. Es la condición con la que `control`
+   * cuenta su cola, y hace falta para que un enlace que sale de
+   * esa cifra lleve exactamente a esa gente.
+   */
+  cola?: "POR_TRABAJAR";
   /** Cuándo llegó el lead: instantes ISO, `llegoHasta` fuera. */
   llegoDesde?: string;
   llegoHasta?: string;

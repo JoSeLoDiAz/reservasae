@@ -99,11 +99,32 @@ function anillos(g: Rasgo["geometry"]): number[][][] {
 
 export function MapaColombia({
   datos,
+  unidad = { una: "persona", varias: "personas" },
 }: {
   datos: Array<{ nombre: string; total: number }>;
+  /**
+   * Qué se está contando, en singular y en plural.
+   *
+   * Decía «personas» siempre, y en el Resumen el mapa cuenta CUPOS
+   * CON RESERVA: una empresa aparta cuarenta y todavía no hay
+   * cuarenta personas. Quien pasaba el cursor leía «ANTIOQUIA · 104
+   * personas» de algo que no son personas.
+   */
+  unidad?: { una: string; varias: string };
 }) {
   const [rasgos, setRasgos] = useState<Rasgo[] | null>(null);
   const [encima, setEncima] = useState<{ nombre: string; total: number } | null>(null);
+  /// EL QUE SE TOCÓ, aparte del que está bajo el cursor.
+  ///
+  /// Solo había `encima`, que depende de pasar el ratón: en un
+  /// celular o una tableta no hay ratón, y al hacer clic no pasaba
+  /// nada. «Sería conveniente que, al seleccionar un departamento,
+  /// se pueda visualizar la información correspondiente de manera
+  /// interactiva» (Adrián Quintana, supervisor, 21 sep 2026). Ahora
+  /// un clic o un toque lo deja elegido hasta que se toque otro --o
+  /// el mismo, para soltarlo--, y el cursor manda solo mientras pasa.
+  const [elegido, setElegido] = useState<{ nombre: string; total: number } | null>(null);
+  const visible = encima ?? elegido;
   const [fallo, setFallo] = useState(false);
 
   useEffect(() => {
@@ -221,6 +242,7 @@ export function MapaColombia({
             .sort((a, b) => b.total - a.total)
             .map((d) => ({ etiqueta: d.nombre, valor: d.total }))}
           sufijo=" personas"
+          sufijoUno=" persona"
           vacio="Sin personas con estos filtros."
         />
       </div>
@@ -237,6 +259,7 @@ export function MapaColombia({
           .sort((a, b) => b.total - a.total)
           .map((d) => ({ etiqueta: d.nombre, valor: d.total }))}
         sufijo=" personas"
+        sufijoUno=" persona"
         vacio="Sin personas con estos filtros."
       />
     );
@@ -267,7 +290,7 @@ export function MapaColombia({
         className="h-auto w-full"
         style={{ maxHeight: ALTO }}
         role="img"
-        aria-label="Personas por departamento"
+        aria-label={`${unidad.varias.charAt(0).toUpperCase()}${unidad.varias.slice(1)} por departamento`}
       >
         {/* El fondo, para que la vía sin `color-mix` mezcle
             contra la superficie de la tarjeta y no contra lo que
@@ -291,19 +314,25 @@ export function MapaColombia({
               : mezclaOk
                 ? `color-mix(in oklab, var(--marca) ${mezcla}%, var(--superficie))`
                 : "var(--marca)";
+          const resaltado = c.nombre === visible?.nombre;
           return (
             <path
               key={c.nombre}
               d={c.d}
-              stroke={c.nombre === encima?.nombre ? "var(--titulo)" : "var(--superficie)"}
-              strokeWidth={c.nombre === encima?.nombre ? 1.2 : 0.6}
+              stroke={resaltado ? "var(--titulo)" : "var(--superficie)"}
+              strokeWidth={resaltado ? 1.2 : 0.6}
               fill={relleno}
               fillOpacity={c.total > 0 && !mezclaOk ? mezcla / 100 : 1}
-              className="transition-[fill]"
+              className="cursor-pointer transition-[fill]"
               onMouseEnter={() => setEncima({ nombre: c.nombre, total: c.total })}
               onMouseLeave={() => setEncima(null)}
+              onClick={() =>
+                setElegido((e) =>
+                  e?.nombre === c.nombre ? null : { nombre: c.nombre, total: c.total },
+                )
+              }
             >
-              <title>{`${c.nombre}: ${n(c.total)} ${c.total === 1 ? "persona" : "personas"}`}</title>
+              <title>{`${c.nombre}: ${n(c.total)} ${c.total === 1 ? unidad.una : unidad.varias}`}</title>
             </path>
           );
         })}
@@ -312,16 +341,16 @@ export function MapaColombia({
       {/* Siempre ocupa su renglón: sin alto fijo, el mapa salta
           cada vez que el cursor entra y sale. */}
       <p className="mt-2 h-5 text-center text-[0.78125rem] text-texto">
-        {encima ? (
+        {visible ? (
           <>
-            <strong className="font-semibold text-titulo">{encima.nombre}</strong>{" "}
+            <strong className="font-semibold text-titulo">{visible.nombre}</strong>{" "}
             <span className="text-texto-suave">
-              · {n(encima.total)} {encima.total === 1 ? "persona" : "personas"}
+              · {n(visible.total)} {visible.total === 1 ? unidad.una : unidad.varias}
             </span>
           </>
         ) : (
           <span className="text-texto-suave">
-            Pase el cursor por un departamento para ver su cifra.
+            Toque o pase el cursor por un departamento para ver su cifra.
           </span>
         )}
       </p>

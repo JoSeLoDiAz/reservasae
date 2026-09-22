@@ -13,6 +13,7 @@ import type { Response } from 'express';
 import { EstadoReserva, RolAdmin } from '../../generated/prisma';
 import { AdminGuard, Requiere, Roles, type Ambito } from '../admin/admin.guard';
 import { construirLibro, nombreArchivo } from './exportar';
+import { filtrosDelInforme } from './informe-de-reservas';
 import { AmbitoActual } from '../admin/admin-actual.decorator';
 import { TablerosService, valorLegible, type FiltrosReservas } from './tableros.service';
 
@@ -135,6 +136,23 @@ export class TablerosController {
   @Get('reservas')
   reservas(@Query() consulta: Record<string, string>, @AmbitoActual() ambito: Ambito) {
     return this.tableros.reservas(this.filtros(consulta, ambito));
+  }
+
+  /**
+   * El informe de reservas: el resumen por acción y el cruce acción ×
+   * organización del PDF del cliente, con lo necesario para sus
+   * gráficas, en UNA respuesta.
+   *
+   * Sin `@Requiere` propio a propósito: hereda el de la clase. Volver a
+   * declararlo en el método es como se cuela una ruta sin guardia —se
+   * copia el decorador de otra y se olvida uno—.
+   *
+   * El ámbito sale del guard; de la consulta solo se leen los cinco
+   * filtros de `filtrosDelInforme`, que descarta todo lo demás.
+   */
+  @Get('informe-reservas')
+  informeReservas(@Query() consulta: Record<string, string>, @AmbitoActual() ambito: Ambito) {
+    return this.tableros.informeReservas(ambito.convenios, filtrosDelInforme(consulta));
   }
 
   // descargas

@@ -27,6 +27,27 @@ export const ETAPAS_DEL_EMBUDO: EtapaParticipante[] = [
   'PERDIDO',
 ];
 
+/**
+ * Las tres que todavía se trabajan: la cola.
+ *
+ * Fuera quedan INSCRITO y PERDIDO, que son desenlaces: con ellos
+ * no hay nada que hacer, y contarlos en la cola del líder la
+ * haría crecer justo al cerrar fichas.
+ *
+ * VIVE AQUÍ Y EN UN SOLO SITIO, y es el motivo de esta lista.
+ * Estaba escrita dos veces --el `CASE` de `control.ts` que cuenta
+ * «83 personas no tienen asesor», y el filtro de la lista a la
+ * que lleva ese pendiente-- y las dos copias contaban distinto:
+ * la cifra decía 84 y la lista traía 105, porque una excluía los
+ * desenlaces y la otra no. Es el mismo defecto que trajo
+ * `ETAPAS_DEL_EMBUDO` al mundo, una capa más abajo.
+ */
+export const ETAPAS_POR_TRABAJAR: EtapaParticipante[] = [
+  'INTERESADO',
+  'CONTACTADO',
+  'DATOS_COMPLETOS',
+];
+
 export const ETIQUETA_ETAPA: Record<string, string> = {
   INTERESADO: 'Interesado',
   CONTACTADO: 'Contactado',

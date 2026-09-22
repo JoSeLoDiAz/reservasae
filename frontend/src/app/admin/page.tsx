@@ -280,7 +280,14 @@ function Territorio({ analisis }: { analisis: Analisis }) {
       <div className="grid gap-6 lg:grid-cols-2">
         <Bloque plano titulo="En el mapa" descripcion="Por departamento">
           <div className="mapa-en-papel">
-            <MapaColombia datos={mapa} />
+            {/* Cupos con reserva, no personas: es lo que suma
+                `mapa` (los `ocupados` de cada territorio). El mapa
+                decía «personas» y una empresa que aparta cuarenta
+                todavía no tiene cuarenta personas. */}
+            <MapaColombia
+              datos={mapa}
+              unidad={{ una: "cupo con reserva", varias: "cupos con reserva" }}
+            />
           </div>
         </Bloque>
 

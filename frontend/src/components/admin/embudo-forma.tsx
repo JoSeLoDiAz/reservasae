@@ -43,8 +43,9 @@ import { n } from "./graficos";
 /// misma columna que las bandas y no hay nada que sincronizar.
 ///
 /// La columna del rótulo va en PORCENTAJE y no en píxeles: sobre
-/// los 360 px de tope da 166, y en un celular de 390 px encoge
-/// sola en vez de comerse la figura.
+/// los 360 px que medía la figura daba 166 --sobre los 560 de
+/// ahora da 258--, y en un celular de 390 px encoge sola en vez de
+/// comerse la figura.
 ///
 /// 46 % y no 36: con 130 px las tres caídas --«49 con datos, sin
 /// inscribir»-- caían siempre en dos renglones, y entonces el
@@ -62,34 +63,44 @@ const REJILLA = "grid grid-cols-[minmax(0,1fr)_46%] gap-x-3";
 /// periodo tampoco se puede comparar de memoria con la del
 /// periodo anterior, que es para lo que se mira un tablero.
 ///
-/// 360 px es el tope de su columna en la rejilla del bloque
-/// (`minmax(280px,360px)`), así que el embudo mide EXACTAMENTE lo
-/// mismo en los nueve periodos y a los dos lados del corte de los
-/// dos columnas.
+/// 560 Y NO 360 desde que el embudo va en media fila (21 sep 2026):
+/// «Dale más espacio al embudo, o sea a lo ancho, Claude; quizás
+/// alineado como está: Por acción de formación / Por modalidad».
+/// Su caja mide ahora la mitad del ancho --718 px útiles a 1.600,
+/// 601 a 1.366-- y con el tope de 360 la figura se quedaba sola a
+/// la izquierda con otra figura entera de vacío al lado, que es lo
+/// que el cliente no quiere ver. Con 560 los trapecios pasan de 182
+/// a 290 px de ancho, el vacío que queda a su derecha es menor que
+/// ella en los dos anchos (158 y 41 px) y el embudo sigue midiendo
+/// EXACTAMENTE lo mismo en los nueve periodos. Es un tope y no el
+/// ancho entero porque, sin él, con «Hoy» las bandas salían de
+/// 1.370 × 52 px: una cuña plana.
 ///
 /// SIN `mx-auto`: por debajo del corte la rejilla del bloque
 /// colapsa a una columna, y centrada la figura se iba al medio
 /// de la tarjeta --hasta 275 px de sangría a 999 px-- mientras
-/// las dos frases, la leyenda, las columnas y las tres casillas
-/// seguían pegadas al margen izquierdo. El dibujo principal
-/// quedaba flotando solo en mitad del bloque.
-const ANCHO_MAXIMO = "w-full max-w-[360px]";
+/// la descripción, la meta y la letra pequeña seguían pegadas al
+/// margen izquierdo. El dibujo principal quedaba flotando solo en
+/// mitad del bloque.
+const ANCHO_MAXIMO = "w-full max-w-[560px]";
 
 /// Alto de banda y de cuello. Fijos y iguales en todos los
 /// periodos: el `holgado` que estiraba las bandas a 56 px cuando
 /// no había gráfico al lado hacía que la figura cambiara de
-/// tamaño al mover el desplegable.
+/// tamaño al mover el desplegable. La figura entera mide
+/// 4 × 40 + 3 × 26 = 238 px.
 ///
-/// Se EXPORTAN porque el gráfico de columnas de al lado amarra su
-/// área de trazado a esta misma caja: las dos mitades del bloque
-/// son dos retratos de la misma gente y tienen que empezar y
-/// acabar en la misma raya.
+/// YA NO SE AMARRAN A NADA (21 sep 2026). Se exportaban --con el
+/// alto de la figura y el del renglón de la leyenda-- porque el
+/// gráfico de columnas iba AL LADO y tenía que empezar y acabar
+/// en la misma raya: eso costaba 57 px vacíos encima de la
+/// primera banda. «La gráfica arriba, el embudo abajo» (cliente,
+/// 21 sep 2026) separó los dos dibujos, así que no queda nada que
+/// cuadrar y el gráfico declara su propio alto (ver
+/// `ALTO_BARRAS` en `embudo-por-dia`). Quedan exportadas por si
+/// otra figura quiere medirse contra esta, no para amarrarla.
 export const ALTO_BANDA = 40;
 export const ALTO_CUELLO = 26;
-/// Lo que mide la figura entera, de la raya de arriba a la de
-/// abajo. Es el alto que el gráfico de al lado le da a su área de
-/// trazado.
-export const ALTO_FIGURA = 4 * ALTO_BANDA + 3 * ALTO_CUELLO;
 
 /// Por debajo de esto un trapecio CON GENTE no se angosta más: un
 /// filo de nada no se vería. Es un SUELO DE VISIBILIDAD, así que
@@ -157,7 +168,11 @@ const PARED = "color-mix(in oklab, var(--marca) 70%, var(--superficie))";
 
 /// Lo que pasa ENTRE dos pasos, en las mismas palabras que la
 /// leyenda del gráfico de días: quien lee empareja solo.
-const CAIDAS = [
+///
+/// Exportada porque `EmbudoCono` --el embudo que hoy pinta
+/// Control-- dice las mismas frases, y una copia en cada archivo se
+/// separa el día que alguien cambie solo una.
+export const CAIDAS = [
   "se quedaron sin contactar",
   "contactados, sin datos",
   "con datos, sin inscribir",
@@ -171,9 +186,9 @@ function porcentaje(parte: number, total: number): string {
 /**
  * En qué paso se queda MÁS gente, y cuánta.
  *
- * Suelto y exportado porque la frase que lo dice va arriba del
- * bloque, con las otras dos respuestas, y tiene que salir de la
- * misma cuenta que el renglón destacado de la figura: si se
+ * Suelto y exportado porque la frase que lo dice --en la
+ * descripción del bloque y en su letra pequeña-- tiene que salir
+ * de la misma cuenta que el renglón en rojo de la figura: si se
  * calculara dos veces podrían no coincidir.
  */
 export function caidaMayor(hitos: Hito[]): { paso: number; cuantos: number } | null {
@@ -226,7 +241,6 @@ export function EmbudoForma({
   etiquetaAntes = null,
   meta = null,
   caidas = CAIDAS,
-  sangriaArriba = 0,
 }: {
   hitos: Hito[];
   /// La misma cifra en el periodo con el que se compara, en el
@@ -240,20 +254,13 @@ export function EmbudoForma({
   /// Cómo se llama ese periodo. Va en el `title` y no escrito:
   /// «el mismo tramo del periodo anterior» repetido cuatro veces
   /// tapaba el embudo. Dicho con todas las letras está arriba, en
-  /// la frase de la tasa.
+  /// el pie de la cifra «Se inscribe» de la tira del periodo.
   etiquetaAntes?: string | null;
-  /// La meta comprometida con el SENA. Va DEBAJO de la figura y
-  /// con todas las letras: colgada del último rótulo era «meta
-  /// 3.690 · 1 %» sin decir de qué, y además descentraba ese
-  /// rótulo respecto de su banda. Quien la manda decide cuándo
-  /// se puede enseñar (ver `panel-proceso`).
+  /// La meta comprometida con el SENA. Va DEBAJO de la figura,
+  /// pegada al paso del que habla, y en letra pequeña. Quien la
+  /// manda decide cuándo se puede enseñar (ver `panel-proceso`).
   meta?: number | null;
   caidas?: string[];
-  /// Cuánto se baja la figura para que su primera banda arranque
-  /// en la misma raya que el tope del gráfico de columnas de al
-  /// lado. Es el renglón que aquel reserva para la cifra de
-  /// encima de cada columna. Cero cuando no hay gráfico al lado.
-  sangriaArriba?: number;
 }) {
   if (hitos.length === 0) return null;
 
@@ -290,21 +297,17 @@ export function EmbudoForma({
 
   return (
     <div className={ANCHO_MAXIMO}>
-      {/* EL PIE DE LA FIGURA, ARRIBA.
-          Sin esta línea, «71 %» es un porcentaje de algo que cada
-          quien supone. Va UNA vez y no cuatro, y va ARRIBA para
-          hacer pareja con la leyenda del gráfico de al lado: los
-          dos renglones miden lo mismo, así que los dos dibujos
-          empiezan en la misma raya. Puesta debajo, la leyenda
-          empujaba el trazado de la derecha 39 px y las dos
-          mitades del bloque no parecían compuestas. */}
-      <p className="mb-2 flex min-h-[34px] items-end text-[0.6875rem] leading-snug text-texto-suave">
-        {primero === 1
-          ? "Los porcentajes son sobre la persona que entró."
-          : `Los porcentajes son sobre las ${n(primero)} personas que entraron.`}
-      </p>
-
-      <div className={REJILLA} style={{ paddingTop: sangriaArriba }}>
+      {/* LA FIGURA ARRANCA EN LA PRIMERA RAYA DE SU CAJA.
+          Aquí había un renglón vacío de 34 px, 8 de aire y una
+          sangría de 15: 57 px de nada que solo servían para que
+          la primera banda empezara a la altura del tope del eje
+          del gráfico de columnas, cuando iba al lado. Separados
+          los dos dibujos (cliente, 21 sep 2026), ese aire era un
+          hueco encima del embudo sin nada con qué cuadrar.
+          La frase de los porcentajes que vivió aquí sigue a la
+          vista, en la descripción del bloque («Porcentajes sobre
+          las 206 que entraron»). */}
+      <div className={REJILLA}>
         {hitos.map((h, i) => {
           const arriba = anchos[i];
           const abajo = i === hitos.length - 1 ? arriba * PUNTA : anchos[i + 1];
@@ -422,11 +425,21 @@ export function EmbudoForma({
                       /// ÚLTIMA, debajo de dos más pequeñas.
                       /// Ahora salta la que contesta y las otras
                       /// dos acompañan.
+                      /// `text-balance` en las dos: en la columna
+                      /// del rótulo a 390 px, «40 se quedaron sin
+                      /// contactar» partía dejando «contactar»
+                      /// sola. Se probó `text-pretty` y no lo
+                      /// arregló --medido en los cinco periodos
+                      /// con gente--: `pretty` es para párrafos, y
+                      /// esto es un rótulo de dos renglones, que es
+                      /// lo que reparte `balance`. No evita el
+                      /// segundo renglón --eso lo hace el 46 % de
+                      /// la rejilla-- pero lo deja en dos mitades.
                       <p
                         className={
                           mayor?.paso === i
-                            ? "text-[0.6875rem] leading-tight font-semibold text-error"
-                            : "text-[0.6875rem] leading-tight text-texto-suave"
+                            ? "text-[0.6875rem] leading-tight text-balance font-semibold text-error"
+                            : "text-[0.6875rem] leading-tight text-balance text-texto-suave"
                         }
                       >
                         {n(caida)} {caidas[i] ?? "se quedaron en este paso"}
@@ -440,13 +453,18 @@ export function EmbudoForma({
         })}
       </div>
 
-      {/* LA META, dicha entera y debajo de la figura.
-          «meta 3.690 · 1 %» colgado del último rótulo no decía de
-          qué era el 3.690 --solo salía al dejar el puntero
-          encima-- y empujaba ese rótulo fuera del centro de su
-          banda. */}
+      {/* LA META, DICHA ENTERA Y DEBAJO DE LA FIGURA.
+          Estuvo pegada al último rótulo --«meta 3.690 · 1 %», sin
+          decir de qué y descentrando ese rótulo-- y después subió
+          a una columna de texto propia arriba del bloque, al mismo
+          nivel que las otras respuestas. Ahí sobraba: «no
+          exageres», «lo veo cargado» (cliente, 21 sep 2026). La
+          meta habla del ÚLTIMO PASO del embudo --los inscritos--
+          así que su sitio es debajo de la figura, pegada a lo que
+          cuenta, y en letra pequeña. Quien la manda decide cuándo
+          se puede enseñar (ver `panel-proceso`). */}
       {meta !== null && meta > 0 && (
-        <p className="mt-2 max-w-[68ch] text-[0.6875rem] leading-snug text-texto-suave">
+        <p className="mt-2 max-w-[58ch] text-[0.6875rem] leading-snug text-pretty text-texto-suave">
           Meta comprometida con el SENA: {n(meta)} inscritos en toda la convocatoria. Van{" "}
           <strong className="font-semibold text-titulo tabular-nums">{n(ultimo)}</strong>,
           el {porcentaje(ultimo, meta)}.

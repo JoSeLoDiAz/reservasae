@@ -434,15 +434,25 @@ export function MarcoAdmin({ children }: { children: React.ReactNode }) {
               queda `<main>`, que es donde está la tabla.
               Sigue SIN `.no-imprimir` a propósito: en papel es lo
               único que dice de quién es el documento. */}
-          <footer className="shrink-0 border-t border-borde bg-superficie px-7 py-px">
+          {/* LA PÍLDORA VIVE AQUÍ, NO FLOTANDO SOBRE EL CONTENIDO.
+              Estaba `fixed` en la esquina y tapaba lo que hubiera
+              debajo: medido el 21 sep 2026 a 1.366 px, cubría cinco
+              celdas de la tabla de leads --«AF3», «Sin grupo», «Sin
+              asignar»…-- y a 1.600 el rótulo «Datos completos». Un
+              control del marco no puede esconder un dato.
+              Sigue siendo del MARCO y no del contenido --esta banda
+              no scrollea, igual que la cabecera-- y se queda en la
+              misma esquina de siempre. Cuesta 24 px de alto, que
+              sale de `<main>`: es lo que vale no tapar nada.
+              `relative` para que la píldora se ancle aquí, y `z-40`
+              para que su panel de accesibilidad --que se abre hacia
+              arriba-- quede por encima del contenido. */}
+          <footer className="relative z-40 flex min-h-[40px] shrink-0 items-center border-t border-borde bg-superficie px-7">
             <PieDeConvoca menudo />
+            <Ajustes />
           </footer>
         </div>
 
-        {/* Apariencia y accesibilidad, flotando. Fuera de la
-            columna a propósito: es del MARCO, no del contenido, y
-            desde aquí no la empuja el scroll de `<main>`. */}
-        <Ajustes />
       </div>
     </ContextoAdmin.Provider>
   );
@@ -794,13 +804,20 @@ function Ajustes() {
     /// conmutador SIN tocar el componente, que es compartido y vive
     /// también en las seis pantallas públicas.
     <div
+      /// ANCLADA A LA BANDA DEL PIE, NO A LA VENTANA.
+      ///
+      /// Se mudó al `<footer>` para no tapar datos, pero seguía con
+      /// `fixed` y su `bottom`, así que en la práctica flotaba igual
+      /// que antes: medido el 21 sep 2026, ocupaba de 898 a 934 px y
+      /// `<main>` acababa en 910, o sea 12 px encima del contenido.
+      /// `absolute` y centrada en el alto de la banda --que es
+      /// `relative` y mide lo que la píldora-- la deja dentro del pie.
       style={{
         padding: "clamp(3px, 0.25vw, 6px)",
         gap: "clamp(2px, 0.2vw, 6px)",
         right: "clamp(0.75rem, 1vw, 1.25rem)",
-        bottom: "clamp(0.75rem, 1vw, 1.25rem)",
       }}
-      className="no-imprimir fixed z-40 flex items-center rounded-full border border-encabezado-borde bg-encabezado-fondo text-[0.8125rem] shadow-lg shadow-black/20"
+      className="no-imprimir absolute top-1/2 z-40 flex -translate-y-1/2 items-center rounded-full border border-encabezado-borde bg-encabezado-fondo text-[0.8125rem] shadow-lg shadow-black/20"
     >
       <ConmutadorTema compacto menudo />
 
