@@ -158,7 +158,9 @@ export class AdminController {
         /// Si ve el trabajo de OTRAS personas. No es lo mismo que
         /// repartir fichas: la Sra. Catalina supervisa y no
         /// reparte. Ver `VEN_EL_EQUIPO`.
-        verElEquipo: conveniosQueVenElEquipo(ambito.roles).length > 0,
+        verElEquipo:
+          admin.rol === RolAdmin.SUPERADMIN ||
+          conveniosQueVenElEquipo(ambito.roles).length > 0,
       },
       /// Los gremios de esta cuenta CON su sigla: es lo que
       /// llena el desplegable de arriba. Van los concedidos,

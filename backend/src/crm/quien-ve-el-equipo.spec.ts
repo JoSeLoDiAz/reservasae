@@ -32,10 +32,16 @@ import { RolConvenio } from '../../generated/prisma';
 const solo = (rol: RolConvenio) => ({ adecopria: [rol] });
 
 describe('quién ve el trabajo del equipo', () => {
-  it('quien reparte fichas lo ve, sin excepción', () => {
-    for (const rol of REPARTEN_FICHAS) {
-      expect(conveniosQueVenElEquipo(solo(rol))).toEqual(['adecopria']);
-    }
+  it('la líder de inscripciones lo ve', () => {
+    expect(conveniosQueVenElEquipo(solo('LIDER_INSCRIPCION'))).toEqual(['adecopria']);
+  });
+
+  it('el líder ACADÉMICO no: responde por el aula, no por los asesores', () => {
+    /// Reparte fichas --está en REPARTEN_FICHAS-- y aun así no ve
+    /// este módulo. Es la prueba de que las dos listas responden a
+    /// preguntas distintas y no se pueden fundir.
+    expect(conveniosQueReparten(solo('LIDER_ACADEMICO'))).toEqual(['adecopria']);
+    expect(conveniosQueVenElEquipo(solo('LIDER_ACADEMICO'))).toEqual([]);
   });
 
   it('el country manager lo ve AUNQUE no reparta fichas', () => {
@@ -54,6 +60,12 @@ describe('quién ve el trabajo del equipo', () => {
     expect(conveniosQueVenElEquipo(solo('GESTOR_ACADEMICO'))).toEqual([]);
   });
 
+  it('quien lleva sistemas tampoco, por su concesión', () => {
+    /// Entra por ser SUPERADMIN, que es otra puerta y se pregunta
+    /// aparte: «country manager, admin y líder de inscripciones».
+    expect(conveniosQueVenElEquipo(solo('LIDER_SISTEMAS'))).toEqual([]);
+  });
+
   it('basta con responder por el equipo en UN gremio', () => {
     /// El recorte del corte por asesor es uno solo para toda la
     /// respuesta: quien lidera en un gremio y solo gestiona en el
@@ -67,11 +79,14 @@ describe('quién ve el trabajo del equipo', () => {
     expect(conveniosQueVenElEquipo(mezcla)).toEqual(['britcham-adee']);
   });
 
-  it('la lista de mirar CONTIENE la de repartir, y no al revés', () => {
-    /// Si alguien añade un rol a `REPARTEN_FICHAS` y se olvida de
-    /// esta, el que organiza el trabajo no podría mirarlo. Se
-    /// deriva justo para que no pase, y esto lo fija.
-    for (const rol of REPARTEN_FICHAS) expect(VEN_EL_EQUIPO).toContain(rol);
-    expect(VEN_EL_EQUIPO.length).toBeGreaterThan(REPARTEN_FICHAS.length);
+  it('son DOS listas y ninguna contiene a la otra', () => {
+    /// Y eso es lo que hay que recordar de aquí. `REPARTEN_FICHAS`
+    /// tiene al líder académico, que NO ve este módulo; y
+    /// `VEN_EL_EQUIPO` tiene al country manager, que NO reparte.
+    /// Fundirlas --en cualquiera de los dos sentidos-- rompe una.
+    expect(REPARTEN_FICHAS).toContain('LIDER_ACADEMICO');
+    expect(VEN_EL_EQUIPO).not.toContain('LIDER_ACADEMICO');
+    expect(VEN_EL_EQUIPO).toContain('COUNTRY_MANAGER');
+    expect(REPARTEN_FICHAS).not.toContain('COUNTRY_MANAGER');
   });
 });

@@ -214,7 +214,11 @@ export class CrmController {
       /// Quien ve el trabajo de OTROS. Un gestor se ve a si mismo.
       {
         suId: admin.id,
-        veElEquipo: conveniosQueVenElEquipo(ambito.roles).length > 0,
+        /// El «admin» de la frase del cliente es RolAdmin, no una
+        /// concesion: se suma aqui, no en la lista de roles.
+        veElEquipo:
+          admin.rol === RolAdmin.SUPERADMIN ||
+          conveniosQueVenElEquipo(ambito.roles).length > 0,
       },
       {
         convenioId: convenioId || undefined,

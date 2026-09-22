@@ -12,29 +12,35 @@
  * asesores.
  *
  * NINGUNO CALCULA NADA. Cada uno llama a la ruta que ya sirve el
- * informe correspondiente de Control de Inscritos y pinta cuatro
- * cifras y un corte. La matriz, los acordeones y las listas por
- * persona se quedan donde están: si el Resumen las copiara, serían
- * dos pantallas contando lo mismo con dos reglas, que es el defecto
- * que este repositorio lleva media docena de veces documentando.
+ * informe correspondiente de Control de Inscritos y pinta una frase,
+ * cuatro cifras y un corte. La matriz, los acordeones y las listas
+ * por persona se quedan donde están: si el Resumen las copiara,
+ * serían dos pantallas contando lo mismo con dos reglas.
  *
- * CADA MÓDULO PIDE LO SUYO, Y SOLO SI PUEDE. El Resumen es hoy la
- * única pantalla del panel sin cerradura de área, y un `Promise.all`
- * con un 403 dentro apagaría la portada entera. Así que cada bloque
- * mira el permiso ANTES de pedir —y antes de pintar «cargando», o se
+ * CADA MÓDULO PIDE LO SUYO, Y SOLO SI PUEDE. El Resumen es la única
+ * pantalla del panel sin cerradura de área, y un `Promise.all` con
+ * un 403 dentro apagaría la portada entera. Así que cada bloque mira
+ * el permiso ANTES de pedir —y antes de pintar «cargando», o se
  * quedaría girando para siempre a quien no puede verlo—.
- *
- * Y CADA UNO CON SU CADENCIA. El académico y el tráfico no cambian
- * cada medio minuto; la pre-reserva sí, y esa se queda como estaba.
  */
 
-import Link from "next/link";
 import { createContext, useCallback, useContext } from "react";
 
 import { ListaBarras, n } from "./graficos";
 import { useAdmin } from "./marco-admin";
 import { PendientesDeHoy } from "./pendientes-de-hoy";
-import { Bloque, Esqueleto, TarjetaCifra, Vacio } from "./piezas";
+import {
+  ACENTO,
+  BarrasDobles,
+  Cifra,
+  CifraDelModulo,
+  Cifras,
+  FraseDelModulo,
+  Leyenda,
+  Modulo,
+  VerDetalle,
+} from "./piezas-modulo";
+import { Esqueleto, Vacio } from "./piezas";
 import { useDatosVivos } from "@/lib/datos-vivos";
 import {
   crmApi,
@@ -43,30 +49,48 @@ import {
   type EmbudoPublico,
 } from "@/lib/crm-api";
 import { porCanal } from "@/lib/canales-del-resumen";
-import { MINIMO_PARA_TASA, porcentaje, visitasDe } from "@/lib/trafico-comun";
+import {
+  MINIMO_PARA_TASA,
+  PELDANOS_DEL_TRAFICO,
+  porcentaje,
+  visitasDe,
+} from "@/lib/trafico-comun";
 
 /// Un minuto para lo que se trabaja hoy, cinco para lo que no se
-/// mueve en una mañana. El módulo 1 se queda en 30 s, que es lo que
-/// tenía.
+/// mueve en una mañana.
 const CADA_MINUTO = 60_000;
 const CADA_CINCO = 5 * 60_000;
 
-/** El rótulo con su número, que es el orden que pidió el cliente. */
-function tituloDe(numero: number, texto: string): string {
-  /// El número va en el TÍTULO y no en un círculo relleno de
-  /// color, como lo dibuja la maqueta: «el color va en el texto y
-  /// en marcas pequeñas, no en fondos», y este panel ya deshizo ese
-  /// mismo adorno una vez (`piezas.tsx`).
-  return `${numero} · ${texto}`;
-}
+/**
+ * Cómo se lee cada procedencia.
+ *
+ * Copia corta del diccionario de `panel-trafico.tsx`. Lo que NO se
+ * copia es la REGLA —«No dejó rastro» nunca se llama «Directa»,
+ * porque lo cierto es la ausencia de referencia y no que la persona
+ * tecleara la dirección—: allí está razonada y aquí se respeta.
+ */
+const NOMBRE_PROCEDENCIA: Record<string, string> = {
+  FACEBOOK: "Facebook",
+  INSTAGRAM: "Instagram",
+  META: "Meta (sin precisar cuál)",
+  CORREO: "Correo",
+  WHATSAPP: "WhatsApp",
+  BUSQUEDA: "Buscador",
+  QR: "Código QR",
+  RESERVA: "Reserva de empresa",
+  INTERNO: "Otra página nuestra",
+  OTRA_WEB: "Otra página web",
+  OTRO_DECLARADO: "Otro canal etiquetado",
+  SIN_REFERENCIA: "No dejó rastro",
+};
 
 /**
- * Lo que se pinta cuando un módulo no se puede pedir o no tiene
- * con qué llenarse.
+ * Lo que se pinta cuando un módulo no se puede pedir o no tiene con
+ * qué llenarse.
  *
  * NUNCA SE DEJA EN BLANCO. «Nunca media pantalla vacía; un bloque
- * vacío dice POR QUÉ lo está» (el handoff de diseño). Un cero sin
- * explicar se lee como un dato que no cargó.
+ * vacío dice POR QUÉ lo está» (el handoff). Un cero sin explicar se
+ * lee como un dato que no cargó.
  */
 function Apagado({
   numero,
@@ -82,40 +106,20 @@ function Apagado({
   children?: React.ReactNode;
 }) {
   return (
-    <Bloque titulo={tituloDe(numero, titulo)} descripcion={descripcion} partible>
+    <Modulo numero={numero} titulo={titulo} descripcion={descripcion}>
       <Vacio titulo={porque}>{children}</Vacio>
-    </Bloque>
+    </Modulo>
   );
 }
 
-/** El pie de cada módulo: a dónde se va a ver el detalle. */
-function VerDetalle({ a, children }: { a: string; children: React.ReactNode }) {
-  /// ENLACE Y NO BOTÓN: «la navegación hacia atrás es un enlace, no
-  /// un botón. Los botones son acciones» (el handoff). Ir a mirar el
-  /// detalle no cambia nada.
-  return (
-    <p className="mt-1 text-[0.78125rem]">
-      <Link href={a} className="font-semibold text-marca underline underline-offset-2">
-        {children}
-      </Link>
-    </p>
-  );
-}
-
-/* ═══════════════════════════════════════════════════════════════
-   MÓDULOS 2 y 5 · una sola llamada para los dos
-   ═══════════════════════════════════════════════════════════════ */
+/* ── módulos 2 y 5: una sola llamada para los dos ─────────────── */
 
 /**
- * UNA SOLA LLAMADA PARA LOS MÓDULOS 2 Y 5.
- *
  * `porAsesor` viaja DENTRO de la misma respuesta que el embudo y la
  * cola, así que el de asesores no cuesta una petición. Pero el
- * cliente los quiere en su sitio —2, 3, 4 y 5— y el de asesores va
- * el último, con el académico y el tráfico en medio. Por eso el dato
- * se levanta a un contexto en vez de que un componente pinte los
- * dos seguidos: así el orden de la pantalla lo decide la pantalla, y
- * no de dónde viene el dato.
+ * cliente los quiere en su sitio —2, 3, 4 y 5— con el académico y el
+ * tráfico en medio, así que el dato se levanta a un contexto: el
+ * orden lo decide la pantalla, no de dónde viene el dato.
  */
 type Traido = { datos: Control | null; error: string | null; puede: boolean };
 const ContextoDeControl = createContext<Traido>({
@@ -147,13 +151,16 @@ export function ProveedorDeControl({ children }: { children: React.ReactNode }) 
 /** MÓDULO 2 · los leads. */
 export function ModuloLeads() {
   const { datos: d, error, puede } = useContext(ContextoDeControl);
+  const titulo = "Leads e inscripciones";
+  const bajada =
+    "Quién llegó, por qué canal, si ya lo contactamos y cómo avanzan las inscripciones.";
 
   if (!puede)
     return (
       <Apagado
         numero={2}
-        titulo="Leads e inscripciones"
-        descripcion="Quién llegó, si ya se le contactó y cuántos se inscribieron."
+        titulo={titulo}
+        descripcion={bajada}
         porque="Su cuenta no tiene acceso a inscripciones"
       >
         Estas cifras son del área de inscripciones. Quien lleve esa área en su
@@ -165,8 +172,8 @@ export function ModuloLeads() {
     return (
       <Apagado
         numero={2}
-        titulo="Leads e inscripciones"
-        descripcion="Quién llegó, si ya se le contactó y cuántos se inscribieron."
+        titulo={titulo}
+        descripcion={bajada}
         porque="No se pudieron traer las cifras"
       >
         {error}
@@ -174,90 +181,124 @@ export function ModuloLeads() {
     );
 
   const esperando = d ? d.sinContactar.reduce((s, t) => s + t.total, 0) : 0;
+  const canales = d ? porCanal(d.conversionPorOrigen) : [];
+  const leads = canales.reduce((s, c) => s + c.leads, 0);
 
   return (
-    <>
-      <Bloque
-        titulo={tituloDe(2, "Leads e inscripciones")}
-        descripcion="Quién llegó, si ya se le contactó y cuántos se inscribieron. El detalle, en Control de Inscritos."
-        partible
-      >
-        {!d ? (
-          <Esqueleto conCifras />
-        ) : (
-          <div className="flex flex-col gap-4">
-            <div className="imprimible-cifras grid gap-px overflow-hidden rounded-lg border border-borde bg-hairline sm:grid-cols-2 lg:grid-cols-4">
-              {/* «Llegaron a inscrito» y NO «inscritos» a secas: el
-                  módulo 1 tiene su propia cifra de inscritos, con otra
-                  regla. Dos cifras, dos nombres. */}
-              <TarjetaCifra
-                compacta
-                etiqueta="Llegaron a inscrito"
-                valor={n(d.total)}
-                pie="desde que hay registro"
-              />
-              <TarjetaCifra
-                compacta
-                etiqueta="Sin asesor"
-                valor={n(d.sinAsignar)}
-                pie={d.sinAsignar > 0 ? "hoy no los llama nadie" : "todos repartidos"}
-                tono={d.sinAsignar > 0 ? "aviso" : "neutro"}
-              />
-              <TarjetaCifra
-                compacta
-                etiqueta="Esperan primera llamada"
-                valor={n(esperando)}
-                pie="siguen en Interesado"
-                tono={esperando > 0 ? "aviso" : "neutro"}
-              />
-              <TarjetaCifra
-                compacta
-                etiqueta="De lead a inscrito"
-                valor={d.diasHastaInscribir === null ? "—" : `${d.diasHastaInscribir} d`}
-                pie={d.diasHastaInscribir === null ? "aún sin medir" : "en promedio"}
-                tono="neutro"
-              />
+    <Modulo numero={2} titulo={titulo} descripcion={bajada}>
+      {!d ? (
+        <Esqueleto conCifras />
+      ) : (
+        <>
+          <FraseDelModulo numero={2}>
+            Entraron <Cifra>{n(leads)}</Cifra> leads y <Cifra>{n(d.total)}</Cifra>{" "}
+            llegaron a inscribirse. <Cifra>{n(d.sinAsignar)}</Cifra> siguen sin
+            asesor y <Cifra>{n(esperando)}</Cifra> esperan su primera llamada.
+          </FraseDelModulo>
+
+          <Cifras>
+            {/* «Llegaron a inscrito» y NO «inscritos» a secas: el
+                módulo 1 tiene su propia cifra de inscritos, con otra
+                regla. Dos cifras, dos nombres. */}
+            <CifraDelModulo
+              etiqueta="Llegaron a inscrito"
+              valor={n(d.total)}
+              pie="desde que hay registro"
+              tono={d.total > 0 ? "bueno" : undefined}
+            />
+            <CifraDelModulo
+              etiqueta="Sin asesor"
+              valor={n(d.sinAsignar)}
+              pie={d.sinAsignar > 0 ? "hoy no los llama nadie" : "todos repartidos"}
+              tono={d.sinAsignar > 0 ? "aviso" : "bueno"}
+            />
+            <CifraDelModulo
+              etiqueta="Esperan primera llamada"
+              valor={n(esperando)}
+              pie="siguen en Interesado"
+              tono={esperando > 0 ? "aviso" : "bueno"}
+            />
+            <CifraDelModulo
+              etiqueta="De lead a inscrito"
+              valor={d.diasHastaInscribir === null ? "—" : `${d.diasHastaInscribir} d`}
+              pie={d.diasHastaInscribir === null ? "aún sin medir" : "en promedio"}
+            />
+          </Cifras>
+
+          {/* La única lista accionable, entera y con sus enlaces ya
+              recortados. Su docblock pide que se mueva sin
+              reescribirla. */}
+          <PendientesDeHoy control={d} />
+
+          <div className="flex flex-col gap-2.5">
+            <h3 className="text-sm font-bold">Avance de inscripciones por canal</h3>
+            <div className="caja-scroll overflow-x-auto">
+              <table className="w-full text-[0.8125rem]">
+                <thead>
+                  <tr className="border-b border-hairline text-left text-[0.71875rem] text-texto-suave">
+                    <th className="py-1.5 pr-3 font-semibold">Canal</th>
+                    <th className="py-1.5 pr-3 text-right font-semibold">Leads</th>
+                    <th className="py-1.5 pr-3 text-right font-semibold">Inscritos</th>
+                    <th className="py-1.5 text-right font-semibold">Conversión</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {canales.map((c) => (
+                    <tr key={c.canal} className="border-b border-hairline last:border-0">
+                      <td className="py-1.5 pr-3">{c.nombre}</td>
+                      <td className="py-1.5 pr-3 text-right tabular-nums">{n(c.leads)}</td>
+                      <td className="py-1.5 pr-3 text-right font-semibold tabular-nums">
+                        {n(c.inscritos)}
+                      </td>
+                      <td className="py-1.5 text-right tabular-nums">
+                        {/* Con menos de cinco leads no se imprime: un
+                            50 % de dos personas se lee igual que uno
+                            de mil. */}
+                        {c.leads >= 5 ? porcentaje(c.inscritos, c.leads) : "—"}
+                      </td>
+                    </tr>
+                  ))}
+                  {canales.length === 0 && (
+                    <tr>
+                      <td colSpan={4} className="py-2 text-texto-suave">
+                        Todavía no ha entrado ningún lead.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
             </div>
-
-            {/* La única lista accionable, entera y con sus enlaces ya
-                recortados. Su propio docblock pide que se mueva sin
-                reescribirla. */}
-            <PendientesDeHoy control={d} />
-
-            <div>
-              <h3 className="mb-2 text-sm font-bold">Qué convierte cada canal</h3>
-              {/* LOS CUATRO CANALES DEL NEGOCIO, no los doce orígenes
-                  de la base. La agrupación vive en `canales-del-resumen`
-                  y la fuerza el compilador: un origen nuevo sin
-                  clasificar no compila. */}
-              <ListaBarras
-                datos={porCanal(d.conversionPorOrigen)
-                  .filter((c) => c.leads >= 5)
-                  .map((c) => ({
-                    clave: c.canal,
-                    etiqueta: c.nombre,
-                    valor: Math.round((c.inscritos / c.leads) * 100),
-                    detalle: `${n(c.inscritos)} de ${n(c.leads)}`,
-                  }))}
-                sufijo=" %"
-                vacio="Todavía no hay ningún canal con cinco leads."
-              />
-              {/* La base, dicha: con menos de cinco leads un 50 % son
-                  dos personas, y se lee igual que uno de mil. */}
-              <p className="mt-1.5 text-[0.71875rem] text-texto-suave">
-                Solo los canales con cinco leads o más. «Se inscribió solo» es
-                quien llegó al formulario por un enlace sin etiqueta: no se sabe
-                por dónde vino.
-              </p>
-            </div>
-
-            <VerDetalle a="/admin/control?pantalla=metas">
-              Ver el proceso de inscripción completo
-            </VerDetalle>
+            <p className="text-[0.71875rem] text-texto-suave">
+              «Se inscribió solo» es quien llegó al formulario por un enlace sin
+              etiqueta: no se sabe por dónde vino, y por eso no se reparte entre
+              los otros canales.
+            </p>
           </div>
-        )}
-      </Bloque>
-    </>
+
+          <div className="flex flex-col gap-2.5">
+            <h3 className="text-sm font-bold">Antigüedad de quien espera llamada</h3>
+            <ListaBarras
+              datos={d.sinContactar.map((t) => ({
+                clave: String(t.dias),
+                etiqueta: t.dias === 0 ? "Menos de 3 días" : `${t.dias} días o más`,
+                valor: t.total,
+              }))}
+              sufijo=" personas"
+              sufijoUno=" persona"
+              vacio="No hay nadie esperando una primera llamada."
+            />
+            <p className="text-[0.71875rem] text-texto-suave">
+              Días desde que el lead entró al CRM. Solo cuenta a quien sigue en
+              Interesado: en cuanto se le contacta, sale de aquí.
+            </p>
+          </div>
+
+          <VerDetalle a="/admin/control?pantalla=metas">
+            Ver el proceso de inscripción completo
+          </VerDetalle>
+        </>
+      )}
+    </Modulo>
   );
 }
 
@@ -268,11 +309,10 @@ export function ModuloLeads() {
  * inscribió, y un porcentaje de conversión sobre lo que le es
  * asignado» (Catalina, 22 sep 2026).
  *
- * Lo que trae `porAsesor` ya responde eso entero. Lo que NO responde
- * —y hay que decirlo— es «cuántos inscribió»: `asesorId` es el dueño
- * de HOY, así que si una líder reasigna una ficha ya inscrita, el
- * mérito se muda con ella. Por eso la columna se llama «suyos
- * inscritos» y no «inscribió».
+ * Lo que NO responde —y hay que decirlo— es «cuántos inscribió»:
+ * `asesorId` es el dueño de HOY, así que si una líder reasigna una
+ * ficha ya inscrita, el mérito se muda con ella. Por eso la columna
+ * se llama «suyos inscritos» y no «inscribió».
  */
 export function ModuloAsesores() {
   const { datos: control, error, puede } = useContext(ContextoDeControl);
@@ -282,13 +322,17 @@ export function ModuloAsesores() {
   /// lo que se está mirando: una tabla de una sola fila titulada
   /// «Seguimiento de asesores» se lee como si faltara gente.
   const veElEquipo = admin.puede?.verElEquipo === true;
+  const titulo = veElEquipo ? "Seguimiento de asesores" : "Su gestión";
+  const bajada = veElEquipo
+    ? "Cuántos leads lleva cada asesor y cuántos de ellos están inscritos."
+    : "Cuántos leads lleva usted y cuántos de ellos están inscritos.";
 
   if (!puede)
     return (
       <Apagado
         numero={5}
-        titulo="Seguimiento de asesores"
-        descripcion="Cuántos leads lleva cada asesor y cuántos de ellos están inscritos."
+        titulo={titulo}
+        descripcion={bajada}
         porque="Su cuenta no tiene acceso a inscripciones"
       />
     );
@@ -297,25 +341,20 @@ export function ModuloAsesores() {
     return (
       <Apagado
         numero={5}
-        titulo="Seguimiento de asesores"
-        descripcion="Cuántos leads lleva cada asesor y cuántos de ellos están inscritos."
+        titulo={titulo}
+        descripcion={bajada}
         porque="No se pudieron traer las cifras"
       >
         {error}
       </Apagado>
     );
 
-  if (!control) {
+  if (!control)
     return (
-      <Bloque
-        titulo={tituloDe(5, veElEquipo ? "Seguimiento de asesores" : "Su gestión")}
-        descripcion="Cuántos leads lleva y cuántos de ellos están inscritos."
-        partible
-      >
+      <Modulo numero={5} titulo={titulo} descripcion={bajada}>
         <Esqueleto conCifras />
-      </Bloque>
+      </Modulo>
     );
-  }
 
   /// Sin asesor NO es un asesor. La fila con `asesorId` nulo es la
   /// cola de nadie, y ya se cuenta arriba en «Sin asesor»: dejarla
@@ -326,15 +365,7 @@ export function ModuloAsesores() {
   const suyosInscritos = asesores.reduce((s, a) => s + a.inscritosSiempre, 0);
 
   return (
-    <Bloque
-      titulo={tituloDe(5, veElEquipo ? "Seguimiento de asesores" : "Su gestión")}
-      descripcion={
-        veElEquipo
-          ? "Cuántos leads lleva cada asesor y cuántos de ellos están inscritos."
-          : "Cuántos leads lleva usted y cuántos de ellos están inscritos."
-      }
-      partible
-    >
+    <Modulo numero={5} titulo={titulo} descripcion={bajada}>
       {asesores.length === 0 ? (
         <Vacio
           titulo={
@@ -348,29 +379,44 @@ export function ModuloAsesores() {
             : "En cuanto le asignen el primero aparece aquí, con lo que lleva y lo que ha inscrito."}
         </Vacio>
       ) : (
-        <div className="flex flex-col gap-4">
-          <div className="imprimible-cifras grid gap-px overflow-hidden rounded-lg border border-borde bg-hairline sm:grid-cols-3">
-            {/* «Asesores con leads» solo dice algo cuando se ve el
-                equipo: con una sola fila siempre valdría uno. */}
-            <TarjetaCifra
-              compacta
-              etiqueta={veElEquipo ? "Asesores con leads" : "Asesores"}
+        <>
+          <FraseDelModulo numero={5}>
+            {veElEquipo ? (
+              <>
+                <Cifra>{n(conFichas)}</Cifra>{" "}
+                {conFichas === 1 ? "asesor lleva" : "asesores llevan"}{" "}
+                <Cifra>{n(repartidas)}</Cifra> leads, y{" "}
+                <Cifra>{n(suyosInscritos)}</Cifra> de ellos ya están inscritos (
+                {porcentaje(suyosInscritos, repartidas)}).
+              </>
+            ) : (
+              <>
+                Lleva <Cifra>{n(repartidas)}</Cifra> leads y{" "}
+                <Cifra>{n(suyosInscritos)}</Cifra> están inscritos (
+                {porcentaje(suyosInscritos, repartidas)}).
+              </>
+            )}
+          </FraseDelModulo>
+
+          <Cifras>
+            <CifraDelModulo
+              etiqueta={veElEquipo ? "Asesores con leads" : "Asesor"}
               valor={n(veElEquipo ? conFichas : 1)}
-              pie={veElEquipo ? `de ${n(asesores.length)} con fichas alguna vez` : "usted"}
+              pie={
+                veElEquipo ? `de ${n(asesores.length)} con fichas alguna vez` : "usted"
+              }
             />
-            <TarjetaCifra
-              compacta
+            <CifraDelModulo
               etiqueta={veElEquipo ? "Leads repartidos" : "Sus leads"}
               valor={n(repartidas)}
             />
-            <TarjetaCifra
-              compacta
+            <CifraDelModulo
               etiqueta="De esos, inscritos"
               valor={n(suyosInscritos)}
-              pie={porcentaje(suyosInscritos, repartidas) + " de lo repartido"}
-              tono="neutro"
+              pie={`${porcentaje(suyosInscritos, repartidas)} de lo repartido`}
+              tono={suyosInscritos > 0 ? "bueno" : undefined}
             />
-          </div>
+          </Cifras>
 
           <div className="caja-scroll overflow-x-auto">
             <table className="w-full text-[0.8125rem]">
@@ -378,7 +424,9 @@ export function ModuloAsesores() {
                 <tr className="border-b border-hairline text-left text-[0.71875rem] text-texto-suave">
                   <th className="py-1.5 pr-3 font-semibold">Asesor</th>
                   <th className="py-1.5 pr-3 text-right font-semibold">Asignados</th>
-                  <th className="py-1.5 pr-3 text-right font-semibold">Suyos inscritos</th>
+                  <th className="py-1.5 pr-3 text-right font-semibold">
+                    Suyos inscritos
+                  </th>
                   <th className="py-1.5 text-right font-semibold">Conversión</th>
                 </tr>
               </thead>
@@ -386,26 +434,30 @@ export function ModuloAsesores() {
                 {[...asesores]
                   .sort((a, b) => b.asignados - a.asignados)
                   .map((a) => (
-                    <tr key={a.asesorId ?? a.etiqueta} className="border-b border-hairline last:border-0">
+                    <tr
+                      key={a.asesorId ?? a.etiqueta}
+                      className="border-b border-hairline last:border-0"
+                    >
                       <td className="py-1.5 pr-3">
                         {/* A SU LISTA, con el filtro puesto: «una cifra
                             que pide hacer algo tiene que llevar a
                             exactamente esa gente». */}
-                        <Link
-                          href={`/admin/participantes?asesor=${encodeURIComponent(a.asesorId ?? "")}`}
-                          className="underline underline-offset-2"
+                        <VerDetalle
+                          a={`/admin/participantes?asesor=${encodeURIComponent(a.asesorId ?? "")}`}
                         >
                           {a.etiqueta}
-                        </Link>
+                        </VerDetalle>
                       </td>
-                      <td className="py-1.5 pr-3 text-right tabular-nums">{n(a.asignados)}</td>
                       <td className="py-1.5 pr-3 text-right tabular-nums">
+                        {n(a.asignados)}
+                      </td>
+                      <td className="py-1.5 pr-3 text-right font-semibold tabular-nums">
                         {n(a.inscritosSiempre)}
                       </td>
                       <td className="py-1.5 text-right tabular-nums">
-                        {/* El mismo suelo que el tráfico: una conversión
-                            de dos fichas no se imprime como tasa. */}
-                        {a.asignados >= 5 ? porcentaje(a.inscritosSiempre, a.asignados) : "—"}
+                        {a.asignados >= 5
+                          ? porcentaje(a.inscritosSiempre, a.asignados)
+                          : "—"}
                       </td>
                     </tr>
                   ))}
@@ -417,30 +469,31 @@ export function ModuloAsesores() {
             «Suyos inscritos» son los que lleva hoy y ya están inscritos, no los
             que él inscribió: una ficha que cambia de asesor se lleva su cuenta
             consigo. La conversión no se imprime por debajo de cinco leads.
-            {/* SE DICE QUE ESTA RECORTADO. Una tabla de una fila sin
-                explicar se lee como que falta gente, no como que no
-                se puede ver. */}
             {!veElEquipo && (
               <>
                 {" "}
-                Aquí sale <strong className="font-semibold text-texto">solo su gestión</strong>:
+                Aquí sale{" "}
+                <strong className="font-semibold text-texto">solo su gestión</strong>:
                 el trabajo del resto del equipo lo ve quien responde por él.
               </>
             )}
           </p>
 
-          <VerDetalle a="/admin/participantes?cola=por-trabajar">
-            Repartir leads entre asesores
-          </VerDetalle>
-        </div>
+          {veElEquipo && (
+            <VerDetalle a="/admin/participantes?cola=por-trabajar">
+              Repartir leads entre asesores
+            </VerDetalle>
+          )}
+        </>
       )}
-    </Bloque>
+    </Modulo>
   );
 }
 
-/* ═══════════════════════════════════════════════════════════════
-   MÓDULO 3 · el académico
-   ═══════════════════════════════════════════════════════════════ */
+/* ── módulo 3: el académico ───────────────────────────────────── */
+
+const ACENTO_3 = ACENTO[3];
+const TENUE_3 = "color-mix(in srgb, var(--etapa-en-formacion) 30%, transparent)";
 
 export function ModuloAcademico() {
   const { admin } = useAdmin();
@@ -451,12 +504,15 @@ export function ModuloAcademico() {
     { activo: puede, intervaloMs: CADA_CINCO },
   );
 
+  const titulo = "Seguimiento académico";
+  const bajada = "Matriculados por acción, con el avance y el estado de cada grupo.";
+
   if (!puede)
     return (
       <Apagado
         numero={3}
-        titulo="Seguimiento académico"
-        descripcion="Quién está en el aula, cómo avanza y quién puede certificarse."
+        titulo={titulo}
+        descripcion={bajada}
         porque="Su cuenta no tiene acceso al área académica"
       />
     );
@@ -465,8 +521,8 @@ export function ModuloAcademico() {
     return (
       <Apagado
         numero={3}
-        titulo="Seguimiento académico"
-        descripcion="Quién está en el aula, cómo avanza y quién puede certificarse."
+        titulo={titulo}
+        descripcion={bajada}
         porque="No se pudieron traer las cifras"
       >
         {vivos.error}
@@ -477,14 +533,14 @@ export function ModuloAcademico() {
 
   /// EL AULA VACÍA SE EXPLICA, y no es un fallo: el avance lo carga
   /// el LMS, que todavía no está conectado. Sin esta frase, un
-  /// tablero en ceros se lee como un tablero roto —y en producción
-  /// hoy hay cero actividades y cero avances cargados—.
+  /// tablero en ceros se lee como un tablero roto —y hoy en
+  /// producción hay cero actividades y cero avances cargados—.
   if (d && d.total === 0)
     return (
       <Apagado
         numero={3}
-        titulo="Seguimiento académico"
-        descripcion="Quién está en el aula, cómo avanza y quién puede certificarse."
+        titulo={titulo}
+        descripcion={bajada}
         porque="Todavía no ha entrado nadie al aula"
       >
         Estas cifras salen del avance de cada persona, que lo carga la plataforma
@@ -494,59 +550,84 @@ export function ModuloAcademico() {
     );
 
   return (
-    <Bloque
-      titulo={tituloDe(3, "Seguimiento académico")}
-      descripcion="Quién está en el aula, cómo avanza y quién puede certificarse."
-      partible
-    >
+    <Modulo numero={3} titulo={titulo} descripcion={bajada}>
       {!d ? (
         <Esqueleto conCifras />
       ) : (
-        <div className="flex flex-col gap-4">
-          <div className="imprimible-cifras grid gap-px overflow-hidden rounded-lg border border-borde bg-hairline sm:grid-cols-2 lg:grid-cols-4">
-            <TarjetaCifra compacta etiqueta="Pisaron el aula" valor={n(d.total)} />
-            <TarjetaCifra
-              compacta
+        <>
+          <FraseDelModulo numero={3}>
+            De <Cifra>{n(d.total)}</Cifra> que pisaron el aula,{" "}
+            <Cifra>{n(d.dentro)}</Cifra> siguen dentro,{" "}
+            <Cifra>{n(d.certificados)}</Cifra> se certificaron y{" "}
+            <Cifra>{n(d.salidas)}</Cifra> salieron o no aprobaron.
+          </FraseDelModulo>
+
+          <Cifras>
+            <CifraDelModulo etiqueta="Pisaron el aula" valor={n(d.total)} />
+            <CifraDelModulo
               etiqueta="Listos para certificar"
               valor={n(d.listos)}
               pie={`con el ${Math.round(d.minimoParaCertificar * 100)} % o más`}
-              tono="exito"
+              tono={d.listos > 0 ? "bueno" : undefined}
             />
-            <TarjetaCifra
-              compacta
+            <CifraDelModulo
               etiqueta="Certificados"
               valor={n(d.certificados)}
-              pie={porcentaje(d.certificados, d.total) + " del aula"}
-              tono="exito"
+              pie={`${porcentaje(d.certificados, d.total)} del aula`}
+              tono={d.certificados > 0 ? "bueno" : undefined}
             />
-            <TarjetaCifra
-              compacta
+            <CifraDelModulo
               etiqueta="Avance medio"
               valor={`${Math.round(d.avanceMedio * 100)} %`}
-              /// SOBRE LOS MEDIBLES, dicho: quien no tiene
-              /// actividades cargadas no se puede medir, y meterlo en
-              /// el promedio lo hundiría sin que nada fallara.
+              /// SOBRE LOS MEDIBLES, dicho: quien no tiene actividades
+              /// cargadas no se puede medir, y meterlo en el promedio
+              /// lo hundiría sin que nada fallara.
               pie={
                 d.sinMedir > 0
                   ? `sobre ${n(d.medibles)}; ${n(d.sinMedir)} sin actividades`
                   : `sobre ${n(d.medibles)} medibles`
               }
-              tono="neutro"
             />
-          </div>
+          </Cifras>
+
+          {d.porAccion.length > 0 && (
+            <div className="flex flex-col gap-2.5">
+              <h3 className="text-sm font-bold">
+                Dentro y fuera, por acción de formación
+              </h3>
+              <Leyenda
+                de={[
+                  { nombre: "Siguen dentro o certificados", color: ACENTO_3 },
+                  { nombre: "Salieron o no aprobaron", color: TENUE_3 },
+                ]}
+              />
+              <BarrasDobles
+                filas={d.porAccion.map((a) => ({
+                  clave: a.codigo + a.nombre,
+                  etiqueta: `${a.codigo} · ${a.nombre}`,
+                  hecho: a.dentro + a.certificados,
+                  total: a.enAula,
+                  derecha: <>{n(a.enAula)} en el aula</>,
+                }))}
+                colorHecho={ACENTO_3}
+                colorFalta={TENUE_3}
+                maximoFilas={8}
+              />
+            </div>
+          )}
 
           <VerDetalle a="/admin/participantes/academico/tablero">
-            Ver el tablero académico por acción y grupo
+            Ver el tablero académico por acción, grupo y persona
           </VerDetalle>
-        </div>
+        </>
       )}
-    </Bloque>
+    </Modulo>
   );
 }
 
-/* ═══════════════════════════════════════════════════════════════
-   MÓDULO 4 · el tráfico
-   ═══════════════════════════════════════════════════════════════ */
+/* ── módulo 4: el tráfico ─────────────────────────────────────── */
+
+const ACENTO_4 = ACENTO[4];
 
 export function ModuloTrafico() {
   const { admin } = useAdmin();
@@ -562,12 +643,16 @@ export function ModuloTrafico() {
     { activo: puede, intervaloMs: CADA_CINCO },
   );
 
+  const titulo = "Tráfico de página";
+  const bajada =
+    "Cuánta gente abre el formulario, de dónde llega y cuántos terminan preinscritos.";
+
   if (!puede)
     return (
       <Apagado
         numero={4}
-        titulo="Tráfico del formulario"
-        descripcion="Cuánta gente abre el formulario y cuántos terminan preinscritos."
+        titulo={titulo}
+        descripcion={bajada}
         porque="Su cuenta no tiene acceso a inscripciones"
       />
     );
@@ -576,8 +661,8 @@ export function ModuloTrafico() {
     return (
       <Apagado
         numero={4}
-        titulo="Tráfico del formulario"
-        descripcion="Cuánta gente abre el formulario y cuántos terminan preinscritos."
+        titulo={titulo}
+        descripcion={bajada}
         porque="No se pudieron traer las cifras"
       >
         {vivos.error}
@@ -585,16 +670,12 @@ export function ModuloTrafico() {
     );
 
   const d = vivos.datos;
+  const aperturas = d ? visitasDe(d.hitos, "LLEGO") : 0;
   const eligieron = d ? visitasDe(d.hitos, "ELIGIO_ACCION") : 0;
   const registrados = d ? visitasDe(d.hitos, "REGISTRADO") : 0;
-  const aperturas = d ? visitasDe(d.hitos, "LLEGO") : 0;
 
   return (
-    <Bloque
-      titulo={tituloDe(4, "Tráfico del formulario")}
-      descripcion="Cuánta gente abre el formulario y cuántos terminan preinscritos. El detalle, en Control de Inscritos."
-      partible
-    >
+    <Modulo numero={4} titulo={titulo} descripcion={bajada}>
       {!d ? (
         <Esqueleto conCifras />
       ) : d.contandoDesde === null ? (
@@ -602,59 +683,114 @@ export function ModuloTrafico() {
           Se cuenta desde que alguien abre un enlace del formulario público.
         </Vacio>
       ) : (
-        <div className="flex flex-col gap-4">
-          <div className="imprimible-cifras grid gap-px overflow-hidden rounded-lg border border-borde bg-hairline sm:grid-cols-2 lg:grid-cols-4">
+        <>
+          <FraseDelModulo numero={4}>
+            Hubo <Cifra>{n(aperturas)}</Cifra> aperturas de{" "}
+            <Cifra>{n(d.personas)}</Cifra> personas.{" "}
+            <Cifra>{n(registrados)}</Cifra> terminaron preinscritos
+            {d.personas >= MINIMO_PARA_TASA && (
+              <> ({porcentaje(registrados, d.personas)} de las personas)</>
+            )}
+            .
+          </FraseDelModulo>
+
+          <Cifras>
             {/* PERSONAS Y NO «USUARIOS ÚNICOS»: no se sabe quién es
-                quien. Esto es «siguió ahí pasados unos segundos o tocó
-                el formulario», y es un suelo, no una cuenta. */}
-            <TarjetaCifra
-              compacta
+                quién. Esto es «siguió ahí pasados unos segundos o
+                tocó el formulario», y es un suelo, no una cuenta. */}
+            <CifraDelModulo
               etiqueta="Personas"
               valor={n(d.personas)}
               pie="descontando lo que abren solas las máquinas"
             />
-            <TarjetaCifra
-              compacta
+            <CifraDelModulo
               etiqueta="Abrieron el enlace"
               valor={n(aperturas)}
               pie="máquinas incluidas"
-              tono="neutro"
             />
-            <TarjetaCifra
-              compacta
+            <CifraDelModulo
               etiqueta="Eligieron un curso"
               valor={n(eligieron)}
               pie={
                 d.personas >= MINIMO_PARA_TASA
-                  ? porcentaje(eligieron, d.personas) + " de las personas"
+                  ? `${porcentaje(eligieron, d.personas)} de las personas`
                   : "aún sin tasa"
               }
-              tono="neutro"
             />
-            <TarjetaCifra
-              compacta
+            <CifraDelModulo
               etiqueta="Se preinscribieron"
               valor={n(registrados)}
               pie={
                 d.personas >= MINIMO_PARA_TASA
-                  ? porcentaje(registrados, d.personas) + " de las personas"
+                  ? `${porcentaje(registrados, d.personas)} de las personas`
                   : "aún sin tasa"
               }
-              tono="exito"
+              tono={registrados > 0 ? "bueno" : undefined}
             />
+          </Cifras>
+
+          <div className="flex flex-col gap-2.5">
+            <h3 className="text-sm font-bold">Del clic a la preinscripción</h3>
+            {/* EL EMBUDO NO PUEDE SUBIR: cada peldaño acredita a la
+                visita todos los de debajo de su máximo, así que la
+                lista es monótona por construcción. */}
+            <div className="flex flex-col gap-1.5">
+              {PELDANOS_DEL_TRAFICO.map((p, i) => {
+                const v = visitasDe(d.hitos, p.paso);
+                const antes =
+                  i === 0 ? v : visitasDe(d.hitos, PELDANOS_DEL_TRAFICO[i - 1].paso);
+                return (
+                  <div
+                    key={p.paso}
+                    className="grid grid-cols-[minmax(104px,150px)_minmax(0,1fr)_auto] items-center gap-3 text-[0.78125rem]"
+                  >
+                    <span className="truncate">{p.etiqueta}</span>
+                    <div className="flex h-5 items-center">
+                      <span
+                        className="flex h-full min-w-[2.5rem] items-center rounded-[5px] px-2 text-[0.71875rem] font-bold text-marca-texto"
+                        style={{
+                          width: `${aperturas > 0 ? Math.max(6, (v / aperturas) * 100) : 6}%`,
+                          background: ACENTO_4,
+                        }}
+                      >
+                        {n(v)}
+                      </span>
+                    </div>
+                    <span className="text-right text-[0.71875rem] whitespace-nowrap text-texto-suave tabular-nums">
+                      {i === 0 ? "" : `${porcentaje(v, antes)} del anterior`}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+            <p className="text-[0.71875rem] text-texto-suave">
+              Cada porcentaje es sobre el paso anterior. La unidad es la visita,
+              no la persona: quien vuelve otro día cuenta dos veces.
+            </p>
           </div>
 
-          <p className="text-[0.71875rem] text-texto-suave">
-            La unidad es la visita, no la persona: quien vuelve otro día cuenta
-            dos veces. Las tasas no se imprimen por debajo de {MINIMO_PARA_TASA}{" "}
-            personas.
-          </p>
+          {d.procedencia.length > 0 && (
+            <div className="flex flex-col gap-2.5">
+              <h3 className="text-sm font-bold">De dónde llegan</h3>
+              <ListaBarras
+                datos={d.procedencia.slice(0, 8).map((p) => ({
+                  clave: p.valor ?? "sin",
+                  etiqueta: NOMBRE_PROCEDENCIA[p.valor ?? ""] ?? p.valor ?? "Sin dato",
+                  valor: p.personas,
+                  detalle: `${n(p.envios)} preinscritos`,
+                }))}
+                sufijo=" personas"
+                sufijoUno=" persona"
+                vacio="Todavía no hay procedencias medidas."
+              />
+            </div>
+          )}
 
           <VerDetalle a="/admin/control?pantalla=trafico">
-            Ver el tráfico completo, con sus nueve peldaños
+            Ver el tráfico completo, con sus nueve peldaños y sus cortes
           </VerDetalle>
-        </div>
+        </>
       )}
-    </Bloque>
+    </Modulo>
   );
 }

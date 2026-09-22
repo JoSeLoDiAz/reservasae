@@ -32,6 +32,7 @@
 import { BotonPdf, EncabezadoImpresion } from "@/components/admin/boton-pdf";
 import { useAdmin } from "@/components/admin/marco-admin";
 import { ModuloReservas } from "@/components/admin/modulo-reservas";
+import { SubmenuModulos } from "@/components/admin/piezas-modulo";
 import {
   ModuloAcademico,
   ModuloAsesores,
@@ -83,6 +84,12 @@ export default function Resumen() {
 
         <BotonPdf etiqueta="PDF para reunión" />
       </header>
+
+      {/* EL SUBMENÚ DE LOS CINCO. «Poner un submenú de cada uno de
+          los 5 módulos» (Josse, 22 sep 2026). Son anclas: los cinco
+          están en esta misma pantalla, así que saltar de uno a otro
+          no puede costar una carga. */}
+      <SubmenuModulos />
 
       {/* El orden ES el que pidió el cliente. Los módulos 2 y 5
           comparten una sola llamada —`porAsesor` viaja dentro de la

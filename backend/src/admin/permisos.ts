@@ -187,7 +187,15 @@ export const conveniosQueReparten = (roles: Record<string, RolConvenio[]>) =>
  * escribirse aparte para que no se separen el día que entre un rol
  * nuevo.
  */
-export const VEN_EL_EQUIPO: RolConvenio[] = [...REPARTEN_FICHAS, 'COUNTRY_MANAGER'];
+/// «El 5 solo tiene usuarios específicos, ¿no? Country manager,
+/// admin y líder de inscripciones» (Josse, 22 sep 2026). Esa es la
+/// lista, y deja fuera al líder ACADÉMICO --que responde por el
+/// aula, no por los asesores de inscripciones-- y al de SISTEMAS.
+///
+/// El «admin» de esa frase no es una concesión sino `RolAdmin`, y
+/// por eso no está aquí: se suma aparte, donde se pregunta. Quien
+/// lleva sistemas suele ser superadmin y entra por esa puerta.
+export const VEN_EL_EQUIPO: RolConvenio[] = ['LIDER_INSCRIPCION', 'COUNTRY_MANAGER'];
 
 export const conveniosQueVenElEquipo = (roles: Record<string, RolConvenio[]>) =>
   Object.entries(roles)
