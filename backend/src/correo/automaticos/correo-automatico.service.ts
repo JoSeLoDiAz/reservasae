@@ -133,7 +133,7 @@ export class CorreoAutomaticoService {
       await this.cerrar(
         fila.id,
         EstadoCorreoAutomatico.OMITIDO,
-        'Esa ficha ya no existe.',
+        'Ese lead ya no existe.',
       );
       return true;
     }
@@ -174,7 +174,7 @@ export class CorreoAutomaticoService {
       await this.cerrar(
         fila.id,
         EstadoCorreoAutomatico.OMITIDO,
-        'Esa ficha ya no existe.',
+        'Ese lead ya no existe.',
       );
       return true;
     }
@@ -223,7 +223,7 @@ export class CorreoAutomaticoService {
       await this.cerrar(
         fila.id,
         EstadoCorreoAutomatico.OMITIDO,
-        `La plantilla pide datos que esta ficha no tiene: ${faltantes
+        `La plantilla pide datos que este lead no tiene: ${faltantes
           .map((f) => `{{${f}}}`)
           .join(', ')}.`,
       );

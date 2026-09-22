@@ -981,8 +981,257 @@ function ejeSupuesto(tope: number): number {
   return Math.max(ANCHO_EJE_MINIMO, n(tope).length * 6 + AIRE_DEL_EJE + 2);
 }
 
+/// El mismo alto de siempre (`h-40`): el bloque no da un salto.
+const ALTO_DIA_A_DIA = 160;
+/// EL AIRE DE ENCIMA. La barra más alta llega al 86 % del alto y
+/// no a la raya de arriba: es la «línea de respeto» que pidió el
+/// cliente --tocándose, barra y raya se leían como una sola pieza--.
+const TECHO_DIA_A_DIA = 0.86;
+/// Qué parte de su casilla ocupa la pareja de barras de un día. El
+/// resto es el aire ENTRE días, y crece con la casilla: con cuatro
+/// días queda un hueco claro entre uno y otro, con noventa casi se
+/// tocan. Eran 2 px fijos, lo mismo que dentro de la pareja, y dos
+/// días seguidos se leían como un bloque de cuatro barras.
+const PAREJA_DEL_DIA = 0.8;
+/// Por debajo de esto por día las barras son hilos: se agrupa por
+/// semanas (o por meses) en vez de dibujar pelusa.
+const MINIMO_POR_DIA = 10;
+
 /**
- * Dos series diarias enfrentadas, columna a columna.
+ * Dos series diarias enfrentadas, día a día.
+ *
+ * VUELVE AL DIBUJO DE ANTES (cliente, 21 sep 2026: «me gusta más
+ * como estaba originalmente», y del eje con cifras, «con cantidades
+ * no sé, se ve raro»). Las columnas se reparten el ancho entero,
+ * las fechas van en los dos extremos y la leyenda debajo, sin
+ * cifras: la cifra exacta de cada día sale al señalarlo, en el
+ * renglón de abajo. De la versión con eje se queda lo que el
+ * cliente sí había pedido sobre esta misma gráfica:
+ *
+ *  - aire sobre la barra más alta y antes de las fechas, para que
+ *    ninguna barra se funda con la raya de arriba ni con el rótulo
+ *    de abajo;
+ *  - tocar una columna en el celular la FIJA, no la alterna;
+ *  - un día en cero se dibuja como cero, no como un hueco;
+ *  - si no caben los días en el ancho, se agrupa por semanas.
+ *
+ * La versión con eje se queda abajo, como `DosSeriesPorDiaConEje`.
+ */
+export function DosSeriesPorDia({
+  a,
+  b,
+  vacio = "Todavía no hay movimiento que mostrar.",
+}: {
+  a: SeriePorDia;
+  b: SeriePorDia;
+  vacio?: string;
+}) {
+  const [encima, setEncima] = useState<number | null>(null);
+  const caja = useRef<HTMLDivElement>(null);
+  const llenos = useMemo(
+    () => rellenarDias(unirPorDia(a.datos, b.datos)),
+    [a.datos, b.datos],
+  );
+
+  /// Solo el GRANO va en estado: es lo único del dibujo que depende
+  /// del ancho --las casillas son `flex-1`--, y así arrastrar la
+  /// ventana no repinta en cada píxel.
+  const [granoMedido, setGranoMedido] = useState<Grano | null>(null);
+  useEffect(() => {
+    const nodo = caja.current;
+    if (!nodo || llenos.length === 0) return;
+    const medir = (w: number) => {
+      /// Dentro de un plegable cerrado mide cero, y con eso no se
+      /// decide nada: saldría todo agrupado por trimestres.
+      if (w < 1) return;
+      const g = granoQueCabe(llenos, Math.max(1, Math.floor(w / MINIMO_POR_DIA)));
+      setGranoMedido((v) => (v === g ? v : g));
+    };
+    medir(nodo.getBoundingClientRect().width);
+    const observador = new ResizeObserver((e) => medir(e[0]?.contentRect.width ?? 0));
+    observador.observe(nodo);
+    return () => observador.disconnect();
+  }, [llenos]);
+
+  /// Antes de medir, por día si caben hasta en un celular: así en
+  /// escritorio no se ve un salto de semanas a días.
+  const grano: Grano =
+    granoMedido ?? (llenos.length <= 30 ? "dia" : granoInicial(llenos.length));
+  const cubetas = useMemo(() => agruparPor(llenos, grano), [llenos, grano]);
+
+  if (cubetas.length === 0) {
+    return <p className="py-8 text-center text-[0.84375rem] text-texto-suave">{vacio}</p>;
+  }
+
+  const series = [
+    { nombre: a.nombre, color: a.color ?? SERIE.uno, casilla: CASILLA_A },
+    { nombre: b.nombre, color: b.color ?? SERIE.dos, casilla: CASILLA_B },
+  ];
+  const maximo = Math.max(
+    1,
+    ...cubetas.map((c) => Math.max(c[CASILLA_A], c[CASILLA_B])),
+  );
+  const alto = (v: number) =>
+    Math.max(MINIMO_BARRA, Math.round((v / maximo) * ALTO_DIA_A_DIA * TECHO_DIA_A_DIA));
+  /// Con `?? null`: al cambiar de grano con el puntero encima, el
+  /// índice puede quedar fuera del arreglo nuevo.
+  const detalle = encima !== null ? (cubetas[encima] ?? null) : null;
+  const hayParciales = grano !== "dia" && cubetas.some((c) => c.parcial);
+  /// Las fechas de los extremos empiezan donde empieza la primera
+  /// barra y acaban donde acaba la última, no en el canto: con
+  /// pocos días, el aire de la casilla las despegaba de su columna.
+  const sangria = `${((1 - PAREJA_DEL_DIA) / 2 / cubetas.length) * 100}%`;
+
+  return (
+    /// `min-w-0`: sin él, el gráfico le pide a su columna de la
+    /// rejilla el ancho de su contenido.
+    <div ref={caja} className="min-w-0">
+      <div className="relative" style={{ height: ALTO_DIA_A_DIA }}>
+        {/* TRES RAYAS FINAS, SIN CIFRAS. La de abajo es la línea de
+            base, un punto más marcada: las barras se apoyan en ella. */}
+        {[0, 0.5, 1].map((f) => (
+          <div
+            key={f}
+            aria-hidden
+            className="pointer-events-none absolute inset-x-0 border-t"
+            style={{
+              top: f * ALTO_DIA_A_DIA,
+              borderTopColor:
+                f === 1
+                  ? "color-mix(in oklab, var(--texto-suave) 60%, var(--superficie))"
+                  : "var(--hairline)",
+            }}
+          />
+        ))}
+
+        <div className="absolute inset-0 flex items-end">
+          {cubetas.map((c, i) => {
+            const apagada = encima !== null && encima !== i;
+            return (
+              <button
+                key={c.clave}
+                type="button"
+                /// Botón y no `div`: en el celular no hay puntero, y
+                /// TOCAR la columna es lo que enseña sus cifras. La
+                /// casilla entera es la zona sensible, no solo la
+                /// barra: así se acierta con el dedo.
+                className="flex h-full min-w-0 flex-1 cursor-default items-end justify-center transition-opacity"
+                style={{ opacity: apagada ? 0.45 : 1 }}
+                aria-label={`${c.etiquetaLarga}: ${a.nombre} ${n(c[CASILLA_A])}, ${
+                  b.nombre
+                } ${n(c[CASILLA_B])}`}
+                onMouseEnter={() => setEncima(i)}
+                onMouseLeave={() => setEncima(null)}
+                onFocus={() => setEncima(i)}
+                onBlur={() => setEncima(null)}
+                /// Fija y no alterna: en el celular el toque dispara
+                /// `mouseenter` y `focus` antes que `click`, y al
+                /// alternar el primer toque no enseñaba nada.
+                onClick={() => setEncima(i)}
+              >
+                <span
+                  className="flex h-full items-end"
+                  style={{ width: `${PAREJA_DEL_DIA * 100}%`, gap: SEPARACION_PAREJA }}
+                >
+                  {series.map((s) => {
+                    const v = c[s.casilla];
+                    return (
+                      <span
+                        key={s.nombre}
+                        className="block min-w-0 flex-1 rounded-t-[4px]"
+                        style={{
+                          /// UN CERO ES UN DATO: un filete de 2 px del
+                          /// color del borde. Sin él, un día sin gente
+                          /// y un día que no vino se verían igual.
+                          height: v > 0 ? alto(v) : 2,
+                          background: v > 0 ? s.color : "var(--borde)",
+                        }}
+                      />
+                    );
+                  })}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* LAS FECHAS, EN LOS DOS EXTREMOS, con aire sobre ellas: la
+          línea de base no se pega al rótulo. */}
+      <div
+        className="mt-2 flex justify-between gap-3 text-[0.625rem] text-texto-suave tabular-nums"
+        style={{ paddingLeft: sangria, paddingRight: sangria }}
+      >
+        <span>{cubetas[0].etiqueta}</span>
+        {cubetas.length > 1 && <span>{cubetas[cubetas.length - 1].etiqueta}</span>}
+      </div>
+
+      {/* La leyenda, sin cifras: los totales ya están en las
+          tarjetas de arriba, y repetidos aquí eran «cantidades». */}
+      <ul className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs text-texto-suave">
+        {series.map((s) => (
+          <li key={s.nombre} className="inline-flex items-center gap-1.5">
+            <span
+              aria-hidden
+              className="block size-2.5 shrink-0 rounded-[3px]"
+              style={{ background: s.color }}
+            />
+            {s.nombre}
+          </li>
+        ))}
+      </ul>
+
+      {/* EL DETALLE DEL DÍA, debajo. El hueco se reserva para que el
+          bloque no dé un salto al señalar, y mientras nadie señala
+          DICE QUE ESTÁ AHÍ: sin eje con cifras, es el único sitio
+          donde se lee el número exacto. */}
+      <div className="mt-2 min-h-[34px]">
+        {detalle ? (
+          <p className="rounded-[9px] bg-superficie-alterna px-3 py-1.5 text-[0.8125rem] leading-snug">
+            <span className="font-semibold text-titulo">
+              {detalle.etiquetaLarga.charAt(0).toUpperCase() + detalle.etiquetaLarga.slice(1)}
+            </span>
+            <span className="text-texto-suave">
+              {" "}
+              · {a.nombre}: {n(detalle[CASILLA_A])} · {b.nombre}: {n(detalle[CASILLA_B])}
+            </span>
+          </p>
+        ) : (
+          <p className="px-3 py-1.5 text-[0.8125rem] leading-snug text-texto-suave">
+            Señale una columna —con el puntero o tocándola— para ver sus cifras.
+          </p>
+        )}
+      </div>
+
+      {grano !== "dia" && (
+        <p className="mt-1 text-[0.6875rem] leading-snug text-texto-suave">
+          {QUE_ES_UNA_COLUMNA[grano]}
+          {hayParciales &&
+            " La primera y la última pueden cubrir menos días que las demás, así que salen más bajas."}
+        </p>
+      )}
+
+      {/* Las dos series en texto, que es la costumbre de los
+          gráficos de esta casa. */}
+      <p className="sr-only">
+        {cubetas
+          .map(
+            (c) =>
+              `${c.etiquetaLarga}: ${c[CASILLA_A]} ${a.nombre}, ${c[CASILLA_B]} ${b.nombre}`,
+          )
+          .join(". ")}
+      </p>
+    </div>
+  );
+}
+
+/**
+ * Dos series diarias enfrentadas, columna a columna, CON EJE.
+ *
+ * Fue `DosSeriesPorDia` del 20 al 21 sep 2026 y el cliente pidió
+ * volver a la de antes («con cantidades no sé, se ve raro»). Se
+ * queda porque funciona y nadie la usa hoy: no se borra lo que
+ * sirve.
  *
  * Tiene el mismo esqueleto que el embudo por día --el que aprobó
  * el cliente--: eje Y con su canal propio a la izquierda, tope de
@@ -993,7 +1242,7 @@ function ejeSupuesto(tope: number): number {
  * con tres días de dato-- y dos fechas puestas con
  * `justify-between`, ninguna debajo de su columna.
  */
-export function DosSeriesPorDia({
+export function DosSeriesPorDiaConEje({
   a,
   b,
   vacio = "Todavía no hay movimiento que mostrar.",
@@ -1552,6 +1801,16 @@ export function Chispa({
   /// estira a lo que mida su columna: el `viewBox` ya esta
   /// puesto, asi que escala sin deformarse.
   clase = "shrink-0",
+  /// A LO ANCHO DE VERDAD, sin que el trazo engorde.
+  ///
+  /// Con `w-full` a secas el `viewBox` escala proporcional: una
+  /// chispa de 64 × 20 en una caja de 280 × 32 se pintaba de 102 px
+  /// en el centro, flotando. Estirada, el dibujo ocupa la caja
+  /// entera, el trazo guarda su grosor en píxeles de pantalla y el
+  /// punto final sigue redondo --un `circle` se volvería óvalo--.
+  /// Lo pide la tarjeta de Tráfico del formulario; por omisión
+  /// todo sigue igual.
+  estirada = false,
 }: {
   datos: number[];
   ancho?: number;
@@ -1559,6 +1818,7 @@ export function Chispa({
   color?: string;
   etiqueta?: string;
   clase?: string;
+  estirada?: boolean;
 }) {
   if (!datos.length) return null;
 
@@ -1579,6 +1839,7 @@ export function Chispa({
       width={ancho}
       height={alto}
       viewBox={`0 0 ${ancho} ${alto}`}
+      preserveAspectRatio={estirada ? "none" : undefined}
       role="img"
       aria-label={`${etiqueta ? `${etiqueta}, ` : ""}tendencia de ${n(datos[0])} a ${n(
         datos[datos.length - 1],
@@ -1590,12 +1851,25 @@ export function Chispa({
           points={puntos.map(([x, y]) => `${x},${y}`).join(" ")}
           fill="none"
           stroke={color}
-          strokeWidth="1.5"
+          strokeWidth={estirada ? 2 : 1.5}
           strokeLinecap="round"
           strokeLinejoin="round"
+          vectorEffect={estirada ? "non-scaling-stroke" : undefined}
         />
       )}
-      <circle cx={ultimo[0]} cy={ultimo[1]} r="1.75" fill={color} />
+      {estirada ? (
+        /// Un trazo de largo cero con remate redondo ES un punto,
+        /// y con `non-scaling-stroke` no se deforma al estirar.
+        <path
+          d={`M${ultimo[0]} ${ultimo[1]}h0`}
+          stroke={color}
+          strokeWidth={5}
+          strokeLinecap="round"
+          vectorEffect="non-scaling-stroke"
+        />
+      ) : (
+        <circle cx={ultimo[0]} cy={ultimo[1]} r="1.75" fill={color} />
+      )}
     </svg>
   );
 }

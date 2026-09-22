@@ -105,10 +105,10 @@ export function ComparativoDeDatos({
           {/* Se dice qué hay antes de enseñar la tabla: quien la
               abre y no tiene nada que decidir se ahorra leerla. */}
           {datos.discrepan === 0 && datos.faltan === 0
-            ? "Todo lo que dijo por otros medios coincide con la ficha."
+            ? "Todo lo que dijo por otros medios coincide con lo que tiene el lead."
             : [
                 datos.faltan > 0 &&
-                  `${datos.faltan} ${datos.faltan === 1 ? "dato falta" : "datos faltan"} en la ficha y ${datos.faltan === 1 ? "está" : "están"} en otro lado`,
+                  `${datos.faltan} ${datos.faltan === 1 ? "dato falta" : "datos faltan"} en el lead y ${datos.faltan === 1 ? "está" : "están"} en otro lado`,
                 datos.discrepan > 0 &&
                   `${datos.discrepan} ${datos.discrepan === 1 ? "no coincide" : "no coinciden"}`,
               ]
@@ -124,7 +124,7 @@ export function ComparativoDeDatos({
           <thead className="text-left text-xs tracking-wide text-texto-suave uppercase">
             <tr>
               <th className="py-2 pr-4 font-medium">Dato</th>
-              <th className="py-2 pr-4 font-medium">En la ficha</th>
+              <th className="py-2 pr-4 font-medium">En el lead</th>
               {datos.fuentes.map((f) => (
                 <th key={f.id} className="py-2 pr-4 font-medium">
                   {COMO_LLEGO[f.origen] ?? f.origen}
@@ -159,7 +159,7 @@ export function ComparativoDeDatos({
                       estado que solo se distingue por el color no
                       se distingue bajo daltonismo. */}
                   {f.falta && (
-                    <div className="text-xs text-aviso">falta en la ficha</div>
+                    <div className="text-xs text-aviso">falta en el lead</div>
                   )}
                   {f.discrepa && (
                     <div className="text-xs text-error">no coinciden</div>

@@ -24,6 +24,13 @@
  * revelación cerrada y cuatro cifras. Lo que se quitó de la vista
  * no se borró: se fundió con otra pieza o está dentro de «Cómo
  * leer estas cifras».
+ *
+ * Y CUATRO PIEZAS VUELVEN A COMO ESTABAN (cliente, 21 sep 2026:
+ * «me gusta más como estaba originalmente»): las cuatro tarjetas de
+ * arriba, el Día a día, los tres cortes en tarjetas y «Antes del
+ * contador» abierto. Lo demás de la versión nueva --sin banda
+ * propia, el Paso a paso primero, la dona con su periodo-- se
+ * queda, porque eso sí lo aprobó.
  */
 
 import Link from "next/link";
@@ -31,10 +38,11 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { EmbudoProceso, type Hito } from "@/components/admin/embudo-proceso";
 import {
+  Chispa,
+  Delta,
   Donut,
   DosSeriesPorDia,
   ListaBarras,
-  TarjetaCifra,
   n,
   type PorcionDonut,
 } from "@/components/admin/graficos";
@@ -86,7 +94,9 @@ const QUE_HICIERON: Record<string, string> = {
   ELIGIO_ACCION: "eligieron un curso y no autorizaron sus datos",
   AUTORIZO: "autorizaron y no terminaron de llenar el formulario",
   DATOS_COMPLETOS: "llenaron todo y no pulsaron confirmar",
-  ENVIO: "pulsaron confirmar y no quedó ficha creada",
+  /// «Lead» y no «ficha»: en el CRM todo es lead (cliente, 21 sep
+  /// 2026: «nada de nada es ficha, todo es lead»).
+  ENVIO: "pulsaron confirmar y no se creó el lead",
 };
 
 const RANGOS = [
@@ -135,11 +145,11 @@ const NOMBRE_ENTRADA: Record<string, string> = {
 const MINIMO_PARA_TASA = 30;
 
 /// LA BASE DEL EMBUDO, DICHA. En esta pantalla hay tres bases de
-/// porcentaje --aperturas en el Paso a paso, personas en la tabla,
-/// fichas en «Después»-- y hoy coinciden porque aperturas y
+/// porcentaje --aperturas en el Paso a paso, personas en los
+/// cortes, leads en «Después»-- y hoy coinciden porque aperturas y
 /// personas son 50. Con un escáner de correo dejan de coincidir
 /// (el 16 sep 2026: 565 de 599 aperturas eran máquinas) y el
-/// embudo diría 1 % donde la tabla dice 15 %. Sin decir la base,
+/// embudo diría 1 % donde el corte dice 15 %. Sin decir la base,
 /// eso se lee como dos cifras que se contradicen.
 const BASE_DEL_EMBUDO = "Cada porcentaje es sobre las aperturas, el primer paso.";
 
@@ -331,13 +341,10 @@ export function PanelTrafico() {
   const hayB = !bSinContador && (antes.get("LLEGO") ?? 0) > 0;
   const mostrarPeriodo = hayDatos || (comparando && hayB);
 
-  /// La cifra de B, dicha en el detalle de cada tarjeta cuando se
-  /// compara. El delta de color ya va debajo; esto es el número.
-  const enB = (paso: string, sinComparar: string) => {
-    if (bSinContador) return `Sin contador en ${rotuloB ?? "el otro periodo"}`;
-    const c = contra(paso);
-    return c === null ? sinComparar : `${n(c)} en ${rotuloB ?? "el otro periodo"}`;
-  };
+  /// Lo que dice una tarjeta en el renglón de B cuando se compara y
+  /// no hay cifra que poner: B entero antes del contador. Callarlo
+  /// dejaría un «0 en …» que se lee como que no llegó nadie.
+  const sinB = bSinContador ? `Sin contador ${enPeriodo(rotuloB)}` : null;
 
   return (
     <div className="flex flex-col gap-4">
@@ -412,13 +419,10 @@ export function PanelTrafico() {
 
           {mostrarPeriodo && (
             <>
-              {/* LAS CUATRO CIFRAS, EN UN SOLO MARCO.
-                  Eran cuatro tarjetas con cuatro colores y cuatro chispas
-                  --dos de ellas dibujaban la serie de OTRA cifra, porque
-                  `porDia` no trae personas ni cursos elegidos--. Quedan
-                  una banda, el color de título en todas y el verde solo
-                  en lo que es un logro, y chispa solo donde la serie es
-                  de verdad la de esa cifra.
+              {/* LAS CUATRO CIFRAS, CADA UNA EN SU TARJETA Y DE SU
+                  COLOR, como estaban (ver `Resumen`). Estuvieron un día
+                  en un solo marco con la cifra en negro, y el cliente
+                  volvió a pedir estas.
 
                   «Abrieron» y «Personas» van juntas y no se sustituyen:
                   «Abrieron» incluye máquinas --el escáner de enlaces de
@@ -426,37 +430,65 @@ export function PanelTrafico() {
                   16 sep 2026 eso fueron 565 de 599--, así que dividir
                   por ella da una tasa que parece exacta y no lo es. Pero
                   NO se esconde: la diferencia entre las dos es cuánta
-                  gente llegó y se fue.
-
-                  `gap-x-px` sobre el borde hace las líneas entre
-                  columnas; entre filas las pone el `border-b` de cada
-                  tarjeta, y el `-mb-px` esconde el de la última fila
-                  bajo el marco para que no salga un borde doble. */}
-              <div className="overflow-hidden rounded-lg border border-borde">
-                <div className="-mb-px grid grid-cols-2 gap-x-px bg-borde xl:grid-cols-4">
-                  <TarjetaCifra
-                    titulo="Abrieron el enlace"
-                    valor={llegaron}
-                    detalle={enB("LLEGO", "Incluye máquinas")}
-                    chispa={dias.length > 1 ? dias.map((d) => d.llegaron) : undefined}
-                    delta={deltaDe(llegaron, contra("LLEGO"), rotuloB)}
-                  />
-                  <TarjetaCifra titulo="Personas" valor={personas} detalle="Sin las máquinas" />
-                  <TarjetaCifra
-                    titulo="Eligieron un curso"
-                    valor={eligieron}
-                    detalle={enB("ELIGIO_ACCION", "Tocaron un curso")}
-                    delta={deltaDe(eligieron, contra("ELIGIO_ACCION"), rotuloB)}
-                  />
-                  <TarjetaCifra
-                    titulo="Se preinscribieron"
-                    valor={quedaron}
-                    tono="exito"
-                    detalle={enB("REGISTRADO", "Ficha creada por el servidor")}
-                    chispa={dias.length > 1 ? dias.map((d) => d.preinscritos) : undefined}
-                    delta={deltaDe(quedaron, contra("REGISTRADO"), rotuloB)}
-                  />
-                </div>
+                  gente llegó y se fue. */}
+              <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                <Resumen
+                  etiqueta="Abrieron el enlace"
+                  valor={llegaron}
+                  antes={contra("LLEGO")}
+                  etiquetaAntes={rotuloB}
+                  nota={sinB}
+                  serie={dias.map((d) => d.llegaron)}
+                  color="var(--serie-1)"
+                  pie="Incluye máquinas: un escáner de correo abre cada enlace"
+                />
+                <Resumen
+                  etiqueta="Personas"
+                  valor={personas}
+                  /// El otro periodo no trae personas: se dice, para
+                  /// que la tarjeta sin cifra de B no parezca un fallo.
+                  nota={datos.comparado ? (sinB ?? "No se compara entre periodos") : null}
+                  serie={dias.map((d) => d.personas)}
+                  color="var(--serie-3)"
+                  pie="Descontando lo que abren solas las máquinas"
+                />
+                <Resumen
+                  etiqueta="Eligieron un curso"
+                  valor={eligieron}
+                  antes={contra("ELIGIO_ACCION")}
+                  etiquetaAntes={rotuloB}
+                  nota={sinB}
+                  serie={dias.map((d) => d.eligieron)}
+                  color="var(--serie-2)"
+                  pie={
+                    personas >= MINIMO_PARA_TASA
+                      ? `${porcentaje(eligieron, personas)} de las personas`
+                      : "Aún son pocas para un porcentaje"
+                  }
+                />
+                <Resumen
+                  etiqueta="Se preinscribieron"
+                  valor={quedaron}
+                  antes={contra("REGISTRADO")}
+                  etiquetaAntes={rotuloB}
+                  nota={sinB}
+                  serie={dias.map((d) => d.preinscritos)}
+                  color="var(--exito)"
+                  /// LA CIFRA CUENTA PREINSCRIPCIONES, NO LEADS NUEVOS: el hito
+                  /// REGISTRADO incluye a quien ya estaba (el servidor contesta
+                  /// lo mismo en los dos casos, y lo marca REPETIDA). La serie
+                  /// por día y los cortes cuentan solo los nuevos. «N leads
+                  /// creados» sobre la cifra entera afirmaba leads que no se
+                  /// crearon; aquí se dice cuántos fueron nuevos y cuántos ya
+                  /// estaban, y la chispa es la de los nuevos.
+                  pie={(() => {
+                    if (quedaron === 0) return "Ningún lead todavía en este periodo";
+                    const nuevos = Math.min(dias.reduce((t, d) => t + d.preinscritos, 0), quedaron);
+                    const creados = `${n(nuevos)} ${nuevos === 1 ? "lead nuevo" : "leads nuevos"}`;
+                    const ya = quedaron - nuevos;
+                    return ya > 0 ? `${creados} · ${n(ya)} ya ${ya === 1 ? "estaba" : "estaban"}` : creados;
+                  })()}
+                />
               </div>
 
               {/* EL PASO A PASO, PRIMERO.
@@ -587,9 +619,27 @@ export function PanelTrafico() {
                 />
               </div>
 
-              {/* LA TABLA, AL FINAL. Era la última fila de tres tarjetas
-                  de 384 px con hasta el 65 % en blanco. */}
-              <TablaDeCortes datos={datos} periodo={rotuloA} />
+              {/* LOS CORTES, AL FINAL: tres tarjetas en fila, como
+                  estaban. Fueron un día una tabla y el cliente la
+                  devolvió: «me gusta más como estaba originalmente».
+                  Por debajo de 1.024 px se apilan, cada una a lo ancho. */}
+              <div className="grid gap-4 lg:grid-cols-3">
+                {CORTES.map((c) => (
+                  <Corte
+                    key={c.titulo}
+                    titulo={c.titulo}
+                    periodo={rotuloA}
+                    filas={c.filas(datos)}
+                    nombre={c.nombre}
+                    total={llegaron}
+                    pie={
+                      c.titulo === "Por campaña" && datos.campana.some((f) => f.valor === null)
+                        ? NOTA_UTM
+                        : undefined
+                    }
+                  />
+                ))}
+              </div>
             </>
           )}
         </>
@@ -609,16 +659,6 @@ export function PanelTrafico() {
       {datos?.historico && <Historico h={datos.historico} />}
     </div>
   );
-}
-
-/// El delta de una tarjeta, o nada si no se compara.
-function deltaDe(
-  ahora: number,
-  antes: number | null,
-  contra: string | null,
-): { valor: number | null; contra?: string | null } | undefined {
-  if (antes === null) return undefined;
-  return { valor: variacion(ahora, antes), contra };
 }
 
 /**
@@ -708,7 +748,7 @@ function AvisoSinMarcar({
 }
 
 /**
- * Las fichas del periodo, seguidas.
+ * Los leads del periodo, seguidos.
  *
  * CON el periodo en el título. Se le había quitado porque ya lo
  * decía el Paso a paso, pero entre los dos queda el Día a día
@@ -770,7 +810,7 @@ function DespuesDePreinscribirse({
       )}
 
       <p className="mt-3 text-xs text-texto-suave">
-        Quien ya tenía ficha no recibe enlace y no entra aquí.
+        Quien ya era lead no recibe enlace y no entra aquí.
         {comparando && " El comparador de fechas no compara este bloque."}
       </p>
     </Bloque>
@@ -819,7 +859,7 @@ function ComoLeer({ hayHistorico }: { hayHistorico: boolean }) {
       /// Aquí se dice también QUÉ divide cada porcentaje: son tres
       /// bases, y hoy coinciden solo porque no hay máquinas.
       `Porcentajes desde ${MINIMO_PARA_TASA} visitas`,
-      "Con menos, un porcentaje no dice nada, así que no se muestra. El del Paso a paso va sobre las aperturas; el de la tabla, sobre las personas; el de «Después», sobre las fichas.",
+      "Con menos, un porcentaje no dice nada, así que no se muestra. El del Paso a paso va sobre las aperturas; el de los cortes, sobre las personas; el de «Después», sobre los leads.",
     ],
     [
       "«No dejó rastro» casi siempre es correo o WhatsApp",
@@ -841,6 +881,215 @@ function ComoLeer({ hayHistorico }: { hayHistorico: boolean }) {
           </div>
         ))}
       </dl>
+    </Bloque>
+  );
+}
+
+/**
+ * Una cifra grande, DE SU COLOR, con su tendencia debajo.
+ *
+ * VUELVE LA TARJETA DE ANTES (cliente, 21 sep 2026: «no sé qué tan
+ * sano tarjeta y gráfica, se ve algo raro»). Se había fundido en un
+ * marco de cuatro celdas con la cifra en negro y la chispa metida a
+ * la derecha solo en dos, y con pocos días esa chispa pequeña era
+ * una raya en escalón pegada al número. Son otra vez cuatro
+ * tarjetas, la cifra del color de su serie y la chispa a lo ancho
+ * debajo, en las cuatro.
+ *
+ * Con un arreglo de verdad: dos de las cuatro chispas dibujaban la
+ * serie de OTRA cifra --«Personas» las aperturas, «Eligieron» las
+ * preinscripciones-- porque el servidor no las mandaba por día.
+ * Ahora cada una trae la suya y la suma de sus días da la cifra de
+ * arriba (`embudo.service.ts`, `porDia`).
+ *
+ * La chispa solo sale con dos días o más: con uno sería un punto
+ * suelto, que se lee como un fallo de dibujo y no como «todavía no
+ * hay historia».
+ */
+function Resumen({
+  etiqueta,
+  valor,
+  serie,
+  color,
+  pie,
+  antes = null,
+  etiquetaAntes = null,
+  nota = null,
+}: {
+  etiqueta: string;
+  valor: number;
+  serie: number[];
+  color: string;
+  pie?: string;
+  /// Null cuando no se compara: 0 es «hubo cero».
+  antes?: number | null;
+  etiquetaAntes?: string | null;
+  /// Lo que se dice en el renglón de la cifra de B cuando no la hay.
+  nota?: string | null;
+}) {
+  return (
+    <div className="rounded-lg border border-borde bg-superficie p-5">
+      <p className="text-xs font-medium tracking-wide text-texto-suave uppercase">{etiqueta}</p>
+      <div className="mt-1 flex flex-wrap items-baseline gap-x-3">
+        {/* EL COLOR DE LA SERIE, UN PUNTO HACIA EL TÍTULO. El verde de
+            «Personas» puro sobre blanco daba 2,8:1 y el naranja 3,2:1,
+            por debajo o al filo del 3:1 de una cifra grande. Mezclado
+            con `--titulo` se oscurece en claro y se aclara en oscuro:
+            sigue leyéndose como su color y se lee en los dos temas.
+            La chispa lleva el color puro, que no es texto. */}
+        <p
+          className="text-3xl font-semibold tabular-nums"
+          style={{ color: `color-mix(in oklab, ${color} 80%, var(--titulo))` }}
+        >
+          {n(valor)}
+        </p>
+        {/* Sin «vs …»: el periodo B ya lo dice el renglón de abajo, y
+            dicho dos veces en tres centímetros es ruido. */}
+        {antes !== null && <Delta valor={variacion(valor, antes)} />}
+      </div>
+      {antes !== null ? (
+        <p className="mt-0.5 text-xs text-texto-suave tabular-nums">
+          {n(antes)} {enPeriodo(etiquetaAntes)}
+        </p>
+      ) : (
+        nota && <p className="mt-0.5 text-xs text-texto-suave">{nota}</p>
+      )}
+      {serie.length > 1 && (
+        <Chispa
+          datos={serie}
+          color={color}
+          estirada
+          clase="mt-3 block h-8 w-full"
+          etiqueta={`${etiqueta}, día a día`}
+        />
+      )}
+      {pie && <p className="mt-2 text-xs text-texto-suave">{pie}</p>}
+    </div>
+  );
+}
+
+/// Seis, como estaba: dispositivo y dirección caben enteros, y la
+/// campaña, que llega a doce, abre el resto con su botón.
+const FILAS_EN_TARJETA = 6;
+
+/// Se dice donde se lee la cifra: bajo «Por campaña», y solo cuando
+/// hay filas sin etiqueta, que es cuando hace falta.
+const NOTA_UTM =
+  "Para que un envío salga aquí con su nombre, su enlace tiene que llevar «utm_campaign». Un correo masivo lleva además «utm_source=correo».";
+
+/// Lo que se lee en gris a la derecha de cada fila.
+///
+/// El porcentaje va sobre las PERSONAS y NUNCA sobre las aperturas:
+/// un escáner de enlaces infla aquellas, así que dividir por ellas
+/// da una tasa que parece exacta y no lo es. Con pocas no se
+/// imprime: una tasa hecha de dos se lee igual que una de tres mil.
+function detalleDeFila(f: CorteDeVisitas): string | undefined {
+  if (f.visitas === 0) return undefined;
+  const gente = `${n(f.personas)} ${f.personas === 1 ? "persona" : "personas"}`;
+  if (f.personas < MINIMO_PARA_TASA) return gente;
+  return `${gente} · ${porcentaje(f.envios, f.personas)} se preinscribió`;
+}
+
+/**
+ * Un corte con barras: por dispositivo, por dirección o por campaña.
+ *
+ * VUELVEN LAS TRES TARJETAS (cliente, 21 sep 2026: «me gusta más
+ * como estaba originalmente»). Se habían fundido en una sola tabla
+ * de cinco columnas, que sigue en este archivo (`TablaDeCortes`).
+ * La barra es la APERTURA --el volumen que de verdad llegó-- y el
+ * gris de al lado lleva las personas, que son la base del
+ * porcentaje: un canal que abre mil veces y no toca ninguna tiene
+ * que verse.
+ *
+ * La fila la pinta aquí y no `ListaBarras`, con el mismo dibujo y
+ * una diferencia: si el nombre y las cifras no caben en un renglón,
+ * las cifras bajan al siguiente. En `ListaBarras` las cifras no
+ * ceden y el nombre se recorta, y en un celular «Por el subdominio
+ * del gremio» quedaba en «Por el su…».
+ */
+function Corte({
+  titulo,
+  periodo,
+  filas,
+  nombre,
+  total,
+  pie,
+}: {
+  titulo: string;
+  periodo: string;
+  filas: CorteDeVisitas[];
+  nombre: (valor: string | null) => string;
+  total: number;
+  /// Lo que hay que hacer para que este corte diga algo. Va donde
+  /// se lee la cifra, no en un manual que nadie abre.
+  pie?: string;
+}) {
+  const [todas, setTodas] = useState(false);
+  const resto = filas.length - FILAS_EN_TARJETA;
+  const visibles = resto > 0 && !todas ? filas.slice(0, FILAS_EN_TARJETA) : filas;
+  /// El tope sale de TODAS las filas: al abrir el resto, las barras
+  /// de arriba no se reescalan.
+  const tope = Math.max(1, ...filas.map((f) => f.visitas));
+
+  return (
+    /// El periodo va en la descripción y no en el título: con «· 7
+    /// días» detrás, «Por qué dirección entraron» partía en dos
+    /// renglones a 1.024 px y las tres listas empezaban a alturas
+    /// distintas.
+    <Bloque titulo={titulo} descripcion={periodo} estirado>
+      {filas.length === 0 ? (
+        <p className="py-6 text-center text-[0.84375rem] text-texto-suave">
+          Sin visitas en este periodo.
+        </p>
+      ) : (
+        <ul className="space-y-2.5">
+          {visibles.map((f) => {
+            const detalle = detalleDeFila(f);
+            const rotulo = nombre(f.valor);
+            return (
+              <li key={f.valor ?? "sin"}>
+                <div className="flex flex-wrap items-baseline justify-between gap-x-3 text-[0.84375rem]">
+                  <span className="min-w-0 truncate text-texto" title={rotulo}>
+                    {rotulo}
+                  </span>
+                  <span className="ml-auto shrink-0 text-texto tabular-nums">
+                    {n(f.visitas)}
+                    {detalle && (
+                      <span className="ml-2 text-xs text-texto-suave">{detalle}</span>
+                    )}
+                  </span>
+                </div>
+                <div className="mt-1 h-2 w-full overflow-hidden rounded-full bg-superficie-alterna">
+                  <div
+                    className="h-full rounded-full bg-gradient-to-r from-marca to-marca/40"
+                    style={{ width: `${(f.visitas / tope) * 100}%` }}
+                  />
+                </div>
+              </li>
+            );
+          })}
+          {resto > 0 && (
+            <li className="pt-1">
+              <button
+                type="button"
+                onClick={() => setTodas((v) => !v)}
+                className="text-xs font-medium text-marca underline underline-offset-2 hover:text-marca-fuerte"
+              >
+                {todas
+                  ? `Ver solo las ${n(FILAS_EN_TARJETA)} primeras`
+                  : `Ver ${resto === 1 ? "la otra" : `las otras ${n(resto)}`}`}
+              </button>
+            </li>
+          )}
+        </ul>
+      )}
+      {total > 0 && filas.length > 0 && (
+        <p className="mt-3 text-xs text-texto-suave">
+          Sobre {n(total)} {total === 1 ? "apertura" : "aperturas"} del periodo. El
+          porcentaje va sobre las personas.
+        </p>
+      )}
+      {pie && <p className="mt-2 text-xs text-texto-suave">{pie}</p>}
     </Bloque>
   );
 }
@@ -904,8 +1153,14 @@ const TD_CIFRA = `${TD} text-right tabular-nums`;
  *
  * Una sola tabla con una fila de título por corte, y no tres:
  * las columnas quedan alineadas de un corte al siguiente.
+ *
+ * FUERA DE LA PANTALLA desde el 21 sep 2026: el cliente la vio y
+ * pidió volver a las tres tarjetas («me gusta más como estaba
+ * originalmente»), que son `Corte`. Se queda aquí, exportada para
+ * que no la marque nadie como sobrante, porque funciona y no se
+ * borra lo que sirve.
  */
-function TablaDeCortes({ datos, periodo }: { datos: EmbudoPublico; periodo: string }) {
+export function TablaDeCortes({ datos, periodo }: { datos: EmbudoPublico; periodo: string }) {
   /// Cada corte se abre por su cuenta, como hacía ListaBarras.
   const [todas, setTodas] = useState<Record<string, boolean>>({});
   const campana = datos.campana;
@@ -1099,7 +1354,21 @@ function variacion(actual: number, antes: number): number | null {
 /// arriba de una cifra para saber de qué día habla.
 function rotulo({ desde, hasta }: { desde: string; hasta: string }): string {
   if (!desde || !hasta) return "";
-  return desde === hasta ? diaCorto(desde) : `${diaCorto(desde)} al ${diaCorto(hasta)}`;
+  if (desde === hasta) return diaCorto(desde);
+  /// En el mismo mes, el mes una sola vez: «8 al 14 de sept» y no
+  /// «8 de sept al 14 de sept».
+  const inicio = desde.slice(0, 7) === hasta.slice(0, 7) ? String(Number(desde.slice(8, 10))) : diaCorto(desde);
+  return `${inicio} al ${diaCorto(hasta)}`;
+}
+
+/// El periodo dicho DENTRO de una frase. Un rótulo de fechas no se
+/// puede pegar detrás de «en»: salía «12 en 8 de sept al 14 de sept».
+/// Con fechas va «del 8 al 14 de sept» o «el 8 de sept»; los nombres
+/// del servidor («La semana pasada») siguen con su «en».
+function enPeriodo(r: string | null | undefined): string {
+  if (!r) return "en el otro periodo";
+  if (!/^\d/.test(r)) return `en ${r}`;
+  return r.includes(" al ") ? `del ${r}` : `el ${r}`;
 }
 
 /// El día de hoy en Bogotá, en `YYYY-MM-DD`.
@@ -1275,8 +1544,16 @@ function Periodo({
 
 /**
  * Lo de antes del contador, reconstruido del registro del
- * servidor. CERRADO: la línea visible dice qué es y cuánto, y
- * que no se suma; la serie y la lista, a un clic.
+ * servidor.
+ *
+ * ABIERTO, como estaba. Se cerró un día para aligerar la pantalla
+ * y el cliente lo dio por perdido: «se perdió el Antes del
+ * contador». Va al final, así que abierto no le quita sitio a nada
+ * de arriba. Las dos cifras van a la derecha del título, como
+ * antes, y la gráfica es la misma del Día a día.
+ *
+ * En local no sale: la tabla `visitas_reconstruidas` está vacía, y
+ * sin filas el servidor manda `historico: null`. En producción sí.
  *
  * Tres cosas que el bloque dice en voz alta porque no se
  * pueden saber del registro, y callarlas seria dar por medido
@@ -1295,8 +1572,19 @@ function Historico({ h }: { h: HistoricoDeTrafico }) {
   return (
     <Bloque
       titulo="Antes del contador"
-      descripcion={`Reconstruido del registro del servidor, del ${fechaCorta(h.desde)} al ${fechaCorta(h.hasta)}: ${n(h.visitas)} visitas y ${n(h.envios)} envíos. No se suma a lo de arriba.`}
-      plegable
+      descripcion={
+        <>
+          Reconstruido del <strong className="font-semibold">registro del servidor</strong>,
+          no del contador. Del {fechaCorta(h.desde)} al {fechaCorta(h.hasta)}. No se suma
+          a lo de arriba.
+        </>
+      }
+      acciones={
+        <p className="text-[0.8125rem] whitespace-nowrap text-texto tabular-nums">
+          <strong className="font-semibold text-titulo">{n(h.visitas)}</strong> visitas ·{" "}
+          <strong className="font-semibold text-titulo">{n(h.envios)}</strong> envíos
+        </p>
+      }
     >
       <DosSeriesPorDia
         a={{ nombre: "Abrieron el enlace", datos: dias }}

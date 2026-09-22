@@ -1702,7 +1702,7 @@ export class PreinscripcionService {
     return pasarSiNoLeFaltaNada(
       this.prisma,
       participanteId,
-      'Completó su ficha por su cuenta desde el enlace',
+      'Completó sus datos por su cuenta desde el enlace',
     );
   }
 

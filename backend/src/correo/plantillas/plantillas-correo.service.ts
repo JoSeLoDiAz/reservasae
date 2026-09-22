@@ -527,7 +527,7 @@ export class PlantillasCorreoService {
 
     if (!vista.para) {
       throw new BadRequestException(
-        `${vista.nombre} no tiene correo en la ficha. Sin correo no hay a dónde mandarlo.`,
+        `${vista.nombre} no tiene correo registrado. Sin correo no hay a dónde mandarlo.`,
       );
     }
 
@@ -540,7 +540,7 @@ export class PlantillasCorreoService {
       throw new BadRequestException(
         'Faltan datos de esta persona para llenar la plantilla: ' +
           `${vista.faltantes.map((f) => `{{${f}}}`).join(', ')}. ` +
-          'Complételos en la ficha, o use otra plantilla.',
+          'Complételos en el lead, o use otra plantilla.',
       );
     }
 

@@ -132,7 +132,7 @@ export default function PaginaNuevoParticipante() {
 
       <Tarjeta
         titulo="Quién es"
-        descripcion="El documento identifica a la persona en todo el sistema: si ya está en otro curso, se reconoce sola. Lo que quede en blanco se puede completar después desde su ficha."
+        descripcion="El documento identifica a la persona en todo el sistema: si ya está en otro curso, se reconoce sola. Lo que quede en blanco se puede completar después desde su lead."
       >
         <div className="space-y-4">
           <CamposDeLaPersona

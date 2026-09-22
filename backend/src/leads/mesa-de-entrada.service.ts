@@ -381,8 +381,8 @@ export class MesaDeEntrada {
     /// que corregir se corrige en la ficha.
     if (lead.participanteId || lead.estado !== 'PENDIENTE') {
       throw new BadRequestException(
-        'Este lead ya se atendió. Corrija los datos en su ficha, que es la ' +
-          'que vale.',
+        'Este lead ya se atendió. Corrija los datos en Gestión de leads, que ' +
+          'es donde valen.',
       );
     }
 

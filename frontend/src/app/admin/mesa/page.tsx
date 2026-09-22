@@ -223,7 +223,7 @@ export default function PaginaMesa() {
     <>
       <Encabezado
         titulo="Mesa de entrada"
-        descripcion="Lo que llega por los webhooks: la pauta de Meta y el orquestador de correos. Todavía no son fichas — alguien las revisa y las convierte, y ahí entran a Gestión de leads como Interesados."
+        descripcion="Lo que llega por los webhooks: la pauta de Meta y el orquestador de correos. Todavía no están en Gestión de leads — alguien los revisa y los convierte, y ahí entran como Interesados."
       />
 
       <section className="space-y-5 px-7 py-6">
@@ -233,8 +233,8 @@ export default function PaginaMesa() {
           <Aviso tipo={resultado.fallaron ? "error" : "exito"}>
             <div className="font-semibold">
               {resultado.convertidos} de {resultado.pedidos}{" "}
-              {resultado.convertidos === 1 ? "quedó" : "quedaron"} como ficha en
-              Interesado.
+              {resultado.convertidos === 1 ? "quedó" : "quedaron"} en Gestión de
+              leads, en Interesado.
             </div>
             {resultado.sinAutorizacion > 0 && (
               /// Decirlo es la mitad del trabajo: sin esto,
@@ -243,7 +243,7 @@ export default function PaginaMesa() {
               <div className="mt-1 text-sm">
                 {resultado.sinAutorizacion} sin autorización de datos: no
                 llegaron por un formulario, así que hay que pedírsela antes de
-                poder matricularlas o reportarlas.
+                poder matricularlos o reportarlos.
               </div>
             )}
             {resultado.fuera > 0 && (
@@ -280,8 +280,9 @@ export default function PaginaMesa() {
             color="var(--aviso)"
           />
           <Cifra
-            etiqueta="Ya son ficha"
+            etiqueta="Convertidos"
             valor={r.CONVERTIDO ?? 0}
+            pie="en Gestión de leads"
             color="var(--exito)"
           />
           <Cifra etiqueta="Descartados" valor={r.DESCARTADO ?? 0} />
@@ -359,8 +360,8 @@ export default function PaginaMesa() {
         {confirmando && (
           <div className="space-y-3 rounded-xl border border-borde bg-superficie-2 p-5">
             <div className="font-semibold">
-              Va a convertir {seleccionados.length} lead
-              {seleccionados.length === 1 ? "" : "s"} en fichas.
+              Va a pasar {seleccionados.length} lead
+              {seleccionados.length === 1 ? "" : "s"} a Gestión de leads.
             </div>
             <ul className="space-y-1 text-sm text-texto-suave">
               <li>
@@ -368,7 +369,8 @@ export default function PaginaMesa() {
               </li>
               <li>
                 Les falta la <strong>sede</strong>: sale de dónde viva cada
-                persona, y eso el lead no lo trae. Se completa en la ficha.
+                persona, y eso el lead no lo trae. Se completa después, en
+                Gestión de leads.
               </li>
               <li>
                 {seleccionados.length - sinAutorizar} autorizaron al llenar el
@@ -378,7 +380,7 @@ export default function PaginaMesa() {
               {sinAutorizar > 0 && (
                 <li className="text-aviso">
                   {sinAutorizar} no llegaron por un formulario, así que no
-                  consta que autorizaran. Quedan como ficha, pero no se podrán
+                  consta que autorizaran. Pasan igual a Gestión de leads, pero no se podrán
                   matricular ni reportar hasta que alguien les pida la
                   autorización.
                 </li>
@@ -386,7 +388,7 @@ export default function PaginaMesa() {
             </ul>
             {!reparte && (
               <p className="text-sm">
-                Quedan asignadas <strong>a usted</strong>.
+                Quedan asignados <strong>a usted</strong>.
               </p>
             )}
 
@@ -396,7 +398,7 @@ export default function PaginaMesa() {
                 className="block text-sm font-medium"
                 htmlFor="asesor-del-lote"
               >
-                ¿Quién las va a atender?
+                ¿Quién los va a atender?
               </label>
               <select
                 id="asesor-del-lote"
@@ -642,7 +644,7 @@ export default function PaginaMesa() {
                           href={"/admin/participantes/" + l.participanteId}
                           className="mt-0.5 block text-xs font-medium text-marca hover:underline"
                         >
-                          Ver la ficha
+                          Ver en Gestión de leads
                         </Link>
                       )}
                     </td>

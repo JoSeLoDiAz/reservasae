@@ -128,7 +128,7 @@ export class ConversionDeLeads {
 
     if (lead.participanteId) {
       throw new ConflictException(
-        'Este lead ya tiene ficha. Ábrala desde Gestión de leads.',
+        'Este lead ya pasó a Gestión de leads. Ábralo desde allí.',
       );
     }
 
@@ -143,7 +143,7 @@ export class ConversionDeLeads {
 
     if (tipo === null || tipo === undefined || !numero) {
       throw new BadRequestException(
-        'Falta el documento. Sin él no se puede crear la ficha: es la llave ' +
+        'Falta el documento. Sin él no se puede convertir el lead: es la llave ' +
           'con la que la misma persona es la misma en todo el sistema.',
       );
     }

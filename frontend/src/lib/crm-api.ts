@@ -20,7 +20,20 @@ export type EmbudoPublico = {
   /// embudo, y esto no es un paso que la persona da.
   personas: number;
   /// Dia a dia desde que arranco el contador: el comparativo.
-  porDia: Array<{ dia: string; llegaron: number; preinscritos: number }>;
+  ///
+  /// Una serie por tarjeta, cada una con la regla de su cifra, y
+  /// la suma de los dias da el total de arriba: `personas` son las
+  /// mismas llegadas que `personas`, y `eligieron` el mismo peldaño
+  /// `ELIGIO_ACCION` de `hitos`. Antes solo venian las aperturas y
+  /// las preinscripciones, y dos chispas dibujaban la serie de otra
+  /// cifra.
+  porDia: Array<{
+    dia: string;
+    llegaron: number;
+    personas: number;
+    eligieron: number;
+    preinscritos: number;
+  }>;
   caidaMayor: { de: string; a: string; sePerdieron: number } | null;
   /// Fichas del registro que terminaron.
   despues: { recibieron: number; terminaron: number };

@@ -487,10 +487,10 @@ function BorrarLote({
           titulo={`Va a eliminar ${ids.length} ${ids.length === 1 ? "lead" : "leads"}`}
           descripcion={
             <>
-              Se borran las fichas con sus <strong>avances, sus notas y su
+              Se borran los leads con sus <strong>avances, sus notas y su
               historial de etapas</strong>. No se puede deshacer.
               <br />
-              Queda una huella por cada una en la auditoría, con quién lo hizo.
+              Queda una huella por cada uno en la auditoría, con quién lo hizo.
             </>
           }
           palabra={String(ids.length)}

@@ -1373,8 +1373,8 @@ export class CrmService {
       entidadId: creado.id,
       convenioId: dto.convenioId,
       resumen: sobrecupo
-        ? `Ficha creada con sobrecupo autorizado: ${sobrecupo.motivo}`
-        : 'Ficha creada.',
+        ? `Lead creado con sobrecupo autorizado: ${sobrecupo.motivo}`
+        : 'Lead creado.',
       ip: ip ?? null,
     });
 
@@ -1671,7 +1671,7 @@ export class CrmService {
       await pasarSiNoLeFaltaNada(
         this.prisma,
         id,
-        'Un asesor completó sus datos en la ficha',
+        'Un asesor completó sus datos en el lead',
         admin.id,
       );
     }
@@ -1952,7 +1952,7 @@ export class CrmService {
       entidad: ENTIDADES.EMPRESA,
       entidadId: empresaId,
       convenioId: suyo?.convenioId ?? null,
-      resumen: 'Desde la ficha de un lead.',
+      resumen: 'Desde un lead.',
       camposTocados: tocados,
       ip,
     });
@@ -2033,7 +2033,7 @@ export class CrmService {
       throw new BadRequestException(
         'No se puede registrar la caracterización sin autorización de datos ' +
           'vigente: son datos sensibles y tienen que colgar de un ' +
-          'consentimiento. Regístrela primero en esta misma ficha.',
+          'consentimiento. Regístrela primero en este mismo lead.',
       );
     }
 
@@ -2182,7 +2182,7 @@ export class CrmService {
     });
     if (!concesion) {
       throw new BadRequestException(
-        `${asesor.nombre} no trabaja en este convenio, así que no vería esta ficha. ` +
+        `${asesor.nombre} no trabaja en este convenio, así que no vería este lead. ` +
           'Déle acceso primero, o elija a otra persona.',
       );
     }
@@ -2217,7 +2217,7 @@ export class CrmService {
     );
     if (ajenos.length > 0) {
       throw new ForbiddenException(
-        'Repartir fichas entre asesores lo hace un lider: es organizar el ' +
+        'Repartir leads entre asesores lo hace un líder: es organizar el ' +
           'trabajo del equipo, no atender un lead.',
       );
     }
@@ -2397,7 +2397,7 @@ export class CrmService {
     });
 
     if (suyas.length === 0) {
-      throw new NotFoundException('Ninguna de esas fichas existe en su ámbito.');
+      throw new NotFoundException('Ninguno de esos leads existe en su ámbito.');
     }
 
     await this.prisma.$transaction(async (tx) => {
@@ -2815,7 +2815,7 @@ export class CrmService {
     if (dto.etapa === 'DATOS_COMPLETOS') {
       throw new BadRequestException(
         '«Datos completos» no se marca a mano: lo calcula el sistema con lo ' +
-          'que hay en la ficha.',
+          'que hay en el lead.',
       );
     }
 

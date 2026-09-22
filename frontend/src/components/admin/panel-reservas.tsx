@@ -37,7 +37,7 @@
 
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { createContext, useEffect, useMemo, useState } from "react";
+import { createContext, useEffect, useMemo, useRef, useState } from "react";
 
 import { EncabezadoImpresion } from "./boton-pdf";
 import { Desplegable } from "./desplegable";
@@ -1120,19 +1120,35 @@ function ComoSeCuentan({ informe }: { informe: InformeReservas }) {
  * los cupos. Las barras azul y naranja «con y sin nombre» que iban
  * al lado de la tabla se fueron: la tabla ya lleva el porcentaje, y
  * la misma cifra en dos formas a un palmo se leía como dos cifras.
+ *
+ * En papel también van lado a lado, salvo con más de
+ * `SEMANAS_EN_MEDIA_HOJA` semanas: a media hoja la gráfica tiene unos
+ * 460 px, y en papel no hay desplazamiento que salve las cifras de
+ * columnas más angostas. Entonces van una bajo otra, a todo el ancho.
  */
+const SEMANAS_EN_MEDIA_HOJA = 16;
+
 function Graficas({ informe, filtros }: { informe: InformeReservas; filtros: FiltrosInformeReservas }) {
+  const apiladasEnPapel = semanasDelInforme(informe, filtros).length > SEMANAS_EN_MEDIA_HOJA;
+  /// `print:flex-none` al apilarlas: el `lg:flex-1` de la pantalla
+  /// también vale en papel (la hoja pasa de 1.024 px) y en columna
+  /// repartiría el alto en vez del ancho.
+  const cadaUna = `min-w-0 lg:flex-1 ${apiladasEnPapel ? "print:flex-none" : "print:flex-1"}`;
   return (
     /// `items-start`: cada tarjeta con su alto. Estiradas a la par, la
     /// de columnas copiaba el alto de la lista y quedaba con un 45 % en
     /// blanco --868 px al pulsar «Ver las otras»--. El alto parejo con
     /// las ocho barras lo pone el alto ancho de ALTO_COLUMNAS, no el
     /// estirón.
-    <div className="flex flex-col gap-3 lg:flex-row lg:items-start print:flex-row print:items-start">
-      <div className="min-w-0 lg:flex-1 print:flex-1">
+    <div
+      className={`flex flex-col gap-3 lg:flex-row lg:items-start ${
+        apiladasEnPapel ? "print:flex-col print:items-stretch" : "print:flex-row print:items-start"
+      }`}
+    >
+      <div className={cadaUna}>
         <QuienDebeNombres organizaciones={informe.porOrganizacion} />
       </div>
-      <div className="min-w-0 lg:flex-1 print:flex-1">
+      <div className={cadaUna}>
         <CuposPorSemana informe={informe} filtros={filtros} />
       </div>
     </div>
@@ -1248,6 +1264,18 @@ function cuposPorSemana(serie: PuntoSerie[], fin: string, hoy: string): Semana[]
 }
 
 /**
+ * Las semanas que pinta la gráfica: hasta el «hasta» elegido o hasta
+ * hoy, lo que llegue antes, porque más allá de hoy no hay nada que
+ * dibujar. Va aparte porque la piden dos: la gráfica, y `Graficas`,
+ * que con ella decide si en papel caben lado a lado.
+ */
+function semanasDelInforme(informe: InformeReservas, filtros: FiltrosInformeReservas): Semana[] {
+  const hoy = diaDeBogota(informe.generadoEn);
+  const fin = filtros.hasta && filtros.hasta < hoy ? filtros.hasta : hoy;
+  return cuposPorSemana(informe.porDia, fin, hoy);
+}
+
+/**
  * Alto de la zona de columnas; la cifra de encima va dentro.
  *
  * Dos altos: 140 px apilada (celular, tableta, papel) y, desde 1.024
@@ -1262,16 +1290,102 @@ const ALTO_CIFRA = 18;
 const ANCHO_ROTULO = 52;
 
 /**
+ * El ancho de la columna dentro de su tramo.
+ *
+ * Cada semana es un tramo `flex-1` sin hueco --los tramos se reparten
+ * la caja entera-- y la columna va centrada en el suyo: el 78 % del
+ * tramo, así que el hueco crece y mengua con ella. Con un hueco fijo
+ * de 10 px, treinta semanas en 720 px dejaban columnas de 14 px
+ * separadas por 10: más hueco que columna. Nunca menos de 4 px de
+ * hueco, y nunca más de 80 px de columna: con tres semanas a partes
+ * iguales salían bloques de 230 px; con el tope, lo que sobra queda
+ * repartido alrededor de cada una y no amontonado a la derecha.
+ *
+ * Las fechas de debajo van en tramos iguales: caen bajo su columna
+ * sin tener que repetir nada.
+ */
+const ANCHO_COLUMNA = "min(80px, calc(100% - max(4px, 22%)))";
+/**
+ * Por debajo de este paso (de centro a centro de columna) ya son
+ * hilos: en vez de estrecharlas más, la caja se desplaza de lado.
+ */
+const PASO_MINIMO = 20;
+/// Lo que mide la cifra de encima (0,6875 rem, Raleway), medido en el
+/// navegador: el «1» 5,2 px, el punto de miles 2,4 y los demás dígitos
+/// hasta 6,8 --Raleway no trae cifras de ancho fijo, así que
+/// `tabular-nums` no las iguala--. Se toma el más ancho para todos
+/// menos el «1»: quedarse corto es lo que las monta.
+const ANCHO_DIGITO = 6.8;
+const ANCHO_UNO = 5.2;
+const ANCHO_PUNTO = 2.4;
+
+function anchoDeCifra(valor: number): number {
+  let ancho = 0;
+  for (const c of n(valor)) ancho += c === "1" ? ANCHO_UNO : /\d/.test(c) ? ANCHO_DIGITO : ANCHO_PUNTO;
+  return ancho;
+}
+
+/**
+ * El paso más corto con el que las cifras de encima no se montan: la
+ * mitad de cada una de dos vecinas, más 3 px de aire.
+ *
+ * Sale de LOS DATOS y no de un número fijo: «133» junto a «95» cabe en
+ * 20 px, «1.250» junto a «980» pide 28. Con un mínimo fijo que cubriera
+ * los miles, a 390 px las catorce semanas de hoy ya se desplazaban sin
+ * necesitarlo; y con 4 px de aire también, en una ventana de escritorio
+ * de 390 px, donde la barra de la página se come 15.
+ */
+function pasoMinimo(semanas: Semana[]): number {
+  let paso = PASO_MINIMO;
+  for (let i = 1; i < semanas.length; i++) {
+    paso = Math.max(paso, (anchoDeCifra(semanas[i - 1].cupos) + anchoDeCifra(semanas[i].cupos)) / 2 + 3);
+  }
+  return Math.ceil(paso);
+}
+
+/**
  * Cada cuántas columnas cabe un rótulo, según el ancho de la gráfica.
  *
  * Se decide por el ancho de ESTA caja (`@container`) y no el de la
  * ventana: a 1.024 px la tarjeta va a media pantalla y es más angosta
  * que a 800. Cada escalón usa el ancho MÍNIMO de su tramo, así nunca
- * se montan; el 6 es el hueco entre columnas.
+ * se montan; el primero, 220, es la caja de un celular de 320 px.
+ *
+ * De centro a centro de columna hay ancho / columnas, pero nunca menos
+ * que `pasoMin`: por debajo la caja se desplaza y las columnas dejan
+ * de estrecharse.
  */
-function pasosDeRotulo(columnas: number) {
-  const paso = (ancho: number) => Math.max(1, Math.ceil((ANCHO_ROTULO * columnas) / (ancho + 6)));
-  return { base: paso(280), sm: paso(384), lg: paso(512), xl2: paso(672) };
+function pasosDeRotulo(columnas: number, pasoMin: number) {
+  const paso = (ancho: number) => Math.max(1, Math.ceil(ANCHO_ROTULO / Math.max(pasoMin, ancho / columnas)));
+  return { base: paso(220), xs2: paso(288), sm: paso(384), lg: paso(512), xl2: paso(672) };
+}
+
+/// En papel no hay desplazamiento: la gráfica mide lo que dé la hoja,
+/// A4 apaisado con 8 mm de margen (globals.css). Medido con medios de
+/// impresión: 467 px a media hoja y 1.004 apilada; se toma algo menos.
+const ANCHO_PAPEL_MEDIO = 460;
+const ANCHO_PAPEL_ENTERO = 1000;
+
+/**
+ * Cómo sale en papel, donde la caja no se desplaza y el suelo de
+ * `pasoMin` no existe: con muchas semanas las columnas quedan más
+ * juntas que en pantalla.
+ *
+ * - `pasoRotulo`: cada cuántas columnas cabe una fecha a ESE ancho.
+ *   Los escalones de `pasosDeRotulo` cuentan con el suelo, y en papel,
+ *   con 53 semanas, las fechas se montaban 7 px.
+ * - `apretada`: si ni así caben las cifras acostadas. Entonces van de
+ *   pie, escritas de abajo arriba como en las gráficas densas, y la
+ *   zona les guarda el alto de la más larga (`altoCifra`).
+ */
+function comoSaleEnPapel(semanas: Semana[], pasoMin: number) {
+  const ancho = semanas.length > SEMANAS_EN_MEDIA_HOJA ? ANCHO_PAPEL_ENTERO : ANCHO_PAPEL_MEDIO;
+  const paso = ancho / Math.max(1, semanas.length);
+  return {
+    pasoRotulo: Math.max(1, Math.ceil(ANCHO_ROTULO / paso)),
+    apretada: paso < pasoMin,
+    altoCifra: Math.ceil(Math.max(0, ...semanas.map((s) => anchoDeCifra(s.cupos)))) + 4,
+  };
 }
 
 /**
@@ -1297,21 +1411,37 @@ function rotuloVisible(i: number, paso: number, enCurso: number): boolean {
  * cifra encima, porque el papel no tiene puntero; la semana en curso
  * va más clara y dice «en curso», porque aún puede crecer; las
  * vacías, un 0 sobre la base.
+ *
+ * LAS COLUMNAS SE REPARTEN TODO EL ANCHO. Iban a 48 px fijos, y con
+ * las once semanas de ADECOPRIA llenaban 588 px de una caja de 720 (a
+ * 1.600 px): «que se adapte a lo que tiene, porque se pierde espacio»
+ * (cliente, 21 sep 2026). Ahora cada semana es un tramo `flex-1`, así
+ * que las columnas se estrechan solas a medida que llegan semanas; con
+ * muy pocas las frena el tope de `ANCHO_COLUMNA`, y con muchas, antes
+ * de volverse hilos, la caja se desplaza de lado (`pasoMinimo`).
  */
 function CuposPorSemana({ informe, filtros }: { informe: InformeReservas; filtros: FiltrosInformeReservas }) {
   const serie = informe.porDia;
   const hoy = diaDeBogota(informe.generadoEn);
-  /// Hasta el «hasta» elegido o hasta hoy, lo que llegue antes: más
-  /// allá de hoy no hay nada que dibujar.
-  const fin = filtros.hasta && filtros.hasta < hoy ? filtros.hasta : hoy;
-  const semanas = cuposPorSemana(serie, fin, hoy);
+  const semanas = semanasDelInforme(informe, filtros);
   const tope = Math.max(1, ...semanas.map((s) => s.cupos));
   const ultima = serie[serie.length - 1]?.dia ?? null;
   const hace = ultima ? diasEntre(ultima, hoy) : 0;
+  const pasoMin = pasoMinimo(semanas);
   /// En lo angosto, una fecha cada dos o tres columnas: once rótulos
   /// de «13 jul» en 300 px se montan unos sobre otros.
-  const pasos = pasosDeRotulo(semanas.length);
+  const pasos = pasosDeRotulo(semanas.length, pasoMin);
+  const papel = comoSaleEnPapel(semanas, pasoMin);
   const iEnCurso = semanas.findIndex((s) => s.enCurso);
+  const caja = useRef<HTMLDivElement>(null);
+
+  /// Si no caben y la caja se desplaza, que abra por el final: la
+  /// semana en curso y las de antes son las que se vienen a mirar, y
+  /// la primera columna cortada a la izquierda ya dice que hay más.
+  useEffect(() => {
+    const c = caja.current;
+    if (c && c.scrollWidth > c.clientWidth) c.scrollLeft = c.scrollWidth;
+  }, [semanas.length]);
 
   return (
     <Bloque
@@ -1326,58 +1456,86 @@ function CuposPorSemana({ informe, filtros }: { informe: InformeReservas; filtro
       {semanas.length === 0 ? (
         <p className="py-4 text-[0.8125rem] text-texto-suave">Todavía no hay reservas que mostrar.</p>
       ) : (
-        <div
-          className="@container"
-          role="img"
-          aria-label={`Cupos apartados por semana: ${semanas.map((s) => `semana del ${diaCorto(s.lunes)}, ${n(s.cupos)}${s.enCurso ? " (en curso)" : ""}`).join("; ")}.`}
-        >
-          <div className={`flex items-end gap-[6px] border-b border-borde ${ALTO_COLUMNAS}`}>
-            {semanas.map((s) => {
-              /// En % del alto de la zona, menos la cifra: el alto
-              /// cambia con la ventana y la proporción no.
-              const alto =
-                s.cupos > 0 ? `max(2px, calc((100% - ${ALTO_CIFRA}px) * ${s.cupos / tope}))` : "0px";
-              return (
-                <div
-                  key={s.lunes}
-                  className="flex h-full max-w-[48px] min-w-0 flex-1 flex-col items-center justify-end"
-                  title={`Semana del ${diaYMes(s.lunes)}: ${cuenta(s.cupos, "cupo", "cupos")}${s.enCurso ? " (en curso)" : ""}`}
-                >
-                  <span
-                    className={`text-[0.6875rem] leading-none tabular-nums ${s.cupos > 0 ? "font-semibold text-titulo" : "text-texto-suave"}`}
-                    style={{ marginBottom: 3 }}
-                  >
-                    {n(s.cupos)}
-                  </span>
-                  <div
-                    className={`w-full rounded-t-[4px] ${s.enCurso ? "bg-marca/40" : "bg-marca"}`}
-                    style={{ height: alto }}
-                  />
-                </div>
-              );
-            })}
-          </div>
-          <div className="mt-1.5 flex gap-[6px]" aria-hidden>
-            {semanas.map((s, i) => {
-              const ve = (paso: number) => rotuloVisible(i, paso, iEnCurso);
-              /// `flex justify-center` y no `text-center`: el texto es
-              /// más ancho que su columna, y un texto que desborda no
-              /// se centra --arrancaba en el borde izquierdo y acababa
-              /// bajo la columna siguiente--. El flex sí reparte lo que
-              /// sobra a los dos lados.
-              return (
-                <span
-                  key={s.lunes}
-                  className={`flex max-w-[48px] min-w-0 flex-1 justify-center overflow-visible text-[0.625rem] leading-tight whitespace-nowrap text-texto-suave ${
-                    ve(pasos.base) ? "" : "invisible"
-                  } ${ve(pasos.sm) ? "@sm:visible" : "@sm:invisible"} ${
-                    ve(pasos.lg) ? "@lg:visible" : "@lg:invisible"
-                  } ${ve(pasos.xl2) ? "@2xl:visible" : "@2xl:invisible"}`}
-                >
-                  <span className="shrink-0">{s.enCurso ? "en curso" : diaCorto(s.lunes)}</span>
-                </span>
-              );
-            })}
+        <div className="@container">
+          {/* La caja que se desplaza invade el relleno del bloque
+              (`-mx-7 px-7`, el mismo px-7 de `Bloque`): el rótulo de
+              la primera columna y el «en curso» de la última sobresalen
+              de su columna, y una caja con `overflow` los cortaba por
+              la mitad en el borde de la gráfica. En papel no se
+              desplaza nada: sale entera, al ancho que haya. */}
+          <div
+            ref={caja}
+            role="img"
+            aria-label={`Cupos apartados por semana: ${semanas.map((s) => `semana del ${diaCorto(s.lunes)}, ${n(s.cupos)}${s.enCurso ? " (en curso)" : ""}`).join("; ")}.`}
+            className="-mx-7 overflow-x-auto px-7 print:overflow-visible"
+          >
+            <div
+              className="min-w-(--ancho-minimo) print:min-w-0"
+              style={{ "--ancho-minimo": `${semanas.length * pasoMin}px` } as React.CSSProperties}
+            >
+              {/* `--alto-cifra`: lo que la zona guarda encima de la columna
+                  más alta para su cifra. En papel apretado las cifras van
+                  de pie y piden el alto de la más larga. */}
+              <div
+                className={`flex items-end border-b border-borde ${ALTO_COLUMNAS} ${
+                  papel.apretada ? "print:[--alto-cifra:var(--alto-cifra-papel)]" : ""
+                }`}
+                style={
+                  papel.apretada ? ({ "--alto-cifra-papel": `${papel.altoCifra}px` } as React.CSSProperties) : undefined
+                }
+              >
+                {semanas.map((s) => {
+                  /// En % del alto de la zona, menos la cifra: el alto
+                  /// cambia con la ventana y la proporción no.
+                  const alto =
+                    s.cupos > 0 ? `max(2px, calc((100% - var(--alto-cifra, ${ALTO_CIFRA}px)) * ${s.cupos / tope}))` : "0px";
+                  return (
+                    <div
+                      key={s.lunes}
+                      className="flex h-full min-w-0 flex-1 flex-col items-center justify-end"
+                      title={`Semana del ${diaYMes(s.lunes)}: ${cuenta(s.cupos, "cupo", "cupos")}${s.enCurso ? " (en curso)" : ""}`}
+                    >
+                      <span
+                        className={`text-[0.6875rem] leading-none whitespace-nowrap tabular-nums ${s.cupos > 0 ? "font-semibold text-titulo" : "text-texto-suave"} ${
+                          papel.apretada ? "print:rotate-180 print:[writing-mode:vertical-rl]" : ""
+                        }`}
+                        style={{ marginBottom: 3 }}
+                      >
+                        {n(s.cupos)}
+                      </span>
+                      <div
+                        className={`rounded-t-[4px] ${s.enCurso ? "bg-marca/40" : "bg-marca"}`}
+                        style={{ height: alto, width: ANCHO_COLUMNA }}
+                      />
+                    </div>
+                  );
+                })}
+              </div>
+              <div className="mt-1.5 flex" aria-hidden>
+                {semanas.map((s, i) => {
+                  const ve = (paso: number) => rotuloVisible(i, paso, iEnCurso);
+                  /// `flex justify-center` y no `text-center`: el texto es
+                  /// más ancho que su columna, y un texto que desborda no
+                  /// se centra --arrancaba en el borde izquierdo y acababa
+                  /// bajo la columna siguiente--. El flex sí reparte lo que
+                  /// sobra a los dos lados.
+                  return (
+                    <span
+                      key={s.lunes}
+                      className={`flex min-w-0 flex-1 justify-center overflow-visible text-[0.625rem] leading-tight whitespace-nowrap text-texto-suave ${
+                        ve(pasos.base) ? "" : "invisible"
+                      } ${ve(pasos.xs2) ? "@2xs:visible" : "@2xs:invisible"} ${
+                        ve(pasos.sm) ? "@sm:visible" : "@sm:invisible"
+                      } ${ve(pasos.lg) ? "@lg:visible" : "@lg:invisible"} ${
+                        ve(pasos.xl2) ? "@2xl:visible" : "@2xl:invisible"
+                      } ${ve(papel.pasoRotulo) ? "print:visible" : "print:invisible"}`}
+                    >
+                      <span className="shrink-0">{s.enCurso ? "en curso" : diaCorto(s.lunes)}</span>
+                    </span>
+                  );
+                })}
+              </div>
+            </div>
           </div>
         </div>
       )}
@@ -1421,8 +1579,10 @@ function gruposDeAcciones(informe: InformeReservas): GrupoDeAcciones[] {
  *
  * Eran dos bloques --por acción con barras al lado, y por acción y
  * organización con 51 filas abiertas, 3.600 px--. Ahora cada acción
- * lleva «3 organizaciones ▸», que abre sus filas debajo, y la
- * cabecera un «Ver las organizaciones de todas las acciones». Nacen
+ * lleva «3 organizaciones ▸», que abre sus filas debajo --con las
+ * cifras de la acción bajadas a un «Total de AF1» al pie, ver
+ * `FilasDeLaAccion`--, y la cabecera un «Ver las organizaciones de
+ * todas las acciones». Nacen
  * cerradas: diez segundos para entender la pantalla no dan para 51
  * filas. En papel salen todas abiertas (`print:table-row`), así que
  * el PDF lleva las dos tablas de la hoja del cliente en una.
@@ -1474,6 +1634,7 @@ function TablaPorAccion({ informe }: { informe: InformeReservas }) {
           <button
             type="button"
             onClick={() => setAbiertas(todas ? new Set() : new Set(conOrganizaciones))}
+            aria-expanded={todas}
             className="no-imprimir self-center text-[0.75rem] font-medium text-marca underline underline-offset-2 hover:text-marca-fuerte"
           >
             {todas ? "Cerrar las organizaciones" : "Ver las organizaciones de todas las acciones"}
@@ -1557,29 +1718,38 @@ function TablaPorAccion({ informe }: { informe: InformeReservas }) {
             <ul className="divide-y divide-hairline">
               {g.filas.map((a) => {
                 const filas = cruce.get(a.accionFormacionId) ?? [];
-                const abierta = abiertas.has(a.accionFormacionId);
+                const abierta = abiertas.has(a.accionFormacionId) && filas.length > 0;
                 const con = sillasConNombre(a);
+                /// El «%» pegado a su cifra con espacio duro: a 390 px el
+                /// total partía «(3» en un renglón y «%)» en el siguiente.
+                const cifras =
+                  a.reservas === 0
+                    ? "Sin reservas todavía"
+                    : a.cuposConfirmados === 0
+                      ? `${cuenta(a.reservas, "reserva", "reservas")} · ${n(a.cuposEnEspera)} en espera`
+                      : `${cuenta(a.reservas, "reserva", "reservas")} · ${cuenta(a.cuposConfirmados, "cupo", "cupos")} · ${n(con)} con nombre (${porciento(con, a.cuposConfirmados)} %) · ${n(a.sinNombre)} sin nombre`;
+                const boton = filas.length > 0 && (
+                  <BotonOrganizaciones cuantas={filas.length} abierta={abierta} alAlternar={() => alternar(a.accionFormacionId)} />
+                );
                 return (
                   <li key={a.accionFormacionId} className={`px-7 py-3 ${a.reservas === 0 ? "text-texto-suave" : ""}`}>
                     <p className="text-[0.8125rem] leading-snug">
                       <span className="font-mono text-xs text-texto-suave">{a.codigo}</span>{" "}
                       <span className={a.reservas === 0 ? "" : "text-titulo"}>{comoParrafo(a.nombre)}</span>
                     </p>
-                    <p className="mt-1 text-[0.75rem] text-texto-suave tabular-nums">
-                      {a.reservas === 0
-                        ? "Sin reservas todavía"
-                        : a.cuposConfirmados === 0
-                          ? `${cuenta(a.reservas, "reserva", "reservas")} · ${n(a.cuposEnEspera)} en espera`
-                          : `${cuenta(a.reservas, "reserva", "reservas")} · ${cuenta(a.cuposConfirmados, "cupo", "cupos")} · ${n(con)} con nombre (${porciento(con, a.cuposConfirmados)} %) · ${n(a.sinNombre)} sin nombre`}
-                      {/* Al final del mismo renglón y no en uno aparte:
-                          20 px menos por acción en el celular. */}
-                      {filas.length > 0 && (
-                        <span className="ml-2 inline-block">
-                          <BotonOrganizaciones cuantas={filas.length} abierta={abierta} alAlternar={() => alternar(a.accionFormacionId)} />
-                        </span>
-                      )}
-                    </p>
-                    {abierta && filas.length > 0 && (
+                    {/* Abierta, igual que en la tabla: el nombre hace de
+                        cabecera, las organizaciones van debajo y las
+                        cifras de la acción bajan al pie como su total. */}
+                    {!abierta && (
+                      <p className="mt-1 text-[0.75rem] text-texto-suave tabular-nums">
+                        {cifras}
+                        {/* Al final del mismo renglón y no en uno aparte:
+                            20 px menos por acción en el celular. */}
+                        {boton && <span className="ml-2 inline-block">{boton}</span>}
+                      </p>
+                    )}
+                    {abierta && <p className="mt-1">{boton}</p>}
+                    {abierta && (
                       <ul className="mt-2 divide-y divide-hairline border-l-2 border-borde">
                         {filas.map((c) => {
                           const cc = sillasConNombre(c);
@@ -1596,13 +1766,21 @@ function TablaPorAccion({ informe }: { informe: InformeReservas }) {
                         })}
                       </ul>
                     )}
+                    {abierta && (
+                      <p className="mt-2 border-t border-borde pt-2 text-[0.75rem] font-semibold text-titulo tabular-nums">
+                        Total de {a.codigo}: {cifras}
+                      </p>
+                    )}
                   </li>
                 );
               })}
             </ul>
           </li>
         ))}
-        <li className="px-7 py-3 text-[0.8125rem] font-semibold text-titulo tabular-nums">
+        {/* Con fondo, como en la tabla: el «Total de AF1» de una acción
+            abierta también va en seminegrita, y sin el fondo los dos
+            totales se leían como del mismo rango. */}
+        <li className="bg-superficie-alterna px-7 py-3 text-[0.8125rem] font-semibold text-titulo tabular-nums">
           Suma total: {cuenta(t.reservas, "reserva", "reservas")} ·{" "}
           {cuenta(t.cuposConfirmados, "cupo", "cupos")} · {n(sillasConNombre(t))} con nombre (
           {porciento(sillasConNombre(t), t.cuposConfirmados)} %) · {n(t.sinNombre)} sin nombre
@@ -1681,11 +1859,24 @@ const CELDA = "px-3.5 py-2 align-top text-[0.8125rem]";
 const CELDA_CIFRA = `${CELDA} text-right tabular-nums`;
 
 /**
- * La fila de la acción y, debajo, las de sus organizaciones.
+ * Una acción: plegada, UNA fila con sus cifras; abierta, un GRUPO.
  *
- * Las de organizaciones están SIEMPRE en el DOM: cerradas llevan
- * `hidden print:table-row`, así que en pantalla no ocupan nada y en
- * papel salen todas sin depender de que alguien las abra.
+ * Abierta, la fila de la acción se quedaba arriba con sus totales y
+ * debajo salían las organizaciones, cada una repitiendo «AF1»: el
+ * total quedaba por encima de lo que suma, al revés de una tabla
+ * dinámica. «Que cuando le doy clic los totales queden abajo … así se
+ * ve algo raro» (cliente, 21 sep 2026). Así que, abierta:
+ *
+ *   - la fila de la acción es la cabecera del grupo: código, nombre y
+ *     el botón para plegar, sin cifras;
+ *   - debajo, las organizaciones, sangradas y sin repetir el código;
+ *   - y al pie, «Total de AF1» con las cifras de la acción.
+ *
+ * Las organizaciones y el total están SIEMPRE en el DOM: cerradas
+ * llevan `hidden print:table-row`, así que en pantalla no ocupan nada
+ * y en papel salen todas sin depender de que alguien las abra. Por lo
+ * mismo, en papel la fila de arriba va sin cifras (`print:hidden`): el
+ * papel sale siempre abierto y las cifras las lleva el total.
  */
 function FilasDeLaAccion({
   a,
@@ -1699,11 +1890,19 @@ function FilasDeLaAccion({
   alAlternar: () => void;
 }) {
   const sinReservas = a.reservas === 0;
-  const hayCupos = a.cuposConfirmados > 0;
-  const con = sillasConNombre(a);
+  const conOrganizaciones = organizaciones.length > 0;
+  /// Sin organizaciones no hay grupo que abrir: la acción es una fila
+  /// y sus cifras se ven siempre, también en papel.
+  const cifrasArriba = !conOrganizaciones ? "" : abierta ? "hidden" : "print:hidden";
   return (
     <>
-      <tr className={`border-b border-hairline ${sinReservas ? "text-texto-suave" : ""}`}>
+      {/* `break-after-avoid`: en papel, la cabecera de un grupo no
+          cierra una hoja sola, sin ninguna de sus organizaciones. */}
+      <tr
+        className={`border-b border-hairline ${conOrganizaciones ? "break-after-avoid" : ""} ${
+          sinReservas ? "text-texto-suave" : ""
+        }`}
+      >
         <td className="py-2 pr-2 pl-7 align-top font-mono text-xs text-texto-suave">{a.codigo}</td>
         {/* El nombre ENVUELVE y no se trunca: esto es el papel, y
             «Despliegue de agentes autónomos con…» no dice qué curso
@@ -1721,29 +1920,95 @@ function FilasDeLaAccion({
           {/* EN LA MISMA LÍNEA que el nombre, no debajo: debajo cada
               acción medía 62 px en vez de 40, y con los dos gremios la
               tabla cerrada pasaba de 1.100 px (medido a 1.600). */}
-          {organizaciones.length > 0 && (
+          {conOrganizaciones && (
             <span className="ml-2 inline-block">
               <BotonOrganizaciones cuantas={organizaciones.length} abierta={abierta} alAlternar={alAlternar} />
             </span>
           )}
         </td>
-        <td className={CELDA_CIFRA}>{n(a.reservas)}</td>
-        <td className={CELDA_CIFRA}>
-          {sinReservas ? "—" : n(a.cuposConfirmados)}
-          {/* La reserva en lista de espera: se dice debajo de su
-              cifra, en vez de dejar un número que parece un olvido. */}
-          {a.cuposEnEspera > 0 && (
-            <span className="mt-0.5 block text-[0.6875rem] text-texto-suave">{n(a.cuposEnEspera)} en espera</span>
-          )}
-        </td>
-        <td className={CELDA_CIFRA}>{hayCupos ? n(con) : "—"}</td>
-        <td className={CELDA_CIFRA}>{hayCupos ? `${porciento(con, a.cuposConfirmados)} %` : "—"}</td>
-        <td className={`${CELDA_CIFRA} pr-7`}>{hayCupos ? n(a.sinNombre) : "—"}</td>
+        <CeldasDeLaAccion a={a} ocultar={cifrasArriba} />
       </tr>
       {organizaciones.map((c) => (
         <FilaCruce key={`${c.accionFormacionId}|${c.empresaId}`} c={c} abierta={abierta} />
       ))}
+      {conOrganizaciones && <FilaTotalDeLaAccion a={a} abierta={abierta} />}
     </>
+  );
+}
+
+/**
+ * Las cinco cifras de una acción: en su fila cuando va plegada, y en
+ * su «Total de…» cuando va abierta. Una sola pieza para los dos sitios,
+ * así no pueden llegar a decir cosas distintas.
+ *
+ * `ocultar` va en un `span` DENTRO de la celda y no en la celda: la
+ * celda vacía se queda y la fila no pierde columnas.
+ */
+function CeldasDeLaAccion({ a, ocultar = "", raya = "" }: { a: FilaInformeAccion; ocultar?: string; raya?: string }) {
+  const sinReservas = a.reservas === 0;
+  const hayCupos = a.cuposConfirmados > 0;
+  const con = sillasConNombre(a);
+  const celda = `${CELDA_CIFRA} ${raya}`;
+  return (
+    <>
+      <td className={celda}>
+        <span className={ocultar}>{n(a.reservas)}</span>
+      </td>
+      <td className={celda}>
+        <span className={ocultar}>
+          {sinReservas ? "—" : n(a.cuposConfirmados)}
+          {/* La reserva en lista de espera: se dice debajo de su
+              cifra, en vez de dejar un número que parece un olvido. */}
+          {a.cuposEnEspera > 0 && (
+            <span className="mt-0.5 block text-[0.6875rem] font-normal text-texto-suave">
+              {n(a.cuposEnEspera)} en espera
+            </span>
+          )}
+        </span>
+      </td>
+      <td className={celda}>
+        <span className={ocultar}>{hayCupos ? n(con) : "—"}</span>
+      </td>
+      <td className={celda}>
+        <span className={ocultar}>{hayCupos ? `${porciento(con, a.cuposConfirmados)} %` : "—"}</span>
+      </td>
+      <td className={`${celda} pr-7`}>
+        <span className={ocultar}>{hayCupos ? n(a.sinNombre) : "—"}</span>
+      </td>
+    </>
+  );
+}
+
+/**
+ * «Total de AF1»: las cifras de la acción al pie de sus organizaciones,
+ * como el subtotal de una tabla dinámica.
+ *
+ * Seminegrita y con raya encima. La raya va en las CELDAS y no en la
+ * fila: con `border-collapse`, entre la raya de abajo de una fila y la
+ * de arriba de la siguiente, iguales de grosor, gana la de la fila de
+ * arriba --la `hairline` de la última organización-- y la del total no
+ * se veía; la de una celda sí le gana a la de una fila. Sin fondo: el
+ * fondo gris es de la «Suma total» del pie, y así un total no se
+ * confunde con el otro. El rótulo es la cabecera de su fila (`th`),
+ * para que un lector de pantalla diga «Total de AF1» con cada cifra.
+ *
+ * `break-before-avoid`: en papel, el total no abre una hoja solo,
+ * separado de las organizaciones que suma.
+ */
+function FilaTotalDeLaAccion({ a, abierta }: { a: FilaInformeAccion; abierta: boolean }) {
+  const raya = "border-t border-borde";
+  return (
+    <tr
+      className={`break-before-avoid border-b border-hairline font-semibold text-titulo ${
+        abierta ? "" : "hidden print:table-row"
+      }`}
+    >
+      <td className="pl-7" />
+      <th scope="row" className={`py-2 pr-3.5 pl-8 text-left align-top text-[0.8125rem] font-semibold ${raya}`}>
+        Total de {a.codigo}
+      </th>
+      <CeldasDeLaAccion a={a} raya={raya} />
+    </tr>
   );
 }
 
@@ -1751,10 +2016,11 @@ function FilaCruce({ c, abierta }: { c: FilaInformeCruce; abierta: boolean }) {
   const con = sillasConNombre(c);
   return (
     <tr className={`border-b border-hairline text-[0.78125rem] ${abierta ? "" : "hidden print:table-row"}`}>
-      {/* El código en TODAS las filas, en tono suave: si el grupo se
-          parte entre dos hojas, la segunda no queda sin saber de qué
-          acción son sus filas. */}
-      <td className="py-2 pr-2 pl-7 align-top font-mono text-[0.6875rem] text-texto-suave">{c.codigo}</td>
+      {/* SIN el código: la fila cuelga de la cabecera del grupo, y el
+          «AF1» repetido en cada organización se veía raro (cliente, 21
+          sep 2026). Si en papel el grupo se parte entre dos hojas, el
+          «Total de AF1» del pie dice de qué acción eran. */}
+      <td className="pl-7" />
       <td className="py-2 pr-3.5 pl-8 align-top">
         <span className="text-texto">{c.razonSocial}</span>
         {/* Dónde se dicta: es lo que explica los pares que van en 2
@@ -1798,16 +2064,22 @@ function FilaDeSuma({
   suave?: boolean;
 }) {
   const con = Math.max(0, cupos - sinNombre);
+  /// TRES PESOS, DE MENOS A MÁS: el «Total de AF1» (seminegrita, raya
+  /// fina), el subtotal del gremio (negrita y raya doble de grueso) y la
+  /// «Suma total» (negrita y fondo). El subtotal iba en letra media y
+  /// sin raya propia, más flojo que el total de una sola acción: con
+  /// todo abierto --y en papel siempre lo está-- la jerarquía se leía
+  /// al revés.
   return (
     <tr
       className={
         suave
-          ? "border-b border-borde text-texto"
-          : "border-t border-borde bg-superficie-alterna font-semibold text-titulo"
+          ? "border-t-2 border-b border-borde font-bold text-titulo"
+          : "border-t border-borde bg-superficie-alterna font-bold text-titulo"
       }
     >
       <td className="pl-7" />
-      <td className={`${CELDA} ${suave ? "font-medium" : ""}`}>{rotulo}</td>
+      <td className={CELDA}>{rotulo}</td>
       <td className={CELDA_CIFRA}>{n(reservas)}</td>
       <td className={CELDA_CIFRA}>{n(cupos)}</td>
       <td className={CELDA_CIFRA}>{n(con)}</td>

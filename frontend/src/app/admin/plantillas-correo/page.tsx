@@ -252,7 +252,7 @@ function Lista({
             <p className="font-semibold text-titulo">Todavía no hay ninguna</p>
             <p className="mx-auto mt-1.5 mb-5 max-w-sm text-[13px] text-texto-suave">
               Se escriben una vez y se mandan muchas. Cree la primera para empezar
-              a escribir correos desde una ficha o una campaña.
+              a escribir correos desde un lead o una campaña.
             </p>
             <Boton onClick={() => alEditar("nueva")}>
               <span className="text-base leading-none">+</span> Nueva plantilla
@@ -469,7 +469,7 @@ type Borrador = {
 /// enum del servidor; el texto dice CUANDO sale, que es lo
 /// que quien la escribe necesita saber.
 const DISPARADORES: Array<[PlantillaCorreo["disparador"], string, string]> = [
-  ["NINGUNO", "No sale sola", "La manda un asesor desde una ficha."],
+  ["NINGUNO", "No sale sola", "La manda un asesor desde un lead."],
   [
     "PREINSCRIPCION",
     "Al preinscribirse",

@@ -27,7 +27,7 @@ import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { Desplegable } from "./desplegable";
-import { EmbudoCono } from "./embudo-cono";
+import { EmbudoCinta } from "./embudo-cinta";
 import { caidaMayor } from "./embudo-forma";
 import { EmbudoPorDia } from "./embudo-por-dia";
 /// `EmbudoProceso` --las cuatro barras verticales-- ya no se
@@ -35,8 +35,10 @@ import { EmbudoPorDia } from "./embudo-por-dia";
 /// académico y Tráfico del formulario, donde no hay dimensión de
 /// día y cuatro barras están bien. Sus tres casillas
 /// (`TarjetasDelEmbudo`) tampoco: aquí las sustituye la tira del
-/// periodo, que solo se trae de allí la línea de comparación.
-import { lineaContraAntes, type Hito } from "./embudo-proceso";
+/// periodo. Se traía de allí la línea de comparación
+/// (`lineaContraAntes`), y desde que las celdas del reparto comparan
+/// en porcentaje (21 sep 2026) solo queda el tipo.
+import type { Hito } from "./embudo-proceso";
 import { MapaColombia } from "./mapa-colombia";
 import { Aviso } from "./marco-admin";
 /// SIN `Medidor`: la fila de los cuatro anillos se fue (21 sep
@@ -334,15 +336,82 @@ function SinGente({ hayFiltro, aviso = null }: { hayFiltro: boolean; aviso?: str
   );
 }
 
+/**
+ * EL REPARTO DE LA TIRA, EN PORCENTAJES QUE SUMAN 100.
+ *
+ * «Se inscribe», «Siguen en proceso» y «Dijeron que no» reparten a
+ * TODA la gente que entró, sin solaparse, así que sus tres
+ * porcentajes tienen que sumar 100. Redondeados cada uno por su
+ * lado no siempre lo hacen --con tres personas, una en cada sitio,
+ * salía 33 + 33 + 33 = 99--, y desde que el porcentaje es la cifra
+ * grande de las tres celdas (21 sep 2026) un reparto que no cuadra
+ * se lee de un vistazo como un error de cuenta.
+ *
+ * EL PUNTO QUE FALTA O SOBRA LO ABSORBE «SIGUEN EN PROCESO», y no
+ * el de más decimales. Se hizo primero por MAYOR RESIDUO, y con
+ * «Desde el principio» --la vista con la que abre la pantalla--
+ * salía 39 + 58 + 3: el punto se lo llevaba «Dijeron que no»
+ * (2,43 %), mientras «Dónde está cada persona hoy», cuatro bloques
+ * más abajo, dice «No interesado · 2 %». Dos de las tres cifras
+ * tienen gemela en la misma pantalla y cada una tiene que leerse
+ * igual en los dos sitios: «Se inscribe» es el apunte de
+ * «Inscritos» del embudo y el «era el N %» de la comparación (ver
+ * `tasa`), y «Dijeron que no» es esa fila. Así que esas dos se
+ * redondean normal, y «Siguen en proceso», que no sale como
+ * porcentaje en ningún otro sitio, es la que cuadra la cuenta. Se
+ * aleja de su valor exacto un punto como mucho --medio por cada
+ * una de las otras dos, y casi nunca tanto--, y su cuenta exacta
+ * va escrita en el pie.
+ *
+ * Null sin nadie que repartir: la tira escribe «—».
+ */
+function repartoEnCien(
+  entraron: number,
+  inscritos: number,
+  enProceso: number,
+  perdidos: number,
+): { inscribe: number; enProceso: number; perdidos: number } | null {
+  if (entraron <= 0) return null;
+  const inscribe = Math.round((inscritos / entraron) * 100);
+  /// Sin nadie en proceso no hay quien absorba: si las otras dos
+  /// terminan las dos en ,5 --101 inscritos y 99 perdidos de 200--
+  /// redondeadas suman 101 y «Siguen en proceso» saldría «−1 %».
+  /// Ahí cede «Dijeron que no», medio punto como mucho.
+  if (enProceso <= 0) return { inscribe, enProceso: 0, perdidos: 100 - inscribe };
+  const perdidosRedondo = Math.round((perdidos / entraron) * 100);
+  return { inscribe, enProceso: 100 - inscribe - perdidosRedondo, perdidos: perdidosRedondo };
+}
+
+/**
+ * «En los 30 días anteriores era», «Ayer era»: cómo arranca la
+ * frase que compara con el periodo anterior.
+ *
+ * Suelta porque la escriben las tres celdas del reparto y tienen
+ * que decirlo IGUAL: armada en dos sitios, uno acabaría diciendo
+ * «En ayer era» y el otro no.
+ */
+function dichoDeAntes(etiquetaAnterior: string | null | undefined): string {
+  /// Del sello, igual que la etiqueta del periodo: esta frase
+  /// compara DOS cifras y las dos tienen que venir de la misma
+  /// respuesta que su nombre. Con el rótulo sacado del estado
+  /// de la cabecera se leyó «el 28 %… en los 7 días anteriores
+  /// era el 57 %» cuando las dos cifras eran de otros periodos.
+  const cuando = (etiquetaAnterior ?? "el periodo anterior").toLowerCase();
+  /// «En ayer era…» no se dice: «ayer» ya es un complemento.
+  /// Con `\b` y no `$` porque el anterior de «Hoy» ya no se
+  /// llama «ayer» a secas: ver `anteriorDe` en la cabecera.
+  return /^(hoy|ayer|anteayer)\b/.test(cuando)
+    ? `${cuando.charAt(0).toUpperCase()}${cuando.slice(1)} era`
+    : `En ${cuando} era`;
+}
+
 /** Lo que lleva una celda de la tira del periodo. Ver `TiraDelPeriodo`. */
 type Celda = {
   rotulo: string;
-  /// La cifra ya escrita: «39 %», «121», «7 días» o «—».
+  /// La cifra ya escrita: «39 %», «7 días» o «—». Sin cuentas
+  /// sueltas: la cuenta va en el pie, con su base.
   cifra: string;
   colorCifra: string;
-  /// El porcentaje pequeño pegado a la cuenta. Null = no lleva.
-  porcentaje?: string | null;
-  colorPorcentaje?: string;
   /// Los renglones del pie. Vacío mientras no hay datos.
   pies: string[];
   /// La explicación larga, en el `title`.
@@ -368,11 +437,15 @@ type Celda = {
  * centros de dona se quedan en 26,5) y lleva su base escrita
  * debajo.
  *
- * ES EL ÚNICO PORCENTAJE GRANDE DE LA TIRA. Las celdas 2 y 3
- * llevan el suyo pequeño, pegado a la cuenta, para que las tres
- * formen un reparto que se comprueba solo --80 + 121 + 5 = 206, y
- * 39 + 59 + 2 = 100-- sin competir con la que manda. La cuarta son
- * días, y así se queda.
+ * LAS TRES DEL REPARTO, CON UNA SOLA FORMA: el porcentaje en grande
+ * y la cuenta escrita debajo con su base --«70 %» y «92 de las 131
+ * que entraron siguen en proceso…»--. Las celdas 2 y 3 llevaban la
+ * cuenta grande con el porcentaje pequeño pegado («92 70 %»), para
+ * no competir con la que manda, y la fila leía dos formas a la vez:
+ * «estás metiendo cantidad y porcentaje; si haces eso, como la
+ * tarjeta de Se inscribe» (cliente, 21 sep 2026). Las tres suman
+ * 100 siempre --ver `repartoEnCien`-- y las cuentas de los pies,
+ * lo que entró. La cuarta son días, y así se queda.
  *
  * SUELTA, NUNCA DENTRO DE UN `Bloque` Y NUNCA `plegable`: un
  * porcentaje con la base dentro de un acordeón cerrado es un
@@ -417,8 +490,6 @@ function CeldaDeLaTira({
   rotulo,
   cifra,
   colorCifra,
-  porcentaje = null,
-  colorPorcentaje = "var(--texto-suave)",
   pies,
   explicacion,
   clase = "",
@@ -426,14 +497,18 @@ function CeldaDeLaTira({
   return (
     <div
       title={explicacion}
-      /// 16 px de relleno lateral por debajo de 620 y no 28: en el
+      /// 14 px de relleno lateral por debajo de 620 y no 28: en el
       /// 2 × 2 del celular cada celda mide unos 170 px, y con 28 a
       /// cada lado el pie de «Siguen en proceso» se partía en
-      /// cuatro renglones.
+      /// cuatro renglones. Eran 16, y desde que ese pie dice «120 de
+      /// las 206 que entraron siguen en proceso.» (21 sep 2026) esos
+      /// dos píxeles de cada lado son los que lo dejan en dos
+      /// renglones y no en tres: a 390 px la tira vuelve a medir 230
+      /// y no 245, lo mismo que antes del cambio.
       /// Sin `col-span`: en el 2 × 2 del celular las cuatro miden lo
       /// mismo, igual que en la fila de escritorio. `ancha` queda en
       /// el tipo por si otra tira la necesita, pero aquí no se usa.
-      className={`bg-superficie px-4 pt-3 pb-[13px] min-[620px]:px-7 ${clase}`}
+      className={`bg-superficie px-[14px] pt-3 pb-[13px] min-[620px]:px-7 ${clase}`}
     >
       {/* EL ALTO DE LA TIRA, AJUSTADO RENGLÓN A RENGLÓN.
           Con el interlineado por defecto medía 114 px a 1.600 sin
@@ -448,23 +523,15 @@ function CeldaDeLaTira({
       {/* LA CIFRA, DEL MISMO TAMAÑO EN LAS CUATRO: 1,75 rem, el
           cuerpo de cifra que ya usa el veredicto de ocupación. Va en
           un renglón de 32 px apoyada abajo, para que los pies de las
-          cuatro arranquen en la misma raya. */}
+          cuatro arranquen en la misma raya.
+          SOLA: ya no lleva el porcentaje pequeño al lado (ver
+          `TiraDelPeriodo`). */}
       <dd className="mt-1 flex h-8 items-end">
-        <span className="flex items-baseline gap-2">
-          <span
-            className="text-[1.75rem] leading-none font-bold tracking-[-0.03em] whitespace-nowrap tabular-nums"
-            style={{ color: colorCifra }}
-          >
-            {cifra}
-          </span>
-          {porcentaje && (
-            <span
-              className="text-[0.84375rem] leading-none font-semibold whitespace-nowrap tabular-nums"
-              style={{ color: colorPorcentaje }}
-            >
-              {porcentaje}
-            </span>
-          )}
+        <span
+          className="text-[1.75rem] leading-none font-bold tracking-[-0.03em] whitespace-nowrap tabular-nums"
+          style={{ color: colorCifra }}
+        >
+          {cifra}
         </span>
       </dd>
       {pies.map((p) => (
@@ -1112,18 +1179,9 @@ export function PanelProceso({
     const porcentaje = Math.round((insc / entro) * 100);
     if (!hitosAntes || (hitosAntes[0] ?? 0) <= 0) return { porcentaje, comparacion: null };
     const antes = n(Math.round((hitosAntes[3] / hitosAntes[0]) * 100));
-    /// Del sello, igual que la etiqueta del periodo: esta frase
-    /// compara DOS cifras y las dos tienen que venir de la misma
-    /// respuesta que su nombre. Con el rótulo sacado del estado
-    /// de la cabecera se leyó «el 28 %… en los 7 días anteriores
-    /// era el 57 %» cuando las dos cifras eran de otros periodos.
-    const cuando = (datos?.etiquetaAnterior ?? "el periodo anterior").toLowerCase();
-    /// «En ayer era…» no se dice: «ayer» ya es un complemento.
-    /// Con `\b` y no `$` porque el anterior de «Hoy» ya no se
-    /// llama «ayer» a secas: ver `anteriorDe` en la cabecera.
-    const dicho = /^(hoy|ayer|anteayer)\b/.test(cuando)
-      ? `${cuando.charAt(0).toUpperCase()}${cuando.slice(1)} era`
-      : `En ${cuando} era`;
+    /// El mismo arranque que la comparación de las otras dos celdas
+    /// del reparto; el porqué de cada palabra está en `dichoDeAntes`.
+    const dicho = dichoDeAntes(datos?.etiquetaAnterior);
     /**
      * Y POR QUÉ ESA RESTA NO ES UNA CAÍDA.
      *
@@ -1143,8 +1201,10 @@ export function PanelProceso({
     /// tenido 1 día más…» junto a un 0 % de ahora: el «pero» avisaba
     /// de una diferencia que no existe. Si antes era igual, se dice
     /// «también»; si antes era menos, no hay nada que matizar.
+    /// El espacio de antes del «%» es DURO (` `): a 390 px el
+    /// «%» se iba solo al renglón siguiente, «era el 37 / %, con…».
     if (antesNumero === porcentaje) {
-      return { porcentaje, comparacion: `${dicho} también el ${antes} %.` };
+      return { porcentaje, comparacion: `${dicho} también el ${antes} %.` };
     }
     const porque =
       dias && antesNumero > porcentaje
@@ -1159,7 +1219,7 @@ export function PanelProceso({
     /// «, con N días más» y no «, pero esa gente ha tenido N días
     /// más»: dice lo mismo en la mitad, y con cuatro celdas iguales
     /// cada palabra de este pie era un renglón más (ver `base`).
-    return { porcentaje, comparacion: `${dicho} el ${antes} %${porque}.` };
+    return { porcentaje, comparacion: `${dicho} el ${antes} %${porque}.` };
   }, [hitos, hitosAntes, datos, diasDelPeriodo]);
 
   /**
@@ -1379,17 +1439,82 @@ export function PanelProceso({
    */
   const celdas = useMemo<Celda[]>(() => {
     const raya = "—";
-    /// El porcentaje pequeño de las celdas 2 y 3. Se omite con la
-    /// cuenta en cero: se lee «0» y no «0 0 %».
-    const parte = (v: number) =>
-      v > 0 && entraron > 0 ? `${Math.round((v / entraron) * 100)} %` : null;
-    const porcentajePerdidos = entraron > 0 ? perdidos / entraron : 0;
-    /// La línea de comparación de las celdas 2 y 3, con el mismo
-    /// formato que tenían las casillas: «+1 frente a anteayer (3)».
-    const contra = (cifra: number, antes: number | undefined) =>
-      hayAntes && antes !== undefined
-        ? lineaContraAntes(cifra, antes, datos?.etiquetaAnterior ?? null)
+    /// Los tres porcentajes del reparto, que suman 100 (ver
+    /// `repartoEnCien`), y los del periodo con el que se compara,
+    /// sacados por la MISMA regla para que las dos cifras de cada
+    /// frase «era el N %» se puedan poner una al lado de la otra.
+    const reparto = repartoEnCien(entraron, inscritos, enProceso, perdidos);
+    const repartoAntes =
+      hayAntes && hitosAntes && deAntes
+        ? repartoEnCien(hitosAntes[0], hitosAntes[3], deAntes.enProceso, deAntes.perdidos)
         : null;
+    const porcentajePerdidos = entraron > 0 ? perdidos / entraron : 0;
+    /**
+     * LA COMPARACIÓN DE LAS CELDAS 2 Y 3, EN PORCENTAJE Y CON LA
+     * FRASE DE LA 1.
+     *
+     * Era «+58 frente a los 30 días anteriores (eran 31)», la línea
+     * de las casillas: una resta de personas debajo de lo que ahora
+     * es un porcentaje, que es otra vez mezclar cantidad y
+     * porcentaje. Va como en «Se inscribe» --«En los 30 días
+     * anteriores era el 38 %.»-- y en el mismo párrafo que la base.
+     *
+     * Con el mismo aviso de José que la tasa, y por la misma razón:
+     * la gente del periodo anterior ha tenido más días para
+     * decidirse, así que su «siguen en proceso» sale siempre más
+     * bajo y su «dijeron que no» más alto. Solo se dice cuando la
+     * diferencia va en ESA dirección --si no, no hay nada que
+     * matizar--, y «también» cuando no hay diferencia.
+     */
+    const contra = (
+      ahora: number | undefined,
+      antes: number | undefined,
+      /// Hacia dónde empuja el tiempo de más: «siguen en proceso»
+      /// sale más bajo en el periodo anterior, «dijeron que no» más
+      /// alto.
+      antesSaleMasBajo: boolean,
+    ) => {
+      if (ahora === undefined || antes === undefined) return null;
+      const dicho = dichoDeAntes(datos?.etiquetaAnterior);
+      /// Espacio duro antes del «%», como en `tasa`: si no, el «%»
+      /// puede caer solo en el renglón siguiente.
+      if (antes === ahora) return `${dicho} también el ${n(antes)} %.`;
+      const porque =
+        diasDelPeriodo && (antesSaleMasBajo ? antes < ahora : antes > ahora)
+          ? `, con ${n(diasDelPeriodo)} ${diasDelPeriodo === 1 ? "día" : "días"} más para decidirse`
+          : "";
+      return `${dicho} el ${n(antes)} %${porque}.`;
+    };
+    /// La base y su comparación en UN párrafo, como el pie de la 1.
+    const conComparacion = (base: string, comparacion: string | null) =>
+      comparacion ? `${base} ${comparacion}` : base;
+    /**
+     * «N de las M que entraron…», LA MISMA FRASE EN LAS TRES CELDAS
+     * DEL REPARTO, con sus casos: «Ninguna de las 23…» y no «0 de
+     * las 23…», «Las 23 que entraron…» y no «23 de las 23…» (medido
+     * con «Últimos 7 días»), y la persona sola, que no es «1 de
+     * las 1». Armada una vez para que ninguna de las tres se quede
+     * con un caso sin cuidar.
+     */
+    const deLasQueEntraron = (
+      v: number,
+      f: {
+        una: string;
+        varias: string;
+        ninguna: string;
+        laPersonaSi: string;
+        laPersonaNo: string;
+      },
+    ) =>
+      entraron === 1
+        ? v === 1
+          ? f.laPersonaSi
+          : f.laPersonaNo
+        : v === 0
+          ? `Ninguna de las ${n(entraron)} que entraron ${f.ninguna}.`
+          : v === entraron
+            ? `Las ${n(entraron)} que entraron ${f.varias}.`
+            : `${n(v)} de las ${n(entraron)} que entraron ${v === 1 ? f.una : f.varias}.`;
     const media = control?.diasHastaInscribir ?? null;
     const dias = media === null ? null : Math.round(media);
 
@@ -1407,15 +1532,14 @@ export function PanelProceso({
     /// en el celular, y empujaba «Dijeron que no» bajo el pliegue. Se
     /// quitan las palabras que no dicen nada nuevo («personas»,
     /// «llegaron a»); el dato y la advertencia se quedan enteros.
-    const base =
-      entraron === 1
-        ? inscritos === 1
-          ? "La persona que entró ya se inscribió."
-          : "La persona que entró no se ha inscrito todavía."
-        : `${n(inscritos)} de las ${n(entraron)} que entraron se ${
-            inscritos === 1 ? "inscribió" : "inscribieron"
-          }.`;
-    const pieDeLaTasa = tasa?.comparacion ? `${base} ${tasa.comparacion}` : base;
+    const base = deLasQueEntraron(inscritos, {
+      una: "se inscribió",
+      varias: "se inscribieron",
+      ninguna: "se ha inscrito todavía",
+      laPersonaSi: "La persona que entró ya se inscribió.",
+      laPersonaNo: "La persona que entró no se ha inscrito todavía.",
+    });
+    const pieDeLaTasa = conComparacion(base, tasa?.comparacion ?? null);
 
     return [
       {
@@ -1432,45 +1556,76 @@ export function PanelProceso({
         clase: claseEmbudo,
       },
       {
+        /// LA MISMA FORMA QUE «SE INSCRIBE»: el porcentaje es la
+        /// cifra y la cuenta va en la frase, con su base. Era «92»
+        /// grande con «70 %» pequeño al lado, y la fila mezclaba dos
+        /// formas: «estás metiendo cantidad y porcentaje; si haces
+        /// eso, como la tarjeta de Se inscribe» (cliente, 21 sep
+        /// 2026). Así los tres primeros se leen como lo que son, un
+        /// reparto de la misma gente que suma 100.
         rotulo: "Siguen en proceso",
-        cifra: cifrasPendientes ? raya : n(enProceso),
+        cifra: cifrasPendientes || !reparto ? raya : `${n(reparto.enProceso)} %`,
         /// En `--titulo`, como las otras. Iba en ámbar, y con las
         /// cuatro cifras del mismo tamaño --orden del cliente-- el
         /// único color de la fila era el suyo: «121» mandaba sobre
         /// «39 %», que es la que tiene que mandar por el sitio.
         colorCifra: cifrasPendientes ? "var(--texto-suave)" : "var(--titulo)",
-        porcentaje: cifrasPendientes ? null : parte(enProceso),
+        /// CORTO, COMO EL DE LA 1. Se probó «…siguen en proceso: ni
+        /// se han inscrito ni han dicho que no. En los 30 días
+        /// anteriores…» y a 1.366 px con comparación ocupaba cuatro
+        /// renglones: la tira pasaba de 123 a 138 px, y en el celular
+        /// de 230 a 275 sin comparar. Lo de «ni se han inscrito ni han
+        /// dicho que no» no se pierde: es el `title` de la celda.
         pies: cifrasPendientes
           ? []
           : [
-              "Ni se han inscrito ni han dicho que no.",
-              contra(enProceso, deAntes?.enProceso),
-            ].filter((p): p is string => Boolean(p)),
+              conComparacion(
+                deLasQueEntraron(enProceso, {
+                  una: "sigue en proceso",
+                  varias: "siguen en proceso",
+                  ninguna: "sigue en proceso",
+                  laPersonaSi: "La persona que entró sigue en proceso.",
+                  laPersonaNo: "La persona que entró ya se inscribió o dijo que no.",
+                }),
+                contra(reparto?.enProceso, repartoAntes?.enProceso, true),
+              ),
+            ],
         explicacion:
           "De los que entraron en el periodo: no se han inscrito y tampoco han dicho que no. Son los que se pueden trabajar hoy.",
         clase: claseEmbudo,
       },
       {
         rotulo: "Dijeron que no",
-        cifra: cifrasPendientes ? raya : n(perdidos),
-        colorCifra: cifrasPendientes ? "var(--texto-suave)" : "var(--titulo)",
-        porcentaje: cifrasPendientes ? null : parte(perdidos),
+        cifra: cifrasPendientes || !reparto ? raya : `${n(reparto.perdidos)} %`,
         /// La regla del anillo de pérdida que había: hasta el 15 %
-        /// es normal y va en gris, hasta el 30 % en ámbar y por
-        /// encima en rojo. En rojo fijo, un 2 % --que es bueno-- se
-        /// leería como una alarma.
-        colorPorcentaje:
-          porcentajePerdidos <= 0.15
-            ? "var(--texto-suave)"
+        /// es normal, hasta el 30 % en ámbar y por encima en rojo.
+        /// En rojo fijo, un 2 % --que es bueno-- se leería como una
+        /// alarma. Iba en el porcentaje pequeño y se viene con él a
+        /// la cifra; lo normal, en `--titulo` como las otras tres.
+        colorCifra: cifrasPendientes
+          ? "var(--texto-suave)"
+          : porcentajePerdidos <= 0.15
+            ? "var(--titulo)"
             : porcentajePerdidos <= 0.3
               ? "var(--aviso)"
               : "var(--error)",
+        /// Sin el «Se marcaron como no interesados» que llevaba de pie:
+        /// por la misma razón de alto que la 2, y porque sigue en el
+        /// `title`.
         pies: cifrasPendientes
           ? []
           : [
-              "Se marcaron como no interesados.",
-              contra(perdidos, deAntes?.perdidos),
-            ].filter((p): p is string => Boolean(p)),
+              conComparacion(
+                deLasQueEntraron(perdidos, {
+                  una: "dijo que no",
+                  varias: "dijeron que no",
+                  ninguna: "ha dicho que no",
+                  laPersonaSi: "La persona que entró dijo que no.",
+                  laPersonaNo: "La persona que entró no ha dicho que no.",
+                }),
+                contra(reparto?.perdidos, repartoAntes?.perdidos, false),
+              ),
+            ],
         explicacion: "Marcados como no interesados. Salen del embudo.",
         clase: claseEmbudo,
       },
@@ -1507,7 +1662,9 @@ export function PanelProceso({
     perdidos,
     enProceso,
     hayAntes,
+    hitosAntes,
     deAntes,
+    diasDelPeriodo,
     datos,
     control,
     claseEmbudo,
@@ -2270,17 +2427,20 @@ export function PanelProceso({
                   gráfica. */}
               <div className={`flex h-full flex-col ${claseEmbudo}`}>
                 {hitos.length > 0 ? (
-                  /* EL CONO, NO LAS FRANJAS. «¿Un embudo no es como la
-                     captura que te envío? El que tenemos se ve raro»
-                     (cliente, 21 sep 2026, con la imagen de un embudo
-                     clásico). EmbudoForma tenía franjas claras entre
-                     paso y paso que se leían como pasos de más --cuatro
-                     pasos, siete franjas--, todo del mismo verde y el
-                     fondo plano. EmbudoCono tiene las mismas props, así
-                     que el cambio es este: cuatro piezas de color de
-                     etapa, elipse arriba, punta abajo. EmbudoForma se
-                     queda en su archivo: no se borra lo que funciona. */
-                  <EmbudoCono
+                  /* LA CINTA, NO EL CONO. «¿Esto por qué como en
+                     triángulo así? No fue la imagen de referencia. Te
+                     paso otro que me gustó mucho» (cliente, 21 sep
+                     2026, con un embudo de cintas en espiral). El cono
+                     --piezas rectas, simétricas, elipse arriba y punta
+                     abajo-- se leía como un triángulo con rayas; antes
+                     de él, EmbudoForma tenía franjas que se leían como
+                     pasos de más. EmbudoCinta tiene las mismas props y
+                     la misma caja, así que el cambio es este: una cinta
+                     de color de etapa por paso, inclinada, con su revés
+                     y la cola retorcida, y líneas guía a los rótulos
+                     numerados. EmbudoCono y EmbudoForma se quedan en su
+                     archivo: no se borra lo que funciona. */
+                  <EmbudoCinta
                     hitos={hitos}
                     /// NADA de «antes N» cuando el periodo anterior
                     /// no trajo a nadie: con «El mes pasado» el
@@ -2443,9 +2603,9 @@ export function PanelProceso({
 
           <Bloque
             titulo="Estado de los datos"
-            descripcion="Cuántas fichas están completas y cuántas a medias."
+            descripcion="Cuántos leads están completos y cuántos a medias."
           >
-            <Donut datos={donutDatos} detalleCentro="personas" vacio="Sin fichas todavía." />
+            <Donut datos={donutDatos} detalleCentro="personas" vacio="Sin leads todavía." />
           </Bloque>
         </div>
 
@@ -2881,7 +3041,7 @@ function TablaAsesores({
   }>;
 }) {
   if (filas.length === 0) {
-    return <p className="py-8 text-center text-[0.84375rem] text-texto-suave">Sin asesores con fichas.</p>;
+    return <p className="py-8 text-center text-[0.84375rem] text-texto-suave">Sin asesores con leads.</p>;
   }
   /// Por conversión y con «Sin asignar» al final: no es un
   /// asesor, y colado entre ellos por su tasa parecía el mejor

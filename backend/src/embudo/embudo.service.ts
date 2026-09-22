@@ -5,7 +5,7 @@ import { Prisma } from '../../generated/prisma';
 
 import { compararDos, resolverVentana, type Rango } from '../crm/ventana';
 import { PrismaService } from '../prisma/prisma.service';
-import { diaBogota } from '../comun/dia-bogota';
+import { aDiaBogota, diaBogota } from '../comun/dia-bogota';
 import type { LlegadaDeLaVisita } from './origen-de-la-visita';
 import { despuesDelRegistro } from './despues-del-registro';
 import { pagadaSql, procedenciaSql } from './procedencia';
@@ -40,7 +40,22 @@ type FilaCorte = {
   tocaron: bigint;
   envios: bigint;
 };
-type FilaDia = { dia: string; llegaron: bigint; preinscritos: bigint };
+type FilaDia = {
+  dia: string;
+  llegaron: bigint;
+  personas: bigint;
+  eligieron: bigint;
+  preinscritos: bigint;
+};
+
+/** Un día de la serie, ya en números. */
+export type DiaDelTrafico = {
+  dia: string;
+  llegaron: number;
+  personas: number;
+  eligieron: number;
+  preinscritos: number;
+};
 
 /** Lo que puede pedir la pantalla. Las fechas son ISO. */
 export type PedidoDeEmbudo = {
@@ -461,16 +476,44 @@ export class EmbudoService {
    *
    * Los días sin nada salen en CERO y no faltan: una serie con
    * huecos se lee como si esos días no existieran.
+   *
+   * CADA COLUMNA CON LA REGLA DE SU TARJETA, y la suma de los días
+   * da el total de arriba. Traía solo `llegaron` y `preinscritos`,
+   * y la pantalla dibujaba la chispa de «Personas» con las
+   * aperturas y la de «Eligieron un curso» con las preinscripciones:
+   * una tendencia que no era la de su cifra (cliente, 21 sep 2026:
+   * «se ve algo raro»). Ahora:
+   *
+   *  - `llegaron` y `eligieron` salen del MISMO tope por visita que
+   *    `hitos()` —fechada por su primer paso, acreditada a todos
+   *    los peldaños por debajo de su máximo—. `llegaron` pide tope
+   *    1 o más, como el peldaño `LLEGO`: una visita que solo dejó
+   *    una marca (`SE_QUEDO` sin el beacon de llegada) no está en
+   *    la tarjeta y tampoco sale aquí.
+   *  - `personas` son las MISMAS filas que cuenta `personas()`
+   *    —ver `llegadasDePersona`—, partidas por el día de su llegada.
+   *  - `preinscritos` sigue sin las repetidas: no es conversión.
    */
   private async porDia(
     ambito: string[],
     desde: Date,
     hasta: Date,
-  ): Promise<Array<{ dia: string; llegaron: number; preinscritos: number }>> {
+  ): Promise<DiaDelTrafico[]> {
+    /// EL ÚLTIMO DÍA ES EL DEL PERIODO, no hoy. Llegaba siempre hasta
+    /// hoy: «del 18 al 18 de sept» devolvía del 18 al 21, y la chispa
+    /// de ese único día dibujaba tres días en cero que no son del
+    /// periodo. `hasta` queda FUERA, así que el último día de verdad
+    /// es el del milisegundo anterior, y nunca después de hoy.
+    const ultimoDia = aDiaBogota(
+      new Date(Math.min(Date.now(), hasta.getTime() - 1)),
+    );
     const filas = await this.prisma.$queryRaw<FilaDia[]>`
       WITH visitas AS (
         SELECT "visitaId",
                MIN("creadoEn") AS empezo,
+               MAX(CASE WHEN "paso" = ANY(${ESCALERA}::text[])
+                        THEN array_position(${ESCALERA}::text[], "paso")
+                        ELSE 0 END) AS tope,
                bool_or("paso" = 'REGISTRADO'
                        AND coalesce("detalle", 'NUEVA') <> 'REPETIDA') AS se_inscribio
           FROM "pasos_de_visita"
@@ -480,29 +523,57 @@ export class EmbudoService {
       dentro AS (
         SELECT * FROM visitas WHERE empezo >= ${desde} AND empezo < ${hasta}
       ),
-      -- los dias del rango, para que los ceros existan
+      gente AS (
+        SELECT l."creadoEn" AS llego
+          ${this.llegadasDePersona(ambito, desde, hasta)}
+      ),
+      -- los dias del rango, para que los ceros existan.
+      --
+      -- Desde el MÁS TEMPRANO de los dos conjuntos, porque se fechan
+      -- distinto (la visita por su primer paso, la persona por su
+      -- llegada), y TRUNCADO AL DÍA: la serie avanzaba de 24 en 24
+      -- horas desde la hora de la primera visita, y antes de esa
+      -- hora el día de hoy no entraba en el calendario, así que sus
+      -- visitas se caían del día a día. Hasta el último día del
+      -- periodo (ver ultimoDia, arriba).
       calendario AS (
         SELECT to_char(d, 'YYYY-MM-DD') AS dia
           FROM generate_series(
-                 (SELECT MIN(empezo) FROM dentro) AT TIME ZONE 'UTC' AT TIME ZONE 'America/Bogota',
-                 NOW() AT TIME ZONE 'America/Bogota',
+                 date_trunc('day', LEAST(
+                   (SELECT MIN(empezo) FROM dentro),
+                   (SELECT MIN(llego) FROM gente)
+                 ) AT TIME ZONE 'UTC' AT TIME ZONE 'America/Bogota'),
+                 ${ultimoDia}::date::timestamp,
                  interval '1 day') AS d
       ),
       contadas AS (
         SELECT ${diaBogota(Prisma.sql`empezo`)} AS dia,
-               COUNT(*)::bigint AS llegaron,
+               COUNT(*) FILTER (WHERE tope >= 1)::bigint AS llegaron,
+               COUNT(*) FILTER (
+                 WHERE tope >= ${altura('ELIGIO_ACCION') + 1}
+               )::bigint AS eligieron,
                COUNT(*) FILTER (WHERE se_inscribio)::bigint AS preinscritos
           FROM dentro GROUP BY 1
+      ),
+      personas_del_dia AS (
+        SELECT ${diaBogota(Prisma.sql`llego`)} AS dia, COUNT(*)::bigint AS personas
+          FROM gente GROUP BY 1
       )
       SELECT c.dia,
              coalesce(x.llegaron, 0)::bigint AS llegaron,
+             coalesce(p.personas, 0)::bigint AS personas,
+             coalesce(x.eligieron, 0)::bigint AS eligieron,
              coalesce(x.preinscritos, 0)::bigint AS preinscritos
-        FROM calendario c LEFT JOIN contadas x USING (dia)
+        FROM calendario c
+        LEFT JOIN contadas x USING (dia)
+        LEFT JOIN personas_del_dia p USING (dia)
        ORDER BY c.dia
     `;
     return filas.map((f) => ({
       dia: f.dia,
       llegaron: Number(f.llegaron),
+      personas: Number(f.personas),
+      eligieron: Number(f.eligieron),
       preinscritos: Number(f.preinscritos),
     }));
   }
@@ -527,13 +598,26 @@ export class EmbudoService {
   ): Promise<number> {
     const filas = await this.prisma.$queryRaw<Array<{ n: bigint }>>`
       SELECT COUNT(*)::bigint AS n
-        FROM "pasos_de_visita" l
+        ${this.llegadasDePersona(ambito, desde, hasta)}
+    `;
+    return Number(filas[0]?.n ?? 0);
+  }
+
+  /// Las llegadas del periodo que hizo alguien, como `FROM … WHERE`.
+  ///
+  /// UNA sola vez porque la leen dos: `personas()` para la cifra y
+  /// `porDia()` para su serie. Escrita dos veces, la chispa de
+  /// «Personas» acabaría sumando otra cosa que su tarjeta.
+  private llegadasDePersona(
+    ambito: string[],
+    desde: Date,
+    hasta: Date,
+  ): Prisma.Sql {
+    return Prisma.sql`FROM "pasos_de_visita" l
        WHERE l."paso" = 'LLEGO'
          AND l."convenioId" IN (${Prisma.join(ambito)})
          AND l."creadoEn" >= ${desde} AND l."creadoEn" < ${hasta}
-         AND ${this.esDePersona()}
-    `;
-    return Number(filas[0]?.n ?? 0);
+         AND ${this.esDePersona()}`;
   }
 
   private esDePersona(): Prisma.Sql {

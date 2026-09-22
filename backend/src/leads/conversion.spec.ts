@@ -296,7 +296,7 @@ describe('el ámbito y la repetición', () => {
     const r = await convertir({ lead: { participanteId: 'p-vieja' } });
 
     expect(r.ok).toBe(false);
-    expect(r.mensaje).toMatch(/ya tiene ficha/i);
+    expect(r.mensaje).toMatch(/ya pasó a Gestión de leads/i);
     expect(r.hecho).toEqual([]);
   });
 });

@@ -79,7 +79,7 @@ export function porQueNo(
   const donde = etapasPermitidas.map(enPalabras).join(', ');
 
   if (!etapaActual) {
-    return `Esta plantilla es para quien esté ${donde}, y esta ficha no tiene etapa.`;
+    return `Esta plantilla es para quien esté ${donde}, y este lead no tiene etapa.`;
   }
 
   return (
