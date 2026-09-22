@@ -60,6 +60,7 @@ import {
 } from "@/lib/admin-api";
 import { useMarca } from "@/components/marca-publica";
 import { esFondoOscuro, variantesParaElFondo } from "@/lib/logos-por-fondo";
+import { EVENTO_TEMA_PROPIO } from "@/lib/tema-propio";
 
 import { IconoMenu, IconoSalir } from "./iconos";
 import { enlacesVisibles, estaActivo, MODULOS } from "./navegacion";
@@ -122,12 +123,36 @@ function useFondoDelEncabezadoOscuro(): boolean {
   const { esquema, marca } = useMarca();
 
   useEffect(() => {
-    const css = getComputedStyle(document.documentElement)
-      .getPropertyValue("--encabezado-fondo")
-      .trim();
-    if (css.replace("#", "").length < 6) return;
-    /// La misma regla que la previsualizacion.
-    setOscuro(esFondoOscuro(css));
+    const recalcular = () => {
+      const css = getComputedStyle(document.documentElement)
+        .getPropertyValue("--encabezado-fondo")
+        .trim();
+      if (css.replace("#", "").length < 6) return;
+      /// La misma regla que la previsualizacion.
+      setOscuro(esFondoOscuro(css));
+    };
+    recalcular();
+
+    /// LOS COLORES PROPIOS TAMBIÉN CAMBIAN LA FRANJA, y ni `esquema`
+    /// ni `marca` se enteran: se guardan por `perfil/tema` y los
+    /// aplica `marco-admin.tsx`. Sin esto, quien aclaraba su franja
+    /// se quedaba con los logos blancos encima hasta recargar.
+    ///
+    /// EN EL SIGUIENTE CUADRO, NO EN EL EVENTO, y es la mitad del
+    /// arreglo: el tema se aplica con un `setTema` que React pinta
+    /// DESPUÉS de que corran los oyentes, así que leer el token
+    /// dentro del evento devolvería el color de ANTES, en cualquier
+    /// orden de registro.
+    let cuadro = 0;
+    const alCambiarTema = () => {
+      cancelAnimationFrame(cuadro);
+      cuadro = requestAnimationFrame(recalcular);
+    };
+    window.addEventListener(EVENTO_TEMA_PROPIO, alCambiarTema);
+    return () => {
+      cancelAnimationFrame(cuadro);
+      window.removeEventListener(EVENTO_TEMA_PROPIO, alCambiarTema);
+    };
   }, [esquema, marca]);
 
   return oscuro;

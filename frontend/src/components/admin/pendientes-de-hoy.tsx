@@ -32,9 +32,44 @@ import { useContext } from "react";
 import { n } from "./graficos";
 import { ContextoRecorteDeControl, enlaceAlInforme } from "./panel-reservas";
 import { Bloque } from "./piezas";
-import { ETIQUETA_ORIGEN, type Control, type Origen } from "@/lib/crm-api";
+import { ETIQUETA_ORIGEN, type Control, type Filtros, type Origen } from "@/lib/crm-api";
 
 type Tono = "bueno" | "normal" | "aviso";
+
+/**
+ * El recorte de Control, metido en la dirección de la lista.
+ *
+ * Las cifras se cuentan CON los filtros de la pantalla --`control.ts`
+ * los mete dentro de `suyos`, y `sinAsignar` y `sinContactar` salen de
+ * ahí--, así que el enlace tiene que llevarlos o la lista sale más
+ * larga que la cifra que se pulsó. Es el mismo defecto que este bloque
+ * arregló el 21 sep para la lista entera, colándose por los filtros.
+ *
+ * NO PISA LO QUE EL ENLACE YA TRAE, y no es un detalle: «Repartir
+ * personas» va con `asesor=NINGUNO`, y dejar que el filtro de asesor
+ * lo sustituyera daría la lista de ESE asesor, o sea justo la gente
+ * que ya tiene quien la llame.
+ *
+ * `convenioId` se queda fuera porque no puede viajar: `filtros-en-la-url.ts`
+ * lo aparta a propósito --«ese sale del gremio de la sesión, y aceptarlo
+ * por la URL sería dejar que se pida el gremio ajeno»--. Cuando está
+ * puesto se dice arriba, en vez de callarlo.
+ */
+function conElRecorte(base: string, cortes: Filtros | null): string {
+  const [ruta, cola] = base.split("?");
+  const p = new URLSearchParams(cola);
+  const poner = (llave: string, valor: string | null | undefined) => {
+    if (valor && !p.has(llave)) p.set(llave, valor);
+  };
+  poner("curso", cortes?.accionFormacionId);
+  poner("grupo", cortes?.grupoId);
+  poner("asesor", cortes?.asesorId);
+  poner(
+    "departamento",
+    cortes?.departamentoSepId != null ? String(cortes.departamentoSepId) : null,
+  );
+  return `${ruta}?${p.toString()}`;
+}
 
 /// Los tramos de espera que manda el backend. 8 y 15 días son
 /// «frío»: una semana sin la primera llamada.
@@ -51,6 +86,10 @@ const DIAS_FRIOS = [8, 15];
  * nombres todavía. Viven en `ReservasSinNombre`, en su bloque.
  */
 export function PendientesDeHoy({ control }: { control: Control | null }) {
+  /// ANTES del retorno temprano: un hook detrás de un `return` es
+  /// condicional, y React se queja con «Rendered fewer hooks than
+  /// expected» en cuanto `control` llega.
+  const cortes = useContext(ContextoRecorteDeControl);
   if (!control) return null;
   const d = control;
 
@@ -104,7 +143,7 @@ export function PendientesDeHoy({ control }: { control: Control | null }) {
       tono: "aviso",
       cifra: frios,
       accion: "Ver esas personas",
-      a: "/admin/participantes?etapa=INTERESADO&espera=8",
+      a: conElRecorte("/admin/participantes?etapa=INTERESADO&espera=8", cortes),
       que: `de las ${n(esperando)} personas que esperan una primera llamada llevan más de una semana.`,
       hacer: "Llámelos hoy: cuanto más tarda la primera llamada, menos gente se inscribe.",
     });
@@ -122,7 +161,7 @@ export function PendientesDeHoy({ control }: { control: Control | null }) {
       /// inscritos ni a los perdidos sin asesor: un inscrito no
       /// hay que repartirlo. Sin ese trozo la lista salía más
       /// larga que la cifra que se pulsó.
-      a: "/admin/participantes?asesor=NINGUNO&cola=por-trabajar",
+      a: conElRecorte("/admin/participantes?asesor=NINGUNO&cola=por-trabajar", cortes),
       que: "personas no tienen asesor asignado.",
       hacer: "Repártalos, porque hoy no los está llamando nadie.",
     });
@@ -171,7 +210,17 @@ export function PendientesDeHoy({ control }: { control: Control | null }) {
       /// --cupos sin nombre, leads sin asesor-- que no depende de
       /// ese periodo. Sin decirlo, parecen la misma cifra mal
       /// calculada.
-      descripcion="Pendientes de ahora mismo, en orden. No dependen del periodo elegido arriba."
+      /// Y DICE LO QUE EL ENLACE NO SE PUEDE LLEVAR. El gremio de
+      /// estos filtros no viaja en la dirección —`filtros-en-la-url.ts`
+      /// lo aparta a propósito—, así que al abrir la lista manda el
+      /// de la sesión. Por el subdominio de un gremio da igual, que
+      /// es donde se trabaja; por la puerta general, no. Callarlo
+      /// daría una cifra que parece llevar a esa gente y lleva a otra.
+      descripcion={`Pendientes de ahora mismo, en orden. No dependen del periodo elegido arriba.${
+        cortes?.convenioId
+          ? " El gremio elegido aquí no viaja al abrir la lista: allí manda el de su sesión."
+          : ""
+      }`}
     >
       {pendientes.length === 0 ? (
         /* El caso bueno se dice, no se deja en blanco: una

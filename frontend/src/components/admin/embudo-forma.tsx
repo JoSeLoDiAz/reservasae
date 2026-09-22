@@ -169,9 +169,12 @@ const PARED = "color-mix(in oklab, var(--marca) 70%, var(--superficie))";
 /// Lo que pasa ENTRE dos pasos, en las mismas palabras que la
 /// leyenda del gráfico de días: quien lee empareja solo.
 ///
-/// Exportada porque `EmbudoCono` --el embudo que hoy pinta
-/// Control-- dice las mismas frases, y una copia en cada archivo se
-/// separa el día que alguien cambie solo una.
+/// Exportada porque `EmbudoCinta` --el embudo que hoy pinta
+/// Control, en `panel-proceso.tsx`-- dice las mismas frases, y una
+/// copia en cada archivo se separa el día que alguien cambie solo
+/// una. `EmbudoCono` también la importa, pero NO se dibuja en
+/// ninguna pantalla: quien cambie estas frases, que lo compruebe en
+/// Proceso de inscripción y no en ese archivo.
 export const CAIDAS = [
   "se quedaron sin contactar",
   "contactados, sin datos",

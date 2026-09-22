@@ -289,12 +289,22 @@ export class AdminController {
   /// el correo de José, Diana y la Sra. Catalina; ni yo puedo»
   /// (cliente, un superadministrador, 21 sep 2026). Los colores de
   /// CADA persona van por `perfil/tema` y los elige cualquiera.
+  ///
+  /// LA LISTA SUSTITUYE AL ROL, NO AL AREA. `@Requiere` se queda, y
+  /// no es de adorno: ademas de negar el paso RECORTA el ambito, y
+  /// estas rutas se lo pasan al servicio, que confia en el --
+  /// `fijarMarcaDeGremio` hace `if (!ambito.includes(convenioId))` y
+  /// nada mas. Sin el, `ambito.convenios` son TODOS los concedidos a
+  /// cualquier nivel, asi que un editor con solo consulta en un
+  /// gremio podria borrarle el logo publico. Es la misma decision
+  /// que ya lleva `formularios.controller.ts` en su apariencia.
   @Get('marca')
   verMarca() {
     return this.admin.obtenerMarca();
   }
 
   @Patch('marca')
+  @Requiere('configuracion', 'ESCRIBIR')
   @SoloEditoresDeMarca()
   actualizarMarca(@AdminActual() admin: Admin, @Body() dto: ActualizarMarcaDto) {
     return this.admin.actualizarMarca(admin, dto);
@@ -306,12 +316,14 @@ export class AdminController {
   /// es una decision del gremio, no del formulario: hay que
   /// poder ver los dos a la vez para saber cual esta puesto.
   @Get('marca/gremios')
+  @Requiere('configuracion', 'VER')
   @SoloEditoresDeMarca()
   marcaDeGremios(@AmbitoActual() ambito: Ambito) {
     return this.admin.listarMarcaDeGremios(ambito.convenios);
   }
 
   @Patch('marca/gremios/:convenioId')
+  @Requiere('configuracion', 'ESCRIBIR')
   @SoloEditoresDeMarca()
   fijarMarcaDeGremio(
     @AmbitoActual() ambito: Ambito,
@@ -339,6 +351,7 @@ export class AdminController {
   }
 
   @Patch('marca/tema/:esquema')
+  @Requiere('configuracion', 'ESCRIBIR')
   @SoloEditoresDeMarca()
   actualizarTema(
     @AdminActual() admin: Admin,
@@ -349,6 +362,7 @@ export class AdminController {
   }
 
   @Post('marca/tema/:esquema/restablecer')
+  @Requiere('configuracion', 'ESCRIBIR')
   @SoloEditoresDeMarca()
   @HttpCode(200)
   restablecerTema(@AdminActual() admin: Admin, @Param('esquema') esquema: string) {
@@ -370,6 +384,7 @@ export class AdminController {
   /// cualquier sesion de admin, y es la que entrega los ids
   /// que necesitan el PATCH y el DELETE de abajo.
   @Get('logos')
+  @Requiere('configuracion', 'VER')
   @SoloEditoresDeMarca()
   listarLogos(
     @AmbitoActual() ambito: Ambito,
@@ -379,6 +394,7 @@ export class AdminController {
   }
 
   @Post('logos')
+  @Requiere('configuracion', 'ESCRIBIR')
   @SoloEditoresDeMarca()
   @UseInterceptors(FileInterceptor('logo', { limits: { fileSize: MAXIMO_LOGO } }))
   subirLogo(
@@ -407,6 +423,7 @@ export class AdminController {
   }
 
   @Patch('logos/:id')
+  @Requiere('configuracion', 'ESCRIBIR')
   @SoloEditoresDeMarca()
   actualizarLogo(
     @AmbitoActual() ambito: Ambito,
@@ -417,6 +434,7 @@ export class AdminController {
   }
 
   @Delete('logos/:id')
+  @Requiere('configuracion', 'ESCRIBIR')
   @SoloEditoresDeMarca()
   borrarLogo(@AmbitoActual() ambito: Ambito, @Param('id') id: string) {
     return this.admin.borrarLogo(ambito, id);
