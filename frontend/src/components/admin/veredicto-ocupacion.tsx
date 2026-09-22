@@ -136,7 +136,7 @@ export function VeredictoOcupacion({
                 <strong className="font-semibold text-texto tabular-nums">
                   {n(resumen.ocupados)}
                 </strong>{" "}
-                de {n(resumen.metaBase)} sillas apartadas
+                de {n(resumen.metaBase)} cupos apartados
               </p>
             </div>
 
@@ -161,8 +161,8 @@ export function VeredictoOcupacion({
           {brecha !== 0 && (
             <p className="mt-3 text-[0.78125rem] leading-snug text-texto-suave">
               {brecha > 0
-                ? `Faltan ${n(brecha)} nombres para llenar las sillas apartadas.`
-                : `${n(-brecha)} se inscribieron por su cuenta, sin silla apartada detrás.`}
+                ? `Faltan ${n(brecha)} nombres para los cupos apartados.`
+                : `${n(-brecha)} se inscribieron por su cuenta, sin cupo apartado detrás.`}
             </p>
           )}
         </div>

@@ -56,7 +56,7 @@ export const SEGMENTOS_LISTOS: Array<{
   {
     clave: 'inscritos-todos',
     titulo: 'Todos los inscritos',
-    para: 'Un aviso general a quien ya tiene su silla.',
+    para: 'Un aviso general a quien ya tiene su cupo.',
     segmento: { etapas: ['INSCRITO'] },
   },
   {

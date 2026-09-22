@@ -108,15 +108,33 @@ export default function Tablero() {
   const atenuado = vivos.refrescando ? "opacity-45 pointer-events-none" : "";
 
   /// Libres contra lo COMPROMETIDO, no contra lo reservado:
-  /// una silla apartada sigue libre hasta que hay alguien
+  /// un cupo apartado sigue libre hasta que hay alguien
   /// inscrito encima. En negativo, esta sobre ejecutado.
   const libres = resumen.cupos - resumen.inscritos;
+
+  /// DE QUIEN SON ESTAS CIFRAS.
+  ///
+  /// El gremio elegido RECORTA todo el tablero, y vive escondido
+  /// en el menu del avatar: por la puerta general, con ADECOPRIA
+  /// puesto, la meta sale 1.600 --la suya-- donde el proyecto
+  /// entero son 3.690, y nada en la pantalla lo dice. «No son
+  /// 1600» (cliente, 22 sep 2026), y tenia razon en mirarlo raro.
+  ///
+  /// Va tambien en el encabezado de IMPRESION, que es donde mas
+  /// dano hace: esta pantalla se proyecta en reunion y se lleva
+  /// en PDF, y ahi el numero viaja sin el menu del que salio.
+  const suyo = admin.gremios?.find((g) => g.convenioId === admin.gremioElegido);
+  const alcance = suyo
+    ? suyo.sigla
+    : (admin.gremios?.length ?? 0) > 1
+      ? "todos los gremios"
+      : (admin.gremios?.[0]?.sigla ?? null);
 
   return (
     <div className="resumen-impreso flex flex-col gap-3 px-4 pt-3 pb-6">
       <EncabezadoImpresion
         titulo="Resumen de ocupación"
-        subtitulo="Cupos comprometidos con el SENA"
+        subtitulo={`Cupos comprometidos con el SENA${alcance ? ` · ${alcance}` : ""}`}
       />
       <SelloDeDatos actualizadoEn={vivos.actualizadoEn} />
 
@@ -128,6 +146,12 @@ export default function Tablero() {
           </h1>
           <p className="mt-0.5 text-[0.78125rem] text-texto-suave">
             Resumen de ocupación de los cupos comprometidos
+            {alcance && (
+              /* El alcance pegado al subtítulo y no como pastilla
+                 aparte: leído de corrido dice de quién es la cifra
+                 que hay justo debajo. */
+              <> · <span className="font-semibold text-texto">{alcance}</span></>
+            )}
           </p>
         </div>
 
