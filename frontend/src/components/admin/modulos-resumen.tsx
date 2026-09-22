@@ -29,7 +29,7 @@
  */
 
 import Link from "next/link";
-import { useCallback } from "react";
+import { createContext, useCallback, useContext } from "react";
 
 import { ListaBarras, n } from "./graficos";
 import { useAdmin } from "./marco-admin";
@@ -108,11 +108,24 @@ function VerDetalle({ a, children }: { a: string; children: React.ReactNode }) {
    ═══════════════════════════════════════════════════════════════ */
 
 /**
+ * UNA SOLA LLAMADA PARA LOS MÓDULOS 2 Y 5.
+ *
  * `porAsesor` viaja DENTRO de la misma respuesta que el embudo y la
- * cola, así que el módulo de asesores no cuesta una petición. Por
- * eso los dos cuelgan de este componente y no de dos.
+ * cola, así que el de asesores no cuesta una petición. Pero el
+ * cliente los quiere en su sitio —2, 3, 4 y 5— y el de asesores va
+ * el último, con el académico y el tráfico en medio. Por eso el dato
+ * se levanta a un contexto en vez de que un componente pinte los
+ * dos seguidos: así el orden de la pantalla lo decide la pantalla, y
+ * no de dónde viene el dato.
  */
-export function ModulosDeInscripciones() {
+type Traido = { datos: Control | null; error: string | null; puede: boolean };
+const ContextoDeControl = createContext<Traido>({
+  datos: null,
+  error: null,
+  puede: false,
+});
+
+export function ProveedorDeControl({ children }: { children: React.ReactNode }) {
   const { admin } = useAdmin();
   /// `CrmController` lleva `@Roles(SUPERADMIN, GESTOR)` en la clase
   /// y pide `inscritos` en la ruta: las dos condiciones, o el 403.
@@ -123,50 +136,44 @@ export function ModulosDeInscripciones() {
     { activo: puede, intervaloMs: CADA_MINUTO },
   );
 
-  if (!puede) {
-    return (
-      <>
-        <Apagado
-          numero={2}
-          titulo="Leads e inscripciones"
-          descripcion="Quién llegó, si ya se le contactó y cuántos se inscribieron."
-          porque="Su cuenta no tiene acceso a inscripciones"
-        >
-          Estas cifras son del área de inscripciones. Quien lleve esa área en su
-          gremio las ve aquí.
-        </Apagado>
-        <Apagado
-          numero={5}
-          titulo="Seguimiento de asesores"
-          descripcion="Cuántos leads lleva cada asesor y cuántos ha inscrito."
-          porque="Su cuenta no tiene acceso a inscripciones"
-        />
-      </>
-    );
-  }
+  return (
+    <ContextoDeControl.Provider
+      value={{ datos: vivos.datos, error: vivos.error, puede }}
+    >
+      {children}
+    </ContextoDeControl.Provider>
+  );
+}
 
-  if (vivos.error) {
-    return (
-      <>
-        <Apagado
-          numero={2}
-          titulo="Leads e inscripciones"
-          descripcion="Quién llegó, si ya se le contactó y cuántos se inscribieron."
-          porque="No se pudieron traer las cifras"
-        >
-          {vivos.error}
-        </Apagado>
-        <Apagado
-          numero={5}
-          titulo="Seguimiento de asesores"
-          descripcion="Cuántos leads lleva cada asesor y cuántos ha inscrito."
-          porque="No se pudieron traer las cifras"
-        />
-      </>
-    );
-  }
+/** MÓDULO 2 · los leads. */
+export function ModuloLeads() {
+  const { datos: d, error, puede } = useContext(ContextoDeControl);
 
-  const d = vivos.datos;
+  if (!puede)
+    return (
+      <Apagado
+        numero={2}
+        titulo="Leads e inscripciones"
+        descripcion="Quién llegó, si ya se le contactó y cuántos se inscribieron."
+        porque="Su cuenta no tiene acceso a inscripciones"
+      >
+        Estas cifras son del área de inscripciones. Quien lleve esa área en su
+        gremio las ve aquí.
+      </Apagado>
+    );
+
+  if (error)
+    return (
+      <Apagado
+        numero={2}
+        titulo="Leads e inscripciones"
+        descripcion="Quién llegó, si ya se le contactó y cuántos se inscribieron."
+        porque="No se pudieron traer las cifras"
+      >
+        {error}
+      </Apagado>
+    );
+
   const esperando = d ? d.sinContactar.reduce((s, t) => s + t.total, 0) : 0;
 
   return (
@@ -245,8 +252,6 @@ export function ModulosDeInscripciones() {
           </div>
         )}
       </Bloque>
-
-      <ModuloAsesores control={d} />
     </>
   );
 }
@@ -264,7 +269,31 @@ export function ModulosDeInscripciones() {
  * mérito se muda con ella. Por eso la columna se llama «suyos
  * inscritos» y no «inscribió».
  */
-function ModuloAsesores({ control }: { control: Control | null }) {
+export function ModuloAsesores() {
+  const { datos: control, error, puede } = useContext(ContextoDeControl);
+
+  if (!puede)
+    return (
+      <Apagado
+        numero={5}
+        titulo="Seguimiento de asesores"
+        descripcion="Cuántos leads lleva cada asesor y cuántos de ellos están inscritos."
+        porque="Su cuenta no tiene acceso a inscripciones"
+      />
+    );
+
+  if (error)
+    return (
+      <Apagado
+        numero={5}
+        titulo="Seguimiento de asesores"
+        descripcion="Cuántos leads lleva cada asesor y cuántos de ellos están inscritos."
+        porque="No se pudieron traer las cifras"
+      >
+        {error}
+      </Apagado>
+    );
+
   if (!control) {
     return (
       <Bloque

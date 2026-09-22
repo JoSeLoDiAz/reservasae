@@ -52,8 +52,10 @@ import { MapaColombia } from "@/components/admin/mapa-colombia";
 import { Aviso, useAdmin } from "@/components/admin/marco-admin";
 import {
   ModuloAcademico,
+  ModuloAsesores,
+  ModuloLeads,
   ModuloTrafico,
-  ModulosDeInscripciones,
+  ProveedorDeControl,
 } from "@/components/admin/modulos-resumen";
 import { Bloque, Cargando, TarjetaCifra } from "@/components/admin/piezas";
 
@@ -284,9 +286,16 @@ export default function Tablero() {
           porque uno se refresca sería teñir la pantalla entera cada
           treinta segundos —y esta se proyecta en reunión—. */}
       <div className="flex flex-col gap-3">
-        <ModulosDeInscripciones />
-        <ModuloAcademico />
-        <ModuloTrafico />
+        {/* El orden ES el que pidio el cliente. Los modulos 2 y 5
+            comparten una sola llamada --`porAsesor` viaja dentro de
+            la misma respuesta-- y el dato se levanta al proveedor
+            justo para que eso no decida donde se pintan. */}
+        <ProveedorDeControl>
+          <ModuloLeads />
+          <ModuloAcademico />
+          <ModuloTrafico />
+          <ModuloAsesores />
+        </ProveedorDeControl>
       </div>
     </div>
   );
