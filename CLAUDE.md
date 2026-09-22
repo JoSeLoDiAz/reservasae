@@ -159,7 +159,58 @@ juntos; el del frontend **no**, que sería una tercera verdad.
 Si la duda es funcional y no visual —qué hace un botón, qué datos trae una
 pantalla, si se sobrescribe algo que un administrador guardó— **pregunte**.
 
-## Estado actual (17 sep 2026 · v0.7.0-JD)
+## Estado actual (22 sep 2026 · v0.9.0-JD)
+
+> **v0.9.0-JD esta en PRODUCCION** (22 sep 2026, commit `d109bf5`, etiqueta
+> `v0.9.0`). Es la entrega del 21 sep de Andres (`arq/crm-hardening`,
+> `ef8d6e5`) mas cinco arreglos que salieron de revisarla antes de subir. Una
+> migracion (`tema_propio_por_persona`, una columna vacia) y una variable nueva,
+> **`EDITORES_DE_MARCA`**, puesta en Bogota y en El Socorro. Copia previa en
+> `~/reservasae-antes-de-v0.9.0-*.sql.gz`, y las filas salieron identicas.
+>
+> **La marca de todos la cambian SOLO dos correos: el de Josse y el de la Sra.
+> Catalina** (decision de Josse, 22 sep: «que nadie cambie de color, solo
+> Catalina o yo»). Diana no esta, y es a proposito. Ojo al ampliarla: en
+> produccion hay **dos Dianas** --`proyectos@` es Diana Hernandez, superadmin, y
+> `dianihernandez07@` es «DIANA INSCRIPCIONES», gestora--. Si algun dia hace falta
+> que alguien toque logos pero no colores, son dos listas y es codigo, no `.env`.
+>
+> - **LA LISTA SUSTITUYE AL ROL, NO AL AREA.** La entrega llego con nueve rutas
+>   de `admin.controller.ts` que cambiaron `@Requiere` + `@Roles(SUPERADMIN)` por
+>   `@SoloEditoresDeMarca()` a secas, y con `@Requiere` se fue el RECORTE DEL
+>   AMBITO: sin el, `ambito.convenios` son todos los concedidos a cualquier
+>   nivel, y el servicio confia en esa lista. Un editor con solo consulta en un
+>   gremio podia borrarle el logo publico. No lo encontro ninguno de los siete
+>   lentes de la revision; se vio leyendo el guard. Lo sujeta
+>   `la-marca-pide-tambien-el-area.spec.ts`, por metadatos y sobre toda la
+>   superficie, y se comprobo en caliente metiendo en la lista a una cuenta de
+>   consulta: 403 en las cuatro rutas.
+> - **«Restablecer los colores del sistema» NO arregla un gremio, y estropea el
+>   general.** Escribe `TEMAS_POR_DEFECTO` en `temas`: `marca #1d4ed8` con franja
+>   blanca, o sea la queja del cliente del 15 sep. El documento de la entrega
+>   mandaba pulsarlo para quitar un granate que vivia en el formulario de marca de
+>   ADECOPRIA, que ese boton ni toca. Se restauro DERIVANDO, como dice «Devolver el
+>   panel a su color», con `encabezadoTexto` puesto a la vez. La paleta granate
+>   quedo en `~/adecopria-granate-antes-de-restaurar-*.json`.
+> - **Añadir una variable a `backend/.env` RECREA LA BASE en el siguiente
+>   despliegue.** El servicio `db` de `docker-compose.yml` carga el mismo
+>   `env_file` que el backend, asi que cualquier variable nueva le cambia la
+>   configuracion y `desplegar.sh` lo recrea: un reinicio de la base principal que
+>   nadie pidio. No pierde nada --el volumen es aparte-- y la replica vuelve sola,
+>   pero conviene saberlo antes. Darle a `db` su propio fichero con solo lo de
+>   Postgres es un cambio de compose que toca las tres sedes: decision aparte.
+> - **No se prueba en produccion con cedulas de verdad.** Habia tres fichas
+>   «PRUEBA PRUEBA» con cedulas reales, y el RUI del DNP --que es de verdad en
+>   produccion-- devolvio el nombre de esas personas, dos de ellas ajenas. Se
+>   borraron con sus consultas (la persona arrastra el RUI por `CASCADE`). Para
+>   eso esta `prueba.reservasae.com`.
+> - Se aplico `db:datos-completos`: 20 fichas de ADECOPRIA que ya tenian todo y
+>   seguian en «Interesado». El guion se corre desde el clon de PRUEBAS, que tiene
+>   `ts-node`, apuntando a la base de produccion por `PG_BIND`.
+> - **El PC Dell lleva dias sin contestar por ssh.** Bogota y El Socorro estan al
+>   dia; con dos sedes vivas el failover automatico no puede actuar.
+
+## De antes (17 sep 2026 · v0.7.0-JD)
 
 > **v0.7.0-JD esta en PRODUCCION** (17 sep 2026, commit `f0647ad`, etiqueta
 > `v0.7.0`). Dos commits, **sin migraciones, sin cambios de schema y sin
