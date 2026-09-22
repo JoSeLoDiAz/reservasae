@@ -253,6 +253,7 @@ export function ModuloLeads() {
                 datos: x.datos,
               }))}
               tituloIzq="Inscritos acumulados"
+              resumen="ultimo"
               vacio="Todavía no hay inscritos con los que dibujar la curva."
             />
           </div>
@@ -458,7 +459,13 @@ export function ModuloAsesores() {
                 {conFichas === 1 ? "asesor lleva" : "asesores llevan"}{" "}
                 <Cifra>{n(repartidas)}</Cifra> leads, y{" "}
                 <Cifra>{n(suyosInscritos)}</Cifra> de ellos ya están inscritos (
-                {porcentaje(suyosInscritos, repartidas)}).
+                {porcentaje(suyosInscritos, repartidas)})
+                {hayPendientes && (
+                  <>
+                    . Les quedan <Cifra>{n(pendientes)}</Cifra> por gestionar
+                  </>
+                )}
+                .
               </>
             ) : (
               <>
@@ -499,37 +506,75 @@ export function ModuloAsesores() {
 
           {/* LA GRÁFICA QUE FALTABA. «El 5 de asesores debería
               también tener gráficas y estados así como los
-              anteriores» (Josse, 22 sep 2026). Dos segmentos: lo que
-              cada uno ya inscribió y lo que le queda por delante. */}
+              anteriores» (Josse, 22 sep 2026).
+              
+              MIDE LO QUE SALIÓ DE LA COLA, NO LO INSCRITO, y esa es
+              la decisión: hoy en el gremio hay decenas de miles de
+              leads y CERO inscritos, así que una barra de inscritos
+              sale plana en todo el mundo y no distingue a un asesor
+              de otro --que es lo único que un seguimiento de
+              asesores tiene que hacer--. Lo cerrado sí los separa:
+              de 5.602, uno lleva 1.868 y otro va por 900.
+              
+              «SALIÓ DE LA COLA» NO ES «LO CONTACTÓ»: la cola son
+              TRES etapas --interesado, contactado y datos
+              completos-- y un contactado sigue dentro, porque
+              todavía hay trabajo que hacer con él. Sale quien se
+              inscribió, se perdió o se retiró. El rótulo lo dice
+              con esas palabras: la cuenta viene de
+              `ETAPAS_POR_TRABAJAR` y nombrarla «contactados» la
+              haría decir lo que no cuenta.
+              
+              Sin `pendientes` --backend sin reiniciar-- no se puede
+              saber lo tocado, y entonces se cae a la de inscritos en
+              vez de dibujar una barra de una resta inventada. */}
           <div className="flex flex-col gap-2.5">
-            <h3 className="text-sm font-bold">Carga de cada asesor</h3>
+            <h3 className="text-sm font-bold">
+              {hayPendientes
+                ? "Cuánto ha sacado de su cola cada asesor"
+                : "Carga de cada asesor"}
+            </h3>
             <Leyenda
               de={[
-                { nombre: "Suyos inscritos", color: ACENTO_5 },
+                {
+                  nombre: hayPendientes ? "Ya salieron de su cola" : "Suyos inscritos",
+                  color: ACENTO_5,
+                },
                 { nombre: "Le quedan por trabajar", color: TENUE_5 },
               ]}
             />
             <BarrasDobles
               filas={[...asesores]
                 .sort((a, b) => b.asignados - a.asignados)
-                .map((a) => ({
-                  clave: a.asesorId ?? a.etiqueta,
-                  etiqueta: a.etiqueta,
-                  hecho: a.inscritosSiempre,
-                  total: a.asignados,
-                  derecha: (
-                    <>
-                      {n(a.inscritosSiempre)} de {n(a.asignados)} ·{" "}
-                      {a.asignados >= 5
-                        ? porcentaje(a.inscritosSiempre, a.asignados)
-                        : "—"}
-                    </>
-                  ),
-                }))}
+                .map((a) => {
+                  const suyosPendientes = a.pendientes ?? 0;
+                  const hecho = hayPendientes
+                    ? a.asignados - suyosPendientes
+                    : a.inscritosSiempre;
+                  return {
+                    clave: a.asesorId ?? a.etiqueta,
+                    etiqueta: a.etiqueta,
+                    hecho,
+                    total: a.asignados,
+                    derecha: (
+                      <>
+                        {n(hecho)} de {n(a.asignados)} ·{" "}
+                        {a.asignados >= 5 ? porcentaje(hecho, a.asignados) : "—"}
+                      </>
+                    ),
+                  };
+                })}
               colorHecho={ACENTO_5}
               colorFalta={TENUE_5}
               maximoFilas={10}
             />
+            {hayPendientes && (
+              <p className="text-[0.71875rem] text-texto-suave">
+                Sale de la cola quien ya no está en Interesado, Contactado ni
+                Datos completos: se inscribió, se perdió o se retiró. Un
+                contactado sigue dentro, porque todavía hay trabajo con él.
+              </p>
+            )}
           </div>
 
           <div className="caja-scroll overflow-x-auto">
@@ -759,17 +804,24 @@ export function ModuloAcademico() {
             </div>
           </div>
 
-          {d.porAccion.length > 0 && (
-            <div className="flex flex-col gap-2.5">
-              <h3 className="text-sm font-bold">
-                Dentro y fuera, por acción de formación
-              </h3>
-              <Leyenda
-                de={[
-                  { nombre: "Siguen dentro o certificados", color: ACENTO_3 },
-                  { nombre: "Salieron o no aprobaron", color: TENUE_3 },
-                ]}
-              />
+          {/* LA SECCIÓN SE PINTA SIEMPRE, con filas o sin ellas.
+              Condicionada a `porAccion.length > 0` desaparecía
+              entera con el aula vacía, que es exactamente lo que
+              se pidió conservar --«así esté en 0, dejarlo así como
+              se ve en el mockup»--. Y no se dibujan barras en cero
+              inventadas: se dice por qué no hay ninguna, que es la
+              regla de esta casa para un bloque vacío. */}
+          <div className="flex flex-col gap-2.5">
+            <h3 className="text-sm font-bold">
+              Dentro y fuera, por acción de formación
+            </h3>
+            <Leyenda
+              de={[
+                { nombre: "Siguen dentro o certificados", color: ACENTO_3 },
+                { nombre: "Salieron o no aprobaron", color: TENUE_3 },
+              ]}
+            />
+            {d.porAccion.length > 0 ? (
               <BarrasDobles
                 filas={d.porAccion.map((a) => ({
                   clave: a.codigo + a.nombre,
@@ -782,8 +834,14 @@ export function ModuloAcademico() {
                 colorFalta={TENUE_3}
                 maximoFilas={8}
               />
-            </div>
-          )}
+            ) : (
+              <p className="rounded-xl border border-dashed border-borde px-4 py-3 text-[0.8125rem] text-texto-suave">
+                Aquí va una barra por acción de formación en cuanto alguna
+                tenga gente en el aula. Hoy no hay ninguna: nadie se ha
+                matriculado todavía.
+              </p>
+            )}
+          </div>
 
           <VerDetalle a="/admin/participantes/academico/tablero">
             Ver el tablero académico por acción, grupo y persona
@@ -906,6 +964,7 @@ export function ModuloTrafico() {
                 lleva su rótulo. Lo que no valdría es usarlo para que
                 una serie pequeña parezca grande. */}
             <LineasDeSeries
+              resumen="suma"
               etiquetas={d.porDia.map((x) => x.dia.slice(8) + "/" + x.dia.slice(5, 7))}
               series={[
                 {

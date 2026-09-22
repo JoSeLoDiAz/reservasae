@@ -2073,6 +2073,7 @@ export function LineasDeSeries({
   tituloIzq,
   tituloDer,
   vacio = "Todavía no hay movimiento que mostrar.",
+  resumen,
 }: {
   series: Array<{ nombre: string; color: string; datos: number[]; eje?: "der" }>;
   etiquetas: string[];
@@ -2080,10 +2081,24 @@ export function LineasDeSeries({
   tituloIzq?: string;
   tituloDer?: string;
   vacio?: string;
+  /// QUÉ NÚMERO VA EN LA LEYENDA, y va OBLIGATORIO porque las dos
+  /// respuestas son ciertas en una gráfica y absurdas en la otra:
+  /// en una curva acumulada el último punto ES el total, y en una
+  /// serie por día el último punto es HOY --que suele ir en cero y
+  /// se lee como si la serie entera valiera cero--. Sin obligar a
+  /// decidirlo, la siguiente gráfica hereda el resumen de la otra.
+  resumen: "ultimo" | "suma";
 }) {
   const hayAlgo = series.some((s) => s.datos.some((v) => v > 0));
+  /// El vacío va EN CAJA y no como texto suelto en medio de la
+  /// página: un hueco sin borde se lee como una gráfica que no
+  /// cargó, y aquí lo que pasa es que todavía no hay qué dibujar.
   if (etiquetas.length === 0 || !hayAlgo)
-    return <p className="py-6 text-center text-sm text-texto-suave">{vacio}</p>;
+    return (
+      <p className="rounded-xl border border-dashed border-borde px-4 py-6 text-center text-[0.8125rem] text-texto-suave">
+        {vacio}
+      </p>
+    );
 
   /// Coordenadas en una caja fija que el `viewBox` escala: la
   /// gráfica se adapta al ancho sin recalcular nada, que es el
@@ -2125,7 +2140,11 @@ export function LineasDeSeries({
             />
             {s.nombre}
             <strong className="font-bold text-texto tabular-nums">
-              {n(s.datos[s.datos.length - 1] ?? 0)}
+              {n(
+                resumen === "suma"
+                  ? s.datos.reduce((t, v) => t + v, 0)
+                  : (s.datos[s.datos.length - 1] ?? 0),
+              )}
             </strong>
           </span>
         ))}
