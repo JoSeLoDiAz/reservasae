@@ -56,6 +56,7 @@ import {
   type HistoricoDeTrafico,
 } from "@/lib/crm-api";
 import { useDatosVivos } from "@/lib/datos-vivos";
+import { MINIMO_PARA_TASA, porcentaje } from "@/lib/trafico-comun";
 
 /// Cómo se lee cada peldaño, y de qué color. El color sale de
 /// las etapas del CRM para no inventar una segunda paleta.
@@ -140,9 +141,7 @@ const NOMBRE_ENTRADA: Record<string, string> = {
   CRUZADA: "Cruzada: el gremio no coincide",
 };
 
-/// Por debajo de esto no se imprime porcentaje: una tasa con dos
-/// visitas se lee igual que una con tres mil.
-const MINIMO_PARA_TASA = 30;
+
 
 /// LA BASE DEL EMBUDO, DICHA. En esta pantalla hay tres bases de
 /// porcentaje --aperturas en el Paso a paso, personas en los
@@ -153,12 +152,7 @@ const MINIMO_PARA_TASA = 30;
 /// eso se lee como dos cifras que se contradicen.
 const BASE_DEL_EMBUDO = "Cada porcentaje es sobre las aperturas, el primer paso.";
 
-/// El mismo redondeo que el embudo: un porcentaje que sale en dos
-/// sitios con dos redondeos distintos se lee como dos cifras.
-function porcentaje(parte: number, total: number): string {
-  if (total <= 0) return "—";
-  return `${Math.round((parte / total) * 100)} %`;
-}
+
 
 function cuando(iso: string): string {
   return new Date(iso).toLocaleString("es-CO", {

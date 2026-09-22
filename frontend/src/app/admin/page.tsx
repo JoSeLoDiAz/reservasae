@@ -50,6 +50,11 @@ import {
 } from "@/components/admin/indicador-actualizacion";
 import { MapaColombia } from "@/components/admin/mapa-colombia";
 import { Aviso, useAdmin } from "@/components/admin/marco-admin";
+import {
+  ModuloAcademico,
+  ModuloTrafico,
+  ModulosDeInscripciones,
+} from "@/components/admin/modulos-resumen";
 import { Bloque, Cargando, TarjetaCifra } from "@/components/admin/piezas";
 
 import { VeredictoOcupacion } from "@/components/admin/veredicto-ocupacion";
@@ -264,6 +269,24 @@ export default function Tablero() {
 
         {/* 6 - Quién concentra los cupos */}
         <ReservasDeAliados analisis={analisis} />
+      </div>
+
+      {/* LOS OTROS CUATRO MÓDULOS.
+
+          «En el resumen quiero que se proyecten cuatro módulos…
+          podemos integrar todo sin dañar lo que ya hay» (cliente, 22
+          sep 2026). Todo lo de arriba es el módulo 1 y NO se tocó
+          una cifra: esa parte ya funcionaba y se queda igual.
+
+          FUERA DEL `atenuado` de arriba, y no es un descuido: ese
+          velo lo gobierna el refresco del módulo 1, y cada módulo
+          trae el suyo con su propia cadencia. Atenuarlos todos
+          porque uno se refresca sería teñir la pantalla entera cada
+          treinta segundos —y esta se proyecta en reunión—. */}
+      <div className="flex flex-col gap-3">
+        <ModulosDeInscripciones />
+        <ModuloAcademico />
+        <ModuloTrafico />
       </div>
     </div>
   );
