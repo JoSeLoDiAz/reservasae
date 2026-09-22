@@ -371,3 +371,59 @@ export function BarrasDobles({
     </div>
   );
 }
+
+/**
+ * La fila de filtros de un módulo, como la dibuja el ejemplo.
+ *
+ * Va en su propia caja tenue y arriba del todo, antes de la frase:
+ * primero se decide qué se mira y después se lee el resumen de eso.
+ *
+ * `no-imprimir`, y el encabezado de impresión lleva el alcance: en
+ * el papel no se filtra nada, pero hay que saber con qué se
+ * imprimió —«ahí el número viaja sin el menú del que salió»—.
+ */
+export function FiltrosDelModulo({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="no-imprimir flex flex-wrap items-end gap-3 rounded-xl bg-superficie-alterna px-3.5 py-3">
+      {children}
+    </div>
+  );
+}
+
+export function Filtro({
+  etiqueta,
+  valor,
+  alCambiar,
+  opciones,
+  todos = "Todas",
+}: {
+  etiqueta: string;
+  valor: string;
+  alCambiar: (v: string) => void;
+  opciones: Array<{ id: string; nombre: string }>;
+  todos?: string;
+}) {
+  return (
+    <label className="flex min-w-0 flex-col gap-1">
+      <span className="text-[0.6875rem] font-semibold text-texto-suave">{etiqueta}</span>
+      <select
+        value={valor}
+        onChange={(e) => alCambiar(e.target.value)}
+        className={`max-w-[15rem] min-w-[9rem] truncate rounded-lg border bg-campo-fondo px-2.5 py-1.5 text-[0.78125rem] ${
+          /// El que está puesto se NOTA. Un filtro activo que se ve
+          /// igual que uno vacío explica resultados que nadie se
+          /// explica: es la misma razón por la que las fichas de
+          /// filtro de las tablas se quedan visibles.
+          valor ? "border-marca" : "border-campo-borde"
+        }`}
+      >
+        <option value="">{todos}</option>
+        {opciones.map((o) => (
+          <option key={o.id} value={o.id}>
+            {o.nombre}
+          </option>
+        ))}
+      </select>
+    </label>
+  );
+}

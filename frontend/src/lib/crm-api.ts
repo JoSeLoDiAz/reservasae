@@ -778,6 +778,10 @@ export type CorteOrigen = {
   etiqueta: string;
   /** Todos los que entraron por ahí. */
   leads: number;
+  /** A los que ya se les habló: pasaron de INTERESADO. */
+  contactados?: number;
+  /** Los que siguen esperando la primera llamada. */
+  pendientes?: number;
   /** Los que de esos llegaron a inscrito. */
   inscritos: number;
   conversion: number;
@@ -796,6 +800,8 @@ export type CorteAsesor = Corte & {
   asesorId: string | null;
   /** Todas sus fichas del ámbito, sin ventana. */
   asignados: number;
+  /** Lo que le queda por trabajar: la cola, no lo cerrado. */
+  pendientes?: number;
   /** Los suyos inscritos, sin periodo. */
   inscritosSiempre: number;
   /** Sin periodo: inscritos/asignados. */
@@ -851,6 +857,8 @@ export type Control = CabeceraControl & {
   gremios?: string[];
   /** El día ya viene yyyy-mm-dd de Bogotá. */
   serie: Array<{ dia: string; total: number }>;
+  /** La misma, abierta por origen: la acumulada por canal. */
+  seriePorOrigen?: Array<{ etiqueta: string; dia: string; total: number }>;
   /** Cuándo llegaron los leads, no cuándo se inscribieron. */
   leadsPorDia: Array<{ dia: string; total: number }>;
   /**

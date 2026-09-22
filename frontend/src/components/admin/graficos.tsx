@@ -2048,3 +2048,176 @@ function IconoBaja() {
     </svg>
   );
 }
+
+/**
+ * Varias series en líneas, con eje derecho opcional.
+ *
+ * Las dos de esta casa --`DosSeriesPorDia` y su variante con eje--
+ * dibujan COLUMNAS, que es lo correcto para «cuántos hubo cada
+ * día»: una columna es una cuenta. Pero el cliente pidió las de su
+ * maqueta, que son líneas, y para un ACUMULADO la línea es además
+ * lo honesto: acumular es una curva, y pintarla a columnas sugiere
+ * que cada día volvió a empezar.
+ *
+ * EL EJE DERECHO ES OPCIONAL Y SE USA CON CUIDADO. «Un segundo eje
+ * la haría grande y MENTIRÍA: parecería que crece igual que las
+ * visitas cuando es el 5 %», dice este proyecto de la serie de
+ * tráfico. Vale cuando las dos series miden COSAS DISTINTAS --
+ * aperturas y preinscritos-- y el rótulo de cada eje lo dice; no
+ * vale para hacer que una serie pequeña parezca grande.
+ */
+export function LineasDeSeries({
+  series,
+  etiquetas,
+  alto = 200,
+  tituloIzq,
+  tituloDer,
+  vacio = "Todavía no hay movimiento que mostrar.",
+}: {
+  series: Array<{ nombre: string; color: string; datos: number[]; eje?: "der" }>;
+  etiquetas: string[];
+  alto?: number;
+  tituloIzq?: string;
+  tituloDer?: string;
+  vacio?: string;
+}) {
+  const hayAlgo = series.some((s) => s.datos.some((v) => v > 0));
+  if (etiquetas.length === 0 || !hayAlgo)
+    return <p className="py-6 text-center text-sm text-texto-suave">{vacio}</p>;
+
+  /// Coordenadas en una caja fija que el `viewBox` escala: la
+  /// gráfica se adapta al ancho sin recalcular nada, que es el
+  /// mismo truco que usa `AreaDeSerie`.
+  const ancho = 900;
+  const margen = { arriba: 10, abajo: 26, izq: 44, der: 44 };
+  const util = ancho - margen.izq - margen.der;
+  const utilAlto = alto - margen.arriba - margen.abajo;
+
+  const topeDe = (cuales: typeof series) =>
+    Math.max(1, ...cuales.flatMap((s) => s.datos));
+  const izq = series.filter((s) => s.eje !== "der");
+  const der = series.filter((s) => s.eje === "der");
+  const topeIzq = topeDe(izq.length ? izq : series);
+  const topeDer = der.length ? topeDe(der) : topeIzq;
+
+  const x = (i: number) =>
+    margen.izq + (etiquetas.length > 1 ? (i * util) / (etiquetas.length - 1) : util / 2);
+  const y = (v: number, tope: number) =>
+    margen.arriba + utilAlto - (Math.min(v, tope) / tope) * utilAlto;
+
+  /// Cuatro rayas y ni una más: con más, la rejilla compite con las
+  /// líneas y se lee peor.
+  const rayas = [0, 0.25, 0.5, 0.75, 1];
+
+  /// Cuántas fechas caben sin montarse. A ojo salen mal justo en el
+  /// caso límite, así que se calcula: una etiqueta pide unos 68 px.
+  const cada = Math.max(1, Math.ceil(etiquetas.length / Math.floor(util / 68)));
+
+  return (
+    <div className="flex flex-col gap-2">
+      <div className="flex flex-wrap gap-x-4 gap-y-1 text-[0.71875rem] text-texto-suave">
+        {series.map((s) => (
+          <span key={s.nombre} className="inline-flex items-center gap-1.5">
+            <i
+              aria-hidden
+              className="inline-block h-2.5 w-2.5 shrink-0 rounded-[3px]"
+              style={{ background: s.color }}
+            />
+            {s.nombre}
+            <strong className="font-bold text-texto tabular-nums">
+              {n(s.datos[s.datos.length - 1] ?? 0)}
+            </strong>
+          </span>
+        ))}
+      </div>
+
+      <svg
+        viewBox={`0 0 ${ancho} ${alto}`}
+        className="h-auto w-full"
+        role="img"
+        aria-label={series.map((s) => s.nombre).join(", ")}
+      >
+        {rayas.map((r) => {
+          const py = margen.arriba + utilAlto - r * utilAlto;
+          return (
+            <g key={r}>
+              <line
+                x1={margen.izq}
+                x2={ancho - margen.der}
+                y1={py}
+                y2={py}
+                stroke="var(--hairline, var(--borde))"
+                strokeWidth={1}
+              />
+              <text
+                x={margen.izq - 6}
+                y={py + 3}
+                textAnchor="end"
+                fontSize="9"
+                fill="var(--texto-suave)"
+                className="tabular-nums"
+              >
+                {n(Math.round(r * topeIzq))}
+              </text>
+              {der.length > 0 && (
+                <text
+                  x={ancho - margen.der + 6}
+                  y={py + 3}
+                  fontSize="9"
+                  fill="var(--texto-suave)"
+                  className="tabular-nums"
+                >
+                  {n(Math.round(r * topeDer))}
+                </text>
+              )}
+            </g>
+          );
+        })}
+
+        {etiquetas.map((e, i) =>
+          i % cada === 0 ? (
+            <text
+              key={e + i}
+              x={x(i)}
+              y={alto - 8}
+              textAnchor="middle"
+              fontSize="9"
+              fill="var(--texto-suave)"
+            >
+              {e}
+            </text>
+          ) : null,
+        )}
+
+        {series.map((s) => {
+          const tope = s.eje === "der" ? topeDer : topeIzq;
+          const d = s.datos
+            .map((v, i) => `${i === 0 ? "M" : "L"} ${x(i)} ${y(v, tope)}`)
+            .join(" ");
+          return (
+            <g key={s.nombre}>
+              <path
+                d={d}
+                fill="none"
+                stroke={s.color}
+                strokeWidth={2}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+              {s.datos.map((v, i) => (
+                <circle key={i} cx={x(i)} cy={y(v, tope)} r={2.5} fill={s.color} />
+              ))}
+            </g>
+          );
+        })}
+      </svg>
+
+      {(tituloIzq || tituloDer) && (
+        <p className="flex justify-between text-[0.6875rem] text-texto-suave">
+          <span>{tituloIzq}</span>
+          <span>{tituloDer}</span>
+        </p>
+      )}
+    </div>
+  );
+}

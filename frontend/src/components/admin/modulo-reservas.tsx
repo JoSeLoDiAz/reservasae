@@ -30,12 +30,14 @@
  * sin explicar se leen como una mal calculada.
  */
 
-import { useCallback, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 
 import { n } from "./graficos";
 import {
   ACENTO,
   BarrasDobles,
+  Filtro,
+  FiltrosDelModulo,
   Cifra,
   CifraDelModulo,
   Cifras,
@@ -67,15 +69,104 @@ const FALTA = "color-mix(in srgb, var(--marca) 28%, transparent)";
 
 export function ModuloReservas() {
   const [corte, setCorte] = useState<Corte>("institucion");
+  /**
+   * LOS TRES FILTROS DEL EJEMPLO, y no todos van por el mismo sitio.
+   *
+   * La acción y la ubicación las acota el SERVIDOR --el informe las
+   * acepta y las interseca con el ámbito--. La institución no: esa
+   * ruta no la admite, así que se filtra aquí sobre las filas que ya
+   * llegaron. Es honesto porque el informe trae TODAS las
+   * organizaciones del recorte, así que no recorta a medias; si algún
+   * día se paginara, habría que decirlo como lo dice `tabla.tsx`.
+   *
+   * «Dónde se dicta» y NO «departamento» a secas: esa ubicación es
+   * la sede del curso, no el domicilio de la institución, y llamarla
+   * departamento haría creer que filtra por dónde está el colegio.
+   */
+  const [institucion, setInstitucion] = useState("");
+  const [accionId, setAccionId] = useState("");
+  const [ubicacionId, setUbicacionId] = useState("");
 
   const vivos = useDatosVivos<InformeReservas>(
-    /// Sin filtros: el ámbito lo pone el guard y el gremio viaja en
-    /// la cabecera, como en todo el panel.
-    useCallback(() => tablerosApi.informeReservas(), []),
-    { intervaloMs: CADA_MEDIO_MINUTO },
+    /// El ámbito lo pone el guard y el gremio viaja en la cabecera,
+    /// como en todo el panel: aquí solo van los cortes elegidos.
+    useCallback(
+      () =>
+        tablerosApi.informeReservas({
+          accionFormacionId: accionId || undefined,
+          ubicacionId: ubicacionId || undefined,
+        }),
+      [accionId, ubicacionId],
+    ),
+    { intervaloMs: CADA_MEDIO_MINUTO, clave: `${accionId}|${ubicacionId}` },
   );
 
-  const d = vivos.datos;
+  const crudo = vivos.datos;
+
+  /**
+   * Las opciones se congelan de la respuesta SIN filtrar.
+   *
+   * Sacándolas de la respuesta de turno, elegir AF1 dejaría el
+   * desplegable con AF1 dentro y sin forma de volver: el filtro se
+   * cerraría sobre sí mismo. Es el defecto clásico de un filtro que
+   * se alimenta de su propio resultado.
+   */
+  const catalogo = useRef<{
+    acciones: Array<{ id: string; nombre: string }>;
+    ubicaciones: Array<{ id: string; nombre: string }>;
+  }>({ acciones: [], ubicaciones: [] });
+  if (crudo && !accionId && !ubicacionId) {
+    catalogo.current = {
+      acciones: crudo.porAccion.map((a) => ({
+        id: a.accionFormacionId,
+        nombre: `${a.codigo} · ${a.nombre}`,
+      })),
+      ubicaciones: crudo.porUbicacion.map((u) => ({ id: u.ubicacionId, nombre: u.nombre })),
+    };
+  }
+
+  /// La institución se aplica aquí, sobre lo que ya llegó, y arrastra
+  /// consigo los totales: una cifra que no obedeciera al filtro que
+  /// está puesto arriba sería la peor clase de número.
+  const d = useMemo(() => {
+    if (!crudo || !institucion) return crudo;
+    const suyas = crudo.porOrganizacion.filter((o) => o.empresaId === institucion);
+    const cruce = crudo.cruce.filter((c) => c.empresaId === institucion);
+    const suma = <T extends keyof (typeof suyas)[number]>(k: T) =>
+      suyas.reduce((x, o) => x + (o[k] as number), 0);
+    return {
+      ...crudo,
+      porOrganizacion: suyas,
+      cruce,
+      totales: {
+        ...crudo.totales,
+        reservas: suma("reservas"),
+        cuposConfirmados: suma("cuposConfirmados"),
+        cuposEnEspera: suma("cuposEnEspera"),
+        conNombre: suma("conNombre"),
+        dentro: suma("dentro"),
+        sinNombre: suma("sinNombre"),
+        nombresDeMas: suma("nombresDeMas"),
+        organizaciones: suyas.length,
+      },
+      /// Por acción y por ubicación se recalculan desde el cruce, que
+      /// es la única tabla que tiene las dos llaves. Sin esto, elegir
+      /// una institución dejaba las barras «por acción» con los
+      /// totales de todo el mundo.
+      porAccion: crudo.porAccion
+        .map((a) => {
+          const suyo = cruce.filter((c) => c.accionFormacionId === a.accionFormacionId);
+          return {
+            ...a,
+            reservas: suyo.reduce((x, c) => x + c.reservas, 0),
+            cuposConfirmados: suyo.reduce((x, c) => x + c.cuposConfirmados, 0),
+            conNombre: suyo.reduce((x, c) => x + c.conNombre, 0),
+            dentro: suyo.reduce((x, c) => x + c.dentro, 0),
+          };
+        })
+        .filter((a) => a.reservas > 0),
+    };
+  }, [crudo, institucion]);
   const t = d?.totales;
 
   /// PENDIENTES POR INSCRIBIR contra los que están DENTRO, no contra
@@ -133,6 +224,44 @@ export function ModuloReservas() {
       titulo="Control de reservas de afiliados"
       descripcion="Cupos que reservó cada institución y cuántos de esos cupos ya tienen persona inscrita."
     >
+      <FiltrosDelModulo>
+        <Filtro
+          etiqueta="Institución"
+          valor={institucion}
+          alCambiar={setInstitucion}
+          opciones={(crudo?.porOrganizacion ?? []).map((o) => ({
+            id: o.empresaId,
+            nombre: o.razonSocial,
+          }))}
+        />
+        <Filtro
+          etiqueta="Acción de formación"
+          valor={accionId}
+          alCambiar={setAccionId}
+          opciones={catalogo.current.acciones}
+        />
+        <Filtro
+          etiqueta="Dónde se dicta"
+          valor={ubicacionId}
+          alCambiar={setUbicacionId}
+          opciones={catalogo.current.ubicaciones}
+          todos="Todos"
+        />
+        {(institucion || accionId || ubicacionId) && (
+          <button
+            type="button"
+            onClick={() => {
+              setInstitucion("");
+              setAccionId("");
+              setUbicacionId("");
+            }}
+            className="rounded-lg border border-borde px-2.5 py-1.5 text-[0.78125rem] font-semibold"
+          >
+            Quitar filtros
+          </button>
+        )}
+      </FiltrosDelModulo>
+
       {vivos.error ? (
         <Vacio titulo="No se pudieron traer las reservas">{vivos.error}</Vacio>
       ) : !d || !t ? (

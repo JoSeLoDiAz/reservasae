@@ -257,6 +257,8 @@ export type Control = Cabecera & {
    */
   gremios?: string[];
   serie: Array<{ dia: string; total: number }>;
+  /// La misma serie, abierta por origen: para la acumulada por canal.
+  seriePorOrigen: Array<{ etiqueta: string; dia: string; total: number }>;
   /** Cuándo llegaron los leads, no cuándo se inscribieron. */
   leadsPorDia: Array<{ dia: string; total: number }>;
   /**
@@ -311,6 +313,7 @@ const VACIO: Omit<Control, 'ventana' | 'anterior' | 'variacion'> = {
   porModalidad: [],
   topEmpresas: [],
   serie: [],
+  seriePorOrigen: [],
   leadsPorDia: [],
   embudoPorDia: [],
 };
@@ -587,6 +590,7 @@ export async function controlDeInscritos(
     porModalidad,
     topEmpresas,
     serie,
+    seriePorOrigen,
     leadsPorDia,
     embudoPorDia,
     reservasConNombres,
@@ -787,6 +791,7 @@ export async function controlDeInscritos(
         etiqueta: string;
         total: bigint;
         inscritosSiempre: bigint;
+        pendientes: bigint;
         asignados: bigint;
       }>
     >`
@@ -795,6 +800,10 @@ export async function controlDeInscritos(
              COALESCE(a."nombre", 'Sin asignar') AS etiqueta,
              COUNT(*) FILTER (WHERE TRUE ${periodo}) AS total,
              COUNT(*) FILTER (WHERE an."momento" IS NOT NULL) AS "inscritosSiempre",
+             -- lo que le queda por trabajar, con la MISMA lista que
+             -- cuenta la cola: escribirla otra vez aquí fue lo que
+             -- una vez hizo que la cifra dijera 84 y la lista 105
+             COUNT(*) FILTER (WHERE ${COLA_POR_TRABAJAR}) AS pendientes,
              COUNT(*) AS asignados
         FROM "participantes" p
         LEFT JOIN "administradores" a ON a."id" = p."asesorId"
@@ -823,12 +832,22 @@ export async function controlDeInscritos(
      * la tabla se ordena por quién tuvo suerte esta mañana.
      */
     prisma.$queryRaw<
-      Array<{ etiqueta: string; leads: bigint; inscritos: bigint }>
+      Array<{
+        etiqueta: string;
+        leads: bigint;
+        inscritos: bigint;
+        contactados: bigint;
+        pendientes: bigint;
+      }>
     >`
       ${CON_ANCLA}
       SELECT p."origen"::text AS etiqueta,
              COUNT(*) AS leads,
-             COUNT(*) FILTER (WHERE an."momento" IS NOT NULL) AS inscritos
+             COUNT(*) FILTER (WHERE an."momento" IS NOT NULL) AS inscritos,
+             -- ya se le habló: cualquiera que pasó de INTERESADO
+             COUNT(*) FILTER (WHERE p."etapa" <> 'INTERESADO') AS contactados,
+             -- y los que siguen esperando la primera llamada
+             COUNT(*) FILTER (WHERE p."etapa" = 'INTERESADO') AS pendientes
         FROM "participantes" p
         ${UNIR_ANCLA}
        WHERE ${suyos}
@@ -913,6 +932,32 @@ export async function controlDeInscritos(
         ${UNIR_ANCLA}
        WHERE ${inscritos} ${dosMeses}
        GROUP BY 1 ORDER BY 1
+    `,
+
+    /**
+     * LO MISMO, ABIERTO POR ORIGEN.
+     *
+     * Para la gráfica acumulada por canal que pidió el cliente: «esa
+     * no es la gráfica que está en el ejemplo» (22 sep 2026). Sin
+     * esto no se podía dibujar --`serie` no lleva el origen-- y una
+     * línea por canal inventada no la puede comprobar nadie.
+     *
+     * Mismo ancla, mismo recorte y los mismos dos meses que `serie`:
+     * dos series de distinto rango en la misma pantalla no se
+     * comparan, se malinterpretan.
+     */
+    prisma.$queryRaw<Array<{ etiqueta: string; dia: string; total: bigint }>>`
+      ${CON_ANCLA}
+      SELECT p."origen"::text AS etiqueta,
+             to_char(
+               date_trunc('day', an."momento" AT TIME ZONE 'UTC' AT TIME ZONE 'America/Bogota'),
+               'YYYY-MM-DD'
+             ) AS dia,
+             COUNT(*) AS total
+        FROM "participantes" p
+        ${UNIR_ANCLA}
+       WHERE ${inscritos} ${dosMeses}
+       GROUP BY 1, 2 ORDER BY 2
     `,
 
     /**
@@ -1114,6 +1159,7 @@ export async function controlDeInscritos(
         etiqueta: f.etiqueta,
         total,
         asignados,
+        pendientes: Number(f.pendientes),
         inscritosSiempre: Number(f.inscritosSiempre),
         conversion:
           asignados === 0 ? 0 : Number(f.inscritosSiempre) / asignados,
@@ -1128,6 +1174,8 @@ export async function controlDeInscritos(
       const convertidos = Number(f.inscritos);
       return {
         etiqueta: f.etiqueta,
+        contactados: Number(f.contactados),
+        pendientes: Number(f.pendientes),
         leads,
         inscritos: convertidos,
         conversion: leads === 0 ? 0 : convertidos / leads,
@@ -1154,6 +1202,11 @@ export async function controlDeInscritos(
     gremios: gremios.map((g) => g.sigla),
     // ya viene como yyyy-mm-dd de Bogotá desde el SQL
     serie: serie.map((f) => ({ dia: f.dia, total: cifra(f) })),
+    seriePorOrigen: seriePorOrigen.map((f) => ({
+      etiqueta: f.etiqueta,
+      dia: f.dia,
+      total: cifra(f),
+    })),
     leadsPorDia: leadsPorDia.map((f) => ({ dia: f.dia, total: cifra(f) })),
     embudoPorDia: embudoPorDia.map((f) => ({
       dia: f.dia,

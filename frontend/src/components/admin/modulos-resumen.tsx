@@ -26,7 +26,7 @@
 
 import { createContext, useCallback, useContext } from "react";
 
-import { DosSeriesPorDiaConEje, ListaBarras, n } from "./graficos";
+import { LineasDeSeries, ListaBarras, n } from "./graficos";
 import { useAdmin } from "./marco-admin";
 import { PendientesDeHoy } from "./pendientes-de-hoy";
 import {
@@ -48,7 +48,12 @@ import {
   type TableroAcademico,
   type EmbudoPublico,
 } from "@/lib/crm-api";
-import { porCanal } from "@/lib/canales-del-resumen";
+import {
+  acumuladoPorCanal,
+  COLOR_CANAL,
+  NOMBRE_CANAL,
+  porCanal,
+} from "@/lib/canales-del-resumen";
 import {
   MINIMO_PARA_TASA,
   PELDANOS_DEL_TRAFICO,
@@ -183,6 +188,7 @@ export function ModuloLeads() {
   const esperando = d ? d.sinContactar.reduce((s, t) => s + t.total, 0) : 0;
   const canales = d ? porCanal(d.conversionPorOrigen) : [];
   const leads = canales.reduce((s, c) => s + c.leads, 0);
+  const acumulado = acumuladoPorCanal(d?.seriePorOrigen ?? []);
 
   return (
     <Modulo numero={2} titulo={titulo} descripcion={bajada}>
@@ -231,24 +237,23 @@ export function ModuloLeads() {
           <PendientesDeHoy control={d} />
 
           <div className="flex flex-col gap-2.5">
-            <h3 className="text-sm font-bold">Leads e inscritos por día</h3>
-            {/* Las dos series que de verdad se tienen: cuándo
-                ENTRÓ cada lead y cuándo llegó alguien a inscrito.
-                No es «acumulado por canal» como la maqueta, porque
-                el canal no viaja en la serie: inventarlo sería una
-                línea que nadie puede comprobar. */}
-            <DosSeriesPorDiaConEje
-              a={{
-                nombre: "Leads que entraron",
-                color: "var(--etapa-interesado)",
-                datos: d.leadsPorDia.map((x) => ({ dia: x.dia, total: x.total })),
-              }}
-              b={{
-                nombre: "Llegaron a inscrito",
-                color: "var(--exito)",
-                datos: d.serie.map((x) => ({ dia: x.dia, total: x.total })),
-              }}
-              vacio="Todavía no hay días con movimiento."
+            <h3 className="text-sm font-bold">
+              Inscripciones acumuladas por canal, últimas 9 semanas
+            </h3>
+            {/* ACUMULADA, como el ejemplo. Lo que se mira aquí es si
+                un canal sigue trayendo gente o se secó, y eso en una
+                curva que crece se lee de un vistazo; por semanas
+                sueltas, con dos o tres inscritos por canal, salen
+                sierras que no dicen nada. */}
+            <LineasDeSeries
+              etiquetas={acumulado.etiquetas}
+              series={acumulado.series.map((x) => ({
+                nombre: NOMBRE_CANAL[x.canal],
+                color: COLOR_CANAL[x.canal],
+                datos: x.datos,
+              }))}
+              tituloIzq="Inscritos acumulados"
+              vacio="Todavía no hay inscritos con los que dibujar la curva."
             />
           </div>
 
@@ -260,6 +265,8 @@ export function ModuloLeads() {
                   <tr className="border-b border-hairline text-left text-[0.71875rem] text-texto-suave">
                     <th className="py-1.5 pr-3 font-semibold">Canal</th>
                     <th className="py-1.5 pr-3 text-right font-semibold">Leads</th>
+                    <th className="py-1.5 pr-3 text-right font-semibold">Contactados</th>
+                    <th className="py-1.5 pr-3 text-right font-semibold">Sin gestionar</th>
                     <th className="py-1.5 pr-3 text-right font-semibold">Inscritos</th>
                     <th className="py-1.5 text-right font-semibold">Conversión</th>
                   </tr>
@@ -267,8 +274,23 @@ export function ModuloLeads() {
                 <tbody>
                   {canales.map((c) => (
                     <tr key={c.canal} className="border-b border-hairline last:border-0">
-                      <td className="py-1.5 pr-3">{c.nombre}</td>
+                      <td className="py-1.5 pr-3">
+                        <span className="inline-flex items-center gap-2">
+                          <i
+                            aria-hidden
+                            className="inline-block h-2.5 w-2.5 shrink-0 rounded-[3px]"
+                            style={{ background: COLOR_CANAL[c.canal] }}
+                          />
+                          {c.nombre}
+                        </span>
+                      </td>
                       <td className="py-1.5 pr-3 text-right tabular-nums">{n(c.leads)}</td>
+                      <td className="py-1.5 pr-3 text-right tabular-nums">
+                        {n(c.contactados)}
+                      </td>
+                      <td className="py-1.5 pr-3 text-right tabular-nums text-error">
+                        {n(c.pendientes)}
+                      </td>
                       <td className="py-1.5 pr-3 text-right font-semibold tabular-nums">
                         {n(c.inscritos)}
                       </td>
@@ -280,9 +302,30 @@ export function ModuloLeads() {
                       </td>
                     </tr>
                   ))}
+                  {canales.length > 0 && (
+                    <tr className="border-t border-borde font-bold">
+                      <td className="py-1.5 pr-3">Total</td>
+                      <td className="py-1.5 pr-3 text-right tabular-nums">{n(leads)}</td>
+                      <td className="py-1.5 pr-3 text-right tabular-nums">
+                        {n(canales.reduce((x, c) => x + c.contactados, 0))}
+                      </td>
+                      <td className="py-1.5 pr-3 text-right tabular-nums">
+                        {n(canales.reduce((x, c) => x + c.pendientes, 0))}
+                      </td>
+                      <td className="py-1.5 pr-3 text-right tabular-nums">
+                        {n(canales.reduce((x, c) => x + c.inscritos, 0))}
+                      </td>
+                      <td className="py-1.5 text-right tabular-nums">
+                        {porcentaje(
+                          canales.reduce((x, c) => x + c.inscritos, 0),
+                          leads,
+                        )}
+                      </td>
+                    </tr>
+                  )}
                   {canales.length === 0 && (
                     <tr>
-                      <td colSpan={4} className="py-2 text-texto-suave">
+                      <td colSpan={6} className="py-2 text-texto-suave">
                         Todavía no ha entrado ningún lead.
                       </td>
                     </tr>
@@ -385,6 +428,12 @@ export function ModuloAsesores() {
   const conFichas = asesores.filter((a) => a.asignados > 0).length;
   const repartidas = asesores.reduce((s, a) => s + a.asignados, 0);
   const suyosInscritos = asesores.reduce((s, a) => s + a.inscritosSiempre, 0);
+  /// `pendientes` es OPCIONAL en el contrato --un backend sin
+  /// reiniciar no lo manda-- asi que la cifra solo se pinta si el
+  /// dato llego. Sumar los ausentes como cero diria «nada en cola»,
+  /// que es una afirmacion falsa sobre el trabajo de alguien.
+  const hayPendientes = asesores.some((a) => a.pendientes !== undefined);
+  const pendientes = asesores.reduce((s, a) => s + (a.pendientes ?? 0), 0);
 
   return (
     <Modulo numero={5} titulo={titulo} descripcion={bajada}>
@@ -438,7 +487,50 @@ export function ModuloAsesores() {
               pie={`${porcentaje(suyosInscritos, repartidas)} de lo repartido`}
               tono={suyosInscritos > 0 ? "bueno" : undefined}
             />
+            {hayPendientes && (
+              <CifraDelModulo
+                etiqueta="Pendientes por gestionar"
+                valor={n(pendientes)}
+                pie={pendientes > 0 ? "siguen en la cola" : "nada en cola"}
+                tono={pendientes > 0 ? "aviso" : "bueno"}
+              />
+            )}
           </Cifras>
+
+          {/* LA GRÁFICA QUE FALTABA. «El 5 de asesores debería
+              también tener gráficas y estados así como los
+              anteriores» (Josse, 22 sep 2026). Dos segmentos: lo que
+              cada uno ya inscribió y lo que le queda por delante. */}
+          <div className="flex flex-col gap-2.5">
+            <h3 className="text-sm font-bold">Carga de cada asesor</h3>
+            <Leyenda
+              de={[
+                { nombre: "Suyos inscritos", color: ACENTO_5 },
+                { nombre: "Le quedan por trabajar", color: TENUE_5 },
+              ]}
+            />
+            <BarrasDobles
+              filas={[...asesores]
+                .sort((a, b) => b.asignados - a.asignados)
+                .map((a) => ({
+                  clave: a.asesorId ?? a.etiqueta,
+                  etiqueta: a.etiqueta,
+                  hecho: a.inscritosSiempre,
+                  total: a.asignados,
+                  derecha: (
+                    <>
+                      {n(a.inscritosSiempre)} de {n(a.asignados)} ·{" "}
+                      {a.asignados >= 5
+                        ? porcentaje(a.inscritosSiempre, a.asignados)
+                        : "—"}
+                    </>
+                  ),
+                }))}
+              colorHecho={ACENTO_5}
+              colorFalta={TENUE_5}
+              maximoFilas={10}
+            />
+          </div>
 
           <div className="caja-scroll overflow-x-auto">
             <table className="w-full text-[0.8125rem]">
@@ -448,6 +540,9 @@ export function ModuloAsesores() {
                   <th className="py-1.5 pr-3 text-right font-semibold">Asignados</th>
                   <th className="py-1.5 pr-3 text-right font-semibold">
                     Suyos inscritos
+                  </th>
+                  <th className="py-1.5 pr-3 text-right font-semibold">
+                    Por gestionar
                   </th>
                   <th className="py-1.5 text-right font-semibold">Conversión</th>
                 </tr>
@@ -475,6 +570,13 @@ export function ModuloAsesores() {
                       </td>
                       <td className="py-1.5 pr-3 text-right font-semibold tabular-nums">
                         {n(a.inscritosSiempre)}
+                      </td>
+                      <td
+                        className={`py-1.5 pr-3 text-right tabular-nums ${
+                          (a.pendientes ?? 0) > 0 ? "text-aviso" : ""
+                        }`}
+                      >
+                        {a.pendientes === undefined ? "—" : n(a.pendientes)}
                       </td>
                       <td className="py-1.5 text-right tabular-nums">
                         {a.asignados >= 5
@@ -513,6 +615,9 @@ export function ModuloAsesores() {
 }
 
 /* ── módulo 3: el académico ───────────────────────────────────── */
+
+const ACENTO_5 = ACENTO[5];
+const TENUE_5 = "color-mix(in srgb, var(--etapa-certificado) 30%, transparent)";
 
 const ACENTO_3 = ACENTO[3];
 const TENUE_3 = "color-mix(in srgb, var(--etapa-en-formacion) 30%, transparent)";
@@ -553,23 +658,17 @@ export function ModuloAcademico() {
 
   const d = vivos.datos;
 
-  /// EL AULA VACÍA SE EXPLICA, y no es un fallo: el avance lo carga
-  /// el LMS, que todavía no está conectado. Sin esta frase, un
-  /// tablero en ceros se lee como un tablero roto —y hoy en
-  /// producción hay cero actividades y cero avances cargados—.
-  if (d && d.total === 0)
-    return (
-      <Apagado
-        numero={3}
-        titulo={titulo}
-        descripcion={bajada}
-        porque="Todavía no ha entrado nadie al aula"
-      >
-        Estas cifras salen del avance de cada persona, que lo carga la plataforma
-        de formación. Mientras no haya nadie matriculado ni avances cargados, el
-        bloque se queda en cero y no es un error.
-      </Apagado>
-    );
+  /**
+   * EL AULA VACÍA SE PINTA IGUAL, con sus ceros.
+   *
+   * «Así esté en 0, dejarlo así como se ve en el mockup» (Josse, 22
+   * sep 2026). Antes, con el aula vacía, el módulo se sustituía por
+   * un cartel: se veía distinto de los otros cuatro y no se podía
+   * comprobar que la estructura fuera la buena. Ahora se pinta
+   * entero y el AVISO va dentro, que es lo que hay que conservar:
+   * un cero sin explicar se lee como un dato que no cargó.
+   */
+  const vacia = d !== null && d.total === 0;
 
   return (
     <Modulo numero={3} titulo={titulo} descripcion={bajada}>
@@ -577,6 +676,15 @@ export function ModuloAcademico() {
         <Esqueleto conCifras />
       ) : (
         <>
+          {vacia && (
+            <p className="rounded-xl border border-dashed border-borde px-4 py-3 text-[0.8125rem] text-texto-suave">
+              Todavía no ha entrado nadie al aula. Estas cifras salen del avance
+              de cada persona, que lo carga la plataforma de formación: mientras
+              no haya matriculados ni avances cargados, el módulo se queda en
+              cero y no es un error.
+            </p>
+          )}
+
           <FraseDelModulo numero={3}>
             De <Cifra>{n(d.total)}</Cifra> que pisaron el aula,{" "}
             <Cifra>{n(d.dentro)}</Cifra> siguen dentro,{" "}
@@ -792,26 +900,36 @@ export function ModuloTrafico() {
 
           <div className="flex flex-col gap-2.5">
             <h3 className="text-sm font-bold">Aperturas y preinscritos por día</h3>
-            {/* DOS EJES, y aquí sí: son dos órdenes de magnitud
-                distintos --cientos de aperturas contra decenas de
-                preinscritos-- y con uno solo la segunda línea queda
-                pegada al suelo y no se puede leer su forma. La
-                pantalla de Tráfico usa esta misma gráfica. */}
-            <DosSeriesPorDiaConEje
-              a={{
-                nombre: "Aperturas",
-                color: "var(--aviso)",
-                datos: d.porDia.map((x) => ({ dia: x.dia, total: x.llegaron })),
-              }}
-              b={{
-                nombre: "Se preinscribieron",
-                color: "var(--exito)",
-                datos: d.porDia.map((x) => ({ dia: x.dia, total: x.preinscritos })),
-              }}
+            {/* LÍNEAS, como el ejemplo, y con DOS EJES. Aquí el eje
+                derecho es legítimo: son dos cosas distintas
+                --aperturas y personas que terminaron-- y cada eje
+                lleva su rótulo. Lo que no valdría es usarlo para que
+                una serie pequeña parezca grande. */}
+            <LineasDeSeries
+              etiquetas={d.porDia.map((x) => x.dia.slice(8) + "/" + x.dia.slice(5, 7))}
+              series={[
+                {
+                  nombre: "Aperturas",
+                  color: "var(--aviso)",
+                  datos: d.porDia.map((x) => x.llegaron),
+                },
+                {
+                  nombre: "Se preinscribieron",
+                  color: "var(--exito)",
+                  datos: d.porDia.map((x) => x.preinscritos),
+                  eje: "der",
+                },
+              ]}
+              tituloIzq="Aperturas"
+              tituloDer="Preinscritos"
               vacio="Todavía no hay días con movimiento."
             />
           </div>
 
+          {/* UNO AL LADO DEL OTRO, como el ejemplo. Se apilan solos
+              por debajo de 1.000 px: en el celular, dos columnas
+              dejarían el embudo en 150 px de ancho. */}
+          <div className="grid gap-5 min-[1000px]:grid-cols-2">
           <div className="flex flex-col gap-2.5">
             <h3 className="text-sm font-bold">Del clic a la preinscripción</h3>
             {/* EL EMBUDO NO PUEDE SUBIR: cada peldaño acredita a la
@@ -868,6 +986,7 @@ export function ModuloTrafico() {
               />
             </div>
           )}
+          </div>
 
           <VerDetalle a="/admin/control?pantalla=trafico">
             Ver el tráfico completo, con sus nueve peldaños y sus cortes
