@@ -26,7 +26,7 @@
 
 import { createContext, useCallback, useContext } from "react";
 
-import { ListaBarras, n } from "./graficos";
+import { DosSeriesPorDiaConEje, ListaBarras, n } from "./graficos";
 import { useAdmin } from "./marco-admin";
 import { PendientesDeHoy } from "./pendientes-de-hoy";
 import {
@@ -229,6 +229,28 @@ export function ModuloLeads() {
               recortados. Su docblock pide que se mueva sin
               reescribirla. */}
           <PendientesDeHoy control={d} />
+
+          <div className="flex flex-col gap-2.5">
+            <h3 className="text-sm font-bold">Leads e inscritos por día</h3>
+            {/* Las dos series que de verdad se tienen: cuándo
+                ENTRÓ cada lead y cuándo llegó alguien a inscrito.
+                No es «acumulado por canal» como la maqueta, porque
+                el canal no viaja en la serie: inventarlo sería una
+                línea que nadie puede comprobar. */}
+            <DosSeriesPorDiaConEje
+              a={{
+                nombre: "Leads que entraron",
+                color: "var(--etapa-interesado)",
+                datos: d.leadsPorDia.map((x) => ({ dia: x.dia, total: x.total })),
+              }}
+              b={{
+                nombre: "Llegaron a inscrito",
+                color: "var(--exito)",
+                datos: d.serie.map((x) => ({ dia: x.dia, total: x.total })),
+              }}
+              vacio="Todavía no hay días con movimiento."
+            />
+          </div>
 
           <div className="flex flex-col gap-2.5">
             <h3 className="text-sm font-bold">Avance de inscripciones por canal</h3>
@@ -590,6 +612,45 @@ export function ModuloAcademico() {
             />
           </Cifras>
 
+          <div className="flex flex-col gap-2.5">
+            <h3 className="text-sm font-bold">En qué estado está cada quien</h3>
+            {/* LOS SEIS QUE EL TABLERO SABE. La maqueta dibuja diez;
+                cuatro de ellos --sin ingreso, sin empezar, al día y
+                atrasado-- son juicios de RITMO que se calculan
+                contra el calendario del grupo y viven en el tablero
+                académico, no aquí. Pintar diez casillas y dejar
+                cuatro en cero siempre sería peor que pintar seis
+                ciertas. */}
+            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+              {[
+                { q: "Siguen dentro", v: d.dentro, c: "var(--etapa-en-formacion)" },
+                { q: "Listos para certificar", v: d.listos, c: "var(--etapa-inscrito)" },
+                { q: "Certificados", v: d.certificados, c: "var(--etapa-certificado)" },
+                { q: "Desertaron o abandonaron", v: d.porAccion.reduce((x, a) => x + a.desertaron + a.abandonaron, 0), c: "var(--etapa-deserto)" },
+                { q: "Retirados", v: d.porAccion.reduce((x, a) => x + a.retirados, 0), c: "var(--etapa-retirado)" },
+                { q: "No aprobaron", v: d.porAccion.reduce((x, a) => x + a.noAprobaron, 0), c: "var(--etapa-no-aprobo)" },
+              ].map((e) => (
+                <div
+                  key={e.q}
+                  className="flex items-center gap-2.5 rounded-lg border border-borde px-3 py-2 text-[0.8125rem]"
+                >
+                  {/* El color acompaña; NUNCA es lo único que
+                      distingue: la etiqueta lo dice con palabras. */}
+                  <i
+                    aria-hidden
+                    className="inline-block h-2.5 w-2.5 shrink-0 rounded-[3px]"
+                    style={{ background: e.c }}
+                  />
+                  <span className="min-w-0 flex-1 truncate">{e.q}</span>
+                  <strong className="font-bold tabular-nums">{n(e.v)}</strong>
+                  <small className="w-10 text-right text-texto-suave tabular-nums">
+                    {porcentaje(e.v, d.total)}
+                  </small>
+                </div>
+              ))}
+            </div>
+          </div>
+
           {d.porAccion.length > 0 && (
             <div className="flex flex-col gap-2.5">
               <h3 className="text-sm font-bold">
@@ -728,6 +789,28 @@ export function ModuloTrafico() {
               tono={registrados > 0 ? "bueno" : undefined}
             />
           </Cifras>
+
+          <div className="flex flex-col gap-2.5">
+            <h3 className="text-sm font-bold">Aperturas y preinscritos por día</h3>
+            {/* DOS EJES, y aquí sí: son dos órdenes de magnitud
+                distintos --cientos de aperturas contra decenas de
+                preinscritos-- y con uno solo la segunda línea queda
+                pegada al suelo y no se puede leer su forma. La
+                pantalla de Tráfico usa esta misma gráfica. */}
+            <DosSeriesPorDiaConEje
+              a={{
+                nombre: "Aperturas",
+                color: "var(--aviso)",
+                datos: d.porDia.map((x) => ({ dia: x.dia, total: x.llegaron })),
+              }}
+              b={{
+                nombre: "Se preinscribieron",
+                color: "var(--exito)",
+                datos: d.porDia.map((x) => ({ dia: x.dia, total: x.preinscritos })),
+              }}
+              vacio="Todavía no hay días con movimiento."
+            />
+          </div>
 
           <div className="flex flex-col gap-2.5">
             <h3 className="text-sm font-bold">Del clic a la preinscripción</h3>

@@ -53,40 +53,61 @@ export const MODULOS_DEL_RESUMEN = [
 ] as const;
 
 /**
- * El submenú de los cinco.
+ * El submenú de los cinco, que además ES la pestaña.
  *
- * «Poner un submenú de cada uno de los 5 módulos» (Josse, 22 sep
- * 2026). Son ANCLAS y no rutas: los cinco están en esta misma
- * pantalla, así que cambiar de módulo no puede costar una carga.
+ * «Poner un submenú de cada uno de los 5 módulos… son módulos
+ * INDEPENDIENTES para no recargar el sitio» (Josse, 22 sep 2026).
+ * Así que no son anclas: pulsar cambia qué módulo está montado, y
+ * el que no está montado no pide nada.
  *
- * `no-imprimir` porque en el papel no se salta a ningún sitio, y
- * un menú impreso solo gasta tinta.
+ * `aria-current` y no solo el color: quien navega con lector de
+ * pantalla tiene que saber cuál está abierto, y el color no se lo
+ * dice. Es la misma regla que el semáforo de cupos —«lleva SIEMPRE
+ * icono y texto, no solo color»—.
+ *
+ * `no-imprimir` porque en el papel no se pulsa nada, y el
+ * encabezado de impresión ya dice qué módulo trae la hoja.
  */
-export function SubmenuModulos() {
+export function TirasDeModulos({
+  activo,
+  alElegir,
+}: {
+  activo: number;
+  alElegir: (n: number) => void;
+}) {
   return (
     <nav
       aria-label="Módulos del resumen"
-      className="no-imprimir -mx-1 flex flex-wrap gap-1 overflow-x-auto"
+      className="no-imprimir caja-scroll -mx-1 flex gap-1 overflow-x-auto px-1 pb-1"
     >
-      {MODULOS_DEL_RESUMEN.map((m) => (
-        <a
-          key={m.id}
-          href={`#${m.id}`}
-          className="inline-flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-[0.78125rem] font-semibold whitespace-nowrap text-texto-suave no-underline transition hover:bg-current/10 hover:text-texto"
-        >
-          <span
-            aria-hidden
-            className="grid h-[18px] w-[18px] shrink-0 place-items-center rounded-full text-[0.6875rem] font-bold"
-            style={{
-              color: ACENTO[m.n],
-              background: `color-mix(in srgb, ${ACENTO[m.n]} 18%, transparent)`,
-            }}
+      {MODULOS_DEL_RESUMEN.map((m) => {
+        const puesto = m.n === activo;
+        return (
+          <button
+            key={m.id}
+            type="button"
+            onClick={() => alElegir(m.n)}
+            aria-current={puesto ? "page" : undefined}
+            className={`inline-flex items-center gap-2 rounded-lg border px-2.5 py-1.5 text-[0.78125rem] font-semibold whitespace-nowrap transition ${
+              puesto
+                ? "border-borde bg-superficie-alterna text-texto"
+                : "border-transparent text-texto-suave hover:bg-current/10 hover:text-texto"
+            }`}
           >
-            {m.n}
-          </span>
-          {m.corto}
-        </a>
-      ))}
+            <span
+              aria-hidden
+              className="grid h-[18px] w-[18px] shrink-0 place-items-center rounded-full text-[0.6875rem] font-bold"
+              style={{
+                color: ACENTO[m.n],
+                background: `color-mix(in srgb, ${ACENTO[m.n]} ${puesto ? 22 : 14}%, transparent)`,
+              }}
+            >
+              {m.n}
+            </span>
+            {m.corto}
+          </button>
+        );
+      })}
     </nav>
   );
 }

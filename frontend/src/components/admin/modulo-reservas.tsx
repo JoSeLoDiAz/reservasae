@@ -10,12 +10,16 @@
  * departamento» (cliente, 22 sep 2026). Y después: «y es control de
  * reservas y ya, en el 1».
  *
- * LA MATRIZ NO ESTÁ AQUÍ, Y ES DELIBERADO. El cruce institución ×
- * acción con su despliegue por persona ya existe entero en el
- * informe de Reservas, y el propio cliente puso la frontera: «esto
- * es un RESUMEN, el detalle va a quedar aparte, el detalle queda
- * como está». Copiarlo serían dos pantallas contando lo mismo con
- * dos reglas.
+ * LA MATRIZ SÍ ESTÁ, y el 22 sep no estaba: el cliente la enseñó
+ * dos veces de su maqueta y pidió «lo quiero igual como está en el
+ * ejemplo, TODO». Se dibuja desde `cruce`, que ya viene en la misma
+ * respuesta, así que no cuesta ni una consulta más.
+ *
+ * LO QUE NO SE TRAJO es el despliegue por PERSONA de cada fila —el
+ * nombre, su grupo, su fecha y su estado—: eso es el detalle, y el
+ * propio cliente puso ahí la frontera —«esto es un RESUMEN, el
+ * detalle queda como está»—. Cada institución enlaza al informe de
+ * Reservas, que ya lo tiene hecho.
  *
  * «INSCRITOS CONFIRMADOS» SON LOS QUE ESTÁN DENTRO HOY, no los que
  * pasaron alguna vez (decisión de Josse, 22 sep 2026). Es una cifra
@@ -227,6 +231,8 @@ export function ModuloReservas() {
             )}
           </div>
 
+          <MatrizDeReservas informe={d} />
+
           <p className="text-[0.71875rem] text-texto-suave">
             «Inscritos confirmados» son los que están{" "}
             <strong className="font-semibold text-texto">hoy</strong> en el cupo.
@@ -244,5 +250,130 @@ export function ModuloReservas() {
         </>
       )}
     </Modulo>
+  );
+}
+
+/**
+ * La matriz institución × acción de formación.
+ *
+ * Es lo que el cliente enseñó dos veces de su maqueta, y lo que de
+ * verdad usa: cada celda dice confirmados / reservados, así que se
+ * ve de un vistazo qué institución debe nombres y en qué curso.
+ *
+ * SE DIBUJA DESDE `cruce`, que ya viene en la misma respuesta. No
+ * hay consulta nueva: el informe lo calcula para su propia pantalla
+ * y aquí se reordena.
+ *
+ * LA CELDA TIÑE CON LA MARCA, no con una escala de colores. Un
+ * degradado por volumen se lee como un mapa de calor —«más oscuro
+ * es peor»— y aquí más cupos no es ni mejor ni peor: es más grande.
+ * Lo que sí distingue es el par de números.
+ *
+ * EL DESPLIEGUE POR PERSONA NO ESTÁ AQUÍ, y es la frontera que puso
+ * el cliente: «esto es un resumen, el detalle queda como está». La
+ * lista de cada inscrito, con su grupo y su estado, vive en el
+ * informe de Reservas, y el nombre de cada institución lleva allí.
+ */
+function MatrizDeReservas({ informe }: { informe: InformeReservas }) {
+  /// Las columnas son las acciones QUE ALGUIEN RESERVÓ, en el orden
+  /// del catálogo. Con las quince, doce columnas saldrían vacías y
+  /// la tabla se iría de ancho sin decir nada.
+  const acciones = informe.porAccion
+    .filter((a) => a.reservas > 0)
+    .map((a) => ({ id: a.accionFormacionId, codigo: a.codigo, nombre: a.nombre }));
+
+  if (acciones.length === 0 || informe.porOrganizacion.length === 0) return null;
+
+  /// `accionFormacionId` y NO el código: con los dos gremios hay dos
+  /// «AF1» distintos, y agrupando por código se funden en una.
+  const celda = new Map<string, { dentro: number; cupos: number }>();
+  for (const c of informe.cruce) {
+    celda.set(`${c.empresaId}|${c.accionFormacionId}`, {
+      dentro: c.dentro,
+      cupos: c.cuposConfirmados,
+    });
+  }
+
+  return (
+    <div className="flex flex-col gap-2.5">
+      <div>
+        <h3 className="text-sm font-bold">Detalle de reservas e inscritos</h3>
+        <p className="mt-0.5 text-[0.71875rem] text-texto-suave">
+          Cada celda muestra inscritos / reservados. Toque una institución para
+          ver a cada persona, su grupo y su estado.
+        </p>
+      </div>
+
+      <div className="caja-scroll overflow-x-auto rounded-xl border border-borde">
+        <table className="w-full text-[0.78125rem]">
+          <thead>
+            <tr className="bg-tabla-cabecera-fondo text-tabla-cabecera-texto">
+              <th className="sticky left-0 z-10 bg-tabla-cabecera-fondo px-3 py-2 text-left font-semibold">
+                Institución
+              </th>
+              {acciones.map((a) => (
+                <th
+                  key={a.id}
+                  title={a.nombre}
+                  className="px-2 py-2 text-center font-semibold whitespace-nowrap"
+                >
+                  {a.codigo}
+                </th>
+              ))}
+              <th className="px-3 py-2 text-center font-semibold">Total</th>
+            </tr>
+          </thead>
+          <tbody>
+            {informe.porOrganizacion.map((o) => (
+              <tr key={o.empresaId} className="border-t border-hairline">
+                <td className="sticky left-0 z-10 bg-superficie px-3 py-1.5">
+                  <VerDetalle
+                    a={`/admin/control?pantalla=reservas&empresaId=${encodeURIComponent(o.empresaId)}`}
+                  >
+                    {o.razonSocial}
+                  </VerDetalle>
+                </td>
+                {acciones.map((a) => {
+                  const c = celda.get(`${o.empresaId}|${a.id}`);
+                  return (
+                    <td key={a.id} className="px-2 py-1.5 text-center tabular-nums">
+                      {!c ? (
+                        <span className="text-texto-suave">–</span>
+                      ) : (
+                        <span
+                          className="inline-block rounded-md px-1.5 py-0.5"
+                          style={{
+                            background: "color-mix(in srgb, var(--marca) 12%, transparent)",
+                          }}
+                        >
+                          <strong className="font-bold">{n(c.dentro)}</strong>
+                          <span className="text-texto-suave">/{n(c.cupos)}</span>
+                        </span>
+                      )}
+                    </td>
+                  );
+                })}
+                <td className="px-3 py-1.5 text-center tabular-nums">
+                  <strong className="font-bold">{n(o.dentro)}</strong>
+                  <span className="text-texto-suave">/{n(o.cuposConfirmados)}</span>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {/* QUÉ ES CADA CÓDIGO. La cabecera dice «AF1» porque el nombre
+          completo no cabe en una columna, y una tabla de códigos sin
+          su leyenda obliga a adivinar. */}
+      <dl className="flex flex-col gap-0.5 text-[0.71875rem] text-texto-suave">
+        {acciones.map((a) => (
+          <div key={a.id} className="flex gap-2">
+            <dt className="font-bold text-texto">{a.codigo}</dt>
+            <dd className="min-w-0 truncate">{a.nombre}</dd>
+          </div>
+        ))}
+      </dl>
+    </div>
   );
 }
