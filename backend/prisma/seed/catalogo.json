@@ -1,6 +1,6 @@
 {
   "sobrecupo": 0.3,
-  "nota": "Generado por scripts/extraer-catalogo.py desde docs/proyectos/. cuposMaximos ya incluye el 30% de sobrecupo por deserción.",
+  "nota": "Generado por scripts/extraer-catalogo.py desde docs/proyectos/. cuposMaximos ya incluye el 30% de sobrecupo por deserción. AF7 de ADECOPRIA --el foro-- lleva 1000 en vez de 650: el aumento es VIRTUAL y no esta en el proyecto oficial (decision de Jose, 22 sep 2026). Si se vuelve a generar desde docs/proyectos, hay que volver a aplicarlo.",
   "convenios": [
     {
       "slug": "britcham-adee",
@@ -2648,7 +2648,7 @@
                   "departamento": "BOGOTÁ D.C",
                   "modalidad": "VIRTUAL",
                   "cuposBase": 50,
-                  "cuposMaximos": 65
+                  "cuposMaximos": 111
                 },
                 {
                   "ubicacion": "ANTIOQUIA",
@@ -2656,7 +2656,7 @@
                   "departamento": "ANTIOQUIA",
                   "modalidad": "VIRTUAL",
                   "cuposBase": 40,
-                  "cuposMaximos": 52
+                  "cuposMaximos": 89
                 },
                 {
                   "ubicacion": "HUILA",
@@ -2664,7 +2664,7 @@
                   "departamento": "HUILA",
                   "modalidad": "VIRTUAL",
                   "cuposBase": 30,
-                  "cuposMaximos": 39
+                  "cuposMaximos": 66
                 },
                 {
                   "ubicacion": "CAUCA",
@@ -2672,7 +2672,7 @@
                   "departamento": "CAUCA",
                   "modalidad": "VIRTUAL",
                   "cuposBase": 30,
-                  "cuposMaximos": 39
+                  "cuposMaximos": 67
                 },
                 {
                   "ubicacion": "CÓRDOBA",
@@ -2680,7 +2680,7 @@
                   "departamento": "CÓRDOBA",
                   "modalidad": "VIRTUAL",
                   "cuposBase": 40,
-                  "cuposMaximos": 52
+                  "cuposMaximos": 89
                 }
               ]
             },
@@ -2703,7 +2703,7 @@
                   "departamento": "ANTIOQUIA",
                   "modalidad": "VIRTUAL",
                   "cuposBase": 50,
-                  "cuposMaximos": 65
+                  "cuposMaximos": 111
                 },
                 {
                   "ubicacion": "MAGDALENA",
@@ -2711,7 +2711,7 @@
                   "departamento": "MAGDALENA",
                   "modalidad": "VIRTUAL",
                   "cuposBase": 40,
-                  "cuposMaximos": 52
+                  "cuposMaximos": 89
                 },
                 {
                   "ubicacion": "SANTANDER",
@@ -2719,7 +2719,7 @@
                   "departamento": "SANTANDER",
                   "modalidad": "VIRTUAL",
                   "cuposBase": 50,
-                  "cuposMaximos": 65
+                  "cuposMaximos": 111
                 },
                 {
                   "ubicacion": "VALLE DEL CAUCA",
@@ -2727,7 +2727,7 @@
                   "departamento": "VALLE DEL CAUCA",
                   "modalidad": "VIRTUAL",
                   "cuposBase": 50,
-                  "cuposMaximos": 65
+                  "cuposMaximos": 111
                 }
               ]
             }
@@ -2761,7 +2761,7 @@
               "departamento": "ANTIOQUIA",
               "modalidad": "VIRTUAL",
               "cuposBase": 90,
-              "cuposMaximos": 117,
+              "cuposMaximos": 200,
               "grupos": [
                 1,
                 2
@@ -2773,7 +2773,7 @@
               "departamento": "BOGOTÁ D.C",
               "modalidad": "VIRTUAL",
               "cuposBase": 50,
-              "cuposMaximos": 65,
+              "cuposMaximos": 111,
               "grupos": [
                 1
               ]
@@ -2784,7 +2784,7 @@
               "departamento": "CAUCA",
               "modalidad": "VIRTUAL",
               "cuposBase": 30,
-              "cuposMaximos": 39,
+              "cuposMaximos": 67,
               "grupos": [
                 1
               ]
@@ -2795,7 +2795,7 @@
               "departamento": "CÓRDOBA",
               "modalidad": "VIRTUAL",
               "cuposBase": 40,
-              "cuposMaximos": 52,
+              "cuposMaximos": 89,
               "grupos": [
                 1
               ]
@@ -2806,7 +2806,7 @@
               "departamento": "HUILA",
               "modalidad": "VIRTUAL",
               "cuposBase": 30,
-              "cuposMaximos": 39,
+              "cuposMaximos": 66,
               "grupos": [
                 1
               ]
@@ -2817,7 +2817,7 @@
               "departamento": "MAGDALENA",
               "modalidad": "VIRTUAL",
               "cuposBase": 40,
-              "cuposMaximos": 52,
+              "cuposMaximos": 89,
               "grupos": [
                 2
               ]
@@ -2828,7 +2828,7 @@
               "departamento": "SANTANDER",
               "modalidad": "VIRTUAL",
               "cuposBase": 50,
-              "cuposMaximos": 65,
+              "cuposMaximos": 111,
               "grupos": [
                 2
               ]
@@ -2839,7 +2839,7 @@
               "departamento": "VALLE DEL CAUCA",
               "modalidad": "VIRTUAL",
               "cuposBase": 50,
-              "cuposMaximos": 65,
+              "cuposMaximos": 111,
               "grupos": [
                 2
               ]

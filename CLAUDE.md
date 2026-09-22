@@ -5382,6 +5382,38 @@ arrancar el servidor.
 Verificado contra `docs/proyectos/*.xlsx`, que es la fuente oficial. El
 `docs/dahsboardexcel/Base Cursos.xlsx` es un derivado con etiquetas erróneas.
 
+### El foro de ADECOPRIA va a 1.000, y NO está en el proyecto (22 sep 2026)
+
+Lo decidió Josse: **AF7 «SALTO ADELANTE», el foro, pasa de 650 a 1.000 de tope**,
+así que ADECOPRIA queda en **1.600 de compromiso y 2.430 de tope** --y el
+proyecto entero en 3.690 / 5.147--. El documento oficial **no cambia**: es una
+anulación deliberada, y por eso está escrita aquí.
+
+- **El compromiso NO se toca.** Los 500 de `cuposBase` son lo pactado con el
+  SENA y siguen en 500; lo que crece es el techo de inscripción. Por eso el foro
+  es la única acción cuyo tope no es «la meta + 30 %»: es lo que quepa.
+- **El aumento es VIRTUAL, y eso obligó a rehacerlo.** El primer intento dobló
+  todas las celdas por igual, y dos del foro son PRESENCIALES --Medellín y
+  Pereira, 60 cada una--: les puso 120 asientos en una sala donde caben 60.
+  Ahora esas dos se quedan en su 78 (156 entre las dos) y las nueve virtuales
+  cargan los 350 (844).
+- **Los 350 se repartieron por el método del MAYOR RESTO**, que es el que este
+  proyecto ya usa para el 30 % (`repartir_sobrecupo`). De ahí salen 89, 111, 67
+  y 66: no son redondos y es correcto que no lo sean.
+- **`catalogo.json` se editó para que cuadre**, aunque sea un fichero generado.
+  Sin eso, `prisma db seed` devolvía el foro a 650 **en silencio**. Quien vuelva
+  a correr `scripts/extraer-catalogo.py` tiene que volver a aplicarlo: la nota
+  del propio JSON lo dice.
+- **Lo que se pidió y NO está hecho: la bolsa.** Josse quiere que la capacidad
+  suba sola donde aparece la demanda --«si en Antioquia eran 50 y ya van 52, que
+  marque 52 de 52»--. Eso no es un dato: es un segundo contador al lado del
+  `UPDATE` condicional atómico, que es el único candado contra la sobreventa y
+  el que tiene los `CHECK` detrás. Hay un camino que no lo toca --transferir
+  tope de una bolsa de la acción a la oferta que se llenó, en su propia
+  transacción, dejando intacto el candado de siempre-- pero hay que diseñarlo,
+  probarlo bajo concurrencia y pasar `db:prueba-carga`. Mientras tanto el
+  reparto de arriba es lo que hay, y con 17 reservas de 1.000 no aprieta.
+
 - **El 30 % se calcula sobre el total de CADA GRUPO y luego se reparte** entre
   sus ubicaciones, no celda por celda. En la tabla oficial del proyecto la
   columna «BENEF. X GRUPO» siempre es redonda: 50 → **65**, 250 → **325**.
