@@ -178,6 +178,22 @@ export const MODULOS: Modulo[] = [
     descripcion: 'Los datos que sostienen el reporte al SENA.',
     enlaces: [
       {
+        /// Lo que era el Resumen hasta el 22 sep 2026.
+        ///
+        /// El cliente rehizo la portada con sus cinco módulos y de
+        /// los once bloques que había dijo «bajan todos, sin
+        /// excepción». Bajaron AQUÍ, enteros: el veredicto, el
+        /// termómetro de la meta dentro del tope, el ritmo, el mapa
+        /// y la concentración. Borrarlos habría sido perder trabajo
+        /// que alguien decidió; y sin entrada de menú, una pantalla
+        /// a la que solo se llega por un enlace de otra se pierde
+        /// igual.
+        href: '/admin/ocupacion',
+        etiqueta: 'Ocupación contra la meta',
+        exacto: true,
+        area: 'reserva',
+      },
+      {
         href: '/admin/reservas',
         etiqueta: 'Reservas',
         area: 'reserva',

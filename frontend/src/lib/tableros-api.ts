@@ -303,6 +303,16 @@ export type CifrasInformeReservas = {
       a INSCRITO, el mismo criterio del bloque «Cupos apartados». */
   conNombre: number;
   /**
+   * Los de esos que siguen DENTRO hoy: inscrito, en formación o
+   * certificado, la misma lista que cuenta la ocupación.
+   *
+   * `conNombre` incluye a quien se retiró o desertó, y es la que
+   * alimenta la brecha de nombres y el informe que se le reporta al
+   * SENA; esta las descuenta. Las dos son ciertas, así que NUNCA se
+   * llaman igual en la misma pantalla.
+   */
+  dentro: number;
+  /**
    * Cupos confirmados sin persona, acotado a cero RESERVA POR RESERVA
    * y luego sumado. Por eso se puede sumar en cualquier sentido: dos
    * personas de más en un curso no llenan las sillas de otro.

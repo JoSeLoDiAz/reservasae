@@ -42,6 +42,7 @@ import {
 import { booleanoDeVerdad } from '../comun/booleano-de-verdad';
 import { diaBogota, fechaBogota } from '../comun/dia-bogota';
 import { enPeriodo, PRIMERA_MATRICULA } from '../crm/anclas';
+import { OCUPAN_SILLA } from '../crm/etapas';
 import type { PrismaService } from '../prisma/prisma.service';
 import { sqlDeConvenio } from './ambito';
 
@@ -88,6 +89,15 @@ type Cifras = {
   cuposEnEspera: number;
   /** Cupos con una persona matriculada detrás. */
   conNombre: number;
+  /**
+   * Los de esos que siguen dentro HOY.
+   *
+   * `conNombre` cuenta a quien llegó alguna vez, retirado o no, y es
+   * la que alimenta la brecha de nombres y el informe que se le
+   * reporta al SENA. Esta descuenta las salidas. Las dos son
+   * ciertas; lo que no pueden es llamarse igual.
+   */
+  dentro: number;
   /**
    * Cupos confirmados que siguen sin persona, acotado a cero RESERVA
    * POR RESERVA y luego sumado.
@@ -296,6 +306,8 @@ export type ReservaCruda = {
   tipoUbicacion: TipoUbicacion;
   /** Matriculados de ESTA reserva. Cero si está cancelada. */
   conNombre: number | bigint;
+  /** Los de esos que siguen DENTRO hoy: ver el CTE. */
+  dentro: number | bigint;
 };
 
 /** Una acción del recorte, tenga o no reservas. */
@@ -444,9 +456,31 @@ export function consultaDeReservas(
      * a inscrito, sin ventana. Con otro criterio —por ejemplo «quien
      * pisó el aula»— el informe abría con 11 donde el bloque desde el
      * que se hizo clic decía 13.
+     *
+     * Y AL LADO, la columna «dentro»: los de esos que siguen dentro
+     * HOY. «Inscritos confirmados: quien está inscrito HOY» (Josse,
+     * 22 sep 2026), para el módulo 1 del Resumen. NO sustituye a la
+     * otra: aquella cuenta a quien llegó alguna vez --retirados
+     * incluidos-- y es la que alimenta la brecha de nombres y el
+     * informe que se le reporta al SENA. Las dos son ciertas; lo
+     * que no pueden es llamarse igual en dos pantallas.
+     *
+     * Sale de la MISMA lista que cuenta la ocupación --OCUPAN_SILLA,
+     * en crm/etapas.ts-- y no de una escrita aquí: con dos listas,
+     * una pantalla diría que alguien ocupa un cupo y la otra que no.
+     *
+     * OJO CON LOS ACENTOS GRAVES: este bloque vive DENTRO de la
+     * plantilla de la consulta, así que uno solo la termina y el
+     * error sale como sintaxis de TypeScript, lejos de aquí. Por eso
+     * el original no lleva ninguno, y este tampoco.
      */
     con_nombre AS (
-      SELECT p."reservaId" AS rid, COUNT(*) AS n
+      SELECT p."reservaId" AS rid,
+             COUNT(*) AS n,
+             -- y cuantos siguen DENTRO hoy: ver el bloque de arriba
+             COUNT(*) FILTER (
+               WHERE p."etapa"::text IN (${Prisma.join(OCUPAN_SILLA)})
+             ) AS dentro
         FROM "participantes" p
         LEFT JOIN primera_matricula an ON an."pid" = p."id"
        WHERE p."reservaId" IS NOT NULL ${enPeriodo(null, null)}
@@ -476,7 +510,9 @@ export function consultaDeReservas(
            -- personas colgadas, contarlas subía la cobertura justo al
            -- cancelar, que es lo que control.ts también descarta
            CASE WHEN r."estado" <> 'CANCELADA' THEN COALESCE(cn."n", 0) ELSE 0 END
-                                          AS "conNombre"
+                                          AS "conNombre",
+           CASE WHEN r."estado" <> 'CANCELADA' THEN COALESCE(cn."dentro", 0) ELSE 0 END
+                                          AS "dentro"
       FROM "reservas" r
       JOIN "ofertas" o             ON o."id" = r."ofertaId"
       JOIN "acciones_formacion" af ON af."id" = o."accionFormacionId"
@@ -574,6 +610,7 @@ const ceros = (): Cifras => ({
   cuposConfirmados: 0,
   cuposEnEspera: 0,
   conNombre: 0,
+  dentro: 0,
   sinNombre: 0,
   nombresDeMas: 0,
 });
@@ -681,6 +718,7 @@ export function armarInforme(entrada: Entrada): InformeReservas {
     destino.cuposConfirmados += c.cuposConfirmados;
     destino.cuposEnEspera += c.cuposEnEspera;
     destino.conNombre += c.conNombre;
+    destino.dentro += c.dentro;
     destino.sinNombre += c.sinNombre;
     destino.nombresDeMas += c.nombresDeMas;
   };
@@ -725,6 +763,10 @@ export function armarInforme(entrada: Entrada): InformeReservas {
       cuposConfirmados: confirmados,
       cuposEnEspera: enEspera,
       conNombre,
+      /// Nunca mas que los cupos: una reserva de 10 con 12 personas
+      /// no llena 12 sillas, igual que `conNombre` --y la sobra ya
+      /// se dice aparte en `nombresDeMas`--.
+      dentro: Math.min(confirmados, cancelada ? 0 : cifra(r.dentro)),
       sinNombre: Math.max(0, confirmados - conNombre),
       nombresDeMas: Math.max(0, conNombre - confirmados),
     };

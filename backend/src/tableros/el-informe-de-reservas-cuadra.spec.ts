@@ -94,6 +94,8 @@ function reserva(p: {
   enEspera?: number;
   solicitados?: number;
   conNombre?: number;
+  /** Los de esos que siguen dentro hoy. Por omisión, todos. */
+  dentro?: number;
   estado?: ReservaCruda['estado'];
 }): ReservaCruda {
   secuencia += 1;
@@ -121,6 +123,7 @@ function reserva(p: {
     ubicacion: p.ubicacion,
     tipoUbicacion: 'DEPARTAMENTO',
     conNombre: BigInt(p.conNombre ?? 0),
+    dentro: BigInt(p.dentro ?? (p.conNombre ?? 0)),
   };
 }
 
