@@ -174,6 +174,7 @@ export function TablaPorGrupo({
       </div>
 
       <p className="border-t border-borde px-7 py-3 text-[0.6875rem] leading-relaxed text-texto-suave">
+        La meta de cada grupo son sus cupos del cronograma, ya con el 30 % de sobrecupo.
         «Nominados por la empresa» no es lo mismo que «Cupos reservados» de la tabla de
         arriba: una reserva se aparta sobre la acción y la ciudad, no sobre un grupo, así que
         aquí se cuentan las personas que la empresa ya entregó con nombre propio. Por eso los

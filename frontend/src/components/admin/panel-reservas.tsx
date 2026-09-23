@@ -122,6 +122,8 @@ function filtrosDeLaDireccion(p: URLSearchParams): FiltrosInformeReservas {
     convenio: texto("convenio"),
     accionFormacionId: texto("accionFormacionId"),
     ubicacionId: texto("ubicacionId"),
+    departamento: texto("departamento"),
+    empresaId: texto("empresaId"),
     desde: texto("desde"),
     hasta: texto("hasta"),
     incluirCanceladas: casilla === "true" || casilla === "1",
@@ -160,6 +162,8 @@ const CLAVES_DEL_INFORME = [
   "convenio",
   "accionFormacionId",
   "ubicacionId",
+  "departamento",
+  "empresaId",
   "desde",
   "hasta",
   "incluirCanceladas",
@@ -641,6 +645,13 @@ function CuerpoDelInforme({
     <>
       <ResumenGeneral informe={informe} />
       <Graficas informe={informe} filtros={filtros} />
+      {/* Los dos que pidió el cliente el 23 sep 2026: el desglose por
+          departamento, y la tabla de seguimiento con el plazo del 30
+          de septiembre. Van después de las gráficas y antes del
+          resumen por acción porque el seguimiento es lo que se trabaja
+          y el resumen por acción es lo que se reporta. */}
+      <PorDepartamento informe={informe} />
+      <Seguimiento informe={informe} />
       <TablaPorAccion informe={informe} />
     </>
   );
@@ -723,8 +734,36 @@ function TarjetaDeFiltros({
     [catalogo],
   );
 
+  /**
+   * LOS DEPARTAMENTOS Y LAS INSTITUCIONES SALEN DEL CATÁLOGO, NO DEL
+   * INFORME FILTRADO.
+   *
+   * Es la misma regla que ya siguen la acción y la ubicación, y está
+   * aquí por un defecto concreto: si la lista saliera de lo que se
+   * está viendo, al elegir «Antioquia» el desplegable se quedaría con
+   * una sola entrada --Antioquia-- y no habría manera de salir sin
+   * limpiar todos los filtros.
+   */
+  const departamentos = useMemo(
+    () =>
+      [...(catalogo?.porDepartamento ?? [])].sort((a, b) =>
+        ordenNatural(bonito(a.departamento), bonito(b.departamento)),
+      ),
+    [catalogo],
+  );
+
+  const instituciones = useMemo(
+    () =>
+      [...(catalogo?.porOrganizacion ?? [])].sort((a, b) =>
+        ordenNatural(bonito(a.razonSocial), bonito(b.razonSocial)),
+      ),
+    [catalogo],
+  );
+
   const accionElegida = filtros.accionFormacionId ?? "";
   const ubicacionElegida = filtros.ubicacionId ?? "";
+  const departamentoElegido = filtros.departamento ?? "";
+  const institucionElegida = filtros.empresaId ?? "";
 
   /// Lo que está puesto, dicho en el botón del celular: con los
   /// controles plegados, sin esto no se sabría qué recorte se mira.
@@ -733,6 +772,10 @@ function TarjetaDeFiltros({
     (catalogo?.porAccion ?? []).find((a) => a.accionFormacionId === accionElegida)?.codigo,
     ubicaciones.find((u) => u.ubicacionId === ubicacionElegida)?.nombre
       ? bonito(ubicaciones.find((u) => u.ubicacionId === ubicacionElegida)?.nombre ?? "")
+      : undefined,
+    departamentoElegido ? bonito(departamentoElegido) : undefined,
+    instituciones.find((i) => i.empresaId === institucionElegida)?.razonSocial
+      ? bonito(instituciones.find((i) => i.empresaId === institucionElegida)?.razonSocial ?? "")
       : undefined,
     rangoEnPalabras(filtros.desde ?? null, filtros.hasta ?? null) ?? undefined,
     filtros.incluirCanceladas ? "con canceladas" : undefined,
@@ -856,6 +899,50 @@ function TarjetaDeFiltros({
               })),
             ]}
             alElegir={(v) => escribirEnLaDireccion({ ubicacionId: v || undefined })}
+          />
+        </div>
+
+        {/* DEPARTAMENTO, que es un escalón por encima de «Dónde se
+            dicta» (cliente, 23 sep 2026). Los dos conviven: en
+            «Dónde se dicta» Medellín y Antioquia son dos entradas
+            distintas, y quien quiere ver Antioquia entera las
+            necesita juntas. */}
+        <div className="min-w-0 flex-[1_1_180px]">
+          <Desplegable
+            alto={34}
+            marcador="Departamento"
+            etiquetaAria="Departamento"
+            valor={departamentoElegido}
+            opciones={[
+              { valor: "", etiqueta: "Departamento" },
+              ...departamentos.map((d) => ({
+                valor: d.departamento,
+                etiqueta: bonito(d.departamento),
+                detalle: `${n(d.cuposConfirmados)} ${d.cuposConfirmados === 1 ? "cupo" : "cupos"}`,
+              })),
+            ]}
+            alElegir={(v) => escribirEnLaDireccion({ departamento: v || undefined })}
+          />
+        </div>
+
+        <div className="min-w-0 flex-[2_1_240px]">
+          <Desplegable
+            alto={34}
+            marcador="Institución"
+            etiquetaAria="Institución"
+            valor={institucionElegida}
+            opciones={[
+              { valor: "", etiqueta: "Institución" },
+              ...instituciones.map((i) => ({
+                valor: i.empresaId,
+                etiqueta: bonito(i.razonSocial),
+                /// El NIT en la segunda línea: dos sedes de la misma
+                /// red se llaman casi igual y es lo único que las
+                /// separa a simple vista.
+                detalle: [i.nit, `${n(i.cuposConfirmados)} cupos`].filter(Boolean).join(" · "),
+              })),
+            ]}
+            alElegir={(v) => escribirEnLaDireccion({ empresaId: v || undefined })}
           />
         </div>
 
@@ -983,11 +1070,22 @@ function ResumenGeneral({ informe }: { informe: InformeReservas }) {
           sobre la raya de fondo pinta los separadores también cuando
           en un celular pasan a dos por fila. */}
       <div className="flex flex-wrap gap-px bg-hairline">
+        {/* CUÁNTAS INSTITUCIONES, en su propia casilla (cliente, 23
+            sep 2026). Estaba en el pie de «Reservas», que es donde no
+            se lee: es la primera pregunta del comité --a cuántos
+            colegios llegamos-- y no una aclaración de otra cifra. */}
+        <Celda>
+          <TarjetaCifra
+            etiqueta="Instituciones"
+            valor={n(t.organizaciones)}
+            pie={`apartaron cupos en ${cuenta(t.acciones, "acción", "acciones")}`}
+          />
+        </Celda>
         <Celda>
           <TarjetaCifra
             etiqueta="Reservas"
             valor={n(t.reservas)}
-            pie={`de ${cuenta(t.organizaciones, "organización", "organizaciones")} en ${cuenta(t.acciones, "acción", "acciones")}`}
+            pie={`una por institución y acción`}
           />
         </Celda>
         <Celda>
@@ -2106,5 +2204,213 @@ function DeMas({ c }: { c: FilaInformeCruce }) {
     <span className="mt-0.5 block text-[0.6875rem] font-normal text-aviso">
       {cuenta(c.nombresDeMas, "persona de más", "personas de más")}
     </span>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   4 · DESGLOSE POR DEPARTAMENTO
+   ═══════════════════════════════════════════════════════════════ */
+
+/**
+ * «Desglose Departamentos» (cliente, 23 sep 2026).
+ *
+ * UN ESCALÓN POR ENCIMA DE «Dónde se dicta». En ese filtro, la ciudad
+ * de Medellín y el departamento de Antioquia son dos entradas
+ * distintas; aquí van en la misma barra, que es como se mira la
+ * cobertura del proyecto.
+ *
+ * DOS BARRAS Y NO UNA: los cupos apartados en gris y los que ya
+ * tienen nombre en verde, encima. Con una sola barra de cupos no se
+ * ve dónde está lo que falta por llenar, que es justo para lo que se
+ * mira este bloque en septiembre.
+ */
+function PorDepartamento({ informe }: { informe: InformeReservas }) {
+  const filas = informe.porDepartamento;
+  if (filas.length === 0) return null;
+
+  /// El tope sale de TODAS las filas, no de las visibles: si saliera
+  /// de las visibles, la primera barra se reescalaría al abrir.
+  const tope = Math.max(1, ...filas.map((d) => d.cuposConfirmados));
+
+  return (
+    <Bloque
+      titulo="Cupos por departamento"
+      descripcion="Dónde se dictan los cursos de las reservas. En verde, los cupos que ya tienen una persona detrás."
+    >
+      <ul className="space-y-2.5">
+        {filas.map((d) => (
+          <li key={d.departamento}>
+            <div className="flex items-baseline justify-between gap-3 text-[0.8125rem] leading-snug">
+              <span className="min-w-0 truncate" title={bonito(d.departamento)}>
+                {bonito(d.departamento)}
+                <span className="ml-2 text-[0.75rem] text-texto-suave">
+                  {cuenta(d.organizaciones, "institución", "instituciones")}
+                </span>
+              </span>
+              <span className="shrink-0 whitespace-nowrap tabular-nums">
+                <span className="font-semibold text-titulo">{n(d.cuposConfirmados)}</span>
+                <span className="ml-1 text-[0.75rem] text-texto-suave">
+                  {d.cuposConfirmados === 1 ? "cupo" : "cupos"}
+                </span>
+              </span>
+            </div>
+            {/* La barra verde va DENTRO de la gris, no al lado: son
+                una parte y su todo, y dos barras hermanas se leerían
+                como dos cantidades que se suman. */}
+            <div className="mt-1 h-2.5 w-full overflow-hidden rounded-full bg-superficie-alterna">
+              <div
+                className="h-full rounded-full bg-marca/25"
+                style={{ width: `${Math.max((d.cuposConfirmados / tope) * 100, 1)}%` }}
+              >
+                <div
+                  className="h-full rounded-full bg-exito"
+                  style={{
+                    width: `${d.cuposConfirmados > 0 ? (d.conNombre / d.cuposConfirmados) * 100 : 0}%`,
+                  }}
+                />
+              </div>
+            </div>
+          </li>
+        ))}
+      </ul>
+    </Bloque>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   5 · SEGUIMIENTO: LO APARTADO CONTRA LO QUE LLEGÓ
+   ═══════════════════════════════════════════════════════════════ */
+
+/**
+ * «Cuántos se han inscrito sobre la reserva: cantidad apartada vs
+ * cuántos llegaron, en tabla de seguimiento» (cliente, 23 sep 2026).
+ *
+ * DOS COLUMNAS Y NO UNA CELDA «0/16». Su maqueta llevaba las dos
+ * cifras juntas en la misma casilla —«quizás dos columnas, reserva y
+ * cupos ocupados»—, y partidas se pueden ordenar, sumar y leer a lo
+ * ancho sin hacer la división de cabeza.
+ *
+ * UNA FILA POR INSTITUCIÓN Y ACCIÓN, que es exactamente lo que ya
+ * calcula el informe (`cruce`). La matriz con una columna por AF
+ * hacía catorce columnas con las dos cifras, y en un portátil se leía
+ * desplazándose a ciegas; así cabe, se puede filtrar por acción
+ * arriba, y cada fila tiene sitio para lo que de verdad hacía falta:
+ * cuánto le queda de plazo.
+ *
+ * EL PLAZO ES LO NUEVO. «Contexto a más tardar el 30 de septiembre,
+ * avisar 2 semanas antes que ya no van a participar». El estado lo
+ * calcula el servidor (`plazo-de-reservas.ts`) para que la pantalla y
+ * el papel no puedan discrepar.
+ */
+const SEMAFORO: Record<
+  FilaInformeCruce["estadoPlazo"],
+  { texto: string; clase: string }
+> = {
+  COMPLETA: { texto: "Completa", clase: "text-exito" },
+  EN_PLAZO: { texto: "En plazo", clase: "text-texto-suave" },
+  POR_VENCER: { texto: "Por vencer", clase: "text-aviso" },
+  VENCIDA: { texto: "Vencida", clase: "text-error" },
+};
+
+function Seguimiento({ informe }: { informe: InformeReservas }) {
+  const filas = informe.cruce;
+  if (filas.length === 0) return null;
+
+  const dias = diasEntre(informe.plazo.hoy, informe.plazo.entregaNombres);
+  const t = filas.reduce(
+    (a, f) => ({
+      cuposConfirmados: a.cuposConfirmados + f.cuposConfirmados,
+      conNombre: a.conNombre + f.conNombre,
+      sinNombre: a.sinNombre + f.sinNombre,
+    }),
+    { cuposConfirmados: 0, conNombre: 0, sinNombre: 0 },
+  );
+
+  return (
+    <Bloque
+      sinRelleno
+      partible
+      titulo="Seguimiento de las reservas"
+      descripcion="Cuántos cupos apartó cada institución en cada acción y cuántos ya tienen persona."
+    >
+      {/* EL PLAZO, ARRIBA Y EN UNA LÍNEA. Va antes de la tabla y no en
+          el pie porque es la razón de mirarla en septiembre. */}
+      <p
+        className={`border-b border-hairline px-3.5 py-2.5 text-[0.75rem] leading-snug ${
+          dias < 0 ? "text-error" : dias <= informe.plazo.diasDeAviso ? "text-aviso" : "text-texto-suave"
+        }`}
+      >
+        <strong className="font-semibold">
+          Las instituciones tienen hasta el {diaLargo(informe.plazo.entregaNombres)} para
+          entregar los nombres de sus cupos.
+        </strong>{" "}
+        {dias > 0
+          ? `Quedan ${cuenta(dias, "día", "días")}.`
+          : dias === 0
+            ? "Hoy es el último día."
+            : `El plazo venció hace ${cuenta(-dias, "día", "días")}.`}{" "}
+        Quien no vaya a participar tiene que avisarlo con {informe.plazo.diasDeAviso} días de
+        antelación para que sus cupos se puedan volver a ofrecer.
+      </p>
+
+      <div className="caja-scroll overflow-x-auto">
+        <table className="w-full">
+          <thead className="border-b border-borde">
+            <tr>
+              <Th className="pl-7">Institución</Th>
+              <Th>AF</Th>
+              <Th>Dónde se dicta</Th>
+              <Th derecha>Cupos reservados</Th>
+              <Th derecha>Cupos ocupados</Th>
+              <Th derecha>Pendientes</Th>
+              <Th>Estado</Th>
+            </tr>
+          </thead>
+          <tbody>
+            {filas.map((f) => (
+              <tr key={`${f.accionFormacionId}|${f.empresaId}`} className="border-b border-hairline">
+                <td className={`${CELDA} pl-7`}>
+                  <span className="font-medium">{bonito(f.razonSocial)}</span>
+                  <span className="block text-[0.6875rem] text-texto-suave">{f.nit}</span>
+                </td>
+                <td className={`${CELDA} font-mono text-xs whitespace-nowrap`} title={f.accion}>
+                  {f.codigo}
+                </td>
+                <td className={CELDA}>
+                  {f.ubicaciones.length > 0 ? f.ubicaciones.map(bonito).join(", ") : "—"}
+                </td>
+                <td className={CELDA_CIFRA}>{n(f.cuposConfirmados)}</td>
+                <td className={`${CELDA_CIFRA} font-semibold text-exito`}>{n(f.conNombre)}</td>
+                <td className={`${CELDA_CIFRA} ${f.sinNombre > 0 ? "text-error" : ""}`}>
+                  {n(f.sinNombre)}
+                </td>
+                <td className={CELDA}>
+                  <span className={`text-[0.75rem] font-semibold ${SEMAFORO[f.estadoPlazo].clase}`}>
+                    {SEMAFORO[f.estadoPlazo].texto}
+                  </span>
+                </td>
+              </tr>
+            ))}
+
+            <tr className="border-t-2 border-borde font-semibold">
+              <td className={`${CELDA} pl-7`} colSpan={3}>
+                Suma total
+              </td>
+              <td className={CELDA_CIFRA}>{n(t.cuposConfirmados)}</td>
+              <td className={`${CELDA_CIFRA} text-exito`}>{n(t.conNombre)}</td>
+              <td className={CELDA_CIFRA}>{n(t.sinNombre)}</td>
+              <td className={CELDA} />
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p className="border-t border-borde px-7 py-3 text-[0.6875rem] leading-relaxed text-texto-suave">
+        Un cupo está <strong className="font-semibold">ocupado</strong> cuando la institución ya
+        entregó el nombre de la persona que lo va a usar. Los pendientes son los que siguen sin
+        nombre: son los que hay que perseguir antes del cierre. Una fila queda en «Completa» en
+        cuanto no le falta ninguno, aunque el plazo ya haya pasado.
+      </p>
+    </Bloque>
   );
 }

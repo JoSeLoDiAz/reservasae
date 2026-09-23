@@ -267,6 +267,17 @@ export type FiltrosInformeReservas = {
   /** Dónde se dicta (Oferta.ubicacionId), no dónde vive nadie. */
   ubicacionId?: string;
   /**
+   * El departamento donde se dicta, por su NOMBRE.
+   *
+   * Un escalón por encima de `ubicacionId`: la ciudad de Medellín y
+   * el departamento de Antioquia son dos ubicaciones distintas, y
+   * este filtro las junta. Va por nombre porque el departamento de
+   * una ubicación es un texto, no una tabla con ids.
+   */
+  departamento?: string;
+  /** Una sola institución, por su id de empresa. */
+  empresaId?: string;
+  /**
    * Días de calendario de BOGOTÁ, «YYYY-MM-DD», los dos inclusive.
    * Texto y no instante ISO: convertirlo a instante en el navegador
    * es volver a meter la zona por la puerta de atrás. Una fecha mal
@@ -343,6 +354,10 @@ export type FilaInformeCruce = CifrasInformeReservas & {
   /** Días de Bogotá «YYYY-MM-DD». */
   primeraReserva: string;
   ultimaReserva: string;
+  /** En qué punto del plazo del 30 de septiembre va esta fila. Lo
+      calcula el servidor: la regla vive en `plazo-de-reservas.ts` y
+      una segunda copia aquí sería la que se queda vieja. */
+  estadoPlazo: "COMPLETA" | "EN_PLAZO" | "POR_VENCER" | "VENCIDA";
 };
 
 /** El mismo cruce visto por organización, la que más nombres debe
@@ -360,6 +375,11 @@ export type InformeReservas = {
   /** Instante ISO. Va al pie del papel: un PDF sin fecha no sirve de
       soporte. */
   generadoEn: string;
+  /** Hasta cuándo tienen las instituciones para entregar los nombres
+      de sus cupos, a cuántos días del corte se avisa, y qué día de
+      Bogotá era cuando se calculó. Viaja aquí para que la pantalla y
+      el papel digan la misma fecha. */
+  plazo: { entregaNombres: string; diasDeAviso: number; hoy: string };
   /** El recorte con el que se calculó, resuelto a nombres, para el
       encabezado de impresión. */
   recorte: {
@@ -367,6 +387,10 @@ export type InformeReservas = {
     convenios: Array<{ id: string; slug: string; sigla: string | null; nombre: string }>;
     accion: { id: string; codigo: string; nombre: string } | null;
     ubicacion: { id: string; nombre: string } | null;
+    /// Por nombre: el departamento de una ubicación es un texto, no
+    /// una tabla de la que colgar un id.
+    departamento: string | null;
+    institucion: { id: string; nit: string; razonSocial: string } | null;
     desde: string | null;
     hasta: string | null;
     incluyeCanceladas: boolean;
@@ -396,6 +420,17 @@ export type InformeReservas = {
     tipo: "CIUDAD" | "DEPARTAMENTO";
     reservas: number;
     cuposConfirmados: number;
+  }>;
+  /** El mismo reparto, un escalón más arriba: por departamento. La
+      ciudad de Medellín y el departamento de Antioquia son dos filas
+      en `porUbicacion` y una sola aquí. */
+  porDepartamento: Array<{
+    departamento: string;
+    reservas: number;
+    organizaciones: number;
+    cuposConfirmados: number;
+    conNombre: number;
+    sinNombre: number;
   }>;
   /** Siempre los tres estados, en este orden: CONFIRMADA,
       LISTA_ESPERA, CANCELADA. Con los tres el donut suma el total de

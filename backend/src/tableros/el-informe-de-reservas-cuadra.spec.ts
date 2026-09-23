@@ -120,6 +120,9 @@ function reserva(p: {
     ubicacionId: `ub-${p.ubicacion}`,
     ubicacion: p.ubicacion,
     tipoUbicacion: 'DEPARTAMENTO',
+    // en la prueba la ubicación ES un departamento, así que su
+    // nombre es el del departamento
+    departamento: p.ubicacion,
     conNombre: BigInt(p.conNombre ?? 0),
   };
 }
@@ -207,6 +210,8 @@ const RECORTE: InformeReservas['recorte'] = {
   convenios: [],
   accion: null,
   ubicacion: null,
+  departamento: null,
+  institucion: null,
   desde: null,
   hasta: null,
   incluyeCanceladas: false,
@@ -659,7 +664,9 @@ describe('el informe acepta cinco filtros y descarta el resto', () => {
         'accionFormacionId',
         'convenio',
         'convenioId',
+        'departamento',
         'desde',
+        'empresaId',
         'hasta',
         'incluirCanceladas',
         'ubicacionId',
@@ -697,5 +704,86 @@ describe('el informe acepta cinco filtros y descarta el resto', () => {
     expect(() => filtrosDelInforme({ convenioId: [ADE, BRI] })).toThrow(
       BadRequestException,
     );
+  });
+});
+
+// ── 6. el corte por departamento ─────────────────────────────────
+//
+// «Desglose departamentos» (cliente, 23 sep 2026). Es un escalón por
+// encima de `porUbicacion`: ahí la ciudad de Medellín y el
+// departamento de Antioquia son dos filas, y aquí van en la misma.
+
+describe('el desglose por departamento', () => {
+  const informe = armar();
+
+  it('suma los mismos cupos que los totales', () => {
+    expect(suma(informe.porDepartamento, 'cuposConfirmados')).toBe(
+      informe.totales.cuposConfirmados,
+    );
+  });
+
+  it('suma las mismas reservas que los totales', () => {
+    expect(suma(informe.porDepartamento, 'reservas')).toBe(informe.totales.reservas);
+  });
+
+  it('cuenta cada institución UNA vez por departamento, no una por reserva', () => {
+    // «Maderas» y «Colegio Montessori» apartaron las dos en ANTIOQUIA
+    const antioquia = informe.porDepartamento.find((d) => d.departamento === 'ANTIOQUIA');
+    expect(antioquia).toBeDefined();
+    expect(antioquia!.organizaciones).toBeLessThanOrEqual(antioquia!.reservas);
+  });
+
+  it('no inventa departamentos: todos salen de una reserva contada', () => {
+    for (const d of informe.porDepartamento) {
+      expect(d.reservas).toBeGreaterThan(0);
+    }
+  });
+
+  it('va de más cupos a menos, para que la primera barra sea la mayor', () => {
+    const cupos = informe.porDepartamento.map((d) => d.cuposConfirmados);
+    expect([...cupos].sort((a, b) => b - a)).toEqual(cupos);
+  });
+
+  it('el «con nombre» de cada departamento nunca pasa de sus cupos sumados', () => {
+    for (const d of informe.porDepartamento) {
+      expect(d.conNombre + d.sinNombre).toBeGreaterThanOrEqual(d.cuposConfirmados);
+    }
+  });
+});
+
+// ── 7. el plazo del 30 de septiembre ─────────────────────────────
+//
+// «Contexto a más tardar el 30 de septiembre, avisar 2 semanas antes
+// que ya no van a participar» (cliente, 23 sep 2026).
+
+describe('el plazo de entrega de nombres', () => {
+  const informe = armar();
+
+  it('viaja en el informe, para que la pantalla y el papel digan lo mismo', () => {
+    expect(informe.plazo.entregaNombres).toBe('2026-09-30');
+    expect(informe.plazo.diasDeAviso).toBe(14);
+  });
+
+  it('el «hoy» es el día de Bogotá del sello del informe', () => {
+    // el informe se sella el 21 sep a las 15:00 UTC = 10:00 en Bogotá
+    expect(informe.plazo.hoy).toBe('2026-09-21');
+  });
+
+  it('cada fila del cruce trae su estado, ya calculado', () => {
+    for (const fila of informe.cruce) {
+      expect(['COMPLETA', 'EN_PLAZO', 'POR_VENCER', 'VENCIDA']).toContain(fila.estadoPlazo);
+    }
+  });
+
+  it('quien no debe nombres sale COMPLETA', () => {
+    for (const fila of informe.cruce) {
+      if (fila.sinNombre === 0) expect(fila.estadoPlazo).toBe('COMPLETA');
+    }
+  });
+
+  it('el 21 de septiembre, quien debe nombres está POR_VENCER: quedan 9 días', () => {
+    for (const fila of informe.cruce) {
+      if (fila.sinNombre > 0) expect(fila.estadoPlazo).toBe('POR_VENCER');
+    }
   });
 });

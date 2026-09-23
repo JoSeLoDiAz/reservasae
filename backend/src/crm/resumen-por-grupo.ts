@@ -71,10 +71,10 @@ export function resumenPorGrupoSql(accionFormacionId: string): Prisma.Sql {
            COALESCE(p."inscritosCampana", 0) AS "inscritosCampana"
       FROM "grupos" g
 
-      -- LA META Y DÓNDE SE DICTA, de las coberturas del grupo.
+      -- LA META --con el 30 %-- Y DÓNDE SE DICTA, de las coberturas.
       LEFT JOIN (
         SELECT c."grupoId" AS gid,
-               SUM(c."cuposBase")::int AS meta,
+               SUM(c."cuposMaximos")::int AS meta,
                STRING_AGG(DISTINCT u."nombre", ', ') AS sedes,
                STRING_AGG(DISTINCT u."departamento", ', ') AS departamentos
           FROM "grupos_cobertura" c

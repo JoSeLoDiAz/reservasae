@@ -40,10 +40,16 @@ import {
   type TipoUbicacion,
 } from '../../generated/prisma';
 import { booleanoDeVerdad } from '../comun/booleano-de-verdad';
-import { diaBogota, fechaBogota } from '../comun/dia-bogota';
+import { aDiaBogota, diaBogota, fechaBogota } from '../comun/dia-bogota';
 import { enPeriodo, PRIMERA_MATRICULA } from '../crm/anclas';
 import type { PrismaService } from '../prisma/prisma.service';
 import { sqlDeConvenio } from './ambito';
+import {
+  DIAS_DE_AVISO,
+  PLAZO_ENTREGA_NOMBRES,
+  estadoDelPlazo,
+  type EstadoDelPlazo,
+} from './plazo-de-reservas';
 
 /**
  * Tope de filas del cruce acción × organización.
@@ -54,6 +60,14 @@ import { sqlDeConvenio } from './ambito';
  * aunque la tabla no muestre todas las filas.
  */
 export const TOPE_PARES = 1000;
+
+/**
+ * Cómo se llama la barra de las sedes que no tienen departamento.
+ *
+ * Se cuentan y se enseñan: son cupos de verdad, y esconderlos haría
+ * que las barras no sumaran el total de arriba.
+ */
+export const SIN_DEPARTAMENTO = 'Sin departamento';
 
 // ── el contrato ─────────────────────────────────────────────────
 // Espejo de `frontend/src/lib/tableros-api.ts`. Si se cambia uno,
@@ -74,6 +88,18 @@ export type FiltrosInformeReservas = {
   accionFormacionId?: string;
   /** Dónde se dicta (Oferta.ubicacionId), no dónde vive nadie. */
   ubicacionId?: string;
+  /**
+   * El departamento donde se dicta, por su nombre.
+   *
+   * Es un corte MÁS ANCHO que `ubicacionId`: la ciudad de Medellín y
+   * el departamento de Antioquia son dos ubicaciones distintas, y el
+   * cliente pide ver «Antioquia» con las dos dentro (23 sep 2026).
+   * Va por nombre y no por id porque `Ubicacion.departamento` es un
+   * texto: no hay tabla de departamentos de la que colgar un id.
+   */
+  departamento?: string;
+  /** Una sola institución, por su id de empresa. */
+  empresaId?: string;
   /** Días de calendario de Bogotá, «YYYY-MM-DD», los dos inclusive. */
   desde?: string;
   hasta?: string;
@@ -141,6 +167,14 @@ export type FilaInformeCruce = Cifras & {
   ubicaciones: string[];
   primeraReserva: string;
   ultimaReserva: string;
+  /**
+   * En qué punto del plazo del 30 de septiembre va esta fila.
+   *
+   * Se calcula AQUÍ y no en el navegador: la regla ya está escrita y
+   * probada en `plazo-de-reservas.ts`, y una segunda copia en el
+   * frontend es la que se queda vieja el día que el plazo cambie.
+   */
+  estadoPlazo: EstadoDelPlazo;
 };
 
 export type FilaInformeOrganizacion = Cifras & {
@@ -152,6 +186,15 @@ export type FilaInformeOrganizacion = Cifras & {
 
 export type InformeReservas = {
   generadoEn: string;
+  /**
+   * Hasta cuándo tienen las instituciones para entregar los nombres
+   * de sus cupos, y a cuántos días del corte se empieza a avisar.
+   *
+   * Viaja en el informe --y no como constante del navegador-- para
+   * que la pantalla, el papel y cualquier aviso digan la misma fecha
+   * sin que nadie tenga que acordarse de cambiarla en tres sitios.
+   */
+  plazo: { entregaNombres: string; diasDeAviso: number; hoy: string };
   recorte: {
     convenios: Array<{
       id: string;
@@ -161,6 +204,10 @@ export type InformeReservas = {
     }>;
     accion: { id: string; codigo: string; nombre: string } | null;
     ubicacion: { id: string; nombre: string } | null;
+    /// Va por nombre: `Ubicacion.departamento` es un texto, no una
+    /// tabla de la que colgar un id.
+    departamento: string | null;
+    institucion: { id: string; nit: string; razonSocial: string } | null;
     desde: string | null;
     hasta: string | null;
     incluyeCanceladas: boolean;
@@ -184,6 +231,15 @@ export type InformeReservas = {
     tipo: TipoUbicacion;
     reservas: number;
     cuposConfirmados: number;
+  }>;
+  /** El mismo reparto, un escalón más arriba: por departamento. */
+  porDepartamento: Array<{
+    departamento: string;
+    reservas: number;
+    organizaciones: number;
+    cuposConfirmados: number;
+    conNombre: number;
+    sinNombre: number;
   }>;
   porEstado: Array<{
     estado: EstadoReserva;
@@ -251,6 +307,8 @@ export function filtrosDelInforme(
     convenio: texto('convenio'),
     accionFormacionId: texto('accionFormacionId'),
     ubicacionId: texto('ubicacionId'),
+    departamento: texto('departamento'),
+    empresaId: texto('empresaId'),
     desde,
     hasta,
     incluirCanceladas: booleanoDeVerdad(consulta.incluirCanceladas) ?? false,
@@ -294,6 +352,8 @@ export type ReservaCruda = {
   ubicacionId: string;
   ubicacion: string;
   tipoUbicacion: TipoUbicacion;
+  /** El departamento de esa sede. Nulo en una ciudad sin departamento. */
+  departamento: string | null;
   /** Matriculados de ESTA reserva. Cero si está cancelada. */
   conNombre: number | bigint;
 };
@@ -326,6 +386,8 @@ export async function informeDeReservas(
     convenios: [],
     accion: null,
     ubicacion: null,
+    departamento: filtros.departamento ?? null,
+    institucion: null,
     desde: filtros.desde ?? null,
     hasta: filtros.hasta ?? null,
     incluyeCanceladas,
@@ -394,7 +456,27 @@ export async function informeDeReservas(
     throw new NotFoundException('No existe esa ubicación.');
   }
 
-  const recorte: Recorte = { ...recorteVacio, convenios, accion, ubicacion };
+  /// La institución, para que el papel diga de quién es el informe.
+  /// Se busca sin acotar por ámbito a propósito: una empresa se
+  /// comparte entre gremios, y lo que acota es la reserva --que sí va
+  /// por convenio en el SQL--.
+  const institucion = filtros.empresaId
+    ? await prisma.empresa.findUnique({
+        where: { id: filtros.empresaId },
+        select: { id: true, nit: true, razonSocial: true },
+      })
+    : null;
+  if (filtros.empresaId && !institucion) {
+    throw new NotFoundException('No existe esa institución.');
+  }
+
+  const recorte: Recorte = {
+    ...recorteVacio,
+    convenios,
+    accion,
+    ubicacion,
+    institucion,
+  };
 
   if (efectivos.length === 0) {
     return armarInforme({
@@ -472,6 +554,11 @@ export function consultaDeReservas(
            u."id"                         AS "ubicacionId",
            u."nombre"                     AS ubicacion,
            u."tipo"::text                 AS "tipoUbicacion",
+           -- El departamento de esa sede. Cuando la ubicación ES un
+           -- departamento, su propio nombre: así «Antioquia» y
+           -- «Medellín» caen en la misma barra y no en dos.
+           COALESCE(u."departamento", CASE WHEN u."tipo" = 'DEPARTAMENTO' THEN u."nombre" END)
+                                          AS departamento,
            -- una reserva cancelada ya no tiene cupos: si le quedaban
            -- personas colgadas, contarlas subía la cobertura justo al
            -- cancelar, que es lo que control.ts también descarta
@@ -488,6 +575,14 @@ export function consultaDeReservas(
        AND af."convenioId" IN (${Prisma.join(efectivos)})
        ${filtros.accionFormacionId ? Prisma.sql`AND af."id" = ${filtros.accionFormacionId}` : Prisma.empty}
        ${filtros.ubicacionId ? Prisma.sql`AND o."ubicacionId" = ${filtros.ubicacionId}` : Prisma.empty}
+       ${
+         /// La misma cuenta que la columna de arriba, repetida aquí
+         /// porque un alias del SELECT no se puede usar en el WHERE.
+         filtros.departamento
+           ? Prisma.sql`AND COALESCE(u."departamento", CASE WHEN u."tipo" = 'DEPARTAMENTO' THEN u."nombre" END) = ${filtros.departamento}`
+           : Prisma.empty
+       }
+       ${filtros.empresaId ? Prisma.sql`AND r."empresaId" = ${filtros.empresaId}` : Prisma.empty}
        ${
          /// El día de Bogotá, dicho por su nombre. `creadoEn` es
          /// TIMESTAMP sin zona guardado en UTC: compararlo contra
@@ -631,9 +726,12 @@ export function armarInforme(entrada: Entrada): InformeReservas {
     });
   }
 
+  /// Sin `estadoPlazo`: esa columna se calcula al final, sobre el
+  /// `sinNombre` ya sumado. Ponerla en el acumulador obligaría a
+  /// recalcularla en cada reserva de la fila.
   const cruce = new Map<
     string,
-    FilaInformeCruce & { ubicacionesVistas: Set<string> }
+    Omit<FilaInformeCruce, 'estadoPlazo'> & { ubicacionesVistas: Set<string> }
   >();
   const organizaciones = new Map<
     string,
@@ -642,9 +740,22 @@ export function armarInforme(entrada: Entrada): InformeReservas {
     }
   >();
   const empresasDeAccion = new Map<string, Set<string>>();
+  /// Cuántas instituciones distintas hay en cada departamento. Se
+  /// lleva aparte porque una institución con tres reservas en el
+  /// mismo departamento es UNA institución, no tres.
+  const empresasDeDepartamento = new Map<string, Set<string>>();
   const porUbicacion = new Map<
     string,
     InformeReservas['porUbicacion'][number]
+  >();
+  /// El corte por departamento, que el cliente pidió aparte del de
+  /// ubicación (23 sep 2026). No se deriva de `porUbicacion` sumando
+  /// sus filas: ahí la ciudad y el departamento son dos entradas, y
+  /// sumarlas contaría dos veces las reservas de quien dicta en los
+  /// dos sitios. Se cuenta reserva por reserva, como todo lo demás.
+  const porDepartamento = new Map<
+    string,
+    InformeReservas['porDepartamento'][number]
   >();
   const porDia = new Map<
     string,
@@ -793,6 +904,28 @@ export function armarInforme(entrada: Entrada): InformeReservas {
     ub.cuposConfirmados += confirmados;
     porUbicacion.set(r.ubicacionId, ub);
 
+    /// «Sin departamento» se cuenta, no se esconde: son cupos de
+    /// verdad, y dejarlos fuera haría que las barras no sumaran el
+    /// total de arriba —que es de las primeras cosas que alguien
+    /// comprueba mirando un informe—.
+    const nombreDepto = r.departamento ?? SIN_DEPARTAMENTO;
+    const dep = porDepartamento.get(nombreDepto) ?? {
+      departamento: nombreDepto,
+      reservas: 0,
+      organizaciones: 0,
+      cuposConfirmados: 0,
+      conNombre: 0,
+      sinNombre: 0,
+    };
+    dep.reservas += 1;
+    dep.cuposConfirmados += confirmados;
+    dep.conNombre += c.conNombre;
+    dep.sinNombre += c.sinNombre;
+    porDepartamento.set(nombreDepto, dep);
+    const suyas = empresasDeDepartamento.get(nombreDepto) ?? new Set<string>();
+    suyas.add(r.empresaId);
+    empresasDeDepartamento.set(nombreDepto, suyas);
+
     const dia = porDia.get(r.dia) ?? { dia: r.dia, reservas: 0, cupos: 0 };
     dia.reservas += 1;
     dia.cupos += confirmados;
@@ -824,6 +957,7 @@ export function armarInforme(entrada: Entrada): InformeReservas {
     .map(({ ubicacionesVistas, ...p }) => ({
       ...p,
       ubicaciones: [...ubicacionesVistas].sort(ordenNatural),
+      estadoPlazo: estadoDelPlazo(p.sinNombre, aDiaBogota(generadoEn)),
     }));
 
   /// La que más nombres debe, arriba: es la lista de a quién llamar.
@@ -844,6 +978,14 @@ export function armarInforme(entrada: Entrada): InformeReservas {
 
   return {
     generadoEn: generadoEn.toISOString(),
+    /// El «hoy» sale del mismo instante con que se selló el informe
+    /// y en día de Bogotá: calcularlo en el navegador haría que un
+    /// portátil con la zona corrida enseñara otro semáforo.
+    plazo: {
+      entregaNombres: PLAZO_ENTREGA_NOMBRES,
+      diasDeAviso: DIAS_DE_AVISO,
+      hoy: aDiaBogota(generadoEn),
+    },
     recorte,
     totales,
     porAccion: [...porAccion.values()],
@@ -855,6 +997,17 @@ export function armarInforme(entrada: Entrada): InformeReservas {
         b.reservas - a.reservas ||
         ordenNatural(a.nombre, b.nombre),
     ),
+    porDepartamento: [...porDepartamento.values()]
+      .map((d) => ({
+        ...d,
+        organizaciones: empresasDeDepartamento.get(d.departamento)?.size ?? 0,
+      }))
+      .sort(
+        (a, b) =>
+          b.cuposConfirmados - a.cuposConfirmados ||
+          b.reservas - a.reservas ||
+          ordenNatural(a.departamento, b.departamento),
+      ),
     porEstado: [...porEstado.values()],
     porDia: [...porDia.values()].sort((a, b) =>
       a.dia < b.dia ? -1 : a.dia > b.dia ? 1 : 0,

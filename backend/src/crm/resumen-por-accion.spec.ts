@@ -86,12 +86,14 @@ describe('la tabla por acción de formación', () => {
     const sql = (ambito: string[], gremio: string | null = null) =>
       resumenPorAccionSql(ambito, gremio).sql;
 
-    it('la meta sale de los cupos del cronograma, no de la oferta', () => {
+    it('la meta sale del cronograma y CON el 30 % de sobrecupo', () => {
+      // «esto es con el 30 %, tanto en la general como en la que se ve
+      // por AF» (cliente, 23 sep 2026). Estuvo con `cuposBase` y él lo
+      // corrigió: su Excel da 520 por AF1, que es el máximo.
       const q = sql(['ade']);
       expect(q).toContain('grupos_cobertura');
-      expect(q).toContain('cuposBase');
-      /// `cuposMaximos` trae el 30 % de sobrecupo: no es la meta.
-      expect(q).not.toContain('cuposMaximos');
+      expect(q).toContain('cuposMaximos');
+      expect(q).not.toContain('cuposBase');
     });
 
     it('solo suma reservas confirmadas', () => {

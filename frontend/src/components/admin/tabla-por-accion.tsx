@@ -177,9 +177,9 @@ export function TablaPorAccion({
       </div>
 
       <p className="border-t border-borde px-7 py-3 text-[0.6875rem] leading-relaxed text-texto-suave">
-        La meta son los cupos comprometidos en el cronograma, sumando los grupos de cada
-        acción. Los cupos reservados no descuentan disponibles: el cupo se consume cuando la
-        persona queda inscrita.
+        La meta son los cupos del cronograma sumando los grupos de cada acción, ya con el
+        30 % de sobrecupo. Los cupos reservados no descuentan disponibles: el cupo se consume
+        cuando la persona queda inscrita.
       </p>
     </Bloque>
   );
