@@ -115,7 +115,11 @@ export function ritmoPorDia(
 export function cierreDeLaAccion(fechasDeInicio: Array<Date | null>): Date | null {
   const cierres = fechasDeInicio
     .filter((f): f is Date => f instanceof Date)
-    .map(cierreDeInscripciones);
+    /// La flecha NO sobra: `cierreDeInscripciones` recibe ahora la
+    /// modalidad como segundo argumento, y `map` le pasaría ahí el
+    /// ÍNDICE de la fila. El grupo 0 se leería como presencial y del 1
+    /// en adelante como una modalidad que no existe.
+    .map((f) => cierreDeInscripciones(f));
   if (!cierres.length) return null;
   return cierres.reduce((a, b) => (b > a ? b : a));
 }

@@ -18,6 +18,32 @@
 /// tarda alistar listas, grupos y aulas.
 export const HABILES_ANTES_DEL_INICIO = 5;
 
+/**
+ * Y en los VIRTUALES, dos semanas de calendario.
+ *
+ * «En inscripciones existen dos momentos: en virtuales 2 semanas, en
+ * presenciales 5 días hábiles antes» (cliente, 23 sep 2026). Él mismo
+ * añadió «esto sujeto a cambio», así que las dos viven aquí arriba y
+ * se mueven de una línea.
+ *
+ * DÍAS DE CALENDARIO Y NO HÁBILES, a propósito: «dos semanas» son
+ * catorce días para cualquiera que lo diga en voz alta. Contarlas en
+ * hábiles daría dieciocho de calendario y el cierre caería casi tres
+ * semanas antes, que no es lo que se acordó.
+ */
+export const DIAS_ANTES_DEL_INICIO_VIRTUAL = 14;
+
+/**
+ * Cómo se dicta el grupo, que es lo que decide cuál de las dos manda.
+ *
+ * LA HÍBRIDA VA POR LA REGLA PRESENCIAL, y conviene saber por qué: un
+ * grupo híbrido tiene gente que se sienta en una sala, y esa sala hay
+ * que alistarla igual que la de un presencial. Darle el plazo del
+ * virtual sería cerrar dos semanas antes sin necesidad y perder diez
+ * días de inscripción en los grupos más grandes.
+ */
+export type ModalidadDeCierre = 'PRESENCIAL' | 'VIRTUAL' | 'HIBRIDA';
+
 /// Y tres dias mas de margen para avisar. No se espera al
 /// cierre para descubrir que faltan cupos: para entonces ya
 /// no hay a quien llamar.
@@ -67,14 +93,40 @@ export function habilesAtras(desde: Date, cuantos: number): Date {
   return f;
 }
 
-/** Hasta cuándo se puede inscribir a este grupo. */
-export function cierreDeInscripciones(fechaInicio: Date): Date {
+/** Retrocede N días de calendario desde una fecha. */
+function diasAtras(desde: Date, cuantos: number): Date {
+  const f = new Date(desde.getTime());
+  f.setUTCDate(f.getUTCDate() - cuantos);
+  return f;
+}
+
+/**
+ * Hasta cuándo se puede inscribir a este grupo.
+ *
+ * La modalidad va OPCIONAL y sin ella manda la regla presencial. No
+ * es pereza: es que los tres sitios que ya llamaban a esta función
+ * --el panel de cupos, la proyección y el tablero-- no tenían por qué
+ * cambiar el día que aparecieron dos reglas, y la presencial es la
+ * que estaba en vigor para todos ellos.
+ */
+export function cierreDeInscripciones(
+  fechaInicio: Date,
+  modalidad?: ModalidadDeCierre,
+): Date {
+  if (modalidad === 'VIRTUAL') {
+    return diasAtras(fechaInicio, DIAS_ANTES_DEL_INICIO_VIRTUAL);
+  }
   return habilesAtras(fechaInicio, HABILES_ANTES_DEL_INICIO);
 }
 
 /** Cuándo hay que avisar que faltan cupos por completar. */
-export function avisoDeLiberacion(fechaInicio: Date): Date {
-  return habilesAtras(cierreDeInscripciones(fechaInicio), HABILES_DE_AVISO);
+export function avisoDeLiberacion(
+  fechaInicio: Date,
+  modalidad?: ModalidadDeCierre,
+): Date {
+  /// El aviso se cuenta en hábiles en las dos modalidades: son días
+  /// de trabajo de quien tiene que llamar, no de calendario.
+  return habilesAtras(cierreDeInscripciones(fechaInicio, modalidad), HABILES_DE_AVISO);
 }
 
 /** En qué punto está la ventana de inscripción de un grupo. */
@@ -89,7 +141,11 @@ export type VentanaInscripcion = {
   estado: 'SIN_FECHAS' | 'ABIERTA' | 'POR_AVISAR' | 'AVISANDO' | 'CERRADA';
 };
 
-export function ventanaDe(fechaInicio: Date | null, hoy: Date): VentanaInscripcion {
+export function ventanaDe(
+  fechaInicio: Date | null,
+  hoy: Date,
+  modalidad?: ModalidadDeCierre,
+): VentanaInscripcion {
   if (!fechaInicio) {
     return {
       fechaInicio: null,
@@ -100,8 +156,8 @@ export function ventanaDe(fechaInicio: Date | null, hoy: Date): VentanaInscripci
     };
   }
 
-  const cierre = cierreDeInscripciones(fechaInicio);
-  const aviso = avisoDeLiberacion(fechaInicio);
+  const cierre = cierreDeInscripciones(fechaInicio, modalidad);
+  const aviso = avisoDeLiberacion(fechaInicio, modalidad);
 
   // se comparan dias de Bogota, no instantes: inscribir a las
   // once de la noche del dia del cierre sigue siendo el dia

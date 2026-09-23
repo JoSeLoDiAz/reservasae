@@ -145,6 +145,18 @@ model Grupo {
 
   sepGrupoId Int? /// como lo conoce el SEP
 
+  /// El asesor academico que lleva este grupo entero.
+  ///
+  /// POR GRUPO Y NO POR PERSONA (cliente, 23 sep 2026): «cuantos
+  /// grupos tiene asignados = cantidad de PAX». La carga se mide en
+  /// grupos y el PAX sale solo de sus coberturas; repartir quinientas
+  /// personas a mano seria trabajo diario de alguien.
+  ///
+  /// Es distinto del `asesorId` del participante, que es el de
+  /// INSCRIPCIONES: una persona puede tener a uno llevandola hasta
+  /// que entra, y a otro acompañandola dentro del aula.
+  asesorAcademicoId String?
+
   // los proyectos no traen fechas
   fechaInicio DateTime?
   fechaFin    DateTime?
@@ -156,6 +168,7 @@ model Grupo {
   actualizadoEn DateTime @updatedAt
 
   accionFormacion AccionFormacion  @relation(fields: [accionFormacionId], references: [id], onDelete: Cascade)
+  asesorAcademico Admin?          @relation("GruposDelAsesorAcademico", fields: [asesorAcademicoId], references: [id], onDelete: SetNull)
   sede            Ubicacion?       @relation(fields: [sedeUbicacionId], references: [id])
   coberturas      GrupoCobertura[]
   sesiones        SesionDeGrupo[]
@@ -1473,6 +1486,7 @@ model Admin {
   /// no se relacionan por ningun otro sitio, pero un dia lo
   /// haran y sin nombre Prisma no sabria cual es cual.
   leadsQueLleva            LeadEntrante[]           @relation("LeadsDelAsesor")
+  gruposQueAcompana        Grupo[]                  @relation("GruposDelAsesorAcademico")
   plantillasCorreo         PlantillaCorreo[]
   campanas                 Campana[]
   enlacesEmitidos          EnlaceCompletado[]       @relation("EnlacesEmitidos")
