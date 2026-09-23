@@ -2639,48 +2639,48 @@
                   "tipo": "CIUDAD",
                   "departamento": "ANTIOQUIA",
                   "modalidad": "PRESENCIAL",
-                  "cuposBase": 60,
-                  "cuposMaximos": 78
+                  "cuposBase": 120,
+                  "cuposMaximos": 120
                 },
                 {
                   "ubicacion": "BOGOTÁ D.C",
                   "tipo": "DEPARTAMENTO",
                   "departamento": "BOGOTÁ D.C",
                   "modalidad": "VIRTUAL",
-                  "cuposBase": 50,
-                  "cuposMaximos": 65
+                  "cuposBase": 100,
+                  "cuposMaximos": 100
                 },
                 {
                   "ubicacion": "ANTIOQUIA",
                   "tipo": "DEPARTAMENTO",
                   "departamento": "ANTIOQUIA",
                   "modalidad": "VIRTUAL",
-                  "cuposBase": 40,
-                  "cuposMaximos": 52
+                  "cuposBase": 80,
+                  "cuposMaximos": 80
                 },
                 {
                   "ubicacion": "HUILA",
                   "tipo": "DEPARTAMENTO",
                   "departamento": "HUILA",
                   "modalidad": "VIRTUAL",
-                  "cuposBase": 30,
-                  "cuposMaximos": 39
+                  "cuposBase": 60,
+                  "cuposMaximos": 60
                 },
                 {
                   "ubicacion": "CAUCA",
                   "tipo": "DEPARTAMENTO",
                   "departamento": "CAUCA",
                   "modalidad": "VIRTUAL",
-                  "cuposBase": 30,
-                  "cuposMaximos": 39
+                  "cuposBase": 60,
+                  "cuposMaximos": 60
                 },
                 {
                   "ubicacion": "CÓRDOBA",
                   "tipo": "DEPARTAMENTO",
                   "departamento": "CÓRDOBA",
                   "modalidad": "VIRTUAL",
-                  "cuposBase": 40,
-                  "cuposMaximos": 52
+                  "cuposBase": 80,
+                  "cuposMaximos": 80
                 }
               ]
             },
@@ -2694,40 +2694,40 @@
                   "tipo": "CIUDAD",
                   "departamento": "RISARALDA",
                   "modalidad": "PRESENCIAL",
-                  "cuposBase": 60,
-                  "cuposMaximos": 78
+                  "cuposBase": 120,
+                  "cuposMaximos": 120
                 },
                 {
                   "ubicacion": "ANTIOQUIA",
                   "tipo": "DEPARTAMENTO",
                   "departamento": "ANTIOQUIA",
                   "modalidad": "VIRTUAL",
-                  "cuposBase": 50,
-                  "cuposMaximos": 65
+                  "cuposBase": 100,
+                  "cuposMaximos": 100
                 },
                 {
                   "ubicacion": "MAGDALENA",
                   "tipo": "DEPARTAMENTO",
                   "departamento": "MAGDALENA",
                   "modalidad": "VIRTUAL",
-                  "cuposBase": 40,
-                  "cuposMaximos": 52
+                  "cuposBase": 80,
+                  "cuposMaximos": 80
                 },
                 {
                   "ubicacion": "SANTANDER",
                   "tipo": "DEPARTAMENTO",
                   "departamento": "SANTANDER",
                   "modalidad": "VIRTUAL",
-                  "cuposBase": 50,
-                  "cuposMaximos": 65
+                  "cuposBase": 100,
+                  "cuposMaximos": 100
                 },
                 {
                   "ubicacion": "VALLE DEL CAUCA",
                   "tipo": "DEPARTAMENTO",
                   "departamento": "VALLE DEL CAUCA",
                   "modalidad": "VIRTUAL",
-                  "cuposBase": 50,
-                  "cuposMaximos": 65
+                  "cuposBase": 100,
+                  "cuposMaximos": 100
                 }
               ]
             }
