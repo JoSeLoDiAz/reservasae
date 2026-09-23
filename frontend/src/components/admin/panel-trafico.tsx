@@ -134,10 +134,18 @@ const NOMBRE_ANCHO: Record<string, string> = {
   ESCRITORIO: "Computador",
 };
 
+/// EN CASTELLANO Y SIN JERGA DE SERVIDOR. Decía «por el subdominio del
+/// gremio», «por la dirección general» y «cruzada: el gremio no
+/// coincide»: tres frases que solo entiende quien montó los dominios.
+/// «Suena demasiado feo [...] no debe ser por el formulario o algo así»
+/// (cliente, 23 sep 2026). Lo que de verdad distingue es POR CUÁL
+/// FORMULARIO entró la persona.
 const NOMBRE_ENTRADA: Record<string, string> = {
-  SUBDOMINIO: "Por el subdominio del gremio",
-  RUTA: "Por la dirección general",
-  CRUZADA: "Cruzada: el gremio no coincide",
+  SUBDOMINIO: "Por el formulario del gremio",
+  RUTA: "Por el formulario general",
+  /// Entró por el formulario de un gremio y acabó en el de otro: pasa
+  /// con un enlace viejo o mal copiado, y conviene que se vea.
+  CRUZADA: "Por un enlace que no corresponde",
 };
 
 /// Por debajo de esto no se imprime porcentaje: una tasa con dos
@@ -331,6 +339,18 @@ export function PanelTrafico() {
 
   const porcionesProcedencia: PorcionDonut[] = (datos?.procedencia ?? []).map((f) => ({
     etiqueta: NOMBRE_PROCEDENCIA[f.valor ?? ""] ?? "Sin dato",
+    valor: f.visitas,
+  }));
+
+  /// LA SEGUNDA DONA DE LA FILA: con qué entraron.
+  ///
+  /// La fila es de dos gráficos --«en esta fila son dos gráficos»
+  /// (cliente, 23 sep 2026)--. Dispositivo era uno de los tres cortes
+  /// en tabla de más abajo, y es el que mejor se lee en dona: son tres
+  /// porciones y lo que se pregunta es cuánto pesa el celular. Abajo se
+  /// quita, para no decir lo mismo dos veces en la misma pantalla.
+  const porcionesDispositivo: PorcionDonut[] = (datos?.dispositivo ?? []).map((f) => ({
+    etiqueta: NOMBRE_ANCHO[f.valor ?? ""] ?? "Sin dato",
     valor: f.visitas,
   }));
 
@@ -631,10 +651,90 @@ export function PanelTrafico() {
                   tomaba la dona por el total de siempre: el mismo fallo
                   que el 149 contra 539 de Reservas, una cifra que no
                   dice de qué habla. */}
+              {/* LA CADENA DE LOS DATOS, TAL CUAL LA PIDIÓ.
+                  «Cuántos se preinscribieron, cuántos se les envió correo
+                  y este lo diligenciaron y pasaron a datos completos, y
+                  cuántos no abrieron esto» (cliente, 23 sep 2026).
+
+                  Cuatro números que se leen de izquierda a derecha y
+                  cada uno sale del anterior: no hay nada que restar en
+                  la cabeza. Lo que se fue --y con razón-- era el bloque
+                  que decía «completos y parciales» sin decir de quién:
+                  eso lo dice la dona de Control de inscritos, para TODOS
+                  los leads. Este habla solo de los que entraron por el
+                  formulario en este periodo, y lo dice arriba. */}
+              <Bloque
+                titulo={`Sus datos completos · ${rotuloA}`}
+                descripcion="Solo de quien entró por el formulario en este periodo. La dona «Estado de los datos», en Control de inscritos, cuenta a todos los leads del CRM."
+              >
+                <div className="flex flex-wrap items-stretch gap-2">
+                  <Resumen
+                    etiqueta="Se preinscribieron"
+                    valor={quedaron}
+                    color="var(--exito)"
+                    pie="terminaron el formulario público"
+                  />
+                  <Resumen
+                    etiqueta="Se les mandó el correo"
+                    valor={datos.despues.recibieron}
+                    color="var(--titulo)"
+                    pie={
+                      quedaron > datos.despues.recibieron
+                        ? `${n(quedaron - datos.despues.recibieron)} ya estaban en el CRM y no lo reciben`
+                        : "con el enlace para completar sus datos"
+                    }
+                  />
+                  <Resumen
+                    etiqueta="Pasaron a datos completos"
+                    valor={datos.despues.terminaron}
+                    color="var(--exito)"
+                    pie={
+                      datos.despues.recibieron >= MINIMO_PARA_TASA
+                        ? `${porcentaje(datos.despues.terminaron, datos.despues.recibieron)} de los que lo recibieron`
+                        : "lo abrieron y lo diligenciaron"
+                    }
+                  />
+                  <Resumen
+                    etiqueta="No lo diligenciaron"
+                    valor={Math.max(datos.despues.recibieron - datos.despues.terminaron, 0)}
+                    color={
+                      datos.despues.recibieron - datos.despues.terminaron > 0
+                        ? "var(--aviso)"
+                        : "var(--exito)"
+                    }
+                    pie="siguen con los datos a medias"
+                  />
+                </div>
+              </Bloque>
+
+              {/* DOS GRÁFICOS EN LA FILA. Compartía sitio con el bloque
+                  de datos completos; al irse aquel quedó media pantalla
+                  en blanco, y el hueco lo llena la dona de dispositivo
+                  --que antes era una tabla más abajo--. */}
               <div className="grid gap-4 lg:grid-cols-2">
-                <Bloque titulo={`De dónde venían · ${rotuloA}`} estirado>
+                <Bloque
+                  titulo={`De dónde venían · ${rotuloA}`}
+                  /// El aviso del «no dejó rastro» vivía en «Cómo leer
+                  /// estas cifras», a seis bloques de distancia de la
+                  /// fila que explica. Aquí se lee donde hace falta.
+                  descripcion="«No dejó rastro» casi siempre es correo o WhatsApp: esos enlaces no dejan señal si no van marcados, y se marcan en Formularios públicos."
+                  estirado
+                >
                   <Donut
                     datos={porcionesProcedencia}
+                    centro={n(llegaron)}
+                    detalleCentro="aperturas"
+                    vacio="Sin visitas en este periodo."
+                  />
+                </Bloque>
+
+                <Bloque
+                  titulo={`Con qué entraron · ${rotuloA}`}
+                  descripcion="El formulario se llena casi todo desde el celular: si algo se ve mal ahí, se nota en la cifra de arriba."
+                  estirado
+                >
+                  <Donut
+                    datos={porcionesDispositivo}
                     centro={n(llegaron)}
                     detalleCentro="aperturas"
                     vacio="Sin visitas en este periodo."
@@ -662,7 +762,7 @@ export function PanelTrafico() {
                   estaban. Fueron un día una tabla y el cliente la
                   devolvió: «me gusta más como estaba originalmente».
                   Por debajo de 1.024 px se apilan, cada una a lo ancho. */}
-              <div className="grid gap-4 lg:grid-cols-3">
+              <div className="grid gap-4 lg:grid-cols-2">
                 {CORTES.map((c) => (
                   <Corte
                     key={c.titulo}
@@ -800,35 +900,40 @@ function AvisoSinMarcar({
  * «Abrieron» y la frase del Día a día.
  */
 function ComoLeer({ hayHistorico }: { hayHistorico: boolean }) {
+  /// REESCRITO CON LO QUE LA PANTALLA DICE HOY (23 sep 2026).
+  ///
+  /// Hablaba de «Abrieron» y del bloque «Después», que ya no existen,
+  /// y explicaba el Día a día con una frase que sobra desde que cada
+  /// columna lleva su fecha y su cifra. Quedan seis ideas, en el orden
+  /// en que se leen las cosas en la pantalla: primero qué es cada
+  /// cifra de arriba, después cómo se leen los dos gráficos, y al final
+  /// los dos avisos que evitan malentendidos con Meta y con el «no
+  /// dejó rastro».
   const ideas: Array<[string, string]> = [
     [
-      "Es un mínimo, no el total",
-      "No cuenta a quien se va antes de que cargue la página ni a quien usa bloqueador.",
+      "«Aperturas» cuenta clics, no personas",
+      "Quien abre el enlace dos días cuenta dos veces. Y no todo clic es de alguien: el correo abre los enlaces solo, para revisarlos.",
+    ],
+    [
+      "«Personas» es la cifra que se usa",
+      "De esas aperturas, las que se quedaron tres segundos o tocaron algo. Es un suelo: quien mira y se va no se cuenta.",
     ],
     [
       "Saldrá menos que en Meta, y está bien",
-      "Meta cuenta clics, incluidos los de robots. Aquí solo cuentan las visitas que sí cargaron la página.",
+      "Meta cuenta clics. Aquí solo cuentan las visitas que sí cargaron la página, y nunca las que se fueron antes de eso.",
     ],
     [
-      "Una visita no es una persona",
-      "Quien vuelve otro día cuenta dos veces. «Abrieron» incluye máquinas —un escáner de correo abre cada enlace—, y «Personas» las descuenta.",
+      "Paso a paso es dónde se cae la gente",
+      "Cada barra es un paso del formulario, en orden. La vista «Tendencia» dibuja lo mismo en línea: el tramo más inclinado es la fuga.",
     ],
     [
-      "Solo desde que arrancó el contador",
-      (hayHistorico
-        ? "Lo de antes va en su bloque aparte, más abajo. Son otras cifras y no se suman."
-        : "Quien se preinscribió antes no sale aquí, aunque sí esté en Gestión de leads.") +
-        " El Día a día se compara día contra día, no contra un periodo en el que no había contador.",
+      "Día a día es el calendario",
+      "Cada columna, un día con su fecha y su cifra. También tiene «Tendencia» para ver los picos, y no cuenta nada anterior al arranque del contador" +
+        (hayHistorico ? ": lo de antes va en su bloque aparte, y no se suma." : "."),
     ],
     [
-      /// Aquí se dice también QUÉ divide cada porcentaje: son tres
-      /// bases, y hoy coinciden solo porque no hay máquinas.
       `Porcentajes desde ${MINIMO_PARA_TASA} visitas`,
-      "Con menos, un porcentaje no dice nada, así que no se muestra. El del Paso a paso va sobre las aperturas; el de los cortes, sobre las personas; el de «Después», sobre los leads.",
-    ],
-    [
-      "«No dejó rastro» casi siempre es correo o WhatsApp",
-      "Esos enlaces no dejan señal si no van marcados. Márquelos en Formularios públicos.",
+      "Con menos, un porcentaje no dice nada. El del Paso a paso va sobre las aperturas; el de los cortes de abajo, sobre las personas.",
     ],
   ];
 
@@ -1106,13 +1211,12 @@ const CORTES: Array<{
   filas: (d: EmbudoPublico) => CorteDeVisitas[];
   nombre: (valor: string | null) => string;
 }> = [
+  /// SIN «POR DISPOSITIVO»: subió a la fila de donas, que es donde se
+  /// lee mejor --tres porciones-- y donde hacía falta un segundo
+  /// gráfico. Aquí abajo quedan los dos cortes que sí son listas
+  /// largas: direcciones y campañas.
   {
-    titulo: "Por dispositivo",
-    filas: (d) => d.dispositivo,
-    nombre: (v) => NOMBRE_ANCHO[v ?? ""] ?? "Sin dato",
-  },
-  {
-    titulo: "Por qué dirección entraron",
+    titulo: "Por cuál formulario entraron",
     filas: (d) => d.entrada,
     nombre: (v) => NOMBRE_ENTRADA[v ?? ""] ?? "Sin dato",
   },
@@ -1566,6 +1670,11 @@ function Periodo({
  *   3. La unidad es una IP en un dia, no una persona.
  */
 function Historico({ h }: { h: HistoricoDeTrafico }) {
+  /// Con su propio interruptor, como el Día a día: es el mismo tipo de
+  /// gráfico --días en el eje-- y el cliente lo revisa en producción,
+  /// donde este bloque sí tiene datos («no veo el Antes del contador»,
+  /// 23 sep 2026: en local no hay nada reconstruido).
+  const [vista, setVista] = useState<"barras" | "tendencia">("barras");
   const dias = h.porDia.map((d) => ({ dia: d.dia, total: d.llegaron }));
   const envios = h.porDia.map((d) => ({ dia: d.dia, total: d.preinscritos }));
 
@@ -1580,14 +1689,20 @@ function Historico({ h }: { h: HistoricoDeTrafico }) {
         </>
       }
       acciones={
-        <p className="text-[0.8125rem] whitespace-nowrap text-texto tabular-nums">
-          <strong className="font-semibold text-titulo">{n(h.visitas)}</strong> visitas ·{" "}
-          <strong className="font-semibold text-titulo">{n(h.envios)}</strong> envíos
-        </p>
+        <div className="flex items-center gap-3">
+          <Interruptor valor={vista} alCambiar={setVista} />
+          <p className="text-[0.8125rem] whitespace-nowrap text-texto tabular-nums">
+            <strong className="font-semibold text-titulo">{n(h.visitas)}</strong> visitas ·{" "}
+            <strong className="font-semibold text-titulo">{n(h.envios)}</strong> envíos
+          </p>
+        </div>
       }
     >
       <DosSeriesPorDia
-        a={{ nombre: "Abrieron el enlace", datos: dias }}
+        modo={vista}
+        /// «Aperturas», como en las tarjetas de arriba: el mismo dato no
+        /// puede llamarse de dos maneras en la misma pantalla.
+        a={{ nombre: "Aperturas", datos: dias }}
         b={{
           nombre: "Enviaron el formulario",
           datos: envios,
