@@ -183,7 +183,15 @@ export type AdminActual = {
   /// rechazar — la cerradura sigue estando allá.
   /// `editarMarca`: logos, colores del sistema y de cada gremio, y
   /// textos. Solo los correos de `EDITORES_DE_MARCA` en el servidor.
-  puede?: { repartirFichas: boolean; sacarDeInscrito: boolean; editarMarca?: boolean };
+  /// `asignarGrupo`: poner a alguien en un grupo. Solo analista
+  /// --líder de sistemas-- o administrador; el asesor no (cliente,
+  /// 23 sep 2026).
+  puede?: {
+    repartirFichas: boolean;
+    sacarDeInscrito: boolean;
+    editarMarca?: boolean;
+    asignarGrupo?: boolean;
+  };
   concesiones?: Concesion[];
   /// Los gremios de esta cuenta, con lo que se lee de ellos.
   /// Vienen de `/admin/yo`, no de las concesiones: esas solo

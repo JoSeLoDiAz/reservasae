@@ -428,9 +428,13 @@ function ListaParticipantes({
               <Link href="/admin/inscritos" className={CLASE_DEL_MENU}>
                 Inscritos por acción
               </Link>
-              <Link href="/admin/participantes/grupos" className={CLASE_DEL_MENU}>
-                Asignar grupo por lote
-              </Link>
+              {/* Solo a quien puede: al asesor le sobra una entrada que
+                  lleva a una pantalla que no va a poder usar. */}
+              {admin.puede?.asignarGrupo && (
+                <Link href="/admin/participantes/grupos" className={CLASE_DEL_MENU}>
+                  Asignar grupo por lote
+                </Link>
+              )}
               <Link href="/admin/participantes/carga" className={CLASE_DEL_MENU}>
                 Cargar una lista
               </Link>

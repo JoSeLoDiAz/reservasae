@@ -43,6 +43,7 @@ import {
   motivoDeTransicionImposible,
 } from './escalera';
 import { cubreA, exigirCoberturaDeLaOferta, repartirPorCobertura } from './cobertura';
+import { exigirQuienAsignaGrupo } from './quien-asigna-grupo';
 import { faltaDeLaPersona, revisar } from './completitud';
 import { pasarSiNoLeFaltaNada } from './datos-completos';
 import { PanelDeCupos } from './panel-de-cupos';
@@ -1505,6 +1506,9 @@ export class CrmService {
           'Esta persona ya tiene grupo asignado, y el grupo no se cambia una vez puesto.',
         );
       }
+      /// Analista o administrador, también aquí: el asesor guarda su
+      /// lead pero no le pone grupo (cliente, 23 sep 2026).
+      await exigirQuienAsignaGrupo(this.prisma, admin);
       await exigirCoberturaDeLaOferta(this.prisma, dto.coberturaId, {
         accionFormacionId: suya.accionFormacionId,
         ubicacionId: suya.oferta?.ubicacionId ?? null,
@@ -4462,6 +4466,7 @@ export class CrmService {
 
     let numeroDeGrupo: number | null = null;
     if (dto.coberturaId) {
+      await exigirQuienAsignaGrupo(this.prisma, admin);
       const cobertura = await exigirCoberturaDeLaOferta(this.prisma, dto.coberturaId, {
         accionFormacionId: oferta.accionFormacionId,
         ubicacionId: oferta.ubicacionId,

@@ -34,6 +34,7 @@ import { libroDePlantilla } from './plantilla-de-carga';
 import { enviarLibro } from '../tableros/exportar';
 import { CrmService } from './crm.service';
 import { AsignarGrupo } from './asignar-grupo.service';
+import { SoloQuienAsignaGrupo } from './quien-asigna-grupo';
 import { DirectorioService } from './directorio.service';
 import { PlantillasCorreoService } from '../correo/plantillas/plantillas-correo.service';
 import { RuiService } from './rui/rui.service';
@@ -488,6 +489,9 @@ export class CrmController {
    */
   @Patch('grupos/lote')
   @Requiere('inscripciones', 'ESCRIBIR')
+  /// Y además analista o administrador: el asesor no pone grupo
+  /// (cliente, 23 sep 2026). Ver `quien-asigna-grupo.ts`.
+  @SoloQuienAsignaGrupo()
   asignarGrupoEnLote(
     @Body() dto: AsignarGrupoEnLoteDto,
     @AdminActual() admin: Admin,

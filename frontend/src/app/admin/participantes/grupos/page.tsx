@@ -31,7 +31,7 @@ import {
   type CandidatosDeGrupo,
   type OfertaSinGrupo,
 } from "@/lib/crm-api";
-import { Aviso, Boton, Campo } from "@/components/admin/marco-admin";
+import { Aviso, Boton, Campo, useAdmin } from "@/components/admin/marco-admin";
 import { Desplegable } from "@/components/admin/desplegable";
 import {
   Bloque,
@@ -46,6 +46,13 @@ import {
 const TOPE = 300;
 
 export default function AsignarGrupoPorLote() {
+  /// LA PANTALLA ENTERA ES DE QUIEN ASIGNA. Un asesor que entre por
+  /// la dirección ve la explicación, no el formulario: el servidor
+  /// rechaza la llamada igual, y una pantalla que deja marcar
+  /// cincuenta personas para después negarse es peor que no dejar
+  /// entrar.
+  const { admin } = useAdmin();
+  const puedeAsignar = admin.puede?.asignarGrupo === true;
   const [ofertas, setOfertas] = useState<OfertaSinGrupo[] | null>(null);
   const [accionElegida, setAccionElegida] = useState<string>("");
   const [abierta, setAbierta] = useState<OfertaSinGrupo | null>(null);
@@ -223,10 +230,17 @@ export default function AsignarGrupoPorLote() {
           estrecho que su propia pantalla. El relleno lo pone este
           envoltorio, y los dos cantos coinciden. */}
       <div className="flex flex-col gap-3 px-4">
-        {error && <Aviso tipo="error">{error}</Aviso>}
+        {!puedeAsignar && (
+        <Aviso tipo="error">
+          Asignar el grupo lo hacen el analista y los administradores. Si hace falta mover
+          a alguien de grupo, pídalo por su canal de siempre.
+        </Aviso>
+      )}
+
+      {error && <Aviso tipo="error">{error}</Aviso>}
         {hecho && <Aviso tipo="exito">{hecho}</Aviso>}
 
-        {ofertas === null ? (
+        {!puedeAsignar ? null : ofertas === null ? (
           <Esqueleto />
         ) : ofertas.length === 0 ? (
           <Vacio titulo="Nadie inscrito está esperando grupo">
