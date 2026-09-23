@@ -117,9 +117,30 @@ export const MODULOS: Modulo[] = [
     /// cuando algo llegó raro. Quien usa el panel ocho horas
     /// diarias es quien manda en este orden.
     ///
-    /// Y «Tráfico del formulario» ya no está: vive dentro de
-    /// Control de Inscritos. Su ruta sigue redirigiendo.
+    /// El 22 sep se DESHIZO la última parte de ese orden. Aquel
+    /// día el tráfico se fusionó con Control de Inscritos y al
+    /// siguiente Josse lo devolvió aquí, con el motivo escrito:
+    /// «eso lo dejamos en el listado principal porque eso no es
+    /// inscritos». El resto del orden --leads antes que la mesa--
+    /// sigue como él lo dictó.
     enlaces: [
+      {
+        /// ANTES QUE TODO, y por el mismo criterio que puso la
+        /// mesa antes que la lista: es el orden del proceso. El
+        /// tráfico a la página de destino ocurre antes de que el
+        /// lead exista.
+        ///
+        /// Y es «inscripciones» y NO «inscritos», que es lo que
+        /// exige el guard: `@Requiere('inscripciones')` en
+        /// `embudo-admin.controller.ts`, sin `@Roles`, porque
+        /// quien mira esto es la cuenta de la pauta. Con
+        /// «inscritos» el menú enseñaría una entrada que el
+        /// servidor después niega.
+        href: '/admin/trafico',
+        etiqueta: 'Tráfico del formulario',
+        exacto: true,
+        area: 'inscripciones',
+      },
       {
         href: '/admin/participantes',
         etiqueta: 'Gestión de leads',

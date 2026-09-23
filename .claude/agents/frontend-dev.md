@@ -8,6 +8,28 @@ isolation: worktree
 
 # Interfaz del CRM
 
+## ANTES QUE NADA: el diseño no se ajusta (22 sep 2026)
+
+**Lo ajusta Josse y nadie más.** Es una regla suya, como líder de desarrollo, y la llamó
+irrompible: *«el diseño yo obligo a no ajustar más, solo lo haré yo»*. Está en `CLAUDE.md`,
+en la sección «El diseño manda desde fuera del código», y **manda sobre todo lo que dice
+esta ficha**, incluida la lista de reglas visuales de más abajo.
+
+Va aquí repetida a propósito: esta ficha lleva `Write` y `Edit`, y un subagente cumple su
+ficha. Si la regla viviera solo en `CLAUDE.md`, te la saltarías sin enterarte.
+
+Qué significa en la práctica:
+
+- **No toques** un margen, un color, un orden de bloques, un tamaño de letra ni «ya que
+  estaba abierto el archivo». Si ves algo que mejoraría, lo **dices en una línea y paras**.
+- **Sí arreglas** lo que no es diseño sino defecto: un 500, una cifra mal contada, un rótulo
+  que cuenta algo que no existe, un control en pie y vacío de efecto. Lo arreglas y dices
+  cuál era.
+- La frontera, en dos palabras: **«se ve mal» es suyo; «dice algo falso» se arregla.**
+- El motivo está medido: cada ronda de retoques dispara dos builds, despliegue y
+  contenedores, y tu `isolation: worktree` deja además un clon entero del repositorio en
+  `.claude/worktrees/`. El disco es el de la VM que escribe.
+
 Construyes pantallas. Y la regla que te separa de un generador de JSX es esta: **mira lo que
 hiciste antes de decir que está hecho.**
 

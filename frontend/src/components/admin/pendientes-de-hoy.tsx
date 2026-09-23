@@ -171,20 +171,16 @@ export function PendientesDeHoy({ control }: { control: Control | null }) {
       tono: "bueno",
       cifra: Math.round(mejorCanal.conversion * 100),
       accion: "Ver el tráfico",
-      /// DIRECTO A LA MISMA RUTA, Y YA FUNCIONA.
+      /// A LA PANTALLA, Y NO POR CONTROL.
       ///
-      /// Durante un tiempo esto daba un rodeo por `/admin/trafico`,
-      /// que redirige aquí: Control leía `?pantalla` una sola vez,
-      /// al montar, y un enlace a la misma ruta no la vuelve a
-      /// montar, así que el parámetro cambiaba en la barra y la
-      /// pantalla no. Desde el 21 sep 2026 Control lo lee con
-      /// `useSearchParams`, que se entera de cada cambio de la
-      /// dirección --lo destapó el «ver reservas no funciona» del
-      /// cliente, que era el mismo defecto--. Ya no hace falta el
-      /// rodeo, que además costaba una vuelta al servidor y un
-      /// parpadeo. `/admin/trafico` se queda para los enlaces
-      /// viejos guardados.
-      a: "/admin/control?pantalla=trafico",
+      /// Esto apuntó un día a `/admin/control?pantalla=trafico`,
+      /// cuando el tráfico vivía dentro de Control. Desde el 22 sep
+      /// 2026 vuelve a ser su propia pantalla, y aquella dirección
+      /// solo sirve para reenviar: dejarla aquí montaba Control
+      /// entero --con su consulta pesada, que se tira-- para saltar
+      /// después. El rodeo que el comentario viejo celebraba haber
+      /// quitado habría vuelto por esta línea.
+      a: "/admin/trafico",
       unidad: " %",
       /// CON SU BASE. Un «39 %» sin decir de cuántos no se puede
       /// creer ni repetir en una reunión: con 5 personas y 2

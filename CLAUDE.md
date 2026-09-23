@@ -156,8 +156,59 @@ juntos; el del frontend **no**, que sería una tercera verdad.
 
 ### Cuándo NO decidir solo
 
-Si la duda es funcional y no visual —qué hace un botón, qué datos trae una
-pantalla, si se sobrescribe algo que un administrador guardó— **pregunte**.
+Si la duda es funcional —qué hace un botón, qué datos trae una pantalla, si se
+sobrescribe algo que un administrador guardó— **pregunte**. Y si es visual, ni
+siquiera se pregunta: se propone y se para. Ver el bloque siguiente.
+
+> **Hasta el 22 sep 2026 esta línea decía «funcional y no visual».** O sea que
+> declaraba lo visual como la zona donde SÍ se decide solo, que es exactamente
+> lo contrario de la regla de abajo. Queda escrito para que nadie se quede con
+> la frase vieja: una derogación callada deja al siguiente lector creyendo lo
+> que ya no vale.
+
+### EL DISEÑO LO AJUSTA JOSSE, Y NADIE MÁS (22 sep 2026)
+
+Textual: *«no hay que ajustar más, déjalo en CLAUDE.md: que el diseño yo obligo
+a no ajustar más —solo lo haré yo—, esa regla es irrompible, más si soy el líder
+de desarrollo. No queremos reventar el servidor ni un contador con estas
+maricadas»*.
+
+**Es irrompible y no tiene excepción de cortesía.** No se ajusta un margen, ni
+un color, ni un orden de bloques, ni un tamaño de letra, ni «ya que estaba
+aquí». Tampoco se pregunta «¿le pongo…?» cada media hora, que es la misma
+sangría por otro lado: se **propone en una línea y se para**.
+
+**Es la misma política que `EDITORES_DE_MARCA`, no una regla nueva.** Aquella
+—del mismo día y de la misma persona: «que nadie cambie de color, solo Catalina
+o yo»— cierra la apariencia a los **administradores**, por `.env`. Esta la
+cierra a **quien desarrolla**, por este archivo. Juntas dicen una sola cosa: el
+aspecto del sistema tiene dueño.
+
+**Y el motivo está medido, no es fastidio.** Cada ronda de retoques dispara
+build de frontend, build de backend, despliegue y recreación de contenedores; y
+la ficha `frontend-dev` corre con `isolation: worktree`, que deja un clon
+entero del repositorio —con su `node_modules` y sus binarios de Prisma— en
+`.claude/worktrees/`. Eso es el «reventar el servidor» literal, y el disco es de
+la VM de Bogotá, que además es la que escribe.
+
+**La frontera, que es lo que impide que la regla paralice el trabajo:**
+
+| | |
+|---|---|
+| **«se ve mal»** | suyo. Se describe y se espera |
+| **«dice algo falso»** | se arregla y se avisa |
+
+Un 500, una cifra mal contada, un rótulo que cuenta algo que no existe, un
+control en pie y vacío de efecto, una leyenda que nombra un mando que no está:
+eso **no es diseño**, es un defecto, y este archivo lleva cuatro rondas
+documentando lo caro que sale dejarlos. Se arreglan, y se dice cuál era.
+
+> **CLAUDE.md no alcanza a los subagentes por sí solo.** `.claude/agents/frontend-dev.md`
+> lleva `Write` y `Edit`, su descripción le ordena construir interfaz y no cita
+> este archivo en ninguna de sus líneas: un subagente lanzado con esa ficha
+> cumple **su ficha**, no esta regla. Por eso la regla está escrita también
+> allí. Si algún día se añade otra ficha que toque `frontend/src`, hay que
+> repetirla — o no la alcanza.
 
 ## Estado actual (22 sep 2026 · v0.9.0-JD)
 
@@ -4034,6 +4085,86 @@ trabajo y esto es MIRARLO—, así que son dos listas, y
   falsa sobre el trabajo de alguien; sin el dato, la cifra no se pinta, la
   columna dice «—» y la gráfica cae a la de inscritos.
 
+#### Los cinco pedidos del 22 sep, y lo que enseñó cada uno
+
+**EL TRÁFICO VUELVE A INSCRIPCIONES, y deshace una instrucción de la
+víspera.** El 21 sep el cliente pidió «Tráfico del formulario fusionado con
+Control de inscritos» y Andrés lo hizo (`42ee9c5`); el 22 Josse lo deshizo con
+el motivo escrito: **«eso lo dejamos en el listado principal porque eso no es
+inscritos»**. Queda apuntado porque leyendo solo el historial, el próximo lo
+mueve otra vez.
+
+- **Vuelve PRIMERO**, que es donde estaba: el tráfico pasa antes de que el lead
+  exista. El resto del orden que el cliente dictó el 21 —leads antes que la
+  mesa— no se toca.
+- **Y se quita la pestaña de Control**, no se deja en los dos sitios: la misma
+  pantalla en dos puertas es el «eran dos entradas y nadie sabía a cuál entrar»
+  que ese módulo ya resolvió una vez. `?pantalla=trafico` reenvía, así que los
+  enlaces repartidos siguen valiendo.
+- **El cuerpo no se copió de vuelta.** `PanelTrafico` quedó extraído en la
+  fusión, así que la mudanza y la vuelta costaron una línea cada una. Es lo
+  único que valía de aquel día.
+- **Un enlace se quedó atrás y lo cazó la revisión**: «Ver el tráfico» de
+  Pendientes de hoy seguía apuntando a Control, que ahora monta la pantalla
+  entera —con su consulta pesada— solo para saltar después. El rodeo que su
+  propio comentario celebraba haber quitado volvía por esa línea.
+
+**EL FILTRO DE GREMIO NO LO QUITÓ NADIE: SE ESCONDÍA SOLO.** Existía en
+`panel-proceso.tsx` detrás de `listas.convenios.length > 1`, y esa lista sale
+de un `groupBy` sobre **participantes**: con BRITCHAM ADEE en stand-by y cero
+fichas quedaba una opción y el control desaparecía —en la puerta general, que
+es justo donde hace falta—. Peor: al elegir uno, la respuesta volvía con un
+convenio, la compuerta caía y el desplegable **se iba**, sin forma de volver
+sin editar la dirección.
+
+- **Sus opciones salen del ÁMBITO** (`admin.gremios`), como ya hacía la pestaña
+  «Reservas» —que por eso sí lo enseñaba—. Un gremio sin nadie tiene que poder
+  elegirse y contestar cero: eso es un dato.
+- **Con un gremio puesto en el avatar sigue escondido, y hace bien.** El guard
+  ya recortó el ámbito a ese; pintar el otro cruzaría `IN (ámbito)` con
+  `= pedido` y saldrían cero filas con 200 y sin un solo error.
+- **La leyenda cuelga de la misma condición.** Nombraba el gremio siempre,
+  incluso en un subdominio donde el mando no existe: explicar un control
+  ausente es la versión suave del control en pie y vacío de efecto.
+
+**«QUÉ CURSO ABREN PRIMERO» SE LLAMA ASÍ POR DOS RÓTULOS FALSOS QUE TUVO.**
+
+1. El mockup pedía **«páginas de acciones más visitadas»**, y el sitio público
+   **no tiene una página por acción**: es una pantalla con un selector. Ese
+   rótulo contaría algo que no existe.
+2. El segundo intento fue «qué curso eligen», y también era falso: `marcar()`
+   escribe **una vez por paso** —`yaMandados` en el navegador y
+   `@@unique([visitaId, paso])` en la base, «gana la primera»— y el formulario
+   deja «Volver a las acciones» y cambiar de curso. Lo guardado es el PRIMERO
+   que pulsaron. Dicho como «eligen», el bloque señalaría como abandonado justo
+   el curso en el que la gente acaba entrando.
+
+- **Una acción oculta entra si YA la abrió alguien.** El filtro empezó en
+  `visible = true` a secas y eso borraba **hacia atrás**: ocultar un curso —un
+  interruptor de un clic que no cancela nada— hacía desaparecer el histórico
+  medido, sin fila ni nota, mientras el peldaño de arriba no se movía. Suprimir
+  el CERO de una oculta sí está justificado; tirar una cuenta ya medida, no.
+- **El pie nombra las DOS causas del descuadre** con el peldaño. La primera
+  versión culpaba solo al beacon perdido, y quien reconciliara las cifras
+  habría buscado el defecto donde no estaba.
+
+**LA TABLA DEL MÓDULO 3 NO PIDIÓ NADA.** `porGrupo` ya viajaba dentro de la
+respuesta que el módulo recibía. De paso, el reparto de los seis estados salió
+a `lib/reparto-del-aula.ts`: copiado, el mismo grupo saldría distinto en dos
+pantallas el día que alguien mueva un estado, y ninguna fallaría.
+
+- **«Pers.» es todo el que pisó el aula, salidas incluidas** (`enAula` son las
+  seis etapas). No son los que siguen dentro: eso es `dentro`, y va dentro de
+  la barra. Rotularlo mal convierte una cifra correcta en una mentira.
+- **Doce grupos y el resto en el tablero**: son 67 en el catálogo, y el módulo
+  volvería a ser la página de cinco mil píxeles que las pestañas vinieron a
+  evitar.
+- **La fila no se abre, y el subtítulo no lo promete.** `porGrupo` no trae el
+  id del grupo; el acordeón por persona vive en el tablero académico.
+
+> **La revisión adversarial paró cinco defectos de treinta candidatos**, y los
+> dos peores eran míos y del mismo tipo: **un rótulo que cuenta algo distinto
+> de lo que mide**. Ninguno lo habría cazado un test.
 
 ---
 

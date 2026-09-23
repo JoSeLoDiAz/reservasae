@@ -1,6 +1,6 @@
 "use client";
 
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 
 import { BotonPdf } from "@/components/admin/boton-pdf";
@@ -15,7 +15,6 @@ import {
   enlaceAlInforme,
   PanelReservas,
 } from "@/components/admin/panel-reservas";
-import { PanelTrafico } from "@/components/admin/panel-trafico";
 import { Cargando } from "@/components/admin/piezas";
 import {
   crmApi,
@@ -161,17 +160,23 @@ function textoDuracion(dias: number | null): string {
 /// rotulado «Qué mirar» no dice qué se está eligiendo (cliente,
 /// 21 sep 2026).
 ///
-/// «Tráfico del formulario» entró el 21 sep 2026 por petición del
-/// cliente. Va PRIMERO porque es el orden del camino: el tráfico
-/// a la página pasa antes de que exista el lead, y el proceso de
-/// inscripción empieza cuando ya existe.
+/// «Tráfico del formulario» estuvo aquí UN DÍA. Entró el 21 sep
+/// 2026 fusionado con esta pantalla y el 22 volvió a su sitio:
+/// «eso lo dejamos en el listado principal porque eso no es
+/// inscritos» (Josse). Tiene razón en lo de fondo: el tráfico
+/// ocurre ANTES de que exista el lead, y esta pantalla cuenta lo
+/// que le pasa a un lead que ya existe.
+///
+/// NO se queda además como pestaña: la misma pantalla en dos
+/// sitios es el «eran dos entradas y nadie sabía a cuál entrar»
+/// que este módulo ya resolvió una vez. Lo que sí se queda es el
+/// camino de vuelta, más abajo, para los enlaces ya repartidos.
 ///
 /// «Reservas» entró el mismo día, y va AL FINAL para no mover de
-/// sitio las tres que ya conocen. Es el informe que el cliente
+/// sitio las que ya conocen. Es el informe que el cliente
 /// armaba a mano en una hoja de cálculo, y a él lleva el botón «Ver
 /// reservas» del bloque «Cupos apartados por empresas».
 const PESTANAS = [
-  { clave: "trafico", etiqueta: "Tráfico del formulario" },
   { clave: "metas", etiqueta: "Proceso de inscripción" },
   { clave: "comite", etiqueta: "Comité Marketing" },
   { clave: "reservas", etiqueta: "Reservas" },
@@ -218,8 +223,25 @@ function ContenidoControl() {
    * estado ni que acordarse de volver a leer.
    */
   const direccion = useSearchParams();
+  const router = useRouter();
   const pedida = direccion.get("pantalla");
   const pestana: Pestana = esPestana(pedida) ? pedida : "metas";
+
+  /**
+   * EL CAMINO DE VUELTA DE `?pantalla=trafico`.
+   *
+   * El tráfico vivió aquí un día y su enlace se repartió --el
+   * Resumen apuntaba a él, y quien lo tuviera abierto lo pegó en
+   * un chat--. Sin esto, esos enlaces caerían en la pantalla
+   * RECORDADA sin decir nada: no es un 404, es peor, porque el
+   * enlace parece funcionar y lleva a otro informe.
+   *
+   * Se hace con `replace` y no con `push`: volver atrás desde el
+   * tráfico tiene que salir de aquí, no rebotar otra vez.
+   */
+  useEffect(() => {
+    if (pedida === "trafico") router.replace("/admin/trafico");
+  }, [pedida, router]);
 
   /**
    * EL TÍTULO DE LA PESTAÑA DEL NAVEGADOR, TAMBIÉN.
@@ -257,6 +279,13 @@ function ContenidoControl() {
    */
   useEffect(() => {
     if (esPestana(pedida)) return;
+    /// `trafico` YA NO ES UNA PESTAÑA, así que cae aquí — y este
+    /// efecto le escribiría la pantalla recordada en la dirección
+    /// mientras el de arriba lo está mandando a `/admin/trafico`.
+    /// Dos escrituras a la misma dirección en el mismo pintado, y
+    /// gana la que termine antes: el enlace viejo aterrizaba a
+    /// veces en el informe recordado.
+    if (pedida === "trafico") return;
     let guardada: string | null = null;
     try {
       guardada = window.localStorage.getItem(LLAVE_PESTANA);
@@ -485,22 +514,16 @@ function ContenidoControl() {
               palabras para lo mismo --una de ellas en inglés-- en
               la misma pantalla fue lo primero que se preguntó
               (cliente, 21 sep 2026). */}
-          {/* UNA DESCRIPCIÓN POR PANTALLA, no una para las tres.
-              Con «Tráfico del formulario» dentro, la frase de
-              siempre --«de la primera entrada a la inscripción»--
-              describía otra cosa que la que se estaba mirando: ahí
-              todavía no hay ninguna persona inscrita, hay visitas.
-              Y la propia pantalla no repite esta frase: dice solo
-              lo que esta no puede saber. */}
+          {/* UNA DESCRIPCIÓN POR PANTALLA, no una para las tres:
+              «Reservas» cuenta cupos y «Proceso» cuenta personas, y
+              una sola frase describiría mal a una de las dos. */}
           <p className="mt-0.5 text-[0.78125rem] text-texto-suave">
-            {pestana === "trafico"
-              ? "Del anuncio a la preinscripción: quién abre el formulario, quién lo termina y por dónde llegó. Aquí todavía no hay leads, hay visitas."
-              : pestana === "reservas"
-                ? /* Propia: la de Proceso hablaría de «personas que se
-                     inscriben», y aquí lo que se cuenta son cupos que
-                     apartó una organización, con o sin nombre. */
-                  "Los cupos que apartaron las organizaciones: cuántos, en qué acción de formación y cuántos ya tienen una persona detrás."
-                : "Seguimiento y control de las personas que se inscriben, de la primera entrada a la inscripción."}
+            {pestana === "reservas"
+              ? /* Propia: la de Proceso hablaría de «personas que se
+                   inscriben», y aquí lo que se cuenta son cupos que
+                   apartó una organización, con o sin nombre. */
+                "Los cupos que apartaron las organizaciones: cuántos, en qué acción de formación y cuántos ya tienen una persona detrás."
+              : "Seguimiento y control de las personas que se inscriben, de la primera entrada a la inscripción."}
           </p>
         </div>
         {/* LA COMPARACIÓN, AL FRENTE DEL TÍTULO.
@@ -681,13 +704,6 @@ function ContenidoControl() {
           )}
         </div>
       </header>
-
-      {/* La pantalla del tráfico trae SUS PROPIOS mandos de
-          periodo --cuatro rangos y un comparador de dos fechas--
-          porque cuenta visitas, no personas, y su periodo empieza
-          el día que arrancó el contador. Por eso el periodo de
-          arriba solo sale en «Proceso de inscripción». */}
-      {pestana === "trafico" && <PanelTrafico />}
 
       {pestana === "comite" && <ComiteMarketing />}
 

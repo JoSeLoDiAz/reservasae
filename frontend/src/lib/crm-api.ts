@@ -45,6 +45,22 @@ export type EmbudoPublico = {
   /// Por que direccion de NUESTRO sitio entraron.
   entrada: CorteDeVisitas[];
   campana: CorteDeVisitas[];
+  /// Que curso eligio cada visita, con el catalogo entero detras
+  /// --las que nadie eligio salen en CERO, que es la mitad
+  /// accionable--. NO son «paginas visitadas»: el sitio publico
+  /// no tiene una pagina por accion.
+  ///
+  /// Opcional, como `cuposConNombre`: un backend sin reiniciar no
+  /// lo manda, y entonces el bloque no se pinta en vez de decir
+  /// que nadie eligio nada.
+  porAccion?: Array<{
+    codigo: string;
+    nombre: string;
+    /// Ya no se ofrece, pero alguien la eligio cuando si: su
+    /// cuenta no se tira, se marca.
+    oculta: boolean;
+    visitas: number;
+  }>;
   /// Lo de antes del contador, o null si no se importo nada.
   historico: HistoricoDeTrafico | null;
   /// Personas de HOY por un enlace sin marcar, sea cual sea el

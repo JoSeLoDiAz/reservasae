@@ -40,7 +40,7 @@ import { EmbudoPorDia } from "./embudo-por-dia";
 /// en porcentaje (21 sep 2026) solo queda el tipo.
 import type { Hito } from "./embudo-proceso";
 import { MapaColombia } from "./mapa-colombia";
-import { Aviso } from "./marco-admin";
+import { Aviso, useAdmin } from "./marco-admin";
 /// SIN `Medidor`: la fila de los cuatro anillos se fue (21 sep
 /// 2026). Escribía 38,8 % y 80,6 % a 24 px medio metro por debajo
 /// del 39 % y el 81 % del embudo: la misma cifra con dos
@@ -1993,6 +1993,30 @@ export function PanelProceso({
    * cuadraban al dígito. Ahora los cinco cuentan lo mismo.
    */
   const cuentas = aDesde ? opciones : catalogo;
+
+  /**
+   * LOS GREMIOS ENTRE LOS QUE SE PUEDE ELEGIR, que son los del
+   * ÁMBITO y no los que tienen gente.
+   *
+   * Con un gremio puesto en el menú del avatar, el guard ya
+   * recortó el ámbito a ese: aquí queda uno solo y el desplegable
+   * no se pinta --y hace bien--. Si se pintara, elegir el otro
+   * cruzaría `convenioId IN (ámbito)` con `convenioId = pedido`,
+   * la intersección sería vacía, y saldrían cero filas con 200 y
+   * sin un solo error. Un filtro que contesta «no hay nada»
+   * cuando lo que pasa es que no se puede preguntar.
+   *
+   * En la puerta general con «Todos los gremios» salen los dos,
+   * que es el caso que estaba roto.
+   */
+  const { admin } = useAdmin();
+  const gremiosQueSeEligen = useMemo(() => {
+    const suyos = admin.gremios ?? [];
+    return admin.gremioElegido
+      ? suyos.filter((g) => g.convenioId === admin.gremioElegido)
+      : suyos;
+  }, [admin.gremios, admin.gremioElegido]);
+
   const listas = useMemo(
     () => ({
       convenios: conCuentaDelPeriodo(
@@ -2067,11 +2091,25 @@ export function PanelProceso({
           className="grid gap-2"
           style={{ gridTemplateColumns: "repeat(auto-fit,minmax(150px,1fr))" }}
         >
-            {/* El gremio solo cuando hay más de uno.
-                Con un solo gremio en el ámbito, el desplegable
-                ofrece elegir lo único que hay: ocupa sitio y no
-                recorta nada. */}
-            {listas.convenios.length > 1 && (
+            {/* SUS OPCIONES SALEN DEL ÁMBITO, NO DE QUIÉN TIENE
+                GENTE, y esa es la diferencia entre verlo y no
+                verlo. Salían de `listas.convenios`, que es un
+                `groupBy` sobre PARTICIPANTES: con BRITCHAM ADEE en
+                stand-by y cero fichas, la lista traía una sola
+                entrada y el desplegable se escondía solo --en la
+                puerta general, donde es justo el que hace falta--.
+                Es la misma fuente que ya usa la pestaña
+                «Reservas», que por eso sí lo enseña.
+
+                Y al elegir uno se cerraba sobre sí mismo: la
+                respuesta volvía con un convenio, la compuerta caía
+                y el control DESAPARECÍA, sin forma de volver sin
+                editar la dirección. Saliendo del ámbito, se queda.
+
+                La cuenta de personas sigue saliendo del informe,
+                como segunda línea: un gremio sin nadie tiene que
+                poder elegirse y contestar cero, que es un dato. */}
+            {gremiosQueSeEligen.length > 1 && (
               <Desplegable
                 alto={34}
                 marcador="Gremios"
@@ -2079,11 +2117,26 @@ export function PanelProceso({
                 valor={convenioId}
                 opciones={[
                   { valor: "", etiqueta: "Gremios" },
-                  ...listas.convenios.map((x) => ({
-                    valor: x.id,
-                    etiqueta: x.nombre,
-                    detalle: `${n(x.total)} ${x.total === 1 ? "persona" : "personas"}`,
-                  })),
+                  ...gremiosQueSeEligen.map((g) => {
+                    const c = listas.convenios.find((x) => x.id === g.convenioId);
+                    return {
+                      valor: g.convenioId,
+                      etiqueta: g.sigla,
+                      /// «SIN PERSONAS» SOLO SI EL INFORME LLEGÓ.
+                      /// Mientras `catalogo` es null --la primera
+                      /// carga, o un 429 del limitador, que deja el
+                      /// catálogo en null el resto de la sesión--
+                      /// no saberlo no es saber que no hay nadie:
+                      /// ADECOPRIA tiene más de 80 fichas y diría
+                      /// cero. Es la misma regla que `pendientes`
+                      /// en el módulo 5: sin el dato no se afirma.
+                      detalle: c
+                        ? `${n(c.total)} ${c.total === 1 ? "persona" : "personas"}`
+                        : catalogo
+                          ? "sin personas todavía"
+                          : undefined,
+                    };
+                  }),
                 ]}
                 alElegir={setConvenioId}
               />
@@ -2221,9 +2274,14 @@ export function PanelProceso({
             sep 2026). Una línea debajo de los cinco cuesta un
             renglón y evita tener que aprenderse el vocabulario
             en otra pantalla. */}
+        {/* La frase del gremio cuelga de que el control EXISTA.
+            Nombrarlo en un subdominio, donde nunca se pinta,
+            explica un mando que no está. */}
         <p className="mt-2 text-[0.6875rem] leading-snug text-texto-suave">
-          Gremio: la agremiación que trae a las personas. Acción de formación: el curso, con
-          su código («AF1»). Grupo: cada ficha de ese curso.
+          {gremiosQueSeEligen.length > 1 &&
+            "Gremio: la agremiación que trae a las personas. "}
+          Acción de formación: el curso, con su código («AF1»). Grupo: cada ficha de
+          ese curso.
         </p>
       </div>
 

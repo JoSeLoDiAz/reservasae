@@ -173,25 +173,31 @@ function diaCorto(iso: string): string {
 type Parametros = Parameters<typeof crmApi.embudoPublico>[0];
 
 /**
- * UNA PANTALLA DE CONTROL DE INSCRITOS, no una entrada del menú.
+ * EL CUERPO DE LA PANTALLA DE TRÁFICO, sin su título.
  *
- * Era `/admin/trafico`, la primera entrada de «Inscripciones».
- * El cliente la fundió con Control el 21 sep 2026: «Tráfico del
- * formulario fusionado con Control de inscritos en (Qué
- * pantalla)». Y tiene sentido: las dos cuentan lo MISMO por dos
- * tramos del camino --aquí, del anuncio a la preinscripción;
- * allí, de la preinscripción a la inscripción-- y entrar y salir
- * del menú para seguir una sola persona era el trabajo que hacía
- * quien mira esto.
+ * Vivió dentro de Control de Inscritos exactamente un día. El 21
+ * sep 2026 el cliente los fundió --«Tráfico del formulario
+ * fusionado con Control de inscritos en (Qué pantalla)»-- y el 22
+ * Josse lo deshizo: «eso lo dejamos en el listado principal
+ * porque eso no es inscritos». Hoy lo monta `/admin/trafico`, que
+ * es otra vez la primera entrada de «Inscripciones».
  *
- * Por eso no trae `Encabezado`: el título y el desplegable de
- * pantalla los pone Control, y dos `h1` en la misma página no se
- * leen como una pantalla con partes, se leen como dos pantallas
- * pegadas —que es justo lo que el cliente vio: «no veo la línea
- * de respeto, se fusiona con la barra».
+ * De aquel día queda lo único que valía: el cuerpo EXTRAÍDO. El
+ * panel no se enteró de la mudanza ni de la vuelta, y por eso las
+ * dos costaron una línea.
  *
- * La ruta vieja sigue viva y redirige: estuvo en el menú y hay
- * quien la tiene guardada.
+ * Por eso no trae `Encabezado`: lo pone la página que lo monta
+ * --hoy `app/admin/trafico/page.tsx`--, y
+ * dos `h1` en la misma página no se leen como una pantalla con
+ * partes, se leen como dos pantallas pegadas —que es justo lo que
+ * el cliente vio: «no veo la línea de respeto, se fusiona con la
+ * barra».
+ *
+ * Y las dos cuentan tramos distintos del mismo camino: aquí, del
+ * anuncio a la preinscripción; allí, de la preinscripción a la
+ * inscripción. Eso era lo que sostenía la fusión, y sigue siendo
+ * cierto; lo que la deshizo es que el tráfico pasa ANTES de que
+ * exista el lead, así que no cuelga de la pantalla de inscritos.
  */
 export function PanelTrafico() {
   const [rango, setRango] = useState("TODO");
@@ -342,9 +348,9 @@ export function PanelTrafico() {
 
   return (
     <div className="flex flex-col gap-4">
-      {/* SIN BANDA Y SIN «h1»: el título y la descripción de la
-          pantalla los pone Control. Esa banda propia era lo que se
-          «fusionaba con la barra» de arriba.
+      {/* SIN BANDA Y SIN «h1»: los pone la página que lo monta,
+          que es `app/admin/trafico/page.tsx`. Esa banda propia era
+          lo que se «fusionaba con la barra» de arriba.
 
           El aviso de enlaces sin marcar va PRIMERO: pide hacer algo
           hoy, y solo sale desde el umbral. */}

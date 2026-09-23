@@ -60,6 +60,13 @@ import {
   porcentaje,
   visitasDe,
 } from "@/lib/trafico-comun";
+import {
+  nombreDeGrupo,
+  notaSinMedir,
+  porNumeroDeGrupo,
+  REPARTO,
+  SERIES_REPARTO,
+} from "@/lib/reparto-del-aula";
 
 /// Un minuto para lo que se trabaja hoy, cinco para lo que no se
 /// mueve en una mañana.
@@ -843,12 +850,152 @@ export function ModuloAcademico() {
             )}
           </div>
 
+          <AvancePorGrupo d={d} />
+
           <VerDetalle a="/admin/participantes/academico/tablero">
             Ver el tablero académico por acción, grupo y persona
           </VerDetalle>
         </>
       )}
     </Modulo>
+  );
+}
+
+
+/// Cuantos grupos caben antes de que el modulo sea una pagina.
+const GRUPOS_QUE_CABEN = 12;
+
+/**
+ * La tabla «Avance por grupo» que pidio el cliente (22 sep 2026).
+ *
+ * NO PIDE NADA. `porGrupo` ya viaja dentro de la respuesta que el
+ * modulo 3 recibe: es el mismo corte que pinta el tablero
+ * academico, calculado en SQL sobre todos y sin tope. Copiar la
+ * cuenta al navegador habria dado una segunda cifra con el mismo
+ * nombre.
+ *
+ * EL REPARTO SE IMPORTA, no se reescribe. `REPARTO` vive en
+ * `lib/reparto-del-aula.ts` justo porque esta tabla y la del
+ * tablero tienen que repartir el aula igual; con dos listas, el
+ * mismo grupo saldria distinto en dos pantallas y ninguna fallaria.
+ */
+function AvancePorGrupo({ d }: { d: TableroAcademico }) {
+  const grupos = [...d.porGrupo].sort(porNumeroDeGrupo);
+  const caben = grupos.slice(0, GRUPOS_QUE_CABEN);
+  const restan = grupos.length - caben.length;
+
+  return (
+    <div className="flex flex-col gap-2.5">
+      <div>
+        <h3 className="text-sm font-bold">Avance por grupo</h3>
+        {/* EL SUBTITULO NO PROMETE ABRIR NADA. El mockup dice «abre
+            un grupo para ver a cada persona»; aqui la fila no se
+            abre --`porGrupo` no trae el id del grupo-- y el detalle
+            vive en el tablero academico, que es donde el acordeon ya
+            existe. Prometerlo y que no pase es peor que no decirlo. */}
+        <p className="mt-0.5 text-[0.71875rem] text-texto-suave">
+          Cada grupo con su gente y su reparto. Para ver persona a
+          persona, el tablero academico.
+        </p>
+      </div>
+
+      {grupos.length === 0 ? (
+        <p className="rounded-xl border border-dashed border-borde px-4 py-3 text-[0.8125rem] text-texto-suave">
+          Aqui va una fila por grupo en cuanto alguno tenga gente en el
+          aula. Hoy no hay ninguna: nadie se ha matriculado todavia.
+        </p>
+      ) : (
+        <>
+          <Leyenda de={SERIES_REPARTO} />
+
+          <div className="caja-scroll overflow-x-auto">
+            <table className="w-full text-[0.8125rem]">
+              <thead>
+                <tr className="border-b border-hairline text-left text-[0.71875rem] text-texto-suave">
+                  <th className="py-1.5 pr-3 font-semibold">Grupo</th>
+                  <th className="py-1.5 pr-3 font-semibold">Accion</th>
+                  {/* «Pers.» ES TODO EL QUE PISO EL AULA, salidas
+                      incluidas --`enAula` son las seis etapas--. No
+                      son los que siguen dentro: eso es `dentro`, y
+                      va dentro de la barra de estados. */}
+                  <th className="py-1.5 pr-3 text-right font-semibold" title="Todo el que pisó el aula, salidas incluidas">
+                    Pers.
+                  </th>
+                  <th className="py-1.5 pr-3 font-semibold">Avance promedio</th>
+                  <th className="py-1.5 font-semibold">Estados</th>
+                </tr>
+              </thead>
+              <tbody>
+                {caben.map((g) => {
+                  const avance = Math.round(g.avanceMedio * 100);
+                  return (
+                    <tr
+                      key={`${g.codigo} ${g.nombre} ${g.numero ?? "sin-grupo"}`}
+                      className="border-b border-hairline/60 last:border-0"
+                    >
+                      <td className="py-1.5 pr-3 font-semibold whitespace-nowrap">
+                        {nombreDeGrupo(g)}
+                      </td>
+                      <td className="max-w-[18rem] truncate py-1.5 pr-3" title={g.nombre}>
+                        {g.numero === null ? "—" : `${g.codigo} · ${g.nombre}`}
+                      </td>
+                      <td className="py-1.5 pr-3 text-right tabular-nums">{n(g.enAula)}</td>
+                      <td className="py-1.5 pr-3">
+                        <div className="flex items-center gap-2">
+                          <div className="h-1.5 min-w-[5rem] flex-1 overflow-hidden rounded-full bg-hairline">
+                            <div
+                              className="h-full rounded-full"
+                              style={{ width: `${avance}%`, background: ACENTO_3 }}
+                            />
+                          </div>
+                          {/* Sin medibles no hay porcentaje que dar:
+                              un 0 % ahi diria que no avanzan, y lo
+                              cierto es que no hay con que medirlos. */}
+                          <span className="w-10 shrink-0 text-right tabular-nums text-texto-suave">
+                            {g.medibles > 0 ? `${avance} %` : "—"}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="py-1.5">
+                        <div
+                          className="flex h-2 min-w-[8rem] overflow-hidden rounded-full bg-hairline"
+                          role="img"
+                          aria-label={REPARTO.map(
+                            (r, i) => `${SERIES_REPARTO[i].nombre}: ${r.de(g)}`,
+                          ).join(", ")}
+                        >
+                          {REPARTO.map((r, i) => {
+                            const v = r.de(g);
+                            if (v <= 0) return null;
+                            return (
+                              <span
+                                key={r.etapa}
+                                title={`${SERIES_REPARTO[i].nombre}: ${n(v)}`}
+                                style={{
+                                  width: `${(v / Math.max(g.enAula, 1)) * 100}%`,
+                                  background: SERIES_REPARTO[i].color,
+                                }}
+                              />
+                            );
+                          })}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          <p className="text-[0.71875rem] text-texto-suave">
+            {restan > 0
+              ? `Van los primeros ${n(caben.length)} grupos; quedan ${n(restan)} más en el tablero académico.`
+              : "«Pers.» es todo el que pisó el aula, salidas incluidas."}
+            {notaSinMedir(d)}
+          </p>
+        </>
+      )}
+    </div>
   );
 }
 
@@ -1047,11 +1194,104 @@ export function ModuloTrafico() {
           )}
           </div>
 
-          <VerDetalle a="/admin/control?pantalla=trafico">
+          <CursosQueEligen porAccion={d.porAccion} eligieron={eligieron} />
+
+          <VerDetalle a="/admin/trafico">
             Ver el tráfico completo, con sus nueve peldaños y sus cortes
           </VerDetalle>
         </>
       )}
     </Modulo>
+  );
+}
+
+/**
+ * Qué curso ABREN PRIMERO los que llegan, con el catálogo detrás.
+ *
+ * NO SE LLAMA «páginas más visitadas», que es como lo pedía el
+ * mockup: el sitio público **no tiene una página por acción** --son
+ * una sola pantalla con un selector--, así que ese rótulo contaría
+ * algo que no existe.
+ *
+ * Y NO ES «EL CURSO QUE ELIGIERON», que era el segundo rótulo que
+ * tuvo y también era falso. `marcar()` escribe una sola vez por
+ * paso --`yaMandados` en el navegador y `@@unique([visitaId,
+ * paso])` en la base, «gana la primera»--, y el formulario deja
+ * «Volver a las acciones» y cambiar de curso. Así que lo que queda
+ * guardado es el PRIMERO que pulsaron, que puede no ser en el que
+ * se inscribieron. Dicho así, el dato sirve --qué curso llama la
+ * atención-- y no miente; dicho como «eligen», señalaría como
+ * abandonado justo el curso en el que la gente acaba entrando.
+ *
+ * LAS FILAS EN CERO SON LA MITAD DEL BLOQUE. Salen del catálogo con
+ * un LEFT JOIN, así que un curso publicado que nadie abre aparece
+ * con un cero en vez de desaparecer. Desaparecido, nadie lo echa de
+ * menos; en cero, es la lista de a qué curso hay que empujar.
+ */
+function CursosQueEligen({
+  porAccion,
+  eligieron,
+}: {
+  porAccion: EmbudoPublico["porAccion"];
+  eligieron: number;
+}) {
+  /// Opcional en el contrato: sin el dato no se pinta nada, en vez
+  /// de dibujar un bloque en cero que diria que nadie elige nada.
+  if (!porAccion || porAccion.length === 0) return null;
+
+  const mayor = Math.max(...porAccion.map((a) => a.visitas), 1);
+  const sumadas = porAccion.reduce((t, a) => t + a.visitas, 0);
+
+  return (
+    <div className="flex flex-col gap-2.5">
+      <h3 className="text-sm font-bold">Qué curso abren primero</h3>
+      <div className="flex flex-col gap-1.5">
+        {porAccion.map((a) => (
+          <div
+            key={a.codigo + a.nombre}
+            className="grid grid-cols-[minmax(104px,200px)_minmax(0,1fr)_auto] items-center gap-3 text-[0.78125rem]"
+          >
+            <span
+              className="truncate"
+              title={`${a.codigo} · ${a.nombre}${a.oculta ? " (ya no se ofrece)" : ""}`}
+            >
+              {a.codigo} · {a.nombre}
+              {/* Ya no esta publicada, pero alguien la abrio cuando
+                  si: su cuenta se queda y se dice por que sigue. */}
+              {a.oculta && (
+                <span className="ml-1.5 text-texto-suave">· ya no se ofrece</span>
+              )}
+            </span>
+            <div className="h-2.5 overflow-hidden rounded-full bg-hairline">
+              <div
+                className="h-full rounded-full"
+                style={{
+                  width: `${(a.visitas / mayor) * 100}%`,
+                  background: ACENTO_4,
+                }}
+              />
+            </div>
+            <span className="text-right whitespace-nowrap tabular-nums">
+              <strong className="font-bold">{n(a.visitas)}</strong>{" "}
+              <span className="text-texto-suave">
+                {a.visitas === 1 ? "vez" : "veces"}
+              </span>
+            </span>
+          </div>
+        ))}
+      </div>
+      {/* POR QUE NO CUADRA CON EL PELDAÑO, y con las DOS causas.
+          La primera version culpaba solo al beacon perdido, y hay
+          otra: el embudo acredita a cada visita todos los peldaños
+          por debajo de su máximo, y además esta lista se queda sin
+          las visitas cuyo código ya no existe en el catálogo. */}
+      <p className="text-[0.71875rem] text-texto-suave">
+        El primero que abren, uno por visita: quien vuelve atrás y cambia
+        de curso sigue contando en el primero. La suma ({n(sumadas)}) puede
+        quedar por debajo del peldaño «Eligieron un curso» ({n(eligieron)}):
+        allí también cuenta quien siguió adelante sin que llegara esta
+        marca. Un cero es un curso publicado que nadie abre.
+      </p>
+    </div>
   );
 }

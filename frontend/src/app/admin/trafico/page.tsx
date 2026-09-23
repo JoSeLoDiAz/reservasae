@@ -1,20 +1,37 @@
-import { redirect } from "next/navigation";
+"use client";
 
 /**
- * El tráfico dejó de ser una pantalla suelta: es la pantalla
- * «Tráfico del formulario» de Control de Inscritos.
+ * El tráfico vuelve a ser su propia pantalla (22 sep 2026).
  *
- * Lo pidió el cliente el 21 sep 2026 —«Tráfico del formulario
- * fusionado con Control de inscritos en (Qué pantalla)»— porque
- * las dos cuentan el mismo camino por tramos distintos: aquí, del
- * anuncio a la preinscripción; allí, de la preinscripción a la
- * inscripción. Seguir a una persona obligaba a salir y volver a
- * entrar por el menú.
+ * El 21 sep se fusionó dentro de Control de Inscritos —«Tráfico del
+ * formulario fusionado con Control de inscritos»— y el 22 Josse lo
+ * deshizo con el motivo escrito: **«eso lo dejamos en el listado
+ * principal porque eso no es inscritos»**. Y es exacto: lo que se
+ * mide aquí pasa ANTES de que exista el lead, así que colgarlo de
+ * la pantalla de los inscritos lo ponía al final de un proceso que
+ * empieza con él.
  *
- * La ruta se queda redirigiendo porque estuvo en el menú desde
- * que existe la pantalla, y hay quien la tiene guardada y quien
- * la pegó en un chat.
+ * El cuerpo NO se copió de vuelta: vive en `PanelTrafico`, extraído
+ * en la entrega del 21 sep, y desde entonces lo monta quien lo
+ * necesite. Esta página solo le pone el título.
+ *
+ * EL ENCABEZADO LO PONE ESTA PÁGINA y no el panel, porque el panel
+ * se lo quitó a propósito cuando vivía dentro de Control: dos `h1`
+ * en la misma pantalla no se leen como una pantalla con partes, se
+ * leen como dos pantallas pegadas.
  */
-export default function TraficoMudado() {
-  redirect("/admin/control?pantalla=trafico");
+
+import { Encabezado } from "@/components/admin/piezas";
+import { PanelTrafico } from "@/components/admin/panel-trafico";
+
+export default function PaginaTrafico() {
+  return (
+    <div className="flex flex-col gap-5 px-4 pt-3 pb-6">
+      <Encabezado
+        titulo="Tráfico del formulario"
+        descripcion="Cuánta gente abre el formulario público, de dónde llega y cuántos terminan preinscritos."
+      />
+      <PanelTrafico />
+    </div>
+  );
 }

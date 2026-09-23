@@ -34,6 +34,14 @@ import {
   type TramoParados,
 } from "@/lib/crm-api";
 import { useDatosVivos } from "@/lib/datos-vivos";
+import {
+  notaSinMedir,
+  porCodigo,
+  porNumeroDeGrupo,
+  REPARTO,
+  SERIES_REPARTO,
+  SIN_DATO,
+} from "@/lib/reparto-del-aula";
 
 /** Los periodos que se ofrecen, en su orden. */
 const RANGOS: Rango[] = [
@@ -47,30 +55,6 @@ const RANGOS: Rango[] = [
   "TODO",
   "PERSONALIZADO",
 ];
-
-/**
- * El reparto del aula, en el orden del embudo.
- *
- * Las seis suman exactamente `enAula`: «en formación» es lo
- * que le queda a `dentro` al quitarle los certificados, y
- * las otras cuatro son las salidas. Por eso el donut y las
- * barras apiladas cuadran con la cifra grande sin pedir
- * nada más al servidor.
- */
-const REPARTO: Array<{ etapa: Etapa; de: (m: MetricasAula) => number }> = [
-  { etapa: "EN_FORMACION", de: (m) => m.dentro - m.certificados },
-  { etapa: "CERTIFICADO", de: (m) => m.certificados },
-  { etapa: "DESERTO", de: (m) => m.desertaron },
-  { etapa: "ABANDONO", de: (m) => m.abandonaron },
-  { etapa: "RETIRADO", de: (m) => m.retirados },
-  { etapa: "NO_APROBO", de: (m) => m.noAprobaron },
-];
-
-/** Las series del reparto, ya con su color. */
-const SERIES_REPARTO = REPARTO.map((r) => ({
-  nombre: ETIQUETA_ETAPA[r.etapa],
-  color: colorEtapa(r.etapa),
-}));
 
 /**
  * Las seis del aula sumando el corte por acción.
@@ -123,30 +107,6 @@ function cuando(dias: number): string {
   if (dias <= 0) return "hoy";
   if (dias === 1) return "mañana";
   return `en ${n(dias)} días`;
-}
-
-/** El código de la fila sin acción ni grupo. */
-const SIN_DATO = "—";
-
-/** AF1, AF2… AF10: por el número, no alfabético. */
-function numeroDe(codigo: string): number {
-  // la fila sin dato no tiene número
-  if (codigo === SIN_DATO) return Number.MAX_SAFE_INTEGER;
-  const hallado = /(\d+)/.exec(codigo);
-  return hallado ? Number(hallado[1]) : 999;
-}
-
-// el codigo se repite entre convenios
-function porCodigo(a: FilaAccionAula, b: FilaAccionAula): number {
-  const paso = numeroDe(a.codigo) - numeroDe(b.codigo);
-  return paso !== 0 ? paso : a.nombre.localeCompare(b.nombre, "es");
-}
-
-/** Por AF y número; el «sin grupo», al final. */
-function porNumeroDeGrupo(a: FilaGrupoAula, b: FilaGrupoAula): number {
-  // sin número, la resta da NaN
-  if ((a.numero === null) !== (b.numero === null)) return a.numero === null ? 1 : -1;
-  return porCodigo(a, b) || (a.numero ?? 0) - (b.numero ?? 0);
 }
 
 /** Por carga; el «sin asignar», al final. */
@@ -814,13 +774,6 @@ function ColaDeTrabajo({
 }
 
 // los tres cortes
-
-/** Lo que hay que aclarar cuando falta por medir. */
-function notaSinMedir(d: TableroAcademico): string {
-  return d.sinMedir > 0
-    ? " «Sin medir» no tiene actividades cargadas: no entra en el avance medio ni puede quedar listo."
-    : "";
-}
 
 /** El reparto y el detalle de cada acción. */
 function CortePorAccion({ d, minimo }: { d: TableroAcademico; minimo: string }) {

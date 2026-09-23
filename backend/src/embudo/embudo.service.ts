@@ -244,8 +244,16 @@ export class EmbudoService {
     const porPaso = new Map(filas.map((f) => [f.paso, Number(f.visitas)]));
     const hitos = ESCALERA.map((paso) => ({ paso, visitas: porPaso.get(paso) ?? 0 }));
 
-    const [personas, porDia, procedencia, dispositivo, entrada, campana, sinMarcarHoy] =
-      await Promise.all([
+    const [
+      personas,
+      porDia,
+      procedencia,
+      dispositivo,
+      entrada,
+      campana,
+      sinMarcarHoy,
+      porAccion,
+    ] = await Promise.all([
       this.personas(ambito, desde, hasta),
       this.porDia(ambito, desde, hasta),
       this.corte(ambito, desde, hasta, procedenciaSql()),
@@ -253,6 +261,7 @@ export class EmbudoService {
       this.corte(ambito, desde, hasta, Prisma.raw('"puerta"')),
       this.corte(ambito, desde, hasta, Prisma.raw('"utmCampana"')),
       this.sinMarcarHoy(ambito),
+      this.porAccion(ambito, desde, hasta),
     ]);
 
     /// CON AMBITO. Sin el, un gremio leia en negrita la fecha
@@ -299,6 +308,7 @@ export class EmbudoService {
       dispositivo,
       entrada,
       campana,
+      porAccion,
       /// SIEMPRE de hoy, elija el periodo que elija la pantalla:
       /// es un aviso para actuar hoy, no una cifra del informe.
       sinMarcarHoy,
@@ -631,6 +641,90 @@ export class EmbudoService {
     )`;
   }
 
+  /**
+   * Qué curso eligió cada visita, con el catálogo entero detrás.
+   *
+   * NO SON «PÁGINAS VISITADAS» y por eso no se llama así: el sitio
+   * público no tiene una página por acción --son una sola pantalla
+   * con un selector--, así que lo único que existe es el gesto de
+   * elegir, que la baliza escribe como `ELIGIO_ACCION` con el
+   * código en `detalle`.
+   *
+   * SALE DEL CATÁLOGO Y NO DE LOS PASOS, con LEFT JOIN, para que
+   * una acción que nadie eligió salga en CERO. Ese cero es la mitad
+   * accionable del bloque: dice qué curso no está tirando. Contando
+   * solo lo elegido, esa fila sencillamente no existiría y nadie
+   * la echaría de menos.
+   *
+   * UNA ACCIÓN OCULTA ENTRA SI YA LA ELIGIÓ ALGUIEN, y esa es la
+   * mitad que faltaba. El filtro por `visible` empezó siendo solo
+   * `a."visible" = true`, y eso borraba **hacia atrás**: ocultar un
+   * curso desde el panel --que es un interruptor de un clic y no
+   * cancela nada-- hacía desaparecer del bloque las elecciones que
+   * ya se habían medido, sin fila, sin resto y sin nota. El módulo
+   * pide `TODO`, así que lo que se perdía era el histórico entero.
+   * Suprimir el CERO de una oculta sí está justificado --no se
+   * puede elegir lo que no se ofrece--; tirar una cuenta ya medida,
+   * no. La columna `oculta` deja que la pantalla lo diga.
+   *
+   * El código SE REPITE entre convenios --`@@unique([convenioId,
+   * codigo])`--, así que el cruce va por los dos campos: por el
+   * código a secas, el AF1 de un gremio se comería el del otro.
+   *
+   * La visita se fecha por su PRIMER paso, igual que el embudo y
+   * que la serie por día: si aquí se fechara por el paso propio,
+   * una visita de medianoche caería en un día distinto del que la
+   * cuenta arriba.
+   */
+  private async porAccion(
+    ambito: string[],
+    desde: Date,
+    hasta: Date,
+  ): Promise<
+    Array<{ codigo: string; nombre: string; oculta: boolean; visitas: number }>
+  > {
+    const filas = await this.prisma.$queryRaw<
+      Array<{ codigo: string; nombre: string; oculta: boolean; visitas: bigint }>
+    >`
+      WITH empezaron AS (
+        SELECT "visitaId", MIN("creadoEn") AS empezo
+          FROM "pasos_de_visita"
+         WHERE "convenioId" IN (${Prisma.join(ambito)})
+         GROUP BY "visitaId"
+      ),
+      elegidas AS (
+        SELECT p."convenioId" AS convenio,
+               p."detalle" AS codigo,
+               COUNT(*)::bigint AS veces
+          FROM "pasos_de_visita" p
+          JOIN empezaron e ON e."visitaId" = p."visitaId"
+         WHERE p."paso" = 'ELIGIO_ACCION'
+           AND p."convenioId" IN (${Prisma.join(ambito)})
+           AND p."detalle" IS NOT NULL
+           AND e.empezo >= ${desde} AND e.empezo < ${hasta}
+         GROUP BY 1, 2
+      )
+      SELECT a."codigo" AS codigo,
+             a."nombre" AS nombre,
+             NOT a."visible" AS oculta,
+             COALESCE(x.veces, 0)::bigint AS visitas
+        FROM "acciones_formacion" a
+        LEFT JOIN elegidas x
+               ON x.convenio = a."convenioId" AND x.codigo = a."codigo"
+       WHERE a."convenioId" IN (${Prisma.join(ambito)})
+         -- el cero de una oculta no es un aviso; su cuenta ya
+         -- medida si, y tirarla borraria historico
+         AND (a."visible" = true OR COALESCE(x.veces, 0) > 0)
+       ORDER BY visitas DESC, a."codigo" ASC
+    `;
+    return filas.map((f) => ({
+      codigo: f.codigo,
+      nombre: f.nombre,
+      oculta: f.oculta,
+      visitas: Number(f.visitas),
+    }));
+  }
+
   /// Un corte del paso de LLEGADA, con su conversión.
   ///
   /// La expresión sale SIEMPRE del código —un nombre de columna o
@@ -712,6 +806,7 @@ export class EmbudoService {
       dispositivo: [],
       entrada: [],
       campana: [],
+      porAccion: [],
       /// Sin ambito no hay nada que ensenar, tampoco de antes.
       historico: null,
     };
