@@ -651,38 +651,40 @@ export function PanelTrafico() {
                   tomaba la dona por el total de siempre: el mismo fallo
                   que el 149 contra 539 de Reservas, una cifra que no
                   dice de qué habla. */}
-              {/* LA CADENA DE LOS DATOS, TAL CUAL LA PIDIÓ.
-                  «Cuántos se preinscribieron, cuántos se les envió correo
-                  y este lo diligenciaron y pasaron a datos completos, y
-                  cuántos no abrieron esto» (cliente, 23 sep 2026).
+              {/* LA CADENA DE LOS DATOS, Y TODA DEL MISMO SITIO.
+                  «Lo que tengo en Tráfico debe ser coherente a Control de
+                  inscritos y no es así [...] necesito datos iguales»
+                  (cliente, 23 sep 2026). Tenía razón, y medido en su
+                  base el 23 de septiembre se ve por qué: el embudo decía
+                  5 registros y el CRM tenía 9 personas con enlace del
+                  registro en el mismo periodo. La cadena mezclaba las
+                  dos fuentes y el segundo número salía MAYOR que el
+                  primero, que es imposible de leer.
 
-                  Cuatro números que se leen de izquierda a derecha y
-                  cada uno sale del anterior: no hay nada que restar en
-                  la cabeza. Lo que se fue --y con razón-- era el bloque
-                  que decía «completos y parciales» sin decir de quién:
-                  eso lo dice la dona de Control de inscritos, para TODOS
-                  los leads. Este habla solo de los que entraron por el
-                  formulario en este periodo, y lo dice arriba. */}
+                  Son cosas distintas y las dos ciertas:
+
+                  · El «Paso a paso» y el «Día a día» cuentan VISITAS, y
+                    las cuenta el navegador. Si alguien lleva bloqueador,
+                    si el paso no llega a escribirse o si la persona
+                    vuelve otro día, ese número se queda corto.
+                  · Esta cadena cuenta PERSONAS del CRM: las que se
+                    crearon en el periodo y recibieron su enlace para
+                    completar datos. Es la misma tabla que alimenta
+                    Gestión de leads y Control de inscritos.
+
+                  Así que la cadena se queda ENTERA en el CRM --tres
+                  números que salen uno del otro-- y la diferencia con el
+                  embudo se explica en el pie en vez de esconderse. */}
               <Bloque
                 titulo={`Sus datos completos · ${rotuloA}`}
-                descripcion="Solo de quien entró por el formulario en este periodo. La dona «Estado de los datos», en Control de inscritos, cuenta a todos los leads del CRM."
+                descripcion="Personas que entraron por el formulario en este periodo, contadas en el CRM: las mismas que ve en Gestión de leads."
               >
                 <div className="flex flex-wrap items-stretch gap-2">
                   <Resumen
-                    etiqueta="Se preinscribieron"
-                    valor={quedaron}
-                    color="var(--exito)"
-                    pie="terminaron el formulario público"
-                  />
-                  <Resumen
-                    etiqueta="Se les mandó el correo"
+                    etiqueta="Entraron por el formulario"
                     valor={datos.despues.recibieron}
                     color="var(--titulo)"
-                    pie={
-                      quedaron > datos.despues.recibieron
-                        ? `${n(quedaron - datos.despues.recibieron)} ya estaban en el CRM y no lo reciben`
-                        : "con el enlace para completar sus datos"
-                    }
+                    pie="personas nuevas, con su enlace enviado"
                   />
                   <Resumen
                     etiqueta="Pasaron a datos completos"
@@ -690,21 +692,30 @@ export function PanelTrafico() {
                     color="var(--exito)"
                     pie={
                       datos.despues.recibieron >= MINIMO_PARA_TASA
-                        ? `${porcentaje(datos.despues.terminaron, datos.despues.recibieron)} de los que lo recibieron`
-                        : "lo abrieron y lo diligenciaron"
+                        ? `${porcentaje(datos.despues.terminaron, datos.despues.recibieron)} de las que entraron`
+                        : "abrieron el enlace y lo diligenciaron"
                     }
                   />
                   <Resumen
-                    etiqueta="No lo diligenciaron"
+                    etiqueta="Siguen a medias"
                     valor={Math.max(datos.despues.recibieron - datos.despues.terminaron, 0)}
                     color={
                       datos.despues.recibieron - datos.despues.terminaron > 0
                         ? "var(--aviso)"
                         : "var(--exito)"
                     }
-                    pie="siguen con los datos a medias"
+                    pie="hay que perseguirlas"
                   />
                 </div>
+
+                <p className="mt-3 text-xs leading-relaxed text-texto-suave">
+                  Estas son personas del CRM. El «Paso a paso» y el «Día a día» de arriba
+                  cuentan visitas medidas en el navegador, así que sus cifras salen más
+                  bajas: en este periodo, {n(quedaron)}{" "}
+                  {quedaron === 1 ? "registro medido" : "registros medidos"} contra{" "}
+                  {n(datos.despues.recibieron)}{" "}
+                  {datos.despues.recibieron === 1 ? "persona creada" : "personas creadas"}.
+                </p>
               </Bloque>
 
               {/* DOS GRÁFICOS EN LA FILA. Compartía sitio con el bloque
