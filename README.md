@@ -28,7 +28,10 @@ costaron un fallo en producción y que conviene no deshacer sin saber:
 - [docs/estilo-del-panel.md](docs/estilo-del-panel.md) — las cinco
   reglas visuales del panel, cada una puesta en **un solo sitio** para
   no tener que acordarse de ellas. Si algo «se ve raro», la corrección
-  casi siempre va en el token, no en el componente.
+  casi siempre va en el token, no en el componente — pero **la hace
+  Josse y nadie más** desde el 22 sep 2026: la regla está en
+  `CLAUDE.md` y obliga también a las personas del equipo. Lo que se ve
+  mal se describe y se espera; lo que dice algo falso se arregla.
 
 ---
 

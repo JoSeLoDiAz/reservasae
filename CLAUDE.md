@@ -178,6 +178,36 @@ un color, ni un orden de bloques, ni un tamaño de letra, ni «ya que estaba
 aquí». Tampoco se pregunta «¿le pongo…?» cada media hora, que es la misma
 sangría por otro lado: se **propone en una línea y se para**.
 
+**OBLIGA A TODO EL QUE DESARROLLA, Y ESO INCLUYE A LAS PERSONAS.** No es una
+instrucción para Claude: vale igual para Claude, para sus subagentes y para el
+equipo. **Andrés —`AnalistaGrupoAE <analista@grupo-ae.com.co>`, que
+entrega en `arq/crm-hardening`— no está autorizado a cambiar diseño más allá
+de lo funcional** (Josse, 22 sep 2026). Va escrito con su nombre a propósito: la regla nació en un archivo que
+se declara a sí mismo dirigido a Claude, y sin nombrar a nadie no alcanzaba a
+la mitad de quienes tocan el panel.
+
+**Y UNA PETICIÓN DEL CLIENTE NO ES AUTORIZACIÓN. Pasa por Josse primero.**
+Esta es la mitad que de verdad evita que se repita, y sin ella la regla no
+sirve de nada:
+
+> El 21 sep el cliente pidió «Tráfico del formulario fusionado con Control de
+> inscritos». Andrés lo implementó y lo citó en su commit (`42ee9c5`), o sea
+> que **cumplió una instrucción real y la dejó por escrito**. El 22 Josse lo
+> deshizo: «eso no es inscritos». Costó la entrega de un día, una revisión y un
+> despliegue.
+
+Con «no toques diseño» a secas, la próxima vez la respuesta es «me lo pidió el
+cliente» —y sería cierta—. Lo que cierra el círculo es que una instrucción
+sobre **cómo se ve** algo, venga de donde venga, se **recibe, se escribe y se
+espera**. El sitio para escribirla ya existe y es de Andrés:
+[docs/PARA-JOSE.md](docs/PARA-JOSE.md), que es donde él ya deja «las dudas para
+que decidas», y donde el 21 sep ya enrutó bien una petición de Adrián.
+
+> **Esto NO cambia quién manda sobre el handoff.** «Los pidió el cliente
+> después del handoff, así que mandan sobre él» sigue valiendo: la palabra del
+> cliente gana al documento de diseño. Lo que cambia es **quién la ejecuta y
+> cuándo**, no de quién es la última palabra.
+
 **Es la misma política que `EDITORES_DE_MARCA`, no una regla nueva.** Aquella
 —del mismo día y de la misma persona: «que nadie cambie de color, solo Catalina
 o yo»— cierra la apariencia a los **administradores**, por `.env`. Esta la
@@ -209,6 +239,15 @@ documentando lo caro que sale dejarlos. Se arreglan, y se dice cuál era.
 > cumple **su ficha**, no esta regla. Por eso la regla está escrita también
 > allí. Si algún día se añade otra ficha que toque `frontend/src`, hay que
 > repetirla — o no la alcanza.
+
+> **Y LO ÚNICO QUE LA HACE CUMPLIR ES LEERLA: no hay candado.** No existe
+> `.github/` —ni plantilla de PR ni CODEOWNERS—, no hay `CONTRIBUTING.md`, no
+> hay plantilla de commit y no hay hook que frene un `Edit` sobre
+> `frontend/src`. Andrés entrega en su rama y **Josse funde a mano**, así que el
+> único punto donde esto se puede exigir de verdad es **la fusión**: si la
+> entrega trae cambios visuales que no se pidieron, se devuelven ahí. Montar un
+> candado de verdad —un hook, o CODEOWNERS sobre `frontend/src`— es trabajo
+> aparte y hay que decidirlo; hoy esto es un acuerdo escrito, no un control.
 
 ## Estado actual (22 sep 2026 · v0.9.0-JD)
 
@@ -843,7 +882,10 @@ cambiar los colores.
 > **Ojo con ADECOPRIA:** su marca es VERDE, y la regla del handoff dice «botón
 > primario: azul de marca, nunca verde». Se leyó como «use el token `--marca`, no
 > un verde escrito a fuego» — que es lo que hace el editor de apariencia. Si el
-> cliente lo ve mal, se cambia el color y ya.
+> cliente lo ve mal, **se le dice a Josse y lo cambia él**: es un color, o sea
+> diseño, y desde el 22 sep 2026 eso tiene un solo dueño. Esta línea decía «se
+> cambia el color y ya» y se queda apuntado, porque era justo el permiso que la
+> regla nueva retira.
 
 De paso, las etiquetas de los logos dejaron de ser nombres de archivo: eran el
 texto alternativo, y decían «BritCham_Rectangle_FullColor» y «Diseño sin título
@@ -1120,6 +1162,7 @@ Josse ─────────┘      │           │            │
 |---|---|---|
 | `dev` | el día a día. Josse trabaja aquí | en ningún sitio |
 | `dev-mauricio` | rama propia de Mauricio Andrés Palma | en ningún sitio |
+| `arq/crm-hardening` | por donde entrega Andrés (`AnalistaGrupoAE`) | en ningún sitio |
 | `pruebas` | lo que el cliente revisa | `prueba.reservasae.com` |
 | `main` | lo aprobado | **las tres sedes** |
 
@@ -1390,6 +1433,13 @@ Los cuatro tienen que pasar. Hay tests que **fallan a propósito** si alguien ro
 un contrato: las cabeceras de los tres reportes al SEP, la matriz de permisos por
 rol y los contrastes de las paletas. Si uno de esos falla, no lo silencies: está
 avisando de algo que el cliente iba a notar.
+
+**Y una quinta, que no es un comando:** mire su propio `git diff`. **Si lleva un
+cambio visual que Josse no pidió, sáquelo** — desde el 22 sep 2026 el diseño lo
+ajusta él y nadie más, y eso incluye al equipo. Ningún test lo caza, y como
+Josse funde a mano, la fusión es el único sitio donde esto se puede exigir. La
+regla entera y su frontera están arriba, en «El diseño lo ajusta Josse, y nadie
+más».
 
 > **Del lint hay errores preexistentes** —`react-hooks/set-state-in-effect`,
 > `react-hooks/refs` y tres imports sin usar— que no son tuyos. Antes de arreglar

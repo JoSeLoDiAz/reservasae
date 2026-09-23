@@ -8,6 +8,17 @@
 > Si algo de aquí «se ve raro» y la tentación es corregirlo en
 > el componente, casi siempre la corrección va en el token.
 
+> **PERO NO LO CORRIJA USTED (22 sep 2026).** Desde ese día el
+> diseño del panel lo ajusta **solo Josse** —la regla entera está
+> en `CLAUDE.md`, sección «El diseño lo ajusta Josse, y nadie
+> más»— y obliga igual a las personas del equipo que a Claude.
+> Esta página dice **dónde** va la corrección, no que usted pueda
+> hacerla: hasta hoy se leía como un permiso, y lo era.
+>
+> La frontera es corta: **«se ve mal» es suyo, se describe y se
+> espera; «dice algo falso» se arregla y se avisa.** Un texto que
+> miente, una cifra mal contada o un 500 no son diseño.
+
 ## 1. Plano y cuadrado
 
 **El radio es un token, no una clase.** En
