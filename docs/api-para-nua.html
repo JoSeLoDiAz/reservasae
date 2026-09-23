@@ -1,0 +1,701 @@
+<title>API de Convoca CRM</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&display=swap">
+<style>
+:root{
+  --papel:#FCFDFD; --superficie:#F0F4F5; --tinta:#141A1D; --tinta-2:#495459; --tinta-3:#78858B;
+  --hairline:#DBE2E4; --marca:#0F6A9E;
+  --get:#1A7357; --post:#0F6A9E; --patch:#8A5A0B; --del:#A32B1E; --alerta:#A32B1E;
+  --si:#1A7357; --medias:#8A5A0B; --no:#A32B1E;
+  --sans:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --titulo:"Plus Jakarta Sans",var(--sans);
+  --mono:"JetBrains Mono",ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --papel:#0C1013; --superficie:#151C21; --tinta:#E4EAEC; --tinta-2:#A3AFB5; --tinta-3:#78858B;
+    --hairline:#232C32; --marca:#57B0DE;
+    --get:#5FC49F; --post:#57B0DE; --patch:#D9A45C; --del:#EF8B7E; --alerta:#EF8B7E;
+    --si:#5FC49F; --medias:#D9A45C; --no:#EF8B7E;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --papel:#0C1013; --superficie:#151C21; --tinta:#E4EAEC; --tinta-2:#A3AFB5; --tinta-3:#78858B;
+  --hairline:#232C32; --marca:#57B0DE;
+  --get:#5FC49F; --post:#57B0DE; --patch:#D9A45C; --del:#EF8B7E; --alerta:#EF8B7E;
+  --si:#5FC49F; --medias:#D9A45C; --no:#EF8B7E;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{background:var(--papel);color:var(--tinta);font-family:var(--sans);
+  font-size:16px;line-height:1.6;margin:0;-webkit-font-smoothing:antialiased}
+.hoja{max-width:70rem;margin:0 auto;padding:clamp(1.8rem,4vw,3.6rem) clamp(1rem,4vw,2.6rem) 6rem}
+h1,h2,h3,h4{font-family:var(--titulo);text-wrap:balance}
+h1{font-size:clamp(1.9rem,4.2vw,2.7rem);line-height:1.1;letter-spacing:-.025em;font-weight:700;margin:0}
+h2{font-size:1.32rem;line-height:1.25;letter-spacing:-.015em;font-weight:700;margin:0}
+h3{font-size:1.02rem;letter-spacing:-.008em;font-weight:600;margin:0}
+p{margin:0;max-width:68ch}
+a{color:var(--marca)}
+code{font-family:var(--mono);font-size:.845em;background:var(--superficie);
+  border:1px solid var(--hairline);border-radius:3px;padding:.06em .34em;white-space:nowrap}
+pre{font-family:var(--mono);font-size:.815rem;line-height:1.6;background:var(--superficie);
+  border:1px solid var(--hairline);border-radius:4px;padding:.85rem 1rem;margin:0;
+  overflow-x:auto;tab-size:2}
+pre code{background:none;border:0;padding:0;white-space:pre;font-size:1em}
+.et{font-family:var(--titulo);font-size:.665rem;font-weight:600;letter-spacing:.1em;
+  text-transform:uppercase;color:var(--tinta-3)}
+
+.cab{border-bottom:1px solid var(--hairline);padding-bottom:1.9rem;margin-bottom:2.4rem;
+  display:flex;flex-direction:column;gap:.85rem}
+.cab .et{color:var(--marca)}
+.cab p{font-size:1.06rem;color:var(--tinta-2)}
+.tarjetas{display:grid;grid-template-columns:repeat(auto-fit,minmax(13rem,1fr));
+  border:1px solid var(--hairline);border-radius:4px;margin-top:.5rem}
+.tarjeta{padding:.85rem 1rem;border-right:1px solid var(--hairline)}
+.tarjeta:last-child{border-right:0}
+.tarjeta .k{display:block;margin-bottom:.22rem}
+.tarjeta .v{font-family:var(--mono);font-size:.83rem;color:var(--tinta);word-break:break-all}
+
+section{margin-bottom:3.1rem}
+section > h2{padding-bottom:.5rem;border-bottom:2px solid var(--tinta);margin-bottom:1.1rem}
+.intro{color:var(--tinta-2);margin-bottom:1.4rem}
+.pila{display:flex;flex-direction:column;gap:1.15rem}
+
+.indice{width:100%;border-collapse:collapse;font-size:.885rem}
+.indice th{text-align:left;font-family:var(--titulo);font-size:.665rem;font-weight:600;
+  letter-spacing:.1em;text-transform:uppercase;color:var(--tinta-3);
+  padding:0 1rem .45rem 0;border-bottom:1px solid var(--hairline);white-space:nowrap}
+.indice td{padding:.5rem 1rem .5rem 0;border-bottom:1px solid var(--hairline);vertical-align:baseline}
+.indice td:last-child{color:var(--tinta-2);padding-right:0}
+.indice code{background:none;border:0;padding:0;white-space:nowrap}
+.envoltura{overflow-x:auto}
+
+.mapa{width:100%;border-collapse:collapse;font-size:.9rem}
+.mapa th{text-align:left;font-family:var(--titulo);font-size:.665rem;font-weight:600;
+  letter-spacing:.1em;text-transform:uppercase;color:var(--tinta-3);
+  padding:0 1rem .45rem 0;border-bottom:1px solid var(--hairline);vertical-align:bottom}
+.mapa td{padding:.72rem 1rem .72rem 0;border-bottom:1px solid var(--hairline);vertical-align:top}
+.mapa td:first-child{width:2.2rem;font-family:var(--mono);color:var(--tinta-3);padding-right:.5rem}
+.mapa td:nth-child(2){font-weight:600;width:23%}
+.mapa td:last-child{color:var(--tinta-2);padding-right:0}
+.sello{font-family:var(--titulo);font-size:.645rem;font-weight:700;letter-spacing:.06em;
+  text-transform:uppercase;border:1px solid currentColor;border-radius:3px;
+  padding:.1rem .4rem;white-space:nowrap;display:inline-block}
+.s-si{color:var(--si)}
+.s-medias{color:var(--medias)}
+.s-no{color:var(--no)}
+.s-suyo{color:var(--tinta-3)}
+
+.ep{border:1px solid var(--hairline);border-radius:4px;overflow:hidden}
+.ep-cab{display:flex;flex-wrap:wrap;align-items:baseline;gap:.5rem .75rem;
+  padding:.72rem 1rem;border-bottom:1px solid var(--hairline);background:var(--superficie)}
+.verbo{font-family:var(--mono);font-size:.715rem;font-weight:700;letter-spacing:.05em;
+  border:1px solid currentColor;border-radius:3px;padding:.08rem .38rem}
+.v-get{color:var(--get)}
+.v-post{color:var(--post)}
+.v-patch{color:var(--patch)}
+.v-del{color:var(--del)}
+.ruta{font-family:var(--mono);font-size:.895rem;font-weight:500;word-break:break-all}
+.llave{font-family:var(--titulo);font-size:.665rem;font-weight:600;letter-spacing:.08em;
+  text-transform:uppercase;color:var(--tinta-3);margin-left:auto;white-space:nowrap}
+.suya{font-family:var(--titulo);font-size:.645rem;font-weight:700;letter-spacing:.06em;
+  text-transform:uppercase;color:var(--si);border:1px solid currentColor;
+  border-radius:3px;padding:.08rem .38rem}
+.ep-cuerpo{padding:1rem;display:flex;flex-direction:column;gap:.85rem}
+.ep-cuerpo > p{font-size:.945rem;color:var(--tinta-2)}
+.par{display:grid;gap:.85rem}
+@media (min-width:62rem){.par{grid-template-columns:1fr 1fr}}
+.bloque{display:flex;flex-direction:column;gap:.34rem;min-width:0}
+
+.campos{width:100%;border-collapse:collapse;font-size:.865rem}
+.campos th{text-align:left;font-family:var(--titulo);font-size:.645rem;font-weight:600;
+  letter-spacing:.1em;text-transform:uppercase;color:var(--tinta-3);
+  padding:0 .9rem .4rem 0;border-bottom:1px solid var(--hairline)}
+.campos td{padding:.42rem .9rem .42rem 0;border-bottom:1px solid var(--hairline);vertical-align:top}
+.campos td:last-child,.campos th:last-child{padding-right:0}
+.campos .nom{font-family:var(--mono);font-size:.83rem;white-space:nowrap}
+.campos .tip{font-family:var(--mono);font-size:.78rem;color:var(--tinta-3);white-space:nowrap}
+.oblig{color:var(--alerta);font-weight:700}
+.campos td:last-child{color:var(--tinta-2)}
+
+.reglas{display:flex;flex-direction:column;gap:1.05rem}
+.regla{padding-left:.95rem;border-left:2px solid var(--marca);display:flex;flex-direction:column;gap:.28rem}
+.regla p{font-size:.945rem;color:var(--tinta-2)}
+.aviso{padding-left:.95rem;border-left:2px solid var(--alerta);display:flex;flex-direction:column;gap:.28rem}
+.aviso h3{color:var(--alerta)}
+.aviso p{font-size:.945rem;color:var(--tinta-2)}
+.lista{margin:0;padding-left:1.15rem;color:var(--tinta-2);font-size:.945rem;
+  display:flex;flex-direction:column;gap:.34rem}
+.lista strong{color:var(--tinta);font-weight:600}
+.pie{border-top:1px solid var(--hairline);padding-top:1.3rem;margin-top:1rem;
+  font-size:.875rem;color:var(--tinta-3)}
+:focus-visible{outline:2px solid var(--marca);outline-offset:2px}
+</style>
+
+<div class="hoja">
+
+<header class="cab">
+  <p class="et">Convoca CRM · versión 0.9.1-JD · 23 de septiembre de 2026</p>
+  <h1>API de Convoca CRM</h1>
+  <p>Para el equipo técnico de Nua Technology. Es el inventario completo de lo que Convoca CRM expone a un sistema externo: cada ruta, cada campo, cada respuesta y cada automatismo — y, con la misma claridad, lo que no existe.</p>
+  <div class="tarjetas">
+    <div class="tarjeta"><span class="et k">Producción</span><span class="v">https://reservasae.com</span></div>
+    <div class="tarjeta"><span class="et k">Pruebas</span><span class="v">https://prueba.reservasae.com</span></div>
+    <div class="tarjeta"><span class="et k">Prefijo</span><span class="v">/api</span></div>
+    <div class="tarjeta"><span class="et k">Formato</span><span class="v">JSON · UTF-8</span></div>
+  </div>
+</header>
+
+<section>
+  <h2>Nua Talker contra lo que existe</h2>
+  <p class="intro">Las diez capacidades de su presentación, una por una. <strong>Convoca CRM no es HubSpot</strong>, así que su integración nativa de CRM no aplica: todo lo que toque nuestros datos pasa por el nodo «Consultar API» de su editor de flujos, contra las rutas de este documento.</p>
+  <div class="envoltura">
+    <table class="mapa">
+      <thead><tr><th></th><th>Lo que promete</th><th>Hoy</th><th>Con qué, o qué falta</th></tr></thead>
+      <tbody>
+        <tr><td>1</td><td>Bandeja de entrada dentro del CRM</td><td><span class="sello s-no">No existe</span></td><td>Convoca no tiene bandeja de conversaciones ni canal de salida de WhatsApp. O los asesores atienden desde su consola y a Convoca llega el resumen, o hay que construir una bandeja, que es un proyecto y no un endpoint.</td></tr>
+        <tr><td>2</td><td>Campañas automatizadas por workflows</td><td><span class="sello s-no">No existe</span></td><td>La máquina de campañas de Convoca es <strong>solo de correo</strong> y no se puede lanzar sin sesión. Para mandar un WhatsApp desde el CRM haría falta llamar a su API: es la única pieza que va en esa dirección.</td></tr>
+        <tr><td>3</td><td>Registro de la conversación en la tarjeta del contacto</td><td><span class="sello s-si">Existe hoy</span></td><td><code>POST /api/webhooks/lucid/notas</code>. Documentado abajo. No hace falta construir nada.</td></tr>
+        <tr><td>4</td><td>Pago directo a Meta por plantillas</td><td><span class="sello s-suyo">Suyo</span></td><td>No toca nuestra API. Convoca no manda nada a Meta: sus dos contactos con Meta son de entrada.</td></tr>
+        <tr><td>5</td><td>Flujos automáticos de atención</td><td><span class="sello s-suyo">Suyo</span></td><td>Vive en su editor. De nosotros necesita los datos de los dos puntos siguientes.</td></tr>
+        <tr><td>6</td><td>Agentes de IA que resuelven dudas y perfilan</td><td><span class="sello s-si">Existe hoy</span></td><td>Del <strong>catálogo</strong>, con <code>GET /api/preinscripcion/:slug</code>. De <strong>una persona concreta</strong>, con <code>GET /api/integraciones/persona</code>, que además dice qué datos le faltan.</td></tr>
+        <tr><td>7</td><td>Recopilar datos en la conversación y guardarlos</td><td><span class="sello s-medias">A medias</span></td><td>Crear a alguien nuevo, sí: <code>POST /api/webhooks/leads</code>. <strong>Saber qué pedirle</strong> a alguien que ya está, también. Lo que todavía no hay es por dónde <em>escribir</em> esos datos en una ficha que ya existe.</td></tr>
+        <tr><td>8</td><td>Consulta en tiempo real desde sistemas externos</td><td><span class="sello s-si">Existe hoy</span></td><td>Del catálogo con <code>GET /api/preinscripcion/:slug</code>, y de una persona con <code>GET /api/integraciones/persona</code>.</td></tr>
+        <tr><td>9</td><td>Reconocer al contacto al inicio de la conversación</td><td><span class="sello s-si">Existe hoy</span></td><td><code>GET /api/integraciones/persona?telefono=</code>. Documentado abajo.</td></tr>
+        <tr><td>10</td><td>Creación automática de contactos, negocios o tickets</td><td><span class="sello s-medias">A medias</span></td><td>Contactos sí, por la puerta de leads. <strong>«Negocios» y «tickets» no existen en este modelo</strong>: aquí una persona avanza por una escalera de nueve etapas, y el equivalente a un ticket es una nota.</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section>
+  <h2>¿Tiene workflows el CRM?</h2>
+  <p class="intro">Su pregunta, contestada de frente.</p>
+  <div class="reglas">
+    <div class="regla">
+      <h3>No, no en el sentido de HubSpot</h3>
+      <p>No hay constructor de flujos, ni tabla de reglas, ni forma de «inscribir un contacto en un workflow» desde fuera. Lo que hay son <strong>dieciocho automatismos concretos</strong>, casi todos escritos en el código, que se enumeran más abajo.</p>
+    </div>
+    <div class="regla">
+      <h3>Lo que sí tiene forma de workflow: las plantillas de correo con disparador</h3>
+      <p>Es el único mecanismo <strong>configurable desde el panel</strong> con la forma <em>suceso → condiciones → acción</em>. El asunto, el texto, el disparador, las etapas admitidas y el gremio son datos editables en <code>/admin/plantillas-correo</code>, no código.</p>
+      <p>Las condiciones son reales y se comprueban antes de mandar: <strong>la etapa permitida</strong>, que la autorización de datos siga viva, que la ficha tenga correo, y que <strong>todas las variables de la plantilla se puedan llenar</strong> — si falta una, el correo no sale y se anota cuál faltó, en vez de mandarse con un hueco.</p>
+      <p>Su límite, dicho para que nadie prometa de más: <strong>el catálogo de disparadores tiene hoy un solo suceso</strong>, «al preinscribirse». Añadir otro es trabajo de código, no de configuración.</p>
+    </div>
+    <div class="regla">
+      <h3>Dónde encajaría Nua sin inventar nada</h3>
+      <p>Hay un módulo que ya calcula avisos y los deja esperando un canal por el que salir: cuando una acción de formación está a punto de llenarse o de cerrar inscripciones, el sistema arma el aviso con su cifra y su fecha, y ahí se queda, porque hoy no hay ni correo ni WhatsApp conectados a eso. Es el enganche natural.</p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2>Cómo funciona esto</h2>
+  <div class="reglas">
+    <div class="regla">
+      <h3>Dos gremios, y el gremio lo dice la dirección</h3>
+      <p>El sistema atiende dos convenios que no comparten catálogo: <code>adecopria</code> y <code>britcham-adee</code>. Cada uno tiene su subdominio, y llamando por él sobra decir cuál es:</p>
+      <pre><code>adecopria.reservasae.com          britcham-adee.reservasae.com
+pre-adecopria.reservasae.com      pre-britcham-adee.reservasae.com   (pruebas)</code></pre>
+      <p>Por la dirección general hay que mandar <code>convenio</code> en el cuerpo. <strong>Si vienen los dos y no coinciden, se rechaza con 400</strong>: mandar a la URL de un gremio un cuerpo que dice el otro es una contradicción, y resolverla en silencio es como un lead acaba en el convenio equivocado.</p>
+    </div>
+    <div class="regla">
+      <h3>Cuatro formas de entrar, y ninguna es una sesión</h3>
+      <p><strong>Público</strong> — catálogo, preinscripción, reservas de empresa, formularios, políticas y marca. Sin credencial: son las mismas rutas que usa el navegador.</p>
+      <p><strong>Llave en cabecera</strong> — las puertas de integración. <code>x-clave-leads</code> para los leads, y <code>x-clave-integracion</code> para las notas y para la consulta de persona. Secreto de 32 caracteres o más, comparado en tiempo constante y mirado <em>antes</em> que el cuerpo: sin llave se responde 401 pelado, sin revelar qué campos espera la ruta.</p>
+      <p><strong>Su llave es suya.</strong> Cada proveedor tiene la propia y <strong>quién llama se deduce de la llave</strong>, no de una cabecera: sus notas quedan firmadas «Nua Talker (WhatsApp)» y sus ids de conversación viven en su propio espacio, sin chocar con los de nadie. Revocar la suya no afecta a nadie más.</p>
+      <p><strong>Firma HMAC</strong> — solo el adaptador de Meta, con <code>x-hub-signature-256</code> sobre el cuerpo crudo.</p>
+      <p><strong>Token en la ruta</strong> — el enlace de completado, de un solo uso.</p>
+      <p>Lo que <strong>no</strong> existe es una credencial de máquina para el panel. Los 28 controladores del panel van detrás de una cookie de sesión pensada para un navegador; no admiten Bearer ni API key. Usar el login de una persona como credencial de robot no es una integración: caduca a las ocho horas, no se puede auditar quién hizo qué y muere el día que alguien desactive esa cuenta.</p>
+    </div>
+    <div class="regla">
+      <h3>Reglas que se aplican a todas las rutas</h3>
+      <p><strong>Un campo de más da 400.</strong> La validación no ignora lo que no conoce: si mandan una clave que no está en el contrato, la petición se rechaza entera. Manden solo los campos documentados.</p>
+      <p><strong>El cuerpo máximo es 1 MB.</strong></p>
+      <p><strong>Cloudflare corta a los ~100 segundos.</strong> Nada que tarde más cabe en una llamada.</p>
+      <p><strong>nginx quita el prefijo</strong> <code>/api</code> antes de pasar al backend. Todas las rutas de este documento lo llevan ya puesto.</p>
+    </div>
+    <div class="regla">
+      <h3>Límites</h3>
+      <p>El suelo general son <strong>60 peticiones por minuto</strong>, pero el contador es <strong>por ruta</strong>: cada endpoint tiene su propio cubo y no se comen la cuota unos a otros.</p>
+      <table class="campos" style="margin-top:.4rem">
+        <tbody>
+          <tr><td class="nom">300 / min</td><td>webhook de leads, webhook de notas, consulta de persona, baliza del embudo</td></tr>
+          <tr><td class="nom">60 / min</td><td>catálogo, preinscripción, completar, formularios, políticas, marca</td></tr>
+          <tr><td class="nom">20 / min</td><td>editar y cancelar una reserva</td></tr>
+          <tr><td class="nom">15 / min</td><td>consultar reservas por NIT</td></tr>
+          <tr><td class="nom">10 / min</td><td>crear una reserva</td></tr>
+          <tr><td class="nom">8 / min</td><td>inicio de sesión del panel</td></tr>
+        </tbody>
+      </table>
+      <p>La IP que se cuenta es la real (<code>CF-Connecting-IP</code>), así que si llaman desde una sola IP de salida, el techo es para toda su flota. Si el agente consulta el catálogo en cada turno, conviene cachearlo unos minutos.</p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2>Todas las rutas, de un vistazo</h2>
+  <p class="intro">El inventario completo de lo que una máquina puede llamar. <strong>L</strong> es lectura y <strong>E</strong> escritura.</p>
+  <div class="envoltura">
+    <table class="indice">
+      <thead><tr><th></th><th>Método y ruta</th><th>Auth</th><th></th></tr></thead>
+      <tbody>
+        <tr><td>L</td><td><code>GET /health</code></td><td>—</td><td>Lo contesta nginx: no prueba que el backend viva</td></tr>
+        <tr><td>L</td><td><code>GET /api/estado</code></td><td>—</td><td>Servicio, estado, versión y hora</td></tr>
+        <tr><td>L</td><td><code>GET /api/catalogo</code></td><td>—</td><td>Los convenios activos</td></tr>
+        <tr><td>L</td><td><code>GET /api/catalogo/:slug</code></td><td>—</td><td>Cursos, sedes y cupos libres</td></tr>
+        <tr><td>L</td><td><code>GET /api/preinscripcion/:slug</code></td><td>—</td><td>Lo mismo y más: política, textos del curso, catálogos</td></tr>
+        <tr><td>E</td><td><code>POST /api/preinscripcion/:slug</code></td><td>—</td><td>Crea la ficha y devuelve el token</td></tr>
+        <tr><td>E</td><td><code>POST /api/preinscripcion/:slug/paso</code></td><td>—</td><td>La baliza del embudo. No es para ustedes</td></tr>
+        <tr><td>L</td><td><code>GET /api/directorio/nit/:nit</code></td><td>—</td><td>Razón social por NIT</td></tr>
+        <tr><td>L</td><td><code>GET /api/completar/:token</code></td><td>token</td><td>Dice exactamente qué le falta a esa persona</td></tr>
+        <tr><td>E</td><td><code>PATCH /api/completar/:token</code></td><td>token</td><td>Guarda los datos de la persona</td></tr>
+        <tr><td>E</td><td><code>PATCH /api/completar/:token/empresa</code></td><td>token</td><td>Guarda su organización y cierra el enlace</td></tr>
+        <tr><td>E</td><td><code>POST /api/completar/:token/cerrar</code></td><td>token</td><td>Termina sin los datos de empresa</td></tr>
+        <tr><td>E</td><td><code>POST /api/reservas</code></td><td>—</td><td>Una empresa aparta N cupos</td></tr>
+        <tr><td>L</td><td><code>GET /api/reservas?nit=</code></td><td>—</td><td>Las reservas de una empresa</td></tr>
+        <tr><td>E</td><td><code>PATCH /api/reservas/:id</code></td><td>NIT en el cuerpo</td><td>Cambia la cantidad de cupos</td></tr>
+        <tr><td>E</td><td><code>POST /api/reservas/:id/cancelar</code></td><td>NIT en el cuerpo</td><td>Libera cupos y promueve la lista de espera</td></tr>
+        <tr><td>L</td><td><code>GET /api/formularios/:slug</code></td><td>—</td><td>Secciones, preguntas y condicionales</td></tr>
+        <tr><td>L</td><td><code>GET /api/politicas/:slug/:destinatario</code></td><td>—</td><td>El texto legal vigente. <code>RESERVA</code> o <code>PARTICIPANTE</code></td></tr>
+        <tr><td>L</td><td><code>GET /api/marca</code></td><td>—</td><td>Logos, paletas y textos. Varía por Host</td></tr>
+        <tr><td>L</td><td><code>GET /api/marca/gremio/:slug</code></td><td>—</td><td>La marca de un gremio</td></tr>
+        <tr><td>L</td><td><code>GET /api/marca/logos/:id</code></td><td>—</td><td>Los bytes de un logo</td></tr>
+        <tr><td>E</td><td><code>POST /api/webhooks/leads</code></td><td>llave</td><td>Entra un lead</td></tr>
+        <tr><td>E</td><td><code>POST /api/webhooks/leads/lote</code></td><td>llave</td><td>Hasta 500, respuesta fila por fila</td></tr>
+        <tr><td>E</td><td><code>POST /api/webhooks/lucid/notas</code></td><td>llave</td><td>Cuelga una conversación de la ficha</td></tr>
+        <tr><td>L</td><td><code>GET /api/integraciones/persona</code></td><td>llave</td><td>¿De quién es este teléfono?</td></tr>
+        <tr><td>—</td><td><code>GET · POST /api/webhooks/leads/meta</code></td><td>HMAC</td><td>El adaptador de Meta. No es para ustedes</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section>
+  <h2>Registrar la conversación en la ficha</h2>
+  <p class="intro">Su punto 3, y la única capacidad suya que funciona hoy sin construir nada.</p>
+  <div class="pila">
+    <article class="ep">
+      <div class="ep-cab"><span class="verbo v-post">POST</span><span class="ruta">/api/webhooks/lucid/notas</span><span class="suya">La suya</span><span class="llave">Llave</span></div>
+      <div class="ep-cuerpo">
+        <p>Cuelga el resumen de una conversación de la ficha de la persona, cruzando <strong>por teléfono</strong>. Queda en su historial, con su fecha y su autor, junto a las llamadas y las notas que escriben los asesores.</p>
+        <div class="envoltura">
+          <table class="campos">
+            <thead><tr><th>Campo</th><th>Tipo</th><th></th></tr></thead>
+            <tbody>
+              <tr><td class="nom">externoId <span class="oblig">*</span></td><td class="tip">string</td><td>Su id de conversación, 1–200. Es lo que da la idempotencia</td></tr>
+              <tr><td class="nom">telefono <span class="oblig">*</span></td><td class="tip">string</td><td>1–40. Con <code>+57</code>, con <code>57</code> o sin nada: se normaliza a diez dígitos</td></tr>
+              <tr><td class="nom">resumen <span class="oblig">*</span></td><td class="tip">string</td><td>1–4000. El texto que queda en la ficha</td></tr>
+              <tr><td class="nom">convenio</td><td class="tip">string?</td><td>Solo si llaman por la dirección general</td></tr>
+              <tr><td class="nom">ocurridoEn</td><td class="tip">string?</td><td>ISO-8601. Cuándo pasó la conversación</td></tr>
+              <tr><td class="nom">carga</td><td class="tip">object?</td><td>Su cuerpo original. Se guarda entero</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="par">
+          <div class="bloque"><span class="et">Petición</span>
+<pre><code>POST /api/webhooks/lucid/notas
+Host: adecopria.reservasae.com
+Content-Type: application/json
+x-clave-integracion: &lt;su secreto&gt;
+
+{
+  "externoId": "nua-conv-88120",
+  "telefono": "+57 317 455 0301",
+  "resumen": "Preguntó por el curso de IA. Se le explicó que es gratuito y virtual. Quedó de enviar su cédula.",
+  "ocurridoEn": "2026-09-23T15:04:11.000Z"
+}</code></pre></div>
+          <div class="bloque"><span class="et">Respuesta 200 · se pegó</span>
+<pre><code>{
+  "estado": "PEGADA",
+  "conversacionId": "cmtq7…",
+  "notaId": "cmtq7…",
+  "repetido": false,
+  "motivo": null,
+  "adjuntadaA": { "tipo": "FICHA", "id": "cmtq…" }
+}</code></pre>
+            <span class="et">200 · el número no es de nadie</span>
+<pre><code>{ "estado": "SIN_DUENO", "notaId": null,
+  "motivo": "Ese número no es de nadie del CRM." }</code></pre>
+            <span class="et">200 · el mismo otra vez</span>
+<pre><code>{ "estado": "PEGADA", "repetido": true, "notaId": "cmtq7…" }</code></pre></div>
+        </div>
+        <p><strong>Siempre 200</strong> cuando la llave es buena, nunca 201. El <code>estado</code> dice qué pasó: <code>PEGADA</code>, <code>SIN_DUENO</code> o <code>AMBIGUA</code>. <code>adjuntadaA.tipo</code> puede ser <code>FICHA</code> o <code>LEAD</code>.</p>
+        <p><strong><code>AMBIGUA</code> no se resuelve adivinando.</strong> Si ese número está en dos personas distintas, o en una ficha y además en un lead sin convertir, la nota <em>no se pega</em>: queda guardada aparte y espera. Las notas no se borran, y meter la conversación de alguien en el expediente de un extraño no se deshace.</p>
+        <p><strong>Lo que no se pudo pegar no se descarta.</strong> Queda registrado con su carga entera, para que sea verificable el día que ustedes digan «yo les mandé esa conversación».</p>
+        <p><strong>La nota entra sin resultado de gestión</strong>, a propósito. Aquí una nota con resultado cuenta como intento de contacto, y marcarlas así vaciaría sola la lista de a quién hay que insistirle hoy.</p>
+        <p><strong>Sus <code>externoId</code> son suyos.</strong> Quién llama se deduce de la llave, así que sus ids de conversación viven en su propio espacio: uno suyo que coincida con uno del otro proveedor no choca. Y la nota queda firmada «Nua Talker (WhatsApp)» en la ficha, no con el nombre de otro.</p>
+      </div>
+    </article>
+  </div>
+</section>
+
+<section>
+  <h2>Reconocer a quien escribe</h2>
+  <p class="intro">Sus puntos 8 y 9. Dado un teléfono, dice si esa persona ya está en el CRM y en qué va — para que el agente salude sabiendo con quién habla y no la registre dos veces.</p>
+  <div class="pila">
+    <article class="ep">
+      <div class="ep-cab"><span class="verbo v-get">GET</span><span class="ruta">/api/integraciones/persona</span><span class="suya">La suya</span><span class="llave">Llave</span></div>
+      <div class="ep-cuerpo">
+        <p>Parámetros: <code>telefono</code> (con <code>+57</code> o sin él) o <code>documento</code>, y <code>convenio</code> si llaman por la dirección general. Al menos uno de los dos primeros.</p>
+        <div class="par">
+          <div class="bloque"><span class="et">Petición</span>
+<pre><code>GET /api/integraciones/persona?telefono=%2B573175559001
+Host: adecopria.reservasae.com
+x-clave-integracion: &lt;su secreto&gt;</code></pre></div>
+          <div class="bloque"><span class="et">200 · es una ficha</span>
+<pre><code>{
+  "existe": true,
+  "estado": "FICHA",
+  "primerNombre": "Claudia",
+  "etapa": "INTERESADO",
+  "accion": { "codigo": "AF1", "nombre": "GESTIÓN DE LA…" },
+  "falta": ["fecha de nacimiento", "estrato", "dirección"],
+  "autorizacionVigente": true,
+  "motivo": null
+}</code></pre></div>
+        </div>
+        <div class="par">
+          <div class="bloque"><span class="et">200 · no es de nadie</span>
+<pre><code>{ "existe": false, "estado": "NINGUNO",
+  "primerNombre": null, "falta": [] }</code></pre></div>
+          <div class="bloque"><span class="et">200 · todavía es un lead</span>
+<pre><code>{ "existe": true, "estado": "LEAD",
+  "primerNombre": "Luz", "etapa": null,
+  "motivo": "Todavía es un lead: no tiene ficha." }</code></pre></div>
+        </div>
+        <p><strong>Siempre 200</strong>, también cuando no es nadie. Nunca 404: un 404 aquí convertiría la ruta en un oráculo de qué teléfonos están en la base.</p>
+        <p><code>falta</code> es <strong>lo que hay que pedirle a esa persona</strong> para que entre al reporte, en palabras y en orden. Es la misma regla que pinta el panel, así que el agente pregunta exactamente lo que un asesor preguntaría. Si viene vacía, no hay nada que pedir.</p>
+        <p><strong><code>AMBIGUO</code> no dice de quién es.</strong> Si ese número está en dos personas distintas, o en una ficha y además en un lead sin convertir, se contesta <code>{"existe": true, "estado": "AMBIGUO"}</code> <em>sin nombre, sin etapa y sin <code>falta</code></em>. Es la señal de pasar a una persona: saludar al equivocado es de la misma familia que meter un chat en el expediente de un extraño.</p>
+        <p><strong>Si esa persona revocó el uso de sus datos, <code>falta</code> viene vacía</strong> y <code>autorizacionVigente</code> en <code>false</code>. La lista existe para pedir datos, y a quien pidió que no se usaran los suyos no se le piden más.</p>
+        <p>Busca <strong>solo dentro del gremio</strong> de la dirección, y cruza el teléfono con la misma función que decide a quién se le cuelga una conversación — así el bot no saluda a alguien a quien la nota después no se le pegaría.</p>
+      </div>
+    </article>
+  </div>
+</section>
+
+<section>
+  <h2>Saber qué ofrecer</h2>
+  <p class="intro">Lo que el agente necesita para contestar «¿qué formaciones tienen?», «¿dónde se dicta?», «¿de qué se trata?» y «¿todavía hay cupo?». Público, sin credencial.</p>
+  <div class="pila">
+
+    <article class="ep">
+      <div class="ep-cab"><span class="verbo v-get">GET</span><span class="ruta">/api/preinscripcion/:slug</span><span class="suya">La suya</span><span class="llave">Público</span></div>
+      <div class="ep-cuerpo">
+        <p><strong>Es la llamada que conviene usar.</strong> Trae el catálogo completo más todo lo que el formulario necesita para dibujarse.</p>
+        <div class="bloque"><span class="et">Respuesta 200 · claves</span>
+<pre><code>{
+  "convenio":    { "id", "slug", "nombre", "sigla" },
+  "politica":    { "id", "version", "titulo", "contenido" },
+  "acciones":    [ {
+      "id", "codigo": "AF1", "nombre", "modalidad", "horas",
+      "objetivo", "contenido", "competencia",
+      "ofertas": [ { "id", "ubicacion", "tipoUbicacion",
+                     "departamento", "cuposMaximos",
+                     "cuposDisponibles", "estado" } ]
+  } ],
+  "ubicaciones": [ { "departamento": "ANTIOQUIA",
+                     "ciudades": ["APARTADÓ","MEDELLÍN"] } ],
+  "documentos":  [ { "id": 1, "etiqueta": "Cédula de Ciudadanía" } ],
+  "generos":     [ { "id": 1, "etiqueta": "MASCULINO" } ]
+}</code></pre></div>
+        <p><code>objetivo</code>, <code>contenido</code> y <code>competencia</code> son los tres textos que describen el curso, y los edita un administrador desde el panel. <strong>Son la base de conocimiento del agente</strong>: pidiéndolos en vivo, no hay un guion que mantener en dos sitios.</p>
+        <p><code>estado</code> es el semáforo: <code>DISPONIBLE</code>, <code>ULTIMOS_CUPOS</code> o <code>COMPLETO</code>.</p>
+        <p><code>ubicaciones</code> son <strong>solo las que tienen cobertura</strong>. Si el departamento de la persona no está en esa lista, ese gremio no dicta ahí.</p>
+        <p><strong>Cuidado con «cuántos cupos quedan».</strong> <code>cuposDisponibles</code> descuenta los cupos que las <em>empresas</em> han apartado, que no es lo mismo que gente inscrita. Sirve para decir «todavía se puede inscribir»; no sirve para decir «hay N personas dentro». Y no lo cacheen: el contador se mueve con una operación atómica contra la sobreventa, y una cifra vieja ofrece sillas que ya tienen dueño.</p>
+      </div>
+    </article>
+
+    <article class="ep">
+      <div class="ep-cab"><span class="verbo v-get">GET</span><span class="ruta">/api/catalogo/:slug</span><span class="llave">Público</span></div>
+      <div class="ep-cuerpo">
+        <p>La versión corta: acciones publicadas con sus ofertas abiertas, sin la política ni los catálogos del SEP. Útil si solo hace falta refrescar cupos. <code>GET /api/catalogo</code>, sin slug, devuelve los convenios activos.</p>
+      </div>
+    </article>
+
+    <article class="ep">
+      <div class="ep-cab"><span class="verbo v-get">GET</span><span class="ruta">/api/politicas/:slug/:destinatario</span><span class="llave">Público</span></div>
+      <div class="ep-cuerpo">
+        <p>El texto legal vigente de ese convenio, por si el agente tiene que mostrarlo. <code>:destinatario</code> vale <code>RESERVA</code> o <code>PARTICIPANTE</code>; cualquier otra cosa da 400. Devuelve <code>{titulo, contenido, version, vigenteDesde, convenio}</code>.</p>
+      </div>
+    </article>
+
+  </div>
+</section>
+
+<section>
+  <h2>Captar a alguien</h2>
+  <p class="intro">Dos puertas, y la diferencia importa: una crea un <em>lead</em> que un asesor termina, y la otra crea la <em>ficha</em> de verdad. Para un bot de WhatsApp, la buena es la primera.</p>
+  <div class="pila">
+
+    <article class="ep">
+      <div class="ep-cab"><span class="verbo v-post">POST</span><span class="ruta">/api/webhooks/leads</span><span class="suya">La suya</span><span class="llave">Llave</span></div>
+      <div class="ep-cuerpo">
+        <p>La puerta por la que ya entran los leads de la pauta de Meta y del orquestador de correos. <strong>No lanza por datos flojos</strong>: lo que llega se guarda siempre y lo que falte se dice en <code>falta</code>.</p>
+        <div class="envoltura">
+          <table class="campos">
+            <thead><tr><th>Campo</th><th>Tipo</th><th></th></tr></thead>
+            <tbody>
+              <tr><td class="nom">externoId</td><td class="tip">string?</td><td>Su id de conversación. Si falta, la idempotencia se arma con el documento</td></tr>
+              <tr><td class="nom">convenio</td><td class="tip">string?</td><td>Solo por la dirección general</td></tr>
+              <tr><td class="nom">origen</td><td class="tip">enum?</td><td>Para ustedes, <code>WHATSAPP</code></td></tr>
+              <tr><td class="nom">tipoDocumento</td><td class="tip">string?</td><td>La sigla: <code>CC</code>, <code>CE</code>, <code>PPT</code>, <code>PASAPORTE</code>… o el nombre entero</td></tr>
+              <tr><td class="nom">tipoDocumentoSepId</td><td class="tip">number?</td><td>Si prefieren el id del catálogo</td></tr>
+              <tr><td class="nom">numeroDocumento</td><td class="tip">string?</td><td></td></tr>
+              <tr><td class="nom">nombres</td><td class="tip">string?</td><td>Los nombres juntos. Los apellidos no</td></tr>
+              <tr><td class="nom">primerApellido</td><td class="tip">string?</td><td></td></tr>
+              <tr><td class="nom">segundoApellido</td><td class="tip">string?</td><td>Son dos columnas del reporte: no los junte</td></tr>
+              <tr><td class="nom">nombreCompleto</td><td class="tip">string?</td><td>Si no puede partirlo. Las piezas mandan sobre este</td></tr>
+              <tr><td class="nom">correo</td><td class="tip">string?</td><td></td></tr>
+              <tr><td class="nom">celular</td><td class="tip">string?</td><td>Como venga. Se normaliza a diez dígitos</td></tr>
+              <tr><td class="nom">genero</td><td class="tip">string?</td><td>Por etiqueta o por id</td></tr>
+              <tr><td class="nom">interes</td><td class="tip">string?</td><td>Lo que dijo, en sus palabras. De aquí se deduce el curso</td></tr>
+              <tr><td class="nom">departamento</td><td class="tip">string?</td><td>Dónde vive. Por nombre o por código DANE</td></tr>
+              <tr><td class="nom">ciudad</td><td class="tip">string?</td><td></td></tr>
+              <tr><td class="nom">sede</td><td class="tip">string?</td><td>Dónde quiere tomarlo. No es lo mismo que dónde vive</td></tr>
+              <tr><td class="nom">aceptaHabeasData</td><td class="tip">boolean?</td><td>Ver la regla de la autorización</td></tr>
+              <tr><td class="nom">carga</td><td class="tip">object?</td><td>Su cuerpo original, tal cual</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="bloque"><span class="et">Valores de origen</span>
+<pre><code>EMPRESA  ASESOR  AUTOGESTION  REFERIDO  REDES  INSTAGRAM
+FACEBOOK  LINKEDIN  WHATSAPP  CORREO  EVENTO  OTRO</code></pre></div>
+        <div class="par">
+          <div class="bloque"><span class="et">200 · lead nuevo</span>
+<pre><code>{
+  "id": "cmtn3ib99…",
+  "estado": "PENDIENTE",
+  "participanteId": null,
+  "repetido": false,
+  "yaEstaba": false,
+  "traslado": null,
+  "falta": ["documento"]
+}</code></pre></div>
+          <div class="bloque"><span class="et">200 · ya está en el CRM</span>
+<pre><code>{ "yaEstaba": true,
+  "encontradoPor": "CELULAR",
+  "porConfirmar": false,
+  "participanteId": "cmt…" }</code></pre>
+            <span class="et">200 · el mismo otra vez</span>
+<pre><code>{ "repetido": true, "id": "cmtn3ib99…" }</code></pre></div>
+        </div>
+        <p><strong>Es 200 siempre</strong>, también cuando el lead es nuevo. <code>repetido</code> es lo que los distingue, y un repetido <strong>no actualiza</strong>: devuelve la fila de entonces.</p>
+        <p><code>encontradoPor</code> vale <code>DOCUMENTO</code>, <code>CORREO</code> o <code>CELULAR</code>, y dice por qué se cruzó con alguien que ya estaba.</p>
+        <p><strong>Un lead que llega completo pasa solo a gestión</strong>, sin esperar a nadie — salvo los de WhatsApp. Ver la regla de la autorización.</p>
+      </div>
+    </article>
+
+    <article class="ep">
+      <div class="ep-cab"><span class="verbo v-post">POST</span><span class="ruta">/api/webhooks/leads/lote</span><span class="llave">Llave</span></div>
+      <div class="ep-cuerpo">
+        <p>Hasta <strong>500 leads</strong> en <code>{"leads": [ … ]}</code>. Misma llave, mismo gremio, misma idempotencia. Se procesan <strong>fila a fila y sin transacción</strong>, y se responde uno por uno: un lote que contesta «ok» y se traga trece errores es peor que quinientas peticiones sueltas.</p>
+      </div>
+    </article>
+
+    <article class="ep">
+      <div class="ep-cab"><span class="verbo v-post">POST</span><span class="ruta">/api/preinscripcion/:slug</span><span class="llave">Público</span></div>
+      <div class="ep-cuerpo">
+        <p>Crea la persona y su ficha de verdad, deja la constancia de la autorización y devuelve el <strong>token del enlace de completado</strong>. Es la misma ruta que usa una persona desde el navegador.</p>
+        <p>Obligatorios: <code>ofertaId</code>, <code>tipoDocumentoSepId</code>, <code>numeroDocumento</code>, <code>primerNombre</code>, <code>primerApellido</code> y <code>aceptaPolitica</code> en <code>true</code> literal. Opcionales: <code>segundoNombre</code>, <code>segundoApellido</code>, <code>generoSepId</code>, <code>generoOtroTexto</code>, <code>celular</code>, <code>correo</code>, <code>departamentoNombre</code> y <code>ciudadNombre</code>.</p>
+        <div class="par">
+          <div class="bloque"><span class="et">Respuesta 201</span>
+<pre><code>{ "registrado": true, "yaEstaba": false,
+  "token": "kNdeNerCYsCVd1m_vkJBXS6WcMdFRaJfgy4miDkqraU",
+  "expiraEn": "2026-10-08T18:08:19.397Z" }</code></pre></div>
+          <div class="bloque"><span class="et">Si ya existía</span>
+<pre><code>{ "registrado": true, "yaEstaba": true,
+  "token": null, "enlaceEnviado": true }</code></pre></div>
+        </div>
+        <p><strong><code>yaEstaba: true</code> no es un error</strong>: esa cédula ya estaba registrada. No se devuelve token —se le manda un acuse al correo que <em>ya está en la base</em>, nunca al que vino en la llamada— y el agente debe decir que un asesor la contactará, no ofrecer un enlace que no existe.</p>
+        <div class="aviso">
+          <h3>Dos trampas de esta ruta, si la llaman desde el bot</h3>
+          <p><strong>El servidor no comprueba la cobertura.</strong> Si mandan un <code>ofertaId</code> de una sede que no cubre a esa persona, la ficha se crea igual, con una sede a la que no puede ir. Quien lo impide en el navegador es la pantalla, que solo ofrece lo que cubre. Por API, la cobertura la tienen que aplicar ustedes: crucen el departamento de la persona contra <code>ubicaciones</code> antes de elegir la oferta.</p>
+          <p><strong>El domicilio se pierde sin avisar.</strong> Aquí el departamento y la ciudad van por <strong>nombre</strong>, no por código. Si el nombre no casa exactamente con el catálogo, se guarda vacío y <em>no hay error</em>: la ficha queda muda. Usen los nombres tal como vienen en <code>ubicaciones</code> — «BOGOTÁ D.C», no «Bogotá DC».</p>
+        </div>
+      </div>
+    </article>
+
+  </div>
+</section>
+
+<section>
+  <h2>Completar lo que falta</h2>
+  <p class="intro">El formulario corto pide lo mínimo; el resto entra por un enlace de un solo uso que <strong>sabe exactamente qué le falta a esa persona y solo pide eso</strong>. Dura quince días.</p>
+  <div class="pila">
+    <article class="ep">
+      <div class="ep-cab"><span class="verbo v-get">GET</span><span class="ruta">/api/completar/:token</span><span class="llave">Token</span></div>
+      <div class="ep-cuerpo">
+        <p>Devuelve qué falta y los catálogos para llenarlo: el convenio con su teléfono, la formación, la empresa, la persona entera, la política, y los catálogos del SEP (documentos, géneros, caracterizaciones, niveles ocupacionales, 33 departamentos y 1.126 municipios).</p>
+        <p><code>faltaDeLaPersona</code> y <code>faltaDeLaEmpresa</code> son listas de frases legibles, y son <strong>la única regla de qué falta</strong> en todo el sistema: la misma que pinta el panel y la que decide si esa persona entra al reporte. Si vienen vacías, no hay nada que preguntar.</p>
+        <p>No encontrado, caducado y anulado devuelven <strong>el mismo 404</strong>, a propósito. El cuarto caso sí se distingue por el texto: <em>«Ya completó sus datos con este enlace»</em> — que es el caso normal, y a quien acaba de terminar no hay que mandarlo a pedir otro.</p>
+      </div>
+    </article>
+    <article class="ep">
+      <div class="ep-cab"><span class="verbo v-patch">PATCH</span><span class="ruta">/api/completar/:token</span><span class="llave">Token</span></div>
+      <div class="ep-cuerpo">
+        <p>Guarda los datos de la persona. <strong>Todos opcionales</strong>: se manda solo lo que se consiguió, y se puede llamar varias veces. Campos: nombres, <code>celular</code>, <code>correo</code>, <code>generoSepId</code>, <code>fechaNacimiento</code>, <code>estrato</code> (1–6), <code>departamentoSepId</code>, <code>municipioSepId</code>, <code>barrio</code>, <code>direccion</code>, <code>nivelEducativo</code>, <code>cargoEnEmpresa</code>, <code>nivelOcupacionalSepId</code>, <code>beneficiarioPrevio</code>, <code>caracterizaciones[]</code>.</p>
+        <p>Aquí el departamento y el municipio van por <strong>código DANE</strong>, y el par se valida.</p>
+        <div class="par">
+          <div class="bloque"><span class="et">Respuesta 200</span>
+<pre><code>{ "guardado": true, "enEspera": false,
+  "etapa": "DATOS_COMPLETOS" }</code></pre></div>
+          <div class="bloque"><span class="et">Errores</span>
+<pre><code>400  Ese municipio no pertenece a ese departamento.
+400  No se admiten menores de 18 años.
+404  Este enlace ya no está disponible.</code></pre></div>
+        </div>
+        <p>Con <code>etapa</code>, el bot sabe en la misma respuesta si la persona ya quedó completa y puede cerrar la conversación diciéndolo.</p>
+      </div>
+    </article>
+    <article class="ep">
+      <div class="ep-cab"><span class="verbo v-patch">PATCH</span><span class="ruta">/api/completar/:token/empresa</span><span class="llave">Token</span></div>
+      <div class="ep-cuerpo">
+        <p>Guarda la organización donde trabaja: <code>situacionLaboral</code>, <code>nit</code>, <code>razonSocial</code>, <code>direccion</code>, <code>telefono</code>, <code>departamentoSepId</code>, <code>municipioSepId</code>, <code>sectorEconomico</code>, <code>numeroTrabajadores</code>, <code>contactoNombre</code>, <code>contactoCargo</code> y <code>contactoCorreo</code>. <strong>Esta llamada cierra el enlace.</strong></p>
+        <p>El NIT va <strong>solo con dígitos</strong>, sin puntos ni guion. Y <strong>no le pidan el dígito de verificación a nadie</strong>: el campo se admite por compatibilidad pero <em>se ignora</em> — el servidor lo calcula con la fórmula de la DIAN.</p>
+      </div>
+    </article>
+    <article class="ep">
+      <div class="ep-cab"><span class="verbo v-post">POST</span><span class="ruta">/api/completar/:token/cerrar</span><span class="llave">Token</span></div>
+      <div class="ep-cuerpo">
+        <p>Termina sin llenar lo de la empresa. Marca el enlace como usado y, si a la persona ya no le falta nada suyo, la mueve de etapa. Devuelve <code>{cerrado: true, etapa}</code>.</p>
+      </div>
+    </article>
+  </div>
+</section>
+
+<section>
+  <h2>Reservas de empresa</h2>
+  <p class="intro">Otro camino distinto del de las personas: una organización aparta N cupos con su NIT. Probablemente no lo necesiten, pero está y es público.</p>
+  <div class="pila">
+    <article class="ep">
+      <div class="ep-cab"><span class="verbo v-post">POST</span><span class="ruta">/api/reservas</span><span class="llave">Público</span></div>
+      <div class="ep-cuerpo">
+        <p>Obligatorios: <code>ofertaId</code>, <code>nit</code>, <code>razonSocial</code>, <code>contactoNombre</code>, <code>contactoCorreo</code>, <code>cuposSolicitados</code> (1–500), y <code>aceptaTerminos</code> y <code>aceptaPoliticaDatos</code> en <code>true</code>.</p>
+        <p>Si pide más de lo que hay, la reserva <strong>se parte</strong>: se confirman los que caben y el resto queda en lista de espera, que avanza sola cuando alguien cancela. El contador no se puede sobrevender aunque varias empresas reserven a la vez.</p>
+      </div>
+    </article>
+    <article class="ep">
+      <div class="ep-cab"><span class="verbo v-get">GET</span><span class="ruta">/api/reservas?nit=</span><span class="llave">Público</span></div>
+      <div class="ep-cuerpo">
+        <p>Las reservas de una empresa y su total de cupos. <code>PATCH /api/reservas/:id</code> cambia la cantidad y <code>POST /api/reservas/:id/cancelar</code> la cancela; las dos piden el <code>nit</code> en el cuerpo.</p>
+      </div>
+    </article>
+    <article class="ep">
+      <div class="ep-cab"><span class="verbo v-get">GET</span><span class="ruta">/api/directorio/nit/:nit</span><span class="llave">Público</span></div>
+      <div class="ep-cuerpo">
+        <p>Busca en el directorio maestro qué organizaciones hay bajo ese NIT, para no hacerle deletrear la razón social a nadie. Devuelve <code>{nit, digitoVerificacion, digitoCuadra, instituciones[], agrupaVarias}</code>. Consulta exacta: no lista el directorio.</p>
+      </div>
+    </article>
+  </div>
+</section>
+
+<section>
+  <h2>Lo que pasa solo</h2>
+  <p class="intro">Los automatismos del sistema, para que sepan con qué se va a cruzar lo que ustedes manden. Ninguno se puede disparar desde fuera salvo por sus efectos.</p>
+  <div class="envoltura">
+    <table class="indice">
+      <thead><tr><th>Qué</th><th>Cuándo</th><th>Se configura</th></tr></thead>
+      <tbody>
+        <tr><td>Acuse de preinscripción por correo</td><td>Al registrarse alguien</td><td><strong>Desde el panel</strong> — es el disparador</td></tr>
+        <tr><td>Conversión automática de leads</td><td>Al entrar, y un barrido cada minuto</td><td>Por variable</td></tr>
+        <tr><td>Campañas de mailing</td><td>Las lanza una persona</td><td><strong>Desde el panel</strong> — segmento, ritmo y horario</td></tr>
+        <tr><td>Matrícula automática</td><td>Cada hora</td><td>En el código</td></tr>
+        <tr><td>«Datos completos» calculado</td><td>Al guardar datos</td><td>En el código</td></tr>
+        <tr><td>Promoción de la lista de espera</td><td>Al cancelar una reserva</td><td>En el código</td></tr>
+        <tr><td>Cierre de leads que esperaban</td><td>Al crearse la ficha</td><td>En el código</td></tr>
+        <tr><td>Validación de identidad contra el DNP</td><td>Al crear una ficha</td><td>Por variable</td></tr>
+        <tr><td>Búsqueda de empresa por NIT en el RUES</td><td>Al pedirlo</td><td>Por variable</td></tr>
+        <tr><td>Vigía de cupos</td><td>Periódico</td><td>En el código — <strong>sin canal de salida</strong></td></tr>
+        <tr><td>Olvido de conversaciones sin dueño</td><td>A los 60 días</td><td>En el código</td></tr>
+        <tr><td>Olvido de las visitas del embudo</td><td>A los 90 días</td><td>En el código</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section>
+  <h2>Reglas del dominio</h2>
+  <p class="intro">Decisiones ya tomadas y comprobadas en producción. El agente tiene que respetarlas o los datos no sirven para lo que existen.</p>
+  <div class="reglas">
+
+    <div class="regla">
+      <h3>La sede se deduce, no se elige</h3>
+      <p>El agente pregunta por el <strong>curso</strong> y por <strong>dónde vive</strong> la persona. Una oferta de tipo <code>DEPARTAMENTO</code> cubre a todo el departamento; una de tipo <code>CIUDAD</code> cubre solo a quien vive en esa ciudad — un presencial en Medellín no le sirve a alguien de Apartadó aunque los dos sean de Antioquia. Con varias que la cubran, gana la de más cupo libre.</p>
+    </div>
+
+    <div class="regla">
+      <h3>Sin cobertura no se inscribe, y hay que decirlo</h3>
+      <p>Si su departamento no aparece en <code>ubicaciones</code> para ese curso, no se la puede inscribir. Lo correcto es decírselo y agradecerle el interés, no asignarle una sede a la que no puede ir. <strong>Por la ruta de leads esto lo deduce el servidor; por la de preinscripción, no.</strong></p>
+    </div>
+
+    <div class="regla">
+      <h3>El documento es la identidad, y no se inventa</h3>
+      <p>Una persona es única por tipo y número de documento. La misma cédula en los dos convenios es <em>una</em> persona con dos participaciones. Si no da su documento, el lead entra igual y espera — <strong>lo que no puede es entrar con un número inventado</strong>, porque eso contamina la ficha de otra persona real.</p>
+    </div>
+
+    <div class="regla">
+      <h3>Un lead de WhatsApp no se convierte solo, y hay que saberlo antes de prometer</h3>
+      <p>Un lead que llega completo pasa solo a gestión. <strong>Los de WhatsApp no.</strong> Se quedan en la mesa de entrada hasta que un asesor los revise, y mandar <code>aceptaHabeasData: true</code> no lo cambia: ese campo solo manda en la dirección restrictiva.</p>
+      <p>El motivo es de producto: la constancia que este sistema guarda apunta a la <strong>versión exacta del texto</strong> que la persona aceptó, con el canal y la evidencia, y los canales que reconoce son cinco — formulario web, carga de empresa, verbal del asesor, correo y presencial. Ninguno es «agente automático».</p>
+      <p>Si se quiere que una autorización dada por chat valga, hay que <strong>diseñarla</strong>: el bot muestra el texto de la política —que ya puede leer del catálogo—, la persona acepta, y eso entra con un canal nuevo y la transcripción como evidencia. Es trabajo, no un campo.</p>
+    </div>
+
+    <div class="regla">
+      <h3>Departamento y municipio: por nombre en una puerta, por código en la otra</h3>
+      <p>En la <strong>preinscripción pública</strong> van por nombre, y un nombre que no casa se descarta en silencio. En el <strong>enlace de completado</strong> y por la puerta de <strong>leads</strong> van por código DANE (<code>5</code> Antioquia, <code>5001</code> Medellín, <code>11001</code> Bogotá), y ahí el par sí se valida.</p>
+    </div>
+
+    <div class="regla">
+      <h3>Mayores de edad, y un celular que sea un celular</h3>
+      <p>No se admiten menores de 18. El celular tiene que ser colombiano de diez dígitos empezando por 3: un <code>«no tiene»</code> escrito en la casilla deja a la persona sin forma de ser contactada y la saca del reporte. Un fijo no cruza contra nada.</p>
+    </div>
+
+    <div class="regla">
+      <h3>Aquí no hay negocios ni tickets</h3>
+      <p>Una persona avanza por una escalera de nueve etapas, con compuertas reales: entrar al aula exige datos completos, autorización viva y cupo; certificar exige el 80 % de lo obligatorio. <strong>Un «negocio» suyo es una participación en un curso, y un «ticket» es una nota.</strong> Mapear su modelo palabra por palabra describiría un CRM que no es este.</p>
+    </div>
+
+    <div class="regla">
+      <h3>Lo que el agente NO debe decir</h3>
+      <p>De cara al público, el sistema <strong>no menciona a la entidad que financia la formación ni el tipo de formación de forma directa</strong>. Es una decisión de producto, y la base de conocimiento del agente tiene que respetarla.</p>
+      <p>Y cuidado con «reserva»: los cupos son limitados, así que prometer un cupo garantizado genera una expectativa que no siempre se puede cumplir. El vocabulario correcto es <strong>preinscripción</strong> o registro de interés.</p>
+    </div>
+
+  </div>
+</section>
+
+<section>
+  <h2>Lo que habría que abrir</h2>
+  <p class="intro">Dicho de frente para que puedan estimar, en orden de valor.</p>
+  <div class="reglas">
+    <div class="aviso">
+      <h3>1 · Disparar plantillas de WhatsApp desde el CRM</h3>
+      <p>Sus puntos 1, 2 y 5, y <strong>la única pieza que va en la otra dirección</strong>: la llamada la haríamos nosotros a su API. No existe ninguna salida de WhatsApp en el sistema. Encaja como otro canal de la máquina de campañas que ya existe —mismo segmento, mismo ritmo—, no como un segundo motor.</p>
+    </div>
+    <div class="aviso">
+      <h3>2 · Avisos de salida</h3>
+      <p>El CRM recibe y no emite. Preguntar ya se puede —<code>GET /api/integraciones/persona</code>—, pero es el bot quien tiene que preguntar: si un flujo suyo tiene que reaccionar <em>en el momento</em> a «se inscribió» o «cambió de etapa», hoy no hay forma. Sirve mientras el agente consulte al empezar cada conversación; no sirve para disparar algo cuando el asesor mueve la ficha.</p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2>Lo que necesitamos de ustedes</h2>
+  <p class="intro">Para poder cerrar del otro lado. Lo preguntamos porque no encontramos documentación pública de su API ni de sus webhooks.</p>
+  <ul class="lista">
+    <li><strong>Su API y sus webhooks.</strong> Esquema, autenticación y límites. Si pueden llamar a una URL nuestra al terminar una conversación, el resto lo hacemos nosotros.</li>
+    <li><strong>Confirmación de lo de HubSpot.</strong> Entendemos que su integración nativa de CRM es con HubSpot y que, para un CRM que no lo es, todo pasa por el nodo «Consultar API». Si es así, dígannoslo con claridad: cambia el alcance de sus puntos 1, 3, 7, 9 y 10.</li>
+    <li><strong>Plantillas de WhatsApp.</strong> Sus guías dicen que las plantillas de mensaje todavía no están disponibles en el editor de flujos. ¿Con qué fecha? Es justo la pieza que hace falta para campañas.</li>
+    <li><strong>Su catálogo de plantillas y sus variables.</strong> De eso depende qué se puede montar del lado del CRM.</li>
+    <li><strong>Cómo consume el agente el catálogo.</strong> ¿Llama al JSON en vivo o hay que cargarle una base estática? Los cupos cambian todos los días, y un agente que ofrezca un curso lleno crea un problema en vez de resolverlo.</li>
+    <li><strong>Qué es «Nua Notetaker».</strong> Apareció en la reunión y no encontramos producto público con ese nombre.</li>
+  </ul>
+</section>
+
+<p class="pie">Verificado contra el código de la versión 0.9.1-JD el 23 de septiembre de 2026. Para pedir las llaves y las credenciales del entorno de pruebas, escriba a quien le compartió este documento.</p>
+
+</div>

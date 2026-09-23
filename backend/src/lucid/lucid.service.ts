@@ -5,11 +5,9 @@ import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { CanalContacto } from '../../generated/prisma';
 import { normalizarCelular } from '../comun/celular';
 import { PrismaService } from '../prisma/prisma.service';
+import { firmaDe, type Proveedor } from '../integraciones/proveedores';
 import { aQuienSePega, type Candidato } from './a-quien-se-pega';
 import type { NotaDeLucidDto } from './dto';
-
-/// Quien firma la nota. Se congela como cualquier otra.
-const AUTOR = 'Lucid (WhatsApp)';
 
 @Injectable()
 export class LucidService {
@@ -17,7 +15,7 @@ export class LucidService {
 
   constructor(private readonly prisma: PrismaService) {}
 
-  async entra(dto: NotaDeLucidDto, sistema: string, delHost: string | null) {
+  async entra(dto: NotaDeLucidDto, sistema: Proveedor, delHost: string | null) {
     /// El gremio lo AFIRMA la direccion. Si vienen los dos y no
     /// coinciden se rechaza: resolverlo en silencio es como una
     /// conversacion acaba en el historial del otro gremio, que
@@ -94,7 +92,11 @@ export class LucidService {
         participanteId: donde.destino.tipo === 'FICHA' ? donde.destino.id : null,
         leadId: donde.destino.tipo === 'LEAD' ? donde.destino.id : null,
         autorId: null,
-        autorNombre: AUTOR,
+        /// La firma sale del MISMO sitio que la llave. Estaba
+        /// escrita a fuego como «Lucid (WhatsApp)», asi que la
+        /// nota de otro proveedor quedaba firmada por Lucid --y
+        /// las notas no se borran: «una correccion es otra nota».
+        autorNombre: firmaDe(sistema),
         texto: dto.resumen,
         canales: [CanalContacto.WHATSAPP],
         /// SIN resultado, y no es un descuido. `gestionDe()`

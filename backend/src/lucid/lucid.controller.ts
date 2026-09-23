@@ -8,12 +8,23 @@
  * no hace gestion de leads; los leads siguen entrando por Meta.
  */
 
-import { Body, Controller, Headers, HttpCode, Post, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Headers,
+  HttpCode,
+  Post,
+  Req,
+  UseGuards,
+} from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 
 import { etiquetaDelHost } from '../admin/gremio-del-host';
+import {
+  LlaveDeProveedorGuard,
+  type PeticionConProveedor,
+} from '../integraciones/llave-de-proveedor.guard';
 import { NotaDeLucidDto } from './dto';
-import { LlaveDeLucidGuard } from './llave-de-lucid.guard';
 import { LucidService } from './lucid.service';
 
 /// Mismo techo que la puerta de leads y por lo mismo: por aqui
@@ -26,15 +37,21 @@ export class LucidController {
 
   /// 200 y no 201: se contesta lo mismo si es nueva y si ya
   /// habia llegado.
+  /// QUIEN LLAMA SALE DE LA LLAVE, no de una cabecera.
+  ///
+  /// Antes lo decia `x-origen-sistema`, que cae por defecto en
+  /// «lucid»: un segundo chatbot que no la mandara chocaba
+  /// contra el espacio de ids de Lucid y su conversacion se
+  /// contestaba «repetido» sin escribirse. El guard ya sabe de
+  /// quien es la llave; usar eso no se puede equivocar.
   @Post('notas')
-  @UseGuards(LlaveDeLucidGuard)
+  @UseGuards(LlaveDeProveedorGuard)
   @HttpCode(200)
   notas(
     @Body() dto: NotaDeLucidDto,
+    @Req() pedido: PeticionConProveedor,
     @Headers('host') host?: string,
-    @Headers('x-origen-sistema') origen?: string,
   ) {
-    const sistema = (origen ?? 'lucid').trim().slice(0, 80) || 'lucid';
-    return this.lucid.entra(dto, sistema, etiquetaDelHost(host));
+    return this.lucid.entra(dto, pedido.proveedor ?? 'lucid', etiquetaDelHost(host));
   }
 }

@@ -4232,8 +4232,9 @@ Nosotros la colgamos como **nota** de la persona, cruzando **por el
 teléfono**, que llega con `+57`. `backend/src/lucid/`.
 
 - **La llave NO tumba el arranque, y es deliberado.** `LUCID_WEBHOOK_SECRET`
-  en la cabecera `x-clave-lucid`. Sin ella `claveCorrecta` devuelve `false`
-  y la ruta contesta 401 a todo: **la seguridad es idéntica** a la de
+  en la cabecera `x-clave-lucid` —hoy también `x-clave-integracion`, ver la
+  sección de Nua—. Sin ninguna llave configurada la ruta contesta 401 a
+  todo: **la seguridad es idéntica** a la de
   leads, que también falla cerrado — lo que aquella añade es tumbar el
   arranque, y eso es ruido, no seguridad. Lo que cambia es el radio de
   daño: una llave de chatbot no puede tirar el formulario público ni, con
@@ -4286,6 +4287,84 @@ es el enganche.
 **Falta preguntarle a Mauricio** qué plantillas va a registrar y qué
 variables lleva cada una. De eso depende qué se ve en la pantalla del
 envío masivo.
+
+## Nua Talker, y la puerta de integraciones (23 sep 2026)
+
+Segundo chatbot de WhatsApp, de otro proveedor. Preguntaron dos cosas —la
+documentación de la API y **si el CRM tiene workflows**— y lo que hacía falta
+para que su agente entrara a trabajar eran dos piezas, que son las que están.
+
+`docs/api-para-nua.html` es el documento que se les entregó, verificado contra
+el código y **sin nada de leyes ni de dónde viven sus datos**: eso lo trata
+Josse, no el documento técnico.
+
+> **La respuesta a lo del workflow, para no volver a averiguarla:** no en el
+> sentido de HubSpot —no hay constructor de flujos ni forma de inscribir a
+> nadie en uno desde fuera—. Lo único con forma *suceso → condiciones →
+> acción* y **configurable desde el panel** son las plantillas de correo con
+> disparador, y su catálogo de sucesos tiene **uno solo**, «al preinscribirse».
+> Todo lo demás son automatismos escritos en el código.
+
+### Una llave por proveedor, y el proveedor SALE DE LA LLAVE
+
+`backend/src/integraciones/proveedores.ts`. Antes había una sola llave y quien
+llamaba decía quién era en `x-origen-sistema`, que caía por defecto en «lucid».
+Con un segundo chatbot eso rompía tres cosas, y la primera es la cara:
+
+- **Una conversación se perdía en silencio.** La idempotencia es
+  `(origenSistema, externoId)`: un id de Nua que coincidiera con uno de Lucid
+  se contestaba `repetido: true` y **la nota no se escribía**. Sin error, sin
+  reintento y sin rastro en los dos extremos.
+- **La nota quedaba firmada por el otro**, y las notas no se borran.
+- No se podía revocar a uno sin tumbar al otro, ni saber quién llamó.
+
+Derivándolo de la llave los tres se cierran a la vez y **ya no se puede
+equivocar**: sin llave no se entra, y con llave se sabe quién es. Añadir un
+tercero es una fila en `PROVEEDORES` y su variable.
+
+- **No se sale en el primer acierto**: se comparan todas las llaves
+  configuradas. Saliendo antes, el tiempo de respuesta diría cuántos
+  proveedores hay y en qué orden, que es justo lo que `timingSafeEqual` evita
+  una capa más abajo.
+- **`x-clave-lucid` se queda** porque Lucid lleva meses mandándola y cambiarla
+  sería cortarles el servicio. Son el **mismo** mecanismo con dos nombres, no
+  dos autenticaciones: por la vieja no se entra más fácil.
+- La firma que se lee en la ficha vive en el mismo registro que la llave. Con
+  el nombre del autor en un sitio y la llave en otro, vuelven a poder discrepar.
+
+### `GET /api/integraciones/persona`: reconocer a quien escribe
+
+Sus puntos 8 y 9. Dado un teléfono, dice si esa persona ya está y en qué va,
+para que el agente salude sabiendo con quién habla y **no la registre dos
+veces**. `integraciones.service.ts`.
+
+- **REUSA `aQuienSePega`**, la misma función que decide a quién se le cuelga
+  una conversación. Con un segundo cruce por teléfono, el bot saludaría a
+  alguien a quien la nota después no se le pega — dos verdades sobre la misma
+  pregunta.
+- **Siempre 200**, también cuando no es nadie. Un 404 la convertiría en un
+  oráculo de qué números están en la base.
+- **`AMBIGUO` no dice de quién es.** Se distingue de «no existe» porque el bot
+  tiene que pasar a una persona, pero sale **sin nombre, sin etapa y sin
+  `falta`**: saludar al equivocado es de la misma familia que meter un chat en
+  el expediente de un extraño.
+- **`falta` sale de `faltaDeLaPersona`**, la misma regla que pinta el panel, así
+  que el agente pregunta exactamente lo que preguntaría un asesor.
+- **A QUIEN REVOCÓ, `falta` VIENE VACÍA.** La lista existe para *pedir* esos
+  datos, y a quien pidió que no se usaran los suyos no se le piden más. Es el
+  candado que más importa de la ruta y su spec lo fija.
+- La autorización cuelga de **`Persona`** y no de la ficha: la misma cédula en
+  los dos gremios es una sola persona.
+- Solo lee, y **solo dentro del gremio** de la dirección.
+
+> **Lo que NO se abrió, y hay que decirlo:** no hay por dónde *escribir* datos
+> en una ficha que ya existe. El agente sabe qué falta y puede pedirlo, pero
+> guardarlo es hoy trabajo del asesor o del enlace de completado.
+
+> **`NUA_WEBHOOK_SECRET` hay que ponerla a mano en cada sede**, y añadir una
+> variable a `backend/.env` **recrea el contenedor `db`** en el siguiente
+> despliegue — ver el bloque de v0.9.0. No pierde datos, pero conviene saberlo
+> antes de correr `desplegar.sh`.
 
 ## El correo (26 ago 2026)
 
