@@ -375,6 +375,42 @@ riesgo de datos:
 5. Con una cuenta que **no** esté en `EDITORES_DE_MARCA`, entra a Apariencia: debe poder
    cambiar sus colores y **no** los logos ni la marca del gremio.
 
+### B8 bis · Los datos de prueba, ahora sí coherentes (no toca producción)
+
+El cliente se topó con esto y tenía razón: **Gestión de leads enseñaba 115 leads y Tráfico
+del formulario decía 50 aperturas y 5 registros**. No era un fallo del panel: las siembras
+crean personas directamente en el CRM --hace falta gente para probar leads, grupos y
+reportes-- pero el formulario público no se abre nunca, así que `pasos_de_visita` y
+`enlaces_completado` se quedaban casi vacías.
+
+Guion nuevo, **solo para pruebas**:
+
+```bash
+export ENTORNO=prueba
+pnpm db:sembrar-trafico
+```
+
+Por cada persona cuyo `origen` es de formulario --autogestión, redes, WhatsApp, correo,
+evento, referido-- escribe:
+
+- su visita completa por los diez peldaños, fechada en su propia ficha y con la procedencia
+  que corresponde a su campaña de entrada (mailing → correo; pauta → Meta, la mitad con
+  `fbclid`; reserva → reserva);
+- nueve visitas caídas por cada una que llegó al final, parándose en peldaños distintos, que
+  es lo que le da al embudo la forma que tiene en producción (12.243 aperturas contra 972
+  registros);
+- su enlace para completar datos, usado solo si la persona ya pasó de CONTACTADO.
+
+Lleva la guardia `soloEnPruebas`, así que **se niega a correr si la base no lleva «prueba» en
+el nombre o si `ENTORNO` no vale `prueba`**. Y es idempotente: el `visitaId` y el token se
+derivan del id de la persona, y los índices únicos descartan lo repetido.
+
+En la base local quedó así: 1.100 aperturas, 110 preinscripciones medidas, y la cadena del CRM
+en 102 personas del formulario, 51 con datos completos y 51 a medias. **En producción no hay
+que correr nada de esto**: allí los datos ya vienen del formulario de verdad.
+
+---
+
 ### B9 · Lo que quedó pendiente y es tuyo decidir
 
 1. **La palabra que reemplaza a «ficha»** en las pantallas de organizaciones (ver B3).
