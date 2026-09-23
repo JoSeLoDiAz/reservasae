@@ -640,11 +640,22 @@ export function PanelTrafico() {
                     vacio="Sin visitas en este periodo."
                   />
                 </Bloque>
-                <DespuesDePreinscribirse
-                  {...datos.despues}
-                  comparando={comparando}
-                  periodo={rotuloA}
-                />
+                {/* SIN EL BLOQUE DE «DATOS COMPLETOS». Estuvo aquí en
+                    tres formas --dos cifras grandes, tres tarjetas y una
+                    frase-- y las tres confundían por el mismo motivo:
+                    decían «completos y parciales» de un subconjunto
+                    --solo quien entró por el formulario en el periodo--
+                    mientras que la dona «Estado de los datos», en Control
+                    de inscritos, lo dice de TODOS los leads. Dos cifras
+                    parecidas para la misma pregunta, y una de ellas
+                    siempre más chica sin explicar por qué.
+
+                    «¿Por qué, si es así, no se utiliza este para que no
+                    confunda?» (cliente, 23 sep 2026). Queda la dona, que
+                    cuenta a todo el mundo, y esta pantalla se queda en lo
+                    suyo: el recorrido dentro del formulario, que acaba en
+                    «Se preinscribieron». Quién tiene los datos a medias se
+                    ve en Gestión de leads, con su columna y su filtro. */}
               </div>
 
               {/* LOS CORTES, AL FINAL: tres tarjetas en fila, como
@@ -770,95 +781,6 @@ function AvisoSinMarcar({
   );
 }
 
-/**
- * Los leads del periodo, seguidos.
- *
- * CON el periodo en el título. Se le había quitado porque ya lo
- * decía el Paso a paso, pero entre los dos queda el Día a día
- * «desde que arrancó el contador», y quien baja se queda con ese
- * rótulo. Sin «Cada ficha nueva recibe su enlace»: lo dice el
- * rótulo de la primera cifra.
- */
-function DespuesDePreinscribirse({
-  recibieron,
-  terminaron,
-  comparando,
-  periodo,
-}: {
-  recibieron: number;
-  terminaron: number;
-  comparando: boolean;
-  periodo: string;
-}) {
-  const hayTasa = recibieron >= MINIMO_PARA_TASA;
-  const parte = recibieron > 0 ? Math.min(terminaron / recibieron, 1) : 0;
-
-  /// REPLANTEADO, EN LOS TÉRMINOS DE QUIEN LO LEE.
-  ///
-  /// «Este necesita replantearse, la verdad yo no lo entiendo»
-  /// (cliente, 23 sep 2026). Y con razón: el título decía «Después de
-  /// preinscribirse» --después de eso pasan muchas cosas-- y los dos
-  /// renglones hablaban de «su enlace» y del «formulario de
-  /// completar», que son nombres de dentro del sistema. Nada decía lo
-  /// único que importa: cuánta gente entregó los datos que el SENA
-  /// pide, y cuánta se quedó a medio camino.
-  ///
-  /// Ahora son dos tarjetas iguales a las de arriba --rótulo, cifra,
-  /// pie corto-- y una tercera que es la que se persigue: los que
-  /// faltan. La palabra «ficha» no se usa: no es una ficha (decisión
-  /// del cliente, mismo día).
-  const faltan = Math.max(recibieron - terminaron, 0);
-
-  /// UNA FRASE, NO TRES TARJETAS.
-  ///
-  /// Este bloque va por el tercer intento. Primero fueron dos cifras
-  /// grandes con «recibieron su enlace al preinscribirse» y
-  /// «terminaron el formulario de completar» --nombres de dentro del
-  /// sistema--; después tres tarjetas, y el cliente: «quedé peor, lo
-  /// sigo sin entender» (23 sep 2026).
-  ///
-  /// El problema no era el formato: era que había que armar la resta
-  /// en la cabeza. Así que ahora lo dice una sola frase, con los tres
-  /// números en su sitio y en el orden en que se piensan: cuántos se
-  /// preinscribieron, cuántos ya completaron, cuántos faltan. Se lee
-  /// de corrido y no hay nada que interpretar.
-  return (
-    <Bloque titulo={`Datos completos · ${periodo}`} estirado>
-      <p className="text-[0.9375rem] leading-relaxed text-texto">
-        De las{" "}
-        <strong className="font-semibold text-titulo tabular-nums">{n(recibieron)}</strong>{" "}
-        personas que se preinscribieron,{" "}
-        <strong className="font-semibold text-exito tabular-nums">{n(terminaron)}</strong> ya
-        completaron sus datos
-        {hayTasa && ` (${Math.round(parte * 100)} %)`} y{" "}
-        <strong
-          className="font-semibold tabular-nums"
-          style={{ color: faltan > 0 ? "var(--aviso)" : "var(--exito)" }}
-        >
-          {n(faltan)}
-        </strong>{" "}
-        siguen pendientes.
-      </p>
-
-      {recibieron > 0 && (
-        <div
-          className="mt-3 h-2 overflow-hidden rounded-full bg-superficie-alterna"
-          role="img"
-          aria-label={`${n(terminaron)} de ${n(recibieron)} completaron sus datos`}
-        >
-          <div className="h-full rounded-full bg-exito" style={{ width: `${parte * 100}%` }} />
-        </div>
-      )}
-
-      <p className="mt-3 text-xs leading-relaxed text-texto-suave">
-        Al preinscribirse les llega un correo con el enlace para completar los datos que pide
-        el SENA. Quien ya estaba en Gestión de leads no recibe ese correo y no cuenta aquí. Si
-        alguien completa sus datos semanas después, cuenta igual.
-        {comparando && " Este bloque no se compara entre periodos."}
-      </p>
-    </Bloque>
-  );
-}
 
 /**
  * Cómo leer estas cifras: ARRIBA, pero CERRADO.
