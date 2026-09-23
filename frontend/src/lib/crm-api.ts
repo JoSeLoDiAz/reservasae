@@ -1246,6 +1246,24 @@ export type CandidatosDeGrupo = {
   candidatos: CandidatoDeGrupo[];
 };
 
+export type FilaDeAccion = {
+  accionFormacionId: string;
+  codigo: string;
+  nombre: string;
+  meta: number;
+  cuposReservados: number;
+  campanaDigital: number;
+  inscritosReservas: number;
+  inscritosCampana: number;
+  totalLeads: number;
+  totalInscritos: number;
+  /// Nulo cuando no hay leads de los que convertir: la pantalla pinta
+  /// una raya en vez del «#DIV/0!» de su hoja.
+  conversion: number | null;
+  cuposDisponibles: number;
+  estado: "ABIERTO" | "CERRADO";
+};
+
 export const crmApi = {
   /// Los datos de la empresa, desde la ficha del lead.
   ///
@@ -1300,6 +1318,10 @@ export const crmApi = {
   /// y media cifra respondia al filtro y media no.
   control: (ventana: FiltroVentana & Filtros = {}) =>
     pedir<Control>(`/admin/participantes/control${consulta(ventana)}`),
+
+  /// LA TABLA DEL COMITÉ: una fila por acción de formación. Es el
+  /// Excel que el cliente llevaba a mano (23 sep 2026).
+  resumenPorAccion: () => pedir<FilaDeAccion[]>(`/admin/participantes/resumen-por-accion`),
 
   tableroAcademico: (ventana: FiltroVentana = {}) =>
     pedir<TableroAcademico>(`/admin/participantes/academico/tablero${consulta(ventana)}`),

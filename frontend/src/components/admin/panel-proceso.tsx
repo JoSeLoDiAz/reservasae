@@ -45,6 +45,7 @@ import { Aviso } from "./marco-admin";
 /// 2026). Escribía 38,8 % y 80,6 % a 24 px medio metro por debajo
 /// del 39 % y el 81 % del embudo: la misma cifra con dos
 /// redondeos. El componente se queda en `graficos`.
+import { TablaPorAccion } from './tabla-por-accion';
 import { Donut, ListaBarras, n, SERIE, type PorcionDonut } from "./graficos";
 import { PendientesDeHoy, ReservasSinNombre } from "./pendientes-de-hoy";
 import { Bloque } from "./piezas";
@@ -2545,6 +2546,13 @@ export function PanelProceso({
             <Donut datos={donutModalidad} detalleCentro="personas" vacio="Sin modalidad registrada." />
           </Bloque>
         </div>
+
+        {/* ── LA TABLA DEL COMITÉ ──
+            Es el Excel que el cliente llevaba a mano, y va aquí --antes
+            de los cortes de siempre-- porque es lo que se mira primero
+            en el comité: cuántos cupos hay comprometidos y cuánto falta
+            para cerrar cada acción (cliente, 23 sep 2026). */}
+        <TablaPorAccion />
 
         {/* ── 6 · Dónde está cada quien y si sus datos sirven ── */}
         <div className="grid gap-4 min-[1000px]:grid-cols-2">

@@ -180,6 +180,12 @@ export class CrmController {
     return this.crm.resumen({ ...filtros, ambito: ambito.convenios });
   }
 
+  /** La tabla del comité: una fila por acción de formación. */
+  @Get('resumen-por-accion')
+  @Requiere('inscritos')
+  resumenPorAccion(@AmbitoActual() ambito: Ambito) {
+    return this.crm.resumenPorAccion(ambito);
+  }
   /** Cuantos inscritos hay y como se reparten. */
   @Get('control')
   @Requiere('inscritos')
