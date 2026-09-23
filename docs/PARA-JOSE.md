@@ -429,6 +429,77 @@ que correr nada de esto**: allí los datos ya vienen del formulario de verdad.
 
 ---
 
+## Parte C · Control de inscritos, reorganizado (23 sep 2026)
+
+El cliente rehízo esta pantalla entera. No es un retoque: cambió qué se mira, en qué orden y
+quién puede tocar qué. Va todo junto porque las piezas se apoyan unas en otras.
+
+### C1 · El asesor ya no asigna grupo
+
+Quien pone el grupo es **el analista** —el rol `LIDER_SISTEMAS`, que es el de Mauricio— y los
+`SUPERADMIN`. Un asesor de inscripciones puede llevar el lead hasta inscribirlo, pero no elige
+en qué grupo cae.
+
+Está cerrado en los **tres** caminos que escriben, no solo en el botón: el lote
+(`PATCH grupos/lote`, con guarda), guardar la ficha del lead y la inscripción desde el panel
+(los dos con `exigirQuienAsignaGrupo` en el servicio, cuando el DTO trae `coberturaId`). Cerrar
+solo la pantalla deja la puerta abierta a cualquiera que sepa la URL.
+
+La regla vive en `backend/src/crm/quien-asigna-grupo.ts` con sus pruebas. `/admin/yo` devuelve
+`puede.asignarGrupo`, y el frontend esconde «Asignar grupo por lote» con eso: **no** con una
+lista de roles escrita otra vez en el navegador.
+
+### C2 · Los siete gráficos que se fueron
+
+El cliente los mandó quitar uno por uno: *Embudo de inscripción*, *Qué atender primero*, *Por
+acción de formación*, *Por modalidad*, *Cupos apartados por empresas*, *Desglose por acción de
+formación* y *Cómo fue entrando la gente*.
+
+Dos de ellos —*Qué atender primero* y *Cupos apartados por empresas*— no se pintaban en
+`panel-proceso.tsx`: salían de `pendientes-de-hoy.tsx`. **Ese archivo quedó sin usar y no lo
+borré**: si alguno de los dos hace falta en otra pantalla, está entero y basta con volver a
+montarlo.
+
+### C3 · Los tres bloques nuevos
+
+1. **Resumen General** (arriba del todo). Siete tarjetas macro, una barra por acción de
+   formación: leads que entraron, datos completos, datos parciales, en proceso, sin ninguna
+   gestión, total inscritos, total no interesados.
+   `backend/src/crm/resumen-general.ts` + `frontend/src/components/admin/resumen-general.tsx`.
+2. **Cupos e inscritos por acción**: el Excel que el cliente llevaba a mano, ya dentro del CRM.
+3. **Grupos de AF*n*** (nuevo): se abre pulsando una fila de la tabla anterior y la repite
+   grupo por grupo. `backend/src/crm/resumen-por-grupo.ts`.
+
+**Lo que hay que saber antes de tocar las cuentas**, porque si no las sumas no cuadran:
+
+- «Datos completos + parciales» y «en proceso + sin gestión + inscritos + no interesados» son
+  **dos cortes distintos de la misma gente**. Los dos suman los leads que entraron.
+- **«Gestión»** no es `actualizadoEn`. El sistema escribe ahí solo —al calcular datos
+  completos, al asignar grupo por lote— y entonces «sin gestión» daría cero siempre. Es: una
+  nota de gestión, o un asesor que tocó los datos, o una etapa movida a mano.
+- En la tabla por **grupos**, la columna se llama «Nominados por la empresa» y **no** «Cupos
+  reservados». Una reserva se aparta sobre la oferta (acción + ciudad), no sobre un grupo: no
+  se puede repartir entre los grupos sin inventárselo. Por eso los grupos pueden sumar menos
+  que su acción.
+- El Resumen General y las dos tablas son **acumulados**: no dependen del periodo de la
+  cabecera, sí de los filtros. Lo dicen en su descripción, porque si no se compara con la tira
+  de arriba, que sí es del periodo, y parece que el panel miente.
+
+### C4 · Los filtros
+
+Acción de formación · **Grupo (colgado de la acción)** · Departamento · Asesores, más Gremios
+cuando la cuenta ve más de uno. Lo nuevo es lo del medio: elegida una acción, el desplegable de
+grupos solo ofrece los suyos, y si el grupo que estaba puesto no es de esa acción se cae solo.
+Antes se podía armar «AF3 + un grupo de AF7», que no devuelve a nadie y parece una avería.
+
+### C5 · Los dos gremios numeran desde AF1
+
+BRITCHAM y ADECOPRIA tienen los dos su AF1, su AF2 y su AF3. En las tarjetas del Resumen
+General la sigla se pega al código **solo cuando ese código sale dos veces**: ponerla siempre
+gasta media tarjeta cuando se está mirando un gremio, que es lo normal.
+
+---
+
 ### B9 · Lo que quedó pendiente y es tuyo decidir
 
 1. **Los 54 `<select>` nativos** que faltan (ver B5): dime si sigo por los formularios de
