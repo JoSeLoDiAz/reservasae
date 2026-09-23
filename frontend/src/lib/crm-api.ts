@@ -1306,6 +1306,31 @@ export type FilaDeGrupo = {
   estado: "ABIERTO" | "CERRADO";
 };
 
+/** El ritmo de un asesor contra su fecha. Lo calcula el servidor:
+    la regla vive en `seguimiento-de-asesores.ts` con sus pruebas. */
+export type RitmoDeAsesor = {
+  pendientes: number;
+  diasHabiles: number | null;
+  exigidoPorDia: number | null;
+  realPorDia: number | null;
+  estado: "AL_DIA" | "AJUSTADO" | "EN_RIESGO" | "VENCIDO" | "SIN_PLAZO" | "TERMINADO";
+};
+
+export type FilaDeAsesor = {
+  asesorId: string | null;
+  nombre: string;
+  carga: { total: number; resueltos: number; gestionados: number };
+  ritmo: RitmoDeAsesor;
+  antiguedadMedia: number | null;
+  limite: string | null;
+};
+
+export type FilaDeAsesorAcademico = FilaDeAsesor & {
+  grupos: number;
+  certificados: number;
+  conSeguimiento: number;
+};
+
 export const crmApi = {
   /// Los datos de la empresa, desde la ficha del lead.
   ///
@@ -1360,6 +1385,12 @@ export const crmApi = {
   /// y media cifra respondia al filtro y media no.
   control: (ventana: FiltroVentana & Filtros = {}) =>
     pedir<Control>(`/admin/participantes/control${consulta(ventana)}`),
+
+  /// EL TABLERO DE ASESORES, en sus dos subvistas.
+  asesoresDeInscripciones: () =>
+    pedir<FilaDeAsesor[]>(`/admin/participantes/asesores/inscripciones`),
+  asesoresAcademicos: () =>
+    pedir<FilaDeAsesorAcademico[]>(`/admin/participantes/asesores/academicos`),
 
   /// EL RESUMEN GENERAL: siete cifras macro por acción de formación.
   /// Toma los mismos cortes que el resto de la pantalla.

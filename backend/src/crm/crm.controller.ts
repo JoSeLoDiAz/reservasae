@@ -223,6 +223,24 @@ export class CrmController {
     return this.crm.resumenPorGrupo(ambito, accionFormacionId);
   }
 
+  /**
+   * El tablero de seguimiento de asesores, en sus dos subvistas.
+   *
+   * Dos rutas y no una con parametro: son dos preguntas distintas y
+   * el menu tiene que poder encender la que se esta mirando.
+   */
+  @Get('asesores/inscripciones')
+  @Requiere('inscritos')
+  asesoresDeInscripciones(@AmbitoActual() ambito: Ambito) {
+    return this.crm.asesoresDeInscripciones(ambito);
+  }
+
+  @Get('asesores/academicos')
+  @Requiere('academico')
+  asesoresAcademicos(@AmbitoActual() ambito: Ambito) {
+    return this.crm.asesoresAcademicos(ambito);
+  }
+
   /** Cuantos inscritos hay y como se reparten. */
   @Get('control')
   @Requiere('inscritos')

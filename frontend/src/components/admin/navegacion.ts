@@ -102,6 +102,17 @@ export const MODULOS: Modulo[] = [
         /// trabaja --el seguimiento del aula-- se queda en Académica.
         href: '/admin/participantes/academico/tablero',
         etiqueta: 'Seguimiento Académico',
+        exacto: true,
+        area: 'academico',
+      },
+      {
+        /// LAS DOS SUBVISTAS DE ASESORES (cliente, 23 sep 2026).
+        /// Aquí y no en `/admin/informes/asesores`, que ya es Comité
+        /// Marketing: dos cosas distintas con el mismo nombre en el
+        /// mismo menú es lo primero que confunde.
+        href: '/admin/participantes/academico/asesores',
+        etiqueta: 'Seguimiento de asesores',
+        exacto: true,
         area: 'academico',
       },
     ],
@@ -187,6 +198,17 @@ export const MODULOS: Modulo[] = [
       {
         href: '/admin/participantes/academico',
         etiqueta: 'Seguimiento del aula',
+        exacto: true,
+        area: 'academico',
+      },
+      {
+        /// EL MISMO TABLERO, TAMBIÉN AQUÍ. «No veo nada en Académica»
+        /// (cliente, 23 sep 2026): el módulo tenía un solo enlace, así
+        /// que ni siquiera desplegaba, y quien venía a mirar cómo van
+        /// sus asesores lo buscaba aquí y no en Tableros. Es el mismo
+        /// destino, no una copia.
+        href: '/admin/participantes/academico/asesores',
+        etiqueta: 'Seguimiento de asesores',
         exacto: true,
         area: 'academico',
       },
