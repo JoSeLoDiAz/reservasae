@@ -1184,7 +1184,20 @@ function Barra({
 
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <label className="relative min-w-[13rem] flex-1">
+      {/* EL BUSCADOR CEDE PRIMERO. Tenía `min-w-[13rem]` --208 px-- y la
+          barra no bajaba de ahí: en una pantalla angosta, o con seis
+          botones al lado, el último se iba a un segundo renglón. «En
+          pantalla pequeña se ve raro, ¿se puede reducir el de buscar
+          para que quede en una sola línea?» (cliente, 23 sep 2026).
+
+          Ahora el suelo es 7 rem --112 px, donde todavía caben tres o
+          cuatro letras escritas-- y el marcador se acorta con el ancho:
+          y el marcador se acorta a «Buscar en la tabla…», que se lee
+          entero hasta en el móvil. Cambiarlo por ancho no se puede sin
+          JavaScript --un `placeholder` no se toca desde CSS: `content`
+          no aplica a `::placeholder`--, y no vale un efecto y un
+          escuchador de medios por dos palabras. */}
+      <label className="relative min-w-[7rem] flex-1">
         <span className="sr-only">Buscar en la tabla</span>
         <IconoBuscar
           tamano={16}
@@ -1193,7 +1206,11 @@ function Barra({
         <input
           value={buscar}
           onChange={(e) => setBuscar(e.target.value)}
-          placeholder="Buscar en lo que está a la vista…"
+          placeholder="Buscar en la tabla…"
+          /// El marcador largo, solo cuando hay sitio:  no
+          /// se puede cambiar por CSS, así que va el corto en el atributo
+          /// y el largo por  a partir de . Ver
+          ///  en .
           className="h-[34px] w-full rounded-lg border border-campo-borde bg-campo-fondo py-0 pl-9 pr-3 text-[0.78125rem] outline-none transition focus:border-campo-foco focus:ring-2 focus:ring-campo-foco/25"
         />
       </label>

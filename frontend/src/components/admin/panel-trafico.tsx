@@ -684,7 +684,7 @@ export function PanelTrafico() {
                     etiqueta="Entraron por el formulario"
                     valor={datos.despues.recibieron}
                     color="var(--titulo)"
-                    pie="personas nuevas, con su enlace enviado"
+                    pie="con enlace de completado enviado"
                   />
                   <Resumen
                     etiqueta="Pasaron a datos completos"
@@ -693,18 +693,22 @@ export function PanelTrafico() {
                     pie={
                       datos.despues.recibieron >= MINIMO_PARA_TASA
                         ? `${porcentaje(datos.despues.terminaron, datos.despues.recibieron)} de las que entraron`
-                        : "abrieron el enlace y lo diligenciaron"
+                        : "diligenciaron el formulario de completado"
                     }
                   />
                   <Resumen
-                    etiqueta="Siguen a medias"
+                    /// En el idioma del panel, no en el de la calle:
+                    /// «siguen a medias / hay que perseguirlas» era una
+                    /// nota interna --«recuerda un lenguaje profesional»,
+                    /// cliente, 23 sep 2026--.
+                    etiqueta="Datos incompletos"
                     valor={Math.max(datos.despues.recibieron - datos.despues.terminaron, 0)}
                     color={
                       datos.despues.recibieron - datos.despues.terminaron > 0
                         ? "var(--aviso)"
                         : "var(--exito)"
                     }
-                    pie="hay que perseguirlas"
+                    pie="pendientes de seguimiento"
                   />
                 </div>
 
