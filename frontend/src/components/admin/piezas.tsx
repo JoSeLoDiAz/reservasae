@@ -50,18 +50,22 @@ export function Cifra({
   return (
     <div
       className={
-        "min-w-[150px] flex-1 rounded-lg border border-borde bg-superficie px-3.5 py-2 transition " +
+        /// Apretadas: cada píxel de alto que se ahorran aquí es una fila
+        /// más de tabla, que es lo que se vino a mirar. Bajan de 61 px a
+        /// 50 sin perder nada --las del embudo de Gestión de leads ya
+        /// iban así--.
+        "min-w-[150px] flex-1 rounded-lg border border-borde bg-superficie px-3.5 py-1.5 transition " +
         "hover:border-marca/40 hover:shadow-[0_2px_14px_-6px_rgba(15,23,42,0.28)]"
       }
     >
       <div className="truncate leading-none text-texto-suave" style={{ fontSize: "0.6875rem" }} title={etiqueta}>
         {etiqueta}
       </div>
-      <div className="mt-1 font-bold leading-none tabular-nums" style={{ fontSize: "1.0625rem", color }}>
+      <div className="mt-0.5 font-bold leading-none tabular-nums" style={{ fontSize: "1.0625rem", color }}>
         {valor}
       </div>
       {pie && (
-        <div className="mt-1 truncate leading-none text-texto-suave" style={{ fontSize: "0.6875rem" }}>
+        <div className="mt-0.5 truncate leading-none text-texto-suave" style={{ fontSize: "0.6875rem" }}>
           {pie}
         </div>
       )}
@@ -304,11 +308,44 @@ export function Pildora({
   );
 }
 
+/**
+ * La salida de una pantalla de segundo nivel, con pinta de botón.
+ *
+ * «De otro color, no sé, algo que sepa que es un botón de regresar»
+ * (cliente, 23 sep 2026): en gris y sin caja parecía un rótulo más.
+ * Píldora, color de marca y una punta de flecha dibujada --no el
+ * carácter «←», que sale de otra familia y se ve torcido--.
+ */
+export function BotonVolver({ href, texto }: { href: string; texto: string }) {
+  return (
+    <Link
+      href={href}
+      className="inline-flex items-center gap-1.5 rounded-full border border-marca/30 bg-marca-suave py-1 pr-3 pl-2 text-[0.75rem] leading-none font-medium text-marca transition hover:border-marca hover:brightness-[0.97]"
+    >
+      <svg
+        viewBox="0 0 16 16"
+        width="12"
+        height="12"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        aria-hidden="true"
+      >
+        <path d="M10 3 5 8l5 5" />
+      </svg>
+      Volver a {texto}
+    </Link>
+  );
+}
+
 /** Encabezado de pantalla: título, apoyo y acciones. */
 export function Encabezado({
   titulo,
   descripcion,
   descripcionAncha,
+  compacto,
   children,
 }: {
   titulo: string;
@@ -324,6 +361,16 @@ export function Encabezado({
    * pide pantalla por pantalla, no se cambia para todas.
    */
   descripcionAncha?: boolean;
+  /**
+   * Menos alta: para pantallas donde la cabecera solo lleva el título.
+   *
+   * Con descripción los 26/22 px de relleno están bien --hay dos
+   * renglones que respirar--, pero con solo el título eran 80 px de
+   * banda para 21 de letra: «¿por qué no reduces de alto [...] porque
+   * pues es espacio que se gana?» (cliente, 23 sep 2026). Se pide
+   * pantalla por pantalla, no se cambia para todas.
+   */
+  compacto?: boolean;
   children?: React.ReactNode;
 }) {
   return (
@@ -340,7 +387,12 @@ export function Encabezado({
     /// 2026). Las bandas iban a sangre y con raya abajo; ahora
     /// llevan las cuatro esquinas redondeadas, y para eso tienen
     /// que separarse del canto: de ahí el `mx-3`.
-    <header className="mx-4 mb-3 flex flex-wrap items-start justify-between gap-4 rounded-2xl border border-borde bg-superficie px-7 pt-[26px] pb-[22px]">
+    <header
+      className={
+        "mx-4 mb-2 flex flex-wrap items-start justify-between gap-4 rounded-2xl border border-borde bg-superficie px-7 " +
+        (compacto ? "pt-[13px] pb-[11px]" : "pt-[26px] pb-[22px]")
+      }
+    >
       <div className="min-w-0">
         <h1 className="text-[1.3125rem] font-bold tracking-[-0.02em] text-titulo">
           {titulo}
@@ -356,7 +408,13 @@ export function Encabezado({
           </p>
         )}
       </div>
-      {children && <div className="flex shrink-0 flex-wrap gap-2">{children}</div>}
+      {/* SE ENCOGE, NO SE SALE. Llevaba `shrink-0`, y con la pantalla
+          partida --770 px, media pantalla-- las cuatro píldoras de pasos
+          pedían más de lo que había y se salían por el canto derecho del
+          recuadro: «mira cómo se ve de fatal» (cliente, 23 sep 2026).
+          Con `min-w-0` el bloque cede y su `flex-wrap` reparte en dos
+          renglones, que es lo que ya hacía en el móvil. */}
+      {children && <div className="flex min-w-0 flex-wrap gap-2">{children}</div>}
     </header>
   );
 }

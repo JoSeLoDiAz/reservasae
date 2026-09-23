@@ -64,6 +64,10 @@ export function Desplegable({
   const [marcada, setMarcada] = useState(0);
   const caja = useRef<HTMLDivElement>(null);
   const lista = useRef<HTMLUListElement>(null);
+  /// De qué lado y hacia dónde se abre la lista. Ver el efecto que los
+  /// mide más abajo.
+  const [lado, setLado] = useState<"izq" | "der">("izq");
+  const [arriba, setArriba] = useState(false);
   const tecleo = useRef({ texto: "", cuando: 0 });
   const propio = useId();
   const idLista = `${id ?? propio}-lista`;
@@ -84,6 +88,42 @@ export function Desplegable({
       ?.querySelector<HTMLElement>(`[data-i="${marcada}"]`)
       ?.scrollIntoView({ block: "nearest" });
   }, [abierto, marcada]);
+
+  /// DE QUÉ LADO SE ABRE, MEDIDO.
+  ///
+  /// La lista nace pegada al canto izquierdo del disparador y crece a
+  /// la derecha lo que pida su opción más larga. En un filtro que vive
+  /// al final de una barra eso la manda fuera de la ventana: medido el
+  /// 23 sep 2026 en Mesa de entrada, el filtro de estado abría hasta
+  /// 1.601 px en una ventana de 1.600 --«revisa las superposiciones»--,
+  /// y encima el `<main>` scrollea, así que lo que sobresale se recorta
+  /// en vez de asomar.
+  ///
+  /// Así que se mide después de pintar y, si no cabe, se cambia de
+  /// lado; y si tampoco cabe abajo, se abre hacia arriba. No se calcula
+  /// a mano el ancho: la lista ya está en el DOM y lo dice ella.
+  /// Se decide con el ANCHO y el ALTO de la lista, no con dónde está
+  /// pintada ahora: si se mirara su borde derecho, una lista ya volteada
+  /// mediría bien --porque está volteada-- y se devolvería al lado malo
+  /// en la siguiente apertura, alternando sola.
+  useLayoutEffect(() => {
+    if (!abierto) return;
+    const l = lista.current?.getBoundingClientRect();
+    const d = caja.current?.getBoundingClientRect();
+    if (!l || !d) return;
+    const margen = 8;
+    const noCabeALaDerecha = d.left + l.width > window.innerWidth - margen;
+    const cabeALaIzquierda = d.right - l.width > margen;
+    const noCabeAbajo = d.bottom + 4 + l.height > window.innerHeight - margen;
+    /// Hacia arriba solo si arriba hay MÁS sitio que abajo: si no, se
+    /// queda abajo y la propia lista scrollea, que es mejor que abrirse
+    /// hacia un hueco igual de corto.
+    const hayMasSitioArriba = d.top > window.innerHeight - d.bottom;
+    /// Se mide después de pintar: es la única forma de saber cuánto
+    /// pide la lista.
+    setLado(noCabeALaDerecha && cabeALaIzquierda ? "der" : "izq");
+    setArriba(noCabeAbajo && hayMasSitioArriba);
+  }, [abierto, opciones]);
 
   useEffect(() => {
     if (!abierto) return;
@@ -231,8 +271,9 @@ export function Desplegable({
             /// arranca en el borde izquierdo y crece lo que
             /// necesite, con tope para que no se vaya de la
             /// pantalla.
-            "caja-scroll absolute top-[calc(100%+4px)] left-0 z-50 max-h-72 w-max min-w-full " +
-            "max-w-[24rem] overflow-auto " +
+            "caja-scroll absolute z-50 max-h-72 w-max min-w-full max-w-[24rem] overflow-auto " +
+            (arriba ? "bottom-[calc(100%+4px)] " : "top-[calc(100%+4px)] ") +
+            (lado === "der" ? "right-0 " : "left-0 ") +
             "rounded-lg border border-borde bg-superficie py-1 " +
             "shadow-[0_10px_30px_-10px_rgba(15,23,42,0.28)]"
           }

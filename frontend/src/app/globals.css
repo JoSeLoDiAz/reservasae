@@ -1514,11 +1514,20 @@ select[size]:not([size='1']) {
   color: var(--tabla-cabecera-texto);
   text-align: left;
   font-weight: 600;
-  /* 10,5px del redisenio, en rem para que siga creciendo con
-     el ajuste de texto del panel. Antes iba al mismo cuerpo
-     que las filas; ahora la cabecera es rotulo y la fila es
-     dato, y se distinguen por tamano ademas de por peso. */
-  font-size: 0.65625rem;
+  /* 12px, en rem para que siga creciendo con el ajuste de texto
+     del panel.
+
+     Estuvo en 10,5 --el rotulo mas pequeno que la fila, para
+     distinguirlos por tamano ademas de por peso-- y el cliente lo
+     paro: «no hay uniformidad de tamanos de letra? [...] si veo la
+     tabla es super pequena la letra vs la de afuera» (23 sep 2026).
+     Y tenia razon en la cuenta: fuera de la tabla todo va a 12,5
+     --el buscador, los desplegables, los rotulos-- y la cabecera se
+     quedaba dos puntos y medio por debajo.
+
+     A 12 sigue leyendose como rotulo --va en versalita, con
+     interletraje y en 600-- pero ya no se cae de la pagina. */
+  font-size: 0.75rem;
   letter-spacing: 0.06em;
   text-transform: uppercase;
   padding: 0.625rem 0.875rem;

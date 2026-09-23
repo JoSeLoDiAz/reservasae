@@ -16,5 +16,5 @@ import { redirect } from "next/navigation";
  * la pegó en un chat.
  */
 export default function TraficoMudado() {
-  redirect("/admin/control?pantalla=trafico");
+  redirect("/admin/informes/trafico");
 }

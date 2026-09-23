@@ -212,7 +212,7 @@ export default function PaginaParticipantes() {
   /// bandas vayan a sangre, y sin esto la barra de
   /// busqueda y la paginacion quedaban pegadas al canto.
   return (
-    <div className="flex min-h-0 grow flex-col gap-4 px-4 pt-4">
+    <div className="flex min-h-0 grow flex-col gap-3 px-4 pt-3">
       {error && <Aviso tipo="error">{error}</Aviso>}
 
       {/* El embudo.
@@ -403,6 +403,19 @@ function ListaParticipantes({
         /// se empieza el dia y merecen verse.
         acciones={
           <>
+            {/* LAS DOS QUE SALIERON DEL MENÚ (cliente, 23 sep 2026):
+                son acciones sobre esta lista, no sitios a los que uno
+                va. Aquí, con su nombre completo, para que nadie tenga
+                que acordarse de la dirección. */}
+            <Link href="/admin/inscritos" className={CLASE_BOTON_SECUNDARIO}>
+              Inscritos por acción
+            </Link>
+            <Link
+              href="/admin/participantes/grupos"
+              className={CLASE_BOTON_SECUNDARIO}
+            >
+              Asignar grupo por lote
+            </Link>
             <Link
               href="/admin/participantes/carga"
               className={CLASE_BOTON_SECUNDARIO}

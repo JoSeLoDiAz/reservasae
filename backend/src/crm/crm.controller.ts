@@ -26,10 +26,11 @@ import {
 import { PreinscripcionService } from '../preinscripcion/preinscripcion.service';
 import { IpReal } from '../comun/ip-real';
 import {
-  libroDePlantilla,
   MAXIMO_ARCHIVO_CARGA,
+  organizacionDelArchivo,
   textoDelArchivo,
 } from './carga-archivo';
+import { libroDePlantilla } from './plantilla-de-carga';
 import { enviarLibro } from '../tableros/exportar';
 import { CrmService } from './crm.service';
 import { AsignarGrupo } from './asignar-grupo.service';
@@ -326,10 +327,23 @@ export class CrmController {
     return this.crm.previsualizarCarga(dto, ambito.convenios);
   }
 
+  /// LA PLANTILLA SALE DEL CONVENIO ELEGIDO: sus listas traen las
+  /// acciones de ese convenio y los departamentos donde se dicta cada
+  /// una. Una plantilla igual para los dos gremios ofrecería a una
+  /// organización cursos que no son suyos.
   @Get('carga/plantilla')
   @Requiere('inscripciones', 'ESCRIBIR')
-  async plantillaDeCarga(@Res() res: Response) {
-    enviarLibro(res, await libroDePlantilla(), 'plantilla-participantes');
+  async plantillaDeCarga(
+    @Res() res: Response,
+    @AmbitoActual() ambito: Ambito,
+    @Query('convenioId') convenioId?: string,
+  ) {
+    const elegido = convenioId ?? ambito.convenios[0];
+    if (!elegido) {
+      throw new BadRequestException('Elija el convenio antes de descargar la plantilla.');
+    }
+    const datos = await this.crm.datosDePlantillaDeCarga(elegido, ambito.convenios);
+    enviarLibro(res, await libroDePlantilla(datos), 'plantilla-participantes');
   }
 
   @Post('carga/archivo')
@@ -371,7 +385,12 @@ export class CrmController {
       );
     }
 
-    return { texto, filas: texto.split('\n').length };
+    /// La hoja «Organización», si viene llena. Que no se pueda leer no
+    /// tumba la carga: las filas ya se leyeron, y la organización se
+    /// puede escribir a mano en la pantalla.
+    const organizacion = await organizacionDelArchivo(archivo.buffer, nombre).catch(() => null);
+
+    return { texto, filas: texto.split('\n').length, organizacion };
   }
 
   @Get('carga/historico')

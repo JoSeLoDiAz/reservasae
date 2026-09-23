@@ -145,7 +145,7 @@ export function PendientesDeHoy({ control }: { control: Control | null }) {
       /// rodeo, que además costaba una vuelta al servidor y un
       /// parpadeo. `/admin/trafico` se queda para los enlaces
       /// viejos guardados.
-      a: "/admin/control?pantalla=trafico",
+      a: "/admin/informes/trafico",
       unidad: " %",
       /// CON SU BASE. Un «39 %» sin decir de cuántos no se puede
       /// creer ni repetir en una reunión: con 5 personas y 2

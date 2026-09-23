@@ -30,6 +30,12 @@ import {
   CrearAdminDto,
 } from './dto';
 import { generarClaveTemporal, hashearClave, verificarClave } from './claves';
+import {
+  AJUSTES_POR_DEFECTO,
+  type AjustesDePantalla,
+  conAjustes,
+  leerAjustesDePantalla,
+} from './ajustes-de-pantalla';
 import { conColores, leerTemaPropio, sinEsquema, type TemaPropio } from './tema-propio';
 import { fusionarColores, tokensSobreescritos } from './apariencia';
 import {
@@ -587,6 +593,43 @@ export class AdminService {
     return nuevo;
   }
 
+  /**
+   * SUS AJUSTES DE PANTALLA. Ver `ajustes-de-pantalla.ts`.
+   *
+   * El navegador guarda su copia --es la que pinta el tamaño antes de
+   * que React monte-- y esto es la fuente que manda: al entrar desde
+   * otro equipo, la escala viaja con la cuenta.
+   */
+  /// NULO SI NUNCA GUARDÓ NADA, y la diferencia importa: si esto
+  /// devolviera el 100 % por omisión, la primera visita después de
+  /// este cambio le borraría a quien ya tenía el 110 % en su
+  /// navegador --el panel lo tomaría por «su cuenta dice 100»--. Con
+  /// nulo, el panel sube lo que tenía en el equipo.
+  async misAjustesDePantalla(admin: Admin): Promise<AjustesDePantalla | null> {
+    const fila = await this.prisma.admin.findUnique({
+      where: { id: admin.id },
+      select: { ajustesDePantalla: true },
+    });
+    if (fila?.ajustesDePantalla == null) return null;
+    return leerAjustesDePantalla(fila.ajustesDePantalla);
+  }
+
+  /// Guarda en SU cuenta, y solo lo que mandó: los demás campos se
+  /// quedan como estaban.
+  async guardarMisAjustesDePantalla(
+    admin: Admin,
+    cambios: Partial<AjustesDePantalla>,
+  ): Promise<AjustesDePantalla> {
+    const nuevo = conAjustes(
+      (await this.misAjustesDePantalla(admin)) ?? AJUSTES_POR_DEFECTO,
+      cambios,
+    );
+    await this.prisma.admin.update({
+      where: { id: admin.id },
+      data: { ajustesDePantalla: nuevo as unknown as Prisma.InputJsonValue },
+    });
+    return nuevo;
+  }
   /** Restablece los colores iniciales. */
   async restablecerTema(admin: Admin, esquema: EsquemaColor) {
     await this.prisma.tema.update({

@@ -87,7 +87,9 @@ export const ContextoRecorteDeControl = createContext<Filtros | null>(null);
  * que aquí no aplican.
  */
 export function enlaceAlInforme(cortes: Filtros | null | undefined): string {
-  const p = new URLSearchParams({ pantalla: "reservas" });
+  /// Sin `pantalla`: el informe de reservas tiene su propia ruta desde
+  /// el 22 sep 2026, y la dirección ya dice cuál es.
+  const p = new URLSearchParams();
   if (cortes?.convenioId) p.set("convenioId", cortes.convenioId);
   if (cortes?.accionFormacionId) p.set("accionFormacionId", cortes.accionFormacionId);
   const ignorados = [
@@ -96,7 +98,7 @@ export function enlaceAlInforme(cortes: Filtros | null | undefined): string {
     cortes?.departamentoSepId != null ? "departamento" : null,
   ].filter((x): x is string => x !== null);
   if (ignorados.length) p.set("ignorados", ignorados.join(","));
-  return `/admin/control?${p.toString()}`;
+  return `/admin/informes/reservas?${p.toString()}`;
 }
 
 /* ═══════════════════════════════════════════════════════════════
@@ -1135,13 +1137,17 @@ function Graficas({ informe, filtros }: { informe: InformeReservas; filtros: Fil
   /// repartiría el alto en vez del ancho.
   const cadaUna = `min-w-0 lg:flex-1 ${apiladasEnPapel ? "print:flex-none" : "print:flex-1"}`;
   return (
-    /// `items-start`: cada tarjeta con su alto. Estiradas a la par, la
-    /// de columnas copiaba el alto de la lista y quedaba con un 45 % en
-    /// blanco --868 px al pulsar «Ver las otras»--. El alto parejo con
-    /// las ocho barras lo pone el alto ancho de ALTO_COLUMNAS, no el
-    /// estirón.
+    /// LAS DOS DEL MISMO ALTO, Y LA DE SEMANAS CRECE CON LA OTRA. «Si en
+    /// Cupos sin nombre se ven los que faltan, que se alargue Cupos
+    /// apartados por semana y se reduzca cuando se cierre» (cliente, 22
+    /// sep 2026). Antes iban con `items-start` porque, estiradas, la de
+    /// columnas copiaba el alto de la lista y quedaba con un 45 % en
+    /// blanco --868 px al pulsar «Ver las otras»--. Ahora lo que se
+    /// estira es la ZONA DE LAS COLUMNAS (`flex-1` en ALTO_COLUMNAS): el
+    /// alto de más se lo llevan las barras y no un hueco. En papel sigue
+    /// cada una con su alto, porque allí sale todo abierto.
     <div
-      className={`flex flex-col gap-3 lg:flex-row lg:items-start ${
+      className={`flex flex-col gap-3 lg:flex-row lg:items-stretch ${
         apiladasEnPapel ? "print:flex-col print:items-stretch" : "print:flex-row print:items-start"
       }`}
     >
@@ -1284,7 +1290,8 @@ function semanasDelInforme(informe: InformeReservas, filtros: FiltrosInformeRese
  * Van como clases y no como número porque el alto lo decide el ancho
  * de la ventana; las columnas se miden en % de él.
  */
-const ALTO_COLUMNAS = "h-[140px] lg:h-[321px] print:h-[140px]";
+const ALTO_COLUMNAS =
+  "h-[140px] lg:h-auto lg:min-h-[321px] lg:flex-1 print:h-[140px] print:min-h-0 print:flex-none";
 const ALTO_CIFRA = 18;
 /** Lo que ocupa un rótulo como «14 de sept» a 10 px, con aire. */
 const ANCHO_ROTULO = 52;
@@ -1456,7 +1463,7 @@ function CuposPorSemana({ informe, filtros }: { informe: InformeReservas; filtro
       {semanas.length === 0 ? (
         <p className="py-4 text-[0.8125rem] text-texto-suave">Todavía no hay reservas que mostrar.</p>
       ) : (
-        <div className="@container">
+        <div className="@container lg:flex lg:h-full lg:flex-col print:block">
           {/* La caja que se desplaza invade el relleno del bloque
               (`-mx-7 px-7`, el mismo px-7 de `Bloque`): el rótulo de
               la primera columna y el «en curso» de la última sobresalen
@@ -1467,10 +1474,10 @@ function CuposPorSemana({ informe, filtros }: { informe: InformeReservas; filtro
             ref={caja}
             role="img"
             aria-label={`Cupos apartados por semana: ${semanas.map((s) => `semana del ${diaCorto(s.lunes)}, ${n(s.cupos)}${s.enCurso ? " (en curso)" : ""}`).join("; ")}.`}
-            className="-mx-7 overflow-x-auto px-7 print:overflow-visible"
+            className="-mx-7 overflow-x-auto px-7 lg:flex lg:flex-1 lg:flex-col print:block print:overflow-visible"
           >
             <div
-              className="min-w-(--ancho-minimo) print:min-w-0"
+              className="min-w-(--ancho-minimo) lg:flex lg:flex-1 lg:flex-col print:block print:min-w-0"
               style={{ "--ancho-minimo": `${semanas.length * pasoMin}px` } as React.CSSProperties}
             >
               {/* `--alto-cifra`: lo que la zona guarda encima de la columna

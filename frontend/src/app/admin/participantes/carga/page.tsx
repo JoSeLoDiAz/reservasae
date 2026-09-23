@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
@@ -21,11 +20,15 @@ import {
   type OpcionOferta,
 } from "@/lib/crm-api";
 import { Desplegable } from "@/components/admin/desplegable";
+import { BotonVolver } from "@/components/admin/piezas";
 
 type Estado = "NUEVA" | "PERSONA_CONOCIDA" | "REPETIDA" | "DESCARTADA";
 
 type FilaPrevia = {
   linea: number;
+  /// La acción y el grupo que le tocan por lo que dice su fila.
+  accionEtiqueta?: string | null;
+  grupo?: string | null;
   tipoDocumentoSepId: number;
   sigla: string;
   numeroDocumento: string;
@@ -37,6 +40,45 @@ type FilaPrevia = {
   estado: Estado;
 };
 
+/// Los datos de la organización, como se escriben (y como vienen de la
+/// hoja «Organización» del archivo).
+type DatosOrganizacion = {
+  nit: string;
+  razonSocial: string;
+  jefeNombre: string;
+  jefeCargo: string;
+  jefeCorreo: string;
+};
+
+const ORGANIZACION_VACIA: DatosOrganizacion = {
+  nit: "",
+  razonSocial: "",
+  jefeNombre: "",
+  jefeCargo: "",
+  jefeCorreo: "",
+};
+
+/// Lo que el servidor contesta de la organización al validar.
+type OrganizacionPrevia = {
+  nit: string;
+  digitoVerificacion: string | null;
+  razonSocial: string;
+  existe: boolean;
+  jefeNombre: string | null;
+  jefeCargo: string | null;
+  jefeCorreo: string | null;
+  problemas: string[];
+  avisos: string[];
+  /// Una por grupo: la lista puede traer gente de varias acciones.
+  reservas: Array<{
+    grupo: string;
+    cupos: number;
+    enEspera: number;
+    personasYaVinculadas: number;
+  }>;
+  sinReservaPorque: "SIN_ACCION" | "ORGANIZACION_NUEVA" | "NO_RESERVO_AQUI" | null;
+};
+
 type Previa = {
   total: number;
   creables: number;
@@ -44,6 +86,7 @@ type Previa = {
   repetidas: number;
   conocidas: number;
   filas: FilaPrevia[];
+  organizacion?: OrganizacionPrevia | null;
 };
 
 const ETIQUETA_ESTADO: Record<Estado, string> = {
@@ -71,7 +114,23 @@ export default function PaginaCarga() {
   const [historico, setHistorico] = useState<CargaDelHistorico[] | null>(null);
   const [falloHistorico, setFalloHistorico] = useState<string | null>(null);
   const [encima, setEncima] = useState(false);
+  /// Si toda la lista es de una organización --por ejemplo, la de su
+  /// reserva de cupos--. «Debe tener la opción de si es una importación
+  /// de una reserva de cupos, porque masivamente se deben colocar los
+  /// datos de la empresa» (cliente, 22 sep 2026).
+  const [deOrganizacion, setDeOrganizacion] = useState(false);
+  const [organizacion, setOrganizacion] = useState<DatosOrganizacion>(ORGANIZACION_VACIA);
   const selector = useRef<HTMLInputElement>(null);
+
+  const faltaOrganizacion =
+    deOrganizacion && (!organizacion.nit.trim() || !organizacion.razonSocial.trim());
+  /// Lo que viaja al servidor: nada si la carga no es de una organización.
+  const cuerpoDeOrganizacion = deOrganizacion ? { organizacion } : {};
+
+  function cambiarOrganizacion(campo: keyof DatosOrganizacion, valor: string) {
+    setOrganizacion((o) => ({ ...o, [campo]: valor }));
+    setPrevia(null);
+  }
 
   useEffect(() => {
     void adminApi
@@ -136,11 +195,19 @@ export default function PaginaCarga() {
     await conError(async () => {
       const cuerpo = new FormData();
       cuerpo.append("archivo", f);
-      const d = await pedir<{ texto?: string; filas?: number }>(
-        "/admin/participantes/carga/archivo",
-        { method: "POST", body: cuerpo },
-      );
+      const d = await pedir<{
+        texto?: string;
+        filas?: number;
+        organizacion?: Partial<DatosOrganizacion> | null;
+      }>("/admin/participantes/carga/archivo", { method: "POST", body: cuerpo });
       setTexto(d.texto ?? "");
+      /// Si el archivo trae la hoja «Organización» llena, la carga ES de
+      /// una organización: se marca sola y se llenan sus campos, que
+      /// quedan a la vista para revisarlos antes de validar.
+      if (d.organizacion) {
+        setDeOrganizacion(true);
+        setOrganizacion({ ...ORGANIZACION_VACIA, ...d.organizacion });
+      }
       setNombreArchivo(f.name);
       setDeArchivo(`${f.name} · ${d.filas} ${d.filas === 1 ? "fila" : "filas"}`);
       setPrevia(null);
@@ -161,14 +228,13 @@ export default function PaginaCarga() {
 
   return (
     <div className="pb-10">
+      {/* La salida, fuera del recuadro y con pinta de botón: igual que
+          en «Asignar grupo por lote» (cliente, 23 sep 2026). */}
+      <div className="px-7 pt-3 pb-2">
+        <BotonVolver href="/admin/participantes" texto="Gestión de leads" />
+      </div>
       <header className="border-b border-borde bg-superficie px-7 pt-[18px] pb-[22px]">
-        <Link
-          href="/admin/participantes"
-          className="inline-flex items-center gap-1 text-[0.75rem] text-texto-suave transition hover:text-marca"
-        >
-          <span aria-hidden="true">&larr;</span> Gestión de leads
-        </Link>
-        <h1 className="mt-2 text-[1.3125rem] font-bold tracking-[-0.02em] text-titulo">
+        <h1 className="mt-1 text-[1.3125rem] font-bold tracking-[-0.02em] text-titulo">
           Importar participantes
         </h1>
         <p className="mt-1 text-texto-suave">
@@ -262,18 +328,122 @@ export default function PaginaCarga() {
             {sedes[0].disponibles} cupos disponibles.
           </p>
         )}
+
+        {/* LA ORGANIZACIÓN, UNA VEZ PARA TODA LA LISTA. Sin esto cada
+            lead nacía sin empresa: no se podía pasar a Inscrito y su
+            cupo no contaba en la reserva. */}
+        <fieldset className="mt-5 border-t border-hairline pt-4">
+          <legend className="sr-only">Organización de la lista</legend>
+          <p className="text-[0.8125rem] font-semibold text-titulo">
+            ¿Toda la lista es de una misma organización?
+          </p>
+          <p className="mt-0.5 text-[0.75rem] text-texto-suave">
+            Por ejemplo, las personas de una reserva de cupos. Sus datos se ponen una
+            sola vez y quedan en todos los participantes de la carga.
+          </p>
+          <div className="mt-2.5 flex flex-wrap gap-2" role="radiogroup">
+            {[
+              { valor: false, etiqueta: "No, son personas sueltas" },
+              { valor: true, etiqueta: "Sí, de una organización" },
+            ].map((o) => (
+              <button
+                key={String(o.valor)}
+                type="button"
+                role="radio"
+                aria-checked={deOrganizacion === o.valor}
+                onClick={() => {
+                  setDeOrganizacion(o.valor);
+                  setPrevia(null);
+                }}
+                className={
+                  "sin-aro inline-flex h-[32px] items-center rounded-[9px] border px-[13px] text-[0.78125rem] font-semibold transition " +
+                  (deOrganizacion === o.valor
+                    ? "border-marca bg-marca-suave text-marca"
+                    : "border-campo-borde bg-superficie text-titulo hover:border-marca")
+                }
+              >
+                {o.etiqueta}
+              </button>
+            ))}
+          </div>
+
+          {deOrganizacion && (
+            <div className="mt-4 grid gap-x-7 gap-y-4 md:grid-cols-2 xl:grid-cols-3">
+              <Campo etiqueta="NIT">
+                <input
+                  className={CLASE_CONTROL}
+                  inputMode="numeric"
+                  placeholder="900123456-8"
+                  value={organizacion.nit}
+                  onChange={(e) => cambiarOrganizacion("nit", e.target.value)}
+                />
+              </Campo>
+              <div className="xl:col-span-2">
+              <Campo etiqueta="Razón social">
+                <input
+                  className={CLASE_CONTROL}
+                  value={organizacion.razonSocial}
+                  onChange={(e) => cambiarOrganizacion("razonSocial", e.target.value)}
+                />
+              </Campo>
+              </div>
+              <Campo etiqueta="Nombre del jefe inmediato">
+                <input
+                  className={CLASE_CONTROL}
+                  value={organizacion.jefeNombre}
+                  onChange={(e) => cambiarOrganizacion("jefeNombre", e.target.value)}
+                />
+              </Campo>
+              <Campo etiqueta="Cargo del jefe inmediato">
+                <input
+                  className={CLASE_CONTROL}
+                  value={organizacion.jefeCargo}
+                  onChange={(e) => cambiarOrganizacion("jefeCargo", e.target.value)}
+                />
+              </Campo>
+              <div className="md:col-span-2 xl:col-span-1">
+                <Campo etiqueta="Correo del jefe inmediato">
+                  <input
+                    className={CLASE_CONTROL}
+                    type="email"
+                    value={organizacion.jefeCorreo}
+                    onChange={(e) => cambiarOrganizacion("jefeCorreo", e.target.value)}
+                  />
+                </Campo>
+              </div>
+              <p className="text-[0.75rem] leading-relaxed text-texto-suave md:col-span-2 xl:col-span-3">
+                NIT y razón social son obligatorios. Si la organización reservó cupos en
+                la acción elegida, las personas quedan dentro de su reserva y cuentan
+                como cupos con nombre.
+              </p>
+            </div>
+          )}
+        </fieldset>
       </Tarjeta>
 
       <Tarjeta
         titulo="Paso 2 · Origen de los datos"
-        descripcion="Se admiten archivos .xlsx y .csv. Deben contener las ocho columnas indicadas, en ese orden; si la primera fila corresponde a los encabezados, se omite automáticamente."
+        descripcion="Se admiten archivos .xlsx y .csv. Lo mejor es la plantilla: cada columna se reconoce por su título, así que el orden da igual, y trae sus listas para elegir la acción, el departamento y la ciudad. Su segunda hoja, «Organización», llena sola los datos de la empresa."
       >
         <div className="space-y-4">
-          <div className="overflow-x-auto rounded-lg border border-borde bg-superficie-alterna px-4 py-3">
-            <p className="text-[0.78125rem] whitespace-nowrap text-texto-suave">
-              <span className="font-semibold text-titulo">Columnas requeridas:</span>{" "}
-              tipo de documento · número de documento · primer nombre · segundo nombre ·
-              primer apellido · segundo apellido · correo electrónico · teléfono celular
+          <div className="rounded-lg border border-borde bg-superficie-alterna px-4 py-3">
+            {/* LO MÍNIMO Y LO DEMÁS, por separado: pedir las diecinueve
+                columnas espantaría a quien solo quiere pegar una lista
+                de nombres, y no hacen falta. */}
+            <p className="text-[0.78125rem] text-texto-suave">
+              <span className="font-semibold text-titulo">Lo mínimo de cada persona:</span>{" "}
+              tipo y número de documento, primer nombre, primer apellido, y correo o celular.
+            </p>
+            <p className="mt-1 text-[0.78125rem] text-texto-suave">
+              <span className="font-semibold text-titulo">Y si vienen, se guardan:</span>{" "}
+              acción de formación de interés · departamento · ciudad o municipio · segundo
+              nombre · segundo apellido · fecha de nacimiento · género · barrio · dirección ·
+              estrato · cargo · nivel ocupacional · si se ha beneficiado antes.
+            </p>
+            <p className="mt-1 text-[0.78125rem] text-texto-suave">
+              Con la acción de formación en el archivo, cada persona queda en el grupo que
+              llega a su ciudad; lo que se elija arriba solo se usa para las filas que no la
+              traigan.
             </p>
           </div>
 
@@ -313,7 +483,11 @@ export default function PaginaCarga() {
             </button>
 
             <a
-              href="/api/admin/participantes/carga/plantilla"
+              /// LA PLANTILLA ES DEL CONVENIO ELEGIDO: sus listas traen
+              /// las acciones de ese convenio y los departamentos donde
+              /// se dicta cada una.
+              href={`/api/admin/participantes/carga/plantilla?convenioId=${convenioId}`}
+              aria-disabled={!convenioId}
               className="sin-aro inline-flex h-[32px] items-center rounded-[9px] border border-campo-borde bg-superficie px-[13px] text-[0.78125rem] font-semibold whitespace-nowrap text-titulo no-underline transition hover:border-marca"
             >
               Descargar plantilla
@@ -345,7 +519,7 @@ export default function PaginaCarga() {
 
           <div className="pt-1">
             <Boton
-              disabled={!convenioId || !texto.trim() || ocupado}
+              disabled={!convenioId || !texto.trim() || ocupado || faltaOrganizacion}
               onClick={() =>
                 conError(async () => {
                   setPrevia(
@@ -357,6 +531,7 @@ export default function PaginaCarga() {
                           convenioId,
                           ofertaId: ofertaId || undefined,
                           texto,
+                          ...cuerpoDeOrganizacion,
                         }),
                       },
                     ),
@@ -366,6 +541,11 @@ export default function PaginaCarga() {
             >
               {ocupado ? "Validando…" : "Validar registros"}
             </Boton>
+            {faltaOrganizacion && (
+              <p className="mt-2 text-[0.75rem] text-texto-suave">
+                Falta el NIT o la razón social de la organización (Paso 1).
+              </p>
+            )}
           </div>
         </div>
       </Tarjeta>
@@ -376,6 +556,8 @@ export default function PaginaCarga() {
           descripcion={`${previa.creables} se importarán. ${previa.conocidas} corresponden a personas ya registradas, ${previa.repetidas} están duplicadas en el archivo y ${previa.descartadas} no cumplen los requisitos mínimos.`}
         >
           <div className="space-y-5">
+            {previa.organizacion && <ResumenDeOrganizacion o={previa.organizacion} />}
+
             <div className="caja-scroll max-h-96 overflow-auto rounded-lg border border-borde">
               <table className="tabla-datos">
                 <thead>
@@ -384,6 +566,10 @@ export default function PaginaCarga() {
                     <th>Documento</th>
                     <th>Nombre</th>
                     <th>Contacto</th>
+                    {/* DÓNDE VA A QUEDAR, antes de crear nada: es lo que
+                        el archivo decide por fila y lo que nadie puede
+                        comprobar después de un tirón. */}
+                    <th>Acción y grupo</th>
                     <th>Resultado</th>
                   </tr>
                 </thead>
@@ -398,6 +584,18 @@ export default function PaginaCarga() {
                         {f.primerNombre} {f.primerApellido}
                       </td>
                       <td>{f.correo ?? f.celular ?? "—"}</td>
+                      <td>
+                        {f.accionEtiqueta ? (
+                          <>
+                            <p>{f.accionEtiqueta}</p>
+                            <p className="text-xs text-texto-suave">
+                              {f.grupo ? `Grupo de ${f.grupo}` : "Sin grupo todavía"}
+                            </p>
+                          </>
+                        ) : (
+                          <span className="text-texto-suave">Lo elegido arriba</span>
+                        )}
+                      </td>
                       <td>
                         <p
                           className={
@@ -422,7 +620,7 @@ export default function PaginaCarga() {
 
             {previa.creables > 0 ? (
               <Boton
-                disabled={ocupado}
+                disabled={ocupado || Boolean(previa.organizacion?.problemas.length)}
                 onClick={() =>
                   conError(async () => {
                     const res = await pedir<{
@@ -436,6 +634,7 @@ export default function PaginaCarga() {
                         texto,
                         origenDeCarga: nombreArchivo ? "ARCHIVO" : "PEGADO",
                         nombreArchivo: nombreArchivo ?? undefined,
+                        ...cuerpoDeOrganizacion,
                       }),
                     });
                     verHistorico();
@@ -555,6 +754,68 @@ export default function PaginaCarga() {
           </div>
         )}
       </Tarjeta>
+    </div>
+  );
+}
+
+/**
+ * Qué va a pasar con la organización, dicho ANTES de importar.
+ *
+ * Lo que más importa decir es si las personas entran en la reserva:
+ * es lo que hace que sus cupos cuenten como «con nombre». Sin reserva
+ * igual quedan con su organización, que es lo que pide Inscrito.
+ */
+function ResumenDeOrganizacion({ o }: { o: OrganizacionPrevia }) {
+  const jefe = [o.jefeNombre, o.jefeCargo, o.jefeCorreo].filter(Boolean).join(" · ");
+  const dondeQuedan =
+    o.reservas.length > 0
+      ? `${
+          o.reservas.length === 1 ? "Tiene una reserva" : `Tiene ${o.reservas.length} reservas`
+        } en los grupos de esta lista: ${o.reservas
+          .map(
+            (r) =>
+              `${r.grupo}, ${r.cupos} ${r.cupos === 1 ? "cupo" : "cupos"}${
+                r.enEspera > 0 ? ` y ${r.enEspera} en espera` : ""
+              }, con ${r.personasYaVinculadas} ${
+                r.personasYaVinculadas === 1 ? "persona ya vinculada" : "personas ya vinculadas"
+              }`,
+          )
+          .join("; ")}. Las personas de esta carga entran en esas reservas.`
+      : o.sinReservaPorque === "SIN_ACCION"
+        ? "Ninguna fila quedó con grupo, así que no se busca reserva: las personas quedan vinculadas a la organización."
+        : o.sinReservaPorque === "ORGANIZACION_NUEVA"
+          ? "La organización no está en el CRM: se crea con estos datos. No tiene reserva, así que las personas quedan vinculadas a ella sin ocupar cupos reservados."
+          : "La organización no reservó cupos en estos grupos: las personas quedan vinculadas a ella sin ocupar cupos reservados.";
+
+  return (
+    <div className="rounded-lg border border-borde bg-superficie-alterna px-4 py-3 text-[0.78125rem]">
+      <p className="font-semibold text-titulo">
+        {o.razonSocial || "Organización sin nombre"}
+        {o.nit && (
+          <span className="ml-2 font-normal text-texto-suave tabular-nums">
+            NIT {o.nit}
+            {o.digitoVerificacion ? `-${o.digitoVerificacion}` : ""}
+          </span>
+        )}
+        <span className="ml-2 font-normal text-texto-suave">
+          {o.existe ? "· ya está en el CRM" : "· nueva"}
+        </span>
+      </p>
+      <p className="mt-1 text-texto">
+        <span className="text-texto-suave">Jefe inmediato: </span>
+        {jefe || "sin datos"}
+      </p>
+      <p className="mt-1 text-texto">{dondeQuedan}</p>
+      {o.problemas.map((p) => (
+        <p key={p} className="mt-1 font-semibold text-error">
+          {p}
+        </p>
+      ))}
+      {o.avisos.map((a) => (
+        <p key={a} className="mt-1 text-aviso">
+          {a}
+        </p>
+      ))}
     </div>
   );
 }

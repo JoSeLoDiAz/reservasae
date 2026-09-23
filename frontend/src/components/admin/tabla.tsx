@@ -850,7 +850,13 @@ export function Tabla<T>({
           (cliente, 12 sep 2026). Se toca AQUÍ y no en cada
           pantalla porque este contenedor es el de las diecinueve
           tablas del panel. */}
-      <div className="mb-2 flex min-h-0 flex-initial flex-col overflow-hidden rounded-xl border border-borde bg-superficie">
+      {/* `mb-1` y no `mb-2`: la franja de abajo de TODAS las tablas.
+          «Abajo en las tablas reduce la línea de respeto, esto para
+          todas las vistas de tabla» (cliente, 23 sep 2026). Se queda
+          en 4 px --no en cero-- para que el marco de la tarjeta no
+          quede pegado a la raya del pie, que es una banda con su
+          propio borde. */}
+      <div className="mb-1 flex min-h-0 flex-initial flex-col overflow-hidden rounded-xl border border-borde bg-superficie">
         {/* Se estira con su contenedor en vez de llevar un tope
             fijo: con `max-h` quedaba media pantalla en blanco
             debajo cuando la ventana era alta. */}

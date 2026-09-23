@@ -6,11 +6,14 @@ import {
   IsEmail,
   IsEnum,
   IsIn,
+  IsInt,
   IsNotEmpty,
   IsOptional,
   IsString,
   Matches,
+  Max,
   MaxLength,
+  Min,
   MinLength,
   Validate,
   ValidateNested,
@@ -20,6 +23,7 @@ import {
 
 import { ModoPorDefecto, RolAdmin, RolConvenio } from '../../generated/prisma';
 import { ESQUEMAS_DE_LOGO, type EsquemaDeLogo } from '../comun/logo';
+import { TEXTO_MAXIMO, TEXTO_MINIMO } from './ajustes-de-pantalla';
 import { CLAVE_LARGO_MINIMO } from './claves';
 import { CLAVES_TOKEN } from './temas';
 
@@ -201,6 +205,29 @@ export class ColoresDeTema implements ValidatorConstraintInterface {
 export class ActualizarTemaDto {
   @Validate(ColoresDeTema)
   colores!: Record<string, string>;
+}
+
+/**
+ * Los ajustes de pantalla de quien los manda, y solo los que tocó.
+ *
+ * Todo opcional a propósito: el panel manda el campo que se cambió y
+ * el servicio lo suma a los que ya tenía --si mandara los tres, un
+ * panel viejo apagaría las ayudas al mover la escala--.
+ */
+export class ActualizarAjustesDePantallaDto {
+  @IsOptional()
+  @IsInt()
+  @Min(TEXTO_MINIMO)
+  @Max(TEXTO_MAXIMO)
+  texto?: number;
+
+  @IsOptional()
+  @IsBoolean()
+  sinMovimiento?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  enlacesSubrayados?: boolean;
 }
 
 export class PublicarAccionDto {
