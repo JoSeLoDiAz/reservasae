@@ -210,20 +210,38 @@ Ahora van en la fila del admin, al lado de sus colores propios:
 mismo que el 100 %: con nulo, el panel **sube** lo que haya en ese navegador en vez de
 bajárselo, así que nadie pierde el ajuste que ya tenía puesto.
 
-### B3 · La decisión que te toca: **nada se llama «ficha»**
+### B3 · Nada se llama «ficha»: se llama **lead**
 
-Palabras del cliente: *«que no llame nada ficha, que él defina si lo deja como cupo o lead,
-pero que no use ficha porque no es ficha»*.
+Palabras del cliente, primero el 23 de septiembre por la madrugada --*«que no llame nada
+ficha, que él defina si lo deja como cupo o lead, pero que no use ficha porque no es
+ficha»*-- y después, ya decidido: **«se debe cambiar todo lo que diga ficha a cupo o lead,
+aunque realmente sería lead; que lead, porque es un lenguaje que usaría un CRM»**.
 
-- En las pantallas de personas ya no queda: todo dice **lead** (eso se hizo el 22 sep).
-- Donde **sí** sobrevive es en las de organizaciones: `app/admin/instituciones/[id]/page.tsx`
-  y `components/admin/propuestas-pendientes.tsx` —«a la ficha», «en la ficha de…», «datos de
-  la ficha»—. Son unas nueve frases.
-- **No las toqué a propósito:** ahí «ficha» no es una persona ni un cupo, es el registro de la
-  empresa, y la palabra que lo reemplace la eliges tú. Mis candidatas, por si sirven: «los
-  datos de la empresa» (lo más neutro y lo que ya usa el resto de esa pantalla) o «el registro
-  de la empresa».
-- **Lo que no vale es dejar «ficha».** Si prefieres, lo cambio yo en cuanto me digas la palabra.
+Así que la palabra es **lead**, y no es cosmética: es el vocabulario del producto.
+
+**Lo que ya está hecho:**
+
+- En las pantallas de personas no queda ninguna: todo dice *lead* (se hizo el 22 de
+  septiembre).
+- Las que sobrevivían en las pantallas de organizaciones las cambié el 23 de septiembre:
+  `app/admin/instituciones/[id]/page.tsx` y `components/admin/propuestas-pendientes.tsx`
+  ya dicen **«el registro de la empresa»** en lugar de «la ficha».
+
+**Y aquí va el matiz, que es lo único que te pido mirar:** en esas dos pantallas el sujeto
+es una **empresa**, no una persona, así que *lead* habría sido falso --una empresa no es un
+lead-- y puse *registro*. Si prefieres otra palabra para el caso de las organizaciones,
+dila y la cambio; lo que ya no queda en ninguna parte visible es «ficha».
+
+**Lo que queda por hacer, y es tuyo:**
+
+- **Tu código.** `grep -rn ficha backend/src frontend/src` sigue dando resultados en
+  nombres de variables, de tipos y en comentarios --por ejemplo la variable `ficha` en
+  `instituciones/[id]`, o `gestionDe()` y su comentario sobre «la ficha»--. Nada de eso lo
+  ve el usuario, así que no lo toqué: renombrar identificadores en tu rama es pisarte el
+  trabajo. Pero conviene hacerlo de una pasada cuando te cuadre.
+- **Los correos y los formatos.** Si alguna plantilla de correo o algún encabezado de
+  reporte dice «ficha», eso sí lo ve gente de fuera. No lo revisé: dime si quieres que lo
+  barra.
 
 ---
 
@@ -413,8 +431,7 @@ que correr nada de esto**: allí los datos ya vienen del formulario de verdad.
 
 ### B9 · Lo que quedó pendiente y es tuyo decidir
 
-1. **La palabra que reemplaza a «ficha»** en las pantallas de organizaciones (ver B3).
-2. **Los 54 `<select>` nativos** que faltan (ver B5): dime si sigo por los formularios de
+1. **Los 54 `<select>` nativos** que faltan (ver B5): dime si sigo por los formularios de
    edición del panel, y si autorizas tocar los públicos.
 3. **«Formularios AF»** que pidió el cliente no existe como pantalla. Hay que definir qué es
    antes de construir algo.

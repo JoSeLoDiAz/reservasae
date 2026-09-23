@@ -39,14 +39,14 @@ const NOTA_FUENTE: Record<FuenteDato, string> = {
     "comprobado: mientras no se acepte aquí, nada de esto se reporta al SENA. Marque " +
     "solo lo que haya contrastado con la organización.",
   RUES:
-    "Viene del RUES, que es fuente oficial. Aun así, en la ficha queda únicamente lo " +
+    "Viene del RUES, que es fuente oficial. Aun así, en el registro queda únicamente lo " +
     "que usted marque.",
   CARGA:
     "Viene del archivo con el que se sembró el sistema. Nadie lo ha revisado desde " +
     "entonces, así que conviene contrastarlo antes de darlo por bueno.",
   HUMANO:
     "Lo escribió una persona y quedó como propuesta. Sigue haciendo falta que alguien " +
-    "la acepte para que quede en la ficha.",
+    "la acepte para que quede en el registro.",
 };
 
 /// El orden en que la ficha muestra los campos. La bandeja lo
@@ -267,7 +267,7 @@ function TarjetaPropuesta({
           : resultado.descartados === 1
             ? " El otro se descartó."
             : ` Los otros ${resultado.descartados} se descartaron.`;
-      alResolver(`${aplicados} en la ficha de ${nombre}.${resto}`);
+      alResolver(`${aplicados} en el registro de ${nombre}.${resto}`);
     } catch (e) {
       /// La tarjeta se queda: la propuesta no se resolvio y
       /// quitarla haria creer que el dato ya esta aplicado.

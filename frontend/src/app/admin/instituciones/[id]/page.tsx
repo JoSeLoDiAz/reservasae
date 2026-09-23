@@ -767,13 +767,13 @@ export default function PaginaInstitucion({
                       : r.descartados === 1
                         ? " El otro se descartó."
                         : ` Los otros ${r.descartados} se descartaron.`;
-                  return `${aplicados} a la ficha.${resto}`;
+                  return `${aplicados} al registro de la empresa.${resto}`;
                 })
               }
               alDescartar={() =>
                 conError(async () => {
                   await institucionesApi.aplicarPropuesta(propuesta.id, []);
-                  return "Propuesta descartada. No se cambió ningún dato de la ficha.";
+                  return "Propuesta descartada. No se cambió ningún dato del registro.";
                 })
               }
             />

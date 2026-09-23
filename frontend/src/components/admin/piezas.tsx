@@ -539,3 +539,67 @@ export function Esqueleto({
     </div>
   );
 }
+
+/**
+ * LAS ACCIONES DE LA PANTALLA, EN UN MENÚ.
+ *
+ * La barra de la tabla trae cinco controles propios --buscador,
+ * Filtros, Columnas, Vistas y Excel-- y Gestión de leads le añadía
+ * cuatro botones más. Medido el 23 de septiembre de 2026: los nueve
+ * piden unos 1.900 px, así que a 1.600 la barra ya se partía en dos
+ * renglones y a 1.180 en tres. «En pantalla pequeña se ve raro, ¿se
+ * puede reducir el de buscar para que quede en una sola línea?».
+ * Encoger el buscador no alcanzaba: lo que sobra son botones.
+ *
+ * Con `<details>` y no con estado: se abre y se cierra sin JavaScript
+ * --incluido el clic fuera, que el navegador ya resuelve-- y con el
+ * teclado funciona solo. El panel vuela sobre la tabla, que es la
+ * excepción que el diseño permite.
+ */
+export function MenuDeAcciones({
+  etiqueta = "Acciones",
+  children,
+}: {
+  etiqueta?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <details className="group relative">
+      <summary
+        className={
+          "sin-aro inline-flex h-[34px] cursor-pointer list-none items-center gap-1.5 rounded-lg " +
+          "border border-borde bg-superficie px-3.5 text-[0.78125rem] font-semibold transition " +
+          "hover:bg-superficie-alterna group-open:border-marca group-open:text-marca"
+        }
+      >
+        {etiqueta}
+        <svg
+          viewBox="0 0 12 12"
+          width="11"
+          height="11"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.8"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          aria-hidden="true"
+          className="transition-transform group-open:rotate-180"
+        >
+          <path d="M3 4.5 6 7.5 9 4.5" />
+        </svg>
+      </summary>
+
+      {/* A la DERECHA del botón: el menú vive al final de la barra, y
+          anclado a la izquierda se salía de la ventana. */}
+      <div
+        className={
+          "absolute top-[calc(100%+4px)] right-0 z-50 flex w-max min-w-[13rem] flex-col gap-0.5 " +
+          "rounded-lg border border-borde bg-superficie p-1.5 " +
+          "shadow-[0_10px_30px_-10px_rgba(15,23,42,0.28)]"
+        }
+      >
+        {children}
+      </div>
+    </details>
+  );
+}
