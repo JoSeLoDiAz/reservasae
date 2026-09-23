@@ -80,31 +80,34 @@ export function PanelAsesores() {
 
   return (
     <div className="space-y-4">
-      <Encabezado
-        compacto
-        titulo="Seguimiento de asesores"
-        descripcion="Cuánto lleva cada uno, cuánto le falta y si llega a su fecha."
-      />
+      {/* SIN FRASE DEBAJO DEL TÍTULO (cliente, 23 sep 2026). Cada
+          bloque ya dice lo suyo, y una segunda explicación arriba
+          costaba veinte píxeles de alto en todas las pantallas. */}
+      <Encabezado compacto titulo="Seguimiento de asesores" />
 
-      {/* LAS DOS SUBVISTAS, como pestañas y no como desplegable: son
-          dos y se alterna entre ellas todo el tiempo. */}
-      <div className="flex flex-wrap gap-1 rounded-xl border border-borde bg-superficie p-1">
-        {SUBVISTAS.map((s) => (
-          <button
-            key={s.clave}
-            type="button"
-            onClick={() => setSubvista(s.clave)}
-            className={
-              "rounded-lg px-3 py-1.5 text-[0.8125rem] font-medium transition " +
-              (subvista === s.clave
-                ? "bg-marca text-marca-texto"
-                : "text-texto-suave hover:bg-superficie-alterna hover:text-texto")
-            }
-          >
-            {s.etiqueta}
-          </button>
-        ))}
-        <p className="w-full px-2 pt-1.5 text-[0.6875rem] text-texto-suave">
+      {/* LAS DOS SUBVISTAS, EN UNA SOLA FILA con su frase al lado.
+          Iba debajo, a todo el ancho, y eso partía la caja en dos
+          renglones para decir siete palabras: espacio vertical que se
+          gana sin perder nada. */}
+      <div className="flex flex-wrap items-center gap-2 rounded-xl border border-borde bg-superficie px-2 py-1.5">
+        <div className="flex gap-1">
+          {SUBVISTAS.map((s) => (
+            <button
+              key={s.clave}
+              type="button"
+              onClick={() => setSubvista(s.clave)}
+              className={
+                "rounded-lg px-3 py-1 text-[0.8125rem] font-medium transition " +
+                (subvista === s.clave
+                  ? "bg-marca text-marca-texto"
+                  : "text-texto-suave hover:bg-superficie-alterna hover:text-texto")
+              }
+            >
+              {s.etiqueta}
+            </button>
+          ))}
+        </div>
+        <p className="min-w-0 text-[0.6875rem] leading-snug text-texto-suave">
           {SUBVISTAS.find((s) => s.clave === subvista)?.pie}
         </p>
       </div>

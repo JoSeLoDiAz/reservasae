@@ -1509,6 +1509,25 @@ select[size]:not([size='1']) {
   width: 100%;
   border-collapse: collapse;
 }
+/* EL ROTULO SE ALINEA CON SU CIFRA.
+ *
+ * Esta regla no lleva capa, y las utilidades de Tailwind sI: una
+ * declaracion sin capa le gana a una con capa por muy especifica que
+ * sea la otra. O sea que el `text-right` que se le pone a un `<th>`
+ * de cifras no hacia nada, y la cabecera quedaba a la izquierda
+ * mientras el numero se pegaba a la derecha de su columna. En las
+ * tablas estrechas casi no se notaba; en «Seguimiento de asesores»,
+ * con diez columnas anchas, el cliente lo vio de una (23 sep 2026).
+ *
+ * Se arregla aqui y no en cada tabla: son seis tablas y el defecto
+ * estaba en las seis. */
+.tabla-datos thead th.text-right {
+  text-align: right;
+}
+.tabla-datos thead th.text-center {
+  text-align: center;
+}
+
 .tabla-datos thead th {
   background: var(--tabla-cabecera-fondo);
   color: var(--tabla-cabecera-texto);
