@@ -610,7 +610,7 @@ aprendizaje, no la disculpa:
   porque la oferta virtual de Antioquia (200) sirve a los dos grupos a la vez; salen ~511 y
   ~489.
 
-### D5 · 🔴 Antes de que la pruebes en local: el 500 del login NO es de esta rama
+### D5 · El 500 del login en local: qué era y por qué ya no pasa
 
 Si bajas la rama, haces `nest build` y arrancas con `node dist/main`, **el login te va a
 contestar 500**:
@@ -645,8 +645,11 @@ con un `.env`.
 import 'dotenv/config';   // antes que cualquier otro import
 ```
 
-No lo he puesto yo: es de tu lado y toca el arranque de todo. Dime y lo hago, o lo haces tú en
-diez segundos.
+**Ya está puesta**, con el porqué escrito al lado para que nadie la suba de sitio ni la borre
+por parecer de adorno. Comprobado: `node dist/main` a pelo, sin precargar nada, y el login
+contesta **200**. Si prefieres el arreglo idiomático de Nest --`JwtModule.registerAsync` con
+una factoría-- son once módulos y lo cambias cuando quieras; esto lo arregla en una línea y
+sin tocar ninguno.
 
 ---
 
