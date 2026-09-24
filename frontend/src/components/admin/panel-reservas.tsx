@@ -1048,6 +1048,11 @@ function CajaDeFecha({
 function ResumenGeneral({ informe }: { informe: InformeReservas }) {
   const t = informe.totales;
   const conNombre = sillasConNombre(t);
+  /// Los que tuvieron nombre y ya no están dentro: retirados,
+  /// desertores y no aprobados. `Math.max` porque las dos cifras
+  /// vienen de consultas distintas y un desfase de un segundo no
+  /// puede pintar un negativo en la pantalla del comité.
+  const descartados = Math.max(0, conNombre - t.dentro);
   const convenios = informe.recorte.convenios;
 
   return (
@@ -1093,11 +1098,37 @@ function ResumenGeneral({ informe }: { informe: InformeReservas }) {
         <CifraCompacta etiqueta="Instituciones" valor={n(t.organizaciones)} />
         <CifraCompacta etiqueta="Reservas" valor={n(t.reservas)} />
         <CifraCompacta etiqueta="Cupos apartados" valor={n(t.cuposConfirmados)} />
+        {/* LAS TRES DE LA OCUPACIÓN, y por qué son tres y no una
+            (cliente, 24 sep 2026: «cupos ocupados / cupos confirmados
+            inscritos / y adiciona descartados»).
+
+            «Confirmados inscritos» cuenta el cupo que llegó a tener
+            una persona matriculada detrás, SE HAYA QUEDADO O NO: es la
+            que alimenta la brecha de nombres y la que se le reporta al
+            SENA. «Ocupados» descuenta a quien se retiró o desertó: es
+            la silla que de verdad está ocupada hoy. Y «Descartados» es
+            justo la diferencia entre las dos.
+
+            Las tres son ciertas y por eso NUNCA se llaman igual. El
+            tipo del informe lo deja escrito: `conNombre` incluye a
+            quien se fue y `dentro` no. Antes solo se enseñaba la
+            primera, con el nombre «Ya tienen nombre», y la deserción
+            no se veía en esta pantalla: había que ir a Académica. */}
         <CifraCompacta
-          etiqueta="Ya tienen nombre"
+          etiqueta="Cupos confirmados inscritos"
           valor={n(conNombre)}
-          color="var(--exito)"
           detalle={t.cuposConfirmados > 0 ? `${porciento(conNombre, t.cuposConfirmados)} %` : undefined}
+        />
+        <CifraCompacta
+          etiqueta="Cupos ocupados"
+          valor={n(t.dentro)}
+          color="var(--exito)"
+          detalle={t.cuposConfirmados > 0 ? `${porciento(t.dentro, t.cuposConfirmados)} %` : undefined}
+        />
+        <CifraCompacta
+          etiqueta="Descartados"
+          valor={n(descartados)}
+          detalle={conNombre > 0 ? `${porciento(descartados, conNombre)} %` : undefined}
         />
         <CifraCompacta
           etiqueta="Siguen sin nombre"
@@ -1453,7 +1484,7 @@ function CuposPorSemana({ informe, filtros }: { informe: InformeReservas; filtro
   return (
     <Bloque
       estirado
-      titulo="Cupos apartados por semana"
+      titulo="Cupos reservados por semana"
       descripcion={
         ultima
           ? `Última reserva el ${diaYMes(ultima)}${hace > 0 ? `, hace ${cuenta(hace, "día", "días")}` : ", hoy"}.`
@@ -1473,7 +1504,7 @@ function CuposPorSemana({ informe, filtros }: { informe: InformeReservas; filtro
           <div
             ref={caja}
             role="img"
-            aria-label={`Cupos apartados por semana: ${semanas.map((s) => `semana del ${diaCorto(s.lunes)}, ${n(s.cupos)}${s.enCurso ? " (en curso)" : ""}`).join("; ")}.`}
+            aria-label={`Cupos reservados por semana: ${semanas.map((s) => `semana del ${diaCorto(s.lunes)}, ${n(s.cupos)}${s.enCurso ? " (en curso)" : ""}`).join("; ")}.`}
             className="-mx-7 overflow-x-auto px-7 lg:flex lg:flex-1 lg:flex-col print:block print:overflow-visible"
           >
             <div
