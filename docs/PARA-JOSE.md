@@ -210,20 +210,48 @@ Ahora van en la fila del admin, al lado de sus colores propios:
 mismo que el 100 %: con nulo, el panel **sube** lo que haya en ese navegador en vez de
 bajárselo, así que nadie pierde el ajuste que ya tenía puesto.
 
-### B3 · La decisión que te toca: **nada se llama «ficha»**
+### B3 · Nada se llama «ficha»: se llama **lead**
 
-Palabras del cliente: *«que no llame nada ficha, que él defina si lo deja como cupo o lead,
-pero que no use ficha porque no es ficha»*.
+> **CERRADO. No hay que elegir nada.** El 23 de septiembre por la noche el cliente lo
+> zanjó: **«se decidió todo conocerlo como Lead, no como ficha, cupo, ni nada de eso:
+> solo se conocerá siempre como Lead»**.
+>
+> Así que la pregunta que te dejaba abierta más abajo ya no está abierta. No es «cupo o
+> lead»: es **lead**, en todas las pantallas, en todos los textos y en cualquier cosa
+> nueva. Si dudas entre «cupo» y «lead» para hablar de una persona, es lead. «Cupo» se
+> queda solo para lo que de verdad es un cupo: una silla de un grupo, con o sin nombre
+> detrás.
 
-- En las pantallas de personas ya no queda: todo dice **lead** (eso se hizo el 22 sep).
-- Donde **sí** sobrevive es en las de organizaciones: `app/admin/instituciones/[id]/page.tsx`
-  y `components/admin/propuestas-pendientes.tsx` —«a la ficha», «en la ficha de…», «datos de
-  la ficha»—. Son unas nueve frases.
-- **No las toqué a propósito:** ahí «ficha» no es una persona ni un cupo, es el registro de la
-  empresa, y la palabra que lo reemplace la eliges tú. Mis candidatas, por si sirven: «los
-  datos de la empresa» (lo más neutro y lo que ya usa el resto de esa pantalla) o «el registro
-  de la empresa».
-- **Lo que no vale es dejar «ficha».** Si prefieres, lo cambio yo en cuanto me digas la palabra.
+Palabras del cliente, primero el 23 de septiembre por la madrugada --*«que no llame nada
+ficha, que él defina si lo deja como cupo o lead, pero que no use ficha porque no es
+ficha»*-- y después, ya decidido: **«se debe cambiar todo lo que diga ficha a cupo o lead,
+aunque realmente sería lead; que lead, porque es un lenguaje que usaría un CRM»**.
+
+Así que la palabra es **lead**, y no es cosmética: es el vocabulario del producto.
+
+**Lo que ya está hecho:**
+
+- En las pantallas de personas no queda ninguna: todo dice *lead* (se hizo el 22 de
+  septiembre).
+- Las que sobrevivían en las pantallas de organizaciones las cambié el 23 de septiembre:
+  `app/admin/instituciones/[id]/page.tsx` y `components/admin/propuestas-pendientes.tsx`
+  ya dicen **«el registro de la empresa»** en lugar de «la ficha».
+
+**Y aquí va el matiz, que es lo único que te pido mirar:** en esas dos pantallas el sujeto
+es una **empresa**, no una persona, así que *lead* habría sido falso --una empresa no es un
+lead-- y puse *registro*. Si prefieres otra palabra para el caso de las organizaciones,
+dila y la cambio; lo que ya no queda en ninguna parte visible es «ficha».
+
+**Lo que queda por hacer, y es tuyo:**
+
+- **Tu código.** `grep -rn ficha backend/src frontend/src` sigue dando resultados en
+  nombres de variables, de tipos y en comentarios --por ejemplo la variable `ficha` en
+  `instituciones/[id]`, o `gestionDe()` y su comentario sobre «la ficha»--. Nada de eso lo
+  ve el usuario, así que no lo toqué: renombrar identificadores en tu rama es pisarte el
+  trabajo. Pero conviene hacerlo de una pasada cuando te cuadre.
+- **Los correos y los formatos.** Si alguna plantilla de correo o algún encabezado de
+  reporte dice «ficha», eso sí lo ve gente de fuera. No lo revisé: dime si quieres que lo
+  barra.
 
 ---
 
@@ -375,18 +403,226 @@ riesgo de datos:
 5. Con una cuenta que **no** esté en `EDITORES_DE_MARCA`, entra a Apariencia: debe poder
    cambiar sus colores y **no** los logos ni la marca del gremio.
 
+### B8 bis · Los datos de prueba, ahora sí coherentes (no toca producción)
+
+El cliente se topó con esto y tenía razón: **Gestión de leads enseñaba 115 leads y Tráfico
+del formulario decía 50 aperturas y 5 registros**. No era un fallo del panel: las siembras
+crean personas directamente en el CRM --hace falta gente para probar leads, grupos y
+reportes-- pero el formulario público no se abre nunca, así que `pasos_de_visita` y
+`enlaces_completado` se quedaban casi vacías.
+
+Guion nuevo, **solo para pruebas**:
+
+```bash
+export ENTORNO=prueba
+pnpm db:sembrar-trafico
+```
+
+Por cada persona cuyo `origen` es de formulario --autogestión, redes, WhatsApp, correo,
+evento, referido-- escribe:
+
+- su visita completa por los diez peldaños, fechada en su propia ficha y con la procedencia
+  que corresponde a su campaña de entrada (mailing → correo; pauta → Meta, la mitad con
+  `fbclid`; reserva → reserva);
+- nueve visitas caídas por cada una que llegó al final, parándose en peldaños distintos, que
+  es lo que le da al embudo la forma que tiene en producción (12.243 aperturas contra 972
+  registros);
+- su enlace para completar datos, usado solo si la persona ya pasó de CONTACTADO.
+
+Lleva la guardia `soloEnPruebas`, así que **se niega a correr si la base no lleva «prueba» en
+el nombre o si `ENTORNO` no vale `prueba`**. Y es idempotente: el `visitaId` y el token se
+derivan del id de la persona, y los índices únicos descartan lo repetido.
+
+En la base local quedó así: 1.100 aperturas, 110 preinscripciones medidas, y la cadena del CRM
+en 102 personas del formulario, 51 con datos completos y 51 a medias. **En producción no hay
+que correr nada de esto**: allí los datos ya vienen del formulario de verdad.
+
+---
+
+## Parte C · Control de inscritos, reorganizado (23 sep 2026)
+
+El cliente rehízo esta pantalla entera. No es un retoque: cambió qué se mira, en qué orden y
+quién puede tocar qué. Va todo junto porque las piezas se apoyan unas en otras.
+
+### C1 · El asesor ya no asigna grupo
+
+Quien pone el grupo es **el analista** —el rol `LIDER_SISTEMAS`, que es el de Mauricio— y los
+`SUPERADMIN`. Un asesor de inscripciones puede llevar el lead hasta inscribirlo, pero no elige
+en qué grupo cae.
+
+Está cerrado en los **tres** caminos que escriben, no solo en el botón: el lote
+(`PATCH grupos/lote`, con guarda), guardar la ficha del lead y la inscripción desde el panel
+(los dos con `exigirQuienAsignaGrupo` en el servicio, cuando el DTO trae `coberturaId`). Cerrar
+solo la pantalla deja la puerta abierta a cualquiera que sepa la URL.
+
+La regla vive en `backend/src/crm/quien-asigna-grupo.ts` con sus pruebas. `/admin/yo` devuelve
+`puede.asignarGrupo`, y el frontend esconde «Asignar grupo por lote» con eso: **no** con una
+lista de roles escrita otra vez en el navegador.
+
+### C2 · Los siete gráficos que se fueron
+
+El cliente los mandó quitar uno por uno: *Embudo de inscripción*, *Qué atender primero*, *Por
+acción de formación*, *Por modalidad*, *Cupos apartados por empresas*, *Desglose por acción de
+formación* y *Cómo fue entrando la gente*.
+
+Dos de ellos —*Qué atender primero* y *Cupos apartados por empresas*— no se pintaban en
+`panel-proceso.tsx`: salían de `pendientes-de-hoy.tsx`. **Ese archivo quedó sin usar y no lo
+borré**: si alguno de los dos hace falta en otra pantalla, está entero y basta con volver a
+montarlo.
+
+### C3 · Los tres bloques nuevos
+
+1. **Resumen General** (arriba del todo). Siete tarjetas macro, una barra por acción de
+   formación: leads que entraron, datos completos, datos parciales, en proceso, sin ninguna
+   gestión, total inscritos, total no interesados.
+   `backend/src/crm/resumen-general.ts` + `frontend/src/components/admin/resumen-general.tsx`.
+2. **Cupos e inscritos por acción**: el Excel que el cliente llevaba a mano, ya dentro del CRM.
+3. **Grupos de AF*n*** (nuevo): se abre pulsando una fila de la tabla anterior y la repite
+   grupo por grupo. `backend/src/crm/resumen-por-grupo.ts`.
+
+**Lo que hay que saber antes de tocar las cuentas**, porque si no las sumas no cuadran:
+
+- «Datos completos + parciales» y «en proceso + sin gestión + inscritos + no interesados» son
+  **dos cortes distintos de la misma gente**. Los dos suman los leads que entraron.
+- **«Gestión»** no es `actualizadoEn`. El sistema escribe ahí solo —al calcular datos
+  completos, al asignar grupo por lote— y entonces «sin gestión» daría cero siempre. Es: una
+  nota de gestión, o un asesor que tocó los datos, o una etapa movida a mano.
+- En la tabla por **grupos**, la columna se llama «Nominados por la empresa» y **no** «Cupos
+  reservados». Una reserva se aparta sobre la oferta (acción + ciudad), no sobre un grupo: no
+  se puede repartir entre los grupos sin inventárselo. Por eso los grupos pueden sumar menos
+  que su acción.
+- El Resumen General y las dos tablas son **acumulados**: no dependen del periodo de la
+  cabecera, sí de los filtros. Lo dicen en su descripción, porque si no se compara con la tira
+  de arriba, que sí es del periodo, y parece que el panel miente.
+
+### C4 · Los filtros
+
+Acción de formación · **Grupo (colgado de la acción)** · Departamento · Asesores, más Gremios
+cuando la cuenta ve más de uno. Lo nuevo es lo del medio: elegida una acción, el desplegable de
+grupos solo ofrece los suyos, y si el grupo que estaba puesto no es de esa acción se cae solo.
+Antes se podía armar «AF3 + un grupo de AF7», que no devuelve a nadie y parece una avería.
+
+### C5 · Los dos gremios numeran desde AF1
+
+BRITCHAM y ADECOPRIA tienen los dos su AF1, su AF2 y su AF3. En las tarjetas del Resumen
+General la sigla se pega al código **solo cuando ese código sale dos veces**: ponerla siempre
+gasta media tarjeta cuando se está mirando un gremio, que es lo normal.
+
+---
+
+## Parte D · «Ficha» ya no existe: todo es Lead
+
+El cliente lo cerró el 24 de septiembre de 2026: **«revisa que nada diga ficha, lo pasas a
+lead»**. No es un cambio de etiqueta suelto: es que el CRM tenía dos palabras para la misma
+cosa según quién la escribiera, y en una reunión eso se nota.
+
+### D1 · Lo que ya se cambió, y cómo se comprobó
+
+Once textos, todos los que se leen:
+
+| Dónde | Decía | Dice |
+|---|---|---|
+| `instituciones.service.ts` | «Ya hay otra **ficha** con ese NIT» | «Ya hay otra **institución** con ese NIT» |
+| `lucid/a-quien-se-pega.ts` | «está en una **ficha** y además en un lead» | «está en un **lead ya inscrito** y además en uno sin convertir» |
+| `lucid/a-quien-se-pega.ts` | «tiene N **fichas**» · «Su **ficha**.» | «tiene N **leads**» · «Su **lead**.» |
+| `llave-de-lucid.guard.ts`, `lucid.module.ts` | «no quedan en ninguna **ficha**» | «no quedan en ningún **lead**» |
+| `conversion.service.ts` | «**Ficha** creada…» · «convertido en **ficha** X» | «**Lead inscrito**…» · «**inscrito como** X» |
+| `lote.service.ts` | «N **fichas** (con autorización)» | «N **inscritos** (con autorización)» |
+
+Y dos comentarios que fijaban el vocabulario viejo (`panel-proceso.tsx`, `etapas.ts`), porque
+si se quedan escritos vuelve por ahí.
+
+**Comprobado con el panel montado**, no leyendo el código: se recorrieron las dieciséis rutas
+del panel y se buscó la palabra en lo que pinta el navegador. Ninguna la dice. Las 474 pruebas
+del backend siguen en verde (41 suites), que era el riesgo real: varios `spec` afirman sobre
+esos mensajes.
+
+### D2 · Lo que NO se tocó, y por qué
+
+**Los identificadores.** `Ficha`, `FichaAbierta`, `FichaInstitucion`, `setFicha`,
+`FilaFicha`, `repartirFichas`, `REPARTEN_FICHAS`, `soloUnaFicha`, y los ficheros
+`quien-lleva-fichas.ts`, `completar-ficha.tsx`, `listo-para-ficha.ts`,
+`datos-de-la-ficha.spec.ts`. Son 1.229 menciones en el código fuente. Renombrarlas de un
+tirón, de madrugada y sin que nadie mire la pantalla, es la clase de cambio que rompe algo a
+las dos semanas y nadie sabe por qué. **Renómbralas según las vayas tocando**, no en un lote.
+
+**Tres «fichas» que NO son un lead**, y que hay que dejar en paz o traducir con cuidado:
+
+1. **La ficha de una institución** (`FichaInstitucion`, `ficha-a-propuesta.ts`,
+   `leer-ficha-web.ts`): es el perfil de una empresa sacado del RUES. Llamarla «lead» sería
+   falso. Si hay que quitarle la palabra, es «los datos de la institución».
+2. **La «ficha» del SENA**: en su vocabulario una ficha es el NÚMERO DE GRUPO, y va en los
+   formatos SEP tal cual. **Eso no se toca nunca**: los títulos de esos formatos son el
+   contrato con ellos y hay pruebas que los fijan.
+3. Los títulos de unos treinta `spec` («crear una ficha», «la ficha lo dice»). No los ve
+   nadie fuera del equipo; van con el renombrado perezoso de arriba.
+
+### D3 · La que sí necesita que TÚ decidas 🔴
+
+En `lucid/a-quien-se-pega.ts` el discriminante es:
+
+```ts
+| { tipo: 'FICHA'; id: string; personaId: string; creadoEn: Date }
+| { tipo: 'LEAD';  id: string; creadoEn: Date }
+```
+
+Donde **`'FICHA'` es la persona ya inscrita** y **`'LEAD'` es la que sigue en la mesa de
+entrada**. Ahora que las dos son leads, la palabra `'LEAD'` **ya está ocupada** y no se puede
+renombrar la otra encima: quedarían dos casos con el mismo nombre y el compilador dejaría
+pasar el error.
+
+Mi propuesta es `'INSCRITO' | 'SIN_CONVERTIR'`, que dice lo que de verdad las separa. Pero
+toca `lucid.service.ts` y la bandeja, así que lo dejo escrito y no lo hago yo.
+
+### D4 · Respuesta a la integración: f6b148d ya compila
+
+José: comprobado contra `origin/dev` en **f300062**, símbolo por símbolo. El bloqueo que
+señalaste **ya no está**. `dev` exporta hoy:
+
+```
+calendario-inscripcion.ts   cierreDeInscripciones(fechaInicio, modalidad?)   ← los dos argumentos
+                            habilesEntre · hoyEnColombia · ModalidadDeCierre
+etapas.ts                   OCUPAN_SILLA
+```
+
+Que es **todo** lo que importa `asesores-datos.ts`. Lo demás que necesita
+(`seguimiento-de-asesores.ts`) viene en el propio commit. Así que f6b148d entra tal cual.
+
+Lo del índice sí era real y **ya está arreglado**: `@@index([asesorAcademicoId])` declarado en
+el modelo `Grupo`, con el porqué escrito al lado para que nadie lo quite pensando que sobra.
+`prisma validate` en verde.
+
+**Y tres cosas que agradezco y anoto**, porque son defectos míos y quiero que quede el
+aprendizaje, no la disculpa:
+
+- **Los menores por la fecha de nacimiento.** Había cerrado la puerta por tipo de documento y
+  la columna nueva la reabrió por otro lado. La lección no es «se me olvidó una condición»: es
+  que `esInsalvable` y el cálculo de la edad vivían separados, y una prueba que comprueba que
+  la edad *se calcula* no comprueba que la fila *se descarte*. Lo segundo es lo que importaba.
+- **El candado del grupo con tres puertas.** La regla que sacaste --«poner, cambiar y quitar
+  son las tres asignar grupo»-- es la buena, y omitir `coberturaId` para borrar la cohorte es
+  justo el caso que no se ve. Lo del docblock es peor que el fallo: decía que el guard
+  recortaba el ámbito y no es verdad, `admin.guard.ts` recorta alcance y no roles. Un
+  comentario que miente sobre una comprobación de seguridad es una trampa para el siguiente.
+- **AF7 a 1.000.** Tienes razón y lo comprobé sumando las dos versiones: la tuya da 1.000
+  exactos dejando Medellín y Pereira en 78 --que es lo que cabe-- y la mía daba 650 con el
+  reparto plano. Un apunte para el cliente, no para ti: no son 500 y 500 exactos por grupo,
+  porque la oferta virtual de Antioquia (200) sirve a los dos grupos a la vez; salen ~511 y
+  ~489.
+
+---
+
 ### B9 · Lo que quedó pendiente y es tuyo decidir
 
-1. **La palabra que reemplaza a «ficha»** en las pantallas de organizaciones (ver B3).
-2. **Los 54 `<select>` nativos** que faltan (ver B5): dime si sigo por los formularios de
+1. **Los 54 `<select>` nativos** que faltan (ver B5): dime si sigo por los formularios de
    edición del panel, y si autorizas tocar los públicos.
 3. **«Formularios AF»** que pidió el cliente no existe como pantalla. Hay que definir qué es
    antes de construir algo.
 4. **Nueve líneas por peldaño en «Paso a paso»**: el cliente quiere ver la tendencia de cada
    paso a lo largo de los días. Hoy el servidor manda cuatro series por día
    (`embudo.service.ts`, `porDia`), no las nueve. Es una consulta más, no un rediseño.
-5. **`useDatosVivos(cargar, { activo: false })`** se salta la primera carga, así que en la ficha
-   de un lead nunca aparece «De dónde salen estos datos». Es de tu código y es de una línea,
+5. **`useDatosVivos(cargar, { activo: false })`** se salta la primera carga, así que en el lead
+   abierto nunca aparece «De dónde salen estos datos». Es de tu código y es de una línea,
    pero prefiero que lo mires tú.
 
 ---
