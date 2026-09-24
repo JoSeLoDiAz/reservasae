@@ -44,6 +44,15 @@ const ORDEN: EstadoAcademico[] = [
   "SIN_EMPEZAR",
 ];
 
+/// «AF1 · GESTIÓN DE LA ATENCIÓN…» llega en un solo texto, y el
+/// nombre entero son noventa letras que se comían media tabla: la
+/// columna de la acción medía más que las cinco de datos juntas y
+/// empujaba el estado, el avance y el último ingreso al canto
+/// derecho. El nombre completo se queda en el `title`, y el tablero
+/// de Seguimiento académico ya resolvía esto igual.
+const soloElCodigo = (accion: string | null) =>
+  accion ? (accion.split("·")[0]?.trim() ?? accion) : null;
+
 function fecha(iso: string | null) {
   if (!iso) return "—";
   return new Date(iso).toLocaleDateString("es-CO", {
@@ -215,8 +224,15 @@ function Seguimiento() {
     <div className="flex flex-col gap-3 pb-6">
       <header className="flex flex-wrap items-start justify-between gap-4">
         <div className="min-w-0">
+          {/* «SEGUIMIENTO DEL AULA» Y NO «SEGUIMIENTO ACADÉMICO».
+              Se llamaban igual dos pantallas distintas, y el cliente
+              lo paró: «en Académica, Seguimiento académico no, porque
+              ya está en Tableros» (23 sep 2026). Aquel es el tablero
+              --resúmenes, sin personas--; esta es la lista con la que
+              se trabaja, persona por persona. El menú ya la llamaba
+              así; solo el título seguía con el nombre del otro. */}
           <h1 className="text-[1.125rem] font-bold tracking-[-0.02em] text-titulo">
-            Seguimiento académico
+            Seguimiento del aula
           </h1>
           {/* Sin bajada (cliente, 12 sep 2026). El título ya dice
               qué es, y la miga de arriba de dónde cuelga. */}
@@ -419,18 +435,6 @@ function Seguimiento() {
         </p>
       </div>
 
-      {/* Los gráficos, entre los estados y la lista.
-          Es el sitio que les toca por la pregunta que responde
-          cada cosa: arriba «cuántos hay en cada estado», aquí
-          «cómo va eso y qué hay que atender», y abajo «quiénes
-          son». Van con los MISMOS filtros de arriba, así que al
-          acotar por una acción el embudo se acota con ella.
-
-          Y con el reparto por estado ya puesto arriba, el panel
-          no lo repite: sus donuts miran otra cosa --el peso de
-          cada estado y por qué puerta se sale--. */}
-      <PanelAcademico datos={datos} />
-
       {visibles.length === 0 ? (
         <Tarjeta
           titulo="Nadie aquí"
@@ -480,8 +484,8 @@ function Seguimiento() {
                       {p.documento}
                     </span>
                   </td>
-                  <td className="text-sm whitespace-nowrap">
-                    {p.accion ?? "—"}
+                  <td className="text-sm whitespace-nowrap" title={p.accion ?? undefined}>
+                    {soloElCodigo(p.accion) ?? "—"}
                     {p.grupo !== null && (
                       <span className="block text-xs text-texto-suave">
                         Grupo {p.grupo}
@@ -518,6 +522,21 @@ function Seguimiento() {
           </table>
         </div>
       )}
+
+      {/* LOS GRÁFICOS, DEBAJO DE LA LISTA (cliente, 24 sep 2026: «no
+          veo nada»). Estuvieron justo encima, con este razonamiento:
+          arriba «cuántos hay en cada estado», luego «cómo va eso», y
+          abajo «quiénes son». Se leía bien y era falso para lo que se
+          viene a hacer aquí: entre los filtros y la primera persona
+          había cuatro bloques de resumen y una gráfica de pantalla
+          entera, así que la tabla --que es el motivo de esta
+          pantalla-- quedaba bajo el pliegue y no se encontraba.
+
+          Los resúmenes viven en el tablero de Tableros. Aquí se
+          quedan porque las cifras de estado SON los filtros --se
+          pulsan-- y la gráfica, de última, para quien ya trabajó la
+          lista y quiere ver el conjunto. */}
+      <PanelAcademico datos={datos} />
 
       {enElCajon && (
         <CajonDelAula fila={enElCajon} alCerrar={() => setEnElCajon(null)} />
