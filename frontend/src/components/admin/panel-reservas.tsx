@@ -1074,50 +1074,36 @@ function ResumenGeneral({ informe }: { informe: InformeReservas }) {
             sep 2026). Estaba en el pie de «Reservas», que es donde no
             se lee: es la primera pregunta del comité --a cuántos
             colegios llegamos-- y no una aclaración de otra cifra. */}
+        {/* DOS LÍNEAS, COMO EN «GESTIÓN DE LEADS». Medido: allí la
+            tarjeta son 51 px y aquí eran 66, porque cada una llevaba
+            una FRASE debajo. Lo que hace falta para leer la cifra cabe
+            al lado en dos palabras --«+6 en espera», «9 % de cupos»--;
+            lo demás lo dice «Cómo se cuentan estas cifras», que está
+            justo debajo. */}
+        <CifraCompacta etiqueta="Instituciones" valor={n(t.organizaciones)} />
+        <CifraCompacta etiqueta="Reservas" valor={n(t.reservas)} />
         <CifraCompacta
-            etiqueta="Instituciones"
-            valor={n(t.organizaciones)}
-            pie={`apartaron cupos en ${cuenta(t.acciones, "acción", "acciones")}`}
-          />
+          etiqueta="Cupos apartados"
+          valor={n(t.cuposConfirmados)}
+          detalle={t.cuposEnEspera > 0 ? `+${n(t.cuposEnEspera)} en espera` : undefined}
+        />
         <CifraCompacta
-            etiqueta="Reservas"
-            valor={n(t.reservas)}
-            pie={`una por institución y acción`}
-          />
+          etiqueta="Ya tienen nombre"
+          valor={n(conNombre)}
+          color="var(--exito)"
+          detalle={t.cuposConfirmados > 0 ? `${porciento(conNombre, t.cuposConfirmados)} %` : undefined}
+        />
         <CifraCompacta
-            etiqueta="Cupos apartados"
-            valor={n(t.cuposConfirmados)}
-            pie={t.cuposEnEspera > 0 ? `y ${n(t.cuposEnEspera)} en lista de espera` : "ninguno en lista de espera"}
-          />
-        <CifraCompacta
-            etiqueta="Ya tienen nombre"
-            valor={n(conNombre)}
-            color="var(--exito)"
-            pie={
-              t.cuposConfirmados > 0
-                ? `${porciento(conNombre, t.cuposConfirmados)} % de los cupos`
-                : "sin cupos confirmados"
-            }
-          />
-        <CifraCompacta
-            etiqueta="Siguen sin nombre"
-            valor={n(t.sinNombre)}
-            color={t.sinNombre > 0 ? "var(--error)" : undefined}
-            pie={
-              organizacionesQueDeben > 0
-                ? `en ${cuenta(organizacionesQueDeben, "organización", "organizaciones")}`
-                : "todas mandaron sus nombres"
-            }
-          />
+          etiqueta="Siguen sin nombre"
+          valor={n(t.sinNombre)}
+          color={t.sinNombre > 0 ? "var(--error)" : undefined}
+          detalle={organizacionesQueDeben > 0 ? `en ${n(organizacionesQueDeben)} org.` : undefined}
+        />
       </div>
 
       <ComoSeCuentan informe={informe} />
     </Bloque>
   );
-}
-
-function Celda({ children }: { children: React.ReactNode }) {
-  return <div className="min-w-[150px] flex-1 bg-superficie">{children}</div>;
 }
 
 /**
