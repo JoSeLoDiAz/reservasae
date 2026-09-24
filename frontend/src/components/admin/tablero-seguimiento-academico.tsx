@@ -37,7 +37,7 @@ import { Desplegable } from "./desplegable";
 import { colorEtapa } from "./etapa";
 import { n } from "./graficos";
 import { Aviso } from "./marco-admin";
-import { Bloque, Encabezado, Esqueleto, Vacio } from "./piezas";
+import { Bloque, Encabezado, Esqueleto, TarjetaCifra, Vacio } from "./piezas";
 
 /// «AF1 · GESTIÓN DE LA ATENCIÓN…» llega en un solo texto, y el nombre
 /// entero son noventa letras que se comen la primera columna de la
@@ -214,34 +214,55 @@ function Cuerpo({
 
   return (
     <>
-      {/* 1 y 2 · QUÉ SE ESTÁ MIRANDO Y CUÁNTO PESA */}
-      <div className="grid gap-px rounded-xl border border-borde bg-hairline sm:grid-cols-2 lg:grid-cols-4">
-        <Cifra
-          rotulo="Acción de formación"
-          valor={accion ? accion.codigo : "Todas"}
-          pie={accion ? accion.nombre : `${n(datos.acciones.length)} en el aula`}
-        />
-        <Cifra
-          rotulo="Grupos"
-          valor={n(grupoElegido ? 1 : grupos.length)}
-          pie={grupoElegido ? "el grupo elegido" : "con gente matriculada"}
-        />
-        <Cifra
-          rotulo="Matriculados"
-          valor={n(r.total)}
-          pie={
-            grupos.length > 0
-              ? `${(r.total / grupos.length).toLocaleString("es-CO", { maximumFractionDigits: 1 })} por grupo de media`
-              : "sin grupos"
-          }
-        />
-        <Cifra
-          rotulo="Siguen en formación"
-          valor={n(r.enFormacion)}
-          tono="exito"
-          pie={salidas > 0 ? `${n(salidas)} salieron del aula` : "nadie ha salido"}
-        />
-      </div>
+      {/* 1 y 2 · QUÉ SE ESTÁ MIRANDO Y CUÁNTO PESA.
+
+          MISMO PATRÓN QUE «Control de Reservas»: la tira va DENTRO de
+          un bloque con su título, con `TarjetaCifra` y separadores de
+          un píxel. «Te dije esto como se tiene las proporciones de
+          ejemplo: Control de Reservas» (cliente, 23 sep 2026). Iba
+          suelta sobre el fondo y con una tarjeta propia más pequeña,
+          así que dos pantallas hermanas enseñaban la misma clase de
+          cifra de dos tamaños distintos. */}
+      <Bloque
+        sinRelleno
+        titulo={accion ? `Aula de ${accion.codigo}` : 'Aula de las dos redes'}
+      >
+        <div className="flex flex-wrap gap-px bg-hairline">
+          <Celda>
+            <TarjetaCifra
+              etiqueta="Acción de formación"
+              valor={accion ? accion.codigo : 'Todas'}
+              pie={accion ? accion.nombre : `${n(datos.acciones.length)} en el aula`}
+            />
+          </Celda>
+          <Celda>
+            <TarjetaCifra
+              etiqueta="Grupos"
+              valor={n(grupoElegido ? 1 : grupos.length)}
+              pie={grupoElegido ? 'el grupo elegido' : 'con gente matriculada'}
+            />
+          </Celda>
+          <Celda>
+            <TarjetaCifra
+              etiqueta="Matriculados"
+              valor={n(r.total)}
+              pie={
+                grupos.length > 0
+                  ? `${(r.total / grupos.length).toLocaleString('es-CO', { maximumFractionDigits: 1 })} por grupo de media`
+                  : 'sin grupos'
+              }
+            />
+          </Celda>
+          <Celda>
+            <TarjetaCifra
+              etiqueta="Siguen en formación"
+              valor={n(r.enFormacion)}
+              tono="exito"
+              pie={salidas > 0 ? `${n(salidas)} salieron del aula` : 'nadie ha salido'}
+            />
+          </Celda>
+        </div>
+      </Bloque>
 
       {/* 4 · LOS ESTADOS, que los manda el LMS */}
       <Bloque
@@ -332,37 +353,11 @@ function Cuerpo({
   );
 }
 
-/// Una cifra de la tira de arriba. Todas del mismo alto, con el rótulo
-/// arriba y el pie abajo, aunque el pie esté vacío.
-function Cifra({
-  rotulo,
-  valor,
-  pie,
-  tono,
-}: {
-  rotulo: string;
-  valor: string;
-  pie: string;
-  tono?: "exito";
-}) {
-  return (
-    <div className="bg-superficie px-4 py-3">
-      <p className="text-[0.625rem] font-bold tracking-[0.08em] text-texto-suave uppercase">
-        {rotulo}
-      </p>
-      <p
-        className={`mt-1 truncate text-[1.375rem] leading-none font-semibold tabular-nums ${
-          tono === "exito" ? "text-exito" : "text-titulo"
-        }`}
-        title={valor}
-      >
-        {valor}
-      </p>
-      <p className="mt-1.5 truncate text-[0.6875rem] text-texto-suave" title={pie}>
-        {pie}
-      </p>
-    </div>
-  );
+/// La celda de la tira de cifras. La misma que usa «Control de
+/// Reservas»: `flex-1` con un mínimo, sobre el fondo de la tarjeta, y
+/// el `gap-px` de la fila hace de separador.
+function Celda({ children }: { children: React.ReactNode }) {
+  return <div className="min-w-[150px] flex-1 bg-superficie">{children}</div>;
 }
 
 /// Una casilla de estado: el punto de su color, el rótulo, la cifra y

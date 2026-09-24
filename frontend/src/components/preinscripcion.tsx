@@ -177,7 +177,14 @@ export function PreinscripcionPublica({ slug }: { slug: string }) {
 
   if (hecho)
     return (
-      <Registrada token={hecho.token} nombre={hecho.nombre} mensaje={hecho.mensaje} />
+      <Registrada
+        token={hecho.token}
+        nombre={hecho.nombre}
+        mensaje={hecho.mensaje}
+        /// Hasta la ultima pantalla: quien entro por el enlace de
+        /// la alianza no puede verla desaparecer al confirmar.
+        aliado={catalogo?.formulario?.aliado}
+      />
     );
 
   const deptoElegido = catalogo.ubicaciones.find(
@@ -270,6 +277,8 @@ export function PreinscripcionPublica({ slug }: { slug: string }) {
         /// generar reserva si no está segura de si tiene que
         /// pagar» (cliente, 14 sep 2026). Estaba dicho en la
         /// bajada, entre otras seis cosas, que es donde no se lee.
+        /// El tercero de la banda, si el enlace trae uno.
+        aliado={catalogo.formulario?.aliado}
         titulo="Preinscripción a la oferta de formación gratuita"
         /// SIN NOMBRAR LA CONVOCATORIA, y no es solo estilo:
         /// la regla del proyecto es que en el sitio publico no se
@@ -421,8 +430,25 @@ export function PreinscripcionPublica({ slug }: { slug: string }) {
             {conCobertura.length === 0 && departamento && (
               <MarcaDePaso slug={slug} paso="SIN_COBERTURA" detalle={departamento} />
             )}
-            {conCobertura.length === 0 && (
-              <p className="mt-3 rounded-xl border border-borde bg-superficie px-4 py-3 text-sm text-texto-suave">
+            {/* SOLO CUANDO YA ELIGIÓ DÓNDE VIVE.
+
+                Salía desde que se abría la página, sin haber tocado
+                nada: «esto no debe salir porque no se ha escogido
+                nada» (cliente, 23 sep 2026). Y decía algo falso --que
+                la acción no se dicta «en esa ubicación»-- cuando no
+                había ninguna ubicación elegida todavía.
+
+                Se piden LOS DOS, departamento y municipio: con solo el
+                departamento puesto, la lista de municipios acaba de
+                aparecer y el aviso salta un instante antes de que a
+                nadie le dé tiempo a elegir.
+
+                Y CON PINTA DE AVISO, no de casilla vacía. Iba en una
+                caja blanca con borde gris y letra gris, igual que un
+                campo deshabilitado, así que se leía como si faltara
+                algo por cargar. */}
+            {conCobertura.length === 0 && departamento && ciudad && (
+              <p className="mt-3 rounded-xl border border-aviso/30 bg-aviso-suave px-4 py-3 text-sm leading-snug text-aviso">
                 {unaSola
                   ? "Esta acción de formación no se dicta en esa ubicación. Pruebe con otro municipio del mismo departamento."
                   : "No hay acciones con cobertura en esa ubicación. Pruebe con otra ciudad del mismo departamento."}
@@ -1109,15 +1135,17 @@ function Registrada({
   token,
   nombre,
   mensaje,
+  aliado,
 }: {
   token: string | null;
   nombre: string;
   mensaje: string | null;
+  aliado?: { nombre: string; logo: string } | null;
 }) {
   return (
     <>
       <main className="mx-auto w-full max-w-xl px-6 pt-16 pb-8 text-center">
-      <BannerLogos centrado />
+      <BannerLogos centrado aliado={aliado} />
 
       {/* El paso 3 no se alcanzaba nunca: aqui es donde pasa */}
       <div className="mt-8 text-left">

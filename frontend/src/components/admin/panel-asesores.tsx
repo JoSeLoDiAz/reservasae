@@ -34,7 +34,7 @@ import { useDatosVivos } from "@/lib/datos-vivos";
 
 import { n } from "./graficos";
 import { Aviso } from "./marco-admin";
-import { Bloque, Encabezado, Esqueleto, Vacio } from "./piezas";
+import { Bloque, Encabezado, Esqueleto, TarjetaCifra, Vacio } from "./piezas";
 
 type Subvista = "inscripciones" | "academicos";
 
@@ -107,6 +107,11 @@ export function PanelAsesores() {
   );
 }
 
+/// La celda de la tira de cifras, la misma de «Control de Reservas».
+function Celda({ children }: { children: React.ReactNode }) {
+  return <div className="min-w-[150px] flex-1 bg-superficie">{children}</div>;
+}
+
 function DeInscripciones() {
   const cargar = useCallback(() => crmApi.asesoresDeInscripciones(), []);
   const vivos = useDatosVivos<FilaDeAsesor[]>(cargar, { clave: "asesores-inscripciones" });
@@ -121,7 +126,69 @@ function DeInscripciones() {
     );
   }
 
+  /// LA TIRA DE CIFRAS, COMO EN «Control de Reservas» (cliente, 23 sep
+  /// 2026). Se suma de las mismas filas que se pintan debajo: con una
+  /// consulta aparte, el total de arriba y la suma de la tabla podrían
+  /// discrepar, y es lo primero que alguien comprueba.
+  const t = vivos.datos.reduce(
+    (a, f) => ({
+      total: a.total + f.carga.total,
+      gestionados: a.gestionados + f.carga.gestionados,
+      resueltos: a.resueltos + f.carga.resueltos,
+      pendientes: a.pendientes + f.ritmo.pendientes,
+    }),
+    { total: 0, gestionados: 0, resueltos: 0, pendientes: 0 },
+  );
+  /// LOS DOS SE CUENTAN SOBRE LAS MISMAS FILAS. La fila «Sin asesor
+  /// asignado» no es una persona, así que no cuenta como asesor; si el
+  /// refuerzo sí la contaba, salía «7 asesores · 8 necesitan
+  /// refuerzo», que no se sostiene.
+  const deVerdad = vivos.datos.filter((f) => f.asesorId !== null);
+  const conAsesor = deVerdad.length;
+  const aReforzar = deVerdad.filter(
+    (f) => f.ritmo.estado === "EN_RIESGO" || f.ritmo.estado === "VENCIDO",
+  ).length;
+
   return (
+    <>
+    <Bloque sinRelleno titulo="Los leads y quién los lleva">
+      <div className="flex flex-wrap gap-px bg-hairline">
+        <Celda>
+          <TarjetaCifra
+            etiqueta="Asesores"
+            valor={n(conAsesor)}
+            pie={aReforzar > 0 ? `${n(aReforzar)} necesitan refuerzo` : 'ninguno en riesgo'}
+          />
+        </Celda>
+        <Celda>
+          <TarjetaCifra etiqueta="Leads asignados" valor={n(t.total)} pie="en total" />
+        </Celda>
+        <Celda>
+          <TarjetaCifra
+            etiqueta="Gestionados"
+            valor={n(t.gestionados)}
+            pie={t.total > 0 ? `${Math.round((t.gestionados / t.total) * 100)} % de los leads` : 'sin leads'}
+          />
+        </Celda>
+        <Celda>
+          <TarjetaCifra
+            etiqueta="Inscritos o descartados"
+            valor={n(t.resueltos)}
+            tono="exito"
+            pie="ya resueltos"
+          />
+        </Celda>
+        <Celda>
+          <TarjetaCifra
+            etiqueta="Pendientes"
+            valor={n(t.pendientes)}
+            tono={t.pendientes > 0 ? "error" : "neutro"}
+            pie="sin resolver"
+          />
+        </Celda>
+      </div>
+    </Bloque>
+
     <Bloque
       sinRelleno
       titulo="Carga y ritmo de cada asesor"
@@ -201,6 +268,7 @@ function DeInscripciones() {
         semanas antes en los virtuales, cinco días hábiles en los presenciales.
       </PieDeTabla>
     </Bloque>
+    </>
   );
 }
 
@@ -218,7 +286,54 @@ function Academicos() {
     );
   }
 
+  /// La misma tira de arriba, con lo que se mide en académica.
+  const t = vivos.datos.reduce(
+    (a, f) => ({
+      grupos: a.grupos + f.grupos,
+      pax: a.pax + f.carga.total,
+      seguimiento: a.seguimiento + f.conSeguimiento,
+      certificados: a.certificados + f.certificados,
+      porCertificar: a.porCertificar + f.ritmo.pendientes,
+    }),
+    { grupos: 0, pax: 0, seguimiento: 0, certificados: 0, porCertificar: 0 },
+  );
+
   return (
+    <>
+    <Bloque sinRelleno titulo="Los grupos y quién los acompaña">
+      <div className="flex flex-wrap gap-px bg-hairline">
+        <Celda>
+          <TarjetaCifra etiqueta="Grupos" valor={n(t.grupos)} pie="con gente dentro" />
+        </Celda>
+        <Celda>
+          <TarjetaCifra etiqueta="PAX" valor={n(t.pax)} pie="personas en el aula" />
+        </Celda>
+        <Celda>
+          <TarjetaCifra
+            etiqueta="Con seguimiento"
+            valor={n(t.seguimiento)}
+            pie={t.pax > 0 ? `${Math.round((t.seguimiento / t.pax) * 100)} % del PAX` : 'sin gente'}
+          />
+        </Celda>
+        <Celda>
+          <TarjetaCifra
+            etiqueta="Certificados"
+            valor={n(t.certificados)}
+            tono="exito"
+            pie={t.pax > 0 ? `${Math.round((t.certificados / t.pax) * 100)} % del PAX` : 'sin gente'}
+          />
+        </Celda>
+        <Celda>
+          <TarjetaCifra
+            etiqueta="Por certificar"
+            valor={n(t.porCertificar)}
+            tono={t.porCertificar > 0 ? "error" : "neutro"}
+            pie="antes de que acabe el curso"
+          />
+        </Celda>
+      </div>
+    </Bloque>
+
     <Bloque
       sinRelleno
       titulo="Carga y cumplimiento de cada asesor académico"
@@ -295,6 +410,7 @@ function Academicos() {
         queda la traza en las notas.
       </PieDeTabla>
     </Bloque>
+    </>
   );
 }
 
