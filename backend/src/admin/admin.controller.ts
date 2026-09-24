@@ -30,6 +30,7 @@ import {
   TIPOS_LOGO,
   type EsquemaDeLogo,
 } from '../comun/logo';
+import { puedeAsignarGrupo } from '../crm/quien-asigna-grupo';
 import { AdminActual, AmbitoActual } from './admin-actual.decorator';
 import { esEditorDeMarca, SoloEditoresDeMarca } from './editores-de-marca';
 import { rolQueSeEnsena } from './rol-que-se-ensena';
@@ -161,6 +162,11 @@ export class AdminController {
         verElEquipo:
           admin.rol === RolAdmin.SUPERADMIN ||
           conveniosQueVenElEquipo(ambito.roles).length > 0,
+        /// Poner a alguien en un grupo: analista --líder de sistemas--
+        /// o administrador. Se manda para que el panel no le enseñe al
+        /// asesor una pantalla que el servidor va a rechazar; la
+        /// cerradura de verdad está en `quien-asigna-grupo.ts`.
+        asignarGrupo: puedeAsignarGrupo({ admin, ambito } as never),
       },
       /// Los gremios de esta cuenta CON su sigla: es lo que
       /// llena el desplegable de arriba. Van los concedidos,
