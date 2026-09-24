@@ -1288,6 +1288,48 @@ export type FilaDeAccion = {
   estado: "ABIERTO" | "CERRADO";
 };
 
+/**
+ * Las siete cifras macro del Resumen General, una fila por acción de
+ * formación. Qué significa cada una y por qué no suman todas igual
+ * está en `backend/src/crm/resumen-general.ts`.
+ */
+export type FilaResumenGeneral = {
+  accionFormacionId: string;
+  codigo: string;
+  nombre: string;
+  /// La sigla del gremio: los dos numeran sus acciones desde AF1.
+  gremio: string;
+  leads: number;
+  datosCompletos: number;
+  datosParciales: number;
+  enProceso: number;
+  sinGestion: number;
+  inscritos: number;
+  noInteresados: number;
+};
+
+/** Una fila por grupo de una acción: el Bloque 3 de Control de inscritos. */
+export type FilaDeGrupo = {
+  grupoId: string;
+  numero: number;
+  modalidad: string;
+  sedes: string;
+  departamentos: string;
+  meta: number;
+  /// En los grupos NO son cupos reservados sino personas ya nominadas
+  /// por la empresa: una reserva se hace sobre la oferta, no sobre un
+  /// grupo. Lo explica `backend/src/crm/resumen-por-grupo.ts`.
+  nominadosPorEmpresa: number;
+  campanaDigital: number;
+  totalLeads: number;
+  inscritosReservas: number;
+  inscritosCampana: number;
+  totalInscritos: number;
+  conversion: number | null;
+  cuposDisponibles: number;
+  estado: "ABIERTO" | "CERRADO";
+};
+
 export const crmApi = {
   /// Los datos de la empresa, desde la ficha del lead.
   ///
@@ -1342,6 +1384,19 @@ export const crmApi = {
   /// y media cifra respondia al filtro y media no.
   control: (ventana: FiltroVentana & Filtros = {}) =>
     pedir<Control>(`/admin/participantes/control${consulta(ventana)}`),
+
+  /// EL RESUMEN GENERAL: siete cifras macro por acción de formación.
+  /// Toma los mismos cortes que el resto de la pantalla.
+  resumenGeneral: (filtros: Filtros = {}) =>
+    pedir<FilaResumenGeneral[]>(
+      `/admin/participantes/control/resumen-general${consulta(filtros)}`,
+    ),
+
+  /// EL DETALLE POR GRUPOS de una acción (Bloque 3).
+  resumenPorGrupo: (accionFormacionId: string) =>
+    pedir<FilaDeGrupo[]>(
+      `/admin/participantes/resumen-por-accion/${accionFormacionId}/grupos`,
+    ),
 
   /// LA TABLA DEL COMITÉ: una fila por acción de formación. Es el
   /// Excel que el cliente llevaba a mano (23 sep 2026).

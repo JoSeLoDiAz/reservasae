@@ -46,6 +46,17 @@ import {
   resumenPorAccionSql,
   type FilaDeAccion,
 } from './resumen-por-accion';
+import {
+  completarGrupo,
+  resumenPorGrupoSql,
+  type FilaDeGrupo,
+} from './resumen-por-grupo';
+import {
+  resumenGeneral,
+  SELECT_RESUMEN_GENERAL,
+  type FilaCruda,
+  type FilaResumenGeneral,
+} from './resumen-general';
 import { faltaDeLaPersona, revisar } from './completitud';
 import { pasarSiNoLeFaltaNada } from './datos-completos';
 import { PanelDeCupos } from './panel-de-cupos';
@@ -569,6 +580,47 @@ export class CrmService {
       resumenPorAccionSql(ambito.convenios, ambito.gremioElegido),
     );
     return filas.map(completarFila);
+  }
+
+  /**
+   * El Resumen General de Control de inscritos: siete cifras macro,
+   * una barra por acción de formación.
+   *
+   * Acepta los MISMOS cortes que el resto de la pantalla. Un bloque
+   * que ignora los filtros de arriba es justo lo que el cliente
+   * señaló en Tráfico el 23 de septiembre: dos cifras distintas para
+   * la misma pregunta, en la misma pantalla.
+   */
+  async resumenGeneral(filtros: Filtros): Promise<FilaResumenGeneral[]> {
+    const donde = this.donde({ ...filtros, etapa: undefined, tramo: undefined });
+    const filas = await this.prisma.participante.findMany({
+      where: donde,
+      select: SELECT_RESUMEN_GENERAL,
+    });
+    return resumenGeneral(filas as FilaCruda[]);
+  }
+
+  /**
+   * El Bloque 3: los grupos de una acción, con las mismas columnas.
+   *
+   * Pide la acción a la fuerza. Sin ella habría que devolver los
+   * grupos de las quince, que es una tabla de setenta filas y ya
+   * existe una arriba que dice lo mismo resumido.
+   */
+  async resumenPorGrupo(ambito: Ambito, accionFormacionId: string): Promise<FilaDeGrupo[]> {
+    if (ambito.convenios.length === 0) return [];
+    /// El ámbito se comprueba por la acción y no dentro del SQL: una
+    /// cuenta sin concesión en ese gremio no puede abrir sus grupos
+    /// pasando el id a mano por la URL.
+    const suya = await this.prisma.accionFormacion.findFirst({
+      where: { id: accionFormacionId, convenioId: { in: ambito.convenios } },
+      select: { id: true },
+    });
+    if (!suya) return [];
+    const filas = await this.prisma.$queryRaw<Parameters<typeof completarGrupo>[0][]>(
+      resumenPorGrupoSql(accionFormacionId),
+    );
+    return filas.map(completarGrupo);
   }
 
   async resumen(filtros: Filtros) {

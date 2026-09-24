@@ -185,6 +185,43 @@ export class CrmController {
   resumenPorAccion(@AmbitoActual() ambito: Ambito) {
     return this.crm.resumenPorAccion(ambito);
   }
+  /**
+   * El Resumen General: siete cifras macro por acción de formación.
+   *
+   * Los cortes van uno a uno y NO con el DTO entero, por lo mismo que
+   * en `control`: el ValidationPipe global lleva
+   * `forbidNonWhitelisted` y la ventana lo tumba.
+   */
+  @Get('control/resumen-general')
+  @Requiere('inscritos')
+  resumenGeneral(
+    @AmbitoActual() ambito: Ambito,
+    @Query('convenioId') convenioId?: string,
+    @Query('accionFormacionId') accionFormacionId?: string,
+    @Query('grupoId') grupoId?: string,
+    @Query('asesorId') asesorId?: string,
+    @Query('departamentoSepId') departamentoSepId?: string,
+  ) {
+    return this.crm.resumenGeneral({
+      ambito: ambito.convenios,
+      convenioId: convenioId || undefined,
+      accionFormacionId: accionFormacionId || undefined,
+      grupoId: grupoId || undefined,
+      asesorId: asesorId || undefined,
+      departamentoSepId: departamentoSepId ? Number(departamentoSepId) : undefined,
+    });
+  }
+
+  /** El Bloque 3: los grupos de una acción, con las mismas columnas. */
+  @Get('resumen-por-accion/:accionFormacionId/grupos')
+  @Requiere('inscritos')
+  resumenPorGrupo(
+    @AmbitoActual() ambito: Ambito,
+    @Param('accionFormacionId') accionFormacionId: string,
+  ) {
+    return this.crm.resumenPorGrupo(ambito, accionFormacionId);
+  }
+
   /** Cuantos inscritos hay y como se reparten. */
   @Get('control')
   @Requiere('inscritos')
