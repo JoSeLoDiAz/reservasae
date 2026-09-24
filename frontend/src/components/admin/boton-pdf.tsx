@@ -26,7 +26,7 @@ export function BotonPdf({ etiqueta = "Exportar a PDF" }: { etiqueta?: string })
     <button
       type="button"
       onClick={() => window.print()}
-      className="no-imprimir sin-aro inline-flex h-[34px] items-center rounded-lg bg-pdf px-4 text-[0.8125rem] font-semibold whitespace-nowrap text-pdf-texto transition hover:bg-pdf-fuerte"
+      className="no-imprimir sin-aro inline-flex h-[30px] items-center rounded-lg bg-pdf px-4 text-[0.8125rem] font-semibold whitespace-nowrap text-pdf-texto transition hover:bg-pdf-fuerte"
     >
       {etiqueta}
     </button>

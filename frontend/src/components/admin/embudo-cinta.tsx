@@ -719,19 +719,18 @@ export function EmbudoCinta({
                 className="col-start-2 flex flex-col justify-center self-start text-left"
                 style={{ gridRow: i * 2 + 1, minHeight: alto }}
               >
-                {/* El número, con cifras de caja alta (`lining-nums`): la
-                    letra del panel dibuja las cifras antiguas, y en ellas
-                    el cero es del alto de una «o» --«01» se leía «o1»--. */}
-                <span className="flex items-baseline gap-x-1.5" style={{ color: colores[i] }}>
-                  <span
-                    data-pieza="numero"
-                    className="text-[1.125rem] leading-none font-bold tabular-nums lining-nums"
-                  >
-                    {String(i + 1).padStart(2, "0")}
-                  </span>
-                  <span data-pieza="nombre" className="text-[0.84375rem] leading-none font-semibold">
-                    {h.etiqueta}
-                  </span>
+                {/* SIN NÚMERO DE PASO. Iba «01», «02»… como en la
+                    referencia, pero junto a la cifra se leía como un dato
+                    más de los leads (cliente, 22 sep 2026). Queda el nombre
+                    del paso, del color de su cinta, y la línea guía llega a
+                    él: por eso lleva el `data-pieza="numero"`, que es el
+                    renglón que mide el dibujo. */}
+                <span
+                  data-pieza="numero"
+                  className="text-[0.9375rem] leading-tight font-bold"
+                  style={{ color: colores[i] }}
+                >
+                  <span data-pieza="nombre">{h.etiqueta}</span>
                 </span>
                 <span className="flex flex-wrap items-baseline gap-x-1.5">
                   <span data-pieza="cifra" className="text-[1.25rem] leading-none font-bold text-titulo tabular-nums">

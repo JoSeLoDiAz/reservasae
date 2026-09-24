@@ -50,18 +50,22 @@ export function Cifra({
   return (
     <div
       className={
-        "min-w-[150px] flex-1 rounded-lg border border-borde bg-superficie px-3.5 py-2 transition " +
+        /// Apretadas: cada píxel de alto que se ahorran aquí es una fila
+        /// más de tabla, que es lo que se vino a mirar. Bajan de 61 px a
+        /// 50 sin perder nada --las del embudo de Gestión de leads ya
+        /// iban así--.
+        "min-w-[150px] flex-1 rounded-lg border border-borde bg-superficie px-3.5 py-1.5 transition " +
         "hover:border-marca/40 hover:shadow-[0_2px_14px_-6px_rgba(15,23,42,0.28)]"
       }
     >
       <div className="truncate leading-none text-texto-suave" style={{ fontSize: "0.6875rem" }} title={etiqueta}>
         {etiqueta}
       </div>
-      <div className="mt-1 font-bold leading-none tabular-nums" style={{ fontSize: "1.0625rem", color }}>
+      <div className="mt-0.5 font-bold leading-none tabular-nums" style={{ fontSize: "1.0625rem", color }}>
         {valor}
       </div>
       {pie && (
-        <div className="mt-1 truncate leading-none text-texto-suave" style={{ fontSize: "0.6875rem" }}>
+        <div className="mt-0.5 truncate leading-none text-texto-suave" style={{ fontSize: "0.6875rem" }}>
           {pie}
         </div>
       )}
@@ -304,11 +308,44 @@ export function Pildora({
   );
 }
 
+/**
+ * La salida de una pantalla de segundo nivel, con pinta de botón.
+ *
+ * «De otro color, no sé, algo que sepa que es un botón de regresar»
+ * (cliente, 23 sep 2026): en gris y sin caja parecía un rótulo más.
+ * Píldora, color de marca y una punta de flecha dibujada --no el
+ * carácter «←», que sale de otra familia y se ve torcido--.
+ */
+export function BotonVolver({ href, texto }: { href: string; texto: string }) {
+  return (
+    <Link
+      href={href}
+      className="inline-flex items-center gap-1.5 rounded-full border border-marca/30 bg-marca-suave py-1 pr-3 pl-2 text-[0.75rem] leading-none font-medium text-marca transition hover:border-marca hover:brightness-[0.97]"
+    >
+      <svg
+        viewBox="0 0 16 16"
+        width="12"
+        height="12"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        aria-hidden="true"
+      >
+        <path d="M10 3 5 8l5 5" />
+      </svg>
+      Volver a {texto}
+    </Link>
+  );
+}
+
 /** Encabezado de pantalla: título, apoyo y acciones. */
 export function Encabezado({
   titulo,
   descripcion,
   descripcionAncha,
+  compacto,
   children,
 }: {
   titulo: string;
@@ -324,6 +361,16 @@ export function Encabezado({
    * pide pantalla por pantalla, no se cambia para todas.
    */
   descripcionAncha?: boolean;
+  /**
+   * Menos alta: para pantallas donde la cabecera solo lleva el título.
+   *
+   * Con descripción los 26/22 px de relleno están bien --hay dos
+   * renglones que respirar--, pero con solo el título eran 80 px de
+   * banda para 21 de letra: «¿por qué no reduces de alto [...] porque
+   * pues es espacio que se gana?» (cliente, 23 sep 2026). Se pide
+   * pantalla por pantalla, no se cambia para todas.
+   */
+  compacto?: boolean;
   children?: React.ReactNode;
 }) {
   return (
@@ -340,7 +387,12 @@ export function Encabezado({
     /// 2026). Las bandas iban a sangre y con raya abajo; ahora
     /// llevan las cuatro esquinas redondeadas, y para eso tienen
     /// que separarse del canto: de ahí el `mx-3`.
-    <header className="mx-4 mb-3 flex flex-wrap items-start justify-between gap-4 rounded-2xl border border-borde bg-superficie px-7 pt-[26px] pb-[22px]">
+    <header
+      className={
+        "mx-4 mb-2 flex flex-wrap items-start justify-between gap-4 rounded-2xl border border-borde bg-superficie px-7 " +
+        (compacto ? "pt-[13px] pb-[11px]" : "pt-[26px] pb-[22px]")
+      }
+    >
       <div className="min-w-0">
         <h1 className="text-[1.3125rem] font-bold tracking-[-0.02em] text-titulo">
           {titulo}
@@ -356,7 +408,13 @@ export function Encabezado({
           </p>
         )}
       </div>
-      {children && <div className="flex shrink-0 flex-wrap gap-2">{children}</div>}
+      {/* SE ENCOGE, NO SE SALE. Llevaba `shrink-0`, y con la pantalla
+          partida --770 px, media pantalla-- las cuatro píldoras de pasos
+          pedían más de lo que había y se salían por el canto derecho del
+          recuadro: «mira cómo se ve de fatal» (cliente, 23 sep 2026).
+          Con `min-w-0` el bloque cede y su `flex-wrap` reparte en dos
+          renglones, que es lo que ya hacía en el móvil. */}
+      {children && <div className="flex min-w-0 flex-wrap gap-2">{children}</div>}
     </header>
   );
 }
@@ -478,6 +536,136 @@ export function Esqueleto({
           ))}
         </div>
       </div>
+    </div>
+  );
+}
+
+/**
+ * LAS ACCIONES DE LA PANTALLA, EN UN MENÚ.
+ *
+ * La barra de la tabla trae cinco controles propios --buscador,
+ * Filtros, Columnas, Vistas y Excel-- y Gestión de leads le añadía
+ * cuatro botones más. Medido el 23 de septiembre de 2026: los nueve
+ * piden unos 1.900 px, así que a 1.600 la barra ya se partía en dos
+ * renglones y a 1.180 en tres. «En pantalla pequeña se ve raro, ¿se
+ * puede reducir el de buscar para que quede en una sola línea?».
+ * Encoger el buscador no alcanzaba: lo que sobra son botones.
+ *
+ * Con `<details>` y no con estado: se abre y se cierra sin JavaScript
+ * --incluido el clic fuera, que el navegador ya resuelve-- y con el
+ * teclado funciona solo. El panel vuela sobre la tabla, que es la
+ * excepción que el diseño permite.
+ */
+export function MenuDeAcciones({
+  etiqueta = "Acciones",
+  children,
+}: {
+  etiqueta?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <details className="group relative">
+      <summary
+        className={
+          "sin-aro inline-flex h-[34px] cursor-pointer list-none items-center gap-1.5 rounded-lg " +
+          "border border-borde bg-superficie px-3.5 text-[0.78125rem] font-semibold transition " +
+          "hover:bg-superficie-alterna group-open:border-marca group-open:text-marca"
+        }
+      >
+        {etiqueta}
+        <svg
+          viewBox="0 0 12 12"
+          width="11"
+          height="11"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.8"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          aria-hidden="true"
+          className="transition-transform group-open:rotate-180"
+        >
+          <path d="M3 4.5 6 7.5 9 4.5" />
+        </svg>
+      </summary>
+
+      {/* A la DERECHA del botón: el menú vive al final de la barra, y
+          anclado a la izquierda se salía de la ventana. */}
+      <div
+        className={
+          "absolute top-[calc(100%+4px)] right-0 z-50 flex w-max min-w-[13rem] flex-col gap-0.5 " +
+          "rounded-lg border border-borde bg-superficie p-1.5 " +
+          "shadow-[0_10px_30px_-10px_rgba(15,23,42,0.28)]"
+        }
+      >
+        {children}
+      </div>
+    </details>
+  );
+}
+
+/**
+ * LA TARJETA DE CIFRA COMPACTA, la de «Gestión de leads».
+ *
+ * «Quiero que por estética los tamaños de las tarjetas sean como los de
+ * Gestión de leads, que no ocupan mucho espacio y le da orden»
+ * (cliente, 23 sep 2026).
+ *
+ * Son las mismas medidas que la tira de etapas de esa pantalla: rótulo
+ * de 11,5 px, cifra de 17 y 46 px de alto en total, contra los 32 px de
+ * cifra y 110 de alto de `TarjetaCifra`. Cada píxel que se ahorra aquí
+ * es una fila más de tabla, que es lo que se viene a mirar.
+ *
+ * Y LLEVA EL PORCENTAJE AL LADO DE LA CIFRA, no debajo: es el dato que
+ * hace falta para leerla --«7» no dice nada, «7, el 18 %» sí-- y
+ * apilado costaría el renglón que se acaba de ahorrar.
+ */
+export function CifraCompacta({
+  etiqueta,
+  valor,
+  detalle,
+  pie,
+  color,
+}: {
+  etiqueta: string;
+  valor: string;
+  /// Lo CORTO que acompaña a la cifra, en la misma línea: «18 %»,
+  /// «3,5 por grupo». Una FRASE aquí no cabe --queda «11 apartaron
+  /// cupos en 5 acciones», que no se lee-- y para eso está `pie`.
+  detalle?: string;
+  /// La frase, debajo. Cuesta un renglón de 14 px y es lo que hay que
+  /// pagar cuando lo que acompaña a la cifra es una oración.
+  pie?: string;
+  /// El color de la cifra. Sin él, el del texto.
+  color?: string;
+}) {
+  return (
+    <div className="min-w-[112px] flex-1 rounded-lg border border-borde bg-superficie px-3.5 py-2 transition hover:border-marca/40 hover:shadow-[0_2px_14px_-6px_rgba(15,23,42,0.28)]">
+      <div
+        className="truncate leading-none text-texto-suave"
+        style={{ fontSize: "0.71875rem" }}
+        title={etiqueta}
+      >
+        {etiqueta}
+      </div>
+      <div className="mt-1 flex items-baseline gap-1.5 leading-none">
+        <span
+          className="font-bold tabular-nums"
+          style={{ fontSize: "1.0625rem", color }}
+        >
+          {valor}
+        </span>
+        {detalle && (
+          <span className="truncate text-[0.6875rem] text-texto-suave" title={detalle}>
+            {detalle}
+          </span>
+        )}
+      </div>
+      {pie && (
+        <div className="mt-1 truncate text-[0.6875rem] leading-none text-texto-suave" title={pie}>
+          {pie}
+        </div>
+      )}
     </div>
   );
 }

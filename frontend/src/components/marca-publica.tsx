@@ -375,7 +375,16 @@ export function ConmutadorTema({
 /// así que arriba se leía dos veces la misma firma en la misma
 /// pantalla. La cara de arriba es la del gremio, que es quien
 /// reparte el enlace; la casa firma abajo.
-export function BannerLogos({ centrado = false }: { centrado?: boolean }) {
+export function BannerLogos({
+  centrado = false,
+  aliado,
+}: {
+  centrado?: boolean;
+  /// Va también en la confirmación: quien entró por el enlace de
+  /// la alianza tiene que verla hasta el final, o la última
+  /// pantalla desmiente a la primera.
+  aliado?: Aliado | null;
+}) {
   return (
     /// La firma ARRIBA y los logos debajo, las dos centradas.
     ///
@@ -400,7 +409,14 @@ export function BannerLogos({ centrado = false }: { centrado?: boolean }) {
           No se va a 60 --el de PORTADA-- porque ese esta medido
           para el panel del acceso, que ocupa media pantalla. */}
       <FirmaConvoca tamano={48} animado />
-      <LogosDelGremio className={centrado ? "justify-center" : ""} />
+      <div
+        className={`flex flex-wrap items-center gap-x-5 gap-y-3 ${
+          centrado ? "justify-center" : ""
+        }`}
+      >
+        <LogosDelGremio />
+        {aliado && <PiezaDeAliado aliado={aliado} />}
+      </div>
     </div>
   );
 }
@@ -442,7 +458,44 @@ function Rotulo({ children }: { children: React.ReactNode }) {
   );
 }
 
-export function FilaDeMarca() {
+/**
+ * El tercero que acompaña a UNA convocatoria.
+ *
+ * No es un logo de la marca --esos salen de `GET /marca` y son
+ * del gremio, iguales en todos sus formularios--: este viene del
+ * formulario personalizado por el que entró la persona, y solo
+ * sale ahí. Ver `formularios-personalizados.ts`.
+ */
+export type Aliado = { nombre: string; logo: string };
+
+/// El logo del aliado, a la misma altura que los demás.
+///
+/// PLACA BLANCA EN OSCURO, por la misma razón que en
+/// `LogosDelGremio`: es un archivo cerrado, con el nombre en
+/// oscuro y fondo blanco, y sobre el fondo negro se lee como un
+/// ladrillo con una mancha. La placa lo convierte en papel, que
+/// es para lo que ese archivo está hecho.
+function PiezaDeAliado({ aliado }: { aliado: Aliado }) {
+  const { esquema } = useMarca();
+
+  return (
+    <span
+      className={
+        esquema === "OSCURO" ? "rounded-xl bg-white px-2.5 py-1.5" : ""
+      }
+    >
+      {/* <img>: el tamaño no se conoce y el archivo es estático */}
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={aliado.logo}
+        alt={aliado.nombre}
+        className="h-10 w-auto max-w-[42vw] object-contain sm:max-w-[11rem]"
+      />
+    </span>
+  );
+}
+
+export function FilaDeMarca({ aliado }: { aliado?: Aliado | null }) {
   const logos = useLogosVisibles();
   const [gestor, ...para] = logos;
 
@@ -480,7 +533,7 @@ export function FilaDeMarca() {
           leen como una frase: Convoca CRM · gestionado por Grupo
           AE · para ADECOPRIA. */}
       <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-4 sm:justify-between">
-        <FirmaConvoca tamano={38} animado className="shrink-0" />
+        <FirmaConvoca tamano={aliado ? 32 : 38} animado className="shrink-0" />
 
         {gestor && (
           /// CADA RÓTULO, PEGADO A SU LOGO.
@@ -502,14 +555,42 @@ export function FilaDeMarca() {
           /// va centrada entre las dos cosas que une, o se lee
           /// pegada a una de ellas. Un solo `gap` para las cinco
           /// piezas y el problema no puede volver.
-          <div className="flex flex-wrap items-center justify-center gap-x-3.5 gap-y-3">
+          /// CON ALIADO, TODO UN PUNTO MÁS PEQUEÑO, para que la fila
+          /// no se parta.
+          ///
+          /// Medido el 23 sep 2026: cuatro marcas y tres rótulos piden
+          /// 893 px y la columna del formulario son 790, así que la
+          /// fila SIEMPRE caía en dos renglones --el cliente enseñó dos
+          /// veces cómo debía quedar, en una sola--. Bajando los logos
+          /// de 40 a 32 px, el rótulo de 11 a 10 y el hueco de 14 a 10,
+          /// cabe. Sin aliado son tres piezas menos y no hace falta
+          /// achicar nada.
+          <div
+            className={
+              "flex flex-wrap items-center justify-center gap-y-3 " +
+              (aliado
+                ? "gap-x-2 [&_img]:h-7 [&_img]:sm:max-w-[8.5rem] [&_span]:text-[10px] [&_span]:tracking-[0.08em]"
+                : "gap-x-3.5")
+            }
+          >
             {/* el separador solo cuando hay sitio: en el teléfono
                 las piezas se apilan y una raya vertical entre
-                renglones no separa nada */}
-            <span
-              aria-hidden="true"
-              className="mr-1 hidden h-10 w-px bg-borde sm:block"
-            />
+                renglones no separa nada.
+
+                Con aliado tampoco, y por lo mismo. Cuatro marcas y
+                tres rótulos piden 893 px y la tarjeta mide 790 --
+                medido a 1280 el 23 sep 2026, y no mejora en
+                pantalla ancha porque la columna está topada en
+                `max-w-4xl`--, así que la fila SIEMPRE se parte en
+                dos. La raya, pensada para separar la firma de lo
+                que viene a su derecha, quedaba colgando al
+                principio del segundo renglón sin separar nada. */}
+            {!aliado && (
+              <span
+                aria-hidden="true"
+                className="mr-1 hidden h-10 w-px bg-borde sm:block"
+              />
+            )}
             <Rotulo>Gestionado por</Rotulo>
             <PiezaDeLogo logo={gestor} />
             {para.length > 0 && <Rotulo>para</Rotulo>}
@@ -517,6 +598,20 @@ export function FilaDeMarca() {
               <PiezaDeLogo key={l.id} logo={l} />
             ))}
 
+            {/* EL ALIADO VA AL FINAL, y con su propio rótulo.
+
+                La frase que se lee de izquierda a derecha es la
+                relación entera: Convoca CRM, gestionado por Grupo
+                AE, para ADECOPRIA, en alianza con Santillana.
+                Metido en medio rompería las dos parejas que el 11
+                sep 2026 costó cuadrar, y delante del «para»
+                parecería que el sistema es suyo. */}
+            {aliado && (
+              <>
+                <Rotulo>En alianza con</Rotulo>
+                <PiezaDeAliado aliado={aliado} />
+              </>
+            )}
           </div>
         )}
       </div>
@@ -635,15 +730,18 @@ function LogosDelGremio({ className = "" }: { className?: string }) {
 export function EncabezadoPublico({
   titulo,
   subtitulo,
+  aliado,
 }: {
   titulo?: string;
   subtitulo?: string;
+  /// Solo lo trae el formulario personalizado que lo lleve.
+  aliado?: Aliado | null;
 }) {
   const { marca } = useMarca();
 
   return (
     <header className="mb-8">
-      <FilaDeMarca />
+      <FilaDeMarca aliado={aliado} />
 
       {/* CENTRADO, como los logos (cliente, 11 sep 2026). El
           título y el subtítulo son la presentación de la

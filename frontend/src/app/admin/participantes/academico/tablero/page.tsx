@@ -1,29 +1,23 @@
+"use client";
+
 /**
- * El tablero académico: cómo va cada acción, cada grupo y cada
- * asesor, con sus cortes y su aviso de medibles.
+ * SEGUIMIENTO ACADÉMICO: el resumen del aula, sin nombres.
  *
- * VUELVE A SER UNA PÁGINA. Esta ruta estuvo en el menú, luego
- * pasó a ser una pestaña de Seguimiento y la ruta se quedó
- * redirigiendo; ahora es otra vez una pantalla, con su entrada en
- * el menú de Académica: «estas dos opciones que queden en
- * Académica en lista desplegable» (cliente, 12 sep 2026).
+ * Aquí vivía el tablero de cohortes --periodo, comparación, avance
+ * medio-- y el cliente lo rehizo entero el 23 sep 2026: «filtro:
+ * acción de formación, grupos (individual o todo); resumen: número de
+ * grupos, total de beneficiarios por grupo matriculados, estados de
+ * cada uno de los participantes». Y con una condición que manda sobre
+ * todo lo demás: «importante, no mostrar las personas sino los
+ * resúmenes o cantidades».
  *
- * Es la misma URL que llevaba redirigiendo, así que quien la
- * tenga guardada aterriza justo donde esperaba.
- *
- * Hermana de Seguimiento, no su sustituta: aquella mira persona a
- * persona y esta por acción, grupo y asesor. Son la misma
- * pregunta con distinto zoom.
+ * Lo viejo no se pierde: `tablero-academico.ts` sigue en el backend
+ * con sus cortes por acción, grupo y asesor, y de ahí come el tablero
+ * de asesores.
  */
 
-import { TableroAcademico } from "@/components/admin/tablero-academico";
+import { TableroSeguimientoAcademico } from "@/components/admin/tablero-seguimiento-academico";
 
-export default function PaginaTableroAcademico() {
-  return (
-    /// El mismo marco que Seguimiento, para que las dos hojas del
-    /// módulo empiecen a la misma altura y con el mismo margen.
-    <div className="flex flex-col gap-3 px-4 pt-3">
-      <TableroAcademico />
-    </div>
-  );
+export default function PaginaDeSeguimientoAcademico() {
+  return <TableroSeguimientoAcademico />;
 }

@@ -73,15 +73,23 @@ export function comoViaja(texto: string): string {
 /// Solo sin canal quedan los `utm_`, porque el corto no existe sin
 /// prefijo: ver `enlace-corto.ts`.
 export function urlMarcada(base: string, utm: string, envio: string): string {
+  /// `&` cuando la base ya trae algo, que es el caso de los
+  /// formularios personalizados: su dirección YA lleva la palabra
+  /// que los identifica (`?TallerBootcamp`) y pegarle otro `?`
+  /// detrás dejaba un enlace roto que ni marcaba ni abría el
+  /// formulario. Las dos palabras conviven: una dice qué
+  /// formulario es y la otra por dónde llegó.
+  const une = base.includes("?") ? "&" : "?";
+
   const corta = palabraCorta(utm, comoViaja(envio));
-  if (corta) return `${base}?${corta}`;
+  if (corta) return `${base}${une}${corta}`;
 
   const p = new URLSearchParams();
   if (utm) p.set("utm_source", utm);
   const nombre = comoViaja(envio);
   if (nombre) p.set("utm_campaign", nombre);
   const cola = p.toString();
-  return cola ? `${base}?${cola}` : base;
+  return cola ? `${base}${une}${cola}` : base;
 }
 
 export type Campo = { etiqueta: string; obligatorio?: boolean };

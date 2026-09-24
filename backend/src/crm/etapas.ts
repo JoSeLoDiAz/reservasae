@@ -97,7 +97,7 @@ export function ocupaSilla(etapa: EtapaParticipante): boolean {
  * mete a doscientos más encima de los doscientos que ya estaban.
  *
  * Los dos números se enseñan, porque son dos preguntas: «sillas
- * ocupadas» y «fichas apuntadas a esta cohorte». Con uno solo, o se
+ * ocupadas» y «leads apuntados a esta cohorte». Con uno solo, o se
  * sobrevende o parece lleno lo que está libre.
  *
  * Fuera quedan las salidas —quien se retiró liberó su asiento— y

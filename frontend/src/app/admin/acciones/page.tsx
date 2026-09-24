@@ -142,7 +142,7 @@ function Catalogo() {
     /// `min-h-0 grow` solo sirve donde algo de DENTRO scrollea.
     /// Aquí manda el scroll de `<main>`, y poder bajar vale más que
     /// pegar la lista al pie.
-    <div className="flex flex-col gap-3 px-4 pt-4 pb-3">
+    <div className="flex flex-col gap-3 px-4 pt-4 pb-6">
       <div className="no-imprimir">
         {/* La pestaña es para VER el catálogo; publicar es una acción
             que se hace desde aquí, no lo que la pestaña es. Antes la

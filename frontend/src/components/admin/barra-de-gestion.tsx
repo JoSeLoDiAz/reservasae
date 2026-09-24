@@ -25,6 +25,7 @@
 
 import { useState } from "react";
 import { Desplegable } from "./desplegable";
+import { useAdmin } from "./marco-admin";
 
 import {
   crmApi,
@@ -119,6 +120,8 @@ export function BarraDeGestion({
 }) {
   const [asesorId, setAsesorId] = useState(lead.asesor?.id ?? "");
   const [accionId, setAccionId] = useState<string | null>(null);
+  const { admin } = useAdmin();
+  const puedeAsignarGrupo = admin.puede?.asignarGrupo === true;
   const [coberturaId, setCoberturaId] = useState(lead.cobertura?.id ?? "");
   const [guardando, setGuardando] = useState(false);
 
@@ -385,11 +388,20 @@ export function BarraDeGestion({
       <div style={D.campoCorto}>
         <div style={D.rotulo}>GRUPO</div>
         <div style={{ marginTop: 6 }}>
+          {/* SOLO EL ANALISTA O UN ADMINISTRADOR. «El asesor de
+              inscripciones no puede colocar el Grupo, esto lo hace el
+              analista y/o administrador» (cliente, 23 sep 2026).
+
+              Se apaga, no se esconde: el asesor necesita VER en qué
+              grupo quedó la persona --es lo que le dice las fechas que
+              tiene que contarle--, y una casilla que desaparece según
+              quién mire hace dudar de si el dato existe. El servidor lo
+              niega igual, aunque alguien fuerce la llamada. */}
           <Desplegable
             subrayado
             alto={30}
             marcador={bloqueado ? "Sin cobertura" : "Sin asignar"}
-            desactivado={!accion?.cubre}
+            desactivado={!puedeAsignarGrupo || !accion?.cubre}
             valor={coberturaId}
             opciones={[
               { valor: "", etiqueta: bloqueado ? "Sin cobertura" : "Sin asignar" },
@@ -397,6 +409,11 @@ export function BarraDeGestion({
             ]}
             alElegir={setCoberturaId}
           />
+          {!puedeAsignarGrupo && (
+            <p className="mt-1 text-[0.6875rem] leading-tight text-texto-suave">
+              Lo asigna el analista
+            </p>
+          )}
         </div>
       </div>
 

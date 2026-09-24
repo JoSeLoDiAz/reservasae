@@ -5,7 +5,8 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { ArreglarLead } from "@/components/admin/arreglar-lead";
 import { GestionarLead } from "@/components/admin/gestionar-lead";
-import { Aviso, Boton, useAdmin } from "@/components/admin/marco-admin";
+import { Desplegable } from "@/components/admin/desplegable";
+import { Aviso, Boton, Campo, useAdmin } from "@/components/admin/marco-admin";
 import { crmApi, type CatalogosSep } from "@/lib/crm-api";
 import { Cifra, Encabezado, Vacio } from "@/components/admin/piezas";
 import { useDatosVivos } from "@/lib/datos-vivos";
@@ -33,6 +34,14 @@ import {
 const CLASE_CAMPO =
   "rounded-lg border border-borde bg-campo px-3 py-1.5 text-sm " +
   "outline-none focus:ring-2 focus:ring-campo-foco";
+
+/// La misma caja que el disparador del desplegable: mismos tokens de
+/// fondo y borde, mismo cuerpo de letra y mismo alto. Dos controles
+/// pegados en la misma barra con dos cajas distintas se leen como dos
+/// piezas de sitios distintos.
+const CLASE_BUSCADOR =
+  "rounded-lg border border-campo-borde bg-campo-fondo px-3 text-[0.78125rem] " +
+  "outline-none transition hover:border-marca/60 focus:border-marca";
 
 const ESTADOS: EstadoLead[] = ["PENDIENTE", "CONVERTIDO", "DESCARTADO"];
 
@@ -220,13 +229,25 @@ export default function PaginaMesa() {
   ).length;
 
   return (
-    <>
+    /// LA FRANJA DE ARRIBA, COMO EN LAS DEMÁS: `pt-4`. Sin ella el
+    /// recuadro del título quedaba pegado a la barra del menú (0 px,
+    /// medido el 22 sep 2026) mientras las otras pantallas dejan 16.
+    <div className="pt-4">
+      {/* `descripcionAncha`: el apoyo tiene tope de 760 px por omisión
+          --una línea muy larga se lee peor-- y aquí eso lo partía en dos
+          renglones cortos con media pantalla vacía al lado: «ajusta para
+          que el texto no quede cortado, sino a lo largo» (cliente, 23
+          sep 2026). */}
       <Encabezado
         titulo="Mesa de entrada"
+        descripcionAncha
         descripcion="Lo que llega por los webhooks: la pauta de Meta y el orquestador de correos. Todavía no están en Gestión de leads — alguien los revisa y los convierte, y ahí entran como Interesados."
       />
 
-      <section className="space-y-5 px-7 py-6">
+      {/* `px-4` y no `px-7`: el mismo canto que el recuadro del título
+          (`mx-4`). Con 28 px las cifras y la tabla quedaban 12 px más
+          adentro que el título de su propia pantalla. */}
+      <section className="space-y-3 px-4 pt-1 pb-4">
         {error && <Aviso tipo="error">{error}</Aviso>}
 
         {resultado && (
@@ -288,31 +309,69 @@ export default function PaginaMesa() {
           <Cifra etiqueta="Descartados" valor={r.DESCARTADO ?? 0} />
         </div>
 
-        <div className="flex flex-wrap items-center gap-3">
-          <input
-            className={CLASE_CAMPO + " min-w-[280px] flex-1"}
-            placeholder="Documento, nombre, correo o celular"
-            value={buscar}
-            onChange={(e) => setBuscar(e.target.value)}
-          />
-          <select
-            className={CLASE_CAMPO}
-            value={estado}
-            onChange={(e) => setEstado(e.target.value)}
-          >
-            <option value="">Todos, incluidos los ya atendidos</option>
-            {ESTADOS.map((s) => (
-              <option key={s} value={s}>
-                {ETIQUETA_ESTADO_LEAD[s]}
-              </option>
-            ))}
-          </select>
-          {datos && (
-            <span className="text-sm text-texto-suave">
-              {datos.total} {datos.total === 1 ? "lead" : "leads"}
-              {datos.paginas > 1 && ` · viendo ${leads.length}`}
-            </span>
-          )}
+        {/* EL FILTRO MANDA, EL BUSCADOR ACOMPAÑA. Iba al revés: el
+            buscador se estiraba a todo lo ancho --1.400 px para escribir
+            un documento-- y el filtro quedaba de refilón al final,
+            cuando es el que decide QUÉ lista se está mirando: «reduce el
+            ancho de ese de búsqueda y dale más protagonismo a Sin
+            atender» (cliente, 23 sep 2026). */}
+        <div className="flex flex-wrap items-start gap-3">
+          <div className="w-[min(260px,100%)]">
+            <Campo
+              etiqueta="Qué lista ve"
+              /// El recuento, debajo del filtro y no al final de la
+              /// barra: describe la lista que ese filtro acaba de
+              /// elegir, y ahí libera el canto derecho para el buscador.
+              ayuda={
+                datos
+                  ? `${datos.total} ${datos.total === 1 ? "lead" : "leads"}${
+                      datos.paginas > 1 ? ` · viendo ${leads.length}` : ""
+                    }`
+                  : undefined
+              }
+            >
+          {/* EL DESPLEGABLE DE LA CASA, no el del sistema operativo.
+              «Revisa los desplegables, deben ser elegantes como [el de]
+              Asignar grupo por lote» (cliente, 23 sep 2026). Un
+              `<select>` nativo abre la lista que dibuja Windows --cuadro
+              cuadrado y azul de sistema-- y ninguna regla de CSS llega
+              ahí; el nuestro pinta su propia lista. */}
+              <Desplegable
+                alto={38}
+                etiquetaAria="Estado del lead"
+                marcador="Todos, incluidos los ya atendidos"
+                valor={estado}
+                opciones={[
+                  { valor: "", etiqueta: "Todos, incluidos los ya atendidos" },
+                  ...ESTADOS.map((s) => ({ valor: s, etiqueta: ETIQUETA_ESTADO_LEAD[s] })),
+                ]}
+                alElegir={setEstado}
+              />
+            </Campo>
+          </div>
+
+          {/* HASTA EL CANTO DERECHO, Y CON LA MISMA CAJA QUE EL FILTRO.
+              Estuvo con tope de 820 px y el recuento detrás, así que
+              quedaba un hueco muerto a la derecha; y llevaba otro fondo
+              y otro cuerpo de letra que el desplegable de al lado, así
+              que los dos controles de la misma barra no se veían de la
+              misma familia: «que vaya hasta la esquina derecha, y esto
+              como blanco como Qué lista ve para que los tamaños se vean
+              iguales» (cliente, 23 sep 2026). */}
+          {/* Con su rótulo, como el filtro: dos controles pegados, uno
+              rotulado y el otro no, se desalinean solos --el que no lo
+              lleva sube o baja según lo que tenga debajo el otro--. */}
+          <div className="min-w-[320px] flex-1">
+            <Campo etiqueta="Buscar">
+              <input
+                style={{ height: 38 }}
+                className={CLASE_BUSCADOR + " w-full"}
+                placeholder="Documento, nombre, correo o celular"
+                value={buscar}
+                onChange={(e) => setBuscar(e.target.value)}
+              />
+            </Campo>
+          </div>
         </div>
 
         {seleccionados.length > 0 && (
@@ -400,19 +459,20 @@ export default function PaginaMesa() {
               >
                 ¿Quién los va a atender?
               </label>
-              <select
-                id="asesor-del-lote"
-                className={CLASE_CAMPO + " w-full max-w-sm"}
-                value={asesorId}
-                onChange={(e) => setAsesorId(e.target.value)}
-              >
-                <option value="">Elija un asesor…</option>
-                {(datos?.asesores ?? []).map((a) => (
-                  <option key={a.id} value={a.id}>
-                    {a.nombre}
-                  </option>
-                ))}
-              </select>
+              <div className="w-full max-w-sm">
+                <Desplegable
+                  id="asesor-del-lote"
+                  alto={38}
+                  etiquetaAria="Asesor para el lote"
+                  marcador="Elija un asesor…"
+                  valor={asesorId}
+                  opciones={(datos?.asesores ?? []).map((a) => ({
+                    valor: a.id,
+                    etiqueta: a.nombre,
+                  }))}
+                  alElegir={setAsesorId}
+                />
+              </div>
               <p className="text-xs text-texto-suave">
                 Se les asigna a esta persona. Puede hacer varias tandas: veinte
                 para una, diez para otra.
@@ -700,6 +760,6 @@ export default function PaginaMesa() {
           alGuardado={cargar}
         />
       )}
-    </>
+    </div>
   );
 }

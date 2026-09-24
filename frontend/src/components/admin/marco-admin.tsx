@@ -29,6 +29,13 @@ import {
 } from "@/lib/admin-api";
 import { ErrorApi } from "@/lib/api";
 import {
+  aplicarAjustes,
+  type Ajustes,
+  leerAjustes,
+  LLAVE_ACCESIBILIDAD,
+} from "@/lib/accesibilidad";
+import { ajustesDePantallaApi } from "@/lib/ajustes-de-pantalla";
+import {
   cssDelTemaPropio,
   EVENTO_TEMA_PROPIO,
   llaveTemaPropio,
@@ -256,6 +263,9 @@ export function MarcoAdmin({ children }: { children: React.ReactNode }) {
       {/* Sus colores, encima de los del sistema. Ver `TemaPropioDelPanel`. */}
       <TemaPropioDelPanel adminId={admin.id} />
 
+      {/* Y su tamaño de letra, traído de la cuenta. */}
+      <AjustesDeLaCuenta />
+
       {/* `h-screen`, no `min-h-screen`.
 
           Con el mínimo, la página crecía con el contenido: la lista de
@@ -457,9 +467,52 @@ export function MarcoAdmin({ children }: { children: React.ReactNode }) {
               `relative` para que la píldora se ancle aquí, y `z-40`
               para que su panel de accesibilidad --que se abre hacia
               arriba-- quede por encima del contenido. */}
-          <footer className="relative z-40 flex min-h-[40px] shrink-0 items-center border-t border-borde bg-superficie px-7">
-            <PieDeConvoca menudo />
-            <Ajustes />
+          {/* `pr-[128px]`: el hueco de la píldora de Ajustes, que va en
+              absoluto a la derecha. En el celular el texto del pie parte
+              en dos renglones y el segundo pasaba por debajo de ella
+              («todos los derechos…» tapado, medido a 390 px el 22 sep
+              2026). En escritorio el texto no llega hasta allí. */}
+          {/* LA BANDA MIDE LO QUE MIDE LA PÍLDORA, y por eso no hay
+              `min-h` ni `absolute` aquí.
+
+              Estuvo con 40 px fijos y la píldora centrada en absoluto
+              dentro. Eso se rompe solo: el contenido de la píldora va en
+              `em` --sigue al ajuste de texto del 90-140 % y al zoom del
+              navegador-- mientras que 40 px no siguen a nada, así que en
+              cuanto la letra sube la píldora crece más que la banda y se
+              monta sobre la raya de arriba: «esa mierda se ve montada»
+              (cliente, 23 sep 2026). En flujo, con `items-center`, la
+              banda crece con ella y nunca se le sale.
+
+              Y MIDE 30, NO 40: los 40 eran el hueco que necesitaba la
+              píldora cuando vivía dentro. Ahora que flota apoyada en el
+              canto, la banda solo tiene que vestir una línea de 11 px
+              --«la letra ya la tenemos reducida [...] ahora es la altura
+              de lo que lo envuelve», cliente, 23 sep 2026--, y esos 10
+              px se los devuelve al contenido. */}
+          <footer className="relative z-40 flex min-h-[30px] shrink-0 items-center gap-4 border-t border-borde bg-superficie py-px pr-4 pl-7 max-[620px]:pl-4">
+            <div className="min-w-0">
+              <PieDeConvoca menudo />
+            </div>
+            {/* LEVANTADA SOBRE LA BANDA, en la esquina. Así la pidió el
+                cliente con su montaje --«mira la píldora, algo así»,
+                23 sep 2026-- y así es como le parecía ordenada: apoyada
+                en el canto de arriba del pie, no metida en la fila del
+                texto. `bottom-full` la deja justo encima y `mb-1` le da
+                Y flota un TERCIO, no una píldora entera: apoyada a caballo
+                de la raya --mitad sobre el contenido, mitad dentro de la
+                banda--. Con `mb-1` subía 39 px y quedaba despegada:
+                «flotando pero no tanto, o sea la proporcionalidad»
+                (cliente, 23 sep 2026). El desplazamiento va en un 65 % de
+                su propio alto, así que la proporción se mantiene cuando
+                la píldora crece o se encoge.
+
+                Sigue anclada al pie --no a la ventana-- así que no se
+                mueve al desplazar y el panel de accesibilidad sigue
+                abriendo hacia arriba. */}
+            <div className="absolute right-4 bottom-full z-40 translate-y-[65%]">
+              <Ajustes />
+            </div>
           </footer>
         </div>
 
@@ -482,6 +535,62 @@ export function MarcoAdmin({ children }: { children: React.ReactNode }) {
  * escucha el aviso de Apariencia para repintar al guardar, sin
  * recargar la página.
  */
+/**
+ * SUS AJUSTES DE ACCESIBILIDAD, traídos de la cuenta.
+ *
+ * El tamaño de la interfaz lo pinta la copia del navegador antes de
+ * que React monte --por eso sigue ahí--, y esto lo cuadra con lo que
+ * dice su cuenta en cuanto contesta el servidor: quien subió la letra
+ * al 110 % en el monitor grande la encuentra igual al entrar desde el
+ * portátil.
+ *
+ * Y si la cuenta no tiene nada guardado, se sube lo que haya en este
+ * navegador en vez de bajarle el 100 %: nadie pierde el ajuste que ya
+ * tenía puesto por estrenar esto.
+ */
+function AjustesDeLaCuenta() {
+  useEffect(() => {
+    let vivo = true;
+    void ajustesDePantallaApi
+      .leer()
+      .then((deLaCuenta) => {
+        if (!vivo) return;
+        const deAquí = leerAjustes();
+        if (!deLaCuenta) {
+          /// La cuenta no sabe nada todavía. Si en este equipo hay algo
+          /// distinto del 100 %, es lo que esa persona eligió antes de
+          /// que esto existiera: sube, no baja.
+          const cambios: Partial<Ajustes> = {};
+          if (deAquí.texto !== 100) cambios.texto = deAquí.texto;
+          if (deAquí.sinMovimiento) cambios.sinMovimiento = true;
+          if (deAquí.enlacesSubrayados) cambios.enlacesSubrayados = true;
+          if (Object.keys(cambios).length > 0) {
+            void ajustesDePantallaApi.guardar(cambios).catch(() => {});
+          }
+          return;
+        }
+        const iguales =
+          deLaCuenta.texto === deAquí.texto &&
+          deLaCuenta.sinMovimiento === deAquí.sinMovimiento &&
+          deLaCuenta.enlacesSubrayados === deAquí.enlacesSubrayados;
+        if (iguales) return;
+        aplicarAjustes(deLaCuenta);
+        try {
+          window.localStorage.setItem(LLAVE_ACCESIBILIDAD, JSON.stringify(deLaCuenta));
+        } catch {
+          // en privado localStorage puede fallar
+        }
+      })
+      .catch(() => {
+        // sin respuesta se queda lo de este navegador
+      });
+    return () => {
+      vivo = false;
+    };
+  }, []);
+  return null;
+}
+
 function TemaPropioDelPanel({ adminId }: { adminId: string }) {
   const { marca } = useMarca();
   const [tema, setTema] = useState<TemaPropio | null>(null);
@@ -887,11 +996,17 @@ function Ajustes() {
       /// `absolute` y centrada en el alto de la banda --que es
       /// `relative` y mide lo que la píldora-- la deja dentro del pie.
       style={{
-        padding: "clamp(3px, 0.25vw, 6px)",
+        /// PROPORCIONAL A LA PANTALLA, no un tamaño fijo: «también es
+        /// dinámica, o sea más pequeña según los tamaños» (cliente, 23
+        /// sep 2026). El cuerpo de letra manda el alto de los dos
+        /// botones del conmutador --sus rellenos van en `em`--, así que
+        /// con él se encoge la píldora entera en proporción. El tope es
+        /// 13 px, que es el tamaño que ha tenido siempre en escritorio.
+        padding: "clamp(2px, 0.2vw, 4px)",
         gap: "clamp(2px, 0.2vw, 6px)",
-        right: "clamp(0.75rem, 1vw, 1.25rem)",
+        fontSize: "clamp(0.6875rem, 0.3vw + 0.6rem, 0.8125rem)",
       }}
-      className="no-imprimir absolute top-1/2 z-40 flex -translate-y-1/2 items-center rounded-full border border-encabezado-borde bg-encabezado-fondo text-[0.8125rem] shadow-lg shadow-black/20"
+      className="no-imprimir relative z-40 flex items-center rounded-full border border-encabezado-borde bg-encabezado-fondo shadow-lg shadow-black/20"
     >
       <ConmutadorTema compacto menudo />
 

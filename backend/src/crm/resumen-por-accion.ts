@@ -79,10 +79,54 @@ const DE_RESERVA = Prisma.sql`'EMPRESA'`;
  * memoria --que es justo donde se cuela un desfase cuando alguien se
  * inscribe entre una consulta y la siguiente--.
  */
-export function resumenPorAccionSql(ambito: string[], convenioElegido: string | null): Prisma.Sql {
+/** Lo que recorta la pantalla: los cinco filtros y la ventana. */
+export type RecorteDelResumen = {
+  accionFormacionId?: string;
+  grupoId?: string;
+  asesorId?: string;
+  departamentoSepId?: number;
+  /// Días de Bogotá, inclusive los dos. Recortan por cuándo ENTRÓ la
+  /// persona, igual que el embudo de arriba.
+  desde?: string;
+  hasta?: string;
+};
+
+export function resumenPorAccionSql(
+  ambito: string[],
+  convenioElegido: string | null,
+  recorte: RecorteDelResumen = {},
+): Prisma.Sql {
   const delGremio = convenioElegido
     ? Prisma.sql`AND a."convenioId" = ${convenioElegido}`
     : Prisma.empty;
+
+  /// EL MISMO RECORTE QUE EL RESTO DE LA PANTALLA (cliente, 23 sep
+  /// 2026: «los filtros deben ser funcionales, hasta el momento no los
+  /// entiendo para nada»). Esta tabla no obedecía a nada --ni a los
+  /// cinco filtros ni al periodo--, así que con «Hoy» arriba decía una
+  /// persona y aquí abajo doscientas siete.
+  ///
+  /// La META NO se recorta: los cupos comprometidos son los que son
+  /// hoy y ayer. Lo que se recorta es la GENTE.
+  const gente = Prisma.join(
+    [
+      Prisma.sql`pa."accionFormacionId" IS NOT NULL`,
+      recorte.grupoId
+        ? Prisma.sql`pa."coberturaId" IN (SELECT c."id" FROM "grupos_cobertura" c WHERE c."grupoId" = ${recorte.grupoId})`
+        : null,
+      recorte.asesorId ? Prisma.sql`pa."asesorId" = ${recorte.asesorId}` : null,
+      recorte.departamentoSepId !== undefined
+        ? Prisma.sql`pa."personaId" IN (SELECT p."id" FROM "personas" p WHERE p."departamentoSepId" = ${recorte.departamentoSepId})`
+        : null,
+      /// INSTANTES, no días, y el de arriba EXCLUSIVO: es lo mismo que
+      /// hace `donde()` con `gte`/`lt`. Comparando días de calendario
+      /// el último entraba entero y esta tabla contaba un día más que
+      /// la tira de arriba.
+      recorte.desde ? Prisma.sql`pa."creadoEn" >= ${recorte.desde}::timestamptz` : null,
+      recorte.hasta ? Prisma.sql`pa."creadoEn" < ${recorte.hasta}::timestamptz` : null,
+    ].filter((x): x is Prisma.Sql => x !== null),
+    ' AND ',
+  );
 
   return Prisma.sql`
     SELECT a."id"      AS "accionFormacionId",
@@ -129,7 +173,7 @@ export function resumenPorAccionSql(ambito: string[], convenioElegido: string | 
                    AND pa."etapa"::text IN ${INSCRITAS}
                )::int AS "inscritosCampana"
           FROM "participantes" pa
-         WHERE pa."accionFormacionId" IS NOT NULL
+         WHERE ${gente}
          GROUP BY 1
       ) p ON p.aid = a."id"
 

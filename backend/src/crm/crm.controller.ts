@@ -184,8 +184,25 @@ export class CrmController {
   /** La tabla del comité: una fila por acción de formación. */
   @Get('resumen-por-accion')
   @Requiere('inscritos')
-  resumenPorAccion(@AmbitoActual() ambito: Ambito) {
-    return this.crm.resumenPorAccion(ambito);
+  resumenPorAccion(
+    @AmbitoActual() ambito: Ambito,
+    /// Los mismos cortes que el resto de la pantalla. Uno a uno y no
+    /// con el DTO entero, por lo mismo que en `control`.
+    @Query('accionFormacionId') accionFormacionId?: string,
+    @Query('grupoId') grupoId?: string,
+    @Query('asesorId') asesorId?: string,
+    @Query('departamentoSepId') departamentoSepId?: string,
+    @Query('desde') desde?: string,
+    @Query('hasta') hasta?: string,
+  ) {
+    return this.crm.resumenPorAccion(ambito, {
+      accionFormacionId: accionFormacionId || undefined,
+      grupoId: grupoId || undefined,
+      asesorId: asesorId || undefined,
+      departamentoSepId: departamentoSepId ? Number(departamentoSepId) : undefined,
+      desde: desde || undefined,
+      hasta: hasta || undefined,
+    });
   }
   /**
    * El Resumen General: siete cifras macro por acción de formación.
@@ -203,8 +220,14 @@ export class CrmController {
     @Query('grupoId') grupoId?: string,
     @Query('asesorId') asesorId?: string,
     @Query('departamentoSepId') departamentoSepId?: string,
+    /// La ventana, para que este bloque obedezca al periodo como el
+    /// resto de la pantalla.
+    @Query('desde') desde?: string,
+    @Query('hasta') hasta?: string,
   ) {
     return this.crm.resumenGeneral({
+      llegoDesde: desde || undefined,
+      llegoHasta: hasta || undefined,
       ambito: ambito.convenios,
       convenioId: convenioId || undefined,
       accionFormacionId: accionFormacionId || undefined,
@@ -222,6 +245,24 @@ export class CrmController {
     @Param('accionFormacionId') accionFormacionId: string,
   ) {
     return this.crm.resumenPorGrupo(ambito, accionFormacionId);
+  }
+
+  /**
+   * El tablero de seguimiento de asesores, en sus dos subvistas.
+   *
+   * Dos rutas y no una con parametro: son dos preguntas distintas y
+   * el menu tiene que poder encender la que se esta mirando.
+   */
+  @Get('asesores/inscripciones')
+  @Requiere('inscritos')
+  asesoresDeInscripciones(@AmbitoActual() ambito: Ambito) {
+    return this.crm.asesoresDeInscripciones(ambito);
+  }
+
+  @Get('asesores/academicos')
+  @Requiere('academico')
+  asesoresAcademicos(@AmbitoActual() ambito: Ambito) {
+    return this.crm.asesoresAcademicos(ambito);
   }
 
   /** Cuantos inscritos hay y como se reparten. */

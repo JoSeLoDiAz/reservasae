@@ -47,6 +47,7 @@ import {
   type ColoresTema,
 } from './temas';
 import { gremioDelHost } from './gremio-del-host';
+import { formulariosDelConvenio } from '../preinscripcion/formularios-personalizados';
 import { OCUPAN_SILLA } from '../crm/etapas';
 
 const ID_MARCA = 'unica';
@@ -856,6 +857,87 @@ export class AdminService {
       orderBy: { orden: 'asc' },
       select: { id: true, slug: true, nombre: true, sigla: true, activo: true },
     });
+  }
+
+  /**
+   * Los formularios personalizados que este ambito alcanza.
+   *
+   * Solo lectura, y a proposito: lo que un formulario abre --que
+   * puede ser una accion SIN publicar-- vive en el codigo, en
+   * `preinscripcion/formularios-personalizados.ts`. Esta pantalla
+   * es para repartir el enlace y para ver de un vistazo si la
+   * accion que abre sigue teniendo cupo.
+   *
+   * Trae la accion resuelta porque el codigo (`AF6`) no le dice
+   * nada a nadie, y sobre todo su `visible`: un formulario cuya
+   * accion alguien publico sin querer deja de ser personalizado y
+   * eso hay que poder verlo.
+   */
+  async listarFormulariosPersonalizados(ambito: string[]) {
+    const convenios = await this.prisma.convenio.findMany({
+      where: { id: { in: ambito } },
+      orderBy: { orden: 'asc' },
+      select: { id: true, slug: true, nombre: true, sigla: true },
+    });
+
+    const formularios = convenios.flatMap((c) =>
+      formulariosDelConvenio(c.slug).map((f) => ({ convenio: c, formulario: f })),
+    );
+
+    return Promise.all(
+      formularios.map(async ({ convenio, formulario }) => {
+        const accion = formulario.accion
+          ? await this.prisma.accionFormacion.findFirst({
+              where: { convenioId: convenio.id, codigo: formulario.accion },
+              select: {
+                codigo: true,
+                nombre: true,
+                visible: true,
+                modalidad: true,
+                horas: true,
+                ofertas: {
+                  where: { abierta: true },
+                  orderBy: { ubicacion: { nombre: 'asc' } },
+                  select: {
+                    cuposMaximos: true,
+                    cuposOcupados: true,
+                    ubicacion: { select: { nombre: true, departamento: true } },
+                  },
+                },
+              },
+            })
+          : null;
+
+        return {
+          palabra: formulario.palabra,
+          titulo: formulario.titulo,
+          descripcion: formulario.descripcion,
+          aliado: formulario.aliado ?? null,
+          convenioId: convenio.id,
+          slug: convenio.slug,
+          sigla: convenio.sigla ?? convenio.nombre,
+          /// Null cuando el formulario no fija ninguna accion, y
+          /// tambien cuando el codigo que nombra ya no existe en
+          /// ese gremio: las dos cosas se ven igual en la pantalla
+          /// --«no abre ninguna»-- y la segunda no deberia pasar.
+          accion: accion
+            ? {
+                codigo: accion.codigo,
+                nombre: accion.nombre,
+                publicada: accion.visible,
+                modalidad: accion.modalidad,
+                horas: accion.horas,
+                ofertas: accion.ofertas.map((o) => ({
+                  ubicacion: o.ubicacion.nombre,
+                  departamento: o.ubicacion.departamento,
+                  libres: Math.max(0, o.cuposMaximos - o.cuposOcupados),
+                  cupos: o.cuposMaximos,
+                })),
+              }
+            : null,
+        };
+      }),
+    );
   }
 
   /**
