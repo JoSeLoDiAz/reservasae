@@ -489,7 +489,7 @@ export default function PaginaFicha() {
                       <p className="text-sm">
                         {f.gestion.ultimoContacto ? (
                           <>
-                            Se habló con ella el{" "}
+                            Se habló con la persona el{" "}
                             <strong>{fecha(f.gestion.ultimoContacto)}</strong>
                             {f.gestion.sinContacto > 0 && (
                               <>
@@ -509,7 +509,7 @@ export default function PaginaFicha() {
                               {f.gestion.intentos}{" "}
                               {f.gestion.intentos === 1 ? "intento" : "intentos"}
                             </strong>{" "}
-                            y nunca se ha logrado hablar con ella.
+                            y nunca se ha logrado hablar con la persona.
                           </span>
                         )}
                         {f.gestion.datoMalo > 0 && (

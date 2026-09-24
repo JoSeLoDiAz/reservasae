@@ -229,8 +229,13 @@ export const RESULTADOS: ResultadoGestion[] = [
 /// Cada uno lleva a una acción distinta, y por eso son tres y
 /// no dos: "no contestó" se arregla volviendo a llamar y
 /// "el número no sirve" se arregla pidiéndoselo a la empresa.
+/// «Con la persona» y no «con ella»: en el CRM hay hombres y
+/// mujeres, y el femenino estaba escrito a fuego para todo el
+/// mundo --se veía en la ficha de un señor--. Lo pidió Josse el
+/// 24 sep 2026. No es adivinar el género: es no nombrarlo, que
+/// es lo único que acierta siempre.
 export const ETIQUETA_RESULTADO: Record<ResultadoGestion, string> = {
-  CONTACTO: "Hablé con ella",
+  CONTACTO: "Hablé con la persona",
   SIN_RESPUESTA: "No contestó",
   DATO_MALO: "El dato no sirve",
 };
@@ -377,7 +382,7 @@ export type FilaParticipante = {
   ubicacion: string | null;
   asesor: { id: string; nombre: string } | null;
   notas: number;
-  /** Cuándo se habló con ella. Nulo = nunca se ha logrado. */
+  /** Cuándo se habló con la persona. Nulo = nunca se ha logrado. */
   ultimoContacto: string | null;
   /** Intentos que no llegaron a nadie. */
   sinRespuesta: number;
