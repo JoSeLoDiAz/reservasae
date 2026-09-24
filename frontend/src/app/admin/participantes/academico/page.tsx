@@ -8,7 +8,6 @@ import { IndicadorActualizacion } from "@/components/admin/indicador-actualizaci
 import { Aviso, CLASE_CONTROL, Tarjeta } from "@/components/admin/marco-admin";
 import { Esqueleto } from "@/components/admin/piezas";
 import { CajonDelAula } from "@/components/admin/cajon-del-aula";
-import { PanelAcademico } from "@/components/admin/panel-academico";
 import { Desplegable } from "@/components/admin/desplegable";
 import { SelectorBuscable } from "@/components/admin/selector-buscable";
 import { useDatosVivos } from "@/lib/datos-vivos";
@@ -522,21 +521,6 @@ function Seguimiento() {
           </table>
         </div>
       )}
-
-      {/* LOS GRÁFICOS, DEBAJO DE LA LISTA (cliente, 24 sep 2026: «no
-          veo nada»). Estuvieron justo encima, con este razonamiento:
-          arriba «cuántos hay en cada estado», luego «cómo va eso», y
-          abajo «quiénes son». Se leía bien y era falso para lo que se
-          viene a hacer aquí: entre los filtros y la primera persona
-          había cuatro bloques de resumen y una gráfica de pantalla
-          entera, así que la tabla --que es el motivo de esta
-          pantalla-- quedaba bajo el pliegue y no se encontraba.
-
-          Los resúmenes viven en el tablero de Tableros. Aquí se
-          quedan porque las cifras de estado SON los filtros --se
-          pulsan-- y la gráfica, de última, para quien ya trabajó la
-          lista y quiere ver el conjunto. */}
-      <PanelAcademico datos={datos} />
 
       {enElCajon && (
         <CajonDelAula fila={enElCajon} alCerrar={() => setEnElCajon(null)} />
