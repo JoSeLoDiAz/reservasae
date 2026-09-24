@@ -4683,7 +4683,13 @@ export class CrmService {
 
     let numeroDeGrupo: number | null = null;
     if (dto.coberturaId) {
-      await exigirQuienAsignaGrupo(this.prisma, admin);
+      /// AQUÍ NO VA EL CANDADO DEL GRUPO, y volvió a entrar el 23
+      /// sep. Corría aunque el grupo NO cambiara --el asesor que
+      /// edita la formación de una ficha con cohorte ya puesta
+      /// recibía 403 sin tocarla-- y sin el convenio de la ficha,
+      /// o sea preguntando «¿es analista en ALGÚN gremio?». El
+      /// bueno está abajo, colgado de que la cobertura cambie de
+      /// verdad y con `p.convenioId`.
       const cobertura = await exigirCoberturaDeLaOferta(this.prisma, dto.coberturaId, {
         accionFormacionId: oferta.accionFormacionId,
         ubicacionId: oferta.ubicacionId,

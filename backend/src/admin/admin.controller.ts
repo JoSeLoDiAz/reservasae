@@ -508,7 +508,17 @@ export class AdminController {
   /// reparte. Solo lectura: no hay PATCH ni POST, y es
   /// deliberado --lo que un formulario abre puede ser una accion
   /// sin publicar, y eso no se cambia desde una pantalla.
+  /// PIDE `configuracion`, y no es por orden.
+  ///
+  /// Lo que reparte esta pantalla es la PALABRA que abre una
+  /// acción que el gremio decidió no publicar. Sin `@Requiere`
+  /// entraba cualquier sesión de panel --la cuenta de la pauta
+  /// incluida-- y además se perdía el RECORTE DEL ÁMBITO: sin él,
+  /// `ambito.convenios` son todos los concedidos a cualquier
+  /// nivel, y el servicio confía en esa lista. Es el mismo defecto
+  /// que se coló en v0.9.0 con `@SoloEditoresDeMarca`.
   @Get('formularios-personalizados')
+  @Requiere('configuracion')
   listarFormulariosPersonalizados(@AmbitoActual() ambito: Ambito) {
     return this.admin.listarFormulariosPersonalizados(ambito.convenios);
   }

@@ -358,9 +358,15 @@ export function PreinscripcionPublica({ slug }: { slug: string }) {
                   /// SE PUEDE CAMBIAR, y hay que poder: quien viva en
                   /// Bello no ve la presencial de Medellín, y esa regla
                   /// no se toca. Esto solo adelanta el caso normal.
-                  const suyas =
-                    catalogo.ubicaciones.find((u) => u.departamento === nuevo)?.sedes ?? [];
-                  setCiudad(suyas.length === 1 ? suyas[0] : "");
+                  /// NO SE AUTORRELLENA, y por eso quedó en vaciar.
+                  ///
+                  /// Llegó poniendo la única sede del departamento
+                  /// cuando había una sola. Pero este campo es el
+                  /// DOMICILIO de la persona --va al cargue del SEP
+                  /// con su código DANE-- y no la sede del curso:
+                  /// ponérselo escrito es afirmar dónde vive alguien
+                  /// que no lo ha dicho.
+                  setCiudad("");
                   setAccionId("");
                   setOfertaId("");
                 }}
@@ -403,7 +409,14 @@ export function PreinscripcionPublica({ slug }: { slug: string }) {
                     virtual-- sí van todos: sin eso, nadie de ese
                     departamento podría decir dónde vive y el formulario
                     se cerraría solo. */}
-                {(conSede.length > 0 ? conSede : elResto).map((c) => (
+                {/* LOS DOS GRUPOS, SIEMPRE. Esto llegó ofreciendo
+                    SOLO las sedes cuando el departamento tenía
+                    alguna, y ese campo es «Municipio donde vive»:
+                    quien vive en Bello no podía decir Bello, y ese
+                    dato es el DOMICILIO que viaja al cargue del SEP
+                    con su código DANE. Un formulario que solo deja
+                    decir la sede recoge un domicilio falso. */}
+                {[...conSede, ...elResto].map((c) => (
                   <option key={c} value={c}>
                     {c}
                     {sedes.has(c) ? " (con formación presencial)" : ""}
