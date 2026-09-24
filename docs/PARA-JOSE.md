@@ -212,6 +212,16 @@ bajárselo, así que nadie pierde el ajuste que ya tenía puesto.
 
 ### B3 · Nada se llama «ficha»: se llama **lead**
 
+> **CERRADO. No hay que elegir nada.** El 23 de septiembre por la noche el cliente lo
+> zanjó: **«se decidió todo conocerlo como Lead, no como ficha, cupo, ni nada de eso:
+> solo se conocerá siempre como Lead»**.
+>
+> Así que la pregunta que te dejaba abierta más abajo ya no está abierta. No es «cupo o
+> lead»: es **lead**, en todas las pantallas, en todos los textos y en cualquier cosa
+> nueva. Si dudas entre «cupo» y «lead» para hablar de una persona, es lead. «Cupo» se
+> queda solo para lo que de verdad es un cupo: una silla de un grupo, con o sin nombre
+> detrás.
+
 Palabras del cliente, primero el 23 de septiembre por la madrugada --*«que no llame nada
 ficha, que él defina si lo deja como cupo o lead, pero que no use ficha porque no es
 ficha»*-- y después, ya decidido: **«se debe cambiar todo lo que diga ficha a cupo o lead,

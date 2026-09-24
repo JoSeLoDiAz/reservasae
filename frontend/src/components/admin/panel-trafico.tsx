@@ -712,14 +712,6 @@ export function PanelTrafico() {
                   />
                 </div>
 
-                <p className="mt-3 text-xs leading-relaxed text-texto-suave">
-                  Estas son personas del CRM. El «Paso a paso» y el «Día a día» de arriba
-                  cuentan visitas medidas en el navegador, así que sus cifras salen más
-                  bajas: en este periodo, {n(quedaron)}{" "}
-                  {quedaron === 1 ? "registro medido" : "registros medidos"} contra{" "}
-                  {n(datos.despues.recibieron)}{" "}
-                  {datos.despues.recibieron === 1 ? "persona creada" : "personas creadas"}.
-                </p>
               </Bloque>
 
               {/* DOS GRÁFICOS EN LA FILA. Compartía sitio con el bloque

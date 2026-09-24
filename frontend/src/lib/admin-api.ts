@@ -310,6 +310,43 @@ export type PlantillaTema = {
   temas: Record<Esquema, ColoresTema>;
 };
 
+/**
+ * Un formulario público que no es el general.
+ *
+ * Se llega a él por una palabra suelta en el enlace
+ * --`?TallerBootcamp`-- y esa palabra decide qué ofrece. Lo que
+ * decide vive en el servidor: aquí solo se enseña y se reparte.
+ */
+export type FormularioPersonalizadoAdmin = {
+  palabra: string;
+  titulo: string;
+  descripcion: string;
+  /// El tercero que sale en la banda del formulario, si lo lleva.
+  aliado: { nombre: string; logo: string } | null;
+  convenioId: string;
+  slug: string;
+  sigla: string;
+  /// La única acción que abre, ya resuelta. Null cuando no fija
+  /// ninguna —el general con otra marca— o cuando el código que
+  /// nombra ya no existe en ese gremio.
+  accion: {
+    codigo: string;
+    nombre: string;
+    /// Si está publicada en el formulario general. En los
+    /// personalizados lo normal es que NO: esa es su razón de ser,
+    /// y verlo en `true` quiere decir que alguien la publicó.
+    publicada: boolean;
+    modalidad: string;
+    horas: number | null;
+    ofertas: Array<{
+      ubicacion: string;
+      departamento: string | null;
+      libres: number;
+      cupos: number;
+    }>;
+  } | null;
+};
+
 export type AccionAdmin = {
   id: string;
   codigo: string;
@@ -477,6 +514,11 @@ export const adminApi = {
     >("/admin/convenios"),
 
   acciones: () => pedir<AccionAdmin[]>("/admin/acciones"),
+
+  /// Los formularios que no son el general. Solo lectura: lo que
+  /// cada uno abre vive en el código del servidor, no en la base.
+  formulariosPersonalizados: () =>
+    pedir<FormularioPersonalizadoAdmin[]>("/admin/formularios-personalizados"),
 
   publicarAccion: (id: string, visible: boolean) =>
     pedir<{ id: string; visible: boolean }>(`/admin/acciones/${id}`, {

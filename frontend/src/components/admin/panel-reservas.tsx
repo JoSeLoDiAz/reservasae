@@ -43,7 +43,7 @@ import { EncabezadoImpresion } from "./boton-pdf";
 import { Desplegable } from "./desplegable";
 import { n } from "./graficos";
 import { Aviso } from "./marco-admin";
-import { Bloque, Esqueleto, TarjetaCifra, Vacio } from "./piezas";
+import { Bloque, CifraCompacta, Esqueleto, Vacio } from "./piezas";
 import { adminApi } from "@/lib/admin-api";
 import { bonito, comoParrafo } from "@/lib/api";
 import type { Filtros } from "@/lib/crm-api";
@@ -1066,56 +1066,49 @@ function ResumenGeneral({ informe }: { informe: InformeReservas }) {
           las cuatro cifras salían apiladas en media hoja. El `gap-px`
           sobre la raya de fondo pinta los separadores también cuando
           en un celular pasan a dos por fila. */}
-      <div className="flex flex-wrap gap-px bg-hairline">
+      {/* A LA MEDIDA DE «GESTIÓN DE LEADS» (cliente, 23 sep 2026):
+          «en Control de Reservas las tarjetas de Reservas de ADECOPRIA
+          tampoco se parecen». */}
+      <div className="flex flex-wrap gap-2">
         {/* CUÁNTAS INSTITUCIONES, en su propia casilla (cliente, 23
             sep 2026). Estaba en el pie de «Reservas», que es donde no
             se lee: es la primera pregunta del comité --a cuántos
             colegios llegamos-- y no una aclaración de otra cifra. */}
-        <Celda>
-          <TarjetaCifra
+        <CifraCompacta
             etiqueta="Instituciones"
             valor={n(t.organizaciones)}
-            pie={`apartaron cupos en ${cuenta(t.acciones, "acción", "acciones")}`}
+            detalle={`apartaron cupos en ${cuenta(t.acciones, "acción", "acciones")}`}
           />
-        </Celda>
-        <Celda>
-          <TarjetaCifra
+        <CifraCompacta
             etiqueta="Reservas"
             valor={n(t.reservas)}
-            pie={`una por institución y acción`}
+            detalle={`una por institución y acción`}
           />
-        </Celda>
-        <Celda>
-          <TarjetaCifra
+        <CifraCompacta
             etiqueta="Cupos apartados"
             valor={n(t.cuposConfirmados)}
-            pie={t.cuposEnEspera > 0 ? `y ${n(t.cuposEnEspera)} en lista de espera` : "ninguno en lista de espera"}
+            detalle={t.cuposEnEspera > 0 ? `y ${n(t.cuposEnEspera)} en lista de espera` : "ninguno en lista de espera"}
           />
-        </Celda>
-        <Celda>
-          <TarjetaCifra
+        <CifraCompacta
             etiqueta="Ya tienen nombre"
             valor={n(conNombre)}
-            tono="exito"
-            pie={
+            color="var(--exito)"
+            detalle={
               t.cuposConfirmados > 0
                 ? `${porciento(conNombre, t.cuposConfirmados)} % de los cupos`
                 : "sin cupos confirmados"
             }
           />
-        </Celda>
-        <Celda>
-          <TarjetaCifra
+        <CifraCompacta
             etiqueta="Siguen sin nombre"
             valor={n(t.sinNombre)}
-            tono={t.sinNombre > 0 ? "error" : "neutro"}
-            pie={
+            color={t.sinNombre > 0 ? "var(--error)" : undefined}
+            detalle={
               organizacionesQueDeben > 0
                 ? `en ${cuenta(organizacionesQueDeben, "organización", "organizaciones")}`
                 : "todas mandaron sus nombres"
             }
           />
-        </Celda>
       </div>
 
       <ComoSeCuentan informe={informe} />

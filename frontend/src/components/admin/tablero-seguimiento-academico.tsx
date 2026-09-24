@@ -116,14 +116,6 @@ export function TableroSeguimientoAcademico() {
       <div className="rounded-xl border border-borde bg-superficie px-4 py-3 sm:py-3.5">
         <p className="mb-2.5 text-[0.6875rem] font-bold tracking-[0.08em] text-texto-suave uppercase">
           Filtros
-          {vivos.datos && (
-            <span className="ml-2.5 font-normal tracking-normal text-marca normal-case">
-              <strong className="font-semibold tabular-nums">
-                {n(vivos.datos.resumen.total)}
-              </strong>{" "}
-              {vivos.datos.resumen.total === 1 ? "persona matriculada" : "personas matriculadas"}
-            </span>
-          )}
         </p>
         <div
           className="grid gap-2"
@@ -241,10 +233,7 @@ function Cuerpo({
       </div>
 
       {/* 4 · LOS ESTADOS, que los manda el LMS */}
-      <Bloque
-        titulo="En qué estado está la gente"
-        descripcion="Lo dice el LMS, no el asesor. Los seis se cuentan solo sobre quien sigue dentro del aula."
-      >
+      <Bloque titulo="Estado LMS">
         {/* EN TIRA, COMO LAS CIFRAS DE ARRIBA, y no en cajitas con
             borde. Eran dos lenguajes en la misma pantalla para la misma
             clase de dato: una cifra con su rótulo. Ahora es la misma
@@ -261,9 +250,13 @@ function Cuerpo({
           ))}
         </div>
 
-        <p className="mt-4 mb-2 text-[0.6875rem] font-bold tracking-[0.08em] text-texto-suave uppercase">
-          Y quiénes salieron del aula
-        </p>
+      </Bloque>
+
+      {/* LAS CAUSALES, EN SU PROPIO BLOQUE (cliente, 23 sep 2026):
+          «queda aparte de Estado LMS, o sea quedan dos filas». Y es
+          correcto: los seis estados son dónde está quien sigue dentro,
+          y estas cuatro son por qué se fue quien ya no está. */}
+      <Bloque titulo="Causales de Retiro">
         <div className="flex flex-wrap gap-2">
           {SALIDAS.map((sa) => (
             <CifraCompacta
@@ -280,7 +273,6 @@ function Cuerpo({
       <Bloque
         sinRelleno
         titulo="Matriculados por grupo"
-        descripcion="Cuánta gente lleva cada grupo. Sin nombres: para la persona está «Seguimiento del aula»."
       >
         <div className="caja-scroll overflow-x-auto">
           <table className="tabla-datos w-full">

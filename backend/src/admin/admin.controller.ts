@@ -479,6 +479,15 @@ export class AdminController {
     return this.admin.listarAcciones(ambito.convenios);
   }
 
+  /// Los formularios personalizados, para la pantalla que los
+  /// reparte. Solo lectura: no hay PATCH ni POST, y es
+  /// deliberado --lo que un formulario abre puede ser una accion
+  /// sin publicar, y eso no se cambia desde una pantalla.
+  @Get('formularios-personalizados')
+  listarFormulariosPersonalizados(@AmbitoActual() ambito: Ambito) {
+    return this.admin.listarFormulariosPersonalizados(ambito.convenios);
+  }
+
   @Patch('acciones/:id')
   @Requiere('configuracion', 'ESCRIBIR')
   @Roles(RolAdmin.SUPERADMIN, RolAdmin.GESTOR)

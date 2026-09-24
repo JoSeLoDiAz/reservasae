@@ -528,9 +528,13 @@ function CeldaDeLaTira({
           cuatro arranquen en la misma raya.
           SOLA: ya no lleva el porcentaje pequeño al lado (ver
           `TiraDelPeriodo`). */}
-      <dd className="mt-1 flex h-8 items-end">
+      {/* A LA MEDIDA DE «GESTIÓN DE LEADS» (cliente, 23 sep 2026).
+          La cifra iba a 28 px dentro de una caja de 32 de alto; allí
+          son 17 y sin caja. La tira baja de unos 90 px a 60 sin perder
+          nada: el pie se sigue leyendo y la cifra sigue mandando. */}
+      <dd className="mt-1 flex items-end">
         <span
-          className="text-[1.75rem] leading-none font-bold tracking-[-0.03em] whitespace-nowrap tabular-nums"
+          className="text-[1.0625rem] leading-none font-bold tracking-[-0.02em] whitespace-nowrap tabular-nums"
           style={{ color: colorCifra }}
         >
           {cifra}
@@ -2063,12 +2067,13 @@ export function PanelProceso({
   /// elegida, se cae solo: dejarlo puesto --invisible en su
   /// desplegable pero vivo en la consulta-- deja la pantalla en cero
   /// sin nada que lo explique.
-  useEffect(() => {
-    if (!grupoId) return;
-    if (gruposDeLaAccion.some((g) => g.id === grupoId)) return;
-    setGrupoId("");
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [codigoDeLaAccion]);
+  /// SE DERIVA, NO SE GUARDA. Estuvo en un efecto que llamaba a
+  /// `setGrupoId`, y cambiar estado dentro de un efecto es un render
+  /// dentro de otro: el linter lo rechaza y en el peor caso es un
+  /// bucle. Aquí el valor efectivo se calcula y punto; el estado se
+  /// queda como esté y nadie lo ve.
+  const grupoEfectivo =
+    grupoId && gruposDeLaAccion.some((g) => g.id === grupoId) ? grupoId : "";
 
   /// El nombre del curso detrás de su código, para que el
   /// desplegable de grupos no ofrezca «AF1 · Grupo 1» a secas.
@@ -2167,7 +2172,12 @@ export function PanelProceso({
                   /// 2026).
                 })),
               ]}
-              alElegir={setAccionFormacionId}
+              alElegir={(v) => {
+                setAccionFormacionId(v);
+                /// El grupo de otra acción no tiene sentido con esta
+                /// elegida, y dejarlo puesto deja la pantalla en cero.
+                setGrupoId("");
+              }}
             />
             </div>
 
@@ -2176,7 +2186,7 @@ export function PanelProceso({
               alto={34}
               marcador="Grupo"
               etiquetaAria="Grupo"
-              valor={grupoId}
+              valor={grupoEfectivo}
               opciones={[
                 { valor: "", etiqueta: "Grupo" },
                 ...gruposDeLaAccion.map((g) => ({
@@ -2370,8 +2380,16 @@ export function PanelProceso({
             de los cortes de siempre-- porque es lo que se mira primero
             en el comité: cuántos cupos hay comprometidos y cuánto falta
             para cerrar cada acción (cliente, 23 sep 2026). */}
+        {/* CON UNA ABIERTA, SOLO ESA FILA (cliente, 23 sep 2026: «no
+            veo que cuando le doy clic a uno me oculte las demás AF y me
+            dé el listado de los grupos»). Pulsar otra vez la fila
+            suelta el corte y vuelven las siete. */}
         <TablaPorAccion
-          recorte={recorte}
+          recorte={
+            accionAbierta
+              ? { ...recorte, accionFormacionId: accionAbierta.id }
+              : recorte
+          }
           /// Pulsar la fila abre sus grupos; pulsarla otra vez los
           /// cierra. Es el Bloque 3 que pidió el cliente, y nace
           /// cerrado: siete acciones abiertas son setenta filas.

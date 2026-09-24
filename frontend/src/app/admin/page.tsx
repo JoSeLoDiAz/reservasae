@@ -49,7 +49,7 @@ import {
   SelloDeDatos,
 } from "@/components/admin/indicador-actualizacion";
 import { MapaColombia } from "@/components/admin/mapa-colombia";
-import { Aviso, useAdmin } from "@/components/admin/marco-admin";
+import { Aviso } from "@/components/admin/marco-admin";
 import { Bloque, Cargando, TarjetaCifra } from "@/components/admin/piezas";
 
 import { VeredictoOcupacion } from "@/components/admin/veredicto-ocupacion";
@@ -78,7 +78,6 @@ const DEPARTAMENTO_DE: Record<string, string> = {
 };
 
 export default function Tablero() {
-  const { admin } = useAdmin();
 
   const vivos = useDatosVivos(
     useCallback(async () => {
@@ -122,13 +121,13 @@ export default function Tablero() {
 
       {/* 1 - Cabecera */}
       <header className="no-imprimir flex flex-wrap items-start justify-between gap-4">
+        {/* SIN SALUDO (cliente, 23 sep 2026). «Hola, Ana» no es un
+            dato: ocupa el sitio del título en la única pantalla que no
+            dice qué es, y quien entra ya sabe cómo se llama. */}
         <div className="min-w-0">
-          <h1 className="text-[1.125rem] font-bold tracking-[-0.02em] text-titulo">
-            Hola, {admin.nombre.split(" ")[0]}
+          <h1 className="text-[1.3125rem] font-bold tracking-[-0.02em] text-titulo">
+            Resumen de ocupación
           </h1>
-          <p className="mt-0.5 text-[0.78125rem] text-texto-suave">
-            Resumen de ocupación de los cupos comprometidos
-          </p>
         </div>
 
         <div className="flex flex-wrap items-center gap-3">

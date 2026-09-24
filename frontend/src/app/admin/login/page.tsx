@@ -59,7 +59,11 @@ export default function PaginaAcceso() {
     try {
       await adminApi.iniciarSesion(correo, clave);
       // replace: no dejar el acceso en el historial
-      router.replace("/admin");
+      /// A CONTROL DE INSCRITOS Y NO AL RESUMEN (cliente, 23 sep
+      /// 2026): «cuando uno ingresa lo deja ubicado a uno en Control
+      /// de inscritos mientras se define el resumen». El resumen sigue
+      /// donde estaba, a un clic en el logo.
+      router.replace("/admin/informes/leads");
     } catch (e) {
       setError((e as ErrorApi).message);
       setEntrando(false);
