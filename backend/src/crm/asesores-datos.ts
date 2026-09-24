@@ -67,6 +67,16 @@ export type FilaDeAsesor = {
   antiguedadMedia: number | null;
   /// La fecha contra la que corre, para poder decirla en pantalla.
   limite: string | null;
+  /// Su carga partida por accion: el desglose que se abre al pulsar
+  /// la fila.
+  ///
+  /// OPCIONAL, y no por comodidad. Lo llena el reparto de
+  /// INSCRIPCIONES, donde lo que aprieta es la fecha de cierre de
+  /// cada accion. Los academicos llevan grupos enteros y su carga se
+  /// mide contra el fin del curso: su desglose seria por grupo y es
+  /// otra cuenta. Dejarlo vacio alli es mas honesto que inventarle
+  /// uno, y la pantalla solo ofrece abrir la fila donde hay algo.
+  porAccion?: CargaEnUnaAccion[];
 };
 
 export type FilaDeAsesorAcademico = FilaDeAsesor & {
@@ -86,6 +96,30 @@ export type LeadDelAsesor = {
   datosTocadosPorAsesorEn: Date | null;
   notas: number;
   accionFormacionId: string | null;
+  /// «AF1». Para rotular el desglose sin una segunda consulta.
+  accionCodigo: string | null;
+};
+
+/**
+ * LA CARGA DE UN ASESOR EN UNA ACCION, que es el desglose que se abre
+ * al pulsar su fila.
+ *
+ * «Como la tablita, que cuando uno da clic dé como el desglose
+ * detallado» (cliente, 24 sep 2026), igual que en Control de
+ * inscritos.
+ *
+ * Por ACCION y no por grupo: lo que aprieta a un asesor es la fecha
+ * de cierre, y esa es de la accion --el cierre mas proximo de sus
+ * grupos--. Repartirlo por grupo daria filas con uno o dos leads y
+ * ninguna respondería «donde se le esta acumulando».
+ */
+export type CargaEnUnaAccion = {
+  accionFormacionId: string | null;
+  codigo: string | null;
+  total: number;
+  gestionados: number;
+  resueltos: number;
+  pendientes: number;
 };
 
 /// Hasta cuándo puede inscribir cada acción: el cierre MÁS PRÓXIMO de
@@ -130,6 +164,8 @@ export function repartirInscripciones(
       /// último que ya pasó. Ver `elLimite`.
       proximo: Date | null;
       ultimoPasado: Date | null;
+      /// Su carga partida por acción: el desglose de su fila.
+      porAccion: Map<string, CargaEnUnaAccion>;
     }
   >();
 
@@ -149,6 +185,7 @@ export function repartirInscripciones(
         primero: null as Date | null,
         proximo: null as Date | null,
         ultimoPasado: null as Date | null,
+        porAccion: new Map<string, CargaEnUnaAccion>(),
       };
 
     fila.total += 1;
@@ -163,6 +200,27 @@ export function repartirInscripciones(
       l.datosTocadosPorAsesorEn !== null ||
       !ETAPAS_SIN_TOCAR.includes(l.etapa);
     if (gestionado) fila.gestionados += 1;
+
+    /// Y lo mismo, partido por acción. La llave es el id, y los que
+    /// no tienen ninguna van juntos en una fila propia: son los que
+    /// nadie ha encaminado todavía, y esconderlos es como se pierden
+    /// --la misma razón por la que «sin asesor» es una fila--.
+    const suAccion = l.accionFormacionId ?? 'SIN_ACCION';
+    const enLaAccion =
+      fila.porAccion.get(suAccion) ??
+      {
+        accionFormacionId: l.accionFormacionId,
+        codigo: l.accionCodigo,
+        total: 0,
+        gestionados: 0,
+        resueltos: 0,
+        pendientes: 0,
+      };
+    enLaAccion.total += 1;
+    if (gestionado) enLaAccion.gestionados += 1;
+    if (resuelto) enLaAccion.resueltos += 1;
+    else enLaAccion.pendientes += 1;
+    fila.porAccion.set(suAccion, enLaAccion);
 
     /// Solo las acciones donde todavía le queda gente por resolver:
     /// los ya resueltos no aprietan. Se guardan los dos lados --lo que
@@ -199,6 +257,12 @@ export function repartirInscripciones(
         ritmo: ritmoDe({ carga, limite, hoy, diasCorridos }),
         antiguedadMedia: antiguedadMedia(f.esperando, hoy),
         limite: limite ? limite.toISOString().slice(0, 10) : null,
+        /// En el mismo orden que la tabla de fuera: los que más
+        /// pendientes tienen, arriba. Quien abre una fila busca dónde
+        /// se le está acumulando, no la lista alfabética.
+        porAccion: [...f.porAccion.values()].sort(
+          (a, b) => b.pendientes - a.pendientes || (a.codigo ?? '').localeCompare(b.codigo ?? ''),
+        ),
       };
     })
     /// Los que peor van, arriba: la pantalla es para decidir a quién

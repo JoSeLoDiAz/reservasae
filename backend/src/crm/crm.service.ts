@@ -669,6 +669,9 @@ export class CrmService {
           creadoEn: true,
           datosTocadosPorAsesorEn: true,
           accionFormacionId: true,
+          /// El código, para rotular el desglose de cada asesor sin
+          /// una segunda consulta ni un mapa en memoria.
+          accionFormacion: { select: { codigo: true } },
           asesor: { select: { nombre: true } },
           _count: { select: { notas: true } },
         },
@@ -688,6 +691,7 @@ export class CrmService {
         datosTocadosPorAsesorEn: l.datosTocadosPorAsesorEn,
         notas: l._count.notas,
         accionFormacionId: l.accionFormacionId,
+        accionCodigo: l.accionFormacion?.codigo ?? null,
       })),
       cierrePorAccion(grupos),
       ahora,

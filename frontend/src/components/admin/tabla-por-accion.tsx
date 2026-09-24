@@ -192,12 +192,18 @@ export function TablaPorAccion({
             <tr className="border-t-2 border-borde font-semibold">
               <td colSpan={2}>Total</td>
               <td className="text-center tabular-nums">{n(t.meta)}</td>
-              <td className="text-center tabular-nums">{n(t.cuposReservados)}</td>
-              <td className="text-center tabular-nums">{n(t.campanaDigital)}</td>
-              <td className="text-center tabular-nums">{n(t.totalLeads)}</td>
-              <td className="text-center tabular-nums">{n(t.inscritosReservas)}</td>
-              <td className="text-center tabular-nums">{n(t.inscritosCampana)}</td>
-              <td className="text-center text-exito tabular-nums">{n(t.totalInscritos)}</td>
+              {/* LAS CLASES DE LAS DOS MITADES, TAMBIÉN AQUÍ. Sin
+                  ellas la raya de color se paraba en la última fila
+                  de datos y la de totales quedaba suelta, como si no
+                  fuera de la misma tabla. */}
+              <td className={CELDA_ENTRO}>{n(t.cuposReservados)}</td>
+              <td className={CELDA_ENTRO}>{n(t.campanaDigital)}</td>
+              <td className={CELDA_ENTRO}>{n(t.totalLeads)}</td>
+              <td className={CELDA_INSCRIBIO}>{n(t.inscritosReservas)}</td>
+              <td className={CELDA_INSCRIBIO}>{n(t.inscritosCampana)}</td>
+              <td className="text-center text-exito tabular-nums grupo-inscribio">
+                {n(t.totalInscritos)}
+              </td>
               <td className="text-center tabular-nums">
                 {tasa(t.totalLeads > 0 ? t.totalInscritos / t.totalLeads : null)}
               </td>
