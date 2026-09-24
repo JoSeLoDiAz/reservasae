@@ -510,6 +510,72 @@ gasta media tarjeta cuando se está mirando un gremio, que es lo normal.
 
 ---
 
+## Parte D · «Ficha» ya no existe: todo es Lead
+
+El cliente lo cerró el 24 de septiembre de 2026: **«revisa que nada diga ficha, lo pasas a
+lead»**. No es un cambio de etiqueta suelto: es que el CRM tenía dos palabras para la misma
+cosa según quién la escribiera, y en una reunión eso se nota.
+
+### D1 · Lo que ya se cambió, y cómo se comprobó
+
+Once textos, todos los que se leen:
+
+| Dónde | Decía | Dice |
+|---|---|---|
+| `instituciones.service.ts` | «Ya hay otra **ficha** con ese NIT» | «Ya hay otra **institución** con ese NIT» |
+| `lucid/a-quien-se-pega.ts` | «está en una **ficha** y además en un lead» | «está en un **lead ya inscrito** y además en uno sin convertir» |
+| `lucid/a-quien-se-pega.ts` | «tiene N **fichas**» · «Su **ficha**.» | «tiene N **leads**» · «Su **lead**.» |
+| `llave-de-lucid.guard.ts`, `lucid.module.ts` | «no quedan en ninguna **ficha**» | «no quedan en ningún **lead**» |
+| `conversion.service.ts` | «**Ficha** creada…» · «convertido en **ficha** X» | «**Lead inscrito**…» · «**inscrito como** X» |
+| `lote.service.ts` | «N **fichas** (con autorización)» | «N **inscritos** (con autorización)» |
+
+Y dos comentarios que fijaban el vocabulario viejo (`panel-proceso.tsx`, `etapas.ts`), porque
+si se quedan escritos vuelve por ahí.
+
+**Comprobado con el panel montado**, no leyendo el código: se recorrieron las dieciséis rutas
+del panel y se buscó la palabra en lo que pinta el navegador. Ninguna la dice. Las 474 pruebas
+del backend siguen en verde (41 suites), que era el riesgo real: varios `spec` afirman sobre
+esos mensajes.
+
+### D2 · Lo que NO se tocó, y por qué
+
+**Los identificadores.** `Ficha`, `FichaAbierta`, `FichaInstitucion`, `setFicha`,
+`FilaFicha`, `repartirFichas`, `REPARTEN_FICHAS`, `soloUnaFicha`, y los ficheros
+`quien-lleva-fichas.ts`, `completar-ficha.tsx`, `listo-para-ficha.ts`,
+`datos-de-la-ficha.spec.ts`. Son 1.229 menciones en el código fuente. Renombrarlas de un
+tirón, de madrugada y sin que nadie mire la pantalla, es la clase de cambio que rompe algo a
+las dos semanas y nadie sabe por qué. **Renómbralas según las vayas tocando**, no en un lote.
+
+**Tres «fichas» que NO son un lead**, y que hay que dejar en paz o traducir con cuidado:
+
+1. **La ficha de una institución** (`FichaInstitucion`, `ficha-a-propuesta.ts`,
+   `leer-ficha-web.ts`): es el perfil de una empresa sacado del RUES. Llamarla «lead» sería
+   falso. Si hay que quitarle la palabra, es «los datos de la institución».
+2. **La «ficha» del SENA**: en su vocabulario una ficha es el NÚMERO DE GRUPO, y va en los
+   formatos SEP tal cual. **Eso no se toca nunca**: los títulos de esos formatos son el
+   contrato con ellos y hay pruebas que los fijan.
+3. Los títulos de unos treinta `spec` («crear una ficha», «la ficha lo dice»). No los ve
+   nadie fuera del equipo; van con el renombrado perezoso de arriba.
+
+### D3 · La que sí necesita que TÚ decidas 🔴
+
+En `lucid/a-quien-se-pega.ts` el discriminante es:
+
+```ts
+| { tipo: 'FICHA'; id: string; personaId: string; creadoEn: Date }
+| { tipo: 'LEAD';  id: string; creadoEn: Date }
+```
+
+Donde **`'FICHA'` es la persona ya inscrita** y **`'LEAD'` es la que sigue en la mesa de
+entrada**. Ahora que las dos son leads, la palabra `'LEAD'` **ya está ocupada** y no se puede
+renombrar la otra encima: quedarían dos casos con el mismo nombre y el compilador dejaría
+pasar el error.
+
+Mi propuesta es `'INSCRITO' | 'SIN_CONVERTIR'`, que dice lo que de verdad las separa. Pero
+toca `lucid.service.ts` y la bandeja, así que lo dejo escrito y no lo hago yo.
+
+---
+
 ### B9 · Lo que quedó pendiente y es tuyo decidir
 
 1. **Los 54 `<select>` nativos** que faltan (ver B5): dime si sigo por los formularios de
@@ -519,8 +585,8 @@ gasta media tarjeta cuando se está mirando un gremio, que es lo normal.
 4. **Nueve líneas por peldaño en «Paso a paso»**: el cliente quiere ver la tendencia de cada
    paso a lo largo de los días. Hoy el servidor manda cuatro series por día
    (`embudo.service.ts`, `porDia`), no las nueve. Es una consulta más, no un rediseño.
-5. **`useDatosVivos(cargar, { activo: false })`** se salta la primera carga, así que en la ficha
-   de un lead nunca aparece «De dónde salen estos datos». Es de tu código y es de una línea,
+5. **`useDatosVivos(cargar, { activo: false })`** se salta la primera carga, así que en el lead
+   abierto nunca aparece «De dónde salen estos datos». Es de tu código y es de una línea,
    pero prefiero que lo mires tú.
 
 ---

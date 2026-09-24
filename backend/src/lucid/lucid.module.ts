@@ -24,7 +24,7 @@ export class LucidModule implements OnModuleInit {
     }
     this.log.warn(
       'APAGADO: falta LUCID_WEBHOOK_SECRET (mínimo 32 caracteres). ' +
-        'La puerta contesta 401 a todo y las conversaciones NO quedan en ninguna ficha.',
+        'La puerta contesta 401 a todo y las conversaciones NO quedan en ningún lead.',
     );
   }
 }

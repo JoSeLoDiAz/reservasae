@@ -50,7 +50,7 @@ export class LlaveDeLucidGuard implements CanActivate {
       : 'NO hay LUCID_WEBHOOK_SECRET configurada';
     this.log.warn(
       `Rechazadas ${this.rechazadas} llamadas de Lucid: ${porque}. ` +
-        'Esas conversaciones no quedan como nota en ninguna ficha.',
+        'Esas conversaciones no quedan como nota en ningún lead.',
     );
   }
 }
