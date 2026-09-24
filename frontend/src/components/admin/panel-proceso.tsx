@@ -460,11 +460,23 @@ type Celda = {
  * porcentaje con la base dentro de un acordeón cerrado es un
  * porcentaje sin base.
  *
- * CUATRO CELDAS Y NO CINCO. Una quinta vuelve a apelotonar y la
- * tira se convierte en la fila de tarjetas iguales que se anulan
- * entre sí. Y ninguna cifra de «ahora mismo» (cupos, gente sin
- * asesor) entra aquí: esta tira es solo del periodo, y mezclarla
- * trae de vuelta el «¿esas 206 a qué hacen referencia?».
+ * CINCO CELDAS DESDE EL 24 SEP 2026, y aquí estuvo escrito
+ * «cuatro y no cinco» hasta ese día. Lo cambió el cliente --«falta
+ * una tarjeta y es la totalidad de leads, no la veo»-- y la razón
+ * es buena: tres de las cuatro eran porcentajes de una cifra que no
+ * estaba en ninguna tarjeta, solo dentro de sus pies.
+ *
+ * Lo que aquel «no cinco» temía era el apelotonamiento, y eso sigue
+ * siendo verdad: cinco columnas iguales en el 2 × 2 del celular
+ * dejan una celda huérfana en la última fila. Se resuelve dándole
+ * a la quinta --«Conversión en días», la única que no es un reparto
+ * de la misma gente-- el ancho entero cuando la tira va en dos
+ * columnas. Así no hay hueco, y en pantalla ancha son cinco
+ * columnas iguales.
+ *
+ * Y ninguna cifra de «ahora mismo» (cupos, gente sin asesor) entra
+ * aquí: esta tira es solo del periodo, y mezclarla trae de vuelta
+ * el «¿esas 206 a qué hacen referencia?».
  *
  * LAS CUATRO DEL MISMO TAMAÑO, de ancho y de cifra.
  *
@@ -485,7 +497,7 @@ function TiraDelPeriodo({ celdas }: { celdas: Celda[] }) {
   return (
     <dl
       data-pieza="tira"
-      className="grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-borde bg-hairline min-[1100px]:grid-cols-4"
+      className="grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-borde bg-hairline min-[1100px]:grid-cols-5"
     >
       {celdas.map((c) => (
         <CeldaDeLaTira key={c.rotulo} {...c} />
@@ -1538,14 +1550,13 @@ export function PanelProceso({
      * es leads porque no da contexto». «206 que entraron» no dice
      * entraron a qué.
      */
+    /// SIN REPETIR LA CIFRA TRES VECES. Decía «de los 207 leads que
+    /// entraron» en las tres, y desde que el total tiene su propia
+    /// tarjeta --delante, y con ese mismo 207-- repetirlo era llenar
+    /// tres renglones para decir lo que ya está arriba. Se queda la
+    /// palabra «leads», que es lo que se pidió que no faltara.
     const delTotalDeLeads = (porcentaje: number | null | undefined) =>
-      porcentaje === null || porcentaje === undefined
-        ? ""
-        : `${n(porcentaje)} % ${
-            entraron === 1
-              ? "del único lead que entró"
-              : `de los ${n(entraron)} leads que entraron`
-          }.`;
+      porcentaje === null || porcentaje === undefined ? "" : `${n(porcentaje)} % del total de leads.`;
     const media = control?.diasHastaInscribir ?? null;
     const dias = media === null ? null : Math.round(media);
 
@@ -1569,6 +1580,32 @@ export function PanelProceso({
     );
 
     return [
+      {
+        /// EL TOTAL, Y POR QUÉ VA PRIMERO (cliente, 24 sep 2026:
+        /// «falta una tarjeta y es la totalidad de leads, no la
+        /// veo»). Las tres siguientes son porcentajes de ESTA, y
+        /// hasta hoy la cifra solo vivía dentro de sus pies: había
+        /// que leer una frase pequeña para saber sobre cuántos se
+        /// estaba hablando. Va delante porque es donde empieza la
+        /// lectura y porque las otras tres cuelgan de ella.
+        ///
+        /// Es la gente que ENTRÓ en el periodo, que es la misma de
+        /// la que hablan las tres siguientes. No es el total de
+        /// leads del sistema: eso sería otra cifra y otra pregunta.
+        rotulo: "Total leads",
+        cifra: cifrasPendientes ? raya : n(entraron),
+        colorCifra: cifrasPendientes ? "var(--texto-suave)" : "var(--titulo)",
+        pies: cifrasPendientes
+          ? []
+          : [
+              entraron === 1
+                ? "entró en el periodo."
+                : `entraron en el periodo, y las tres siguientes los reparten.`,
+            ],
+        explicacion:
+          "Los leads que entraron en el periodo. Inscritos, En proceso y Descartados son las tres partes en que se reparte, y suman esta cifra.",
+        clase: claseEmbudo,
+      },
       {
         rotulo: "Inscritos",
         /// En `--titulo` y SIN color: la cifra cuenta, no afirma
@@ -1666,7 +1703,12 @@ export function PanelProceso({
         ancha: true,
         /// De `/control` y no de `/resumen`: se atenúa con las
         /// columnas.
-        clase: claseColumnas,
+        ///
+        /// Y EL RENGLÓN ENTERO en dos columnas: con cinco celdas es
+        /// la que se queda sola en la última fila, y media fila
+        /// vacía al lado se lee como que falta algo. En pantalla
+        /// ancha vuelve a medir como las otras cuatro.
+        clase: `${claseColumnas} col-span-2 min-[1100px]:col-span-1`,
       },
     ];
   }, [
