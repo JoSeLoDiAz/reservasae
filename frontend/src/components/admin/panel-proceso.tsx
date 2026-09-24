@@ -1523,32 +1523,29 @@ export function PanelProceso({
     const conComparacion = (base: string, comparacion: string | null) =>
       comparacion ? `${base} ${comparacion}` : base;
     /**
-     * «N de las M que entraron…», LA MISMA FRASE EN LAS TRES CELDAS
-     * DEL REPARTO, con sus casos: «Ninguna de las 23…» y no «0 de
-     * las 23…», «Las 23 que entraron…» y no «23 de las 23…» (medido
-     * con «Últimos 7 días»), y la persona sola, que no es «1 de
-     * las 1». Armada una vez para que ninguna de las tres se quede
-     * con un caso sin cuidar.
+     * «39 % de los 206 leads que entraron», EL PIE DE LAS TRES DEL
+     * REPARTO.
+     *
+     * PRIMERO EL NÚMERO Y DESPUÉS EL PORCENTAJE (cliente, 24 sep
+     * 2026, textual). Hasta hoy era al revés --la cifra grande era el
+     * porcentaje y la cuenta iba dentro de la frase-- y era al revés
+     * porque el 21 de septiembre él pidió justo eso: «estás metiendo
+     * cantidad y porcentaje; si haces eso, como la tarjeta de Se
+     * inscribe». Cambió de opinión, y queda escrito para que nadie lo
+     * «arregle» de vuelta pensando que es un descuido.
+     *
+     * Y DICE «LEADS», que era la otra mitad del encargo: «colocar que
+     * es leads porque no da contexto». «206 que entraron» no dice
+     * entraron a qué.
      */
-    const deLasQueEntraron = (
-      v: number,
-      f: {
-        una: string;
-        varias: string;
-        ninguna: string;
-        laPersonaSi: string;
-        laPersonaNo: string;
-      },
-    ) =>
-      entraron === 1
-        ? v === 1
-          ? f.laPersonaSi
-          : f.laPersonaNo
-        : v === 0
-          ? `Ninguna de las ${n(entraron)} que entraron ${f.ninguna}.`
-          : v === entraron
-            ? `Las ${n(entraron)} que entraron ${f.varias}.`
-            : `${n(v)} de las ${n(entraron)} que entraron ${v === 1 ? f.una : f.varias}.`;
+    const delTotalDeLeads = (porcentaje: number | null | undefined) =>
+      porcentaje === null || porcentaje === undefined
+        ? ""
+        : `${n(porcentaje)} % ${
+            entraron === 1
+              ? "del único lead que entró"
+              : `de los ${n(entraron)} leads que entraron`
+          }.`;
     const media = control?.diasHastaInscribir ?? null;
     const dias = media === null ? null : Math.round(media);
 
@@ -1566,21 +1563,17 @@ export function PanelProceso({
     /// en el celular, y empujaba «Dijeron que no» bajo el pliegue. Se
     /// quitan las palabras que no dicen nada nuevo («personas»,
     /// «llegaron a»); el dato y la advertencia se quedan enteros.
-    const base = deLasQueEntraron(inscritos, {
-      una: "se inscribió",
-      varias: "se inscribieron",
-      ninguna: "se ha inscrito todavía",
-      laPersonaSi: "La persona que entró ya se inscribió.",
-      laPersonaNo: "La persona que entró no se ha inscrito todavía.",
-    });
-    const pieDeLaTasa = conComparacion(base, tasa?.comparacion ?? null);
+    const pieDeLaTasa = conComparacion(
+      delTotalDeLeads(tasa?.porcentaje),
+      tasa?.comparacion ?? null,
+    );
 
     return [
       {
-        rotulo: "Se inscribe",
-        /// En `--titulo` y SIN color: la tasa cuenta, no afirma
+        rotulo: "Inscritos",
+        /// En `--titulo` y SIN color: la cifra cuenta, no afirma
         /// que vaya bien o mal (José, 18 sep 2026).
-        cifra: cifrasPendientes || !tasa ? raya : `${n(tasa.porcentaje)} %`,
+        cifra: cifrasPendientes || !tasa ? raya : n(inscritos),
         colorCifra: cifrasPendientes ? "var(--texto-suave)" : "var(--titulo)",
         pies: cifrasPendientes ? [] : [pieDeLaTasa],
         explicacion:
@@ -1597,8 +1590,8 @@ export function PanelProceso({
         /// eso, como la tarjeta de Se inscribe» (cliente, 21 sep
         /// 2026). Así los tres primeros se leen como lo que son, un
         /// reparto de la misma gente que suma 100.
-        rotulo: "Siguen en proceso",
-        cifra: cifrasPendientes || !reparto ? raya : `${n(reparto.enProceso)} %`,
+        rotulo: "En proceso",
+        cifra: cifrasPendientes || !reparto ? raya : n(enProceso),
         /// En `--titulo`, como las otras. Iba en ámbar, y con las
         /// cuatro cifras del mismo tamaño --orden del cliente-- el
         /// único color de la fila era el suyo: «121» mandaba sobre
@@ -1614,13 +1607,7 @@ export function PanelProceso({
           ? []
           : [
               conComparacion(
-                deLasQueEntraron(enProceso, {
-                  una: "sigue en proceso",
-                  varias: "siguen en proceso",
-                  ninguna: "sigue en proceso",
-                  laPersonaSi: "La persona que entró sigue en proceso.",
-                  laPersonaNo: "La persona que entró ya se inscribió o dijo que no.",
-                }),
+                delTotalDeLeads(reparto?.enProceso),
                 contra(reparto?.enProceso, repartoAntes?.enProceso, true),
               ),
             ],
@@ -1629,8 +1616,8 @@ export function PanelProceso({
         clase: claseEmbudo,
       },
       {
-        rotulo: "Dijeron que no",
-        cifra: cifrasPendientes || !reparto ? raya : `${n(reparto.perdidos)} %`,
+        rotulo: "Descartados",
+        cifra: cifrasPendientes || !reparto ? raya : n(perdidos),
         /// La regla del anillo de pérdida que había: hasta el 15 %
         /// es normal, hasta el 30 % en ámbar y por encima en rojo.
         /// En rojo fijo, un 2 % --que es bueno-- se leería como una
@@ -1650,13 +1637,7 @@ export function PanelProceso({
           ? []
           : [
               conComparacion(
-                deLasQueEntraron(perdidos, {
-                  una: "dijo que no",
-                  varias: "dijeron que no",
-                  ninguna: "ha dicho que no",
-                  laPersonaSi: "La persona que entró dijo que no.",
-                  laPersonaNo: "La persona que entró no ha dicho que no.",
-                }),
+                delTotalDeLeads(reparto?.perdidos),
                 contra(reparto?.perdidos, repartoAntes?.perdidos, false),
               ),
             ],
@@ -1669,7 +1650,7 @@ export function PanelProceso({
         /// INSCRIBIERON en el periodo, entraran cuando entraran.
         /// Sin decirlo repite el «¿esas 131 a qué hacen
         /// referencia?».
-        rotulo: "Tardan en inscribirse",
+        rotulo: "Conversión en días",
         cifra:
           cifrasPendientes || dias === null ? raya : `${n(dias)} ${dias === 1 ? "día" : "días"}`,
         colorCifra: cifrasPendientes || dias === null ? "var(--texto-suave)" : "var(--titulo)",
@@ -2974,7 +2955,10 @@ function TablaAsesores({
         <thead>
           <tr className="border-b border-hairline text-[0.625rem] font-bold tracking-[0.08em] text-texto-suave uppercase">
             <th className="pb-2 text-left font-bold">Asesor</th>
-            <th className="pb-2 text-right font-bold">Total</th>
+            {/* DICE DE QUÉ ES EL TOTAL (cliente, 24 sep 2026). Un
+                «Total» a secas en una tabla de asesores se lee como
+                el total de cualquier cosa: es de leads asignados. */}
+            <th className="pb-2 text-right font-bold">Total (Lead Asignado)</th>
             <th className="pb-2 text-right font-bold">Inscr.</th>
             <th className="pb-2 pl-4 text-left font-bold">Conversión</th>
           </tr>
