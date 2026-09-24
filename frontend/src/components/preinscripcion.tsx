@@ -264,7 +264,10 @@ export function PreinscripcionPublica({ slug }: { slug: string }) {
           separa el contenido de la línea del pie, y con 40px la
           línea quedaba flotando lejos. El de arriba se queda en
           40: ese es el aire del encabezado (cliente, 11 sep 2026). */}
-      <main className="mx-auto w-full max-w-2xl px-6 pt-10 pb-6 lg:max-w-4xl">
+      {/* En 24 pulgadas la columna se quedaba en 896 px y sobraban
+          500 a cada lado (Josse, 24 sep 2026). El texto NO se
+          estira con ella: la bajada va topada en `max-w-3xl`. */}
+      <main className="mx-auto w-full max-w-2xl px-6 pt-10 pb-6 lg:max-w-5xl xl:max-w-6xl">
       {/* Los textos de esta pantalla los redacta el cliente. Lo
           de «en el marco de la Convocatoria … 2026» y lo de
           «incluyentes» no es adorno: es como el SENA nombra la

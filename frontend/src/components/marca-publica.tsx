@@ -533,7 +533,7 @@ export function FilaDeMarca({ aliado }: { aliado?: Aliado | null }) {
           leen como una frase: Convoca CRM · gestionado por Grupo
           AE · para ADECOPRIA. */}
       <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-4 sm:justify-between">
-        <FirmaConvoca tamano={aliado ? 32 : 38} animado className="shrink-0" />
+        <FirmaConvoca tamano={38} animado className="shrink-0" />
 
         {gestor && (
           /// CADA RÓTULO, PEGADO A SU LOGO.
@@ -555,42 +555,23 @@ export function FilaDeMarca({ aliado }: { aliado?: Aliado | null }) {
           /// va centrada entre las dos cosas que une, o se lee
           /// pegada a una de ellas. Un solo `gap` para las cinco
           /// piezas y el problema no puede volver.
-          /// CON ALIADO, TODO UN PUNTO MÁS PEQUEÑO, para que la fila
-          /// no se parta.
+          /// YA NO SE ACHICA CON ALIADO, y por eso se quitó.
           ///
-          /// Medido el 23 sep 2026: cuatro marcas y tres rótulos piden
-          /// 893 px y la columna del formulario son 790, así que la
-          /// fila SIEMPRE caía en dos renglones --el cliente enseñó dos
-          /// veces cómo debía quedar, en una sola--. Bajando los logos
-          /// de 40 a 32 px, el rótulo de 11 a 10 y el hueco de 14 a 10,
-          /// cabe. Sin aliado son tres piezas menos y no hace falta
-          /// achicar nada.
-          <div
-            className={
-              "flex flex-wrap items-center justify-center gap-y-3 " +
-              (aliado
-                ? "gap-x-2 [&_img]:h-7 [&_img]:sm:max-w-[8.5rem] [&_span]:text-[10px] [&_span]:tracking-[0.08em]"
-                : "gap-x-3.5")
-            }
-          >
+          /// Se medió el 23 sep que cuatro marcas y tres rótulos piden
+          /// 893 px contra los 790 de la tarjeta, y se resolvió bajando
+          /// los logos a 28 px, el rótulo a 10 y el hueco a 8. Lo que
+          /// se veía era una banda comprimida --Josse, 24 sep 2026--.
+          /// La columna subió a `max-w-5xl`, que deja 920 px de
+          /// tarjeta: la fila entera cabe a su tamaño de siempre.
+          <div className="flex flex-wrap items-center justify-center gap-x-3.5 gap-y-3">
             {/* el separador solo cuando hay sitio: en el teléfono
                 las piezas se apilan y una raya vertical entre
-                renglones no separa nada.
-
-                Con aliado tampoco, y por lo mismo. Cuatro marcas y
-                tres rótulos piden 893 px y la tarjeta mide 790 --
-                medido a 1280 el 23 sep 2026, y no mejora en
-                pantalla ancha porque la columna está topada en
-                `max-w-4xl`--, así que la fila SIEMPRE se parte en
-                dos. La raya, pensada para separar la firma de lo
-                que viene a su derecha, quedaba colgando al
-                principio del segundo renglón sin separar nada. */}
-            {!aliado && (
-              <span
-                aria-hidden="true"
-                className="mr-1 hidden h-10 w-px bg-borde sm:block"
-              />
-            )}
+                renglones no separa nada. Con aliado vuelve, porque
+                con la columna ancha la fila ya no se parte. */}
+            <span
+              aria-hidden="true"
+              className="mr-1 hidden h-10 w-px bg-borde sm:block"
+            />
             <Rotulo>Gestionado por</Rotulo>
             <PiezaDeLogo logo={gestor} />
             {para.length > 0 && <Rotulo>para</Rotulo>}
