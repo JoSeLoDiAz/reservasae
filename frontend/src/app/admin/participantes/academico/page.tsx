@@ -1,13 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { fechaDeCalendario } from "@/lib/dia-de-calendario";
 import { useCallback, useState } from "react";
 
 import { colorEtapa, estiloEtapa } from "@/components/admin/etapa";
 import { IndicadorActualizacion } from "@/components/admin/indicador-actualizacion";
 import { Aviso, CLASE_CONTROL, Tarjeta } from "@/components/admin/marco-admin";
 import { Esqueleto } from "@/components/admin/piezas";
+import { CajonDelAula } from "@/components/admin/cajon-del-aula";
 import { PanelAcademico } from "@/components/admin/panel-academico";
 import { Desplegable } from "@/components/admin/desplegable";
 import { SelectorBuscable } from "@/components/admin/selector-buscable";
@@ -43,11 +43,6 @@ const ORDEN: EstadoAcademico[] = [
   "CERTIFICADO",
   "SIN_EMPEZAR",
 ];
-
-/// Las fechas del GRUPO se teclean; `fecha` es para instantes
-/// --el ultimo acceso-- y en Bogota adelanta un dia a las otras.
-const dia = (iso: string | null) =>
-  fechaDeCalendario(iso, { day: "2-digit", month: "short", year: "2-digit" });
 
 function fecha(iso: string | null) {
   if (!iso) return "—";
@@ -105,7 +100,10 @@ export default function PaginaAcademica() {
 function Seguimiento() {
   const [filtro, setFiltro] = useState<EstadoAcademico | "">("");
   const [salida, setSalida] = useState<Etapa | "">("");
-  const [accionAbierta, setAccionAbierta] = useState<string | null>(null);
+  /// A quién se le está mirando el seguimiento. Se guarda la FILA y
+  /// no el id: el cajón pinta lo del aula --estado, avance, último
+  /// ingreso-- que ya está aquí, y solo pide al servidor las notas.
+  const [enElCajon, setEnElCajon] = useState<FilaAcademica | null>(null);
   const [buscar, setBuscar] = useState("");
   const [accionFormacionId, setAccion] = useState("");
   const [grupoId, setGrupo] = useState("");
@@ -180,16 +178,6 @@ function Seguimiento() {
 
   // AF1, AF2… AF10: por el número, no alfabético, que
   // pondría AF10 antes que AF2
-  const numeroDe = (titulo: string) => {
-    const m = /AF\s*(\d+)/i.exec(titulo);
-    return m ? Number(m[1]) : 999;
-  };
-  const accionesOrdenadas = [...porAccion.entries()].sort(([, a], [, b]) => {
-    const d = numeroDe(a.titulo) - numeroDe(b.titulo);
-    // el codigo se repite entre convenios: desempata el nombre
-    return d !== 0 ? d : a.titulo.localeCompare(b.titulo, "es");
-  });
-
   const hayFiltro = Boolean(
     filtro || salida || accionFormacionId || grupoId || asesorId || buscar,
   );
@@ -454,17 +442,85 @@ function Seguimiento() {
           </p>
         </Tarjeta>
       ) : (
-        <div className="space-y-3">
-          {accionesOrdenadas.map(([clave, { titulo, grupos }]) => (
-            <AccionAcordeon
-              key={clave}
-              titulo={titulo}
-              grupos={grupos}
-              abierta={accionAbierta === clave}
-              alAbrir={() => setAccionAbierta(accionAbierta === clave ? null : clave)}
-            />
-          ))}
+        /* LAS PERSONAS EN FILAS, SU ESTADO EN COLUMNAS (cliente, 24
+           sep 2026). Estuvo en dos acordeones anidados --acción, y
+           dentro grupo, y dentro la tabla-- y para ver a alguien
+           había que abrir dos cajones sabiendo de antemano en qué
+           grupo estaba. Los filtros de arriba ya hacen ese recorte:
+           se elige la acción, se despliega el grupo, y la lista se
+           queda con su gente. El acordeón repetía ese trabajo a mano.
+
+           «Estructurar misma visual adaptada de Gestión de leads»: es
+           la misma tabla, el mismo buscador y el mismo cajón al pulsar
+           una fila, con las columnas del aula en vez de las del
+           embudo. */
+        <div className="caja-scroll overflow-x-auto rounded-xl border border-borde bg-superficie">
+          <table className="tabla-datos w-full">
+            <thead>
+              <tr>
+                <th className="w-full">Participante</th>
+                <th className="whitespace-nowrap">Acción y grupo</th>
+                <th className="whitespace-nowrap">Estado LMS</th>
+                <th className="whitespace-nowrap">Avance</th>
+                <th className="whitespace-nowrap">Último ingreso</th>
+                <th className="whitespace-nowrap">Asesor</th>
+                <th className="text-center whitespace-nowrap">Seguimiento</th>
+              </tr>
+            </thead>
+            <tbody>
+              {visibles.map((p) => (
+                <tr
+                  key={p.id}
+                  onClick={() => setEnElCajon(p)}
+                  className="cursor-pointer hover:bg-superficie-alterna"
+                >
+                  <td>
+                    <span className="block font-medium">{p.nombre}</span>
+                    <span className="block font-mono text-xs text-texto-suave">
+                      {p.documento}
+                    </span>
+                  </td>
+                  <td className="text-sm whitespace-nowrap">
+                    {p.accion ?? "—"}
+                    {p.grupo !== null && (
+                      <span className="block text-xs text-texto-suave">
+                        Grupo {p.grupo}
+                      </span>
+                    )}
+                  </td>
+                  <td>
+                    <span
+                      style={{ ["--etapa"]: COLOR[p.estado] } as React.CSSProperties}
+                      className="pildora-etapa"
+                      title={AYUDA_ACADEMICA[p.estado]}
+                    >
+                      {ETIQUETA_ACADEMICA[p.estado]}
+                    </span>
+                  </td>
+                  <td className="min-w-44">
+                    <Barra fila={p} />
+                  </td>
+                  <td className="text-sm whitespace-nowrap">
+                    {p.ultimoAcceso ? fecha(p.ultimoAcceso) : "nunca"}
+                    {p.diasSinEntrar !== null && p.diasSinEntrar >= 14 && (
+                      <span className="block text-xs text-error">
+                        hace {p.diasSinEntrar} días
+                      </span>
+                    )}
+                  </td>
+                  <td className="text-sm whitespace-nowrap">{p.asesor?.nombre ?? "—"}</td>
+                  <td className="text-center text-sm whitespace-nowrap">
+                    <span className="text-marca underline underline-offset-2">Abrir</span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
+      )}
+
+      {enElCajon && (
+        <CajonDelAula fila={enElCajon} alCerrar={() => setEnElCajon(null)} />
       )}
     </div>
   );
@@ -504,147 +560,3 @@ function Barra({ fila }: { fila: FilaAcademica }) {
 }
 
 /** Una acción plegada; dentro, sus grupos con su gente. */
-function AccionAcordeon({
-  titulo,
-  grupos,
-  abierta,
-  alAbrir,
-}: {
-  titulo: string;
-  grupos: Map<number, FilaAcademica[]>;
-  abierta: boolean;
-  alAbrir: () => void;
-}) {
-  const gente = [...grupos.values()].flat();
-  const alerta = gente.filter((p) =>
-    ["SIN_INGRESO", "SIN_ARRANCAR", "PARADO", "ATRASADO"].includes(p.estado),
-  ).length;
-
-  return (
-    <section className="overflow-hidden border-b border-borde bg-superficie">
-      <button
-        onClick={alAbrir}
-        aria-expanded={abierta}
-        className="flex w-full items-center gap-4 p-5 text-left transition hover:bg-superficie-alterna"
-      >
-        <span className="min-w-0 grow">
-          <span className="block font-medium">{titulo}</span>
-          <span className="mt-1 block text-sm text-texto-suave">
-            {grupos.size} {grupos.size === 1 ? "grupo" : "grupos"} · {gente.length}{" "}
-            {gente.length === 1 ? "persona" : "personas"}
-            {alerta > 0 && (
-              <span className="text-error"> · {alerta} necesitan atención</span>
-            )}
-          </span>
-        </span>
-        <span aria-hidden className="shrink-0 text-texto-suave">
-          {abierta ? "▴" : "▾"}
-        </span>
-      </button>
-
-      {abierta && (
-        <div className="space-y-2 border-t border-borde p-4">
-          {[...grupos.entries()]
-            // por número; el "sin grupo" (-1) al final
-            .sort(([a], [b]) => (a < 0 ? 1 : b < 0 ? -1 : a - b))
-            .map(([numero, personas]) => (
-              <GrupoAcordeon key={numero} numero={numero} personas={personas} />
-            ))}
-        </div>
-      )}
-    </section>
-  );
-}
-
-function GrupoAcordeon({
-  numero,
-  personas,
-}: {
-  numero: number;
-  personas: FilaAcademica[];
-}) {
-  const [abierto, setAbierto] = useState(false);
-  const uno = personas[0];
-  const alerta = personas.filter((p) =>
-    ["SIN_INGRESO", "SIN_ARRANCAR", "PARADO", "ATRASADO"].includes(p.estado),
-  ).length;
-
-  return (
-    <div className="overflow-hidden rounded-xl border border-borde">
-      <button
-        onClick={() => setAbierto(!abierto)}
-        aria-expanded={abierto}
-        className="flex w-full items-center gap-3 px-4 py-3 text-left transition hover:bg-superficie-alterna"
-      >
-        <span className="min-w-0 grow">
-          <span className="font-medium">
-            {numero < 0 ? "Sin grupo" : `Grupo ${numero}`}
-          </span>
-          <span className="ml-2 text-sm text-texto-suave">
-            {personas.length} {personas.length === 1 ? "persona" : "personas"}
-            {uno.fechaInicio &&
-              ` · ${dia(uno.fechaInicio)} → ${dia(uno.fechaFin)}`}
-            {uno.horario && ` · ${uno.horario}`}
-          </span>
-          {alerta > 0 && (
-            <span className="ml-2 text-sm text-error">· {alerta} por atender</span>
-          )}
-        </span>
-        <span aria-hidden className="shrink-0 text-texto-suave">
-          {abierto ? "▴" : "▾"}
-        </span>
-      </button>
-
-      {!abierto ? null : (
-      <div className="caja-scroll overflow-x-auto border-t border-borde">
-        <table className="tabla-datos">
-          <thead>
-            <tr>
-              <th>Persona</th>
-              <th>Asesor</th>
-              <th>Avance</th>
-              <th>Va</th>
-              <th>Último acceso</th>
-            </tr>
-          </thead>
-          <tbody>
-            {personas.map((p) => (
-              <tr key={p.id}>
-                <td>
-                  <Link href={`/admin/participantes/${p.id}`} className="underline">
-                    {p.nombre}
-                  </Link>
-                  <span className="block font-mono text-xs text-texto-suave">
-                    {p.documento}
-                  </span>
-                </td>
-                <td className="text-sm">{p.asesor?.nombre ?? "—"}</td>
-                <td className="min-w-44">
-                  <Barra fila={p} />
-                </td>
-                <td>
-                  <span
-                    style={{ ["--etapa"]: COLOR[p.estado] } as React.CSSProperties}
-                    className="pildora-etapa"
-                    title={AYUDA_ACADEMICA[p.estado]}
-                  >
-                    {ETIQUETA_ACADEMICA[p.estado]}
-                  </span>
-                </td>
-                <td className="text-sm whitespace-nowrap">
-                  {p.ultimoAcceso ? fecha(p.ultimoAcceso) : "nunca"}
-                  {p.diasSinEntrar !== null && p.diasSinEntrar >= 14 && (
-                    <span className="block text-xs text-error">
-                      hace {p.diasSinEntrar} días
-                    </span>
-                  )}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-      )}
-    </div>
-  );
-}

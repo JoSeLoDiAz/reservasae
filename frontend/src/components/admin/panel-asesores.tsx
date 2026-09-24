@@ -197,7 +197,7 @@ function DeInscripciones() {
               <th className="text-right whitespace-nowrap">Antigüedad media</th>
               <th className="text-right whitespace-nowrap">Cierre</th>
               <th className="text-right whitespace-nowrap">Debe hacer al día</th>
-              <th className="text-right whitespace-nowrap">Viene haciendo</th>
+              <th className="text-right whitespace-nowrap">Promedio Cantidad inscripción</th>
               <th className="whitespace-nowrap">Estado</th>
             </tr>
           </thead>
@@ -329,7 +329,7 @@ function Academicos() {
               <th className="text-right whitespace-nowrap">Por certificar</th>
               <th className="text-right whitespace-nowrap">Fin del curso</th>
               <th className="text-right whitespace-nowrap">Debe hacer al día</th>
-              <th className="text-right whitespace-nowrap">Viene haciendo</th>
+              <th className="text-right whitespace-nowrap">Promedio Cantidad inscripción</th>
               <th className="whitespace-nowrap">Estado</th>
             </tr>
           </thead>
