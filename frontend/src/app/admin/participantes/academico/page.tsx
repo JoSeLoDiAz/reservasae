@@ -352,6 +352,12 @@ function Seguimiento() {
           </span>
         </p>
 
+        {/* AL ALTO DE LA CASA: 51 px, relleno 8/14 y cifra de 17 px
+            (cliente, 24 sep 2026: «esto más reducido por favor»). Es
+            la misma medida de `CifraCompacta` --la de Gestión de
+            leads, que él aprobó-- y no una talla inventada para esta
+            pantalla. Estas no pueden SER `CifraCompacta` porque se
+            pulsan: son los filtros. Lo que se copia es la medida. */}
         <div className="mt-2.5 grid gap-2 sm:grid-cols-3 lg:grid-cols-6">
           {ORDEN.map((estado) => (
             <button
@@ -361,7 +367,7 @@ function Seguimiento() {
                 setFiltro(filtro === estado ? "" : estado);
               }}
               style={{ ["--etapa"]: COLOR[estado] } as React.CSSProperties}
-              className={`rounded-lg border bg-superficie px-3 py-2.5 text-left transition hover:border-campo-borde ${
+              className={`rounded-lg border bg-superficie px-3.5 py-2 text-left transition hover:border-campo-borde ${
                 filtro === estado ? "border-marca bg-marca-suave" : "border-borde"
               }`}
               aria-pressed={filtro === estado}
@@ -372,7 +378,7 @@ function Seguimiento() {
                   {ETIQUETA_ACADEMICA[estado]}
                 </span>
               </span>
-              <span className="mt-1 block text-xl font-bold tabular-nums">
+              <span className="mt-1 block text-[1.0625rem] leading-none font-bold tabular-nums">
                 {cuenta[estado]}
               </span>
             </button>
@@ -396,7 +402,13 @@ function Seguimiento() {
               }}
               aria-pressed={salida === etapa}
               style={estiloEtapa(etapa)}
-              className={`rounded-lg border bg-superficie px-3 py-2.5 text-left transition hover:border-campo-borde ${
+              /// La explicación va al `title` y no debajo: era el
+              /// renglón que hacía estas cuatro casi el doble de
+              /// altas que las seis de arriba, y decía lo mismo en
+              /// las dos filas. Quien dude de una cifra la tiene al
+              /// pasar el ratón; quien no, no la necesita.
+              title={AYUDA_ETAPA[etapa] || undefined}
+              className={`rounded-lg border bg-superficie px-3.5 py-2 text-left transition hover:border-campo-borde ${
                 salida === etapa ? "border-marca bg-marca-suave" : "border-borde"
               }`}
             >
@@ -406,14 +418,9 @@ function Seguimiento() {
                   {ETIQUETA_ETAPA[etapa]}
                 </span>
               </span>
-              <span className="mt-1 block text-xl font-bold tabular-nums">
+              <span className="mt-1 block text-[1.0625rem] leading-none font-bold tabular-nums">
                 {cuantos}
               </span>
-              {AYUDA_ETAPA[etapa] && (
-                <span className="mt-0.5 block text-[0.6875rem] text-texto-suave">
-                  {AYUDA_ETAPA[etapa]}
-                </span>
-              )}
             </button>
           ))}
         </div>

@@ -163,7 +163,7 @@ function DeInscripciones() {
         detalle={t.total > 0 ? `${Math.round((t.gestionados / t.total) * 100)} %` : undefined}
       />
       <CifraCompacta
-        etiqueta="Inscritos o descartados"
+        etiqueta="Inscritos y descartados"
         valor={n(t.resueltos)}
         color="var(--exito)"
       />
@@ -192,7 +192,7 @@ function DeInscripciones() {
               <th className="w-full">Asesor</th>
               <th className="text-right whitespace-nowrap">Leads asignados</th>
               <th className="text-right whitespace-nowrap">Gestionados</th>
-              <th className="text-right whitespace-nowrap">Inscritos o descartados</th>
+              <th className="text-right whitespace-nowrap">Inscritos y descartados</th>
               <th className="text-right whitespace-nowrap">Pendientes</th>
               <th className="text-right whitespace-nowrap">Antigüedad media</th>
               <th className="text-right whitespace-nowrap">Cierre</th>
