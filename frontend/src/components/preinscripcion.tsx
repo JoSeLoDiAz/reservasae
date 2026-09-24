@@ -339,9 +339,25 @@ export function PreinscripcionPublica({ slug }: { slug: string }) {
                 required
                 value={departamento}
                 onChange={(e) => {
-                  setDepartamento(e.target.value);
-                  if (e.target.value) marcar(slug, "ELIGIO_UBICACION", e.target.value);
-                  setCiudad("");
+                  const nuevo = e.target.value;
+                  setDepartamento(nuevo);
+                  if (nuevo) marcar(slug, "ELIGIO_UBICACION", nuevo);
+                  /// SI EL DEPARTAMENTO TIENE UNA SOLA SEDE, SE PONE
+                  /// SOLA. «Antioquia, solo Medellín; Cauca, solo
+                  /// Popayán» (cliente, 23 sep 2026).
+                  ///
+                  /// Y es la SEDE, no el único municipio: Antioquia
+                  /// tiene 126 municipios en la lista --ahí se dice
+                  /// dónde se VIVE-- y de todos ellos solo Medellín
+                  /// tiene aula. Preseleccionar el único sitio donde
+                  /// hay algo evita un paso que no decide nada.
+                  ///
+                  /// SE PUEDE CAMBIAR, y hay que poder: quien viva en
+                  /// Bello no ve la presencial de Medellín, y esa regla
+                  /// no se toca. Esto solo adelanta el caso normal.
+                  const suyas =
+                    catalogo.ubicaciones.find((u) => u.departamento === nuevo)?.sedes ?? [];
+                  setCiudad(suyas.length === 1 ? suyas[0] : "");
                   setAccionId("");
                   setOfertaId("");
                 }}
@@ -394,8 +410,16 @@ export function PreinscripcionPublica({ slug }: { slug: string }) {
           </div>
         </section>
 
-        {/* las acciones salen aqui mismo, no en otra pantalla */}
-        {departamento && (
+        {/* las acciones salen aqui mismo, no en otra pantalla.
+
+            HASTA QUE NO HAY MUNICIPIO NO SE PINTA NADA. Con solo el
+            departamento puesto salía el título «Acción de formación»
+            solo, sin tarjetas y sin aviso, encima del pie de página:
+            un encabezado huérfano que parece que algo falló al cargar.
+            Y como el municipio se rellena solo cuando el departamento
+            tiene uno --ver arriba--, en la práctica aparece en el mismo
+            clic. */}
+        {departamento && ciudad && (
           <section>
             {/* SIN el contador de «N con cobertura en X».
 
