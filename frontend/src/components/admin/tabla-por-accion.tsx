@@ -42,14 +42,18 @@ const tasa = (v: number | null) => (v === null ? "—" : `${Math.round(v * 100)}
 export function TablaPorAccion({
   alElegir,
   elegida,
+  recorte,
 }: {
+  /// Los cinco filtros y la ventana, los mismos de arriba.
+  recorte?: Record<string, unknown>;
   /// La pantalla la usa para abrir el detalle por grupos: la fila
   /// entera es el botón.
   alElegir?: (fila: FilaDeAccion) => void;
   elegida?: string | null;
 }) {
-  const cargar = useCallback(() => crmApi.resumenPorAccion(), []);
-  const vivos = useDatosVivos<FilaDeAccion[]>(cargar, { clave: "resumen-por-accion" });
+  const clave = JSON.stringify(recorte ?? {});
+  const cargar = useCallback(() => crmApi.resumenPorAccion(recorte ?? {}), [clave]); // eslint-disable-line react-hooks/exhaustive-deps
+  const vivos = useDatosVivos<FilaDeAccion[]>(cargar, { clave: `resumen-por-accion:${clave}` });
 
   if (vivos.error) return <Aviso tipo="error">{vivos.error}</Aviso>;
   if (!vivos.datos) return <Esqueleto />;

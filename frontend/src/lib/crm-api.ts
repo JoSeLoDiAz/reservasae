@@ -1407,7 +1407,11 @@ export const crmApi = {
 
   /// LA TABLA DEL COMITÉ: una fila por acción de formación. Es el
   /// Excel que el cliente llevaba a mano (23 sep 2026).
-  resumenPorAccion: () => pedir<FilaDeAccion[]>(`/admin/participantes/resumen-por-accion`),
+  /// Con el MISMO recorte que el resto de la pantalla: los cinco
+  /// filtros y la ventana. Sin ellos, con «Hoy» arriba decía una
+  /// persona y esta tabla doscientas siete.
+  resumenPorAccion: (recorte: Filtros & { desde?: string; hasta?: string } = {}) =>
+    pedir<FilaDeAccion[]>(`/admin/participantes/resumen-por-accion${consulta(recorte)}`),
 
   tableroAcademico: (ventana: FiltroVentana = {}) =>
     pedir<TableroAcademico>(`/admin/participantes/academico/tablero${consulta(ventana)}`),

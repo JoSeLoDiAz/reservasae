@@ -49,6 +49,7 @@ import {
   completarFila,
   resumenPorAccionSql,
   type FilaDeAccion,
+  type RecorteDelResumen,
 } from './resumen-por-accion';
 import {
   completarGrupo,
@@ -585,10 +586,13 @@ export class CrmService {
    * porqué están en `resumen-por-accion.ts`, que se prueba sin base de
    * datos.
    */
-  async resumenPorAccion(ambito: Ambito): Promise<FilaDeAccion[]> {
+  async resumenPorAccion(
+    ambito: Ambito,
+    recorte: RecorteDelResumen = {},
+  ): Promise<FilaDeAccion[]> {
     if (ambito.convenios.length === 0) return [];
     const filas = await this.prisma.$queryRaw<Parameters<typeof completarFila>[0][]>(
-      resumenPorAccionSql(ambito.convenios, ambito.gremioElegido),
+      resumenPorAccionSql(ambito.convenios, ambito.gremioElegido, recorte),
     );
     return filas.map(completarFila);
   }

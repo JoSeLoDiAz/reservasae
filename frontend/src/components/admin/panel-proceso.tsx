@@ -831,6 +831,20 @@ export function PanelProceso({
     [convenioId, accionFormacionId, grupoId, asesorId, departamentoSepId],
   );
 
+  /**
+   * EL RECORTE DE LA PANTALLA, UNO SOLO: los cinco filtros y la
+   * ventana del periodo.
+   *
+   * «Los filtros deben ser funcionales, hasta el momento no los
+   * entiendo para nada» (cliente, 23 sep 2026). Y con razón: en esta
+   * pantalla convivían TRES alcances. La tira y las gráficas
+   * obedecían al periodo y a los filtros; el Resumen General solo a
+   * los filtros; y las dos tablas de cupos, a nada. Con «Hoy» elegido,
+   * arriba decía una persona y abajo doscientas siete.
+   *
+   * Ahora hay UN recorte y lo reciben todos. Lo que NO se recorta es
+   * la meta de cupos: los comprometidos son los mismos hoy que ayer.
+   */
   /// La ventana que la cabecera YA resolvió. Se usa tal cual:
   /// recalcular «hoy» aquí sería una segunda idea de dónde
   /// empieza el día en Bogotá.
@@ -838,6 +852,12 @@ export function PanelProceso({
   const anterior = comparar ? (control?.ventana.instantes?.anterior ?? null) : null;
   const [aDesde, aHasta] = [actual?.desde, actual?.hasta];
   const [bDesde, bHasta] = [anterior?.desde, anterior?.hasta];
+
+  const recorte = {
+    ...filtros,
+    desde: aDesde ?? undefined,
+    hasta: aHasta ?? undefined,
+  };
 
   /// Los dos rótulos, de la MISMA respuesta que trae la ventana.
   /// Se sellan con las cifras (ver `Cargado`) y entran en la
@@ -2330,7 +2350,7 @@ export function PanelProceso({
             formación. Va con los mismos filtros de arriba: un bloque
             que los ignora enseña una cifra distinta a la de su vecino
             para la misma pregunta. */}
-        <ResumenGeneral filtros={filtros} />
+        <ResumenGeneral filtros={recorte} />
 
         {/* ── 5 · De qué está hecha esa gente ── */}
         {/* SOLO «Por convenio», y solo con los dos gremios a la vista.
@@ -2351,6 +2371,7 @@ export function PanelProceso({
             en el comité: cuántos cupos hay comprometidos y cuánto falta
             para cerrar cada acción (cliente, 23 sep 2026). */}
         <TablaPorAccion
+          recorte={recorte}
           /// Pulsar la fila abre sus grupos; pulsarla otra vez los
           /// cierra. Es el Bloque 3 que pidió el cliente, y nace
           /// cerrado: siete acciones abiertas son setenta filas.
