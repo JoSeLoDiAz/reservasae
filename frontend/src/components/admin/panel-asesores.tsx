@@ -176,7 +176,11 @@ function DeInscripciones() {
                   {dec(f.ritmo.exigidoPorDia)}
                 </td>
                 <td className="text-right tabular-nums">{dec(f.ritmo.realPorDia)}</td>
-                <td>
+                {/* `nowrap` TAMBIÉN EN LA CELDA. Lo llevaba solo la
+                    cabecera, así que «Terminado» se partía en «Termina /
+                    do» y «Necesita refuerzo» en dos renglones, lo que
+                    además hacía esa fila más alta que sus vecinas. */}
+                <td className="whitespace-nowrap">
                   <span
                     className={`text-[0.75rem] font-semibold ${SEMAFORO[f.ritmo.estado].clase}`}
                   >
@@ -267,7 +271,11 @@ function Academicos() {
                   {dec(f.ritmo.exigidoPorDia)}
                 </td>
                 <td className="text-right tabular-nums">{dec(f.ritmo.realPorDia)}</td>
-                <td>
+                {/* `nowrap` TAMBIÉN EN LA CELDA. Lo llevaba solo la
+                    cabecera, así que «Terminado» se partía en «Termina /
+                    do» y «Necesita refuerzo» en dos renglones, lo que
+                    además hacía esa fila más alta que sus vecinas. */}
+                <td className="whitespace-nowrap">
                   <span
                     className={`text-[0.75rem] font-semibold ${SEMAFORO[f.ritmo.estado].clase}`}
                   >

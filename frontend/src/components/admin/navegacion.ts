@@ -201,17 +201,11 @@ export const MODULOS: Modulo[] = [
         exacto: true,
         area: 'academico',
       },
-      {
-        /// EL TABLERO DE SEGUIMIENTO ACADÉMICO, aquí y no en Tableros:
-        /// es el resumen del aula --cuántos grupos, cuánta gente y en
-        /// qué estado-- y se mira desde el módulo que lo trabaja.
-        /// Enseña CANTIDADES, nunca personas: «importante, no mostrar
-        /// las personas sino los resúmenes» (cliente, 23 sep 2026).
-        href: '/admin/participantes/academico/tablero',
-        etiqueta: 'Seguimiento académico',
-        exacto: true,
-        area: 'academico',
-      },
+      /// Y NADA MÁS. «Seguimiento académico no, porque ya está en
+      /// Tableros» (cliente, 23 sep 2026): un tablero se mira, no se
+      /// trabaja, así que vive en Tableros y no se repite aquí.
+      /// Académica se queda con lo único que se trabaja, que es el
+      /// aula.
     ],
   },
   {

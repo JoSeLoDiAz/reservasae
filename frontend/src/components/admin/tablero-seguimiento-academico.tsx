@@ -267,11 +267,15 @@ function Cuerpo({
             arriba. Eran cuatro cajas más altas, con frase debajo en
             tres de ellas y sin frase en la cuarta, así que la cifra de
             «No aprobó» quedaba a otra altura que sus vecinas. */}
-        {/* EN LA MISMA REJILLA DE SEIS que las de arriba, aunque solo
-            sean cuatro: así la casilla mide exactamente lo mismo en las
-            dos filas. Con `grid-cols-4` las de abajo salían medio dedo
-            más anchas y las dos filas no se leían como una sola cosa. */}
-        <div className="mt-2.5 grid gap-2 sm:grid-cols-3 lg:grid-cols-6">
+        {/* CUATRO EN CUATRO COLUMNAS, llenando la fila.
+
+            Estuvieron en la rejilla de seis para que la casilla midiera
+            igual que arriba, y salió peor: la fila acababa a dos
+            tercios del ancho y quedaba un hueco enorme a la derecha.
+            Una fila a medias se ve mal aunque sus cajas midan lo mismo
+            que las de al lado. Lo que sí tiene que coincidir --y ahora
+            coincide-- es el ALTO y lo que va dentro. */}
+        <div className="mt-2.5 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
           {SALIDAS.map((s) => (
             <Casilla
               key={s.clave}
