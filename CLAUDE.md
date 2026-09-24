@@ -249,6 +249,49 @@ documentando lo caro que sale dejarlos. Se arreglan, y se dice cuál era.
 > candado de verdad —un hook, o CODEOWNERS sobre `frontend/src`— es trabajo
 > aparte y hay que decidirlo; hoy esto es un acuerdo escrito, no un control.
 
+### EL DISEÑO ESTÁ TERMINADO. De aquí en adelante solo entra función (24 sep 2026)
+
+Textual, mirando un PR de 74 ficheros y 7.648 líneas: *«estamos haciendo muchos
+cambios que realmente nos pueden tumbar. Hay que dejar esto muy claro en los
+MD: lo que vamos a hacer son ajustes funcionales y de mejoras íntegras. No
+pendejadas como diseño. Ya el diseño está bien»*.
+
+**Esto no repite la regla de arriba, la endurece, y la diferencia es el
+tiempo.** Aquella dice *quién* ajusta el diseño; esta dice que **ya no hay nada
+que ajustar**. El aspecto del sistema está cerrado: no es una cola de peticiones
+esperando a que Josse las apruebe una por una, es un capítulo terminado.
+
+| Lo único que entra | Lo que no entra |
+|---|---|
+| que algo **funcione** que hoy no funciona | que algo **se vea** distinto |
+| que una cifra **diga la verdad** | que una cifra se vea mejor colocada |
+| un dato que **hace falta** y no se captura | un dato que se pinta más bonito |
+| lo que **cierra un agujero** | lo que «ya que estaba aquí» |
+
+**Y el motivo no es estético, es de riesgo, medido hoy sobre el PR #2:**
+
+- El PR traía **una línea** —`import 'dotenv/config'` con `dotenv` en
+  `devDependencies` y el Dockerfile instalando `--prod`— que **no arranca el
+  backend en ninguna de las tres sedes**. Y como `arrancar.sh` corre
+  `prisma migrate deploy` *antes* de `node dist/main.js`, habría dejado la base
+  migrada y la aplicación muerta.
+- Ese defecto venía **dentro de un cambio correcto y bien diagnosticado**. No lo
+  cazó ni `tsc`, ni 2.078 pruebas en verde, ni `next build`, ni recorrer doce
+  pantallas con el panel montado. **Lo único que lo caza es mirar el diff.**
+- Cuanto más grande es la entrega, menos se mira cada línea. Por eso la
+  superficie se recorta **antes**: lo que no entra no hay que revisarlo.
+
+**La consecuencia práctica, que es lo que ahorra el trabajo:** una entrega que
+llega partida en «funcional» y «forma» se puede fundir a medias el mismo día. Una
+que las trae mezcladas hay que desenredarla entera antes de poder tocar nada —y
+eso ya costó una jornada el 23 sep.
+
+> **No confundir con la frontera, que sigue igual.** Un rótulo que cuenta algo
+> que no existe, un 500, un control en pie y vacío de efecto: **eso no es
+> diseño, es defecto**, y se arregla y se avisa. Lo que se acabó es el retoque:
+> el margen, el color, el orden de los bloques, el tamaño de la letra, renombrar
+> una entrada del menú porque suena mejor.
+
 ### La entrega de Andrés, partida en funcional y forma (23 sep 2026)
 
 La primera aplicación de la regla a una entrega entera, y queda escrita porque

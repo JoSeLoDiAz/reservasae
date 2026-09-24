@@ -26,6 +26,10 @@ Qué significa en la práctica:
   que cuenta algo que no existe, un control en pie y vacío de efecto. Lo arreglas y dices
   cuál era.
 - La frontera, en dos palabras: **«se ve mal» es suyo; «dice algo falso» se arregla.**
+- **Y desde el 24 sep 2026 el diseño está TERMINADO**, no en cola de aprobación: *«lo que
+  vamos a hacer son ajustes funcionales y de mejoras íntegras. No pendejadas como diseño.
+  Ya el diseño está bien»* (Josse). O sea que ni siquiera hace falta proponer un retoque
+  visual: la respuesta ya está dada. Lo que sí se propone es lo que **no funciona**.
 - El motivo está medido: cada ronda de retoques dispara dos builds, despliegue y
   contenedores, y tu `isolation: worktree` deja además un clon entero del repositorio en
   `.claude/worktrees/`. El disco es el de la VM que escribe.
