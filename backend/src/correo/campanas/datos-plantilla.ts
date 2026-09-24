@@ -6,7 +6,7 @@
 /// Caro» y el de campaña «Hola, CAMILA», y nadie sabría cuál
 /// de los dos está mal.
 
-import { faltaDeLaPersona } from '../../crm/completitud';
+import { faltaDeLaFicha } from '../../crm/completitud';
 import type { PrismaService } from '../../prisma/prisma.service';
 import type { DatosDelParticipante } from '../plantillas/variables';
 
@@ -69,8 +69,32 @@ export async function datosParaPlantilla(
         },
       },
       nivelOcupacionalSepId: true,
-      empresa: { select: { razonSocial: true } },
-      reserva: { select: { empresa: { select: { razonSocial: true } } } },
+      /// Los cuatro del jefe además del nombre: `{{faltan}}` mira
+      /// también la organización desde el 24 sep 2026.
+      empresa: {
+        select: {
+          razonSocial: true,
+          nit: true,
+          sectorEconomico: true,
+          contactoNombre: true,
+          contactoCargo: true,
+          contactoCorreo: true,
+        },
+      },
+      reserva: {
+        select: {
+          empresa: {
+            select: {
+              razonSocial: true,
+              nit: true,
+              sectorEconomico: true,
+              contactoNombre: true,
+              contactoCargo: true,
+              contactoCorreo: true,
+            },
+          },
+        },
+      },
       accionFormacion: {
         select: { codigo: true, nombre: true, modalidad: true, evento: true, horas: true },
       },
@@ -167,9 +191,27 @@ export async function datosParaPlantilla(
     ),
     asesor: p.asesor?.nombre ?? null,
     gremio: p.convenio?.sigla ?? p.convenio?.nombre ?? null,
-    faltan: faltaDeLaPersona({
+    /**
+     * LA PERSONA Y SU ORGANIZACIÓN, o la campaña no le sale a nadie.
+     *
+     * `{{faltan}}` es su propia compuerta: nula, la fila se omite
+     * con «le faltan datos». Mirando solo a la persona, la campaña
+     * que pide los datos que faltan se le habría omitido al CIEN
+     * POR CIEN de la lista -- en producción, el 24 sep 2026, las 70
+     * fichas que salieron de «Datos completos» tenían TODO lo suyo
+     * y lo que les faltaba era de la organización. Cero huecos por
+     * el lado de la persona.
+     *
+     * Y se descubre tarde y mal: la campaña no falla, sale vacía, y
+     * cada fila dice «le faltan datos», que manda a buscar el
+     * defecto a fichas que están completas. Es exactamente lo que
+     * pasó con `{{enlace}}` el 15 sep.
+     */
+    faltan: faltaDeLaFicha({
       persona: per,
       nivelOcupacionalSepId: p.nivelOcupacionalSepId,
+      empresa: p.empresa ?? p.reserva?.empresa ?? null,
+      documentoDeLaPersona: per.numeroDocumento,
     }),
   };
 }
