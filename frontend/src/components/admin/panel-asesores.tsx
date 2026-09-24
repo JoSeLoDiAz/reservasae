@@ -74,7 +74,7 @@ export function PanelAsesores() {
   const [subvista, setSubvista] = useState<Subvista>("inscripciones");
 
   return (
-    <div className="space-y-4">
+    <div className="flex flex-col gap-3 px-4 pt-3 pb-6 [&>header]:mx-0 [&>header]:mb-0">
       {/* SIN FRASE DEBAJO DEL TÍTULO (cliente, 23 sep 2026). Cada
           bloque ya dice lo suyo, y una segunda explicación arriba
           costaba veinte píxeles de alto en todas las pantallas. */}

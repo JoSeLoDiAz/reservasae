@@ -34,7 +34,6 @@ import { crmApi, type Academico, type FilaAcademica } from "@/lib/crm-api";
 import { useDatosVivos } from "@/lib/datos-vivos";
 
 import { Desplegable } from "./desplegable";
-import { colorEtapa } from "./etapa";
 import { n } from "./graficos";
 import { Aviso } from "./marco-admin";
 import { Bloque, Encabezado, Esqueleto, TarjetaCifra, Vacio } from "./piezas";
@@ -107,12 +106,15 @@ export function TableroSeguimientoAcademico() {
   const accion = acciones.find((a) => a.id === accionFormacionId) ?? null;
 
   return (
-    <div className="space-y-4">
+    <div className="flex flex-col gap-3 px-4 pt-3 pb-6 [&>header]:mx-0 [&>header]:mb-0">
       <Encabezado compacto titulo="Seguimiento académico" />
 
-      {/* LOS DOS FILTROS, en su tarjeta y con el mismo alto que en las
-          demás pantallas. */}
-      <div className="rounded-xl border border-borde bg-superficie px-7 py-3">
+      {/* LOS DOS FILTROS, con la MISMA tarjeta que «Control de
+          Reservas»: `px-4 py-3 sm:py-3.5`. Estuvo en `px-7` para que su
+          texto empezara donde el del título, y con eso dejaba de
+          parecerse a la pantalla que sirve de referencia. Entre las dos
+          cosas manda parecerse. */}
+      <div className="rounded-xl border border-borde bg-superficie px-4 py-3 sm:py-3.5">
         <p className="mb-2.5 text-[0.6875rem] font-bold tracking-[0.08em] text-texto-suave uppercase">
           Filtros
           {vivos.datos && (
@@ -223,18 +225,15 @@ function Cuerpo({
           suelta sobre el fondo y con una tarjeta propia más pequeña,
           así que dos pantallas hermanas enseñaban la misma clase de
           cifra de dos tamaños distintos. */}
+      {/* «¿Qué es esto: Aula de las dos redes?» (cliente, 23 sep 2026).
+          Nada: era un nombre que me inventé para cuando no hay una
+          acción elegida. Con una acción elegida el título sí dice cuál;
+          sin ella, «Resumen del aula» y ya. */}
       <Bloque
         sinRelleno
-        titulo={accion ? `Aula de ${accion.codigo}` : 'Aula de las dos redes'}
+        titulo={accion ? `Aula de ${accion.codigo}` : "Resumen del aula"}
       >
         <div className="flex flex-wrap gap-px bg-hairline">
-          <Celda>
-            <TarjetaCifra
-              etiqueta="Acción de formación"
-              valor={accion ? accion.codigo : 'Todas'}
-              pie={accion ? accion.nombre : `${n(datos.acciones.length)} en el aula`}
-            />
-          </Celda>
           <Celda>
             <TarjetaCifra
               etiqueta="Grupos"
@@ -261,6 +260,22 @@ function Cuerpo({
               pie={salidas > 0 ? `${n(salidas)} salieron del aula` : 'nadie ha salido'}
             />
           </Celda>
+          {/* AQUÍ NO VA «ACCIÓN DE FORMACIÓN».
+
+              Era una tarjeta con la palabra «Todas» a 32 px, del mismo
+              tamaño que las cifras de al lado y sin ser una cifra. En
+              «Control de Reservas» --que es la referencia que dio el
+              cliente-- las cinco son números. Qué acción se está
+              mirando ya lo dice el desplegable de arriba y el título
+              de este bloque. */}
+          <Celda>
+            <TarjetaCifra
+              etiqueta="Salieron del aula"
+              valor={n(salidas)}
+              tono={salidas > 0 ? "error" : "neutro"}
+              pie={r.total > 0 ? `${Math.round((salidas / r.total) * 100)} % de los matriculados` : 'sin gente'}
+            />
+          </Celda>
         </div>
       </Bloque>
 
@@ -269,42 +284,37 @@ function Cuerpo({
         titulo="En qué estado está la gente"
         descripcion="Lo dice el LMS, no el asesor. Los seis se cuentan solo sobre quien sigue dentro del aula."
       >
-        <div className="grid gap-2 sm:grid-cols-3 lg:grid-cols-6">
+        {/* EN TIRA, COMO LAS CIFRAS DE ARRIBA, y no en cajitas con
+            borde. Eran dos lenguajes en la misma pantalla para la misma
+            clase de dato: una cifra con su rótulo. Ahora es la misma
+            pieza en su versión compacta --24 px en vez de 32-- porque
+            aquí acompañan y lo que se viene a mirar es el reparto. */}
+        <div className="flex flex-wrap gap-px bg-hairline">
           {ESTADOS.map((e) => (
-            <Casilla
-              key={e.clave}
-              etiqueta={e.etiqueta}
-              valor={r[e.clave]}
-              color={colorEtapa(e.etapa)}
-              sobre={r.enFormacion}
-            />
+            <Celda key={e.clave}>
+              <TarjetaCifra
+                compacta
+                etiqueta={e.etiqueta}
+                valor={n(r[e.clave])}
+                pie={r.enFormacion > 0 ? `${Math.round((r[e.clave] / r.enFormacion) * 100)} % de los que siguen` : '—'}
+              />
+            </Celda>
           ))}
         </div>
 
-        <p className="mt-3.5 border-t border-hairline pt-3 text-[0.6875rem] font-bold tracking-[0.08em] text-texto-suave uppercase">
+        <p className="mt-4 mb-2 text-[0.6875rem] font-bold tracking-[0.08em] text-texto-suave uppercase">
           Y quiénes salieron del aula
         </p>
-        {/* CUATRO EN CUATRO COLUMNAS, del mismo alto que las seis de
-            arriba. Eran cuatro cajas más altas, con frase debajo en
-            tres de ellas y sin frase en la cuarta, así que la cifra de
-            «No aprobó» quedaba a otra altura que sus vecinas. */}
-        {/* CUATRO EN CUATRO COLUMNAS, llenando la fila.
-
-            Estuvieron en la rejilla de seis para que la casilla midiera
-            igual que arriba, y salió peor: la fila acababa a dos
-            tercios del ancho y quedaba un hueco enorme a la derecha.
-            Una fila a medias se ve mal aunque sus cajas midan lo mismo
-            que las de al lado. Lo que sí tiene que coincidir --y ahora
-            coincide-- es el ALTO y lo que va dentro. */}
-        <div className="mt-2.5 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-          {SALIDAS.map((s) => (
-            <Casilla
-              key={s.clave}
-              etiqueta={s.etiqueta}
-              valor={r[s.clave]}
-              color={colorEtapa(s.etapa)}
-              sobre={r.total}
-            />
+        <div className="flex flex-wrap gap-px bg-hairline">
+          {SALIDAS.map((sa) => (
+            <Celda key={sa.clave}>
+              <TarjetaCifra
+                compacta
+                etiqueta={sa.etiqueta}
+                valor={n(r[sa.clave])}
+                pie={r.total > 0 ? `${Math.round((r[sa.clave] / r.total) * 100)} % de los matriculados` : '—'}
+              />
+            </Celda>
           ))}
         </div>
       </Bloque>
@@ -358,36 +368,4 @@ function Cuerpo({
 /// el `gap-px` de la fila hace de separador.
 function Celda({ children }: { children: React.ReactNode }) {
   return <div className="min-w-[150px] flex-1 bg-superficie">{children}</div>;
-}
-
-/// Una casilla de estado: el punto de su color, el rótulo, la cifra y
-/// qué parte del total es. Las diez miden lo mismo.
-function Casilla({
-  etiqueta,
-  valor,
-  color,
-  sobre,
-}: {
-  etiqueta: string;
-  valor: number;
-  color: string;
-  sobre: number;
-}) {
-  return (
-    <div
-      style={{ ["--etapa" as string]: color }}
-      className="rounded-lg border border-borde bg-superficie px-3 py-2"
-    >
-      <span className="flex items-center gap-1.5 text-[0.625rem] font-semibold tracking-[0.08em] uppercase">
-        <span className="punto-etapa" aria-hidden />
-        <span className="truncate text-texto-suave">{etiqueta}</span>
-      </span>
-      <span className="mt-1 flex items-baseline gap-1.5">
-        <span className="text-lg leading-none font-bold tabular-nums">{n(valor)}</span>
-        <span className="text-[0.6875rem] text-texto-suave tabular-nums">
-          {sobre > 0 ? `${Math.round((valor / sobre) * 100)} %` : "—"}
-        </span>
-      </span>
-    </div>
-  );
 }
