@@ -46,6 +46,7 @@ import { DirectorioService } from '../crm/directorio.service';
 import { aQueOrganizacionSeAta } from './organizacion-de-la-ficha';
 import { entraAlDirectorio } from './entra-al-directorio';
 import { faltaDeLaEmpresa } from './empresa-incompleta';
+import { marcaDelEnlace } from './enlace-del-envio';
 import { ColaRui } from '../crm/rui/cola-rui';
 import { CARACTERIZACION_POR_ID } from '../crm/catalogos-sep';
 import { CARACTERIZACIONES_SEP } from '../crm/catalogos-sep.generado';
@@ -606,7 +607,14 @@ export class PreinscripcionService {
       /// puedan filtrar en Gestion de leads aunque no vengan de
       /// ninguna campana --que es el caso normal de un enlace que
       /// se reparte a mano.
-      const campana = llegada?.campana ?? formulario?.palabra ?? null;
+      /// Y el tercero: la palabra del enlace corto, leída del
+      /// ENVÍO. Es el respaldo de cuando la baliza no llegó, que
+      /// es justo el caso que hacía perder dinero: `?mailing-ucc`
+      /// dependía de un `sendBeacon` y con él se le paga a una
+      /// universidad por cada persona que se certifique.
+      const delEnlace = marcaDelEnlace(dto.enlace);
+      const campana =
+        llegada?.campana ?? formulario?.palabra ?? delEnlace?.campana ?? null;
 
       /// El ORIGEN solo cambia con prueba de que se pagó, para
       /// una ficha NUEVA y si no había ningún lead esperando.
@@ -634,7 +642,11 @@ export class PreinscripcionService {
       /// en ninguna de sus dos listas y cae en IMPORTACION: la
       /// ficha pasaría a «Lo cargó el equipo» y la planeación
       /// de pauta la contaría como importada.
-      const canal = canalDeLaVisita(llegada);
+      /// El canal de la visita MANDA; el del enlace es el
+      /// respaldo de cuando la baliza no llegó. Nunca al revés:
+      /// la baliza mide lo que pasó y esto es lo que dice la
+      /// URL que le dieron a la persona.
+      const canal = canalDeLaVisita(llegada) ?? delEnlace?.origen ?? null;
       if (canal && !pagada && !yaEsta && cerrados === 0) {
         await this.prisma.participante.update({
           where: { id: participante.id },

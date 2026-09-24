@@ -106,6 +106,13 @@ export type DatosBasicos = {
   /// deja registrar en una accion sin publicar, asi que el
   /// servidor la vuelve a comprobar; mandarla no basta.
   formulario?: string;
+  /// La marca del enlace corto --`?mailing-ucc`--, cruda.
+  ///
+  /// Va ADEMAS de en la baliza porque con ella se le paga a un
+  /// tercero por cada persona que se certifique, y la baliza se
+  /// la comen los bloqueadores. El servidor la valida y nunca la
+  /// cree para marcar pauta.
+  enlace?: string;
 };
 
 export type FichaAbierta = {

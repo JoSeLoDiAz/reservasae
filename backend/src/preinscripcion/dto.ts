@@ -132,6 +132,14 @@ export class CrearPreinscripcionDto {
   /// contra `formularios-personalizados` y comprueba que la oferta
   /// sea de la accion que esa palabra nombra.
   @IsOptional() @IsString() @MaxLength(40) formulario?: string;
+
+  /// La marca del enlace corto --`?mailing-ucc`--, si la trae.
+  ///
+  /// Viaja aqui ADEMAS de en la baliza porque con ella se le paga
+  /// a un tercero: la baliza se la comen los bloqueadores y la
+  /// atribucion no puede depender de eso. El servidor la valida
+  /// en `enlace-del-envio.ts` y NUNCA la cree para marcar pauta.
+  @IsOptional() @IsString() @MaxLength(60) enlace?: string;
 }
 
 /** El resto de sus datos, todos opcionales. */

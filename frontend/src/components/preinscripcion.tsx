@@ -17,6 +17,7 @@ import { FondoPublico } from "./fondo-publico";
 import { BannerLogos, EncabezadoPublico, PiePublico } from "./marca-publica";
 import { ModalInformacionAccion } from "./modal-informacion-accion";
 import { idDeVisita, marcar, type Paso, contarSiSeQueda } from "@/lib/visita";
+import { marcaDelEnlaceCorto } from "@/lib/enlace-corto";
 import { palabraDelFormulario } from "@/lib/formulario-personalizado";
 
 import { BandaDePasos } from "./banda-de-pasos";
@@ -156,6 +157,15 @@ export function PreinscripcionPublica({ slug }: { slug: string }) {
         /// devolvio el SERVIDOR y no la de la barra: es la misma,
         /// pero asi no viaja lo que alguien escriba ahi.
         formulario: catalogo?.formulario?.palabra,
+        /// LA MARCA DEL ENLACE, y va aquí porque con ella se
+        /// paga. `?mailing-ucc` dice de qué universidad viene la
+        /// persona, y hasta ahora esa palabra solo la leía la
+        /// baliza: con el JavaScript bloqueado la universidad
+        /// traía a alguien y el sistema no lo sabía. Yendo en el
+        /// propio envío, si llega el registro llega la
+        /// atribución. El servidor la valida y NUNCA la cree para
+        /// marcar pauta.
+        enlace: marcaDelEnlaceCorto(window.location.search),
       });
       setHecho({
         // sin token cuando el documento ya estaba: ver `Registrada`
