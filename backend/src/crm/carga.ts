@@ -1,4 +1,4 @@
-/** Analiza lo que el asesor pega desde Excel. */
+/** Analiza lo que el asesor pega desde Excel, o lo que trae la plantilla. */
 
 import { aCelularGuardable, celularUtil, celularValido } from '../comun/celular';
 import { documentoValido, normalizarDocumento } from '../comun/documento';
@@ -7,6 +7,19 @@ import {
   reconocerTipoDocumento,
   siglaDocumento,
 } from './catalogos-sep';
+import {
+  codigoDeAccion,
+  columnasDelEncabezado,
+  leerDondeVive,
+  leerEstrato,
+  leerFechaDeNacimiento,
+  leerGenero,
+  leerNivelOcupacional,
+  leerSiNo,
+  ORDEN_ANTIGUO,
+  type Campo,
+  type Columnas,
+} from './columnas-de-carga';
 
 export type FilaCruda = {
   linea: number;
@@ -30,19 +43,27 @@ export type FilaAnalizada = {
   segundoApellido: string | null;
   correo: string | null;
   celular: string | null;
+  /// Lo que trae la plantilla ancha. Null cuando la columna no vino:
+  /// vacío es «no lo dijeron», y no se inventa nada.
+  fechaNacimiento: string | null;
+  generoSepId: number | null;
+  departamentoSepId: number | null;
+  municipioSepId: number | null;
+  barrio: string | null;
+  direccion: string | null;
+  estrato: number | null;
+  cargoEnEmpresa: string | null;
+  nivelOcupacionalSepId: number | null;
+  beneficiarioPrevio: boolean | null;
+  /** El código («AF3») de la acción que pidió la persona. */
+  accionCodigo: string | null;
+  /** Lo que venía escrito en esa celda, para poder decirlo en pantalla. */
+  accionTexto: string | null;
   problemas: string[];
 };
 
-export const COLUMNAS = [
-  'tipoDocumento',
-  'numeroDocumento',
-  'primerNombre',
-  'segundoNombre',
-  'primerApellido',
-  'segundoApellido',
-  'correo',
-  'celular',
-] as const;
+/// Las ocho de siempre, en su orden, para lo que se pega sin encabezado.
+export const COLUMNAS = ORDEN_ANTIGUO;
 
 const PERMITIDOS = new Set(DOCUMENTOS_DE_PERSONA.map((t) => t.id));
 /// Cedula de ciudadania: lo que trae casi toda fila.
@@ -56,25 +77,11 @@ function partir(linea: string): string[] {
   return linea.split(separador).map((c) => c.trim().replace(/^"|"$/g, ''));
 }
 
-/// Se salta la fila de titulos si la trae. Mira tambien
-/// la segunda celda: un titulo no lleva un documento al
-/// lado, y sin eso una fila con "Cedula" en la primera
-/// columna se perderia en silencio.
-function esEncabezado(celdas: string[]): boolean {
-  const primera = (celdas[0] ?? '').toLowerCase();
-  const suena =
-    primera.includes('tipo') ||
-    primera.includes('documento') ||
-    primera.includes('cedula') ||
-    primera.includes('cédula') ||
-    primera.includes('identificacion') ||
-    primera.includes('identificación');
-
-  if (!suena) return false;
-
-  const segunda = (celdas[1] ?? '').replace(/[\s.\-_]/g, '');
-  return !/^\d{4,}$/.test(segunda);
-}
+/// Las posiciones del orden antiguo, para lo pegado sin encabezado.
+const POR_POSICION: Columnas = ORDEN_ANTIGUO.reduce<Columnas>((m, campo, i) => {
+  m[campo] = i;
+  return m;
+}, {});
 
 export function analizar(texto: string): FilaAnalizada[] {
   const lineas = texto
@@ -84,39 +91,54 @@ export function analizar(texto: string): FilaAnalizada[] {
 
   if (lineas.length === 0) return [];
 
-  const primeras = partir(lineas[0]);
-  const desde = esEncabezado(primeras) ? 1 : 0;
+  /// El encabezado decide QUÉ COLUMNA ES CADA CUAL. Sin él se lee el
+  /// orden antiguo de ocho, que es lo que se pega a mano desde una hoja.
+  const delEncabezado = columnasDelEncabezado(partir(lineas[0]));
+  const columnas = delEncabezado ?? POR_POSICION;
+  const desde = delEncabezado ? 1 : 0;
 
   return lineas.slice(desde).map((linea, i) => {
     const c = partir(linea);
     const problemas: string[] = [];
+    /// Lo que no vino en el archivo es cadena vacía: así un campo que no
+    /// existe se comporta igual que uno que vino en blanco.
+    const dato = (campo: Campo): string => {
+      const donde = columnas[campo];
+      return donde === undefined ? '' : (c[donde] ?? '').trim();
+    };
+    /// Un problema por celda, y solo si la celda traía algo.
+    const apuntar = (p: string | undefined) => {
+      if (p) problemas.push(p);
+    };
 
-    const reconocido = reconocerTipoDocumento(c[0] ?? '');
+    const tipoTexto = dato('tipoDocumento');
+    const reconocido = reconocerTipoDocumento(tipoTexto);
     const tipo = reconocido ?? POR_DEFECTO;
-    if (c[0] && reconocido === null) {
-      problemas.push(`«${c[0]}» no es un tipo de documento conocido; se asume C.C.`);
+    if (tipoTexto && reconocido === null) {
+      problemas.push(`«${tipoTexto}» no es un tipo de documento conocido; se asume C.C.`);
     } else if (reconocido !== null && !PERMITIDOS.has(reconocido)) {
       // tarjeta de identidad: un menor no entra
-      problemas.push(`no se admite «${c[0]}» en esta formación`);
+      problemas.push(`no se admite «${tipoTexto}» en esta formación`);
     }
 
-    const numero = normalizarDocumento(c[1] ?? '');
+    const numeroTexto = dato('numeroDocumento');
+    const numero = normalizarDocumento(numeroTexto);
     if (!numero) problemas.push('falta el número de documento');
     else if (!documentoValido(tipo, numero)) {
-      problemas.push(`«${c[1]}» no es válido para ${siglaDocumento(tipo)}`);
+      problemas.push(`«${numeroTexto}» no es válido para ${siglaDocumento(tipo)}`);
     }
 
-    const primerNombre = (c[2] ?? '').trim();
-    const primerApellido = (c[4] ?? '').trim();
+    const primerNombre = dato('primerNombre');
+    const primerApellido = dato('primerApellido');
     if (!primerNombre) problemas.push('falta el primer nombre');
     if (!primerApellido) problemas.push('falta el primer apellido');
 
-    const correo = (c[6] ?? '').trim().toLowerCase();
+    const correo = dato('correo').toLowerCase();
     if (correo && !CORREO.test(correo)) {
       problemas.push(`«${correo}» no parece un correo`);
     }
 
-    const celular = aCelularGuardable(c[7] ?? '') as string;
+    const celular = aCelularGuardable(dato('celular')) as string;
     /// Aviso y no insalvable, igual que el correo: la fila se
     /// crea y el asesor lo corrige. Lo que no puede es contar
     /// como forma de contactar a nadie.
@@ -128,16 +150,47 @@ export function analizar(texto: string): FilaAnalizada[] {
       problemas.push('sin correo ni celular no se podrá matricular');
     }
 
+    const nacimiento = leerFechaDeNacimiento(dato('fechaNacimiento'));
+    apuntar(nacimiento.problema);
+    const genero = leerGenero(dato('genero'));
+    apuntar(genero.problema);
+    const vive = leerDondeVive(dato('departamento'), dato('municipio'));
+    apuntar(vive.problema);
+    const estrato = leerEstrato(dato('estrato'));
+    apuntar(estrato.problema);
+    const nivel = leerNivelOcupacional(dato('nivelOcupacional'));
+    apuntar(nivel.problema);
+    const beneficiario = leerSiNo(dato('beneficiarioPrevio'));
+    apuntar(beneficiario.problema);
+
+    const accionTexto = dato('accion');
+    const accionCodigo = codigoDeAccion(accionTexto);
+    if (accionTexto && !accionCodigo) {
+      problemas.push(`«${accionTexto}» no dice de qué acción de formación es (falta su código, como «AF3»)`);
+    }
+
     return {
       linea: i + desde + 1,
       tipoDocumentoSepId: tipo,
       numeroDocumento: numero ?? '',
       primerNombre,
-      segundoNombre: (c[3] ?? '').trim() || null,
+      segundoNombre: dato('segundoNombre') || null,
       primerApellido,
-      segundoApellido: (c[5] ?? '').trim() || null,
+      segundoApellido: dato('segundoApellido') || null,
       correo: correo || null,
       celular: celular || null,
+      fechaNacimiento: nacimiento.iso,
+      generoSepId: genero.id,
+      departamentoSepId: vive.departamentoSepId,
+      municipioSepId: vive.municipioSepId,
+      barrio: dato('barrio') || null,
+      direccion: dato('direccion') || null,
+      estrato: estrato.valor,
+      cargoEnEmpresa: dato('cargo') || null,
+      nivelOcupacionalSepId: nivel.id,
+      beneficiarioPrevio: beneficiario.valor,
+      accionCodigo,
+      accionTexto: accionTexto || null,
       problemas,
     };
   });

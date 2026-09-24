@@ -1,5 +1,5 @@
 import { TOPE_DEL_LOTE_DE_GRUPO } from './asignar-grupo.service';
-import { Transform } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import {
   ArrayMaxSize,
   ArrayNotEmpty,
@@ -18,6 +18,7 @@ import {
   Min,
   MinLength,
   ValidateIf,
+  ValidateNested,
 } from 'class-validator';
 
 import {
@@ -494,6 +495,27 @@ export class RegistrarAutorizacionDto {
   evidencia?: string;
 }
 
+/// La organización de una carga: una vez para todas las filas. Aquí
+/// solo se topa el largo; qué es válido lo dice `leerOrganizacion`, que
+/// devuelve el motivo en palabras y no el «must be a string» de la
+/// validación.
+export class OrganizacionDeCargaDto {
+  @IsOptional() @IsString() @MaxLength(30)
+  nit?: string;
+
+  @IsOptional() @IsString() @MaxLength(250)
+  razonSocial?: string;
+
+  @IsOptional() @IsString() @MaxLength(150)
+  jefeNombre?: string;
+
+  @IsOptional() @IsString() @MaxLength(150)
+  jefeCargo?: string;
+
+  @IsOptional() @IsString() @MaxLength(200)
+  jefeCorreo?: string;
+}
+
 export class CargaDto {
   @IsString()
   @IsNotEmpty()
@@ -521,6 +543,12 @@ export class CargaDto {
   @IsString()
   @MaxLength(200)
   nombreArchivo?: string;
+
+  /** Si toda la lista es de una organización (p. ej. su reserva de cupos). */
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => OrganizacionDeCargaDto)
+  organizacion?: OrganizacionDeCargaDto;
 }
 
 export class ResolverPropuestaDto {

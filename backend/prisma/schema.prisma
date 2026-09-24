@@ -1444,6 +1444,17 @@ model Admin {
   /// `Tema` sigue siendo lo que ve quien no ha elegido nada.
   temaPropio Json?
 
+  /// SUS AJUSTES DE PANTALLA: escala del texto y las dos ayudas de
+  /// Accesibilidad.
+  ///
+  /// `{ texto: 90..140, sinMovimiento: bool, enlacesSubrayados: bool }`.
+  /// Nulo = los de siempre (100 %, sin ayudas).
+  ///
+  /// Vivían solo en el navegador, así que no cruzaban de equipo: quien
+  /// subía la letra al 110 % en el monitor grande volvía al 100 % desde
+  /// el portátil. Ver `ajustes-de-pantalla.ts`.
+  ajustesDePantalla Json?
+
   ultimoAcceso  DateTime?
   creadoEn      DateTime  @default(now())
   actualizadoEn DateTime  @updatedAt

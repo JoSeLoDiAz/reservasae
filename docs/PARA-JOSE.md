@@ -4,10 +4,11 @@
 decisiones o datos que solo tú tienes. Todo lo demás ya está hecho y commiteado.
 
 Rama: `arq/crm-hardening`.
-Estado hoy (21 sep 2026): **`tsc` limpio en backend y frontend · 1871 pruebas en 167 suites, verde.**
+Estado hoy (23 sep 2026): **`tsc` limpio en backend y frontend · 1.918 pruebas en 171 suites, verde.**
 
-**Lo nuevo está en la Parte A, justo debajo.** Todo lo que viene después es de entregas
-anteriores y puede que ya lo hayas hecho.
+**Lo nuevo está en la Parte B, justo debajo** --la entrega del 23 de septiembre, que es la más
+grande--. Después viene la Parte A (21 de septiembre) y luego lo anterior, que puede que ya lo
+hayas hecho.
 
 ---
 
@@ -156,6 +157,237 @@ no de decisión.
 - Cabecera a 1024 px: el chevron de «Configuración» se monta sobre el rótulo del usuario.
 - `eslint` marca `setPagina(1)` dentro de un efecto en
   `frontend/src/app/admin/participantes/page.tsx:105`. Ya estaba.
+
+---
+
+## Parte B · La entrega del 23 de septiembre de 2026
+
+**Esta es la más grande de todas, y casi toda es interfaz.** El cliente se sentó una noche
+entera frente al panel y fue corrigiendo pantalla por pantalla. No es un rediseño mío: cada
+cambio de abajo tiene su frase suya detrás, y las dejé citadas en los comentarios del código
+por si mañana alguien se pregunta por qué.
+
+Hay **dos cosas que cambian números** y **una decisión que te toca a ti**. Empiezo por esas.
+
+---
+
+### B1 · Las reservas dejaron de descontar cupo (cambia el presupuesto de pauta)
+
+En **Comité Marketing** la cuenta de «Cupos pend.» era
+`total cupos − reservados − inscritos`. El cliente lo paró: *«las reservas no descuentan, no
+entiendo por qué cambias esto, se materializa cuando llega, ahí sí»*.
+
+Y tiene razón: una reserva es una **intención** —una organización aparta cupos en una ciudad,
+sin nombres, y puede no llegar nadie—. El cupo se consume cuando la persona queda **inscrita**,
+y eso ya lo cuenta la columna «Inscritos». Restar las dos cosas contaba el mismo cupo dos
+veces y **hacía comprar menos pauta de la que hace falta**.
+
+Ahora es `total cupos − inscritos`. La columna «Reservados» se queda como información, pero no
+toca la cuenta. Con los datos de prueba, el total pasó de 465 a 497 cupos pendientes, de 1.290
+a 1.386 leads de pauta y de 15,5 a **16,6 M** de presupuesto. En producción el salto será
+parecido: **avisa a quien use esa cifra para comprar.**
+
+Está en `frontend/src/components/admin/comite-marketing.tsx`, función `calcular`, con el
+comentario que explica el porqué. El backend no cambió: manda los mismos datos.
+
+### B2 · Los ajustes de pantalla ahora viajan con la cuenta (migración nueva)
+
+La escala de texto de Accesibilidad (90-140 %) y las dos ayudas vivían en el `localStorage`
+del navegador, así que se quedaban en el equipo: quien subía la letra al 110 % en el monitor
+grande volvía al 100 % al entrar desde el portátil.
+
+Ahora van en la fila del admin, al lado de sus colores propios:
+
+- columna nueva `ajustesDePantalla Json?` en `administradores`,
+- migración `20260923020000_ajustes_de_pantalla_por_persona`,
+- `GET/PATCH /admin/perfil/ajustes`, sin `@Roles` y solo sobre sí mismo —igual que
+  `perfil/tema`—, porque pedir permiso de ESCRIBIR para agrandar la letra dejaría sin poder
+  hacerlo justo a quien solo consulta,
+- `backend/src/admin/ajustes-de-pantalla.ts` con 10 pruebas: una escala fuera del recorrido o
+  escrita a mano cae al 100 %, y un campo roto no arrastra a los demás.
+
+**Detalle que importa:** `GET` devuelve **nulo** si esa cuenta nunca guardó nada. No es lo
+mismo que el 100 %: con nulo, el panel **sube** lo que haya en ese navegador en vez de
+bajárselo, así que nadie pierde el ajuste que ya tenía puesto.
+
+### B3 · La decisión que te toca: **nada se llama «ficha»**
+
+Palabras del cliente: *«que no llame nada ficha, que él defina si lo deja como cupo o lead,
+pero que no use ficha porque no es ficha»*.
+
+- En las pantallas de personas ya no queda: todo dice **lead** (eso se hizo el 22 sep).
+- Donde **sí** sobrevive es en las de organizaciones: `app/admin/instituciones/[id]/page.tsx`
+  y `components/admin/propuestas-pendientes.tsx` —«a la ficha», «en la ficha de…», «datos de
+  la ficha»—. Son unas nueve frases.
+- **No las toqué a propósito:** ahí «ficha» no es una persona ni un cupo, es el registro de la
+  empresa, y la palabra que lo reemplace la eliges tú. Mis candidatas, por si sirven: «los
+  datos de la empresa» (lo más neutro y lo que ya usa el resto de esa pantalla) o «el registro
+  de la empresa».
+- **Lo que no vale es dejar «ficha».** Si prefieres, lo cambio yo en cuanto me digas la palabra.
+
+---
+
+### B4 · La redistribución del menú, y qué pasó con lo que desapareció
+
+El menú se reorganizó **por áreas de trabajo**, no por tipo de pantalla, y los tableros se
+agruparon. Quedó así (`frontend/src/components/admin/navegacion.ts`):
+
+| Módulo | Entradas |
+|---|---|
+| **Tableros** | Tráfico Formulario · Control de inscritos · Control de Reservas · Seguimiento Académico |
+| **Oferta formativa** | Acciones de formación · Calendario |
+| **Inscripciones** | Gestión de leads · Reservas · Mesa de entrada · Comité Marketing |
+| **Académica** | Seguimiento del aula |
+| **Mailing** | Campañas · Plantillas · Cuenta de correo |
+| **Sistemas** | Empresas registradas · Empresas aliadas - afiliadas · Reportes SENA |
+| **Formularios** | Empresas · Personas · Habeas Data |
+| **Configuración** | Apariencia · Webhook de Meta · Usuarios · Mi perfil |
+
+Tres cosas que conviene que sepas antes de que alguien pregunte:
+
+1. **Los cuatro informes tienen ruta propia** (`/admin/informes/trafico`, `/admin/informes/proceso`,
+   `/admin/informes/reservas`, `/admin/informes/asesores`). Antes eran pestañas de
+   `/admin/control`, y con una sola ruta el menú subrayaba las cuatro entradas a la vez:
+   *«¿se subrayan casi todas las vistas, no soy claro?»*. `/admin/control` sigue existiendo y
+   redirige, así que los enlaces viejos y los favoritos no se rompen.
+2. **Dos pantallas salieron del menú y siguen vivas en su dirección:**
+   - «Inscritos por acción» → `/admin/inscritos`, se llega desde Gestión de leads con un botón.
+   - «Propuestas por revisar» → `/admin/instituciones/pendientes` (*«propuestas por revisar se
+     vuela»*). Existía sin entrada en el menú hasta hace poco; volvió a ese estado.
+   - «Ocupación contra la meta» salió de Sistemas por petición suya en la tanda anterior.
+3. **Comité Marketing vive en Inscripciones**, no en Tableros: es trabajo del área comercial,
+   no un tablero de seguimiento. Los «Reportes SENA» sí van en Sistemas, «si o si» según él.
+
+### B5 · Las reglas de diseño que quedaron fijadas (sirven para lo que hagas después)
+
+El cliente insistió tanto en esto que lo dejé escrito en la memoria del proyecto. Resumido,
+porque te va a ahorrar rebotes:
+
+- **Nada de medida fija dentro de algo que escala.** El caso que lo destapó: la píldora del pie
+  va en `em` —sigue al ajuste de texto y al zoom— dentro de una banda de `min-h-[40px]`, y en
+  cuanto la letra subía se montaba sobre la raya. La banda ahora mide lo que mide su contenido.
+- **Proporción, no anchos fijos:** una fila de tres campos en `1fr 260px 260px` deja el primero
+  gigante en 1.920 px; en fracciones (2:1:1) los tres crecen juntos.
+- **Los cantos, iguales entre bandas:** `Encabezado` trae su propio `mx-4`; si la pantalla añade
+  `px-4`, el título queda 16 px más adentro que el bloque de abajo y lo ve al instante.
+- **La burbuja del título es de las pantallas de segundo nivel** (Inscritos por acción, Asignar
+  grupo por lote, Importar participantes, Informes), con su botón «Volver a…». Las pantallas a
+  las que se llega por el menú —Gestión de leads, Reservas— **no** la llevan: costaría 68 px de
+  tabla y el menú ya dice dónde estás. Hay variante `compacto` (54 px) para cabeceras que solo
+  llevan título.
+- **Un solo cuerpo de letra por pantalla:** la cabecera de todas las tablas subió de 10,5 a
+  12 px (`globals.css`, `.tabla-datos thead th`) para que no desentone con los 12,5 de los
+  controles y las celdas.
+- **La franja de abajo de las tablas** bajó de 8 a 4 px, en el componente `Tabla`, o sea en
+  todas las vistas.
+- **Los `<select>` nativos se van.** El de la casa (`Desplegable`) pinta su propia lista, y
+  ahora además **decide de qué lado abrirse**: mide lo que pide la lista y, si no cabe, se
+  ancla al canto derecho o se abre hacia arriba. Medido: en Mesa de entrada abría hasta 1.601 px
+  en una ventana de 1.600, y como el `<main>` scrollea, lo que sobresalía se recortaba.
+  **Quedan 54 nativos en 24 archivos.** Los de las pantallas que él recorre ya están cambiados
+  (Mesa de entrada, Comité Marketing). Los de los formularios de edición y los **públicos**
+  siguen pendientes, y los públicos **no se tocan sin su visto bueno**.
+
+### B6 · Un defecto de verdad que salió de todo esto
+
+**La fila de módulos se montaba sobre el nombre del usuario** por debajo de ~1.100 px de ancho
+(`cabecera-topbar.tsx`). La cabecera mide el hueco disponible para decidir cuánto encoger la
+fila, y **la referencia con la que medía el bloque de usuario nunca se enganchó**: la cuenta
+tomaba su ancho como 0 y creía que sobraban 214 px. Medido a 958: la fila pedía 795 y su caja
+daba 696, así que «Configuración» se metía 75 px por debajo de «Ana Jaramillo».
+
+Enganchada la referencia, a 958 la fila baja a 10,8 px de letra y entra justa; por debajo de
+~900 entra el cajón con la hamburguesa, que es lo que ya estaba diseñado. De paso, el factor
+de escala se calculaba encadenando el de la pasada anterior —un lazo con memoria que se quedaba
+pegado—; ahora se deduce el ancho a escala 1 de la medida actual, así que se autocorrige con
+cualquier zoom y con el ajuste de texto.
+
+### B7 · Lo demás, en una lista (todo es interfaz)
+
+- **Importar participantes** quedó terminado de punta a punta: plantilla de Excel con
+  desplegables encadenados (AF → departamento → ciudad), hoja «Organización» con NIT y jefe
+  inmediato que se aplica a toda la lista, y validación que resuelve la acción y el grupo de
+  cada fila. Backend: `carga.ts`, `columnas-de-carga.ts`, `accion-de-la-fila.ts`,
+  `organizacion-de-carga.ts`, `plantilla-de-carga.ts`, con 26 pruebas nuevas.
+- **«Asignar grupo por lote» se rehízo en cascada**: acción → departamento → grupo → personas,
+  con los cupos libres a la vista en cada opción. **El sobrecupo ya no se avisa: no se deja
+  armar** —las casillas se apagan al llegar al cupo del grupo—.
+- **«Inscritos por acción»** tiene ahora cinco tarjetas (Inscritos · Listos para el SENA · Sin
+  grupo · Sin asesor · Datos a medias); la de «Sin grupo» es un enlace a «Asignar grupo por lote».
+- **Reservas** tiene su fila de tarjetas (Reservas · Cupos apartados · En espera · Canceladas ·
+  Organizaciones). «Cupos apartados» cuenta solo las **confirmadas**: los de una cancelada
+  volvieron a la oferta.
+- **Tráfico del formulario:** las cuatro tarjetas pasaron a la pieza simple (rótulo, cifra, pie
+  corto) y el texto lo dictó él —«Aperturas / Se registraron clics en el enlace.» y «Personas /
+  Se detectó interacción humana»—. El «Día a día» muestra **la fecha de cada columna y el valor
+  de cada barra**, y tanto ese bloque como «Paso a paso» tienen interruptor **Barras /
+  Tendencia**. El bloque de después de la preinscripción se replanteó entero: ahora es
+  «Completaron sus datos» con tres tarjetas —se les pidió, ya entregaron, faltan por entregar—.
+- **Textos que se eliminaron por petición suya:** la descripción de Tráfico, la de Comité
+  Marketing, el pie de fórmulas de «Planeación de pauta», la nota de `utm_campaign`, el rango
+  de fechas del «Día a día» y el «Se cuenta a hoy…». No los borré por gusto: los pidió quitar
+  uno por uno.
+
+---
+
+### B8 · Cómo desplegar esto
+
+```bash
+git checkout arq/crm-hardening && git pull
+
+# 1 · Backend primero: hay migraciones y rutas nuevas
+docker compose build backend
+docker compose up -d backend
+docker compose exec backend pnpm prisma:deploy
+
+# 2 · Frontend
+docker compose build frontend
+docker compose up -d frontend
+```
+
+**Las migraciones son dos**, las dos una columna nueva y nula por omisión, así que no hay
+riesgo de datos:
+
+1. `20260921190000_tema_propio_por_persona` (de la entrega anterior, si no se corrió aún)
+2. `20260923020000_ajustes_de_pantalla_por_persona` (esta)
+
+**Y antes de que entre gente real:**
+
+- `EDITORES_DE_MARCA` en el `.env` del backend, con los correos que pueden tocar los logos y la
+  marca del gremio. **Sin esa variable, nadie puede** —ni un superadmin—, que es justo lo que
+  pidió el cliente: *«que nadie pueda modificar los logos, solo con el correo de acceso de
+  Josse, Diana y la Sra Catalina; ni yo puedo hacerlo»*. Los colores propios de cada persona no
+  dependen de esta lista: eso lo edita cualquiera sobre su propia cuenta.
+- Revisa que en producción `PANEL_POR_TUNEL` esté **apagado**.
+- Los colores del sistema en producción quedaron granate de una prueba vieja; si nadie los ha
+  restablecido, hay que hacerlo desde Apariencia.
+
+**Verificación después de desplegar (cinco minutos):**
+
+1. Abre el panel a **media pantalla** (~960 px): la fila de módulos no debe pisar el nombre del
+   usuario, y por debajo de ~900 debe aparecer la hamburguesa.
+2. Sube la letra al 140 % en Accesibilidad, recarga y **entra desde otro navegador**: la letra
+   debe seguir grande. Después devuélvela al 100 %.
+3. En Comité Marketing, mira «Cupos pend.» de un departamento con reservados: ahora **no** los
+   descuenta.
+4. En Mesa de entrada abre el filtro «Qué lista ve» con la ventana angosta: la lista debe
+   abrirse hacia el lado que quepa, sin salirse.
+5. Con una cuenta que **no** esté en `EDITORES_DE_MARCA`, entra a Apariencia: debe poder
+   cambiar sus colores y **no** los logos ni la marca del gremio.
+
+### B9 · Lo que quedó pendiente y es tuyo decidir
+
+1. **La palabra que reemplaza a «ficha»** en las pantallas de organizaciones (ver B3).
+2. **Los 54 `<select>` nativos** que faltan (ver B5): dime si sigo por los formularios de
+   edición del panel, y si autorizas tocar los públicos.
+3. **«Formularios AF»** que pidió el cliente no existe como pantalla. Hay que definir qué es
+   antes de construir algo.
+4. **Nueve líneas por peldaño en «Paso a paso»**: el cliente quiere ver la tendencia de cada
+   paso a lo largo de los días. Hoy el servidor manda cuatro series por día
+   (`embudo.service.ts`, `porDia`), no las nueve. Es una consulta más, no un rediseño.
+5. **`useDatosVivos(cargar, { activo: false })`** se salta la primera carga, así que en la ficha
+   de un lead nunca aparece «De dónde salen estos datos». Es de tu código y es de una línea,
+   pero prefiero que lo mires tú.
 
 ---
 

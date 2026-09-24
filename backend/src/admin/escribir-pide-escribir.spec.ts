@@ -31,6 +31,10 @@ const PERMITIDAS: Record<string, string> = {
   /// solo consulta, que es el caso que el cliente pidió cubrir.
   'AdminController.guardarMiTema': 'sus propios colores',
   'AdminController.restablecerMiTema': 'sus propios colores',
+  /// Y por lo mismo el tamaño de la letra: es cómo VE el panel esa
+  /// persona, no un dato del gremio. Pedir ESCRIBIR dejaría con la
+  /// interfaz pequeña justo a quien solo consulta.
+  'AdminController.guardarMisAjustes': 'sus propios ajustes de pantalla',
   'AdminController.derivar': 'calcula una paleta, no escribe',
   'AdminController.corregir': 'calcula contrastes, no escribe',
   'MetaPruebasController.probarVerificacion': 'pregunta, no escribe',

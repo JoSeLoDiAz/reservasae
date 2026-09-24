@@ -33,6 +33,9 @@ import { documentoValido, normalizarDocumento } from '../comun/documento';
 import { borrarParticipaciones } from './borrar-participaciones';
 import { llevanFichasEn } from './quien-lleva-fichas';
 import { analizar, esInsalvable, repetidosEnElPegado } from './carga';
+import { leerOrganizacion, queSeEscribe, type OrganizacionLeida } from './organizacion-de-carga';
+import { lugarDeUbicacion } from './plantilla-de-carga';
+import { elegirOferta, type OfertaParaCarga } from './accion-de-la-fila';
 import {
   saleDelCupo,
   exigeCupo,
@@ -3393,13 +3396,45 @@ export class CrmService {
         })
       : null;
 
+    /// LAS OFERTAS DEL CONVENIO, solo si alguna fila trae su acción.
+    ///
+    /// La plantilla que llena la organización dice, por persona, qué
+    /// acción quiere y dónde vive; de ahí sale su grupo con la misma
+    /// regla que el panel (ver `elegirOferta`). Sin esa columna todo
+    /// sigue como antes: manda lo que se eligió arriba en la pantalla.
+    const pidenAccion = filas.some((f) => f.accionCodigo);
+    const ofertasDelConvenio = pidenAccion
+      ? await this.ofertasParaCarga(dto.convenioId)
+      : [];
+
     const previa = filas.map((f) => {
       const clave = `${f.tipoDocumentoSepId}:${f.numeroDocumento}`;
       const problemas = [...f.problemas];
       let estado: 'NUEVA' | 'PERSONA_CONOCIDA' | 'REPETIDA' | 'DESCARTADA' =
         'NUEVA';
 
+      /// La acción de la fila, si la trae; si no, la de la pantalla.
+      const elegida = elegirOferta(f.accionCodigo, ofertasDelConvenio, {
+        departamento: f.departamentoSepId
+          ? DEPARTAMENTO_POR_ID.get(f.departamentoSepId)?.etiqueta ?? null
+          : null,
+        ciudad: f.municipioSepId ? MUNICIPIO_POR_ID.get(f.municipioSepId)?.[2] ?? null : null,
+      });
+      problemas.push(...elegida.problemas);
+      const ofertaId = elegida.ofertaId ?? (f.accionCodigo ? null : oferta?.id ?? null);
+      const accionFormacionId =
+        elegida.accionFormacionId ?? (f.accionCodigo ? null : oferta?.accionFormacionId ?? null);
+      if (f.accionCodigo && oferta && accionFormacionId && accionFormacionId !== oferta.accionFormacionId) {
+        problemas.push(
+          `el archivo pide ${f.accionCodigo} y arriba se eligió otra acción: manda la del archivo`,
+        );
+      }
+
       if (esInsalvable(f)) {
+        estado = 'DESCARTADA';
+      } else if (f.accionCodigo && !accionFormacionId) {
+        /// Pidió una acción que no existe aquí: crearla «sin acción»
+        /// sería apuntarla a otra cosa sin decirlo.
         estado = 'DESCARTADA';
       } else if (repes.has(clave)) {
         estado = 'REPETIDA';
@@ -3411,10 +3446,8 @@ export class CrmService {
         if (persona) {
           estado = 'PERSONA_CONOCIDA';
           if (
-            oferta &&
-            persona.participaciones.some(
-              (x) => x.accionFormacionId === oferta.accionFormacionId,
-            )
+            accionFormacionId &&
+            persona.participaciones.some((x) => x.accionFormacionId === accionFormacionId)
           ) {
             estado = 'DESCARTADA';
             problemas.push('ya está en esa acción de formación');
@@ -3422,7 +3455,17 @@ export class CrmService {
         }
       }
 
-      return { ...f, problemas, estado };
+      return {
+        ...f,
+        problemas,
+        estado,
+        ofertaId,
+        accionFormacionId,
+        /// Para que la previsualización diga en qué acción y en qué
+        /// grupo va a quedar cada quien, antes de crear nada.
+        accionEtiqueta: elegida.etiqueta,
+        grupo: elegida.grupo,
+      };
     });
 
     const creables = previa.filter(
@@ -3437,7 +3480,158 @@ export class CrmService {
       conocidas: previa.filter((f) => f.estado === 'PERSONA_CONOCIDA').length,
       cuposDeLaOferta: oferta?.cuposMaximos ?? null,
       filas: previa,
+      /// La organización se mira DESPUÉS de resolver las filas: su
+      /// reserva es de una oferta, y las ofertas las deciden las filas.
+      organizacion: await this.organizacionDeLaCarga(
+        dto,
+        [
+          ...new Set(
+            previa
+              .filter((f) => f.estado !== 'DESCARTADA' && f.estado !== 'REPETIDA')
+              .map((f) => f.ofertaId ?? dto.ofertaId)
+              .filter((x): x is string => Boolean(x)),
+          ),
+        ],
+      ),
     };
+  }
+
+  /**
+   * La organización de la carga, leída y cruzada con lo que ya hay.
+   *
+   * Se enseña ANTES de importar lo que va a pasar con ella: si ya
+   * existe, si tiene reserva en la acción elegida (y entonces cada
+   * persona ocupa un cupo con nombre) y qué datos guardados no se van
+   * a cambiar. Null si la carga no es de una organización.
+   */
+  private async organizacionDeLaCarga(dto: CargaDto, ofertaIds: string[] = []) {
+    if (!dto.organizacion) return null;
+    const leida = leerOrganizacion(dto.organizacion);
+
+    const empresa = leida.nit
+      ? await this.prisma.empresa.findUnique({
+          where: { nit: leida.nit },
+          select: {
+            id: true,
+            razonSocial: true,
+            contactoNombre: true,
+            contactoCargo: true,
+            contactoCorreo: true,
+          },
+        })
+      : null;
+
+    /// UNA POR GRUPO: la lista puede traer gente de varias acciones, y
+    /// la reserva es de la organización EN UN GRUPO.
+    const reservas =
+      empresa && ofertaIds.length > 0
+        ? await this.prisma.reserva.findMany({
+            where: {
+              empresaId: empresa.id,
+              ofertaId: { in: ofertaIds },
+              estado: { not: 'CANCELADA' },
+            },
+            select: {
+              cuposConfirmados: true,
+              cuposEnEspera: true,
+              _count: { select: { participantes: true } },
+              oferta: {
+                select: {
+                  accionFormacion: { select: { codigo: true } },
+                  ubicacion: { select: { nombre: true } },
+                },
+              },
+            },
+          })
+        : [];
+
+    const avisos = [...leida.avisos];
+    if (empresa) {
+      const { seQuedan } = queSeEscribe(empresa, leida);
+      if (seQuedan.length > 0) {
+        avisos.push(
+          `La organización ya tiene guardado ${seQuedan.join(', ')}: se deja como está y no se cambia desde una importación.`,
+        );
+      }
+    }
+
+    return {
+      nit: leida.nit,
+      digitoVerificacion: leida.digitoVerificacion,
+      razonSocial: empresa?.razonSocial ?? leida.razonSocial,
+      existe: Boolean(empresa),
+      jefeNombre: empresa?.contactoNombre || leida.jefeNombre,
+      jefeCargo: empresa?.contactoCargo || leida.jefeCargo,
+      jefeCorreo: empresa?.contactoCorreo || leida.jefeCorreo,
+      problemas: leida.problemas,
+      avisos,
+      reservas: reservas.map((r) => ({
+        grupo: `${r.oferta.accionFormacion.codigo} · ${r.oferta.ubicacion.nombre}`,
+        cupos: r.cuposConfirmados,
+        enEspera: r.cuposEnEspera,
+        personasYaVinculadas: r._count.participantes,
+      })),
+      /// Por qué no hay reserva, para decirlo en palabras: no es lo
+      /// mismo que no haya grupo resuelto que una organización que no
+      /// reservó en él.
+      sinReservaPorque:
+        reservas.length > 0
+          ? null
+          : ofertaIds.length === 0
+            ? ('SIN_ACCION' as const)
+            : !empresa
+              ? ('ORGANIZACION_NUEVA' as const)
+              : ('NO_RESERVO_AQUI' as const),
+    };
+  }
+
+  /**
+   * La empresa de una carga: la que hay con ese NIT, o una nueva.
+   *
+   * De una que ya existe solo se llena lo vacío (`queSeEscribe`), con
+   * la misma regla que la reserva pública: un archivo no pisa un dato
+   * que alguien corrigió a mano. Y la carrera de dos cargas con el
+   * mismo NIT nuevo la gana la primera: la segunda lee la que quedó.
+   */
+  private async empresaDeLaCarga(org: OrganizacionLeida): Promise<string> {
+    const seleccion = {
+      id: true,
+      razonSocial: true,
+      contactoNombre: true,
+      contactoCargo: true,
+      contactoCorreo: true,
+    } as const;
+    let empresa = await this.prisma.empresa.findUnique({
+      where: { nit: org.nit },
+      select: seleccion,
+    });
+    if (!empresa) {
+      try {
+        const creada = await this.prisma.empresa.create({
+          data: {
+            nit: org.nit,
+            digitoVerificacion: org.digitoVerificacion,
+            razonSocial: org.razonSocial,
+            contactoNombre: org.jefeNombre,
+            contactoCargo: org.jefeCargo,
+            contactoCorreo: org.jefeCorreo,
+          },
+          select: { id: true },
+        });
+        return creada.id;
+      } catch (e) {
+        if ((e as { code?: string }).code !== 'P2002') throw e;
+        empresa = await this.prisma.empresa.findUniqueOrThrow({
+          where: { nit: org.nit },
+          select: seleccion,
+        });
+      }
+    }
+    const { datos } = queSeEscribe(empresa, org);
+    if (Object.keys(datos).length > 0) {
+      await this.prisma.empresa.update({ where: { id: empresa.id }, data: datos });
+    }
+    return empresa.id;
   }
 
   /** Crea solo las lineas que el asesor confirmo. */
@@ -3448,6 +3642,14 @@ export class CrmService {
     ip?: string,
   ) {
     this.exigirConvenio(dto.convenioId, ambito);
+
+    /// La organización se valida ANTES de crear a nadie: una carga que
+    /// dice ser de una organización y no trae su NIT dejaría a toda la
+    /// lista sin empresa, que es justo lo que la opción viene a evitar.
+    const org = dto.organizacion ? leerOrganizacion(dto.organizacion) : null;
+    if (org && org.problemas.length > 0) {
+      throw new BadRequestException(org.problemas.join(' '));
+    }
 
     const previa = await this.previsualizarCarga(dto, ambito);
     const permitidas = dto.lineas ? new Set(dto.lineas) : null;
@@ -3486,9 +3688,38 @@ export class CrmService {
     const nuevos: string[] = [];
     const fallos: Array<{ linea: number; motivo: string }> = [];
 
+    /// La empresa y, si reservó en esta acción, su reserva. Solo si hay
+    /// a quién crear: una carga sin filas buenas no deja una empresa
+    /// suelta en el directorio.
+    let empresaId: string | null = null;
+    /// UNA RESERVA POR GRUPO, no una por carga: la reserva es de la
+    /// organización EN UNA OFERTA, y la plantilla puede traer gente de
+    /// varias acciones en la misma lista.
+    const reservaPorOferta = new Map<string, string>();
+    if (org && aCrear.length > 0) {
+      empresaId = await this.empresaDeLaCarga(org);
+      const ofertas = [
+        ...new Set(
+          aCrear
+            .map((f) => f.ofertaId ?? dto.ofertaId)
+            .filter((x): x is string => Boolean(x)),
+        ),
+      ];
+      if (ofertas.length > 0) {
+        const reservas = await this.prisma.reserva.findMany({
+          where: { empresaId, ofertaId: { in: ofertas }, estado: { not: 'CANCELADA' } },
+          select: { id: true, ofertaId: true },
+        });
+        for (const r of reservas) reservaPorOferta.set(r.ofertaId, r.id);
+      }
+    }
+
     // una a una: un fallo no debe tumbar las 39 buenas
     for (const f of aCrear) {
       try {
+        /// El grupo de ESTA fila --el que cubre donde vive-- y, si no
+        /// trajo acción, el que se eligió en la pantalla.
+        const ofertaDeLaFila = f.ofertaId ?? (f.accionCodigo ? undefined : dto.ofertaId);
         const hecho = await this.crear(
           {
             tipoDocumentoSepId: f.tipoDocumentoSepId,
@@ -3499,8 +3730,28 @@ export class CrmService {
             segundoApellido: f.segundoApellido ?? undefined,
             correo: f.correo ?? undefined,
             celular: f.celular ?? undefined,
+            /// TODO LO QUE TRAE LA PLANTILLA, no solo el nombre: es lo
+            /// mismo que pide el formulario de una persona, y cada dato
+            /// que no entre aquí se lo tiene que pedir después un asesor.
+            fechaNacimiento: f.fechaNacimiento ?? undefined,
+            generoSepId: f.generoSepId ?? undefined,
+            departamentoSepId: f.departamentoSepId ?? undefined,
+            municipioSepId: f.municipioSepId ?? undefined,
+            barrio: f.barrio ?? undefined,
+            direccion: f.direccion ?? undefined,
+            estrato: f.estrato ?? undefined,
+            cargoEnEmpresa: f.cargoEnEmpresa ?? undefined,
+            nivelOcupacionalSepId: f.nivelOcupacionalSepId ?? undefined,
+            beneficiarioPrevio: f.beneficiarioPrevio ?? undefined,
             convenioId: dto.convenioId,
-            ofertaId: dto.ofertaId,
+            ofertaId: ofertaDeLaFila,
+            /// Sin grupo que le sirva, al menos la ACCIÓN: así cuenta
+            /// para su meta y el asesor solo tiene que ponerle grupo.
+            accionFormacionId: ofertaDeLaFila ? undefined : f.accionFormacionId ?? undefined,
+            /// Con la reserva, cada persona ocupa un cupo con nombre de su
+            /// organización. `crear` la comprueba: del convenio y de la
+            /// misma oferta.
+            reservaId: ofertaDeLaFila ? reservaPorOferta.get(ofertaDeLaFila) : undefined,
             origen: 'EMPRESA',
           },
           admin,
@@ -3522,7 +3773,10 @@ export class CrmService {
     if (nuevos.length) {
       await this.prisma.participante.updateMany({
         where: { id: { in: nuevos } },
-        data: { cargaId: carga.id },
+        /// La empresa, junto con la carga: `crear` no la recibe, y con la
+        /// reserva sola la persona tendría empresa por la reserva pero no
+        /// la suya propia, que es la que lee el F7.
+        data: { cargaId: carga.id, ...(empresaId ? { empresaId } : {}) },
       });
     }
 
@@ -3531,7 +3785,91 @@ export class CrmService {
       data: { creados, fallidos: fallos.length },
     });
 
-    return { creados, fallos, intentadas: aCrear.length, cargaId: carga.id };
+    return {
+      creados,
+      fallos,
+      intentadas: aCrear.length,
+      cargaId: carga.id,
+      /// Para decir en pantalla dónde quedaron: dentro de la reserva, o
+      /// solo con su organización.
+      conReserva: reservaPorOferta.size > 0,
+      conOrganizacion: Boolean(empresaId),
+    };
+  }
+
+  /**
+   * Las ofertas del convenio, como las necesita `elegirOferta`.
+   *
+   * Con los ocupados de cada una: entre dos grupos que le sirven a la
+   * persona, se prefiere el que tiene más sitio, y así una tanda grande
+   * no llena uno y deja el otro vacío.
+   */
+  private async ofertasParaCarga(convenioId: string): Promise<OfertaParaCarga[]> {
+    const ofertas = await this.prisma.oferta.findMany({
+      where: { accionFormacion: { convenioId } },
+      select: {
+        id: true,
+        abierta: true,
+        cuposMaximos: true,
+        accionFormacionId: true,
+        accionFormacion: { select: { codigo: true, nombre: true } },
+        ubicacion: { select: { nombre: true, tipo: true, departamento: true } },
+        _count: { select: { participantes: { where: { etapa: { in: ETAPAS_VIVAS } } } } },
+      },
+    });
+
+    return ofertas.map((o) => ({
+      id: o.id,
+      accionFormacionId: o.accionFormacionId,
+      codigo: o.accionFormacion.codigo,
+      etiqueta: `${o.accionFormacion.codigo} · ${o.accionFormacion.nombre}`,
+      abierta: o.abierta,
+      cuposMaximos: o.cuposMaximos,
+      ocupados: o._count.participantes,
+      ubicacion: o.ubicacion,
+    }));
+  }
+
+  /**
+   * Lo que la plantilla necesita saber del convenio: sus acciones y
+   * dónde se dicta cada una.
+   *
+   * Solo las ofertas ABIERTAS: la plantilla es para apuntar gente, y
+   * ofrecer un grupo cerrado sería ofrecer algo que el sistema va a
+   * rechazar al importar.
+   */
+  async datosDePlantillaDeCarga(convenioId: string, ambito: string[]) {
+    this.exigirConvenio(convenioId, ambito);
+
+    const ofertas = await this.prisma.oferta.findMany({
+      where: { accionFormacion: { convenioId }, abierta: true },
+      orderBy: [{ accionFormacion: { orden: 'asc' } }, { ubicacion: { nombre: 'asc' } }],
+      select: {
+        ubicacion: { select: { nombre: true, departamento: true } },
+        accionFormacion: { select: { codigo: true, nombre: true } },
+      },
+    });
+
+    const porAccion = new Map<string, Set<number>>();
+    const conAula = new Set<number>();
+    for (const o of ofertas) {
+      const etiqueta = `${o.accionFormacion.codigo} · ${o.accionFormacion.nombre}`;
+      const deptos = porAccion.get(etiqueta) ?? new Set<number>();
+      const lugar = lugarDeUbicacion(o.ubicacion.nombre, o.ubicacion.departamento);
+      if (lugar) {
+        deptos.add(lugar.departamentoSepId);
+        if (lugar.municipioSepId) conAula.add(lugar.municipioSepId);
+      }
+      porAccion.set(etiqueta, deptos);
+    }
+
+    return {
+      acciones: [...porAccion.entries()].map(([etiqueta, deptos]) => ({
+        etiqueta,
+        departamentos: [...deptos],
+      })),
+      municipiosConAula: [...conAula],
+    };
   }
 
   /** El historico de importaciones del ambito. */

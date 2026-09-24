@@ -54,6 +54,7 @@ import { AdminService, vistaAdmin } from './admin.service';
 import { corregirContraste, derivarTemas } from './derivar';
 import {
   ActualizarAdminDto,
+  ActualizarAjustesDePantallaDto,
   ActualizarLogoDto,
   ActualizarMarcaDto,
   ActualizarPerfilDto,
@@ -231,6 +232,20 @@ export class AdminController {
     return this.admin.restablecerMiTema(admin, this.exigirEsquema(esquema));
   }
 
+  /// SUS AJUSTES DE PANTALLA. Como los colores propios: cualquier
+  /// cuenta, sobre sí misma y solo sobre sí misma.
+  @Get('perfil/ajustes')
+  misAjustes(@AdminActual() admin: Admin) {
+    return this.admin.misAjustesDePantalla(admin);
+  }
+
+  @Patch('perfil/ajustes')
+  guardarMisAjustes(
+    @AdminActual() admin: Admin,
+    @Body() dto: ActualizarAjustesDePantallaDto,
+  ) {
+    return this.admin.guardarMisAjustesDePantalla(admin, dto);
+  }
   // usuarios
 
   @Get('usuarios')
