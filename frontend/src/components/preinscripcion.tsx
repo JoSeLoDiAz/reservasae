@@ -387,24 +387,25 @@ export function PreinscripcionPublica({ slug }: { slug: string }) {
                 className={CAMPO + (departamento ? "" : " opacity-50")}
               >
                 <option value="">Elija…</option>
-                {/* Las que tienen aula van PRIMERO: son las que
-                    abren cursos que el resto no ve. */}
-                {conSede.length > 0 && (
-                  <optgroup label="Con formación presencial">
-                    {conSede.map((c) => (
-                      <option key={c} value={c}>
-                        {c} (con formación presencial)
-                      </option>
-                    ))}
-                  </optgroup>
-                )}
-                <optgroup label="Todos los municipios">
-                  {elResto.map((c) => (
-                    <option key={c} value={c}>
-                      {c}
-                    </option>
-                  ))}
-                </optgroup>
+                {/* SOLO LAS SEDES, CUANDO EL DEPARTAMENTO TIENE.
+
+                    «Te dije que solo Medellín y solo Popayán» (cliente,
+                    23 sep 2026, y era la segunda vez). Iban las sedes
+                    arriba y debajo los 126 municipios de Antioquia en un
+                    grupo «Todos los municipios», así que la lista pedía
+                    buscar entre ciento veintiséis nombres para acabar
+                    eligiendo el primero.
+
+                    Si el departamento NO tiene sede --oferta solo
+                    virtual-- sí van todos: sin eso, nadie de ese
+                    departamento podría decir dónde vive y el formulario
+                    se cerraría solo. */}
+                {(conSede.length > 0 ? conSede : elResto).map((c) => (
+                  <option key={c} value={c}>
+                    {c}
+                    {sedes.has(c) ? " (con formación presencial)" : ""}
+                  </option>
+                ))}
               </select>
             </label>
           </div>
@@ -479,7 +480,18 @@ export function PreinscripcionPublica({ slug }: { slug: string }) {
               </p>
             )}
 
-            <div className="mt-4 grid gap-4 sm:grid-cols-2">
+            {/* CON UNA SOLA ACCIÓN, A TODO EL ANCHO.
+
+                «Se ve feo cómo se ve sola esa AF, no sé si estirarla y
+                dejarla a la par de los bordes del bloque de arriba»
+                (cliente, 23 sep 2026). Con `sm:grid-cols-2` fijo, una
+                sola tarjeta ocupaba media fila y la otra mitad quedaba
+                vacía debajo de una tarjeta que sí llega al borde. */}
+            <div
+              className={
+                "mt-4 grid gap-4 " + (conCobertura.length > 1 ? "sm:grid-cols-2" : "")
+              }
+            >
               {conCobertura.map(({ accion, oferta }) => (
                 <TarjetaAccion
                   key={accion.id}
