@@ -522,6 +522,10 @@ export function PreinscripcionPublica({ slug }: { slug: string }) {
           nombre={nombreAccion}
           ubicacion={ubicacionLegible}
           alCambiar={() => setPantalla("eleccion")}
+          /// Con una sola acción en el recorte no hay nada que
+          /// cambiar: el botón llevaba a una pantalla con la misma
+          /// tarjeta que ya está elegida.
+          sePuedeCambiar={conCobertura.length > 1}
         />
 
         <section className="rounded-2xl border border-borde bg-superficie p-6">
@@ -865,38 +869,60 @@ function MarcaDePaso({ slug, paso, detalle }: { slug: string; paso: Paso; detall
 /// Lo que eligio, en una linea, mientras llena el resto.
 /// Sin esto la pantalla siguiente aparece sola y no queda
 /// rastro de que estaba haciendo.
+/**
+ * LA FORMACIÓN ELEGIDA, en la pantalla de datos.
+ *
+ * SIN «CAMBIAR» CUANDO NO HAY NADA QUE CAMBIAR: «no debe decir
+ * cambiar, porque es que no hay más opciones» (cliente, 23 sep 2026).
+ * Un botón que lleva a una pantalla con una sola tarjeta --la misma
+ * que ya está elegida-- es un camino de ida y vuelta al mismo sitio.
+ *
+ * Y LA LETRA, AJUSTADA. El nombre de una acción son noventa letras y
+ * en semibold de 16 px partía en dos renglones con medio renglón
+ * vacío a la derecha --«se ve feo ese espacio»--. Baja a 14 px con su
+ * interlineado apretado, y el código y el sitio se van a la MISMA
+ * línea: el bloque pasa de cuatro renglones a dos.
+ */
 function LoElegido({
   codigo,
   nombre,
   ubicacion,
   alCambiar,
+  sePuedeCambiar,
 }: {
   codigo: string;
   nombre: string;
   ubicacion: string;
   alCambiar: () => void;
+  /// Falso cuando el recorte deja una sola acción.
+  sePuedeCambiar: boolean;
 }) {
   return (
-    <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-marca/30 bg-marca-suave px-5 py-4">
-      <div className="min-w-0">
-        <p className="text-xs font-semibold uppercase tracking-wide text-marca">
+    <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-marca/30 bg-marca-suave px-5 py-3.5">
+      <div className="min-w-0 flex-1">
+        <p className="text-[0.6875rem] font-semibold tracking-[0.08em] text-marca uppercase">
           Formación seleccionada
         </p>
-        <p className="mt-1 font-semibold leading-snug text-balance">
-          {codigo && (
-            <span className="mr-1.5 font-mono text-sm text-marca">{codigo}</span>
-          )}
+        <p className="mt-1 text-sm leading-snug font-semibold">
+          {codigo && <span className="mr-1.5 font-mono text-marca">{codigo}</span>}
           {nombre}
+          {/* El sitio, PEGADO al nombre y no en su propio renglón:
+              «CAUCA · POPAYÁN» son tres palabras y no merecen una
+              línea entera. */}
+          <span className="ml-2 font-normal whitespace-nowrap text-texto-suave">
+            · {ubicacion}
+          </span>
         </p>
-        <p className="mt-0.5 text-sm text-texto-suave">{ubicacion}</p>
       </div>
-      <button
-        type="button"
-        onClick={alCambiar}
-        className="shrink-0 rounded-xl border border-marca/40 bg-superficie px-4 py-2 text-sm font-medium text-marca transition hover:bg-superficie-alterna"
-      >
-        Cambiar
-      </button>
+      {sePuedeCambiar && (
+        <button
+          type="button"
+          onClick={alCambiar}
+          className="shrink-0 rounded-xl border border-marca/40 bg-superficie px-4 py-2 text-sm font-medium text-marca transition hover:bg-superficie-alterna"
+        >
+          Cambiar
+        </button>
+      )}
     </div>
   );
 }
