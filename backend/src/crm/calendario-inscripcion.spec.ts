@@ -130,3 +130,54 @@ describe('la hora de Colombia, no la de Greenwich', () => {
     expect(ventanaDe(INICIO, new Date('2026-08-26T02:00:00.000Z')).estado).toBe('ABIERTA');
   });
 });
+
+// ── los dos momentos de cierre (cliente, 23 sep 2026) ────────────
+//
+// «En inscripciones existen dos momentos: en virtuales 2 semanas, en
+// presenciales 5 días hábiles antes».
+
+describe('el cierre depende de la modalidad', () => {
+  const d = (s: string) => new Date(`${s}T00:00:00.000Z`);
+
+  it('presencial cierra 5 días hábiles antes, como siempre', () => {
+    // lunes 7 de septiembre menos 5 hábiles es lunes 31 de agosto
+    expect(cierreDeInscripciones(d('2026-09-07'), 'PRESENCIAL').toISOString().slice(0, 10)).toBe(
+      '2026-08-31',
+    );
+  });
+
+  it('virtual cierra 14 días de calendario antes', () => {
+    expect(cierreDeInscripciones(d('2026-09-07'), 'VIRTUAL').toISOString().slice(0, 10)).toBe(
+      '2026-08-24',
+    );
+  });
+
+  it('la híbrida va por la regla presencial: también hay sala que alistar', () => {
+    expect(cierreDeInscripciones(d('2026-09-07'), 'HIBRIDA').toISOString().slice(0, 10)).toBe(
+      '2026-08-31',
+    );
+  });
+
+  it('sin modalidad manda la presencial, que es lo que había antes', () => {
+    expect(cierreDeInscripciones(d('2026-09-07')).toISOString().slice(0, 10)).toBe('2026-08-31');
+  });
+
+  it('el virtual cierra ANTES que el presencial: dos semanas son más que una', () => {
+    const virtual = cierreDeInscripciones(d('2026-09-07'), 'VIRTUAL');
+    const presencial = cierreDeInscripciones(d('2026-09-07'), 'PRESENCIAL');
+    expect(virtual.getTime()).toBeLessThan(presencial.getTime());
+  });
+
+  it('los 14 días del virtual son de calendario y caen en el mismo día de la semana', () => {
+    const inicio = d('2026-09-07'); // lunes
+    expect(cierreDeInscripciones(inicio, 'VIRTUAL').getUTCDay()).toBe(inicio.getUTCDay());
+  });
+
+  it('la ventana de un virtual usa su propio cierre', () => {
+    // el 26 de agosto ya pasó el cierre del virtual (24) y no el del
+    // presencial (31): la misma fecha da dos estados distintos
+    const hoy = new Date('2026-08-26T15:00:00.000Z');
+    expect(ventanaDe(d('2026-09-07'), hoy, 'VIRTUAL').estado).toBe('CERRADA');
+    expect(ventanaDe(d('2026-09-07'), hoy, 'PRESENCIAL').estado).not.toBe('CERRADA');
+  });
+});
