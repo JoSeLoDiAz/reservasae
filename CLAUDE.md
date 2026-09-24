@@ -249,6 +249,100 @@ documentando lo caro que sale dejarlos. Se arreglan, y se dice cuál era.
 > candado de verdad —un hook, o CODEOWNERS sobre `frontend/src`— es trabajo
 > aparte y hay que decidirlo; hoy esto es un acuerdo escrito, no un control.
 
+### La entrega de Andrés, partida en funcional y forma (23 sep 2026)
+
+La primera aplicación de la regla a una entrega entera, y queda escrita porque
+es el procedimiento: *«traer los cambios de Andrés sin traer lo de forma, solo
+funcionalidad, o sea el diseño no lo aceptaré»* (Josse).
+
+Eran **18 commits** de `arq/crm-hardening`. Entraron **doce**, y de la mayoría
+solo el backend. **El resultado se mide y por eso se puede afirmar**: el diff
+del frontend contra `dev` son seis ficheros —vocabulario, tres clientes
+tipados y la fontanería de la carga— y **cero líneas de pintura**. Ni una
+clase, ni un margen, ni un color.
+
+**Fundir la rama entera ya no era posible**, y conviene saber por qué: Andrés
+escribió en su handoff que se fundía sin conflictos, y **era cierto el 21 sep**.
+Para el 23 chocaban ocho ficheros, y caían **justo donde estaban las decisiones
+de Josse**: `catalogo.json` y las tres pantallas del traslado de Tráfico. No fue
+mala suerte — los dos trabajaron encima de lo mismo.
+
+#### Lo que NO se trae, y por qué. Esto es lo que más vale de la sección
+
+- **`a3aa765` «AF7 de ADECOPRIA son 1.000» NO SE TRAE NUNCA.** Es la versión
+  **mala** del cambio que ya está en `main`: dobla **todas** las celdas por
+  igual —`60 → 120`— y les pone 120 asientos a Medellín y Pereira, que son
+  presenciales y caben 60. Y peor: **cambia `cuposBase`**, que es lo pactado
+  con el SENA. El título suena correcto, así que el próximo que mire esa rama
+  lo cogerá por bueno.
+- **`f6b148d` (seguimiento de asesores) se queda fuera hasta su propia ronda.**
+  Dos de sus cinco ficheros de backend **no compilan contra `dev`**, y trae tres
+  arreglos obligatorios más un rótulo falso. Además su mitad académica está
+  inerte: nadie escribe `asesorAcademicoId`.
+- **La migración `asesor_academico_por_grupo` se fue con él.** La columna nace
+  sin un solo escritor —comprobado con `grep` sobre todo `backend/src`—, así que
+  sería una migración para nada. **Cuando entre, hay que añadirle
+  `@@index([asesorAcademicoId])` al schema**: su SQL crea el índice y no lo
+  declara, que es el defecto del 29 ago documentado más abajo.
+- **`bfb9eda` y `2c379ee` traen de vuelta la fusión de Tráfico dentro de
+  Control**, que Josse deshizo el 22. De `bfb9eda` se tomó el backend
+  (`resumen-general`, `resumen-por-grupo`) y se dejó fuera su frontend entero.
+
+#### El candado del grupo tiene TRES puertas, y se cerraron de una en una
+
+`@SoloQuienAsignaGrupo` vino bien construido —va **encima** de `@Requiere`, no
+en su lugar, así que no repitió el error de v0.9.0 que se llevó el recorte del
+ámbito—. Lo que costó tres rondas fue la superficie:
+
+| | |
+|---|---|
+| `PATCH :id/formacion` (`asignar`) | la comprobación vivía dentro de `if (dto.coberturaId)` y la escritura fuera: **omitir el campo borraba la cohorte** sin pasar por el candado |
+| `PATCH :id` (`actualizar`) | el mismo agujero, arreglado una ronda más tarde. **La misma cuenta recibía 403 por una puerta y 200 por la otra**. Y `coberturaId: ""` —lo que manda un desplegable vaciado— daba **500** |
+| `PATCH grupos/lote` | el guard de ruta mira **todas** las concesiones cuando no hay gremio en la dirección, así que quien lleva sistemas en un gremio y es asesor en el otro asignaba allí |
+
+**La regla que sale de esto: poner, cambiar y QUITAR son las tres asignar
+grupo**, y el permiso se pregunta **por el convenio de la ficha**, no por
+«alguno». El docblock afirmaba que «el ámbito ya lo recortó el guard» y es
+**falso**: `admin.guard.ts` recorta `alcance`, no `roles`.
+
+#### La carga masiva dejaba entrar MENORES, con el aviso puesto
+
+El peor hallazgo de la jornada, y no es de permisos. La plantilla nueva trae
+columna de fecha de nacimiento, el código **sí** calcula la edad… y
+`esInsalvable` no la miraba. La fila salía rotulada **«Se importará»**, el
+confirm devolvía `creados: 1`, y **la fecha —el dato que lo probaba— se tiraba**.
+
+Lo que lo hace ejemplar: el comentario de esa misma función dice literalmente
+*«dejaba entrar menores por la puerta de atrás»*. La había cerrado para el
+**tipo de documento**, y la columna nueva la reabrió por el lado de la fecha.
+
+- La edad se perdía en `leerFechaDeNacimiento`, que anula el `iso`: quien decide
+  después se quedaba sin el dato. **Vuelve una marca aparte**, `menorDeEdad`.
+- **Se cierra SOLO eso.** Una fecha mal escrita o futura siguen siendo aviso y
+  crean la fila: ahí no hay prueba de que la persona no pueda entrar, solo un
+  dato mal tecleado. Descartarla sería cerrar de más, y esa distinción es lo que
+  hace correctas las dos.
+- Su test probaba el aviso y **nunca que la fila se descartara**. Es el test que
+  da confianza sin darla, otra vez.
+
+#### Y una lección sobre los arreglos, que ya van cinco veces
+
+**Tres de los cuatro agujeros que encontró la prueba en caliente los había
+metido yo al arreglar la ronda anterior**, incluido romper el botón de descargar
+la plantilla: al hacer que el servidor dejara de adivinar el gremio, el enlace
+—que es de `dev` y no manda `convenioId`— pasó a contestar **400 siempre**, y
+como la descarga va por navegación ese JSON sustituía el panel entero. Antes
+bajaba la plantilla equivocada; con el arreglo no bajaba ninguna.
+
+> **Lo que los encontró no fue leer el código: fue probar el entorno vivo.** Las
+> revisiones sobre el diff confirmaron seis hallazgos y ninguno de estos cuatro.
+> **Una prueba en caliente contra `prueba.reservasae.com` los sacó todos.**
+> Cuando se toque algo con filo, no basta con revisar: hay que ejercitarlo.
+>
+> Y al hacerlo, **el limitador de 60/min por manejador devuelve 429 que el panel
+> pinta como «No se pudo completar la operación»** — parecen fallos de la
+> aplicación y no lo son. Un segundo entre peticiones.
+
 ## Estado actual (22 sep 2026 · v0.9.0-JD)
 
 > **v0.9.0-JD esta en PRODUCCION** (22 sep 2026, commit `d109bf5`, etiqueta
