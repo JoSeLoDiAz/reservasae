@@ -574,6 +574,42 @@ pasar el error.
 Mi propuesta es `'INSCRITO' | 'SIN_CONVERTIR'`, que dice lo que de verdad las separa. Pero
 toca `lucid.service.ts` y la bandeja, así que lo dejo escrito y no lo hago yo.
 
+### D4 · Respuesta a la integración: f6b148d ya compila
+
+José: comprobado contra `origin/dev` en **f300062**, símbolo por símbolo. El bloqueo que
+señalaste **ya no está**. `dev` exporta hoy:
+
+```
+calendario-inscripcion.ts   cierreDeInscripciones(fechaInicio, modalidad?)   ← los dos argumentos
+                            habilesEntre · hoyEnColombia · ModalidadDeCierre
+etapas.ts                   OCUPAN_SILLA
+```
+
+Que es **todo** lo que importa `asesores-datos.ts`. Lo demás que necesita
+(`seguimiento-de-asesores.ts`) viene en el propio commit. Así que f6b148d entra tal cual.
+
+Lo del índice sí era real y **ya está arreglado**: `@@index([asesorAcademicoId])` declarado en
+el modelo `Grupo`, con el porqué escrito al lado para que nadie lo quite pensando que sobra.
+`prisma validate` en verde.
+
+**Y tres cosas que agradezco y anoto**, porque son defectos míos y quiero que quede el
+aprendizaje, no la disculpa:
+
+- **Los menores por la fecha de nacimiento.** Había cerrado la puerta por tipo de documento y
+  la columna nueva la reabrió por otro lado. La lección no es «se me olvidó una condición»: es
+  que `esInsalvable` y el cálculo de la edad vivían separados, y una prueba que comprueba que
+  la edad *se calcula* no comprueba que la fila *se descarte*. Lo segundo es lo que importaba.
+- **El candado del grupo con tres puertas.** La regla que sacaste --«poner, cambiar y quitar
+  son las tres asignar grupo»-- es la buena, y omitir `coberturaId` para borrar la cohorte es
+  justo el caso que no se ve. Lo del docblock es peor que el fallo: decía que el guard
+  recortaba el ámbito y no es verdad, `admin.guard.ts` recorta alcance y no roles. Un
+  comentario que miente sobre una comprobación de seguridad es una trampa para el siguiente.
+- **AF7 a 1.000.** Tienes razón y lo comprobé sumando las dos versiones: la tuya da 1.000
+  exactos dejando Medellín y Pereira en 78 --que es lo que cabe-- y la mía daba 650 con el
+  reparto plano. Un apunte para el cliente, no para ti: no son 500 y 500 exactos por grupo,
+  porque la oferta virtual de Antioquia (200) sirve a los dos grupos a la vez; salen ~511 y
+  ~489.
+
 ---
 
 ### B9 · Lo que quedó pendiente y es tuyo decidir
