@@ -624,12 +624,18 @@ export function CifraCompacta({
   etiqueta,
   valor,
   detalle,
+  pie,
   color,
 }: {
   etiqueta: string;
   valor: string;
-  /// Lo que acompaña a la cifra, en gris y en la misma línea.
+  /// Lo CORTO que acompaña a la cifra, en la misma línea: «18 %»,
+  /// «3,5 por grupo». Una FRASE aquí no cabe --queda «11 apartaron
+  /// cupos en 5 acciones», que no se lee-- y para eso está `pie`.
   detalle?: string;
+  /// La frase, debajo. Cuesta un renglón de 14 px y es lo que hay que
+  /// pagar cuando lo que acompaña a la cifra es una oración.
+  pie?: string;
   /// El color de la cifra. Sin él, el del texto.
   color?: string;
 }) {
@@ -655,6 +661,11 @@ export function CifraCompacta({
           </span>
         )}
       </div>
+      {pie && (
+        <div className="mt-1 truncate text-[0.6875rem] leading-none text-texto-suave" title={pie}>
+          {pie}
+        </div>
+      )}
     </div>
   );
 }

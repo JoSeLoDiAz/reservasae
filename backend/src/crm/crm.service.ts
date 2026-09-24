@@ -594,7 +594,18 @@ export class CrmService {
     const filas = await this.prisma.$queryRaw<Parameters<typeof completarFila>[0][]>(
       resumenPorAccionSql(ambito.convenios, ambito.gremioElegido, recorte),
     );
-    return filas.map(completarFila);
+    const completas = filas.map(completarFila);
+    /// CON UNA ACCIÓN ELEGIDA, SOLO ESA FILA.
+    ///
+    /// El SQL de arriba recorta la GENTE pero devuelve las quince
+    /// acciones: es un `LEFT JOIN` desde `acciones_formacion`, y así una
+    /// acción sin nadie sigue enseñando su meta, que es lo que se
+    /// quiere cuando no hay filtro. Con una elegida sobran las otras
+    /// catorce en cero, y es lo que el cliente pidió al pulsar una
+    /// fila: «que se oculten las demás AF» (23 sep 2026).
+    return recorte.accionFormacionId
+      ? completas.filter((f) => f.accionFormacionId === recorte.accionFormacionId)
+      : completas;
   }
 
   /**

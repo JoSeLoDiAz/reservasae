@@ -154,7 +154,7 @@ function DeInscripciones() {
       <CifraCompacta
         etiqueta="Asesores"
         valor={n(conAsesor)}
-        detalle={aReforzar > 0 ? `${n(aReforzar)} a reforzar` : undefined}
+        pie={aReforzar > 0 ? `${n(aReforzar)} necesitan refuerzo` : undefined}
       />
       <CifraCompacta etiqueta="Leads asignados" valor={n(t.total)} />
       <CifraCompacta

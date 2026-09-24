@@ -216,7 +216,11 @@ function Cuerpo({
         <CifraCompacta
           etiqueta="Matriculados"
           valor={n(r.total)}
-          detalle={grupos.length > 0 ? `${(r.total / grupos.length).toLocaleString("es-CO", { maximumFractionDigits: 1 })} por grupo` : undefined}
+          pie={
+            grupos.length > 0
+              ? `${(r.total / grupos.length).toLocaleString("es-CO", { maximumFractionDigits: 1 })} por grupo de media`
+              : undefined
+          }
         />
         <CifraCompacta
           etiqueta="Siguen en formación"

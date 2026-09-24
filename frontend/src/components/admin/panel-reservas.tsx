@@ -1077,23 +1077,23 @@ function ResumenGeneral({ informe }: { informe: InformeReservas }) {
         <CifraCompacta
             etiqueta="Instituciones"
             valor={n(t.organizaciones)}
-            detalle={`apartaron cupos en ${cuenta(t.acciones, "acción", "acciones")}`}
+            pie={`apartaron cupos en ${cuenta(t.acciones, "acción", "acciones")}`}
           />
         <CifraCompacta
             etiqueta="Reservas"
             valor={n(t.reservas)}
-            detalle={`una por institución y acción`}
+            pie={`una por institución y acción`}
           />
         <CifraCompacta
             etiqueta="Cupos apartados"
             valor={n(t.cuposConfirmados)}
-            detalle={t.cuposEnEspera > 0 ? `y ${n(t.cuposEnEspera)} en lista de espera` : "ninguno en lista de espera"}
+            pie={t.cuposEnEspera > 0 ? `y ${n(t.cuposEnEspera)} en lista de espera` : "ninguno en lista de espera"}
           />
         <CifraCompacta
             etiqueta="Ya tienen nombre"
             valor={n(conNombre)}
             color="var(--exito)"
-            detalle={
+            pie={
               t.cuposConfirmados > 0
                 ? `${porciento(conNombre, t.cuposConfirmados)} % de los cupos`
                 : "sin cupos confirmados"
@@ -1103,7 +1103,7 @@ function ResumenGeneral({ informe }: { informe: InformeReservas }) {
             etiqueta="Siguen sin nombre"
             valor={n(t.sinNombre)}
             color={t.sinNombre > 0 ? "var(--error)" : undefined}
-            detalle={
+            pie={
               organizacionesQueDeben > 0
                 ? `en ${cuenta(organizacionesQueDeben, "organización", "organizaciones")}`
                 : "todas mandaron sus nombres"
