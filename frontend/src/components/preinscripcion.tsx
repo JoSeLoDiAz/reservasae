@@ -17,6 +17,7 @@ import { FondoPublico } from "./fondo-publico";
 import { BannerLogos, EncabezadoPublico, PiePublico } from "./marca-publica";
 import { ModalInformacionAccion } from "./modal-informacion-accion";
 import { idDeVisita, marcar, type Paso, contarSiSeQueda } from "@/lib/visita";
+import { palabraDelFormulario } from "@/lib/formulario-personalizado";
 
 import { BandaDePasos } from "./banda-de-pasos";
 import { PantallaDeCarga, useEsperaCorta } from "./pantalla-de-carga";
@@ -91,7 +92,9 @@ export function PreinscripcionPublica({ slug }: { slug: string }) {
   useEffect(() => {
     marcar(slug, "LLEGO");
     preinscripcionApi
-      .catalogo(slug)
+      /// La palabra del enlace --`?TallerBootcamp`--, si la trae.
+      /// Quien decide si significa algo es el servidor.
+      .catalogo(slug, palabraDelFormulario(window.location.search))
       .then((c) => {
         setCatalogo(c);
         marcar(slug, "CATALOGO_LISTO");
@@ -149,6 +152,10 @@ export function PreinscripcionPublica({ slug }: { slug: string }) {
         aceptaPolitica: datos.aceptaPolitica === "si",
         // para que el servidor cierre el embudo
         visita: idDeVisita()?.id,
+        /// Por que formulario entro. Se manda la palabra que
+        /// devolvio el SERVIDOR y no la de la barra: es la misma,
+        /// pero asi no viaja lo que alguien escriba ahi.
+        formulario: catalogo?.formulario?.palabra,
       });
       setHecho({
         // sin token cuando el documento ya estaba: ver `Registrada`
@@ -199,6 +206,12 @@ export function PreinscripcionPublica({ slug }: { slug: string }) {
         .map((a) => ({ accion: a, oferta: a.ofertas.find(cubre) ?? null }))
         .filter((x) => x.oferta !== null)
     : [];
+
+  /// El enlace trae UNA sola accion y ya viene elegida por el.
+  /// Cambia los textos de esta pantalla: hablar en plural y pedir
+  /// que escoja delante de una sola tarjeta se lee como si
+  /// faltara algo por cargar.
+  const unaSola = catalogo.formulario?.accionUnica === true;
 
   const accionElegida = catalogo.acciones.find((a) => a.id === accionId) ?? null;
   const nombreAccion = accionElegida?.nombre ?? "";
@@ -383,20 +396,25 @@ export function PreinscripcionPublica({ slug }: { slug: string }) {
                 Las tarjetas ya dicen cuántas son, y cuando no hay
                 ninguna el aviso de abajo lo explica con palabras. */}
             <h2 className="text-xl font-bold tracking-tight">
-              Acciones de formación disponibles
+              {unaSola ? "Acción de formación" : "Acciones de formación disponibles"}
             </h2>
 
-            <p className="mt-1 text-sm text-texto-suave">
-              A continuación, las acciones de formación disponibles para su preinscripción:
-            </p>
+            {/* El renglón de abajo sobra cuando solo hay una: el
+                título ya lo dice y la tarjeta está justo debajo. */}
+            {!unaSola && (
+              <p className="mt-1 text-sm text-texto-suave">
+                A continuación, las acciones de formación disponibles para su preinscripción:
+              </p>
+            )}
 
             {conCobertura.length > 0 && (
               <MarcaDePaso slug={slug} paso="VIO_ACCIONES" detalle={String(conCobertura.length)} />
             )}
             {conCobertura.length > 0 && (
               <p className="mt-3 rounded-xl bg-marca-suave px-4 py-3 text-sm text-marca">
-                Seleccione la que sea de su mayor interés, considerando que solo puede
-                preinscribirse en una.
+                {unaSola
+                  ? "Continúe con la acción de formación para registrar sus datos."
+                  : "Seleccione la que sea de su mayor interés, considerando que solo puede preinscribirse en una."}
               </p>
             )}
 
@@ -405,8 +423,9 @@ export function PreinscripcionPublica({ slug }: { slug: string }) {
             )}
             {conCobertura.length === 0 && (
               <p className="mt-3 rounded-xl border border-borde bg-superficie px-4 py-3 text-sm text-texto-suave">
-                No hay acciones con cobertura en esa ubicación. Pruebe con otra ciudad del
-                mismo departamento.
+                {unaSola
+                  ? "Esta acción de formación no se dicta en esa ubicación. Pruebe con otro municipio del mismo departamento."
+                  : "No hay acciones con cobertura en esa ubicación. Pruebe con otra ciudad del mismo departamento."}
               </p>
             )}
 

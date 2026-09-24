@@ -299,6 +299,18 @@ export const MODULOS: Modulo[] = [
         area: 'inscripciones',
       },
       {
+        /// Los que no son el general: se llega a ellos por una
+        /// palabra en el enlace y pueden abrir una accion sin
+        /// publicar. Van aqui, con los otros dos, porque la
+        /// pregunta que trae a alguien es la misma --«cual de los
+        /// formularios reparto»-- y separarlos obligaria a
+        /// saberse de antemano cual es cual.
+        href: '/admin/formularios-personalizados',
+        etiqueta: 'Formularios personalizados',
+        exacto: true,
+        area: 'inscripciones',
+      },
+      {
         href: '/admin/politicas',
         etiqueta: 'Habeas Data',
         area: 'configuracion',
