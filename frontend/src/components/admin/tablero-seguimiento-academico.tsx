@@ -36,7 +36,7 @@ import { useDatosVivos } from "@/lib/datos-vivos";
 import { Desplegable } from "./desplegable";
 import { n } from "./graficos";
 import { Aviso } from "./marco-admin";
-import { Bloque, Encabezado, Esqueleto, TarjetaCifra, Vacio } from "./piezas";
+import { Bloque, CifraCompacta, Encabezado, Esqueleto, Vacio } from "./piezas";
 
 /// «AF1 · GESTIÓN DE LA ATENCIÓN…» llega en un solo texto, y el nombre
 /// entero son noventa letras que se comen la primera columna de la
@@ -103,7 +103,6 @@ export function TableroSeguimientoAcademico() {
   /// lo canta en la consola y el linter lo rechaza. Una red que no
   /// atrapa nada y ensucia la consola no es una red.
 
-  const accion = acciones.find((a) => a.id === accionFormacionId) ?? null;
 
   return (
     <div className="flex flex-col gap-3 px-4 pt-3 pb-6 [&>header]:mx-0 [&>header]:mb-0">
@@ -165,7 +164,7 @@ export function TableroSeguimientoAcademico() {
       {!vivos.datos && !vivos.error && <Esqueleto />}
 
       {vivos.datos && (
-        <Cuerpo datos={vivos.datos} accion={accion} grupoElegido={grupoId} />
+        <Cuerpo datos={vivos.datos} grupoElegido={grupoId} />
       )}
     </div>
   );
@@ -173,11 +172,9 @@ export function TableroSeguimientoAcademico() {
 
 function Cuerpo({
   datos,
-  accion,
   grupoElegido,
 }: {
   datos: Academico;
-  accion: { id: string; codigo: string; nombre: string } | null;
   grupoElegido: string;
 }) {
   const r = datos.resumen;
@@ -218,66 +215,30 @@ function Cuerpo({
     <>
       {/* 1 y 2 · QUÉ SE ESTÁ MIRANDO Y CUÁNTO PESA.
 
-          MISMO PATRÓN QUE «Control de Reservas»: la tira va DENTRO de
-          un bloque con su título, con `TarjetaCifra` y separadores de
-          un píxel. «Te dije esto como se tiene las proporciones de
-          ejemplo: Control de Reservas» (cliente, 23 sep 2026). Iba
-          suelta sobre el fondo y con una tarjeta propia más pequeña,
-          así que dos pantallas hermanas enseñaban la misma clase de
-          cifra de dos tamaños distintos. */}
-      {/* «¿Qué es esto: Aula de las dos redes?» (cliente, 23 sep 2026).
-          Nada: era un nombre que me inventé para cuando no hay una
-          acción elegida. Con una acción elegida el título sí dice cuál;
-          sin ella, «Resumen del aula» y ya. */}
-      <Bloque
-        sinRelleno
-        titulo={accion ? `Aula de ${accion.codigo}` : "Resumen del aula"}
-      >
-        <div className="flex flex-wrap gap-px bg-hairline">
-          <Celda>
-            <TarjetaCifra
-              etiqueta="Grupos"
-              valor={n(grupoElegido ? 1 : grupos.length)}
-              pie={grupoElegido ? 'el grupo elegido' : 'con gente matriculada'}
-            />
-          </Celda>
-          <Celda>
-            <TarjetaCifra
-              etiqueta="Matriculados"
-              valor={n(r.total)}
-              pie={
-                grupos.length > 0
-                  ? `${(r.total / grupos.length).toLocaleString('es-CO', { maximumFractionDigits: 1 })} por grupo de media`
-                  : 'sin grupos'
-              }
-            />
-          </Celda>
-          <Celda>
-            <TarjetaCifra
-              etiqueta="Siguen en formación"
-              valor={n(r.enFormacion)}
-              tono="exito"
-              pie={salidas > 0 ? `${n(salidas)} salieron del aula` : 'nadie ha salido'}
-            />
-          </Celda>
-          {/* AQUÍ NO VA «ACCIÓN DE FORMACIÓN».
-
-              Era una tarjeta con la palabra «Todas» a 32 px, del mismo
-              tamaño que las cifras de al lado y sin ser una cifra. En
-              «Control de Reservas» --que es la referencia que dio el
-              cliente-- las cinco son números. Qué acción se está
-              mirando ya lo dice el desplegable de arriba y el título
-              de este bloque. */}
-          <Celda>
-            <TarjetaCifra
-              etiqueta="Salieron del aula"
-              valor={n(salidas)}
-              tono={salidas > 0 ? "error" : "neutro"}
-              pie={r.total > 0 ? `${Math.round((salidas / r.total) * 100)} % de los matriculados` : 'sin gente'}
-            />
-          </Celda>
-        </div>
-      </Bloque>
+          LAS TARJETAS DE «GESTIÓN DE LEADS»: 46 px de alto, rótulo de
+          11,5 y cifra de 17. Estuvieron con `TarjetaCifra` --32 px de
+          cifra, 110 de alto-- y el cliente lo paró: «que no ocupen
+          mucho espacio y le da orden» (23 sep 2026). */}
+      <div className="flex flex-wrap gap-2">
+        <CifraCompacta etiqueta="Grupos" valor={n(grupoElegido ? 1 : grupos.length)} />
+        <CifraCompacta
+          etiqueta="Matriculados"
+          valor={n(r.total)}
+          detalle={grupos.length > 0 ? `${(r.total / grupos.length).toLocaleString("es-CO", { maximumFractionDigits: 1 })} por grupo` : undefined}
+        />
+        <CifraCompacta
+          etiqueta="Siguen en formación"
+          valor={n(r.enFormacion)}
+          color="var(--exito)"
+          detalle={r.total > 0 ? `${Math.round((r.enFormacion / r.total) * 100)} %` : undefined}
+        />
+        <CifraCompacta
+          etiqueta="Salieron del aula"
+          valor={n(salidas)}
+          color={salidas > 0 ? "var(--error)" : undefined}
+          detalle={r.total > 0 ? `${Math.round((salidas / r.total) * 100)} %` : undefined}
+        />
+      </div>
 
       {/* 4 · LOS ESTADOS, que los manda el LMS */}
       <Bloque
@@ -289,32 +250,28 @@ function Cuerpo({
             clase de dato: una cifra con su rótulo. Ahora es la misma
             pieza en su versión compacta --24 px en vez de 32-- porque
             aquí acompañan y lo que se viene a mirar es el reparto. */}
-        <div className="flex flex-wrap gap-px bg-hairline">
+        <div className="flex flex-wrap gap-2">
           {ESTADOS.map((e) => (
-            <Celda key={e.clave}>
-              <TarjetaCifra
-                compacta
-                etiqueta={e.etiqueta}
-                valor={n(r[e.clave])}
-                pie={r.enFormacion > 0 ? `${Math.round((r[e.clave] / r.enFormacion) * 100)} % de los que siguen` : '—'}
-              />
-            </Celda>
+            <CifraCompacta
+              key={e.clave}
+              etiqueta={e.etiqueta}
+              valor={n(r[e.clave])}
+              detalle={r.enFormacion > 0 ? `${Math.round((r[e.clave] / r.enFormacion) * 100)} %` : undefined}
+            />
           ))}
         </div>
 
         <p className="mt-4 mb-2 text-[0.6875rem] font-bold tracking-[0.08em] text-texto-suave uppercase">
           Y quiénes salieron del aula
         </p>
-        <div className="flex flex-wrap gap-px bg-hairline">
+        <div className="flex flex-wrap gap-2">
           {SALIDAS.map((sa) => (
-            <Celda key={sa.clave}>
-              <TarjetaCifra
-                compacta
-                etiqueta={sa.etiqueta}
-                valor={n(r[sa.clave])}
-                pie={r.total > 0 ? `${Math.round((r[sa.clave] / r.total) * 100)} % de los matriculados` : '—'}
-              />
-            </Celda>
+            <CifraCompacta
+              key={sa.clave}
+              etiqueta={sa.etiqueta}
+              valor={n(r[sa.clave])}
+              detalle={r.total > 0 ? `${Math.round((r[sa.clave] / r.total) * 100)} %` : undefined}
+            />
           ))}
         </div>
       </Bloque>
@@ -363,9 +320,3 @@ function Cuerpo({
   );
 }
 
-/// La celda de la tira de cifras. La misma que usa «Control de
-/// Reservas»: `flex-1` con un mínimo, sobre el fondo de la tarjeta, y
-/// el `gap-px` de la fila hace de separador.
-function Celda({ children }: { children: React.ReactNode }) {
-  return <div className="min-w-[150px] flex-1 bg-superficie">{children}</div>;
-}

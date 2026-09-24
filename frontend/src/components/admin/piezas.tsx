@@ -603,3 +603,58 @@ export function MenuDeAcciones({
     </details>
   );
 }
+
+/**
+ * LA TARJETA DE CIFRA COMPACTA, la de «Gestión de leads».
+ *
+ * «Quiero que por estética los tamaños de las tarjetas sean como los de
+ * Gestión de leads, que no ocupan mucho espacio y le da orden»
+ * (cliente, 23 sep 2026).
+ *
+ * Son las mismas medidas que la tira de etapas de esa pantalla: rótulo
+ * de 11,5 px, cifra de 17 y 46 px de alto en total, contra los 32 px de
+ * cifra y 110 de alto de `TarjetaCifra`. Cada píxel que se ahorra aquí
+ * es una fila más de tabla, que es lo que se viene a mirar.
+ *
+ * Y LLEVA EL PORCENTAJE AL LADO DE LA CIFRA, no debajo: es el dato que
+ * hace falta para leerla --«7» no dice nada, «7, el 18 %» sí-- y
+ * apilado costaría el renglón que se acaba de ahorrar.
+ */
+export function CifraCompacta({
+  etiqueta,
+  valor,
+  detalle,
+  color,
+}: {
+  etiqueta: string;
+  valor: string;
+  /// Lo que acompaña a la cifra, en gris y en la misma línea.
+  detalle?: string;
+  /// El color de la cifra. Sin él, el del texto.
+  color?: string;
+}) {
+  return (
+    <div className="min-w-[112px] flex-1 rounded-lg border border-borde bg-superficie px-3.5 py-2 transition hover:border-marca/40 hover:shadow-[0_2px_14px_-6px_rgba(15,23,42,0.28)]">
+      <div
+        className="truncate leading-none text-texto-suave"
+        style={{ fontSize: "0.71875rem" }}
+        title={etiqueta}
+      >
+        {etiqueta}
+      </div>
+      <div className="mt-1 flex items-baseline gap-1.5 leading-none">
+        <span
+          className="font-bold tabular-nums"
+          style={{ fontSize: "1.0625rem", color }}
+        >
+          {valor}
+        </span>
+        {detalle && (
+          <span className="truncate text-[0.6875rem] text-texto-suave" title={detalle}>
+            {detalle}
+          </span>
+        )}
+      </div>
+    </div>
+  );
+}

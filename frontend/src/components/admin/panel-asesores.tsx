@@ -34,7 +34,7 @@ import { useDatosVivos } from "@/lib/datos-vivos";
 
 import { n } from "./graficos";
 import { Aviso } from "./marco-admin";
-import { Bloque, Encabezado, Esqueleto, TarjetaCifra, Vacio } from "./piezas";
+import { Bloque, CifraCompacta, Encabezado, Esqueleto, Vacio } from "./piezas";
 
 type Subvista = "inscripciones" | "academicos";
 
@@ -107,11 +107,6 @@ export function PanelAsesores() {
   );
 }
 
-/// La celda de la tira de cifras, la misma de «Control de Reservas».
-function Celda({ children }: { children: React.ReactNode }) {
-  return <div className="min-w-[150px] flex-1 bg-superficie">{children}</div>;
-}
-
 function DeInscripciones() {
   const cargar = useCallback(() => crmApi.asesoresDeInscripciones(), []);
   const vivos = useDatosVivos<FilaDeAsesor[]>(cargar, { clave: "asesores-inscripciones" });
@@ -151,43 +146,33 @@ function DeInscripciones() {
 
   return (
     <>
-    <Bloque sinRelleno titulo="Los leads y quién los lleva">
-      <div className="flex flex-wrap gap-px bg-hairline">
-        <Celda>
-          <TarjetaCifra
-            etiqueta="Asesores"
-            valor={n(conAsesor)}
-            pie={aReforzar > 0 ? `${n(aReforzar)} necesitan refuerzo` : 'ninguno en riesgo'}
-          />
-        </Celda>
-        <Celda>
-          <TarjetaCifra etiqueta="Leads asignados" valor={n(t.total)} pie="en total" />
-        </Celda>
-        <Celda>
-          <TarjetaCifra
-            etiqueta="Gestionados"
-            valor={n(t.gestionados)}
-            pie={t.total > 0 ? `${Math.round((t.gestionados / t.total) * 100)} % de los leads` : 'sin leads'}
-          />
-        </Celda>
-        <Celda>
-          <TarjetaCifra
-            etiqueta="Inscritos o descartados"
-            valor={n(t.resueltos)}
-            tono="exito"
-            pie="ya resueltos"
-          />
-        </Celda>
-        <Celda>
-          <TarjetaCifra
-            etiqueta="Pendientes"
-            valor={n(t.pendientes)}
-            tono={t.pendientes > 0 ? "error" : "neutro"}
-            pie="sin resolver"
-          />
-        </Celda>
-      </div>
-    </Bloque>
+    {/* LAS TARJETAS DE «GESTIÓN DE LEADS»: 46 px de alto. Estuvieron
+        con `TarjetaCifra` --32 px de cifra, 110 de alto, dentro de su
+        bloque-- y el cliente lo paró: «que no ocupen mucho espacio y le
+        da orden» (23 sep 2026). */}
+    <div className="flex flex-wrap gap-2">
+      <CifraCompacta
+        etiqueta="Asesores"
+        valor={n(conAsesor)}
+        detalle={aReforzar > 0 ? `${n(aReforzar)} a reforzar` : undefined}
+      />
+      <CifraCompacta etiqueta="Leads asignados" valor={n(t.total)} />
+      <CifraCompacta
+        etiqueta="Gestionados"
+        valor={n(t.gestionados)}
+        detalle={t.total > 0 ? `${Math.round((t.gestionados / t.total) * 100)} %` : undefined}
+      />
+      <CifraCompacta
+        etiqueta="Inscritos o descartados"
+        valor={n(t.resueltos)}
+        color="var(--exito)"
+      />
+      <CifraCompacta
+        etiqueta="Pendientes"
+        valor={n(t.pendientes)}
+        color={t.pendientes > 0 ? "var(--error)" : undefined}
+      />
+    </div>
 
     <Bloque
       sinRelleno
@@ -300,39 +285,26 @@ function Academicos() {
 
   return (
     <>
-    <Bloque sinRelleno titulo="Los grupos y quién los acompaña">
-      <div className="flex flex-wrap gap-px bg-hairline">
-        <Celda>
-          <TarjetaCifra etiqueta="Grupos" valor={n(t.grupos)} pie="con gente dentro" />
-        </Celda>
-        <Celda>
-          <TarjetaCifra etiqueta="PAX" valor={n(t.pax)} pie="personas en el aula" />
-        </Celda>
-        <Celda>
-          <TarjetaCifra
-            etiqueta="Con seguimiento"
-            valor={n(t.seguimiento)}
-            pie={t.pax > 0 ? `${Math.round((t.seguimiento / t.pax) * 100)} % del PAX` : 'sin gente'}
-          />
-        </Celda>
-        <Celda>
-          <TarjetaCifra
-            etiqueta="Certificados"
-            valor={n(t.certificados)}
-            tono="exito"
-            pie={t.pax > 0 ? `${Math.round((t.certificados / t.pax) * 100)} % del PAX` : 'sin gente'}
-          />
-        </Celda>
-        <Celda>
-          <TarjetaCifra
-            etiqueta="Por certificar"
-            valor={n(t.porCertificar)}
-            tono={t.porCertificar > 0 ? "error" : "neutro"}
-            pie="antes de que acabe el curso"
-          />
-        </Celda>
-      </div>
-    </Bloque>
+    <div className="flex flex-wrap gap-2">
+      <CifraCompacta etiqueta="Grupos" valor={n(t.grupos)} />
+      <CifraCompacta etiqueta="PAX" valor={n(t.pax)} />
+      <CifraCompacta
+        etiqueta="Con seguimiento"
+        valor={n(t.seguimiento)}
+        detalle={t.pax > 0 ? `${Math.round((t.seguimiento / t.pax) * 100)} %` : undefined}
+      />
+      <CifraCompacta
+        etiqueta="Certificados"
+        valor={n(t.certificados)}
+        color="var(--exito)"
+        detalle={t.pax > 0 ? `${Math.round((t.certificados / t.pax) * 100)} %` : undefined}
+      />
+      <CifraCompacta
+        etiqueta="Por certificar"
+        valor={n(t.porCertificar)}
+        color={t.porCertificar > 0 ? "var(--error)" : undefined}
+      />
+    </div>
 
     <Bloque
       sinRelleno
