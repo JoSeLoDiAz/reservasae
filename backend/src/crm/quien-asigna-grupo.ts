@@ -46,17 +46,28 @@ export const MENSAJE_SOLO_ANALISTA =
  *
  * Un superadministrador puede siempre --es el «y todos los que sean
  * Admin» de la frase-- y, fuera de eso, hace falta llevar líder de
- * sistemas en ALGÚN convenio de su ámbito. No se exige que sea el
- * convenio de la persona que se está asignando: el ámbito ya lo
- * recortó el guard de sesión, y quien lleva sistemas en el gremio que
- * está mirando no está tocando el otro.
+ * sistemas en el gremio en el que se está trabajando.
+ *
+ * OJO AL GREMIO, y esto estaba escrito al revés: el docblock decía que
+ * «el ámbito ya lo recortó el guard de sesión». Es FALSO. En
+ * `admin.guard.ts` lo que se recorta es `alcance`; `roles` se publica
+ * con TODAS las concesiones. Mirando el mapa entero, quien lleva
+ * sistemas en ADECOPRIA y es asesor en BRITCHAM asignaba grupo también
+ * en BRITCHAM — justo el caso que el ámbito existe para separar. Es la
+ * lección de v0.9.0 con el área cambiada por el gremio.
+ *
+ * Por la puerta general no hay gremio elegido y no hay nada que
+ * recortar; ahí la cerradura que cuenta es `exigirQuienAsignaGrupo`,
+ * que sí recibe el convenio de la ficha.
  */
 export function puedeAsignarGrupo(peticion: PeticionConAdmin): boolean {
   if (peticion.admin?.rol === 'SUPERADMIN') return true;
   const porConvenio = peticion.ambito?.roles ?? {};
-  return Object.values(porConvenio).some((roles) =>
-    roles.includes(ROL_QUE_ASIGNA_GRUPO),
-  );
+  const elegido = peticion.ambito?.gremioElegido;
+  const aMirar = elegido
+    ? [porConvenio[elegido] ?? []]
+    : Object.values(porConvenio);
+  return aMirar.some((roles) => roles.includes(ROL_QUE_ASIGNA_GRUPO));
 }
 
 @Injectable()
@@ -85,15 +96,26 @@ export function SoloQuienAsignaGrupo() {
  * grupo.
  *
  * Una consulta y solo cuando hace falta: un superadministrador no la
- * paga, y quien no manda grupo tampoco.
+ * paga, y quien no cambia el grupo tampoco.
+ *
+ * `convenioId` es el de LA FICHA, y por eso se pide: sin él la consulta
+ * encuentra la concesión de cualquier gremio y deja asignar en uno
+ * donde la cuenta es asesor. Se deja opcional para no romper a quien
+ * todavía no lo tenga a mano, pero las dos puertas del servicio sí lo
+ * pasan.
  */
 export async function exigirQuienAsignaGrupo(
   prisma: PrismaService,
   admin: Pick<Admin, 'id' | 'rol'>,
+  convenioId?: string,
 ): Promise<void> {
   if (admin.rol === 'SUPERADMIN') return;
   const concesion = await prisma.adminConvenio.findFirst({
-    where: { adminId: admin.id, rol: ROL_QUE_ASIGNA_GRUPO },
+    where: {
+      adminId: admin.id,
+      rol: ROL_QUE_ASIGNA_GRUPO,
+      ...(convenioId ? { convenioId } : {}),
+    },
     select: { id: true },
   });
   if (!concesion) throw new ForbiddenException(MENSAJE_SOLO_ANALISTA);

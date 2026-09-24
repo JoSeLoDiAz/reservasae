@@ -1584,7 +1584,7 @@ export class CrmService {
       /// lo CAMBIA: reenviar el mismo pasa, por lo que dice el
       /// comentario de arriba — la ficha se manda entera.
       if (p.coberturaId !== dto.coberturaId) {
-        await exigirQuienAsignaGrupo(this.prisma, admin);
+        await exigirQuienAsignaGrupo(this.prisma, admin, p.convenioId);
       }
       await exigirCoberturaDeLaOferta(this.prisma, dto.coberturaId, {
         accionFormacionId: suya.accionFormacionId,
@@ -4543,7 +4543,6 @@ export class CrmService {
 
     let numeroDeGrupo: number | null = null;
     if (dto.coberturaId) {
-      await exigirQuienAsignaGrupo(this.prisma, admin);
       const cobertura = await exigirCoberturaDeLaOferta(this.prisma, dto.coberturaId, {
         accionFormacionId: oferta.accionFormacionId,
         ubicacionId: oferta.ubicacionId,
@@ -4552,6 +4551,17 @@ export class CrmService {
     }
 
     const cobertura = dto.coberturaId ?? null;
+
+    /// Poner, cambiar y QUITAR son las tres asignar grupo.
+    ///
+    /// Dentro del `if` de arriba solo se cerraba poner: no mandar
+    /// el campo escribe null unas lineas mas abajo, asi que un
+    /// asesor borraba la cohorte que puso el analista sin pasar
+    /// por el candado. Y la ficha se manda entera desde la
+    /// pantalla, asi que no hacia falta mala fe.
+    if (cobertura !== p.coberturaId) {
+      await exigirQuienAsignaGrupo(this.prisma, admin, p.convenioId);
+    }
     const partes: string[] = [];
 
     if (oferta.id !== p.ofertaId) {
