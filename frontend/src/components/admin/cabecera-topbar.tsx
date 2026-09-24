@@ -470,7 +470,6 @@ export function FilaDeModulos({
     /// el cuerpo del efecto es medir antes de que el navegador
     /// haya colocado nada, y además dispara un render en cascada.
     let pedido = 0;
-    let ultima = 1;
     const medir = () => {
       pedido = 0;
       const est = getComputedStyle(fila);
@@ -482,12 +481,30 @@ export function FilaDeModulos({
       const pide = nav.scrollWidth;
       if (hueco <= 0 || pide <= 0) return;
 
-      /// Lo que pide AHORA está medido con la escala de ahora, así
-      /// que el factor nuevo se compone sobre ella.
-      const bruto = (ultima * hueco) / pide;
-      const nueva = Math.min(1, Math.max(SUELO, bruto));
-      ultima = nueva;
-      setEscala(nueva);
+      /// SE MIDE CONTRA EL ANCHO A ESCALA 1, no contra el de la
+      /// escala anterior.
+      ///
+      /// Iba componiendo el factor sobre el de la pasada anterior
+      /// --`ultima * hueco / pide`-- y eso es un lazo con memoria:
+      /// basta una medida tomada mientras la fila estaba fuera de
+      /// flujo --cuando no cabe se vuelve `invisible absolute`, y
+      /// ahí ya no la limita nadie-- para que el factor se quede
+      /// pegado. Medido el 23 sep 2026: a 958 px la fila pedía 795
+      /// y su caja daba 696, y seguía pintada a escala 1, así que
+      /// «Configuración» se metía 75 px por debajo del nombre del
+      /// usuario --«y esa monda qué?»--.
+      ///
+      /// El ancho es proporcional al cuerpo de letra, así que el
+      /// ancho a escala 1 se deduce de la medida de ahora sin
+      /// tocar el DOM ni recordar nada: una medida, una respuesta,
+      /// y se autocorrige en cada cambio de tamaño. El `rem` de la
+      /// raíz entra solo, y con él el ajuste de texto del 90-140 %.
+      const raiz = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
+      const base = 0.78125 * raiz;
+      const ahora = parseFloat(getComputedStyle(nav).fontSize) || base;
+      const pideBase = (pide * base) / ahora;
+      const bruto = hueco / pideBase;
+      setEscala(Math.min(1, Math.max(SUELO, bruto)));
       /// Solo se rinde si ni al suelo entra.
       setCabe(bruto >= SUELO);
     };
@@ -734,10 +751,10 @@ export function FilaDeModulos({
           cabe ? "flex" : "invisible pointer-events-none absolute -z-10 flex"
         }`}
       >
-        <EnlaceDeFila href="/admin" activo={ruta === "/admin"}>
-          Resumen
-        </EnlaceDeFila>
-
+        {/* SIN «Resumen» SUELTO: su sitio lo ocupa el módulo
+            «Informes», que es lo que el cliente pidió centralizar (22
+            sep 2026). El tablero de siempre sigue en `/admin`, a un
+            clic en el logo y en la miga. */}
         {MODULOS.map((modulo) => {
           const enlaces = enlacesVisibles(modulo, permisos, esSuperadmin);
           if (enlaces.length === 0) return null;
@@ -790,15 +807,23 @@ export function FilaDeModulos({
       {/* el hueco de los botones de cada pantalla */}
       {ranura}
 
-      <MenuDeUsuario
-        admin={admin}
-        gremios={gremios}
-        gremio={gremio}
-        alElegirGremio={alElegirGremio}
-        alSalir={alSalir}
-        desplegado={abierto === "usuario"}
-        alAlternar={() => setAbierto((a) => (a === "usuario" ? null : "usuario"))}
-      />
+      {/* AQUÍ SE MIDE EL BLOQUE DE USUARIO, y sin este envoltorio no se
+          medía: la referencia estaba declarada y nunca se enganchó a
+          nada, así que la cuenta del ajuste tomaba su ancho como 0 y
+          creía que la fila cabía con 214 px de más. De ahí que
+          «Configuración» se metiera por debajo del nombre en cuanto la
+          ventana bajaba de ~1.100 px (medido el 23 sep 2026). */}
+      <div ref={derecha} className="flex shrink-0 items-center">
+        <MenuDeUsuario
+          admin={admin}
+          gremios={gremios}
+          gremio={gremio}
+          alElegirGremio={alElegirGremio}
+          alSalir={alSalir}
+          desplegado={abierto === "usuario"}
+          alAlternar={() => setAbierto((a) => (a === "usuario" ? null : "usuario"))}
+        />
+      </div>
     </div>
   );
 }

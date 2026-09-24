@@ -98,8 +98,12 @@ function Resumen() {
 
       <header className="no-imprimir flex flex-wrap items-start justify-between gap-4">
         <div className="min-w-0">
+          {/* SIN SALUDO (cliente, 23 sep 2026): «ese hola ana se va».
+              No es un dato, y ocupaba el sitio del título en la única
+              pantalla que no decía qué era. Quien entra ya sabe cómo
+              se llama; lo que necesita saber es dónde está. */}
           <h1 className="text-[1.125rem] font-bold tracking-[-0.02em] text-titulo">
-            Hola, {admin.nombre.split(" ")[0]}
+            Resumen
           </h1>
           <p className="mt-0.5 text-[0.78125rem] text-texto-suave">
             Todo lo que pasa en sus convocatorias, en una sola vista
