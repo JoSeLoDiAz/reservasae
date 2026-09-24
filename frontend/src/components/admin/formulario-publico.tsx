@@ -33,6 +33,11 @@ import { Tarjeta } from "./marco-admin";
  * ofreciera dejaría marcar a mano como pauta un tráfico que no lo
  * es — justo lo que la atribución a pauta se paró para evitar.
  */
+/// El valor del desplegable que dice «lo escribo yo». Empieza por
+/// dos guiones bajos para que no se pueda confundir nunca con un
+/// `utm_source` de verdad, y no sale del panel.
+export const CANAL_PROPIO = "__propio";
+
 export const CANALES_DEL_ENLACE = [
   { utm: "", etiqueta: "Sin marcar" },
   { utm: "correo", etiqueta: "Correo" },
@@ -45,6 +50,46 @@ export const CANALES_DEL_ENLACE = [
   /// nombre de la campaña; el servidor solo la da por pagada si la
   /// visita lo prueba (`fbclid` o la app de Meta).
   { utm: "pauta", etiqueta: "Pauta (anuncio de Meta)" },
+  /// EL CANAL QUE NO ESTÁ EN LA LISTA, escrito a mano (cliente, 24
+  /// sep 2026: «que exista uno que pueda ser personalizable, ya que
+  /// este no se tiene»).
+  ///
+  /// `__propio` NO viaja: es un marcador de la pantalla. Lo que
+  /// viaja es la palabra que se teclee, y cae en «Otro canal
+  /// etiquetado», que aquí NO es un fallo --como sí lo sería en una
+  /// opción fija-- porque quien la escribe eligió inventarse el
+  /// canal. La medición lo separa igual por el nombre del envío.
+  { utm: CANAL_PROPIO, etiqueta: "Otro (lo escribo yo)" },
+] as const;
+
+/**
+ * LO QUE NO SE PUEDE ESCRIBIR COMO CANAL PROPIO, y por qué es lo
+ * único que se prohíbe.
+ *
+ * El desplegable no ofrece Facebook, Instagram ni Meta a propósito:
+ * esas las pone Ads Manager, y dejar marcarlas a mano sería marcar
+ * como pauta un tráfico que nadie pagó. Un campo de texto libre
+ * reabre esa puerta por detrás --se teclea «meta» y ya está--, así
+ * que la cierra aquí.
+ *
+ * Son, palabra por palabra, las que el servidor mapea a Meta o a
+ * pauta (`DICE_FACEBOOK`, `DICE_INSTAGRAM`, `DICE_META`,
+ * `DICE_PAUTA` en `procedencia.ts`). Que esta lista las cubra TODAS
+ * lo ata `lo-que-el-panel-ofrece-se-clasifica.spec.ts`: si alguien
+ * añade una palabra allá y no aquí, la prueba se cae.
+ *
+ * Lo demás sí se puede: escribir «correo» a mano acaba en el mismo
+ * sitio que elegir Correo en la lista, y eso no rompe nada.
+ */
+export const PALABRAS_DE_PAUTA = [
+  "fb",
+  "facebook",
+  "messenger",
+  "ig",
+  "instagram",
+  "meta",
+  "redes",
+  "pauta",
 ] as const;
 
 /**
@@ -238,10 +283,23 @@ export function EnlacePublico({
   /// quedan aquí y no en la URL del panel: es una herramienta
   /// para copiar algo, no un estado que haya que compartir.
   const [canal, setCanal] = useState("");
+  const [canalPropio, setCanalPropio] = useState("");
   const [envio, setEnvio] = useState("");
 
-  const marcada = urlMarcada(url, canal, envio);
+  /// La palabra que de verdad viaja. Con la lista, la del
+  /// desplegable; con «lo escribo yo», la tecleada y ya limpia.
+  const suyo = comoViaja(canalPropio);
+  const prohibida = PALABRAS_DE_PAUTA.includes(suyo as (typeof PALABRAS_DE_PAUTA)[number]);
+  /// Una palabra prohibida NO marca el enlace: se queda sin canal y
+  /// el aviso dice por qué. Marcarlo igual sería contar como pauta
+  /// un tráfico que nadie pagó, que es lo que esta pantalla lleva
+  /// meses cuidando.
+  const utmQueViaja = canal === CANAL_PROPIO ? (prohibida ? "" : suyo) : canal;
+
+  const marcada = urlMarcada(url, utmQueViaja, envio);
   const nombre = comoViaja(envio);
+  /// Lo mismo que con el envío: se avisa solo si difieren.
+  const canalSeTransformo = canalPropio.trim() !== "" && suyo !== canalPropio.trim();
   /// Se avisa solo cuando lo tecleado y lo que viaja DIFIEREN.
   const seTransformo = envio.trim() !== "" && nombre !== envio.trim();
 
@@ -288,6 +346,17 @@ export function EnlacePublico({
                   ))}
                 </select>
               </label>
+              {canal === CANAL_PROPIO && (
+                <label className="text-sm">
+                  <span className="mb-1 block text-texto-suave">Cómo se llama el canal</span>
+                  <input
+                    value={canalPropio}
+                    onChange={(e) => setCanalPropio(e.target.value)}
+                    placeholder="volante"
+                    className="rounded-lg border border-borde bg-superficie px-3 py-2 text-sm"
+                  />
+                </label>
+              )}
               <label className="min-w-0 grow text-sm">
                 <span className="mb-1 block text-texto-suave">
                   {canal === "reserva"
@@ -319,6 +388,27 @@ export function EnlacePublico({
               <p className="mt-1 text-xs text-aviso">
                 Viaja como «{nombre}»: la medición solo guarda letras sin tilde,
                 números y guiones.
+              </p>
+            )}
+            {canal === CANAL_PROPIO && canalSeTransformo && !prohibida && (
+              <p className="mt-1 text-xs text-aviso">
+                El canal viaja como «{suyo}», por lo mismo.
+              </p>
+            )}
+            {prohibida && (
+              <p className="mt-1 text-xs text-error" role="alert">
+                «{suyo}» no se puede usar: es una de las palabras con las que el
+                sistema reconoce la pauta de Meta, y marcarla a mano contaría como
+                pagado un tráfico que no lo es. El enlace se queda sin marcar
+                mientras esté puesta. Escriba otra, por ejemplo «volante» o
+                «emisora».
+              </p>
+            )}
+            {canal === CANAL_PROPIO && suyo !== "" && !prohibida && (
+              <p className="mt-1 text-xs text-texto-suave">
+                Un canal propio no tiene enlace corto, así que la dirección sale
+                con sus <code>utm_</code> a la vista. En Tráfico del formulario
+                aparece con su nombre.
               </p>
             )}
           </div>

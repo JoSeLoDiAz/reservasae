@@ -136,6 +136,25 @@ const DICE_INSTAGRAM = ['ig', 'instagram'];
 const DICE_META = ['meta', 'redes'];
 
 /**
+ * TODAS las palabras con las que este fichero reconoce a Meta.
+ *
+ * Existe para que se pueda comprobar desde fuera. Desde el 24 sep
+ * 2026 el panel deja ESCRIBIR el canal a mano, y un campo libre
+ * reabre por detras la puerta que el desplegable cierra: se teclea
+ * «meta» y ese trafico se cuenta como pauta sin que nadie la haya
+ * pagado. El panel las prohibe (`PALABRAS_DE_PAUTA`, en
+ * `formulario-publico.tsx`) y `lo-que-el-panel-ofrece-se-clasifica`
+ * ata que su lista cubra esta: si aqui se anade una y alla no, la
+ * prueba se cae en vez de abrirse el agujero en silencio.
+ */
+export const DICEN_PAUTA = [
+  ...DICE_FACEBOOK,
+  ...DICE_INSTAGRAM,
+  ...DICE_META,
+  ...DICE_PAUTA,
+];
+
+/**
  * El host ES el dominio, o cuelga de él.
  *
  * Un `LIKE '%facebook.com'` a secas casa `notfacebook.com`, y un
@@ -186,9 +205,32 @@ export function pagadaSql(): Prisma.Sql {
     END`;
 }
 
-export function procedenciaSql(): Prisma.Sql {
+/**
+ * @param conSuNombre pega la palabra declarada al cajón de «otro».
+ *
+ * Desde el 24 sep 2026 el panel deja ESCRIBIR el canal. Sin esto,
+ * tres enlaces marcados «volante», «emisora» y «feria» salen los
+ * tres como «Otro canal etiquetado» y no hay forma de saber cuál
+ * rindió: sería dar la función y no lo que se pedía con ella.
+ *
+ * Va como PARÁMETRO y no como función aparte para que el `CASE` sea
+ * uno solo. Dos copias del mismo árbol de decisiones acaban
+ * discrepando, y el día que discrepen la pantalla dirá una cosa y
+ * el sello del lead otra.
+ *
+ * Lo piden solo los cortes que se PINTAN. Quien clasifica una
+ * visita para sellar el lead (`procedenciaDe`) lo llama sin
+ * parámetro: ahí hace falta el cajón, no la palabra.
+ */
+export function procedenciaSql(conSuNombre = false): Prisma.Sql {
   const ref = `lower(coalesce("referente",''))`;
   const utm = `lower(coalesce("utmFuente",''))`;
+  /// `OTRO_DECLARADO:volante`. El separador es `:`, y no puede
+  /// partir la palabra en dos: `comoViaja()` convierte en guion
+  /// todo lo que no sea letra o número, así que nunca llega uno.
+  const otro = conSuNombre
+    ? Prisma.raw(`'OTRO_DECLARADO:' || ${utm}`)
+    : Prisma.raw(`'OTRO_DECLARADO'`);
   return Prisma.sql`
     CASE
       WHEN "navegador" = 'APP_INSTAGRAM' THEN 'INSTAGRAM'
@@ -210,7 +252,7 @@ export function procedenciaSql(): Prisma.Sql {
       WHEN "navegador" = 'APP_META' OR "huboFbclid" IS TRUE THEN 'META'
       WHEN ${Prisma.raw(utm)} IN (${Prisma.join(DICE_PAUTA)}) THEN 'META'
       WHEN ${alguno(ref, BUSCADORES)} THEN 'BUSQUEDA'
-      WHEN ${Prisma.raw(utm)} <> '' THEN 'OTRO_DECLARADO'
+      WHEN ${Prisma.raw(utm)} <> '' THEN ${otro}
       WHEN ${Prisma.raw(ref)} <> '' THEN 'OTRA_WEB'
       ELSE 'SIN_REFERENCIA'
     END`;

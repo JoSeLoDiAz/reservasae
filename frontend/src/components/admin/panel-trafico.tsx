@@ -113,6 +113,26 @@ const RANGOS = [
 /// Este diccionario vive AQUÍ y en ningún otro sitio. Hubo una
 /// copia en el servidor que nadie importaba: dos diccionarios sin
 /// nada que los ate es el defecto que este cambio vino a evitar.
+/**
+ * El nombre de una procedencia, con la palabra propia si la trae.
+ *
+ * El servidor manda `OTRO_DECLARADO:volante` cuando alguien marcó
+ * el enlace con un canal suyo (24 sep 2026). Sin esto, los canales
+ * propios saldrían todos como «Otro canal etiquetado» y no se
+ * podrían comparar entre ellos, que es justo para lo que se pidió
+ * poder escribirlos.
+ */
+export function nombreDeProcedencia(valor: string | null): string {
+  const v = valor ?? "";
+  if (v.startsWith("OTRO_DECLARADO:")) {
+    const suya = v.slice("OTRO_DECLARADO:".length);
+    /// Con la palabra vacía --que no debería llegar-- se cae al
+    /// cajón de siempre en vez de enseñar un rótulo mudo.
+    return suya === "" ? NOMBRE_PROCEDENCIA.OTRO_DECLARADO : suya;
+  }
+  return NOMBRE_PROCEDENCIA[v] ?? v ?? "Sin dato";
+}
+
 const NOMBRE_PROCEDENCIA: Record<string, string> = {
   FACEBOOK: "Facebook",
   INSTAGRAM: "Instagram",
@@ -338,7 +358,7 @@ export function PanelTrafico() {
     datos?.comparado && !bSinContador ? PELDANOS.map((p) => antes.get(p.paso) ?? 0) : null;
 
   const porcionesProcedencia: PorcionDonut[] = (datos?.procedencia ?? []).map((f) => ({
-    etiqueta: NOMBRE_PROCEDENCIA[f.valor ?? ""] ?? "Sin dato",
+    etiqueta: nombreDeProcedencia(f.valor),
     valor: f.visitas,
   }));
 
@@ -1726,7 +1746,7 @@ function Historico({ h }: { h: HistoricoDeTrafico }) {
           <div className="mt-2.5">
             <ListaBarras
               datos={h.procedencia.map((c) => ({
-                etiqueta: NOMBRE_PROCEDENCIA[c.valor ?? ""] ?? c.valor ?? "Sin dato",
+                etiqueta: nombreDeProcedencia(c.valor),
                 valor: c.visitas,
                 detalle: c.envios > 0 ? `${n(c.envios)} envíos` : undefined,
               }))}
