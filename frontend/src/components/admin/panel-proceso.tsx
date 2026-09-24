@@ -1850,10 +1850,10 @@ export function PanelProceso({
     if (cuelloMayor) lista.push(`Donde más gente se queda: ${cuelloMayor}`);
     lista.push(
       "Los cuatro pasos del embudo: entraron, fueron contactadas, tienen sus datos completos («Con datos») y se inscribieron. Cada porcentaje es cuánta gente de la que entró llegó a ese paso.",
-      "Siguen en proceso: de los que entraron en el periodo, no se han inscrito y tampoco han dicho que no. Son los que se pueden trabajar hoy.",
-      "Se inscribe: llegaron a inscribirse, estén hoy estudiando el curso o no. Quien entró antes del periodo y se inscribió en estos días no cuenta aquí: eso lo dice «Ritmo de inscripción».",
-      "Dijeron que no: marcados como no interesados. Salen del embudo. Cuentan como contactados, así que están dentro de «contactados, sin datos».",
-      "Tardan en inscribirse: la media sale de quienes se inscribieron en el periodo, entraran cuando entraran; no es la misma gente de las otras tres cifras.",
+      "En proceso: de los leads que entraron en el periodo, no se han inscrito y tampoco han dicho que no. Son los que se pueden trabajar hoy.",
+      "Inscritos: llegaron a inscribirse, estén hoy estudiando el curso o no. Quien entró antes del periodo y se inscribió en estos días no cuenta aquí: eso lo dice «Ritmo de inscripción».",
+      "Descartados: marcados como no interesados. Salen del embudo. Cuentan como contactados, así que están dentro de «contactados, sin datos».",
+      "Conversión en días: la media sale de quienes se inscribieron en el periodo, entraran cuando entraran; no es la misma gente de las otras tres cifras.",
     );
     return lista;
   }, [entraron, hitos, apunteDeLaComparacion, cuelloMayor]);
