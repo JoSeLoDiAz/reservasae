@@ -610,6 +610,44 @@ aprendizaje, no la disculpa:
   porque la oferta virtual de Antioquia (200) sirve a los dos grupos a la vez; salen ~511 y
   ~489.
 
+### D5 · 🔴 Antes de que la pruebes en local: el 500 del login NO es de esta rama
+
+Si bajas la rama, haces `nest build` y arrancas con `node dist/main`, **el login te va a
+contestar 500**:
+
+```
+ERROR [ExceptionsHandler] Error: secretOrPrivateKey must have a value
+    at AdminController.iniciarSesion (admin.controller.ts:101)
+```
+
+**Lo comprobé contra `dev` puro y hace exactamente lo mismo**, así que no lo trae esta rama.
+Lo dejo escrito porque a mí me costó una hora y no quiero que te cueste otra.
+
+**Qué pasa.** `admin.module.ts` hace `JwtModule.register({ secret: process.env.ADMIN_JWT_SECRET })`,
+y eso se evalúa cuando se IMPORTA el módulo — antes de que `ConfigModule.forRoot()` llegue a
+leer el `.env`. Así que el firmante se registra con `undefined` y el fallo no aparece hasta
+que alguien intenta entrar. Con las variables ya en el entorno del proceso funciona:
+
+```bash
+# 500
+node dist/main
+# 200
+set -a && . ./.env && set +a && node dist/main
+```
+
+**En producción no se nota**, y por eso lleva ahí sin molestar: en los contenedores las
+variables vienen del entorno, no de un fichero. Muerde solo a quien lo corre en su máquina
+con un `.env`.
+
+**El arreglo es una línea**, la primera de `main.ts`:
+
+```ts
+import 'dotenv/config';   // antes que cualquier otro import
+```
+
+No lo he puesto yo: es de tu lado y toca el arranque de todo. Dime y lo hago, o lo haces tú en
+diez segundos.
+
 ---
 
 ### B9 · Lo que quedó pendiente y es tuyo decidir
