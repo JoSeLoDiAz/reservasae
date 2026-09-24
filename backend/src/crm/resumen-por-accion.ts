@@ -9,7 +9,7 @@
  *
  * | Columna              | De dónde |
  * |----------------------|----------|
- * | Meta                 | Cronograma: la suma de `cuposBase` de las coberturas de sus grupos. «Ahí tienes Grupo (departamento del grupo) y cantidad de cupos: ahí tienes el insumo». |
+ * | Meta                 | Cronograma: la suma de `cuposMaximos` de las coberturas de sus grupos --o sea, CON el 30 %--. «Ahí tienes Grupo (departamento del grupo) y cantidad de cupos: ahí tienes el insumo». |
  * | Cupos reservados     | Reservas CONFIRMADAS de sus ofertas, sumando `cuposConfirmados`. |
  * | Campaña digital      | Personas que llegaron por su cuenta --formulario, pauta, mailing, WhatsApp--, o sea todas menos las que nominó una empresa. |
  * | Inscritos reservas   | De las nominadas por empresa, las que ya están inscritas. |
@@ -20,9 +20,17 @@
  *
  * DOS DECISIONES QUE NO SON OBVIAS:
  *
- * 1. `cuposBase` y no `cuposMaximos`. La meta es lo comprometido en el
- *    proyecto; `cuposMaximos` trae el 30 % de sobrecupo, que es margen
- *    de gestión y no meta. En su Excel AF1 son 520 = 8 grupos × 65.
+ * 1. `cuposMaximos` y no `cuposBase`. O sea, CON el 30 % de sobrecupo:
+ *    «esto es con el 30 %, tanto en la general como en la que se ve
+ *    por AF» (cliente, 23 sep 2026).
+ *
+ *    Esto estuvo al revés y hay que decir por qué, porque el
+ *    argumento de entonces suena sensato y volverá: se puso
+ *    `cuposBase` razonando que la meta es lo comprometido ante el SENA
+ *    y que el 30 % es margen de gestión. El cliente lo corrigió, y su
+ *    Excel le da la razón: ahí AF1 son 520 = 8 grupos × 65, que es el
+ *    máximo, no la base. La meta con la que él trabaja es hasta dónde
+ *    se puede llenar, no el mínimo que hay que entregar.
  *
  * 2. Los cupos disponibles NO descuentan los reservados. Es la misma
  *    regla que el cliente corrigió ese día en Comité Marketing: una
@@ -87,10 +95,11 @@ export function resumenPorAccionSql(ambito: string[], convenioElegido: string | 
            COALESCE(p."inscritosCampana", 0) AS "inscritosCampana"
       FROM "acciones_formacion" a
 
-      -- LA META, DEL CRONOGRAMA. Una acción sin grupos todavía da
-      -- cero, y eso es cierto: no hay cupos comprometidos.
+      -- LA META, DEL CRONOGRAMA Y CON EL 30 % (cliente, 23 sep 2026).
+      -- Una acción sin grupos todavía da cero, y eso es cierto: no hay
+      -- cupos abiertos.
       LEFT JOIN (
-        SELECT g."accionFormacionId" AS aid, SUM(c."cuposBase")::int AS meta
+        SELECT g."accionFormacionId" AS aid, SUM(c."cuposMaximos")::int AS meta
           FROM "grupos" g
           JOIN "grupos_cobertura" c ON c."grupoId" = g."id"
          GROUP BY 1
