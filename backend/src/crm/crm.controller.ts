@@ -393,7 +393,16 @@ export class CrmController {
     @AmbitoActual() ambito: Ambito,
     @Query('convenioId') convenioId?: string,
   ) {
-    const elegido = convenioId ?? ambito.convenios[0];
+    /// CON DOS GREMIOS NO SE ADIVINA.
+    ///
+    /// `ambito.convenios[0]` sale del orden en que la base devolvió
+    /// las concesiones, no del que la persona eligió en la pantalla.
+    /// Con los dos gremios bajaba la plantilla del otro, con 200 y sin
+    /// aviso — y no se puede corregir a mano, porque la validación de
+    /// la columna del curso va con `errorStyle: 'stop'` y ninguna
+    /// acción se repite entre convenios. Es la regla del webhook de
+    /// leads: adivinar el gremio es peor que no contestar.
+    const elegido = convenioId ?? (ambito.convenios.length === 1 ? ambito.convenios[0] : undefined);
     if (!elegido) {
       throw new BadRequestException('Elija el convenio antes de descargar la plantilla.');
     }
