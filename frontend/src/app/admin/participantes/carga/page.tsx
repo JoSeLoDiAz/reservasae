@@ -22,6 +22,15 @@ import {
 } from "@/lib/crm-api";
 import { Desplegable } from "@/components/admin/desplegable";
 
+/// Los cinco datos de la hoja «Organización» de la plantilla.
+type OrganizacionDeCarga = {
+  nit?: string;
+  razonSocial?: string;
+  jefeNombre?: string;
+  jefeCargo?: string;
+  jefeCorreo?: string;
+};
+
 type Estado = "NUEVA" | "PERSONA_CONOCIDA" | "REPETIDA" | "DESCARTADA";
 
 type FilaPrevia = {
@@ -67,6 +76,12 @@ export default function PaginaCarga() {
   const [error, setError] = useState<string | null>(null);
   const [ocupado, setOcupado] = useState(false);
   const [deArchivo, setDeArchivo] = useState<string | null>(null);
+  /// La hoja «Organización» del archivo. Viaja tal cual a
+  /// previsualizar y a confirmar: sin esto el backend la lee, la
+  /// devuelve y aquí se tiraba en silencio, con lo que los cinco
+  /// datos que pide la plantilla --y que bloquean el F7-- no se
+  /// guardaban en ningún sitio y nadie recibía un error.
+  const [organizacion, setOrganizacion] = useState<OrganizacionDeCarga | null>(null);
   const [nombreArchivo, setNombreArchivo] = useState<string | null>(null);
   const [historico, setHistorico] = useState<CargaDelHistorico[] | null>(null);
   const [falloHistorico, setFalloHistorico] = useState<string | null>(null);
@@ -136,11 +151,13 @@ export default function PaginaCarga() {
     await conError(async () => {
       const cuerpo = new FormData();
       cuerpo.append("archivo", f);
-      const d = await pedir<{ texto?: string; filas?: number }>(
-        "/admin/participantes/carga/archivo",
-        { method: "POST", body: cuerpo },
-      );
+      const d = await pedir<{
+        texto?: string;
+        filas?: number;
+        organizacion?: OrganizacionDeCarga | null;
+      }>("/admin/participantes/carga/archivo", { method: "POST", body: cuerpo });
       setTexto(d.texto ?? "");
+      setOrganizacion(d.organizacion ?? null);
       setNombreArchivo(f.name);
       setDeArchivo(`${f.name} · ${d.filas} ${d.filas === 1 ? "fila" : "filas"}`);
       setPrevia(null);
@@ -336,6 +353,10 @@ export default function PaginaCarga() {
               value={texto}
               onChange={(e) => {
                 setTexto(e.target.value);
+                /// El texto pegado a mano no trae hoja de
+                /// organización: arrastrar la del archivo
+                /// anterior se la pegaría a otra gente.
+                setOrganizacion(null);
                 setDeArchivo(null);
                 setNombreArchivo(null);
                 setPrevia(null);
@@ -357,6 +378,7 @@ export default function PaginaCarga() {
                           convenioId,
                           ofertaId: ofertaId || undefined,
                           texto,
+                          organizacion: organizacion ?? undefined,
                         }),
                       },
                     ),
@@ -434,6 +456,7 @@ export default function PaginaCarga() {
                         convenioId,
                         ofertaId: ofertaId || undefined,
                         texto,
+                        organizacion: organizacion ?? undefined,
                         origenDeCarga: nombreArchivo ? "ARCHIVO" : "PEGADO",
                         nombreArchivo: nombreArchivo ?? undefined,
                       }),
