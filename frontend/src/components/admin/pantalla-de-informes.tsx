@@ -426,7 +426,11 @@ export function PantallaDeInformes({ vista }: { vista?: Pestana }) {
           nada. Mismo relleno que la variante compacta de `Encabezado`
           --13/11 px-- para que las tres pantallas midan igual. */}
       <header
-        className={`flex flex-wrap items-start justify-between gap-4 rounded-2xl border border-borde bg-superficie px-7 pt-[13px] pb-[11px] ${
+        /// `min-h-[56px]` e `items-center`: el alto de la cabecera lo
+        /// fija la tarjeta, no lo que le metan dentro. Sin esto, la
+        /// pantalla que lleva controles medía más que la que solo lleva
+        /// título, y eran cuatro alturas distintas para la misma cosa.
+        className={`flex min-h-[56px] flex-wrap items-center justify-between gap-4 rounded-2xl border border-borde bg-superficie px-7 pt-[13px] pb-[11px] ${
           pestana === "reservas" ? "no-imprimir" : ""
         }`}
       >
@@ -444,7 +448,11 @@ export function PantallaDeInformes({ vista }: { vista?: Pestana }) {
               en Inscripciones, así que un rótulo fijo mentía en una de
               las cuatro. El nombre de la vista es el mismo que el del
               menú, y con eso basta para saber dónde está uno. */}
-          <h1 className="text-[1.125rem] font-bold tracking-[-0.02em] text-titulo">
+          {/* 21 px, el MISMO que el de `Encabezado`. Estuvo en 18 y
+              con eso el informe tenía un título más pequeño que el de
+              cualquier otra pantalla: «proporción, ya hemos hablado de
+              esto» (cliente, 23 sep 2026). */}
+          <h1 className="text-[1.3125rem] font-bold tracking-[-0.02em] text-titulo">
             {PESTANAS.find((p) => p.clave === pestana)?.etiqueta ?? "Tableros"}
           </h1>
           {/* Corto. Dos intentos anteriores explicaban la
@@ -456,35 +464,19 @@ export function PantallaDeInformes({ vista }: { vista?: Pestana }) {
               palabras para lo mismo --una de ellas en inglés-- en
               la misma pantalla fue lo primero que se preguntó
               (cliente, 21 sep 2026). */}
-          {/* UNA DESCRIPCIÓN POR PANTALLA, no una para las tres.
-              Con «Tráfico del formulario» dentro, la frase de
-              siempre --«de la primera entrada a la inscripción»--
-              describía otra cosa que la que se estaba mirando: ahí
-              todavía no hay ninguna persona inscrita, hay visitas.
-              Y la propia pantalla no repite esta frase: dice solo
-              lo que esta no puede saber. */}
-          <p className="mt-0.5 text-[0.78125rem] text-texto-suave">
-            {/* Tráfico tampoco lleva descripción: «esto se va: del
-                 anuncio a la preinscripción…» (cliente, 23 sep 2026).
-                 Lo que esta pantalla no puede saber --desde cuándo
-                 cuenta-- lo dice ella misma, debajo de sus filtros. */}
-            {pestana === "trafico"
-              ? null
-              : pestana === "reservas"
-                ? /* Propia: la de Proceso hablaría de «personas que se
-                     inscriben», y aquí lo que se cuenta son cupos que
-                     apartó una organización, con o sin nombre. */
-                  "Los cupos que apartaron las organizaciones: cuántos, en qué acción de formación y cuántos ya tienen una persona detrás."
-                : /* En el Comité no va ninguna: la tabla se llama
-                     «Planeación de pauta» y su propio pie explica de
-                     dónde sale cada columna, así que la frase de arriba
-                     repetía sin añadir. «Elimina: Seguimiento y control
-                     de las personas que se inscriben…» (cliente, 23 sep
-                     2026). */
-                  pestana === "comite"
-                  ? null
-                  : "Seguimiento y control de las personas que se inscriben, de la primera entrada a la inscripción."}
-          </p>
+          {/* SIN FRASE BAJO EL TÍTULO, en las cuatro vistas.
+
+              Se fueron cayendo de una en una --«esto se va: del anuncio
+              a la preinscripción…», «elimina: seguimiento y control de
+              las personas que se inscriben…»-- y quedaban dos, así que
+              el informe tenía cabeceras de tres altos distintos: 56 px
+              donde no había frase, 72 en Reservas y 81 en Control de
+              inscritos. Medido, y él lo vio: «proporción, ya hemos
+              hablado de esto» (23 sep 2026).
+
+              Lo que cada pantalla no puede saber lo dice ella misma,
+              debajo de sus filtros o en el pie de su tabla, que es
+              donde se lee. */}
         </div>
         {/* LA COMPARACIÓN, AL FRENTE DEL TÍTULO.
 
@@ -496,7 +488,7 @@ export function PantallaDeInformes({ vista }: { vista?: Pestana }) {
 
             El indicador va con ellos, y solo en «Proceso»: en la
             otra pestaña diría una hora que no le corresponde. */}
-        <div className="flex flex-wrap items-end gap-4">
+        <div className="flex flex-wrap items-center gap-4">
           {/* «Qué mirar» estaba suelto en su propio renglón debajo
               del título; va con el periodo, que es la otra decisión
               que enmarca la pantalla entera (cliente, 20 sep
@@ -516,7 +508,7 @@ export function PantallaDeInformes({ vista }: { vista?: Pestana }) {
 
           {pestana === "metas" && (
             <>
-            <div>
+            <div className="flex flex-wrap items-center gap-2">
               {/* DOS PREGUNTAS, DOS RÓTULOS.
 
                   Iban bajo un solo «Periodo y comparación», y el
@@ -526,7 +518,12 @@ export function PantallaDeInformes({ vista }: { vista?: Pestana }) {
                   fechas me sale vs. lo anterior?», cliente, 20 sep
                   2026--. Ahora se leen como lo que son: QUÉ
                   PERIODO se mira, y CONTRA QUÉ se compara. */}
-              <p className="mb-1.5 text-[0.625rem] font-bold tracking-[0.08em] uppercase text-texto-suave">
+              {/* AL LADO Y NO ENCIMA. Apilado, el rótulo subía la
+                  cabecera de 56 a 81 px y esta pantalla quedaba
+                  veinticinco píxeles más alta que sus tres hermanas.
+                  Al lado dice lo mismo y la cabecera mide lo que las
+                  demás. */}
+              <p className="text-[0.625rem] font-bold tracking-[0.08em] uppercase text-texto-suave">
                 Periodo
               </p>
               {/* Anchos de verdad: son dos frases --«Desde el
@@ -589,12 +586,12 @@ export function PantallaDeInformes({ vista }: { vista?: Pestana }) {
                 <button
                   type="button"
                   onClick={() => setContra("AUTO")}
-                  className="mb-1 text-[0.78125rem] text-marca underline underline-offset-2"
+                  className="text-[0.78125rem] text-marca underline underline-offset-2"
                 >
                   Comparar con {anterior.toLowerCase()}
                 </button>
               ) : (
-                <p className="mb-1 flex items-center gap-2 text-[0.78125rem] text-texto">
+                <p className="flex items-center gap-2 text-[0.78125rem] text-texto">
                   <span>
                     Comparando con{" "}
                     <strong className="font-semibold text-titulo">
@@ -768,7 +765,7 @@ function ControlesDePeriodo({
           abren con los colores del panel-- se veía de otra
           aplicación. */}
       <Desplegable
-        alto={34}
+        alto={30}
         etiquetaAria="Periodo"
         valor={rango}
         opciones={RANGOS.map((r) => ({ valor: r, etiqueta: ETIQUETA_RANGO[r] }))}
@@ -815,7 +812,7 @@ function ControlesDePeriodo({
           2026). Queda lo que sí se puede leer: nada, el tramo de
           antes, u otras dos fechas que elija. */}
       <Desplegable
-        alto={34}
+        alto={30}
         etiquetaAria="Comparar con"
         valor={contra}
         opciones={[
