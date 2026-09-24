@@ -31,13 +31,17 @@ import { fraseDeHorario } from '../comun/horario-de-grupo';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditoriaService, ENTIDADES } from '../comun/auditoria.service';
 import { OCUPAN_SILLA, RETIENEN_ASIENTO } from './etapas';
+import type { RolAdmin } from '../../generated/prisma';
+import { exigirQuienAsignaGrupo } from './quien-asigna-grupo';
 import {
   cuantosCaben,
   elegiblesDelGrupo,
   porQueNoCuadraLaCelda,
 } from './elegibles-del-grupo';
 
-type Admin = { id: string; nombre: string };
+/// El `rol` hace falta para el candado del grupo: un SUPERADMIN
+/// pasa sin consultar la base.
+type Admin = { id: string; nombre: string; rol: RolAdmin };
 
 /// Lo que aguanta una petición sin pasarse del corte de Cloudflare.
 /// El mismo tope que el lote de leads, por lo mismo.
@@ -262,6 +266,24 @@ export class AsignarGrupo {
       },
     });
     if (!celda) throw new NotFoundException('Ese grupo no existe.');
+
+    /**
+     * Y EL PERMISO, AHORA CON EL GREMIO DE LA CELDA.
+     *
+     * El guard de la ruta ya preguntó si esta cuenta asigna grupo,
+     * pero POR LA PUERTA GENERAL no hay gremio en la dirección, así
+     * que mira todas sus concesiones: quien lleva sistemas en un
+     * gremio y es asesor en el otro pasaba, y el lote actuaba sobre
+     * fichas del gremio donde solo es asesora.
+     *
+     * Aquí ya se sabe de quién es la celda, así que se pregunta por
+     * ESE convenio. Es la misma cerradura que las otras dos puertas.
+     */
+    await exigirQuienAsignaGrupo(
+      this.prisma,
+      admin,
+      celda.grupo.accionFormacion.convenioId,
+    );
 
     const oferta = await this.prisma.oferta.findUnique({
       where: {

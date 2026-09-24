@@ -1541,10 +1541,39 @@ export class CrmService {
     });
     if (malo) throw new BadRequestException(malo);
 
+    /**
+     * PONER, CAMBIAR Y QUITAR son las tres asignar grupo.
+     *
+     * Todo esto vivía dentro del `if (dto.coberturaId)` de abajo, y
+     * `null` es falso: mandando `coberturaId: null` se saltaba el
+     * candado Y la regla de «no se cambia una vez puesto», y el
+     * borrado se escribía igual más abajo. La misma cuenta recibía
+     * 403 por `/formacion` y 200 por aquí. Es el agujero que se cerró
+     * en `asignar`, abierto en la otra puerta.
+     *
+     * Y una cadena vacía --lo que manda un desplegable al vaciarlo--
+     * no es un id: llegaba a la base como tal y reventaba con un 500.
+     * Vale lo mismo que no tener grupo.
+     */
+    const pidioCobertura = dto.coberturaId !== undefined;
+    const coberturaPedida = dto.coberturaId ? dto.coberturaId : null;
+
+    if (pidioCobertura && coberturaPedida !== (p.coberturaId ?? null)) {
+      /// El paso imposible se juzga primero: decirle «no puede» a
+      /// quien de todas formas no podría hacerlo manda a buscar un
+      /// permiso que no arregla nada.
+      if (p.coberturaId) {
+        throw new ConflictException(
+          'Esta persona ya tiene grupo asignado, y el grupo no se cambia una vez puesto.',
+        );
+      }
+      await exigirQuienAsignaGrupo(this.prisma, admin, p.convenioId);
+    }
+
     // asignar() ya lo comprueba; aqui no se comprobaba
     // nada, y una cobertura de otro curso manda al SEP un
     // AF y un grupo que se contradicen
-    if (dto.coberturaId) {
+    if (coberturaPedida) {
       const suya = await this.prisma.participante.findUnique({
         where: { id },
         select: {
@@ -1573,20 +1602,11 @@ export class CrmService {
        * se manda entera desde la pantalla, asi que si no,
        * guardar cualquier otro campo fallaria.
        */
-      /// `p.coberturaId` y no otra consulta: ya viene arriba.
-      if (p.coberturaId && p.coberturaId !== dto.coberturaId) {
-        throw new ConflictException(
-          'Esta persona ya tiene grupo asignado, y el grupo no se cambia una vez puesto.',
-        );
-      }
-      /// Analista o administrador, también aquí: el asesor guarda su
-      /// lead pero no le pone grupo (cliente, 23 sep 2026). Solo si
-      /// lo CAMBIA: reenviar el mismo pasa, por lo que dice el
-      /// comentario de arriba — la ficha se manda entera.
-      if (p.coberturaId !== dto.coberturaId) {
-        await exigirQuienAsignaGrupo(this.prisma, admin, p.convenioId);
-      }
-      await exigirCoberturaDeLaOferta(this.prisma, dto.coberturaId, {
+      /// El permiso y la regla de «no se cambia» se comprueban ya
+      /// arriba, y para las TRES operaciones: poner, cambiar y
+      /// quitar. Aquí solo queda validar que la cobertura sea de su
+      /// curso y de su sede.
+      await exigirCoberturaDeLaOferta(this.prisma, coberturaPedida, {
         accionFormacionId: suya.accionFormacionId,
         ubicacionId: suya.oferta?.ubicacionId ?? null,
       });
@@ -1627,7 +1647,9 @@ export class CrmService {
       nivelOcupacionalSepId: dto.nivelOcupacionalSepId,
       beneficiarioPrevio: dto.beneficiarioPrevio,
       asesorId: dto.asesorId,
-      coberturaId: dto.coberturaId,
+      /// `undefined` es «no lo mande» y Prisma lo ignora; `null` es
+      /// «quitalo». La cadena vacia ya vale null.
+      coberturaId: pidioCobertura ? coberturaPedida : undefined,
     };
 
     // el asesor lleva su propia nota

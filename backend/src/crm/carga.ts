@@ -46,6 +46,9 @@ export type FilaAnalizada = {
   /// Lo que trae la plantilla ancha. Null cuando la columna no vino:
   /// vacío es «no lo dijeron», y no se inventa nada.
   fechaNacimiento: string | null;
+  /// Su fecha dice que no llega a la edad minima. Va aparte
+  /// porque el `iso` se anula y el dato se perderia.
+  menorDeEdad: boolean;
   generoSepId: number | null;
   departamentoSepId: number | null;
   municipioSepId: number | null;
@@ -180,6 +183,7 @@ export function analizar(texto: string): FilaAnalizada[] {
       correo: correo || null,
       celular: celular || null,
       fechaNacimiento: nacimiento.iso,
+      menorDeEdad: nacimiento.menorDeEdad === true,
       generoSepId: genero.id,
       departamentoSepId: vive.departamentoSepId,
       municipioSepId: vive.municipioSepId,
@@ -204,7 +208,12 @@ export function esInsalvable(f: FilaAnalizada): boolean {
     !f.numeroDocumento ||
     !f.primerNombre ||
     !f.primerApellido ||
-    !PERMITIDOS.has(f.tipoDocumentoSepId)
+    !PERMITIDOS.has(f.tipoDocumentoSepId) ||
+    /// La columna de fecha es nueva, y volvia a abrir la puerta que
+    /// la linea de arriba cerro: se avisaba del menor y se creaba
+    /// igual, con la fecha tirada. «Menores de edad no ingresan» es
+    /// decision del cliente, no un aviso.
+    f.menorDeEdad
   );
 }
 

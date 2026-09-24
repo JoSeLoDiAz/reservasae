@@ -150,7 +150,10 @@ function cumpleLaEtapa(etapa: string, filtro: unknown): boolean {
   return true;
 }
 
-const ADMIN = { id: 'a-1', nombre: 'Ana Jaramillo' };
+/// SUPERADMIN a proposito: el candado del grupo sale antes de
+/// consultar la base para un superadmin, asi que estas pruebas
+/// siguen midiendo lo suyo --que no se sobrevenda-- y no el permiso.
+const ADMIN = { id: 'a-1', nombre: 'Ana Jaramillo', rol: 'SUPERADMIN' as const };
 
 /// Cinco esperando, la celda admite 3.
 const CINCO: Ficha[] = [1, 2, 3, 4, 5].map((n) => ({

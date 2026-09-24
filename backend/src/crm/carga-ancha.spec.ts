@@ -1,6 +1,6 @@
 /** La plantilla ancha: 19 columnas, reconocidas por su título. */
 
-import { analizar } from './carga';
+import { analizar, esInsalvable } from './carga';
 import {
   codigoDeAccion,
   columnasDelEncabezado,
@@ -118,10 +118,32 @@ describe('lo que la plantilla no puede dejar pasar', () => {
     return analizar(hoja(TITULOS, datos))[0];
   };
 
-  it('un menor de edad', () => {
+  /**
+   * EL ASERTO QUE FALTABA, Y ERA EL DEFECTO.
+   *
+   * El test probaba que se avisaba y que la fecha se anulaba, pero
+   * NUNCA que la fila se descartara. Con eso, la previa la rotulaba
+   * «Se importará», el confirm la creaba, y la fecha --el dato que lo
+   * probaba-- se tiraba. «Menores de edad no ingresan» es decisión del
+   * cliente, no un aviso. Probado por mutación: quitando `f.menorDeEdad`
+   * de `esInsalvable`, este aserto cae.
+   */
+  it('un menor de edad NO se importa, no solo se avisa', () => {
     const f = conCambio('Fecha de nacimiento', '15/03/2015');
     expect(f.fechaNacimiento).toBeNull();
+    expect(f.menorDeEdad).toBe(true);
     expect(f.problemas[0]).toMatch(/no llega a 18 años/);
+    expect(esInsalvable(f)).toBe(true);
+  });
+
+  /// Y lo contrario: una fecha mal escrita o futura SÍ es solo aviso.
+  /// Ahí no hay prueba de que la persona no pueda entrar, solo un dato
+  /// mal tecleado; descartarla sería cerrar de más.
+  it('una fecha mal escrita avisa pero NO descarta', () => {
+    const f = conCambio('Fecha de nacimiento', 'el año pasado');
+    expect(f.fechaNacimiento).toBeNull();
+    expect(f.menorDeEdad).toBe(false);
+    expect(esInsalvable(f)).toBe(false);
   });
 
   it('una ciudad que no es de ese departamento', () => {

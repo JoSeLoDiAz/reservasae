@@ -329,8 +329,22 @@ export default function PaginaCarga() {
               {ocupado ? "Leyendo el archivo…" : "Seleccionar archivo"}
             </button>
 
+            {/* La plantilla es DEL CONVENIO --sus desplegables traen
+                los cursos de ese gremio-- así que el enlace tiene que
+                llevarlo. Sin él el servidor contesta 400, y como la
+                descarga va por navegación ese JSON sustituye el panel
+                entero. Si todavía no hay convenio elegido no se
+                navega: se dice en el aviso que ya existe arriba. */}
             <a
-              href="/api/admin/participantes/carga/plantilla"
+              href={`/api/admin/participantes/carga/plantilla${
+                convenioId ? `?convenioId=${encodeURIComponent(convenioId)}` : ""
+              }`}
+              onClick={(e) => {
+                if (!convenioId) {
+                  e.preventDefault();
+                  setError("Elija el convenio antes de descargar la plantilla.");
+                }
+              }}
               className="sin-aro inline-flex h-[32px] items-center rounded-[9px] border border-campo-borde bg-superficie px-[13px] text-[0.78125rem] font-semibold whitespace-nowrap text-titulo no-underline transition hover:border-marca"
             >
               Descargar plantilla

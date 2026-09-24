@@ -270,7 +270,19 @@ export function leerSiNo(texto: string): { valor: boolean | null; problema?: str
  * vino sin formato de fecha. Y exige mayoría de edad: escribir el año en
  * curso por descuido es el error que el cliente vio venir.
  */
-export function leerFechaDeNacimiento(texto: string): { iso: string | null; problema?: string } {
+export function leerFechaDeNacimiento(texto: string): {
+  iso: string | null;
+  problema?: string;
+  /// SE DEVUELVE APARTE, y no basta con el problema en texto.
+  ///
+  /// El menor se detectaba aquí y se anulaba el `iso`, así que quien
+  /// decide después --`esInsalvable`-- se quedaba sin el dato que lo
+  /// probaba: la fila salía «Se importará» y se creaba. Las otras dos
+  /// ramas que anulan la fecha --no es una fecha, es futura-- siguen
+  /// siendo solo aviso: ahí no hay prueba de que no pueda entrar, solo
+  /// un dato mal escrito.
+  menorDeEdad?: boolean;
+} {
   const t = texto.trim();
   if (!t) return { iso: null };
 
@@ -300,7 +312,11 @@ export function leerFechaDeNacimiento(texto: string): { iso: string | null; prob
     return { iso: null, problema: `«${texto}» es una fecha futura` };
   }
   if (edadCumplida(fecha) < EDAD_MINIMA) {
-    return { iso: null, problema: `con «${texto}» la persona no llega a ${EDAD_MINIMA} años` };
+    return {
+      iso: null,
+      menorDeEdad: true,
+      problema: `con «${texto}» la persona no llega a ${EDAD_MINIMA} años`,
+    };
   }
   return { iso };
 }
