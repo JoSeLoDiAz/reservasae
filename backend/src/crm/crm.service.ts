@@ -75,6 +75,18 @@ import {
   faltaDeLaPersona,
   revisar,
 } from './completitud';
+import {
+  motivoDeSegundaImposible,
+  type AccionParaCombinar,
+} from './segunda-inscripcion';
+
+/// Lo que la regla de la pareja necesita saber de una accion.
+const CAMPOS_DE_COMBINACION = {
+  id: true,
+  codigo: true,
+  nombre: true,
+  combinaConAccionId: true,
+} as const;
 import { pasarSiNoLeFaltaNada } from './datos-completos';
 import { PanelDeCupos } from './panel-de-cupos';
 import { ColaRui } from './rui/cola-rui';
@@ -1412,6 +1424,44 @@ export class CrmService {
           );
         }
         sobrecupo = { porId: admin.id, motivo: dto.sobrecupoMotivo };
+      }
+    }
+
+    /// UNA FICHA POR PERSONA, salvo la pareja que se cursa junta.
+    ///
+    /// No existía ningún candado: el `upsert` de abajo reúsa a la
+    /// persona por documento y la segunda ficha se creaba sin que
+    /// nada se quejara --se podía estar en AF1, AF3 y AF5 a la
+    /// vez--. La regla es de Josse (24 sep 2026) y vive en
+    /// `segunda-inscripcion.ts`, por ID y no por código: «AF7»
+    /// existe en los dos gremios y no es la misma cosa.
+    ///
+    /// Va DENTRO del gremio: la misma cédula en los dos convenios
+    /// sigue siendo una persona con dos participaciones, y eso no
+    /// se toca --es lo que responde «cuánta gente distinta hemos
+    /// formado»--.
+    if (dto.accionFormacionId) {
+      const suyas = await this.prisma.participante.findMany({
+        where: {
+          convenioId: dto.convenioId,
+          persona: {
+            tipoDocumentoSepId: dto.tipoDocumentoSepId,
+            numeroDocumento: numero,
+          },
+          accionFormacionId: { not: null },
+        },
+        select: { accionFormacion: { select: CAMPOS_DE_COMBINACION } },
+      });
+      const nueva = await this.prisma.accionFormacion.findUnique({
+        where: { id: dto.accionFormacionId },
+        select: CAMPOS_DE_COMBINACION,
+      });
+      if (nueva) {
+        const motivo = motivoDeSegundaImposible(
+          nueva,
+          suyas.map((p) => p.accionFormacion!).filter(Boolean),
+        );
+        if (motivo) throw new ConflictException(motivo);
       }
     }
 

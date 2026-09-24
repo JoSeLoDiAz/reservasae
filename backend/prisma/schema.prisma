@@ -106,6 +106,9 @@ model AccionFormacion {
   creadoEn      DateTime @default(now())
   actualizadoEn DateTime @updatedAt
 
+  /// Con cual se puede cursar ADEMAS de esta. Nulo = con ninguna.
+  combinaConAccionId String?
+
   convenio      Convenio       @relation(fields: [convenioId], references: [id], onDelete: Cascade)
   grupos        Grupo[]
   ofertas       Oferta[]
@@ -113,9 +116,13 @@ model AccionFormacion {
   actividades   Actividad[]
   leads         LeadEntrante[]
 
+  combinaCon  AccionFormacion?  @relation('SeCursanJuntas', fields: [combinaConAccionId], references: [id], onDelete: SetNull)
+  laCombinan  AccionFormacion[] @relation('SeCursanJuntas')
+
   // el codigo solo es unico por convenio
   @@unique([convenioId, codigo])
   @@index([convenioId, visible, orden])
+  @@index([combinaConAccionId])
   @@map("acciones_formacion")
 }
 
