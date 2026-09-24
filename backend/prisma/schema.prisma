@@ -116,8 +116,8 @@ model AccionFormacion {
   actividades   Actividad[]
   leads         LeadEntrante[]
 
-  combinaCon  AccionFormacion?  @relation('SeCursanJuntas', fields: [combinaConAccionId], references: [id], onDelete: SetNull)
-  laCombinan  AccionFormacion[] @relation('SeCursanJuntas')
+  combinaCon  AccionFormacion?  @relation("SeCursanJuntas", fields: [combinaConAccionId], references: [id], onDelete: SetNull)
+  laCombinan  AccionFormacion[] @relation("SeCursanJuntas")
 
   // el codigo solo es unico por convenio
   @@unique([convenioId, codigo])
