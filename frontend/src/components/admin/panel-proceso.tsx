@@ -2065,16 +2065,10 @@ export function PanelProceso({
       <div className="rounded-xl border border-borde bg-superficie px-4 py-3.5">
         <p className="mb-2.5 text-[0.6875rem] font-bold tracking-[0.08em] text-texto-suave uppercase">
           Filtros
-          {/* «20 personas de qué putas» (cliente, 20 sep 2026):
-              decía «en el proceso», que no dice ni de cuándo ni de
-              dónde salen. Son las que ENTRARON en el periodo de
-              arriba, ya recortadas por estos filtros. */}
-          {entraron > 0 && (
-            <span className="ml-2.5 font-normal tracking-normal text-marca normal-case">
-              <strong className="font-semibold tabular-nums">{n(entraron)}</strong>{" "}
-              {entraron === 1 ? "persona entró" : "personas entraron"} {cuandoEnFrase}
-            </span>
-          )}
+          {/* SIN LA CUENTA AL LADO. «Eliminar: 132 personas entraron
+              desde el principio» (cliente, 23 sep 2026). La cifra ya
+              está en la tira de abajo y en el Resumen General, y aquí
+              arriba competía con el rótulo del filtro. */}
           {hayFiltro && (
             <button
               onClick={quitarFiltros}
@@ -2093,15 +2087,18 @@ export function PanelProceso({
             `auto-fit` con mínimo de 150px: caben los cinco en
             una fila ancha y bajan solos al estrechar, sin
             «breakpoint» que mantener. */}
-        <div
-          className="grid gap-2"
-          style={{ gridTemplateColumns: "repeat(auto-fit,minmax(150px,1fr))" }}
-        >
+        {/* LA ACCIÓN, EL DOBLE DE ANCHA QUE EL GRUPO (cliente, 23 sep
+            2026). Antes las cinco columnas medían igual y el nombre de
+            un curso no cabe en lo mismo que «Grupo 1». Con `flex` y
+            bases distintas cada control pide lo que necesita, y al
+            estrechar bajan solos sin un corte fijo que mantener. */}
+        <div className="flex flex-wrap gap-2 [&>*]:min-w-0">
             {/* El gremio solo cuando hay más de uno.
                 Con un solo gremio en el ámbito, el desplegable
                 ofrece elegir lo único que hay: ocupa sitio y no
                 recorta nada. */}
             {listas.convenios.length > 1 && (
+              <div className="min-w-0 flex-[1_1_140px]">
               <Desplegable
                 alto={34}
                 marcador="Gremios"
@@ -2112,11 +2109,11 @@ export function PanelProceso({
                   ...listas.convenios.map((x) => ({
                     valor: x.id,
                     etiqueta: x.nombre,
-                    detalle: `${n(x.total)} ${x.total === 1 ? "persona" : "personas"}`,
                   })),
                 ]}
                 alElegir={setConvenioId}
               />
+              </div>
             )}
 
             {/* Desplegable y no buscador: los cinco filtros se
@@ -2131,6 +2128,7 @@ export function PanelProceso({
                 no salir sin borrar los cinco filtros-- y la
                 segunda línea cuenta la gente del periodo de
                 arriba, no la de todo el histórico. */}
+            <div className="min-w-0 flex-[3_1_320px]">
             <Desplegable
               alto={34}
               marcador="Acción de formación"
@@ -2147,12 +2145,13 @@ export function PanelProceso({
                   /// de ellas en inglés-- en la misma pantalla es
                   /// lo primero que se preguntó (cliente, 21 sep
                   /// 2026).
-                  detalle: `${n(a.total)} ${a.total === 1 ? "persona" : "personas"}`,
                 })),
               ]}
               alElegir={setAccionFormacionId}
             />
+            </div>
 
+            <div className="min-w-0 flex-[1_1_150px]">
             <Desplegable
               alto={34}
               marcador="Grupo"
@@ -2165,20 +2164,17 @@ export function PanelProceso({
                   /// Con el código de su acción delante: «Grupo 1»
                   /// existe en las quince acciones.
                   etiqueta: `${g.accion} · Grupo ${g.numero}`,
-                  /// Y CON EL NOMBRE DEL CURSO en la segunda
-                  /// línea: «AF1» es un código que no dice nada a
-                  /// quien no lo haya aprendido (cliente, 21 sep
-                  /// 2026), y aquí ya había un renglón libre.
-                  detalle: [
-                    nombreDeAccion.get(g.accion),
-                    `${n(g.total)} ${g.total === 1 ? "persona" : "personas"}`,
-                  ]
-                    .filter(Boolean)
-                    .join(" · "),
+                  /// SIN SEGUNDA LÍNEA. Llevaba el nombre del curso
+                  /// y la cantidad, y el cliente los quitó los dos:
+                  /// «solo la AF y grupo, ejemplo: AF1 Grupo 1; ¿para
+                  /// qué el nombre si lo tengo al lado?» (23 sep
+                  /// 2026). El nombre está en el desplegable de
+                  /// acción, justo a la izquierda.
                 })),
               ]}
               alElegir={setGrupoId}
             />
+            </div>
 
             {/* AQUÍ VIVÍA «Etapas», Y SE QUITA (20 sep 2026).
                 No recortaba nada de esta pantalla: `/resumen`
@@ -2198,6 +2194,7 @@ export function PanelProceso({
                 mirar una etapa está la pantalla de leads, que sí
                 filtra por ella. */}
 
+            <div className="min-w-0 flex-[1_1_170px]">
             <Desplegable
               alto={34}
               marcador="Asesores"
@@ -2208,12 +2205,13 @@ export function PanelProceso({
                 ...listas.asesores.map((a) => ({
                   valor: a.id,
                   etiqueta: a.nombre,
-                  detalle: `${n(a.total)} ${a.total === 1 ? "persona" : "personas"}`,
                 })),
               ]}
               alElegir={setAsesorId}
             />
+            </div>
 
+            <div className="min-w-0 flex-[1_1_170px]">
             <Desplegable
               alto={34}
               marcador="Departamentos"
@@ -2238,11 +2236,11 @@ export function PanelProceso({
                   .map((d) => ({
                     valor: String(d.id),
                     etiqueta: d.nombre,
-                    detalle: `${n(d.total)} ${d.total === 1 ? "persona" : "personas"}`,
                   })),
               ]}
               alElegir={setDepartamentoSepId}
             />
+            </div>
         </div>
 
         {/* LAS PALABRAS DEL OFICIO, EXPLICADAS DONDE SALEN.
@@ -2251,10 +2249,6 @@ export function PanelProceso({
             sep 2026). Una línea debajo de los cinco cuesta un
             renglón y evita tener que aprenderse el vocabulario
             en otra pantalla. */}
-        <p className="mt-2 text-[0.6875rem] leading-snug text-texto-suave">
-          Gremio: la agremiación que trae a las personas. Acción de formación: el curso, con
-          su código («AF1»). Grupo: cada ficha de ese curso.
-        </p>
       </div>
 
       {/* La barra fina de arriba mientras llega el dato nuevo.
@@ -2381,7 +2375,7 @@ export function PanelProceso({
         {/* ── 6 · Dónde está cada quien y si sus datos sirven ── */}
         <div className="grid gap-4 min-[1000px]:grid-cols-2">
           <Bloque
-            titulo="Dónde está cada persona hoy"
+            titulo="Estado del lead"
             descripcion="En qué paso está parada cada persona hoy, agrupados por fase."
           >
             <div className="space-y-4">
@@ -2475,14 +2469,13 @@ export function PanelProceso({
             /// cuenta a los que SE INSCRIBIERON en el periodo,
             /// entraran cuando entraran. Por eso las dos cifras
             /// son distintas y las dos están bien.
-            descripcion="Cuenta a quien SE INSCRIBIÓ en el periodo, entrara cuando entrara. El embudo de arriba cuenta a quien ENTRÓ en el periodo, así que las dos cifras no tienen por qué coincidir."
           >
             <Serie datos={control?.serie ?? []} cuando={cuandoEnFrase} />
           </Bloque>
           </div>
 
           <Bloque
-            titulo="De dónde vienen"
+            titulo="Origen del Lead"
             /// DICE DE QUÉ HABLA, porque no obedece al periodo.
             ///
             /// Sale de `conversionPorOrigen`, que el backend
@@ -2495,7 +2488,6 @@ export function PanelProceso({
             /// 101 personas, pegado a un vecino que sí dice
             /// «la gente del periodo». Si un bloque no hace caso
             /// al periodo, tiene que decirlo él.
-            descripcion="Volumen por canal y cuánto convierte cada uno. Obedece a los cinco filtros, pero NO al periodo de arriba: cuenta a todas las personas, entraran cuando entraran."
           >
             {/* Dona a la izquierda y UNA lista a la derecha:
                 punto de color, canal, cuántos, y la barra debajo.

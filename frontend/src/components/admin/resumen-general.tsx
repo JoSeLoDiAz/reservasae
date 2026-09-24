@@ -127,14 +127,12 @@ export function ResumenGeneral({ filtros }: { filtros?: Filtros }) {
   return (
     <Bloque
       titulo="Resumen General"
-      descripcion="Las siete cifras del proyecto, acción de formación por acción de formación. Es todo lo acumulado: no depende del periodo elegido arriba, sí de los filtros."
     >
       {filas.length === 0 ? (
         <Vacio titulo="Todavía no hay gente en ninguna acción">
           Aquí aparecen las cifras en cuanto entre el primer lead.
         </Vacio>
       ) : (
-        <>
           <div
             className="grid gap-3"
             /// `auto-fit` con mínimo de 232 px: cuatro tarjetas en
@@ -146,16 +144,6 @@ export function ResumenGeneral({ filtros }: { filtros?: Filtros }) {
               <TarjetaMacro key={c.clave} cifra={c} filas={filas} rotulo={rotulo} />
             ))}
           </div>
-
-          <p className="mt-3 border-t border-hairline pt-2.5 text-[0.6875rem] leading-relaxed text-texto-suave">
-            Son dos maneras de mirar a la misma gente. «Datos completos» y «Datos
-            parciales» suman los leads que entraron: dicen si la persona se puede
-            reportar. «En proceso», «Sin ninguna gestión», «Inscritos» y «No
-            interesados» también los suman: dicen dónde está cada una hoy. Quien salió
-            del aula —retirado, desertó— sigue contado en los leads y no aparece en
-            esas cuatro.
-          </p>
-        </>
       )}
     </Bloque>
   );

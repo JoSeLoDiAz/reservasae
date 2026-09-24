@@ -29,6 +29,12 @@ import { Bloque, Esqueleto, Vacio } from "./piezas";
 
 const n = (v: number) => v.toLocaleString("es-CO");
 
+/// Los dos bloques de columnas, cada uno de su color. Van en una
+/// constante y no escritos doce veces: el día que cambie el criterio,
+/// cambia aquí y en la tabla de grupos, que usa las mismas.
+const ENTRO = "text-center whitespace-nowrap text-marca";
+const INSCRIBIO = "text-center whitespace-nowrap text-exito";
+
 /// El porcentaje, o una raya: sin leads no hay conversión, y un 0 %
 /// diría que nadie convirtió cuando lo cierto es que nadie llegó.
 const tasa = (v: number | null) => (v === null ? "—" : `${Math.round(v * 100)} %`);
@@ -91,24 +97,32 @@ export function TablaPorAccion({
       /// nombre en la misma pantalla es justo lo que hace dudar de cuál
       /// se está mirando.
       titulo="Cupos e inscritos por acción"
-      descripcion="Cupos comprometidos, por dónde llegó la gente y cuánto falta para cerrar cada acción. Es todo lo acumulado: no depende del periodo elegido arriba."
     >
       <div className="caja-scroll overflow-x-auto">
         <table className="tabla-datos w-full">
           <thead>
+            {/* LOS RÓTULOS CENTRADOS Y EN DOS COLORES (cliente, 23 sep
+                2026): azul el bloque de lo que ENTRÓ --reservados,
+                pauta y su total-- y verde el de lo que se INSCRIBIÓ.
+                Son las dos mitades de la tabla y así se ven de un
+                vistazo sin leer los nombres.
+
+                Y las CIFRAS también van centradas, no a la derecha:
+                un rótulo centrado encima de un número pegado al canto
+                es la desalineación que el cliente ya señaló una vez. */}
             <tr>
               <th>AF</th>
-              <th>Nombre</th>
-              <th className="text-right">Meta</th>
-              <th className="text-right">Cupos reservados</th>
-              <th className="text-right">Campaña digital</th>
-              <th className="text-right">Total leads</th>
-              <th className="text-right">Inscritos reservas</th>
-              <th className="text-right">Inscritos campaña</th>
-              <th className="text-right">Total inscritos</th>
-              <th className="text-right">Conversión</th>
-              <th className="text-right">Cupos disponibles</th>
-              <th>Estado</th>
+              <th className="w-full">Nombre</th>
+              <th className="text-center whitespace-nowrap">Meta</th>
+              <th className={ENTRO}>Cupos reservados</th>
+              <th className={ENTRO}>Leads Pauta</th>
+              <th className={ENTRO}>Total leads</th>
+              <th className={INSCRIBIO}>Inscritos reservas</th>
+              <th className={INSCRIBIO}>Inscritos Pauta</th>
+              <th className={INSCRIBIO}>Total inscritos</th>
+              <th className="text-center whitespace-nowrap">Conversión</th>
+              <th className="text-center whitespace-nowrap">Cupos disponibles</th>
+              <th className="text-center whitespace-nowrap">Estado</th>
             </tr>
           </thead>
           <tbody>
@@ -123,22 +137,22 @@ export function TablaPorAccion({
               >
                 <td className="font-mono text-xs whitespace-nowrap">{f.codigo}</td>
                 <td className="min-w-[18rem]">{f.nombre}</td>
-                <td className="text-right tabular-nums">{n(f.meta)}</td>
-                <td className="text-right tabular-nums">{n(f.cuposReservados)}</td>
-                <td className="text-right tabular-nums">{n(f.campanaDigital)}</td>
-                <td className="text-right font-medium tabular-nums">{n(f.totalLeads)}</td>
-                <td className="text-right tabular-nums">{n(f.inscritosReservas)}</td>
-                <td className="text-right tabular-nums">{n(f.inscritosCampana)}</td>
-                <td className="text-right font-semibold text-exito tabular-nums">
+                <td className="text-center tabular-nums">{n(f.meta)}</td>
+                <td className="text-center tabular-nums">{n(f.cuposReservados)}</td>
+                <td className="text-center tabular-nums">{n(f.campanaDigital)}</td>
+                <td className="text-center font-medium tabular-nums">{n(f.totalLeads)}</td>
+                <td className="text-center tabular-nums">{n(f.inscritosReservas)}</td>
+                <td className="text-center tabular-nums">{n(f.inscritosCampana)}</td>
+                <td className="text-center font-semibold text-exito tabular-nums">
                   {n(f.totalInscritos)}
                 </td>
-                <td className="text-right tabular-nums">{tasa(f.conversion)}</td>
+                <td className="text-center tabular-nums">{tasa(f.conversion)}</td>
                 {/* En rojo cuando ya se pasó: es el «−4» de su hoja, y
                     dice que esa acción entregó más cupos de los
                     comprometidos. */}
                 <td
                   className={
-                    "text-right font-medium tabular-nums " +
+                    "text-center font-medium tabular-nums " +
                     (f.cuposDisponibles < 0 ? "text-error" : "")
                   }
                 >
@@ -159,28 +173,23 @@ export function TablaPorAccion({
 
             <tr className="border-t-2 border-borde font-semibold">
               <td colSpan={2}>Total</td>
-              <td className="text-right tabular-nums">{n(t.meta)}</td>
-              <td className="text-right tabular-nums">{n(t.cuposReservados)}</td>
-              <td className="text-right tabular-nums">{n(t.campanaDigital)}</td>
-              <td className="text-right tabular-nums">{n(t.totalLeads)}</td>
-              <td className="text-right tabular-nums">{n(t.inscritosReservas)}</td>
-              <td className="text-right tabular-nums">{n(t.inscritosCampana)}</td>
-              <td className="text-right text-exito tabular-nums">{n(t.totalInscritos)}</td>
-              <td className="text-right tabular-nums">
+              <td className="text-center tabular-nums">{n(t.meta)}</td>
+              <td className="text-center tabular-nums">{n(t.cuposReservados)}</td>
+              <td className="text-center tabular-nums">{n(t.campanaDigital)}</td>
+              <td className="text-center tabular-nums">{n(t.totalLeads)}</td>
+              <td className="text-center tabular-nums">{n(t.inscritosReservas)}</td>
+              <td className="text-center tabular-nums">{n(t.inscritosCampana)}</td>
+              <td className="text-center text-exito tabular-nums">{n(t.totalInscritos)}</td>
+              <td className="text-center tabular-nums">
                 {tasa(t.totalLeads > 0 ? t.totalInscritos / t.totalLeads : null)}
               </td>
-              <td className="text-right tabular-nums">{n(t.cuposDisponibles)}</td>
+              <td className="text-center tabular-nums">{n(t.cuposDisponibles)}</td>
               <td />
             </tr>
           </tbody>
         </table>
       </div>
 
-      <p className="border-t border-borde px-7 py-3 text-[0.6875rem] leading-relaxed text-texto-suave">
-        La meta son los cupos del cronograma sumando los grupos de cada acción, ya con el
-        30 % de sobrecupo. Los cupos reservados no descuentan disponibles: el cupo se consume
-        cuando la persona queda inscrita.
-      </p>
     </Bloque>
   );
 }
