@@ -5,7 +5,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 
 import {
   Aviso, CLASE_CONTROL, Tarjeta, useAdmin } from "@/components/admin/marco-admin";
-import { Cargando } from "@/components/admin/piezas";
+import { Cargando, MenuDeAcciones } from "@/components/admin/piezas";
 import { CajonLead } from "@/components/admin/cajon-lead";
 import { ConfirmarBorrado } from "@/components/admin/confirmar-borrado";
 import { IconoCerrar } from "@/components/admin/iconos";
@@ -32,8 +32,6 @@ import {
 /// En la barra solo hay UN boton relleno -- la accion
 /// principal -- y el resto van con contorno. Es lo que hace el
 /// demo, y lo que deja que el primario signifique algo.
-const CLASE_BOTON_SECUNDARIO =
-  "inline-flex h-[32px] items-center justify-center rounded-[9px] bg-marca px-[13px] text-[0.78125rem] font-semibold whitespace-nowrap text-marca-texto no-underline transition hover:bg-marca-fuerte sin-aro";
 
 const CLASE_BOTON =
   "inline-flex h-[32px] items-center justify-center rounded-[9px] bg-marca px-[13px] text-[0.78125rem] font-semibold whitespace-nowrap text-marca-texto no-underline transition hover:bg-marca-fuerte sin-aro";
@@ -98,6 +96,11 @@ function nombreDeFiltro(
   }
   return valor;
 }
+
+/// Una entrada del menú de acciones: a lo ancho, alineada a la
+/// izquierda y sin marco --el marco lo pone el panel--.
+const CLASE_DEL_MENU =
+  "rounded-md px-3 py-2 text-left text-[0.8125rem] transition hover:bg-superficie-alterna";
 
 export default function PaginaParticipantes() {
   const [filas, setFilas] = useState<FilaParticipante[] | null>(null);
@@ -212,7 +215,7 @@ export default function PaginaParticipantes() {
   /// bandas vayan a sangre, y sin esto la barra de
   /// busqueda y la paginacion quedaban pegadas al canto.
   return (
-    <div className="flex min-h-0 grow flex-col gap-4 px-4 pt-4">
+    <div className="flex min-h-0 grow flex-col gap-3 px-4 pt-3">
       {error && <Aviso tipo="error">{error}</Aviso>}
 
       {/* El embudo.
@@ -410,15 +413,39 @@ function ListaParticipantes({
         /// se empieza el dia y merecen verse.
         acciones={
           <>
-            <Link
-              href="/admin/participantes/carga"
-              className={CLASE_BOTON_SECUNDARIO}
-            >
-              Cargar una lista
-            </Link>
+            {/* TRES EN EL MENÚ Y UNA FUERA. Eran cuatro botones sueltos
+                --con las dos que salieron del menú de arriba-- y con los
+                cinco controles de la tabla la barra se partía en dos
+                renglones a 1.600 px y en tres a 1.180. Aquí van
+                agrupados, y la barra entra en una línea.
+
+                «Inscribir a alguien» se queda fuera a propósito: es la
+                acción principal de la pantalla y la que más se usa;
+                esconderla tras un menú es cobrarle un clic a lo que se
+                hace veinte veces al día. */}
+            {/* LOS DOS LLENOS JUNTOS Y «ACCIONES» AL FINAL. Iba el menú
+                entre «Descargar en Excel» y «Inscribir a alguien», y eso
+                partía en dos la pareja de botones de color: «sería dejar
+                los dos botones a la izquierda y Acciones a la derecha
+                para que tenga mejor orden» (cliente, 23 sep 2026). */}
             <Link href="/admin/participantes/nuevo" className={CLASE_BOTON}>
               Inscribir a alguien
             </Link>
+            <MenuDeAcciones>
+              <Link href="/admin/inscritos" className={CLASE_DEL_MENU}>
+                Inscritos por acción
+              </Link>
+              {/* Solo a quien puede: al asesor le sobra una entrada que
+                  lleva a una pantalla que no va a poder usar. */}
+              {admin.puede?.asignarGrupo && (
+                <Link href="/admin/participantes/grupos" className={CLASE_DEL_MENU}>
+                  Asignar grupo por lote
+                </Link>
+              )}
+              <Link href="/admin/participantes/carga" className={CLASE_DEL_MENU}>
+                Cargar una lista
+              </Link>
+            </MenuDeAcciones>
           </>
         }
         seleccion

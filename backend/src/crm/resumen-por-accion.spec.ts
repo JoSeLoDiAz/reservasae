@@ -114,3 +114,48 @@ describe('la tabla por acción de formación', () => {
 /// El tipo se usa en la pantalla: si cambia, que rompa aquí también.
 const _tipo: FilaDeAccion = completarFila(cruda());
 void _tipo;
+
+// ── el recorte de la pantalla ────────────────────────────────────
+//
+// «Los filtros deben ser funcionales, hasta el momento no los entiendo
+// para nada» (cliente, 23 sep 2026). Esta tabla no obedecía a ninguno.
+
+describe('el recorte llega a la consulta', () => {
+  const sql = (recorte: Parameters<typeof resumenPorAccionSql>[2]) =>
+    resumenPorAccionSql(['ade'], null, recorte).sql;
+
+  it('sin recorte, la consulta no lleva ningún corte de gente', () => {
+    const q = sql({});
+    expect(q).toContain('pa."accionFormacionId" IS NOT NULL');
+    expect(q).not.toContain('pa."asesorId"');
+    expect(q).not.toContain('pa."creadoEn"');
+  });
+
+  it('el asesor recorta a las personas', () => {
+    expect(sql({ asesorId: 'x' })).toContain('pa."asesorId"');
+  });
+
+  it('el grupo se busca por la cobertura, que es de donde cuelga', () => {
+    expect(sql({ grupoId: 'g' })).toContain('grupos_cobertura');
+  });
+
+  it('el departamento se busca en la persona, no en la ficha', () => {
+    expect(sql({ departamentoSepId: 5 })).toContain('"personas"');
+  });
+
+  it('la ventana va por instantes y el tope es EXCLUSIVO', () => {
+    // igual que `donde()` con gte/lt: con `<=` sobre días de calendario
+    // el último día entraba entero y esta tabla contaba uno más que la
+    // tira de arriba
+    const q = sql({ desde: '2026-09-01T05:00:00.000Z', hasta: '2026-09-24T05:00:00.000Z' });
+    expect(q).toContain('pa."creadoEn" >=');
+    expect(q).toContain('pa."creadoEn" <');
+    expect(q).not.toContain('pa."creadoEn" <=');
+  });
+
+  it('LA META NO SE RECORTA: los cupos comprometidos son los mismos hoy que ayer', () => {
+    const q = sql({ desde: '2026-09-01T05:00:00.000Z' });
+    const meta = q.slice(q.indexOf('LA META'), q.indexOf('LOS CUPOS APARTADOS'));
+    expect(meta).not.toContain('creadoEn');
+  });
+});

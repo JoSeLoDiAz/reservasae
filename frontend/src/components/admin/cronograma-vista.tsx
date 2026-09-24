@@ -256,7 +256,7 @@ export function CronogramaVista() {
           esto no es una tabla con scroll propio, es una lista de
           acordeones que se abren. Que scrollee la página es lo
           correcto cuando el contenido crece al abrirlo. */}
-      <div className="flex flex-col gap-3 px-4 pt-4 pb-2">
+      <div className="flex flex-col gap-3 px-4 pt-4 pb-6">
         <div className="no-imprimir">
           <p className="mt-0.5 text-[0.78125rem] text-texto-suave">
             Aquí se ponen las fechas de cada grupo —cuándo empieza y cuándo

@@ -1509,16 +1509,66 @@ select[size]:not([size='1']) {
   width: 100%;
   border-collapse: collapse;
 }
+/* EL ROTULO SE ALINEA CON SU CIFRA.
+ *
+ * Esta regla no lleva capa, y las utilidades de Tailwind sI: una
+ * declaracion sin capa le gana a una con capa por muy especifica que
+ * sea la otra. O sea que el `text-right` que se le pone a un `<th>`
+ * de cifras no hacia nada, y la cabecera quedaba a la izquierda
+ * mientras el numero se pegaba a la derecha de su columna. En las
+ * tablas estrechas casi no se notaba; en «Seguimiento de asesores»,
+ * con diez columnas anchas, el cliente lo vio de una (23 sep 2026).
+ *
+ * Se arregla aqui y no en cada tabla: son seis tablas y el defecto
+ * estaba en las seis. */
+.tabla-datos thead th.text-right {
+  text-align: right;
+}
+.tabla-datos thead th.text-center {
+  text-align: center;
+}
+
+/* Y EL COLOR DEL ROTULO, por lo mismo.
+ *
+ * «De un color: Cupos reservados, Campana digital (Leads Pauta), Total
+ * leads. De otro color: Inscritos reservas, Inscritos campana
+ * (Inscritos Pauta), Total inscritos» (cliente, 23 sep 2026).
+ *
+ * Las clases estaban puestas en los `th` desde ese dia --azul lo que
+ * ENTRO, verde lo que se INSCRIBIO-- y en pantalla los doce rotulos
+ * seguian del mismo gris: la regla de abajo fija `color` fuera de toda
+ * capa, y una utilidad de Tailwind, que si va en capa, no le gana por
+ * mas especifica que sea. Mismo defecto que la alineacion de arriba.
+ *
+ * Con `var(--marca)` y no `var(--color-marca)`: es el mismo valor --el
+ * segundo es el alias del tema-- y este es el que cambia en oscuro y
+ * en papel. */
+.tabla-datos thead th.text-marca {
+  color: var(--marca);
+}
+.tabla-datos thead th.text-exito {
+  color: var(--exito);
+}
+
 .tabla-datos thead th {
   background: var(--tabla-cabecera-fondo);
   color: var(--tabla-cabecera-texto);
   text-align: left;
   font-weight: 600;
-  /* 10,5px del redisenio, en rem para que siga creciendo con
-     el ajuste de texto del panel. Antes iba al mismo cuerpo
-     que las filas; ahora la cabecera es rotulo y la fila es
-     dato, y se distinguen por tamano ademas de por peso. */
-  font-size: 0.65625rem;
+  /* 12px, en rem para que siga creciendo con el ajuste de texto
+     del panel.
+
+     Estuvo en 10,5 --el rotulo mas pequeno que la fila, para
+     distinguirlos por tamano ademas de por peso-- y el cliente lo
+     paro: «no hay uniformidad de tamanos de letra? [...] si veo la
+     tabla es super pequena la letra vs la de afuera» (23 sep 2026).
+     Y tenia razon en la cuenta: fuera de la tabla todo va a 12,5
+     --el buscador, los desplegables, los rotulos-- y la cabecera se
+     quedaba dos puntos y medio por debajo.
+
+     A 12 sigue leyendose como rotulo --va en versalita, con
+     interletraje y en 600-- pero ya no se cae de la pagina. */
+  font-size: 0.75rem;
   letter-spacing: 0.06em;
   text-transform: uppercase;
   padding: 0.625rem 0.875rem;

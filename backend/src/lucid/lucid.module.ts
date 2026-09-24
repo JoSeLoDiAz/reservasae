@@ -29,7 +29,7 @@ export class LucidModule implements OnModuleInit {
     this.log.warn(
       'APAGADO: no hay ninguna llave de integración (LUCID_WEBHOOK_SECRET o ' +
         'NUA_WEBHOOK_SECRET, mínimo 32 caracteres). La puerta contesta 401 a ' +
-        'todo y las conversaciones NO quedan en ninguna ficha.',
+        'todo y las conversaciones NO quedan en ningún lead.',
     );
   }
 }

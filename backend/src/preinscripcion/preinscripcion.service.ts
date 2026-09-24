@@ -12,6 +12,7 @@ import { MotivoDeCorreoAutomatico, Prisma } from '../../generated/prisma';
 import { ENTIDADES, AuditoriaService } from '../comun/auditoria.service';
 import { ColaDeCorreo } from '../correo/automaticos/cola-de-correo';
 import { EnlaceDeCompletado } from './enlace-de-completado';
+import { formularioPersonalizado } from './formularios-personalizados';
 import { CorreoService } from '../correo/correo.service';
 import { quienFirma } from '../correo/quien-firma';
 import { motivoParaNoInscribir } from '../crm/una-sola-accion';
@@ -80,7 +81,7 @@ export class PreinscripcionService {
   ) {}
 
   /** Lo que el formulario necesita para dibujarse. */
-  async catalogo(slug: string) {
+  async catalogo(slug: string, palabra?: string) {
     const convenio = await this.prisma.convenio.findFirst({
       where: { slug, activo: true },
       select: { id: true, slug: true, nombre: true, sigla: true },
@@ -88,8 +89,20 @@ export class PreinscripcionService {
     if (!convenio)
       throw new NotFoundException('No hay una convocatoria con ese nombre.');
 
+    /// La palabra del enlace, si es de un formulario de los
+    /// nuestros. Casi siempre null: ver `formularios-personalizados`.
+    const formulario = formularioPersonalizado(palabra, convenio.slug);
+
     const acciones = await this.prisma.accionFormacion.findMany({
-      where: { convenioId: convenio.id, visible: true },
+      where: {
+        convenioId: convenio.id,
+        /// El formulario personalizado trae SU accion y solo esa,
+        /// este publicada o no: esa es toda su razon de ser. Sin
+        /// formulario manda `visible`, que es lo de siempre.
+        ...(formulario?.accion
+          ? { codigo: formulario.accion }
+          : { visible: true }),
+      },
       orderBy: { orden: 'asc' },
       select: {
         id: true,
@@ -135,6 +148,21 @@ export class PreinscripcionService {
     return {
       convenio,
       politica,
+      /// Que formulario es este. Null --lo normal-- es el general.
+      /// La pantalla lo mira para saber si tiene que quitar los
+      /// textos de elegir: con una sola accion no hay nada que
+      /// elegir y decirle a alguien que escoja entre una es raro.
+      formulario: formulario
+        ? {
+            palabra: formulario.palabra,
+            titulo: formulario.titulo,
+            /// Si trae una accion fija. El general con logo no la
+            /// trae y se comporta como el de siempre.
+            accionUnica: formulario.accion !== null,
+            /// El tercero de la banda de arriba, si lo hay.
+            aliado: formulario.aliado ?? null,
+          }
+        : null,
       // sin ofertas abiertas no hay dónde inscribirse
       acciones: acciones
         .filter((a) => a.ofertas.length > 0)
@@ -247,11 +275,26 @@ export class PreinscripcionService {
     if (!convenio)
       throw new NotFoundException('No hay una convocatoria con ese nombre.');
 
+    /// La palabra del enlace, si es de un formulario nuestro.
+    const formulario = formularioPersonalizado(dto.formulario, slug);
+
     const oferta = await this.prisma.oferta.findFirst({
       where: {
         id: dto.ofertaId,
         abierta: true,
-        accionFormacion: { convenioId: convenio.id, visible: true },
+        accionFormacion: {
+          convenioId: convenio.id,
+          /// AQUI esta el candado de verdad: el del catalogo solo
+          /// tapa la pantalla, y un POST directo se lo salta.
+          ///
+          /// La llave se comprueba contra el CODIGO que nombra el
+          /// formulario, no contra «viene con formulario»: una
+          /// palabra buena con el id de una oferta de OTRA accion
+          /// oculta no abre nada.
+          ...(formulario?.accion
+            ? { codigo: formulario.accion }
+            : { visible: true }),
+        },
       },
       select: {
         id: true,
@@ -555,6 +598,16 @@ export class PreinscripcionService {
       const pagada = origenDeLaVisita(llegada);
       const red = redDeLaVisita(llegada);
 
+      /// El nombre del envio con el que entro.
+      ///
+      /// La campana de la visita MANDA: dice por que anuncio o con
+      /// que correo llego, que es mas concreto. La palabra del
+      /// formulario es el respaldo, y esta para que estos leads se
+      /// puedan filtrar en Gestion de leads aunque no vengan de
+      /// ninguna campana --que es el caso normal de un enlace que
+      /// se reparte a mano.
+      const campana = llegada?.campana ?? formulario?.palabra ?? null;
+
       /// El ORIGEN solo cambia con prueba de que se pagó, para
       /// una ficha NUEVA y si no había ningún lead esperando.
       if (pagada && !yaEsta && cerrados === 0) {
@@ -568,7 +621,7 @@ export class PreinscripcionService {
             origenLead: 'PAUTA',
             /// Con las MISMAS condiciones que el origen: el
             /// nombre del envio acompaña al canal, nunca va solo.
-            campanaDeEntrada: llegada?.campana ?? null,
+            campanaDeEntrada: campana,
           },
         });
       }
@@ -588,7 +641,7 @@ export class PreinscripcionService {
           data: {
             origen: canal,
             origenLead: 'ORGANICO',
-            campanaDeEntrada: llegada?.campana ?? null,
+            campanaDeEntrada: campana,
           },
         });
       }
@@ -597,10 +650,10 @@ export class PreinscripcionService {
       /// la ficha: el QR no la tiene --ver `DE_CANAL`-- y sin esto
       /// `?qr-feria` llegaba marcado y la ficha no lo decía. El
       /// origen no se toca; mismas tres condiciones.
-      if (!canal && !pagada && llegada?.campana && !yaEsta && cerrados === 0) {
+      if (!canal && !pagada && campana && !yaEsta && cerrados === 0) {
         await this.prisma.participante.update({
           where: { id: participante.id },
-          data: { campanaDeEntrada: llegada.campana },
+          data: { campanaDeEntrada: campana },
         });
       }
 

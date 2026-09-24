@@ -404,7 +404,7 @@ export class InstitucionesService {
           e.code === 'P2002'
         ) {
           throw new BadRequestException(
-            'Ya hay otra ficha con ese NIT y esa razón social. ' +
+            'Ya hay otra institución con ese NIT y esa razón social. ' +
               'Revise si están repetidas antes de aceptar el nombre.',
           );
         }

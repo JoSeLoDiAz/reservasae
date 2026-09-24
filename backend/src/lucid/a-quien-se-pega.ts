@@ -58,7 +58,7 @@ export function aQuienSePega(candidatos: Candidato[]): Destino {
   if (personas.size === 1 && leads.length) {
     return {
       estado: 'AMBIGUA',
-      motivo: 'Ese número está en una ficha y además en un lead sin convertir.',
+      motivo: 'Ese número está en un lead ya inscrito y además en uno sin convertir.',
     };
   }
 
@@ -71,8 +71,8 @@ export function aQuienSePega(candidatos: Candidato[]): Destino {
       destino: elegida,
       motivo:
         fichas.length > 1
-          ? `Esa persona tiene ${fichas.length} fichas; va en la más reciente.`
-          : 'Su ficha.',
+          ? `Esa persona tiene ${fichas.length} leads; va en el más reciente.`
+          : 'Su lead.',
     };
   }
 

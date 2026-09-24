@@ -89,16 +89,21 @@ export function ComiteMarketing() {
     leadsOrganicos: number;
     leadsImportados: number;
   }) => {
-    /// Con un grupo elegido, los reservados NO se restan.
+    /// LOS RESERVADOS NO DESCUENTAN CUPO. NUNCA.
     ///
-    /// Una empresa aparta cupos en una CIUDAD, no en un grupo: cuando
-    /// aparta todavia no tiene nombres, y a que grupo va cada persona
-    /// se decide despues, una por una. Asi que restarle a un grupo unos
-    /// reservados que pueden acabar todos en el grupo de al lado da un
-    /// numero que no significa nada. Se deja de restar y se deja de
-    /// ensenar; abajo se explica por que.
-    const reservados = porGrupo ? 0 : f.reservados;
-    const pendientes = Math.max(0, f.totalCupos - f.inscritos - reservados);
+    /// Restaban --salvo con un grupo elegido-- y el cliente lo corrigió:
+    /// «las reservas no descuentan, no entiendo por qué cambias esto, se
+    /// materializa cuando llega, ahí sí» (23 sep 2026). Una reserva es
+    /// una intención de una organización: aparta cupos en una ciudad,
+    /// sin nombres, y puede no llegar nadie. El cupo se consume cuando
+    /// la persona existe y queda inscrita, y ahí ya lo cuenta
+    /// `inscritos`. Restar las dos cosas contaba el mismo cupo dos veces
+    /// y hacía comprar menos pauta de la que se necesita.
+    ///
+    /// La columna «Reservados» se queda: dice cuánta intención hay
+    /// detrás, que es información para el comité, pero no toca la
+    /// cuenta.
+    const pendientes = Math.max(0, f.totalCupos - f.inscritos);
     const totalLeads = f.leadsOrganicos + f.leadsImportados;
     const sePuedenInscribir = Math.floor(totalLeads / conversion);
     const faltan = Math.max(0, pendientes - sePuedenInscribir);
@@ -115,49 +120,47 @@ export function ComiteMarketing() {
 
   return (
     <div className="flex flex-col gap-3">
-      {/* Los filtros, arriba y sin caja.
-          Con borde y fondo propios pesaban igual que la tabla que
-          mandan, y se leían como un bloque más en vez de como el mando
-          de la pantalla. Van alineados a la derecha, arriba del todo. */}
-      <div className="-mt-1">
-        <div className="flex flex-wrap items-center justify-end gap-x-5 gap-y-2">
-          <div className="flex items-center gap-2">
-            <p className="shrink-0 text-[0.6875rem] font-medium text-texto-suave">Convenio</p>
-            <select
-              className={`${CLASE_CONTROL} max-w-[11rem]`}
-              value={convenio}
-              onChange={(e) => {
-                const v = e.target.value;
-                setConvenio(v);
-                /// Si la acción elegida no es de ese convenio,
-                /// se pasa a la primera que sí: dejarla puesta
-                /// enseñaría una tabla que el filtro dice no
-                /// estar mirando.
-                const quedan = (catalogo?.acciones ?? []).filter(
-                  (a) => !v || a.convenio === v,
-                );
-                if (!quedan.some((a) => a.id === accionId)) {
-                  setAccionId(quedan[0]?.id ?? "");
-                  setCoberturaId("");
-                }
-              }}
-              aria-label="Convenio"
-            >
-              <option value="">Ambos convenios</option>
-              {convenios.map((c) => (
-                <option key={c} value={c}>
-                  {c}
-                </option>
-              ))}
-            </select>
+      {/* LOS FILTROS, EN SU CAJA Y A LA IZQUIERDA. Iban sin caja y
+          pegados a la derecha, encima del título: «abajo, acomodado
+          estos filtros» (cliente, 23 sep 2026). Con rótulo ENCIMA de
+          cada control, como en Mesa de entrada, que es lo que deja
+          alinearlos sin que cada pareja se coloque a su aire. */}
+      <div className="rounded-lg border border-borde bg-superficie px-4 py-3">
+        <div className="flex flex-wrap items-end gap-x-4 gap-y-3">
+          <div className="w-[11rem]">
+            <p className="mb-1.5 text-[12.5px] font-medium">Convenio</p>
+            {/* El desplegable de la casa, como los otros dos de esta
+                misma barra: dos nativos en medio de tres de la casa se
+                veían de otra familia --lista cuadrada y azul del
+                sistema--. */}
+            <Desplegable
+                alto={32}
+                etiquetaAria="Convenio"
+                marcador="Ambos convenios"
+                valor={convenio}
+                opciones={[
+                  { valor: "", etiqueta: "Ambos convenios" },
+                  ...convenios.map((c) => ({ valor: c, etiqueta: c })),
+                ]}
+                alElegir={(v) => {
+                  setConvenio(v);
+                  /// Si la acción elegida no es de ese convenio, se pasa
+                  /// a la primera que sí: dejarla puesta enseñaría una
+                  /// tabla que el filtro dice no estar mirando.
+                  const quedan = (catalogo?.acciones ?? []).filter(
+                    (a) => !v || a.convenio === v,
+                  );
+                  if (!quedan.some((a) => a.id === accionId)) {
+                    setAccionId(quedan[0]?.id ?? "");
+                    setCoberturaId("");
+                  }
+                }}
+              />
           </div>
 
-          <div className="flex items-center gap-2">
-            <p className="shrink-0 text-[0.6875rem] font-medium text-texto-suave">
-              Acción de formación
-            </p>
-            <div className="w-[380px]">
-              <Desplegable
+          <div className="w-[min(420px,100%)] grow">
+            <p className="mb-1.5 text-[12.5px] font-medium">Acción de formación</p>
+            <Desplegable
                 alto={32}
                 marcador="Elija una acción"
                 valor={accionId}
@@ -171,13 +174,11 @@ export function ComiteMarketing() {
                   setCoberturaId("");
                 }}
               />
-            </div>
           </div>
 
-          <div className="flex items-center gap-2">
-            <p className="shrink-0 text-[0.6875rem] font-medium text-texto-suave">Grupo</p>
-            <div className="w-[190px]">
-              <Desplegable
+          <div className="w-[190px]">
+            <p className="mb-1.5 text-[12.5px] font-medium">Grupo</p>
+            <Desplegable
                 alto={32}
                 marcador="Todos los grupos"
                 valor={coberturaId}
@@ -187,36 +188,29 @@ export function ComiteMarketing() {
                 ]}
                 alElegir={setCoberturaId}
               />
-            </div>
           </div>
 
-          <div className="flex items-center gap-2">
-            <p className="shrink-0 text-[0.6875rem] font-medium text-texto-suave">
-              Conversión
-            </p>
-            <select
-              className={`${CLASE_CONTROL} max-w-[9rem]`}
-              value={conversion}
-              onChange={(e) => setConversion(Number(e.target.value))}
-              aria-label="Leads por inscrito"
-            >
-              {Array.from({ length: 10 }, (_, i) => i + 1).map((v) => (
-                <option key={v} value={v}>
-                  {v} {v === 1 ? "lead" : "leads"} · 1 inscrito
-                </option>
-              ))}
-            </select>
+          <div className="w-[9.5rem]">
+            <p className="mb-1.5 text-[12.5px] font-medium">Conversión</p>
+            <Desplegable
+                alto={32}
+                etiquetaAria="Leads por inscrito"
+                valor={String(conversion)}
+                opciones={Array.from({ length: 10 }, (_, i) => i + 1).map((v) => ({
+                  valor: String(v),
+                  etiqueta: `${v} ${v === 1 ? "lead" : "leads"} · 1 inscrito`,
+                }))}
+                alElegir={(v) => setConversion(Number(v))}
+              />
           </div>
 
-          <div className="flex items-center gap-2">
-            <p className="shrink-0 text-[0.6875rem] font-medium text-texto-suave">
-              Costo por lead
-            </p>
+          <div className="w-[8.5rem]">
+            <p className="mb-1.5 text-[12.5px] font-medium">Costo por lead</p>
             <input
               type="number"
               min={0}
               step={500}
-              className={`${CLASE_CONTROL} max-w-[8rem]`}
+              className={`${CLASE_CONTROL} w-full`}
               value={costo}
               onChange={(e) => setCosto(Math.max(0, Number(e.target.value)))}
               aria-label="Costo por lead de pauta, en pesos"
@@ -308,24 +302,12 @@ export function ComiteMarketing() {
               </table>
             </div>
 
-            <p className="border-t border-borde px-7 py-3 text-[0.6875rem] leading-relaxed text-texto-suave">
-              Cupos pend. = total cupos {porGrupo ? "" : "− reservados"} − inscritos. Se pueden inscribir =
-              total leads ÷ conversión. Faltan = cupos pendientes − los que se pueden
-              inscribir. Leads pauta = faltan × conversión. Costo pauta = leads pauta ×
-              costo por lead.
-              <br />
-              Total cupos y Reservados vienen del CRM; los reservados descuentan cupo
-              aunque todavía no figuren como inscritos.
-            </p>
-            {porGrupo && (
-              <p className="border-t border-borde px-7 py-3 text-[0.6875rem] leading-relaxed text-texto-suave">
-                Con un grupo elegido no se enseñan los reservados: una empresa aparta
-                cupos en una <strong className="font-medium">ciudad</strong>, no en un
-                grupo. A qué grupo va cada persona se decide después, una por una, así
-                que esos cupos podrían acabar todos en otro grupo. Restarlos aquí daría
-                un número que no significa nada.
-              </p>
-            )}
+            {/* SIN EL PIE DE FÓRMULAS. Estaban las cinco cuentas
+                escritas --«cupos pend. = total cupos − inscritos…»-- y
+                la nota de los reservados, y el cliente las quitó (23 sep
+                2026): los títulos de las columnas ya las nombran, y la
+                nota de los reservados dejó de ser cierta el mismo día.
+                Las cuentas viven en `calcular`, con su comentario. */}
           </>
         )}
       </Bloque>

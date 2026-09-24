@@ -56,7 +56,17 @@ const RUTAS_PUBLICAS = [
 
 /// Las de Next y los archivos sueltos. Sin esto no carga ni
 /// el CSS ni el logo.
-const INFRAESTRUCTURA = ["/_next", "/favicon.ico", "/logo-convoca.png"];
+///
+/// `/logos` es la carpeta de los aliados --los que salen en la
+/// banda de un formulario personalizado--. Sin ella, por un tunel
+/// el logo contesta 404 y la banda sale rota, que es justo lo que
+/// ese formulario existe para ensenar.
+const INFRAESTRUCTURA = [
+  "/_next",
+  "/favicon.ico",
+  "/logo-convoca.png",
+  "/logos",
+];
 
 /// EL INTERRUPTOR QUE ABRE EL PANEL POR EL TÚNEL.
 ///

@@ -45,8 +45,10 @@ import { Aviso, useAdmin } from "./marco-admin";
 /// 2026). Escribía 38,8 % y 80,6 % a 24 px medio metro por debajo
 /// del 39 % y el 81 % del embudo: la misma cifra con dos
 /// redondeos. El componente se queda en `graficos`.
+import { ResumenGeneral } from './resumen-general';
+import { TablaPorAccion } from './tabla-por-accion';
+import { TablaPorGrupo } from './tabla-por-grupo';
 import { Donut, ListaBarras, n, SERIE, type PorcionDonut } from "./graficos";
-import { PendientesDeHoy, ReservasSinNombre } from "./pendientes-de-hoy";
 import { Bloque } from "./piezas";
 import { colorEtapa } from "./etapa";
 import { ErrorApi } from "@/lib/api";
@@ -64,13 +66,20 @@ import {
   type Resumen,
 } from "@/lib/crm-api";
 
-/// Las tres fases del embudo, para agrupar las etapas.
-/// Sin agrupar, cinco barras seguidas no dicen cuál es avance y
-/// cuál es salida.
-const FASES: Array<{ titulo: string; etapas: Etapa[] }> = [
-  { titulo: "Captación", etapas: ["INTERESADO", "CONTACTADO", "DATOS_COMPLETOS"] },
-  { titulo: "Inscritos", etapas: ["INSCRITO"] },
-  { titulo: "Salida", etapas: ["PERDIDO"] },
+/// Las cinco etapas, en el orden del embudo.
+///
+/// SIN AGRUPAR POR FASE. Estaban repartidas en tres bloques con su
+/// rótulo --«Captación», «Inscritos», «Salida»--: «se elimina las
+/// palabras: Captación, Inscritos» (cliente, 23 sep 2026), que las
+/// quiere en crudo. Quitados los rótulos no queda nada que agrupar,
+/// así que se queda UNA lista y el orden hace el trabajo que hacían
+/// ellos: arriba quien acaba de entrar, abajo quien se perdió.
+const ETAPAS_EN_ORDEN: Etapa[] = [
+  "INTERESADO",
+  "CONTACTADO",
+  "DATOS_COMPLETOS",
+  "INSCRITO",
+  "PERDIDO",
 ];
 
 /// La paleta de los canales, fijada: el punto de la lista tiene
@@ -526,9 +535,13 @@ function CeldaDeLaTira({
           cuatro arranquen en la misma raya.
           SOLA: ya no lleva el porcentaje pequeño al lado (ver
           `TiraDelPeriodo`). */}
-      <dd className="mt-1 flex h-8 items-end">
+      {/* A LA MEDIDA DE «GESTIÓN DE LEADS» (cliente, 23 sep 2026).
+          La cifra iba a 28 px dentro de una caja de 32 de alto; allí
+          son 17 y sin caja. La tira baja de unos 90 px a 60 sin perder
+          nada: el pie se sigue leyendo y la cifra sigue mandando. */}
+      <dd className="mt-1 flex items-end">
         <span
-          className="text-[1.75rem] leading-none font-bold tracking-[-0.03em] whitespace-nowrap tabular-nums"
+          className="text-[1.0625rem] leading-none font-bold tracking-[-0.02em] whitespace-nowrap tabular-nums"
           style={{ color: colorCifra }}
         >
           {cifra}
@@ -811,7 +824,12 @@ export function PanelProceso({
   const [intento, setIntento] = useState(0);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [accionAbierta, setAccionAbierta] = useState<string | null>(null);
+  /// Qué acción tiene abierto su detalle por grupos, con su rótulo:
+  /// el bloque de abajo dice de cuál son esos grupos sin obligar a
+  /// mirar cuál fila quedó resaltada.
+  const [accionAbierta, setAccionAbierta] = useState<{ id: string; titulo: string } | null>(
+    null,
+  );
 
   const filtros = useMemo<Filtros>(
     () => ({
@@ -824,6 +842,20 @@ export function PanelProceso({
     [convenioId, accionFormacionId, grupoId, asesorId, departamentoSepId],
   );
 
+  /**
+   * EL RECORTE DE LA PANTALLA, UNO SOLO: los cinco filtros y la
+   * ventana del periodo.
+   *
+   * «Los filtros deben ser funcionales, hasta el momento no los
+   * entiendo para nada» (cliente, 23 sep 2026). Y con razón: en esta
+   * pantalla convivían TRES alcances. La tira y las gráficas
+   * obedecían al periodo y a los filtros; el Resumen General solo a
+   * los filtros; y las dos tablas de cupos, a nada. Con «Hoy» elegido,
+   * arriba decía una persona y abajo doscientas siete.
+   *
+   * Ahora hay UN recorte y lo reciben todos. Lo que NO se recorta es
+   * la meta de cupos: los comprometidos son los mismos hoy que ayer.
+   */
   /// La ventana que la cabecera YA resolvió. Se usa tal cual:
   /// recalcular «hoy» aquí sería una segunda idea de dónde
   /// empieza el día en Bogotá.
@@ -831,6 +863,12 @@ export function PanelProceso({
   const anterior = comparar ? (control?.ventana.instantes?.anterior ?? null) : null;
   const [aDesde, aHasta] = [actual?.desde, actual?.hasta];
   const [bDesde, bHasta] = [anterior?.desde, anterior?.hasta];
+
+  const recorte = {
+    ...filtros,
+    desde: aDesde ?? undefined,
+    hasta: aHasta ?? undefined,
+  };
 
   /// Los dos rótulos, de la MISMA respuesta que trae la ventana.
   /// Se sellan con las cifras (ver `Cargado`) y entran en la
@@ -1320,7 +1358,7 @@ export function PanelProceso({
   /// contra el total: contra el total, cuatro de las cinco
   /// quedaban en un hilo de dos píxeles.
   const cimaDeFase = useMemo(
-    () => Math.max(1, ...FASES.flatMap((f) => f.etapas).map(valorDeFase)),
+    () => Math.max(1, ...ETAPAS_EN_ORDEN.map(valorDeFase)),
     [valorDeFase],
   );
 
@@ -1402,10 +1440,6 @@ export function PanelProceso({
   /// carga, o el panel se volvió a montar. La tira escribe «—», el
   /// embudo pinta su hueco y la gráfica el suyo.
   const sinDatosTodavia = hitos.length === 0;
-  /// Si hay caja del embudo: mientras carga (con su hueco) o si
-  /// entró alguien. Sin nadie no hay nada que dibujar.
-  const hayEmbudo = sinDatosTodavia || entraron > 0;
-
   /// El caso (3) se mira por el RANGO que trae `control` --el que
   /// la página pidió--, traducido con la misma tabla que rotula el
   /// desplegable. Se probó a sellar las cifras con el nombre del
@@ -1489,32 +1523,29 @@ export function PanelProceso({
     const conComparacion = (base: string, comparacion: string | null) =>
       comparacion ? `${base} ${comparacion}` : base;
     /**
-     * «N de las M que entraron…», LA MISMA FRASE EN LAS TRES CELDAS
-     * DEL REPARTO, con sus casos: «Ninguna de las 23…» y no «0 de
-     * las 23…», «Las 23 que entraron…» y no «23 de las 23…» (medido
-     * con «Últimos 7 días»), y la persona sola, que no es «1 de
-     * las 1». Armada una vez para que ninguna de las tres se quede
-     * con un caso sin cuidar.
+     * «39 % de los 206 leads que entraron», EL PIE DE LAS TRES DEL
+     * REPARTO.
+     *
+     * PRIMERO EL NÚMERO Y DESPUÉS EL PORCENTAJE (cliente, 24 sep
+     * 2026, textual). Hasta hoy era al revés --la cifra grande era el
+     * porcentaje y la cuenta iba dentro de la frase-- y era al revés
+     * porque el 21 de septiembre él pidió justo eso: «estás metiendo
+     * cantidad y porcentaje; si haces eso, como la tarjeta de Se
+     * inscribe». Cambió de opinión, y queda escrito para que nadie lo
+     * «arregle» de vuelta pensando que es un descuido.
+     *
+     * Y DICE «LEADS», que era la otra mitad del encargo: «colocar que
+     * es leads porque no da contexto». «206 que entraron» no dice
+     * entraron a qué.
      */
-    const deLasQueEntraron = (
-      v: number,
-      f: {
-        una: string;
-        varias: string;
-        ninguna: string;
-        laPersonaSi: string;
-        laPersonaNo: string;
-      },
-    ) =>
-      entraron === 1
-        ? v === 1
-          ? f.laPersonaSi
-          : f.laPersonaNo
-        : v === 0
-          ? `Ninguna de las ${n(entraron)} que entraron ${f.ninguna}.`
-          : v === entraron
-            ? `Las ${n(entraron)} que entraron ${f.varias}.`
-            : `${n(v)} de las ${n(entraron)} que entraron ${v === 1 ? f.una : f.varias}.`;
+    const delTotalDeLeads = (porcentaje: number | null | undefined) =>
+      porcentaje === null || porcentaje === undefined
+        ? ""
+        : `${n(porcentaje)} % ${
+            entraron === 1
+              ? "del único lead que entró"
+              : `de los ${n(entraron)} leads que entraron`
+          }.`;
     const media = control?.diasHastaInscribir ?? null;
     const dias = media === null ? null : Math.round(media);
 
@@ -1532,21 +1563,17 @@ export function PanelProceso({
     /// en el celular, y empujaba «Dijeron que no» bajo el pliegue. Se
     /// quitan las palabras que no dicen nada nuevo («personas»,
     /// «llegaron a»); el dato y la advertencia se quedan enteros.
-    const base = deLasQueEntraron(inscritos, {
-      una: "se inscribió",
-      varias: "se inscribieron",
-      ninguna: "se ha inscrito todavía",
-      laPersonaSi: "La persona que entró ya se inscribió.",
-      laPersonaNo: "La persona que entró no se ha inscrito todavía.",
-    });
-    const pieDeLaTasa = conComparacion(base, tasa?.comparacion ?? null);
+    const pieDeLaTasa = conComparacion(
+      delTotalDeLeads(tasa?.porcentaje),
+      tasa?.comparacion ?? null,
+    );
 
     return [
       {
-        rotulo: "Se inscribe",
-        /// En `--titulo` y SIN color: la tasa cuenta, no afirma
+        rotulo: "Inscritos",
+        /// En `--titulo` y SIN color: la cifra cuenta, no afirma
         /// que vaya bien o mal (José, 18 sep 2026).
-        cifra: cifrasPendientes || !tasa ? raya : `${n(tasa.porcentaje)} %`,
+        cifra: cifrasPendientes || !tasa ? raya : n(inscritos),
         colorCifra: cifrasPendientes ? "var(--texto-suave)" : "var(--titulo)",
         pies: cifrasPendientes ? [] : [pieDeLaTasa],
         explicacion:
@@ -1563,8 +1590,8 @@ export function PanelProceso({
         /// eso, como la tarjeta de Se inscribe» (cliente, 21 sep
         /// 2026). Así los tres primeros se leen como lo que son, un
         /// reparto de la misma gente que suma 100.
-        rotulo: "Siguen en proceso",
-        cifra: cifrasPendientes || !reparto ? raya : `${n(reparto.enProceso)} %`,
+        rotulo: "En proceso",
+        cifra: cifrasPendientes || !reparto ? raya : n(enProceso),
         /// En `--titulo`, como las otras. Iba en ámbar, y con las
         /// cuatro cifras del mismo tamaño --orden del cliente-- el
         /// único color de la fila era el suyo: «121» mandaba sobre
@@ -1580,13 +1607,7 @@ export function PanelProceso({
           ? []
           : [
               conComparacion(
-                deLasQueEntraron(enProceso, {
-                  una: "sigue en proceso",
-                  varias: "siguen en proceso",
-                  ninguna: "sigue en proceso",
-                  laPersonaSi: "La persona que entró sigue en proceso.",
-                  laPersonaNo: "La persona que entró ya se inscribió o dijo que no.",
-                }),
+                delTotalDeLeads(reparto?.enProceso),
                 contra(reparto?.enProceso, repartoAntes?.enProceso, true),
               ),
             ],
@@ -1595,8 +1616,8 @@ export function PanelProceso({
         clase: claseEmbudo,
       },
       {
-        rotulo: "Dijeron que no",
-        cifra: cifrasPendientes || !reparto ? raya : `${n(reparto.perdidos)} %`,
+        rotulo: "Descartados",
+        cifra: cifrasPendientes || !reparto ? raya : n(perdidos),
         /// La regla del anillo de pérdida que había: hasta el 15 %
         /// es normal, hasta el 30 % en ámbar y por encima en rojo.
         /// En rojo fijo, un 2 % --que es bueno-- se leería como una
@@ -1616,13 +1637,7 @@ export function PanelProceso({
           ? []
           : [
               conComparacion(
-                deLasQueEntraron(perdidos, {
-                  una: "dijo que no",
-                  varias: "dijeron que no",
-                  ninguna: "ha dicho que no",
-                  laPersonaSi: "La persona que entró dijo que no.",
-                  laPersonaNo: "La persona que entró no ha dicho que no.",
-                }),
+                delTotalDeLeads(reparto?.perdidos),
                 contra(reparto?.perdidos, repartoAntes?.perdidos, false),
               ),
             ],
@@ -1635,7 +1650,7 @@ export function PanelProceso({
         /// INSCRIBIERON en el periodo, entraran cuando entraran.
         /// Sin decirlo repite el «¿esas 131 a qué hacen
         /// referencia?».
-        rotulo: "Tardan en inscribirse",
+        rotulo: "Conversión en días",
         cifra:
           cifrasPendientes || dias === null ? raya : `${n(dias)} ${dias === 1 ? "día" : "días"}`,
         colorCifra: cifrasPendientes || dias === null ? "var(--texto-suave)" : "var(--titulo)",
@@ -1835,10 +1850,10 @@ export function PanelProceso({
     if (cuelloMayor) lista.push(`Donde más gente se queda: ${cuelloMayor}`);
     lista.push(
       "Los cuatro pasos del embudo: entraron, fueron contactadas, tienen sus datos completos («Con datos») y se inscribieron. Cada porcentaje es cuánta gente de la que entró llegó a ese paso.",
-      "Siguen en proceso: de los que entraron en el periodo, no se han inscrito y tampoco han dicho que no. Son los que se pueden trabajar hoy.",
-      "Se inscribe: llegaron a inscribirse, estén hoy estudiando el curso o no. Quien entró antes del periodo y se inscribió en estos días no cuenta aquí: eso lo dice «Ritmo de inscripción».",
-      "Dijeron que no: marcados como no interesados. Salen del embudo. Cuentan como contactados, así que están dentro de «contactados, sin datos».",
-      "Tardan en inscribirse: la media sale de quienes se inscribieron en el periodo, entraran cuando entraran; no es la misma gente de las otras tres cifras.",
+      "En proceso: de los leads que entraron en el periodo, no se han inscrito y tampoco han dicho que no. Son los que se pueden trabajar hoy.",
+      "Inscritos: llegaron a inscribirse, estén hoy estudiando el curso o no. Quien entró antes del periodo y se inscribió en estos días no cuenta aquí: eso lo dice «Ritmo de inscripción».",
+      "Descartados: marcados como no interesados. Salen del embudo. Cuentan como contactados, así que están dentro de «contactados, sin datos».",
+      "Conversión en días: la media sale de quienes se inscribieron en el periodo, entraran cuando entraran; no es la misma gente de las otras tres cifras.",
     );
     return lista;
   }, [entraron, hitos, apunteDeLaComparacion, cuelloMayor]);
@@ -1874,6 +1889,11 @@ export function PanelProceso({
   const canales = useMemo(() => {
     const filas = [...(control?.conversionPorOrigen ?? [])].sort((a, b) => b.leads - a.leads);
     const cima = Math.max(1, ...filas.map((f) => f.leads));
+    /// EL REPARTO, que no es el ancho de la barra: la barra va
+    /// contra el canal más grande --así se comparan entre ellos-- y
+    /// el porcentaje va contra el total, que es lo que se pidió
+    /// («donde das el número y al lado su porcentaje»).
+    const todos = filas.reduce((t, f) => t + f.leads, 0);
     return filas.map((f, i) => {
       const etiqueta = ETIQUETA_ORIGEN[f.etiqueta as Origen] ?? f.etiqueta;
       return {
@@ -1881,6 +1901,7 @@ export function PanelProceso({
         leads: f.leads,
         color: PALETA_CANAL[i % PALETA_CANAL.length],
         ancho: (f.leads / cima) * 100,
+        porcion: pct(f.leads, todos),
         pista: `${etiqueta}: ${n(f.leads)} personas, ${n(f.inscritos)} inscritos (${Math.round(
           f.conversion * 100,
         )} %)`,
@@ -1898,11 +1919,11 @@ export function PanelProceso({
   /// y uno por resolver, no dos categorías cualesquiera, y con
   /// los colores de serie no se distinguía cuál era cuál.
   ///
-  /// SIN NINGUNA FICHA, NINGUNA PORCIÓN. Con «Hoy» y nadie dentro
+  /// SIN NINGÚN LEAD, NINGUNA PORCIÓN. Con «Hoy» y nadie dentro
   /// llegaban las dos etapas a cero y la leyenda escribía «0,0 %»
   /// dos veces: un porcentaje sobre cero personas, justo lo que la
   /// tira de arriba se cuida de no pintar nunca. Vacío, la dona
-  /// dice «Sin fichas todavía.».
+  /// dice «Sin leads todavía.».
   const porEstado = metricas?.porEstado ?? [];
   const donutDatos: PorcionDonut[] = porEstado.some((e) => e.valor > 0)
     ? [...porEstado]
@@ -2044,6 +2065,34 @@ export function PanelProceso({
     [catalogo, cuentas],
   );
 
+  /**
+   * EL GRUPO VA COLGADO DE LA ACCIÓN (cliente, 23 sep 2026).
+   *
+   * «Grupo (atado a la AF)»: elegida una acción, el desplegable de
+   * grupos solo ofrece los suyos. Sin esto la lista traía los de las
+   * quince acciones --setenta y pico entradas-- y era la única manera
+   * de armar un filtro imposible: la acción AF3 con un grupo de AF7,
+   * que no devuelve a nadie y parece que el panel se rompió.
+   */
+  const codigoDeLaAccion = accionFormacionId
+    ? (listas.acciones.find((a) => a.id === accionFormacionId)?.codigo ?? null)
+    : null;
+  const gruposDeLaAccion = codigoDeLaAccion
+    ? listas.grupos.filter((g) => g.accion === codigoDeLaAccion)
+    : listas.grupos;
+
+  /// Y si el grupo que estaba puesto no es de la acción recién
+  /// elegida, se cae solo: dejarlo puesto --invisible en su
+  /// desplegable pero vivo en la consulta-- deja la pantalla en cero
+  /// sin nada que lo explique.
+  /// SE DERIVA, NO SE GUARDA. Estuvo en un efecto que llamaba a
+  /// `setGrupoId`, y cambiar estado dentro de un efecto es un render
+  /// dentro de otro: el linter lo rechaza y en el peor caso es un
+  /// bucle. Aquí el valor efectivo se calcula y punto; el estado se
+  /// queda como esté y nadie lo ve.
+  const grupoEfectivo =
+    grupoId && gruposDeLaAccion.some((g) => g.id === grupoId) ? grupoId : "";
+
   /// El nombre del curso detrás de su código, para que el
   /// desplegable de grupos no ofrezca «AF1 · Grupo 1» a secas.
   const nombreDeAccion = useMemo(
@@ -2059,16 +2108,10 @@ export function PanelProceso({
       <div className="rounded-xl border border-borde bg-superficie px-4 py-3.5">
         <p className="mb-2.5 text-[0.6875rem] font-bold tracking-[0.08em] text-texto-suave uppercase">
           Filtros
-          {/* «20 personas de qué putas» (cliente, 20 sep 2026):
-              decía «en el proceso», que no dice ni de cuándo ni de
-              dónde salen. Son las que ENTRARON en el periodo de
-              arriba, ya recortadas por estos filtros. */}
-          {entraron > 0 && (
-            <span className="ml-2.5 font-normal tracking-normal text-marca normal-case">
-              <strong className="font-semibold tabular-nums">{n(entraron)}</strong>{" "}
-              {entraron === 1 ? "persona entró" : "personas entraron"} {cuandoEnFrase}
-            </span>
-          )}
+          {/* SIN LA CUENTA AL LADO. «Eliminar: 132 personas entraron
+              desde el principio» (cliente, 23 sep 2026). La cifra ya
+              está en la tira de abajo y en el Resumen General, y aquí
+              arriba competía con el rótulo del filtro. */}
           {hayFiltro && (
             <button
               onClick={quitarFiltros}
@@ -2087,15 +2130,17 @@ export function PanelProceso({
             `auto-fit` con mínimo de 150px: caben los cinco en
             una fila ancha y bajan solos al estrechar, sin
             «breakpoint» que mantener. */}
-        <div
-          className="grid gap-2"
-          style={{ gridTemplateColumns: "repeat(auto-fit,minmax(150px,1fr))" }}
-        >
+        {/* LA ACCIÓN, EL DOBLE DE ANCHA QUE EL GRUPO (cliente, 23 sep
+            2026). Antes las cinco columnas medían igual y el nombre de
+            un curso no cabe en lo mismo que «Grupo 1». Con `flex` y
+            bases distintas cada control pide lo que necesita, y al
+            estrechar bajan solos sin un corte fijo que mantener. */}
+        <div className="flex flex-wrap gap-2 [&>*]:min-w-0">
             {/* SUS OPCIONES SALEN DEL ÁMBITO, NO DE QUIÉN TIENE
                 GENTE, y esa es la diferencia entre verlo y no
                 verlo. Salían de `listas.convenios`, que es un
                 `groupBy` sobre PARTICIPANTES: con BRITCHAM ADEE en
-                stand-by y cero fichas, la lista traía una sola
+                stand-by y cero leads, la lista traía una sola
                 entrada y el desplegable se escondía solo --en la
                 puerta general, donde es justo el que hace falta--.
                 Es la misma fuente que ya usa la pestaña
@@ -2110,6 +2155,7 @@ export function PanelProceso({
                 como segunda línea: un gremio sin nadie tiene que
                 poder elegirse y contestar cero, que es un dato. */}
             {gremiosQueSeEligen.length > 1 && (
+              <div className="min-w-0 flex-[1_1_140px]">
               <Desplegable
                 alto={34}
                 marcador="Gremios"
@@ -2140,6 +2186,7 @@ export function PanelProceso({
                 ]}
                 alElegir={setConvenioId}
               />
+              </div>
             )}
 
             {/* Desplegable y no buscador: los cinco filtros se
@@ -2154,6 +2201,7 @@ export function PanelProceso({
                 no salir sin borrar los cinco filtros-- y la
                 segunda línea cuenta la gente del periodo de
                 arriba, no la de todo el histórico. */}
+            <div className="min-w-0 flex-[3_1_320px]">
             <Desplegable
               alto={34}
               marcador="Acción de formación"
@@ -2170,38 +2218,41 @@ export function PanelProceso({
                   /// de ellas en inglés-- en la misma pantalla es
                   /// lo primero que se preguntó (cliente, 21 sep
                   /// 2026).
-                  detalle: `${n(a.total)} ${a.total === 1 ? "persona" : "personas"}`,
                 })),
               ]}
-              alElegir={setAccionFormacionId}
+              alElegir={(v) => {
+                setAccionFormacionId(v);
+                /// El grupo de otra acción no tiene sentido con esta
+                /// elegida, y dejarlo puesto deja la pantalla en cero.
+                setGrupoId("");
+              }}
             />
+            </div>
 
+            <div className="min-w-0 flex-[1_1_150px]">
             <Desplegable
               alto={34}
               marcador="Grupo"
               etiquetaAria="Grupo"
-              valor={grupoId}
+              valor={grupoEfectivo}
               opciones={[
                 { valor: "", etiqueta: "Grupo" },
-                ...listas.grupos.map((g) => ({
+                ...gruposDeLaAccion.map((g) => ({
                   valor: g.id,
                   /// Con el código de su acción delante: «Grupo 1»
                   /// existe en las quince acciones.
                   etiqueta: `${g.accion} · Grupo ${g.numero}`,
-                  /// Y CON EL NOMBRE DEL CURSO en la segunda
-                  /// línea: «AF1» es un código que no dice nada a
-                  /// quien no lo haya aprendido (cliente, 21 sep
-                  /// 2026), y aquí ya había un renglón libre.
-                  detalle: [
-                    nombreDeAccion.get(g.accion),
-                    `${n(g.total)} ${g.total === 1 ? "persona" : "personas"}`,
-                  ]
-                    .filter(Boolean)
-                    .join(" · "),
+                  /// SIN SEGUNDA LÍNEA. Llevaba el nombre del curso
+                  /// y la cantidad, y el cliente los quitó los dos:
+                  /// «solo la AF y grupo, ejemplo: AF1 Grupo 1; ¿para
+                  /// qué el nombre si lo tengo al lado?» (23 sep
+                  /// 2026). El nombre está en el desplegable de
+                  /// acción, justo a la izquierda.
                 })),
               ]}
               alElegir={setGrupoId}
             />
+            </div>
 
             {/* AQUÍ VIVÍA «Etapas», Y SE QUITA (20 sep 2026).
                 No recortaba nada de esta pantalla: `/resumen`
@@ -2221,6 +2272,7 @@ export function PanelProceso({
                 mirar una etapa está la pantalla de leads, que sí
                 filtra por ella. */}
 
+            <div className="min-w-0 flex-[1_1_170px]">
             <Desplegable
               alto={34}
               marcador="Asesores"
@@ -2231,12 +2283,13 @@ export function PanelProceso({
                 ...listas.asesores.map((a) => ({
                   valor: a.id,
                   etiqueta: a.nombre,
-                  detalle: `${n(a.total)} ${a.total === 1 ? "persona" : "personas"}`,
                 })),
               ]}
               alElegir={setAsesorId}
             />
+            </div>
 
+            <div className="min-w-0 flex-[1_1_170px]">
             <Desplegable
               alto={34}
               marcador="Departamentos"
@@ -2261,28 +2314,19 @@ export function PanelProceso({
                   .map((d) => ({
                     valor: String(d.id),
                     etiqueta: d.nombre,
-                    detalle: `${n(d.total)} ${d.total === 1 ? "persona" : "personas"}`,
                   })),
               ]}
               alElegir={setDepartamentoSepId}
             />
+            </div>
         </div>
 
-        {/* LAS PALABRAS DEL OFICIO, EXPLICADAS DONDE SALEN.
-            «No sé qué es un gremio ni por qué ADECOPRIA es uno»,
-            «AF1 es un código que no me dice nada» (cliente, 21
-            sep 2026). Una línea debajo de los cinco cuesta un
-            renglón y evita tener que aprenderse el vocabulario
-            en otra pantalla. */}
-        {/* La frase del gremio cuelga de que el control EXISTA.
-            Nombrarlo en un subdominio, donde nunca se pinta,
-            explica un mando que no está. */}
-        <p className="mt-2 text-[0.6875rem] leading-snug text-texto-suave">
-          {gremiosQueSeEligen.length > 1 &&
-            "Gremio: la agremiación que trae a las personas. "}
-          Acción de formación: el curso, con su código («AF1»). Grupo: cada ficha de
-          ese curso.
-        </p>
+        {/* SIN LA LÍNEA DE VOCABULARIO. La explicaba aquí --«gremio
+            es la agremiación que trae a las personas», «AF1 es el
+            código del curso»-- y el cliente la mandó quitar el 23 sep
+            2026: quien usa el panel ocho horas al día no necesita que
+            se lo expliquen cada vez, y ocupaba un renglón encima de
+            los filtros. */}
       </div>
 
       {/* La barra fina de arriba mientras llega el dato nuevo.
@@ -2358,269 +2402,71 @@ export function PanelProceso({
           <TiraDelPeriodo celdas={celdas} />
         )}
 
-        {/* ── 3 · Cómo fue entrando la gente ──
-            «Dejar la gráfica arriba, el embudo abajo» (cliente, 21
-            sep 2026). Iba a la derecha del embudo, en la misma caja,
-            y eso obligaba a los dos dibujos a medir lo mismo y a
-            empezar en la misma raya: 57 px vacíos encima del embudo
-            y el trazado encajonado en media tarjeta. En su propia
-            caja tiene casi todo el ancho y el embudo no guarda aire
-            para nadie.
-            Solo existe si hay algo que repartir por fechas. Con un
-            solo día --«Hoy», «Ayer», o un filtro que deja a todos
-            en un día-- NO se pinta una caja con media tarjeta vacía
-            que lo explique: la frase va bajo la figura del embudo.
-            Mientras no hay dato, el hueco mide lo que medirá la
-            gráfica, para que la pantalla no salte. */}
-        {(sinDatosTodavia || (hayColumnas && entraron > 0)) && (
-          <Bloque
-            titulo="Cómo fue entrando la gente"
-            descripcion="Cuándo entró cada persona y hasta dónde ha llegado."
-          >
-            <div className={claseColumnas}>
-              {sinDatosTodavia ? (
-                <HuecoDeLaGrafica />
-              ) : (
-                <EmbudoPorDia
-                  dias={porDia}
-                  promedioAnterior={promedioAnterior}
-                  /// Solo cuando de verdad FALTA serie. `control`
-                  /// la recorta a 60 días cuando no hay ventana,
-                  /// pero eso no quiere decir que falte gente: con
-                  /// «Desde el principio» las columnas sumaban las
-                  /// mismas 206 del embudo y aun así se avisaba de
-                  /// un desajuste que no existía, en la vista con
-                  /// la que se abre la pantalla. Si falta, la suma
-                  /// se queda corta y ahí sí se dice.
-                  serieRecortada={serieRecortada && sumaPorDia < entraron}
-                  ventana={control?.ventana.instantes?.actual ?? null}
-                  /// Su letra pequeña no se pinta dentro del
-                  /// gráfico: sube y se junta con la nota del
-                  /// cuadre en la revelación del pie de esta caja.
-                  /// Ver `recibirNotas`.
-                  alCambiarNotas={recibirNotas}
-                />
-              )}
-              {notasDeLaGrafica.length > 0 && (
-                <div className="mt-3">
-                  <Revelacion
-                    titulo="Cómo se lee la gráfica"
-                    notas={notasDeLaGrafica}
-                    /// La caja va a todo el ancho, así que las
-                    /// notas se reparten en columnas como antes:
-                    /// apiladas dejaban 1.300 px de blanco al lado.
-                    rejilla={rejillaDeCeldas(notasDeLaGrafica.length)}
-                  />
-                </div>
-              )}
-            </div>
+        {/* ── BLOQUE 1 · RESUMEN GENERAL ──
+            Lo primero de la pantalla, por encargo del cliente (23 sep
+            2026): las siete cifras macro, una barra por acción de
+            formación. Va con los mismos filtros de arriba: un bloque
+            que los ignora enseña una cifra distinta a la de su vecino
+            para la misma pregunta. */}
+        <ResumenGeneral filtros={recorte} />
+
+        {/* ── 5 · De qué está hecha esa gente ── */}
+        {/* SOLO «Por convenio», y solo con los dos gremios a la vista.
+            Esta fila tenía además «Por acción de formación» y «Por
+            modalidad», y las dos salieron por encargo del cliente (23
+            sep 2026): la primera la reemplaza la tabla de cupos e
+            inscritos de abajo, que dice lo mismo con cifras y no con
+            porciones; la segunda no se usa para decidir nada. */}
+        {donutConvenio.length > 1 && !gremioUnico && (
+          <Bloque titulo="Por convenio" descripcion="Cómo se reparten entre los dos gremios.">
+            <Donut datos={donutConvenio} detalleCentro="personas" />
           </Bloque>
         )}
 
-        {/* ── 4 · El embudo, al lado de lo que hay que hacer hoy ──
-            «El embudo abajo con Qué atender primero» (cliente, 21
-            sep 2026). El embudo enseña en qué paso se queda la
-            gente y la lista dice a quién llamar para recogerla:
-            juntos se leen como pregunta y respuesta. La lista era
-            la única cosa de la pantalla que se HACE, y estaba una
-            fila entera más abajo.
-            MITAD Y MITAD, CON LA MISMA REJILLA QUE LAS FILAS DE
-            ABAJO. Fue un embudo de 420 px con la lista ocupando el
-            resto, y al verlo: «Dale más espacio al embudo, o sea a
-            lo ancho, Claude; quizás alineado como está: Por acción
-            de formación / Por modalidad» (cliente, 21 sep 2026).
-            Con la misma rejilla y el mismo corte que «Por convenio»
-            / «Por modalidad» --dos columnas iguales desde 1.000 px--
-            las columnas de las dos filas caen en el mismo sitio y la
-            pantalla se lee alineada de arriba abajo. Las dos cajas
-            miden lo mismo de alto: la rejilla estira a las dos.
-            Por debajo de 1.000 se apilan EN EL MISMO ORDEN DEL
-            MARCADO, embudo y después lista: sin `order` de CSS,
-            porque un lector de pantalla tiene que leer lo mismo que
-            se ve y el orden lo pidió él.
-            Sin embudo (nadie entró) la fila pasa a una columna y la
-            lista ocupa todo el ancho. Mientras la lista no ha
-            llegado se guarda su media fila, para que el embudo no
-            ocupe la fila entera medio segundo y luego encoja. */}
-        <div className={`grid gap-4 ${hayEmbudo ? "min-[1000px]:grid-cols-2" : ""}`}>
-          {hayEmbudo && (
-            <Bloque
-              estirado
-              titulo="Embudo de inscripción"
-              /// LA BASE DE LOS PORCENTAJES, A LA VISTA.
-              ///
-              /// «Los porcentajes del embudo son sobre las N que
-              /// entraron» estaba guardado en la revelación cerrada:
-              /// un porcentaje con la base escondida es un
-              /// porcentaje sin base. Y «En rojo, el paso donde más
-              /// gente se queda» es lo que queda del rótulo y el
-              /// titular de 16 px que iban encima: el 49 ya está
-              /// escrito en rojo en su cuello.
-              /// Los nombres de los cuatro pasos, que decía la
-              /// descripción de antes, ya están escritos en la
-              /// figura y además en la nota 3 de su letra pequeña.
-              /// SIN el tope de 58ch de otras descripciones: en
-              /// media fila la frase cabe en un renglón (unos 470
-              /// px de 718 a 1.600 y de 601 a 1.366), y con el tope
-              /// partía en dos dejando media cabecera vacía.
-              /// `text-pretty` para el celular, donde sí parte: que
-              /// no deje una palabra sola en el último renglón.
-              descripcion={
-                <span className="block text-pretty">
-                  {/* Mientras no ha llegado el dato, sin cifra: «las
-                      0 que entraron» es falso y dura medio segundo. */}
-                  {sinDatosTodavia
-                    ? "Porcentajes sobre las personas que entraron."
-                    : entraron === 1
-                      ? "Porcentajes sobre la persona que entró."
-                      : `Porcentajes sobre las ${n(entraron)} que entraron.`}
-                  {cuelloMayor && entraron > 0 ? " En rojo, el paso donde más gente se queda." : ""}
-                </span>
-              }
-            >
-              {/* `h-full flex-col` y la revelación con `mt-auto`: si
-                  la lista de al lado fuera más alta, el aire queda
-                  entre la figura y su letra pequeña y la revelación
-                  sigue al pie de la caja, donde está la de la
-                  gráfica. */}
-              <div className={`flex h-full flex-col ${claseEmbudo}`}>
-                {hitos.length > 0 ? (
-                  /* LA CINTA, NO EL CONO. «¿Esto por qué como en
-                     triángulo así? No fue la imagen de referencia. Te
-                     paso otro que me gustó mucho» (cliente, 21 sep
-                     2026, con un embudo de cintas en espiral). El cono
-                     --piezas rectas, simétricas, elipse arriba y punta
-                     abajo-- se leía como un triángulo con rayas; antes
-                     de él, EmbudoForma tenía franjas que se leían como
-                     pasos de más. EmbudoCinta tiene las mismas props y
-                     la misma caja, así que el cambio es este: una cinta
-                     de color de etapa por paso, inclinada, con su revés
-                     y la cola retorcida, y líneas guía a los rótulos
-                     numerados. EmbudoCono y EmbudoForma se quedan en su
-                     archivo: no se borra lo que funciona. */
-                  <EmbudoCinta
-                    hitos={hitos}
-                    /// NADA de «antes N» cuando el periodo anterior
-                    /// no trajo a nadie: con «El mes pasado» el
-                    /// embudo escribía «antes 0» en los cuatro
-                    /// pasos y se leía como que se pasó de cero a
-                    /// 136, cuando lo que ocurre es que la base
-                    /// empieza después.
-                    antes={hayAntes ? hitosAntes : null}
-                    /// Del sello de las cifras, no del desplegable:
-                    /// el «antes N» de cada paso tiene que llamarse
-                    /// como el periodo del que salió.
-                    etiquetaAntes={datos?.etiquetaAnterior ?? null}
-                    /// Debajo de la figura y en letra pequeña: habla
-                    /// del último paso del embudo. Lejos del «2 %»
-                    /// de la tira y en otra caja, con su base
-                    /// escrita («3.690 inscritos… Van 80, el 2 %»).
-                    meta={meta}
-                  />
-                ) : (
-                  <HuecoDelEmbudo />
-                )}
-                {/* `!desfasado`: esta frase mezcla las DOS respuestas
-                    --el nombre del periodo sale de `/resumen` y «no hay
-                    columnas» de `/control`--. Con una de las dos atrás
-                    llegó a afirmar «“Desde el principio” cabe en un
-                    solo día» (medido el 21 sep 2026, con un 429 en
-                    `/resumen`). Si no cuadran, se calla. */}
-                {hitos.length > 0 && !hayColumnas && !desfasado && (
-                  <SinColumnas
-                    cuando={datos?.etiqueta ?? null}
-                    hayFiltro={hayFiltro}
-                    cuantos={sumaPorDia}
-                    dia={porDia[0] ? fecha(porDia[0].dia) : null}
-                  />
-                )}
-                {notasDelEmbudo.length > 0 && (
-                  <div className="mt-auto pt-3">
-                    <Revelacion
-                      titulo="Cómo se leen las cifras y el embudo"
-                      notas={notasDelEmbudo}
-                      /// La caja es media fila desde 1.000 px: entre
-                      /// 1.000 y 1.300 mide menos de 570 útiles y va
-                      /// una columna; desde 1.300, dos de unos 280.
-                      /// Apilada, por debajo de 1.000, va a todo el
-                      /// ancho y caben dos desde 620.
-                      rejilla="grid-cols-1 min-[620px]:grid-cols-2 min-[1000px]:grid-cols-1 min-[1300px]:grid-cols-2"
-                    />
-                  </div>
-                )}
-              </div>
-            </Bloque>
-          )}
+        {/* ── LA TABLA DEL COMITÉ ──
+            Es el Excel que el cliente llevaba a mano, y va aquí --antes
+            de los cortes de siempre-- porque es lo que se mira primero
+            en el comité: cuántos cupos hay comprometidos y cuánto falta
+            para cerrar cada acción (cliente, 23 sep 2026). */}
+        {/* CON UNA ABIERTA, SOLO ESA FILA (cliente, 23 sep 2026: «no
+            veo que cuando le doy clic a uno me oculte las demás AF y me
+            dé el listado de los grupos»). Pulsar otra vez la fila
+            suelta el corte y vuelven las siete. */}
+        <TablaPorAccion
+          recorte={
+            accionAbierta
+              ? { ...recorte, accionFormacionId: accionAbierta.id }
+              : recorte
+          }
+          /// Pulsar la fila abre sus grupos; pulsarla otra vez los
+          /// cierra. Es el Bloque 3 que pidió el cliente, y nace
+          /// cerrado: siete acciones abiertas son setenta filas.
+          alElegir={(fila) =>
+            setAccionAbierta((a) =>
+              a?.id === fila.accionFormacionId
+                ? null
+                : { id: fila.accionFormacionId, titulo: `${fila.codigo} · ${fila.nombre}` },
+            )
+          }
+          elegida={accionAbierta?.id ?? null}
+        />
 
-          {/* LA LISTA, ESTIRADA AL ALTO DEL EMBUDO.
-              Este contenedor estira a su hijo (`*:grow`) para que
-              las dos cajas de la fila midan lo mismo. Lo que falta
-              está en `pendientes-de-hoy.tsx` y no se toca aquí: que
-              su `Bloque` lleve `estirado` y que la lista reparta el
-              alto entre sus filas desde 1.000 px, que es donde esta
-              fila pasa a dos columnas.
-              Su frase de alcance --«No dependen del periodo elegido
-              arriba»-- va siempre a la vista y NO se pliega nunca:
-              con «Últimos 7 días» el 23 de la lista coincide con el
-              del embudo y sin esa frase vuelve la pregunta del 20 de
-              septiembre. */}
-          {control && (
-            <div className="flex min-w-0 flex-col *:grow">
-              <PendientesDeHoy control={control} />
-            </div>
-          )}
-        </div>
-
-        {/* ── 5 · De qué está hecha esa gente ── */}
-        <div className="grid gap-4 min-[1000px]:grid-cols-2">
-          {/* Con un solo gremio la tarta de convenios sobra —una
-              sola porción no reparte nada— y en su hueco entra
-              cómo se reparten las acciones DE ESE gremio, que es
-              la pregunta que queda cuando ya se sabe cuál es.
-              El encargo decía dejar «Por modalidad» sola a lo
-              ancho; media fila vacía no informa de nada. */}
-          {donutConvenio.length > 1 && !gremioUnico ? (
-            <Bloque titulo="Por convenio" descripcion="Cómo se reparten entre los dos gremios.">
-              <Donut datos={donutConvenio} detalleCentro="personas" />
-            </Bloque>
-          ) : (
-            <Bloque
-              titulo="Por acción de formación"
-              descripcion={
-                gremioUnico
-                  ? `Cómo se reparten sus acciones dentro de ${gremioUnico}.`
-                  : "Cómo se reparten las acciones de formación."
-              }
-            >
-              <Donut
-                datos={donutAcciones}
-                detalleCentro="personas"
-                vacio="Sin acciones con personas."
-              />
-            </Bloque>
-          )}
-          <Bloque titulo="Por modalidad" descripcion="Virtual, presencial e híbrida.">
-            <Donut datos={donutModalidad} detalleCentro="personas" vacio="Sin modalidad registrada." />
-          </Bloque>
-        </div>
+        {/* ── BLOQUE 3 · EL DETALLE POR GRUPOS ── */}
+        {accionAbierta && (
+          <TablaPorGrupo
+            accionFormacionId={accionAbierta.id}
+            titulo={accionAbierta.titulo}
+          />
+        )}
 
         {/* ── 6 · Dónde está cada quien y si sus datos sirven ── */}
         <div className="grid gap-4 min-[1000px]:grid-cols-2">
           <Bloque
-            titulo="Dónde está cada persona hoy"
-            descripcion="En qué paso está parada cada persona hoy, agrupados por fase."
+            titulo="Estado del lead"
+            descripcion="En qué paso está parada cada persona hoy."
           >
-            <div className="space-y-4">
-              {FASES.map((f) => {
-                const filas = f.etapas.filter((e) => valorDeFase(e) > 0);
-                if (filas.length === 0) return null;
-                return (
-                  <div key={f.titulo}>
-                    <p className="mb-2 text-[0.625rem] font-bold tracking-[0.1em] text-marca uppercase">
-                      {f.titulo}
-                    </p>
-                    <ul className="space-y-2.5">
-                      {filas.map((e) => {
+            <ul className="space-y-2.5">
+              {ETAPAS_EN_ORDEN.filter((e) => valorDeFase(e) > 0).map((e) => {
                         const v = valorDeFase(e);
                         return (
                           <li key={e}>
@@ -2651,19 +2497,25 @@ export function PanelProceso({
                             </div>
                           </li>
                         );
-                      })}
-                    </ul>
-                  </div>
-                );
               })}
-            </div>
+            </ul>
           </Bloque>
 
           <Bloque
             titulo="Estado de los datos"
             descripcion="Cuántos leads están completos y cuántos a medias."
           >
-            <Donut datos={donutDatos} detalleCentro="personas" vacio="Sin leads todavía." />
+            {/* MÁS GRANDE, Y A LA MEDIDA DE SU VECINA. «La dona de
+                Estado de los datos más grande simétricamente»
+                (cliente, 23 sep 2026): comparte fila con «Estado del
+                lead», que es una lista de cinco barras, y a 188 px
+                dejaba media tarjeta en blanco al lado de ella. */}
+            <Donut
+              datos={donutDatos}
+              tamano={224}
+              detalleCentro="personas"
+              vacio="Sin leads todavía."
+            />
           </Bloque>
         </div>
 
@@ -2701,14 +2553,13 @@ export function PanelProceso({
             /// cuenta a los que SE INSCRIBIERON en el periodo,
             /// entraran cuando entraran. Por eso las dos cifras
             /// son distintas y las dos están bien.
-            descripcion="Cuenta a quien SE INSCRIBIÓ en el periodo, entrara cuando entrara. El embudo de arriba cuenta a quien ENTRÓ en el periodo, así que las dos cifras no tienen por qué coincidir."
           >
-            <Serie datos={control?.serie ?? []} cuando={cuandoEnFrase} />
+            <Serie datos={control?.serie ?? []} />
           </Bloque>
           </div>
 
           <Bloque
-            titulo="De dónde vienen"
+            titulo="Origen del Lead"
             /// DICE DE QUÉ HABLA, porque no obedece al periodo.
             ///
             /// Sale de `conversionPorOrigen`, que el backend
@@ -2721,7 +2572,6 @@ export function PanelProceso({
             /// 101 personas, pegado a un vecino que sí dice
             /// «la gente del periodo». Si un bloque no hace caso
             /// al periodo, tiene que decirlo él.
-            descripcion="Volumen por canal y cuánto convierte cada uno. Obedece a los cinco filtros, pero NO al periodo de arriba: cuenta a todas las personas, entraran cuando entraran."
           >
             {/* Dona a la izquierda y UNA lista a la derecha:
                 punto de color, canal, cuántos, y la barra debajo.
@@ -2730,7 +2580,7 @@ export function PanelProceso({
                 no dice la dona —cuántos inscribe cada canal— va en
                 el `title`, que es donde el encargo lo pide. */}
             <div className="flex flex-wrap items-center gap-4">
-              <Donut datos={donutOrigen} tamano={128} detalleCentro="personas" soloDibujo />
+              <Donut datos={donutOrigen} tamano={168} detalleCentro="personas" soloDibujo />
               <ul className="min-w-[170px] flex-1 space-y-2.5">
                 {canales.map((c) => (
                   <li key={c.etiqueta} title={c.pista}>
@@ -2741,7 +2591,12 @@ export function PanelProceso({
                         aria-hidden
                       />
                       <span className="min-w-0 flex-1 truncate">{c.etiqueta}</span>
-                      <span className="shrink-0 font-semibold tabular-nums">{n(c.leads)}</span>
+                      <span className="shrink-0 font-semibold tabular-nums">
+                        {n(c.leads)}
+                        <span className="ml-2 text-[0.71875rem] font-normal text-texto-suave">
+                          {c.porcion}
+                        </span>
+                      </span>
                     </div>
                     <div className="mt-1 h-[5px] overflow-hidden rounded-full bg-superficie-alterna">
                       <div
@@ -2798,24 +2653,8 @@ export function PanelProceso({
           </Bloque>
         </div>
 
-        {/* Los cupos de empresas, ABAJO y en su bloque: no son
-            leads y no se cuentan con ellos. */}
-        <ReservasSinNombre control={control ?? null} />
-
         {/* ── 9 · El detalle, con sus grupos dentro ── */}
-        <Bloque
-          estirado
-          titulo="Desglose por acción de formación"
-          descripcion="Haga clic en una acción para ver el avance de sus grupos."
-        >
-          <DesgloseAcciones
-            filas={control?.porAccion ?? []}
-            total={entraron}
-            abierta={accionAbierta}
-            alAbrir={setAccionAbierta}
-            grupos={gruposDe}
-          />
-        </Bloque>
+        
 
       </div>
     </div>
@@ -2938,16 +2777,7 @@ function PuntaDeSerie({
   );
 }
 
-function Serie({
-  datos,
-  cuando,
-}: {
-  datos: Array<{ dia: string; total: number }>;
-  /// El periodo dicho como se lee dentro de una frase: «en los
-  /// últimos 30 días». Hace falta para que la cifra diga a quién
-  /// cuenta sin obligar a subir a la cabecera.
-  cuando: string;
-}) {
+function Serie({ datos }: { datos: Array<{ dia: string; total: number }> }) {
   if (datos.length === 0) {
     return (
       <p className="py-8 text-center text-[0.84375rem] text-texto-suave">
@@ -2956,7 +2786,6 @@ function Serie({
     );
   }
 
-  const total = datos.reduce((t, d) => t + d.total, 0);
   const cima = Math.max(1, ...datos.map((d) => d.total));
   const mejor = datos.reduce((a, b) => (b.total > a.total ? b : a));
   /// Con un solo día no hay curva que trazar: el punto va al medio
@@ -2974,7 +2803,11 @@ function Serie({
   const area = `${en(0, 0).x},${ALTO_SERIE} ${puntos.join(" ")} ${
     en(datos.length - 1, 0).x
   },${ALTO_SERIE}`;
-  const pMejor = en(datos.indexOf(mejor), mejor.total);
+  const iMejor = datos.indexOf(mejor);
+  const pMejor = en(iMejor, mejor.total);
+  /// Si el pico ES una de las puntas, su punto ya lleva rótulo con
+  /// la cifra: dos encimados no se leen ninguno de los dos.
+  const picoEnLaPunta = unSoloDia || iMejor === 0 || iMejor === datos.length - 1;
   const primero = datos[0];
   const ultimo = datos[datos.length - 1];
   const pPrimero = en(0, primero.total);
@@ -2982,21 +2815,6 @@ function Serie({
 
   return (
     <div className="flex flex-col">
-      {/* DICE A QUIÉN CUENTA, en su propio renglón.
-          «72 inscritos en el periodo» convivía en la misma
-          pantalla con «32 se inscribieron» del embudo, y ninguna
-          de las dos decía de qué gente hablaba: no había forma de
-          saber cuál llevar a la reunión.
-          Aquí está también la ALTURA de la cima --el mejor día con
-          su cifra-- que es lo que decía el «11» suelto del canto. */}
-      <p className="max-w-[54ch] text-[0.84375rem] leading-relaxed text-pretty text-texto">
-        <strong className="font-semibold text-titulo">{n(total)}</strong>{" "}
-        {total === 1 ? "persona se inscribió" : "personas se inscribieron"} {cuando}, hayan
-        entrado cuando hayan entrado · el mejor día fue el{" "}
-        <strong className="font-semibold text-titulo">{fecha(mejor.dia)}</strong>, con{" "}
-        {n(mejor.total)}.
-      </p>
-
       {/* EL DIBUJO, CON ALTO PROPIO.
           Sin `grow` y sin `h-full`: lo que sobre de alto en la
           fila, que sobre. Ver `ALTO_SERIE`. */}
@@ -3021,9 +2839,16 @@ function Serie({
           />
         </svg>
 
-        {/* EL MEJOR DÍA, marcado y sin rótulo: su fecha y su cifra
-            están en el renglón de arriba, y repetirlas aquí eran
-            tres cifras para nueve puntos. */}
+        {/* EL MEJOR DÍA, MARCADO Y CON SU CANTIDAD. «Ritmo de
+            inscripción: los picos del gráfico, que tengan la
+            cantidad» (cliente, 23 sep 2026). Iba mudo porque su
+            cifra estaba en la frase de arriba --la misma que él
+            mandó quitar-- así que el dato se muda al punto donde
+            ocurre, que es donde se busca.
+
+            El rótulo va DEBAJO del punto, no encima: el pico cae
+            siempre en y = AIRE_SERIE (12 px) y encima no hay sitio.
+            Es la misma regla de `PuntaDeSerie`. */}
         <span
           className="pointer-events-none absolute block rounded-full"
           style={{
@@ -3037,6 +2862,20 @@ function Serie({
           }}
           aria-hidden
         />
+        {!picoEnLaPunta && (
+          <span
+            className="pointer-events-none absolute text-[0.625rem] leading-tight font-semibold whitespace-nowrap text-titulo tabular-nums"
+            style={{
+              /// Clavado a su punto, y sin salirse por los cantos
+              /// cuando el pico cae en el primer o el último tramo.
+              left: `${Math.min(94, Math.max(6, pMejor.x))}%`,
+              top: pMejor.y + PUNTO_MEJOR,
+              transform: "translateX(-50%)",
+            }}
+          >
+            {n(mejor.total)}
+          </span>
+        )}
 
         {/* LAS DOS PUNTAS, CON SU DATO. Con un solo día se queda
             la del medio; si hubiera que sacrificar una sería la
@@ -3116,7 +2955,10 @@ function TablaAsesores({
         <thead>
           <tr className="border-b border-hairline text-[0.625rem] font-bold tracking-[0.08em] text-texto-suave uppercase">
             <th className="pb-2 text-left font-bold">Asesor</th>
-            <th className="pb-2 text-right font-bold">Total</th>
+            {/* DICE DE QUÉ ES EL TOTAL (cliente, 24 sep 2026). Un
+                «Total» a secas en una tabla de asesores se lee como
+                el total de cualquier cosa: es de leads asignados. */}
+            <th className="pb-2 text-right font-bold">Total (Lead Asignado)</th>
             <th className="pb-2 text-right font-bold">Inscr.</th>
             <th className="pb-2 pl-4 text-left font-bold">Conversión</th>
           </tr>

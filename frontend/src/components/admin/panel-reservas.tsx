@@ -43,16 +43,14 @@ import { EncabezadoImpresion } from "./boton-pdf";
 import { Desplegable } from "./desplegable";
 import { n } from "./graficos";
 import { Aviso } from "./marco-admin";
-import { Bloque, Esqueleto, TarjetaCifra, Vacio } from "./piezas";
+import { Bloque, CifraCompacta, Esqueleto, Vacio } from "./piezas";
 import { adminApi } from "@/lib/admin-api";
 import { bonito, comoParrafo } from "@/lib/api";
 import type { Filtros } from "@/lib/crm-api";
 import { ErrorApi } from "@/lib/pedir";
 import {
   tablerosApi,
-  type FilaInformeAccion,
   type FilaInformeCruce,
-  type FilaInformeOrganizacion,
   type FiltrosInformeReservas,
   type InformeReservas,
   type PuntoSerie,
@@ -87,7 +85,9 @@ export const ContextoRecorteDeControl = createContext<Filtros | null>(null);
  * que aquí no aplican.
  */
 export function enlaceAlInforme(cortes: Filtros | null | undefined): string {
-  const p = new URLSearchParams({ pantalla: "reservas" });
+  /// Sin `pantalla`: el informe de reservas tiene su propia ruta desde
+  /// el 22 sep 2026, y la dirección ya dice cuál es.
+  const p = new URLSearchParams();
   if (cortes?.convenioId) p.set("convenioId", cortes.convenioId);
   if (cortes?.accionFormacionId) p.set("accionFormacionId", cortes.accionFormacionId);
   const ignorados = [
@@ -96,7 +96,7 @@ export function enlaceAlInforme(cortes: Filtros | null | undefined): string {
     cortes?.departamentoSepId != null ? "departamento" : null,
   ].filter((x): x is string => x !== null);
   if (ignorados.length) p.set("ignorados", ignorados.join(","));
-  return `/admin/control?${p.toString()}`;
+  return `/admin/informes/reservas?${p.toString()}`;
 }
 
 /* ═══════════════════════════════════════════════════════════════
@@ -120,6 +120,8 @@ function filtrosDeLaDireccion(p: URLSearchParams): FiltrosInformeReservas {
     convenio: texto("convenio"),
     accionFormacionId: texto("accionFormacionId"),
     ubicacionId: texto("ubicacionId"),
+    departamento: texto("departamento"),
+    empresaId: texto("empresaId"),
     desde: texto("desde"),
     hasta: texto("hasta"),
     incluirCanceladas: casilla === "true" || casilla === "1",
@@ -158,6 +160,8 @@ const CLAVES_DEL_INFORME = [
   "convenio",
   "accionFormacionId",
   "ubicacionId",
+  "departamento",
+  "empresaId",
   "desde",
   "hasta",
   "incluirCanceladas",
@@ -637,9 +641,15 @@ function CuerpoDelInforme({
 
   return (
     <>
+      {/* TRES PIEZAS Y NO CINCO (cliente, 23 sep 2026). Salieron
+          «Resumen por acción de formación» --que decía lo mismo que el
+          seguimiento, pero sumado-- y «Cupos sin nombre, por
+          organización», cuya lista es la columna «Pendientes» de la
+          tabla de abajo. Lo que queda: las cifras, las dos gráficas en
+          una fila, y la tabla con la que se trabaja. */}
       <ResumenGeneral informe={informe} />
       <Graficas informe={informe} filtros={filtros} />
-      <TablaPorAccion informe={informe} />
+      <Seguimiento informe={informe} />
     </>
   );
 }
@@ -721,8 +731,36 @@ function TarjetaDeFiltros({
     [catalogo],
   );
 
+  /**
+   * LOS DEPARTAMENTOS Y LAS INSTITUCIONES SALEN DEL CATÁLOGO, NO DEL
+   * INFORME FILTRADO.
+   *
+   * Es la misma regla que ya siguen la acción y la ubicación, y está
+   * aquí por un defecto concreto: si la lista saliera de lo que se
+   * está viendo, al elegir «Antioquia» el desplegable se quedaría con
+   * una sola entrada --Antioquia-- y no habría manera de salir sin
+   * limpiar todos los filtros.
+   */
+  const departamentos = useMemo(
+    () =>
+      [...(catalogo?.porDepartamento ?? [])].sort((a, b) =>
+        ordenNatural(bonito(a.departamento), bonito(b.departamento)),
+      ),
+    [catalogo],
+  );
+
+  const instituciones = useMemo(
+    () =>
+      [...(catalogo?.porOrganizacion ?? [])].sort((a, b) =>
+        ordenNatural(bonito(a.razonSocial), bonito(b.razonSocial)),
+      ),
+    [catalogo],
+  );
+
   const accionElegida = filtros.accionFormacionId ?? "";
   const ubicacionElegida = filtros.ubicacionId ?? "";
+  const departamentoElegido = filtros.departamento ?? "";
+  const institucionElegida = filtros.empresaId ?? "";
 
   /// Lo que está puesto, dicho en el botón del celular: con los
   /// controles plegados, sin esto no se sabría qué recorte se mira.
@@ -731,6 +769,10 @@ function TarjetaDeFiltros({
     (catalogo?.porAccion ?? []).find((a) => a.accionFormacionId === accionElegida)?.codigo,
     ubicaciones.find((u) => u.ubicacionId === ubicacionElegida)?.nombre
       ? bonito(ubicaciones.find((u) => u.ubicacionId === ubicacionElegida)?.nombre ?? "")
+      : undefined,
+    departamentoElegido ? bonito(departamentoElegido) : undefined,
+    instituciones.find((i) => i.empresaId === institucionElegida)?.razonSocial
+      ? bonito(instituciones.find((i) => i.empresaId === institucionElegida)?.razonSocial ?? "")
       : undefined,
     rangoEnPalabras(filtros.desde ?? null, filtros.hasta ?? null) ?? undefined,
     filtros.incluirCanceladas ? "con canceladas" : undefined,
@@ -857,6 +899,50 @@ function TarjetaDeFiltros({
           />
         </div>
 
+        {/* DEPARTAMENTO, que es un escalón por encima de «Dónde se
+            dicta» (cliente, 23 sep 2026). Los dos conviven: en
+            «Dónde se dicta» Medellín y Antioquia son dos entradas
+            distintas, y quien quiere ver Antioquia entera las
+            necesita juntas. */}
+        <div className="min-w-0 flex-[1_1_180px]">
+          <Desplegable
+            alto={34}
+            marcador="Departamento"
+            etiquetaAria="Departamento"
+            valor={departamentoElegido}
+            opciones={[
+              { valor: "", etiqueta: "Departamento" },
+              ...departamentos.map((d) => ({
+                valor: d.departamento,
+                etiqueta: bonito(d.departamento),
+                detalle: `${n(d.cuposConfirmados)} ${d.cuposConfirmados === 1 ? "cupo" : "cupos"}`,
+              })),
+            ]}
+            alElegir={(v) => escribirEnLaDireccion({ departamento: v || undefined })}
+          />
+        </div>
+
+        <div className="min-w-0 flex-[2_1_240px]">
+          <Desplegable
+            alto={34}
+            marcador="Institución"
+            etiquetaAria="Institución"
+            valor={institucionElegida}
+            opciones={[
+              { valor: "", etiqueta: "Institución" },
+              ...instituciones.map((i) => ({
+                valor: i.empresaId,
+                etiqueta: bonito(i.razonSocial),
+                /// El NIT en la segunda línea: dos sedes de la misma
+                /// red se llaman casi igual y es lo único que las
+                /// separa a simple vista.
+                detalle: [i.nit, `${n(i.cuposConfirmados)} cupos`].filter(Boolean).join(" · "),
+              })),
+            ]}
+            alElegir={(v) => escribirEnLaDireccion({ empresaId: v || undefined })}
+          />
+        </div>
+
         <CajaDeFecha
           rotulo="Desde"
           valor={filtros.desde ?? ""}
@@ -935,7 +1021,19 @@ function CajaDeFecha({
    ═══════════════════════════════════════════════════════════════ */
 
 /**
- * Las cuatro cifras de arriba, con el gremio en el título.
+ * Las cinco cifras de arriba.
+ *
+ * DESNUDAS SOBRE LA PÁGINA, SIN `Bloque` (cliente, 24 sep 2026:
+ * «sigue igual?»). Estuvieron dentro de uno, y eso las metía en una
+ * caja con cabecera lavanda y otra fila enmarcada debajo: caja dentro
+ * de caja dentro de caja.
+ *
+ * Medido contra las dos tiras que él sí aprobó --«Gestión de leads» y
+ * «Seguimiento académico»-- la TARJETA era idéntica: 51 px de alto,
+ * relleno 8/14, hueco 8. Lo que no se parecía era el MARCO: allí las
+ * tarjetas cuelgan de la página, sin título encima ni borde alrededor.
+ * Y el alto nunca fue el problema --la tira aprobada del académico
+ * mide 66 px y ésta medía 51--, así que medirlo no respondía nada.
  *
  * Las tres últimas son, al dígito, las del bloque «Cupos apartados
  * por empresas» desde el que se hace clic, en su orden y con sus
@@ -950,84 +1048,70 @@ function CajaDeFecha({
 function ResumenGeneral({ informe }: { informe: InformeReservas }) {
   const t = informe.totales;
   const conNombre = sillasConNombre(t);
-  const organizacionesQueDeben = informe.porOrganizacion.filter((o) => o.sinNombre > 0).length;
   const convenios = informe.recorte.convenios;
 
   return (
-    <Bloque
-      titulo={tituloEnPantalla(informe)}
-      /// Con un gremio, el título lo dice todo. Con varios, «los dos
-      /// gremios» necesita decir cuáles.
-      descripcion={
-        convenios.length > 1 ? listaEnPalabras(convenios.map((c) => c.sigla ?? c.nombre)) : undefined
-      }
-      sinRelleno
-      acciones={
-        /* La lista de trabajo, que se queda como estaba en
-           Sistemas de Información. Desde el informe se llega a la
-           fila concreta --el contacto, el teléfono-- que aquí no
-           se trae. */
+    <section className="flex flex-col gap-2">
+      {/* EL GREMIO, EN VOZ BAJA Y NO COMO TÍTULO DE BLOQUE. Tiene que
+          seguir dicho en alguna parte: el desplegable de gremio no
+          basta --desaparece cuando el catálogo no carga-- y una
+          captura o un PDF que empiece por un número sin decir de quién
+          es no se puede contrastar con nada. Pero va con el peso de un
+          pie de foto, no de una cabecera, que es lo que enmarcaba. */}
+      <div className="flex items-baseline justify-between gap-3 text-[0.75rem] leading-none">
+        <span className="truncate font-medium text-texto">
+          {tituloEnPantalla(informe)}
+          {convenios.length > 1 && (
+            <span className="font-normal text-texto-suave">
+              {" · "}
+              {listaEnPalabras(convenios.map((c) => c.sigla ?? c.nombre))}
+            </span>
+          )}
+        </span>
+        {/* La lista de trabajo, que se queda como estaba en Sistemas
+            de Información. Desde el informe se llega a la fila
+            concreta --el contacto, el teléfono-- que aquí no se trae. */}
         <Link
           href="/admin/reservas"
-          className="no-imprimir self-center text-[0.75rem] font-medium text-marca underline underline-offset-2 hover:text-marca-fuerte"
+          className="no-imprimir shrink-0 font-medium text-marca underline underline-offset-2 hover:text-marca-fuerte"
         >
           Ver el listado
         </Link>
-      }
-    >
+      </div>
+
       {/* FLEX Y NO REJILLA. En papel, globals.css aplana toda rejilla
           que cuelgue de un `section` («las rejillas pasan a flujo»), y
-          las cuatro cifras salían apiladas en media hoja. El `gap-px`
-          sobre la raya de fondo pinta los separadores también cuando
-          en un celular pasan a dos por fila. */}
-      <div className="flex flex-wrap gap-px bg-hairline">
-        <Celda>
-          <TarjetaCifra
-            etiqueta="Reservas"
-            valor={n(t.reservas)}
-            pie={`de ${cuenta(t.organizaciones, "organización", "organizaciones")} en ${cuenta(t.acciones, "acción", "acciones")}`}
-          />
-        </Celda>
-        <Celda>
-          <TarjetaCifra
-            etiqueta="Cupos apartados"
-            valor={n(t.cuposConfirmados)}
-            pie={t.cuposEnEspera > 0 ? `y ${n(t.cuposEnEspera)} en lista de espera` : "ninguno en lista de espera"}
-          />
-        </Celda>
-        <Celda>
-          <TarjetaCifra
-            etiqueta="Ya tienen nombre"
-            valor={n(conNombre)}
-            tono="exito"
-            pie={
-              t.cuposConfirmados > 0
-                ? `${porciento(conNombre, t.cuposConfirmados)} % de los cupos`
-                : "sin cupos confirmados"
-            }
-          />
-        </Celda>
-        <Celda>
-          <TarjetaCifra
-            etiqueta="Siguen sin nombre"
-            valor={n(t.sinNombre)}
-            tono={t.sinNombre > 0 ? "error" : "neutro"}
-            pie={
-              organizacionesQueDeben > 0
-                ? `en ${cuenta(organizacionesQueDeben, "organización", "organizaciones")}`
-                : "todas mandaron sus nombres"
-            }
-          />
-        </Celda>
+          las cifras salían apiladas en media hoja. */}
+      <div className="flex flex-wrap gap-2">
+        {/* LA COLA DE LA CIFRA ES UN PORCENTAJE O NADA. En las dos
+            tiras aprobadas ninguna cola es una frase; aquí había tres
+            clases distintas en cinco tarjetas --«+34 en espera», «8 %»,
+            «en 24 org.»-- y eso es lo que se leía como desorden. Los
+            cupos en espera ya salen en el rótulo de «Cómo se cuentan
+            estas cifras», que está justo debajo, y qué organizaciones
+            deben nombres es la columna «Pendientes» de la tabla. */}
+        <CifraCompacta etiqueta="Instituciones" valor={n(t.organizaciones)} />
+        <CifraCompacta etiqueta="Reservas" valor={n(t.reservas)} />
+        <CifraCompacta etiqueta="Cupos apartados" valor={n(t.cuposConfirmados)} />
+        <CifraCompacta
+          etiqueta="Ya tienen nombre"
+          valor={n(conNombre)}
+          color="var(--exito)"
+          detalle={t.cuposConfirmados > 0 ? `${porciento(conNombre, t.cuposConfirmados)} %` : undefined}
+        />
+        <CifraCompacta
+          etiqueta="Siguen sin nombre"
+          valor={n(t.sinNombre)}
+          color={t.sinNombre > 0 ? "var(--error)" : undefined}
+          detalle={
+            t.cuposConfirmados > 0 ? `${porciento(t.sinNombre, t.cuposConfirmados)} %` : undefined
+          }
+        />
       </div>
 
       <ComoSeCuentan informe={informe} />
-    </Bloque>
+    </section>
   );
-}
-
-function Celda({ children }: { children: React.ReactNode }) {
-  return <div className="min-w-[150px] flex-1 bg-superficie">{children}</div>;
 }
 
 /**
@@ -1054,8 +1138,8 @@ function ComoSeCuentan({ informe }: { informe: InformeReservas }) {
   ].filter(Boolean);
 
   return (
-    <details className="group border-t border-hairline">
-      <summary className="sin-aro flex cursor-pointer list-none items-center gap-2 px-7 py-2.5 text-[0.75rem] text-texto-suave select-none hover:text-texto">
+    <details className="group">
+      <summary className="sin-aro flex cursor-pointer list-none items-center gap-2 py-1 text-[0.75rem] text-texto-suave select-none hover:text-texto">
         <span aria-hidden className="text-[0.5625rem] transition-transform group-open:rotate-90">
           &#9656;
         </span>
@@ -1064,7 +1148,7 @@ function ComoSeCuentan({ informe }: { informe: InformeReservas }) {
           {rotulo.length > 0 && ` · ${rotulo.join(" · ")}`}
         </span>
       </summary>
-      <ul className="list-disc space-y-1 pr-7 pb-3 pl-12 text-[0.75rem] leading-snug text-texto-suave">
+      <ul className="list-disc space-y-1 pb-2 pl-9 text-[0.75rem] leading-snug text-texto-suave">
         <li>
           {/* Ocultar, nunca eliminar: las canceladas no entran en las
               cifras, pero la cifra de las que se cayeron se ve. */}
@@ -1135,105 +1219,27 @@ function Graficas({ informe, filtros }: { informe: InformeReservas; filtros: Fil
   /// repartiría el alto en vez del ancho.
   const cadaUna = `min-w-0 lg:flex-1 ${apiladasEnPapel ? "print:flex-none" : "print:flex-1"}`;
   return (
-    /// `items-start`: cada tarjeta con su alto. Estiradas a la par, la
-    /// de columnas copiaba el alto de la lista y quedaba con un 45 % en
-    /// blanco --868 px al pulsar «Ver las otras»--. El alto parejo con
-    /// las ocho barras lo pone el alto ancho de ALTO_COLUMNAS, no el
-    /// estirón.
+    /// LAS DOS DEL MISMO ALTO, Y LA DE SEMANAS CRECE CON LA OTRA. «Si en
+    /// Cupos sin nombre se ven los que faltan, que se alargue Cupos
+    /// apartados por semana y se reduzca cuando se cierre» (cliente, 22
+    /// sep 2026). Antes iban con `items-start` porque, estiradas, la de
+    /// columnas copiaba el alto de la lista y quedaba con un 45 % en
+    /// blanco --868 px al pulsar «Ver las otras»--. Ahora lo que se
+    /// estira es la ZONA DE LAS COLUMNAS (`flex-1` en ALTO_COLUMNAS): el
+    /// alto de más se lo llevan las barras y no un hueco. En papel sigue
+    /// cada una con su alto, porque allí sale todo abierto.
     <div
-      className={`flex flex-col gap-3 lg:flex-row lg:items-start ${
+      className={`flex flex-col gap-3 lg:flex-row lg:items-stretch ${
         apiladasEnPapel ? "print:flex-col print:items-stretch" : "print:flex-row print:items-start"
       }`}
     >
       <div className={cadaUna}>
-        <QuienDebeNombres organizaciones={informe.porOrganizacion} />
+        <PorDepartamento informe={informe} />
       </div>
       <div className={cadaUna}>
         <CuposPorSemana informe={informe} filtros={filtros} />
       </div>
     </div>
-  );
-}
-
-/** Cuántas organizaciones enseña la gráfica antes de «Ver las otras». */
-const ORGANIZACIONES_EN_GRAFICA = 8;
-
-/**
- * G1 · CUPOS SIN NOMBRE, POR ORGANIZACIÓN: la lista de a quién llamar.
- *
- * Un solo color, el rojo de «Siguen sin nombre» (--error): la misma
- * idea salía en tres colores --el 136 rojo arriba y las barras azul y
- * naranja aquí--, y el par verde/rojo se confunde con deuteranopia.
- *
- * SIN PISTA GRIS DETRÁS. La barra se mide contra la organización que
- * más debe, no contra su propio total, y una pista gris se leía como
- * «los que ya tienen nombre»: Aceros del Norte, 36 de 36, sin un solo
- * nombre, dejaba un 8 % gris; El Faro, 39 de 40, llegaba al 100 %. El
- * dibujo contradecía la cifra de al lado. Sola, la barra es lo que
- * es: un orden de a quién llamar primero; el «de 36» va en letra.
- * El rojo contra el fondo de la tarjeta da 6,3:1 en claro y en
- * oscuro (calculado de --error y --superficie; el mínimo es 3:1).
- *
- * Las barras van en este archivo y no con `ListaBarras` de
- * graficos.tsx, que pinta en el azul de la marca con degradado y no
- * deja cambiarlo. El «Ver las otras N» es el mismo de aquella.
- */
-function QuienDebeNombres({ organizaciones }: { organizaciones: FilaInformeOrganizacion[] }) {
-  const [todas, setTodas] = useState(false);
-  const queDeben = organizaciones.filter((o) => o.sinNombre > 0);
-  const alDia = organizaciones.filter((o) => o.sinNombre === 0 && o.cuposConfirmados > 0).length;
-  const resto = queDeben.length - ORGANIZACIONES_EN_GRAFICA;
-  const visibles = todas || resto <= 0 ? queDeben : queDeben.slice(0, ORGANIZACIONES_EN_GRAFICA);
-  /// El tope sale de TODAS y no de las visibles: al abrir la lista la
-  /// primera barra no puede encogerse sin que su cifra cambie.
-  const tope = Math.max(1, ...queDeben.map((o) => o.sinNombre));
-
-  return (
-    <Bloque estirado titulo="Cupos sin nombre, por organización">
-      {queDeben.length === 0 ? (
-        <p className="py-4 text-[0.8125rem] text-texto-suave">
-          Todas las organizaciones mandaron los nombres de sus cupos.
-        </p>
-      ) : (
-        <ul className="space-y-2.5">
-          {visibles.map((o) => (
-            <li key={o.empresaId}>
-              <div className="flex items-baseline justify-between gap-3 text-[0.8125rem] leading-snug">
-                <span className="min-w-0 truncate" title={o.razonSocial}>
-                  {o.razonSocial}
-                </span>
-                <span className="shrink-0 whitespace-nowrap tabular-nums">
-                  <span className="font-semibold text-titulo">{n(o.sinNombre)}</span>
-                  <span className="ml-1 text-[0.75rem] text-texto-suave">de {n(o.cuposConfirmados)}</span>
-                </span>
-              </div>
-              <div className="mt-1 h-2.5 w-full">
-                <div
-                  className="barra-sin-nombre h-full rounded-full bg-error"
-                  style={{ width: `${Math.max((o.sinNombre / tope) * 100, 1)}%` }}
-                />
-              </div>
-            </li>
-          ))}
-          {resto > 0 && (
-            <li className="no-imprimir pt-1">
-              <button
-                type="button"
-                onClick={() => setTodas((v) => !v)}
-                className="text-xs font-medium text-marca underline underline-offset-2 hover:text-marca-fuerte"
-              >
-                {todas ? `Ver solo las ${n(ORGANIZACIONES_EN_GRAFICA)} primeras` : `Ver las otras ${n(resto)}`}
-              </button>
-            </li>
-          )}
-        </ul>
-      )}
-      {alDia > 0 && (
-        <p className="mt-3 text-[0.75rem] text-texto-suave">
-          {cuenta(alDia, "organización ya mandó", "organizaciones ya mandaron")} todos sus nombres.
-        </p>
-      )}
-    </Bloque>
   );
 }
 
@@ -1284,7 +1290,8 @@ function semanasDelInforme(informe: InformeReservas, filtros: FiltrosInformeRese
  * Van como clases y no como número porque el alto lo decide el ancho
  * de la ventana; las columnas se miden en % de él.
  */
-const ALTO_COLUMNAS = "h-[140px] lg:h-[321px] print:h-[140px]";
+const ALTO_COLUMNAS =
+  "h-[140px] lg:h-auto lg:min-h-[321px] lg:flex-1 print:h-[140px] print:min-h-0 print:flex-none";
 const ALTO_CIFRA = 18;
 /** Lo que ocupa un rótulo como «14 de sept» a 10 px, con aire. */
 const ANCHO_ROTULO = 52;
@@ -1456,7 +1463,7 @@ function CuposPorSemana({ informe, filtros }: { informe: InformeReservas; filtro
       {semanas.length === 0 ? (
         <p className="py-4 text-[0.8125rem] text-texto-suave">Todavía no hay reservas que mostrar.</p>
       ) : (
-        <div className="@container">
+        <div className="@container lg:flex lg:h-full lg:flex-col print:block">
           {/* La caja que se desplaza invade el relleno del bloque
               (`-mx-7 px-7`, el mismo px-7 de `Bloque`): el rótulo de
               la primera columna y el «en curso» de la última sobresalen
@@ -1467,10 +1474,10 @@ function CuposPorSemana({ informe, filtros }: { informe: InformeReservas; filtro
             ref={caja}
             role="img"
             aria-label={`Cupos apartados por semana: ${semanas.map((s) => `semana del ${diaCorto(s.lunes)}, ${n(s.cupos)}${s.enCurso ? " (en curso)" : ""}`).join("; ")}.`}
-            className="-mx-7 overflow-x-auto px-7 print:overflow-visible"
+            className="-mx-7 overflow-x-auto px-7 lg:flex lg:flex-1 lg:flex-col print:block print:overflow-visible"
           >
             <div
-              className="min-w-(--ancho-minimo) print:min-w-0"
+              className="min-w-(--ancho-minimo) lg:flex lg:flex-1 lg:flex-col print:block print:min-w-0"
               style={{ "--ancho-minimo": `${semanas.length * pasoMin}px` } as React.CSSProperties}
             >
               {/* `--alto-cifra`: lo que la zona guarda encima de la columna
@@ -1547,275 +1554,6 @@ function CuposPorSemana({ informe, filtros }: { informe: InformeReservas; filtro
    3 · LA TABLA: POR ACCIÓN, CON SUS ORGANIZACIONES DENTRO
    ═══════════════════════════════════════════════════════════════ */
 
-type GrupoDeAcciones = {
-  slug: string;
-  sigla: string;
-  filas: FilaInformeAccion[];
-};
-
-/**
- * Las acciones en el orden de la hoja: por gremio, y dentro de cada
- * uno por código NATURAL (AF2 antes que AF10), para poder cotejarla
- * renglón a renglón con el PDF.
- *
- * La llave es el id: con los dos gremios hay dos «AF1», y agrupar
- * por código los fundía en una fila.
- */
-function gruposDeAcciones(informe: InformeReservas): GrupoDeAcciones[] {
-  const orden = informe.recorte.convenios.map((c) => c.slug);
-  const grupos = new Map<string, GrupoDeAcciones>();
-  for (const a of informe.porAccion) {
-    const g = grupos.get(a.convenio) ?? { slug: a.convenio, sigla: siglaDe(a), filas: [] };
-    g.filas.push(a);
-    grupos.set(a.convenio, g);
-  }
-  for (const g of grupos.values()) g.filas.sort((a, b) => ordenNatural(a.codigo, b.codigo));
-  return [...grupos.values()].sort((a, b) => orden.indexOf(a.slug) - orden.indexOf(b.slug));
-}
-
-/**
- * UNA SOLA TABLA a todo el ancho: la Tabla 1 del PDF con la Tabla 2
- * dentro.
- *
- * Eran dos bloques --por acción con barras al lado, y por acción y
- * organización con 51 filas abiertas, 3.600 px--. Ahora cada acción
- * lleva «3 organizaciones ▸», que abre sus filas debajo --con las
- * cifras de la acción bajadas a un «Total de AF1» al pie, ver
- * `FilasDeLaAccion`--, y la cabecera un «Ver las organizaciones de
- * todas las acciones». Nacen
- * cerradas: diez segundos para entender la pantalla no dan para 51
- * filas. En papel salen todas abiertas (`print:table-row`), así que
- * el PDF lleva las dos tablas de la hoja del cliente en una.
- *
- * Las columnas son las que pidió: con el porcentaje en la tabla («¿si
- * solo dejamos tabla, agregamos la de porcentaje o columnas que se
- * necesiten?», cliente, 21 sep 2026).
- */
-function TablaPorAccion({ informe }: { informe: InformeReservas }) {
-  const grupos = gruposDeAcciones(informe);
-  const varios = grupos.length > 1;
-  const t = informe.totales;
-
-  /// El cruce por acción, en el orden del servidor: la organización
-  /// que más reservó arriba, como en la tabla dinámica del PDF.
-  const cruce = useMemo(() => {
-    const m = new Map<string, FilaInformeCruce[]>();
-    for (const c of informe.cruce) {
-      const lista = m.get(c.accionFormacionId) ?? [];
-      lista.push(c);
-      m.set(c.accionFormacionId, lista);
-    }
-    return m;
-  }, [informe.cruce]);
-
-  const [abiertas, setAbiertas] = useState<ReadonlySet<string>>(() => new Set());
-  const conOrganizaciones = informe.porAccion
-    .filter((a) => (cruce.get(a.accionFormacionId) ?? []).length > 0)
-    .map((a) => a.accionFormacionId);
-  const todas = conOrganizaciones.length > 0 && conOrganizaciones.every((id) => abiertas.has(id));
-  const alternar = (id: string) =>
-    setAbiertas((antes) => {
-      const s = new Set(antes);
-      if (s.has(id)) s.delete(id);
-      else s.add(id);
-      return s;
-    });
-
-  return (
-    <Bloque
-      titulo="Resumen por acción de formación"
-      sinRelleno
-      /// Con las organizaciones abiertas en papel son hoja y media: el
-      /// bloque parte por fila, con la cabecera repetida, en vez de
-      /// mudarse entero y dejar una hoja en blanco.
-      partible
-      acciones={
-        conOrganizaciones.length > 0 ? (
-          <button
-            type="button"
-            onClick={() => setAbiertas(todas ? new Set() : new Set(conOrganizaciones))}
-            aria-expanded={todas}
-            className="no-imprimir self-center text-[0.75rem] font-medium text-marca underline underline-offset-2 hover:text-marca-fuerte"
-          >
-            {todas ? "Cerrar las organizaciones" : "Ver las organizaciones de todas las acciones"}
-          </button>
-        ) : undefined
-      }
-    >
-      {informe.truncado && (
-        <p className="mx-7 mt-4 rounded-xl bg-aviso-suave px-3 py-2 text-xs text-aviso">
-          La tabla muestra las organizaciones de los primeros {n(informe.cruce.length)} pares de{" "}
-          {n(t.pares)}; la Suma total sí cuenta todos. Recorte por gremio o por acción para verlos
-          enteros.
-        </p>
-      )}
-
-      <table className="hidden w-full border-collapse sm:table print:table">
-        <caption className="sr-only">Resumen por acción de formación, con sus organizaciones</caption>
-        <thead>
-          <tr className="border-b border-borde">
-            <Th className="w-[72px] pl-7">AF</Th>
-            <Th>Acción de formación</Th>
-            <Th derecha className="w-[84px]">Reservas</Th>
-            <Th derecha className="w-[96px]">Cupos apartados</Th>
-            <Th derecha className="w-[96px]">Ya tienen nombre</Th>
-            <Th derecha className="w-[84px]">% con nombre</Th>
-            <Th derecha className="w-[124px] pr-7">Siguen sin nombre</Th>
-          </tr>
-        </thead>
-        {grupos.map((g, i) => (
-          <tbody key={g.slug}>
-            {varios && <FranjaDeGremio sigla={g.sigla} columnas={COLUMNAS} />}
-            {g.filas.map((a) => {
-              const filas = cruce.get(a.accionFormacionId) ?? [];
-              const abierta = abiertas.has(a.accionFormacionId);
-              return (
-                <FilasDeLaAccion
-                  key={a.accionFormacionId}
-                  a={a}
-                  organizaciones={filas}
-                  abierta={abierta}
-                  alAlternar={() => alternar(a.accionFormacionId)}
-                />
-              );
-            })}
-            {varios && (
-              <FilaDeSuma
-                rotulo={`Subtotal ${g.sigla}`}
-                reservas={g.filas.reduce((s, a) => s + a.reservas, 0)}
-                cupos={g.filas.reduce((s, a) => s + a.cuposConfirmados, 0)}
-                sinNombre={g.filas.reduce((s, a) => s + a.sinNombre, 0)}
-                suave
-              />
-            )}
-            {/* La «Suma total» va dentro del último `tbody` y no en un
-                `tfoot`: Chrome repite el `tfoot` al pie de cada hoja
-                impresa, y un «Suma total» a mitad de la tabla se lee
-                como que la tabla terminó ahí. */}
-            {i === grupos.length - 1 && (
-              <FilaDeSuma
-                rotulo="Suma total"
-                reservas={t.reservas}
-                cupos={t.cuposConfirmados}
-                sinNombre={t.sinNombre}
-              />
-            )}
-          </tbody>
-        ))}
-      </table>
-
-      {/* En un celular siete columnas no caben en 300 px: se vuelve
-          lista, con la misma puerta a las organizaciones. En papel
-          sale siempre la tabla. */}
-      <ul className="divide-y divide-hairline sm:hidden print:hidden">
-        {grupos.map((g) => (
-          <li key={g.slug}>
-            {varios && (
-              <p className="bg-superficie-alterna px-7 py-2 text-[0.625rem] font-semibold tracking-[0.1em] text-texto-suave uppercase">
-                {g.sigla}
-              </p>
-            )}
-            <ul className="divide-y divide-hairline">
-              {g.filas.map((a) => {
-                const filas = cruce.get(a.accionFormacionId) ?? [];
-                const abierta = abiertas.has(a.accionFormacionId) && filas.length > 0;
-                const con = sillasConNombre(a);
-                /// El «%» pegado a su cifra con espacio duro: a 390 px el
-                /// total partía «(3» en un renglón y «%)» en el siguiente.
-                const cifras =
-                  a.reservas === 0
-                    ? "Sin reservas todavía"
-                    : a.cuposConfirmados === 0
-                      ? `${cuenta(a.reservas, "reserva", "reservas")} · ${n(a.cuposEnEspera)} en espera`
-                      : `${cuenta(a.reservas, "reserva", "reservas")} · ${cuenta(a.cuposConfirmados, "cupo", "cupos")} · ${n(con)} con nombre (${porciento(con, a.cuposConfirmados)} %) · ${n(a.sinNombre)} sin nombre`;
-                const boton = filas.length > 0 && (
-                  <BotonOrganizaciones cuantas={filas.length} abierta={abierta} alAlternar={() => alternar(a.accionFormacionId)} />
-                );
-                return (
-                  <li key={a.accionFormacionId} className={`px-7 py-3 ${a.reservas === 0 ? "text-texto-suave" : ""}`}>
-                    <p className="text-[0.8125rem] leading-snug">
-                      <span className="font-mono text-xs text-texto-suave">{a.codigo}</span>{" "}
-                      <span className={a.reservas === 0 ? "" : "text-titulo"}>{comoParrafo(a.nombre)}</span>
-                    </p>
-                    {/* Abierta, igual que en la tabla: el nombre hace de
-                        cabecera, las organizaciones van debajo y las
-                        cifras de la acción bajan al pie como su total. */}
-                    {!abierta && (
-                      <p className="mt-1 text-[0.75rem] text-texto-suave tabular-nums">
-                        {cifras}
-                        {/* Al final del mismo renglón y no en uno aparte:
-                            20 px menos por acción en el celular. */}
-                        {boton && <span className="ml-2 inline-block">{boton}</span>}
-                      </p>
-                    )}
-                    {abierta && <p className="mt-1">{boton}</p>}
-                    {abierta && (
-                      <ul className="mt-2 divide-y divide-hairline border-l-2 border-borde">
-                        {filas.map((c) => {
-                          const cc = sillasConNombre(c);
-                          return (
-                            <li key={`${c.accionFormacionId}|${c.empresaId}`} className="py-2 pl-3">
-                              <p className="text-[0.8125rem] text-titulo">{c.razonSocial}</p>
-                              <p className="mt-0.5 text-[0.75rem] text-texto-suave tabular-nums">
-                                {cuenta(c.cuposConfirmados, "cupo", "cupos")} · {n(cc)} con nombre · {n(c.sinNombre)} sin nombre
-                                {c.ubicaciones.length > 0 && ` · ${c.ubicaciones.map(bonito).join(" · ")}`}
-                              </p>
-                              {c.nombresDeMas > 0 && <DeMas c={c} />}
-                            </li>
-                          );
-                        })}
-                      </ul>
-                    )}
-                    {abierta && (
-                      <p className="mt-2 border-t border-borde pt-2 text-[0.75rem] font-semibold text-titulo tabular-nums">
-                        Total de {a.codigo}: {cifras}
-                      </p>
-                    )}
-                  </li>
-                );
-              })}
-            </ul>
-          </li>
-        ))}
-        {/* Con fondo, como en la tabla: el «Total de AF1» de una acción
-            abierta también va en seminegrita, y sin el fondo los dos
-            totales se leían como del mismo rango. */}
-        <li className="bg-superficie-alterna px-7 py-3 text-[0.8125rem] font-semibold text-titulo tabular-nums">
-          Suma total: {cuenta(t.reservas, "reserva", "reservas")} ·{" "}
-          {cuenta(t.cuposConfirmados, "cupo", "cupos")} · {n(sillasConNombre(t))} con nombre (
-          {porciento(sillasConNombre(t), t.cuposConfirmados)} %) · {n(t.sinNombre)} sin nombre
-        </li>
-      </ul>
-    </Bloque>
-  );
-}
-
-const COLUMNAS = 7;
-
-function BotonOrganizaciones({
-  cuantas,
-  abierta,
-  alAlternar,
-}: {
-  cuantas: number;
-  abierta: boolean;
-  alAlternar: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      aria-expanded={abierta}
-      onClick={alAlternar}
-      className="no-imprimir mt-0.5 inline-flex items-center gap-1 text-[0.71875rem] font-medium whitespace-nowrap text-marca hover:text-marca-fuerte"
-    >
-      <span className="underline underline-offset-2">{cuenta(cuantas, "organización", "organizaciones")}</span>
-      <span aria-hidden className={`text-[0.5625rem] transition-transform ${abierta ? "rotate-90" : ""}`}>
-        &#9656;
-      </span>
-    </button>
-  );
-}
-
 function Th({
   children,
   derecha,
@@ -1837,19 +1575,6 @@ function Th({
   );
 }
 
-function FranjaDeGremio({ sigla, columnas }: { sigla: string; columnas: number }) {
-  return (
-    <tr className="break-after-avoid">
-      <td
-        colSpan={columnas}
-        className="bg-superficie-alterna px-3.5 py-2 pl-7 text-[0.625rem] font-semibold tracking-[0.1em] text-texto-suave uppercase"
-      >
-        {sigla}
-      </td>
-    </tr>
-  );
-}
-
 /// `px-3.5` y NO `px-4`, en todas las celdas de este archivo. En papel,
 /// globals.css pone `padding: 0 !important` a todo lo que lleve
 /// «px-4» en la clase (`body [class*="px-4"]`, pensada para el
@@ -1858,246 +1583,240 @@ function FranjaDeGremio({ sigla, columnas }: { sigla: string; columnas: number }
 const CELDA = "px-3.5 py-2 align-top text-[0.8125rem]";
 const CELDA_CIFRA = `${CELDA} text-right tabular-nums`;
 
+/* ═══════════════════════════════════════════════════════════════
+   4 · DESGLOSE POR DEPARTAMENTO
+   ═══════════════════════════════════════════════════════════════ */
+
 /**
- * Una acción: plegada, UNA fila con sus cifras; abierta, un GRUPO.
+ * «Desglose Departamentos» (cliente, 23 sep 2026).
  *
- * Abierta, la fila de la acción se quedaba arriba con sus totales y
- * debajo salían las organizaciones, cada una repitiendo «AF1»: el
- * total quedaba por encima de lo que suma, al revés de una tabla
- * dinámica. «Que cuando le doy clic los totales queden abajo … así se
- * ve algo raro» (cliente, 21 sep 2026). Así que, abierta:
+ * UN ESCALÓN POR ENCIMA DE «Dónde se dicta». En ese filtro, la ciudad
+ * de Medellín y el departamento de Antioquia son dos entradas
+ * distintas; aquí van en la misma barra, que es como se mira la
+ * cobertura del proyecto.
  *
- *   - la fila de la acción es la cabecera del grupo: código, nombre y
- *     el botón para plegar, sin cifras;
- *   - debajo, las organizaciones, sangradas y sin repetir el código;
- *   - y al pie, «Total de AF1» con las cifras de la acción.
- *
- * Las organizaciones y el total están SIEMPRE en el DOM: cerradas
- * llevan `hidden print:table-row`, así que en pantalla no ocupan nada
- * y en papel salen todas sin depender de que alguien las abra. Por lo
- * mismo, en papel la fila de arriba va sin cifras (`print:hidden`): el
- * papel sale siempre abierto y las cifras las lleva el total.
+ * DOS BARRAS Y NO UNA: los cupos apartados en gris y los que ya
+ * tienen nombre en verde, encima. Con una sola barra de cupos no se
+ * ve dónde está lo que falta por llenar, que es justo para lo que se
+ * mira este bloque en septiembre.
  */
-function FilasDeLaAccion({
-  a,
-  organizaciones,
-  abierta,
-  alAlternar,
-}: {
-  a: FilaInformeAccion;
-  organizaciones: FilaInformeCruce[];
-  abierta: boolean;
-  alAlternar: () => void;
-}) {
-  const sinReservas = a.reservas === 0;
-  const conOrganizaciones = organizaciones.length > 0;
-  /// Sin organizaciones no hay grupo que abrir: la acción es una fila
-  /// y sus cifras se ven siempre, también en papel.
-  const cifrasArriba = !conOrganizaciones ? "" : abierta ? "hidden" : "print:hidden";
+/** Cuántos departamentos enseña antes de «Ver los otros». */
+const DEPARTAMENTOS_EN_GRAFICA = 8;
+
+function PorDepartamento({ informe }: { informe: InformeReservas }) {
+  /// Se corta en ocho y se abre desde aquí, no desde quien llama: el
+  /// corte es cosa de esta lista, y así abrir esta no abre la de al
+  /// lado. Nace cerrada.
+  const [todos, setTodos] = useState(false);
+  const filas = informe.porDepartamento;
+
+  /// El tope sale de TODAS las filas, no de las visibles: si saliera
+  /// de las visibles, al abrir la lista la primera barra se encogería
+  /// sin que su cifra hubiera cambiado.
+  const tope = Math.max(1, ...filas.map((d) => d.cuposConfirmados));
+  const resto = filas.length - DEPARTAMENTOS_EN_GRAFICA;
+  const visibles = todos || resto <= 0 ? filas : filas.slice(0, DEPARTAMENTOS_EN_GRAFICA);
+
   return (
-    <>
-      {/* `break-after-avoid`: en papel, la cabecera de un grupo no
-          cierra una hoja sola, sin ninguna de sus organizaciones. */}
-      <tr
-        className={`border-b border-hairline ${conOrganizaciones ? "break-after-avoid" : ""} ${
-          sinReservas ? "text-texto-suave" : ""
+    <Bloque
+      estirado
+      titulo="Cupos por departamento"
+      descripcion="Dónde se dictan los cursos de las reservas. En verde, los cupos que ya tienen una persona detrás."
+    >
+      {filas.length === 0 && (
+        <p className="py-4 text-[0.8125rem] text-texto-suave">
+          Ninguna reserva de este recorte tiene sede con departamento.
+        </p>
+      )}
+      <ul className="space-y-2.5">
+        {visibles.map((d) => (
+          <li key={d.departamento}>
+            <div className="flex items-baseline justify-between gap-3 text-[0.8125rem] leading-snug">
+              <span className="min-w-0 truncate" title={bonito(d.departamento)}>
+                {bonito(d.departamento)}
+                <span className="ml-2 text-[0.75rem] text-texto-suave">
+                  {cuenta(d.organizaciones, "institución", "instituciones")}
+                </span>
+              </span>
+              <span className="shrink-0 whitespace-nowrap tabular-nums">
+                <span className="font-semibold text-titulo">{n(d.cuposConfirmados)}</span>
+                <span className="ml-1 text-[0.75rem] text-texto-suave">
+                  {d.cuposConfirmados === 1 ? "cupo" : "cupos"}
+                </span>
+              </span>
+            </div>
+            {/* La barra verde va DENTRO de la gris, no al lado: son
+                una parte y su todo, y dos barras hermanas se leerían
+                como dos cantidades que se suman. */}
+            <div className="mt-1 h-2.5 w-full overflow-hidden rounded-full bg-superficie-alterna">
+              <div
+                className="h-full rounded-full bg-marca/25"
+                style={{ width: `${Math.max((d.cuposConfirmados / tope) * 100, 1)}%` }}
+              >
+                <div
+                  className="h-full rounded-full bg-exito"
+                  style={{
+                    width: `${d.cuposConfirmados > 0 ? (d.conNombre / d.cuposConfirmados) * 100 : 0}%`,
+                  }}
+                />
+              </div>
+            </div>
+          </li>
+        ))}
+        {resto > 0 && (
+          <li className="no-imprimir pt-1">
+            {/* DICE CUÁNTOS Y ADÓNDE LLEVA. «Y 7 más» sin puerta es un
+                renglón de texto muerto. */}
+            <button
+              type="button"
+              onClick={() => setTodos((v) => !v)}
+              className="text-xs font-medium text-marca underline underline-offset-2 hover:text-marca-fuerte"
+            >
+              {todos
+                ? `Ver solo los ${n(DEPARTAMENTOS_EN_GRAFICA)} primeros`
+                : `Ver los otros ${n(resto)}`}
+            </button>
+          </li>
+        )}
+      </ul>
+    </Bloque>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   5 · SEGUIMIENTO: LO APARTADO CONTRA LO QUE LLEGÓ
+   ═══════════════════════════════════════════════════════════════ */
+
+/**
+ * «Cuántos se han inscrito sobre la reserva: cantidad apartada vs
+ * cuántos llegaron, en tabla de seguimiento» (cliente, 23 sep 2026).
+ *
+ * DOS COLUMNAS Y NO UNA CELDA «0/16». Su maqueta llevaba las dos
+ * cifras juntas en la misma casilla —«quizás dos columnas, reserva y
+ * cupos ocupados»—, y partidas se pueden ordenar, sumar y leer a lo
+ * ancho sin hacer la división de cabeza.
+ *
+ * UNA FILA POR INSTITUCIÓN Y ACCIÓN, que es exactamente lo que ya
+ * calcula el informe (`cruce`). La matriz con una columna por AF
+ * hacía catorce columnas con las dos cifras, y en un portátil se leía
+ * desplazándose a ciegas; así cabe, se puede filtrar por acción
+ * arriba, y cada fila tiene sitio para lo que de verdad hacía falta:
+ * cuánto le queda de plazo.
+ *
+ * EL PLAZO ES LO NUEVO. «Contexto a más tardar el 30 de septiembre,
+ * avisar 2 semanas antes que ya no van a participar». El estado lo
+ * calcula el servidor (`plazo-de-reservas.ts`) para que la pantalla y
+ * el papel no puedan discrepar.
+ */
+const SEMAFORO: Record<
+  FilaInformeCruce["estadoPlazo"],
+  { texto: string; clase: string }
+> = {
+  COMPLETA: { texto: "Completa", clase: "text-exito" },
+  EN_PLAZO: { texto: "En plazo", clase: "text-texto-suave" },
+  POR_VENCER: { texto: "Por vencer", clase: "text-aviso" },
+  VENCIDA: { texto: "Vencida", clase: "text-error" },
+};
+
+function Seguimiento({ informe }: { informe: InformeReservas }) {
+  const filas = informe.cruce;
+  if (filas.length === 0) return null;
+
+  const dias = diasEntre(informe.plazo.hoy, informe.plazo.entregaNombres);
+  const t = filas.reduce(
+    (a, f) => ({
+      cuposConfirmados: a.cuposConfirmados + f.cuposConfirmados,
+      conNombre: a.conNombre + f.conNombre,
+      sinNombre: a.sinNombre + f.sinNombre,
+    }),
+    { cuposConfirmados: 0, conNombre: 0, sinNombre: 0 },
+  );
+
+  return (
+    <Bloque
+      sinRelleno
+      partible
+      titulo="Seguimiento de las reservas"
+      descripcion="Cuántos cupos apartó cada institución en cada acción y cuántos ya tienen persona."
+    >
+      {/* EL PLAZO, ARRIBA Y EN UNA LÍNEA. Va antes de la tabla y no en
+          el pie porque es la razón de mirarla en septiembre. */}
+      <p
+        className={`border-b border-hairline px-3.5 py-2.5 text-[0.75rem] leading-snug ${
+          dias < 0 ? "text-error" : dias <= informe.plazo.diasDeAviso ? "text-aviso" : "text-texto-suave"
         }`}
       >
-        <td className="py-2 pr-2 pl-7 align-top font-mono text-xs text-texto-suave">{a.codigo}</td>
-        {/* El nombre ENVUELVE y no se trunca: esto es el papel, y
-            «Despliegue de agentes autónomos con…» no dice qué curso
-            es. Una acción sin reservas va en gris y en una línea. */}
-        <td className={CELDA}>
-          <span className={sinReservas ? "" : "text-titulo"}>{comoParrafo(a.nombre)}</span>
-          {sinReservas && (
-            <span className="text-[0.6875rem]">
-              {" · "}
-              {a.reservasCanceladas > 0
-                ? `sin reservas vigentes, ${cuenta(a.reservasCanceladas, "cancelada", "canceladas")}`
-                : "sin reservas todavía"}
-            </span>
-          )}
-          {/* EN LA MISMA LÍNEA que el nombre, no debajo: debajo cada
-              acción medía 62 px en vez de 40, y con los dos gremios la
-              tabla cerrada pasaba de 1.100 px (medido a 1.600). */}
-          {conOrganizaciones && (
-            <span className="ml-2 inline-block">
-              <BotonOrganizaciones cuantas={organizaciones.length} abierta={abierta} alAlternar={alAlternar} />
-            </span>
-          )}
-        </td>
-        <CeldasDeLaAccion a={a} ocultar={cifrasArriba} />
-      </tr>
-      {organizaciones.map((c) => (
-        <FilaCruce key={`${c.accionFormacionId}|${c.empresaId}`} c={c} abierta={abierta} />
-      ))}
-      {conOrganizaciones && <FilaTotalDeLaAccion a={a} abierta={abierta} />}
-    </>
-  );
-}
+        <strong className="font-semibold">
+          Las instituciones tienen hasta el {diaLargo(informe.plazo.entregaNombres)} para
+          entregar los nombres de sus cupos.
+        </strong>{" "}
+        {dias > 0
+          ? `Quedan ${cuenta(dias, "día", "días")}.`
+          : dias === 0
+            ? "Hoy es el último día."
+            : `El plazo venció hace ${cuenta(-dias, "día", "días")}.`}{" "}
+        Quien no vaya a participar tiene que avisarlo con {informe.plazo.diasDeAviso} días de
+        antelación para que sus cupos se puedan volver a ofrecer.
+      </p>
 
-/**
- * Las cinco cifras de una acción: en su fila cuando va plegada, y en
- * su «Total de…» cuando va abierta. Una sola pieza para los dos sitios,
- * así no pueden llegar a decir cosas distintas.
- *
- * `ocultar` va en un `span` DENTRO de la celda y no en la celda: la
- * celda vacía se queda y la fila no pierde columnas.
- */
-function CeldasDeLaAccion({ a, ocultar = "", raya = "" }: { a: FilaInformeAccion; ocultar?: string; raya?: string }) {
-  const sinReservas = a.reservas === 0;
-  const hayCupos = a.cuposConfirmados > 0;
-  const con = sillasConNombre(a);
-  const celda = `${CELDA_CIFRA} ${raya}`;
-  return (
-    <>
-      <td className={celda}>
-        <span className={ocultar}>{n(a.reservas)}</span>
-      </td>
-      <td className={celda}>
-        <span className={ocultar}>
-          {sinReservas ? "—" : n(a.cuposConfirmados)}
-          {/* La reserva en lista de espera: se dice debajo de su
-              cifra, en vez de dejar un número que parece un olvido. */}
-          {a.cuposEnEspera > 0 && (
-            <span className="mt-0.5 block text-[0.6875rem] font-normal text-texto-suave">
-              {n(a.cuposEnEspera)} en espera
-            </span>
-          )}
-        </span>
-      </td>
-      <td className={celda}>
-        <span className={ocultar}>{hayCupos ? n(con) : "—"}</span>
-      </td>
-      <td className={celda}>
-        <span className={ocultar}>{hayCupos ? `${porciento(con, a.cuposConfirmados)} %` : "—"}</span>
-      </td>
-      <td className={`${celda} pr-7`}>
-        <span className={ocultar}>{hayCupos ? n(a.sinNombre) : "—"}</span>
-      </td>
-    </>
-  );
-}
+      <div className="caja-scroll overflow-x-auto">
+        <table className="w-full">
+          <thead className="border-b border-borde">
+            <tr>
+              <Th className="pl-7">Institución</Th>
+              <Th>AF</Th>
+              <Th>Dónde se dicta</Th>
+              <Th derecha>Cupos reservados</Th>
+              <Th derecha>Cupos ocupados</Th>
+              <Th derecha>Pendientes</Th>
+              <Th>Estado</Th>
+            </tr>
+          </thead>
+          <tbody>
+            {filas.map((f) => (
+              <tr key={`${f.accionFormacionId}|${f.empresaId}`} className="border-b border-hairline">
+                <td className={`${CELDA} pl-7`}>
+                  <span className="font-medium">{bonito(f.razonSocial)}</span>
+                  <span className="block text-[0.6875rem] text-texto-suave">{f.nit}</span>
+                </td>
+                <td className={`${CELDA} font-mono text-xs whitespace-nowrap`} title={f.accion}>
+                  {f.codigo}
+                </td>
+                <td className={CELDA}>
+                  {f.ubicaciones.length > 0 ? f.ubicaciones.map(bonito).join(", ") : "—"}
+                </td>
+                <td className={CELDA_CIFRA}>{n(f.cuposConfirmados)}</td>
+                <td className={`${CELDA_CIFRA} font-semibold text-exito`}>{n(f.conNombre)}</td>
+                <td className={`${CELDA_CIFRA} ${f.sinNombre > 0 ? "text-error" : ""}`}>
+                  {n(f.sinNombre)}
+                </td>
+                <td className={CELDA}>
+                  <span className={`text-[0.75rem] font-semibold ${SEMAFORO[f.estadoPlazo].clase}`}>
+                    {SEMAFORO[f.estadoPlazo].texto}
+                  </span>
+                </td>
+              </tr>
+            ))}
 
-/**
- * «Total de AF1»: las cifras de la acción al pie de sus organizaciones,
- * como el subtotal de una tabla dinámica.
- *
- * Seminegrita y con raya encima. La raya va en las CELDAS y no en la
- * fila: con `border-collapse`, entre la raya de abajo de una fila y la
- * de arriba de la siguiente, iguales de grosor, gana la de la fila de
- * arriba --la `hairline` de la última organización-- y la del total no
- * se veía; la de una celda sí le gana a la de una fila. Sin fondo: el
- * fondo gris es de la «Suma total» del pie, y así un total no se
- * confunde con el otro. El rótulo es la cabecera de su fila (`th`),
- * para que un lector de pantalla diga «Total de AF1» con cada cifra.
- *
- * `break-before-avoid`: en papel, el total no abre una hoja solo,
- * separado de las organizaciones que suma.
- */
-function FilaTotalDeLaAccion({ a, abierta }: { a: FilaInformeAccion; abierta: boolean }) {
-  const raya = "border-t border-borde";
-  return (
-    <tr
-      className={`break-before-avoid border-b border-hairline font-semibold text-titulo ${
-        abierta ? "" : "hidden print:table-row"
-      }`}
-    >
-      <td className="pl-7" />
-      <th scope="row" className={`py-2 pr-3.5 pl-8 text-left align-top text-[0.8125rem] font-semibold ${raya}`}>
-        Total de {a.codigo}
-      </th>
-      <CeldasDeLaAccion a={a} raya={raya} />
-    </tr>
-  );
-}
+            <tr className="border-t-2 border-borde font-semibold">
+              <td className={`${CELDA} pl-7`} colSpan={3}>
+                Suma total
+              </td>
+              <td className={CELDA_CIFRA}>{n(t.cuposConfirmados)}</td>
+              <td className={`${CELDA_CIFRA} text-exito`}>{n(t.conNombre)}</td>
+              <td className={CELDA_CIFRA}>{n(t.sinNombre)}</td>
+              <td className={CELDA} />
+            </tr>
+          </tbody>
+        </table>
+      </div>
 
-function FilaCruce({ c, abierta }: { c: FilaInformeCruce; abierta: boolean }) {
-  const con = sillasConNombre(c);
-  return (
-    <tr className={`border-b border-hairline text-[0.78125rem] ${abierta ? "" : "hidden print:table-row"}`}>
-      {/* SIN el código: la fila cuelga de la cabecera del grupo, y el
-          «AF1» repetido en cada organización se veía raro (cliente, 21
-          sep 2026). Si en papel el grupo se parte entre dos hojas, el
-          «Total de AF1» del pie dice de qué acción eran. */}
-      <td className="pl-7" />
-      <td className="py-2 pr-3.5 pl-8 align-top">
-        <span className="text-texto">{c.razonSocial}</span>
-        {/* Dónde se dicta: es lo que explica los pares que van en 2
-            (la misma acción, reservada en dos lugares). */}
-        {c.ubicaciones.length > 0 && (
-          <span className="mt-0.5 block text-[0.6875rem] text-texto-suave">
-            {c.ubicaciones.map(bonito).join(" · ")}
-          </span>
-        )}
-      </td>
-      <td className="px-3.5 py-2 text-right align-top tabular-nums">{n(c.reservas)}</td>
-      <td className="px-3.5 py-2 text-right align-top tabular-nums">
-        {n(c.cuposConfirmados)}
-        {c.cuposEnEspera > 0 && (
-          <span className="mt-0.5 block text-[0.6875rem] text-texto-suave">{n(c.cuposEnEspera)} en espera</span>
-        )}
-      </td>
-      <td className="px-3.5 py-2 text-right align-top tabular-nums">
-        {n(con)}
-        {c.nombresDeMas > 0 && <DeMas c={c} />}
-      </td>
-      <td className="px-3.5 py-2 text-right align-top tabular-nums">
-        {c.cuposConfirmados > 0 ? `${porciento(con, c.cuposConfirmados)} %` : "—"}
-      </td>
-      <td className="py-2 pr-7 pl-3.5 text-right align-top tabular-nums">{n(c.sinNombre)}</td>
-    </tr>
-  );
-}
-
-function FilaDeSuma({
-  rotulo,
-  reservas,
-  cupos,
-  sinNombre,
-  suave,
-}: {
-  rotulo: string;
-  reservas: number;
-  cupos: number;
-  sinNombre: number;
-  suave?: boolean;
-}) {
-  const con = Math.max(0, cupos - sinNombre);
-  /// TRES PESOS, DE MENOS A MÁS: el «Total de AF1» (seminegrita, raya
-  /// fina), el subtotal del gremio (negrita y raya doble de grueso) y la
-  /// «Suma total» (negrita y fondo). El subtotal iba en letra media y
-  /// sin raya propia, más flojo que el total de una sola acción: con
-  /// todo abierto --y en papel siempre lo está-- la jerarquía se leía
-  /// al revés.
-  return (
-    <tr
-      className={
-        suave
-          ? "border-t-2 border-b border-borde font-bold text-titulo"
-          : "border-t border-borde bg-superficie-alterna font-bold text-titulo"
-      }
-    >
-      <td className="pl-7" />
-      <td className={CELDA}>{rotulo}</td>
-      <td className={CELDA_CIFRA}>{n(reservas)}</td>
-      <td className={CELDA_CIFRA}>{n(cupos)}</td>
-      <td className={CELDA_CIFRA}>{n(con)}</td>
-      <td className={CELDA_CIFRA}>{cupos > 0 ? `${porciento(con, cupos)} %` : "—"}</td>
-      <td className={`${CELDA_CIFRA} pr-7`}>{n(sinNombre)}</td>
-    </tr>
-  );
-}
-
-/**
- * Más personas que cupos en alguna reserva del par. Se dice en vez de
- * recortar la cifra: el dato de la base es ese, y una cifra topada en
- * silencio no se puede ir a corregir.
- */
-function DeMas({ c }: { c: FilaInformeCruce }) {
-  return (
-    <span className="mt-0.5 block text-[0.6875rem] font-normal text-aviso">
-      {cuenta(c.nombresDeMas, "persona de más", "personas de más")}
-    </span>
+      <p className="border-t border-borde px-7 py-3 text-[0.6875rem] leading-relaxed text-texto-suave">
+        Un cupo está <strong className="font-semibold">ocupado</strong> cuando la institución ya
+        entregó el nombre de la persona que lo va a usar. Los pendientes son los que siguen sin
+        nombre: son los que hay que perseguir antes del cierre. Una fila queda en «Completa» en
+        cuanto no le falta ninguno, aunque el plazo ya haya pasado.
+      </p>
+    </Bloque>
   );
 }

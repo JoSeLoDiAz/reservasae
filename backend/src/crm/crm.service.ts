@@ -48,6 +48,7 @@ import {
   completarFila,
   resumenPorAccionSql,
   type FilaDeAccion,
+  type RecorteDelResumen,
 } from './resumen-por-accion';
 import {
   completarGrupo,
@@ -60,6 +61,13 @@ import {
   type FilaCruda,
   type FilaResumenGeneral,
 } from './resumen-general';
+import {
+  cierrePorAccion,
+  repartirAcademicos,
+  repartirInscripciones,
+  type FilaDeAsesor,
+  type FilaDeAsesorAcademico,
+} from './asesores-datos';
 import { exigirQuienAsignaGrupo } from './quien-asigna-grupo';
 import { faltaDeLaPersona, revisar } from './completitud';
 import { pasarSiNoLeFaltaNada } from './datos-completos';
@@ -578,12 +586,26 @@ export class CrmService {
    * porqué están en `resumen-por-accion.ts`, que se prueba sin base de
    * datos.
    */
-  async resumenPorAccion(ambito: Ambito): Promise<FilaDeAccion[]> {
+  async resumenPorAccion(
+    ambito: Ambito,
+    recorte: RecorteDelResumen = {},
+  ): Promise<FilaDeAccion[]> {
     if (ambito.convenios.length === 0) return [];
     const filas = await this.prisma.$queryRaw<Parameters<typeof completarFila>[0][]>(
-      resumenPorAccionSql(ambito.convenios, ambito.gremioElegido),
+      resumenPorAccionSql(ambito.convenios, ambito.gremioElegido, recorte),
     );
-    return filas.map(completarFila);
+    const completas = filas.map(completarFila);
+    /// CON UNA ACCIÓN ELEGIDA, SOLO ESA FILA.
+    ///
+    /// El SQL de arriba recorta la GENTE pero devuelve las quince
+    /// acciones: es un `LEFT JOIN` desde `acciones_formacion`, y así una
+    /// acción sin nadie sigue enseñando su meta, que es lo que se
+    /// quiere cuando no hay filtro. Con una elegida sobran las otras
+    /// catorce en cero, y es lo que el cliente pidió al pulsar una
+    /// fila: «que se oculten las demás AF» (23 sep 2026).
+    return recorte.accionFormacionId
+      ? completas.filter((f) => f.accionFormacionId === recorte.accionFormacionId)
+      : completas;
   }
 
   /**
@@ -625,6 +647,99 @@ export class CrmService {
       resumenPorGrupoSql(accionFormacionId),
     );
     return filas.map(completarGrupo);
+  }
+
+  /**
+   * SUBVISTA 1: los asesores de inscripciones.
+   *
+   * Se traen las fichas estrechas y se reparten en memoria: seis
+   * `groupBy` sobre las mismas dos tablas cuestan mas que esto, y
+   * «gestionado» no es una columna sino una regla.
+   */
+  async asesoresDeInscripciones(ambito: Ambito, ahora = new Date()): Promise<FilaDeAsesor[]> {
+    if (ambito.convenios.length === 0) return [];
+    const donde = { convenioId: { in: ambito.convenios } };
+
+    const [leads, grupos] = await Promise.all([
+      this.prisma.participante.findMany({
+        where: donde,
+        select: {
+          asesorId: true,
+          etapa: true,
+          creadoEn: true,
+          datosTocadosPorAsesorEn: true,
+          accionFormacionId: true,
+          asesor: { select: { nombre: true } },
+          _count: { select: { notas: true } },
+        },
+      }),
+      this.prisma.grupo.findMany({
+        where: { accionFormacion: { convenioId: { in: ambito.convenios } } },
+        select: { accionFormacionId: true, fechaInicio: true, modalidad: true },
+      }),
+    ]);
+
+    return repartirInscripciones(
+      leads.map((l) => ({
+        asesorId: l.asesorId,
+        asesorNombre: l.asesor?.nombre ?? null,
+        etapa: l.etapa,
+        creadoEn: l.creadoEn,
+        datosTocadosPorAsesorEn: l.datosTocadosPorAsesorEn,
+        notas: l._count.notas,
+        accionFormacionId: l.accionFormacionId,
+      })),
+      cierrePorAccion(grupos),
+      ahora,
+    );
+  }
+
+  /**
+   * SUBVISTA 2: los asesores academicos.
+   *
+   * Su carga se mide por GRUPOS --«cuantos grupos tiene asignados =
+   * cantidad de PAX»--, asi que se sale del grupo y se baja a sus
+   * participantes por la cobertura.
+   */
+  async asesoresAcademicos(
+    ambito: Ambito,
+    ahora = new Date(),
+  ): Promise<FilaDeAsesorAcademico[]> {
+    if (ambito.convenios.length === 0) return [];
+
+    const grupos = await this.prisma.grupo.findMany({
+      where: { accionFormacion: { convenioId: { in: ambito.convenios } } },
+      select: {
+        id: true,
+        fechaInicio: true,
+        fechaFin: true,
+        asesorAcademicoId: true,
+        asesorAcademico: { select: { nombre: true } },
+        coberturas: {
+          select: {
+            participantes: {
+              select: { etapa: true, _count: { select: { notas: true } } },
+            },
+          },
+        },
+      },
+    });
+
+    const pax = grupos.flatMap((g) =>
+      g.coberturas.flatMap((c) =>
+        c.participantes.map((p) => ({
+          asesorAcademicoId: g.asesorAcademicoId,
+          asesorNombre: g.asesorAcademico?.nombre ?? null,
+          grupoId: g.id,
+          fechaFin: g.fechaFin,
+          fechaInicio: g.fechaInicio,
+          etapa: p.etapa,
+          notas: p._count.notas,
+        })),
+      ),
+    );
+
+    return repartirAcademicos(pax, ahora);
   }
 
   async resumen(filtros: Filtros) {
@@ -4565,6 +4680,7 @@ export class CrmService {
 
     let numeroDeGrupo: number | null = null;
     if (dto.coberturaId) {
+      await exigirQuienAsignaGrupo(this.prisma, admin);
       const cobertura = await exigirCoberturaDeLaOferta(this.prisma, dto.coberturaId, {
         accionFormacionId: oferta.accionFormacionId,
         ubicacionId: oferta.ubicacionId,

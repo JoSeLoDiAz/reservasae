@@ -401,6 +401,9 @@ export const IconoModuloConfiguracion: Icono = (p) => (
 /// `navegacion.ts`. Así añadir el icono no obligó a tocar la
 /// definición del menú ni sus permisos.
 export const ICONO_DE_MODULO: Record<string, Icono> = {
+  /// El de siempre del tablero: «Informes» ocupa el sitio que tenía
+  /// «Resumen», y con su mismo signo nadie tiene que aprenderlo.
+  informes: IconoResumen,
   cronograma: IconoModuloCalendario,
   inscripciones: IconoModuloInscripciones,
   sistemas: IconoModuloSistemas,

@@ -1,3 +1,23 @@
+/**
+ * EL .env, ANTES QUE CUALQUIER OTRO IMPORT. La línea va la primera y
+ * tiene que seguir siendo la primera.
+ *
+ * Once módulos hacen `JwtModule.register({ secret: process.env.… })`, y
+ * eso se evalúa cuando se IMPORTA el módulo, no cuando Nest lo
+ * construye. `ConfigModule.forRoot()` llega después, así que los once
+ * firmantes se registraban con `undefined` y el fallo no aparecía
+ * hasta que alguien intentaba entrar: 500 con «secretOrPrivateKey must
+ * have a value», que no dice de dónde viene.
+ *
+ * En los contenedores nunca se notó --allí las variables están en el
+ * entorno antes de arrancar-- así que solo mordía a quien lo corre en
+ * su máquina con un fichero. Una hora de mi vida, 24 sep 2026.
+ *
+ * `dotenv` NO pisa lo que ya esté puesto en el entorno, así que en
+ * producción esta línea no cambia nada.
+ */
+import 'dotenv/config';
+
 import { exigirSecretoDeLeads } from './leads/secreto-de-leads';
 import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
