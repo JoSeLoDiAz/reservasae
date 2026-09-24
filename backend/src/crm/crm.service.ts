@@ -69,7 +69,12 @@ import {
   type FilaDeAsesorAcademico,
 } from './asesores-datos';
 import { exigirQuienAsignaGrupo } from './quien-asigna-grupo';
-import { faltaDeLaPersona, revisar } from './completitud';
+import {
+  faltaDeLaEmpresa,
+  faltaDeLaFicha,
+  faltaDeLaPersona,
+  revisar,
+} from './completitud';
 import { pasarSiNoLeFaltaNada } from './datos-completos';
 import { PanelDeCupos } from './panel-de-cupos';
 import { ColaRui } from './rui/cola-rui';
@@ -421,10 +426,15 @@ export class CrmService {
           empresa: {
             select: {
               razonSocial: true,
+              // los cuatro del jefe: los pide `faltaDeLaEmpresa`
+              nit: true,
               direccion: true,
               telefono: true,
               sectorEconomico: true,
               clasificacion: true,
+              contactoNombre: true,
+              contactoCargo: true,
+              contactoCorreo: true,
             },
           },
           // de que reserva viene, si viene de una: es lo que
@@ -433,7 +443,16 @@ export class CrmService {
             select: {
               id: true,
               cuposSolicitados: true,
-              empresa: { select: { razonSocial: true, nit: true } },
+              empresa: {
+                select: {
+                  razonSocial: true,
+                  nit: true,
+                  sectorEconomico: true,
+                  contactoNombre: true,
+                  contactoCargo: true,
+                  contactoCorreo: true,
+                },
+              },
             },
           },
           // los dos ultimos: el de ahora y el de antes
@@ -1095,7 +1114,7 @@ export class CrmService {
       /// Lo que el enlace le va a pedir, en el orden en que se
       /// lo va a pedir: primero su empresa y despues lo suyo.
       /// Sin esto el asesor manda un enlace sin saber que trae.
-      faltaDeLaEmpresa: this.faltaDeLaEmpresa(
+      faltaDeLaEmpresa: faltaDeLaEmpresa(
         p.empresa,
         p.persona.numeroDocumento,
       ),
@@ -1236,43 +1255,8 @@ export class CrmService {
     };
   }
 
-  /// Lo que el formulario largo le pide de su organizacion.
-  /// Solo eso: el maestro de empresas guarda mucho mas, pero
-  /// a la persona no se le pregunta el CIIU ni el tamano.
-  private faltaDeLaEmpresa(
-    e: {
-      nit: string;
-      razonSocial: string;
-      sectorEconomico: string | null;
-      contactoNombre: string | null;
-      contactoCargo: string | null;
-      contactoCorreo: string | null;
-    } | null,
-    /// Para saber si la «empresa» es la persona misma.
-    documentoDeLaPersona?: string,
-  ): string[] {
-    if (!e) return ['los datos de su organización'];
-
-    /// Quien trabaja por su cuenta no tiene jefe directo.
-    ///
-    /// Su cédula es su RUT, asi que su NIT y su documento son
-    /// el mismo numero. Pedirle «el nombre de su jefe» y «el
-    /// correo de su jefe» es pedirle que se invente a
-    /// alguien, y mientras no lo haga la ficha lo da por
-    /// incompleto para siempre: el enlace no deja de
-    /// ofrecerse y el F7 nunca lo ve listo.
-    const esElMismo =
-      documentoDeLaPersona !== undefined && e.nit === documentoDeLaPersona;
-
-    const falta: string[] = [];
-    if (!e.sectorEconomico) falta.push('sector económico');
-    if (esElMismo) return falta;
-
-    if (!e.contactoNombre) falta.push('nombre del jefe directo');
-    if (!e.contactoCargo) falta.push('cargo del jefe directo');
-    if (!e.contactoCorreo) falta.push('correo del jefe directo');
-    return falta;
-  }
+  /// La regla vive en `completitud.ts`: era privada aquí y
+  /// exportada allá, y las dos copias diferían.
 
   /**
    * Crea la ficha.
@@ -2177,6 +2161,25 @@ export class CrmService {
       camposTocados: tocados,
       ip,
     });
+
+    /// COMPLETAR LA ORGANIZACIÓN TAMBIÉN MUEVE LA ETAPA.
+    ///
+    /// Desde el 24 sep 2026 «Datos completos» mira la persona Y su
+    /// organización, así que esta ruta puede ser la que termina de
+    /// completar la ficha. Sin esta llamada, el asesor llenaba el
+    /// jefe directo, la persona ya no debía nada, y la ficha se
+    /// quedaba en «Interesado» con «Sin pendientes» al lado --que
+    /// es exactamente el defecto que Mauricio reportó el 18 sep y
+    /// que `datos-completos.ts` existe para cerrar, reabierto por
+    /// la puerta de la empresa--.
+    if (tocados.length > 0) {
+      await pasarSiNoLeFaltaNada(
+        this.prisma,
+        id,
+        'Un asesor completó los datos de su organización',
+        actor?.id ?? null,
+      );
+    }
 
     return this.obtener(id, ambito);
   }
@@ -4911,26 +4914,81 @@ export class CrmService {
       y.push({ persona: { departamentoSepId: f.departamentoSepId } });
     }
 
-    // «completa» no es una columna: es que no falte ninguno de
-    // los diez que exige el reporte. La condicion se escribe
-    // aqui igual que en `faltaDeLaPersona`, y si una cambia
-    // hay que cambiar la otra
+    /// «Completa» no es una columna: es que no falte nada de lo
+    /// que mira `faltaDeLaFicha` --la persona Y su organización--.
+    ///
+    /// SE ESCRIBE AQUÍ OTRA VEZ PORQUE UN `where` DE PRISMA NO
+    /// PUEDE LLAMAR A UNA FUNCIÓN, y esa duplicación ya costó una
+    /// queja: el 24 sep 2026 una asesora filtró «Datos completos»,
+    /// abrió la ficha y le dijo que faltaban los datos de la
+    /// empresa. La columna miraba una regla y el filtro otra.
+    ///
+    /// Dos cosas que ESTE bloque tenía mal antes de tocarlo, y no
+    /// eran la empresa:
+    ///   · `{ not: null }` deja pasar la cadena VACÍA y los
+    ///     espacios, y la función usa `.trim()`. Una dirección con
+    ///     un espacio salía COMPLETA en el filtro y «Falta 1» en la
+    ///     columna, en la misma fila.
+    ///   · el celular se juzga con `celularUtil`, que además
+    ///     rechaza un «no tiene» escrito en la casilla. Eso no cabe
+    ///     en un `where`, así que aquí solo se exige que no esté
+    ///     vacío: el filtro es MÁS LAXO que la columna en ese
+    ///     campo, y es la única diferencia que queda a propósito.
     if (f.estado) {
+      /// Ni nulo ni vacío: es lo que hace `!x?.trim()`.
+      const lleno = (): Prisma.StringNullableFilter => ({
+        not: null,
+        notIn: ['', ' '],
+      });
+      /// LO QUE NO CABE AQUÍ, Y HAY QUE SABERLO: la excepción del
+      /// INDEPENDIENTE. `faltaDeLaEmpresa` no le pide jefe directo
+      /// a quien trabaja por su cuenta, y eso se reconoce en que
+      /// su NIT es su propia cédula --`empresa.nit ===
+      /// persona.numeroDocumento`--. Un `where` de Prisma no puede
+      /// comparar dos columnas de modelos distintos, así que el
+      /// filtro se los cuenta como incompletos: son 9 fichas de
+      /// 136 en producción (medido el 24 sep 2026) y salen PARCIAL
+      /// en el filtro y «Sin pendientes» en la columna.
+      ///
+      /// Se cierra del todo el día que esto sea una COLUMNA que
+      /// escriba `pasarSiNoLeFaltaNada` en vez de una condición
+      /// reescrita a mano. Es una migración y se decide aparte.
+      const empresaLlena = {
+        sectorEconomico: lleno(),
+        contactoNombre: lleno(),
+        contactoCargo: lleno(),
+        contactoCorreo: lleno(),
+      };
+
       const completa: Prisma.ParticipanteWhereInput = {
         AND: [
           { nivelOcupacionalSepId: { not: null } },
           {
             persona: {
-              correo: { not: null },
-              celular: { not: null },
+              correo: lleno(),
+              celular: lleno(),
               fechaNacimiento: { not: null },
               generoSepId: { not: null },
               estrato: { not: null },
               departamentoSepId: { not: null },
               municipioSepId: { not: null },
-              direccion: { not: null },
-              barrio: { not: null },
+              direccion: lleno(),
+              barrio: lleno(),
             },
+          },
+          /// LA SUYA, Y SI NO TIENE, LA DE LA RESERVA QUE LO NOMINÓ.
+          ///
+          /// Misma cadena que `faltaDeLaFicha` y que el F7. Sin la
+          /// segunda rama, quien llegó por la reserva de una empresa
+          /// --el camino principal-- saldría siempre incompleto.
+          {
+            OR: [
+              { empresa: empresaLlena },
+              {
+                empresaId: null,
+                reserva: { empresa: empresaLlena },
+              },
+            ],
           },
         ],
       };
@@ -5035,14 +5093,25 @@ export class CrmService {
     reserva: {
       id: string;
       cuposSolicitados: number;
-      empresa: { razonSocial: string; nit: string };
+      empresa: {
+        razonSocial: string;
+        nit: string;
+        sectorEconomico: string | null;
+        contactoNombre: string | null;
+        contactoCargo: string | null;
+        contactoCorreo: string | null;
+      };
     } | null;
     empresa: {
       razonSocial: string;
+      nit: string;
       direccion: string | null;
       telefono: string | null;
       sectorEconomico: string | null;
       clasificacion: string | null;
+      contactoNombre: string | null;
+      contactoCargo: string | null;
+      contactoCorreo: string | null;
     } | null;
     movimientos: Array<{
       etapaAntes: EtapaParticipante | null;
@@ -5058,20 +5127,33 @@ export class CrmService {
     /// Intentos que no llegaron a nadie.
     sinRespuesta: number;
   }) {
-    // lo que la persona dejo a medias: es lo que el asesor
-    // tiene que completar por telefono
+    /// Lo que la ficha debe: lo suyo Y lo de su organización.
+    ///
+    /// LAS DOS LISTAS VIAJAN SEPARADAS y `datos` sale de la SUMA.
+    /// Mandando solo el total, el panel no puede decir QUÉ falta ni
+    /// de quién; mandando solo la de la persona --que es lo que
+    /// había-- la columna imprimía «Faltan 0» en ámbar el día que
+    /// lo único pendiente fuera de la empresa.
+    const suEmpresa = p.empresa ?? p.reserva?.empresa ?? null;
     const falta = faltaDeLaPersona({
       persona: p.persona,
       nivelOcupacionalSepId: p.nivelOcupacionalSepId,
     });
+    const faltaEmpresa = faltaDeLaEmpresa(
+      suEmpresa,
+      p.persona.numeroDocumento,
+    );
 
     return {
       id: p.id,
       etapa: p.etapa,
       origen: p.origen,
       datos:
-        falta.length === 0 ? ('COMPLETOS' as const) : ('PARCIALES' as const),
+        falta.length + faltaEmpresa.length === 0
+          ? ('COMPLETOS' as const)
+          : ('PARCIALES' as const),
       faltaDeLaPersona: falta,
+      faltaDeLaEmpresa: faltaEmpresa,
       creadoEn: p.creadoEn,
       documento: `${siglaDocumento(p.persona.tipoDocumentoSepId)} ${p.persona.numeroDocumento}`,
       nombre: [

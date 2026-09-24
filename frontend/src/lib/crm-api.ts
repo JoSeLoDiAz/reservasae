@@ -354,10 +354,19 @@ export type FilaParticipante = {
   id: string;
   etapa: Etapa;
   origen: Origen;
-  /** Si la persona entregó su ficha entera o a medias. */
+  /** Si la ficha está entera o a medias: la persona Y su organización. */
   datos: "PARCIALES" | "COMPLETOS";
   /** Qué le falta de lo suyo: lo que el asesor le pide. */
   faltaDeLaPersona: string[];
+  /**
+   * Y qué le falta de su organización.
+   *
+   * VIAJA APARTE Y NO SUMADA: `datos` sale de las dos, pero el
+   * panel tiene que poder decir QUÉ falta y DE QUIÉN. Llegó el 24
+   * sep 2026; un backend sin reiniciar no la manda, y por eso se
+   * lee siempre con `?? []`.
+   */
+  faltaDeLaEmpresa?: string[];
   creadoEn: string;
   documento: string;
   nombre: string;

@@ -1211,8 +1211,20 @@ export class PreinscripcionService {
     /// organizacion-- quedaba «Interesado» con «Sin pendientes»
     /// al lado, para siempre: nadie vuelve a tocar esa ficha. Lo
     /// vio Mauricio el 20 sep 2026, con fichas del MISMO dia en
-    /// los dos estados. Lo que falta de la empresa no es de la
-    /// persona y no entra en `faltaDeLaPersona`.
+    /// los dos estados.
+    ///
+    /// LA ULTIMA FRASE DE ESTE COMENTARIO YA NO VALE, y estaba
+    /// aqui hasta el 24 sep 2026: decia que lo que falta de la
+    /// empresa no cuenta. Desde ese dia SI cuenta --«datos
+    /// completos deben estar los datos de la persona y los datos
+    /// de la empresa», Josse--, asi que quien cierre sin llenar
+    /// el paso de la organizacion vuelve a quedarse fuera.
+    ///
+    /// No es el defecto de aquel dia devuelto: aquel era que las
+    /// DOS VERDADES se contradecian --«Interesado» junto a «Sin
+    /// pendientes»--. Ahora coinciden: la columna dice lo que
+    /// falta y la etapa lo respeta. Y la ficha vuelve a la cola
+    /// del asesor, que es de donde sale la campana que lo pide.
     const etapa = await this.inscribirSiEstaCompleto(enlace.participanteId);
 
     return { guardado: true, enEspera: false, etapa };

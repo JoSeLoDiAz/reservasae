@@ -9,18 +9,13 @@
 /// se le enseña o no. Metido dentro de la pantalla, esa
 /// decisión no se puede probar.
 
-export type EmpresaParaRevisar = {
-  sectorEconomico: string | null;
-  contactoNombre: string | null;
-  contactoCargo: string | null;
-  contactoCorreo: string | null;
-};
-
-export function faltaDeLaEmpresa(e: EmpresaParaRevisar): string[] {
-  const falta: string[] = [];
-  if (!e.sectorEconomico?.trim()) falta.push('sector económico');
-  if (!e.contactoNombre?.trim()) falta.push('nombre del jefe directo');
-  if (!e.contactoCargo?.trim()) falta.push('cargo del jefe directo');
-  if (!e.contactoCorreo?.trim()) falta.push('correo del jefe directo');
-  return falta;
-}
+/// LA REGLA SE MUDÓ a `crm/completitud.ts` (24 sep 2026).
+///
+/// Vivía aquí y otra vez, privada, dentro de `crm.service`, y las
+/// dos diferían: aquella conocía la excepción de quien trabaja
+/// por su cuenta y esta no, así que a un independiente el enlace
+/// le pedía el correo de un jefe que su propia ficha ya daba por
+/// no aplicable. Este archivo se queda como puerta para no tocar
+/// a quien ya lo importa.
+export type { EmpresaDeLaFicha as EmpresaParaRevisar } from '../crm/completitud';
+export { faltaDeLaEmpresa } from '../crm/completitud';
