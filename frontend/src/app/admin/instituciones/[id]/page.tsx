@@ -427,7 +427,7 @@ export default function PaginaInstitucion({
           </p>
           <p className="mt-1">
             {ficha.sinConfirmar.map((clave) => ETIQUETA_CAMPO[clave] ?? clave).join(", ")}
-            . Son sugerencias: no salen al SENA mientras la ficha siga sin verificar.
+            . Son sugerencias: no salen al SENA mientras el registro siga sin verificar.
           </p>
         </div>
       )}
@@ -713,7 +713,7 @@ export default function PaginaInstitucion({
               campo. Decirlo aqui evita que alguien espere ver los
               datos cambiados solos */}
           <p className="text-sm text-texto-suave">
-            La búsqueda en la web no cambia nada de esta ficha: deja una
+            La búsqueda en la web no cambia nada de este registro: deja una
             propuesta con lo que encontró, y usted decide campo por campo qué
             entra y qué no.
           </p>
@@ -736,7 +736,7 @@ export default function PaginaInstitucion({
 
           {/* descartar es aplicar nada: el backend cierra la propuesta
               igual. Sin esa salida, una propuesta que no sirve se queda
-              en la ficha para siempre, porque el boton de aplicar esta
+              en el registro para siempre, porque el boton de aplicar esta
               apagado mientras no haya ningun campo marcado */}
           {ficha.propuestas.map((propuesta) => (
             <TarjetaPropuesta
@@ -767,13 +767,13 @@ export default function PaginaInstitucion({
                       : r.descartados === 1
                         ? " El otro se descartó."
                         : ` Los otros ${r.descartados} se descartaron.`;
-                  return `${aplicados} a la ficha.${resto}`;
+                  return `${aplicados} al registro de la empresa.${resto}`;
                 })
               }
               alDescartar={() =>
                 conError(async () => {
                   await institucionesApi.aplicarPropuesta(propuesta.id, []);
-                  return "Propuesta descartada. No se cambió ningún dato de la ficha.";
+                  return "Propuesta descartada. No se cambió ningún dato del registro.";
                 })
               }
             />
@@ -1027,7 +1027,7 @@ function TarjetaPropuesta({
       {esWeb && (
         <p className="mt-4 rounded-xl border border-aviso/30 bg-aviso-suave p-4 text-sm text-aviso">
           Nada de esto está verificado, y por eso llega sin marcar. Compruébelo antes de
-          marcarlo: lo que aplique quedará en la ficha como sugerido y seguirá sin poder
+          marcarlo: lo que aplique quedará en el registro como sugerido y seguirá sin poder
           reportarse.
         </p>
       )}

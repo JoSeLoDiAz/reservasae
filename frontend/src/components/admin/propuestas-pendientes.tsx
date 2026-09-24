@@ -39,14 +39,14 @@ const NOTA_FUENTE: Record<FuenteDato, string> = {
     "comprobado: mientras no se acepte aquí, nada de esto se reporta al SENA. Marque " +
     "solo lo que haya contrastado con la organización.",
   RUES:
-    "Viene del RUES, que es fuente oficial. Aun así, en la ficha queda únicamente lo " +
+    "Viene del RUES, que es fuente oficial. Aun así, en el registro queda únicamente lo " +
     "que usted marque.",
   CARGA:
     "Viene del archivo con el que se sembró el sistema. Nadie lo ha revisado desde " +
     "entonces, así que conviene contrastarlo antes de darlo por bueno.",
   HUMANO:
     "Lo escribió una persona y quedó como propuesta. Sigue haciendo falta que alguien " +
-    "la acepte para que quede en la ficha.",
+    "la acepte para que quede en el registro.",
 };
 
 /// El orden en que la ficha muestra los campos. La bandeja lo
@@ -146,9 +146,9 @@ export function PropuestasPendientes() {
     <div>
       <header className="mx-4 mb-3 rounded-2xl border border-borde bg-superficie px-7 pt-[26px] pb-[22px]">
         <p className="mt-1 max-w-3xl text-texto-suave">
-          Ninguna consulta automática escribe en la ficha de una organización: deja aquí
+          Ninguna consulta automática escribe en el registro de una organización: deja aquí
           una propuesta. Hasta que una persona no la acepte campo por campo, ese dato no
-          se reporta al SENA. Lo que se marque queda en la ficha; lo que se deje sin
+          se reporta al SENA. Lo que se marque queda en el registro; lo que se deje sin
           marcar se descarta junto con la propuesta.
         </p>
       </header>
@@ -208,7 +208,7 @@ export function PropuestasPendientes() {
             <p>
               Cuando entren en funcionamiento, cada dato que encuentren llegará aquí como
               propuesta y quedará esperando a que una persona lo acepte. Hasta entonces
-              los datos se corrigen a mano desde la ficha de cada institución.
+              los datos se corrigen a mano desde el registro de cada institución.
             </p>
           </div>
         </Tarjeta>
@@ -267,7 +267,7 @@ function TarjetaPropuesta({
           : resultado.descartados === 1
             ? " El otro se descartó."
             : ` Los otros ${resultado.descartados} se descartaron.`;
-      alResolver(`${aplicados} en la ficha de ${nombre}.${resto}`);
+      alResolver(`${aplicados} en el registro de ${nombre}.${resto}`);
     } catch (e) {
       /// La tarjeta se queda: la propuesta no se resolvio y
       /// quitarla haria creer que el dato ya esta aplicado.
