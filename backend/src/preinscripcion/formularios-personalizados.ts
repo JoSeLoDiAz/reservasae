@@ -71,6 +71,16 @@ const FORMULARIOS: readonly FormularioPersonalizado[] = [
       'Es la única que ofrece, y viene ya elegida.',
   },
   {
+    palabra: 'Afiliados',
+    convenio: 'adecopria',
+    accion: 'AF6',
+    titulo: 'Afiliados · Fábrica de Soluciones Digitales',
+    descripcion:
+      'Para los afiliados que entregaron carta. Abre la AF6 sin ' +
+      'publicarla y no ofrece ninguna otra: no es una campaña, es ' +
+      'el enlace que se le pasa a quien ya tiene el cupo acordado.',
+  },
+  {
     palabra: 'Santillana',
     convenio: 'adecopria',
     /// Ninguna: ofrece lo mismo que el general. Lo único que
