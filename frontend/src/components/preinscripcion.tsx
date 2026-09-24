@@ -771,9 +771,20 @@ export function PreinscripcionPublica({ slug }: { slug: string }) {
           </p>
         )}
 
+        {/* «VOLVER A LAS ACCIONES» TAMPOCO, con una sola acción
+            (cliente, 23 sep 2026). Es el mismo caso que el botón
+            «Cambiar» de arriba: lleva a una pantalla con la única
+            tarjeta que ya está elegida. `BotonesDePaso` no pinta el de
+            atrás si no le llegan las dos cosas --rótulo y qué hacer--,
+            así que basta con no dárselas.
+
+            Lo que NO se pierde: la ubicación se cambia desde ahí, y con
+            una sola acción el municipio ya viene puesto. Si algún día
+             hace falta volver solo para corregirlo, el sitio es el
+            bloque de arriba, no un botón al pie. */}
         <BotonesDePaso
-          atras="Volver a las acciones"
-          alVolver={() => setPantalla("eleccion")}
+          atras={conCobertura.length > 1 ? "Volver a las acciones" : undefined}
+          alVolver={conCobertura.length > 1 ? () => setPantalla("eleccion") : undefined}
           adelante="Continuar"
           bloqueado={faltaEnDatos.length > 0}
           alSeguir={() => {
