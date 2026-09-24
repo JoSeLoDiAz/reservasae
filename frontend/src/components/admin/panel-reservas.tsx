@@ -1021,7 +1021,19 @@ function CajaDeFecha({
    ═══════════════════════════════════════════════════════════════ */
 
 /**
- * Las cuatro cifras de arriba, con el gremio en el título.
+ * Las cinco cifras de arriba.
+ *
+ * DESNUDAS SOBRE LA PÁGINA, SIN `Bloque` (cliente, 24 sep 2026:
+ * «sigue igual?»). Estuvieron dentro de uno, y eso las metía en una
+ * caja con cabecera lavanda y otra fila enmarcada debajo: caja dentro
+ * de caja dentro de caja.
+ *
+ * Medido contra las dos tiras que él sí aprobó --«Gestión de leads» y
+ * «Seguimiento académico»-- la TARJETA era idéntica: 51 px de alto,
+ * relleno 8/14, hueco 8. Lo que no se parecía era el MARCO: allí las
+ * tarjetas cuelgan de la página, sin título encima ni borde alrededor.
+ * Y el alto nunca fue el problema --la tira aprobada del académico
+ * mide 66 px y ésta medía 51--, así que medirlo no respondía nada.
  *
  * Las tres últimas son, al dígito, las del bloque «Cupos apartados
  * por empresas» desde el que se hace clic, en su orden y con sus
@@ -1036,57 +1048,51 @@ function CajaDeFecha({
 function ResumenGeneral({ informe }: { informe: InformeReservas }) {
   const t = informe.totales;
   const conNombre = sillasConNombre(t);
-  const organizacionesQueDeben = informe.porOrganizacion.filter((o) => o.sinNombre > 0).length;
   const convenios = informe.recorte.convenios;
 
   return (
-    <Bloque
-      titulo={tituloEnPantalla(informe)}
-      /// Con un gremio, el título lo dice todo. Con varios, «los dos
-      /// gremios» necesita decir cuáles.
-      descripcion={
-        convenios.length > 1 ? listaEnPalabras(convenios.map((c) => c.sigla ?? c.nombre)) : undefined
-      }
-      sinRelleno
-      acciones={
-        /* La lista de trabajo, que se queda como estaba en
-           Sistemas de Información. Desde el informe se llega a la
-           fila concreta --el contacto, el teléfono-- que aquí no
-           se trae. */
+    <section className="flex flex-col gap-2">
+      {/* EL GREMIO, EN VOZ BAJA Y NO COMO TÍTULO DE BLOQUE. Tiene que
+          seguir dicho en alguna parte: el desplegable de gremio no
+          basta --desaparece cuando el catálogo no carga-- y una
+          captura o un PDF que empiece por un número sin decir de quién
+          es no se puede contrastar con nada. Pero va con el peso de un
+          pie de foto, no de una cabecera, que es lo que enmarcaba. */}
+      <div className="flex items-baseline justify-between gap-3 text-[0.75rem] leading-none">
+        <span className="truncate font-medium text-texto">
+          {tituloEnPantalla(informe)}
+          {convenios.length > 1 && (
+            <span className="font-normal text-texto-suave">
+              {" · "}
+              {listaEnPalabras(convenios.map((c) => c.sigla ?? c.nombre))}
+            </span>
+          )}
+        </span>
+        {/* La lista de trabajo, que se queda como estaba en Sistemas
+            de Información. Desde el informe se llega a la fila
+            concreta --el contacto, el teléfono-- que aquí no se trae. */}
         <Link
           href="/admin/reservas"
-          className="no-imprimir self-center text-[0.75rem] font-medium text-marca underline underline-offset-2 hover:text-marca-fuerte"
+          className="no-imprimir shrink-0 font-medium text-marca underline underline-offset-2 hover:text-marca-fuerte"
         >
           Ver el listado
         </Link>
-      }
-    >
+      </div>
+
       {/* FLEX Y NO REJILLA. En papel, globals.css aplana toda rejilla
           que cuelgue de un `section` («las rejillas pasan a flujo»), y
-          las cuatro cifras salían apiladas en media hoja. El `gap-px`
-          sobre la raya de fondo pinta los separadores también cuando
-          en un celular pasan a dos por fila. */}
-      {/* A LA MEDIDA DE «GESTIÓN DE LEADS» (cliente, 23 sep 2026):
-          «en Control de Reservas las tarjetas de Reservas de ADECOPRIA
-          tampoco se parecen». */}
+          las cifras salían apiladas en media hoja. */}
       <div className="flex flex-wrap gap-2">
-        {/* CUÁNTAS INSTITUCIONES, en su propia casilla (cliente, 23
-            sep 2026). Estaba en el pie de «Reservas», que es donde no
-            se lee: es la primera pregunta del comité --a cuántos
-            colegios llegamos-- y no una aclaración de otra cifra. */}
-        {/* DOS LÍNEAS, COMO EN «GESTIÓN DE LEADS». Medido: allí la
-            tarjeta son 51 px y aquí eran 66, porque cada una llevaba
-            una FRASE debajo. Lo que hace falta para leer la cifra cabe
-            al lado en dos palabras --«+6 en espera», «9 % de cupos»--;
-            lo demás lo dice «Cómo se cuentan estas cifras», que está
-            justo debajo. */}
+        {/* LA COLA DE LA CIFRA ES UN PORCENTAJE O NADA. En las dos
+            tiras aprobadas ninguna cola es una frase; aquí había tres
+            clases distintas en cinco tarjetas --«+34 en espera», «8 %»,
+            «en 24 org.»-- y eso es lo que se leía como desorden. Los
+            cupos en espera ya salen en el rótulo de «Cómo se cuentan
+            estas cifras», que está justo debajo, y qué organizaciones
+            deben nombres es la columna «Pendientes» de la tabla. */}
         <CifraCompacta etiqueta="Instituciones" valor={n(t.organizaciones)} />
         <CifraCompacta etiqueta="Reservas" valor={n(t.reservas)} />
-        <CifraCompacta
-          etiqueta="Cupos apartados"
-          valor={n(t.cuposConfirmados)}
-          detalle={t.cuposEnEspera > 0 ? `+${n(t.cuposEnEspera)} en espera` : undefined}
-        />
+        <CifraCompacta etiqueta="Cupos apartados" valor={n(t.cuposConfirmados)} />
         <CifraCompacta
           etiqueta="Ya tienen nombre"
           valor={n(conNombre)}
@@ -1097,12 +1103,14 @@ function ResumenGeneral({ informe }: { informe: InformeReservas }) {
           etiqueta="Siguen sin nombre"
           valor={n(t.sinNombre)}
           color={t.sinNombre > 0 ? "var(--error)" : undefined}
-          detalle={organizacionesQueDeben > 0 ? `en ${n(organizacionesQueDeben)} org.` : undefined}
+          detalle={
+            t.cuposConfirmados > 0 ? `${porciento(t.sinNombre, t.cuposConfirmados)} %` : undefined
+          }
         />
       </div>
 
       <ComoSeCuentan informe={informe} />
-    </Bloque>
+    </section>
   );
 }
 
@@ -1130,8 +1138,8 @@ function ComoSeCuentan({ informe }: { informe: InformeReservas }) {
   ].filter(Boolean);
 
   return (
-    <details className="group border-t border-hairline">
-      <summary className="sin-aro flex cursor-pointer list-none items-center gap-2 px-7 py-2.5 text-[0.75rem] text-texto-suave select-none hover:text-texto">
+    <details className="group">
+      <summary className="sin-aro flex cursor-pointer list-none items-center gap-2 py-1 text-[0.75rem] text-texto-suave select-none hover:text-texto">
         <span aria-hidden className="text-[0.5625rem] transition-transform group-open:rotate-90">
           &#9656;
         </span>
@@ -1140,7 +1148,7 @@ function ComoSeCuentan({ informe }: { informe: InformeReservas }) {
           {rotulo.length > 0 && ` · ${rotulo.join(" · ")}`}
         </span>
       </summary>
-      <ul className="list-disc space-y-1 pr-7 pb-3 pl-12 text-[0.75rem] leading-snug text-texto-suave">
+      <ul className="list-disc space-y-1 pb-2 pl-9 text-[0.75rem] leading-snug text-texto-suave">
         <li>
           {/* Ocultar, nunca eliminar: las canceladas no entran en las
               cifras, pero la cifra de las que se cayeron se ve. */}

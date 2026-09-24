@@ -66,13 +66,20 @@ import {
   type Resumen,
 } from "@/lib/crm-api";
 
-/// Las tres fases del embudo, para agrupar las etapas.
-/// Sin agrupar, cinco barras seguidas no dicen cuál es avance y
-/// cuál es salida.
-const FASES: Array<{ titulo: string; etapas: Etapa[] }> = [
-  { titulo: "Captación", etapas: ["INTERESADO", "CONTACTADO", "DATOS_COMPLETOS"] },
-  { titulo: "Inscritos", etapas: ["INSCRITO"] },
-  { titulo: "Salida", etapas: ["PERDIDO"] },
+/// Las cinco etapas, en el orden del embudo.
+///
+/// SIN AGRUPAR POR FASE. Estaban repartidas en tres bloques con su
+/// rótulo --«Captación», «Inscritos», «Salida»--: «se elimina las
+/// palabras: Captación, Inscritos» (cliente, 23 sep 2026), que las
+/// quiere en crudo. Quitados los rótulos no queda nada que agrupar,
+/// así que se queda UNA lista y el orden hace el trabajo que hacían
+/// ellos: arriba quien acaba de entrar, abajo quien se perdió.
+const ETAPAS_EN_ORDEN: Etapa[] = [
+  "INTERESADO",
+  "CONTACTADO",
+  "DATOS_COMPLETOS",
+  "INSCRITO",
+  "PERDIDO",
 ];
 
 /// La paleta de los canales, fijada: el punto de la lista tiene
@@ -1351,7 +1358,7 @@ export function PanelProceso({
   /// contra el total: contra el total, cuatro de las cinco
   /// quedaban en un hilo de dos píxeles.
   const cimaDeFase = useMemo(
-    () => Math.max(1, ...FASES.flatMap((f) => f.etapas).map(valorDeFase)),
+    () => Math.max(1, ...ETAPAS_EN_ORDEN.map(valorDeFase)),
     [valorDeFase],
   );
 
@@ -1901,6 +1908,11 @@ export function PanelProceso({
   const canales = useMemo(() => {
     const filas = [...(control?.conversionPorOrigen ?? [])].sort((a, b) => b.leads - a.leads);
     const cima = Math.max(1, ...filas.map((f) => f.leads));
+    /// EL REPARTO, que no es el ancho de la barra: la barra va
+    /// contra el canal más grande --así se comparan entre ellos-- y
+    /// el porcentaje va contra el total, que es lo que se pidió
+    /// («donde das el número y al lado su porcentaje»).
+    const todos = filas.reduce((t, f) => t + f.leads, 0);
     return filas.map((f, i) => {
       const etiqueta = ETIQUETA_ORIGEN[f.etiqueta as Origen] ?? f.etiqueta;
       return {
@@ -1908,6 +1920,7 @@ export function PanelProceso({
         leads: f.leads,
         color: PALETA_CANAL[i % PALETA_CANAL.length],
         ancho: (f.leads / cima) * 100,
+        porcion: pct(f.leads, todos),
         pista: `${etiqueta}: ${n(f.leads)} personas, ${n(f.inscritos)} inscritos (${Math.round(
           f.conversion * 100,
         )} %)`,
@@ -1925,11 +1938,11 @@ export function PanelProceso({
   /// y uno por resolver, no dos categorías cualesquiera, y con
   /// los colores de serie no se distinguía cuál era cuál.
   ///
-  /// SIN NINGUNA FICHA, NINGUNA PORCIÓN. Con «Hoy» y nadie dentro
+  /// SIN NINGÚN LEAD, NINGUNA PORCIÓN. Con «Hoy» y nadie dentro
   /// llegaban las dos etapas a cero y la leyenda escribía «0,0 %»
   /// dos veces: un porcentaje sobre cero personas, justo lo que la
   /// tira de arriba se cuida de no pintar nunca. Vacío, la dona
-  /// dice «Sin fichas todavía.».
+  /// dice «Sin leads todavía.».
   const porEstado = metricas?.porEstado ?? [];
   const donutDatos: PorcionDonut[] = porEstado.some((e) => e.valor > 0)
     ? [...porEstado]
@@ -2415,19 +2428,10 @@ export function PanelProceso({
         <div className="grid gap-4 min-[1000px]:grid-cols-2">
           <Bloque
             titulo="Estado del lead"
-            descripcion="En qué paso está parada cada persona hoy, agrupados por fase."
+            descripcion="En qué paso está parada cada persona hoy."
           >
-            <div className="space-y-4">
-              {FASES.map((f) => {
-                const filas = f.etapas.filter((e) => valorDeFase(e) > 0);
-                if (filas.length === 0) return null;
-                return (
-                  <div key={f.titulo}>
-                    <p className="mb-2 text-[0.625rem] font-bold tracking-[0.1em] text-marca uppercase">
-                      {f.titulo}
-                    </p>
-                    <ul className="space-y-2.5">
-                      {filas.map((e) => {
+            <ul className="space-y-2.5">
+              {ETAPAS_EN_ORDEN.filter((e) => valorDeFase(e) > 0).map((e) => {
                         const v = valorDeFase(e);
                         return (
                           <li key={e}>
@@ -2458,19 +2462,25 @@ export function PanelProceso({
                             </div>
                           </li>
                         );
-                      })}
-                    </ul>
-                  </div>
-                );
               })}
-            </div>
+            </ul>
           </Bloque>
 
           <Bloque
             titulo="Estado de los datos"
             descripcion="Cuántos leads están completos y cuántos a medias."
           >
-            <Donut datos={donutDatos} detalleCentro="personas" vacio="Sin leads todavía." />
+            {/* MÁS GRANDE, Y A LA MEDIDA DE SU VECINA. «La dona de
+                Estado de los datos más grande simétricamente»
+                (cliente, 23 sep 2026): comparte fila con «Estado del
+                lead», que es una lista de cinco barras, y a 188 px
+                dejaba media tarjeta en blanco al lado de ella. */}
+            <Donut
+              datos={donutDatos}
+              tamano={224}
+              detalleCentro="personas"
+              vacio="Sin leads todavía."
+            />
           </Bloque>
         </div>
 
@@ -2509,7 +2519,7 @@ export function PanelProceso({
             /// entraran cuando entraran. Por eso las dos cifras
             /// son distintas y las dos están bien.
           >
-            <Serie datos={control?.serie ?? []} cuando={cuandoEnFrase} />
+            <Serie datos={control?.serie ?? []} />
           </Bloque>
           </div>
 
@@ -2535,7 +2545,7 @@ export function PanelProceso({
                 no dice la dona —cuántos inscribe cada canal— va en
                 el `title`, que es donde el encargo lo pide. */}
             <div className="flex flex-wrap items-center gap-4">
-              <Donut datos={donutOrigen} tamano={128} detalleCentro="personas" soloDibujo />
+              <Donut datos={donutOrigen} tamano={168} detalleCentro="personas" soloDibujo />
               <ul className="min-w-[170px] flex-1 space-y-2.5">
                 {canales.map((c) => (
                   <li key={c.etiqueta} title={c.pista}>
@@ -2546,7 +2556,12 @@ export function PanelProceso({
                         aria-hidden
                       />
                       <span className="min-w-0 flex-1 truncate">{c.etiqueta}</span>
-                      <span className="shrink-0 font-semibold tabular-nums">{n(c.leads)}</span>
+                      <span className="shrink-0 font-semibold tabular-nums">
+                        {n(c.leads)}
+                        <span className="ml-2 text-[0.71875rem] font-normal text-texto-suave">
+                          {c.porcion}
+                        </span>
+                      </span>
                     </div>
                     <div className="mt-1 h-[5px] overflow-hidden rounded-full bg-superficie-alterna">
                       <div
@@ -2727,16 +2742,7 @@ function PuntaDeSerie({
   );
 }
 
-function Serie({
-  datos,
-  cuando,
-}: {
-  datos: Array<{ dia: string; total: number }>;
-  /// El periodo dicho como se lee dentro de una frase: «en los
-  /// últimos 30 días». Hace falta para que la cifra diga a quién
-  /// cuenta sin obligar a subir a la cabecera.
-  cuando: string;
-}) {
+function Serie({ datos }: { datos: Array<{ dia: string; total: number }> }) {
   if (datos.length === 0) {
     return (
       <p className="py-8 text-center text-[0.84375rem] text-texto-suave">
@@ -2745,7 +2751,6 @@ function Serie({
     );
   }
 
-  const total = datos.reduce((t, d) => t + d.total, 0);
   const cima = Math.max(1, ...datos.map((d) => d.total));
   const mejor = datos.reduce((a, b) => (b.total > a.total ? b : a));
   /// Con un solo día no hay curva que trazar: el punto va al medio
@@ -2763,7 +2768,11 @@ function Serie({
   const area = `${en(0, 0).x},${ALTO_SERIE} ${puntos.join(" ")} ${
     en(datos.length - 1, 0).x
   },${ALTO_SERIE}`;
-  const pMejor = en(datos.indexOf(mejor), mejor.total);
+  const iMejor = datos.indexOf(mejor);
+  const pMejor = en(iMejor, mejor.total);
+  /// Si el pico ES una de las puntas, su punto ya lleva rótulo con
+  /// la cifra: dos encimados no se leen ninguno de los dos.
+  const picoEnLaPunta = unSoloDia || iMejor === 0 || iMejor === datos.length - 1;
   const primero = datos[0];
   const ultimo = datos[datos.length - 1];
   const pPrimero = en(0, primero.total);
@@ -2771,21 +2780,6 @@ function Serie({
 
   return (
     <div className="flex flex-col">
-      {/* DICE A QUIÉN CUENTA, en su propio renglón.
-          «72 inscritos en el periodo» convivía en la misma
-          pantalla con «32 se inscribieron» del embudo, y ninguna
-          de las dos decía de qué gente hablaba: no había forma de
-          saber cuál llevar a la reunión.
-          Aquí está también la ALTURA de la cima --el mejor día con
-          su cifra-- que es lo que decía el «11» suelto del canto. */}
-      <p className="max-w-[54ch] text-[0.84375rem] leading-relaxed text-pretty text-texto">
-        <strong className="font-semibold text-titulo">{n(total)}</strong>{" "}
-        {total === 1 ? "persona se inscribió" : "personas se inscribieron"} {cuando}, hayan
-        entrado cuando hayan entrado · el mejor día fue el{" "}
-        <strong className="font-semibold text-titulo">{fecha(mejor.dia)}</strong>, con{" "}
-        {n(mejor.total)}.
-      </p>
-
       {/* EL DIBUJO, CON ALTO PROPIO.
           Sin `grow` y sin `h-full`: lo que sobre de alto en la
           fila, que sobre. Ver `ALTO_SERIE`. */}
@@ -2810,9 +2804,16 @@ function Serie({
           />
         </svg>
 
-        {/* EL MEJOR DÍA, marcado y sin rótulo: su fecha y su cifra
-            están en el renglón de arriba, y repetirlas aquí eran
-            tres cifras para nueve puntos. */}
+        {/* EL MEJOR DÍA, MARCADO Y CON SU CANTIDAD. «Ritmo de
+            inscripción: los picos del gráfico, que tengan la
+            cantidad» (cliente, 23 sep 2026). Iba mudo porque su
+            cifra estaba en la frase de arriba --la misma que él
+            mandó quitar-- así que el dato se muda al punto donde
+            ocurre, que es donde se busca.
+
+            El rótulo va DEBAJO del punto, no encima: el pico cae
+            siempre en y = AIRE_SERIE (12 px) y encima no hay sitio.
+            Es la misma regla de `PuntaDeSerie`. */}
         <span
           className="pointer-events-none absolute block rounded-full"
           style={{
@@ -2826,6 +2827,20 @@ function Serie({
           }}
           aria-hidden
         />
+        {!picoEnLaPunta && (
+          <span
+            className="pointer-events-none absolute text-[0.625rem] leading-tight font-semibold whitespace-nowrap text-titulo tabular-nums"
+            style={{
+              /// Clavado a su punto, y sin salirse por los cantos
+              /// cuando el pico cae en el primer o el último tramo.
+              left: `${Math.min(94, Math.max(6, pMejor.x))}%`,
+              top: pMejor.y + PUNTO_MEJOR,
+              transform: "translateX(-50%)",
+            }}
+          >
+            {n(mejor.total)}
+          </span>
+        )}
 
         {/* LAS DOS PUNTAS, CON SU DATO. Con un solo día se queda
             la del medio; si hubiera que sacrificar una sería la

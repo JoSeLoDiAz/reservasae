@@ -1528,6 +1528,28 @@ select[size]:not([size='1']) {
   text-align: center;
 }
 
+/* Y EL COLOR DEL ROTULO, por lo mismo.
+ *
+ * «De un color: Cupos reservados, Campana digital (Leads Pauta), Total
+ * leads. De otro color: Inscritos reservas, Inscritos campana
+ * (Inscritos Pauta), Total inscritos» (cliente, 23 sep 2026).
+ *
+ * Las clases estaban puestas en los `th` desde ese dia --azul lo que
+ * ENTRO, verde lo que se INSCRIBIO-- y en pantalla los doce rotulos
+ * seguian del mismo gris: la regla de abajo fija `color` fuera de toda
+ * capa, y una utilidad de Tailwind, que si va en capa, no le gana por
+ * mas especifica que sea. Mismo defecto que la alineacion de arriba.
+ *
+ * Con `var(--marca)` y no `var(--color-marca)`: es el mismo valor --el
+ * segundo es el alias del tema-- y este es el que cambia en oscuro y
+ * en papel. */
+.tabla-datos thead th.text-marca {
+  color: var(--marca);
+}
+.tabla-datos thead th.text-exito {
+  color: var(--exito);
+}
+
 .tabla-datos thead th {
   background: var(--tabla-cabecera-fondo);
   color: var(--tabla-cabecera-texto);
