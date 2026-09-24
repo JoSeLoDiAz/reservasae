@@ -202,13 +202,13 @@ export const MODULOS: Modulo[] = [
         area: 'academico',
       },
       {
-        /// EL MISMO TABLERO, TAMBIÉN AQUÍ. «No veo nada en Académica»
-        /// (cliente, 23 sep 2026): el módulo tenía un solo enlace, así
-        /// que ni siquiera desplegaba, y quien venía a mirar cómo van
-        /// sus asesores lo buscaba aquí y no en Tableros. Es el mismo
-        /// destino, no una copia.
-        href: '/admin/participantes/academico/asesores',
-        etiqueta: 'Seguimiento de asesores',
+        /// EL TABLERO DE SEGUIMIENTO ACADÉMICO, aquí y no en Tableros:
+        /// es el resumen del aula --cuántos grupos, cuánta gente y en
+        /// qué estado-- y se mira desde el módulo que lo trabaja.
+        /// Enseña CANTIDADES, nunca personas: «importante, no mostrar
+        /// las personas sino los resúmenes» (cliente, 23 sep 2026).
+        href: '/admin/participantes/academico/tablero',
+        etiqueta: 'Seguimiento académico',
         exacto: true,
         area: 'academico',
       },

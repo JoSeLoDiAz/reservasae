@@ -38,17 +38,12 @@ import { Bloque, Encabezado, Esqueleto, Vacio } from "./piezas";
 
 type Subvista = "inscripciones" | "academicos";
 
-const SUBVISTAS: Array<{ clave: Subvista; etiqueta: string; pie: string }> = [
-  {
-    clave: "inscripciones",
-    etiqueta: "Asesores de inscripciones",
-    pie: "Corren hacia el cierre de inscripciones de sus acciones.",
-  },
-  {
-    clave: "academicos",
-    etiqueta: "Asesores académicos",
-    pie: "Corren hacia la fecha de fin de sus grupos.",
-  },
+/// SIN FRASE AL LADO (cliente, 23 sep 2026). Cada tabla ya dice contra
+/// qué fecha corre en su propia descripción y en su pie; repetirlo
+/// arriba costaba un renglón y no añadía nada.
+const SUBVISTAS: Array<{ clave: Subvista; etiqueta: string }> = [
+  { clave: "inscripciones", etiqueta: "Asesores de inscripciones" },
+  { clave: "academicos", etiqueta: "Asesores académicos" },
 ];
 
 /// Cómo se lee cada estado y de qué color va. `SIN_PLAZO` va en gris y
@@ -89,27 +84,22 @@ export function PanelAsesores() {
           Iba debajo, a todo el ancho, y eso partía la caja en dos
           renglones para decir siete palabras: espacio vertical que se
           gana sin perder nada. */}
-      <div className="flex flex-wrap items-center gap-2 rounded-xl border border-borde bg-superficie px-2 py-1.5">
-        <div className="flex gap-1">
-          {SUBVISTAS.map((s) => (
-            <button
-              key={s.clave}
-              type="button"
-              onClick={() => setSubvista(s.clave)}
-              className={
-                "rounded-lg px-3 py-1 text-[0.8125rem] font-medium transition " +
-                (subvista === s.clave
-                  ? "bg-marca text-marca-texto"
-                  : "text-texto-suave hover:bg-superficie-alterna hover:text-texto")
-              }
-            >
-              {s.etiqueta}
-            </button>
-          ))}
-        </div>
-        <p className="min-w-0 text-[0.6875rem] leading-snug text-texto-suave">
-          {SUBVISTAS.find((s) => s.clave === subvista)?.pie}
-        </p>
+      <div className="flex flex-wrap gap-1 rounded-xl border border-borde bg-superficie px-2 py-1.5">
+        {SUBVISTAS.map((s) => (
+          <button
+            key={s.clave}
+            type="button"
+            onClick={() => setSubvista(s.clave)}
+            className={
+              "rounded-lg px-3 py-1 text-[0.8125rem] font-medium transition " +
+              (subvista === s.clave
+                ? "bg-marca text-marca-texto"
+                : "text-texto-suave hover:bg-superficie-alterna hover:text-texto")
+            }
+          >
+            {s.etiqueta}
+          </button>
+        ))}
       </div>
 
       {subvista === "inscripciones" ? <DeInscripciones /> : <Academicos />}
@@ -141,16 +131,22 @@ function DeInscripciones() {
         <table className="tabla-datos w-full">
           <thead>
             <tr>
-              <th>Asesor</th>
-              <th className="text-right">Leads asignados</th>
-              <th className="text-right">Gestionados</th>
-              <th className="text-right">Inscritos o descartados</th>
-              <th className="text-right">Pendientes</th>
-              <th className="text-right">Antigüedad media</th>
-              <th className="text-right">Cierre</th>
-              <th className="text-right">Debe hacer al día</th>
-              <th className="text-right">Viene haciendo</th>
-              <th>Estado</th>
+              {/* LA COLUMNA DEL NOMBRE SE LLEVA EL ANCHO SOBRANTE.
+                  Con `w-full` en ella, las de cifras se encogen a su
+                  contenido. Sin esto, la tabla repartía 1.900 px entre
+                  diez columnas de dos dígitos y quedaban cuatro dedos
+                  de aire entre el rótulo y su número: «no veo esto con
+                  proporcionalidad» (cliente, 23 sep 2026). */}
+              <th className="w-full">Asesor</th>
+              <th className="text-right whitespace-nowrap">Leads asignados</th>
+              <th className="text-right whitespace-nowrap">Gestionados</th>
+              <th className="text-right whitespace-nowrap">Inscritos o descartados</th>
+              <th className="text-right whitespace-nowrap">Pendientes</th>
+              <th className="text-right whitespace-nowrap">Antigüedad media</th>
+              <th className="text-right whitespace-nowrap">Cierre</th>
+              <th className="text-right whitespace-nowrap">Debe hacer al día</th>
+              <th className="text-right whitespace-nowrap">Viene haciendo</th>
+              <th className="whitespace-nowrap">Estado</th>
             </tr>
           </thead>
           <tbody>
@@ -228,16 +224,22 @@ function Academicos() {
         <table className="tabla-datos w-full">
           <thead>
             <tr>
-              <th>Asesor</th>
-              <th className="text-right">Grupos</th>
-              <th className="text-right">PAX</th>
-              <th className="text-right">Con seguimiento</th>
-              <th className="text-right">Certificados</th>
-              <th className="text-right">Por certificar</th>
-              <th className="text-right">Fin del curso</th>
-              <th className="text-right">Debe hacer al día</th>
-              <th className="text-right">Viene haciendo</th>
-              <th>Estado</th>
+              {/* LA COLUMNA DEL NOMBRE SE LLEVA EL ANCHO SOBRANTE.
+                  Con `w-full` en ella, las de cifras se encogen a su
+                  contenido. Sin esto, la tabla repartía 1.900 px entre
+                  diez columnas de dos dígitos y quedaban cuatro dedos
+                  de aire entre el rótulo y su número: «no veo esto con
+                  proporcionalidad» (cliente, 23 sep 2026). */}
+              <th className="w-full">Asesor</th>
+              <th className="text-right whitespace-nowrap">Grupos</th>
+              <th className="text-right whitespace-nowrap">PAX</th>
+              <th className="text-right whitespace-nowrap">Con seguimiento</th>
+              <th className="text-right whitespace-nowrap">Certificados</th>
+              <th className="text-right whitespace-nowrap">Por certificar</th>
+              <th className="text-right whitespace-nowrap">Fin del curso</th>
+              <th className="text-right whitespace-nowrap">Debe hacer al día</th>
+              <th className="text-right whitespace-nowrap">Viene haciendo</th>
+              <th className="whitespace-nowrap">Estado</th>
             </tr>
           </thead>
           <tbody>
