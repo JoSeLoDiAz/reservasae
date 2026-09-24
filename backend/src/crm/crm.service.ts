@@ -40,6 +40,12 @@ import {
   motivoDeTransicionImposible,
 } from './escalera';
 import { cubreA, exigirCoberturaDeLaOferta, repartirPorCobertura } from './cobertura';
+import type { Ambito } from '../admin/admin.guard';
+import {
+  completarFila,
+  resumenPorAccionSql,
+  type FilaDeAccion,
+} from './resumen-por-accion';
 import { faltaDeLaPersona, revisar } from './completitud';
 import { pasarSiNoLeFaltaNada } from './datos-completos';
 import { PanelDeCupos } from './panel-de-cupos';
@@ -548,6 +554,21 @@ export class CrmService {
       prisma: this.prisma,
       donde,
     });
+  }
+
+  /**
+   * LA TABLA DEL COMITÉ, una fila por acción de formación.
+   *
+   * Reemplaza el Excel que el cliente llevaba a mano. Las cuentas y su
+   * porqué están en `resumen-por-accion.ts`, que se prueba sin base de
+   * datos.
+   */
+  async resumenPorAccion(ambito: Ambito): Promise<FilaDeAccion[]> {
+    if (ambito.convenios.length === 0) return [];
+    const filas = await this.prisma.$queryRaw<Parameters<typeof completarFila>[0][]>(
+      resumenPorAccionSql(ambito.convenios, ambito.gremioElegido),
+    );
+    return filas.map(completarFila);
   }
 
   async resumen(filtros: Filtros) {
