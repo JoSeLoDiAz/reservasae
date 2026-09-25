@@ -142,3 +142,55 @@ SENA. Esto no se arregla con código: **se desbloquea con el LMS**.
 **El retiro.** Las cuatro salidas del aula siguen fuera de `ETAPAS_DEL_REPORTE`, así que quien
 se retira **desaparece del cargue** en vez de reportarse. Bloqueado por la pregunta al SENA
 sobre los valores de la columna `ESTADO`.
+
+---
+
+## Pedidos de Mauricio · madrugada del 25 sep 2026
+
+La cajita de esta tanda: **todo lo que pidió, entregado o no**, para que no se escape nada.
+Se cierra uno antes de abrir el siguiente.
+
+### Entregado y probado
+
+| Qué | Dónde | Commit |
+|---|---|---|
+| «Seguimiento de las reservas» se despliega al pulsar un departamento, recortado a él | Control de Reservas | `f50b4d7`+`a943518` |
+| Fuera el párrafo que explicaba «cupo ocupado / pendientes» | Control de Reservas | idem |
+| «Sin departamento» deja de devolver informe vacío | backend, filtro del informe | `a943518` |
+| Orden y nombres de las columnas del listado por organización | Reservas | `0815b30` |
+| «Descargar en Excel / formato / Cargar archivo» en las dos vistas | Reservas | `5f3a405` |
+| «2 · 30 cupos» se leía «2 de 30»: fuera la repetición | Reservas | `3cae914` |
+| Fuera la leyenda de las celdas AF | Reservas | `ac3fc2b` |
+| **Cupos ocupados y Cupos pendientes**, con el criterio del informe | Reservas + backend | `d1ea967` |
+| Las cinco cifras iguales en las dos vistas; «Cupos pendientes» | Reservas + Control de Reservas | `2b5613e` |
+| La celda AF dice «1 de 16», y el cajón lo abre reserva por reserva | Reservas | `d33f51f` |
+
+### En curso
+
+**Rehacer «Seguimiento académico»** (`tablero-seguimiento-academico.tsx`), con el lenguaje de
+Control de inscritos pero más corto:
+
+1. Resumen general.
+2. Cupos e inscritos por acción.
+3. Dos gráficas, las que de verdad se miran.
+4. La tabla que dibujó: `AF · GRUPO · SIN INGRESO · SIN ACTIVIDAD · UT1…UT5 · EVAL FINAL ·
+   TOTAL PAX`, con subtotal por AF y total general.
+
+**No necesita servidor**: `FilaAcademica.actividades[]` ya trae cada actividad con su `orden`,
+su `titulo` y si está `completada`; los cupos por acción salen de `informeReservas`.
+
+### Decidido, para que no se vuelva a preguntar
+
+- **El commit roto `f50b4d7`** (usa un componente que aún no existía) **se queda como está**.
+  HEAD compila. Ya está en `origin`; reescribir historial empujado es peor que el defecto.
+- **Destino**: la rama de siempre, `andres/pantallas-sobre-dev`. No sale a `dev` por mi cuenta.
+- **Lo del correo que abre el lead en la columna derecha** era una descripción de Gestión de
+  leads, no un pedido. Descartado.
+- **«El dato no sirve»** se queda: son tres resultados porque cada uno lleva a una acción
+  distinta, y en esta base se usa 46 veces contra 72 «no contestó» y 96 «hablé con ella».
+
+### El riesgo que no es de código
+
+Otra sesión de Claude trabaja **en este mismo worktree** y se llevó trabajo mío dentro de sus
+commits **dos veces** esta madrugada —`f50b4d7` quedó sin compilar por eso—. Mientras las dos
+escriban aquí, la forma de acotarlo es **commitear cada pieza en cuanto termina**.
