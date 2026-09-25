@@ -11,6 +11,23 @@ minuto si me equivoco.
 
 ---
 
+## Esto te va a saltar al desplegar, y no es un recordatorio
+
+`pnpm prisma:deploy` ahora es `db:guardia → migrate deploy → **db:brechas**`. Después de
+aplicar las migraciones, la consola te escupe las brechas que sigan abiertas, con su impacto y
+su arreglo.
+
+**No lee esta lista: abre los ficheros y lo comprueba.** Cada brecha trae su detector, así que
+**el día que cierres una desaparece sola del aviso** ---sin tocar el script, sin acordarte de
+borrar nada---. Si algún día no sale ninguna, sale en verde y ya.
+
+Sale con código 0 a propósito: **no rompe el despliegue**. Un despliegue que falla por un aviso
+se desactiva el mismo día, y entonces el aviso no sirve para nada.
+
+Si quieres verlo sin desplegar: `pnpm --filter backend db:brechas`.
+
+---
+
 ## Resumen
 
 | | Qué es | Dónde |
