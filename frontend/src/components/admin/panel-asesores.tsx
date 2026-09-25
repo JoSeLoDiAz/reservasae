@@ -36,7 +36,7 @@ import { DesgloseDelAsesor } from "./desglose-del-asesor";
 import { n } from "./graficos";
 import { Aviso } from "./marco-admin";
 import { SelectorBuscable } from "./selector-buscable";
-import { Bloque, CifraCompacta, Encabezado, Esqueleto, Vacio } from "./piezas";
+import { CifraCompacta, Encabezado, Esqueleto, Vacio } from "./piezas";
 import { type Columna, Tabla } from "./tabla";
 
 type Subvista = "inscripciones" | "academicos";
@@ -497,121 +497,153 @@ function Academicos() {
       />
     </div>
 
-    {/* SIN RÓTULO NI EXPLICACIÓN, como su hermana de al lado: es la
-        misma queja --«que se vea limpio, no eso metido feo»-- y dejar
-        una de las dos pestañas con franja las hace ver como dos
-        pantallas distintas.
+    {/* LA MISMA `Tabla` QUE LA PESTAÑA DE AL LADO.
 
-        AQUÍ SÍ SE QUEDA LA CAJA, y no es incoherencia: esta tabla está
-        escrita a mano y no es la `Tabla` de Gestión de leads, que trae
-        su propio marco. Sin la caja quedaría un `<table>` a pelo sobre
-        el fondo. El día que se convierta, la caja se va sola. */}
-    <Bloque sinRelleno>
-      <div className="caja-scroll overflow-x-auto">
-        <table className="tabla-datos w-full">
-          <thead>
-            <tr>
-              {/* LA COLUMNA DEL NOMBRE SE LLEVA EL ANCHO SOBRANTE.
-                  Con `w-full` en ella, las de cifras se encogen a su
-                  contenido. Sin esto, la tabla repartía 1.900 px entre
-                  diez columnas de dos dígitos y quedaban cuatro dedos
-                  de aire entre el rótulo y su número: «no veo esto con
-                  proporcionalidad» (cliente, 23 sep 2026). */}
-              <th className="w-full">Asesor</th>
-              <th className="text-right whitespace-nowrap">Grupos</th>
-              <th className="text-right whitespace-nowrap">PAX</th>
-              <th className="text-right whitespace-nowrap">Con seguimiento</th>
-              <th className="text-right whitespace-nowrap">Certificados</th>
-              <th className="text-right whitespace-nowrap">Por certificar</th>
-              <th className="text-right whitespace-nowrap">Fin del curso</th>
-              <th className="text-right whitespace-nowrap">Debe hacer al día</th>
-              <th className="text-right whitespace-nowrap">Promedio Cantidad inscripción</th>
-              <th className="whitespace-nowrap">Estado</th>
-            </tr>
-          </thead>
-          <tbody>
-            {vivos.datos.map((f) => (
-              <tr key={f.asesorId ?? "sin"}>
-                <td className={f.asesorId ? "font-medium" : "font-medium text-texto-suave"}>
-                  {f.nombre}
-                </td>
-                <td className="text-right tabular-nums">{n(f.grupos)}</td>
-                <td className="text-right font-medium tabular-nums">{n(f.carga.total)}</td>
-                <td className="text-right tabular-nums">{n(f.conSeguimiento)}</td>
-                <td className="text-right font-semibold text-exito tabular-nums">
-                  {n(f.certificados)}
-                </td>
-                <td
-                  className={
-                    "text-right font-semibold tabular-nums " +
-                    (f.ritmo.pendientes > 0 ? "text-error" : "")
-                  }
-                >
-                  {n(f.ritmo.pendientes)}
-                </td>
-                <Plazo fila={f} />
-                <td className="text-right font-semibold tabular-nums">
-                  {dec(f.ritmo.exigidoPorDia)}
-                </td>
-                <td className="text-right tabular-nums">{dec(f.ritmo.realPorDia)}</td>
-                {/* `nowrap` TAMBIÉN EN LA CELDA. Lo llevaba solo la
-                    cabecera, así que «Terminado» se partía en «Termina /
-                    do» y «Necesita refuerzo» en dos renglones, lo que
-                    además hacía esa fila más alta que sus vecinas. */}
-                <td className="whitespace-nowrap">
-                  <span
-                    className={`text-[0.75rem] font-semibold ${SEMAFORO[f.ritmo.estado].clase}`}
-                  >
-                    {SEMAFORO[f.ritmo.estado].texto}
-                  </span>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+        Hasta hoy era un `<table>` escrito a mano dentro de una caja, y
+        por eso no tenía buscador, ni filtros por columna, ni selector
+        de columnas, ni vistas guardadas, ni ordenación al pulsar una
+        cabecera, ni descarga a Excel. No fue una decisión: a la de
+        inscripciones le tocó el turno de rehacerse y a esta no.
 
-      <PieDeTabla>
-        El PAX sale de los grupos: un asesor académico lleva grupos enteros, no personas sueltas.
-        «Con seguimiento» son los participantes que ya tienen al menos una nota suya. El estado
-        del aula lo manda el LMS y el asesor no lo toca: lo suyo es el acompañamiento, y de eso
-        queda la traza en las notas.
-      </PieDeTabla>
-    </Bloque>
+        Con el componente compartido esas siete cosas vienen de fábrica
+        y la caja sobra, que es lo que la dejaba «metida feo» al lado
+        de su hermana. Las filas y las columnas son las mismas. */}
+    <Tabla
+      id="asesores-academicos"
+      columnas={columnasAcademicas}
+      filas={vivos.datos}
+      clave={(f) => f.asesorId ?? "sin-asesor"}
+      porPagina={25}
+      vacio="Aquí aparece cada asesor en cuanto tenga grupos asignados con participantes."
+    />
     </>
   );
 }
 
 /**
- * La fecha contra la que corre, con lo que le queda debajo.
+ * Las columnas de la pestaña académica.
  *
- * EN DOS RENGLONES Y NO EN UNO. Iban pegados --«5 de julhace 58 h.»--
- * porque dos cifras seguidas sin separador se leen como una sola, y
- * «h.» no dice si son horas o hábiles. Aquí la fecha manda y los días
- * van debajo en gris, dichos enteros.
+ * FUERA DEL COMPONENTE y no dentro: no dependen de nada que cambie
+ * entre pintados, y ahí arriba se rehacían en cada uno. La de
+ * inscripciones sí vive dentro porque sus columnas cambian con la
+ * acción elegida.
  */
-function Plazo({ fila }: { fila: FilaDeAsesor }) {
-  const dias = fila.ritmo.diasHabiles;
-  return (
-    <td className="text-right whitespace-nowrap tabular-nums">
-      {dia(fila.limite)}
-      {dias !== null && (
-        <span className="block text-[0.6875rem] text-texto-suave">
-          {dias > 0
-            ? `quedan ${n(dias)} ${dias === 1 ? "día hábil" : "días hábiles"}`
-            : dias === 0
-              ? "hoy es el último"
-              : `venció hace ${n(-dias)} ${dias === -1 ? "día hábil" : "días hábiles"}`}
-        </span>
-      )}
-    </td>
-  );
-}
-
-function PieDeTabla({ children }: { children: React.ReactNode }) {
-  return (
-    <p className="border-t border-borde px-7 py-3 text-[0.6875rem] leading-relaxed text-texto-suave">
-      {children}
-    </p>
-  );
-}
+const columnasAcademicas: Columna<FilaDeAsesorAcademico>[] = [
+  {
+    clave: "nombre",
+    titulo: "Asesor",
+    ancho: "230px",
+    fija: true,
+    valor: (f) => f.nombre,
+    filtro: "texto",
+    pinta: (f) => (
+      <span className={f.asesorId ? "font-medium" : "font-medium text-texto-suave"}>
+        {f.nombre}
+      </span>
+    ),
+  },
+  {
+    clave: "grupos",
+    titulo: "Grupos",
+    ancho: "90px",
+    numerica: true,
+    valor: (f) => f.grupos,
+  },
+  {
+    /// PAX Y NO «PARTICIPANTES»: es como lo llama el cliente y como
+    /// está en la tira de cifras de arriba.
+    clave: "pax",
+    titulo: "PAX",
+    ancho: "90px",
+    numerica: true,
+    valor: (f) => f.carga.total,
+    pinta: (f) => <span className="font-medium tabular-nums">{n(f.carga.total)}</span>,
+  },
+  {
+    clave: "conSeguimiento",
+    titulo: "Con seguimiento",
+    ancho: "130px",
+    numerica: true,
+    valor: (f) => f.conSeguimiento,
+  },
+  {
+    clave: "certificados",
+    titulo: "Certificados",
+    ancho: "110px",
+    numerica: true,
+    valor: (f) => f.certificados,
+    pinta: (f) => (
+      <span className="font-semibold text-exito tabular-nums">{n(f.certificados)}</span>
+    ),
+  },
+  {
+    /// EN ROJO CUANDO QUEDA ALGUNO, que es a lo que se viene a esta
+    /// tabla: con nueve columnas de números, el que decide tiene que
+    /// saltar a la vista sin leerlas todas.
+    clave: "porCertificar",
+    titulo: "Por certificar",
+    ancho: "115px",
+    numerica: true,
+    valor: (f) => f.ritmo.pendientes,
+    pinta: (f) => (
+      <span
+        className={
+          "font-semibold tabular-nums " + (f.ritmo.pendientes > 0 ? "text-error" : "")
+        }
+      >
+        {n(f.ritmo.pendientes)}
+      </span>
+    ),
+  },
+  {
+    clave: "fin",
+    titulo: "Fin del curso",
+    ancho: "140px",
+    valor: (f) => f.limite,
+    pinta: (f) => (
+      <span className="whitespace-nowrap tabular-nums">
+        {dia(f.limite)}
+        {f.ritmo.diasHabiles !== null && (
+          <span className="block text-[0.6875rem] text-texto-suave">
+            {f.ritmo.diasHabiles > 0
+              ? `quedan ${n(f.ritmo.diasHabiles)} ${f.ritmo.diasHabiles === 1 ? "día hábil" : "días hábiles"}`
+              : f.ritmo.diasHabiles === 0
+                ? "hoy es el último"
+                : `venció hace ${n(-f.ritmo.diasHabiles)} ${f.ritmo.diasHabiles === -1 ? "día hábil" : "días hábiles"}`}
+          </span>
+        )}
+      </span>
+    ),
+  },
+  {
+    clave: "exigido",
+    titulo: "Debe hacer al día",
+    ancho: "130px",
+    numerica: true,
+    valor: (f) => f.ritmo.exigidoPorDia,
+    pinta: (f) => <span className="font-semibold tabular-nums">{dec(f.ritmo.exigidoPorDia)}</span>,
+  },
+  {
+    clave: "real",
+    titulo: "Promedio Cantidad inscripción",
+    ancho: "150px",
+    numerica: true,
+    valor: (f) => f.ritmo.realPorDia,
+    pinta: (f) => <span className="tabular-nums">{dec(f.ritmo.realPorDia)}</span>,
+  },
+  {
+    clave: "estado",
+    titulo: "Estado",
+    ancho: "130px",
+    valor: (f) => SEMAFORO[f.ritmo.estado].texto,
+    filtro: "opciones",
+    /// `nowrap` TAMBIÉN EN LA CELDA: solo en la cabecera, «Terminado»
+    /// se partía en «Termina / do» y esa fila quedaba más alta que sus
+    /// vecinas.
+    pinta: (f) => (
+      <span className={`whitespace-nowrap text-[0.75rem] font-semibold ${SEMAFORO[f.ritmo.estado].clase}`}>
+        {SEMAFORO[f.ritmo.estado].texto}
+      </span>
+    ),
+  },
+];
