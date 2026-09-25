@@ -42,7 +42,7 @@ import { tablerosApi } from "@/lib/tableros-api";
 
 import { Desplegable } from "./desplegable";
 import { colorEtapa } from "./etapa";
-import { Donut, n } from "./graficos";
+import { Donut, n, SERIE } from "./graficos";
 import { Aviso } from "./marco-admin";
 import { Bloque, CifraCompacta, Encabezado, Esqueleto, Vacio } from "./piezas";
 
@@ -78,6 +78,20 @@ const ESTADOS: Array<{ clave: keyof Academico["resumen"]; estado: EstadoAcademic
   { clave: "completados", estado: "COMPLETADO" },
   { clave: "certificados", estado: "CERTIFICADO" },
 ];
+
+/**
+ * Los colores de la torta, y el porqué de pasarlos a mano.
+ *
+ * El `Donut` los reparte solo si no se los dan, pero entonces esta
+ * pantalla no sabría cuál le tocó a cada grupo y el punto de la lista
+ * de abajo no podría casar con su tajada. Pasándolos, las dos mitades
+ * del bloque salen del mismo sitio.
+ *
+ * SON TRES Y SE REPITEN CADA TRES GRUPOS. No estorba porque el color
+ * aquí no distingue él solo: distingue el PAR color + posición, y la
+ * lista va en el mismo orden en que se dibujan las tajadas.
+ */
+const CICLO = [SERIE.uno, SERIE.dos, SERIE.tres];
 
 const COLOR_ESTADO: Record<EstadoAcademico, string> = {
   SIN_INGRESO: colorEtapa("PERDIDO"),
@@ -464,6 +478,14 @@ function Cuerpo({
     return { titulo: c.titulo, hechas: general.hechas.get(c.titulo) ?? 0, de: conElla };
   });
 
+  /// El rótulo de un grupo, en UN solo sitio: lo piden la tajada de
+  /// la torta y el renglón de la lista, y escrito dos veces es como
+  /// se acaba con una leyenda que no dice lo mismo que su dibujo.
+  const rotuloDeGrupo = (g: { codigo: string; grupo: number | null; accionId: string }) =>
+    ambiguo(g.codigo)
+      ? `${g.codigo} · ${nombreDeAccion.get(g.accionId) ?? ""} · Grupo ${g.grupo ?? "—"}`
+      : `${g.codigo} · Grupo ${g.grupo ?? "—"}`;
+
   /* ── cómo va cada grupo: el avance medio ──────────────────────── */
   const avance = ordenadas
     .filter((f) => f.total > 0)
@@ -472,7 +494,14 @@ function Cuerpo({
         (p) => (p.accionFormacionId ?? "—") === f.accionId && (p.grupo ?? null) === f.grupo,
       );
       const medio = suyas.reduce((t, p) => t + p.porcentaje, 0) / (suyas.length || 1);
-      return { llave: f.llave, codigo: f.codigo, grupo: f.grupo, medio, gente: suyas.length };
+      return {
+        llave: f.llave,
+        codigo: f.codigo,
+        accionId: f.accionId,
+        grupo: f.grupo,
+        medio,
+        gente: suyas.length,
+      };
     })
     .sort((a, b) => b.medio - a.medio);
 
@@ -644,31 +673,62 @@ function Cuerpo({
 
         <div className="min-w-0 lg:flex-1">
           <Bloque estirado titulo="Avance por Grupo">
-            {/* LA TORTA DE LOS GRUPOS (cliente, 25 sep 2026). Es lo
-                que un anillo sabe decir y una barra no: cuánto pesa
-                cada grupo DENTRO del total. El avance de cada uno
-                sigue debajo, en su barra, porque un porcentaje por
-                grupo no se puede leer en una tajada. */}
-            <Donut
-              tamano={168}
-              datos={avance.map((g) => ({
-                etiqueta: `${g.codigo} · Grupo ${g.grupo ?? "—"}`,
-                valor: g.gente,
-              }))}
-              centro={n(r.total)}
-              detalleCentro={r.total === 1 ? "matriculado" : "matriculados"}
-              soloDibujo
-              vacio="Todavía no hay grupos con gente dentro."
-            />
+            {/* LA TORTA Y LA LISTA SON LA MISMA COSA, DOS VECES.
+
+                El anillo dice cuánto pesa cada grupo dentro del total
+                ---que es lo que un anillo sabe decir y una barra no---
+                y la lista dice cuánto ha avanzado cada uno, que en una
+                tajada no cabe.
+
+                Para que se puedan leer juntos, las dos salen del MISMO
+                array y en el MISMO orden, y cada renglón lleva el punto
+                del color de su tajada. Sin eso el anillo era adorno:
+                nueve tajadas sin leyenda y ordenadas por avance, o sea
+                sin forma de saber cuál era cuál. */}
+            <div className="flex flex-wrap items-center justify-center gap-4">
+              <Donut
+                tamano={168}
+                datos={avance.map((g, i) => ({
+                  etiqueta: rotuloDeGrupo(g),
+                  valor: g.gente,
+                  color: CICLO[i % CICLO.length],
+                }))}
+                centro={n(r.total)}
+                detalleCentro={r.total === 1 ? "matriculado" : "matriculados"}
+                soloDibujo
+                vacio="Todavía no hay grupos con gente dentro."
+              />
+            </div>
             <ul className="mt-4 space-y-2.5">
-              {avance.map((g) => (
+              {avance.map((g, i) => (
                 <li key={g.llave}>
                   <div className="flex items-baseline justify-between gap-3 text-[0.8125rem]">
-                    <span className="min-w-0 truncate">
-                      <span className="font-mono text-xs text-texto-suave">{g.codigo}</span> Grupo{" "}
-                      {g.grupo ?? "—"}
-                      <span className="ml-2 text-[0.75rem] text-texto-suave">
-                        {n(g.gente)} matriculados
+                    <span className="flex min-w-0 items-baseline gap-1.5">
+                      <span
+                        className="punto-etapa self-center"
+                        style={{ ["--etapa"]: CICLO[i % CICLO.length] } as React.CSSProperties}
+                        aria-hidden
+                      />
+                      <span className="min-w-0 truncate">
+                        <span className="font-mono text-xs text-texto-suave">{g.codigo}</span> Grupo{" "}
+                        {g.grupo ?? "—"}
+                        {/* DE QUÉ ACCIÓN, cuando el código se repite.
+                            «AF2 Grupo 7» salía DOS VECES ---dos
+                            acciones distintas con el mismo código y las
+                            dos con un grupo 7--- y no había manera de
+                            saber cuál era cuál. Es el mismo fallo que
+                            ya se arregló en la tabla de abajo. */}
+                        {ambiguo(g.codigo) && (
+                          <span
+                            className="ml-1.5 text-[0.6875rem] text-texto-suave"
+                            title={nombreDeAccion.get(g.accionId) ?? ""}
+                          >
+                            {(nombreDeAccion.get(g.accionId) ?? "").split(":")[0].slice(0, 22)}…
+                          </span>
+                        )}
+                        <span className="ml-2 text-[0.75rem] text-texto-suave">
+                          {n(g.gente)} matriculados
+                        </span>
                       </span>
                     </span>
                     <span className="shrink-0 font-semibold tabular-nums">
