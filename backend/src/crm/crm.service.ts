@@ -357,32 +357,6 @@ const CAMPOS_DE_EMPRESA = {
   contactoCorreo: true,
 } as const;
 
-/**
- * LAS QUE NO SON AULA aunque tengan oferta virtual.
- *
- * «Seguimiento del aula es solo de las acciones de formación
- * virtuales; no aplica presencial, bootcamp ni foro» (cliente, 24 sep
- * 2026), y al preguntarle por el caso de en medio --el foro tiene
- * gente matriculada en oferta virtual-- respondió que fuera entero.
- *
- * VA POR CÓDIGO Y A MANO, Y ESO ES UNA DEUDA, no una solución. En los
- * datos no existe «foro»: una acción solo tiene la modalidad de cada
- * una de sus ofertas, y por ahí AF7 y AF8 son indistinguibles --las
- * dos tienen presencial, híbrida y virtual--. Mientras «qué clase de
- * acción es esta» no sea un campo suyo, alguien tiene que nombrarla,
- * y es mejor que esté nombrada UNA vez y con el motivo al lado que
- * repartida en cuatro consultas.
- *
- * Cuando exista el campo, esta lista se borra y la consulta pregunta
- * por él. Queda apuntado en docs/PARA-JOSE.md.
- *
- * OJO si aparece un tercer convenio: el código se repite entre ellos
- * --las dos AF7 de hoy son «EXPANSIÓN GLOBAL» y «SALTO ADELANTE»-- y
- * esta lista las saca a las dos. Si el foro fuera solo el de un
- * gremio, haría falta acotar por convenio.
- */
-const ACCIONES_SIN_AULA = ['AF7'] as const;
-
 @Injectable()
 export class CrmService {
   private readonly log = new Logger('CRM');
@@ -4115,12 +4089,25 @@ export class CrmService {
         /// así que preguntar por la acción dejaría fuera lo correcto
         /// por accidente y no por la regla.
         { cobertura: { modalidad: 'VIRTUAL' } },
-        /// Y EL FORO FUERA, aunque tenga gente en oferta virtual:
-        /// «solo es acciones de formación virtual a excepción del
+        /// Y SOLO LOS CURSOS: «no aplica presencial, bootcamp ni
         /// foro» (cliente, 24 sep 2026).
-        {
-          accionFormacion: { codigo: { notIn: [...ACCIONES_SIN_AULA] } },
-        },
+        ///
+        /// Por `evento`, que es el campo que ya lo decía --CURSO,
+        /// TALLER, TALLER-BOOTCAMP, FORO-- y que la pantalla de Oferta
+        /// lleva enseñando desde siempre: «AF1 · CURSO virtual · 40 h».
+        ///
+        /// ESTUVO UN RATO COMO UNA LISTA DE CÓDIGOS a mano, con «AF7»
+        /// dentro, y estaba mal de una forma que solo se ve mirando los
+        /// dos gremios a la vez: el foro es AF8 en uno y AF7 en el
+        /// otro. Aquella lista sacaba el foro de ADECOPRIA y, de paso,
+        /// el BOOTCAMP del otro gremio, dejando su foro dentro. Justo
+        /// al revés de lo que se pedía, y sin que nada fallara.
+        ///
+        /// La regla es del dato, no del código de la acción. Un
+        /// convenio nuevo con sus propios números entra sin tocar una
+        /// línea, que es la misma razón por la que `SesionDeGrupo` no
+        /// pregunta nunca «¿es la AF6?».
+        { accionFormacion: { evento: 'CURSO' } },
       ],
     };
 
