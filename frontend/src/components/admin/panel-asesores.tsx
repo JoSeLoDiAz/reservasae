@@ -32,7 +32,7 @@ import {
 } from "@/lib/crm-api";
 import { useDatosVivos } from "@/lib/datos-vivos";
 
-import { CajonDelAsesor } from "./cajon-del-asesor";
+import { DesgloseDelAsesor } from "./desglose-del-asesor";
 import { n } from "./graficos";
 import { Aviso } from "./marco-admin";
 import { SelectorBuscable } from "./selector-buscable";
@@ -139,7 +139,10 @@ function DeInscripciones() {
   /// en la mano.
   const [accion, setAccion] = useState("");
   /// A quién se le está mirando el desglose.
-  const [enElCajon, setEnElCajon] = useState<FilaDeAsesor | null>(null);
+  /// QUÉ ASESOR TIENE EL DESGLOSE ABIERTO. Ya no es un cajón: la
+  /// subtabla sale DEBAJO, como en Control de inscritos, y por eso el
+  /// nombre del estado cambió con ella.
+  const [desglosado, setDesglosado] = useState<FilaDeAsesor | null>(null);
 
   if (vivos.error) return <Aviso tipo="error">{vivos.error}</Aviso>;
   if (!vivos.datos) return <Esqueleto />;
@@ -385,68 +388,61 @@ function DeInscripciones() {
       />
     </div>
 
-    {/* SIN CABECERA. «Se va también, o sea que se vea limpio, no eso
-        metido feo» (cliente, 25 sep 2026): el rotulo, su explicacion y
-        el pie se fueron los tres. Queda la caja con la tabla dentro, y
-        el nombre de lo que se esta mirando ya lo dice la pantalla.
+    {/* LA TABLA, SUELTA EN LA PÁGINA. «Que quede como la segunda
+        captura» (cliente, 25 sep 2026), que era Gestión de leads:
+        allí el buscador, los filtros y la descarga van sobre el fondo
+        y la tabla debajo. Aquí estaban metidos dentro de una caja con
+        borde, y esa caja es la que hacía que se vieran «metidos feo».
 
-        Sin `titulo` ni `acciones`, `Bloque` no pinta la franja de
-        arriba: no hay que quitarle el borde a mano. */}
-    <Bloque sinRelleno>
-      {/* LA MISMA TABLA DE GESTIÓN DE LEADS y no una `<table>` a mano:
-          con ella vienen el buscador, los filtros por columna, el
-          selector de columnas, la ordenación y la descarga a Excel,
-          que es lo que él pidió cuando dijo «no sé si se puede como
-          Control de inscritos». Antes era una tabla cruda sin nada de
-          eso. */}
-      <div className="px-4 pb-4">
-        <Tabla
-          id="asesores-inscripciones"
-          columnas={columnas}
-          filas={filas}
-          clave={(f) => f.asesorId ?? "sin-asesor"}
-          alClic={(f) => setEnElCajon(f)}
-          porPagina={25}
-          vacio={
-            accion
-              ? "Ningún asesor tiene leads en esa acción de formación."
-              : "Todavía no hay leads repartidos."
-          }
-          /* EL FILTRO DE ACCIÓN, FUSIONADO EN LA FILA DEL BUSCADOR,
-             como en Seguimiento del aula: no es un filtro de columna
-             ---cambia QUÉ CIFRAS se enseñan, no qué filas quedan--- y
-             en su propia tarjeta encima volvería a estirarse a media
-             pantalla. */
-          filtrosDelServidor={
-            <>
-              <SelectorBuscable
-                clase="min-w-[12rem] flex-1"
-                etiqueta="Acción de formación"
-                valor={accion}
-                alElegir={setAccion}
-                vacio="Todas las acciones"
-                quitar="Ver todas las acciones"
-                marcador="AF1, AF2…"
-                opciones={acciones}
-              />
-              {accion && (
-                <button
-                  type="button"
-                  onClick={() => setAccion("")}
-                  className="shrink-0 text-[0.78125rem] text-texto-suave underline hover:text-texto"
-                >
-                  Limpiar
-                </button>
-              )}
-            </>
-          }
-        />
-      </div>
+        Es la misma `Tabla` de Gestión de leads --con su buscador, sus
+        filtros por columna, el selector de columnas y la descarga--,
+        así que montada igual se ve igual. */}
+    <Tabla
+      id="asesores-inscripciones"
+      columnas={columnas}
+      filas={filas}
+      clave={(f) => f.asesorId ?? "sin-asesor"}
+      /// Vuelve a pulsar la misma fila y se cierra: es la única
+      /// puerta de salida que se prueba sola.
+      alClic={(f) => setDesglosado((v) => (v && v.asesorId === f.asesorId ? null : f))}
+      porPagina={25}
+      vacio={
+        accion
+          ? "Ningún asesor tiene leads en esa acción de formación."
+          : "Todavía no hay leads repartidos."
+      }
+      /* EL FILTRO DE ACCIÓN, FUSIONADO EN LA FILA DEL BUSCADOR,
+         como en Seguimiento del aula: no es un filtro de columna
+         ---cambia QUÉ CIFRAS se enseñan, no qué filas quedan--- y
+         en su propia tarjeta encima volvería a estirarse a media
+         pantalla. */
+      filtrosDelServidor={
+        <>
+          <SelectorBuscable
+            clase="min-w-[12rem] flex-1"
+            etiqueta="Acción de formación"
+            valor={accion}
+            alElegir={setAccion}
+            vacio="Todas las acciones"
+            quitar="Ver todas las acciones"
+            marcador="AF1, AF2…"
+            opciones={acciones}
+          />
+          {accion && (
+            <button
+              type="button"
+              onClick={() => setAccion("")}
+              className="shrink-0 text-[0.78125rem] text-texto-suave underline hover:text-texto"
+            >
+              Limpiar
+            </button>
+          )}
+        </>
+      }
+    />
 
-    </Bloque>
-
-    {enElCajon && (
-      <CajonDelAsesor fila={enElCajon} alCerrar={() => setEnElCajon(null)} />
+    {desglosado && (
+      <DesgloseDelAsesor fila={desglosado} alCerrar={() => setDesglosado(null)} />
     )}
     </>
   );
@@ -501,11 +497,16 @@ function Academicos() {
       />
     </div>
 
-    <Bloque
-      sinRelleno
-      titulo="Carga y cumplimiento de cada asesor académico"
-      descripcion="Sus grupos, su gente y cuánto le falta para certificarlos antes de que acabe el curso."
-    >
+    {/* SIN RÓTULO NI EXPLICACIÓN, como su hermana de al lado: es la
+        misma queja --«que se vea limpio, no eso metido feo»-- y dejar
+        una de las dos pestañas con franja las hace ver como dos
+        pantallas distintas.
+
+        AQUÍ SÍ SE QUEDA LA CAJA, y no es incoherencia: esta tabla está
+        escrita a mano y no es la `Tabla` de Gestión de leads, que trae
+        su propio marco. Sin la caja quedaría un `<table>` a pelo sobre
+        el fondo. El día que se convierta, la caja se va sola. */}
+    <Bloque sinRelleno>
       <div className="caja-scroll overflow-x-auto">
         <table className="tabla-datos w-full">
           <thead>
