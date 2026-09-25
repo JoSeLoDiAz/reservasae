@@ -273,6 +273,24 @@ Rama **`andres/pantallas-sobre-dev`**, **48 commits por encima de `origin/dev`**
   51 pares acción × organización, cero discrepancias, mismos totales (46 ocupados, 496
   pendientes). Si al desplegar discrepan, el defecto está en el despliegue, no en la cuenta.
 
+### Comprobado contra `origin/dev` el 25 sep 2026
+
+**No contra este documento: contra el código que José tiene.** Es la comprobación que faltaba,
+y cambió una de las cuatro.
+
+| | Estado real en `dev` | Cómo se comprobó |
+|---|---|---|
+| **MESA-02** · la mesa sin paginación | **CERRADO por José** | `mesa/page.tsx` tiene `pagina`, `datos.paginas` y los dos botones con `disabled` |
+| **B-01** · el reparto por la puerta de al lado | **Sigue abierto** | `conveniosQueReparten` solo se usa en `@Patch(lote/asesor)`; `@Patch(:id)` llama a `actualizar()` sin pasarlo, y el DTO lleva `asesorId` |
+| **A-08** · la carrera de duplicados | **Sigue abierta** | `leads.service.ts` hace `findUnique` y luego `create`, y no hay **ni un** `P2002` en ese fichero |
+| **B-03** · mover de acción a un certificado | **Sigue abierto** | `asignar()` selecciona `etapa` y no la mira: 118 renglones sin una guarda de etapa terminal |
+| **El aula / LMS** | **Sigue bloqueado** | Nada en `backend/src` escribe `actividades` ni `avances_actividad`. Solo las siembras, que son de desarrollo |
+| **El retiro / SENA** | **Sigue bloqueado** | `ETAPAS_DEL_REPORTE = [...OCUPAN_SILLA]` = INSCRITO, EN_FORMACION, CERTIFICADO. Las cuatro salidas, fuera |
+
+> **La lección, para la próxima:** este documento daba MESA-02 por vivo y llevaba días cerrado.
+> Un pendiente se comprueba contra `origin/dev`, no contra la lista; José trabaja en paralelo y
+> arregla cosas que aquí siguen escritas como abiertas.
+
 ### Lo que sigue pendiente, y no es de esta entrega
 
 Lo de siempre, que ya está arriba en este documento:
