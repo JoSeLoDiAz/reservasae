@@ -173,10 +173,13 @@ Nada. Todo lo pedido esta madrugada está entregado y probado.
 
 ### Lo que falta
 
-1. **Una respuesta suya**: «esto ya no convive, o sea vive separado», sobre Seguimiento de
-   asesores. ¿Quedó bien como está, o las dos pestañas --«Asesores de inscripciones» y
-   «Asesores académicos»-- deben ser dos pantallas?
-2. **Empujar la rama**. Hay cuatro commits míos solo en su máquina.
+**Nada por construir.** Lo de «vive separado» era que el buscador y los filtros no vivieran
+dentro de la caja con la tabla, como en Gestión de leads: hecho. La pestaña académica se
+convirtió también a la tabla compartida, con sus siete puertas y sin su pie.
+
+1. **Empujar la rama.** Hay ocho commits solo en la máquina de Mauricio, el parte para José
+   entre ellos.
+2. **Que Mauricio valide** las cuatro pantallas en su 3100, de una pasada.
 3. **Nada de esto se ha visto fuera de su local.** Todo se probó contra la base sembrada del
    5544; en `dev` y en `prueba.reservasae.com` no está.
 
