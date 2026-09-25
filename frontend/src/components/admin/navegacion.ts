@@ -75,10 +75,32 @@ export const MODULOS: Modulo[] = [
     descripcion: 'Lo que hay que mirar: del anuncio al inscrito.',
     enlaces: [
       {
+        /// AQUÍ Y EN UN SOLO SITIO (cliente, 24 sep 2026: «¿por qué
+        /// tengo Tráfico Formulario en el módulo de Inscripciones?»).
+        /// Estaba DOS veces: aquí y en el listado de Inscripciones,
+        /// con dos nombres --«Tráfico Formulario» y «Tráfico del
+        /// formulario»-- y dos direcciones, una de las cuales
+        /// reenvía a la otra. Dos entradas para la misma pantalla es
+        /// lo mismo que él ya había señalado doce líneas más abajo:
+        /// dos cosas con el mismo nombre en el mismo menú es lo
+        /// primero que confunde.
+        ///
+        /// Se queda en Tableros porque es un informe y aquí están los
+        /// informes. Lo que se TRABAJA sigue en su módulo; esto se
+        /// mira.
+        ///
+        /// Y CON `inscripciones`, NO `inscritos`. Es lo que exige el
+        /// servidor --`@Requiere('inscripciones')` en
+        /// `embudo-admin.controller.ts`, y sin `@Roles` a propósito,
+        /// porque quien mira esto es la cuenta de la pauta--. Con
+        /// `inscritos` esta entrada le quedaba escondida justo a esa
+        /// cuenta, y en cambio se la enseñaba a quien el servidor
+        /// después niega con un 403. La entrada duplicada de
+        /// Inscripciones sí lo tenía bien, y es de donde viene.
         href: '/admin/informes/trafico',
-        etiqueta: 'Tráfico Formulario',
+        etiqueta: 'Tráfico del formulario',
         exacto: true,
-        area: 'inscritos',
+        area: 'inscripciones',
       },
       {
         /// «Control de inscritos, que es: Inscripciones y Asesores»
@@ -174,28 +196,17 @@ export const MODULOS: Modulo[] = [
     ///
     /// El 22 sep se DESHIZO la última parte de ese orden. Aquel
     /// día el tráfico se fusionó con Control de Inscritos y al
-    /// siguiente Josse lo devolvió aquí, con el motivo escrito:
-    /// «eso lo dejamos en el listado principal porque eso no es
-    /// inscritos». El resto del orden --leads antes que la mesa--
-    /// sigue como él lo dictó.
+    /// siguiente Josse lo devolvió al listado, con el motivo
+    /// escrito: «eso lo dejamos en el listado principal porque eso
+    /// no es inscritos».
+    ///
+    /// Y el 24 se fue de aquí del todo, porque esa misma frase
+    /// argumenta lo contrario de donde quedó: si no es inscritos, no
+    /// va en Gestión de Inscripciones. Vive en Tableros, con los
+    /// demás informes, y en UN solo sitio: estaba en los dos a la
+    /// vez. El resto del orden --leads antes que la mesa-- sigue
+    /// como el cliente lo dictó.
     enlaces: [
-      {
-        /// ANTES QUE TODO, y por el mismo criterio que puso la
-        /// mesa antes que la lista: es el orden del proceso. El
-        /// tráfico a la página de destino ocurre antes de que el
-        /// lead exista.
-        ///
-        /// Y es «inscripciones» y NO «inscritos», que es lo que
-        /// exige el guard: `@Requiere('inscripciones')` en
-        /// `embudo-admin.controller.ts`, sin `@Roles`, porque
-        /// quien mira esto es la cuenta de la pauta. Con
-        /// «inscritos» el menú enseñaría una entrada que el
-        /// servidor después niega.
-        href: '/admin/trafico',
-        etiqueta: 'Tráfico del formulario',
-        exacto: true,
-        area: 'inscripciones',
-      },
       {
         href: '/admin/participantes',
         etiqueta: 'Gestión de leads',
