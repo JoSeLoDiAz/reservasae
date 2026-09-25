@@ -269,8 +269,8 @@ export type ColumnaAccion = {
   ambiguo: boolean;
 };
 
-/** Lo que una organización tiene en UNA acción de formación. */
-export type CeldaReserva = {
+/** Una reserva suelta, dentro de la celda de su acción. */
+export type ReservaEnCelda = {
   reservaId: string;
   estado: EstadoReserva;
   cuposSolicitados: number;
@@ -285,6 +285,27 @@ export type CeldaReserva = {
   contactoCelular: string | null;
   contactoCargo: string | null;
   formulario: { slug: string; titulo: string } | null;
+};
+
+/**
+ * Lo que una organización tiene en UNA acción de formación.
+ *
+ * Lleva una LISTA: la misma acción puede dictarse en dos sedes y la
+ * empresa apartar en las dos, y entonces son dos reservas en la
+ * misma columna. Quedarse con una dejaba la otra contando en los
+ * totales de la fila sin verse en ninguna celda.
+ */
+export type CeldaReserva = {
+  reservas: ReservaEnCelda[];
+  /// Cuando las suyas no coinciden, manda la que más sitio tiene.
+  estado: EstadoReserva;
+  /// Si sus reservas no están todas en el mismo estado.
+  mixta: boolean;
+  cuposSolicitados: number;
+  cuposConfirmados: number;
+  cuposEnEspera: number;
+  primera: string;
+  ultima: string;
 };
 
 export type ContactoConsolidado = {

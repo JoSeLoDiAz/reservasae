@@ -80,7 +80,22 @@ const ORDEN: EstadoAcademico[] = [
  */
 export default function PaginaAcademica() {
   return (
-    <div className="flex flex-col gap-3 px-4 pt-3">
+    /// `min-h-0 grow`, LA CADENA DE ALTURA, igual que Gestión de
+    /// leads (cliente, 25 sep 2026: «en Control de inscritos no es
+    /// que el scroll quede afuera, queda es en la tabla»).
+    ///
+    /// `Tabla` acota su cuerpo con `flex-1 overflow-auto`, y eso
+    /// solo funciona si TODOS sus padres tienen altura acotada: basta
+    /// que uno crezca con su contenido para que la tabla se estire
+    /// entera y quien se desplace sea la página. Aquí se rompía en
+    /// dos sitios ---este y el de `Seguimiento`---, y el síntoma era
+    /// una barra de desplazamiento a lo ancho de toda la ventana en
+    /// vez de dentro del recuadro de la tabla.
+    ///
+    /// `min-h-0` hace falta además de `grow`: por defecto un hijo
+    /// de flex no encoge por debajo de su contenido, así que sin él
+    /// `grow` no acota nada.
+    <div className="flex min-h-0 grow flex-col gap-3 px-4 pt-3">
       <Seguimiento />
     </div>
   );
@@ -259,7 +274,11 @@ function Seguimiento() {
     ///
     /// Sin `px-4 pt-3`: los pone la página, que ahora envuelve
     /// las dos hojas. Repetirlos aquí duplicaba el margen.
-    <div className="flex flex-col gap-3 pb-6">
+    /// Sin `pb-6`: con la tabla acotada, ese relleno de abajo era
+    /// aire muerto entre el borde de la tabla y el pie ---«mucho
+    /// espacio en la línea de respeto»---. El hueco hasta el pie lo
+    /// pone ya el marco.
+    <div className="flex min-h-0 grow flex-col gap-3">
       <header className="flex flex-wrap items-start justify-between gap-4">
         <div className="min-w-0">
           {/* «SEGUIMIENTO DEL AULA» Y NO «SEGUIMIENTO ACADÉMICO».

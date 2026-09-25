@@ -69,8 +69,8 @@ export type ColumnaAccion = {
   ambiguo: boolean;
 };
 
-/** Lo que esta organización tiene en UNA acción de formación. */
-export type CeldaReserva = {
+/** Una reserva suelta, dentro de la celda de su acción. */
+export type ReservaEnCelda = {
   reservaId: string;
   estado: EstadoReserva;
   cuposSolicitados: number;
@@ -85,6 +85,37 @@ export type CeldaReserva = {
   contactoCelular: string | null;
   contactoCargo: string | null;
   formulario: { slug: string; titulo: string } | null;
+};
+
+/**
+ * Lo que esta organización tiene en UNA acción de formación.
+ *
+ * Lleva dentro una LISTA y no una reserva, y eso no es prudencia:
+ * `@@unique([empresaId, ofertaId])` da una reserva por oferta, pero
+ * una acción puede tener varias ofertas --la misma AF dictada en dos
+ * sedes-- y la empresa puede apartar en las dos. En la base de
+ * pruebas pasa cinco veces de sesenta reservas.
+ *
+ * Quedarse con la primera hacía que la fila dijera «3 reservas · 40
+ * cupos» arriba y sus celdas sumaran 24: la tercera reserva contaba
+ * en los totales y no se veía en ninguna columna. Una resta que no
+ * cuadra y no se ve por qué.
+ */
+export type CeldaReserva = {
+  reservas: ReservaEnCelda[];
+  /// El estado de la celda cuando las suyas no coinciden: manda la
+  /// que más sitio tiene, porque es la que mejor describe qué apartó
+  /// la empresa en esta acción. La lista de arriba lleva el de cada
+  /// una, y el cajón las edita por separado.
+  estado: EstadoReserva;
+  /// Si sus reservas no están todas en el mismo estado. La pantalla
+  /// lo dice: si no, una celda verde escondería una cancelada.
+  mixta: boolean;
+  cuposSolicitados: number;
+  cuposConfirmados: number;
+  cuposEnEspera: number;
+  primera: string;
+  ultima: string;
 };
 
 export type ContactoConsolidado = {
@@ -347,29 +378,41 @@ export function armarAgrupadas(reservas: ReservaParaAgrupar[]): ReservasAgrupada
       formularios.set(r.empresa.id, new Map());
     }
 
-    /// `@@unique([empresaId, ofertaId])` da UNA reserva por oferta,
-    /// pero una acción puede tener varias ofertas —la misma AF en
-    /// dos sedes—. Si pasa, la celda se queda con la primera y el
-    /// resto se suma a los totales: la pantalla lleva al cajón, que
-    /// las enseña todas.
-    if (!fila.porAccion[af.id]) {
-      fila.porAccion[af.id] = {
-        reservaId: r.id,
-        estado: r.estado,
-        cuposSolicitados: r.cuposSolicitados,
-        cuposConfirmados: r.cuposConfirmados,
-        cuposEnEspera: r.cuposEnEspera,
-        creadoEn: r.creadoEn.toISOString(),
-        canceladaEn: r.canceladaEn?.toISOString() ?? null,
-        ubicacion: r.oferta.ubicacion.nombre,
-        modalidad: r.oferta.modalidad,
-        contactoNombre: r.contactoNombre,
-        contactoCorreo: r.contactoCorreo,
-        contactoCelular: r.contactoCelular,
-        contactoCargo: r.contactoCargo,
-        formulario: r.formulario,
-      };
-    }
+    /// Todas las de esta acción caen en la misma celda: la misma AF
+    /// en dos sedes son dos reservas, y quedarse con una dejaría la
+    /// otra contando en los totales sin verse en ninguna columna.
+    const celda = (fila.porAccion[af.id] ??= {
+      reservas: [],
+      estado: r.estado,
+      mixta: false,
+      cuposSolicitados: 0,
+      cuposConfirmados: 0,
+      cuposEnEspera: 0,
+      primera: r.creadoEn.toISOString(),
+      ultima: r.creadoEn.toISOString(),
+    });
+
+    celda.reservas.push({
+      reservaId: r.id,
+      estado: r.estado,
+      cuposSolicitados: r.cuposSolicitados,
+      cuposConfirmados: r.cuposConfirmados,
+      cuposEnEspera: r.cuposEnEspera,
+      creadoEn: r.creadoEn.toISOString(),
+      canceladaEn: r.canceladaEn?.toISOString() ?? null,
+      ubicacion: r.oferta.ubicacion.nombre,
+      modalidad: r.oferta.modalidad,
+      contactoNombre: r.contactoNombre,
+      contactoCorreo: r.contactoCorreo,
+      contactoCelular: r.contactoCelular,
+      contactoCargo: r.contactoCargo,
+      formulario: r.formulario,
+    });
+    celda.cuposSolicitados += r.cuposSolicitados;
+    celda.cuposConfirmados += r.cuposConfirmados;
+    celda.cuposEnEspera += r.cuposEnEspera;
+    if (r.creadoEn.toISOString() < celda.primera) celda.primera = r.creadoEn.toISOString();
+    if (r.creadoEn.toISOString() > celda.ultima) celda.ultima = r.creadoEn.toISOString();
 
     fila.totalReservas += 1;
     if (r.estado === EstadoReserva.CANCELADA) fila.reservasCanceladas += 1;
@@ -415,6 +458,20 @@ export function armarAgrupadas(reservas: ReservaParaAgrupar[]): ReservasAgrupada
   for (const [empresaId, fila] of porEmpresa) {
     fila.contactos = [...contactos.get(empresaId)!.values()];
     fila.formularios = [...formularios.get(empresaId)!.values()];
+
+    /// El estado de cada celda, ya con todas sus reservas dentro.
+    /// Manda la que más sitio tiene: si una de las dos sedes quedó
+    /// confirmada, en esa acción la empresa TIENE cupo, y pintar la
+    /// celda de cancelada por la otra diría lo contrario.
+    for (const celda of Object.values(fila.porAccion)) {
+      const estados = new Set(celda.reservas.map((x) => x.estado));
+      celda.mixta = estados.size > 1;
+      celda.estado = estados.has(EstadoReserva.CONFIRMADA)
+        ? EstadoReserva.CONFIRMADA
+        : estados.has(EstadoReserva.LISTA_ESPERA)
+          ? EstadoReserva.LISTA_ESPERA
+          : EstadoReserva.CANCELADA;
+    }
   }
 
   for (const columna of columnas.values()) {
