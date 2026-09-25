@@ -2427,7 +2427,7 @@ function EnlaceCompletar({ lead }: { lead: Ficha }) {
       setEnlace({ url: `${window.location.origin}/completar/${token}` });
       setCopiado(false);
       toast.exito(
-        yaHubo ? "Enlace nuevo listo. El anterior ya no sirve." : "Enlace generado.",
+        yaHubo ? "Enlace nuevo listo. El anterior queda anulado." : "Enlace generado.",
       );
     } catch (e) {
       toast.error((e as ErrorApi).message);

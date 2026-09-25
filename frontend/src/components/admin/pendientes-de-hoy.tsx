@@ -193,7 +193,7 @@ export function PendientesDeHoy({ control }: { control: Control | null }) {
       que: `de quienes llegaron por «${
         ETIQUETA_ORIGEN[mejorCanal.etiqueta as Origen] ?? mejorCanal.etiqueta
       }» se inscribieron (${n(mejorCanal.inscritos)} de ${n(mejorCanal.leads)}): el canal que mejor rinde.`,
-      hacer: "Es por donde conviene meter esfuerzo antes que por el que más volumen trae.",
+      hacer: "Es por donde conviene concentrar el esfuerzo, antes que por el que más volumen trae.",
     });
 
   return (

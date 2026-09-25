@@ -258,7 +258,7 @@ export function CompletarFicha({ token }: { token: string }) {
                   enlace ya no sirve» a quien acaba de terminar la
                   manda a pedir algo que no necesita. */}
               <h1 className="mt-8 text-2xl font-bold">
-                {yaCompleto ? "Ya completó sus datos" : "Este enlace ya no sirve"}
+                {yaCompleto ? "Ya completó sus datos" : "Este enlace ya no está disponible"}
               </h1>
               <p className="mt-3 text-texto-suave">{fallo.mensaje}</p>
               {/* Solo si el servidor no lo dijo ya. El mensaje del

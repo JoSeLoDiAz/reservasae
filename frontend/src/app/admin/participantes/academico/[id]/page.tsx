@@ -788,7 +788,7 @@ function calcularDeHoy(
       cuadra: true,
       veredicto:
         diferencia === 0
-          ? "Coincide: va justo donde toca a esta fecha."
+          ? "Coincide: va justo donde debería a esta fecha."
           : `Va ${diferencia} por delante de lo que toca a esta fecha.`,
     };
   }

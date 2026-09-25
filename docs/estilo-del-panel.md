@@ -200,3 +200,39 @@ Sin foco no hay desplazamiento, venga del contenedor que venga.
 Con teclado no cambia nada, y ahí el desplazamiento sí se quiere.
 
 **Si ve ese `preventDefault` y le parece raro, no lo quite.**
+
+---
+
+## Cómo se escribe un texto de pantalla
+
+Escrito el 25 sep 2026, después de que el cliente parara «Toda la gente registrada en esa
+acción» con un «esto suena re plebe». Eran **veintiún sitios, no uno**. Esto es el criterio,
+para que la próxima vez no dependa del gusto de quien escriba.
+
+**1 · A cada quien por su nombre.** Nunca «gente». Son **personas** cuando son personas sin
+más, **participantes** cuando ya están en un aula, **inscritos** o **matriculados** cuando lo
+que importa es el estado. «Gente» abarata una pantalla cuyas cifras acaban en un reporte al
+SENA.
+
+**2 · Nada de coloquial.** Ni «se cae la gente», ni «pisó el aula», ni «meter esfuerzo», ni
+«donde toca». Se dice: «se pierden», «entraron al aula», «concentrar el esfuerzo», «donde
+debería».
+
+**3 · «No sirve» no se le dice a quien está fuera.** En una pantalla pública suena a portazo:
+«Este enlace ya no está disponible», no «ya no sirve». Dentro del panel, entre colegas, pasa.
+
+**4 · El texto dice QUÉ pasa, no CÓMO se calcula.** La metodología va en `CLAUDE.md` o en el
+comentario del código. Si una columna necesita explicación, el defecto es su nombre:
+cámbielo --«Pendientes» → «Cupos pendientes»--. Un pie de tabla que explica una columna se
+borra a los dos días.
+
+**5 · Usted, siempre.** El panel y las públicas tratan de usted. Ni tuteo ni impersonal a
+medias.
+
+**6 · Sin jerga técnica a la vista.** Nada de slug, endpoint, token o payload en un texto que
+lea alguien que no programa.
+
+> **Lo que sí está bien, y conviene saberlo antes de tocar nada:** los formularios públicos de
+> preinscripción y de completar ficha están bien escritos. «Seleccione la que sea de su mayor
+> interés», «Continúe con la acción de formación para registrar sus datos». El problema estaba
+> **dentro del panel**, no de cara a quien se inscribe.
