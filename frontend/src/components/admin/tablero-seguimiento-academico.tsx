@@ -685,7 +685,7 @@ function Cuerpo({
               /// que es la única cifra que no puede contradecirlas.
               /// Pasándole `resumen.total` decía 420 y dibujaba 300.
               detalleCentro="matriculados"
-              vacio="Todavía no hay grupos con gente dentro."
+              vacio="Todavía no hay grupos con participantes."
             />
           </Bloque>
         </div>

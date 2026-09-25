@@ -1019,7 +1019,7 @@ export function ModuloTrafico() {
 
   const titulo = "Tráfico de página";
   const bajada =
-    "Cuánta gente abre el formulario, de dónde llega y cuántos terminan preinscritos.";
+    "Cuántas personas abren el formulario, de dónde llegan y cuántas terminan preinscritas.";
 
   if (!puede)
     return (

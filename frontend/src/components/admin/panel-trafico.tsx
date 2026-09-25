@@ -930,7 +930,7 @@ function ComoLeer({ hayHistorico }: { hayHistorico: boolean }) {
       "Meta cuenta clics. Aquí solo cuentan las visitas que sí cargaron la página, y nunca las que se fueron antes de eso.",
     ],
     [
-      "Paso a paso es dónde se cae la gente",
+      "Paso a paso es dónde se pierden las personas",
       "Cada barra es un paso del formulario, en orden. La vista «Tendencia» dibuja lo mismo en línea: el tramo más inclinado es la fuga.",
     ],
     [

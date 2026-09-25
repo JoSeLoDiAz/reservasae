@@ -1699,7 +1699,7 @@ export function PanelProceso({
                 : "de media desde que entran, entre quienes se inscribieron en el periodo.",
             ],
         explicacion:
-          "La media sale de quienes se inscribieron en el periodo, entraran cuando entraran; no es la misma gente de las otras tres cifras.",
+          "La media sale de quienes se inscribieron en el periodo, entraran cuando entraran; no son las mismas personas de las otras tres cifras.",
         ancha: true,
         /// De `/control` y no de `/resumen`: se atenúa con las
         /// columnas.
@@ -1891,11 +1891,11 @@ export function PanelProceso({
     if (apunteDeLaComparacion) lista.push(apunteDeLaComparacion);
     if (cuelloMayor) lista.push(`Donde más gente se queda: ${cuelloMayor}`);
     lista.push(
-      "Los cuatro pasos del embudo: entraron, fueron contactadas, tienen sus datos completos («Con datos») y se inscribieron. Cada porcentaje es cuánta gente de la que entró llegó a ese paso.",
+      "Los cuatro pasos del embudo: entraron, fueron contactadas, tienen sus datos completos («Con datos») y se inscribieron. Cada porcentaje es cuántas de las personas que entraron llegaron a ese paso.",
       "En proceso: de los leads que entraron en el periodo, no se han inscrito y tampoco han dicho que no. Son los que se pueden trabajar hoy.",
       "Inscritos: llegaron a inscribirse, estén hoy estudiando el curso o no. Quien entró antes del periodo y se inscribió en estos días no cuenta aquí: eso lo dice «Ritmo de inscripción».",
       "Descartados: marcados como no interesados. Salen del embudo. Cuentan como contactados, así que están dentro de «contactados, sin datos».",
-      "Conversión en días: la media sale de quienes se inscribieron en el periodo, entraran cuando entraran; no es la misma gente de las otras tres cifras.",
+      "Conversión en días: la media sale de quienes se inscribieron en el periodo, entraran cuando entraran; no son las mismas personas de las otras tres cifras.",
     );
     return lista;
   }, [entraron, hitos, apunteDeLaComparacion, cuelloMayor]);
@@ -2659,7 +2659,7 @@ export function PanelProceso({
             sep 2026). El mapa dice DÓNDE se concentra, la lista
             CUÁNTOS, y el tercero quién los atiende. */}
         <div className="grid gap-4 min-[1000px]:grid-cols-[0.75fr_0.85fr_1.1fr]">
-          <Bloque titulo="Por departamento" descripcion="Dónde vive la gente del periodo.">
+          <Bloque titulo="Por departamento" descripcion="Dónde viven las personas del periodo.">
             <MapaColombia
               datos={(delPeriodo?.departamentos ?? []).map((d) => ({
                 nombre: d.nombre,

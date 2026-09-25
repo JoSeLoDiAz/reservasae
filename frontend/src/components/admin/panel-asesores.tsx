@@ -456,7 +456,7 @@ function Academicos() {
   if (!vivos.datos) return <Esqueleto />;
   if (vivos.datos.length === 0) {
     return (
-      <Vacio titulo="Todavía no hay grupos con gente dentro">
+      <Vacio titulo="Todavía no hay grupos con participantes">
         Aquí aparece cada asesor en cuanto tenga grupos asignados con participantes.
       </Vacio>
     );

@@ -55,7 +55,7 @@ const CIFRAS: Array<{
   {
     clave: "leads",
     titulo: "Leads que entraron",
-    pie: "Toda la gente registrada en esa acción.",
+    pie: "Todas las personas registradas en esa acción.",
     color: "var(--marca)",
   },
   {
@@ -129,7 +129,7 @@ export function ResumenGeneral({ filtros }: { filtros?: Filtros }) {
       titulo="Resumen General"
     >
       {filas.length === 0 ? (
-        <Vacio titulo="Todavía no hay gente en ninguna acción">
+        <Vacio titulo="Todavía no hay personas en ninguna acción">
           Aquí aparecen las cifras en cuanto entre el primer lead.
         </Vacio>
       ) : (
