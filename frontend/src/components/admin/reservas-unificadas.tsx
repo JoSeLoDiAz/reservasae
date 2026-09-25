@@ -511,26 +511,6 @@ export function ReservasUnificadas({
         </Aviso>
       )}
 
-      {/* QUE DICE UNA CELDA AF, ESCRITO.
-
-          «Las AFE que es re confuso» (cliente, 25 sep 2026). La celda
-          lleva cuatro cosas --el número, el color, el tachado y el
-          «×2»-- y ninguna venía explicada en la pantalla: estaban en
-          el rótulo emergente, que hay que saber que existe para
-          buscarlo. Un cuadro de leyenda aparte serían dos bloques más;
-          un renglón encima de la tabla se lee de camino a ella. */}
-      {acciones.length > 0 && cargadas.length > 0 && (
-        <p className="text-[0.75rem] leading-relaxed text-texto-suave">
-          En cada columna <strong className="font-semibold">AF</strong> van los cupos que esa
-          organización apartó en esa acción:{" "}
-          <span className="font-semibold text-exito">12</span> confirmados,{" "}
-          <span className="font-semibold text-aviso">+3</span> los que quedaron en espera,{" "}
-          <span className="font-semibold text-error line-through">10</span> reserva cancelada, y{" "}
-          <span className="text-texto-suave">×2</span> que apartó esa misma acción en dos sedes.
-          Un punto es que no reservó esa acción.
-        </p>
-      )}
-
       {/* LA TABLA NO SE MONTA HASTA QUE LLEGAN LOS DATOS, y no es
           por estética.
 
