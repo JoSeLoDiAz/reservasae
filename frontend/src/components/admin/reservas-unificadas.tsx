@@ -371,15 +371,19 @@ export function ReservasUnificadas({
         clave: "total",
         titulo: "Total reservas",
         numerica: true,
+        /// SOLO EL NÚMERO DE RESERVAS, sin los cupos detrás.
+        ///
+        /// Decía «2 · 30 cupos», y el cliente lo leyó como «2 de 30»:
+        /// dos cupos materializados de treinta (25 sep 2026). Un punto
+        /// entre dos cifras se lee como una razón, y aquí no lo es --2
+        /// son reservas y 30 son cupos, dos unidades distintas--.
+        ///
+        /// Los cupos los iba repitiendo de la columna de al lado, que
+        /// hasta el 25 sep nacía apagada: el recordatorio tenía
+        /// sentido cuando «Cupos apartados» podía no estar. Ahora está
+        /// siempre y pegada, así que era el mismo número dos veces, y
+        /// eso es justo lo que hacía leer una razón donde no la hay.
         valor: (f) => f.totalReservas,
-        pinta: (f) => (
-          <span className="whitespace-nowrap tabular-nums">
-            {f.totalReservas}
-            {f.cuposConfirmados > 0 && (
-              <span className="text-xs text-texto-suave"> · {f.cuposConfirmados} cupos</span>
-            )}
-          </span>
-        ),
         filtro: "numero",
       },
       {
