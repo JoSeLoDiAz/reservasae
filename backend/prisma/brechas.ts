@@ -152,6 +152,31 @@ const BRECHAS: Brecha[] = [
     },
   },
   {
+    id: 'EXPORT-UTC',
+    titulo: 'El Excel de leads exporta las fechas en UTC; la pantalla las enseña en Bogotá',
+    impacto:
+      'Cinco horas de desfase. Todo lead que entre entre las 7 de la noche y\n' +
+      'medianoche sale en el Excel con la fecha del DÍA SIGUIENTE, mientras la\n' +
+      'pantalla lo enseña bien. Cualquier conteo por día, corte de mes o informe\n' +
+      'armado desde ese archivo trae esas filas corridas un día, y quien lo\n' +
+      'compara con la pantalla cree que una de las dos miente.\n' +
+      'Lo encontró el cliente el 25 sep 2026, creyendo que fallaba el filtro «Hoy».',
+    arreglo:
+      'En `columnas-participante.tsx`, que `valor` devuelva la fecha de Bogotá ya\n' +
+      'formateada ---«2026-09-24 19:48»--- en vez de la cruda. El archivo se arma\n' +
+      'con `valor` y la pantalla con `pinta`, y hoy solo `pinta` traduce la hora.\n' +
+      'En ese formato sigue ordenándose bien, porque va de año a minuto.\n' +
+      'Son todas las columnas de fecha de esa tabla, no solo la de creación.',
+    donde: 'frontend/src/components/admin/columnas-participante.tsx',
+    abierta: () => {
+      const t = leer('../frontend/src/components/admin/columnas-participante.tsx');
+      if (!t) return false;
+      /// Abierta mientras `valor` devuelva la fecha cruda: ese es
+      /// exactamente el texto que acaba dentro del Excel.
+      return /valor:\s*\(f\)\s*=>\s*f\.creadoEn\b/.test(t);
+    },
+  },
+  {
     id: 'LMS',
     titulo: 'NADIE escribe el avance del aula, y sin él no se certifica',
     impacto:

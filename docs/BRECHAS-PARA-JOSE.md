@@ -38,6 +38,7 @@ Si quieres verlo sin desplegar: `pnpm --filter backend db:brechas`.
 | **B-08** | La puerta pública no valida el documento | `preinscripcion.service.ts` |
 | **A-15** | La rama firme del webhook no marca `procesadoEn` | `leads.service.ts` |
 | **B-14** | Crear ficha por la puerta pública no deja auditoría | `preinscripcion.service.ts` |
+| **EXPORT-UTC** | El Excel de leads va en UTC y la pantalla en Bogotá | `columnas-participante.tsx` |
 | **LMS** | Nadie escribe el avance del aula | bloqueado fuera |
 | **SENA** | Los retiros no viajan en el cargue | bloqueado fuera |
 
@@ -153,6 +154,48 @@ inyectado y lo usa dos veces (líneas 1369 y 1492), pero el `participante.create
 que más fichas crea.
 
 **Arreglo.** Emitirlo igual que en `crm.crear()`, con el autor puesto a la puerta pública.
+
+---
+
+## EXPORT-UTC · El Excel de leads va en UTC y la pantalla en Bogotá
+
+**Encontrada por el cliente el 25 sep 2026, y llegó por la puerta de atrás:** creía que el
+filtro «Hoy» de Control de inscritos estaba roto. No lo estaba. Lo que pasa es esto.
+
+**Qué pasa.** La tabla de leads arma el archivo con `valor` y pinta la pantalla con `pinta`.
+Hoy solo `pinta` traduce la hora:
+
+```ts
+valor: (f) => f.creadoEn,                      // al Excel: 2026-09-25T00:48:18.641Z
+pinta: (f) => <span>{fechaHora(f.creadoEn)}</span>   // a la pantalla: 24 sep, 7:48 p. m.
+```
+
+**Cómo lo comprobé.** En `tabla.tsx`, la descarga se arma con `c.valor(f)` (línea 497). En
+`columnas-participante.tsx`, `valor` devuelve `f.creadoEn` crudo. Y en el export que me pasó
+el cliente, dos filas salen como `2026-09-25T00:48Z` ---que en Bogotá son las 7:48 p. m. del
+24---.
+
+**Lo que cuesta.** Cinco horas de desfase, todos los días. Todo lead que entre **entre las 7
+de la noche y medianoche** sale en el Excel con la fecha del día siguiente. Cualquier conteo
+por día, corte de mes o informe armado desde ese archivo trae esas filas corridas un día. Y
+quien compare el Excel con la pantalla concluye que una de las dos miente ---que es
+exactamente lo que pasó---.
+
+**Arreglo.** Que `valor` devuelva la fecha de Bogotá ya formateada («2026-09-24 19:48») en vez
+de la cruda. En ese formato sigue ordenándose bien, porque va de año a minuto. Y son **todas**
+las columnas de fecha de esa tabla ---creación, última actividad, último contacto---, no solo
+la de creación.
+
+### De paso, lo que NO es una brecha pero conviene saber
+
+El cliente esperaba que «Hoy» le enseñara **el trabajo del día**. No lo hace, y está escrito
+así a propósito: la ventana de Control de inscritos solo conoce dos fechas ---cuándo llegó el
+lead y cuándo se inscribió por primera vez---. **Las gestiones no entran en la ventana.** El
+equipo puede llamar a cincuenta personas hoy y esa pantalla no se mueve.
+
+No es un fallo: es que **no hay ninguna vista que conteste «qué hizo el equipo hoy»**. Si se
+decide hacerla, es una vista nueva que corte por la fecha de la gestión, no un ajuste del
+periodo de esta.
 
 ---
 
