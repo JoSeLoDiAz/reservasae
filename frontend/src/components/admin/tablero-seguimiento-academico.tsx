@@ -30,12 +30,19 @@
 
 import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 
-import { crmApi, type Academico, type FilaAcademica } from "@/lib/crm-api";
+import {
+  crmApi,
+  ETIQUETA_ACADEMICA,
+  type Academico,
+  type EstadoAcademico,
+  type FilaAcademica,
+} from "@/lib/crm-api";
 import { useDatosVivos } from "@/lib/datos-vivos";
 import { tablerosApi } from "@/lib/tableros-api";
 
 import { Desplegable } from "./desplegable";
-import { n } from "./graficos";
+import { colorEtapa } from "./etapa";
+import { Donut, n } from "./graficos";
 import { Aviso } from "./marco-admin";
 import { Bloque, CifraCompacta, Encabezado, Esqueleto, Vacio } from "./piezas";
 
@@ -51,17 +58,53 @@ const soloElCodigo = (accion: string | null) =>
 /// nadie sabe si está viendo todo o si se le olvidó elegir.
 const TODOS = "";
 
-/// Los seis del aula, en el orden del recorrido: del que no entró al
-/// que ya terminó. No por tamaño: el orden es el del proceso, y así la
-/// fila se lee como un camino.
-const ESTADOS = [
-  { clave: "sinIngreso", etiqueta: "Sin ingreso", etapa: "PERDIDO" },
-  { clave: "sinEmpezar", etiqueta: "Sin empezar", etapa: "CONTACTADO" },
-  { clave: "atrasados", etiqueta: "Atrasado", etapa: "EN_FORMACION" },
-  { clave: "alDia", etiqueta: "Al día", etapa: "CERTIFICADO" },
-  { clave: "completados", etiqueta: "Listo para certificar", etapa: "INSCRITO" },
-  { clave: "certificados", etiqueta: "Certificado", etapa: "CERTIFICADO" },
-] as const;
+/**
+ * Los seis del aula, EXACTAMENTE LAS TARJETAS DE «Seguimiento del
+ * aula» (cliente, 25 sep 2026: «dejemos las mismas tarjetas»).
+ *
+ * El rótulo sale de `ETIQUETA_ACADEMICA` y el color de `colorEtapa`,
+ * los dos compartidos con aquella pantalla: copiar los textos a mano
+ * es cómo se acaba con «Sin empezar» aquí y «Sin actividades» allá,
+ * que fue justo lo que pasó.
+ *
+ * En el orden del recorrido y no por tamaño: del que no entró al que
+ * ya terminó, para que la fila se lea como un camino.
+ */
+const ESTADOS: Array<{ clave: keyof Academico["resumen"]; estado: EstadoAcademico }> = [
+  { clave: "sinIngreso", estado: "SIN_INGRESO" },
+  { clave: "sinEmpezar", estado: "SIN_EMPEZAR" },
+  { clave: "atrasados", estado: "ATRASADO" },
+  { clave: "alDia", estado: "AL_DIA" },
+  { clave: "completados", estado: "COMPLETADO" },
+  { clave: "certificados", estado: "CERTIFICADO" },
+];
+
+const COLOR_ESTADO: Record<EstadoAcademico, string> = {
+  SIN_INGRESO: colorEtapa("PERDIDO"),
+  SIN_EMPEZAR: colorEtapa("CONTACTADO"),
+  ATRASADO: colorEtapa("EN_FORMACION"),
+  AL_DIA: colorEtapa("CERTIFICADO"),
+  COMPLETADO: colorEtapa("INSCRITO"),
+  CERTIFICADO: colorEtapa("CERTIFICADO"),
+};
+
+/** La tarjeta del aula: punto de color, rótulo y cifra. */
+function TarjetaDeEstado({ estado, valor }: { estado: EstadoAcademico; valor: number }) {
+  return (
+    <div
+      style={{ ["--etapa"]: COLOR_ESTADO[estado] } as React.CSSProperties}
+      className="rounded-lg border border-borde bg-superficie px-3.5 py-2 text-left transition hover:border-marca/40 hover:shadow-[0_2px_14px_-6px_rgba(15,23,42,0.28)]"
+    >
+      <span className="flex items-center gap-1.5 text-[0.625rem] font-semibold tracking-[0.08em] uppercase">
+        <span className="punto-etapa" aria-hidden />
+        <span className="truncate text-texto-suave">{ETIQUETA_ACADEMICA[estado]}</span>
+      </span>
+      <span className="mt-1 block text-[1.0625rem] leading-none font-bold tabular-nums">
+        {n(valor)}
+      </span>
+    </div>
+  );
+}
 
 /// Las cuatro salidas. Van aparte porque no son un punto del camino:
 /// son cuatro maneras de bajarse de él, y mezclarlas con las de arriba
@@ -91,6 +134,30 @@ export function TableroSeguimientoAcademico() {
    * pantalla se pinta igual con lo matriculado: el aula no depende de
    * las reservas para tener sentido.
    */
+  /**
+   * EL AULA SIN NINGÚN CORTE, para la lista de acciones.
+   *
+   * Con una acción elegida el servidor devuelve solo esa, así que la
+   * lista se quedaría con una entrada y no habría desde dónde pulsar
+   * la siguiente ---el mismo defecto que ya costó una vuelta en los
+   * desplegables de Control de Reservas---. Se pide una vez.
+   */
+  const [catalogo, setCatalogo] = useState<Academico | null>(null);
+  useEffect(() => {
+    let vigente = true;
+    crmApi.academico({}).then(
+      (c) => {
+        if (vigente) setCatalogo(c);
+      },
+      () => {
+        // sin catálogo, la lista sale del recorte; se nota al filtrar
+      },
+    );
+    return () => {
+      vigente = false;
+    };
+  }, []);
+
   const [cuposPorAccion, setCupos] = useState<Map<string, number> | null>(null);
   useEffect(() => {
     let vigente = true;
@@ -188,7 +255,20 @@ export function TableroSeguimientoAcademico() {
       {!vivos.datos && !vivos.error && <Esqueleto />}
 
       {vivos.datos && (
-        <Cuerpo datos={vivos.datos} grupoElegido={grupoId} cuposPorAccion={cuposPorAccion} />
+        <Cuerpo
+          datos={vivos.datos}
+          catalogo={catalogo}
+          grupoElegido={grupoId}
+          accionElegida={accionFormacionId}
+          /// Pulsar la que ya está puesta la suelta: es la única
+          /// puerta de salida que se prueba sola. Y suelta el grupo,
+          /// como hace el desplegable de arriba.
+          alElegirAccion={(id) => {
+            setAccion((v) => (v === id ? TODOS : id));
+            setGrupo(TODOS);
+          }}
+          cuposPorAccion={cuposPorAccion}
+        />
       )}
     </div>
   );
@@ -212,11 +292,26 @@ export function TableroSeguimientoAcademico() {
  */
 function Cuerpo({
   datos,
+  catalogo,
   grupoElegido,
+  accionElegida,
+  alElegirAccion,
   cuposPorAccion,
 }: {
   datos: Academico;
+  /**
+   * El aula SIN NINGÚN CORTE, para la lista de acciones.
+   *
+   * No puede salir de `datos`: con una acción elegida, el servidor
+   * devuelve solo esa, la lista se queda con una entrada y no habría
+   * desde dónde pulsar la siguiente. Es la misma regla que ya siguen
+   * los desplegables de Control de Reservas, y el mismo defecto que
+   * ya costó una vuelta allí.
+   */
+  catalogo: Academico | null;
   grupoElegido: string;
+  accionElegida: string;
+  alElegirAccion: (id: string) => void;
   /// Nulo mientras no llega, o si falló: la pantalla se pinta igual y
   /// las barras se quedan con lo matriculado. El aula no depende del
   /// informe de reservas para tener sentido.
@@ -287,6 +382,13 @@ function Cuerpo({
   const codigoDeAccion = new Map(datos.acciones.map((a) => [a.id, a.codigo]));
   for (const g of datos.grupos) {
     if (grupoElegido && g.id !== grupoElegido) continue;
+    /// EL SERVIDOR MANDA TODOS LOS GRUPOS, también con una acción
+    /// elegida ---el desplegable de arriba los recorta por su cuenta,
+    /// por eso no se había notado---. Sin este corte, al pulsar una
+    /// acción la tabla seguía con las quince filas y las siete de las
+    /// otras acciones salían en cero: se lee como que el filtro no
+    /// hizo nada.
+    if (accionElegida && (g.accionFormacionId ?? "—") !== accionElegida) continue;
     const accionId = g.accionFormacionId ?? "—";
     const f = nuevaFila(accionId, codigoDeAccion.get(accionId) ?? "—", g.numero);
     filas.set(f.llave, f);
@@ -375,12 +477,14 @@ function Cuerpo({
     .sort((a, b) => b.medio - a.medio);
 
   /* ── cupos contra inscritos ───────────────────────────────────── */
+  /// De la lista completa, no del recorte: ver arriba, en `catalogo`.
+  const base = catalogo ?? datos;
   const inscritosPorAccion = new Map<string, number>();
-  for (const p of personas) {
+  for (const p of base.personas as FilaAcademica[]) {
     const k = p.accionFormacionId ?? "—";
     inscritosPorAccion.set(k, (inscritosPorAccion.get(k) ?? 0) + 1);
   }
-  const accionesConCifras = datos.acciones
+  const accionesConCifras = base.acciones
     .map((a) => ({
       id: a.id,
       codigo: a.codigo,
@@ -422,18 +526,12 @@ function Cuerpo({
           />
         </div>
 
-        <div className="mt-4 flex flex-wrap gap-2">
+        {/* LAS SEIS DEL AULA, con su punto de color y su medida: las
+            dos pantallas enseñan el mismo reparto y con dos diseños
+            distintos parecían dos cosas. */}
+        <div className="mt-4 grid gap-2 sm:grid-cols-3 lg:grid-cols-6">
           {ESTADOS.map((e) => (
-            <CifraCompacta
-              key={e.clave}
-              etiqueta={e.etiqueta}
-              valor={n(r[e.clave])}
-              detalle={
-                r.enFormacion > 0
-                  ? `${Math.round((r[e.clave] / r.enFormacion) * 100)} %`
-                  : undefined
-              }
-            />
+            <TarjetaDeEstado key={e.clave} estado={e.estado} valor={r[e.clave]} />
           ))}
         </div>
 
@@ -450,38 +548,66 @@ function Cuerpo({
       </Bloque>
 
       {/* 2 · CUPOS E INSCRITOS POR ACCIÓN -------------------------- */}
-      <Bloque titulo="Cupos e inscritos por acción">
+      {/* «ACCIONES DE FORMACIÓN» y no «Cupos e inscritos por acción»
+          (cliente, 25 sep 2026). Es el nombre de lo que la lista ES;
+          los cupos y los inscritos son lo que enseña de cada una, y
+          eso ya se lee en la propia fila.
+
+          Y CADA FILA AMARRA EL FILTRO: «si clickea una, esto amarra
+          los filtros, funciona algo similar a Gestión de reservas».
+          Pulsar una acción es lo mismo que elegirla en el desplegable
+          de arriba, así que las cuatro piezas de la pantalla se
+          recortan a la vez. Volver a pulsarla lo suelta.
+
+          `imprimible`: en papel, globals.css esconde todo `button`
+          que no la lleve, y sin ella esta lista salía en blanco. */}
+      <Bloque titulo="Acciones de Formación">
         <ul className="space-y-2.5">
           {accionesConCifras.map((a) => {
             const tope = Math.max(a.cupos ?? 0, a.inscritos);
+            const suya = accionElegida === a.id;
             return (
               <li key={a.id}>
-                <div className="flex items-baseline justify-between gap-3 text-[0.8125rem] leading-snug">
-                  <span className="min-w-0 truncate" title={a.nombre}>
-                    <span className="font-mono text-xs text-texto-suave">{a.codigo}</span>{" "}
-                    {a.nombre}
+                <button
+                  type="button"
+                  onClick={() => alElegirAccion(a.id)}
+                  aria-pressed={suya}
+                  className={`imprimible -mx-2 block w-full rounded-lg px-2 py-1 text-left transition hover:bg-superficie-alterna ${
+                    suya ? "bg-marca-suave" : ""
+                  }`}
+                >
+                  <span className="flex items-baseline justify-between gap-3 text-[0.8125rem] leading-snug">
+                    <span
+                      className={`min-w-0 truncate ${suya ? "font-semibold text-marca-fuerte" : ""}`}
+                      title={a.nombre}
+                    >
+                      <span className="font-mono text-xs font-normal text-texto-suave">
+                        {a.codigo}
+                      </span>{" "}
+                      {a.nombre}
+                    </span>
+                    <span className="shrink-0 whitespace-nowrap tabular-nums">
+                      <span className="font-semibold text-titulo">{n(a.inscritos)}</span>
+                      {a.cupos !== null && (
+                        <span className="text-[0.75rem] text-texto-suave"> de {n(a.cupos)}</span>
+                      )}
+                    </span>
                   </span>
-                  <span className="shrink-0 whitespace-nowrap tabular-nums">
-                    <span className="font-semibold text-titulo">{n(a.inscritos)}</span>
-                    {a.cupos !== null && (
-                      <span className="text-[0.75rem] text-texto-suave"> de {n(a.cupos)}</span>
-                    )}
+                  {/* La verde DENTRO de la gris: los matriculados son
+                      una parte de los cupos apartados, no una cantidad
+                      que se le sume. */}
+                  <span className="mt-1 block h-2.5 w-full overflow-hidden rounded-full bg-superficie-alterna">
+                    <span
+                      className="block h-full rounded-full bg-marca/25"
+                      style={{ width: `${Math.max((tope / topeCupos) * 100, 1)}%` }}
+                    >
+                      <span
+                        className="block h-full rounded-full bg-exito"
+                        style={{ width: `${tope > 0 ? (a.inscritos / tope) * 100 : 0}%` }}
+                      />
+                    </span>
                   </span>
-                </div>
-                {/* La verde DENTRO de la gris: los matriculados son una
-                    parte de los cupos apartados, no una cantidad que se
-                    le sume. */}
-                <div className="mt-1 h-2.5 w-full overflow-hidden rounded-full bg-superficie-alterna">
-                  <div
-                    className="h-full rounded-full bg-marca/25"
-                    style={{ width: `${Math.max((tope / topeCupos) * 100, 1)}%` }}
-                  >
-                    <div
-                      className="h-full rounded-full bg-exito"
-                      style={{ width: `${tope > 0 ? (a.inscritos / tope) * 100 : 0}%` }}
-                    />
-                  </div>
-                </div>
+                </button>
               </li>
             );
           })}
@@ -491,7 +617,7 @@ function Cuerpo({
       {/* 3 · LAS DOS GRÁFICAS ------------------------------------- */}
       <div className="flex flex-col gap-3 lg:flex-row lg:items-stretch">
         <div className="min-w-0 lg:flex-1">
-          <Bloque estirado titulo="Hasta dónde llega la gente">
+          <Bloque estirado titulo="Avance por Unidades Temáticas">
             <ul className="space-y-2.5">
               {embudo.map((e) => (
                 <li key={e.titulo}>
@@ -517,8 +643,24 @@ function Cuerpo({
         </div>
 
         <div className="min-w-0 lg:flex-1">
-          <Bloque estirado titulo="Cómo va cada grupo">
-            <ul className="space-y-2.5">
+          <Bloque estirado titulo="Avance por Grupo">
+            {/* LA TORTA DE LOS GRUPOS (cliente, 25 sep 2026). Es lo
+                que un anillo sabe decir y una barra no: cuánto pesa
+                cada grupo DENTRO del total. El avance de cada uno
+                sigue debajo, en su barra, porque un porcentaje por
+                grupo no se puede leer en una tajada. */}
+            <Donut
+              tamano={168}
+              datos={avance.map((g) => ({
+                etiqueta: `${g.codigo} · Grupo ${g.grupo ?? "—"}`,
+                valor: g.gente,
+              }))}
+              centro={n(r.total)}
+              detalleCentro={r.total === 1 ? "matriculado" : "matriculados"}
+              soloDibujo
+              vacio="Todavía no hay grupos con gente dentro."
+            />
+            <ul className="mt-4 space-y-2.5">
               {avance.map((g) => (
                 <li key={g.llave}>
                   <div className="flex items-baseline justify-between gap-3 text-[0.8125rem]">
@@ -547,7 +689,16 @@ function Cuerpo({
       </div>
 
       {/* 4 · LA TABLA QUE DIBUJÓ ---------------------------------- */}
-      <Bloque sinRelleno partible titulo="Avance por grupo">
+      <Bloque
+        sinRelleno
+        partible
+        titulo="Consolidado Avance Acción de Formación"
+        descripcion={
+          accionElegida
+            ? nombreDeAccion.get(accionElegida)
+            : "Todas las acciones. Pulse una arriba para quedarse solo con ella."
+        }
+      >
         <div className="caja-scroll overflow-x-auto">
           <table className="w-full">
             <thead className="border-b border-borde">
