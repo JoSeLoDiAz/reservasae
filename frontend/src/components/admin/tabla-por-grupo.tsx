@@ -29,20 +29,14 @@ const n = (v: number) => v.toLocaleString("es-CO");
 /// Los dos bloques de columnas, los mismos de la tabla de acciones.
 /// LAS DOS MITADES DE LA TABLA, y por que llevan clase propia.
 ///
-/// `grupo-entro` y `grupo-inscribio` no pintan texto: pintan la RAYA
-/// que separa cada columna (`globals.css`, la cuadricula). El color
-/// del rotulo ya decia de que mitad es cada columna, pero en una fila
-/// de doce cifras el rotulo queda arriba del todo y a la altura del
-/// dato ya no se sabe: «coloreame las separaciones» (cliente, 24 sep
-/// 2026).
-const ENTRO = "text-center whitespace-nowrap text-marca grupo-entro";
-const INSCRIBIO = "text-center whitespace-nowrap text-exito grupo-inscribio";
+const ENTRO = "text-center whitespace-nowrap text-marca";
+const INSCRIBIO = "text-center whitespace-nowrap text-exito";
 
 /// Las mismas dos mitades, en el cuerpo. La clase va en la celda y no
 /// en la fila porque la raya es de la COLUMNA.
-const CELDA_ENTRO = "text-center tabular-nums grupo-entro";
-const CELDA_ENTRO_TOTAL = "text-center font-medium tabular-nums grupo-entro";
-const CELDA_INSCRIBIO = "text-center tabular-nums grupo-inscribio";
+const CELDA_ENTRO = "text-center tabular-nums";
+const CELDA_ENTRO_TOTAL = "text-center font-medium tabular-nums";
+const CELDA_INSCRIBIO = "text-center tabular-nums";
 
 const tasa = (v: number | null) => (v === null ? "—" : `${Math.round(v * 100)} %`);
 
@@ -111,7 +105,7 @@ export function TablaPorGrupo({
       titulo={`Grupos de ${titulo}`}
     >
       <div className="caja-scroll overflow-x-auto">
-        <table className="tabla-datos tabla-cuadricula w-full">
+        <table className="tabla-datos w-full">
           <thead>
             {/* LAS MISMAS COLUMNAS QUE LA TABLA DE ACCIONES, y sin
                 «Sede» (cliente, 23 sep 2026): el departamento ya dice
@@ -152,7 +146,7 @@ export function TablaPorGrupo({
                 <td className={CELDA_ENTRO_TOTAL}>{n(f.totalLeads)}</td>
                 <td className={CELDA_INSCRIBIO}>{n(f.inscritosReservas)}</td>
                 <td className={CELDA_INSCRIBIO}>{n(f.inscritosCampana)}</td>
-                <td className="text-center font-semibold text-exito tabular-nums grupo-inscribio">
+                <td className="text-center font-semibold text-exito tabular-nums">
                   {n(f.totalInscritos)}
                 </td>
                 <td className="text-center tabular-nums">{tasa(f.conversion)}</td>
@@ -189,7 +183,7 @@ export function TablaPorGrupo({
               <td className={CELDA_ENTRO}>{n(t.totalLeads)}</td>
               <td className={CELDA_INSCRIBIO}>{n(t.inscritosReservas)}</td>
               <td className={CELDA_INSCRIBIO}>{n(t.inscritosCampana)}</td>
-              <td className="text-center text-exito tabular-nums grupo-inscribio">
+              <td className="text-center text-exito tabular-nums">
                 {n(t.totalInscritos)}
               </td>
               <td className="text-center tabular-nums">

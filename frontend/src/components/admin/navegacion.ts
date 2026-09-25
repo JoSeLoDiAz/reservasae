@@ -98,7 +98,7 @@ export const MODULOS: Modulo[] = [
         /// después niega con un 403. La entrada duplicada de
         /// Inscripciones sí lo tenía bien, y es de donde viene.
         href: '/admin/informes/trafico',
-        etiqueta: 'Tráfico del formulario',
+        etiqueta: 'Tráfico Formulario',
         exacto: true,
         area: 'inscripciones',
       },

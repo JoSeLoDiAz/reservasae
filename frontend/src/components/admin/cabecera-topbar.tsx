@@ -761,27 +761,30 @@ export function FilaDeModulos({
 
           const activo = enlaces.some((e) => estaActivo(e, ruta));
 
-          /// TODOS DESPLIEGAN, TAMBIÉN EL DE UNA SOLA PANTALLA.
+          /// CARET SOLO SI HAY ALGO QUE ELEGIR.
           ///
-          /// Aquí había un atajo: con un solo enlace visible el
-          /// módulo navegaba directo, sin caret y sin lista, con el
-          /// argumento de que «elegir entre una cosa no es elegir».
-          /// Eso trataba el menú como un control, y no lo es: es el
-          /// mapa del panel. Con el atajo, «Académica» era una
-          /// palabra que llevaba a algún sitio sin decir a cuál, y
-          /// el nombre de la pantalla --«Seguimiento del aula»-- no
-          /// aparecía escrito en ninguna parte del menú.
-          ///
-          /// «Te dije, esto debe estar en el desplegable de
-          /// Académica; como Inscripciones, que está en desplegable
-          /// para Gestión de leads» (cliente, 24 sep 2026). Tiene
-          /// razón y es lo barato: un módulo se abre y enseña sus
-          /// pantallas por su nombre, sean una o cuatro, y la fila
-          /// se lee igual de punta a punta.
-          ///
-          /// Esto también alcanza a quien tenga permisos recortados:
-          /// si a alguien le queda una sola pantalla de un módulo,
-          /// la ve nombrada en vez de adivinarla.
+          /// El mock pone desplegable en uno. Aquí cinco módulos
+          /// tienen varias pantallas y dos tienen una sola
+          /// --Calendario y Gestión Académica--, y esos NAVEGAN
+          /// DIRECTO: un desplegable de un solo elemento repite el
+          /// error que el propio panel ya razonó para el selector
+          /// de gremio, «elegir entre una cosa no es elegir, y un
+          /// control muerto solo estorba».
+          if (enlaces.length === 1) {
+            return (
+              <EnlaceDeFila
+                key={modulo.clave}
+                href={enlaces[0].href}
+                activo={activo}
+                /// El nombre largo en el `title`: la fila dice
+                /// «Académica» y quien dude lo confirma sin entrar.
+                titulo={modulo.etiqueta}
+              >
+                {modulo.corto ?? modulo.etiqueta}
+              </EnlaceDeFila>
+            );
+          }
+
           return (
             <MenuDeModulo
               key={modulo.clave}
@@ -826,6 +829,52 @@ export function FilaDeModulos({
 }
 
 /**
+ * Un módulo de una sola pantalla, o el Resumen.
+ *
+ * EL ACTIVO VA CON EL PAR INVERTIDO DEL ENCABEZADO --fondo de
+ * texto, texto de fondo--, que es el truco que el panel ya usa en
+ * el rail plegado y en `BotonDeCabecera`: «esos dos tienen que
+ * contrastar por definición, porque si no la cabecera no se
+ * leería». El `bg-marca-suave` del mock NO sirve aquí: sobre un
+ * encabezado oscuro se vuelve invisible, y ADECOPRIA tiene la
+ * marca verde y el encabezado verde.
+ */
+function EnlaceDeFila({
+  href,
+  activo,
+  titulo,
+  children,
+}: {
+  href: string;
+  activo: boolean;
+  /// El nombre LARGO del módulo. La fila muestra el corto para
+  /// caber; esto lo deja a un paso del puntero, y de paso es lo
+  /// que oye un lector de pantalla.
+  titulo?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <Link
+      href={href}
+      title={titulo}
+      aria-label={titulo}
+      aria-current={activo ? "page" : undefined}
+      /// El cuerpo lo HEREDA de la fila, que es quien lo calcula
+      /// midiendo. Con un `text-[...]` propio se anulaba el
+      /// escalado y no encogía nada. Y los rellenos en `em`, para
+      /// que sigan al cuerpo en vez de quedarse fijos.
+      className={`rounded-lg px-[0.85em] py-[0.4em] text-[1em] whitespace-nowrap no-underline transition ${
+        activo
+          ? "bg-encabezado-texto font-semibold text-encabezado-fondo"
+          : "font-medium opacity-80 hover:bg-current/10 hover:opacity-100"
+      }`}
+    >
+      {children}
+    </Link>
+  );
+}
+
+/**
  * Un módulo con sus pantallas colgando.
  *
  * NO se usa nuestro `Desplegable` aunque tenga la mecánica
@@ -846,9 +895,8 @@ function MenuDeModulo({
   alSalir,
 }: {
   etiqueta: string;
-  /// El nombre largo del módulo. La fila muestra el corto para
-  /// caber --dice «Inscripciones»--; esto dice «Gestión de
-  /// Inscripciones», y de paso es lo que oye un lector de pantalla.
+  /// El nombre largo, igual que en `EnlaceDeFila`: la fila dice
+  /// «Inscripciones» y esto dice «Gestión de Inscripciones».
   titulo?: string;
   enlaces: Array<{ href: string; etiqueta: string }>;
   ruta: string;
@@ -868,10 +916,8 @@ function MenuDeModulo({
         title={titulo}
         aria-label={titulo}
         aria-expanded={desplegado}
-        /// El cuerpo lo HEREDA de la fila, que es quien lo calcula
-        /// midiendo: con un `text-[...]` propio se anularía el
-        /// escalado y no encogería nada. Los rellenos van en `em`
-        /// para que sigan al cuerpo en vez de quedarse fijos.
+        /// Igual que `EnlaceDeFila`: el cuerpo se hereda de la
+        /// fila y los rellenos van en `em`.
         className={`flex items-center gap-[0.35em] rounded-lg px-[0.85em] py-[0.4em] text-[1em] whitespace-nowrap transition ${
           activo
             ? "bg-encabezado-texto font-semibold text-encabezado-fondo"

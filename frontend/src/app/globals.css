@@ -1543,66 +1543,6 @@ select[size]:not([size='1']) {
  * Con `var(--marca)` y no `var(--color-marca)`: es el mismo valor --el
  * segundo es el alias del tema-- y este es el que cambia en oscuro y
  * en papel. */
-/* LINEA DE FILAS Y COLUMNAS, solo donde se pidio.
- *
- * «Cupos e inscritos por accion / Grupos de AF: linea de filas y
- * columnas» (cliente, 24 sep 2026). Las filas ya la tenian; lo que
- * faltaba era la vertical, y sin ella doce columnas de cifras se
- * leen como un bloque: hay que seguir con el dedo para saber si el
- * 21 es de «Leads Pauta» o de «Inscritos Pauta».
- *
- * VA COMO MODIFICADOR Y NO EN .tabla-datos: ese estilo lo comparten
- * NUEVE tablas --el comite, el cronograma, los dos de asesores, la
- * lista de leads, los academicos-- y ninguna de esas siete lo pidio.
- * Cuadricular todas por cambiar una es el error de siempre.
- *
- * Con el selector hermano (+) y no a secas: asi la primera columna
- * no lleva raya a la izquierda, que quedaria doblada contra el
- * borde de la tabla. */
-.tabla-datos.tabla-cuadricula thead th + th,
-.tabla-datos.tabla-cuadricula tbody td + td {
-  border-left: 1px solid var(--hairline);
-}
-
-/* La ultima fila SI lleva raya abajo cuando hay cuadricula: sin
- * ella la reticula se queda abierta por el pie y se ve rota. */
-.tabla-datos.tabla-cuadricula tbody tr:last-child td {
-  border-bottom: 1px solid var(--hairline);
-}
-
-/* LAS SEPARACIONES, CON EL COLOR DE SU MITAD.
- *
- * «Te dije que colorearas las separaciones» (cliente, 24 sep 2026).
- * Con las rayas todas grises, las dos mitades solo se distinguian
- * por el color del ROTULO, que a la altura de la fila 7 ya no se ve:
- * hay que subir la vista para saber si esa columna es de lo que
- * entro o de lo que se inscribio.
- *
- * La raya que ABRE cada mitad va entera de su color y a 2 px: es la
- * frontera. Las de dentro van del mismo color pero desvaidas, para
- * que separen sin competir con la frontera ni con las cifras.
- *
- * `:not(...) + ...` encuentra la frontera sin tener que marcar la
- * primera columna a mano: es la primera celda del grupo que viene
- * despues de una que no es del grupo. */
-.tabla-cuadricula *:not(.grupo-entro) + .grupo-entro {
-  border-left: 2px solid var(--marca);
-}
-.tabla-cuadricula .grupo-entro + .grupo-entro {
-  border-left-color: color-mix(in srgb, var(--marca) 30%, transparent);
-}
-.tabla-cuadricula *:not(.grupo-inscribio) + .grupo-inscribio {
-  border-left: 2px solid var(--exito);
-}
-.tabla-cuadricula .grupo-inscribio + .grupo-inscribio {
-  border-left-color: color-mix(in srgb, var(--exito) 30%, transparent);
-}
-/* Y la raya que CIERRA la segunda mitad, para que no se quede
- * abierta contra la columna de conversion. */
-.tabla-cuadricula .grupo-inscribio + *:not(.grupo-inscribio) {
-  border-left: 2px solid var(--exito);
-}
-
 .tabla-datos thead th.text-marca {
   color: var(--marca);
 }
