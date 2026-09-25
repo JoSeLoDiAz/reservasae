@@ -276,22 +276,61 @@ function Resumen({
             padding: "14px 28px",
             display: "flex",
             alignItems: "flex-end",
-            gap: 24,
+            /// `columnGap` mayor que `rowGap`: entre columnas hace
+            /// falta aire para que no se lean como una frase, y entre
+            /// renglones ---cuando la fila se parte en una pantalla
+            /// angosta--- 10 px bastan y no abren un boquete.
+            columnGap: 24,
+            rowGap: 10,
             flexWrap: "wrap",
           }}
         >
-          <EnLaBarra titulo="Acción de formación" valor={fila.accion} ancho={420} />
+          {/* LA ACCIÓN, ENTERA Y EN SU PROPIO RENGLÓN.
+              «Vuelve y juega» (cliente, 25 sep 2026), viendo «AF1 ·
+              GESTIÓN DE LA ATENCIÓN Y NEUROEDU…» todavía cortado.
+              Tenía tope de 300 px, puesto con el argumento de que
+              son noventa letras y sin límite se lleva la barra
+              entera. Se la lleva, sí ---y hace bien---: es el dato
+              que dice de qué curso estamos hablando, y recortado no
+              sirve de nada.
+              Ocupa la fila completa y los otros seis bajan al
+              siguiente renglón, donde caben de sobra. */}
+          <EnLaBarra
+            titulo="Acción de formación"
+            valor={fila.accion}
+            solaEnSuRenglon
+          />
           <EnLaBarra
             titulo="Grupo"
             valor={fila.grupo === null ? null : `Grupo ${fila.grupo}`}
-            ancho={110}
           />
-          <EnLaBarra titulo="Departamento" valor={fila.departamento} ancho={170} />
-          <EnLaBarra
-            titulo="Asesor responsable"
-            valor={fila.asesor?.nombre ?? null}
-            ancho={190}
-          />
+          <EnLaBarra titulo="Departamento" valor={fila.departamento} />
+          <EnLaBarra titulo="Asesor responsable" valor={fila.asesor?.nombre ?? null} />
+          {/* EL CALENDARIO SUBE AQUÍ (cliente, 25 sep 2026: «¿de esto
+              qué se puede colocar en la segunda captura, para que al
+              mismo margen de Unidad temática de hoy?»).
+
+              Estaban en la columna de la derecha, que con siete datos
+              quedaba mucho más larga que la columna de la izquierda y
+              las dos terminaban a alturas distintas. Estos tres son
+              de la misma familia que los cuatro de al lado ---de qué
+              curso estamos hablando--- y la barra tenía el hueco
+              vacío. La derecha se queda con lo que de verdad es de
+              esta persona: su avance y su gestión. */}
+          {/* «CURSO» EN LOS DOS RÓTULOS (cliente, 25 sep 2026: «como
+              que diga fecha inicio curso, fecha fin curso, porque
+              queda raro»). Sueltas, al lado de «Asesor responsable»,
+              esas dos fechas podían ser de cualquier cosa ---de la
+              inscripción, del grupo, de la reserva---. */}
+          <EnLaBarra titulo="Fecha inicio curso" valor={fechaLarga(fila.fechaInicio)} />
+          <EnLaBarra titulo="Fecha fin curso" valor={fechaLarga(fila.fechaFin)} />
+          {/* «HORARIO DEL GRUPO», que es lo que es: los días y las
+              horas de las sesiones que ese grupo tiene cargadas en
+              Oferta ---`SesionDeGrupo`---. «Horario, ¿a qué hace
+              referencia? No entiendo y ya lo pregunté» (cliente, 25
+              sep 2026); se lo contesté en el chat y no arreglé el
+              rótulo, que es donde hacía falta la respuesta. */}
+          <EnLaBarra titulo="Horario del grupo" valor={fila.horario} />
           <button
             type="button"
             onClick={() => setEnElCajon(fila)}
@@ -444,7 +483,7 @@ function Resumen({
                   Resumen
                 </div>
                 <div style={{ fontSize: "0.75rem", color: "var(--texto-suave)" }}>
-                  Su avance y su calendario.
+                  Cómo va y cuándo se le tocó.
                 </div>
               </div>
 
@@ -482,16 +521,11 @@ function Resumen({
                   }
                   color={fila.diasSinGestion >= 7 ? "var(--peligro)" : undefined}
                 />
-                {/* CADA FECHA EN SU CAMPO (cliente, 25 sep 2026: «con
-                    más clase, como fecha inicio / fecha fin»). Iban
-                    las dos en una celda con una flecha en medio, que
-                    se lee como un rango y no como dos datos que se
-                    consultan por separado. */}
-                <Dato titulo="Fecha de inicio" valor={fechaLarga(fila.fechaInicio)} />
-                <Dato titulo="Fecha de fin" valor={fechaLarga(fila.fechaFin)} />
-                {/* De las sesiones del grupo: los días y las horas
-                    que ese grupo tenga cargados en Oferta. */}
-                <Dato titulo="Horario de las sesiones" valor={fila.horario} />
+                {/* Las tres del calendario ---inicio, fin y
+                    horario--- se fueron a la barra de arriba: son
+                    del curso y no de esta persona, y aquí alargaban
+                    la columna hasta dejarla desparejada con la de
+                    al lado. */}
                 <Dato
                   titulo="Nota final"
                   valor={fila.notaFinal === null ? null : String(fila.notaFinal)}
@@ -536,22 +570,44 @@ function Punto() {
 /**
  * Un dato de la barra de contexto.
  *
- * Con el ancho de su hueco y no del texto: en el lead esos huecos
- * son desplegables de ancho fijo, y si aquí cada uno midiera lo que
- * mide su valor, la barra se recolocaría entera al cambiar de
- * persona.
+ * MIDE LO QUE MIDE SU VALOR, sin ancho clavado.
+ *
+ * Los tuvo ---130 px para una fecha, 190 para el horario--- copiando
+ * los desplegables del lead, que sí son de ancho fijo. El resultado
+ * fue «17 de octubre de 20…» y «de 07:00 a 11…» recortados CON media
+ * barra vacía a la derecha: «¿por qué se ve cortado, si hay
+ * espacio?» (cliente, 25 sep 2026). Y me preguntó de paso si había
+ * comprobado que todo esto se ajusta a la pantalla; no lo había
+ * hecho, y una medida en píxeles dentro de una fila que escala es
+ * justo lo que este repositorio lleva advirtiendo.
+ *
+ * Ahora cada uno pide lo suyo ---`nowrap` y sin `width`--- y la
+ * fila reparte: si no caben todos, baja el último a un segundo
+ * renglón, que se lee; recortar el dato no.
+ *
+ * El único con tope es la acción de formación, y por su motivo: son
+ * noventa letras y sin límite se lleva la barra entera.
  */
 function EnLaBarra({
   titulo,
   valor,
-  ancho,
+  solaEnSuRenglon,
 }: {
   titulo: string;
   valor: string | null;
-  ancho: number;
+  /// Se lleva la fila entera y empuja al resto abajo. Para el
+  /// valor largo de verdad ---el nombre de la acción, noventa
+  /// letras--- que no se puede recortar sin dejar de servir.
+  solaEnSuRenglon?: boolean;
 }) {
   return (
-    <div style={{ width: ancho, minWidth: 0, flex: "0 1 auto" }}>
+    <div
+      style={
+        solaEnSuRenglon
+          ? { flex: "1 0 100%", minWidth: 0 }
+          : { minWidth: 0, flex: "0 0 auto" }
+      }
+    >
       <div
         style={{
           fontWeight: 600,
@@ -564,9 +620,15 @@ function EnLaBarra({
         {titulo}
       </div>
       <div
-        className="truncate"
         title={valor ?? undefined}
-        style={{ marginTop: 4, fontSize: "0.84375rem", color: "var(--texto)" }}
+        style={{
+          marginTop: 4,
+          fontSize: "0.84375rem",
+          color: "var(--texto)",
+          /// El que va solo en su renglón SÍ puede partirse en dos
+          /// líneas si la ventana es angosta; los cortos, nunca.
+          whiteSpace: solaEnSuRenglon ? "normal" : "nowrap",
+        }}
       >
         {valor ?? <span style={{ color: "var(--texto-suave)" }}>—</span>}
       </div>

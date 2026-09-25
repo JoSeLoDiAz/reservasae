@@ -309,11 +309,24 @@ export const MODULOS: Modulo[] = [
         exacto: true,
         area: 'reserva',
       },
-      {
-        href: '/admin/reservas',
-        etiqueta: 'Reservas',
-        area: 'reserva',
-      },
+      /// SIN «RESERVAS» AQUÍ (cliente, 25 sep 2026: «quitemos la
+      /// vista en Sistemas, porque mira que es como lo que nos
+      /// pasaba con Tráfico del formulario; no me había fijado»).
+      ///
+      /// Estaba en DOS módulos, con el mismo nombre y la misma
+      /// dirección: aquí y en Inscripciones. Es el mismo error que
+      /// él señaló el día antes con el tráfico, y la misma regla
+      /// resuelve los dos: una pantalla que se TRABAJA vive en su
+      /// área y en una sola. Apartar cupos es trabajo de
+      /// inscripciones, así que se queda allá.
+      ///
+      /// «Ocupación contra la meta» se queda porque NO es la misma
+      /// pantalla: aquella mira los cupos contra lo comprometido en
+      /// el proyecto y esta es la lista de reservas.
+      ///
+      /// La excepción sigue siendo Tableros, y está escrita arriba:
+      /// no es un área, es lo que se mira sin tocar nada, y por eso
+      /// puede repetir una pantalla con otro nombre.
       {
         href: '/admin/instituciones',
         etiqueta: 'Empresas registradas',
