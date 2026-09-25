@@ -195,3 +195,70 @@ Nada. Todo lo pedido esta madrugada está entregado y probado.
 Otra sesión de Claude trabaja **en este mismo worktree** y se llevó trabajo mío dentro de sus
 commits **dos veces** esta madrugada —`f50b4d7` quedó sin compilar por eso—. Mientras las dos
 escriban aquí, la forma de acotarlo es **commitear cada pieza en cuanto termina**.
+
+---
+
+## Para José · el estado al 25 de septiembre de 2026
+
+**Escrito para José**, para que decida qué integra. Es el parte de la rama, no un resumen de
+conversación: lo que hay, dónde está, qué hace falta para desplegarlo y qué mirar antes.
+
+**Estado comprobado hoy:** `tsc` limpio en backend y frontend · **2.096 pruebas en 185 suites,
+verde** · las pantallas ejercitadas con navegador contra la base del 5544.
+
+### Dónde está todo
+
+Rama **`andres/pantallas-sobre-dev`**, **48 commits por encima de `origin/dev`**.
+
+- **Funde sin conflictos.** Comprobado con `git merge-tree --write-tree origin/dev HEAD`.
+- **96 ficheros**, backend y frontend.
+- **Una migración**: `20260923190000_asesor_academico_por_grupo`.
+
+### Qué entra, por pantalla
+
+| Pantalla | Qué cambió |
+|---|---|
+| **Seguimiento del aula** (`/admin/participantes/academico`) | La tabla pasa al esquema de Gestión de leads: buscador, filtros por columna, selector de columnas y descarga. Diez cifras arriba, filtros fusionados en la fila del buscador, seis columnas nuevas, el avance actividad por actividad y el cajón que abre el lead completo. El aula son los CURSOS, solo lo virtual, y **las seis actividades de verdad** (contaba nueve). |
+| **Seguimiento de asesores** (`…/academico/asesores`) | Pantalla nueva: carga y ritmo por asesor, con cierre, «debe hacer al día» y estado. Al pulsar una fila, **subtabla debajo** con su desglose acción por acción. Montada como Control de inscritos: buscador y filtros sueltos, sin caja. |
+| **Seguimiento académico** (`…/academico/tablero`) | Rehecho entero: resumen general, cupos e inscritos por acción, dos gráficas y la tabla `AF · GRUPO · SIN INGRESO · SIN ACTIVIDAD · UT1…UT5 · EVAL FINAL · TOTAL PAX`, con subtotal por AF. |
+| **Control de Reservas** (informe) | Las tres cifras de la ocupación. «Seguimiento de las reservas» deja de estar siempre puesto: **sale al pulsar un departamento**, recortado a él. «Pendientes» pasa a «Cupos pendientes». |
+| **Reservas** (`/admin/reservas`) | Vista nueva **por organización**, con las AF como columnas. Orden y nombres de columnas rehechos, **«Cupos ocupados» y «Cupos pendientes»** con el criterio del informe, y la descarga y el cargue en las dos vistas. |
+| **Control de inscritos** | Las tarjetas como las pidió el cliente, y la leyenda de la tira con los nombres nuevos. |
+| **Arranque** | El `.env` se carga antes que cualquier import. Con eso **el login arranca en local sin el 500** que veníamos viendo. |
+
+### Qué hace falta para desplegarlo
+
+1. **`pnpm prisma:deploy`** — la migración de arriba.
+2. **Construir backend Y frontend.** No vale solo el frontend: el backend cambió en
+   `reservas-agrupadas.ts` (endpoint nuevo del listado por organización, y los campos
+   `conNombre`/`sinNombre`), `asesores-datos.ts` y `seguimiento-de-asesores.ts` (el desglose por
+   asesor), `resumen-por-accion.ts`, `resumen-por-grupo.ts`, `informe-de-reservas.ts` y
+   `main.ts`.
+3. Si el backend queda sin reconstruir, la pantalla de reservas enseña **columnas en blanco**
+   donde van los cupos ocupados, y el desglose del asesor dice que el servidor no lo manda.
+
+### Lo que hay que saber antes de integrar
+
+- **El commit `f50b4d7` no compila por sí solo.** Usa un componente que se definió en el
+  commit siguiente. `HEAD` compila y funciona; el que no sirve es ese commit suelto. **No
+  cortar por ahí** en un bisect ni llevárselo aislado. Se decidió dejarlo como está en vez de
+  reescribir historial ya empujado.
+- **Dos sesiones escribieron en este mismo worktree la madrugada del 25.** Varios commits
+  llevan dentro trabajo que su mensaje no menciona. Si un mensaje no cuadra con el diff, es
+  por eso, no porque falte contexto.
+- **Nada de esto se ha visto fuera del local de Mauricio.** Todo se probó contra la base
+  sembrada del 5544, con navegador y a mano. En `dev` y en `prueba.reservasae.com` no está.
+- **Cupos ocupados sale cuadrado contra Control de Reservas**: comprobado sobre la misma base,
+  51 pares acción × organización, cero discrepancias, mismos totales (46 ocupados, 496
+  pendientes). Si al desplegar discrepan, el defecto está en el despliegue, no en la cuenta.
+
+### Lo que sigue pendiente, y no es de esta entrega
+
+Lo de siempre, que ya está arriba en este documento:
+
+- **Los 14 de minutos** — B-01, A-08, B-03 y MESA-02 son los rojos.
+- **El aula sigue bloqueada por el LMS**: `actividades` y `avances_actividad` no las escribe
+  nadie en producción, y sin ellas `cambiarEtapa` impide certificar. Estas pantallas ya saben
+  leerlas; lo que falta es quién las escribe.
+- **El retiro sigue bloqueado por el SENA**: las cuatro salidas del aula siguen fuera de
+  `ETAPAS_DEL_REPORTE`.
