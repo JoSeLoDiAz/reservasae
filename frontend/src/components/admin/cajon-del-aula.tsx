@@ -41,6 +41,7 @@
 import { useCallback, useMemo, useState } from "react";
 
 import { Cajon, Dato } from "@/components/admin/cajon";
+import { Desplegable } from "@/components/admin/desplegable";
 import { colorEtapa } from "@/components/admin/etapa";
 import { Aviso, CLASE_CONTROL } from "@/components/admin/marco-admin";
 import { Esqueleto } from "@/components/admin/piezas";
@@ -188,24 +189,20 @@ export function CajonDelAula({
               nada: ni qué son los nueve, ni de dónde sale el siete,
               ni si siete es bueno o malo.
 
-              DE DÓNDE SALE EL NUEVE, que es lo que él preguntó
-              después: «o sea, si solo son 6 ítems, ¿de dónde sale
-              esto?». Son dos listas distintas y hoy no coinciden.
+              Y DECÍA «DE 9» porque el dato estaba mal, no la
+              cuenta: «o sea, si solo son 6 ítems, ¿de dónde sale
+              esto?» (cliente, misma tarde). Salía de las doce
+              actividades genéricas que sembraba `prueba.ts`, de las
+              cuales nueve eran obligatorias, mientras las seis
+              columnas UT de la tabla salían en raya porque ningún
+              título casaba: dos listas para la misma cosa, y mandaba
+              la inventada.
 
-               · Las SEIS columnas de la tabla ---UT1..UT5 y EVAL
-                 FINAL--- son las que va a mandar el LMS. Mientras no
-                 esté conectado salen en raya: no hay dato.
-
-               · El NUEVE son las actividades obligatorias que hay
-                 CARGADAS EN EL CRM para ese curso, en la tabla
-                 `Actividad`. Son las de la siembra, genéricas, y de
-                 ahí salen también el «% avance» y el estado ---al
-                 día, atrasado, listo para certificar---.
-
-              Por eso el rótulo dice «cargadas en el CRM»: para que el
-              número diga de dónde viene y no se lea como si fueran
-              las seis mal contadas. Cuando el LMS entre, las dos
-              listas pasan a ser la misma y esta coletilla sobra.
+              Se arregló donde estaba el problema ---en los datos, con
+              `pnpm db:actividades-del-aula`--- y no aquí poniéndole
+              una coletilla al número. Ahora el catálogo del CRM ES
+              UT1..UT5 y EVAL FINAL, así que el cajón, el «% avance»,
+              el estado y las seis columnas hablan todos de lo mismo.
 
               Los NUEVE son las actividades obligatorias de su curso.
               El SIETE es cuántas debería llevar a estas alturas, que
@@ -224,9 +221,7 @@ export function CajonDelAula({
                   {fila.hechas} de {fila.total}{" "}
                 </span>
                 <span className="text-[0.8125rem] text-texto-suave">
-                  {fila.total === 1
-                    ? "actividad cargada en el CRM"
-                    : "actividades cargadas en el CRM"}
+                  {fila.total === 1 ? "actividad" : "actividades"}
                 </span>
               </>
             }
@@ -313,17 +308,33 @@ export function CajonDelAula({
                 );
               })}
             </div>
-            <select
-              value={resultado}
-              onChange={(e) => setResultado(e.target.value as ResultadoGestion)}
-              className="rounded-lg border border-borde bg-superficie px-2.5 py-1 text-[0.75rem]"
-            >
-              {RESULTADOS.map((r) => (
-                <option key={r} value={r}>
-                  {ETIQUETA_RESULTADO[r]}
-                </option>
-              ))}
-            </select>
+            {/* EL DESPLEGABLE DE LA CASA, no un `<select>` crudo
+                (cliente, 24 sep 2026: «no tengo el desplegable como
+                acción de formación»).
+
+                Este lo pintaba el SISTEMA OPERATIVO: cuadrado donde
+                los demás van redondeados, con la letra de Windows y
+                con la lista en azul de Windows. En la misma tarjeta
+                convivía con dos controles de la casa, y se veía que
+                era de otra parte.
+
+                Un `<select>` nativo no se puede peinar ---su lista
+                la dibuja el sistema y CSS no la toca---, así que la
+                única forma de que se parezca es no usarlo. Es la
+                misma razón por la que existe `Desplegable`, y está
+                escrita en su cabecera. */}
+            <div className="w-[11.5rem]">
+              <Desplegable
+                alto={30}
+                etiquetaAria="Cómo le fue"
+                valor={resultado}
+                alElegir={(v) => setResultado(v as ResultadoGestion)}
+                opciones={RESULTADOS.map((r) => ({
+                  valor: r,
+                  etiqueta: ETIQUETA_RESULTADO[r],
+                }))}
+              />
+            </div>
             <button
               type="button"
               onClick={() => void guardar()}

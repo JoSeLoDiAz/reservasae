@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useCallback, useState } from "react";
 
 import { colorEtapa } from "@/components/admin/etapa";
@@ -187,6 +186,29 @@ function Seguimiento() {
 
   const hayFiltro = Boolean(filtro || salida || accionFormacionId || grupoId);
 
+  /// QUÉ HAY PUESTO, EN PALABRAS.
+  ///
+  /// «Las tarjetas siguen filtrando, ¿qué pasó?» (cliente, 24 sep
+  /// 2026), viendo cinco personas de treinta y cinco. No era un
+  /// fallo: tenía una acción de formación elegida y el recorte lo
+  /// hacía ella. El problema es que eso solo se veía abriendo el
+  /// desplegable, y las tarjetas ---que es donde él estaba mirando---
+  /// enseñaban los números ya recortados sin decir de qué.
+  ///
+  /// Un filtro que no se ve es un filtro que parece un fallo. Esto
+  /// lo pone en el sitio donde estaba el ojo, y con la salida al
+  /// lado.
+  const puesto: string[] = [];
+  if (accionFormacionId) {
+    const a = datos.acciones.find((x) => x.id === accionFormacionId);
+    if (a) puesto.push(`${a.codigo} · ${a.nombre}`);
+  }
+  if (grupoId) {
+    const g = datos.grupos.find((x) => x.id === grupoId);
+    if (g) puesto.push(`Grupo ${g.numero}`);
+  }
+  if (filtro) puesto.push(ETIQUETA_ACADEMICA[filtro]);
+
   function quitarFiltros() {
     setFiltro("");
     setSalida("");
@@ -251,12 +273,16 @@ function Seguimiento() {
             desactualizado={vivos.desactualizado}
             alRefrescar={vivos.refrescar}
           />
-          <Link
-            href="/admin/participantes"
-            className="text-[0.78125rem] text-texto-suave underline hover:text-texto"
-          >
-            Volver a inscripciones
-          </Link>
+          {/* SIN «VOLVER A INSCRIPCIONES» (cliente, 24 sep 2026:
+              «esto se va, son módulos independientes, nunca lo
+              pedí»).
+
+              Venía de cuando el aula colgaba de Inscripciones y esa
+              miga tenía sentido. Ya no: Académica es su propio
+              módulo en la cabecera, con su desplegable, y desde ahí
+              se va a cualquier sitio en un clic. Un enlace que
+              devuelve a otro módulo insinúa una jerarquía que no
+              existe. */}
         </div>
       </header>
 
@@ -274,6 +300,43 @@ function Seguimiento() {
         </p>
       )}
 
+
+      {/* LO QUE ESTÁ PUESTO, ENCIMA DE LAS TARJETAS y no debajo:
+          es lo que explica sus números. Sin esto, con una acción
+          elegida las seis tarjetas suman cinco y la pantalla no dice
+          por qué ---parece que se hubieran perdido treinta personas---. */}
+      {puesto.length > 0 && (
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 rounded-lg bg-marca-suave px-3 py-2 text-[0.78125rem]">
+          <span className="font-semibold text-marca">Viendo solo:</span>
+          {puesto.map((q) => (
+            <span
+              key={q}
+              className="rounded-full bg-superficie px-2.5 py-0.5 text-texto"
+            >
+              {q}
+            </span>
+          ))}
+          {/* LO QUE HAY EN PANTALLA, no el total del servidor.
+              Estuvo con `resumen.analizadas` y se contradecía con
+              las tarjetas: con «Atrasado» pulsado el aviso decía «6
+              personas» y la tarjeta de Atrasado decía 0. Es que
+              `analizadas` lo cuenta el SERVIDOR, que sabe de la
+              acción y del grupo pero no de la tarjeta ---esa filtra
+              aquí---. Dos cifras de lo mismo en la misma franja y
+              distintas. */}
+          <span className="text-texto-suave">
+            {visibles.length.toLocaleString("es-CO")}{" "}
+            {visibles.length === 1 ? "persona" : "personas"}
+          </span>
+          <button
+            type="button"
+            onClick={quitarFiltros}
+            className="ml-auto font-semibold text-marca underline hover:no-underline"
+          >
+            Ver a todos
+          </button>
+        </div>
+      )}
 
       {/* LAS SEIS, FUERA DE LA TARJETA DE FILTROS (cliente, 24 sep
           2026: «las tarjetas viven afuera»). Estuvieron dentro y
