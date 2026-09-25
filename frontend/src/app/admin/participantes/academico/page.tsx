@@ -16,7 +16,6 @@ import {
   crmApi,
   type EstadoAcademico,
   ETIQUETA_ACADEMICA,
-  type Etapa,
   type FilaAcademica,
 } from "@/lib/crm-api";
 
@@ -88,8 +87,24 @@ export default function PaginaAcademica() {
 }
 
 function Seguimiento() {
-  const [filtro, setFiltro] = useState<EstadoAcademico | "">("");
-  const [salida, setSalida] = useState<Etapa | "">("");
+  /// LAS SEIS TARJETAS NO FILTRAN, Y ESO ERA LA INSTRUCCIÓN.
+  ///
+  /// «Las tarjetas no filtran», «las tarjetas siguen filtrando»,
+  /// «sigue filtrando con las tarjetas de los estados que he
+  /// insistido» (cliente, 24 sep 2026, tres veces). Yo leí la
+  /// primera como un fallo ---«no filtran» = están rotas---, fui a
+  /// comprobarlo, vi que sí filtraban y se lo dije. Era una orden,
+  /// no un síntoma.
+  ///
+  /// Y ya estaba escrito aquí mismo sin que yo lo viera: él las sacó
+  /// de la tarjeta de filtros ---«las tarjetas viven afuera»--- y
+  /// eso era exactamente decir que no son filtros. Son el reparto
+  /// del aula: cuánta gente hay en cada estado.
+  ///
+  /// No se pierde nada. Quien quiera quedarse con los atrasados usa
+  /// el filtro de la columna «Estado», que ya existe y es donde se
+  /// filtra en esta tabla; así hay UN solo sitio donde se filtra en
+  /// vez de dos que se pisan.
   /// A quién se le está mirando el seguimiento. Se guarda la FILA y
   /// no el id: el cajón pinta lo del aula --estado, avance, último
   /// ingreso-- que ya está aquí, y solo pide al servidor las notas.
@@ -132,13 +147,9 @@ function Seguimiento() {
   if (!datos) return <Esqueleto conCifras />;
 
   const { resumen } = datos;
-  // los dos filtros son excluyentes: un estado de ritmo es
-  // de quien sigue dentro, y una salida de quien ya no
-  const visibles = salida
-    ? datos.personas.filter((p) => p.etapa === salida)
-    : filtro
-    ? datos.personas.filter((p) => !p.salio && p.estado === filtro)
-    : datos.personas;
+  /// TODAS. El recorte lo hacen los dos desplegables ---que van al
+  /// servidor--- y los filtros de columna de la tabla.
+  const visibles = datos.personas;
 
 
   const cuenta: Record<EstadoAcademico, number> = {
@@ -184,7 +195,7 @@ function Seguimiento() {
   /// cientos de vueltas.
   const columnas = columnasDelAula();
 
-  const hayFiltro = Boolean(filtro || salida || accionFormacionId || grupoId);
+  const hayFiltro = Boolean(accionFormacionId || grupoId);
 
   /// QUÉ HAY PUESTO, EN PALABRAS.
   ///
@@ -207,11 +218,9 @@ function Seguimiento() {
     const g = datos.grupos.find((x) => x.id === grupoId);
     if (g) puesto.push(`Grupo ${g.numero}`);
   }
-  if (filtro) puesto.push(ETIQUETA_ACADEMICA[filtro]);
+
 
   function quitarFiltros() {
-    setFiltro("");
-    setSalida("");
     setAccion("");
     setGrupo("");
   }
@@ -351,21 +360,19 @@ function Seguimiento() {
             (cliente, 24 sep 2026: «esto más reducido por favor»). Es
             la misma medida de `CifraCompacta` --la de Gestión de
             leads, que él aprobó-- y no una talla inventada para esta
-            pantalla. Estas no pueden SER `CifraCompacta` porque se
-            pulsan: son los filtros. Lo que se copia es la medida. */}
+            pantalla.
+
+            YA NO SE PULSAN: son cifras, no botones. Eran `<button>`
+            con `aria-pressed` y al pulsarlas recortaban la lista;
+            el cliente lo paró tres veces. Se quedan en `<div>` para
+            que ni el teclado ni el lector de pantalla las anuncien
+            como algo que hacer. */}
         <div className="grid gap-2 sm:grid-cols-3 lg:grid-cols-6">
           {ORDEN.map((estado) => (
-            <button
+            <div
               key={estado}
-              onClick={() => {
-                setSalida("");
-                setFiltro(filtro === estado ? "" : estado);
-              }}
               style={{ ["--etapa"]: COLOR[estado] } as React.CSSProperties}
-              className={`rounded-lg border bg-superficie px-3.5 py-2 text-left transition hover:border-campo-borde ${
-                filtro === estado ? "border-marca bg-marca-suave" : "border-borde"
-              }`}
-              aria-pressed={filtro === estado}
+              className="rounded-lg border border-borde bg-superficie px-3.5 py-2 text-left"
             >
               <span className="flex items-center gap-1.5 text-[0.625rem] font-semibold tracking-[0.08em] uppercase">
                 <span className="punto-etapa" aria-hidden />
@@ -376,7 +383,7 @@ function Seguimiento() {
               <span className="mt-1 block text-[1.0625rem] leading-none font-bold tabular-nums">
                 {cuenta[estado]}
               </span>
-            </button>
+            </div>
           ))}
         </div>
 
@@ -412,7 +419,7 @@ function Seguimiento() {
             <>
               Nadie cumple lo que está filtrado.{" "}
               <button onClick={quitarFiltros} className="underline">
-                Quitar los filtros
+                Ver a todos
               </button>
             </>
           ) : (

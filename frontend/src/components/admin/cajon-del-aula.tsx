@@ -157,6 +157,26 @@ export function CajonDelAula({
     >
       {(error ?? vivos.error) && <Aviso tipo="error">{error ?? vivos.error}</Aviso>}
 
+      {/* LA SALIDA AL LEAD COMPLETO (cliente, 24 sep 2026: «no puedo
+          ver el lead individual si le doy clic al correo»).
+
+          El cajón abre y enseña lo del aula y las notas, que es para
+          lo que se hizo; lo que no había era forma de llegar desde
+          aquí a la FICHA ---sus datos, su empresa, su historial
+          entero, el formato SEP---. Había que salir a Gestión de
+          leads y buscarla por documento, sabiendo que es la misma
+          persona.
+
+          Va arriba y no al pie: es lo primero que se busca cuando el
+          cajón no trae lo que uno venía a ver. */}
+      <a
+        href={`/admin/participantes/${fila.id}`}
+        className="mb-4 inline-flex items-center gap-1.5 rounded-lg border border-borde px-3 py-1.5 text-[0.78125rem] font-semibold text-marca no-underline transition hover:bg-marca-suave"
+      >
+        Abrir el lead completo
+        <span aria-hidden>→</span>
+      </a>
+
       {/* ── 1 · LO QUE DICE EL AULA. Se lee, no se toca. ── */}
       <section>
         <h3 className="text-xs font-semibold tracking-[0.08em] text-texto-suave uppercase">
