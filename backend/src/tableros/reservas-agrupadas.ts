@@ -31,6 +31,7 @@
  */
 
 import { EstadoReserva, Prisma, type Modalidad } from '../../generated/prisma';
+import { enPeriodo, PRIMERA_MATRICULA } from '../crm/anclas';
 import type { PrismaService } from '../prisma/prisma.service';
 import { reservaDeConvenio } from './ambito';
 
@@ -76,6 +77,26 @@ export type ReservaEnCelda = {
   cuposSolicitados: number;
   cuposConfirmados: number;
   cuposEnEspera: number;
+  /**
+   * Cuántos de sus cupos ya tienen persona detrás.
+   *
+   * EL MISMO CRITERIO QUE «Control de Reservas», y por eso no se
+   * cuenta aquí: la regla vive en `informe-de-reservas.ts` y cuenta a
+   * quien ALGUNA VEZ llegó a INSCRITO (`PRIMERA_MATRICULA` +
+   * `enPeriodo`), no a quien esté hoy en el aula. Con otro criterio,
+   * esta pantalla y el Seguimiento dirían cifras distintas del mismo
+   * cupo, que es la manera más rápida de que nadie se crea ninguna
+   * de las dos.
+   *
+   * Una reserva cancelada va a cero aunque le queden personas
+   * colgadas: sus cupos volvieron a la oferta.
+   */
+  conNombre: number;
+  /** `max(0, cuposConfirmados − conNombre)`. Acotado EN LA RESERVA,
+      que es donde está el cupo: así la cifra se puede sumar en
+      cualquier sentido y doce personas en una reserva de diez no
+      llenan las sillas de otra organización. */
+  sinNombre: number;
   creadoEn: string;
   canceladaEn: string | null;
   ubicacion: string;
@@ -114,6 +135,9 @@ export type CeldaReserva = {
   cuposSolicitados: number;
   cuposConfirmados: number;
   cuposEnEspera: number;
+  /** La suma de los de sus reservas. Ver `ReservaEnCelda`. */
+  conNombre: number;
+  sinNombre: number;
   primera: string;
   ultima: string;
 };
@@ -154,6 +178,10 @@ export type FilaAgrupada = {
   cuposConfirmados: number;
   cuposEnEspera: number;
   cuposSolicitados: number;
+  /** «Cupos ocupados» y «Pendientes» de la pantalla, sumados de sus
+      reservas. Ver `ReservaEnCelda`. */
+  conNombre: number;
+  sinNombre: number;
 
   /// La fila, abierta por acción. La llave es `accionFormacionId`.
   porAccion: Record<string, CeldaReserva>;
@@ -270,7 +298,43 @@ export async function reservasAgrupadas(
     },
   });
 
-  return armarAgrupadas(reservas);
+  return armarAgrupadas(reservas, await cuposConNombre(prisma, reservas));
+}
+
+/**
+ * Cuántas personas cuelgan de cada reserva, con el criterio del
+ * informe.
+ *
+ * VA APARTE Y EN SQL CRUDO A PROPÓSITO. La regla no es «cuántos
+ * participantes tiene la reserva»: es cuántos ALGUNA VEZ llegaron a
+ * INSCRITO, que es lo que miran «Cupos apartados por empresas» y el
+ * Seguimiento de Control de Reservas. Escrita con `_count` de Prisma
+ * saldría la primera, que es parecida y no es la misma, y las dos
+ * pantallas dirían números distintos del mismo cupo.
+ *
+ * Reusa los mismos trozos de SQL que el informe --`PRIMERA_MATRICULA`
+ * y `enPeriodo`--: una segunda copia de la regla es la que se queda
+ * vieja cuando alguien cambie la primera.
+ */
+async function cuposConNombre(
+  prisma: PrismaService,
+  reservas: Array<{ id: string }>,
+): Promise<Map<string, number>> {
+  /// `Prisma.join` de una lista vacía es un SQL roto, y sin reservas
+  /// no hay nada que contar.
+  if (reservas.length === 0) return new Map();
+
+  const filas = await prisma.$queryRaw<Array<{ rid: string; n: bigint }>>(Prisma.sql`
+    WITH ${PRIMERA_MATRICULA}
+    SELECT p."reservaId" AS rid, COUNT(*) AS n
+      FROM "participantes" p
+      LEFT JOIN primera_matricula an ON an."pid" = p."id"
+     WHERE p."reservaId" IN (${Prisma.join(reservas.map((r) => r.id))})
+     ${enPeriodo(null, null)}
+     GROUP BY 1
+  `);
+
+  return new Map(filas.map((f) => [f.rid, Number(f.n)]));
 }
 
 /** La fila cruda que agrupa `armarAgrupadas`. Se exporta para la prueba. */
@@ -316,7 +380,13 @@ export type ReservaParaAgrupar = {
  * una columna AF se pierda, o que los totales dejen de cuadrar con
  * lo que suman las celdas.
  */
-export function armarAgrupadas(reservas: ReservaParaAgrupar[]): ReservasAgrupadas {
+export function armarAgrupadas(
+  reservas: ReservaParaAgrupar[],
+  /// Reserva -> cuántos de sus cupos tienen ya persona. Opcional
+  /// porque las pruebas arman filas a mano y lo que comprueban es el
+  /// agrupado, no la cobertura; sin él, todo sale sin nombre.
+  conNombrePorReserva: Map<string, number> = new Map(),
+): ReservasAgrupadas {
   const columnas = new Map<string, ColumnaAccion>();
   const porEmpresa = new Map<string, FilaAgrupada>();
   /// Los contactos y los formularios se juntan por su llave natural
@@ -371,6 +441,8 @@ export function armarAgrupadas(reservas: ReservaParaAgrupar[]): ReservasAgrupada
         cuposConfirmados: 0,
         cuposEnEspera: 0,
         cuposSolicitados: 0,
+        conNombre: 0,
+        sinNombre: 0,
         porAccion: {},
       };
       porEmpresa.set(r.empresa.id, fila);
@@ -388,9 +460,22 @@ export function armarAgrupadas(reservas: ReservaParaAgrupar[]): ReservasAgrupada
       cuposSolicitados: 0,
       cuposConfirmados: 0,
       cuposEnEspera: 0,
+      conNombre: 0,
+      sinNombre: 0,
       primera: r.creadoEn.toISOString(),
       ultima: r.creadoEn.toISOString(),
     });
+
+    /// Cancelada = cero, aunque le queden personas colgadas: sus
+    /// cupos volvieron a la oferta y contarlas subiría la cobertura
+    /// justo al cancelar. Es la misma defensa que hace el informe.
+    const conNombre =
+      r.estado === EstadoReserva.CANCELADA ? 0 : (conNombrePorReserva.get(r.id) ?? 0);
+    /// Acotado EN LA RESERVA y no en la fila: doce personas en una
+    /// reserva de diez no llenan las sillas de otra, y acotando más
+    /// arriba la sobra de una se comería los huecos de la de al lado
+    /// según cómo se agrupara.
+    const sinNombre = Math.max(0, r.cuposConfirmados - conNombre);
 
     celda.reservas.push({
       reservaId: r.id,
@@ -398,6 +483,8 @@ export function armarAgrupadas(reservas: ReservaParaAgrupar[]): ReservasAgrupada
       cuposSolicitados: r.cuposSolicitados,
       cuposConfirmados: r.cuposConfirmados,
       cuposEnEspera: r.cuposEnEspera,
+      conNombre,
+      sinNombre,
       creadoEn: r.creadoEn.toISOString(),
       canceladaEn: r.canceladaEn?.toISOString() ?? null,
       ubicacion: r.oferta.ubicacion.nombre,
@@ -411,6 +498,8 @@ export function armarAgrupadas(reservas: ReservaParaAgrupar[]): ReservasAgrupada
     celda.cuposSolicitados += r.cuposSolicitados;
     celda.cuposConfirmados += r.cuposConfirmados;
     celda.cuposEnEspera += r.cuposEnEspera;
+    celda.conNombre += conNombre;
+    celda.sinNombre += sinNombre;
     if (r.creadoEn.toISOString() < celda.primera) celda.primera = r.creadoEn.toISOString();
     if (r.creadoEn.toISOString() > celda.ultima) celda.ultima = r.creadoEn.toISOString();
 
@@ -420,6 +509,8 @@ export function armarAgrupadas(reservas: ReservaParaAgrupar[]): ReservasAgrupada
     fila.cuposConfirmados += r.cuposConfirmados;
     fila.cuposEnEspera += r.cuposEnEspera;
     fila.cuposSolicitados += r.cuposSolicitados;
+    fila.conNombre += conNombre;
+    fila.sinNombre += sinNombre;
 
     const iso = r.creadoEn.toISOString();
     if (iso < fila.primeraReserva) fila.primeraReserva = iso;

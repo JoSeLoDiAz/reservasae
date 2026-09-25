@@ -386,11 +386,50 @@ export function ReservasUnificadas({
         valor: (f) => f.totalReservas,
         filtro: "numero",
       },
+      /* ── LOS TRES DE «Control de Reservas», CON SUS MISMAS PALABRAS ──
+         «¿No es posible como en módulo tablero vista Control de
+         Reservas que se tiene en Cupos reservados / Cupos ocupados /
+         Pendientes?» (cliente, 25 sep 2026). Sí, y hay que hacerlo
+         así: son la misma pregunta --de lo que apartó, cuánto tiene
+         ya persona-- y hasta hoy esta pantalla solo sabía responder
+         la mitad.
+
+         LOS ROTULOS SE COPIAN LETRA POR LETRA del Seguimiento. Aquí
+         se llamaba «Cupos apartados» y allá «Cupos reservados»: dos
+         nombres para la misma cifra en dos pantallas que se miran
+         seguidas es lo que hace dudar de las dos. */
       {
         clave: "cuposConfirmados",
-        titulo: "Cupos apartados",
+        titulo: "Cupos reservados",
         numerica: true,
         valor: (f) => f.cuposConfirmados,
+        filtro: "numero",
+      },
+      {
+        clave: "cuposOcupados",
+        titulo: "Cupos ocupados",
+        numerica: true,
+        /// En verde y los pendientes en rojo, como en el Seguimiento:
+        /// las dos pantallas se leen seguidas y un mismo dato no
+        /// puede cambiar de color al cambiar de pestaña.
+        valor: (f) => f.conNombre,
+        pinta: (f) => (
+          <span className={`tabular-nums ${f.conNombre > 0 ? "font-semibold text-exito" : ""}`}>
+            {f.conNombre}
+          </span>
+        ),
+        filtro: "numero",
+      },
+      {
+        clave: "pendientes",
+        titulo: "Pendientes",
+        numerica: true,
+        valor: (f) => f.sinNombre,
+        pinta: (f) => (
+          <span className={`tabular-nums ${f.sinNombre > 0 ? "text-error" : ""}`}>
+            {f.sinNombre}
+          </span>
+        ),
         filtro: "numero",
       },
       {
@@ -536,7 +575,7 @@ export function ReservasUnificadas({
           /// tocado el panel de Columnas seguiría viendo el orden
           /// viejo por mucho que aquí se declare otro. Cambiando la
           /// llave, todo el mundo empieza por el orden nuevo.
-          id="reservas-unificadas-2"
+          id="reservas-unificadas-3"
           columnas={columnas}
           filas={filas}
           clave={(f) => f.empresaId}
@@ -601,7 +640,13 @@ function CajonDeLaOrganizacion({
       alCerrar={alCerrar}
     >
       <dl className="grid gap-x-6 gap-y-4 sm:grid-cols-2">
-        <Dato titulo="Cupos apartados" valor={String(fila.cuposConfirmados)} />
+        <Dato titulo="Cupos reservados" valor={String(fila.cuposConfirmados)} />
+        <Dato titulo="Cupos ocupados" valor={String(fila.conNombre)} />
+        <Dato
+          titulo="Pendientes"
+          valor={String(fila.sinNombre)}
+          pie={fila.sinNombre > 0 ? "cupos que siguen sin nombre" : undefined}
+        />
         <Dato
           titulo="Cupos en espera"
           valor={fila.cuposEnEspera > 0 ? String(fila.cuposEnEspera) : null}

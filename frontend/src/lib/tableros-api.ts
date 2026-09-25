@@ -276,6 +276,13 @@ export type ReservaEnCelda = {
   cuposSolicitados: number;
   cuposConfirmados: number;
   cuposEnEspera: number;
+  /** Cuántos de sus cupos ya tienen persona. MISMO CRITERIO que
+      «Control de Reservas»: quien alguna vez llegó a inscrito. Lo
+      calcula el servidor; una segunda cuenta aquí sería la que se
+      queda vieja. Cancelada = 0. */
+  conNombre: number;
+  /** `max(0, cuposConfirmados − conNombre)`, acotado en la reserva. */
+  sinNombre: number;
   creadoEn: string;
   canceladaEn: string | null;
   ubicacion: string;
@@ -304,6 +311,8 @@ export type CeldaReserva = {
   cuposSolicitados: number;
   cuposConfirmados: number;
   cuposEnEspera: number;
+  conNombre: number;
+  sinNombre: number;
   primera: string;
   ultima: string;
 };
@@ -336,6 +345,9 @@ export type FilaAgrupada = {
   cuposConfirmados: number;
   cuposEnEspera: number;
   cuposSolicitados: number;
+  /** «Cupos ocupados» y «Pendientes» de la pantalla. */
+  conNombre: number;
+  sinNombre: number;
   porAccion: Record<string, CeldaReserva>;
 };
 
