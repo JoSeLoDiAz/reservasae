@@ -1314,7 +1314,9 @@ export type FilaDeGrupo = {
   numero: number;
   modalidad: string;
   sedes: string;
-  departamentos: string;
+  /// UNO, y no la lista: el servidor manda una fila por grupo y
+  /// departamento desde el 24 sep 2026.
+  departamento: string;
   meta: number;
   /// En los grupos NO son cupos reservados sino personas ya nominadas
   /// por la empresa: una reserva se hace sobre la oferta, no sobre un

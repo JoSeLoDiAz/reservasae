@@ -134,12 +134,17 @@ export function TablaPorGrupo({
           </thead>
           <tbody>
             {filas.map((f) => (
-              <tr key={f.grupoId}>
+              /// LA LLAVE LLEVA EL DEPARTAMENTO. Desde que un grupo
+              /// puede dar dos filas --una por departamento-- el id
+              /// del grupo solo ya no identifica la fila, y React con
+              /// llaves repetidas reordena mal y reusa celdas de otra
+              /// fila sin avisar de nada.
+              <tr key={`${f.grupoId}·${f.departamento}`}>
                 <td className="whitespace-nowrap">Grupo {f.numero}</td>
                 {/* Una raya y no una celda en blanco: en blanco no se
                     sabe si es que falta el dato o si es que nadie lo
                     llenó. */}
-                <td className="min-w-[10rem]">{f.departamentos || "—"}</td>
+                <td className="min-w-[10rem]">{f.departamento || "—"}</td>
                 <td className="whitespace-nowrap">{MODALIDAD[f.modalidad] ?? f.modalidad}</td>
                 <td className="text-center tabular-nums">{n(f.meta)}</td>
                 <td className={CELDA_ENTRO}>{n(f.nominadosPorEmpresa)}</td>
