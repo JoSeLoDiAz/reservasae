@@ -45,6 +45,10 @@ Si quieres verlo sin desplegar: `pnpm --filter backend db:brechas`.
 **Cuatro de las seis primeras son el mismo defecto de forma**, y por eso van juntas al final en
 «el patrón».
 
+**Y una que ya no está en la tabla porque está cerrada:** la columna `asesorAcademicoId` sin
+nadie que la escribiera ---tu hallazgo del 25 de septiembre---. La puerta está hecha y probada;
+el detalle, al final, en [ASESOR-ACADEMICO](#asesor-academico--la-columna-sin-escritores-cerrada).
+
 ---
 
 ## B-01 · El reparto de leads tiene una puerta de al lado
@@ -254,3 +258,64 @@ lista como abierto y llevaba días resuelto.
 Lo digo porque es la lección de todo este repaso: **un pendiente se comprueba contra `dev`, no
 contra la lista.** Trabajamos en paralelo, y la lista envejece más rápido de lo que se
 actualiza.
+
+---
+
+## ASESOR-ACADEMICO · la columna sin escritores: **cerrada**
+
+**Tu hallazgo, y era bueno.** «`asesorAcademicoId` tiene cero escritores: ni backend ni panel.»
+Lo comprobé en la base de pruebas antes de tocar nada: **120 grupos, 0 con asesor**. Mi propio
+paso de QA sobre esa pestaña había leído «filas: 1» y no me pregunté por qué era una.
+
+Era una porque `repartirAcademicos` mete a todo el que no tiene asesor bajo la llave
+`SIN_ASESOR`, así que la pantalla enseñaba **una sola fila, «Sin asesor asignado»**, con los
+mil y pico participantes dentro. Se lee como un dato y no como lo que era: que la asignación
+no existía.
+
+**Qué construí** (es de la pantalla que entregué yo, así que la hice yo):
+
+| Dónde | Qué |
+|---|---|
+| `cronograma/dto.ts` | `asesorAcademicoId?: string \| null` en `ActualizarGrupoDto`. Sin mandarlo no se toca; `null` suelta el grupo |
+| `cronograma.service.ts` | `actualizarGrupo` lo escribe, **tras comprobarlo**; `listar` devuelve `asesorAcademicoId`, el nombre y el `convenioId` de la acción |
+| `cronograma.service.ts` | `asesoresPosibles(ambito)`: las cuentas que pueden llevar grupos, una fila por persona con sus gremios |
+| `cronograma.controller.ts` | `GET admin/cronograma/asesores`, con `@Requiere('configuracion', 'ESCRIBIR')` |
+| `cronograma-vista.tsx` | El desplegable en la ficha del grupo. El botón pasa de «Editar fechas» a «Editar grupo» |
+| `panel-asesores.tsx` | Cuando nadie tiene grupo asignado, la pestaña lo **dice** y enlaza a donde se arregla |
+
+**La decisión que te quiero señalar, porque es la que puede morder.** El asesor se comprueba
+**contra el gremio del grupo**, no contra el ámbito de quien edita:
+
+```ts
+where: {
+  adminId: dto.asesorAcademicoId,
+  convenioId: grupo.accionFormacion.convenioId,   // ← el del GRUPO
+  rol: { in: ROLES_ACADEMICOS },
+  admin: { activo: true },
+}
+```
+
+Son dos cosas distintas y confundirlas es el defecto. Un líder de sistemas ve los dos gremios;
+sin esta línea podría poner de asesor de un grupo de ADECOPRIA a alguien que solo responde por
+BRITCHAM ---y que no puede ni entrar a lo que se le asignó---.
+
+`ROLES_ACADEMICOS` son **tres**: `GESTOR_ACADEMICO`, `LIDER_ACADEMICO`, `LIDER_SISTEMAS`. Van
+escritos a mano y no calculados sobre `PERMISOS`, porque asignar un grupo es una decisión de
+negocio: el día que un rol nuevo escriba en «académico», que alguien decida aparte si además
+debe poder llevar grupos. **`COUNTRY_MANAGER` queda fuera a propósito**: su permiso ahí es de
+ver. Hay una prueba que lo fija, para que nadie lo añada sin pensarlo.
+
+**Comprobado en el navegador, no solo con `tsc`:**
+
+- BRITCHAM ADEE ofrece 6 candidatos; ADECOPRIA ofrece 4 (Carlos Mesa y Héctor Ramos fuera, que
+  es correcto: solo son académicos en el otro gremio).
+- Asignar → la ficha lo enseña → Seguimiento de asesores lo recoge y el aviso desaparece.
+- Soltar → vuelve a cero, sin rastro.
+- **Y por la API, saltándose el desplegable**: `PATCH` con una cuenta del otro gremio contesta
+  `400` con el motivo. El desplegable filtra; el servidor no se fía de él.
+
+**Lo que NO hice, y es tuyo:** nadie tiene grupos asignados todavía. La puerta está; quién
+lleva cada grupo es una decisión de Mauricio y Diana, no mía. Mientras no se haga, la pestaña
+lo dice en pantalla en vez de fingir un dato.
+
+Pruebas nuevas: `backend/src/cronograma/asesor-del-grupo.spec.ts`, 7 casos.

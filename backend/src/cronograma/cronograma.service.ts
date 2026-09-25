@@ -2,6 +2,7 @@
 
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 
+import { RolConvenio } from '../../generated/prisma';
 import { fraseDeHorario } from '../comun/horario-de-grupo';
 import { ETAPAS_VIVAS } from '../crm/crm.service';
 import { PrismaService } from '../prisma/prisma.service';
@@ -11,6 +12,24 @@ import {
   ActualizarInformacionDto,
 } from './dto';
 import { loQueEstaMal } from './sesiones';
+
+/**
+ * Quién puede llevar un grupo como asesor académico.
+ *
+ * Los TRES roles cuya tabla de permisos da ESCRIBIR en «académico»
+ * ---`PERMISOS` en `admin/permisos.ts`---. Se lista aquí y no se
+ * calcula sobre aquella tabla porque asignar un grupo es una decisión
+ * de negocio: el día que un rol nuevo pueda escribir en académico, que
+ * alguien decida a mano si además debe poder llevar grupos.
+ *
+ * COUNTRY_MANAGER queda fuera a propósito: su permiso en «académico»
+ * es de VER, no de escribir. Dirige y supervisa; no lleva grupos.
+ */
+const ROLES_ACADEMICOS: RolConvenio[] = [
+  RolConvenio.GESTOR_ACADEMICO,
+  RolConvenio.LIDER_ACADEMICO,
+  RolConvenio.LIDER_SISTEMAS,
+];
 
 /// `ETAPAS_VIVAS` se importa del CRM. Aqui habia una copia
 /// tecleada aparte que decia lo mismo con otras etapas, y
@@ -52,6 +71,7 @@ export class CronogramaService {
         visible: true,
         evento: true,
         modalidad: true,
+        convenioId: true,
         convenio: { select: { slug: true, sigla: true } },
         grupos: {
           orderBy: { numero: 'asc' },
@@ -76,6 +96,8 @@ export class CronogramaService {
               },
             },
             sepGrupoId: true,
+            asesorAcademicoId: true,
+            asesorAcademico: { select: { id: true, nombre: true } },
             sede: { select: { nombre: true } },
             coberturas: {
               orderBy: { ubicacion: { nombre: 'asc' } },
@@ -116,6 +138,11 @@ export class CronogramaService {
           horario: fraseDeHorario(g),
           sepGrupoId: g.sepGrupoId,
           sede: g.sede?.nombre ?? null,
+          /// Quién lleva el grupo. El id, para el selector; el
+          /// nombre, para pintarlo sin pedir la lista de cuentas
+          /// ---que es de SUPERADMIN y aquí entra un gestor---.
+          asesorAcademicoId: g.asesorAcademicoId,
+          asesorAcademico: g.asesorAcademico?.nombre ?? null,
           estado: estadoDeGrupo(g.fechaInicio, g.fechaFin, hoy),
           cupos,
           tope,
@@ -140,6 +167,9 @@ export class CronogramaService {
         codigo: a.codigo,
         nombre: a.nombre,
         horas: a.horas,
+        /// El id del gremio, no su sigla: con él la ficha del grupo
+        /// sabe a quién puede ofrecer como asesor.
+        convenioId: a.convenioId,
         visible: a.visible,
         // qué es: CURSO, FORO, TALLER…
         evento: a.evento,
@@ -153,6 +183,55 @@ export class CronogramaService {
         sinFechas: grupos.filter((g) => g.estado === 'SIN_FECHAS').length,
       };
     });
+  }
+
+  /**
+   * Quiénes pueden llevar un grupo, para el selector de la ficha.
+   *
+   * Va aquí y no en `admin/usuarios` porque aquella lista es de
+   * SUPERADMIN ---administra cuentas, claves y roles--- y quien asigna
+   * un grupo es un gestor con permiso de configuración. Son dos cosas
+   * distintas y no tienen por qué compartir puerta.
+   *
+   * Devuelve una cuenta por persona con los gremios en los que puede
+   * llevar grupos: la misma persona puede ser académica en uno y de
+   * inscripción en otro, y solo debe aparecer donde manda.
+   */
+  async asesoresPosibles(ambito: string[]) {
+    const filas = await this.prisma.adminConvenio.findMany({
+      where: {
+        convenioId: { in: ambito },
+        rol: { in: ROLES_ACADEMICOS },
+        admin: { activo: true },
+      },
+      select: {
+        convenioId: true,
+        admin: { select: { id: true, nombre: true } },
+      },
+      orderBy: { admin: { nombre: 'asc' } },
+    });
+
+    /// Una fila por persona: la tabla trae una por rol y gremio, y en
+    /// el desplegable el mismo nombre tres veces no es una opción.
+    const porPersona = new Map<
+      string,
+      { id: string; nombre: string; convenios: string[] }
+    >();
+    for (const f of filas) {
+      const ya = porPersona.get(f.admin.id);
+      if (ya) {
+        if (!ya.convenios.includes(f.convenioId)) {
+          ya.convenios.push(f.convenioId);
+        }
+      } else {
+        porPersona.set(f.admin.id, {
+          id: f.admin.id,
+          nombre: f.admin.nombre,
+          convenios: [f.convenioId],
+        });
+      }
+    }
+    return [...porPersona.values()];
   }
 
   /**
@@ -200,6 +279,7 @@ export class CronogramaService {
         id: true,
         fechaInicio: true,
         fechaFin: true,
+        accionFormacion: { select: { convenioId: true } },
         coberturas: { select: { ubicacionId: true } },
       },
     });
@@ -249,9 +329,36 @@ export class CronogramaService {
       if (mal.length) throw new BadRequestException(mal.join(' '));
     }
 
+    /// EL ASESOR SE COMPRUEBA CONTRA EL GREMIO DEL GRUPO, no contra
+    /// el ámbito de quien edita. Son dos cosas distintas: un líder de
+    /// sistemas ve los dos gremios, y sin esto podría poner de asesor
+    /// de un grupo de ADECOPRIA a alguien que solo responde por
+    /// BRITCHAM. El asesor tiene que poder entrar a lo que se le
+    /// asigna.
+    if (dto.asesorAcademicoId) {
+      const suyo = await this.prisma.adminConvenio.findFirst({
+        where: {
+          adminId: dto.asesorAcademicoId,
+          convenioId: grupo.accionFormacion.convenioId,
+          rol: { in: ROLES_ACADEMICOS },
+          admin: { activo: true },
+        },
+        select: { adminId: true },
+      });
+      if (!suyo) {
+        throw new BadRequestException(
+          'Esa cuenta no puede llevar este grupo: hace falta que sea del mismo ' +
+            'gremio y que tenga permiso de escritura en «académico».',
+        );
+      }
+    }
+
     await this.prisma.grupo.update({
       where: { id },
       data: {
+        /// `undefined` no lo toca; `null` lo suelta.
+        asesorAcademicoId:
+          dto.asesorAcademicoId === undefined ? undefined : dto.asesorAcademicoId,
         fechaInicio: inicio,
         fechaFin: fin,
         dias: dto.dias === undefined ? undefined : dto.dias || null,

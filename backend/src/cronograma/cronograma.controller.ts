@@ -23,6 +23,19 @@ export class CronogramaController {
     return this.cronograma.listar(ambito.convenios);
   }
 
+  /**
+   * Las cuentas que pueden llevar un grupo.
+   *
+   * Mismo permiso que editar el grupo, y a propósito: quien puede
+   * asignar asesor es quien puede ver a quién asignar. La lista de
+   * cuentas de `admin/usuarios` es de SUPERADMIN y no sirve aquí.
+   */
+  @Get('asesores')
+  @Requiere('configuracion', 'ESCRIBIR')
+  asesores(@AmbitoActual() ambito: Ambito) {
+    return this.cronograma.asesoresPosibles(ambito.convenios);
+  }
+
   // configurar la formacion ya es del lider de sistemas y
   // el calendario es parte de ella. Un cambio aqui mueve
   // el "va al dia" de todo un grupo

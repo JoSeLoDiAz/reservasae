@@ -47,6 +47,22 @@ export class SesionDto {
 }
 
 export class ActualizarGrupoDto {
+  /**
+   * El asesor académico del grupo. `null` lo suelta.
+   *
+   * LA COLUMNA EXISTÍA Y NO LA ESCRIBÍA NADIE. La pantalla de
+   * Seguimiento de asesores agrupa por ella, así que salía con una
+   * sola fila ---«Sin asesor asignado»--- y pinta de rota sin estarlo.
+   * Lo vio José al integrar (25 sep 2026): «cero escritores en backend
+   * y cero en el panel; falta la puerta para asignar». Esta es la
+   * puerta.
+   */
+  @IsOptional()
+  @Transform(aNuloOTexto)
+  @ValidateIf((_o: unknown, v: unknown) => v !== null)
+  @IsString()
+  asesorAcademicoId?: string | null;
+
   @IsOptional()
   @Transform(aNuloOTexto)
   @ValidateIf((_o: unknown, v: unknown) => v !== null)

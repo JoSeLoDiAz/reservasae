@@ -93,6 +93,28 @@ siguiente, «¿dónde?».
 
 El filtro no toca el servidor: cada fila ya trae su reparto.
 
+### Y la puerta que faltaba: quién lleva cada grupo
+
+La pestaña académica se alimenta de `asesorAcademicoId`, una columna
+que existía en la base y **que no escribía nadie**: ni el servidor ni
+el panel. Lo vio José al integrar (25 sep 2026), y en la base de
+pruebas eran **120 grupos y 0 asignados**. La pantalla no salía vacía
+---eso se habría notado---: salía con **una sola fila, «Sin asesor
+asignado»**, con todo el mundo dentro, que se lee como un dato y no
+como un hueco.
+
+Ahora se asigna desde **Acciones de formación · Cronograma**: se abre
+la acción, «Editar grupo», y ahí está «Asesor académico». El
+desplegable solo ofrece cuentas **del gremio de ese grupo** con
+permiso de escritura en «académico», y el servidor lo vuelve a
+comprobar por su cuenta: una petición que se salte el desplegable
+recibe un 400 con el motivo.
+
+Mientras nadie tenga grupos, la pestaña **lo dice en pantalla** y
+enlaza a donde se arregla, en vez de enseñar esa fila muda.
+
+**Queda una decisión suya, no del código:** quién lleva cada grupo.
+
 ---
 
 ## Control de inscritos y Control de Reservas
@@ -146,3 +168,6 @@ sitio sin decir a cuál.
 3. **El LMS**: cuál es y su URL. Credenciales al `.env`.
 4. **¿Cuándo entra alguien al aula?** Está en `PARA-JOSE.md` con las
    cuatro preguntas; lo concreta Diana Hernández.
+5. **Repartir los grupos entre los asesores académicos.** La puerta
+   ya está; falta la decisión de quién lleva qué. Hasta que se haga,
+   Seguimiento de asesores enseña un solo renglón.

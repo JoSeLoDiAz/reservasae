@@ -22,6 +22,7 @@
  * pantalla y cualquier aviso futuro no puedan discrepar.
  */
 
+import Link from "next/link";
 import { useCallback, useState } from "react";
 
 import {
@@ -462,6 +463,13 @@ function Academicos() {
     );
   }
 
+  /// NADIE LLEVA NINGÚN GRUPO.
+  /// La pestaña no estaba vacía: enseñaba una fila «Sin asesor
+  /// asignado» con los mil y pico participantes dentro, que se lee
+  /// como un dato y no como lo que es ---que la asignación nunca se
+  /// hizo---. Hasta el 25 sep 2026 no había ni por dónde hacerla.
+  const nadieAsignado = vivos.datos.every((f) => f.asesorId === null);
+
   /// La misma tira de arriba, con lo que se mide en académica.
   const t = vivos.datos.reduce(
     (a, f) => ({
@@ -496,6 +504,23 @@ function Academicos() {
         color={t.porCertificar > 0 ? "var(--error)" : undefined}
       />
     </div>
+
+    {nadieAsignado && (
+      <div className="rounded-lg border border-aviso/30 bg-aviso-suave p-3.5 text-[0.8125rem] text-texto">
+        <p className="font-semibold text-titulo">
+          Ningún grupo tiene asesor académico asignado todavía.
+        </p>
+        <p className="mt-1 text-texto-suave">
+          Por eso toda la gente sale en una sola fila. Se asigna en{" "}
+          <Link href="/admin/acciones/cronograma" className="font-medium underline">
+            Acciones de formación · Cronograma
+          </Link>
+          : se abre la acción, se entra a «Editar grupo» y ahí está «Asesor
+          académico». En cuanto un grupo tenga el suyo, aparece aquí con su
+          carga.
+        </p>
+      </div>
+    )}
 
     {/* LA MISMA `Tabla` QUE LA PESTAÑA DE AL LADO.
 

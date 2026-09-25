@@ -22,6 +22,7 @@ import {
   type TipoDeSesion,
   ETIQUETA_ESTADO_GRUPO,
   type AccionCronograma,
+  type AsesorPosible,
   type EstadoGrupo,
   type GrupoCronograma,
 } from "@/lib/admin-api";
@@ -140,6 +141,9 @@ export function CronogramaVista() {
   const [estado, setEstado] = useState("");
   const [accionId, setAccionId] = useState("");
   const [numeroGrupo, setNumeroGrupo] = useState("");
+  /// A quién se le puede asignar un grupo. Se pide una vez y se
+  /// reparte: son ocho cuentas, no hace falta pedirla por grupo.
+  const [asesores, setAsesores] = useState<AsesorPosible[]>([]);
 
 
   // por el permiso, no por el rol de cuenta: quien
@@ -157,6 +161,18 @@ export function CronogramaVista() {
   useEffect(() => {
     void cargar();
   }, [cargar]);
+
+  /// Solo si puede editar: la ruta pide el mismo permiso y a quien
+  /// solo mira le devolvería un 403 que no significa nada para él.
+  /// Si falla, el desplegable se queda sin opciones y lo dice; no
+  /// es motivo para tapar el cronograma con un error.
+  useEffect(() => {
+    if (!puedeEditar) return;
+    void cronogramaApi
+      .asesores()
+      .then(setAsesores)
+      .catch(() => setAsesores([]));
+  }, [puedeEditar]);
 
 
   if (!acciones) return <Esqueleto conCifras filas={4} />;
@@ -522,6 +538,7 @@ export function CronogramaVista() {
                     })
                   }
                   puedeEditar={puedeEditar}
+                  asesores={asesores}
                   alGuardar={cargar}
                   alFallar={setError}
                 />
@@ -543,6 +560,7 @@ function Accion({
   abierta,
   alAbrir,
   puedeEditar,
+  asesores,
   alGuardar,
   alFallar,
 }: {
@@ -552,6 +570,7 @@ function Accion({
   abierta: boolean;
   alAbrir: () => void;
   puedeEditar: boolean;
+  asesores: AsesorPosible[];
   alGuardar: () => Promise<void>;
   alFallar: (m: string) => void;
 }) {
@@ -635,6 +654,12 @@ function Accion({
                   grupo={g}
                   queEsLaAccion={queEs(accion)}
                   puedeEditar={puedeEditar}
+                  /// SOLO los de este gremio. La misma persona puede
+                  /// llevar grupos en uno y no en el otro, y ofrecerla
+                  /// donde no manda es ofrecer un error del servidor.
+                  asesores={asesores.filter((x) =>
+                    x.convenios.includes(accion.convenioId),
+                  )}
                   alGuardar={alGuardar}
                   alFallar={alFallar}
                 />
@@ -651,12 +676,14 @@ function Grupo({
   grupo,
   queEsLaAccion,
   puedeEditar,
+  asesores,
   alGuardar,
   alFallar,
 }: {
   grupo: GrupoCronograma;
   queEsLaAccion: string;
   puedeEditar: boolean;
+  asesores: AsesorPosible[];
   alGuardar: () => Promise<void>;
   alFallar: (m: string) => void;
 }) {
@@ -664,6 +691,9 @@ function Grupo({
   const [inicio, setInicio] = useState(paraCampo(grupo.fechaInicio));
   const [fin, setFin] = useState(paraCampo(grupo.fechaFin));
   const [dias, setDias] = useState(grupo.dias ?? "");
+  /// Vacío es «sin asignar», y se manda como nulo: es lo que
+  /// suelta el grupo cuando alguien deja de llevarlo.
+  const [asesor, setAsesor] = useState(grupo.asesorAcademicoId ?? "");
   const [sesiones, setSesiones] = useState<SesionEnEdicion[]>(() =>
     grupo.sesiones.map((x) => ({
       tipo: x.tipo,
@@ -692,6 +722,7 @@ function Grupo({
         fechaInicio: inicio || null,
         fechaFin: fin || null,
         dias,
+        asesorAcademicoId: asesor || null,
         sesiones: sesiones.map((x) => ({
           tipo: x.tipo,
           /// La que no lleva dia lo manda nulo aunque haya
@@ -737,6 +768,16 @@ function Grupo({
         {grupo.dias && ` · ${grupo.dias}`}
       </p>
 
+      {/* Quién lo lleva. Solo cuando lo lleva alguien: un «sin
+          asignar» repetido en ciento veinte fichas es ruido, y el
+          hueco ya se ve donde importa --en Seguimiento de asesores--. */}
+      {grupo.asesorAcademico && (
+        <p className="mt-1 text-[0.78125rem] text-texto-suave">
+          Asesor académico:{" "}
+          <span className="font-medium text-titulo">{grupo.asesorAcademico}</span>
+        </p>
+      )}
+
       {/* Las sesiones, una por linea: un bootcamp lleva dos y
           una hibrida lleva la presencial mas la conexion. */}
       {grupo.sesiones.length === 0 ? (
@@ -779,7 +820,7 @@ function Grupo({
             }}
             className="sin-aro text-[0.78125rem] font-semibold text-marca underline-offset-2 transition hover:underline"
           >
-            {editando ? "Cerrar" : "Editar fechas"}
+            {editando ? "Cerrar" : "Editar grupo"}
           </button>
           <button
             onClick={() => setEditandoCupos(!editandoCupos)}
@@ -813,6 +854,32 @@ function Grupo({
 
       {editando && (
         <div className="mt-4 border-t border-borde pt-4">
+          {/* QUIÉN LO LLEVA, lo primero.
+              No existía forma de asignarlo: la columna estaba en la
+              base y en la pantalla de seguimiento, pero nada la
+              escribía, así que Seguimiento de asesores enseñaba una
+              pestaña académica siempre vacía (José, 25 sep 2026). */}
+          <label className="mb-3 block">
+            <span className="mb-1 block text-xs font-medium">Asesor académico</span>
+            <select
+              value={asesor}
+              onChange={(e) => setAsesor(e.target.value)}
+              className={CLASE_CONTROL}
+            >
+              <option value="">Sin asignar</option>
+              {asesores.map((x) => (
+                <option key={x.id} value={x.id}>
+                  {x.nombre}
+                </option>
+              ))}
+            </select>
+            <span className="mt-1 block text-xs text-texto-suave">
+              {asesores.length === 0
+                ? "No hay ninguna cuenta de este gremio con permiso de escritura en «académico»: se le da en Usuarios."
+                : "Quien responde por el avance de este grupo. Es su nombre el que sale en Seguimiento de asesores."}
+            </span>
+          </label>
+
           <div className="grid gap-3 sm:grid-cols-3">
             <label className="block">
               <span className="mb-1 block text-xs font-medium">Empieza</span>
