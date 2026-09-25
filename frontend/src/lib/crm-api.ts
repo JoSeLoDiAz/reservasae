@@ -680,6 +680,18 @@ export type FilaAcademica = {
   diasSinEntrar: number | null;
   notaFinal: string | null;
   estado: EstadoAcademico;
+  /// Por donde se le escribe. Columna de la tabla del aula.
+  correo: string | null;
+  /// Su avance ACTIVIDAD POR ACTIVIDAD, en el orden del curso: es lo
+  /// que pivota a una columna por cada una --UT1, UT2… EVAL FINAL--.
+  /// Vienen TODAS las del curso, hechas o no: la que no tiene avance
+  /// es «no iniciada» y también ocupa su columna.
+  actividades: Array<{
+    orden: number;
+    titulo: string;
+    obligatoria: boolean;
+    completada: boolean;
+  }>;
 };
 
 export type Academico = {

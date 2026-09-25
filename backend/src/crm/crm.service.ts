@@ -4089,6 +4089,9 @@ export class CrmService {
             primerNombre: true,
             primerApellido: true,
             numeroDocumento: true,
+            /// Columna de la tabla del aula: es por donde el asesor
+            /// escribe cuando alguien no contesta el teléfono.
+            correo: true,
           },
         },
         accionFormacion: { select: { id: true, codigo: true, nombre: true } },
@@ -4115,6 +4118,15 @@ export class CrmService {
             estado: true,
             actividad: {
               select: {
+                id: true,
+                /// El ORDEN y el TÍTULO, para pivotear el avance a una
+                /// columna por actividad --UT1, UT2… EVAL FINAL-- en vez
+                /// de una sola cifra de «hechas». Sin esto se sabe
+                /// CUÁNTAS lleva y no CUÁLES, que es lo que hace falta
+                /// para saber a quién le falta justo la cuarta, la que
+                /// lo deja certificable.
+                orden: true,
+                titulo: true,
                 obligatoria: true,
                 publicada: true,
                 accionFormacionId: true,
@@ -4124,6 +4136,30 @@ export class CrmService {
         },
       },
     });
+
+    /// EL CATÁLOGO DE ACTIVIDADES DE CADA ACCIÓN.
+    ///
+    /// Hace falta aparte de los avances: quien no ha hecho NINGUNA no
+    /// tiene ni una fila en `avances`, y sin el catálogo su fila
+    /// saldría sin columnas en vez de con seis rayas. La ausencia de
+    /// avance es «no iniciada», y eso hay que poder pintarlo.
+    const catalogo = await this.prisma.actividad.findMany({
+      where: { publicada: true },
+      orderBy: [{ accionFormacionId: 'asc' }, { orden: 'asc' }],
+      select: {
+        id: true,
+        accionFormacionId: true,
+        orden: true,
+        titulo: true,
+        obligatoria: true,
+      },
+    });
+    const actividadesDe = new Map<string, typeof catalogo>();
+    for (const a of catalogo) {
+      const suyas = actividadesDe.get(a.accionFormacionId) ?? [];
+      suyas.push(a);
+      actividadesDe.set(a.accionFormacionId, suyas);
+    }
 
     // las obligatorias son las que cuentan para el avance
     const obligatorias = await this.prisma.actividad.groupBy({
@@ -4224,6 +4260,22 @@ export class CrmService {
         diasSinEntrar,
         notaFinal: p.notaFinal,
         estado,
+        correo: p.persona.correo,
+        /// SU AVANCE, ACTIVIDAD POR ACTIVIDAD, en el orden del curso.
+        ///
+        /// «Completada» es APROBADA y no ENTREGADA: es el mismo
+        /// criterio con el que se cuenta `hechas` dos líneas más
+        /// arriba, y dos definiciones de completada en la misma fila
+        /// es justo lo que hace que una cifra no cuadre con la de al
+        /// lado.
+        actividades: (actividadesDe.get(p.accionFormacionId ?? '') ?? []).map((a) => ({
+          orden: a.orden,
+          titulo: a.titulo,
+          obligatoria: a.obligatoria,
+          completada: p.avances.some(
+            (av) => av.actividad.id === a.id && av.estado === 'APROBADA',
+          ),
+        })),
       };
     });
 
