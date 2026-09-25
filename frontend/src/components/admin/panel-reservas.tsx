@@ -1708,7 +1708,17 @@ function PorDepartamento({
     <Bloque
       estirado
       titulo="Cupos por departamento"
-      descripcion="Dónde se dictan los cursos de las reservas. En verde, los cupos que ya tienen una persona detrás. Pulse uno para ver su seguimiento debajo."
+      descripcion={
+        <>
+          Dónde se dictan los cursos de las reservas. En verde, los cupos que ya tienen una
+          persona detrás.{" "}
+          {/* LA INSTRUCCIÓN NO SE IMPRIME. En la hoja decía «Pulse uno
+              para ver su seguimiento debajo» y en papel no se pulsa
+              nada: es una frase que solo se descubre mirando el PDF, y
+              deja el informe hablándole a un ratón que no existe. */}
+          <span className="no-imprimir">Pulse uno para ver su seguimiento debajo.</span>
+        </>
+      }
     >
       {filas.length === 0 && (
         <p className="py-4 text-[0.8125rem] text-texto-suave">
