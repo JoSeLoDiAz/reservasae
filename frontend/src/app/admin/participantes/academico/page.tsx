@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useCallback, useState } from "react";
 
-import { colorEtapa, estiloEtapa } from "@/components/admin/etapa";
+import { colorEtapa } from "@/components/admin/etapa";
 import { IndicadorActualizacion } from "@/components/admin/indicador-actualizacion";
 import { Aviso, CLASE_CONTROL, Tarjeta } from "@/components/admin/marco-admin";
 import { Esqueleto } from "@/components/admin/piezas";
@@ -18,9 +18,7 @@ import {
   crmApi,
   type EstadoAcademico,
   ETIQUETA_ACADEMICA,
-  AYUDA_ETAPA,
   type Etapa,
-  ETIQUETA_ETAPA,
   type FilaAcademica,
 } from "@/lib/crm-api";
 
@@ -35,13 +33,16 @@ const COLOR: Record<EstadoAcademico, string> = {
 };
 
 /// De lo más urgente a lo que no pide nada.
+/// LOS SEIS, EN EL ORDEN QUE ÉL LOS DICTÓ: del que no ha entrado al
+/// que ya terminó. «Sin actividades» va segundo porque es el paso
+/// siguiente a no haber entrado, y así la fila se lee como un camino.
 const ORDEN: EstadoAcademico[] = [
   "SIN_INGRESO",
+  "SIN_EMPEZAR",
   "ATRASADO",
   "AL_DIA",
   "COMPLETADO",
   "CERTIFICADO",
-  "SIN_EMPEZAR",
 ];
 
 /**
@@ -121,7 +122,7 @@ function Seguimiento() {
   if (vivos.error) return <Aviso tipo="error">{vivos.error}</Aviso>;
   if (!datos) return <Esqueleto conCifras />;
 
-  const { resumen, criterio } = datos;
+  const { resumen } = datos;
   // los dos filtros son excluyentes: un estado de ritmo es
   // de quien sigue dentro, y una salida de quien ya no
   const visibles = salida
@@ -130,13 +131,6 @@ function Seguimiento() {
     ? datos.personas.filter((p) => !p.salio && p.estado === filtro)
     : datos.personas;
 
-  // las salidas no son estados de ritmo: van por su etapa
-  const SALIDAS: Array<[Etapa, number]> = [
-    ["DESERTO", resumen.desertaron],
-    ["ABANDONO", resumen.abandonaron],
-    ["RETIRADO", resumen.retirados],
-    ["NO_APROBO", resumen.noAprobaron],
-  ];
 
   const cuenta: Record<EstadoAcademico, number> = {
     SIN_INGRESO: resumen.sinIngreso,
@@ -332,28 +326,38 @@ function Seguimiento() {
           />
         </div>
 
-        {/* Los estados, DENTRO de la misma tarjeta que los
-            filtros y separados por una raya.
 
-            Eran dos tarjetas y antes diez cajas sueltas. Y son
-            lo mismo: pulsar un estado ES filtrar. Tenerlos en
-            cajas distintas decía que eran dos cosas, y por eso
-            la pantalla parecía tener el doble de sitios donde
-            mirar de los que tiene. */}
-        <p className="mt-3.5 border-t border-hairline pt-3 text-[0.6875rem] font-bold tracking-[0.08em] text-texto-suave uppercase">
-          En qué estado está cada quien
-          <span className="ml-2.5 font-normal tracking-normal normal-case">
-            pulse uno para quedarse solo con esa gente
-          </span>
-        </p>
 
+        {/* SIN LA FILA DE SALIDAS. Eran cuatro tarjetas más
+            --Desertó, Abandonó, Retirado, No aprobó-- y con las seis
+            de arriba hacían diez: «¿cuántas tarjetas te dije?»
+            (cliente, 24 sep 2026). Él dictó SEIS estados y esos son
+            los que se miden aquí.
+
+            Quien se fue no desaparece: sigue en la tabla con su
+            etapa, y el reparto por puerta de salida está en el
+            tablero de Seguimiento académico, en Tableros, que es
+            donde viven los resúmenes. */}
+
+
+      </div>
+
+      {/* LAS SEIS, FUERA DE LA TARJETA DE FILTROS (cliente, 24 sep
+          2026: «las tarjetas viven afuera»). Estuvieron dentro y
+          separadas por una raya, con el argumento de que pulsar un
+          estado ES filtrar; él prefiere verlas sueltas, y sueltas se
+          leen como lo que también son: el reparto del aula.
+
+          Y sin los dos textos que las acompañaban --«pulse uno para
+          quedarse solo con esa gente» y el párrafo de metodología con
+          el 80 % y los 14 días--: «estos comentarios se van». */}
         {/* AL ALTO DE LA CASA: 51 px, relleno 8/14 y cifra de 17 px
             (cliente, 24 sep 2026: «esto más reducido por favor»). Es
             la misma medida de `CifraCompacta` --la de Gestión de
             leads, que él aprobó-- y no una talla inventada para esta
             pantalla. Estas no pueden SER `CifraCompacta` porque se
             pulsan: son los filtros. Lo que se copia es la medida. */}
-        <div className="mt-2.5 grid gap-2 sm:grid-cols-3 lg:grid-cols-6">
+        <div className="grid gap-2 sm:grid-cols-3 lg:grid-cols-6">
           {ORDEN.map((estado) => (
             <button
               key={estado}
@@ -379,62 +383,6 @@ function Seguimiento() {
             </button>
           ))}
         </div>
-
-        <p className="mt-3.5 border-t border-hairline pt-3 text-[0.6875rem] font-bold tracking-[0.08em] text-texto-suave uppercase">
-          Y quiénes salieron del aula
-          <span className="ml-2.5 font-normal tracking-normal normal-case">
-            no se miden por ritmo: cuenta por qué se fueron
-          </span>
-        </p>
-
-        <div className="mt-2.5 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-          {SALIDAS.map(([etapa, cuantos]) => (
-            <button
-              key={etapa}
-              onClick={() => {
-                setFiltro("");
-                setSalida(salida === etapa ? "" : etapa);
-              }}
-              aria-pressed={salida === etapa}
-              style={estiloEtapa(etapa)}
-              /// La explicación va al `title` y no debajo: era el
-              /// renglón que hacía estas cuatro casi el doble de
-              /// altas que las seis de arriba, y decía lo mismo en
-              /// las dos filas. Quien dude de una cifra la tiene al
-              /// pasar el ratón; quien no, no la necesita.
-              title={AYUDA_ETAPA[etapa] || undefined}
-              className={`rounded-lg border bg-superficie px-3.5 py-2 text-left transition hover:border-campo-borde ${
-                salida === etapa ? "border-marca bg-marca-suave" : "border-borde"
-              }`}
-            >
-              <span className="flex items-center gap-1.5 text-[0.625rem] font-semibold tracking-[0.08em] uppercase">
-                <span className="punto-etapa" aria-hidden />
-                <span className="truncate text-texto-suave">
-                  {ETIQUETA_ETAPA[etapa]}
-                </span>
-              </span>
-              <span className="mt-1 block text-[1.0625rem] leading-none font-bold tabular-nums">
-                {cuantos}
-              </span>
-            </button>
-          ))}
-        </div>
-
-        {/* La metodología, al pie y en pequeño. Es lo que hay
-            que poder consultar cuando una cifra sorprende, no lo
-            primero que se lee al entrar. */}
-        <p className="mt-3.5 border-t border-hairline pt-3 text-[0.71875rem] leading-relaxed text-texto-suave">
-          <strong className="font-semibold">Sin ingreso</strong> nunca entró,{" "}
-          <strong className="font-semibold">Sin empezar</strong> es que su grupo
-          aún no arrancó o no tiene fechas, y{" "}
-          <strong className="font-semibold">Atrasado</strong> va{" "}
-          {criterio.tolerancia} actividades o más por debajo de lo que tocaría a
-          estas alturas. Se certifica con el{" "}
-          {Math.round(criterio.minimoParaCertificar * 100)} % de lo obligatorio
-          aprobado, y se considera parado a los {criterio.diasParado} días sin
-          volver.
-        </p>
-      </div>
 
       {visibles.length === 0 ? (
         <Tarjeta

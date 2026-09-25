@@ -638,7 +638,11 @@ export type EstadoAcademico =
 
 export const ETIQUETA_ACADEMICA: Record<EstadoAcademico, string> = {
   SIN_INGRESO: "Sin ingreso",
-  SIN_EMPEZAR: "Sin empezar",
+  /// «SIN ACTIVIDADES» Y NO «SIN EMPEZAR» (cliente, 24 sep 2026).
+  /// Es como él nombró el estado en su lista, y describe mejor lo que
+  /// pasa: la persona puede haber entrado al aula y no haber hecho
+  /// nada, que no es lo mismo que «no ha empezado el curso».
+  SIN_EMPEZAR: "Sin actividades",
   ATRASADO: "Atrasado",
   AL_DIA: "Al día",
   COMPLETADO: "Listo para certificar",
