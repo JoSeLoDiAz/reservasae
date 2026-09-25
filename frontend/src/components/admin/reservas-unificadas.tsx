@@ -20,7 +20,7 @@
  * lado pagina de a 200.
  */
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useState, type ReactNode } from "react";
 
 import { Cajon, Dato } from "./cajon";
 import { Desplegable } from "./desplegable";
@@ -219,10 +219,26 @@ export function ReservasUnificadas({
   datos,
   puedeEditar,
   alRefrescar,
+  botones,
 }: {
   datos: ReservasAgrupadas | null;
   puedeEditar: boolean;
   alRefrescar: () => void;
+  /**
+   * La descarga y el cargue, que son de la PANTALLA y no de la vista.
+   *
+   * «Debemos tener los mismos botones en las dos vistas» (cliente, 25
+   * sep 2026). Vivían solo en «Por reserva» porque allí nacieron, y
+   * al cambiar de vista desaparecían: el Excel que descargan es el
+   * mismo fichero --una fila por reserva, del servidor-- y la
+   * plantilla que cargan también, así que no había nada que
+   * justificara que solo se pudieran usar desde una de las dos.
+   *
+   * Se reciben y no se construyen aquí para que sean LOS MISMOS y no
+   * dos copias que se separan a la primera: los arma la pantalla, una
+   * vez, y se los pasa a las dos.
+   */
+  botones?: ReactNode;
 }) {
   const [abierta, setAbierta] = useState<FilaAgrupada | null>(null);
 
@@ -542,6 +558,7 @@ export function ReservasUnificadas({
           clave={(f) => f.empresaId}
           alClic={setAbierta}
           sinDescarga
+          acciones={botones}
           vacio="Aparecerán en cuanto alguien reserve desde un formulario."
         />
       )}

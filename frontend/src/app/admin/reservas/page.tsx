@@ -299,6 +299,41 @@ export default function PaginaReservas() {
   /// busqueda y la paginacion quedaban pegadas al canto.
   const mirando = vista === "organizacion" ? agrupadas : vivos;
 
+  /**
+   * La descarga y el cargue, UNA VEZ Y PARA LAS DOS VISTAS.
+   *
+   * «Debemos tener los mismos botones en las dos vistas» (cliente, 25
+   * sep 2026). Estaban escritos dentro de la tabla de «Por reserva»,
+   * que es donde nacieron, y al pasar a «Por organización»
+   * desaparecían. No hay razón: el Excel sale del servidor con una
+   * fila por reserva --el mismo fichero se mire como se mire-- y la
+   * plantilla que se carga tampoco depende de cómo esté agrupada la
+   * pantalla.
+   *
+   * Lo que refresca al terminar el cargue es la vista QUE SE ESTÁ
+   * MIRANDO, no siempre el listado por reserva: subir un fichero
+   * desde «Por organización» y ver la tabla igual que antes se lee
+   * como que el cargue no funcionó.
+   */
+  const botones = (
+    <>
+      <button
+        onClick={() => descargar("reservas", {})}
+        /// La medida de la barra de la tabla, la misma que
+        /// los dos de `CarguePlantilla` que vienen detrás:
+        /// 32 de alto, radio 9, relleno 13.
+        className="inline-flex h-[32px] items-center rounded-[9px] bg-marca px-[13px] text-[0.78125rem] font-semibold text-marca-texto transition hover:bg-marca-fuerte sin-aro"
+      >
+        Descargar en Excel
+      </button>
+      <CarguePlantilla
+        entidad="reservas"
+        admiteNuevas={false}
+        alTerminar={() => mirando.refrescar()}
+      />
+    </>
+  );
+
   return (
     <div className="flex min-h-0 grow flex-col gap-3 px-4 pt-3">
       <ElegirVista vista={vista} alElegir={elegirVista} />
@@ -324,6 +359,7 @@ export default function PaginaReservas() {
           datos={agrupadas.datos}
           puedeEditar={puedeEditarEstado}
           alRefrescar={agrupadas.refrescar}
+          botones={botones}
         />
       )}
 
@@ -390,24 +426,7 @@ export default function PaginaReservas() {
           // ya trae la suya, del servidor y con todas las filas
           sinDescarga
           vacio="Aparecerán en cuanto alguien reserve desde un formulario."
-          acciones={
-            <>
-              <button
-                onClick={() => descargar("reservas", {})}
-                /// La medida de la barra de la tabla, la misma que
-                /// los dos de `CarguePlantilla` que vienen detrás:
-                /// 32 de alto, radio 9, relleno 13.
-                className="inline-flex h-[32px] items-center rounded-[9px] bg-marca px-[13px] text-[0.78125rem] font-semibold text-marca-texto transition hover:bg-marca-fuerte sin-aro"
-              >
-                Descargar en Excel
-              </button>
-              <CarguePlantilla
-                entidad="reservas"
-                admiteNuevas={false}
-                alTerminar={() => vivos.refrescar()}
-              />
-            </>
-          }
+          acciones={botones}
         />
       )}
 
