@@ -142,7 +142,20 @@ import {
  * todo, nunca puede venir de la petición: lo pone el
  * controlador desde el guard.
  */
-export type Filtros = FiltrosParticipantesDto & { ambito?: string[] };
+export type Filtros = FiltrosParticipantesDto & {
+  ambito?: string[];
+  /// UNA PERSONA CONCRETA, solo para `academico()`.
+  ///
+  /// Es lo que pide la vista individual del aula: la misma fila que
+  /// sale en la lista ---con su estado, su avance actividad por
+  /// actividad y sus días sin gestión--- pero de una sola. Se calcula
+  /// en un sitio y no en dos, que es como se acaba enseñando un
+  /// «atrasado» en la lista y un «al día» al abrirlo.
+  ///
+  /// No va en el DTO porque no es un filtro de la lista: entra por la
+  /// ruta, no por la cadena de consulta.
+  participanteId?: string;
+};
 
 const POR_PAGINA = 30;
 /// Tope duro aunque el filtro pida mas.
@@ -700,6 +713,13 @@ export class CrmService {
           creadoEn: true,
           datosTocadosPorAsesorEn: true,
           accionFormacionId: true,
+          /// El código, para rotular el desglose de cada asesor sin
+          /// una segunda consulta ni un mapa en memoria.
+          /// EL NOMBRE ADEMÁS DEL CÓDIGO: los códigos AF se
+          /// repiten entre convenios ---hay dos «AF1»--- así que un
+          /// filtro que solo enseñe el código ofrece dos opciones
+          /// idénticas y no hay forma de saber cuál es cuál.
+          accionFormacion: { select: { codigo: true, nombre: true } },
           asesor: { select: { nombre: true } },
           _count: { select: { notas: true } },
         },
@@ -719,6 +739,8 @@ export class CrmService {
         datosTocadosPorAsesorEn: l.datosTocadosPorAsesorEn,
         notas: l._count.notas,
         accionFormacionId: l.accionFormacionId,
+        accionCodigo: l.accionFormacion?.codigo ?? null,
+        accionNombre: l.accionFormacion?.nombre ?? null,
       })),
       cierrePorAccion(grupos),
       ahora,
@@ -4116,10 +4138,94 @@ export class CrmService {
    * a estas alturas del calendario del grupo.
    */
   async academico(filtros: Filtros) {
+    /// LAS TRES REGLAS DEL AULA, aparte de lo que el usuario elija.
+    ///
+    /// Hace falta separarlas porque las OPCIONES de los desplegables
+    /// se sacan de aquí y no de lo ya filtrado. Ver `baseDelAula`
+    /// unas líneas más abajo.
+    const reglasDelAula: Prisma.ParticipanteWhereInput[] = [
+      { etapa: { in: ETAPAS_EN_AULA } },
+      /// SOLO LO VIRTUAL, Y POR LA OFERTA DE CADA PERSONA.
+        ///
+        /// «Seguimiento del aula es solo de las acciones de formación
+        /// virtuales; no aplica presencial, bootcamp ni foro»
+        /// (cliente, 24 sep 2026).
+        ///
+        /// Se mira la modalidad de SU cobertura y no la de la acción,
+        /// y no es un capricho: AF7 y AF8 tienen ofertas presenciales,
+        /// híbridas y virtuales a la vez, así que la acción no
+        /// distingue a quién sigue un aula. La cobertura sí: es la
+        /// oferta concreta en la que esa persona quedó.
+        ///
+        /// Y la modalidad de la ACCIÓN tampoco serviría aunque fueran
+        /// puras: AF6 es un bootcamp y está guardada como PRESENCIAL
+        /// --lo dice el comentario de `SesionDeGrupo` en el schema--,
+        /// así que preguntar por la acción dejaría fuera lo correcto
+        /// por accidente y no por la regla.
+        { cobertura: { modalidad: 'VIRTUAL' } },
+        /// Y SOLO LOS CURSOS: «no aplica presencial, bootcamp ni
+        /// foro» (cliente, 24 sep 2026).
+        ///
+        /// Por `evento`, que es el campo que ya lo decía --CURSO,
+        /// TALLER, TALLER-BOOTCAMP, FORO-- y que la pantalla de Oferta
+        /// lleva enseñando desde siempre: «AF1 · CURSO virtual · 40 h».
+        ///
+        /// ESTUVO UN RATO COMO UNA LISTA DE CÓDIGOS a mano, con «AF7»
+        /// dentro, y estaba mal de una forma que solo se ve mirando los
+        /// dos gremios a la vez: el foro es AF8 en uno y AF7 en el
+        /// otro. Aquella lista sacaba el foro de ADECOPRIA y, de paso,
+        /// el BOOTCAMP del otro gremio, dejando su foro dentro. Justo
+        /// al revés de lo que se pedía, y sin que nada fallara.
+        ///
+        /// La regla es del dato, no del código de la acción. Un
+        /// convenio nuevo con sus propios números entra sin tocar una
+        /// línea, que es la misma razón por la que `SesionDeGrupo` no
+        /// pregunta nunca «¿es la AF6?».
+      { accionFormacion: { evento: 'CURSO' } },
+    ];
+
     const donde: Prisma.ParticipanteWhereInput = {
       AND: [
         this.donde({ ...filtros, etapa: undefined }),
-        { etapa: { in: ETAPAS_EN_AULA } },
+        ...reglasDelAula,
+        /// La vista individual pide una sola. Va aquí y NO en
+        /// `baseDelAula`: aquello alimenta las opciones de los
+        /// desplegables, y con esto dentro se quedarían con la única
+        /// acción de esa persona.
+        ...(filtros.participanteId ? [{ id: filtros.participanteId }] : []),
+      ],
+    };
+
+    /**
+     * TODO EL AULA, sin lo que el usuario haya elegido en los
+     * desplegables.
+     *
+     * De aquí salen las OPCIONES de «Acción de Formación» y «Grupo».
+     * Salían de `filas` ---lo ya filtrado--- y eso las rompía de dos
+     * maneras a la vez:
+     *
+     *  · Elegida AF1, el servidor devolvía solo gente de AF1, así
+     *    que la lista se quedaba con AF1 y NO SE PODÍA CAMBIAR A
+     *    AF2 sin limpiar antes. «Debería mostrar siempre las dos,
+     *    indiferente de cuál filtre» (cliente, 24 sep 2026).
+     *
+     *  · Y aun sin filtrar, `filas` viene cortada en
+     *    `TOPE_POR_PAGINA`: con el aula llena, las acciones de la
+     *    fila 301 en adelante no salían en el desplegable.
+     *
+     * Una lista de opciones nunca se saca del resultado que esa
+     * misma lista filtra.
+     */
+    const baseDelAula: Prisma.ParticipanteWhereInput = {
+      AND: [
+        this.donde({
+          ...filtros,
+          etapa: undefined,
+          accionFormacionId: undefined,
+          grupoId: undefined,
+          asesorId: undefined,
+        }),
+        ...reglasDelAula,
       ],
     };
 
@@ -4138,6 +4244,9 @@ export class CrmService {
             primerNombre: true,
             primerApellido: true,
             numeroDocumento: true,
+            /// Columna de la tabla del aula: es por donde el asesor
+            /// escribe cuando alguien no contesta el teléfono.
+            correo: true,
           },
         },
         accionFormacion: { select: { id: true, codigo: true, nombre: true } },
@@ -4145,6 +4254,15 @@ export class CrmService {
         cobertura: {
           select: {
             grupoId: true,
+            /// DÓNDE QUEDÓ, para la columna «Departamento».
+            ///
+            /// Del lado de la COBERTURA y no de la persona: el
+            /// departamento que importa aquí es el de la oferta en la
+            /// que entró ---de dónde es su grupo---, no el de su
+            /// cédula. Es el mismo criterio con el que «Grupos de AF»
+            /// reparte sus filas, y así las dos pantallas suman lo
+            /// mismo.
+            ubicacion: { select: { nombre: true, tipo: true, departamento: true } },
             grupo: {
               select: {
                 numero: true,
@@ -4159,11 +4277,45 @@ export class CrmService {
             },
           },
         },
+        /// CUÁNTAS NOTAS LLEVA. Un `_count` y no traérselas: la
+        /// columna enseña el número, y bajar el texto de trescientas
+        /// gestiones para contarlas es cargar un megabyte y tirarlo.
+        _count: { select: { notas: true } },
+        /// Y CUÁNDO FUE LA ÚLTIMA. Solo la fecha de la más reciente:
+        /// es «última actividad» en el sentido del asesor ---cuándo
+        /// se le tocó por última vez---, que no es el «último
+        /// ingreso» del aula, y por eso son dos columnas.
+        notas: {
+          orderBy: { creadoEn: 'desc' },
+          take: 1,
+          select: { creadoEn: true },
+        },
+        /// CUÁNDO ENTRÓ EL LEAD, para su antigüedad en días.
+        ///
+        /// La PRIMERA vez que llegó, no la última: quien vuelve por
+        /// otro mailing no rejuvenece. Si no salió de un lead ---lo
+        /// metió un asesor a mano, o vino de una carga--- no hay
+        /// `LeadEntrante` y se cae a `creadoEn` de la ficha, que es
+        /// lo más temprano que consta de esa persona.
+        leads: {
+          orderBy: { recibidoEn: 'asc' },
+          take: 1,
+          select: { recibidoEn: true },
+        },
         avances: {
           select: {
             estado: true,
             actividad: {
               select: {
+                id: true,
+                /// El ORDEN y el TÍTULO, para pivotear el avance a una
+                /// columna por actividad --UT1, UT2… EVAL FINAL-- en vez
+                /// de una sola cifra de «hechas». Sin esto se sabe
+                /// CUÁNTAS lleva y no CUÁLES, que es lo que hace falta
+                /// para saber a quién le falta justo la cuarta, la que
+                /// lo deja certificable.
+                orden: true,
+                titulo: true,
                 obligatoria: true,
                 publicada: true,
                 accionFormacionId: true,
@@ -4173,6 +4325,30 @@ export class CrmService {
         },
       },
     });
+
+    /// EL CATÁLOGO DE ACTIVIDADES DE CADA ACCIÓN.
+    ///
+    /// Hace falta aparte de los avances: quien no ha hecho NINGUNA no
+    /// tiene ni una fila en `avances`, y sin el catálogo su fila
+    /// saldría sin columnas en vez de con seis rayas. La ausencia de
+    /// avance es «no iniciada», y eso hay que poder pintarlo.
+    const catalogo = await this.prisma.actividad.findMany({
+      where: { publicada: true },
+      orderBy: [{ accionFormacionId: 'asc' }, { orden: 'asc' }],
+      select: {
+        id: true,
+        accionFormacionId: true,
+        orden: true,
+        titulo: true,
+        obligatoria: true,
+      },
+    });
+    const actividadesDe = new Map<string, typeof catalogo>();
+    for (const a of catalogo) {
+      const suyas = actividadesDe.get(a.accionFormacionId) ?? [];
+      suyas.push(a);
+      actividadesDe.set(a.accionFormacionId, suyas);
+    }
 
     // las obligatorias son las que cuentan para el avance
     const obligatorias = await this.prisma.actividad.groupBy({
@@ -4219,6 +4395,50 @@ export class CrmService {
       const diasSinEntrar = p.ultimoAcceso
         ? Math.floor((ahora - p.ultimoAcceso.getTime()) / 86_400_000)
         : null;
+
+      /// DÓNDE QUEDÓ. `departamento` viene relleno en las CIUDADES;
+      /// en las ubicaciones que YA SON un departamento va en nulo y
+      /// el nombre es el departamento. Sin esta segunda rama, media
+      /// tabla salía en raya según cómo estuviera cargada la sede.
+      const u = p.cobertura?.ubicacion ?? null;
+      const departamento =
+        u?.departamento ?? (u?.tipo === 'DEPARTAMENTO' ? u.nombre : null);
+
+      /// ANTIGÜEDAD DEL LEAD, EN DÍAS.
+      ///
+      /// Desde que entró hasta hoy, y «entró» es lo más temprano que
+      /// consta: la fecha en que llegó el lead si vino por uno, y si
+      /// no la de creación de la ficha. Se cuenta aquí y no en la
+      /// pantalla a propósito ---el navegador del asesor puede tener
+      /// la hora corrida, y entonces dos personas verían antigüedades
+      /// distintas para la misma fila---.
+      ///
+      /// Días enteros: `floor`, para que quien entró hace veinte
+      /// horas lleve 0 días y no 1.
+      const entroEn = p.leads[0]?.recibidoEn ?? p.creadoEn;
+      const diasDeAntiguedad = Math.max(
+        0,
+        Math.floor((ahora - entroEn.getTime()) / 86_400_000),
+      );
+
+      /// DÍAS SIN GESTIÓN: desde la última nota hasta hoy.
+      ///
+      /// NO es lo mismo que la antigüedad, y por eso son dos columnas
+      /// (cliente, 24 sep 2026: «¿como días sin gestión, no?»). La
+      /// antigüedad dice cuánto lleva ahí; esto dice a quién hay que
+      /// llamar hoy. Alguien de hace cuatro meses gestionado ayer no
+      /// necesita nada, y alguien de la semana pasada al que nadie ha
+      /// tocado sí.
+      ///
+      /// SIN NINGUNA NOTA se cuenta desde que ENTRÓ, no en nulo: a
+      /// quien nunca se ha tocado es al que más falta le hace salir en
+      /// esa lista, y con nulo se iba al fondo de la ordenación justo
+      /// por eso. Lo dice la columna con su propio texto.
+      const desdeGestion = p.notas[0]?.creadoEn ?? entroEn;
+      const diasSinGestion = Math.max(
+        0,
+        Math.floor((ahora - desdeGestion.getTime()) / 86_400_000),
+      );
 
       // el 80% de lo obligatorio: es lo que habilita a
       // certificar, y se mide contra el total del curso,
@@ -4273,6 +4493,30 @@ export class CrmService {
         diasSinEntrar,
         notaFinal: p.notaFinal,
         estado,
+        correo: p.persona.correo,
+        departamento,
+        /// LO QUE HA HECHO EL ASESOR, que es lo único de esta tabla
+        /// que no es del LMS: cuántas veces lo ha tocado y cuándo fue
+        /// la última. El resto de columnas las manda el aula.
+        notas: p._count.notas,
+        ultimaNota: p.notas[0]?.creadoEn ?? null,
+        diasDeAntiguedad,
+        diasSinGestion,
+        /// SU AVANCE, ACTIVIDAD POR ACTIVIDAD, en el orden del curso.
+        ///
+        /// «Completada» es APROBADA y no ENTREGADA: es el mismo
+        /// criterio con el que se cuenta `hechas` dos líneas más
+        /// arriba, y dos definiciones de completada en la misma fila
+        /// es justo lo que hace que una cifra no cuadre con la de al
+        /// lado.
+        actividades: (actividadesDe.get(p.accionFormacionId ?? '') ?? []).map((a) => ({
+          orden: a.orden,
+          titulo: a.titulo,
+          obligatoria: a.obligatoria,
+          completada: p.avances.some(
+            (av) => av.actividad.id === a.id && av.estado === 'APROBADA',
+          ),
+        })),
       };
     });
 
@@ -4284,27 +4528,52 @@ export class CrmService {
     const cuenta = (e: EstadoAcademico) =>
       personas.filter((p) => !p.salio && p.estado === e).length;
 
-    // las opciones salen de quien esta en el aula, no de
-    // todo el catalogo: un filtro con 15 acciones vacias
-    // hace perder el tiempo
-    const acciones = [
-      ...new Map(
-        filas
-          .filter((f) => f.accionFormacion)
-          .map((f) => [
-            f.accionFormacion!.id,
-            {
-              id: f.accionFormacion!.id,
-              codigo: f.accionFormacion!.codigo,
-              nombre: f.accionFormacion!.nombre,
-            },
-          ]),
-      ).values(),
-    ].sort((a, b) => a.codigo.localeCompare(b.codigo));
+    /// LAS OPCIONES, DE TODO EL AULA Y NO DE LO YA FILTRADO.
+    ///
+    /// Sigue sin ser el catálogo entero ---un filtro con quince
+    /// acciones vacías hace perder el tiempo---: es quién hay en el
+    /// aula, que es lo que siempre se quiso. Lo que cambia es que ya
+    /// no depende de lo que el usuario tenga puesto.
+    ///
+    /// Tres consultas más, y baratas: `distinct` sobre un `where`
+    /// que ya usa los índices de `participantes`, sin traer avances
+    /// ni notas.
+    const [deAcciones, deGrupos, deAsesores] = await Promise.all([
+      this.prisma.participante.findMany({
+        where: baseDelAula,
+        distinct: ['accionFormacionId'],
+        select: {
+          accionFormacion: { select: { id: true, codigo: true, nombre: true } },
+        },
+      }),
+      this.prisma.participante.findMany({
+        where: baseDelAula,
+        /// Por COBERTURA y no por grupo: un grupo puede tener varias
+        /// ---una por departamento---, y `distinct` solo sabe de
+        /// columnas de la fila. Se deduplica por grupo abajo.
+        distinct: ['coberturaId'],
+        select: {
+          accionFormacionId: true,
+          cobertura: {
+            select: { grupoId: true, grupo: { select: { numero: true } } },
+          },
+        },
+      }),
+      this.prisma.participante.findMany({
+        where: baseDelAula,
+        distinct: ['asesorId'],
+        select: { asesor: { select: { id: true, nombre: true } } },
+      }),
+    ]);
+
+    const acciones = deAcciones
+      .map((f) => f.accionFormacion)
+      .filter((a): a is NonNullable<typeof a> => a !== null)
+      .sort((a, b) => a.codigo.localeCompare(b.codigo));
 
     const grupos = [
       ...new Map(
-        filas
+        deGrupos
           .filter((f) => f.cobertura)
           .map((f) => [
             f.cobertura!.grupoId,
@@ -4317,11 +4586,10 @@ export class CrmService {
       ).values(),
     ].sort((a, b) => a.numero - b.numero);
 
-    const asesores = [
-      ...new Map(
-        filas.filter((f) => f.asesor).map((f) => [f.asesor!.id, f.asesor!]),
-      ).values(),
-    ].sort((a, b) => a.nombre.localeCompare(b.nombre));
+    const asesores = deAsesores
+      .map((f) => f.asesor)
+      .filter((a): a is NonNullable<typeof a> => a !== null)
+      .sort((a, b) => a.nombre.localeCompare(b.nombre));
 
     return {
       personas,

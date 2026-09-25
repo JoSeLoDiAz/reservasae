@@ -8,7 +8,7 @@ function cruda(p: Partial<Parameters<typeof completarGrupo>[0]> = {}) {
     numero: 1,
     modalidad: 'PRESENCIAL',
     sedes: 'Bogotá',
-    departamentos: 'BOGOTÁ D.C',
+    departamento: 'BOGOTÁ D.C',
     meta: 65,
     nominadosPorEmpresa: 0,
     campanaDigital: 0,

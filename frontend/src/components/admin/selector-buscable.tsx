@@ -24,6 +24,13 @@ const sinTildes = (t: string) =>
  * quince acciones en decenas de ubicaciones desplegar y
  * leer no es forma de encontrar nada.
  */
+/// A PARTIR DE CUÁNTAS OPCIONES SE PINTA EL BUSCADOR DEL PANEL.
+///
+/// Por debajo la lista se ve entera sin desplazarse y la caja de
+/// texto ocupa el sitio de otra opción; por encima hay que rodar, y
+/// escribir tres letras es más rápido que buscar con el ojo.
+const MINIMO_PARA_BUSCAR = 8;
+
 export function SelectorBuscable({
   opciones,
   valor,
@@ -32,6 +39,9 @@ export function SelectorBuscable({
   vacio = "Sin asignar",
   etiqueta,
   clase,
+  desactivado = false,
+  razon,
+  quitar,
 }: {
   opciones: OpcionBuscable[];
   valor: string;
@@ -46,6 +56,35 @@ export function SelectorBuscable({
   /// El ancho: en un filtro no ocupa la
   /// fila entera.
   clase?: string;
+  /// APAGADO, y no escondido: el hueco se
+  /// queda para que se vea que existe y que
+  /// depende de algo. Un control que
+  /// aparece y desaparece mueve toda la
+  /// fila y no explica por qué.
+  desactivado?: boolean;
+  /// Qué hace falta para encenderlo. Sale
+  /// en su sitio y en el `title`: apagar sin
+  /// decir por qué es lo que hace que se
+  /// vuelva a pulsar tres veces.
+  razon?: string;
+  /// EL TEXTO DE LA FILA QUE DESELIGE, cuando
+  /// hay algo elegido.
+  ///
+  /// Sin esto usaba `vacio`, que es el
+  /// marcador del disparador: en un filtro
+  /// salía «Acción de Formación» como primera
+  /// fila de la lista, que no dice nada ---ya
+  /// está escrito arriba--- y encima se lee
+  /// como un título del panel. «Eso que diga
+  /// Acción de Formación no tiene sentido en
+  /// el desplegable» (cliente, 24 sep 2026).
+  ///
+  /// Aquí va lo que esa fila HACE: «Ver
+  /// todas», «Sin asignar». Si no se da, se
+  /// cae a `vacio` como antes ---hay sitios
+  /// donde «Sin asignar» sí es una elección
+  /// de verdad y no un «quitar»---.
+  quitar?: string;
 }) {
   const [abierto, setAbierto] = useState(false);
   const [escrito, setEscrito] = useState("");
@@ -89,13 +128,31 @@ export function SelectorBuscable({
       <button
         type="button"
         onClick={() => setAbierto(!abierto)}
+        disabled={desactivado}
+        title={desactivado ? razon : undefined}
         aria-expanded={abierto}
         aria-haspopup="listbox"
         aria-label={etiqueta}
-        className={`${CLASE_CONTROL} flex items-center gap-2 text-left`}
+        /// EL MISMO ASPECTO QUE `Desplegable`, el de la casa
+        /// (cliente, 24 sep 2026: «ya sabes cómo me gustan los
+        /// desplegables, ajústalos»). Son dos componentes porque uno
+        /// busca y el otro no, pero para quien mira son el mismo
+        /// control y tenían dos aspectos distintos: este llevaba un
+        /// «▾» de texto y el borde no se enteraba de que estaba
+        /// abierto.
+        className={
+          `${CLASE_CONTROL} flex items-center gap-2 text-left transition ` +
+          (desactivado
+            ? "cursor-not-allowed opacity-55 "
+            : abierto
+              ? "border-marca "
+              : "hover:border-marca/60 ")
+        }
       >
         <span className="min-w-0 grow truncate">
-          {elegida ? (
+          {desactivado ? (
+            <span className="text-texto-suave">{razon ?? vacio}</span>
+          ) : elegida ? (
             <>
               {elegida.etiqueta}
               {elegida.detalle && (
@@ -106,34 +163,78 @@ export function SelectorBuscable({
             <span className="text-texto-suave">{vacio}</span>
           )}
         </span>
-        <span aria-hidden className="shrink-0 text-texto-suave">
-          ▾
+        {/* El cheurón dibujado, que gira al abrir: el «▾» de texto
+            se veía de un tamaño distinto en cada máquina --lo pinta
+            la fuente del sistema-- y no decía si estaba abierto. */}
+        <span
+          aria-hidden="true"
+          className={
+            "shrink-0 text-texto-suave transition-transform " +
+            (abierto ? "rotate-180" : "")
+          }
+        >
+          <svg width="11" height="11" viewBox="0 0 12 12" fill="none">
+            <path
+              d="M2.5 4.5 6 8l3.5-3.5"
+              stroke="currentColor"
+              strokeWidth="1.6"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
         </span>
       </button>
 
-      {abierto && (
+      {abierto && !desactivado && (
         <div className="absolute z-40 mt-1 w-full min-w-64 max-w-[90vw] overflow-hidden rounded-xl border border-borde bg-superficie shadow-lg">
-          <div className="border-b border-borde p-2">
-            <input
-              autoFocus
-              value={escrito}
-              onChange={(e) => setEscrito(e.target.value)}
-              placeholder={marcador}
-              className={CLASE_CONTROL}
-              aria-label="Buscar en la lista"
-            />
-          </div>
+          {/* EL BUSCADOR, SOLO CUANDO HAY ALGO QUE BUSCAR.
+              «¿Para qué el título en el desplegable, esto, para
+              acción de formación y grupo?» (cliente, 24 sep 2026).
+
+              Con dos acciones de formación en pantalla, el panel
+              abría con una caja de texto encima de dos opciones: se
+              tarda más en leerla que en pulsar la que se quiere, y
+              ocupa el mismo sitio que una tercera opción.
+
+              A partir de ocho sí paga: es cuando la lista deja de
+              caber de un vistazo y hay que desplazarse. Debajo de
+              ese número se ven todas y el buscador solo estorba.
+              Este componente lo usan sitios con sesenta y siete
+              grupos y sitios con dos, y la diferencia la marca
+              cuántas opciones hay, no dónde está puesto. */}
+          {opciones.length >= MINIMO_PARA_BUSCAR && (
+            <div className="border-b border-borde p-2">
+              <input
+                autoFocus
+                value={escrito}
+                onChange={(e) => setEscrito(e.target.value)}
+                placeholder={marcador}
+                className={CLASE_CONTROL}
+                aria-label="Buscar en la lista"
+              />
+            </div>
+          )}
 
           <ul role="listbox" className="barra-visible max-h-72 overflow-y-auto p-1">
-            <li>
-              <button
-                type="button"
-                onClick={() => elegir("")}
-                className="w-full rounded-lg px-3 py-2 text-left text-sm text-texto-suave transition hover:bg-superficie-alterna"
-              >
-                {vacio}
-              </button>
-            </li>
+            {/* SOLO SI HAY ALGO QUE QUITAR. Esta fila es la que
+                deja sin elegir ---«todos», o «sin asignar»---, y con
+                nada elegido no hace nada: era una primera línea que
+                repetía el nombre del filtro y se leía como un título
+                del panel, que es justo lo que el cliente señaló.
+
+                Con algo elegido sí hace falta y sigue igual: es la
+                única forma de deshacer desde el propio desplegable. */}
+            {valor !== "" && (
+              <li>
+                <button
+                  type="button"
+                  onClick={() => elegir("")}
+                  className="sin-aro w-full rounded-lg px-3 py-[7px] text-left text-[0.78125rem] text-texto-suave transition hover:bg-marca-suave"
+                >
+                  {quitar ?? vacio}
+                </button>
+              </li>
+            )}
 
             {visibles.map((o) => (
               <li key={o.id}>
@@ -143,16 +244,48 @@ export function SelectorBuscable({
                   onClick={() => elegir(o.id)}
                   role="option"
                   aria-selected={o.id === valor}
-                  className={`w-full rounded-lg px-3 py-2 text-left text-sm transition disabled:opacity-40 ${
-                    o.id === valor
-                      ? "bg-marca-suave font-medium text-marca"
-                      : "hover:bg-superficie-alterna"
-                  }`}
+                  /// La medida y el color de `Desplegable`: relleno
+                  /// 3/7, cuerpo de 12,5 px, la elegida en negrita y
+                  /// del color de la marca, y el fondo suave para la
+                  /// que está bajo el puntero.
+                  /// LA ELEGIDA, CON RELLENO SÓLIDO (cliente, 24 sep
+                  /// 2026: «ya sabes cómo me gustan los desplegables,
+                  /// ajústalos», y con la misma captura dos veces).
+                  ///
+                  /// Iba en negrita y del color de la marca, sin
+                  /// fondo, y sobre una lista de cinco opciones eso
+                  /// no se ve: hay que comparar un renglón con otro
+                  /// para saber cuál está puesta. Con el relleno se
+                  /// ve sin leer, que es como se comporta el
+                  /// desplegable del sistema que él enseñó.
+                  ///
+                  /// El fondo suave se queda para la que está bajo
+                  /// el puntero: son dos cosas distintas ---dónde
+                  /// estoy y qué hay puesto--- y con el mismo color
+                  /// se confundían.
+                  className={
+                    "sin-aro flex w-full items-start gap-2 rounded-lg px-3 py-[7px] " +
+                    "text-left text-[0.78125rem] transition disabled:opacity-40 " +
+                    (o.id === valor
+                      ? "bg-marca font-semibold text-marca-texto"
+                      : "text-texto hover:bg-marca-suave")
+                  }
                 >
-                  <span className="block">{o.etiqueta}</span>
-                  {o.detalle && (
-                    <span className="block text-xs text-texto-suave">{o.detalle}</span>
-                  )}
+                  <span className="min-w-0 flex-1">
+                    <span className="block leading-snug">{o.etiqueta}</span>
+                    {o.detalle && (
+                      <span
+                        /// Sobre el relleno sólido, el gris del
+                        /// detalle no se lee: hereda con opacidad.
+                        className={
+                          "mt-0.5 block text-[0.71875rem] font-normal " +
+                          (o.id === valor ? "opacity-80" : "text-texto-suave")
+                        }
+                      >
+                        {o.detalle}
+                      </span>
+                    )}
+                  </span>
                 </button>
               </li>
             ))}

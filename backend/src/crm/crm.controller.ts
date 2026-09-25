@@ -422,6 +422,27 @@ export class CrmController {
     return this.crm.academico({ ...filtros, ambito: ambito.convenios });
   }
 
+  /**
+   * UNA sola persona del aula, con su fila entera.
+   *
+   * La calcula `academico()` ---el mismo sitio que la lista--- y no
+   * un cálculo aparte: dos fórmulas para el mismo estado es como se
+   * acaba viendo «Atrasado» en la tabla y «Al día» al abrirlo.
+   *
+   * Devuelve la envoltura completa y no la fila suelta porque trae
+   * también el `criterio` ---la tolerancia, los días parado, el
+   * mínimo para certificar--- que la pantalla necesita para explicar
+   * por qué esa persona está donde está.
+   */
+  @Get('academico/persona/:id')
+  @Requiere('academico')
+  academicoDeUno(@Param('id') id: string, @AmbitoActual() ambito: Ambito) {
+    return this.crm.academico({
+      ambito: ambito.convenios,
+      participanteId: id,
+    });
+  }
+
   /** El aula por accion, grupo y asesor. No por persona. */
   @Get('academico/tablero')
   @Requiere('academico')

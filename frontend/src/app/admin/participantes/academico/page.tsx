@@ -1,26 +1,21 @@
 "use client";
 
-import Link from "next/link";
-import { fechaDeCalendario } from "@/lib/dia-de-calendario";
 import { useCallback, useState } from "react";
 
-import { colorEtapa, estiloEtapa } from "@/components/admin/etapa";
+import { colorEtapa } from "@/components/admin/etapa";
 import { IndicadorActualizacion } from "@/components/admin/indicador-actualizacion";
-import { Aviso, CLASE_CONTROL, Tarjeta } from "@/components/admin/marco-admin";
+import { Aviso } from "@/components/admin/marco-admin";
 import { Esqueleto } from "@/components/admin/piezas";
-import { PanelAcademico } from "@/components/admin/panel-academico";
-import { Desplegable } from "@/components/admin/desplegable";
+import { CajonDelAula } from "@/components/admin/cajon-del-aula";
+import { columnasDelAula } from "@/components/admin/columnas-del-aula";
+import { Tabla } from "@/components/admin/tabla";
 import { SelectorBuscable } from "@/components/admin/selector-buscable";
 import { useDatosVivos } from "@/lib/datos-vivos";
 import {
   type Academico,
   crmApi,
   type EstadoAcademico,
-  AYUDA_ACADEMICA,
   ETIQUETA_ACADEMICA,
-  AYUDA_ETAPA,
-  type Etapa,
-  ETIQUETA_ETAPA,
   type FilaAcademica,
 } from "@/lib/crm-api";
 
@@ -35,28 +30,17 @@ const COLOR: Record<EstadoAcademico, string> = {
 };
 
 /// De lo más urgente a lo que no pide nada.
+/// LOS SEIS, EN EL ORDEN QUE ÉL LOS DICTÓ: del que no ha entrado al
+/// que ya terminó. «Sin actividades» va segundo porque es el paso
+/// siguiente a no haber entrado, y así la fila se lee como un camino.
 const ORDEN: EstadoAcademico[] = [
   "SIN_INGRESO",
+  "SIN_EMPEZAR",
   "ATRASADO",
   "AL_DIA",
   "COMPLETADO",
   "CERTIFICADO",
-  "SIN_EMPEZAR",
 ];
-
-/// Las fechas del GRUPO se teclean; `fecha` es para instantes
-/// --el ultimo acceso-- y en Bogota adelanta un dia a las otras.
-const dia = (iso: string | null) =>
-  fechaDeCalendario(iso, { day: "2-digit", month: "short", year: "2-digit" });
-
-function fecha(iso: string | null) {
-  if (!iso) return "—";
-  return new Date(iso).toLocaleDateString("es-CO", {
-    day: "2-digit",
-    month: "short",
-    year: "2-digit",
-  });
-}
 
 /**
  * Seguimiento académico: UN solo cuadro.
@@ -96,58 +80,92 @@ function fecha(iso: string | null) {
  */
 export default function PaginaAcademica() {
   return (
-    <div className="flex flex-col gap-3 px-4 pt-3">
+    /// `min-h-0 grow`, LA CADENA DE ALTURA, igual que Gestión de
+    /// leads (cliente, 25 sep 2026: «en Control de inscritos no es
+    /// que el scroll quede afuera, queda es en la tabla»).
+    ///
+    /// `Tabla` acota su cuerpo con `flex-1 overflow-auto`, y eso
+    /// solo funciona si TODOS sus padres tienen altura acotada: basta
+    /// que uno crezca con su contenido para que la tabla se estire
+    /// entera y quien se desplace sea la página. Aquí se rompía en
+    /// dos sitios ---este y el de `Seguimiento`---, y el síntoma era
+    /// una barra de desplazamiento a lo ancho de toda la ventana en
+    /// vez de dentro del recuadro de la tabla.
+    ///
+    /// `min-h-0` hace falta además de `grow`: por defecto un hijo
+    /// de flex no encoge por debajo de su contenido, así que sin él
+    /// `grow` no acota nada.
+    <div className="flex min-h-0 grow flex-col gap-3 px-4 pt-3">
       <Seguimiento />
     </div>
   );
 }
 
 function Seguimiento() {
-  const [filtro, setFiltro] = useState<EstadoAcademico | "">("");
-  const [salida, setSalida] = useState<Etapa | "">("");
-  const [accionAbierta, setAccionAbierta] = useState<string | null>(null);
-  const [buscar, setBuscar] = useState("");
+  /// LAS SEIS TARJETAS NO FILTRAN, Y ESO ERA LA INSTRUCCIÓN.
+  ///
+  /// «Las tarjetas no filtran», «las tarjetas siguen filtrando»,
+  /// «sigue filtrando con las tarjetas de los estados que he
+  /// insistido» (cliente, 24 sep 2026, tres veces). Yo leí la
+  /// primera como un fallo ---«no filtran» = están rotas---, fui a
+  /// comprobarlo, vi que sí filtraban y se lo dije. Era una orden,
+  /// no un síntoma.
+  ///
+  /// Y ya estaba escrito aquí mismo sin que yo lo viera: él las sacó
+  /// de la tarjeta de filtros ---«las tarjetas viven afuera»--- y
+  /// eso era exactamente decir que no son filtros. Son el reparto
+  /// del aula: cuánta gente hay en cada estado.
+  ///
+  /// No se pierde nada. Quien quiera quedarse con los atrasados usa
+  /// el filtro de la columna «Estado», que ya existe y es donde se
+  /// filtra en esta tabla; así hay UN solo sitio donde se filtra en
+  /// vez de dos que se pisan.
+  /// A quién se le está mirando el seguimiento. Se guarda la FILA y
+  /// no el id: el cajón pinta lo del aula --estado, avance, último
+  /// ingreso-- que ya está aquí, y solo pide al servidor las notas.
+  const [enElCajon, setEnElCajon] = useState<FilaAcademica | null>(null);
+  /// DOS FILTROS Y NO CUATRO (cliente, 24 sep 2026).
+  ///
+  /// Se fueron el buscador de arriba y el de asesores. El buscador
+  /// pedía al SERVIDOR por nombre o documento; la tabla trae el suyo
+  /// --sobre lo ya cargado-- y tener los dos en la misma fila era
+  /// pedir que se adivinara cuál de ellos se estaba usando. El de
+  /// asesores ya es una columna, con su propio filtro.
+  ///
+  /// Estos dos SE QUEDAN aunque la acción y el grupo sean también
+  /// columnas, y la diferencia importa: estos van al SERVIDOR y
+  /// cambian QUÉ FILAS BAJAN; los de columna recortan lo que ya
+  /// está cargado, con tope de 300. Hoy, con 35 personas, da igual;
+  /// pasadas las 300 el de columna filtraría solo las primeras y
+  /// nadie lo sabría. Y son los que él pidió en cascada: se elige la
+  /// acción, se despliega el grupo, y queda su gente.
   const [accionFormacionId, setAccion] = useState("");
   const [grupoId, setGrupo] = useState("");
-  const [asesorId, setAsesor] = useState("");
 
   const cargar = useCallback(
     () =>
       crmApi.academico({
-        buscar: buscar || undefined,
         accionFormacionId: accionFormacionId || undefined,
         grupoId: grupoId || undefined,
-        asesorId: asesorId || undefined,
       }),
-    [buscar, accionFormacionId, grupoId, asesorId],
+    [accionFormacionId, grupoId],
   );
 
   // se refresca solo; un fallo conserva lo ultimo bueno.
   // la clave hace que un filtro nuevo se pida al momento
   const vivos = useDatosVivos<Academico>(cargar, {
-    clave: `${buscar}|${accionFormacionId}|${grupoId}|${asesorId}`,
+    clave: `${accionFormacionId}|${grupoId}`,
   });
   const datos = vivos.datos;
 
   if (vivos.error) return <Aviso tipo="error">{vivos.error}</Aviso>;
   if (!datos) return <Esqueleto conCifras />;
 
-  const { resumen, criterio } = datos;
-  // los dos filtros son excluyentes: un estado de ritmo es
-  // de quien sigue dentro, y una salida de quien ya no
-  const visibles = salida
-    ? datos.personas.filter((p) => p.etapa === salida)
-    : filtro
-    ? datos.personas.filter((p) => !p.salio && p.estado === filtro)
-    : datos.personas;
+  const { resumen } = datos;
+  /// TODAS. El recorte lo hacen los dos desplegables ---que van al
+  /// servidor--- y los filtros de columna de la tabla.
+  const visibles = datos.personas;
 
-  // las salidas no son estados de ritmo: van por su etapa
-  const SALIDAS: Array<[Etapa, number]> = [
-    ["DESERTO", resumen.desertaron],
-    ["ABANDONO", resumen.abandonaron],
-    ["RETIRADO", resumen.retirados],
-    ["NO_APROBO", resumen.noAprobaron],
-  ];
 
   const cuenta: Record<EstadoAcademico, number> = {
     SIN_INGRESO: resumen.sinIngreso,
@@ -180,38 +198,70 @@ function Seguimiento() {
 
   // AF1, AF2… AF10: por el número, no alfabético, que
   // pondría AF10 antes que AF2
-  const numeroDe = (titulo: string) => {
-    const m = /AF\s*(\d+)/i.exec(titulo);
-    return m ? Number(m[1]) : 999;
-  };
-  const accionesOrdenadas = [...porAccion.entries()].sort(([, a], [, b]) => {
-    const d = numeroDe(a.titulo) - numeroDe(b.titulo);
-    // el codigo se repite entre convenios: desempata el nombre
-    return d !== 0 ? d : a.titulo.localeCompare(b.titulo, "es");
-  });
+  /// LAS COLUMNAS SALEN DE LAS FILAS, porque las de actividad
+  /// dependen del curso: hoy son las doce de la siembra y mañana las
+  /// seis que mande el LMS, sin tocar una línea.
+  ///
+  /// SIN `useMemo`, y a propósito. `visibles` se reconstruye en cada
+  /// render --es un `filter` sobre las personas--, así que una
+  /// memoria con esa dependencia no acierta nunca: solo añade la
+  /// comparación y la promesa falsa de que ahorra algo. La pasada es
+  /// una por persona y actividad, y con el aula entera son unos
+  /// cientos de vueltas.
+  const columnas = columnasDelAula();
 
-  const hayFiltro = Boolean(
-    filtro || salida || accionFormacionId || grupoId || asesorId || buscar,
-  );
+  const hayFiltro = Boolean(accionFormacionId || grupoId);
+
+  /// QUÉ HAY PUESTO, EN PALABRAS.
+  ///
+  /// «Las tarjetas siguen filtrando, ¿qué pasó?» (cliente, 24 sep
+  /// 2026), viendo cinco personas de treinta y cinco. No era un
+  /// fallo: tenía una acción de formación elegida y el recorte lo
+  /// hacía ella. El problema es que eso solo se veía abriendo el
+  /// desplegable, y las tarjetas ---que es donde él estaba mirando---
+  /// enseñaban los números ya recortados sin decir de qué.
+  ///
+  /// Un filtro que no se ve es un filtro que parece un fallo. Esto
+  /// lo pone en el sitio donde estaba el ojo, y con la salida al
+  /// lado.
+  const puesto: string[] = [];
+  if (accionFormacionId) {
+    const a = datos.acciones.find((x) => x.id === accionFormacionId);
+    if (a) puesto.push(`${a.codigo} · ${a.nombre}`);
+  }
+  if (grupoId) {
+    const g = datos.grupos.find((x) => x.id === grupoId);
+    if (g) puesto.push(`Grupo ${g.numero}`);
+  }
+
 
   function quitarFiltros() {
-    setFiltro("");
-    setSalida("");
     setAccion("");
     setGrupo("");
-    setAsesor("");
-    setBuscar("");
   }
 
   // 67 grupos: el numero no distingue
   const gruposBuscables = datos.grupos
     .filter((g) => !accionFormacionId || g.accionFormacionId === accionFormacionId)
     .map((g) => {
+      /// «GRUPO 4» Y NADA MÁS (cliente, 24 sep 2026: «o sea solo
+      /// Grupo, ejemplo Grupo 1; ¿para qué nombre, si lo tengo en
+      /// Acción de Formación?»).
+      ///
+      /// Debajo de cada grupo iba «AF1 · GESTIÓN DE LA ATENCIÓN Y
+      /// NEUROEDUCACIÓN EN LA ERA DIGITAL», y con eso cada opción
+      /// ocupaba tres renglones: en la lista cabían dos grupos y
+      /// medio. Ahora que la lista solo trae los de la formación ya
+      /// elegida, ese renglón es el MISMO en todas: no distingue
+      /// nada, y lo que sí distingue ---el número--- quedaba
+      /// aplastado contra el de arriba.
+      ///
+      /// Sigue buscándose por el nombre del curso aunque no se pinte.
       const suya = datos.acciones.find((a) => a.id === g.accionFormacionId);
       return {
         id: g.id,
         etiqueta: `Grupo ${g.numero}`,
-        detalle: suya ? `${suya.codigo} · ${suya.nombre}` : "Sin acción de formación",
+        busca: suya ? `${suya.codigo} ${suya.nombre}` : undefined,
       };
     });
 
@@ -224,11 +274,22 @@ function Seguimiento() {
     ///
     /// Sin `px-4 pt-3`: los pone la página, que ahora envuelve
     /// las dos hojas. Repetirlos aquí duplicaba el margen.
-    <div className="flex flex-col gap-3 pb-6">
+    /// Sin `pb-6`: con la tabla acotada, ese relleno de abajo era
+    /// aire muerto entre el borde de la tabla y el pie ---«mucho
+    /// espacio en la línea de respeto»---. El hueco hasta el pie lo
+    /// pone ya el marco.
+    <div className="flex min-h-0 grow flex-col gap-3">
       <header className="flex flex-wrap items-start justify-between gap-4">
         <div className="min-w-0">
+          {/* «SEGUIMIENTO DEL AULA» Y NO «SEGUIMIENTO ACADÉMICO».
+              Se llamaban igual dos pantallas distintas, y el cliente
+              lo paró: «en Académica, Seguimiento académico no, porque
+              ya está en Tableros» (23 sep 2026). Aquel es el tablero
+              --resúmenes, sin personas--; esta es la lista con la que
+              se trabaja, persona por persona. El menú ya la llamaba
+              así; solo el título seguía con el nombre del otro. */}
           <h1 className="text-[1.125rem] font-bold tracking-[-0.02em] text-titulo">
-            Seguimiento académico
+            Seguimiento del aula
           </h1>
           {/* Sin bajada (cliente, 12 sep 2026). El título ya dice
               qué es, y la miga de arriba de dónde cuelga. */}
@@ -240,12 +301,16 @@ function Seguimiento() {
             desactualizado={vivos.desactualizado}
             alRefrescar={vivos.refrescar}
           />
-          <Link
-            href="/admin/participantes"
-            className="text-[0.78125rem] text-texto-suave underline hover:text-texto"
-          >
-            Volver a inscripciones
-          </Link>
+          {/* SIN «VOLVER A INSCRIPCIONES» (cliente, 24 sep 2026:
+              «esto se va, son módulos independientes, nunca lo
+              pedí»).
+
+              Venía de cuando el aula colgaba de Inscripciones y esa
+              miga tenía sentido. Ya no: Académica es su propio
+              módulo en la cabecera, con su desplegable, y desde ahí
+              se va a cualquier sitio en un clic. Un enlace que
+              devuelve a otro módulo insinúa una jerarquía que no
+              existe. */}
         </div>
       </header>
 
@@ -263,105 +328,86 @@ function Seguimiento() {
         </p>
       )}
 
-      {/* ── 1 · Filtros ──
-          Los cuatro en UNA fila y dentro de su tarjeta, como en
-          Control de Inscritos: mandan todos sobre la misma
-          pantalla, y sueltos en una línea parecía que cada uno
-          gobernaba otra cosa. */}
-      <div className="rounded-xl border border-borde bg-superficie px-4 py-3.5">
-        <p className="mb-2.5 text-[0.6875rem] font-bold tracking-[0.08em] text-texto-suave uppercase">
-          Filtros
-          <span className="ml-2.5 font-normal tracking-normal text-marca normal-case">
-            <strong className="font-semibold tabular-nums">
-              {resumen.analizadas.toLocaleString("es-CO")}
-            </strong>{" "}
-            {resumen.analizadas === 1 ? "persona" : "personas"} en el aula
-          </span>
-          {hayFiltro && (
-            <button
-              onClick={quitarFiltros}
-              className="ml-3 font-normal tracking-normal text-texto-suave underline normal-case hover:text-texto"
+
+      {/* LO QUE ESTÁ PUESTO, ENCIMA DE LAS TARJETAS y no debajo:
+          es lo que explica sus números. Sin esto, con una acción
+          elegida las seis tarjetas suman cinco y la pantalla no dice
+          por qué ---parece que se hubieran perdido treinta personas---. */}
+      {puesto.length > 0 && (
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 rounded-lg bg-marca-suave px-3 py-2 text-[0.78125rem]">
+          <span className="font-semibold text-marca">Viendo solo:</span>
+          {puesto.map((q) => (
+            <span
+              key={q}
+              className="rounded-full bg-superficie px-2.5 py-0.5 text-texto"
             >
-              Limpiar
-            </button>
-          )}
-        </p>
-
-        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-          <input
-            className={CLASE_CONTROL}
-            placeholder="Buscar por nombre o documento"
-            value={buscar}
-            onChange={(e) => setBuscar(e.target.value)}
-          />
-
-          <SelectorBuscable
-            clase="w-full"
-            etiqueta="Acción de formación"
-            valor={accionFormacionId}
-            alElegir={(id) => {
-              setAccion(id);
-              // el grupo cuelga de la accion: si cambia, sobra
-              setGrupo("");
-            }}
-            vacio="Formación"
-            marcador="AF8, inteligencia artificial…"
-            opciones={datos.acciones.map((a) => ({
-              id: a.id,
-              etiqueta: `${a.codigo} · ${a.nombre}`,
-            }))}
-          />
-
-          <SelectorBuscable
-            clase="w-full"
-            etiqueta="Grupo"
-            valor={grupoId}
-            alElegir={setGrupo}
-            vacio="Grupos"
-            marcador="Número de grupo, AF8, nombre…"
-            opciones={gruposBuscables}
-          />
-
-          <Desplegable
-            alto={34}
-            marcador="Asesores"
-            valor={asesorId}
-            alElegir={setAsesor}
-            opciones={[
-              { valor: "", etiqueta: "Asesores" },
-              ...datos.asesores.map((a) => ({ valor: a.id, etiqueta: a.nombre })),
-            ]}
-          />
-        </div>
-
-        {/* Los estados, DENTRO de la misma tarjeta que los
-            filtros y separados por una raya.
-
-            Eran dos tarjetas y antes diez cajas sueltas. Y son
-            lo mismo: pulsar un estado ES filtrar. Tenerlos en
-            cajas distintas decía que eran dos cosas, y por eso
-            la pantalla parecía tener el doble de sitios donde
-            mirar de los que tiene. */}
-        <p className="mt-3.5 border-t border-hairline pt-3 text-[0.6875rem] font-bold tracking-[0.08em] text-texto-suave uppercase">
-          En qué estado está cada quien
-          <span className="ml-2.5 font-normal tracking-normal normal-case">
-            pulse uno para quedarse solo con esa gente
+              {q}
+            </span>
+          ))}
+          {/* LO QUE HAY EN PANTALLA, no el total del servidor.
+              Estuvo con `resumen.analizadas` y se contradecía con
+              las tarjetas: con «Atrasado» pulsado el aviso decía «6
+              personas» y la tarjeta de Atrasado decía 0. Es que
+              `analizadas` lo cuenta el SERVIDOR, que sabe de la
+              acción y del grupo pero no de la tarjeta ---esa filtra
+              aquí---. Dos cifras de lo mismo en la misma franja y
+              distintas. */}
+          <span className="text-texto-suave">
+            {visibles.length.toLocaleString("es-CO")}{" "}
+            {visibles.length === 1 ? "persona" : "personas"}
           </span>
-        </p>
+          <button
+            type="button"
+            onClick={quitarFiltros}
+            className="ml-auto font-semibold text-marca underline hover:no-underline"
+          >
+            Ver a todos
+          </button>
+        </div>
+      )}
 
-        <div className="mt-2.5 grid gap-2 sm:grid-cols-3 lg:grid-cols-6">
+      {/* LAS SEIS, FUERA DE LA TARJETA DE FILTROS (cliente, 24 sep
+          2026: «las tarjetas viven afuera»). Estuvieron dentro y
+          separadas por una raya, con el argumento de que pulsar un
+          estado ES filtrar; él prefiere verlas sueltas, y sueltas se
+          leen como lo que también son: el reparto del aula.
+
+          Y sin los dos textos que las acompañaban --«pulse uno para
+          quedarse solo con esa gente» y el párrafo de metodología con
+          el 80 % y los 14 días--: «estos comentarios se van». */}
+        {/* AL ALTO DE LA CASA: 51 px, relleno 8/14 y cifra de 17 px
+            (cliente, 24 sep 2026: «esto más reducido por favor»). Es
+            la misma medida de `CifraCompacta` --la de Gestión de
+            leads, que él aprobó-- y no una talla inventada para esta
+            pantalla.
+
+            YA NO SE PULSAN: son cifras, no botones. Eran `<button>`
+            con `aria-pressed` y al pulsarlas recortaban la lista;
+            el cliente lo paró tres veces. Se quedan en `<div>` para
+            que ni el teclado ni el lector de pantalla las anuncien
+            como algo que hacer. */}
+        <div className="grid gap-2 sm:grid-cols-3 lg:grid-cols-6">
           {ORDEN.map((estado) => (
-            <button
+            <div
               key={estado}
-              onClick={() => {
-                setSalida("");
-                setFiltro(filtro === estado ? "" : estado);
-              }}
               style={{ ["--etapa"]: COLOR[estado] } as React.CSSProperties}
-              className={`rounded-lg border bg-superficie px-3 py-2.5 text-left transition hover:border-campo-borde ${
-                filtro === estado ? "border-marca bg-marca-suave" : "border-borde"
-              }`}
-              aria-pressed={filtro === estado}
+              /// EL MISMO `hover` QUE `CifraCompacta` ---la tarjeta
+              /// de Gestión de leads--- letra por letra (cliente, 24
+              /// sep 2026: «¿por qué cuando paso por la tarjeta ya no
+              /// genera ese borde o sombra como Gestión de leads?»).
+              ///
+              /// Se perdió al dejar de ser `<button>`: el realce
+              /// venía del `hover:border-campo-borde` que llevaban
+              /// como botones, y al pasarlas a `<div>` se fue con
+              /// ellos. Que no se pulsen no quiere decir que estén
+              /// muertas ---la fila de tarjetas de Gestión de leads
+              /// tampoco se pulsa y realza igual---: el realce dice
+              /// «esto es una pieza», no «esto se puede pulsar».
+              ///
+              /// Copiado y no heredado porque estas llevan el punto
+              /// de color del estado, que `CifraCompacta` no tiene.
+              /// Si algún día se le añade, estas pasan a SER aquella.
+              className="rounded-lg border border-borde bg-superficie px-3.5 py-2 text-left transition hover:border-marca/40 hover:shadow-[0_2px_14px_-6px_rgba(15,23,42,0.28)]"
             >
               <span className="flex items-center gap-1.5 text-[0.625rem] font-semibold tracking-[0.08em] uppercase">
                 <span className="punto-etapa" aria-hidden />
@@ -369,282 +415,148 @@ function Seguimiento() {
                   {ETIQUETA_ACADEMICA[estado]}
                 </span>
               </span>
-              <span className="mt-1 block text-xl font-bold tabular-nums">
+              <span className="mt-1 block text-[1.0625rem] leading-none font-bold tabular-nums">
                 {cuenta[estado]}
               </span>
-            </button>
+            </div>
           ))}
         </div>
 
-        <p className="mt-3.5 border-t border-hairline pt-3 text-[0.6875rem] font-bold tracking-[0.08em] text-texto-suave uppercase">
-          Y quiénes salieron del aula
-          <span className="ml-2.5 font-normal tracking-normal normal-case">
-            no se miden por ritmo: cuenta por qué se fueron
-          </span>
-        </p>
+      {/* LA TABLA SE PINTA SIEMPRE, también sin nadie dentro.
+          Antes, con cero filas, en su sitio salía una tarjeta de
+          «Nadie aquí» y la tabla desaparecía --y con ella su barra--.
+          Ahora los filtros VIVEN en esa barra, así que un filtro que
+          no devuelve a nadie se llevaba por delante el control con el
+          que se deshace: quien filtrara de más quedaba encerrado.
+          `Tabla` trae su propio estado vacío; esto le pasa el texto y
+          la barra se queda donde está. */}
+      <Tabla
+        /// LA MISMA TABLA DE GESTIÓN DE LEADS, no una parecida:
+        /// «prácticamente es como la tabla de Gestión de leads, su
+        /// mismo esquema, toda la misma lógica» (cliente, 24 sep
+        /// 2026). Con ella vienen los filtros por columna, el
+        /// selector de columnas y que la selección se recuerde.
+        ///
+        /// SIN `acciones` NI `accionesLote`, y eso es literal:
+        /// «solo que acá no van botones como importar, asignar
+        /// masivo y demás». No se quitan; es que no se le pasan.
+        ///
+        /// El `id` es lo que separa las columnas guardadas de esta
+        /// pantalla de las de Gestión de leads. Con el mismo, quien
+        /// escondiera una allá se la encontraría escondida aquí.
+        /// EL ORDEN ES EL CONTRATO, no una preferencia: «el orden
+        /// de las columnas es innegociable, y por ejemplo las 6
+        /// actividades van fijas y en orden» (cliente, 25 sep 2026).
+        /// Con esto no se arrastran los encabezados y el orden es el
+        /// de `columnasDelAula()`, aunque alguien tuviera otro
+        /// guardado de antes.
+        ordenFijo
+        id="aula"
+        columnas={columnas}
+        filas={visibles}
+        clave={(f) => f.id}
+        alClic={(f) => setEnElCajon(f)}
+        vacio={
+          hayFiltro ? (
+            <>
+              Nadie cumple lo que está filtrado.{" "}
+              <button onClick={quitarFiltros} className="underline">
+                Ver a todos
+              </button>
+            </>
+          ) : (
+            "Solo aparece quien ya entró en formación: el avance llega del aula."
+          )
+        }
+        /* LOS DOS DE SERVIDOR, FUSIONADOS EN LA FILA DEL BUSCADOR
+           (cliente, 24 sep 2026: «sí, pero fusionado donde está el
+           buscador, no desorden»). Estaban en una tarjeta propia
+           encima de la tabla y, al quedarse en dos, se estiraban a
+           media pantalla cada uno: dos campos enormes para decir
+           dos palabras, y una tarjeta con un solo renglón dentro.
 
-        <div className="mt-2.5 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-          {SALIDAS.map(([etapa, cuantos]) => (
-            <button
-              key={etapa}
-              onClick={() => {
-                setFiltro("");
-                setSalida(salida === etapa ? "" : etapa);
+           Aquí se leen con el buscador, que es lo que son: antes de
+           mirar la lista se dice de qué acción y de qué grupo se
+           está hablando.
+
+           EL ANCHO SE REPARTE, no se fija (cliente, 24 sep 2026:
+           «reduce buscador y alarga formación»). El buscador traía
+           `flex-1` y se quedaba con todo el sobrante ---693 px de
+           1.600---, mientras «Formación» recortaba a la mitad unos
+           nombres de noventa letras: se leía «AF8 · Inteligencia
+           art…» y había que abrir el desplegable para saber cuál
+           era. Ahora los dos llevan `flex-1` y parten el sobrante a
+           partes iguales, así que el cambio vale igual en un
+           portátil que en el monitor grande. El grupo no crece: es
+           un número. */
+        filtrosDelServidor={
+          <>
+            <SelectorBuscable
+              clase="min-w-[14rem] flex-1"
+              etiqueta="Acción de formación"
+              valor={accionFormacionId}
+              alElegir={(id) => {
+                setAccion(id);
+                // el grupo cuelga de la accion: si cambia, sobra
+                setGrupo("");
               }}
-              aria-pressed={salida === etapa}
-              style={estiloEtapa(etapa)}
-              className={`rounded-lg border bg-superficie px-3 py-2.5 text-left transition hover:border-campo-borde ${
-                salida === etapa ? "border-marca bg-marca-suave" : "border-borde"
-              }`}
-            >
-              <span className="flex items-center gap-1.5 text-[0.625rem] font-semibold tracking-[0.08em] uppercase">
-                <span className="punto-etapa" aria-hidden />
-                <span className="truncate text-texto-suave">
-                  {ETIQUETA_ETAPA[etapa]}
-                </span>
-              </span>
-              <span className="mt-1 block text-xl font-bold tabular-nums">
-                {cuantos}
-              </span>
-              {AYUDA_ETAPA[etapa] && (
-                <span className="mt-0.5 block text-[0.6875rem] text-texto-suave">
-                  {AYUDA_ETAPA[etapa]}
-                </span>
-              )}
-            </button>
-          ))}
-        </div>
-
-        {/* La metodología, al pie y en pequeño. Es lo que hay
-            que poder consultar cuando una cifra sorprende, no lo
-            primero que se lee al entrar. */}
-        <p className="mt-3.5 border-t border-hairline pt-3 text-[0.71875rem] leading-relaxed text-texto-suave">
-          <strong className="font-semibold">Sin ingreso</strong> nunca entró,{" "}
-          <strong className="font-semibold">Sin empezar</strong> es que su grupo
-          aún no arrancó o no tiene fechas, y{" "}
-          <strong className="font-semibold">Atrasado</strong> va{" "}
-          {criterio.tolerancia} actividades o más por debajo de lo que tocaría a
-          estas alturas. Se certifica con el{" "}
-          {Math.round(criterio.minimoParaCertificar * 100)} % de lo obligatorio
-          aprobado, y se considera parado a los {criterio.diasParado} días sin
-          volver.
-        </p>
-      </div>
-
-      {/* Los gráficos, entre los estados y la lista.
-          Es el sitio que les toca por la pregunta que responde
-          cada cosa: arriba «cuántos hay en cada estado», aquí
-          «cómo va eso y qué hay que atender», y abajo «quiénes
-          son». Van con los MISMOS filtros de arriba, así que al
-          acotar por una acción el embudo se acota con ella.
-
-          Y con el reparto por estado ya puesto arriba, el panel
-          no lo repite: sus donuts miran otra cosa --el peso de
-          cada estado y por qué puerta se sale--. */}
-      <PanelAcademico datos={datos} />
-
-      {visibles.length === 0 ? (
-        <Tarjeta
-          titulo="Nadie aquí"
-          descripcion="Solo aparece quien ya entró en formación."
-        >
-          <p className="text-sm text-texto-suave">
-            El avance llega del aula; mientras nadie esté en formación, esta pantalla
-            está vacía a propósito.
-          </p>
-        </Tarjeta>
-      ) : (
-        <div className="space-y-3">
-          {accionesOrdenadas.map(([clave, { titulo, grupos }]) => (
-            <AccionAcordeon
-              key={clave}
-              titulo={titulo}
-              grupos={grupos}
-              abierta={accionAbierta === clave}
-              alAbrir={() => setAccionAbierta(accionAbierta === clave ? null : clave)}
+              /// «ACCIÓN DE FORMACIÓN», con su nombre entero
+              /// (cliente, 24 sep 2026). Decía «Formación» a secas
+              /// por caber en la tarjeta que ya no existe; en la
+              /// fila del buscador hay sitio, y es como se llama en
+              /// Oferta y en la columna de la tabla.
+              vacio="Acción de Formación"
+              quitar="Ver todas las acciones"
+              marcador="AF1, neuroeducación…"
+              opciones={datos.acciones.map((a) => ({
+                id: a.id,
+                etiqueta: `${a.codigo} · ${a.nombre}`,
+              }))}
             />
-          ))}
-        </div>
+            {/* EL GRUPO CUELGA DE LA FORMACIÓN, y hasta que no haya
+                una elegida este no se puede usar (cliente, 24 sep
+                2026: «dice Grupos y esta es sujeta a la AF, y como
+                son 2 AF y misma cantidad, pues ya es que AF filtre»).
+
+                Tiene razón y el problema es del dato: el número de
+                grupo NO es único ---hay un «Grupo 4» en AF1 y otro
+                en AF2---, así que sin formación elegida la lista
+                mezclaba dos cosas distintas con el mismo nombre y
+                había que leerse el renglón de abajo para saber cuál
+                era cuál.
+
+                Apagado y no escondido: el hueco se queda para que se
+                vea que existe y de qué depende. */}
+            <SelectorBuscable
+              clase="w-[11.5rem] shrink-0"
+              etiqueta="Grupo"
+              valor={grupoId}
+              alElegir={setGrupo}
+              vacio="Grupos"
+              quitar="Ver todos los grupos"
+              marcador="Número de grupo, nombre…"
+              opciones={gruposBuscables}
+              desactivado={!accionFormacionId}
+              razon="Elija formación"
+            />
+            {hayFiltro && (
+              <button
+                type="button"
+                onClick={quitarFiltros}
+                className="shrink-0 text-[0.78125rem] text-texto-suave underline hover:text-texto"
+              >
+                Limpiar
+              </button>
+            )}
+          </>
+        }
+      />
+
+      {enElCajon && (
+        <CajonDelAula fila={enElCajon} alCerrar={() => setEnElCajon(null)} />
       )}
-    </div>
-  );
-}
-
-/** Lo hecho, con la marca de lo que tocaría hoy. */
-function Barra({ fila }: { fila: FilaAcademica }) {
-  const hechoPct = fila.total > 0 ? (fila.hechas / fila.total) * 100 : 0;
-  const esperadoPct =
-    fila.esperadas !== null && fila.total > 0 ? (fila.esperadas / fila.total) * 100 : null;
-
-  return (
-    <div className="min-w-40">
-      <div
-        className="relative h-2.5 overflow-hidden rounded-full bg-superficie-alterna"
-        style={{ ["--etapa"]: COLOR[fila.estado] } as React.CSSProperties}
-      >
-        <span
-          className="block h-full rounded-full"
-          style={{ width: `${hechoPct}%`, background: "var(--etapa)" }}
-        />
-        {esperadoPct !== null && (
-          <span
-            // donde debería ir hoy
-            className="absolute top-0 h-full w-0.5 bg-texto"
-            style={{ left: `${Math.min(100, esperadoPct)}%` }}
-            aria-hidden
-          />
-        )}
-      </div>
-      <span className="mt-1 block font-mono text-xs text-texto-suave">
-        {fila.hechas}/{fila.total}
-        {fila.esperadas !== null && ` · tocaría ${fila.esperadas}`}
-      </span>
     </div>
   );
 }
 
 /** Una acción plegada; dentro, sus grupos con su gente. */
-function AccionAcordeon({
-  titulo,
-  grupos,
-  abierta,
-  alAbrir,
-}: {
-  titulo: string;
-  grupos: Map<number, FilaAcademica[]>;
-  abierta: boolean;
-  alAbrir: () => void;
-}) {
-  const gente = [...grupos.values()].flat();
-  const alerta = gente.filter((p) =>
-    ["SIN_INGRESO", "SIN_ARRANCAR", "PARADO", "ATRASADO"].includes(p.estado),
-  ).length;
-
-  return (
-    <section className="overflow-hidden border-b border-borde bg-superficie">
-      <button
-        onClick={alAbrir}
-        aria-expanded={abierta}
-        className="flex w-full items-center gap-4 p-5 text-left transition hover:bg-superficie-alterna"
-      >
-        <span className="min-w-0 grow">
-          <span className="block font-medium">{titulo}</span>
-          <span className="mt-1 block text-sm text-texto-suave">
-            {grupos.size} {grupos.size === 1 ? "grupo" : "grupos"} · {gente.length}{" "}
-            {gente.length === 1 ? "persona" : "personas"}
-            {alerta > 0 && (
-              <span className="text-error"> · {alerta} necesitan atención</span>
-            )}
-          </span>
-        </span>
-        <span aria-hidden className="shrink-0 text-texto-suave">
-          {abierta ? "▴" : "▾"}
-        </span>
-      </button>
-
-      {abierta && (
-        <div className="space-y-2 border-t border-borde p-4">
-          {[...grupos.entries()]
-            // por número; el "sin grupo" (-1) al final
-            .sort(([a], [b]) => (a < 0 ? 1 : b < 0 ? -1 : a - b))
-            .map(([numero, personas]) => (
-              <GrupoAcordeon key={numero} numero={numero} personas={personas} />
-            ))}
-        </div>
-      )}
-    </section>
-  );
-}
-
-function GrupoAcordeon({
-  numero,
-  personas,
-}: {
-  numero: number;
-  personas: FilaAcademica[];
-}) {
-  const [abierto, setAbierto] = useState(false);
-  const uno = personas[0];
-  const alerta = personas.filter((p) =>
-    ["SIN_INGRESO", "SIN_ARRANCAR", "PARADO", "ATRASADO"].includes(p.estado),
-  ).length;
-
-  return (
-    <div className="overflow-hidden rounded-xl border border-borde">
-      <button
-        onClick={() => setAbierto(!abierto)}
-        aria-expanded={abierto}
-        className="flex w-full items-center gap-3 px-4 py-3 text-left transition hover:bg-superficie-alterna"
-      >
-        <span className="min-w-0 grow">
-          <span className="font-medium">
-            {numero < 0 ? "Sin grupo" : `Grupo ${numero}`}
-          </span>
-          <span className="ml-2 text-sm text-texto-suave">
-            {personas.length} {personas.length === 1 ? "persona" : "personas"}
-            {uno.fechaInicio &&
-              ` · ${dia(uno.fechaInicio)} → ${dia(uno.fechaFin)}`}
-            {uno.horario && ` · ${uno.horario}`}
-          </span>
-          {alerta > 0 && (
-            <span className="ml-2 text-sm text-error">· {alerta} por atender</span>
-          )}
-        </span>
-        <span aria-hidden className="shrink-0 text-texto-suave">
-          {abierto ? "▴" : "▾"}
-        </span>
-      </button>
-
-      {!abierto ? null : (
-      <div className="caja-scroll overflow-x-auto border-t border-borde">
-        <table className="tabla-datos">
-          <thead>
-            <tr>
-              <th>Persona</th>
-              <th>Asesor</th>
-              <th>Avance</th>
-              <th>Va</th>
-              <th>Último acceso</th>
-            </tr>
-          </thead>
-          <tbody>
-            {personas.map((p) => (
-              <tr key={p.id}>
-                <td>
-                  <Link href={`/admin/participantes/${p.id}`} className="underline">
-                    {p.nombre}
-                  </Link>
-                  <span className="block font-mono text-xs text-texto-suave">
-                    {p.documento}
-                  </span>
-                </td>
-                <td className="text-sm">{p.asesor?.nombre ?? "—"}</td>
-                <td className="min-w-44">
-                  <Barra fila={p} />
-                </td>
-                <td>
-                  <span
-                    style={{ ["--etapa"]: COLOR[p.estado] } as React.CSSProperties}
-                    className="pildora-etapa"
-                    title={AYUDA_ACADEMICA[p.estado]}
-                  >
-                    {ETIQUETA_ACADEMICA[p.estado]}
-                  </span>
-                </td>
-                <td className="text-sm whitespace-nowrap">
-                  {p.ultimoAcceso ? fecha(p.ultimoAcceso) : "nunca"}
-                  {p.diasSinEntrar !== null && p.diasSinEntrar >= 14 && (
-                    <span className="block text-xs text-error">
-                      hace {p.diasSinEntrar} días
-                    </span>
-                  )}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-      )}
-    </div>
-  );
-}

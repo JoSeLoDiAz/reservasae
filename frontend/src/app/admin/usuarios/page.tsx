@@ -64,7 +64,7 @@ const ROLES: Array<{ valor: RolAdmin; etiqueta: string; descripcion: string }> =
 function MatrizDePermisos() {
   return (
     <Bloque
-      titulo="Qué ve y qué toca cada rol"
+      titulo="Qué ve y qué puede modificar cada rol"
       descripcion="El rol se elige por convenio. Esta tabla dice lo que trae cada uno; la aplica el servidor y no se puede editar aquí."
     >
       <div className="caja-scroll overflow-x-auto">

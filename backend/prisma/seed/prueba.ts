@@ -215,20 +215,38 @@ const MOTIVOS_SALIDA = [
   'No alcanzó el porcentaje mínimo de asistencia.',
 ];
 
-/** Los pasos de un curso, iguales para todos sus grupos. */
+/**
+ * LOS PASOS DE UN CURSO: SEIS, iguales para todos sus grupos.
+ *
+ * «Son solo 6 actividades que traerá el LMS, y es lo que importa;
+ * las 12 no aplican para este módulo» (cliente, 24 sep 2026).
+ *
+ * Aquí había DOCE genéricas ---«Bienvenida y acuerdos», «Unidad 1 —
+ * Conceptos fundamentales», «Foro: casos de mi empresa»...--- de las
+ * cuales nueve eran obligatorias, y eso es lo que hacía que
+ * Seguimiento del aula dijera «6 de 9» mientras sus seis columnas
+ * UT salían en raya: ningún título casaba. Dos listas para la misma
+ * cosa, y mandaba la inventada.
+ *
+ * Estas son las de verdad: cinco unidades temáticas y la evaluación
+ * de cierre, que es lo que el LMS va a mandar. Las seis
+ * obligatorias ---antes tres eran de adorno y no contaban---.
+ *
+ * Los nombres son el CONTRATO con el LMS: la tabla del aula casa sus
+ * columnas por título (sin tildes, sin espacios y en mayúscula), así
+ * que cambiarlos aquí deja esas columnas en blanco.
+ *
+ * Quien ya tenga la base sembrada con las doce no necesita volver a
+ * sembrar: `pnpm db:actividades-del-aula` las convierte en estas
+ * seis sin perder los avances.
+ */
 const ACTIVIDADES: Array<[string, TipoActividad, boolean]> = [
-  ['Bienvenida y acuerdos de la formación', TipoActividad.LECCION, false],
-  ['Encuesta de caracterización', TipoActividad.ENCUESTA, true],
-  ['Unidad 1 — Conceptos fundamentales', TipoActividad.LECCION, true],
-  ['Material de apoyo de la unidad 1', TipoActividad.RECURSO, false],
-  ['Taller práctico 1', TipoActividad.TAREA, true],
-  ['Foro: casos de mi empresa', TipoActividad.FORO, true],
-  ['Unidad 2 — Aplicación en el puesto de trabajo', TipoActividad.LECCION, true],
-  ['Quiz de la unidad 2', TipoActividad.QUIZ, true],
-  ['Taller práctico 2', TipoActividad.TAREA, true],
-  ['Unidad 3 — Cierre y buenas prácticas', TipoActividad.LECCION, true],
-  ['Evaluación final', TipoActividad.EVALUACION, true],
-  ['Encuesta de satisfacción', TipoActividad.ENCUESTA, false],
+  ['UT1', TipoActividad.LECCION, true],
+  ['UT2', TipoActividad.LECCION, true],
+  ['UT3', TipoActividad.LECCION, true],
+  ['UT4', TipoActividad.LECCION, true],
+  ['UT5', TipoActividad.LECCION, true],
+  ['EVAL FINAL', TipoActividad.EVALUACION, true],
 ];
 
 /** Cuántas etapas hay que llenar y con cuánta gente. */
@@ -626,7 +644,7 @@ async function sembrarActividades(acciones: Array<{ id: string; codigo: string }
           obligatoria,
           publicada: true,
           duracion: entre(30, 180),
-          ponderacion: tipo === TipoActividad.EVALUACION ? 30 : obligatoria ? 7 : null,
+          ponderacion: tipo === TipoActividad.EVALUACION ? 30 : obligatoria ? 14 : null,
         },
       });
       total += 1;

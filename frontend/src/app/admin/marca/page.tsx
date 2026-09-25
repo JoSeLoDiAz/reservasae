@@ -365,8 +365,8 @@ export default function PaginaMarca() {
             <h2 className="text-[1rem] font-bold text-titulo">Para todo el equipo</h2>
             <p className="mt-1 text-texto-suave">
               {gremio?.fijo
-                ? "La marca de este gremio: la ven todo su equipo en el panel y la gente de afuera en los formularios."
-                : "La marca de todo el sistema: la ven todo el equipo en el panel y la gente de afuera en los formularios."}
+                ? "La marca de este gremio: la ve todo su equipo en el panel, y quien entra desde fuera, en los formularios."
+                : "La marca de todo el sistema: la ve todo el equipo en el panel, y quien entra desde fuera, en los formularios."}
             </p>
           </header>
 

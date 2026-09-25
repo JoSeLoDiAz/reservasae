@@ -1,14 +1,16 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { Cajon, Dato } from "@/components/admin/cajon";
 import { ConfirmarBorrado } from "@/components/admin/confirmar-borrado";
 import { IndicadorActualizacion } from "@/components/admin/indicador-actualizacion";
 import { Aviso, useAdmin } from "@/components/admin/marco-admin";
 import { Cifra } from "@/components/admin/piezas";
+import { ReservasUnificadas } from "@/components/admin/reservas-unificadas";
 import { Tabla, type Columna } from "@/components/admin/tabla";
 import { CarguePlantilla } from "@/components/admin/cargue-plantilla";
+import { alcanza } from "@/lib/admin-api";
 import { bonito, enMayusculas } from "@/lib/api";
 import { useDatosVivos } from "@/lib/datos-vivos";
 import {
@@ -17,9 +19,26 @@ import {
   type EstadoReserva,
   type FilaReserva,
   type PaginaReservas,
+  type ReservasAgrupadas,
 } from "@/lib/tableros-api";
 
 const POR_VIAJE = 200;
+
+/**
+ * Cómo se miran las reservas: unificadas o una por una.
+ *
+ * «Unificar criterios» (cliente, 25 sep 2026) es lo que se abre por
+ * omisión: una fila por organización, con las acciones de formación
+ * como columnas. El listado de siempre --una fila por reserva-- se
+ * queda al lado y no debajo: es el que lleva la descarga en Excel,
+ * el cargue de plantilla y la respuesta de cada formulario, que no
+ * caben en una fila consolidada.
+ */
+type Vista = "organizacion" | "reserva";
+
+/// Dónde se recuerda cuál eligió. Va en el navegador y no en la
+/// cuenta: es una preferencia de cómo mirar, no un permiso.
+const LLAVE_VISTA = "convoca:reservas:vista";
 
 const ETIQUETA_ESTADO: Record<EstadoReserva, { texto: string; clase: string }> = {
   CONFIRMADA: { texto: "Confirmada", clase: "text-exito" },
@@ -41,9 +60,50 @@ export default function PaginaReservas() {
   const [abierta, setAbierta] = useState<FilaReserva | null>(null);
   const { admin } = useAdmin();
 
+  /// Arranca en la unificada y se corrige en el primer pintado con lo
+  /// que guardó la última vez. Leer `localStorage` durante el render
+  /// deja el servidor y el navegador pintando cosas distintas.
+  const [vista, setVista] = useState<Vista>("organizacion");
+  // localStorage no existe en el servidor: leerlo en el estado
+  // inicial rompe la hidratación. Es el mismo trato que le da la
+  // tabla a su tamaño de página.
+  useEffect(() => {
+    try {
+      const guardada = window.localStorage.getItem(LLAVE_VISTA);
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      if (guardada === "reserva" || guardada === "organizacion") setVista(guardada);
+    } catch {
+      // en ventana privada localStorage puede fallar
+    }
+  }, []);
+
+  const elegirVista = useCallback((cual: Vista) => {
+    setVista(cual);
+    try {
+      window.localStorage.setItem(LLAVE_VISTA, cual);
+    } catch {
+      // que no se recuerde no es motivo para no cambiarla
+    }
+  }, []);
+
+  /// Cada vista refresca solo mientras se está mirando. Las dos a la
+  /// vez serían el doble de viajes cada treinta segundos para pintar
+  /// una sola tabla.
   const vivos = useDatosVivos<PaginaReservas>(
     useCallback(() => tablerosApi.reservas({ pagina: 1, porPagina: POR_VIAJE }), []),
+    { activo: vista === "reserva" },
   );
+
+  /// La unificada trae lo suyo del servidor: agrupar en el navegador
+  /// sobre una página de 200 parte en dos a la empresa cuyas AF caen
+  /// en páginas distintas, y el error no se ve.
+  const agrupadas = useDatosVivos<ReservasAgrupadas>(
+    useCallback(() => tablerosApi.reservasAgrupadas(), []),
+    { activo: vista === "organizacion" },
+  );
+
+  const puedeEditarEstado =
+    !admin.permisos || alcanza(admin.permisos.reserva, "ESCRIBIR");
 
   const datos = vivos.datos;
 
@@ -237,23 +297,71 @@ export default function PaginaReservas() {
   /// marco: el contenedor dejo de ponerlo para que las
   /// bandas vayan a sangre, y sin esto la barra de
   /// busqueda y la paginacion quedaban pegadas al canto.
+  const mirando = vista === "organizacion" ? agrupadas : vivos;
+
+  /**
+   * La descarga y el cargue, UNA VEZ Y PARA LAS DOS VISTAS.
+   *
+   * «Debemos tener los mismos botones en las dos vistas» (cliente, 25
+   * sep 2026). Estaban escritos dentro de la tabla de «Por reserva»,
+   * que es donde nacieron, y al pasar a «Por organización»
+   * desaparecían. No hay razón: el Excel sale del servidor con una
+   * fila por reserva --el mismo fichero se mire como se mire-- y la
+   * plantilla que se carga tampoco depende de cómo esté agrupada la
+   * pantalla.
+   *
+   * Lo que refresca al terminar el cargue es la vista QUE SE ESTÁ
+   * MIRANDO, no siempre el listado por reserva: subir un fichero
+   * desde «Por organización» y ver la tabla igual que antes se lee
+   * como que el cargue no funcionó.
+   */
+  const botones = (
+    <>
+      <button
+        onClick={() => descargar("reservas", {})}
+        /// La medida de la barra de la tabla, la misma que
+        /// los dos de `CarguePlantilla` que vienen detrás:
+        /// 32 de alto, radio 9, relleno 13.
+        className="inline-flex h-[32px] items-center rounded-[9px] bg-marca px-[13px] text-[0.78125rem] font-semibold text-marca-texto transition hover:bg-marca-fuerte sin-aro"
+      >
+        Descargar en Excel
+      </button>
+      <CarguePlantilla
+        entidad="reservas"
+        admiteNuevas={false}
+        alTerminar={() => mirando.refrescar()}
+      />
+    </>
+  );
+
   return (
     <div className="flex min-h-0 grow flex-col gap-3 px-4 pt-3">
+      <ElegirVista vista={vista} alElegir={elegirVista} />
+
       {/* Sin título ni conteo: lo dice la miga, y la cifra
           va en el pie de la tabla. El aviso solo aparece si
           el servidor deja de contestar; el resto del tiempo
           aquí no hay nada, y por eso no lleva envoltorio: uno
           vacío dejaría un hueco por nada. */}
-      {vivos.desactualizado && (
+      {mirando.desactualizado && (
         <IndicadorActualizacion
-          actualizadoEn={vivos.actualizadoEn}
-          refrescando={vivos.refrescando}
-          desactualizado={vivos.desactualizado}
-          alRefrescar={vivos.refrescar}
+          actualizadoEn={mirando.actualizadoEn}
+          refrescando={mirando.refrescando}
+          desactualizado={mirando.desactualizado}
+          alRefrescar={mirando.refrescar}
         />
       )}
 
-      {vivos.error && <Aviso tipo="error">{vivos.error}</Aviso>}
+      {mirando.error && <Aviso tipo="error">{mirando.error}</Aviso>}
+
+      {vista === "organizacion" && (
+        <ReservasUnificadas
+          datos={agrupadas.datos}
+          puedeEditar={puedeEditarEstado}
+          alRefrescar={agrupadas.refrescar}
+          botones={botones}
+        />
+      )}
 
       {/* LAS CIFRAS, COMO EN GESTIÓN DE LEADS. «No veo tarjetas en
           reservas como lo tiene Gestión de leads» (cliente, 23 sep
@@ -265,8 +373,27 @@ export default function PaginaReservas() {
           la primera dice sobre cuántas: la tabla trae 200 por viaje y
           con más reservas que eso una cifra que parece el total no lo
           sería. */}
-      {cargadas.length > 0 && (
+      {vista === "reserva" && cargadas.length > 0 && (
         <div className="flex flex-wrap items-stretch gap-2">
+          {/* LAS MISMAS CINCO, EN EL MISMO ORDEN Y CON LAS MISMAS
+              PALABRAS QUE «Por organización».
+
+              «¿Por qué tengo diferencias en los valores?» (cliente, 25
+              sep 2026): una vista decía «En espera 1» y la otra
+              «Cupos en espera 6». Las dos tenían razón --1 reserva que
+              lleva 6 cupos-- y ninguna lo decía: la misma etiqueta
+              contaba reservas aquí y cupos allá. Dos cifras distintas
+              bajo la misma palabra, en la misma pantalla, a un clic
+              una de otra.
+
+              Manda la unidad de al lado: si la tarjeta vecina dice
+              «Cupos apartados», esta cuenta CUPOS, y las reservas van
+              al pie. */}
+          <Cifra
+            etiqueta="Organizaciones"
+            valor={organizaciones}
+            pie="con al menos una reserva"
+          />
           <Cifra
             etiqueta="Reservas"
             valor={datos?.total ?? cargadas.length}
@@ -283,59 +410,39 @@ export default function PaginaReservas() {
             color={cuposApartados > 0 ? "var(--exito)" : undefined}
           />
           <Cifra
-            etiqueta="En espera"
-            valor={enEspera}
+            etiqueta="Cupos en espera"
+            valor={cuposEnEspera}
             pie={
-              cuposEnEspera > 0
-                ? `${cuposEnEspera} ${cuposEnEspera === 1 ? "cupo" : "cupos"} sin sitio todavía`
-                : "ninguna esperando"
+              enEspera > 0
+                ? `en ${enEspera} ${enEspera === 1 ? "reserva" : "reservas"}`
+                : "ninguno esperando"
             }
-            color={enEspera > 0 ? "var(--aviso)" : undefined}
+            color={cuposEnEspera > 0 ? "var(--aviso)" : undefined}
           />
           <Cifra
-            etiqueta="Canceladas"
+            etiqueta="Reservas canceladas"
             valor={canceladas}
             pie={canceladas > 0 ? "sus cupos volvieron a la oferta" : "ninguna cancelada"}
             color={canceladas > 0 ? "var(--error)" : undefined}
           />
-          <Cifra
-            etiqueta="Organizaciones"
-            valor={organizaciones}
-            pie="con al menos una reserva"
-          />
         </div>
       )}
 
-      <Tabla
-        id="reservas"
-        columnas={columnas}
-        filas={filas}
-        clave={(r) => r.id}
-        total={datos?.total}
-        alCargarTodo={datos && datos.paginas > 1 ? cargarTodas : undefined}
-        alClic={setAbierta}
-        // ya trae la suya, del servidor y con todas las filas
-        sinDescarga
-        vacio="Aparecerán en cuanto alguien reserve desde un formulario."
-        acciones={
-          <>
-            <button
-              onClick={() => descargar("reservas", {})}
-              /// La medida de la barra de la tabla, la misma que
-              /// los dos de `CarguePlantilla` que vienen detrás:
-              /// 32 de alto, radio 9, relleno 13.
-              className="inline-flex h-[32px] items-center rounded-[9px] bg-marca px-[13px] text-[0.78125rem] font-semibold text-marca-texto transition hover:bg-marca-fuerte sin-aro"
-            >
-              Descargar en Excel
-            </button>
-            <CarguePlantilla
-              entidad="reservas"
-              admiteNuevas={false}
-              alTerminar={() => vivos.refrescar()}
-            />
-          </>
-        }
-      />
+      {vista === "reserva" && (
+        <Tabla
+          id="reservas"
+          columnas={columnas}
+          filas={filas}
+          clave={(r) => r.id}
+          total={datos?.total}
+          alCargarTodo={datos && datos.paginas > 1 ? cargarTodas : undefined}
+          alClic={setAbierta}
+          // ya trae la suya, del servidor y con todas las filas
+          sinDescarga
+          vacio="Aparecerán en cuanto alguien reserve desde un formulario."
+          acciones={botones}
+        />
+      )}
 
       {abierta && (
         <PanelReserva
@@ -348,6 +455,64 @@ export default function PaginaReservas() {
           }}
         />
       )}
+    </div>
+  );
+}
+
+/**
+ * Las dos formas de mirar las reservas.
+ *
+ * Dos enlaces y no un desplegable: son dos, se leen de un vistazo y
+ * cuál está puesta se ve sin abrir nada. Van en `rem` y sin alto
+ * fijo, para que la banda crezca con la letra cuando el panel sube
+ * al 140 %.
+ */
+function ElegirVista({
+  vista,
+  alElegir,
+}: {
+  vista: Vista;
+  alElegir: (cual: Vista) => void;
+}) {
+  const opciones: Array<{ valor: Vista; texto: string; explica: string }> = [
+    {
+      valor: "organizacion",
+      texto: "Por organización",
+      explica: "Una fila por empresa, con las acciones de formación como columnas",
+    },
+    {
+      valor: "reserva",
+      texto: "Por reserva",
+      explica: "Una fila por reserva, con la descarga en Excel y el cargue de plantilla",
+    },
+  ];
+
+  return (
+    <div
+      role="tablist"
+      aria-label="Cómo mirar las reservas"
+      className="flex flex-wrap items-center gap-1"
+    >
+      {opciones.map((o) => {
+        const puesta = o.valor === vista;
+        return (
+          <button
+            key={o.valor}
+            role="tab"
+            aria-selected={puesta}
+            title={o.explica}
+            onClick={() => alElegir(o.valor)}
+            className={
+              "rounded-[9px] border px-[13px] py-[0.4em] text-[0.78125rem] transition " +
+              (puesta
+                ? "border-marca font-semibold text-marca"
+                : "border-borde text-texto-suave hover:text-texto")
+            }
+          >
+            {o.texto}
+          </button>
+        );
+      })}
     </div>
   );
 }

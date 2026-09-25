@@ -953,6 +953,73 @@ Ninguna es grave. Las hago yo si prefieres, pero son tuyas y las conoces mejor.
 
 ---
 
+## 🔴 Sin resolver · ¿cuándo entra alguien al aula?
+
+**Lo planteó Mauricio el 25 sep 2026 y hay que concretarlo con DIANA
+HERNÁNDEZ antes de construir nada.** No es una tarea: es una decisión
+que todavía no está tomada, y la escribo aquí para que no te la
+encuentres de frente cuando llegues a esta parte.
+
+### La pregunta
+
+Seguimiento del aula enseña a quien está `EN_FORMACION` en una acción
+**virtual** de tipo `CURSO`. Lo que nadie ha decidido es **en qué
+momento y por qué regla** una persona pasa a estar ahí.
+
+Sus palabras: «¿sabes qué me queda sonando? En qué momento se generan
+estos contactos. No sé si un día antes de empezar las acciones de
+formación el sistema detecte los grupos y AF que aplican y los migre
+automático».
+
+### Las dos formas, y lo que cada una implica
+
+**A · A mano.** Alguien mueve la etapa a «En formación» desde Gestión
+de leads, persona por persona o por lote. Es lo que pasa hoy.
+
+- No hay sorpresas: entra quien alguien decidió que entrara.
+- Pero depende de que se acuerden, y el día que arranca un grupo de
+  sesenta hay sesenta movimientos que hacer.
+
+**B · Automático, un día antes de que arranque el grupo.** Un trabajo
+programado mira qué grupos empiezan mañana y pasa a «En formación» a
+sus inscritos.
+
+- Nadie se queda fuera por olvido, y el aula está lista el día uno.
+- Pero hay que decidir **a quién SÍ**: ¿al inscrito sin matrícula
+  confirmada? ¿al que no ha pagado? ¿al que se inscribió anoche?
+  Un automático que se equivoca mete gente en un curso que no
+  empezó, y sacarla de ahí ya no es deshacer un clic.
+
+### Lo que hay que preguntarle a Diana
+
+1. ¿Qué condición exacta hace que alguien «esté en el aula»?
+   ¿Matriculado? ¿Con cupo confirmado? ¿Con pago?
+2. ¿El día antes, o el mismo día de inicio? Los grupos tienen
+   `fechaInicio`; la víspera da margen para revisar, el mismo día
+   evita que alguien se dé de baja en medio.
+3. ¿Qué pasa con quien se inscribe DESPUÉS de que arrancó el grupo?
+   ¿Entra tarde al aula o se queda fuera del corte?
+4. ¿Y con quien se retira? Hoy nada lo saca solo.
+
+### Por dónde tocaría, si sale la B
+
+- La regla vive en el mismo sitio que la de esta pantalla:
+  `etapa IN (ETAPAS_EN_AULA) AND cobertura.modalidad = VIRTUAL AND
+  accionFormacion.evento = CURSO` (`crm.service.ts`, `academico()`).
+- El disparador sería un trabajo programado como los que ya existen;
+  mira `RuiWorker` como ejemplo de uno encendido por entorno.
+- **Por `evento` y nunca por una lista de códigos AF**: los códigos
+  se repiten entre convenios y no significan lo mismo ---el foro es
+  AF8 en Grupo AE y AF7 en ADECOPRIA---. Ya nos costó una vez.
+- Y lo que mueva etapas tiene que dejar `MovimientoParticipante`,
+  para que se sepa que lo movió el sistema y no una persona.
+
+### Lo que NO hay que hacer todavía
+
+Construirlo. Mauricio pidió expresamente que lo analices y lo
+concretes con Diana primero. Si al llegar aquí ya está decidido,
+avísale ---sus palabras: «cuando llegue a esa parte le diga»---.
+
 ## Lo que ya está hecho, para que no lo busques
 
 Cuatro commits en la rama, cada uno con su prueba y **comprobado que falla sin el arreglo**:

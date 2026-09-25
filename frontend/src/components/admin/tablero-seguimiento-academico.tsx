@@ -28,15 +28,23 @@
  * en sus notas. Por eso aquí no hay ningún botón que cambie nada.
  */
 
-import { useCallback, useMemo, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 
-import { crmApi, type Academico, type FilaAcademica } from "@/lib/crm-api";
+import {
+  crmApi,
+  ETIQUETA_ACADEMICA,
+  type Academico,
+  type EstadoAcademico,
+  type FilaAcademica,
+} from "@/lib/crm-api";
 import { useDatosVivos } from "@/lib/datos-vivos";
+import { tablerosApi } from "@/lib/tableros-api";
 
 import { Desplegable } from "./desplegable";
-import { n } from "./graficos";
+import { colorEtapa } from "./etapa";
+import { Donut, n, SERIE } from "./graficos";
 import { Aviso } from "./marco-admin";
-import { Bloque, CifraCompacta, Encabezado, Esqueleto, Vacio } from "./piezas";
+import { Bloque, Encabezado, Esqueleto, Vacio } from "./piezas";
 
 /// «AF1 · GESTIÓN DE LA ATENCIÓN…» llega en un solo texto, y el nombre
 /// entero son noventa letras que se comen la primera columna de la
@@ -50,31 +58,126 @@ const soloElCodigo = (accion: string | null) =>
 /// nadie sabe si está viendo todo o si se le olvidó elegir.
 const TODOS = "";
 
-/// Los seis del aula, en el orden del recorrido: del que no entró al
-/// que ya terminó. No por tamaño: el orden es el del proceso, y así la
-/// fila se lee como un camino.
-const ESTADOS = [
-  { clave: "sinIngreso", etiqueta: "Sin ingreso", etapa: "PERDIDO" },
-  { clave: "sinEmpezar", etiqueta: "Sin empezar", etapa: "CONTACTADO" },
-  { clave: "atrasados", etiqueta: "Atrasado", etapa: "EN_FORMACION" },
-  { clave: "alDia", etiqueta: "Al día", etapa: "CERTIFICADO" },
-  { clave: "completados", etiqueta: "Listo para certificar", etapa: "INSCRITO" },
-  { clave: "certificados", etiqueta: "Certificado", etapa: "CERTIFICADO" },
-] as const;
+/**
+ * Los seis del aula, EXACTAMENTE LAS TARJETAS DE «Seguimiento del
+ * aula» (cliente, 25 sep 2026: «dejemos las mismas tarjetas»).
+ *
+ * El rótulo sale de `ETIQUETA_ACADEMICA` y el color de `colorEtapa`,
+ * los dos compartidos con aquella pantalla: copiar los textos a mano
+ * es cómo se acaba con «Sin empezar» aquí y «Sin actividades» allá,
+ * que fue justo lo que pasó.
+ *
+ * En el orden del recorrido y no por tamaño: del que no entró al que
+ * ya terminó, para que la fila se lea como un camino.
+ */
+const ESTADOS: Array<{ clave: keyof Academico["resumen"]; estado: EstadoAcademico }> = [
+  { clave: "sinIngreso", estado: "SIN_INGRESO" },
+  { clave: "sinEmpezar", estado: "SIN_EMPEZAR" },
+  { clave: "atrasados", estado: "ATRASADO" },
+  { clave: "alDia", estado: "AL_DIA" },
+  { clave: "completados", estado: "COMPLETADO" },
+  { clave: "certificados", estado: "CERTIFICADO" },
+];
 
-/// Las cuatro salidas. Van aparte porque no son un punto del camino:
-/// son cuatro maneras de bajarse de él, y mezclarlas con las de arriba
-/// haría que la fila no sumara la gente del aula.
-const SALIDAS = [
-  { clave: "desertaron", etiqueta: "Desertó", etapa: "DESERTO" },
-  { clave: "abandonaron", etiqueta: "Abandonó", etapa: "ABANDONO" },
-  { clave: "retirados", etiqueta: "Retirado", etapa: "RETIRADO" },
-  { clave: "noAprobaron", etiqueta: "No aprobó", etapa: "NO_APROBO" },
-] as const;
+/**
+ * Los colores de la torta, y el porqué de pasarlos a mano.
+ *
+ * El `Donut` los reparte solo si no se los dan, pero entonces esta
+ * pantalla no sabría cuál le tocó a cada grupo y el punto de la lista
+ * de abajo no podría casar con su tajada. Pasándolos, las dos mitades
+ * del bloque salen del mismo sitio.
+ *
+ * SON TRES Y SE REPITEN CADA TRES GRUPOS. No estorba porque el color
+ * aquí no distingue él solo: distingue el PAR color + posición, y la
+ * lista va en el mismo orden en que se dibujan las tajadas.
+ */
+const CICLO = [SERIE.uno, SERIE.dos, SERIE.tres];
+
+const COLOR_ESTADO: Record<EstadoAcademico, string> = {
+  SIN_INGRESO: colorEtapa("PERDIDO"),
+  SIN_EMPEZAR: colorEtapa("CONTACTADO"),
+  ATRASADO: colorEtapa("EN_FORMACION"),
+  AL_DIA: colorEtapa("CERTIFICADO"),
+  COMPLETADO: colorEtapa("INSCRITO"),
+  CERTIFICADO: colorEtapa("CERTIFICADO"),
+};
+
+/** La tarjeta del aula: punto de color, rótulo y cifra. */
+function TarjetaDeEstado({ estado, valor }: { estado: EstadoAcademico; valor: number }) {
+  return (
+    <div
+      style={{ ["--etapa"]: COLOR_ESTADO[estado] } as React.CSSProperties}
+      className="rounded-lg border border-borde bg-superficie px-3.5 py-2 text-left transition hover:border-marca/40 hover:shadow-[0_2px_14px_-6px_rgba(15,23,42,0.28)]"
+    >
+      <span className="flex items-center gap-1.5 text-[0.625rem] font-semibold tracking-[0.08em] uppercase">
+        <span className="punto-etapa" aria-hidden />
+        <span className="truncate text-texto-suave">{ETIQUETA_ACADEMICA[estado]}</span>
+      </span>
+      <span className="mt-1 block text-[1.0625rem] leading-none font-bold tabular-nums">
+        {n(valor)}
+      </span>
+    </div>
+  );
+}
 
 export function TableroSeguimientoAcademico() {
   const [accionFormacionId, setAccion] = useState(TODOS);
   const [grupoId, setGrupo] = useState(TODOS);
+
+  /**
+   * Los cupos apartados de cada acción, para poder decir «142 de 160».
+   *
+   * SALEN DEL INFORME DE RESERVAS, que es de donde salen en Control de
+   * Reservas: el aula sabe cuánta gente hay dentro, no cuántos cupos
+   * se apartaron. Contarlos por mi cuenta daría una tercera cifra
+   * parecida a las otras dos.
+   *
+   * Se pide UNA VEZ y sin recorte: es un catálogo, no una cifra de la
+   * pantalla, y con el filtro puesto devolvería solo la acción elegida
+   * --y al soltarlo habría que volver a pedirlo--. Si falla, la
+   * pantalla se pinta igual con lo matriculado: el aula no depende de
+   * las reservas para tener sentido.
+   */
+  /**
+   * EL AULA SIN NINGÚN CORTE, para la lista de acciones.
+   *
+   * Con una acción elegida el servidor devuelve solo esa, así que la
+   * lista se quedaría con una entrada y no habría desde dónde pulsar
+   * la siguiente ---el mismo defecto que ya costó una vuelta en los
+   * desplegables de Control de Reservas---. Se pide una vez.
+   */
+  const [catalogo, setCatalogo] = useState<Academico | null>(null);
+  useEffect(() => {
+    let vigente = true;
+    crmApi.academico({}).then(
+      (c) => {
+        if (vigente) setCatalogo(c);
+      },
+      () => {
+        // sin catálogo, la lista sale del recorte; se nota al filtrar
+      },
+    );
+    return () => {
+      vigente = false;
+    };
+  }, []);
+
+  const [cuposPorAccion, setCupos] = useState<Map<string, number> | null>(null);
+  useEffect(() => {
+    let vigente = true;
+    tablerosApi.informeReservas({}).then(
+      (i) => {
+        if (!vigente) return;
+        setCupos(new Map(i.porAccion.map((a) => [a.accionFormacionId, a.cuposConfirmados])));
+      },
+      () => {
+        // sin cupos, las barras se quedan con lo matriculado
+      },
+    );
+    return () => {
+      vigente = false;
+    };
+  }, []);
 
   const filtros = useMemo(
     () => ({
@@ -156,18 +259,67 @@ export function TableroSeguimientoAcademico() {
       {!vivos.datos && !vivos.error && <Esqueleto />}
 
       {vivos.datos && (
-        <Cuerpo datos={vivos.datos} grupoElegido={grupoId} />
+        <Cuerpo
+          datos={vivos.datos}
+          catalogo={catalogo}
+          grupoElegido={grupoId}
+          accionElegida={accionFormacionId}
+          /// Pulsar la que ya está puesta la suelta: es la única
+          /// puerta de salida que se prueba sola. Y suelta el grupo,
+          /// como hace el desplegable de arriba.
+          alElegirAccion={(id) => {
+            setAccion((v) => (v === id ? TODOS : id));
+            setGrupo(TODOS);
+          }}
+          cuposPorAccion={cuposPorAccion}
+        />
       )}
     </div>
   );
 }
 
+/* ══════════════════════════════════════════════════════════════════
+   EL CUERPO
+   ══════════════════════════════════════════════════════════════════ */
+
+/**
+ * «Evocar el mismo diseño de Control de inscritos, pero sin tanta
+ * cosa» (cliente, 25 sep 2026). De ahí salen las cuatro piezas y su
+ * orden: resumen, cupos contra inscritos, dos gráficas y la tabla que
+ * él dibujó.
+ *
+ * ANTES ERAN CUATRO BLOQUES QUE DECÍAN LO MISMO TRES VECES: una tira
+ * de cifras, «Estado LMS», «Causales de Retiro» y una tabla de
+ * matriculados por grupo. Los tres primeros son el mismo dato --dónde
+ * está la gente-- partido en tres cajas con tres bordes, y el cuarto
+ * es la última columna de la tabla que él pidió.
+ */
 function Cuerpo({
   datos,
+  catalogo,
   grupoElegido,
+  accionElegida,
+  alElegirAccion,
+  cuposPorAccion,
 }: {
   datos: Academico;
+  /**
+   * El aula SIN NINGÚN CORTE, para la lista de acciones.
+   *
+   * No puede salir de `datos`: con una acción elegida, el servidor
+   * devuelve solo esa, la lista se queda con una entrada y no habría
+   * desde dónde pulsar la siguiente. Es la misma regla que ya siguen
+   * los desplegables de Control de Reservas, y el mismo defecto que
+   * ya costó una vuelta allí.
+   */
+  catalogo: Academico | null;
   grupoElegido: string;
+  accionElegida: string;
+  alElegirAccion: (id: string) => void;
+  /// Nulo mientras no llega, o si falló: la pantalla se pinta igual y
+  /// las barras se quedan con lo matriculado. El aula no depende del
+  /// informe de reservas para tener sentido.
+  cuposPorAccion: Map<string, number> | null;
 }) {
   const r = datos.resumen;
   if (r.total === 0) {
@@ -178,136 +330,456 @@ function Cuerpo({
     );
   }
 
-  /// Cuántos grupos entran en lo que se está mirando, y cuánta gente
-  /// hay en cada uno. Se cuenta de las filas que ya llegaron --no se
-  /// enseñan-- para no pedir una segunda consulta que podría dar otra
-  /// cifra que la de arriba.
-  const porGrupo = new Map<
-    string,
-    { llave: string; numero: number; accion: string | null; gente: number }
-  >();
-  for (const p of datos.personas as FilaAcademica[]) {
-    const llave = `${p.accionFormacionId ?? "—"}|${p.grupo ?? "—"}`;
-    /// EL CÓDIGO Y NO EL NOMBRE. `p.accion` trae el nombre entero de
-    /// la acción --noventa letras-- y con él la primera columna se
-    /// comía la tabla. El código identifica igual y cabe.
-    const g =
-      porGrupo.get(llave) ??
-      { llave, numero: p.grupo ?? 0, accion: soloElCodigo(p.accion), gente: 0 };
-    g.gente += 1;
-    porGrupo.set(llave, g);
+  const personas = datos.personas as FilaAcademica[];
+
+  /* ── las columnas de actividad ──────────────────────────────────
+     Salen de la gente que llegó y no de un catálogo: así la tabla
+     enseña las actividades del recorte que se está mirando y no las
+     de cursos que aquí no salen. En el orden del curso --`orden`--,
+     porque la tabla es un camino y no un ranking. */
+  const actividades = new Map<string, { orden: number; titulo: string }>();
+  /// Qué actividades tiene CADA ACCIÓN: dos acciones no llevan el
+  /// mismo temario, y una celda vacía no es lo mismo que un cero.
+  const actividadesDeAccion = new Map<string, Set<string>>();
+  for (const p of personas) {
+    const clave = p.accionFormacionId ?? "—";
+    const suyas = actividadesDeAccion.get(clave) ?? new Set<string>();
+    for (const a of p.actividades) {
+      if (!actividades.has(a.titulo)) {
+        actividades.set(a.titulo, { orden: a.orden, titulo: a.titulo });
+      }
+      suyas.add(a.titulo);
+    }
+    actividadesDeAccion.set(clave, suyas);
   }
-  const grupos = [...porGrupo.values()].sort(
-    (a, b) => (a.accion ?? "").localeCompare(b.accion ?? "") || a.numero - b.numero,
+  const columnas = [...actividades.values()].sort(
+    (a, b) => a.orden - b.orden || a.titulo.localeCompare(b.titulo),
   );
 
-  const salidas = r.desertaron + r.abandonaron + r.retirados + r.noAprobaron;
+  /* ── una fila por grupo ─────────────────────────────────────────
+     Los grupos salen del catálogo y no de la gente: un grupo abierto
+     sin nadie matriculado es justo lo que hay que ver, y contando
+     solo a los que llegaron desaparecería de la tabla. */
+  type Fila = {
+    llave: string;
+    accionId: string;
+    codigo: string;
+    grupo: number | null;
+    sinIngreso: number;
+    sinActividad: number;
+    hechas: Map<string, number>;
+    total: number;
+  };
+  const nuevaFila = (accionId: string, codigo: string, grupo: number | null): Fila => ({
+    llave: `${accionId}|${grupo ?? "—"}`,
+    accionId,
+    codigo,
+    grupo,
+    sinIngreso: 0,
+    sinActividad: 0,
+    hechas: new Map(),
+    total: 0,
+  });
+
+  const filas = new Map<string, Fila>();
+  const codigoDeAccion = new Map(datos.acciones.map((a) => [a.id, a.codigo]));
+  for (const g of datos.grupos) {
+    if (grupoElegido && g.id !== grupoElegido) continue;
+    /// EL SERVIDOR MANDA TODOS LOS GRUPOS, también con una acción
+    /// elegida ---el desplegable de arriba los recorta por su cuenta,
+    /// por eso no se había notado---. Sin este corte, al pulsar una
+    /// acción la tabla seguía con las quince filas y las siete de las
+    /// otras acciones salían en cero: se lee como que el filtro no
+    /// hizo nada.
+    if (accionElegida && (g.accionFormacionId ?? "—") !== accionElegida) continue;
+    const accionId = g.accionFormacionId ?? "—";
+    const f = nuevaFila(accionId, codigoDeAccion.get(accionId) ?? "—", g.numero);
+    filas.set(f.llave, f);
+  }
+  for (const p of personas) {
+    const accionId = p.accionFormacionId ?? "—";
+    const llave = `${accionId}|${p.grupo ?? "—"}`;
+    const f =
+      filas.get(llave) ??
+      nuevaFila(accionId, codigoDeAccion.get(accionId) ?? soloElCodigo(p.accion) ?? "—", p.grupo);
+    filas.set(llave, f);
+    f.total += 1;
+    if (p.estado === "SIN_INGRESO") f.sinIngreso += 1;
+    if (p.estado === "SIN_EMPEZAR") f.sinActividad += 1;
+    for (const a of p.actividades) {
+      if (a.completada) f.hechas.set(a.titulo, (f.hechas.get(a.titulo) ?? 0) + 1);
+    }
+  }
+
+  /// EL DESEMPATE ES EL ID DE LA ACCIÓN Y NO SOLO EL CÓDIGO, y sin
+  /// él la tabla salía con «Total AF1» dos y tres veces. Cada código
+  /// existe DOS VECES --uno por gremio, y no significan lo mismo--,
+  /// así que ordenando solo por código las filas de las dos acciones
+  /// se intercalan y las tandas se parten en trozos.
+  const ordenadas = [...filas.values()].sort(
+    (a, b) =>
+      a.codigo.localeCompare(b.codigo) ||
+      a.accionId.localeCompare(b.accionId) ||
+      (a.grupo ?? 0) - (b.grupo ?? 0),
+  );
+
+  /// Qué códigos están repartidos entre dos acciones DE LAS QUE SE
+  /// ESTÁN VIENDO. Solo esos llevan el nombre detrás: con un gremio
+  /// solo a la vista, repetirlo en cada fila es ruido.
+  const porCodigo = new Map<string, Set<string>>();
+  for (const f of ordenadas) {
+    const s = porCodigo.get(f.codigo) ?? new Set<string>();
+    s.add(f.accionId);
+    porCodigo.set(f.codigo, s);
+  }
+  const nombreDeAccion = new Map(datos.acciones.map((a) => [a.id, a.nombre]));
+  const ambiguo = (codigo: string) => (porCodigo.get(codigo)?.size ?? 0) > 1;
+
+  /// Agrupadas por acción para poder cerrar cada tanda con su total,
+  /// que es como la dibujó: «TOTAL AF» debajo de sus ocho grupos.
+  const porAccion: Array<{ accionId: string; codigo: string; filas: Fila[] }> = [];
+  for (const f of ordenadas) {
+    const ultima = porAccion[porAccion.length - 1];
+    if (ultima && ultima.accionId === f.accionId) ultima.filas.push(f);
+    else porAccion.push({ accionId: f.accionId, codigo: f.codigo, filas: [f] });
+  }
+
+  const sumar = (fs: Fila[]): Fila => {
+    const t = nuevaFila("", "", null);
+    for (const f of fs) {
+      t.total += f.total;
+      t.sinIngreso += f.sinIngreso;
+      t.sinActividad += f.sinActividad;
+      for (const [k, v] of f.hechas) t.hechas.set(k, (t.hechas.get(k) ?? 0) + v);
+    }
+    return t;
+  };
+  const general = sumar(ordenadas);
+
+  /* ── el embudo: hasta dónde llega la gente ────────────────────── */
+  const embudo = columnas.map((c) => {
+    /// El divisor es quién TIENE esa actividad, no el total: con dos
+    /// temarios distintos a la vista, dividir por todos haría que una
+    /// actividad que solo existe en una acción saliera siempre baja.
+    const conElla = personas.filter((p) =>
+      actividadesDeAccion.get(p.accionFormacionId ?? "—")?.has(c.titulo),
+    ).length;
+    return { titulo: c.titulo, hechas: general.hechas.get(c.titulo) ?? 0, de: conElla };
+  });
+
+  /// El rótulo de un grupo, en UN solo sitio: lo piden la tajada de
+  /// la torta y el renglón de la lista, y escrito dos veces es como
+  /// se acaba con una leyenda que no dice lo mismo que su dibujo.
+  /// LO QUE IDENTIFICA, DELANTE; el nombre de la acción, al final.
+  ///
+  /// La leyenda del anillo corta por la derecha, y con el nombre por
+  /// delante ---noventa letras--- todas las líneas salían iguales:
+  /// «AF2 · ARQUITECTURA FINANCIERA: VISUALIZACION PREDICTIVA Y…» y ni
+  /// el grupo ni el avance se veían. Puesto al final, lo que se come
+  /// la tijera es lo único que sobra; el rótulo entero sigue en el
+  /// `title`.
+  ///
+  /// Y el nombre solo va cuando hace falta: con un gremio a la vista
+  /// los códigos no se repiten y repetirlo en treinta líneas es ruido.
+  const rotuloDeGrupo = (g: {
+    codigo: string;
+    grupo: number | null;
+    accionId: string;
+    medio: number;
+  }) =>
+    `${g.codigo} Grupo ${g.grupo ?? "—"} · avance ${Math.round(g.medio)} %` +
+    (ambiguo(g.codigo) ? ` · ${nombreDeAccion.get(g.accionId) ?? ""}` : "");
+
+  /* ── cómo va cada grupo: el avance medio ──────────────────────── */
+  const avance = ordenadas
+    .filter((f) => f.total > 0)
+    .map((f) => {
+      const suyas = personas.filter(
+        (p) => (p.accionFormacionId ?? "—") === f.accionId && (p.grupo ?? null) === f.grupo,
+      );
+      const medio = suyas.reduce((t, p) => t + p.porcentaje, 0) / (suyas.length || 1);
+      return {
+        llave: f.llave,
+        codigo: f.codigo,
+        accionId: f.accionId,
+        grupo: f.grupo,
+        medio,
+        gente: suyas.length,
+      };
+    })
+    .sort((a, b) => b.medio - a.medio);
+
+  /* ── cupos contra inscritos ───────────────────────────────────── */
+  /// De la lista completa, no del recorte: ver arriba, en `catalogo`.
+  const base = catalogo ?? datos;
+  const inscritosPorAccion = new Map<string, number>();
+  for (const p of base.personas as FilaAcademica[]) {
+    const k = p.accionFormacionId ?? "—";
+    inscritosPorAccion.set(k, (inscritosPorAccion.get(k) ?? 0) + 1);
+  }
+  const accionesConCifras = base.acciones
+    .map((a) => ({
+      id: a.id,
+      codigo: a.codigo,
+      nombre: a.nombre,
+      inscritos: inscritosPorAccion.get(a.id) ?? 0,
+      cupos: cuposPorAccion?.get(a.id) ?? null,
+    }))
+    .filter((a) => a.inscritos > 0 || (a.cupos ?? 0) > 0)
+    .sort((a, b) => Math.max(b.cupos ?? 0, b.inscritos) - Math.max(a.cupos ?? 0, a.inscritos));
+  const topeCupos = Math.max(
+    1,
+    ...accionesConCifras.map((a) => Math.max(a.cupos ?? 0, a.inscritos)),
+  );
+
+  const celda = "px-3 py-1.5 text-right tabular-nums whitespace-nowrap";
 
   return (
     <>
-      {/* 1 y 2 · QUÉ SE ESTÁ MIRANDO Y CUÁNTO PESA.
+      {/* 1 · RESUMEN GENERAL --------------------------------------
+          Las tres tiras que antes eran tres bloques con tres bordes:
+          lo grueso, dónde está quien sigue dentro, y por qué se fue
+          quien ya no está. Siguen siendo renglones distintos --que es
+          como las pidió el 23 sep-- pero dentro de una sola caja. */}
+      {/* LAS SEIS DEL AULA Y NADA MÁS.
 
-          LAS TARJETAS DE «GESTIÓN DE LEADS»: 46 px de alto, rótulo de
-          11,5 y cifra de 17. Estuvieron con `TarjetaCifra` --32 px de
-          cifra, 110 de alto-- y el cliente lo paró: «que no ocupen
-          mucho espacio y le da orden» (23 sep 2026). */}
-      <div className="flex flex-wrap gap-2">
-        <CifraCompacta etiqueta="Grupos" valor={n(grupoElegido ? 1 : grupos.length)} />
-        <CifraCompacta
-          etiqueta="Matriculados"
-          valor={n(r.total)}
-          pie={
-            grupos.length > 0
-              ? `${(r.total / grupos.length).toLocaleString("es-CO", { maximumFractionDigits: 1 })} por grupo de media`
-              : undefined
-          }
-        />
-        <CifraCompacta
-          etiqueta="Siguen en formación"
-          valor={n(r.enFormacion)}
-          color="var(--exito)"
-          detalle={r.total > 0 ? `${Math.round((r.enFormacion / r.total) * 100)} %` : undefined}
-        />
-        <CifraCompacta
-          etiqueta="Salieron del aula"
-          valor={n(salidas)}
-          color={salidas > 0 ? "var(--error)" : undefined}
-          detalle={r.total > 0 ? `${Math.round((salidas / r.total) * 100)} %` : undefined}
-        />
+          «Dejemos las mismas tarjetas de Seguimiento del aula» era
+          eso y solo eso: las seis. Yo entendí «añade las seis» y
+          dejé CATORCE --cuatro de resumen, las seis, y las cuatro
+          causales--: «este chorrero no son las tarjetas que te digo»
+          (cliente, 25 sep 2026).
+
+          NO SE PIERDE NADA. Los matriculados están en el centro de la
+          torta, los grupos son las filas de la tabla, y las cuatro
+          causales se leen restando: quien no está en uno de los seis
+          estados salió del aula. Catorce cifras para decir eso es lo
+          que hacía que no se leyera ninguna. */}
+      <Bloque titulo="Resumen general">
+        <div className="grid gap-2 sm:grid-cols-3 lg:grid-cols-6">
+          {ESTADOS.map((e) => (
+            <TarjetaDeEstado key={e.clave} estado={e.estado} valor={r[e.clave]} />
+          ))}
+        </div>
+      </Bloque>
+
+      {/* 2 · CUPOS E INSCRITOS POR ACCIÓN -------------------------- */}
+      {/* «ACCIONES DE FORMACIÓN» y no «Cupos e inscritos por acción»
+          (cliente, 25 sep 2026). Es el nombre de lo que la lista ES;
+          los cupos y los inscritos son lo que enseña de cada una, y
+          eso ya se lee en la propia fila.
+
+          Y CADA FILA AMARRA EL FILTRO: «si clickea una, esto amarra
+          los filtros, funciona algo similar a Gestión de reservas».
+          Pulsar una acción es lo mismo que elegirla en el desplegable
+          de arriba, así que las cuatro piezas de la pantalla se
+          recortan a la vez. Volver a pulsarla lo suelta.
+
+          `imprimible`: en papel, globals.css esconde todo `button`
+          que no la lleve, y sin ella esta lista salía en blanco. */}
+      <Bloque titulo="Acciones de Formación">
+        <ul className="space-y-2.5">
+          {accionesConCifras.map((a) => {
+            const tope = Math.max(a.cupos ?? 0, a.inscritos);
+            const suya = accionElegida === a.id;
+            return (
+              <li key={a.id}>
+                <button
+                  type="button"
+                  onClick={() => alElegirAccion(a.id)}
+                  aria-pressed={suya}
+                  className={`imprimible -mx-2 block w-full rounded-lg px-2 py-1 text-left transition hover:bg-superficie-alterna ${
+                    suya ? "bg-marca-suave" : ""
+                  }`}
+                >
+                  <span className="flex items-baseline justify-between gap-3 text-[0.8125rem] leading-snug">
+                    <span
+                      className={`min-w-0 truncate ${suya ? "font-semibold text-marca-fuerte" : ""}`}
+                      title={a.nombre}
+                    >
+                      <span className="font-mono text-xs font-normal text-texto-suave">
+                        {a.codigo}
+                      </span>{" "}
+                      {a.nombre}
+                    </span>
+                    <span className="shrink-0 whitespace-nowrap tabular-nums">
+                      <span className="font-semibold text-titulo">{n(a.inscritos)}</span>
+                      {a.cupos !== null && (
+                        <span className="text-[0.75rem] text-texto-suave"> de {n(a.cupos)}</span>
+                      )}
+                    </span>
+                  </span>
+                  {/* La verde DENTRO de la gris: los matriculados son
+                      una parte de los cupos apartados, no una cantidad
+                      que se le sume. */}
+                  <span className="mt-1 block h-2.5 w-full overflow-hidden rounded-full bg-superficie-alterna">
+                    <span
+                      className="block h-full rounded-full bg-marca/25"
+                      style={{ width: `${Math.max((tope / topeCupos) * 100, 1)}%` }}
+                    >
+                      <span
+                        className="block h-full rounded-full bg-exito"
+                        style={{ width: `${tope > 0 ? (a.inscritos / tope) * 100 : 0}%` }}
+                      />
+                    </span>
+                  </span>
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      </Bloque>
+
+      {/* 3 · LAS DOS GRÁFICAS ------------------------------------- */}
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-stretch">
+        <div className="min-w-0 lg:flex-1">
+          <Bloque estirado titulo="Avance por Unidades Temáticas">
+            <ul className="space-y-2.5">
+              {embudo.map((e) => (
+                <li key={e.titulo}>
+                  <div className="flex items-baseline justify-between gap-3 text-[0.8125rem]">
+                    <span className="min-w-0 truncate" title={e.titulo}>
+                      {e.titulo}
+                    </span>
+                    <span className="shrink-0 tabular-nums">
+                      <span className="font-semibold text-titulo">{n(e.hechas)}</span>
+                      <span className="text-[0.75rem] text-texto-suave"> de {n(e.de)}</span>
+                    </span>
+                  </div>
+                  <div className="mt-1 h-2.5 w-full overflow-hidden rounded-full bg-superficie-alterna">
+                    <div
+                      className="h-full rounded-full bg-marca"
+                      style={{ width: `${e.de > 0 ? (e.hechas / e.de) * 100 : 0}%` }}
+                    />
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </Bloque>
+        </div>
+
+        <div className="min-w-0 lg:flex-1">
+          <Bloque estirado titulo="Avance por Grupo">
+            {/* EL ANILLO CON SU LEYENDA AL LADO, como el de «Datos
+                completos» que él señaló (25 sep 2026: «así no, como la
+                segunda captura»).
+
+                Estuvo con `soloDibujo` y una lista de barras debajo:
+                con treinta y un grupos eran sesenta y dos renglones
+                para decir lo que la leyenda dice en treinta y uno, y
+                el anillo quedaba arriba, suelto, sin nada que lo
+                explicara al lado.
+
+                EL AVANCE VA EN EL RÓTULO de cada tajada. La cifra de
+                la derecha es lo que el anillo reparte ---cuánto pesa
+                ese grupo en el total---, y el avance es otra cosa: si
+                no se dice cuál es cuál, dos porcentajes en la misma
+                línea no se pueden leer. */}
+            <Donut
+              tamano={188}
+              datos={avance.map((g, i) => ({
+                etiqueta: rotuloDeGrupo(g),
+                valor: g.gente,
+                color: CICLO[i % CICLO.length],
+              }))}
+              /// Sin `centro`: el anillo pone la suma de sus tajadas,
+              /// que es la única cifra que no puede contradecirlas.
+              /// Pasándole `resumen.total` decía 420 y dibujaba 300.
+              detalleCentro="matriculados"
+              vacio="Todavía no hay grupos con participantes."
+            />
+          </Bloque>
+        </div>
       </div>
 
-      {/* 4 · LOS ESTADOS, que los manda el LMS */}
-      <Bloque titulo="Estado LMS">
-        {/* EN TIRA, COMO LAS CIFRAS DE ARRIBA, y no en cajitas con
-            borde. Eran dos lenguajes en la misma pantalla para la misma
-            clase de dato: una cifra con su rótulo. Ahora es la misma
-            pieza en su versión compacta --24 px en vez de 32-- porque
-            aquí acompañan y lo que se viene a mirar es el reparto. */}
-        <div className="flex flex-wrap gap-2">
-          {ESTADOS.map((e) => (
-            <CifraCompacta
-              key={e.clave}
-              etiqueta={e.etiqueta}
-              valor={n(r[e.clave])}
-              detalle={r.enFormacion > 0 ? `${Math.round((r[e.clave] / r.enFormacion) * 100)} %` : undefined}
-            />
-          ))}
-        </div>
-
-      </Bloque>
-
-      {/* LAS CAUSALES, EN SU PROPIO BLOQUE (cliente, 23 sep 2026):
-          «queda aparte de Estado LMS, o sea quedan dos filas». Y es
-          correcto: los seis estados son dónde está quien sigue dentro,
-          y estas cuatro son por qué se fue quien ya no está. */}
-      <Bloque titulo="Causales de Retiro">
-        <div className="flex flex-wrap gap-2">
-          {SALIDAS.map((sa) => (
-            <CifraCompacta
-              key={sa.clave}
-              etiqueta={sa.etiqueta}
-              valor={n(r[sa.clave])}
-              detalle={r.total > 0 ? `${Math.round((r[sa.clave] / r.total) * 100)} %` : undefined}
-            />
-          ))}
-        </div>
-      </Bloque>
-
-      {/* 3 · CUÁNTA GENTE POR GRUPO, que es la carga real */}
+      {/* 4 · LA TABLA QUE DIBUJÓ ---------------------------------- */}
       <Bloque
         sinRelleno
-        titulo="Matriculados por grupo"
+        partible
+        titulo="Consolidado Avance Acción de Formación"
+        descripcion={
+          accionElegida
+            ? nombreDeAccion.get(accionElegida)
+            : "Todas las acciones. Pulse una arriba para quedarse solo con ella."
+        }
       >
         <div className="caja-scroll overflow-x-auto">
-          <table className="tabla-datos w-full">
-            <thead>
+          <table className="w-full">
+            <thead className="border-b border-borde">
               <tr>
-                <th className="w-full">Grupo</th>
-                <th className="text-right whitespace-nowrap">Matriculados</th>
-                <th className="text-right whitespace-nowrap">Parte del total</th>
+                <Cab>AF</Cab>
+                <Cab>Grupo</Cab>
+                <Cab derecha>Sin ingreso</Cab>
+                <Cab derecha>Sin actividad</Cab>
+                {columnas.map((c) => (
+                  <Cab key={c.titulo} derecha>
+                    {c.titulo}
+                  </Cab>
+                ))}
+                <Cab derecha>Total pax</Cab>
               </tr>
             </thead>
             <tbody>
-              {grupos.map((g) => (
-                /// LA LLAVE LLEVA EL ID DE LA ACCIÓN, no su código: los
-                /// dos gremios tienen su «AF1», así que «AF1|1» sale dos
-                /// veces y React se queja de claves repetidas.
-                <tr key={g.llave}>
-                  <td>
-                    <span className="font-mono text-xs text-texto-suave">{g.accion ?? "—"}</span>
-                    <span className="ml-2">Grupo {g.numero}</span>
-                  </td>
-                  <td className="text-right font-medium tabular-nums">{n(g.gente)}</td>
-                  <td className="text-right tabular-nums">
-                    {Math.round((g.gente / r.total) * 100)} %
-                  </td>
-                </tr>
-              ))}
-              <tr className="border-t-2 border-borde font-semibold">
-                <td>Total</td>
-                <td className="text-right tabular-nums">{n(r.total)}</td>
-                <td className="text-right tabular-nums">100 %</td>
-              </tr>
+              {porAccion.map((tanda, i) => {
+                const t = sumar(tanda.filas);
+                /// La banda alterna separa una acción de la siguiente
+                /// sin meter una fila de título por medio. Él las
+                /// pintó de verde y rosa; aquí va el tono de la casa,
+                /// que es el mismo recurso sin inventarse una paleta.
+                const banda = i % 2 === 1 ? "bg-superficie-alterna/50" : "";
+                return (
+                  <Fragment key={tanda.accionId}>
+                    {tanda.filas.map((f) => (
+                      <tr key={f.llave} className={`border-b border-hairline ${banda}`}>
+                        <td className="px-3 py-1.5 whitespace-nowrap">
+                          <span className="font-mono text-xs text-texto-suave">{f.codigo}</span>
+                          {ambiguo(f.codigo) && (
+                            <span
+                              className="ml-2 inline-block max-w-40 truncate align-bottom text-[0.6875rem] text-texto-suave"
+                              title={nombreDeAccion.get(f.accionId) ?? ""}
+                            >
+                              {nombreDeAccion.get(f.accionId) ?? ""}
+                            </span>
+                          )}
+                        </td>
+                        <td className="px-3 py-1.5 whitespace-nowrap">G{f.grupo ?? "—"}</td>
+                        <td className={celda}>{f.sinIngreso || ""}</td>
+                        <td className={celda}>{f.sinActividad || ""}</td>
+                        {columnas.map((c) => (
+                          <td key={c.titulo} className={celda}>
+                            {actividadesDeAccion.get(f.accionId)?.has(c.titulo)
+                              ? f.hechas.get(c.titulo) || 0
+                              : "—"}
+                          </td>
+                        ))}
+                        <td className={`${celda} font-semibold`}>{f.total}</td>
+                      </tr>
+                    ))}
+                    <tr className={`border-b border-borde font-semibold ${banda}`}>
+                      <td className="px-3 py-1.5 whitespace-nowrap" colSpan={2}>
+                        Total {tanda.codigo}
+                        {ambiguo(tanda.codigo) && (
+                          <span
+                            className="ml-2 inline-block max-w-40 truncate align-bottom text-[0.6875rem] font-normal text-texto-suave"
+                            title={nombreDeAccion.get(tanda.accionId) ?? ""}
+                          >
+                            {nombreDeAccion.get(tanda.accionId) ?? ""}
+                          </span>
+                        )}
+                      </td>
+                      <td className={celda}>{t.sinIngreso}</td>
+                      <td className={celda}>{t.sinActividad}</td>
+                      {columnas.map((c) => (
+                        <td key={c.titulo} className={celda}>
+                          {actividadesDeAccion.get(tanda.accionId)?.has(c.titulo)
+                            ? t.hechas.get(c.titulo) || 0
+                            : "—"}
+                        </td>
+                      ))}
+                      <td className={celda}>{t.total}</td>
+                    </tr>
+                  </Fragment>
+                );
+              })}
             </tbody>
           </table>
         </div>
@@ -316,3 +788,15 @@ function Cuerpo({
   );
 }
 
+function Cab({ children, derecha }: { children: React.ReactNode; derecha?: boolean }) {
+  return (
+    <th
+      scope="col"
+      className={`px-3 py-2 align-bottom text-[0.625rem] font-semibold tracking-[0.08em] text-texto-suave uppercase ${
+        derecha ? "text-right" : "text-left"
+      }`}
+    >
+      {children}
+    </th>
+  );
+}

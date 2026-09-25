@@ -32,8 +32,22 @@ const n = (v: number) => v.toLocaleString("es-CO");
 /// Los dos bloques de columnas, cada uno de su color. Van en una
 /// constante y no escritos doce veces: el día que cambie el criterio,
 /// cambia aquí y en la tabla de grupos, que usa las mismas.
-const ENTRO = "text-center whitespace-nowrap text-marca";
-const INSCRIBIO = "text-center whitespace-nowrap text-exito";
+/// LAS DOS MITADES DE LA TABLA, y por que llevan clase propia.
+///
+/// `grupo-entro` y `grupo-inscribio` no pintan texto: pintan la RAYA
+/// que separa cada columna (`globals.css`, la cuadricula). El color
+/// del rotulo ya decia de que mitad es cada columna, pero en una fila
+/// de doce cifras el rotulo queda arriba del todo y a la altura del
+/// dato ya no se sabe: «coloreame las separaciones» (cliente, 24 sep
+/// 2026).
+const ENTRO = "text-center whitespace-nowrap text-marca grupo-entro";
+const INSCRIBIO = "text-center whitespace-nowrap text-exito grupo-inscribio";
+
+/// Las mismas dos mitades, en el cuerpo. La clase va en la celda y no
+/// en la fila porque la raya es de la COLUMNA.
+const CELDA_ENTRO = "text-center tabular-nums grupo-entro";
+const CELDA_ENTRO_TOTAL = "text-center font-medium tabular-nums grupo-entro";
+const CELDA_INSCRIBIO = "text-center tabular-nums grupo-inscribio";
 
 /// El porcentaje, o una raya: sin leads no hay conversión, y un 0 %
 /// diría que nadie convirtió cuando lo cierto es que nadie llegó.
@@ -103,7 +117,7 @@ export function TablaPorAccion({
       titulo="Cupos e inscritos por acción"
     >
       <div className="caja-scroll overflow-x-auto">
-        <table className="tabla-datos w-full">
+        <table className="tabla-datos tabla-cuadricula w-full">
           <thead>
             {/* LOS RÓTULOS CENTRADOS Y EN DOS COLORES (cliente, 23 sep
                 2026): azul el bloque de lo que ENTRÓ --reservados,
@@ -142,12 +156,12 @@ export function TablaPorAccion({
                 <td className="font-mono text-xs whitespace-nowrap">{f.codigo}</td>
                 <td className="min-w-[18rem]">{f.nombre}</td>
                 <td className="text-center tabular-nums">{n(f.meta)}</td>
-                <td className="text-center tabular-nums">{n(f.cuposReservados)}</td>
-                <td className="text-center tabular-nums">{n(f.campanaDigital)}</td>
-                <td className="text-center font-medium tabular-nums">{n(f.totalLeads)}</td>
-                <td className="text-center tabular-nums">{n(f.inscritosReservas)}</td>
-                <td className="text-center tabular-nums">{n(f.inscritosCampana)}</td>
-                <td className="text-center font-semibold text-exito tabular-nums">
+                <td className={CELDA_ENTRO}>{n(f.cuposReservados)}</td>
+                <td className={CELDA_ENTRO}>{n(f.campanaDigital)}</td>
+                <td className={CELDA_ENTRO_TOTAL}>{n(f.totalLeads)}</td>
+                <td className={CELDA_INSCRIBIO}>{n(f.inscritosReservas)}</td>
+                <td className={CELDA_INSCRIBIO}>{n(f.inscritosCampana)}</td>
+                <td className="text-center font-semibold text-exito tabular-nums grupo-inscribio">
                   {n(f.totalInscritos)}
                 </td>
                 <td className="text-center tabular-nums">{tasa(f.conversion)}</td>
@@ -178,12 +192,18 @@ export function TablaPorAccion({
             <tr className="border-t-2 border-borde font-semibold">
               <td colSpan={2}>Total</td>
               <td className="text-center tabular-nums">{n(t.meta)}</td>
-              <td className="text-center tabular-nums">{n(t.cuposReservados)}</td>
-              <td className="text-center tabular-nums">{n(t.campanaDigital)}</td>
-              <td className="text-center tabular-nums">{n(t.totalLeads)}</td>
-              <td className="text-center tabular-nums">{n(t.inscritosReservas)}</td>
-              <td className="text-center tabular-nums">{n(t.inscritosCampana)}</td>
-              <td className="text-center text-exito tabular-nums">{n(t.totalInscritos)}</td>
+              {/* LAS CLASES DE LAS DOS MITADES, TAMBIÉN AQUÍ. Sin
+                  ellas la raya de color se paraba en la última fila
+                  de datos y la de totales quedaba suelta, como si no
+                  fuera de la misma tabla. */}
+              <td className={CELDA_ENTRO}>{n(t.cuposReservados)}</td>
+              <td className={CELDA_ENTRO}>{n(t.campanaDigital)}</td>
+              <td className={CELDA_ENTRO}>{n(t.totalLeads)}</td>
+              <td className={CELDA_INSCRIBIO}>{n(t.inscritosReservas)}</td>
+              <td className={CELDA_INSCRIBIO}>{n(t.inscritosCampana)}</td>
+              <td className="text-center text-exito tabular-nums grupo-inscribio">
+                {n(t.totalInscritos)}
+              </td>
               <td className="text-center tabular-nums">
                 {tasa(t.totalLeads > 0 ? t.totalInscritos / t.totalLeads : null)}
               </td>

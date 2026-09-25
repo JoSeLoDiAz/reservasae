@@ -285,11 +285,13 @@ export function Tabla<T>({
   alClic,
   vacio,
   acciones,
+  filtrosDelServidor,
   resumen,
   seleccion,
   accionesLote,
   alCargarTodo,
   sinDescarga,
+  ordenFijo,
 }: {
   id: string;
   columnas: Columna<T>[];
@@ -301,6 +303,18 @@ export function Tabla<T>({
   alClic?: (f: T) => void;
   vacio?: ReactNode;
   acciones?: ReactNode;
+  /// Los filtros DE LA PANTALLA, fusionados en la fila del
+  /// buscador. Van aquí y no en `acciones` porque no son
+  /// botones: se leen con el buscador, antes de Filtros y
+  /// Columnas, y `acciones` pinta al final de la fila.
+  ///
+  /// Existe porque un filtro que va al SERVIDOR no puede vivir
+  /// en el panel de Filtros de la tabla: aquel recorta lo que ya
+  /// bajó, y este cambia lo que baja. Pero para quien mira son
+  /// lo mismo, así que van en la misma fila y no en una tarjeta
+  /// aparte encima ---«fusionado donde está el buscador, no
+  /// desorden» (cliente, 24 sep 2026)---.
+  filtrosDelServidor?: ReactNode;
   /// Lo que va DEBAJO de la barra de botones y encima de la
   /// paginacion. Hoy lo usa el embudo de leads. Es una ranura y
   /// no un componente fijo porque cada pantalla resume lo suyo.
@@ -310,6 +324,24 @@ export function Tabla<T>({
   alCargarTodo?: () => void;
   /** La pantalla ya trae su propia descarga, del servidor. */
   sinDescarga?: boolean;
+  /**
+   * EL ORDEN DE LAS COLUMNAS NO SE TOCA: el que diga `columnas`.
+   *
+   * «El orden de las columnas es innegociable, y por ejemplo las 6
+   * actividades van fijas y en orden» (cliente, 25 sep 2026).
+   *
+   * Por defecto esta tabla deja ARRASTRAR los encabezados para
+   * recolocarlos, y el orden elegido se guarda en el navegador. Eso
+   * está bien en una lista de trabajo, donde cada quien se la
+   * acomoda; no está bien donde el orden ES el contrato ---seis
+   * unidades temáticas que se leen como una secuencia, y que con
+   * UT3 delante de UT1 dejan de significar nada---.
+   *
+   * Con esto puesto: no se arrastra, y las que se vean salen SIEMPRE
+   * en el orden de `columnas`, incluso para quien ya tuviera otro
+   * orden guardado de antes.
+   */
+  ordenFijo?: boolean;
 }) {
   const porDefecto = useMemo(
     () => columnas.filter((c) => !c.aparte).map((c) => c.clave),
@@ -453,12 +485,21 @@ export function Tabla<T>({
   /// dos renglones. Menos que esto y vuelve el problema.
   const ANCHO_COMODO = 150;
 
+  /// CON `ordenFijo`, EL ORDEN LO DA `columnas` Y NO `visibles`.
+  ///
+  /// `visibles` guarda la selección Y su orden, y vive en el
+  /// navegador: sin esto, quien hubiera arrastrado una columna antes
+  /// de que se clavara el orden se quedaría con el suyo para
+  /// siempre. Filtrando sobre `columnas` ese arrastre viejo se
+  /// deshace solo.
   const enPantalla = useMemo(
     () =>
-      visibles
-        .map((c) => columnas.find((x) => x.clave === c))
-        .filter((c): c is Columna<T> => !!c),
-    [visibles, columnas],
+      ordenFijo
+        ? columnas.filter((c) => visibles.includes(c.clave))
+        : visibles
+            .map((c) => columnas.find((x) => x.clave === c))
+            .filter((c): c is Columna<T> => !!c),
+    [visibles, columnas, ordenFijo],
   );
 
   /// La suma de lo que piden las columnas visibles.
@@ -680,6 +721,7 @@ export function Tabla<T>({
         nFiltros={chips.length}
         nColumnas={enPantalla.length}
         acciones={acciones}
+        filtrosDelServidor={filtrosDelServidor}
         alDescargar={
           sinDescarga || !filtradas || filtradas.length === 0
             ? undefined
@@ -997,7 +1039,7 @@ export function Tabla<T>({
                         ponerlo arriba. */}
                     <button
                       type="button"
-                      draggable
+                      draggable={!ordenFijo}
                       onDragStart={(e) => {
                         setArrastrada(c.clave);
                         e.dataTransfer.effectAllowed = "move";
@@ -1011,7 +1053,11 @@ export function Tabla<T>({
                       onClick={() => ordenarPor(c)}
                       /// Que se puede arrastrar no se ve solo con
                       /// el cursor de mano: hay que decirlo.
-                      title={`Ordenar por ${c.titulo} · arrastre para mover la columna`}
+                      title={
+                        ordenFijo
+                          ? `Ordenar por ${c.titulo}`
+                          : `Ordenar por ${c.titulo} · arrastre para mover la columna`
+                      }
                       className={
                         "inline-flex cursor-grab items-center gap-1 hover:opacity-70 " +
                         (c.numerica ? "flex-row-reverse" : "")
@@ -1165,6 +1211,7 @@ function Barra({
   nFiltros,
   nColumnas,
   acciones,
+  filtrosDelServidor,
   alDescargar,
 }: {
   buscar: string;
@@ -1174,6 +1221,7 @@ function Barra({
   nFiltros: number;
   nColumnas: number;
   acciones?: ReactNode;
+  filtrosDelServidor?: ReactNode;
   alDescargar?: () => void;
 }) {
   const boton = (activo: boolean) =>
@@ -1214,6 +1262,14 @@ function Barra({
           className="h-[34px] w-full rounded-lg border border-campo-borde bg-campo-fondo py-0 pl-9 pr-3 text-[0.78125rem] outline-none transition focus:border-campo-foco focus:ring-2 focus:ring-campo-foco/25"
         />
       </label>
+
+      {/* LOS DE LA PANTALLA, PEGADOS AL BUSCADOR y antes de los
+          botones: primero se dice de qué se está hablando ---qué
+          acción, qué grupo--- y después se afina lo que bajó. No
+          crecen con la fila (el buscador es el que cede) porque
+          dos desplegables estirados a media pantalla era justo lo
+          que no se quería ver. */}
+      {filtrosDelServidor}
 
       <button
         type="button"

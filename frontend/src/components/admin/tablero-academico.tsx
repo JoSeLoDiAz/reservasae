@@ -520,7 +520,7 @@ function Cuerpo({ d, adminId }: { d: TableroAcademico; adminId: string }) {
 
             <Tarjeta
               titulo="Avance y trabajo pendiente"
-              descripcion={`La media de lo obligatorio aprobado por todo el que pisó el aula, salidas incluidas.${
+              descripcion={`La media de lo obligatorio aprobado por todos los que entraron al aula, salidas incluidas.${
                 d.sinMedir > 0
                   ? ` Calculada sobre ${n(d.medibles)} de ${n(d.total)}: al resto no se le puede medir.`
                   : ""
@@ -588,7 +588,7 @@ function AvisoMedibles({ d }: { d: TableroAcademico }) {
           <p className="text-sm font-semibold">
             {todas
               ? "Nadie del aula se puede medir todavía"
-              : "Hay gente del aula que no se puede medir"}
+              : "Hay participantes del aula que no se pueden medir"}
           </p>
           <p className="mt-1.5 max-w-3xl text-sm">
             Su acción de formación no tiene actividades obligatorias publicadas, así que no
@@ -693,8 +693,8 @@ function ColaDeTrabajo({
 
       <div className="grid lg:grid-cols-2">
         <Tarjeta
-          titulo="Grupos vencidos con gente dentro"
-          descripcion="La fecha de fin ya pasó y siguen con gente en formación: hay que cerrarlos o justificarlos."
+          titulo="Grupos vencidos con participantes dentro"
+          descripcion="La fecha de fin ya pasó y siguen con participantes en formación: hay que cerrarlos o justificarlos."
         >
           {vencidos.length === 0 ? (
             <p className="py-6 text-center text-sm text-texto-suave">
@@ -737,7 +737,7 @@ function ColaDeTrabajo({
 
         <Tarjeta
           titulo="Grupos que arrancan"
-          descripcion="Los próximos 30 días, con cuánta gente lleva cada uno. Es la agenda de la semana."
+          descripcion="Los próximos 30 días, con cuántos participantes lleva cada uno. Es la agenda de la semana."
         >
           {arrancan.length === 0 ? (
             <p className="py-6 text-center text-sm text-texto-suave">
@@ -782,7 +782,7 @@ function CortePorAccion({ d, minimo }: { d: TableroAcademico; minimo: string }) 
   return (
     <Tarjeta
       titulo="Por acción de formación"
-      descripcion={`Cómo va cada curso con la gente que ya pisó el aula.${notaSinMedir(d)}`}
+      descripcion={`Cómo va cada curso con los participantes que ya entraron al aula.${notaSinMedir(d)}`}
     >
       <BarrasApiladas
         filas={acciones.map((a) => ({
@@ -898,7 +898,7 @@ function CortePorAsesor({
   return (
     <Tarjeta
       titulo="Por asesor"
-      descripcion={`Las cifras de cada fila son solo las de su gente.${notaSinMedir(d)}`}
+      descripcion={`Las cifras de cada fila son solo las de sus participantes.${notaSinMedir(d)}`}
     >
       {mio && (
         <p className="mb-5 rounded-xl bg-marca-suave px-3 py-2 text-sm">

@@ -184,7 +184,7 @@ export default function PaginaSep() {
           {datos.motivos.length > 0 && (
             <Bloque
               titulo="Por qué no entran"
-              descripcion="Ordenado por cuánta gente arregla cada cosa."
+              descripcion="Ordenado por a cuántas personas afecta cada motivo."
             >
               <div className="space-y-2">
                 {datos.motivos.map((m) => (

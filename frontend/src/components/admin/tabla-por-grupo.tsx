@@ -27,8 +27,22 @@ import { Bloque, Esqueleto, Vacio } from "./piezas";
 const n = (v: number) => v.toLocaleString("es-CO");
 
 /// Los dos bloques de columnas, los mismos de la tabla de acciones.
-const ENTRO = "text-center whitespace-nowrap text-marca";
-const INSCRIBIO = "text-center whitespace-nowrap text-exito";
+/// LAS DOS MITADES DE LA TABLA, y por que llevan clase propia.
+///
+/// `grupo-entro` y `grupo-inscribio` no pintan texto: pintan la RAYA
+/// que separa cada columna (`globals.css`, la cuadricula). El color
+/// del rotulo ya decia de que mitad es cada columna, pero en una fila
+/// de doce cifras el rotulo queda arriba del todo y a la altura del
+/// dato ya no se sabe: «coloreame las separaciones» (cliente, 24 sep
+/// 2026).
+const ENTRO = "text-center whitespace-nowrap text-marca grupo-entro";
+const INSCRIBIO = "text-center whitespace-nowrap text-exito grupo-inscribio";
+
+/// Las mismas dos mitades, en el cuerpo. La clase va en la celda y no
+/// en la fila porque la raya es de la COLUMNA.
+const CELDA_ENTRO = "text-center tabular-nums grupo-entro";
+const CELDA_ENTRO_TOTAL = "text-center font-medium tabular-nums grupo-entro";
+const CELDA_INSCRIBIO = "text-center tabular-nums grupo-inscribio";
 
 const tasa = (v: number | null) => (v === null ? "—" : `${Math.round(v * 100)} %`);
 
@@ -97,7 +111,7 @@ export function TablaPorGrupo({
       titulo={`Grupos de ${titulo}`}
     >
       <div className="caja-scroll overflow-x-auto">
-        <table className="tabla-datos w-full">
+        <table className="tabla-datos tabla-cuadricula w-full">
           <thead>
             {/* LAS MISMAS COLUMNAS QUE LA TABLA DE ACCIONES, y sin
                 «Sede» (cliente, 23 sep 2026): el departamento ya dice
@@ -120,20 +134,25 @@ export function TablaPorGrupo({
           </thead>
           <tbody>
             {filas.map((f) => (
-              <tr key={f.grupoId}>
+              /// LA LLAVE LLEVA EL DEPARTAMENTO. Desde que un grupo
+              /// puede dar dos filas --una por departamento-- el id
+              /// del grupo solo ya no identifica la fila, y React con
+              /// llaves repetidas reordena mal y reusa celdas de otra
+              /// fila sin avisar de nada.
+              <tr key={`${f.grupoId}·${f.departamento}`}>
                 <td className="whitespace-nowrap">Grupo {f.numero}</td>
                 {/* Una raya y no una celda en blanco: en blanco no se
                     sabe si es que falta el dato o si es que nadie lo
                     llenó. */}
-                <td className="min-w-[10rem]">{f.departamentos || "—"}</td>
+                <td className="min-w-[10rem]">{f.departamento || "—"}</td>
                 <td className="whitespace-nowrap">{MODALIDAD[f.modalidad] ?? f.modalidad}</td>
                 <td className="text-center tabular-nums">{n(f.meta)}</td>
-                <td className="text-center tabular-nums">{n(f.nominadosPorEmpresa)}</td>
-                <td className="text-center tabular-nums">{n(f.campanaDigital)}</td>
-                <td className="text-center font-medium tabular-nums">{n(f.totalLeads)}</td>
-                <td className="text-center tabular-nums">{n(f.inscritosReservas)}</td>
-                <td className="text-center tabular-nums">{n(f.inscritosCampana)}</td>
-                <td className="text-center font-semibold text-exito tabular-nums">
+                <td className={CELDA_ENTRO}>{n(f.nominadosPorEmpresa)}</td>
+                <td className={CELDA_ENTRO}>{n(f.campanaDigital)}</td>
+                <td className={CELDA_ENTRO_TOTAL}>{n(f.totalLeads)}</td>
+                <td className={CELDA_INSCRIBIO}>{n(f.inscritosReservas)}</td>
+                <td className={CELDA_INSCRIBIO}>{n(f.inscritosCampana)}</td>
+                <td className="text-center font-semibold text-exito tabular-nums grupo-inscribio">
                   {n(f.totalInscritos)}
                 </td>
                 <td className="text-center tabular-nums">{tasa(f.conversion)}</td>
@@ -161,12 +180,18 @@ export function TablaPorGrupo({
             <tr className="border-t-2 border-borde font-semibold">
               <td colSpan={3}>Total</td>
               <td className="text-center tabular-nums">{n(t.meta)}</td>
-              <td className="text-center tabular-nums">{n(t.nominadosPorEmpresa)}</td>
-              <td className="text-center tabular-nums">{n(t.campanaDigital)}</td>
-              <td className="text-center tabular-nums">{n(t.totalLeads)}</td>
-              <td className="text-center tabular-nums">{n(t.inscritosReservas)}</td>
-              <td className="text-center tabular-nums">{n(t.inscritosCampana)}</td>
-              <td className="text-center text-exito tabular-nums">{n(t.totalInscritos)}</td>
+              {/* LAS CLASES DE LAS DOS MITADES, TAMBIÉN AQUÍ. Sin
+                  ellas la raya de color se paraba en la última fila
+                  de datos y la de totales quedaba suelta, como si no
+                  fuera de la misma tabla. */}
+              <td className={CELDA_ENTRO}>{n(t.nominadosPorEmpresa)}</td>
+              <td className={CELDA_ENTRO}>{n(t.campanaDigital)}</td>
+              <td className={CELDA_ENTRO}>{n(t.totalLeads)}</td>
+              <td className={CELDA_INSCRIBIO}>{n(t.inscritosReservas)}</td>
+              <td className={CELDA_INSCRIBIO}>{n(t.inscritosCampana)}</td>
+              <td className="text-center text-exito tabular-nums grupo-inscribio">
+                {n(t.totalInscritos)}
+              </td>
               <td className="text-center tabular-nums">
                 {tasa(t.totalLeads > 0 ? t.totalInscritos / t.totalLeads : null)}
               </td>

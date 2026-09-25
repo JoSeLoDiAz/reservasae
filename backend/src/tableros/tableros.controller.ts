@@ -1,4 +1,5 @@
 import {
+  Body,
   Controller,
   Get,
   HttpCode,
@@ -8,6 +9,7 @@ import {
   Res,
   UseGuards,
 } from '@nestjs/common';
+import { IsEnum } from 'class-validator';
 import type { Response } from 'express';
 
 import { EstadoReserva, RolAdmin } from '../../generated/prisma';
@@ -36,6 +38,19 @@ const SEMAFORO: Record<string, string> = {
   ULTIMOS_CUPOS: 'Últimos cupos',
   COMPLETO: 'Completo',
 };
+
+/**
+ * El estado que se pide, no el que queda.
+ *
+ * Quedar, queda el que permitan los cupos: pedir CONFIRMADA sobre
+ * una oferta llena devuelve LISTA_ESPERA y lo dice en `recortado`.
+ */
+class CambiarEstadoDto {
+  @IsEnum(EstadoReserva, {
+    message: 'El estado debe ser CONFIRMADA, LISTA_ESPERA o CANCELADA.',
+  })
+  estado!: EstadoReserva;
+}
 
 @Controller('admin/tableros')
 @UseGuards(AdminGuard)
@@ -136,6 +151,51 @@ export class TablerosController {
   @Get('reservas')
   reservas(@Query() consulta: Record<string, string>, @AmbitoActual() ambito: Ambito) {
     return this.tableros.reservas(this.filtros(consulta, ambito));
+  }
+
+  /**
+   * Las mismas reservas, unificadas: una fila por organización y la
+   * acción de formación convertida en columna.
+   *
+   * Sin paginar a propósito. El agrupado parte de TODAS las reservas
+   * del recorte —si no, una empresa con cuatro AF se rompe en dos
+   * filas cuando sus reservas caen en páginas distintas— y el juego
+   * de columnas AF solo se conoce mirándolas todas. Trae su propio
+   * tope, y avisa con `truncado` si alguna vez se corta.
+   */
+  @Get('reservas-agrupadas')
+  reservasAgrupadas(
+    @Query() consulta: Record<string, string>,
+    @AmbitoActual() ambito: Ambito,
+  ) {
+    return this.tableros.reservasAgrupadas({
+      ambito: ambito.convenios,
+      buscar: consulta.buscar || undefined,
+      convenio: consulta.convenio || undefined,
+      accionId: consulta.accionId || undefined,
+      formulario: consulta.formulario || undefined,
+      incluyeCanceladas: consulta.canceladas !== 'no',
+    });
+  }
+
+  /**
+   * Cambia a mano el estado de una reserva.
+   *
+   * Pide ESCRIBIR, no VER: el `cancelar` de aquí al lado quedó con
+   * `VER` de antes, pero esto mueve el contador de cupos de la
+   * oferta y no puede alcanzarlo quien solo mira. Y no exige
+   * SUPERADMIN: cancelar una reserva y reactivarla es trabajo de
+   * inscripciones, no de administración del sistema.
+   */
+  @Post('reservas/:id/estado')
+  @HttpCode(200)
+  @Requiere('reserva', 'ESCRIBIR')
+  cambiarEstadoReserva(
+    @Param('id') id: string,
+    @Body() dto: CambiarEstadoDto,
+    @AmbitoActual() ambito: Ambito,
+  ) {
+    return this.tableros.cambiarEstadoReserva(id, dto.estado, ambito.convenios);
   }
 
   /**

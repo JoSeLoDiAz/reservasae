@@ -145,7 +145,7 @@ export function PendientesDeHoy({ control }: { control: Control | null }) {
       accion: "Ver esas personas",
       a: conElRecorte("/admin/participantes?etapa=INTERESADO&espera=8", cortes),
       que: `de las ${n(esperando)} personas que esperan una primera llamada llevan más de una semana.`,
-      hacer: "Llámelos hoy: cuanto más tarda la primera llamada, menos gente se inscribe.",
+      hacer: "Llámelos hoy: cuanto más tarda la primera llamada, menos personas se inscriben.",
     });
 
   if (d.sinAsignar > 0)
@@ -193,7 +193,7 @@ export function PendientesDeHoy({ control }: { control: Control | null }) {
       que: `de quienes llegaron por «${
         ETIQUETA_ORIGEN[mejorCanal.etiqueta as Origen] ?? mejorCanal.etiqueta
       }» se inscribieron (${n(mejorCanal.inscritos)} de ${n(mejorCanal.leads)}): el canal que mejor rinde.`,
-      hacer: "Es por donde conviene meter esfuerzo antes que por el que más volumen trae.",
+      hacer: "Es por donde conviene concentrar el esfuerzo, antes que por el que más volumen trae.",
     });
 
   return (

@@ -593,6 +593,14 @@ function CuerpoDelInforme({
   informe: InformeReservas;
   filtros: FiltrosInformeReservas;
 }) {
+  /**
+   * QUÉ DEPARTAMENTO TIENE LA TABLA ABIERTA (cliente, 25 sep 2026).
+   *
+   * Vive aquí y no dentro de la gráfica porque lo que abre no es
+   * suyo: la gráfica ocupa media fila y la tabla de seguimiento son
+   * siete columnas, que solo caben debajo y a todo lo ancho.
+   */
+  const [departamento, setDepartamento] = useState<string | null>(null);
   const t = informe.totales;
   const r = informe.recorte;
 
@@ -639,6 +647,16 @@ function CuerpoDelInforme({
     );
   }
 
+  /// Se comprueba contra las barras que hay delante en vez de
+  /// borrarse en un efecto: al cambiar el recorte llega otro informe,
+  /// y el departamento que estaba abierto puede que ya no tenga
+  /// barra. Derivado, no hay un instante con la tabla de un
+  /// departamento que la gráfica ya no enseña.
+  const abierto =
+    departamento && informe.porDepartamento.some((d) => d.departamento === departamento)
+      ? departamento
+      : null;
+
   return (
     <>
       {/* TRES PIEZAS Y NO CINCO (cliente, 23 sep 2026). Salieron
@@ -648,8 +666,27 @@ function CuerpoDelInforme({
           tabla de abajo. Lo que queda: las cifras, las dos gráficas en
           una fila, y la tabla con la que se trabaja. */}
       <ResumenGeneral informe={informe} />
-      <Graficas informe={informe} filtros={filtros} />
-      <Seguimiento informe={informe} />
+      <Graficas
+        informe={informe}
+        filtros={filtros}
+        abierto={abierto}
+        alPulsar={(d) => setDepartamento((v) => (v === d ? null : d))}
+      />
+      <SeguimientoDeUnDepartamento
+        departamento={abierto}
+        filtros={filtros}
+        alCerrar={() => setDepartamento(null)}
+      />
+      {/* EN PAPEL LA TABLA SIGUE SALIENDO, Y ENTERA. Es la tabla con
+          la que se trabaja y la razón de imprimir esta pantalla: si
+          se fuera con el clic, el PDF quedaría en cifras y gráficas.
+          Con un departamento abierto se imprime ESE, que es lo que se
+          está mirando, y esta no se repite. */}
+      {!abierto && (
+        <div className="hidden print:block">
+          <Seguimiento informe={informe} />
+        </div>
+      )}
     </>
   );
 }
@@ -1048,6 +1085,11 @@ function CajaDeFecha({
 function ResumenGeneral({ informe }: { informe: InformeReservas }) {
   const t = informe.totales;
   const conNombre = sillasConNombre(t);
+  /// Los que tuvieron nombre y ya no están dentro: retirados,
+  /// desertores y no aprobados. `Math.max` porque las dos cifras
+  /// vienen de consultas distintas y un desfase de un segundo no
+  /// puede pintar un negativo en la pantalla del comité.
+  const descartados = Math.max(0, conNombre - t.dentro);
   const convenios = informe.recorte.convenios;
 
   return (
@@ -1093,11 +1135,37 @@ function ResumenGeneral({ informe }: { informe: InformeReservas }) {
         <CifraCompacta etiqueta="Instituciones" valor={n(t.organizaciones)} />
         <CifraCompacta etiqueta="Reservas" valor={n(t.reservas)} />
         <CifraCompacta etiqueta="Cupos apartados" valor={n(t.cuposConfirmados)} />
+        {/* LAS TRES DE LA OCUPACIÓN, y por qué son tres y no una
+            (cliente, 24 sep 2026: «cupos ocupados / cupos confirmados
+            inscritos / y adiciona descartados»).
+
+            «Confirmados inscritos» cuenta el cupo que llegó a tener
+            una persona matriculada detrás, SE HAYA QUEDADO O NO: es la
+            que alimenta la brecha de nombres y la que se le reporta al
+            SENA. «Ocupados» descuenta a quien se retiró o desertó: es
+            la silla que de verdad está ocupada hoy. Y «Descartados» es
+            justo la diferencia entre las dos.
+
+            Las tres son ciertas y por eso NUNCA se llaman igual. El
+            tipo del informe lo deja escrito: `conNombre` incluye a
+            quien se fue y `dentro` no. Antes solo se enseñaba la
+            primera, con el nombre «Ya tienen nombre», y la deserción
+            no se veía en esta pantalla: había que ir a Académica. */}
         <CifraCompacta
-          etiqueta="Ya tienen nombre"
+          etiqueta="Cupos confirmados inscritos"
           valor={n(conNombre)}
-          color="var(--exito)"
           detalle={t.cuposConfirmados > 0 ? `${porciento(conNombre, t.cuposConfirmados)} %` : undefined}
+        />
+        <CifraCompacta
+          etiqueta="Cupos ocupados"
+          valor={n(t.dentro)}
+          color="var(--exito)"
+          detalle={t.cuposConfirmados > 0 ? `${porciento(t.dentro, t.cuposConfirmados)} %` : undefined}
+        />
+        <CifraCompacta
+          etiqueta="Descartados"
+          valor={n(descartados)}
+          detalle={conNombre > 0 ? `${porciento(descartados, conNombre)} %` : undefined}
         />
         <CifraCompacta
           etiqueta="Siguen sin nombre"
@@ -1212,7 +1280,18 @@ function ComoSeCuentan({ informe }: { informe: InformeReservas }) {
  */
 const SEMANAS_EN_MEDIA_HOJA = 16;
 
-function Graficas({ informe, filtros }: { informe: InformeReservas; filtros: FiltrosInformeReservas }) {
+function Graficas({
+  informe,
+  filtros,
+  abierto,
+  alPulsar,
+}: {
+  informe: InformeReservas;
+  filtros: FiltrosInformeReservas;
+  /** El departamento con la tabla abierta, o nulo. */
+  abierto: string | null;
+  alPulsar: (departamento: string) => void;
+}) {
   const apiladasEnPapel = semanasDelInforme(informe, filtros).length > SEMANAS_EN_MEDIA_HOJA;
   /// `print:flex-none` al apilarlas: el `lg:flex-1` de la pantalla
   /// también vale en papel (la hoja pasa de 1.024 px) y en columna
@@ -1234,7 +1313,7 @@ function Graficas({ informe, filtros }: { informe: InformeReservas; filtros: Fil
       }`}
     >
       <div className={cadaUna}>
-        <PorDepartamento informe={informe} />
+        <PorDepartamento informe={informe} abierto={abierto} alPulsar={alPulsar} />
       </div>
       <div className={cadaUna}>
         <CuposPorSemana informe={informe} filtros={filtros} />
@@ -1453,7 +1532,7 @@ function CuposPorSemana({ informe, filtros }: { informe: InformeReservas; filtro
   return (
     <Bloque
       estirado
-      titulo="Cupos apartados por semana"
+      titulo="Cupos reservados por semana"
       descripcion={
         ultima
           ? `Última reserva el ${diaYMes(ultima)}${hace > 0 ? `, hace ${cuenta(hace, "día", "días")}` : ", hoy"}.`
@@ -1473,7 +1552,7 @@ function CuposPorSemana({ informe, filtros }: { informe: InformeReservas; filtro
           <div
             ref={caja}
             role="img"
-            aria-label={`Cupos apartados por semana: ${semanas.map((s) => `semana del ${diaCorto(s.lunes)}, ${n(s.cupos)}${s.enCurso ? " (en curso)" : ""}`).join("; ")}.`}
+            aria-label={`Cupos reservados por semana: ${semanas.map((s) => `semana del ${diaCorto(s.lunes)}, ${n(s.cupos)}${s.enCurso ? " (en curso)" : ""}`).join("; ")}.`}
             className="-mx-7 overflow-x-auto px-7 lg:flex lg:flex-1 lg:flex-col print:block print:overflow-visible"
           >
             <div
@@ -1603,7 +1682,15 @@ const CELDA_CIFRA = `${CELDA} text-right tabular-nums`;
 /** Cuántos departamentos enseña antes de «Ver los otros». */
 const DEPARTAMENTOS_EN_GRAFICA = 8;
 
-function PorDepartamento({ informe }: { informe: InformeReservas }) {
+function PorDepartamento({
+  informe,
+  abierto,
+  alPulsar,
+}: {
+  informe: InformeReservas;
+  abierto: string | null;
+  alPulsar: (departamento: string) => void;
+}) {
   /// Se corta en ocho y se abre desde aquí, no desde quien llama: el
   /// corte es cosa de esta lista, y así abrir esta no abre la de al
   /// lado. Nace cerrada.
@@ -1621,7 +1708,17 @@ function PorDepartamento({ informe }: { informe: InformeReservas }) {
     <Bloque
       estirado
       titulo="Cupos por departamento"
-      descripcion="Dónde se dictan los cursos de las reservas. En verde, los cupos que ya tienen una persona detrás."
+      descripcion={
+        <>
+          Dónde se dictan los cursos de las reservas. En verde, los cupos que ya tienen una
+          persona detrás.{" "}
+          {/* LA INSTRUCCIÓN NO SE IMPRIME. En la hoja decía «Pulse uno
+              para ver su seguimiento debajo» y en papel no se pulsa
+              nada: es una frase que solo se descubre mirando el PDF, y
+              deja el informe hablándole a un ratón que no existe. */}
+          <span className="no-imprimir">Pulse uno para ver su seguimiento debajo.</span>
+        </>
+      }
     >
       {filas.length === 0 && (
         <p className="py-4 text-[0.8125rem] text-texto-suave">
@@ -1629,40 +1726,62 @@ function PorDepartamento({ informe }: { informe: InformeReservas }) {
         </p>
       )}
       <ul className="space-y-2.5">
-        {visibles.map((d) => (
-          <li key={d.departamento}>
-            <div className="flex items-baseline justify-between gap-3 text-[0.8125rem] leading-snug">
-              <span className="min-w-0 truncate" title={bonito(d.departamento)}>
-                {bonito(d.departamento)}
-                <span className="ml-2 text-[0.75rem] text-texto-suave">
-                  {cuenta(d.organizaciones, "institución", "instituciones")}
-                </span>
-              </span>
-              <span className="shrink-0 whitespace-nowrap tabular-nums">
-                <span className="font-semibold text-titulo">{n(d.cuposConfirmados)}</span>
-                <span className="ml-1 text-[0.75rem] text-texto-suave">
-                  {d.cuposConfirmados === 1 ? "cupo" : "cupos"}
-                </span>
-              </span>
-            </div>
-            {/* La barra verde va DENTRO de la gris, no al lado: son
-                una parte y su todo, y dos barras hermanas se leerían
-                como dos cantidades que se suman. */}
-            <div className="mt-1 h-2.5 w-full overflow-hidden rounded-full bg-superficie-alterna">
-              <div
-                className="h-full rounded-full bg-marca/25"
-                style={{ width: `${Math.max((d.cuposConfirmados / tope) * 100, 1)}%` }}
+        {visibles.map((d) => {
+          const suya = abierto === d.departamento;
+          return (
+            <li key={d.departamento}>
+              {/* LA BARRA ENTERA ES LA PUERTA, no un enlace al lado:
+                  lo que se quiere pulsar es el departamento, y un
+                  blanco de 18 px dentro de una fila de 40 se falla.
+
+                  `imprimible`: en papel, globals.css esconde todo
+                  `button` que no la lleve --son controles--, y sin
+                  ella la gráfica salía en blanco en el PDF. */}
+              <button
+                type="button"
+                onClick={() => alPulsar(d.departamento)}
+                aria-expanded={suya}
+                className={`imprimible -mx-2 block w-full rounded-lg px-2 py-1 text-left transition hover:bg-superficie-alterna ${
+                  suya ? "bg-marca-suave" : ""
+                }`}
               >
-                <div
-                  className="h-full rounded-full bg-exito"
-                  style={{
-                    width: `${d.cuposConfirmados > 0 ? (d.conNombre / d.cuposConfirmados) * 100 : 0}%`,
-                  }}
-                />
-              </div>
-            </div>
-          </li>
-        ))}
+                <span className="flex items-baseline justify-between gap-3 text-[0.8125rem] leading-snug">
+                  <span
+                    className={`min-w-0 truncate ${suya ? "font-semibold text-marca-fuerte" : ""}`}
+                    title={bonito(d.departamento)}
+                  >
+                    {bonito(d.departamento)}
+                    <span className="ml-2 text-[0.75rem] font-normal text-texto-suave">
+                      {cuenta(d.organizaciones, "institución", "instituciones")}
+                    </span>
+                  </span>
+                  <span className="shrink-0 whitespace-nowrap tabular-nums">
+                    <span className="font-semibold text-titulo">{n(d.cuposConfirmados)}</span>
+                    <span className="ml-1 text-[0.75rem] text-texto-suave">
+                      {d.cuposConfirmados === 1 ? "cupo" : "cupos"}
+                    </span>
+                  </span>
+                </span>
+                {/* La barra verde va DENTRO de la gris, no al lado: son
+                    una parte y su todo, y dos barras hermanas se leerían
+                    como dos cantidades que se suman. */}
+                <span className="mt-1 block h-2.5 w-full overflow-hidden rounded-full bg-superficie-alterna">
+                  <span
+                    className="block h-full rounded-full bg-marca/25"
+                    style={{ width: `${Math.max((d.cuposConfirmados / tope) * 100, 1)}%` }}
+                  >
+                    <span
+                      className="block h-full rounded-full bg-exito"
+                      style={{
+                        width: `${d.cuposConfirmados > 0 ? (d.conNombre / d.cuposConfirmados) * 100 : 0}%`,
+                      }}
+                    />
+                  </span>
+                </span>
+              </button>
+            </li>
+          );
+        })}
         {resto > 0 && (
           <li className="no-imprimir pt-1">
             {/* DICE CUÁNTOS Y ADÓNDE LLEVA. «Y 7 más» sin puerta es un
@@ -1718,7 +1837,32 @@ const SEMAFORO: Record<
   VENCIDA: { texto: "Vencida", clase: "text-error" },
 };
 
-function Seguimiento({ informe }: { informe: InformeReservas }) {
+/**
+ * Cómo se llama la barra de las sedes sin departamento.
+ *
+ * Espejo de `SIN_DEPARTAMENTO` en
+ * `backend/src/tableros/informe-de-reservas.ts`. Aquí hace falta
+ * porque no es un departamento y en una frase se nota: «lo apartado
+ * en Sin departamento» no es español.
+ */
+const SIN_DEPARTAMENTO = "Sin departamento";
+
+function comoSeLlama(departamento: string): string {
+  return departamento === SIN_DEPARTAMENTO
+    ? "las sedes sin departamento"
+    : bonito(departamento);
+}
+
+function Seguimiento({
+  informe,
+  departamento,
+  alCerrar,
+}: {
+  informe: InformeReservas;
+  /** Puesto, la tabla es la de ese departamento y lleva su nombre. */
+  departamento?: string;
+  alCerrar?: () => void;
+}) {
   const filas = informe.cruce;
   if (filas.length === 0) return null;
 
@@ -1737,7 +1881,12 @@ function Seguimiento({ informe }: { informe: InformeReservas }) {
       sinRelleno
       partible
       titulo="Seguimiento de las reservas"
-      descripcion="Cuántos cupos apartó cada institución en cada acción y cuántos ya tienen persona."
+      descripcion={
+        departamento
+          ? `Lo que apartó cada institución en ${comoSeLlama(departamento)}, acción por acción, y cuántos cupos ya tienen persona.`
+          : "Cuántos cupos apartó cada institución en cada acción y cuántos ya tienen persona."
+      }
+      acciones={alCerrar && <BotonCerrarSeguimiento alPulsar={alCerrar} />}
     >
       {/* EL PLAZO, ARRIBA Y EN UNA LÍNEA. Va antes de la tabla y no en
           el pie porque es la razón de mirarla en septiembre. */}
@@ -1768,7 +1917,12 @@ function Seguimiento({ informe }: { informe: InformeReservas }) {
               <Th>Dónde se dicta</Th>
               <Th derecha>Cupos reservados</Th>
               <Th derecha>Cupos ocupados</Th>
-              <Th derecha>Pendientes</Th>
+              {/* «Cupos pendientes» y no «Pendientes»: el cliente lo
+                  pidió en el listado de reservas (25 sep 2026) y esta
+                  tabla es de donde se copiaron esos rótulos. Cambiar
+                  una y dejar la otra volvería a dar dos nombres para
+                  la misma cifra. */}
+              <Th derecha>Cupos pendientes</Th>
               <Th>Estado</Th>
             </tr>
           </thead>
@@ -1810,13 +1964,129 @@ function Seguimiento({ informe }: { informe: InformeReservas }) {
           </tbody>
         </table>
       </div>
-
-      <p className="border-t border-borde px-7 py-3 text-[0.6875rem] leading-relaxed text-texto-suave">
-        Un cupo está <strong className="font-semibold">ocupado</strong> cuando la institución ya
-        entregó el nombre de la persona que lo va a usar. Los pendientes son los que siguen sin
-        nombre: son los que hay que perseguir antes del cierre. Una fila queda en «Completa» en
-        cuanto no le falta ninguno, aunque el plazo ya haya pasado.
-      </p>
     </Bloque>
   );
+}
+
+function BotonCerrarSeguimiento({ alPulsar }: { alPulsar: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={alPulsar}
+      className="no-imprimir shrink-0 text-[0.75rem] font-medium text-marca underline underline-offset-2 hover:text-marca-fuerte"
+    >
+      Cerrar
+    </button>
+  );
+}
+
+/**
+ * La tabla de seguimiento de UN departamento, colgada del clic en su
+ * barra (cliente, 25 sep 2026).
+ *
+ * SE LE PIDE AL SERVIDOR, NO SE RECORTA AQUÍ. Las filas del cruce
+ * traen las ubicaciones donde se dicta --«Medellín»--, no el
+ * departamento, así que en el navegador no hay con qué separar
+ * Antioquia de Atlántico. Y aunque lo hubiera: `estadoPlazo` lo
+ * calcula el servidor sobre el `sinNombre` de la fila ENTERA, y una
+ * fila recortada sin recalcularlo diría «Completa» de una institución
+ * a la que le faltan nombres en otro departamento. El mismo informe
+ * con `departamento` puesto llega cuadrado, y la regla del plazo
+ * sigue viviendo en un solo sitio.
+ *
+ * NO TOCA LOS FILTROS DE LA DIRECCIÓN. Poniendo el departamento
+ * arriba, la gráfica se quedaría con la única barra que el servidor
+ * devolvería --la que se acaba de pulsar-- y no habría desde dónde
+ * pulsar la siguiente. Es el mismo defecto que el desplegable de
+ * departamentos ya evita pintándose desde el catálogo.
+ */
+function SeguimientoDeUnDepartamento({
+  departamento,
+  filtros,
+  alCerrar,
+}: {
+  /** Nulo: no hay ninguno abierto y esto no pinta nada. */
+  departamento: string | null;
+  filtros: FiltrosInformeReservas;
+  alCerrar: () => void;
+}) {
+  /// Lo ya pedido, por recorte. Abrir y cerrar el mismo departamento
+  /// tres veces son tres informes idénticos, y este no es una
+  /// consulta barata --además de que el servidor limita a 60 por
+  /// minuto y ahí caben también los cambios de filtro--.
+  const pedidos = useRef(new Map<string, InformeReservas>());
+  const clave = departamento ? JSON.stringify({ ...filtros, departamento }) : null;
+  const [informe, setInforme] = useState<InformeReservas | null>(null);
+  const [fallo, setFallo] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!clave) return;
+    const guardado = pedidos.current.get(clave);
+    /// En el mismo paso que se lanza la petición: si se dejara el
+    /// informe anterior puesto, al pasar de un departamento a otro se
+    /// vería un segundo la tabla del primero con el título del
+    /// segundo.
+    setInforme(guardado ?? null);
+    setFallo(null);
+    if (guardado) return;
+
+    let vigente = true;
+    tablerosApi.informeReservas(JSON.parse(clave) as FiltrosInformeReservas).then(
+      (i) => {
+        if (!vigente) return;
+        pedidos.current.set(clave, i);
+        setInforme(i);
+      },
+      (e) => {
+        if (vigente) setFallo(mensajeDeFallo(e));
+      },
+    );
+    return () => {
+      vigente = false;
+    };
+  }, [clave]);
+
+  if (!departamento) return null;
+  const cerrar = <BotonCerrarSeguimiento alPulsar={alCerrar} />;
+
+  if (fallo) {
+    return (
+      <Bloque titulo="Seguimiento de las reservas" acciones={cerrar}>
+        <p className="text-[0.8125rem] text-error">{fallo}</p>
+      </Bloque>
+    );
+  }
+
+  if (!informe) {
+    return (
+      <Bloque
+        titulo="Seguimiento de las reservas"
+        descripcion={`Buscando lo apartado en ${comoSeLlama(departamento)}…`}
+        acciones={cerrar}
+      >
+        {/* Tres renglones del alto de las filas de la tabla: así la
+            página no pega un salto cuando llega la respuesta. */}
+        <div className="space-y-3" aria-hidden>
+          <span className="sr-only" aria-live="polite">
+            Cargando el seguimiento
+          </span>
+          {[0, 1, 2].map((i) => (
+            <div key={i} className="h-4 animate-pulse rounded-full bg-current/10" />
+          ))}
+        </div>
+      </Bloque>
+    );
+  }
+
+  if (informe.cruce.length === 0) {
+    return (
+      <Bloque titulo="Seguimiento de las reservas" acciones={cerrar}>
+        <p className="text-[0.8125rem] text-texto-suave">
+          Ninguna reserva de este recorte se dicta en {comoSeLlama(departamento)}.
+        </p>
+      </Bloque>
+    );
+  }
+
+  return <Seguimiento informe={informe} departamento={departamento} alCerrar={alCerrar} />;
 }

@@ -652,7 +652,11 @@ export type EstadoAcademico =
 
 export const ETIQUETA_ACADEMICA: Record<EstadoAcademico, string> = {
   SIN_INGRESO: "Sin ingreso",
-  SIN_EMPEZAR: "Sin empezar",
+  /// «SIN ACTIVIDADES» Y NO «SIN EMPEZAR» (cliente, 24 sep 2026).
+  /// Es como él nombró el estado en su lista, y describe mejor lo que
+  /// pasa: la persona puede haber entrado al aula y no haber hecho
+  /// nada, que no es lo mismo que «no ha empezado el curso».
+  SIN_EMPEZAR: "Sin actividades",
   ATRASADO: "Atrasado",
   AL_DIA: "Al día",
   COMPLETADO: "Listo para certificar",
@@ -694,6 +698,34 @@ export type FilaAcademica = {
   diasSinEntrar: number | null;
   notaFinal: string | null;
   estado: EstadoAcademico;
+  /// Por donde se le escribe. Columna de la tabla del aula.
+  correo: string | null;
+  /// Dónde quedó: el departamento de SU cobertura, no el de su
+  /// cédula. Nulo si su grupo no tiene cobertura cargada.
+  departamento: string | null;
+  /// Cuántas veces lo ha tocado el asesor, y cuándo fue la última.
+  /// Es lo único de esta tabla que no manda el aula.
+  notas: number;
+  ultimaNota: string | null;
+  /// Desde que entró ---la fecha del lead si vino por uno, y si no
+  /// la de su ficha--- hasta hoy. Lo calcula el SERVIDOR: con la
+  /// hora del navegador, dos asesores verían números distintos para
+  /// la misma fila.
+  diasDeAntiguedad: number;
+  /// Desde la última nota. Sin ninguna nota se cuenta desde que
+  /// entró: a quien nunca se ha tocado es al que más falta le hace
+  /// salir arriba en esa ordenación.
+  diasSinGestion: number;
+  /// Su avance ACTIVIDAD POR ACTIVIDAD, en el orden del curso: es lo
+  /// que pivota a una columna por cada una --UT1, UT2… EVAL FINAL--.
+  /// Vienen TODAS las del curso, hechas o no: la que no tiene avance
+  /// es «no iniciada» y también ocupa su columna.
+  actividades: Array<{
+    orden: number;
+    titulo: string;
+    obligatoria: boolean;
+    completada: boolean;
+  }>;
 };
 
 export type Academico = {
@@ -1328,7 +1360,9 @@ export type FilaDeGrupo = {
   numero: number;
   modalidad: string;
   sedes: string;
-  departamentos: string;
+  /// UNO, y no la lista: el servidor manda una fila por grupo y
+  /// departamento desde el 24 sep 2026.
+  departamento: string;
   meta: number;
   /// En los grupos NO son cupos reservados sino personas ya nominadas
   /// por la empresa: una reserva se hace sobre la oferta, no sobre un
@@ -1354,6 +1388,25 @@ export type RitmoDeAsesor = {
   estado: "AL_DIA" | "AJUSTADO" | "EN_RIESGO" | "VENCIDO" | "SIN_PLAZO" | "TERMINADO";
 };
 
+/**
+ * LO QUE UN ASESOR LLEVA EN UNA ACCIÓN DE FORMACIÓN.
+ *
+ * Por ACCIÓN y no por grupo, y el porqué está en el backend
+ * (`asesores-datos.ts`): lo que aprieta a un asesor es la fecha de
+ * cierre, y esa es de la acción. Por grupo salen filas de uno o dos
+ * leads y ninguna responde «dónde se le está acumulando».
+ */
+export type CargaEnUnaAccion = {
+  accionFormacionId: string | null;
+  codigo: string | null;
+  /// Hace falta para distinguir: hay dos acciones con código «AF1».
+  nombre: string | null;
+  total: number;
+  gestionados: number;
+  resueltos: number;
+  pendientes: number;
+};
+
 export type FilaDeAsesor = {
   asesorId: string | null;
   nombre: string;
@@ -1361,6 +1414,19 @@ export type FilaDeAsesor = {
   ritmo: RitmoDeAsesor;
   antiguedadMedia: number | null;
   limite: string | null;
+  /// SU CARGA REPARTIDA POR ACCIÓN, que es el desglose que se abre al
+  /// pulsar la fila: «con al menos dos métricas, y como la tablita
+  /// que cuando uno da clic sale el desglose detallado» (cliente, 23
+  /// sep 2026).
+  ///
+  /// El servidor lleva mandándolo desde entonces y el frontend ni lo
+  /// declaraba, así que viajaba y se tiraba. Va OPCIONAL: un backend
+  /// sin reiniciar no lo trae, y entonces el cajón lo dice en vez de
+  /// pintar una tabla vacía.
+  ///
+  /// Con esto el filtro por acción no necesita al servidor: cada fila
+  /// ya sabe lo suyo en cada acción.
+  porAccion?: CargaEnUnaAccion[];
 };
 
 export type FilaDeAsesorAcademico = FilaDeAsesor & {
@@ -1552,6 +1618,12 @@ export const crmApi = {
     pedir<Academico>(`/admin/participantes/academico${consulta(filtros)}`),
 
   obtener: (id: string) => pedir<Ficha>(`/admin/participantes/${id}`),
+
+  /// LA FILA DEL AULA DE UNA SOLA PERSONA, para su vista individual.
+  /// La calcula el mismo sitio que la lista, así que su estado y su
+  /// avance no pueden discrepar de los de la tabla.
+  academicoDeUno: (id: string) =>
+    pedir<Academico>(`/admin/participantes/academico/persona/${id}`),
 
   actualizar: (id: string, datos: Record<string, unknown>) =>
     pedir<Ficha>(`/admin/participantes/${id}`, {

@@ -918,7 +918,7 @@ function AvancePorGrupo({ d }: { d: TableroAcademico }) {
                       incluidas --`enAula` son las seis etapas--. No
                       son los que siguen dentro: eso es `dentro`, y
                       va dentro de la barra de estados. */}
-                  <th className="py-1.5 pr-3 text-right font-semibold" title="Todo el que pisó el aula, salidas incluidas">
+                  <th className="py-1.5 pr-3 text-right font-semibold" title="Todos los que entraron al aula, salidas incluidas">
                     Pers.
                   </th>
                   <th className="py-1.5 pr-3 font-semibold">Avance promedio</th>
@@ -990,7 +990,7 @@ function AvancePorGrupo({ d }: { d: TableroAcademico }) {
           <p className="text-[0.71875rem] text-texto-suave">
             {restan > 0
               ? `Van los primeros ${n(caben.length)} grupos; quedan ${n(restan)} más en el tablero académico.`
-              : "«Pers.» es todo el que pisó el aula, salidas incluidas."}
+              : "«Pers.» son todos los que entraron al aula, salidas incluidas."}
             {notaSinMedir(d)}
           </p>
         </>
@@ -1019,7 +1019,7 @@ export function ModuloTrafico() {
 
   const titulo = "Tráfico de página";
   const bajada =
-    "Cuánta gente abre el formulario, de dónde llega y cuántos terminan preinscritos.";
+    "Cuántas personas abren el formulario, de dónde llegan y cuántas terminan preinscritas.";
 
   if (!puede)
     return (
