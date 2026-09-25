@@ -5,12 +5,11 @@ import { useCallback, useState } from "react";
 
 import { colorEtapa } from "@/components/admin/etapa";
 import { IndicadorActualizacion } from "@/components/admin/indicador-actualizacion";
-import { Aviso, CLASE_CONTROL, Tarjeta } from "@/components/admin/marco-admin";
+import { Aviso } from "@/components/admin/marco-admin";
 import { Esqueleto } from "@/components/admin/piezas";
 import { CajonDelAula } from "@/components/admin/cajon-del-aula";
 import { columnasDelAula } from "@/components/admin/columnas-del-aula";
 import { Tabla } from "@/components/admin/tabla";
-import { Desplegable } from "@/components/admin/desplegable";
 import { SelectorBuscable } from "@/components/admin/selector-buscable";
 import { useDatosVivos } from "@/lib/datos-vivos";
 import {
@@ -96,26 +95,37 @@ function Seguimiento() {
   /// no el id: el cajón pinta lo del aula --estado, avance, último
   /// ingreso-- que ya está aquí, y solo pide al servidor las notas.
   const [enElCajon, setEnElCajon] = useState<FilaAcademica | null>(null);
-  const [buscar, setBuscar] = useState("");
+  /// DOS FILTROS Y NO CUATRO (cliente, 24 sep 2026).
+  ///
+  /// Se fueron el buscador de arriba y el de asesores. El buscador
+  /// pedía al SERVIDOR por nombre o documento; la tabla trae el suyo
+  /// --sobre lo ya cargado-- y tener los dos en la misma fila era
+  /// pedir que se adivinara cuál de ellos se estaba usando. El de
+  /// asesores ya es una columna, con su propio filtro.
+  ///
+  /// Estos dos SE QUEDAN aunque la acción y el grupo sean también
+  /// columnas, y la diferencia importa: estos van al SERVIDOR y
+  /// cambian QUÉ FILAS BAJAN; los de columna recortan lo que ya
+  /// está cargado, con tope de 300. Hoy, con 35 personas, da igual;
+  /// pasadas las 300 el de columna filtraría solo las primeras y
+  /// nadie lo sabría. Y son los que él pidió en cascada: se elige la
+  /// acción, se despliega el grupo, y queda su gente.
   const [accionFormacionId, setAccion] = useState("");
   const [grupoId, setGrupo] = useState("");
-  const [asesorId, setAsesor] = useState("");
 
   const cargar = useCallback(
     () =>
       crmApi.academico({
-        buscar: buscar || undefined,
         accionFormacionId: accionFormacionId || undefined,
         grupoId: grupoId || undefined,
-        asesorId: asesorId || undefined,
       }),
-    [buscar, accionFormacionId, grupoId, asesorId],
+    [accionFormacionId, grupoId],
   );
 
   // se refresca solo; un fallo conserva lo ultimo bueno.
   // la clave hace que un filtro nuevo se pida al momento
   const vivos = useDatosVivos<Academico>(cargar, {
-    clave: `${buscar}|${accionFormacionId}|${grupoId}|${asesorId}`,
+    clave: `${accionFormacionId}|${grupoId}`,
   });
   const datos = vivos.datos;
 
@@ -175,17 +185,13 @@ function Seguimiento() {
   /// cientos de vueltas.
   const columnas = columnasDelAula();
 
-  const hayFiltro = Boolean(
-    filtro || salida || accionFormacionId || grupoId || asesorId || buscar,
-  );
+  const hayFiltro = Boolean(filtro || salida || accionFormacionId || grupoId);
 
   function quitarFiltros() {
     setFiltro("");
     setSalida("");
     setAccion("");
     setGrupo("");
-    setAsesor("");
-    setBuscar("");
   }
 
   // 67 grupos: el numero no distingue
@@ -255,92 +261,6 @@ function Seguimiento() {
         </p>
       )}
 
-      {/* ── 1 · Filtros ──
-          Los cuatro en UNA fila y dentro de su tarjeta, como en
-          Control de Inscritos: mandan todos sobre la misma
-          pantalla, y sueltos en una línea parecía que cada uno
-          gobernaba otra cosa. */}
-      <div className="rounded-xl border border-borde bg-superficie px-4 py-3.5">
-        <p className="mb-2.5 text-[0.6875rem] font-bold tracking-[0.08em] text-texto-suave uppercase">
-          Filtros
-          <span className="ml-2.5 font-normal tracking-normal text-marca normal-case">
-            <strong className="font-semibold tabular-nums">
-              {resumen.analizadas.toLocaleString("es-CO")}
-            </strong>{" "}
-            {resumen.analizadas === 1 ? "persona" : "personas"} en el aula
-          </span>
-          {hayFiltro && (
-            <button
-              onClick={quitarFiltros}
-              className="ml-3 font-normal tracking-normal text-texto-suave underline normal-case hover:text-texto"
-            >
-              Limpiar
-            </button>
-          )}
-        </p>
-
-        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-          <input
-            className={CLASE_CONTROL}
-            placeholder="Buscar por nombre o documento"
-            value={buscar}
-            onChange={(e) => setBuscar(e.target.value)}
-          />
-
-          <SelectorBuscable
-            clase="w-full"
-            etiqueta="Acción de formación"
-            valor={accionFormacionId}
-            alElegir={(id) => {
-              setAccion(id);
-              // el grupo cuelga de la accion: si cambia, sobra
-              setGrupo("");
-            }}
-            vacio="Formación"
-            marcador="AF8, inteligencia artificial…"
-            opciones={datos.acciones.map((a) => ({
-              id: a.id,
-              etiqueta: `${a.codigo} · ${a.nombre}`,
-            }))}
-          />
-
-          <SelectorBuscable
-            clase="w-full"
-            etiqueta="Grupo"
-            valor={grupoId}
-            alElegir={setGrupo}
-            vacio="Grupos"
-            marcador="Número de grupo, AF8, nombre…"
-            opciones={gruposBuscables}
-          />
-
-          <Desplegable
-            alto={34}
-            marcador="Asesores"
-            valor={asesorId}
-            alElegir={setAsesor}
-            opciones={[
-              { valor: "", etiqueta: "Asesores" },
-              ...datos.asesores.map((a) => ({ valor: a.id, etiqueta: a.nombre })),
-            ]}
-          />
-        </div>
-
-
-
-        {/* SIN LA FILA DE SALIDAS. Eran cuatro tarjetas más
-            --Desertó, Abandonó, Retirado, No aprobó-- y con las seis
-            de arriba hacían diez: «¿cuántas tarjetas te dije?»
-            (cliente, 24 sep 2026). Él dictó SEIS estados y esos son
-            los que se miden aquí.
-
-            Quien se fue no desaparece: sigue en la tabla con su
-            etapa, y el reparto por puerta de salida está en el
-            tablero de Seguimiento académico, en Tableros, que es
-            donde viven los resúmenes. */}
-
-
-      </div>
 
       {/* LAS SEIS, FUERA DE LA TARJETA DE FILTROS (cliente, 24 sep
           2026: «las tarjetas viven afuera»). Estuvieron dentro y
@@ -384,50 +304,105 @@ function Seguimiento() {
           ))}
         </div>
 
-      {visibles.length === 0 ? (
-        <Tarjeta
-          titulo="Nadie aquí"
-          descripcion="Solo aparece quien ya entró en formación."
-        >
-          <p className="text-sm text-texto-suave">
-            El avance llega del aula; mientras nadie esté en formación, esta pantalla
-            está vacía a propósito.
-          </p>
-        </Tarjeta>
-      ) : (
-        /* LAS PERSONAS EN FILAS, SU ESTADO EN COLUMNAS (cliente, 24
-           sep 2026). Estuvo en dos acordeones anidados --acción, y
-           dentro grupo, y dentro la tabla-- y para ver a alguien
-           había que abrir dos cajones sabiendo de antemano en qué
-           grupo estaba. Los filtros de arriba ya hacen ese recorte:
-           se elige la acción, se despliega el grupo, y la lista se
-           queda con su gente. El acordeón repetía ese trabajo a mano.
+      {/* LA TABLA SE PINTA SIEMPRE, también sin nadie dentro.
+          Antes, con cero filas, en su sitio salía una tarjeta de
+          «Nadie aquí» y la tabla desaparecía --y con ella su barra--.
+          Ahora los filtros VIVEN en esa barra, así que un filtro que
+          no devuelve a nadie se llevaba por delante el control con el
+          que se deshace: quien filtrara de más quedaba encerrado.
+          `Tabla` trae su propio estado vacío; esto le pasa el texto y
+          la barra se queda donde está. */}
+      <Tabla
+        /// LA MISMA TABLA DE GESTIÓN DE LEADS, no una parecida:
+        /// «prácticamente es como la tabla de Gestión de leads, su
+        /// mismo esquema, toda la misma lógica» (cliente, 24 sep
+        /// 2026). Con ella vienen los filtros por columna, el
+        /// selector de columnas y que la selección se recuerde.
+        ///
+        /// SIN `acciones` NI `accionesLote`, y eso es literal:
+        /// «solo que acá no van botones como importar, asignar
+        /// masivo y demás». No se quitan; es que no se le pasan.
+        ///
+        /// El `id` es lo que separa las columnas guardadas de esta
+        /// pantalla de las de Gestión de leads. Con el mismo, quien
+        /// escondiera una allá se la encontraría escondida aquí.
+        id="aula"
+        columnas={columnas}
+        filas={visibles}
+        clave={(f) => f.id}
+        alClic={(f) => setEnElCajon(f)}
+        vacio={
+          hayFiltro ? (
+            <>
+              Nadie cumple lo que está filtrado.{" "}
+              <button onClick={quitarFiltros} className="underline">
+                Quitar los filtros
+              </button>
+            </>
+          ) : (
+            "Solo aparece quien ya entró en formación: el avance llega del aula."
+          )
+        }
+        /* LOS DOS DE SERVIDOR, FUSIONADOS EN LA FILA DEL BUSCADOR
+           (cliente, 24 sep 2026: «sí, pero fusionado donde está el
+           buscador, no desorden»). Estaban en una tarjeta propia
+           encima de la tabla y, al quedarse en dos, se estiraban a
+           media pantalla cada uno: dos campos enormes para decir
+           dos palabras, y una tarjeta con un solo renglón dentro.
 
-           «Estructurar misma visual adaptada de Gestión de leads»: es
-           la misma tabla, el mismo buscador y el mismo cajón al pulsar
-           una fila, con las columnas del aula en vez de las del
-           embudo. */
-        <Tabla
-          /// LA MISMA TABLA DE GESTIÓN DE LEADS, no una parecida:
-          /// «prácticamente es como la tabla de Gestión de leads, su
-          /// mismo esquema, toda la misma lógica» (cliente, 24 sep
-          /// 2026). Con ella vienen los filtros por columna, el
-          /// selector de columnas y que la selección se recuerde.
-          ///
-          /// SIN `acciones` NI `accionesLote`, y eso es literal:
-          /// «solo que acá no van botones como importar, asignar
-          /// masivo y demás». No se quitan; es que no se le pasan.
-          ///
-          /// El `id` es lo que separa las columnas guardadas de esta
-          /// pantalla de las de Gestión de leads. Con el mismo, quien
-          /// escondiera una allá se la encontraría escondida aquí.
-          id="aula"
-          columnas={columnas}
-          filas={visibles}
-          clave={(f) => f.id}
-          alClic={(f) => setEnElCajon(f)}
-        />
-      )}
+           Aquí se leen con el buscador, que es lo que son: antes de
+           mirar la lista se dice de qué acción y de qué grupo se
+           está hablando.
+
+           EL ANCHO SE REPARTE, no se fija (cliente, 24 sep 2026:
+           «reduce buscador y alarga formación»). El buscador traía
+           `flex-1` y se quedaba con todo el sobrante ---693 px de
+           1.600---, mientras «Formación» recortaba a la mitad unos
+           nombres de noventa letras: se leía «AF8 · Inteligencia
+           art…» y había que abrir el desplegable para saber cuál
+           era. Ahora los dos llevan `flex-1` y parten el sobrante a
+           partes iguales, así que el cambio vale igual en un
+           portátil que en el monitor grande. El grupo no crece: es
+           un número. */
+        filtrosDelServidor={
+          <>
+            <SelectorBuscable
+              clase="min-w-[14rem] flex-1"
+              etiqueta="Acción de formación"
+              valor={accionFormacionId}
+              alElegir={(id) => {
+                setAccion(id);
+                // el grupo cuelga de la accion: si cambia, sobra
+                setGrupo("");
+              }}
+              vacio="Formación"
+              marcador="AF8, inteligencia artificial…"
+              opciones={datos.acciones.map((a) => ({
+                id: a.id,
+                etiqueta: `${a.codigo} · ${a.nombre}`,
+              }))}
+            />
+            <SelectorBuscable
+              clase="w-[9.5rem] shrink-0"
+              etiqueta="Grupo"
+              valor={grupoId}
+              alElegir={setGrupo}
+              vacio="Grupos"
+              marcador="Número de grupo, AF8, nombre…"
+              opciones={gruposBuscables}
+            />
+            {hayFiltro && (
+              <button
+                type="button"
+                onClick={quitarFiltros}
+                className="shrink-0 text-[0.78125rem] text-texto-suave underline hover:text-texto"
+              >
+                Limpiar
+              </button>
+            )}
+          </>
+        }
+      />
 
       {enElCajon && (
         <CajonDelAula fila={enElCajon} alCerrar={() => setEnElCajon(null)} />

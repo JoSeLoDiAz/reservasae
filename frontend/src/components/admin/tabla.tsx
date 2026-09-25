@@ -285,6 +285,7 @@ export function Tabla<T>({
   alClic,
   vacio,
   acciones,
+  filtrosDelServidor,
   resumen,
   seleccion,
   accionesLote,
@@ -301,6 +302,18 @@ export function Tabla<T>({
   alClic?: (f: T) => void;
   vacio?: ReactNode;
   acciones?: ReactNode;
+  /// Los filtros DE LA PANTALLA, fusionados en la fila del
+  /// buscador. Van aquí y no en `acciones` porque no son
+  /// botones: se leen con el buscador, antes de Filtros y
+  /// Columnas, y `acciones` pinta al final de la fila.
+  ///
+  /// Existe porque un filtro que va al SERVIDOR no puede vivir
+  /// en el panel de Filtros de la tabla: aquel recorta lo que ya
+  /// bajó, y este cambia lo que baja. Pero para quien mira son
+  /// lo mismo, así que van en la misma fila y no en una tarjeta
+  /// aparte encima ---«fusionado donde está el buscador, no
+  /// desorden» (cliente, 24 sep 2026)---.
+  filtrosDelServidor?: ReactNode;
   /// Lo que va DEBAJO de la barra de botones y encima de la
   /// paginacion. Hoy lo usa el embudo de leads. Es una ranura y
   /// no un componente fijo porque cada pantalla resume lo suyo.
@@ -680,6 +693,7 @@ export function Tabla<T>({
         nFiltros={chips.length}
         nColumnas={enPantalla.length}
         acciones={acciones}
+        filtrosDelServidor={filtrosDelServidor}
         alDescargar={
           sinDescarga || !filtradas || filtradas.length === 0
             ? undefined
@@ -1165,6 +1179,7 @@ function Barra({
   nFiltros,
   nColumnas,
   acciones,
+  filtrosDelServidor,
   alDescargar,
 }: {
   buscar: string;
@@ -1174,6 +1189,7 @@ function Barra({
   nFiltros: number;
   nColumnas: number;
   acciones?: ReactNode;
+  filtrosDelServidor?: ReactNode;
   alDescargar?: () => void;
 }) {
   const boton = (activo: boolean) =>
@@ -1214,6 +1230,14 @@ function Barra({
           className="h-[34px] w-full rounded-lg border border-campo-borde bg-campo-fondo py-0 pl-9 pr-3 text-[0.78125rem] outline-none transition focus:border-campo-foco focus:ring-2 focus:ring-campo-foco/25"
         />
       </label>
+
+      {/* LOS DE LA PANTALLA, PEGADOS AL BUSCADOR y antes de los
+          botones: primero se dice de qué se está hablando ---qué
+          acción, qué grupo--- y después se afina lo que bajó. No
+          crecen con la fila (el buscador es el que cede) porque
+          dos desplegables estirados a media pantalla era justo lo
+          que no se quería ver. */}
+      {filtrosDelServidor}
 
       <button
         type="button"
