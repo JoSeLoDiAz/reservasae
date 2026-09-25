@@ -164,20 +164,21 @@ Se cierra uno antes de abrir el siguiente.
 | **Cupos ocupados y Cupos pendientes**, con el criterio del informe | Reservas + backend | `d1ea967` |
 | Las cinco cifras iguales en las dos vistas; «Cupos pendientes» | Reservas + Control de Reservas | `2b5613e` |
 | La celda AF dice «1 de 16», y el cajón lo abre reserva por reserva | Reservas | `d33f51f` |
+| Fuera el rótulo, la descripción y el pie del bloque de asesores | Seguimiento de asesores | `b52ef59` |
+| **Seguimiento académico rehecho**: resumen, cupos e inscritos, dos gráficas y su tabla AF × grupo × UT | Seguimiento académico | `2ae4d61` |
 
 ### En curso
 
-**Rehacer «Seguimiento académico»** (`tablero-seguimiento-academico.tsx`), con el lenguaje de
-Control de inscritos pero más corto:
+Nada. Todo lo pedido esta madrugada está entregado y probado.
 
-1. Resumen general.
-2. Cupos e inscritos por acción.
-3. Dos gráficas, las que de verdad se miran.
-4. La tabla que dibujó: `AF · GRUPO · SIN INGRESO · SIN ACTIVIDAD · UT1…UT5 · EVAL FINAL ·
-   TOTAL PAX`, con subtotal por AF y total general.
+### Lo que falta
 
-**No necesita servidor**: `FilaAcademica.actividades[]` ya trae cada actividad con su `orden`,
-su `titulo` y si está `completada`; los cupos por acción salen de `informeReservas`.
+1. **Una respuesta suya**: «esto ya no convive, o sea vive separado», sobre Seguimiento de
+   asesores. ¿Quedó bien como está, o las dos pestañas --«Asesores de inscripciones» y
+   «Asesores académicos»-- deben ser dos pantallas?
+2. **Empujar la rama**. Hay cuatro commits míos solo en su máquina.
+3. **Nada de esto se ha visto fuera de su local.** Todo se probó contra la base sembrada del
+   5544; en `dev` y en `prueba.reservasae.com` no está.
 
 ### Decidido, para que no se vuelva a preguntar
 
