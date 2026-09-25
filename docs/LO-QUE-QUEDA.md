@@ -273,6 +273,12 @@ Rama **`andres/pantallas-sobre-dev`**, **48 commits por encima de `origin/dev`**
   51 pares acción × organización, cero discrepancias, mismos totales (46 ocupados, 496
   pendientes). Si al desplegar discrepan, el defecto está en el despliegue, no en la cuenta.
 
+### Las brechas, escritas para José
+
+Están en **[BRECHAS-PARA-JOSE.md](BRECHAS-PARA-JOSE.md)**: las seis abiertas con su prueba de
+cómo se comprobó, el patrón que comparten cuatro de ellas, y las dos preguntas ---una al LMS y
+otra al SENA--- que desbloquean lo que no depende de nosotros.
+
 ### Comprobado contra `origin/dev` el 25 sep 2026
 
 **No contra este documento: contra el código que José tiene.** Es la comprobación que faltaba,
