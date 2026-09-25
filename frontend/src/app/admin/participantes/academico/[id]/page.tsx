@@ -226,6 +226,19 @@ function Resumen({
             </div>
           </div>
 
+          {/* EL ESTADO Y LA ACCIÓN, JUNTOS Y A LA DERECHA. El lead
+              no lleva botón en esta franja porque el suyo está en la
+              barra, que allá es un formulario; aquí la barra solo
+              informa, así que la única acción de la pantalla vive
+              arriba, alineada con el nombre. */}
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 20,
+              flexWrap: "wrap",
+            }}
+          >
           <div
             style={{
               display: "flex",
@@ -257,6 +270,15 @@ function Resumen({
             >
               {ETIQUETA_ACADEMICA[fila.estado]}
             </span>
+          </div>
+
+            <button
+              type="button"
+              onClick={() => setEnElCajon(fila)}
+              className="inline-flex h-[34px] shrink-0 items-center rounded-lg bg-marca px-4 text-[0.78125rem] font-semibold text-marca-texto transition hover:bg-marca-fuerte sin-aro"
+            >
+              Registrar seguimiento
+            </button>
           </div>
         </div>
 
@@ -331,14 +353,21 @@ function Resumen({
               sep 2026); se lo contesté en el chat y no arreglé el
               rótulo, que es donde hacía falta la respuesta. */}
           <EnLaBarra titulo="Horario del grupo" valor={fila.horario} />
-          <button
-            type="button"
-            onClick={() => setEnElCajon(fila)}
-            style={{ marginLeft: "auto" }}
-            className="inline-flex h-[34px] shrink-0 items-center rounded-lg bg-marca px-4 text-[0.78125rem] font-semibold text-marca-texto transition hover:bg-marca-fuerte sin-aro"
-          >
-            Registrar seguimiento
-          </button>
+          {/* SIN BOTÓN AQUÍ (cliente, 25 sep 2026: «centradito ese
+              botón no, porque se ve raro la verdad»).
+
+              Estuvo al final de esta franja, copiando a «Guardar
+              gestión» del lead. Pero allá la barra ES el formulario
+              ---tiene los desplegables que cambian la etapa--- y el
+              botón cierra lo que se acaba de elegir. Aquí no hay
+              nada que editar: son siete valores de solo lectura.
+              Peor aún, desde que los campos miden lo que mide su
+              valor la franja ocupa tres renglones, y el botón se
+              quedaba solo al fondo con un hueco vacío encima.
+
+              Se subió a la cabecera, al lado del estado, que es
+              donde vive una acción que no depende de lo que hay
+              debajo. */}
         </div>
 
         {/* ── 3 · EL CUERPO, en dos columnas ────────────────── */}
@@ -491,19 +520,20 @@ function Resumen({
                 <Dato
                   titulo="Avance"
                   valor={`${fila.porcentaje} %`}
-                  pie={`${hechas} de ${fila.actividades.length} actividades · se certifica con el ${Math.round(
-                    criterio.minimoParaCertificar * 100,
-                  )} %`}
+                  pie={[
+                    `${hechas} de ${fila.actividades.length} actividades`,
+                    `Se certifica con el ${Math.round(criterio.minimoParaCertificar * 100)} %`,
+                  ]}
                   color={fila.listoParaCertificar ? "var(--exito)" : undefined}
                 />
                 <Dato
                   titulo="Último ingreso al aula"
                   valor={fila.ultimoAcceso ? instante(fila.ultimoAcceso) : "Nunca"}
-                  pie={
+                  pie={[
                     fila.diasSinEntrar === null
                       ? "No ha entrado ni una vez"
-                      : `Hace ${fila.diasSinEntrar} ${fila.diasSinEntrar === 1 ? "día" : "días"}`
-                  }
+                      : `Hace ${fila.diasSinEntrar} ${fila.diasSinEntrar === 1 ? "día" : "días"}`,
+                  ]}
                   color={fila.ultimoAcceso === null ? "var(--peligro)" : undefined}
                 />
                 <Dato
@@ -516,8 +546,11 @@ function Resumen({
                      correo---, que es otra cosa. */
                   pie={
                     fila.notas === 0
-                      ? "Nunca se le ha escrito: se cuenta desde que entró"
-                      : `${fila.notas} ${fila.notas === 1 ? "gestión registrada" : "gestiones registradas"} · última el ${instante(fila.ultimaNota)}`
+                      ? ["Nunca se le ha escrito", "Se cuenta desde que entró"]
+                      : [
+                          `${fila.notas} ${fila.notas === 1 ? "gestión registrada" : "gestiones registradas"}`,
+                          `Última el ${instante(fila.ultimaNota)}`,
+                        ]
                   }
                   color={fila.diasSinGestion >= 7 ? "var(--peligro)" : undefined}
                 />
@@ -646,7 +679,18 @@ function Dato({
 }: {
   titulo: string;
   valor: string | null;
-  pie?: string;
+  /// UNA LÍNEA POR DATO, y no todo seguido con puntos en medio.
+  ///
+  /// «4 gestiones registradas · última el 24 de sept de 2026, 11:55
+  /// p. m.» ocupaba tres renglones enrollados en una columna de 370
+  /// px, y había que buscar el punto para saber dónde acababa uno y
+  /// empezaba el otro: «separado como en una fila, para una mejor
+  /// visual y no un apeñuscamiento de datos» (cliente, 25 sep 2026).
+  ///
+  /// Se pasa una lista y cada cosa va en su renglón. Los vacíos se
+  /// caen solos, así que quien tenga una sola cosa que decir pasa
+  /// una sola.
+  pie?: Array<string | null>;
   color?: string;
   /// Sin la raya de abajo: es el último de la lista.
   ultimo?: boolean;
@@ -680,18 +724,21 @@ function Dato({
       >
         {valor ?? <span style={{ color: "var(--texto-suave)" }}>—</span>}
       </dd>
-      {pie && (
-        <dd
-          style={{
-            margin: "2px 0 0",
-            fontSize: "0.71875rem",
-            lineHeight: 1.35,
-            color: "var(--texto-suave)",
-          }}
-        >
-          {pie}
-        </dd>
-      )}
+      {pie
+        ?.filter((linea): linea is string => Boolean(linea))
+        .map((linea) => (
+          <dd
+            key={linea}
+            style={{
+              margin: "2px 0 0",
+              fontSize: "0.71875rem",
+              lineHeight: 1.35,
+              color: "var(--texto-suave)",
+            }}
+          >
+            {linea}
+          </dd>
+        ))}
     </div>
   );
 }
