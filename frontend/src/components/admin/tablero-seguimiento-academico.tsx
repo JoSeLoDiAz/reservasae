@@ -44,7 +44,7 @@ import { Desplegable } from "./desplegable";
 import { colorEtapa } from "./etapa";
 import { Donut, n, SERIE } from "./graficos";
 import { Aviso } from "./marco-admin";
-import { Bloque, CifraCompacta, Encabezado, Esqueleto, Vacio } from "./piezas";
+import { Bloque, Encabezado, Esqueleto, Vacio } from "./piezas";
 
 /// «AF1 · GESTIÓN DE LA ATENCIÓN…» llega en un solo texto, y el nombre
 /// entero son noventa letras que se comen la primera columna de la
@@ -119,16 +119,6 @@ function TarjetaDeEstado({ estado, valor }: { estado: EstadoAcademico; valor: nu
     </div>
   );
 }
-
-/// Las cuatro salidas. Van aparte porque no son un punto del camino:
-/// son cuatro maneras de bajarse de él, y mezclarlas con las de arriba
-/// haría que la fila no sumara la gente del aula.
-const SALIDAS = [
-  { clave: "desertaron", etiqueta: "Desertó", etapa: "DESERTO" },
-  { clave: "abandonaron", etiqueta: "Abandonó", etapa: "ABANDONO" },
-  { clave: "retirados", etiqueta: "Retirado", etapa: "RETIRADO" },
-  { clave: "noAprobaron", etiqueta: "No aprobó", etapa: "NO_APROBO" },
-] as const;
 
 export function TableroSeguimientoAcademico() {
   const [accionFormacionId, setAccion] = useState(TODOS);
@@ -341,7 +331,6 @@ function Cuerpo({
   }
 
   const personas = datos.personas as FilaAcademica[];
-  const salidas = r.desertaron + r.abandonaron + r.retirados + r.noAprobaron;
 
   /* ── las columnas de actividad ──────────────────────────────────
      Salen de la gente que llegó y no de un catálogo: así la tabla
@@ -537,41 +526,23 @@ function Cuerpo({
           lo grueso, dónde está quien sigue dentro, y por qué se fue
           quien ya no está. Siguen siendo renglones distintos --que es
           como las pidió el 23 sep-- pero dentro de una sola caja. */}
-      <Bloque titulo="Resumen general">
-        <div className="flex flex-wrap gap-2">
-          <CifraCompacta etiqueta="Grupos" valor={n(grupoElegido ? 1 : ordenadas.length)} />
-          <CifraCompacta etiqueta="Matriculados" valor={n(r.total)} />
-          <CifraCompacta
-            etiqueta="Siguen en formación"
-            valor={n(r.enFormacion)}
-            color="var(--exito)"
-            detalle={r.total > 0 ? `${Math.round((r.enFormacion / r.total) * 100)} %` : undefined}
-          />
-          <CifraCompacta
-            etiqueta="Salieron del aula"
-            valor={n(salidas)}
-            color={salidas > 0 ? "var(--error)" : undefined}
-            detalle={r.total > 0 ? `${Math.round((salidas / r.total) * 100)} %` : undefined}
-          />
-        </div>
+      {/* LAS SEIS DEL AULA Y NADA MÁS.
 
-        {/* LAS SEIS DEL AULA, con su punto de color y su medida: las
-            dos pantallas enseñan el mismo reparto y con dos diseños
-            distintos parecían dos cosas. */}
-        <div className="mt-4 grid gap-2 sm:grid-cols-3 lg:grid-cols-6">
+          «Dejemos las mismas tarjetas de Seguimiento del aula» era
+          eso y solo eso: las seis. Yo entendí «añade las seis» y
+          dejé CATORCE --cuatro de resumen, las seis, y las cuatro
+          causales--: «este chorrero no son las tarjetas que te digo»
+          (cliente, 25 sep 2026).
+
+          NO SE PIERDE NADA. Los matriculados están en el centro de la
+          torta, los grupos son las filas de la tabla, y las cuatro
+          causales se leen restando: quien no está en uno de los seis
+          estados salió del aula. Catorce cifras para decir eso es lo
+          que hacía que no se leyera ninguna. */}
+      <Bloque titulo="Resumen general">
+        <div className="grid gap-2 sm:grid-cols-3 lg:grid-cols-6">
           {ESTADOS.map((e) => (
             <TarjetaDeEstado key={e.clave} estado={e.estado} valor={r[e.clave]} />
-          ))}
-        </div>
-
-        <div className="mt-2 flex flex-wrap gap-2">
-          {SALIDAS.map((sa) => (
-            <CifraCompacta
-              key={sa.clave}
-              etiqueta={sa.etiqueta}
-              valor={n(r[sa.clave])}
-              detalle={r.total > 0 ? `${Math.round((r[sa.clave] / r.total) * 100)} %` : undefined}
-            />
           ))}
         </div>
       </Bloque>
