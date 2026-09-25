@@ -3,34 +3,47 @@
 /**
  * EL PARTICIPANTE, UNO A UNO, DENTRO DE SEGUIMIENTO DEL AULA.
  *
- * «Te dije que Abrir lead es una visual de Seguimiento del aula,
+ * «Te dije que abrir lead es una visual de Seguimiento del aula,
  * como de resumen del participante, porque ya es el 1 a 1. ¿Por qué
  * me muestras la vista de Control de inscritos?» (cliente, 25 sep
  * 2026).
  *
- * El cajón lateral llevaba a `/admin/participantes/[id]`, que es la
- * ficha de Gestión de leads: otro módulo, otra cabecera, otra miga
- * ---«← Gestión de leads»--- y una pantalla que habla de etapas, de
- * habeas data y del formato SEP. Todo eso es verdad de la PERSONA,
- * pero quien viene del aula viene a mirar OTRA cosa: cómo va en el
- * curso.
+ * El cajón llevaba a `/admin/participantes/[id]`, que es la ficha de
+ * Gestión de leads: otro módulo, otra miga y una pantalla que habla
+ * de etapas, de habeas data y del formato SEP. Todo eso es verdad de
+ * la PERSONA, pero quien viene del aula viene a mirar otra cosa:
+ * cómo va en el curso.
  *
- * Esta pantalla es esa otra cosa. Vive en Académica, se lee de
- * arriba abajo como un resumen ---quién es, dónde está, cómo va,
- * qué se ha hecho con ella--- y no deja editar nada del aula: eso lo
- * manda el LMS.
+ * CON EL MISMO ARMAZÓN QUE EL LEAD INDIVIDUAL: «¿no se puede una
+ * visual profesional y limpia como el lead individual de Gestión de
+ * leads, para que exista una armonía?» (cliente, 25 sep 2026).
  *
- * LO QUE NO HACE, y a propósito: no duplica la ficha. Los datos de
- * la persona ---su cédula, su empresa, su autorización--- siguen
- * viviendo en un solo sitio, y al final hay un enlace discreto para
- * ir allá. Dos pantallas editando los mismos datos es como acaban
- * diciendo cosas distintas.
+ * Y es el mismo, banda por banda, copiado de `participantes/[id]`:
+ *
+ *   1 · IDENTIDAD ---círculo con las iniciales, nombre grande, la
+ *       línea de datos con puntos de separación, y a la derecha el
+ *       rótulo en versalitas con su valor en color---.
+ *   2 · LA BARRA, pegada a la identidad y sobre fondo distinto. Allí
+ *       es donde se cambia la etapa; aquí NO SE CAMBIA NADA ---lo
+ *       manda el LMS---, así que lleva el contexto del curso y la
+ *       única acción que sí es nuestra: escribir una nota.
+ *   3 · EL CUERPO en dos columnas: lo que se mira a la izquierda y
+ *       la caja de datos a la derecha, 370 px como allá.
+ *
+ * Las medidas van en `style` y no en clases por la misma razón que
+ * en aquella: son las de un maquetado concreto, se leen de corrido
+ * al lado de su porqué, y así no aparecen catorce utilidades
+ * arbitrarias en una pantalla que tiene una sola forma.
+ *
+ * LO QUE NO HACE: duplicar la ficha. Sus datos personales, su
+ * empresa y su autorización viven en un solo sitio y se trabajan
+ * desde Inscripciones.
  *
  * SE PIDE AL SERVIDOR aunque el cajón ya tuviera la fila: a esta
- * dirección se puede llegar pegando el enlace, y entonces no hay
- * ninguna lista de la que sacarla. La calcula `academico()`, el
- * mismo sitio que la lista, así que el estado de aquí no puede
- * discrepar del de la tabla.
+ * dirección se llega pegando el enlace, y entonces no hay lista de
+ * la que sacarla. La calcula `academico()`, el mismo sitio que la
+ * lista, así que el estado de aquí no puede discrepar del de la
+ * tabla.
  */
 
 import { useCallback, useState } from "react";
@@ -38,10 +51,10 @@ import { useParams } from "next/navigation";
 import Link from "next/link";
 
 import { CajonDelAula } from "@/components/admin/cajon-del-aula";
+import { nombreLargoDeActividad } from "@/components/admin/columnas-del-aula";
 import { colorEtapa } from "@/components/admin/etapa";
 import { Aviso } from "@/components/admin/marco-admin";
 import { Esqueleto } from "@/components/admin/piezas";
-import { CifraCompacta } from "@/components/admin/piezas";
 import { useDatosVivos } from "@/lib/datos-vivos";
 import { fechaDeCalendario } from "@/lib/dia-de-calendario";
 import {
@@ -70,6 +83,16 @@ function instante(iso: string | null): string {
     year: "numeric",
     hour: "2-digit",
     minute: "2-digit",
+  });
+}
+
+/** El día, escrito entero: «19 de julio de 2026». */
+function fechaLarga(iso: string | null): string | null {
+  if (!iso) return null;
+  return fechaDeCalendario(iso, {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
   });
 }
 
@@ -107,20 +130,23 @@ function Resumen({
   fila: FilaAcademica;
   criterio: Academico["criterio"];
 }) {
-  /// EL CAJÓN SE REUTILIZA PARA ESCRIBIR NOTAS.
-  ///
-  /// Escribir una nota ya está resuelto ahí ---el canal, el
-  /// resultado, la lista de lo anterior--- y copiarlo aquí sería la
-  /// segunda copia del mismo formulario. Se abre desde el botón.
+  /// PARA ESCRIBIR UNA NOTA SE ABRE EL CAJÓN, que ya lo tiene
+  /// resuelto ---el canal, el resultado, lo anterior---. Copiar aquí
+  /// ese formulario sería la segunda copia del mismo.
   const [enElCajon, setEnElCajon] = useState<FilaAcademica | null>(null);
 
   const hechas = fila.actividades.filter((a) => a.completada).length;
+  const deHoy = calcularDeHoy(fila, hechas);
+
+  /// Dos letras, como en el lead: la del nombre y la del apellido.
+  const partes = fila.nombre.split(" ").filter(Boolean);
+  const iniciales =
+    `${partes[0]?.[0] ?? ""}${partes[partes.length - 1]?.[0] ?? ""}`.toLocaleUpperCase(
+      "es-CO",
+    ) || "?";
 
   return (
     <div className="flex flex-col gap-3 px-4 pt-3 pb-6">
-      {/* LA MIGA DICE DE DÓNDE VIENE, y dice «Seguimiento del aula»
-          y no «Gestión de leads»: es la diferencia que el cliente
-          señaló. */}
       <Link
         href="/admin/participantes/academico"
         className="text-[0.78125rem] text-texto-suave no-underline hover:text-texto"
@@ -128,179 +154,361 @@ function Resumen({
         ← Seguimiento del aula
       </Link>
 
-      <header className="flex flex-wrap items-start justify-between gap-4">
-        <div className="min-w-0">
-          <h1 className="text-[1.125rem] font-bold tracking-[-0.02em] text-titulo">
-            {fila.nombre}
-          </h1>
-          <p className="mt-0.5 text-[0.8125rem] text-texto-suave">
-            <span className="font-mono">{fila.documento}</span>
-            {fila.correo && <> · {fila.correo}</>}
-          </p>
-        </div>
-        <div className="flex items-center gap-3">
-          <span
-            style={{ ["--etapa"]: COLOR[fila.estado] } as React.CSSProperties}
-            className="pildora-etapa"
-            title={AYUDA_ACADEMICA[fila.estado]}
+      {/* UNA SOLA TARJETA EN TRES BANDAS, como el lead individual. */}
+      <section className="overflow-hidden rounded-lg border border-borde bg-superficie">
+        {/* ── 1 · IDENTIDAD ──────────────────────────────── */}
+        <div
+          style={{
+            background: "var(--superficie)",
+            borderBottom: "1px solid var(--borde)",
+            padding: "16px 28px 20px",
+            display: "flex",
+            alignItems: "center",
+            gap: 16,
+            flexWrap: "wrap",
+          }}
+        >
+          <div
+            aria-hidden
+            style={{
+              width: 44,
+              height: 44,
+              flex: "0 0 44px",
+              borderRadius: "50%",
+              background: "var(--marca-suave)",
+              color: "var(--marca)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontWeight: 700,
+              fontSize: "0.90625rem",
+            }}
           >
-            {ETIQUETA_ACADEMICA[fila.estado]}
-          </span>
+            {iniciales}
+          </div>
+
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <h1
+              style={{
+                margin: 0,
+                fontWeight: 700,
+                fontSize: "1.4375rem",
+                lineHeight: 1.15,
+                letterSpacing: "-.022em",
+                color: "var(--titulo)",
+              }}
+            >
+              {fila.nombre}
+            </h1>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+                marginTop: 4,
+                fontSize: "0.75rem",
+                color: "var(--texto-suave)",
+                flexWrap: "wrap",
+              }}
+            >
+              <span>{fila.documento}</span>
+              {fila.correo && (
+                <>
+                  <Punto />
+                  <span>{fila.correo}</span>
+                </>
+              )}
+              <Punto />
+              <span>
+                En el sistema hace {fila.diasDeAntiguedad}{" "}
+                {fila.diasDeAntiguedad === 1 ? "día" : "días"}
+              </span>
+            </div>
+          </div>
+
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "flex-end",
+            }}
+          >
+            <span
+              style={{
+                fontWeight: 600,
+                fontSize: "0.625rem",
+                letterSpacing: ".1em",
+                textTransform: "uppercase",
+                color: "var(--texto-suave)",
+              }}
+            >
+              Estado en el aula
+            </span>
+            {/* El valor en el color de su estado, sin píldora ni
+                punto: el color va en la letra. Igual que allá. */}
+            <span
+              title={AYUDA_ACADEMICA[fila.estado]}
+              style={{
+                marginTop: 3,
+                fontSize: "0.90625rem",
+                fontWeight: 700,
+                color: COLOR[fila.estado],
+              }}
+            >
+              {ETIQUETA_ACADEMICA[fila.estado]}
+            </span>
+          </div>
+        </div>
+
+        {/* ── 2 · LA BARRA ───────────────────────────────────
+            En el lead es donde se cambia la etapa. Aquí NO SE CAMBIA
+            NADA: lo del aula lo manda el LMS. Así que lleva el
+            contexto del curso ---dónde está matriculado--- y la única
+            acción que sí es nuestra, que es dejar una nota.
+
+            Sobre fondo distinto y pegada a la identidad, como allá:
+            es la franja que responde «¿de qué curso estamos
+            hablando?» antes de mirar nada más. */}
+        <div
+          style={{
+            background: "var(--superficie-alterna)",
+            borderBottom: "1px solid var(--borde)",
+            padding: "14px 28px",
+            display: "flex",
+            alignItems: "flex-end",
+            gap: 24,
+            flexWrap: "wrap",
+          }}
+        >
+          <EnLaBarra titulo="Acción de formación" valor={fila.accion} ancho={420} />
+          <EnLaBarra
+            titulo="Grupo"
+            valor={fila.grupo === null ? null : `Grupo ${fila.grupo}`}
+            ancho={110}
+          />
+          <EnLaBarra titulo="Departamento" valor={fila.departamento} ancho={170} />
+          <EnLaBarra
+            titulo="Asesor responsable"
+            valor={fila.asesor?.nombre ?? null}
+            ancho={190}
+          />
           <button
             type="button"
             onClick={() => setEnElCajon(fila)}
-            className="inline-flex h-[34px] items-center rounded-lg bg-marca px-3.5 text-[0.78125rem] font-semibold text-marca-texto transition hover:bg-marca-fuerte sin-aro"
+            style={{ marginLeft: "auto" }}
+            className="inline-flex h-[34px] shrink-0 items-center rounded-lg bg-marca px-4 text-[0.78125rem] font-semibold text-marca-texto transition hover:bg-marca-fuerte sin-aro"
           >
             Registrar seguimiento
           </button>
         </div>
-      </header>
 
-      {/* ── 1 · Las cifras, arriba y al alto de la casa ── */}
-      <div className="flex flex-wrap gap-2">
-        <CifraCompacta
-          etiqueta="Avance"
-          valor={`${fila.porcentaje} %`}
-          detalle={`${hechas} de ${fila.actividades.length}`}
-          color={fila.porcentaje >= 80 ? "var(--exito)" : undefined}
-        />
-        <CifraCompacta
-          etiqueta="Último ingreso al aula"
-          valor={fila.ultimoAcceso ? instante(fila.ultimoAcceso) : "Nunca"}
-          pie={
-            fila.diasSinEntrar === null
-              ? "No ha entrado ni una vez"
-              : `Hace ${fila.diasSinEntrar} ${fila.diasSinEntrar === 1 ? "día" : "días"}`
-          }
-        />
-        <CifraCompacta
-          etiqueta="Días sin gestión"
-          valor={String(fila.diasSinGestion)}
-          detalle={fila.notas === 1 ? "1 nota" : `${fila.notas} notas`}
-          color={fila.diasSinGestion >= 7 ? "var(--peligro)" : undefined}
-          pie={
-            fila.notas === 0
-              ? "Nunca se le ha escrito: se cuenta desde que entró"
-              : `Última: ${instante(fila.ultimaNota)}`
-          }
-        />
-        <CifraCompacta
-          etiqueta="Antigüedad del lead"
-          valor={`${fila.diasDeAntiguedad} ${fila.diasDeAntiguedad === 1 ? "día" : "días"}`}
-        />
-      </div>
-
-      {/* ── 2 · Dónde está ── */}
-      <section className="rounded-xl border border-borde bg-superficie px-4 py-3.5">
-        <h2 className="text-[0.6875rem] font-bold tracking-[0.08em] text-texto-suave uppercase">
-          Dónde está
-        </h2>
-        <dl className="mt-3 grid gap-x-6 gap-y-3 text-sm sm:grid-cols-2 lg:grid-cols-4">
-          <Campo titulo="Acción de formación" valor={fila.accion} />
-          <Campo
-            titulo="Grupo"
-            valor={fila.grupo === null ? null : `Grupo ${fila.grupo}`}
-          />
-          <Campo titulo="Departamento" valor={fila.departamento} />
-          <Campo titulo="Asesor" valor={fila.asesor?.nombre ?? null} />
-          <Campo
-            titulo="Fechas del curso"
-            valor={
-              fila.fechaInicio
-                ? `${fechaDeCalendario(fila.fechaInicio, { day: "2-digit", month: "short" })}${
-                    fila.fechaFin
-                      ? ` → ${fechaDeCalendario(fila.fechaFin, { day: "2-digit", month: "short", year: "2-digit" })}`
-                      : ""
-                  }`
-                : null
-            }
-          />
-          <Campo titulo="Horario" valor={fila.horario} />
-          <Campo
-            titulo="Nota final"
-            valor={fila.notaFinal === null ? null : String(fila.notaFinal)}
-          />
-        </dl>
-      </section>
-
-      {/* ── 3 · Cómo va, actividad por actividad ── */}
-      <section className="rounded-xl border border-borde bg-superficie px-4 py-3.5">
-        <h2 className="text-[0.6875rem] font-bold tracking-[0.08em] text-texto-suave uppercase">
-          Cómo va en el aula
-        </h2>
-        {/* DICE DE DÓNDE SALE Y POR QUÉ NO SE TOCA. Sin esta línea,
-            quien ve una actividad sin marcar y no encuentra cómo
-            marcarla piensa que la pantalla está rota. */}
-        <p className="mt-1 text-[0.75rem] leading-snug text-texto-suave">
-          Lo manda el aula y es la fuente de la verdad: aquí no se edita. Si algo
-          no cuadra, se corrige allá y llega solo.
-        </p>
-
-        {fila.actividades.length === 0 ? (
-          <p className="mt-3 text-sm text-texto-suave">
-            Su acción de formación no tiene actividades cargadas todavía.
-          </p>
-        ) : (
-          <ol className="mt-3 flex flex-col gap-1.5">
-            {fila.actividades.map((a) => (
-              <li
-                key={a.orden}
-                className="flex items-center gap-3 rounded-lg border border-borde px-3 py-2"
-              >
-                <span
-                  aria-hidden
-                  className={`inline-flex size-5 shrink-0 items-center justify-center rounded-full text-[0.6875rem] font-bold ${
-                    a.completada
-                      ? "bg-exito text-[var(--superficie)]"
-                      : "border border-borde text-texto-suave"
-                  }`}
-                >
-                  {a.completada ? "✓" : a.orden}
-                </span>
-                <span className="min-w-0 grow truncate text-sm font-medium">
-                  {a.titulo}
-                </span>
-                <span
-                  className={`shrink-0 text-[0.78125rem] ${
-                    a.completada ? "text-exito" : "text-texto-suave"
-                  }`}
-                >
-                  {a.completada ? "Completada" : "Pendiente"}
-                </span>
-              </li>
-            ))}
-          </ol>
-        )}
-
-        {/* EL RITMO, en una frase y no en dos números sueltos. */}
-        {fila.esperadas !== null && (
-          <p className="mt-3 text-[0.8125rem] text-texto-suave">
-            A estas alturas del curso tocarían{" "}
-            <strong className="font-semibold text-texto tabular-nums">
-              {fila.esperadas}
-            </strong>
-            :{" "}
-            {fila.desfase !== null && fila.desfase < 0
-              ? `va ${-fila.desfase} por debajo.`
-              : "va al día."}{" "}
-            Se certifica con el {Math.round(criterio.minimoParaCertificar * 100)} %
-            de lo obligatorio.
-          </p>
-        )}
-      </section>
-
-      {/* LA FICHA DE LA PERSONA, al pie y sobria ---la misma pieza que
-          usa el cajón de Gestión de leads---. Aquí vive lo del AULA;
-          sus datos, su empresa y su autorización siguen viviendo en un
-          solo sitio, y ese sitio es aquel. */}
-      <div>
-        <a
-          href={`/admin/participantes/${fila.id}`}
-          className="text-sm text-marca underline"
+        {/* ── 3 · EL CUERPO, en dos columnas ────────────────── */}
+        <div
+          style={{
+            display: "flex",
+            gap: 22,
+            padding: "24px 28px 30px",
+            alignItems: "flex-start",
+            flexWrap: "wrap",
+          }}
         >
-          Ver sus datos personales y de empresa
-        </a>
-      </div>
+          <div style={{ flex: 1, minWidth: 480 }}>
+            <h2
+              style={{
+                margin: 0,
+                fontWeight: 600,
+                fontSize: "0.90625rem",
+                color: "var(--titulo)",
+              }}
+            >
+              Cómo va en el aula
+            </h2>
+            {/* DICE DE DÓNDE SALE Y POR QUÉ NO SE TOCA. Sin esta
+                línea, quien ve una actividad sin marcar y no
+                encuentra cómo marcarla piensa que está rota. */}
+            <p className="mt-1 text-[0.75rem] leading-snug text-texto-suave">
+              Lo manda el aula y es la fuente de la verdad: aquí no se edita. Si
+              algo no cuadra, se corrige allá y llega solo.
+            </p>
+
+            {fila.actividades.length === 0 ? (
+              <p className="mt-4 text-sm text-texto-suave">
+                Su acción de formación no tiene actividades cargadas todavía.
+              </p>
+            ) : (
+              <ol className="mt-4 flex flex-col gap-1.5">
+                {fila.actividades.map((a) => (
+                  <li
+                    key={a.orden}
+                    className="flex items-center gap-3 rounded-lg border border-borde px-3 py-2"
+                  >
+                    <span
+                      aria-hidden
+                      className={
+                        "inline-flex size-5 shrink-0 items-center justify-center rounded-full text-[0.6875rem] font-bold " +
+                        (a.completada
+                          ? "bg-exito text-[var(--superficie)]"
+                          : "border border-borde text-texto-suave")
+                      }
+                    >
+                      {a.completada ? "✓" : a.orden}
+                    </span>
+                    {/* EL NOMBRE ENTERO, que aquí cabe: «Unidad
+                        Temática 1» y no «UT1» (cliente, 25 sep
+                        2026). El corto es el del dato ---el que
+                        manda el LMS---; esto es cómo se escribe
+                        cuando hay sitio. */}
+                    <span className="min-w-0 grow truncate text-sm font-medium">
+                      {nombreLargoDeActividad(a.titulo)}
+                    </span>
+                    <span
+                      className={
+                        "shrink-0 text-[0.78125rem] " +
+                        (a.completada ? "text-exito" : "text-texto-suave")
+                      }
+                    >
+                      {a.completada ? "Completada" : "Pendiente"}
+                    </span>
+                  </li>
+                ))}
+              </ol>
+            )}
+
+            {/* DÓNDE DEBERÍA IR HOY SEGÚN EL CALENDARIO, y si cuadra
+                (cliente, 25 sep 2026: «otro campo, unidad temática
+                por fecha actual, y que diga la respuesta: UT coincide
+                con fecha actual»; y tenía razón en que ya lo había
+                pedido).
+
+                Es LA pregunta de esta pantalla ---no «cuántas lleva»
+                sino «¿va donde debería ir hoy?»---, así que va en su
+                propio recuadro y no en una frase al pie, que es donde
+                estaba y había que traducirla uno mismo. */}
+            <div
+              className={
+                "mt-4 rounded-lg border px-3.5 py-3 " +
+                (deHoy.cuadra === undefined
+                  ? "border-borde"
+                  : deHoy.cuadra
+                    ? "border-exito/40 bg-exito-suave"
+                    : "border-aviso/40 bg-aviso-suave")
+              }
+            >
+              <p className="text-[0.625rem] font-semibold tracking-[0.08em] text-texto-suave uppercase">
+                Unidad temática de hoy
+              </p>
+              <p className="mt-1 text-[0.9375rem] font-bold">
+                {deHoy.nombre ?? "—"}
+              </p>
+              <p
+                className={
+                  "mt-0.5 text-[0.78125rem] leading-snug " +
+                  (deHoy.cuadra === undefined
+                    ? "text-texto-suave"
+                    : deHoy.cuadra
+                      ? "text-exito"
+                      : "font-medium text-aviso")
+                }
+              >
+                {deHoy.veredicto}
+              </p>
+            </div>
+          </div>
+
+          {/* LA COLUMNA DE LA DERECHA: 370 px, como el lead. Allá es
+              «Acciones»; aquí es el resumen de cifras y el calendario
+              del curso ---lo que se consulta de reojo mientras se
+              mira la lista de la izquierda---. */}
+          <aside style={{ width: 370, flex: "none" }}>
+            <div
+              style={{
+                background: "var(--superficie)",
+                border: "1px solid var(--borde)",
+                borderRadius: 16,
+                overflow: "hidden",
+              }}
+            >
+              <div
+                style={{
+                  padding: "16px 18px",
+                  borderBottom: "1px solid var(--hairline)",
+                }}
+              >
+                <div
+                  style={{
+                    fontWeight: 600,
+                    fontSize: "0.90625rem",
+                    color: "var(--titulo)",
+                  }}
+                >
+                  Resumen
+                </div>
+                <div style={{ fontSize: "0.75rem", color: "var(--texto-suave)" }}>
+                  Su avance y su calendario.
+                </div>
+              </div>
+
+              <dl style={{ padding: "14px 18px 18px", margin: 0 }}>
+                <Dato
+                  titulo="Avance"
+                  valor={`${fila.porcentaje} %`}
+                  pie={`${hechas} de ${fila.actividades.length} actividades · se certifica con el ${Math.round(
+                    criterio.minimoParaCertificar * 100,
+                  )} %`}
+                  color={fila.listoParaCertificar ? "var(--exito)" : undefined}
+                />
+                <Dato
+                  titulo="Último ingreso al aula"
+                  valor={fila.ultimoAcceso ? instante(fila.ultimoAcceso) : "Nunca"}
+                  pie={
+                    fila.diasSinEntrar === null
+                      ? "No ha entrado ni una vez"
+                      : `Hace ${fila.diasSinEntrar} ${fila.diasSinEntrar === 1 ? "día" : "días"}`
+                  }
+                  color={fila.ultimoAcceso === null ? "var(--peligro)" : undefined}
+                />
+                <Dato
+                  titulo="Días sin gestión"
+                  valor={String(fila.diasSinGestion)}
+                  /* LAS NOTAS NO SON POR ACTIVIDAD, y el pie lo dice:
+                     «¿o sea, según entiendo, es una nota por
+                     actividad o algo así?» (cliente, 25 sep 2026).
+                     Son la bitácora del asesor ---cada llamada, cada
+                     correo---, que es otra cosa. */
+                  pie={
+                    fila.notas === 0
+                      ? "Nunca se le ha escrito: se cuenta desde que entró"
+                      : `${fila.notas} ${fila.notas === 1 ? "gestión registrada" : "gestiones registradas"} · última el ${instante(fila.ultimaNota)}`
+                  }
+                  color={fila.diasSinGestion >= 7 ? "var(--peligro)" : undefined}
+                />
+                {/* CADA FECHA EN SU CAMPO (cliente, 25 sep 2026: «con
+                    más clase, como fecha inicio / fecha fin»). Iban
+                    las dos en una celda con una flecha en medio, que
+                    se lee como un rango y no como dos datos que se
+                    consultan por separado. */}
+                <Dato titulo="Fecha de inicio" valor={fechaLarga(fila.fechaInicio)} />
+                <Dato titulo="Fecha de fin" valor={fechaLarga(fila.fechaFin)} />
+                {/* De las sesiones del grupo: los días y las horas
+                    que ese grupo tenga cargados en Oferta. */}
+                <Dato titulo="Horario de las sesiones" valor={fila.horario} />
+                <Dato
+                  titulo="Nota final"
+                  valor={fila.notaFinal === null ? null : String(fila.notaFinal)}
+                  ultimo
+                />
+              </dl>
+            </div>
+          </aside>
+        </div>
+      </section>
+
+      {/* SIN ENLACE A LA FICHA (cliente, 25 sep 2026: «esto no, o sea
+          no; y no es aparte, es muy aparte»). Estaba al pie con la
+          idea de no duplicar los datos de la persona, pero esta
+          pantalla es del AULA: un enlace a otro módulo al final la
+          termina en un sitio que no es el suyo. Los datos de la
+          persona se trabajan desde Inscripciones. */}
 
       {enElCajon && (
         <CajonDelAula fila={enElCajon} alCerrar={() => setEnElCajon(null)} />
@@ -309,16 +517,175 @@ function Resumen({
   );
 }
 
-/** Un rótulo y su valor. La raya cuando no hay dato, nunca vacío. */
-function Campo({ titulo, valor }: { titulo: string; valor: string | null }) {
+/** El separador de la línea de datos: el mismo punto del lead. */
+function Punto() {
   return (
-    <div className="min-w-0">
-      <dt className="text-xs tracking-wide text-texto-suave uppercase">
+    <span
+      aria-hidden
+      style={{
+        width: 3,
+        height: 3,
+        borderRadius: "50%",
+        background: "var(--texto-suave)",
+        opacity: 0.6,
+      }}
+    />
+  );
+}
+
+/**
+ * Un dato de la barra de contexto.
+ *
+ * Con el ancho de su hueco y no del texto: en el lead esos huecos
+ * son desplegables de ancho fijo, y si aquí cada uno midiera lo que
+ * mide su valor, la barra se recolocaría entera al cambiar de
+ * persona.
+ */
+function EnLaBarra({
+  titulo,
+  valor,
+  ancho,
+}: {
+  titulo: string;
+  valor: string | null;
+  ancho: number;
+}) {
+  return (
+    <div style={{ width: ancho, minWidth: 0, flex: "0 1 auto" }}>
+      <div
+        style={{
+          fontWeight: 600,
+          fontSize: "0.625rem",
+          letterSpacing: ".1em",
+          textTransform: "uppercase",
+          color: "var(--texto-suave)",
+        }}
+      >
         {titulo}
-      </dt>
-      <dd className="mt-0.5 truncate" title={valor ?? undefined}>
-        {valor ?? <span className="text-texto-suave">—</span>}
-      </dd>
+      </div>
+      <div
+        className="truncate"
+        title={valor ?? undefined}
+        style={{ marginTop: 4, fontSize: "0.84375rem", color: "var(--texto)" }}
+      >
+        {valor ?? <span style={{ color: "var(--texto-suave)" }}>—</span>}
+      </div>
     </div>
   );
+}
+
+/** Una cifra de la columna derecha, con su explicación debajo. */
+function Dato({
+  titulo,
+  valor,
+  pie,
+  color,
+  ultimo,
+}: {
+  titulo: string;
+  valor: string | null;
+  pie?: string;
+  color?: string;
+  /// Sin la raya de abajo: es el último de la lista.
+  ultimo?: boolean;
+}) {
+  return (
+    <div
+      style={{
+        paddingBottom: 10,
+        marginBottom: 10,
+        borderBottom: ultimo ? "none" : "1px solid var(--hairline)",
+      }}
+    >
+      <dt
+        style={{
+          fontWeight: 600,
+          fontSize: "0.625rem",
+          letterSpacing: ".08em",
+          textTransform: "uppercase",
+          color: "var(--texto-suave)",
+        }}
+      >
+        {titulo}
+      </dt>
+      <dd
+        style={{
+          margin: "3px 0 0",
+          fontSize: "0.90625rem",
+          fontWeight: 700,
+          color: color ?? "var(--texto)",
+        }}
+      >
+        {valor ?? <span style={{ color: "var(--texto-suave)" }}>—</span>}
+      </dd>
+      {pie && (
+        <dd
+          style={{
+            margin: "2px 0 0",
+            fontSize: "0.71875rem",
+            lineHeight: 1.35,
+            color: "var(--texto-suave)",
+          }}
+        >
+          {pie}
+        </dd>
+      )}
+    </div>
+  );
+}
+
+/**
+ * EN QUÉ ACTIVIDAD TOCARÍA IR HOY, y si esta persona va ahí.
+ *
+ * `esperadas` lo calcula el SERVIDOR contra las fechas del grupo: si
+ * el curso lleva corrido el 70 % del tiempo, tocarían el 70 % de las
+ * actividades. Aquí solo se traduce ese número al nombre de la
+ * actividad que ocupa esa posición y se compara con cuántas lleva.
+ *
+ * Se compara por CANTIDAD y no por cuál: alguien puede tener la UT2
+ * y la UT5 hechas saltándose la UT3, y preguntar «¿va en la que
+ * toca?» sobre un avance con huecos no tiene respuesta buena.
+ * Cuántas lleva contra cuántas tocarían sí la tiene.
+ *
+ * Tres casos que no son «va bien» ni «va mal» y hay que decir con
+ * sus palabras: el grupo no tiene calendario, el curso no ha
+ * empezado, y el curso ya terminó. Meterlos en el mismo «coincide»
+ * es como se acaba diciendo que alguien va al día cuando su grupo ni
+ * siquiera arrancó.
+ */
+function calcularDeHoy(
+  fila: FilaAcademica,
+  hechas: number,
+): { nombre: string | null; veredicto: string; cuadra?: boolean } {
+  if (fila.esperadas === null) {
+    return {
+      nombre: null,
+      veredicto:
+        "Su grupo no tiene calendario cargado: no hay contra qué medirlo.",
+    };
+  }
+  if (fila.esperadas === 0) {
+    return { nombre: "Todavía ninguna", veredicto: "Su curso aún no empieza." };
+  }
+
+  const cual =
+    fila.actividades[Math.min(fila.esperadas, fila.actividades.length) - 1];
+  const nombre = cual ? nombreLargoDeActividad(cual.titulo) : null;
+
+  const diferencia = hechas - fila.esperadas;
+  if (diferencia >= 0) {
+    return {
+      nombre,
+      cuadra: true,
+      veredicto:
+        diferencia === 0
+          ? "Coincide: va justo donde toca a esta fecha."
+          : `Va ${diferencia} por delante de lo que toca a esta fecha.`,
+    };
+  }
+  return {
+    nombre,
+    cuadra: false,
+    veredicto: `No coincide: lleva ${hechas} y a esta fecha tocarían ${fila.esperadas}.`,
+  };
 }

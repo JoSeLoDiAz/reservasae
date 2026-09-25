@@ -105,6 +105,31 @@ const comoSeLlama = (s: string) =>
     .toUpperCase()
     .replace(/[^A-Z0-9]/g, "");
 
+/**
+ * EL NOMBRE LARGO DE UNA ACTIVIDAD, para donde hay sitio.
+ *
+ * «Acá, como es individual, sí podemos decir Unidad Temática en vez
+ * de UT, y Evaluación Final en vez de Eval Final» (cliente, 25 sep
+ * 2026). En la tabla NO: allí son seis encabezados de columna
+ * compitiendo con otros diecisiete, y «Unidad Temática 1» partiría
+ * en dos renglones y levantaría toda la fila.
+ *
+ * Así que el nombre corto es el del dato ---el que manda el LMS y
+ * por el que se casan las columnas--- y esto es solo cómo se
+ * escribe cuando cabe. Se casa por el mismo `comoSeLlama`, de modo
+ * que «ut1», «UT 1» y «Ut1» dan los tres lo mismo.
+ *
+ * Lo que no reconoce se devuelve tal cual: si el LMS manda una
+ * séptima con otro nombre, sale con el suyo y no inventado.
+ */
+export function nombreLargoDeActividad(titulo: string): string {
+  const clave = comoSeLlama(titulo);
+  const ut = /^UT([0-9]+)$/.exec(clave);
+  if (ut) return `Unidad Temática ${ut[1]}`;
+  if (clave === "EVALFINAL") return "Evaluación Final";
+  return titulo;
+}
+
 function columnasDeActividades(): Columna<FilaAcademica>[] {
   return DEL_LMS.map(({ clave }) => {
     const buscada = comoSeLlama(clave);
