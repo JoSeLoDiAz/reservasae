@@ -95,3 +95,24 @@ export function palabraCorta(canal: string, nombre: string): string | null {
   }
   return /^[0-9]/.test(nombre) ? `${prefijo}${nombre}` : `${prefijo}-${nombre}`;
 }
+
+/**
+ * La palabra tal cual, para mandarla en el registro.
+ *
+ * `leerEnlaceCorto` devuelve el canal YA interpretado, y eso no
+ * se le manda al servidor: quien decide si algo es pauta no puede
+ * ser el cuerpo de la peticion --lo tiene escrito
+ * `leads.service.ts`--. Aqui va la palabra cruda y el servidor la
+ * valida contra su propia lista (`enlace-del-envio.ts`).
+ *
+ * Se lee aunque haya `utm_`: aquellos alimentan la baliza, y esto
+ * es el respaldo de cuando la baliza no llega.
+ */
+export function marcaDelEnlaceCorto(busqueda: string): string | undefined {
+  for (const [clave, valor] of new URLSearchParams(busqueda)) {
+    if (valor !== "") continue;
+    const palabra = clave.toLowerCase().slice(0, 60);
+    if (PATRON.test(palabra)) return palabra;
+  }
+  return undefined;
+}

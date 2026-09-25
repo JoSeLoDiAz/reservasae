@@ -75,6 +75,88 @@ export function faltaDeLaPersona(p: {
   return falta;
 }
 
+/// Lo que la ficha necesita de la organización de la persona.
+export type EmpresaDeLaFicha = {
+  nit: string;
+  sectorEconomico: string | null;
+  contactoNombre: string | null;
+  contactoCargo: string | null;
+  contactoCorreo: string | null;
+} | null;
+
+/**
+ * Lo que el enlace le pide de su organización, y solo eso.
+ *
+ * El maestro de empresas guarda mucho más --tamaño, número de
+ * trabajadores, el CIIU-- pero al EMPLEADO no se le pregunta eso:
+ * no lo sabe. Por eso esta lista NO es `faltaEnF7`, que son ocho
+ * campos y tres de ellos no los escribe nadie hoy.
+ *
+ * Estaba escrita DOS veces --privada en `crm.service` y exportada
+ * en `preinscripcion/empresa-incompleta.ts`-- y las dos diferían:
+ * aquella tenía la excepción del independiente y el trato del
+ * nulo, y esta el `trim()`. O sea que a quien trabaja por su
+ * cuenta el enlace le pedía el correo de un jefe que su propia
+ * ficha ya daba por no aplicable. Aquí van las dos mitades buenas.
+ */
+export function faltaDeLaEmpresa(
+  e: EmpresaDeLaFicha,
+  /// Para saber si la «empresa» es la persona misma.
+  documentoDeLaPersona?: string | null,
+): string[] {
+  if (!e) return ['los datos de su organización'];
+
+  /// Quien trabaja por su cuenta no tiene jefe directo.
+  ///
+  /// Su cédula es su RUT, así que su NIT y su documento son el
+  /// mismo número. Pedirle «el nombre de su jefe» es pedirle que
+  /// se invente a alguien, y mientras no lo haga la ficha lo da
+  /// por incompleto para siempre.
+  const esElMismo =
+    documentoDeLaPersona != null && e.nit === documentoDeLaPersona;
+
+  const falta: string[] = [];
+  if (!e.sectorEconomico?.trim()) falta.push('sector económico');
+  if (esElMismo) return falta;
+
+  if (!e.contactoNombre?.trim()) falta.push('nombre del jefe directo');
+  if (!e.contactoCargo?.trim()) falta.push('cargo del jefe directo');
+  if (!e.contactoCorreo?.trim()) falta.push('correo del jefe directo');
+  return falta;
+}
+
+/**
+ * QUÉ LE FALTA A LA FICHA: la persona Y su organización.
+ *
+ * Es la regla de «Datos completos» desde el 24 sep 2026, y la
+ * pidió Josse: «datos completos deben estar los datos de la
+ * persona y los datos de la empresa».
+ *
+ * NACE APARTE Y NO DENTRO DE `faltaDeLaPersona`, y ese es el
+ * candado que sostiene todo lo demás: aquella la leen doce
+ * sitios, y uno es la COMPUERTA DE MATRÍCULA (`estadoDeDatos`).
+ * Metiéndole la empresa, nadie con la organización a medias
+ * podría inscribirse --en producción eran 86 de 86-- y eso
+ * derogaría la decisión del cliente del 30 ago 2026: «los tres
+ * datos del jefe directo NO bloquean la inscripción; un empleado
+ * puede no saberse el correo de su jefe, y perder la inscripción
+ * entera por eso es peor que perseguir el dato con una llamada».
+ *
+ * O sea: esto decide la ETAPA y lo que se PINTA. Lo que deja
+ * MATRICULAR sigue siendo `faltaDeLaPersona`.
+ */
+export function faltaDeLaFicha(p: {
+  persona: ParaRevisar['persona'];
+  nivelOcupacionalSepId: number | null;
+  empresa: EmpresaDeLaFicha;
+  documentoDeLaPersona?: string | null;
+}): string[] {
+  return [
+    ...faltaDeLaPersona(p),
+    ...faltaDeLaEmpresa(p.empresa, p.documentoDeLaPersona),
+  ];
+}
+
 /**
  * La única fuente. El panel pinta lo que devuelve esto, en
  * vez de llevar su propia lista: tres reglas distintas

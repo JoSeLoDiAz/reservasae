@@ -117,6 +117,28 @@ function ventanaPedida(
   );
 }
 
+/**
+ * Quien no responde por el equipo recibe SOLO su fila.
+ *
+ * La misma regla que `controlDeInscritos` aplica con `QuienMira`,
+ * y la misma lista: `VEN_EL_EQUIPO` más el superadmin, que es
+ * `RolAdmin` y no una concesión.
+ *
+ * Se devuelve su fila y no un vacío: una tabla en blanco se lee
+ * como un error, y él sí tiene derecho a ver su propio trabajo.
+ */
+function soloLoSuyoSiNoVeElEquipo<T extends { asesorId: string | null }>(
+  filas: T[],
+  admin: Admin,
+  ambito: Ambito,
+): T[] {
+  const veElEquipo =
+    admin.rol === RolAdmin.SUPERADMIN ||
+    conveniosQueVenElEquipo(ambito.roles).length > 0;
+  if (veElEquipo) return filas;
+  return filas.filter((f) => f.asesorId === admin.id);
+}
+
 /** Inscripciones: las personas detrás de los cupos. */
 @Controller('admin/participantes')
 @UseGuards(AdminGuard)
@@ -184,8 +206,25 @@ export class CrmController {
   /** La tabla del comité: una fila por acción de formación. */
   @Get('resumen-por-accion')
   @Requiere('inscritos')
-  resumenPorAccion(@AmbitoActual() ambito: Ambito) {
-    return this.crm.resumenPorAccion(ambito);
+  resumenPorAccion(
+    @AmbitoActual() ambito: Ambito,
+    /// Los mismos cortes que el resto de la pantalla. Uno a uno y no
+    /// con el DTO entero, por lo mismo que en `control`.
+    @Query('accionFormacionId') accionFormacionId?: string,
+    @Query('grupoId') grupoId?: string,
+    @Query('asesorId') asesorId?: string,
+    @Query('departamentoSepId') departamentoSepId?: string,
+    @Query('desde') desde?: string,
+    @Query('hasta') hasta?: string,
+  ) {
+    return this.crm.resumenPorAccion(ambito, {
+      accionFormacionId: accionFormacionId || undefined,
+      grupoId: grupoId || undefined,
+      asesorId: asesorId || undefined,
+      departamentoSepId: departamentoSepId ? Number(departamentoSepId) : undefined,
+      desde: desde || undefined,
+      hasta: hasta || undefined,
+    });
   }
   /**
    * El Resumen General: siete cifras macro por acción de formación.
@@ -203,8 +242,14 @@ export class CrmController {
     @Query('grupoId') grupoId?: string,
     @Query('asesorId') asesorId?: string,
     @Query('departamentoSepId') departamentoSepId?: string,
+    /// La ventana, para que este bloque obedezca al periodo como el
+    /// resto de la pantalla.
+    @Query('desde') desde?: string,
+    @Query('hasta') hasta?: string,
   ) {
     return this.crm.resumenGeneral({
+      llegoDesde: desde || undefined,
+      llegoHasta: hasta || undefined,
       ambito: ambito.convenios,
       convenioId: convenioId || undefined,
       accionFormacionId: accionFormacionId || undefined,
@@ -222,6 +267,46 @@ export class CrmController {
     @Param('accionFormacionId') accionFormacionId: string,
   ) {
     return this.crm.resumenPorGrupo(ambito, accionFormacionId);
+  }
+
+  /**
+   * El tablero de seguimiento de asesores, en sus dos subvistas.
+   *
+   * Dos rutas y no una con parametro: son dos preguntas distintas y
+   * el menu tiene que poder encender la que se esta mirando.
+   */
+  /// EL RENDIMIENTO DE OTROS SOLO LO VE QUIEN RESPONDE POR ELLOS.
+  ///
+  /// `@Requiere('inscritos')` y `@Requiere('academico')` en VER los
+  /// tienen los SIETE roles --incluida la cuenta de CONSULTA, que
+  /// es la de la pauta--, así que estas dos rutas repartían a todo
+  /// el mundo la tabla nominal de cada asesor: cuántos lleva,
+  /// cuántos cerró, cuántos debe y el semáforo que dice «Necesita
+  /// refuerzo». Es justo lo que se decidió el 22 sep 2026 que solo
+  /// ven Country Manager, superadmin y líder de inscripciones, y
+  /// que `controlDeInscritos` ya recorta con `QuienMira` dieciocho
+  /// líneas más abajo, en esta misma clase.
+  ///
+  /// Se recorta AQUÍ, en el servidor, y no en la pantalla: el menú
+  /// es comodidad, la ruta se llama directo.
+  @Get('asesores/inscripciones')
+  @Requiere('inscritos')
+  async asesoresDeInscripciones(
+    @AdminActual() admin: Admin,
+    @AmbitoActual() ambito: Ambito,
+  ) {
+    const filas = await this.crm.asesoresDeInscripciones(ambito);
+    return soloLoSuyoSiNoVeElEquipo(filas, admin, ambito);
+  }
+
+  @Get('asesores/academicos')
+  @Requiere('academico')
+  async asesoresAcademicos(
+    @AdminActual() admin: Admin,
+    @AmbitoActual() ambito: Ambito,
+  ) {
+    const filas = await this.crm.asesoresAcademicos(ambito);
+    return soloLoSuyoSiNoVeElEquipo(filas, admin, ambito);
   }
 
   /** Cuantos inscritos hay y como se reparten. */

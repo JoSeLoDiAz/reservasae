@@ -48,6 +48,7 @@ import {
   completarFila,
   resumenPorAccionSql,
   type FilaDeAccion,
+  type RecorteDelResumen,
 } from './resumen-por-accion';
 import {
   completarGrupo,
@@ -60,8 +61,32 @@ import {
   type FilaCruda,
   type FilaResumenGeneral,
 } from './resumen-general';
+import {
+  cierrePorAccion,
+  repartirAcademicos,
+  repartirInscripciones,
+  type FilaDeAsesor,
+  type FilaDeAsesorAcademico,
+} from './asesores-datos';
 import { exigirQuienAsignaGrupo } from './quien-asigna-grupo';
-import { faltaDeLaPersona, revisar } from './completitud';
+import {
+  faltaDeLaEmpresa,
+  faltaDeLaFicha,
+  faltaDeLaPersona,
+  revisar,
+} from './completitud';
+import {
+  motivoDeSegundaImposible,
+  type AccionParaCombinar,
+} from './segunda-inscripcion';
+
+/// Lo que la regla de la pareja necesita saber de una accion.
+const CAMPOS_DE_COMBINACION = {
+  id: true,
+  codigo: true,
+  nombre: true,
+  combinaConAccionId: true,
+} as const;
 import { pasarSiNoLeFaltaNada } from './datos-completos';
 import { PanelDeCupos } from './panel-de-cupos';
 import { ColaRui } from './rui/cola-rui';
@@ -413,10 +438,15 @@ export class CrmService {
           empresa: {
             select: {
               razonSocial: true,
+              // los cuatro del jefe: los pide `faltaDeLaEmpresa`
+              nit: true,
               direccion: true,
               telefono: true,
               sectorEconomico: true,
               clasificacion: true,
+              contactoNombre: true,
+              contactoCargo: true,
+              contactoCorreo: true,
             },
           },
           // de que reserva viene, si viene de una: es lo que
@@ -425,7 +455,16 @@ export class CrmService {
             select: {
               id: true,
               cuposSolicitados: true,
-              empresa: { select: { razonSocial: true, nit: true } },
+              empresa: {
+                select: {
+                  razonSocial: true,
+                  nit: true,
+                  sectorEconomico: true,
+                  contactoNombre: true,
+                  contactoCargo: true,
+                  contactoCorreo: true,
+                },
+              },
             },
           },
           // los dos ultimos: el de ahora y el de antes
@@ -578,12 +617,26 @@ export class CrmService {
    * porqué están en `resumen-por-accion.ts`, que se prueba sin base de
    * datos.
    */
-  async resumenPorAccion(ambito: Ambito): Promise<FilaDeAccion[]> {
+  async resumenPorAccion(
+    ambito: Ambito,
+    recorte: RecorteDelResumen = {},
+  ): Promise<FilaDeAccion[]> {
     if (ambito.convenios.length === 0) return [];
     const filas = await this.prisma.$queryRaw<Parameters<typeof completarFila>[0][]>(
-      resumenPorAccionSql(ambito.convenios, ambito.gremioElegido),
+      resumenPorAccionSql(ambito.convenios, ambito.gremioElegido, recorte),
     );
-    return filas.map(completarFila);
+    const completas = filas.map(completarFila);
+    /// CON UNA ACCIÓN ELEGIDA, SOLO ESA FILA.
+    ///
+    /// El SQL de arriba recorta la GENTE pero devuelve las quince
+    /// acciones: es un `LEFT JOIN` desde `acciones_formacion`, y así una
+    /// acción sin nadie sigue enseñando su meta, que es lo que se
+    /// quiere cuando no hay filtro. Con una elegida sobran las otras
+    /// catorce en cero, y es lo que el cliente pidió al pulsar una
+    /// fila: «que se oculten las demás AF» (23 sep 2026).
+    return recorte.accionFormacionId
+      ? completas.filter((f) => f.accionFormacionId === recorte.accionFormacionId)
+      : completas;
   }
 
   /**
@@ -625,6 +678,99 @@ export class CrmService {
       resumenPorGrupoSql(accionFormacionId),
     );
     return filas.map(completarGrupo);
+  }
+
+  /**
+   * SUBVISTA 1: los asesores de inscripciones.
+   *
+   * Se traen las fichas estrechas y se reparten en memoria: seis
+   * `groupBy` sobre las mismas dos tablas cuestan mas que esto, y
+   * «gestionado» no es una columna sino una regla.
+   */
+  async asesoresDeInscripciones(ambito: Ambito, ahora = new Date()): Promise<FilaDeAsesor[]> {
+    if (ambito.convenios.length === 0) return [];
+    const donde = { convenioId: { in: ambito.convenios } };
+
+    const [leads, grupos] = await Promise.all([
+      this.prisma.participante.findMany({
+        where: donde,
+        select: {
+          asesorId: true,
+          etapa: true,
+          creadoEn: true,
+          datosTocadosPorAsesorEn: true,
+          accionFormacionId: true,
+          asesor: { select: { nombre: true } },
+          _count: { select: { notas: true } },
+        },
+      }),
+      this.prisma.grupo.findMany({
+        where: { accionFormacion: { convenioId: { in: ambito.convenios } } },
+        select: { accionFormacionId: true, fechaInicio: true, modalidad: true },
+      }),
+    ]);
+
+    return repartirInscripciones(
+      leads.map((l) => ({
+        asesorId: l.asesorId,
+        asesorNombre: l.asesor?.nombre ?? null,
+        etapa: l.etapa,
+        creadoEn: l.creadoEn,
+        datosTocadosPorAsesorEn: l.datosTocadosPorAsesorEn,
+        notas: l._count.notas,
+        accionFormacionId: l.accionFormacionId,
+      })),
+      cierrePorAccion(grupos),
+      ahora,
+    );
+  }
+
+  /**
+   * SUBVISTA 2: los asesores academicos.
+   *
+   * Su carga se mide por GRUPOS --«cuantos grupos tiene asignados =
+   * cantidad de PAX»--, asi que se sale del grupo y se baja a sus
+   * participantes por la cobertura.
+   */
+  async asesoresAcademicos(
+    ambito: Ambito,
+    ahora = new Date(),
+  ): Promise<FilaDeAsesorAcademico[]> {
+    if (ambito.convenios.length === 0) return [];
+
+    const grupos = await this.prisma.grupo.findMany({
+      where: { accionFormacion: { convenioId: { in: ambito.convenios } } },
+      select: {
+        id: true,
+        fechaInicio: true,
+        fechaFin: true,
+        asesorAcademicoId: true,
+        asesorAcademico: { select: { nombre: true } },
+        coberturas: {
+          select: {
+            participantes: {
+              select: { etapa: true, _count: { select: { notas: true } } },
+            },
+          },
+        },
+      },
+    });
+
+    const pax = grupos.flatMap((g) =>
+      g.coberturas.flatMap((c) =>
+        c.participantes.map((p) => ({
+          asesorAcademicoId: g.asesorAcademicoId,
+          asesorNombre: g.asesorAcademico?.nombre ?? null,
+          grupoId: g.id,
+          fechaFin: g.fechaFin,
+          fechaInicio: g.fechaInicio,
+          etapa: p.etapa,
+          notas: p._count.notas,
+        })),
+      ),
+    );
+
+    return repartirAcademicos(pax, ahora);
   }
 
   async resumen(filtros: Filtros) {
@@ -980,7 +1126,7 @@ export class CrmService {
       /// Lo que el enlace le va a pedir, en el orden en que se
       /// lo va a pedir: primero su empresa y despues lo suyo.
       /// Sin esto el asesor manda un enlace sin saber que trae.
-      faltaDeLaEmpresa: this.faltaDeLaEmpresa(
+      faltaDeLaEmpresa: faltaDeLaEmpresa(
         p.empresa,
         p.persona.numeroDocumento,
       ),
@@ -1121,43 +1267,8 @@ export class CrmService {
     };
   }
 
-  /// Lo que el formulario largo le pide de su organizacion.
-  /// Solo eso: el maestro de empresas guarda mucho mas, pero
-  /// a la persona no se le pregunta el CIIU ni el tamano.
-  private faltaDeLaEmpresa(
-    e: {
-      nit: string;
-      razonSocial: string;
-      sectorEconomico: string | null;
-      contactoNombre: string | null;
-      contactoCargo: string | null;
-      contactoCorreo: string | null;
-    } | null,
-    /// Para saber si la «empresa» es la persona misma.
-    documentoDeLaPersona?: string,
-  ): string[] {
-    if (!e) return ['los datos de su organización'];
-
-    /// Quien trabaja por su cuenta no tiene jefe directo.
-    ///
-    /// Su cédula es su RUT, asi que su NIT y su documento son
-    /// el mismo numero. Pedirle «el nombre de su jefe» y «el
-    /// correo de su jefe» es pedirle que se invente a
-    /// alguien, y mientras no lo haga la ficha lo da por
-    /// incompleto para siempre: el enlace no deja de
-    /// ofrecerse y el F7 nunca lo ve listo.
-    const esElMismo =
-      documentoDeLaPersona !== undefined && e.nit === documentoDeLaPersona;
-
-    const falta: string[] = [];
-    if (!e.sectorEconomico) falta.push('sector económico');
-    if (esElMismo) return falta;
-
-    if (!e.contactoNombre) falta.push('nombre del jefe directo');
-    if (!e.contactoCargo) falta.push('cargo del jefe directo');
-    if (!e.contactoCorreo) falta.push('correo del jefe directo');
-    return falta;
-  }
+  /// La regla vive en `completitud.ts`: era privada aquí y
+  /// exportada allá, y las dos copias diferían.
 
   /**
    * Crea la ficha.
@@ -1313,6 +1424,44 @@ export class CrmService {
           );
         }
         sobrecupo = { porId: admin.id, motivo: dto.sobrecupoMotivo };
+      }
+    }
+
+    /// UNA FICHA POR PERSONA, salvo la pareja que se cursa junta.
+    ///
+    /// No existía ningún candado: el `upsert` de abajo reúsa a la
+    /// persona por documento y la segunda ficha se creaba sin que
+    /// nada se quejara --se podía estar en AF1, AF3 y AF5 a la
+    /// vez--. La regla es de Josse (24 sep 2026) y vive en
+    /// `segunda-inscripcion.ts`, por ID y no por código: «AF7»
+    /// existe en los dos gremios y no es la misma cosa.
+    ///
+    /// Va DENTRO del gremio: la misma cédula en los dos convenios
+    /// sigue siendo una persona con dos participaciones, y eso no
+    /// se toca --es lo que responde «cuánta gente distinta hemos
+    /// formado»--.
+    if (dto.accionFormacionId) {
+      const suyas = await this.prisma.participante.findMany({
+        where: {
+          convenioId: dto.convenioId,
+          persona: {
+            tipoDocumentoSepId: dto.tipoDocumentoSepId,
+            numeroDocumento: numero,
+          },
+          accionFormacionId: { not: null },
+        },
+        select: { accionFormacion: { select: CAMPOS_DE_COMBINACION } },
+      });
+      const nueva = await this.prisma.accionFormacion.findUnique({
+        where: { id: dto.accionFormacionId },
+        select: CAMPOS_DE_COMBINACION,
+      });
+      if (nueva) {
+        const motivo = motivoDeSegundaImposible(
+          nueva,
+          suyas.map((p) => p.accionFormacion!).filter(Boolean),
+        );
+        if (motivo) throw new ConflictException(motivo);
       }
     }
 
@@ -2062,6 +2211,25 @@ export class CrmService {
       camposTocados: tocados,
       ip,
     });
+
+    /// COMPLETAR LA ORGANIZACIÓN TAMBIÉN MUEVE LA ETAPA.
+    ///
+    /// Desde el 24 sep 2026 «Datos completos» mira la persona Y su
+    /// organización, así que esta ruta puede ser la que termina de
+    /// completar la ficha. Sin esta llamada, el asesor llenaba el
+    /// jefe directo, la persona ya no debía nada, y la ficha se
+    /// quedaba en «Interesado» con «Sin pendientes» al lado --que
+    /// es exactamente el defecto que Mauricio reportó el 18 sep y
+    /// que `datos-completos.ts` existe para cerrar, reabierto por
+    /// la puerta de la empresa--.
+    if (tocados.length > 0) {
+      await pasarSiNoLeFaltaNada(
+        this.prisma,
+        id,
+        'Un asesor completó los datos de su organización',
+        actor?.id ?? null,
+      );
+    }
 
     return this.obtener(id, ambito);
   }
@@ -4565,6 +4733,13 @@ export class CrmService {
 
     let numeroDeGrupo: number | null = null;
     if (dto.coberturaId) {
+      /// AQUÍ NO VA EL CANDADO DEL GRUPO, y volvió a entrar el 23
+      /// sep. Corría aunque el grupo NO cambiara --el asesor que
+      /// edita la formación de una ficha con cohorte ya puesta
+      /// recibía 403 sin tocarla-- y sin el convenio de la ficha,
+      /// o sea preguntando «¿es analista en ALGÚN gremio?». El
+      /// bueno está abajo, colgado de que la cobertura cambie de
+      /// verdad y con `p.convenioId`.
       const cobertura = await exigirCoberturaDeLaOferta(this.prisma, dto.coberturaId, {
         accionFormacionId: oferta.accionFormacionId,
         ubicacionId: oferta.ubicacionId,
@@ -4795,26 +4970,81 @@ export class CrmService {
       y.push({ persona: { departamentoSepId: f.departamentoSepId } });
     }
 
-    // «completa» no es una columna: es que no falte ninguno de
-    // los diez que exige el reporte. La condicion se escribe
-    // aqui igual que en `faltaDeLaPersona`, y si una cambia
-    // hay que cambiar la otra
+    /// «Completa» no es una columna: es que no falte nada de lo
+    /// que mira `faltaDeLaFicha` --la persona Y su organización--.
+    ///
+    /// SE ESCRIBE AQUÍ OTRA VEZ PORQUE UN `where` DE PRISMA NO
+    /// PUEDE LLAMAR A UNA FUNCIÓN, y esa duplicación ya costó una
+    /// queja: el 24 sep 2026 una asesora filtró «Datos completos»,
+    /// abrió la ficha y le dijo que faltaban los datos de la
+    /// empresa. La columna miraba una regla y el filtro otra.
+    ///
+    /// Dos cosas que ESTE bloque tenía mal antes de tocarlo, y no
+    /// eran la empresa:
+    ///   · `{ not: null }` deja pasar la cadena VACÍA y los
+    ///     espacios, y la función usa `.trim()`. Una dirección con
+    ///     un espacio salía COMPLETA en el filtro y «Falta 1» en la
+    ///     columna, en la misma fila.
+    ///   · el celular se juzga con `celularUtil`, que además
+    ///     rechaza un «no tiene» escrito en la casilla. Eso no cabe
+    ///     en un `where`, así que aquí solo se exige que no esté
+    ///     vacío: el filtro es MÁS LAXO que la columna en ese
+    ///     campo, y es la única diferencia que queda a propósito.
     if (f.estado) {
+      /// Ni nulo ni vacío: es lo que hace `!x?.trim()`.
+      const lleno = (): Prisma.StringNullableFilter => ({
+        not: null,
+        notIn: ['', ' '],
+      });
+      /// LO QUE NO CABE AQUÍ, Y HAY QUE SABERLO: la excepción del
+      /// INDEPENDIENTE. `faltaDeLaEmpresa` no le pide jefe directo
+      /// a quien trabaja por su cuenta, y eso se reconoce en que
+      /// su NIT es su propia cédula --`empresa.nit ===
+      /// persona.numeroDocumento`--. Un `where` de Prisma no puede
+      /// comparar dos columnas de modelos distintos, así que el
+      /// filtro se los cuenta como incompletos: son 9 fichas de
+      /// 136 en producción (medido el 24 sep 2026) y salen PARCIAL
+      /// en el filtro y «Sin pendientes» en la columna.
+      ///
+      /// Se cierra del todo el día que esto sea una COLUMNA que
+      /// escriba `pasarSiNoLeFaltaNada` en vez de una condición
+      /// reescrita a mano. Es una migración y se decide aparte.
+      const empresaLlena = {
+        sectorEconomico: lleno(),
+        contactoNombre: lleno(),
+        contactoCargo: lleno(),
+        contactoCorreo: lleno(),
+      };
+
       const completa: Prisma.ParticipanteWhereInput = {
         AND: [
           { nivelOcupacionalSepId: { not: null } },
           {
             persona: {
-              correo: { not: null },
-              celular: { not: null },
+              correo: lleno(),
+              celular: lleno(),
               fechaNacimiento: { not: null },
               generoSepId: { not: null },
               estrato: { not: null },
               departamentoSepId: { not: null },
               municipioSepId: { not: null },
-              direccion: { not: null },
-              barrio: { not: null },
+              direccion: lleno(),
+              barrio: lleno(),
             },
+          },
+          /// LA SUYA, Y SI NO TIENE, LA DE LA RESERVA QUE LO NOMINÓ.
+          ///
+          /// Misma cadena que `faltaDeLaFicha` y que el F7. Sin la
+          /// segunda rama, quien llegó por la reserva de una empresa
+          /// --el camino principal-- saldría siempre incompleto.
+          {
+            OR: [
+              { empresa: empresaLlena },
+              {
+                empresaId: null,
+                reserva: { empresa: empresaLlena },
+              },
+            ],
           },
         ],
       };
@@ -4919,14 +5149,25 @@ export class CrmService {
     reserva: {
       id: string;
       cuposSolicitados: number;
-      empresa: { razonSocial: string; nit: string };
+      empresa: {
+        razonSocial: string;
+        nit: string;
+        sectorEconomico: string | null;
+        contactoNombre: string | null;
+        contactoCargo: string | null;
+        contactoCorreo: string | null;
+      };
     } | null;
     empresa: {
       razonSocial: string;
+      nit: string;
       direccion: string | null;
       telefono: string | null;
       sectorEconomico: string | null;
       clasificacion: string | null;
+      contactoNombre: string | null;
+      contactoCargo: string | null;
+      contactoCorreo: string | null;
     } | null;
     movimientos: Array<{
       etapaAntes: EtapaParticipante | null;
@@ -4942,20 +5183,33 @@ export class CrmService {
     /// Intentos que no llegaron a nadie.
     sinRespuesta: number;
   }) {
-    // lo que la persona dejo a medias: es lo que el asesor
-    // tiene que completar por telefono
+    /// Lo que la ficha debe: lo suyo Y lo de su organización.
+    ///
+    /// LAS DOS LISTAS VIAJAN SEPARADAS y `datos` sale de la SUMA.
+    /// Mandando solo el total, el panel no puede decir QUÉ falta ni
+    /// de quién; mandando solo la de la persona --que es lo que
+    /// había-- la columna imprimía «Faltan 0» en ámbar el día que
+    /// lo único pendiente fuera de la empresa.
+    const suEmpresa = p.empresa ?? p.reserva?.empresa ?? null;
     const falta = faltaDeLaPersona({
       persona: p.persona,
       nivelOcupacionalSepId: p.nivelOcupacionalSepId,
     });
+    const faltaEmpresa = faltaDeLaEmpresa(
+      suEmpresa,
+      p.persona.numeroDocumento,
+    );
 
     return {
       id: p.id,
       etapa: p.etapa,
       origen: p.origen,
       datos:
-        falta.length === 0 ? ('COMPLETOS' as const) : ('PARCIALES' as const),
+        falta.length + faltaEmpresa.length === 0
+          ? ('COMPLETOS' as const)
+          : ('PARCIALES' as const),
       faltaDeLaPersona: falta,
+      faltaDeLaEmpresa: faltaEmpresa,
       creadoEn: p.creadoEn,
       documento: `${siglaDocumento(p.persona.tipoDocumentoSepId)} ${p.persona.numeroDocumento}`,
       nombre: [

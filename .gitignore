@@ -108,3 +108,7 @@ paletas.json
 
 # capturas del navegador: se toman para mirar, no para guardar
 /*.png
+
+# respuestas sueltas de pruebas con curl
+login.json
+yo.json

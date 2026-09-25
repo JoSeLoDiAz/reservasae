@@ -45,7 +45,8 @@ export type DatosDelParticipante = {
   /// hay oferta, que es lo que la distingue de `ubicacion`.
   donde: string | null;
   /// Lo que le falta a ESTA ficha para entrar al reporte, en
-  /// palabras. Sale de `faltaDeLaPersona`, la unica regla.
+  /// palabras. Sale de `faltaDeLaFicha`: la persona Y su
+  /// organizacion, que es lo que la campana va a pedir.
   faltan: string[];
 };
 

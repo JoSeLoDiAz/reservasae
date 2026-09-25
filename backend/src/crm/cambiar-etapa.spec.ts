@@ -39,6 +39,19 @@ const EMPRESA = {
   contactoCorreo: 'marta@ejemplo.test',
 };
 
+/// La misma, con los campos que se pidan en blanco.
+///
+/// Antes esto se conseguía espiando el método privado
+/// `faltaDeLaEmpresa` del servicio. Espiar la decisión es probar
+/// el doble: la regla vive ahora en `completitud.ts` y lo que hay
+/// que ejercitar es el camino de verdad, con los datos vacíos.
+function conHuecos(sinEstos?: string[]) {
+  if (!sinEstos?.length) return EMPRESA;
+  const e: Record<string, string | null> = { ...EMPRESA };
+  for (const campo of sinEstos) e[campo] = null;
+  return e as typeof EMPRESA;
+}
+
 type Opciones = {
   etapa: string;
   /// Que contesta el panel de cupos de esa oferta.
@@ -50,6 +63,8 @@ type Opciones = {
   empresaPropia?: boolean;
   /// Ni propia ni de reserva: la persona no tiene organización.
   sinOrganizacion?: boolean;
+  /// Los campos de la organización que llegan vacíos.
+  empresaSinEstos?: string[];
   /// El disparador se queja (p.ej. a la empresa le faltan los 3 datos).
   disparadorFalla?: boolean;
 };
@@ -77,9 +92,14 @@ function armar(o: Opciones) {
           /// `propia: false` = solo la tiene por su reserva, que
           /// es el camino principal: una empresa aparta cupos y
           /// despues nomina a su gente.
-          empresa: o.sinOrganizacion || o.empresaPropia === false ? null : EMPRESA,
+          empresa:
+            o.sinOrganizacion || o.empresaPropia === false
+              ? null
+              : conHuecos(o.empresaSinEstos),
           reserva:
-            !o.sinOrganizacion && o.empresaPropia === false ? { empresa: EMPRESA } : null,
+            !o.sinOrganizacion && o.empresaPropia === false
+              ? { empresa: conHuecos(o.empresaSinEstos) }
+              : null,
         }),
       update: () => {
         escrituras.push('participante.update');
@@ -389,12 +409,23 @@ describe('a la organización le faltan datos y la persona SÍ se inscribe', () =
    * Lo que falta de la empresa se sigue enseñando en la ficha y lo
    * reclama el F7; lo que ya no hace es frenar la inscripción.
    */
+  /// SE LE VACÍAN LOS CAMPOS DE VERDAD, no se espía la decisión.
+  ///
+  /// Hasta el 24 sep 2026 esto hacía `jest.spyOn(s,
+  /// 'faltaDeLaEmpresa')`, o sea que probaba el doble y no la
+  /// compuerta: con el espía puesto, el test pasaba dijera lo que
+  /// dijera la regla. Ahora la organización llega a medias de
+  /// verdad y lo que se comprueba es que la compuerta la ignora.
   it.each([
-    [['sector económico']],
-    [['nombre del jefe directo', 'cargo del jefe directo', 'correo del jefe directo']],
-  ])('le falta %j a su organización y pasa a INSCRITO', async (falta) => {
-    const { s } = armar({ etapa: 'INTERESADO', motivo: null, ventana: 'ABIERTA' });
-    jest.spyOn(s as never, 'faltaDeLaEmpresa' as never).mockReturnValue(falta as never);
+    [['sectorEconomico']],
+    [['contactoNombre', 'contactoCargo', 'contactoCorreo']],
+  ])('le falta %j a su organización y pasa a INSCRITO', async (sinEstos: string[]) => {
+    const { s } = armar({
+      etapa: 'INTERESADO',
+      motivo: null,
+      ventana: 'ABIERTA',
+      empresaSinEstos: sinEstos,
+    });
 
     const r = await s.cambiarEtapa(
       'p1',

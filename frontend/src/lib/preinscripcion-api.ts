@@ -57,6 +57,19 @@ export type CatalogoPreinscripcion = {
   /// El habeas data que hay que aceptar, entero. Null si el
   /// convenio todavia no tiene texto vigente.
   politica: { id: string; version: number; titulo: string; contenido: string } | null;
+  /// Que formulario es este. Null --lo normal-- es el general.
+  /// Lo decide el servidor: la palabra del enlace por si sola no
+  /// significa nada hasta que el la reconoce.
+  formulario: {
+    palabra: string;
+    titulo: string;
+    /// Trae una sola accion, ya elegida. Con esto la pantalla
+    /// quita los textos de escoger: no hay entre que escoger.
+    accionUnica: boolean;
+    /// El tercero que acompana esta convocatoria, para la banda
+    /// de arriba. Null en los que no llevan ninguno.
+    aliado: { nombre: string; logo: string } | null;
+  } | null;
 };
 
 export type BusquedaNit = {
@@ -89,6 +102,17 @@ export type DatosBasicos = {
   aceptaPolitica?: boolean;
   /// La visita que mide el embudo. Opaca, sin datos de nadie.
   visita?: string;
+  /// La palabra del formulario por el que entro. Es la llave que
+  /// deja registrar en una accion sin publicar, asi que el
+  /// servidor la vuelve a comprobar; mandarla no basta.
+  formulario?: string;
+  /// La marca del enlace corto --`?mailing-ucc`--, cruda.
+  ///
+  /// Va ADEMAS de en la baliza porque con ella se le paga a un
+  /// tercero por cada persona que se certifique, y la baliza se
+  /// la comen los bloqueadores. El servidor la valida y nunca la
+  /// cree para marcar pauta.
+  enlace?: string;
 };
 
 export type FichaAbierta = {
@@ -146,7 +170,11 @@ export const preinscripcionApi = {
   /** El banco de NIT: trae la razón social. */
   buscarNit: (nit: string) => pedir<BusquedaNit>(`/directorio/nit/${nit}`),
 
-  catalogo: (slug: string) => pedir<CatalogoPreinscripcion>(`/preinscripcion/${slug}`),
+  catalogo: (slug: string, formulario?: string) =>
+    pedir<CatalogoPreinscripcion>(
+      `/preinscripcion/${slug}` +
+        (formulario ? `?f=${encodeURIComponent(formulario)}` : ""),
+    ),
 
   registrar: (slug: string, datos: DatosBasicos) =>
     /// `token` es NULL cuando el documento ya estaba registrado: el

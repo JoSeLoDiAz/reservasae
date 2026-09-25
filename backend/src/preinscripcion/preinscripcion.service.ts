@@ -12,6 +12,7 @@ import { MotivoDeCorreoAutomatico, Prisma } from '../../generated/prisma';
 import { ENTIDADES, AuditoriaService } from '../comun/auditoria.service';
 import { ColaDeCorreo } from '../correo/automaticos/cola-de-correo';
 import { EnlaceDeCompletado } from './enlace-de-completado';
+import { formularioPersonalizado } from './formularios-personalizados';
 import { CorreoService } from '../correo/correo.service';
 import { quienFirma } from '../correo/quien-firma';
 import { motivoParaNoInscribir } from '../crm/una-sola-accion';
@@ -45,6 +46,7 @@ import { DirectorioService } from '../crm/directorio.service';
 import { aQueOrganizacionSeAta } from './organizacion-de-la-ficha';
 import { entraAlDirectorio } from './entra-al-directorio';
 import { faltaDeLaEmpresa } from './empresa-incompleta';
+import { marcaDelEnlace } from './enlace-del-envio';
 import { ColaRui } from '../crm/rui/cola-rui';
 import { CARACTERIZACION_POR_ID } from '../crm/catalogos-sep';
 import { CARACTERIZACIONES_SEP } from '../crm/catalogos-sep.generado';
@@ -80,7 +82,7 @@ export class PreinscripcionService {
   ) {}
 
   /** Lo que el formulario necesita para dibujarse. */
-  async catalogo(slug: string) {
+  async catalogo(slug: string, palabra?: string) {
     const convenio = await this.prisma.convenio.findFirst({
       where: { slug, activo: true },
       select: { id: true, slug: true, nombre: true, sigla: true },
@@ -88,8 +90,20 @@ export class PreinscripcionService {
     if (!convenio)
       throw new NotFoundException('No hay una convocatoria con ese nombre.');
 
+    /// La palabra del enlace, si es de un formulario de los
+    /// nuestros. Casi siempre null: ver `formularios-personalizados`.
+    const formulario = formularioPersonalizado(palabra, convenio.slug);
+
     const acciones = await this.prisma.accionFormacion.findMany({
-      where: { convenioId: convenio.id, visible: true },
+      where: {
+        convenioId: convenio.id,
+        /// El formulario personalizado trae SU accion y solo esa,
+        /// este publicada o no: esa es toda su razon de ser. Sin
+        /// formulario manda `visible`, que es lo de siempre.
+        ...(formulario?.accion
+          ? { codigo: formulario.accion }
+          : { visible: true }),
+      },
       orderBy: { orden: 'asc' },
       select: {
         id: true,
@@ -135,6 +149,21 @@ export class PreinscripcionService {
     return {
       convenio,
       politica,
+      /// Que formulario es este. Null --lo normal-- es el general.
+      /// La pantalla lo mira para saber si tiene que quitar los
+      /// textos de elegir: con una sola accion no hay nada que
+      /// elegir y decirle a alguien que escoja entre una es raro.
+      formulario: formulario
+        ? {
+            palabra: formulario.palabra,
+            titulo: formulario.titulo,
+            /// Si trae una accion fija. El general con logo no la
+            /// trae y se comporta como el de siempre.
+            accionUnica: formulario.accion !== null,
+            /// El tercero de la banda de arriba, si lo hay.
+            aliado: formulario.aliado ?? null,
+          }
+        : null,
       // sin ofertas abiertas no hay dónde inscribirse
       acciones: acciones
         .filter((a) => a.ofertas.length > 0)
@@ -247,11 +276,26 @@ export class PreinscripcionService {
     if (!convenio)
       throw new NotFoundException('No hay una convocatoria con ese nombre.');
 
+    /// La palabra del enlace, si es de un formulario nuestro.
+    const formulario = formularioPersonalizado(dto.formulario, slug);
+
     const oferta = await this.prisma.oferta.findFirst({
       where: {
         id: dto.ofertaId,
         abierta: true,
-        accionFormacion: { convenioId: convenio.id, visible: true },
+        accionFormacion: {
+          convenioId: convenio.id,
+          /// AQUI esta el candado de verdad: el del catalogo solo
+          /// tapa la pantalla, y un POST directo se lo salta.
+          ///
+          /// La llave se comprueba contra el CODIGO que nombra el
+          /// formulario, no contra «viene con formulario»: una
+          /// palabra buena con el id de una oferta de OTRA accion
+          /// oculta no abre nada.
+          ...(formulario?.accion
+            ? { codigo: formulario.accion }
+            : { visible: true }),
+        },
       },
       select: {
         id: true,
@@ -555,6 +599,23 @@ export class PreinscripcionService {
       const pagada = origenDeLaVisita(llegada);
       const red = redDeLaVisita(llegada);
 
+      /// El nombre del envio con el que entro.
+      ///
+      /// La campana de la visita MANDA: dice por que anuncio o con
+      /// que correo llego, que es mas concreto. La palabra del
+      /// formulario es el respaldo, y esta para que estos leads se
+      /// puedan filtrar en Gestion de leads aunque no vengan de
+      /// ninguna campana --que es el caso normal de un enlace que
+      /// se reparte a mano.
+      /// Y el tercero: la palabra del enlace corto, leída del
+      /// ENVÍO. Es el respaldo de cuando la baliza no llegó, que
+      /// es justo el caso que hacía perder dinero: `?mailing-ucc`
+      /// dependía de un `sendBeacon` y con él se le paga a una
+      /// universidad por cada persona que se certifique.
+      const delEnlace = marcaDelEnlace(dto.enlace);
+      const campana =
+        llegada?.campana ?? formulario?.palabra ?? delEnlace?.campana ?? null;
+
       /// El ORIGEN solo cambia con prueba de que se pagó, para
       /// una ficha NUEVA y si no había ningún lead esperando.
       if (pagada && !yaEsta && cerrados === 0) {
@@ -568,7 +629,7 @@ export class PreinscripcionService {
             origenLead: 'PAUTA',
             /// Con las MISMAS condiciones que el origen: el
             /// nombre del envio acompaña al canal, nunca va solo.
-            campanaDeEntrada: llegada?.campana ?? null,
+            campanaDeEntrada: campana,
           },
         });
       }
@@ -581,14 +642,18 @@ export class PreinscripcionService {
       /// en ninguna de sus dos listas y cae en IMPORTACION: la
       /// ficha pasaría a «Lo cargó el equipo» y la planeación
       /// de pauta la contaría como importada.
-      const canal = canalDeLaVisita(llegada);
+      /// El canal de la visita MANDA; el del enlace es el
+      /// respaldo de cuando la baliza no llegó. Nunca al revés:
+      /// la baliza mide lo que pasó y esto es lo que dice la
+      /// URL que le dieron a la persona.
+      const canal = canalDeLaVisita(llegada) ?? delEnlace?.origen ?? null;
       if (canal && !pagada && !yaEsta && cerrados === 0) {
         await this.prisma.participante.update({
           where: { id: participante.id },
           data: {
             origen: canal,
             origenLead: 'ORGANICO',
-            campanaDeEntrada: llegada?.campana ?? null,
+            campanaDeEntrada: campana,
           },
         });
       }
@@ -597,10 +662,10 @@ export class PreinscripcionService {
       /// la ficha: el QR no la tiene --ver `DE_CANAL`-- y sin esto
       /// `?qr-feria` llegaba marcado y la ficha no lo decía. El
       /// origen no se toca; mismas tres condiciones.
-      if (!canal && !pagada && llegada?.campana && !yaEsta && cerrados === 0) {
+      if (!canal && !pagada && campana && !yaEsta && cerrados === 0) {
         await this.prisma.participante.update({
           where: { id: participante.id },
-          data: { campanaDeEntrada: llegada.campana },
+          data: { campanaDeEntrada: campana },
         });
       }
 
@@ -1158,8 +1223,20 @@ export class PreinscripcionService {
     /// organizacion-- quedaba «Interesado» con «Sin pendientes»
     /// al lado, para siempre: nadie vuelve a tocar esa ficha. Lo
     /// vio Mauricio el 20 sep 2026, con fichas del MISMO dia en
-    /// los dos estados. Lo que falta de la empresa no es de la
-    /// persona y no entra en `faltaDeLaPersona`.
+    /// los dos estados.
+    ///
+    /// LA ULTIMA FRASE DE ESTE COMENTARIO YA NO VALE, y estaba
+    /// aqui hasta el 24 sep 2026: decia que lo que falta de la
+    /// empresa no cuenta. Desde ese dia SI cuenta --«datos
+    /// completos deben estar los datos de la persona y los datos
+    /// de la empresa», Josse--, asi que quien cierre sin llenar
+    /// el paso de la organizacion vuelve a quedarse fuera.
+    ///
+    /// No es el defecto de aquel dia devuelto: aquel era que las
+    /// DOS VERDADES se contradecian --«Interesado» junto a «Sin
+    /// pendientes»--. Ahora coinciden: la columna dice lo que
+    /// falta y la etapa lo respeta. Y la ficha vuelve a la cola
+    /// del asesor, que es de donde sale la campana que lo pide.
     const etapa = await this.inscribirSiEstaCompleto(enlace.participanteId);
 
     return { guardado: true, enEspera: false, etapa };

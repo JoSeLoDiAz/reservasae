@@ -40,7 +40,20 @@ const COMPLETA = {
   direccion: 'Calle 1 # 2-3',
 };
 
-function prismaFalso(persona: Record<string, unknown>, nivelOcupacionalSepId: number | null) {
+/// Su organización, con lo que el enlace le pide en su paso.
+const EMPRESA = {
+  nit: '890123456',
+  sectorEconomico: 'SERVICIOS',
+  contactoNombre: 'Luisa Gómez',
+  contactoCargo: 'Jefe de talento',
+  contactoCorreo: 'luisa@ejemplo.test',
+};
+
+function prismaFalso(
+  persona: Record<string, unknown>,
+  nivelOcupacionalSepId: number | null,
+  empresa: Record<string, unknown> | null = EMPRESA,
+) {
   const escrituras: Escritura[] = [];
   const anota =
     (tabla: string, metodo: string, valor: unknown = {}) =>
@@ -74,6 +87,10 @@ function prismaFalso(persona: Record<string, unknown>, nivelOcupacionalSepId: nu
           etapa: 'INTERESADO',
           nivelOcupacionalSepId,
           persona,
+          /// Desde el 24 sep 2026 «Datos completos» mira también la
+          /// organización, así que `pasarSiNoLeFaltaNada` la pide.
+          empresa,
+          reserva: null,
         }),
       update: anota('participante', 'update'),
     },
@@ -155,5 +172,44 @@ describe('quien llena sus datos desde el enlace', () => {
     await servicio(prisma).cerrar('t');
 
     expect(etapaEscrita(prisma)).toBe('DATOS_COMPLETOS');
+  });
+
+  /**
+   * ESTO DEROGA, A SABIENDAS, LA DECISIÓN DEL 20 SEP 2026.
+   *
+   * Aquel día se movió la etapa a `guardarDatos` justo porque
+   * quien llenaba lo SUYO y cerraba ahí --sin llegar al paso de
+   * la organización-- se quedaba «Interesado» con «Sin
+   * pendientes» al lado, y Mauricio lo vio con fichas del mismo
+   * día en los dos estados.
+   *
+   * Desde el 24 sep 2026 vuelve a quedarse, y es lo que Josse
+   * pidió: «datos completos deben estar los datos de la persona y
+   * los datos de la empresa». LA DIFERENCIA CON AQUEL DEFECTO, y
+   * es toda la diferencia: ahora las dos verdades COINCIDEN --la
+   * columna dice «Faltan 3» y la etapa dice «Interesado»--, en vez
+   * de contradecirse. Lo que queda pendiente es real, no un
+   * desajuste entre dos reglas.
+   *
+   * Y la ficha no se queda sola: vuelve a la cola del asesor, que
+   * es de donde sale la campaña que le pide los datos que faltan.
+   */
+  it('pero si su organización está a medias, se queda en «Interesado»', async () => {
+    const prisma = prismaFalso(COMPLETA, 2, {
+      ...EMPRESA,
+      contactoCorreo: null,
+    });
+
+    await servicio(prisma).guardarPersona('t', { primerNombre: 'Ana' } as never);
+
+    expect(etapaEscrita(prisma)).toBeNull();
+  });
+
+  it('y sin ninguna organización, tampoco', async () => {
+    const prisma = prismaFalso(COMPLETA, 2, null);
+
+    await servicio(prisma).cerrar('t');
+
+    expect(etapaEscrita(prisma)).toBeNull();
   });
 });

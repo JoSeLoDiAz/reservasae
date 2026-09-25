@@ -6,6 +6,7 @@ import { Cajon, Dato } from "@/components/admin/cajon";
 import { ConfirmarBorrado } from "@/components/admin/confirmar-borrado";
 import { IndicadorActualizacion } from "@/components/admin/indicador-actualizacion";
 import { Aviso, useAdmin } from "@/components/admin/marco-admin";
+import { Cifra } from "@/components/admin/piezas";
 import { Tabla, type Columna } from "@/components/admin/tabla";
 import { CarguePlantilla } from "@/components/admin/cargue-plantilla";
 import { bonito, enMayusculas } from "@/lib/api";
@@ -216,12 +217,28 @@ export default function PaginaReservas() {
     [],
   );
 
+  /// LO QUE DICEN LAS TARJETAS.
+  ///
+  /// «Cupos apartados» cuenta solo los de las CONFIRMADAS: los de una
+  /// cancelada volvieron a la oferta y sumarlos daría cupos que no
+  /// están apartados en ninguna parte. Y «en espera» cuenta reservas
+  /// --no cupos-- porque es lo que se gestiona: una reserva en espera
+  /// se atiende entera cuando se abre un grupo. Sus cupos van en el
+  /// pie, que es donde se consultan.
+  const cargadas = filas ?? [];
+  const confirmadas = cargadas.filter((f) => f.estado === "CONFIRMADA");
+  const cuposApartados = confirmadas.reduce((t, f) => t + f.cuposConfirmados, 0);
+  const enEspera = cargadas.filter((f) => f.estado === "LISTA_ESPERA").length;
+  const cuposEnEspera = cargadas.reduce((t, f) => t + f.cuposEnEspera, 0);
+  const canceladas = cargadas.filter((f) => f.estado === "CANCELADA").length;
+  const organizaciones = new Set(cargadas.map((f) => f.empresa.nit)).size;
+
   /// El relleno lateral lo pone la pantalla, no el
   /// marco: el contenedor dejo de ponerlo para que las
   /// bandas vayan a sangre, y sin esto la barra de
   /// busqueda y la paginacion quedaban pegadas al canto.
   return (
-    <div className="flex min-h-0 grow flex-col gap-4 px-4 pt-4">
+    <div className="flex min-h-0 grow flex-col gap-3 px-4 pt-3">
       {/* Sin título ni conteo: lo dice la miga, y la cifra
           va en el pie de la tabla. El aviso solo aparece si
           el servidor deja de contestar; el resto del tiempo
@@ -237,6 +254,57 @@ export default function PaginaReservas() {
       )}
 
       {vivos.error && <Aviso tipo="error">{vivos.error}</Aviso>}
+
+      {/* LAS CIFRAS, COMO EN GESTIÓN DE LEADS. «No veo tarjetas en
+          reservas como lo tiene Gestión de leads» (cliente, 23 sep
+          2026): la pantalla era la tabla a secas, y lo que se viene a
+          saber de un vistazo --cuántos cupos hay apartados, cuánto está
+          esperando-- había que sumarlo a mano columna por columna.
+
+          Se cuentan de las filas cargadas, no del servidor, y por eso
+          la primera dice sobre cuántas: la tabla trae 200 por viaje y
+          con más reservas que eso una cifra que parece el total no lo
+          sería. */}
+      {cargadas.length > 0 && (
+        <div className="flex flex-wrap items-stretch gap-2">
+          <Cifra
+            etiqueta="Reservas"
+            valor={datos?.total ?? cargadas.length}
+            pie={
+              datos && datos.total > cargadas.length
+                ? `contado sobre las ${cargadas.length} cargadas`
+                : "confirmadas, en espera y canceladas"
+            }
+          />
+          <Cifra
+            etiqueta="Cupos apartados"
+            valor={cuposApartados}
+            pie="en reservas confirmadas"
+            color={cuposApartados > 0 ? "var(--exito)" : undefined}
+          />
+          <Cifra
+            etiqueta="En espera"
+            valor={enEspera}
+            pie={
+              cuposEnEspera > 0
+                ? `${cuposEnEspera} ${cuposEnEspera === 1 ? "cupo" : "cupos"} sin sitio todavía`
+                : "ninguna esperando"
+            }
+            color={enEspera > 0 ? "var(--aviso)" : undefined}
+          />
+          <Cifra
+            etiqueta="Canceladas"
+            valor={canceladas}
+            pie={canceladas > 0 ? "sus cupos volvieron a la oferta" : "ninguna cancelada"}
+            color={canceladas > 0 ? "var(--error)" : undefined}
+          />
+          <Cifra
+            etiqueta="Organizaciones"
+            valor={organizaciones}
+            pie="con al menos una reserva"
+          />
+        </div>
+      )}
 
       <Tabla
         id="reservas"

@@ -41,64 +41,119 @@ export type Modulo = {
   enlaces: Enlace[];
 };
 
-/// El panel, agrupado por quién trabaja en cada cosa.
-///
-/// Antes estaba agrupado por etapa del proceso -- Pre-reserva,
-/// Inscripciones, Inscritos --, y eso repartía una misma
-/// pantalla entre dos grupos según en qué punto la mirara
-/// uno. Ahora manda el área: inscripciones, sistemas de
-/// información, académica. Cada quien encuentra lo suyo en un
-/// solo sitio.
+/**
+ * EL MENÚ LO ORDENÓ EL CLIENTE, MÓDULO POR MÓDULO (22 y 23 sep 2026).
+ *
+ * La regla que salió de esa conversación:
+ *
+ *  · Cada módulo es un ÁREA --Inscripciones, Académica, Sistemas,
+ *    Mailing-- y dentro va lo que esa área trabaja, sus reportes
+ *    incluidos: Reportes SENA es de Sistemas porque Sistemas responde
+ *    por ese entregable.
+ *  · «Tableros» es la excepción a propósito: no es un área, es lo que
+ *    se mira sin tocar nada. Por eso puede repetir una pantalla que
+ *    también vive en su área, con otro nombre.
+ *  · Ninguna pantalla se esconde dentro de otra como pestaña: o tiene
+ *    entrada en el menú, o es un botón de una lista («Cargar una
+ *    lista», «Asignar grupo por lote»), que es una acción y no un
+ *    sitio.
+ *  · Ningún módulo pasa de seis entradas: más no se lee de un vistazo.
+ */
 export const MODULOS: Modulo[] = [
   {
-    /// Va primero porque manda sobre todo lo demás: sin
-    /// fechas no se matricula, no se cierra inscripción y no
-    /// sale ningún aviso.
-    clave: 'cronograma',
-    emoji: '📅',
-    etiqueta: 'Calendario',
-    descripcion: 'Las fechas de la formación. De aquí cuelga el resto.',
-    /// DOS ENTRADAS EN EL MENÚ, no un selector dentro.
-    ///
-    /// Fueron dos entradas, luego una con dos pestañas, luego una
-    /// con un desplegable en el cuerpo de la pantalla. Y ahí el
-    /// cliente lo zanjó: «esto va es arriba, en lista desplegable
-    /// en Calendario, no así» (12 sep 2026).
-    ///
-    /// Tiene razón y es lo que ya dice el resto del panel: el
-    /// desplegable de la cabecera es para IR a un sitio, y los del
-    /// cuerpo son para FILTRAR lo que hay. Con el selector dentro
-    /// había dos controles con la misma pinta y dos significados,
-    /// y encima la vista elegida no se podía enlazar ni marcar.
-    ///
-    /// Siguen siendo dos caras de la misma lista --lo dice el
-    /// comentario de `acciones/page.tsx`--, pero ahora cada una
-    /// tiene su ruta, su miga y su sitio en el menú.
-    ///
-    /// Piden `reserva` y no `configuracion:ESCRIBIR`: es el
-    /// permiso con el que se MIRA. Mover una fecha o publicar una
-    /// acción sigue exigiendo `configuracion:ESCRIBIR`, y lo exige
-    /// el backend, no el menú.
+    /**
+     * TABLEROS: lo que se mira. Cuatro, y cada uno con su ruta
+     * (`/admin/informes/…`): con una sola ruta el menú los subrayaba
+     * todos a la vez.
+     *
+     * El tablero de siempre (`/admin`) no está en el menú por decisión
+     * del cliente; sigue a un clic en el logo.
+     */
+    clave: 'informes',
+    emoji: '📊',
+    etiqueta: 'Tableros',
+    descripcion: 'Lo que hay que mirar: del anuncio al inscrito.',
     enlaces: [
       {
-        /// `exacto` porque debajo cuelga `/admin/acciones/[id]` y
-        /// `/admin/acciones/cronograma`: sin él, el catálogo se
-        /// quedaba marcado estando en el cronograma. La ficha de
-        /// una acción no pierde su miga --`migas()` la resuelve
-        /// por parentesco--.
+        href: '/admin/informes/trafico',
+        etiqueta: 'Tráfico Formulario',
+        exacto: true,
+        area: 'inscritos',
+      },
+      {
+        /// «Control de inscritos, que es: Inscripciones y Asesores»
+        /// (cliente, 23 sep 2026). Hoy enseña el embudo y el proceso;
+        /// el corte por asesor está en «Comité Marketing», que vive en
+        /// Inscripciones.
+        href: '/admin/informes/leads',
+        etiqueta: 'Control de inscritos',
+        exacto: true,
+        area: 'inscritos',
+      },
+      {
+        href: '/admin/informes/reservas',
+        etiqueta: 'Control de Reservas',
+        exacto: true,
+        area: 'inscritos',
+      },
+      {
+        /// EL TABLERO, no la pantalla de trabajo: «Tablero académico se
+        /// manda para Tableros» (cliente, 23 sep 2026). Lo que se
+        /// trabaja --el seguimiento del aula-- se queda en Académica.
+        href: '/admin/participantes/academico/tablero',
+        etiqueta: 'Seguimiento Académico',
+        exacto: true,
+        area: 'academico',
+      },
+      {
+        /// LAS DOS SUBVISTAS DE ASESORES (cliente, 23 sep 2026).
+        /// Aquí y no en `/admin/informes/asesores`, que ya es Comité
+        /// Marketing: dos cosas distintas con el mismo nombre en el
+        /// mismo menú es lo primero que confunde.
+        href: '/admin/participantes/academico/asesores',
+        etiqueta: 'Seguimiento de asesores',
+        exacto: true,
+        area: 'academico',
+      },
+    ],
+  },
+  {
+    /// Qué se dicta y cuándo. Se llamaba «Calendario», que era la mitad
+    /// de lo que hay dentro: «Oferta formativa» es el lenguaje del
+    /// SENA, y las dos entradas se llaman como las llama el equipo.
+    clave: 'cronograma',
+    emoji: '📅',
+    etiqueta: 'Oferta formativa',
+    corto: 'Oferta',
+    descripcion: 'Qué se dicta y cuándo. De aquí cuelga el resto.',
+    enlaces: [
+      {
+        /// `exacto` porque debajo cuelgan `/admin/acciones/[id]` y
+        /// `/admin/acciones/cronograma`: sin él, el catálogo se quedaba
+        /// marcado estando en el calendario.
         href: '/admin/acciones',
-        etiqueta: 'Catálogo',
+        etiqueta: 'Acciones de formación',
         exacto: true,
         area: 'reserva',
       },
       {
         href: '/admin/acciones/cronograma',
-        etiqueta: 'Cronograma',
+        etiqueta: 'Calendario',
         area: 'reserva',
       },
     ],
   },
   {
+    /**
+     * INSCRIPCIONES: lo que se abre todos los días, en el orden que
+     * pidió el cliente (23 sep 2026).
+     *
+     * Fuera quedaron, por su orden, dos pantallas que no son un sitio
+     * sino una acción sobre la lista de leads, y que se abren desde
+     * ella: «Cargar una lista» (importar) y «Asignar grupo por lote».
+     * «Inscritos por acción» también sale: es la misma lista filtrada
+     * por etapa y acción.
+     */
     clave: 'inscripciones',
     emoji: '📝',
     etiqueta: 'Gestión de Inscripciones',
@@ -148,54 +203,83 @@ export const MODULOS: Modulo[] = [
         area: 'inscripciones',
       },
       {
+        href: '/admin/reservas',
+        etiqueta: 'Reservas',
+        area: 'reserva',
+      },
+      {
         href: '/admin/mesa',
         etiqueta: 'Mesa de entrada',
         exacto: true,
         area: 'inscripciones',
       },
       {
-        /// Detras de la lista de leads a proposito: se llega
-        /// aqui DESPUES de ver que hay gente sin grupo, no
-        /// antes. Y es «inscripciones» y no «inscritos» porque
-        /// escribe sobre la ficha: poner la cohorte es atender
-        /// la inscripcion, no mirarla.
-        href: '/admin/participantes/grupos',
-        etiqueta: 'Asignar grupo por lote',
+        /// La planeación de pauta y el rendimiento por asesor. Aquí y
+        /// no en Mailing: «Comité Marketing mándalo para inscripciones»
+        /// (cliente, 23 sep 2026).
+        href: '/admin/informes/asesores',
+        etiqueta: 'Comité Marketing',
         exacto: true,
-        area: 'inscripciones',
-      },
-      {
-        /// Los mismos participantes, cortados por accion de
-        /// formacion. Vive aqui y no en «Sistemas de
-        /// informacion» porque es una vista de la gente que se
-        /// esta inscribiendo, no un dato que sostenga el
-        /// reporte: quien la busca viene de la lista de leads.
-        href: '/admin/inscritos',
-        etiqueta: 'Inscritos por acción',
-        exacto: true,
-        area: 'inscritos',
-      },
-      {
-        /// Una sola entrada, con TRES pantallas dentro.
-        ///
-        /// Eran dos entradas: «Panel Control de Inscritos» y
-        /// «Control de inscritos». Contaban lo mismo por caminos
-        /// distintos y nadie sabía a cuál entrar. La primera es
-        /// hoy «Proceso de inscripción», y su ruta vieja redirige.
-        /// Desde el 21 sep 2026 también está dentro «Tráfico del
-        /// formulario», por lo mismo: era el tramo de antes del
-        /// lead contado en otra pantalla.
-        href: '/admin/control',
-        etiqueta: 'Control de Inscritos',
         area: 'inscritos',
       },
     ],
   },
   {
+    clave: 'academico',
+    emoji: '🎓',
+    etiqueta: 'Gestión Académica',
+    corto: 'Académica',
+    descripcion: 'Lo que pasa cuando la persona ya está dentro.',
+    enlaces: [
+      {
+        href: '/admin/participantes/academico',
+        etiqueta: 'Seguimiento del aula',
+        exacto: true,
+        area: 'academico',
+      },
+      /// Y NADA MÁS. «Seguimiento académico no, porque ya está en
+      /// Tableros» (cliente, 23 sep 2026): un tablero se mira, no se
+      /// trabaja, así que vive en Tableros y no se repite aquí.
+      /// Académica se queda con lo único que se trabaja, que es el
+      /// aula.
+    ],
+  },
+  {
+    clave: 'campanas',
+    emoji: '✉️',
+    etiqueta: 'Campaña Mailing',
+    corto: 'Mailing',
+    descripcion: 'Escribirle a mucha gente sin perder el rastro.',
+    enlaces: [
+      {
+        href: '/admin/campanas',
+        etiqueta: 'Campañas',
+        /// La misma llave que tenía antes de reordenar el menú: un
+        /// envío es trabajo de inscripciones, no de configuración.
+        area: 'inscripciones',
+        nivel: 'ESCRIBIR',
+      },
+      {
+        href: '/admin/plantillas-correo',
+        etiqueta: 'Plantillas',
+        area: 'configuracion',
+        nivel: 'ESCRIBIR',
+      },
+      {
+        href: '/admin/correo',
+        etiqueta: 'Cuenta de correo',
+        area: 'configuracion',
+        nivel: 'ESCRIBIR',
+      },
+    ],
+  },
+  {
+    /// Los datos que sostienen el reporte al SENA. Se llamaba «Sistemas
+    /// de Información»: «demasiado extenso, es Sistemas» (cliente, 23
+    /// sep 2026).
     clave: 'sistemas',
     emoji: '🗂️',
-    etiqueta: 'Sistemas de Información',
-    corto: 'Sistemas',
+    etiqueta: 'Sistemas',
     descripcion: 'Los datos que sostienen el reporte al SENA.',
     enlaces: [
       {
@@ -225,6 +309,16 @@ export const MODULOS: Modulo[] = [
         exacto: true,
         area: 'reserva',
       },
+      /// SIN «PROPUESTAS POR REVISAR» EN EL MENÚ. «Propuestas por
+      /// revisar se vuela» (cliente, 23 sep 2026). Eran cambios
+      /// sugeridos a los datos de una organización --del RUES, de la
+      /// web o de un formulario-- esperando que alguien los acepte o
+      /// los rechace.
+      ///
+      /// La pantalla NO se borra: sigue en
+      /// `/admin/instituciones/pendientes` y se llega escribiendo la
+      /// dirección, que es como estaba antes de que se le pusiera
+      /// entrada. Aquí solo deja de ocupar un renglón del menú.
       {
         href: '/admin/empresas',
         etiqueta: 'Empresas aliadas - afiliadas',
@@ -234,67 +328,12 @@ export const MODULOS: Modulo[] = [
     ],
   },
   {
-    clave: 'academico',
-    emoji: '📈',
-    etiqueta: 'Gestión Académica',
-    corto: 'Académica',
-    descripcion: 'Quién va al día y quién no.',
-    /// Dos entradas en el menú, igual que Calendario y por lo
-    /// mismo: «estas dos opciones que queden en Académica en lista
-    /// desplegable» (cliente, 12 sep 2026).
-    ///
-    /// Son la misma pregunta con distinto zoom --una persona a
-    /// persona, la otra por acción, grupo y asesor--, y por eso
-    /// estuvieron fundidas en una pantalla con pestañas. Lo que no
-    /// funcionaba era el control: dos vistas que se eligen desde
-    /// dentro no se pueden enlazar ni salen en el menú, así que
-    /// nadie sabía que el tablero seguía existiendo.
-    ///
-    /// La ruta del tablero es la MISMA que llevaba un año
-    /// redirigiendo aquí: quien la tenga guardada aterriza donde
-    /// esperaba.
-    enlaces: [
-      {
-        href: '/admin/participantes/academico',
-        etiqueta: 'Seguimiento',
-        exacto: true,
-        area: 'academico',
-      },
-      {
-        href: '/admin/participantes/academico/tablero',
-        etiqueta: 'Tablero académico',
-        area: 'academico',
-      },
-    ],
-  },
-  {
-    /// Los DOS sistemas de preguntas, juntos y con su dueño en
-    /// el nombre: el que llena una empresa para apartar cupos y
-    /// el que llena una persona para preinscribirse. No son dos
-    /// estados de lo mismo, aunque se llamaran así.
     clave: 'formularios',
-    emoji: '📋',
+    emoji: '🧾',
     etiqueta: 'Formularios',
-    descripcion: 'Lo que se le pregunta a quien entra, y a quién se le pregunta.',
+    descripcion: 'Lo que se le pregunta a quien se inscribe.',
     enlaces: [
       {
-        /// El nombre dice A QUIÉN se le pregunta, no en qué
-        /// estado está.
-        ///
-        /// Se llamaban «Creación Formularios» y «Formularios
-        /// Activos», que se leen como dos momentos del MISMO
-        /// objeto -- el que se crea y el que ya está publicado --
-        /// y son dos sistemas distintos: aquí se arman los
-        /// formularios con los que una EMPRESA aparta cupos;
-        /// abajo están los que llena una PERSONA para
-        /// preinscribirse. Nadie pasa de uno al otro.
-        /// Corto EN EL MENU y largo DENTRO.
-        ///
-        /// «Formularios de reserva (empresas)» no cabe en la
-        /// barra: salia cortado como «Formularios de reserva
-        /// (...», que es peor que no decirlo. El nombre entero
-        /// vive en el titulo de la pantalla, que es donde hay
-        /// sitio y donde se lee una vez que ya se entro.
         href: '/admin/formularios',
         etiqueta: 'Formularios Empresas',
         exacto: true,
@@ -302,58 +341,29 @@ export const MODULOS: Modulo[] = [
         nivel: 'ESCRIBIR',
       },
       {
-        /// Los dos que están en la calle, en UNA vista con
-        /// pestañas. Eran dos enlaces sueltos y obligaban a ir
-        /// y volver para responder la pregunta que se hace
-        /// siempre: «¿esto en cuál de los dos se pide?».
-        /// Hermano del de arriba, y por eso se llaman igual de
-        /// parecido: «Formularios Empresas» y «Formularios
-        /// Personas» se leen como los dos que son. El nombre
-        /// entero --«Formularios activos»-- esta dentro.
+        /// Hermano del de arriba, y por eso se llaman igual de parecido:
+        /// «Formularios Empresas» y «Formularios Personas» se leen como
+        /// los dos que son.
         href: '/admin/formularios-publicos',
         etiqueta: 'Formularios Personas',
         exacto: true,
         area: 'inscripciones',
       },
       {
-        /// El habeas data vive con los formularios porque es
-        /// lo PRIMERO que sale en ellos: se lee antes de pedir
-        /// un solo dato. Se llamaba «Políticas», que no dice
-        /// de qué.
-        href: '/admin/politicas',
-        etiqueta: 'Habeas Data',
-        area: 'configuracion',
-        nivel: 'ESCRIBIR',
-      },
-    ],
-  },
-  {
-    /// Todo lo que sale por correo, en un solo sitio: la
-    /// cuenta desde la que sale, lo que dice, y a quiénes.
-    /// Estaban repartidos en Configuración, que es donde uno
-    /// no los busca cuando quiere mandar algo.
-    clave: 'campanas',
-    emoji: '✉️',
-    etiqueta: 'Campaña Mailing',
-    corto: 'Mailing',
-    descripcion: 'Lo que se le escribe a la gente, y a quiénes.',
-    enlaces: [
-      {
-        href: '/admin/campanas',
-        etiqueta: 'Campañas',
+        /// Los que no son el general: se llega a ellos por una
+        /// palabra en el enlace y pueden abrir una accion sin
+        /// publicar. Van aqui, con los otros dos, porque la
+        /// pregunta que trae a alguien es la misma --«cual de los
+        /// formularios reparto»-- y separarlos obligaria a
+        /// saberse de antemano cual es cual.
+        href: '/admin/formularios-personalizados',
+        etiqueta: 'Formularios personalizados',
         exacto: true,
         area: 'inscripciones',
-        nivel: 'ESCRIBIR',
       },
       {
-        href: '/admin/plantillas-correo',
-        etiqueta: 'Plantillas',
-        area: 'configuracion',
-        nivel: 'ESCRIBIR',
-      },
-      {
-        href: '/admin/correo',
-        etiqueta: 'Cuenta de correo',
+        href: '/admin/politicas',
+        etiqueta: 'Habeas Data',
         area: 'configuracion',
         nivel: 'ESCRIBIR',
       },
@@ -365,16 +375,18 @@ export const MODULOS: Modulo[] = [
     etiqueta: 'Configuración',
     descripcion: 'Lo que no es del día a día.',
     enlaces: [
-      /// Para todos: cada persona elige aquí SUS colores, que le quedan
-      /// solo a ella (cliente, 21 sep 2026). Lo que cambia para todo el
-      /// equipo --logos, textos, colores del sistema-- sale dentro solo a
-      /// los correos autorizados, y el servidor lo cierra igual.
-      { href: '/admin/marca', etiqueta: 'Apariencia' },
       {
-        /// Aquí y no en Gestión de leads: esto no es mirar
-        /// leads, es conectar una tubería. Quien inscribe no
-        /// tiene por qué verla, y quien la conecta la busca
-        /// donde está lo que se configura una vez.
+        /// Para todos: cada persona elige aquí SUS colores, que le
+        /// quedan solo a ella (cliente, 21 sep 2026). Lo que cambia para
+        /// todo el equipo --logos, textos, colores del sistema-- sale
+        /// dentro solo a los correos autorizados, y el servidor lo
+        /// cierra igual.
+        href: '/admin/marca',
+        etiqueta: 'Apariencia',
+      },
+      {
+        /// Aquí y no en Gestión de leads: esto no es mirar leads, es
+        /// conectar una tubería. Quien inscribe no tiene por qué verla.
         href: '/admin/integraciones/meta',
         etiqueta: 'Webhook de Meta',
         area: 'configuracion',
@@ -388,8 +400,13 @@ export const MODULOS: Modulo[] = [
 
 /** La sección activa según la ruta, sin falsos positivos. */
 export function estaActivo(enlace: Enlace, ruta: string): boolean {
-  if (enlace.exacto) return ruta === enlace.href;
-  return ruta === enlace.href || ruta.startsWith(`${enlace.href}/`);
+  /// SIN LA PREGUNTA: los informes son vistas de la misma pantalla
+  /// (`/admin/control?pantalla=…`) y la ruta que llega aquí es solo el
+  /// camino, sin `?`. Comparando con la pregunta dentro, ninguna vista
+  /// se encendía nunca.
+  const camino = enlace.href.split('?')[0];
+  if (enlace.exacto) return ruta === camino;
+  return ruta === camino || ruta.startsWith(`${camino}/`);
 }
 
 /** Los enlaces que esta persona puede ver. */

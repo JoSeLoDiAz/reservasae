@@ -106,6 +106,9 @@ model AccionFormacion {
   creadoEn      DateTime @default(now())
   actualizadoEn DateTime @updatedAt
 
+  /// Con cual se puede cursar ADEMAS de esta. Nulo = con ninguna.
+  combinaConAccionId String?
+
   convenio      Convenio       @relation(fields: [convenioId], references: [id], onDelete: Cascade)
   grupos        Grupo[]
   ofertas       Oferta[]
@@ -113,9 +116,13 @@ model AccionFormacion {
   actividades   Actividad[]
   leads         LeadEntrante[]
 
+  combinaCon  AccionFormacion?  @relation("SeCursanJuntas", fields: [combinaConAccionId], references: [id], onDelete: SetNull)
+  laCombinan  AccionFormacion[] @relation("SeCursanJuntas")
+
   // el codigo solo es unico por convenio
   @@unique([convenioId, codigo])
   @@index([convenioId, visible, orden])
+  @@index([combinaConAccionId])
   @@map("acciones_formacion")
 }
 
@@ -145,6 +152,18 @@ model Grupo {
 
   sepGrupoId Int? /// como lo conoce el SEP
 
+  /// El asesor academico que lleva este grupo entero.
+  ///
+  /// POR GRUPO Y NO POR PERSONA (cliente, 23 sep 2026): «cuantos
+  /// grupos tiene asignados = cantidad de PAX». La carga se mide en
+  /// grupos y el PAX sale solo de sus coberturas; repartir quinientas
+  /// personas a mano seria trabajo diario de alguien.
+  ///
+  /// Es distinto del `asesorId` del participante, que es el de
+  /// INSCRIPCIONES: una persona puede tener a uno llevandola hasta
+  /// que entra, y a otro acompañandola dentro del aula.
+  asesorAcademicoId String?
+
   // los proyectos no traen fechas
   fechaInicio DateTime?
   fechaFin    DateTime?
@@ -156,11 +175,18 @@ model Grupo {
   actualizadoEn DateTime @updatedAt
 
   accionFormacion AccionFormacion  @relation(fields: [accionFormacionId], references: [id], onDelete: Cascade)
+  asesorAcademico Admin?          @relation("GruposDelAsesorAcademico", fields: [asesorAcademicoId], references: [id], onDelete: SetNull)
   sede            Ubicacion?       @relation(fields: [sedeUbicacionId], references: [id])
   coberturas      GrupoCobertura[]
   sesiones        SesionDeGrupo[]
 
   @@unique([accionFormacionId, numero])
+  /// DECLARADO AQUÍ AUNQUE LO CREE EL SQL de la migración
+  /// 20260923190000. Prisma compara el modelo contra la base, y un
+  /// índice que existe y no está declarado le sobra: la siguiente
+  /// migración lo borraba sin que nadie lo pidiera, y con él la
+  /// consulta de «los grupos de este asesor», que es la del tablero.
+  @@index([asesorAcademicoId])
   @@map("grupos")
 }
 
@@ -1473,6 +1499,7 @@ model Admin {
   /// no se relacionan por ningun otro sitio, pero un dia lo
   /// haran y sin nombre Prisma no sabria cual es cual.
   leadsQueLleva            LeadEntrante[]           @relation("LeadsDelAsesor")
+  gruposQueAcompana        Grupo[]                  @relation("GruposDelAsesorAcademico")
   plantillasCorreo         PlantillaCorreo[]
   campanas                 Campana[]
   enlacesEmitidos          EnlaceCompletado[]       @relation("EnlacesEmitidos")

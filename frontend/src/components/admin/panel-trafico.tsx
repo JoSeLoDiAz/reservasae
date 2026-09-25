@@ -38,8 +38,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { EmbudoProceso, type Hito } from "@/components/admin/embudo-proceso";
 import {
-  Chispa,
   Delta,
+  LineaDePeldanos,
   Donut,
   DosSeriesPorDia,
   ListaBarras,
@@ -135,10 +135,18 @@ const NOMBRE_ANCHO: Record<string, string> = {
   ESCRITORIO: "Computador",
 };
 
+/// EN CASTELLANO Y SIN JERGA DE SERVIDOR. Decía «por el subdominio del
+/// gremio», «por la dirección general» y «cruzada: el gremio no
+/// coincide»: tres frases que solo entiende quien montó los dominios.
+/// «Suena demasiado feo [...] no debe ser por el formulario o algo así»
+/// (cliente, 23 sep 2026). Lo que de verdad distingue es POR CUÁL
+/// FORMULARIO entró la persona.
 const NOMBRE_ENTRADA: Record<string, string> = {
-  SUBDOMINIO: "Por el subdominio del gremio",
-  RUTA: "Por la dirección general",
-  CRUZADA: "Cruzada: el gremio no coincide",
+  SUBDOMINIO: "Por el formulario del gremio",
+  RUTA: "Por el formulario general",
+  /// Entró por el formulario de un gremio y acabó en el de otro: pasa
+  /// con un enlace viejo o mal copiado, y conviene que se vea.
+  CRUZADA: "Por un enlace que no corresponde",
 };
 
 
@@ -334,6 +342,18 @@ export function PanelTrafico() {
     valor: f.visitas,
   }));
 
+  /// LA SEGUNDA DONA DE LA FILA: con qué entraron.
+  ///
+  /// La fila es de dos gráficos --«en esta fila son dos gráficos»
+  /// (cliente, 23 sep 2026)--. Dispositivo era uno de los tres cortes
+  /// en tabla de más abajo, y es el que mejor se lee en dona: son tres
+  /// porciones y lo que se pregunta es cuánto pesa el celular. Abajo se
+  /// quita, para no decir lo mismo dos veces en la misma pantalla.
+  const porcionesDispositivo: PorcionDonut[] = (datos?.dispositivo ?? []).map((f) => ({
+    etiqueta: NOMBRE_ANCHO[f.valor ?? ""] ?? "Sin dato",
+    valor: f.visitas,
+  }));
+
   const hayDatos = llegaron > 0;
   /// Si hoy no llegó nadie pero se compara contra un B que sí
   /// tiene visitas, lo de B se enseña: «Hoy contra ayer» a las 7
@@ -346,6 +366,12 @@ export function PanelTrafico() {
   /// dejaría un «0 en …» que se lee como que no llegó nadie.
   const sinB = bSinContador ? `Sin contador ${enPeriodo(rotuloB)}` : null;
 
+  /// EN BARRAS O EN LÍNEA, en los dos gráficos. El cliente lo pidió
+  /// para los dos --«fui enfático que Paso a paso también», 23 sep
+  /// 2026--. Arrancan en barras, que es como estaban.
+  const [vistaDias, setVistaDias] = useState<"barras" | "tendencia">("barras");
+  const [vistaPasos, setVistaPasos] = useState<"barras" | "tendencia">("barras");
+
   return (
     <div className="flex flex-col gap-4">
       {/* SIN BANDA Y SIN «h1»: los pone la página que lo monta,
@@ -355,18 +381,6 @@ export function PanelTrafico() {
           El aviso de enlaces sin marcar va PRIMERO: pide hacer algo
           hoy, y solo sale desde el umbral. */}
       {datos?.sinMarcarHoy && <AvisoSinMarcar {...datos.sinMarcarHoy} />}
-
-      {/* Queda el único aviso que no se puede adivinar mirando las
-          cifras --desde cuándo se cuenta--, y solo cuando hay una
-          fecha que decir. */}
-      {datos?.contandoDesde && (
-        <p className="text-[0.78125rem] leading-relaxed text-texto-suave">
-          <strong className="font-semibold text-texto">
-            El contador empezó el {cuando(datos.contandoDesde)}
-          </strong>
-          : lo anterior a esa hora no se contó, aunque sí hubiera llegado gente.
-        </p>
-      )}
 
       {/* TODOS LOS CONTROLES DEL PERIODO EN UNA FILA.
           Los cuatro rangos vivían arriba, en el encabezado, y la
@@ -381,6 +395,21 @@ export function PanelTrafico() {
         comparando={comparando}
         rango={rango}
         alCambiarRango={setRango}
+        /// DENTRO de la caja de los filtros y bajo su raya: es lo que
+        /// matiza el periodo que se acaba de elegir, y suelto debajo de
+        /// la tarjeta se leía como un texto de la página. Solo cuando
+        /// hay una fecha que decir.
+        ///
+        /// Sin punto tras la hora: `cuando()` acaba en «a. m.» o «p. m.»
+        /// y el punto de la abreviatura hace de punto final.
+        nota={
+          datos?.contandoDesde ? (
+            <>
+              El contador inició el {cuando(datos.contandoDesde)} Los leads recibidos
+              antes de esta hora no hacen parte del conteo.
+            </>
+          ) : null
+        }
       />
 
       {error && <Aviso tipo="error">{error}</Aviso>}
@@ -433,14 +462,14 @@ export function PanelTrafico() {
                   gente llegó y se fue. */}
               <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
                 <Resumen
-                  etiqueta="Abrieron el enlace"
+                  etiqueta="Aperturas"
                   valor={llegaron}
                   antes={contra("LLEGO")}
                   etiquetaAntes={rotuloB}
                   nota={sinB}
                   serie={dias.map((d) => d.llegaron)}
                   color="var(--serie-1)"
-                  pie="Incluye máquinas: un escáner de correo abre cada enlace"
+                  pie="Se registraron clics en el enlace."
                 />
                 <Resumen
                   etiqueta="Personas"
@@ -450,7 +479,7 @@ export function PanelTrafico() {
                   nota={datos.comparado ? (sinB ?? "No se compara entre periodos") : null}
                   serie={dias.map((d) => d.personas)}
                   color="var(--serie-3)"
-                  pie="Descontando lo que abren solas las máquinas"
+                  pie="Se detectó interacción humana"
                 />
                 <Resumen
                   etiqueta="Eligieron un curso"
@@ -502,19 +531,38 @@ export function PanelTrafico() {
                   arranque en ámbar. En un celular los nueve rótulos se
                   pisaban de a pares en columnas de 49 px: allí va la
                   misma escalera en barras horizontales, en su orden. */}
-              <Bloque titulo={`Paso a paso · ${rotuloA}`}>
+              <Bloque
+                titulo={`Paso a paso · ${rotuloA}`}
+                acciones={<Interruptor valor={vistaPasos} alCambiar={setVistaPasos} />}
+              >
                 <div className="hidden sm:block">
+                  {vistaPasos === "tendencia" ? (
+                    <>
+                      {/* La línea NO es una serie de tiempo: el eje son
+                          los nueve peldaños en su orden, así que lo que
+                          dice es la PENDIENTE de la caída. Una línea por
+                          peldaño a lo largo de los días pide que el
+                          servidor mande los nueve pasos por día --hoy
+                          manda cuatro-- y queda anotado. */}
+                      <LineaDePeldanos hitos={hitos} />
+                    </>
+                  ) : (
                   <EmbudoProceso
                     hitos={hitos}
-                    resumen={
-                      <>
-                        <FraseDeLaCaida datos={datos} porPaso={porPaso} /> {BASE_DEL_EMBUDO}
-                      </>
-                    }
                     antes={hitosAntes}
                     etiquetaAhora={rotuloA}
                     etiquetaAntes={rotuloB}
                   />
+                  )}
+
+                  {/* LA FRASE, ABAJO. Iba encima del gráfico --era lo
+                      primero que se leía del bloque-- y el cliente la
+                      mandó al pie, donde «Día a día» pone la suya
+                      («señale una columna…»): primero se ve la forma de
+                      la caída y después se lee qué pasó (23 sep 2026). */}
+                  <p className="mt-3 text-[0.8125rem] leading-relaxed text-texto-suave">
+                    <FraseDeLaCaida datos={datos} porPaso={porPaso} /> {BASE_DEL_EMBUDO}
+                  </p>
                 </div>
                 <div className="sm:hidden">
                   <p className="mb-3 text-[0.8125rem] leading-relaxed text-texto">
@@ -567,16 +615,16 @@ export function PanelTrafico() {
               ahora en «Cómo leer estas cifras». Va FUERA de la rama
               del periodo: que hoy no haya llegado nadie no borra los
               días de antes. */}
+          {/* Y sin el rango de fechas al lado del título: lo dicen las
+              fechas de cada columna, y arriba era un dato más que leer
+              (cliente, 23 sep 2026). */}
           {serie.length > 0 && (
             <Bloque
               titulo="Día a día, desde que arrancó el contador"
-              acciones={
-                <span className="text-xs text-texto-suave tabular-nums">
-                  {diaCorto(serie[0].dia)} → {diaCorto(serie[serie.length - 1].dia)}
-                </span>
-              }
+              acciones={<Interruptor valor={vistaDias} alCambiar={setVistaDias} />}
             >
               <DosSeriesPorDia
+                modo={vistaDias}
                 a={{
                   nombre: "Abrieron el enlace",
                   datos: serie.map((d) => ({ dia: d.dia, total: d.llegaron })),
@@ -603,8 +651,82 @@ export function PanelTrafico() {
                   tomaba la dona por el total de siempre: el mismo fallo
                   que el 149 contra 539 de Reservas, una cifra que no
                   dice de qué habla. */}
+              {/* LA CADENA DE LOS DATOS, Y TODA DEL MISMO SITIO.
+                  «Lo que tengo en Tráfico debe ser coherente a Control de
+                  inscritos y no es así [...] necesito datos iguales»
+                  (cliente, 23 sep 2026). Tenía razón, y medido en su
+                  base el 23 de septiembre se ve por qué: el embudo decía
+                  5 registros y el CRM tenía 9 personas con enlace del
+                  registro en el mismo periodo. La cadena mezclaba las
+                  dos fuentes y el segundo número salía MAYOR que el
+                  primero, que es imposible de leer.
+
+                  Son cosas distintas y las dos ciertas:
+
+                  · El «Paso a paso» y el «Día a día» cuentan VISITAS, y
+                    las cuenta el navegador. Si alguien lleva bloqueador,
+                    si el paso no llega a escribirse o si la persona
+                    vuelve otro día, ese número se queda corto.
+                  · Esta cadena cuenta PERSONAS del CRM: las que se
+                    crearon en el periodo y recibieron su enlace para
+                    completar datos. Es la misma tabla que alimenta
+                    Gestión de leads y Control de inscritos.
+
+                  Así que la cadena se queda ENTERA en el CRM --tres
+                  números que salen uno del otro-- y la diferencia con el
+                  embudo se explica en el pie en vez de esconderse. */}
+              <Bloque
+                titulo={`Sus datos completos · ${rotuloA}`}
+                descripcion="Personas que entraron por el formulario en este periodo, contadas en el CRM: las mismas que ve en Gestión de leads."
+              >
+                <div className="flex flex-wrap items-stretch gap-2">
+                  <Resumen
+                    etiqueta="Entraron por el formulario"
+                    valor={datos.despues.recibieron}
+                    color="var(--titulo)"
+                    pie="con enlace de completado enviado"
+                  />
+                  <Resumen
+                    etiqueta="Pasaron a datos completos"
+                    valor={datos.despues.terminaron}
+                    color="var(--exito)"
+                    pie={
+                      datos.despues.recibieron >= MINIMO_PARA_TASA
+                        ? `${porcentaje(datos.despues.terminaron, datos.despues.recibieron)} de las que entraron`
+                        : "diligenciaron el formulario de completado"
+                    }
+                  />
+                  <Resumen
+                    /// En el idioma del panel, no en el de la calle:
+                    /// «siguen a medias / hay que perseguirlas» era una
+                    /// nota interna --«recuerda un lenguaje profesional»,
+                    /// cliente, 23 sep 2026--.
+                    etiqueta="Datos incompletos"
+                    valor={Math.max(datos.despues.recibieron - datos.despues.terminaron, 0)}
+                    color={
+                      datos.despues.recibieron - datos.despues.terminaron > 0
+                        ? "var(--aviso)"
+                        : "var(--exito)"
+                    }
+                    pie="pendientes de seguimiento"
+                  />
+                </div>
+
+              </Bloque>
+
+              {/* DOS GRÁFICOS EN LA FILA. Compartía sitio con el bloque
+                  de datos completos; al irse aquel quedó media pantalla
+                  en blanco, y el hueco lo llena la dona de dispositivo
+                  --que antes era una tabla más abajo--. */}
               <div className="grid gap-4 lg:grid-cols-2">
-                <Bloque titulo={`De dónde venían · ${rotuloA}`} estirado>
+                <Bloque
+                  titulo={`De dónde venían · ${rotuloA}`}
+                  /// El aviso del «no dejó rastro» vivía en «Cómo leer
+                  /// estas cifras», a seis bloques de distancia de la
+                  /// fila que explica. Aquí se lee donde hace falta.
+                  descripcion="«No dejó rastro» casi siempre es correo o WhatsApp: esos enlaces no dejan señal si no van marcados, y se marcan en Formularios públicos."
+                  estirado
+                >
                   <Donut
                     datos={porcionesProcedencia}
                     centro={n(llegaron)}
@@ -612,18 +734,42 @@ export function PanelTrafico() {
                     vacio="Sin visitas en este periodo."
                   />
                 </Bloque>
-                <DespuesDePreinscribirse
-                  {...datos.despues}
-                  comparando={comparando}
-                  periodo={rotuloA}
-                />
+
+                <Bloque
+                  titulo={`Con qué entraron · ${rotuloA}`}
+                  descripcion="El formulario se llena casi todo desde el celular: si algo se ve mal ahí, se nota en la cifra de arriba."
+                  estirado
+                >
+                  <Donut
+                    datos={porcionesDispositivo}
+                    centro={n(llegaron)}
+                    detalleCentro="aperturas"
+                    vacio="Sin visitas en este periodo."
+                  />
+                </Bloque>
+                {/* SIN EL BLOQUE DE «DATOS COMPLETOS». Estuvo aquí en
+                    tres formas --dos cifras grandes, tres tarjetas y una
+                    frase-- y las tres confundían por el mismo motivo:
+                    decían «completos y parciales» de un subconjunto
+                    --solo quien entró por el formulario en el periodo--
+                    mientras que la dona «Estado de los datos», en Control
+                    de inscritos, lo dice de TODOS los leads. Dos cifras
+                    parecidas para la misma pregunta, y una de ellas
+                    siempre más chica sin explicar por qué.
+
+                    «¿Por qué, si es así, no se utiliza este para que no
+                    confunda?» (cliente, 23 sep 2026). Queda la dona, que
+                    cuenta a todo el mundo, y esta pantalla se queda en lo
+                    suyo: el recorrido dentro del formulario, que acaba en
+                    «Se preinscribieron». Quién tiene los datos a medias se
+                    ve en Gestión de leads, con su columna y su filtro. */}
               </div>
 
               {/* LOS CORTES, AL FINAL: tres tarjetas en fila, como
                   estaban. Fueron un día una tabla y el cliente la
                   devolvió: «me gusta más como estaba originalmente».
                   Por debajo de 1.024 px se apilan, cada una a lo ancho. */}
-              <div className="grid gap-4 lg:grid-cols-3">
+              <div className="grid gap-4 lg:grid-cols-2">
                 {CORTES.map((c) => (
                   <Corte
                     key={c.titulo}
@@ -632,11 +778,6 @@ export function PanelTrafico() {
                     filas={c.filas(datos)}
                     nombre={c.nombre}
                     total={llegaron}
-                    pie={
-                      c.titulo === "Por campaña" && datos.campana.some((f) => f.valor === null)
-                        ? NOTA_UTM
-                        : undefined
-                    }
                   />
                 ))}
               </div>
@@ -747,75 +888,6 @@ function AvisoSinMarcar({
   );
 }
 
-/**
- * Los leads del periodo, seguidos.
- *
- * CON el periodo en el título. Se le había quitado porque ya lo
- * decía el Paso a paso, pero entre los dos queda el Día a día
- * «desde que arrancó el contador», y quien baja se queda con ese
- * rótulo. Sin «Cada ficha nueva recibe su enlace»: lo dice el
- * rótulo de la primera cifra.
- */
-function DespuesDePreinscribirse({
-  recibieron,
-  terminaron,
-  comparando,
-  periodo,
-}: {
-  recibieron: number;
-  terminaron: number;
-  comparando: boolean;
-  periodo: string;
-}) {
-  const hayTasa = recibieron >= MINIMO_PARA_TASA;
-  const parte = recibieron > 0 ? Math.min(terminaron / recibieron, 1) : 0;
-
-  return (
-    <Bloque
-      titulo={`Después de preinscribirse · ${periodo}`}
-      descripcion="Se cuenta a hoy: quien se preinscribió en el periodo y terminó después, cuenta."
-      estirado
-    >
-      <div className="grid gap-4 sm:grid-cols-2">
-        <div>
-          <p className="text-3xl font-semibold text-titulo tabular-nums">
-            {n(recibieron)}
-          </p>
-          <p className="text-sm text-texto-suave">
-            recibieron su enlace al preinscribirse
-          </p>
-        </div>
-        <div>
-          <p className="text-3xl font-semibold text-exito tabular-nums">
-            {n(terminaron)}
-          </p>
-          <p className="text-sm text-texto-suave">
-            terminaron el formulario de completar
-            {recibieron > 0 &&
-              (hayTasa
-                ? ` · ${Math.round(parte * 100)} %`
-                : " · aún son pocas para un porcentaje")}
-          </p>
-        </div>
-      </div>
-
-      {recibieron > 0 && (
-        <div
-          className="mt-4 h-2 overflow-hidden rounded-full bg-superficie-alterna"
-          role="img"
-          aria-label={`${n(terminaron)} de ${n(recibieron)} terminaron`}
-        >
-          <div className="h-full rounded-full bg-exito" style={{ width: `${parte * 100}%` }} />
-        </div>
-      )}
-
-      <p className="mt-3 text-xs text-texto-suave">
-        Quien ya era lead no recibe enlace y no entra aquí.
-        {comparando && " El comparador de fechas no compara este bloque."}
-      </p>
-    </Bloque>
-  );
-}
 
 /**
  * Cómo leer estas cifras: ARRIBA, pero CERRADO.
@@ -835,35 +907,40 @@ function DespuesDePreinscribirse({
  * «Abrieron» y la frase del Día a día.
  */
 function ComoLeer({ hayHistorico }: { hayHistorico: boolean }) {
+  /// REESCRITO CON LO QUE LA PANTALLA DICE HOY (23 sep 2026).
+  ///
+  /// Hablaba de «Abrieron» y del bloque «Después», que ya no existen,
+  /// y explicaba el Día a día con una frase que sobra desde que cada
+  /// columna lleva su fecha y su cifra. Quedan seis ideas, en el orden
+  /// en que se leen las cosas en la pantalla: primero qué es cada
+  /// cifra de arriba, después cómo se leen los dos gráficos, y al final
+  /// los dos avisos que evitan malentendidos con Meta y con el «no
+  /// dejó rastro».
   const ideas: Array<[string, string]> = [
     [
-      "Es un mínimo, no el total",
-      "No cuenta a quien se va antes de que cargue la página ni a quien usa bloqueador.",
+      "«Aperturas» cuenta clics, no personas",
+      "Quien abre el enlace dos días cuenta dos veces. Y no todo clic es de alguien: el correo abre los enlaces solo, para revisarlos.",
+    ],
+    [
+      "«Personas» es la cifra que se usa",
+      "De esas aperturas, las que se quedaron tres segundos o tocaron algo. Es un suelo: quien mira y se va no se cuenta.",
     ],
     [
       "Saldrá menos que en Meta, y está bien",
-      "Meta cuenta clics, incluidos los de robots. Aquí solo cuentan las visitas que sí cargaron la página.",
+      "Meta cuenta clics. Aquí solo cuentan las visitas que sí cargaron la página, y nunca las que se fueron antes de eso.",
     ],
     [
-      "Una visita no es una persona",
-      "Quien vuelve otro día cuenta dos veces. «Abrieron» incluye máquinas —un escáner de correo abre cada enlace—, y «Personas» las descuenta.",
+      "Paso a paso es dónde se cae la gente",
+      "Cada barra es un paso del formulario, en orden. La vista «Tendencia» dibuja lo mismo en línea: el tramo más inclinado es la fuga.",
     ],
     [
-      "Solo desde que arrancó el contador",
-      (hayHistorico
-        ? "Lo de antes va en su bloque aparte, más abajo. Son otras cifras y no se suman."
-        : "Quien se preinscribió antes no sale aquí, aunque sí esté en Gestión de leads.") +
-        " El Día a día se compara día contra día, no contra un periodo en el que no había contador.",
+      "Día a día es el calendario",
+      "Cada columna, un día con su fecha y su cifra. También tiene «Tendencia» para ver los picos, y no cuenta nada anterior al arranque del contador" +
+        (hayHistorico ? ": lo de antes va en su bloque aparte, y no se suma." : "."),
     ],
     [
-      /// Aquí se dice también QUÉ divide cada porcentaje: son tres
-      /// bases, y hoy coinciden solo porque no hay máquinas.
       `Porcentajes desde ${MINIMO_PARA_TASA} visitas`,
-      "Con menos, un porcentaje no dice nada, así que no se muestra. El del Paso a paso va sobre las aperturas; el de los cortes, sobre las personas; el de «Después», sobre los leads.",
-    ],
-    [
-      "«No dejó rastro» casi siempre es correo o WhatsApp",
-      "Esos enlaces no dejan señal si no van marcados. Márquelos en Formularios públicos.",
+      "Con menos, un porcentaje no dice nada. El del Paso a paso va sobre las aperturas; el de los cortes de abajo, sobre las personas.",
     ],
   ];
 
@@ -886,7 +963,40 @@ function ComoLeer({ hayHistorico }: { hayHistorico: boolean }) {
 }
 
 /**
- * Una cifra grande, DE SU COLOR, con su tendencia debajo.
+ * BARRAS O TENDENCIA. Dos botones, y uno solo para los dos gráficos:
+ * con una copia por bloque, el día que cambie el estilo cambiaría en
+ * uno y no en el otro.
+ */
+function Interruptor({
+  valor,
+  alCambiar,
+}: {
+  valor: "barras" | "tendencia";
+  alCambiar: (v: "barras" | "tendencia") => void;
+}) {
+  return (
+    <div className="flex gap-1">
+      {(["barras", "tendencia"] as const).map((v) => (
+        <button
+          key={v}
+          type="button"
+          onClick={() => alCambiar(v)}
+          aria-pressed={valor === v}
+          className={`rounded-full px-2.5 py-1 text-[0.6875rem] transition ${
+            valor === v
+              ? "bg-marca font-semibold text-marca-texto"
+              : "border border-borde text-texto-suave hover:border-marca/40"
+          }`}
+        >
+          {v === "barras" ? "Barras" : "Tendencia"}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+/**
+ * Un peldaño del embudo,
  *
  * VUELVE LA TARJETA DE ANTES (cliente, 21 sep 2026: «no sé qué tan
  * sano tarjeta y gráfica, se ve algo raro»). Se había fundido en un
@@ -909,7 +1019,6 @@ function ComoLeer({ hayHistorico }: { hayHistorico: boolean }) {
 function Resumen({
   etiqueta,
   valor,
-  serie,
   color,
   pie,
   antes = null,
@@ -918,7 +1027,7 @@ function Resumen({
 }: {
   etiqueta: string;
   valor: number;
-  serie: number[];
+  serie?: number[];
   color: string;
   pie?: string;
   /// Null cuando no se compara: 0 es «hubo cero».
@@ -928,42 +1037,51 @@ function Resumen({
   nota?: string | null;
 }) {
   return (
-    <div className="rounded-lg border border-borde bg-superficie p-5">
-      <p className="text-xs font-medium tracking-wide text-texto-suave uppercase">{etiqueta}</p>
-      <div className="mt-1 flex flex-wrap items-baseline gap-x-3">
+    <div
+      className={
+        "min-w-[150px] flex-1 rounded-lg border border-borde bg-superficie px-3.5 py-1.5 transition " +
+        "hover:border-marca/40 hover:shadow-[0_2px_14px_-6px_rgba(15,23,42,0.28)]"
+      }
+    >
+      <div
+        className="truncate leading-none text-texto-suave"
+        style={{ fontSize: "0.6875rem" }}
+        title={etiqueta}
+      >
+        {etiqueta}
+      </div>
+      <div className="mt-0.5 flex flex-wrap items-baseline gap-x-2">
         {/* EL COLOR DE LA SERIE, UN PUNTO HACIA EL TÍTULO. El verde de
             «Personas» puro sobre blanco daba 2,8:1 y el naranja 3,2:1,
             por debajo o al filo del 3:1 de una cifra grande. Mezclado
             con `--titulo` se oscurece en claro y se aclara en oscuro:
             sigue leyéndose como su color y se lee en los dos temas.
             La chispa lleva el color puro, que no es texto. */}
-        <p
-          className="text-3xl font-semibold tabular-nums"
-          style={{ color: `color-mix(in oklab, ${color} 80%, var(--titulo))` }}
+        <span
+          className="font-bold leading-none tabular-nums"
+          style={{
+            fontSize: "1.0625rem",
+            color: `color-mix(in oklab, ${color} 80%, var(--titulo))`,
+          }}
         >
           {n(valor)}
-        </p>
+        </span>
         {/* Sin «vs …»: el periodo B ya lo dice el renglón de abajo, y
             dicho dos veces en tres centímetros es ruido. */}
         {antes !== null && <Delta valor={variacion(valor, antes)} />}
       </div>
-      {antes !== null ? (
-        <p className="mt-0.5 text-xs text-texto-suave tabular-nums">
-          {n(antes)} {enPeriodo(etiquetaAntes)}
-        </p>
-      ) : (
-        nota && <p className="mt-0.5 text-xs text-texto-suave">{nota}</p>
-      )}
-      {serie.length > 1 && (
-        <Chispa
-          datos={serie}
-          color={color}
-          estirada
-          clase="mt-3 block h-8 w-full"
-          etiqueta={`${etiqueta}, día a día`}
-        />
-      )}
-      {pie && <p className="mt-2 text-xs text-texto-suave">{pie}</p>}
+      {/* UN SOLO PIE: el de la comparación cuando se compara, y el
+          explicativo cuando no. Y sin chispa: la serie por día vive en
+          «Día a día», que las pinta juntas y con eje. Dos renglones más
+          una chispa devolvían la tarjeta a los 150 px de alto que el
+          cliente quitó. */}
+      <div
+        className="mt-0.5 truncate leading-none text-texto-suave"
+        style={{ fontSize: "0.6875rem" }}
+        title={pie ?? undefined}
+      >
+        {antes !== null ? `${n(antes)} ${enPeriodo(etiquetaAntes)}` : (nota ?? pie ?? "")}
+      </div>
     </div>
   );
 }
@@ -972,10 +1090,10 @@ function Resumen({
 /// campaña, que llega a doce, abre el resto con su botón.
 const FILAS_EN_TARJETA = 6;
 
-/// Se dice donde se lee la cifra: bajo «Por campaña», y solo cuando
-/// hay filas sin etiqueta, que es cuando hace falta.
-const NOTA_UTM =
-  "Para que un envío salga aquí con su nombre, su enlace tiene que llevar «utm_campaign». Un correo masivo lleva además «utm_source=correo».";
+/// SIN NOTA DE UTM. Explicaba qué parámetro tiene que llevar el enlace
+/// --«utm_campaign», y «utm_source=correo» en un mailing-- y el cliente
+/// la quitó (23 sep 2026): los enlaces los arma el sistema, no quien lee
+/// el tablero, y las filas sin etiqueta ya salen como «sin etiqueta».
 
 /// Lo que se lee en gris a la derecha de cada fila.
 ///
@@ -1100,13 +1218,12 @@ const CORTES: Array<{
   filas: (d: EmbudoPublico) => CorteDeVisitas[];
   nombre: (valor: string | null) => string;
 }> = [
+  /// SIN «POR DISPOSITIVO»: subió a la fila de donas, que es donde se
+  /// lee mejor --tres porciones-- y donde hacía falta un segundo
+  /// gráfico. Aquí abajo quedan los dos cortes que sí son listas
+  /// largas: direcciones y campañas.
   {
-    titulo: "Por dispositivo",
-    filas: (d) => d.dispositivo,
-    nombre: (v) => NOMBRE_ANCHO[v ?? ""] ?? "Sin dato",
-  },
-  {
-    titulo: "Por qué dirección entraron",
+    titulo: "Por cuál formulario entraron",
     filas: (d) => d.entrada,
     nombre: (v) => NOMBRE_ENTRADA[v ?? ""] ?? "Sin dato",
   },
@@ -1163,8 +1280,6 @@ const TD_CIFRA = `${TD} text-right tabular-nums`;
 export function TablaDeCortes({ datos, periodo }: { datos: EmbudoPublico; periodo: string }) {
   /// Cada corte se abre por su cuenta, como hacía ListaBarras.
   const [todas, setTodas] = useState<Record<string, boolean>>({});
-  const campana = datos.campana;
-  const hayCampanaSinEtiqueta = campana.some((f) => f.valor === null);
   /// El servidor manda hasta DOCE filas por corte: treinta y seis
   /// filas abiertas serían la muralla de 1.300 px que el cliente no
   /// quiere. Se ven las cuatro primeras y el resto tiene su puerta.
@@ -1181,11 +1296,6 @@ export function TablaDeCortes({ datos, periodo }: { datos: EmbudoPublico; period
   });
   const alternar = (titulo: string) =>
     setTodas((t) => ({ ...t, [titulo]: !t[titulo] }));
-
-  /// Se dice UNA vez, donde se lee la cifra: bajo «Por campaña» y
-  /// solo cuando hay filas sin etiqueta, que es cuando hace falta.
-  const notaUtm =
-    "Para que un envío salga aquí con su nombre, su enlace tiene que llevar «utm_campaign». Un correo masivo lleva además «utm_source=correo».";
 
   return (
     <Bloque
@@ -1265,13 +1375,6 @@ export function TablaDeCortes({ datos, periodo }: { datos: EmbudoPublico; period
                 </td>
               </tr>
             )}
-            {g.titulo === "Por campaña" && hayCampanaSinEtiqueta && (
-              <tr>
-                <td colSpan={5} className="px-7 py-2.5 text-[0.71875rem] text-texto-suave">
-                  {notaUtm}
-                </td>
-              </tr>
-            )}
           </tbody>
         ))}
       </table>
@@ -1309,11 +1412,6 @@ export function TablaDeCortes({ datos, periodo }: { datos: EmbudoPublico; period
             {g.resto > 0 && (
               <p className="border-t border-hairline px-7 py-2">
                 <BotonDelResto g={g} alternar={alternar} />
-              </p>
-            )}
-            {g.titulo === "Por campaña" && hayCampanaSinEtiqueta && (
-              <p className="border-t border-hairline px-7 py-2.5 text-[0.71875rem] text-texto-suave">
-                {notaUtm}
               </p>
             )}
           </section>
@@ -1396,6 +1494,7 @@ function ComparadorDeFechas({
   comparando,
   rango,
   alCambiarRango,
+  nota,
 }: {
   a: { desde: string; hasta: string };
   b: { desde: string; hasta: string };
@@ -1405,6 +1504,9 @@ function ComparadorDeFechas({
   /// Los cuatro rangos viven aquí desde el 20 sep 2026: estaban
   /// arriba, en el encabezado, y la comparación abajo.
   rango: string;
+  /// Una línea DENTRO de la caja, bajo una raya: es donde va la nota
+  /// del contador, que matiza estos filtros.
+  nota?: React.ReactNode;
   alCambiarRango: (r: string) => void;
 }) {
   const [abierto, setAbierto] = useState(false);
@@ -1498,6 +1600,15 @@ function ComparadorDeFechas({
           rango de arriba.
         </p>
       )}
+
+      {/* La nota, a sangre dentro de la caja y bajo una raya: los
+          márgenes negativos compensan el relleno de la caja para que la
+          raya cruce de canto a canto. */}
+      {nota && (
+        <div className="-mx-4 -mb-4 mt-4 border-t border-hairline px-4 py-3 text-[0.8125rem] leading-relaxed text-texto-suave">
+          {nota}
+        </div>
+      )}
     </div>
   );
 }
@@ -1566,6 +1677,11 @@ function Periodo({
  *   3. La unidad es una IP en un dia, no una persona.
  */
 function Historico({ h }: { h: HistoricoDeTrafico }) {
+  /// Con su propio interruptor, como el Día a día: es el mismo tipo de
+  /// gráfico --días en el eje-- y el cliente lo revisa en producción,
+  /// donde este bloque sí tiene datos («no veo el Antes del contador»,
+  /// 23 sep 2026: en local no hay nada reconstruido).
+  const [vista, setVista] = useState<"barras" | "tendencia">("barras");
   const dias = h.porDia.map((d) => ({ dia: d.dia, total: d.llegaron }));
   const envios = h.porDia.map((d) => ({ dia: d.dia, total: d.preinscritos }));
 
@@ -1580,14 +1696,20 @@ function Historico({ h }: { h: HistoricoDeTrafico }) {
         </>
       }
       acciones={
-        <p className="text-[0.8125rem] whitespace-nowrap text-texto tabular-nums">
-          <strong className="font-semibold text-titulo">{n(h.visitas)}</strong> visitas ·{" "}
-          <strong className="font-semibold text-titulo">{n(h.envios)}</strong> envíos
-        </p>
+        <div className="flex items-center gap-3">
+          <Interruptor valor={vista} alCambiar={setVista} />
+          <p className="text-[0.8125rem] whitespace-nowrap text-texto tabular-nums">
+            <strong className="font-semibold text-titulo">{n(h.visitas)}</strong> visitas ·{" "}
+            <strong className="font-semibold text-titulo">{n(h.envios)}</strong> envíos
+          </p>
+        </div>
       }
     >
       <DosSeriesPorDia
-        a={{ nombre: "Abrieron el enlace", datos: dias }}
+        modo={vista}
+        /// «Aperturas», como en las tarjetas de arriba: el mismo dato no
+        /// puede llamarse de dos maneras en la misma pantalla.
+        a={{ nombre: "Aperturas", datos: dias }}
         b={{
           nombre: "Enviaron el formulario",
           datos: envios,

@@ -123,6 +123,23 @@ export class CrearPreinscripcionDto {
   /// del servidor, que es el unico paso que no se puede
   /// permitir perder.
   @IsOptional() @IsString() @MaxLength(64) visita?: string;
+
+  /// La palabra del formulario personalizado por el que entro
+  /// --`?TallerBootcamp`--, si entro por uno.
+  ///
+  /// Es la llave que deja registrar en una accion que NO esta
+  /// publicada, asi que el servidor no se fia de ella: la valida
+  /// contra `formularios-personalizados` y comprueba que la oferta
+  /// sea de la accion que esa palabra nombra.
+  @IsOptional() @IsString() @MaxLength(40) formulario?: string;
+
+  /// La marca del enlace corto --`?mailing-ucc`--, si la trae.
+  ///
+  /// Viaja aqui ADEMAS de en la baliza porque con ella se le paga
+  /// a un tercero: la baliza se la comen los bloqueadores y la
+  /// atribucion no puede depender de eso. El servidor la valida
+  /// en `enlace-del-envio.ts` y NUNCA la cree para marcar pauta.
+  @IsOptional() @IsString() @MaxLength(60) enlace?: string;
 }
 
 /** El resto de sus datos, todos opcionales. */

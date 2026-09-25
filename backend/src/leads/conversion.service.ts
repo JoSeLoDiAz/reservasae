@@ -333,13 +333,13 @@ export class ConversionDeLeads {
       await this.colaRui.encolarSiHaceFalta(personaId);
     } catch (e) {
       this.log.warn(
-        `Ficha creada pero no se pudo encolar el RUI: ` +
+        `Lead inscrito pero no se pudo encolar el RUI: ` +
           (e instanceof Error ? e.message : String(e)),
       );
     }
 
     this.log.log(
-      `Lead ${lead.id} convertido en ficha ${participanteId} por ${quien} ` +
+      `Lead ${lead.id} inscrito como ${participanteId} por ${quien} ` +
         `(autorización: ${dto.canal}, constancia: ${constancia}).`,
     );
 

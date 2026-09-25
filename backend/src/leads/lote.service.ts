@@ -181,7 +181,7 @@ export class LoteDeLeads {
 
     this.log.log(
       `Lote de ${unicos.length} leads por ${admin.correo}: ` +
-        `${convertidos} fichas (${conAutorizacion} con autorización), ` +
+        `${convertidos} inscritos (${conAutorizacion} con autorización), ` +
         `${fallaron} con problema, ${fuera} fuera del ámbito.`,
     );
 

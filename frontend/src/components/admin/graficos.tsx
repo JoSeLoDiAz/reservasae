@@ -1021,10 +1021,15 @@ export function DosSeriesPorDia({
   a,
   b,
   vacio = "Todavía no hay movimiento que mostrar.",
+  modo = "barras",
 }: {
   a: SeriePorDia;
   b: SeriePorDia;
   vacio?: string;
+  /// En barras se compara un día con otro; en línea se ve la curva y
+  /// los picos. Mismos datos, misma escala, mismos rótulos y el mismo
+  /// detalle al señalar: lo único que cambia es el trazo.
+  modo?: "barras" | "tendencia";
 }) {
   const [encima, setEncima] = useState<number | null>(null);
   const caja = useRef<HTMLDivElement>(null);
@@ -1037,6 +1042,9 @@ export function DosSeriesPorDia({
   /// del ancho --las casillas son `flex-1`--, y así arrastrar la
   /// ventana no repinta en cada píxel.
   const [granoMedido, setGranoMedido] = useState<Grano | null>(null);
+  /// El ancho, para decidir cuántas fechas caben. Redondeado a 20 px
+  /// para no repintar en cada píxel al arrastrar la ventana.
+  const [medido, setMedido] = useState<number | null>(null);
   useEffect(() => {
     const nodo = caja.current;
     if (!nodo || llenos.length === 0) return;
@@ -1046,6 +1054,8 @@ export function DosSeriesPorDia({
       if (w < 1) return;
       const g = granoQueCabe(llenos, Math.max(1, Math.floor(w / MINIMO_POR_DIA)));
       setGranoMedido((v) => (v === g ? v : g));
+      const redondo = Math.round(w / 20) * 20;
+      setMedido((v) => (v === redondo ? v : redondo));
     };
     medir(nodo.getBoundingClientRect().width);
     const observador = new ResizeObserver((e) => medir(e[0]?.contentRect.width ?? 0));
@@ -1080,7 +1090,13 @@ export function DosSeriesPorDia({
   /// Las fechas de los extremos empiezan donde empieza la primera
   /// barra y acaban donde acaba la última, no en el canto: con
   /// pocos días, el aire de la casilla las despegaba de su columna.
-  const sangria = `${((1 - PAREJA_DEL_DIA) / 2 / cubetas.length) * 100}%`;
+  /// Cuántas columnas se pueden rotular sin que las fechas se pisen:
+  /// «14 sept» pide unos 46 px, y la casilla mide el ancho del gráfico
+  /// entre el número de columnas.
+  const anchoCasilla = (medido ?? 0) / Math.max(1, cubetas.length);
+  const saltoDeFecha = Math.max(1, Math.ceil(46 / Math.max(1, anchoCasilla)));
+  /// Y la cifra encima cabe con doce columnas o menos.
+  const cabenLasCifras = cubetas.length <= 12;
 
   return (
     /// `min-w-0`: sin él, el gráfico le pide a su columna de la
@@ -1104,6 +1120,61 @@ export function DosSeriesPorDia({
           />
         ))}
 
+        {/* LAS LÍNEAS, en su propia capa y sin capturar el ratón: el
+            detalle del día lo siguen enseñando las casillas de abajo. */}
+        {modo === "tendencia" && cubetas.length > 1 && (
+          <svg
+            viewBox={`0 0 100 ${ALTO_DIA_A_DIA}`}
+            preserveAspectRatio="none"
+            className="pointer-events-none absolute inset-0 h-full w-full"
+            aria-hidden
+          >
+            {series.map((s) => (
+              <polyline
+                key={s.nombre}
+                points={cubetas
+                  .map((c, i) => {
+                    const x = ((i + 0.5) / cubetas.length) * 100;
+                    const v = c[s.casilla];
+                    return `${x},${ALTO_DIA_A_DIA - (v > 0 ? alto(v) : 0)}`;
+                  })
+                  .join(" ")}
+                fill="none"
+                stroke={s.color}
+                strokeWidth={2}
+                vectorEffect="non-scaling-stroke"
+                strokeLinejoin="round"
+                strokeLinecap="round"
+              />
+            ))}
+          </svg>
+        )}
+
+        {/* En tendencia las cifras van sobre el punto, no sobre la
+            barra que ya no está. */}
+        {modo === "tendencia" &&
+          cabenLasCifras &&
+          cubetas.map((c, i) =>
+            series.map((s) => {
+              const v = c[s.casilla];
+              if (v <= 0) return null;
+              return (
+                <span
+                  key={`${c.clave}-${s.nombre}`}
+                  aria-hidden
+                  className="absolute -translate-x-1/2 -translate-y-full text-[0.5625rem] leading-none font-semibold tabular-nums"
+                  style={{
+                    left: `${((i + 0.5) / cubetas.length) * 100}%`,
+                    top: Math.max(ALTO_DIA_A_DIA - alto(v) - 3, 9),
+                    color: `color-mix(in oklab, ${s.color} 75%, var(--titulo))`,
+                  }}
+                >
+                  {n(v)}
+                </span>
+              );
+            }),
+          )}
+
         <div className="absolute inset-0 flex items-end">
           {cubetas.map((c, i) => {
             const apagada = encima !== null && encima !== i;
@@ -1115,7 +1186,7 @@ export function DosSeriesPorDia({
                 /// TOCAR la columna es lo que enseña sus cifras. La
                 /// casilla entera es la zona sensible, no solo la
                 /// barra: así se acierta con el dedo.
-                className="flex h-full min-w-0 flex-1 cursor-default items-end justify-center transition-opacity"
+                className="relative flex h-full min-w-0 flex-1 cursor-default items-end justify-center pt-3 transition-opacity"
                 style={{ opacity: apagada ? 0.45 : 1 }}
                 aria-label={`${c.etiquetaLarga}: ${a.nombre} ${n(c[CASILLA_A])}, ${
                   b.nombre
@@ -1129,24 +1200,53 @@ export function DosSeriesPorDia({
                 /// alternar el primer toque no enseñaba nada.
                 onClick={() => setEncima(i)}
               >
+                {/* EL VALOR DE CADA BARRA, ENCIMA DE ELLA.
+                    Estuvo la suma de las dos, centrada sobre la pareja,
+                    y no es lo que se pregunta: «valor individual de cada
+                    columna» (cliente, 23 sep 2026). Ahora cada serie
+                    lleva el suyo, de su color, sobre su propia barra.
+
+                    Solo con doce columnas o menos: con más, dos números
+                    de 9 px por columna se pisan, y ahí el pico se lee
+                    por la altura --y el desglose exacto, señalando--. */}
                 <span
                   className="flex h-full items-end"
-                  style={{ width: `${PAREJA_DEL_DIA * 100}%`, gap: SEPARACION_PAREJA }}
+                  style={{
+                    width: `${PAREJA_DEL_DIA * 100}%`,
+                    gap: SEPARACION_PAREJA,
+                    /// En tendencia la casilla sigue existiendo --es la
+                    /// zona sensible que enseña las cifras del día-- y
+                    /// solo se apagan sus barras.
+                    visibility: modo === "tendencia" ? "hidden" : undefined,
+                  }}
                 >
                   {series.map((s) => {
                     const v = c[s.casilla];
                     return (
                       <span
                         key={s.nombre}
-                        className="block min-w-0 flex-1 rounded-t-[4px]"
-                        style={{
-                          /// UN CERO ES UN DATO: un filete de 2 px del
-                          /// color del borde. Sin él, un día sin gente
-                          /// y un día que no vino se verían igual.
-                          height: v > 0 ? alto(v) : 2,
-                          background: v > 0 ? s.color : "var(--borde)",
-                        }}
-                      />
+                        className="relative flex min-w-0 flex-1 flex-col justify-end"
+                      >
+                        {cabenLasCifras && v > 0 && modo === "barras" && (
+                          <span
+                            aria-hidden
+                            className="absolute -top-3 left-1/2 -translate-x-1/2 text-[0.5625rem] leading-none font-semibold tabular-nums"
+                            style={{ color: `color-mix(in oklab, ${s.color} 75%, var(--titulo))` }}
+                          >
+                            {n(v)}
+                          </span>
+                        )}
+                        <span
+                          className="block w-full rounded-t-[4px]"
+                          style={{
+                            /// UN CERO ES UN DATO: un filete de 2 px del
+                            /// color del borde. Sin él, un día sin gente
+                            /// y un día que no vino se verían igual.
+                            height: v > 0 ? alto(v) : 2,
+                            background: v > 0 ? s.color : "var(--borde)",
+                          }}
+                        />
+                      </span>
                     );
                   })}
                 </span>
@@ -1156,14 +1256,23 @@ export function DosSeriesPorDia({
         </div>
       </div>
 
-      {/* LAS FECHAS, EN LOS DOS EXTREMOS, con aire sobre ellas: la
-          línea de base no se pega al rótulo. */}
-      <div
-        className="mt-2 flex justify-between gap-3 text-[0.625rem] text-texto-suave tabular-nums"
-        style={{ paddingLeft: sangria, paddingRight: sangria }}
-      >
-        <span>{cubetas[0].etiqueta}</span>
-        {cubetas.length > 1 && <span>{cubetas[cubetas.length - 1].etiqueta}</span>}
+      {/* LA FECHA DE CADA COLUMNA.
+          Iban solo las dos de los extremos, y en medio quedaban ocho
+          columnas sin fecha: «que esto muestre el día, porque muestra
+          el inicio y el que va en curso, o sea da fecha y los demás
+          sin fecha» (cliente, 23 sep 2026).
+
+          Cada casilla pone su propia fecha centrada, así que la fecha
+          cae siempre debajo de SU columna, con o sin hueco. Con muchas
+          columnas se rotula una de cada `saltoDeFecha` --si no, las
+          fechas se montan unas sobre otras-- y los extremos se rotulan
+          siempre: son los que enmarcan el gráfico. */}
+      <div className="mt-2 flex text-[0.625rem] text-texto-suave tabular-nums">
+        {cubetas.map((c, i) => (
+          <span key={c.clave} className="min-w-0 flex-1 truncate text-center">
+            {i === 0 || i === cubetas.length - 1 || i % saltoDeFecha === 0 ? c.etiqueta : ""}
+          </span>
+        ))}
       </div>
 
       {/* La leyenda, sin cifras: los totales ya están en las
@@ -1198,7 +1307,7 @@ export function DosSeriesPorDia({
           </p>
         ) : (
           <p className="px-3 py-1.5 text-[0.8125rem] leading-snug text-texto-suave">
-            Señale una columna —con el puntero o tocándola— para ver sus cifras.
+            Señale una columna con el puntero o tocándola para ver sus cifras.
           </p>
         )}
       </div>
@@ -1653,7 +1762,7 @@ export function DosSeriesPorDiaConEje({
           </p>
         ) : (
           <p className="px-3 py-1.5 text-[0.8125rem] leading-snug text-texto-suave">
-            Señale una columna —con el puntero o tocándola— para ver sus cifras.
+            Señale una columna con el puntero o tocándola para ver sus cifras.
           </p>
         )}
       </div>
@@ -2046,6 +2155,119 @@ function IconoBaja() {
       <path d="M12 4.5V19" />
       <path d="m6 13 6 6 6-6" />
     </svg>
+  );
+}
+
+/**
+ * LA MISMA ESCALERA, EN LÍNEA.
+ *
+ * El «Paso a paso» se dibuja en barras --cada peldaño su columna-- y
+ * el cliente pidió poder verlo también en línea, «para saber los
+ * picos» (23 sep 2026). No es una serie de tiempo: el eje horizontal
+ * son los nueve peldaños EN SU ORDEN, así que la línea no dice «esto
+ * crece o baja con los días», dice CUÁNTO SE CAE de un paso al
+ * siguiente. Por eso siempre desciende, y por eso el tramo más
+ * inclinado es la fuga.
+ *
+ * Los rótulos van debajo en vertical de a dos renglones, como en las
+ * barras, y cada punto lleva su cifra: sin eje numérico, es donde se
+ * lee el valor.
+ */
+export function LineaDePeldanos({
+  hitos,
+  color = "var(--marca)",
+}: {
+  hitos: Array<{ etiqueta: string; total: number }>;
+  color?: string;
+}) {
+  const ALTO = 150;
+  const tope = Math.max(...hitos.map((h) => h.total), 1);
+  /// Sitio arriba para la cifra del punto y abajo para la línea de
+  /// base: sin eso, el primer valor se corta contra el canto.
+  const AIRE = 16;
+  const y = (v: number) => AIRE + (1 - v / tope) * (ALTO - AIRE * 2);
+  const x = (i: number) => (hitos.length === 1 ? 50 : (i / (hitos.length - 1)) * 100);
+  const puntos = hitos.map((h, i) => `${x(i)},${y(h.total)}`).join(" ");
+
+  return (
+    <div className="min-w-0">
+      <div className="relative" style={{ height: ALTO }}>
+        {/* Las mismas tres rayas finas que en Día a día, para que los
+            dos gráficos de la pantalla se lean con la misma regla. */}
+        {[0, 0.5, 1].map((f) => (
+          <div
+            key={f}
+            aria-hidden
+            className="pointer-events-none absolute inset-x-0 border-t"
+            style={{
+              top: AIRE + f * (ALTO - AIRE * 2),
+              borderTopColor:
+                f === 1
+                  ? "color-mix(in oklab, var(--texto-suave) 60%, var(--superficie))"
+                  : "var(--hairline)",
+            }}
+          />
+        ))}
+        <svg
+          viewBox={`0 0 100 ${ALTO}`}
+          preserveAspectRatio="none"
+          className="absolute inset-0 h-full w-full"
+          role="img"
+          aria-label={hitos.map((h) => `${h.etiqueta}: ${n(h.total)}`).join("; ")}
+        >
+          <polyline
+            points={puntos}
+            fill="none"
+            stroke={color}
+            strokeWidth={2}
+            vectorEffect="non-scaling-stroke"
+            strokeLinejoin="round"
+            strokeLinecap="round"
+          />
+        </svg>
+        {/* LOS PUNTOS Y LAS CIFRAS, EN HTML Y NO EN EL SVG. El SVG va
+            con `preserveAspectRatio="none"` --es lo que deja que la
+            línea ocupe todo el ancho sin calcular píxeles-- y eso
+            estira lo que lleve dentro: los puntos salían como elipses
+            de 30 px de ancho. La línea es lo único que se puede
+            estirar sin deformarse a la vista. */}
+        {hitos.map((h, i) => (
+          <span
+            key={`punto-${h.etiqueta}`}
+            aria-hidden
+            className="absolute size-[7px] -translate-x-1/2 -translate-y-1/2 rounded-full border-2 bg-superficie"
+            style={{ left: `${x(i)}%`, top: y(h.total), borderColor: color }}
+          />
+        ))}
+        {hitos.map((h, i) => (
+          <span
+            key={h.etiqueta}
+            aria-hidden
+            className="absolute -translate-x-1/2 -translate-y-full text-[0.6875rem] leading-none font-semibold tabular-nums"
+            style={{
+              left: `${x(i)}%`,
+              /// Nunca por encima del canto: el primer peldaño es el
+              /// más alto y su cifra se cortaba contra el borde.
+              top: Math.max(y(h.total) - 6, 12),
+              color: `color-mix(in oklab, ${color} 75%, var(--titulo))`,
+            }}
+          >
+            {n(h.total)}
+          </span>
+        ))}
+      </div>
+
+      <div className="mt-2 flex">
+        {hitos.map((h) => (
+          <span
+            key={h.etiqueta}
+            className="min-w-0 flex-1 px-1 text-center text-[0.625rem] leading-tight text-texto-suave"
+          >
+            {h.etiqueta}
+          </span>
+        ))}
+      </div>
+    </div>
   );
 }
 

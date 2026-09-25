@@ -17,6 +17,8 @@ import { FondoPublico } from "./fondo-publico";
 import { BannerLogos, EncabezadoPublico, PiePublico } from "./marca-publica";
 import { ModalInformacionAccion } from "./modal-informacion-accion";
 import { idDeVisita, marcar, type Paso, contarSiSeQueda } from "@/lib/visita";
+import { marcaDelEnlaceCorto } from "@/lib/enlace-corto";
+import { palabraDelFormulario } from "@/lib/formulario-personalizado";
 
 import { BandaDePasos } from "./banda-de-pasos";
 import { PantallaDeCarga, useEsperaCorta } from "./pantalla-de-carga";
@@ -91,7 +93,9 @@ export function PreinscripcionPublica({ slug }: { slug: string }) {
   useEffect(() => {
     marcar(slug, "LLEGO");
     preinscripcionApi
-      .catalogo(slug)
+      /// La palabra del enlace --`?TallerBootcamp`--, si la trae.
+      /// Quien decide si significa algo es el servidor.
+      .catalogo(slug, palabraDelFormulario(window.location.search))
       .then((c) => {
         setCatalogo(c);
         marcar(slug, "CATALOGO_LISTO");
@@ -149,6 +153,19 @@ export function PreinscripcionPublica({ slug }: { slug: string }) {
         aceptaPolitica: datos.aceptaPolitica === "si",
         // para que el servidor cierre el embudo
         visita: idDeVisita()?.id,
+        /// Por que formulario entro. Se manda la palabra que
+        /// devolvio el SERVIDOR y no la de la barra: es la misma,
+        /// pero asi no viaja lo que alguien escriba ahi.
+        formulario: catalogo?.formulario?.palabra,
+        /// LA MARCA DEL ENLACE, y va aquí porque con ella se
+        /// paga. `?mailing-ucc` dice de qué universidad viene la
+        /// persona, y hasta ahora esa palabra solo la leía la
+        /// baliza: con el JavaScript bloqueado la universidad
+        /// traía a alguien y el sistema no lo sabía. Yendo en el
+        /// propio envío, si llega el registro llega la
+        /// atribución. El servidor la valida y NUNCA la cree para
+        /// marcar pauta.
+        enlace: marcaDelEnlaceCorto(window.location.search),
       });
       setHecho({
         // sin token cuando el documento ya estaba: ver `Registrada`
@@ -170,7 +187,14 @@ export function PreinscripcionPublica({ slug }: { slug: string }) {
 
   if (hecho)
     return (
-      <Registrada token={hecho.token} nombre={hecho.nombre} mensaje={hecho.mensaje} />
+      <Registrada
+        token={hecho.token}
+        nombre={hecho.nombre}
+        mensaje={hecho.mensaje}
+        /// Hasta la ultima pantalla: quien entro por el enlace de
+        /// la alianza no puede verla desaparecer al confirmar.
+        aliado={catalogo?.formulario?.aliado}
+      />
     );
 
   const deptoElegido = catalogo.ubicaciones.find(
@@ -199,6 +223,12 @@ export function PreinscripcionPublica({ slug }: { slug: string }) {
         .map((a) => ({ accion: a, oferta: a.ofertas.find(cubre) ?? null }))
         .filter((x) => x.oferta !== null)
     : [];
+
+  /// El enlace trae UNA sola accion y ya viene elegida por el.
+  /// Cambia los textos de esta pantalla: hablar en plural y pedir
+  /// que escoja delante de una sola tarjeta se lee como si
+  /// faltara algo por cargar.
+  const unaSola = catalogo.formulario?.accionUnica === true;
 
   const accionElegida = catalogo.acciones.find((a) => a.id === accionId) ?? null;
   const nombreAccion = accionElegida?.nombre ?? "";
@@ -244,7 +274,10 @@ export function PreinscripcionPublica({ slug }: { slug: string }) {
           separa el contenido de la línea del pie, y con 40px la
           línea quedaba flotando lejos. El de arriba se queda en
           40: ese es el aire del encabezado (cliente, 11 sep 2026). */}
-      <main className="mx-auto w-full max-w-2xl px-6 pt-10 pb-6 lg:max-w-4xl">
+      {/* En 24 pulgadas la columna se quedaba en 896 px y sobraban
+          500 a cada lado (Josse, 24 sep 2026). El texto NO se
+          estira con ella: la bajada va topada en `max-w-3xl`. */}
+      <main className="mx-auto w-full max-w-2xl px-6 pt-10 pb-6 lg:max-w-5xl xl:max-w-6xl">
       {/* Los textos de esta pantalla los redacta el cliente. Lo
           de «en el marco de la Convocatoria … 2026» y lo de
           «incluyentes» no es adorno: es como el SENA nombra la
@@ -257,6 +290,8 @@ export function PreinscripcionPublica({ slug }: { slug: string }) {
         /// generar reserva si no está segura de si tiene que
         /// pagar» (cliente, 14 sep 2026). Estaba dicho en la
         /// bajada, entre otras seis cosas, que es donde no se lee.
+        /// El tercero de la banda, si el enlace trae uno.
+        aliado={catalogo.formulario?.aliado}
         titulo="Preinscripción a la oferta de formación gratuita"
         /// SIN NOMBRAR LA CONVOCATORIA, y no es solo estilo:
         /// la regla del proyecto es que en el sitio publico no se
@@ -317,8 +352,30 @@ export function PreinscripcionPublica({ slug }: { slug: string }) {
                 required
                 value={departamento}
                 onChange={(e) => {
-                  setDepartamento(e.target.value);
-                  if (e.target.value) marcar(slug, "ELIGIO_UBICACION", e.target.value);
+                  const nuevo = e.target.value;
+                  setDepartamento(nuevo);
+                  if (nuevo) marcar(slug, "ELIGIO_UBICACION", nuevo);
+                  /// SI EL DEPARTAMENTO TIENE UNA SOLA SEDE, SE PONE
+                  /// SOLA. «Antioquia, solo Medellín; Cauca, solo
+                  /// Popayán» (cliente, 23 sep 2026).
+                  ///
+                  /// Y es la SEDE, no el único municipio: Antioquia
+                  /// tiene 126 municipios en la lista --ahí se dice
+                  /// dónde se VIVE-- y de todos ellos solo Medellín
+                  /// tiene aula. Preseleccionar el único sitio donde
+                  /// hay algo evita un paso que no decide nada.
+                  ///
+                  /// SE PUEDE CAMBIAR, y hay que poder: quien viva en
+                  /// Bello no ve la presencial de Medellín, y esa regla
+                  /// no se toca. Esto solo adelanta el caso normal.
+                  /// NO SE AUTORRELLENA, y por eso quedó en vaciar.
+                  ///
+                  /// Llegó poniendo la única sede del departamento
+                  /// cuando había una sola. Pero este campo es el
+                  /// DOMICILIO de la persona --va al cargue del SEP
+                  /// con su código DANE-- y no la sede del curso:
+                  /// ponérselo escrito es afirmar dónde vive alguien
+                  /// que no lo ha dicho.
                   setCiudad("");
                   setAccionId("");
                   setOfertaId("");
@@ -349,31 +406,47 @@ export function PreinscripcionPublica({ slug }: { slug: string }) {
                 className={CAMPO + (departamento ? "" : " opacity-50")}
               >
                 <option value="">Elija…</option>
-                {/* Las que tienen aula van PRIMERO: son las que
-                    abren cursos que el resto no ve. */}
-                {conSede.length > 0 && (
-                  <optgroup label="Con formación presencial">
-                    {conSede.map((c) => (
-                      <option key={c} value={c}>
-                        {c} (con formación presencial)
-                      </option>
-                    ))}
-                  </optgroup>
-                )}
-                <optgroup label="Todos los municipios">
-                  {elResto.map((c) => (
-                    <option key={c} value={c}>
-                      {c}
-                    </option>
-                  ))}
-                </optgroup>
+                {/* SOLO LAS SEDES, CUANDO EL DEPARTAMENTO TIENE.
+
+                    «Te dije que solo Medellín y solo Popayán» (cliente,
+                    23 sep 2026, y era la segunda vez). Iban las sedes
+                    arriba y debajo los 126 municipios de Antioquia en un
+                    grupo «Todos los municipios», así que la lista pedía
+                    buscar entre ciento veintiséis nombres para acabar
+                    eligiendo el primero.
+
+                    Si el departamento NO tiene sede --oferta solo
+                    virtual-- sí van todos: sin eso, nadie de ese
+                    departamento podría decir dónde vive y el formulario
+                    se cerraría solo. */}
+                {/* LOS DOS GRUPOS, SIEMPRE. Esto llegó ofreciendo
+                    SOLO las sedes cuando el departamento tenía
+                    alguna, y ese campo es «Municipio donde vive»:
+                    quien vive en Bello no podía decir Bello, y ese
+                    dato es el DOMICILIO que viaja al cargue del SEP
+                    con su código DANE. Un formulario que solo deja
+                    decir la sede recoge un domicilio falso. */}
+                {[...conSede, ...elResto].map((c) => (
+                  <option key={c} value={c}>
+                    {c}
+                    {sedes.has(c) ? " (con formación presencial)" : ""}
+                  </option>
+                ))}
               </select>
             </label>
           </div>
         </section>
 
-        {/* las acciones salen aqui mismo, no en otra pantalla */}
-        {departamento && (
+        {/* las acciones salen aqui mismo, no en otra pantalla.
+
+            HASTA QUE NO HAY MUNICIPIO NO SE PINTA NADA. Con solo el
+            departamento puesto salía el título «Acción de formación»
+            solo, sin tarjetas y sin aviso, encima del pie de página:
+            un encabezado huérfano que parece que algo falló al cargar.
+            Y como el municipio se rellena solo cuando el departamento
+            tiene uno --ver arriba--, en la práctica aparece en el mismo
+            clic. */}
+        {departamento && ciudad && (
           <section>
             {/* SIN el contador de «N con cobertura en X».
 
@@ -383,34 +456,68 @@ export function PreinscripcionPublica({ slug }: { slug: string }) {
                 Las tarjetas ya dicen cuántas son, y cuando no hay
                 ninguna el aviso de abajo lo explica con palabras. */}
             <h2 className="text-xl font-bold tracking-tight">
-              Acciones de formación disponibles
+              {unaSola ? "Acción de formación" : "Acciones de formación disponibles"}
             </h2>
 
-            <p className="mt-1 text-sm text-texto-suave">
-              A continuación, las acciones de formación disponibles para su preinscripción:
-            </p>
+            {/* El renglón de abajo sobra cuando solo hay una: el
+                título ya lo dice y la tarjeta está justo debajo. */}
+            {!unaSola && (
+              <p className="mt-1 text-sm text-texto-suave">
+                A continuación, las acciones de formación disponibles para su preinscripción:
+              </p>
+            )}
 
             {conCobertura.length > 0 && (
               <MarcaDePaso slug={slug} paso="VIO_ACCIONES" detalle={String(conCobertura.length)} />
             )}
             {conCobertura.length > 0 && (
               <p className="mt-3 rounded-xl bg-marca-suave px-4 py-3 text-sm text-marca">
-                Seleccione la que sea de su mayor interés, considerando que solo puede
-                preinscribirse en una.
+                {unaSola
+                  ? "Continúe con la acción de formación para registrar sus datos."
+                  : "Seleccione la que sea de su mayor interés, considerando que solo puede preinscribirse en una."}
               </p>
             )}
 
             {conCobertura.length === 0 && departamento && (
               <MarcaDePaso slug={slug} paso="SIN_COBERTURA" detalle={departamento} />
             )}
-            {conCobertura.length === 0 && (
-              <p className="mt-3 rounded-xl border border-borde bg-superficie px-4 py-3 text-sm text-texto-suave">
-                No hay acciones con cobertura en esa ubicación. Pruebe con otra ciudad del
-                mismo departamento.
+            {/* SOLO CUANDO YA ELIGIÓ DÓNDE VIVE.
+
+                Salía desde que se abría la página, sin haber tocado
+                nada: «esto no debe salir porque no se ha escogido
+                nada» (cliente, 23 sep 2026). Y decía algo falso --que
+                la acción no se dicta «en esa ubicación»-- cuando no
+                había ninguna ubicación elegida todavía.
+
+                Se piden LOS DOS, departamento y municipio: con solo el
+                departamento puesto, la lista de municipios acaba de
+                aparecer y el aviso salta un instante antes de que a
+                nadie le dé tiempo a elegir.
+
+                Y CON PINTA DE AVISO, no de casilla vacía. Iba en una
+                caja blanca con borde gris y letra gris, igual que un
+                campo deshabilitado, así que se leía como si faltara
+                algo por cargar. */}
+            {conCobertura.length === 0 && departamento && ciudad && (
+              <p className="mt-3 rounded-xl border border-aviso/30 bg-aviso-suave px-4 py-3 text-sm leading-snug text-aviso">
+                {unaSola
+                  ? "Esta acción de formación no se dicta en esa ubicación. Pruebe con otro municipio del mismo departamento."
+                  : "No hay acciones con cobertura en esa ubicación. Pruebe con otra ciudad del mismo departamento."}
               </p>
             )}
 
-            <div className="mt-4 grid gap-4 sm:grid-cols-2">
+            {/* CON UNA SOLA ACCIÓN, A TODO EL ANCHO.
+
+                «Se ve feo cómo se ve sola esa AF, no sé si estirarla y
+                dejarla a la par de los bordes del bloque de arriba»
+                (cliente, 23 sep 2026). Con `sm:grid-cols-2` fijo, una
+                sola tarjeta ocupaba media fila y la otra mitad quedaba
+                vacía debajo de una tarjeta que sí llega al borde. */}
+            <div
+              className={
+                "mt-4 grid gap-4 " + (conCobertura.length > 1 ? "sm:grid-cols-2" : "")
+              }
+            >
               {conCobertura.map(({ accion, oferta }) => (
                 <TarjetaAccion
                   key={accion.id}
@@ -441,6 +548,10 @@ export function PreinscripcionPublica({ slug }: { slug: string }) {
           nombre={nombreAccion}
           ubicacion={ubicacionLegible}
           alCambiar={() => setPantalla("eleccion")}
+          /// Con una sola acción en el recorte no hay nada que
+          /// cambiar: el botón llevaba a una pantalla con la misma
+          /// tarjeta que ya está elegida.
+          sePuedeCambiar={conCobertura.length > 1}
         />
 
         <section className="rounded-2xl border border-borde bg-superficie p-6">
@@ -686,9 +797,20 @@ export function PreinscripcionPublica({ slug }: { slug: string }) {
           </p>
         )}
 
+        {/* «VOLVER A LAS ACCIONES» TAMPOCO, con una sola acción
+            (cliente, 23 sep 2026). Es el mismo caso que el botón
+            «Cambiar» de arriba: lleva a una pantalla con la única
+            tarjeta que ya está elegida. `BotonesDePaso` no pinta el de
+            atrás si no le llegan las dos cosas --rótulo y qué hacer--,
+            así que basta con no dárselas.
+
+            Lo que NO se pierde: la ubicación se cambia desde ahí, y con
+            una sola acción el municipio ya viene puesto. Si algún día
+             hace falta volver solo para corregirlo, el sitio es el
+            bloque de arriba, no un botón al pie. */}
         <BotonesDePaso
-          atras="Volver a las acciones"
-          alVolver={() => setPantalla("eleccion")}
+          atras={conCobertura.length > 1 ? "Volver a las acciones" : undefined}
+          alVolver={conCobertura.length > 1 ? () => setPantalla("eleccion") : undefined}
           adelante="Continuar"
           bloqueado={faltaEnDatos.length > 0}
           alSeguir={() => {
@@ -784,38 +906,60 @@ function MarcaDePaso({ slug, paso, detalle }: { slug: string; paso: Paso; detall
 /// Lo que eligio, en una linea, mientras llena el resto.
 /// Sin esto la pantalla siguiente aparece sola y no queda
 /// rastro de que estaba haciendo.
+/**
+ * LA FORMACIÓN ELEGIDA, en la pantalla de datos.
+ *
+ * SIN «CAMBIAR» CUANDO NO HAY NADA QUE CAMBIAR: «no debe decir
+ * cambiar, porque es que no hay más opciones» (cliente, 23 sep 2026).
+ * Un botón que lleva a una pantalla con una sola tarjeta --la misma
+ * que ya está elegida-- es un camino de ida y vuelta al mismo sitio.
+ *
+ * Y LA LETRA, AJUSTADA. El nombre de una acción son noventa letras y
+ * en semibold de 16 px partía en dos renglones con medio renglón
+ * vacío a la derecha --«se ve feo ese espacio»--. Baja a 14 px con su
+ * interlineado apretado, y el código y el sitio se van a la MISMA
+ * línea: el bloque pasa de cuatro renglones a dos.
+ */
 function LoElegido({
   codigo,
   nombre,
   ubicacion,
   alCambiar,
+  sePuedeCambiar,
 }: {
   codigo: string;
   nombre: string;
   ubicacion: string;
   alCambiar: () => void;
+  /// Falso cuando el recorte deja una sola acción.
+  sePuedeCambiar: boolean;
 }) {
   return (
-    <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-marca/30 bg-marca-suave px-5 py-4">
-      <div className="min-w-0">
-        <p className="text-xs font-semibold uppercase tracking-wide text-marca">
+    <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-marca/30 bg-marca-suave px-5 py-3.5">
+      <div className="min-w-0 flex-1">
+        <p className="text-[0.6875rem] font-semibold tracking-[0.08em] text-marca uppercase">
           Formación seleccionada
         </p>
-        <p className="mt-1 font-semibold leading-snug text-balance">
-          {codigo && (
-            <span className="mr-1.5 font-mono text-sm text-marca">{codigo}</span>
-          )}
+        <p className="mt-1 text-sm leading-snug font-semibold">
+          {codigo && <span className="mr-1.5 font-mono text-marca">{codigo}</span>}
           {nombre}
+          {/* El sitio, PEGADO al nombre y no en su propio renglón:
+              «CAUCA · POPAYÁN» son tres palabras y no merecen una
+              línea entera. */}
+          <span className="ml-2 font-normal whitespace-nowrap text-texto-suave">
+            · {ubicacion}
+          </span>
         </p>
-        <p className="mt-0.5 text-sm text-texto-suave">{ubicacion}</p>
       </div>
-      <button
-        type="button"
-        onClick={alCambiar}
-        className="shrink-0 rounded-xl border border-marca/40 bg-superficie px-4 py-2 text-sm font-medium text-marca transition hover:bg-superficie-alterna"
-      >
-        Cambiar
-      </button>
+      {sePuedeCambiar && (
+        <button
+          type="button"
+          onClick={alCambiar}
+          className="shrink-0 rounded-xl border border-marca/40 bg-superficie px-4 py-2 text-sm font-medium text-marca transition hover:bg-superficie-alterna"
+        >
+          Cambiar
+        </button>
+      )}
     </div>
   );
 }
@@ -1090,15 +1234,17 @@ function Registrada({
   token,
   nombre,
   mensaje,
+  aliado,
 }: {
   token: string | null;
   nombre: string;
   mensaje: string | null;
+  aliado?: { nombre: string; logo: string } | null;
 }) {
   return (
     <>
       <main className="mx-auto w-full max-w-xl px-6 pt-16 pb-8 text-center">
-      <BannerLogos centrado />
+      <BannerLogos centrado aliado={aliado} />
 
       {/* El paso 3 no se alcanzaba nunca: aqui es donde pasa */}
       <div className="mt-8 text-left">

@@ -20,11 +20,20 @@
  */
 
 import type { EtapaParticipante, PrismaClient } from '../../generated/prisma';
-import { faltaDeLaPersona } from './completitud';
+import { faltaDeLaFicha } from './completitud';
 
 /// Solo desde el embudo del asesor. Quien ya está inscrito o en
 /// el aula no retrocede por completar unos datos.
 const DESDE: EtapaParticipante[] = ['INTERESADO', 'CONTACTADO'];
+
+/// Lo que `faltaDeLaEmpresa` mira, y nada más.
+const CAMPOS = {
+  nit: true,
+  sectorEconomico: true,
+  contactoNombre: true,
+  contactoCargo: true,
+  contactoCorreo: true,
+} as const;
 
 type Prisma = Pick<PrismaClient, 'participante' | 'movimientoParticipante' | '$transaction'>;
 
@@ -49,6 +58,7 @@ export async function pasarSiNoLeFaltaNada(
       nivelOcupacionalSepId: true,
       persona: {
         select: {
+          numeroDocumento: true,
           correo: true,
           celular: true,
           fechaNacimiento: true,
@@ -60,14 +70,24 @@ export async function pasarSiNoLeFaltaNada(
           direccion: true,
         },
       },
+      /// LA SUYA PROPIA Y, SI NO, LA DE LA RESERVA QUE LO NOMINÓ.
+      ///
+      /// Es la misma cadena que ya usan el F7 y la compuerta, y
+      /// tiene que serlo: con una regla más estrecha aquí, a quien
+      /// llegó por la reserva de una empresa --el camino principal
+      /// del sistema-- se le diría que no tiene organización.
+      empresa: { select: CAMPOS },
+      reserva: { select: { empresa: { select: CAMPOS } } },
     },
   });
   if (!p) return null;
   if (!DESDE.includes(p.etapa)) return p.etapa;
 
-  const falta = faltaDeLaPersona({
+  const falta = faltaDeLaFicha({
     persona: p.persona,
     nivelOcupacionalSepId: p.nivelOcupacionalSepId,
+    empresa: p.empresa ?? p.reserva?.empresa ?? null,
+    documentoDeLaPersona: p.persona.numeroDocumento,
   });
   if (falta.length > 0) return p.etapa;
 

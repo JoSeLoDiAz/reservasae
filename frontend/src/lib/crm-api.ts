@@ -229,8 +229,13 @@ export const RESULTADOS: ResultadoGestion[] = [
 /// Cada uno lleva a una acción distinta, y por eso son tres y
 /// no dos: "no contestó" se arregla volviendo a llamar y
 /// "el número no sirve" se arregla pidiéndoselo a la empresa.
+/// «Con la persona» y no «con ella»: en el CRM hay hombres y
+/// mujeres, y el femenino estaba escrito a fuego para todo el
+/// mundo --se veía en la ficha de un señor--. Lo pidió Josse el
+/// 24 sep 2026. No es adivinar el género: es no nombrarlo, que
+/// es lo único que acierta siempre.
 export const ETIQUETA_RESULTADO: Record<ResultadoGestion, string> = {
-  CONTACTO: "Hablé con ella",
+  CONTACTO: "Hablé con la persona",
   SIN_RESPUESTA: "No contestó",
   DATO_MALO: "El dato no sirve",
 };
@@ -354,10 +359,19 @@ export type FilaParticipante = {
   id: string;
   etapa: Etapa;
   origen: Origen;
-  /** Si la persona entregó su ficha entera o a medias. */
+  /** Si la ficha está entera o a medias: la persona Y su organización. */
   datos: "PARCIALES" | "COMPLETOS";
   /** Qué le falta de lo suyo: lo que el asesor le pide. */
   faltaDeLaPersona: string[];
+  /**
+   * Y qué le falta de su organización.
+   *
+   * VIAJA APARTE Y NO SUMADA: `datos` sale de las dos, pero el
+   * panel tiene que poder decir QUÉ falta y DE QUIÉN. Llegó el 24
+   * sep 2026; un backend sin reiniciar no la manda, y por eso se
+   * lee siempre con `?? []`.
+   */
+  faltaDeLaEmpresa?: string[];
   creadoEn: string;
   documento: string;
   nombre: string;
@@ -368,7 +382,7 @@ export type FilaParticipante = {
   ubicacion: string | null;
   asesor: { id: string; nombre: string } | null;
   notas: number;
-  /** Cuándo se habló con ella. Nulo = nunca se ha logrado. */
+  /** Cuándo se habló con la persona. Nulo = nunca se ha logrado. */
   ultimoContacto: string | null;
   /** Intentos que no llegaron a nadie. */
   sinRespuesta: number;
@@ -1330,6 +1344,31 @@ export type FilaDeGrupo = {
   estado: "ABIERTO" | "CERRADO";
 };
 
+/** El ritmo de un asesor contra su fecha. Lo calcula el servidor:
+    la regla vive en `seguimiento-de-asesores.ts` con sus pruebas. */
+export type RitmoDeAsesor = {
+  pendientes: number;
+  diasHabiles: number | null;
+  exigidoPorDia: number | null;
+  realPorDia: number | null;
+  estado: "AL_DIA" | "AJUSTADO" | "EN_RIESGO" | "VENCIDO" | "SIN_PLAZO" | "TERMINADO";
+};
+
+export type FilaDeAsesor = {
+  asesorId: string | null;
+  nombre: string;
+  carga: { total: number; resueltos: number; gestionados: number };
+  ritmo: RitmoDeAsesor;
+  antiguedadMedia: number | null;
+  limite: string | null;
+};
+
+export type FilaDeAsesorAcademico = FilaDeAsesor & {
+  grupos: number;
+  certificados: number;
+  conSeguimiento: number;
+};
+
 export const crmApi = {
   /// Los datos de la empresa, desde la ficha del lead.
   ///
@@ -1385,6 +1424,12 @@ export const crmApi = {
   control: (ventana: FiltroVentana & Filtros = {}) =>
     pedir<Control>(`/admin/participantes/control${consulta(ventana)}`),
 
+  /// EL TABLERO DE ASESORES, en sus dos subvistas.
+  asesoresDeInscripciones: () =>
+    pedir<FilaDeAsesor[]>(`/admin/participantes/asesores/inscripciones`),
+  asesoresAcademicos: () =>
+    pedir<FilaDeAsesorAcademico[]>(`/admin/participantes/asesores/academicos`),
+
   /// EL RESUMEN GENERAL: siete cifras macro por acción de formación.
   /// Toma los mismos cortes que el resto de la pantalla.
   resumenGeneral: (filtros: Filtros = {}) =>
@@ -1400,7 +1445,11 @@ export const crmApi = {
 
   /// LA TABLA DEL COMITÉ: una fila por acción de formación. Es el
   /// Excel que el cliente llevaba a mano (23 sep 2026).
-  resumenPorAccion: () => pedir<FilaDeAccion[]>(`/admin/participantes/resumen-por-accion`),
+  /// Con el MISMO recorte que el resto de la pantalla: los cinco
+  /// filtros y la ventana. Sin ellos, con «Hoy» arriba decía una
+  /// persona y esta tabla doscientas siete.
+  resumenPorAccion: (recorte: Filtros & { desde?: string; hasta?: string } = {}) =>
+    pedir<FilaDeAccion[]>(`/admin/participantes/resumen-por-accion${consulta(recorte)}`),
 
   tableroAcademico: (ventana: FiltroVentana = {}) =>
     pedir<TableroAcademico>(`/admin/participantes/academico/tablero${consulta(ventana)}`),

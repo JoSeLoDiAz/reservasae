@@ -1,4 +1,12 @@
-import { Body, Controller, Get, Param, Patch, Post } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  Patch,
+  Post,
+  Query,
+} from '@nestjs/common';
 import { IpReal } from '../comun/ip-real';
 
 import {
@@ -14,9 +22,14 @@ import { PreinscripcionService } from './preinscripcion.service';
 export class PreinscripcionController {
   constructor(private readonly preinscripcion: PreinscripcionService) {}
 
+  /// `?f=TallerBootcamp` es el formulario personalizado.
+  ///
+  /// Va como parametro y no en la ruta a proposito: la direccion
+  /// publica sigue siendo la de siempre, y la palabra viaja tal
+  /// cual la escribio quien reparte el enlace.
   @Get(':slug')
-  catalogo(@Param('slug') slug: string) {
-    return this.preinscripcion.catalogo(slug);
+  catalogo(@Param('slug') slug: string, @Query('f') f?: string) {
+    return this.preinscripcion.catalogo(slug, f);
   }
 
   @Post(':slug')

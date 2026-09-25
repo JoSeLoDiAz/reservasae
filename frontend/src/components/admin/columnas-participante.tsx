@@ -33,16 +33,49 @@ const TONO_EMPRESA: Record<FilaParticipante["datosEmpresa"], string> = {
   COMPLETA: "text-exito",
 };
 
-/// Cuantos datos le faltan a la persona, escrito bien.
+/// Cuantos datos le faltan a la ficha, escrito bien.
 ///
 /// «Faltan 1» no lo dice nadie. Y va en UNA funcion porque se
 /// escribe en dos sitios -- el valor que se ordena y exporta,
 /// y lo que se pinta -- y con dos copias una se queda en
 /// plural el dia que se toque la otra.
+///
+/// SUMA LAS DOS LISTAS, y no es un detalle: desde el 24 sep 2026
+/// `datos` mira tambien la organizacion, asi que contando solo la
+/// de la persona una ficha a la que solo le falta el jefe directo
+/// imprimia «Faltan 0» en ambar -- el panel diciendo que falta
+/// algo y que son cero cosas, en la misma celda.
+function cuantoFalta(f: FilaParticipante): number {
+  return f.faltaDeLaPersona.length + (f.faltaDeLaEmpresa?.length ?? 0);
+}
+
 function pendientes(f: FilaParticipante): string {
   if (f.datos === "COMPLETOS") return "Sin pendientes";
-  const n = f.faltaDeLaPersona.length;
+  const n = cuantoFalta(f);
+  /// Con `datos` en PARCIALES y las dos listas vacias, el backend
+  /// es viejo y no manda la de la empresa: se dice que falta algo
+  /// sin inventarse un numero.
+  if (n === 0) return "Falta algún dato";
   return n === 1 ? "Falta 1" : `Faltan ${n}`;
+}
+
+/// Lo que falta, diciendo DE QUIEN es cada cosa.
+///
+/// Enumerarlo todo seguido dejaba al asesor sin saber si el
+/// «correo» que falta es el de la persona o el del jefe directo,
+/// que se consiguen de formas distintas.
+function detalleDeLoQueFalta(f: FilaParticipante): string {
+  if (f.datos === "COMPLETOS") {
+    return "No le falta ningún dato, ni suyo ni de su organización.";
+  }
+  const partes: string[] = [];
+  if (f.faltaDeLaPersona.length > 0) {
+    partes.push(`De ella: ${f.faltaDeLaPersona.join(", ")}`);
+  }
+  if (f.faltaDeLaEmpresa?.length) {
+    partes.push(`De su organización: ${f.faltaDeLaEmpresa.join(", ")}`);
+  }
+  return partes.join(" · ") || "Le falta algún dato.";
 }
 
 /**
@@ -210,11 +243,7 @@ export function columnasDeParticipante(): Columna<FilaParticipante>[] {
       valor: (f) => pendientes(f),
       pinta: (f) => (
         <span
-          title={
-            f.datos === "COMPLETOS"
-              ? "No le falta ningún dato de los que pide el reporte."
-              : `Falta: ${f.faltaDeLaPersona.join(", ")}`
-          }
+          title={detalleDeLoQueFalta(f)}
           /// El color va en la LETRA, sin caja y sin subrayado.
           ///
           /// Sin caja porque en una tabla de 400 filas, 400

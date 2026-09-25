@@ -13,5 +13,5 @@ import { redirect } from "next/navigation";
  * una que redirige.
  */
 export default function PaginaSeguimiento() {
-  redirect("/admin/control");
+  redirect("/admin/informes/leads");
 }

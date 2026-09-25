@@ -9,6 +9,7 @@ import {
   leerAjustes,
   LLAVE_ACCESIBILIDAD,
 } from "@/lib/accesibilidad";
+import { ajustesDePantallaApi } from "@/lib/ajustes-de-pantalla";
 
 export function PanelAccesibilidad({ alCerrar }: { alCerrar: () => void }) {
   const [ajustes, setAjustes] = useState<Ajustes>(AJUSTES_POR_DEFECTO);
@@ -59,6 +60,15 @@ export function PanelAccesibilidad({ alCerrar }: { alCerrar: () => void }) {
     } catch {
       // en privado localStorage puede fallar
     }
+    /// Y EN LA CUENTA, para que viaje de equipo en equipo. Se manda
+    /// solo lo que se tocó: el servidor lo suma a lo que ya tenía.
+    ///
+    /// Sin esperar respuesta y sin avisar si falla: la interfaz ya
+    /// cambió de tamaño con la copia local, y un cartel de error por
+    /// no haber podido recordar una preferencia estorbaría más que el
+    /// propio fallo --la siguiente vez que la mueva se vuelve a
+    /// intentar--.
+    void ajustesDePantallaApi.guardar(parcial).catch(() => {});
   }
 
   return (
