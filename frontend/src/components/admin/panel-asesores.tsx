@@ -385,11 +385,14 @@ function DeInscripciones() {
       />
     </div>
 
-    <Bloque
-      sinRelleno
-      titulo="Carga y ritmo de cada asesor"
-      descripcion="Los que más pendientes tienen, arriba. Pulse una fila para ver dónde se le está acumulando."
-    >
+    {/* SIN CABECERA. «Se va también, o sea que se vea limpio, no eso
+        metido feo» (cliente, 25 sep 2026): el rotulo, su explicacion y
+        el pie se fueron los tres. Queda la caja con la tabla dentro, y
+        el nombre de lo que se esta mirando ya lo dice la pantalla.
+
+        Sin `titulo` ni `acciones`, `Bloque` no pinta la franja de
+        arriba: no hay que quitarle el borde a mano. */}
+    <Bloque sinRelleno>
       {/* LA MISMA TABLA DE GESTIÓN DE LEADS y no una `<table>` a mano:
           con ella vienen el buscador, los filtros por columna, el
           selector de columnas, la ordenación y la descarga a Excel,
@@ -440,23 +443,6 @@ function DeInscripciones() {
         />
       </div>
 
-      <PieDeTabla>
-        «Gestionado» es que alguien del equipo ya lo tocó: le dejó una nota, le llenó datos o lo
-        movió de etapa a mano. «Debe hacer al día» reparte los pendientes entre los días{" "}
-        <strong className="font-semibold">hábiles</strong> que quedan hasta el cierre: nadie llama
-        a un colegio el domingo. El cierre de cada acción es el de su grupo más próximo — dos
-        semanas antes en los virtuales, cinco días hábiles en los presenciales.
-        {accion && (
-          <>
-            {" "}
-            <strong className="font-semibold">
-              Con una acción elegida, las cuatro primeras cifras son las de esa acción;
-            </strong>{" "}
-            el cierre, lo exigido al día y el estado siguen siendo del asesor completo, porque
-            se calculan contra el cierre más próximo de todas sus acciones.
-          </>
-        )}
-      </PieDeTabla>
     </Bloque>
 
     {enElCajon && (
