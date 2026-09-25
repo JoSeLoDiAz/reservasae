@@ -88,6 +88,7 @@ const CAMPOS_DE_COMBINACION = {
   combinaConAccionId: true,
 } as const;
 import { pasarSiNoLeFaltaNada } from './datos-completos';
+import { NotificacionesService } from '../notificaciones/notificaciones.service';
 import { PanelDeCupos } from './panel-de-cupos';
 import { ColaRui } from './rui/cola-rui';
 import {
@@ -397,6 +398,8 @@ export class CrmService {
     private readonly colaRui: ColaRui,
     private readonly cupos: PanelDeCupos,
     private readonly disparador: DisparadorInscripcion,
+    /// Al final: hay dobles de prueba que lo construyen a mano.
+    private readonly notificaciones: NotificacionesService,
   ) {}
 
   async listar(filtros: Filtros) {
@@ -1951,6 +1954,20 @@ export class CrmService {
         'Un asesor completó sus datos en el lead',
         admin.id,
       );
+    }
+
+    /// El aviso que ABRE la relación: de aquí en adelante esta
+    /// persona recibe lo que le pase a esta ficha. La clave lleva
+    /// el id del asesor, así que devolvérsela después de
+    /// quitársela vuelve a avisar --es un suceso nuevo--.
+    if (cambiaAsesor && dto.asesorId) {
+      await this.notificaciones.avisar({
+        participanteId: id,
+        tipo: 'FICHA_ASIGNADA',
+        detalle: `Se la asignó ${admin.nombre}.`,
+        claveEvento: `${id}:${dto.asesorId}`,
+        destinatarioId: dto.asesorId,
+      });
     }
 
     return this.obtener(id, ambito);

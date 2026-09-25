@@ -61,6 +61,8 @@ function armar() {
     { encolarSiHaceFalta: () => Promise.resolve() } as never,
     { deLaOferta: () => Promise.resolve(null) } as never,
     { alInscribir: () => Promise.resolve('ENCOLADO') } as never,
+  
+    { avisar: () => Promise.resolve() } as never,
   );
 
   return { s, auditado };

@@ -56,6 +56,8 @@ async function main() {
       dobleDeEmbudo(),
     dobleDeColaDeCorreo(),
     dobleDeEnlace(),
+  
+    { avisar: () => Promise.resolve() } as never,
   );
 
   const p = await prisma.participante.findFirst({

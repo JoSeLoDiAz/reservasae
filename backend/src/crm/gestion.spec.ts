@@ -80,6 +80,8 @@ function armar(notas: Nota[]) {
     {} as never,
     {} as never,
     { alInscribir: () => Promise.resolve() } as never,
+  
+    { avisar: () => Promise.resolve() } as never,
   );
 
   return (id: string) =>

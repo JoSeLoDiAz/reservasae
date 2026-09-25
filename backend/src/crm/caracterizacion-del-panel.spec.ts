@@ -73,6 +73,8 @@ function armar(autorizaciones: Autorizacion[]) {
     {} as never,
     {} as never,
     {} as never,
+  
+    { avisar: () => Promise.resolve() } as never,
   );
 
   const guardar = (dto: Record<string, unknown>) =>

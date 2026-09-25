@@ -105,6 +105,8 @@ function servicio(prisma: ReturnType<typeof prismaFalso>) {
       dobleDeEmbudo(),
     dobleDeColaDeCorreo(),
     dobleDeEnlace(),
+  
+    { avisar: () => Promise.resolve() } as never,
   );
 }
 

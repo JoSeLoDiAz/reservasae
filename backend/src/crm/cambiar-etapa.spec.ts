@@ -185,6 +185,8 @@ function armar(o: Opciones) {
     { encolarSiHaceFalta: () => Promise.resolve() } as never,
     cupos as never,
     disparador as never,
+  
+    { avisar: () => Promise.resolve() } as never,
   );
 
   /// Otra cosa, y ya probada en `completitud.spec`.

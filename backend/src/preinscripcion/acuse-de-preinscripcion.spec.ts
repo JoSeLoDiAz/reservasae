@@ -103,6 +103,8 @@ function servicio(
     dobleDeEmbudo(),
     cola,
     enlace,
+  
+    { avisar: () => Promise.resolve() } as never,
   );
   return { s, cola };
 }

@@ -35,6 +35,19 @@ const PERMITIDAS: Record<string, string> = {
   /// persona, no un dato del gremio. Pedir ESCRIBIR dejaría con la
   /// interfaz pequeña justo a quien solo consulta.
   'AdminController.guardarMisAjustes': 'sus propios ajustes de pantalla',
+  /// Marcar leído un aviso PROPIO. Es la misma clase que los dos
+  /// de arriba: estado de cada quien, no un dato del CRM --no
+  /// toca la ficha, ni la etapa, ni nada que se reporte--. Y el
+  /// destinatario sale de la sesión, así que no hay forma de
+  /// marcar la de otro: el spec de notificaciones lo fija.
+  ///
+  /// Pedir ESCRIBIR aquí no dejaría fuera a nadie HOY --solo los
+  /// tres roles de `PUEDEN_LLEVAR_FICHAS` reciben avisos, y los
+  /// tres escriben--, pero el día que los avisos alcancen al
+  /// académico, un gestor académico --que tiene inscripciones en
+  /// VER-- no podría marcar como leído lo suyo.
+  'NotificacionesController.leida': 'marca la suya como leída',
+  'NotificacionesController.leerTodas': 'marca las suyas como leídas',
   'AdminController.derivar': 'calcula una paleta, no escribe',
   'AdminController.corregir': 'calcula contrastes, no escribe',
   'MetaPruebasController.probarVerificacion': 'pregunta, no escribe',

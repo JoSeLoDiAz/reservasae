@@ -208,6 +208,19 @@ export const MODULOS: Modulo[] = [
     /// como el cliente lo dictó.
     enlaces: [
       {
+        /// VA PRIMERO, y es una entrada NUEVA: no reordena las cinco
+        /// que el cliente dictó el 21 sep, se pone delante de ellas.
+        ///
+        /// Es la pantalla de «qué pasó desde que me fui»: quien
+        /// atiende leads la abre al sentarse y de ahí salta a la
+        /// ficha. Enterrada bajo las otras cinco no serviría para
+        /// eso, que es justo lo que se pidió. Moverla es esta línea.
+        href: '/admin/notificaciones',
+        etiqueta: 'Mis notificaciones',
+        exacto: true,
+        area: 'inscripciones',
+      },
+      {
         href: '/admin/participantes',
         etiqueta: 'Gestión de leads',
         exacto: true,

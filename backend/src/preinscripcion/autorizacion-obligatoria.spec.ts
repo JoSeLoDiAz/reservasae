@@ -112,6 +112,8 @@ function servicio(conPolitica = true) {
     /// Con el token centinela: el spec comprueba que sale
     /// para una cedula nueva y que NO sale para una ajena.
     dobleDeEnlace('ESTE-TOKEN-NO-PUEDE-SALIR'),
+  
+    { avisar: () => Promise.resolve() } as never,
   );
   return { s, prisma };
 }
@@ -211,6 +213,8 @@ describe('el enlace no se le entrega a quien solo sabe una cédula', () => {
     /// Con el token centinela: el spec comprueba que sale
     /// para una cedula nueva y que NO sale para una ajena.
     dobleDeEnlace('ESTE-TOKEN-NO-PUEDE-SALIR'),
+    
+      { avisar: () => Promise.resolve() } as never,
     );
 
     const r = (await s.registrar('adecopria', {
@@ -250,6 +254,8 @@ describe('el enlace no se le entrega a quien solo sabe una cédula', () => {
     /// Con el token centinela: el spec comprueba que sale
     /// para una cedula nueva y que NO sale para una ajena.
     dobleDeEnlace('ESTE-TOKEN-NO-PUEDE-SALIR'),
+    
+      { avisar: () => Promise.resolve() } as never,
     );
 
     await s.registrar('adecopria', {
@@ -304,6 +310,8 @@ describe('la misma cédula que vuelve con otro correo', () => {
     /// Con el token centinela: el spec comprueba que sale
     /// para una cedula nueva y que NO sale para una ajena.
     dobleDeEnlace('ESTE-TOKEN-NO-PUEDE-SALIR'),
+    
+      { avisar: () => Promise.resolve() } as never,
     );
     return { s, prisma };
   }

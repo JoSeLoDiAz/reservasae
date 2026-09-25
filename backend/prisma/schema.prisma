@@ -116,8 +116,8 @@ model AccionFormacion {
   actividades   Actividad[]
   leads         LeadEntrante[]
 
-  combinaCon  AccionFormacion?  @relation("SeCursanJuntas", fields: [combinaConAccionId], references: [id], onDelete: SetNull)
-  laCombinan  AccionFormacion[] @relation("SeCursanJuntas")
+  combinaCon AccionFormacion?  @relation("SeCursanJuntas", fields: [combinaConAccionId], references: [id], onDelete: SetNull)
+  laCombinan AccionFormacion[] @relation("SeCursanJuntas")
 
   // el codigo solo es unico por convenio
   @@unique([convenioId, codigo])
@@ -175,7 +175,7 @@ model Grupo {
   actualizadoEn DateTime @updatedAt
 
   accionFormacion AccionFormacion  @relation(fields: [accionFormacionId], references: [id], onDelete: Cascade)
-  asesorAcademico Admin?          @relation("GruposDelAsesorAcademico", fields: [asesorAcademicoId], references: [id], onDelete: SetNull)
+  asesorAcademico Admin?           @relation("GruposDelAsesorAcademico", fields: [asesorAcademicoId], references: [id], onDelete: SetNull)
   sede            Ubicacion?       @relation(fields: [sedeUbicacionId], references: [id])
   coberturas      GrupoCobertura[]
   sesiones        SesionDeGrupo[]
@@ -1122,6 +1122,7 @@ model Participante {
   accionFormacion   AccionFormacion?         @relation(fields: [accionFormacionId], references: [id], onDelete: Restrict)
   cobertura         GrupoCobertura?          @relation(fields: [coberturaId], references: [id], onDelete: SetNull)
   asesor            Admin?                   @relation("ParticipantesDelAsesor", fields: [asesorId], references: [id], onDelete: SetNull)
+  notificaciones    Notificacion[]
   sobrecupoPor      Admin?                   @relation("SobrecuposAutorizados", fields: [sobrecupoPorId], references: [id], onDelete: SetNull)
   carga             CargaDeParticipantes?    @relation(fields: [cargaId], references: [id], onDelete: SetNull)
   valoresAnteriores ValorAnterior[]
@@ -1490,6 +1491,7 @@ model Admin {
   temasEditados            Tema[]
   convenios                AdminConvenio[]
   participantesAsignados   Participante[]           @relation("ParticipantesDelAsesor")
+  notificaciones           Notificacion[]           @relation("NotificacionesDelAdmin")
   sobrecuposAutorizados    Participante[]           @relation("SobrecuposAutorizados")
   movimientosParticipante  MovimientoParticipante[]
   valoresAnteriores        ValorAnterior[]          @relation("ValoresAnteriores")
@@ -2420,4 +2422,40 @@ model ValorAnterior {
   @@index([participanteId, creadoEn])
   @@index([creadoEn])
   @@map("valores_anteriores")
+}
+
+/// Lo que le pasa a una ficha, avisado a quien la lleva.
+///
+/// Fila POR DESTINATARIO y no por suceso: «leída» es de cada
+/// quien, y un suceso compartido no puede tener un solo estado.
+/// El detalle NO se copia aquí --vive en la ficha, que es la que
+/// manda--: esto guarda de qué avisa y a dónde lleva.
+model Notificacion {
+  id String @id @default(cuid())
+
+  destinatarioId String
+  participanteId String
+  convenioId     String
+
+  /// Validado contra un catálogo en código, como la auditoría:
+  /// añadir un aviso no debería costar una migración.
+  tipo    String
+  titulo  String
+  /// Una línea. Lo largo se lee en la ficha.
+  detalle String?
+
+  /// Lo que hace idempotente el aviso: el mismo suceso no
+  /// avisa dos veces aunque se reintente la petición.
+  claveEvento String
+
+  creadoEn DateTime  @default(now())
+  leidaEn  DateTime?
+
+  destinatario Admin        @relation("NotificacionesDelAdmin", fields: [destinatarioId], references: [id], onDelete: Cascade)
+  participante Participante @relation(fields: [participanteId], references: [id], onDelete: Cascade)
+
+  @@unique([destinatarioId, tipo, claveEvento])
+  @@index([destinatarioId, leidaEn, creadoEn])
+  @@index([participanteId, creadoEn])
+  @@map("notificaciones")
 }

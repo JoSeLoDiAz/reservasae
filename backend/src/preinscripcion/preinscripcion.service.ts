@@ -40,6 +40,7 @@ import {
 } from '../crm/catalogos-sep';
 import { faltaDeLaPersona } from '../crm/completitud';
 import { pasarSiNoLeFaltaNada } from '../crm/datos-completos';
+import { NotificacionesService } from '../notificaciones/notificaciones.service';
 import { normalizarDocumento } from '../comun/documento';
 import { calcularDigitoVerificacion } from '../comun/nit';
 import { DirectorioService } from '../crm/directorio.service';
@@ -79,6 +80,7 @@ export class PreinscripcionService {
     /// rompe a todos.
     private readonly colaDeCorreo: ColaDeCorreo,
     private readonly enlaces: EnlaceDeCompletado,
+    private readonly notificaciones: NotificacionesService,
   ) {}
 
   /** Lo que el formulario necesita para dibujarse. */
@@ -1207,6 +1209,14 @@ export class PreinscripcionService {
        * que ella dijo. El asesor no tiene un dato mejor.
        */
       await this.guardarCaracterizaciones(p.personaId, dto, enlace.participanteId);
+      /// La clave es el enlace: reintentar el PATCH no avisa dos
+      /// veces, pero un enlace nuevo sí vuelve a avisar.
+      await this.notificaciones.avisar({
+        participanteId: enlace.participanteId,
+        tipo: 'CAMBIOS_PROPUESTOS',
+        detalle: 'Mandó datos distintos de los que usted ya había corregido.',
+        claveEvento: enlace.id,
+      });
       return { guardado: true, enEspera: true };
     }
 
@@ -1238,6 +1248,13 @@ export class PreinscripcionService {
     /// falta y la etapa lo respeta. Y la ficha vuelve a la cola
     /// del asesor, que es de donde sale la campana que lo pide.
     const etapa = await this.inscribirSiEstaCompleto(enlace.participanteId);
+
+    await this.notificaciones.avisar({
+      participanteId: enlace.participanteId,
+      tipo: 'DATOS_COMPLETADOS',
+      detalle: 'Actualizó sus datos desde el enlace que se le envió.',
+      claveEvento: enlace.id,
+    });
 
     return { guardado: true, enEspera: false, etapa };
   }
@@ -1510,6 +1527,12 @@ export class PreinscripcionService {
       const etapaFinal = await this.inscribirSiEstaCompleto(
         enlace.participanteId,
       );
+      await this.notificaciones.avisar({
+        participanteId: enlace.participanteId,
+        tipo: 'DATOS_DE_EMPRESA',
+        detalle: 'Terminó: declaró que no tiene organización.',
+        claveEvento: enlace.id,
+      });
       return { guardado: true, enlaceCerrado: true, etapa: etapaFinal };
     }
 
@@ -1754,6 +1777,13 @@ export class PreinscripcionService {
     });
 
     const etapa = await this.inscribirSiEstaCompleto(enlace.participanteId);
+
+    await this.notificaciones.avisar({
+      participanteId: enlace.participanteId,
+      tipo: 'DATOS_DE_EMPRESA',
+      detalle: 'Completó los datos de su organización y cerró el enlace.',
+      claveEvento: enlace.id,
+    });
 
     return { guardado: true, enlaceCerrado: true, etapa };
   }
