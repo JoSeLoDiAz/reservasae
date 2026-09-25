@@ -2,7 +2,7 @@ import { ConflictException, Injectable, NotFoundException } from '@nestjs/common
 import { faltaEnF7 } from '../crm/sep/formato-f7';
 import { DEPARTAMENTO_POR_ID, MUNICIPIO_POR_ID } from '../crm/catalogos-sep';
 
-import { EstadoReserva, Prisma } from '../../generated/prisma';
+import { AccionMovimiento, EstadoReserva, Prisma } from '../../generated/prisma';
 import { semaforo } from '../catalogo/catalogo.service';
 import { normalizarNit } from '../comun/nit';
 import {
@@ -25,6 +25,7 @@ import {
 } from '../crm/catalogos-sep';
 import { calcularProyeccion, cierreDeLaAccion, type PuntoNeto } from './proyeccion';
 import { informeDeReservas, type FiltrosInformeReservas } from './informe-de-reservas';
+import { reservasAgrupadas, type FiltrosAgrupadas } from './reservas-agrupadas';
 
 export type FiltrosReservas = {
   /// Lo pone el controlador desde el guard, no la peticion.
@@ -1486,6 +1487,176 @@ export class TablerosService {
       yaEstaba: devueltos.yaEstaba,
       cuposDevueltos: devueltos.cupos,
       organizacion: reserva.empresa.razonSocial,
+    };
+  }
+
+  /** La vista de Reservas unificada: una fila por organización. */
+  reservasAgrupadas(filtros: FiltrosAgrupadas) {
+    return reservasAgrupadas(this.prisma, filtros);
+  }
+
+  /**
+   * Cambia el estado de una reserva a mano, desde el panel.
+   *
+   * De dónde viene: hasta hoy NADIE escribía este estado. Salía del
+   * cupo —`confirmados > 0 ? CONFIRMADA : LISTA_ESPERA` al crearla— y
+   * solo se movía solo: a CANCELADA por la pantalla pública o por el
+   * cajón del panel, y de vuelta a CONFIRMADA cuando la promoción
+   * automática repartía cupos liberados. El cliente pidió (25 sep
+   * 2026) poder editarlo, y esto es esa puerta.
+   *
+   * LO QUE NO HACE: escribir la etiqueta a secas. Poner CONFIRMADA
+   * sobre una oferta llena daría una reserva confirmada sin cupo
+   * detrás —el contador de la oferta seguiría igual—, o sea cupos
+   * que no existen en ninguna parte y que el informe del SENA
+   * sumaría como si existieran. Aquí el estado se pide y los cupos
+   * se mueven con él; si no alcanzan, se DICE y cae en LISTA_ESPERA.
+   *
+   * Los tres caminos:
+   *
+   *  - a CANCELADA · devuelve los cupos a la oferta, como el cajón.
+   *  - a LISTA_ESPERA · suelta los confirmados y los pasa a espera.
+   *    La oferta los recupera. NO promueve a quien estuviera detrás
+   *    en la cola, igual que la cancelación del cajón de al lado:
+   *    esa promoción vive en `ReservasService` y es de la pantalla
+   *    pública. Los cupos quedan libres y la siguiente reserva que
+   *    entre —o un confirmar a mano— los toma.
+   *  - a CONFIRMADA · vuelve a tomar `min(solicitados, disponibles)`.
+   *    Es la misma cuenta de la creación, y por la misma razón: es
+   *    lo único que puede apartar sin inventar sitio.
+   *
+   * Todo queda en `MovimientoReserva` como AJUSTE_ADMIN. Sin esa
+   * línea, un cupo aparecido de la nada no tendría a quién achacarse.
+   */
+  async cambiarEstadoReserva(id: string, estado: EstadoReserva, ambito: string[]) {
+    const reserva = await this.prisma.reserva.findFirst({
+      where: { id, ...reservaDeConvenio(ambito) },
+      include: {
+        empresa: { select: { nit: true, razonSocial: true } },
+        oferta: {
+          select: {
+            id: true,
+            accionFormacion: { select: { codigo: true, nombre: true } },
+          },
+        },
+        _count: { select: { participantes: true } },
+      },
+    });
+    if (!reserva) throw new NotFoundException('Esa reserva no existe.');
+
+    if (reserva.estado === estado) {
+      return {
+        estado,
+        yaEstaba: true,
+        cuposConfirmados: reserva.cuposConfirmados,
+        cuposEnEspera: reserva.cuposEnEspera,
+        recortado: false,
+        organizacion: reserva.empresa.razonSocial,
+        codigo: reserva.oferta.accionFormacion.codigo,
+      };
+    }
+
+    /// Con gente inscrita detrás no se sueltan los cupos: quedarían
+    /// personas sentadas en una silla que ya nadie apartó. Vale para
+    /// CANCELADA y para LISTA_ESPERA, que también los devuelve.
+    if (estado !== EstadoReserva.CONFIRMADA && reserva._count.participantes > 0) {
+      throw new ConflictException(
+        `Esta reserva tiene ${reserva._count.participantes} personas inscritas. ` +
+          'Quítelas de la reserva antes de soltar sus cupos: si no, se quedan ' +
+          'ocupando un cupo que ya nadie apartó.',
+      );
+    }
+
+    const hecho = await this.prisma.$transaction(async (tx) => {
+      /// La fila de la oferta, tomada antes de mover su contador: es
+      /// el mismo candado que usan crear, editar y cancelar.
+      await tx.$queryRaw`SELECT "id" FROM "ofertas" WHERE "id" = ${reserva.ofertaId} FOR UPDATE`;
+      const oferta = await tx.oferta.findUniqueOrThrow({
+        where: { id: reserva.ofertaId },
+        select: { cuposMaximos: true, cuposOcupados: true },
+      });
+
+      const antes = {
+        confirmados: reserva.cuposConfirmados,
+        enEspera: reserva.cuposEnEspera,
+      };
+
+      let confirmados: number;
+      let enEspera: number;
+
+      if (estado === EstadoReserva.CANCELADA) {
+        confirmados = 0;
+        enEspera = 0;
+      } else if (estado === EstadoReserva.LISTA_ESPERA) {
+        confirmados = 0;
+        enEspera = reserva.cuposSolicitados;
+      } else {
+        /// Los suyos no cuentan como ocupados para sí misma: si ya
+        /// tenía 5 confirmados, esos 5 están dentro de `cuposOcupados`
+        /// y descontarlos otra vez le daría la mitad de su sitio.
+        const libres = oferta.cuposMaximos - (oferta.cuposOcupados - antes.confirmados);
+        confirmados = Math.min(reserva.cuposSolicitados, Math.max(libres, 0));
+        enEspera = reserva.cuposSolicitados - confirmados;
+      }
+
+      /// Si pidió confirmarla y no alcanzó para todos, el estado real
+      /// es el que digan los cupos, no el que se pidió.
+      const estadoReal =
+        estado === EstadoReserva.CANCELADA
+          ? EstadoReserva.CANCELADA
+          : confirmados > 0
+            ? EstadoReserva.CONFIRMADA
+            : EstadoReserva.LISTA_ESPERA;
+
+      const delta = confirmados - antes.confirmados;
+      if (delta !== 0) {
+        await tx.oferta.update({
+          where: { id: reserva.ofertaId },
+          data: { cuposOcupados: { increment: delta } },
+        });
+      }
+
+      await tx.reserva.update({
+        where: { id },
+        data: {
+          cuposConfirmados: confirmados,
+          cuposEnEspera: enEspera,
+          estado: estadoReal,
+          canceladaEn: estadoReal === EstadoReserva.CANCELADA ? new Date() : null,
+        },
+      });
+
+      await tx.movimientoReserva.create({
+        data: {
+          reservaId: id,
+          accion: AccionMovimiento.AJUSTE_ADMIN,
+          confirmadosAntes: antes.confirmados,
+          confirmadosDespues: confirmados,
+          enEsperaAntes: antes.enEspera,
+          enEsperaDespues: enEspera,
+          nota:
+            `Estado cambiado a mano desde el panel: ${reserva.estado} → ${estadoReal}.` +
+            (estadoReal !== estado ? ` Se pidió ${estado}, pero no había cupos libres.` : ''),
+        },
+      });
+
+      return {
+        estado: estadoReal,
+        confirmados,
+        enEspera,
+        /// Cayó en espera aunque se pidió confirmarla.
+        recortado: estadoReal !== estado,
+      };
+    });
+
+    return {
+      estado: hecho.estado,
+      yaEstaba: false,
+      cuposConfirmados: hecho.confirmados,
+      cuposEnEspera: hecho.enEspera,
+      recortado: hecho.recortado,
+      organizacion: reserva.empresa.razonSocial,
+      codigo: reserva.oferta.accionFormacion.codigo,
     };
   }
 

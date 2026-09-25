@@ -1949,7 +1949,129 @@ function Seguimiento({
           </tbody>
         </table>
       </div>
-
     </Bloque>
   );
+}
+
+function BotonCerrarSeguimiento({ alPulsar }: { alPulsar: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={alPulsar}
+      className="no-imprimir shrink-0 text-[0.75rem] font-medium text-marca underline underline-offset-2 hover:text-marca-fuerte"
+    >
+      Cerrar
+    </button>
+  );
+}
+
+/**
+ * La tabla de seguimiento de UN departamento, colgada del clic en su
+ * barra (cliente, 25 sep 2026).
+ *
+ * SE LE PIDE AL SERVIDOR, NO SE RECORTA AQUÍ. Las filas del cruce
+ * traen las ubicaciones donde se dicta --«Medellín»--, no el
+ * departamento, así que en el navegador no hay con qué separar
+ * Antioquia de Atlántico. Y aunque lo hubiera: `estadoPlazo` lo
+ * calcula el servidor sobre el `sinNombre` de la fila ENTERA, y una
+ * fila recortada sin recalcularlo diría «Completa» de una institución
+ * a la que le faltan nombres en otro departamento. El mismo informe
+ * con `departamento` puesto llega cuadrado, y la regla del plazo
+ * sigue viviendo en un solo sitio.
+ *
+ * NO TOCA LOS FILTROS DE LA DIRECCIÓN. Poniendo el departamento
+ * arriba, la gráfica se quedaría con la única barra que el servidor
+ * devolvería --la que se acaba de pulsar-- y no habría desde dónde
+ * pulsar la siguiente. Es el mismo defecto que el desplegable de
+ * departamentos ya evita pintándose desde el catálogo.
+ */
+function SeguimientoDeUnDepartamento({
+  departamento,
+  filtros,
+  alCerrar,
+}: {
+  /** Nulo: no hay ninguno abierto y esto no pinta nada. */
+  departamento: string | null;
+  filtros: FiltrosInformeReservas;
+  alCerrar: () => void;
+}) {
+  /// Lo ya pedido, por recorte. Abrir y cerrar el mismo departamento
+  /// tres veces son tres informes idénticos, y este no es una
+  /// consulta barata --además de que el servidor limita a 60 por
+  /// minuto y ahí caben también los cambios de filtro--.
+  const pedidos = useRef(new Map<string, InformeReservas>());
+  const clave = departamento ? JSON.stringify({ ...filtros, departamento }) : null;
+  const [informe, setInforme] = useState<InformeReservas | null>(null);
+  const [fallo, setFallo] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!clave) return;
+    const guardado = pedidos.current.get(clave);
+    /// En el mismo paso que se lanza la petición: si se dejara el
+    /// informe anterior puesto, al pasar de un departamento a otro se
+    /// vería un segundo la tabla del primero con el título del
+    /// segundo.
+    setInforme(guardado ?? null);
+    setFallo(null);
+    if (guardado) return;
+
+    let vigente = true;
+    tablerosApi.informeReservas(JSON.parse(clave) as FiltrosInformeReservas).then(
+      (i) => {
+        if (!vigente) return;
+        pedidos.current.set(clave, i);
+        setInforme(i);
+      },
+      (e) => {
+        if (vigente) setFallo(mensajeDeFallo(e));
+      },
+    );
+    return () => {
+      vigente = false;
+    };
+  }, [clave]);
+
+  if (!departamento) return null;
+  const cerrar = <BotonCerrarSeguimiento alPulsar={alCerrar} />;
+
+  if (fallo) {
+    return (
+      <Bloque titulo="Seguimiento de las reservas" acciones={cerrar}>
+        <p className="text-[0.8125rem] text-error">{fallo}</p>
+      </Bloque>
+    );
+  }
+
+  if (!informe) {
+    return (
+      <Bloque
+        titulo="Seguimiento de las reservas"
+        descripcion={`Buscando lo apartado en ${comoSeLlama(departamento)}…`}
+        acciones={cerrar}
+      >
+        {/* Tres renglones del alto de las filas de la tabla: así la
+            página no pega un salto cuando llega la respuesta. */}
+        <div className="space-y-3" aria-hidden>
+          <span className="sr-only" aria-live="polite">
+            Cargando el seguimiento
+          </span>
+          {[0, 1, 2].map((i) => (
+            <div key={i} className="h-4 animate-pulse rounded-full bg-current/10" />
+          ))}
+        </div>
+      </Bloque>
+    );
+  }
+
+  if (informe.cruce.length === 0) {
+    return (
+      <Bloque titulo="Seguimiento de las reservas" acciones={cerrar}>
+        <p className="text-[0.8125rem] text-texto-suave">
+          Ninguna reserva de este recorte se dicta en {comoSeLlama(departamento)}.
+        </p>
+      </Bloque>
+    );
+  }
+
+  return <Seguimiento informe={informe} departamento={departamento} alCerrar={alCerrar} />;
 }

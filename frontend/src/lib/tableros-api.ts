@@ -247,6 +247,84 @@ export type PaginaReservas = {
   filas: FilaReserva[];
 };
 
+/* ── Reservas unificadas: una fila por organización ──────────────
+   Espejo de `backend/src/tableros/reservas-agrupadas.ts`. Si se
+   cambia uno, se cambia el otro. */
+
+/**
+ * Una columna AF de la tabla unificada.
+ *
+ * La llave es `accionFormacionId` y no el código: «AF1» se repite
+ * entre gremios y no significa lo mismo. `ambiguo` avisa de cuándo
+ * hay dos con el mismo código a la vista y la cabecera tiene que
+ * decir de cuál habla.
+ */
+export type ColumnaAccion = {
+  accionFormacionId: string;
+  codigo: string;
+  nombre: string;
+  convenio: string;
+  convenioSigla: string | null;
+  modalidad: Modalidad;
+  ambiguo: boolean;
+};
+
+/** Lo que una organización tiene en UNA acción de formación. */
+export type CeldaReserva = {
+  reservaId: string;
+  estado: EstadoReserva;
+  cuposSolicitados: number;
+  cuposConfirmados: number;
+  cuposEnEspera: number;
+  creadoEn: string;
+  canceladaEn: string | null;
+  ubicacion: string;
+  modalidad: Modalidad;
+  contactoNombre: string;
+  contactoCorreo: string;
+  contactoCelular: string | null;
+  contactoCargo: string | null;
+  formulario: { slug: string; titulo: string } | null;
+};
+
+export type ContactoConsolidado = {
+  nombre: string;
+  correo: string;
+  celular: string | null;
+  cargo: string | null;
+  /// En qué acciones aparece: el contacto es por reserva, así que
+  /// una empresa con cuatro AF puede traer cuatro personas.
+  codigos: string[];
+};
+
+export type FilaAgrupada = {
+  empresaId: string;
+  nit: string;
+  digitoVerificacion: string | null;
+  razonSocial: string;
+  numeroColaboradores: number | null;
+  redAsociada: string | null;
+  redAsociadaOtra: string | null;
+  primeraReserva: string;
+  ultimaReserva: string;
+  contactos: ContactoConsolidado[];
+  formularios: Array<{ slug: string; titulo: string; codigos: string[] }>;
+  totalReservas: number;
+  reservasVivas: number;
+  reservasCanceladas: number;
+  cuposConfirmados: number;
+  cuposEnEspera: number;
+  cuposSolicitados: number;
+  porAccion: Record<string, CeldaReserva>;
+};
+
+export type ReservasAgrupadas = {
+  total: number;
+  truncado: boolean;
+  acciones: ColumnaAccion[];
+  filas: FilaAgrupada[];
+};
+
 /* ═══════════════════════════════════════════════════════════════
    INFORME DE RESERVAS  (Control › Informes › Reservas)
 
@@ -691,6 +769,33 @@ export const tablerosApi = {
       cuposDevueltos: number;
       organizacion: string;
     }>(`/admin/tableros/reservas/${id}/cancelar`, { method: "POST" }),
+
+  /// Las mismas reservas, con una fila por organización y la acción
+  /// de formación como columna. No pagina: el agrupado tiene que
+  /// partir de todas las del recorte o una empresa se rompe en dos.
+  reservasAgrupadas: (filtros: Record<string, string | undefined> = {}) =>
+    pedir<ReservasAgrupadas>(`/admin/tableros/reservas-agrupadas${consulta(filtros)}`),
+
+  /**
+   * Cambia el estado de una reserva a mano.
+   *
+   * `estado` es el que se PIDE. El que queda lo deciden los cupos:
+   * confirmar sobre una oferta llena devuelve LISTA_ESPERA con
+   * `recortado: true`, y la pantalla tiene que decirlo.
+   */
+  cambiarEstadoReserva: (id: string, estado: EstadoReserva) =>
+    pedir<{
+      estado: EstadoReserva;
+      yaEstaba: boolean;
+      cuposConfirmados: number;
+      cuposEnEspera: number;
+      recortado: boolean;
+      organizacion: string;
+      codigo: string;
+    }>(`/admin/tableros/reservas/${id}/estado`, {
+      method: "POST",
+      body: JSON.stringify({ estado }),
+    }),
 };
 
 /** Descarga por navegación. */

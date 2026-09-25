@@ -614,9 +614,17 @@ export function consultaDeReservas(
        ${
          /// La misma cuenta que la columna de arriba, repetida aquí
          /// porque un alias del SELECT no se puede usar en el WHERE.
-         filtros.departamento
-           ? Prisma.sql`AND COALESCE(u."departamento", CASE WHEN u."tipo" = 'DEPARTAMENTO' THEN u."nombre" END) = ${filtros.departamento}`
-           : Prisma.empty
+         ///
+         /// «Sin departamento» NO es un departamento: es el nombre de
+         /// la barra de las sedes que no tienen ninguno. Comparado
+         /// como texto no casaba con nada, y elegirlo en el
+         /// desplegable --o pulsar su barra-- devolvía un informe
+         /// vacío en vez de sus reservas.
+         filtros.departamento === SIN_DEPARTAMENTO
+           ? Prisma.sql`AND COALESCE(u."departamento", CASE WHEN u."tipo" = 'DEPARTAMENTO' THEN u."nombre" END) IS NULL`
+           : filtros.departamento
+             ? Prisma.sql`AND COALESCE(u."departamento", CASE WHEN u."tipo" = 'DEPARTAMENTO' THEN u."nombre" END) = ${filtros.departamento}`
+             : Prisma.empty
        }
        ${filtros.empresaId ? Prisma.sql`AND r."empresaId" = ${filtros.empresaId}` : Prisma.empty}
        ${

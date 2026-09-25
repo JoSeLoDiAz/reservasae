@@ -480,6 +480,7 @@ function Seguimiento() {
               /// fila del buscador hay sitio, y es como se llama en
               /// Oferta y en la columna de la tabla.
               vacio="Acción de Formación"
+              quitar="Ver todas las acciones"
               marcador="AF1, neuroeducación…"
               opciones={datos.acciones.map((a) => ({
                 id: a.id,
@@ -506,6 +507,7 @@ function Seguimiento() {
               valor={grupoId}
               alElegir={setGrupo}
               vacio="Grupos"
+              quitar="Ver todos los grupos"
               marcador="Número de grupo, nombre…"
               opciones={gruposBuscables}
               desactivado={!accionFormacionId}

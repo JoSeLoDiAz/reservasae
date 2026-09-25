@@ -41,6 +41,7 @@ export function SelectorBuscable({
   clase,
   desactivado = false,
   razon,
+  quitar,
 }: {
   opciones: OpcionBuscable[];
   valor: string;
@@ -66,6 +67,24 @@ export function SelectorBuscable({
   /// decir por qué es lo que hace que se
   /// vuelva a pulsar tres veces.
   razon?: string;
+  /// EL TEXTO DE LA FILA QUE DESELIGE, cuando
+  /// hay algo elegido.
+  ///
+  /// Sin esto usaba `vacio`, que es el
+  /// marcador del disparador: en un filtro
+  /// salía «Acción de Formación» como primera
+  /// fila de la lista, que no dice nada ---ya
+  /// está escrito arriba--- y encima se lee
+  /// como un título del panel. «Eso que diga
+  /// Acción de Formación no tiene sentido en
+  /// el desplegable» (cliente, 24 sep 2026).
+  ///
+  /// Aquí va lo que esa fila HACE: «Ver
+  /// todas», «Sin asignar». Si no se da, se
+  /// cae a `vacio` como antes ---hay sitios
+  /// donde «Sin asignar» sí es una elección
+  /// de verdad y no un «quitar»---.
+  quitar?: string;
 }) {
   const [abierto, setAbierto] = useState(false);
   const [escrito, setEscrito] = useState("");
@@ -212,7 +231,7 @@ export function SelectorBuscable({
                   onClick={() => elegir("")}
                   className="sin-aro w-full rounded-lg px-3 py-[7px] text-left text-[0.78125rem] text-texto-suave transition hover:bg-marca-suave"
                 >
-                  {vacio}
+                  {quitar ?? vacio}
                 </button>
               </li>
             )}

@@ -4067,11 +4067,14 @@ export class CrmService {
    * a estas alturas del calendario del grupo.
    */
   async academico(filtros: Filtros) {
-    const donde: Prisma.ParticipanteWhereInput = {
-      AND: [
-        this.donde({ ...filtros, etapa: undefined }),
-        { etapa: { in: ETAPAS_EN_AULA } },
-        /// SOLO LO VIRTUAL, Y POR LA OFERTA DE CADA PERSONA.
+    /// LAS TRES REGLAS DEL AULA, aparte de lo que el usuario elija.
+    ///
+    /// Hace falta separarlas porque las OPCIONES de los desplegables
+    /// se sacan de aquí y no de lo ya filtrado. Ver `baseDelAula`
+    /// unas líneas más abajo.
+    const reglasDelAula: Prisma.ParticipanteWhereInput[] = [
+      { etapa: { in: ETAPAS_EN_AULA } },
+      /// SOLO LO VIRTUAL, Y POR LA OFERTA DE CADA PERSONA.
         ///
         /// «Seguimiento del aula es solo de las acciones de formación
         /// virtuales; no aplica presencial, bootcamp ni foro»
@@ -4107,7 +4110,43 @@ export class CrmService {
         /// convenio nuevo con sus propios números entra sin tocar una
         /// línea, que es la misma razón por la que `SesionDeGrupo` no
         /// pregunta nunca «¿es la AF6?».
-        { accionFormacion: { evento: 'CURSO' } },
+      { accionFormacion: { evento: 'CURSO' } },
+    ];
+
+    const donde: Prisma.ParticipanteWhereInput = {
+      AND: [this.donde({ ...filtros, etapa: undefined }), ...reglasDelAula],
+    };
+
+    /**
+     * TODO EL AULA, sin lo que el usuario haya elegido en los
+     * desplegables.
+     *
+     * De aquí salen las OPCIONES de «Acción de Formación» y «Grupo».
+     * Salían de `filas` ---lo ya filtrado--- y eso las rompía de dos
+     * maneras a la vez:
+     *
+     *  · Elegida AF1, el servidor devolvía solo gente de AF1, así
+     *    que la lista se quedaba con AF1 y NO SE PODÍA CAMBIAR A
+     *    AF2 sin limpiar antes. «Debería mostrar siempre las dos,
+     *    indiferente de cuál filtre» (cliente, 24 sep 2026).
+     *
+     *  · Y aun sin filtrar, `filas` viene cortada en
+     *    `TOPE_POR_PAGINA`: con el aula llena, las acciones de la
+     *    fila 301 en adelante no salían en el desplegable.
+     *
+     * Una lista de opciones nunca se saca del resultado que esa
+     * misma lista filtra.
+     */
+    const baseDelAula: Prisma.ParticipanteWhereInput = {
+      AND: [
+        this.donde({
+          ...filtros,
+          etapa: undefined,
+          accionFormacionId: undefined,
+          grupoId: undefined,
+          asesorId: undefined,
+        }),
+        ...reglasDelAula,
       ],
     };
 
@@ -4410,27 +4449,52 @@ export class CrmService {
     const cuenta = (e: EstadoAcademico) =>
       personas.filter((p) => !p.salio && p.estado === e).length;
 
-    // las opciones salen de quien esta en el aula, no de
-    // todo el catalogo: un filtro con 15 acciones vacias
-    // hace perder el tiempo
-    const acciones = [
-      ...new Map(
-        filas
-          .filter((f) => f.accionFormacion)
-          .map((f) => [
-            f.accionFormacion!.id,
-            {
-              id: f.accionFormacion!.id,
-              codigo: f.accionFormacion!.codigo,
-              nombre: f.accionFormacion!.nombre,
-            },
-          ]),
-      ).values(),
-    ].sort((a, b) => a.codigo.localeCompare(b.codigo));
+    /// LAS OPCIONES, DE TODO EL AULA Y NO DE LO YA FILTRADO.
+    ///
+    /// Sigue sin ser el catálogo entero ---un filtro con quince
+    /// acciones vacías hace perder el tiempo---: es quién hay en el
+    /// aula, que es lo que siempre se quiso. Lo que cambia es que ya
+    /// no depende de lo que el usuario tenga puesto.
+    ///
+    /// Tres consultas más, y baratas: `distinct` sobre un `where`
+    /// que ya usa los índices de `participantes`, sin traer avances
+    /// ni notas.
+    const [deAcciones, deGrupos, deAsesores] = await Promise.all([
+      this.prisma.participante.findMany({
+        where: baseDelAula,
+        distinct: ['accionFormacionId'],
+        select: {
+          accionFormacion: { select: { id: true, codigo: true, nombre: true } },
+        },
+      }),
+      this.prisma.participante.findMany({
+        where: baseDelAula,
+        /// Por COBERTURA y no por grupo: un grupo puede tener varias
+        /// ---una por departamento---, y `distinct` solo sabe de
+        /// columnas de la fila. Se deduplica por grupo abajo.
+        distinct: ['coberturaId'],
+        select: {
+          accionFormacionId: true,
+          cobertura: {
+            select: { grupoId: true, grupo: { select: { numero: true } } },
+          },
+        },
+      }),
+      this.prisma.participante.findMany({
+        where: baseDelAula,
+        distinct: ['asesorId'],
+        select: { asesor: { select: { id: true, nombre: true } } },
+      }),
+    ]);
+
+    const acciones = deAcciones
+      .map((f) => f.accionFormacion)
+      .filter((a): a is NonNullable<typeof a> => a !== null)
+      .sort((a, b) => a.codigo.localeCompare(b.codigo));
 
     const grupos = [
       ...new Map(
-        filas
+        deGrupos
           .filter((f) => f.cobertura)
           .map((f) => [
             f.cobertura!.grupoId,
@@ -4443,11 +4507,10 @@ export class CrmService {
       ).values(),
     ].sort((a, b) => a.numero - b.numero);
 
-    const asesores = [
-      ...new Map(
-        filas.filter((f) => f.asesor).map((f) => [f.asesor!.id, f.asesor!]),
-      ).values(),
-    ].sort((a, b) => a.nombre.localeCompare(b.nombre));
+    const asesores = deAsesores
+      .map((f) => f.asesor)
+      .filter((a): a is NonNullable<typeof a> => a !== null)
+      .sort((a, b) => a.nombre.localeCompare(b.nombre));
 
     return {
       personas,
