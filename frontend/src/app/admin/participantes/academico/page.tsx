@@ -372,7 +372,23 @@ function Seguimiento() {
             <div
               key={estado}
               style={{ ["--etapa"]: COLOR[estado] } as React.CSSProperties}
-              className="rounded-lg border border-borde bg-superficie px-3.5 py-2 text-left"
+              /// EL MISMO `hover` QUE `CifraCompacta` ---la tarjeta
+              /// de Gestión de leads--- letra por letra (cliente, 24
+              /// sep 2026: «¿por qué cuando paso por la tarjeta ya no
+              /// genera ese borde o sombra como Gestión de leads?»).
+              ///
+              /// Se perdió al dejar de ser `<button>`: el realce
+              /// venía del `hover:border-campo-borde` que llevaban
+              /// como botones, y al pasarlas a `<div>` se fue con
+              /// ellos. Que no se pulsen no quiere decir que estén
+              /// muertas ---la fila de tarjetas de Gestión de leads
+              /// tampoco se pulsa y realza igual---: el realce dice
+              /// «esto es una pieza», no «esto se puede pulsar».
+              ///
+              /// Copiado y no heredado porque estas llevan el punto
+              /// de color del estado, que `CifraCompacta` no tiene.
+              /// Si algún día se le añade, estas pasan a SER aquella.
+              className="rounded-lg border border-borde bg-superficie px-3.5 py-2 text-left transition hover:border-marca/40 hover:shadow-[0_2px_14px_-6px_rgba(15,23,42,0.28)]"
             >
               <span className="flex items-center gap-1.5 text-[0.625rem] font-semibold tracking-[0.08em] uppercase">
                 <span className="punto-etapa" aria-hidden />

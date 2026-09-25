@@ -154,28 +154,29 @@ export function CajonDelAula({
         </>
       }
       alCerrar={alCerrar}
+      /* LA SALIDA A LA FICHA, AL PIE Y SOBRIA (cliente, 24 sep 2026:
+         «esto no, como la opción de Gestión de leads, que va abajo y
+         es más sobrio»).
+
+         Estuvo arriba y como botón con recuadro, y pesaba más que el
+         contenido del cajón. Esto es la MISMA pieza que `CajonLead`
+         pone en su pie, letra por letra: un enlace subrayado del
+         color de la marca, en el pie del `Cajon`. Quien ya conoce
+         Gestión de leads lo encuentra sin buscarlo.
+
+         Y va aquí y no en la lista de columnas porque es lo que se
+         hace CUANDO el cajón no trae lo que uno venía a ver, no algo
+         que se elija antes de abrirlo. */
+      pie={
+        <a
+          href={`/admin/participantes/${fila.id}`}
+          className="text-sm text-marca underline"
+        >
+          Abrir lead completo
+        </a>
+      }
     >
       {(error ?? vivos.error) && <Aviso tipo="error">{error ?? vivos.error}</Aviso>}
-
-      {/* LA SALIDA AL LEAD COMPLETO (cliente, 24 sep 2026: «no puedo
-          ver el lead individual si le doy clic al correo»).
-
-          El cajón abre y enseña lo del aula y las notas, que es para
-          lo que se hizo; lo que no había era forma de llegar desde
-          aquí a la FICHA ---sus datos, su empresa, su historial
-          entero, el formato SEP---. Había que salir a Gestión de
-          leads y buscarla por documento, sabiendo que es la misma
-          persona.
-
-          Va arriba y no al pie: es lo primero que se busca cuando el
-          cajón no trae lo que uno venía a ver. */}
-      <a
-        href={`/admin/participantes/${fila.id}`}
-        className="mb-4 inline-flex items-center gap-1.5 rounded-lg border border-borde px-3 py-1.5 text-[0.78125rem] font-semibold text-marca no-underline transition hover:bg-marca-suave"
-      >
-        Abrir el lead completo
-        <span aria-hidden>→</span>
-      </a>
 
       {/* ── 1 · LO QUE DICE EL AULA. Se lee, no se toca. ── */}
       <section>
