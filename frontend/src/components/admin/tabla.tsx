@@ -291,6 +291,7 @@ export function Tabla<T>({
   accionesLote,
   alCargarTodo,
   sinDescarga,
+  ordenFijo,
 }: {
   id: string;
   columnas: Columna<T>[];
@@ -323,6 +324,24 @@ export function Tabla<T>({
   alCargarTodo?: () => void;
   /** La pantalla ya trae su propia descarga, del servidor. */
   sinDescarga?: boolean;
+  /**
+   * EL ORDEN DE LAS COLUMNAS NO SE TOCA: el que diga `columnas`.
+   *
+   * «El orden de las columnas es innegociable, y por ejemplo las 6
+   * actividades van fijas y en orden» (cliente, 25 sep 2026).
+   *
+   * Por defecto esta tabla deja ARRASTRAR los encabezados para
+   * recolocarlos, y el orden elegido se guarda en el navegador. Eso
+   * está bien en una lista de trabajo, donde cada quien se la
+   * acomoda; no está bien donde el orden ES el contrato ---seis
+   * unidades temáticas que se leen como una secuencia, y que con
+   * UT3 delante de UT1 dejan de significar nada---.
+   *
+   * Con esto puesto: no se arrastra, y las que se vean salen SIEMPRE
+   * en el orden de `columnas`, incluso para quien ya tuviera otro
+   * orden guardado de antes.
+   */
+  ordenFijo?: boolean;
 }) {
   const porDefecto = useMemo(
     () => columnas.filter((c) => !c.aparte).map((c) => c.clave),
@@ -466,12 +485,21 @@ export function Tabla<T>({
   /// dos renglones. Menos que esto y vuelve el problema.
   const ANCHO_COMODO = 150;
 
+  /// CON `ordenFijo`, EL ORDEN LO DA `columnas` Y NO `visibles`.
+  ///
+  /// `visibles` guarda la selección Y su orden, y vive en el
+  /// navegador: sin esto, quien hubiera arrastrado una columna antes
+  /// de que se clavara el orden se quedaría con el suyo para
+  /// siempre. Filtrando sobre `columnas` ese arrastre viejo se
+  /// deshace solo.
   const enPantalla = useMemo(
     () =>
-      visibles
-        .map((c) => columnas.find((x) => x.clave === c))
-        .filter((c): c is Columna<T> => !!c),
-    [visibles, columnas],
+      ordenFijo
+        ? columnas.filter((c) => visibles.includes(c.clave))
+        : visibles
+            .map((c) => columnas.find((x) => x.clave === c))
+            .filter((c): c is Columna<T> => !!c),
+    [visibles, columnas, ordenFijo],
   );
 
   /// La suma de lo que piden las columnas visibles.
@@ -1011,7 +1039,7 @@ export function Tabla<T>({
                         ponerlo arriba. */}
                     <button
                       type="button"
-                      draggable
+                      draggable={!ordenFijo}
                       onDragStart={(e) => {
                         setArrastrada(c.clave);
                         e.dataTransfer.effectAllowed = "move";
@@ -1025,7 +1053,11 @@ export function Tabla<T>({
                       onClick={() => ordenarPor(c)}
                       /// Que se puede arrastrar no se ve solo con
                       /// el cursor de mano: hay que decirlo.
-                      title={`Ordenar por ${c.titulo} · arrastre para mover la columna`}
+                      title={
+                        ordenFijo
+                          ? `Ordenar por ${c.titulo}`
+                          : `Ordenar por ${c.titulo} · arrastre para mover la columna`
+                      }
                       className={
                         "inline-flex cursor-grab items-center gap-1 hover:opacity-70 " +
                         (c.numerica ? "flex-row-reverse" : "")

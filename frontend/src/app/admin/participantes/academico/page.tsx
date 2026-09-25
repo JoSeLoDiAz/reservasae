@@ -444,6 +444,13 @@ function Seguimiento() {
         /// El `id` es lo que separa las columnas guardadas de esta
         /// pantalla de las de Gestión de leads. Con el mismo, quien
         /// escondiera una allá se la encontraría escondida aquí.
+        /// EL ORDEN ES EL CONTRATO, no una preferencia: «el orden
+        /// de las columnas es innegociable, y por ejemplo las 6
+        /// actividades van fijas y en orden» (cliente, 25 sep 2026).
+        /// Con esto no se arrastran los encabezados y el orden es el
+        /// de `columnasDelAula()`, aunque alguien tuviera otro
+        /// guardado de antes.
+        ordenFijo
         id="aula"
         columnas={columnas}
         filas={visibles}

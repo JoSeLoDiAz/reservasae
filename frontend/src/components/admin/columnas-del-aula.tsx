@@ -140,6 +140,17 @@ function columnasDeActividades(): Columna<FilaAcademica>[] {
       clave: `act:${clave}`,
       titulo: clave,
       ancho: "116px",
+      /// NO SE PUEDEN QUITAR (cliente, 25 sep 2026: «las 6
+      /// actividades van fijas y en orden»). Sin esto, el selector
+      /// de columnas dejaba esconder la UT4 ---la que decide si
+      /// alguien llega al mínimo para certificar--- y la tabla
+      /// seguía pareciendo completa.
+      ///
+      /// Y EN ORDEN: salen en el de `DEL_LMS`, que es el del curso,
+      /// porque la tabla va con `ordenFijo`. Seis unidades temáticas
+      /// se leen como una secuencia; con la UT3 delante de la UT1 no
+      /// significan nada.
+      fija: true,
       filtro: "opciones" as const,
       opciones: ["Completada", "-"],
       valor: (f: FilaAcademica) => {
