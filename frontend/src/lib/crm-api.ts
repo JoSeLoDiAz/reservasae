@@ -686,6 +686,22 @@ export type FilaAcademica = {
   estado: EstadoAcademico;
   /// Por donde se le escribe. Columna de la tabla del aula.
   correo: string | null;
+  /// Dónde quedó: el departamento de SU cobertura, no el de su
+  /// cédula. Nulo si su grupo no tiene cobertura cargada.
+  departamento: string | null;
+  /// Cuántas veces lo ha tocado el asesor, y cuándo fue la última.
+  /// Es lo único de esta tabla que no manda el aula.
+  notas: number;
+  ultimaNota: string | null;
+  /// Desde que entró ---la fecha del lead si vino por uno, y si no
+  /// la de su ficha--- hasta hoy. Lo calcula el SERVIDOR: con la
+  /// hora del navegador, dos asesores verían números distintos para
+  /// la misma fila.
+  diasDeAntiguedad: number;
+  /// Desde la última nota. Sin ninguna nota se cuenta desde que
+  /// entró: a quien nunca se ha tocado es al que más falta le hace
+  /// salir arriba en esa ordenación.
+  diasSinGestion: number;
   /// Su avance ACTIVIDAD POR ACTIVIDAD, en el orden del curso: es lo
   /// que pivota a una columna por cada una --UT1, UT2… EVAL FINAL--.
   /// Vienen TODAS las del curso, hechas o no: la que no tiene avance

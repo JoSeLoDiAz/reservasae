@@ -253,16 +253,122 @@ export function columnasDelAula(): Columna<FilaAcademica>[] {
         ),
     },
     {
-      /// APARTE: existe y no sale hasta que la pidan. El asesor es de
-      /// quien trabaja el aula, no de la persona, y el cliente no la
-      /// puso en su lista; pero quitarla del todo obligaría a ir al
-      /// cajón para saber a quién reclamarle.
+      /// PUESTA, NO ESCONDIDA (cliente, 24 sep 2026). Estuvo
+      /// `aparte` ---existía y no salía hasta pedirla--- con el
+      /// argumento de que el asesor es de quien trabaja el aula y no
+      /// de la persona. Él la pidió de las cinco primeras: sin ella,
+      /// una fila atrasada no dice a quién reclamarle.
       clave: "asesor",
       titulo: "Asesor",
       ancho: "160px",
-      aparte: true,
       valor: (f) => f.asesor?.nombre ?? null,
       filtro: "opciones",
+      pinta: (f) =>
+        f.asesor ? (
+          <span>{f.asesor.nombre}</span>
+        ) : (
+          <span className="text-texto-suave">Sin asignar</span>
+        ),
+    },
+    {
+      /// EL DE SU COBERTURA, no el de su cédula: es de dónde es el
+      /// grupo en el que quedó. Mismo criterio que «Grupos de AF»,
+      /// para que las dos pantallas sumen lo mismo.
+      clave: "departamento",
+      titulo: "Departamento",
+      ancho: "150px",
+      valor: (f) => f.departamento,
+      filtro: "opciones",
+      pinta: (f) =>
+        f.departamento ?? <span className="text-texto-suave">—</span>,
+    },
+    {
+      clave: "notas",
+      titulo: "Cantidad notas",
+      ancho: "122px",
+      numerica: true,
+      valor: (f) => f.notas,
+      /// El cero en gris: una fila sin gestionar se ve de un vistazo
+      /// sin tener que leer el número.
+      pinta: (f) => (
+        <span className={f.notas === 0 ? "tabular-nums text-texto-suave" : "tabular-nums"}>
+          {f.notas}
+        </span>
+      ),
+    },
+    {
+      /// «ÚLTIMA ACTIVIDAD» ES LA DEL ASESOR, no la del aula.
+      ///
+      /// Son dos columnas y no una: «Último ingreso» es cuándo entró
+      /// la persona al aula ---lo manda el LMS--- y esto es cuándo se
+      /// le escribió la última nota. Una fila puede llevar un mes sin
+      /// ingreso y una nota de ayer, y eso es precisamente lo que hay
+      /// que ver.
+      clave: "ultimaNota",
+      titulo: "Última actividad",
+      ancho: "150px",
+      valor: (f) => f.ultimaNota,
+      pinta: (f) =>
+        f.ultimaNota ? (
+          <span className="whitespace-nowrap font-mono text-xs">
+            {instante(f.ultimaNota)}
+          </span>
+        ) : (
+          <span className="text-texto-suave">Sin notas</span>
+        ),
+    },
+    {
+      /// DOS COLUMNAS Y NO UNA (cliente, 24 sep 2026: «¿como días sin
+      /// gestión, no?»). No miden lo mismo: la antigüedad cuenta desde
+      /// que ENTRÓ ---cuánto lleva ahí--- y esta desde la ÚLTIMA NOTA
+      /// ---a quién hay que llamar hoy---. Alguien de hace cuatro
+      /// meses gestionado ayer no necesita nada; alguien de la semana
+      /// pasada al que nadie ha tocado, sí.
+      ///
+      /// Va primero porque es la accionable, y en rojo pasados los
+      /// siete días: el número solo no distingue un 6 de un 60 sin
+      /// leerlo.
+      clave: "sinGestion",
+      titulo: "Días sin gestión",
+      ancho: "138px",
+      numerica: true,
+      valor: (f) => f.diasSinGestion,
+      pinta: (f) => (
+        <span
+          className={
+            f.diasSinGestion >= 7
+              ? "tabular-nums font-semibold text-peligro"
+              : "tabular-nums"
+          }
+          title={
+            f.notas === 0
+              ? "Nunca se le ha escrito una nota: se cuenta desde que entró"
+              : undefined
+          }
+        >
+          {f.diasSinGestion}
+          {f.notas === 0 ? " *" : ""}
+        </span>
+      ),
+    },
+    {
+      /// LOS DÍAS LOS DA EL SERVIDOR, y aquí solo se pintan: con la
+      /// hora del navegador, un portátil con la fecha corrida
+      /// enseñaría una antigüedad distinta a la de al lado.
+      ///
+      /// «Antigüedad lead» a secas y sin «(días)»: el rótulo partía en
+      /// dos renglones y levantaba toda la fila de encabezados. La
+      /// unidad la dice la celda.
+      clave: "antiguedad",
+      titulo: "Antigüedad lead",
+      ancho: "138px",
+      numerica: true,
+      valor: (f) => f.diasDeAntiguedad,
+      pinta: (f) => (
+        <span className="tabular-nums">
+          {f.diasDeAntiguedad} {f.diasDeAntiguedad === 1 ? "día" : "días"}
+        </span>
+      ),
     },
     {
       clave: "curso",

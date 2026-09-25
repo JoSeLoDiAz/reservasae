@@ -24,6 +24,13 @@ const sinTildes = (t: string) =>
  * quince acciones en decenas de ubicaciones desplegar y
  * leer no es forma de encontrar nada.
  */
+/// A PARTIR DE CUÁNTAS OPCIONES SE PINTA EL BUSCADOR DEL PANEL.
+///
+/// Por debajo la lista se ve entera sin desplazarse y la caja de
+/// texto ocupa el sitio de otra opción; por encima hay que rodar, y
+/// escribir tres letras es más rápido que buscar con el ojo.
+const MINIMO_PARA_BUSCAR = 8;
+
 export function SelectorBuscable({
   opciones,
   valor,
@@ -32,6 +39,8 @@ export function SelectorBuscable({
   vacio = "Sin asignar",
   etiqueta,
   clase,
+  desactivado = false,
+  razon,
 }: {
   opciones: OpcionBuscable[];
   valor: string;
@@ -46,6 +55,17 @@ export function SelectorBuscable({
   /// El ancho: en un filtro no ocupa la
   /// fila entera.
   clase?: string;
+  /// APAGADO, y no escondido: el hueco se
+  /// queda para que se vea que existe y que
+  /// depende de algo. Un control que
+  /// aparece y desaparece mueve toda la
+  /// fila y no explica por qué.
+  desactivado?: boolean;
+  /// Qué hace falta para encenderlo. Sale
+  /// en su sitio y en el `title`: apagar sin
+  /// decir por qué es lo que hace que se
+  /// vuelva a pulsar tres veces.
+  razon?: string;
 }) {
   const [abierto, setAbierto] = useState(false);
   const [escrito, setEscrito] = useState("");
@@ -89,13 +109,19 @@ export function SelectorBuscable({
       <button
         type="button"
         onClick={() => setAbierto(!abierto)}
+        disabled={desactivado}
+        title={desactivado ? razon : undefined}
         aria-expanded={abierto}
         aria-haspopup="listbox"
         aria-label={etiqueta}
-        className={`${CLASE_CONTROL} flex items-center gap-2 text-left`}
+        className={`${CLASE_CONTROL} flex items-center gap-2 text-left ${
+          desactivado ? "cursor-not-allowed opacity-55" : ""
+        }`}
       >
         <span className="min-w-0 grow truncate">
-          {elegida ? (
+          {desactivado ? (
+            <span className="text-texto-suave">{razon ?? vacio}</span>
+          ) : elegida ? (
             <>
               {elegida.etiqueta}
               {elegida.detalle && (
@@ -111,29 +137,56 @@ export function SelectorBuscable({
         </span>
       </button>
 
-      {abierto && (
+      {abierto && !desactivado && (
         <div className="absolute z-40 mt-1 w-full min-w-64 max-w-[90vw] overflow-hidden rounded-xl border border-borde bg-superficie shadow-lg">
-          <div className="border-b border-borde p-2">
-            <input
-              autoFocus
-              value={escrito}
-              onChange={(e) => setEscrito(e.target.value)}
-              placeholder={marcador}
-              className={CLASE_CONTROL}
-              aria-label="Buscar en la lista"
-            />
-          </div>
+          {/* EL BUSCADOR, SOLO CUANDO HAY ALGO QUE BUSCAR.
+              «¿Para qué el título en el desplegable, esto, para
+              acción de formación y grupo?» (cliente, 24 sep 2026).
+
+              Con dos acciones de formación en pantalla, el panel
+              abría con una caja de texto encima de dos opciones: se
+              tarda más en leerla que en pulsar la que se quiere, y
+              ocupa el mismo sitio que una tercera opción.
+
+              A partir de ocho sí paga: es cuando la lista deja de
+              caber de un vistazo y hay que desplazarse. Debajo de
+              ese número se ven todas y el buscador solo estorba.
+              Este componente lo usan sitios con sesenta y siete
+              grupos y sitios con dos, y la diferencia la marca
+              cuántas opciones hay, no dónde está puesto. */}
+          {opciones.length >= MINIMO_PARA_BUSCAR && (
+            <div className="border-b border-borde p-2">
+              <input
+                autoFocus
+                value={escrito}
+                onChange={(e) => setEscrito(e.target.value)}
+                placeholder={marcador}
+                className={CLASE_CONTROL}
+                aria-label="Buscar en la lista"
+              />
+            </div>
+          )}
 
           <ul role="listbox" className="barra-visible max-h-72 overflow-y-auto p-1">
-            <li>
-              <button
-                type="button"
-                onClick={() => elegir("")}
-                className="w-full rounded-lg px-3 py-2 text-left text-sm text-texto-suave transition hover:bg-superficie-alterna"
-              >
-                {vacio}
-              </button>
-            </li>
+            {/* SOLO SI HAY ALGO QUE QUITAR. Esta fila es la que
+                deja sin elegir ---«todos», o «sin asignar»---, y con
+                nada elegido no hace nada: era una primera línea que
+                repetía el nombre del filtro y se leía como un título
+                del panel, que es justo lo que el cliente señaló.
+
+                Con algo elegido sí hace falta y sigue igual: es la
+                única forma de deshacer desde el propio desplegable. */}
+            {valor !== "" && (
+              <li>
+                <button
+                  type="button"
+                  onClick={() => elegir("")}
+                  className="w-full rounded-lg px-3 py-2 text-left text-sm text-texto-suave transition hover:bg-superficie-alterna"
+                >
+                  {vacio}
+                </button>
+              </li>
+            )}
 
             {visibles.map((o) => (
               <li key={o.id}>

@@ -4136,6 +4136,15 @@ export class CrmService {
         cobertura: {
           select: {
             grupoId: true,
+            /// DÓNDE QUEDÓ, para la columna «Departamento».
+            ///
+            /// Del lado de la COBERTURA y no de la persona: el
+            /// departamento que importa aquí es el de la oferta en la
+            /// que entró ---de dónde es su grupo---, no el de su
+            /// cédula. Es el mismo criterio con el que «Grupos de AF»
+            /// reparte sus filas, y así las dos pantallas suman lo
+            /// mismo.
+            ubicacion: { select: { nombre: true, tipo: true, departamento: true } },
             grupo: {
               select: {
                 numero: true,
@@ -4149,6 +4158,31 @@ export class CrmService {
               },
             },
           },
+        },
+        /// CUÁNTAS NOTAS LLEVA. Un `_count` y no traérselas: la
+        /// columna enseña el número, y bajar el texto de trescientas
+        /// gestiones para contarlas es cargar un megabyte y tirarlo.
+        _count: { select: { notas: true } },
+        /// Y CUÁNDO FUE LA ÚLTIMA. Solo la fecha de la más reciente:
+        /// es «última actividad» en el sentido del asesor ---cuándo
+        /// se le tocó por última vez---, que no es el «último
+        /// ingreso» del aula, y por eso son dos columnas.
+        notas: {
+          orderBy: { creadoEn: 'desc' },
+          take: 1,
+          select: { creadoEn: true },
+        },
+        /// CUÁNDO ENTRÓ EL LEAD, para su antigüedad en días.
+        ///
+        /// La PRIMERA vez que llegó, no la última: quien vuelve por
+        /// otro mailing no rejuvenece. Si no salió de un lead ---lo
+        /// metió un asesor a mano, o vino de una carga--- no hay
+        /// `LeadEntrante` y se cae a `creadoEn` de la ficha, que es
+        /// lo más temprano que consta de esa persona.
+        leads: {
+          orderBy: { recibidoEn: 'asc' },
+          take: 1,
+          select: { recibidoEn: true },
         },
         avances: {
           select: {
@@ -4244,6 +4278,50 @@ export class CrmService {
         ? Math.floor((ahora - p.ultimoAcceso.getTime()) / 86_400_000)
         : null;
 
+      /// DÓNDE QUEDÓ. `departamento` viene relleno en las CIUDADES;
+      /// en las ubicaciones que YA SON un departamento va en nulo y
+      /// el nombre es el departamento. Sin esta segunda rama, media
+      /// tabla salía en raya según cómo estuviera cargada la sede.
+      const u = p.cobertura?.ubicacion ?? null;
+      const departamento =
+        u?.departamento ?? (u?.tipo === 'DEPARTAMENTO' ? u.nombre : null);
+
+      /// ANTIGÜEDAD DEL LEAD, EN DÍAS.
+      ///
+      /// Desde que entró hasta hoy, y «entró» es lo más temprano que
+      /// consta: la fecha en que llegó el lead si vino por uno, y si
+      /// no la de creación de la ficha. Se cuenta aquí y no en la
+      /// pantalla a propósito ---el navegador del asesor puede tener
+      /// la hora corrida, y entonces dos personas verían antigüedades
+      /// distintas para la misma fila---.
+      ///
+      /// Días enteros: `floor`, para que quien entró hace veinte
+      /// horas lleve 0 días y no 1.
+      const entroEn = p.leads[0]?.recibidoEn ?? p.creadoEn;
+      const diasDeAntiguedad = Math.max(
+        0,
+        Math.floor((ahora - entroEn.getTime()) / 86_400_000),
+      );
+
+      /// DÍAS SIN GESTIÓN: desde la última nota hasta hoy.
+      ///
+      /// NO es lo mismo que la antigüedad, y por eso son dos columnas
+      /// (cliente, 24 sep 2026: «¿como días sin gestión, no?»). La
+      /// antigüedad dice cuánto lleva ahí; esto dice a quién hay que
+      /// llamar hoy. Alguien de hace cuatro meses gestionado ayer no
+      /// necesita nada, y alguien de la semana pasada al que nadie ha
+      /// tocado sí.
+      ///
+      /// SIN NINGUNA NOTA se cuenta desde que ENTRÓ, no en nulo: a
+      /// quien nunca se ha tocado es al que más falta le hace salir en
+      /// esa lista, y con nulo se iba al fondo de la ordenación justo
+      /// por eso. Lo dice la columna con su propio texto.
+      const desdeGestion = p.notas[0]?.creadoEn ?? entroEn;
+      const diasSinGestion = Math.max(
+        0,
+        Math.floor((ahora - desdeGestion.getTime()) / 86_400_000),
+      );
+
       // el 80% de lo obligatorio: es lo que habilita a
       // certificar, y se mide contra el total del curso,
       // no contra lo que tocaria a estas alturas
@@ -4298,6 +4376,14 @@ export class CrmService {
         notaFinal: p.notaFinal,
         estado,
         correo: p.persona.correo,
+        departamento,
+        /// LO QUE HA HECHO EL ASESOR, que es lo único de esta tabla
+        /// que no es del LMS: cuántas veces lo ha tocado y cuándo fue
+        /// la última. El resto de columnas las manda el aula.
+        notas: p._count.notas,
+        ultimaNota: p.notas[0]?.creadoEn ?? null,
+        diasDeAntiguedad,
+        diasSinGestion,
         /// SU AVANCE, ACTIVIDAD POR ACTIVIDAD, en el orden del curso.
         ///
         /// «Completada» es APROBADA y no ENTREGADA: es el mismo

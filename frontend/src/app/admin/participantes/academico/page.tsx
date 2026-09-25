@@ -198,11 +198,24 @@ function Seguimiento() {
   const gruposBuscables = datos.grupos
     .filter((g) => !accionFormacionId || g.accionFormacionId === accionFormacionId)
     .map((g) => {
+      /// «GRUPO 4» Y NADA MÁS (cliente, 24 sep 2026: «o sea solo
+      /// Grupo, ejemplo Grupo 1; ¿para qué nombre, si lo tengo en
+      /// Acción de Formación?»).
+      ///
+      /// Debajo de cada grupo iba «AF1 · GESTIÓN DE LA ATENCIÓN Y
+      /// NEUROEDUCACIÓN EN LA ERA DIGITAL», y con eso cada opción
+      /// ocupaba tres renglones: en la lista cabían dos grupos y
+      /// medio. Ahora que la lista solo trae los de la formación ya
+      /// elegida, ese renglón es el MISMO en todas: no distingue
+      /// nada, y lo que sí distingue ---el número--- quedaba
+      /// aplastado contra el de arriba.
+      ///
+      /// Sigue buscándose por el nombre del curso aunque no se pinte.
       const suya = datos.acciones.find((a) => a.id === g.accionFormacionId);
       return {
         id: g.id,
         etiqueta: `Grupo ${g.numero}`,
-        detalle: suya ? `${suya.codigo} · ${suya.nombre}` : "Sin acción de formación",
+        busca: suya ? `${suya.codigo} ${suya.nombre}` : undefined,
       };
     });
 
@@ -375,21 +388,42 @@ function Seguimiento() {
                 // el grupo cuelga de la accion: si cambia, sobra
                 setGrupo("");
               }}
-              vacio="Formación"
-              marcador="AF8, inteligencia artificial…"
+              /// «ACCIÓN DE FORMACIÓN», con su nombre entero
+              /// (cliente, 24 sep 2026). Decía «Formación» a secas
+              /// por caber en la tarjeta que ya no existe; en la
+              /// fila del buscador hay sitio, y es como se llama en
+              /// Oferta y en la columna de la tabla.
+              vacio="Acción de Formación"
+              marcador="AF1, neuroeducación…"
               opciones={datos.acciones.map((a) => ({
                 id: a.id,
                 etiqueta: `${a.codigo} · ${a.nombre}`,
               }))}
             />
+            {/* EL GRUPO CUELGA DE LA FORMACIÓN, y hasta que no haya
+                una elegida este no se puede usar (cliente, 24 sep
+                2026: «dice Grupos y esta es sujeta a la AF, y como
+                son 2 AF y misma cantidad, pues ya es que AF filtre»).
+
+                Tiene razón y el problema es del dato: el número de
+                grupo NO es único ---hay un «Grupo 4» en AF1 y otro
+                en AF2---, así que sin formación elegida la lista
+                mezclaba dos cosas distintas con el mismo nombre y
+                había que leerse el renglón de abajo para saber cuál
+                era cuál.
+
+                Apagado y no escondido: el hueco se queda para que se
+                vea que existe y de qué depende. */}
             <SelectorBuscable
-              clase="w-[9.5rem] shrink-0"
+              clase="w-[11.5rem] shrink-0"
               etiqueta="Grupo"
               valor={grupoId}
               alElegir={setGrupo}
               vacio="Grupos"
-              marcador="Número de grupo, AF8, nombre…"
+              marcador="Número de grupo, nombre…"
               opciones={gruposBuscables}
+              desactivado={!accionFormacionId}
+              razon="Elija formación"
             />
             {hayFiltro && (
               <button
