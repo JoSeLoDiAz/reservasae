@@ -375,6 +375,25 @@ export default function PaginaReservas() {
           sería. */}
       {vista === "reserva" && cargadas.length > 0 && (
         <div className="flex flex-wrap items-stretch gap-2">
+          {/* LAS MISMAS CINCO, EN EL MISMO ORDEN Y CON LAS MISMAS
+              PALABRAS QUE «Por organización».
+
+              «¿Por qué tengo diferencias en los valores?» (cliente, 25
+              sep 2026): una vista decía «En espera 1» y la otra
+              «Cupos en espera 6». Las dos tenían razón --1 reserva que
+              lleva 6 cupos-- y ninguna lo decía: la misma etiqueta
+              contaba reservas aquí y cupos allá. Dos cifras distintas
+              bajo la misma palabra, en la misma pantalla, a un clic
+              una de otra.
+
+              Manda la unidad de al lado: si la tarjeta vecina dice
+              «Cupos apartados», esta cuenta CUPOS, y las reservas van
+              al pie. */}
+          <Cifra
+            etiqueta="Organizaciones"
+            valor={organizaciones}
+            pie="con al menos una reserva"
+          />
           <Cifra
             etiqueta="Reservas"
             valor={datos?.total ?? cargadas.length}
@@ -391,25 +410,20 @@ export default function PaginaReservas() {
             color={cuposApartados > 0 ? "var(--exito)" : undefined}
           />
           <Cifra
-            etiqueta="En espera"
-            valor={enEspera}
+            etiqueta="Cupos en espera"
+            valor={cuposEnEspera}
             pie={
-              cuposEnEspera > 0
-                ? `${cuposEnEspera} ${cuposEnEspera === 1 ? "cupo" : "cupos"} sin sitio todavía`
-                : "ninguna esperando"
+              enEspera > 0
+                ? `en ${enEspera} ${enEspera === 1 ? "reserva" : "reservas"}`
+                : "ninguno esperando"
             }
-            color={enEspera > 0 ? "var(--aviso)" : undefined}
+            color={cuposEnEspera > 0 ? "var(--aviso)" : undefined}
           />
           <Cifra
-            etiqueta="Canceladas"
+            etiqueta="Reservas canceladas"
             valor={canceladas}
             pie={canceladas > 0 ? "sus cupos volvieron a la oferta" : "ninguna cancelada"}
             color={canceladas > 0 ? "var(--error)" : undefined}
-          />
-          <Cifra
-            etiqueta="Organizaciones"
-            valor={organizaciones}
-            pie="con al menos una reserva"
           />
         </div>
       )}

@@ -98,6 +98,7 @@ export type LeadDelAsesor = {
   accionFormacionId: string | null;
   /// «AF1». Para rotular el desglose sin una segunda consulta.
   accionCodigo: string | null;
+  accionNombre: string | null;
 };
 
 /**
@@ -116,6 +117,11 @@ export type LeadDelAsesor = {
 export type CargaEnUnaAccion = {
   accionFormacionId: string | null;
   codigo: string | null;
+  /// EL NOMBRE ADEMÁS DEL CÓDIGO. Los AF se repiten entre convenios
+  /// ---el foro es AF8 en un gremio y AF7 en el otro--- y hay dos
+  /// acciones con código «AF1», así que un desplegable de códigos
+  /// ofrece dos opciones idénticas.
+  nombre: string | null;
   total: number;
   gestionados: number;
   resueltos: number;
@@ -211,6 +217,7 @@ export function repartirInscripciones(
       {
         accionFormacionId: l.accionFormacionId,
         codigo: l.accionCodigo,
+        nombre: l.accionNombre,
         total: 0,
         gestionados: 0,
         resueltos: 0,

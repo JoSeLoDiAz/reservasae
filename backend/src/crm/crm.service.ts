@@ -684,7 +684,11 @@ export class CrmService {
           accionFormacionId: true,
           /// El código, para rotular el desglose de cada asesor sin
           /// una segunda consulta ni un mapa en memoria.
-          accionFormacion: { select: { codigo: true } },
+          /// EL NOMBRE ADEMÁS DEL CÓDIGO: los códigos AF se
+          /// repiten entre convenios ---hay dos «AF1»--- así que un
+          /// filtro que solo enseñe el código ofrece dos opciones
+          /// idénticas y no hay forma de saber cuál es cuál.
+          accionFormacion: { select: { codigo: true, nombre: true } },
           asesor: { select: { nombre: true } },
           _count: { select: { notas: true } },
         },
@@ -705,6 +709,7 @@ export class CrmService {
         notas: l._count.notas,
         accionFormacionId: l.accionFormacionId,
         accionCodigo: l.accionFormacion?.codigo ?? null,
+        accionNombre: l.accionFormacion?.nombre ?? null,
       })),
       cierrePorAccion(grupos),
       ahora,

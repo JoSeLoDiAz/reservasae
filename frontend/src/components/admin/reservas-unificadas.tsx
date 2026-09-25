@@ -422,7 +422,13 @@ export function ReservasUnificadas({
       },
       {
         clave: "pendientes",
-        titulo: "Pendientes",
+        /// «CUPOS pendientes», no «Pendientes» a secas (cliente, 25 sep
+        /// 2026). Entre «Cupos reservados» y «Cupos ocupados», la
+        /// tercera sin la palabra obligaba a adivinar de qué eran:
+        /// ¿cupos, reservas, personas? Son cupos, como sus dos
+        /// vecinas, y de toda la fila --el desglose por acción está en
+        /// las columnas AF--.
+        titulo: "Cupos pendientes",
         numerica: true,
         valor: (f) => f.sinNombre,
         pinta: (f) => (
@@ -496,6 +502,18 @@ export function ReservasUnificadas({
   const cuposEnEspera = cargadas.reduce((t, f) => t + f.cuposEnEspera, 0);
   const reservas = cargadas.reduce((t, f) => t + f.totalReservas, 0);
   const canceladas = cargadas.reduce((t, f) => t + f.reservasCanceladas, 0);
+  /// Cuántas reservas están esperando, para el pie de su tarjeta. Se
+  /// cuentan reservas y no filas: una organización puede tener una
+  /// acción confirmada y otra en espera.
+  const reservasEnEspera = cargadas.reduce(
+    (t, f) =>
+      t +
+      Object.values(f.porAccion).reduce(
+        (n, c) => n + c.reservas.filter((r) => r.estado === "LISTA_ESPERA").length,
+        0,
+      ),
+    0,
+  );
   /// Cuántas apartaron más de una acción: es el dato que explica por
   /// qué esta pantalla existe.
   const conVarias = cargadas.filter((f) => f.totalReservas > 1).length;
@@ -530,7 +548,16 @@ export function ReservasUnificadas({
           <Cifra
             etiqueta="Cupos en espera"
             valor={cuposEnEspera}
-            pie={cuposEnEspera > 0 ? "cupos sin sitio todavía" : "ninguno esperando"}
+            /// EL MISMO PIE QUE LA OTRA VISTA. La tarjeta cuenta
+            /// cupos y el pie dice en cuántas reservas están: así
+            /// las dos cifras que el cliente vio distintas --6 y
+            /// 1-- salen juntas y se entiende que no se
+            /// contradicen.
+            pie={
+              reservasEnEspera > 0
+                ? `en ${reservasEnEspera} ${reservasEnEspera === 1 ? "reserva" : "reservas"}`
+                : "ninguno esperando"
+            }
             color={cuposEnEspera > 0 ? "var(--aviso)" : undefined}
           />
           <Cifra
@@ -643,7 +670,7 @@ function CajonDeLaOrganizacion({
         <Dato titulo="Cupos reservados" valor={String(fila.cuposConfirmados)} />
         <Dato titulo="Cupos ocupados" valor={String(fila.conNombre)} />
         <Dato
-          titulo="Pendientes"
+          titulo="Cupos pendientes"
           valor={String(fila.sinNombre)}
           pie={fila.sinNombre > 0 ? "cupos que siguen sin nombre" : undefined}
         />

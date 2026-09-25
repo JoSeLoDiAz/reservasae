@@ -1907,7 +1907,12 @@ function Seguimiento({
               <Th>Dónde se dicta</Th>
               <Th derecha>Cupos reservados</Th>
               <Th derecha>Cupos ocupados</Th>
-              <Th derecha>Pendientes</Th>
+              {/* «Cupos pendientes» y no «Pendientes»: el cliente lo
+                  pidió en el listado de reservas (25 sep 2026) y esta
+                  tabla es de donde se copiaron esos rótulos. Cambiar
+                  una y dejar la otra volvería a dar dos nombres para
+                  la misma cifra. */}
+              <Th derecha>Cupos pendientes</Th>
               <Th>Estado</Th>
             </tr>
           </thead>

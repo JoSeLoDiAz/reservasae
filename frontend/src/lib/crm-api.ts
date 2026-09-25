@@ -1374,6 +1374,25 @@ export type RitmoDeAsesor = {
   estado: "AL_DIA" | "AJUSTADO" | "EN_RIESGO" | "VENCIDO" | "SIN_PLAZO" | "TERMINADO";
 };
 
+/**
+ * LO QUE UN ASESOR LLEVA EN UNA ACCIÓN DE FORMACIÓN.
+ *
+ * Por ACCIÓN y no por grupo, y el porqué está en el backend
+ * (`asesores-datos.ts`): lo que aprieta a un asesor es la fecha de
+ * cierre, y esa es de la acción. Por grupo salen filas de uno o dos
+ * leads y ninguna responde «dónde se le está acumulando».
+ */
+export type CargaEnUnaAccion = {
+  accionFormacionId: string | null;
+  codigo: string | null;
+  /// Hace falta para distinguir: hay dos acciones con código «AF1».
+  nombre: string | null;
+  total: number;
+  gestionados: number;
+  resueltos: number;
+  pendientes: number;
+};
+
 export type FilaDeAsesor = {
   asesorId: string | null;
   nombre: string;
@@ -1381,6 +1400,19 @@ export type FilaDeAsesor = {
   ritmo: RitmoDeAsesor;
   antiguedadMedia: number | null;
   limite: string | null;
+  /// SU CARGA REPARTIDA POR ACCIÓN, que es el desglose que se abre al
+  /// pulsar la fila: «con al menos dos métricas, y como la tablita
+  /// que cuando uno da clic sale el desglose detallado» (cliente, 23
+  /// sep 2026).
+  ///
+  /// El servidor lleva mandándolo desde entonces y el frontend ni lo
+  /// declaraba, así que viajaba y se tiraba. Va OPCIONAL: un backend
+  /// sin reiniciar no lo trae, y entonces el cajón lo dice en vez de
+  /// pintar una tabla vacía.
+  ///
+  /// Con esto el filtro por acción no necesita al servidor: cada fila
+  /// ya sabe lo suyo en cada acción.
+  porAccion?: CargaEnUnaAccion[];
 };
 
 export type FilaDeAsesorAcademico = FilaDeAsesor & {
