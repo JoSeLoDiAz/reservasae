@@ -166,6 +166,14 @@ Se cierra uno antes de abrir el siguiente.
 | La celda AF dice «1 de 16», y el cajón lo abre reserva por reserva | Reservas | `d33f51f` |
 | Fuera el rótulo, la descripción y el pie del bloque de asesores | Seguimiento de asesores | `b52ef59` |
 | **Seguimiento académico rehecho**: resumen, cupos e inscritos, dos gráficas y su tabla AF × grupo × UT | Seguimiento académico | `2ae4d61` |
+| La tabla de asesores, fuera de la caja; y el desglose pasa de cajón lateral a subtabla | Seguimiento de asesores | `da1a0fb` |
+| La pestaña académica, con la tabla compartida: buscador, filtros, columnas y Excel | Seguimiento de asesores | `93d1557` |
+| Las tarjetas del aula, los rótulos que él dictó y el filtro amarrado a la acción | Seguimiento académico | `9c6f9d0` |
+| El grupo que salía dos veces, y una torta que se puede leer | Seguimiento académico | `c388d1b` |
+| De catorce tarjetas a las seis del aula | Seguimiento académico | `21f9427` |
+| **Siembra**: 53 grupos y 1.212 participantes, sin tocar reservas | base de pruebas | `83e44b6` |
+| El anillo con su leyenda al lado, y el centro que decía 420 dibujando 300 | Seguimiento académico | `1ecb0ee` |
+| Fuera el «Total general» del consolidado | Seguimiento académico | `9ebc3a7` |
 
 ### En curso
 
@@ -173,15 +181,21 @@ Nada. Todo lo pedido esta madrugada está entregado y probado.
 
 ### Lo que falta
 
-**Nada por construir.** Lo de «vive separado» era que el buscador y los filtros no vivieran
-dentro de la caja con la tabla, como en Gestión de leads: hecho. La pestaña académica se
-convirtió también a la tabla compartida, con sus siete puertas y sin su pie.
+**Nada por construir.** Todo lo pedido está entregado y probado.
 
-1. **Empujar la rama.** Hay ocho commits solo en la máquina de Mauricio, el parte para José
-   entre ellos.
-2. **Que Mauricio valide** las cuatro pantallas en su 3100, de una pasada.
+1. **Empujar la rama.** Quince commits solo en la máquina de Mauricio, el parte para José entre
+   ellos. Mientras no salgan, esa noche de trabajo vive en un solo disco y José no puede ver
+   nada de lo que se le cuente.
+2. **Que Mauricio valide** las cuatro pantallas de una pasada, en su 3100.
 3. **Nada de esto se ha visto fuera de su local.** Todo se probó contra la base sembrada del
    5544; en `dev` y en `prueba.reservasae.com` no está.
+
+### Lo que la siembra cambió, para que no sorprenda
+
+La base de pruebas pasó de 35 personas en el aula a **1.264**, en 120 grupos. Las pantallas
+académicas ---aula, asesores académicos, tablero--- enseñan ahora ese volumen. **Las de reservas
+y leads no cambiaron**: la gente sembrada entra sin reserva, y las 60 reservas con sus 539 cupos
+apartados siguen exactamente igual. Comprobado después de sembrar.
 
 ### Decidido, para que no se vuelva a preguntar
 
@@ -192,6 +206,10 @@ convirtió también a la tabla compartida, con sus siete puertas y sin su pie.
   leads, no un pedido. Descartado.
 - **«El dato no sirve»** se queda: son tres resultados porque cada uno lleva a una acción
   distinta, y en esta base se usa 46 veces contra 72 «no contestó» y 96 «hablé con ella».
+- **El aula se queda con los CURSOS.** El desplegable de Seguimiento académico enseña dos
+  acciones a ADECOPRIA y no ocho, y **está bien**: de sus siete acciones solo AF1 y AF2 son
+  `evento = CURSO`; las otras son taller, bootcamp y foro, que la regla del 24 sep deja fuera
+  del aula. Se planteó convertirlas en pruebas y él lo descartó: «si está bien, omítelo».
 
 ### El riesgo que no es de código
 
