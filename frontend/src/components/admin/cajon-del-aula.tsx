@@ -26,16 +26,26 @@
  * estaba inscribiendo y lo que se le dice ahora que va atrasada son
  * el mismo hilo, y partirlo obliga a mirar en dos sitios para saber
  * si alguien ya la llamó. Por ahí entran también las de Lucid.
+ *
+ * CON EL `Cajon` DE LA CASA, el mismo que abre un lead en Gestión de
+ * leads: «y Abrir es como si se abriera un lead de Gestión de leads»
+ * (cliente, 24 sep 2026). Estuvo con un armazón propio --velo, alto y
+ * cierre escritos a mano-- que se parecía pero no era: 34 rem contra
+ * 42, sin bloquear el desplazamiento de detrás y sin devolver el
+ * foco. Se probó también desplegándolo bajo la fila y él lo prefirió
+ * lateral, que es además lo que el comentario del `Cajon` ya contaba:
+ * con columnas que se quitan y se ponen, un `colSpan` fijo se
+ * descuadra solo.
  */
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 
-import { fechaDeCalendario } from "@/lib/dia-de-calendario";
-import { useDatosVivos } from "@/lib/datos-vivos";
-
+import { Cajon, Dato } from "@/components/admin/cajon";
 import { colorEtapa } from "@/components/admin/etapa";
 import { Aviso, CLASE_CONTROL } from "@/components/admin/marco-admin";
 import { Esqueleto } from "@/components/admin/piezas";
+import { useDatosVivos } from "@/lib/datos-vivos";
+import { fechaDeCalendario } from "@/lib/dia-de-calendario";
 import {
   AYUDA_ACADEMICA,
   CANALES,
@@ -60,6 +70,14 @@ const COLOR: Record<EstadoAcademico, string> = {
   CERTIFICADO: colorEtapa("CERTIFICADO"),
 };
 
+/// LAS DEL CURSO SE TECLEAN: son un día del calendario y no un
+/// instante. Con `new Date()` y la zona de Bogotá, un «2026-09-01» se
+/// pinta como 31 de agosto, y el asesor llamaría a alguien diciéndole
+/// que su curso empezó un día antes de lo que dice su certificado.
+const diaDelCurso = (iso: string | null) =>
+  fechaDeCalendario(iso, { day: "numeric", month: "short", year: "numeric" });
+
+/// El último ingreso SÍ es un instante: viene del aula con su hora.
 function fecha(iso: string | null): string {
   if (!iso) return "—";
   return new Date(iso).toLocaleDateString("es-CO", {
@@ -69,14 +87,6 @@ function fecha(iso: string | null): string {
   });
 }
 
-/// LAS DEL CURSO SE TECLEAN: son un día del calendario y no un
-/// instante. Con `new Date()` y la zona de Bogotá, un «2026-09-01»
-/// se pinta como 31 de agosto, y el asesor llama a alguien diciéndole
-/// que su curso empezó un día antes de lo que dice su certificado.
-/// La otra pantalla del aula ya lo tenía resuelto así.
-const diaDelCurso = (iso: string | null) =>
-  fechaDeCalendario(iso, { day: "numeric", month: "short", year: "numeric" });
-
 function cuando(iso: string): string {
   return new Date(iso).toLocaleString("es-CO", {
     day: "numeric",
@@ -84,16 +94,6 @@ function cuando(iso: string): string {
     hour: "2-digit",
     minute: "2-digit",
   });
-}
-
-/** Un dato del aula: su rótulo y su valor, sin control que lo cambie. */
-function Dato({ que, children }: { que: string; children: React.ReactNode }) {
-  return (
-    <div className="min-w-0">
-      <dt className="text-[0.6875rem] tracking-[0.06em] text-texto-suave uppercase">{que}</dt>
-      <dd className="mt-0.5 text-[0.84375rem] text-texto">{children}</dd>
-    </div>
-  );
 }
 
 export function CajonDelAula({
@@ -109,30 +109,19 @@ export function CajonDelAula({
   /// gratis lo que haría falta escribir dos veces: no pisar una
   /// petición en vuelo, y el refresco.
   ///
-  /// La `clave` es el id: al abrir otra persona sin cerrar el cajón,
-  /// lo que se pinta tiene que cambiar con ella.
+  /// La `clave` es el id: al abrir otra persona sin cerrar la
+  /// anterior, lo que se pinta tiene que cambiar con ella.
   const vivos = useDatosVivos(
     useCallback(() => crmApi.obtener(fila.id), [fila.id]),
     { clave: fila.id },
   );
   const ficha: Ficha | null = vivos.datos;
-  const cargando = vivos.cargando;
-  const [error, setError] = useState<string | null>(null);
 
   const [texto, setTexto] = useState("");
   const [canales, setCanales] = useState<CanalContacto[]>([]);
   const [resultado, setResultado] = useState<ResultadoGestion>("CONTACTO");
   const [guardando, setGuardando] = useState(false);
-
-  /// Escape cierra: el cajón tapa la tabla entera y quien lo abrió
-  /// sin querer no tiene por qué buscar la equis.
-  useEffect(() => {
-    const alPulsar = (e: KeyboardEvent) => {
-      if (e.key === "Escape") alCerrar();
-    };
-    window.addEventListener("keydown", alPulsar);
-    return () => window.removeEventListener("keydown", alPulsar);
-  }, [alCerrar]);
+  const [error, setError] = useState<string | null>(null);
 
   const notas = useMemo(() => ficha?.notas ?? [], [ficha]);
 
@@ -154,57 +143,37 @@ export function CajonDelAula({
   }
 
   return (
-    <div className="fixed inset-0 z-40 flex justify-end">
-      {/* El velo cierra al pulsarlo, como en el cajón de un lead. */}
-      <button
-        aria-label="Cerrar el seguimiento"
-        onClick={alCerrar}
-        className="absolute inset-0 bg-[rgba(15,23,42,0.35)]"
-      />
-      <aside
-        role="dialog"
-        aria-label={`Seguimiento de ${fila.nombre}`}
-        className="relative flex h-full w-full max-w-[34rem] flex-col overflow-y-auto border-l border-borde bg-superficie shadow-2xl"
-      >
-        <header className="flex items-start gap-3 border-b border-borde px-5 py-4">
-          <div className="min-w-0 grow">
-            <h2 className="truncate text-[1rem] font-bold text-titulo">{fila.nombre}</h2>
-            <p className="mt-0.5 font-mono text-xs text-texto-suave">{fila.documento}</p>
-            <p className="mt-1 text-[0.78125rem] text-texto-suave">
-              {fila.accion ?? "Sin acción"}
-              {fila.grupo !== null && ` · Grupo ${fila.grupo}`}
-            </p>
-          </div>
-          <button
-            onClick={alCerrar}
-            className="shrink-0 rounded-lg border border-borde px-2.5 py-1 text-sm text-texto-suave hover:text-texto"
-          >
-            Cerrar
-          </button>
-        </header>
+    <Cajon
+      titulo={fila.nombre}
+      subtitulo={
+        <>
+          <span className="font-mono">{fila.documento}</span>
+          {fila.accion && ` · ${fila.accion}`}
+          {fila.grupo !== null && ` · Grupo ${fila.grupo}`}
+        </>
+      }
+      alCerrar={alCerrar}
+    >
+      {(error ?? vivos.error) && <Aviso tipo="error">{error ?? vivos.error}</Aviso>}
 
-        {(error ?? vivos.error) && (
-          <div className="px-5 pt-4">
-            <Aviso tipo="error">{error ?? vivos.error}</Aviso>
-          </div>
-        )}
+      {/* ── 1 · LO QUE DICE EL AULA. Se lee, no se toca. ── */}
+      <section>
+        <h3 className="text-xs font-semibold tracking-[0.08em] text-texto-suave uppercase">
+          Lo que dice el aula
+        </h3>
+        {/* DICE DE DÓNDE SALE, y por qué no hay nada que tocar. Sin
+            esta línea, un asesor que ve el estado «Atrasado» y no
+            encuentra cómo cambiarlo piensa que la pantalla está rota,
+            no que es a propósito. */}
+        <p className="mt-1 text-[0.75rem] leading-snug text-texto-suave">
+          Viene del LMS y es la fuente de la verdad: aquí no se edita. Si algo no cuadra,
+          se corrige en el aula y llega solo.
+        </p>
 
-        {/* ── 1 · LO QUE DICE EL AULA. Se lee, no se toca. ── */}
-        <section className="border-b border-borde px-5 py-4">
-          <h3 className="text-xs font-semibold tracking-[0.08em] text-texto-suave uppercase">
-            Lo que dice el aula
-          </h3>
-          {/* DICE DE DÓNDE SALE, y por qué no hay nada que tocar.
-              Sin esta línea, un asesor que ve el estado «Atrasado» y
-              no encuentra cómo cambiarlo piensa que la pantalla está
-              rota, no que es a propósito. */}
-          <p className="mt-1 text-[0.75rem] leading-snug text-texto-suave">
-            Viene del LMS y es la fuente de la verdad: aquí no se edita. Si algo no
-            cuadra, se corrige en el aula y llega solo.
-          </p>
-
-          <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-3">
-            <Dato que="Estado">
+        <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
+          <Dato
+            titulo="Estado"
+            valor={
               <span
                 style={{ ["--etapa"]: COLOR[fila.estado] } as React.CSSProperties}
                 className="pildora-etapa"
@@ -212,120 +181,133 @@ export function CajonDelAula({
               >
                 {ETIQUETA_ACADEMICA[fila.estado]}
               </span>
-            </Dato>
-            <Dato que="Avance">
-              <span className="tabular-nums">
-                {fila.hechas} de {fila.total}
-              </span>
-              {fila.esperadas !== null && (
-                <span className="ml-2 text-[0.75rem] text-texto-suave tabular-nums">
-                  tocaría {fila.esperadas}
+            }
+          />
+          <Dato
+            titulo="Avance"
+            valor={
+              <>
+                <span className="tabular-nums">
+                  {fila.hechas} de {fila.total}
                 </span>
-              )}
-            </Dato>
-            <Dato que="Último ingreso">
-              {fila.ultimoAcceso ? fecha(fila.ultimoAcceso) : "nunca ha entrado"}
-              {fila.diasSinEntrar !== null && fila.diasSinEntrar >= 14 && (
-                <span className="ml-2 text-[0.75rem] text-error tabular-nums">
-                  hace {fila.diasSinEntrar} días
-                </span>
-              )}
-            </Dato>
-            <Dato que="Nota final">{fila.notaFinal ?? "todavía no tiene"}</Dato>
-            <Dato que="Curso">
-              {fila.fechaInicio ? diaDelCurso(fila.fechaInicio) : "—"}
-              {fila.fechaFin ? ` → ${diaDelCurso(fila.fechaFin)}` : ""}
-            </Dato>
-            <Dato que="Asesor">{fila.asesor?.nombre ?? "sin asignar"}</Dato>
-          </dl>
-        </section>
+                {fila.esperadas !== null && (
+                  <span className="ml-2 text-[0.75rem] text-texto-suave tabular-nums">
+                    tocaría {fila.esperadas}
+                  </span>
+                )}
+              </>
+            }
+          />
+          <Dato
+            titulo="Último ingreso"
+            valor={
+              <>
+                {fila.ultimoAcceso ? fecha(fila.ultimoAcceso) : "nunca ha entrado"}
+                {fila.diasSinEntrar !== null && fila.diasSinEntrar >= 14 && (
+                  <span className="ml-2 text-[0.75rem] text-error tabular-nums">
+                    hace {fila.diasSinEntrar} días
+                  </span>
+                )}
+              </>
+            }
+          />
+          <Dato titulo="Nota final" valor={fila.notaFinal ?? "todavía no tiene"} />
+          <Dato
+            titulo="Curso"
+            valor={
+              <>
+                {fila.fechaInicio ? diaDelCurso(fila.fechaInicio) : "—"}
+                {fila.fechaFin ? ` → ${diaDelCurso(fila.fechaFin)}` : ""}
+              </>
+            }
+          />
+          <Dato titulo="Asesor" valor={fila.asesor?.nombre ?? "sin asignar"} />
+        </dl>
+      </section>
 
-        {/* ── 2 · LO QUE PONE EL ASESOR: su traza. ── */}
-        <section className="px-5 py-4">
-          <h3 className="text-xs font-semibold tracking-[0.08em] text-texto-suave uppercase">
-            Seguimiento del asesor
-          </h3>
-          <p className="mt-1 text-[0.75rem] leading-snug text-texto-suave">
-            Lo que usted hizo con esta persona. Es la misma bitácora del lead, así que
-            aquí también salen las conversaciones que entran por Lucid.
-          </p>
+      {/* ── 2 · LO QUE PONE EL ASESOR: su traza. ── */}
+      <section className="mt-6 border-t border-borde pt-5">
+        <h3 className="text-xs font-semibold tracking-[0.08em] text-texto-suave uppercase">
+          Seguimiento del asesor
+        </h3>
+        <p className="mt-1 text-[0.75rem] leading-snug text-texto-suave">
+          Lo que usted hizo con esta persona. Es la misma bitácora del lead, así que aquí
+          también salen las conversaciones que entran por Lucid.
+        </p>
 
-          <div className="mt-3 space-y-2">
-            <textarea
-              value={texto}
-              onChange={(e) => setTexto(e.target.value)}
-              rows={3}
-              placeholder="La llamé y dice que se le venció la clave del aula; le reenvié el acceso."
-              className={`${CLASE_CONTROL} h-auto w-full resize-y py-2`}
-            />
-            <div className="flex flex-wrap items-center gap-3">
-              <div className="flex flex-wrap gap-1.5">
-                {CANALES.map((c) => {
-                  const puesto = canales.includes(c);
-                  return (
-                    <button
-                      key={c}
-                      type="button"
-                      onClick={() =>
-                        setCanales(
-                          puesto ? canales.filter((x) => x !== c) : [...canales, c],
-                        )
-                      }
-                      aria-pressed={puesto}
-                      className={`rounded-lg border px-2.5 py-1 text-[0.75rem] transition ${
-                        puesto
-                          ? "border-marca bg-marca text-marca-texto"
-                          : "border-borde text-texto-suave hover:text-texto"
-                      }`}
-                    >
-                      {ETIQUETA_CANAL_CONTACTO[c]}
-                    </button>
-                  );
-                })}
-              </div>
-              <select
-                value={resultado}
-                onChange={(e) => setResultado(e.target.value as ResultadoGestion)}
-                className="rounded-lg border border-borde bg-superficie px-2.5 py-1 text-[0.75rem]"
-              >
-                {RESULTADOS.map((r) => (
-                  <option key={r} value={r}>
-                    {ETIQUETA_RESULTADO[r]}
-                  </option>
-                ))}
-              </select>
-              <button
-                type="button"
-                onClick={() => void guardar()}
-                disabled={!texto.trim() || guardando}
-                className="ml-auto rounded-lg border border-marca bg-marca px-3 py-1.5 text-[0.78125rem] font-semibold text-marca-texto transition hover:bg-marca-fuerte disabled:opacity-50"
-              >
-                {guardando ? "Guardando…" : "Registrar seguimiento"}
-              </button>
+        <div className="mt-3 space-y-2">
+          <textarea
+            value={texto}
+            onChange={(e) => setTexto(e.target.value)}
+            rows={3}
+            placeholder="La llamé y dice que se le venció la clave del aula; le reenvié el acceso."
+            className={`${CLASE_CONTROL} h-auto w-full resize-y py-2`}
+          />
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="flex flex-wrap gap-1.5">
+              {CANALES.map((c) => {
+                const puesto = canales.includes(c);
+                return (
+                  <button
+                    key={c}
+                    type="button"
+                    onClick={() =>
+                      setCanales(puesto ? canales.filter((x) => x !== c) : [...canales, c])
+                    }
+                    aria-pressed={puesto}
+                    className={`rounded-lg border px-2.5 py-1 text-[0.75rem] transition ${
+                      puesto
+                        ? "border-marca bg-marca text-marca-texto"
+                        : "border-borde text-texto-suave hover:text-texto"
+                    }`}
+                  >
+                    {ETIQUETA_CANAL_CONTACTO[c]}
+                  </button>
+                );
+              })}
             </div>
+            <select
+              value={resultado}
+              onChange={(e) => setResultado(e.target.value as ResultadoGestion)}
+              className="rounded-lg border border-borde bg-superficie px-2.5 py-1 text-[0.75rem]"
+            >
+              {RESULTADOS.map((r) => (
+                <option key={r} value={r}>
+                  {ETIQUETA_RESULTADO[r]}
+                </option>
+              ))}
+            </select>
+            <button
+              type="button"
+              onClick={() => void guardar()}
+              disabled={!texto.trim() || guardando}
+              className="ml-auto rounded-lg border border-marca bg-marca px-3 py-1.5 text-[0.78125rem] font-semibold text-marca-texto transition hover:bg-marca-fuerte disabled:opacity-50"
+            >
+              {guardando ? "Guardando…" : "Registrar seguimiento"}
+            </button>
           </div>
+        </div>
 
-          <div className="mt-5 space-y-3">
-            {cargando ? (
-              <Esqueleto />
-            ) : notas.length === 0 ? (
-              <p className="text-[0.84375rem] text-texto-suave">
-                Todavía no hay seguimiento de esta persona.
-              </p>
-            ) : (
-              notas.map((nota) => (
-                <article key={nota.id} className="rounded-lg border border-borde px-3 py-2">
-                  <p className="text-[0.84375rem] leading-snug text-texto">{nota.texto}</p>
-                  <p className="mt-1 text-[0.6875rem] text-texto-suave">
-                    {nota.autorNombre} · {cuando(nota.creadoEn)}
-                    {nota.resultado && ` · ${ETIQUETA_RESULTADO[nota.resultado]}`}
-                  </p>
-                </article>
-              ))
-            )}
-          </div>
-        </section>
-      </aside>
-    </div>
+        <div className="mt-5 space-y-3">
+          {vivos.cargando ? (
+            <Esqueleto />
+          ) : notas.length === 0 ? (
+            <p className="text-[0.84375rem] text-texto-suave">
+              Todavía no hay seguimiento de esta persona.
+            </p>
+          ) : (
+            notas.map((nota) => (
+              <article key={nota.id} className="rounded-lg border border-borde px-3 py-2">
+                <p className="text-[0.84375rem] leading-snug text-texto">{nota.texto}</p>
+                <p className="mt-1 text-[0.6875rem] text-texto-suave">
+                  {nota.autorNombre} · {cuando(nota.creadoEn)}
+                  {nota.resultado && ` · ${ETIQUETA_RESULTADO[nota.resultado]}`}
+                </p>
+              </article>
+            ))
+          )}
+        </div>
+      </section>
+    </Cajon>
   );
 }
