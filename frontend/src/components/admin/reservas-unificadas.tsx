@@ -112,9 +112,9 @@ function Celda({ celda }: { celda: CeldaReserva | undefined }) {
     return <span className="text-texto-suave">·</span>;
   }
 
-  const cupos =
-    celda.estado === "CANCELADA" ? celda.cuposSolicitados : celda.cuposConfirmados;
-  const enEspera = celda.estado !== "CANCELADA" && celda.cuposEnEspera > 0;
+  const cancelada = celda.estado === "CANCELADA";
+  const cupos = cancelada ? celda.cuposSolicitados : celda.cuposConfirmados;
+  const enEspera = !cancelada && celda.cuposEnEspera > 0;
 
   /// Cada reserva se explica sola en el rótulo: con dos sedes hay
   /// dos, y el número de la celda es la suma de las dos.
@@ -122,7 +122,8 @@ function Celda({ celda }: { celda: CeldaReserva | undefined }) {
     .map(
       (r) =>
         `${ETIQUETA_ESTADO[r.estado].texto} · ${r.ubicacion} · ` +
-        `${r.cuposConfirmados} de ${r.cuposSolicitados} · reservó el ${fecha(r.creadoEn)}`,
+        `${r.conNombre} de ${r.cuposConfirmados} cupos con persona · ` +
+        `reservó el ${fecha(r.creadoEn)}`,
     )
     .join("\n");
 
@@ -135,7 +136,30 @@ function Celda({ celda }: { celda: CeldaReserva | undefined }) {
       }
       title={detalle}
     >
-      {cupos}
+      {/* «2 de 16» Y NO «16» A SECAS (cliente, 25 sep 2026: «que esto
+          se sepa de qué AF»). Las columnas «Cupos ocupados» y «Cupos
+          pendientes» son el total de la fila --que es lo que una
+          columna de fila debe decir-- y no había dónde ver de qué
+          acción salía cada parte.
+
+          CON LA PALABRA «de» Y NO CON UN PUNTO DEL MEDIO. Aquí sí es
+          una razón --los dos números son cupos de la misma acción--, y
+          es por escribirla con un punto que «2 · 30 cupos» se leyó
+          como «2 de 30» cuando no lo era.
+
+          La cancelada se queda con su cifra sola y tachada: sus cupos
+          volvieron a la oferta, así que no hay ninguno ocupado del que
+          hablar. */}
+      {cancelada ? (
+        cupos
+      ) : (
+        <>
+          <span className={celda.conNombre > 0 ? "font-semibold" : "text-texto-suave"}>
+            {celda.conNombre}
+          </span>
+          <span className="text-texto-suave"> de {cupos}</span>
+        </>
+      )}
       {enEspera && <span className="text-aviso"> +{celda.cuposEnEspera}</span>}
       {/* Dos sedes en la misma acción. Sin esta marca, la celda
           enseña una suma que no cuadra con ninguna de las dos
@@ -823,12 +847,26 @@ function ReservaDeLaAccion({
         {reserva.formulario && <> · por /{reserva.formulario.slug}</>}
       </p>
 
+      {/* CINCO Y NO TRES. Esta tarjeta ya lleva su acción en la
+          cabecera, así que es donde «de qué AF» se responde entero sin
+          que la tabla crezca: aquí los ocupados y los pendientes son
+          los de ESA acción en ESA sede.
+
+          Sin el prefijo «Cupos» que sí llevan las columnas: dentro de
+          la tarjeta las cinco cifras son cupos de la misma reserva, y
+          repetir la palabra cinco veces es ruido. */}
       <dl className="mt-3 grid gap-x-6 gap-y-2 sm:grid-cols-3">
         <Dato titulo="Solicitados" valor={String(reserva.cuposSolicitados)} />
         <Dato titulo="Confirmados" valor={String(reserva.cuposConfirmados)} />
         <Dato
           titulo="En espera"
           valor={reserva.cuposEnEspera > 0 ? String(reserva.cuposEnEspera) : null}
+        />
+        <Dato titulo="Ocupados" valor={String(reserva.conNombre)} />
+        <Dato
+          titulo="Pendientes"
+          valor={String(reserva.sinNombre)}
+          pie={reserva.sinNombre > 0 ? "sin nombre todavía" : undefined}
         />
       </dl>
 
