@@ -114,9 +114,21 @@ export function SelectorBuscable({
         aria-expanded={abierto}
         aria-haspopup="listbox"
         aria-label={etiqueta}
-        className={`${CLASE_CONTROL} flex items-center gap-2 text-left ${
-          desactivado ? "cursor-not-allowed opacity-55" : ""
-        }`}
+        /// EL MISMO ASPECTO QUE `Desplegable`, el de la casa
+        /// (cliente, 24 sep 2026: «ya sabes cómo me gustan los
+        /// desplegables, ajústalos»). Son dos componentes porque uno
+        /// busca y el otro no, pero para quien mira son el mismo
+        /// control y tenían dos aspectos distintos: este llevaba un
+        /// «▾» de texto y el borde no se enteraba de que estaba
+        /// abierto.
+        className={
+          `${CLASE_CONTROL} flex items-center gap-2 text-left transition ` +
+          (desactivado
+            ? "cursor-not-allowed opacity-55 "
+            : abierto
+              ? "border-marca "
+              : "hover:border-marca/60 ")
+        }
       >
         <span className="min-w-0 grow truncate">
           {desactivado ? (
@@ -132,8 +144,25 @@ export function SelectorBuscable({
             <span className="text-texto-suave">{vacio}</span>
           )}
         </span>
-        <span aria-hidden className="shrink-0 text-texto-suave">
-          ▾
+        {/* El cheurón dibujado, que gira al abrir: el «▾» de texto
+            se veía de un tamaño distinto en cada máquina --lo pinta
+            la fuente del sistema-- y no decía si estaba abierto. */}
+        <span
+          aria-hidden="true"
+          className={
+            "shrink-0 text-texto-suave transition-transform " +
+            (abierto ? "rotate-180" : "")
+          }
+        >
+          <svg width="11" height="11" viewBox="0 0 12 12" fill="none">
+            <path
+              d="M2.5 4.5 6 8l3.5-3.5"
+              stroke="currentColor"
+              strokeWidth="1.6"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
         </span>
       </button>
 
@@ -181,7 +210,7 @@ export function SelectorBuscable({
                 <button
                   type="button"
                   onClick={() => elegir("")}
-                  className="w-full rounded-lg px-3 py-2 text-left text-sm text-texto-suave transition hover:bg-superficie-alterna"
+                  className="sin-aro w-full rounded-lg px-3 py-[7px] text-left text-[0.78125rem] text-texto-suave transition hover:bg-marca-suave"
                 >
                   {vacio}
                 </button>
@@ -196,16 +225,48 @@ export function SelectorBuscable({
                   onClick={() => elegir(o.id)}
                   role="option"
                   aria-selected={o.id === valor}
-                  className={`w-full rounded-lg px-3 py-2 text-left text-sm transition disabled:opacity-40 ${
-                    o.id === valor
-                      ? "bg-marca-suave font-medium text-marca"
-                      : "hover:bg-superficie-alterna"
-                  }`}
+                  /// La medida y el color de `Desplegable`: relleno
+                  /// 3/7, cuerpo de 12,5 px, la elegida en negrita y
+                  /// del color de la marca, y el fondo suave para la
+                  /// que está bajo el puntero.
+                  /// LA ELEGIDA, CON RELLENO SÓLIDO (cliente, 24 sep
+                  /// 2026: «ya sabes cómo me gustan los desplegables,
+                  /// ajústalos», y con la misma captura dos veces).
+                  ///
+                  /// Iba en negrita y del color de la marca, sin
+                  /// fondo, y sobre una lista de cinco opciones eso
+                  /// no se ve: hay que comparar un renglón con otro
+                  /// para saber cuál está puesta. Con el relleno se
+                  /// ve sin leer, que es como se comporta el
+                  /// desplegable del sistema que él enseñó.
+                  ///
+                  /// El fondo suave se queda para la que está bajo
+                  /// el puntero: son dos cosas distintas ---dónde
+                  /// estoy y qué hay puesto--- y con el mismo color
+                  /// se confundían.
+                  className={
+                    "sin-aro flex w-full items-start gap-2 rounded-lg px-3 py-[7px] " +
+                    "text-left text-[0.78125rem] transition disabled:opacity-40 " +
+                    (o.id === valor
+                      ? "bg-marca font-semibold text-marca-texto"
+                      : "text-texto hover:bg-marca-suave")
+                  }
                 >
-                  <span className="block">{o.etiqueta}</span>
-                  {o.detalle && (
-                    <span className="block text-xs text-texto-suave">{o.detalle}</span>
-                  )}
+                  <span className="min-w-0 flex-1">
+                    <span className="block leading-snug">{o.etiqueta}</span>
+                    {o.detalle && (
+                      <span
+                        /// Sobre el relleno sólido, el gris del
+                        /// detalle no se lee: hereda con opacidad.
+                        className={
+                          "mt-0.5 block text-[0.71875rem] font-normal " +
+                          (o.id === valor ? "opacity-80" : "text-texto-suave")
+                        }
+                      >
+                        {o.detalle}
+                      </span>
+                    )}
+                  </span>
                 </button>
               </li>
             ))}

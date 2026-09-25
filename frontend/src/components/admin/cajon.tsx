@@ -104,12 +104,31 @@ export function Cajon({
 }
 
 /** Un dato del panel; si no hay valor, no ocupa sitio. */
-export function Dato({ titulo, valor }: { titulo: string; valor: ReactNode }) {
+export function Dato({
+  titulo,
+  valor,
+  pie,
+}: {
+  titulo: string;
+  valor: ReactNode;
+  /// UNA LÍNEA DEBAJO, en pequeño, para lo que el número solo no
+  /// dice. Nació de «6 de 9 · tocaría 7», que era un dato al lado
+  /// de otro sin nada que los relacionara: el pie es donde se
+  /// explica el número en vez de poner un segundo número al lado y
+  /// dejar la resta al que lee.
+  ///
+  /// No es un `title`: lo que hace falta para entender la cifra
+  /// tiene que verse, no descubrirse pasando el ratón.
+  pie?: ReactNode;
+}) {
   if (valor === null || valor === undefined || valor === "") return null;
   return (
     <div>
       <dt className="text-xs uppercase tracking-wide text-texto-suave">{titulo}</dt>
       <dd className="mt-0.5">{valor}</dd>
+      {pie !== null && pie !== undefined && pie !== "" && (
+        <dd className="mt-0.5 text-[0.75rem] leading-snug text-texto-suave">{pie}</dd>
+      )}
     </div>
   );
 }

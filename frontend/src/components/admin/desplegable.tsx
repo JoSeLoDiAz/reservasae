@@ -294,17 +294,27 @@ export function Desplegable({
                   disabled={o.desactivada}
                   onMouseEnter={() => setMarcada(i)}
                   onClick={() => elegir(i)}
+                  /// LA ELEGIDA, CON RELLENO SÓLIDO (cliente, 24
+                  /// sep 2026). Ver el porqué en `SelectorBuscable`:
+                  /// se cambian los dos a la vez para que no queden
+                  /// dos aspectos del mismo control.
                   className={
                     "sin-aro flex w-full items-start gap-2 px-3 py-[7px] text-left " +
                     "text-[0.78125rem] transition disabled:opacity-50 " +
-                    (i === marcada ? "bg-marca-suave " : "") +
-                    (esta ? "font-semibold text-marca" : "text-texto")
+                    (esta
+                      ? "bg-marca font-semibold text-marca-texto"
+                      : (i === marcada ? "bg-marca-suave " : "") + "text-texto")
                   }
                 >
                   <span className="min-w-0 flex-1">
                     <span className="block leading-snug">{o.etiqueta}</span>
                     {o.detalle && (
-                      <span className="mt-0.5 block text-[0.71875rem] font-normal text-texto-suave">
+                      <span
+                        className={
+                          "mt-0.5 block text-[0.71875rem] font-normal " +
+                          (esta ? "opacity-80" : "text-texto-suave")
+                        }
+                      >
                         {o.detalle}
                       </span>
                     )}

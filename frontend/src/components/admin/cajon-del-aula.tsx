@@ -183,19 +183,59 @@ export function CajonDelAula({
               </span>
             }
           />
+          {/* EN CRISTIANO (cliente, 24 sep 2026: «¿esta mierda qué
+              es?»). Decía «6 de 9 · tocaría 7», y así no se entiende
+              nada: ni qué son los nueve, ni de dónde sale el siete,
+              ni si siete es bueno o malo.
+
+              DE DÓNDE SALE EL NUEVE, que es lo que él preguntó
+              después: «o sea, si solo son 6 ítems, ¿de dónde sale
+              esto?». Son dos listas distintas y hoy no coinciden.
+
+               · Las SEIS columnas de la tabla ---UT1..UT5 y EVAL
+                 FINAL--- son las que va a mandar el LMS. Mientras no
+                 esté conectado salen en raya: no hay dato.
+
+               · El NUEVE son las actividades obligatorias que hay
+                 CARGADAS EN EL CRM para ese curso, en la tabla
+                 `Actividad`. Son las de la siembra, genéricas, y de
+                 ahí salen también el «% avance» y el estado ---al
+                 día, atrasado, listo para certificar---.
+
+              Por eso el rótulo dice «cargadas en el CRM»: para que el
+              número diga de dónde viene y no se lea como si fueran
+              las seis mal contadas. Cuando el LMS entre, las dos
+              listas pasan a ser la misma y esta coletilla sobra.
+
+              Los NUEVE son las actividades obligatorias de su curso.
+              El SIETE es cuántas debería llevar a estas alturas, que
+              sale de comparar la fecha de hoy con el calendario de su
+              grupo: si el curso va por la mitad, tocaría la mitad.
+              Por eso «a estas alturas», que es lo que le faltaba a la
+              frase para significar algo.
+
+              Y se dice si va bien o mal en vez de dejar dos números
+              sueltos para que los reste quien lee. */}
           <Dato
             titulo="Avance"
             valor={
               <>
                 <span className="tabular-nums">
-                  {fila.hechas} de {fila.total}
+                  {fila.hechas} de {fila.total}{" "}
                 </span>
-                {fila.esperadas !== null && (
-                  <span className="ml-2 text-[0.75rem] text-texto-suave tabular-nums">
-                    tocaría {fila.esperadas}
-                  </span>
-                )}
+                <span className="text-[0.8125rem] text-texto-suave">
+                  {fila.total === 1
+                    ? "actividad cargada en el CRM"
+                    : "actividades cargadas en el CRM"}
+                </span>
               </>
+            }
+            pie={
+              fila.esperadas === null
+                ? "Su grupo no tiene calendario, así que no hay contra qué medirlo."
+                : fila.desfase === null || fila.desfase >= 0
+                  ? `A estas alturas del curso tocarían ${fila.esperadas}: va al día.`
+                  : `A estas alturas del curso tocarían ${fila.esperadas}: va ${-fila.desfase} por debajo.`
             }
           />
           <Dato
@@ -227,13 +267,20 @@ export function CajonDelAula({
 
       {/* ── 2 · LO QUE PONE EL ASESOR: su traza. ── */}
       <section className="mt-6 border-t border-borde pt-5">
+        {/* «SEGUIMIENTO REALIZADO AL PARTICIPANTE», y sin el
+            párrafo de debajo (cliente, 24 sep 2026: «esto se elimina
+            [...] se deja: Seguimiento realizado al participante»).
+
+            El párrafo explicaba que es la misma bitácora del lead y
+            que por ahí entran las conversaciones de Lucid. Sigue
+            siendo verdad ---está escrito en la cabecera de este
+            fichero, que es donde le sirve a quien toque el código---,
+            pero en pantalla ocupaba dos renglones para contar una
+            decisión de arquitectura a quien solo viene a escribir una
+            nota. */}
         <h3 className="text-xs font-semibold tracking-[0.08em] text-texto-suave uppercase">
-          Seguimiento del asesor
+          Seguimiento realizado al participante
         </h3>
-        <p className="mt-1 text-[0.75rem] leading-snug text-texto-suave">
-          Lo que usted hizo con esta persona. Es la misma bitácora del lead, así que aquí
-          también salen las conversaciones que entran por Lucid.
-        </p>
 
         <div className="mt-3 space-y-2">
           <textarea
