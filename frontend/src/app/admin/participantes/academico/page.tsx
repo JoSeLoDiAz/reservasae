@@ -8,6 +8,8 @@ import { IndicadorActualizacion } from "@/components/admin/indicador-actualizaci
 import { Aviso, CLASE_CONTROL, Tarjeta } from "@/components/admin/marco-admin";
 import { Esqueleto } from "@/components/admin/piezas";
 import { CajonDelAula } from "@/components/admin/cajon-del-aula";
+import { columnasDelAula } from "@/components/admin/columnas-del-aula";
+import { Tabla } from "@/components/admin/tabla";
 import { Desplegable } from "@/components/admin/desplegable";
 import { SelectorBuscable } from "@/components/admin/selector-buscable";
 import { useDatosVivos } from "@/lib/datos-vivos";
@@ -15,7 +17,6 @@ import {
   type Academico,
   crmApi,
   type EstadoAcademico,
-  AYUDA_ACADEMICA,
   ETIQUETA_ACADEMICA,
   AYUDA_ETAPA,
   type Etapa,
@@ -42,24 +43,6 @@ const ORDEN: EstadoAcademico[] = [
   "CERTIFICADO",
   "SIN_EMPEZAR",
 ];
-
-/// «AF1 · GESTIÓN DE LA ATENCIÓN…» llega en un solo texto, y el
-/// nombre entero son noventa letras que se comían media tabla: la
-/// columna de la acción medía más que las cinco de datos juntas y
-/// empujaba el estado, el avance y el último ingreso al canto
-/// derecho. El nombre completo se queda en el `title`, y el tablero
-/// de Seguimiento académico ya resolvía esto igual.
-const soloElCodigo = (accion: string | null) =>
-  accion ? (accion.split("·")[0]?.trim() ?? accion) : null;
-
-function fecha(iso: string | null) {
-  if (!iso) return "—";
-  return new Date(iso).toLocaleDateString("es-CO", {
-    day: "2-digit",
-    month: "short",
-    year: "2-digit",
-  });
-}
 
 /**
  * Seguimiento académico: UN solo cuadro.
@@ -186,6 +169,18 @@ function Seguimiento() {
 
   // AF1, AF2… AF10: por el número, no alfabético, que
   // pondría AF10 antes que AF2
+  /// LAS COLUMNAS SALEN DE LAS FILAS, porque las de actividad
+  /// dependen del curso: hoy son las doce de la siembra y mañana las
+  /// seis que mande el LMS, sin tocar una línea.
+  ///
+  /// SIN `useMemo`, y a propósito. `visibles` se reconstruye en cada
+  /// render --es un `filter` sobre las personas--, así que una
+  /// memoria con esa dependencia no acierta nunca: solo añade la
+  /// comparación y la promesa falsa de que ahorra algo. La pasada es
+  /// una por persona y actividad, y con el aula entera son unos
+  /// cientos de vueltas.
+  const columnas = columnasDelAula();
+
   const hayFiltro = Boolean(
     filtro || salida || accionFormacionId || grupoId || asesorId || buscar,
   );
@@ -464,107 +459,31 @@ function Seguimiento() {
            la misma tabla, el mismo buscador y el mismo cajón al pulsar
            una fila, con las columnas del aula en vez de las del
            embudo. */
-        <div className="caja-scroll overflow-x-auto rounded-xl border border-borde bg-superficie">
-          <table className="tabla-datos w-full">
-            <thead>
-              <tr>
-                <th className="w-full">Participante</th>
-                <th className="whitespace-nowrap">Acción y grupo</th>
-                <th className="whitespace-nowrap">Estado LMS</th>
-                <th className="whitespace-nowrap">Avance</th>
-                <th className="whitespace-nowrap">Último ingreso</th>
-                <th className="whitespace-nowrap">Asesor</th>
-                <th className="text-center whitespace-nowrap">Seguimiento</th>
-              </tr>
-            </thead>
-            <tbody>
-              {visibles.map((p) => (
-                <tr
-                  key={p.id}
-                  onClick={() => setEnElCajon(p)}
-                  className="cursor-pointer hover:bg-superficie-alterna"
-                >
-                  <td>
-                    <span className="block font-medium">{p.nombre}</span>
-                    <span className="block font-mono text-xs text-texto-suave">
-                      {p.documento}
-                    </span>
-                  </td>
-                  <td className="text-sm whitespace-nowrap" title={p.accion ?? undefined}>
-                    {soloElCodigo(p.accion) ?? "—"}
-                    {p.grupo !== null && (
-                      <span className="block text-xs text-texto-suave">
-                        Grupo {p.grupo}
-                      </span>
-                    )}
-                  </td>
-                  <td>
-                    <span
-                      style={{ ["--etapa"]: COLOR[p.estado] } as React.CSSProperties}
-                      className="pildora-etapa"
-                      title={AYUDA_ACADEMICA[p.estado]}
-                    >
-                      {ETIQUETA_ACADEMICA[p.estado]}
-                    </span>
-                  </td>
-                  <td className="min-w-44">
-                    <Barra fila={p} />
-                  </td>
-                  <td className="text-sm whitespace-nowrap">
-                    {p.ultimoAcceso ? fecha(p.ultimoAcceso) : "nunca"}
-                    {p.diasSinEntrar !== null && p.diasSinEntrar >= 14 && (
-                      <span className="block text-xs text-error">
-                        hace {p.diasSinEntrar} días
-                      </span>
-                    )}
-                  </td>
-                  <td className="text-sm whitespace-nowrap">{p.asesor?.nombre ?? "—"}</td>
-                  <td className="text-center text-sm whitespace-nowrap">
-                    <span className="text-marca underline underline-offset-2">Abrir</span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <Tabla
+          /// LA MISMA TABLA DE GESTIÓN DE LEADS, no una parecida:
+          /// «prácticamente es como la tabla de Gestión de leads, su
+          /// mismo esquema, toda la misma lógica» (cliente, 24 sep
+          /// 2026). Con ella vienen los filtros por columna, el
+          /// selector de columnas y que la selección se recuerde.
+          ///
+          /// SIN `acciones` NI `accionesLote`, y eso es literal:
+          /// «solo que acá no van botones como importar, asignar
+          /// masivo y demás». No se quitan; es que no se le pasan.
+          ///
+          /// El `id` es lo que separa las columnas guardadas de esta
+          /// pantalla de las de Gestión de leads. Con el mismo, quien
+          /// escondiera una allá se la encontraría escondida aquí.
+          id="aula"
+          columnas={columnas}
+          filas={visibles}
+          clave={(f) => f.id}
+          alClic={(f) => setEnElCajon(f)}
+        />
       )}
 
       {enElCajon && (
         <CajonDelAula fila={enElCajon} alCerrar={() => setEnElCajon(null)} />
       )}
-    </div>
-  );
-}
-
-/** Lo hecho, con la marca de lo que tocaría hoy. */
-function Barra({ fila }: { fila: FilaAcademica }) {
-  const hechoPct = fila.total > 0 ? (fila.hechas / fila.total) * 100 : 0;
-  const esperadoPct =
-    fila.esperadas !== null && fila.total > 0 ? (fila.esperadas / fila.total) * 100 : null;
-
-  return (
-    <div className="min-w-40">
-      <div
-        className="relative h-2.5 overflow-hidden rounded-full bg-superficie-alterna"
-        style={{ ["--etapa"]: COLOR[fila.estado] } as React.CSSProperties}
-      >
-        <span
-          className="block h-full rounded-full"
-          style={{ width: `${hechoPct}%`, background: "var(--etapa)" }}
-        />
-        {esperadoPct !== null && (
-          <span
-            // donde debería ir hoy
-            className="absolute top-0 h-full w-0.5 bg-texto"
-            style={{ left: `${Math.min(100, esperadoPct)}%` }}
-            aria-hidden
-          />
-        )}
-      </div>
-      <span className="mt-1 block font-mono text-xs text-texto-suave">
-        {fila.hechas}/{fila.total}
-        {fila.esperadas !== null && ` · tocaría ${fila.esperadas}`}
-      </span>
     </div>
   );
 }
