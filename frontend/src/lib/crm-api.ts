@@ -1573,6 +1573,12 @@ export const crmApi = {
 
   obtener: (id: string) => pedir<Ficha>(`/admin/participantes/${id}`),
 
+  /// LA FILA DEL AULA DE UNA SOLA PERSONA, para su vista individual.
+  /// La calcula el mismo sitio que la lista, así que su estado y su
+  /// avance no pueden discrepar de los de la tabla.
+  academicoDeUno: (id: string) =>
+    pedir<Academico>(`/admin/participantes/academico/persona/${id}`),
+
   actualizar: (id: string, datos: Record<string, unknown>) =>
     pedir<Ficha>(`/admin/participantes/${id}`, {
       method: "PATCH",

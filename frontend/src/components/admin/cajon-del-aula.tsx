@@ -154,25 +154,31 @@ export function CajonDelAula({
         </>
       }
       alCerrar={alCerrar}
-      /* LA SALIDA A LA FICHA, AL PIE Y SOBRIA (cliente, 24 sep 2026:
-         «esto no, como la opción de Gestión de leads, que va abajo y
-         es más sobrio»).
+      /* LA SALIDA, AL PIE Y SOBRIA ---la misma pieza que `CajonLead`
+         pone en el suyo--- (cliente, 24 sep 2026: «esto no, como la
+         opción de Gestión de leads, que va abajo y es más sobrio»).
 
-         Estuvo arriba y como botón con recuadro, y pesaba más que el
-         contenido del cajón. Esto es la MISMA pieza que `CajonLead`
-         pone en su pie, letra por letra: un enlace subrayado del
-         color de la marca, en el pie del `Cajon`. Quien ya conoce
-         Gestión de leads lo encuentra sin buscarlo.
+         Y LLEVA A SEGUIMIENTO DEL AULA, no a Gestión de leads: «te
+         dije que abrir lead es una visual de Seguimiento del aula,
+         como de resumen del participante, porque ya es el 1 a 1; ¿por
+         qué me muestras la vista de Control de inscritos?» (cliente,
+         25 sep 2026).
 
-         Y va aquí y no en la lista de columnas porque es lo que se
-         hace CUANDO el cajón no trae lo que uno venía a ver, no algo
-         que se elija antes de abrirlo. */
+         Llevaba a `/admin/participantes/[id]`, que es la ficha del
+         otro módulo: otra cabecera, otra miga ---«← Gestión de
+         leads»--- y una pantalla que habla de etapas, habeas data y
+         formato SEP. Todo eso es verdad de la PERSONA, pero quien
+         viene del aula viene a mirar cómo va en el curso. Ahora
+         lleva a la pantalla de Académica, que es esa.
+
+         Desde allá sigue habiendo un enlace a la ficha, para lo que
+         de verdad vive allá. */
       pie={
         <a
-          href={`/admin/participantes/${fila.id}`}
+          href={`/admin/participantes/academico/${fila.id}`}
           className="text-sm text-marca underline"
         >
-          Abrir lead completo
+          Abrir el resumen del participante
         </a>
       }
     >

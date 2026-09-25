@@ -125,7 +125,20 @@ import {
  * todo, nunca puede venir de la petición: lo pone el
  * controlador desde el guard.
  */
-export type Filtros = FiltrosParticipantesDto & { ambito?: string[] };
+export type Filtros = FiltrosParticipantesDto & {
+  ambito?: string[];
+  /// UNA PERSONA CONCRETA, solo para `academico()`.
+  ///
+  /// Es lo que pide la vista individual del aula: la misma fila que
+  /// sale en la lista ---con su estado, su avance actividad por
+  /// actividad y sus días sin gestión--- pero de una sola. Se calcula
+  /// en un sitio y no en dos, que es como se acaba enseñando un
+  /// «atrasado» en la lista y un «al día» al abrirlo.
+  ///
+  /// No va en el DTO porque no es un filtro de la lista: entra por la
+  /// ruta, no por la cadena de consulta.
+  participanteId?: string;
+};
 
 const POR_PAGINA = 30;
 /// Tope duro aunque el filtro pida mas.
@@ -4114,7 +4127,15 @@ export class CrmService {
     ];
 
     const donde: Prisma.ParticipanteWhereInput = {
-      AND: [this.donde({ ...filtros, etapa: undefined }), ...reglasDelAula],
+      AND: [
+        this.donde({ ...filtros, etapa: undefined }),
+        ...reglasDelAula,
+        /// La vista individual pide una sola. Va aquí y NO en
+        /// `baseDelAula`: aquello alimenta las opciones de los
+        /// desplegables, y con esto dentro se quedarían con la única
+        /// acción de esa persona.
+        ...(filtros.participanteId ? [{ id: filtros.participanteId }] : []),
+      ],
     };
 
     /**
