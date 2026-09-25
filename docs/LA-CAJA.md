@@ -171,3 +171,12 @@ sitio sin decir a cuál.
 5. **Repartir los grupos entre los asesores académicos.** La puerta
    ya está; falta la decisión de quién lleva qué. Hasta que se haga,
    Seguimiento de asesores enseña un solo renglón.
+
+**Y los cuatro que esperaban a Mauricio pasaron a José** (25 sep 2026,
+sus palabras: «bótale lo mío a José, que él indique y ordene qué
+hacer»): el reparto de los grupos, el "Hoy" de Control de inscritos,
+la hoja *Organización* del segundo plano de cargue y los dos correos
+--- al LMS y al SENA ---. Van con su estado comprobado y una propuesta
+cada uno en
+[`BRECHAS-PARA-JOSE.md`](BRECHAS-PARA-JOSE.md#lo-que-pasa-a-tu-mesa--tú-indicas-y-ordenas),
+para que se contesten con un sí o un no.
