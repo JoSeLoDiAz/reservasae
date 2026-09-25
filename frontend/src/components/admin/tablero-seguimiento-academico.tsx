@@ -470,10 +470,25 @@ function Cuerpo({
   /// El rótulo de un grupo, en UN solo sitio: lo piden la tajada de
   /// la torta y el renglón de la lista, y escrito dos veces es como
   /// se acaba con una leyenda que no dice lo mismo que su dibujo.
-  const rotuloDeGrupo = (g: { codigo: string; grupo: number | null; accionId: string }) =>
-    ambiguo(g.codigo)
-      ? `${g.codigo} · ${nombreDeAccion.get(g.accionId) ?? ""} · Grupo ${g.grupo ?? "—"}`
-      : `${g.codigo} · Grupo ${g.grupo ?? "—"}`;
+  /// LO QUE IDENTIFICA, DELANTE; el nombre de la acción, al final.
+  ///
+  /// La leyenda del anillo corta por la derecha, y con el nombre por
+  /// delante ---noventa letras--- todas las líneas salían iguales:
+  /// «AF2 · ARQUITECTURA FINANCIERA: VISUALIZACION PREDICTIVA Y…» y ni
+  /// el grupo ni el avance se veían. Puesto al final, lo que se come
+  /// la tijera es lo único que sobra; el rótulo entero sigue en el
+  /// `title`.
+  ///
+  /// Y el nombre solo va cuando hace falta: con un gremio a la vista
+  /// los códigos no se repiten y repetirlo en treinta líneas es ruido.
+  const rotuloDeGrupo = (g: {
+    codigo: string;
+    grupo: number | null;
+    accionId: string;
+    medio: number;
+  }) =>
+    `${g.codigo} Grupo ${g.grupo ?? "—"} · avance ${Math.round(g.medio)} %` +
+    (ambiguo(g.codigo) ? ` · ${nombreDeAccion.get(g.accionId) ?? ""}` : "");
 
   /* ── cómo va cada grupo: el avance medio ──────────────────────── */
   const avance = ordenadas
@@ -644,77 +659,34 @@ function Cuerpo({
 
         <div className="min-w-0 lg:flex-1">
           <Bloque estirado titulo="Avance por Grupo">
-            {/* LA TORTA Y LA LISTA SON LA MISMA COSA, DOS VECES.
+            {/* EL ANILLO CON SU LEYENDA AL LADO, como el de «Datos
+                completos» que él señaló (25 sep 2026: «así no, como la
+                segunda captura»).
 
-                El anillo dice cuánto pesa cada grupo dentro del total
-                ---que es lo que un anillo sabe decir y una barra no---
-                y la lista dice cuánto ha avanzado cada uno, que en una
-                tajada no cabe.
+                Estuvo con `soloDibujo` y una lista de barras debajo:
+                con treinta y un grupos eran sesenta y dos renglones
+                para decir lo que la leyenda dice en treinta y uno, y
+                el anillo quedaba arriba, suelto, sin nada que lo
+                explicara al lado.
 
-                Para que se puedan leer juntos, las dos salen del MISMO
-                array y en el MISMO orden, y cada renglón lleva el punto
-                del color de su tajada. Sin eso el anillo era adorno:
-                nueve tajadas sin leyenda y ordenadas por avance, o sea
-                sin forma de saber cuál era cuál. */}
-            <div className="flex flex-wrap items-center justify-center gap-4">
-              <Donut
-                tamano={168}
-                datos={avance.map((g, i) => ({
-                  etiqueta: rotuloDeGrupo(g),
-                  valor: g.gente,
-                  color: CICLO[i % CICLO.length],
-                }))}
-                centro={n(r.total)}
-                detalleCentro={r.total === 1 ? "matriculado" : "matriculados"}
-                soloDibujo
-                vacio="Todavía no hay grupos con gente dentro."
-              />
-            </div>
-            <ul className="mt-4 space-y-2.5">
-              {avance.map((g, i) => (
-                <li key={g.llave}>
-                  <div className="flex items-baseline justify-between gap-3 text-[0.8125rem]">
-                    <span className="flex min-w-0 items-baseline gap-1.5">
-                      <span
-                        className="punto-etapa self-center"
-                        style={{ ["--etapa"]: CICLO[i % CICLO.length] } as React.CSSProperties}
-                        aria-hidden
-                      />
-                      <span className="min-w-0 truncate">
-                        <span className="font-mono text-xs text-texto-suave">{g.codigo}</span> Grupo{" "}
-                        {g.grupo ?? "—"}
-                        {/* DE QUÉ ACCIÓN, cuando el código se repite.
-                            «AF2 Grupo 7» salía DOS VECES ---dos
-                            acciones distintas con el mismo código y las
-                            dos con un grupo 7--- y no había manera de
-                            saber cuál era cuál. Es el mismo fallo que
-                            ya se arregló en la tabla de abajo. */}
-                        {ambiguo(g.codigo) && (
-                          <span
-                            className="ml-1.5 text-[0.6875rem] text-texto-suave"
-                            title={nombreDeAccion.get(g.accionId) ?? ""}
-                          >
-                            {(nombreDeAccion.get(g.accionId) ?? "").split(":")[0].slice(0, 22)}…
-                          </span>
-                        )}
-                        <span className="ml-2 text-[0.75rem] text-texto-suave">
-                          {n(g.gente)} matriculados
-                        </span>
-                      </span>
-                    </span>
-                    <span className="shrink-0 font-semibold tabular-nums">
-                      {Math.round(g.medio)} %
-                    </span>
-                  </div>
-                  <div className="mt-1 h-2.5 w-full overflow-hidden rounded-full bg-superficie-alterna">
-                    <div
-                      className="h-full rounded-full bg-exito"
-                      style={{ width: `${Math.max(g.medio, 1)}%` }}
-                    />
-                  </div>
-                </li>
-              ))}
-            </ul>
+                EL AVANCE VA EN EL RÓTULO de cada tajada. La cifra de
+                la derecha es lo que el anillo reparte ---cuánto pesa
+                ese grupo en el total---, y el avance es otra cosa: si
+                no se dice cuál es cuál, dos porcentajes en la misma
+                línea no se pueden leer. */}
+            <Donut
+              tamano={188}
+              datos={avance.map((g, i) => ({
+                etiqueta: rotuloDeGrupo(g),
+                valor: g.gente,
+                color: CICLO[i % CICLO.length],
+              }))}
+              /// Sin `centro`: el anillo pone la suma de sus tajadas,
+              /// que es la única cifra que no puede contradecirlas.
+              /// Pasándole `resumen.total` decía 420 y dibujaba 300.
+              detalleCentro="matriculados"
+              vacio="Todavía no hay grupos con gente dentro."
+            />
           </Bloque>
         </div>
       </div>
