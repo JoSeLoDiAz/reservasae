@@ -45,6 +45,10 @@ Si quieres verlo sin desplegar: `pnpm --filter backend db:brechas`.
 **Cuatro de las seis primeras son el mismo defecto de forma**, y por eso van juntas al final en
 «el patrón».
 
+**Y una que ya no está en la tabla porque está cerrada:** la columna `asesorAcademicoId` sin
+nadie que la escribiera ---tu hallazgo del 25 de septiembre---. La puerta está hecha y probada;
+el detalle, al final, en [ASESOR-ACADEMICO](#asesor-academico--la-columna-sin-escritores-cerrada).
+
 ---
 
 ## B-01 · El reparto de leads tiene una puerta de al lado
@@ -254,3 +258,163 @@ lista como abierto y llevaba días resuelto.
 Lo digo porque es la lección de todo este repaso: **un pendiente se comprueba contra `dev`, no
 contra la lista.** Trabajamos en paralelo, y la lista envejece más rápido de lo que se
 actualiza.
+
+---
+
+## ASESOR-ACADEMICO · la columna sin escritores: **cerrada**
+
+**Tu hallazgo, y era bueno.** «`asesorAcademicoId` tiene cero escritores: ni backend ni panel.»
+Lo comprobé en la base de pruebas antes de tocar nada: **120 grupos, 0 con asesor**. Mi propio
+paso de QA sobre esa pestaña había leído «filas: 1» y no me pregunté por qué era una.
+
+Era una porque `repartirAcademicos` mete a todo el que no tiene asesor bajo la llave
+`SIN_ASESOR`, así que la pantalla enseñaba **una sola fila, «Sin asesor asignado»**, con los
+mil y pico participantes dentro. Se lee como un dato y no como lo que era: que la asignación
+no existía.
+
+**Qué construí** (es de la pantalla que entregué yo, así que la hice yo):
+
+| Dónde | Qué |
+|---|---|
+| `cronograma/dto.ts` | `asesorAcademicoId?: string \| null` en `ActualizarGrupoDto`. Sin mandarlo no se toca; `null` suelta el grupo |
+| `cronograma.service.ts` | `actualizarGrupo` lo escribe, **tras comprobarlo**; `listar` devuelve `asesorAcademicoId`, el nombre y el `convenioId` de la acción |
+| `cronograma.service.ts` | `asesoresPosibles(ambito)`: las cuentas que pueden llevar grupos, una fila por persona con sus gremios |
+| `cronograma.controller.ts` | `GET admin/cronograma/asesores`, con `@Requiere('configuracion', 'ESCRIBIR')` |
+| `cronograma-vista.tsx` | El desplegable en la ficha del grupo. El botón pasa de «Editar fechas» a «Editar grupo» |
+| `panel-asesores.tsx` | Cuando nadie tiene grupo asignado, la pestaña lo **dice** y enlaza a donde se arregla |
+
+**La decisión que te quiero señalar, porque es la que puede morder.** El asesor se comprueba
+**contra el gremio del grupo**, no contra el ámbito de quien edita:
+
+```ts
+where: {
+  adminId: dto.asesorAcademicoId,
+  convenioId: grupo.accionFormacion.convenioId,   // ← el del GRUPO
+  rol: { in: ROLES_ACADEMICOS },
+  admin: { activo: true },
+}
+```
+
+Son dos cosas distintas y confundirlas es el defecto. Un líder de sistemas ve los dos gremios;
+sin esta línea podría poner de asesor de un grupo de ADECOPRIA a alguien que solo responde por
+BRITCHAM ---y que no puede ni entrar a lo que se le asignó---.
+
+`ROLES_ACADEMICOS` son **tres**: `GESTOR_ACADEMICO`, `LIDER_ACADEMICO`, `LIDER_SISTEMAS`. Van
+escritos a mano y no calculados sobre `PERMISOS`, porque asignar un grupo es una decisión de
+negocio: el día que un rol nuevo escriba en «académico», que alguien decida aparte si además
+debe poder llevar grupos. **`COUNTRY_MANAGER` queda fuera a propósito**: su permiso ahí es de
+ver. Hay una prueba que lo fija, para que nadie lo añada sin pensarlo.
+
+**Comprobado en el navegador, no solo con `tsc`:**
+
+- BRITCHAM ADEE ofrece 6 candidatos; ADECOPRIA ofrece 4 (Carlos Mesa y Héctor Ramos fuera, que
+  es correcto: solo son académicos en el otro gremio).
+- Asignar → la ficha lo enseña → Seguimiento de asesores lo recoge y el aviso desaparece.
+- Soltar → vuelve a cero, sin rastro.
+- **Y por la API, saltándose el desplegable**: `PATCH` con una cuenta del otro gremio contesta
+  `400` con el motivo. El desplegable filtra; el servidor no se fía de él.
+
+**Lo que NO hice, y es tuyo:** nadie tiene grupos asignados todavía. La puerta está; quién
+lleva cada grupo es una decisión de Mauricio y Diana, no mía. Mientras no se haga, la pestaña
+lo dice en pantalla en vez de fingir un dato.
+
+Pruebas nuevas: `backend/src/cronograma/asesor-del-grupo.spec.ts`, 7 casos.
+
+---
+
+## Lo que pasa a tu mesa · **tú indicas y ordenas**
+
+«Bótale lo mío a José, que él indique y ordene qué hacer» (Mauricio, 25 sep 2026).
+
+Son las cuatro cosas que estaban esperando una decisión suya. **Las pasa a ti para que las
+priorices y digas qué se hace.** De cada una dejo el estado real comprobado, lo que hace falta
+decidir y mi propuesta, para que puedas contestar con un sí o un no en vez de reabrir el tema.
+
+### M-1 · Quién lleva cada grupo
+
+**Estado:** la puerta está hecha (`3b5fb93`) y probada. En la base de pruebas, **120 grupos y
+0 asignados**. En producción, presumiblemente igual: la columna nunca tuvo escritores.
+
+**Lo que hay que decidir:** no nombres sueltos, sino **la regla**. Mi propuesta, para aprobar o
+cambiar: *cada gremio reparte sus grupos entre sus cuentas con rol `GESTOR_ACADEMICO`; donde no
+haya gestor, lo lleva el `LIDER_ACADEMICO`.* Con eso se puede sembrar el reparto de una vez y
+después se corrige a mano el que haga falta.
+
+**Y una pregunta de trabajo que es tuya:** asignarlos **uno por uno son 120 fichas**. Si dices
+que sí, hago la asignación masiva ---elegir varios grupos de una acción y ponerles el mismo
+asesor---. Si prefieres sembrarlo con un guion y que el panel solo corrija, también. Tú ordenas
+cuál de las dos.
+
+### M-2 · «Hoy» en Control de inscritos: creo que no es un fallo
+
+**Lo que él reportó:** «pongo hoy y dice que nada cuando no es así, ayer se cerró con 39».
+
+**Lo que comprobé en el código, y por qué creo que la pantalla tiene razón:**
+
+1. La ventana **se calcula en Bogotá**, no en UTC: `resolverVentana` arranca en
+   `inicioDeDiaBogota(ahora)` (`crm/ventana.ts`). Ahí no hay desfase.
+2. Con ventana, `enPeriodo` corta sobre `PRIMERA_MATRICULA`: cuenta **a quién se matriculó
+   dentro del periodo**, no el acumulado hasta hoy. «Hoy» son los de hoy, no el total.
+3. Y `PRIMERA_MATRICULA` se ancla en llegar a `INSCRITO`. Un lead que entró hoy y sigue en
+   `DATOS_COMPLETOS` **sube el total de leads y no cuenta como inscrito de hoy**.
+
+Así que «39 ayer y más hoy, pero Hoy dice cero» encaja perfectamente con que los nuevos todavía
+no estén matriculados. **Son dos números distintos leídos como si fueran el mismo.**
+
+**Lo que no puedo cerrar yo:** él nunca mandó la captura, y sin ella no sé cuál de los dos
+números miraba. Esto lo zanjas tú en producción en un minuto:
+
+```sql
+-- inscritos de HOY en Bogotá, con el mismo criterio de la pantalla
+SELECT count(*) FROM participantes p
+  JOIN LATERAL (
+    SELECT MIN(m."creadoEn") momento FROM movimientos_participante m
+     WHERE m."participanteId" = p.id
+       AND m."etapaDespues" = 'INSCRITO'::"EtapaParticipante"
+  ) an ON true
+ WHERE an.momento >= date_trunc('day', now() AT TIME ZONE 'America/Bogota')
+                     AT TIME ZONE 'America/Bogota';
+
+-- leads creados HOY, que es el otro número
+SELECT count(*) FROM participantes
+ WHERE "creadoEn" >= date_trunc('day', now() AT TIME ZONE 'America/Bogota')
+                     AT TIME ZONE 'America/Bogota';
+```
+
+Si los dos dan distinto y la pantalla enseña el primero, **no hay fallo: hay que cambiar el
+rótulo.** Mi propuesta: que el desplegable diga «Inscritos hoy» y no «Hoy» a secas. Si dan
+igual y la pantalla sigue en cero, entonces sí es un fallo y me lo devuelves.
+
+### M-3 · La hoja «Organización» del segundo plano
+
+Él tiene dos archivos de cargue. **El primero sube tal cual.** Al segundo le falta la hoja
+*Organización* ---NIT, razón social y jefe---, y por eso no entra.
+
+**Lo que hay que decidir:** si esos datos los pide él a la institución, o si el cargue debe
+poder entrar sin ellos y completarse después desde el CRM. Hoy el validador los exige.
+
+### M-4 · Los dos correos que destraban el aula y los retiros
+
+Están escritos y listos para copiar en [`CORREOS-PARA-DESTRABAR.md`](CORREOS-PARA-DESTRABAR.md):
+uno al proveedor del LMS ---pidiendo el avance de cada participante--- y otro al SENA ---qué
+valor va en `ESTADO` para un retiro---.
+
+Son las **dos únicas cosas del proyecto que no avanzan por más que trabajemos**, y las dos se
+destraban con un correo. **Lo que hay que decidir es quién los manda**, porque llevan días
+escritos y sin salir.
+
+---
+
+## Estado del despliegue, comprobado --- 25 sep 2026, 16:19 Bogotá
+
+No es un reproche, es para que partamos del mismo sitio:
+
+| Dónde | Qué hay |
+|---|---|
+| `origin/dev` · `origin/pruebas` | `f300062`, del 24 sep. **No se han movido** |
+| `origin/main` | `66bb264`, del 22 sep |
+| `prueba.reservasae.com` | Vivo, `0.10.4-JD-prueba`. `GET /api/admin/cronograma` → 401 (existe); **`/api/admin/cronograma/asesores` → 404** |
+
+O sea: **`3b5fb93` no está en pruebas todavía**, y el merge de producción a `dev` que hiciste en
+tu máquina no está en el remoto. Lo digo porque yo parto de `dev`: en cuanto lo subas rebaso y
+te aviso.

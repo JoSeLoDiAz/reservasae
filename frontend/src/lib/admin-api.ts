@@ -551,6 +551,10 @@ export type GrupoCronograma = {
   horario: string | null;
   sepGrupoId: number | null;
   sede: string | null;
+  /// Quién lleva el grupo: el id para el selector, el nombre para
+  /// pintarlo. Nulo mientras no se le haya asignado a nadie.
+  asesorAcademicoId: string | null;
+  asesorAcademico: string | null;
   estado: EstadoGrupo;
   /// Lo comprometido con el SENA, sin sobrecupo.
   cupos: number;
@@ -617,6 +621,9 @@ export type AccionCronograma = {
   /// Qué es: CURSO, FORO, TALLER…
   evento: string | null;
   modalidad: "PRESENCIAL" | "VIRTUAL" | "HIBRIDA";
+  /// El gremio al que pertenece. `convenio` es su sigla, para
+  /// leerla; este es el id, para saber a quién se le puede asignar.
+  convenioId: string;
   convenio: string;
   grupos: GrupoCronograma[];
   cupos: number;
@@ -632,8 +639,21 @@ export const ETIQUETA_ESTADO_GRUPO: Record<EstadoGrupo, string> = {
   TERMINADO: "Terminado",
 };
 
+/// Una cuenta que puede llevar grupos, y en qué gremios puede.
+export type AsesorPosible = {
+  id: string;
+  nombre: string;
+  /// Ids de convenio. La misma persona puede ser académica en uno
+  /// y de inscripción en otro: solo sale donde manda.
+  convenios: string[];
+};
+
 export const cronogramaApi = {
   listar: () => pedir<AccionCronograma[]>("/admin/cronograma"),
+
+  /// A quién se le puede asignar un grupo. Pide permiso de
+  /// escritura en configuración, el mismo que editarlo.
+  asesores: () => pedir<AsesorPosible[]>("/admin/cronograma/asesores"),
 
   /// Los tres textos de «Información Acción de Formación». Lo que no
   /// se manda no se toca, así que se puede guardar uno solo.
@@ -670,6 +690,8 @@ export const cronogramaApi = {
         ubicacionId?: string | null;
       }>;
       sepGrupoId?: number | null;
+      /// Sin mandarlo no se toca; `null` suelta el grupo.
+      asesorAcademicoId?: string | null;
     },
   ) =>
     pedir<{ actualizado: boolean }>(`/admin/cronograma/grupos/${id}`, {
