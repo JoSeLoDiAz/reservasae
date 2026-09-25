@@ -55,23 +55,35 @@ const fecha = (iso: string) =>
     year: "2-digit",
   });
 
-const diaYMes = (iso: string) =>
-  new Date(iso).toLocaleDateString("es-CO", { day: "2-digit", month: "short" });
-
 /**
- * Las fechas de una organización, consolidadas.
+ * Los días en que esta organización reservó, uno por renglón.
  *
- * Reservó todo el mismo día -- que es lo normal, porque el
- * formulario deja apartar varias acciones de una sentada -- y se
- * enseña UNA fecha. Si volvió otro día, se enseña el tramo: dos
- * fechas sueltas separadas por una raya dicen «entre estas dos»,
- * que es lo que se quiere saber.
+ * ANTES ERA UN TRAMO --«22 de ago – 29 de ago de 26»--, y el cliente
+ * lo devolvió: «no así, sino dentro de la celda como si fueran filas
+ * individuales» (25 sep 2026). Tenía razón: un tramo dice entre qué
+ * dos días pasó algo, pero no CUÁNDO ni CUÁNTAS VECES, y esta fila
+ * junta varias reservas justamente para poder contarlas.
+ *
+ * Se agrupa por la fecha YA ESCRITA y no por el instante: dos
+ * reservas del mismo día de Bogotá tienen instantes distintos, y
+ * comparar el ISO cortado a diez letras las separaría en dos
+ * renglones cada vez que una cae después de las 7 de la tarde.
  */
-function rangoDeFechas(fila: FilaAgrupada): string {
-  const desde = new Date(fila.primeraReserva).toDateString();
-  const hasta = new Date(fila.ultimaReserva).toDateString();
-  if (desde === hasta) return fecha(fila.ultimaReserva);
-  return `${diaYMes(fila.primeraReserva)} – ${fecha(fila.ultimaReserva)}`;
+function diasDeLaFila(fila: FilaAgrupada): string[] {
+  /// texto -> el instante más temprano con ese texto, que es por el
+  /// que se ordenan.
+  const dias = new Map<string, string>();
+  for (const celda of Object.values(fila.porAccion)) {
+    for (const r of celda.reservas) {
+      const texto = fecha(r.creadoEn);
+      const previo = dias.get(texto);
+      if (previo === undefined || r.creadoEn < previo) dias.set(texto, r.creadoEn);
+    }
+  }
+  if (dias.size === 0) return [fecha(fila.ultimaReserva)];
+  return [...dias.entries()]
+    .sort((a, b) => (a[1] < b[1] ? -1 : a[1] > b[1] ? 1 : 0))
+    .map(([texto]) => texto);
 }
 
 /**
@@ -245,39 +257,34 @@ export function ReservasUnificadas({
         /// poco. La primera va en el cajón.
         valor: (f) => f.ultimaReserva,
         pinta: (f) => (
-          <span
-            className="whitespace-nowrap text-texto-suave"
-            title={
-              f.primeraReserva === f.ultimaReserva
-                ? undefined
-                : `De ${fecha(f.primeraReserva)} a ${fecha(f.ultimaReserva)}`
-            }
-          >
-            {rangoDeFechas(f)}
+          <span className="flex flex-col gap-0.5 whitespace-nowrap text-texto-suave">
+            {diasDeLaFila(f).map((d) => (
+              <span key={d}>{d}</span>
+            ))}
           </span>
         ),
+      },
+      {
+        clave: "nit",
+        titulo: "NIT",
+        valor: (f) => f.nit,
+        pinta: (f) => (
+          <span className="font-mono text-xs whitespace-nowrap text-texto-suave">
+            {f.nit}
+            {f.digitoVerificacion ? "-" + f.digitoVerificacion : ""}
+          </span>
+        ),
+        filtro: "texto",
       },
       {
         clave: "organizacion",
         titulo: "Organización",
         fija: true,
+        /// SIN EL NIT DEBAJO. Va en su propia columna, justo antes, y
+        /// repetido en las dos era la misma cifra dos veces en la
+        /// misma fila.
         valor: (f) => enMayusculas(f.razonSocial),
-        pinta: (f) => (
-          <>
-            <p className="font-medium">{enMayusculas(f.razonSocial)}</p>
-            <p className="font-mono text-xs text-texto-suave">
-              {f.nit}
-              {f.digitoVerificacion ? "-" + f.digitoVerificacion : ""}
-            </p>
-          </>
-        ),
-        filtro: "texto",
-      },
-      {
-        clave: "nit",
-        titulo: "NIT",
-        aparte: true,
-        valor: (f) => f.nit,
+        pinta: (f) => <p className="font-medium">{enMayusculas(f.razonSocial)}</p>,
         filtro: "texto",
       },
       {
@@ -313,6 +320,78 @@ export function ReservasUnificadas({
         },
         filtro: "texto",
       },
+      {
+        clave: "celular",
+        /// «DEL CONTACTO» EN EL RÓTULO, aunque vaya pegada a
+        /// «Contacto»: en el panel de Columnas salen sueltas, y ahí
+        /// «Celular» a secas no dice de quién es.
+        titulo: "Celular del contacto",
+        valor: (f) => f.contactos.map((c) => c.celular).filter(Boolean).join(", "),
+        filtro: "texto",
+      },
+      {
+        clave: "cargo",
+        titulo: "Cargo del contacto",
+        valor: (f) => f.contactos.map((c) => c.cargo).filter(Boolean).join(", "),
+        filtro: "texto",
+      },
+      {
+        clave: "estado",
+        titulo: "Estado",
+        /// El valor plano se filtra y se busca: lleva las palabras
+        /// de todas, no solo las de la primera.
+        valor: (f) =>
+          [
+            ...new Set(
+              Object.values(f.porAccion)
+                .flatMap((c) => c.reservas)
+                .map((r) => ETIQUETA_ESTADO[r.estado].texto),
+            ),
+          ].join(", "),
+        pinta: (f) => <EstadoDeLaFila fila={f} acciones={acciones} />,
+        filtro: "opciones",
+      },
+      {
+        clave: "total",
+        titulo: "Total reservas",
+        numerica: true,
+        valor: (f) => f.totalReservas,
+        pinta: (f) => (
+          <span className="whitespace-nowrap tabular-nums">
+            {f.totalReservas}
+            {f.cuposConfirmados > 0 && (
+              <span className="text-xs text-texto-suave"> · {f.cuposConfirmados} cupos</span>
+            )}
+          </span>
+        ),
+        filtro: "numero",
+      },
+      {
+        clave: "cuposConfirmados",
+        titulo: "Cupos apartados",
+        numerica: true,
+        valor: (f) => f.cuposConfirmados,
+        filtro: "numero",
+      },
+      {
+        clave: "cuposEspera",
+        titulo: "Cupos en espera",
+        numerica: true,
+        valor: (f) => f.cuposEnEspera,
+        filtro: "numero",
+      },
+      {
+        clave: "canceladas",
+        /// «RESERVAS» Y NO «CUPOS», y no es un detalle: esta cifra
+        /// cuenta reservas canceladas, no los cupos que llevaban.
+        /// Al lado de «Cupos apartados» y «Cupos en espera», que sí
+        /// son cupos, llamarla «Canceladas» a secas hacía leer las
+        /// tres como la misma unidad.
+        titulo: "Reservas canceladas",
+        numerica: true,
+        valor: (f) => f.reservasCanceladas,
+        filtro: "numero",
+      },
       ...deAcciones,
       {
         clave: "entroPor",
@@ -336,89 +415,18 @@ export function ReservasUnificadas({
         filtro: "opciones",
       },
       {
-        clave: "total",
-        titulo: "Total reservas",
-        numerica: true,
-        valor: (f) => f.totalReservas,
-        pinta: (f) => (
-          <span className="whitespace-nowrap tabular-nums">
-            {f.totalReservas}
-            {f.cuposConfirmados > 0 && (
-              <span className="text-xs text-texto-suave"> · {f.cuposConfirmados} cupos</span>
-            )}
-          </span>
-        ),
-        filtro: "numero",
-      },
-      {
-        clave: "estado",
-        titulo: "Estado",
-        /// El valor plano se filtra y se busca: lleva las palabras
-        /// de todas, no solo las de la primera.
-        valor: (f) =>
-          [
-            ...new Set(
-              Object.values(f.porAccion)
-                .flatMap((c) => c.reservas)
-                .map((r) => ETIQUETA_ESTADO[r.estado].texto),
-            ),
-          ].join(", "),
-        pinta: (f) => <EstadoDeLaFila fila={f} acciones={acciones} />,
-        filtro: "opciones",
-      },
-      {
-        clave: "cuposConfirmados",
-        titulo: "Cupos apartados",
-        aparte: true,
-        numerica: true,
-        valor: (f) => f.cuposConfirmados,
-        filtro: "numero",
-      },
-      {
-        clave: "cuposEspera",
-        titulo: "En espera",
-        aparte: true,
-        numerica: true,
-        valor: (f) => f.cuposEnEspera,
-        filtro: "numero",
-      },
-      {
-        clave: "canceladas",
-        titulo: "Canceladas",
-        aparte: true,
-        numerica: true,
-        valor: (f) => f.reservasCanceladas,
-        filtro: "numero",
-      },
-      {
         clave: "gremio",
-        titulo: "Gremio",
+        /// NO ES EL GREMIO DE LA RESERVA --ese es el del filtro de
+        /// arriba-- sino la casilla «¿a qué red está asociada?» que
+        /// la propia empresa marcó en el formulario. Llamándola
+        /// «Gremio» parecía que el filtro no funcionaba: con
+        /// ADECOPRIA puesto, la columna decía BRITCHAM (cliente, 25
+        /// sep 2026).
+        titulo: "Red asociada",
         aparte: true,
         valor: (f) =>
           f.redAsociada === "Otro" ? (f.redAsociadaOtra ?? "Otro") : (f.redAsociada ?? ""),
         filtro: "opciones",
-      },
-      {
-        clave: "colaboradores",
-        titulo: "Colaboradores",
-        aparte: true,
-        numerica: true,
-        valor: (f) => f.numeroColaboradores,
-        filtro: "numero",
-      },
-      {
-        clave: "celular",
-        titulo: "Celular",
-        aparte: true,
-        valor: (f) => f.contactos.map((c) => c.celular).filter(Boolean).join(", "),
-        filtro: "texto",
-      },
-      {
-        clave: "cargo",
-        titulo: "Cargo",
-        aparte: true,
-        valor: (f) => f.contactos.map((c) => c.cargo).filter(Boolean).join(", "),
-        filtro: "texto",
       },
     ];
   }, [acciones]);
@@ -461,13 +469,13 @@ export function ReservasUnificadas({
             color={cuposApartados > 0 ? "var(--exito)" : undefined}
           />
           <Cifra
-            etiqueta="En espera"
+            etiqueta="Cupos en espera"
             valor={cuposEnEspera}
             pie={cuposEnEspera > 0 ? "cupos sin sitio todavía" : "ninguno esperando"}
             color={cuposEnEspera > 0 ? "var(--aviso)" : undefined}
           />
           <Cifra
-            etiqueta="Canceladas"
+            etiqueta="Reservas canceladas"
             valor={canceladas}
             pie={canceladas > 0 ? "sus cupos volvieron a la oferta" : "ninguna cancelada"}
             color={canceladas > 0 ? "var(--error)" : undefined}
@@ -481,6 +489,26 @@ export function ReservasUnificadas({
           {cargadas.length} con más cupos apartados; para verlas todas, use el listado por
           reserva o la descarga en Excel.
         </Aviso>
+      )}
+
+      {/* QUE DICE UNA CELDA AF, ESCRITO.
+
+          «Las AFE que es re confuso» (cliente, 25 sep 2026). La celda
+          lleva cuatro cosas --el número, el color, el tachado y el
+          «×2»-- y ninguna venía explicada en la pantalla: estaban en
+          el rótulo emergente, que hay que saber que existe para
+          buscarlo. Un cuadro de leyenda aparte serían dos bloques más;
+          un renglón encima de la tabla se lee de camino a ella. */}
+      {acciones.length > 0 && cargadas.length > 0 && (
+        <p className="text-[0.75rem] leading-relaxed text-texto-suave">
+          En cada columna <strong className="font-semibold">AF</strong> van los cupos que esa
+          organización apartó en esa acción:{" "}
+          <span className="font-semibold text-exito">12</span> confirmados,{" "}
+          <span className="font-semibold text-aviso">+3</span> los que quedaron en espera,{" "}
+          <span className="font-semibold text-error line-through">10</span> reserva cancelada, y{" "}
+          <span className="text-texto-suave">×2</span> que apartó esa misma acción en dos sedes.
+          Un punto es que no reservó esa acción.
+        </p>
       )}
 
       {/* LA TABLA NO SE MONTA HASTA QUE LLEGAN LOS DATOS, y no es
@@ -502,7 +530,13 @@ export function ReservasUnificadas({
         <Cargando que="Cargando las reservas…" />
       ) : (
         <Tabla
-          id="reservas-unificadas"
+          /// EL «-2» NO ES CAPRICHO. La tabla guarda en el navegador
+          /// qué columnas se dejaron puestas Y EN QUÉ ORDEN, y lo
+          /// guardado reemplaza a lo de por defecto: quien ya hubiera
+          /// tocado el panel de Columnas seguiría viendo el orden
+          /// viejo por mucho que aquí se declare otro. Cambiando la
+          /// llave, todo el mundo empieza por el orden nuevo.
+          id="reservas-unificadas-2"
           columnas={columnas}
           filas={filas}
           clave={(f) => f.empresaId}
@@ -560,7 +594,7 @@ function CajonDeLaOrganizacion({
           {fila.digitoVerificacion ? "-" + fila.digitoVerificacion : ""} ·{" "}
           {fila.totalReservas === 1
             ? `reservó el ${fecha(fila.ultimaReserva)}`
-            : `${fila.totalReservas} reservas, ${rangoDeFechas(fila)}`}
+            : `${fila.totalReservas} reservas, ${diasDeLaFila(fila).join(" · ")}`}
         </>
       }
       alCerrar={alCerrar}
@@ -568,7 +602,7 @@ function CajonDeLaOrganizacion({
       <dl className="grid gap-x-6 gap-y-4 sm:grid-cols-2">
         <Dato titulo="Cupos apartados" valor={String(fila.cuposConfirmados)} />
         <Dato
-          titulo="En espera"
+          titulo="Cupos en espera"
           valor={fila.cuposEnEspera > 0 ? String(fila.cuposEnEspera) : null}
         />
         <Dato
@@ -576,7 +610,7 @@ function CajonDeLaOrganizacion({
           valor={fila.numeroColaboradores?.toString() ?? null}
         />
         <Dato
-          titulo="Gremio"
+          titulo="Red asociada"
           valor={
             fila.redAsociada === "Otro"
               ? "Otro: " + (fila.redAsociadaOtra ?? "sin especificar")
