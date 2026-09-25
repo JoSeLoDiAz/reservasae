@@ -780,20 +780,6 @@ function Cuerpo({
                   </Fragment>
                 );
               })}
-
-              <tr className="border-t-2 border-borde font-semibold">
-                <td className="px-3 py-1.5" colSpan={2}>
-                  Total general
-                </td>
-                <td className={celda}>{general.sinIngreso}</td>
-                <td className={celda}>{general.sinActividad}</td>
-                {columnas.map((c) => (
-                  <td key={c.titulo} className={celda}>
-                    {general.hechas.get(c.titulo) || 0}
-                  </td>
-                ))}
-                <td className={celda}>{general.total}</td>
-              </tr>
             </tbody>
           </table>
         </div>
