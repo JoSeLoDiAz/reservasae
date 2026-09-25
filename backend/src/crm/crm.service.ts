@@ -357,6 +357,32 @@ const CAMPOS_DE_EMPRESA = {
   contactoCorreo: true,
 } as const;
 
+/**
+ * LAS QUE NO SON AULA aunque tengan oferta virtual.
+ *
+ * «Seguimiento del aula es solo de las acciones de formación
+ * virtuales; no aplica presencial, bootcamp ni foro» (cliente, 24 sep
+ * 2026), y al preguntarle por el caso de en medio --el foro tiene
+ * gente matriculada en oferta virtual-- respondió que fuera entero.
+ *
+ * VA POR CÓDIGO Y A MANO, Y ESO ES UNA DEUDA, no una solución. En los
+ * datos no existe «foro»: una acción solo tiene la modalidad de cada
+ * una de sus ofertas, y por ahí AF7 y AF8 son indistinguibles --las
+ * dos tienen presencial, híbrida y virtual--. Mientras «qué clase de
+ * acción es esta» no sea un campo suyo, alguien tiene que nombrarla,
+ * y es mejor que esté nombrada UNA vez y con el motivo al lado que
+ * repartida en cuatro consultas.
+ *
+ * Cuando exista el campo, esta lista se borra y la consulta pregunta
+ * por él. Queda apuntado en docs/PARA-JOSE.md.
+ *
+ * OJO si aparece un tercer convenio: el código se repite entre ellos
+ * --las dos AF7 de hoy son «EXPANSIÓN GLOBAL» y «SALTO ADELANTE»-- y
+ * esta lista las saca a las dos. Si el foro fuera solo el de un
+ * gremio, haría falta acotar por convenio.
+ */
+const ACCIONES_SIN_AULA = ['AF7'] as const;
+
 @Injectable()
 export class CrmService {
   private readonly log = new Logger('CRM');
@@ -4071,6 +4097,30 @@ export class CrmService {
       AND: [
         this.donde({ ...filtros, etapa: undefined }),
         { etapa: { in: ETAPAS_EN_AULA } },
+        /// SOLO LO VIRTUAL, Y POR LA OFERTA DE CADA PERSONA.
+        ///
+        /// «Seguimiento del aula es solo de las acciones de formación
+        /// virtuales; no aplica presencial, bootcamp ni foro»
+        /// (cliente, 24 sep 2026).
+        ///
+        /// Se mira la modalidad de SU cobertura y no la de la acción,
+        /// y no es un capricho: AF7 y AF8 tienen ofertas presenciales,
+        /// híbridas y virtuales a la vez, así que la acción no
+        /// distingue a quién sigue un aula. La cobertura sí: es la
+        /// oferta concreta en la que esa persona quedó.
+        ///
+        /// Y la modalidad de la ACCIÓN tampoco serviría aunque fueran
+        /// puras: AF6 es un bootcamp y está guardada como PRESENCIAL
+        /// --lo dice el comentario de `SesionDeGrupo` en el schema--,
+        /// así que preguntar por la acción dejaría fuera lo correcto
+        /// por accidente y no por la regla.
+        { cobertura: { modalidad: 'VIRTUAL' } },
+        /// Y EL FORO FUERA, aunque tenga gente en oferta virtual:
+        /// «solo es acciones de formación virtual a excepción del
+        /// foro» (cliente, 24 sep 2026).
+        {
+          accionFormacion: { codigo: { notIn: [...ACCIONES_SIN_AULA] } },
+        },
       ],
     };
 
