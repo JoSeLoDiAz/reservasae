@@ -26,6 +26,7 @@ type Grupo = {
  * tarjeta dice «40» a secas en vez de «40 de 0».
  */
 export function GruposDeLaAccion({
+  controles,
   accionFormacionId,
   grupoId,
   acciones,
@@ -35,6 +36,11 @@ export function GruposDeLaAccion({
   verInscritos,
   alAlternarTabla,
 }: {
+  /// Los dos desplegables de servidor --acción y grupo--. Viven
+  /// AQUÍ y no dentro de la tabla: cuando estaban allá, plegarla se
+  /// los llevaba y la pantalla se quedaba pidiendo que se eligiera
+  /// una acción sin ningún sitio donde elegirla.
+  controles: React.ReactNode;
   accionFormacionId: string;
   grupoId: string;
   acciones: Array<{ id: string; codigo: string; nombre: string }>;
@@ -44,25 +50,19 @@ export function GruposDeLaAccion({
   verInscritos: boolean;
   alAlternarTabla: () => void;
 }) {
-  /// SIN ACCIÓN ELEGIDA NO HAY TARJETAS, y el hueco lo dice.
-  ///
-  /// Pintar los grupos de las quince acciones a la vez serían
-  /// sesenta y siete tarjetas: la página de cinco mil píxeles que
-  /// las pestañas del Resumen vinieron a evitar.
-  if (!accionFormacionId) {
-    return (
-      <div className="rounded-2xl border border-dashed border-borde px-6 py-8 text-center">
-        <p className="font-medium">Elija una acción de formación</p>
-        <p className="mx-auto mt-1 max-w-md text-sm text-texto-suave">
-          {acciones.length > 0
-            ? `Arriba, en «Acción de Formación». Hay ${acciones.length} con gente en el aula; todas son virtuales, que son las únicas que el aula sigue.`
-            : "Todavía no hay nadie en el aula, así que no hay grupos que mirar."}
-        </p>
-      </div>
-    );
-  }
+  /**
+   * SE PINTAN SIEMPRE, TAMBIÉN EN CERO (Josse, 26 sep 2026: «así
+   * estén vacías, si están en 0 pues también mostrar, no importa»).
+   *
+   * Sin acción elegida salen TODOS los grupos que hay en el aula, no
+   * los sesenta y siete del catálogo: esta lista ya viene acotada a
+   * quien tiene gente dentro.
+   */
+  const codigoDe = new Map(acciones.map((a) => [a.id, a.codigo]));
 
-  const suyos = grupos.filter((g) => g.accionFormacionId === accionFormacionId);
+  const suyos = accionFormacionId
+    ? grupos.filter((g) => g.accionFormacionId === accionFormacionId)
+    : grupos;
   /// Con un grupo puesto, el servidor ya solo manda a SU gente: de
   /// los demás no hay con qué pintar la tarjeta, y una en cero sería
   /// afirmar que ese grupo está vacío. Se enseña el suyo y la puerta
@@ -71,6 +71,10 @@ export function GruposDeLaAccion({
 
   return (
     <section className="flex flex-col gap-3">
+      {/* LOS DESPLEGABLES, ARRIBA DEL TODO. Mandan sobre las
+          tarjetas y sobre la tabla: los dos van al servidor. */}
+      <div className="flex flex-wrap items-end gap-2">{controles}</div>
+
       {grupoId && (
         <button
           type="button"
@@ -83,9 +87,10 @@ export function GruposDeLaAccion({
 
       {aPintar.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-borde px-6 py-8 text-center">
-          <p className="font-medium">Esta acción no tiene grupos con gente dentro</p>
+          <p className="font-medium">Todavía no hay grupos con gente en el aula</p>
           <p className="mx-auto mt-1 max-w-md text-sm text-texto-suave">
-            Aparecen en cuanto alguien de un grupo entra al aula.
+            Aparecen en cuanto alguien de un grupo queda matriculado en una
+            acción virtual, que son las únicas que el aula sigue.
           </p>
         </div>
       ) : (
@@ -94,7 +99,16 @@ export function GruposDeLaAccion({
             <TarjetaDeGrupo
               key={g.id}
               grupo={g}
-              suya={personas.filter((p) => p.grupo === g.numero)}
+              codigo={accionFormacionId ? null : (codigoDe.get(g.accionFormacionId ?? "") ?? null)}
+              /// POR ACCIÓN Y POR NÚMERO, no solo por número: hay un
+              /// «Grupo 4» en AF1 y otro en AF2, así que sin acción
+              /// elegida el numerador mezclaría dos grupos distintos
+              /// bajo la misma tarjeta.
+              suya={personas.filter(
+                (p) =>
+                  p.grupo === g.numero &&
+                  p.accionFormacionId === g.accionFormacionId,
+              )}
               elegido={g.id === grupoId}
               alPulsar={() => alElegirGrupo(g.id === grupoId ? "" : g.id)}
             />
@@ -117,11 +131,14 @@ export function GruposDeLaAccion({
 
 function TarjetaDeGrupo({
   grupo,
+  codigo,
   suya,
   elegido,
   alPulsar,
 }: {
   grupo: Grupo;
+  /// Solo cuando se ven las de varias acciones a la vez.
+  codigo: string | null;
   suya: FilaAcademica[];
   elegido: boolean;
   alPulsar: () => void;
@@ -162,7 +179,9 @@ function TarjetaDeGrupo({
       }`}
     >
       <span className="text-[0.625rem] font-semibold tracking-[0.08em] text-texto-suave uppercase">
-        Grupo
+        {/* El código de la acción cuando se ven todas: sin él, dos
+            «Grupo 4» de acciones distintas se leen como el mismo. */}
+        {codigo ? `${codigo} · Grupo` : "Grupo"}
       </span>
       <span className="mt-0.5 block text-[1.5rem] leading-none font-bold tabular-nums">
         {grupo.numero}

@@ -271,6 +271,79 @@ function Seguimiento() {
       };
     });
 
+  /**
+   * LOS DOS DESPLEGABLES DE SERVIDOR, FUERA DE LA TABLA.
+   *
+   * Vivian dentro, en su fila de buscador, y al plegar la tabla
+   * se fueron con ella: la pantalla quedaba pidiendo que se
+   * eligiera una accion encima de un hueco donde ya no habia
+   * ningun sitio donde elegirla --sin salida--.
+   *
+   * Aqui arriba mandan sobre las tarjetas Y sobre la tabla, que
+   * es lo que siempre hicieron: van al SERVIDOR.
+   */
+  const controlesDeServidor = (
+          <>
+            <SelectorBuscable
+              clase="min-w-[14rem] flex-1"
+              etiqueta="Acción de formación"
+              valor={accionFormacionId}
+              alElegir={(id) => {
+                setAccion(id);
+                // el grupo cuelga de la accion: si cambia, sobra
+                setGrupo("");
+              }}
+              /// «ACCIÓN DE FORMACIÓN», con su nombre entero
+              /// (cliente, 24 sep 2026). Decía «Formación» a secas
+              /// por caber en la tarjeta que ya no existe; en la
+              /// fila del buscador hay sitio, y es como se llama en
+              /// Oferta y en la columna de la tabla.
+              vacio="Acción de Formación"
+              quitar="Ver todas las acciones"
+              marcador="AF1, neuroeducación…"
+              opciones={datos.acciones.map((a) => ({
+                id: a.id,
+                etiqueta: `${a.codigo} · ${a.nombre}`,
+              }))}
+            />
+            {/* EL GRUPO CUELGA DE LA FORMACIÓN, y hasta que no haya
+                una elegida este no se puede usar (cliente, 24 sep
+                2026: «dice Grupos y esta es sujeta a la AF, y como
+                son 2 AF y misma cantidad, pues ya es que AF filtre»).
+
+                Tiene razón y el problema es del dato: el número de
+                grupo NO es único ---hay un «Grupo 4» en AF1 y otro
+                en AF2---, así que sin formación elegida la lista
+                mezclaba dos cosas distintas con el mismo nombre y
+                había que leerse el renglón de abajo para saber cuál
+                era cuál.
+
+                Apagado y no escondido: el hueco se queda para que se
+                vea que existe y de qué depende. */}
+            <SelectorBuscable
+              clase="w-[11.5rem] shrink-0"
+              etiqueta="Grupo"
+              valor={grupoId}
+              alElegir={setGrupo}
+              vacio="Grupos"
+              quitar="Ver todos los grupos"
+              marcador="Número de grupo, nombre…"
+              opciones={gruposBuscables}
+              desactivado={!accionFormacionId}
+              razon="Elija formación"
+            />
+            {hayFiltro && (
+              <button
+                type="button"
+                onClick={quitarFiltros}
+                className="shrink-0 text-[0.78125rem] text-texto-suave underline hover:text-texto"
+              >
+                Limpiar
+              </button>
+            )}
+          </>
+  );
+
   return (
     /// La misma forma que Control de Inscritos, y a propósito:
     /// son las dos pantallas donde coordinación viene a mirar
@@ -429,6 +502,7 @@ function Seguimiento() {
         </div>
 
       <GruposDeLaAccion
+        controles={controlesDeServidor}
         accionFormacionId={accionFormacionId}
         grupoId={grupoId}
         acciones={datos.acciones}
@@ -490,88 +564,6 @@ function Seguimiento() {
           ) : (
             "Solo aparece quien ya entró en formación: el avance llega del aula."
           )
-        }
-        /* LOS DOS DE SERVIDOR, FUSIONADOS EN LA FILA DEL BUSCADOR
-           (cliente, 24 sep 2026: «sí, pero fusionado donde está el
-           buscador, no desorden»). Estaban en una tarjeta propia
-           encima de la tabla y, al quedarse en dos, se estiraban a
-           media pantalla cada uno: dos campos enormes para decir
-           dos palabras, y una tarjeta con un solo renglón dentro.
-
-           Aquí se leen con el buscador, que es lo que son: antes de
-           mirar la lista se dice de qué acción y de qué grupo se
-           está hablando.
-
-           EL ANCHO SE REPARTE, no se fija (cliente, 24 sep 2026:
-           «reduce buscador y alarga formación»). El buscador traía
-           `flex-1` y se quedaba con todo el sobrante ---693 px de
-           1.600---, mientras «Formación» recortaba a la mitad unos
-           nombres de noventa letras: se leía «AF8 · Inteligencia
-           art…» y había que abrir el desplegable para saber cuál
-           era. Ahora los dos llevan `flex-1` y parten el sobrante a
-           partes iguales, así que el cambio vale igual en un
-           portátil que en el monitor grande. El grupo no crece: es
-           un número. */
-        filtrosDelServidor={
-          <>
-            <SelectorBuscable
-              clase="min-w-[14rem] flex-1"
-              etiqueta="Acción de formación"
-              valor={accionFormacionId}
-              alElegir={(id) => {
-                setAccion(id);
-                // el grupo cuelga de la accion: si cambia, sobra
-                setGrupo("");
-              }}
-              /// «ACCIÓN DE FORMACIÓN», con su nombre entero
-              /// (cliente, 24 sep 2026). Decía «Formación» a secas
-              /// por caber en la tarjeta que ya no existe; en la
-              /// fila del buscador hay sitio, y es como se llama en
-              /// Oferta y en la columna de la tabla.
-              vacio="Acción de Formación"
-              quitar="Ver todas las acciones"
-              marcador="AF1, neuroeducación…"
-              opciones={datos.acciones.map((a) => ({
-                id: a.id,
-                etiqueta: `${a.codigo} · ${a.nombre}`,
-              }))}
-            />
-            {/* EL GRUPO CUELGA DE LA FORMACIÓN, y hasta que no haya
-                una elegida este no se puede usar (cliente, 24 sep
-                2026: «dice Grupos y esta es sujeta a la AF, y como
-                son 2 AF y misma cantidad, pues ya es que AF filtre»).
-
-                Tiene razón y el problema es del dato: el número de
-                grupo NO es único ---hay un «Grupo 4» en AF1 y otro
-                en AF2---, así que sin formación elegida la lista
-                mezclaba dos cosas distintas con el mismo nombre y
-                había que leerse el renglón de abajo para saber cuál
-                era cuál.
-
-                Apagado y no escondido: el hueco se queda para que se
-                vea que existe y de qué depende. */}
-            <SelectorBuscable
-              clase="w-[11.5rem] shrink-0"
-              etiqueta="Grupo"
-              valor={grupoId}
-              alElegir={setGrupo}
-              vacio="Grupos"
-              quitar="Ver todos los grupos"
-              marcador="Número de grupo, nombre…"
-              opciones={gruposBuscables}
-              desactivado={!accionFormacionId}
-              razon="Elija formación"
-            />
-            {hayFiltro && (
-              <button
-                type="button"
-                onClick={quitarFiltros}
-                className="shrink-0 text-[0.78125rem] text-texto-suave underline hover:text-texto"
-              >
-                Limpiar
-              </button>
-            )}
-          </>
         }
       />
       )}
