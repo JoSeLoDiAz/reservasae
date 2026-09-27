@@ -195,6 +195,13 @@ export const IconoSalir: Icono = (p) => (
   </Svg>
 );
 
+export const IconoCampana: Icono = (p) => (
+  <Svg {...p}>
+    <path d="M12 4a5.5 5.5 0 0 0-5.5 5.5c0 3.3-.8 5-1.5 5.9-.3.4 0 1.1.6 1.1h12.8c.6 0 .9-.7.6-1.1-.7-.9-1.5-2.6-1.5-5.9A5.5 5.5 0 0 0 12 4Z" />
+    <path d="M10 19.5a2 2 0 0 0 4 0" />
+  </Svg>
+);
+
 export const IconoMenu: Icono = (p) => (
   <Svg {...p}>
     <path d="M4 6.5h16M4 12h16M4 17.5h16" />

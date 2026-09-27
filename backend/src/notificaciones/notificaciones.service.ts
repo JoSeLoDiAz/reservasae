@@ -128,6 +128,78 @@ export class NotificacionesService {
     }));
   }
 
+  /**
+   * TODO lo que le llegó al equipo, y si lo atendieron.
+   *
+   * «Ver todas las notificaciones que llegan a los asesores, y si ya
+   * los leyeron» (Josse, 26 sep 2026). Es la pregunta de quien
+   * responde por el equipo: no qué pasó, sino qué pasó y NADIE LO
+   * MIRÓ.
+   *
+   * SE ACOTA POR CONVENIO, con los gremios donde esta cuenta lleva
+   * un rol que ve al equipo --no con su ámbito entero--. Quien lidera
+   * en uno y solo gestiona en el otro no ve el trabajo ajeno del
+   * segundo.
+   *
+   * Y NO TRAE ESTADO DE LECTURA PROPIO: `leidaEn` es de su dueño.
+   * Mirarlas aquí no las marca, y no hay forma de marcárselas a otro
+   * --no existe ruta que lo haga--: vaciarle la bandeja a alguien
+   * sería borrarle el trabajo pendiente.
+   */
+  async listarDelEquipo(
+    convenios: string[],
+    opciones: { soloSinLeer?: boolean; limite?: number } = {},
+  ) {
+    if (convenios.length === 0) return [];
+    const limite = Math.min(Math.max(opciones.limite ?? 60, 1), 200);
+    const filas = await this.prisma.notificacion.findMany({
+      where: {
+        convenioId: { in: convenios },
+        ...(opciones.soloSinLeer ? { leidaEn: null } : {}),
+      },
+      orderBy: { creadoEn: 'desc' },
+      take: limite,
+      select: {
+        id: true,
+        tipo: true,
+        titulo: true,
+        detalle: true,
+        creadoEn: true,
+        leidaEn: true,
+        participanteId: true,
+        destinatario: { select: { nombre: true } },
+        participante: {
+          select: {
+            etapa: true,
+            persona: {
+              select: {
+                primerNombre: true,
+                primerApellido: true,
+                numeroDocumento: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    return filas.map((f) => ({
+      id: f.id,
+      tipo: f.tipo,
+      titulo: f.titulo,
+      detalle: f.detalle,
+      creadoEn: f.creadoEn,
+      leida: f.leidaEn !== null,
+      leidaEn: f.leidaEn,
+      /// De quién es el aviso. Es la columna que hace útil la vista.
+      asesor: f.destinatario.nombre,
+      participanteId: f.participanteId,
+      etapa: f.participante.etapa,
+      quien: `${f.participante.persona.primerNombre} ${f.participante.persona.primerApellido}`.trim(),
+      documento: f.participante.persona.numeroDocumento,
+    }));
+  }
+
   /** Cuántas sin leer, para la campana. */
   sinLeer(destinatarioId: string): Promise<number> {
     return this.prisma.notificacion.count({

@@ -16,6 +16,9 @@ export type Notificacion = {
   etapa: Etapa;
   quien: string;
   documento: string;
+  /// De quién es el aviso. Solo llega en la vista del equipo: en la
+  /// propia sobra, porque son todas suyas.
+  asesor?: string;
 };
 
 export const notificacionesApi = {
@@ -26,6 +29,23 @@ export const notificacionesApi = {
     const cola = q.toString();
     return pedir<{ notificaciones: Notificacion[]; sinLeer: number }>(
       `/admin/notificaciones${cola ? `?${cola}` : ""}`,
+    );
+  },
+
+  /**
+   * Lo del equipo, para quien responde por él.
+   *
+   * Solo lee. NO hay forma de marcar la de otro: `leidaEn` es de su
+   * dueño, y vaciarle la bandeja a alguien sería borrarle el trabajo
+   * pendiente. El servidor tampoco ofrece esa ruta.
+   */
+  equipo: (opciones: { sinLeer?: boolean; limite?: number } = {}) => {
+    const q = new URLSearchParams();
+    if (opciones.sinLeer) q.set("sinLeer", "si");
+    if (opciones.limite) q.set("limite", String(opciones.limite));
+    const cola = q.toString();
+    return pedir<{ notificaciones: Notificacion[]; sinLeer: number }>(
+      `/admin/notificaciones/equipo${cola ? `?${cola}` : ""}`,
     );
   },
 

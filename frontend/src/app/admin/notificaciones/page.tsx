@@ -3,11 +3,16 @@
 import Link from "next/link";
 import { useCallback, useState } from "react";
 
-import { Aviso } from "@/components/admin/marco-admin";
+import { Aviso, useAdmin } from "@/components/admin/marco-admin";
 import { Encabezado, Vacio, BotonSuave } from "@/components/admin/piezas";
 import { PildoraEtapa } from "@/components/admin/etapa";
 import { useDatosVivos } from "@/lib/datos-vivos";
 import { notificacionesApi, type Notificacion } from "@/lib/notificaciones-api";
+
+/// Las tres vistas. «equipo» solo existe para quien responde por
+/// él: lo decide el SERVIDOR --acota por los gremios donde lidera--
+/// y esto solo esconde la pestaña.
+type Vista = "todas" | "sinLeer" | "equipo";
 
 /**
  * Lo que le pasó a las fichas que lleva, desde que se fue.
@@ -22,20 +27,23 @@ import { notificacionesApi, type Notificacion } from "@/lib/notificaciones-api";
  * empresa-- vive allá.
  */
 export default function Notificaciones() {
-  const [soloSinLeer, setSoloSinLeer] = useState(false);
+  const { admin } = useAdmin();
+  const veElEquipo = admin?.puede?.verElEquipo === true;
+  const [vista, setVista] = useState<Vista>("todas");
   const [marcando, setMarcando] = useState(false);
 
   const cargar = useCallback(
-    () => notificacionesApi.listar({ sinLeer: soloSinLeer, limite: 50 }),
-    [soloSinLeer],
+    () =>
+      vista === "equipo"
+        ? notificacionesApi.equipo({ limite: 100 })
+        : notificacionesApi.listar({ sinLeer: vista === "sinLeer", limite: 50 }),
+    [vista],
   );
 
   /// Se refresca sola: es una bandeja, y una bandeja que hay que
   /// recargar a mano deja de mirarse. La clave hace que cambiar
   /// el filtro vuelva a pedir en vez de reusar lo de antes.
-  const { datos, error, refrescar } = useDatosVivos(cargar, {
-    clave: soloSinLeer ? "sin-leer" : "todas",
-  });
+  const { datos, error, refrescar } = useDatosVivos(cargar, { clave: vista });
 
   const marcarUna = async (id: string) => {
     try {
@@ -65,14 +73,12 @@ export default function Notificaciones() {
       <Encabezado
         titulo="Mis notificaciones"
         descripcion={
-          <>
-            Lo que les pasa a las fichas que usted lleva. Se avisa desde que
-            una ficha es suya: antes de que se le asigne, no hay a quién
-            avisar.
-          </>
+          vista === "equipo"
+            ? "Todo lo que le llegó al equipo, y si ya lo atendieron. Mirarlo aquí no se lo marca como leído a nadie."
+            : "Lo que les pasa a las fichas que usted lleva. Se avisa desde que una ficha es suya: antes de que se le asigne, no hay a quién avisar."
         }
       >
-        {sinLeer > 0 && (
+        {vista !== "equipo" && sinLeer > 0 && (
           <BotonSuave onClick={marcarTodas} disabled={marcando}>
             {marcando ? "Marcando…" : `Marcar las ${sinLeer} como leídas`}
           </BotonSuave>
@@ -81,44 +87,52 @@ export default function Notificaciones() {
 
       {error && <Aviso tipo="error">{error}</Aviso>}
 
-      <div className="mb-4 flex items-center gap-3 text-sm">
-        <button
-          type="button"
-          onClick={() => setSoloSinLeer(false)}
-          className={`rounded-lg px-3 py-1.5 ${
-            soloSinLeer
-              ? "text-texto-suave hover:bg-superficie-alterna"
-              : "bg-superficie-alterna font-medium"
-          }`}
-        >
-          Todas
-        </button>
-        <button
-          type="button"
-          onClick={() => setSoloSinLeer(true)}
-          className={`rounded-lg px-3 py-1.5 ${
-            soloSinLeer
-              ? "bg-superficie-alterna font-medium"
-              : "text-texto-suave hover:bg-superficie-alterna"
-          }`}
-        >
-          Sin leer{sinLeer > 0 ? ` (${sinLeer})` : ""}
-        </button>
+      <div className="mb-4 flex flex-wrap items-center gap-2 text-sm">
+        <Pestana activa={vista === "todas"} alPulsar={() => setVista("todas")}>
+          Mías
+        </Pestana>
+        <Pestana activa={vista === "sinLeer"} alPulsar={() => setVista("sinLeer")}>
+          Sin leer{vista !== "equipo" && sinLeer > 0 ? ` (${sinLeer})` : ""}
+        </Pestana>
+        {/* SOLO PARA QUIEN RESPONDE POR EL EQUIPO. La pestaña se
+            esconde, pero quien manda es el servidor: acota por los
+            gremios donde esta cuenta lidera y contesta vacío si no
+            lidera en ninguno. */}
+        {veElEquipo && (
+          <Pestana activa={vista === "equipo"} alPulsar={() => setVista("equipo")}>
+            Del equipo
+          </Pestana>
+        )}
       </div>
 
       {filas.length === 0 ? (
         /// Un bloque vacío dice POR QUÉ lo está, que es la regla
         /// del handoff. «Sin notificaciones» a secas se lee como
         /// una pantalla que no cargó.
-        <Vacio titulo={soloSinLeer ? "Nada sin leer" : "Todavía no hay avisos"}>
-          {soloSinLeer
+        <Vacio
+          titulo={
+            vista === "sinLeer"
+              ? "Nada sin leer"
+              : vista === "equipo"
+                ? "Al equipo no le ha llegado nada"
+                : "Todavía no hay avisos"
+          }
+        >
+          {vista === "sinLeer"
             ? "Ya atendió todo lo que había."
-            : "Aquí saldrá cuando alguien de sus fichas complete sus datos, escriba por WhatsApp o revoque su autorización. Si no lleva ninguna ficha asignada, no recibirá avisos."}
+            : vista === "equipo"
+              ? "Aquí sale lo que reciben los asesores de sus gremios, con quién lo tiene y si ya lo leyó."
+              : "Aquí saldrá cuando alguien de sus fichas complete sus datos, escriba por WhatsApp o revoque su autorización. Si no lleva ninguna ficha asignada, no recibirá avisos."}
         </Vacio>
       ) : (
         <ul className="divide-y divide-borde rounded-2xl border border-borde">
           {filas.map((n) => (
-            <Fila key={n.id} n={n} alAbrir={() => void marcarUna(n.id)} />
+            <Fila
+              key={n.id}
+              n={n}
+              deOtro={vista === "equipo"}
+              alAbrir={vista === "equipo" ? undefined : () => void marcarUna(n.id)}
+            />
           ))}
         </ul>
       )}
@@ -126,7 +140,41 @@ export default function Notificaciones() {
   );
 }
 
-function Fila({ n, alAbrir }: { n: Notificacion; alAbrir: () => void }) {
+/** Una pestaña de la barra. */
+function Pestana({
+  activa,
+  alPulsar,
+  children,
+}: {
+  activa: boolean;
+  alPulsar: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={alPulsar}
+      className={`rounded-lg px-3 py-1.5 ${
+        activa
+          ? "bg-superficie-alterna font-medium"
+          : "text-texto-suave hover:bg-superficie-alterna"
+      }`}
+    >
+      {children}
+    </button>
+  );
+}
+
+function Fila({
+  n,
+  deOtro,
+  alAbrir,
+}: {
+  n: Notificacion;
+  /// Es de otra persona: se mira, no se marca.
+  deOtro?: boolean;
+  alAbrir?: () => void;
+}) {
   return (
     <li className={n.leida ? "" : "bg-superficie-alterna"}>
       <Link
@@ -149,7 +197,15 @@ function Fila({ n, alAbrir }: { n: Notificacion; alAbrir: () => void }) {
             </span>
             <PildoraEtapa etapa={n.etapa} />
             {!n.leida && (
-              <span className="text-xs font-medium text-marca">Nuevo</span>
+              <span className="text-xs font-medium text-marca">
+                {deOtro ? "Sin leer" : "Nuevo"}
+              </span>
+            )}
+            {deOtro && n.asesor && (
+              /// De quién es el aviso. Es la columna que hace útil
+              /// esta vista: no qué pasó, sino qué pasó y quién no
+              /// lo ha mirado.
+              <span className="text-xs text-texto-suave">· {n.asesor}</span>
             )}
           </span>
           <span className="mt-0.5 block">{n.titulo}</span>

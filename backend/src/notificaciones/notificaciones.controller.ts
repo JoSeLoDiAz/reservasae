@@ -10,8 +10,9 @@ import {
 } from '@nestjs/common';
 
 import type { Admin } from '../../generated/prisma';
-import { AdminActual } from '../admin/admin-actual.decorator';
-import { AdminGuard, Requiere } from '../admin/admin.guard';
+import { AdminActual, AmbitoActual } from '../admin/admin-actual.decorator';
+import { AdminGuard, Requiere, type Ambito } from '../admin/admin.guard';
+import { conveniosQueVenElEquipo } from '../admin/permisos';
 import { NotificacionesService } from './notificaciones.service';
 
 /**
@@ -43,6 +44,33 @@ export class NotificacionesController {
       limite: limite ? Number(limite) : undefined,
     });
     return { notificaciones: filas, sinLeer: await this.notificaciones.sinLeer(admin.id) };
+  }
+
+  /**
+   * Lo del EQUIPO, para quien responde por él.
+   *
+   * No lleva `@Roles`: quien manda es `VEN_EL_EQUIPO`, la misma
+   * lista que ya decide quién ve el módulo de asesores. Va antes de
+   * `:id/leida` en el fichero por costumbre, pero el orden que
+   * importa es el de Nest: `equipo` es literal y no choca con
+   * ninguna ruta con parámetro de este controlador.
+   *
+   * Si la cuenta no lidera en ningún gremio se contesta VACÍO y 200,
+   * no 403: la lista está acotada por convenio, y un 403 aquí diría
+   * que existe algo que mirar.
+   */
+  @Get('equipo')
+  async equipo(
+    @AmbitoActual() ambito: Ambito,
+    @Query('sinLeer') sinLeer?: string,
+    @Query('limite') limite?: string,
+  ) {
+    const convenios = conveniosQueVenElEquipo(ambito.roles);
+    const filas = await this.notificaciones.listarDelEquipo(convenios, {
+      soloSinLeer: sinLeer === 'si',
+      limite: limite ? Number(limite) : undefined,
+    });
+    return { notificaciones: filas, sinLeer: filas.filter((f) => !f.leida).length };
   }
 
   /// Solo el número, para la campana: la lista entera cada 30 s

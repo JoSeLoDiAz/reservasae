@@ -240,6 +240,61 @@ describe('el mismo suceso no avisa dos veces', () => {
   });
 });
 
+describe('la vista del equipo se acota por convenio', () => {
+  /// El doble devuelve el `where` que recibio, que es lo unico que
+  /// distingue «acota» de «trae todo»: mirar las filas que salen no
+  /// sirve --un doble sin filtro devuelve las mismas de las dos
+  /// maneras--. Es la leccion de `interseca-no-sustituye`.
+  const espia = () => {
+    const vistos: Array<Record<string, unknown>> = [];
+    return {
+      vistos,
+      prisma: {
+        notificacion: {
+          findMany: (args: { where: Record<string, unknown> }) => {
+            vistos.push(args.where);
+            return Promise.resolve([]);
+          },
+        },
+      },
+    };
+  };
+
+  it('pide SOLO los gremios donde lidera', async () => {
+    const d = espia();
+    const s = new NotificacionesService(d.prisma as never);
+
+    await s.listarDelEquipo(['adecopria']);
+
+    expect(d.vistos[0].convenioId).toEqual({ in: ['adecopria'] });
+  });
+
+  /**
+   * SIN GREMIOS NO SE CONSULTA, y esto es el candado.
+   *
+   * Un `{ in: [] }` en Prisma no devuelve nada, así que el resultado
+   * seria el mismo; pero el dia que alguien quite el `convenioId`
+   * del where por descuido, esta salida temprana es lo que impide
+   * que una cuenta sin liderazgo se lleve los avisos de todos.
+   */
+  it('sin ningún gremio no llega a preguntar', async () => {
+    const d = espia();
+    const s = new NotificacionesService(d.prisma as never);
+
+    expect(await s.listarDelEquipo([])).toEqual([]);
+    expect(d.vistos).toHaveLength(0);
+  });
+
+  it('puede pedir solo las que nadie ha leído', async () => {
+    const d = espia();
+    const s = new NotificacionesService(d.prisma as never);
+
+    await s.listarDelEquipo(['adecopria'], { soloSinLeer: true });
+
+    expect(d.vistos[0].leidaEn).toBeNull();
+  });
+});
+
 describe('leer es solo lo propio', () => {
   it('no se puede marcar la de otro', async () => {
     const d = prismaFalso({ p1: CON_ASESOR });
