@@ -254,9 +254,11 @@ function DeInscripciones() {
       total: a.total + f.visto.total,
       gestionados: a.gestionados + f.visto.gestionados,
       resueltos: a.resueltos + f.visto.resueltos,
+      inscritos: a.inscritos + f.visto.inscritos,
+      descartados: a.descartados + f.visto.descartados,
       pendientes: a.pendientes + f.visto.pendientes,
     }),
-    { total: 0, gestionados: 0, resueltos: 0, pendientes: 0 },
+    { total: 0, gestionados: 0, resueltos: 0, inscritos: 0, descartados: 0, pendientes: 0 },
   );
 
   /// LOS DOS SE CUENTAN SOBRE LAS MISMAS FILAS. La fila «Sin asesor
@@ -424,13 +426,14 @@ function DeInscripciones() {
         valor={n(t.gestionados)}
         detalle={t.total > 0 ? `${Math.round((t.gestionados / t.total) * 100)} %` : undefined}
       />
+      {/* LOS MISMOS NOMBRES QUE LAS COLUMNAS DE DEBAJO. Se habían
+          quedado con los de antes de partir la columna y de renombrar
+          las metas: la tira decía «Inscritos y descartados» y la
+          tabla, justo debajo, los daba por separado. */}
+      <CifraCompacta etiqueta="Inscritos" valor={n(t.inscritos)} color="var(--exito)" />
+      <CifraCompacta etiqueta="Descartados" valor={n(t.descartados)} />
       <CifraCompacta
-        etiqueta="Inscritos y descartados"
-        valor={n(t.resueltos)}
-        color="var(--exito)"
-      />
-      <CifraCompacta
-        etiqueta="Pendientes"
+        etiqueta="Meta global"
         valor={n(t.pendientes)}
         color={t.pendientes > 0 ? "var(--error)" : undefined}
       />
