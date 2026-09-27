@@ -423,6 +423,19 @@ type Celda = {
   colorCifra: string;
   /// Los renglones del pie. Vacío mientras no hay datos.
   pies: string[];
+  /**
+   * LA MISMA CIFRA EN EL PERIODO CON EL QUE SE COMPARA.
+   *
+   * «Tengo las dos, ¿pero dónde veo la diferencia? O sea, qué es de
+   * un día y qué es del otro» (cliente, 27 sep 2026).
+   *
+   * La comparación existía, pero vivía metida en el pie y en prosa:
+   * «en los 2 días anteriores era el 0 %». Así hay que leerse un
+   * párrafo para sacar un número, y no hay forma de ver los dos a la
+   * vez. Aquí va la cifra de al lado, con su fecha debajo, para que
+   * se lean de un vistazo. Para eso es un comparativo.
+   */
+  contra?: { cifra: string; cuando: string; diferencia: string | null };
   /// La explicación larga, en el `title`.
   explicacion: string;
   /// La que manda: 32 px y no 22.
@@ -512,6 +525,7 @@ function CeldaDeLaTira({
   cifra,
   colorCifra,
   pies,
+  contra,
   explicacion,
   clase = "",
 }: Celda) {
@@ -540,6 +554,13 @@ function CeldaDeLaTira({
           los pies a 1,3 y pegados a su cifra: 108 y 371. */}
       <dt className="text-[0.625rem] leading-[13px] font-semibold tracking-[0.1em] text-texto-suave uppercase">
         {rotulo}
+        {/* QUÉ PERIODO ES CADA UNO, en el rótulo. Sin esto, «570 vs
+            12» son dos números sin dueño. */}
+        {contra && (
+          <span className="ml-1.5 font-normal tracking-normal normal-case">
+            · {contra.cuando}
+          </span>
+        )}
       </dt>
       {/* LA CIFRA, DEL MISMO TAMAÑO EN LAS CUATRO: 1,75 rem, el
           cuerpo de cifra que ya usa el veredicto de ocupación. Va en
@@ -558,6 +579,31 @@ function CeldaDeLaTira({
         >
           {cifra}
         </span>
+
+        {/* LA DEL OTRO PERIODO, AL LADO Y CON SU FECHA.
+            Más pequeña y en gris: la que manda es la del periodo
+            elegido, esta es el punto de comparación. Con la fecha
+            debajo de cada una no hay que adivinar cuál es cuál. */}
+        {contra && (
+          <span className="ml-2 flex items-baseline gap-1.5 text-[0.6875rem] leading-none text-texto-suave">
+            <span className="text-texto-suave">vs</span>
+            <span className="font-semibold tabular-nums">{contra.cifra}</span>
+            {contra.diferencia && (
+              <span
+                className="font-semibold tabular-nums"
+                style={{
+                  color: contra.diferencia.startsWith("−")
+                    ? "var(--error)"
+                    : contra.diferencia === "="
+                      ? "var(--texto-suave)"
+                      : "var(--exito)",
+                }}
+              >
+                {contra.diferencia}
+              </span>
+            )}
+          </span>
+        )}
       </dd>
       {pies.map((p) => (
         <dd
@@ -1560,6 +1606,40 @@ export function PanelProceso({
     const media = control?.diasHastaInscribir ?? null;
     const dias = media === null ? null : Math.round(media);
 
+    /**
+     * EL COMPARATIVO, VISIBLE. «Tengo las dos, ¿pero dónde veo la
+     * diferencia? O sea, qué es de un día y qué es del otro»
+     * (cliente, 27 sep 2026).
+     *
+     * Hasta ahora la comparación vivía en el pie y en prosa ---«en
+     * los 2 días anteriores era el 0 %»---, así que había que leerse
+     * un párrafo para sacar un número y no se podían ver los dos a la
+     * vez. Aquí sale la cifra del otro periodo al lado de la suya, con
+     * la diferencia y con la fecha de cada una en el rótulo.
+     *
+     * Nulo cuando no hay con qué comparar: sin periodo anterior, o
+     * con «Desde el principio», que no tiene uno.
+     */
+    const compara = (
+      ahora: number | null,
+      antes: number | null | undefined,
+    ): Celda["contra"] => {
+      if (!comparar || antes === null || antes === undefined || ahora === null) {
+        return undefined;
+      }
+      const d = ahora - antes;
+      return {
+        cifra: n(antes),
+        /// EL DEL PERIODO CONTRA EL QUE SE COMPARA, no el elegido.
+        /// `cuandoEnFrase` es el de arriba, y ponerlo aquí rotulaba la
+        /// cifra de ayer con la palabra «hoy».
+        cuando: rotuloAnterior || "el periodo anterior",
+        /// El signo MENOS de verdad (−) y no un guion: a 11 px un
+        /// guion corto se lee como una raya de «no hay dato».
+        diferencia: d === 0 ? "=" : d > 0 ? `+${n(d)}` : `−${n(-d)}`,
+      };
+    };
+
     /// EL PIE DE LA QUE MANDA: su base, y la advertencia de José
     /// en el MISMO párrafo. Partidos en dos renglones propios, a
     /// 1.366 px la advertencia bajaba a dos líneas y la tira pasaba
@@ -1594,6 +1674,7 @@ export function PanelProceso({
         /// leads del sistema: eso sería otra cifra y otra pregunta.
         rotulo: "Total leads",
         cifra: cifrasPendientes ? raya : n(entraron),
+        contra: cifrasPendientes ? undefined : compara(entraron, hitosAntes?.[0]),
         colorCifra: cifrasPendientes ? "var(--texto-suave)" : "var(--titulo)",
         pies: cifrasPendientes
           ? []
@@ -1611,6 +1692,10 @@ export function PanelProceso({
         /// En `--titulo` y SIN color: la cifra cuenta, no afirma
         /// que vaya bien o mal (José, 18 sep 2026).
         cifra: cifrasPendientes || !tasa ? raya : n(inscritos),
+        contra:
+          cifrasPendientes || !tasa
+            ? undefined
+            : compara(inscritos, hitosAntes?.[3]),
         colorCifra: cifrasPendientes ? "var(--texto-suave)" : "var(--titulo)",
         pies: cifrasPendientes ? [] : [pieDeLaTasa],
         explicacion:
