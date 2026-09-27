@@ -29,6 +29,8 @@ import {
   crmApi,
   type FilaDeAsesor,
   type FilaDeAsesorAcademico,
+  type FilaDeProyeccion,
+  type Veredicto,
   type RitmoDeAsesor,
 } from "@/lib/crm-api";
 import { useDatosVivos } from "@/lib/datos-vivos";
@@ -61,7 +63,7 @@ import { type Columna, Tabla } from "./tabla";
 const metaDiaria = (porDia: number | null) =>
   porDia === null ? "—" : n(Math.ceil(porDia));
 
-type Subvista = "inscripciones" | "academicos";
+type Subvista = "inscripciones" | "academicos" | "proyeccion";
 
 /// SIN FRASE AL LADO (cliente, 23 sep 2026). Cada tabla ya dice contra
 /// qué fecha corre en su propia descripción y en su pie; repetirlo
@@ -69,7 +71,21 @@ type Subvista = "inscripciones" | "academicos";
 const SUBVISTAS: Array<{ clave: Subvista; etiqueta: string }> = [
   { clave: "inscripciones", etiqueta: "Asesores de inscripciones" },
   { clave: "academicos", etiqueta: "Asesores académicos" },
+  /// LA TERCERA, y aquí el asesor pasa a segundo plano: lo macro es
+  /// la acción de formación. Las dos de arriba contestan «¿quién va
+  /// mal?»; esta, «¿esta acción llega a sus cupos antes de cerrar?».
+  { clave: "proyeccion", etiqueta: "Proyección Inscripciones" },
 ];
+
+/// Cómo se lee cada veredicto y de qué color va.
+const VEREDICTO: Record<Veredicto, { texto: string; color: string }> = {
+  SIN_FECHA: { texto: "Sin fecha", color: "var(--aviso)" },
+  NO_LLEGA: { texto: "No llega", color: "var(--error)" },
+  APRETADO: { texto: "Apretado", color: "var(--aviso)" },
+  CERRADO: { texto: "Cerrado", color: "var(--texto-suave)" },
+  LLEGA: { texto: "Llega", color: "var(--exito)" },
+  CUBIERTO: { texto: "Cubierto", color: "var(--exito)" },
+};
 
 /// Cómo se lee cada estado y de qué color va. `SIN_PLAZO` va en gris y
 /// NO en verde: no se sabe si va bien, y un verde ahí es una mentira
@@ -127,7 +143,9 @@ export function PanelAsesores() {
         ))}
       </div>
 
-      {subvista === "inscripciones" ? <DeInscripciones /> : <Academicos />}
+      {subvista === "inscripciones" && <DeInscripciones />}
+      {subvista === "academicos" && <Academicos />}
+      {subvista === "proyeccion" && <Proyeccion />}
     </div>
   );
 }
@@ -715,6 +733,271 @@ const columnasAcademicas: Columna<FilaDeAsesorAcademico>[] = [
     pinta: (f) => (
       <span className={`whitespace-nowrap text-[0.75rem] font-semibold ${SEMAFORO[f.ritmo.estado].clase}`}>
         {SEMAFORO[f.ritmo.estado].texto}
+      </span>
+    ),
+  },
+];
+
+/**
+ * SUBVISTA 3: la proyección de inscripciones, por acción de formación.
+ *
+ * «Por AF, aquí el asesor pasa a segundo plano y lo macro viene a ser
+ * la Acción de Formación, donde el sistema con base a los leads, ritmo
+ * de inscripción y fechas de cierre e inicio me calcula cuántas deben
+ * ser las inscripciones, leads necesarios y todo proceso estadístico»
+ * (cliente, 26 sep 2026).
+ *
+ * CADA FILA CONTESTA UNA SOLA PREGUNTA: ¿esta acción llega a sus cupos
+ * antes de que cierre? Las demás columnas son los pasos para llegar
+ * ahí, y están a la vista a propósito: nadie tiene por qué creerse el
+ * veredicto, se puede seguir la cuenta con el dedo.
+ *
+ * El cálculo vive en el servidor ---`proyeccion.ts`, con sus diez
+ * pruebas--- y aquí solo se pinta. Repetirlo en la pantalla daría dos
+ * cifras para la misma pregunta, que es el defecto que ya costó una
+ * vuelta en Tráfico.
+ */
+function Proyeccion() {
+  const cargar = useCallback(() => crmApi.proyeccionDeInscripciones(), []);
+  const vivos = useDatosVivos<FilaDeProyeccion[]>(cargar, { clave: "proyeccion" });
+
+  if (vivos.error) return <Aviso tipo="error">{vivos.error}</Aviso>;
+  if (!vivos.datos) return <Esqueleto />;
+  if (vivos.datos.length === 0) {
+    return (
+      <Vacio titulo="Todavía no hay acciones con leads">
+        Aquí aparece cada acción de formación en cuanto tenga gente detrás, con
+        cuántos le faltan y si llega a tiempo.
+      </Vacio>
+    );
+  }
+
+  /// LA TIRA SE SUMA DE LAS MISMAS FILAS QUE SE PINTAN DEBAJO, como en
+  /// las otras dos subvistas: con una consulta aparte, el total de
+  /// arriba y la suma de la tabla podrían discrepar, y es lo primero
+  /// que alguien comprueba.
+  const t = vivos.datos.reduce(
+    (a, f) => ({
+      cupos: a.cupos + f.cupos,
+      inscritos: a.inscritos + f.inscritos,
+      faltan: a.faltan + f.faltan,
+      porConseguir: a.porConseguir + f.leadsPorConseguir,
+      enRiesgo:
+        a.enRiesgo +
+        (f.veredicto === "NO_LLEGA" || f.veredicto === "APRETADO" ? 1 : 0),
+    }),
+    { cupos: 0, inscritos: 0, faltan: 0, porConseguir: 0, enRiesgo: 0 },
+  );
+
+  return (
+    <>
+      <div className="flex flex-wrap gap-2">
+        <CifraCompacta etiqueta="Acciones" valor={n(vivos.datos.length)} />
+        <CifraCompacta etiqueta="Cupos comprometidos" valor={n(t.cupos)} />
+        <CifraCompacta
+          etiqueta="Inscritos"
+          valor={n(t.inscritos)}
+          color="var(--exito)"
+          detalle={
+            t.cupos > 0 ? `${Math.round((t.inscritos / t.cupos) * 100)} %` : undefined
+          }
+        />
+        <CifraCompacta
+          etiqueta="Faltan"
+          valor={n(t.faltan)}
+          color={t.faltan > 0 ? "var(--error)" : undefined}
+        />
+        <CifraCompacta
+          etiqueta="Leads por conseguir"
+          valor={n(t.porConseguir)}
+          pie={t.enRiesgo > 0 ? `${n(t.enRiesgo)} acciones en riesgo` : undefined}
+        />
+      </div>
+
+      <Tabla
+        id="proyeccion-inscripciones"
+        columnas={columnasDeProyeccion}
+        filas={vivos.datos}
+        clave={(f) => f.accionFormacionId}
+        porPagina={25}
+        vacio="Aquí aparece cada acción de formación en cuanto tenga gente detrás."
+      />
+    </>
+  );
+}
+
+/**
+ * Las columnas de la proyección, en el orden en que se leen.
+ *
+ * DE IZQUIERDA A DERECHA SE SIGUE EL RAZONAMIENTO: qué se prometió,
+ * cuántos van, cuántos faltan, cuánto queda de plazo, a qué ritmo se
+ * viene inscribiendo, dónde acaba eso, y solo al final el veredicto.
+ * Puesto el veredicto primero, nadie mira el resto.
+ */
+const columnasDeProyeccion: Columna<FilaDeProyeccion>[] = [
+  {
+    clave: "accion",
+    titulo: "Acción de formación",
+    ancho: "260px",
+    valor: (f) => `${f.codigo ?? ""} ${f.nombre ?? ""}`.trim(),
+    pinta: (f) => (
+      <span className="flex min-w-0 items-baseline gap-2">
+        <span className="font-mono text-xs text-texto-suave">{f.codigo}</span>
+        <span className="truncate" title={f.nombre ?? ""}>
+          {f.nombre}
+        </span>
+      </span>
+    ),
+  },
+  {
+    clave: "cupos",
+    titulo: "Cupos",
+    ancho: "92px",
+    numerica: true,
+    valor: (f) => f.cupos,
+    pinta: (f) => <span className="tabular-nums">{n(f.cupos)}</span>,
+  },
+  {
+    clave: "inscritos",
+    titulo: "Inscritos",
+    ancho: "98px",
+    numerica: true,
+    valor: (f) => f.inscritos,
+    pinta: (f) => (
+      <span className="font-medium text-exito tabular-nums">{n(f.inscritos)}</span>
+    ),
+  },
+  {
+    clave: "faltan",
+    titulo: "Faltan",
+    ancho: "92px",
+    numerica: true,
+    valor: (f) => f.faltan,
+    pinta: (f) => (
+      <span
+        className={"font-semibold tabular-nums " + (f.faltan > 0 ? "text-error" : "")}
+      >
+        {n(f.faltan)}
+      </span>
+    ),
+  },
+  {
+    clave: "cierre",
+    titulo: "Cierra",
+    ancho: "158px",
+    valor: (f) => f.cierre ?? "",
+    pinta: (f) =>
+      f.cierre ? (
+        <span>
+          {dia(f.cierre)}
+          <span className="block text-xs text-texto-suave">
+            {f.diasRestantes === null
+              ? ""
+              : f.diasRestantes > 0
+                ? `quedan ${n(f.diasRestantes)} días de trabajo`
+                : `cerró hace ${n(-f.diasRestantes)} días`}
+          </span>
+        </span>
+      ) : (
+        /// Sin fecha de inicio no hay cierre que calcular, y eso no se
+        /// arregla inscribiendo: se arregla poniéndole fecha al grupo.
+        <span className="text-aviso">Sin fecha de inicio</span>
+      ),
+  },
+  {
+    clave: "metaDiaria",
+    titulo: "Meta diaria",
+    ancho: "110px",
+    numerica: true,
+    valor: (f) => f.metaDiaria,
+    pinta: (f) => (
+      <span className="font-semibold tabular-nums">
+        {f.metaDiaria === null ? "—" : n(f.metaDiaria)}
+      </span>
+    ),
+  },
+  {
+    clave: "ritmo",
+    titulo: "Viene inscribiendo",
+    ancho: "142px",
+    numerica: true,
+    valor: (f) => f.ritmoReal,
+    /// Con un decimal a propósito: aquí es una TASA y no un conteo, y
+    /// redondear 0,8 al día a «1» promete un ritmo que no tiene.
+    pinta: (f) => (
+      <span className="tabular-nums">
+        {dec(f.ritmoReal)}
+        <span className="text-xs text-texto-suave"> al día</span>
+      </span>
+    ),
+  },
+  {
+    clave: "proyeccion",
+    titulo: "Acabará en",
+    ancho: "112px",
+    numerica: true,
+    valor: (f) => f.proyeccion,
+    pinta: (f) => (
+      <span
+        className={
+          "font-semibold tabular-nums " +
+          (f.proyeccion >= f.cupos ? "text-exito" : "text-error")
+        }
+      >
+        {n(f.proyeccion)}
+      </span>
+    ),
+  },
+  {
+    clave: "conversion",
+    titulo: "Conversión",
+    ancho: "118px",
+    numerica: true,
+    valor: (f) => f.conversion,
+    pinta: (f) => (
+      <span className="tabular-nums">
+        {Math.round(f.conversion * 100)} %
+        {/* DE DÓNDE SALE, cuando no sale de ella misma. Con menos de
+            veinte leads su propia conversión no significa nada, así
+            que se usa el promedio general; decirlo evita que alguien
+            la compare con las demás creyendo que es suya. */}
+        {!f.conversionPropia && (
+          <span className="block text-xs text-texto-suave">del promedio</span>
+        )}
+      </span>
+    ),
+  },
+  {
+    clave: "porConseguir",
+    titulo: "Leads por conseguir",
+    ancho: "152px",
+    numerica: true,
+    valor: (f) => f.leadsPorConseguir,
+    pinta: (f) => (
+      <span className="tabular-nums">
+        <span className={f.leadsPorConseguir > 0 ? "font-semibold" : ""}>
+          {n(f.leadsPorConseguir)}
+        </span>
+        {/* Los que ya están abiertos son materia prima que YA se
+            tiene: salir a buscar los que hacen falta enteros, con
+            ocho en la mano, manda a la calle por ocho de más. */}
+        {f.abiertos > 0 && (
+          <span className="block text-xs text-texto-suave">
+            {n(f.abiertos)} abiertos
+          </span>
+        )}
+      </span>
+    ),
+  },
+  {
+    clave: "veredicto",
+    titulo: "¿Llega?",
+    ancho: "112px",
+    valor: (f) => VEREDICTO[f.veredicto].texto,
+    filtro: "opciones",
+    pinta: (f) => (
+      <span className="font-medium" style={{ color: VEREDICTO[f.veredicto].color }}>
+        {VEREDICTO[f.veredicto].texto}
       </span>
     ),
   },

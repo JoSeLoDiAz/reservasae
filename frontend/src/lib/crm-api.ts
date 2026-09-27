@@ -1446,6 +1446,41 @@ export type FilaDeAsesor = {
   porAccion?: CargaEnUnaAccion[];
 };
 
+/** Si una acción llega a sus cupos antes de cerrar, y con qué holgura. */
+export type Veredicto =
+  | "SIN_FECHA"
+  | "CERRADO"
+  | "CUBIERTO"
+  | "LLEGA"
+  | "APRETADO"
+  | "NO_LLEGA";
+
+/** Una acción de formación, proyectada hasta su cierre. */
+export type FilaDeProyeccion = {
+  accionFormacionId: string;
+  codigo: string | null;
+  nombre: string | null;
+  /// Lo comprometido con el SENA. Es el denominador de todo.
+  cupos: number;
+  inscritos: number;
+  faltan: number;
+  leads: number;
+  /// Los que siguen sin resolver: la materia prima que ya se tiene.
+  abiertos: number;
+  cierre: string | null;
+  /// Días de trabajo ---lunes a sábado--- hasta el cierre.
+  diasRestantes: number | null;
+  ritmoReal: number;
+  metaDiaria: number | null;
+  proyeccion: number;
+  conversion: number;
+  /// Si la conversión es la suya o la del promedio general.
+  conversionPropia: boolean;
+  leadsNecesarios: number;
+  leadsPorConseguir: number;
+  veredicto: Veredicto;
+};
+
 export type FilaDeAsesorAcademico = FilaDeAsesor & {
   grupos: number;
   certificados: number;
@@ -1507,11 +1542,15 @@ export const crmApi = {
   control: (ventana: FiltroVentana & Filtros = {}) =>
     pedir<Control>(`/admin/participantes/control${consulta(ventana)}`),
 
-  /// EL TABLERO DE ASESORES, en sus dos subvistas.
+  /// EL TABLERO DE ASESORES, en sus subvistas.
   asesoresDeInscripciones: () =>
     pedir<FilaDeAsesor[]>(`/admin/participantes/asesores/inscripciones`),
   asesoresAcademicos: () =>
     pedir<FilaDeAsesorAcademico[]>(`/admin/participantes/asesores/academicos`),
+  /// La proyección: aquí el asesor pasa a segundo plano y lo macro es
+  /// la acción de formación.
+  proyeccionDeInscripciones: () =>
+    pedir<FilaDeProyeccion[]>(`/admin/participantes/asesores/proyeccion`),
 
   /// EL RESUMEN GENERAL: siete cifras macro por acción de formación.
   /// Toma los mismos cortes que el resto de la pantalla.

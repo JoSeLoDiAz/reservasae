@@ -93,6 +93,25 @@ export function habilesAtras(desde: Date, cuantos: number): Date {
   return f;
 }
 
+/**
+ * Retrocede N DIAS DE TRABAJO ---lunes a sabado--- desde una fecha.
+ *
+ * El hermano de `diasDeTrabajoEntre`, y por el mismo motivo: la
+ * ventana en la que se mide el ritmo del equipo son seis dias por
+ * semana, no cinco. Contarla con `habilesAtras` la estiraria tres
+ * dias de calendario de mas y meteria dentro trabajo que no es de la
+ * ventana.
+ */
+export function diasDeTrabajoAtras(desde: Date, cuantos: number): Date {
+  const f = new Date(desde.getTime());
+  let quedan = cuantos;
+  while (quedan > 0) {
+    f.setUTCDate(f.getUTCDate() - 1);
+    if (f.getUTCDay() !== 0) quedan -= 1;
+  }
+  return f;
+}
+
 /** Retrocede N días de calendario desde una fecha. */
 function diasAtras(desde: Date, cuantos: number): Date {
   const f = new Date(desde.getTime());

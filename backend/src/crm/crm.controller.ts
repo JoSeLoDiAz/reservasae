@@ -309,6 +309,22 @@ export class CrmController {
     return soloLoSuyoSiNoVeElEquipo(filas, admin, ambito);
   }
 
+  /**
+   * SUBVISTA 3: la proyeccion de inscripciones, por accion.
+   *
+   * SIN `soloLoSuyoSiNoVeElEquipo`, y a proposito. Las dos rutas de
+   * arriba se recortan porque son NOMINALES ---cuanto lleva cada
+   * persona, su semaforo, si necesita refuerzo--- y eso solo lo ve
+   * quien responde por ella. Esta no lleva ni un nombre: son cupos,
+   * cierres y cuantos leads faltan por accion. Es justo lo que
+   * necesita saber quien trae leads, incluida la cuenta de la pauta.
+   */
+  @Get('asesores/proyeccion')
+  @Requiere('inscritos')
+  proyeccionDeInscripciones(@AmbitoActual() ambito: Ambito) {
+    return this.crm.proyeccionDeInscripciones(ambito);
+  }
+
   /** Cuantos inscritos hay y como se reparten. */
   @Get('control')
   @Requiere('inscritos')

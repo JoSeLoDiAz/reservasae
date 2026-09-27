@@ -68,6 +68,12 @@ import {
   type FilaDeAsesor,
   type FilaDeAsesorAcademico,
 } from './asesores-datos';
+import { diasDeTrabajoAtras, hoyEnColombia } from './calendario-inscripcion';
+import {
+  DIAS_DE_RITMO,
+  type FilaDeProyeccion,
+  proyectarInscripciones,
+} from './proyeccion';
 import { exigirQuienAsignaGrupo } from './quien-asigna-grupo';
 import {
   faltaDeLaEmpresa,
@@ -746,6 +752,95 @@ export class CrmService {
         accionNombre: l.accionFormacion?.nombre ?? null,
       })),
       cierrePorAccion(grupos),
+      ahora,
+    );
+  }
+
+  /**
+   * SUBVISTA 3: la proyeccion de inscripciones, por accion.
+   *
+   * Aqui el asesor pasa a segundo plano: lo macro es la accion, y la
+   * pregunta es si llega a sus cupos antes de cerrar.
+   *
+   * CUATRO CONSULTAS Y UNA FUNCION PURA. Se traen los leads, los
+   * cupos, las fechas de los grupos y quien se inscribio dentro de la
+   * ventana; el calculo vive en `proyeccion.ts`, con sus pruebas.
+   */
+  async proyeccionDeInscripciones(
+    ambito: Ambito,
+    ahora = new Date(),
+  ): Promise<FilaDeProyeccion[]> {
+    if (ambito.convenios.length === 0) return [];
+    const donde = { convenioId: { in: ambito.convenios } };
+
+    /// EL ARRANQUE DE LA VENTANA DEL RITMO, en dias de TRABAJO.
+    const desdeRitmo = diasDeTrabajoAtras(hoyEnColombia(ahora), DIAS_DE_RITMO);
+
+    const [leads, grupos, coberturas, movimientos] = await Promise.all([
+      this.prisma.participante.findMany({
+        where: donde,
+        select: {
+          etapa: true,
+          accionFormacionId: true,
+          accionFormacion: { select: { codigo: true, nombre: true } },
+        },
+      }),
+      this.prisma.grupo.findMany({
+        where: { accionFormacion: { convenioId: { in: ambito.convenios } } },
+        select: { accionFormacionId: true, fechaInicio: true, modalidad: true },
+      }),
+      /// LOS CUPOS COMPROMETIDOS salen de las coberturas, que es de
+      /// donde salen en Cronograma y en Control de Reservas. Contarlos
+      /// por mi cuenta daria una tercera cifra parecida a las otras
+      /// dos, que es como se acaba discutiendo cual es la buena.
+      this.prisma.grupoCobertura.findMany({
+        where: { grupo: { accionFormacion: { convenioId: { in: ambito.convenios } } } },
+        select: { cuposBase: true, grupo: { select: { accionFormacionId: true } } },
+      }),
+      /// CUANDO se inscribio cada uno. La etapa de hoy no lleva fecha
+      /// pegada, asi que el ritmo sale de los movimientos, que es
+      /// donde consta el paso.
+      this.prisma.movimientoParticipante.findMany({
+        where: {
+          creadoEn: { gte: desdeRitmo },
+          etapaDespues: { in: [...OCUPAN_SILLA] },
+          participante: donde,
+        },
+        select: {
+          participanteId: true,
+          participante: { select: { accionFormacionId: true } },
+        },
+      }),
+    ]);
+
+    const cupos = new Map<string, number>();
+    for (const c of coberturas) {
+      const id = c.grupo.accionFormacionId;
+      cupos.set(id, (cupos.get(id) ?? 0) + c.cuposBase);
+    }
+
+    /// UNA VEZ POR PERSONA. Quien paso a INSCRITO y luego a
+    /// EN_FORMACION deja dos movimientos dentro de la ventana, y
+    /// contarlos los dos doblaria su ritmo.
+    const yaContado = new Set<string>();
+    const inscritosRecientes = new Map<string, number>();
+    for (const m of movimientos) {
+      const id = m.participante.accionFormacionId;
+      if (!id || yaContado.has(m.participanteId)) continue;
+      yaContado.add(m.participanteId);
+      inscritosRecientes.set(id, (inscritosRecientes.get(id) ?? 0) + 1);
+    }
+
+    return proyectarInscripciones(
+      leads.map((l: (typeof leads)[number]) => ({
+        accionFormacionId: l.accionFormacionId,
+        codigo: l.accionFormacion?.codigo ?? null,
+        nombre: l.accionFormacion?.nombre ?? null,
+        etapa: l.etapa,
+      })),
+      cupos,
+      cierrePorAccion(grupos),
+      inscritosRecientes,
       ahora,
     );
   }
